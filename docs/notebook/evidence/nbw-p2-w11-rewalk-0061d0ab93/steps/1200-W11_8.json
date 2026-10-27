@@ -1,0 +1,371 @@
+{
+ "viewport": "1200",
+ "step": "W11.8",
+ "title": "Share a widget, a routine and a tracker from My tools",
+ "mode": "ON",
+ "checks": [
+  {
+   "what": "Widgets: the own row offers 'Share to library' and opens the same share preview",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "Widgets: Send -> 'Sent. UCT reviews every item before it's listed.'",
+   "ok": true,
+   "read": "Share to library\n×\n\nSent. UCT reviews every item before it's listed.\n\nDone"
+  },
+  {
+   "what": "Routines: the own row offers 'Share to library' and opens the same share preview",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "routine share carries item text only (no ticks/history)",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "Routines: Send -> 'Sent. UCT reviews every item before it's listed.'",
+   "ok": true,
+   "read": "Share to library\n×\n\nSent. UCT reviews every item before it's listed.\n\nDone"
+  },
+  {
+   "what": "Trackers: the own row offers 'Share to library' and opens the same share preview",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "tracker share carries name, kind and unit only",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "Trackers: Send -> 'Sent. UCT reviews every item before it's listed.'",
+   "ok": true,
+   "read": "Share to library\n×\n\nSent. UCT reviews every item before it's listed.\n\nDone"
+  },
+  {
+   "what": "the review queue lists 'Setup win rate 1200' waiting",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "the review queue lists 'Prep routine 1200' waiting",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "the review queue lists 'Sleep 1200' waiting",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "'Setup win rate 1200' is listed after approval",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "'Prep routine 1200' is listed after approval",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "'Sleep 1200' is listed after approval",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "B finds the listed widget 'Setup win rate 1200' (filtered by its type chip)",
+   "ok": true,
+   "read": "l\nResearch\nReview\nSort\nNewest\nMost adopted\nTrending this week\nCOMMUNITY\nSetup win rate 1200\nby Campaign P35 · Review\nWidget\n\nFor: Win rate, filtered by setup and hold days, for closed trades in the last 90 days, compared with the period before, all accounts.\n\nNew · Updated Oct 27\n\nUse\nHelpful\nReport"
+  },
+  {
+   "what": "the 'Setup win rate 1200' card carries the type chip 'Widget'",
+   "ok": true,
+   "read": "Setup win rate 1200\nby Campaign P35 · Review\nWidget\n\nFor: Win rate, filtered by setup and hold days, for closed trades i"
+  },
+  {
+   "what": "B adopts 'Setup win rate 1200': 'Added to My tools.'",
+   "ok": true,
+   "read": "Make it yours\n×\n\nBased on Campaign P35's Setup win rate 1200\n\nAdded to My tools.\n\nDone"
+  },
+  {
+   "what": "B finds the listed routine 'Prep routine 1200' (filtered by its type chip)",
+   "ok": true,
+   "read": " submissions\nFollowing\nAll\nOutlines\nStyles\nWidgets\nRoutines\nTrackers\nAll\nSwing\nDay\nProp\nOptions\nEarnings\nLong-term\nAll\nTrade plan\nJournal\nResearch\nReview\nSort\nNewest\nMost adopted\nTrending this week\nCOMMUNITY\nPrep routine 1200\nby Campaign P35 · Review\nRoutine\n\nNew · Updated Oct 27\n\nUse\nHelpful\nReport"
+  },
+  {
+   "what": "the 'Prep routine 1200' card carries the type chip 'Routine'",
+   "ok": true,
+   "read": "Prep routine 1200\nby Campaign P35 · Review\nRoutine\n\nNew · Updated Oct 27\n\nUse\nHelpful\nReport"
+  },
+  {
+   "what": "B adopts 'Prep routine 1200': 'Added to My tools.'",
+   "ok": true,
+   "read": "Make it yours\n×\n\nBased on Campaign P35's Prep routine 1200\n\nAdded to My tools.\n\nDone"
+  },
+  {
+   "what": "B finds the listed tracker 'Sleep 1200' (filtered by its type chip)",
+   "ok": true,
+   "read": "se\nYour submissions\nFollowing\nAll\nOutlines\nStyles\nWidgets\nRoutines\nTrackers\nAll\nSwing\nDay\nProp\nOptions\nEarnings\nLong-term\nAll\nTrade plan\nJournal\nResearch\nReview\nSort\nNewest\nMost adopted\nTrending this week\nCOMMUNITY\nSleep 1200\nby Campaign P35 · Review\nTracker\n\nNew · Updated Oct 27\n\nUse\nHelpful\nReport"
+  },
+  {
+   "what": "the 'Sleep 1200' card carries the type chip 'Tracker'",
+   "ok": true,
+   "read": "Sleep 1200\nby Campaign P35 · Review\nTracker\n\nNew · Updated Oct 27\n\nUse\nHelpful\nReport"
+  },
+  {
+   "what": "B adopts 'Sleep 1200': 'Added to My tools.'",
+   "ok": true,
+   "read": "Make it yours\n×\n\nBased on Campaign P35's Sleep 1200\n\nAdded to My tools.\n\nDone"
+  },
+  {
+   "what": "adopting adds exactly one copy of 'Setup win rate 1200' to B's My tools",
+   "ok": true,
+   "read": "1 -> 2"
+  },
+  {
+   "what": "adopting adds exactly one copy of 'Prep routine 1200' to B's My tools",
+   "ok": true,
+   "read": "1 -> 2"
+  },
+  {
+   "what": "adopting adds exactly one copy of 'Sleep 1200' to B's My tools",
+   "ok": true,
+   "read": "1 -> 2"
+  },
+  {
+   "what": "B's Widgets row for 'Setup win rate 1200' carries the credit line",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "B's copy of 'Setup win rate 1200' offers NO 'Share to library'",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "B's Routines row for 'Prep routine 1200' carries the credit line",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "B's copy of 'Prep routine 1200' offers NO 'Share to library'",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "B's Trackers row for 'Sleep 1200' carries the credit line",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "B's copy of 'Sleep 1200' offers NO 'Share to library'",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "B's adopted routine carries A's item text",
+   "ok": true,
+   "read": "[{\"id\": \"e15f45c7-9a58-4184-b0cf-4e07e72a7f3e\", \"text\": \"Check futures\", \"negative\": false, \"suggest\": null}, {\"id\": \"ce778a97-7135-4a88-9691-2178e1b856c9\", \"text\": \"Mark my levels\", \"negative\": false, \"suggest\": null}, {\"id\": \"ac9af467-a19d-43fc-934c-f8b63233df14\", \"text\": \"Size my risk\", \"negative\": false, \"suggest\": null}]"
+  },
+  {
+   "what": "B's adopted tracker carries name, kind and unit",
+   "ok": true,
+   "read": "{\"name\": \"Sleep 1200\", \"kind\": \"number\", \"unit\": \"h\"}"
+  }
+ ],
+ "rendered": [
+  {
+   "what": "share preview (Widgets)",
+   "text": "Share to library\n×\nWhat will be shared\nName\n\nA name can be at most 80 characters.\n\nDescription\n\nA description can be at most 280 characters.\n\nHold days: Share this number (2)\n\nPeople who use it pick their own: Setup, Number\n\nNot shared\nYour setups are left out; people pick their own.\nYour numbers are left out; people type their own.\nYour own title and subtitle are left out.\nExactly what travels\n\nName: Setup win rate 1200\n\nDescription: Win rate, filtered by setup and hold days, for closed trades in the last 90 days, compared with the period before, all accounts.\n\nShown as: Number with comparison\n\nCancel\nSend for review"
+  },
+  {
+   "what": "share preview (Routines)",
+   "text": "Share to library\n×\nWhat will be shared\nName\n\nA name can be at most 80 characters.\n\nItems\n\nAn item can be at most 200 characters.\n\nNot shared\nYour ticks, history and reminders are left out.\nExactly what travels\n\nName: Prep routine 1200\n\nItems:\n\nCheck futures\nMark my levels\nSize my risk\n\nWhen: Every trading day\n\nCancel\nSend for review"
+  },
+  {
+   "what": "share preview (Trackers)",
+   "text": "Share to library\n×\nWhat will be shared\nName\n\nA name can be at most 80 characters.\n\nUnit\n\nA unit can be at most 16 characters.\n\nNot shared\nYour logged values are left out.\nExactly what travels\n\nName: Sleep 1200\n\nType: Number\n\nUnit: h\n\nDays: Trading days\n\nCancel\nSend for review"
+  },
+  {
+   "what": "review queue",
+   "text": "New note\n×\nStart from audio\nVoice note\nUpload recording\nFrom a Desk session\nTrade-plan canvas\nA board for a chart, your entry, stop and target, and notes — then link it from your thesis.\nBack to templates\nCommunity gallery\n\nTemplates other members shared, reviewed by UCT before they are listed. Using one copies it into Your templates; it is yours to change.\n\nBrowse\nYour submissions\nReview queue\nFollowing\nWAITING FOR REVIEW (3)\nSetup win rate 1200\nby Campaign P35 · Review\n\nWin rate, filtered by setup and hold days, for closed trades in the last 90 days, compared with the period before, all accounts.\n\nPreview\nApprove\nReject…\nPrep routine 1200\nby Campaign P35 · Review\nPreview\nApprove\nReject…\nSleep 1200\nby Campaign P35 · Review\nPreview\nApprove\nReject…\nREPORTED (0)\n\nNo open reports.\n\nHIDDEN (0)\n\nNothing is hidden."
+  },
+  {
+   "what": "B's copies by name, before -> after",
+   "text": "[{\"Setup win rate 1200\": 1, \"Prep routine 1200\": 1, \"Sleep 1200\": 1}, {\"Setup win rate 1200\": 2, \"Prep routine 1200\": 2, \"Sleep 1200\": 2}]"
+  },
+  {
+   "what": "B My tools > Widgets",
+   "text": "My tools\n×\nWidgets\nRoutines\nTrackers\nTemplates\n\nActive\nArchived\nRecently deleted\nBuild a widget\n3 WIDGETS\nSetup win rate 1200\n, Number with comparison\nWin rate, filtered by setup, for closed trades in the last 90 days, compared with the period before, all accounts.\nNot in any note\n·\nEdited today\n·\nBased on Campaign P35's Setup win rate 1200\nOpen\nDaily P&L bars\n, Bar\nNet P&L, split by day, for closed trades in the last 30 days, all accounts.\nUsed in 1 note\n·\nEdited today\n·\nBased on Campaign P35's Share source 1200\nOpen\nSetup win rate 1200\n, Number with comparison\nWin rate, filtered by setup and hold days, for closed trades in the last 90 days, compared with the period before, all accounts.\nUsed in 1 note\n·\nEdited today\n·\nBased on Campaign P35's Share source 1200\nOpen\nChart sets and presets have their own place.\nManage chart sets"
+  },
+  {
+   "what": "B My tools > Routines",
+   "text": "My tools\n×\nWidgets\nRoutines\nTrackers\nTemplates\n\nActive\nArchived\nRecently deleted\nNew routine\n2 ROUTINES\nPrep routine 1200\nEvery trading day\n·\nNot in any note\n·\nEdited today\n·\nBased on Campaign P35's Prep routine 1200\nOpen\nPrep routine 1200\nEvery trading day\n·\nUsed in 1 note\n·\nEdited today\n·\nFrom template: Share source 1200\n·\nBased on Campaign P35's Share source 1200\nOpen"
+  },
+  {
+   "what": "B My tools > Trackers",
+   "text": "My tools\n×\nWidgets\nRoutines\nTrackers\nTemplates\n\nActive\nArchived\nRecently deleted\nNew tracker\n4 TRACKERS\nCheck-in mood\nFrom your check-ins\n·\n1-5 scale\nOpen\nCheck-in focus\nFrom your check-ins\n·\n1-5 scale\nOpen\nSleep 1200\nNumber · h\n·\nNot in any note\n·\nEdited today\n·\nBased on Campaign P35's Sleep 1200\nOpen\nSleep 1200\nNumber · h\n·\nUsed in 1 note\n·\nEdited today\n·\nFrom template: Share source 1200\n·\nBased on Campaign P35's Share source 1200\nOpen"
+  }
+ ],
+ "verdict": "PASS",
+ "notes": [],
+ "events": {
+  "A": [],
+  "admin-w118": [],
+  "B": []
+ },
+ "metrics": {
+  "share-widgets": {
+   "overflow": {
+    "vw": 1200,
+    "docScrollWidth": 1200,
+    "bodyScrollWidth": 1200,
+    "inner": [
+     [
+      1140,
+      1140
+     ],
+     [
+      1092,
+      1092
+     ],
+     [
+      826,
+      826
+     ]
+    ],
+    "horizontal": false,
+    "offenders": []
+   },
+   "raw_block": [],
+   "axe_sheet": {
+    "version": "4.13.0",
+    "scope": "[data-walk-scope=\"1\"]",
+    "violations": []
+   },
+   "axe_page": {
+    "version": "4.13.0",
+    "scope": "body",
+    "violations": []
+   }
+  },
+  "share-routines": {
+   "overflow": {
+    "vw": 1200,
+    "docScrollWidth": 1200,
+    "bodyScrollWidth": 1200,
+    "inner": [
+     [
+      1140,
+      1140
+     ],
+     [
+      1092,
+      1092
+     ],
+     [
+      826,
+      826
+     ]
+    ],
+    "horizontal": false,
+    "offenders": []
+   },
+   "raw_block": [],
+   "axe_sheet": {
+    "version": "4.13.0",
+    "scope": "[data-walk-scope=\"1\"]",
+    "violations": []
+   },
+   "axe_page": {
+    "version": "4.13.0",
+    "scope": "body",
+    "violations": []
+   }
+  },
+  "share-trackers": {
+   "overflow": {
+    "vw": 1200,
+    "docScrollWidth": 1200,
+    "bodyScrollWidth": 1200,
+    "inner": [
+     [
+      1140,
+      1140
+     ],
+     [
+      1092,
+      1092
+     ],
+     [
+      826,
+      826
+     ]
+    ],
+    "horizontal": false,
+    "offenders": []
+   },
+   "raw_block": [],
+   "axe_sheet": {
+    "version": "4.13.0",
+    "scope": "[data-walk-scope=\"1\"]",
+    "violations": []
+   },
+   "axe_page": {
+    "version": "4.13.0",
+    "scope": "body",
+    "violations": []
+   }
+  },
+  "review": {
+   "overflow": {
+    "vw": 1200,
+    "docScrollWidth": 1200,
+    "bodyScrollWidth": 1200,
+    "inner": [
+     [
+      1140,
+      1140
+     ],
+     [
+      1092,
+      1092
+     ],
+     [
+      826,
+      826
+     ]
+    ],
+    "horizontal": false,
+    "offenders": []
+   },
+   "raw_block": [],
+   "axe_sheet": {
+    "version": "4.13.0",
+    "scope": "[data-walk-scope=\"1\"]",
+    "violations": []
+   },
+   "axe_page": {
+    "version": "4.13.0",
+    "scope": "body",
+    "violations": []
+   }
+  }
+ },
+ "screenshots": [
+  "1200/W11_8-share-widgets.png",
+  "1200/W11_8-share-routines.png",
+  "1200/W11_8-share-trackers.png",
+  "1200/W11_8-review.png",
+  "1200/W11_8-adopt-widgets.png",
+  "1200/W11_8-adopt-routines.png",
+  "1200/W11_8-adopt-trackers.png"
+ ],
+ "requests_note_put": 0,
+ "started": "2026-10-27T09:44:51",
+ "findings": [],
+ "partial": false,
+ "finished": "2026-10-27T09:47:46"
+}

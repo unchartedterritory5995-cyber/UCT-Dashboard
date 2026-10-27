@@ -1,0 +1,111 @@
+{
+ "viewport": "820",
+ "step": "D2",
+ "title": "D2 first open of a template-made note writes only the self-archive fallback (PUTPROBE)",
+ "mode": "ON",
+ "checks": [
+  {
+   "what": "D1 D2 Use: after Use no sheet is left open over the new note",
+   "ok": true,
+   "read": "[]"
+  },
+  {
+   "what": "D1 D2 Use: focus is the new note's title",
+   "ok": true,
+   "read": "{\"tag\": \"INPUT\", \"placeholder\": \"Title\", \"aria\": \"Note title\", \"cls\": \"_titleInput_wfbxs_459\", \"value\": \"\", \"inertAncestor\": false, \"rootInert\": false, \"inDialog\": false, \"visible\": true}"
+  },
+  {
+   "what": "D1 D2 Use: the focused title has no inert ancestor (and #root is not inert)",
+   "ok": true,
+   "read": "{\"tag\": \"INPUT\", \"placeholder\": \"Title\", \"aria\": \"Note title\", \"cls\": \"_titleInput_wfbxs_459\", \"value\": \"\", \"inertAncestor\": false, \"rootInert\": false, \"inDialog\": false, \"visible\": true}"
+  },
+  {
+   "what": "D2: the first open's only stored change is the Market context self-archive's new `fallback` (null -> image)",
+   "ok": false,
+   "read": "[[\".content[2].attrs.params.snapshot.exposure\", 72.0, \"72\", \"prepWire\"], [\".content[3].attrs.params.readings.breadthScore\", 62.0, \"62\", \"marketcontext\"], [\".content[3].attrs.params.readings.exposureScore\", 72.0, \"72\", \"marketcontext\"], [\".content[3].attrs.params.readings.pctAbove200\", 55.0, \"55\", \"marketcontext\"], [\".content[3].attrs.params.readings.pctAbove50\", 61.0, \"61\", \"marketcontext\"], [\".content[13].attrs.tradeRefType\", null, \"<absent>\", \"routine\"]]"
+  },
+  {
+   "what": "D2: at most one note PUT on the first open",
+   "ok": true,
+   "read": "1"
+  },
+  {
+   "what": "D2: then zero: re-opening it (reload, 15 s) sends no note PUT and changes nothing",
+   "ok": true,
+   "read": "[]"
+  }
+ ],
+ "rendered": [
+  {
+   "what": "D1 D2 Use: document.activeElement after Use",
+   "text": "{\"tag\": \"INPUT\", \"placeholder\": \"Title\", \"aria\": \"Note title\", \"cls\": \"_titleInput_wfbxs_459\", \"value\": \"\", \"inertAncestor\": false, \"rootInert\": false, \"inDialog\": false, \"visible\": true}"
+  },
+  {
+   "what": "first open: note PUTs",
+   "text": "[{\"t\": \"10:06:00\", \"m\": \"PUT\", \"u\": \"127.0.0.1:8171/api/j2/notes/2f2a369e9194487a99f05cbc77d4050d\"}]"
+  },
+  {
+   "what": "first open: every stored change (path, before, after)",
+   "text": "[[\".content[2].attrs.params.snapshot.exposure\", 72.0, \"72\"], [\".content[3].attrs.fallback\", null, \"{'url': '/api/j2/notes/attachments/ad338187-c9fe-4b64-9187-25bfb0edcd14/2f2a369e9194487a99f05cbc77d4050d/inline/9921b7f086e28de2557f0ddbd01ee1f3.png', 'w': 376, 'h': 300}\"], [\".content[3].attrs.params.readings.breadthScore\", 62.0, \"62\"], [\".content[3].attrs.params.readings.exposureScore\", 72.0, \"72\"], [\".content[3].attrs.params.readings.pctAbove200\", 55.0, \"55\"], [\".content[3].attrs.params.readings.pctAbove50\", 61.0, \"61\"], [\".content[13].attrs.tradeRefType\", null, \"<absent>\"]]"
+  },
+  {
+   "what": "PUT 10:06:00: what the request body changes against the created note",
+   "text": "[[\".content[2].attrs.params.snapshot.exposure\", 72.0, \"72\"], [\".content[3].attrs.fallback\", null, \"{'url': '/api/j2/notes/attachments/ad338187-c9fe-4b64-9187-25bfb0edcd14/2f2a369e9194487a99f05cbc77d4050d/inline/9921b7f086e28de2557f0ddbd01ee1f3.png', 'w': 376, 'h': 300}\"], [\".content[3].attrs.params.readings.breadthScore\", 62.0, \"62\"], [\".content[3].attrs.params.readings.exposureScore\", 72.0, \"72\"], [\".content[3].attrs.params.readings.pctAbove200\", 55.0, \"55\"], [\".content[3].attrs.params.readings.pctAbove50\", 61.0, \"61\"], [\".content[13].attrs.tradeRefType\", null, \"<absent>\"]]"
+  },
+  {
+   "what": "reload: note PUTs",
+   "text": "[]"
+  }
+ ],
+ "verdict": "FAIL",
+ "notes": [],
+ "events": {
+  "P14": []
+ },
+ "metrics": {
+  "note": {
+   "overflow": {
+    "vw": 820,
+    "docScrollWidth": 820,
+    "bodyScrollWidth": 820,
+    "inner": [
+     [
+      820,
+      820
+     ],
+     [
+      772,
+      772
+     ],
+     [
+      506,
+      506
+     ]
+    ],
+    "horizontal": false,
+    "offenders": []
+   },
+   "raw_block": [],
+   "axe_page": {
+    "version": "4.13.0",
+    "scope": "body",
+    "violations": []
+   },
+   "tap": {
+    "scope": "body",
+    "controls": 90,
+    "small": [],
+    "smallCount": 0,
+    "pointerCoarse": true
+   }
+  }
+ },
+ "screenshots": [
+  "820/D2-main.png"
+ ],
+ "requests_note_put": 0,
+ "started": "2026-10-27T10:05:32",
+ "findings": [],
+ "partial": false,
+ "finished": "2026-10-27T10:06:20"
+}

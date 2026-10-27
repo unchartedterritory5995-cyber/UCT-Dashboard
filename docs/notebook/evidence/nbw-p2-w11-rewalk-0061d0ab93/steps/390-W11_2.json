@@ -1,0 +1,246 @@
+{
+ "viewport": "390",
+ "step": "W11.2",
+ "title": "Use -> create the routine -> tick -> reload",
+ "mode": "ON",
+ "checks": [
+  {
+   "what": "A has no routine: only 'Create Pre-market routine from the template' is offered",
+   "ok": true,
+   "read": "[{\"label\": \"Create Pre-market routine from the template\", \"checked\": true}]"
+  },
+  {
+   "what": "chose 'Create Pre-market routine from the template'",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "D1 W11.2: after Use no sheet is left open over the new note",
+   "ok": true,
+   "read": "[]"
+  },
+  {
+   "what": "D1 W11.2: focus is the new note's title",
+   "ok": true,
+   "read": "{\"tag\": \"INPUT\", \"placeholder\": \"Title\", \"aria\": \"Note title\", \"cls\": \"_titleInput_wfbxs_459\", \"value\": \"\", \"inertAncestor\": false, \"rootInert\": false, \"inDialog\": false, \"visible\": true}"
+  },
+  {
+   "what": "D1 W11.2: the focused title has no inert ancestor (and #root is not inert)",
+   "ok": true,
+   "read": "{\"tag\": \"INPUT\", \"placeholder\": \"Title\", \"aria\": \"Note title\", \"cls\": \"_titleInput_wfbxs_459\", \"value\": \"\", \"inertAncestor\": false, \"rootInert\": false, \"inDialog\": false, \"visible\": true}"
+  },
+  {
+   "what": "navigated to a new note holding the prep blocks",
+   "ok": true,
+   "read": "http://127.0.0.1:8171/journal/notebook?note=040f6cf9ef954bc187737d324a093b65"
+  },
+  {
+   "what": "the routine block is bound to the note's day ('For Tue Oct 27')",
+   "ok": true,
+   "read": "For Tue Oct 27\nNot yet\n\nRead the morning wire\nCheck today's economic calendar\nReview open positions and stops\nMark key levels on my watchlist\nSet my max loss for today\nSkip this day\nP&L on days you fi"
+  },
+  {
+   "what": "no raw {{block:..}} placeholder in the note",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "snapshot blocks are filled (numbers, not placeholders)",
+   "ok": true,
+   "read": "The market this morning\n\nRead the wire and note the tone before you look at a single name.\n\nMorning wire and exposure\nRemove\n\nInvented copy so the Morning Wire renders addressable segments for gesture testing.\n\nExposure 72 (Yellow)\n\nWire of Jan 2, 2026\n\nCaptured Oct 27, 2026, 11:11 AM ET\n\nCapture ag"
+  },
+  {
+   "what": "the routine items are reachable by Tab",
+   "ok": true,
+   "read": "Read the morning wire"
+  },
+  {
+   "what": "Space toggles the item (the tick shows)",
+   "ok": true,
+   "read": "true"
+  },
+  {
+   "what": "ticking sends ZERO note PUTs (§6.2)",
+   "ok": true,
+   "read": "[]"
+  },
+  {
+   "what": "after reload the tick is still there",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "after reload the note shows no unsaved change (updatedAt unchanged by open + tick)",
+   "ok": true,
+   "read": "2026-10-27T15:11:51.779076+00:00 -> 2026-10-27T15:11:51.779076+00:00"
+  },
+  {
+   "what": "no note PUT across tick + reload",
+   "ok": true,
+   "read": "[]"
+  }
+ ],
+ "rendered": [
+  {
+   "what": "adopt sheet",
+   "text": "Make it yours\n×\n\nBased on UCT's Pre-market prep\n\nPre-market routine\nCreate Pre-market routine from the template\nPreview with your data\n\nPre-market routine\n\nRead the morning wire\nCheck today's economic calendar\nReview open positions and stops\nMark key levels on my watchlist\nSet my max loss for today\n\nFor Tue Oct 27\n\nCancel\nUse"
+  },
+  {
+   "what": "reuse question radios",
+   "text": "[{\"label\": \"Create Pre-market routine from the template\", \"checked\": true}]"
+  },
+  {
+   "what": "A's routines before",
+   "text": "[]"
+  },
+  {
+   "what": "D1 W11.2: document.activeElement after Use",
+   "text": "{\"tag\": \"INPUT\", \"placeholder\": \"Title\", \"aria\": \"Note title\", \"cls\": \"_titleInput_wfbxs_459\", \"value\": \"\", \"inertAncestor\": false, \"rootInert\": false, \"inDialog\": false, \"visible\": true}"
+  },
+  {
+   "what": "new note",
+   "text": "The market this morning\n\nRead the wire and note the tone before you look at a single name.\n\nMorning wire and exposure\nRemove\n\nInvented copy so the Morning Wire renders addressable segments for gesture testing.\n\nExposure 72 (Yellow)\n\nWire of Jan 2, 2026\n\nCaptured Oct 27, 2026, 11:11 AM ET\n\nCapture again\n‹\n⋯\nMore\nMARKET CONTEXT\nMarket phase\n—\nUCT Exposure\n72\nBreadth score\n62\nDistribution days\n0\n% above 50-day\n61%\n% above 200-day\n55%\nPower trend\n—\nRegime\nYellow\nUCT Exposure Rating, as of 2026-01-02\nSPY\nNo SPY quote could be read just now.\nQQQ\n712.20 (+1.11%) · last close\nLast close, Oct 26, 2026, 4:00 PM ET\nVIX\nVIX unavailable\nTo see your notes by the regime they were written in, open your notes as a Board and group by \"Regime when written\".\nWire 2026-01-02 · updated 11:11 AM ET\n\nYour names today\n\nWhich names on your list are in play, and which of them report?\n\n‹\n⋯\nMore\nMy watchlist today\nSnapshot\nas of Oct 27, 2026, 11:11 AM ET\nNot shown on shared pages\nSee it now\nChange\nSave these settings as a preset\n\nNo names on this list yet.\n\nPrices: live market data, delayed. Earnings dates: UCT calendar.\n\nFrom your Flagged list.\n\n‹\n⋯\nMore\nMy names reporting\nSnapshot\nas of Oct 27, 2026, 11:11 AM ET\nNot shown on shared pages\nSee it now\nSave these settings as a preset\n\nNone of your names report in the next seven days.\n\nEarnings dates: UCT calendar. Expected move: options market.\n\nOnly names on your watchlists or in your positions.\n\nLevels\n\nThe prices that would make you act today.\n\nKey leve"
+  },
+  {
+   "what": "focus before Tab",
+   "text": "Note body | tiptap ProseMirror _proseEditor_wfbxs_485 ProseMirror-focused"
+  }
+ ],
+ "verdict": "PASS",
+ "notes": [
+  "Plan W11.2 says 'two built widgets FILLED'; the served Pre-market prep holds contains=[['Pre-market routine']] (no built widget), so the filled-widget check reads the snapshot blocks instead (wire, market context, levels)."
+ ],
+ "events": {
+  "A": []
+ },
+ "metrics": {
+  "adopt": {
+   "overflow": {
+    "vw": 390,
+    "docScrollWidth": 390,
+    "bodyScrollWidth": 390,
+    "inner": [
+     [
+      390,
+      390
+     ],
+     [
+      342,
+      342
+     ],
+     [
+      342,
+      342
+     ]
+    ],
+    "horizontal": false,
+    "offenders": [
+     {
+      "tag": "LI",
+      "cls": "_libraryCard_1hb5o_436",
+      "text": "Mid-day and risk check\nTemplate\n\nUCT\n\nFo",
+      "right": 505
+     },
+     {
+      "tag": "H5",
+      "cls": "_previewTitle_1hb5o_363",
+      "text": "Mid-day and risk check",
+      "right": 492
+     },
+     {
+      "tag": "DIV",
+      "cls": "_facts_1hb5o_383",
+      "text": "Template\n\nUCT\n\nFor: Today's P&L, open ri",
+      "right": 492
+     },
+     {
+      "tag": "P",
+      "cls": "_factLine_1hb5o_390",
+      "text": "UCT",
+      "right": 492
+     },
+     {
+      "tag": "P",
+      "cls": "_factLine_1hb5o_390",
+      "text": "For: Today's P&L, open risk and room lef",
+      "right": 492
+     },
+     {
+      "tag": "P",
+      "cls": "_factLine_1hb5o_390",
+      "text": "New · Updated Oct 27",
+      "right": 492
+     }
+    ]
+   },
+   "raw_block": [],
+   "axe_sheet": {
+    "version": "4.13.0",
+    "scope": "[data-walk-scope=\"1\"]",
+    "violations": []
+   },
+   "axe_page": {
+    "version": "4.13.0",
+    "scope": "body",
+    "violations": []
+   },
+   "tap": {
+    "scope": "[data-walk-scope=\"1\"]",
+    "controls": 4,
+    "small": [],
+    "smallCount": 0,
+    "pointerCoarse": true
+   }
+  },
+  "note": {
+   "overflow": {
+    "vw": 390,
+    "docScrollWidth": 390,
+    "bodyScrollWidth": 390,
+    "inner": [
+     [
+      390,
+      390
+     ],
+     [
+      342,
+      342
+     ],
+     [
+      342,
+      342
+     ]
+    ],
+    "horizontal": false,
+    "offenders": []
+   },
+   "raw_block": [],
+   "axe_sheet": {
+    "version": "4.13.0",
+    "scope": "[data-routine-block]",
+    "violations": []
+   },
+   "axe_page": {
+    "version": "4.13.0",
+    "scope": "body",
+    "violations": []
+   },
+   "tap": {
+    "scope": "[data-routine-block]",
+    "controls": 8,
+    "small": [],
+    "smallCount": 0,
+    "pointerCoarse": true
+   }
+  }
+ },
+ "screenshots": [
+  "390/W11_2-adopt.png",
+  "390/W11_2-main.png"
+ ],
+ "requests_note_put": 0,
+ "started": "2026-10-27T10:11:42",
+ "findings": [],
+ "partial": false,
+ "finished": "2026-10-27T10:12:13"
+}

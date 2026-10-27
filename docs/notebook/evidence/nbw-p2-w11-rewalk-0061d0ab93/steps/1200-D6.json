@@ -1,0 +1,640 @@
+{
+ "viewport": "1200",
+ "step": "D6",
+ "title": "D6 the page behind an open Sheet is inert; no top-bar contrast finding",
+ "mode": "ON",
+ "checks": [
+  {
+   "what": "D6 light picker: #root is inert while the sheet is open",
+   "ok": true,
+   "read": "{\"rootInert\": true, \"dialogs\": [{\"label\": \"New note\", \"inert\": false, \"z\": \"1000\"}], \"bodyChildren\": [{\"id\": \"root\", \"cls\": \"\", \"inert\": true, \"keep\": null, \"z\": \"auto\"}, {\"id\": \"\", \"cls\": \"_backdrop_futca_1 _modal_futca_25\", \"inert\": false, \"keep\": null, \"z\": \"1000\"}]}"
+  },
+  {
+   "what": "D6 light picker: the open sheet itself is not inert",
+   "ok": true,
+   "read": "[{\"label\": \"New note\", \"inert\": false, \"z\": \"1000\"}]"
+  },
+  {
+   "what": "D6 light picker: axe color-contrast has no finding (the top bar title behind the sheet included)",
+   "ok": true,
+   "read": "[]"
+  },
+  {
+   "what": "D6 light picker: after closing it #root is live again",
+   "ok": true,
+   "read": "{\"rootInert\": false, \"dialogs\": [], \"bodyChildren\": [{\"id\": \"root\", \"cls\": \"\", \"inert\": false, \"keep\": null, \"z\": \"auto\"}]}"
+  },
+  {
+   "what": "D6 light mytools: #root is inert while the sheet is open",
+   "ok": true,
+   "read": "{\"rootInert\": true, \"dialogs\": [{\"label\": \"My tools\", \"inert\": false, \"z\": \"1000\"}], \"bodyChildren\": [{\"id\": \"root\", \"cls\": \"\", \"inert\": true, \"keep\": null, \"z\": \"auto\"}, {\"id\": \"\", \"cls\": \"\", \"inert\": true, \"keep\": null, \"z\": \"auto\"}, {\"id\": \"\", \"cls\": \"_backdrop_futca_1 _modal_futca_25\", \"inert\": "
+  },
+  {
+   "what": "D6 light mytools: the open sheet itself is not inert",
+   "ok": true,
+   "read": "[{\"label\": \"My tools\", \"inert\": false, \"z\": \"1000\"}]"
+  },
+  {
+   "what": "D6 light mytools: axe color-contrast has no finding (the top bar title behind the sheet included)",
+   "ok": true,
+   "read": "[]"
+  },
+  {
+   "what": "D6 light mytools: after closing it #root is live again",
+   "ok": true,
+   "read": "{\"rootInert\": false, \"dialogs\": [], \"bodyChildren\": [{\"id\": \"root\", \"cls\": \"\", \"inert\": false, \"keep\": null, \"z\": \"auto\"}]}"
+  },
+  {
+   "what": "D6 light gallery: #root is inert while the sheet is open",
+   "ok": true,
+   "read": "{\"rootInert\": true, \"dialogs\": [{\"label\": \"New note\", \"inert\": false, \"z\": \"1000\"}], \"bodyChildren\": [{\"id\": \"root\", \"cls\": \"\", \"inert\": true, \"keep\": null, \"z\": \"auto\"}, {\"id\": \"\", \"cls\": \"_backdrop_futca_1 _modal_futca_25\", \"inert\": false, \"keep\": null, \"z\": \"1000\"}]}"
+  },
+  {
+   "what": "D6 light gallery: the open sheet itself is not inert",
+   "ok": true,
+   "read": "[{\"label\": \"New note\", \"inert\": false, \"z\": \"1000\"}]"
+  },
+  {
+   "what": "D6 light gallery: axe color-contrast has no finding (the top bar title behind the sheet included)",
+   "ok": true,
+   "read": "[]"
+  },
+  {
+   "what": "D6 light gallery: after closing it #root is live again",
+   "ok": true,
+   "read": "{\"rootInert\": false, \"dialogs\": [], \"bodyChildren\": [{\"id\": \"root\", \"cls\": \"\", \"inert\": false, \"keep\": null, \"z\": \"auto\"}]}"
+  },
+  {
+   "what": "D6 dark picker: #root is inert while the sheet is open",
+   "ok": true,
+   "read": "{\"rootInert\": true, \"dialogs\": [{\"label\": \"New note\", \"inert\": false, \"z\": \"1000\"}], \"bodyChildren\": [{\"id\": \"root\", \"cls\": \"\", \"inert\": true, \"keep\": null, \"z\": \"auto\"}, {\"id\": \"\", \"cls\": \"_backdrop_futca_1 _modal_futca_25\", \"inert\": false, \"keep\": null, \"z\": \"1000\"}]}"
+  },
+  {
+   "what": "D6 dark picker: the open sheet itself is not inert",
+   "ok": true,
+   "read": "[{\"label\": \"New note\", \"inert\": false, \"z\": \"1000\"}]"
+  },
+  {
+   "what": "D6 dark picker: axe color-contrast has no finding (the top bar title behind the sheet included)",
+   "ok": true,
+   "read": "[]"
+  },
+  {
+   "what": "D6 dark picker: after closing it #root is live again",
+   "ok": true,
+   "read": "{\"rootInert\": false, \"dialogs\": [], \"bodyChildren\": [{\"id\": \"root\", \"cls\": \"\", \"inert\": false, \"keep\": null, \"z\": \"auto\"}]}"
+  },
+  {
+   "what": "D6 dark mytools: #root is inert while the sheet is open",
+   "ok": true,
+   "read": "{\"rootInert\": true, \"dialogs\": [{\"label\": \"My tools\", \"inert\": false, \"z\": \"1000\"}], \"bodyChildren\": [{\"id\": \"root\", \"cls\": \"\", \"inert\": true, \"keep\": null, \"z\": \"auto\"}, {\"id\": \"\", \"cls\": \"\", \"inert\": true, \"keep\": null, \"z\": \"auto\"}, {\"id\": \"\", \"cls\": \"_backdrop_futca_1 _modal_futca_25\", \"inert\": "
+  },
+  {
+   "what": "D6 dark mytools: the open sheet itself is not inert",
+   "ok": true,
+   "read": "[{\"label\": \"My tools\", \"inert\": false, \"z\": \"1000\"}]"
+  },
+  {
+   "what": "D6 dark mytools: axe color-contrast has no finding (the top bar title behind the sheet included)",
+   "ok": true,
+   "read": "[]"
+  },
+  {
+   "what": "D6 dark mytools: after closing it #root is live again",
+   "ok": true,
+   "read": "{\"rootInert\": false, \"dialogs\": [], \"bodyChildren\": [{\"id\": \"root\", \"cls\": \"\", \"inert\": false, \"keep\": null, \"z\": \"auto\"}]}"
+  },
+  {
+   "what": "D6 dark gallery: #root is inert while the sheet is open",
+   "ok": true,
+   "read": "{\"rootInert\": true, \"dialogs\": [{\"label\": \"New note\", \"inert\": false, \"z\": \"1000\"}], \"bodyChildren\": [{\"id\": \"root\", \"cls\": \"\", \"inert\": true, \"keep\": null, \"z\": \"auto\"}, {\"id\": \"\", \"cls\": \"_backdrop_futca_1 _modal_futca_25\", \"inert\": false, \"keep\": null, \"z\": \"1000\"}]}"
+  },
+  {
+   "what": "D6 dark gallery: the open sheet itself is not inert",
+   "ok": true,
+   "read": "[{\"label\": \"New note\", \"inert\": false, \"z\": \"1000\"}]"
+  },
+  {
+   "what": "D6 dark gallery: axe color-contrast has no finding (the top bar title behind the sheet included)",
+   "ok": true,
+   "read": "[]"
+  },
+  {
+   "what": "D6 dark gallery: after closing it #root is live again",
+   "ok": true,
+   "read": "{\"rootInert\": false, \"dialogs\": [], \"bodyChildren\": [{\"id\": \"root\", \"cls\": \"\", \"inert\": false, \"keep\": null, \"z\": \"auto\"}]}"
+  }
+ ],
+ "rendered": [
+  {
+   "what": "light picker: inert picture",
+   "text": "{\"rootInert\": true, \"dialogs\": [{\"label\": \"New note\", \"inert\": false, \"z\": \"1000\"}], \"bodyChildren\": [{\"id\": \"root\", \"cls\": \"\", \"inert\": true, \"keep\": null, \"z\": \"auto\"}, {\"id\": \"\", \"cls\": \"_backdrop_futca_1 _modal_futca_25\", \"inert\": false, \"keep\": null, \"z\": \"1000\"}]}"
+  },
+  {
+   "what": "light picker: body children left live (should be the sheet's own layer only)",
+   "text": "[{\"id\": \"\", \"cls\": \"_backdrop_futca_1 _modal_futca_25\", \"inert\": false, \"keep\": null, \"z\": \"1000\"}]"
+  },
+  {
+   "what": "light mytools: inert picture",
+   "text": "{\"rootInert\": true, \"dialogs\": [{\"label\": \"My tools\", \"inert\": false, \"z\": \"1000\"}], \"bodyChildren\": [{\"id\": \"root\", \"cls\": \"\", \"inert\": true, \"keep\": null, \"z\": \"auto\"}, {\"id\": \"\", \"cls\": \"\", \"inert\": true, \"keep\": null, \"z\": \"auto\"}, {\"id\": \"\", \"cls\": \"_backdrop_futca_1 _modal_futca_25\", \"inert\": false, \"keep\": null, \"z\": \"1000\"}]}"
+  },
+  {
+   "what": "light mytools: body children left live (should be the sheet's own layer only)",
+   "text": "[{\"id\": \"\", \"cls\": \"_backdrop_futca_1 _modal_futca_25\", \"inert\": false, \"keep\": null, \"z\": \"1000\"}]"
+  },
+  {
+   "what": "light gallery: inert picture",
+   "text": "{\"rootInert\": true, \"dialogs\": [{\"label\": \"New note\", \"inert\": false, \"z\": \"1000\"}], \"bodyChildren\": [{\"id\": \"root\", \"cls\": \"\", \"inert\": true, \"keep\": null, \"z\": \"auto\"}, {\"id\": \"\", \"cls\": \"_backdrop_futca_1 _modal_futca_25\", \"inert\": false, \"keep\": null, \"z\": \"1000\"}]}"
+  },
+  {
+   "what": "light gallery: body children left live (should be the sheet's own layer only)",
+   "text": "[{\"id\": \"\", \"cls\": \"_backdrop_futca_1 _modal_futca_25\", \"inert\": false, \"keep\": null, \"z\": \"1000\"}]"
+  },
+  {
+   "what": "dark picker: inert picture",
+   "text": "{\"rootInert\": true, \"dialogs\": [{\"label\": \"New note\", \"inert\": false, \"z\": \"1000\"}], \"bodyChildren\": [{\"id\": \"root\", \"cls\": \"\", \"inert\": true, \"keep\": null, \"z\": \"auto\"}, {\"id\": \"\", \"cls\": \"_backdrop_futca_1 _modal_futca_25\", \"inert\": false, \"keep\": null, \"z\": \"1000\"}]}"
+  },
+  {
+   "what": "dark picker: body children left live (should be the sheet's own layer only)",
+   "text": "[{\"id\": \"\", \"cls\": \"_backdrop_futca_1 _modal_futca_25\", \"inert\": false, \"keep\": null, \"z\": \"1000\"}]"
+  },
+  {
+   "what": "dark mytools: inert picture",
+   "text": "{\"rootInert\": true, \"dialogs\": [{\"label\": \"My tools\", \"inert\": false, \"z\": \"1000\"}], \"bodyChildren\": [{\"id\": \"root\", \"cls\": \"\", \"inert\": true, \"keep\": null, \"z\": \"auto\"}, {\"id\": \"\", \"cls\": \"\", \"inert\": true, \"keep\": null, \"z\": \"auto\"}, {\"id\": \"\", \"cls\": \"_backdrop_futca_1 _modal_futca_25\", \"inert\": false, \"keep\": null, \"z\": \"1000\"}]}"
+  },
+  {
+   "what": "dark mytools: body children left live (should be the sheet's own layer only)",
+   "text": "[{\"id\": \"\", \"cls\": \"_backdrop_futca_1 _modal_futca_25\", \"inert\": false, \"keep\": null, \"z\": \"1000\"}]"
+  },
+  {
+   "what": "dark gallery: inert picture",
+   "text": "{\"rootInert\": true, \"dialogs\": [{\"label\": \"New note\", \"inert\": false, \"z\": \"1000\"}], \"bodyChildren\": [{\"id\": \"root\", \"cls\": \"\", \"inert\": true, \"keep\": null, \"z\": \"auto\"}, {\"id\": \"\", \"cls\": \"_backdrop_futca_1 _modal_futca_25\", \"inert\": false, \"keep\": null, \"z\": \"1000\"}]}"
+  },
+  {
+   "what": "dark gallery: body children left live (should be the sheet's own layer only)",
+   "text": "[{\"id\": \"\", \"cls\": \"_backdrop_futca_1 _modal_futca_25\", \"inert\": false, \"keep\": null, \"z\": \"1000\"}]"
+  }
+ ],
+ "verdict": "PASS",
+ "notes": [],
+ "events": {
+  "A-light": [
+   {
+    "http": 404,
+    "method": "GET",
+    "url": "http://127.0.0.1:8171/api/push/config"
+   },
+   {
+    "http": 404,
+    "method": "GET",
+    "url": "http://127.0.0.1:8171/api/alerts/routing"
+   },
+   {
+    "http": 404,
+    "method": "GET",
+    "url": "http://127.0.0.1:8171/api/alerts/webhooks"
+   },
+   {
+    "http": 404,
+    "method": "GET",
+    "url": "http://127.0.0.1:8171/api/screener/spec-alerts"
+   },
+   {
+    "http": 404,
+    "method": "GET",
+    "url": "http://127.0.0.1:8171/api/push/config"
+   },
+   {
+    "http": 404,
+    "method": "GET",
+    "url": "http://127.0.0.1:8171/api/alerts/routing"
+   },
+   {
+    "http": 404,
+    "method": "GET",
+    "url": "http://127.0.0.1:8171/api/alerts/webhooks"
+   },
+   {
+    "http": 404,
+    "method": "GET",
+    "url": "http://127.0.0.1:8171/api/screener/spec-alerts"
+   }
+  ],
+  "A-dark": [
+   {
+    "http": 404,
+    "method": "GET",
+    "url": "http://127.0.0.1:8171/api/screener/spec-alerts"
+   },
+   {
+    "http": 404,
+    "method": "GET",
+    "url": "http://127.0.0.1:8171/api/alerts/routing"
+   },
+   {
+    "http": 404,
+    "method": "GET",
+    "url": "http://127.0.0.1:8171/api/push/config"
+   },
+   {
+    "http": 404,
+    "method": "GET",
+    "url": "http://127.0.0.1:8171/api/alerts/webhooks"
+   },
+   {
+    "http": 404,
+    "method": "GET",
+    "url": "http://127.0.0.1:8171/api/push/config"
+   },
+   {
+    "http": 404,
+    "method": "GET",
+    "url": "http://127.0.0.1:8171/api/alerts/routing"
+   },
+   {
+    "http": 404,
+    "method": "GET",
+    "url": "http://127.0.0.1:8171/api/alerts/webhooks"
+   },
+   {
+    "http": 404,
+    "method": "GET",
+    "url": "http://127.0.0.1:8171/api/screener/spec-alerts"
+   }
+  ]
+ },
+ "metrics": {
+  "light-picker": {
+   "overflow": {
+    "vw": 1200,
+    "docScrollWidth": 1200,
+    "bodyScrollWidth": 1200,
+    "inner": [
+     [
+      1140,
+      1140
+     ],
+     [
+      1092,
+      1092
+     ],
+     [
+      826,
+      826
+     ]
+    ],
+    "horizontal": false,
+    "offenders": [
+     {
+      "tag": "LI",
+      "cls": "_libraryCard_1hb5o_436",
+      "text": "Pre-market prep\nIn your templates\nTempla",
+      "right": 1241
+     },
+     {
+      "tag": "H5",
+      "cls": "_previewTitle_1hb5o_363",
+      "text": "Pre-market prep",
+      "right": 1228
+     },
+     {
+      "tag": "DIV",
+      "cls": "_facts_1hb5o_383",
+      "text": "Template\n\nUCT\n\nFor: The wire, your names",
+      "right": 1228
+     },
+     {
+      "tag": "P",
+      "cls": "_factLine_1hb5o_390",
+      "text": "UCT",
+      "right": 1228
+     },
+     {
+      "tag": "P",
+      "cls": "_factLine_1hb5o_390",
+      "text": "For: The wire, your names reporting, you",
+      "right": 1228
+     },
+     {
+      "tag": "P",
+      "cls": "_factLine_1hb5o_390",
+      "text": "Contains: Pre-market routine",
+      "right": 1228
+     }
+    ]
+   },
+   "raw_block": [],
+   "axe_sheet": {
+    "version": "4.13.0",
+    "scope": "[data-walk-scope=\"1\"]",
+    "violations": []
+   },
+   "axe_page": {
+    "version": "4.13.0",
+    "scope": "body",
+    "violations": []
+   }
+  },
+  "light-mytools": {
+   "overflow": {
+    "vw": 1200,
+    "docScrollWidth": 1200,
+    "bodyScrollWidth": 1200,
+    "inner": [
+     [
+      1140,
+      1140
+     ],
+     [
+      1092,
+      1092
+     ],
+     [
+      826,
+      826
+     ]
+    ],
+    "horizontal": false,
+    "offenders": []
+   },
+   "raw_block": [],
+   "axe_sheet": {
+    "version": "4.13.0",
+    "scope": "[data-walk-scope=\"1\"]",
+    "violations": []
+   },
+   "axe_page": {
+    "version": "4.13.0",
+    "scope": "body",
+    "violations": []
+   }
+  },
+  "light-gallery": {
+   "overflow": {
+    "vw": 1200,
+    "docScrollWidth": 1200,
+    "bodyScrollWidth": 1200,
+    "inner": [
+     [
+      1140,
+      1140
+     ],
+     [
+      1092,
+      1092
+     ],
+     [
+      826,
+      826
+     ]
+    ],
+    "horizontal": false,
+    "offenders": []
+   },
+   "raw_block": [],
+   "axe_sheet": {
+    "version": "4.13.0",
+    "scope": "[data-walk-scope=\"1\"]",
+    "violations": []
+   },
+   "axe_page": {
+    "version": "4.13.0",
+    "scope": "body",
+    "violations": []
+   }
+  },
+  "dark-picker": {
+   "overflow": {
+    "vw": 1200,
+    "docScrollWidth": 1200,
+    "bodyScrollWidth": 1200,
+    "inner": [
+     [
+      1140,
+      1140
+     ],
+     [
+      1092,
+      1092
+     ],
+     [
+      826,
+      826
+     ]
+    ],
+    "horizontal": false,
+    "offenders": [
+     {
+      "tag": "LI",
+      "cls": "_libraryCard_1hb5o_436",
+      "text": "Pre-market prep\nIn your templates\nTempla",
+      "right": 1241
+     },
+     {
+      "tag": "H5",
+      "cls": "_previewTitle_1hb5o_363",
+      "text": "Pre-market prep",
+      "right": 1228
+     },
+     {
+      "tag": "DIV",
+      "cls": "_facts_1hb5o_383",
+      "text": "Template\n\nUCT\n\nFor: The wire, your names",
+      "right": 1228
+     },
+     {
+      "tag": "P",
+      "cls": "_factLine_1hb5o_390",
+      "text": "UCT",
+      "right": 1228
+     },
+     {
+      "tag": "P",
+      "cls": "_factLine_1hb5o_390",
+      "text": "For: The wire, your names reporting, you",
+      "right": 1228
+     },
+     {
+      "tag": "P",
+      "cls": "_factLine_1hb5o_390",
+      "text": "Contains: Pre-market routine",
+      "right": 1228
+     }
+    ]
+   },
+   "raw_block": [],
+   "axe_sheet": {
+    "version": "4.13.0",
+    "scope": "[data-walk-scope=\"1\"]",
+    "violations": []
+   },
+   "axe_page": {
+    "version": "4.13.0",
+    "scope": "body",
+    "violations": []
+   }
+  },
+  "dark-mytools": {
+   "overflow": {
+    "vw": 1200,
+    "docScrollWidth": 1200,
+    "bodyScrollWidth": 1200,
+    "inner": [
+     [
+      1140,
+      1140
+     ],
+     [
+      1092,
+      1092
+     ],
+     [
+      826,
+      826
+     ]
+    ],
+    "horizontal": false,
+    "offenders": []
+   },
+   "raw_block": [],
+   "axe_sheet": {
+    "version": "4.13.0",
+    "scope": "[data-walk-scope=\"1\"]",
+    "violations": []
+   },
+   "axe_page": {
+    "version": "4.13.0",
+    "scope": "body",
+    "violations": []
+   }
+  },
+  "dark-gallery": {
+   "overflow": {
+    "vw": 1200,
+    "docScrollWidth": 1200,
+    "bodyScrollWidth": 1200,
+    "inner": [
+     [
+      1140,
+      1140
+     ],
+     [
+      1092,
+      1092
+     ],
+     [
+      826,
+      826
+     ]
+    ],
+    "horizontal": false,
+    "offenders": []
+   },
+   "raw_block": [],
+   "axe_sheet": {
+    "version": "4.13.0",
+    "scope": "[data-walk-scope=\"1\"]",
+    "violations": []
+   },
+   "axe_page": {
+    "version": "4.13.0",
+    "scope": "body",
+    "violations": []
+   }
+  }
+ },
+ "screenshots": [
+  "1200/D6-light-picker.png",
+  "1200/D6-light-mytools.png",
+  "1200/D6-light-gallery.png",
+  "1200/D6-dark-picker.png",
+  "1200/D6-dark-mytools.png",
+  "1200/D6-dark-gallery.png"
+ ],
+ "requests_note_put": 0,
+ "started": "2026-10-27T09:51:00",
+ "findings": [
+  {
+   "kind": "event",
+   "page": "A-light",
+   "detail": "{\"http\": 404, \"method\": \"GET\", \"url\": \"http://127.0.0.1:8171/api/push/config\"}"
+  },
+  {
+   "kind": "event",
+   "page": "A-light",
+   "detail": "{\"http\": 404, \"method\": \"GET\", \"url\": \"http://127.0.0.1:8171/api/alerts/routing\"}"
+  },
+  {
+   "kind": "event",
+   "page": "A-light",
+   "detail": "{\"http\": 404, \"method\": \"GET\", \"url\": \"http://127.0.0.1:8171/api/alerts/webhooks\"}"
+  },
+  {
+   "kind": "event",
+   "page": "A-light",
+   "detail": "{\"http\": 404, \"method\": \"GET\", \"url\": \"http://127.0.0.1:8171/api/screener/spec-alerts\"}"
+  },
+  {
+   "kind": "event",
+   "page": "A-light",
+   "detail": "{\"http\": 404, \"method\": \"GET\", \"url\": \"http://127.0.0.1:8171/api/push/config\"}"
+  },
+  {
+   "kind": "event",
+   "page": "A-light",
+   "detail": "{\"http\": 404, \"method\": \"GET\", \"url\": \"http://127.0.0.1:8171/api/alerts/routing\"}"
+  },
+  {
+   "kind": "event",
+   "page": "A-light",
+   "detail": "{\"http\": 404, \"method\": \"GET\", \"url\": \"http://127.0.0.1:8171/api/alerts/webhooks\"}"
+  },
+  {
+   "kind": "event",
+   "page": "A-light",
+   "detail": "{\"http\": 404, \"method\": \"GET\", \"url\": \"http://127.0.0.1:8171/api/screener/spec-alerts\"}"
+  },
+  {
+   "kind": "event",
+   "page": "A-dark",
+   "detail": "{\"http\": 404, \"method\": \"GET\", \"url\": \"http://127.0.0.1:8171/api/screener/spec-alerts\"}"
+  },
+  {
+   "kind": "event",
+   "page": "A-dark",
+   "detail": "{\"http\": 404, \"method\": \"GET\", \"url\": \"http://127.0.0.1:8171/api/alerts/routing\"}"
+  },
+  {
+   "kind": "event",
+   "page": "A-dark",
+   "detail": "{\"http\": 404, \"method\": \"GET\", \"url\": \"http://127.0.0.1:8171/api/push/config\"}"
+  },
+  {
+   "kind": "event",
+   "page": "A-dark",
+   "detail": "{\"http\": 404, \"method\": \"GET\", \"url\": \"http://127.0.0.1:8171/api/alerts/webhooks\"}"
+  },
+  {
+   "kind": "event",
+   "page": "A-dark",
+   "detail": "{\"http\": 404, \"method\": \"GET\", \"url\": \"http://127.0.0.1:8171/api/push/config\"}"
+  },
+  {
+   "kind": "event",
+   "page": "A-dark",
+   "detail": "{\"http\": 404, \"method\": \"GET\", \"url\": \"http://127.0.0.1:8171/api/alerts/routing\"}"
+  },
+  {
+   "kind": "event",
+   "page": "A-dark",
+   "detail": "{\"http\": 404, \"method\": \"GET\", \"url\": \"http://127.0.0.1:8171/api/alerts/webhooks\"}"
+  },
+  {
+   "kind": "event",
+   "page": "A-dark",
+   "detail": "{\"http\": 404, \"method\": \"GET\", \"url\": \"http://127.0.0.1:8171/api/screener/spec-alerts\"}"
+  }
+ ],
+ "partial": false,
+ "finished": "2026-10-27T09:53:45"
+}
