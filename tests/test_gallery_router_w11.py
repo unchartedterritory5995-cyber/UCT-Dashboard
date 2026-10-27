@@ -240,7 +240,7 @@ def test_error_codes_from_classes(app, client, db, monkeypatch):
         ("adopt_tool", template_tools.LibraryError(template_tools.S_CHOOSE_ROUTINE), 400, "unresolved", None),
         ("adopt_tool", nm, 400, "not_yours", "p1"),
         ("adopt_tool", gallery.CountCapError("You have 30 trackers."), 409, "count_cap", None),
-        ("adopt_tool", gallery.KeyReused(gallery.S_KEY_REUSED), 409, "conflict", None),
+        ("adopt_tool", gallery.KeyReused(gallery.S_KEY_REUSED), 409, "key_reused", None),     # A9: its own code
         ("adopt_tool", share.ShareError("adopted", "It came from the library."), 400, "adopted", None),
     ]
     for fn, err, status, code, slot in cases:
@@ -814,3 +814,35 @@ def test_journal_styles_unreadable_body_is_no_store(app, client, db):
     as_user(app, MEMBER)
     r = _raw(client, f"{STYLES}/{s['id']}/delete", "[1, 2]")
     assert r.status_code == 422 and _no_store(r)
+
+
+# ── A9: a reused key and a key in flight answer two different codes ───────────────────────────────
+
+def test_a_key_spent_on_another_item_is_key_reused_and_a_key_in_flight_is_conflict(app, client, db, monkeypatch):
+    """F-ALIAS-1 A9 (W9-R14: no client reads a sentence): the same Idempotency-Key sent for a DIFFERENT item is
+    409 `key_reused` -- a definite refusal -- while the same key still on its way for the SAME item stays 409
+    `conflict`. Real doors and real keys; only the in-flight twin's wait is cut short (it never lands)."""
+    as_user(app, MEMBER)
+    first = list_tool(db, "widget", widget(db)["id"])
+    other = list_tool(db, "widget", widget(db, name="Other")["id"])
+    answers = {"answers": {"p1": "Flag"}}
+    key = str(uuid.uuid4())
+    made = _send(client, "POST", f"{GALLERY}/{first}/adopt-tool", answers, headers={gallery.IDEMPOTENCY_HEADER: key})
+    assert made.status_code == 200, made.text
+    reused = _send(client, "POST", f"{GALLERY}/{other}/adopt-tool", answers, headers={gallery.IDEMPOTENCY_HEADER: key})
+    assert reused.status_code == 409 and _no_store(reused), reused.text
+    assert reused.json()["detail"] == {"code": gallery.KEY_REUSED_CODE, "message": gallery.S_KEY_REUSED}
+    assert gallery.KEY_REUSED_CODE == "key_reused"
+    # the in-flight refusal: a fresh "" reservation of a Use (a twin request still making the note) that never lands
+    from datetime import datetime, timezone
+    tid = list_template(db, style(db)["id"])
+    pending = str(uuid.uuid4())
+    db.execute("INSERT INTO j2_tool_create_keys (user_id, key, kind, source_id, new_id, created_at)"
+               " VALUES (?, ?, 'gallery_use_template', ?, '', ?)",
+               (MEMBER, pending, tid, datetime.now(timezone.utc).isoformat()))
+    db.commit()
+    monkeypatch.setattr(gallery, "_wait_for_key", lambda *a, **k: None)
+    busy = _send(client, "POST", f"{GALLERY}/{tid}/use-template", {}, headers={gallery.IDEMPOTENCY_HEADER: pending})
+    assert busy.status_code == 409, busy.text
+    assert busy.json()["detail"] == {"code": "conflict", "message": gallery.S_KEY_IN_FLIGHT}
+    assert busy.json()["detail"]["code"] != reused.json()["detail"]["code"]

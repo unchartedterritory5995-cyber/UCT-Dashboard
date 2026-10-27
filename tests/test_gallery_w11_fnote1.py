@@ -974,6 +974,7 @@ def test_a_listing_that_moves_under_the_lock_is_cleaned_again_outside_once_then_
         run(OTHER)                                                       # OTHER has no copy: its Use adopts
     # W11-R59: an adopt or a first Use whose listing kept moving says the template changed, not "on its way"
     assert str(e.value) == (gallery.UPDATE_MOVED_SENTENCE if which == "apply" else gallery.LISTING_MOVED_SENTENCE)
+    assert e.value.code == (None if which == "apply" else gallery.LISTING_MOVED_CODE)        # W11-R60
     assert not db.in_transaction and state() == settled                 # nothing was written
 
 
@@ -1271,5 +1272,6 @@ def test_a_listing_that_moved_twice_answers_that_the_template_changed(db, monkey
     r = gallery_client.post(f"/api/j2/template-gallery/{gid}/{door}", content=b"{}", headers=headers)
     assert r.status_code == 409, r.text
     assert r.json()["detail"]["message"] == gallery.LISTING_MOVED_SENTENCE
+    assert r.json()["detail"]["code"] == gallery.LISTING_MOVED_CODE == "listing_moved"       # W11-R60: its own code
     assert "template changed" in r.text and gallery.S_KEY_IN_FLIGHT not in r.text
     assert made() == before

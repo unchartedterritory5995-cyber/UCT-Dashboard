@@ -3154,6 +3154,8 @@ UPDATE_MOVED_SENTENCE = ("The author listed a newer version since you opened the
 #: template changed while it was being taken, so nothing was made. Not `UPDATE_MOVED_SENTENCE` (there is no update the
 #: member opened) and not `S_KEY_IN_FLIGHT` (no request of theirs is on its way).
 LISTING_MOVED_SENTENCE = "This template changed while it was being added. Nothing was made. Try again."
+#: W11-R60: its own machine code (W9-R14: no client tells two refusals apart by their sentence).
+LISTING_MOVED_CODE = "listing_moved"
 
 
 def _listed_row(conn: sqlite3.Connection, gallery_id: Any, item_type: str, *,
@@ -3558,8 +3560,9 @@ def _prepare(conn: sqlite3.Connection, gallery_id: Any) -> _Prepared | None:
     return _Prepared(row)
 
 
-def _retry_once(fn, refusal: str):
-    """Run `fn()`; when the listing moved under the lock (`_ListingMoved`), once more; then refuse with `refusal`."""
+def _retry_once(fn, refusal: str, code: str | None = None):
+    """Run `fn()`; when the listing moved under the lock (`_ListingMoved`), once more; then refuse with `refusal`
+    (a `GalleryConflict` carrying `code` when one is given)."""
     try:
         return fn()
     except _ListingMoved:
@@ -3567,7 +3570,7 @@ def _retry_once(fn, refusal: str):
     try:
         return fn()
     except _ListingMoved:
-        raise GalleryConflict(refusal) from None
+        raise GalleryConflict(refusal, code=code) from None
 
 
 def _adopt_listed_row(conn: sqlite3.Connection, user_id: str, row: sqlite3.Row, *, notify: bool,
@@ -3700,7 +3703,7 @@ def adopt_style(user_id: str, gallery_id: Any, *, notify: bool = False, answers:
         # W11-R53: a keyed adopt takes the write lock up front, so its listing is cleaned BEFORE it (`_prepare`);
         # under the lock only the stored listing is compared, and a moved one is cleaned again outside, once.
         return _retry_once(lambda: _adopt_style_once(user_id, gallery_id, k, notify, answers, choices, conn),
-                           LISTING_MOVED_SENTENCE)
+                           LISTING_MOVED_SENTENCE, LISTING_MOVED_CODE)
     finally:
         if owned:
             conn.close()
@@ -4199,11 +4202,17 @@ S_KEY_IN_FLIGHT = "That is already on its way. Try again in a moment."
 NOT_AVAILABLE_SENTENCE = "Not available right now."
 
 
+#: A9: KeyReused's own machine code, distinct from the in-flight `conflict` (S_KEY_IN_FLIGHT), so a client can tell
+#: "that key was spent on something else" (a definite refusal) from "that request is still on its way" (W9-R14).
+KEY_REUSED_CODE = "key_reused"
+
+
 class KeyReused(ToolError):
-    """The same Idempotency-Key on a different item or door: 409 `conflict` (as R-48)."""
+    """The same Idempotency-Key on a different item or door: 409 `key_reused` (F-ALIAS-1 A9; it was R-48's
+    `conflict`, which the in-flight refusal also answers)."""
 
     status = 409
-    code = "conflict"
+    code = KEY_REUSED_CODE
 
 
 def _key_lookup(conn: sqlite3.Connection, user_id: str, key: str | None, kind: str, gallery_id: str):
@@ -4482,7 +4491,7 @@ def use_library_template(user_id: str, gallery_id: Any, *, answers: Any = None, 
     `LISTING_MOVED_SENTENCE` (W11-R59)."""
     return _retry_once(lambda: _use_library_template_once(user_id, gallery_id, answers=answers, choices=choices,
                                                           payload=payload, key=key, conn=conn),
-                       LISTING_MOVED_SENTENCE)
+                       LISTING_MOVED_SENTENCE, LISTING_MOVED_CODE)
 
 
 def _use_library_template_once(user_id: str, gallery_id: Any, *, answers: Any = None, choices: Any = None,
