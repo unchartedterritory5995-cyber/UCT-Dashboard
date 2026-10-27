@@ -40,6 +40,14 @@ const json = (body, status = 200) => ({ ok: status < 400, status, json: async ()
 // ── 1. the census ────────────────────────────────────────────────────────────────────────────────────────────────
 
 const SRC = join(process.cwd(), 'src')
+const walkJs = (dir, out = []) => {
+  for (const name of readdirSync(dir)) {
+    const p = join(dir, name)
+    if (statSync(p).isDirectory()) walkJs(p, out)
+    else if (p.endsWith('.js') && !/\.test\.js$/.test(p)) out.push(p)
+  }
+  return out
+}
 const walk = (dir, out = []) => {
   for (const name of readdirSync(dir)) {
     const p = join(dir, name)
@@ -75,6 +83,25 @@ describe('every outline-preview door names its blocks (census)', () => {
     const src = readFileSync(join(SRC, 'pages/journal-2-0/components/notebook/MemberTemplates.jsx'), 'utf8')
     expect(src).toContain('outlineWithBlockNames(')
   })
+})
+
+// W11-R77 (review n-1): the census covers NOTE-CREATION doors too, not only preview renderers. Every client file that
+// reads a member template's body (`getMemberTemplate(`) to preview it OR to make a note from it passes the body
+// through `outlineWithBlockNames`, so the note holds exactly what the preview showed and never a raw placeholder.
+// (The server's note-creation doors are railed by tests/test_note_creation_doors_no_block_tokens.py.)
+describe('every door that makes a note from a member template names its blocks (census)', () => {
+  const DEFINER = 'pages/journal-2-0/lib/memberTemplates.js'
+  const files = walk(SRC, []).concat(walkJs(SRC)).filter((f) => readFileSync(f, 'utf8').includes('getMemberTemplate('))
+    .map((f) => relative(SRC, f).split('\\').join('/')).filter((r) => r !== DEFINER)
+  it('finds the preview door and the Use door (non-vacuity)', () => {
+    expect(files).toEqual(expect.arrayContaining(['pages/journal-2-0/components/notebook/MemberTemplates.jsx',
+      'pages/journal-2-0/tabs/NotebookTab.jsx']))
+  })
+  for (const rel of files) {
+    it(`${rel}: a member template's body goes through outlineWithBlockNames`, () => {
+      expect(readFileSync(join(SRC, rel), 'utf8')).toContain('outlineWithBlockNames(')
+    })
+  }
 })
 
 // ── 2. the renders ───────────────────────────────────────────────────────────────────────────────────────────────

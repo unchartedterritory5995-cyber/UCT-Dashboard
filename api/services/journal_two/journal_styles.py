@@ -2126,6 +2126,25 @@ def _placeholder_kind(node: Any) -> str | None:
     return m.group(1) if m else None
 
 
+def without_placeholder_lines(body: Any) -> Any:
+    """W11-R77 (review n-1): `body` with every `{{block:<id>}}` placeholder paragraph (`_placeholder_kind`, the
+    composer's own test) removed at any depth, for a door that makes a NOTE from a member template without composing
+    it (the daily note): it places no block and has no block names, and no member note holds raw placeholder text.
+    A container left empty keeps one empty paragraph (`_never_empty`). Every other node is untouched. Total."""
+    def strip(content: list) -> list:
+        out = []
+        for node in content:
+            if _placeholder_kind(node) is not None:
+                continue
+            if isinstance(node, dict) and isinstance(node.get("content"), list):
+                node = {**node, "content": _never_empty(node["content"], strip(node["content"]))}
+            out.append(node)
+        return out
+    if not isinstance(body, dict) or not isinstance(body.get("content"), list):
+        return body
+    return {**body, "content": strip(body["content"])}
+
+
 def _after_first_heading(content: list) -> int:
     for i, n in enumerate(content):
         if isinstance(n, dict) and n.get("type") == "heading":

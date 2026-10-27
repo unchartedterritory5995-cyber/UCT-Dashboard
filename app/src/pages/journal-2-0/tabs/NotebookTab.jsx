@@ -1864,7 +1864,21 @@ export default function NotebookTab() {
       setCreating(false)
       return
     }
-    await createNote({ title: full.title, bodyJson: full.bodyJson, properties: full.properties })
+    // W11-R77 (review n-1): a template used as a style outline holds `{{block:...}}` lines. A Use from Your templates
+    // places no block (spec §10: only a style's Use does), so the note gets exactly what the preview showed: each
+    // placeholder as the block's name, through the SAME function the preview used (MemberTemplates.openPreview).
+    // Loaded on demand: this tab is in the first-open closure.
+    let bodyJson = full.bodyJson
+    try {
+      const { outlineWithBlockNames } = await import('../lib/templateSlots')
+      bodyJson = outlineWithBlockNames(full.bodyJson, null)
+    } catch (e) {
+      console.error('[notebook] template words failed to load', e)
+      setActionError(`Couldn't open the template “${summary.name}”. Nothing was created.`)
+      setCreating(false)
+      return
+    }
+    await createNote({ title: full.title, bodyJson, properties: full.properties })
   }
 
   const handlePick = (tplOrNull) =>
