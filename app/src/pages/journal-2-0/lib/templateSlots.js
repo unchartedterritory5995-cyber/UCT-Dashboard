@@ -123,25 +123,68 @@ export function slotNamesOf(source) {
 }
 
 /**
- * R3/R4 (11.20 rehearsal): an outline (a TipTap doc) as a member reads it. Each paragraph that is exactly one
- * `{{block:<id>}}` placeholder becomes one italic line naming the block, so no placeholder token ever reaches the
- * page: a slot through `slotLabel` (its settings from `blocks`, its name from `names`), any other block through
- * `blockLabel`. Every other node is untouched. Total: anything that is not a doc comes back as given.
+ * R3/R4 (11.20 rehearsal), review m-3: an outline (a TipTap doc) as a member previews it, with no `{{block:<id>}}`
+ * token left for a block the outline places. A placed block is one italic line naming it: a slot through
+ * `slotLabel` (its settings from `blocks`, its name from `names`), any other block through `blockLabel`.
+ *
+ * With the style's `blocks` (an array), the SERVER's placement rule, `journal_styles.compose`, exactly:
+ *   * a placeholder is a paragraph whose TEXT children alone (`_plain`: a hardBreak or a mark node is ignored),
+ *     trimmed, read `{{block:<id>}}` (`_placeholder_kind`);
+ *   * at the TOP level, an ENABLED block's placeholder is the block, in place; a DISABLED block's vanishes;
+ *   * a placeholder for a block the style does not list is the author's own text and is kept (Review M-5);
+ *   * a NESTED placeholder (in a list, a quote) becomes an empty paragraph and its block goes after the first
+ *     heading, as does every enabled block no top-level placeholder placed (`_rest_after_heading`), in block order.
+ * With NO block list (`blocks` null or absent: a bare template outline, a library update), every placeholder line
+ * is named in place, so no token reaches the page. Total: anything that is not a doc comes back as given.
  */
-export function outlineWithBlockNames(doc, blocks = [], names = {}) {
-  if (!doc || typeof doc !== 'object') return doc
-  const byId = new Map((Array.isArray(blocks) ? blocks : [])
-    .filter((b) => b && typeof b === 'object' && typeof b.block === 'string').map((b) => [b.block, b]))
-  const nameOf = (id) => (slotFamily(id) ? slotLabel(byId.get(id) || { block: id }, names) : blockLabel(id))
-  const walk = (n) => {
-    if (!n || typeof n !== 'object' || !Array.isArray(n.content)) return n
-    if (n.type === 'paragraph' && n.content.every((c) => c?.type === 'text')) {
-      const m = PLACEHOLDER_LINE_RE.exec(n.content.map((c) => c.text || '').join('').trim())
-      if (m) return { type: 'paragraph', content: [{ type: 'text', text: nameOf(m[1]), marks: [{ type: 'italic' }] }] }
-    }
-    return { ...n, content: n.content.map(walk) }
+export function outlineWithBlockNames(doc, blocks = null, names = {}) {
+  if (!doc || typeof doc !== 'object' || !Array.isArray(doc.content)) return doc
+  const isRec = (v) => v && typeof v === 'object'
+  const plainId = (n) => {
+    if (!isRec(n) || n.type !== 'paragraph' || !Array.isArray(n.content)) return null
+    const m = PLACEHOLDER_LINE_RE.exec(n.content.filter((c) => isRec(c) && c.type === 'text').map((c) => c.text || '').join('').trim())
+    return m ? m[1] : null
   }
-  return walk(doc)
+  const line = (id, b) => ({ type: 'paragraph', content: [{ type: 'text', text: slotFamily(id) ? slotLabel(b || { block: id }, names) : blockLabel(id), marks: [{ type: 'italic' }] }] })
+  if (!Array.isArray(blocks)) {
+    const bare = (n) => {
+      const id = plainId(n)
+      if (id) return line(id)
+      return isRec(n) && Array.isArray(n.content) ? { ...n, content: n.content.map(bare) } : n
+    }
+    return bare(doc)
+  }
+  const enabled = new Map()
+  const disabled = new Set()
+  for (const b of blocks) {
+    if (!isRec(b) || typeof b.block !== 'string') continue
+    if (b.enabled) { if (!enabled.has(b.block)) enabled.set(b.block, b) } else disabled.add(b.block)
+  }
+  const placed = new Set()
+  const walk = (content, top) => {
+    const out = []
+    for (const n of content) {
+      const id = plainId(n)
+      if (id && !enabled.has(id) && !disabled.has(id)) { out.push(n); continue }     // the author's own text
+      if (id) {
+        if (!top) out.push({ type: 'paragraph' })
+        else if (enabled.has(id)) { out.push(line(id, enabled.get(id))); placed.add(id) }
+        continue                                                                       // disabled: vanishes
+      }
+      if (isRec(n) && Array.isArray(n.content)) {
+        const kids = walk(n.content, false)
+        out.push({ ...n, content: kids.length || !n.content.length ? kids : [{ type: 'paragraph' }] })
+      } else out.push(n)
+    }
+    return out
+  }
+  const content = walk(doc.content, true)
+  const rest = [...enabled].filter(([id]) => !placed.has(id)).map(([id, b]) => line(id, b))
+  if (rest.length) {
+    const at = content.findIndex((n) => isRec(n) && n.type === 'heading')
+    content.splice(at < 0 ? 0 : at + 1, 0, ...rest)
+  }
+  return { ...doc, content }
 }
 
 /** The names a `preview-mine` answer gives its slots: each card's title and each tool's name, keyed by block id. */

@@ -4,7 +4,7 @@ import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 import { execFileSync } from 'node:child_process'
-import { SLOT_ID_RE, slotFamily, slotLabel, slotNamesOf, bindWords, TYPE_LABELS } from './templateSlots'
+import { SLOT_ID_RE, slotFamily, slotLabel, slotNamesOf, bindWords, TYPE_LABELS, outlineWithBlockNames } from './templateSlots'
 
 const REPO = path.resolve(__dirname, '../../../../..')
 const read = (rel) => fs.readFileSync(path.join(REPO, rel), 'utf8')
@@ -125,3 +125,43 @@ describe('slotNamesOf (W11-R21, Task 11.19)', () => {
   })
 })
 
+
+// Review m-3: the outline a member previews follows the server's OWN placement rule (journal_styles.compose:
+// `_placeholder_kind` reads text children only; a top-level placeholder of an enabled block is the block there; a
+// disabled block's vanishes; one the style does not list is the author's own text, kept; a nested one is an empty
+// paragraph and its block goes after the first heading, as does every enabled block with no placeholder).
+describe('outlineWithBlockNames follows compose (review m-3)', () => {
+  const t = (text) => ({ type: 'text', text })
+  const p = (...c) => ({ type: 'paragraph', content: c })
+  const h = (text) => ({ type: 'heading', attrs: { level: 2 }, content: [t(text)] })
+  const ital = (text) => p({ type: 'text', text, marks: [{ type: 'italic' }] })
+  const doc = (...content) => ({ type: 'doc', content })
+  const on = (block, settings = {}) => ({ block, enabled: true, settings })
+
+  it('reads text children only: a hardBreak beside the placeholder still places the block', () => {
+    const out = outlineWithBlockNames(doc(p(t('{{block:routine_a}}'), { type: 'hardBreak' })), [on('routine_a')])
+    expect(out).toEqual(doc(ital('Routine')))
+  })
+  it("keeps a placeholder for a block the style does not list: it is the author's own text", () => {
+    const own = p(t('{{block:myOwnWords}}'))
+    expect(outlineWithBlockNames(doc(own), [{ block: 'chart', enabled: false }])).toEqual(doc(own))
+  })
+  it("drops a disabled block's placeholder", () => {
+    expect(outlineWithBlockNames(doc(h('A'), p(t('{{block:chart}}'))), [{ block: 'chart', enabled: false }]))
+      .toEqual(doc(h('A')))
+  })
+  it('a nested placeholder is an empty paragraph, and its block goes after the first heading', () => {
+    const list = { type: 'bulletList', content: [{ type: 'listItem', content: [p(t('{{block:prepLevels}}'))] }] }
+    const out = outlineWithBlockNames(doc(p(t('intro')), h('Plan'), list), [on('prepLevels')])
+    expect(out).toEqual(doc(p(t('intro')), h('Plan'), ital('Key levels from my plans'),
+      { type: 'bulletList', content: [{ type: 'listItem', content: [{ type: 'paragraph' }] }] }))
+  })
+  it('an enabled block with no placeholder is placed after the first heading (first when there is none)', () => {
+    expect(outlineWithBlockNames(doc(h('A'), p(t('x'))), [on('prepWire')])).toEqual(doc(h('A'), ital('Morning wire and exposure'), p(t('x'))))
+    expect(outlineWithBlockNames(doc(p(t('x'))), [on('prepWire')])).toEqual(doc(ital('Morning wire and exposure'), p(t('x'))))
+  })
+  it('with NO block list (a bare outline: a template, an update) every placeholder line is named in place', () => {
+    const out = outlineWithBlockNames(doc(p(t('{{block:prepWire}}')), p(t('{{block:tracker_a}}'))), null)
+    expect(out).toEqual(doc(ital('Morning wire and exposure'), ital('Tracker')))
+  })
+})
