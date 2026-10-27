@@ -1,0 +1,17 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "POST /api/j2/template-gallery/8a42b32deeb35693adb359d641789d26/preview-mine",
+    "note": "Preview with my data: slots, cards, tools and questions with the viewer's data.",
+    "path": "/api/j2/template-gallery/8a42b32deeb35693adb359d641789d26/preview-mine",
+    "requestBody": {},
+    "status": 200
+  },
+  "body": {
+    "cards": [],
+    "credit": "Based on UCT's Watchlist review",
+    "questions": [],
+    "slots": [],
+    "tools": []
+  }
+}

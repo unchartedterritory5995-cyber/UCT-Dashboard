@@ -6,11 +6,19 @@
 // is checked against the template's own body by an INDEPENDENT walk (every text node
 // of `build({})`), so a preview typed by hand -- or taken from the wrong template --
 // cannot pass.
-import { describe, it, expect, vi, beforeAll } from 'vitest'
-import { render, screen, fireEvent, within } from '@testing-library/react'
+import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vitest'
+import { render, screen, fireEvent, within, cleanup, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
-import TemplatePicker from './TemplatePicker'
+import TemplatePicker, { libraryMatchWords } from './TemplatePicker'
+
+// Task 11.16 fix round 1 (m-5): counts how many times the Template library section's module is LOADED, so the
+// wave-11-off rail asserts the chunk is never asked for (with `vi.dynamicImportSettled`), not that a wait was long.
+const sectionLoads = vi.hoisted(() => ({ n: 0 }))
+vi.mock('./library/TemplateLibrarySection', async (importOriginal) => {
+  sectionLoads.n += 1
+  return importOriginal()
+})
 import { loadTemplates } from '../../lib/templatesLoader'
 
 // Wave 7 Task 7.4: the picker reads the catalog through the loader (no static import). Loaded once up front, the
@@ -20,6 +28,7 @@ import {
   FAMILIES, TEMPLATES, getTemplate, PREVIEW_LINES, STRUCTURE_PROBE_CONTEXT,
 } from '../../lib/notebookTemplates'
 import { emptyTemplateContext } from '../../lib/templateContext'
+import { latchNotebookFlags, __resetNotebookFlags } from '../../lib/offline/notebookFlags'
 
 function renderGallery(props = {}) {
   const onPick = vi.fn()
@@ -255,5 +264,120 @@ describe('D-4 -- keyboard selection', () => {
     expect(document.activeElement).toBe(all[0])
     fireEvent.keyDown(all[0], { key: 'End' })
     expect(document.activeElement).toBe(all[all.length - 2])
+  })
+})
+
+// Notebook widgets wave 11 (Task 11.16): the Template library section sits between Blank and "Your templates" while
+// wave 11 is on. These rails hold the picker to "additive only": with wave 11 off its chunk is never asked for and
+// nothing renders; with it on, every keyboard rail above still holds over the SAME cards (the library's cards are not
+// picker cards), and the search box's Enter still picks a built-in template.
+describe('Task 11.16 -- the Template library section (wave 11)', () => {
+  const LIB_ID = 'g-lib-1'
+  const LIB_ONLY = 'Qzx gap phrase'          // in the library row's `contains` only, never in a built-in
+  let fetched
+  beforeEach(() => {
+    fetched = []
+    const row = { id: LIB_ID, title: `${TEMPLATES[0].label} from the library`, description: 'From the library',
+      group: 'before_open', category: 'journal', itemType: 'style', usedBy: 0, contains: [LIB_ONLY], inYourTemplates: false }
+    globalThis.fetch = vi.fn(async (url) => {
+      fetched.push(String(url))
+      if (String(url).endsWith('/template-gallery/library')) return { ok: true, status: 200, json: async () => ({ templates: [row] }) }
+      return { ok: false, status: 404, json: async () => ({}) }
+    })
+  })
+  afterEach(() => { __resetNotebookFlags() })
+
+  const cards = () => [...document.querySelectorAll('[data-template-card]')]
+  const buttonNames = (outside) => [...document.querySelectorAll('button')]
+    .filter((b) => !outside || !b.closest('[data-template-library]'))
+    .map((b) => b.getAttribute('aria-label') || b.textContent)
+  const libraryCard = () => document.querySelector(`[data-library-card="${LIB_ID}"]`)
+
+  /** The DOM as markup, with the per-render ids (useId) blanked, so two renders of one picker compare equal. */
+  const markup = (root) => root.innerHTML
+    .replace(/(id|for|aria-labelledby|aria-describedby|aria-controls|aria-activedescendant)="[^"]*"/g, '$1="X"')
+
+  it('picker_unchanged_when_w11_off', async () => {
+    renderGallery()
+    // Every dynamic import the render started has settled: an ungated section would have been loaded by now.
+    await act(async () => { await vi.dynamicImportSettled() })
+    expect(sectionLoads.n).toBe(0)
+    expect(document.querySelector('[data-template-library]')).toBeNull()
+    expect(screen.queryByText('Template library')).toBeNull()
+    expect(fetched).toEqual([])
+    const off = markup(document.body)
+    cleanup()
+
+    // CONTROL: wave 11 on DOES load and draw the section; the rest of the picker's DOM is identical to the off render.
+    latchNotebookFlags({ notebook_widgets_w11_enabled: true })
+    renderGallery()
+    await waitForLibrary()
+    expect(sectionLoads.n).toBe(1)
+    expect(fetched.filter((u) => u.endsWith('/template-gallery/library'))).toHaveLength(1)
+    const on = document.body.cloneNode(true)
+    on.querySelector('[data-template-library]').remove()
+    expect(markup(on)).toBe(off)
+    expect(markup(document.body)).not.toBe(off)
+  })
+
+  it('a search matching only a library template (through contains) says no "No templates match" and announces it', async () => {
+    latchNotebookFlags({ notebook_widgets_w11_enabled: true })
+    const user = userEvent.setup()
+    const { onPick } = renderGallery()
+    await waitForLibrary()
+    const box = screen.getByRole('searchbox', { name: 'Search templates' })
+    const live = () => document.querySelector('[data-template-search-status]').textContent
+    await user.type(box, LIB_ONLY.toLowerCase())
+    await vi.waitFor(() => expect(live()).toBe(libraryMatchWords(1)))
+    expect(libraryCard()).not.toBeNull()
+    expect(screen.queryByText(/No templates match/)).toBeNull()
+    expect(cards().filter((c) => !c.hasAttribute('data-template-anchor'))).toHaveLength(0)
+    await user.keyboard('{Enter}')
+    expect(onPick).not.toHaveBeenCalled()                                  // Enter still does nothing there
+    // CONTROL: a search that matches nothing anywhere still says so, in both places.
+    await user.clear(box)
+    await user.type(box, 'zzzz no such template')
+    await vi.waitFor(() => expect(live()).toBe('No template matches. Enter does nothing.'))
+    expect(screen.getByText(/No templates match/)).toBeInTheDocument()
+  })
+
+  async function waitForLibrary() {
+    await screen.findByRole('heading', { name: 'Template library' })
+    await vi.waitFor(() => expect(libraryCard()).not.toBeNull())
+  }
+
+  it('existing_card_keyboard_rails_green', async () => {
+    latchNotebookFlags({ notebook_widgets_w11_enabled: true })
+    const user = userEvent.setup()
+    const { onPick } = renderGallery()
+    await waitForLibrary()
+    const all = cards()
+    expect(all.length).toBe(TEMPLATES.length + 2)
+    expect(libraryCard().querySelector('[data-template-card]')).toBeNull()
+    // Between Blank and the rest, as the plan places it.
+    const section = document.querySelector('[data-template-library]')
+    expect(all[0].compareDocumentPosition(section) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(section.compareDocumentPosition(all[1]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    for (const c of all) expect(c.getAttribute('tabindex')).not.toBe('-1')
+    // The arrows still walk the picker's cards only: Blank -> the first catalog card, past the library.
+    all[0].focus()
+    fireEvent.keyDown(all[0], { key: 'ArrowRight' })
+    expect(document.activeElement).toBe(all[1])
+    fireEvent.keyDown(all[1], { key: 'End' })
+    expect(document.activeElement).toBe(all[all.length - 1])
+    fireEvent.keyDown(all[all.length - 1], { key: 'Home' })
+    expect(document.activeElement).toBe(all[0])
+    // A key on a library control moves nothing.
+    const libPreview = within(libraryCard()).getByRole('button', { name: /^Preview / })
+    libPreview.focus()
+    fireEvent.keyDown(libPreview, { key: 'ArrowRight' })
+    expect(document.activeElement).toBe(libPreview)
+    // The search box's Enter picks the first matching BUILT-IN card, although a library card matches too.
+    const box = screen.getByRole('searchbox', { name: 'Search templates' })
+    await user.type(box, TEMPLATES[0].label)
+    expect(libraryCard()).not.toBeNull()
+    await user.keyboard('{Enter}')
+    expect(onPick).toHaveBeenCalledTimes(1)
+    expect(TEMPLATES.map((t) => t.key)).toContain(onPick.mock.calls[0][0]?.key)
   })
 })

@@ -322,6 +322,28 @@ function minHeightAt(css, cls, width) {
   return won
 }
 
+// Wave 11 (Task 11.19): the Templates tab's rows are My tools rows too (56px), and every control in the tab wears a
+// class from myTools.module.css, so the floors above cover it. Read from the source, never a list typed here.
+const TEMPLATES_TAB = join(SRC, 'pages', 'journal-2-0', 'components', 'notebook', 'myTools', 'TemplatesTab.jsx')
+const classNamesIn = (src) => [...src.matchAll(/styles\.([A-Za-z][\w]*)/g)].map((m) => m[1])
+
+describe('My tools: the Templates tab rows are 56px and every control is floored', () => {
+  it('the template rows are drawn with My tools’ own row class, from My tools’ own stylesheet', () => {
+    const src = readFileSync(TEMPLATES_TAB, 'utf8')
+    expect(src).toMatch(/className=\{`\$\{styles\.row\}/)
+    expect(src).toMatch(/import styles from '\.\/myTools\.module\.css'/)
+    expect(src).not.toMatch(/style=\{\{/)                                   // no inline geometry beside the floors
+  })
+
+  it('every class the tab uses exists in myTools.module.css (so the floors above reach it)', () => {
+    const css = readFileSync(MY_TOOLS_CSS, 'utf8')
+    const used = [...new Set(classNamesIn(readFileSync(TEMPLATES_TAB, 'utf8')))]
+    expect(used.length).toBeGreaterThan(10)                               // non-vacuity
+    expect(used.filter((c) => !new RegExp(`\\.${c}(?![\\w-])`).test(css))).toEqual([])
+    expect(classNamesIn('<b className={styles.nope} />')).toEqual(['nope'])  // CONTROL: the reader sees one
+  })
+})
+
 describe('My tools: the Routines and Trackers rows are 56px on phone', () => {
   it('the tool rows are drawn with My tools’ own row class', () => {
     const src = readFileSync(TOOLS_TAB, 'utf8')
@@ -399,5 +421,79 @@ describe('the dedicated widget embeds floor every control at 44px at every width
   it('every bar is drawn 44 px tall', () => {
     const css = stripComments(readFileSync(DEDICATED_CSS, 'utf8'))
     expect(/\.bar\s*\{[^}]*height:\s*44px/.test(withoutMedia(css))).toBe(true)
+  })
+})
+
+// Wave 11 (Task 11.15): the template library's sheets (the share preview first; Tasks 11.16, 11.17 and 11.19 add to the
+// same stylesheet, ruling W11-R16). The My tools bar: every clickable class (derived from the stylesheet, as above) is
+// floored at 390, 820 AND 1200 px, and every text field and select is floored too, at 16 px type or larger.
+const LIBRARY_CSS = join(SRC, 'pages', 'journal-2-0', 'components', 'notebook', 'library', 'library.module.css')
+
+describe('the template library floors every control at 44px at every width', () => {
+  it('the library has clickable controls at all (non-vacuity)', () => {
+    const classes = clickableClasses(stripComments(readFileSync(LIBRARY_CSS, 'utf8')))
+    for (const c of ['.btn', '.btnPrimary', '.switch', '.check']) expect(classes).toContain(c)
+    // Task 11.17: the adoption sheet's radio and checkbox answers ("Use your …", "Any setup") are whole-row targets.
+    expect(classes).toContain('.choice')
+  })
+
+  it('every clickable class is floored at phone, tablet AND desktop width', () => {
+    const css = readFileSync(LIBRARY_CSS, 'utf8')
+    expect(unflooredAt(css, 390), 'no 44px floor at 390px').toEqual([])
+    expect(unflooredAt(css, 820), 'no 44px floor at 820px').toEqual([])
+    expect(unflooredAt(css, 1200), 'no 44px floor at 1200px').toEqual([])
+  })
+
+  it('text fields and selects are floored too, at 16px type or larger', () => {
+    const css = readFileSync(LIBRARY_CSS, 'utf8')
+    const floored = tapTargetClasses(withoutMedia(stripComments(css)))
+    for (const c of ['.input', '.select', '.textarea']) {
+      expect(floored, `${c} has no 44px floor`).toContain(c)
+      expect(baseFontSize(css, c)).toMatch(/^max\(16px,|^(1[6-9]|[2-9]\d)px$/)
+    }
+  })
+})
+
+// Wave 11 campaign dry run, D-W11-004: the feedback "?" button (components/FeedbackWidget.jsx, app chrome
+// on every page) measured 40x40 at 820 and 390 px. Its touch-tier size is a fixed `width`/`height` with
+// `!important` (it has to beat the component's inline styles), so the relationship rule above, which reads
+// `min-*: var(--tap-min)`, never saw it. Retest: any campaign persona at 820 or 390 (P01 a.02 shows it).
+const FEEDBACK_CSS = join(SRC, 'components', 'FeedbackWidget.module.css')
+
+/** The last `prop` value for `selector` (alone or as a context selector's target) among the @media bodies that apply at `width`. */
+function lastAt(css, width, selector, prop) {
+  let v
+  const rule = /([^{}]+)\{([^{}]*)\}/g
+  const text = mediaBodies(stripComments(css), width)
+  let m
+  while ((m = rule.exec(text))) {
+    // the selector itself, or `.fab` as the target of a context selector (`:global(html[...]) .fab`, review m-1)
+    if (!m[1].split(',').map((x) => x.trim()).some((x) => x === selector || x.endsWith(` ${selector}`))) continue
+    for (const d of m[2].matchAll(/([-a-zA-Z]+)\s*:\s*([^;]+?)\s*(?:;|$)/g)) if (d[1] === prop) v = d[2].trim()
+  }
+  return v
+}
+const isFloor = (v) => /^var\(--tap-min(?:,\s*44px)?\)(?:\s*!important)?$/.test(String(v || ''))
+
+describe('D-W11-004: the feedback "?" button is a 44 px finger target on the touch tier', () => {
+  it.each([390, 820])('at %i px its width and height are the --tap-min floor', (w) => {
+    const css = readFileSync(FEEDBACK_CSS, 'utf8')
+    expect(isFloor(lastAt(css, w, '.fab', 'width')), `width at ${w}`).toBe(true)
+    expect(isFloor(lastAt(css, w, '.fab', 'height')), `height at ${w}`).toBe(true)
+  })
+
+  it('CONTROL: the measured 40 px declaration fails the check', () => {
+    const old = '@media (max-width: 1024px) { .fab { width: 40px !important; height: 40px !important; } }'
+    expect(isFloor(lastAt(old, 820, '.fab', 'width'))).toBe(false)
+    expect(lastAt(old, 820, '.fab', 'height')).toBe('40px !important')
+  })
+
+  it('CONTROL (review m-1): a size set on `.fab` in a context selector (the chart shell) is seen', () => {
+    const ctx = [
+      '@media (max-width: 1024px) { .fab { width: var(--tap-min, 44px) !important; } }',
+      '@media (max-width: 1024px) { :global(html[data-mobile-chart-shell]) .fab { width: 40px !important; } }',
+    ].join(' ')
+    expect(lastAt(ctx, 820, '.fab', 'width')).toBe('40px !important')
+    expect(lastAt('@media (max-width: 1024px) { .fabric { width: 40px; } }', 820, '.fab', 'width')).toBeUndefined()
   })
 })

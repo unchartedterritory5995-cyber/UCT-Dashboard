@@ -39,6 +39,11 @@ const LAZY = [
   '../components/connectors/NoteConnectorsTrustStrip',
   // Notebook widgets phase 2 Task 8.18: the My tools header door (wave 8), its own root through openMyTools.
   '../components/notebook/myTools/openMyTools.js',
+  // W11-R77 (review n-1): the slot words, on a Use from Your templates (createFromMemberTemplate), so the note holds
+  // the preview's block names and never a raw `{{block:...}}` line.
+  '../lib/templateSlots',
+  // W11-R80 m-3: the editor's own normal form of that note's body, on the same Use (it pulls in the editor).
+  '../lib/editorNormalForm',
   // Notebook P1: the kind picker is a lazyView of the journal-styles surfaces, whose ONE dynamic import
   // lives in components/notebook/styles/lazyStyles.js (rail: NoteEditorPage.styleChunks.test.js).
   // ⚰️ Wave 8 seam S8-3 put the first-run tour here too, through `lazyChunk` in a bare

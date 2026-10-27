@@ -1,0 +1,84 @@
+[mode] walk-d3 pid=21120 instant=2026-11-12T19:30:00-05:00 port=8161 log=C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\5effcdc4-7e7d-42f4-a3df-67b99c63791b\scratchpad\sbx\logs\walk-d3.out.log;C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\5effcdc4-7e7d-42f4-a3df-67b99c63791b\scratchpad\sbx\logs\walk-d3.err.log
+walk start
+    [06:32:02] saw identity
+    [06:32:02] ok  identity data_dir = the walk data dir
+    [06:32:02] ok  identity pid = the recorded PID 21120
+    [06:32:02] ok  identity clock_shift.instant = the mode's instant 2026-11-12T19:30:00-05:00
+    [06:32:03] ok  GET /api/auth/me as A answers 200
+    [06:32:03] ok  A is paid-equivalent (paid_equiv true, plan pro, comped)
+    [06:32:03] ok  notebook_widgets_w8_enabled is True
+    [06:32:03] ok  notebook_widgets_w9_enabled is True
+    [06:32:03] ok  notebook_widgets_w10_enabled is True
+    [06:32:03] ok  notebook_widgets_w11_enabled is True
+    [06:32:03] ok  notebook_style_library_enabled is true
+    [06:32:03] ok  GET /api/j2/template-gallery/library answers 200
+    [06:32:03] ok  boot log: '[startup] notebook routine reminders registered' present
+    [06:32:03] ok  boot log: no 'SHARED-ROOT WRITE BLOCKED'
+    [06:32:03] saw boot log lines
+[1200 W11.0] PASS  checks 104/104  findings 0
+    [06:32:03] saw identity
+    [06:32:03] ok  identity data_dir = the walk data dir
+    [06:32:03] ok  identity pid = the recorded PID 21120
+    [06:32:03] ok  identity clock_shift.instant = the mode's instant 2026-11-12T19:30:00-05:00
+    [06:32:03] ok  GET /api/auth/me as A answers 200
+    [06:32:03] ok  A is paid-equivalent (paid_equiv true, plan pro, comped)
+    [06:32:03] ok  notebook_widgets_w8_enabled is True
+    [06:32:03] ok  notebook_widgets_w9_enabled is True
+    [06:32:03] ok  notebook_widgets_w10_enabled is True
+    [06:32:03] ok  notebook_widgets_w11_enabled is True
+    [06:32:03] ok  notebook_style_library_enabled is true
+    [06:32:03] ok  GET /api/j2/template-gallery/library answers 200
+    [06:32:03] ok  boot log: '[startup] notebook routine reminders registered' present
+    [06:32:03] ok  boot log: no 'SHARED-ROOT WRITE BLOCKED'
+    [06:32:03] saw boot log lines
+[820 W11.0] PASS  checks 104/104  findings 0
+    [06:32:03] saw identity
+    [06:32:03] ok  identity data_dir = the walk data dir
+    [06:32:03] ok  identity pid = the recorded PID 21120
+    [06:32:03] ok  identity clock_shift.instant = the mode's instant 2026-11-12T19:30:00-05:00
+    [06:32:03] ok  GET /api/auth/me as A answers 200
+    [06:32:03] ok  A is paid-equivalent (paid_equiv true, plan pro, comped)
+    [06:32:03] ok  notebook_widgets_w8_enabled is True
+    [06:32:03] ok  notebook_widgets_w9_enabled is True
+    [06:32:03] ok  notebook_widgets_w10_enabled is True
+    [06:32:03] ok  notebook_widgets_w11_enabled is True
+    [06:32:03] ok  notebook_style_library_enabled is true
+    [06:32:03] ok  GET /api/j2/template-gallery/library answers 200
+    [06:32:03] ok  boot log: '[startup] notebook routine reminders registered' present
+    [06:32:03] ok  boot log: no 'SHARED-ROOT WRITE BLOCKED'
+    [06:32:03] saw boot log lines
+[390 W11.0] PASS  checks 104/104  findings 0
+[mode] walk-d3 pid=21120 instant=2026-11-12T19:30:00-05:00 port=8161 log=C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\5effcdc4-7e7d-42f4-a3df-67b99c63791b\scratchpad\sbx\logs\walk-d3.out.log;C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\5effcdc4-7e7d-42f4-a3df-67b99c63791b\scratchpad\sbx\logs\walk-d3.err.log
+walk start
+    [06:32:05] saw B-D3: server shifted now / browser clock
+    [06:32:05] saw D3: server now
+    [06:32:22] ok  Use Share source 1200: after Use the new note is in front (no sheet left open over it)
+    [06:32:22] ok  D3: B used the W11.7 template (a note was made)
+    [06:32:25] saw D3: the ET days B has used the template on (W11.7's Use counts)
+    [06:32:25] ok  D3: day 4: the line answered on day 3 does not come back
+[1200 W11.9] PASS  checks 17/17  findings 1
+   ! event B-D1 {"http": 409, "method": "POST", "url": "http://127.0.0.1:8161/api/j2/template-gallery/04cdc13c731a4500be4fb16505dc94e2/helpful"}
+    [06:32:29] saw B-D3: server shifted now / browser clock
+    [06:32:29] saw D3: server now
+    [06:32:45] ok  Use Share source 820: after Use the new note is in front (no sheet left open over it)
+    [06:32:45] ok  D3: B used the W11.7 template (a note was made)
+    [06:32:48] saw D3: the ET days B has used the template on (W11.7's Use counts)
+    [06:32:48] ok  D3: day 4: the line answered on day 3 does not come back
+[820 W11.9] FAIL  checks 17/17  findings 7
+   ! tap gallery-D1 {"label": "Use Sleep 820", "tag": "BUTTON", "cls": "_btn_6z3ba_441 _primary_6z3ba_493", "w": 41, "h": 44, "x": 82, "y": 346, "offscreen": false, "covered": false}
+   ! tap gallery-D1 {"label": "Use Prep routine 820", "tag": "BUTTON", "cls": "_btn_6z3ba_441 _primary_6z3ba_493", "w": 41, "h": 44, "x": 429, "y": 346, "offscreen": false, "covered": false}
+   ! tap gallery-D1 {"label": "Use Setup win rate 820", "tag": "BUTTON", "cls": "_btn_6z3ba_441 _primary_6z3ba_493", "w": 41, "h": 44, "x": 82, "y": 593, "offscreen": false, "covered": false}
+   ! tap gallery-D1 {"label": "Use Sleep 1200", "tag": "BUTTON", "cls": "_btn_6z3ba_441 _primary_6z3ba_493", "w": 41, "h": 44, "x": 82, "y": 869, "offscreen": false, "covered": false}
+   ! tap gallery-D1 {"label": "Use Prep routine 1200", "tag": "BUTTON", "cls": "_btn_6z3ba_441 _primary_6z3ba_493", "w": 41, "h": 44, "x": 429, "y": 869, "offscreen": false, "covered": false}
+   ! tap gallery-D1 {"label": "Use Setup win rate 1200", "tag": "BUTTON", "cls": "_btn_6z3ba_441 _primary_6z3ba_493", "w": 41, "h": 44, "x": 82, "y": 1096, "offscreen": false, "covered": false}
+   ! event B-D1 {"http": 409, "method": "POST", "url": "http://127.0.0.1:8161/api/j2/template-gallery/c654b0d6e28e44c081a7c76a231143b5/helpful"}
+    [06:32:48] saw B-D3: server shifted now / browser clock
+    [06:32:48] saw D3: server now
+    [06:33:05] ok  Use Share source 390: after Use the new note is in front (no sheet left open over it)
+    [06:33:05] ok  D3: B used the W11.7 template (a note was made)
+    [06:33:07] saw D3: the ET days B has used the template on (W11.7's Use counts)
+    [06:33:07] ok  D3: day 4: the line answered on day 3 does not come back
+[390 W11.9] FAIL  checks 17/17  findings 3
+   ! tap gallery-D1 {"label": "Use Setup win rate 390", "tag": "BUTTON", "cls": "_btn_6z3ba_441 _primary_6z3ba_493", "w": 41, "h": 44, "x": 32, "y": 156, "offscreen": false, "covered": false}
+   ! tap gallery-D1 {"label": "Use Sleep 820", "tag": "BUTTON", "cls": "_btn_6z3ba_441 _primary_6z3ba_493", "w": 41, "h": 44, "x": 32, "y": 673, "offscreen": false, "covered": false}
+   ! event B-D1 {"http": 409, "method": "POST", "url": "http://127.0.0.1:8161/api/j2/template-gallery/2760d2474f4446f392c4114622c09b3d/helpful"}

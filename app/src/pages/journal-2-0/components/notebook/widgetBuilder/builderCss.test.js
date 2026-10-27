@@ -114,6 +114,12 @@ const SOURCES = jsxFiles().map((f) => readFileSync(f, 'utf8'))
 const VARS = themeVars()
 const ruleOf = (selector) => parseRules(CSS).find((r) => r.selector === selector)
 const declOf = (selector, prop) => declarations(ruleOf(selector) || { body: '', bodyStart: 0, text: '' }).find((d) => d.prop === prop)
+const DIM_PROP = '--preview-dim-opacity'
+const PREVIEW_OPACITY_SELECTORS = ['.dimmed', ".previewView[aria-busy='true']"]
+/** The one value, declared on the sheet's `.panel` (an ancestor of the desktop pane and the phone bar). */
+const dimValue = () => Number(declOf('.panel', DIM_PROP)?.value)
+/** An opacity declaration's number: the custom property's value, or a literal as written. */
+const alphaOf = (decl) => (decl && decl.value === `var(${DIM_PROP})` ? dimValue() : Number(decl?.value))
 const colour = (value, theme) => colorsIn(resolveVars(value, VARS[theme])).map(parseColor).find((c) => c.alpha > 0)
 
 describe('the builder stylesheet against its markup', () => {
@@ -159,8 +165,21 @@ describe('the builder stylesheet against its markup', () => {
     }
   })
 
-  it('the dimmed last result stays readable: bright text at the dimmed opacity reaches 4.5:1', () => {
-    const alpha = Number(declOf('.dimmed', 'opacity').value)
+  // F-DEF-1 r1, I-2 (W11-R50): the preview element takes TWO opacities, `.dimmed` (a kept last result) and
+  // `.previewView[aria-busy='true']` (loading; higher specificity, so it wins on a failed-then-retrying preview).
+  // Both read ONE custom property declared on the sheet's `.panel`, and every contrast check below runs for both.
+  it('I-2: both preview opacities read the one custom property, and it is at least 0.9', () => {
+    for (const sel of PREVIEW_OPACITY_SELECTORS) expect(declOf(sel, 'opacity')?.value, sel).toBe(`var(${DIM_PROP})`)
+    expect(dimValue()).toBeGreaterThanOrEqual(0.9)
+  })
+
+  it('I-2 CONTROL: a literal opacity on either selector resolves to itself, not the property', () => {
+    expect(alphaOf({ value: '0.85' })).toBe(0.85)
+    expect(alphaOf({ value: `var(${DIM_PROP})` })).toBe(dimValue())
+  })
+
+  it.each(PREVIEW_OPACITY_SELECTORS)('%s: bright text at that opacity reaches 4.5:1', (sel) => {
+    const alpha = alphaOf(declOf(sel, 'opacity'))
     for (const theme of THEMES) {
       for (const s of ['--bg-base', '--bg-surface']) {
         const surface = opaque(colour(`var(${s})`, theme), parseColor(resolveVars('var(--bg)', VARS[theme])).rgb)
@@ -169,6 +188,43 @@ describe('the builder stylesheet against its markup', () => {
         expect(ratio, `${theme} on ${s} at opacity ${alpha}`).toBeGreaterThanOrEqual(4.5)
       }
     }
+  })
+
+  // Wave 11 campaign dry run, D-W11-007 (axe color-contrast, serious): the rule above checked only
+  // --text-bright, and the dimmed preview draws far more than that. A positive figure in the number
+  // view (--success-ink via SnapshotFrame's `.up`) measured #23834e on #000 = 4.42:1 at opacity 0.75.
+  // No ink token survives 0.75 in every theme (the worst full-strength one is ~5.6:1), so the inks are
+  // DERIVED from the stylesheets the preview's views draw with, and each must reach 4.5:1 at the
+  // declared opacity. Retest: the campaign's P25 a.05 (a formula broken then fixed) at 1200 and 820.
+  it.each(PREVIEW_OPACITY_SELECTORS)('D-W11-007: every ink the preview draws reaches 4.5:1 under %s, in every theme', (sel) => {
+    const alpha = alphaOf(declOf(sel, 'opacity'))
+    const WIDGETS = join(DIR, '..', 'widgets')
+    const sheets = [join(WIDGETS, 'SnapshotFrame.module.css'), join(WIDGETS, 'builtViews', 'builtViews.module.css')]
+    const inks = new Set()
+    for (const f of sheets) {
+      for (const r of parseRules(readFileSync(f, 'utf8'))) {
+        for (const d of declarations(r)) if (d.prop === 'color' && /^var\(--/.test(d.value)) inks.add(d.value)
+      }
+    }
+    expect([...inks]).toEqual(expect.arrayContaining(['var(--success-ink)', 'var(--danger-ink)', 'var(--text-dim)'])) // non-vacuity
+    const fails = []
+    for (const ink of inks) {
+      for (const theme of THEMES) {
+        for (const s of ['--bg-base', '--bg-surface']) {
+          const surface = opaque(colour(`var(${s})`, theme), parseColor(resolveVars('var(--bg)', VARS[theme])).rgb)
+          const fg = colour(ink, theme)
+          const ratio = contrast(opaque({ rgb: fg.rgb, alpha: alpha * fg.alpha }, surface), surface)
+          if (ratio < 4.5) fails.push(`${theme} ${ink} on ${s}: ${ratio.toFixed(2)}`)
+        }
+      }
+    }
+    expect(fails, `${sel} at opacity ${alpha}`).toEqual([])
+  })
+
+  it('D-W11-007 CONTROL: the measured case (--success-ink at 0.75, oled) is under 4.5:1', () => {
+    const surface = opaque(colour('var(--bg-base)', 'oled'), parseColor(resolveVars('var(--bg)', VARS.oled)).rgb)
+    const fg = colour('var(--success-ink)', 'oled')
+    expect(contrast(opaque({ rgb: fg.rgb, alpha: 0.75 * fg.alpha }, surface), surface)).toBeLessThan(4.5)
   })
 
   it('Task 8.16: the start screen stylesheet guards every class it renders with `hidden`', () => {

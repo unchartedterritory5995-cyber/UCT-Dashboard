@@ -1,0 +1,138 @@
+{
+ "viewport": "1200",
+ "step": "PD2",
+ "title": "PD-2 builder summary on an empty range",
+ "mode": "ON",
+ "checks": [
+  {
+   "what": "PD-2 Options strategies: the preview says the empty sentence 'No options strategies in this range.'",
+   "ok": true,
+   "read": "PREVIEW\n\nNet P&L, last 90 days\n\nAll my accounts · Last 90 days\n\nNo options strategies in this range.\n\nNet P&L for options strategies in the last 90 days, all accounts. 0 strategies.\n\nNet P&L for options strategies in the last 90 days, all accounts. 0 strategies."
+  },
+  {
+   "what": "PD-2 Options strategies: no SHOWN '0 <unit>' / '$0.00' text anywhere in the builder",
+   "ok": false,
+   "read": "[{\"text\": \"Net P&L for options strategies in the last 90 days, all accounts. 0 strategies.\", \"cls\": \"_summary_odb41_183\", \"live\": false, \"shown\": true, \"testid\": \"builder-preview\"}]"
+  },
+  {
+   "what": "PD-2 Open positions: the preview says the empty sentence 'No open positions.'",
+   "ok": true,
+   "read": "PREVIEW\n\nAverage days open, right now\n\nAll my accounts · Right now\n\nNo open positions.\n\nAverage days open for open positions right now, all accounts. 0 positions.\n\nAverage days open for open positions right now, all accounts. 0 positions."
+  },
+  {
+   "what": "PD-2 Open positions: no SHOWN '0 <unit>' / '$0.00' text anywhere in the builder",
+   "ok": false,
+   "read": "[{\"text\": \"Days open known on 0 of 0 positions\", \"cls\": \"_coverage_odb41_165\", \"live\": false, \"shown\": true, \"testid\": \"builder-sections\"}, {\"text\": \"Average days open for open positions right now, all accounts. 0 positions.\", \"cls\": \"_summary_odb41_183\", \"live\": false, \"shown\": true, \"testid\": \"builder-preview\"}]"
+  }
+ ],
+ "rendered": [
+  {
+   "what": "Options strategies: summary bar / preview pane / live region",
+   "text": "{\"bar\": null, \"pane\": \"PREVIEW\\n\\nNet P&L, last 90 days\\n\\nAll my accounts \\u00b7 Last 90 days\\n\\nNo options strategies in this range.\\n\\nNet P&L for options strategies in the last 90 days, all accounts. 0 strategies.\\n\\nNet P&L for options strategies in the last 90 days, all accounts. 0 strategies.\", \"live\": \"Net P&L for options strategies in the last 90 days, all accounts. 0 strategies.\"}"
+  },
+  {
+   "what": "Options strategies: zero-count text nodes in the builder (shown / in a live region)",
+   "text": "[{\"text\": \"$0.00\", \"cls\": \"_figureValue_k12k7_278 _flat_k12k7_254\", \"live\": false, \"shown\": false, \"testid\": \"example-card-shelf:fees-drag\"}, {\"text\": \"Net P&L for options strategies in the last 90 days, all accounts. 0 strategies.\", \"cls\": \"_summary_odb41_183\", \"live\": false, \"shown\": true, \"testid\": \"builder-preview\"}, {\"text\": \"Net P&L for options strategies in the last 90 days, all accounts. 0 strategies.\", \"cls\": \"_srOnly_odb41_363\", \"live\": true, \"shown\": false, \"testid\": \"builder-live\"}]"
+  },
+  {
+   "what": "Options strategies: zero count in the polite live region (not the PD-2 surface)",
+   "text": "{\"live\": \"Net P&L for options strategies in the last 90 days, all accounts. 0 strategies.\", \"zero\": true}"
+  },
+  {
+   "what": "Open positions: summary bar / preview pane / live region",
+   "text": "{\"bar\": null, \"pane\": \"PREVIEW\\n\\nAverage days open, right now\\n\\nAll my accounts \\u00b7 Right now\\n\\nNo open positions.\\n\\nAverage days open for open positions right now, all accounts. 0 positions.\\n\\nAverage days open for open positions right now, all accounts. 0 positions.\", \"live\": \"Average days open for open positions right now, all accounts. 0 positions.\"}"
+  },
+  {
+   "what": "Open positions: zero-count text nodes in the builder (shown / in a live region)",
+   "text": "[{\"text\": \"$0.00\", \"cls\": \"_figureValue_k12k7_278 _flat_k12k7_254\", \"live\": false, \"shown\": false, \"testid\": \"example-card-shelf:fees-drag\"}, {\"text\": \"Days open known on 0 of 0 positions\", \"cls\": \"_coverage_odb41_165\", \"live\": false, \"shown\": true, \"testid\": \"builder-sections\"}, {\"text\": \"Average days open for open positions right now, all accounts. 0 positions.\", \"cls\": \"_summary_odb41_183\", \"live\": false, \"shown\": true, \"testid\": \"builder-preview\"}, {\"text\": \"Average days open for open positions right now, all accounts. 0 positions.\", \"cls\": \"_srOnly_odb41_363\", \"live\": true, \"shown\": false, \"testid\": \"builder-live\"}]"
+  },
+  {
+   "what": "Open positions: zero count in the polite live region (not the PD-2 surface)",
+   "text": "{\"live\": \"Average days open for open positions right now, all accounts. 0 positions.\", \"zero\": true}"
+  }
+ ],
+ "verdict": "FAIL",
+ "notes": [],
+ "events": {
+  "P14": []
+ },
+ "metrics": {
+  "builder-options": {
+   "overflow": {
+    "vw": 1200,
+    "docScrollWidth": 1200,
+    "bodyScrollWidth": 1200,
+    "inner": [
+     [
+      1140,
+      1140
+     ],
+     [
+      1092,
+      1092
+     ],
+     [
+      826,
+      826
+     ]
+    ],
+    "horizontal": false,
+    "offenders": []
+   },
+   "raw_block": [],
+   "axe_sheet": {
+    "version": "4.13.0",
+    "scope": "[data-walk-scope=\"1\"]",
+    "violations": []
+   },
+   "axe_page": {
+    "version": "4.13.0",
+    "scope": "body",
+    "violations": []
+   }
+  },
+  "builder-open": {
+   "overflow": {
+    "vw": 1200,
+    "docScrollWidth": 1200,
+    "bodyScrollWidth": 1200,
+    "inner": [
+     [
+      1140,
+      1140
+     ],
+     [
+      1092,
+      1092
+     ],
+     [
+      826,
+      826
+     ]
+    ],
+    "horizontal": false,
+    "offenders": []
+   },
+   "raw_block": [],
+   "axe_sheet": {
+    "version": "4.13.0",
+    "scope": "[data-walk-scope=\"1\"]",
+    "violations": []
+   },
+   "axe_page": {
+    "version": "4.13.0",
+    "scope": "body",
+    "violations": []
+   }
+  }
+ },
+ "screenshots": [
+  "1200/PD2-builder-options.png",
+  "1200/PD2-builder-open.png"
+ ],
+ "requests_note_put": 0,
+ "started": "2026-10-27T09:53:57",
+ "findings": [],
+ "partial": false,
+ "finished": "2026-10-27T09:54:26"
+}

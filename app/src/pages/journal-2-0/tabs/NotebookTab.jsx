@@ -1698,6 +1698,14 @@ export default function NotebookTab() {
   // NoteEditorPage's first render holds the real note and builds ONE editor -- a server-composed body must never
   // meet an empty first editor and autosave a repair transaction), put the note in the tree, reconcile the
   // lists, open it. `createNote` and the earnings follow-up card both end here; neither may do a partial version.
+  // 11.20 walk D1: THE one way a note made from the New note sheet lands -- the sheet closes and the note opens as a
+  // fresh note (focus in its title, or its body when blank). `createNote` ends in it, and so does a Template library
+  // Use (the note the server already made, handed back by the adoption sheet), which used to navigate and leave the
+  // sheet open over the note with focus trapped in it.
+  const landPickedNote = (created, openOptions = {}) => {
+    setPickerOpen(false)
+    landCreatedNote(created, { fresh: true, ...openOptions })
+  }
   const landCreatedNote = (created, openOptions) => {
     globalMutate(`/api/j2/notes/${created.id}`, { note: created }, false)
     // Instant: put it in the tree now, then reconcile from the server.
@@ -1767,7 +1775,7 @@ export default function NotebookTab() {
       // even an empty one, so reading `created.bodyJson` could not tell blank
       // from templated).
       // A styled note is not blank either: the server composed its body (its outline).
-      landCreatedNote(created, { fresh: true, blank: !title && !bodyJson && !styleId && !kindId, to: focusFirst })
+      landPickedNote(created, { blank: !title && !bodyJson && !styleId && !kindId, to: focusFirst })
     } catch (e) {
       console.error('[notebook] create note failed', e)
       // Plan Task 11 / ruling R4 (a documented deviation from spec P1.6, which asks for an outbox
@@ -1864,7 +1872,24 @@ export default function NotebookTab() {
       setCreating(false)
       return
     }
-    await createNote({ title: full.title, bodyJson: full.bodyJson, properties: full.properties })
+    // W11-R77 (review n-1): a template used as a style outline holds `{{block:...}}` lines. A Use from Your templates
+    // places no block (spec §10: only a style's Use does), so the note gets exactly what the preview showed: each
+    // placeholder as the block's name, through the SAME function the preview used (MemberTemplates.openPreview).
+    // Loaded on demand: this tab is in the first-open closure.
+    // W11-R80 m-3: and in the form the editor will hold it (lib/editorNormalForm.js: the editor itself is the
+    // authority), so a template ending on a list or a heading does not make a note its first open writes.
+    let bodyJson = full.bodyJson
+    try {
+      const [{ outlineWithBlockNames }, { editorNormalForm }] = await Promise.all([
+        import('../lib/templateSlots'), import('../lib/editorNormalForm')])
+      bodyJson = editorNormalForm(outlineWithBlockNames(full.bodyJson, null))
+    } catch (e) {
+      console.error('[notebook] template words failed to load', e)
+      setActionError(`Couldn't open the template “${summary.name}”. Nothing was created.`)
+      setCreating(false)
+      return
+    }
+    await createNote({ title: full.title, bodyJson, properties: full.properties })
   }
 
   const handlePick = (tplOrNull) =>
@@ -2730,7 +2755,7 @@ export default function NotebookTab() {
             {/* P5 final fix: not while the New note sheet is open, so the page holds ONE picker (one
                 gallery door for a tour to wait on, one "How do you trade?", ruling P5-T10-R2). */}
             <div className={styles.emptyPicker}>
-              {!pickerOpen && <TemplatePicker onPick={handlePick} onPickMember={createFromMemberTemplate} busy={creating} kindSection={kindSection(false)} />}
+              {!pickerOpen && <TemplatePicker onPick={handlePick} onPickMember={createFromMemberTemplate} onLandNote={landPickedNote} busy={creating} kindSection={kindSection(false)} />}
             </div>
           </div>
         ) : (
@@ -2925,7 +2950,7 @@ export default function NotebookTab() {
           {/* 13Q-5: autoFocus only in the Sheet dialog -- the inline empty-notebook
               mount above (the picker at the empty-notebook branch) must never steal focus from a
               page load. */}
-          <TemplatePicker onPick={handlePick} onPickMember={createFromMemberTemplate} busy={creating} autoFocusSearch={pickerOpen !== 'kinds'} kindSection={kindSection(pickerOpen === 'kinds')} />
+          <TemplatePicker onPick={handlePick} onPickMember={createFromMemberTemplate} onLandNote={landPickedNote} busy={creating} autoFocusSearch={pickerOpen !== 'kinds'} kindSection={kindSection(pickerOpen === 'kinds')} />
         </Sheet>
 
         {voiceNote && voiceOn && (

@@ -1,0 +1,76 @@
+[mode] walk-sat pid=31096 instant=2026-10-24T11:00:00-04:00 port=8161 log=C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\5effcdc4-7e7d-42f4-a3df-67b99c63791b\scratchpad\sbx\logs\walk-sat.out.log;C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\5effcdc4-7e7d-42f4-a3df-67b99c63791b\scratchpad\sbx\logs\walk-sat.err.log
+walk start
+    [06:22:50] saw identity
+    [06:22:50] ok  identity data_dir = the walk data dir
+    [06:22:50] ok  identity pid = the recorded PID 31096
+    [06:22:50] ok  identity clock_shift.instant = the mode's instant 2026-10-24T11:00:00-04:00
+    [06:22:51] ok  GET /api/auth/me as A answers 200
+    [06:22:51] ok  A is paid-equivalent (paid_equiv true, plan pro, comped)
+    [06:22:51] ok  notebook_widgets_w8_enabled is True
+    [06:22:51] ok  notebook_widgets_w9_enabled is True
+    [06:22:51] ok  notebook_widgets_w10_enabled is True
+    [06:22:51] ok  notebook_widgets_w11_enabled is True
+    [06:22:51] ok  notebook_style_library_enabled is true
+    [06:22:51] ok  GET /api/j2/template-gallery/library answers 200
+    [06:22:51] ok  boot log: '[startup] notebook routine reminders registered' present
+    [06:22:51] ok  boot log: no 'SHARED-ROOT WRITE BLOCKED'
+    [06:22:51] saw boot log lines
+[1200 W11.0] PASS  checks 65/65  findings 0
+    [06:22:51] saw identity
+    [06:22:51] ok  identity data_dir = the walk data dir
+    [06:22:51] ok  identity pid = the recorded PID 31096
+    [06:22:51] ok  identity clock_shift.instant = the mode's instant 2026-10-24T11:00:00-04:00
+    [06:22:51] ok  GET /api/auth/me as A answers 200
+    [06:22:51] ok  A is paid-equivalent (paid_equiv true, plan pro, comped)
+    [06:22:51] ok  notebook_widgets_w8_enabled is True
+    [06:22:51] ok  notebook_widgets_w9_enabled is True
+    [06:22:51] ok  notebook_widgets_w10_enabled is True
+    [06:22:51] ok  notebook_widgets_w11_enabled is True
+    [06:22:51] ok  notebook_style_library_enabled is true
+    [06:22:51] ok  GET /api/j2/template-gallery/library answers 200
+    [06:22:51] ok  boot log: '[startup] notebook routine reminders registered' present
+    [06:22:51] ok  boot log: no 'SHARED-ROOT WRITE BLOCKED'
+    [06:22:51] saw boot log lines
+[820 W11.0] PASS  checks 65/65  findings 0
+    [06:22:51] saw identity
+    [06:22:51] ok  identity data_dir = the walk data dir
+    [06:22:51] ok  identity pid = the recorded PID 31096
+    [06:22:51] ok  identity clock_shift.instant = the mode's instant 2026-10-24T11:00:00-04:00
+    [06:22:51] ok  GET /api/auth/me as A answers 200
+    [06:22:51] ok  A is paid-equivalent (paid_equiv true, plan pro, comped)
+    [06:22:51] ok  notebook_widgets_w8_enabled is True
+    [06:22:51] ok  notebook_widgets_w9_enabled is True
+    [06:22:51] ok  notebook_widgets_w10_enabled is True
+    [06:22:51] ok  notebook_widgets_w11_enabled is True
+    [06:22:51] ok  notebook_style_library_enabled is true
+    [06:22:51] ok  GET /api/j2/template-gallery/library answers 200
+    [06:22:51] ok  boot log: '[startup] notebook routine reminders registered' present
+    [06:22:51] ok  boot log: no 'SHARED-ROOT WRITE BLOCKED'
+    [06:22:51] saw boot log lines
+[390 W11.0] PASS  checks 65/65  findings 0
+[mode] walk-sat pid=31096 instant=2026-10-24T11:00:00-04:00 port=8161 log=C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\5effcdc4-7e7d-42f4-a3df-67b99c63791b\scratchpad\sbx\logs\walk-sat.out.log;C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\5effcdc4-7e7d-42f4-a3df-67b99c63791b\scratchpad\sbx\logs\walk-sat.err.log
+walk start
+    [06:25:06] saw A: server shifted now / browser clock
+    [06:25:06] saw server shifted now
+    [06:25:17] saw Weekend swing review detail
+    [06:25:23] NO  Weekend swing review Use: after Use the new note is in front (no sheet left open over it)
+    [06:25:28] saw routine block
+    [06:25:28] ok  the routine block reads 'For the week of Oct 19' (the week just ended, labelled from its Monday)
+[1200 W11.5] FAIL  checks 1/2  findings 0
+   x Weekend swing review Use: after Use the new note is in front (no sheet left open over it) | ["New note"]
+    [06:25:28] saw A: server shifted now / browser clock
+    [06:25:28] saw server shifted now
+    [06:25:39] saw Weekend swing review detail
+    [06:25:45] NO  Weekend swing review Use: after Use the new note is in front (no sheet left open over it)
+    [06:25:50] saw routine block
+    [06:25:50] ok  the routine block reads 'For the week of Oct 19' (the week just ended, labelled from its Monday)
+[820 W11.5] FAIL  checks 1/2  findings 0
+   x Weekend swing review Use: after Use the new note is in front (no sheet left open over it) | ["New note"]
+    [06:25:50] saw A: server shifted now / browser clock
+    [06:25:50] saw server shifted now
+    [06:26:01] saw Weekend swing review detail
+    [06:26:07] NO  Weekend swing review Use: after Use the new note is in front (no sheet left open over it)
+    [06:26:12] saw routine block
+    [06:26:12] ok  the routine block reads 'For the week of Oct 19' (the week just ended, labelled from its Monday)
+[390 W11.5] FAIL  checks 1/2  findings 0
+   x Weekend swing review Use: after Use the new note is in front (no sheet left open over it) | ["New note"]

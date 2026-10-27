@@ -1,0 +1,85 @@
+{
+ "viewport": "1200",
+ "step": "D4",
+ "title": "D4 gallery card buttons >= 44x44 on touch",
+ "mode": "ON",
+ "checks": [
+  {
+   "what": "D4: the gallery shows tool cards with a Use button (W11.8 listings)",
+   "ok": true,
+   "read": "4"
+  }
+ ],
+ "rendered": [
+  {
+   "what": "Widgets: card buttons",
+   "text": "[{\"label\": \"Use Setup win rate 1200\", \"w\": 41.1, \"h\": 24}, {\"label\": \"Helpful: Setup win rate 1200\", \"w\": 76, \"h\": 24}]"
+  },
+  {
+   "what": "Routines: card buttons",
+   "text": "[{\"label\": \"Use Prep routine 1200\", \"w\": 41.1, \"h\": 24}, {\"label\": \"Helpful: Prep routine 1200\", \"w\": 76, \"h\": 24}]"
+  },
+  {
+   "what": "Trackers: card buttons",
+   "text": "[{\"label\": \"Use Sleep 1200\", \"w\": 41.1, \"h\": 24}, {\"label\": \"Helpful: Sleep 1200\", \"w\": 76, \"h\": 24}]"
+  },
+  {
+   "what": "Templates: card buttons",
+   "text": "[{\"label\": \"Use Sleep 1200\", \"w\": 41.1, \"h\": 24}, {\"label\": \"Helpful: Sleep 1200\", \"w\": 76, \"h\": 24}]"
+  }
+ ],
+ "verdict": "PASS",
+ "notes": [
+  "1200 is not the touch tier: sizes recorded only"
+ ],
+ "events": {
+  "B": []
+ },
+ "metrics": {
+  "gallery": {
+   "overflow": {
+    "vw": 1200,
+    "docScrollWidth": 1200,
+    "bodyScrollWidth": 1200,
+    "inner": [
+     [
+      1140,
+      1140
+     ],
+     [
+      1092,
+      1092
+     ],
+     [
+      826,
+      826
+     ]
+    ],
+    "horizontal": false,
+    "offenders": []
+   },
+   "raw_block": [],
+   "axe_sheet": {
+    "version": "4.13.0",
+    "scope": "[data-walk-scope=\"1\"]",
+    "violations": []
+   },
+   "axe_page": {
+    "version": "4.13.0",
+    "scope": "body",
+    "violations": []
+   }
+  }
+ },
+ "screenshots": [
+  "1200/D4-gallery-widgets.png",
+  "1200/D4-gallery-routines.png",
+  "1200/D4-gallery-trackers.png",
+  "1200/D4-gallery-templates.png"
+ ],
+ "requests_note_put": 0,
+ "started": "2026-10-27T09:49:22",
+ "findings": [],
+ "partial": false,
+ "finished": "2026-10-27T09:49:40"
+}

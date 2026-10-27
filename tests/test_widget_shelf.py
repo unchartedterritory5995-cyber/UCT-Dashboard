@@ -593,3 +593,38 @@ def test_a_split_none_of_the_rows_has_a_value_for_is_the_results_empty_sentence(
     res = aggregate.evaluate(rows, by_r, sources.CATALOG)
     assert res.empty is None and [g.label for g in res.groups] == ["1R to 2R"]
     assert any("not in this split" in f for f in res.footnotes)
+
+
+def test_r84_m2_a_payload_whose_rows_have_no_split_value_says_the_split_sentence_and_keeps_its_count():
+    """W11-R84 m-2 (payload.py `empty`): rows EXIST but none has the split value. The payload's `empty` is the result's
+    own split sentence (aggregate.S_SPLIT_NONE), never the source's "no rows" one, and `count` still names how many
+    rows were read (the sentence's noun follows that count: "these trades" for many, "This trade" for one). The
+    client then shows that sentence and, by design, no coverage line for it (PreviewPane.summaryEmpty.test.jsx)."""
+    from api.services.journal_two.widget_engine import payload as wpayload
+    import dataclasses
+    base = copy.deepcopy(run._sample_scan("closed_trades"))
+    rows = [r for r in base.rows if not r.get("flagged")]
+    for r in rows:
+        r["r"] = None
+        r["r_bucket"] = None
+    plan = wplan.validate_plan({"v": 1, "source": "closed_trades", "range": {"token": "all"},
+                                "measures": [{"key": "trades"}], "split": {"by": "r_bucket"},
+                                "view": {"type": "bar"}}, sources.CATALOG)
+    rng = wplan.resolve_range(plan["range"], NOW.date())
+
+    def build(rows):
+        scan = dataclasses.replace(base, rows=rows)
+        res = aggregate.evaluate(rows, plan, sources.CATALOG)
+        return wpayload.build_payload(result=res, plan=plan, settings={}, def_id=None, def_rev=None, latest_rev=None,
+                                      rng=rng, scan=scan, sample=False, now=NOW)
+    assert len(rows) > 1                                                     # non-vacuity: rows exist
+    many = build(rows)
+    assert many["count"] == len(rows)
+    assert many["empty"] == "None of these trades have a value for R bucket yet."
+    assert many["empty"] != wpayload.S_EMPTY.get("closed_trades")           # not the source's "no rows" sentence
+    one = build(rows[:1])
+    assert one["count"] == 1 and one["empty"] == "This trade has no value for R bucket yet."
+    # CONTROL: one row with the value and the payload is not empty, and still counts every row
+    rows[0] = {**rows[0], "r": 1.5, "r_bucket": "1R to 2R"}
+    full = build(rows)
+    assert full["empty"] is None and full["count"] == len(rows)

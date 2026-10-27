@@ -123,6 +123,51 @@ KILL_LIST = {
     "DISCORD_TSDR_WEBHOOK_URL": "",
     "COT_WEEKLY_DISCORD_WEBHOOK_URL": "",
     "BUZZ_DIGEST_CHANNEL": "",
+    # ⛔ F-CLOCK-1 review I4 (ruling W11-R51): the four above were the ONLY channels blanked, while
+    # every other outbound credential the app reads passed straight through from the operator's
+    # shell. `tests/test_notebook_campaign_clock.py` DERIVES the set (every `*_WEBHOOK_URL`,
+    # `*_WEBHOOK`, `*_BOT_TOKEN`, Resend, Stripe and YouTube credential literal in api/**) and reds
+    # on one that is not blanked here, so a channel added tomorrow cannot ride past this list.
+    # The ops/business destinations are what `session_guard`'s device-kick alert resolves to.
+    "DISCORD_OPS_WEBHOOK_URL": "",
+    "DISCORD_BUSINESS_WEBHOOK_URL": "",
+    "DISCORD_ALERT_WEBHOOK": "",
+    "DISCORD_RENDER_ALERT_WEBHOOK": "",
+    "DISCORD_BREADTH_WEBHOOK_URL": "",
+    "DISCORD_EVENT_CALENDAR_WEBHOOK_URL": "",
+    "DISCORD_EVENT_CALENDAR_TEST_WEBHOOK_URL": "",
+    "DISCORD_FLOW_WEBHOOK_URL": "",
+    "DISCORD_LIVE_FLOW_WEBHOOK_URL": "",
+    "DISCORD_MASSIVE_WEBHOOK_URL": "",
+    "DISCORD_NOTABLE_WEBHOOK_URL": "",
+    "DISCORD_RECAP_WEBHOOK_URL": "",
+    "DISCORD_BOT_TOKEN": "",
+    "ALPHA_GOLD_EOD_WEBHOOK_URL": "",
+    "BUZZ_DIGEST_WEBHOOK": "",
+    "CREAM_EOD_WEBHOOK_URL": "",
+    "DARKPOOL_EOD_WEBHOOK_URL": "",
+    "LTR_LEADS_DISCORD_WEBHOOK": "",
+    "OI_MORNING_WEBHOOK_URL": "",
+    "STANDING_FLOW_WEBHOOK_URL": "",
+    "WEEKLY_FLOW_WEBHOOK_URL": "",
+    # Member email (Resend), payments (Stripe) and video (YouTube OAuth): blank kills the door.
+    "RESEND_API_KEY": "",
+    "STRIPE_SECRET_KEY": "",
+    "STRIPE_WEBHOOK_SECRET": "",
+    "YT_OAUTH_CLIENT_ID": "",
+    "YT_OAUTH_CLIENT_SECRET": "",
+    "YT_OAUTH_REFRESH_TOKEN": "",
+    # Fix round 2 (review N3): web push, the connector OAuth apps, the broker, and the inbound-webhook
+    # secrets. Blank kills each capability; every one is read in api/.
+    "WEB_PUSH_VAPID_PRIVATE_KEY": "",
+    "MSGRAPH_CLIENT_SECRET": "",
+    "NOTION_CLIENT_SECRET": "",
+    "REDDIT_CLIENT_SECRET": "",
+    "SNAPTRADE_CONSUMER_KEY": "",
+    "SNAPTRADE_CLIENT_ID": "",
+    "SNAPTRADE_WEBHOOK_SECRET": "",
+    "ZOOM_WEBHOOK_SECRET_TOKEN": "",
+    "ZOOM_S2S_CLIENT_SECRET": "",
 
     # R2 / shared object storage — blank kills the capability, not just one door.
     # Load-bearing beside USE_REMOTE_BARS=1, whose branch would otherwise try to
@@ -180,8 +225,9 @@ MODEL_PROVIDER_KEYS = (
 )
 
 # Read in api/**, and NOT a paid model/embedding provider: market-data, news,
-# e-mail and earnings-audio vendors. Left untouched — the sandbox's pages need
-# their data, and this lane's scope is model spend only.
+# e-mail and earnings-audio vendors. Left untouched by THIS policy — the sandbox's
+# pages need their data, and this lane's scope is model spend only. (RESEND_API_KEY,
+# member e-mail, is an outbound channel and is blanked by KILL_LIST instead.)
 NON_MODEL_KEYS = (
     "ALPHAVANTAGE_API_KEY", "BEA_API_KEY", "BLS_API_KEY", "BULLFLOW_API_KEY",
     "CENSUS_API_KEY", "EARNINGS_AUDIO_API_KEY", "EIA_API_KEY",
@@ -257,10 +303,6 @@ def apply_model_key_policy(environ, allow):
             + f" (opt in: --allow-model-keys or {ALLOW_MODEL_KEYS_ENV}=1)")
 
 
-def _norm(path):
-    return os.path.normcase(os.path.abspath(path))
-
-
 def _refuse_port_in_use(port):
     """Hard-exit if something is ALREADY listening on this port.
 
@@ -296,29 +338,38 @@ def _refuse_port_in_use(port):
     sys.exit(1)
 
 
+def _shared_root_guard():
+    """THE refusal authority, `scripts/shared_root_guard.py` (ruling W11-R51), shared with the
+    pytest tripwire and the seeders: never a copy of its rule here."""
+    here = os.path.dirname(os.path.abspath(__file__))
+    if here not in sys.path:
+        sys.path.insert(0, here)
+    import shared_root_guard
+    return shared_root_guard
+
+
 def _refuse_shared_root(sandbox, shared_roots):
-    """Hard-exit if the sandbox IS, or sits inside, the shared data root.
+    """Hard-exit if the sandbox IS, or sits inside, the shared data root, in ANY spelling the guard
+    knows (a device path or UNC share is refused before it is resolved; a junction is followed).
 
     Checked before anything is set, created or served. A device-test run against
     the real root does not fail loudly — it succeeds against real member data,
     which is worse.
     """
-    target = _norm(sandbox)
-    for root in shared_roots:
-        if target == root or target.startswith(root + os.sep):
-            print("")
-            print("  REFUSING TO RUN.")
-            print("")
-            print(f"  --data-dir resolved to {target!r}, which is inside the")
-            print(f"  SHARED DATA ROOT ({root}).")
-            print("")
-            print("  That directory holds the live auth database and every")
-            print("  production SQLite file on this machine.")
-            print("")
-            print("  Pass a sandbox path instead, e.g.:")
-            print("      python scripts/hub_sandbox_boot.py --data-dir C:\\data-hubtest")
-            print("")
-            sys.exit(1)
+    why = _shared_root_guard().refuse(sandbox, roots=shared_roots)
+    if why:
+        print("")
+        print("  REFUSING TO RUN.")
+        print("")
+        print(f"  --data-dir: {why}.")
+        print("")
+        print("  That directory holds the live auth database and every")
+        print("  production SQLite file on this machine.")
+        print("")
+        print("  Pass a sandbox path instead, e.g.:")
+        print("      python scripts/hub_sandbox_boot.py --data-dir C:\\data-hubtest")
+        print("")
+        sys.exit(1)
 
 
 def _sandbox_for(sandbox_root, literal):
@@ -463,6 +514,144 @@ def _start_post_boot_compare(drs, baseline, log_file, port):
     threading.Thread(target=_run, daemon=True, name="data-root-compare").start()
 
 
+#: The root word a checkpoint carries when the shared data root was never read (`--no-shared-root-snapshot`).
+NOT_OPENED_ROOT = "shared data root not opened (--no-shared-root-snapshot)"
+#: That checkpoint's verdict: an honest "nothing was hashed", never CLEAN (CLEAN would claim files were compared).
+NOT_HASHED = "NOT HASHED (the run never opens the shared data root)"
+
+
+#: T-19 (W11-R81): `--block-outbound` sends every HTTP(S) client that honours the proxy variables (requests, httpx,
+#: urllib, curl and so yfinance) to a closed loopback port, while loopback itself stays reachable. Opt-in, because the
+#: device sandbox draws charts from the keyless vendors; the notebook campaign passes it (and serves the same values on
+#: its clock and seeder boots through run_campaign.outbound_block, which reads this dict by AST).
+OUTBOUND_BLOCK = {
+    "HTTP_PROXY": "http://127.0.0.1:9", "HTTPS_PROXY": "http://127.0.0.1:9", "ALL_PROXY": "http://127.0.0.1:9",
+    "http_proxy": "http://127.0.0.1:9", "https_proxy": "http://127.0.0.1:9", "all_proxy": "http://127.0.0.1:9",
+    "NO_PROXY": "127.0.0.1,localhost,::1", "no_proxy": "127.0.0.1,localhost,::1",
+}
+
+
+#: The closed loopback port OUTBOUND_BLOCK points every proxy at.
+BLOCK_PORT = 9
+
+
+def _refuse_block_port_listening(port=BLOCK_PORT):
+    """W11-R83 m-6: the black hole must BE one. If anything listens on the block port (Windows' Simple TCP/IP
+    "discard" service binds 9), outbound calls would reach it, so the boot is refused.
+    NOT COVERED by the block, by design and recorded: a client built with `trust_env=False` ignores proxy variables
+    (api/routers/notebook_link_preview.py builds one), and raw sockets and DNS lookups. The block is proxy-hermetic."""
+    import socket
+    s = socket.socket()
+    s.settimeout(0.5)
+    try:
+        listening = s.connect_ex(("127.0.0.1", port)) == 0
+    finally:
+        s.close()
+    if listening:
+        print(f"  REFUSING TO RUN. --block-outbound: something listens on 127.0.0.1:{port}, so it is no black hole.")
+        sys.exit(1)
+
+
+def _census_roots():
+    """The shared roots the census derives (conftest.SHARED_DATA_ROOTS): the same roots `_refuse_shared_root`
+    checks the data dir against, so the log dir and the data dir are refused by one rule (review m9)."""
+    import conftest
+    return conftest.SHARED_DATA_ROOTS
+
+
+def _log_file(log_dir, drs, roots=None):
+    """The integrity log: under `log_dir` (a run's own evidence folder) when given, else the repo's
+    `docs/plans/joystick/sandbox-runs` (the device runbook's place). A `log_dir` inside the shared root is
+    refused by the one refusal authority, against the census roots, before anything is created."""
+    if not log_dir:
+        return drs.log_path_for(REPO_ROOT)
+    why = _shared_root_guard().refuse(log_dir, roots=roots if roots is not None else _census_roots())
+    if why:
+        print(f"  REFUSING TO RUN. --log-dir: {why}.")
+        sys.exit(1)
+    os.makedirs(log_dir, exist_ok=True)
+    return os.path.join(os.path.abspath(log_dir), time.strftime("sandbox-integrity-%Y-%m-%dT%H-%M-%S.md"))
+
+
+def _kill_list_names(launcher_path):
+    """The KILL_LIST keys of another launcher file, read by AST (never imported)."""
+    import ast
+    tree = ast.parse(open(launcher_path, encoding="utf-8").read())
+    for node in tree.body:
+        if isinstance(node, ast.Assign) and any(getattr(t, "id", None) == "KILL_LIST" for t in node.targets)                 and isinstance(node.value, ast.Dict):
+            return {k.value for k in node.value.keys if isinstance(k, ast.Constant)}
+    return set()
+
+
+def _use_app_root(app_root):
+    """`--app-root` (review C1): serve, and derive the census from, ANOTHER checkout's api/ and conftest, while this
+    file (the tool tree's launcher, with its G2 options) runs. This tree's root leaves sys.path, the app root takes its
+    place. Refused when the app root is inside the shared root, or when the app root's own launcher kills a flag this
+    one does not (a tool tree older than the app must never serve with a shorter kill list).
+    ⚠️ SCOPE (review n3): only the KILL_LIST NAMES are compared, not their values, the model-key policy or any other
+    env policy in the app root's launcher; this launcher's own policy is what runs. And (n4) the app root's conftest
+    resolves `shared_root_guard` from THIS tree's scripts/ (first on sys.path), identical while both trees agree."""
+    global REPO_ROOT
+    app_root = os.path.abspath(app_root)
+    why = _shared_root_guard().refuse(app_root)
+    if why:
+        print(f"  REFUSING TO RUN. --app-root: {why}.")
+        sys.exit(1)
+    theirs = os.path.join(app_root, "scripts", "hub_sandbox_boot.py")
+    if os.path.isfile(theirs):
+        extra = sorted(_kill_list_names(theirs) - set(KILL_LIST))
+        if extra:
+            print(f"  REFUSING TO RUN. --app-root's launcher kills {extra}, which this launcher does not.")
+            sys.exit(1)
+    mine = os.path.normcase(os.path.abspath(REPO_ROOT))
+    sys.path[:] = [x for x in sys.path if os.path.normcase(os.path.abspath(x or os.getcwd())) != mine]
+    sys.path.insert(0, app_root)
+    REPO_ROOT = app_root
+    return app_root
+
+
+def _append_unhashed(log_file, label, extra=None):
+    """One checkpoint line in the integrity log's own format (data_root_snapshot.append_log), saying the shared
+    root was not read. The harness parses it like any other line; its verdict is NOT HASHED, so it never reads
+    as clean evidence about the live root."""
+    import io
+    fresh = not os.path.exists(log_file)
+    with io.open(log_file, "a", encoding="utf-8", newline="\n") as fh:
+        if fresh:
+            fh.write("# Sandbox run — integrity log (shared data root NOT read)\n\n"
+                     "This run was started with --no-shared-root-snapshot: it never stats, hashes or opens the\n"
+                     "shared data root. Writes there are still refused by the tripwire (conftest guard).\n\n")
+        now = time.strftime("%Y-%m-%d %H:%M:%S")
+        fh.write(f"- `{now}`  **{label}** — {NOT_OPENED_ROOT}, 0 db files — {NOT_HASHED}\n")
+        if extra:
+            fh.write(f"    - {extra}\n")
+    return log_file
+
+
+def _start_post_boot_marker(log_file, port):
+    """The checkpoints a harness waits for, written once the server answers, with no snapshot taken."""
+    import urllib.request
+
+    def _run():
+        deadline = time.time() + 180
+        while time.time() < deadline:
+            try:
+                with urllib.request.urlopen(f"http://127.0.0.1:{port}/api/health", timeout=3) as r:
+                    if r.status == 200:
+                        break
+            except Exception:  # noqa: BLE001 -- not up yet
+                pass
+            time.sleep(2)
+        else:
+            print("  [post-boot] server never became healthy.")
+            return
+        for label, delay in (("post-boot (+15s)", 15), ("post-prewarm (+120s)", 105)):
+            time.sleep(delay)
+            _append_unhashed(log_file, label)
+
+    threading.Thread(target=_run, daemon=True, name="data-root-marker").start()
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--data-dir", default=r"C:\data-hubtest")
@@ -472,10 +661,24 @@ def main():
     ap.add_argument("--allow-model-keys", action="store_true",
                     help="pass ANTHROPIC/OPENAI/PERPLEXITY keys through (PAID model "
                          f"calls possible). Default blanks them. Env form: {ALLOW_MODEL_KEYS_ENV}=1")
+    ap.add_argument("--block-outbound", action="store_true",
+                    help="no outbound HTTP(S) from the server (OUTBOUND_BLOCK); loopback stays reachable")
+    ap.add_argument("--app-root", default=None,
+                    help="serve this checkout's api/ (and derive its census) instead of the one this launcher sits in")
+    ap.add_argument("--log-dir", default=None,
+                    help="write the integrity log into this directory (a tool's own --out), never the repo")
+    ap.add_argument("--no-shared-root-snapshot", action="store_true",
+                    help="never stat, hash or open the shared data root (C:\\data): the checkpoints say NOT HASHED. "
+                         "For tools under the rule that nothing opens it (the notebook campaign)")
     args = ap.parse_args()
 
     sandbox = os.path.abspath(args.data_dir)
     _refuse_port_in_use(args.port)
+    if args.app_root:
+        _use_app_root(args.app_root)
+    if args.block_outbound:
+        _refuse_block_port_listening()
+        os.environ.update(OUTBOUND_BLOCK)          # before anything that could open a connection is imported
 
     # ⛔ THE SNAPSHOT IS THE FIRST THING THIS RUN REPORTS, BEFORE ANY HEALTH
     # CHECK. "Reports clean" is never evidence of "wrote nowhere" — the boot
@@ -491,13 +694,18 @@ def main():
     # IS the sandbox that writes this log (`sandbox_identity.verify`) -- never "whatever
     # answers the port".
     nonce = sid.mint()
-    log_file = drs.log_path_for(REPO_ROOT)
-    baseline = drs.snapshot()
-    drs.append_log(log_file, "pre-boot (baseline)", drs.DEFAULT_ROOT,
-                   len(baseline), [], extra=sid.log_extra(sandbox, nonce))
+    log_file = _log_file(args.log_dir, drs)
+    hashed = not args.no_shared_root_snapshot
+    if hashed:
+        baseline = drs.snapshot()
+        drs.append_log(log_file, "pre-boot (baseline)", drs.DEFAULT_ROOT,
+                       len(baseline), [], extra=sid.log_extra(sandbox, nonce))
+    else:
+        baseline = None
+        _append_unhashed(log_file, "pre-boot (baseline)", extra=sid.log_extra(sandbox, nonce))
     print("")
     print(f"  [pre-boot] shared data root baseline: {len(baseline)} db files "
-          f"hashed (sha256)")
+          f"hashed (sha256)" if hashed else f"  [pre-boot] {NOT_OPENED_ROOT}")
     print(f"  [pre-boot] integrity log: {log_file}")
     print(f"  [pre-boot] sandbox identity: {nonce} (served at {sid.IDENTITY_PATH})")
 
@@ -532,7 +740,10 @@ def main():
     print("  reach live data and was stopped. Report it; do not ignore it.")
     print("")
 
-    _start_post_boot_compare(drs, baseline, log_file, args.port)
+    if hashed:
+        _start_post_boot_compare(drs, baseline, log_file, args.port)
+    else:
+        _start_post_boot_marker(log_file, args.port)
 
     import uvicorn
     try:
@@ -547,14 +758,18 @@ def main():
         # Shutdown checkpoint. A leak that only happens on teardown — a
         # checkpoint, a flush, an atexit handler — would be invisible to the
         # post-boot check alone.
-        diffs = drs.compare(baseline, drs.snapshot())
-        drs.append_log(log_file, "shutdown", drs.DEFAULT_ROOT,
-                       len(baseline), diffs)
-        if diffs:
-            drs._print_diffs("shutdown", diffs)
-            sys.exit(2)
-        print(f"  [shutdown] shared data root CLEAN ({len(baseline)} db files "
-              f"byte-identical). Log: {log_file}")
+        if not hashed:
+            _append_unhashed(log_file, "shutdown")
+            print(f"  [shutdown] {NOT_OPENED_ROOT}. Log: {log_file}")
+        else:
+            diffs = drs.compare(baseline, drs.snapshot())
+            drs.append_log(log_file, "shutdown", drs.DEFAULT_ROOT,
+                           len(baseline), diffs)
+            if diffs:
+                drs._print_diffs("shutdown", diffs)
+                sys.exit(2)
+            print(f"  [shutdown] shared data root CLEAN ({len(baseline)} db files "
+                  f"byte-identical). Log: {log_file}")
 
 
 if __name__ == "__main__":

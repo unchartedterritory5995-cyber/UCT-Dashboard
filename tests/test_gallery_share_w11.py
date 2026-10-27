@@ -1,0 +1,750 @@
+"""Task 11.8: the share preview and the publish doors, through ONE reducer (W11-R1, W11-R6, W11-R22).
+
+* `share_preview` writes nothing and is the only place the author's stored words appear (`prefill`, to its owner).
+* Every publish of a widget, routine, tracker or template goes through `share.*`; nothing else in
+  `template_gallery.py` writes a tool item.
+* A tool is pending, then held while approved (R-P3-3). A copy from the library is refused; so is a template holding one.
+* A template's payload carries its inline definitions with ONE numbering of choices; non-slot blocks travel by P3a's
+  rule (W11-R18); a slot whose target is not the member's is left out and counted.
+* The canary rail over what lands on DISK, and the refusal-sentence rail (11.4 m3).
+"""
+from __future__ import annotations
+
+import ast
+import json
+import pathlib
+import re
+
+import pytest
+
+from api.services.journal_two import journal_styles as js
+from api.services.journal_two import template_gallery as gallery
+from api.services.journal_two.widget_engine import share
+from tests._gallery_w11_helpers import (  # noqa: F401 -- `db` is a fixture used by name
+    AUTHOR, MEMBER, OTHER, SETUP_PLAN, approve, built, counts, db, heading, list_template, list_tool, para,
+    routine, routine_edits, routine_slot, style, tracker, tracker_slot, widget,
+)
+from tests.test_widget_share_canary import CANARY, CANARY_ESC, CANARY_UP, NUMBER, FORBIDDEN_NUMBER, FORBIDDEN_TEXT
+
+GALLERY_SRC = pathlib.Path(gallery.__file__)
+#: An INSERT into the item table itself (OR IGNORE included), never one of its `j2_template_gallery_*` siblings.
+_INSERT_RE = re.compile(r"INSERT(?: OR \w+)? INTO j2_template_gallery(?![_\w])")
+
+
+# ── the preview ────────────────────────────────────────────────────────────────────────────────────
+
+def test_preview_writes_nothing_and_prefills_only_for_owner(db):
+    w = widget(db, plan={**SETUP_PLAN, "formulas": [{"id": "f1", "name": "My edge", "expr": "[r] * 2",
+                                                     "format": "number"}],
+                         "measures": [{"formula": "f1", "agg": "avg"}], "display": {"target": 3}})
+    r = routine(db)
+    t = tracker(db)
+    s = style(db, blocks=[built("a", w["id"]), routine_slot("a", r["id"])])
+    before = counts(db)
+    total = db.total_changes
+    out = gallery.share_preview(AUTHOR, "widget", w["id"], conn=db)
+    assert set(out) == {"travels", "slots", "kept", "notShared", "prefill"}
+    assert out["prefill"]["name"] == "Win rate"
+    assert out["prefill"]["formulas"] == [{"id": "f1", "name": "My edge"}]
+    # every answer carries `numbers`, each at a path the reducer keeps (11.15 I-3)
+    assert {n["path"] for n in out["prefill"]["numbers"]} == {"formulas/f1/6", "display/target"}
+    # the author's stored words are ONLY in the prefill: the travels carry the generated words
+    assert "Win rate" not in json.dumps(out["travels"]) and "My edge" not in json.dumps(out["travels"])
+    rout = gallery.share_preview(AUTHOR, "routine", r["id"], conn=db)
+    assert rout["travels"] is None and rout["prefill"]["items"] == [{"text": "Coffee"}, {"text": "Mark levels"}]
+    rout2 = gallery.share_preview(AUTHOR, "routine", r["id"], edits=routine_edits("Coffee", ""), conn=db)
+    assert [i["text"] for i in rout2["travels"]["items"]] == ["Coffee"]      # an unticked item ('') is dropped
+    assert "numbers" in rout2["prefill"]
+    trk = gallery.share_preview(AUTHOR, "tracker", t["id"], conn=db)
+    assert trk["prefill"]["unit"] == "hrs" and trk["travels"]["unit"] is None and "numbers" in trk["prefill"]
+    tpl = gallery.share_preview(AUTHOR, "template", s["id"], conn=db)
+    assert set(tpl["prefill"]["blocks"]) == {"built_a", "routine_a"} and tpl["travels"] is None
+    assert tpl["outline"] is not None and tpl["outline"]["content"][0]["content"][0]["text"] == "Plan"   # M-4
+    assert counts(db) == before and db.total_changes == total                                # nothing written
+    # another member's preview of my items reads as absent (404), and reads nothing of mine
+    for kind, tid in (("widget", w["id"]), ("routine", r["id"]), ("tracker", t["id"]), ("template", s["id"])):
+        assert gallery.share_preview(MEMBER, kind, tid, conn=db) is None
+
+
+def test_preview_is_absent_while_wave_11_or_the_library_is_off(db, monkeypatch):
+    w = widget(db)
+    monkeypatch.setenv("NOTEBOOK_WIDGETS_W11_ENABLED", "0")
+    assert gallery.share_preview(AUTHOR, "widget", w["id"], conn=db) is None
+    assert gallery.publish_tool(AUTHOR, "widget", w["id"], conn=db) is None
+    monkeypatch.setenv("NOTEBOOK_WIDGETS_W11_ENABLED", "1")
+    monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "0")
+    assert gallery.share_preview(AUTHOR, "widget", w["id"], conn=db) is None
+    monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "1")
+    assert gallery.share_preview(AUTHOR, "widget", w["id"], conn=db) is not None         # control
+
+
+def test_template_preview_says_when_the_outline_is_gone(db):
+    db.execute("INSERT INTO j2_note_templates (id, user_id, name, title, body_json, properties_json, created_at,"
+               " updated_at) VALUES ('tpl-gone', ?, 'T', 'T', '{}', NULL, 'x', 'x')", (AUTHOR,))
+    db.commit()
+    w = widget(db)
+    s = js.create_style(AUTHOR, {"name": "S", "kindId": "weekend_prep", "blocks": [built("a", w["id"])],
+                                 "outlineTemplateId": "tpl-gone"}, db)
+    db.execute("DELETE FROM j2_note_templates WHERE id = 'tpl-gone'")
+    db.commit()
+    out = gallery.share_preview(AUTHOR, "template", s["id"], conn=db)
+    assert out["outline"] is None and out["outlineGone"] is True
+    assert gallery.OUTLINE_GONE_SENTENCE in out["notShared"]
+
+
+# ── publishing goes through the reducer ───────────────────────────────────────────────────────────
+
+def test_publish_goes_through_the_reducer(db, monkeypatch):
+    calls: list[str] = []
+    for name in ("share_plan", "share_routine", "share_tracker", "share_template"):
+        real = getattr(share, name)
+
+        def spy(*a, _real=real, _name=name, **kw):
+            calls.append(_name)
+            return _real(*a, **kw)
+        monkeypatch.setattr(share, name, spy)
+    w, r, t = widget(db), routine(db), tracker(db)
+    gallery.publish_tool(AUTHOR, "widget", w["id"], conn=db)
+    gallery.publish_tool(AUTHOR, "routine", r["id"], edits=routine_edits("Coffee"), conn=db)
+    gallery.publish_tool(AUTHOR, "tracker", t["id"], conn=db)
+    s = style(db, blocks=[built("a", w["id"])])
+    gallery.publish_style(AUTHOR, s["id"], title="T", description="", category="journal", trading_style=None, conn=db)
+    assert {"share_plan", "share_routine", "share_tracker", "share_template"} <= set(calls)
+    assert calls[:3] == ["share_plan", "share_routine", "share_tracker"]
+
+
+def _functions_writing_gallery_rows(src: str) -> set[str]:
+    """Every function whose code holds an `INSERT INTO j2_template_gallery ` statement (the item table itself)."""
+    tree = ast.parse(src)
+    out = set()
+    for fn in ast.walk(tree):
+        if isinstance(fn, ast.FunctionDef):
+            for node in ast.walk(fn):
+                if isinstance(node, ast.Constant) and isinstance(node.value, str) \
+                        and _INSERT_RE.search(node.value):
+                    out.add(fn.name)
+    return out
+
+
+def _callers_of(src: str, callee: str) -> set[str]:
+    tree = ast.parse(src)
+    return {fn.name for fn in ast.walk(tree) if isinstance(fn, ast.FunctionDef)
+            for n in ast.walk(fn) if isinstance(n, ast.Call) and getattr(n.func, "id", None) == callee}
+
+
+def test_only_publish_tool_writes_a_tool_item():
+    """W11-R1 rail: the only writer of a widget, routine or tracker item is `publish_tool`, through the shared held /
+    replaced write, with the reducer's payload. A second INSERT anywhere, or another caller of the write handing it a
+    tool type, goes red here."""
+    src = GALLERY_SRC.read_text(encoding="utf-8")
+    assert _functions_writing_gallery_rows(src) == {"publish", "seed_firm_templates", "seed_firm_styles",
+                                                    "_held_or_replaced_once", "publish_example"}
+    assert _callers_of(src, "_write_held_or_replaced") == {"publish_style", "publish_layout", "publish_tool"}
+    tree = ast.parse(src)
+    pt = next(f for f in ast.walk(tree) if isinstance(f, ast.FunctionDef) and f.name == "publish_tool")
+    body = ast.unparse(pt)
+    assert "_tool_share(kind, row, edits=edits, keep=keep).payload" in body
+    assert "item_type = TOOL_ITEM_TYPE[kind]" in body
+    for name in ("publish_style", "publish_layout"):
+        f = next(f for f in ast.walk(tree) if isinstance(f, ast.FunctionDef) and f.name == name)
+        assert "TOOL_ITEM" not in ast.unparse(f)
+    # non-vacuity: the walk finds a planted second writer
+    planted = src + "\n\ndef sneaky(conn):\n    conn.execute('INSERT INTO j2_template_gallery (id) VALUES (1)')\n"
+    assert "sneaky" in _functions_writing_gallery_rows(planted)
+
+
+def test_published_tool_is_pending_then_held_when_approved(db):
+    w = widget(db)
+    first = gallery.publish_tool(AUTHOR, "widget", w["id"], conn=db)
+    assert first["status"] == "pending" and first["itemType"] == "widget_definition"
+    row = db.execute("SELECT category, body_json, source_tool_id, payload_json, pending_json FROM j2_template_gallery"
+                     " WHERE id = ?", (first["id"],)).fetchone()
+    assert (row["category"], json.loads(row["body_json"]), row["source_tool_id"], row["pending_json"]) == \
+        ("review", {}, w["id"], None)
+    # again while pending: replaced in place
+    again = gallery.publish_tool(AUTHOR, "widget", w["id"], edits={"name": "Flags only"}, conn=db)
+    assert again["id"] == first["id"] and again["title"] == "Flags only"
+    approve(db, first["id"])
+    # again while APPROVED: held, the approved one stays listed
+    gallery.publish_tool(AUTHOR, "widget", w["id"], edits={"name": "Second version"}, conn=db)
+    row = db.execute("SELECT status, title, pending_json FROM j2_template_gallery WHERE id = ?",
+                     (first["id"],)).fetchone()
+    assert row["status"] == "approved" and row["title"] == "Flags only"
+    assert json.loads(row["pending_json"])["payload"]["name"] == "Second version"
+    assert db.execute("SELECT COUNT(*) FROM j2_template_gallery WHERE user_id = ?", (AUTHOR,)).fetchone()[0] == 1
+    assert db.execute("SELECT handle FROM j2_gallery_authors WHERE user_id = ?", (AUTHOR,)).fetchone() is not None
+    # approving the held revision lists it, and the tool's body stays empty
+    approve(db, first["id"])
+    row = db.execute("SELECT title, version, body_json FROM j2_template_gallery WHERE id = ?",
+                     (first["id"],)).fetchone()
+    assert (row["title"], row["version"], json.loads(row["body_json"])) == ("Second version", 2, {})
+
+
+def test_adopted_copy_refused_with_sentence(db):
+    w, r, t = widget(db), routine(db), tracker(db)
+    gw = list_tool(db, "widget", w["id"])
+    gr = list_tool(db, "routine", r["id"], edits=routine_edits("Coffee"))
+    gt = list_tool(db, "tracker", t["id"])
+    copies = {"widget": gallery.adopt_tool(MEMBER, gw, answers={"p1": "Flag"}, conn=db)["id"],
+              "routine": gallery.adopt_tool(MEMBER, gr, conn=db)["id"],
+              "tracker": gallery.adopt_tool(MEMBER, gt, conn=db)["id"]}
+    for kind, cid in copies.items():
+        before = counts(db)
+        for door in (lambda: gallery.share_preview(MEMBER, kind, cid, conn=db),
+                     lambda: gallery.publish_tool(MEMBER, kind, cid, conn=db)):
+            with pytest.raises(share.ShareError) as e:
+                door()
+            assert e.value.code == "adopted"
+            assert e.value.sentence == f"This {kind} came from the library, so it can't be shared again."
+        assert counts(db) == before
+    # a template copy
+    s = style(db, blocks=[built("a", w["id"])])
+    gs = list_template(db, s["id"])
+    mine = gallery.adopt_style(MEMBER, gs, answers={"p1": "Flag"}, conn=db)["style"]["id"]
+    with pytest.raises(share.ShareError) as e:
+        gallery.share_preview(MEMBER, "template", mine, conn=db)
+    assert (e.value.code, e.value.sentence) == ("adopted", gallery.ADOPTED_TEMPLATE_SENTENCE)
+    # control: the AUTHOR's own originals are shareable
+    assert gallery.share_preview(AUTHOR, "widget", w["id"], conn=db) is not None
+
+
+def test_template_holding_an_adopted_widget_refused(db):
+    w = widget(db)
+    gw = list_tool(db, "widget", w["id"])
+    mine = gallery.adopt_tool(MEMBER, gw, answers={"p1": "Flag"}, conn=db)["id"]
+    s = style(db, uid=MEMBER, blocks=[built("a", mine)])
+    with pytest.raises(share.ShareError) as e:
+        gallery.share_preview(MEMBER, "template", s["id"], conn=db)
+    assert (e.value.code, e.value.sentence) == ("adopted", gallery.HOLDS_ADOPTED_SENTENCE)
+    with pytest.raises(share.ShareError):
+        gallery.publish_style(MEMBER, s["id"], title="T", description="", category="journal", trading_style=None,
+                              conn=db)
+    # control: the same template holding the member's OWN widget shares
+    own = widget(db, uid=MEMBER)
+    s2 = style(db, uid=MEMBER, blocks=[built("a", own["id"])])
+    assert gallery.share_preview(MEMBER, "template", s2["id"], conn=db)["travels"]["definitions"]
+
+
+def test_template_payload_inline_definitions_and_shared_slot_ids(db):
+    w1 = widget(db)
+    w2 = widget(db, name="Second")
+    t = tracker(db)
+    blocks = [built("a", w1["id"]), built("b", w2["id"]), built("c", w1["id"]), tracker_slot("a", t["id"]),
+              {"block": "chart", "enabled": True, "settings": {"tf": "W"}},
+              {"block": "myPnlStats", "enabled": True, "settings": {"range": "1w"}}]
+    s = style(db, blocks=blocks)
+    out = gallery.publish_style(AUTHOR, s["id"], title="T", description="", category="journal", trading_style=None,
+                                conn=db)
+    payload = json.loads(db.execute("SELECT payload_json FROM j2_template_gallery WHERE id = ?",
+                                    (out["id"],)).fetchone()[0])
+    assert payload["format"] == 2
+    assert [d["key"] for d in payload["definitions"]] == ["d1", "d2"]
+    refs = {b["block"]: b["settings"] for b in payload["blocks"]}
+    assert refs["built_a"] == {"ref": "inline:d1"} and refs["built_b"] == {"ref": "inline:d2"}
+    assert refs["built_c"] == {"ref": "inline:d1"}                    # one widget in two spots is one part
+    assert refs["tracker_a"]["inline"] == "t1"
+    # ONE numbering: the same setup in both widgets is one choice
+    assert [s_["id"] for s_ in payload["slots"]] == ["p1"]
+    assert payload["definitions"][0]["plan"]["filters"][0]["values"] == [{"pick": "p1"}]
+    assert payload["definitions"][1]["plan"]["filters"][0]["values"] == [{"pick": "p1"}]
+    # W11-R18: a non-slot block travels by P3a's own rule (a chart verbatim, a snapshot slot with empty settings)
+    assert refs["chart"] == {"tf": "W"} and refs["myPnlStats"] == {}
+    # no member id anywhere
+    blob = json.dumps(payload)
+    for leaked in (w1["id"], w2["id"], t["id"], "def:", "tracker:"):
+        assert leaked not in blob
+
+
+def test_a_slot_whose_target_is_not_the_members_is_left_out_and_counted(db):
+    w = widget(db)
+    foreign = widget(db, uid=OTHER)
+    blocks = [built("a", w["id"]), built("b", foreign["id"])]
+    s = style(db, blocks=blocks)
+    out = gallery.publish_style(AUTHOR, s["id"], title="T", description="", category="journal", trading_style=None,
+                                conn=db)
+    assert out["droppedSlots"] == 1
+    payload = json.loads(db.execute("SELECT payload_json, body_json FROM j2_template_gallery WHERE id = ?",
+                                    (out["id"],)).fetchone()[0])
+    assert [b["block"] for b in payload["blocks"]] == ["built_a"]
+    text = json.dumps(payload["outlineBodyJson"])
+    assert "{{block:built_a}}" in text and "{{block:built_b}}" not in text     # its placeholder goes with it
+    assert foreign["id"] not in json.dumps(payload)
+
+
+def test_hand_written_rows_serve_no_slot_placeholder(db):
+    """11.7 note: a listing the reducer did not write serves no `{{block:<slot>}}` line, in its body or its preview."""
+    gid = gallery.publish_style(AUTHOR, style(db)["id"], title="T", description="", category="journal",
+                                trading_style=None, conn=db)["id"]
+    body = {"type": "doc", "content": [heading("Plan"), para("{{block:built_a}}"), para("{{block:chart}}")]}
+    db.execute("UPDATE j2_template_gallery SET body_json = ?, preview_json = ?, payload_json = ? WHERE id = ?",
+               (json.dumps(body), json.dumps([{"kind": "heading", "text": "Plan"},
+                                              {"kind": "text", "text": "{{block:built_a}}"}]),
+                json.dumps({"kindId": "weekend_prep", "outlineBodyJson": body, "blocks": [], "properties": {}}),
+                gid))
+    db.commit()
+    approve(db, gid)
+    item = gallery.get_item(MEMBER, gid, conn=db)
+    assert "built_a" not in json.dumps(item["bodyJson"]) and "{{block:chart}}" in json.dumps(item["bodyJson"])
+    assert item["preview"] == [{"kind": "heading", "text": "Plan"}]
+
+
+# ── the canary, on disk ───────────────────────────────────────────────────────────────────────────
+
+def _assert_clean_blob(blob: str, ids) -> None:
+    low = blob.lower()
+    for bad in FORBIDDEN_TEXT + FORBIDDEN_NUMBER + tuple(ids):
+        assert bad.lower() not in low, f"{bad!r} reached the gallery table: {blob[:300]}"
+
+
+def test_canary_never_reaches_payload_json_on_disk(db):
+    """Review Focus 1 on DISK: the Task 11.4 canary planted in real rows (names, formula names, formula literals,
+    filter values, an account named with it, routine item text, a tracker's name and unit, a template's name and its
+    outline's link), each published with empty edits (a routine with the words the author typed instead), then every
+    stored column of every listing read back and scanned in both encodings."""
+    from tests.test_widget_sources import add_account
+    acc = add_account(db, AUTHOR, f"{CANARY} Fidelity")
+    plan = {"v": 1, "source": "closed_trades", "accounts": {"id": acc},
+            "filters": [{"field": "setup", "op": "in", "values": [CANARY, CANARY_UP]},
+                        {"field": "symbol", "op": "in", "values": [CANARY_ESC]},
+                        {"field": "net", "op": "gt", "values": [NUMBER]}],
+            "measures": [{"formula": "f1", "agg": "avg"}],
+            "formulas": [{"id": "f1", "name": CANARY, "expr": "[r] * 987654.321", "format": "number"}],
+            "range": {"token": "all"}, "display": {"title": CANARY, "target": NUMBER}}
+    w = widget(db, plan=plan, name=CANARY)
+    r = routine(db, name=CANARY_UP, items=(CANARY, CANARY_ESC))
+    t = tracker(db, name=CANARY, unit=CANARY[:16])
+    outline = {"type": "doc", "content": [heading("Plan"), para("{{block:built_a}}"), para("{{block:routine_a}}"),
+                                          # an image the gallery reducer drops (`sanitize_body`); the outline's own
+                                          # headings are the template's structure and travel (W11-R6)
+                                          {"type": "image", "attrs": {"src": f"/api/j2/notes/{CANARY}/att/x.png",
+                                                                      "alt": CANARY}}]}
+    s = style(db, blocks=[built("a", w["id"]), routine_slot("a", r["id"])], outline=outline, name=CANARY)
+    ids = [w["id"], r["id"], t["id"], s["id"], acc]
+    gallery.publish_tool(AUTHOR, "widget", w["id"], edits={}, conn=db)
+    gallery.publish_tool(AUTHOR, "routine", r["id"], edits=routine_edits("Check the plan", ""), conn=db)
+    gallery.publish_tool(AUTHOR, "tracker", t["id"], edits={}, conn=db)
+    gallery.publish_style(AUTHOR, s["id"], title="Study", description="", category="journal", trading_style=None,
+                          edits={"blocks": {"routine_a": {"items": ["Check the plan", ""]}}}, conn=db)
+    rows = db.execute("SELECT payload_json, body_json, preview_json, title, description, pending_json"
+                      " FROM j2_template_gallery WHERE user_id = ?", (AUTHOR,)).fetchall()
+    assert len(rows) == 4
+    for row in rows:
+        for col in row:
+            if col is None:
+                continue
+            _assert_clean_blob(col, ids)
+            _assert_clean_blob(json.dumps(json.loads(col), ensure_ascii=False) if col[:1] and col[:1] in "[{" else col, ids)
+    # non-vacuity: the rows really are the shares (picks where the values were, the typed item travelled)
+    payloads = [json.loads(r_[0]) for r_ in rows]
+    assert any(p.get("slots") for p in payloads)
+    assert any("Check the plan" in json.dumps(p) for p in payloads)
+
+
+# ── 11.4 m3: a refusal sentence is never stored, logged or forwarded ───────────────────────────────────
+
+def test_a_refused_share_is_never_stored_or_logged(db, capsys):
+    plan = {**SETUP_PLAN, "formulas": [{"id": "f1", "name": "x", "expr": '[setup] = "my secret words"',
+                                        "format": "number"}], "measures": [{"formula": "f1", "agg": "share"}]}
+    w = widget(db, plan=plan)
+    before = counts(db)
+    with pytest.raises(share.ShareError) as e:
+        gallery.publish_tool(AUTHOR, "widget", w["id"], conn=db)
+    assert e.value.code == "own_words"
+    assert counts(db) == before
+    out = capsys.readouterr()
+    assert "secret" not in out.out and "secret" not in out.err and "Field 1" not in out.out
+
+
+_LOG_ATTRS = ("debug", "info", "warning", "warn", "error", "exception", "critical", "log", "write")
+#: The refusal classes (ruling W11-R35): their TEXT may echo the author's own words (11.4 m3). A seed or system
+#: exception is not one, and keeps its `: {e}` (HEAD's lines, rail G6).
+_REFUSALS = {"ShareError", "LibraryError", "GalleryError", "GalleryConflict", "ToolError", "CountCapError",
+             "KeyReused"}
+#: What a refusal handler MAY pass on about the refusal it caught (fix round 4, m3): its code and its slot (neither
+#: carries author text) and its type's name. Everything else read from it is text.
+_SAFE_ATTRS = {"code", "slot"}
+_TRACEBACK_FUNCS = {"print_exc", "print_exception", "format_exc", "format_exception", "print_last", "print_tb",
+                    "format_tb", "extract_tb", "print_stack", "format_exception_only"}
+
+
+def _caught_names(t) -> set:
+    nodes = t.elts if isinstance(t, ast.Tuple) else [t] if t is not None else []
+    return {getattr(x, "id", None) or getattr(x, "attr", None) for x in nodes}
+
+
+def _is_log(n) -> bool:
+    name = getattr(n.func, "id", None) or getattr(n.func, "attr", None)
+    return isinstance(n, ast.Call) and (name == "print" or name in _LOG_ATTRS)
+
+
+def _parents(tree) -> dict:
+    return {child: node for node in ast.walk(tree) for child in ast.iter_child_nodes(node)}
+
+
+def _unsafe_reads(expr, names, parents) -> bool:
+    """Does `expr` read one of `names` in any form but `<name>.code`, `<name>.slot` or `type(<name>).__name__`?"""
+    for x in ast.walk(expr):
+        if not (isinstance(x, ast.Name) and x.id in names):
+            continue
+        up = parents.get(x)
+        if isinstance(up, ast.Attribute) and up.attr in _SAFE_ATTRS:
+            continue
+        if (isinstance(up, ast.Call) and getattr(up.func, "id", None) == "type"
+                and isinstance(parents.get(up), ast.Attribute) and parents[up].attr == "__name__"):
+            continue
+        return True
+    return False
+
+
+_DUMP_NAMES = {"exc_info", "exception"}            # fix round 5 (m-c): flagged by NAME, whatever their owner
+
+
+def _owner_name(func) -> str | None:
+    """The owner of a called attribute (`a.b.c()` -> "b"), or None for a bare name."""
+    v = getattr(func, "value", None)
+    return getattr(v, "id", None) or getattr(v, "attr", None)
+
+
+def _is_future_exception(n) -> bool:
+    """A future's own `.exception()`: no arguments, and an owner known to be a future (named for one)."""
+    owner = _owner_name(n.func) or ""
+    return (isinstance(n.func, ast.Attribute) and n.func.attr == "exception" and not n.args and not n.keywords
+            and "fut" in owner.lower())
+
+
+def _splat_dumps(k, handler_body) -> bool:
+    """A `**kw` keyword: does it (or might it) carry `exc_info` / `stack_info`? A dict literal is read; a name is
+    resolved to a dict literal assigned in the handler; anything unreadable is a finding (fail closed)."""
+    v = k.value
+    if isinstance(v, ast.Name):
+        for stmt in handler_body:
+            for n in ast.walk(stmt):
+                if (isinstance(n, ast.Assign) and any(isinstance(t, ast.Name) and t.id == v.id for t in n.targets)
+                        and isinstance(n.value, ast.Dict)):
+                    v = n.value
+    if not isinstance(v, ast.Dict):
+        return True
+    for key, val in zip(v.keys, v.values):
+        if key is None:
+            return True                                   # a nested `**` inside the dict: unreadable
+        if (isinstance(key, ast.Constant) and key.value in ("exc_info", "stack_info")
+                and not (isinstance(val, ast.Constant) and val.value is False)):
+            return True
+    return False
+
+
+def _dumps(n, tb_aliases, tb_funcs, dump_aliases, dump_helpers, body=()) -> bool:
+    """Does this call print or hand on the exception being handled (its text), whatever it is passed?"""
+    func = n.func
+    fname = getattr(func, "id", None) or getattr(func, "attr", None)
+    owner = _owner_name(func)
+    if isinstance(func, ast.Attribute) and isinstance(func.value, ast.Call) \
+            and getattr(func.value.func, "id", None) == "__import__":
+        return True                                       # __import__('traceback').print_exc()
+    if getattr(func, "id", None) == "__import__":
+        return True
+    return ((owner in tb_aliases) or (isinstance(func, ast.Name) and fname in tb_funcs)
+            or fname in _TRACEBACK_FUNCS                  # tb = traceback; tb.print_exc(), whatever the owner
+            or (fname in _DUMP_NAMES and not _is_future_exception(n))
+            or (isinstance(func, ast.Name) and (fname in dump_aliases or fname in dump_helpers))
+            or any(k.arg in ("exc_info", "stack_info")
+                   and not (isinstance(k.value, ast.Constant) and k.value.value is False) for k in n.keywords)
+            or any(k.arg is None and _splat_dumps(k, body) for k in n.keywords))
+
+
+def _dump_helpers(tree, tb_aliases, tb_funcs) -> set:
+    """Every function (any depth) whose body dumps the exception being handled, transitively through the functions
+    it calls: a refusal handler calling one is a finding (fix round 5, m-c: `_dump()` defined elsewhere)."""
+    defs = {n.name: n for n in ast.walk(tree) if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))}
+    found: set = set()
+    grew = True
+    while grew:
+        grew = False
+        for name, fn in defs.items():
+            if name in found:
+                continue
+            if any(isinstance(x, ast.Call) and _dumps(x, tb_aliases, tb_funcs, set(), found)
+                   for stmt in fn.body for x in ast.walk(stmt)):
+                found.add(name)
+                grew = True
+    return found
+
+
+_GENERAL = {"Exception", "BaseException"}
+
+
+#: F-NOTE-1 fix round 1 (m-3): a `try` and a `try` with `except*` handlers (`ast.TryStar`) are both walked.
+_TRY = (ast.Try, ast.TryStar)
+_SCOPES = (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda, ast.ClassDef)
+
+
+def _own_nodes(stmts):
+    """Every node of `stmts`, never inside a nested function or class (its body is another scope)."""
+    todo = list(stmts)
+    while todo:
+        n = todo.pop()
+        if isinstance(n, _SCOPES):
+            continue
+        yield n
+        todo.extend(ast.iter_child_nodes(n))
+
+
+def _is_refusal_call(v) -> bool:
+    return isinstance(v, ast.Call) and (getattr(v.func, "id", None) or getattr(v.func, "attr", None)) in _REFUSALS
+
+
+def _reraises(h) -> bool:
+    """Does this handler raise what it caught again (a bare `raise`, or `raise <its own name>`)?"""
+    return any(isinstance(n, ast.Raise) and (n.exc is None or (isinstance(n.exc, ast.Name) and n.exc.id == h.name))
+               for n in _own_nodes(h.body))
+
+
+def _raises_a_refusal(stmts) -> bool:
+    """Does this code itself `raise` a refusal, outside a nested function or class? Counted: `raise GalleryError(...)`,
+    and (F-NOTE-1 fix round 1, m-4) `raise err` where `err` is a name this code bound to a refusal
+    (`err = GalleryError(...)`). A nested `try` whose own handler catches it is not looked through (that handler is
+    judged on its own) UNLESS a handler that can catch it raises it again (`except Exception: raise`), which hands
+    the refusal on to the outer handler. ⛔ Accepted limit (the controller's m-4 ruling with W11-R47): a refusal
+    raised by a CALLED function (`_refuse()` under `except Exception as e: print(e)`) is not seen -- whether a callee
+    raises one is not statically decidable here, and the gallery has no such site."""
+    bound = {tg.id for n in _own_nodes(stmts) if isinstance(n, (ast.Assign, ast.AnnAssign)) and _is_refusal_call(n.value)
+             for tg in (n.targets if isinstance(n, ast.Assign) else [n.target]) if isinstance(tg, ast.Name)}
+    todo = list(stmts)
+    while todo:
+        n = todo.pop()
+        if isinstance(n, _SCOPES):
+            continue
+        if isinstance(n, ast.Raise) and n.exc is not None:
+            exc = n.exc.func if isinstance(n.exc, ast.Call) else n.exc
+            if (getattr(exc, "id", None) or getattr(exc, "attr", None)) in _REFUSALS:
+                return True
+            if isinstance(n.exc, ast.Name) and n.exc.id in bound:
+                return True
+        if isinstance(n, _TRY):
+            todo.extend(n.orelse + n.finalbody + [x for h in n.handlers for x in h.body])
+            catching = [h for h in n.handlers if h.type is None or _caught_names(h.type) & (_REFUSALS | _GENERAL)]
+            if not catching or any(_reraises(h) for h in catching):
+                todo.extend(n.body)
+            continue
+        todo.extend(ast.iter_child_nodes(n))
+    return False
+
+
+def _refusal_handlers(tree) -> list:
+    """The handlers that can catch a refusal: one naming a refusal class, and (F-NOTE-1) a GENERAL one (`except:`,
+    `except Exception`, `except BaseException`) on a `try` whose own body raises a refusal -- `except Exception as e:
+    print(e)` there prints the refusal's text exactly as `except GalleryError` would. `except*` handlers included
+    (fix round 1, m-3)."""
+    out = []
+    for t in ast.walk(tree):
+        if not isinstance(t, _TRY):
+            continue
+        raises = None
+        for h in t.handlers:
+            if _caught_names(h.type) & _REFUSALS:
+                out.append(h)
+            elif h.type is None or _caught_names(h.type) & _GENERAL:
+                if raises is None:
+                    raises = _raises_a_refusal(t.body)
+                if raises:
+                    out.append(h)
+    return out
+
+
+def _exception_text_in_logs(src: str) -> list[str]:
+    """THE POSITIVE RULE (fix round 4, m3), inside a handler for a refusal class (`_REFUSALS`): a call may be handed
+    the caught refusal -- or any name DERIVED from it (an assignment, a `for` target, a comprehension, a walrus,
+    transitively) -- only as its code, its slot or its type's name. So `print(e)`, `log.warning('%s', e)`,
+    `sys.stderr.write(str(e))`, `_say(e)` (a log helper) and `raise RuntimeError(str(e))` (a re-wrap into a system
+    exception a later handler prints) are all findings; a new refusal built from it (`raise GalleryError(...)`) is
+    not. Also findings in a refusal handler, whatever they are handed: a traceback dump (the `traceback` module under
+    any alias, or a function imported from it), `sys.exc_info()`, an `exc_info=` other than a literal False, and a
+    logger's `.exception(<msg>)` (each prints `str(e)`). A future's own `.exception()` takes no message and is not a
+    log. Plus any log call anywhere reading a `.sentence`. Ruling W11-R35: refusal text only, never every log line.
+
+    Fix round 5 (m-c), eleven more forms: `exception` / `exc_info` are flagged by NAME whatever their owner
+    (`sys.exception()`, `from sys import exc_info`, `import sys as s; s.exc_info()`), a future's `.exception()`
+    excepted; a NAME bound to a dumper (`ei = sys.exc_info`, `lg = log.exception`, `tb = traceback`) dumps when called;
+    a traceback function by its name whatever its owner (`__import__('traceback').print_exc()`); a `**kw` that carries
+    or may carry `exc_info`; a helper defined ANYWHERE whose body dumps (`_dump()`); and any `raise` of a non-refusal
+    inside a refusal handler unless it says `from None` (`raise X from e` and a bare `raise X(...)` both chain the
+    refusal, so a later system handler's allowed traceback prints its text).
+
+    F-NOTE-1 (W11-R42), two more: a GENERAL handler on a `try` that itself raises a refusal is a refusal handler
+    (`_refusal_handlers`), and `stack_info=` other than a literal False is a dump like `exc_info=`."""
+    tree = ast.parse(src)
+    parents = _parents(tree)
+    tb_aliases = {"traceback"} | {al.asname for n in ast.walk(tree) if isinstance(n, ast.Import)
+                                  for al in n.names if al.name == "traceback" and al.asname}
+    tb_funcs = set(_TRACEBACK_FUNCS) | {al.asname or al.name for n in ast.walk(tree)
+                                        if isinstance(n, ast.ImportFrom) and n.module == "traceback"
+                                        for al in n.names}
+    helpers = _dump_helpers(tree, tb_aliases, tb_funcs)
+    bad = []
+    for h in _refusal_handlers(tree):
+        # local aliases and imports inside the handler count too
+        dump_aliases: set = set()
+        for n in (x for stmt in h.body for x in ast.walk(stmt)):
+            if isinstance(n, ast.Import):
+                tb_aliases |= {al.asname for al in n.names if al.name == "traceback" and al.asname}
+            if isinstance(n, ast.ImportFrom) and n.module == "traceback":
+                tb_funcs |= {al.asname or al.name for al in n.names}
+            if isinstance(n, ast.ImportFrom) and n.module == "sys":
+                dump_aliases |= {al.asname or al.name for al in n.names if al.name in _DUMP_NAMES}
+        grew = True
+        while grew:                                      # names bound to a dumper (`ei = sys.exc_info`), transitively
+            grew = False
+            for n in (x for stmt in h.body for x in ast.walk(stmt)):
+                if not isinstance(n, ast.Assign) or not isinstance(n.value, (ast.Name, ast.Attribute)):
+                    continue
+                vname = getattr(n.value, "id", None) or getattr(n.value, "attr", None)
+                for t in n.targets:
+                    if not isinstance(t, ast.Name):
+                        continue
+                    if vname in tb_aliases and t.id not in tb_aliases:
+                        tb_aliases.add(t.id)
+                        grew = True
+                    elif ((vname in _DUMP_NAMES or vname in _TRACEBACK_FUNCS or vname in dump_aliases
+                           or vname in tb_funcs or vname in helpers) and t.id not in dump_aliases):
+                        dump_aliases.add(t.id)
+                        grew = True
+        for stmt in h.body:
+            for n in ast.walk(stmt):
+                if not isinstance(n, ast.Raise) or n.exc is None:
+                    continue                             # a bare `raise` re-raises the refusal itself
+                if isinstance(n.cause, ast.Constant) and n.cause.value is None:
+                    continue                             # `from None`: nothing is chained
+                exc = n.exc.func if isinstance(n.exc, ast.Call) else n.exc
+                ename = getattr(exc, "id", None) or getattr(exc, "attr", None)
+                if ename in _REFUSALS or (isinstance(n.exc, ast.Name) and n.exc.id == h.name):
+                    continue                             # a refusal stays a refusal
+                bad.append(ast.unparse(n))
+        tainted = {h.name} if h.name else set()
+        grew = True
+        while grew:                                      # names derived from the caught value, transitively
+            grew = False
+            for stmt in h.body:
+                for n in ast.walk(stmt):
+                    if isinstance(n, (ast.Assign, ast.AnnAssign, ast.AugAssign, ast.NamedExpr)):
+                        source, targets = n.value, (n.targets if isinstance(n, ast.Assign) else [n.target])
+                    elif isinstance(n, (ast.For, ast.comprehension)):
+                        source, targets = n.iter, [n.target]
+                    else:
+                        continue
+                    if source is None or not _unsafe_reads(source, tainted, parents):
+                        continue
+                    for t in targets:
+                        for x in ast.walk(t):
+                            if isinstance(x, ast.Name) and x.id not in tainted:
+                                tainted.add(x.id)
+                                grew = True
+        for stmt in h.body:
+            for n in ast.walk(stmt):
+                if not isinstance(n, ast.Call):
+                    continue
+                fname = getattr(n.func, "id", None) or getattr(n.func, "attr", None)
+                if _dumps(n, tb_aliases, tb_funcs, dump_aliases, helpers, h.body):
+                    bad.append(ast.unparse(n))
+                    continue
+                if fname in _REFUSALS or fname in ("type", "isinstance"):
+                    continue                             # a new refusal, `type(e)` or `isinstance(e, X)`: no text
+                if any(_unsafe_reads(x, tainted, parents) for x in [*n.args, *(k.value for k in n.keywords)]):
+                    bad.append(ast.unparse(n))
+    for n in ast.walk(tree):
+        if isinstance(n, ast.Call) and _is_log(n) and any(isinstance(x, ast.Attribute) and x.attr == "sentence"
+                                                         for x in ast.walk(n)):
+            bad.append(ast.unparse(n))
+    return bad
+
+
+def test_no_log_call_in_the_gallery_names_a_refusal():
+    """Rail (fix round 1 M-2, scoped by W11-R35, widened by rounds 3 and 4): no call in template_gallery.py is handed
+    a refusal's text in ANY form, only its code, its slot or its type name; a system exception's `{e}` is allowed.
+    Non-vacuity: every form is caught when planted in a refusal handler, the allowed forms are not, and the gallery's
+    own system lines (the seeds) do carry `{e}`, so the scope is what lets them pass."""
+    src = GALLERY_SRC.read_text(encoding="utf-8")
+    assert _exception_text_in_logs(src) == []
+    assert "official seed skipped (official templates): {type(e).__name__}: {e}" in src
+    forms = ("print(f'x {e}')", "print(f'x {e.sentence}')", "print('x', str(e))", "print('x %s' % e)",
+             "log.warning('x %s', e)", "log.exception(e)", "print(f'x {e!r}')", "print(e.args)",
+             "traceback.print_exc()", "traceback.print_exception(e)", "print(traceback.format_exc())",
+             "log.exception('x')", "log.error('x', exc_info=True)", "log.warning('x', exc_info=e)",
+             "sys.stderr.write(str(e))", "sys.stderr.write(f'{e}')",
+             "msg = str(e); print(msg)", "msg = f'{e}'; out = msg.upper(); log.info(out)",
+             "parts = [e]; print(parts)",
+             # round 4 (m3): the six the r3 review planted
+             "for a in e.args: print(a)", "from traceback import print_exc; print_exc()",
+             "import traceback as tb; tb.print_exc()", "print(sys.exc_info())",
+             "log.warning('%s', sys.exc_info()[1])", "_say(e)", "raise RuntimeError(str(e))",
+             # round 5 (m-c): the eleven the r4 review planted
+             "log.error('x %s', sys.exception())", "print(sys.exception())",
+             "from sys import exc_info; print(exc_info())", "import sys as s; print(s.exc_info())",
+             "ei = sys.exc_info; print(ei())", "lg = log.exception; lg('x')",
+             "log.error('x', **{'exc_info': True})", "kw = {'exc_info': True}; log.error('x', **kw)",
+             "__import__('traceback').print_exc()", "tb = traceback; tb.print_exc()", "_dump()",
+             "raise RuntimeError('boom') from e", "raise RuntimeError('boom')",
+             # F-NOTE-1 (W11-R42)
+             "log.error('x', stack_info=True)", "log.warning('x', stack_info=1)",
+             "log.error('x', **{'stack_info': True})")
+    for exc in ("share.ShareError", "LibraryError", "(GalleryError, ValueError)"):
+        for form in forms:
+            planted = (f"def f():\n    try:\n        pass\n    except {exc} as e:\n        {form}\n"
+                       "\ndef _dump():\n    traceback.print_exc()\n")
+            assert _exception_text_in_logs(planted), (exc, form)
+    allowed = ("print(f'x {type(e).__name__}')", "name = type(e).__name__; print(name)",
+               "log.error('x', exc_info=False)", "log.info('%s', e.code)", "print(e.slot, e.code)",
+               "fut.exception()", "raise GalleryError(S_KEY_REUSED) from e", "raise", "out.append(e.code)",
+               # round 5: a future's own exception, a refusal raised again, a chain cut, a clean helper, kwargs
+               "self._future.exception()", "raise e", "raise RuntimeError('boom') from None",
+               "raise share.ShareError('own_words', S_X) from e", "_clean()", "log.info('x', **{'extra': 1})",
+               "log.error('x', **{'exc_info': False})", "log.error('x', stack_info=False)",
+               "if isinstance(e, GalleryError): raise")
+    for form in allowed:
+        ok_src = (f"def f():\n    try:\n        pass\n    except ShareError as e:\n        {form}\n"
+                  "\ndef _clean():\n    return 1\n\ndef _dump():\n    traceback.print_exc()\n")
+        assert _exception_text_in_logs(ok_src) == [], form
+    for ok_src in ("def f():\n    try:\n        pass\n    except Exception as e:\n        print(f'x {e}')\n",
+                   "def f():\n    try:\n        pass\n    except Exception:\n        traceback.print_exc()\n",
+                   # F-NOTE-1: a general handler whose try raises no refusal of its own stays a system handler, and
+                   # one whose refusal is caught by an inner refusal handler is judged by that inner handler
+                   "def f():\n    try:\n        go()\n    except Exception as e:\n        print(e)\n",
+                   "def f():\n    try:\n        def g():\n            raise GalleryError('x')\n        g\n"
+                   "    except Exception as e:\n        print(e)\n",
+                   "def f():\n    try:\n        try:\n            raise GalleryError('x')\n"
+                   "        except GalleryError:\n            pass\n    except Exception as e:\n        print(e)\n"):
+        assert _exception_text_in_logs(ok_src) == [], ok_src
+    # F-NOTE-1 (W11-R42): a refusal raised inside a try whose handler is a GENERAL one
+    for handler in ("except Exception as e:", "except BaseException as e:", "except (Exception, KeyError) as e:",
+                    "except:"):
+        for raised in ("raise GalleryError(S_X)", "raise share.ShareError('own_words', S_X)",
+                       "if x:\n            raise LibraryError(S_X)"):
+            for form in ("print(e)", "log.warning('x %s', e)", "traceback.print_exc()", "print(sys.exc_info())"):
+                if handler == "except:" and "e)" in form and "exc_info" not in form:
+                    continue                             # a bare `except:` binds no name to print
+                planted = f"def f():\n    try:\n        {raised}\n    {handler}\n        {form}\n"
+                assert _exception_text_in_logs(planted), (handler, raised, form)
+    # F-NOTE-1 fix round 1 (m-3, m-4, the review's `rfn1_lograil.py`): `except*` handlers, a refusal raised by the
+    # name it was bound to, and one handed on by an inner general handler's `raise`
+    for planted in (
+            "def f():\n    try:\n        pass\n    except* GalleryError as eg:\n        print(eg)\n",
+            "def f():\n    try:\n        raise GalleryError('x')\n    except* Exception as eg:\n        print(eg)\n",
+            "def f():\n    try:\n        err = GalleryError('x')\n        raise err\n    except Exception as e:\n"
+            "        print(e)\n",
+            "def f():\n    try:\n        err: Exception = share.ShareError('own_words', S_X)\n        raise err from None\n"
+            "    except Exception as e:\n        log.warning('x %s', e)\n",
+            "def f():\n    try:\n        try:\n            raise GalleryError('x')\n        except Exception:\n"
+            "            raise\n    except Exception as e:\n        print(e)\n",
+            "def f():\n    try:\n        try:\n            raise GalleryError('x')\n        except Exception as inner:\n"
+            "            raise inner\n    except BaseException:\n        traceback.print_exc()\n"):
+        assert _exception_text_in_logs(planted), planted
+    for ok_src in (
+            # a name bound to something else, and an inner handler that does NOT hand the refusal on
+            "def f():\n    try:\n        err = ValueError('x')\n        raise err\n    except Exception as e:\n"
+            "        print(e)\n",
+            "def f():\n    try:\n        try:\n            raise GalleryError('x')\n        except Exception:\n"
+            "            pass\n    except Exception as e:\n        print(e)\n",
+            # the accepted limit: a refusal raised by a called function is not seen
+            "def _refuse():\n    raise GalleryError('x')\n\ndef f():\n    try:\n        _refuse()\n"
+            "    except Exception as e:\n        print(e)\n"):
+        assert _exception_text_in_logs(ok_src) == [], ok_src
+    assert _exception_text_in_logs("def f(err):\n    print(err.sentence)\n")

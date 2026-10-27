@@ -1,0 +1,232 @@
+{
+ "viewport": "1200",
+ "step": "W11.2",
+ "title": "Use -> create the routine -> tick -> reload",
+ "mode": "ON",
+ "checks": [
+  {
+   "what": "A's own 'Morning routine' (best match) is pre-selected: 'Use your Morning routine'",
+   "ok": true,
+   "read": "[\"Use your Morning routine\"]"
+  },
+  {
+   "what": "chose 'Create Pre-market routine from the template'",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "D1 W11.2: after Use no sheet is left open over the new note",
+   "ok": true,
+   "read": "[]"
+  },
+  {
+   "what": "D1 W11.2: focus is the new note's title",
+   "ok": true,
+   "read": "{\"tag\": \"INPUT\", \"placeholder\": \"Title\", \"aria\": \"Note title\", \"cls\": \"_titleInput_wfbxs_459\", \"value\": \"\", \"inertAncestor\": false, \"rootInert\": false, \"inDialog\": false, \"visible\": true}"
+  },
+  {
+   "what": "D1 W11.2: the focused title has no inert ancestor (and #root is not inert)",
+   "ok": true,
+   "read": "{\"tag\": \"INPUT\", \"placeholder\": \"Title\", \"aria\": \"Note title\", \"cls\": \"_titleInput_wfbxs_459\", \"value\": \"\", \"inertAncestor\": false, \"rootInert\": false, \"inDialog\": false, \"visible\": true}"
+  },
+  {
+   "what": "navigated to a new note holding the prep blocks",
+   "ok": true,
+   "read": "http://127.0.0.1:8171/journal/notebook?note=b860e43c5d994e8aa0f26487b95d5e01"
+  },
+  {
+   "what": "the routine block is bound to the note's day ('For Tue Oct 27')",
+   "ok": true,
+   "read": "For Tue Oct 27\nNot yet\n\nRead the morning wire\nCheck today's economic calendar\nReview open positions and stops\nMark key levels on my watchlist\nSet my max loss for today\nSkip this day\nP&L on days you fi"
+  },
+  {
+   "what": "no raw {{block:..}} placeholder in the note",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "snapshot blocks are filled (numbers, not placeholders)",
+   "ok": true,
+   "read": "The market this morning\n\nRead the wire and note the tone before you look at a single name.\n\nMorning wire and exposure\nRemove\n\nInvented copy so the Morning Wire renders addressable segments for gesture testing.\n\nExposure 72 (Yellow)\n\nWire of Jan 2, 2026\n\nCaptured Oct 27, 2026, 10:41 AM ET\n\nCapture ag"
+  },
+  {
+   "what": "the routine items are reachable by Tab",
+   "ok": true,
+   "read": "Read the morning wire"
+  },
+  {
+   "what": "Space toggles the item (the tick shows)",
+   "ok": true,
+   "read": "true"
+  },
+  {
+   "what": "ticking sends ZERO note PUTs (§6.2)",
+   "ok": true,
+   "read": "[]"
+  },
+  {
+   "what": "after reload the tick is still there",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "after reload the note shows no unsaved change (updatedAt unchanged by open + tick)",
+   "ok": true,
+   "read": "2026-10-27T14:41:23.147540+00:00 -> 2026-10-27T14:41:23.147540+00:00"
+  },
+  {
+   "what": "no note PUT across tick + reload",
+   "ok": true,
+   "read": "[]"
+  }
+ ],
+ "rendered": [
+  {
+   "what": "adopt sheet",
+   "text": "Make it yours\n×\n\nBased on UCT's Pre-market prep\n\nPre-market routine\nUse your Morning routine\nCreate Pre-market routine from the template\nPreview with your data\n\nPre-market routine\n\nRead the morning wire\nCheck today's economic calendar\nReview open positions and stops\nMark key levels on my watchlist\nSet my max loss for today\n\nFor Tue Oct 27\n\nCancel\nUse"
+  },
+  {
+   "what": "reuse question radios",
+   "text": "[{\"label\": \"Use your Morning routine\", \"checked\": true}, {\"label\": \"Create Pre-market routine from the template\", \"checked\": false}]"
+  },
+  {
+   "what": "A's routines before",
+   "text": "[\"Morning routine\"]"
+  },
+  {
+   "what": "D1 W11.2: document.activeElement after Use",
+   "text": "{\"tag\": \"INPUT\", \"placeholder\": \"Title\", \"aria\": \"Note title\", \"cls\": \"_titleInput_wfbxs_459\", \"value\": \"\", \"inertAncestor\": false, \"rootInert\": false, \"inDialog\": false, \"visible\": true}"
+  },
+  {
+   "what": "new note",
+   "text": "The market this morning\n\nRead the wire and note the tone before you look at a single name.\n\nMorning wire and exposure\nRemove\n\nInvented copy so the Morning Wire renders addressable segments for gesture testing.\n\nExposure 72 (Yellow)\n\nWire of Jan 2, 2026\n\nCaptured Oct 27, 2026, 10:41 AM ET\n\nCapture again\n‹\nMore\nMARKET CONTEXT\nMarket phase\n—\nUCT Exposure\n72\nBreadth score\n62\nDistribution days\n0\n% above 50-day\n61%\n% above 200-day\n55%\nPower trend\n—\nRegime\nYellow\nUCT Exposure Rating, as of 2026-01-02\nSPY\nNo SPY quote could be read just now.\nQQQ\n712.20 (+1.11%) · last close\nLast close, Oct 26, 2026, 4:00 PM ET\nVIX\nVIX unavailable\nTo see your notes by the regime they were written in, open your notes as a Board and group by \"Regime when written\".\nWire 2026-01-02 · updated 10:41 AM ET\n\nYour names today\n\nWhich names on your list are in play, and which of them report?\n\n‹\nMore\nMy watchlist today\nSnapshot\nas of Oct 27, 2026, 10:41 AM ET\nNot shown on shared pages\nSee it now\nChange\nSave these settings as a preset\n\nNo names on this list yet.\n\nPrices: live market data, delayed. Earnings dates: UCT calendar.\n\nFrom your Flagged list.\n\n‹\nMore\nMy names reporting\nSnapshot\nas of Oct 27, 2026, 10:41 AM ET\nNot shown on shared pages\nSee it now\nSave these settings as a preset\n\nNone of your names report in the next seven days.\n\nEarnings dates: UCT calendar. Expected move: options market.\n\nOnly names on your watchlists or in your positions.\n\nLevels\n\nThe prices that would make you act today.\n\nKey levels fro"
+  },
+  {
+   "what": "focus before Tab",
+   "text": "Note body | tiptap ProseMirror _proseEditor_wfbxs_485 ProseMirror-focused"
+  }
+ ],
+ "verdict": "PASS",
+ "notes": [
+  "Plan W11.2 says 'two built widgets FILLED'; the served Pre-market prep holds contains=[['Pre-market routine']] (no built widget), so the filled-widget check reads the snapshot blocks instead (wire, market context, levels)."
+ ],
+ "events": {
+  "A": []
+ },
+ "metrics": {
+  "adopt": {
+   "overflow": {
+    "vw": 1200,
+    "docScrollWidth": 1200,
+    "bodyScrollWidth": 1200,
+    "inner": [
+     [
+      1140,
+      1140
+     ],
+     [
+      1092,
+      1092
+     ],
+     [
+      826,
+      826
+     ]
+    ],
+    "horizontal": false,
+    "offenders": [
+     {
+      "tag": "LI",
+      "cls": "_libraryCard_1hb5o_436",
+      "text": "Tag today's trades\nTemplate\n\nUCT\n\nFor: T",
+      "right": 1241
+     },
+     {
+      "tag": "H5",
+      "cls": "_previewTitle_1hb5o_363",
+      "text": "Tag today's trades",
+      "right": 1228
+     },
+     {
+      "tag": "DIV",
+      "cls": "_facts_1hb5o_383",
+      "text": "Template\n\nUCT\n\nFor: Today's trades, one ",
+      "right": 1228
+     },
+     {
+      "tag": "P",
+      "cls": "_factLine_1hb5o_390",
+      "text": "UCT",
+      "right": 1228
+     },
+     {
+      "tag": "P",
+      "cls": "_factLine_1hb5o_390",
+      "text": "For: Today's trades, one row each, to ta",
+      "right": 1228
+     },
+     {
+      "tag": "P",
+      "cls": "_factLine_1hb5o_390",
+      "text": "Contains: Today's trades",
+      "right": 1228
+     }
+    ]
+   },
+   "raw_block": [],
+   "axe_sheet": {
+    "version": "4.13.0",
+    "scope": "[data-walk-scope=\"1\"]",
+    "violations": []
+   },
+   "axe_page": {
+    "version": "4.13.0",
+    "scope": "body",
+    "violations": []
+   }
+  },
+  "note": {
+   "overflow": {
+    "vw": 1200,
+    "docScrollWidth": 1200,
+    "bodyScrollWidth": 1200,
+    "inner": [
+     [
+      1140,
+      1140
+     ],
+     [
+      1092,
+      1092
+     ],
+     [
+      826,
+      826
+     ]
+    ],
+    "horizontal": false,
+    "offenders": []
+   },
+   "raw_block": [],
+   "axe_sheet": {
+    "version": "4.13.0",
+    "scope": "[data-routine-block]",
+    "violations": []
+   },
+   "axe_page": {
+    "version": "4.13.0",
+    "scope": "body",
+    "violations": []
+   }
+  }
+ },
+ "screenshots": [
+  "1200/W11_2-adopt.png",
+  "1200/W11_2-main.png"
+ ],
+ "requests_note_put": 0,
+ "started": "2026-10-27T09:41:13",
+ "findings": [],
+ "partial": false,
+ "finished": "2026-10-27T09:41:45"
+}

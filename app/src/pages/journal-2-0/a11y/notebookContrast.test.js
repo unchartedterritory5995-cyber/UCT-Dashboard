@@ -20,7 +20,7 @@ import { join } from 'node:path'
 import { execSync } from 'node:child_process'
 import { contrast } from '../../../styles/__tests__/contrastMath'
 import { auditNotebook, literalTextColours, pairKey, BARS, CONTEXTS, LANE_OWNED } from './contrastAudit'
-import { themeVars, resolveVars, parseColor, THEMES, JOURNAL_SIDE_NOTEBOOK_CSS, stripComments } from './cssAudit'
+import { themeVars, resolveVars, parseColor, THEMES, JOURNAL_SIDE_NOTEBOOK_CSS, stripComments, parseRules, declarations, opaque, colorsIn, SURFACES } from './cssAudit'
 import { J2_DIR } from './population'
 import { EXPECTED_FAILURES, OTHER_LANES, RULINGS } from './contrastExpectedFailures'
 
@@ -257,5 +257,41 @@ describe('Notebook colour contrast, all three themes', () => {
       out.push('')
     }
     writeFileSync(join(repo, 'docs', 'notebook', 'accessibility-contrast.md'), out.join('\n'), 'utf8')
+  })
+})
+
+// F-DEF-1 r1, review m-3: the note details toggle's quiet state (`.toggleQuiet`, no details yet) dims its
+// --text-muted label with opacity, which the pair audit above does not apply. At 0.85 it measured 4.48:1 on --bg and
+// 4.21:1 on --bg-surface in light (12 px text, under 4.5:1). The label's colour and the quiet opacity are read from
+// the stylesheet, and the composite must reach 4.5:1 on every surface in every theme.
+describe('m-3: the quiet note details toggle stays at 4.5:1 (NoteDetailsLine.module.css)', () => {
+  const css = readFileSync(join(J2_DIR, 'components', 'notebook', 'NoteDetailsLine.module.css'), 'utf8')
+  const decl = (sel, prop) => {
+    let v
+    for (const r of parseRules(css)) if (r.selector === sel) for (const d of declarations(r)) if (d.prop === prop) v = d.value
+    return v
+  }
+  const ratioAt = (ink, alpha, theme, s) => {
+    const vars = themeVars()[theme]
+    const bg = parseColor(colorsIn(resolveVars(`var(${s})`, vars))[0])
+    const surface = opaque(bg, parseColor(resolveVars('var(--bg)', vars)).rgb)
+    const fg = parseColor(colorsIn(resolveVars(ink, vars))[0])
+    return contrast(opaque({ rgb: fg.rgb, alpha: alpha * fg.alpha }, surface), surface)
+  }
+
+  it('the label at the quiet opacity reaches 4.5:1 on every surface, in every theme', () => {
+    const ink = decl('.toggle', 'color')
+    const alpha = Number(decl('.toggleQuiet', 'opacity') ?? 1)
+    expect(ink).toBe('var(--text-muted)')                                      // non-vacuity
+    const fails = []
+    for (const theme of THEMES) for (const s of SURFACES) {
+      const r = ratioAt(ink, alpha, theme, s)
+      if (r < 4.5) fails.push(`${theme} on ${s}: ${r.toFixed(2)}`)
+    }
+    expect(fails, `.toggleQuiet at opacity ${alpha}`).toEqual([])
+  })
+
+  it('CONTROL: the measured 0.85 is under 4.5:1 in light', () => {
+    expect(ratioAt('var(--text-muted)', 0.85, 'light', '--bg-surface')).toBeLessThan(4.5)
   })
 })

@@ -9,6 +9,9 @@
 //    The server does that silently, so this form says it first (OUTLINE_GONE_SENTENCE).
 // P3b Task 5: for a style already in the library, the form also carries "Add an example note" (AddExampleNoteDoor,
 //    loaded on demand), read from the author's own Your submissions list and its `capabilities.exampleNotes`.
+// Notebook widgets wave 11 (Task 11.15): a style holding a widget, routine or tracker slot is a TEMPLATE, and while
+//    wave 11 is on it opens the share preview (library/SharePreviewSheet, loaded on demand) instead of this form, so
+//    the author sees exactly what of each held widget, routine and tracker travels. Wave 11 off, it is this form.
 import { Suspense, useEffect, useId, useState } from 'react'
 import Sheet from '../../../../../components/mobile/Sheet'
 import { GALLERY_CATEGORIES } from '../../../lib/templateGallery'
@@ -17,6 +20,8 @@ import { getJournalStyle } from '../../../lib/journalStyles'
 import { useMemberTemplates } from '../../../lib/memberTemplates'
 import { libraryError } from './styleErrors'
 import lazyChunk from '../../../lib/lazyChunk'
+import { widgetsWaveOn } from '../../../lib/notebookWidgetsFlags'
+import { slotFamily } from '../../../lib/templateSlots'
 import styles from './StylesManager.module.css'
 
 export const SHARE_NOTE = 'An admin reviews it before it is listed. Your own property defaults are not shared.'
@@ -28,6 +33,7 @@ const FAILED_SENTENCE = "Couldn't share that style. Nothing was sent."
 export const EXAMPLE_DOOR_HINT = 'Show other members this style in use with one of your notes. You see exactly what they will see before anything is sent.'
 // P3b: loaded on demand, so the door's chunk is named only inside this lazy chunk (AddExampleNoteDoor.jsx says why).
 const AddExampleNoteDoor = lazyChunk(() => import('./AddExampleNoteDoor'))
+const SharePreviewSheet = lazyChunk(() => import('../library/SharePreviewSheet'))
 const MAX_TITLE = 80          // template_gallery.MAX_TITLE_CHARS
 const MAX_DESCRIPTION = 280   // template_gallery.MAX_DESCRIPTION_CHARS
 
@@ -48,12 +54,28 @@ function outlineGone(full, templates) {
   return Boolean(full.outlineTemplateId) && !templates.some((t) => t.id === full.outlineTemplateId)
 }
 
+/** True when a style holds a widget, routine or tracker slot (ruling W11-R2), i.e. it is a template. */
+export function holdsFamilySlot(style) {
+  return Array.isArray(style?.blocks) && style.blocks.some((b) => slotFamily(b?.block) !== null)
+}
+
 /**
  * @param style    the member's style row (from the journal styles list)
  * @param onShared `(sentence) => void` after the server took it: the words to show (sharedSentence)
  * @param onClose  Cancel, Escape, or the Sheet's own close
  */
 export default function ShareStyleForm({ style, onShared, onClose }) {
+  if (widgetsWaveOn(11) && holdsFamilySlot(style)) {
+    return (
+      <Suspense fallback={null}>
+        <SharePreviewSheet kind="template" id={style.id} onClose={onClose} onDone={onShared} />
+      </Suspense>
+    )
+  }
+  return <PlainShareStyleForm style={style} onShared={onShared} onClose={onClose} />
+}
+
+function PlainShareStyleForm({ style, onShared, onClose }) {
   const uid = useId()
   const [title, setTitle] = useState(style?.name || '')
   const [description, setDescription] = useState('')

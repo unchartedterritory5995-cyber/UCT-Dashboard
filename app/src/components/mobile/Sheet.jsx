@@ -3,11 +3,13 @@ import { createPortal } from 'react-dom'
 import { useIsTouch } from '../../hooks/useBreakpoint'
 import { trapTabKey } from './useFocusTrap'
 import { acquireFullscreenSheet } from './fullscreenSheetAttr'
+import { inertBackground, openerLayer, MODAL_Z } from './backgroundInert'
 import styles from './Sheet.module.css'
 
 /* Sheet — responsive modal / drawer primitive.
  *
  * Desktop: centered modal. Touch: bottom-sheet (default) or fullscreen.
+ * While open, the page behind it is `inert` (backgroundInert.js; only the topmost sheet is live).
  * Use for ALL new modals/drawers/popovers so they behave on mobile.
  *
  * Props:
@@ -46,6 +48,10 @@ import styles from './Sheet.module.css'
  *                      touch bottom-sheet needs one (it can open from inside
  *                      TickerPopup, whose overlay now sits above --z-modal).
  */
+// W11-R82 m-1: the anchor's `display: none` is INLINE. `hidden` is only the UA's display:none, and an author rule such as
+// `.row > * { display: block }` beats it (recorded four times in this codebase), giving the anchor a box and a gap.
+const ANCHOR_STYLE = Object.freeze({ display: 'none' })
+
 export default function Sheet({
   open,
   onClose,
@@ -109,6 +115,22 @@ export default function Sheet({
     [open],
   )
 
+  // W11-R80: a sheet opened from inside a layer drawn ABOVE the modal rung (TickerPopup's modal, z 8600) is drawn
+  // above that layer, not under it. Read once per opening, like `openerAtRender`; a caller's own `zIndex` wins.
+  // ⛔ The layer is found from WHERE THIS SHEET IS RENDERED (a hidden anchor left in place while the panel portals to
+  // <body>), never from focus: iOS Safari does not focus a tapped button, so `document.activeElement` is <body> there.
+  const anchorRef = useRef(null)
+  const liftOf = () => {
+    const z = openerLayer(anchorRef.current || openerAtRender)?.z
+    return Number.isFinite(z) && z >= MODAL_Z ? z + 1 : null
+  }
+  const [layerZ, setLayerZ] = useState(null)
+  useLayoutEffect(() => {
+    setLayerZ(open ? liftOf() : null)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, openerAtRender])
+  const backdropZ = zIndex != null ? zIndex : layerZ
+
   // Resolve effective variant
   const resolved =
     variant === 'auto' ? (isTouch ? 'bottom-sheet' : 'modal') : variant
@@ -121,6 +143,18 @@ export default function Sheet({
     document.body.style.overflow = 'hidden'
     return () => { document.body.style.overflow = prev }
   }, [open, lockScroll])
+
+  // 11.20 walk D6: the page behind the scrim is `inert` while this sheet is open (backgroundInert.js), so neither axe
+  // nor a screen reader reads the page the modal covers. ⛔ Declared BEFORE the focus effect: cleanups run in
+  // declaration order, so the page is live again before focus is put back on the opener inside it.
+  useEffect(() => {
+    if (!open) return undefined
+    // W11-R82: everything under this sheet's scrim is inert; only a keep-live layer drawn above this sheet's own z
+    // stays live. The z is worked out here, as the render's (a caller's `zIndex`, else the lift, else the modal rung).
+    const z = zIndex != null ? Number(zIndex) : (liftOf() ?? MODAL_Z)
+    return inertBackground(panelRef.current?.parentElement || null, Number.isFinite(z) ? z : MODAL_Z)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, openerAtRender])
 
   // Escape to close + focus management
   useEffect(() => {
@@ -256,10 +290,13 @@ export default function Sheet({
       ? undefined
       : { maxWidth: typeof maxWidth === 'number' ? `${maxWidth}px` : maxWidth }
 
-  return createPortal(
+  return (<>
+    {/* W11-R80: where this sheet is rendered, for `openerLayer` (hidden, no box, no name). */}
+    <span ref={anchorRef} hidden style={ANCHOR_STYLE} data-sheet-anchor="" />
+    {createPortal(
     <div
       className={`${styles.backdrop} ${styles[resolved]}`}
-      style={zIndex != null ? { zIndex } : undefined}
+      style={backdropZ != null ? { zIndex: backdropZ } : undefined}
       onMouseDown={(e) => {
         if (dismissOnBackdrop && e.target === e.currentTarget) onCloseRef.current?.()
       }}
@@ -300,5 +337,6 @@ export default function Sheet({
       </div>
     </div>,
     document.body,
-  )
+  )}
+  </>)
 }

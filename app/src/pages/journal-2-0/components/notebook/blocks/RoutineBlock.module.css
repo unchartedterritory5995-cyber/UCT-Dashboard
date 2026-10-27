@@ -2,7 +2,9 @@
    items are checkboxes a member ticks with a thumb before the open. Colours are tokens only, so dark and light read
    from the theme's own --text / --text-muted / --accent (#dcbb5e on dark, #7a5c16 on light, both above 4.5:1 on
    their own --bg-elevated). ⛔ A not-done day is a WORD, never red and never struck through. */
-.wrap { display: grid; gap: 6px; }
+/* 11.20 walk D3: one column that may shrink below its content (`minmax(0, 1fr)`), so nothing inside can widen the block
+   past the note's frame at 390 or 820. */
+.wrap { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; min-width: 0; }
 .menuRow { display: flex; justify-content: flex-end; margin-top: -4px; }
 .menuButton { min-width: var(--tap-min); padding: 0 8px; }
 .tap { min-height: var(--tap-min); }
@@ -14,6 +16,8 @@
   display: flex; align-items: center; gap: 10px; width: 100%; min-height: var(--tap-min);
   padding: 0 10px; border: 1px solid var(--border); border-radius: 6px;
   background: transparent; color: var(--text); font: inherit; font-size: 13px; text-align: left; text-decoration: none;
+  /* D3: an item is a `.btn`, whose `white-space: nowrap` kept a long item on one line that widened the block; it wraps. */
+  white-space: normal; line-height: 1.35; min-width: 0;
 }
 .item:focus-visible { outline: 2px solid var(--ut-gold); outline-offset: 2px; }
 .item:disabled { cursor: default; opacity: .6; }

@@ -95,7 +95,7 @@
   margin-top: -8px;
 }
 .forgotLink:hover {
-  color: var(--ut-green);
+  color: var(--success-ink);   /* W11-R84 New-2: --ut-green read 4.2:1 on the card in dark */
 }
 
 .form {
@@ -157,11 +157,24 @@
 .submit:hover:not(:disabled) { background: var(--ut-green-bright); }
 .submit:disabled { opacity: 0.6; cursor: not-allowed; }
 
+/* W11-R81 PD-1: the shared solid-gold pair, buttons.css `.btn-primary`'s own (background --accent, ink --bg: dark ink
+   on bright gold in dark and OLED, white on the deep gold in light). It read 1.73:1 with --text-bright on --ut-gold.
+   Rail: AuthForm.contrast.test.js. */
 .submitPro {
   composes: submit;
-  background: var(--ut-gold);
+  background: var(--accent);
+  color: var(--bg);
 }
-.submitPro:hover:not(:disabled) { opacity: 0.9; background: var(--ut-gold); }
+.submitPro:hover:not(:disabled) { opacity: 0.9; background: var(--accent); color: var(--bg); }
+/* W11-R82 m-2: disabled is also the LOADING state ("Logging in...", "Checking...") and the TOTP "Verify" before a code
+   is typed, so its words stay at full contrast (.submit's `opacity: 0.6` read 2.69:1 in light). It says "not now" by
+   its own cue instead: the not-allowed cursor and a dashed ring inside the button, in the ink colour. */
+.submitPro:disabled {
+  opacity: 1;
+  cursor: not-allowed;
+  outline: 2px dashed var(--bg);
+  outline-offset: -5px;
+}
 
 .switchText {
   font-size: 13px;
@@ -170,8 +183,10 @@
   margin-top: 20px;
 }
 
+/* W11-R84 New-2: "Join the launch list" read 4.2:1 (--ut-green #2d8c4e on the card's #17181b in dark). --success-ink
+   is the theme-tuned green ink that clears 4.5:1 on every surface (tokens.css). Rail: AuthForm.contrast.test.js. */
 .switchLink {
-  color: var(--ut-green);
+  color: var(--success-ink);
   text-decoration: none;
   font-weight: 500;
 }
@@ -190,4 +205,17 @@
 /* Touch (wave 15): the UCT wordmark link audited 29px. */
 @media (max-width: 1024px) {
   .brand { display: inline-flex; align-items: center; min-height: var(--tap-min); }
+}
+
+/* W11-R81 PD-1: on the touch tier (styles/breakpoints.css) "Log In" was 40 px tall and "Forgot password?" 19 px. */
+@media (max-width: 1024px) {
+  .submit {
+    min-height: var(--tap-min);
+  }
+  .forgotLink {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    min-height: var(--tap-min);
+  }
 }

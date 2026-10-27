@@ -35,12 +35,13 @@ import {
   unpublishFromGallery, useTemplateGallery,
 } from '../../lib/templateGallery'
 import {
-  EXAMPLE_NOTE_TYPE, LISTED_ITEM_TYPES, LIBRARY_SORTS, TRADING_STYLES, isLinkableStyleItem, previewLibraryStyle,
+  EXAMPLE_NOTE_TYPE, LIBRARY_SORTS, TRADING_STYLES, isLinkableStyleItem, offeredItemTypes, previewLibraryStyle,
   tradingStyleLabel, useLibraryFeed, useLibraryList,
 } from '../../lib/styleLibrary'
 import { styleLibraryEnabled } from '../../lib/styleLibraryFlag'
 import { NOTEBOOK_EVENTS, trackNotebookEvent } from '../../lib/notebookTelemetry'
 import TemplatePreview from './TemplatePreview'
+import { outlineWithBlockNames } from '../../lib/templateSlots'
 // P3b Task 6: a style's Preview, with its examples ("In use"). Imported HERE only, so it ships inside this lazy chunk.
 import StyleItemPreview from './styles/StyleItemPreview'
 import { refusalSentence } from './StyleLibraryCard'
@@ -51,6 +52,12 @@ import lazyChunk from '../../lib/lazyChunk'
 import TemplateGalleryReviewPanel from '../../../../components/admin/TemplateGalleryReviewPanel'
 import UIcon from '../../../../components/ui/UIcon'
 import styles from './TemplateGallery.module.css'
+// Notebook widgets wave 11 (Task 11.16): a card's library facts, and a listed widget, routine or tracker's Use (the
+// adoption sheet, loaded on demand). Both only while wave 11 is on; off, every card is exactly as before.
+import { widgetsWaveOn, doorLostSentence } from '../../lib/notebookWidgetsFlags'
+import LibraryCardFacts, { ADOPT_KIND } from './library/LibraryCardFacts'
+// Task 11.18: a listed widget, routine or tracker's Helpful (the 3-day rule's sentence is said under it, W11-R8).
+import { useHelpfulToggle } from './useHelpfulToggle'
 
 const ALL = ''
 
@@ -118,6 +125,20 @@ export function GalleryCard({ item, isAdmin, busy, onPreview, onUse, onChanged, 
   // the Report button is still there, so focus goes back to it.
   const reportBtnRef = useRef(null)
   const closeReport = () => { setReporting(false); reportBtnRef.current?.focus() }
+  // Wave 11 (Task 11.16): the facts block replaces the description and the "Used by" count (never a 0: "New"), and a
+  // tool type is made the member's through the adoption sheet (its own preview with their data), not copied.
+  const w11 = widgetsWaveOn(11)
+  const adoptKind = w11 ? ADOPT_KIND[item.itemType] : undefined
+  const { helped, helpfulCount, voting, toggleHelpful, daysNote } = useHelpfulToggle(item, onMessage)
+  const helpfulOffered = Boolean(adoptKind) && !item.mine
+  const openAdopt = async () => {
+    try {
+      const mod = await import('./library/openAdoptSheet')
+      mod.openAdoptSheet({ galleryId: item.id, kind: adoptKind })
+    } catch {
+      onMessage?.({ tone: 'error', text: doorLostSentence() })
+    }
+  }
   return (
     <li className={styles.card} data-gallery-card="" data-gallery-id={item.id}>
       <div className={styles.cardHead}>
@@ -125,20 +146,37 @@ export function GalleryCard({ item, isAdmin, busy, onPreview, onUse, onChanged, 
         <span className={styles.meta}>
           {item.firm ? <span className={styles.firmBadge}>UCT</span> : <>by {item.author}</>}
           {' · '}{categoryLabel(item.category)}
-          {item.usedBy > 0 && <> · Used by {item.usedBy}</>}
+          {!w11 && item.usedBy > 0 && <> · Used by {item.usedBy}</>}
         </span>
       </div>
-      {item.description && <p className={styles.cardDesc}>{item.description}</p>}
+      {w11 ? <LibraryCardFacts item={item} helpfulCount={helpfulOffered ? helpfulCount : undefined} />
+        : item.description && <p className={styles.cardDesc}>{item.description}</p>}
       <PreviewLines lines={item.preview} />
       <div className={styles.actions} role="group" aria-labelledby={`${uid}-title`}>
-        <button type="button" className={styles.btn} onClick={() => onPreview(item)} disabled={busy}
-          aria-label={`Preview ${item.title}`}>
-          <UIcon name="eye" size={13} gold={false} /> Preview
-        </button>
-        <button type="button" className={`${styles.btn} ${styles.primary}`} onClick={() => onUse(item)} disabled={busy}
-          aria-label={`Use template ${item.title}`}>
-          Use template
-        </button>
+        {adoptKind ? (
+          <button type="button" className={`${styles.btn} ${styles.primary}`} onClick={openAdopt} disabled={busy}
+            aria-label={`Use ${item.title}`}>
+            Use
+          </button>
+        ) : (
+          <>
+            <button type="button" className={styles.btn} onClick={() => onPreview(item)} disabled={busy}
+              aria-label={`Preview ${item.title}`}>
+              <UIcon name="eye" size={13} gold={false} /> Preview
+            </button>
+            <button type="button" className={`${styles.btn} ${styles.primary}`} onClick={() => onUse(item)} disabled={busy}
+              aria-label={`Use template ${item.title}`}>
+              Use template
+            </button>
+          </>
+        )}
+        {helpfulOffered && (
+          <button type="button" className={styles.btn} onClick={toggleHelpful} disabled={voting}
+            aria-pressed={helped} aria-label={`Helpful: ${item.title}`}
+            aria-describedby={daysNote ? `${uid}-helpful-days` : undefined}>
+            <UIcon name="thumbsUp" size={13} gold={false} /> Helpful
+          </button>
+        )}
         {!item.mine && (
           <button type="button" ref={reportBtnRef} className={styles.btn} onClick={() => setReporting((v) => !v)}
             aria-expanded={reporting} aria-label={`Report ${item.title}`}>
@@ -147,6 +185,9 @@ export function GalleryCard({ item, isAdmin, busy, onPreview, onUse, onChanged, 
         )}
         {isAdmin && <GalleryAdminActions item={item} onChanged={onChanged} onMessage={onMessage} />}
       </div>
+      {helpfulOffered && (
+        <p className={daysNote ? styles.note : styles.liveIdle} id={`${uid}-helpful-days`} role="status" data-helpful-days="">{daysNote}</p>
+      )}
       {reporting && (
         <ReportForm
           item={item}
@@ -279,7 +320,9 @@ export default function TemplateGallery({ onBack, onUseNow, busy = false, initia
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState(ALL)
   const [sort, setSort] = useState('newest')
-  const [itemType, setItemType] = useState(() => (libraryOn && LISTED_ITEM_TYPES.some((t) => t.key === initialType) ? initialType : ALL))
+  // The layout half of the chip rule is settled by the list answer (the effect below falls back to All); the wave 11
+  // half is latched now, so a door can never open the library on a tool type while wave 11 is off (W11-R17).
+  const [itemType, setItemType] = useState(() => (libraryOn && offeredItemTypes({ layoutSharing: true }).some((t) => t.key === initialType) ? initialType : ALL))
   const [tradingStyle, setTradingStyle] = useState(ALL)
   const [author, setAuthor] = useState(null) // an authorHandle, while their page is open
   const [preview, setPreview] = useState(null)
@@ -363,7 +406,8 @@ export default function TemplateGallery({ onBack, onUseNow, busy = false, initia
     setPreview({ ...base, body: null, loading: true, onUse: () => {} })
     try {
       const full = await getGalleryTemplate(item.id)
-      setPreview({ ...base, body: full.bodyJson, onUse: () => use(item) })
+      // W11-R76: a placeholder line is the block's name, never a `{{block:...}}` token (a style: its block list)
+      setPreview({ ...base, body: outlineWithBlockNames(full.bodyJson, full.payload?.blocks ?? null), onUse: () => use(item) })
     } catch (err) {
       setPreview({ ...base, body: null, loadError: err?.message || "Couldn't load this template.", onUse: () => {} })
     }
@@ -476,7 +520,7 @@ export default function TemplateGallery({ onBack, onUseNow, busy = false, initia
             />
             {libraryOn && (
               <div className={styles.chipRow} role="group" aria-label="Filter by type" data-tour="library-types">
-                {[{ key: ALL, label: 'All' }, ...LISTED_ITEM_TYPES.filter((t) => t.key !== 'page_layout' || layoutSharing)].map((t) => (
+                {[{ key: ALL, label: 'All' }, ...offeredItemTypes({ layoutSharing })].map((t) => (
                   <button key={t.key || 'all'} type="button" aria-pressed={itemType === t.key}
                     className={`${styles.chip} ${itemType === t.key ? styles.chipActive : ''}`}
                     onClick={() => chooseType(t.key)}>

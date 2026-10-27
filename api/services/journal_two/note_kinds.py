@@ -11,10 +11,13 @@ Two facts, two places, never one restated:
 
 A kind in use cannot be deleted: a note's current kind counts whether the note is live OR in Trash
 (restoring it would bring back a dead id; the hold ends with the 30-day Trash purge), and a LIVE style's
-kind counts. The member's SOFT-DELETED styles of that kind do not block: they are hard-deleted in the
-same transaction as the kind and the result reports how many (`purgedDeletedStyles`). There is no soft
-delete for kinds, so no restore path can orphan a value. The check, the purge and the DELETE share one
-write lock.
+kind counts. The member's SOFT-DELETED styles of that kind do not block. W11-R69: what happens to them follows
+wave 11, read per request. With wave 11 ON they are KEPT (Task 11.13 fix round 1, c3 / W11-R10: a style row is never
+hard-deleted, because notes' style stamps and Update layout read it, and Recently deleted lists it for its 30 days;
+`journal_styles.restore_style` refuses to bring one back while its kind is gone, so no restore path can orphan a
+value) and `purgedDeletedStyles` is 0. With wave 11 OFF the delete is exactly master's: they are hard-deleted in the
+same transaction and `purgedDeletedStyles` is how many (no restore surface exists then to keep them for). There is
+no soft delete for kinds. The check and the DELETE share one write lock.
 """
 from __future__ import annotations
 
@@ -202,7 +205,7 @@ def _uses(user_id: str, kind_id: str, conn: sqlite3.Connection) -> tuple[int, in
     """(notes holding it, of which in Trash, LIVE styles holding it).
 
     Trashed notes COUNT (restoring one must never bring back a dead id); soft-deleted styles do not
-    (delete_kind purges them with the kind). The note scan is one SQL statement (`json_extract`, guarded
+    (they are kept, and restore_style refuses one whose kind is gone). The note scan is one SQL statement (`json_extract`, guarded
     by `json_valid` so one unreadable row cannot block every delete).
     ⛔ A SAMPLE note COUNTS here, on purpose (tests/test_sample_never_feeds_real_numbers.py): this is a
     hold on the value, not a statistic. A sample is a real row the member can set a kind on; deleting the
@@ -220,9 +223,18 @@ def _uses(user_id: str, kind_id: str, conn: sqlite3.Connection) -> tuple[int, in
     return r["n"], r["t"], styles_n
 
 
+def _keeps_deleted_styles() -> bool:
+    """W11-R69: wave 11 (read per call, like every wave 11 gate) is what keeps a deleted kind's soft-deleted styles:
+    its Recently deleted list is where they can be restored from."""
+    from api.services.journal_two.notebook_widgets import notebook_widgets_wave_on
+    return notebook_widgets_wave_on(11)
+
+
 def delete_kind(user_id: str, kind_id: str, conn: sqlite3.Connection | None = None) -> dict | bool:
-    """Delete a member kind. Returns `{"purgedDeletedStyles": n}` on success (truthy), False when there
-    is no such kind. Raises KindInUse while a note (live or trashed) or a live style holds it."""
+    """Delete a member kind. Returns `{"purgedDeletedStyles": n}` on success (truthy), False when there is no such
+    kind. Raises KindInUse while a note (live or trashed) or a live style (archived included) holds it. W11-R69: the
+    member's soft-deleted styles of the kind are KEPT while wave 11 is on (n = 0, c3 / W11-R10) and hard-deleted,
+    as on master, while it is off (n = how many)."""
     if kind_id in BUILTIN_KIND_IDS:
         raise KindValidationError("Built-in kinds can't be deleted.")
     from api.services.journal_two.notes import _begin_immediate
@@ -250,7 +262,7 @@ def delete_kind(user_id: str, kind_id: str, conn: sqlite3.Connection | None = No
                 conn.rollback()
             raise KindInUse(f"This kind is used by {' and '.join(parts)}. {tail}")
         purged = 0
-        if _has_styles_table(conn):
+        if not _keeps_deleted_styles() and _has_styles_table(conn):
             purged = conn.execute("DELETE FROM j2_journal_styles WHERE user_id = ? AND kind_id = ?"
                                   " AND deleted_at IS NOT NULL", (user_id, kind_id)).rowcount
         conn.execute("DELETE FROM j2_note_kinds WHERE id = ? AND user_id = ?", (kind_id, user_id))

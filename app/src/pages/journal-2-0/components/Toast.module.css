@@ -54,6 +54,17 @@
   background: var(--bg-hover);
 }
 
+/* W11-R81 PD-3: on the touch tier (styles/breakpoints.css) the Dismiss measured 23x22 px; it holds the floor both ways. */
+@media (max-width: 1024px) {
+  .dismiss {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: var(--tap-min);
+    min-height: var(--tap-min);
+  }
+}
+
 @keyframes slideIn {
   from {
     opacity: 0;

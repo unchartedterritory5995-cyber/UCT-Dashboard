@@ -11,18 +11,23 @@ import DeleteConfirm from './DeleteConfirm'
 import PanelHead from './PanelHead'
 import {
   FILTERS, LIST_RENDER_MAX, NO_RETRY, RECENTLY_DELETED_DAYS, COPY, usedInText, archiveSentence, editedText, dayText,
-  keptUntilText, readFailure, actionFailure, namedPlan, copiedPlan, copyName,
+  keptUntilText, readFailure, actionFailure, namedPlan, copiedPlan, copyName, LIBRARY_ACTIONS, canUpdateFromLibrary,
+  creditText, isLibraryCopy, listHeadingText,
 } from './myToolsLib'
+import { libraryOn, openShare, takeUpdate } from './libraryActions'
 import styles from './myTools.module.css'
 
 /**
  * My tools, Widgets tab (spec 5.8): the member's saved widgets in three lists, Active · Archived · Recently deleted.
  *
  *  * Each row: the name, a static drawing of its view, "Used in N notes" (which lists those notes, each opening its
- *    note), when it was last edited, and for an adopted widget "Based on X's Y" (no adopted widget exists before
- *    wave 11; the row reads `basedOn: {author, name}` when one does, `author` null for a former member).
+ *    note), when it was last edited, and for an adopted widget the library's credit line: the server's own `credit`
+ *    ("Based on Sam's Morning edge", W11-R7/R24). The client never assembles one: the wave 8 `basedOn` read is
+ *    retired (11.19 fix round 1, m-5); a row that still carries `basedOn` is a copy, with no credit line.
  *  * Active: Open (the builder), Rename, Duplicate, Version history, Archive. Archived: Restore, Delete permanently
- *    (the name typed). Recently deleted: Restore, for RECENTLY_DELETED_DAYS. "Share to library" is wave 11.
+ *    (the name typed). Recently deleted: Restore, for RECENTLY_DELETED_DAYS. While wave 11 and the library are on
+ *    (Task 11.19): "Share to library" on the member's own widgets, "Update from the library" on a copy the server
+ *    marks `updateAvailable`.
  *  * Every action is a ContextPopover on the row (a bottom sheet on touch, an anchored menu on desktop); on desktop
  *    the row's main action is also a button of its own.
  *  * A panel (the notes, the versions, rename, archive, delete) pushes in place of the list inside the one sheet;
@@ -39,19 +44,7 @@ const enc = (id) => encodeURIComponent(String(id))
 /** The row control for widget `id`, by attribute (ids are the server's; quoted, never trusted as a selector). */
 const actionsFor = (id) => `[data-actions-for="${String(id).replace(/["\\]/g, '\\$&')}"]`
 
-/** "Based on Sam's Morning edge", or "Based on a former member's …" (spec 5.8, 9). Wave 11 fills `basedOn`. */
-function basedOnText(d) {
-  const b = isRecord(d?.basedOn) ? d.basedOn : null
-  if (!b || typeof b.name !== 'string' || !b.name) return ''
-  const who = typeof b.author === 'string' && b.author ? `${b.author}'s` : "a former member's"
-  return `Based on ${who} ${b.name}`
-}
-
-const listHeading = (filter, n) => {
-  if (filter === 'archived') return `${n} archived`
-  if (filter === 'deleted') return `${n} recently deleted`
-  return `${n} widget${n === 1 ? '' : 's'}`
-}
+const listHeading = (filter, n) => listHeadingText(filter, n, 'widget', 'widgets')
 
 /** A newer version this widget's notes have not taken yet (saved "only here", or restored). */
 const pendingVersion = (d) => Number.isInteger(d?.rev) && Number.isInteger(d?.placedRev) && d.rev !== d.placedRev
@@ -60,7 +53,7 @@ function Row({ d, filter, phone, touch, highlight, busy, menuOpen, onMenu, onPri
   const view = isRecord(d.plan?.view) ? d.plan.view.type : null
   const viewName = VIEW_NAME.get(view)
   const used = Number.isInteger(d.usedIn) ? d.usedIn : 0
-  const based = basedOnText(d)
+  const based = creditText(d)
   const primary = filter === 'live' ? 'Open' : 'Restore'
   const primaryOff = busy || (filter === 'live' && d.tooNew === true)
   return (
@@ -459,6 +452,31 @@ export default function WidgetsTab({ phone, defId = null, seek = 0, editor = nul
     refresh('deleted')
   })
 
+  // ── the library (wave 11, Task 11.19) ───────────────────────────────────────────────────────────
+  const share = async (d) => {
+    setMenu(null)
+    const got = await openShare({ kind: 'widget', id: d.id, onDone: (text) => { if (mounted.current) say(text) } })
+    if (!got.ok && mounted.current) say(got.text, 'error')
+  }
+  // ⛔ Not through `act`: its words are builtWidgets' table (a refresh failure). A library refusal is the library's own
+  // sentence (lib/templateLibrary: offline, network, the server's), and only a 404 is "gone" (11.19 fix round 1, I-1).
+  const update = async (d) => {
+    if (busyId) return
+    setBusyId(d.id)
+    setMessage(null)
+    const got = await takeUpdate({ kind: 'widget', d, onSheetDone: () => { if (mounted.current) refresh('live') } })
+    if (!mounted.current) return
+    setBusyId(null)
+    if (got.ok) {
+      if (got.opened) return
+      say(got.text || LIBRARY_ACTIONS.updated(d.name))
+      refresh('live')
+      return
+    }
+    if (got.code === 'unavailable') { gone(); return }
+    say(got.text, 'error')
+  }
+
   const primary = (d) => {
     if (filter === 'live') openBuilder({ defId: d.id })
     else if (filter === 'archived') unarchive(d)
@@ -479,10 +497,15 @@ export default function WidgetsTab({ phone, defId = null, seek = 0, editor = nul
           hint: `Needs the name typed. Kept in Recently deleted for ${RECENTLY_DELETED_DAYS} days.` },
       ]
     }
+    const copy = isLibraryCopy(d) || isRecord(d.basedOn)
+    const library = !libraryOn() ? []
+      : copy ? (canUpdateFromLibrary(d) ? [{ key: 'update', label: LIBRARY_ACTIONS.update, onClick: () => { setMenu(null); update(d) } }] : [])
+        : [{ key: 'share', label: LIBRARY_ACTIONS.share, disabled: tooNew, onClick: () => share(d) }]
     return [
       { key: 'open', label: 'Open', disabled: tooNew, onClick: () => openBuilder({ defId: d.id }) },
       { key: 'rename', label: 'Rename', disabled: tooNew, onClick: () => push('rename', d) },
       { key: 'duplicate', label: 'Duplicate', disabled: tooNew, onClick: () => duplicate(d) },
+      ...library,
       { key: 'history', label: 'Version history', onClick: () => push('history', d) },
       ...usedIn,
       { separator: true },

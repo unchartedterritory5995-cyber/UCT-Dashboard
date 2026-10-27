@@ -630,6 +630,26 @@ describe('RoutineBlock, fix round 1', () => {
     expect(rule[1]).toMatch(/min-width:\s*0/)
   })
 
+  // 11.20 walk D3: at 390 Night-before prep's block overflowed its frame (right edge 401) and clipped a long item. M-8's
+  // `.text` rule was right and could not act: the item is a `.btn` (styles/buttons.css), whose `white-space: nowrap`
+  // made the whole label one unbreakable line, so the item's min-content widened the block's grid column past the note.
+  // The item un-sets it, and the block's single column may shrink below its content (`minmax(0, 1fr)`).
+  it('D3: a long item wraps inside the block at 390 and 820 (the .btn nowrap is undone; the column can shrink)', async () => {
+    const css = readFileSync(join(process.cwd(), 'src/pages/journal-2-0/components/notebook/blocks/RoutineBlock.module.css'), 'utf8')
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+    const btn = readFileSync(join(process.cwd(), 'src/styles/buttons.css'), 'utf8')
+    expect(/\.btn\s*\{[^}]*white-space:\s*nowrap/.test(btn), 'precondition: .btn forbids wrapping').toBe(true)
+    serve()
+    mount()
+    await waitFor(() => expect(boxes()).toHaveLength(6))
+    const item = screen.getByRole('checkbox', { name: 'Write the plan' })
+    expect(item.classList.contains('btn'), 'precondition: an item is a .btn').toBe(true)
+    const rule = (sel) => new RegExp(`(?:^|[}\\n])\\s*\\.${sel}\\s*\\{([^}]*)\\}`).exec(css)?.[1] || ''
+    expect(rule('item')).toMatch(/white-space:\s*normal/)
+    expect(rule('wrap')).toMatch(/grid-template-columns:\s*minmax\(0,\s*1fr\)/)
+    expect(rule('wrap')).toMatch(/min-width:\s*0/)
+  })
+
   it('N-4: on touch the ⋯ button says a dialog opens (the Sheet), and a dialog opens', async () => {
     const mm = window.matchMedia
     window.matchMedia = (q) => ({ matches: true, media: q, onchange: null, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {}, dispatchEvent() { return false } })

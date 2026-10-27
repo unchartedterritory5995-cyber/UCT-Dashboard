@@ -28,7 +28,6 @@ and the prompt), 13F and 13I-2 build on it (contract: `docs/notebook/wave13-13e1
 """
 from __future__ import annotations
 
-import json
 import logging
 import sqlite3
 from typing import Any, Optional
@@ -39,6 +38,7 @@ from api.services import request_body_cap as body_cap
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
 from api.services.journal_two import entry_context as ectx
 from api.services.journal_two import public_note_payload as public
+from api.services.journal_two import widget_request_body as wbody
 
 log = logging.getLogger(__name__)
 
@@ -85,7 +85,7 @@ async def _read_json(request: Request) -> dict[str, Any]:
     # then a length check, so a chunked or no-length body was buffered whole first.
     raw = await body_cap.read_capped_body(request, MAX_BODY_BYTES, TOO_LARGE_SENTENCE)
     try:
-        data = json.loads(raw) if raw.strip() else {}
+        data = wbody.loads_plain_body(raw) if raw.strip() else {}  # W11-R55: too deep to parse is 400 no-store
     except ValueError:
         raise HTTPException(status_code=422, detail="Send a JSON object") from None
     if not isinstance(data, dict):

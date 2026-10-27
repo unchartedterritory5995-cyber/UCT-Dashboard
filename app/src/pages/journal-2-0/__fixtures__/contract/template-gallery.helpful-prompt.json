@@ -1,0 +1,12 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "GET /api/j2/template-gallery/notes/a1c02ef811ff463eb682f218c6a6b877/helpful-prompt",
+    "note": "Used on one day only: the 3rd-day line does not show. Asking records nothing.",
+    "path": "/api/j2/template-gallery/notes/a1c02ef811ff463eb682f218c6a6b877/helpful-prompt",
+    "status": 200
+  },
+  "body": {
+    "show": false
+  }
+}

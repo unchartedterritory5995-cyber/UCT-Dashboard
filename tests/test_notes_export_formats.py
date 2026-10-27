@@ -698,3 +698,78 @@ def test_one_note_as_word_is_always_one_docx_that_names_what_it_could_not_hold(l
     assert name.endswith(".docx") and "Not included" not in _docx_text(plain)
     assert notes_export.build_single_note_export(USER, "x", conn=library, fmt="docx") is None   # foreign
     assert notes_export.build_single_note_export(USER, "t", conn=library, fmt="html") is None   # trashed
+
+
+# ── W11-R61 (LIVE ON MASTER): the toggle island is matched in linear time ──────────────────────────
+#
+# `_DETAILS_ISLAND` was a regex whose lazy summary group re-ran the greedy inner group from every `</summary>\n`: a
+# 1 MB note of them pinned the one web process for ~4 minutes. `_details_island` is plain fixed-string scans. The OLD
+# regex lives HERE only, as the equivalence oracle: same accept/reject, same two groups.
+
+import random as _random  # noqa: E402
+import re as _re  # noqa: E402
+import time as _time  # noqa: E402
+
+from api.services.journal_two import notes_export_formats as _nef  # noqa: E402
+
+_OLD_DETAILS_ISLAND = _re.compile(r"\A<details>\n<summary>(.*?)</summary>\n(.*)\n</details>\s*\Z", _re.S)
+
+_PIECES = ("<details>\n<summary>", "</summary>\n", "\n</details>", "<details>", "<summary>", "</summary>",
+           "</details>", "\n", " ", "\t", "\u2003", "\u00a0", "\x1c", "x", "Plan", "**b**", "<br>", "\r\n", "")
+
+
+def _old(content: str):
+    m = _OLD_DETAILS_ISLAND.match(content)
+    return (m.group(1), m.group(2)) if m else None
+
+
+def _corpus(n: int, seed: int = 61):
+    rng = _random.Random(seed)
+    hand = ["<details>\n<summary>S</summary>\nbody\n</details>\n",
+            "<details>\n<summary>S</summary>\n\n</details>",                    # empty inner
+            "<details>\n<summary></summary>\n\n</details>  \n\t",             # empty summary, whitespace tail
+            "<details>\n<summary>S</summary>\n</details>",                      # summary close overlaps the close
+            "<details>\n<summary>a</summary>\nb</summary>\nc\n</details>\n",   # the FIRST summary close wins
+            "<details>\n<summary>S</summary>\nx\n</details>\n</details>\n",   # the LAST close wins
+            "<details>\n<summary>S</summary>\nx\n</details>y",                  # text after the close: no island
+            "<details>\n<summary>S</summary>\nx\n</details>\u2003\u00a0\x1c",   # Unicode whitespace tail
+            " <details>\n<summary>S</summary>\nx\n</details>",                  # must OPEN the block
+            "<details>\n<summary>S\n</details>", ""]
+    out = list(hand)
+    for _ in range(n):
+        if rng.random() < 0.7:                                               # mostly island-shaped
+            parts = ["<details>\n<summary>"] + [rng.choice(_PIECES) for _ in range(rng.randint(0, 12))]
+            if rng.random() < 0.8:
+                parts.append("\n</details>")
+            parts += [rng.choice((" ", "\n", "\t", "\u2003", "", "x")) for _ in range(rng.randint(0, 3))]
+        else:
+            parts = [rng.choice(_PIECES) for _ in range(rng.randint(0, 14))]
+        out.append("".join(parts))
+    return out
+
+
+def test_W11_R61_the_linear_match_is_the_old_regex_exactly():
+    corpus = _corpus(40_000)
+    accepted = 0
+    for c in corpus:
+        got, want = _nef._details_island(c), _old(c)
+        assert got == want, (repr(c), got, want)
+        accepted += want is not None
+    assert accepted > 5_000 and accepted < len(corpus) - 5_000, accepted    # both answers well exercised
+
+
+@pytest.mark.parametrize("shape", ["summary closes", "details closes", "mixed"])
+def test_W11_R61_one_mb_of_markers_matches_in_under_half_a_second(shape):
+    unit = {"summary closes": "</summary>\n", "details closes": "\n</details>",
+            "mixed": "</summary>\n\n</details> "}[shape]
+    content = "<details>\n<summary>" + unit * (1_000_000 // len(unit)) + "\nx"     # no island: every scan runs
+    assert len(content) >= 1_000_000
+    t0 = _time.perf_counter()
+    for c in (content, content + "\n</details>\n"):                           # rejected, then accepted
+        _nef._details_island(c)
+    assert _time.perf_counter() - t0 < 0.5
+
+
+def test_W11_R61_a_toggle_still_renders_through_the_export():
+    html = _nef.markdown_to_html("<details>\n<summary>**Plan**</summary>\nInside\n</details>\n")
+    assert "<details>" in html and "<strong>Plan</strong>" in html and "Inside" in html

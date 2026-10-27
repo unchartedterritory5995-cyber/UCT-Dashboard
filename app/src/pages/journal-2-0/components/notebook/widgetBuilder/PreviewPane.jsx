@@ -11,8 +11,8 @@ import HeatView from '../widgets/builtViews/HeatView'
 import ListView from '../widgets/builtViews/ListView'
 import ProgressView from '../widgets/builtViews/ProgressView'
 import { CoverageNote, Footnotes } from '../widgets/builtViews/Counts'
-import { measuresOf, cellOf, countNoun } from '../widgets/builtViews/builtModel'
-import { failureText } from '../../../lib/builtWidgets'
+import { measuresOf, cellOf, countNoun, emptySentenceOf } from '../widgets/builtViews/builtModel'
+import { failureText, LAST_RESULT_SENTENCE } from '../../../lib/builtWidgets'
 import styles from './WidgetBuilderSheet.module.css'
 
 /**
@@ -22,7 +22,11 @@ import styles from './WidgetBuilderSheet.module.css'
  * ⛔ THE LAST GOOD RESULT STAYS. A preview that fails (busy, took too long, the preview pausing, offline) keeps the
  * last answer on screen, dimmed, with the failure's own sentence (lib/builtWidgets failureText) — never a blank.
  * `stale` (Task 10.16 fix 1, m-6): no preview could be asked for (one of the member's own fields is refused, and says
- * why beside it): the last answer is dimmed the same way, with no sentence of its own.
+ * why beside it): the last answer is dimmed the same way.
+ * ⛔ OPACITY IS NEVER THE ONLY CUE (F-DEF-1, rulings W11-R50/R50b, WCAG 1.4.1): whenever `showingLast` holds (a
+ * kept result under a failure, while stale, or while that kept result is being retried), LAST_RESULT_SENTENCE is
+ * shown beside the preview (not inside the dimmed part) and leads the phone summary bar. ONE predicate drives the
+ * line, the phone text and the dimming. The sentence is VISIBLE only: it never enters the live region.
  * ⛔ The live region announces ONLY the summary sentence, a second after it settles (spec 5.11), never a table, a
  * failure or "Updating".
  *
@@ -42,12 +46,22 @@ const finite = (v) => typeof v === 'number' && Number.isFinite(v)
 export function summaryLine(name, payload, unit) {
   // Fix 1, I-4: a preview on the bundled sample book says so first, wherever its summary is read.
   const parts = payload?.sample === true ? [SAMPLE_LABEL, name || 'Widget'] : [name || 'Widget']
+  // W11-R81 PD-2 (plan w7-w8 :666): an `empty` payload says its spec 5.9 sentence, never a zero count or a zero value
+  // ("Daily P&L bars · 0 trades · $0.00" over an empty range). The same test as the preview body's (`empty`, not
+  // tooLarge), so the bar and the body say one thing.
+  const empty = emptySentenceOf(payload)
+  if (empty) return [...parts, empty].join(' · ')
   if (payload && finite(payload.count)) parts.push(`${payload.count.toLocaleString('en-US')} ${countNoun(unit, payload.count)}`)
   const m = measuresOf(payload || {})[0]
   const v = payload?.value
   if (m && v && typeof v === 'object' && (finite(v.v1) || v.s1 === 'hide')) parts.push(cellOf(v, 1, m).text)
   return parts.join(' · ')
 }
+
+/** True when a last good result is on screen but is not the answer to what the member asked now: it is kept under a
+ *  failure, while stale, or while that kept result is being retried (runPreview sets `loading` and keeps the error). */
+export const showingLast = (payload, status, error, stale) => !!payload
+  && (!!stale || (!!error && (status === 'error' || status === 'loading')))
 
 /** The summary sentence, announced politely a second after it last changed. One region, one sentence. */
 function useAnnounced(summary) {
@@ -63,6 +77,7 @@ function useAnnounced(summary) {
 function PreviewBody({ payload, status, error, onRetry, onSuggestRange, canSuggestRange, suggestOff, stale }) {
   const [asTable, setAsTable] = useState(false)
   const failed = status === 'error' && error
+  const last = showingLast(payload, status, error, stale)
   const text = failed ? failureText(error.code, error.message) : ''
   if (!payload) {
     return (
@@ -79,7 +94,7 @@ function PreviewBody({ payload, status, error, onRetry, onSuggestRange, canSugge
   }
   const view = Object.hasOwn(VIEWS, payload.view) ? payload.view : 'number'
   const View = VIEWS[view]
-  const empty = typeof payload.empty === 'string' && payload.empty && !payload.tooLarge ? payload.empty : null
+  const empty = emptySentenceOf(payload)
   const canToggle = !empty && view !== 'table'
   return (
     <>
@@ -91,7 +106,8 @@ function PreviewBody({ payload, status, error, onRetry, onSuggestRange, canSugge
             canSuggestRange={canSuggestRange} suggestOff={suggestOff} />
         </div>
       )}
-      <div className={`${styles.previewView} ${failed || stale ? styles.dimmed : ''}`} aria-busy={status === 'loading'}
+      {last && <p className={styles.previewLast} data-testid="builder-preview-last">{LAST_RESULT_SENTENCE}</p>}
+      <div className={`${styles.previewView} ${last ? styles.dimmed : ''}`} aria-busy={status === 'loading'}
         data-stale={stale ? '' : undefined}
         data-testid="builder-preview-view">
         {payload.title && <p className={styles.previewTitle}>{payload.title}</p>}
@@ -139,9 +155,13 @@ export default function PreviewPane({
 }) {
   const [open, setOpen] = useState(false)
   const bodyId = useId()
-  const said = useAnnounced(typeof payload?.summary === 'string' && payload.summary
-    ? `${payload.sample === true ? `${SAMPLE_LABEL} · ` : ''}${payload.summary}` : '')
-  const summary = typeof payload?.summary === 'string' ? payload.summary : ''
+  const last = showingLast(payload, status, error, stale)
+  // W11-R84 New-1: over an empty source the server's summary counts a zero ("... 0 strategies."). The live region says
+  // the empty sentence instead, and the visible summary line is not drawn: the preview body already shows that sentence.
+  const empty = emptySentenceOf(payload)
+  const spoken = empty || (typeof payload?.summary === 'string' ? payload.summary : '')
+  const said = useAnnounced(spoken ? `${payload.sample === true ? `${SAMPLE_LABEL} · ` : ''}${spoken}` : '')
+  const summary = !empty && typeof payload?.summary === 'string' ? payload.summary : ''
   const body = (
     <PreviewBody payload={payload} status={status} error={error} onRetry={onRetry}
       onSuggestRange={onSuggestRange} canSuggestRange={canSuggestRange} suggestOff={suggestOff} stale={stale} />
@@ -160,8 +180,8 @@ export default function PreviewPane({
           <>
             <button type="button" className={styles.summaryBar} aria-expanded={open} aria-controls={bodyId}
               onClick={() => setOpen((v) => !v)} data-testid="builder-summary-bar">
-              <span className={`${styles.summaryText} ${status === 'error' || stale ? styles.dimmed : ''}`}>
-                {summaryLine(name, payload, unit)}
+              <span className={`${styles.summaryText} ${last ? styles.dimmed : ''}`}>
+                {last ? `${LAST_RESULT_SENTENCE} ` : ''}{summaryLine(name, payload, unit)}
               </span>
               <UIcon name={open ? 'chevronUp' : 'chevronDown'} size={16} gold={false} aria-hidden="true" />
               <span className={styles.srOnly}>{open ? 'Hide the preview' : 'Show the preview'}</span>

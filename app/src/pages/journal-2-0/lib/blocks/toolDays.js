@@ -5,6 +5,9 @@ import { etDayOf, todayET } from '../calendar'
 import { isTradingDay } from '../../../../lib/marketClock/sessionCalendar'
 
 const DAY_RE = /^\d{4}-\d{2}-\d{2}$/
+// A timestamp: a day, then a time after `T` or a space (the server's trading_days._STAMP_RE).
+const STAMP_RE = /^\d{4}-\d{2}-\d{2}[T ]/
+const ZONED_RE = /(?:[Zz]|[+-]\d{2}(?::?\d{2})?)$/
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 const ET_ZONE = 'America/New_York'
@@ -19,16 +22,22 @@ function partsOf(day) {
 
 /** The day a note belongs to: its daily date when it has one, else the ET day it was created, else today.
  *  ⛔ A created-at STRING with a time is read as a moment (etDayOf alone reads its leading date, which is
- *  the UTC day: 03:30Z on the 28th is still the 27th in New York). */
+ *  the UTC day: 03:30Z on the 28th is still the 27th in New York).
+ *  Wave 11 (ruling W11-R15): the server's rule (`tool_binding.note_day` over `trading_days.et_day_of`), so the
+ *  shared vectors bind the same day on both sides: a bare day must be a real date, a timestamp must start with
+ *  `YYYY-MM-DD` then `T` or a space, and a NAIVE timestamp (no `Z`, no offset) is UTC, never the browser's own zone
+ *  (`Date.parse` alone reads a naive date-time as local time). Anything else is today in New York. */
 export function noteDayOf(note) {
   const daily = note?.dailyDate
   if (typeof daily === 'string' && partsOf(daily)) return daily
   const created = note?.createdAt
   if (typeof created === 'string') {
-    if (DAY_RE.test(created)) return etDayOf(created) || todayET()
-    const ms = Date.parse(created)
-    if (Number.isFinite(ms)) return etDayOf(ms) || todayET()
-    return todayET()
+    const s = created.trim()
+    if (DAY_RE.test(s)) return partsOf(s) ? s : todayET()
+    if (!STAMP_RE.test(s)) return todayET()
+    const iso = `${s.slice(0, 10)}T${s.slice(11)}`
+    const ms = Date.parse(ZONED_RE.test(iso) ? iso : `${iso}Z`)
+    return Number.isFinite(ms) ? (etDayOf(ms) || todayET()) : todayET()
   }
   return etDayOf(created) || todayET()
 }
@@ -73,14 +82,17 @@ export function sessionAfter(day) {
   return addDays(day, 1)
 }
 
-/** The last trading day of `day`'s Monday-to-Friday week. */
+/** The last session of the Monday-to-Sunday week containing `day` (a Saturday or Sunday belongs to the week just
+ *  ended). Wave 11 (ruling W11-R15), the server's rule (`trading_days.last_session_of_week`): a week with no session
+ *  answers the session on or before its Sunday, i.e. the previous week's last session, never a holiday Friday. */
 export function weekLastSession(day) {
-  const mon = addDays(day, -((new Date(`${day}T00:00:00Z`).getUTCDay() + 6) % 7))
-  for (let i = 4; i >= 0; i -= 1) {
-    const d = addDays(mon, i)
+  const sunday = addDays(day, 6 - ((new Date(`${day}T00:00:00Z`).getUTCDay() + 6) % 7))
+  let d = sunday
+  for (let i = 0; i < 21; i += 1) {
     if (isTradingDay(d)) return d
+    d = addDays(d, -1)
   }
-  return addDays(mon, 4)
+  return addDays(sunday, -2)
 }
 
 /** The note's own day, from the editor (Task 9.19 stores it, as a day or a function of none); else today ET. */

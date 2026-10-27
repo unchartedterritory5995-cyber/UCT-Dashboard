@@ -275,7 +275,10 @@
   color: var(--text);
   border-color: var(--ut-gold);
 }
-.chipActive {
+/* W11-R74 (the 11.20 R5 rule): `.chipActive:hover` matches `.chip:hover` in specificity and comes later, so a
+   hovered chosen chip keeps --bg on gold (it read 1.61:1). Rail: TemplateGallery.chipContrast.test.js. */
+.chipActive,
+.chipActive:hover {
   /* D-A4/notebookContrast: --bg-page is not a real token (the #0b0c0f fallback
      always resolves), and it reads 3.14:1 on --ut-gold in light -- under the
      4.5:1 text floor. --bg is the theme's own extreme (white in light, black

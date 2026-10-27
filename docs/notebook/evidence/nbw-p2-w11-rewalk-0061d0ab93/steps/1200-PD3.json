@@ -1,0 +1,68 @@
+{
+ "viewport": "1200",
+ "step": "PD3",
+ "title": "PD-3 Toast Dismiss tap size",
+ "mode": "ON",
+ "checks": [
+  {
+   "what": "1200: the Toast shows (sizes recorded; the floor is a touch-tier rule)",
+   "ok": true,
+   "read": "{\"text\": \"\\u00d7\", \"fg\": \"rgb(207, 202, 192)\", \"bg\": \"rgb(17, 17, 17)\", \"opacity\": 1, \"ratio\": 11.57, \"w\": 22.5, \"h\": 22, \"disabled\": false, \"theme\": \"oled\"}"
+  },
+  {
+   "what": "PD-3 1200: Dismiss closes the toast",
+   "ok": true,
+   "read": ""
+  }
+ ],
+ "rendered": [
+  {
+   "what": "toast / Dismiss",
+   "text": "[[\"Tilt check added.\\n\\u00d7\"], {\"text\": \"\\u00d7\", \"fg\": \"rgb(207, 202, 192)\", \"bg\": \"rgb(17, 17, 17)\", \"opacity\": 1, \"ratio\": 11.57, \"w\": 22.5, \"h\": 22, \"disabled\": false, \"theme\": \"oled\"}]"
+  }
+ ],
+ "verdict": "PASS",
+ "notes": [],
+ "events": {
+  "A": []
+ },
+ "metrics": {
+  "toast": {
+   "overflow": {
+    "vw": 1200,
+    "docScrollWidth": 1200,
+    "bodyScrollWidth": 1200,
+    "inner": [
+     [
+      1140,
+      1140
+     ],
+     [
+      1092,
+      1092
+     ],
+     [
+      826,
+      826
+     ]
+    ],
+    "horizontal": false,
+    "offenders": []
+   },
+   "raw_block": [],
+   "axe_page": {
+    "version": "4.13.0",
+    "scope": "body",
+    "violations": []
+   }
+  }
+ },
+ "screenshots": [
+  "1200/PD3-toast.png"
+ ],
+ "requests_note_put": 0,
+ "started": "2026-10-27T09:54:26",
+ "findings": [],
+ "partial": false,
+ "finished": "2026-10-27T09:54:42"
+}

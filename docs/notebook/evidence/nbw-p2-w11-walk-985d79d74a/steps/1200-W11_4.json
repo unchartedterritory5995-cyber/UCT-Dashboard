@@ -1,0 +1,91 @@
+{
+ "viewport": "1200",
+ "step": "W11.4",
+ "title": "[CLK-SUN] Night-before prep on Sunday 21:00 ET",
+ "mode": "CLK-SUN",
+ "checks": [
+  {
+   "what": "the server's shifted now is Sunday 2026-11-22 21:00 ET",
+   "ok": true,
+   "read": "2026-11-22T21:00:55.746100-05:00"
+  },
+  {
+   "what": "Night-before prep Use: after Use the new note is in front (no sheet left open over it)",
+   "ok": false,
+   "read": "[\"New note\"]"
+  },
+  {
+   "what": "the routine block reads 'For Mon Nov 23' (next trading day after the ET note day)",
+   "ok": true,
+   "read": "For Mon Nov 23\nNot yet\n\nBuild tomorrow's watchlist\nMark levels on my top names\nCheck tomorrow's earnings and economic calendar\nSet tomorrow's max loss\nWrite my plan for the open\nSkip this day\nP&L on d"
+  }
+ ],
+ "rendered": [
+  {
+   "what": "A: server shifted now / browser clock",
+   "text": "Sunday 2026-11-22 21:00 ET"
+  },
+  {
+   "what": "browser clock (ISO)",
+   "text": "2026-11-23T02:01:00.561Z"
+  },
+  {
+   "what": "Night-before prep detail",
+   "text": "Night-before prep\n×\n\nBased on UCT's Night-before prep\n\nLevels for tomorrow\n\nMark the prices you will act on at the open.\n\nKey levels from my plans\n\nEarnings tomorrow\n\nWhich of your names report before the open or after the close?\n\nEarnings for my names\n\nNight-before routine\n\nTick each step before you shut the screens.\n\nRoutine: Night-before prep\n\nPreview with your data\n\nNight-before prep\n\nBuild tomorrow's watchlist\nMark levels on my top names\nCheck tomorrow's earnings and economic calendar\nSet tomorrow's max loss\nWrite my plan for the open\n\nFor Mon Nov 23\n\nClose\nUse this template"
+  },
+  {
+   "what": "routine block",
+   "text": "For Mon Nov 23\nNot yet\n\nBuild tomorrow's watchlist\nMark levels on my top names\nCheck tomorrow's earnings and economic calendar\nSet tomorrow's max loss\nWrite my plan for the open\nSkip this day\nP&L on days you finished it"
+  }
+ ],
+ "verdict": "FAIL",
+ "notes": [],
+ "events": {
+  "A": []
+ },
+ "metrics": {
+  "note": {
+   "overflow": {
+    "vw": 1200,
+    "docScrollWidth": 1200,
+    "bodyScrollWidth": 1200,
+    "inner": [
+     [
+      1140,
+      1140
+     ],
+     [
+      1092,
+      1092
+     ],
+     [
+      826,
+      826
+     ]
+    ],
+    "horizontal": false,
+    "offenders": []
+   },
+   "raw_block": [],
+   "axe_sheet": {
+    "version": "4.13.0",
+    "scope": "[data-routine-block]",
+    "violations": []
+   },
+   "axe_page": {
+    "version": "4.13.0",
+    "scope": "body",
+    "violations": []
+   }
+  }
+ },
+ "screenshots": [
+  "1200/W11_4-sheet-left-open.png",
+  "1200/W11_4-main.png"
+ ],
+ "requests_note_put": 0,
+ "started": "2026-10-27T06:17:32",
+ "findings": [],
+ "partial": false,
+ "finished": "2026-10-27T06:17:59"
+}

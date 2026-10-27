@@ -782,3 +782,61 @@ def test_bad_ids_get_a_request_shape_sentence(R):
         with pytest.raises(R.RoutineError) as e:
             R.read_days(A, bad, ["today"], now=at("2026-11-02"))
         assert e.value.sentence == R.S_BAD_IDS
+
+
+# ── Task 11.6 (wave 11): template-made routines ─────────────────────────────────────────────────
+
+def test_create_records_source_gallery_id(R):
+    gid = uuid.uuid4().hex
+    r = make(R, source_template_key=f"gal:{gid}:r1", source_gallery_id=gid)
+    plain = make(R, name="By hand")
+    c = _conn()
+    try:
+        rows = {row[0]: row[1] for row in c.execute("SELECT id, source_gallery_id FROM j2_routines WHERE user_id = ?",
+                                                    (A,))}
+    finally:
+        c.close()
+    assert rows == {r["id"]: gid, plain["id"]: None}
+    assert r["sourceTemplateKey"] == f"gal:{gid}:r1"
+    # the second create with the key returns the first (and keeps its gallery id)
+    again = make(R, source_template_key=f"gal:{gid}:r1", source_gallery_id="other")
+    assert again["id"] == r["id"]
+
+
+def test_from_template_setting_round_trips_and_is_80_max(R):
+    r = make(R, settings={"fromTemplate": "  Pre-market   prep "})
+    assert r["settings"] == {"done_share": 1.0, "strict": False, "reminder": None, "fromTemplate": "Pre-market prep"}
+    assert R.get(A, r["id"], now=at("2026-11-02"))["settings"]["fromTemplate"] == "Pre-market prep"
+    # an edit that does not name it keeps it
+    edited = R.update(A, r["id"], if_match=r["etag"], settings={"strict": True}, now=at("2026-11-02"))
+    assert edited["settings"]["fromTemplate"] == "Pre-market prep" and edited["settings"]["strict"] is True
+    # a routine made by hand answers exactly the three keys it always did
+    assert set(make(R, name="Plain")["settings"]) == {"done_share", "strict", "reminder"}
+    assert R.FROM_TEMPLATE_MAX == 80
+    assert make(R, name="Edge", settings={"fromTemplate": "x" * 80})["settings"]["fromTemplate"] == "x" * 80
+    for bad, sentence in (("x" * 81, R.S_FROM_TEMPLATE_LONG), (5, R.S_BAD_SETTINGS)):
+        with pytest.raises(R.RoutineError) as e:
+            make(R, name="Bad", settings={"fromTemplate": bad})
+        assert e.value.sentence == sentence
+    # blank is none
+    assert "fromTemplate" not in make(R, name="Blank", settings={"fromTemplate": "  "})["settings"]
+
+
+def test_resolve_many_is_one_owned_read(R):
+    mine = make(R, name="Mine")
+    archived = make(R, name="Old")
+    R.archive(A, archived["id"], now=at("2026-11-02"))
+    theirs = make(R, B, name="Theirs")
+    got = R.resolve_many(A, [mine["id"], archived["id"], theirs["id"], "nope", mine["id"]])
+    assert got == {mine["id"]: {"name": "Mine", "archived": False}, archived["id"]: {"name": "Old", "archived": True},
+                   theirs["id"]: None, "nope": None}
+    assert R.resolve_many(A, []) == {} and R.resolve_many("", [mine["id"]]) == {}
+    assert [c["id"] for c in R.match_candidates(A, now=at("2026-11-02"))] == [mine["id"]]
+
+
+def test_duplicate_drops_from_template(R):
+    """W11-R29: a copy is the member's own, not a template's."""
+    r = make(R, settings={"fromTemplate": "Pre-market prep"}, source_template_key="tpl:premarket_routine")
+    copy = R.duplicate(A, r["id"], now=at("2026-11-02"))
+    assert "fromTemplate" not in copy["settings"] and copy["sourceTemplateKey"] is None
+    assert R.get(A, r["id"], now=at("2026-11-02"))["settings"]["fromTemplate"] == "Pre-market prep"

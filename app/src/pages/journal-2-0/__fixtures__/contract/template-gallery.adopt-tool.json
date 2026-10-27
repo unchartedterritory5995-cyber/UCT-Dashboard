@@ -1,0 +1,15 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "POST /api/j2/template-gallery/1b55154e9ace42cb9ce81110dc6793c0/adopt-tool",
+    "note": "A copy of the listed routine in the viewer's My tools.",
+    "path": "/api/j2/template-gallery/1b55154e9ace42cb9ce81110dc6793c0/adopt-tool",
+    "requestBody": {},
+    "status": 200
+  },
+  "body": {
+    "credit": "Based on Wren Author's Routine with 2 items",
+    "id": "b6c2ae09-db07-4e52-b229-916635805e2b",
+    "kind": "routine"
+  }
+}

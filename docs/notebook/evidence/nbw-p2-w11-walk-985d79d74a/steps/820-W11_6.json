@@ -1,0 +1,200 @@
+{
+ "viewport": "820",
+ "step": "W11.6",
+ "title": "Setup study: suggested, then brand-new",
+ "mode": "ON",
+ "checks": [
+  {
+   "what": "the setup slot opens at A's most-used setup (Pullback / Earnings drift / Gap and go / Breakout; a tie accepts any)",
+   "ok": true,
+   "read": "Setup: Pullback\nChange"
+  },
+  {
+   "what": "the preview renders immediately (no 'Pick a setup' sentence; widgets drawn)",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "Use is enabled",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "N: the widget reads 'Pick a setup to see this widget.'",
+   "ok": true,
+   "read": "Make it yours\n×\n\nBased on UCT's Setup study\n\nYour choices\nSetup: Not picked yet\nChange\nPreview with your data\n\nYour stats on this setup\n\nPick a setup to see this widget.\n\nThis setup by time of day\n\nPick a setup to see this widget.\n\nPick a value for each choice, or Any.\n\nCancel\nUse"
+  },
+  {
+   "what": "N: Use is disabled",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "N: 'Pick a value for each choice, or Any.' beside Use",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "N: no 0 anywhere",
+   "ok": true,
+   "read": "[]"
+  }
+ ],
+ "rendered": [
+  {
+   "what": "A adopt sheet (Setup study)",
+   "text": "Make it yours\n×\n\nBased on UCT's Setup study\n\nYour choices\nSetup: Pullback\nChange\nPreview with your data\n\nYour stats on this setup\n\nTrades\n75\n\nThis setup by time of day\n\nCancel\nUse"
+  },
+  {
+   "what": "A's setups by trade count",
+   "text": "{\"Pullback\": 75, \"Earnings drift\": 75, \"Gap and go\": 75, \"Breakout\": 75}"
+  },
+  {
+   "what": "N adopt sheet (Setup study)",
+   "text": "Make it yours\n×\n\nBased on UCT's Setup study\n\nYour choices\nSetup: Not picked yet\nChange\nPreview with your data\n\nYour stats on this setup\n\nPick a setup to see this widget.\n\nThis setup by time of day\n\nPick a setup to see this widget.\n\nPick a value for each choice, or Any.\n\nCancel\nUse"
+  },
+  {
+   "what": "N: setup picker",
+   "text": "Pick your setup\n\nSetup\n\nYou don't have any to pick yet.\n\nCancel\nDone"
+  }
+ ],
+ "verdict": "PASS",
+ "notes": [
+  "N has no setups and the setup choice offers no Any: Pick your setup\n\nSetup\n\nYou don't have any to pick yet.\n\nCancel\nDone"
+ ],
+ "events": {
+  "A": [],
+  "N": []
+ },
+ "metrics": {
+  "adopt-A": {
+   "overflow": {
+    "vw": 820,
+    "docScrollWidth": 820,
+    "bodyScrollWidth": 820,
+    "inner": [
+     [
+      820,
+      820
+     ],
+     [
+      772,
+      772
+     ],
+     [
+      506,
+      506
+     ]
+    ],
+    "horizontal": false,
+    "offenders": [
+     {
+      "tag": "LI",
+      "cls": "_libraryCard_1hb5o_436",
+      "text": "Pre-market prep\nIn your templates\nTempla",
+      "right": 1051
+     },
+     {
+      "tag": "LI",
+      "cls": "_libraryCard_1hb5o_436",
+      "text": "Tag today's trades\nTemplate\n\nUCT\n\nFor: T",
+      "right": 1051
+     },
+     {
+      "tag": "LI",
+      "cls": "_libraryCard_1hb5o_436",
+      "text": "Monthly review\nTemplate\n\nUCT\n\nFor: This ",
+      "right": 1051
+     }
+    ]
+   },
+   "raw_block": [],
+   "axe_sheet": {
+    "version": "4.13.0",
+    "scope": "[data-walk-scope=\"1\"]",
+    "violations": []
+   },
+   "axe_page": {
+    "version": "4.13.0",
+    "scope": "body",
+    "violations": []
+   },
+   "tap": {
+    "scope": "[data-walk-scope=\"1\"]",
+    "controls": 4,
+    "small": [],
+    "smallCount": 0,
+    "pointerCoarse": true
+   }
+  },
+  "adopt-N": {
+   "overflow": {
+    "vw": 820,
+    "docScrollWidth": 820,
+    "bodyScrollWidth": 820,
+    "inner": [
+     [
+      820,
+      820
+     ],
+     [
+      772,
+      772
+     ],
+     [
+      506,
+      506
+     ]
+    ],
+    "horizontal": false,
+    "offenders": [
+     {
+      "tag": "LI",
+      "cls": "_libraryCard_1hb5o_436",
+      "text": "Pre-market prep\nTemplate\n\nUCT\n\nFor: The ",
+      "right": 1051
+     },
+     {
+      "tag": "LI",
+      "cls": "_libraryCard_1hb5o_436",
+      "text": "Tag today's trades\nTemplate\n\nUCT\n\nFor: T",
+      "right": 1051
+     },
+     {
+      "tag": "LI",
+      "cls": "_libraryCard_1hb5o_436",
+      "text": "Monthly review\nTemplate\n\nUCT\n\nFor: This ",
+      "right": 1051
+     }
+    ]
+   },
+   "raw_block": [],
+   "axe_sheet": {
+    "version": "4.13.0",
+    "scope": "[data-walk-scope=\"1\"]",
+    "violations": []
+   },
+   "axe_page": {
+    "version": "4.13.0",
+    "scope": "body",
+    "violations": []
+   },
+   "tap": {
+    "scope": "[data-walk-scope=\"1\"]",
+    "controls": 3,
+    "small": [],
+    "smallCount": 0,
+    "pointerCoarse": true
+   }
+  }
+ },
+ "screenshots": [
+  "820/W11_6-adopt.png",
+  "820/W11_6-adopt-new.png"
+ ],
+ "requests_note_put": 0,
+ "started": "2026-10-27T05:18:29",
+ "findings": [],
+ "partial": false,
+ "finished": "2026-10-27T05:18:52"
+}

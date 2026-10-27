@@ -1,0 +1,62 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "POST /api/j2/template-gallery/share/preview",
+    "note": "The share sheet's second ask, with the prefilled words as edits: `travels` is what would be listed.",
+    "path": "/api/j2/template-gallery/share/preview",
+    "requestBody": {
+      "edits": {
+        "items": [
+          "Coffee",
+          "Mark levels"
+        ],
+        "name": "Morning routine"
+      },
+      "id": "8ed8c76c-3a64-4296-943c-66f014532083",
+      "kind": "routine"
+    },
+    "status": 200
+  },
+  "body": {
+    "kept": [],
+    "notShared": [
+      "Your ticks, history and reminders are left out."
+    ],
+    "prefill": {
+      "blocks": {},
+      "description": "",
+      "formulas": [],
+      "items": [
+        {
+          "text": "Coffee"
+        },
+        {
+          "text": "Mark levels"
+        }
+      ],
+      "name": "Morning routine",
+      "numbers": [],
+      "unit": ""
+    },
+    "slots": [],
+    "travels": {
+      "items": [
+        {
+          "negative": false,
+          "text": "Coffee"
+        },
+        {
+          "negative": false,
+          "text": "Mark levels"
+        }
+      ],
+      "name": "Morning routine",
+      "schedule": {
+        "kind": "every"
+      },
+      "settings": {
+        "done_share": 1.0
+      }
+    }
+  }
+}

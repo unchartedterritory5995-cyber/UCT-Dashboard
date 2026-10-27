@@ -10,8 +10,15 @@ The scan:
     SELECT <static columns> FROM j2_trades t
      WHERE t.user_id = ? <analytics-included> [AND <account narrows>] <filter fragments>
        AND <ET day spine> BETWEEN ? AND ?
-     ORDER BY <ET day spine> DESC, t.id DESC LIMIT 5001
+     ORDER BY <ET day spine> DESC, julianday(t.exit_date) DESC, t.id DESC LIMIT 5001
 
+* Newest first is the ET day, then the trade's own close instant, then the id: the id is a
+  random uuid, so as the second key it shuffled one day's trades (F-SORT-1). The instant is
+  compared through `julianday`, never as text: manual and CSV writers store UTC, but a broker
+  import keeps the broker's own offset (`snaptrade_adapter.normalize_date`), so `-04:00`, `Z`
+  and fractional stamps share one day and text order is not time order. An unreadable stamp is
+  NULL and sorts last. `CLOSED_ORDER` / `OPTION_ORDER` are the
+  one statement of each order; `sources.scan_options` re-sorts in Python by the same keys.
 * Flagged trades (`analytics_excluded`) are left out by `filters.analytics_included_sql` for every
   view except `list`, which shows them (the spec is "flag, never hide") and marks each one.
 * An account id only NARROWS. One that is not the session member's behaves as absent: the
@@ -99,6 +106,15 @@ OPTION_COLUMNS = (
 #: (`sources._option_day`), never a day read from UTC.
 OPTION_DAY = ("COALESCE(o.trading_day_et, substr(o.closed_at, 1, 10), "
               "substr(o.entry_date, 1, 10))")
+
+#: Newest first (F-SORT-1): the ET day, then the row's own instant (a closed trade's close, a
+#: strategy's close or, while open, its entry: the instant `sources._sort_key` orders streaks by),
+#: then the id as the last, stable tie-break. Never the id second: it is a random uuid. The
+#: instant is `julianday` of the stamp, not its text: stamps carry mixed offsets (broker imports
+#: keep theirs), and `sources._instant` is the same reading in Python.
+CLOSED_ORDER = f"{_DAY} DESC, julianday(t.exit_date) DESC, t.id DESC"
+OPTION_ORDER = (f"{OPTION_DAY} DESC, julianday(COALESCE(o.closed_at, o.entry_date)) DESC,"
+                " o.id DESC")
 
 #: Task 10.7: one note, for measuring. ⛔ No body, plain text or title column (railed by a trace):
 #: a list or a drill reads the titles apart, by id (`sources.note_titles`).
@@ -280,7 +296,7 @@ def compile_scan(source: Any, plan: dict, settings: dict | None, rng: Any,
         f_sql, f_params = _filters(source, plan)
         r_sql, r_params = _range(rng)
         limit = scan_limit(rng, after_filters=last_n_after_filters(source, plan, rng))
-        sql += a_sql + f_sql + r_sql + f" ORDER BY {_DAY} DESC, t.id DESC LIMIT {limit}"
+        sql += a_sql + f_sql + r_sql + f" ORDER BY {CLOSED_ORDER} LIMIT {limit}"
         return sql, params + a_params + f_params + r_params
     if key == "open_positions":
         sql = (f"SELECT {POSITION_COLUMNS} FROM j2_positions p"
@@ -295,7 +311,7 @@ def compile_scan(source: Any, plan: dict, settings: dict | None, rng: Any,
         f_sql, f_params = _filters(source, plan)
         r_sql, r_params = _option_range(rng)
         sql += (a_sql + f_sql + r_sql
-                + f" ORDER BY {OPTION_DAY} DESC, o.id DESC LIMIT {SCAN_LIMIT}")
+                + f" ORDER BY {OPTION_ORDER} LIMIT {SCAN_LIMIT}")
         return sql, [user_id] + a_params + f_params + r_params
     if key == "notes":
         # W10-R59: the notes the member's notes list holds -- not trashed, not archived -- by the

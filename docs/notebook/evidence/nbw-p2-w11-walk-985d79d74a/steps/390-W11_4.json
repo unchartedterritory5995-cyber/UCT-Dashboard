@@ -1,0 +1,141 @@
+{
+ "viewport": "390",
+ "step": "W11.4",
+ "title": "[CLK-SUN] Night-before prep on Sunday 21:00 ET",
+ "mode": "CLK-SUN",
+ "checks": [
+  {
+   "what": "the server's shifted now is Sunday 2026-11-22 21:00 ET",
+   "ok": true,
+   "read": "2026-11-22T21:01:43.994712-05:00"
+  },
+  {
+   "what": "Night-before prep Use: after Use the new note is in front (no sheet left open over it)",
+   "ok": false,
+   "read": "[\"New note\"]"
+  },
+  {
+   "what": "the routine block reads 'For Mon Nov 23' (next trading day after the ET note day)",
+   "ok": true,
+   "read": "For Mon Nov 23\nNot yet\n\nBuild tomorrow's watchlist\nMark levels on my top names\nCheck tomorrow's earnings and economic calendar\nSet tomorrow's max loss\nWrite my plan for the open\nSkip this day\nP&L on d"
+  }
+ ],
+ "rendered": [
+  {
+   "what": "A: server shifted now / browser clock",
+   "text": "Sunday 2026-11-22 21:00 ET"
+  },
+  {
+   "what": "browser clock (ISO)",
+   "text": "2026-11-23T02:01:44.046Z"
+  },
+  {
+   "what": "Night-before prep detail",
+   "text": "Night-before prep\n×\n\nBased on UCT's Night-before prep\n\nLevels for tomorrow\n\nMark the prices you will act on at the open.\n\nKey levels from my plans\n\nEarnings tomorrow\n\nWhich of your names report before the open or after the close?\n\nEarnings for my names\n\nNight-before routine\n\nTick each step before you shut the screens.\n\nRoutine: Night-before prep\n\nPreview with your data\n\nNight-before prep\n\nBuild tomorrow's watchlist\nMark levels on my top names\nCheck tomorrow's earnings and economic calendar\nSet tomorrow's max loss\nWrite my plan for the open\n\nFor Mon Nov 23\n\nClose\nUse this template"
+  },
+  {
+   "what": "routine block",
+   "text": "For Mon Nov 23\nNot yet\n\nBuild tomorrow's watchlist\nMark levels on my top names\nCheck tomorrow's earnings and economic calendar\nSet tomorrow's max loss\nWrite my plan for the open\nSkip this day\nP&L on days you finished it"
+  }
+ ],
+ "verdict": "FAIL",
+ "notes": [],
+ "events": {
+  "A": []
+ },
+ "metrics": {
+  "note": {
+   "overflow": {
+    "vw": 390,
+    "docScrollWidth": 390,
+    "bodyScrollWidth": 390,
+    "inner": [
+     [
+      401,
+      390
+     ],
+     [
+      377,
+      342
+     ],
+     [
+      377,
+      342
+     ]
+    ],
+    "horizontal": true,
+    "offenders": [
+     {
+      "tag": "DIV",
+      "cls": "_menuRow_1kwt2_6",
+      "text": "",
+      "right": 401
+     },
+     {
+      "tag": "BUTTON",
+      "cls": "btn btn-ghost _tap_1kwt2_8 _menuButton_1kwt2_7",
+      "text": "",
+      "right": 401
+     },
+     {
+      "tag": "P",
+      "cls": "_dayLine_1kwt2_9",
+      "text": "For Mon Nov 23\nNot yet",
+      "right": 401
+     },
+     {
+      "tag": "UL",
+      "cls": "_items_1kwt2_11",
+      "text": "Build tomorrow's watchlist\nMark levels o",
+      "right": 401
+     },
+     {
+      "tag": "LI",
+      "cls": "_itemRow_1kwt2_12",
+      "text": "Build tomorrow's watchlist",
+      "right": 401
+     },
+     {
+      "tag": "BUTTON",
+      "cls": "btn btn-ghost _item_1kwt2_11 ",
+      "text": "Build tomorrow's watchlist",
+      "right": 401
+     }
+    ]
+   },
+   "raw_block": [],
+   "axe_sheet": {
+    "version": "4.13.0",
+    "scope": "[data-routine-block]",
+    "violations": []
+   },
+   "axe_page": {
+    "version": "4.13.0",
+    "scope": "body",
+    "violations": []
+   },
+   "tap": {
+    "scope": "[data-routine-block]",
+    "controls": 8,
+    "small": [],
+    "smallCount": 0,
+    "pointerCoarse": true
+   }
+  }
+ },
+ "screenshots": [
+  "390/W11_4-sheet-left-open.png",
+  "390/W11_4-main.png"
+ ],
+ "requests_note_put": 0,
+ "started": "2026-10-27T06:18:20",
+ "findings": [
+  {
+   "kind": "overflow",
+   "surface": "note",
+   "detail": "{\"vw\": 390, \"docScrollWidth\": 390, \"bodyScrollWidth\": 390, \"inner\": [[401, 390], [377, 342], [377, 342]], \"horizontal\": true, \"offenders\": [{\"tag\": \"DIV\", \"cls\": \"_menuRow_1kwt2_6\", \"text\": \"\", \"right\": 401}, {\"tag\": \"BUTTON\", \"cls\": \"btn btn-ghost _tap_1kwt2_8 _menuButton_1kwt2_7\", \"text\": \"\", \"right\": 401}, {\"tag\": \"P\", \"cls\": \"_dayLine_1kwt2_9\", \"text\": \"For Mon Nov 23\\nNot yet\", \"right\": 401},"
+  }
+ ],
+ "partial": false,
+ "finished": "2026-10-27T06:18:42"
+}

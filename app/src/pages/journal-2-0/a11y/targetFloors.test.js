@@ -649,3 +649,59 @@ describe('KEYS3 F2: touch floors on the template chip and in the import wizard',
     expect(floor(none, '.destSelect', 'min-height')).toBeUndefined()
   })
 })
+
+// Wave 11 campaign dry run, D-W11-001 (+ duplicate D-W11-006): axe `target-size` (serious) on every
+// note page at 1200 px -- the note details toggle (NoteDetailsLine.jsx, `data-note-details-toggle`)
+// measured 79x22 and 57x22: 12 px text plus 4 px padding, no floor above the touch tier. Retest:
+// the campaign's P01 / P14 / P46 at 1200 (pointer and keyboard), axe target-size on the note page.
+describe('D-W11-001: the note details toggle reaches 24 px on the desktop (NoteDetailsLine.module.css)', () => {
+  const rules = rulesWithMedia(read(join(NB, 'NoteDetailsLine.module.css')))
+
+  it('the toggle has a 24 px height floor outside any @media', () => {
+    expect(px(lastDecl(rules, '.toggle', 'min-height'))).toBeGreaterThanOrEqual(24)
+  })
+
+  it("...and the touch tier's 44 px floor still wins: same selector, LATER in the file", () => {
+    const base = rules.findIndex((r) => r.selector === '.toggle' && r.media === null && r.decls.has('min-height'))
+    const touch = rules.findIndex((r) => r.selector === '.toggle' && r.media === TOUCH && r.decls.has('min-height'))
+    expect(lastDecl(rules, '.toggle', 'min-height', TOUCH)).toBe('var(--tap-min, 44px)')
+    expect(base, 'the base floor exists').toBeGreaterThanOrEqual(0)
+    expect(touch, 'the touch floor comes after it').toBeGreaterThan(base)
+  })
+
+  it('CONTROL: the measured declaration (padding only, no base floor) fails the check', () => {
+    const old = rulesWithMedia('.toggle { padding: 4px 2px; font-size: 12px; } @media (max-width: 1024px) { .toggle { min-height: var(--tap-min, 44px); } }')
+    expect(lastDecl(old, '.toggle', 'min-height')).toBeUndefined()
+  })
+})
+
+// Wave 11 campaign dry run, D-W11-002 and D-W11-003 (tap floor on the touch tier): the note header's
+// Folder select measured 88x31 at 820 px, and the note title input 378x34 at 820 and 390 px. Both sat
+// outside every touch-tier floor in NoteEditorPage.module.css. Retest: the campaign's P01 / P04 at 820
+// (the select; at 390 it is not displayed, it lives in More) and at 820 + 390 (the title).
+describe('D-W11-002/003: the header Folder select and the note title are finger targets on the touch tier', () => {
+  const rules = rulesWithMedia(read(join(NB, 'NoteEditorPage.module.css')))
+
+  const FLOORED = ['.headerSelect', '.titleInput']
+
+  it.each(FLOORED)('%s floors to --tap-min inside the touch query', (sel) => {
+    expect(lastDecl(rules, sel, 'min-height', TOUCH)).toBe('var(--tap-min, 44px)')
+  })
+
+  it.each(FLOORED)('%s: no rule in the phone query lowers that floor', (sel) => {
+    expect(lastDecl(rules, sel, 'min-height', PHONE)).toBeUndefined()
+    expect(lastDecl(rules, sel, 'height', PHONE)).toBeUndefined()
+    expect(lastDecl(rules, sel, 'max-height', PHONE)).toBeUndefined()
+  })
+
+  it('the floors are touch-only: no min-height on either outside the touch query', () => {
+    const leaks = rules.filter((r) => FLOORED.includes(r.selector) && r.media !== TOUCH && r.decls.has('min-height'))
+    expect(leaks.map((r) => `${r.media || 'base'} ${r.selector}`)).toEqual([])
+  })
+
+  it('CONTROL: the measured declarations (padding and font-size only) fail the floor check', () => {
+    const old = rulesWithMedia('.headerSelect { padding: 5px 8px; } .titleInput { padding: 8px 0; } @media (max-width: 640px) { .titleInput { font-size: 28px; } }')
+    expect(lastDecl(old, '.headerSelect', 'min-height', TOUCH)).toBeUndefined()
+    expect(lastDecl(old, '.titleInput', 'min-height', TOUCH)).toBeUndefined()
+  })
+})

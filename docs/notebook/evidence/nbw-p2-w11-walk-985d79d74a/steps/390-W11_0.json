@@ -1,0 +1,677 @@
+{
+ "viewport": "390",
+ "step": "W11.0",
+ "title": "Boot identity, flags and probes",
+ "mode": "ON+W11OFF+ON2+CLK-SUN+CLK-SAT+CLK-D1+CLK-D2+CLK-D3+CLK-D3-close",
+ "checks": [
+  {
+   "what": "identity data_dir = the walk data dir",
+   "ok": true,
+   "read": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\5effcdc4-7e7d-42f4-a3df-67b99c63791b\\scratchpad\\sbx\\walk"
+  },
+  {
+   "what": "identity pid = the recorded PID 32712",
+   "ok": true,
+   "read": "32712"
+  },
+  {
+   "what": "identity clock_shift.instant = the mode's instant 2026-10-27T04:57:11-05:00",
+   "ok": true,
+   "read": "2026-10-27T04:57:11-05:00"
+  },
+  {
+   "what": "GET /api/auth/me as A answers 200",
+   "ok": true,
+   "read": "200"
+  },
+  {
+   "what": "A is paid-equivalent (paid_equiv true, plan pro, comped)",
+   "ok": true,
+   "read": "{\"paid_equiv\": true, \"plan\": \"pro\", \"subscription\": {\"status\": \"comped\", \"current_period_end\": null}}"
+  },
+  {
+   "what": "notebook_widgets_w8_enabled is True",
+   "ok": true,
+   "read": "True"
+  },
+  {
+   "what": "notebook_widgets_w9_enabled is True",
+   "ok": true,
+   "read": "True"
+  },
+  {
+   "what": "notebook_widgets_w10_enabled is True",
+   "ok": true,
+   "read": "True"
+  },
+  {
+   "what": "notebook_widgets_w11_enabled is True",
+   "ok": true,
+   "read": "True"
+  },
+  {
+   "what": "notebook_style_library_enabled is true",
+   "ok": true,
+   "read": "True"
+  },
+  {
+   "what": "GET /api/j2/template-gallery/library answers 200",
+   "ok": true,
+   "read": "200"
+  },
+  {
+   "what": "boot log: '[startup] notebook routine reminders registered' present",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "boot log: no 'SHARED-ROOT WRITE BLOCKED'",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "identity data_dir = the walk data dir",
+   "ok": true,
+   "read": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\5effcdc4-7e7d-42f4-a3df-67b99c63791b\\scratchpad\\sbx\\walk"
+  },
+  {
+   "what": "identity pid = the recorded PID 3056",
+   "ok": true,
+   "read": "3056"
+  },
+  {
+   "what": "identity clock_shift.instant = the mode's instant 2026-10-27T06:01:05-05:00",
+   "ok": true,
+   "read": "2026-10-27T06:01:05-05:00"
+  },
+  {
+   "what": "GET /api/auth/me as A answers 200",
+   "ok": true,
+   "read": "200"
+  },
+  {
+   "what": "A is paid-equivalent (paid_equiv true, plan pro, comped)",
+   "ok": true,
+   "read": "{\"paid_equiv\": true, \"plan\": \"pro\", \"subscription\": {\"status\": \"comped\", \"current_period_end\": null}}"
+  },
+  {
+   "what": "notebook_widgets_w8_enabled is True",
+   "ok": true,
+   "read": "True"
+  },
+  {
+   "what": "notebook_widgets_w9_enabled is True",
+   "ok": true,
+   "read": "True"
+  },
+  {
+   "what": "notebook_widgets_w10_enabled is True",
+   "ok": true,
+   "read": "True"
+  },
+  {
+   "what": "notebook_widgets_w11_enabled is False",
+   "ok": true,
+   "read": "False"
+  },
+  {
+   "what": "notebook_style_library_enabled is true",
+   "ok": true,
+   "read": "True"
+  },
+  {
+   "what": "GET /api/j2/template-gallery/library answers 404",
+   "ok": true,
+   "read": "404"
+  },
+  {
+   "what": "boot log: '[startup] notebook routine reminders registered' present",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "boot log: no 'SHARED-ROOT WRITE BLOCKED'",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "identity data_dir = the walk data dir",
+   "ok": true,
+   "read": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\5effcdc4-7e7d-42f4-a3df-67b99c63791b\\scratchpad\\sbx\\walk"
+  },
+  {
+   "what": "identity pid = the recorded PID 34012",
+   "ok": true,
+   "read": "34012"
+  },
+  {
+   "what": "identity clock_shift.instant = the mode's instant 2026-10-27T06:10:07-05:00",
+   "ok": true,
+   "read": "2026-10-27T06:10:07-05:00"
+  },
+  {
+   "what": "GET /api/auth/me as A answers 200",
+   "ok": true,
+   "read": "200"
+  },
+  {
+   "what": "A is paid-equivalent (paid_equiv true, plan pro, comped)",
+   "ok": true,
+   "read": "{\"paid_equiv\": true, \"plan\": \"pro\", \"subscription\": {\"status\": \"comped\", \"current_period_end\": null}}"
+  },
+  {
+   "what": "notebook_widgets_w8_enabled is True",
+   "ok": true,
+   "read": "True"
+  },
+  {
+   "what": "notebook_widgets_w9_enabled is True",
+   "ok": true,
+   "read": "True"
+  },
+  {
+   "what": "notebook_widgets_w10_enabled is True",
+   "ok": true,
+   "read": "True"
+  },
+  {
+   "what": "notebook_widgets_w11_enabled is True",
+   "ok": true,
+   "read": "True"
+  },
+  {
+   "what": "notebook_style_library_enabled is true",
+   "ok": true,
+   "read": "True"
+  },
+  {
+   "what": "GET /api/j2/template-gallery/library answers 200",
+   "ok": true,
+   "read": "200"
+  },
+  {
+   "what": "boot log: '[startup] notebook routine reminders registered' present",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "boot log: no 'SHARED-ROOT WRITE BLOCKED'",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "identity data_dir = the walk data dir",
+   "ok": true,
+   "read": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\5effcdc4-7e7d-42f4-a3df-67b99c63791b\\scratchpad\\sbx\\walk"
+  },
+  {
+   "what": "identity pid = the recorded PID 38128",
+   "ok": true,
+   "read": "38128"
+  },
+  {
+   "what": "identity clock_shift.instant = the mode's instant 2026-11-22T21:00:00-05:00",
+   "ok": true,
+   "read": "2026-11-22T21:00:00-05:00"
+  },
+  {
+   "what": "GET /api/auth/me as A answers 200",
+   "ok": true,
+   "read": "200"
+  },
+  {
+   "what": "A is paid-equivalent (paid_equiv true, plan pro, comped)",
+   "ok": true,
+   "read": "{\"paid_equiv\": true, \"plan\": \"pro\", \"subscription\": {\"status\": \"comped\", \"current_period_end\": null}}"
+  },
+  {
+   "what": "notebook_widgets_w8_enabled is True",
+   "ok": true,
+   "read": "True"
+  },
+  {
+   "what": "notebook_widgets_w9_enabled is True",
+   "ok": true,
+   "read": "True"
+  },
+  {
+   "what": "notebook_widgets_w10_enabled is True",
+   "ok": true,
+   "read": "True"
+  },
+  {
+   "what": "notebook_widgets_w11_enabled is True",
+   "ok": true,
+   "read": "True"
+  },
+  {
+   "what": "notebook_style_library_enabled is true",
+   "ok": true,
+   "read": "True"
+  },
+  {
+   "what": "GET /api/j2/template-gallery/library answers 200",
+   "ok": true,
+   "read": "200"
+  },
+  {
+   "what": "boot log: '[startup] notebook routine reminders registered' present",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "boot log: no 'SHARED-ROOT WRITE BLOCKED'",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "identity data_dir = the walk data dir",
+   "ok": true,
+   "read": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\5effcdc4-7e7d-42f4-a3df-67b99c63791b\\scratchpad\\sbx\\walk"
+  },
+  {
+   "what": "identity pid = the recorded PID 31096",
+   "ok": true,
+   "read": "31096"
+  },
+  {
+   "what": "identity clock_shift.instant = the mode's instant 2026-10-24T11:00:00-04:00",
+   "ok": true,
+   "read": "2026-10-24T11:00:00-04:00"
+  },
+  {
+   "what": "GET /api/auth/me as A answers 200",
+   "ok": true,
+   "read": "200"
+  },
+  {
+   "what": "A is paid-equivalent (paid_equiv true, plan pro, comped)",
+   "ok": true,
+   "read": "{\"paid_equiv\": true, \"plan\": \"pro\", \"subscription\": {\"status\": \"comped\", \"current_period_end\": null}}"
+  },
+  {
+   "what": "notebook_widgets_w8_enabled is True",
+   "ok": true,
+   "read": "True"
+  },
+  {
+   "what": "notebook_widgets_w9_enabled is True",
+   "ok": true,
+   "read": "True"
+  },
+  {
+   "what": "notebook_widgets_w10_enabled is True",
+   "ok": true,
+   "read": "True"
+  },
+  {
+   "what": "notebook_widgets_w11_enabled is True",
+   "ok": true,
+   "read": "True"
+  },
+  {
+   "what": "notebook_style_library_enabled is true",
+   "ok": true,
+   "read": "True"
+  },
+  {
+   "what": "GET /api/j2/template-gallery/library answers 200",
+   "ok": true,
+   "read": "200"
+  },
+  {
+   "what": "boot log: '[startup] notebook routine reminders registered' present",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "boot log: no 'SHARED-ROOT WRITE BLOCKED'",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "identity data_dir = the walk data dir",
+   "ok": true,
+   "read": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\5effcdc4-7e7d-42f4-a3df-67b99c63791b\\scratchpad\\sbx\\walk"
+  },
+  {
+   "what": "identity pid = the recorded PID 23072",
+   "ok": true,
+   "read": "23072"
+  },
+  {
+   "what": "identity clock_shift.instant = the mode's instant 2026-11-10T20:00:00-05:00",
+   "ok": true,
+   "read": "2026-11-10T20:00:00-05:00"
+  },
+  {
+   "what": "GET /api/auth/me as A answers 200",
+   "ok": true,
+   "read": "200"
+  },
+  {
+   "what": "A is paid-equivalent (paid_equiv true, plan pro, comped)",
+   "ok": true,
+   "read": "{\"paid_equiv\": true, \"plan\": \"pro\", \"subscription\": {\"status\": \"comped\", \"current_period_end\": null}}"
+  },
+  {
+   "what": "notebook_widgets_w8_enabled is True",
+   "ok": true,
+   "read": "True"
+  },
+  {
+   "what": "notebook_widgets_w9_enabled is True",
+   "ok": true,
+   "read": "True"
+  },
+  {
+   "what": "notebook_widgets_w10_enabled is True",
+   "ok": true,
+   "read": "True"
+  },
+  {
+   "what": "notebook_widgets_w11_enabled is True",
+   "ok": true,
+   "read": "True"
+  },
+  {
+   "what": "notebook_style_library_enabled is true",
+   "ok": true,
+   "read": "True"
+  },
+  {
+   "what": "GET /api/j2/template-gallery/library answers 200",
+   "ok": true,
+   "read": "200"
+  },
+  {
+   "what": "boot log: '[startup] notebook routine reminders registered' present",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "boot log: no 'SHARED-ROOT WRITE BLOCKED'",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "identity data_dir = the walk data dir",
+   "ok": true,
+   "read": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\5effcdc4-7e7d-42f4-a3df-67b99c63791b\\scratchpad\\sbx\\walk"
+  },
+  {
+   "what": "identity pid = the recorded PID 10548",
+   "ok": true,
+   "read": "10548"
+  },
+  {
+   "what": "identity clock_shift.instant = the mode's instant 2026-11-11T10:00:00-05:00",
+   "ok": true,
+   "read": "2026-11-11T10:00:00-05:00"
+  },
+  {
+   "what": "GET /api/auth/me as A answers 200",
+   "ok": true,
+   "read": "200"
+  },
+  {
+   "what": "A is paid-equivalent (paid_equiv true, plan pro, comped)",
+   "ok": true,
+   "read": "{\"paid_equiv\": true, \"plan\": \"pro\", \"subscription\": {\"status\": \"comped\", \"current_period_end\": null}}"
+  },
+  {
+   "what": "notebook_widgets_w8_enabled is True",
+   "ok": true,
+   "read": "True"
+  },
+  {
+   "what": "notebook_widgets_w9_enabled is True",
+   "ok": true,
+   "read": "True"
+  },
+  {
+   "what": "notebook_widgets_w10_enabled is True",
+   "ok": true,
+   "read": "True"
+  },
+  {
+   "what": "notebook_widgets_w11_enabled is True",
+   "ok": true,
+   "read": "True"
+  },
+  {
+   "what": "notebook_style_library_enabled is true",
+   "ok": true,
+   "read": "True"
+  },
+  {
+   "what": "GET /api/j2/template-gallery/library answers 200",
+   "ok": true,
+   "read": "200"
+  },
+  {
+   "what": "boot log: '[startup] notebook routine reminders registered' present",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "boot log: no 'SHARED-ROOT WRITE BLOCKED'",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "identity data_dir = the walk data dir",
+   "ok": true,
+   "read": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\5effcdc4-7e7d-42f4-a3df-67b99c63791b\\scratchpad\\sbx\\walk"
+  },
+  {
+   "what": "identity pid = the recorded PID 21120",
+   "ok": true,
+   "read": "21120"
+  },
+  {
+   "what": "identity clock_shift.instant = the mode's instant 2026-11-12T19:30:00-05:00",
+   "ok": true,
+   "read": "2026-11-12T19:30:00-05:00"
+  },
+  {
+   "what": "GET /api/auth/me as A answers 200",
+   "ok": true,
+   "read": "200"
+  },
+  {
+   "what": "A is paid-equivalent (paid_equiv true, plan pro, comped)",
+   "ok": true,
+   "read": "{\"paid_equiv\": true, \"plan\": \"pro\", \"subscription\": {\"status\": \"comped\", \"current_period_end\": null}}"
+  },
+  {
+   "what": "notebook_widgets_w8_enabled is True",
+   "ok": true,
+   "read": "True"
+  },
+  {
+   "what": "notebook_widgets_w9_enabled is True",
+   "ok": true,
+   "read": "True"
+  },
+  {
+   "what": "notebook_widgets_w10_enabled is True",
+   "ok": true,
+   "read": "True"
+  },
+  {
+   "what": "notebook_widgets_w11_enabled is True",
+   "ok": true,
+   "read": "True"
+  },
+  {
+   "what": "notebook_style_library_enabled is true",
+   "ok": true,
+   "read": "True"
+  },
+  {
+   "what": "GET /api/j2/template-gallery/library answers 200",
+   "ok": true,
+   "read": "200"
+  },
+  {
+   "what": "boot log: '[startup] notebook routine reminders registered' present",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "boot log: no 'SHARED-ROOT WRITE BLOCKED'",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "identity data_dir = the walk data dir",
+   "ok": true,
+   "read": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\5effcdc4-7e7d-42f4-a3df-67b99c63791b\\scratchpad\\sbx\\walk"
+  },
+  {
+   "what": "identity pid = the recorded PID 21120",
+   "ok": true,
+   "read": "21120"
+  },
+  {
+   "what": "identity clock_shift.instant = the mode's instant 2026-11-12T19:30:00-05:00",
+   "ok": true,
+   "read": "2026-11-12T19:30:00-05:00"
+  },
+  {
+   "what": "GET /api/auth/me as A answers 200",
+   "ok": true,
+   "read": "200"
+  },
+  {
+   "what": "A is paid-equivalent (paid_equiv true, plan pro, comped)",
+   "ok": true,
+   "read": "{\"paid_equiv\": true, \"plan\": \"pro\", \"subscription\": {\"status\": \"comped\", \"current_period_end\": null}}"
+  },
+  {
+   "what": "notebook_widgets_w8_enabled is True",
+   "ok": true,
+   "read": "True"
+  },
+  {
+   "what": "notebook_widgets_w9_enabled is True",
+   "ok": true,
+   "read": "True"
+  },
+  {
+   "what": "notebook_widgets_w10_enabled is True",
+   "ok": true,
+   "read": "True"
+  },
+  {
+   "what": "notebook_widgets_w11_enabled is True",
+   "ok": true,
+   "read": "True"
+  },
+  {
+   "what": "notebook_style_library_enabled is true",
+   "ok": true,
+   "read": "True"
+  },
+  {
+   "what": "GET /api/j2/template-gallery/library answers 200",
+   "ok": true,
+   "read": "200"
+  },
+  {
+   "what": "boot log: '[startup] notebook routine reminders registered' present",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "boot log: no 'SHARED-ROOT WRITE BLOCKED'",
+   "ok": true,
+   "read": ""
+  }
+ ],
+ "rendered": [
+  {
+   "what": "identity",
+   "text": "{\"kind\": \"uct-hub-sandbox\", \"identity\": \"5848fc57f6ac8022bcbe749d91984424\", \"data_dir\": \"C:\\\\Users\\\\Patrick\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-Patrick\\\\5effcdc4-7e7d-42f4-a3df-67b99c63791b\\\\scratchpad\\\\sbx\\\\walk\", \"integrity_log\": \"\", \"pid\": 32712, \"started_at\": \"2026-10-27T09:57:19+00:00\", \"clock_shift\": {\"instant\": \"2026-10-27T04:57:11-05:00\", \"offset_s\": -3.217, \"now_et\": \"2026-10-27T05:57:16-04:00\", \"now_et_words\": \"Tuesday 2026-10-27 05:57 ET\", \"modules_swept\": 990, \"names_rebound\": 654}}"
+  },
+  {
+   "what": "boot log lines",
+   "text": "[sbx] flags: AWARENESS_NOTE_RESURFACE_ENABLED=1 COMPASS_NOTES_TOOL_ENABLED=1 J2_OCR_ENABLED=1 J2_SHARE_LINKS_ENABLED=1 JOURNAL_PAGE_LAYOUTS_ENABLED=1 JOURNAL_TIER3_ENABLED=1 NOTEBOOK_AI_ACTIONS_ENABLED=1 NOTEBOOK_ASK_INSERT_ON=1 NOTEBOOK_CHART_PLAN_ENABLED=1 NOTEBOOK_DOOR_GUARD=unknown-only NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED=1 NOTEBOOK_EARNINGS_PREP_ENABLED=1 NOTEBOOK_ENTRY_CONTEXT_ENABLED=1 NOTEBOOK_EXAMPLE_NOTES_ENABLED=1 NOTEBOOK_FIND_SIMILAR_ENABLED=1 NOTEBOOK_FORMULAS_ENABLED=1 NOTEBOOK_GETTING_STARTED_ENABLED=1 NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED=1 NOTEBOOK_INBOUND_EMAIL_ENABLED=1 NOTEBOOK_JOURNAL_STYLES_ENABLED=1 NOTEBOOK_ONBOARDING_ENABLED=1 NOTEBOOK_PASSED_SETUPS_ENABLED=1 NOTEBOOK_PERSONAL_API_ENABLED=1 NOTEBOOK_PLAN_GRADING_ENABLED=1 NOTEBOOK_PLAYBOOK_ENABLED=1 NOTEBOOK_PUBLISH_ENABLED=1 NOTEBOOK_REVIEW_DRAFTS_ENABLED=1 NOTEBOOK_SEMANTIC_SEARCH_ENABLED=1 NOTEBOOK_SETUPS_BOARD_ENABLED=1 NOTEBOOK_SMART_CHIPS_ENABLED=1 NOTEBOOK_STARTER_PACKS_ENABLED=1 NOTEBOOK_STYLE_LIBRARY_ENABLED=1 NOTEBOOK_TASK_REMINDERS_ENABLED=1 NOTEBOOK_TA_FINGERPRINT_ENABLED=1 NOTEBOOK_TEMPLATE_GALLERY_ENABLED=1 NOTEBOOK_TERMINAL_LINKS_ENABLED=1 NOTEBOOK_THESIS_CHIPS_ENABLED=1 NOTEBOOK_TRADE_CANVAS_ENABLED=1 NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED=1 NOTEBOOK_VISUAL_PLAYBOOK_ENABLED=1 NOTEBOOK_VOICE_NOTES_ENABLED=1 NOTEBOOK_WIDGETS_W10_ENABLED=1 NOTEBOOK_WIDGETS_W11_ENABLED=1 NOTEBOOK_WIDGETS_W1_ENABLED=1 NOTEBOOK_WIDGETS_W2_ENABLED=1 NOTEBOOK_WIDGETS_W3_ENABLED=1 NOTEBOOK_WIDGETS_W4_ENABLED=1 NOT"
+  },
+  {
+   "what": "identity",
+   "text": "{\"kind\": \"uct-hub-sandbox\", \"identity\": \"d554b1c6fa41f8471d22d1a04db1c113\", \"data_dir\": \"C:\\\\Users\\\\Patrick\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-Patrick\\\\5effcdc4-7e7d-42f4-a3df-67b99c63791b\\\\scratchpad\\\\sbx\\\\walk\", \"integrity_log\": \"\", \"pid\": 3056, \"started_at\": \"2026-10-27T11:01:12+00:00\", \"clock_shift\": {\"instant\": \"2026-10-27T06:01:05-05:00\", \"offset_s\": -2.641, \"now_et\": \"2026-10-27T07:01:10-04:00\", \"now_et_words\": \"Tuesday 2026-10-27 07:01 ET\", \"modules_swept\": 990, \"names_rebound\": 654}}"
+  },
+  {
+   "what": "boot log lines",
+   "text": "[sbx] flags: AWARENESS_NOTE_RESURFACE_ENABLED=1 COMPASS_NOTES_TOOL_ENABLED=1 J2_OCR_ENABLED=1 J2_SHARE_LINKS_ENABLED=1 JOURNAL_PAGE_LAYOUTS_ENABLED=1 JOURNAL_TIER3_ENABLED=1 NOTEBOOK_AI_ACTIONS_ENABLED=1 NOTEBOOK_ASK_INSERT_ON=1 NOTEBOOK_CHART_PLAN_ENABLED=1 NOTEBOOK_DOOR_GUARD=unknown-only NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED=1 NOTEBOOK_EARNINGS_PREP_ENABLED=1 NOTEBOOK_ENTRY_CONTEXT_ENABLED=1 NOTEBOOK_EXAMPLE_NOTES_ENABLED=1 NOTEBOOK_FIND_SIMILAR_ENABLED=1 NOTEBOOK_FORMULAS_ENABLED=1 NOTEBOOK_GETTING_STARTED_ENABLED=1 NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED=1 NOTEBOOK_INBOUND_EMAIL_ENABLED=1 NOTEBOOK_JOURNAL_STYLES_ENABLED=1 NOTEBOOK_ONBOARDING_ENABLED=1 NOTEBOOK_PASSED_SETUPS_ENABLED=1 NOTEBOOK_PERSONAL_API_ENABLED=1 NOTEBOOK_PLAN_GRADING_ENABLED=1 NOTEBOOK_PLAYBOOK_ENABLED=1 NOTEBOOK_PUBLISH_ENABLED=1 NOTEBOOK_REVIEW_DRAFTS_ENABLED=1 NOTEBOOK_SEMANTIC_SEARCH_ENABLED=1 NOTEBOOK_SETUPS_BOARD_ENABLED=1 NOTEBOOK_SMART_CHIPS_ENABLED=1 NOTEBOOK_STARTER_PACKS_ENABLED=1 NOTEBOOK_STYLE_LIBRARY_ENABLED=1 NOTEBOOK_TASK_REMINDERS_ENABLED=1 NOTEBOOK_TA_FINGERPRINT_ENABLED=1 NOTEBOOK_TEMPLATE_GALLERY_ENABLED=1 NOTEBOOK_TERMINAL_LINKS_ENABLED=1 NOTEBOOK_THESIS_CHIPS_ENABLED=1 NOTEBOOK_TRADE_CANVAS_ENABLED=1 NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED=1 NOTEBOOK_VISUAL_PLAYBOOK_ENABLED=1 NOTEBOOK_VOICE_NOTES_ENABLED=1 NOTEBOOK_WIDGETS_W10_ENABLED=1 NOTEBOOK_WIDGETS_W11_ENABLED=0 NOTEBOOK_WIDGETS_W1_ENABLED=1 NOTEBOOK_WIDGETS_W2_ENABLED=1 NOTEBOOK_WIDGETS_W3_ENABLED=1 NOTEBOOK_WIDGETS_W4_ENABLED=1 NOT"
+  },
+  {
+   "what": "identity",
+   "text": "{\"kind\": \"uct-hub-sandbox\", \"identity\": \"00b36683822db971dd34a12e58da3548\", \"data_dir\": \"C:\\\\Users\\\\Patrick\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-Patrick\\\\5effcdc4-7e7d-42f4-a3df-67b99c63791b\\\\scratchpad\\\\sbx\\\\walk\", \"integrity_log\": \"\", \"pid\": 34012, \"started_at\": \"2026-10-27T11:10:14+00:00\", \"clock_shift\": {\"instant\": \"2026-10-27T06:10:07-05:00\", \"offset_s\": -2.888, \"now_et\": \"2026-10-27T07:10:12-04:00\", \"now_et_words\": \"Tuesday 2026-10-27 07:10 ET\", \"modules_swept\": 990, \"names_rebound\": 654}}"
+  },
+  {
+   "what": "boot log lines",
+   "text": "[sbx] flags: AWARENESS_NOTE_RESURFACE_ENABLED=1 COMPASS_NOTES_TOOL_ENABLED=1 J2_OCR_ENABLED=1 J2_SHARE_LINKS_ENABLED=1 JOURNAL_PAGE_LAYOUTS_ENABLED=1 JOURNAL_TIER3_ENABLED=1 NOTEBOOK_AI_ACTIONS_ENABLED=1 NOTEBOOK_ASK_INSERT_ON=1 NOTEBOOK_CHART_PLAN_ENABLED=1 NOTEBOOK_DOOR_GUARD=unknown-only NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED=1 NOTEBOOK_EARNINGS_PREP_ENABLED=1 NOTEBOOK_ENTRY_CONTEXT_ENABLED=1 NOTEBOOK_EXAMPLE_NOTES_ENABLED=1 NOTEBOOK_FIND_SIMILAR_ENABLED=1 NOTEBOOK_FORMULAS_ENABLED=1 NOTEBOOK_GETTING_STARTED_ENABLED=1 NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED=1 NOTEBOOK_INBOUND_EMAIL_ENABLED=1 NOTEBOOK_JOURNAL_STYLES_ENABLED=1 NOTEBOOK_ONBOARDING_ENABLED=1 NOTEBOOK_PASSED_SETUPS_ENABLED=1 NOTEBOOK_PERSONAL_API_ENABLED=1 NOTEBOOK_PLAN_GRADING_ENABLED=1 NOTEBOOK_PLAYBOOK_ENABLED=1 NOTEBOOK_PUBLISH_ENABLED=1 NOTEBOOK_REVIEW_DRAFTS_ENABLED=1 NOTEBOOK_SEMANTIC_SEARCH_ENABLED=1 NOTEBOOK_SETUPS_BOARD_ENABLED=1 NOTEBOOK_SMART_CHIPS_ENABLED=1 NOTEBOOK_STARTER_PACKS_ENABLED=1 NOTEBOOK_STYLE_LIBRARY_ENABLED=1 NOTEBOOK_TASK_REMINDERS_ENABLED=1 NOTEBOOK_TA_FINGERPRINT_ENABLED=1 NOTEBOOK_TEMPLATE_GALLERY_ENABLED=1 NOTEBOOK_TERMINAL_LINKS_ENABLED=1 NOTEBOOK_THESIS_CHIPS_ENABLED=1 NOTEBOOK_TRADE_CANVAS_ENABLED=1 NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED=1 NOTEBOOK_VISUAL_PLAYBOOK_ENABLED=1 NOTEBOOK_VOICE_NOTES_ENABLED=1 NOTEBOOK_WIDGETS_W10_ENABLED=1 NOTEBOOK_WIDGETS_W11_ENABLED=1 NOTEBOOK_WIDGETS_W1_ENABLED=1 NOTEBOOK_WIDGETS_W2_ENABLED=1 NOTEBOOK_WIDGETS_W3_ENABLED=1 NOTEBOOK_WIDGETS_W4_ENABLED=1 NOT"
+  },
+  {
+   "what": "identity",
+   "text": "{\"kind\": \"uct-hub-sandbox\", \"identity\": \"220e87b3cec4fbf043f1c3f19597931d\", \"data_dir\": \"C:\\\\Users\\\\Patrick\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-Patrick\\\\5effcdc4-7e7d-42f4-a3df-67b99c63791b\\\\scratchpad\\\\sbx\\\\walk\", \"integrity_log\": \"\", \"pid\": 38128, \"started_at\": \"2026-10-27T11:16:42+00:00\", \"clock_shift\": {\"instant\": \"2026-11-22T21:00:00-05:00\", \"offset_s\": 2299403.078, \"now_et\": \"2026-11-22T21:00:05-05:00\", \"now_et_words\": \"Sunday 2026-11-22 21:00 ET\", \"modules_swept\": 990, \"names_rebound\": 654}}"
+  },
+  {
+   "what": "boot log lines",
+   "text": "[sbx] flags: AWARENESS_NOTE_RESURFACE_ENABLED=1 COMPASS_NOTES_TOOL_ENABLED=1 J2_OCR_ENABLED=1 J2_SHARE_LINKS_ENABLED=1 JOURNAL_PAGE_LAYOUTS_ENABLED=1 JOURNAL_TIER3_ENABLED=1 NOTEBOOK_AI_ACTIONS_ENABLED=1 NOTEBOOK_ASK_INSERT_ON=1 NOTEBOOK_CHART_PLAN_ENABLED=1 NOTEBOOK_DOOR_GUARD=unknown-only NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED=1 NOTEBOOK_EARNINGS_PREP_ENABLED=1 NOTEBOOK_ENTRY_CONTEXT_ENABLED=1 NOTEBOOK_EXAMPLE_NOTES_ENABLED=1 NOTEBOOK_FIND_SIMILAR_ENABLED=1 NOTEBOOK_FORMULAS_ENABLED=1 NOTEBOOK_GETTING_STARTED_ENABLED=1 NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED=1 NOTEBOOK_INBOUND_EMAIL_ENABLED=1 NOTEBOOK_JOURNAL_STYLES_ENABLED=1 NOTEBOOK_ONBOARDING_ENABLED=1 NOTEBOOK_PASSED_SETUPS_ENABLED=1 NOTEBOOK_PERSONAL_API_ENABLED=1 NOTEBOOK_PLAN_GRADING_ENABLED=1 NOTEBOOK_PLAYBOOK_ENABLED=1 NOTEBOOK_PUBLISH_ENABLED=1 NOTEBOOK_REVIEW_DRAFTS_ENABLED=1 NOTEBOOK_SEMANTIC_SEARCH_ENABLED=1 NOTEBOOK_SETUPS_BOARD_ENABLED=1 NOTEBOOK_SMART_CHIPS_ENABLED=1 NOTEBOOK_STARTER_PACKS_ENABLED=1 NOTEBOOK_STYLE_LIBRARY_ENABLED=1 NOTEBOOK_TASK_REMINDERS_ENABLED=1 NOTEBOOK_TA_FINGERPRINT_ENABLED=1 NOTEBOOK_TEMPLATE_GALLERY_ENABLED=1 NOTEBOOK_TERMINAL_LINKS_ENABLED=1 NOTEBOOK_THESIS_CHIPS_ENABLED=1 NOTEBOOK_TRADE_CANVAS_ENABLED=1 NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED=1 NOTEBOOK_VISUAL_PLAYBOOK_ENABLED=1 NOTEBOOK_VOICE_NOTES_ENABLED=1 NOTEBOOK_WIDGETS_W10_ENABLED=1 NOTEBOOK_WIDGETS_W11_ENABLED=1 NOTEBOOK_WIDGETS_W1_ENABLED=1 NOTEBOOK_WIDGETS_W2_ENABLED=1 NOTEBOOK_WIDGETS_W3_ENABLED=1 NOTEBOOK_WIDGETS_W4_ENABLED=1 NOT"
+  },
+  {
+   "what": "identity",
+   "text": "{\"kind\": \"uct-hub-sandbox\", \"identity\": \"80738ba9aa62e9b36c6743b5f0f202d5\", \"data_dir\": \"C:\\\\Users\\\\Patrick\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-Patrick\\\\5effcdc4-7e7d-42f4-a3df-67b99c63791b\\\\scratchpad\\\\sbx\\\\walk\", \"integrity_log\": \"\", \"pid\": 31096, \"started_at\": \"2026-10-27T11:22:43+00:00\", \"clock_shift\": {\"instant\": \"2026-10-24T11:00:00-04:00\", \"offset_s\": -246156.886, \"now_et\": \"2026-10-24T11:00:06-04:00\", \"now_et_words\": \"Saturday 2026-10-24 11:00 ET\", \"modules_swept\": 990, \"names_rebound\": 654}}"
+  },
+  {
+   "what": "boot log lines",
+   "text": "[sbx] flags: AWARENESS_NOTE_RESURFACE_ENABLED=1 COMPASS_NOTES_TOOL_ENABLED=1 J2_OCR_ENABLED=1 J2_SHARE_LINKS_ENABLED=1 JOURNAL_PAGE_LAYOUTS_ENABLED=1 JOURNAL_TIER3_ENABLED=1 NOTEBOOK_AI_ACTIONS_ENABLED=1 NOTEBOOK_ASK_INSERT_ON=1 NOTEBOOK_CHART_PLAN_ENABLED=1 NOTEBOOK_DOOR_GUARD=unknown-only NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED=1 NOTEBOOK_EARNINGS_PREP_ENABLED=1 NOTEBOOK_ENTRY_CONTEXT_ENABLED=1 NOTEBOOK_EXAMPLE_NOTES_ENABLED=1 NOTEBOOK_FIND_SIMILAR_ENABLED=1 NOTEBOOK_FORMULAS_ENABLED=1 NOTEBOOK_GETTING_STARTED_ENABLED=1 NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED=1 NOTEBOOK_INBOUND_EMAIL_ENABLED=1 NOTEBOOK_JOURNAL_STYLES_ENABLED=1 NOTEBOOK_ONBOARDING_ENABLED=1 NOTEBOOK_PASSED_SETUPS_ENABLED=1 NOTEBOOK_PERSONAL_API_ENABLED=1 NOTEBOOK_PLAN_GRADING_ENABLED=1 NOTEBOOK_PLAYBOOK_ENABLED=1 NOTEBOOK_PUBLISH_ENABLED=1 NOTEBOOK_REVIEW_DRAFTS_ENABLED=1 NOTEBOOK_SEMANTIC_SEARCH_ENABLED=1 NOTEBOOK_SETUPS_BOARD_ENABLED=1 NOTEBOOK_SMART_CHIPS_ENABLED=1 NOTEBOOK_STARTER_PACKS_ENABLED=1 NOTEBOOK_STYLE_LIBRARY_ENABLED=1 NOTEBOOK_TASK_REMINDERS_ENABLED=1 NOTEBOOK_TA_FINGERPRINT_ENABLED=1 NOTEBOOK_TEMPLATE_GALLERY_ENABLED=1 NOTEBOOK_TERMINAL_LINKS_ENABLED=1 NOTEBOOK_THESIS_CHIPS_ENABLED=1 NOTEBOOK_TRADE_CANVAS_ENABLED=1 NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED=1 NOTEBOOK_VISUAL_PLAYBOOK_ENABLED=1 NOTEBOOK_VOICE_NOTES_ENABLED=1 NOTEBOOK_WIDGETS_W10_ENABLED=1 NOTEBOOK_WIDGETS_W11_ENABLED=1 NOTEBOOK_WIDGETS_W1_ENABLED=1 NOTEBOOK_WIDGETS_W2_ENABLED=1 NOTEBOOK_WIDGETS_W3_ENABLED=1 NOTEBOOK_WIDGETS_W4_ENABLED=1 NOT"
+  },
+  {
+   "what": "identity",
+   "text": "{\"kind\": \"uct-hub-sandbox\", \"identity\": \"4f0b1b735439aaae00a79ed551c24bac\", \"data_dir\": \"C:\\\\Users\\\\Patrick\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-Patrick\\\\5effcdc4-7e7d-42f4-a3df-67b99c63791b\\\\scratchpad\\\\sbx\\\\walk\", \"integrity_log\": \"\", \"pid\": 23072, \"started_at\": \"2026-10-27T11:26:38+00:00\", \"clock_shift\": {\"instant\": \"2026-11-10T20:00:00-05:00\", \"offset_s\": 1258407.361, \"now_et\": \"2026-11-10T20:00:05-05:00\", \"now_et_words\": \"Tuesday 2026-11-10 20:00 ET\", \"modules_swept\": 990, \"names_rebound\": 654}}"
+  },
+  {
+   "what": "boot log lines",
+   "text": "[sbx] flags: AWARENESS_NOTE_RESURFACE_ENABLED=1 COMPASS_NOTES_TOOL_ENABLED=1 J2_OCR_ENABLED=1 J2_SHARE_LINKS_ENABLED=1 JOURNAL_PAGE_LAYOUTS_ENABLED=1 JOURNAL_TIER3_ENABLED=1 NOTEBOOK_AI_ACTIONS_ENABLED=1 NOTEBOOK_ASK_INSERT_ON=1 NOTEBOOK_CHART_PLAN_ENABLED=1 NOTEBOOK_DOOR_GUARD=unknown-only NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED=1 NOTEBOOK_EARNINGS_PREP_ENABLED=1 NOTEBOOK_ENTRY_CONTEXT_ENABLED=1 NOTEBOOK_EXAMPLE_NOTES_ENABLED=1 NOTEBOOK_FIND_SIMILAR_ENABLED=1 NOTEBOOK_FORMULAS_ENABLED=1 NOTEBOOK_GETTING_STARTED_ENABLED=1 NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED=1 NOTEBOOK_INBOUND_EMAIL_ENABLED=1 NOTEBOOK_JOURNAL_STYLES_ENABLED=1 NOTEBOOK_ONBOARDING_ENABLED=1 NOTEBOOK_PASSED_SETUPS_ENABLED=1 NOTEBOOK_PERSONAL_API_ENABLED=1 NOTEBOOK_PLAN_GRADING_ENABLED=1 NOTEBOOK_PLAYBOOK_ENABLED=1 NOTEBOOK_PUBLISH_ENABLED=1 NOTEBOOK_REVIEW_DRAFTS_ENABLED=1 NOTEBOOK_SEMANTIC_SEARCH_ENABLED=1 NOTEBOOK_SETUPS_BOARD_ENABLED=1 NOTEBOOK_SMART_CHIPS_ENABLED=1 NOTEBOOK_STARTER_PACKS_ENABLED=1 NOTEBOOK_STYLE_LIBRARY_ENABLED=1 NOTEBOOK_TASK_REMINDERS_ENABLED=1 NOTEBOOK_TA_FINGERPRINT_ENABLED=1 NOTEBOOK_TEMPLATE_GALLERY_ENABLED=1 NOTEBOOK_TERMINAL_LINKS_ENABLED=1 NOTEBOOK_THESIS_CHIPS_ENABLED=1 NOTEBOOK_TRADE_CANVAS_ENABLED=1 NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED=1 NOTEBOOK_VISUAL_PLAYBOOK_ENABLED=1 NOTEBOOK_VOICE_NOTES_ENABLED=1 NOTEBOOK_WIDGETS_W10_ENABLED=1 NOTEBOOK_WIDGETS_W11_ENABLED=1 NOTEBOOK_WIDGETS_W1_ENABLED=1 NOTEBOOK_WIDGETS_W2_ENABLED=1 NOTEBOOK_WIDGETS_W3_ENABLED=1 NOTEBOOK_WIDGETS_W4_ENABLED=1 NOT"
+  },
+  {
+   "what": "identity",
+   "text": "{\"kind\": \"uct-hub-sandbox\", \"identity\": \"57f0dd59c566d6c22667d1d66910a2e9\", \"data_dir\": \"C:\\\\Users\\\\Patrick\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-Patrick\\\\5effcdc4-7e7d-42f4-a3df-67b99c63791b\\\\scratchpad\\\\sbx\\\\walk\", \"integrity_log\": \"\", \"pid\": 10548, \"started_at\": \"2026-10-27T11:29:39+00:00\", \"clock_shift\": {\"instant\": \"2026-11-11T10:00:00-05:00\", \"offset_s\": 1308630.994, \"now_et\": \"2026-11-11T10:00:10-05:00\", \"now_et_words\": \"Wednesday 2026-11-11 10:00 ET\", \"modules_swept\": 990, \"names_rebound\": 654}}"
+  },
+  {
+   "what": "boot log lines",
+   "text": "[sbx] flags: AWARENESS_NOTE_RESURFACE_ENABLED=1 COMPASS_NOTES_TOOL_ENABLED=1 J2_OCR_ENABLED=1 J2_SHARE_LINKS_ENABLED=1 JOURNAL_PAGE_LAYOUTS_ENABLED=1 JOURNAL_TIER3_ENABLED=1 NOTEBOOK_AI_ACTIONS_ENABLED=1 NOTEBOOK_ASK_INSERT_ON=1 NOTEBOOK_CHART_PLAN_ENABLED=1 NOTEBOOK_DOOR_GUARD=unknown-only NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED=1 NOTEBOOK_EARNINGS_PREP_ENABLED=1 NOTEBOOK_ENTRY_CONTEXT_ENABLED=1 NOTEBOOK_EXAMPLE_NOTES_ENABLED=1 NOTEBOOK_FIND_SIMILAR_ENABLED=1 NOTEBOOK_FORMULAS_ENABLED=1 NOTEBOOK_GETTING_STARTED_ENABLED=1 NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED=1 NOTEBOOK_INBOUND_EMAIL_ENABLED=1 NOTEBOOK_JOURNAL_STYLES_ENABLED=1 NOTEBOOK_ONBOARDING_ENABLED=1 NOTEBOOK_PASSED_SETUPS_ENABLED=1 NOTEBOOK_PERSONAL_API_ENABLED=1 NOTEBOOK_PLAN_GRADING_ENABLED=1 NOTEBOOK_PLAYBOOK_ENABLED=1 NOTEBOOK_PUBLISH_ENABLED=1 NOTEBOOK_REVIEW_DRAFTS_ENABLED=1 NOTEBOOK_SEMANTIC_SEARCH_ENABLED=1 NOTEBOOK_SETUPS_BOARD_ENABLED=1 NOTEBOOK_SMART_CHIPS_ENABLED=1 NOTEBOOK_STARTER_PACKS_ENABLED=1 NOTEBOOK_STYLE_LIBRARY_ENABLED=1 NOTEBOOK_TASK_REMINDERS_ENABLED=1 NOTEBOOK_TA_FINGERPRINT_ENABLED=1 NOTEBOOK_TEMPLATE_GALLERY_ENABLED=1 NOTEBOOK_TERMINAL_LINKS_ENABLED=1 NOTEBOOK_THESIS_CHIPS_ENABLED=1 NOTEBOOK_TRADE_CANVAS_ENABLED=1 NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED=1 NOTEBOOK_VISUAL_PLAYBOOK_ENABLED=1 NOTEBOOK_VOICE_NOTES_ENABLED=1 NOTEBOOK_WIDGETS_W10_ENABLED=1 NOTEBOOK_WIDGETS_W11_ENABLED=1 NOTEBOOK_WIDGETS_W1_ENABLED=1 NOTEBOOK_WIDGETS_W2_ENABLED=1 NOTEBOOK_WIDGETS_W3_ENABLED=1 NOTEBOOK_WIDGETS_W4_ENABLED=1 NOT"
+  },
+  {
+   "what": "identity",
+   "text": "{\"kind\": \"uct-hub-sandbox\", \"identity\": \"68b76e6a74aa3735832cc606f4b6e6ac\", \"data_dir\": \"C:\\\\Users\\\\Patrick\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-Patrick\\\\5effcdc4-7e7d-42f4-a3df-67b99c63791b\\\\scratchpad\\\\sbx\\\\walk\", \"integrity_log\": \"\", \"pid\": 21120, \"started_at\": \"2026-10-27T11:31:52+00:00\", \"clock_shift\": {\"instant\": \"2026-11-12T19:30:00-05:00\", \"offset_s\": 1429096.874, \"now_et\": \"2026-11-12T19:30:09-05:00\", \"now_et_words\": \"Thursday 2026-11-12 19:30 ET\", \"modules_swept\": 990, \"names_rebound\": 654}}"
+  },
+  {
+   "what": "boot log lines",
+   "text": "[sbx] flags: AWARENESS_NOTE_RESURFACE_ENABLED=1 COMPASS_NOTES_TOOL_ENABLED=1 J2_OCR_ENABLED=1 J2_SHARE_LINKS_ENABLED=1 JOURNAL_PAGE_LAYOUTS_ENABLED=1 JOURNAL_TIER3_ENABLED=1 NOTEBOOK_AI_ACTIONS_ENABLED=1 NOTEBOOK_ASK_INSERT_ON=1 NOTEBOOK_CHART_PLAN_ENABLED=1 NOTEBOOK_DOOR_GUARD=unknown-only NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED=1 NOTEBOOK_EARNINGS_PREP_ENABLED=1 NOTEBOOK_ENTRY_CONTEXT_ENABLED=1 NOTEBOOK_EXAMPLE_NOTES_ENABLED=1 NOTEBOOK_FIND_SIMILAR_ENABLED=1 NOTEBOOK_FORMULAS_ENABLED=1 NOTEBOOK_GETTING_STARTED_ENABLED=1 NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED=1 NOTEBOOK_INBOUND_EMAIL_ENABLED=1 NOTEBOOK_JOURNAL_STYLES_ENABLED=1 NOTEBOOK_ONBOARDING_ENABLED=1 NOTEBOOK_PASSED_SETUPS_ENABLED=1 NOTEBOOK_PERSONAL_API_ENABLED=1 NOTEBOOK_PLAN_GRADING_ENABLED=1 NOTEBOOK_PLAYBOOK_ENABLED=1 NOTEBOOK_PUBLISH_ENABLED=1 NOTEBOOK_REVIEW_DRAFTS_ENABLED=1 NOTEBOOK_SEMANTIC_SEARCH_ENABLED=1 NOTEBOOK_SETUPS_BOARD_ENABLED=1 NOTEBOOK_SMART_CHIPS_ENABLED=1 NOTEBOOK_STARTER_PACKS_ENABLED=1 NOTEBOOK_STYLE_LIBRARY_ENABLED=1 NOTEBOOK_TASK_REMINDERS_ENABLED=1 NOTEBOOK_TA_FINGERPRINT_ENABLED=1 NOTEBOOK_TEMPLATE_GALLERY_ENABLED=1 NOTEBOOK_TERMINAL_LINKS_ENABLED=1 NOTEBOOK_THESIS_CHIPS_ENABLED=1 NOTEBOOK_TRADE_CANVAS_ENABLED=1 NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED=1 NOTEBOOK_VISUAL_PLAYBOOK_ENABLED=1 NOTEBOOK_VOICE_NOTES_ENABLED=1 NOTEBOOK_WIDGETS_W10_ENABLED=1 NOTEBOOK_WIDGETS_W11_ENABLED=1 NOTEBOOK_WIDGETS_W1_ENABLED=1 NOTEBOOK_WIDGETS_W2_ENABLED=1 NOTEBOOK_WIDGETS_W3_ENABLED=1 NOTEBOOK_WIDGETS_W4_ENABLED=1 NOT"
+  },
+  {
+   "what": "identity",
+   "text": "{\"kind\": \"uct-hub-sandbox\", \"identity\": \"68b76e6a74aa3735832cc606f4b6e6ac\", \"data_dir\": \"C:\\\\Users\\\\Patrick\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-Patrick\\\\5effcdc4-7e7d-42f4-a3df-67b99c63791b\\\\scratchpad\\\\sbx\\\\walk\", \"integrity_log\": \"\", \"pid\": 21120, \"started_at\": \"2026-10-27T11:31:52+00:00\", \"clock_shift\": {\"instant\": \"2026-11-12T19:30:00-05:00\", \"offset_s\": 1429096.874, \"now_et\": \"2026-11-12T19:30:09-05:00\", \"now_et_words\": \"Thursday 2026-11-12 19:30 ET\", \"modules_swept\": 990, \"names_rebound\": 654}}"
+  },
+  {
+   "what": "boot log lines",
+   "text": "[sbx] flags: AWARENESS_NOTE_RESURFACE_ENABLED=1 COMPASS_NOTES_TOOL_ENABLED=1 J2_OCR_ENABLED=1 J2_SHARE_LINKS_ENABLED=1 JOURNAL_PAGE_LAYOUTS_ENABLED=1 JOURNAL_TIER3_ENABLED=1 NOTEBOOK_AI_ACTIONS_ENABLED=1 NOTEBOOK_ASK_INSERT_ON=1 NOTEBOOK_CHART_PLAN_ENABLED=1 NOTEBOOK_DOOR_GUARD=unknown-only NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED=1 NOTEBOOK_EARNINGS_PREP_ENABLED=1 NOTEBOOK_ENTRY_CONTEXT_ENABLED=1 NOTEBOOK_EXAMPLE_NOTES_ENABLED=1 NOTEBOOK_FIND_SIMILAR_ENABLED=1 NOTEBOOK_FORMULAS_ENABLED=1 NOTEBOOK_GETTING_STARTED_ENABLED=1 NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED=1 NOTEBOOK_INBOUND_EMAIL_ENABLED=1 NOTEBOOK_JOURNAL_STYLES_ENABLED=1 NOTEBOOK_ONBOARDING_ENABLED=1 NOTEBOOK_PASSED_SETUPS_ENABLED=1 NOTEBOOK_PERSONAL_API_ENABLED=1 NOTEBOOK_PLAN_GRADING_ENABLED=1 NOTEBOOK_PLAYBOOK_ENABLED=1 NOTEBOOK_PUBLISH_ENABLED=1 NOTEBOOK_REVIEW_DRAFTS_ENABLED=1 NOTEBOOK_SEMANTIC_SEARCH_ENABLED=1 NOTEBOOK_SETUPS_BOARD_ENABLED=1 NOTEBOOK_SMART_CHIPS_ENABLED=1 NOTEBOOK_STARTER_PACKS_ENABLED=1 NOTEBOOK_STYLE_LIBRARY_ENABLED=1 NOTEBOOK_TASK_REMINDERS_ENABLED=1 NOTEBOOK_TA_FINGERPRINT_ENABLED=1 NOTEBOOK_TEMPLATE_GALLERY_ENABLED=1 NOTEBOOK_TERMINAL_LINKS_ENABLED=1 NOTEBOOK_THESIS_CHIPS_ENABLED=1 NOTEBOOK_TRADE_CANVAS_ENABLED=1 NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED=1 NOTEBOOK_VISUAL_PLAYBOOK_ENABLED=1 NOTEBOOK_VOICE_NOTES_ENABLED=1 NOTEBOOK_WIDGETS_W10_ENABLED=1 NOTEBOOK_WIDGETS_W11_ENABLED=1 NOTEBOOK_WIDGETS_W1_ENABLED=1 NOTEBOOK_WIDGETS_W2_ENABLED=1 NOTEBOOK_WIDGETS_W3_ENABLED=1 NOTEBOOK_WIDGETS_W4_ENABLED=1 NOT"
+  }
+ ],
+ "verdict": "PASS",
+ "notes": [],
+ "events": {},
+ "metrics": {},
+ "screenshots": [],
+ "requests_note_put": 0,
+ "started": "2026-10-27T06:33:11",
+ "findings": [],
+ "partial": false,
+ "finished": "2026-10-27T06:33:11"
+}

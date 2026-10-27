@@ -5,6 +5,8 @@ import { render, screen, fireEvent, waitFor, within, cleanup } from '@testing-li
 import MyToolsSheet from './MyToolsSheet'
 import { installToolsFetch, refuse } from './__fixtures__/toolsFixtures'
 import { openRoutineEditor } from '../routines/openRoutineEditor.js'
+import { openSharePreview } from '../library/openSharePreview.js'
+import { openAdoptSheet } from '../library/openAdoptSheet.js'
 
 const bp = vi.hoisted(() => ({ phone: false, touch: false }))
 vi.mock('../../../../../hooks/useBreakpoint', () => ({
@@ -13,6 +15,13 @@ vi.mock('../../../../../hooks/useBreakpoint', () => ({
 }))
 vi.mock('../routines/openRoutineEditor.js', () => ({ openRoutineEditor: vi.fn(() => () => {}) }))
 vi.mock('../routines/openTrackerEditor.js', () => ({ openTrackerEditor: vi.fn(() => () => {}) }))
+// Wave 11 (Task 11.19): the library doors show only while wave 11 and the library switch are on (off by default here,
+// so every wave 9 assertion below reads exactly what it read before).
+const flags = vi.hoisted(() => ({ eleven: false, library: false }))
+vi.mock('../../../lib/notebookWidgetsFlags', async (orig) => ({ ...(await orig()), widgetsWaveOn: (w) => w === 11 && flags.eleven }))
+vi.mock('../../../lib/styleLibraryFlag', async (orig) => ({ ...(await orig()), styleLibraryEnabled: () => flags.library }))
+vi.mock('../library/openSharePreview.js', () => ({ openSharePreview: vi.fn(() => () => {}) }))
+vi.mock('../library/openAdoptSheet.js', () => ({ openAdoptSheet: vi.fn(() => () => {}) }))
 
 // Server sentences are the SERVER'S: each test sends one the client cannot know, so showing anything else fails.
 const S_CONFLICT = 'SERVER: changed in another tab, reload.'
@@ -26,6 +35,10 @@ beforeEach(() => {
   bp.touch = false
   net = installToolsFetch()
   openRoutineEditor.mockClear()
+  openSharePreview.mockClear()
+  openAdoptSheet.mockClear()
+  flags.eleven = false
+  flags.library = false
 })
 afterEach(() => {
   cleanup()
@@ -80,12 +93,90 @@ describe('My tools, Routines tab', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'Actions for Morning prep' })).toHaveFocus())
   })
 
-  it('a template with a name (wave 11’s shape) reads "From template: <name>"', async () => {
+  it('from_template_reads_setting', async () => {
+    // W11-R13: a template-made routine carries the template's title in `settings.fromTemplate` (at most 80 characters).
+    const base = net.data.routines.active[2]
     net = installToolsFetch([['GET', 'routines?filter=active', () => ({
-      routines: [{ ...net.data.routines.active[2], sourceTemplateName: 'Trade review' }],
+      routines: [
+        { ...base, settings: { fromTemplate: 'Pre-market prep' }, sourceTemplateKey: 'tpl:uct-template-pre-market-prep-v1' },
+        { ...base, id: 'r8', name: 'Old wave nine name', sourceTemplateName: 'Trade review' },        // no longer read
+        { ...base, id: 'r9', name: 'Long one', settings: { fromTemplate: `${'x'.repeat(90)}` }, sourceTemplateKey: null },
+      ],
     })]])
     await openTab()
-    expect(rowOf('Trade-day check')).toHaveTextContent('From template: Trade review')
+    const r = rowOf('Trade-day check')
+    expect(r).toHaveTextContent('From template: Pre-market prep')
+    expect(r).not.toHaveTextContent(/tpl:|uct-template/)                   // never the key
+    expect(rowOf('Old wave nine name')).not.toHaveTextContent('Trade review')
+    expect(rowOf('Old wave nine name')).toHaveTextContent('From a template')     // a wave 9 key-only row, as before
+    expect(rowOf('Long one')).toHaveTextContent(`From template: ${'x'.repeat(80)}`)
+    expect(rowOf('Long one')).not.toHaveTextContent('x'.repeat(81))
+  })
+
+  it('tools_rows_show_credit_and_share', async () => {
+    flags.eleven = true
+    flags.library = true
+    net = installToolsFetch([['GET', 'routines?filter=active', () => ({
+      routines: [
+        net.data.routines.active[0],
+        { ...net.data.routines.active[1], credit: "Based on Sam's Rules I keep", sourceGalleryId: 'g4', fromLibrary: true },
+      ],
+    })]])
+    await openTab()
+    expect(rowOf('Rules I keep')).toHaveTextContent("Based on Sam's Rules I keep")
+    expect(rowOf('Morning prep')).not.toHaveTextContent('Based on')
+    await menuFor('Morning prep')
+    expect(menuLabels()).toContain('Share to library')
+    fireEvent.click(menuItem('Share to library'))
+    await waitFor(() => expect(openSharePreview).toHaveBeenCalledTimes(1))
+    expect(openSharePreview.mock.calls[0][0]).toMatchObject({ kind: 'routine', id: 'r1' })
+    await menuFor('Rules I keep')
+    expect(menuLabels()).not.toContain('Share to library')                  // a copy is never shared again
+    expect(menuLabels()).not.toContain('Update from the library')           // and nothing newer is listed
+    expect(menuLabels()).toContain('Duplicate')
+  })
+
+  it('no Update for a copy the server cannot name the listing of (fix round 1, m-4)', async () => {
+    flags.eleven = true
+    flags.library = true
+    net = installToolsFetch([['GET', 'routines?filter=active', () => ({
+      routines: [{ ...net.data.routines.active[1], fromLibrary: true, updateAvailable: true, sourceGalleryId: null }],
+    })]])
+    await openTab()
+    await menuFor('Rules I keep')
+    expect(menuLabels()).not.toContain('Update from the library')
+    expect(menuLabels()).not.toContain('Share to library')                  // still a copy
+    expect(menuLabels()).toContain('Rename')
+  })
+
+  it('update_from_library_calls_update_or_opens_sheet', async () => {
+    flags.eleven = true
+    flags.library = true
+    const copy = { ...net.data.routines.active[1], credit: "Based on Sam's Rules I keep", sourceGalleryId: 'g4',
+      fromLibrary: true, updateAvailable: true }
+    let answer = () => ({ kind: 'routine', id: 'r2' })
+    net = installToolsFetch([
+      ['GET', 'routines?filter=active', () => ({ routines: [copy] })],
+      ['POST', 'template-gallery/tools/updates/routine/r2', () => answer()],
+    ])
+    await openTab()
+    await menuFor('Rules I keep')
+    fireEvent.click(menuItem('Update from the library'))
+    await saysLive('Updated “Rules I keep” from the library.')
+    expect(sent('POST', 'template-gallery/tools/updates/routine/r2')[0].body).toEqual({})
+    expect(openAdoptSheet).not.toHaveBeenCalled()
+    // The new version asks a "pick yours" question: "Make it yours" opens for the copy, nothing is said over it.
+    answer = () => refuse(400, 'unresolved', 'SERVER: pick a value for each choice.')
+    await menuFor('Rules I keep')
+    fireEvent.click(menuItem('Update from the library'))
+    await waitFor(() => expect(openAdoptSheet).toHaveBeenCalledTimes(1))
+    expect(openAdoptSheet.mock.calls[0][0]).toMatchObject({ galleryId: 'g4', kind: 'routine', mode: 'update', copyId: 'r2' })
+    // Any other refusal is the server's sentence, verbatim.
+    answer = () => refuse(409, 'count_cap', 'SERVER: you have 100 routines.')
+    await menuFor('Rules I keep')
+    fireEvent.click(menuItem('Update from the library'))
+    await saysLive('SERVER: you have 100 routines.')
+    expect(openAdoptSheet).toHaveBeenCalledTimes(1)
   })
 
   it('opens the routine editor from Open, and a new routine from New routine', async () => {

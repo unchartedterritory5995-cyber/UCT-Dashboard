@@ -157,4 +157,62 @@ describe('New note: pick a kind', () => {
     await Promise.resolve()
     expect(globalThis.fetch).not.toHaveBeenCalled()
   })
+
+  it('style_with_built_slot_shows_widget_name', async () => {
+    // Wave 11 (Task 11.14): a template's slots in the preview name their target, never "a newer version".
+    const preview = { ...previewBody, bodyJson: { type: 'doc', content: [
+      { type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'Review' }] },
+      { type: 'widgetEmbed', attrs: { widgetId: 'builtWidget', params: { title: 'Equity curve', defId: 'd1', defRev: 2 } } },
+      { type: 'widgetEmbed', attrs: { widgetId: 'routine', params: { routineId: 'r1', name: 'Pre-market routine', bind: 'note-day' } } },
+      { type: 'widgetEmbed', attrs: { widgetId: 'tracker', params: { trackerId: 't1', day: '2026-10-27' } } },
+      { type: 'widgetEmbed', attrs: { widgetId: 'built_b', params: {} } },
+    ] } }
+    renderSection({}, { preview })
+    fireEvent.click(await screen.findByRole('button', { name: 'Choose another style for Trade plan' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Preview My plan' }))
+    const line = await screen.findByText('Widget: Equity curve')
+    expect(line.tagName).toBe('EM')
+    expect(screen.getByText('Routine: Pre-market routine').tagName).toBe('EM')
+    expect(screen.getByText('Tracker').tagName).toBe('EM')                 // no name came with it: the family word
+    expect(screen.getByText('Widget').tagName).toBe('EM')                  // an unfilled slot
+    expect(screen.queryByText(/newer version/)).toBeNull()
+  })
+
+  it("W11-R21: an unfilled slot takes the display name the preview or the style carries", async () => {
+    // Task 11.19 (carry R21): with a name (by ref from the preview answer's `slotNames`, or `displayName` on the
+    // style's block) the line reads "Widget: Equity curve"; without one it stays the family word.
+    const preview = { ...previewBody, slotNames: { 'def:d9': 'Equity curve' }, bodyJson: { type: 'doc', content: [
+      { type: 'widgetEmbed', attrs: { widgetId: 'built_a', params: { ref: 'def:d9', defRev: 1 } } },
+      { type: 'widgetEmbed', attrs: { widgetId: 'routine_1', params: {} } },
+      { type: 'widgetEmbed', attrs: { widgetId: 'tracker_b', params: {} } },
+    ] } }
+    const list = { ...listBody, styles: listBody.styles.map((st) => (st.id === 's-mine'
+      ? { ...st, blocks: [{ block: 'routine_1', enabled: true, settings: {}, displayName: 'Pre-market routine' }] } : st)) }
+    renderSection({}, { list, preview })
+    fireEvent.click(await screen.findByRole('button', { name: 'Choose another style for Trade plan' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Preview My plan' }))
+    expect((await screen.findByText('Widget: Equity curve')).tagName).toBe('EM')
+    expect(screen.getByText('Routine: Pre-market routine').tagName).toBe('EM')
+    expect(screen.getByText('Tracker').tagName).toBe('EM')                 // no name for it: the family word
+  })
+
+  it("F-FE-1 c2: the SERVER's slotNames shape (keyed by BLOCK ID, style and preview) names each slot; unresolved has no key", async () => {
+    // journal_styles.slot_names serves `{block id: name}` on the served style AND the preview answer (W11-R21); an
+    // UNRESOLVED slot has no key (W11-R43), so its line is the client's own label (the family word), never the
+    // server's refusal sentence. Each slot carries a ref the names do NOT hold: only the block-id lookup names it.
+    const preview = { ...previewBody, slotNames: { routine_1: 'Pre-market routine' }, bodyJson: { type: 'doc', content: [
+      { type: 'widgetEmbed', attrs: { widgetId: 'built_a', params: { ref: 'def:d9', defRev: 1 } } },
+      { type: 'widgetEmbed', attrs: { widgetId: 'routine_1', params: { ref: 'routine:r9' } } },
+      { type: 'widgetEmbed', attrs: { widgetId: 'tracker_b', params: { ref: 'tracker:t9' } } },
+    ] } }
+    const list = { ...listBody, styles: listBody.styles.map((st) => (st.id === 's-mine'
+      ? { ...st, slotNames: { built_a: 'Equity curve' } } : st)) }
+    renderSection({}, { list, preview })
+    fireEvent.click(await screen.findByRole('button', { name: 'Choose another style for Trade plan' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Preview My plan' }))
+    expect((await screen.findByText('Widget: Equity curve')).tagName).toBe('EM')          // the style's, by block id
+    expect(screen.getByText('Routine: Pre-market routine').tagName).toBe('EM')            // the preview's, by block id
+    expect(screen.getByText('Tracker').tagName).toBe('EM')                                // unresolved: no key
+    expect(screen.queryByText(/not in your account/i)).toBeNull()
+  })
 })

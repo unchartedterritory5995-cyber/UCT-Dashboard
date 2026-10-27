@@ -2305,6 +2305,56 @@ _PHASE_2_ALTERS = [
     )""",
     "CREATE INDEX IF NOT EXISTS idx_j2_tool_create_keys_created"
     " ON j2_tool_create_keys(created_at)",
+    # Notebook widgets phase 2, Task 11.7 (rulings W11-R7, R8, R9, R11): the template library's three
+    # member tables. Each is user-scoped and purged with the account (account_purge._DIRECT_USER_TABLES).
+    # The ET days a member used an adopted widget, routine or tracker (W11-R11), one row per day: the
+    # helpful 3-day rule reads it (W11-R8). `item_id` is the gallery item the copy came from.
+    """CREATE TABLE IF NOT EXISTS j2_gallery_use_days (
+        user_id TEXT NOT NULL,
+        item_id TEXT NOT NULL,
+        day     TEXT NOT NULL,
+        PRIMARY KEY (user_id, item_id, day)
+    )""",
+    # The credit snapshot of every copy at adoption (W11-R7): the author's opaque handle and the item
+    # title, so the "Based on ..." line survives a withdrawn listing. `tool_kind` is one of widget,
+    # routine, tracker, template; `tool_id` the member's own copy.
+    """CREATE TABLE IF NOT EXISTS j2_gallery_credits (
+        user_id       TEXT NOT NULL,
+        tool_kind     TEXT NOT NULL,
+        tool_id       TEXT NOT NULL,
+        gallery_id    TEXT NOT NULL,
+        author_handle TEXT,
+        title         TEXT NOT NULL,
+        created_at    TEXT NOT NULL,
+        PRIMARY KEY (user_id, tool_kind, tool_id)
+    )""",
+    # Task 11.8: the listed version a copy is on, so My tools can offer "Update from the library" for a routine or
+    # tracker copy too (their own tables carry no version). Moved by `template_gallery.update_tool`.
+    "ALTER TABLE j2_gallery_credits ADD COLUMN source_version INTEGER",
+    # Task 11.8 fix round 1 (I-1): a copy's own lineage -- the listing's item type, and for a tool a template made its
+    # part's key in that template and the part's fingerprint -- so an update is offered only when it applies.
+    "ALTER TABLE j2_gallery_credits ADD COLUMN source_item_type TEXT",
+    "ALTER TABLE j2_gallery_credits ADD COLUMN source_key TEXT",
+    "ALTER TABLE j2_gallery_credits ADD COLUMN source_hash TEXT",
+    # Task 11.8 fix round 3 (M-2): a template Adopt's first `created`, so a replay answers it exactly.
+    "ALTER TABLE j2_tool_create_keys ADD COLUMN answer_json TEXT",
+    # Task 11.8 fix round 5 (I-2, ruling W11-R41): a Use's per-request reservation token, so the request that holds
+    # the "" reservation is told apart from a taker's re-reservation of the same key, and a failed request forgets
+    # only its OWN reservation. NULL on every other door's row.
+    "ALTER TABLE j2_tool_create_keys ADD COLUMN token TEXT",
+    # The member's answer to the 3rd-day Helpful line (W11-R9): yes, not_really or dismissed, once per
+    # (member, item).
+    """CREATE TABLE IF NOT EXISTS j2_gallery_helpful_prompts (
+        user_id     TEXT NOT NULL,
+        item_id     TEXT NOT NULL,
+        answer      TEXT NOT NULL,
+        answered_at TEXT NOT NULL,
+        PRIMARY KEY (user_id, item_id)
+    )""",
+    # Task 11.13 (W11-R10): an archived template is hidden from TemplatePicker, the kind section and the default
+    # choice, and stays readable by `get_style` (notes keep their style stamp). NULL = not archived. A column on a
+    # table already in account_purge._DIRECT_USER_TABLES, so the purge and the manifest need no new row.
+    "ALTER TABLE j2_journal_styles ADD COLUMN archived_at TEXT",
 ]
 
 # ── Wave 7 (lane I): the Notebook's read-path indexes ──────────────────────────

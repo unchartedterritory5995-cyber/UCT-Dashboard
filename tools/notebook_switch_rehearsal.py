@@ -183,84 +183,116 @@ DOOR_OFF = 404
 # Every other Notebook gate the repo's own index finds, and why the window does not switch it.
 # A gate missing here is printed as "no rendered probe written" -- never silently dropped.
 NOT_REHEARSED = {
-    "NOTEBOOK_ASK_INSERT_ON": "payload only: its surface needs an Ask answer (a model call)",
+    "NOTEBOOK_ASK_INSERT_ON": ("armed on web 2026-09-26 (docs/feature_flags.json): payload only: its surface needs an"
+                               " Ask answer (a model call)"),
     # Wave 14 W14-C1: these two (and semantic search below) now ride the auth payload, so the
     # window switches and verifies them by their payload key; no RENDERED probe is written.
-    "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED": "payload key only (W14-C1, its tour's gate): the "
-                                             "capability itself acts only on an upload",
-    "NOTEBOOK_TASK_REMINDERS_ENABLED": "payload key only (W14-C1, its tour's gate): the kill switch "
-                                       "is read per scheduled run, so its only other evidence is "
-                                       "a reminder members would not get",
-    "COMPASS_NOTES_TOOL_ENABLED": "no read-only surface: it acts only inside a Compass chat turn",
-    "NOTEBOOK_INBOUND_EMAIL_ENABLED": "dark (external blockers: DNS/MX, WAF, wrangler)",
-    "NOTEBOOK_SEMANTIC_SEARCH_ENABLED": "dark (waits for OpenAI's written ZDR, R-20); payload key "
-                                        "since W14-C1 (its tour's gate)",
-    "NOTEBOOK_SEMANTIC_PROVIDER": "a MODE, inert while semantic search is dark",
+    "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED": ("armed on web 2026-09-26 (docs/feature_flags.json): payload key only "
+                                              "(W14-C1, its tour's gate): the capability itself acts only on an "
+                                              "upload"),
+    "NOTEBOOK_TASK_REMINDERS_ENABLED": ("armed on web (docs/feature_flags.json: a kill switch, on by default): "
+                                        "payload key only (W14-C1, its tour's gate): the kill switch is read per "
+                                        "scheduled run, so its only other evidence is a reminder members would not "
+                                        "get"),
+    "COMPASS_NOTES_TOOL_ENABLED": ("armed on web 2026-09-26 (docs/feature_flags.json): no read-only surface: it acts "
+                                   "only inside a Compass chat turn"),
+    "NOTEBOOK_INBOUND_EMAIL_ENABLED": ("armed on web 2026-09-27 (docs/feature_flags.json): Email to Notebook; its "
+                                       "evidence is an inbound message, which this read-only window cannot send, so "
+                                       "no rendered probe in this tool"),
+    "NOTEBOOK_SEMANTIC_SEARCH_ENABLED": ("armed on web 2026-10-09 (docs/feature_flags.json): meaning search; a "
+                                         "payload key since W14-C1 (its tour's gate), so the window verifies "
+                                         "notebook_semantic_search_enabled; no rendered probe in this tool"),
+    "NOTEBOOK_SEMANTIC_PROVIDER": ("a MODE, live since NOTEBOOK_SEMANTIC_SEARCH_ENABLED armed on web 2026-10-09 "
+                                   "(docs/feature_flags.json): left unset on purpose, so the default openai provider "
+                                   "is in effect; noop is the vendor-free fallback; switching it is a vendor change, "
+                                   "not an on/off surface, so no rendered probe in this tool; its noop evidence is "
+                                   "tests/test_note_semantic.py "
+                                   "(test_ON_with_the_NOOP_provider_the_table_fills_and_nothing_leaves, "
+                                   "test_the_OpenAI_provider_is_the_default_and_uses_the_shared_client)"),
     "NOTEBOOK_OFFLINE_READ_ON": "dark: the feature is NOT BUILT",
     "NOTEBOOK_CONFLICT_UX_ON": "dark: the feature is NOT BUILT",
     "NOTEBOOK_ATTACHMENTS_ON": "dark: the feature is NOT BUILT",
-    "NOTEBOOK_DOOR_GUARD": "a MODE, never switched off; its intended value is the owner's question",
-    "NOTEBOOK_TEMPLATE_GALLERY_ENABLED": "dark (wave 12 12A): waits for its real-browser walk and "
-                                         "the owner naming who reviews submissions",
-    "NOTEBOOK_PLAN_GRADING_ENABLED": "dark (wave 13 13A): plan vs execution grading; waits for the "
-                                     "wave-13 PR and the owner's arming order (P6)",
+    "NOTEBOOK_DOOR_GUARD": ("a MODE, armed on web (docs/feature_flags.json): set to unknown-only and kept there by "
+                            "the standing rule 'two consecutive GREEN windows -> the guard STAYS unknown-only' "
+                            "(released 2026-09-19, re-read 2026-10-06); settled by that rule, never switched off, so "
+                            "no rendered probe in this tool; its parse evidence is "
+                            "tests/test_notebook_door_guard_flag.py "
+                            "(test_the_payload_carries_the_mode_and_it_defaults_to_full, "
+                            "test_the_mode_is_read_PER_REQUEST_not_captured_at_import)"),
+    "NOTEBOOK_TEMPLATE_GALLERY_ENABLED": ("armed on web 2026-10-08 (docs/feature_flags.json) (wave 12 12A): the "
+                                          "community template gallery; no rendered on/off probe in this tool"),
+    "NOTEBOOK_PLAN_GRADING_ENABLED": ("armed on web 2026-10-08 (docs/feature_flags.json) (wave 13 13A): plan vs "
+                                      "execution grading"),
     # Wave 11 (#263). Each reason names what the gate protects, from the PR body; a numbered
     # "owner decision" is that body's "Decisions for you" list.
-    "NOTEBOOK_VOICE_NOTES_ENABLED": "dark (wave 11 11A): voice and meeting notes -- Whisper "
-                                    "transcription against the 60-minute monthly dictation "
-                                    "allowance and one summary call on the shared $25/day cap; "
-                                    "owner decisions 1-2 open (minute allowance, Desk transcripts)",
-    "NOTEBOOK_FORMULAS_ENABLED": "dark (wave 11 11B): formula and rollup properties, computed in "
-                                 "memory on read; waits on a quiet-machine 50k re-measure and the "
-                                 "owner's go",
-    "NOTEBOOK_AI_ACTIONS_ENABLED": "dark (wave 11 11C): Or tell Notebook what to change -- one model "
-                                   "call per plan on the shared $25/day cap, then reviewed changes "
-                                   "written through the member's own write path, undoable; owner "
-                                   "decisions 5-6 open (fail-open counter, unsent-words fork)",
-    "NOTEBOOK_TRADE_CANVAS_ENABLED": "dark (wave 11 11D): the trade-plan canvas note (schema level 3, "
-                                     "NEVER-REVERT); no route of its own, only the doors that make "
-                                     "a canvas",
-    # Wave 13 lane 13I-1. No member surface yet: 13I-2 builds the panel that reads it.
-    "NOTEBOOK_TA_FINGERPRINT_ENABLED": "dark (wave 13 13I-1): the technical fingerprint and "
-                                       "chart-block index API; no member surface until 13I-2",
+    "NOTEBOOK_VOICE_NOTES_ENABLED": ("armed on web 2026-10-09 (docs/feature_flags.json) (wave 11 11A): voice and "
+                                     "meeting notes -- Whisper transcription against the 60-minute monthly dictation "
+                                     "allowance and one summary call on the shared $25/day cap"),
+    "NOTEBOOK_FORMULAS_ENABLED": ("armed on web 2026-10-07 (docs/feature_flags.json) (wave 11 11B): formula and "
+                                  "rollup properties, computed in memory on read"),
+    "NOTEBOOK_AI_ACTIONS_ENABLED": ("armed on web 2026-10-03 (docs/feature_flags.json) (wave 11 11C): Or tell "
+                                    "Notebook what to change -- one model call per plan on the shared $25/day cap, "
+                                    "then reviewed changes written through the member's own write path, undoable"),
+    "NOTEBOOK_TRADE_CANVAS_ENABLED": ("armed on web 2026-10-03 (docs/feature_flags.json) (wave 11 11D): the "
+                                      "trade-plan canvas note (schema level 3, NEVER-REVERT); no route of its own, "
+                                      "only the doors that make a canvas"),
+    # Wave 13 lane 13I-1, and the member surface 13I-2 built on it (FingerprintPanel).
+    "NOTEBOOK_TA_FINGERPRINT_ENABLED": ("armed on web 2026-10-08 (docs/feature_flags.json) (wave 13 13I-1): the "
+                                        "technical fingerprint and the chart-block index API, and the member surface "
+                                        "13I-2 built on it (FingerprintPanel on a chart block); payload key only: the"
+                                        " window switches it with the armed set and verifies "
+                                        "notebook_ta_fingerprint_enabled; no rendered on/off probe in this tool; its "
+                                        "off evidence is "
+                                        "app/src/pages/journal-2-0/components/notebook/FingerprintPanel.test.jsx "
+                                        "('renders nothing and fetches nothing while the fingerprint gate is off')"),
     # Wave 13 lane 13C.
-    "NOTEBOOK_EARNINGS_PREP_ENABLED": "dark (wave 13 13C): Reporting soon on Research Home and a "
-                                      "one-click earnings prep note; waits for its real-browser walk",
-    # Wave 13 lane 13H-1. No member surface yet: 13H-2 builds the plan panel on these routes.
-    "NOTEBOOK_CHART_PLAN_ENABLED": "dark (wave 13 13H-1): chart-plan sizing and alerts at drawn "
-                                   "levels (API only); no member surface until 13H-2",
-    # Wave 13 lane 13E-1. No member surface yet: 13E-2 builds the card and the prompt.
-    "NOTEBOOK_ENTRY_CONTEXT_ENABLED": "dark (wave 13 13E-1): the market context frozen at the "
-                                      "fill (API + capture hooks); no member surface until 13E-2",
+    "NOTEBOOK_EARNINGS_PREP_ENABLED": ("armed on web 2026-10-08 (docs/feature_flags.json) (wave 13 13C): Reporting "
+                                       "soon on Research Home and a one-click earnings prep note"),
+    # Wave 13 lane 13H-1, and the member surfaces 13H-2..13H-4 built on its routes (ChartPlanPanel).
+    "NOTEBOOK_CHART_PLAN_ENABLED": ("armed on web 2026-10-08 (docs/feature_flags.json) (wave 13 13H-1): chart-plan "
+                                    "sizing and alerts at drawn levels, and the member surfaces 13H-2..13H-4 built on"
+                                    " them (the chart block's Plan door, ChartPlanPanel and its level controls); "
+                                    "payload key only: the window switches it with the armed set and verifies "
+                                    "notebook_chart_plan_enabled; no rendered on/off probe in this tool; its off "
+                                    "evidence is "
+                                    "app/src/pages/journal-2-0/components/notebook/WidgetEmbedView.chartPlan.test.jsx"
+                                    " ('gate OFF: no Plan, no Replay, and the panel is never mounted')"),
+    # Wave 13 lane 13E-1, and the member surface 13E-2 built on it (EntryContextCard, WhyPrompt).
+    "NOTEBOOK_ENTRY_CONTEXT_ENABLED": ("armed on web 2026-10-08 (docs/feature_flags.json) (wave 13 13E-1): the market"
+                                       " context frozen at the fill (API + capture hooks), and the member surface "
+                                       "13E-2 built on it (EntryContextCard on the trade page, which holds "
+                                       "WhyPrompt); payload key only: the window switches it with the armed set and "
+                                       "verifies notebook_entry_context_enabled; no rendered on/off probe in this "
+                                       "tool; its off evidence is "
+                                       "app/src/pages/journal-2-0/components/EntryContextCard.test.jsx ('renders "
+                                       "nothing while notebook_entry_context_enabled is off (no fetch, no card)')"),
     # Wave 13 lane 13G-1.
-    "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED": "dark (wave 13 13G-1): save a call-transcript passage "
-                                           "into a note as a cited excerpt; waits for its walk",
-    "NOTEBOOK_PASSED_SETUPS_ENABLED": "dark (wave 13 13G-1): the passed-setups journal on Research "
-                                      "Home; waits for its real-browser walk",
-    "NOTEBOOK_THESIS_CHIPS_ENABLED": "dark (wave 13 13G-2): thesis status + distance-to-stop chips "
-                                     "on Positions/Holdings rows; the WatchlistWidget mount waits "
-                                     "on the controller's announcement (P2)",
+    "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED": ("armed on web 2026-10-08 (docs/feature_flags.json) (wave 13 13G-1): save "
+                                            "a call-transcript passage into a note as a cited excerpt"),
+    "NOTEBOOK_PASSED_SETUPS_ENABLED": ("armed on web 2026-10-08 (docs/feature_flags.json) (wave 13 13G-1): the "
+                                       "passed-setups journal on Research Home"),
+    "NOTEBOOK_THESIS_CHIPS_ENABLED": ("armed on web 2026-10-08 (docs/feature_flags.json) (wave 13 13G-2): thesis "
+                                      "status + distance-to-stop chips on Positions/Holdings rows"),
     # Wave 13 lane 13I-2.
-    "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED": "dark (wave 13 13I-2): the visual playbook grid, the setup-tag "
-                                        "suggestion at insert and the trade page's before/after; "
-                                        "waits for the wave-13 PR and the owner's arming order (P6)",
+    "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED": ("armed on web 2026-10-08 (docs/feature_flags.json) (wave 13 13I-2): the "
+                                         "visual playbook grid, the setup-tag suggestion at insert and the trade "
+                                         "page's before/after"),
     # Wave 13 lane 13D. Its evidence is a scan cycle (an insight row), not a page read.
-    "AWARENESS_NOTE_RESURFACE_ENABLED": "dark (wave 13 13D): the awareness scan's resurfacing pass; "
-                                        "its evidence is an insight row from a scan cycle",
+    "AWARENESS_NOTE_RESURFACE_ENABLED": ("armed on web 2026-10-08 (docs/feature_flags.json) (wave 13 13D): the "
+                                         "awareness scan's resurfacing pass; its evidence is an insight row from a "
+                                         "scan cycle"),
     # Wave 13 lane 13J. Two dark pages behind their own gates; walked by the lane, not rehearsed.
-    "NOTEBOOK_SETUPS_BOARD_ENABLED": "dark (wave 13 13J): the active setups board page; waits for "
-                                     "the owner to arm it after its real-browser walk",
-    "NOTEBOOK_FIND_SIMILAR_ENABLED": "dark (wave 13 13J): find more like this (nightly precompute + "
-                                     "read-only routes); waits for the owner to arm it",
+    "NOTEBOOK_SETUPS_BOARD_ENABLED": ("armed on web 2026-10-08 (docs/feature_flags.json) (wave 13 13J): the active "
+                                      "setups board page"),
+    "NOTEBOOK_FIND_SIMILAR_ENABLED": ("armed on web 2026-10-08 (docs/feature_flags.json) (wave 13 13J): find more "
+                                      "like this (nightly precompute + read-only routes)"),
     # Wave 13 lane 13B.
-    "NOTEBOOK_PLAYBOOK_ENABLED": "dark (wave 13 13B): My Playbook -- per-setup stats with R3 ranges "
-                                 "and the before-losses-vs-wins patterns; waits for the wave-13 PR "
-                                 "and the owner's arming order (P6)",
+    "NOTEBOOK_PLAYBOOK_ENABLED": ("armed on web 2026-10-08 (docs/feature_flags.json) (wave 13 13B): My Playbook -- "
+                                  "per-setup stats with R3 ranges and the before-losses-vs-wins patterns"),
     # Wave 13 lane 13F.
-    "NOTEBOOK_REVIEW_DRAFTS_ENABLED": "dark (wave 13 13F): reviews that write themselves -- one "
-                                      "click drafts a daily/weekly/monthly review's data, the leak "
-                                      "finder's findings; waits for the wave-13 PR and the owner's "
-                                      "arming order",
+    "NOTEBOOK_REVIEW_DRAFTS_ENABLED": ("armed on web 2026-10-09 (docs/feature_flags.json) (wave 13 13F): reviews that"
+                                       " write themselves -- one click drafts a daily/weekly/monthly review's data, "
+                                       "the leak finder's findings"),
     # Journal styles programme (P1 / P2 Tier 2 part A). Both ARMED on web (docs/feature_flags.json carries the flip
     # times); walked by notebook_fin_walk (c2: the styles groups and `smart`), no rendered on/off probe written here.
     "NOTEBOOK_JOURNAL_STYLES_ENABLED": "armed (journal styles P1, 2026-10-14): note kinds, styles and trader blocks; "
@@ -269,41 +301,42 @@ NOT_REHEARSED = {
                                     "tag; walked by the fin walk's `smart` group, no rendered probe in this tool",
     # Tier 2 part B. Its evidence is a scheduled pass (a j2_earnings_followup_runs row) and a delivered
     # notice, not a page read: walked by notebook_fin_walk's followup group (c2), not rehearsed.
-    "NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED": "dark (Tier 2 part B): the 16:45 / 18:00 ET earnings follow-up "
-                                          "pass, its bell, card and prefill; evidence is a run-ledger "
-                                          "row and a delivered notice (the fin walk's followup group); "
-                                          "waits for the owner's arming (docs/notebook/t2b-arming.md)",
+    "NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED": ("armed on web 2026-10-16 (docs/feature_flags.json) (Tier 2 part B): the "
+                                           "16:45 / 18:00 ET earnings follow-up pass, its bell, card and prefill; "
+                                           "evidence is a run-ledger row and a delivered notice (the fin walk's "
+                                           "followup group)"),
     # Journal P4a. A layout editor and a saved layout, not a page read this tool can switch.
-    "JOURNAL_PAGE_LAYOUTS_ENABLED": "dark (P4a): the Customize button on Today and the trade page and "
-                                    "reading a saved layout; off, both pages render their fixed layout; "
-                                    "no rendered on/off probe in this tool; waits for the owner's arming",
+    "JOURNAL_PAGE_LAYOUTS_ENABLED": ("armed on web 2026-10-18 (docs/feature_flags.json) (P4a): the Customize button "
+                                     "on Today and the trade page and reading a saved layout; off, both pages render "
+                                     "their fixed layout; no rendered on/off probe in this tool"),
     # Notebook P3a. Its evidence is the style library walk (share, approve, adopt, Helpful, follow, an
     # update and a withdraw, read off the rendered pages in a sandbox) and the route-off tests -- not a
     # rendered probe here. (Task 11 reworded this from a fin-walk library group that did not exist; the final
     # review M-3 then struck its sweep.flags-off.json citation: in that "every flag off" sweep the router's
     # own gallery switch answers 404 before `_require_library` runs, so it cannot show THIS switch's 404.)
-    "NOTEBOOK_STYLE_LIBRARY_ENABLED": "dark (P3a): the community style library -- sharing a style, adopting "
-                                      "one, Helpful, author pages, follow and the feed; every library route "
-                                      "answers 404 while off with the gallery on (tests/test_style_library_adopt.py "
-                                      "and tests/test_style_library_social.py, the ..._404_for_everyone_while_"
-                                      "the_library_is_off tests); evidence is tools/notebook_style_library_walk.py "
-                                      "in a sandbox and those tests, not a rendered probe; waits for the owner's arming",
+    "NOTEBOOK_STYLE_LIBRARY_ENABLED": ("armed on web 2026-10-18 (docs/feature_flags.json) (P3a): the community style "
+                                       "library -- sharing a style, adopting one, Helpful, author pages, follow and "
+                                       "the feed; every library route answers 404 while off with the gallery on "
+                                       "(tests/test_style_library_adopt.py and tests/test_style_library_social.py, "
+                                       "the ..._404_for_everyone_while_the_library_is_off tests); evidence is "
+                                       "tools/notebook_style_library_walk.py in a sandbox and those tests, not a "
+                                       "rendered probe"),
     # P2 Tier 3. Gates CREATING a mood check-in block and offering three views/doors; an existing
     # block still renders when it is off. Not rehearsed in this tool; the fin walk's Tier 3 group
     # (Task 10) is its evidence.
-    "JOURNAL_TIER3_ENABLED": "dark (P2 Tier 3): the mood check-in block, the By check-in view, "
-                             "Checklist from my winners and the Your trading year door; creating "
-                             "only (an existing check-in block still renders); evidence is the fin "
-                             "walk's Tier 3 group (Task 10); waits for the owner's arming",
+    "JOURNAL_TIER3_ENABLED": ("armed on web 2026-10-18 (docs/feature_flags.json) (P2 Tier 3): the mood check-in "
+                              "block, the By check-in view, Checklist from my winners and the Your trading year door;"
+                              " creating only (an existing check-in block still renders); evidence is the fin walk's "
+                              "Tier 3 group (Task 10)"),
     "NOTEBOOK_EXAMPLE_NOTES_ENABLED": "armed on web 2026-10-18 (P3b, docs/feature_flags.json): example notes on a "
                                       "shared style -- the preview, the publish and the In use section; "
                                       "server-only, NOT on the auth payload (so no payload key to verify), and "
                                       "every example route answers 404 while off (tests/test_example_notes.py, "
                                       "the ..._switch_off_... tests); needs the library switch",
     # Wave 14 lane W14-D.
-    "NOTEBOOK_GETTING_STARTED_ENABLED": "dark (wave 14 W14-D): the get started checklist on Research "
-                                        "Home (shows only with NOTEBOOK_ONBOARDING_ENABLED also on); "
-                                        "client-only, no route; waits for the owner to arm it",
+    "NOTEBOOK_GETTING_STARTED_ENABLED": ("armed on web 2026-10-08 (docs/feature_flags.json) (wave 14 W14-D): the get "
+                                         "started checklist on Research Home (shows only with "
+                                         "NOTEBOOK_ONBOARDING_ENABLED also on); client-only, no route"),
     # P5. Gates the How do you trade? offer, the starter-pack install endpoint and the firm style
     # rows in the gallery (listed only while the library switch is on too, P5-AUD-1); installing a
     # pack writes the member's own styles, which this read-only rehearsal does not do. Its evidence
@@ -312,13 +345,90 @@ NOT_REHEARSED = {
     # (test_while_a_switch_is_off_every_caller_gets_the_identical_404, test_install_needs_both_its_switches)
     # and tests/test_firm_style_seed.py. (The fin walk has no starter-packs step; it arms the switch in
     # c2 only through WAVE_FLAGS. Ruling P5-R-T2-2 chose this reword over a new fin-walk step.)
-    "NOTEBOOK_STARTER_PACKS_ENABLED": "dark (P5): the How do you trade? offer and the starter-pack install "
-                                      "endpoint (need NOTEBOOK_JOURNAL_STYLES_ENABLED also on), and the "
-                                      "firm style rows in the gallery, listed only while "
-                                      "NOTEBOOK_STYLE_LIBRARY_ENABLED is on too; installing a pack writes "
-                                      "the member's own styles, so there is no rendered on/off probe in "
-                                      "this tool; waits for the owner's arming",
+    "NOTEBOOK_STARTER_PACKS_ENABLED": ("armed on web 2026-10-19 (docs/feature_flags.json) (P5): the How do you trade?"
+                                       " offer and the starter-pack install endpoint (need "
+                                       "NOTEBOOK_JOURNAL_STYLES_ENABLED also on), and the firm style rows in the "
+                                       "gallery, listed only while NOTEBOOK_STYLE_LIBRARY_ENABLED is on too; "
+                                       "installing a pack writes the member's own styles, so there is no rendered "
+                                       "on/off probe in this tool"),
     "NOTEBOOK_LAYOUT_SHARING_ENABLED": "dark (P4b): sharing and adopting page layouts; server-only, rehearsed by the P4b walk (tools/notebook_layout_library_walk.py)",
+    # Terminal command links (TERM-056, Notebook half). Client-only, no route: the payload key is its only gate.
+    "NOTEBOOK_TERMINAL_LINKS_ENABLED": ("armed on web 2026-10-11 (docs/feature_flags.json): a pasted terminal command"
+                                        " becomes a /terminal?cmd= link; client-only, no route; payload key only: the"
+                                        " window switches it with the armed set and verifies "
+                                        "notebook_terminal_links_enabled; its rendered surface needs a paste, so no "
+                                        "rendered probe in this tool; its off evidence is "
+                                        "app/src/pages/journal-2-0/lib/terminalCommandPaste.test.js ('opens only "
+                                        "while the gate is on; off it is inert like any internal path'); the paste "
+                                        "half loads the terminal grammar only while the gate is on"),
+    # Notebook widgets, waves 1-6 and 8-10 (wave 7 has no flag). Each is an enablement gate over its own / menu
+    # entries and (waves 1-3, 6, 8-10) its server reads; a widget already stored in a note renders whatever it says.
+    # All nine are armed on web (docs/feature_flags.json carries the flip times), so the window's armed set carries
+    # them and the judge verifies each payload key; none has a rendered on/off probe in this tool.
+    "NOTEBOOK_WIDGETS_W1_ENABLED": ("armed on web 2026-10-23 17:03:42Z (docs/feature_flags.json): notebook widgets "
+                                    "wave 1, the names, P&L and positions widgets; payload key only: armed, so the "
+                                    "window switches it with the armed set and verifies notebook_widgets_w1_enabled "
+                                    "on the auth payload; no rendered on/off probe in this tool; its off evidence is"
+                                    " tests/test_notebook_widgets_router.py (test_gate_off_404, "
+                                    "test_flag_read_per_request) and "
+                                    "app/src/pages/journal-2-0/components/notebook/SlashMenu.items.test.jsx "
+                                    "('snapshot_items_absent_when_wave_off')"),
+    "NOTEBOOK_WIDGETS_W2_ENABLED": ("armed on web 2026-10-23 17:07:14Z (docs/feature_flags.json): notebook widgets "
+                                    "wave 2, My rules check and My recurring mistakes; payload key only: armed, so "
+                                    "the window switches it with the armed set and verifies "
+                                    "notebook_widgets_w2_enabled on the auth payload; no rendered on/off probe in "
+                                    "this tool; its off evidence is tests/test_notebook_widgets_e2e.py "
+                                    "(test_wave2_routes_are_dark_without_their_flag) and "
+                                    "app/src/pages/journal-2-0/components/notebook/SlashMenu.items.test.jsx ('wave 2"
+                                    " on: My rules check and My recurring mistakes appear under Reviewing; wave 2 "
+                                    "off: neither')"),
+    "NOTEBOOK_WIDGETS_W3_ENABLED": ("armed on web 2026-10-23 17:07:14Z (docs/feature_flags.json): notebook widgets "
+                                    "wave 3, Market on my names and the options flow for a ticker; payload key only:"
+                                    " armed, so the window switches it with the armed set and verifies "
+                                    "notebook_widgets_w3_enabled on the auth payload; no rendered on/off probe in "
+                                    "this tool; its off evidence is tests/test_notebook_widgets_e2e.py "
+                                    "(test_wave3_routes_are_dark_without_their_flag) and "
+                                    "app/src/pages/journal-2-0/components/notebook/SlashMenu.items.test.jsx ('wave 3"
+                                    " on: Market on my names under Before the open, /flow NVDA under Planning a "
+                                    "trade; wave 3 off: neither')"),
+    "NOTEBOOK_WIDGETS_W4_ENABLED": ("armed on web 2026-10-23 17:07:14Z (docs/feature_flags.json): notebook widgets "
+                                    "wave 4, the page widgets in the / menu (a client menu gate); payload key only: "
+                                    "armed, so the window switches it with the armed set and verifies "
+                                    "notebook_widgets_w4_enabled on the auth payload; no rendered on/off probe in "
+                                    "this tool; its off evidence is each page widget's capture test, e.g. "
+                                    "app/src/pages/charts/widgets/captures/alertsCapture.test.jsx ('W4 off: the item"
+                                    " is absent') and app/src/pages/charts/widgets/captures/calendarCapture.test.jsx"
+                                    " ('W4 off: the item is absent')"),
+    "NOTEBOOK_WIDGETS_W5_ENABLED": ("armed on web 2026-10-23 17:07:14Z (docs/feature_flags.json): notebook widgets "
+                                    "wave 5, chart sets and presets (a client menu gate); payload key only: armed, "
+                                    "so the window switches it with the armed set and verifies "
+                                    "notebook_widgets_w5_enabled on the auth payload; no rendered on/off probe in "
+                                    "this tool; its off evidence is "
+                                    "app/src/pages/journal-2-0/components/notebook/SlashMenu.items.test.jsx "
+                                    "('slash_set_absent_when_w5_off')"),
+    "NOTEBOOK_WIDGETS_W6_ENABLED": ("armed on web 2026-10-23 17:07:14Z (docs/feature_flags.json): notebook widgets wave 6, trade recap, P&L calendar and the room widgets; "
+                                    "payload key only: armed, so the window switches it with the armed set and verifies notebook_widgets_w6_enabled on the auth payload; no rendered on/off probe in this tool; "
+                                    "its off evidence is tests/test_notebook_widgets_router.py (test_wave6_kinds_404_when_w6_off) and tests/test_notebook_widgets_e2e.py (test_wave6_routes_are_dark_without_their_flag)"),
+    "NOTEBOOK_WIDGETS_W8_ENABLED": ("armed on web 2026-10-26 02:11:33Z (docs/feature_flags.json): notebook widgets wave 8, the widget builder and the saved-widget routes; "
+                                    "payload key only: armed, so the window switches it with the armed set and verifies notebook_widgets_w8_enabled on the auth payload; no rendered on/off probe in this tool; "
+                                    "its off evidence is tests/test_widget_definitions_router.py (test_all_routes_404_when_w8_off, test_flag_read_per_request)"),
+    "NOTEBOOK_WIDGETS_W9_ENABLED": ("armed on web 2026-10-26 02:11:33Z (docs/feature_flags.json): notebook widgets wave 9, routines and trackers; "
+                                    "payload key only: armed, so the window switches it with the armed set and verifies notebook_widgets_w9_enabled on the auth payload; no rendered on/off probe in this tool; "
+                                    "its off evidence is tests/test_routines_router.py (test_all_routes_404_when_w9_off) and the ship walk's W9.12 flag-off phase (tools/notebook_widgets_p2_walk.py)"),
+    "NOTEBOOK_WIDGETS_W10_ENABLED": ("armed on web 2026-10-26 02:11:33Z (docs/feature_flags.json): notebook widgets wave 10, formulas, the options and notes sources, the ready-made and shelf widgets and the size calculator; "
+                                    "payload key only: armed, so the window switches it with the armed set and verifies notebook_widgets_w10_enabled on the auth payload; no rendered on/off probe in this tool; "
+                                    "its off evidence is tests/test_widget_definitions_w10_router.py (test_wave10_plans_404_everywhere_when_off), tests/test_shelf_widgets_router.py (test_dark_and_unknown_kind_are_one_404) and the ship walk's W10.9 flag-off phase (tools/notebook_widgets_p2_walk.py)"),
+    # Wave 11 (this branch). Dark, so it is NOT in the window's armed set and no payload row is judged for it.
+    "NOTEBOOK_WIDGETS_W11_ENABLED": ("dark (notebook widgets wave 11): the template library, sharing and adopting "
+                                     "widgets, routines and trackers (needs NOTEBOOK_STYLE_LIBRARY_ENABLED and "
+                                     "NOTEBOOK_JOURNAL_STYLES_ENABLED); every wave 11 door answers the one 404 while "
+                                     "off, read per request, before the plan and the body "
+                                     "(tests/test_gallery_router_w11.py (test_every_new_route_404_when_w11_off, "
+                                     "test_flag_read_per_request)), the contract fixtures pin each door's 401 and "
+                                     "flags-off 404, and tests/test_gallery_item_types_w11.py "
+                                     "(test_tool_types_hidden_while_w11_off_and_listed_when_on) shows the new library"
+                                     " types absent while off; its rendered evidence is the wave 11 walk (Task "
+                                     "11.20), not a probe here; waits for the owner's arming"),
 }
 
 

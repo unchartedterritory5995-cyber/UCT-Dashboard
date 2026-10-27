@@ -32,7 +32,6 @@ What lane 8B changed, each one a finding of `docs/notebook/share-links-authoriza
     decoded before any dependency and made a dark route answer a malformed body with 422.
 """
 
-import json
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -40,6 +39,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from api.middleware.auth_middleware import get_current_user, get_current_user_with_plan, is_paid_user
 from api.services.journal_two import note_shares
 from api.services.journal_two import public_note_payload as public
+from api.services.journal_two import widget_request_body as wbody
 
 PUBLIC_RATE = "60/minute"
 IMAGE_RATE = "240/minute"
@@ -105,7 +105,7 @@ async def read_expiry(request: Request) -> int | None:
     if not raw.strip():
         return None
     try:
-        payload = json.loads(raw)
+        payload = wbody.loads_plain_body(raw)  # W11-R55: too deep to parse is 400 no-store
     except ValueError:
         raise HTTPException(status_code=422, detail=note_shares.EXPIRY_SENTENCE) from None
     if payload is None:

@@ -235,9 +235,17 @@ def test_a_kind_held_by_a_live_style_cannot_be_deleted(db_path):
     assert nk.get_kind("u1", k["id"]) is not None
 
 
-def test_soft_deleted_styles_are_purged_with_the_kind_and_reported(db_path):
-    """Ruling m-a: a soft-deleted style does not block; it is hard-deleted in the same transaction."""
+@pytest.mark.parametrize("w11", [True, False], ids=["wave11-on", "wave11-off"])
+def test_soft_deleted_styles_do_not_block_and_follow_wave_11(db_path, monkeypatch, w11):
+    """Ruling m-a: a soft-deleted style does not block the kind's delete. W11-R69: with wave 11 ON it is KEPT (Task
+    11.13 fix round 1, c3 / W11-R10: notes' style stamps read it, Recently deleted lists it), so nothing is purged;
+    with it OFF the delete is master's: the member's soft-deleted styles of that kind are hard-deleted and counted.
+    Another kind's and another member's rows are never touched."""
     from api.services.journal_two import note_kinds as nk
+    if w11:
+        monkeypatch.setenv("NOTEBOOK_WIDGETS_W11_ENABLED", "1")
+    else:
+        monkeypatch.delenv("NOTEBOOK_WIDGETS_W11_ENABLED", raising=False)
     _styles_table()
     k = nk.create_kind("u1", "Swing")
     other = nk.create_kind("u1", "Other")
@@ -246,9 +254,39 @@ def test_soft_deleted_styles_are_purged_with_the_kind_and_reported(db_path):
     _insert_style("s-other-kind", "u1", other["id"], "2026-10-01T00:00:00+00:00")     # same member, other kind
     _insert_style("s-other-member", "u2", k["id"], "2026-10-01T00:00:00+00:00")       # another member's row
     res = nk.delete_kind("u1", k["id"])
-    assert res and res["purgedDeletedStyles"] == 2
     assert nk.get_kind("u1", k["id"]) is None
-    assert _style_ids() == ["s-other-kind", "s-other-member"]
+    if w11:
+        assert res == {"purgedDeletedStyles": 0}
+        assert _style_ids() == ["s-del-1", "s-del-2", "s-other-kind", "s-other-member"]
+    else:
+        assert res == {"purgedDeletedStyles": 2}
+        assert _style_ids() == ["s-other-kind", "s-other-member"]
+
+
+@pytest.mark.parametrize("w11", [True, False], ids=["wave11-on", "wave11-off"])
+def test_W11_R69_account_deletion_still_purges_a_deleted_kinds_kept_styles(db_path, monkeypatch, w11):
+    """Whatever the kind delete kept, deleting the ACCOUNT removes every one of the member's style rows (the account
+    purge's own table list), in both worlds; another member's row stays."""
+    from api.services.auth_db import get_connection
+    from api.services.journal_two import account_purge
+    from api.services.journal_two import note_kinds as nk
+    if w11:
+        monkeypatch.setenv("NOTEBOOK_WIDGETS_W11_ENABLED", "1")
+    else:
+        monkeypatch.delenv("NOTEBOOK_WIDGETS_W11_ENABLED", raising=False)
+    k = nk.create_kind("u1", "Swing")
+    _insert_style("s-del", "u1", k["id"], "2026-10-01T00:00:00+00:00")
+    _insert_style("s-live", "u1", "thesis")
+    _insert_style("s-other-member", "u2", k["id"], "2026-10-01T00:00:00+00:00")
+    nk.delete_kind("u1", k["id"])
+    assert ("s-del" in _style_ids()) is w11                                   # kept only while wave 11 is on
+    c = get_connection()
+    try:
+        account_purge.purge_user_rows("u1", c)
+        c.commit()
+    finally:
+        c.close()
+    assert _style_ids() == ["s-other-member"]
 
 
 def test_a_refused_delete_purges_nothing(db_path):

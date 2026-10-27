@@ -1,0 +1,1170 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "GET /api/j2/template-gallery/library",
+    "note": "The official templates, in template_library.GROUPS order, each with group, contains and inYourTemplates; `groups` is the server's tuple.",
+    "path": "/api/j2/template-gallery/library",
+    "status": 200
+  },
+  "body": {
+    "groups": [
+      {
+        "key": "night_before",
+        "label": "The night before"
+      },
+      {
+        "key": "before_open",
+        "label": "Before the open"
+      },
+      {
+        "key": "during_day",
+        "label": "During the day"
+      },
+      {
+        "key": "after_close",
+        "label": "After the close"
+      },
+      {
+        "key": "weekly_monthly",
+        "label": "Weekly / monthly"
+      },
+      {
+        "key": "playbook",
+        "label": "Playbook"
+      },
+      {
+        "key": "mindset",
+        "label": "Mindset"
+      },
+      {
+        "key": "challenges",
+        "label": "Challenges"
+      },
+      {
+        "key": "habits",
+        "label": "Habits"
+      }
+    ],
+    "templates": [
+      {
+        "author": "UCT",
+        "authorHandle": null,
+        "category": "research",
+        "contains": [
+          "Night-before prep"
+        ],
+        "description": "Tomorrow's watchlist and levels, set the night before.",
+        "featured": true,
+        "firm": true,
+        "group": "night_before",
+        "helpedByMe": false,
+        "helpfulCount": 0,
+        "id": "86034b16f06755b3942acefbbc80f571",
+        "inYourTemplates": false,
+        "itemType": "style",
+        "layoutPage": null,
+        "listedAt": "2026-10-05T14:30:00+00:00",
+        "mine": false,
+        "preview": [
+          {
+            "kind": "heading",
+            "text": "Levels for tomorrow"
+          },
+          {
+            "kind": "text",
+            "text": "Mark the prices you will act on at the open."
+          },
+          {
+            "kind": "heading",
+            "text": "Earnings tomorrow"
+          }
+        ],
+        "propertyCount": 0,
+        "title": "Night-before prep",
+        "tradingStyle": null,
+        "trendingCount": 0,
+        "updatedAt": "2026-10-05T14:30:00+00:00",
+        "usedBy": 0,
+        "version": 1
+      },
+      {
+        "author": "UCT",
+        "authorHandle": null,
+        "category": "research",
+        "contains": [],
+        "description": "Your list today, the names moving and the levels you are waiting for.",
+        "featured": true,
+        "firm": true,
+        "group": "before_open",
+        "helpedByMe": false,
+        "helpfulCount": 0,
+        "id": "8a42b32deeb35693adb359d641789d26",
+        "inYourTemplates": false,
+        "itemType": "style",
+        "layoutPage": null,
+        "listedAt": "2026-10-05T14:30:00+00:00",
+        "mine": false,
+        "preview": [
+          {
+            "kind": "heading",
+            "text": "Your list today"
+          },
+          {
+            "kind": "text",
+            "text": "The names you are watching, and why each one is on the list."
+          },
+          {
+            "kind": "heading",
+            "text": "What's moving"
+          }
+        ],
+        "propertyCount": 0,
+        "title": "Watchlist review",
+        "tradingStyle": null,
+        "trendingCount": 0,
+        "updatedAt": "2026-10-05T14:30:00+00:00",
+        "usedBy": 0,
+        "version": 1
+      },
+      {
+        "author": "UCT",
+        "authorHandle": null,
+        "category": "research",
+        "contains": [],
+        "description": "Your names reporting today and your trading plan around each report.",
+        "featured": true,
+        "firm": true,
+        "group": "before_open",
+        "helpedByMe": false,
+        "helpfulCount": 0,
+        "id": "ae1395056a92513b8a9543eea162fdb0",
+        "inYourTemplates": false,
+        "itemType": "style",
+        "layoutPage": null,
+        "listedAt": "2026-10-05T14:30:00+00:00",
+        "mine": false,
+        "preview": [
+          {
+            "kind": "heading",
+            "text": "Who reports"
+          },
+          {
+            "kind": "text",
+            "text": "Your names reporting today, before the open or after the close."
+          },
+          {
+            "kind": "heading",
+            "text": "The market going in"
+          }
+        ],
+        "propertyCount": 0,
+        "title": "Earnings day prep",
+        "tradingStyle": null,
+        "trendingCount": 0,
+        "updatedAt": "2026-10-05T14:30:00+00:00",
+        "usedBy": 0,
+        "version": 1
+      },
+      {
+        "author": "UCT",
+        "authorHandle": null,
+        "category": "research",
+        "contains": [
+          "Rules I keep"
+        ],
+        "description": "Today's read, your room under your loss limit and your rules.",
+        "featured": true,
+        "firm": true,
+        "group": "before_open",
+        "helpedByMe": false,
+        "helpfulCount": 0,
+        "id": "62a57094c2125c989df68129bea179c3",
+        "inYourTemplates": false,
+        "itemType": "style",
+        "layoutPage": null,
+        "listedAt": "2026-10-05T14:30:00+00:00",
+        "mine": false,
+        "preview": [
+          {
+            "kind": "heading",
+            "text": "Today's read"
+          },
+          {
+            "kind": "text",
+            "text": "What kind of day is it, and how will you trade it?"
+          },
+          {
+            "kind": "heading",
+            "text": "Risk for today"
+          }
+        ],
+        "propertyCount": 0,
+        "title": "Game plan",
+        "tradingStyle": null,
+        "trendingCount": 0,
+        "updatedAt": "2026-10-05T14:30:00+00:00",
+        "usedBy": 0,
+        "version": 1
+      },
+      {
+        "author": "UCT",
+        "authorHandle": null,
+        "category": "research",
+        "contains": [
+          "Pre-market routine"
+        ],
+        "description": "The wire, your names reporting, your levels and your pre-market routine.",
+        "featured": true,
+        "firm": true,
+        "group": "before_open",
+        "helpedByMe": false,
+        "helpfulCount": 0,
+        "id": "0944b94afb8f53f1ac5ed098c4b91681",
+        "inYourTemplates": false,
+        "itemType": "style",
+        "layoutPage": null,
+        "listedAt": "2026-10-05T14:30:00+00:00",
+        "mine": false,
+        "preview": [
+          {
+            "kind": "heading",
+            "text": "The market this morning"
+          },
+          {
+            "kind": "text",
+            "text": "Read the wire and note the tone before you look at a single name."
+          },
+          {
+            "kind": "heading",
+            "text": "Your names today"
+          }
+        ],
+        "propertyCount": 0,
+        "title": "Pre-market prep",
+        "tradingStyle": null,
+        "trendingCount": 0,
+        "updatedAt": "2026-10-05T14:30:00+00:00",
+        "usedBy": 0,
+        "version": 1
+      },
+      {
+        "author": "UCT",
+        "authorHandle": null,
+        "category": "trade_plan",
+        "contains": [
+          "Pre-entry checks"
+        ],
+        "description": "One idea: the setup, entry, stop, target and size.",
+        "featured": true,
+        "firm": true,
+        "group": "during_day",
+        "helpedByMe": false,
+        "helpfulCount": 0,
+        "id": "f1d0cfc5adaf5baebfebf7b23ee5bf48",
+        "inYourTemplates": false,
+        "itemType": "style",
+        "layoutPage": null,
+        "listedAt": "2026-10-05T14:30:00+00:00",
+        "mine": false,
+        "preview": [
+          {
+            "kind": "heading",
+            "text": "The setup"
+          },
+          {
+            "kind": "text",
+            "text": "What you see on the chart, and why this is worth a trade."
+          },
+          {
+            "kind": "heading",
+            "text": "Entry, stop and target"
+          }
+        ],
+        "propertyCount": 0,
+        "title": "Trade plan (one idea)",
+        "tradingStyle": null,
+        "trendingCount": 0,
+        "updatedAt": "2026-10-05T14:30:00+00:00",
+        "usedBy": 0,
+        "version": 1
+      },
+      {
+        "author": "UCT",
+        "authorHandle": null,
+        "category": "research",
+        "contains": [],
+        "description": "Today's P&L, open risk and room left under your daily loss limit.",
+        "featured": true,
+        "firm": true,
+        "group": "during_day",
+        "helpedByMe": false,
+        "helpfulCount": 0,
+        "id": "da3d1aa8bebb59fcb1b34ab71993a1c6",
+        "inYourTemplates": false,
+        "itemType": "style",
+        "layoutPage": null,
+        "listedAt": "2026-10-05T14:30:00+00:00",
+        "mine": false,
+        "preview": [
+          {
+            "kind": "heading",
+            "text": "Where you stand"
+          },
+          {
+            "kind": "text",
+            "text": "Today's P&L and your room under your daily loss limit."
+          },
+          {
+            "kind": "heading",
+            "text": "Open risk"
+          }
+        ],
+        "propertyCount": 0,
+        "title": "Mid-day and risk check",
+        "tradingStyle": null,
+        "trendingCount": 0,
+        "updatedAt": "2026-10-05T14:30:00+00:00",
+        "usedBy": 0,
+        "version": 1
+      },
+      {
+        "author": "UCT",
+        "authorHandle": null,
+        "category": "review",
+        "contains": [
+          "Tilt reset"
+        ],
+        "description": "A short reset after a loss: what happened, your room left and your next step.",
+        "featured": true,
+        "firm": true,
+        "group": "after_close",
+        "helpedByMe": false,
+        "helpfulCount": 0,
+        "id": "b42532f5f37358728d71ba539bbe1c0a",
+        "inYourTemplates": false,
+        "itemType": "style",
+        "layoutPage": null,
+        "listedAt": "2026-10-05T14:30:00+00:00",
+        "mine": false,
+        "preview": [
+          {
+            "kind": "heading",
+            "text": "What happened"
+          },
+          {
+            "kind": "text",
+            "text": "One line on the loss, and how you feel right now."
+          },
+          {
+            "kind": "heading",
+            "text": "Room left"
+          }
+        ],
+        "propertyCount": 0,
+        "title": "Tilt reset",
+        "tradingStyle": null,
+        "trendingCount": 0,
+        "updatedAt": "2026-10-05T14:30:00+00:00",
+        "usedBy": 0,
+        "version": 1
+      },
+      {
+        "author": "UCT",
+        "authorHandle": null,
+        "category": "review",
+        "contains": [],
+        "description": "One mistake, what caused it and the rule that would have stopped it.",
+        "featured": true,
+        "firm": true,
+        "group": "after_close",
+        "helpedByMe": false,
+        "helpfulCount": 0,
+        "id": "80cc2f86fc605304a52d9cac7cfbd6aa",
+        "inYourTemplates": false,
+        "itemType": "style",
+        "layoutPage": null,
+        "listedAt": "2026-10-05T14:30:00+00:00",
+        "mine": false,
+        "preview": [
+          {
+            "kind": "heading",
+            "text": "The mistake"
+          },
+          {
+            "kind": "text",
+            "text": "What you did, and what caused it."
+          },
+          {
+            "kind": "heading",
+            "text": "The rule that would have stopped it"
+          }
+        ],
+        "propertyCount": 0,
+        "title": "Mistake log entry",
+        "tradingStyle": null,
+        "trendingCount": 0,
+        "updatedAt": "2026-10-05T14:30:00+00:00",
+        "usedBy": 0,
+        "version": 1
+      },
+      {
+        "author": "UCT",
+        "authorHandle": null,
+        "category": "review",
+        "contains": [],
+        "description": "One trade: what happened, whether you kept your trading plan, what you'd change.",
+        "featured": true,
+        "firm": true,
+        "group": "after_close",
+        "helpedByMe": false,
+        "helpfulCount": 0,
+        "id": "acd2cb512a0350c09cec4101972c0163",
+        "inYourTemplates": false,
+        "itemType": "style",
+        "layoutPage": null,
+        "listedAt": "2026-10-05T14:30:00+00:00",
+        "mine": false,
+        "preview": [
+          {
+            "kind": "heading",
+            "text": "What happened"
+          },
+          {
+            "kind": "text",
+            "text": "Walk through the trade from entry to exit."
+          },
+          {
+            "kind": "heading",
+            "text": "Did you keep your trading plan?"
+          }
+        ],
+        "propertyCount": 0,
+        "title": "Trade post-mortem",
+        "tradingStyle": null,
+        "trendingCount": 0,
+        "updatedAt": "2026-10-05T14:30:00+00:00",
+        "usedBy": 0,
+        "version": 1
+      },
+      {
+        "author": "UCT",
+        "authorHandle": null,
+        "category": "review",
+        "contains": [
+          "Today's trades"
+        ],
+        "description": "Today's trades, one row each, to tag setup, mistakes and emotions.",
+        "featured": true,
+        "firm": true,
+        "group": "after_close",
+        "helpedByMe": false,
+        "helpfulCount": 0,
+        "id": "83684408fc3b5724966768393816ac8f",
+        "inYourTemplates": false,
+        "itemType": "style",
+        "layoutPage": null,
+        "listedAt": "2026-10-05T14:30:00+00:00",
+        "mine": false,
+        "preview": [
+          {
+            "kind": "heading",
+            "text": "Today's trades"
+          },
+          {
+            "kind": "text",
+            "text": "Tag each trade with its setup, any mistake and how you felt."
+          },
+          {
+            "kind": "heading",
+            "text": "Mistakes"
+          }
+        ],
+        "propertyCount": 0,
+        "title": "Tag today's trades",
+        "tradingStyle": null,
+        "trendingCount": 0,
+        "updatedAt": "2026-10-05T14:30:00+00:00",
+        "usedBy": 0,
+        "version": 1
+      },
+      {
+        "author": "UCT",
+        "authorHandle": null,
+        "category": "review",
+        "contains": [
+          "Recent trades",
+          "Daily P&L bars",
+          "End-of-day review"
+        ],
+        "description": "Today's trades, the rules you kept, your mistakes and tomorrow's list.",
+        "featured": true,
+        "firm": true,
+        "group": "after_close",
+        "helpedByMe": false,
+        "helpfulCount": 0,
+        "id": "82ad8ad1eed75aa8a3c629444c57aefc",
+        "inYourTemplates": false,
+        "itemType": "style",
+        "layoutPage": null,
+        "listedAt": "2026-10-05T14:30:00+00:00",
+        "mine": false,
+        "preview": [
+          {
+            "kind": "heading",
+            "text": "Today's trades"
+          },
+          {
+            "kind": "text",
+            "text": "Every trade you closed today, and how the day added up."
+          },
+          {
+            "kind": "heading",
+            "text": "Rules and mistakes"
+          }
+        ],
+        "propertyCount": 0,
+        "title": "End-of-day recap",
+        "tradingStyle": null,
+        "trendingCount": 0,
+        "updatedAt": "2026-10-05T14:30:00+00:00",
+        "usedBy": 0,
+        "version": 1
+      },
+      {
+        "author": "UCT",
+        "authorHandle": null,
+        "category": "review",
+        "contains": [
+          "Goals progress",
+          "Win rate",
+          "Expectancy"
+        ],
+        "description": "Your goals for the period and the numbers they rest on.",
+        "featured": true,
+        "firm": true,
+        "group": "weekly_monthly",
+        "helpedByMe": false,
+        "helpfulCount": 0,
+        "id": "f668897aeab5525ca84445309089798f",
+        "inYourTemplates": false,
+        "itemType": "style",
+        "layoutPage": null,
+        "listedAt": "2026-10-05T14:30:00+00:00",
+        "mine": false,
+        "preview": [
+          {
+            "kind": "heading",
+            "text": "Your goals"
+          },
+          {
+            "kind": "text",
+            "text": "Your goals for the period, and how far along you are."
+          },
+          {
+            "kind": "heading",
+            "text": "The numbers behind them"
+          }
+        ],
+        "propertyCount": 0,
+        "title": "Goal setting",
+        "tradingStyle": null,
+        "trendingCount": 0,
+        "updatedAt": "2026-10-05T14:30:00+00:00",
+        "usedBy": 0,
+        "version": 1
+      },
+      {
+        "author": "UCT",
+        "authorHandle": null,
+        "category": "review",
+        "contains": [
+          "Equity curve",
+          "Max drawdown",
+          "Best trades",
+          "P&L by weekday"
+        ],
+        "description": "Your year: the curve, the drawdown, the best trades and your weekdays.",
+        "featured": true,
+        "firm": true,
+        "group": "weekly_monthly",
+        "helpedByMe": false,
+        "helpfulCount": 0,
+        "id": "036f0c6f14415656ac6f113ac6b458f1",
+        "inYourTemplates": false,
+        "itemType": "style",
+        "layoutPage": null,
+        "listedAt": "2026-10-05T14:30:00+00:00",
+        "mine": false,
+        "preview": [
+          {
+            "kind": "heading",
+            "text": "The year"
+          },
+          {
+            "kind": "text",
+            "text": "The curve, and the deepest drawdown along the way."
+          },
+          {
+            "kind": "heading",
+            "text": "The best of it"
+          }
+        ],
+        "propertyCount": 0,
+        "title": "Year in review",
+        "tradingStyle": null,
+        "trendingCount": 0,
+        "updatedAt": "2026-10-05T14:30:00+00:00",
+        "usedBy": 0,
+        "version": 1
+      },
+      {
+        "author": "UCT",
+        "authorHandle": null,
+        "category": "review",
+        "contains": [
+          "Expectancy",
+          "P&L by time of day",
+          "P&L by hold time",
+          "R-multiple distribution"
+        ],
+        "description": "Where your edge came from this quarter: expectancy, time of day, hold time and R.",
+        "featured": true,
+        "firm": true,
+        "group": "weekly_monthly",
+        "helpedByMe": false,
+        "helpfulCount": 0,
+        "id": "17c3dca8b68d5d32a4276cdbb0f34fa7",
+        "inYourTemplates": false,
+        "itemType": "style",
+        "layoutPage": null,
+        "listedAt": "2026-10-05T14:30:00+00:00",
+        "mine": false,
+        "preview": [
+          {
+            "kind": "heading",
+            "text": "Your edge this quarter"
+          },
+          {
+            "kind": "text",
+            "text": "What a trade was worth on average, and the R you made."
+          },
+          {
+            "kind": "heading",
+            "text": "When it works"
+          }
+        ],
+        "propertyCount": 0,
+        "title": "Quarterly edge review",
+        "tradingStyle": null,
+        "trendingCount": 0,
+        "updatedAt": "2026-10-05T14:30:00+00:00",
+        "usedBy": 0,
+        "version": 1
+      },
+      {
+        "author": "UCT",
+        "authorHandle": null,
+        "category": "review",
+        "contains": [
+          "Month in review",
+          "Equity curve",
+          "Best trades",
+          "Performance by symbol"
+        ],
+        "description": "This month's results, the curve, the best trades and your symbols.",
+        "featured": true,
+        "firm": true,
+        "group": "weekly_monthly",
+        "helpedByMe": false,
+        "helpfulCount": 0,
+        "id": "40edd44e3f1657e59f5e6b2c745ff4e1",
+        "inYourTemplates": false,
+        "itemType": "style",
+        "layoutPage": null,
+        "listedAt": "2026-10-05T14:30:00+00:00",
+        "mine": false,
+        "preview": [
+          {
+            "kind": "heading",
+            "text": "The month"
+          },
+          {
+            "kind": "text",
+            "text": "This month's results and the shape of the curve."
+          },
+          {
+            "kind": "heading",
+            "text": "What worked"
+          }
+        ],
+        "propertyCount": 0,
+        "title": "Monthly review",
+        "tradingStyle": null,
+        "trendingCount": 0,
+        "updatedAt": "2026-10-05T14:30:00+00:00",
+        "usedBy": 0,
+        "version": 1
+      },
+      {
+        "author": "UCT",
+        "authorHandle": null,
+        "category": "research",
+        "contains": [
+          "Weekly scorecard",
+          "Weekend swing review"
+        ],
+        "description": "Open positions, stops and earnings next week, with your routine for the trading week.",
+        "featured": true,
+        "firm": true,
+        "group": "weekly_monthly",
+        "helpedByMe": false,
+        "helpfulCount": 0,
+        "id": "cb0563652290596cab97fb502d2105dd",
+        "inYourTemplates": false,
+        "itemType": "style",
+        "layoutPage": null,
+        "listedAt": "2026-10-05T14:30:00+00:00",
+        "mine": false,
+        "preview": [
+          {
+            "kind": "heading",
+            "text": "Open positions"
+          },
+          {
+            "kind": "text",
+            "text": "Every open position, its stop and what it can cost you."
+          },
+          {
+            "kind": "heading",
+            "text": "Earnings next week"
+          }
+        ],
+        "propertyCount": 0,
+        "title": "Weekend swing review",
+        "tradingStyle": null,
+        "trendingCount": 0,
+        "updatedAt": "2026-10-05T14:30:00+00:00",
+        "usedBy": 0,
+        "version": 1
+      },
+      {
+        "author": "UCT",
+        "authorHandle": null,
+        "category": "review",
+        "contains": [
+          "Weekly scorecard",
+          "Equity curve",
+          "Weekly review"
+        ],
+        "description": "Your week's numbers, rules kept, recurring mistakes and one thing to change.",
+        "featured": true,
+        "firm": true,
+        "group": "weekly_monthly",
+        "helpedByMe": false,
+        "helpfulCount": 0,
+        "id": "467cd45ca3b354c08d9f1c6d159df9b6",
+        "inYourTemplates": false,
+        "itemType": "style",
+        "layoutPage": null,
+        "listedAt": "2026-10-05T14:30:00+00:00",
+        "mine": false,
+        "preview": [
+          {
+            "kind": "heading",
+            "text": "Your week in numbers"
+          },
+          {
+            "kind": "text",
+            "text": "How the week added up, trade by trade."
+          },
+          {
+            "kind": "heading",
+            "text": "Rules and mistakes"
+          }
+        ],
+        "propertyCount": 0,
+        "title": "Weekly review",
+        "tradingStyle": null,
+        "trendingCount": 0,
+        "updatedAt": "2026-10-05T14:30:00+00:00",
+        "usedBy": 0,
+        "version": 1
+      },
+      {
+        "author": "UCT",
+        "authorHandle": null,
+        "category": "trade_plan",
+        "contains": [],
+        "description": "One options trade: strategy, max loss, IV and expiry.",
+        "featured": true,
+        "firm": true,
+        "group": "playbook",
+        "helpedByMe": false,
+        "helpfulCount": 0,
+        "id": "79a7ef98cb9c58b2becc5acb5731b883",
+        "inYourTemplates": false,
+        "itemType": "style",
+        "layoutPage": null,
+        "listedAt": "2026-10-05T14:30:00+00:00",
+        "mine": false,
+        "preview": [
+          {
+            "kind": "heading",
+            "text": "The trade"
+          },
+          {
+            "kind": "text",
+            "text": "The underlying, the strategy, and why it fits the chart."
+          },
+          {
+            "kind": "heading",
+            "text": "Max loss, IV and expiry"
+          }
+        ],
+        "propertyCount": 0,
+        "title": "Options trade plan",
+        "tradingStyle": null,
+        "trendingCount": 0,
+        "updatedAt": "2026-10-05T14:30:00+00:00",
+        "usedBy": 0,
+        "version": 1
+      },
+      {
+        "author": "UCT",
+        "authorHandle": null,
+        "category": "review",
+        "contains": [
+          "Process vs results",
+          "Rules I keep"
+        ],
+        "description": "Your rules, how often you kept them and what keeping them was worth.",
+        "featured": true,
+        "firm": true,
+        "group": "playbook",
+        "helpedByMe": false,
+        "helpfulCount": 0,
+        "id": "5f642d6ac2895130b96d1ed440366910",
+        "inYourTemplates": false,
+        "itemType": "style",
+        "layoutPage": null,
+        "listedAt": "2026-10-05T14:30:00+00:00",
+        "mine": false,
+        "preview": [
+          {
+            "kind": "heading",
+            "text": "Your rules"
+          },
+          {
+            "kind": "text",
+            "text": "The rules you trade by."
+          },
+          {
+            "kind": "heading",
+            "text": "How often you kept them"
+          }
+        ],
+        "propertyCount": 0,
+        "title": "Rules review",
+        "tradingStyle": null,
+        "trendingCount": 0,
+        "updatedAt": "2026-10-05T14:30:00+00:00",
+        "usedBy": 0,
+        "version": 1
+      },
+      {
+        "author": "UCT",
+        "authorHandle": null,
+        "category": "research",
+        "contains": [],
+        "description": "A new setup: what it is, its rules and how you'll test it.",
+        "featured": true,
+        "firm": true,
+        "group": "playbook",
+        "helpedByMe": false,
+        "helpfulCount": 0,
+        "id": "7ef536774bba582481092eb01845a0bc",
+        "inYourTemplates": false,
+        "itemType": "style",
+        "layoutPage": null,
+        "listedAt": "2026-10-05T14:30:00+00:00",
+        "mine": false,
+        "preview": [
+          {
+            "kind": "heading",
+            "text": "The idea"
+          },
+          {
+            "kind": "text",
+            "text": "What the setup is, with a chart of a clean example."
+          },
+          {
+            "kind": "heading",
+            "text": "Its rules"
+          }
+        ],
+        "propertyCount": 0,
+        "title": "New setup idea",
+        "tradingStyle": null,
+        "trendingCount": 0,
+        "updatedAt": "2026-10-05T14:30:00+00:00",
+        "usedBy": 0,
+        "version": 1
+      },
+      {
+        "author": "UCT",
+        "authorHandle": null,
+        "category": "research",
+        "contains": [
+          "Your stats on this setup",
+          "This setup by time of day"
+        ],
+        "description": "Your own stats on one setup: trades, win rate, expectancy and when it works.",
+        "featured": true,
+        "firm": true,
+        "group": "playbook",
+        "helpedByMe": false,
+        "helpfulCount": 0,
+        "id": "d1013055fac355cd93cd7741fe67bacb",
+        "inYourTemplates": false,
+        "itemType": "style",
+        "layoutPage": null,
+        "listedAt": "2026-10-05T14:30:00+00:00",
+        "mine": false,
+        "preview": [
+          {
+            "kind": "heading",
+            "text": "Your numbers on this setup"
+          },
+          {
+            "kind": "text",
+            "text": "Every trade you took on it over the last twelve months."
+          },
+          {
+            "kind": "heading",
+            "text": "When it works"
+          }
+        ],
+        "propertyCount": 0,
+        "title": "Setup study",
+        "tradingStyle": null,
+        "trendingCount": 0,
+        "updatedAt": "2026-10-05T14:30:00+00:00",
+        "usedBy": 0,
+        "version": 1
+      },
+      {
+        "author": "UCT",
+        "authorHandle": null,
+        "category": "research",
+        "contains": [
+          "Sleep",
+          "Check-in mood",
+          "Check-in focus"
+        ],
+        "description": "Sleep, mood and focus before the session, and how they compare with your P&L.",
+        "featured": true,
+        "firm": true,
+        "group": "mindset",
+        "helpedByMe": false,
+        "helpfulCount": 0,
+        "id": "042d2dbf67c159dfb1968d0d719239f4",
+        "inYourTemplates": false,
+        "itemType": "style",
+        "layoutPage": null,
+        "listedAt": "2026-10-05T14:30:00+00:00",
+        "mine": false,
+        "preview": [
+          {
+            "kind": "heading",
+            "text": "How you feel"
+          },
+          {
+            "kind": "text",
+            "text": "Sleep, mood and focus before the session."
+          },
+          {
+            "kind": "heading",
+            "text": "How it shows in your P&L"
+          }
+        ],
+        "propertyCount": 0,
+        "title": "Pre-session check-in",
+        "tradingStyle": null,
+        "trendingCount": 0,
+        "updatedAt": "2026-10-05T14:30:00+00:00",
+        "usedBy": 0,
+        "version": 1
+      },
+      {
+        "author": "UCT",
+        "authorHandle": null,
+        "category": "review",
+        "contains": [
+          "30-day consistency",
+          "Daily P&L bars"
+        ],
+        "description": "Thirty trading days of the same routine, and how those days compare with your P&L.",
+        "featured": true,
+        "firm": true,
+        "group": "challenges",
+        "helpedByMe": false,
+        "helpfulCount": 0,
+        "id": "b1d8cb21fbd05801b8eb277e36e3dd00",
+        "inYourTemplates": false,
+        "itemType": "style",
+        "layoutPage": null,
+        "listedAt": "2026-10-05T14:30:00+00:00",
+        "mine": false,
+        "preview": [
+          {
+            "kind": "heading",
+            "text": "Today's routine"
+          },
+          {
+            "kind": "text",
+            "text": "Tick the routine you are keeping for thirty trading days."
+          },
+          {
+            "kind": "heading",
+            "text": "Clean trading"
+          }
+        ],
+        "propertyCount": 0,
+        "title": "30-day consistency challenge",
+        "tradingStyle": null,
+        "trendingCount": 0,
+        "updatedAt": "2026-10-05T14:30:00+00:00",
+        "usedBy": 0,
+        "version": 1
+      },
+      {
+        "author": "UCT",
+        "authorHandle": null,
+        "category": "research",
+        "contains": [
+          "Equity curve",
+          "Rules I keep"
+        ],
+        "description": "Room left under your daily loss and max drawdown limits, and today's risk.",
+        "featured": true,
+        "firm": true,
+        "group": "challenges",
+        "helpedByMe": false,
+        "helpfulCount": 0,
+        "id": "b4d05bac8d6356d888476392756760ca",
+        "inYourTemplates": false,
+        "itemType": "style",
+        "layoutPage": null,
+        "listedAt": "2026-10-05T14:30:00+00:00",
+        "mine": false,
+        "preview": [
+          {
+            "kind": "heading",
+            "text": "Your challenge limits"
+          },
+          {
+            "kind": "text",
+            "text": "Room left under your daily loss and max drawdown limits."
+          },
+          {
+            "kind": "heading",
+            "text": "Today's risk"
+          }
+        ],
+        "propertyCount": 0,
+        "title": "Prop-firm challenge tracker",
+        "tradingStyle": null,
+        "trendingCount": 0,
+        "updatedAt": "2026-10-05T14:30:00+00:00",
+        "usedBy": 0,
+        "version": 1
+      },
+      {
+        "author": "UCT",
+        "authorHandle": null,
+        "category": "research",
+        "contains": [
+          "Sleep",
+          "Energy",
+          "Exercise",
+          "Followed my trading plan"
+        ],
+        "description": "Sleep, energy, exercise and whether you kept your trading plan, once a day.",
+        "featured": true,
+        "firm": true,
+        "group": "habits",
+        "helpedByMe": false,
+        "helpfulCount": 0,
+        "id": "2b0f28c7b71f50b5b63d2d91c15ab3f7",
+        "inYourTemplates": false,
+        "itemType": "style",
+        "layoutPage": null,
+        "listedAt": "2026-10-05T14:30:00+00:00",
+        "mine": false,
+        "preview": [
+          {
+            "kind": "heading",
+            "text": "Body"
+          },
+          {
+            "kind": "text",
+            "text": "Sleep, energy and exercise, once a day."
+          },
+          {
+            "kind": "heading",
+            "text": "Your trading plan"
+          }
+        ],
+        "propertyCount": 0,
+        "title": "Trading-day tracker set",
+        "tradingStyle": null,
+        "trendingCount": 0,
+        "updatedAt": "2026-10-05T14:30:00+00:00",
+        "usedBy": 0,
+        "version": 1
+      },
+      {
+        "author": "UCT",
+        "authorHandle": null,
+        "category": "research",
+        "contains": [
+          "Morning routine",
+          "Sleep"
+        ],
+        "description": "Your morning routine, ticked every trading day.",
+        "featured": true,
+        "firm": true,
+        "group": "habits",
+        "helpedByMe": false,
+        "helpfulCount": 0,
+        "id": "8a6c51f8aa765eb38f3901f9c597df3b",
+        "inYourTemplates": false,
+        "itemType": "style",
+        "layoutPage": null,
+        "listedAt": "2026-10-05T14:30:00+00:00",
+        "mine": false,
+        "preview": [
+          {
+            "kind": "heading",
+            "text": "Morning routine"
+          },
+          {
+            "kind": "text",
+            "text": "Tick each step, every trading day."
+          },
+          {
+            "kind": "heading",
+            "text": "Sleep"
+          }
+        ],
+        "propertyCount": 0,
+        "title": "Morning routine",
+        "tradingStyle": null,
+        "trendingCount": 0,
+        "updatedAt": "2026-10-05T14:30:00+00:00",
+        "usedBy": 0,
+        "version": 1
+      }
+    ]
+  }
+}

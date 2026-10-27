@@ -19,6 +19,7 @@ import { GALLERY_KEY, getGalleryTemplate } from './templateGallery'
 import { STYLES_URL, previewJournalStyle } from './journalStyles'
 import { styleLibraryEnabled } from './styleLibraryFlag'
 import { NOTE_KIND_PROPERTY } from './noteKinds'
+import { widgetsWaveOn } from './notebookWidgetsFlags'
 
 export const ITEM_TYPES = Object.freeze([
   { key: 'outline', label: 'Outlines' },
@@ -27,6 +28,11 @@ export const ITEM_TYPES = Object.freeze([
   // server's ITEM_TYPES and this one stay one fact; the library's type chips read LISTED_ITEM_TYPES below.
   { key: 'example_note', label: 'Example notes' },
   { key: 'page_layout', label: 'Page layouts' },
+  // Notebook widgets wave 11 (Task 11.7): a member's shared widget, routine and tracker. The server keeps them
+  // absent from every gallery read while the library switch or wave 11 is off.
+  { key: 'widget_definition', label: 'Widgets' },
+  { key: 'routine', label: 'Routines' },
+  { key: 'tracker', label: 'Trackers' },
 ])
 
 /** P3b: the server's EXAMPLE_ITEM (tests/test_example_notes.py reads this line and holds the two equal). */
@@ -35,6 +41,19 @@ export const EXAMPLE_NOTE_TYPE = 'example_note'
 /** The item types a member can list or filter by: every type but the example note (the server's
  *  LISTED_ITEM_TYPES). The library's type chips and its initial type read this, never ITEM_TYPES. */
 export const LISTED_ITEM_TYPES = Object.freeze(ITEM_TYPES.filter((t) => t.key !== EXAMPLE_NOTE_TYPE))
+
+/** Notebook widgets wave 11 (Task 11.7, ruling W11-R17): the server's TOOL_ITEM_TYPES (tests/test_style_library.py
+ *  parses this line and holds the two equal). The server answers them as absent while wave 11 is off, so the
+ *  library offers no chip for them then either. */
+export const TOOL_ITEM_TYPES = Object.freeze(['widget_definition', 'routine', 'tracker'])
+
+/** The type chips the library offers right now: every listed type, minus `page_layout` while layout sharing is off
+ *  (the list answer's `capabilities.layoutSharing`) and minus the tool types while wave 11 is off. ONE rule, read by
+ *  the chip row AND the initial type, so a door can never open on a chip the row does not offer. */
+export function offeredItemTypes({ layoutSharing = false, toolsOn = widgetsWaveOn(11) } = {}) {
+  return LISTED_ITEM_TYPES.filter((t) => (t.key !== 'page_layout' || layoutSharing)
+    && (toolsOn || !TOOL_ITEM_TYPES.includes(t.key)))
+}
 
 export const TRADING_STYLES = Object.freeze([
   { key: 'swing', label: 'Swing' },
@@ -68,14 +87,23 @@ async function call(url, init = {}) {
   })
   if (!res.ok) {
     let detail = ''
+    let code = ''
     try {
       const body = await res.json()
-      detail = typeof body?.detail === 'string' ? body.detail : ''
+      // Wave 11 (Task 11.18): a refusal the server explains as `{code, message}` (W9-R14: the code is the error
+      // class's) carries both, so a caller can act on the code; a plain-string `detail` reads exactly as before.
+      const d = body?.detail
+      if (typeof d === 'string') detail = d
+      else if (d !== null && typeof d === 'object') {
+        detail = typeof d.message === 'string' ? d.message.trim() : ''
+        code = typeof d.code === 'string' ? d.code : ''
+      }
     } catch {
       detail = ''
     }
     const err = new Error(detail || `request failed (${res.status})`)
     err.status = res.status
+    if (code) err.code = code
     throw err
   }
   return res.json()

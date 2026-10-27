@@ -1013,6 +1013,18 @@
   .fontSizeSelect {
     min-height: var(--tap-min, 44px);
   }
+  /* D-W11-002: the header's Folder select measured 88x31 at 820 (wave 11 campaign dry run).
+     Height only, like the two above; the header row already holds 44 px .chromeBtn controls,
+     so it does not grow. At <=640 the select is not displayed (it lives in More). */
+  .headerSelect {
+    min-height: var(--tap-min, 44px);
+  }
+  /* D-W11-003: the note title input measured 378x34 at 820 and 390 (wave 11 campaign dry run).
+     A floor, not a restyle: a title that already draws taller keeps its size. It sits in the
+     note column, not the header, so the header row is untouched. */
+  .titleInput {
+    min-height: var(--tap-min, 44px);
+  }
   /* Wave B: the new Favorites star reuses .chromeBtn (Share / Ask this
      note already render here too, un-sized for touch before this pass --
      fixed for all three since they share one class, not just the new one). */

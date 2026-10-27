@@ -1,0 +1,355 @@
+{
+ "viewport": "1200",
+ "step": "W11.12",
+ "title": "[W11OFF, then ON] Flag off and back",
+ "mode": "ON+W11OFF+ON2",
+ "checks": [
+  {
+   "what": "ON (before the flip): opening note w112_note sends no note PUT",
+   "ok": false,
+   "read": "[{\"m\": \"PUT\", \"u\": \"http://127.0.0.1:8151/api/j2/notes/a0bbe4570a9a44f7843ab45c35542991\", \"s\": 200}]"
+  },
+  {
+   "what": "ON (before the flip): opening note share_note sends no note PUT",
+   "ok": true,
+   "read": "[]"
+  },
+  {
+   "what": "ON (before the flip): opening note a_tplnote sends no note PUT",
+   "ok": true,
+   "read": "[]"
+  },
+  {
+   "what": "snapshot of the W11.2-W11.7 notes and the style's slots taken under ON",
+   "ok": true,
+   "read": "[\"built_a\", \"built_b\", \"routine_a\", \"tracker_a\"]"
+  },
+  {
+   "what": "off: /api/auth/me notebook_widgets_w11_enabled is False",
+   "ok": true,
+   "read": "False"
+  },
+  {
+   "what": "off: GET /template-gallery/library answers 404",
+   "ok": true,
+   "read": "404"
+  },
+  {
+   "what": "off: the Template library section is gone",
+   "ok": true,
+   "read": "False"
+  },
+  {
+   "what": "off: the three new item types are gone in the gallery",
+   "ok": true,
+   "read": "0 type chips"
+  },
+  {
+   "what": "W11OFF: My tools > Templates reads 'Templates are coming soon.'",
+   "ok": true,
+   "read": "My tools\n×\nWidgets\nRoutines\nTrackers\nTemplates\n\nTemplates are coming soon."
+  },
+  {
+   "what": "off: note w112_note unchanged: same block count and kinds as before the flip (plan W11.12)",
+   "ok": true,
+   "read": "[15, 15]"
+  },
+  {
+   "what": "off: note w112_note renders the same text as before the flip (plan W11.12)",
+   "ok": true,
+   "read": "[]"
+  },
+  {
+   "what": "off: opening note w112_note sends no note PUT (the flip never rewrites a member's note)",
+   "ok": true,
+   "read": "[]"
+  },
+  {
+   "what": "off: note share_note unchanged: same block count and kinds as before the flip (plan W11.12)",
+   "ok": true,
+   "read": "[10, 10]"
+  },
+  {
+   "what": "off: note share_note renders the same text as before the flip (plan W11.12)",
+   "ok": true,
+   "read": "[]"
+  },
+  {
+   "what": "off: opening note share_note sends no note PUT (the flip never rewrites a member's note)",
+   "ok": true,
+   "read": "[]"
+  },
+  {
+   "what": "off: note a_tplnote unchanged: same block count and kinds as before the flip (plan W11.12)",
+   "ok": true,
+   "read": "[9, 9]"
+  },
+  {
+   "what": "off: note a_tplnote renders the same text as before the flip (plan W11.12)",
+   "ok": true,
+   "read": "[]"
+  },
+  {
+   "what": "off: opening note a_tplnote sends no note PUT (the flip never rewrites a member's note)",
+   "ok": true,
+   "read": "[]"
+  },
+  {
+   "what": "W11OFF: a style holding slots opens in the style editor without them",
+   "ok": true,
+   "read": "[]"
+  },
+  {
+   "what": "on: /api/auth/me notebook_widgets_w11_enabled is True",
+   "ok": true,
+   "read": "True"
+  },
+  {
+   "what": "on: GET /template-gallery/library answers 200",
+   "ok": true,
+   "read": "200"
+  },
+  {
+   "what": "on: the Template library section is back",
+   "ok": true,
+   "read": "True"
+  },
+  {
+   "what": "on: the three new item types are back in the gallery",
+   "ok": true,
+   "read": "3 type chips"
+  },
+  {
+   "what": "ON again: My tools > Templates lists the templates",
+   "ok": true,
+   "read": "My tools\n×\nWidgets\nRoutines\nTrackers\nTemplates\n\nActive\nArchived\nRecently deleted\n2 TEMPLATES\nPre-market prep\nDaily prep\n·\nUsed in 1 note\n·\nEdited today\n·\nBased on UCT's Pre-market prep\nOpen\nShare sour"
+  },
+  {
+   "what": "on: note w112_note unchanged: same block count and kinds as before the flip (plan W11.12)",
+   "ok": true,
+   "read": "[15, 15]"
+  },
+  {
+   "what": "on: note w112_note renders the same text as before the flip (plan W11.12)",
+   "ok": true,
+   "read": "[]"
+  },
+  {
+   "what": "on: opening note w112_note sends no note PUT (the flip never rewrites a member's note)",
+   "ok": true,
+   "read": "[]"
+  },
+  {
+   "what": "on: note share_note unchanged: same block count and kinds as before the flip (plan W11.12)",
+   "ok": true,
+   "read": "[10, 10]"
+  },
+  {
+   "what": "on: note share_note renders the same text as before the flip (plan W11.12)",
+   "ok": true,
+   "read": "[]"
+  },
+  {
+   "what": "on: opening note share_note sends no note PUT (the flip never rewrites a member's note)",
+   "ok": true,
+   "read": "[]"
+  },
+  {
+   "what": "on: note a_tplnote unchanged: same block count and kinds as before the flip (plan W11.12)",
+   "ok": true,
+   "read": "[9, 9]"
+  },
+  {
+   "what": "on: note a_tplnote renders the same text as before the flip (plan W11.12)",
+   "ok": true,
+   "read": "[]"
+  },
+  {
+   "what": "on: opening note a_tplnote sends no note PUT (the flip never rewrites a member's note)",
+   "ok": true,
+   "read": "[]"
+  },
+  {
+   "what": "ON again: the style editor shows the slots",
+   "ok": true,
+   "read": "[\"Widget: Setup win rate 1200\", \"Widget: Daily P&L bars\", \"Routine: Prep routine 1200\\n\\u00b7 For the day of the note\", \"Tracker: Sleep 1200\\n\\u00b7 For the day of the note\"]"
+  },
+  {
+   "what": "ON again: the slots are all still there after the W11OFF save (update_style keeps them)",
+   "ok": true,
+   "read": "[[\"built_a\", \"built_b\", \"routine_a\", \"tracker_a\"], [\"built_a\", \"built_b\", \"routine_a\", \"tracker_a\"]]"
+  }
+ ],
+ "rendered": [
+  {
+   "what": "ON snapshot before the flip",
+   "text": "{\"w112_note\": [\"heading\", \"paragraph\", \"widgetEmbed\", \"widgetEmbed\", \"heading\", \"paragraph\", \"widgetEmbed\", \"widgetEmbed\", \"heading\", \"paragraph\", \"widgetEmbed\", \"heading\", \"paragraph\", \"widgetEmbed\", \"paragraph\"], \"share_note\": [\"paragraph\", \"paragraph\", \"widgetEmbed\", \"paragraph\", \"widgetEmbed\", \"paragraph\", \"widgetEmbed\", \"paragraph\", \"widgetEmbed\", \"paragraph\"], \"a_tplnote\": [\"paragraph\", \"widgetEmbed\", \"paragraph\", \"widgetEmbed\", \"paragraph\", \"widgetEmbed\", \"paragraph\", \"widgetEmbed\", \"paragraph\"], \"style_blocks\": [\"built_a\", \"built_b\", \"routine_a\", \"tracker_a\"]}"
+  },
+  {
+   "what": "off: /api/auth/me w11 / library status",
+   "text": "False / 404"
+  },
+  {
+   "what": "off: note w112_note rendered",
+   "text": "The market this morning\n\nRead the wire and note the tone before you look at a single name.\n\nMorning wire and exposure\nRemove\n\nInvented copy so the Morning Wire renders addressable segments for gesture testing.\n\nExposure 72 (Yellow)\n\nWire of Jan 2, 2026\n\nCaptured Oct 27, 2026, 5:57 AM ET\n\nCapture again\n‹\nMore\nMARKET CONTEXT\nMarket phase\n—\nUCT Exposure\n72\nBreadth score\n62\nDistribution days\n0\n% above 50-day\n61%\n% above 200-day\n55%\nPower trend\n—\nRegime\nYellow\nUCT Exposure Rating, as of 2026-01-02\nSPY\nNo SPY quote could be read just now.\nQQQ\nNo QQQ quote could be read just now.\nVIX\nVIX unavailable\n"
+  },
+  {
+   "what": "off: note w112_note writes while opening it / stored body same / updatedAt",
+   "text": "{\"writes\": [], \"body_same\": true, \"updatedAt\": [\"2026-10-27T10:54:29.008700+00:00\", \"2026-10-27T10:54:29.008700+00:00\"]}"
+  },
+  {
+   "what": "off: note share_note rendered",
+   "text": "\n\n\n\n\n\n‹\nMore\nSetup win rate 1200\nOnly you\nas of Oct 27, 2026, 5:59 AM ET\nShow on shared pages\nSee it now\nChange\n\nAll my accounts · Last 90 days\n\nNo closed trades in this range. Widen the range, or log a trade. Log a trade\n\nYour closed trades in the Journal.\n\n\n\n\n‹\nMore\nDaily P&L bars\nOnly you\nas of Oct 27, 2026, 5:59 AM ET\nShow on shared pages\nSee it now\nChange\n\nAll my accounts · Last 30 days\n\n2026-09-28\n-$270.00\n2026-09-29\n+$420.25\n2026-09-30\n+$49.20\n2026-10-01\n-$1,061.30\n2026-10-02\n-$2,402.75\n2026-10-05\n-$104.30\n2026-10-06\n+$962.25\n2026-10-07\n-$636.00\n2026-10-08\n-$315.50\n2026-10-09\n-$679.50\n2"
+  },
+  {
+   "what": "off: note share_note writes while opening it / stored body same / updatedAt",
+   "text": "{\"writes\": [], \"body_same\": true, \"updatedAt\": [\"2026-10-27T10:15:07.662684+00:00\", \"2026-10-27T10:15:07.662684+00:00\"]}"
+  },
+  {
+   "what": "off: note a_tplnote rendered",
+   "text": "\n\n\n‹\nMore\nSetup win rate 1200\nOnly you\nas of Oct 27, 2026, 6:06 AM ET\nShow on shared pages\nSee it now\nChange\n\nAll my accounts · Last 90 days\n\nNo closed trades in this range. Widen the range, or log a trade. Log a trade\n\nYour closed trades in the Journal.\n\n\n\n\n‹\nMore\nDaily P&L bars\nOnly you\nas of Oct 27, 2026, 6:06 AM ET\nShow on shared pages\nSee it now\nChange\n\nAll my accounts · Last 30 days\n\n2026-09-28\n-$270.00\n2026-09-29\n+$420.25\n2026-09-30\n+$49.20\n2026-10-01\n-$1,061.30\n2026-10-02\n-$2,402.75\n2026-10-05\n-$104.30\n2026-10-06\n+$962.25\n2026-10-07\n-$636.00\n2026-10-08\n-$315.50\n2026-10-09\n-$679.50\n2026"
+  },
+  {
+   "what": "off: note a_tplnote writes while opening it / stored body same / updatedAt",
+   "text": "{\"writes\": [], \"body_same\": true, \"updatedAt\": [\"2026-10-27T10:06:42.997997+00:00\", \"2026-10-27T10:06:42.997997+00:00\"]}"
+  },
+  {
+   "what": "off: style editor blocks",
+   "text": "[]"
+  },
+  {
+   "what": "off: stored style blocks after save",
+   "text": "[]"
+  },
+  {
+   "what": "on: /api/auth/me w11 / library status",
+   "text": "True / 200"
+  },
+  {
+   "what": "on: note w112_note rendered",
+   "text": "The market this morning\n\nRead the wire and note the tone before you look at a single name.\n\nMorning wire and exposure\nRemove\n\nInvented copy so the Morning Wire renders addressable segments for gesture testing.\n\nExposure 72 (Yellow)\n\nWire of Jan 2, 2026\n\nCaptured Oct 27, 2026, 5:57 AM ET\n\nCapture again\n‹\nMore\nMARKET CONTEXT\nMarket phase\n—\nUCT Exposure\n72\nBreadth score\n62\nDistribution days\n0\n% above 50-day\n61%\n% above 200-day\n55%\nPower trend\n—\nRegime\nYellow\nUCT Exposure Rating, as of 2026-01-02\nSPY\nNo SPY quote could be read just now.\nQQQ\nNo QQQ quote could be read just now.\nVIX\nVIX unavailable\n"
+  },
+  {
+   "what": "on: note w112_note writes while opening it / stored body same / updatedAt",
+   "text": "{\"writes\": [], \"body_same\": true, \"updatedAt\": [\"2026-10-27T10:54:29.008700+00:00\", \"2026-10-27T10:54:29.008700+00:00\"]}"
+  },
+  {
+   "what": "on: note share_note rendered",
+   "text": "\n\n\n\n\n\n‹\nMore\nSetup win rate 1200\nOnly you\nas of Oct 27, 2026, 5:59 AM ET\nShow on shared pages\nSee it now\nChange\n\nAll my accounts · Last 90 days\n\nNo closed trades in this range. Widen the range, or log a trade. Log a trade\n\nYour closed trades in the Journal.\n\n\n\n\n‹\nMore\nDaily P&L bars\nOnly you\nas of Oct 27, 2026, 5:59 AM ET\nShow on shared pages\nSee it now\nChange\n\nAll my accounts · Last 30 days\n\n2026-09-28\n-$270.00\n2026-09-29\n+$420.25\n2026-09-30\n+$49.20\n2026-10-01\n-$1,061.30\n2026-10-02\n-$2,402.75\n2026-10-05\n-$104.30\n2026-10-06\n+$962.25\n2026-10-07\n-$636.00\n2026-10-08\n-$315.50\n2026-10-09\n-$679.50\n2"
+  },
+  {
+   "what": "on: note share_note writes while opening it / stored body same / updatedAt",
+   "text": "{\"writes\": [], \"body_same\": true, \"updatedAt\": [\"2026-10-27T10:15:07.662684+00:00\", \"2026-10-27T10:15:07.662684+00:00\"]}"
+  },
+  {
+   "what": "on: note a_tplnote rendered",
+   "text": "\n\n\n‹\nMore\nSetup win rate 1200\nOnly you\nas of Oct 27, 2026, 6:06 AM ET\nShow on shared pages\nSee it now\nChange\n\nAll my accounts · Last 90 days\n\nNo closed trades in this range. Widen the range, or log a trade. Log a trade\n\nYour closed trades in the Journal.\n\n\n\n\n‹\nMore\nDaily P&L bars\nOnly you\nas of Oct 27, 2026, 6:06 AM ET\nShow on shared pages\nSee it now\nChange\n\nAll my accounts · Last 30 days\n\n2026-09-28\n-$270.00\n2026-09-29\n+$420.25\n2026-09-30\n+$49.20\n2026-10-01\n-$1,061.30\n2026-10-02\n-$2,402.75\n2026-10-05\n-$104.30\n2026-10-06\n+$962.25\n2026-10-07\n-$636.00\n2026-10-08\n-$315.50\n2026-10-09\n-$679.50\n2026"
+  },
+  {
+   "what": "on: note a_tplnote writes while opening it / stored body same / updatedAt",
+   "text": "{\"writes\": [], \"body_same\": true, \"updatedAt\": [\"2026-10-27T10:06:42.997997+00:00\", \"2026-10-27T10:06:42.997997+00:00\"]}"
+  },
+  {
+   "what": "on: style editor blocks",
+   "text": "[\"Widget: Setup win rate 1200\", \"Widget: Daily P&L bars\", \"Routine: Prep routine 1200\\n\\u00b7 For the day of the note\", \"Tracker: Sleep 1200\\n\\u00b7 For the day of the note\"]"
+  },
+  {
+   "what": "on: stored style blocks after save",
+   "text": "[\"built_a\", \"built_b\", \"routine_a\", \"tracker_a\"]"
+  }
+ ],
+ "verdict": "FAIL",
+ "notes": [
+  "Under W11OFF the API answer may hide slot blocks (_hidden_slots_at); the ON-again phase reads them back."
+ ],
+ "events": {
+  "A-snap": [],
+  "A-off": [],
+  "A-on": []
+ },
+ "metrics": {
+  "mytools-off": {
+   "overflow": {
+    "vw": 1200,
+    "docScrollWidth": 1200,
+    "bodyScrollWidth": 1200,
+    "inner": [
+     [
+      1140,
+      1140
+     ],
+     [
+      1092,
+      1092
+     ],
+     [
+      826,
+      826
+     ]
+    ],
+    "horizontal": false,
+    "offenders": []
+   },
+   "raw_block": [],
+   "axe_sheet": {
+    "version": "4.13.0",
+    "scope": "[data-walk-scope=\"1\"]",
+    "violations": []
+   },
+   "axe_page": {
+    "version": "4.13.0",
+    "scope": "body",
+    "violations": []
+   }
+  },
+  "mytools-on": {
+   "overflow": {
+    "vw": 1200,
+    "docScrollWidth": 1200,
+    "bodyScrollWidth": 1200,
+    "inner": [
+     [
+      1140,
+      1140
+     ],
+     [
+      1092,
+      1092
+     ],
+     [
+      826,
+      826
+     ]
+    ],
+    "horizontal": false,
+    "offenders": []
+   },
+   "raw_block": [],
+   "axe_sheet": {
+    "version": "4.13.0",
+    "scope": "[data-walk-scope=\"1\"]",
+    "violations": []
+   },
+   "axe_page": {
+    "version": "4.13.0",
+    "scope": "body",
+    "violations": []
+   }
+  }
+ },
+ "screenshots": [
+  "1200/W11_12-picker-off.png",
+  "1200/W11_12-mytools-off.png",
+  "1200/W11_12-note-off.png",
+  "1200/W11_12-style-editor-off.png",
+  "1200/W11_12-picker-on.png",
+  "1200/W11_12-mytools-on.png",
+  "1200/W11_12-note-on.png",
+  "1200/W11_12-style-editor-on.png"
+ ],
+ "requests_note_put": 0,
+ "started": "2026-10-27T06:10:28",
+ "findings": [],
+ "partial": false,
+ "finished": "2026-10-27T06:12:24"
+}

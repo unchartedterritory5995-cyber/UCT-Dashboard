@@ -1,0 +1,248 @@
+{
+ "viewport": "1200",
+ "step": "W11.1",
+ "title": "Template library -> Pre-market prep -> Preview",
+ "mode": "ON",
+ "checks": [
+  {
+   "what": "section heading reads 'Template library'",
+   "ok": true,
+   "read": "Template library"
+  },
+  {
+   "what": "groups appear in the server/LIBRARY_GROUPS order",
+   "ok": true,
+   "read": "[\"night_before\", \"before_open\", \"during_day\", \"after_close\", \"weekly_monthly\", \"playbook\", \"mindset\", \"challenges\", \"habits\"]"
+  },
+  {
+   "what": "every card: Template chip, author, For:, Contains: (when it holds any), Used by/New (never 0), Updated <Mon D>, fills line",
+   "ok": true,
+   "read": "[]"
+  },
+  {
+   "what": "cards read 'Updated Oct 27' (listed today ET)",
+   "ok": true,
+   "read": "Updated Oct 27"
+  },
+  {
+   "what": "the list makes NO preview-mine request",
+   "ok": true,
+   "read": "[]"
+  },
+  {
+   "what": "no zeros on the picker",
+   "ok": true,
+   "read": "[]"
+  },
+  {
+   "what": "the detail makes exactly ONE preview-mine",
+   "ok": true,
+   "read": "[{\"m\": \"POST\", \"u\": \"http://127.0.0.1:8151/api/j2/template-gallery/0944b94afb8f53f1ac5ed098c4b91681/preview-mine\", \"s\": 200}]"
+  },
+  {
+   "what": "no card is labelled 'Sample data' (A has trades)",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "the routine slot shows its name, items and bind words ('For Tue Oct 27')",
+   "ok": true,
+   "read": "For Tue Oct 27"
+  },
+  {
+   "what": "no day state in the detail (no tick control)",
+   "ok": true,
+   "read": "0"
+  },
+  {
+   "what": "credit line 'Based on UCT's Pre-market prep'",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "the outline shows headings and prompts, no raw {{block:...}} placeholder",
+   "ok": true,
+   "read": "[]"
+  }
+ ],
+ "rendered": [
+  {
+   "what": "section heading",
+   "text": "Template library"
+  },
+  {
+   "what": "groups in order",
+   "text": "The night before | Before the open | During the day | After the close | Weekly / monthly | Playbook | Mindset | Challenges | Habits"
+  },
+  {
+   "what": "first card",
+   "text": "Night-before prep\nTemplate\n\nUCT\n\nFor: Tomorrow's watchlist and levels, set the night before.\n\nContains: Night-before prep\n\nNew · Updated Oct 27\n\nFills in with your own data when you make a note.\n\nPreview"
+  },
+  {
+   "what": "cards",
+   "text": "27 cards; server lists 27"
+  },
+  {
+   "what": "detail sheet",
+   "text": "Pre-market prep\n×\n\nBased on UCT's Pre-market prep\n\nThe market this morning\n\nRead the wire and note the tone before you look at a single name.\n\nMorning wire and exposure\n\nMarket context\n\nYour names today\n\nWhich names on your list are in play, and which of them report?\n\nMy watchlist today\n\nMy names reporting\n\nLevels\n\nThe prices that would make you act today.\n\nKey levels from my plans\n\nPre-market routine\n\nFinish every step before the open.\n\nRoutine: Pre-market routine\n\nPreview with your data\n\nPre-market routine\n\nRead the morning wire\nCheck today's economic calendar\nReview open positions and stops\nMark key levels on my watchlist\nSet my max loss for today\n\nFor Tue Oct 27\n\nClose\nUse this template"
+  }
+ ],
+ "verdict": "PASS",
+ "notes": [],
+ "events": {
+  "A": []
+ },
+ "metrics": {
+  "picker": {
+   "overflow": {
+    "vw": 1200,
+    "docScrollWidth": 1200,
+    "bodyScrollWidth": 1200,
+    "inner": [
+     [
+      1140,
+      1140
+     ],
+     [
+      1092,
+      1092
+     ],
+     [
+      826,
+      826
+     ]
+    ],
+    "horizontal": false,
+    "offenders": [
+     {
+      "tag": "LI",
+      "cls": "_libraryCard_1hb5o_436",
+      "text": "Pre-market prep\nTemplate\n\nUCT\n\nFor: The ",
+      "right": 1241
+     },
+     {
+      "tag": "H5",
+      "cls": "_previewTitle_1hb5o_363",
+      "text": "Pre-market prep",
+      "right": 1228
+     },
+     {
+      "tag": "DIV",
+      "cls": "_facts_1hb5o_383",
+      "text": "Template\n\nUCT\n\nFor: The wire, your names",
+      "right": 1228
+     },
+     {
+      "tag": "P",
+      "cls": "_factLine_1hb5o_390",
+      "text": "UCT",
+      "right": 1228
+     },
+     {
+      "tag": "P",
+      "cls": "_factLine_1hb5o_390",
+      "text": "For: The wire, your names reporting, you",
+      "right": 1228
+     },
+     {
+      "tag": "P",
+      "cls": "_factLine_1hb5o_390",
+      "text": "Contains: Pre-market routine",
+      "right": 1228
+     }
+    ]
+   },
+   "raw_block": [],
+   "axe_sheet": {
+    "version": "4.13.0",
+    "scope": "[data-walk-scope=\"1\"]",
+    "violations": []
+   },
+   "axe_page": {
+    "version": "4.13.0",
+    "scope": "body",
+    "violations": []
+   }
+  },
+  "detail": {
+   "overflow": {
+    "vw": 1200,
+    "docScrollWidth": 1200,
+    "bodyScrollWidth": 1200,
+    "inner": [
+     [
+      1140,
+      1140
+     ],
+     [
+      1092,
+      1092
+     ],
+     [
+      826,
+      826
+     ]
+    ],
+    "horizontal": false,
+    "offenders": [
+     {
+      "tag": "LI",
+      "cls": "_libraryCard_1hb5o_436",
+      "text": "Tag today's trades\nTemplate\n\nUCT\n\nFor: T",
+      "right": 1241
+     },
+     {
+      "tag": "H5",
+      "cls": "_previewTitle_1hb5o_363",
+      "text": "Tag today's trades",
+      "right": 1228
+     },
+     {
+      "tag": "DIV",
+      "cls": "_facts_1hb5o_383",
+      "text": "Template\n\nUCT\n\nFor: Today's trades, one ",
+      "right": 1228
+     },
+     {
+      "tag": "P",
+      "cls": "_factLine_1hb5o_390",
+      "text": "UCT",
+      "right": 1228
+     },
+     {
+      "tag": "P",
+      "cls": "_factLine_1hb5o_390",
+      "text": "For: Today's trades, one row each, to ta",
+      "right": 1228
+     },
+     {
+      "tag": "P",
+      "cls": "_factLine_1hb5o_390",
+      "text": "Contains: Today's trades",
+      "right": 1228
+     }
+    ]
+   },
+   "raw_block": [],
+   "axe_sheet": {
+    "version": "4.13.0",
+    "scope": "[data-walk-scope=\"1\"]",
+    "violations": []
+   },
+   "axe_page": {
+    "version": "4.13.0",
+    "scope": "body",
+    "violations": []
+   }
+  }
+ },
+ "screenshots": [
+  "1200/W11_1-picker.png",
+  "1200/W11_1-detail.png"
+ ],
+ "requests_note_put": 0,
+ "started": "2026-10-27T04:57:33",
+ "findings": [],
+ "partial": false,
+ "finished": "2026-10-27T04:57:42"
+}

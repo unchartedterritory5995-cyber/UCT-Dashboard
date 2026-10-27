@@ -10,6 +10,10 @@
 
 .panel {
   width: 100%;
+  /* The ONE opacity a preview is drawn at while it is not the current answer: loading (aria-busy) or a kept last
+     result (.dimmed). 0.9 is the lowest at which every ink the views draw holds 4.5:1 in dark, oled and light
+     (D-W11-007, F-DEF-1 r1 I-2); rail: builderCss.test.js reads this value for both selectors. */
+  --preview-dim-opacity: 0.9;
 }
 @media (min-width: 641px) {
   .panel {
@@ -677,11 +681,23 @@
   transition: opacity var(--duration-fast) var(--ease-out);
 }
 .previewView[aria-busy='true'] {
-  opacity: 0.85;
+  opacity: var(--preview-dim-opacity);
 }
-/* The last good result under a failure: visibly older, still readable (rail: builderCss.test.js, 4.5:1). */
+/* The last good result under a failure or while stale: still readable (rail: builderCss.test.js, 4.5:1).
+   D-W11-007: 0.75 took --success-ink to 4.42:1 (axe, wave 11 campaign dry run), and every ink the
+   views draw except the bright text with it; no ink token survives 0.75 in all three themes. The
+   opacity is `--preview-dim-opacity` on `.panel` (0.9, the lowest at which every derived ink holds
+   4.5:1), shared with the busy state above, so the dimming is slight: the cue that
+   the result is the older one is the TEXT, `.previewLast` below ("Showing the last result.", shown
+   beside the preview and leading the phone summary bar; W11-R50, WCAG 1.4.1). */
 .dimmed {
-  opacity: 0.75;
+  opacity: var(--preview-dim-opacity);
+}
+/* Beside the dimmed preview, never inside it, so it is drawn at full strength. */
+.previewLast {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
 }
 .previewTitle {
   margin: 0;

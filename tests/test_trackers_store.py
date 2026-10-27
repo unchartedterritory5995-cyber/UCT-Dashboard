@@ -554,3 +554,51 @@ def test_summary_is_as_of_the_latest_requested_day(T):
                        now=at("2026-10-16"))["trackers"]["checkin:mood"]
     assert mood["recent"] == [{"day": "2026-10-14", "value": 2.0}] and mood["n"] == 1
     assert mood["latest"] == {"day": "2026-10-14", "value": 2.0}
+
+
+# ── Task 11.6 (wave 11): template-made trackers ─────────────────────────────────────────────────
+
+def test_create_records_source_gallery_id(T):
+    gid = uuid.uuid4().hex
+    t = make(T, source_template_key=f"gal:{gid}:t1", source_gallery_id=gid, now=NOW)
+    plain = make(T, name="By hand", now=NOW)
+    c = _conn()
+    try:
+        rows = {row[0]: row[1] for row in c.execute("SELECT id, source_gallery_id FROM j2_trackers WHERE user_id = ?",
+                                                    (A,))}
+    finally:
+        c.close()
+    assert rows == {t["id"]: gid, plain["id"]: None}
+    assert make(T, source_template_key=f"gal:{gid}:t1", now=NOW)["id"] == t["id"]
+
+
+def test_from_template_setting_round_trips_and_is_80_max(T):
+    t = make(T, settings={"fromTemplate": "Sleep and focus"}, now=NOW)
+    assert t["settings"] == {"days": "trading", "fromTemplate": "Sleep and focus"}
+    assert T.get(A, t["id"])["settings"]["fromTemplate"] == "Sleep and focus"
+    edited = T.update(A, t["id"], if_match=t["etag"], settings={"days": "any"}, now=NOW)
+    assert edited["settings"] == {"days": "any", "fromTemplate": "Sleep and focus"}
+    assert make(T, name="Plain", now=NOW)["settings"] == {"days": "trading"}
+    assert T.FROM_TEMPLATE_MAX == 80
+    assert make(T, name="Edge", settings={"fromTemplate": "y" * 80}, now=NOW)["settings"]["fromTemplate"] == "y" * 80
+    for bad, sentence in (("y" * 81, T.S_FROM_TEMPLATE_LONG), ([], T.S_BAD_SETTINGS)):
+        with pytest.raises(T.TrackerError) as e:
+            make(T, name="Bad", settings={"fromTemplate": bad}, now=NOW)
+        assert e.value.sentence == sentence
+
+
+def test_resolve_many_is_one_owned_read(T):
+    mine = make(T, name="Mine", now=NOW)
+    theirs = make(T, B, name="Theirs", now=NOW)
+    got = T.resolve_many(A, [mine["id"], theirs["id"], "checkin:mood"])
+    assert got == {mine["id"]: {"name": "Mine", "kind": "duration", "archived": False}, theirs["id"]: None,
+                   "checkin:mood": {"name": "Check-in mood", "kind": "scale", "archived": False}}
+    assert [c["id"] for c in T.match_candidates(A)] == [mine["id"]]
+
+
+def test_duplicate_drops_from_template(T):
+    """W11-R29: a copy is the member's own, not a template's."""
+    t = make(T, settings={"fromTemplate": "Sleep and focus"}, source_template_key="tpl:sleep", now=NOW)
+    copy = T.duplicate(A, t["id"], now=NOW)
+    assert copy["settings"] == {"days": "trading"} and copy["sourceTemplateKey"] is None
+    assert T.get(A, t["id"])["settings"]["fromTemplate"] == "Sleep and focus"

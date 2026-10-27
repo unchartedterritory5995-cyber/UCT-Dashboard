@@ -1,0 +1,168 @@
+{
+ "viewport": "1200",
+ "step": "W11.3",
+ "title": "Use Pre-market prep again",
+ "mode": "ON",
+ "checks": [
+  {
+   "what": "no routine question this time (the choice is remembered for that template)",
+   "ok": true,
+   "read": "0 question(s): []"
+  },
+  {
+   "what": "D1 W11.3: after Use no sheet is left open over the new note",
+   "ok": true,
+   "read": "[]"
+  },
+  {
+   "what": "D1 W11.3: focus is the new note's title",
+   "ok": true,
+   "read": "{\"tag\": \"INPUT\", \"placeholder\": \"Title\", \"aria\": \"Note title\", \"cls\": \"_titleInput_wfbxs_459\", \"value\": \"\", \"inertAncestor\": false, \"rootInert\": false, \"inDialog\": false, \"visible\": true}"
+  },
+  {
+   "what": "D1 W11.3: the focused title has no inert ancestor (and #root is not inert)",
+   "ok": true,
+   "read": "{\"tag\": \"INPUT\", \"placeholder\": \"Title\", \"aria\": \"Note title\", \"cls\": \"_titleInput_wfbxs_459\", \"value\": \"\", \"inertAncestor\": false, \"rootInert\": false, \"inDialog\": false, \"visible\": true}"
+  },
+  {
+   "what": "exactly ONE routine made from the template (unique on user, source_template_key)",
+   "ok": true,
+   "read": "[\"Pre-market routine\"]"
+  },
+  {
+   "what": "My tools > Routines lists ONE 'Pre-market routine' reading 'From template: Pre-market prep'",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "the second note was deleted (Trash) through the note's Delete",
+   "ok": true,
+   "read": "d03928ebf1bd4e1f8afb0d336ebc4dcf"
+  },
+  {
+   "what": "deleting the note did NOT delete the routine",
+   "ok": true,
+   "read": "\"Pre-market routine\""
+  }
+ ],
+ "rendered": [
+  {
+   "what": "adopt sheet",
+   "text": "Make it yours\n×\n\nBased on UCT's Pre-market prep\n\nPreview with your data\n\nPre-market routine\n\nRead the morning wire\nCheck today's economic calendar\nReview open positions and stops\nMark key levels on my watchlist\nSet my max loss for today\n\nFor Tue Oct 27\n\nCancel\nUse"
+  },
+  {
+   "what": "second use: radios",
+   "text": "[]"
+  },
+  {
+   "what": "D1 W11.3: document.activeElement after Use",
+   "text": "{\"tag\": \"INPUT\", \"placeholder\": \"Title\", \"aria\": \"Note title\", \"cls\": \"_titleInput_wfbxs_459\", \"value\": \"\", \"inertAncestor\": false, \"rootInert\": false, \"inDialog\": false, \"visible\": true}"
+  },
+  {
+   "what": "My tools > Routines",
+   "text": "My tools\n×\nWidgets\nRoutines\nTrackers\nTemplates\n\nActive\nArchived\nRecently deleted\nNew routine\n2 ROUTINES\nPre-market routine\nEvery trading day\n·\nUsed in 2 notes\n·\nEdited today\n·\nFrom template: Pre-market prep\nOpen\nMorning routine\nEvery trading day\n·\nNot in any note\n·\nEdited Oct 2\nOpen"
+  }
+ ],
+ "verdict": "PASS",
+ "notes": [],
+ "events": {
+  "A": [
+   {
+    "http": 404,
+    "method": "GET",
+    "url": "http://127.0.0.1:8171/api/j2/notes/d03928ebf1bd4e1f8afb0d336ebc4dcf"
+   },
+   {
+    "http": 404,
+    "method": "GET",
+    "url": "http://127.0.0.1:8171/api/j2/notes/d03928ebf1bd4e1f8afb0d336ebc4dcf/documents"
+   },
+   {
+    "http": 404,
+    "method": "GET",
+    "url": "http://127.0.0.1:8171/api/j2/notes/d03928ebf1bd4e1f8afb0d336ebc4dcf/thesis-summary"
+   },
+   {
+    "http": 404,
+    "method": "GET",
+    "url": "http://127.0.0.1:8171/api/j2/notes/d03928ebf1bd4e1f8afb0d336ebc4dcf/properties"
+   },
+   {
+    "http": 404,
+    "method": "GET",
+    "url": "http://127.0.0.1:8171/api/j2/notes/d03928ebf1bd4e1f8afb0d336ebc4dcf/trade-ref/resolve"
+   }
+  ]
+ },
+ "metrics": {
+  "mytools": {
+   "overflow": {
+    "vw": 1200,
+    "docScrollWidth": 1200,
+    "bodyScrollWidth": 1200,
+    "inner": [
+     [
+      1140,
+      1140
+     ],
+     [
+      1092,
+      1092
+     ],
+     [
+      826,
+      826
+     ]
+    ],
+    "horizontal": false,
+    "offenders": []
+   },
+   "raw_block": [],
+   "axe_sheet": {
+    "version": "4.13.0",
+    "scope": "[data-walk-scope=\"1\"]",
+    "violations": []
+   },
+   "axe_page": {
+    "version": "4.13.0",
+    "scope": "body",
+    "violations": []
+   }
+  }
+ },
+ "screenshots": [
+  "1200/W11_3-adopt.png",
+  "1200/W11_3-mytools.png"
+ ],
+ "requests_note_put": 0,
+ "started": "2026-10-27T09:41:45",
+ "findings": [
+  {
+   "kind": "event",
+   "page": "A",
+   "detail": "{\"http\": 404, \"method\": \"GET\", \"url\": \"http://127.0.0.1:8171/api/j2/notes/d03928ebf1bd4e1f8afb0d336ebc4dcf\"}"
+  },
+  {
+   "kind": "event",
+   "page": "A",
+   "detail": "{\"http\": 404, \"method\": \"GET\", \"url\": \"http://127.0.0.1:8171/api/j2/notes/d03928ebf1bd4e1f8afb0d336ebc4dcf/documents\"}"
+  },
+  {
+   "kind": "event",
+   "page": "A",
+   "detail": "{\"http\": 404, \"method\": \"GET\", \"url\": \"http://127.0.0.1:8171/api/j2/notes/d03928ebf1bd4e1f8afb0d336ebc4dcf/thesis-summary\"}"
+  },
+  {
+   "kind": "event",
+   "page": "A",
+   "detail": "{\"http\": 404, \"method\": \"GET\", \"url\": \"http://127.0.0.1:8171/api/j2/notes/d03928ebf1bd4e1f8afb0d336ebc4dcf/properties\"}"
+  },
+  {
+   "kind": "event",
+   "page": "A",
+   "detail": "{\"http\": 404, \"method\": \"GET\", \"url\": \"http://127.0.0.1:8171/api/j2/notes/d03928ebf1bd4e1f8afb0d336ebc4dcf/trade-ref/resolve\"}"
+  }
+ ],
+ "partial": false,
+ "finished": "2026-10-27T09:42:33"
+}

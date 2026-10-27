@@ -1,0 +1,105 @@
+[mode] walk-d2 pid=10548 instant=2026-11-11T10:00:00-05:00 port=8161 log=C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\5effcdc4-7e7d-42f4-a3df-67b99c63791b\scratchpad\sbx\logs\walk-d2.out.log;C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\5effcdc4-7e7d-42f4-a3df-67b99c63791b\scratchpad\sbx\logs\walk-d2.err.log
+walk start
+    [06:29:51] saw identity
+    [06:29:51] ok  identity data_dir = the walk data dir
+    [06:29:51] ok  identity pid = the recorded PID 10548
+    [06:29:51] ok  identity clock_shift.instant = the mode's instant 2026-11-11T10:00:00-05:00
+    [06:29:51] ok  GET /api/auth/me as A answers 200
+    [06:29:51] ok  A is paid-equivalent (paid_equiv true, plan pro, comped)
+    [06:29:51] ok  notebook_widgets_w8_enabled is True
+    [06:29:51] ok  notebook_widgets_w9_enabled is True
+    [06:29:51] ok  notebook_widgets_w10_enabled is True
+    [06:29:51] ok  notebook_widgets_w11_enabled is True
+    [06:29:51] ok  notebook_style_library_enabled is true
+    [06:29:51] ok  GET /api/j2/template-gallery/library answers 200
+    [06:29:51] ok  boot log: '[startup] notebook routine reminders registered' present
+    [06:29:51] ok  boot log: no 'SHARED-ROOT WRITE BLOCKED'
+    [06:29:51] saw boot log lines
+[1200 W11.0] PASS  checks 91/91  findings 0
+    [06:29:51] saw identity
+    [06:29:51] ok  identity data_dir = the walk data dir
+    [06:29:51] ok  identity pid = the recorded PID 10548
+    [06:29:51] ok  identity clock_shift.instant = the mode's instant 2026-11-11T10:00:00-05:00
+    [06:29:51] ok  GET /api/auth/me as A answers 200
+    [06:29:51] ok  A is paid-equivalent (paid_equiv true, plan pro, comped)
+    [06:29:51] ok  notebook_widgets_w8_enabled is True
+    [06:29:51] ok  notebook_widgets_w9_enabled is True
+    [06:29:51] ok  notebook_widgets_w10_enabled is True
+    [06:29:51] ok  notebook_widgets_w11_enabled is True
+    [06:29:51] ok  notebook_style_library_enabled is true
+    [06:29:51] ok  GET /api/j2/template-gallery/library answers 200
+    [06:29:51] ok  boot log: '[startup] notebook routine reminders registered' present
+    [06:29:51] ok  boot log: no 'SHARED-ROOT WRITE BLOCKED'
+    [06:29:51] saw boot log lines
+[820 W11.0] PASS  checks 91/91  findings 0
+    [06:29:51] saw identity
+    [06:29:51] ok  identity data_dir = the walk data dir
+    [06:29:51] ok  identity pid = the recorded PID 10548
+    [06:29:51] ok  identity clock_shift.instant = the mode's instant 2026-11-11T10:00:00-05:00
+    [06:29:51] ok  GET /api/auth/me as A answers 200
+    [06:29:51] ok  A is paid-equivalent (paid_equiv true, plan pro, comped)
+    [06:29:51] ok  notebook_widgets_w8_enabled is True
+    [06:29:51] ok  notebook_widgets_w9_enabled is True
+    [06:29:51] ok  notebook_widgets_w10_enabled is True
+    [06:29:51] ok  notebook_widgets_w11_enabled is True
+    [06:29:51] ok  notebook_style_library_enabled is true
+    [06:29:52] ok  GET /api/j2/template-gallery/library answers 200
+    [06:29:52] ok  boot log: '[startup] notebook routine reminders registered' present
+    [06:29:52] ok  boot log: no 'SHARED-ROOT WRITE BLOCKED'
+    [06:29:52] saw boot log lines
+[390 W11.0] PASS  checks 91/91  findings 0
+[mode] walk-d2 pid=10548 instant=2026-11-11T10:00:00-05:00 port=8161 log=C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\5effcdc4-7e7d-42f4-a3df-67b99c63791b\scratchpad\sbx\logs\walk-d2.out.log;C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\5effcdc4-7e7d-42f4-a3df-67b99c63791b\scratchpad\sbx\logs\walk-d2.err.log
+walk start
+    [06:29:54] saw B-D2: server shifted now / browser clock
+    [06:29:54] saw D2: server now
+    [06:30:10] ok  Use Share source 1200: after Use the new note is in front (no sheet left open over it)
+    [06:30:10] ok  D2: B used the W11.7 template (a note was made)
+    [06:30:12] saw D2: the ET days B has used the template on (W11.7's Use counts)
+    [06:30:12] saw D2: helpful line
+    [06:30:12] ok  D2 (3rd day): the note shows ONE line 'Was Share source 1200 helpful?'
+    [06:30:12] ok  D2 (3rd day): the line offers Yes, Not really and a Dismiss icon
+    [06:30:15] ok  D2 (3rd day): after Yes the line hides at once
+    [06:30:15] ok  D2 (3rd day): the listing's helpful count rises by exactly one
+    [06:30:19] ok  D2 (3rd day): after reload the line does not return
+    [06:30:19] ok  D2 (3rd day): after reload the count is still +1
+    [06:30:19] ok  D2 (3rd day): no note PUT across mount and answer
+[1200 W11.9] PASS  checks 14/14  findings 1
+   ! event B-D1 {"http": 409, "method": "POST", "url": "http://127.0.0.1:8161/api/j2/template-gallery/04cdc13c731a4500be4fb16505dc94e2/helpful"}
+    [06:30:19] saw B-D2: server shifted now / browser clock
+    [06:30:19] saw D2: server now
+    [06:30:35] ok  Use Share source 820: after Use the new note is in front (no sheet left open over it)
+    [06:30:35] ok  D2: B used the W11.7 template (a note was made)
+    [06:30:38] saw D2: the ET days B has used the template on (W11.7's Use counts)
+    [06:30:38] saw D2: helpful line
+    [06:30:38] ok  D2 (3rd day): the note shows ONE line 'Was Share source 820 helpful?'
+    [06:30:38] ok  D2 (3rd day): the line offers Yes, Not really and a Dismiss icon
+    [06:30:41] ok  D2 (3rd day): after Yes the line hides at once
+    [06:30:41] ok  D2 (3rd day): the listing's helpful count rises by exactly one
+    [06:30:44] ok  D2 (3rd day): after reload the line does not return
+    [06:30:44] ok  D2 (3rd day): after reload the count is still +1
+    [06:30:44] ok  D2 (3rd day): no note PUT across mount and answer
+[820 W11.9] FAIL  checks 14/14  findings 7
+   ! tap gallery-D1 {"label": "Use Sleep 820", "tag": "BUTTON", "cls": "_btn_6z3ba_441 _primary_6z3ba_493", "w": 41, "h": 44, "x": 82, "y": 346, "offscreen": false, "covered": false}
+   ! tap gallery-D1 {"label": "Use Prep routine 820", "tag": "BUTTON", "cls": "_btn_6z3ba_441 _primary_6z3ba_493", "w": 41, "h": 44, "x": 429, "y": 346, "offscreen": false, "covered": false}
+   ! tap gallery-D1 {"label": "Use Setup win rate 820", "tag": "BUTTON", "cls": "_btn_6z3ba_441 _primary_6z3ba_493", "w": 41, "h": 44, "x": 82, "y": 593, "offscreen": false, "covered": false}
+   ! tap gallery-D1 {"label": "Use Sleep 1200", "tag": "BUTTON", "cls": "_btn_6z3ba_441 _primary_6z3ba_493", "w": 41, "h": 44, "x": 82, "y": 869, "offscreen": false, "covered": false}
+   ! tap gallery-D1 {"label": "Use Prep routine 1200", "tag": "BUTTON", "cls": "_btn_6z3ba_441 _primary_6z3ba_493", "w": 41, "h": 44, "x": 429, "y": 869, "offscreen": false, "covered": false}
+   ! tap gallery-D1 {"label": "Use Setup win rate 1200", "tag": "BUTTON", "cls": "_btn_6z3ba_441 _primary_6z3ba_493", "w": 41, "h": 44, "x": 82, "y": 1096, "offscreen": false, "covered": false}
+   ! event B-D1 {"http": 409, "method": "POST", "url": "http://127.0.0.1:8161/api/j2/template-gallery/c654b0d6e28e44c081a7c76a231143b5/helpful"}
+    [06:30:44] saw B-D2: server shifted now / browser clock
+    [06:30:44] saw D2: server now
+    [06:31:01] ok  Use Share source 390: after Use the new note is in front (no sheet left open over it)
+    [06:31:01] ok  D2: B used the W11.7 template (a note was made)
+    [06:31:03] saw D2: the ET days B has used the template on (W11.7's Use counts)
+    [06:31:03] saw D2: helpful line
+    [06:31:03] ok  D2 (3rd day): the note shows ONE line 'Was Share source 390 helpful?'
+    [06:31:03] ok  D2 (3rd day): the line offers Yes, Not really and a Dismiss icon
+    [06:31:06] ok  D2 (3rd day): after Yes the line hides at once
+    [06:31:06] ok  D2 (3rd day): the listing's helpful count rises by exactly one
+    [06:31:09] ok  D2 (3rd day): after reload the line does not return
+    [06:31:09] ok  D2 (3rd day): after reload the count is still +1
+    [06:31:09] ok  D2 (3rd day): no note PUT across mount and answer
+[390 W11.9] FAIL  checks 14/14  findings 3
+   ! tap gallery-D1 {"label": "Use Setup win rate 390", "tag": "BUTTON", "cls": "_btn_6z3ba_441 _primary_6z3ba_493", "w": 41, "h": 44, "x": 32, "y": 156, "offscreen": false, "covered": false}
+   ! tap gallery-D1 {"label": "Use Sleep 820", "tag": "BUTTON", "cls": "_btn_6z3ba_441 _primary_6z3ba_493", "w": 41, "h": 44, "x": 32, "y": 673, "offscreen": false, "covered": false}
+   ! event B-D1 {"http": 409, "method": "POST", "url": "http://127.0.0.1:8161/api/j2/template-gallery/2760d2474f4446f392c4114622c09b3d/helpful"}

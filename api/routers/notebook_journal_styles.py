@@ -13,6 +13,13 @@ fixtures `journal-styles.*` and `note-kinds.*`, tools/notebook_contract_fixtures
   DELETE /api/j2/journal-styles/{style_id}              soft delete (Undo = restore)
   POST   /api/j2/journal-styles/{style_id}/restore      undo a delete
   POST   /api/j2/journal-styles/{style_id}/default      make it its kind's default
+  Wave 11 (Task 11.12, W11-R10; each 404 while NOTEBOOK_WIDGETS_W11_ENABLED is off, read per request):
+  GET    /api/j2/journal-styles?view=live|archived|deleted   My tools' Templates tab lists (no `view`: today's answer)
+  POST   /api/j2/journal-styles/{style_id}/archive      hide it from the picker (notes keep their stamp)
+  POST   /api/j2/journal-styles/{style_id}/unarchive    back to the picker
+  POST   /api/j2/journal-styles/{style_id}/duplicate    "<name> copy"
+  POST   /api/j2/journal-styles/{style_id}/delete       {typedName}: only from Archived (the soft delete)
+  GET    /api/j2/journal-styles/{style_id}/used-in      the member's live notes made from it
   GET    /api/j2/trader-blocks/market-context           the readings a market context stamp freezes (P2a)
   PUT    /api/j2/trader-blocks/positions/{position_id}/pre-entry  Log Trade's ticks for an open position (P2a)
   POST   /api/j2/trader-blocks/price-stamp              one price fact row for a stamped line ({noteId,
@@ -55,12 +62,12 @@ The rules (the template gallery router's):
 """
 from __future__ import annotations
 
-import json
 import os
 import re
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import JSONResponse
 
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
 from api.services import daily_counters
@@ -70,6 +77,7 @@ from api.services.journal_two import note_kinds as nk
 from api.services.journal_two import notes as notes_service
 from api.services.journal_two import public_note_payload as public
 from api.services.journal_two import starter_packs
+from api.services.journal_two import widget_request_body as wbody
 
 MAX_BODY_BYTES = 512_000
 TOO_LARGE_SENTENCE = "Request too large"
@@ -104,7 +112,8 @@ def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
     """Defined HERE, per router, with its own sentence (tests/test_user_definitions_auth.py reads
     the sentence as a literal in the HTTPException call)."""
     if not is_paid_user(user):
-        raise HTTPException(status_code=402, detail="Journal styles require a paid plan")
+        raise HTTPException(status_code=402, detail="Journal styles require a paid plan",
+                            headers={"Cache-Control": "no-store"})
     return user
 
 
@@ -113,23 +122,28 @@ async def paid_body(request: Request, _user: dict = Depends(require_paid)) -> di
     if not raw.strip():
         return {}
     try:
-        data = json.loads(raw)
+        data = wbody.loads_plain_body(raw)      # F-ALIAS-1R A5: a body too deep to parse is its 400, never a 500
     except ValueError:
-        raise HTTPException(status_code=422, detail="Send a JSON object")
+        raise HTTPException(status_code=422, detail="Send a JSON object", headers={"Cache-Control": "no-store"})
     if not isinstance(data, dict):
-        raise HTTPException(status_code=422, detail="Send a JSON object")
+        raise HTTPException(status_code=422, detail="Send a JSON object", headers={"Cache-Control": "no-store"})
+    if wbody.unsavable_text(data):
+        # Task 11.12 fix round 2 (I-A): the ONE refusal of text that cannot be saved (a lone surrogate), in this
+        # router's plain-sentence shape; it was a 500 on every write here (`POST /journal-styles {name}` included).
+        raise HTTPException(status_code=400, detail=wbody.bad_character_sentence(),
+                            headers={"Cache-Control": "no-store"})
     return data
 
 
 def _bad(e: Exception) -> HTTPException:
     if isinstance(e, nk.KindInUse):
-        return HTTPException(status_code=409, detail=str(e))
-    return HTTPException(status_code=400, detail=str(e))
+        return HTTPException(status_code=409, detail=str(e), headers={"Cache-Control": "no-store"})
+    return HTTPException(status_code=400, detail=str(e), headers={"Cache-Control": "no-store"})
 
 
 def _found(value: Any) -> Any:
     if value is None:
-        raise HTTPException(status_code=404, detail=NOT_FOUND)
+        raise HTTPException(status_code=404, detail=NOT_FOUND, headers={"Cache-Control": "no-store"})
     return value
 
 
@@ -142,10 +156,62 @@ def _optional_text(body: dict, key: str) -> str | None:
 
 # ── styles ───────────────────────────────────────────────────────────────────────────
 
-@router.get("/journal-styles")
-def list_styles_endpoint(user: dict = Depends(require_paid)) -> dict[str, Any]:
-    return {"kinds": nk.list_kinds(user["id"]), "styles": [js.served_style(s) for s in js.list_styles(user["id"])],
-            "blockKinds": [k["id"] for k in js.BLOCK_KINDS]}
+# ── wave 11 (Task 11.12): My tools' Templates tab ────────────────────────────────────────────
+#
+# Each wave 11 door below is gated by `_require_w11` (a route dependency, resolved before the plan check and the
+# body): while wave 11 is off every caller gets the router's one 404, read per request. Every 200 and every refusal
+# here is `Cache-Control: no-store`; a refusal keeps this router's plain-sentence `detail` (its `_bad`), which the
+# client reads as `{code: 'invalid', message}`.
+W11_VIEWS = ("live", "archived", "deleted")
+NO_STORE = {"Cache-Control": "no-store"}
+
+
+def _w11_on() -> bool:
+    from api.services.journal_two.notebook_widgets import notebook_widgets_wave_on
+    return notebook_widgets_wave_on(11)
+
+
+def _require_w11() -> None:
+    if not _w11_on():
+        raise HTTPException(status_code=404, detail=NOT_FOUND, headers=dict(NO_STORE))
+
+
+def _ok(content: Any) -> JSONResponse:
+    return JSONResponse(content=content, headers=dict(NO_STORE))
+
+
+def _w11_store(fn) -> Any:
+    """Run one Templates-tab store call: a refusal is 400 with its sentence, a None (not the member's) the 404."""
+    try:
+        out = fn()
+    except js.StyleValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e), headers=dict(NO_STORE))
+    if out is None:
+        raise HTTPException(status_code=404, detail=NOT_FOUND, headers=dict(NO_STORE))
+    return out
+
+
+def _view_gate(view: str | None = None) -> None:
+    """m-1: `?view=` is a wave 11 door, so its gate runs BEFORE the plan check (a route dependency): with wave 11
+    off it is the router's 404 whatever the plan. No `view` is today's route and is never gated here."""
+    if view is not None:
+        _require_w11()
+
+
+@router.get("/journal-styles", dependencies=[Depends(_view_gate)])
+def list_styles_endpoint(view: str | None = None, user: dict = Depends(require_paid)) -> Any:
+    """No `view`: today's answer exactly (`{kinds, styles, blockKinds}`). Wave 11 (Task 11.12): `?view=live|archived|
+    deleted` is My tools' Templates tab, `{kinds, styles}` with each of the member's own styles carrying `usedIn`,
+    `credit`, `fromLibrary`, `updateAvailable`, `sourceGalleryId`, `archivedAt` and `deletedAt`; 404 while wave 11
+    is off, 400 for any other view."""
+    if view is not None:
+        if view not in W11_VIEWS:
+            raise HTTPException(status_code=400, detail="Choose live, archived or deleted.", headers=dict(NO_STORE))
+    rows = js.list_styles(user["id"]) if view is None else _w11_store(lambda: js.list_styles(user["id"], view=view))
+    out = {"kinds": nk.list_kinds(user["id"]), "styles": js.served_styles(rows, user["id"])}   # the ONE list read
+    if view is None:
+        return {**out, "blockKinds": [k["id"] for k in js.BLOCK_KINDS]}
+    return _ok(out)
 
 
 @router.post("/journal-styles")
@@ -159,8 +225,8 @@ def create_style_endpoint(body: dict = Depends(paid_body), user: dict = Depends(
                                           left_out=left)
             # `leftOut` (review M-4, additive): each widget that did not become a block, so the confirmation
             # names it rather than dropping it silently.
-            return {"style": js.served_style(_found(s)), "leftOut": left}
-        return {"style": js.served_style(js.create_style(user["id"], body))}
+            return {"style": js.served_style(_found(s), user["id"]), "leftOut": left}
+        return {"style": js.served_style(js.create_style(user["id"], body), user["id"])}
     except (js.StyleValidationError, nk.KindValidationError) as e:
         raise _bad(e)
 
@@ -222,16 +288,48 @@ def install_starter_pack_endpoint(pack: str, user: dict = Depends(require_paid))
     return out
 
 
+@router.post("/journal-styles/{style_id}/archive", dependencies=[Depends(_require_w11)])
+def archive_style_endpoint(style_id: str, user: dict = Depends(require_paid)) -> Any:
+    """`{style}`: hidden from the picker, the kind section and the default choice (W11-R10)."""
+    return _ok({"style": js.served_style(_w11_store(lambda: js.archive_style(user["id"], style_id)), user["id"])})
+
+
+@router.post("/journal-styles/{style_id}/unarchive", dependencies=[Depends(_require_w11)])
+def unarchive_style_endpoint(style_id: str, user: dict = Depends(require_paid)) -> Any:
+    """`{style}`: back in the picker (not the default again)."""
+    return _ok({"style": js.served_style(_w11_store(lambda: js.unarchive_style(user["id"], style_id)), user["id"])})
+
+
+@router.post("/journal-styles/{style_id}/duplicate", dependencies=[Depends(_require_w11)])
+def duplicate_style_endpoint(style_id: str, user: dict = Depends(require_paid)) -> Any:
+    """`{style}`: "<name> copy" (a library copy keeps its provenance and credit, W11-R36 c4)."""
+    return _ok({"style": js.served_style(_w11_store(lambda: js.duplicate_style(user["id"], style_id)), user["id"])})
+
+
+@router.post("/journal-styles/{style_id}/delete", dependencies=[Depends(_require_w11)])
+def delete_typed_endpoint(style_id: str, body: dict = Depends(paid_body), user: dict = Depends(require_paid)) -> Any:
+    """`{typedName}` -> `{style}`: "Delete permanently", only from Archived with the name typed exactly; the
+    existing SOFT delete (Recently deleted lists it for 30 days)."""
+    return _ok({"style": js.served_style(_w11_store(
+        lambda: js.delete_style_typed(user["id"], style_id, body.get("typedName"))), user["id"])})
+
+
+@router.get("/journal-styles/{style_id}/used-in", dependencies=[Depends(_require_w11)])
+def used_in_endpoint(style_id: str, user: dict = Depends(require_paid)) -> Any:
+    """`{notes: [{id, title, updatedAt}]}`: the member's live notes made from this template."""
+    return _ok({"notes": _w11_store(lambda: js.style_used_in(user["id"], style_id))})
+
+
 @router.get("/journal-styles/{style_id}")
 def get_style_endpoint(style_id: str, user: dict = Depends(require_paid)) -> dict[str, Any]:
-    return {"style": js.served_style(_found(js.get_style(user["id"], style_id)))}
+    return {"style": js.served_style(_found(js.get_style(user["id"], style_id)), user["id"])}
 
 
 @router.put("/journal-styles/{style_id}")
 def update_style_endpoint(style_id: str, body: dict = Depends(paid_body),
                           user: dict = Depends(require_paid)) -> dict[str, Any]:
     try:
-        return {"style": js.served_style(_found(js.update_style(user["id"], style_id, body)))}
+        return {"style": js.served_style(_found(js.update_style(user["id"], style_id, body)), user["id"])}
     except js.StyleValidationError as e:
         raise _bad(e)
 
@@ -239,22 +337,23 @@ def update_style_endpoint(style_id: str, body: dict = Depends(paid_body),
 @router.delete("/journal-styles/{style_id}")
 def delete_style_endpoint(style_id: str, user: dict = Depends(require_paid)) -> dict[str, Any]:
     try:
-        return {"ok": True, "style": js.served_style(_found(js.delete_style(user["id"], style_id)))}
+        return {"ok": True, "style": js.served_style(_found(js.delete_style(user["id"], style_id)), user["id"])}
     except js.StyleValidationError as e:
         raise _bad(e)
 
 
 @router.post("/journal-styles/{style_id}/restore")
-def restore_style_endpoint(style_id: str, user: dict = Depends(require_paid)) -> dict[str, Any]:
+def restore_style_endpoint(style_id: str, user: dict = Depends(require_paid)) -> Any:
+    # m-1 (Task 11.12): My tools' Templates tab restores through this route, so its 200 is no-store too.
     try:
-        return {"style": js.served_style(_found(js.restore_style(user["id"], style_id)))}
+        return _ok({"style": js.served_style(_found(js.restore_style(user["id"], style_id)), user["id"])})
     except js.StyleValidationError as e:
         raise _bad(e)
 
 
 @router.post("/journal-styles/{style_id}/default")
 def default_style_endpoint(style_id: str, user: dict = Depends(require_paid)) -> dict[str, Any]:
-    return {"style": js.served_style(_found(js.set_default(user["id"], style_id)))}
+    return {"style": js.served_style(_found(js.set_default(user["id"], style_id)), user["id"])}
 
 
 # ── trader blocks (P2a) ──────────────────────────────────────────────────────────────

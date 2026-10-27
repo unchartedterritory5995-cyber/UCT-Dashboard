@@ -1,0 +1,35 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "POST /api/j2/template-gallery/share/preview",
+    "note": "What sharing the author's routine would send. Nothing is written or stored.",
+    "path": "/api/j2/template-gallery/share/preview",
+    "requestBody": {
+      "id": "8ed8c76c-3a64-4296-943c-66f014532083",
+      "kind": "routine"
+    },
+    "status": 200
+  },
+  "body": {
+    "kept": [],
+    "notShared": [],
+    "prefill": {
+      "blocks": {},
+      "description": "",
+      "formulas": [],
+      "items": [
+        {
+          "text": "Coffee"
+        },
+        {
+          "text": "Mark levels"
+        }
+      ],
+      "name": "Morning routine",
+      "numbers": [],
+      "unit": ""
+    },
+    "slots": [],
+    "travels": null
+  }
+}

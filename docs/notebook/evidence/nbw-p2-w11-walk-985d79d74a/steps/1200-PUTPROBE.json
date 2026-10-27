@@ -1,0 +1,60 @@
+{
+ "viewport": "1200",
+ "step": "PUTPROBE",
+ "title": "Does opening a template-made note write it (W11.12 follow-up)",
+ "mode": "ON",
+ "checks": [
+  {
+   "what": "PUTPROBE: after Use the new note is in front (no sheet left open over it)",
+   "ok": false,
+   "read": "[\"New note\"]"
+  },
+  {
+   "what": "opening the new note (first open, 15 s) sends no note PUT",
+   "ok": false,
+   "read": "1"
+  },
+  {
+   "what": "re-opening it (reload, 15 s) sends no note PUT",
+   "ok": true,
+   "read": "0"
+  }
+ ],
+ "rendered": [
+  {
+   "what": "first open: note PUTs (method, time, url)",
+   "text": "[{\"t\": \"05:59:10\", \"m\": \"PUT\", \"u\": \"127.0.0.1:8151/api/j2/notes/fff9f8e740174e6c981d4ac843df2495\"}]"
+  },
+  {
+   "what": "first open: stored body diff (created -> after 15 s)",
+   "text": "[\"+\\\"frozen\\\": false,\", \"-\\\"exposure\\\": 72.0,\", \"+\\\"exposure\\\": 72,\", \"+\\\"ta\\\": null,\", \"+\\\"tradeRef\\\": null,\", \"-\\\"fallback\\\": null,\", \"+\\\"fallback\\\": {\", \"+\\\"h\\\": 383,\", \"+\\\"url\\\": \\\"/api/j2/notes/attachments/8654dc73-5245-4c2d-9cba-7b3c13f93114/fff9f8e740174e6c981d4ac843df2495/inline/e86376c64d45f7146c3a10b68c24d7f4.png\\\",\", \"+\\\"w\\\": 696\", \"+},\", \"+\\\"frozen\\\": false,\", \"-\\\"breadthScore\\\": 62.0,\", \"+\\\"breadthScore\\\": 62,\", \"-\\\"exposureScore\\\": 72.0,\", \"+\\\"exposureScore\\\": 72,\", \"-\\\"pctAbove200\\\": 55.0,\", \"-\\\"pctAbove50\\\": 61.0,\", \"+\\\"pctAbove200\\\": 55,\", \"+\\\"pctAbove50\\\": 61,\", \"+\\\"searchText\\\": null,\", \"+\\\"ta\\\": null,\", \"+\\\"tradeRef\\\": null,\", \"+\\\"frozen\\\": false,\", \"+\\\"searchText\\\": null,\", \"+\\\"ta\\\": null,\", \"+\\\"tradeRef\\\": null,\", \"+\\\"frozen\\\": false,\", \"+\\\"searchText\\\": null,\", \"+\\\"ta\\\": null,\", \"+\\\"tradeRef\\\": null,\", \"+\\\"frozen\\\": false,\", \"+\\\"ta\\\": null,\", \"+\\\"tradeRef\\\": null,\", \"+\\\"frozen\\\": false,\", \"-\\\"tradeRef\\\": null,\", \"-\\\"tradeRefType\\\": null,\", \"+\\\"ta\\\": null,\", \"+\\\"tradeRef\\\": null,\", \"+},\", \"+{\", \"+\\\"type\\\": \\\"paragraph\\\"\"]"
+  },
+  {
+   "what": "reload: note PUTs",
+   "text": "[]"
+  },
+  {
+   "what": "reload: stored body diff",
+   "text": "[]"
+  },
+  {
+   "what": "block kinds created / after",
+   "text": "[[\"heading\", \"paragraph\", \"widgetEmbed\", \"widgetEmbed\", \"heading\", \"paragraph\", \"widgetEmbed\", \"widgetEmbed\", \"heading\", \"paragraph\", \"widgetEmbed\", \"heading\", \"paragraph\", \"widgetEmbed\"], [\"heading\", \"paragraph\", \"widgetEmbed\", \"widgetEmbed\", \"heading\", \"paragraph\", \"widgetEmbed\", \"widgetEmbed\", \"heading\", \"paragraph\", \"widgetEmbed\", \"heading\", \"paragraph\", \"widgetEmbed\", \"paragraph\"]]"
+  }
+ ],
+ "verdict": "FAIL",
+ "notes": [],
+ "events": {
+  "P46": []
+ },
+ "metrics": {},
+ "screenshots": [
+  "1200/PUTPROBE-sheet-left-open.png",
+  "1200/PUTPROBE-main.png"
+ ],
+ "requests_note_put": 0,
+ "started": "2026-10-27T05:58:33",
+ "findings": [],
+ "partial": false,
+ "finished": "2026-10-27T05:59:30"
+}

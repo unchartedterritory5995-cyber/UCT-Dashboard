@@ -22,6 +22,11 @@ import TemplatePicker from './TemplatePicker'
 import { latchNotebookFlags, __resetNotebookFlags } from '../../lib/offline/notebookFlags'
 import { GALLERY_CATEGORIES } from '../../lib/templateGallery'
 import { contract, contractBody } from '../../__fixtures__/contract'
+import { openAdoptSheet } from './library/openAdoptSheet'
+import { FILLS_SENTENCE } from './library/LibraryCardFacts'
+
+// Task 11.16: a listed widget, routine or tracker's Use opens the adoption sheet (loaded on demand); stood in for here.
+vi.mock('./library/openAdoptSheet', () => ({ openAdoptSheet: vi.fn(() => () => {}) }))
 
 const LISTED = contractBody('template-gallery.list').templates
 const ITEM = contractBody('template-gallery.item').template            // the full template, with its body
@@ -79,6 +84,9 @@ beforeEach(() => {
     if (m) return answer(server.useFails ? 'template-gallery.use.not-found' : 'template-gallery.use')
     m = u.pathname.match(/^\/api\/j2\/template-gallery\/([\w-]+)\/report$/)
     if (m) return answer(server.reportAnswer || 'template-gallery.report')
+    m = u.pathname.match(/^\/api\/j2\/template-gallery\/([\w-]+)\/helpful$/)
+    if (m && server.helpfulRefusal) return json(server.helpfulRefusal.body, server.helpfulRefusal.status)
+    if (m) return answer(method === 'POST' ? 'template-gallery.helpful' : 'template-gallery.unhelpful')
     m = u.pathname.match(/^\/api\/j2\/template-gallery\/([\w-]+)$/)
     if (m && method === 'GET') return m[1] === ITEM.id ? answer('template-gallery.item') : answer('template-gallery.item.not-found')
     if (m && method === 'DELETE') {
@@ -350,5 +358,95 @@ describe('the review queue', () => {
     expect(sentTo(`/api/j2/template-gallery/admin/reports/${report.id}`, 'PATCH')[0].body).toEqual({ action: 'hide' })
     await user.click(screen.getByRole('button', { name: `Unhide ${hidden.title}` }))
     expect(await screen.findByText(`“${hidden.title}” is visible again.`)).toBeInTheDocument()
+  })
+})
+
+// Task 11.16: while wave 11 is on, every gallery card shows the library facts (type chip, "For:", "Used by" or "New",
+// "Updated"), and a listed widget, routine or tracker is made the member's through the adoption sheet. Off: unchanged.
+describe('Task 11.16 -- library cards (wave 11)', () => {
+  const TOOLS = [
+    { ...ALICE, id: 'tool-w', title: 'Win rate widget', itemType: 'widget_definition', usedBy: 4, preview: [], description: 'tracking a setup' },
+    { ...ALICE, id: 'tool-r', title: 'Morning routine', itemType: 'routine', usedBy: 0, preview: [], description: '' },
+    { ...ALICE, id: 'tool-t', title: 'Focus tracker', itemType: 'tracker', usedBy: 1, preview: [], description: '' },
+  ]
+  const galleryCard = (title) => screen.getByRole('heading', { name: title }).closest('[data-gallery-card]')
+  beforeEach(() => { openAdoptSheet.mockClear() })
+
+  async function openWith({ w11 }) {
+    server.gallery = [...server.gallery, ...TOOLS]
+    latchNotebookFlags({ notebook_template_gallery_enabled: true, notebook_widgets_w11_enabled: w11 })
+    const ctx = renderPicker()
+    await ctx.user.click(door())
+    await screen.findByRole('heading', { name: 'Community gallery' })
+    await screen.findByRole('heading', { name: ALICE.title })
+    return ctx
+  }
+
+  it('card_fields_and_new_instead_of_zero (outline and tool cards)', async () => {
+    await openWith({ w11: true })
+    const alice = galleryCard(ALICE.title)
+    expect(within(alice).getByText('Template')).toBeInTheDocument()
+    expect(within(alice).getByText(`For: ${ALICE.description}`)).toBeInTheDocument()
+    expect(within(alice).getByText('New · Updated Oct 5')).toBeInTheDocument()   // usedBy 0 is "New", never "0"
+    expect(within(alice).queryByText(FILLS_SENTENCE)).toBeNull()               // it holds no widget, routine or tracker
+    expect(within(galleryCard('Win rate widget')).getByText('Widget')).toBeInTheDocument()
+    expect(within(galleryCard('Win rate widget')).getByText('Used by 4 traders · Updated Oct 5')).toBeInTheDocument()
+    expect(within(galleryCard('Morning routine')).getByText('Routine')).toBeInTheDocument()
+    expect(within(galleryCard('Morning routine')).getByText('New · Updated Oct 5')).toBeInTheDocument()
+    expect(within(galleryCard('Focus tracker')).getByText('Tracker')).toBeInTheDocument()
+    expect(within(galleryCard('Focus tracker')).getByText('Used by 1 trader · Updated Oct 5')).toBeInTheDocument()
+    for (const el of document.querySelectorAll('[data-gallery-card]')) expect(el.textContent).not.toMatch(/Used by 0|\(0\)/)
+  })
+
+  it("a tool card's Use opens the adoption sheet with its kind, and no copy is made", async () => {
+    const { user } = await openWith({ w11: true })
+    const widget = galleryCard('Win rate widget')
+    expect(within(widget).queryByRole('button', { name: /Use template/ })).toBeNull()
+    expect(within(widget).queryByRole('button', { name: /^Preview/ })).toBeNull()
+    await user.click(within(widget).getByRole('button', { name: 'Use Win rate widget' }))
+    await waitFor(() => expect(openAdoptSheet).toHaveBeenCalledTimes(1))
+    expect(openAdoptSheet.mock.calls[0][0]).toEqual({ galleryId: 'tool-w', kind: 'widget' })
+    await user.click(within(galleryCard('Focus tracker')).getByRole('button', { name: 'Use Focus tracker' }))
+    await waitFor(() => expect(openAdoptSheet).toHaveBeenCalledTimes(2))
+    expect(openAdoptSheet.mock.calls[1][0]).toEqual({ galleryId: 'tool-t', kind: 'tracker' })
+    expect(calls.some((c) => /\/use$/.test(c.path))).toBe(false)
+    // An outline card keeps Preview and Use template.
+    expect(within(galleryCard(ALICE.title)).getByRole('button', { name: `Use template ${ALICE.title}` })).toBeInTheDocument()
+  })
+
+  it('helpful_days_sentence_under_button (a tool card)', async () => {
+    const DAYS = 'You can mark this helpful after using it on 3 different days.'
+    server.helpfulRefusal = { status: 409, body: { detail: { code: 'helpful_days', message: DAYS } } }
+    const { user } = await openWith({ w11: true })
+    const widget = galleryCard('Win rate widget')
+    const btn = within(widget).getByRole('button', { name: 'Helpful: Win rate widget' })
+    expect(btn).toHaveAttribute('aria-pressed', 'false')
+    const region = widget.querySelector('[data-helpful-days]')
+    expect(region).toHaveAttribute('role', 'status')                       // it exists BEFORE its text (M-3)
+    expect(region).toHaveTextContent(/^$/)
+    await user.click(btn)
+    const note = await within(widget).findByText(DAYS)
+    expect(note).toBe(region)
+    expect(btn).toHaveAttribute('aria-describedby', note.id)
+    expect(btn.compareDocumentPosition(note) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    await waitFor(() => expect(btn).toBeEnabled())
+    expect(sentTo('/api/j2/template-gallery/tool-w/helpful', 'POST')).toHaveLength(1)
+    // Only that card says it; an outline card has no Helpful at all (its rule is unchanged, W11-R8).
+    expect(within(galleryCard('Focus tracker')).queryByText(DAYS)).toBeNull()
+    expect(within(galleryCard(ALICE.title)).queryByRole('button', { name: /^Helpful/ })).toBeNull()
+    server.helpfulRefusal = null
+    await user.click(btn)
+    await waitFor(() => expect(within(widget).queryByText(DAYS)).toBeNull())
+  })
+
+  it('CONTROL: wave 11 off, a card is exactly as before (no facts, the description, Preview and Use template)', async () => {
+    await openWith({ w11: false })
+    const alice = galleryCard(ALICE.title)
+    expect(alice.querySelector('[data-library-facts]')).toBeNull()
+    expect(within(alice).getByText(ALICE.description)).toBeInTheDocument()
+    expect(within(alice).getByRole('button', { name: `Preview ${ALICE.title}` })).toBeInTheDocument()
+    expect(within(galleryCard('Win rate widget')).getByRole('button', { name: 'Use template Win rate widget' })).toBeInTheDocument()
+    expect(within(galleryCard('Win rate widget')).queryByRole('button', { name: /^Helpful/ })).toBeNull()
+    expect(document.querySelector('[data-template-library]')).toBeNull()
   })
 })

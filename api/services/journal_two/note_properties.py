@@ -374,6 +374,10 @@ def _parse_properties_json(raw: str | None) -> dict[str, Any]:
         return {}
 
 
+#: F-ALIAS-1 A1 (11.9 carry c1): the public name other modules read (`gallery_suggest`). The SAME function object.
+parse_properties_json = _parse_properties_json
+
+
 def validate_property_value(prop_def: dict[str, Any], value: Any) -> Any:
     """Coerce+validate `value` against `prop_def`'s declared type. Raises
     PropertyValidationError on a value that doesn't fit -- never silently

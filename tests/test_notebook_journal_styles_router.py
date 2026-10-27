@@ -116,14 +116,24 @@ def test_kinds_and_in_use(client):
     assert r.status_code == 409 and "1 style" in r.json()["detail"]
 
 
-def test_delete_kind_reports_the_purged_deleted_styles(client):
-    """Carry note c: a kind's soft-deleted styles go with it, and the answer says how many."""
+@pytest.mark.parametrize("w11", [True, False], ids=["wave11-on", "wave11-off"])
+def test_delete_kind_reports_the_purged_deleted_styles(client, monkeypatch, w11):
+    """Carry note c: a kind's soft-deleted styles do not block its delete. W11-R69: with wave 11 on they are KEPT
+    (Task 11.13 fix round 1, c3: never hard-deleted), so the count is 0 and the client says only "Kind deleted";
+    with it off the door is master's: they are hard-deleted and counted."""
+    if w11:
+        monkeypatch.setenv("NOTEBOOK_WIDGETS_W11_ENABLED", "1")
+    else:
+        monkeypatch.delenv("NOTEBOOK_WIDGETS_W11_ENABLED", raising=False)
     _as(client)
     k = client.post("/api/j2/note-kinds", json={"name": "Swing"}).json()["kind"]
     s = client.post("/api/j2/journal-styles", json={"name": "S", "kindId": k["id"]}).json()["style"]
     client.delete(f"/api/j2/journal-styles/{s['id']}")
     r = client.delete(f"/api/j2/note-kinds/{k['id']}")
-    assert r.status_code == 200 and r.json() == {"ok": True, "purgedDeletedStyles": 1}
+    assert r.status_code == 200 and r.json() == {"ok": True, "purgedDeletedStyles": 0 if w11 else 1}
+    from api.services.journal_two import journal_styles as js
+    kept = js.get_style("u1", s["id"], include_deleted=True)
+    assert (kept is not None and bool(kept["deletedAt"])) if w11 else kept is None      # kept only with wave 11 on
     assert client.delete(f"/api/j2/note-kinds/{k['id']}").status_code == 404
     assert client.delete("/api/j2/note-kinds/thesis").status_code == 400
 
@@ -320,7 +330,8 @@ def test_with_every_wave_off_no_served_style_names_a_slot(client, monkeypatch):
     _waves(monkeypatch)
     _as(client)
     # control: the STORED built-ins do hold slots, so an empty answer below is the filter, not the fixture
-    assert {b["block"] for s in js.BUILTIN_STYLES.values() for b in s["blocks"]} >= set(js.SNAPSHOT_SLOT_KINDS)
+    # (the built-ins hold the six phase-1 slot kinds; the wave 10 ones, Task 11.3, are template-only)
+    assert {b["block"] for s in js.BUILTIN_STYLES.values() for b in s["blocks"]} >= set(js.SNAPSHOT_SLOT_KINDS[:6])
     # a member style holding a slot (as a W1-on "Save as style" would have made it), its placeholder nested
     _waves(monkeypatch, 1, 2)
     made = client.post("/api/j2/journal-styles", json={

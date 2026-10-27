@@ -21,7 +21,7 @@ import TemplateGallery from './TemplateGallery'
 import { CHANGE_FAILED, REFRESH_TIMEOUT_MS, STANDING_LINE, UNDO_FAILED } from './AdoptLayoutSheet'
 import usePreferences, { __resetRevisionStateForTests, mergeIntoPreferenceCache } from '../../../../hooks/usePreferences'
 import { latchNotebookFlags, __resetNotebookFlags } from '../../lib/offline/notebookFlags'
-import { ITEM_TYPES, LAYOUT_UNSUPPORTED_SENTENCE, LISTED_ITEM_TYPES } from '../../lib/styleLibrary'
+import { ITEM_TYPES, LAYOUT_UNSUPPORTED_SENTENCE, LISTED_ITEM_TYPES, TOOL_ITEM_TYPES } from '../../lib/styleLibrary'
 import { DEFAULT_LAYOUT, LAYOUT_PREF, LOAD_FAILED, PANELS, normalizeLayout } from '../../lib/pageLayouts'
 import { contract, contractBody } from '../../__fixtures__/contract'
 
@@ -177,7 +177,8 @@ describe('1. the Page layouts chip is gated on capabilities.layoutSharing (P4b-R
     await screen.findByRole('heading', { name: OUTLINES[0].title })
     expect(listCalls().some((c) => c.search === '')).toBe(true)
     expect(within(types).getAllByRole('button').map((b) => b.textContent))
-      .toEqual(['All', ...LISTED_ITEM_TYPES.filter((t) => t.key !== 'page_layout').map((t) => t.label)])
+      .toEqual(['All', ...LISTED_ITEM_TYPES.filter((t) => t.key !== 'page_layout' && !TOOL_ITEM_TYPES.includes(t.key))
+        .map((t) => t.label)])   // wave 11 is off here too, so no tool chips (W11-R17)
     expect(within(types).queryByRole('button', { name: 'Page layouts' })).not.toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: ROW.title })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: `Use template ${ROW.title}` })).not.toBeInTheDocument()
@@ -187,7 +188,8 @@ describe('1. the Page layouts chip is gated on capabilities.layoutSharing (P4b-R
     await openLayouts()
     await waitFor(() => expect(listCalls().some((c) => c.search.includes('type=page_layout'))).toBe(true))
     const types = screen.getByRole('group', { name: 'Filter by type' })
-    expect(within(types).getAllByRole('button').map((b) => b.textContent)).toEqual(['All', ...LISTED_ITEM_TYPES.map((t) => t.label)])   // an example note is never a chip (R-P3b-2)
+    expect(within(types).getAllByRole('button').map((b) => b.textContent))
+      .toEqual(['All', ...LISTED_ITEM_TYPES.filter((t) => !TOOL_ITEM_TYPES.includes(t.key)).map((t) => t.label)])   // an example note is never a chip (R-P3b-2); wave 11 off, no tool chips (W11-R17)
     expect(within(types).getByRole('button', { name: 'Page layouts' })).toHaveAttribute('aria-pressed', 'true')
     // the trading-style row shows for page layouts too
     expect(screen.getByRole('group', { name: 'Filter by trading style' })).toBeInTheDocument()
@@ -721,5 +723,31 @@ describe('I-M1: an admin features or hides a shared layout from its card; a memb
     await user.click(within(layoutCard()).getByRole('button', { name: `Feature ${ROW.title}` }))
     expect(await screen.findByText(`“${ROW.title}” is now a UCT pick.`)).toBeInTheDocument()
     expect(adminPatches().map((c) => c.body.action)).toEqual(['feature'])
+  })
+})
+
+// Task 11.16 fix round 1 (m-2): under wave 11 a layout card shows no zero either: "New" for an unused layout, the
+// Helpful count from 1 up, through the same words as every other library card. Off: "Used by N" as before (above).
+describe('Task 11.16 -- the layout card under wave 11', () => {
+  const w11 = () => {
+    __resetNotebookFlags()
+    latchNotebookFlags({ notebook_template_gallery_enabled: true, notebook_style_library_enabled: true, notebook_widgets_w11_enabled: true })
+  }
+  it('an unused layout with no Helpful reads "New", never "Used by 0 · 0 found this helpful"', async () => {
+    w11()
+    server.rows = [{ ...ROW, usedBy: 0, helpfulCount: 0 }]
+    await openLayouts()
+    const card = layoutCard()
+    expect(within(card).getByText('New', { exact: false })).toBeInTheDocument()
+    expect(card.textContent).not.toMatch(/Used by 0|\b0 found this helpful/)
+    expect(card.querySelector('[data-helpful-count]')).toBeNull()
+  })
+  it('a used, helpful layout reads "Used by 3 traders · 2 found this helpful"', async () => {
+    w11()
+    server.rows = [{ ...ROW, usedBy: 3, helpfulCount: 2 }]
+    await openLayouts()
+    const card = layoutCard()
+    expect(within(card).getByText('Used by 3 traders', { exact: false })).toBeInTheDocument()
+    expect(card.querySelector('[data-helpful-count]').textContent).toBe('2 found this helpful')
   })
 })

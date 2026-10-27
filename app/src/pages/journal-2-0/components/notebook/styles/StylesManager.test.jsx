@@ -71,6 +71,7 @@ const RICH_OUTLINE = {
 }
 const PREVIEW = contractBody('journal-styles.preview')
 const KIND_DELETED = contractBody('note-kinds.delete')
+const KIND_DELETED_W11 = contractBody('note-kinds.delete.w11')       // W11-R69: wave 11 on keeps the deleted styles
 const kindDeleted = (n) => ({ ...KIND_DELETED, purgedDeletedStyles: n })
 const IN_USE = contract('note-kinds.delete.in-use')
 const OFFER = contractBody('note-kinds.mapping-offer')
@@ -254,6 +255,109 @@ describe('the Styles manager', () => {
     await screen.findByText('Style deleted.')
     fireEvent.click(await screen.findByRole('button', { name: 'Set Trade plan as default' }))
     await waitFor(() => expect(screen.queryByText('Style deleted.')).toBeNull())
+  })
+
+  it("names a template's widget, routine and tracker blocks, says their day, and saves their settings verbatim", async () => {
+    // Wave 11 (Task 11.14): the three slot families are blocks this bundle knows (toggleable), never "a newer version".
+    const SLOTS = [
+      { block: 'built_a', enabled: true, settings: { ref: 'def:7d1e3f0a-1111-4222-8333-444455556666', defRev: 3 } },
+      { block: 'routine_1', enabled: true, settings: { ref: 'routine:0b2c3d4e-1111-4222-8333-444455556666', bind: 'next-trading-day' } },
+      { block: 'tracker_b', enabled: false, settings: { ref: 'checkin:mood', bind: 'week', display: 'chart' } },
+    ]
+    routes.unshift(['GET', MEMBER_URL, withMember({ blocks: SLOTS })])
+    installFetch()
+    open()
+    await edit()
+    const list = await screen.findByRole('list', { name: 'Blocks in this style' })
+    const rows = within(list).getAllByRole('listitem')
+    expect(rows.map((li) => li.textContent.replace(/\s+/g, ' ').trim())).toEqual([
+      'Widget', 'Routine · For the next trading day', 'Tracker · For the trading week',
+    ].map((t) => expect.stringContaining(t)))
+    expect(within(list).queryByText(/newer version/)).toBeNull()
+    expect(within(rows[0]).getByRole('checkbox', { name: 'Use Widget' })).not.toBeDisabled()
+    fireEvent.click(within(rows[2]).getByRole('checkbox', { name: 'Use Tracker' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Move Widget down' }))
+    expect(screen.getByText('Widget moved to position 2 of 3.')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Save style' }))
+    await waitFor(() => expect(called('PUT', MEMBER_END)).toHaveLength(1))
+    expect(put().blocks.map((b) => b.block)).toEqual(['routine_1', 'built_a', 'tracker_b'])
+    expect(put().blocks.map((b) => b.settings)).toEqual([SLOTS[1].settings, SLOTS[0].settings, SLOTS[2].settings])
+    expect(put().blocks[2].enabled).toBe(true)
+  })
+
+  it('repeated widget, routine and tracker blocks each have their own name, and keep it through a move', async () => {
+    // Task 11.14 fix round 1 (M3): three "Use Widget" checkboxes cannot be told apart by a screen reader.
+    const REPEATED = [
+      { block: 'built_a', enabled: true, settings: { ref: 'shelf:equity-curve', defRev: 1 } },
+      { block: 'built_b', enabled: true, settings: { ref: 'shelf:win-rate', defRev: 1 } },
+      { block: 'routine_1', enabled: true, settings: { template: 'pm', bind: 'note-day' } },
+      { block: 'routine_2', enabled: true, settings: { template: 'nb', bind: 'next-trading-day' } },
+      { block: 'tracker_b', enabled: true, settings: { ref: 'checkin:mood' } },
+      { block: 'chart', enabled: true, settings: { tf: 'D' } },
+    ]
+    routes.unshift(['GET', MEMBER_URL, withMember({ blocks: REPEATED })])
+    installFetch()
+    open()
+    await edit()
+    const list = await screen.findByRole('list', { name: 'Blocks in this style' })
+    const names = (role) => within(list).getAllByRole(role).map((el) => el.getAttribute('aria-label'))
+    const boxes = names('checkbox')
+    expect(boxes).toEqual(['Use Widget 1', 'Use Widget 2', 'Use Routine 1', 'Use Routine 2', 'Use Tracker',
+      'Use Chart of the note’s ticker'])
+    expect(new Set(boxes).size).toBe(boxes.length)
+    const buttons = names('button')
+    expect(buttons.length).toBeGreaterThanOrEqual(12)                          // non-vacuity: two moves per row
+    expect(new Set(buttons).size).toBe(buttons.length)
+    fireEvent.click(screen.getByRole('button', { name: 'Move Widget 1 down' }))
+    expect(screen.getByText('Widget 1 moved to position 2 of 6.')).toBeTruthy()
+    expect(names('checkbox').slice(0, 2)).toEqual(['Use Widget 2', 'Use Widget 1'])   // the number follows its slot
+  })
+
+  it("W11-R21: a slot's display name from the served style names its row; repeats only of one name are numbered", async () => {
+    // Task 11.19 (carry R21): the server (11.5/11.6) sends each slot's name, as `slotNames` by ref or block id, or as
+    // `displayName` on the block. With a name, a row reads "Widget: Equity curve" and needs no number; two rows of the
+    // SAME name are still numbered, so every control names one row; the name is never sent back on save.
+    const NAMED = [
+      { block: 'built_a', enabled: true, settings: { ref: 'def:7d1e3f0a-1111-4222-8333-444455556666', defRev: 3 } },
+      { block: 'built_b', enabled: true, settings: { ref: 'shelf:win-rate', defRev: 1 }, displayName: 'Win rate' },
+      { block: 'routine_1', enabled: true, settings: { ref: 'routine:0b2c3d4e-1111-4222-8333-444455556666' }, displayName: 'Morning routine' },
+      { block: 'routine_2', enabled: true, settings: { template: 'nb' }, displayName: 'Morning routine' },
+    ]
+    routes.unshift(['GET', MEMBER_URL, withMember({ blocks: NAMED,
+      slotNames: { 'def:7d1e3f0a-1111-4222-8333-444455556666': 'Equity curve' } })])
+    installFetch()
+    open()
+    await edit()
+    const list = await screen.findByRole('list', { name: 'Blocks in this style' })
+    const boxes = within(list).getAllByRole('checkbox').map((el) => el.getAttribute('aria-label'))
+    expect(boxes).toEqual(['Use Widget: Equity curve', 'Use Widget: Win rate', 'Use Routine: Morning routine 1',
+      'Use Routine: Morning routine 2'])
+    fireEvent.click(screen.getByRole('button', { name: 'Move Widget: Equity curve down' }))
+    expect(screen.getByText('Widget: Equity curve moved to position 2 of 4.')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Save style' }))
+    await waitFor(() => expect(called('PUT', MEMBER_END)).toHaveLength(1))
+    expect(put().blocks.some((b) => 'displayName' in b)).toBe(false)
+    expect(put().blocks.map((b) => b.block)).toEqual(['built_b', 'built_a', 'routine_1', 'routine_2'])
+  })
+
+  it("F-FE-1 c2: the SERVER's slotNames shape (keyed by BLOCK ID) names each row; an unresolved slot has no key", async () => {
+    // journal_styles.slot_names serves `{block id: name}` (W11-R21), and since W11-R43 an UNRESOLVED slot (missing,
+    // unreadable) has NO key at all, so the row reads the client's own slot label, never a refusal sentence. Each slot
+    // here carries a ref the names table does NOT hold, so only the block-id lookup can name it.
+    const SERVED = [
+      { block: 'built_a', enabled: true, settings: { ref: 'def:7d1e3f0a-1111-4222-8333-444455556666', defRev: 3 } },
+      { block: 'routine_1', enabled: true, settings: { ref: 'routine:0b2c3d4e-1111-4222-8333-444455556666' } },
+      { block: 'tracker_b', enabled: true, settings: { ref: 'tracker:5e6f7a8b-1111-4222-8333-444455556666' } },
+    ]
+    routes.unshift(['GET', MEMBER_URL, withMember({ blocks: SERVED,
+      slotNames: { built_a: 'Equity curve', routine_1: 'Pre-market routine' } })])
+    installFetch()
+    open()
+    await edit()
+    const list = await screen.findByRole('list', { name: 'Blocks in this style' })
+    const boxes = within(list).getAllByRole('checkbox').map((el) => el.getAttribute('aria-label'))
+    expect(boxes).toEqual(['Use Widget: Equity curve', 'Use Routine: Pre-market routine', 'Use Tracker'])
+    expect(within(list).queryByText(/not in your account|isn.t available/i)).toBeNull()
   })
 
   it('reorders blocks with Move up/Move down and keeps an unknown block', async () => {
@@ -748,13 +852,25 @@ describe('kinds of note', () => {
     await screen.findByText(/Kind deleted\. 2 styles you had deleted for it were removed for good\./)
   })
 
-  it('the server’s own answer (one deleted style went with the kind) is worded in the singular', async () => {
+  it('the server’s own answer with wave 11 dark (one deleted style went with the kind) is worded in the singular', async () => {
+    expect(KIND_DELETED.purgedDeletedStyles).toBe(1)          // W11-R69: wave 11 off purges, the fixture counts it
     routes.unshift(['DELETE', OWN_KIND_URL, KIND_DELETED])
     installFetch()
     open()
     fireEvent.click(await screen.findByRole('button', { name: `Delete kind ${KIND_NAME}` }))
     fireEvent.click(await screen.findByRole('button', { name: `Yes, delete kind ${KIND_NAME}` }))
-    await screen.findByText(`Kind deleted. ${KIND_DELETED.purgedDeletedStyles} style you had deleted for it was removed for good.`)
+    await screen.findByText('Kind deleted. 1 style you had deleted for it was removed for good.')
+  })
+
+  it('the server’s own answer with wave 11 on (W11-R69 / W11-R10 KEEP the deleted styles: a count of 0) reads "Kind deleted." alone', async () => {
+    expect(KIND_DELETED_W11.purgedDeletedStyles).toBe(0)
+    routes.unshift(['DELETE', OWN_KIND_URL, KIND_DELETED_W11])
+    installFetch()
+    open()
+    fireEvent.click(await screen.findByRole('button', { name: `Delete kind ${KIND_NAME}` }))
+    fireEvent.click(await screen.findByRole('button', { name: `Yes, delete kind ${KIND_NAME}` }))
+    await screen.findByText('Kind deleted.')
+    expect(screen.queryByText(/removed for good/)).toBeNull()
   })
 
   it('built-in kinds have no Rename or Delete', async () => {

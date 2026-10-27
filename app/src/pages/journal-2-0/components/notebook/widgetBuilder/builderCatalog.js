@@ -11,7 +11,7 @@
 // `Map`, so a setup named "__proto__" is an ordinary string.
 
 // The W10.3 walk fix: a coverage line counts in the source's own served unit ("of 12 notes"), the one noun table.
-import { unitWord } from '../widgets/builtViews/builtModel'
+import { unitWord, emptySentenceOf } from '../widgets/builtViews/builtModel'
 
 const isRecord = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
 
@@ -459,6 +459,8 @@ const NEEDS_WORDS = new Map([
  */
 export function coverageByNeed(cat, plan, payload) {
   const out = new Map()
+  // W11-R84 New-1: an empty preview has no coverage to give ("Days open known on 0 of 0 positions"): none is shown.
+  if (emptySentenceOf(payload)) return out
   const cov = Array.isArray(payload?.coverage) ? payload.coverage : []
   const keys = Array.isArray(plan?.measures) ? plan.measures.map((m) => m.key) : []
   keys.forEach((k, i) => {

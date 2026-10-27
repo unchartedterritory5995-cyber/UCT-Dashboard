@@ -1,0 +1,1 @@
+export WALK_WORK="$(cygpath -w <scratchpad>/rewalk-20261027091520-work)" WALK_DATA="$(cygpath -w <scratchpad>/sbx-rewalk-20261027091520)" WALK_EVD="$(cygpath -w <scratchpad>/rewalk-20261027091520-work/evidence/nbw-p2-w11-rewalk-0061d0ab93)" WALK_STATE="$(cygpath -w <scratchpad>/rewalk-20261027091520-work/state.json)"

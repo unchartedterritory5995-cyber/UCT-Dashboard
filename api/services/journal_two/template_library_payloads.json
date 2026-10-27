@@ -1,0 +1,33 @@
+{
+ "v": 1,
+ "note": "Task 11.10 fix round 1 (M-4): template_library.payload_hash of what the seeder stores for each official row. A released entry never changes: add a -v2 row instead.",
+ "payloads": {
+  "uct-template-night-before-prep-v1": "b58e17dd95a1b00e0e82dffbadde76a23a0d0e25cb2f363815f1a1f142fa8690",
+  "uct-template-pre-market-prep-v1": "9a4590db8604dd1cb15861f5cec84520226c43954359b265f298f580f6adc208",
+  "uct-template-game-plan-v1": "993575e3efd00952a59951900e5ba5ea0df7ca7207679dfd7f8cc2cc76156341",
+  "uct-template-earnings-day-prep-v1": "e6643a99199cb9131f4d4b1135ab2a9c8f381059258a72aee56087036b7a4f2c",
+  "uct-template-watchlist-review-v1": "61958340473a2ca27974203644bb08b491a6cc57c34f05c9a1f2a565cd3ec365",
+  "uct-template-mid-day-risk-check-v1": "d84d74fd43b6ff4a6a12fad93dcf1cadb127dba5bb5a2fbd31f01ca777e3733e",
+  "uct-template-trade-plan-one-idea-v1": "88dce75655f5ab2cfe49c9ea122def04844ee7afb3171283fb78d524b97cd97f",
+  "uct-template-end-of-day-recap-v1": "2ea2107620d4be59c7545cb9aa4f5c2eaecca0e8024348e1c84b6ea1690b1aef",
+  "uct-template-tag-todays-trades-v1": "63d32a0970c97bca832e1883c8301daa18fc47c30c8566c23f49f02e3f6c61b0",
+  "uct-template-trade-post-mortem-v1": "3daab5e7af906fddff3a262ad5320ccdb9a2ab6a2afe18511090b2d61b32c4e7",
+  "uct-template-mistake-log-entry-v1": "64bc0a101447977327d3f520e3c4101b3b40d4d4f2f3d6dc6d8d8229ee90c283",
+  "uct-template-tilt-reset-v1": "cfb1c9dcc407ae4f029dd60ed1d43f4011602fcaa14f46a7e43b1bd47175882d",
+  "uct-template-weekly-review-v1": "49fca4fb4b17fc86b7d011ccfd8b77488e9288dbe663d6126b5a78a3575acfde",
+  "uct-template-weekend-swing-review-v1": "98b6d6ed080e46aabf47fd6e96134cd9f027168911649684abf1e4b8c67a5761",
+  "uct-template-monthly-review-v1": "2e8d602298e89d43392c334a590dba971507c7830f1c584b3ca916aec0148db9",
+  "uct-template-quarterly-edge-review-v1": "843c877f644d86ce78637f3b0235064a75a9f263cb5d13be4833fa0ca83deb71",
+  "uct-template-year-in-review-v1": "1461fac98600666d8850e0059a2c6904ca2561aea62f02d8729de49426e00e77",
+  "uct-template-goal-setting-v1": "36dad5a8e367bf328c4837075f193cedf015b94d1f0e95843afffe54553553d3",
+  "uct-template-setup-study-v1": "6e380ee33a050ee09f7787a8ffdad52ca5f631cee3a4364068ec4ec54c4404d5",
+  "uct-template-new-setup-idea-v1": "f925a2f9b11436faddbdb7416e443fdd99d88f3cefae7963b70878ad181df8f5",
+  "uct-template-rules-review-v1": "74a1598872e1a08d914e6193403dd511f7c31ca34cccc8f904ab652678feeb5c",
+  "uct-template-options-trade-plan-v1": "7e54cb7a60f18803331fb975f2390147f58dce2175bbffcb910f7cf2924271ab",
+  "uct-template-pre-session-check-in-v1": "860a212057e738c53ba1c9554d953d5a44efb43a997565d5c9b75035ae2b471f",
+  "uct-template-prop-firm-challenge-v1": "15d5542c02c1bf577273d01385dac22906769821a002e87b7a95714752cf5755",
+  "uct-template-consistency-30-v1": "b0aabef039679890369de6ae5bfc9bf98eb2dd10297404986b83d18c7a41202f",
+  "uct-template-morning-routine-v1": "ab4b77917168908d5de9e140f28c90f066b9a1e580a2848d7a365bbb1cc49f3b",
+  "uct-template-trading-day-trackers-v1": "463f84b0d7ea4d27a23e4b1b1ba7accbd53853e2c7e3cd04b7c52a0cb51fb407"
+ }
+}

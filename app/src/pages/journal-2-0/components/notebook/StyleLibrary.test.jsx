@@ -20,8 +20,14 @@ import TemplateGallery from './TemplateGallery'
 import StyleLibraryCard from './StyleLibraryCard'
 import { latchNotebookFlags, __resetNotebookFlags } from '../../lib/offline/notebookFlags'
 import { GALLERY_SORTS } from '../../lib/templateGallery'
-import { EXAMPLE_NOTE_TYPE, ITEM_TYPES, LIBRARY_SORTS, LISTED_ITEM_TYPES, TRADING_STYLES } from '../../lib/styleLibrary'
+import { EXAMPLE_NOTE_TYPE, ITEM_TYPES, LIBRARY_SORTS, LISTED_ITEM_TYPES, TOOL_ITEM_TYPES, TRADING_STYLES } from '../../lib/styleLibrary'
 import { contract, contractBody } from '../../__fixtures__/contract'
+import { helpfulWords, usedByWords } from './library/LibraryCardFacts'
+import { openAdoptSheet } from './library/openAdoptSheet'
+import { holdsFamilySlot } from './StyleLibraryCard'
+
+// Task 11.16 fix round 1 (ruling W11-R25): a style holding a family slot opens the adoption sheet; stood in for here.
+vi.mock('./library/openAdoptSheet', () => ({ openAdoptSheet: vi.fn(() => () => {}) }))
 
 // P5 Task 3: the list fixtures now also carry UCT's fifteen firm styles (the starter packs' rows),
 // and one of the swing three shares this member item's title ("Weekend prep"). These tests are
@@ -84,6 +90,7 @@ beforeEach(() => {
     m = u.pathname.match(/^\/api\/j2\/template-gallery\/([\w-]+)\/adopt$/)
     if (m) return answer(server.adoptAnswer)
     m = u.pathname.match(/^\/api\/j2\/template-gallery\/([\w-]+)\/helpful$/)
+    if (m && server.helpfulRefusal) return json(server.helpfulRefusal.body, server.helpfulRefusal.status)
     if (m) return answer(method === 'POST' ? 'template-gallery.helpful' : 'template-gallery.unhelpful')
     m = u.pathname.match(/^\/api\/j2\/template-gallery\/([\w-]+)$/)
     if (m && method === 'GET') return m[1] === STYLE.id ? answer('template-gallery.styles.item') : answer('template-gallery.item.not-found')
@@ -163,17 +170,44 @@ describe('the switch', () => {
     const types = await screen.findByRole('group', { name: 'Filter by type' })
     // P3b (R-P3b-2): an example note is never a chip of its own. P4b (X21): the chips are the types this answer
     // offers. This fake's list answer carries no `capabilities`, so layout sharing reads as off and the Page layouts
-    // chip is not offered (LayoutLibrary.test.jsx holds the "on" half).
+    // chip is not offered (LayoutLibrary.test.jsx holds the "on" half). Wave 11 (W11-R17): these flags leave wave 11
+    // off, so neither are the Widgets, Routines and Trackers chips (the "on" half is the test below).
     expect(within(types).getAllByRole('button').map((b) => b.textContent))
-      .toEqual(['All', ...LISTED_ITEM_TYPES.filter((t) => t.key !== 'page_layout').map((t) => t.label)])
+      .toEqual(['All', ...LISTED_ITEM_TYPES.filter((t) => t.key !== 'page_layout' && !TOOL_ITEM_TYPES.includes(t.key))
+        .map((t) => t.label)])
+    for (const name of ['Widgets', 'Routines', 'Trackers']) expect(within(types).queryByRole('button', { name })).toBeNull()
     expect(within(types).queryByRole('button', { name: 'Example notes' })).toBeNull()
     expect(within(types).queryByRole('button', { name: 'Page layouts' })).not.toBeInTheDocument()
     expect(ITEM_TYPES.some((t) => t.key === EXAMPLE_NOTE_TYPE)).toBe(true)
     expect(LISTED_ITEM_TYPES.map((t) => t.key)).toEqual(ITEM_TYPES.map((t) => t.key).filter((k) => k !== EXAMPLE_NOTE_TYPE))
+    expect(TOOL_ITEM_TYPES.every((k) => LISTED_ITEM_TYPES.some((t) => t.key === k))).toBe(true)   // non-vacuity
     const ts = screen.getByRole('group', { name: 'Filter by trading style' })
     expect(within(ts).getAllByRole('button').map((b) => b.textContent)).toEqual(['All', ...TRADING_STYLES.map((t) => t.label)])
     expect([...screen.getByLabelText('Sort').options].map((o) => o.textContent)).toEqual(LIBRARY_SORTS.map((s) => s.label))
     expect(screen.getByRole('button', { name: 'Following' })).toBeInTheDocument()
+  })
+})
+
+describe('the tool type chips follow wave 11 (W11-R17)', () => {
+  it('wave 11 on: Widgets, Routines and Trackers are offered, after Styles', async () => {
+    server.library = true
+    latchNotebookFlags({ notebook_template_gallery_enabled: true, notebook_style_library_enabled: true,
+      notebook_widgets_w11_enabled: true })
+    await openGallery()
+    const types = await screen.findByRole('group', { name: 'Filter by type' })
+    expect(within(types).getAllByRole('button').map((b) => b.textContent))
+      .toEqual(['All', ...LISTED_ITEM_TYPES.filter((t) => t.key !== 'page_layout').map((t) => t.label)])
+    for (const name of ['Widgets', 'Routines', 'Trackers']) expect(within(types).getByRole('button', { name })).toBeInTheDocument()
+  })
+
+  it('wave 11 off: a door asking for a tool type opens at All, never on a chip the row does not offer', async () => {
+    flags()
+    render(wrap(<TemplateGallery onBack={vi.fn()} initialType="routine" />))
+    const types = await screen.findByRole('group', { name: 'Filter by type' })
+    expect(within(types).getByRole('button', { name: 'All' })).toHaveAttribute('aria-pressed', 'true')
+    expect(within(types).queryByRole('button', { name: 'Routines' })).toBeNull()
+    await waitFor(() => expect(listCalls().length).toBeGreaterThan(0))
+    expect(listCalls().some((c) => c.search.includes('type=routine'))).toBe(false)
   })
 })
 
@@ -632,5 +666,140 @@ describe('fix round 1 (P5): admin controls on a style card', () => {
     await user.click(within(styleCard()).getByRole('button', { name: `Hide ${STYLE.title}` }))
     expect(await screen.findByText(`Hid “${STYLE.title}”. It is still in the Review queue.`)).toBeInTheDocument()
     expect(adminPatches().map((c) => c.body)).toEqual([{ action: 'hide', note: '' }])
+  })
+})
+
+// Task 11.16: while wave 11 is on, a style card shows the library facts: "Adopted by N" becomes "Used by N traders"
+// ("New" at 0), the Helpful line shows from 1 up (never "0 found this helpful"), the description reads "For: ...".
+// The live Helpful count still drives the line. Off: exactly as before (every rail above).
+describe('Task 11.16 -- the style card under wave 11', () => {
+  const facts = () => styleCard().querySelector('[data-used-by]')
+  it('card_fields_and_new_instead_of_zero, with the live Helpful count', async () => {
+    server.library = true
+    latchNotebookFlags({ notebook_template_gallery_enabled: true, notebook_style_library_enabled: true, notebook_widgets_w11_enabled: true })
+    const user = await openStyles()
+    const card = styleCard()
+    expect(within(card).getByText('Template')).toBeInTheDocument()
+    expect(within(card).getByText(`For: ${STYLE.description}`)).toBeInTheDocument()
+    expect(within(card).queryByText(/Adopted by/)).toBeNull()
+    const line = (n) => [usedByWords(STYLE.usedBy), 'Updated Oct 5', helpfulWords(n)].filter(Boolean).join(' · ')
+    expect(facts().textContent).toBe(line(STYLE.helpfulCount))
+    expect(card.textContent).not.toMatch(/\b0 found this helpful|Adopted by 0|Used by 0/)
+    await user.click(within(card).getByRole('button', { name: `Helpful: ${STYLE.title}` }))
+    const on = contractBody('template-gallery.helpful')
+    await waitFor(() => expect(facts().textContent).toBe(line(on.count)))
+    expect(on.count).toBeGreaterThan(0)
+    expect(facts().textContent).toContain(`${on.count} found this helpful`)
+  })
+
+  it('"New" for an item nobody has adopted', async () => {
+    server.library = true
+    latchNotebookFlags({ notebook_template_gallery_enabled: true, notebook_style_library_enabled: true, notebook_widgets_w11_enabled: true })
+    render(wrap(<ul><StyleLibraryCard item={{ ...STYLE, usedBy: 0, helpfulCount: 0 }} /></ul>))
+    expect(screen.getByText('New · Updated Oct 5')).toBeInTheDocument()
+    expect(screen.queryByText(/found this helpful|Adopted by/)).toBeNull()
+  })
+})
+
+// Ruling W11-R25: under wave 11, Adopt on a listed style that holds a widget, routine or tracker slot opens the
+// adoption sheet (kind 'template'); a style without one keeps today's confirm and adoptStyle. The listing's blocks
+// decide (templateSlots.slotFamily), read once through GET /{id}. Wave 11 off: no read, today's confirm.
+describe('W11-R25 -- Adopt on a style with family slots', () => {
+  const W11 = { notebook_template_gallery_enabled: true, notebook_style_library_enabled: true, notebook_widgets_w11_enabled: true }
+  const itemReads = () => calls.filter((c) => c.path === `/api/j2/template-gallery/${STYLE.id}` && c.method === 'GET')
+  const adopts = () => calls.filter((c) => c.path === `/api/j2/template-gallery/${STYLE.id}/adopt`)
+  beforeEach(() => { openAdoptSheet.mockClear() })
+
+  it('holdsFamilySlot reads the listing blocks with the one family test', () => {
+    expect(holdsFamilySlot({ payload: { blocks: [{ block: 'myRules' }] } })).toBe(false)
+    expect(holdsFamilySlot({ payload: { blocks: [{ block: 'myRules' }, { block: 'routine_a' }] } })).toBe(true)
+    expect(holdsFamilySlot({ payload: { blocks: [{ block: 'built_b1' }] } })).toBe(true)
+    expect(holdsFamilySlot({ blocks: [{ block: 'tracker_x' }] })).toBe(true)
+    for (const junk of [null, {}, { payload: {} }, { payload: { blocks: 'routine_a' } }]) expect(holdsFamilySlot(junk)).toBe(false)
+  })
+
+  it('a style WITHOUT family slots keeps the confirm and adoptStyle (the recorded listing)', async () => {
+    server.library = true
+    latchNotebookFlags(W11)
+    const user = await openStyles()
+    expect(holdsFamilySlot(STYLE_ITEM)).toBe(false)                            // non-vacuity: the recorded row has none
+    await user.click(within(styleCard()).getByRole('button', { name: `Adopt ${STYLE.title}` }))
+    expect(await screen.findByRole('group', { name: `Adopt ${STYLE.title}?` })).toBeInTheDocument()
+    expect(itemReads()).toHaveLength(1)
+    expect(openAdoptSheet).not.toHaveBeenCalled()
+  })
+
+  it('a style WITH a family slot opens the adoption sheet, and makes no copy itself', async () => {
+    server.library = true
+    latchNotebookFlags(W11)
+    const user = await openStyles()
+    const real = globalThis.fetch
+    globalThis.fetch = vi.fn(async (url, init = {}) => {
+      const u = new URL(String(url), 'http://x')
+      if (u.pathname === `/api/j2/template-gallery/${STYLE.id}` && (init.method || 'GET') === 'GET') {
+        calls.push({ path: u.pathname, method: 'GET', body: null })
+        const blocks = [...STYLE_ITEM.payload.blocks, { block: 'routine_a', enabled: true, settings: { template: 'k1', bind: 'note-day' } }]
+        return json({ template: { ...STYLE_ITEM, payload: { ...STYLE_ITEM.payload, blocks } } })
+      }
+      return real(url, init)
+    })
+    await user.click(within(styleCard()).getByRole('button', { name: `Adopt ${STYLE.title}` }))
+    await waitFor(() => expect(openAdoptSheet).toHaveBeenCalledTimes(1))
+    expect(openAdoptSheet.mock.calls[0][0]).toEqual({ galleryId: STYLE.id, kind: 'template', mode: 'adopt' })
+    expect(screen.queryByRole('group', { name: `Adopt ${STYLE.title}?` })).toBeNull()
+    expect(adopts()).toEqual([])
+  })
+
+  it('CONTROL: wave 11 off, Adopt opens the confirm at once and reads nothing', async () => {
+    flags()
+    const user = await openStyles()
+    await user.click(within(styleCard()).getByRole('button', { name: `Adopt ${STYLE.title}` }))
+    expect(screen.getByRole('group', { name: `Adopt ${STYLE.title}?` })).toBeInTheDocument()
+    expect(itemReads()).toEqual([])
+    expect(openAdoptSheet).not.toHaveBeenCalled()
+  })
+})
+
+// Task 11.18 (W11-R8): marking a style Helpful needs use on 3 different days. The server's 409 `helpful_days` is said
+// UNDER the Helpful button (never a toast), the button stays enabled, and nothing else changes.
+describe('Task 11.18 -- Helpful after three days', () => {
+  const DAYS = 'You can mark this helpful after using it on 3 different days.'
+  it('helpful_days_sentence_under_button (style card)', async () => {
+    server.library = true
+    server.helpfulRefusal = { status: 409, body: { detail: { code: 'helpful_days', message: DAYS } } }
+    latchNotebookFlags({ notebook_template_gallery_enabled: true, notebook_style_library_enabled: true, notebook_widgets_w11_enabled: true })
+    const user = await openStyles()
+    const card = styleCard()
+    const btn = within(card).getByRole('button', { name: `Helpful: ${STYLE.title}` })
+    const region = card.querySelector('[data-helpful-days]')
+    expect(region).toHaveAttribute('role', 'status')                       // it exists BEFORE its text (M-3)
+    expect(region).toHaveTextContent(/^$/)
+    expect(btn).not.toHaveAttribute('aria-describedby')
+    await user.click(btn)
+    const note = await within(card).findByText(DAYS)
+    expect(note).toBe(region)
+    expect(note).toHaveAttribute('data-helpful-days')
+    expect(btn).toHaveAttribute('aria-describedby', note.id)
+    expect(btn.compareDocumentPosition(note) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    await waitFor(() => expect(btn).toBeEnabled())
+    expect(btn).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.queryByRole('alert')).toBeNull()                            // no toast
+    expect(sentTo(`/api/j2/template-gallery/${STYLE.id}/helpful`, 'POST')).toHaveLength(1)
+    // The button still answers: a later success clears the sentence.
+    server.helpfulRefusal = null
+    await user.click(btn)
+    await waitFor(() => expect(within(card).queryByText(DAYS)).toBeNull())
+    expect(btn).toHaveAttribute('aria-pressed', String(contractBody('template-gallery.helpful').helpful))
+  })
+
+  it('CONTROL: any other 409 is still the toast, never the 3-day sentence', async () => {
+    server.library = true
+    server.helpfulRefusal = { status: 409, body: { detail: { code: 'conflict', message: 'Someone else changed this.' } } }
+    latchNotebookFlags({ notebook_template_gallery_enabled: true, notebook_style_library_enabled: true, notebook_widgets_w11_enabled: true })
+    const user = await openStyles()
+    await user.click(within(styleCard()).getByRole('button', { name: `Helpful: ${STYLE.title}` }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Someone else changed this.')
+    expect(screen.queryByText(DAYS)).toBeNull()
+    expect(document.querySelector('[data-helpful-days]')).toHaveTextContent(/^$/)   // the region waits, empty
   })
 })

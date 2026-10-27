@@ -81,7 +81,7 @@ __all__ = [
     "COUNT_CAP", "REVS_KEPT", "COALESCE_S", "RECENTLY_DELETED_DAYS",
     "WidgetError", "NotFound", "Conflict", "PlanError", "PlanTooNew",
     "create", "get", "update", "list_defs", "revs", "name_rev", "restore_rev",
-    "archive", "unarchive", "soft_delete", "undelete", "resolve_for_run", "used_in_notes",
+    "archive", "unarchive", "soft_delete", "undelete", "resolve_for_run", "resolve_many", "used_in_notes",
     "CREATE_KEY_TTL_S", "S_KEY_REUSED", "KeyReused", "clean_create_key", "create_with_key",
     "update_with_key",
 ]
@@ -848,3 +848,52 @@ def resolve_for_run(user_id: str, def_id: str, def_rev: int | None, *,
             return plan, row["rev"], row["rev"]
         plan, _ = _read_plan(r["plan_json"])
         return plan, r["rev"], row["rev"]
+
+
+#: How many definitions one `resolve_many` call reads at most (one SQL statement; under SQLite's variable cap).
+RESOLVE_MANY_MAX = 300
+
+
+def resolve_many(user_id: str, refs: Any, *, conn: sqlite3.Connection | None = None) -> dict:
+    """Many `resolve_for_run`s in ONE statement (Task 11.5 fix round 1, I-3): `{(def_id, def_rev): entry}`,
+    entry `{"plan", "rev", "latest_rev", "name"}`, or None for an id that is not this member's live widget
+    (foreign, unknown or deleted). The same revision rule as `resolve_for_run` (railed as its twin): it runs
+    `max(def_rev, placed_rev)` capped at the current revision, else the newest kept revision at or below it,
+    else the current plan. Fix round 2 (m-3): ONE row and ONE plan per ref; the revision is chosen in SQL, so
+    no other kept revision's plan is read. At most `RESOLVE_MANY_MAX` distinct ids (and as many refs) are read;
+    refs past that are left out of the answer (the caller's fallback)."""
+    wanted = [(d, r) for d, r in refs if isinstance(d, str) and d]
+    ids = set(list(dict.fromkeys(d for d, _ in wanted))[:RESOLVE_MANY_MAX])
+    pairs = list(dict.fromkeys((d, r) for d, r in wanted if d in ids))[:RESOLVE_MANY_MAX]
+    if not pairs or not user_id:
+        return {}
+
+    def asked_of(r: Any) -> int:
+        return r if isinstance(r, int) and not isinstance(r, bool) else 0
+    values = ", ".join("(?, ?, ?)" for _ in pairs)
+    args: list = []
+    for i, (d, r) in enumerate(pairs):
+        args += [i, d, asked_of(r)]
+    with _read(conn) as c:
+        rows = c.execute(
+            f"WITH w(i, id, asked) AS (VALUES {values})"
+            f" SELECT x.i AS i, x.name AS name, x.cur AS cur, x.rrev AS rrev,"
+            f" COALESCE((SELECT r.plan_json FROM {_REVS} r WHERE r.definition_id = x.id AND r.user_id = x.uid"
+            f" AND r.rev = x.rrev), (SELECT d2.plan_json FROM {_DEFS} d2 WHERE d2.id = x.id AND d2.user_id = x.uid))"
+            f" AS plan_json FROM (SELECT w.i AS i, d.id AS id, d.user_id AS uid, d.name AS name, d.rev AS cur,"
+            f" (SELECT r.rev FROM {_REVS} r WHERE r.definition_id = d.id AND r.user_id = d.user_id"
+            f" AND r.rev <= MIN(MAX(w.asked, d.placed_rev), d.rev) ORDER BY r.rev DESC LIMIT 1) AS rrev"
+            f" FROM w JOIN {_DEFS} d ON d.id = w.id AND d.user_id = ? AND d.deleted_at IS NULL) x",
+            (*args, user_id),
+        ).fetchall()
+    by_i = {row["i"]: row for row in rows}
+    out: dict = {}
+    for i, ref in enumerate(pairs):
+        row = by_i.get(i)
+        if row is None:
+            out[ref] = None
+            continue
+        plan, _ = _read_plan(row["plan_json"])
+        rev = row["rrev"] if row["rrev"] is not None else row["cur"]
+        out[ref] = {"plan": plan, "rev": rev, "latest_rev": row["cur"], "name": row["name"]}
+    return out

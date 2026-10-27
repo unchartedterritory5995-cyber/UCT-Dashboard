@@ -1,0 +1,713 @@
+{
+ "viewport": "820",
+ "step": "VID",
+ "title": "R80/R82 floating video and TickerPopup sheets",
+ "mode": "ON",
+ "checks": [
+  {
+   "what": "the Desk video plays in the floating mini player (mode mini, 'play' sent to the player)",
+   "ok": true,
+   "read": "{\"mode\": \"mini\", \"inert\": false, \"parentIsBody\": true, \"keep\": \"8500\", \"z\": \"8500\", \"x\": 442, \"y\": 959, \"w\": 360, \"h\": 203, \"visible\": true, \"rootInert\": false, \"calls\": [\"play\", \"state:1\"]}"
+  },
+  {
+   "what": "(1) a normal Sheet is open and #root is inert",
+   "ok": true,
+   "read": "[{\"label\": \"New note\", \"inert\": false, \"z\": \"1000\"}]"
+  },
+  {
+   "what": "(1) the player host (body child, keep-live 8500) is NOT inert under the normal Sheet",
+   "ok": true,
+   "read": "{\"mode\": \"mini\", \"inert\": false, \"parentIsBody\": true, \"keep\": \"8500\", \"z\": \"8500\", \"x\": 442, \"y\": 959, \"w\": 360, \"h\": 203, \"visible\": true, \"rootInert\": true, \"calls\": [\"play\", \"state:1\"]}"
+  },
+  {
+   "what": "(1) Pause works under the Sheet (the player got 'pause'; the button now reads Play)",
+   "ok": true,
+   "read": "{\"mode\": \"mini\", \"inert\": false, \"parentIsBody\": true, \"keep\": \"8500\", \"z\": \"8500\", \"x\": 442, \"y\": 959, \"w\": 360, \"h\": 203, \"visible\": true, \"rootInert\": true, \"calls\": [\"play\", \"state:1\", \"pause\", \"state:2\"]} play-buttons=3"
+  },
+  {
+   "what": "(1) the Sheet stayed open (the tap did not fall through to its backdrop)",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "(1) dragging the player's bar moves it under the Sheet",
+   "ok": true,
+   "read": "[[442, 959], [346, 887]]"
+  },
+  {
+   "what": "(1) the Sheet stayed open through the drag",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "(1) Close works under the Sheet (the player is gone)",
+   "ok": true,
+   "read": "null"
+  },
+  {
+   "what": "(1) the Sheet stayed open through Close",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "(2) the chart sheet is drawn ABOVE the popup (z > 8600)",
+   "ok": true,
+   "read": "[{\"label\": \"Indicator library\", \"inert\": false, \"z\": \"8601\"}, {\"label\": \"QQQ chart\", \"inert\": true, \"z\": \"8600\"}]"
+  },
+  {
+   "what": "(2) the popup is inert under the sheet",
+   "ok": true,
+   "read": "{\"label\": \"QQQ chart\", \"inert\": true, \"z\": \"8600\"}"
+  },
+  {
+   "what": "(2) the sheet is not inert",
+   "ok": true,
+   "read": "{\"label\": \"Indicator library\", \"inert\": false, \"z\": \"8601\"}"
+  },
+  {
+   "what": "(3) the sheet lifted above the video (z > 8500) makes the player inert",
+   "ok": true,
+   "read": "{\"mode\": \"mini\", \"inert\": true, \"parentIsBody\": true, \"keep\": \"8500\", \"z\": \"8500\", \"x\": 346, \"y\": 887, \"w\": 360, \"h\": 203, \"visible\": true, \"rootInert\": true, \"calls\": [\"play\", \"state:1\"]}"
+  },
+  {
+   "what": "(2) the sheet over the popup is operable (its search takes typing and filters the list)",
+   "ok": true,
+   "read": "[57, 20]"
+  },
+  {
+   "what": "(2) closing the sheet makes the popup live again",
+   "ok": true,
+   "read": "[{\"label\": \"QQQ chart\", \"inert\": false, \"z\": \"8600\"}]"
+  }
+ ],
+ "rendered": [
+  {
+   "what": "player after Minimize",
+   "text": "{\"mode\": \"mini\", \"inert\": false, \"parentIsBody\": true, \"keep\": \"8500\", \"z\": \"8500\", \"x\": 442, \"y\": 959, \"w\": 360, \"h\": 203, \"visible\": true, \"rootInert\": false, \"calls\": [\"play\", \"state:1\"]}"
+  },
+  {
+   "what": "normal Sheet open: player / inert picture",
+   "text": "[{\"mode\": \"mini\", \"inert\": false, \"parentIsBody\": true, \"keep\": \"8500\", \"z\": \"8500\", \"x\": 442, \"y\": 959, \"w\": 360, \"h\": 203, \"visible\": true, \"rootInert\": true, \"calls\": [\"play\", \"state:1\"]}, {\"rootInert\": true, \"dialogs\": [{\"label\": \"New note\", \"inert\": false, \"z\": \"1000\"}], \"bodyChildren\": [{\"id\": \"root\", \"cls\": \"\", \"inert\": true, \"keep\": null, \"z\": \"auto\"}, {\"id\": \"\", \"cls\": \"_host_108ev_1 _mini_108ev_81\", \"inert\": false, \"keep\": \"8500\", \"z\": \"8500\"}, {\"id\": \"\", \"cls\": \"_backdrop_futca_1 _bottom-sheet_futca_27\", \"inert\": false, \"keep\": null, \"z\": \"1000\"}]}]"
+  },
+  {
+   "what": "drag: player position before / after",
+   "text": "[[442, 959], [346, 887]]"
+  },
+  {
+   "what": "player after Minimize",
+   "text": "{\"mode\": \"mini\", \"inert\": false, \"parentIsBody\": true, \"keep\": \"8500\", \"z\": \"8500\", \"x\": 346, \"y\": 887, \"w\": 360, \"h\": 203, \"visible\": true, \"rootInert\": false, \"calls\": [\"play\", \"state:1\"]}"
+  },
+  {
+   "what": "TickerPopup open: inert picture",
+   "text": "{\"rootInert\": false, \"dialogs\": [{\"label\": \"QQQ chart\", \"inert\": false, \"z\": \"8600\"}], \"bodyChildren\": [{\"id\": \"root\", \"cls\": \"\", \"inert\": false, \"keep\": null, \"z\": \"auto\"}, {\"id\": \"\", \"cls\": \"_host_108ev_1 _mini_108ev_81\", \"inert\": false, \"keep\": \"8500\", \"z\": \"8500\"}, {\"id\": \"\", \"cls\": \"_overlay_1fzgq_63\", \"inert\": false, \"keep\": null, \"z\": \"8600\"}]}"
+  },
+  {
+   "what": "Indicator library opened from the TickerPopup: inert picture / player",
+   "text": "[{\"rootInert\": true, \"dialogs\": [{\"label\": \"QQQ chart\", \"inert\": true, \"z\": \"8600\"}, {\"label\": \"Indicator library\", \"inert\": false, \"z\": \"8601\"}], \"bodyChildren\": [{\"id\": \"root\", \"cls\": \"\", \"inert\": true, \"keep\": null, \"z\": \"auto\"}, {\"id\": \"\", \"cls\": \"_host_108ev_1 _mini_108ev_81\", \"inert\": true, \"keep\": \"8500\", \"z\": \"8500\"}, {\"id\": \"\", \"cls\": \"_overlay_1fzgq_63\", \"inert\": true, \"keep\": null, \"z\": \"8600\"}, {\"id\": \"\", \"cls\": \"_backdrop_futca_1 _bottom-sheet_futca_27\", \"inert\": false, \"keep\": null, \"z\": \"8601\"}]}, {\"mode\": \"mini\", \"inert\": true, \"parentIsBody\": true, \"keep\": \"8500\", \"z\": \"8500\", \"x\": 346, \"y\": 887, \"w\": 360, \"h\": 203, \"visible\": true, \"rootInert\": true, \"calls\": [\"play\", \"state:1\"]}]"
+  },
+  {
+   "what": "Indicator library rows before / after typing RSI",
+   "text": "[57, 20, \"RSI\"]"
+  }
+ ],
+ "verdict": "FAIL",
+ "notes": [],
+ "events": {
+  "P01": [
+   {
+    "http": 503,
+    "method": "GET",
+    "url": "http://127.0.0.1:8171/api/community/desk-threads?ids=131,156,132,157,188,133,158,189,134,159,190,135,160,191,136,161,192,137,162,163,193,164,194,165,195,166,167,168,196,169,170,171,172,197,198,183,186,14,141,15,142,16,17,18,19,20,21,22,23,2"
+   },
+   {
+    "http": 503,
+    "method": "GET",
+    "url": "http://127.0.0.1:8171/api/community/desk-threads?ids=131,156,132,157,188,133,158,189,134,159,190,135,160,191,136,161,192,137,162,163,193,164,194,165,195,166,167,168,196,169,170,171,172,197,198,183,186,14,141,15,142,16,17,18,19,20,21,22,23,2"
+   }
+  ]
+ },
+ "metrics": {
+  "indicator-sheet": {
+   "overflow": {
+    "vw": 820,
+    "docScrollWidth": 820,
+    "bodyScrollWidth": 820,
+    "inner": [
+     [
+      820,
+      820
+     ],
+     [
+      264,
+      264
+     ],
+     [
+      439,
+      439
+     ],
+     [
+      419,
+      419
+     ]
+    ],
+    "horizontal": false,
+    "offenders": []
+   },
+   "raw_block": [],
+   "axe_sheet": {
+    "version": "4.13.0",
+    "scope": "[data-walk-scope=\"1\"]",
+    "violations": [
+     {
+      "id": "nested-interactive",
+      "impact": "serious",
+      "help": "Interactive controls must not be nested",
+      "nodes": 1,
+      "targets": [
+       "li[data-def-id=\"movingAverage\"]"
+      ],
+      "summary": "Fix any of the following:\n  Element has focusable descendants",
+      "html": "<li role=\"option\" aria-selected=\"true\" data-def-id=\"movingAverage\" data-user-defined=\"false\" tabindex=\"0\" class=\"_row_ebwq9_207 _rowOn_ebwq9_239 \">"
+     }
+    ]
+   },
+   "axe_page": {
+    "version": "4.13.0",
+    "scope": "body",
+    "violations": [
+     {
+      "id": "nested-interactive",
+      "impact": "serious",
+      "help": "Interactive controls must not be nested",
+      "nodes": 1,
+      "targets": [
+       "li[data-def-id=\"movingAverage\"]"
+      ],
+      "summary": "Fix any of the following:\n  Element has focusable descendants",
+      "html": "<li role=\"option\" aria-selected=\"true\" data-def-id=\"movingAverage\" data-user-defined=\"false\" tabindex=\"0\" class=\"_row_ebwq9_207 _rowOn_ebwq9_239 \">"
+     }
+    ]
+   },
+   "tap": {
+    "scope": "[data-walk-scope=\"1\"]",
+    "controls": 58,
+    "small": [],
+    "smallCount": 0,
+    "pointerCoarse": true
+   }
+  },
+  "tickerpopup": {
+   "overflow": {
+    "vw": 820,
+    "docScrollWidth": 820,
+    "bodyScrollWidth": 820,
+    "inner": [
+     [
+      820,
+      820
+     ]
+    ],
+    "horizontal": false,
+    "offenders": []
+   },
+   "raw_block": [],
+   "axe_sheet": {
+    "version": "4.13.0",
+    "scope": "[data-walk-scope=\"1\"]",
+    "violations": [
+     {
+      "id": "target-size",
+      "impact": "serious",
+      "help": "All touch targets must be 24px large, or leave sufficient space",
+      "nodes": 7,
+      "targets": [
+       "._scaleToggleActive_1ommr_2269",
+       "button[title=\"Logarithmic scale\"]",
+       "button[title=\"Percentage scale\"]",
+       "span[aria-label=\"EMA 9 options\"]"
+      ],
+      "summary": "Fix any of the following:\n  Target has insufficient size (17px by 11px, should be at least 24px by 24px)\n  Target has insufficient space to its closest neighbors. Safe clickable space has a diameter of 10.8px instead of at least 24px.",
+      "html": "<button class=\"_scaleToggleBtn_1ommr_2221 _scaleToggleActive_1ommr_2269\" title=\"Arithmetic (linear) scale\" aria-label=\"Arithmetic price scale\">A</button>"
+     }
+    ]
+   },
+   "axe_page": {
+    "version": "4.13.0",
+    "scope": "body",
+    "violations": [
+     {
+      "id": "target-size",
+      "impact": "serious",
+      "help": "All touch targets must be 24px large, or leave sufficient space",
+      "nodes": 7,
+      "targets": [
+       "._scaleToggleActive_1ommr_2269",
+       "button[title=\"Logarithmic scale\"]",
+       "button[title=\"Percentage scale\"]",
+       "span[aria-label=\"EMA 9 options\"]"
+      ],
+      "summary": "Fix any of the following:\n  Target has insufficient size (17px by 11px, should be at least 24px by 24px)\n  Target has insufficient space to its closest neighbors. Safe clickable space has a diameter of 10.8px instead of at least 24px.",
+      "html": "<button class=\"_scaleToggleBtn_1ommr_2221 _scaleToggleActive_1ommr_2269\" title=\"Arithmetic (linear) scale\" aria-label=\"Arithmetic price scale\">A</button>"
+     }
+    ]
+   },
+   "tap": {
+    "scope": "[data-walk-scope=\"1\"]",
+    "controls": 65,
+    "small": [
+     {
+      "label": "Switch ticker — type a symbol to open it",
+      "tag": "INPUT",
+      "cls": "_switchInput_1fzgq_145",
+      "w": 148,
+      "h": 34,
+      "x": 258,
+      "y": 102,
+      "offscreen": false,
+      "covered": false
+     },
+     {
+      "label": "Open full research for QQQ",
+      "tag": "BUTTON",
+      "cls": "_actionBtn_1fzgq_365",
+      "w": 28,
+      "h": 26,
+      "x": 416,
+      "y": 106,
+      "offscreen": false,
+      "covered": false
+     },
+     {
+      "label": "Ask AI about QQQ",
+      "tag": "BUTTON",
+      "cls": "_actionBtn_1fzgq_365",
+      "w": 28,
+      "h": 26,
+      "x": 454,
+      "y": 106,
+      "offscreen": false,
+      "covered": false
+     },
+     {
+      "label": "Save QQQ's current price to Notebook",
+      "tag": "BUTTON",
+      "cls": "_actionBtn_1fzgq_365",
+      "w": 28,
+      "h": 26,
+      "x": 492,
+      "y": 106,
+      "offscreen": false,
+      "covered": false
+     },
+     {
+      "label": "Save QQQ's analyst consensus to Notebook",
+      "tag": "BUTTON",
+      "cls": "_actionBtn_1fzgq_365",
+      "w": 28,
+      "h": 26,
+      "x": 530,
+      "y": 106,
+      "offscreen": false,
+      "covered": false
+     },
+     {
+      "label": "QQQ — click to search a different ticker",
+      "tag": "BUTTON",
+      "cls": "_badge_1ubeu_17",
+      "w": 97,
+      "h": 14,
+      "x": 568,
+      "y": 112,
+      "offscreen": false,
+      "covered": false
+     },
+     {
+      "label": "Add to flagged list",
+      "tag": "BUTTON",
+      "cls": "_flagBtn_1fzgq_401",
+      "w": 28,
+      "h": 26,
+      "x": 675,
+      "y": 106,
+      "offscreen": false,
+      "covered": false
+     },
+     {
+      "label": "Close chart",
+      "tag": "BUTTON",
+      "cls": "_closeBtn_1fzgq_325",
+      "w": 29,
+      "h": 27,
+      "x": 713,
+      "y": 105,
+      "offscreen": false,
+      "covered": false
+     },
+     {
+      "label": "Chart",
+      "tag": "BUTTON",
+      "cls": "_modalModeBtn_1fzgq_631 _modalModeBtnActive_1fzgq_",
+      "w": 62,
+      "h": 24,
+      "x": 96,
+      "y": 161,
+      "offscreen": false,
+      "covered": false
+     },
+     {
+      "label": "About",
+      "tag": "BUTTON",
+      "cls": "_modalModeBtn_1fzgq_631 ",
+      "w": 65,
+      "h": 24,
+      "x": 158,
+      "y": 161,
+      "offscreen": false,
+      "covered": false
+     },
+     {
+      "label": "Fundamentals",
+      "tag": "BUTTON",
+      "cls": "_modalModeBtn_1fzgq_631 ",
+      "w": 113,
+      "h": 24,
+      "x": 223,
+      "y": 161,
+      "offscreen": false,
+      "covered": false
+     },
+     {
+      "label": "The Street",
+      "tag": "BUTTON",
+      "cls": "_modalModeBtn_1fzgq_631 ",
+      "w": 92,
+      "h": 24,
+      "x": 336,
+      "y": 161,
+      "offscreen": false,
+      "covered": false
+     },
+     {
+      "label": "15m",
+      "tag": "BUTTON",
+      "cls": "_tfBtn_167sq_983 ",
+      "w": 41,
+      "h": 20,
+      "x": 101,
+      "y": 237,
+      "offscreen": false,
+      "covered": false
+     },
+     {
+      "label": "30m",
+      "tag": "BUTTON",
+      "cls": "_tfBtn_167sq_983 ",
+      "w": 44,
+      "h": 20,
+      "x": 143,
+      "y": 237,
+      "offscreen": false,
+      "covered": false
+     },
+     {
+      "label": "1h",
+      "tag": "BUTTON",
+      "cls": "_tfBtn_167sq_983 ",
+      "w": 30,
+      "h": 20,
+      "x": 189,
+      "y": 237,
+      "offscreen": false,
+      "covered": false
+     },
+     {
+      "label": "1D",
+      "tag": "BUTTON",
+      "cls": "_tfBtn_167sq_983 _tfBtnActive_167sq_1025",
+      "w": 32,
+      "h": 20,
+      "x": 221,
+      "y": 237,
+      "offscreen": false,
+      "covered": false
+     },
+     {
+      "label": "1W",
+      "tag": "BUTTON",
+      "cls": "_tfBtn_167sq_983 ",
+      "w": 35,
+      "h": 20,
+      "x": 255,
+      "y": 237,
+      "offscreen": false,
+      "covered": false
+     },
+     {
+      "label": "1M",
+      "tag": "BUTTON",
+      "cls": "_tfBtn_167sq_983 ",
+      "w": 33,
+      "h": 20,
+      "x": 293,
+      "y": 237,
+      "offscreen": false,
+      "covered": false
+     },
+     {
+      "label": "More timeframes",
+      "tag": "BUTTON",
+      "cls": "_tfBtn_167sq_983",
+      "w": 27,
+      "h": 12,
+      "x": 328,
+      "y": 241,
+      "offscreen": false,
+      "covered": false
+     },
+     {
+      "label": "Arithmetic price scale",
+      "tag": "BUTTON",
+      "cls": "_scaleToggleBtn_1ommr_2221 _scaleToggleActive_1omm",
+      "w": 17,
+      "h": 11,
+      "x": 658,
+      "y": 1050,
+      "offscreen": false,
+      "covered": false
+     },
+     {
+      "label": "Logarithmic price scale",
+      "tag": "BUTTON",
+      "cls": "_scaleToggleBtn_1ommr_2221 ",
+      "w": 16,
+      "h": 11,
+      "x": 676,
+      "y": 1050,
+      "offscreen": false,
+      "covered": false
+     },
+     {
+      "label": "Percentage price scale",
+      "tag": "BUTTON",
+      "cls": "_scaleToggleBtn_1ommr_2221 ",
+      "w": 17,
+      "h": 11,
+      "x": 693,
+      "y": 1050,
+      "offscreen": false,
+      "covered": false
+     },
+     {
+      "label": "EMA 9 options",
+      "tag": "SPAN",
+      "cls": "_chipGridRow_g9s4m_227  _rowLive_g9s4m_207  ",
+      "w": 94,
+      "h": 14,
+      "x": 105,
+      "y": 320,
+      "offscreen": false,
+      "covered": false
+     },
+     {
+      "label": "EMA 20 options",
+      "tag": "SPAN",
+      "cls": "_chipGridRow_g9s4m_227  _rowLive_g9s4m_207  ",
+      "w": 94,
+      "h": 14,
+      "x": 105,
+      "y": 342,
+      "offscreen": false,
+      "covered": false
+     },
+     {
+      "label": "SMA 50 options",
+      "tag": "SPAN",
+      "cls": "_chipGridRow_g9s4m_227  _rowLive_g9s4m_207  ",
+      "w": 94,
+      "h": 14,
+      "x": 105,
+      "y": 364,
+      "offscreen": false,
+      "covered": false
+     }
+    ],
+    "smallCount": 63,
+    "pointerCoarse": true
+   }
+  }
+ },
+ "screenshots": [
+  "820/VID-video-under-sheet.png",
+  "820/VID-tickerpopup.png",
+  "820/VID-indicator-sheet-over-popup.png"
+ ],
+ "requests_note_put": 0,
+ "started": "2026-10-27T10:10:03",
+ "findings": [
+  {
+   "kind": "axe:serious",
+   "surface": "indicator-sheet",
+   "scope": "axe_sheet",
+   "id": "nested-interactive",
+   "detail": "nested-interactive: Interactive controls must not be nested (1 nodes) ['li[data-def-id=\"movingAverage\"]'] -- Fix any of the following:\n  Element has focusable descendants"
+  },
+  {
+   "kind": "axe:serious",
+   "surface": "indicator-sheet",
+   "scope": "axe_page",
+   "id": "nested-interactive",
+   "detail": "nested-interactive: Interactive controls must not be nested (1 nodes) ['li[data-def-id=\"movingAverage\"]'] -- Fix any of the following:\n  Element has focusable descendants"
+  },
+  {
+   "kind": "axe:serious",
+   "surface": "tickerpopup",
+   "scope": "axe_sheet",
+   "id": "target-size",
+   "detail": "target-size: All touch targets must be 24px large, or leave sufficient space (7 nodes) ['._scaleToggleActive_1ommr_2269', 'button[title=\"Logarithmic scale\"]', 'button[title=\"Percentage scale\"]'] -- Fix any of the following:\n  Target has insufficient size (17px by 11px, should be at least 24px by 24px)\n  Target has insufficient space to its closest neighbors. Safe clickable space has a diameter of 10.8px instead of "
+  },
+  {
+   "kind": "axe:serious",
+   "surface": "tickerpopup",
+   "scope": "axe_page",
+   "id": "target-size",
+   "detail": "target-size: All touch targets must be 24px large, or leave sufficient space (7 nodes) ['._scaleToggleActive_1ommr_2269', 'button[title=\"Logarithmic scale\"]', 'button[title=\"Percentage scale\"]'] -- Fix any of the following:\n  Target has insufficient size (17px by 11px, should be at least 24px by 24px)\n  Target has insufficient space to its closest neighbors. Safe clickable space has a diameter of 10.8px instead of "
+  },
+  {
+   "kind": "tap",
+   "surface": "tickerpopup",
+   "detail": "{\"label\": \"Switch ticker — type a symbol to open it\", \"tag\": \"INPUT\", \"cls\": \"_switchInput_1fzgq_145\", \"w\": 148, \"h\": 34, \"x\": 258, \"y\": 102, \"offscreen\": false, \"covered\": false}"
+  },
+  {
+   "kind": "tap",
+   "surface": "tickerpopup",
+   "detail": "{\"label\": \"Open full research for QQQ\", \"tag\": \"BUTTON\", \"cls\": \"_actionBtn_1fzgq_365\", \"w\": 28, \"h\": 26, \"x\": 416, \"y\": 106, \"offscreen\": false, \"covered\": false}"
+  },
+  {
+   "kind": "tap",
+   "surface": "tickerpopup",
+   "detail": "{\"label\": \"Ask AI about QQQ\", \"tag\": \"BUTTON\", \"cls\": \"_actionBtn_1fzgq_365\", \"w\": 28, \"h\": 26, \"x\": 454, \"y\": 106, \"offscreen\": false, \"covered\": false}"
+  },
+  {
+   "kind": "tap",
+   "surface": "tickerpopup",
+   "detail": "{\"label\": \"Save QQQ's current price to Notebook\", \"tag\": \"BUTTON\", \"cls\": \"_actionBtn_1fzgq_365\", \"w\": 28, \"h\": 26, \"x\": 492, \"y\": 106, \"offscreen\": false, \"covered\": false}"
+  },
+  {
+   "kind": "tap",
+   "surface": "tickerpopup",
+   "detail": "{\"label\": \"Save QQQ's analyst consensus to Notebook\", \"tag\": \"BUTTON\", \"cls\": \"_actionBtn_1fzgq_365\", \"w\": 28, \"h\": 26, \"x\": 530, \"y\": 106, \"offscreen\": false, \"covered\": false}"
+  },
+  {
+   "kind": "tap",
+   "surface": "tickerpopup",
+   "detail": "{\"label\": \"QQQ — click to search a different ticker\", \"tag\": \"BUTTON\", \"cls\": \"_badge_1ubeu_17\", \"w\": 97, \"h\": 14, \"x\": 568, \"y\": 112, \"offscreen\": false, \"covered\": false}"
+  },
+  {
+   "kind": "tap",
+   "surface": "tickerpopup",
+   "detail": "{\"label\": \"Add to flagged list\", \"tag\": \"BUTTON\", \"cls\": \"_flagBtn_1fzgq_401\", \"w\": 28, \"h\": 26, \"x\": 675, \"y\": 106, \"offscreen\": false, \"covered\": false}"
+  },
+  {
+   "kind": "tap",
+   "surface": "tickerpopup",
+   "detail": "{\"label\": \"Close chart\", \"tag\": \"BUTTON\", \"cls\": \"_closeBtn_1fzgq_325\", \"w\": 29, \"h\": 27, \"x\": 713, \"y\": 105, \"offscreen\": false, \"covered\": false}"
+  },
+  {
+   "kind": "tap",
+   "surface": "tickerpopup",
+   "detail": "{\"label\": \"Chart\", \"tag\": \"BUTTON\", \"cls\": \"_modalModeBtn_1fzgq_631 _modalModeBtnActive_1fzgq_\", \"w\": 62, \"h\": 24, \"x\": 96, \"y\": 161, \"offscreen\": false, \"covered\": false}"
+  },
+  {
+   "kind": "tap",
+   "surface": "tickerpopup",
+   "detail": "{\"label\": \"About\", \"tag\": \"BUTTON\", \"cls\": \"_modalModeBtn_1fzgq_631 \", \"w\": 65, \"h\": 24, \"x\": 158, \"y\": 161, \"offscreen\": false, \"covered\": false}"
+  },
+  {
+   "kind": "tap",
+   "surface": "tickerpopup",
+   "detail": "{\"label\": \"Fundamentals\", \"tag\": \"BUTTON\", \"cls\": \"_modalModeBtn_1fzgq_631 \", \"w\": 113, \"h\": 24, \"x\": 223, \"y\": 161, \"offscreen\": false, \"covered\": false}"
+  },
+  {
+   "kind": "tap",
+   "surface": "tickerpopup",
+   "detail": "{\"label\": \"The Street\", \"tag\": \"BUTTON\", \"cls\": \"_modalModeBtn_1fzgq_631 \", \"w\": 92, \"h\": 24, \"x\": 336, \"y\": 161, \"offscreen\": false, \"covered\": false}"
+  },
+  {
+   "kind": "tap",
+   "surface": "tickerpopup",
+   "detail": "{\"label\": \"15m\", \"tag\": \"BUTTON\", \"cls\": \"_tfBtn_167sq_983 \", \"w\": 41, \"h\": 20, \"x\": 101, \"y\": 237, \"offscreen\": false, \"covered\": false}"
+  },
+  {
+   "kind": "tap",
+   "surface": "tickerpopup",
+   "detail": "{\"label\": \"30m\", \"tag\": \"BUTTON\", \"cls\": \"_tfBtn_167sq_983 \", \"w\": 44, \"h\": 20, \"x\": 143, \"y\": 237, \"offscreen\": false, \"covered\": false}"
+  },
+  {
+   "kind": "tap",
+   "surface": "tickerpopup",
+   "detail": "{\"label\": \"1h\", \"tag\": \"BUTTON\", \"cls\": \"_tfBtn_167sq_983 \", \"w\": 30, \"h\": 20, \"x\": 189, \"y\": 237, \"offscreen\": false, \"covered\": false}"
+  },
+  {
+   "kind": "tap",
+   "surface": "tickerpopup",
+   "detail": "{\"label\": \"1D\", \"tag\": \"BUTTON\", \"cls\": \"_tfBtn_167sq_983 _tfBtnActive_167sq_1025\", \"w\": 32, \"h\": 20, \"x\": 221, \"y\": 237, \"offscreen\": false, \"covered\": false}"
+  },
+  {
+   "kind": "tap",
+   "surface": "tickerpopup",
+   "detail": "{\"label\": \"1W\", \"tag\": \"BUTTON\", \"cls\": \"_tfBtn_167sq_983 \", \"w\": 35, \"h\": 20, \"x\": 255, \"y\": 237, \"offscreen\": false, \"covered\": false}"
+  },
+  {
+   "kind": "tap",
+   "surface": "tickerpopup",
+   "detail": "{\"label\": \"1M\", \"tag\": \"BUTTON\", \"cls\": \"_tfBtn_167sq_983 \", \"w\": 33, \"h\": 20, \"x\": 293, \"y\": 237, \"offscreen\": false, \"covered\": false}"
+  },
+  {
+   "kind": "tap",
+   "surface": "tickerpopup",
+   "detail": "{\"label\": \"More timeframes\", \"tag\": \"BUTTON\", \"cls\": \"_tfBtn_167sq_983\", \"w\": 27, \"h\": 12, \"x\": 328, \"y\": 241, \"offscreen\": false, \"covered\": false}"
+  },
+  {
+   "kind": "tap",
+   "surface": "tickerpopup",
+   "detail": "{\"label\": \"Arithmetic price scale\", \"tag\": \"BUTTON\", \"cls\": \"_scaleToggleBtn_1ommr_2221 _scaleToggleActive_1omm\", \"w\": 17, \"h\": 11, \"x\": 658, \"y\": 1050, \"offscreen\": false, \"covered\": false}"
+  },
+  {
+   "kind": "tap",
+   "surface": "tickerpopup",
+   "detail": "{\"label\": \"Logarithmic price scale\", \"tag\": \"BUTTON\", \"cls\": \"_scaleToggleBtn_1ommr_2221 \", \"w\": 16, \"h\": 11, \"x\": 676, \"y\": 1050, \"offscreen\": false, \"covered\": false}"
+  },
+  {
+   "kind": "tap",
+   "surface": "tickerpopup",
+   "detail": "{\"label\": \"Percentage price scale\", \"tag\": \"BUTTON\", \"cls\": \"_scaleToggleBtn_1ommr_2221 \", \"w\": 17, \"h\": 11, \"x\": 693, \"y\": 1050, \"offscreen\": false, \"covered\": false}"
+  },
+  {
+   "kind": "tap",
+   "surface": "tickerpopup",
+   "detail": "{\"label\": \"EMA 9 options\", \"tag\": \"SPAN\", \"cls\": \"_chipGridRow_g9s4m_227  _rowLive_g9s4m_207  \", \"w\": 94, \"h\": 14, \"x\": 105, \"y\": 320, \"offscreen\": false, \"covered\": false}"
+  },
+  {
+   "kind": "tap",
+   "surface": "tickerpopup",
+   "detail": "{\"label\": \"EMA 20 options\", \"tag\": \"SPAN\", \"cls\": \"_chipGridRow_g9s4m_227  _rowLive_g9s4m_207  \", \"w\": 94, \"h\": 14, \"x\": 105, \"y\": 342, \"offscreen\": false, \"covered\": false}"
+  },
+  {
+   "kind": "tap",
+   "surface": "tickerpopup",
+   "detail": "{\"label\": \"SMA 50 options\", \"tag\": \"SPAN\", \"cls\": \"_chipGridRow_g9s4m_227  _rowLive_g9s4m_207  \", \"w\": 94, \"h\": 14, \"x\": 105, \"y\": 364, \"offscreen\": false, \"covered\": false}"
+  },
+  {
+   "kind": "event",
+   "page": "P01",
+   "detail": "{\"http\": 503, \"method\": \"GET\", \"url\": \"http://127.0.0.1:8171/api/community/desk-threads?ids=131,156,132,157,188,133,158,189,134,159,190,135,160,191,136,161,192,137,162,163,193,164,194,165,195,166,167,168,196,169,170,171,172,197,198,183,186,14,141,15,142,16,17,18,19,20,21,22,23,2\"}"
+  },
+  {
+   "kind": "event",
+   "page": "P01",
+   "detail": "{\"http\": 503, \"method\": \"GET\", \"url\": \"http://127.0.0.1:8171/api/community/desk-threads?ids=131,156,132,157,188,133,158,189,134,159,190,135,160,191,136,161,192,137,162,163,193,164,194,165,195,166,167,168,196,169,170,171,172,197,198,183,186,14,141,15,142,16,17,18,19,20,21,22,23,2\"}"
+  }
+ ],
+ "partial": false,
+ "finished": "2026-10-27T10:11:09"
+}

@@ -14,6 +14,8 @@
  */
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { vi } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import MarketContextWidget from './MarketContextWidget'
 import { readingsFrom } from './marketContextModel'
 import MarketContextEmbed from '../../journal-2-0/components/notebook/MarketContextEmbed'
@@ -516,5 +518,20 @@ describe('R-T12-C: the budget stamp', () => {
       expect(await screen.findByText(CAPTURE_FAILED)).toBeTruthy()
       unmount()
     }
+  })
+})
+
+// 11.20 walk D5 (axe serious, scrollable-region-focusable): the readings list is a scroll region (`overflow: auto`),
+// and a keyboard member could not reach it to scroll it. It is now a named region in the Tab order.
+describe('the readings list is a keyboard-reachable scroll region (walk D5)', () => {
+  it('the scrolling list is focusable and named', () => {
+    mockData.mockReturnValue(BREADTH)
+    render(<Wrap />)
+    const list = screen.getByRole('region', { name: 'Market context readings' })
+    expect(list.getAttribute('tabindex')).toBe('0')
+    expect(list).toContainElement(screen.getByText('Breadth score'))
+    const css = readFileSync(join(process.cwd(), 'src/pages/charts/widgets/MarketContextWidget.module.css'), 'utf8')
+    expect(/\.list\s*\{[^}]*overflow:\s*auto/.test(css), 'precondition: the list is the one that scrolls').toBe(true)
+    expect(/\.list:focus-visible\s*\{[^}]*outline/.test(css), 'a focused list shows where focus is').toBe(true)
   })
 })

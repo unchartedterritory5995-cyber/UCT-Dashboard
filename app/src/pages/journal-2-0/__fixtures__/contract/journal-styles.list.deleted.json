@@ -1,0 +1,138 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "GET /api/j2/journal-styles",
+    "note": "The Templates tab's Recently deleted list: the deleted duplicate.",
+    "path": "/api/j2/journal-styles?view=deleted",
+    "status": 200
+  },
+  "body": {
+    "kinds": [
+      {
+        "builtin": true,
+        "icon": "chart",
+        "id": "trade_plan",
+        "name": "Trade plan",
+        "sortOrder": 0
+      },
+      {
+        "builtin": true,
+        "icon": "sun",
+        "id": "daily_prep",
+        "name": "Daily prep",
+        "sortOrder": 1
+      },
+      {
+        "builtin": true,
+        "icon": "calendar",
+        "id": "weekend_prep",
+        "name": "Weekend prep",
+        "sortOrder": 2
+      },
+      {
+        "builtin": true,
+        "icon": "earnings",
+        "id": "earnings",
+        "name": "Earnings",
+        "sortOrder": 3
+      },
+      {
+        "builtin": true,
+        "icon": "edit",
+        "id": "earnings_followup",
+        "name": "Earnings follow-up",
+        "sortOrder": 4
+      },
+      {
+        "builtin": true,
+        "icon": "check",
+        "id": "post_trade_review",
+        "name": "Post-trade review",
+        "sortOrder": 5
+      },
+      {
+        "builtin": true,
+        "icon": "refresh",
+        "id": "weekly_review",
+        "name": "Weekly review",
+        "sortOrder": 6
+      },
+      {
+        "builtin": true,
+        "icon": "book",
+        "id": "thesis",
+        "name": "Thesis",
+        "sortOrder": 7
+      },
+      {
+        "builtin": true,
+        "icon": "eye",
+        "id": "watchlist_note",
+        "name": "Watchlist note",
+        "sortOrder": 8
+      }
+    ],
+    "styles": [
+      {
+        "archivedAt": null,
+        "blocks": [],
+        "builtin": false,
+        "createdAt": "2026-10-05T14:30:00+00:00",
+        "credit": null,
+        "deletedAt": "2026-10-05T14:30:00+00:00",
+        "fromLibrary": false,
+        "hasOutline": false,
+        "id": "d6587257ae584905b6d07f6eb2d79cb2",
+        "isDefault": false,
+        "kindId": "k_2b5da98882ad4892bdbc1a9ff8ddd967",
+        "name": "Deleted with its kind",
+        "outlineTemplateId": null,
+        "properties": {},
+        "sourceGalleryId": null,
+        "sourceVersion": null,
+        "updateAvailable": false,
+        "updatedAt": "2026-10-05T14:30:00+00:00",
+        "usedIn": 0,
+        "version": 1
+      },
+      {
+        "archivedAt": "2026-10-05T14:30:00+00:00",
+        "blocks": [
+          {
+            "block": "myWatchlistToday",
+            "enabled": true,
+            "settings": {}
+          },
+          {
+            "block": "prepMovers",
+            "enabled": true,
+            "settings": {}
+          },
+          {
+            "block": "prepLevels",
+            "enabled": true,
+            "settings": {}
+          }
+        ],
+        "builtin": false,
+        "createdAt": "2026-10-05T14:30:00+00:00",
+        "credit": "Based on UCT's Watchlist review",
+        "deletedAt": "2026-10-05T14:30:00+00:00",
+        "fromLibrary": true,
+        "hasOutline": true,
+        "id": "c02616e402cf46b99e9ab80204132bfd",
+        "isDefault": false,
+        "kindId": "watchlist_note",
+        "name": "Watchlist review copy",
+        "outlineTemplateId": null,
+        "properties": {},
+        "sourceGalleryId": "8a42b32deeb35693adb359d641789d26",
+        "sourceVersion": 1,
+        "updateAvailable": false,
+        "updatedAt": "2026-10-05T14:30:00+00:00",
+        "usedIn": 0,
+        "version": 1
+      }
+    ]
+  }
+}

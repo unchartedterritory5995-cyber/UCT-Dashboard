@@ -1,0 +1,13 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "DELETE /api/j2/note-kinds/k_2b5da98882ad4892bdbc1a9ff8ddd967",
+    "note": "Wave 11 on (W11-R69 / W11-R10): the kind's soft-deleted style is KEPT, so the count is 0; restore_style refuses it while its kind is gone.",
+    "path": "/api/j2/note-kinds/k_2b5da98882ad4892bdbc1a9ff8ddd967",
+    "status": 200
+  },
+  "body": {
+    "ok": true,
+    "purgedDeletedStyles": 0
+  }
+}

@@ -1,0 +1,67 @@
+{
+ "viewport": "820",
+ "step": "ENF",
+ "title": "editorNormalForm: a member-template note opens with zero PUTs",
+ "mode": "ON",
+ "checks": [
+  {
+   "what": "D1 Use Share source 820: after Use no sheet is left open over the new note",
+   "ok": true,
+   "read": "[]"
+  },
+  {
+   "what": "D1 Use Share source 820: focus is the new note's title",
+   "ok": true,
+   "read": "{\"tag\": \"INPUT\", \"placeholder\": \"Title\", \"aria\": \"Note title\", \"cls\": \"_titleInput_wfbxs_459\", \"value\": \"\", \"inertAncestor\": false, \"rootInert\": false, \"inDialog\": false, \"visible\": true}"
+  },
+  {
+   "what": "D1 Use Share source 820: the focused title has no inert ancestor (and #root is not inert)",
+   "ok": true,
+   "read": "{\"tag\": \"INPUT\", \"placeholder\": \"Title\", \"aria\": \"Note title\", \"cls\": \"_titleInput_wfbxs_459\", \"value\": \"\", \"inertAncestor\": false, \"rootInert\": false, \"inDialog\": false, \"visible\": true}"
+  },
+  {
+   "what": "the member template holds widgets (two built widgets in the note)",
+   "ok": true,
+   "read": "[\"paragraph\", \"widgetEmbed\", \"paragraph\", \"widgetEmbed\", \"paragraph\", \"widgetEmbed\", \"paragraph\", \"widgetEmbed\", \"paragraph\"]"
+  },
+  {
+   "what": "editorNormalForm: the created note opens with ZERO note PUTs (15 s)",
+   "ok": true,
+   "read": "[]"
+  },
+  {
+   "what": "editorNormalForm: and zero after a reload",
+   "ok": true,
+   "read": "[]"
+  },
+  {
+   "what": "no console errors / page errors",
+   "ok": true,
+   "read": "[]"
+  }
+ ],
+ "rendered": [
+  {
+   "what": "D1 Use Share source 820: document.activeElement after Use",
+   "text": "{\"tag\": \"INPUT\", \"placeholder\": \"Title\", \"aria\": \"Note title\", \"cls\": \"_titleInput_wfbxs_459\", \"value\": \"\", \"inertAncestor\": false, \"rootInert\": false, \"inDialog\": false, \"visible\": true}"
+  },
+  {
+   "what": "the created note's blocks",
+   "text": "[\"paragraph\", \"widgetEmbed\", \"paragraph\", \"widgetEmbed\", \"paragraph\", \"widgetEmbed\", \"paragraph\", \"widgetEmbed\", \"paragraph\"]"
+  }
+ ],
+ "verdict": "PASS",
+ "notes": [],
+ "events": {
+  "A": []
+ },
+ "metrics": {},
+ "screenshots": [
+  "820/ENF-main.png"
+ ],
+ "requests_note_put": 0,
+ "started": "2026-10-27T10:04:52",
+ "findings": [],
+ "partial": false,
+ "finished": "2026-10-27T10:05:32"
+}

@@ -575,10 +575,12 @@ describe('snapshot widget items (Task 8)', () => {
   const bare = () => groupedSlashItems(ITEMS, [...snapshotWidgetItems(''), ...widgetItems(''), ...factItems(''), ...consensusFactItems('')])
 
   it('snapshot_items_absent_when_wave_off', () => {
+    latchNotebookFlags({ notebook_widgets_w1_enabled: false })          // W11-R72: the gate OFF, latched explicitly (not only by default)
     expect(snapshotWidgetItems('')).toEqual([])
     expect(snapshotWidgetItems('ticker NVDA')).toEqual([])
     expect(snapshotWidgetItems('my')).toEqual([])
     // Control: the same queries answer once the waves are on.
+    __resetNotebookFlags()
     latchNotebookFlags(WAVES_ON)
     expect(snapshotWidgetItems('').length).toBeGreaterThan(0)
     expect(snapshotWidgetItems('ticker NVDA').map((i) => i.title)).toEqual(['Ticker card — NVDA'])
@@ -597,7 +599,7 @@ describe('snapshot widget items (Task 8)', () => {
     expect(screen.getByText('My recurring mistakes')).toBeInTheDocument()
     // Control: with wave 2 off (wave 1 on) neither is offered, but wave 1's Reviewing items still are.
     __resetNotebookFlags()
-    latchNotebookFlags({ notebook_widgets_w1_enabled: true })
+    latchNotebookFlags({ notebook_widgets_w1_enabled: true, notebook_widgets_w2_enabled: false })   // W11-R72: the gate OFF, latched explicitly (not only by default)
     const off = snapshotWidgetItems('').map((i) => i.title)
     expect(off).not.toContain('My rules check')
     expect(off).not.toContain('My recurring mistakes')
@@ -621,7 +623,8 @@ describe('snapshot widget items (Task 8)', () => {
     expect(screen.getByText('Options flow on a ticker')).toBeInTheDocument()
     // Control: with wave 3 off (waves 1 and 2 on) neither is offered, but wave 1's items still are.
     __resetNotebookFlags()
-    latchNotebookFlags({ notebook_widgets_w1_enabled: true, notebook_widgets_w2_enabled: true })
+    latchNotebookFlags({ notebook_widgets_w1_enabled: true, notebook_widgets_w2_enabled: true,
+      notebook_widgets_w3_enabled: false })                               // W11-R72: the gate OFF, latched explicitly (not only by default)
     const off = snapshotWidgetItems('').map((i) => i.title)
     expect(off).not.toContain('Market on my names')
     expect(off).not.toContain('Options flow on a ticker')
@@ -973,7 +976,7 @@ describe('chart sets and presets (Task 17)', () => {
   }
 
   it('slash_set_absent_when_w5_off', async () => {
-    latchNotebookFlags({ notebook_widgets_w1_enabled: true })
+    latchNotebookFlags({ notebook_widgets_w1_enabled: true, notebook_widgets_w5_enabled: false })   // W11-R72: the gate OFF, latched explicitly (not only by default)
     for (const q of ['set', 'set semis', 'preset', '']) expect(mineItems(q)).toEqual([])
     await __mineLoad()
     // Off, the menu never reads the preference at all.

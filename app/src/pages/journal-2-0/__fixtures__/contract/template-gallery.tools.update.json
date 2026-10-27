@@ -1,0 +1,48 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "POST /api/j2/template-gallery/tools/updates/routine/b6c2ae09-db07-4e52-b229-916635805e2b",
+    "note": "The listed version 2 taken into the viewer's copy: an unchanged item keeps its id.",
+    "path": "/api/j2/template-gallery/tools/updates/routine/b6c2ae09-db07-4e52-b229-916635805e2b",
+    "requestBody": {},
+    "status": 200
+  },
+  "body": {
+    "id": "b6c2ae09-db07-4e52-b229-916635805e2b",
+    "kind": "routine",
+    "tool": {
+      "archived": false,
+      "createdDay": "2026-10-05",
+      "deleted": false,
+      "etag": 2,
+      "id": "b6c2ae09-db07-4e52-b229-916635805e2b",
+      "items": [
+        {
+          "id": "738a8478-f3be-44d2-89ce-e18a1f64ce65",
+          "negative": false,
+          "suggest": null,
+          "text": "Coffee"
+        },
+        {
+          "id": "e8303d7a-ebc9-45fb-9fdd-82c3af613428",
+          "negative": false,
+          "suggest": null,
+          "text": "Read the news"
+        }
+      ],
+      "name": "Routine with 2 items",
+      "schedule": {
+        "kind": "every"
+      },
+      "settings": {
+        "done_share": 1.0,
+        "reminder": null,
+        "strict": false
+      },
+      "sourceTemplateKey": null,
+      "updatedAt": "2026-10-05T14:30:00+00:00",
+      "usedIn": 0
+    },
+    "version": 2
+  }
+}

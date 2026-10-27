@@ -92,7 +92,10 @@
   outline: 2px solid var(--ut-gold);
   outline-offset: 2px;
 }
-.chipActive {
+/* 11.20 R5: `.chipActive:hover` matches `.chip:hover` in specificity and comes later, so a hovered chosen chip
+   keeps its dark-on-gold ink (it read 1.61:1, --text on gold). Rail: TemplateGallery.chipContrast.test.js. */
+.chipActive,
+.chipActive:hover {
   color: var(--bg);
   background: var(--ut-gold);
   border-color: var(--ut-gold);
@@ -417,9 +420,17 @@
     display: inline-flex;
     align-items: center;
   }
+  /* 11.20 walk D4: a card's one-word "Use" measured 41x44 at 820 and 390; every card button holds the floor both ways. */
+  .btn {
+    justify-content: center;
+    min-width: var(--tap-min);
+  }
+  /* 11.20 R6: a one-word chip ("All", "Day") was narrower than a finger; the floor holds in both directions. */
   .chip {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
+    min-width: var(--tap-min);
   }
 }
 @media (max-width: 640px) {
@@ -503,4 +514,18 @@
   min-height: var(--tap-min, 44px);
   min-width: var(--tap-min, 44px);
   justify-content: center;
+}
+
+/* Task 11.18 fix round 1 (M-3): an empty live region, kept in the accessibility tree and out of the layout, so the
+   sentence it later holds is announced. */
+.liveIdle {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
 }

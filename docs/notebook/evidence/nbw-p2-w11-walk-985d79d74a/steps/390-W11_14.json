@@ -1,0 +1,184 @@
+{
+ "viewport": "390",
+ "step": "W11.14",
+ "title": "Keyboard only",
+ "mode": "ON",
+ "checks": [
+  {
+   "what": "template picker + library section: every visible control is reached by Tab (a radio group / tab list counts once)",
+   "ok": true,
+   "read": "[]"
+  },
+  {
+   "what": "template picker + library section: focus stays inside the sheet (trap)",
+   "ok": true,
+   "read": "escaped 0 of 262"
+  },
+  {
+   "what": "library detail: every visible control is reached by Tab (a radio group / tab list counts once)",
+   "ok": true,
+   "read": "[]"
+  },
+  {
+   "what": "library detail: focus stays inside the sheet (trap)",
+   "ok": true,
+   "read": "escaped 0 of 14"
+  },
+  {
+   "what": "library detail: Escape returns focus to the control that opened it",
+   "ok": true,
+   "read": "Preview Pre-market prep, from the Template library"
+  },
+  {
+   "what": "adopt sheet (Pre-market prep): every visible control is reached by Tab (a radio group / tab list counts once)",
+   "ok": true,
+   "read": "[]"
+  },
+  {
+   "what": "adopt sheet (Pre-market prep): focus stays inside the sheet (trap)",
+   "ok": true,
+   "read": "escaped 0 of 14"
+  },
+  {
+   "what": "adopt sheet: Escape closes it",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "SlotPicker: a value is picked with arrows and Done by keyboard",
+   "ok": true,
+   "read": "Setup: Earnings drift -> Setup: Gap and go"
+  },
+  {
+   "what": "SlotPicker: after Done, focus returns to its Change button",
+   "ok": true,
+   "read": "Change setup"
+  },
+  {
+   "what": "adopt sheet (Setup study, with a choice): every visible control is reached by Tab (a radio group / tab list counts once)",
+   "ok": true,
+   "read": "[]"
+  },
+  {
+   "what": "adopt sheet (Setup study, with a choice): focus stays inside the sheet (trap)",
+   "ok": true,
+   "read": "escaped 0 of 16"
+  },
+  {
+   "what": "My tools: the Templates tab is reached and selected by keyboard",
+   "ok": true,
+   "read": "true"
+  },
+  {
+   "what": "My tools > Templates: every visible control is reached by Tab (a radio group / tab list counts once)",
+   "ok": true,
+   "read": "[]"
+  },
+  {
+   "what": "My tools > Templates: focus stays inside the sheet (trap)",
+   "ok": true,
+   "read": "escaped 0 of 28"
+  },
+  {
+   "what": "Templates row: the Actions menu opens by Enter",
+   "ok": true,
+   "read": "[]"
+  },
+  {
+   "what": "Templates row: Tab (touch: an action sheet) reach 'Share to library'",
+   "ok": true,
+   "read": "sheet: Share to library"
+  },
+  {
+   "what": "Templates row: Escape returns focus to the row's Actions button",
+   "ok": true,
+   "read": "Actions for Share source 390"
+  },
+  {
+   "what": "share preview: every visible control is reached by Tab (a radio group / tab list counts once)",
+   "ok": true,
+   "read": "[]"
+  },
+  {
+   "what": "share preview: focus stays inside the sheet (trap)",
+   "ok": true,
+   "read": "escaped 0 of 48"
+  },
+  {
+   "what": "share preview: the number switch toggles with Space",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "share preview: Escape returns focus to the control that opened it",
+   "ok": true,
+   "read": "Actions for Share source 390"
+  },
+  {
+   "what": "review queue: opened by keyboard",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "review queue (gallery): every visible control is reached by Tab (a radio group / tab list counts once)",
+   "ok": true,
+   "read": "[]"
+  },
+  {
+   "what": "review queue (gallery): focus stays inside the sheet (trap)",
+   "ok": true,
+   "read": "escaped 0 of 28"
+  }
+ ],
+ "rendered": [
+  {
+   "what": "keyboard audit: template picker + library section",
+   "text": "{\"controls\": 127, \"reached\": 127, \"missing\": [], \"escaped\": 0, \"presses\": 262}"
+  },
+  {
+   "what": "keyboard audit: library detail",
+   "text": "{\"controls\": 3, \"reached\": 3, \"missing\": [], \"escaped\": 0, \"presses\": 14}"
+  },
+  {
+   "what": "keyboard audit: adopt sheet (Pre-market prep)",
+   "text": "{\"controls\": 3, \"reached\": 3, \"missing\": [], \"escaped\": 0, \"presses\": 14}"
+  },
+  {
+   "what": "focus after closing the adopt sheet",
+   "text": "Preview Pre-market prep, from the Template library"
+  },
+  {
+   "what": "keyboard audit: adopt sheet (Setup study, with a choice)",
+   "text": "{\"controls\": 4, \"reached\": 4, \"missing\": [], \"escaped\": 0, \"presses\": 16}"
+  },
+  {
+   "what": "keyboard audit: My tools > Templates",
+   "text": "{\"controls\": 10, \"reached\": 10, \"missing\": [], \"escaped\": 0, \"presses\": 28}"
+  },
+  {
+   "what": "row actions menu by keyboard",
+   "text": "[]"
+  },
+  {
+   "what": "keyboard audit: share preview",
+   "text": "{\"controls\": 20, \"reached\": 20, \"missing\": [], \"escaped\": 0, \"presses\": 48}"
+  },
+  {
+   "what": "keyboard audit: review queue (gallery)",
+   "text": "{\"controls\": 10, \"reached\": 10, \"missing\": [], \"escaped\": 0, \"presses\": 28}"
+  }
+ ],
+ "verdict": "PASS",
+ "notes": [],
+ "events": {
+  "A": [],
+  "admin": []
+ },
+ "metrics": {},
+ "screenshots": [],
+ "requests_note_put": 0,
+ "started": "2026-10-27T05:41:46",
+ "findings": [],
+ "partial": false,
+ "finished": "2026-10-27T05:43:27"
+}

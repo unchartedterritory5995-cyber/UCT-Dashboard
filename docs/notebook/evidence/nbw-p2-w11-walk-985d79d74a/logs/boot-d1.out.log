@@ -1,0 +1,521 @@
+[sbx] lockwatch armed (holder threshold 2.0s)
+[sbx] flags: AWARENESS_NOTE_RESURFACE_ENABLED=1 COMPASS_NOTES_TOOL_ENABLED=1 J2_OCR_ENABLED=1 J2_SHARE_LINKS_ENABLED=1 JOURNAL_PAGE_LAYOUTS_ENABLED=1 JOURNAL_TIER3_ENABLED=1 NOTEBOOK_AI_ACTIONS_ENABLED=1 NOTEBOOK_ASK_INSERT_ON=1 NOTEBOOK_CHART_PLAN_ENABLED=1 NOTEBOOK_DOOR_GUARD=unknown-only NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED=1 NOTEBOOK_EARNINGS_PREP_ENABLED=1 NOTEBOOK_ENTRY_CONTEXT_ENABLED=1 NOTEBOOK_EXAMPLE_NOTES_ENABLED=1 NOTEBOOK_FIND_SIMILAR_ENABLED=1 NOTEBOOK_FORMULAS_ENABLED=1 NOTEBOOK_GETTING_STARTED_ENABLED=1 NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED=1 NOTEBOOK_INBOUND_EMAIL_ENABLED=1 NOTEBOOK_JOURNAL_STYLES_ENABLED=1 NOTEBOOK_ONBOARDING_ENABLED=1 NOTEBOOK_PASSED_SETUPS_ENABLED=1 NOTEBOOK_PERSONAL_API_ENABLED=1 NOTEBOOK_PLAN_GRADING_ENABLED=1 NOTEBOOK_PLAYBOOK_ENABLED=1 NOTEBOOK_PUBLISH_ENABLED=1 NOTEBOOK_REVIEW_DRAFTS_ENABLED=1 NOTEBOOK_SEMANTIC_SEARCH_ENABLED=1 NOTEBOOK_SETUPS_BOARD_ENABLED=1 NOTEBOOK_SMART_CHIPS_ENABLED=1 NOTEBOOK_STARTER_PACKS_ENABLED=1 NOTEBOOK_STYLE_LIBRARY_ENABLED=1 NOTEBOOK_TASK_REMINDERS_ENABLED=1 NOTEBOOK_TA_FINGERPRINT_ENABLED=1 NOTEBOOK_TEMPLATE_GALLERY_ENABLED=1 NOTEBOOK_TERMINAL_LINKS_ENABLED=1 NOTEBOOK_THESIS_CHIPS_ENABLED=1 NOTEBOOK_TRADE_CANVAS_ENABLED=1 NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED=1 NOTEBOOK_VISUAL_PLAYBOOK_ENABLED=1 NOTEBOOK_VOICE_NOTES_ENABLED=1 NOTEBOOK_WIDGETS_W10_ENABLED=1 NOTEBOOK_WIDGETS_W11_ENABLED=1 NOTEBOOK_WIDGETS_W1_ENABLED=1 NOTEBOOK_WIDGETS_W2_ENABLED=1 NOTEBOOK_WIDGETS_W3_ENABLED=1 NOTEBOOK_WIDGETS_W4_ENABLED=1 NOTEBOOK_WIDGETS_W5_ENABLED=1 NOTEBOOK_WIDGETS_W6_ENABLED=1 NOTEBOOK_WIDGETS_W8_ENABLED=1 NOTEBOOK_WIDGETS_W9_ENABLED=1 NOTEBOOK_WRITING_HELP_ENABLED=1
+[sbx] env keys: ALPHAVANTAGE_API_KEY APPDATA COMMONPROGRAMFILES COMSPEC FINNHUB_API_KEY FMP_API_KEY HOMEDRIVE HOMEPATH LOCALAPPDATA MASSIVE_API_KEY NOTEBOOK_ASK_INSERT_ON NOTEBOOK_DOOR_GUARD NUMBER_OF_PROCESSORS OS PATH PATHEXT PROCESSOR_ARCHITECTURE PROGRAMDATA PROGRAMFILES PROGRAMFILES(X86) PROGRAMW6432 PYTHONDONTWRITEBYTECODE PYTHONIOENCODING SYSTEMDRIVE SYSTEMROOT TEMP TMP USERPROFILE WINDIR
+  Model keys   : BLANKED ANTHROPIC_API_KEY, WISDOM_ANTHROPIC_API_KEY, OPENAI_API_KEY, PERPLEXITY_API_KEY, ANTHROPIC_AUTH_TOKEN; keyring -> null backend (opt in: --allow-model-keys or HUB_SANDBOX_ALLOW_MODEL_KEYS=1)
+
+  --------------------------------------------------------------------
+  CLOCK SANDBOX (launcher-only clock shift, ruling W11-R49)
+  --------------------------------------------------------------------
+  Data dir     : C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\5effcdc4-7e7d-42f4-a3df-67b99c63791b\scratchpad\sbx\walk
+  App root     : C:\Users\Patrick\uct-worktrees\nbw-p2-impl
+  URL          : http://127.0.0.1:8161
+  Path pins    : 116 env vars (hub_sandbox_boot.apply_sandbox_env)
+  Shared roots : c:\data (writes RAISE; this launcher hashes none)
+  Clock        : 2026-11-10T20:00:00-05:00 (offset 1258407.361 s, ticking)
+  SHIFTED NOW  : Tuesday 2026-11-10 20:00 ET  (2026-11-10T20:00:04-05:00)
+  Swept        : 990 api.* modules, 654 names rebound; late imports swept by a meta-path hook
+  Sessions env : {'SESSION_DEVICE_LIMIT': '0'}
+  Session sweep: {'dropped_job_ids': ['session_cleanup'], 'cleanup_fn_rebound_in': 1, 'dropped_so_far': []}
+  --------------------------------------------------------------------
+  CLOCK SOURCES THIS LAUNCHER CANNOT SHIFT (a step depending on one is INCONCLUSIVE):
+    - SQLite's own clock: CURRENT_TIMESTAMP / CURRENT_DATE / datetime('now') column defaults and 'now' inside queries are evaluated by the database, which never asks Python (tables and files listed below)
+    - stdlib and third-party code reading the clock on the app's behalf: uvicorn's Date header and access log, logging timestamps, APScheduler triggers (they fire on the REAL clock; the kill list keeps most jobs off), email.utils.formatdate, http.cookies expiry strings, the SQLite driver
+    - time.monotonic() / perf_counter() / process_time(): durations, deliberately real (TTL caches and rate limiters keyed on them run in real time)
+    - values captured before the shift was installed: anything conftest or hub_sandbox_boot imported from api before `install()` is swept for module globals only (a class attribute or a dataclass default_factory captured then keeps the real function)
+    - the browser: its clock is the runner's job (Playwright context.clock), never this process's
+    - identity checks: in api code under the shift `type(x) is datetime` is False (the name is the shifted class, the value a real datetime); none exists in api/ today. A builtin `getattr` on api's OWN swept module global (`getattr(datetime_module, 'datetime')`) is shifted; through sys.modules it is real
+    - pickling the shifted CLASS object itself (`pickle.dumps(datetime)` in api code) raises PicklingError; instances pickle normally. None in api/ today
+    - pandas / numpy clocks (`Timestamp.now()`, `datetime64('now')`) read the C clock; none in api/ today
+    - SQLite clock column defaults in api/** source: 79 tables
+        activity_log: created_at  (api/services/auth_db.py)
+        admin_notes: created_at  (api/services/auth_db.py)
+        admin_todos: created_at  (api/services/auth_db.py)
+        awareness_regime_snapshots: created_at  (api/services/awareness/regime_snapshots.py)
+        breadth_daily_ohlc: updated_at  (api/services/breadth_combined_pass.py, api/services/breadth_daily_ohlc.py)
+        breadth_daily_ohlc__v2: updated_at  (api/services/breadth_daily_ohlc.py)
+        breadth_reconstructed_daily: built_at  (api/services/breadth_daily_ohlc.py)
+        breadth_sentiment: updated_at  (api/services/breadth_sentiment_history.py)
+        breadth_snapshot_numeric: updated_at  (api/services/breadth_monitor.py)
+        breadth_snapshots: created_at  (api/services/breadth_monitor.py)
+        calendar_date_history: first_seen, updated_at  (api/services/calendar_date_integrity.py)
+        calendar_seen: seen_at  (api/services/calendar_seen.py)
+        cboe_index_bars: updated_at  (api/services/market_indicators/cboe_store.py)
+        contract_oi_snapshots: created_at  (api/oi_snapshots.py)
+        daily_journals: created_at, updated_at  (api/services/auth_db.py)
+        darkpool_today: created_at  (api/darkpool_db.py)
+        darkpool_trades: created_at  (api/darkpool_db.py)
+        dealer_positioning: created_at  (api/dealer_positioning.py)
+        deletion_requests: created_at  (api/services/auth_db.py)
+        email_verifications: created_at  (api/services/auth_db.py)
+        engine_cost_log: at  (api/services/theme_engine/store.py)
+        engine_decisions: decided_at  (api/services/theme_engine/store.py)
+        engine_membership_events: at  (api/services/theme_engine/store.py)
+        engine_memberships: created_at  (api/services/theme_engine/store.py)
+        engine_runs: started_at  (api/services/theme_engine/store.py)
+        faq_votes: created_at  (api/services/auth_db.py)
+        feedback: created_at  (api/services/auth_db.py)
+        flow: created_at  (api/flow_db.py)
+        flow_fill_archive: archived_at  (api/flow_gap_autofill.py)
+        import_sessions: created_at  (api/services/auth_db.py)
+        journal_entries: created_at, updated_at  (api/services/auth_db.py)
+        journal_resources: created_at, updated_at  (api/services/auth_db.py)
+        journal_screenshots: created_at  (api/services/auth_db.py)
+        landing_events: created_at  (api/services/auth_db.py)
+        llm_route_cost_log: at  (api/services/narrative_cost_guard.py)
+        ltr_call_requests: created_at  (api/services/auth_db.py)
+        mrr_snapshots: created_at  (api/services/auth_db.py)
+        naaim_ingest_log: at  (api/services/market_indicators/naaim_store.py)
+        naaim_observations: ingested_at  (api/services/market_indicators/naaim_store.py)
+        oi_massive_snapshots: created_at  (api/oi_massive_snapshots.py)
+        page_views: created_at  (api/services/auth_db.py)
+        pass_checkpoint: at  (api/services/breadth_combined_pass.py)
+        password_resets: created_at  (api/services/auth_db.py)
+        playbooks: created_at, updated_at  (api/services/auth_db.py)
+        referrals: created_at  (api/services/auth_db.py)
+        sessions: created_at  (api/services/auth_db.py)
+        subscriptions: created_at  (api/services/auth_db.py)
+        support_tickets: created_at, updated_at  (api/services/auth_db.py)
+        theme_memberships: updated_at  (api/services/theme_db.py)
+        theme_sectors: updated_at  (api/services/theme_db.py)
+        themes: updated_at  (api/services/theme_db.py)
+        ticker_baselines: last_refreshed  (api/baselines.py)
+        ticker_tags: created_at  (api/services/auth_db.py)
+        ticket_attachments: created_at  (api/services/auth_db.py)
+        ticket_messages: created_at  (api/services/auth_db.py)
+        tracings_documents: updated_at  (api/services/auth_db.py)
+        trade_executions: created_at  (api/services/auth_db.py)
+        trading_accounts: created_at, updated_at  (api/services/auth_db.py)
+        user_tags: created_at  (api/services/auth_db.py)
+        user_voice_facts: created_at, updated_at  (api/services/auth_db.py)
+        users: created_at  (api/services/auth_db.py)
+        v2_live_conflict: seen_at  (api/services/breadth_authority.py)
+        v2_live_session: adopted_at  (api/services/breadth_authority.py)
+        voice_documents: created_at  (api/services/auth_db.py)
+        voice_embeddings: created_at  (api/services/auth_db.py)
+        voice_feedback: created_at  (api/services/auth_db.py)
+        voice_hallucinations: created_at  (api/services/voice_hallucination_audit.py)
+        voice_proactive_insights: created_at  (api/services/auth_db.py)
+        voice_prompt_variants: created_at  (api/services/auth_db.py)
+        voice_scratchpad: created_at  (api/services/auth_db.py)
+        voice_session_summaries: created_at  (api/services/auth_db.py)
+        voice_settings: created_at, updated_at  (api/services/auth_db.py)
+        voice_tool_calls: created_at  (api/services/auth_db.py)
+        voice_transcripts: timestamp  (api/services/auth_db.py)
+        waitlist: created_at  (api/services/auth_db.py)
+        watchlist_alerts: created_at  (api/services/auth_db.py)
+        watchlist_items: added_at  (api/services/auth_db.py)
+        watchlists: created_at, updated_at  (api/services/auth_db.py)
+        weekly_reviews: created_at, updated_at  (api/services/auth_db.py)
+    - ... and in this sandbox's own schema: 75 tables
+        auth.db:activity_log: created_at
+        auth.db:admin_notes: created_at
+        auth.db:admin_todos: created_at
+        auth.db:awareness_regime_snapshots: created_at
+        auth.db:daily_journals: created_at, updated_at
+        auth.db:deletion_requests: created_at
+        auth.db:email_verifications: created_at
+        auth.db:engine_cost_log: at
+        auth.db:engine_decisions: decided_at
+        auth.db:engine_membership_events: at
+        auth.db:engine_memberships: created_at
+        auth.db:engine_runs: started_at
+        auth.db:faq_votes: created_at
+        auth.db:feedback: created_at
+        auth.db:import_sessions: created_at
+        auth.db:journal_entries: created_at, updated_at
+        auth.db:journal_resources: created_at, updated_at
+        auth.db:journal_screenshots: created_at
+        auth.db:landing_events: created_at
+        auth.db:ltr_call_requests: created_at
+        auth.db:mrr_snapshots: created_at
+        auth.db:page_views: created_at
+        auth.db:password_resets: created_at
+        auth.db:playbooks: created_at, updated_at
+        auth.db:referrals: created_at
+        auth.db:sessions: created_at
+        auth.db:subscriptions: created_at
+        auth.db:support_tickets: created_at, updated_at
+        auth.db:theme_memberships: updated_at
+        auth.db:theme_sectors: updated_at
+        auth.db:themes: updated_at
+        auth.db:ticker_tags: created_at
+        auth.db:ticket_attachments: created_at
+        auth.db:ticket_messages: created_at
+        auth.db:tracings_documents: updated_at
+        auth.db:trade_executions: created_at
+        auth.db:trading_accounts: created_at, updated_at
+        auth.db:user_tags: created_at
+        auth.db:user_voice_facts: created_at, updated_at
+        auth.db:users: created_at
+        auth.db:voice_documents: created_at
+        auth.db:voice_embeddings: created_at
+        auth.db:voice_feedback: created_at
+        auth.db:voice_proactive_insights: created_at
+        auth.db:voice_prompt_variants: created_at
+        auth.db:voice_scratchpad: created_at
+        auth.db:voice_session_summaries: created_at
+        auth.db:voice_settings: created_at, updated_at
+        auth.db:voice_tool_calls: created_at
+        auth.db:voice_transcripts: timestamp
+        auth.db:waitlist: created_at
+        auth.db:watchlist_alerts: created_at
+        auth.db:watchlist_items: added_at
+        auth.db:watchlists: created_at, updated_at
+        auth.db:weekly_reviews: created_at, updated_at
+        breadth_daily_ohlc-2026-10-27-045637-pre-reconstructed.db:breadth_daily_ohlc: updated_at
+        breadth_daily_ohlc-2026-10-27-045637-pre-reconstructed.db:breadth_reconstructed_daily: built_at
+        breadth_daily_ohlc.db:breadth_daily_ohlc: updated_at
+        breadth_daily_ohlc.db:breadth_reconstructed_daily: built_at
+        breadth_monitor-2026-10-27-045637-pre-numeric.db:breadth_snapshot_numeric: updated_at
+        breadth_monitor-2026-10-27-045637-pre-numeric.db:breadth_snapshots: created_at
+        breadth_monitor.db:breadth_snapshot_numeric: updated_at
+        breadth_monitor.db:breadth_snapshots: created_at
+        breadth_sentiment_history.db:breadth_sentiment: updated_at
+        calendar_dates.db:calendar_date_history: first_seen, updated_at
+        cboe_indices.db:cboe_index_bars: updated_at
+        darkpool.db:darkpool_today: created_at
+        darkpool.db:darkpool_trades: created_at
+        flow.db:dealer_positioning: created_at
+        flow.db:flow: created_at
+        flow.db:flow_fill_archive: archived_at
+        flow.db:ticker_baselines: last_refreshed
+        naaim_series.db:naaim_ingest_log: at
+        naaim_series.db:naaim_observations: ingested_at
+        oi_snapshots.db:contract_oi_snapshots: created_at
+    - SQLite clock read inside queries (outside a DEFAULT), by file: 47 files
+        api/baselines.py (2)
+        api/flow_gap_autofill.py (13)
+        api/live_massive_router.py (1)
+        api/main.py (1)
+        api/oi_snapshots.py (1)
+        api/routers/admin_api_health.py (3)
+        api/routers/auth.py (1)
+        api/routers/broker_sync.py (1)
+        api/routers/intelligence.py (1)
+        api/routers/landing_analytics.py (5)
+        api/services/activity_retention.py (3)
+        api/services/auth_service.py (9)
+        api/services/breadth_combined_pass.py (1)
+        api/services/breadth_daily_ohlc.py (8)
+        api/services/breadth_monitor.py (1)
+        api/services/breadth_numeric_migration.py (2)
+        api/services/breadth_sentiment_history.py (2)
+        api/services/compass_health.py (1)
+        api/services/indicator_telemetry.py (1)
+        api/services/journal_two/broker/broker_coverage.py (1)
+        api/services/journal_two/broker/ledger_conservation.py (1)
+        api/services/journal_two/broker/mirror_check.py (2)
+        api/services/journal_two/broker/performance_service.py (1)
+        api/services/journal_two/broker/rate_limit.py (1)
+        api/services/journal_two/notebook_slo.py (1)
+        api/services/journal_two/notebook_soak.py (1)
+        api/services/journal_two/notebook_telemetry.py (2)
+        api/services/journal_two/overview.py (1)
+        api/services/journal_two/stage_a_validation.py (1)
+        api/services/journal_two/template_gallery.py (1)
+        api/services/journal_two/test_notebook_analytics_events.py (1)
+        api/services/journal_two/test_stage_a_validation.py (10)
+        api/services/market_indicators/cboe_store.py (2)
+        api/services/market_indicators/naaim_store.py (2)
+        api/services/options_analytics/level_files.py (1)
+        api/services/polygon_options.py (1)
+        api/services/screener/theme_join.py (1)
+        api/services/session_guard.py (3)
+        api/services/theme_engine/improve.py (2)
+        api/services/theme_engine/store.py (12)
+        api/services/tracings_store.py (1)
+        api/services/uct20_nav.py (2)
+        api/services/voice_daily_focus.py (2)
+        api/services/voice_hallucination_audit.py (3)
+        api/services/voice_proactive_service.py (1)
+        api/services/voice_tool_impls.py (1)
+        api/services/wire/store.py (2)
+
+  Sessions     : {'kept': 12, 'reused': 0, 'minted': 0, 'personas': ['P01', 'P04', 'P08', 'P14', 'P25', 'P28', 'P29', 'P35', 'P36', 'P40', 'P45', 'P46'], 'file': 'C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\5effcdc4-7e7d-42f4-a3df-67b99c63791b\\scratchpad\\sbx\\walk\\clock-sessions.json'}
+[startup] access-log redaction armed for ['/journal/share']
+[startup] anyio thread limiter set to 64
+[startup] boot probe armed (5s ticks, 300s summary window)
+[startup] cache snapshot restored: 181/190 entries (age 1504618s)
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\5effcdc4-7e7d-42f4-a3df-67b99c63791b\scratchpad\sbx\walk\auth.db
+[startup] tweets.db initialized
+[startup] desk.db initialized
+[startup] catalysts.db initialized
+[startup] wire_feedback.db initialized
+[startup] modelbook.db initialized
+[startup] news_catalysts.db initialized
+[startup] stock_brief.db initialized
+[startup] charts_layouts.db initialized
+[startup] user_definitions.db initialized
+[startup] education.db initialized
+[startup] study.db initialized
+[startup] wisdom.db ready (migrations applied this boot: 0)
+[startup] ticker baselines loaded (0 tickers)
+[startup] j2-ocr: flag=1 binary=absent version=none active=False max_concurrency=1
+[startup] by-date index scheduled build OFF (BARS_BYDATE_INDEX_BUILD_ENABLED unset); the index ships with the R2 snapshot; admin trigger available
+[startup] bars.db boot steps scheduled (background: init_db + one-shot heals)
+[startup] weekly_key_purge: scheduled (background)
+[startup] chart-realtime-mode: fmp_tz_fix=on yfinance_tz_fix=on heal_v1=ran-once heal_v2=ran-once heal_v3_60day=ran-once needs_fresh_post_market=on swr_refresh_interval=30s_intraday tf60_ws_streaming=on bucket_canonical=bars_fetch.bucket_60_et_unix_seconds delta_intraday_filter=>= idb_cache_logic_version=7 weekly_dating=friday-close heal_weekly_close=ran-once reconciliation_worker=off
+[startup] bars-push-rail: stream_bars_enabled=off keyed_dispatch=on single_writer_arbitration=on delivering_recency=120s/300s_hysteresis heartbeat=named watchdog_renotify=10s idle_sleep=250ms status_endpoint=/api/admin/bars-stream-status (frontend rollout% in StockChart.BARS_PUSH_ROLLOUT_PCT)
+[startup] SQLite bar store ready
+[startup] bars.db integrity smoke probe passed (0.01s)
+[startup] trade-condition-filter: enabled=off (env TRADE_CONDITION_FILTER_ENABLED) applied_to=massive_push+finnhub authoritative_rules=loading|fallback
+[startup] Memory pre-warm skipped (USE_REMOTE_BARS=1); cache populates lazily after snapshot pull
+[startup] USE_REMOTE_BARS=1 -- skipping in-process prewarmer/seeder; pulling snapshot from worker via R2
+[startup] Loaded wire_data from volume (date=2026-01-02)
+[startup] ticker-names prewarm scheduled
+[startup] ticker-logos prewarm scheduled
+[startup] ticker-search index build scheduled
+[startup] index-bars warm loop scheduled
+[startup] breadth-bars warm loop scheduled
+[startup] R2 initial snapshot probe+pull started (background thread)
+[startup] S3 periodic puller started (20-min cadence; mode=newer-wins-merge)
+[startup] Skipping boot R2 pull -- local SQLite has 1,000 bars already; preserving local writes (set FORCE_BOOT_R2_PULL=1 to override)
+[startup] hot-set push loop started (web -> R2, 2-min cadence)
+[startup] breadth self-heal armed (boot pass + watch loop)
+[deep-cache] Skipped (set DEEP_CACHE_ENABLED=1 to enable).
+[startup] naaim series seed: {'ok': True, 'skipped': True, 'first': '2023-11-29', 'last': '2026-06-17', 'count': 134}
+[startup] No persisted theme data — will compute on first request
+[startup] breadth-sentiment seed: {'ok': True, 'skipped': True, 'have': 15897, 'csv_rows': 15897}
+[startup] Top Flow tracker: 0 active, 0 archived.
+[startup] Watchlist tracker: 0 saved days.
+[startup] Darkpool DB: 5,190 rows, 3 days -- CSV unchanged, skip seed
+[startup] COT data stale -- latest=2026-10-20 expected=2026-11-03 (21d old) -- running catch-up refresh...
+[startup] indicator alert shadow lane OFF (set ALERT_SHADOW_ENABLED=1 to soak the closed lane)
+[startup] alert bars freshness scheduled (every 60s, armed groups only)
+[startup] darkpool Massive ingest scheduled (weekdays 19:20 ET)
+[startup] darkpool ALL-SYMBOLS flat-file ingest scheduled (Mon-Sat 11:45 ET, gated)
+[startup] darkpool intraday poller scheduled (weekdays every 3m, 7-16 ET)
+[startup] darkpool tiered warm(12m) + snapshot fast-lane(5m) scheduled (gated)
+[startup] darkpool EOD/EOW summary scheduled (EOD 20:10 ET weekdays, EOW 20:15 ET Fri) — dark until DARKPOOL_EOD_ENABLED=1
+[startup] nightly side-heal job skip: No module named 'api.nightly_side_heal'
+[startup] Entry-context capture hooks registered (inert unless NOTEBOOK_ENTRY_CONTEXT_ENABLED)
+[startup] Similar-matches nightly job registered (inert unless NOTEBOOK_FIND_SIMILAR_ENABLED)
+  [clock] scheduler job 'session_cleanup' NOT registered (it deletes session rows on a shifted now)
+[startup] logo miss-retry scheduled (daily 3:25am ET)
+[startup] wisdom jobs registered: 14 (wisdom_core_catchup, wisdom_core_watchdog, wisdom_capture_detections, wisdom_capture_morning, wisdom_capture_themes, wisdom_capture_tweets, wisdom_capture_eod, wisdom_capture_late, wisdom_sources_discord_listener, wisdom_sources_twitter_listener, wisdom_extract_reap, wisdom_daily_chain, wisdom_weekly_chain, wisdom_monthly_packet)
+[startup] signature sweep scheduled (weekdays 20:05 ET)
+[startup] bars split-repair sweep scheduled (cron[hour='2', minute='30'] ET, 500 tickers/run)
+[startup] discord-index-close: discord_index_close=cron[day_of_week='mon-fri', hour='15', minute='45'] + discord_index_close_retry=cron[day_of_week='mon-fri', hour='15', minute='58'] armed=off webhook=UNSET(posts nothing)
+[startup] discord-chart hot-warm scheduled (every 60s, 20s cycle budget)
+[startup] discord render ops scheduled (flow warm every 120s, smoke +240s, /flow daily line 16:25 ET)
+[startup] buzz poll scheduled (every 60s)
+[startup] buzz digest scheduled (mon-fri ET): 10:00, 10:30, 11:30, 12:30, 14:00, 16:15, 17:30
+[startup] tsdr video lessons scheduled (every 15 min)
+[startup] theme_index re-warm scheduled (every 15m)
+[scheduler] substack poll job registered (hourly + Sunday burst)
+[scheduler] desk article audit registered (09:10 ET)
+[scheduler] study jobs registered (reminders */15, weekly close Sun 23:59 ET, detections 02:30 ET weekdays; weekly-close catch-up on boot)
+[scheduler] measurement window jobs registered (Wed 09:00-11:00 ET)
+[scheduler] earnings calendar snapshot/audit/health registered
+[mrr] Snapshot recorded for 2026-11-11: MRR=$0, subs=12
+[startup] Compass automation PAUSED -- skipping job 'voice_proactive_premarket' (set COMPASS_AUTOMATION_ENABLED=1 to resume)
+[startup] Compass automation PAUSED -- skipping job 'voice_proactive_scan' (set COMPASS_AUTOMATION_ENABLED=1 to resume)
+[startup] Compass automation PAUSED -- skipping job 'voice_proactive_after_hours' (set COMPASS_AUTOMATION_ENABLED=1 to resume)
+[startup] Compass automation PAUSED -- skipping job 'awareness_engine_scan' (set COMPASS_AUTOMATION_ENABLED=1 to resume)
+[startup] S7 document-arrival alerts PAUSED (set ALERT_TAXONOMY_DOCUMENT_ARRIVAL_ENABLED=1 to resume)
+[startup] S7 price-level DARK comparison OFF (set ALERT_TAXONOMY_PRICE_LEVEL_DARK_ENABLED=1 to start the dark run)
+[startup] S7 event-proximity DARK comparison OFF (set ALERT_TAXONOMY_EVENT_PROXIMITY_DARK_ENABLED=1 to start the dark run)
+[startup] S7 position-risk DARK comparison OFF (set ALERT_TAXONOMY_POSITION_RISK_DARK_ENABLED=1 to start the dark run)
+[startup] S7 scan-membership-change DARK comparison OFF (set ALERT_TAXONOMY_SCAN_MEMBERSHIP_DARK_ENABLED=1 to start the dark run)
+[startup] S7 catalyst-match DARK comparison OFF (set ALERT_TAXONOMY_CATALYST_MATCH_DARK_ENABLED=1 to start the dark run)
+[startup] S7 regime-change DARK comparison OFF (set ALERT_TAXONOMY_REGIME_CHANGE_DARK_ENABLED=1 to start the dark run)
+[startup] S7 indicator-condition DARK comparison OFF (set ALERT_TAXONOMY_INDICATOR_CONDITION_DARK_ENABLED=1 to start the dark run)
+[startup] D2 dual-compute warm reader OFF (set D2_DUAL_COMPUTE_WARM_READER_ENABLED=1 to start it)
+[startup] Compass automation PAUSED -- skipping job 'compass_daily_focus' (set COMPASS_AUTOMATION_ENABLED=1 to resume)
+[startup] Compass automation PAUSED -- skipping job 'voice_nightly_consolidate' (set COMPASS_AUTOMATION_ENABLED=1 to resume)
+[startup] pattern-vision: on model=claude-opus-4-8[code] cost_hard_cap=$10.0[default] max_per_run=150[default] active_set_only=on:8[resolved] skip_if_stable=on[force_default] confirmed_only=on[api_default]
+[startup] dealer_positioning table initialized
+[scheduler] OI snapshot cron NOT registered here (MASSIVE_WS_ENABLED!=1 — runs on flow-worker)
+[startup] Compass automation PAUSED -- skipping job 'compass_eod_recap' (set COMPASS_AUTOMATION_ENABLED=1 to resume)
+[startup] Compass automation PAUSED -- skipping job 'compass_weekly_email_digest' (set COMPASS_AUTOMATION_ENABLED=1 to resume)
+[startup] Fundamentals reporters warm scheduled -- every 15 min in earnings windows
+[startup] cache snapshot scheduled -- every 3 min + on shutdown
+[startup] malloc_trim scheduled -- every 10 min
+[startup] estimate history (weekdays 18:20 ET) + filings feed poll scheduled (flag-gated per run)
+[startup] research depth jobs scheduled (flag-gated per run)
+[startup] COT scheduler running -- Fridays at 3:50 PM ET (retries 4:15, 4:45); daily catchup at 6 PM ET
+[startup] Session cleanup scheduled -- daily at 3:00 AM ET
+[startup] Churn risk check scheduled -- daily at 9:00 AM ET
+[startup] MRR snapshot scheduled -- daily at 11:59 PM ET
+[startup] Compass automation PAUSED -- all scheduled Compass/voice jobs skipped; manual surfaces unaffected (set COMPASS_AUTOMATION_ENABLED=1 to resume)
+[startup] Pattern engine jobs scheduled -- outcomes (4h interval), stats (06:00 UTC daily), universe scan (1h interval)
+[startup] Massive WS consumer not started (disabled or no MASSIVE_API_KEY)
+[startup] Massive Flat Files cron NOT registered (disabled or no S3 keys)
+[lockwatch] SLOW STATEMENT 2.03s db=cboe_indices.db thread=market_indicator_jobs stmt="INSERT INTO cboe_index_bars(symbol, date, o, h, l, c, updated_at) VALUES(?,?,?,?,?,?, datetime('now')) ON CONFLICT(symbol, date) DO UPDATE SET o=excluded.o, h=e"
+[lockwatch] HOLDER > 2.0s (1 transaction(s), 0 running statement(s)) at 06:26:41
+[lockwatch]   holder db=flow.db thread=flow-db-seed(24180) held=2.22s first='INSERT INTO flow (\n                            source, CreatedDate, CreatedTime, Symbol, Type, Volume,\n                            Price, Side, CallPut, Strike,'
+[lockwatch]   opened at:
+  File "C:\Python314\Lib\threading.py", line 1043, in _bootstrap
+    self._bootstrap_inner()
+  File "C:\Python314\Lib\threading.py", line 1081, in _bootstrap_inner
+    self._context.run(self.run)
+  File "C:\Python314\Lib\threading.py", line 1023, in run
+    self._target(*self._args, **self._kwargs)
+  File "C:\Users\Patrick\uct-worktrees\nbw-p2-impl\api\main.py", line 5839, in _flow_db_seed_background
+    _result = _flow_db.insert_csv(_f.read(), source="stocks")
+  File "C:\Users\Patrick\uct-worktrees\nbw-p2-impl\api\flow_db.py", line 408, in insert_csv
+    conn.execute(
+  File "C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\5effcdc4-7e7d-42f4-a3df-67b99c63791b\scratchpad\sbx\boot_sandbox.py", line 100, in execute
+    return self.cursor().execute(*a, **kw)
+  File "C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\5effcdc4-7e7d-42f4-a3df-67b99c63791b\scratchpad\sbx\boot_sandbox.py", line 88, in execute
+    return _run(self.connection, super().execute, a, kw, "execute")
+
+[lockwatch]   holder thread NOW:
+  File "C:\Python314\Lib\threading.py", line 1043, in _bootstrap
+    self._bootstrap_inner()
+  File "C:\Python314\Lib\threading.py", line 1081, in _bootstrap_inner
+    self._context.run(self.run)
+  File "C:\Python314\Lib\threading.py", line 1023, in run
+    self._target(*self._args, **self._kwargs)
+  File "C:\Users\Patrick\uct-worktrees\nbw-p2-impl\api\main.py", line 5839, in _flow_db_seed_background
+    _result = _flow_db.insert_csv(_f.read(), source="stocks")
+  File "C:\Users\Patrick\uct-worktrees\nbw-p2-impl\api\flow_db.py", line 408, in insert_csv
+    conn.execute(
+  File "C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\5effcdc4-7e7d-42f4-a3df-67b99c63791b\scratchpad\sbx\boot_sandbox.py", line 100, in execute
+    return self.cursor().execute(*a, **kw)
+  File "C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\5effcdc4-7e7d-42f4-a3df-67b99c63791b\scratchpad\sbx\boot_sandbox.py", line 88, in execute
+    return _run(self.connection, super().execute, a, kw, "execute")
+  File "C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\5effcdc4-7e7d-42f4-a3df-67b99c63791b\scratchpad\sbx\boot_sandbox.py", line 84, in _run
+    _after(conn, stmt, t0)
+  File "C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\5effcdc4-7e7d-42f4-a3df-67b99c63791b\scratchpad\sbx\boot_sandbox.py", line 61, in _after
+    with _L:
+
+[lockwatch]   running stmt db=flow.db thread=MainThread(16816) for 1.71s: "DELETE FROM flow_fill_archive WHERE archived_at < datetime('now', ?)"
+[lockwatch]   that thread NOW:
+  File "C:\Python314\Lib\contextlib.py", line 214, in __aenter__
+    return await anext(self.gen)
+  File "C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Python314\Lib\contextlib.py", line 214, in __aenter__
+    return await anext(self.gen)
+  File "C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Python314\Lib\contextlib.py", line 214, in __aenter__
+    return await anext(self.gen)
+  File "C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Python314\Lib\contextlib.py", line 214, in __aenter__
+    return await anext(self.gen)
+  File "C:\Users\Patrick\uct-worktrees\nbw-p2-impl\api\main.py", line 9297, in lifespan
+    flow_gap_autofill.startup_check()
+  File "C:\Users\Patrick\uct-worktrees\nbw-p2-impl\api\flow_gap_autofill.py", line 942, in startup_check
+    c.execute("DELETE FROM flow_fill_archive WHERE archived_at < "
+  File "C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\5effcdc4-7e7d-42f4-a3df-67b99c63791b\scratchpad\sbx\boot_sandbox.py", line 100, in execute
+    return self.cursor().execute(*a, **kw)
+  File "C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\5effcdc4-7e7d-42f4-a3df-67b99c63791b\scratchpad\sbx\boot_sandbox.py", line 88, in execute
+    return _run(self.connection, super().execute, a, kw, "execute")
+  File "C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\5effcdc4-7e7d-42f4-a3df-67b99c63791b\scratchpad\sbx\boot_sandbox.py", line 75, in _run
+    return fn(*a, **kw)
+
+[lockwatch]   running stmt db=cot.db thread=cot-catchup(18948) for 0.90s: '\n            INSERT OR REPLACE INTO cot_records\n                (symbol, date, large_spec_net, commercial_net, small_spec_net, open_interest)\n            VALUES'
+[lockwatch]   that thread NOW:
+  File "C:\Python314\Lib\threading.py", line 1043, in _bootstrap
+    self._bootstrap_inner()
+  File "C:\Python314\Lib\threading.py", line 1081, in _bootstrap_inner
+    self._context.run(self.run)
+  File "C:\Python314\Lib\threading.py", line 1023, in run
+    self._target(*self._args, **self._kwargs)
+  File "C:\Users\Patrick\uct-worktrees\nbw-p2-impl\api\main.py", line 349, in _cot_catchup_background
+    n = _cot_service.refresh_from_current()
+  File "C:\Users\Patrick\uct-worktrees\nbw-p2-impl\api\services\cot_service.py", line 448, in refresh_from_current
+    n = _upsert_records(recs)
+  File "C:\Users\Patrick\uct-worktrees\nbw-p2-impl\api\services\cot_service.py", line 343, in _upsert_records
+    conn.executemany(
+  File "C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\5effcdc4-7e7d-42f4-a3df-67b99c63791b\scratchpad\sbx\boot_sandbox.py", line 103, in executemany
+    return self.cursor().executemany(*a, **kw)
+  File "C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\5effcdc4-7e7d-42f4-a3df-67b99c63791b\scratchpad\sbx\boot_sandbox.py", line 91, in executemany
+    return _run(self.connection, super().executemany, a, kw, "executemany")
+  File "C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\5effcdc4-7e7d-42f4-a3df-67b99c63791b\scratchpad\sbx\boot_sandbox.py", line 75, in _run
+    return fn(*a, **kw)
+
+[lockwatch]   in-flight requests (0):
+[startup] COT catch-up refresh complete -- 2620 records upserted
+[lockwatch] HOLDER > 2.0s (0 transaction(s), 1 running statement(s)) at 06:26:41
+[lockwatch]   holder db=flow.db thread=flow-db-seed(24180) held=2.80s first='INSERT INTO flow (\n                            source, CreatedDate, CreatedTime, Symbol, Type, Volume,\n                            Price, Side, CallPut, Strike,'
+[lockwatch]   opened at:
+  File "C:\Python314\Lib\threading.py", line 1043, in _bootstrap
+    self._bootstrap_inner()
+  File "C:\Python314\Lib\threading.py", line 1081, in _bootstrap_inner
+    self._context.run(self.run)
+  File "C:\Python314\Lib\threading.py", line 1023, in run
+    self._target(*self._args, **self._kwargs)
+  File "C:\Users\Patrick\uct-worktrees\nbw-p2-impl\api\main.py", line 5839, in _flow_db_seed_background
+    _result = _flow_db.insert_csv(_f.read(), source="stocks")
+  File "C:\Users\Patrick\uct-worktrees\nbw-p2-impl\api\flow_db.py", line 408, in insert_csv
+    conn.execute(
+  File "C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\5effcdc4-7e7d-42f4-a3df-67b99c63791b\scratchpad\sbx\boot_sandbox.py", line 100, in execute
+    return self.cursor().execute(*a, **kw)
+  File "C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\5effcdc4-7e7d-42f4-a3df-67b99c63791b\scratchpad\sbx\boot_sandbox.py", line 88, in execute
+    return _run(self.connection, super().execute, a, kw, "execute")
+
+[lockwatch]   holder thread NOW:
+  File "C:\Python314\Lib\threading.py", line 1043, in _bootstrap
+    self._bootstrap_inner()
+  File "C:\Python314\Lib\threading.py", line 1081, in _bootstrap_inner
+    self._context.run(self.run)
+  File "C:\Python314\Lib\threading.py", line 1023, in run
+    self._target(*self._args, **self._kwargs)
+  File "C:\Users\Patrick\uct-worktrees\nbw-p2-impl\api\main.py", line 5839, in _flow_db_seed_background
+    _result = _flow_db.insert_csv(_f.read(), source="stocks")
+  File "C:\Users\Patrick\uct-worktrees\nbw-p2-impl\api\flow_db.py", line 408, in insert_csv
+    conn.execute(
+  File "C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\5effcdc4-7e7d-42f4-a3df-67b99c63791b\scratchpad\sbx\boot_sandbox.py", line 100, in execute
+    return self.cursor().execute(*a, **kw)
+  File "C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\5effcdc4-7e7d-42f4-a3df-67b99c63791b\scratchpad\sbx\boot_sandbox.py", line 88, in execute
+    return _run(self.connection, super().execute, a, kw, "execute")
+  File "C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\5effcdc4-7e7d-42f4-a3df-67b99c63791b\scratchpad\sbx\boot_sandbox.py", line 75, in _run
+    return fn(*a, **kw)
+
+[lockwatch]   running stmt db=flow.db thread=MainThread(16816) for 2.29s: "DELETE FROM flow_fill_archive WHERE archived_at < datetime('now', ?)"
+[lockwatch]   that thread NOW:
+  File "C:\Python314\Lib\contextlib.py", line 214, in __aenter__
+    return await anext(self.gen)
+  File "C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Python314\Lib\contextlib.py", line 214, in __aenter__
+    return await anext(self.gen)
+  File "C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Python314\Lib\contextlib.py", line 214, in __aenter__
+    return await anext(self.gen)
+  File "C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Python314\Lib\contextlib.py", line 214, in __aenter__
+    return await anext(self.gen)
+  File "C:\Users\Patrick\uct-worktrees\nbw-p2-impl\api\main.py", line 9297, in lifespan
+    flow_gap_autofill.startup_check()
+  File "C:\Users\Patrick\uct-worktrees\nbw-p2-impl\api\flow_gap_autofill.py", line 942, in startup_check
+    c.execute("DELETE FROM flow_fill_archive WHERE archived_at < "
+  File "C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\5effcdc4-7e7d-42f4-a3df-67b99c63791b\scratchpad\sbx\boot_sandbox.py", line 100, in execute
+    return self.cursor().execute(*a, **kw)
+  File "C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\5effcdc4-7e7d-42f4-a3df-67b99c63791b\scratchpad\sbx\boot_sandbox.py", line 88, in execute
+    return _run(self.connection, super().execute, a, kw, "execute")
+  File "C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\5effcdc4-7e7d-42f4-a3df-67b99c63791b\scratchpad\sbx\boot_sandbox.py", line 75, in _run
+    return fn(*a, **kw)
+
+[lockwatch]   in-flight requests (0):
+[startup] Flow DB stocks: 21,589 rows, 1 days -- up to date
+[startup] Flow DB indexes: 16,203 rows, 1 days -- up to date
+[lockwatch] SLOW STATEMENT 3.17s db=flow.db thread=MainThread stmt="DELETE FROM flow_fill_archive WHERE archived_at < datetime('now', ?)"
+[startup] j2 books audit registered (Sun 09:30 ET)
+[startup] j2 trash purge registered (03:20 ET daily)
+[startup] notebook task reminders registered (07:00 + 09:00 ET, boot catch-up)
+[startup] notebook routine reminders registered (every 5 min ET; inert unless wave 9 is on)
+[startup] notebook earnings follow-ups registered (16:45 + 18:00 ET mon-fri, boot catch-up; inert unless NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED)
+[startup] notebook semantic sweep registered (every 15 min; dark unless NOTEBOOK_SEMANTIC_SEARCH_ENABLED)
+[startup] notebook SLO check registered (every 15 min) + digest (17:10 ET)
+[startup] notebook passed-setups nightly registered (17:40 ET weekdays; dark unless NOTEBOOK_PASSED_SETUPS_ENABLED)
+[watchdog] dark — WATCHDOG_ENABLED and WATCHDOG_OBSERVE both off; not starting (set WATCHDOG_OBSERVE=1 to gather a lag baseline).
+[startup] cboe refresh: ingested={'VIX9D': 3976, 'VIX3M': 4302, 'VIX6M': 4733, 'VVIX': 5133, 'VXN': 4308, 'RVX': 4299, 'SKEW': 9256} errors={}
+[warm] snapshot warm failed (non-fatal): Failed to initialize Massive client: MASSIVE_API_KEY not set in environment
+[warm] dashboard cache warmed: movers
+[warm] dashboard cache warmed: news
+[warm] dashboard cache warmed: theme-performance
+[warm] dashboard cache warmed: leadership
+[warm] dashboard cache warmed: breadth
+[warm] dashboard cache warmed: earnings
+[theme-perf] Computation returned all-null returns for 3 symbols — NOT persisted to disk, retrying in 120s
+[substack] article bodies: fetched=8 reconverted=0 deferred=9 refused=0
+[dormant] self-heal rebuilt active set (0 active)
+[breadth-heal] boot pass: 0 healed of last 10
+[darkpool_agg] prewarm: cache already warm — skip

@@ -1,0 +1,60 @@
+{
+ "viewport": "1200",
+ "step": "R1",
+ "title": "R1",
+ "mode": "ON",
+ "checks": [
+  {
+   "what": "control: adopt-tool works (200) with no other writer",
+   "ok": true,
+   "read": "200"
+  },
+  {
+   "what": "busy helpful: never a 500",
+   "ok": true,
+   "read": "409"
+  },
+  {
+   "what": "busy adopt: never a 500",
+   "ok": true,
+   "read": "503"
+  },
+  {
+   "what": "busy adopt: answers 503 busy (the house sentence) while another writer holds the database",
+   "ok": true,
+   "read": "503 {\"detail\":{\"code\":\"busy\",\"message\":\"UCT is busy saving other changes. Wait a few seconds and try again.\"}}"
+  },
+  {
+   "what": "after the writer lets go, the same adopt-tool works (200)",
+   "ok": true,
+   "read": "200 {'kind': 'tracker', 'id': '95044e7d-20c1-4980-b3a8-0ad816b4bd43', 'credit': \"Based on Campaign P35's Sleep 1200\"}"
+  },
+  {
+   "what": "the busy adopt wrote nothing: exactly one copy of the tracker after the retry",
+   "ok": true,
+   "read": "1"
+  }
+ ],
+ "rendered": [
+  {
+   "what": "control: adopt-tool with no other writer",
+   "text": "200 {\"kind\": \"routine\", \"id\": \"fd37d945-b7eb-4652-9a5f-13b6640a54fa\", \"credit\": \"Based on Campaign P35's Prep routine 1200\"}"
+  },
+  {
+   "what": "busy: answers while this walker held auth.db (BEGIN IMMEDIATE)",
+   "text": "{\"helpful\": [409, \"{\\\"detail\\\":{\\\"code\\\":\\\"helpful_days\\\",\\\"message\\\":\\\"You can mark this helpful after using it on 3 different days.\\\"}}\", 0.01], \"adopt\": [503, \"{\\\"detail\\\":{\\\"code\\\":\\\"busy\\\",\\\"message\\\":\\\"UCT is busy saving other changes. Wait a few seconds and try again.\\\"}}\", 4.54], \"held_s\": 4.54}"
+  }
+ ],
+ "verdict": "PASS",
+ "notes": [
+  "helpful under the held lock answered 409 (not a write that reached the lock): {\"detail\":{\"code\":\"helpful_days\",\"message\":\"You can mark this helpful after using it on 3 different days.\"}}"
+ ],
+ "events": {},
+ "metrics": {},
+ "screenshots": [],
+ "requests_note_put": 0,
+ "started": "2026-10-27T05:57:30",
+ "findings": [],
+ "partial": false,
+ "finished": "2026-10-27T05:57:34"
+}

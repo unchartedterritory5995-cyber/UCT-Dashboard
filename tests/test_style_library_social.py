@@ -183,6 +183,20 @@ def test_helpful_is_refused_while_the_library_is_off(conn, lib_on, monkeypatch):
     assert conn.execute("SELECT COUNT(*) FROM j2_gallery_follows").fetchone()[0] == 0
 
 
+def test_these_votes_need_no_use_only_while_wave_11_is_off(conn, lib_on, monkeypatch):
+    """Task 11.11 (W11-R8): every vote in this file is a wave 10 vote. The same style vote with wave 11 on is refused
+    until the member has used it on 3 ET days (`tests/test_gallery_helpful_w11.py` owns the rule), and unmarking is
+    never refused."""
+    item = _listed(conn, "a1")
+    monkeypatch.setenv("NOTEBOOK_WIDGETS_W11_ENABLED", "1")
+    with pytest.raises(gallery.GalleryConflict) as e:
+        gallery.set_helpful("m1", item["id"], True, conn=conn)
+    assert e.value.code == "helpful_days" and str(e.value) == gallery.S_HELPFUL_DAYS
+    assert gallery.set_helpful("m1", item["id"], False, conn=conn) == {"helpful": False, "count": 0}
+    monkeypatch.delenv("NOTEBOOK_WIDGETS_W11_ENABLED")
+    assert gallery.set_helpful("m1", item["id"], True, conn=conn) == {"helpful": True, "count": 1}
+
+
 def test_helped_by_me_is_the_viewers_own_and_a_removal_is_idempotent(conn, lib_on):
     item = _listed(conn, "a1")
     gallery.set_helpful("m1", item["id"], True, conn=conn)

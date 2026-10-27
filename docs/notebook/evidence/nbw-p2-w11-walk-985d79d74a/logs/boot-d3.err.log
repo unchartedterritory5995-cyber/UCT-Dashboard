@@ -1,0 +1,510 @@
+2026-10-27 06:31:45,420 INFO api.services.session_calendar: [session-calendar] NYSE calendar v2026-09-29.1 covers 2000-01-01..2028-12-31
+2026-10-27 06:31:45,469 INFO api.services.cap_universe: [cap-universe] loaded 3640 symbols
+2026-10-27 06:31:45,470 INFO api.routers.ticker_search: [ticker-search] loaded 3640 tickers from cap_universe
+2026-10-27 06:31:45,556 WARNING api.services.email_service: [email] RESEND_API_KEY not set — emails disabled
+2026-10-27 06:31:48,661 INFO api.liveflow_worker: [liveflow] loaded 0 user-blocked tickers from C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\5effcdc4-7e7d-42f4-a3df-67b99c63791b\scratchpad\sbx\walk\liveflow_user_blocklist.json
+2026-10-27 06:31:48,667 INFO api.baselines: [baselines] loaded 0 ticker baselines into memory
+2026-10-27 06:31:48,667 INFO api.liveflow_worker: [liveflow] ticker baselines loaded into worker memory (0 tickers)
+2026-10-27 06:31:52,903 INFO api.services.cache_snapshot: [cache-snapshot] restored 181/190 entries (snapshot age 1675622s)
+2026-10-27 06:31:53,181 INFO api.main: community store ready
+2026-10-27 06:31:53,311 INFO api.main: alert_taxonomy: 8 trigger type(s) registered -- catalyst-match, document-arrival, event-proximity, indicator-condition, position-risk, price-level, regime-change, scan-membership-change (all DARK beyond document-arrival). A type appears here when its CP3 is signed, not when its module is written.
+2026-10-27 06:31:53,318 INFO api.main: rollout: cohort 's7-dark' seeded from role 'admin' (0 new tag rows)
+2026-10-27 06:31:53,318 INFO api.main: [startup] terminal seed: already ran (marker present)
+2026-10-27 06:31:53,337 INFO api.main: chat presence broadcaster started
+2026-10-27 06:31:53,345 INFO api.baselines: [baselines] loaded 0 ticker baselines into memory
+2026-10-27 06:31:53,369 INFO api.main: [startup] quarantined 0 bars from existing cache
+2026-10-27 06:31:53,380 INFO api.main: [startup] indicator alert evaluator started
+2026-10-27 06:31:53,387 INFO api.main: [startup] awareness regime_snapshots schema ready
+2026-10-27 06:31:53,392 WARNING api.services.journal_two.document_ocr_tesseract: [doc-ocr] J2_OCR_ENABLED=1 but no usable tesseract binary was found — OCR stays unavailable
+2026-10-27 06:31:53,395 WARNING api.main: [startup] J2_OCR_ENABLED is set but OCR could not be armed
+2026-10-27 06:31:53,401 INFO api.main: [startup] alert_durability schema ready
+2026-10-27 06:31:53,401 INFO api.main: [startup] priority audit scheduled (~30s after boot)
+2026-10-27 06:31:53,402 INFO api.main: [startup] hot tier warm scheduled (~45s after boot)
+2026-10-27 06:31:53,403 INFO api.main: [startup] breadth numeric projection: {'ran': False, 'marker': 'C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\5effcdc4-7e7d-42f4-a3df-67b99c63791b\\scratchpad\\sbx\\walk\\.breadth_numeric_v1', 'skipped': 'marker present'}
+2026-10-27 06:31:53,405 INFO api.main: [startup] breadth reconstructed side: {'ran': False, 'marker': 'C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\5effcdc4-7e7d-42f4-a3df-67b99c63791b\\scratchpad\\sbx\\walk\\.breadth_reconstructed_v1', 'skipped': 'marker present'}
+2026-10-27 06:31:53,420 INFO api.main: [cold-start-guard] boot preload started for 393 resource(s) (2 hand-registered + 391 derived from the manifest)
+2026-10-27 06:31:53,421 INFO api.services.cap_universe: [cap-universe-etfs] loaded 100 symbols
+2026-10-27 06:31:53,422 INFO api.main: [startup] dashboard warm scheduled (~20s after boot); calendar-enrichment re-warm every 240s (under the 300s TTL); calendar week re-warm every 20 min (under the 30-min stale bound)
+2026-10-27 06:31:53,423 INFO api.main: [startup] rs-rankings warm scheduled (~120s after boot)
+2026-10-27 06:31:53,423 INFO api.main: [startup] industry-map prewarm scheduled (~75s after boot)
+2026-10-27 06:31:53,424 INFO api.main: [startup] darkpool prewarm scheduled (~60s after boot)
+2026-10-27 06:31:53,425 INFO api.main: [startup] scanner-preset warm scheduled (~30s after boot); re-warm every 50s during market hours, 300s off-hours
+2026-10-27 06:31:53,425 INFO api.main: [startup] ticker-meta name-heal scheduled (one-shot)
+2026-10-27 06:31:53,426 INFO api.main: [startup] deploy smoke audit scheduled
+2026-10-27 06:31:53,433 INFO api.main: [startup] bars_continuous_audit started
+2026-10-27 06:31:53,435 INFO api.services.bars_wal_checkpointer: [bars-wal] checkpointer started (interval=20s, truncate_hwm=2000 frames)
+2026-10-27 06:31:53,437 INFO api.services.bars_reconciliation: [reconcile] disabled (RECONCILE_ENABLED=0)
+2026-10-27 06:31:53,437 INFO api.main: [startup] bars_reconciliation started
+2026-10-27 06:31:53,438 INFO api.services.fundamentals_monitor: [fund-monitor] disabled (FUNDAMENTALS_MONITOR_ENABLED=0)
+2026-10-27 06:31:53,438 INFO api.main: [startup] fundamentals_monitor started
+2026-10-27 06:31:53,441 INFO api.services.provider_coverage_monitor: [coverage-monitor] disabled (PROVIDER_COVERAGE_MONITOR_ENABLED=0)
+2026-10-27 06:31:53,441 INFO api.main: [startup] provider_coverage_monitor started
+2026-10-27 06:31:53,442 INFO api.main: [startup] breadth reconstructed rebuild_stale: {'stale': 0, 'built': 0}
+2026-10-27 06:31:53,442 INFO api.main: [startup] disk_watchdog started (warn=75.0% crit=90.0% every 1800s)
+2026-10-27 06:31:53,442 INFO api.main: [startup] realtime_candle reconciliation_worker scheduled
+2026-10-27 06:31:53,443 INFO api.main: [startup] liveflow_worker (Bullflow) NOT started — retired 2026-08-29; live flow is served by the Massive rail
+2026-10-27 06:31:53,450 ERROR api.services.bars_continuous_audit: [continuous_audit] daily store stale: {'sampled': 5, 'newest_session': 20261026, 'expected_session': 20261112, 'days_behind': 17, 'stale': True}
+2026-10-27 06:31:53,455 INFO api.auth_surface_check: [startup] auth-surface: service=web mutating_routes=124 ungated=0 delegated=0 middleware_gated=17 OK
+2026-10-27 06:31:53,477 INFO api.services.bars_continuous_audit: [continuous_audit] universe baseline (info, not alerted): 2/2 long-tail intraday cold (100%)
+2026-10-27 06:31:53,480 INFO api.services.bars_continuous_audit: [continuous_audit] 1hr priority sweep
+2026-10-27 06:31:53,517 WARNING api.auth_surface_check: [startup] auth-surface-reads: service=web examined 1269/1952 (method,path) | reads 1145: gated=1018 (of which OPEN_READS_GATE-staged=145 mode=off) middleware_gated=13 delegated=0 public=43 inline=55 recorded_open=7 UNRECORDED=9 | mutating(audited prefixes) 124: UNGATED=0 | stale_baseline=0 inline_marker_missing=0 | by_method={'DELETE': 93, 'GET': 1133, 'HEAD': 12, 'PATCH': 27, 'POST': 625, 'PUT': 62}
+2026-10-27 06:31:53,522 INFO api.services.ticker_names_prewarm: [ticker-names-prewarm] disabled via env
+2026-10-27 06:31:53,529 INFO api.services.ticker_search_index: [ticker_search_index] loaded 3640 rows from snapshot
+2026-10-27 06:31:53,534 INFO api.services.bars_continuous_audit: [continuous_audit] 24hr universe sweep
+2026-10-27 06:31:53,617 INFO api.services.theme_db: [themes] Already seeded v4.22.0 (content match) — skipping
+2026-10-27 06:31:53,620 INFO api.services.ticker_search_index: [ticker_search_index] liquidity map: 25 symbols
+2026-10-27 06:31:53,771 WARNING api.services.vendor_socket_guard: [finnhub] REFUSING to open the live finnhub socket: this process is not running on Railway, and the production API key allows roughly ONE connection. A local run steals that slot from production and kicks the live site off its own feed (this happened 2026-08-10 and cost a session of live charts). Set ALLOW_LOCAL_VENDOR_SOCKETS=1 if you really do want this process on the live feed.
+2026-10-27 06:31:53,775 INFO api.daily_tracker: [tracker] No history file found at C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\5effcdc4-7e7d-42f4-a3df-67b99c63791b\scratchpad\sbx\walk\contract_history.json — starting fresh.
+2026-10-27 06:31:53,775 INFO api.daily_tracker: [tracker] Snapshot scheduler task created.
+2026-10-27 06:31:53,787 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=82262919598786: OPENAI_API_KEY is not set
+2026-10-27 06:31:53,788 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=263212063478037: OPENAI_API_KEY is not set
+2026-10-27 06:31:53,788 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=45873918139974: OPENAI_API_KEY is not set
+2026-10-27 06:31:53,789 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=260883058653479: OPENAI_API_KEY is not set
+2026-10-27 06:31:53,790 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=80791767513138: OPENAI_API_KEY is not set
+2026-10-27 06:31:53,791 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=193467074160361: OPENAI_API_KEY is not set
+2026-10-27 06:31:53,791 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=267239076625528: OPENAI_API_KEY is not set
+2026-10-27 06:31:53,791 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=259635970298456: OPENAI_API_KEY is not set
+2026-10-27 06:31:53,792 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=164919788607070: OPENAI_API_KEY is not set
+2026-10-27 06:31:53,792 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=137611096038897: OPENAI_API_KEY is not set
+2026-10-27 06:31:53,792 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=70502309616397: OPENAI_API_KEY is not set
+2026-10-27 06:31:53,793 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=99335749032422: OPENAI_API_KEY is not set
+2026-10-27 06:31:53,793 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=85881977722879: OPENAI_API_KEY is not set
+2026-10-27 06:31:53,794 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=131131896967495: OPENAI_API_KEY is not set
+2026-10-27 06:31:53,795 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=229078840933249: OPENAI_API_KEY is not set
+2026-10-27 06:31:53,797 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=193923953788978: OPENAI_API_KEY is not set
+2026-10-27 06:31:53,797 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=144853339379747: OPENAI_API_KEY is not set
+2026-10-27 06:31:53,799 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=35237434383150: OPENAI_API_KEY is not set
+2026-10-27 06:31:53,800 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=123227148862910: OPENAI_API_KEY is not set
+2026-10-27 06:31:53,800 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=159025302660056: OPENAI_API_KEY is not set
+2026-10-27 06:31:53,801 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=606597191911: OPENAI_API_KEY is not set
+2026-10-27 06:31:53,802 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=113314011518325: OPENAI_API_KEY is not set
+2026-10-27 06:31:53,803 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=110621240287509: OPENAI_API_KEY is not set
+2026-10-27 06:31:53,803 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=214960259611021: OPENAI_API_KEY is not set
+2026-10-27 06:31:53,804 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=63690873482139: OPENAI_API_KEY is not set
+2026-10-27 06:31:53,804 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=54966116250052: OPENAI_API_KEY is not set
+2026-10-27 06:31:53,805 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=67127492078784: OPENAI_API_KEY is not set
+2026-10-27 06:31:53,806 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=19749962190216: OPENAI_API_KEY is not set
+2026-10-27 06:31:53,806 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=93878891872809: OPENAI_API_KEY is not set
+2026-10-27 06:31:53,807 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=62668201351833: OPENAI_API_KEY is not set
+2026-10-27 06:31:53,807 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=68122778754676: OPENAI_API_KEY is not set
+2026-10-27 06:31:53,808 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=27830523386444: OPENAI_API_KEY is not set
+2026-10-27 06:31:53,808 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=114071905895624: OPENAI_API_KEY is not set
+2026-10-27 06:31:53,809 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=90399119643365: OPENAI_API_KEY is not set
+2026-10-27 06:31:53,809 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=217923498866998: OPENAI_API_KEY is not set
+2026-10-27 06:31:53,810 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=50767805576432: OPENAI_API_KEY is not set
+2026-10-27 06:31:53,810 INFO api.services.voice_kb_service: [voice_kb] index_corpus: {'indexed': 0, 'skipped': 0, 'errors': 36}
+2026-10-27 06:31:53,825 INFO api.services.cot_service: COT: refreshing from current-year zip (https://www.cftc.gov/files/dea/history/deacot2026.zip)...
+2026-10-27 06:31:53,826 INFO api.services.cot_service: COT: downloading 2026 data (https://www.cftc.gov/files/dea/history/deacot2026.zip)...
+2026-10-27 06:31:53,878 INFO api.services.scheduler_lock: [scheduler-lock] fcntl unavailable — granting (dev mode)
+2026-10-27 06:31:53,925 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:53,929 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:53,952 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:53,953 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:53,986 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:53,987 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:53,993 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:53,995 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,004 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,013 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,013 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,015 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,015 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,029 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,031 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,039 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,040 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,041 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,041 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,043 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,043 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,044 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,045 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,045 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,046 INFO api.main: [startup] breadth-live pre-open warm scheduled (weekdays 9:05 ET)
+2026-10-27 06:31:54,046 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,047 INFO api.main: [startup] breadth dividend sweep scheduled (daily 4:40 ET)
+2026-10-27 06:31:54,047 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,048 INFO api.main: [startup] breadth-live intraday sampler scheduled (weekdays 9-16 ET, 1/min)
+2026-10-27 06:31:54,049 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,050 INFO api.main: [startup] breadth live-universes tick scheduled (weekdays 9-16 ET, 1/min, own job)
+2026-10-27 06:31:54,050 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,051 INFO api.main: [startup] breadth OHLC intraday aggregation scheduled (weekdays 17:15 ET)
+2026-10-27 06:31:54,051 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,058 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,059 INFO api.main: [startup] breadth put/call fill scheduled (07:05/19:05/22:05 ET + boot)
+2026-10-27 06:31:54,059 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,061 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,061 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,062 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,063 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,064 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,064 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,064 INFO api.main: [startup] breadth history backfill tick scheduled (every 12 min, gated on floor marker)
+2026-10-27 06:31:54,065 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,066 INFO api.main: [startup] breadth forward seal scheduled (every 30 min, inert while dark)
+2026-10-27 06:31:54,066 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,070 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,072 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,074 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,077 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,126 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,127 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,128 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,128 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,129 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,130 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,131 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,133 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,133 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,135 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,137 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,138 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,139 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,140 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,142 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,142 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,142 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,143 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,144 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,144 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,145 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,146 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,160 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,161 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,161 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,167 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,185 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,188 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,189 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,190 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,197 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,197 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,199 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,200 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,218 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,218 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,219 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,219 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,221 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,222 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,222 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,224 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,227 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,265 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,267 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,267 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,268 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,292 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,293 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,294 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,328 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,329 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,347 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,348 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,349 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,360 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,360 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,362 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,363 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,396 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,399 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,399 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,400 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,401 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,427 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,427 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,428 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,432 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,433 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,434 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,466 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,475 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,476 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,500 INFO api.oi_snapshots: [oi-snapshot] DB initialized (path=C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\5effcdc4-7e7d-42f4-a3df-67b99c63791b\scratchpad\sbx\walk\oi_snapshots.db)
+2026-10-27 06:31:54,508 INFO api.dealer_positioning: [dealer_positioning] init_db done
+2026-10-27 06:31:54,510 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,512 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,513 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,514 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,514 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,521 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,523 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,524 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,526 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,527 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,528 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,529 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,530 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,532 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,532 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,533 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-10-27 06:31:54,534 INFO apscheduler.scheduler: Added job "lifespan.<locals>._ocr_requeue_abandoned" to job store "default"
+2026-10-27 06:31:54,535 INFO apscheduler.scheduler: Added job "post_daily_heartbeat" to job store "default"
+2026-10-27 06:31:54,536 INFO apscheduler.scheduler: Added job "run_signal_cycle" to job store "default"
+2026-10-27 06:31:54,536 INFO apscheduler.scheduler: Added job "post_premarket_brief" to job store "default"
+2026-10-27 06:31:54,537 INFO apscheduler.scheduler: Added job "run_scheduled_refresh" to job store "default"
+2026-10-27 06:31:54,538 INFO apscheduler.scheduler: Added job "sweep_silent_alerts" to job store "default"
+2026-10-27 06:31:54,539 INFO apscheduler.scheduler: Added job "run_scheduled_sweep" to job store "default"
+2026-10-27 06:31:54,539 INFO apscheduler.scheduler: Added job "scheduled_run" to job store "default"
+2026-10-27 06:31:54,540 INFO apscheduler.scheduler: Added job "scheduled_run" to job store "default"
+2026-10-27 06:31:54,541 INFO apscheduler.scheduler: Added job "scheduled_run" to job store "default"
+2026-10-27 06:31:54,542 INFO apscheduler.scheduler: Added job "roll_session" to job store "default"
+2026-10-27 06:31:54,542 INFO apscheduler.scheduler: Added job "scheduled_warm" to job store "default"
+2026-10-27 06:31:54,543 INFO apscheduler.scheduler: Added job "scheduled_scanner" to job store "default"
+2026-10-27 06:31:54,544 INFO apscheduler.scheduler: Added job "run_eod_summary" to job store "default"
+2026-10-27 06:31:54,544 INFO apscheduler.scheduler: Added job "job" to job store "default"
+2026-10-27 06:31:54,545 INFO apscheduler.scheduler: Added job "lifespan.<locals>._ipo_maintenance_job" to job store "default"
+2026-10-27 06:31:54,546 INFO apscheduler.scheduler: Added job "refresh_from_current" to job store "default"
+2026-10-27 06:31:54,547 INFO apscheduler.scheduler: Added job "refresh_if_stale" to job store "default"
+2026-10-27 06:31:54,547 INFO apscheduler.scheduler: Added job "refresh_if_stale" to job store "default"
+2026-10-27 06:31:54,548 INFO apscheduler.scheduler: Added job "lifespan.<locals>._cot_narrative_prewarm_job" to job store "default"
+2026-10-27 06:31:54,549 INFO apscheduler.scheduler: Added job "lifespan.<locals>._cot_narrative_prewarm_job" to job store "default"
+2026-10-27 06:31:54,549 INFO apscheduler.scheduler: Added job "lifespan.<locals>._ticker_types_sync" to job store "default"
+2026-10-27 06:31:54,550 INFO apscheduler.scheduler: Added job "lifespan.<locals>._of_etf_reconcile" to job store "default"
+2026-10-27 06:31:54,550 INFO apscheduler.scheduler: Added job "lifespan.<locals>._breadth_live_daily_warm" to job store "default"
+2026-10-27 06:31:54,551 INFO apscheduler.scheduler: Added job "lifespan.<locals>._breadth_dividends_refresh" to job store "default"
+2026-10-27 06:31:54,552 INFO apscheduler.scheduler: Added job "lifespan.<locals>._breadth_live_sample" to job store "default"
+2026-10-27 06:31:54,552 INFO apscheduler.scheduler: Added job "lifespan.<locals>._breadth_live_universes_tick" to job store "default"
+2026-10-27 06:31:54,553 INFO apscheduler.scheduler: Added job "lifespan.<locals>._breadth_ohlc_intraday_agg" to job store "default"
+2026-10-27 06:31:54,554 INFO apscheduler.scheduler: Added job "lifespan.<locals>._breadth_putcall_fill" to job store "default"
+2026-10-27 06:31:54,554 INFO apscheduler.scheduler: Added job "lifespan.<locals>._breadth_putcall_fill" to job store "default"
+2026-10-27 06:31:54,555 INFO apscheduler.scheduler: Added job "lifespan.<locals>._breadth_eod_row_check" to job store "default"
+2026-10-27 06:31:54,555 INFO apscheduler.scheduler: Added job "lifespan.<locals>._breadth_external_capture" to job store "default"
+2026-10-27 06:31:54,556 INFO apscheduler.scheduler: Added job "lifespan.<locals>._breadth_external_report" to job store "default"
+2026-10-27 06:31:54,556 INFO apscheduler.scheduler: Added job "lifespan.<locals>._breadth_eod_row_check" to job store "default"
+2026-10-27 06:31:54,557 INFO apscheduler.scheduler: Added job "lifespan.<locals>._breadth_nhnl_extend" to job store "default"
+2026-10-27 06:31:54,557 INFO apscheduler.scheduler: Added job "lifespan.<locals>._breadth_nhnl_extend" to job store "default"
+2026-10-27 06:31:54,558 INFO apscheduler.scheduler: Added job "lifespan.<locals>._breadth_history_backfill_tick" to job store "default"
+2026-10-27 06:31:54,559 INFO apscheduler.scheduler: Added job "lifespan.<locals>._breadth_forward_seal_tick" to job store "default"
+2026-10-27 06:31:54,559 INFO apscheduler.scheduler: Added job "run_sweep_blocking" to job store "default"
+2026-10-27 06:31:54,560 INFO apscheduler.scheduler: Added job "run_nightly_blocking" to job store "default"
+2026-10-27 06:31:54,561 INFO apscheduler.scheduler: Added job "lifespan.<locals>._cot_daily_catchup" to job store "default"
+2026-10-27 06:31:54,561 INFO apscheduler.scheduler: Added job "run_scheduled" to job store "default"
+2026-10-27 06:31:54,561 INFO apscheduler.scheduler: Added job "register_logo_miss_retry_job.<locals>._run" to job store "default"
+2026-10-27 06:31:54,563 INFO apscheduler.scheduler: Added job "wisdom_core_catchup" to job store "default"
+2026-10-27 06:31:54,564 INFO apscheduler.scheduler: Added job "wisdom_core_watchdog" to job store "default"
+2026-10-27 06:31:54,564 INFO apscheduler.scheduler: Added job "wisdom_capture_detections" to job store "default"
+2026-10-27 06:31:54,565 INFO apscheduler.scheduler: Added job "wisdom_capture_morning" to job store "default"
+2026-10-27 06:31:54,566 INFO apscheduler.scheduler: Added job "wisdom_capture_themes" to job store "default"
+2026-10-27 06:31:54,566 INFO apscheduler.scheduler: Added job "wisdom_capture_tweets" to job store "default"
+2026-10-27 06:31:54,567 INFO apscheduler.scheduler: Added job "wisdom_capture_eod" to job store "default"
+2026-10-27 06:31:54,568 INFO apscheduler.scheduler: Added job "wisdom_capture_late" to job store "default"
+2026-10-27 06:31:54,568 INFO apscheduler.scheduler: Added job "wisdom_sources_discord_listener" to job store "default"
+2026-10-27 06:31:54,569 INFO apscheduler.scheduler: Added job "wisdom_sources_twitter_listener" to job store "default"
+2026-10-27 06:31:54,570 INFO apscheduler.scheduler: Added job "wisdom_extract_reap" to job store "default"
+2026-10-27 06:31:54,571 INFO apscheduler.scheduler: Added job "wisdom_daily_chain" to job store "default"
+2026-10-27 06:31:54,571 INFO apscheduler.scheduler: Added job "wisdom_weekly_chain" to job store "default"
+2026-10-27 06:31:54,572 INFO apscheduler.scheduler: Added job "wisdom_monthly_packet" to job store "default"
+2026-10-27 06:31:54,573 INFO apscheduler.scheduler: Added job "register_screener_jobs.<locals>._run" to job store "default"
+2026-10-27 06:31:54,573 INFO apscheduler.scheduler: Added job "_check_nightly_finished" to job store "default"
+2026-10-27 06:31:54,573 INFO apscheduler.scheduler: Added job "register_screener_jobs.<locals>._run_live_scan_sweep" to job store "default"
+2026-10-27 06:31:54,574 INFO apscheduler.scheduler: Added job "register_screener_jobs.<locals>._run_spec_alerts" to job store "default"
+2026-10-27 06:31:54,574 INFO apscheduler.scheduler: Added job "register_screener_jobs.<locals>._run_finviz_universe" to job store "default"
+2026-10-27 06:31:54,575 INFO apscheduler.scheduler: Added job "register_screener_jobs.<locals>._run_earnings_dates" to job store "default"
+2026-10-27 06:31:54,575 INFO apscheduler.scheduler: Added job "register_screener_jobs.<locals>._run_opt_flow_pull" to job store "default"
+2026-10-27 06:31:54,576 INFO apscheduler.scheduler: Added job "register_screener_jobs.<locals>._run_insider_capture" to job store "default"
+2026-10-27 06:31:54,577 INFO apscheduler.scheduler: Added job "register_screener_jobs.<locals>._run_live_tier" to job store "default"
+2026-10-27 06:31:54,577 INFO apscheduler.scheduler: Added job "register_screener_jobs.<locals>._run_premarket" to job store "default"
+2026-10-27 06:31:54,577 INFO apscheduler.scheduler: Added job "register_wire_watchdog_job.<locals>._check" to job store "default"
+2026-10-27 06:31:54,578 INFO apscheduler.scheduler: Added job "sweep_job" to job store "default"
+2026-10-27 06:31:54,578 INFO apscheduler.scheduler: Added job "_run_bars_split_repair_sweep" to job store "default"
+2026-10-27 06:31:54,578 INFO apscheduler.scheduler: Added job "register_discord_index_close_job.<locals>._run" to job store "default"
+2026-10-27 06:31:54,579 INFO apscheduler.scheduler: Added job "register_discord_index_close_job.<locals>._run" to job store "default"
+2026-10-27 06:31:54,580 INFO apscheduler.scheduler: Added job "_discord_chart_hot_warm" to job store "default"
+2026-10-27 06:31:54,580 INFO apscheduler.scheduler: Added job "_discord_flow_hot_warm" to job store "default"
+2026-10-27 06:31:54,581 INFO apscheduler.scheduler: Added job "_discord_render_smoke" to job store "default"
+2026-10-27 06:31:54,581 INFO apscheduler.scheduler: Added job "_discord_flow_daily_stats" to job store "default"
+2026-10-27 06:31:54,582 INFO apscheduler.scheduler: Added job "_buzz_poll" to job store "default"
+2026-10-27 06:31:54,582 INFO apscheduler.scheduler: Added job "_buzz_digest" to job store "default"
+2026-10-27 06:31:54,583 INFO apscheduler.scheduler: Added job "_buzz_digest" to job store "default"
+2026-10-27 06:31:54,584 INFO apscheduler.scheduler: Added job "_buzz_digest" to job store "default"
+2026-10-27 06:31:54,585 INFO apscheduler.scheduler: Added job "_buzz_digest" to job store "default"
+2026-10-27 06:31:54,586 INFO apscheduler.scheduler: Added job "_buzz_digest" to job store "default"
+2026-10-27 06:31:54,587 INFO apscheduler.scheduler: Added job "_buzz_digest" to job store "default"
+2026-10-27 06:31:54,587 INFO apscheduler.scheduler: Added job "_buzz_digest" to job store "default"
+2026-10-27 06:31:54,588 INFO apscheduler.scheduler: Added job "_tsdr_lessons_tick" to job store "default"
+2026-10-27 06:31:54,588 INFO apscheduler.scheduler: Added job "lifespan.<locals>._theme_index_prewarm" to job store "default"
+2026-10-27 06:31:54,589 INFO apscheduler.scheduler: Added job "register_pattern_vision_jobs.<locals>._run" to job store "default"
+2026-10-27 06:31:54,589 INFO apscheduler.scheduler: Added job "poll_all" to job store "default"
+2026-10-27 06:31:54,590 INFO apscheduler.scheduler: Added job "poll_all" to job store "default"
+2026-10-27 06:31:54,591 INFO apscheduler.scheduler: Added job "lifespan.<locals>._article_audit" to job store "default"
+2026-10-27 06:31:54,592 INFO apscheduler.scheduler: Added job "job_reminders" to job store "default"
+2026-10-27 06:31:54,592 INFO apscheduler.scheduler: Added job "job_weekly_close" to job store "default"
+2026-10-27 06:31:54,593 INFO apscheduler.scheduler: Added job "job_gen_detections" to job store "default"
+2026-10-27 06:31:54,595 INFO apscheduler.scheduler: Added job "warm_week_previews" to job store "default"
+2026-10-27 06:31:54,595 INFO apscheduler.scheduler: Added job "warm_reported_analyses" to job store "default"
+2026-10-27 06:31:54,596 INFO apscheduler.scheduler: Added job "lifespan.<locals>.<lambda>" to job store "default"
+2026-10-27 06:31:54,596 INFO apscheduler.scheduler: Added job "lifespan.<locals>.<lambda>" to job store "default"
+2026-10-27 06:31:54,597 INFO apscheduler.scheduler: Added job "run_weekly_deep" to job store "default"
+2026-10-27 06:31:54,598 INFO apscheduler.scheduler: Added job "take_sample" to job store "default"
+2026-10-27 06:31:54,598 INFO apscheduler.scheduler: Added job "take_sample" to job store "default"
+2026-10-27 06:31:54,599 INFO apscheduler.scheduler: Added job "run_bars_gate" to job store "default"
+2026-10-27 06:31:54,599 INFO apscheduler.scheduler: Added job "finalize" to job store "default"
+2026-10-27 06:31:54,600 INFO apscheduler.scheduler: Added job "snapshot_upcoming_week" to job store "default"
+2026-10-27 06:31:54,600 INFO apscheduler.scheduler: Added job "audit_week" to job store "default"
+2026-10-27 06:31:54,601 INFO apscheduler.scheduler: Added job "post_health" to job store "default"
+2026-10-27 06:31:54,601 INFO apscheduler.scheduler: Added job "lifespan.<locals>._check_churn_risk" to job store "default"
+2026-10-27 06:31:54,602 INFO apscheduler.scheduler: Added job "record_mrr_snapshot" to job store "default"
+2026-10-27 06:31:54,602 INFO apscheduler.scheduler: Added job "run_daily_digests" to job store "default"
+2026-10-27 06:31:54,603 INFO apscheduler.scheduler: Added job "run_weekly_digests" to job store "default"
+2026-10-27 06:31:54,604 INFO apscheduler.scheduler: Added job "lifespan.<locals>._nightly_bar_refresh" to job store "default"
+2026-10-27 06:31:54,604 INFO apscheduler.scheduler: Added job "lifespan.<locals>._alert_webhook_drain_job" to job store "default"
+2026-10-27 06:31:54,605 INFO apscheduler.scheduler: Added job "lifespan.<locals>._alert_lifecycle_expire_job" to job store "default"
+2026-10-27 06:31:54,606 INFO apscheduler.scheduler: Added job "lifespan.<locals>._alert_remind_job" to job store "default"
+2026-10-27 06:31:54,606 INFO apscheduler.scheduler: Added job "lifespan.<locals>._alert_rating_change_job" to job store "default"
+2026-10-27 06:31:54,607 INFO apscheduler.scheduler: Added job "lifespan.<locals>._nightly_flow_prune" to job store "default"
+2026-10-27 06:31:54,608 INFO apscheduler.scheduler: Added job "lifespan.<locals>._ssetf_nightly" to job store "default"
+2026-10-27 06:31:54,608 INFO apscheduler.scheduler: Added job "purge_expired" to job store "default"
+2026-10-27 06:31:54,609 INFO apscheduler.scheduler: Added job "lifespan.<locals>._compass_health_email_job" to job store "default"
+2026-10-27 06:31:54,618 INFO apscheduler.scheduler: Added job "_run_patterns_track_outcomes" to job store "default"
+2026-10-27 06:31:54,619 INFO apscheduler.scheduler: Added job "_run_patterns_recompute_stats" to job store "default"
+2026-10-27 06:31:54,620 INFO apscheduler.scheduler: Added job "_run_patterns_leaders_scan" to job store "default"
+2026-10-27 06:31:54,621 INFO apscheduler.scheduler: Added job "_run_patterns_universe_scan" to job store "default"
+2026-10-27 06:31:54,623 INFO apscheduler.scheduler: Added job "_run_patterns_universe_catchup" to job store "default"
+2026-10-27 06:31:54,624 INFO apscheduler.scheduler: Added job "_run_patterns_prune" to job store "default"
+2026-10-27 06:31:54,624 INFO apscheduler.scheduler: Added job "lifespan.<locals>._fundamentals_reporters_warm_job" to job store "default"
+2026-10-27 06:31:54,625 INFO apscheduler.scheduler: Added job "lifespan.<locals>._cache_snapshot_job" to job store "default"
+2026-10-27 06:31:54,625 INFO apscheduler.scheduler: Added job "lifespan.<locals>._malloc_trim_job" to job store "default"
+2026-10-27 06:31:54,626 INFO apscheduler.scheduler: Added job "lifespan.<locals>._estimate_history_job" to job store "default"
+2026-10-27 06:31:54,627 INFO apscheduler.scheduler: Added job "lifespan.<locals>._filings_feed_job" to job store "default"
+2026-10-27 06:31:54,627 INFO apscheduler.scheduler: Added job "lifespan.<locals>._filing_search_reindex_job" to job store "default"
+2026-10-27 06:31:54,628 INFO apscheduler.scheduler: Added job "lifespan.<locals>._ftd_ingest_job" to job store "default"
+2026-10-27 06:31:54,629 INFO apscheduler.scheduler: Added job "lifespan.<locals>._sec_13f_list_job" to job store "default"
+2026-10-27 06:31:54,629 INFO apscheduler.scheduler: Scheduler started
+2026-10-27 06:31:54,652 INFO api.massive_ws_worker: [massive-ws] disabled via MASSIVE_WS_ENABLED=0
+2026-10-27 06:31:54,672 WARNING api.massive_flatfiles_worker: [massive-ff] MASSIVE_S3_ACCESS_KEY/SECRET not set -- not registering scheduler jobs
+2026-10-27 06:31:58,424 INFO api.main: [breadth-series-warm] {'ok': False, 'reason': 'flag off'}
+2026-10-27 06:31:58,752 INFO api.services.cot_service: COT: refresh complete — 2620 records upserted
+2026-10-27 06:32:00,001 INFO apscheduler.executors.default: Running job "lifespan.<locals>._alert_lifecycle_expire_job (trigger: cron[minute='*'], next run at: 2026-10-27 07:32:00 EDT)" (scheduled at 2026-10-27 07:32:00-04:00)
+2026-10-27 06:32:00,002 INFO apscheduler.executors.default: Running job "lifespan.<locals>._alert_webhook_drain_job (trigger: cron[minute='*'], next run at: 2026-10-27 07:32:00 EDT)" (scheduled at 2026-10-27 07:32:00-04:00)
+2026-10-27 06:32:00,013 INFO apscheduler.executors.default: Job "lifespan.<locals>._alert_lifecycle_expire_job (trigger: cron[minute='*'], next run at: 2026-10-27 07:33:00 EDT)" executed successfully
+2026-10-27 06:32:00,017 INFO apscheduler.executors.default: Job "lifespan.<locals>._alert_webhook_drain_job (trigger: cron[minute='*'], next run at: 2026-10-27 07:33:00 EDT)" executed successfully
+2026-10-27 06:32:00,514 INFO api.flow_gap_autofill: [gap-fill] disabled (FLOW_GAP_AUTOFILL_ENABLED != 1)
+2026-10-27 06:32:00,515 INFO api.flow_backup: [flow-backup] disabled (FLOW_BACKUP_ENABLED != 1)
+2026-10-27 06:32:00,516 INFO api.j2_attachments_backup: [j2-attach-backup] disabled (J2_ATTACHMENT_BACKUP_ENABLED != 1)
+2026-10-27 06:32:00,518 INFO api.services.store_backup: [store_backup] disabled (STORE_BACKUP_ENABLED unset)
+2026-10-27 06:32:00,519 INFO api.services.journal_two.excursion_jobs: [j2-excursion] disabled (EXCURSION_ENGINE_ENABLED != 1)
+2026-10-27 06:32:00,520 INFO apscheduler.scheduler: Added job "run_weekly_sweep" to job store "default"
+2026-10-27 06:32:00,524 INFO apscheduler.scheduler: Added job "register_trash_purge_job.<locals>._job" to job store "default"
+2026-10-27 06:32:00,524 INFO apscheduler.scheduler: Added job "register_task_reminder_job.<locals>._boundary.<locals>.body" to job store "default"
+2026-10-27 06:32:00,525 INFO apscheduler.scheduler: Added job "register_task_reminder_job.<locals>._boundary.<locals>.body" to job store "default"
+2026-10-27 06:32:00,525 INFO apscheduler.scheduler: Added job "register_task_reminder_job.<locals>._boundary.<locals>.body" to job store "default"
+2026-10-27 06:32:00,527 INFO apscheduler.scheduler: Added job "register_routine_reminder_job.<locals>.body" to job store "default"
+2026-10-27 06:32:00,528 INFO apscheduler.scheduler: Added job "register_followup_jobs.<locals>._boundary.<locals>.body" to job store "default"
+2026-10-27 06:32:00,528 INFO apscheduler.scheduler: Added job "register_followup_jobs.<locals>._boundary.<locals>.body" to job store "default"
+2026-10-27 06:32:00,529 INFO apscheduler.scheduler: Added job "register_followup_jobs.<locals>._boundary.<locals>.body" to job store "default"
+2026-10-27 06:32:00,530 INFO apscheduler.scheduler: Added job "sweep_job" to job store "default"
+2026-10-27 06:32:00,534 INFO apscheduler.scheduler: Added job "scheduled_check" to job store "default"
+2026-10-27 06:32:00,535 INFO apscheduler.scheduler: Added job "scheduled_digest" to job store "default"
+2026-10-27 06:32:00,536 INFO apscheduler.scheduler: Added job "nightly_job" to job store "default"
+2026-10-27 06:32:00,539 INFO api.daily_tracker: [tracker] Snapshot scheduler started.
+2026-10-27 06:32:00,539 INFO api.daily_tracker: [tracker] Next snapshot at 2026-11-13 16:30 ET (75583 seconds from now).
+2026-10-27 06:32:00,824 INFO api.flow_backup: [flow-backup] flow.db integrity OK (ok)
+2026-10-27 06:32:05,544 INFO boot_probe: [boot-probe] boot+18s anyio 5/64 waiting=0 threads=53 yf q=0 threads=0/8 loop-lag=5ms cpu=155% tracked=0 importing=1 cold-preload_3@__init__.py:88
+2026-10-27 06:32:08,672 INFO index_bars: [index_bars] warm pass done: {'fetched': 0, 'fresh': 49, 'failed': 0}
+2026-10-27 06:32:10,550 INFO boot_probe: [boot-probe] boot+23s anyio 0/64 waiting=0 threads=53 yf q=0 threads=0/8 loop-lag=5ms cpu=84% tracked=0 importing=0
+2026-10-27 06:32:13,426 INFO api.main: [dashboard-warm] flow-tape ok
+2026-10-27 06:32:13,434 INFO api.main: [dashboard-warm] screener-meta ok
+2026-10-27 06:32:13,449 INFO api.main: [dashboard-warm] screener-meta-payload ok
+2026-10-27 06:32:13,462 INFO api.main: [dashboard-warm] scatter-universes ok
+2026-10-27 06:32:13,462 INFO api.main: [dashboard-warm] options-sizzle ok
+2026-10-27 06:32:13,463 INFO api.main: [dashboard-warm] movers ok
+2026-10-27 06:32:13,476 INFO api.main: [dashboard-warm] themes ok
+2026-10-27 06:32:13,476 INFO api.main: [dashboard-warm] news ok
+2026-10-27 06:32:13,497 INFO api.main: [dashboard-warm] breadth ok
+2026-10-27 06:32:13,499 INFO api.main: [dashboard-warm] breadth-live {'ok': False, 'reason': 'reference levels unavailable'}
+2026-10-27 06:32:13,499 INFO api.main: [dashboard-warm] breadth-live ok
+2026-10-27 06:32:13,499 INFO api.main: [dashboard-warm] his-wire-archive ok
+2026-10-27 06:32:13,499 INFO api.main: [dashboard-warm] calendar ok
+2026-10-27 06:32:13,499 INFO api.main: [dashboard-warm] earnings-previews ok
+2026-10-27 06:32:13,500 INFO api.main: [dashboard-warm] enrichment ok
+2026-10-27 06:32:13,504 INFO api.main: [dashboard-warm] flow-curated ok
+2026-10-27 06:32:13,537 INFO breadth_symbols: [breadth_symbols] authorities verified: us=False (0.0s, frozen replica absent) exch=False (0.0s, BREADTH_AUTHORITY_EXCH is off); first reads warmed in 0.0s
+2026-10-27 06:32:15,553 WARNING api.services.bars_sanitize: bars_sanitize meta fetch failed for AMD: corporate-action fetch for AMD returned no answer (rate limit, transport error, or missing FMP_API_KEY) — this is NOT 'no splits declared'
+2026-10-27 06:32:15,573 INFO boot_probe: [boot-probe] boot+28s anyio 0/64 waiting=0 threads=59 yf q=0 threads=3/8 loop-lag=15ms cpu=43% tracked=0 importing=0
+2026-10-27 06:32:18,825 INFO api.services.watchlist_prebuilt_refresh: [prebuilt-refresh] startup catch-up (overlay age=None) — refreshing
+2026-10-27 06:32:18,827 WARNING api.services.watchlist_prebuilt_refresh: [prebuilt-refresh] MASSIVE_API_KEY not set — skipped
+2026-10-27 06:32:20,577 INFO boot_probe: [boot-probe] boot+33s anyio 0/64 waiting=0 threads=59 yf q=0 threads=3/8 loop-lag=3ms cpu=12% tracked=0 importing=0
+2026-10-27 06:32:23,583 INFO api.services.ticker_logos_prewarm: [logo-prewarm] starting pass: 3640 universe, 1066 to warm, 2574 already cached
+2026-10-27 06:32:25,580 INFO boot_probe: [boot-probe] boot+38s anyio 0/64 waiting=0 threads=69 yf q=0 threads=3/8 loop-lag=2ms cpu=421% tracked=0 importing=0
+2026-10-27 06:32:28,423 INFO api.main: [startup] theme_index prewarm: 0 themes warmed
+2026-10-27 06:32:30,583 INFO boot_probe: [boot-probe] boot+43s anyio 0/64 waiting=0 threads=67 yf q=0 threads=3/8 loop-lag=2ms cpu=1026% tracked=0 importing=0
+2026-10-27 06:32:34,280 INFO breadth_symbols: [breadth_symbols] warm pass done: {'refreshed': 45, 'fresh': 0, 'indicators': {'fresh': 8, 'restored': 0, 'rebuilt': 6, 'deferred': 11}, 'pack': {'ok': False, 'reason': 'no breadth series built yet'}}
+2026-10-27 06:32:35,600 INFO boot_probe: [boot-probe] boot+48s anyio 0/64 waiting=0 threads=66 yf q=0 threads=3/8 loop-lag=16ms cpu=1062% tracked=0 importing=0
+2026-10-27 06:32:35,758 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/profile2)
+2026-10-27 06:32:38,403 INFO api.main: [startup] hot tier warmed: 0 entries
+2026-10-27 06:32:40,620 INFO boot_probe: [boot-probe] boot+53s anyio 0/64 waiting=0 threads=64 yf q=0 threads=3/8 loop-lag=18ms cpu=1041% tracked=0 importing=0
+2026-10-27 06:32:45,635 INFO boot_probe: [boot-probe] boot+58s anyio 0/64 waiting=0 threads=65 yf q=0 threads=3/8 loop-lag=13ms cpu=1028% tracked=0 importing=0
+2026-10-27 06:32:46,647 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/profile2)
+2026-10-27 06:32:50,652 INFO boot_probe: [boot-probe] boot+63s anyio 0/64 waiting=0 threads=65 yf q=0 threads=3/8 loop-lag=15ms cpu=1036% tracked=0 importing=0
+2026-10-27 06:32:54,003 INFO apscheduler.executors.default: Running job "run_scheduled_sweep (trigger: interval[0:01:00], next run at: 2026-10-27 06:33:53 CDT)" (scheduled at 2026-10-27 06:32:53.993450-05:00)
+2026-10-27 06:32:54,010 INFO apscheduler.executors.default: Job "run_scheduled_sweep (trigger: interval[0:01:00], next run at: 2026-10-27 06:33:53 CDT)" executed successfully
+2026-10-27 06:32:54,175 INFO apscheduler.executors.default: Running job "register_screener_jobs.<locals>._run_live_tier (trigger: interval[0:01:00], next run at: 2026-10-27 06:33:54 CDT)" (scheduled at 2026-10-27 06:32:54.160058-05:00)
+2026-10-27 06:32:54,176 INFO apscheduler.executors.default: Running job "register_screener_jobs.<locals>._run_premarket (trigger: interval[0:01:00], next run at: 2026-10-27 06:33:54 CDT)" (scheduled at 2026-10-27 06:32:54.160885-05:00)
+2026-10-27 06:32:54,177 INFO api.services.screener.live_tier: [screener-live] cycle skipped: disabled (session=None)
+2026-10-27 06:32:54,178 INFO apscheduler.executors.default: Job "register_screener_jobs.<locals>._run_live_tier (trigger: interval[0:01:00], next run at: 2026-10-27 06:33:54 CDT)" executed successfully
+2026-10-27 06:32:54,179 INFO apscheduler.executors.default: Job "register_screener_jobs.<locals>._run_premarket (trigger: interval[0:01:00], next run at: 2026-10-27 06:33:54 CDT)" executed successfully
+2026-10-27 06:32:54,205 INFO apscheduler.executors.default: Running job "_discord_chart_hot_warm (trigger: interval[0:01:00], next run at: 2026-10-27 07:33:54 EDT)" (scheduled at 2026-10-27 07:32:54.190481-04:00)
+2026-10-27 06:32:54,205 INFO apscheduler.executors.default: Running job "_buzz_poll (trigger: interval[0:01:00], next run at: 2026-10-27 06:33:54 CDT)" (scheduled at 2026-10-27 06:32:54.200330-05:00)
+2026-10-27 06:32:54,208 INFO apscheduler.executors.default: Job "_discord_chart_hot_warm (trigger: interval[0:01:00], next run at: 2026-10-27 07:33:54 EDT)" executed successfully
+2026-10-27 06:32:54,208 WARNING api.services.buzz_ingest: [buzz] DISCORD_BOT_TOKEN is not set — cannot read 1216816863313657886. The poller is configured (BUZZ_CHANNELS) but has no credentials; see docs/runbooks/buzz-activation.md.
+2026-10-27 06:32:54,221 INFO apscheduler.executors.default: Job "_buzz_poll (trigger: interval[0:01:00], next run at: 2026-10-27 06:33:54 CDT)" executed successfully
+2026-10-27 06:32:55,661 INFO boot_probe: [boot-probe] boot+68s anyio 0/64 waiting=0 threads=64 yf q=0 threads=3/8 loop-lag=7ms cpu=1058% tracked=0 importing=0
+2026-10-27 06:32:56,324 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/profile2)
+2026-10-27 06:33:00,009 INFO apscheduler.executors.default: Running job "lifespan.<locals>._alert_webhook_drain_job (trigger: cron[minute='*'], next run at: 2026-10-27 07:34:00 EDT)" (scheduled at 2026-10-27 07:33:00-04:00)
+2026-10-27 06:33:00,010 INFO apscheduler.executors.default: Running job "lifespan.<locals>._alert_lifecycle_expire_job (trigger: cron[minute='*'], next run at: 2026-10-27 07:34:00 EDT)" (scheduled at 2026-10-27 07:33:00-04:00)
+2026-10-27 06:33:00,010 INFO apscheduler.executors.default: Running job "scheduled_run (trigger: cron[day_of_week='mon-fri', hour='7-16', minute='*/3'], next run at: 2026-10-27 07:36:00 EDT)" (scheduled at 2026-10-27 07:33:00-04:00)
+2026-10-27 06:33:00,013 INFO apscheduler.executors.default: Job "lifespan.<locals>._alert_lifecycle_expire_job (trigger: cron[minute='*'], next run at: 2026-10-27 07:34:00 EDT)" executed successfully
+2026-10-27 06:33:00,014 INFO apscheduler.executors.default: Job "scheduled_run (trigger: cron[day_of_week='mon-fri', hour='7-16', minute='*/3'], next run at: 2026-10-27 07:36:00 EDT)" executed successfully
+2026-10-27 06:33:00,015 INFO apscheduler.executors.default: Job "lifespan.<locals>._alert_webhook_drain_job (trigger: cron[minute='*'], next run at: 2026-10-27 07:34:00 EDT)" executed successfully
+2026-10-27 06:33:00,682 INFO boot_probe: [boot-probe] boot+73s anyio 0/64 waiting=0 threads=64 yf q=0 threads=3/8 loop-lag=19ms cpu=1046% tracked=0 importing=0
+2026-10-27 06:33:00,726 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/profile2)
+2026-10-27 06:33:05,695 INFO boot_probe: [boot-probe] boot+78s anyio 0/64 waiting=0 threads=64 yf q=0 threads=3/8 loop-lag=12ms cpu=1082% tracked=0 importing=0
+2026-10-27 06:33:08,431 INFO api.services.industry_map: [industry_map] prewarm bulk skipped — fresh (3004 rows)
+2026-10-27 06:33:08,641 ERROR yfinance: HTTP Error 404: {"quoteSummary":{"result":null,"error":{"code":"Not Found","description":"Quote not found for symbol: ANABV"}}}
+2026-10-27 06:33:08,811 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/profile2)
+2026-10-27 06:33:09,395 ERROR yfinance: HTTP Error 404: {"quoteSummary":{"result":null,"error":{"code":"Not Found","description":"Quote not found for symbol: ANSC"}}}
+2026-10-27 06:33:09,554 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/profile2)
+2026-10-27 06:33:10,235 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/profile2)
+2026-10-27 06:33:10,700 INFO boot_probe: [boot-probe] boot+83s anyio 0/64 waiting=0 threads=64 yf q=0 threads=3/8 loop-lag=4ms cpu=1075% tracked=0 importing=0
+2026-10-27 06:33:10,815 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/profile2)
+2026-10-27 06:33:11,410 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/profile2)
+2026-10-27 06:33:11,984 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/profile2)
+2026-10-27 06:33:12,571 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/profile2)
+2026-10-27 06:33:13,170 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/profile2)
+2026-10-27 06:33:13,551 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/profile2)
+2026-10-27 06:33:13,752 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/profile2)
+2026-10-27 06:33:14,354 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/profile2)
+2026-10-27 06:33:14,950 ERROR yfinance: HTTP Error 404: {"quoteSummary":{"result":null,"error":{"code":"Not Found","description":"Quote not found for symbol: CNTA"}}}
+2026-10-27 06:33:15,070 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/profile2)
+2026-10-27 06:33:15,699 ERROR yfinance: HTTP Error 404: {"quoteSummary":{"result":null,"error":{"code":"Not Found","description":"Quote not found for symbol: CUK"}}}
+2026-10-27 06:33:15,705 INFO boot_probe: [boot-probe] boot+88s anyio 0/64 waiting=0 threads=59 yf q=0 threads=3/8 loop-lag=3ms cpu=1066% tracked=0 importing=0
+2026-10-27 06:33:15,858 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/profile2)
+2026-10-27 06:33:16,444 ERROR yfinance: HTTP Error 404: {"quoteSummary":{"result":null,"error":{"code":"Not Found","description":"Quote not found for symbol: CWEN-A"}}}
+2026-10-27 06:33:16,594 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/profile2)
+2026-10-27 06:33:17,169 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/profile2)
+2026-10-27 06:33:17,748 ERROR yfinance: HTTP Error 404: {"quoteSummary":{"result":null,"error":{"code":"Not Found","description":"Quote not found for symbol: ERJ"}}}
+2026-10-27 06:33:17,877 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/profile2)
+2026-10-27 06:33:18,491 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/profile2)
+2026-10-27 06:33:19,061 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/profile2)
+2026-10-27 06:33:19,664 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/profile2)
+2026-10-27 06:33:20,249 ERROR yfinance: HTTP Error 404: {"quoteSummary":{"result":null,"error":{"code":"Not Found","description":"Quote not found for symbol: GLPG"}}}
+2026-10-27 06:33:20,406 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/profile2)
+2026-10-27 06:33:20,714 INFO boot_probe: [boot-probe] boot+93s anyio 0/64 waiting=0 threads=59 yf q=0 threads=3/8 loop-lag=8ms cpu=1094% tracked=0 importing=0
+2026-10-27 06:33:20,986 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/profile2)
+2026-10-27 06:33:21,584 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/profile2)
+2026-10-27 06:33:22,224 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/profile2)
+2026-10-27 06:33:22,799 ERROR yfinance: HTTP Error 404: {"quoteSummary":{"result":null,"error":{"code":"Not Found","description":"Quote not found for symbol: IPCX"}}}
+2026-10-27 06:33:22,960 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/profile2)
+2026-10-27 06:33:23,427 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/calendar/earnings)
+2026-10-27 06:33:23,436 WARNING api.routers.calendar: Calendar range: FMP fetch failed for 2026-10-26: FMP_API_KEY not set
+2026-10-27 06:33:23,437 WARNING api.routers.calendar: Calendar range: FMP fetch failed for 2026-10-27: FMP_API_KEY not set
+2026-10-27 06:33:23,443 WARNING api.routers.calendar: Calendar range: FMP fetch failed for 2026-10-28: FMP_API_KEY not set
+2026-10-27 06:33:23,444 WARNING api.routers.calendar: Calendar range: FMP fetch failed for 2026-10-30: FMP_API_KEY not set
+2026-10-27 06:33:23,443 WARNING api.routers.calendar: Calendar range: FMP fetch failed for 2026-10-29: FMP_API_KEY not set
+2026-10-27 06:33:23,454 WARNING api.services.econ_calendar_fmp: [econ-fmp] FMP_API_KEY not set
+2026-10-27 06:33:23,454 INFO api.routers.calendar: Calendar: econ loaded — FF 0 events / 0 days, FMP filled 0 across 5 uncovered days
+2026-10-27 06:33:23,461 WARNING api.services.industry_map: [industry_map] FINVIZ_API_KEY not set — bulk refresh skipped
+2026-10-27 06:33:23,462 INFO api.main: [calendar-enrich-warm] current week 5 day(s)/0 syms; week-2 5 day(s)/0 syms
+2026-10-27 06:33:23,543 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/profile2)
+2026-10-27 06:33:24,151 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/profile2)

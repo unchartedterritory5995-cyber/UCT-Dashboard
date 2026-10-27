@@ -1,0 +1,189 @@
+{
+ "viewport": "1200",
+ "step": "VID",
+ "title": "R80/R82 floating video and TickerPopup sheets",
+ "mode": "ON",
+ "checks": [
+  {
+   "what": "the Desk video plays in the floating mini player (mode mini, 'play' sent to the player)",
+   "ok": true,
+   "read": "{\"mode\": \"mini\", \"inert\": false, \"parentIsBody\": true, \"keep\": \"8500\", \"z\": \"8500\", \"x\": 822, \"y\": 679, \"w\": 360, \"h\": 203, \"visible\": true, \"rootInert\": false, \"calls\": [\"play\", \"state:1\"]}"
+  },
+  {
+   "what": "(1) a normal Sheet is open and #root is inert",
+   "ok": true,
+   "read": "[{\"label\": \"New note\", \"inert\": false, \"z\": \"1000\"}]"
+  },
+  {
+   "what": "(1) the player host (body child, keep-live 8500) is NOT inert under the normal Sheet",
+   "ok": true,
+   "read": "{\"mode\": \"mini\", \"inert\": false, \"parentIsBody\": true, \"keep\": \"8500\", \"z\": \"8500\", \"x\": 822, \"y\": 679, \"w\": 360, \"h\": 203, \"visible\": true, \"rootInert\": true, \"calls\": [\"play\", \"state:1\"]}"
+  },
+  {
+   "what": "(1) Pause works under the Sheet (the player got 'pause'; the button now reads Play)",
+   "ok": true,
+   "read": "{\"mode\": \"mini\", \"inert\": false, \"parentIsBody\": true, \"keep\": \"8500\", \"z\": \"8500\", \"x\": 822, \"y\": 679, \"w\": 360, \"h\": 203, \"visible\": true, \"rootInert\": true, \"calls\": [\"play\", \"state:1\", \"pause\", \"state:2\"]} play-buttons=3"
+  },
+  {
+   "what": "(1) the Sheet stayed open (the tap did not fall through to its backdrop)",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "(1) dragging the player's bar moves it under the Sheet",
+   "ok": true,
+   "read": "[[822, 679], [726, 607]]"
+  },
+  {
+   "what": "(1) the Sheet stayed open through the drag",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "(1) Close works under the Sheet (the player is gone)",
+   "ok": true,
+   "read": "null"
+  },
+  {
+   "what": "(1) the Sheet stayed open through Close",
+   "ok": true,
+   "read": ""
+  }
+ ],
+ "rendered": [
+  {
+   "what": "player after Minimize",
+   "text": "{\"mode\": \"mini\", \"inert\": false, \"parentIsBody\": true, \"keep\": \"8500\", \"z\": \"8500\", \"x\": 822, \"y\": 679, \"w\": 360, \"h\": 203, \"visible\": true, \"rootInert\": false, \"calls\": [\"play\", \"state:1\"]}"
+  },
+  {
+   "what": "normal Sheet open: player / inert picture",
+   "text": "[{\"mode\": \"mini\", \"inert\": false, \"parentIsBody\": true, \"keep\": \"8500\", \"z\": \"8500\", \"x\": 822, \"y\": 679, \"w\": 360, \"h\": 203, \"visible\": true, \"rootInert\": true, \"calls\": [\"play\", \"state:1\"]}, {\"rootInert\": true, \"dialogs\": [{\"label\": \"New note\", \"inert\": false, \"z\": \"1000\"}], \"bodyChildren\": [{\"id\": \"root\", \"cls\": \"\", \"inert\": true, \"keep\": null, \"z\": \"auto\"}, {\"id\": \"\", \"cls\": \"_host_108ev_1 _mini_108ev_81\", \"inert\": false, \"keep\": \"8500\", \"z\": \"8500\"}, {\"id\": \"\", \"cls\": \"_backdrop_futca_1 _modal_futca_25\", \"inert\": false, \"keep\": null, \"z\": \"1000\"}]}]"
+  },
+  {
+   "what": "drag: player position before / after",
+   "text": "[[822, 679], [726, 607]]"
+  },
+  {
+   "what": "player after Minimize",
+   "text": "{\"mode\": \"mini\", \"inert\": false, \"parentIsBody\": true, \"keep\": \"8500\", \"z\": \"8500\", \"x\": 726, \"y\": 607, \"w\": 360, \"h\": 203, \"visible\": true, \"rootInert\": false, \"calls\": [\"play\", \"state:1\"]}"
+  },
+  {
+   "what": "TickerPopup open: inert picture",
+   "text": "{\"rootInert\": false, \"dialogs\": [{\"label\": \"QQQ chart\", \"inert\": false, \"z\": \"8600\"}], \"bodyChildren\": [{\"id\": \"root\", \"cls\": \"\", \"inert\": false, \"keep\": null, \"z\": \"auto\"}, {\"id\": \"\", \"cls\": \"_host_108ev_1 _mini_108ev_81\", \"inert\": false, \"keep\": \"8500\", \"z\": \"8500\"}, {\"id\": \"\", \"cls\": \"_overlay_1fzgq_63\", \"inert\": false, \"keep\": null, \"z\": \"8600\"}]}"
+  },
+  {
+   "what": "1200: Chart actions over the popup",
+   "text": "[{\"rootInert\": false, \"dialogs\": [{\"label\": \"QQQ chart\", \"inert\": false, \"z\": \"8600\"}], \"bodyChildren\": [{\"id\": \"root\", \"cls\": \"\", \"inert\": false, \"keep\": null, \"z\": \"auto\"}, {\"id\": \"\", \"cls\": \"_host_108ev_1 _mini_108ev_81\", \"inert\": false, \"keep\": \"8500\", \"z\": \"8500\"}, {\"id\": \"\", \"cls\": \"_overlay_1fzgq_63\", \"inert\": false, \"keep\": null, \"z\": \"8600\"}]}, {\"mode\": \"mini\", \"inert\": false, \"parentIsBody\": true, \"keep\": \"8500\", \"z\": \"8500\", \"x\": 726, \"y\": 607, \"w\": 360, \"h\": 203, \"visible\": true, \"rootInert\": false, \"calls\": [\"play\", \"state:1\"]}]"
+  }
+ ],
+ "verdict": "FAIL",
+ "notes": [
+  "1200 is not the touch tier: the chart context menu is a popover there; (2) is a touch item"
+ ],
+ "events": {
+  "P01": [
+   {
+    "http": 503,
+    "method": "GET",
+    "url": "http://127.0.0.1:8171/api/community/desk-threads?ids=131,156,132,157,188,133,158,189,134,159,190,135,160,191,136,161,192,137,162,163,193,164,194,165,195,166,167,168,196,169,170,171,172,197,198,183,186,14,141,15,142,16,17,18,19,20,21,22,23,2"
+   },
+   {
+    "http": 503,
+    "method": "GET",
+    "url": "http://127.0.0.1:8171/api/community/desk-threads?ids=131,156,132,157,188,133,158,189,134,159,190,135,160,191,136,161,192,137,162,163,193,164,194,165,195,166,167,168,196,169,170,171,172,197,198,183,186,14,141,15,142,16,17,18,19,20,21,22,23,2"
+   }
+  ]
+ },
+ "metrics": {
+  "tickerpopup": {
+   "overflow": {
+    "vw": 1200,
+    "docScrollWidth": 1200,
+    "bodyScrollWidth": 1200,
+    "inner": [
+     [
+      1140,
+      1140
+     ]
+    ],
+    "horizontal": false,
+    "offenders": []
+   },
+   "raw_block": [],
+   "axe_sheet": {
+    "version": "4.13.0",
+    "scope": "[data-walk-scope=\"1\"]",
+    "violations": [
+     {
+      "id": "target-size",
+      "impact": "serious",
+      "help": "All touch targets must be 24px large, or leave sufficient space",
+      "nodes": 7,
+      "targets": [
+       "._scaleToggleActive_1ommr_2269",
+       "button[title=\"Logarithmic scale\"]",
+       "button[title=\"Percentage scale\"]",
+       "span[aria-label=\"EMA 9 options\"]"
+      ],
+      "summary": "Fix any of the following:\n  Target has insufficient size (17px by 11px, should be at least 24px by 24px)\n  Target has insufficient space to its closest neighbors. Safe clickable space has a diameter of 10.8px instead of at least 24px.",
+      "html": "<button class=\"_scaleToggleBtn_1ommr_2221 _scaleToggleActive_1ommr_2269\" title=\"Arithmetic (linear) scale\" aria-label=\"Arithmetic price scale\">A</button>"
+     }
+    ]
+   },
+   "axe_page": {
+    "version": "4.13.0",
+    "scope": "body",
+    "violations": [
+     {
+      "id": "target-size",
+      "impact": "serious",
+      "help": "All touch targets must be 24px large, or leave sufficient space",
+      "nodes": 7,
+      "targets": [
+       "._scaleToggleActive_1ommr_2269",
+       "button[title=\"Logarithmic scale\"]",
+       "button[title=\"Percentage scale\"]",
+       "span[aria-label=\"EMA 9 options\"]"
+      ],
+      "summary": "Fix any of the following:\n  Target has insufficient size (17px by 11px, should be at least 24px by 24px)\n  Target has insufficient space to its closest neighbors. Safe clickable space has a diameter of 10.8px instead of at least 24px.",
+      "html": "<button class=\"_scaleToggleBtn_1ommr_2221 _scaleToggleActive_1ommr_2269\" title=\"Arithmetic (linear) scale\" aria-label=\"Arithmetic price scale\">A</button>"
+     }
+    ]
+   }
+  }
+ },
+ "screenshots": [
+  "1200/VID-video-under-sheet.png",
+  "1200/VID-tickerpopup.png"
+ ],
+ "requests_note_put": 0,
+ "started": "2026-10-27T10:26:54",
+ "findings": [
+  {
+   "kind": "axe:serious",
+   "surface": "tickerpopup",
+   "scope": "axe_sheet",
+   "id": "target-size",
+   "detail": "target-size: All touch targets must be 24px large, or leave sufficient space (7 nodes) ['._scaleToggleActive_1ommr_2269', 'button[title=\"Logarithmic scale\"]', 'button[title=\"Percentage scale\"]'] -- Fix any of the following:\n  Target has insufficient size (17px by 11px, should be at least 24px by 24px)\n  Target has insufficient space to its closest neighbors. Safe clickable space has a diameter of 10.8px instead of "
+  },
+  {
+   "kind": "axe:serious",
+   "surface": "tickerpopup",
+   "scope": "axe_page",
+   "id": "target-size",
+   "detail": "target-size: All touch targets must be 24px large, or leave sufficient space (7 nodes) ['._scaleToggleActive_1ommr_2269', 'button[title=\"Logarithmic scale\"]', 'button[title=\"Percentage scale\"]'] -- Fix any of the following:\n  Target has insufficient size (17px by 11px, should be at least 24px by 24px)\n  Target has insufficient space to its closest neighbors. Safe clickable space has a diameter of 10.8px instead of "
+  },
+  {
+   "kind": "event",
+   "page": "P01",
+   "detail": "{\"http\": 503, \"method\": \"GET\", \"url\": \"http://127.0.0.1:8171/api/community/desk-threads?ids=131,156,132,157,188,133,158,189,134,159,190,135,160,191,136,161,192,137,162,163,193,164,194,165,195,166,167,168,196,169,170,171,172,197,198,183,186,14,141,15,142,16,17,18,19,20,21,22,23,2\"}"
+  },
+  {
+   "kind": "event",
+   "page": "P01",
+   "detail": "{\"http\": 503, \"method\": \"GET\", \"url\": \"http://127.0.0.1:8171/api/community/desk-threads?ids=131,156,132,157,188,133,158,189,134,159,190,135,160,191,136,161,192,137,162,163,193,164,194,165,195,166,167,168,196,169,170,171,172,197,198,183,186,14,141,15,142,16,17,18,19,20,21,22,23,2\"}"
+  }
+ ],
+ "partial": false,
+ "finished": "2026-10-27T10:27:52"
+}

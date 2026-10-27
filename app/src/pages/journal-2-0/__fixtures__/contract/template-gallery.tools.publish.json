@@ -1,0 +1,52 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "POST /api/j2/template-gallery/tools",
+    "note": "Pending until an admin reviews it.",
+    "path": "/api/j2/template-gallery/tools",
+    "requestBody": {
+      "edits": {
+        "items": [
+          "Coffee",
+          "Mark levels"
+        ]
+      },
+      "id": "8ed8c76c-3a64-4296-943c-66f014532083",
+      "kind": "routine"
+    },
+    "status": 200
+  },
+  "body": {
+    "template": {
+      "author": "Wren Author",
+      "authorHandle": "ssX0uNbf2MDz",
+      "category": "review",
+      "createdAt": "2026-10-05T14:30:00+00:00",
+      "description": "",
+      "featured": false,
+      "firm": false,
+      "group": null,
+      "hasRevision": false,
+      "helpedByMe": false,
+      "helpfulCount": 0,
+      "hidden": false,
+      "id": "1b55154e9ace42cb9ce81110dc6793c0",
+      "itemType": "routine",
+      "layoutPage": null,
+      "listedAt": null,
+      "mine": true,
+      "preview": [],
+      "propertyCount": 0,
+      "reviewNote": "",
+      "revisionTitle": null,
+      "sourceStyleId": null,
+      "status": "pending",
+      "title": "Routine with 2 items",
+      "tradingStyle": null,
+      "trendingCount": 0,
+      "updatedAt": "2026-10-05T14:30:00+00:00",
+      "usedBy": 0,
+      "version": 1
+    }
+  }
+}

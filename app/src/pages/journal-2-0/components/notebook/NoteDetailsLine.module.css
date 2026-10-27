@@ -48,6 +48,10 @@
   background: none;
   border: none;
   padding: 4px 2px;
+  /* D-W11-001: 12 px text + 4 px padding drew 22 px tall at 1200, under WCAG 2.5.8's 24 px
+     (axe target-size). A floor, not a restyle; the touch tier's 44 px below still wins.
+     Rail: a11y/targetFloors.test.js. */
+  min-height: 24px;
   font-size: 12px;
   color: var(--text-muted);
   cursor: pointer;
@@ -57,7 +61,9 @@
   outline: 2px solid var(--ut-gold);
   outline-offset: 2px;
 }
-.toggleQuiet { opacity: 0.85; }
+/* F-DEF-1 r1 (review m-3): 0.85 took the --text-muted label to 4.21:1 on --bg-surface in light. 0.9 is the
+   lowest that holds 4.5:1 on every surface in every theme. Rail: a11y/notebookContrast.test.js. */
+.toggleQuiet { opacity: 0.9; }
 .chevron {
   flex: 0 0 auto;
   transform: rotate(-90deg);

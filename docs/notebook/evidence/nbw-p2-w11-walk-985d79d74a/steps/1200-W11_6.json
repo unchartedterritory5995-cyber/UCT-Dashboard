@@ -1,0 +1,222 @@
+{
+ "viewport": "1200",
+ "step": "W11.6",
+ "title": "Setup study: suggested, then brand-new",
+ "mode": "ON",
+ "checks": [
+  {
+   "what": "the setup slot opens at A's most-used setup (Pullback / Earnings drift / Breakout / Gap and go; a tie accepts any)",
+   "ok": true,
+   "read": "Setup: Pullback\nChange"
+  },
+  {
+   "what": "the preview renders immediately (no 'Pick a setup' sentence; widgets drawn)",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "Use is enabled",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "N: the widget reads 'Pick a setup to see this widget.'",
+   "ok": true,
+   "read": "Make it yours\n×\n\nBased on UCT's Setup study\n\nYour choices\nSetup: Not picked yet\nChange\nPreview with your data\n\nYour stats on this setup\n\nPick a setup to see this widget.\n\nThis setup by time of day\n\nPick a setup to see this widget.\n\nPick a value for each choice, or Any.\n\nCancel\nUse"
+  },
+  {
+   "what": "N: Use is disabled",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "N: 'Pick a value for each choice, or Any.' beside Use",
+   "ok": true,
+   "read": ""
+  },
+  {
+   "what": "N: no 0 anywhere",
+   "ok": true,
+   "read": "[]"
+  }
+ ],
+ "rendered": [
+  {
+   "what": "A adopt sheet (Setup study)",
+   "text": "Make it yours\n×\n\nBased on UCT's Setup study\n\nYour choices\nSetup: Pullback\nChange\nPreview with your data\n\nYour stats on this setup\n\nTrades\n75\n\nThis setup by time of day\n\nCancel\nUse"
+  },
+  {
+   "what": "A's setups by trade count",
+   "text": "{\"Pullback\": 75, \"Earnings drift\": 75, \"Breakout\": 75, \"Gap and go\": 75}"
+  },
+  {
+   "what": "N adopt sheet (Setup study)",
+   "text": "Make it yours\n×\n\nBased on UCT's Setup study\n\nYour choices\nSetup: Not picked yet\nChange\nPreview with your data\n\nYour stats on this setup\n\nPick a setup to see this widget.\n\nThis setup by time of day\n\nPick a setup to see this widget.\n\nPick a value for each choice, or Any.\n\nCancel\nUse"
+  },
+  {
+   "what": "N: setup picker",
+   "text": "Pick your setup\n\nSetup\n\nYou don't have any to pick yet.\n\nCancel\nDone"
+  }
+ ],
+ "verdict": "PASS",
+ "notes": [
+  "N has no setups and the setup choice offers no Any: Pick your setup\n\nSetup\n\nYou don't have any to pick yet.\n\nCancel\nDone"
+ ],
+ "events": {
+  "A": [],
+  "N": []
+ },
+ "metrics": {
+  "adopt-A": {
+   "overflow": {
+    "vw": 1200,
+    "docScrollWidth": 1200,
+    "bodyScrollWidth": 1200,
+    "inner": [
+     [
+      1140,
+      1140
+     ],
+     [
+      1092,
+      1092
+     ],
+     [
+      826,
+      826
+     ]
+    ],
+    "horizontal": false,
+    "offenders": [
+     {
+      "tag": "LI",
+      "cls": "_libraryCard_1hb5o_436",
+      "text": "Pre-market prep\nIn your templates\nTempla",
+      "right": 1241
+     },
+     {
+      "tag": "H5",
+      "cls": "_previewTitle_1hb5o_363",
+      "text": "Pre-market prep",
+      "right": 1228
+     },
+     {
+      "tag": "DIV",
+      "cls": "_facts_1hb5o_383",
+      "text": "Template\n\nUCT\n\nFor: The wire, your names",
+      "right": 1228
+     },
+     {
+      "tag": "P",
+      "cls": "_factLine_1hb5o_390",
+      "text": "UCT",
+      "right": 1228
+     },
+     {
+      "tag": "P",
+      "cls": "_factLine_1hb5o_390",
+      "text": "For: The wire, your names reporting, you",
+      "right": 1228
+     },
+     {
+      "tag": "P",
+      "cls": "_factLine_1hb5o_390",
+      "text": "Contains: Pre-market routine",
+      "right": 1228
+     }
+    ]
+   },
+   "raw_block": [],
+   "axe_sheet": {
+    "version": "4.13.0",
+    "scope": "[data-walk-scope=\"1\"]",
+    "violations": []
+   },
+   "axe_page": {
+    "version": "4.13.0",
+    "scope": "body",
+    "violations": []
+   }
+  },
+  "adopt-N": {
+   "overflow": {
+    "vw": 1200,
+    "docScrollWidth": 1200,
+    "bodyScrollWidth": 1200,
+    "inner": [
+     [
+      1140,
+      1140
+     ],
+     [
+      1092,
+      1092
+     ],
+     [
+      826,
+      826
+     ]
+    ],
+    "horizontal": false,
+    "offenders": [
+     {
+      "tag": "LI",
+      "cls": "_libraryCard_1hb5o_436",
+      "text": "Pre-market prep\nTemplate\n\nUCT\n\nFor: The ",
+      "right": 1241
+     },
+     {
+      "tag": "H5",
+      "cls": "_previewTitle_1hb5o_363",
+      "text": "Pre-market prep",
+      "right": 1228
+     },
+     {
+      "tag": "DIV",
+      "cls": "_facts_1hb5o_383",
+      "text": "Template\n\nUCT\n\nFor: The wire, your names",
+      "right": 1228
+     },
+     {
+      "tag": "P",
+      "cls": "_factLine_1hb5o_390",
+      "text": "UCT",
+      "right": 1228
+     },
+     {
+      "tag": "P",
+      "cls": "_factLine_1hb5o_390",
+      "text": "For: The wire, your names reporting, you",
+      "right": 1228
+     },
+     {
+      "tag": "P",
+      "cls": "_factLine_1hb5o_390",
+      "text": "Contains: Pre-market routine",
+      "right": 1228
+     }
+    ]
+   },
+   "raw_block": [],
+   "axe_sheet": {
+    "version": "4.13.0",
+    "scope": "[data-walk-scope=\"1\"]",
+    "violations": []
+   },
+   "axe_page": {
+    "version": "4.13.0",
+    "scope": "body",
+    "violations": []
+   }
+  }
+ },
+ "screenshots": [
+  "1200/W11_6-adopt.png",
+  "1200/W11_6-adopt-new.png"
+ ],
+ "requests_note_put": 0,
+ "started": "2026-10-27T04:59:12",
+ "findings": [],
+ "partial": false,
+ "finished": "2026-10-27T04:59:35"
+}

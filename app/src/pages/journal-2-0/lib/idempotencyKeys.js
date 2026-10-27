@@ -3,7 +3,8 @@
 // Lifted out of lib/builtWidgets (which re-exports every name below, so its callers are unchanged) so that
 // lib/toolsCrud's routine and tracker Duplicate uses the SAME generator and the SAME per-intent rule as the widget
 // doors. ⛔ There is no second key generator in the Notebook: a new keyed door imports from here.
-// ⛔ LAZY like its two importers: it is reached only from builtWidgets and toolsCrud, both lazy.
+// ⛔ LAZY like its importers: it is reached only from builtWidgets, toolsCrud and (wave 11, W11-R34) templateLibrary,
+// all lazy.
 
 /** A uuid4 for one request's `Idempotency-Key`. Built from `crypto.getRandomValues` (available outside a secure context,
  *  unlike `crypto.randomUUID`); `Math.random` only where there is no `crypto` at all. */

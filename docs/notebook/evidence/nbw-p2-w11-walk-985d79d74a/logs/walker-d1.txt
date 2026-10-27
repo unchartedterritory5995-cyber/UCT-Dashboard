@@ -1,0 +1,93 @@
+[mode] walk-d1 pid=23072 instant=2026-11-10T20:00:00-05:00 port=8161 log=C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\5effcdc4-7e7d-42f4-a3df-67b99c63791b\scratchpad\sbx\logs\walk-d1.out.log;C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\5effcdc4-7e7d-42f4-a3df-67b99c63791b\scratchpad\sbx\logs\walk-d1.err.log
+walk start
+    [06:26:44] saw identity
+    [06:26:44] ok  identity data_dir = the walk data dir
+    [06:26:44] ok  identity pid = the recorded PID 23072
+    [06:26:44] ok  identity clock_shift.instant = the mode's instant 2026-11-10T20:00:00-05:00
+    [06:26:44] ok  GET /api/auth/me as A answers 200
+    [06:26:44] ok  A is paid-equivalent (paid_equiv true, plan pro, comped)
+    [06:26:44] ok  notebook_widgets_w8_enabled is True
+    [06:26:44] ok  notebook_widgets_w9_enabled is True
+    [06:26:44] ok  notebook_widgets_w10_enabled is True
+    [06:26:44] ok  notebook_widgets_w11_enabled is True
+    [06:26:44] ok  notebook_style_library_enabled is true
+    [06:26:44] ok  GET /api/j2/template-gallery/library answers 200
+    [06:26:44] ok  boot log: '[startup] notebook routine reminders registered' present
+    [06:26:44] ok  boot log: no 'SHARED-ROOT WRITE BLOCKED'
+    [06:26:44] saw boot log lines
+[1200 W11.0] PASS  checks 78/78  findings 0
+    [06:26:44] saw identity
+    [06:26:44] ok  identity data_dir = the walk data dir
+    [06:26:44] ok  identity pid = the recorded PID 23072
+    [06:26:44] ok  identity clock_shift.instant = the mode's instant 2026-11-10T20:00:00-05:00
+    [06:26:44] ok  GET /api/auth/me as A answers 200
+    [06:26:44] ok  A is paid-equivalent (paid_equiv true, plan pro, comped)
+    [06:26:44] ok  notebook_widgets_w8_enabled is True
+    [06:26:44] ok  notebook_widgets_w9_enabled is True
+    [06:26:44] ok  notebook_widgets_w10_enabled is True
+    [06:26:44] ok  notebook_widgets_w11_enabled is True
+    [06:26:44] ok  notebook_style_library_enabled is true
+    [06:26:44] ok  GET /api/j2/template-gallery/library answers 200
+    [06:26:44] ok  boot log: '[startup] notebook routine reminders registered' present
+    [06:26:44] ok  boot log: no 'SHARED-ROOT WRITE BLOCKED'
+    [06:26:44] saw boot log lines
+[820 W11.0] PASS  checks 78/78  findings 0
+    [06:26:44] saw identity
+    [06:26:44] ok  identity data_dir = the walk data dir
+    [06:26:44] ok  identity pid = the recorded PID 23072
+    [06:26:44] ok  identity clock_shift.instant = the mode's instant 2026-11-10T20:00:00-05:00
+    [06:26:45] ok  GET /api/auth/me as A answers 200
+    [06:26:45] ok  A is paid-equivalent (paid_equiv true, plan pro, comped)
+    [06:26:45] ok  notebook_widgets_w8_enabled is True
+    [06:26:45] ok  notebook_widgets_w9_enabled is True
+    [06:26:45] ok  notebook_widgets_w10_enabled is True
+    [06:26:45] ok  notebook_widgets_w11_enabled is True
+    [06:26:45] ok  notebook_style_library_enabled is true
+    [06:26:45] ok  GET /api/j2/template-gallery/library answers 200
+    [06:26:45] ok  boot log: '[startup] notebook routine reminders registered' present
+    [06:26:45] ok  boot log: no 'SHARED-ROOT WRITE BLOCKED'
+    [06:26:45] saw boot log lines
+[390 W11.0] PASS  checks 78/78  findings 0
+[mode] walk-d1 pid=23072 instant=2026-11-10T20:00:00-05:00 port=8161 log=C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\5effcdc4-7e7d-42f4-a3df-67b99c63791b\scratchpad\sbx\logs\walk-d1.out.log;C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\5effcdc4-7e7d-42f4-a3df-67b99c63791b\scratchpad\sbx\logs\walk-d1.err.log
+walk start
+    [06:26:46] saw B-D1: server shifted now / browser clock
+    [06:26:46] saw D1: server now
+    [06:27:02] ok  Use Share source 1200: after Use the new note is in front (no sheet left open over it)
+    [06:27:02] ok  D1: B used the W11.7 template (a note was made)
+    [06:27:04] saw D1: the ET days B has used the template on (W11.7's Use counts)
+    [06:27:04] ok  D1: no helpful line yet on the note
+    [06:27:22] saw D1: card after Helpful
+    [06:27:22] ok  D1: 'You can mark this helpful after using it on 3 different days.' under the button
+    [06:27:22] ok  D1: the Helpful button stays enabled
+[1200 W11.9] PASS  checks 5/5  findings 1
+   ! event B-D1 {"http": 409, "method": "POST", "url": "http://127.0.0.1:8161/api/j2/template-gallery/04cdc13c731a4500be4fb16505dc94e2/helpful"}
+    [06:27:23] saw B-D1: server shifted now / browser clock
+    [06:27:23] saw D1: server now
+    [06:27:40] ok  Use Share source 820: after Use the new note is in front (no sheet left open over it)
+    [06:27:40] ok  D1: B used the W11.7 template (a note was made)
+    [06:27:42] saw D1: the ET days B has used the template on (W11.7's Use counts)
+    [06:27:42] ok  D1: no helpful line yet on the note
+    [06:28:00] saw D1: card after Helpful
+    [06:28:00] ok  D1: 'You can mark this helpful after using it on 3 different days.' under the button
+    [06:28:00] ok  D1: the Helpful button stays enabled
+[820 W11.9] FAIL  checks 5/5  findings 7
+   ! tap gallery-D1 {"label": "Use Sleep 820", "tag": "BUTTON", "cls": "_btn_6z3ba_441 _primary_6z3ba_493", "w": 41, "h": 44, "x": 82, "y": 346, "offscreen": false, "covered": false}
+   ! tap gallery-D1 {"label": "Use Prep routine 820", "tag": "BUTTON", "cls": "_btn_6z3ba_441 _primary_6z3ba_493", "w": 41, "h": 44, "x": 429, "y": 346, "offscreen": false, "covered": false}
+   ! tap gallery-D1 {"label": "Use Setup win rate 820", "tag": "BUTTON", "cls": "_btn_6z3ba_441 _primary_6z3ba_493", "w": 41, "h": 44, "x": 82, "y": 593, "offscreen": false, "covered": false}
+   ! tap gallery-D1 {"label": "Use Sleep 1200", "tag": "BUTTON", "cls": "_btn_6z3ba_441 _primary_6z3ba_493", "w": 41, "h": 44, "x": 82, "y": 869, "offscreen": false, "covered": false}
+   ! tap gallery-D1 {"label": "Use Prep routine 1200", "tag": "BUTTON", "cls": "_btn_6z3ba_441 _primary_6z3ba_493", "w": 41, "h": 44, "x": 429, "y": 869, "offscreen": false, "covered": false}
+   ! tap gallery-D1 {"label": "Use Setup win rate 1200", "tag": "BUTTON", "cls": "_btn_6z3ba_441 _primary_6z3ba_493", "w": 41, "h": 44, "x": 82, "y": 1096, "offscreen": false, "covered": false}
+   ! event B-D1 {"http": 409, "method": "POST", "url": "http://127.0.0.1:8161/api/j2/template-gallery/c654b0d6e28e44c081a7c76a231143b5/helpful"}
+    [06:28:02] saw B-D1: server shifted now / browser clock
+    [06:28:02] saw D1: server now
+    [06:28:19] ok  Use Share source 390: after Use the new note is in front (no sheet left open over it)
+    [06:28:19] ok  D1: B used the W11.7 template (a note was made)
+    [06:28:21] saw D1: the ET days B has used the template on (W11.7's Use counts)
+    [06:28:21] ok  D1: no helpful line yet on the note
+    [06:28:39] saw D1: card after Helpful
+    [06:28:39] ok  D1: 'You can mark this helpful after using it on 3 different days.' under the button
+    [06:28:39] ok  D1: the Helpful button stays enabled
+[390 W11.9] FAIL  checks 5/5  findings 3
+   ! tap gallery-D1 {"label": "Use Setup win rate 390", "tag": "BUTTON", "cls": "_btn_6z3ba_441 _primary_6z3ba_493", "w": 41, "h": 44, "x": 32, "y": 156, "offscreen": false, "covered": false}
+   ! tap gallery-D1 {"label": "Use Sleep 820", "tag": "BUTTON", "cls": "_btn_6z3ba_441 _primary_6z3ba_493", "w": 41, "h": 44, "x": 32, "y": 673, "offscreen": false, "covered": false}
+   ! event B-D1 {"http": 409, "method": "POST", "url": "http://127.0.0.1:8161/api/j2/template-gallery/2760d2474f4446f392c4114622c09b3d/helpful"}
