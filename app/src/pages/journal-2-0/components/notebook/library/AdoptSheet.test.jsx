@@ -918,6 +918,31 @@ describe('openAdoptSheet', () => {
     await waitFor(() => expect(document.querySelector('[data-adopt-sheet-root]')).toBeNull())
   })
 
+  // W11-R80 m-1: while the adoption sheet is open the page under it is `inert` (Sheet, D6), and a real browser refuses
+  // focus inside an inert subtree. So a template's Use hands its note to the host's `landNote` only once the sheet's
+  // root is unmounted and the page is live again; landing it while the sheet still held the page left the new note's
+  // title unfocused. Deterministic: the page's inert state is read AT the call.
+  it('m-1: landNote runs only after the sheet released the page (no inert left), exactly once', async () => {
+    const page = document.body.appendChild(Object.assign(document.createElement('div'), { id: 'root' }))
+    page.appendChild(document.createElement('button'))
+    try {
+      installServer({ preview: previewAnswer([]) })
+      const seen = []
+      const landNote = vi.fn((note) => seen.push({ id: note?.id, pageInert: page.hasAttribute('inert'),
+        sheetOpen: !!document.querySelector('[data-adopt-sheet-root]') }))
+      openAdoptSheet({ galleryId: GID, kind: 'template', landNote })
+      const dialog = await screen.findByRole('dialog', { name: TITLE })
+      await waitFor(() => expect(page.hasAttribute('inert')).toBe(true))            // precondition: the page is held
+      const use = within(dialog).getByRole('button', { name: 'Use' })
+      await waitFor(() => expect(use).not.toBeDisabled())
+      fireEvent.click(use)
+      await waitFor(() => expect(landNote).toHaveBeenCalledTimes(1))
+      expect(seen).toEqual([{ id: 'n-new', pageInert: false, sheetOpen: false }])
+    } finally {
+      page.remove()
+    }
+  })
+
   it('offline: nothing is asked', async () => {
     setOnline(false)
     const net = installServer({ preview: previewAnswer(RICH_SLOTS) })

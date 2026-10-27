@@ -16,9 +16,22 @@ vi.mock('../hooks/useJ2Notes', () => ({
   }),
 }))
 vi.mock('../components/notebook/FolderSidebar', () => ({ default: () => <div data-testid="folder-sidebar" /> }))
-vi.mock('../components/notebook/NoteEditorPage', () => ({
-  default: ({ noteId, openFocus }) => <div data-testid="note-editor" data-note-id={noteId} data-open-focus={openFocus || ''} />,
-}))
+// The editor stand-in takes focus as the real one does for a fresh note (a passive effect on `openFocus`), so a rail
+// can see where focus ENDS (W11-R80 m-1).
+vi.mock('../components/notebook/NoteEditorPage', async () => {
+  const { useEffect, useRef } = await import('react')
+  return {
+    default: function NoteEditorStub({ noteId, openFocus }) {
+      const title = useRef(null)
+      useEffect(() => { if (openFocus === 'title') title.current?.focus() }, [openFocus])
+      return (
+        <div data-testid="note-editor" data-note-id={noteId} data-open-focus={openFocus || ''}>
+          <input ref={title} aria-label="Title" />
+        </div>
+      )
+    },
+  }
+})
 vi.mock('../components/notebook/import/ImportWizard', () => ({ default: () => null }))
 vi.mock('../components/connectors/NoteConnectorsTrustStrip', () => ({ default: () => null }))
 vi.mock('../components/notebook/ResearchHome', () => ({ default: () => <div data-testid="research-home" /> }))
@@ -131,6 +144,14 @@ describe('creating from a member template', () => {
 // 11.20 walk D1 (major): "Use" from the Template library left the New note sheet open over the new note, focus trapped
 // in it, because the library's Use only navigated. It now lands the note through the SAME door a member template's
 // pick lands through (the sheet closes, the note opens with focus in its title).
+// W11-R80 m-1: a real browser refuses focus to an element inside an `inert` subtree (jsdom does not implement that), so
+// these rails make jsdom refuse it too: focus() on an element with an inert ancestor does nothing.
+const realFocus = HTMLElement.prototype.focus
+function refuseFocusUnderInert() {
+  HTMLElement.prototype.focus = function focus(...a) { if (!this.closest('[inert]')) realFocus.apply(this, a) }
+}
+afterEach(() => { HTMLElement.prototype.focus = realFocus })
+
 describe('using a Template library template (wave 11, walk D1)', () => {
   const newNoteSheet = () => screen.queryByRole('dialog', { name: 'New note' })
   it('closes the New note sheet and opens the new note with focus where a member template puts it', async () => {
@@ -149,6 +170,30 @@ describe('using a Template library template (wave 11, walk D1)', () => {
     expect(screen.getByTestId('note-editor')).toHaveAttribute('data-open-focus', 'title')
     await waitFor(() => expect(newNoteSheet()).toBeNull())
     expect(calls.filter((c) => c.url.endsWith('/use-template'))).toHaveLength(1)
+  })
+
+  it("m-1: focus ENDS in the new note's title, with no inert ancestor (the adoption sheet released the page first)", async () => {
+    refuseFocusUnderInert()
+    latchNotebookFlags({ notebook_widgets_w11_enabled: true })
+    const appRoot = document.body.appendChild(Object.assign(document.createElement('div'), { id: 'root' }))
+    try {
+      render(<MemoryRouter initialEntries={['/journal?view=all']}><NotebookTab /></MemoryRouter>, { container: appRoot })
+      fireEvent.click(screen.getByRole('button', { name: 'Templates' }))
+      const sheet = await screen.findByRole('dialog', { name: 'New note' })
+      fireEvent.click(await within(sheet).findByRole('button', { name: 'Preview Night-before prep, from the Template library' }))
+      const detail = await screen.findByRole('dialog', { name: 'Night-before prep' })
+      fireEvent.click(within(detail).getByRole('button', { name: 'Use this template' }))
+      const adopt = await screen.findByRole('dialog', { name: ADOPT_TITLE }, { timeout: 4000 })
+      const use = await within(adopt).findByRole('button', { name: 'Use' })
+      await waitFor(() => expect(use).not.toBeDisabled())
+      fireEvent.click(use)
+      await waitFor(() => expect(screen.getByTestId('note-editor')).toHaveAttribute('data-note-id', 'lib1'))
+      await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('textbox', { name: 'Title' })))
+      expect(document.activeElement.closest('[inert]')).toBeNull()
+      expect(appRoot.hasAttribute('inert')).toBe(false)
+    } finally {
+      appRoot.remove()
+    }
   })
 
   it('CONTROL: a member template lands the same way (sheet closed, focus in the title)', async () => {

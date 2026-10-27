@@ -29,17 +29,31 @@ export function openAdoptSheet({ galleryId, kind, editor = null, onDone, navigat
   host.setAttribute('data-adopt-sheet-root', '')
   document.body.appendChild(host)
   const root = createRoot(host)
+  // W11-R80 m-1: a template's Use lands its note through the host's `landNote` only AFTER this root is unmounted. While
+  // the sheet is mounted the page under it is `inert` (Sheet, D6), and a real browser refuses focus inside an inert
+  // subtree, so landing it earlier left the new note's title unfocused. `root.unmount()` is synchronous and runs the
+  // sheet's cleanups (the page is live again) before the note is landed.
+  let landAfter = null
   const close = () => {
     if (_open?.close !== close) return
     _open = null
     // After the closing event has finished: a root is never unmounted from inside its own update.
-    setTimeout(() => { root.unmount(); host.remove() }, 0)
+    setTimeout(() => {
+      root.unmount()
+      host.remove()
+      const land = landAfter
+      landAfter = null
+      land?.()
+    }, 0)
   }
+  const deferredLand = typeof landNote === 'function'
+    ? (note) => { landAfter = () => landNote(note); close() }      // lands in close's unmount step (a no-op if closing)
+    : null
   _open = { close }
   root.render(createElement(AdoptSheet, {
     galleryId, kind, editor, mode, copyId,
     navigate: typeof navigate === 'function' ? navigate : null,
-    landNote: typeof landNote === 'function' ? landNote : null,
+    landNote: deferredLand,
     onClose: close, onDone: typeof onDone === 'function' ? onDone : undefined,
   }))
   return close
