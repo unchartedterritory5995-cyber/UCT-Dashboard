@@ -522,8 +522,19 @@ trades (`imported:true` flag + `coach_prompts.py` rule).
   `passed_setups._refresh_seen` (one refresh on view per member per 15 minutes) · the Notebook
   widgets' shared builder pool `notebook_widgets._POOL` (`WIDGET_POOL_WORKERS` = 8 workers; full, it
   answers each widget's sentence at once) and the journal styles slot pool `journal_styles._SLOT_POOL`
-  (`SLOT_POOL_WORKERS` = 8 workers, its OWN pool: a slot waits on builder tasks). A second
-  web process doubles each bound.
+  (`SLOT_POOL_WORKERS` = 8 workers, its OWN pool: a slot waits on builder tasks) · since Notebook
+  widgets wave 11 (the template library, sharing and adopting, dark): `template_preview._CACHE` (a
+  `TTLCache(max_size=500)` holding each preview for `CACHE_TTL_S` = 300 s, keyed on gallery id, listed version,
+  viewer, ET day and the answers' hash; a second process keeps its own cache, so a repeat preview can run twice),
+  `journal_styles._MEMBER_IN_FLIGHT` under `_MEMBER_LOCK` (the per-member count of a template fill's slot tasks
+  holding a slot pool permit, capped at `run.MEMBER_MAX` = 2; a second process doubles it), `template_library._STATE`
+  (the parsed seed library, read once per process; a second process parses its own copy and nothing doubles), and
+  one new Limiter scope on `api/routers/notebook_template_gallery.py`: the share preview (`POST /share/preview`)
+  and preview with my data (`POST /{gallery_id}/preview-mine`) both spend P3b's `notebook-gallery-preview`
+  (`PREVIEW_RATE`, 60/hour, keyed on the member, one budget with the example preview), and preview with my data
+  also spends its own `notebook-gallery-preview-mine` (`PREVIEW_MINE_RATE`, 10/minute); both in-process only, so a
+  second process doubles both (the wave 11 publish, adopt, use and Helpful doors spend the existing scopes above,
+  so they add no new budget). A second web process doubles each bound.
   ⚰️ `note_ask._writing_help_by_user` was listed here until the wave-7 whole-branch fix; ruling
   D-H5b moved writing help's 60/day, Ask's per-member count, the shared LLM dollar cap and
   the meaning search's daily embed count into ONE durable table, so none of them doubles or
