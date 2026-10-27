@@ -116,3 +116,21 @@ def test_the_reviewer_and_the_author_read_every_slot_a_member_read_is_stripped(d
     ids, placed = _shown(gallery.get_item(MEMBER, gid, conn=db))
     want = [k for k in every if k not in gone]
     assert sorted(ids) == want and sorted(placed) == want
+
+
+def test_a_stripped_slot_placeholder_keeps_its_mention_and_image():
+    """W11-R79 follow-up 4b (post-walk p-1's rule, `journal_styles._inline_rest`): a slot placeholder's TEXT is the
+    placeholder, its other inline nodes are the author's. Stripping the slot keeps them in a paragraph at its place,
+    at the top level and nested; a bare hardBreak is not kept. CONTROL: a kept slot (`keep`) is untouched."""
+    mention = {"type": "mention", "attrs": {"id": "n1", "label": "AMD thesis"}}
+    image = {"type": "image", "attrs": {"src": "/x.png"}}
+    ph = lambda bid, *inline: {"type": "paragraph", "content": [{"type": "text", "text": "{{block:%s}}" % bid}, *inline]}  # noqa: E731
+    body = _doc(heading("Plan"), ph("routine_a", mention, {"type": "hardBreak"}, image), ph("built_a", {"type": "hardBreak"}),
+                {"type": "bulletList", "content": [{"type": "listItem", "content": [ph("tracker_a", image)]}]})
+    out = gallery._without_slot_placeholders(body)
+    assert out["content"][1] == {"type": "paragraph", "content": [mention, image]}
+    assert len(out["content"]) == 3                                  # the hardBreak-only placeholder is gone
+    assert out["content"][2]["content"][0]["content"] == [{"type": "paragraph", "content": [image]}]
+    assert TOKEN not in json.dumps(out)
+    kept = gallery._without_slot_placeholders(body, keep=frozenset({"routine_a"}))
+    assert kept["content"][1] == body["content"][1]

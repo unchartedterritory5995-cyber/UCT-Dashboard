@@ -2152,6 +2152,7 @@ def _without_slot_placeholders(body: Any, keep: frozenset = frozenset()) -> Any:
         kept = []
         for node in content:
             if is_slot_placeholder(node):
+                kept.extend(js._inline_rest(node))     # W11-R79 4b: only the placeholder's text goes (p-1's rule)
                 continue
             if isinstance(node, dict) and isinstance(node.get("content"), list):
                 inner = strip(node["content"])
