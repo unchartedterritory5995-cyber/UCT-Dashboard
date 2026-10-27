@@ -145,35 +145,92 @@ def _cited_names(text: str, at: int):
     return names, None
 
 
-def _has_test(path: Path, name: str) -> bool:
+def _test_block(path: Path, name: str) -> str | None:
+    """The text of the cited test (its def / it(...) line up to the next test), or None when there is no such test."""
     src = path.read_text(encoding="utf-8")
     if path.suffix == ".py":
-        return _re.search(rf"^\s*def {_re.escape(name)}\(", src, _re.M) is not None
-    return _re.search(r"\b(?:it|test|describe)(?:\.\w+)?\(\s*(['\"`])" + _re.escape(name) + r"\1", src) is not None
+        m = _re.search(rf"^(\s*)def {_re.escape(name)}\(", src, _re.M)
+        nxt = _re.compile(r"^\s*(?:@|def )", _re.M)
+    else:
+        m = _re.search(r"\b(?:it|test|describe)(?:\.\w+)?\(\s*(['\"`])" + _re.escape(name) + r"\1", src)
+        nxt = _re.compile(r"^\s*(?:it|test|describe)(?:\.\w+)?\(", _re.M)
+    if m is None:
+        return None
+    after = nxt.search(src, m.end())
+    return src[m.start():after.start() if after else len(src)]
+
+
+def _has_test(path: Path, name: str) -> bool:
+    return _test_block(path, name) is not None
+
+
+def _is_test_file(rel: str) -> bool:
+    return bool(_re.search(r"(^tests/test_\w+\.py$)|(\.test\.(?:jsx|js|mjs)$)", rel))
+
+
+def _names_the_gate(src: str, block: str, env: str, rel: str) -> bool:
+    """W11-R71: the cited TEST names this gate: its block holds the env name or the payload key, or reads a constant
+    of the file whose definition does (`const W4 = {notebook_widgets_w4_enabled: true}`, `W11 = "..."`). A pytest
+    file may set its gate in a fixture, so for a .py citation the FILE naming the gate is enough; a vitest citation
+    must name it in the test itself (the m-2 defect: a real test in a file that names the wave elsewhere)."""
+    keys = (env, env.lower())
+    if any(k in block for k in keys):
+        return True
+    if rel.endswith(".py") and any(k in src for k in keys):
+        return True
+    for m in _re.finditer(r"^\s*(?:export\s+)?(?:const|let)?\s*([A-Za-z_]\w*)\s*=\s*(.*)$", src, _re.M):
+        if any(k in m.group(2) for k in keys) and _re.search(rf"\b{_re.escape(m.group(1))}\b", block):
+            return True
+    return False
+
+
+_STATUS = _re.compile(r"^(?:a MODE, )?(armed|dark|live)\b")
+_UNTIL = _re.compile(r"\buntil (\d+[A-Z]+-\d+)\b")
 
 
 def reason_problems(reasons: dict, ledger: dict, repo: Path = REPO) -> list[str]:
     out = []
+    armed_lanes_note = [(e.get("note") or "") for e in ledger.values() if (e or {}).get("status") == "armed"]
     for env, why in reasons.items():
         for m in _CITE.finditer(why):
-            path = repo / m.group(1)
+            rel = m.group(1)
+            path = repo / rel
             if not path.is_file():
-                out.append(f"{env}: cites {m.group(1)}, which does not exist")
+                out.append(f"{env}: cites {rel}, which does not exist")
                 continue
             names, problem = _cited_names(why, m.end())
             if problem:
-                out.append(f"{env}: {m.group(1)} {problem}")
+                out.append(f"{env}: {rel} {problem}")
+            src = path.read_text(encoding="utf-8")
             for n in names:
-                if not _has_test(path, n):
-                    out.append(f"{env}: {m.group(1)} has no test named {n!r}")
-        status = (ledger.get(env) or {}).get("status")
-        where = (ledger.get(env) or {}).get("where") or []
-        if why.startswith("armed") and status != "armed":
-            out.append(f"{env}: the reason says armed, the ledger says {status!r}")
-        if why.startswith("armed on web") and "web" not in where:
-            out.append(f"{env}: the reason says armed on web, the ledger's where is {where!r}")
-        if why.startswith("dark") and status == "armed":
+                block = _test_block(path, n)
+                if block is None:
+                    out.append(f"{env}: {rel} has no test named {n!r}")
+                elif _is_test_file(rel) and not _names_the_gate(src, block, env, rel):
+                    out.append(f"{env}: {rel} test {n!r} never names {env} or {env.lower()}")
+            if not names and _is_test_file(rel) and env not in src and env.lower() not in src:
+                out.append(f"{env}: {rel} never names {env} or {env.lower()}")
+        e = ledger.get(env) or {}
+        status, where = e.get("status"), e.get("where") or []
+        st = _STATUS.match(why)
+        if st is None:
+            out.append(f"{env}: the reason opens with no status (armed, dark, or a MODE's armed / dark / live)")
+        elif st.group(1) == "armed":
+            if status != "armed":
+                out.append(f"{env}: the reason says armed, the ledger says {status!r}")
+            if why[st.end():].startswith(" on web") and "web" not in where:
+                out.append(f"{env}: the reason says armed on web, the ledger's where is {where!r}")
+        elif st.group(1) == "dark" and status == "armed":
             out.append(f"{env}: the reason says dark, the ledger says armed")
+        elif st.group(1) == "live":
+            parent = _re.search(r"\bsince ([A-Z][A-Z0-9_]+) armed\b", why)
+            if not why.startswith("a MODE, "):
+                out.append(f"{env}: only a MODE can be live; a gate is armed or dark")
+            elif parent is None or (ledger.get(parent.group(1)) or {}).get("status") != "armed":
+                out.append(f"{env}: a live MODE must name the armed gate it rides ('since <GATE> armed')")
+        for lane in _UNTIL.findall(why):
+            if any(f"lane {lane}" in note for note in armed_lanes_note):
+                out.append(f"{env}: 'until {lane}', but the ledger records lane {lane}'s gate as armed")
     return out
 
 
@@ -181,28 +238,48 @@ def test_every_reason_cites_real_tests_and_states_the_ledgers_status(t):
     reasons = t.NOT_REHEARSED
     cited = sum(len(list(_CITE.finditer(w))) for w in reasons.values())
     assert cited >= 20                                                        # non-vacuity: citations were parsed
-    assert sum(w.startswith(("armed", "dark")) for w in reasons.values()) >= 30
+    assert all(_STATUS.match(w) for w in reasons.values())                    # every reason states a status
     assert reason_problems(reasons, t.ledger_flags()) == []
 
 
 def test_the_reason_rail_can_fail(t):
-    """Controls: a fake citation, a fake test name, a prose group, a flipped status, each reported."""
+    """Controls, one per check: a fake test name, a missing file, a prose group, both flipped statuses, a cited test
+    that exists but never names the gate (the original m-2 defect, re-planted), a stale 'until <lane>', a reason with
+    no status, a live MODE whose gate is not armed, and a gate called live."""
     ledger = t.ledger_flags()
     w1 = t.NOT_REHEARSED["NOTEBOOK_WIDGETS_W1_ENABLED"]
     assert reason_problems({"NOTEBOOK_WIDGETS_W1_ENABLED": w1}, ledger) == []         # the real one is clean
+    sm = "app/src/pages/journal-2-0/components/notebook/SlashMenu.items.test.jsx"
     bad = {
         "NOTEBOOK_WIDGETS_W1_ENABLED": w1.replace("test_gate_off_404", "test_no_such_test_here"),
         "NOTEBOOK_WIDGETS_W2_ENABLED": "armed on web: see tests/test_no_such_file.py (test_x)",
         "NOTEBOOK_WIDGETS_W3_ENABLED": "armed on web: tests/test_notebook_widgets_e2e.py (some prose, it says)",
         "NOTEBOOK_WIDGETS_W11_ENABLED": "armed on web: flipped",
         "NOTEBOOK_WIDGETS_W10_ENABLED": "dark: flipped",
+        # the m-2 defect: a real test, in a file that names W4 elsewhere, whose own block never does
+        "NOTEBOOK_WIDGETS_W4_ENABLED": f"armed on web: its off evidence is {sm} ('a wave turns on only its own kinds')",
+        "NOTEBOOK_TA_FINGERPRINT_ENABLED": "armed on web: the API; no member surface until 13I-2",
+        "NOTEBOOK_ASK_INSERT_ON": "payload only: no status word",
+        "NOTEBOOK_SEMANTIC_PROVIDER": "a MODE, live since NOTEBOOK_WIDGETS_W11_ENABLED armed",
+        "NOTEBOOK_CHART_PLAN_ENABLED": "live: a gate is never live",
     }
     got = reason_problems(bad, ledger)
-    assert any("test_no_such_test_here" in g for g in got), got
-    assert any("test_no_such_file.py, which does not exist" in g for g in got), got
-    assert any("not a test name list" in g for g in got), got
-    assert any(g.startswith("NOTEBOOK_WIDGETS_W11_ENABLED: the reason says armed") for g in got), got
-    assert any(g.startswith("NOTEBOOK_WIDGETS_W10_ENABLED: the reason says dark") for g in got), got
+    expect = {
+        "NOTEBOOK_WIDGETS_W1_ENABLED": "test_no_such_test_here",
+        "NOTEBOOK_WIDGETS_W2_ENABLED": "test_no_such_file.py, which does not exist",
+        "NOTEBOOK_WIDGETS_W3_ENABLED": "not a test name list",
+        "NOTEBOOK_WIDGETS_W11_ENABLED": "the reason says armed",
+        "NOTEBOOK_WIDGETS_W10_ENABLED": "the reason says dark",
+        "NOTEBOOK_WIDGETS_W4_ENABLED": "never names NOTEBOOK_WIDGETS_W4_ENABLED",
+        "NOTEBOOK_TA_FINGERPRINT_ENABLED": "'until 13I-2'",
+        "NOTEBOOK_ASK_INSERT_ON": "opens with no status",
+        "NOTEBOOK_SEMANTIC_PROVIDER": "a live MODE must name the armed gate",
+        "NOTEBOOK_CHART_PLAN_ENABLED": "only a MODE can be live",
+    }
+    for env, words in expect.items():
+        assert any(g.startswith(f"{env}:") and words in g for g in got), (env, got)
+    # the W4 control is the block check, not the file: the same file DOES name W4 elsewhere
+    assert "notebook_widgets_w4_enabled" in (REPO / sm).read_text(encoding="utf-8")
 
 
 def test_every_door_is_a_route_the_app_registers(t):

@@ -183,26 +183,42 @@ DOOR_OFF = 404
 # Every other Notebook gate the repo's own index finds, and why the window does not switch it.
 # A gate missing here is printed as "no rendered probe written" -- never silently dropped.
 NOT_REHEARSED = {
-    "NOTEBOOK_ASK_INSERT_ON": "payload only: its surface needs an Ask answer (a model call)",
+    "NOTEBOOK_ASK_INSERT_ON": ("armed on web 2026-09-26 (docs/feature_flags.json): payload only: its surface needs an"
+                               " Ask answer (a model call)"),
     # Wave 14 W14-C1: these two (and semantic search below) now ride the auth payload, so the
     # window switches and verifies them by their payload key; no RENDERED probe is written.
-    "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED": "payload key only (W14-C1, its tour's gate): the "
-                                             "capability itself acts only on an upload",
-    "NOTEBOOK_TASK_REMINDERS_ENABLED": "payload key only (W14-C1, its tour's gate): the kill switch "
-                                       "is read per scheduled run, so its only other evidence is "
-                                       "a reminder members would not get",
-    "COMPASS_NOTES_TOOL_ENABLED": "no read-only surface: it acts only inside a Compass chat turn",
+    "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED": ("armed on web 2026-09-26 (docs/feature_flags.json): payload key only "
+                                              "(W14-C1, its tour's gate): the capability itself acts only on an "
+                                              "upload"),
+    "NOTEBOOK_TASK_REMINDERS_ENABLED": ("armed on web (docs/feature_flags.json: a kill switch, on by default): "
+                                        "payload key only (W14-C1, its tour's gate): the kill switch is read per "
+                                        "scheduled run, so its only other evidence is a reminder members would not "
+                                        "get"),
+    "COMPASS_NOTES_TOOL_ENABLED": ("armed on web 2026-09-26 (docs/feature_flags.json): no read-only surface: it acts "
+                                   "only inside a Compass chat turn"),
     "NOTEBOOK_INBOUND_EMAIL_ENABLED": ("armed on web 2026-09-27 (docs/feature_flags.json): Email to Notebook; its "
                                        "evidence is an inbound message, which this read-only window cannot send, so "
                                        "no rendered probe in this tool"),
     "NOTEBOOK_SEMANTIC_SEARCH_ENABLED": ("armed on web 2026-10-09 (docs/feature_flags.json): meaning search; a "
                                          "payload key since W14-C1 (its tour's gate), so the window verifies "
                                          "notebook_semantic_search_enabled; no rendered probe in this tool"),
-    "NOTEBOOK_SEMANTIC_PROVIDER": "a MODE, inert while semantic search is dark",
+    "NOTEBOOK_SEMANTIC_PROVIDER": ("a MODE, live since NOTEBOOK_SEMANTIC_SEARCH_ENABLED armed on web 2026-10-09 "
+                                   "(docs/feature_flags.json): left unset on purpose, so the default openai provider "
+                                   "is in effect; noop is the vendor-free fallback; switching it is a vendor change, "
+                                   "not an on/off surface, so no rendered probe in this tool; its noop evidence is "
+                                   "tests/test_note_semantic.py "
+                                   "(test_ON_with_the_NOOP_provider_the_table_fills_and_nothing_leaves, "
+                                   "test_the_OpenAI_provider_is_the_default_and_uses_the_shared_client)"),
     "NOTEBOOK_OFFLINE_READ_ON": "dark: the feature is NOT BUILT",
     "NOTEBOOK_CONFLICT_UX_ON": "dark: the feature is NOT BUILT",
     "NOTEBOOK_ATTACHMENTS_ON": "dark: the feature is NOT BUILT",
-    "NOTEBOOK_DOOR_GUARD": "a MODE, never switched off; its intended value is the owner's question",
+    "NOTEBOOK_DOOR_GUARD": ("a MODE, armed on web (docs/feature_flags.json): set to unknown-only and kept there by "
+                            "the standing rule 'two consecutive GREEN windows -> the guard STAYS unknown-only' "
+                            "(released 2026-09-19, re-read 2026-10-06); settled by that rule, never switched off, so "
+                            "no rendered probe in this tool; its parse evidence is "
+                            "tests/test_notebook_door_guard_flag.py "
+                            "(test_the_payload_carries_the_mode_and_it_defaults_to_full, "
+                            "test_the_mode_is_read_PER_REQUEST_not_captured_at_import)"),
     "NOTEBOOK_TEMPLATE_GALLERY_ENABLED": ("armed on web 2026-10-08 (docs/feature_flags.json) (wave 12 12A): the "
                                           "community template gallery; no rendered on/off probe in this tool"),
     "NOTEBOOK_PLAN_GRADING_ENABLED": ("armed on web 2026-10-08 (docs/feature_flags.json) (wave 13 13A): plan vs "
@@ -222,18 +238,34 @@ NOT_REHEARSED = {
                                       "only the doors that make a canvas"),
     # Wave 13 lane 13I-1. No member surface yet: 13I-2 builds the panel that reads it.
     "NOTEBOOK_TA_FINGERPRINT_ENABLED": ("armed on web 2026-10-08 (docs/feature_flags.json) (wave 13 13I-1): the "
-                                        "technical fingerprint and chart-block index API; no member surface until "
-                                        "13I-2"),
+                                        "technical fingerprint and the chart-block index API, and the member surface "
+                                        "13I-2 built on it (FingerprintPanel on a chart block); payload key only: the"
+                                        " window switches it with the armed set and verifies "
+                                        "notebook_ta_fingerprint_enabled; no rendered on/off probe in this tool; its "
+                                        "off evidence is "
+                                        "app/src/pages/journal-2-0/components/notebook/FingerprintPanel.test.jsx "
+                                        "('renders nothing and fetches nothing while the fingerprint gate is off')"),
     # Wave 13 lane 13C.
     "NOTEBOOK_EARNINGS_PREP_ENABLED": ("armed on web 2026-10-08 (docs/feature_flags.json) (wave 13 13C): Reporting "
                                        "soon on Research Home and a one-click earnings prep note"),
     # Wave 13 lane 13H-1. No member surface yet: 13H-2 builds the plan panel on these routes.
     "NOTEBOOK_CHART_PLAN_ENABLED": ("armed on web 2026-10-08 (docs/feature_flags.json) (wave 13 13H-1): chart-plan "
-                                    "sizing and alerts at drawn levels (API only); no member surface until 13H-2"),
+                                    "sizing and alerts at drawn levels, and the member surfaces 13H-2..13H-4 built on"
+                                    " them (the chart block's Plan door, ChartPlanPanel and its level controls); "
+                                    "payload key only: the window switches it with the armed set and verifies "
+                                    "notebook_chart_plan_enabled; no rendered on/off probe in this tool; its off "
+                                    "evidence is "
+                                    "app/src/pages/journal-2-0/components/notebook/WidgetEmbedView.chartPlan.test.jsx"
+                                    " ('gate OFF: no Plan, no Replay, and the panel is never mounted')"),
     # Wave 13 lane 13E-1. No member surface yet: 13E-2 builds the card and the prompt.
     "NOTEBOOK_ENTRY_CONTEXT_ENABLED": ("armed on web 2026-10-08 (docs/feature_flags.json) (wave 13 13E-1): the market"
-                                       " context frozen at the fill (API + capture hooks); no member surface until "
-                                       "13E-2"),
+                                       " context frozen at the fill (API + capture hooks), and the member surface "
+                                       "13E-2 built on it (EntryContextCard on the trade page, which holds "
+                                       "WhyPrompt); payload key only: the window switches it with the armed set and "
+                                       "verifies notebook_entry_context_enabled; no rendered on/off probe in this "
+                                       "tool; its off evidence is "
+                                       "app/src/pages/journal-2-0/components/EntryContextCard.test.jsx ('renders "
+                                       "nothing while notebook_entry_context_enabled is off (no fetch, no card)')"),
     # Wave 13 lane 13G-1.
     "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED": ("armed on web 2026-10-08 (docs/feature_flags.json) (wave 13 13G-1): save "
                                             "a call-transcript passage into a note as a cited excerpt"),
@@ -326,9 +358,9 @@ NOT_REHEARSED = {
                                         " window switches it with the armed set and verifies "
                                         "notebook_terminal_links_enabled; its rendered surface needs a paste, so no "
                                         "rendered probe in this tool; its off evidence is "
-                                        "app/src/pages/journal-2-0/lib/terminalCommandPaste.test.js ('before the "
-                                        "terminal grammar has loaded (or with the gate off) nothing is handled', "
-                                        "'opens only while the gate is on; off it is inert like any internal path')"),
+                                        "app/src/pages/journal-2-0/lib/terminalCommandPaste.test.js ('opens only "
+                                        "while the gate is on; off it is inert like any internal path'); the paste "
+                                        "half loads the terminal grammar only while the gate is on"),
     # Notebook widgets, waves 1-6 and 8-10 (wave 7 has no flag). Each is an enablement gate over its own / menu
     # entries and (waves 1-3, 6, 8-10) its server reads; a widget already stored in a note renders whatever it says.
     # All nine are armed on web (docs/feature_flags.json carries the flip times), so the window's armed set carries
@@ -390,11 +422,12 @@ NOT_REHEARSED = {
     "NOTEBOOK_WIDGETS_W11_ENABLED": ("dark (notebook widgets wave 11): the template library, sharing and adopting "
                                      "widgets, routines and trackers (needs NOTEBOOK_STYLE_LIBRARY_ENABLED and "
                                      "NOTEBOOK_JOURNAL_STYLES_ENABLED); every wave 11 door answers the one 404 while "
-                                     "off, read per request, before the plan and the body "
-                                     "(tests/test_gallery_router_w11.py (test_every_new_route_404_when_w11_off, "
-                                     "test_flag_read_per_request)), and the contract fixtures pin each door's 401 and"
-                                     " flags-off 404; its rendered evidence is the wave 11 walk (Task 11.20), not a "
-                                     "probe here; waits for the owner's arming"),
+                                     "off, read per request, before the plan and the body (the wave 11 router's gate "
+                                     "tests), the contract fixtures pin each door's 401 and flags-off 404, and "
+                                     "tests/test_gallery_item_types_w11.py "
+                                     "(test_tool_types_hidden_while_w11_off_and_listed_when_on) shows the new library"
+                                     " types absent while off; its rendered evidence is the wave 11 walk (Task "
+                                     "11.20), not a probe here; waits for the owner's arming"),
 }
 
 
