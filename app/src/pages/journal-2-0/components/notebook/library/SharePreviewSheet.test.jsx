@@ -508,6 +508,24 @@ describe('the share preview of a template', () => {
     expect(within(box).getByRole('heading', { name: 'Before the bell' }).tagName).toBe('H5')
   })
 
+  it('R4: the outline names each block in plain words; no {{block:...}} token ever reaches the member', async () => {
+    const line = (t) => ({ type: 'paragraph', content: [{ type: 'text', text: t }] })
+    const OUTLINE = { type: 'doc', content: [
+      { type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'Before the bell' }] },
+      line('{{block:built_a}}'), { type: 'paragraph' }, line('{{block:routine_a}}'), line('{{block:tracker_a}}'),
+      line('{{block:marketcontext}}'),
+    ] }
+    installServer((b) => ({ ...templateAnswer(b), outline: OUTLINE, outlineGone: false }))
+    mount({ kind: 'template', id: 's1' })
+    await waitFor(() => expect(travels()?.querySelector('[data-outline-travels]')).toBeTruthy())
+    // the names come from the ONE authority the slot list above uses (slotLabel over the server's inline items, once
+    // the re-ask with the author's prefilled words lands; blockLabel for a block that is not a slot)
+    for (const name of ['Widget: R curve', 'Routine: Morning prep', 'Tracker: Sleep', 'Market context']) {
+      await waitFor(() => expect(within(travels().querySelector('[data-outline-travels]')).getByText(name)).toBeTruthy())
+    }
+    expect(document.body.textContent).not.toContain('{{block:')
+  })
+
   it("F-FE-1 F1: an outline that is gone draws no outline and says so ONCE, in the server's own sentence", async () => {
     const S_GONE = 'SERVER: the outline came from a template you deleted.'
     installServer((b) => ({ ...templateAnswer(b), outline: null, outlineGone: true, notShared: [S_GONE] }))

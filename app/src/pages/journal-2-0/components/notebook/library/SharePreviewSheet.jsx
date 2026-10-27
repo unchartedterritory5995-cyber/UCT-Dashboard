@@ -21,7 +21,7 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import Sheet from '../../../../../components/mobile/Sheet'
 import Switch from '../../../../../components/ui/Switch'
 import { publishTemplate, publishTool, sharePreview } from '../../../lib/templateLibrary'
-import { TYPE_LABELS, bindWords, familyLabel, slotFamily, slotLabel } from '../../../lib/templateSlots'
+import { TYPE_LABELS, bindWords, familyLabel, outlineWithBlockNames, slotFamily, slotLabel } from '../../../lib/templateSlots'
 import { GALLERY_CATEGORIES } from '../../../lib/templateGallery'
 import { TRADING_STYLES } from '../../../lib/styleLibrary'
 import { SCHEDULES, TRACKER_DAYS, WEEKDAYS, kindWords } from '../routines/toolEditorLib'
@@ -239,12 +239,17 @@ function TrackerTravels({ t }) {
   )
 }
 
-function TemplateTravels({ t }) {
+/** A shared template's inline widgets, routines and trackers, keyed `inline:<key>`, and their names by that ref. */
+function inlineOf(t) {
   const inline = new Map()
   for (const [key, list] of [['definitions', 'd'], ['routines', 'r'], ['trackers', 't']]) {
     for (const x of listOf(t?.[key])) if (typeof x?.key === 'string') inline.set(`inline:${x.key}`, { kind: list, item: x })
   }
-  const names = Object.fromEntries([...inline].map(([ref, v]) => [ref, text(v.item.name)]))
+  return { inline, names: Object.fromEntries([...inline].map(([ref, v]) => [ref, text(v.item.name)])) }
+}
+
+function TemplateTravels({ t }) {
+  const { inline, names } = inlineOf(t)
   const slots = listOf(t?.blocks).filter((b) => slotFamily(b?.block))
   const others = listOf(t?.blocks).length - slots.length
   return (
@@ -288,7 +293,7 @@ function OutlineTravels({ answer }) {
     <div className={styles.group} data-outline-travels="">
       <h4 className={styles.subheading}>{OUTLINE_LABEL}</h4>
       {/* m-4: under the sheet's h2 title, the h3 "Exactly what travels" and this h4, the author's headings are h5-h6. */}
-      <DocBody body={o} headingBase={5} />
+      <DocBody body={outlineWithBlockNames(o, answer?.travels?.blocks, inlineOf(answer?.travels).names)} headingBase={5} />
     </div>
   )
 }
