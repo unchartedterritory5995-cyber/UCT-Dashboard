@@ -3,11 +3,13 @@ import { createPortal } from 'react-dom'
 import { useIsTouch } from '../../hooks/useBreakpoint'
 import { trapTabKey } from './useFocusTrap'
 import { acquireFullscreenSheet } from './fullscreenSheetAttr'
+import { inertBackground } from './backgroundInert'
 import styles from './Sheet.module.css'
 
 /* Sheet — responsive modal / drawer primitive.
  *
  * Desktop: centered modal. Touch: bottom-sheet (default) or fullscreen.
+ * While open, the page behind it is `inert` (backgroundInert.js; only the topmost sheet is live).
  * Use for ALL new modals/drawers/popovers so they behave on mobile.
  *
  * Props:
@@ -121,6 +123,14 @@ export default function Sheet({
     document.body.style.overflow = 'hidden'
     return () => { document.body.style.overflow = prev }
   }, [open, lockScroll])
+
+  // 11.20 walk D6: the page behind the scrim is `inert` while this sheet is open (backgroundInert.js), so neither axe
+  // nor a screen reader reads the page the modal covers. ⛔ Declared BEFORE the focus effect: cleanups run in
+  // declaration order, so the page is live again before focus is put back on the opener inside it.
+  useEffect(() => {
+    if (!open) return undefined
+    return inertBackground(panelRef.current?.parentElement || null)
+  }, [open])
 
   // Escape to close + focus management
   useEffect(() => {
