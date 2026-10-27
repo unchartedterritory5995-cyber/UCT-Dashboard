@@ -420,6 +420,11 @@
     display: inline-flex;
     align-items: center;
   }
+  /* 11.20 walk D4: a card's one-word "Use" measured 41x44 at 820 and 390; every card button holds the floor both ways. */
+  .btn {
+    justify-content: center;
+    min-width: var(--tap-min);
+  }
   /* 11.20 R6: a one-word chip ("All", "Day") was narrower than a finger; the floor holds in both directions. */
   .chip {
     display: inline-flex;
