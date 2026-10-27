@@ -129,6 +129,26 @@ describe('tradeExchangeNewsStreamManager', () => {
     off()
   })
 
+  it('a silent stream (no heartbeat for 22 s) stops claiming Live and reconnects', async () => {
+    vi.useFakeTimers()
+    const off = pool.subscribe(() => {})
+    await vi.advanceTimersByTimeAsync(0)
+    const es = lastES()
+    es.emit('hello', { epoch: EPOCH })
+    expect(pool.getSnapshot().status).toBe('live')
+    await vi.advanceTimersByTimeAsync(21000)
+    es.emit('heartbeat', {})                       // a heartbeat re-arms the watchdog
+    await vi.advanceTimersByTimeAsync(21000)
+    expect(pool.getSnapshot().status).toBe('live')
+    await vi.advanceTimersByTimeAsync(1500)         // 22 s of silence
+    expect(pool.getSnapshot().status).toBe('reconnecting')
+    expect(es.closed).toBe(true)
+    await vi.advanceTimersByTimeAsync(1100)
+    expect(lastES()).not.toBe(es)
+    expect(lastES().url).toContain('after=3')
+    off()
+  })
+
   it('the last unsubscribe closes the stream and forgets everything', async () => {
     const off1 = pool.subscribe(() => {})
     const off2 = pool.subscribe(() => {})

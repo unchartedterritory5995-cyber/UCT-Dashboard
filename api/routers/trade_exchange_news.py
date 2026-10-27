@@ -25,7 +25,7 @@ Member surface (Checkpoint C) -- ADMIN-ONLY while dark (``require_admin``):
     ``event: hello`` saying whether the cursor was honoured (``reset`` when the
     epoch changed, ``truncated`` when history before the cursor was pruned), then
     replays every headline after the cursor in seq order, then goes live. Named
-    ``heartbeat`` every 15 s so the client watchdog can tell silence from death.
+    ``heartbeat`` every 10 s so the client watchdog can tell silence from death.
 """
 from __future__ import annotations
 
@@ -49,7 +49,7 @@ INGEST_PATH = "/api/trade-exchange-news/internal/ingest"
 STATUS_PATH = "/api/admin/trade-exchange-news"
 RECENT_PATH = "/api/trade-exchange-news/recent"
 STREAM_PATH = "/api/trade-exchange-news/stream"
-HEARTBEAT_S = 15.0
+HEARTBEAT_S = 10.0
 MAX_STREAMS = int(os.environ.get("TXN_MAX_STREAMS", "200"))
 MAX_STREAMS_PER_USER = int(os.environ.get("TXN_MAX_STREAMS_PER_USER", "6"))
 SSE_HEADERS = {"Cache-Control": "no-cache, no-transform", "Connection": "keep-alive",

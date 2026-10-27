@@ -30,8 +30,10 @@ export const HARD_MAX = 2000
 export const PAGE = 200
 const RETRY_MIN = 1000
 const RETRY_MAX = 15000
-// Server heartbeats every 15 s; two missed ones and the connection is presumed dead.
-const WATCHDOG_MS = 35000
+// Server heartbeats every 10 s; two missed ones and the connection is presumed dead
+// and the status says so (measured: a dead upstream can leave the socket open, so
+// without this a widget could keep saying Live through an outage).
+const WATCHDOG_MS = 22000
 
 export const EMPTY_NEWS = Object.freeze({
   status: 'idle', items: Object.freeze([]), epoch: null, lastSeq: 0, firstSeq: 0,

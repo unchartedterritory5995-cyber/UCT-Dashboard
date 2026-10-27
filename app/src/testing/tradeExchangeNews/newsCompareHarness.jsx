@@ -17,6 +17,12 @@
 //   ?theme=dark|light   app theme the widgets are PLACED under
 //   ?apply=<chartThemeId>  simulate the widget gallery's "Apply to all widgets"
 //   ?density=compact|comfortable
+//   ?width=<px>           pane width (responsive checks; default 320)
+//   ?only=news&count=<n>  render only <n> News widgets (multi-widget checks)
+//   ?live=1               LIVE MODE for tools/txn_local_e2e.py: /api/trade-exchange-news/*
+//                         goes to the real (local, synthetic) web process through
+//                         vite.txn-e2e.config.mjs, and the News pool opens its own
+//                         stream — nothing about the news path is faked.
 
 import '../../index.css'
 import { useMemo, useState } from 'react'
@@ -35,6 +41,10 @@ const params = new URLSearchParams(location.search)
 const THEME = params.get('theme') === 'light' ? 'light' : 'dark'
 const APPLY = params.get('apply') || ''
 const DENSITY = params.get('density') || ''
+const WIDTH = Number(params.get('width')) || 320
+const ONLY_NEWS = params.get('only') === 'news'
+const COUNT = Math.max(1, Math.min(4, Number(params.get('count')) || 1))
+const LIVE = params.get('live') === '1'
 document.documentElement.dataset.theme = THEME
 
 const SYMS = ['ALFA', 'BRVO', 'CHRL', 'DLTX', 'ECHO', 'FXTR', 'GLFX', 'HTLX']
@@ -72,6 +82,7 @@ window.fetch = (input, init) => {
   const method = ((init && init.method) || (input && input.method) || 'GET').toUpperCase()
   if (!url.startsWith('/') && !url.startsWith(location.origin)) return realFetch(input, init)
   const path = url.replace(location.origin, '')
+  if (LIVE && path.startsWith('/api/trade-exchange-news')) return realFetch(input, init)
   if (method !== 'GET') { BLOCKED.push(`${method} ${path}`); return json({}) }
   if (path.startsWith('/api/auth/me')) {
     return json({ user: { id: 'harness', email: 'harness@local', role: 'admin', display_name: 'Harness' },
@@ -128,22 +139,24 @@ class HarnessES {
 // Every other stream gets an inert, already-closed stand-in: the harness opens no
 // real transport at all (TERM-024's rail counts constructions).
 class ClosedES { constructor() { this.readyState = 2 } addEventListener() {} close() {} }
-window.EventSource = function (url) {
-  return String(url).includes('/api/trade-exchange-news/stream') ? new HarnessES(url) : new ClosedES()
+if (!LIVE) {
+  window.EventSource = function (url) {
+    return String(url).includes('/api/trade-exchange-news/stream') ? new HarnessES(url) : new ClosedES()
+  }
 }
 
 function themed(type, opts) {
   return appliedTheme ? patchWidgetOptsWithTheme(type, opts, themeWithAppSurface(appliedTheme)) : opts
 }
 
-function Pane({ label, type, Component, initial }) {
+function Pane({ label, type, Component, initial, index = 0 }) {
   const [opts, setOpts] = useState(() => themed(type, initial))
   return (
-    <div className="pane" data-pane={type}>
+    <div className="pane" data-pane={index ? `${type}-${index}` : type}>
       <div className="paneLabel">{label}</div>
       {/* WidgetHost provides the placed theme in the real workspace; so does this. */}
       <PlacedThemeContext.Provider value={THEME}>
-        <div className={wsStyles.widgetBody} style={{ height: 560, width: 320, display: 'flex', flexDirection: 'column' }}>
+        <div className={wsStyles.widgetBody} style={{ height: 560, width: WIDTH, display: 'flex', flexDirection: 'column' }}>
           <Component color="A" opts={opts} onOptsChange={setOpts} />
         </div>
       </PlacedThemeContext.Provider>
@@ -164,9 +177,12 @@ function Harness() {
       <AuthProvider>
         <WorkspaceContext.Provider value={ws}>
           <div className="row">
-            <Pane label="Watchlist" type="watchlist" Component={WatchlistWidget} initial={{ watchKey: 'user:wl1', watchName: 'Harness List' }} />
-            <Pane label="Theme Tracker" type="themes" Component={ThemesWidget} initial={{}} />
-            <Pane label="News (Trade Exchange)" type="tradeExchangeNews" Component={TradeExchangeNewsWidget} initial={newsOpts} />
+            {!ONLY_NEWS && <Pane label="Watchlist" type="watchlist" Component={WatchlistWidget} initial={{ watchKey: 'user:wl1', watchName: 'Harness List' }} />}
+            {!ONLY_NEWS && <Pane label="Theme Tracker" type="themes" Component={ThemesWidget} initial={{}} />}
+            {Array.from({ length: ONLY_NEWS ? COUNT : 1 }, (_, i) => (
+              <Pane key={i} index={i} label={`News (Trade Exchange)${i ? ` #${i + 1}` : ''}`} type="tradeExchangeNews"
+                Component={TradeExchangeNewsWidget} initial={newsOpts} />
+            ))}
           </div>
         </WorkspaceContext.Provider>
       </AuthProvider>
