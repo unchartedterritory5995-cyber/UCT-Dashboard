@@ -1051,3 +1051,64 @@ def test_the_helpful_doors_answer_busy_never_a_500(app, client, db, monkeypatch,
     assert resp.status_code == 503
     assert resp.json()["detail"] == {"code": "busy", "message": tgr.DATABASE_BUSY_SENTENCE}
     assert _no_store(resp)
+
+
+def test_a_use_busy_between_its_two_transactions_lets_the_same_key_retry_at_once(app, client, db, monkeypatch):
+    # Review m-1: a Use commits its key reservation (and the adoption), then makes the note in a SECOND locked
+    # transaction. A writer that takes the lock between the two makes the note's create busy; the Use must then
+    # release its reservation, or a same-key retry waits 15 s for a note that is never coming and answers 409.
+    # Here the lock outlives the create (two 3 s tries) and the failed Use's own 3 s forget: released at 16 s.
+    import sqlite3
+    import time
+    from api.services import auth_db
+    off = _official(db)
+    as_user(app, MEMBER)
+    real = js.create_styled_note
+    released = threading.Event()
+
+    def compose_after_a_writer_took_the_lock(*a, **k):
+        holder = sqlite3.connect(auth_db._DB_PATH, isolation_level=None, check_same_thread=False)
+        holder.execute("BEGIN IMMEDIATE")
+        threading.Timer(16.0, lambda: (holder.rollback(), holder.close(), released.set())).start()
+        return real(*a, **k)
+    monkeypatch.setattr(js, "create_styled_note", compose_after_a_writer_took_the_lock)
+    monkeypatch.setattr(js, "STYLE_LOCK_WAIT_S", 0.0)     # the create gives up after ONE 3 s wait
+    key = {"Idempotency-Key": str(uuid.uuid4())}
+    body = {"choices": {"routine_a": {"create": True}}}
+    first = _send(client, "POST", f"{GALLERY}/{off}/use-template", body, key)
+    assert first.status_code == 503 and first.json()["detail"]["code"] == "busy"
+    monkeypatch.setattr(js, "create_styled_note", real)
+    assert released.wait(30)                               # the writer is gone; the same key is pressed again
+    t0 = time.monotonic()
+    again = _send(client, "POST", f"{GALLERY}/{off}/use-template", body, key)
+    took = time.monotonic() - t0
+    assert again.status_code == 200, again.text
+    assert took < 5.0, f"the retry waited {took:.1f} s on a reservation nobody holds"
+    assert len(_routine_ids_in_notes(db)) == 1                                       # exactly one note
+
+
+def test_a_reservation_released_while_a_twin_waits_lets_the_twin_make_the_note(app, client, db, monkeypatch):
+    # Review m-1, the other order: the retry arrives while the failed Use's reservation still stands, and the
+    # failed Use releases it while the retry waits. Nothing is on its way, so the retry makes the note (once).
+    # CONTROL is the existing in-flight rail above: a reservation that stays answers 409 conflict.
+    from datetime import datetime, timezone
+    off = _official(db)
+    as_user(app, MEMBER)
+    pending = str(uuid.uuid4())
+    db.execute("INSERT INTO j2_tool_create_keys (user_id, key, kind, source_id, new_id, created_at, token)"
+               " VALUES (?, ?, 'gallery_use_template', ?, '', ?, 'the-failed-use')",
+               (MEMBER, pending, off, datetime.now(timezone.utc).isoformat()))
+    db.commit()
+    waited = []
+
+    def released_while_waiting(user_id, key, timeout_s=15.0):
+        waited.append(key)
+        db.execute("DELETE FROM j2_tool_create_keys WHERE user_id = ? AND key = ?", (user_id, key))
+        db.commit()
+        return None
+    monkeypatch.setattr(gallery, "_wait_for_key", released_while_waiting)
+    got = _send(client, "POST", f"{GALLERY}/{off}/use-template", {"choices": {"routine_a": {"create": True}}},
+                {gallery.IDEMPOTENCY_HEADER: pending})
+    assert waited == [pending]                                                       # non-vacuity: it did wait
+    assert got.status_code == 200, got.text
+    assert len(_routine_ids_in_notes(db)) == 1

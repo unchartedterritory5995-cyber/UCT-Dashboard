@@ -4354,6 +4354,59 @@ def _key_forget(conn: sqlite3.Connection, user_id: str, key: str | None) -> None
         conn.execute(f"DELETE FROM {_KEYS_TABLE} WHERE user_id = ? AND key = ?", (user_id, key))
 
 
+#: The two SQLite result codes for "another connection holds the lock" (base codes: an extended code such as
+#: SQLITE_BUSY_SNAPSHOT or SQLITE_LOCKED_SHAREDCACHE carries its base code in the low byte).
+_BUSY_CODES = frozenset({sqlite3.SQLITE_BUSY, sqlite3.SQLITE_LOCKED})
+
+
+def database_busy(e: BaseException) -> bool:
+    """W11-R75: THE busy test -- SQLite's own RESULT CODE says a lock was not granted in time, never the message's
+    words (`j2_notes` has a real column named `locked`, so "no such column: locked" is a schema fault). An error
+    with no code (raised by hand, not by SQLite) is not busy. The gallery router answers 503 `busy` by it."""
+    code = getattr(e, "sqlite_errorcode", None)
+    return isinstance(e, sqlite3.OperationalError) and isinstance(code, int) and (code & 0xFF) in _BUSY_CODES
+
+
+#: Review m-1: how long a busy Use keeps trying, in the background, to release its own key reservation (past
+#: this the reservation is stale anyway, `USE_RESERVATION_STALE_SECS`, and a same-key retry takes it over).
+USE_RELEASE_POLL_S = 0.1
+
+
+def _release_own_later(user_id: str, key: str, token: str) -> None:
+    """Forget this request's own reservation (`_key_forget_own`) on a connection of its own, retried while the
+    database stays busy, in a daemon thread, until `USE_RESERVATION_STALE_SECS` has passed. Never raises."""
+    import threading
+    import time
+
+    def run() -> None:
+        deadline = time.monotonic() + USE_RESERVATION_STALE_SECS
+        while time.monotonic() < deadline:
+            c = get_connection()
+            try:
+                _key_forget_own(c, user_id, key, token)
+                c.commit()
+                return
+            except sqlite3.OperationalError as e:
+                if not database_busy(e):
+                    return
+            except Exception:  # noqa: BLE001 -- best effort: the stale rule is the backstop
+                return
+            finally:
+                try:
+                    if c.in_transaction:
+                        c.rollback()
+                except sqlite3.Error:
+                    pass
+                c.close()
+            time.sleep(USE_RELEASE_POLL_S)
+    threading.Thread(target=run, name="nb-gallery-use-release", daemon=True).start()
+
+
+def _key_absent(conn: sqlite3.Connection, user_id: str, key: str | None) -> bool:
+    return key is not None and conn.execute(f"SELECT 1 FROM {_KEYS_TABLE} WHERE user_id = ? AND key = ?",
+                                            (user_id, key)).fetchone() is None
+
+
 def _key_forget_own(conn: sqlite3.Connection, user_id: str, key: str | None, token: str | None) -> None:
     """Fix round 5 (m-b): a failed Use forgets ONLY its own reservation -- still "" and still holding this request's
     token. A winner's recorded note (`new_id` set) or a taker's re-reservation (another token) is never touched."""
@@ -4568,7 +4621,7 @@ def use_library_template(user_id: str, gallery_id: Any, *, answers: Any = None, 
 
 def _use_library_template_once(user_id: str, gallery_id: Any, *, answers: Any = None, choices: Any = None,
                                payload: Any = None, key: Any = None,
-                               conn: sqlite3.Connection | None = None) -> dict | None:
+                               conn: sqlite3.Connection | None = None, _released: bool = False) -> dict | None:
     """Use a listed template (official or a member's) to make a note: `{"note", "skipped", "style", "credit",
     "created": {"routines", "trackers", "widgets"}}`. None when the library or wave 11 is off or the item is not a
     listed style; `GalleryConflict` when the member's Journal styles switch is off.
@@ -4625,6 +4678,12 @@ def _use_library_template_once(user_id: str, gallery_id: Any, *, answers: Any = 
         if made is not None:
             conn.rollback()
             note_id = made or _wait_for_key(user_id, k)
+            if note_id is None and made == "" and not _released and _key_absent(conn, user_id, k):
+                # Review m-1: its holder failed and released it while we waited: nothing is on its way, so this
+                # request makes the note itself (once).
+                return _use_library_template_once(user_id, gallery_id, answers=answers, choices=choices,
+                                                  payload=payload, key=key, conn=None if owned else conn,
+                                                  _released=True)
             note = notes_service.get_note(user_id, note_id, conn) if note_id else None
             if note is None:
                 raise GalleryConflict(S_KEY_IN_FLIGHT)
@@ -4690,8 +4749,18 @@ def _use_library_template_once(user_id: str, gallery_id: Any, *, answers: Any = 
         if conn.in_transaction:
             conn.rollback()
         if reserved:
-            _key_forget_own(conn, user_id, k, token)      # m-b: this request's reservation only, never a winner's
-            conn.commit()
+            try:
+                _key_forget_own(conn, user_id, k, token)  # m-b: this request's reservation only, never a winner's
+                conn.commit()
+            except sqlite3.OperationalError as e:
+                # Review m-1: the note's create (the SECOND transaction) met a writer that still holds the lock, so
+                # this forget cannot run now either. Release in the background as soon as the lock clears, so a
+                # same-key retry is never left waiting on a reservation nobody holds.
+                if conn.in_transaction:
+                    conn.rollback()
+                if not database_busy(e):
+                    raise
+                _release_own_later(user_id, k, token)
         raise
     finally:
         if owned:

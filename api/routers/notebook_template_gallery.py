@@ -610,17 +610,8 @@ async def w11_body(request: Request, _user: dict = Depends(require_paid)) -> dic
 DATABASE_BUSY_SENTENCE = papi.BUSY_SENTENCE
 
 
-#: The two SQLite result codes for "another connection holds the lock" (base codes: extended codes such as
-#: SQLITE_BUSY_SNAPSHOT or SQLITE_LOCKED_SHAREDCACHE carry them in the low byte).
-_BUSY_CODES = frozenset({sqlite3.SQLITE_BUSY, sqlite3.SQLITE_LOCKED})
-
-
-def _database_busy(e: BaseException) -> bool:
-    """W11-R75: SQLite's own RESULT CODE says a lock was not granted in time, never the message's words: `j2_notes`
-    has a real column named `locked`, so "no such column: locked" is a schema fault and must stay a 500. An error
-    with no code (raised by hand, not by SQLite) is not busy."""
-    code = getattr(e, "sqlite_errorcode", None)
-    return isinstance(e, sqlite3.OperationalError) and isinstance(code, int) and (code & 0xFF) in _BUSY_CODES
+#: W11-R75: THE busy test lives with the store whose Use must also release a key on busy (one rule, two readers).
+_database_busy = gallery.database_busy
 
 
 def _busy_answer(fn) -> Any:
@@ -637,8 +628,10 @@ def _busy_answer(fn) -> Any:
 
 def _w11(fn) -> Any:
     """Run `fn()`; answer every refusal from its CLASS (W9-R14). None is the one 404. 11.20 R1: a database another
-    writer holds past the timeout is 503 `busy` with the house sentence (nothing was written: every wave 11 write is
-    one transaction), never a 500; the client resends the same Idempotency-Key on `busy`."""
+    writer holds past the timeout is 503 `busy` with the house sentence, never a 500; the client resends the same
+    Idempotency-Key on `busy`. A busy write rolled back; a Use is TWO transactions (its key reservation and adoption
+    commit first, then the note), and a busy note create releases the Use's own reservation (at once, or in the
+    background as soon as the lock clears), so the same-key retry makes the note (review m-1)."""
     try:
         out = fn()
     except HTTPException:
