@@ -420,9 +420,12 @@
     display: inline-flex;
     align-items: center;
   }
+  /* 11.20 R6: a one-word chip ("All", "Day") was narrower than a finger; the floor holds in both directions. */
   .chip {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
+    min-width: var(--tap-min);
   }
 }
 @media (max-width: 640px) {

@@ -109,3 +109,18 @@ describe('the gallery chip a member has chosen keeps its words readable (R5)', (
   })
 })
 
+// 11.20 rehearsal R6: at 820 the filter chips "All" and "Day" measured 37x44 and 43x44. The touch tier is <=1024px
+// (styles/breakpoints.css); there every gallery chip is at least --tap-min in BOTH directions.
+describe('every gallery chip is a whole finger target on the touch tier (R6)', () => {
+  const touch = rules(CSS).filter((r) => r.media && /max-width:\s*1024px/.test(r.media) && r.selectors.includes('.chip'))
+  it('min-width and min-height are var(--tap-min) inside the <=1024px query', () => {
+    expect(touch.length).toBeGreaterThan(0)
+    expect(touch.map((r) => decl(r.body, 'min-height')).filter(Boolean)).toContain('var(--tap-min)')
+    expect(touch.map((r) => decl(r.body, 'min-width')).filter(Boolean)).toContain('var(--tap-min)')
+  })
+  it('CONTROL: at rest (no media) a chip declares no floor, so the rule above is the touch tier\'s own', () => {
+    const rest = rules(CSS).filter((r) => !r.media && r.selectors.includes('.chip'))
+    expect(rest.length).toBeGreaterThan(0)
+    expect(rest.map((r) => decl(r.body, 'min-width')).filter(Boolean)).toEqual([])
+  })
+})
