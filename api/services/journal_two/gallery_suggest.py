@@ -130,7 +130,7 @@ class _Trades:
         for setup, symbol, mistakes, emotions, account in conn.execute(trades_sql(), (user_id,)):
             _count(*self.t["setup"], setup.strip() if isinstance(setup, str) else None)
             _count(*self.t["symbol"], symbol.strip() if isinstance(symbol, str) else None)
-            m, e = wsources._tags(mistakes), wsources._tags(emotions)
+            m, e = wsources.tags(mistakes), wsources.tags(emotions)
             for tag in dict.fromkeys(m):
                 _count(*self.t["mistake"], tag)
             for tag in dict.fromkeys(e):
@@ -161,12 +161,12 @@ class _Notes:
         sql, params = notes_sql(user_id)
         for folder_id, raw, tags, ticker in conn.execute(sql, params):
             _count(*self.t["folder"], folder_id)
-            parsed = note_properties._parse_properties_json(raw)
+            parsed = note_properties.parse_properties_json(raw)
             _count(*self.t["kind"], parsed.get(j2_note_kinds.NOTE_KIND_PROPERTY))
             for d in self.props:
                 if _number(parsed.get(d["id"])):
                     _count(*self.t["filled"], d["id"])
-            for tag in dict.fromkeys(wsources._tags(tags)):
+            for tag in dict.fromkeys(wsources.tags(tags)):
                 _count(*self.t["tag"], tag)
             _count(*self.t["ticker"], ticker.strip().upper() if isinstance(ticker, str) else None)
 

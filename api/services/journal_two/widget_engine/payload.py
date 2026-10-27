@@ -324,6 +324,10 @@ def _scope_label(scan: Any, account_name: str | None) -> str:
     return S_ONE_ACCOUNT
 
 
+#: F-ALIAS-1 A1 (11.9 carry c1): the public name other modules read (`run._scope`). The SAME function object.
+scope_label = _scope_label
+
+
 #: Sources whose capped scan states the rows it actually kept (fix round 1, m-1): an options
 #: read is cut to the exact ET day after the SQL read, so it can hold fewer than the cap.
 _CAP_COUNTS_KEPT = frozenset({"options_strategies", "notes"})

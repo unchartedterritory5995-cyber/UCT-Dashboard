@@ -246,6 +246,10 @@ def _tags(raw: Any) -> list[str]:
     return []
 
 
+#: F-ALIAS-1 A1 (11.9 carry c1): the public name other modules read (`gallery_suggest`). The SAME function object.
+tags = _tags
+
+
 def _weekday(day: Any) -> str | None:
     try:
         return WEEKDAYS[date.fromisoformat(str(day)[:10]).weekday()]

@@ -1250,10 +1250,10 @@ def _batch_cards(cards: Any) -> list[tuple[str, Any]]:
 def _scope(payload: dict, acc: str, name: Any) -> None:
     """A card narrowed to one of the member's own accounts says so, as `run_plan`'s payload does: a covering
     scan's cut (`_narrow`) carries no account, so the echo and the scope label are set here from the account
-    actually scanned, the label through the payload module's own rule (`payload._scope_label`)."""
+    actually scanned, the label through the payload module's own rule (`payload.scope_label`)."""
     clipped = nw._clip(name, wplan.MAX_TEXT) if isinstance(name, str) else None
     payload["accountId"] = acc
-    payload["scopeLabel"] = wpayload._scope_label(
+    payload["scopeLabel"] = wpayload.scope_label(
         wsources.Scan(payload.get("sourceKey") or "", [], False, None, 0, acc), clipped)
 
 
