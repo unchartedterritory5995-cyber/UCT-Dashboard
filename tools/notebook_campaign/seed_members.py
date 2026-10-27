@@ -48,6 +48,10 @@ import time
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
+# The seeder boots the app in-process from the app root, so it must not write __pycache__ into that
+# tree (campaign re-review r2; recipe section 9).
+sys.dont_write_bytecode = True
+
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 PERSONAS = HERE / "personas.json"

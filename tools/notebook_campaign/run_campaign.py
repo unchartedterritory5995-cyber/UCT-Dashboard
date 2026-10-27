@@ -63,6 +63,10 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from urllib.parse import urlparse
 
+# The operator's own process imports the app root's modules, so it must not write __pycache__ into
+# that tree either (campaign re-review r2; recipe section 9).
+sys.dont_write_bytecode = True
+
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 sys.path.insert(0, str(HERE))
