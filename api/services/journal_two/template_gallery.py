@@ -1379,15 +1379,37 @@ def _is_default_ignorable(ch: str) -> bool:
 #: their supplement (VS16's emoji presentation). Address DETECTION still ignores every one of them: none is a letter
 #: or a digit, so none is in a skeleton.
 _EMOJI_IGNORABLES = ((0x200D, 0x200D), (0xFE00, 0xFE0F), (0xE0100, 0xE01EF))
-#: Ruling W11-R53 (m-1): the TAG characters travel only inside a well-formed emoji tag sequence -- U+1F3F4 WAVING
-#: BLACK FLAG, one or more tag characters (U+E0020-E007E), U+E007F CANCEL TAG (a subdivision flag). Anywhere else a
-#: tag character is an invisible copy of ASCII text (a smuggled address) and is stripped like every other ignorable.
-_EMOJI_TAG_SEQUENCE = re.compile("\U0001F3F4[\U000E0020-\U000E007E]+\U000E007F")
+#: Ruling W11-R53 (m-1) as narrowed by W11-R57: the TAG characters travel only inside a SUBDIVISION FLAG -- U+1F3F4
+#: WAVING BLACK FLAG, then 1 to `FLAG_TAG_MAX` tag characters that are each a tag digit (U+E0030-E0039) or a tag
+#: small letter (U+E0061-E007A), the `gbeng` / `gbsct` / `gbwls` shape, then U+E007F CANCEL TAG. Anything else -- a
+#: tag outside a frame, a frame holding a tag full stop, slash or capital, or more than `FLAG_TAG_MAX` tags -- is an
+#: invisible copy of ASCII text (a smuggled address) and every tag in it is stripped like any other ignorable.
+FLAG_TAG_MAX = 6
+_EMOJI_TAG_SEQUENCE = re.compile(
+    "\U0001F3F4[\U000E0030-\U000E0039\U000E0061-\U000E007A]{1,%d}\U000E007F" % FLAG_TAG_MAX)
+
+
+def _ranges_without(ranges, holes) -> list[tuple[int, int]]:
+    """`ranges` (inclusive) with every code point of `holes` taken out."""
+    out = []
+    for a, b in ranges:
+        pieces = [(a, b)]
+        for h0, h1 in holes:
+            pieces = [p for x, y in pieces for p in ((x, min(y, h0 - 1)), (max(x, h1 + 1), y)) if p[0] <= p[1]]
+        out += pieces
+    return out
+
+
+#: The characters `_strip_ignorables` removes: every Default_Ignorable_Code_Point except the emoji pieces, as ONE
+#: character class (W11-R56: a single pass at C speed, so 1 MB of travelling text is stripped in milliseconds).
+_STRIPPED_IGNORABLE = re.compile("[%s]" % "".join(
+    "%s-%s" % (re.escape(chr(a)), re.escape(chr(b))) for a, b in _ranges_without(_DEFAULT_IGNORABLE, _EMOJI_IGNORABLES)))
 
 
 def _strip_ignorables(text: str) -> str:
-    return "".join(ch for ch in text if not _is_default_ignorable(ch)
-                   or any(a <= ord(ch) <= b for a, b in _EMOJI_IGNORABLES))
+    """Every Default_Ignorable_Code_Point removed (`_is_default_ignorable`), except the emoji pieces
+    (`_EMOJI_IGNORABLES`)."""
+    return _STRIPPED_IGNORABLE.sub("", text)
 
 
 def _without_ignorables(text: str) -> str:
@@ -1455,12 +1477,50 @@ def _encode_label(lab: str) -> str:
     return lab
 
 
-#: W11-R48 (a): after the R47 normalisation (`_address_form`), text that names a scheme or `www.`, or a dotted host
-#: whose last label is letters (a TLD, in any script, or an IDNA `xn--` one), IS an address.
-_ADDRESS_SHAPE = re.compile(
-    r"(?:https?|ftp|mailto):|www\.|(?:[^\W_](?:[\w-]*[^\W_])?\.)+(?:[^\W\d_]{2,}|xn--[a-z0-9-]+)(?![\w-])")
+#: W11-R48 (a): the scheme and `www.` prefixes that make text an address wherever they appear (`_has_address_shape`).
+_SCHEME_MARKS = ("http:", "https:", "ftp:", "mailto:", "www.")
+#: The candidate top-level labels of a dotted host: a maximal run of two or more word characters and hyphens
+#: (`[\w-]`, `\w` being `str.isalnum()` plus `_`) right after an alphanumeric character and a full stop. A fixed-width
+#: look-behind, then ONE character class under ONE quantifier with nothing after it: it cannot backtrack, and a run
+#: starts only after a full stop, so the runs found never overlap.
+_TLD_PIECE = re.compile(r"(?<=[^\W_]\.)[\w-]{2,}")
+#: A decimal digit (`\d`, `str.isdecimal()`): a top-level label holding one is not a TLD.
+_DECIMAL = re.compile(r"\d")
+#: What an IDNA top-level label holds after its `xn--` (it is casefolded already).
+_XN_CHARS = "abcdefghijklmnopqrstuvwxyz0123456789-"
 #: W11-R48 (b): a host skeleton shorter than this is too short to be told from words ("x.io" in "Fix it").
 HOST_SKELETON_MIN = 4
+#: W11-R56: the longest link text that is JUDGED, in characters. Longer link text -- a linked part, or the joined
+#: text of a stretch of one host -- is not judged at all: it is treated as an address and goes whole. That fails
+#: toward privacy (it can only drop text, never let an address through), bounds every judgement's cost by a constant,
+#: and costs nothing a member writes as a link in practice: 2,048 characters is a page of prose under one link.
+LINK_TEXT_JUDGE_MAX = 2048
+
+
+def _has_address_shape(form: str) -> bool:
+    """W11-R48 (a), in LINEAR time (W11-R56): `form` (an `_address_form`) names a scheme or `www.`
+    (`_SCHEME_MARKS`), or holds a dotted host whose last label is letters (a TLD, in any script) or an IDNA `xn--`
+    label. Exactly the decisions of the round-2 pattern
+    `(?:https?|ftp|mailto):|www\\.|(?:[^\\W_](?:[\\w-]*[^\\W_])?\\.)+(?:[^\\W\\d_]{2,}|xn--[a-z0-9-]+)(?![\\w-])`,
+    whose nested quantifiers backtracked quadratically (a 50 KB linked word took 73 s):
+
+    * a host matches as soon as its LAST two labels do -- an alphanumeric character, a full stop, then a top-level
+      label -- since the search is unanchored and one alphanumeric character is already a label;
+    * the top-level label starts right after that full stop and, because it must be followed by neither a word
+      character nor a hyphen, it is the WHOLE `[\\w-]` run there (`_TLD_PIECE`): two or more alphanumerics with
+      no decimal digit, or `xn--` and one or more of `[a-z0-9-]`.
+
+    So each candidate is looked at once, with plain string tests: no pattern here can backtrack."""
+    if any(m in form for m in _SCHEME_MARKS):
+        return True
+    for piece in _TLD_PIECE.finditer(form):
+        tld = piece.group(0)
+        if tld.isalnum() and not _DECIMAL.search(tld):
+            return True
+        rest = tld[4:]
+        if tld.startswith("xn--") and rest and not rest.strip(_XN_CHARS):
+            return True
+    return False
 
 
 def _address_form(text: str) -> str:
@@ -1498,7 +1558,10 @@ def _link_text_is_an_address(text: Any, hrefs: list, memo: dict | None = None) -
       of its spellings (`_href_variants`). Both skeletons are judged, the ruling's `[a-z0-9]` one and the
       every-script one (c2, accepted), and either is enough;
     * W11-R48 (a): the text is ITSELF an address, whatever its href, or with none: after `_address_form` it names a
-      scheme (`http(s):`, `ftp:`, `mailto:`) or `www.`, or a dotted host with a letter TLD (`_ADDRESS_SHAPE`);
+      scheme (`http(s):`, `ftp:`, `mailto:`) or `www.`, or a dotted host with a letter TLD (`_has_address_shape`,
+      linear since W11-R56);
+    * W11-R56: the text is longer than `LINK_TEXT_JUDGE_MAX` characters. It is not judged at all and goes whole,
+      so the cost of a judgement is bounded and an over-long text fails toward privacy;
     * W11-R48 (b): its skeleton CONTAINS the skeleton of one of its hrefs' hosts, when that host skeleton is at least
       `HOST_SKELETON_MIN` characters (shorter ones cannot be told from words).
 
@@ -1512,16 +1575,34 @@ def _link_text_is_an_address(text: Any, hrefs: list, memo: dict | None = None) -
     (`broker·example·com`), spaced dots (`broker . example . com`), hyphens (`broker-example-com`) -- and linked to an
     unrelated href is not recognised either: it is not dotted and not in that href. Like the homoglyph, it is visible
     in the author's own preview, as unmarked prose is (W11-R40).
+    ⛔ A third recorded limit (W11-R58, the round-3 re-review's m-2): a linked part is judged against its OWN hrefs
+    and those of the linked parts right beside it (`_without_links`' `part_hrefs`), never every href of its run. So
+    a fragment of an address linked to an UNRELATED site, two or more links away from the part that holds the rest
+    of the address, travels. The concrete body, one paragraph, `O1` and `O2` unrelated hosts:
+    `[link("https://broker.example.com/acct/", URL), " ", link("help", O1), " ", link("99887766", O2)]` -- the number
+    `99887766` travels (and `acct/99887766` would, written as that last part; with three links between, too). It
+    needs the account fragment to be its own link to an unrelated site: an autolinked or split URL keeps one host,
+    so it is judged as one stretch, and a fragment carrying its own address's href is caught by that href. Like the
+    two above, the text is visible in the author's own preview, and number-only prose linked to a FAQ ("account
+    99887766") is R40's accepted words / number-only link text shape.
 
     `memo` (W11-R53) holds each distinct href's spellings and skeletons for the whole body (`_href_facts`), so a
     body's judgement is linear in its size."""
     if not isinstance(text, str):
         return False
-    if _ADDRESS_SHAPE.search(_address_form(text)):
-        return True
+    if len(text) > LINK_TEXT_JUDGE_MAX:
+        return True                                       # W11-R56: not judged; it goes whole (toward privacy)
     memo = {} if memo is None else memo
+    # W11-R56: what the text alone decides is worked out once per distinct text per body (a one-part stretch and the
+    # part itself are the same text); keyed by a tuple, so it never meets `_href_facts`' href keys
+    mine = memo.get(("text", text))
+    if mine is None:
+        mine = memo[("text", text)] = (_has_address_shape(_address_form(text)),
+                                       (_skeleton(text, latin=True), _skeleton(text, latin=False)))
+    shape, skels = mine
+    if shape:
+        return True
     facts = [_href_facts(h, memo) for h in dict.fromkeys(h for h in hrefs if isinstance(h, str) and h.strip())]
-    skels = (_skeleton(text, latin=True), _skeleton(text, latin=False))
     for i, t_ in enumerate(skels):
         # `t_ in s` answers False at once when `t_` is the longer: a run's joined text costs one pass over the hrefs
         if t_ and any(len(t_) <= len(s) and t_ in s for f in facts for s in f[i]):
@@ -3069,6 +3150,10 @@ ADOPT_NEEDS_STYLES_SENTENCE = "Journal styles are not on for you yet, so a style
 UPDATE_STALE_SENTENCE = "This style changed since you opened the update. Nothing was changed. Look again."
 UPDATE_MOVED_SENTENCE = ("The author listed a newer version since you opened the update. Nothing was changed. "
                          "Look again.")
+#: W11-R59: the answer of an adopt or a first Use whose listing moved under the write lock twice (`_retry_once`): the
+#: template changed while it was being taken, so nothing was made. Not `UPDATE_MOVED_SENTENCE` (there is no update the
+#: member opened) and not `S_KEY_IN_FLIGHT` (no request of theirs is on its way).
+LISTING_MOVED_SENTENCE = "This template changed while it was being added. Nothing was made. Try again."
 
 
 def _listed_row(conn: sqlite3.Connection, gallery_id: Any, item_type: str, *,
@@ -3615,7 +3700,7 @@ def adopt_style(user_id: str, gallery_id: Any, *, notify: bool = False, answers:
         # W11-R53: a keyed adopt takes the write lock up front, so its listing is cleaned BEFORE it (`_prepare`);
         # under the lock only the stored listing is compared, and a moved one is cleaned again outside, once.
         return _retry_once(lambda: _adopt_style_once(user_id, gallery_id, k, notify, answers, choices, conn),
-                           S_KEY_IN_FLIGHT)
+                           LISTING_MOVED_SENTENCE)
     finally:
         if owned:
             conn.close()
@@ -4394,9 +4479,10 @@ def use_library_template(user_id: str, gallery_id: Any, *, answers: Any = None, 
 
     Ruling W11-R53: the first Use adopts under its write lock, so the listing is cleaned BEFORE that lock; when the
     listing moved in between, the whole Use runs once more (nothing was written), then refuses with
-    `S_KEY_IN_FLIGHT`."""
+    `LISTING_MOVED_SENTENCE` (W11-R59)."""
     return _retry_once(lambda: _use_library_template_once(user_id, gallery_id, answers=answers, choices=choices,
-                                                          payload=payload, key=key, conn=conn), S_KEY_IN_FLIGHT)
+                                                          payload=payload, key=key, conn=conn),
+                       LISTING_MOVED_SENTENCE)
 
 
 def _use_library_template_once(user_id: str, gallery_id: Any, *, answers: Any = None, choices: Any = None,

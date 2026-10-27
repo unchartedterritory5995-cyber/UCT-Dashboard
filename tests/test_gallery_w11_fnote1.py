@@ -11,6 +11,7 @@ import json
 import threading
 import time
 import pathlib
+import re
 import sqlite3
 import subprocess
 import sys
@@ -971,7 +972,8 @@ def test_a_listing_that_moves_under_the_lock_is_cleaned_again_outside_once_then_
     settled = state()
     with pytest.raises(gallery.GalleryConflict) as e:
         run(OTHER)                                                       # OTHER has no copy: its Use adopts
-    assert str(e.value) == (gallery.UPDATE_MOVED_SENTENCE if which == "apply" else gallery.S_KEY_IN_FLIGHT)
+    # W11-R59: an adopt or a first Use whose listing kept moving says the template changed, not "on its way"
+    assert str(e.value) == (gallery.UPDATE_MOVED_SENTENCE if which == "apply" else gallery.LISTING_MOVED_SENTENCE)
     assert not db.in_transaction and state() == settled                 # nothing was written
 
 
@@ -1023,3 +1025,251 @@ def test_each_distinct_href_is_spelled_once_per_body(db, monkeypatch):
                     {"type": "text", "text": " "}]
     gallery._without_links({"type": "doc", "content": [{"type": "paragraph", "content": content}]})
     assert len(calls) == 400 == len(set(calls))
+
+
+# ── W11-R56: the address-shape check is linear, and judged link text is capped ────────────────────────────────────
+
+#: The round-2 R48 (a) pattern, kept HERE ONLY as the oracle the linear check is compared with (its nested
+#: quantifiers backtrack quadratically: never run it on long text).
+R48_PATTERN_ORACLE = re.compile(
+    r"(?:https?|ftp|mailto):|www\.|(?:[^\W_](?:[\w-]*[^\W_])?\.)+(?:[^\W\d_]{2,}|xn--[a-z0-9-]+)(?![\w-])")
+
+#: The three shapes the re-review timed (50 KB: 73 s, 48 s, 127 s), each `n` characters long and never an address:
+#: one word, a hyphenated word, and full stops with no letter TLD.
+LONG_SHAPES = {
+    "a long word": lambda n: "a" * n,
+    "a long hyphenated word": lambda n: ("ab-" * n)[:n - 1] + "b",
+    "dots with no letter TLD": lambda n: ("a." * n)[:n - 1] + "1",
+}
+
+
+def test_the_linear_shape_check_decides_exactly_what_the_r48_pattern_decided():
+    """W11-R56 keeps R48 (a)'s decisions: 40,000 seeded random short texts over the characters that matter (full
+    stops, hyphens, underscores, digits of several kinds, letters of several scripts, the scheme words), and code
+    points at the five places a host is read (before and after the full stop, inside the TLD, after `xn--`) -- all of
+    the first 12,288 and every 97th after -- answer the same as the round-2 pattern."""
+    import random
+    rnd = random.Random(56)
+    alphabet = list("ab.-_1 xnwhtpfmilo:/") + ["xn--", "www", "http", "https", "ftp", "mailto", "é", "٣",
+                                               "፩", "²", "Ⅻ", "ж", "..", "co"]
+    for _ in range(40_000):
+        s = "".join(rnd.choice(alphabet) for _ in range(rnd.randint(0, 14)))
+        assert gallery._has_address_shape(s) == bool(R48_PATTERN_ORACLE.search(s)), ascii(s)
+    for cp in list(range(0, 0x3000)) + list(range(0x3000, 0x110000, 97)):
+        if 0xD800 <= cp <= 0xDFFF:
+            continue
+        c = chr(cp)
+        for s in (f"a.{c}{c}", f"{c}.co", f"a.x{c}", f"a.xn--{c}", f"a.{c}"):
+            assert gallery._has_address_shape(s) == bool(R48_PATTERN_ORACLE.search(s)), (hex(cp), ascii(s))
+
+
+def test_the_shape_check_has_no_nested_quantifier():
+    """The patterns the shape check runs hold one character class under one quantifier at most: nothing to
+    backtrack into. The round-2 pattern is gone from the module."""
+    assert not hasattr(gallery, "_ADDRESS_SHAPE")
+    assert gallery._TLD_PIECE.pattern == r"(?<=[^\W_]\.)[\w-]{2,}"
+    assert gallery._DECIMAL.pattern == r"\d"
+
+
+_SHAPE_PROBE = r"""
+import sys, time
+sys.path.insert(0, sys.argv[1])
+from api.services.journal_two import template_gallery as g
+n, shape = 1_000_000, sys.argv[2]
+s = {"word": "a" * n, "hyphen": ("ab-" * n)[:n - 1] + "b", "dots": ("a." * n)[:n - 1] + "1"}[shape]
+form = g._address_form(s)
+t0 = time.perf_counter()
+got = g._has_address_shape(form)
+print(repr((time.perf_counter() - t0, got)))
+"""
+
+
+@pytest.mark.parametrize("shape", ["word", "hyphen", "dots"])
+def test_the_shape_check_alone_is_linear_on_one_mb(shape):
+    """The shape check itself, BELOW the cap that normally guards it: 1 MB of each shape is judged in under half a
+    second (the round-2 pattern needs hours). It runs in a child process with a deadline, so a quadratic check fails
+    this rail by timing out instead of hanging the suite."""
+    root = pathlib.Path(__file__).resolve().parents[1]
+    try:
+        r = subprocess.run([sys.executable, "-c", _SHAPE_PROBE, str(root), shape], capture_output=True, text=True,
+                           timeout=60, cwd=str(root))
+    except subprocess.TimeoutExpired:
+        pytest.fail(f"the shape check did not finish 1 MB of {shape} in 60 s")
+    assert r.returncode == 0, r.stderr
+    took, got = eval(r.stdout.strip().splitlines()[-1])            # noqa: S307 -- our own child's repr
+    assert got is False and took < 0.5, (shape, took)
+
+
+def _one_link_paragraph(text: str, href: str) -> dict:
+    return {"type": "paragraph", "content": [_lk(text, href)]}
+
+
+@pytest.mark.parametrize("shape", list(LONG_SHAPES))
+def test_a_one_mb_linked_text_reduces_in_under_half_a_second_and_goes_whole(db, shape):
+    """The re-review's C-1 bodies at the outline cap: ONE linked text of 1 MB in each shape. It is over
+    `LINK_TEXT_JUDGE_MAX`, so it is not judged and goes whole (toward privacy), in under half a second."""
+    text = LONG_SHAPES[shape](1_000_000)
+    doc = {"type": "doc", "content": [_one_link_paragraph(text, "https://x.example.org/a"), para("stays")]}
+    t0 = time.perf_counter()
+    out = gallery._shared_outline(doc, AUTHOR)
+    took = time.perf_counter() - t0
+    assert took < 0.5, took
+    blob = json.dumps(out)
+    assert text[:64] not in blob and "stays" in blob
+
+
+@pytest.mark.parametrize("shape", list(LONG_SHAPES))
+def test_one_mb_of_linked_texts_just_under_the_cap_reduce_in_under_half_a_second(db, shape):
+    """Under the cap every text IS judged: 1 MB of distinct linked texts of `LINK_TEXT_JUDGE_MAX` characters in each
+    shape (each its own paragraph and href, so nothing is joined and no judgement is shared) reduce in under half a
+    second, and every one travels as words. The round-2 pattern took about 0.05 s for EACH of them."""
+    n = gallery.LINK_TEXT_JUDGE_MAX
+    paras = [_one_link_paragraph(LONG_SHAPES[shape](n - 6) + f"{i:06d}", f"https://site{i}.example.org/a")
+             for i in range(1_000_000 // n)]
+    assert all(len(p["content"][0]["text"]) == n for p in paras)
+    t0 = time.perf_counter()
+    out = gallery._shared_outline({"type": "doc", "content": paras}, AUTHOR)
+    took = time.perf_counter() - t0
+    assert took < 0.5, (shape, took)
+    kept = [p["content"][0]["text"] for p in out["content"] if p.get("content")]
+    assert kept == [p["content"][0]["text"] for p in paras]
+
+
+def test_the_cap_is_one_constant_and_over_it_the_text_goes_whole(db):
+    """`LINK_TEXT_JUDGE_MAX` is the one bound: words of exactly that length are judged (and travel), one character
+    more and they go whole, linked to anything or nothing. A stretch's JOINED text is capped the same way."""
+    n = gallery.LINK_TEXT_JUDGE_MAX
+    words = ("my notes " * n)[:n]
+    assert not gallery._link_text_is_an_address(words, ["https://x.example/a"])
+    assert gallery._link_text_is_an_address(words + "s", ["https://x.example/a"])
+    assert gallery._link_text_is_an_address(words + "s", [])
+    half = words[: n // 2 + 1]
+    out = gallery._shared_outline({"type": "doc", "content": [{"type": "paragraph", "content": [
+        _lk(half, "https://x.example/a"), _lk(half, "https://x.example/a", BOLD)]}]}, AUTHOR)
+    assert out["content"][0].get("content", []) == []                  # one host, joined past the cap: goes whole
+    out = gallery._shared_outline({"type": "doc", "content": [{"type": "paragraph", "content": [
+        _lk(half, "https://x.example/a"), {"type": "text", "text": " and "}, _lk(half, "https://y.example/b")]}]},
+        AUTHOR)
+    assert json.dumps(out).count(half) == 2                             # control: two hosts, each under the cap
+
+
+# ── W11-R57: a flag frame travels only with subdivision-shaped tags ───────────────────────────────────────────────
+
+def _flag(spec: str) -> str:
+    return "\U0001F3F4" + _tagged(spec) + "\U000E007F"
+
+
+#: The emoji that must stay byte-identical: the three subdivision flags, the ZWJ family, the VS16 heart, the pirate
+#: flag (ZWJ + VS16 on the same black flag) and the rainbow flag.
+TRAVELLING_EMOJI = {
+    "England": _flag("gbeng"), "Scotland": _flag("gbsct"), "Wales": _flag("gbwls"),
+    "zwj family": "\U0001F468‍\U0001F469‍\U0001F467", "vs16 heart": "❤️",
+    "pirate flag": "\U0001F3F4‍☠️", "rainbow flag": "\U0001F3F3️‍\U0001F308",
+}
+
+
+@pytest.mark.parametrize("slot", [True, False], ids=["slot", "noslot"])
+@pytest.mark.parametrize("linked", [True, False], ids=["link", "prose"])
+def test_an_address_written_in_tags_inside_a_flag_frame_never_travels(db, slot, linked):
+    """The round-3 re-review's m-1 body: the address in tag characters INSIDE a well-formed flag frame (U+1F3F4 ...
+    U+E007F), as link text and as prose. No tag character reaches any path, so nothing decodes to the address; the
+    word beside it and every real emoji beside it travel byte-identical."""
+    frame = _flag("broker.example.com/acct/99887766")
+    emoji = "".join(TRAVELLING_EMOJI.values())
+    text = "statement " + frame + " " + emoji
+    node = _lk(text, "https://x.example/a") if linked else {"type": "text", "text": text}
+    _s, got = _every_share_path(db, [node], slot)
+    for where, v in got.items():
+        blob = _decoded(v)
+        for e in TRAVELLING_EMOJI.values():
+            blob = blob.replace(e, "")
+        assert not any(0xE0000 <= ord(c) <= 0xE007F for c in blob), where
+    for where in ("payload_json", "body_json", "copy", "use_note"):
+        blob = _decoded(got[where])
+        assert "statement" in blob and emoji in blob, where
+
+
+@pytest.mark.parametrize("name", list(TRAVELLING_EMOJI))
+def test_every_real_emoji_travels_byte_identical(db, name):
+    e = TRAVELLING_EMOJI[name]
+    assert gallery._without_ignorables(e) == e
+    out = gallery._shared_outline({"type": "doc", "content": [{"type": "paragraph", "content": [
+        {"type": "text", "text": f"a{e}b"}, {"type": "text", "text": f" see {e}", "marks": [BOLD]}]}]}, AUTHOR)
+    assert [n["text"] for n in out["content"][0]["content"]] == [f"a{e}b", f" see {e}"]
+
+
+def test_a_flag_frame_keeps_only_one_to_six_tag_letters_or_digits():
+    """W11-R57's grammar, at its edges: 1 and `FLAG_TAG_MAX` tags of a-z / 0-9 travel; one too many, a tag capital,
+    a tag full stop, slash or space, or the re-review's address strips every tag (the black flag base stays, as any
+    emoji does)."""
+    base = "\U0001F3F4"
+    assert gallery.FLAG_TAG_MAX == 6
+    for spec in ("g", "gbeng", "us0ca1", "123456"):
+        assert gallery._without_ignorables(_flag(spec)) == _flag(spec), spec
+    for spec in ("gbengx1", "GBENG", "gb.eng", "a/b", "gb eng", "broker.example.com/acct/99887766"):
+        assert gallery._without_ignorables(_flag(spec)) == base, spec
+
+
+# ── W11-R58: the adjacency-only judgement is a recorded limit ─────────────────────────────────────────────────────
+
+def test_the_adjacency_limit_is_recorded_beside_the_others_and_one_link_away_is_still_caught(db):
+    """W11-R58 records the re-review's m-2 as an accepted limit in the authority's docstring, with its concrete body.
+    What the limit does not cover still holds: a fragment linked elsewhere ONE link away from the part that holds
+    the rest of the address goes."""
+    doc = gallery._link_text_is_an_address.__doc__
+    assert "W11-R58" in doc and 'link("99887766", O2)' in doc and "recorded limit" in doc
+    out = gallery._shared_outline({"type": "doc", "content": [{"type": "paragraph", "content": [
+        _lk(f"https://{HOST}/acct/"), {"type": "text", "text": " "}, _lk(ACCT, "https://help.example.org/")]}]},
+        AUTHOR)
+    assert ACCT not in json.dumps(out) and HOST not in json.dumps(out)
+
+
+# ── W11-R59: a listing that moved twice answers that the template changed ─────────────────────────────────────────
+
+@pytest.fixture
+def gallery_client(db, monkeypatch):
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    from api.limiter import limiter
+    from api.middleware import auth_middleware as authmw
+    from api.routers import notebook_template_gallery
+    monkeypatch.setenv("NOTEBOOK_TEMPLATE_GALLERY_ENABLED", "1")
+    limiter.reset()
+    fa = FastAPI()
+    fa.include_router(notebook_template_gallery.router)
+    user = {"id": OTHER, "role": "member", "plan": "pro"}
+    fa.dependency_overrides[authmw.get_current_user] = lambda: dict(user)
+    fa.dependency_overrides[authmw.get_current_user_with_plan] = lambda: dict(user)
+    yield TestClient(fa)
+    fa.dependency_overrides.clear()
+    limiter.reset()
+
+
+@pytest.mark.parametrize("door,keyed", [("adopt", True), ("use-template", True), ("use-template", False)],
+                         ids=["keyed adopt", "keyed first use", "unkeyed first use"])
+def test_a_listing_that_moved_twice_answers_that_the_template_changed(db, monkeypatch, gallery_client, door, keyed):
+    """The round-3 re-review's m-3, through the member's own door: the listing moves under the lock on BOTH tries of
+    a keyed adopt and of a first Use (the paths that take the write lock up front; an unkeyed adopt cleans under no
+    lock). The rendered answer is 409 with `LISTING_MOVED_SENTENCE` -- the template changed -- never "That is already
+    on its way", and nothing was made."""
+    gid = _legacy_listing(db, 5)
+    real = gallery._Prepared.__init__
+
+    def init(self, row):
+        real(self, row)
+        self.payload_json = (self.payload_json or "") + " "             # an approval in between, every time
+    monkeypatch.setattr(gallery._Prepared, "__init__", init)
+
+    def made():
+        return (db.execute("SELECT COUNT(*) FROM j2_notes").fetchone()[0],
+                db.execute("SELECT COUNT(*) FROM j2_journal_styles").fetchone()[0])
+    before = made()
+    headers = {"Content-Type": "application/json"}
+    if keyed:
+        headers[gallery.IDEMPOTENCY_HEADER] = str(uuid.uuid4())
+    r = gallery_client.post(f"/api/j2/template-gallery/{gid}/{door}", content=b"{}", headers=headers)
+    assert r.status_code == 409, r.text
+    assert r.json()["detail"]["message"] == gallery.LISTING_MOVED_SENTENCE
+    assert "template changed" in r.text and gallery.S_KEY_IN_FLIGHT not in r.text
+    assert made() == before
