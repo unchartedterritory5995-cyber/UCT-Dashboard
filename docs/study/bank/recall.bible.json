@@ -140,9 +140,9 @@
   "module": null,
   "prompt_json": {
    "choices": [
-    "Impatience, entering before the moving averages have tightened to the breakout level.",
-    "Taking the breakout when it is not also a high-of-day break.",
-    "Buying the first wild swings before any real base has formed.",
+    "Accepting a crash of a red day before the gap; a 9 percent red bar is too dramatic, the setup wants a real but orderly red day.",
+    "Buying an Oops after a big news gap the day before; that is a delayed-reaction setup, not an Oops.",
+    "Buying an Oops a few days after a nasty outsized red day; the stock is off the radar.",
     "Buy stocks at or near new 52-week or all-time highs, not cheap stocks near lows"
    ],
    "q": "Which line is one of O'Neil's 23 rules, as the firm's bible quotes them?",
@@ -204,10 +204,10 @@
   "module": null,
   "prompt_json": {
    "choices": [
-    "Buying the first wild swings before any real base has formed.",
+    "Tolerating a loose or deep “flag” that is really just a normal pullback or trend break.",
     "Volume must confirm every breakout (40-50%+ above average)",
-    "Impatience, entering before the moving averages have tightened to the breakout level.",
-    "Taking the breakout when it is not also a high-of-day break."
+    "Erasing the level because price traded below the HVE close; it is a level to mark, not a line that must hold.",
+    "Buying the flagpole instead of waiting for the flag and breakout."
    ],
    "q": "Which line is one of O'Neil's 23 rules, as the firm's bible quotes them?",
    "subject": "oneil rule 4"
@@ -269,10 +269,10 @@
   "module": null,
   "prompt_json": {
    "choices": [
-    "Buying the flagpole instead of waiting for the flag and breakout.",
+    "Buying the earnings gap day itself as the Slingshot; the gap day or rally day is never the trigger.",
     "Never average down, add only to winners",
-    "Chasing when the opening-range high does not break (no edge, move on).",
-    "Selling the entire position into the first day or two and missing the multi-week trend."
+    "Keeping a position after the Oops-day low breaks; the low must never break.",
+    "Taking a subtle, hidden Oops in a random spot; location comes first."
    ],
    "q": "Which line is one of O'Neil's 23 rules, as the firm's bible quotes them?",
    "subject": "oneil rule 5"
@@ -302,9 +302,9 @@
   "prompt_json": {
    "choices": [
     "Never buy on tips or opinions, let the chart and fundamentals confirm",
-    "Buying the flagpole instead of waiting for the flag and breakout.",
-    "Tolerating a loose or deep “flag” that is really just a normal pullback or trend break.",
-    "Chasing well past the breakout instead of entering near the pivot."
+    "Calling the highest volume of the year an HVE when it is three times normal on a mega-cap; that is an HVC.",
+    "Calling an earnings gap on big but ordinary volume an HVE; that is a PEG.",
+    "Marking an OPEX or month-end session as an HVE."
    ],
    "q": "Which line is one of O'Neil's 23 rules, as the firm's bible quotes them?",
    "subject": "oneil rule 6"
@@ -333,10 +333,10 @@
   "module": null,
   "prompt_json": {
    "choices": [
-    "Chasing when the opening-range high does not break (no edge, move on).",
+    "Taking a gap up after a baby red candle; a doji before a gap traps nobody, it is just a breakout.",
     "Don't buy more than 5-7 stocks at once, concentration beats diversification",
-    "Ignoring whether volume actually dried up through the coil.",
-    "Entering inside the wedge before the drop confirms."
+    "Selling the entire position into the first day or two and missing the multi-week trend.",
+    "Calling an earnings-day gap a kicker; by default that is an earnings gapper."
    ],
    "q": "Which line is one of O'Neil's 23 rules, as the firm's bible quotes them?",
    "subject": "oneil rule 7"
@@ -399,9 +399,9 @@
   "prompt_json": {
    "choices": [
     "RS line should be making new highs before or at the same time as price",
-    "Ignoring whether volume actually dried up through the coil.",
-    "Entering inside the wedge before the drop confirms.",
-    "Chasing when the opening-range high does not break (no edge, move on)."
+    "Taking it on a thin or sub-10-dollar stock; the examples come from names the owner would trade.",
+    "Calling the highest volume of the year an HVE when it is three times normal on a mega-cap; that is an HVC.",
+    "Calling an earnings gap on big but ordinary volume an HVE; that is a PEG."
    ],
    "q": "Which line is one of O'Neil's 23 rules, as the firm's bible quotes them?",
    "subject": "oneil rule 8"
@@ -431,9 +431,9 @@
   "prompt_json": {
    "choices": [
     "The best stocks form sound base patterns before major moves",
-    "Impatience, entering before the moving averages have tightened to the breakout level.",
-    "Taking the breakout when it is not also a high-of-day break.",
-    "Buying the first wild swings before any real base has formed."
+    "Erasing the level because price traded below the HVE close; it is a level to mark, not a line that must hold.",
+    "Buying the flagpole instead of waiting for the flag and breakout.",
+    "Tolerating a loose or deep “flag” that is really just a normal pullback or trend break."
    ],
    "q": "Which line is one of O'Neil's 23 rules, as the firm's bible quotes them?",
    "subject": "oneil rule 9"
@@ -462,10 +462,10 @@
   "module": null,
   "prompt_json": {
    "choices": [
-    "Tolerating a loose or deep “flag” that is really just a normal pullback or trend break.",
-    "Chasing well past the breakout instead of entering near the pivot.",
+    "Ignoring direction, the setup is symmetrical and can break long or short; the environment dictates which side to trade.",
+    "Buying the pullback before a candle actually holds the 20-EMA.",
     "Earnings growth is the engine, without it, there is no sustainable move",
-    "Buying the flagpole instead of waiting for the flag and breakout."
+    "Forcing the trade before the moving averages have actually converged."
    ],
    "q": "Which line is one of O'Neil's 23 rules, as the firm's bible quotes them?",
    "subject": "oneil rule 10"
@@ -622,10 +622,10 @@
   "module": null,
   "prompt_json": {
    "choices": [
-    "Buying the flagpole instead of waiting for the flag and breakout.",
-    "Tolerating a loose or deep “flag” that is really just a normal pullback or trend break.",
+    "Buying an Oops after a big news gap the day before; that is a delayed-reaction setup, not an Oops.",
+    "Buying an Oops a few days after a nasty outsized red day; the stock is off the radar.",
     "Follow-Through Days confirm new market uptrends (Day 4-7, 1.5%+ on higher volume)",
-    "Selling the entire position into the first day or two and missing the multi-week trend."
+    "Accepting a crash of a red day before the gap; a 9 percent red bar is too dramatic, the setup wants a real but orderly red day."
    ],
    "q": "Which line is one of O'Neil's 23 rules, as the firm's bible quotes them?",
    "subject": "oneil rule 14"
@@ -752,10 +752,10 @@
   "module": null,
   "prompt_json": {
    "choices": [
-    "Ignoring whether volume actually dried up through the coil.",
-    "Chasing when the opening-range high does not break (no edge, move on).",
+    "Calling an earnings gap on big but ordinary volume an HVE; that is a PEG.",
+    "Marking an OPEX or month-end session as an HVE.",
     "The best time to buy is within 5-10% of a proper base breakout pivot",
-    "Entering inside the wedge before the drop confirms."
+    "Calling the highest volume of the year an HVE when it is three times normal on a mega-cap; that is an HVC."
    ],
    "q": "Which line is one of O'Neil's 23 rules, as the firm's bible quotes them?",
    "subject": "oneil rule 16"
@@ -817,10 +817,10 @@
   "module": null,
   "prompt_json": {
    "choices": [
-    "Using the setup on a stock whose daily chart is not bullish.",
+    "Accepting a crash of a red day before the gap; a 9 percent red bar is too dramatic, the setup wants a real but orderly red day.",
     "Buy the leading stock in the leading industry group",
-    "Ignoring direction, the setup is symmetrical and can break long or short; the environment dictates which side to trade.",
-    "Buying the pullback before a candle actually holds the 20-EMA."
+    "Taking a gap up after a baby red candle; a doji before a gap traps nobody, it is just a breakout.",
+    "Buying a gap against an intermediate downtrend, a recovery into the 200-day, and calling it a kicker."
    ],
    "q": "Which line is one of O'Neil's 23 rules, as the firm's bible quotes them?",
    "subject": "oneil rule 17"
@@ -849,10 +849,10 @@
   "module": null,
   "prompt_json": {
    "choices": [
-    "Long: anticipating the reclaim before price actually crosses back above the averages.",
+    "Buying the earnings gap day itself as the Slingshot; the gap day or rally day is never the trigger.",
     "Round numbers are not sell targets, sell on climax tops and technical signals",
-    "Buying the pullback before a candle actually holds the 20-EMA.",
-    "Using the setup on a stock whose daily chart is not bullish."
+    "Keeping a position after the Oops-day low breaks; the low must never break.",
+    "Taking a subtle, hidden Oops in a random spot; location comes first."
    ],
    "q": "Which line is one of O'Neil's 23 rules, as the firm's bible quotes them?",
    "subject": "oneil rule 18"
@@ -881,10 +881,10 @@
   "module": null,
   "prompt_json": {
    "choices": [
-    "Forcing the trade before the moving averages have actually converged.",
-    "Ignoring direction, the setup is symmetrical and can break long or short; the environment dictates which side to trade.",
+    "Calling the highest volume of the year an HVE when it is three times normal on a mega-cap; that is an HVC.",
+    "Calling an earnings gap on big but ordinary volume an HVE; that is a PEG.",
     "Never marry a stock, be willing to sell if the story changes",
-    "Forcing IPO breakouts in a weak market where new issues fail."
+    "Taking it on a thin or sub-10-dollar stock; the examples come from names the owner would trade."
    ],
    "q": "Which line is one of O'Neil's 23 rules, as the firm's bible quotes them?",
    "subject": "oneil rule 19"
@@ -913,10 +913,10 @@
   "module": null,
   "prompt_json": {
    "choices": [
-    "Impatience, entering before the moving averages have tightened to the breakout level.",
+    "Selling the entire position into the first day or two and missing the multi-week trend.",
     "Price/volume analysis beats news, the tape never lies",
-    "Tolerating a loose or deep “flag” that is really just a normal pullback or trend break.",
-    "Chasing well past the breakout instead of entering near the pivot."
+    "Ignoring whether volume actually dried up through the coil.",
+    "Chasing when the opening-range high does not break (no edge, move on)."
    ],
    "q": "Which line is one of O'Neil's 23 rules, as the firm's bible quotes them?",
    "subject": "oneil rule 20"
@@ -945,10 +945,10 @@
   "module": null,
   "prompt_json": {
    "choices": [
-    "Buying the pullback before a candle actually holds the 20-EMA.",
-    "Using the setup on a stock whose daily chart is not bullish.",
+    "Chasing when the opening-range high does not break (no edge, move on).",
+    "Selling the entire position into the first day or two and missing the multi-week trend.",
     "Sell when a stock fails to follow through after a breakout on heavy volume",
-    "Ignoring direction, the setup is symmetrical and can break long or short; the environment dictates which side to trade."
+    "Ignoring whether volume actually dried up through the coil."
    ],
    "q": "Which line is one of O'Neil's 23 rules, as the firm's bible quotes them?",
    "subject": "oneil rule 21"
@@ -977,10 +977,10 @@
   "module": null,
   "prompt_json": {
    "choices": [
-    "Using the setup on a stock whose daily chart is not bullish.",
-    "Long: anticipating the reclaim before price actually crosses back above the averages.",
+    "Taking it on a thin or sub-10-dollar stock; the examples come from names the owner would trade.",
+    "Calling the highest volume of the year an HVE when it is three times normal on a mega-cap; that is an HVC.",
     "The biggest winners look \"too expensive\" before they double",
-    "Buying the pullback before a candle actually holds the 20-EMA."
+    "Mistaking a bear-market bounce under a falling 200-day for a Slingshot; it needs strength behind it."
    ],
    "q": "Which line is one of O'Neil's 23 rules, as the firm's bible quotes them?",
    "subject": "oneil rule 22"
@@ -1009,10 +1009,10 @@
   "module": null,
   "prompt_json": {
    "choices": [
-    "Forcing IPO breakouts in a weak market where new issues fail.",
-    "Forcing the trade before the moving averages have actually converged.",
+    "Taking it on a thin or sub-10-dollar stock; the examples come from names the owner would trade.",
+    "Calling the highest volume of the year an HVE when it is three times normal on a mega-cap; that is an HVC.",
     "Study your mistakes more than your successes, losers teach more",
-    "Widening the stop to survive the base’s depth and blowing the risk budget."
+    "Mistaking a bear-market bounce under a falling 200-day for a Slingshot; it needs strength behind it."
    ],
    "q": "Which line is one of O'Neil's 23 rules, as the firm's bible quotes them?",
    "subject": "oneil rule 23"

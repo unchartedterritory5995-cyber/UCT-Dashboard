@@ -1,0 +1,662 @@
+[
+ {
+  "answer_json": {
+   "answer": "An earnings gapper (a Power Earnings Gap), not a Kicker"
+  },
+  "difficulty": 3,
+  "id": "si_ab81f8b7b66b",
+  "lesson_origin": "source",
+  "lesson_text": "An earnings-day gap is an earnings gapper by default. The kicker is about short-term positioning, the red-day sellers trapped, and should rarely be an earnings day. An HVE needs volume that dwarfs everything before it, and the Slingshot is the first pause AFTER the gap, never the gap day.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "A Kicker Candle",
+    "A High Volume Edge",
+    "A Slingshot trigger",
+    "An earnings gapper (a Power Earnings Gap), not a Kicker"
+   ],
+   "note": "One answer is the owner's ruling.",
+   "q": "A stock gaps up on its earnings report on heavy volume and closes strong. By the firm's rulings, what is that day by default?",
+   "subject": "contrast 01: Kicker Candle"
+  },
+  "reveal_json": {
+   "quote": "An earnings-day gap is an earnings gapper by default. The kicker is about short-term positioning, the red-day sellers trapped, and should rarely be an earnings day. An HVE needs volume that dwarfs everything before it, and the Slingshot is the first pause AFTER the gap, never the gap day.",
+   "rulings": "13,21",
+   "setup": "Kicker Candle",
+   "source": "docs/study/corrections/spot.fixtures.jsonl#ruling-13,21#contrast-01"
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.kicker",
+  "source_kind": "ruling",
+  "source_ref": "docs/study/corrections/spot.fixtures.jsonl#ruling-13,21#contrast-01",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "A Kicker Candle: the red-day sellers are trapped"
+  },
+  "difficulty": 3,
+  "id": "si_d2abdf47edbe",
+  "lesson_origin": "source",
+  "lesson_text": "Sellers need to be trapped, so the red day before must look like an almost-failed breakdown, a real red bar closing at or near the lows of the base; then the gap reverses it with a strong green candle. The stock must already be set up.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "An Oops Reversal",
+    "A Slingshot",
+    "A Kicker Candle: the red-day sellers are trapped",
+    "A Base Breakout"
+   ],
+   "note": "One answer is the owner's ruling.",
+   "q": "The day before closed red and weak near its low, with a real body. It looked like a failed breakdown out of a clean base. Today, not an earnings day, gapped up and closed strong above that red day's high. Which setup is this?",
+   "subject": "contrast 02: Kicker Candle"
+  },
+  "reveal_json": {
+   "quote": "Sellers need to be trapped, so the red day before must look like an almost-failed breakdown, a real red bar closing at or near the lows of the base; then the gap reverses it with a strong green candle. The stock must already be set up.",
+   "rulings": "4,15",
+   "setup": "Kicker Candle",
+   "source": "docs/study/corrections/spot.fixtures.jsonl#ruling-4,15#contrast-02"
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.kicker",
+  "source_kind": "ruling",
+  "source_ref": "docs/study/corrections/spot.fixtures.jsonl#ruling-4,15#contrast-02",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Just a breakout, not a kicker: a baby red candle traps nobody"
+  },
+  "difficulty": 3,
+  "id": "si_9c3d461bd87e",
+  "lesson_origin": "source",
+  "lesson_text": "Opening above the prior high does not separate kickers from breakouts; the prior day's body does. Kept kickers had a real red body of 1-5% of price; the breakouts had near-doji red days. A baby red candle traps nobody.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "A Super Oops",
+    "Just a breakout, not a kicker: a baby red candle traps nobody",
+    "A Kicker Candle, because it gapped above the prior high",
+    "A Launchpad"
+   ],
+   "note": "One answer is the owner's ruling.",
+   "q": "The day before was a baby red candle, barely a body, inside a tight base. Today gapped up through the base highs. What did the owner call this?",
+   "subject": "contrast 03: Kicker Candle"
+  },
+  "reveal_json": {
+   "quote": "Opening above the prior high does not separate kickers from breakouts; the prior day's body does. Kept kickers had a real red body of 1-5% of price; the breakouts had near-doji red days. A baby red candle traps nobody.",
+   "rulings": "15",
+   "setup": "Kicker Candle",
+   "source": "docs/study/corrections/spot.fixtures.jsonl#ruling-15#contrast-03"
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.kicker",
+  "source_kind": "ruling",
+  "source_ref": "docs/study/corrections/spot.fixtures.jsonl#ruling-15#contrast-03",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "No: a gap against an intermediate downtrend is a different setup; the kicker fires out of an uptrend or a base"
+  },
+  "difficulty": 3,
+  "id": "si_dda2bc8133f3",
+  "lesson_origin": "source",
+  "lesson_text": "The stock should already be in an uptrend or a base, not recovering from a correction into the 200-day. A gap against an intermediate downtrend is a different setup (the owner graded SMH 2026-03-31 a C- for exactly this).",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Yes, if the gap is over 3%",
+    "No: a gap against an intermediate downtrend is a different setup; the kicker fires out of an uptrend or a base",
+    "Yes, any red day then a gap up is a kicker",
+    "Yes, if the volume is double"
+   ],
+   "note": "One answer is the owner's ruling.",
+   "q": "A stock recovering from a correction, still under a falling 200-day, gaps up strongly after a red day. Kicker?",
+   "subject": "contrast 04: Kicker Candle"
+  },
+  "reveal_json": {
+   "quote": "The stock should already be in an uptrend or a base, not recovering from a correction into the 200-day. A gap against an intermediate downtrend is a different setup (the owner graded SMH 2026-03-31 a C- for exactly this).",
+   "rulings": "17",
+   "setup": "Kicker Candle",
+   "source": "docs/study/corrections/spot.fixtures.jsonl#ruling-17#contrast-04"
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.kicker",
+  "source_kind": "ruling",
+  "source_ref": "docs/study/corrections/spot.fixtures.jsonl#ruling-17#contrast-04",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "A scanner Oops Reversal"
+  },
+  "difficulty": 3,
+  "id": "si_cd99269fc568",
+  "lesson_origin": "source",
+  "lesson_text": "The scanner Oops is the main definition: open below the prior close, low below the prior low, close above the prior close. A Williams Oops is stricter at the open (it opens below the prior LOW and rallies back above it).",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "A Kicker Candle",
+    "A Williams Oops",
+    "A Go Signal",
+    "A scanner Oops Reversal"
+   ],
+   "note": "One answer is the owner's ruling.",
+   "q": "A stock opens below the prior day's close, trades under the prior day's low, then reverses and closes above the prior close. Which name does the firm's scanner give it?",
+   "subject": "contrast 05: Oops Reversal"
+  },
+  "reveal_json": {
+   "quote": "The scanner Oops is the main definition: open below the prior close, low below the prior low, close above the prior close. A Williams Oops is stricter at the open (it opens below the prior LOW and rallies back above it).",
+   "rulings": "6",
+   "setup": "Oops Reversal",
+   "source": "docs/study/corrections/spot.fixtures.jsonl#ruling-6#contrast-05"
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family4.oops",
+  "source_kind": "ruling",
+  "source_ref": "docs/study/corrections/spot.fixtures.jsonl#ruling-6#contrast-05",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "A Super Oops Reversal"
+  },
+  "difficulty": 3,
+  "id": "si_1d3c8098b688",
+  "lesson_origin": "source",
+  "lesson_text": "The close-above version is a Super Oops Reversal when it fully engulfs the previous day after any version of the Oops: it trades under the prior low AND closes above the prior high.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "A Williams Oops",
+    "A scanner Oops",
+    "A Kicker Candle",
+    "A Super Oops Reversal"
+   ],
+   "note": "One answer is the owner's ruling.",
+   "q": "An Oops day that closes above the prior day's HIGH, engulfing the whole prior day. What is it called?",
+   "subject": "contrast 06: Oops Reversal"
+  },
+  "reveal_json": {
+   "quote": "The close-above version is a Super Oops Reversal when it fully engulfs the previous day after any version of the Oops: it trades under the prior low AND closes above the prior high.",
+   "rulings": "6",
+   "setup": "Oops Reversal",
+   "source": "docs/study/corrections/spot.fixtures.jsonl#ruling-6#contrast-06"
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family4.oops",
+  "source_kind": "ruling",
+  "source_ref": "docs/study/corrections/spot.fixtures.jsonl#ruling-6#contrast-06",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "At the end of an orderly drift lower, a flag, a wedge or a double bottom, into a buyable spot"
+  },
+  "difficulty": 3,
+  "id": "si_ed9a9b3f29d9",
+  "lesson_origin": "source",
+  "lesson_text": "Location matters big time. The Oops comes at the end of an orderly drift lower, a flag, a wedge down, a double bottom or the end of a downtrend, into a buyable spot. A reversal after a news gap is a delayed-reaction setup, and a random big red day takes the stock off the radar.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "At the end of an orderly drift lower, a flag, a wedge or a double bottom, into a buyable spot",
+    "Right after a big news gap, as a delayed reaction",
+    "After a random outsized red day a few days earlier",
+    "On the breakout day at a fresh high"
+   ],
+   "note": "One answer is the owner's ruling.",
+   "q": "Where does the owner want an Oops Reversal to show up?",
+   "subject": "contrast 07: Oops Reversal"
+  },
+  "reveal_json": {
+   "quote": "Location matters big time. The Oops comes at the end of an orderly drift lower, a flag, a wedge down, a double bottom or the end of a downtrend, into a buyable spot. A reversal after a news gap is a delayed-reaction setup, and a random big red day takes the stock off the radar.",
+   "rulings": "14",
+   "setup": "Oops Reversal",
+   "source": "docs/study/corrections/spot.fixtures.jsonl#ruling-14#contrast-07"
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family4.oops",
+  "source_kind": "ruling",
+  "source_ref": "docs/study/corrections/spot.fixtures.jsonl#ruling-14#contrast-07",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "The low of the Oops day never breaks"
+  },
+  "difficulty": 3,
+  "id": "si_745000568312",
+  "lesson_origin": "source",
+  "lesson_text": "The Oops-day low must never be broken afterwards, and quick follow-through is preferred. SHOP 2026-09-28 is the reference: a Williams Oops whose low never broke, up 19% in two weeks.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "It gaps up again the next day",
+    "It closes above the 200-day within a week",
+    "Its volume is a record",
+    "The low of the Oops day never breaks"
+   ],
+   "note": "One answer is the owner's ruling.",
+   "q": "Which rule must an Oops example satisfy on the days after it?",
+   "subject": "contrast 08: Oops Reversal"
+  },
+  "reveal_json": {
+   "quote": "The Oops-day low must never be broken afterwards, and quick follow-through is preferred. SHOP 2026-09-28 is the reference: a Williams Oops whose low never broke, up 19% in two weeks.",
+   "rulings": "16",
+   "setup": "Oops Reversal",
+   "source": "docs/study/corrections/spot.fixtures.jsonl#ruling-16#contrast-08"
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family4.oops",
+  "source_kind": "ruling",
+  "source_ref": "docs/study/corrections/spot.fixtures.jsonl#ruling-16#contrast-08",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "A Launchpad"
+  },
+  "difficulty": 3,
+  "id": "si_30af29819cb9",
+  "lesson_origin": "source",
+  "lesson_text": "Look at the averages chunked up together: price hangs underneath the bundle, then gets above the launchpad as the averages stack into 9 > 20 > 50 trend alignment. MSTR 2023-10-23 is the template.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "A Launchpad",
+    "A Base Breakout",
+    "A Slingshot",
+    "A Kicker Candle"
+   ],
+   "note": "One answer is the owner's ruling.",
+   "q": "For weeks price has lived UNDER a tight bundle of the 8, 21 and 50-day averages. The base is long and flat, near the 200-day. Today is the first bar that closes above every average as they stack 8 > 21 > 50. Which setup?",
+   "subject": "contrast 09: Launchpad"
+  },
+  "reveal_json": {
+   "quote": "Look at the averages chunked up together: price hangs underneath the bundle, then gets above the launchpad as the averages stack into 9 > 20 > 50 trend alignment. MSTR 2023-10-23 is the template.",
+   "rulings": "18,19",
+   "setup": "Launchpad",
+   "source": "docs/study/corrections/spot.fixtures.jsonl#ruling-18,19#contrast-09"
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family1.launchpad",
+  "source_kind": "ruling",
+  "source_ref": "docs/study/corrections/spot.fixtures.jsonl#ruling-18,19#contrast-09",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "No: that is a pullback breakout or base breakout; a Launchpad lives under the bundle first"
+  },
+  "difficulty": 3,
+  "id": "si_0e40135d1ae8",
+  "lesson_origin": "source",
+  "lesson_text": "The Launchpad is the convergence and the dangle, not a breakout bar. The cuts had price above the bundle on most of the prior forty sessions; the greats had price under and through it for weeks, then the first real pop above everything.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "No: that is a pullback breakout or base breakout; a Launchpad lives under the bundle first",
+    "Yes, any breakout with stacked averages",
+    "Yes, if the 200-day is below price",
+    "Yes, if volume doubles"
+   ],
+   "note": "One answer is the owner's ruling.",
+   "q": "A stock riding on TOP of its stacked averages in an uptrend pulls back and breaks out to new highs. Is that a Launchpad?",
+   "subject": "contrast 10: Launchpad"
+  },
+  "reveal_json": {
+   "quote": "The Launchpad is the convergence and the dangle, not a breakout bar. The cuts had price above the bundle on most of the prior forty sessions; the greats had price under and through it for weeks, then the first real pop above everything.",
+   "rulings": "18,19",
+   "setup": "Launchpad",
+   "source": "docs/study/corrections/spot.fixtures.jsonl#ruling-18,19#contrast-10"
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family1.launchpad",
+  "source_kind": "ruling",
+  "source_ref": "docs/study/corrections/spot.fixtures.jsonl#ruling-18,19#contrast-10",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "No: the launch bar must close above EVERY average, the bundle and the 200-day alike"
+  },
+  "difficulty": 3,
+  "id": "si_4cfd4b7d42ff",
+  "lesson_origin": "source",
+  "lesson_text": "The launch bar must close above every moving average, the 8/21/50 AND the 200. Clearing the chunk while still under the 200 (WSM), or closing inside the chunk (ADSK), is not the launch.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "No: the launch bar must close above EVERY average, the bundle and the 200-day alike",
+    "Yes, clearing the bundle is the launch",
+    "Yes, if it closes in the top half of its range",
+    "Yes, on double volume"
+   ],
+   "note": "One answer is the owner's ruling.",
+   "q": "The launch bar clears the 8/21/50 bundle but closes under the 200-day. Launchpad?",
+   "subject": "contrast 11: Launchpad"
+  },
+  "reveal_json": {
+   "quote": "The launch bar must close above every moving average, the 8/21/50 AND the 200. Clearing the chunk while still under the 200 (WSM), or closing inside the chunk (ADSK), is not the launch.",
+   "rulings": "20",
+   "setup": "Launchpad",
+   "source": "docs/study/corrections/spot.fixtures.jsonl#ruling-20#contrast-11"
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family1.launchpad",
+  "source_kind": "ruling",
+  "source_ref": "docs/study/corrections/spot.fixtures.jsonl#ruling-20#contrast-11",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "No: that is an HVC, a high-volume close; an HVE dwarfs everything before it, ten times normal and above the record"
+  },
+  "difficulty": 3,
+  "id": "si_957353839778",
+  "lesson_origin": "source",
+  "lesson_text": "Most of these are just HVC (high volume close) and PEGs. An HVE is a sudden major increase, a shit ton of volume, often on a lesser-known name, the start of a new story. Earnings days can count when the volume is truly massive.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Yes, if it closed strong",
+    "No, HVEs happen only on earnings days",
+    "No: that is an HVC, a high-volume close; an HVE dwarfs everything before it, ten times normal and above the record",
+    "Yes, the highest volume of the year is the definition"
+   ],
+   "note": "One answer is the owner's ruling.",
+   "q": "A mega-cap closes up on the highest volume of the year, about three times normal. High Volume Edge?",
+   "subject": "contrast 12: High Volume Edge"
+  },
+  "reveal_json": {
+   "quote": "Most of these are just HVC (high volume close) and PEGs. An HVE is a sudden major increase, a shit ton of volume, often on a lesser-known name, the start of a new story. Earnings days can count when the volume is truly massive.",
+   "rulings": "21",
+   "setup": "High Volume Edge",
+   "source": "docs/study/corrections/spot.fixtures.jsonl#ruling-21#contrast-12"
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.hve",
+  "source_kind": "ruling",
+  "source_ref": "docs/study/corrections/spot.fixtures.jsonl#ruling-21#contrast-12",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "An OPEX (third Friday) or month-end session"
+  },
+  "difficulty": 3,
+  "id": "si_b90b6d014d24",
+  "lesson_origin": "source",
+  "lesson_text": "Make sure we don't have end-of-month and OPEX days marked as HVE days: their volume is mechanical, not a new story.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "An OPEX (third Friday) or month-end session",
+    "An earnings day",
+    "A day on a lesser-known stock",
+    "A day whose close is later traded below"
+   ],
+   "note": "One answer is the owner's ruling.",
+   "q": "Which session can never be marked as a High Volume Edge?",
+   "subject": "contrast 13: High Volume Edge"
+  },
+  "reveal_json": {
+   "quote": "Make sure we don't have end-of-month and OPEX days marked as HVE days: their volume is mechanical, not a new story.",
+   "rulings": "21",
+   "setup": "High Volume Edge",
+   "source": "docs/study/corrections/spot.fixtures.jsonl#ruling-21#contrast-13"
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.hve",
+  "source_kind": "ruling",
+  "source_ref": "docs/study/corrections/spot.fixtures.jsonl#ruling-21#contrast-13",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "That is fine: the HVE close is a level to mark on the chart; it does not have to hold"
+  },
+  "difficulty": 3,
+  "id": "si_1509dc179fcd",
+  "lesson_origin": "source",
+  "lesson_text": "They can go below the HVC, that's fine. It's meant to be a major level to mark out on your chart; the must-work rule does not apply to the HVE.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "That is fine: the HVE close is a level to mark on the chart; it does not have to hold",
+    "The HVE failed and the level is erased",
+    "It flips into a short setup",
+    "It is re-labelled an HVC"
+   ],
+   "note": "One answer is the owner's ruling.",
+   "q": "Three weeks after an HVE the stock trades below the HVE close. What does the firm say?",
+   "subject": "contrast 14: High Volume Edge"
+  },
+  "reveal_json": {
+   "quote": "They can go below the HVC, that's fine. It's meant to be a major level to mark out on your chart; the must-work rule does not apply to the HVE.",
+   "rulings": "21",
+   "setup": "High Volume Edge",
+   "source": "docs/study/corrections/spot.fixtures.jsonl#ruling-21#contrast-14"
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.hve",
+  "source_kind": "ruling",
+  "source_ref": "docs/study/corrections/spot.fixtures.jsonl#ruling-21#contrast-14",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "A Slingshot: the first pause after the gap, retaken"
+  },
+  "difficulty": 3,
+  "id": "si_e40467cbae12",
+  "lesson_origin": "source",
+  "lesson_text": "A slingshot is a good rally up or an earnings gapper, THEN a consolidation, THEN the first close back above the 4-day average of the highs. It is mostly the way to enter a PEG after its first pause.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "A Slingshot: the first pause after the gap, retaken",
+    "A Kicker Candle",
+    "A Power Earnings Gap",
+    "An Oops Reversal"
+   ],
+   "note": "One answer is the owner's ruling.",
+   "q": "An earnings gapper runs, then pulls back four sessions. The closes sit under the 4-day average of the highs. Then it closes back above that average. Which setup?",
+   "subject": "contrast 15: Slingshot"
+  },
+  "reveal_json": {
+   "quote": "A slingshot is a good rally up or an earnings gapper, THEN a consolidation, THEN the first close back above the 4-day average of the highs. It is mostly the way to enter a PEG after its first pause.",
+   "rulings": "7,8,23",
+   "setup": "Slingshot",
+   "source": "docs/study/corrections/spot.fixtures.jsonl#ruling-7,8,23#contrast-15"
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family4.slingshot",
+  "source_kind": "ruling",
+  "source_ref": "docs/study/corrections/spot.fixtures.jsonl#ruling-7,8,23#contrast-15",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "No: the gap day or rally day is never the trigger; the trigger is the first close back over the average AFTER the pullback"
+  },
+  "difficulty": 3,
+  "id": "si_0e19b2f58ff3",
+  "lesson_origin": "source",
+  "lesson_text": "The earnings gap does not count as the trigger. The order is a drive, then a consolidation, then the recapture of the 4-EMA of the highs.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Yes, if the gap is over 5%",
+    "Yes, if it closes near its high",
+    "No: the gap day or rally day is never the trigger; the trigger is the first close back over the average AFTER the pullback",
+    "Yes, any close above the 4-day average triggers it"
+   ],
+   "note": "One answer is the owner's ruling.",
+   "q": "The earnings gap-up day itself closes above the 4-day average of the highs. Is that the Slingshot trigger?",
+   "subject": "contrast 16: Slingshot"
+  },
+  "reveal_json": {
+   "quote": "The earnings gap does not count as the trigger. The order is a drive, then a consolidation, then the recapture of the 4-EMA of the highs.",
+   "rulings": "7,8",
+   "setup": "Slingshot",
+   "source": "docs/study/corrections/spot.fixtures.jsonl#ruling-7,8#contrast-16"
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family4.slingshot",
+  "source_kind": "ruling",
+  "source_ref": "docs/study/corrections/spot.fixtures.jsonl#ruling-7,8#contrast-16",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "A +3% to +6% day closing near its high with no gap, on ordinary volume"
+  },
+  "difficulty": 3,
+  "id": "si_5112f72ccec6",
+  "lesson_origin": "source",
+  "lesson_text": "The ones the owner called perfect and beautiful share a tight 3-7 session pullback and a decisive, technical trigger: no gap needed, a close near the high, volume near normal. A +11-13% day on big volume reads as a news day.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "A +3% to +6% day closing near its high with no gap, on ordinary volume",
+    "A +12% day on three times normal volume",
+    "A day that gaps up 3% and closes mid-range",
+    "A red day that holds the 50-day"
+   ],
+   "note": "One answer is the owner's ruling.",
+   "q": "Which trigger day is the gallery-quality Slingshot?",
+   "subject": "contrast 17: Slingshot"
+  },
+  "reveal_json": {
+   "quote": "The ones the owner called perfect and beautiful share a tight 3-7 session pullback and a decisive, technical trigger: no gap needed, a close near the high, volume near normal. A +11-13% day on big volume reads as a news day.",
+   "rulings": "23",
+   "setup": "Slingshot",
+   "source": "docs/study/corrections/spot.fixtures.jsonl#ruling-23#contrast-17"
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family4.slingshot",
+  "source_kind": "ruling",
+  "source_ref": "docs/study/corrections/spot.fixtures.jsonl#ruling-23#contrast-17",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "The Kicker reverses ONE weak red day on a gap; the Slingshot retakes the average after a MULTI-day pullback and needs no gap"
+  },
+  "difficulty": 3,
+  "id": "si_b4d7ba9cf7c7",
+  "lesson_origin": "source",
+  "lesson_text": "The Kicker traps the sellers of one red day with the next day's gap. The Slingshot is a drive, then three to seven sessions of closes under the 4-day average of the highs, then the first close back over it, a day that needs no gap.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "The Kicker reverses ONE weak red day on a gap; the Slingshot retakes the average after a MULTI-day pullback and needs no gap",
+    "Nothing; they are two names for one pattern",
+    "The Kicker needs earnings; the Slingshot never has earnings behind it",
+    "The Slingshot is intraday; the Kicker is daily"
+   ],
+   "note": "One answer is the owner's ruling.",
+   "q": "Kicker Candle versus Slingshot: what separates them?",
+   "subject": "contrast 18: Slingshot"
+  },
+  "reveal_json": {
+   "quote": "The Kicker traps the sellers of one red day with the next day's gap. The Slingshot is a drive, then three to seven sessions of closes under the 4-day average of the highs, then the first close back over it, a day that needs no gap.",
+   "rulings": "15,23",
+   "setup": "Slingshot",
+   "source": "docs/study/corrections/spot.fixtures.jsonl#ruling-15,23#contrast-18"
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family4.slingshot",
+  "source_kind": "ruling",
+  "source_ref": "docs/study/corrections/spot.fixtures.jsonl#ruling-15,23#contrast-18",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "The Oops opens DOWN, below the prior close, and reverses up; the Kicker opens UP on a gap above the red day"
+  },
+  "difficulty": 3,
+  "id": "si_dd631f11c422",
+  "lesson_origin": "source",
+  "lesson_text": "The Oops traps the breakdown sellers at the open: it opens below the prior close (a Williams Oops below the prior low), then reverses. The Kicker traps the red day's sellers with a gap up that follows through.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "The Oops opens flat; the Kicker opens down",
+    "The Oops opens DOWN, below the prior close, and reverses up; the Kicker opens UP on a gap above the red day",
+    "Both open on a gap up",
+    "Both open below the prior low"
+   ],
+   "note": "One answer is the owner's ruling.",
+   "q": "Oops Reversal versus Kicker Candle: both trap sellers. How does each one OPEN?",
+   "subject": "contrast 19: Oops Reversal"
+  },
+  "reveal_json": {
+   "quote": "The Oops traps the breakdown sellers at the open: it opens below the prior close (a Williams Oops below the prior low), then reverses. The Kicker traps the red day's sellers with a gap up that follows through.",
+   "rulings": "4,6",
+   "setup": "Oops Reversal",
+   "source": "docs/study/corrections/spot.fixtures.jsonl#ruling-4,6#contrast-19"
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family4.oops",
+  "source_kind": "ruling",
+  "source_ref": "docs/study/corrections/spot.fixtures.jsonl#ruling-4,6#contrast-19",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Liquid, sizable names he would trade, roughly $1B+ and $20M+ a day; obscure or sub-$10 tickers are out"
+  },
+  "difficulty": 3,
+  "id": "si_56d2969deccb",
+  "lesson_origin": "source",
+  "lesson_text": "I want to see this in stocks I'd like to trade. Liquid and sizable. Obscure tickers are out even when the geometry is right, and a $7 stock was cut on price alone.",
+  "module": null,
+  "prompt_json": {
+   "choices": [
+    "Liquid, sizable names he would trade, roughly $1B+ and $20M+ a day; obscure or sub-$10 tickers are out",
+    "Any ticker where the geometry is right",
+    "Only the six mega-caps",
+    "Only stocks under $20 so the chart moves"
+   ],
+   "note": "One answer is the owner's ruling.",
+   "q": "Which stocks does the owner want every setup example drawn from?",
+   "subject": "contrast 20: Kicker Candle"
+  },
+  "reveal_json": {
+   "quote": "I want to see this in stocks I'd like to trade. Liquid and sizable. Obscure tickers are out even when the geometry is right, and a $7 stock was cut on price alone.",
+   "rulings": "12",
+   "setup": "Kicker Candle",
+   "source": "docs/study/corrections/spot.fixtures.jsonl#ruling-12#contrast-20"
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.kicker",
+  "source_kind": "ruling",
+  "source_ref": "docs/study/corrections/spot.fixtures.jsonl#ruling-12#contrast-20",
+  "type": "recall",
+  "version": 1
+ }
+]
