@@ -1138,7 +1138,8 @@ def test_one_mb_of_linked_texts_just_under_the_cap_reduce_in_under_half_a_second
 
 def test_the_cap_is_one_constant_and_over_it_the_text_goes_whole(db):
     """`LINK_TEXT_JUDGE_MAX` is the one bound: words of exactly that length are judged (and travel), one character
-    more and they go whole, linked to anything or nothing. A stretch's JOINED text is capped the same way."""
+    more and they go whole, linked to anything or nothing. W11-R62: a stretch whose JOINED text is past the cap is
+    no longer dropped for its length; it is judged in windows, so ordinary words travel."""
     n = gallery.LINK_TEXT_JUDGE_MAX
     words = ("my notes " * n)[:n]
     assert not gallery._link_text_is_an_address(words, ["https://x.example/a"])
@@ -1147,11 +1148,112 @@ def test_the_cap_is_one_constant_and_over_it_the_text_goes_whole(db):
     half = words[: n // 2 + 1]
     out = gallery._shared_outline({"type": "doc", "content": [{"type": "paragraph", "content": [
         _lk(half, "https://x.example/a"), _lk(half, "https://x.example/a", BOLD)]}]}, AUTHOR)
-    assert out["content"][0].get("content", []) == []                  # one host, joined past the cap: goes whole
+    assert json.dumps(out).count(half) == 2                             # W11-R62: one host, joined past the cap
     out = gallery._shared_outline({"type": "doc", "content": [{"type": "paragraph", "content": [
         _lk(half, "https://x.example/a"), {"type": "text", "text": " and "}, _lk(half, "https://y.example/b")]}]},
         AUTHOR)
     assert json.dumps(out).count(half) == 2                             # control: two hosts, each under the cap
+
+
+# ── W11-R62: a long one-host stretch is judged in windows, never dropped for its length ───────────────────────────
+
+def _comma_list(n: int, href=lambda i: f"https://learn.example.org/{i}") -> list:
+    return [x for i in range(n) for x in (_lk(f"Lesson {i}: reading the tape", href(i)), {"type": "text", "text": ", "})]
+
+
+def _para_of(nodes: list) -> dict:
+    return {"type": "doc", "content": [{"type": "paragraph", "content": nodes}]}
+
+
+def test_W11_R62_an_inline_list_of_120_lessons_to_one_site_travels(db):
+    """The round-4 review's m-1 body: 120 comma-separated links "Lesson N: reading the tape" to learn.example.org,
+    joined about 3,490 characters, past the cap. Every lesson travels, as 60 of them and the two-site list did."""
+    nodes = _comma_list(120)
+    assert sum(len(n["text"]) for n in nodes) > gallery.LINK_TEXT_JUDGE_MAX
+    blob = json.dumps(gallery._shared_outline(_para_of(nodes), AUTHOR))
+    assert all(f"Lesson {i}: reading the tape" in blob for i in range(120))
+
+
+def _sneaks() -> dict:
+    url = f"https://{HOST}/acct/{ACCT}"
+    pad = "x" * 2100
+    other = "https://other.example.net/"
+    plain = "https://learn.tapereading.org/"
+    words = ("price action " * 200)[:2040]
+    return {
+        # the round-4 review's four (`rfn1r4_capflags.py::test_cap_cannot_sneak`)
+        "address padded past the cap": [_lk(pad + url, url)],
+        "address in a part, stretch past the cap": [_lk(pad, url), {"type": "text", "text": " "}, _lk(ACCT, url)],
+        "address just under the cap": [_lk(("x" * 2000) + " " + url, other)],
+        "address split around a cap-sized neighbour of another host": [_lk(f"https://{HOST}/acct/", url),
+                                                                       _lk("y" * 2100, other), _lk(ACCT, url)],
+        # and an address split into small pieces, each harmless alone, inside a long stretch to an unrelated site:
+        # the window that holds the pieces sees the whole address, as the joined text did under the cap
+        "small pieces of an address in a long stretch": [
+            _lk(words, plain), {"type": "text", "text": " "}, _lk("broker", plain), {"type": "text", "text": "."},
+            _lk("example", plain), {"type": "text", "text": "."}, _lk("com/acct/", plain), _lk(ACCT, plain),
+            {"type": "text", "text": " "}, _lk(words, plain)],
+        # pieces of a scheme address placed so that the cap's own boundary falls inside the scheme ("htt" | "ps://..."):
+        # neither half is an address, so only OVERLAPPING windows see it whole
+        "small pieces of an address across the cap's boundary": [
+            _lk(("price action " * 200)[:gallery.LINK_TEXT_JUDGE_MAX - len("htt") - 1], plain),
+            {"type": "text", "text": " "}, _lk("htt", plain), _lk("ps://", plain), _lk("brokerexample", plain),
+            _lk("/acct/", plain), _lk(ACCT, plain), {"type": "text", "text": " "}, _lk(words, plain)],
+    }
+
+
+@pytest.mark.parametrize("name", list(_sneaks()))
+def test_W11_R62_no_address_sneaks_through_a_long_stretch(db, name):
+    nodes = _sneaks()[name]
+    blob = json.dumps(gallery._shared_outline(_para_of(nodes), AUTHOR))
+    assert ACCT not in blob and "broker" not in blob, (name, blob[:300])
+
+
+def test_W11_R62_CONTROL_the_small_pieces_are_harmless_alone():
+    """The last sneak means something: no piece on its own is an address to its href, so only a judgement of the
+    pieces together (the window) can drop them."""
+    plain = "https://learn.tapereading.org/"
+    for piece in ("broker", ".", "example", "com/acct/", ACCT, "brokerexample", "/acct/"):
+        assert not gallery._link_text_is_an_address(piece, [plain]), piece
+    # and the two halves either side of the cap's boundary are not addresses either; the whole is
+    n = gallery.LINK_TEXT_JUDGE_MAX
+    joined = ("price action " * 200)[:n - 4] + " " + "https://brokerexample/acct/" + ACCT
+    assert not gallery._link_text_is_an_address(joined[:n], [plain])
+    assert not gallery._link_text_is_an_address(joined[n:], [plain])
+    assert gallery._link_text_is_an_address(joined[n // 2:], [plain])
+
+
+def test_W11_R62_one_mb_of_a_one_site_link_list_reduces_in_under_half_a_second(db):
+    """1 MB of one stretch to one site (about 1,000 links of about 1,000 characters each): the window pass and the
+    per-part judgement together stay under half a second, and every link travels."""
+    words = ("reading the tape well " * 50)[:990]
+    nodes = [x for i in range(1_000) for x in (_lk(f"Lesson {i:05d}: " + words, f"https://learn.tapereading.org/{i}"),
+                                              {"type": "text", "text": ", "})]
+    assert sum(len(n["text"]) for n in nodes) >= 1_000_000
+    t0 = time.perf_counter()
+    out = gallery._shared_outline(_para_of(nodes), AUTHOR)
+    took = time.perf_counter() - t0
+    assert took < 0.5, took
+    assert len(out["content"][0]["content"]) == len(nodes)               # every lesson and comma travels
+
+
+def _address_form_slow(text: str) -> str:
+    """`_address_form` before W11-R62's ASCII fast path (the per-character category rule), kept as the oracle."""
+    import unicodedata
+    t = unicodedata.normalize("NFKC", text).casefold().replace(chr(0x3002), ".")
+    kept = "".join(ch for ch in t if ch == " " or unicodedata.category(ch)[0] in "LNP")
+    return re.sub(r" +", " ", kept)
+
+
+def test_W11_R62_the_ascii_fast_path_is_the_category_rule_exactly():
+    import random
+    for cp in range(128):
+        assert gallery._address_form(chr(cp) + "a" + chr(cp)) == _address_form_slow(chr(cp) + "a" + chr(cp)), cp
+    rng = random.Random(62)
+    alphabet = [chr(c) for c in range(128)] + ["\u00e9", "\u3002", "\uff0e", "\u2028"]
+    for _ in range(20_000):
+        s = "".join(rng.choice(alphabet) for _ in range(rng.randint(0, 24)))
+        assert gallery._address_form(s) == _address_form_slow(s), ascii(s)
 
 
 # ── W11-R57: a flag frame travels only with subdivision-shaped tags ───────────────────────────────────────────────

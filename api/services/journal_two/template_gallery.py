@@ -1490,11 +1490,43 @@ _DECIMAL = re.compile(r"\d")
 _XN_CHARS = "abcdefghijklmnopqrstuvwxyz0123456789-"
 #: W11-R48 (b): a host skeleton shorter than this is too short to be told from words ("x.io" in "Fix it").
 HOST_SKELETON_MIN = 4
-#: W11-R56: the longest link text that is JUDGED, in characters. Longer link text -- a linked part, or the joined
-#: text of a stretch of one host -- is not judged at all: it is treated as an address and goes whole. That fails
-#: toward privacy (it can only drop text, never let an address through), bounds every judgement's cost by a constant,
-#: and costs nothing a member writes as a link in practice: 2,048 characters is a page of prose under one link.
+#: W11-R56: the longest link text that is JUDGED, in characters. A longer linked PART is not judged at all: it is
+#: treated as an address and goes whole. That fails toward privacy (it can only drop text, never let an address
+#: through), bounds every judgement's cost by a constant, and costs nothing a member writes as a link in practice:
+#: 2,048 characters is a page of prose under one link. W11-R62: a STRETCH of one host whose joined text is longer is
+#: no longer dropped whole for its length (an inline list of 120 lesson links to one site went): it is judged in
+#: overlapping windows of at most this length (`_long_stretch_is_an_address`), and then each part on its own.
 LINK_TEXT_JUDGE_MAX = 2048
+
+
+def _long_stretch_is_an_address(parts: list, memo: dict) -> bool:
+    """W11-R62: is a one-host stretch whose JOINED text is over `LINK_TEXT_JUDGE_MAX` an address? `parts` is its
+    nodes in order, `(text, hrefs)` (a joiner between two linked parts has no hrefs). The joined text is judged by
+    `_link_text_is_an_address` in windows of `LINK_TEXT_JUDGE_MAX` characters stepping half that, each against the
+    hrefs of the parts it overlaps: every address of up to half the cap lies whole inside one window (and a longer
+    one shows its scheme or dotted host in one), so a split address is still seen as a whole, as under the cap. True
+    drops the whole stretch.
+
+    Linear: a part of length L overlaps at most 2L / `LINK_TEXT_JUDGE_MAX` + 2 windows, and each window costs its
+    own text and the hrefs of the parts it overlaps."""
+    import bisect
+    starts, at = [], 0
+    for text, _h in parts:
+        starts.append(at)
+        at += len(text)
+    joined = "".join(text for text, _h in parts)
+    width = LINK_TEXT_JUDGE_MAX
+    step = width // 2
+    s = 0
+    while True:
+        e = min(s + width, len(joined))
+        lo, hi = bisect.bisect_right(starts, s) - 1, bisect.bisect_left(starts, e)
+        hrefs = [h for p in parts[max(lo, 0):hi] for h in p[1]]
+        if _link_text_is_an_address(joined[s:e], hrefs, memo):
+            return True
+        if e >= len(joined):
+            return False
+        s += step
 
 
 def _has_address_shape(form: str) -> bool:
@@ -1528,8 +1560,17 @@ def _address_form(text: str) -> str:
     a digit, a space nor punctuation removed -- line breaks and tabs, invisible, combining and unassigned
     characters, blanks such as U+2800 -- so none of them can break a scheme or a host apart; spaces become one."""
     t = unicodedata.normalize("NFKC", text).casefold().replace("\u3002", ".")
-    kept = "".join(ch for ch in t if ch == " " or unicodedata.category(ch)[0] in "LNP")
+    if t.isascii():
+        kept = t.translate(_ASCII_NOT_ADDRESS)           # W11-R62: the same rule at C speed for ASCII text
+    else:
+        kept = "".join(ch for ch in t if ch == " " or unicodedata.category(ch)[0] in "LNP")
     return re.sub(r" +", " ", kept)
+
+
+#: W11-R62: the ASCII characters `_address_form` removes (neither a space nor a letter, digit or punctuation mark:
+#: the controls and the symbols such as `$`, `+`, `<`, `|`), as a `str.translate` table derived from the same rule.
+_ASCII_NOT_ADDRESS = {cp: None for cp in range(128)
+                      if not (chr(cp) == " " or unicodedata.category(chr(cp))[0] in "LNP")}
 
 
 def _href_facts(href: str, memo: dict) -> tuple[frozenset, frozenset, frozenset]:
@@ -1698,8 +1739,15 @@ def _without_links(body: Any) -> Any:
                 while keys[m - 1] is None:
                     m -= 1                                   # a stretch ends on a linked part
                 stretch = run[k:m]
-                if _link_text_is_an_address("".join(text_of(x) for x in stretch),
-                                            [h for x in stretch for h in hrefs_of(x)], memo):
+                joined = "".join(text_of(x) for x in stretch)
+                if len(joined) > LINK_TEXT_JUDGE_MAX:
+                    # W11-R62: a long stretch is judged in windows, never dropped for its length; a single part
+                    # over the cap still goes on its own (the per-part judgement below)
+                    hit = _long_stretch_is_an_address(
+                        [(text_of(x), hrefs_of(x)) for x in stretch], memo)
+                else:
+                    hit = _link_text_is_an_address(joined, [h for x in stretch for h in hrefs_of(x)], memo)
+                if hit:
                     gone.update(range(k, m))
                 k = m
             linked = [n_ for n_, key in enumerate(keys) if key is not None]
