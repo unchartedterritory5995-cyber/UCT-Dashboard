@@ -100,9 +100,11 @@ FLAGS = (
     "NOTEBOOK_LAYOUT_SHARING_ENABLED",
 )
 
-#: Notebook widgets wave 11 (the template library, sharing and adopting). NOT in FLAGS on purpose: the world's
-#: builders pin the answers members get today, with wave 11 dark (it changes some of them, e.g. Helpful asks for
-#: use on 3 days). But the journal styles and template gallery routers mounted below carry wave 11 doors that
+#: Notebook widgets wave 11 (the template library, sharing and adopting). NOT in FLAGS on purpose: the other builders
+#: record wave 11 as members get it today, DARK (it changes some of their answers, e.g. Helpful asks for use on 3
+#: days). The world is otherwise NOT production's: every other gate is as FLAGS sets it (on), and the notebook
+#: widgets waves 1-10 are off outside `wave11_library` although production has them armed (merge review m-1). But the
+#: journal styles and template gallery routers mounted below carry wave 11 doors that
 #: answer the one 404 BEFORE the session while it is off, so the signed-out sweep turns it on (each wave 11 route
 #: then pins its 401) and the flags-off sweep turns it off with the rest.
 W11_FLAG = "NOTEBOOK_WIDGETS_W11_ENABLED"
@@ -2744,8 +2746,9 @@ def wave11_library(w: World) -> None:
     the 3rd-day Helpful line and its answer, the template's journal-styles views (used in, duplicate, archive,
     unarchive, delete), and a routine shared, previewed, approved, adopted and updated to its next listed version.
 
-    Wave 11 and the waves its doors build on are ON only inside this builder: the world's other answers are the ones
-    members get today, with wave 11 dark. Recorded last, so no other builder's ids move."""
+    Wave 11 and the waves its doors build on (1-6, 8-10) are ON only inside this builder; every other builder runs with
+    wave 11 dark (as members have it today), waves 1-10 off, and the other gates as FLAGS sets them. Recorded last,
+    so no other builder's ids move."""
     from api.services.journal_two import routines
     base, styles = "/api/j2/template-gallery", "/api/j2/journal-styles"
     waves = (1, 2, 3, 4, 5, 6, 8, 9, 10, 11)
