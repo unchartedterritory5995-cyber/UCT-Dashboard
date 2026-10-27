@@ -1876,10 +1876,13 @@ export default function NotebookTab() {
     // places no block (spec §10: only a style's Use does), so the note gets exactly what the preview showed: each
     // placeholder as the block's name, through the SAME function the preview used (MemberTemplates.openPreview).
     // Loaded on demand: this tab is in the first-open closure.
+    // W11-R80 m-3: and in the form the editor will hold it (lib/editorNormalForm.js: the editor itself is the
+    // authority), so a template ending on a list or a heading does not make a note its first open writes.
     let bodyJson = full.bodyJson
     try {
-      const { outlineWithBlockNames } = await import('../lib/templateSlots')
-      bodyJson = outlineWithBlockNames(full.bodyJson, null)
+      const [{ outlineWithBlockNames }, { editorNormalForm }] = await Promise.all([
+        import('../lib/templateSlots'), import('../lib/editorNormalForm')])
+      bodyJson = editorNormalForm(outlineWithBlockNames(full.bodyJson, null))
     } catch (e) {
       console.error('[notebook] template words failed to load', e)
       setActionError(`Couldn't open the template “${summary.name}”. Nothing was created.`)

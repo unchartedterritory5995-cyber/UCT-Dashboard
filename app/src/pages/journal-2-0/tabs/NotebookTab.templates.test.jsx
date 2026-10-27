@@ -39,10 +39,12 @@ const LIB_ROW = { id: 'g-night', title: 'Night-before prep', description: 'plann
 const BODY = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'What worked' }] }] }
 let calls
 let templateRead
+let templateBody
 beforeEach(() => {
   vi.clearAllMocks()
   calls = []
   templateRead = { ok: true }
+  templateBody = BODY
   setCurrentAccountId('acct-A')
   global.fetch = vi.fn(async (url, init = {}) => {
     const u = String(url)
@@ -52,7 +54,7 @@ beforeEach(() => {
     if (u === '/api/j2/note-templates' && method === 'GET') return ok({ templates: [{ id: 't1', name: 'Weekly review', title: 'Week', createdAt: '1' }] })
     if (u === '/api/j2/note-templates/t1') {
       return templateRead.ok
-        ? ok({ template: { id: 't1', name: 'Weekly review', title: 'Week', bodyJson: BODY, properties: { 'builtin:thesis_status': 'active' } } })
+        ? ok({ template: { id: 't1', name: 'Weekly review', title: 'Week', bodyJson: templateBody, properties: { 'builtin:thesis_status': 'active' } } })
         : { ok: false, status: 404, json: async () => ({}) }
     }
     if (u === '/api/j2/notes' && method === 'POST') return ok({ note: { id: 'new1', title: 'Week', updatedAt: 'R0' } })
@@ -158,5 +160,33 @@ describe('using a Template library template (wave 11, walk D1)', () => {
     await waitFor(() => expect(screen.getByTestId('note-editor')).toHaveAttribute('data-note-id', 'new1'))
     expect(screen.getByTestId('note-editor')).toHaveAttribute('data-open-focus', 'title')
     await waitFor(() => expect(newNoteSheet()).toBeNull())
+  })
+})
+
+// W11-R80 m-3: a note made from Your templates ends the way the editor will hold it. A template ending on a list (or a
+// heading, a table) made a note TipTap's TrailingNode appends a paragraph to as it opens: one PUT on the first open.
+// The client normalises the body through the editor itself (lib/editorNormalForm.js) before the create.
+describe("a note from Your templates is created in the editor's own form (W11-R80 m-3)", () => {
+  const list = { type: 'bulletList', content: [{ type: 'listItem', content: [
+    { type: 'paragraph', content: [{ type: 'text', text: 'Check the gap' }] }] }] }
+  it('a template ending on a list makes a note ending on the trailing paragraph', async () => {
+    templateBody = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Checklist' }] }, list] }
+    renderTab()
+    fireEvent.click(screen.getByRole('button', { name: 'Templates' }))
+    const [mine] = await screen.findAllByRole('region', { name: 'Your templates' })
+    fireEvent.click(await within(mine).findByRole('button', { name: /^Weekly review/ }))
+    await waitFor(() => expect(screen.getByTestId('note-editor')).toHaveAttribute('data-note-id', 'new1'))
+    const post = calls.find((c) => c.url === '/api/j2/notes' && c.method === 'POST')
+    expect(post.body.bodyJson.content.map((n) => n.type)).toEqual(['paragraph', 'bulletList', 'paragraph'])
+    expect(post.body.bodyJson.content.at(-1)).toEqual({ type: 'paragraph' })
+  })
+  it('CONTROL: a template already ending on a paragraph is sent with its blocks unchanged', async () => {
+    renderTab()
+    fireEvent.click(screen.getByRole('button', { name: 'Templates' }))
+    const [mine] = await screen.findAllByRole('region', { name: 'Your templates' })
+    fireEvent.click(await within(mine).findByRole('button', { name: /^Weekly review/ }))
+    await waitFor(() => expect(screen.getByTestId('note-editor')).toHaveAttribute('data-note-id', 'new1'))
+    const post = calls.find((c) => c.url === '/api/j2/notes' && c.method === 'POST')
+    expect(post.body.bodyJson).toEqual(BODY)
   })
 })
