@@ -157,11 +157,15 @@
 .submit:hover:not(:disabled) { background: var(--ut-green-bright); }
 .submit:disabled { opacity: 0.6; cursor: not-allowed; }
 
+/* W11-R81 PD-1: the shared solid-gold pair, buttons.css `.btn-primary`'s own (background --accent, ink --bg: dark ink
+   on bright gold in dark and OLED, white on the deep gold in light). It read 1.73:1 with --text-bright on --ut-gold.
+   Rail: AuthForm.contrast.test.js. */
 .submitPro {
   composes: submit;
-  background: var(--ut-gold);
+  background: var(--accent);
+  color: var(--bg);
 }
-.submitPro:hover:not(:disabled) { opacity: 0.9; background: var(--ut-gold); }
+.submitPro:hover:not(:disabled) { opacity: 0.9; background: var(--accent); color: var(--bg); }
 
 .switchText {
   font-size: 13px;
@@ -190,4 +194,17 @@
 /* Touch (wave 15): the UCT wordmark link audited 29px. */
 @media (max-width: 1024px) {
   .brand { display: inline-flex; align-items: center; min-height: var(--tap-min); }
+}
+
+/* W11-R81 PD-1: on the touch tier (styles/breakpoints.css) "Log In" was 40 px tall and "Forgot password?" 19 px. */
+@media (max-width: 1024px) {
+  .submit {
+    min-height: var(--tap-min);
+  }
+  .forgotLink {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    min-height: var(--tap-min);
+  }
 }
