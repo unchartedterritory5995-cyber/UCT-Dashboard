@@ -1256,18 +1256,19 @@ def test_W11_R62_the_ascii_fast_path_is_the_category_rule_exactly():
         assert gallery._address_form(s) == _address_form_slow(s), ascii(s)
 
 
-# ── W11-R57: a flag frame travels only with subdivision-shaped tags ───────────────────────────────────────────────
+# ── W11-R57 / W11-R63: tags travel only inside the three RGI subdivision flags ───────────────────────────────────────────────
 
 def _flag(spec: str) -> str:
     return "\U0001F3F4" + _tagged(spec) + "\U000E007F"
 
 
 #: The emoji that must stay byte-identical: the three subdivision flags, the ZWJ family, the VS16 heart, the pirate
-#: flag (ZWJ + VS16 on the same black flag) and the rainbow flag.
+#: flag (ZWJ + VS16 on the same black flag), the rainbow flag and a keycap.
 TRAVELLING_EMOJI = {
     "England": _flag("gbeng"), "Scotland": _flag("gbsct"), "Wales": _flag("gbwls"),
     "zwj family": "\U0001F468‍\U0001F469‍\U0001F467", "vs16 heart": "❤️",
     "pirate flag": "\U0001F3F4‍☠️", "rainbow flag": "\U0001F3F3️‍\U0001F308",
+    "keycap 1": "1\uFE0F\u20E3",
 }
 
 
@@ -1301,16 +1302,43 @@ def test_every_real_emoji_travels_byte_identical(db, name):
     assert [n["text"] for n in out["content"][0]["content"]] == [f"a{e}b", f" see {e}"]
 
 
-def test_a_flag_frame_keeps_only_one_to_six_tag_letters_or_digits():
-    """W11-R57's grammar, at its edges: 1 and `FLAG_TAG_MAX` tags of a-z / 0-9 travel; one too many, a tag capital,
-    a tag full stop, slash or space, or the re-review's address strips every tag (the black flag base stays, as any
-    emoji does)."""
+def test_W11_R63_only_the_three_rgi_subdivision_flags_keep_their_tags():
+    """W11-R63: the tag characters travel only inside England, Scotland and Wales (`RGI_SUBDIVISION_FLAGS`, matched
+    whole). The old 1..6-letter grammar is gone: any other frame -- a single tag, an unlisted region (`usca`),
+    six letters, digits, one too many, a capital, a full stop, a slash, a space, or the re-review's address -- loses
+    every tag (the black flag base stays, as any emoji does)."""
     base = "\U0001F3F4"
-    assert gallery.FLAG_TAG_MAX == 6
-    for spec in ("g", "gbeng", "us0ca1", "123456"):
+    assert gallery.RGI_SUBDIVISION_FLAGS == ("gbeng", "gbsct", "gbwls")
+    assert not hasattr(gallery, "FLAG_TAG_MAX")
+    for spec in gallery.RGI_SUBDIVISION_FLAGS:
         assert gallery._without_ignorables(_flag(spec)) == _flag(spec), spec
-    for spec in ("gbengx1", "GBENG", "gb.eng", "a/b", "gb eng", "broker.example.com/acct/99887766"):
+    for spec in ("g", "usca", "us0ca1", "123456", "gbengx", "gbeng1", "GBENG", "gb.eng", "a/b", "gb eng",
+                 "broker.example.com/acct/99887766"):
         assert gallery._without_ignorables(_flag(spec)) == base, spec
+    # an RGI flag beside its neighbours: both flags kept, the stray tags between them stripped
+    two = _flag("gbeng") + _tagged("x") + _flag("gbwls")
+    assert gallery._without_ignorables(two) == _flag("gbeng") + _flag("gbwls")
+
+
+#: The round-4 review's note: frames chained one after another spell text six tag characters at a time.
+CHAINED_FRAMES = {
+    "two frames spell the account": _flag("99887") + _flag("766"),
+    "three frames spell the host": _flag("broker") + _flag("exampl") + _flag("ecom"),
+}
+
+
+@pytest.mark.parametrize("name", list(CHAINED_FRAMES))
+@pytest.mark.parametrize("slot", [True, False], ids=["slot", "noslot"])
+def test_W11_R63_chained_frames_carry_nothing_on_any_path(db, name, slot):
+    frames = CHAINED_FRAMES[name]
+    text = "go " + frames + " go"
+    _s, got = _every_share_path(db, [{"type": "text", "text": text}], slot)
+    for where, v in got.items():
+        blob = _decoded(v)
+        assert not any(0xE0000 <= ord(c) <= 0xE007F for c in blob), (name, where)
+    for where in ("payload_json", "body_json", "copy", "use_note"):
+        assert "go " in _decoded(got[where]), where
+    assert gallery._without_ignorables(text) == "go " + "\U0001F3F4" * frames.count("\U0001F3F4") + " go"
 
 
 # ── W11-R58: the adjacency-only judgement is a recorded limit ─────────────────────────────────────────────────────

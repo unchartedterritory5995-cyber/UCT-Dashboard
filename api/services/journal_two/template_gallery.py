@@ -1379,14 +1379,16 @@ def _is_default_ignorable(ch: str) -> bool:
 #: their supplement (VS16's emoji presentation). Address DETECTION still ignores every one of them: none is a letter
 #: or a digit, so none is in a skeleton.
 _EMOJI_IGNORABLES = ((0x200D, 0x200D), (0xFE00, 0xFE0F), (0xE0100, 0xE01EF))
-#: Ruling W11-R53 (m-1) as narrowed by W11-R57: the TAG characters travel only inside a SUBDIVISION FLAG -- U+1F3F4
-#: WAVING BLACK FLAG, then 1 to `FLAG_TAG_MAX` tag characters that are each a tag digit (U+E0030-E0039) or a tag
-#: small letter (U+E0061-E007A), the `gbeng` / `gbsct` / `gbwls` shape, then U+E007F CANCEL TAG. Anything else -- a
-#: tag outside a frame, a frame holding a tag full stop, slash or capital, or more than `FLAG_TAG_MAX` tags -- is an
-#: invisible copy of ASCII text (a smuggled address) and every tag in it is stripped like any other ignorable.
-FLAG_TAG_MAX = 6
-_EMOJI_TAG_SEQUENCE = re.compile(
-    "\U0001F3F4[\U000E0030-\U000E0039\U000E0061-\U000E007A]{1,%d}\U000E007F" % FLAG_TAG_MAX)
+#: Ruling W11-R53 (m-1), narrowed by W11-R57 and then W11-R63: the TAG characters travel only inside one of the
+#: three RGI subdivision flags -- England, Scotland and Wales, U+1F3F4 WAVING BLACK FLAG + the tag letters of
+#: `RGI_SUBDIVISION_FLAGS` + U+E007F CANCEL TAG -- matched WHOLE. Every other tag sequence (a tag outside a frame, any
+#: other letters or digits in a frame, frames chained one after another to spell text six characters at a time) is
+#: an invisible copy of ASCII text (a smuggled address) and every tag in it is stripped like any other ignorable; the
+#: black flag itself stays, as any emoji does.
+RGI_SUBDIVISION_FLAGS = ("gbeng", "gbsct", "gbwls")
+_EMOJI_TAG_SEQUENCE = re.compile("|".join(
+    re.escape(chr(0x1F3F4) + "".join(chr(0xE0000 + ord(c)) for c in flag) + chr(0xE007F))
+    for flag in RGI_SUBDIVISION_FLAGS))
 
 
 def _ranges_without(ranges, holes) -> list[tuple[int, int]]:
