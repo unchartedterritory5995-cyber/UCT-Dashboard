@@ -635,7 +635,7 @@ function expToISO(expStr) {
 
 
 // ─── Main Component ────────────────────────────────────────────────────────────
-const TABS = ["Market Read","Market Tide","Top Flow","Leaderboard","Search","OI Check","Tracker","Watchlist","Confluence"];
+const TABS = ["Market Read","Top Flow","Market Tide","Leaderboard","Search","OI Check","Tracker","Watchlist","Confluence"];
 
 // Tabs whose panels read the demand-driven feature datasets (curatedThresholds,
 // wlDates, topFlowPicks). Derived by reading every consumer of those three
