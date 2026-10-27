@@ -234,20 +234,24 @@ def _hit(limit: str, scope: str, user: dict, sentence: str, *, w11: bool = False
         raise
 
 
-def _daily_take(scope: str, user: dict, cap_env: str, default: int, sentence: str, *, w11: bool = False) -> str:
+def _daily_take(scope: str, user: dict, cap_env: str, default: int, sentence: str, *, w11: bool = False) -> str | None:
     """One durable charge for today (ET), or a 429 with the plain sentence (`{code: rate}` for a wave 11 door).
-    Returns the day so a refused write can give the charge back."""
+    Returns the day so a refused write can give the charge back -- or None when the counter failed OPEN and
+    charged nothing (review m-2): then there is nothing to give back, and `_give_back(None, ...)` does nothing."""
     from api.services.journal_two.calendar import et_today
     day = et_today()
-    refused = daily_counters.take(day, [daily_counters.Charge(scope, str(user["id"]), 1, _cap(cap_env, default))])
+    refused, charged = daily_counters.take_charged(
+        day, [daily_counters.Charge(scope, str(user["id"]), 1, _cap(cap_env, default))])
     if refused is not None:
         if w11:
             raise _err(429, "rate", sentence)
         raise HTTPException(status_code=429, detail=sentence)
-    return day
+    return day if charged else None
 
 
-def _give_back(day: str, scope: str, user: dict) -> None:
+def _give_back(day: str | None, scope: str, user: dict) -> None:
+    if day is None:
+        return                              # the take charged nothing: never refund another adopt's charge
     daily_counters.give_back(day, [daily_counters.Charge(scope, str(user["id"]), 1)])
 
 

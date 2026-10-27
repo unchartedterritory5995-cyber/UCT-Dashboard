@@ -108,27 +108,34 @@ def _read(conn: sqlite3.Connection, scope: str, subject: str, day: str) -> float
 def take(day: str, charges: Iterable[Charge]) -> str | None:
     """Admit and count ALL of `charges` for `day`, or none of them.
 
-    → None when admitted (and counted), or the `scope` of the first charge
-    whose cap refused (nothing counted). A database error admits (fails open)
-    with one log line."""
+    → None when admitted (counted, or admitted by failing open), or the `scope`
+    of the first charge whose cap refused (nothing counted). A database error
+    admits (fails open) with one log line."""
+    return take_charged(day, charges)[0]
+
+
+def take_charged(day: str, charges: Iterable[Charge]) -> tuple[str | None, bool]:
+    """`take`, also saying whether anything was COUNTED: `(refused_scope, charged)`. `charged` is True only when
+    every charge was written; a refusal and a fail-open both count nothing (review m-2: a caller that gives a
+    charge back on a later refusal must give back only what it took)."""
     charges = list(charges)
     try:
         conn = _connect()
     except Exception as e:  # noqa: BLE001 -- failing open IS the contract
         _fail_open("take", e)
-        return None
+        return None, False
     try:
         conn.execute("BEGIN IMMEDIATE")
         _prune(conn, day)
         for c in charges:
             if c.cap is not None and _read(conn, c.scope, c.subject, day) + c.amount > c.cap:
                 conn.rollback()
-                return c.scope
+                return c.scope, False
         stamp = _now()
         for c in charges:
             conn.execute(_ADD, (c.scope, str(c.subject), day, float(c.amount), stamp))
         conn.commit()
-        return None
+        return None, True
     except Exception as e:  # noqa: BLE001
         try:
             if conn.in_transaction:
@@ -136,7 +143,7 @@ def take(day: str, charges: Iterable[Charge]) -> str | None:
         except Exception:  # noqa: BLE001
             pass
         _fail_open("take", e)
-        return None
+        return None, False
     finally:
         conn.close()
 

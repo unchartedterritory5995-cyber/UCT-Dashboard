@@ -992,3 +992,29 @@ def test_a_busy_adopt_gives_back_the_charge_it_really_took(app, client, db, monk
     monkeypatch.setattr(gallery, "adopt_tool", real)
     assert _send(client, "POST", f"{GALLERY}/{gid}/adopt-tool", {}).status_code == 200
     assert daily_counters.value(et_today(), tgr.DAILY_ADOPT_SCOPE, MEMBER) == 1
+
+
+def test_a_take_that_failed_open_is_never_given_back(app, client, db, monkeypatch):
+    # Review m-2: a take that FAILED OPEN charged nothing, so a refusal after it must refund nothing -- otherwise it
+    # cancels an earlier, legitimate adopt's charge.
+    from api.routers import notebook_template_gallery as tgr
+    from api.services import daily_counters
+    from api.services.journal_two.calendar import et_today
+    r = routine(db)
+    gid = list_tool(db, "routine", r["id"], edits={"name": "Open", "items": ["Coffee", "Mark levels"]})
+    as_user(app, MEMBER)
+    assert _send(client, "POST", f"{GALLERY}/{gid}/adopt-tool", {}).status_code == 200
+    assert daily_counters.value(et_today(), tgr.DAILY_ADOPT_SCOPE, MEMBER) == 1       # one legitimate charge
+    real_connect = daily_counters._connect
+    calls = {"n": 0}
+
+    def fail_the_take_once():
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise daily_counters.sqlite3.OperationalError("simulated: the counter store is unreachable")
+        return real_connect()
+    monkeypatch.setattr(daily_counters, "_connect", fail_the_take_once)
+    assert _send(client, "POST", f"{GALLERY}/nope/adopt-tool", {}).status_code == 404      # refused after the take
+    monkeypatch.setattr(daily_counters, "_connect", real_connect)
+    assert calls["n"] >= 1
+    assert daily_counters.value(et_today(), tgr.DAILY_ADOPT_SCOPE, MEMBER) == 1
