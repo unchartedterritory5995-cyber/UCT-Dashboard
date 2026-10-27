@@ -1041,6 +1041,35 @@ def test_adjacent_mixed_neutral_lines_collapse_per_line():
     assert texts_in(gallery) == [ACCOUNT_LINE]
 
 
+def _lines(out: dict) -> list:
+    """The reduced body's top-level blocks as words: each neutral line by name, an empty paragraph as "", text as text."""
+    shown = []
+    for n in out["content"]:
+        line = pnp._neutral_line_of(n)
+        shown.append("ACCOUNT" if line == ACCOUNT_LINE else "MARKET" if line == NEUTRAL else "".join(texts_in(n)))
+    return shown
+
+
+@pytest.mark.parametrize("mode", ["share", "publish", "gallery"])
+def test_private_blocks_with_empty_paragraphs_between_say_the_line_once(mode):
+    # 11.20 rehearsal R7: a template-made note puts an empty paragraph between its blocks, so four private blocks in a
+    # row printed "A private account item is not shown on public pages." four times. The run is ONE line, and the
+    # empty paragraphs that only separated the hidden blocks go with them.
+    body = doc(p(t("Prep")), _pnl(False), {"type": "paragraph"}, _positions(False), p(), _pnl(False),
+               {"type": "paragraph", "content": []}, _positions(False), p(t("After")))
+    assert _lines(reduce(body, mode)) == ["Prep", "ACCOUNT", "After"]
+
+
+def test_private_blocks_apart_keep_a_line_each():
+    # CONTROL: words between two private blocks keep both lines; an empty paragraph between two DIFFERENT lines stays.
+    apart = reduce(doc(_pnl(False), p(t("between")), _positions(False)), "share")
+    assert _lines(apart) == ["ACCOUNT", "between", "ACCOUNT"]
+    mixed = reduce(doc(_widget("tickerCard"), p(), _pnl(False)), "share")
+    assert _lines(mixed) == ["MARKET", "", "ACCOUNT"]
+    trailing = reduce(doc(_pnl(False), p(), _positions(False), p()), "share")
+    assert _lines(trailing) == ["ACCOUNT", ""]
+
+
 def test_nested_account_kind_in_a_container_follows_the_same_rule():
     body = doc({"type": "blockquote", "content": [_pnl(False)]})
     assert texts_in(reduce(body, "share")) == [ACCOUNT_LINE]

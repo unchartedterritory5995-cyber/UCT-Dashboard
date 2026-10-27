@@ -1413,6 +1413,11 @@ def _neutral_line_of(node: Any) -> str | None:
     return None
 
 
+def _is_empty_paragraph(node: Any) -> bool:
+    """A paragraph with nothing in it (no content, or an empty list): the blank line a member or a template leaves."""
+    return isinstance(node, dict) and node.get("type") == "paragraph" and not node.get("content")
+
+
 def _is_neutral(node: Any, line: str | None = None) -> bool:
     """A neutral line. With `line`, exactly that one; without, either."""
     found = _neutral_line_of(node)
@@ -1581,9 +1586,16 @@ def _reduce_children(children: Any, ctx: _Ctx) -> list:
         placed = None
         for reduced in produced:
             line = _neutral_line_of(reduced)
-            if line is not None and out and _neutral_line_of(out[-1]) == line:
-                placed = len(out) - 1 if placed is None else placed
-                continue                             # ONE neutral line for a run of them
+            if line is not None:
+                # 11.20 R7: a run is the same line with only EMPTY paragraphs between (a template-made note puts one
+                # between its blocks); those separators go with the hidden blocks they separated.
+                back = len(out)
+                while back and _is_empty_paragraph(out[back - 1]):
+                    back -= 1
+                if back and _neutral_line_of(out[back - 1]) == line:
+                    del out[back:]
+                    placed = back - 1 if placed is None else placed
+                    continue                         # ONE neutral line for a run of them
             placed = len(out) if placed is None else placed
             out.append(reduced)
         if ctx.report is not None:
