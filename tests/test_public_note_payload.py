@@ -1070,6 +1070,38 @@ def test_private_blocks_apart_keep_a_line_each():
     assert _lines(trailing) == ["ACCOUNT", ""]
 
 
+def test_a_member_paragraph_with_the_neutral_words_is_never_merged_away():
+    # Review m-5a: only a neutral line the REDUCER placed joins a run. A paragraph the member typed with exactly the
+    # same words is the member's text: it stays, and so do the blanks around it.
+    typed = reduce(doc(_pnl(False), p(), p(t(ACCOUNT_LINE)), p(), _positions(False)), "share")
+    assert texts_in(typed) == [ACCOUNT_LINE, ACCOUNT_LINE, ACCOUNT_LINE]
+    assert len(typed["content"]) == 5
+    market = reduce(doc(p(t(NEUTRAL)), _widget("chart")), "share")
+    assert texts_in(market) == [NEUTRAL, NEUTRAL]
+    # CONTROL: two PLACED lines with a blank between still merge.
+    assert texts_in(reduce(doc(_pnl(False), p(), _positions(False)), "share")) == [ACCOUNT_LINE]
+
+
+def test_a_merged_childs_change_entry_points_at_the_line_it_merged_into(monkeypatch):
+    # Review m-5b: a child that produced [blank, neutral line] right after a placed line merges into that line; its
+    # change entry must point at the line that stands (index 0), not at the blank that was removed.
+    real = pnp._reduce_node
+
+    def fake(node, ctx):
+        if isinstance(node, dict) and node.get("type") == "zzLine":
+            return [pnp._neutral(ACCOUNT_LINE)]
+        if isinstance(node, dict) and node.get("type") == "zzProbe":
+            ctx.note("market_data", "probe")
+            return [{"type": "paragraph"}, pnp._neutral(ACCOUNT_LINE)]
+        return real(node, ctx)
+    monkeypatch.setattr(pnp, "_reduce_node", fake)
+    report: list = []
+    out = pnp.reduce(doc({"type": "zzLine"}, {"type": "zzProbe"}), mode="example", owner_id=OWNER, note_id=NOTE,
+                     attachment_base=BASE, facts=FACTS, report=report)
+    assert len(out["content"]) == 1 and texts_in(out) == [ACCOUNT_LINE]
+    assert [e["path"] for e in report] == [[0]]
+
+
 def test_nested_account_kind_in_a_container_follows_the_same_rule():
     body = doc({"type": "blockquote", "content": [_pnl(False)]})
     assert texts_in(reduce(body, "share")) == [ACCOUNT_LINE]

@@ -89,6 +89,7 @@ What each mode does (the rows below are the authority; this is the summary):
 """
 from __future__ import annotations
 
+import contextvars
 import copy
 import json
 import re
@@ -1400,8 +1401,23 @@ def _kept_urls(t: str, node: dict, ctx: _Ctx) -> dict | None:
     return node
 
 
+#: Review m-5a: the neutral lines THIS reduce placed, by node identity (set by `reduce` for the length of one call).
+#: Only these join a run in `_reduce_children`: a paragraph the member typed with the same words is their text.
+_PLACED: contextvars.ContextVar[set | None] = contextvars.ContextVar("pnp_placed_neutral_lines", default=None)
+
+
 def _neutral(line: str = NEUTRAL_LINE) -> dict:
-    return {"type": "paragraph", "content": [{"type": "text", "text": line}]}
+    node = {"type": "paragraph", "content": [{"type": "text", "text": line}]}
+    placed = _PLACED.get()
+    if placed is not None:
+        placed.add(id(node))
+    return node
+
+
+def _placed_line_of(node: Any) -> str | None:
+    """The neutral line this node is, when THIS reduce placed it (`_neutral`); None for any other node."""
+    placed = _PLACED.get()
+    return _neutral_line_of(node) if placed is not None and id(node) in placed else None
 
 
 def _neutral_line_of(node: Any) -> str | None:
@@ -1585,15 +1601,17 @@ def _reduce_children(children: Any, ctx: _Ctx) -> list:
             ctx.path.pop()
         placed = None
         for reduced in produced:
-            line = _neutral_line_of(reduced)
+            line = _placed_line_of(reduced)
             if line is not None:
-                # 11.20 R7: a run is the same line with only EMPTY paragraphs between (a template-made note puts one
-                # between its blocks); those separators go with the hidden blocks they separated.
+                # 11.20 R7: a run is the same PLACED line with only EMPTY paragraphs between (a template-made note
+                # puts one between its blocks); those separators go with the hidden blocks they separated.
                 back = len(out)
                 while back and _is_empty_paragraph(out[back - 1]):
                     back -= 1
-                if back and _neutral_line_of(out[back - 1]) == line:
+                if back and _placed_line_of(out[back - 1]) == line:
                     del out[back:]
+                    if placed is not None and placed >= back:
+                        placed = back - 1            # m-5b: this child's node was a separator just removed
                     placed = back - 1 if placed is None else placed
                     continue                         # ONE neutral line for a run of them
             placed = len(out) if placed is None else placed
@@ -1828,7 +1846,11 @@ def reduce(
     ctx = _Ctx(mode, facts or {}, note_links or {}, attachment_base, images_on=images_on, brokers=brokers,
                image_src_for=image_src_for, report=report, owner_id=owner_id, note_id=note_id,
                offered=offered)
-    reduced = _reduce_node(json.loads(raw), ctx)
+    token = _PLACED.set(set())
+    try:
+        reduced = _reduce_node(json.loads(raw), ctx)
+    finally:
+        _PLACED.reset(token)
     if not reduced or reduced[0].get("type") != "doc":
         return {"type": "doc", "content": [{"type": "paragraph"}]}
     out = reduced[0]
