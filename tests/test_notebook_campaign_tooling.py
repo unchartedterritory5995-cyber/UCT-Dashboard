@@ -1511,3 +1511,187 @@ def test_run_measures_hidden_needs_the_control_in_the_page_and_opacity_and_text_
     R, row = _measure_run([])
     rc.run_measures(R, {"measure": [fab]}, row)
     assert row["checks"] == [] and row["inconclusive"]
+
+
+# ── sandbox-recipe G2: nothing in the campaign or its launcher stats, hashes or opens the shared data root ─────────
+#
+# The spy is the launcher's own process (a subprocess, so its env pins and tripwire never leak into this one): every
+# os / open / glob entry point that can stat, list, hash or open a path is wrapped, plus an audit hook, and each path is
+# tested with shared_root_guard.hit() against C:\data and a FAKE root. Every boot points the launcher's snapshot at the
+# fake root, and the CONTROL boots it WITHOUT the flag: the spy must see the fake root read, so a spy that cannot fire
+# cannot pass, and no test (nor any mutant) ever reads the live root.
+# Mutants (scratchpad mutate_g2.py): the flag no longer skipping the snapshot; the campaign dropping the flag; the log
+# written to the repo again. Each turned this block red.
+
+_SPY = r'''
+import builtins, glob, io, json, os, sys, types
+repo, fake, out_json = sys.argv[1], sys.argv[2], sys.argv[3]
+argv = sys.argv[4:]
+sys.path[:0] = [os.path.join(repo, "scripts"), repo]
+import shared_root_guard as srg
+ROOTS = srg.canonical_roots(["C:\\data", "/data", fake])
+hits = []
+
+def note(fn, p):
+    try:
+        if isinstance(p, int):
+            return
+        h = srg.hit(p, ROOTS)
+    except Exception:
+        return
+    if h:
+        hits.append([fn, str(p)])
+
+def wrap(mod, name):
+    orig = getattr(mod, name)
+    def spy(*a, **k):
+        if a:
+            note(f"{mod.__name__}.{name}", a[0])
+        return orig(*a, **k)
+    setattr(mod, name, spy)
+
+for n in ("stat", "lstat", "open", "scandir", "listdir", "walk", "makedirs", "mkdir", "remove", "replace", "rename",
+          "access", "chmod", "utime"):
+    if hasattr(os, n):
+        wrap(os, n)
+for n in ("exists", "isfile", "isdir", "getsize", "getmtime", "realpath", "lexists", "islink"):
+    wrap(os.path, n)
+wrap(builtins, "open"); wrap(io, "open"); wrap(glob, "glob"); wrap(glob, "iglob")
+sys.addaudithook(lambda ev, args: note("audit:" + ev, args[0]) if ev in ("open", "os.listdir", "os.scandir",
+                 "glob.glob", "os.mkdir", "os.remove", "os.rename") and args else None)
+
+api, api_main = types.ModuleType("api"), types.ModuleType("api.main")
+async def app(scope, receive, send):
+    return None
+api_main.app = app
+api.main = api_main
+sys.modules["api"], sys.modules["api.main"] = api, api_main
+uv = types.ModuleType("uvicorn")
+uv.run = lambda *a, **k: None
+sys.modules["uvicorn"] = uv
+
+# Whatever the mode, a snapshot the launcher takes reads the FAKE root, never the live one: so a mutant that drops
+# the flag is caught by the spy without this test ever opening C:\data itself.
+import data_root_snapshot as drs
+drs.DEFAULT_ROOT = fake
+drs.snapshot.__defaults__ = (fake,)
+import hub_sandbox_boot as boot
+sys.argv = ["hub_sandbox_boot.py"] + argv
+code = 0
+try:
+    boot.main()
+except SystemExit as e:
+    code = e.code
+json.dump({"hits": hits, "code": code}, open(out_json, "w"))
+'''
+
+
+def _free_port() -> int:
+    import socket
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0))
+        return s.getsockname()[1]
+
+
+def _boot_with_spy(tmp_path, *, flag: bool) -> dict:
+    import os
+    import subprocess
+    fake = tmp_path / "fake-shared-root"
+    (fake / "sub").mkdir(parents=True)
+    (fake / "sub" / "live.db").write_bytes(b"SQLite format 3\x00 fake")
+    spy = tmp_path / "spy.py"
+    spy.write_text(_SPY, encoding="utf-8")
+    out = tmp_path / "out"
+    argv = ["--data-dir", str(tmp_path / "sbx"), "--port", str(_free_port()), "--host", "127.0.0.1",
+            "--log-dir", str(out)] + (["--no-shared-root-snapshot"] if flag else [])
+    env = {k: v for k, v in os.environ.items() if not k.startswith("RAILWAY_")}
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
+    r = subprocess.run([sys.executable, str(spy), str(REPO), str(fake), str(tmp_path / "spy.json"), *argv],
+                       cwd=str(REPO), env=env, capture_output=True, text=True, timeout=300)
+    assert (tmp_path / "spy.json").is_file(), r.stdout[-2000:] + r.stderr[-2000:]
+    got = json.loads((tmp_path / "spy.json").read_text())
+    got["stdout"], got["out"] = r.stdout, out
+    return got
+
+
+def test_g2_the_launcher_with_the_campaign_flag_never_touches_the_shared_root(tmp_path):
+    got = _boot_with_spy(tmp_path, flag=True)
+    assert got["code"] in (0, None), got["stdout"][-1500:]
+    assert "HUB SANDBOX" in got["stdout"]                                  # the whole pre-serve path ran
+    assert got["hits"] == [], got["hits"][:10]
+    logs = list(got["out"].glob("sandbox-integrity-*.md"))                 # the log is in --out, not the repo
+    assert len(logs) == 1, list(got["out"].iterdir())
+    text = logs[0].read_text(encoding="utf-8")
+    assert "NOT HASHED" in text and "CLEAN" not in text.split("\n- ")[1]   # never claims a compare it did not make
+    assert "integrity log: " + str(logs[0]) in got["stdout"]
+
+
+def test_g2_control_the_spy_sees_a_launcher_that_reads_a_root(tmp_path):
+    got = _boot_with_spy(tmp_path, flag=False)
+    assert any("fake-shared-root" in p for _, p in got["hits"]), got["stdout"][-1500:]
+    assert not any("fake-shared-root" not in p for _, p in got["hits"]), got["hits"][:10]   # and never the real one
+
+
+def test_g2_the_launcher_refuses_a_log_dir_inside_the_shared_root(tmp_path, monkeypatch, capsys):
+    """Against a FAKE shared root (the guard's default roots, monkeypatched), so neither this test nor a mutant that
+    drops the refusal ever creates anything under the live one; `os.makedirs` is a tripwire here as well."""
+    sys.path.insert(0, str(REPO / "scripts"))
+    import hub_sandbox_boot as boot
+    import shared_root_guard as srg
+    fake = tmp_path / "fake-root"
+    monkeypatch.setattr(srg, "DEFAULT_ROOTS", (str(fake),))
+    made = []
+    monkeypatch.setattr(boot.os, "makedirs", lambda *a, **k: made.append(a))
+    with pytest.raises(SystemExit):
+        boot._log_file(str(fake / "sandbox-runs"), None)
+    assert "REFUSING" in capsys.readouterr().out and made == []
+    boot._log_file(str(tmp_path / "out"), None)                        # control: a sandbox folder is accepted
+    assert made == [(str(tmp_path / "out"),)]
+
+
+def test_g2_the_campaign_boots_its_own_sandbox_with_the_flag_and_its_out_dir(tmp_path):
+    made = []
+
+    class FakeSandbox:
+        def __init__(self, data_dir, port, log, extra_args=()):
+            made.append(list(extra_args))
+            self.proc = type("P", (), {"pid": 1})()
+
+        def start(self):
+            pass
+
+        def wait_healthy(self, *a):
+            return True
+
+        def wait_checkpoint(self, *a):
+            return True
+
+    h = type("H", (), {"Sandbox": FakeSandbox, "port_busy": staticmethod(lambda p: False), "POST_BOOT": "x",
+                       "POST_BOOT_WAIT_S": 0})
+    fw = type("FW", (), {"flag_sets": staticmethod(lambda: {"all_names": [], "c1": [], "armed": []})})
+    import os
+    saved = dict(os.environ)                     # campaign_env writes this process's environment for the child
+    try:
+        sb = rc.OwnedSandbox(h, fw, tmp_path / "sbx", 8999, tmp_path / "out")
+        sb.start()
+    finally:
+        os.environ.clear()
+        os.environ.update(saved)
+    assert made == [["--no-shared-root-snapshot", "--log-dir", str(tmp_path / "out")]]
+
+
+def test_g2_the_harness_passes_the_campaigns_launcher_flags_through():
+    sys.path.insert(0, str(REPO / "tools"))
+    import notebook_perf_harness as h
+    box = h.Sandbox("x", 1, Path("y.log"), extra_args=["--no-shared-root-snapshot", "--log-dir", "z"])
+    import subprocess
+    seen = {}
+    real = subprocess.Popen
+    subprocess.Popen = lambda cmd, **k: seen.setdefault("cmd", cmd)
+    try:
+        import tempfile
+        box.log_path = Path(tempfile.mkdtemp()) / "y.log"
+        box.start()
+    finally:
+        subprocess.Popen = real
+    assert seen["cmd"][-3:] == ["--no-shared-root-snapshot", "--log-dir", "z"]

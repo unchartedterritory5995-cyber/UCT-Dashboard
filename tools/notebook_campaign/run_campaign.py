@@ -555,12 +555,18 @@ class OwnedSandbox:
     def env(self) -> list[str]:
         return campaign_env(self.fs, self.overrides)
 
+    def launcher_args(self) -> list[str]:
+        """Sandbox-recipe G2: the campaign never opens the shared data root (no snapshot of the shared root), and the
+        launcher's integrity log lands in this run's --out, never in the app root's docs."""
+        return ["--no-shared-root-snapshot", "--log-dir", str(self.out)]
+
     def start(self) -> None:
         if self.h.port_busy(self.port):
             raise SystemExit(f"REFUSED: port {self.port} already has a listener (never killed)")
         flags = self.env()
         n = len(self.boots) + 1
-        self.sb = self.h.Sandbox(str(self.data_dir), self.port, self.out / f"sandbox-boot{n}.log")
+        self.sb = self.h.Sandbox(str(self.data_dir), self.port, self.out / f"sandbox-boot{n}.log",
+                                 extra_args=self.launcher_args())
         self.sb.start()
         rec = {"boot": n, "flags_overridden": dict(self.overrides), "flags_on": flags, "pid": self.sb.proc.pid,
                "started": datetime.now(timezone.utc).isoformat(timespec="seconds")}

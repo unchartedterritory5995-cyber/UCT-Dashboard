@@ -800,14 +800,16 @@ class Sandbox:
     """One launcher process: started through `_SHIM` in its own process group, stopped by the
     signal the launcher already handles, and only then read for its integrity verdict."""
 
-    def __init__(self, data_dir: str, port: int, log_path: Path):
+    def __init__(self, data_dir: str, port: int, log_path: Path, extra_args: tuple = ()):
         self.data_dir, self.port, self.log_path = data_dir, port, Path(log_path)
+        # Launcher flags a caller adds (the notebook campaign: --no-shared-root-snapshot --log-dir <its --out>).
+        self.extra_args = tuple(str(a) for a in extra_args)
         self.proc: subprocess.Popen | None = None
         self.stop_how: str | None = None
 
     def start(self) -> None:
         cmd = [sys.executable, "-u", "-c", _SHIM, str(BOOT_SCRIPT), "--data-dir", self.data_dir,
-               "--port", str(self.port), "--host", "127.0.0.1"]
+               "--port", str(self.port), "--host", "127.0.0.1", *self.extra_args]
         kw = ({"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP} if os.name == "nt"
               else {"start_new_session": True})
         # The child inherits its own copy of the handle; ours is closed when the block ends.
