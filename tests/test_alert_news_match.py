@@ -182,3 +182,45 @@ async def test_the_route_is_admin_only_and_dark_aware(monkeypatch):
     assert len(listed.json()["predicates"]) == 1
     monkeypatch.setenv(nm.FLAG, "0")
     assert (await call({"id": "a", "role": "admin"}, json=body)).status_code == 404
+
+
+# ── the member's feed (filing-watch parity steps 2 and 3) ─────────────────────
+
+from api.services import watchlist_alert_service as _wls_mod  # noqa: E402
+_REAL_PAYLOAD = _wls_mod.deliver_alert_payload
+
+
+def _feed_fixture(monkeypatch, tmp_path):
+    """Real delivery into the real in-app feed (temp stores)."""
+    from api.services import alert_durability, auth_db
+    from api.services import alerts as alerts_svc
+    monkeypatch.setattr(auth_db, "_DB_PATH", str(tmp_path / "auth.db"))
+    monkeypatch.setattr(alert_durability, "_DB_PATH", str(tmp_path / "auth.db"))
+    auth_db.init_db()
+    alert_durability.init_schema()
+    monkeypatch.setattr(delivery.watchlist_alert_service, "deliver_alert_payload", _REAL_PAYLOAD)
+    monkeypatch.setattr(_wls_mod, "_get_user_email", lambda uid: None)
+    return alerts_svc
+
+
+def _fire_one():
+    nm.register_predicate_for_user("u1", tickers=["NVDA"])
+    assert nm.evaluate_headline(H("SYNTHETIC: feed parity headline", ["NVDA"]))["fired"] == 1
+
+
+def test_the_feed_carries_ONE_copy_while_both_stores_hold_the_fire(monkeypatch, tmp_path):
+    alerts_svc = _feed_fixture(monkeypatch, tmp_path)
+    _fire_one()
+    feed = [a for a in alerts_svc.get_alerts(limit=50, user_id="u1") if "NVDA" in a.get("title", "")]
+    assert len(feed) == 1, feed
+
+
+def test_the_durable_reconstruction_takes_over_when_the_ephemeral_copy_is_gone(monkeypatch, tmp_path):
+    alerts_svc = _feed_fixture(monkeypatch, tmp_path)
+    _fire_one()
+    alerts_svc.cache.set(alerts_svc._user_key("u1"), [], ttl=60)       # the ephemeral copy expires
+    monkeypatch.setattr("api.services.alert_durability.list_durable_alerts", lambda *a, **k: [])
+    feed = [a for a in alerts_svc.get_alerts(limit=50, user_id="u1")
+            if str(a.get("id", "")).startswith(alerts_svc._S7_FIRE_PREFIX)]
+    assert len(feed) == 1
+    assert feed[0]["title"] == "News: NVDA" and feed[0]["data"]["source"] == "news_match"

@@ -1490,16 +1490,6 @@
       "owner": "trade-exchange-news",
       "note": "Trade Exchange News Checkpoint B (2026-10-27). DARK BY OWNER RULE: no deploy, no member access and no Trade Exchange webhook registration without explicit owner approval; history storage additionally waits on Trade Exchange's written retention/redistribution permission. Read in api/services/trade_exchange_news/config.py::enabled() (strict == '1'). ON: mounts POST /api/trade-exchange-news/internal/ingest (the receiver service's private-network push, bearer TXN_INGEST_TOKEN checked as its sha-256 against TXN_INGEST_TOKEN_SHA256) and GET /api/admin/trade-exchange-news, and starts the single-writer pipeline (/data/trade_exchange_news.db, bounded 7 days / 5,000 headlines) plus the R2 journal reconciler. OFF: routes do not match, nothing starts, /data untouched. Rollback = unset; the store and the R2 journal are kept."
     },
-    "TXN_STORAGE_PERMISSION_CONFIRMED": {
-      "status": "pending",
-      "since": "2026-10-27",
-      "where": [
-        "web",
-        "trade-exchange-news-receiver"
-      ],
-      "owner": "trade-exchange-news",
-      "note": "Trade Exchange News: HARD STORAGE GATE. Real Trade Exchange headlines are stored (R2 journal + web SQLite) only after Trade Exchange's retention and redistribution permission is confirmed in writing (owner rule, Checkpoint B/C). Without it the web pipeline does not start even with TXN_ENABLED=1 and the receiver answers 503. Pending the provider's written confirmation; synthetic-only staging may set it."
-    },
     "INDICATOR_VISION_ENABLED": {
       "status": "armed",
       "where": [
