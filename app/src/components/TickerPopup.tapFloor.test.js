@@ -64,6 +64,7 @@ const TARGETS = [
   [POPUP_CSS, '.flagBtn', ['min-width', 'min-height']],
   [POPUP_CSS, '.closeBtn', ['min-width', 'min-height']],
   [POPUP_CSS, '.switchInput', ['min-height']],   // 148px wide already; only its height was short
+  [POPUP_CSS, '.compareEntry button', ['min-height']],   // SymbolSearch's "+ Compare" badge, 97px wide; 14px tall at 820
   [STOCK_CSS, `${SCOPE} .scaleToggleBtn`, ['min-width', 'min-height']],
 ]
 
@@ -86,7 +87,7 @@ describe('TickerPopup touch targets clear --tap-min on phone AND tablet', () => 
   })
 
   it('the classes are the ones the popup renders (the wire, not just the stylesheet)', () => {
-    for (const cls of ['actionBtn', 'flagBtn', 'closeBtn', 'switchInput']) {
+    for (const cls of ['actionBtn', 'flagBtn', 'closeBtn', 'switchInput', 'compareEntry']) {
       expect(POPUP_JSX, cls).toMatch(new RegExp(`styles\\.${cls}\\b`))
     }
     expect(POPUP_JSX).toMatch(/className=\{styles\.chartArea\}\s+data-ticker-popup-chart=""/)

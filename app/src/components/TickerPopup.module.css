@@ -661,4 +661,7 @@
     min-height: var(--tap-min);
   }
   .switchInput { min-height: var(--tap-min); }
+  /* "+ Compare" is SymbolSearch's own badge, sized for the chart TF bar (14px tall at 820,
+     40px from its own <=640 rule); the floor is scoped to the popup's entry. */
+  .compareEntry button { min-height: var(--tap-min); }
 }
