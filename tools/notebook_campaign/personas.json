@@ -4957,7 +4957,15 @@
          "path": "app/src/pages/Login.jsx",
          "fragment": "{loading ? 'Logging in...' : 'Log In'}"
         }
-       ]
+       ],
+       "expect_http": [
+        {
+         "status": 401,
+         "url": "/api/auth/me",
+         "max": 1
+        }
+       ],
+       "expect_http_why": "W11-R85 010: a stranger is signed out, so the app's own GET /api/auth/me answers 401 once on open; any other failed request is still filed"
       },
       {
        "do": "api",
@@ -5386,7 +5394,11 @@
        "do": "builder_save_expect_refusal",
        "expect": [
         "count_cap"
-       ]
+       ],
+       "expect_status": [
+        409
+       ],
+       "expect_status_why": "W11-R85 012: the 101st widget is refused with 409 (the count cap), which this step proves"
       },
       {
        "do": "close_dialog",
