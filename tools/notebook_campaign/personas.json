@@ -120,7 +120,7 @@
   },
   "library_title": {
    "text": "Template library",
-   "source": "app/src/pages/journal-2-0/components/notebook/library/TemplateLibrarySection.jsx:25",
+   "source": "app/src/pages/journal-2-0/components/notebook/library/TemplateLibrarySection.jsx:26",
    "fragment": "SECTION_TITLE = 'Template library'"
   },
   "adopt_title": {
