@@ -1,0 +1,291 @@
+{
+ "viewport": "390",
+ "step": "PD1",
+ "title": "PD-1 Login button contrast and tap size",
+ "mode": "ON",
+ "checks": [
+  {
+   "what": "PD-1 dark: the page is in the dark theme",
+   "ok": true,
+   "read": "dark"
+  },
+  {
+   "what": "PD-1 dark: 'Log In' at rest >= 4.5:1",
+   "ok": true,
+   "read": "{\"text\": \"Log In\", \"fg\": \"rgb(16, 16, 18)\", \"bg\": \"rgb(220, 187, 94)\", \"opacity\": 1, \"ratio\": 10.24, \"w\": 308, \"h\": 44, \"disabled\": false, \"theme\": \"dark\"}"
+  },
+  {
+   "what": "PD-1 dark: 'Log In' hovered >= 4.5:1",
+   "ok": true,
+   "read": "{\"text\": \"Log In\", \"fg\": \"rgb(17, 17, 19)\", \"bg\": \"rgb(200, 171, 87)\", \"opacity\": 0.9, \"ratio\": 8.46, \"w\": 308, \"h\": 44, \"disabled\": false, \"theme\": \"dark\"}"
+  },
+  {
+   "what": "PD-1 dark 390: 'Log In' >= 44 px tall (and wide)",
+   "ok": true,
+   "read": "{\"text\": \"Log In\", \"fg\": \"rgb(16, 16, 18)\", \"bg\": \"rgb(220, 187, 94)\", \"opacity\": 1, \"ratio\": 10.24, \"w\": 308, \"h\": 44, \"disabled\": false, \"theme\": \"dark\"}"
+  },
+  {
+   "what": "PD-1 dark 390: 'Forgot password?' >= 44 px tall",
+   "ok": true,
+   "read": "{\"text\": \"Forgot password?\", \"fg\": \"rgb(207, 202, 192)\", \"bg\": \"rgb(23, 24, 27)\", \"opacity\": 1, \"ratio\": 10.87, \"w\": 308, \"h\": 44, \"disabled\": false, \"theme\": \"dark\"}"
+  },
+  {
+   "what": "PD-1 dark: 'Logging in...' (disabled) >= 4.5:1",
+   "ok": true,
+   "read": "{\"text\": \"Logging in...\", \"fg\": \"rgb(16, 16, 18)\", \"bg\": \"rgb(220, 187, 94)\", \"opacity\": 1, \"ratio\": 10.24, \"w\": 308, \"h\": 44, \"disabled\": true, \"theme\": \"dark\"}"
+  },
+  {
+   "what": "PD-1 oled: the page is in the oled theme",
+   "ok": true,
+   "read": "oled"
+  },
+  {
+   "what": "PD-1 oled: 'Log In' at rest >= 4.5:1",
+   "ok": true,
+   "read": "{\"text\": \"Log In\", \"fg\": \"rgb(0, 0, 0)\", \"bg\": \"rgb(220, 187, 94)\", \"opacity\": 1, \"ratio\": 11.31, \"w\": 308, \"h\": 44, \"disabled\": false, \"theme\": \"oled\"}"
+  },
+  {
+   "what": "PD-1 oled: 'Log In' hovered >= 4.5:1",
+   "ok": true,
+   "read": "{\"text\": \"Log In\", \"fg\": \"rgb(1, 1, 1)\", \"bg\": \"rgb(199, 169, 86)\", \"opacity\": 0.9, \"ratio\": 9.2, \"w\": 308, \"h\": 44, \"disabled\": false, \"theme\": \"oled\"}"
+  },
+  {
+   "what": "PD-1 oled 390: 'Log In' >= 44 px tall (and wide)",
+   "ok": true,
+   "read": "{\"text\": \"Log In\", \"fg\": \"rgb(0, 0, 0)\", \"bg\": \"rgb(220, 187, 94)\", \"opacity\": 1, \"ratio\": 11.31, \"w\": 308, \"h\": 44, \"disabled\": false, \"theme\": \"oled\"}"
+  },
+  {
+   "what": "PD-1 oled 390: 'Forgot password?' >= 44 px tall",
+   "ok": true,
+   "read": "{\"text\": \"Forgot password?\", \"fg\": \"rgb(207, 202, 192)\", \"bg\": \"rgb(10, 10, 10)\", \"opacity\": 1, \"ratio\": 12.13, \"w\": 308, \"h\": 44, \"disabled\": false, \"theme\": \"oled\"}"
+  },
+  {
+   "what": "PD-1 oled: 'Logging in...' (disabled) >= 4.5:1",
+   "ok": true,
+   "read": "{\"text\": \"Logging in...\", \"fg\": \"rgb(0, 0, 0)\", \"bg\": \"rgb(220, 187, 94)\", \"opacity\": 1, \"ratio\": 11.31, \"w\": 308, \"h\": 44, \"disabled\": true, \"theme\": \"oled\"}"
+  },
+  {
+   "what": "PD-1 light: the page is in the light theme",
+   "ok": true,
+   "read": "light"
+  },
+  {
+   "what": "PD-1 light: 'Log In' at rest >= 4.5:1",
+   "ok": true,
+   "read": "{\"text\": \"Log In\", \"fg\": \"rgb(255, 255, 255)\", \"bg\": \"rgb(122, 92, 22)\", \"opacity\": 1, \"ratio\": 6.23, \"w\": 308, \"h\": 44, \"disabled\": false, \"theme\": \"light\"}"
+  },
+  {
+   "what": "PD-1 light: 'Log In' hovered >= 4.5:1",
+   "ok": true,
+   "read": "{\"text\": \"Log In\", \"fg\": \"rgb(254, 254, 254)\", \"bg\": \"rgb(134, 107, 44)\", \"opacity\": 0.9, \"ratio\": 4.99, \"w\": 308, \"h\": 44, \"disabled\": false, \"theme\": \"light\"}"
+  },
+  {
+   "what": "PD-1 light 390: 'Log In' >= 44 px tall (and wide)",
+   "ok": true,
+   "read": "{\"text\": \"Log In\", \"fg\": \"rgb(255, 255, 255)\", \"bg\": \"rgb(122, 92, 22)\", \"opacity\": 1, \"ratio\": 6.23, \"w\": 308, \"h\": 44, \"disabled\": false, \"theme\": \"light\"}"
+  },
+  {
+   "what": "PD-1 light 390: 'Forgot password?' >= 44 px tall",
+   "ok": true,
+   "read": "{\"text\": \"Forgot password?\", \"fg\": \"rgb(87, 96, 106)\", \"bg\": \"rgb(244, 245, 246)\", \"opacity\": 1, \"ratio\": 5.85, \"w\": 308, \"h\": 44, \"disabled\": false, \"theme\": \"light\"}"
+  },
+  {
+   "what": "PD-1 light: 'Logging in...' (disabled) >= 4.5:1",
+   "ok": true,
+   "read": "{\"text\": \"Logging in...\", \"fg\": \"rgb(255, 255, 255)\", \"bg\": \"rgb(122, 92, 22)\", \"opacity\": 1, \"ratio\": 6.23, \"w\": 308, \"h\": 44, \"disabled\": true, \"theme\": \"light\"}"
+  }
+ ],
+ "rendered": [
+  {
+   "what": "dark: data-theme / Log In at rest",
+   "text": "[\"dark\", {\"text\": \"Log In\", \"fg\": \"rgb(16, 16, 18)\", \"bg\": \"rgb(220, 187, 94)\", \"opacity\": 1, \"ratio\": 10.24, \"w\": 308, \"h\": 44, \"disabled\": false, \"theme\": \"dark\"}]"
+  },
+  {
+   "what": "dark: Forgot password?",
+   "text": "{\"text\": \"Forgot password?\", \"fg\": \"rgb(207, 202, 192)\", \"bg\": \"rgb(23, 24, 27)\", \"opacity\": 1, \"ratio\": 10.87, \"w\": 308, \"h\": 44, \"disabled\": false, \"theme\": \"dark\"}"
+  },
+  {
+   "what": "dark: the button while loading",
+   "text": "{\"text\": \"Logging in...\", \"fg\": \"rgb(16, 16, 18)\", \"bg\": \"rgb(220, 187, 94)\", \"opacity\": 1, \"ratio\": 10.24, \"w\": 308, \"h\": 44, \"disabled\": true, \"theme\": \"dark\"}"
+  },
+  {
+   "what": "oled: data-theme / Log In at rest",
+   "text": "[\"oled\", {\"text\": \"Log In\", \"fg\": \"rgb(0, 0, 0)\", \"bg\": \"rgb(220, 187, 94)\", \"opacity\": 1, \"ratio\": 11.31, \"w\": 308, \"h\": 44, \"disabled\": false, \"theme\": \"oled\"}]"
+  },
+  {
+   "what": "oled: Forgot password?",
+   "text": "{\"text\": \"Forgot password?\", \"fg\": \"rgb(207, 202, 192)\", \"bg\": \"rgb(10, 10, 10)\", \"opacity\": 1, \"ratio\": 12.13, \"w\": 308, \"h\": 44, \"disabled\": false, \"theme\": \"oled\"}"
+  },
+  {
+   "what": "oled: the button while loading",
+   "text": "{\"text\": \"Logging in...\", \"fg\": \"rgb(0, 0, 0)\", \"bg\": \"rgb(220, 187, 94)\", \"opacity\": 1, \"ratio\": 11.31, \"w\": 308, \"h\": 44, \"disabled\": true, \"theme\": \"oled\"}"
+  },
+  {
+   "what": "light: data-theme / Log In at rest",
+   "text": "[\"light\", {\"text\": \"Log In\", \"fg\": \"rgb(255, 255, 255)\", \"bg\": \"rgb(122, 92, 22)\", \"opacity\": 1, \"ratio\": 6.23, \"w\": 308, \"h\": 44, \"disabled\": false, \"theme\": \"light\"}]"
+  },
+  {
+   "what": "light: Forgot password?",
+   "text": "{\"text\": \"Forgot password?\", \"fg\": \"rgb(87, 96, 106)\", \"bg\": \"rgb(244, 245, 246)\", \"opacity\": 1, \"ratio\": 5.85, \"w\": 308, \"h\": 44, \"disabled\": false, \"theme\": \"light\"}"
+  },
+  {
+   "what": "light: the button while loading",
+   "text": "{\"text\": \"Logging in...\", \"fg\": \"rgb(255, 255, 255)\", \"bg\": \"rgb(122, 92, 22)\", \"opacity\": 1, \"ratio\": 6.23, \"w\": 308, \"h\": 44, \"disabled\": true, \"theme\": \"light\"}"
+  }
+ ],
+ "verdict": "FAIL",
+ "notes": [],
+ "events": {
+  "anon-dark": [
+   {
+    "http": 401,
+    "method": "GET",
+    "url": "http://127.0.0.1:8171/api/auth/me"
+   },
+   {
+    "http": 401,
+    "method": "POST",
+    "url": "http://127.0.0.1:8171/api/auth/login"
+   }
+  ],
+  "anon-oled": [
+   {
+    "http": 401,
+    "method": "GET",
+    "url": "http://127.0.0.1:8171/api/auth/me"
+   },
+   {
+    "http": 401,
+    "method": "POST",
+    "url": "http://127.0.0.1:8171/api/auth/login"
+   }
+  ],
+  "anon-light": [
+   {
+    "http": 401,
+    "method": "GET",
+    "url": "http://127.0.0.1:8171/api/auth/me"
+   },
+   {
+    "http": 401,
+    "method": "POST",
+    "url": "http://127.0.0.1:8171/api/auth/login"
+   }
+  ]
+ },
+ "metrics": {
+  "login-dark": {
+   "overflow": {
+    "vw": 390,
+    "docScrollWidth": 390,
+    "bodyScrollWidth": 390,
+    "inner": [],
+    "horizontal": false,
+    "offenders": []
+   },
+   "raw_block": [],
+   "axe_page": {
+    "version": "4.13.0",
+    "scope": "body",
+    "violations": [
+     {
+      "id": "color-contrast",
+      "impact": "serious",
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "nodes": 1,
+      "targets": [
+       "._switchLink_wi61l_371"
+      ],
+      "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.2 (foreground color: #2d8c4e, background color: #17181b, font size: 9.8pt (13px), font weight: normal). Expected contrast ratio of 4.5:1",
+      "html": "<a class=\"_switchLink_wi61l_371\" href=\"/signup\" data-discover=\"true\">Sign up</a>"
+     }
+    ]
+   },
+   "tap": {
+    "scope": "body",
+    "controls": 6,
+    "small": [],
+    "smallCount": 0,
+    "pointerCoarse": true
+   }
+  },
+  "login-oled": {
+   "overflow": {
+    "vw": 390,
+    "docScrollWidth": 390,
+    "bodyScrollWidth": 390,
+    "inner": [],
+    "horizontal": false,
+    "offenders": []
+   },
+   "raw_block": [],
+   "axe_page": {
+    "version": "4.13.0",
+    "scope": "body",
+    "violations": []
+   },
+   "tap": {
+    "scope": "body",
+    "controls": 6,
+    "small": [],
+    "smallCount": 0,
+    "pointerCoarse": true
+   }
+  },
+  "login-light": {
+   "overflow": {
+    "vw": 390,
+    "docScrollWidth": 390,
+    "bodyScrollWidth": 390,
+    "inner": [],
+    "horizontal": false,
+    "offenders": []
+   },
+   "raw_block": [],
+   "axe_page": {
+    "version": "4.13.0",
+    "scope": "body",
+    "violations": []
+   },
+   "tap": {
+    "scope": "body",
+    "controls": 6,
+    "small": [],
+    "smallCount": 0,
+    "pointerCoarse": true
+   }
+  }
+ },
+ "screenshots": [
+  "390/PD1-login-light.png",
+  "390/PD1-login-light-loading.png"
+ ],
+ "requests_note_put": 0,
+ "started": "2026-10-27T10:24:20",
+ "findings": [
+  {
+   "kind": "axe:serious",
+   "surface": "login-dark",
+   "scope": "axe_page",
+   "id": "color-contrast",
+   "detail": "color-contrast: Elements must meet minimum color contrast ratio thresholds (1 nodes) ['._switchLink_wi61l_371'] -- Fix any of the following:\n  Element has insufficient color contrast of 4.2 (foreground color: #2d8c4e, background color: #17181b, font size: 9.8pt (13px), font weight: normal). Expected contrast ratio of 4.5:1"
+  },
+  {
+   "kind": "event",
+   "page": "anon-dark",
+   "detail": "{\"http\": 401, \"method\": \"POST\", \"url\": \"http://127.0.0.1:8171/api/auth/login\"}"
+  },
+  {
+   "kind": "event",
+   "page": "anon-oled",
+   "detail": "{\"http\": 401, \"method\": \"POST\", \"url\": \"http://127.0.0.1:8171/api/auth/login\"}"
+  },
+  {
+   "kind": "event",
+   "page": "anon-light",
+   "detail": "{\"http\": 401, \"method\": \"POST\", \"url\": \"http://127.0.0.1:8171/api/auth/login\"}"
+  }
+ ],
+ "partial": false,
+ "finished": "2026-10-27T10:24:33"
+}

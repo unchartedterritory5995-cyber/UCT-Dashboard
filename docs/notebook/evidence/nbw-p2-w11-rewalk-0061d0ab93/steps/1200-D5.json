@@ -1,0 +1,68 @@
+{
+ "viewport": "1200",
+ "step": "D5",
+ "title": "D5 no scrollable-region-focusable",
+ "mode": "ON",
+ "checks": [
+  {
+   "what": "D5: axe scrollable-region-focusable has no finding on the template note",
+   "ok": true,
+   "read": "[]"
+  },
+  {
+   "what": "D5: no surface measured at 1200 in this run has scrollable-region-focusable",
+   "ok": true,
+   "read": "[]"
+  }
+ ],
+ "rendered": [
+  {
+   "what": "scrollable lists on the note (tabindex / role / label)",
+   "text": "[{\"cls\": \"_list_9h6se_95\", \"tabindex\": \"0\", \"role\": \"region\", \"label\": \"Market context readings\"}]"
+  }
+ ],
+ "verdict": "PASS",
+ "notes": [],
+ "events": {
+  "A": []
+ },
+ "metrics": {
+  "note": {
+   "overflow": {
+    "vw": 1200,
+    "docScrollWidth": 1200,
+    "bodyScrollWidth": 1200,
+    "inner": [
+     [
+      1140,
+      1140
+     ],
+     [
+      1092,
+      1092
+     ],
+     [
+      826,
+      826
+     ]
+    ],
+    "horizontal": false,
+    "offenders": []
+   },
+   "raw_block": [],
+   "axe_page": {
+    "version": "4.13.0",
+    "scope": "body",
+    "violations": []
+   }
+  }
+ },
+ "screenshots": [
+  "1200/D5-note.png"
+ ],
+ "requests_note_put": 0,
+ "started": "2026-10-27T09:55:40",
+ "findings": [],
+ "partial": false,
+ "finished": "2026-10-27T09:55:57"
+}

@@ -1,0 +1,75 @@
+{
+ "viewport": "390",
+ "step": "PD3",
+ "title": "PD-3 Toast Dismiss tap size",
+ "mode": "ON",
+ "checks": [
+  {
+   "what": "PD-3 390: Toast 'Dismiss' >= 44 x 44",
+   "ok": true,
+   "read": "{\"text\": \"\\u00d7\", \"fg\": \"rgb(207, 202, 192)\", \"bg\": \"rgb(17, 17, 17)\", \"opacity\": 1, \"ratio\": 11.57, \"w\": 44, \"h\": 44, \"disabled\": false, \"theme\": \"oled\"}"
+  },
+  {
+   "what": "PD-3 390: Dismiss closes the toast",
+   "ok": true,
+   "read": ""
+  }
+ ],
+ "rendered": [
+  {
+   "what": "toast / Dismiss",
+   "text": "[[\"Adding Tilt check\\u2026\\n\\u00d7\"], {\"text\": \"\\u00d7\", \"fg\": \"rgb(207, 202, 192)\", \"bg\": \"rgb(17, 17, 17)\", \"opacity\": 1, \"ratio\": 11.57, \"w\": 44, \"h\": 44, \"disabled\": false, \"theme\": \"oled\"}]"
+  }
+ ],
+ "verdict": "PASS",
+ "notes": [],
+ "events": {
+  "A": []
+ },
+ "metrics": {
+  "toast": {
+   "overflow": {
+    "vw": 390,
+    "docScrollWidth": 390,
+    "bodyScrollWidth": 390,
+    "inner": [
+     [
+      390,
+      390
+     ],
+     [
+      342,
+      342
+     ],
+     [
+      342,
+      342
+     ]
+    ],
+    "horizontal": false,
+    "offenders": []
+   },
+   "raw_block": [],
+   "axe_page": {
+    "version": "4.13.0",
+    "scope": "body",
+    "violations": []
+   },
+   "tap": {
+    "scope": "body",
+    "controls": 36,
+    "small": [],
+    "smallCount": 0,
+    "pointerCoarse": true
+   }
+  }
+ },
+ "screenshots": [
+  "390/PD3-toast.png"
+ ],
+ "requests_note_put": 0,
+ "started": "2026-10-27T10:25:02",
+ "findings": [],
+ "partial": false,
+ "finished": "2026-10-27T10:25:17"
+}

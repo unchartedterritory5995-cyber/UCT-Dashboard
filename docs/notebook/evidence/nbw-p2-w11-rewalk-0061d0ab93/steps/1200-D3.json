@@ -1,0 +1,101 @@
+{
+ "viewport": "1200",
+ "step": "D3",
+ "title": "D3 routine block has no overflow",
+ "mode": "ON",
+ "checks": [
+  {
+   "what": "D1 Night-before prep Use: after Use no sheet is left open over the new note",
+   "ok": true,
+   "read": "[]"
+  },
+  {
+   "what": "D1 Night-before prep Use: focus is the new note's title",
+   "ok": true,
+   "read": "{\"tag\": \"INPUT\", \"placeholder\": \"Title\", \"aria\": \"Note title\", \"cls\": \"_titleInput_wfbxs_459\", \"value\": \"\", \"inertAncestor\": false, \"rootInert\": false, \"inDialog\": false, \"visible\": true}"
+  },
+  {
+   "what": "D1 Night-before prep Use: the focused title has no inert ancestor (and #root is not inert)",
+   "ok": true,
+   "read": "{\"tag\": \"INPUT\", \"placeholder\": \"Title\", \"aria\": \"Note title\", \"cls\": \"_titleInput_wfbxs_459\", \"value\": \"\", \"inertAncestor\": false, \"rootInert\": false, \"inDialog\": false, \"visible\": true}"
+  },
+  {
+   "what": "D3: no element of the routine block reaches outside it, nothing in it is clipped",
+   "ok": true,
+   "read": "[{\"left\": 427, \"right\": 1099, \"vw\": 1200, \"outside\": [], \"clipped\": []}]"
+  },
+  {
+   "what": "D3: the long item reads whole ('Check tomorrow's earnings and economic calendar')",
+   "ok": true,
+   "read": "For Wed Oct 28\nNot yet\n\nBuild tomorrow's watchlist\nMark levels on my top names\nCheck tomorrow's earnings and economic calendar\nSet tomorrow's max loss\nWrite my plan for the open\nSkip this day\nP&L on days you finished it"
+  },
+  {
+   "what": "D3: page horizontal overflow 0",
+   "ok": true,
+   "read": "{\"vw\": 1200, \"docScrollWidth\": 1200, \"bodyScrollWidth\": 1200, \"inner\": [[1140, 1140], [1092, 1092], [826, 826]], \"horizontal\": false, \"offenders\": []}"
+  }
+ ],
+ "rendered": [
+  {
+   "what": "Night-before prep detail",
+   "text": "Night-before prep\n×\n\nBased on UCT's Night-before prep\n\nLevels for tomorrow\n\nMark the prices you will act on at the open.\n\nKey levels from my plans\n\nEarnings tomorrow\n\nWhich of your names report before the open or after the close?\n\nEarnings for my names\n\nNight-before routine\n\nTick each step before you shut the screens.\n\nRoutine: Night-before prep\n\nPreview with your data\n\nNight-before prep\n\nBuild tomorrow's watchlist\nMark levels on my top names\nCheck tomorrow's earnings and economic calendar\nSet tomorrow's max loss\nWrite my plan for the open\n\nFor Wed Oct 28\n\nClose\nUse this template"
+  },
+  {
+   "what": "D1 Night-before prep Use: document.activeElement after Use",
+   "text": "{\"tag\": \"INPUT\", \"placeholder\": \"Title\", \"aria\": \"Note title\", \"cls\": \"_titleInput_wfbxs_459\", \"value\": \"\", \"inertAncestor\": false, \"rootInert\": false, \"inDialog\": false, \"visible\": true}"
+  },
+  {
+   "what": "routine block geometry",
+   "text": "[{\"left\": 427, \"right\": 1099, \"vw\": 1200, \"outside\": [], \"clipped\": []}]"
+  }
+ ],
+ "verdict": "PASS",
+ "notes": [],
+ "events": {
+  "A": []
+ },
+ "metrics": {
+  "note": {
+   "overflow": {
+    "vw": 1200,
+    "docScrollWidth": 1200,
+    "bodyScrollWidth": 1200,
+    "inner": [
+     [
+      1140,
+      1140
+     ],
+     [
+      1092,
+      1092
+     ],
+     [
+      826,
+      826
+     ]
+    ],
+    "horizontal": false,
+    "offenders": []
+   },
+   "raw_block": [],
+   "axe_sheet": {
+    "version": "4.13.0",
+    "scope": "[data-routine-block]",
+    "violations": []
+   },
+   "axe_page": {
+    "version": "4.13.0",
+    "scope": "body",
+    "violations": []
+   }
+  }
+ },
+ "screenshots": [
+  "1200/D3-routine.png"
+ ],
+ "requests_note_put": 0,
+ "started": "2026-10-27T09:48:59",
+ "findings": [],
+ "partial": false,
+ "finished": "2026-10-27T09:49:22"
+}

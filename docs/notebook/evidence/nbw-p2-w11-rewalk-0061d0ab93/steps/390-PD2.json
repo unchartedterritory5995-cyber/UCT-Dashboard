@@ -1,0 +1,162 @@
+{
+ "viewport": "390",
+ "step": "PD2",
+ "title": "PD-2 builder summary on an empty range",
+ "mode": "ON",
+ "checks": [
+  {
+   "what": "PD-2 Options strategies: the phone summary bar says the empty sentence 'No options strategies in this range.'",
+   "ok": true,
+   "read": "Net P&L, last 90 days · No options strategies in this range.\nShow the preview"
+  },
+  {
+   "what": "PD-2 Options strategies: no '0 <unit>' count and no '$0.00' in the phone summary bar",
+   "ok": true,
+   "read": "Net P&L, last 90 days · No options strategies in this range.\nShow the preview"
+  },
+  {
+   "what": "PD-2 Options strategies: no SHOWN '0 <unit>' / '$0.00' text anywhere in the builder",
+   "ok": true,
+   "read": "[]"
+  },
+  {
+   "what": "PD-2 Open positions: the phone summary bar says the empty sentence 'No open positions.'",
+   "ok": true,
+   "read": "Average days open, right now · No open positions.\nShow the preview"
+  },
+  {
+   "what": "PD-2 Open positions: no '0 <unit>' count and no '$0.00' in the phone summary bar",
+   "ok": true,
+   "read": "Average days open, right now · No open positions.\nShow the preview"
+  },
+  {
+   "what": "PD-2 Open positions: no SHOWN '0 <unit>' / '$0.00' text anywhere in the builder",
+   "ok": false,
+   "read": "[{\"text\": \"Days open known on 0 of 0 positions\", \"cls\": \"_coverage_odb41_165\", \"live\": false, \"shown\": true, \"testid\": \"builder-sections\"}]"
+  }
+ ],
+ "rendered": [
+  {
+   "what": "Options strategies: summary bar / preview pane / live region",
+   "text": "{\"bar\": \"Net P&L, last 90 days \\u00b7 No options strategies in this range.\\nShow the preview\", \"pane\": \"\", \"live\": \"Net P&L for options strategies in the last 90 days, all accounts. 0 strategies.\"}"
+  },
+  {
+   "what": "Options strategies: zero-count text nodes in the builder (shown / in a live region)",
+   "text": "[{\"text\": \"Net P&L for options strategies in the last 90 days, all accounts. 0 strategies.\", \"cls\": \"_srOnly_odb41_363\", \"live\": true, \"shown\": false, \"testid\": \"builder-live\"}]"
+  },
+  {
+   "what": "Options strategies: zero count in the polite live region (not the PD-2 surface)",
+   "text": "{\"live\": \"Net P&L for options strategies in the last 90 days, all accounts. 0 strategies.\", \"zero\": true}"
+  },
+  {
+   "what": "Open positions: summary bar / preview pane / live region",
+   "text": "{\"bar\": \"Average days open, right now \\u00b7 No open positions.\\nShow the preview\", \"pane\": \"\", \"live\": \"Average days open for open positions right now, all accounts. 0 positions.\"}"
+  },
+  {
+   "what": "Open positions: zero-count text nodes in the builder (shown / in a live region)",
+   "text": "[{\"text\": \"Average days open for open positions right now, all accounts. 0 positions.\", \"cls\": \"_srOnly_odb41_363\", \"live\": true, \"shown\": false, \"testid\": \"builder-live\"}, {\"text\": \"Days open known on 0 of 0 positions\", \"cls\": \"_coverage_odb41_165\", \"live\": false, \"shown\": true, \"testid\": \"builder-sections\"}]"
+  },
+  {
+   "what": "Open positions: zero count in the polite live region (not the PD-2 surface)",
+   "text": "{\"live\": \"Average days open for open positions right now, all accounts. 0 positions.\", \"zero\": true}"
+  }
+ ],
+ "verdict": "FAIL",
+ "notes": [],
+ "events": {
+  "P14": []
+ },
+ "metrics": {
+  "builder-options": {
+   "overflow": {
+    "vw": 390,
+    "docScrollWidth": 390,
+    "bodyScrollWidth": 390,
+    "inner": [
+     [
+      390,
+      390
+     ],
+     [
+      342,
+      342
+     ],
+     [
+      342,
+      342
+     ]
+    ],
+    "horizontal": false,
+    "offenders": []
+   },
+   "raw_block": [],
+   "axe_sheet": {
+    "version": "4.13.0",
+    "scope": "[data-walk-scope=\"1\"]",
+    "violations": []
+   },
+   "axe_page": {
+    "version": "4.13.0",
+    "scope": "body",
+    "violations": []
+   },
+   "tap": {
+    "scope": "[data-walk-scope=\"1\"]",
+    "controls": 34,
+    "small": [],
+    "smallCount": 0,
+    "pointerCoarse": true
+   }
+  },
+  "builder-open": {
+   "overflow": {
+    "vw": 390,
+    "docScrollWidth": 390,
+    "bodyScrollWidth": 390,
+    "inner": [
+     [
+      390,
+      390
+     ],
+     [
+      342,
+      342
+     ],
+     [
+      342,
+      342
+     ]
+    ],
+    "horizontal": false,
+    "offenders": []
+   },
+   "raw_block": [],
+   "axe_sheet": {
+    "version": "4.13.0",
+    "scope": "[data-walk-scope=\"1\"]",
+    "violations": []
+   },
+   "axe_page": {
+    "version": "4.13.0",
+    "scope": "body",
+    "violations": []
+   },
+   "tap": {
+    "scope": "[data-walk-scope=\"1\"]",
+    "controls": 32,
+    "small": [],
+    "smallCount": 0,
+    "pointerCoarse": true
+   }
+  }
+ },
+ "screenshots": [
+  "390/PD2-builder-options.png",
+  "390/PD2-builder-open.png"
+ ],
+ "requests_note_put": 0,
+ "started": "2026-10-27T10:24:33",
+ "findings": [],
+ "partial": false,
+ "finished": "2026-10-27T10:25:01"
+}
