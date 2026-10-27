@@ -17,7 +17,7 @@ vi.mock('../hooks/useJ2Notes', () => ({
 }))
 vi.mock('../components/notebook/FolderSidebar', () => ({ default: () => <div data-testid="folder-sidebar" /> }))
 vi.mock('../components/notebook/NoteEditorPage', () => ({
-  default: ({ noteId }) => <div data-testid="note-editor" data-note-id={noteId} />,
+  default: ({ noteId, openFocus }) => <div data-testid="note-editor" data-note-id={noteId} data-open-focus={openFocus || ''} />,
 }))
 vi.mock('../components/notebook/import/ImportWizard', () => ({ default: () => null }))
 vi.mock('../components/connectors/NoteConnectorsTrustStrip', () => ({ default: () => null }))
@@ -31,7 +31,11 @@ vi.mock('../lib/offline/useDurableNote', async (importOriginal) => ({
 import NotebookTab from './NotebookTab'
 import { recordLandedRevision } from '../lib/offline/useDurableNote'
 import { setCurrentAccountId } from '../lib/offline/currentAccount'
+import { TITLE as ADOPT_TITLE } from '../components/notebook/library/AdoptSheet'
+import { latchNotebookFlags, __resetNotebookFlags } from '../lib/offline/notebookFlags'
 
+const LIB_ROW = { id: 'g-night', title: 'Night-before prep', description: 'planning tomorrow', group: 'night_before',
+  category: 'journal', author: 'UCT', itemType: 'style', usedBy: 0, helpfulCount: 0, contains: [], inYourTemplates: false }
 const BODY = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'What worked' }] }] }
 let calls
 let templateRead
@@ -54,10 +58,18 @@ beforeEach(() => {
     if (u === '/api/j2/notes' && method === 'POST') return ok({ note: { id: 'new1', title: 'Week', updatedAt: 'R0' } })
     if (u === '/api/j2/notes/new1' && method === 'PUT') return ok({ note: { id: 'new1', title: 'Week', updatedAt: 'R1' } })
     if (u.startsWith('/api/j2/note-folders')) return ok({ folders: [] })
+    // Wave 11 (11.20 walk D1): the Template library, one listed template, and its Use.
+    if (u === '/api/j2/template-gallery/library') return ok({ templates: [LIB_ROW] })
+    if (u === `/api/j2/template-gallery/${LIB_ROW.id}` && method === 'GET') return ok({ template: { id: LIB_ROW.id, bodyJson: BODY } })
+    if (u === `/api/j2/template-gallery/${LIB_ROW.id}/preview-mine`) return ok({ slots: [], cards: [], tools: [], questions: [] })
+    if (u === `/api/j2/template-gallery/${LIB_ROW.id}/use-template` && method === 'POST') {
+      return ok({ note: { id: 'lib1', title: 'Night-before prep', bodyJson: BODY, updatedAt: 'L0' }, skipped: [], style: { id: 's1' },
+        credit: null, created: { routines: [], trackers: [], widgets: [] } })
+    }
     return ok({})
   })
 })
-afterEach(() => setCurrentAccountId(null))
+afterEach(() => { setCurrentAccountId(null); __resetNotebookFlags() })
 
 const renderTab = () => render(
   <MemoryRouter initialEntries={['/journal?view=all']}><NotebookTab /></MemoryRouter>,
@@ -111,5 +123,40 @@ describe('creating from a member template', () => {
     expect(post.body).toMatchObject({ title: 'Week', bodyJson: BODY })
     const put = calls.find((c) => c.url === '/api/j2/notes/new1' && c.method === 'PUT')
     expect(put.body).toEqual({ properties: { 'builtin:thesis_status': 'active' } })
+  })
+})
+
+// 11.20 walk D1 (major): "Use" from the Template library left the New note sheet open over the new note, focus trapped
+// in it, because the library's Use only navigated. It now lands the note through the SAME door a member template's
+// pick lands through (the sheet closes, the note opens with focus in its title).
+describe('using a Template library template (wave 11, walk D1)', () => {
+  const newNoteSheet = () => screen.queryByRole('dialog', { name: 'New note' })
+  it('closes the New note sheet and opens the new note with focus where a member template puts it', async () => {
+    latchNotebookFlags({ notebook_widgets_w11_enabled: true })
+    renderTab()
+    fireEvent.click(screen.getByRole('button', { name: 'Templates' }))
+    const sheet = await screen.findByRole('dialog', { name: 'New note' })
+    fireEvent.click(await within(sheet).findByRole('button', { name: 'Preview Night-before prep, from the Template library' }))
+    const detail = await screen.findByRole('dialog', { name: 'Night-before prep' })
+    fireEvent.click(within(detail).getByRole('button', { name: 'Use this template' }))
+    const adopt = await screen.findByRole('dialog', { name: ADOPT_TITLE }, { timeout: 4000 })
+    const use = await within(adopt).findByRole('button', { name: 'Use' })
+    await waitFor(() => expect(use).not.toBeDisabled())
+    fireEvent.click(use)
+    await waitFor(() => expect(screen.getByTestId('note-editor')).toHaveAttribute('data-note-id', 'lib1'))
+    expect(screen.getByTestId('note-editor')).toHaveAttribute('data-open-focus', 'title')
+    await waitFor(() => expect(newNoteSheet()).toBeNull())
+    expect(calls.filter((c) => c.url.endsWith('/use-template'))).toHaveLength(1)
+  })
+
+  it('CONTROL: a member template lands the same way (sheet closed, focus in the title)', async () => {
+    renderTab()
+    fireEvent.click(screen.getByRole('button', { name: 'Templates' }))
+    await screen.findByRole('dialog', { name: 'New note' })
+    const [mine] = await screen.findAllByRole('region', { name: 'Your templates' })
+    fireEvent.click(await within(mine).findByRole('button', { name: /^Weekly review/ }))
+    await waitFor(() => expect(screen.getByTestId('note-editor')).toHaveAttribute('data-note-id', 'new1'))
+    expect(screen.getByTestId('note-editor')).toHaveAttribute('data-open-focus', 'title')
+    await waitFor(() => expect(newNoteSheet()).toBeNull())
   })
 })

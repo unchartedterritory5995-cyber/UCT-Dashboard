@@ -75,8 +75,9 @@ function LibraryCard({ item, busy, onPreview }) {
  * @param busy     the picker is making a note
  * @param navigate the app router's navigate, for the adoption sheet a detail opens
  * @param onMatches `(n) => void`: how many templates the section shows right now (0 when it shows none)
+ * @param landNote `(note) => void`: the picker's host lands a note made by a Use (closing its sheet; 11.20 walk D1)
  */
-export default function TemplateLibrarySection({ query = '', category = ALL, busy = false, navigate = null, onMatches }) {
+export default function TemplateLibrarySection({ query = '', category = ALL, busy = false, navigate = null, onMatches, landNote = null }) {
   const uid = useId()
   const [answer, setAnswer] = useState(null)      // null while asking, then {ok, data | code, message}
   const [open, setOpen] = useState(null)          // the row whose detail is open
@@ -118,7 +119,7 @@ export default function TemplateLibrarySection({ query = '', category = ALL, bus
           </ul>
         </div>
       ))}
-      {open && <TemplateDetailSheet item={open} onClose={() => setOpen(null)} navigate={navigate} busy={busy} />}
+      {open && <TemplateDetailSheet item={open} onClose={() => setOpen(null)} navigate={navigate} busy={busy} landNote={landNote} />}
     </section>
   )
 }
