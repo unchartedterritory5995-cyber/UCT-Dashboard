@@ -28,6 +28,7 @@ from typing import Any, Callable
 
 from api.services.auth_db import get_connection
 from api.services.journal_two import sample_marker
+from api.services.journal_two.json_depth import _json_depth_exceeds
 from api.services.notebook_flags import flag_on
 
 _log = logging.getLogger(__name__)
@@ -51,6 +52,13 @@ MAX_STYLES_PER_MEMBER = 200
 MAX_STYLE_NAME_CHARS = 80
 MAX_BLOCKS = 30
 MAX_UNKNOWN_SETTINGS_BYTES = 4096
+#: W11-R54 (F-ALIAS-1 part S, I-1 -- LIVE ON MASTER): how deep a block's settings kept VERBATIM may nest (the settings
+#: object itself counts 1). A deeper value was stored and then 500ed every door that serves the style (the route's
+#: answer passed pydantic-core's serialisation depth), bricking the member's whole styles list. The wave 11 body
+#: reader's depth; no shipped client sends a settings value more than 3 deep.
+MAX_KEPT_SETTINGS_DEPTH = 16
+S_SETTINGS_TOO_LARGE = "That block's settings are too large."
+S_SETTINGS_TOO_DEEP = "That block's settings are nested too deeply."
 BLOCK_ID_RE = re.compile(r"^[a-zA-Z][a-zA-Z0-9_]{0,40}$")
 BUILTIN_PREFIX = "builtin:"
 
@@ -510,7 +518,7 @@ def _row(r: sqlite3.Row, *, full: bool) -> dict:
     out = {"id": r["id"], "name": r["name"], "kindId": r["kind_id"], "builtin": False,
            "isDefault": bool(r["is_default"]), "version": r["version"],
            "outlineTemplateId": r["outline_template_id"], "hasOutline": bool(body or r["outline_template_id"]),
-           "blocks": json.loads(r["blocks_json"] or "[]"), "properties": json.loads(r["properties_json"] or "{}"),
+           "blocks": _servable_blocks(r["blocks_json"]), "properties": json.loads(r["properties_json"] or "{}"),
            "sourceGalleryId": r["source_gallery_id"], "sourceVersion": r["source_version"],
            "createdAt": r["created_at"], "updatedAt": r["updated_at"], "deletedAt": r["deleted_at"]}
     if full:
@@ -603,6 +611,29 @@ def _member_legacy_blocks(user_id: str, conn: sqlite3.Connection) -> set:
     return out
 
 
+def _check_kept_verbatim(settings: Any) -> None:
+    """THE check on a block's settings kept VERBATIM (an unknown id stored before the grammar, a family slot stored
+    before it, a newer version's block): at most `MAX_KEPT_SETTINGS_DEPTH` deep (W11-R54; iterative, judged BEFORE
+    the size, whose `json.dumps` recurses) and at most `MAX_UNKNOWN_SETTINGS_BYTES` long. Raises
+    `StyleValidationError` (400) with a sentence; never stores what a read could not serve."""
+    if _json_depth_exceeds(settings, MAX_KEPT_SETTINGS_DEPTH):
+        raise StyleValidationError(S_SETTINGS_TOO_DEEP)
+    if len(json.dumps(settings)) > MAX_UNKNOWN_SETTINGS_BYTES:
+        raise StyleValidationError(S_SETTINGS_TOO_LARGE)
+
+
+def _servable_blocks(blocks_json: Any) -> list:
+    """W11-R54 read-side guard: a STORED style's blocks as every door serves them. A row written before the depth cap
+    with a block whose settings nest past `MAX_KEPT_SETTINGS_DEPTH` is served with that block's settings EMPTY (the
+    block itself stays, so the member sees it and can save or delete the style), never a value whose serialisation
+    500s the list, GET, PUT, /default and DELETE. Every other block is served exactly as stored."""
+    blocks = json.loads(blocks_json or "[]")
+    if not isinstance(blocks, list):
+        return blocks
+    return [{**b, "settings": {}} if isinstance(b, dict) and isinstance(b.get("settings"), (dict, list))
+            and _json_depth_exceeds(b["settings"], MAX_KEPT_SETTINGS_DEPTH) else b for b in blocks]
+
+
 def _clean_blocks(raw: Any, legacy: Any = None) -> list[dict]:
     """`legacy` (`_legacy_blocks` of the stored row(s): update_style, duplicate and the draft preview): a block
     that fails the grammar but was stored exactly so (a hand-made row from before Task 11.3, when the id was an
@@ -634,8 +665,7 @@ def _clean_blocks(raw: Any, legacy: Any = None) -> list[dict]:
                 raise StyleValidationError("Each block needs a valid block id.")
             if bid in seen:
                 raise StyleValidationError("A style can hold each block once.")
-            if len(json.dumps(settings)) > MAX_UNKNOWN_SETTINGS_BYTES:
-                raise StyleValidationError("That block's settings are too large.")
+            _check_kept_verbatim(settings)
             seen.add(bid)
             out.append({"block": bid, "enabled": bool(b.get("enabled", True)), "settings": settings})
             continue                                          # stored before the grammar: kept verbatim
@@ -654,16 +684,14 @@ def _clean_blocks(raw: Any, legacy: Any = None) -> list[dict]:
             except StyleValidationError:
                 if not in_legacy(bid, settings):
                     raise
-                if len(json.dumps(settings)) > MAX_UNKNOWN_SETTINGS_BYTES:
-                    raise StyleValidationError("That block's settings are too large.")
+                _check_kept_verbatim(settings)
                 clean = settings                                 # stored before the grammar: kept verbatim
         elif bid in SNAPSHOT_SLOT_KINDS:
             # Task 18 (R50): a snapshot slot keeps the builder's request keys only; anything else (a frozen
             # payload's figures, rows, the share switch) is dropped here, the ONE reduction every write takes.
             clean = _nw.settings_of(settings)
         elif kind is None:
-            if len(json.dumps(settings)) > MAX_UNKNOWN_SETTINGS_BYTES:
-                raise StyleValidationError("That block's settings are too large.")
+            _check_kept_verbatim(settings)
             clean = settings                                     # a newer version's block: kept verbatim
         else:
             allowed = {s["key"]: s for s in kind["settings"]}
