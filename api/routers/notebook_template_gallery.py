@@ -181,14 +181,11 @@ async def _read_json(request: Request) -> dict[str, Any]:
     if not raw.strip():
         return {}
     try:
-        data = wbody.loads_json(raw)
-    except wbody.BodyTooDeep:
-        # F-ALIAS-1R A5: nested past what the parser can recurse through; it was a 500 on every door this reader serves.
-        raise HTTPException(status_code=400, detail=wbody.S_UNREADABLE_BODY, headers=dict(NO_STORE))
+        data = wbody.loads_plain_body(raw)      # F-ALIAS-1R A5: a body too deep to parse is its 400, never a 500
     except ValueError:
-        raise HTTPException(status_code=422, detail="Send a JSON object")
+        raise HTTPException(status_code=422, detail="Send a JSON object", headers=dict(NO_STORE))
     if not isinstance(data, dict):
-        raise HTTPException(status_code=422, detail="Send a JSON object")
+        raise HTTPException(status_code=422, detail="Send a JSON object", headers=dict(NO_STORE))
     if wbody.unsavable_text(data):
         # Task 11.12 fix round 2 (I-A): a lone surrogate is the ONE body-reader refusal (`unsavable_text`), here in
         # this router's plain-sentence shape. It was a 500 on every door this reader serves.

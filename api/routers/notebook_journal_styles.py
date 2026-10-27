@@ -122,10 +122,7 @@ async def paid_body(request: Request, _user: dict = Depends(require_paid)) -> di
     if not raw.strip():
         return {}
     try:
-        data = wbody.loads_json(raw)
-    except wbody.BodyTooDeep:
-        # F-ALIAS-1R A5: nested past what the parser can recurse through; it was a 500 on every write here.
-        raise HTTPException(status_code=400, detail=wbody.S_UNREADABLE_BODY, headers={"Cache-Control": "no-store"})
+        data = wbody.loads_plain_body(raw)      # F-ALIAS-1R A5: a body too deep to parse is its 400, never a 500
     except ValueError:
         raise HTTPException(status_code=422, detail="Send a JSON object", headers={"Cache-Control": "no-store"})
     if not isinstance(data, dict):

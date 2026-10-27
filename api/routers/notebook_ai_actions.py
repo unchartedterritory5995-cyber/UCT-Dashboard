@@ -20,7 +20,6 @@ so. Apply and undo call no model.
 """
 from __future__ import annotations
 
-import json
 import logging
 from typing import Any
 
@@ -33,6 +32,7 @@ from api.middleware.auth_middleware import (
 from api.services import note_ask
 from api.services.journal_two import ai_actions as ai
 from api.services.journal_two import notes as notes_service
+from api.services.journal_two import widget_request_body as wbody
 
 logger = logging.getLogger(__name__)
 
@@ -77,7 +77,7 @@ async def _read_json(request: Request) -> dict[str, Any]:
     if not raw.strip():
         return {}
     try:
-        body = json.loads(raw)
+        body = wbody.loads_plain_body(raw)  # W11-R55: too deep to parse is 400 no-store
     except ValueError:
         raise HTTPException(status_code=422, detail=ai.BAD_BODY_SENTENCE) from None
     if not isinstance(body, dict):

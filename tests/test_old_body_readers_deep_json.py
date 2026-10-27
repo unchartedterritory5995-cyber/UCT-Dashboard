@@ -181,6 +181,10 @@ def test_a_malformed_body_keeps_each_older_readers_own_422(w11, client, monkeypa
     for method, url in (("POST", "/api/j2/journal-styles"), ("POST", "/api/j2/template-gallery/x/report")):
         r = client.request(method, url, content=b"{", headers={"Content-Type": "application/json"})
         assert r.status_code == 422 and r.json() == {"detail": "Send a JSON object"}, (url, r.status_code, r.text)
+        # F-ALIAS-1R m-3: the gallery's 422 answers no-store too, as journal-styles' always did (both shapes)
+        assert r.headers.get("cache-control") == NO_STORE, (url, r.headers)
+        r = client.request(method, url, content=b"[1]", headers={"Content-Type": "application/json"})
+        assert r.status_code == 422 and r.headers.get("cache-control") == NO_STORE, (url, r.status_code, r.headers)
 
 
 def test_loads_json_is_the_one_decode_and_answers_the_parsers_recursion_as_its_own_refusal():
@@ -205,3 +209,126 @@ def test_the_body_reader_and_the_reducer_import_in_either_order_in_a_fresh_inter
             "assert w.S_BAD_CHARACTER is s.S_BAD_CHARACTER and w.bad_character_sentence() == s.S_BAD_CHARACTER")
     done = subprocess.run([sys.executable, "-c", code], cwd=REPO, capture_output=True, text=True, timeout=120)
     assert done.returncode == 0, done.stderr[-2000:]
+
+
+# ── W11-R55: EVERY notebook body reader, derived from the routers' own source ─────────────────────
+#
+# The review of A5 (F-ALIAS-1R I-2) found five more readers that caught only `ValueError` and answered a body too deep
+# to parse with a 500. The reader set is DERIVED, never typed: every function in `api/routers/notebook_*.py` that reads
+# the raw request body (`read_capped_body`, `request.stream()`, `request.body()`) and decodes it. Each must decode
+# through the one body decode (`widget_request_body.loads_plain_body`, or the wave 11 `read_json_object`) and none may
+# call `json.loads` itself. Then every plain reader is DRIVEN with a body too deep to parse.
+
+import ast  # noqa: E402
+import asyncio  # noqa: E402
+import importlib  # noqa: E402
+
+from fastapi import HTTPException  # noqa: E402
+from starlette.requests import Request  # noqa: E402
+
+_BODY_READS = ("read_capped_body", "stream", "body")
+_ONE_DECODES = ("loads_plain_body", "read_json_object")
+
+
+def _calls_named(fn: ast.AST) -> set[str]:
+    out = set()
+    for n in ast.walk(fn):
+        if isinstance(n, ast.Call):
+            f = n.func
+            out.add(f.attr if isinstance(f, ast.Attribute) else getattr(f, "id", ""))
+    return out
+
+
+def _json_loads_calls(fn: ast.AST) -> list[int]:
+    return [n.lineno for n in ast.walk(fn) if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+            and n.func.attr == "loads" and isinstance(n.func.value, ast.Name) and n.func.value.id == "json"]
+
+
+def _derived_body_readers() -> list[tuple[str, str, set[str], list[int]]]:
+    """(module, function, the calls it makes, its `json.loads` lines) for every notebook router function that reads
+    the raw request body and decodes it (a call to `loads`, `loads_json`, `loads_plain_body` or `read_json_object`)."""
+    out = []
+    for path in sorted((REPO / "api" / "routers").glob("notebook_*.py")):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for fn in ast.walk(tree):
+            if not isinstance(fn, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                continue
+            calls = _calls_named(fn)
+            reads = bool(calls & set(_BODY_READS))
+            decodes = bool(calls & {"loads", "loads_json", *_ONE_DECODES})
+            if reads and decodes:
+                out.append((f"api.routers.{path.stem}", fn.name, calls, _json_loads_calls(fn)))
+    return out
+
+
+BODY_READERS_DERIVED = _derived_body_readers()
+PLAIN_READERS = [(m, f) for m, f, calls, _l in BODY_READERS_DERIVED if "loads_plain_body" in calls]
+
+
+def test_the_derivation_finds_every_reader_the_review_named():
+    """Non-vacuity: the five I-2 readers and both A5 readers are in the derived set."""
+    found = {(m.rsplit(".", 1)[1], f) for m, f, *_x in BODY_READERS_DERIVED}
+    named = {("notebook_shares", "read_expiry"), ("notebook_personal_api", "_json_body"),
+             ("notebook_ai_actions", "_read_json"), ("notebook_chart_alerts", "_read_json"),
+             ("notebook_writing_help", "_read_payload"),
+             ("notebook_template_gallery", "_read_json"), ("notebook_journal_styles", "paid_body")}
+    assert named <= found, sorted(named - found)
+
+
+@pytest.mark.parametrize("module,fn,calls,loads", BODY_READERS_DERIVED, ids=lambda x: x if isinstance(x, str) else "")
+def test_every_notebook_body_reader_decodes_through_the_one_body_decode(module, fn, calls, loads):
+    assert not loads, f"{module}.{fn} decodes a body with json.loads (lines {loads}): a deep body is a 500 there"
+    assert calls & set(_ONE_DECODES), f"{module}.{fn} does not decode through loads_plain_body / read_json_object"
+
+
+def test_CONTROL_the_scan_sees_a_reader_that_calls_json_loads():
+    src = "async def r(request):\n    raw = await request.body()\n    return json.loads(raw)\n"
+    fn = ast.parse(src).body[0]
+    assert _json_loads_calls(fn) == [3] and not (_calls_named(fn) & set(_ONE_DECODES))
+
+
+def _request(raw: bytes) -> Request:
+    sent = {"done": False}
+
+    async def receive():
+        if sent["done"]:
+            return {"type": "http.disconnect"}
+        sent["done"] = True
+        return {"type": "http.request", "body": raw, "more_body": False}
+    scope = {"type": "http", "method": "POST", "path": "/x", "query_string": b"",
+             "headers": [(b"content-type", b"application/json"), (b"content-length", str(len(raw)).encode())]}
+    return Request(scope, receive)
+
+
+def _read(module: str, fn: str, raw: bytes, monkeypatch):
+    mod = importlib.import_module(module)
+    for cap in ("MAX_BODY_BYTES", "_MAX_BODY_BYTES"):          # a reader whose cap is under the deep body still
+        if hasattr(mod, cap):                                  # decodes it: the depth refusal is what is railed here
+            monkeypatch.setattr(mod, cap, 10 * 1024 * 1024)
+    return asyncio.run(getattr(mod, fn)(_request(raw)))
+
+
+@pytest.mark.parametrize("module,fn", PLAIN_READERS, ids=[f"{m.rsplit('.', 1)[1]}.{f}" for m, f in PLAIN_READERS])
+def test_W11_R55_a_body_too_deep_to_parse_is_each_readers_400_no_store_never_a_500(module, fn, monkeypatch):
+    with pytest.raises(HTTPException) as e:
+        _read(module, fn, deep_body(), monkeypatch)
+    assert e.value.status_code == 400, (module, fn, e.value.status_code, e.value.detail)
+    assert e.value.detail == wbody.S_UNREADABLE_BODY
+    assert (e.value.headers or {}).get("Cache-Control") == NO_STORE
+
+
+@pytest.mark.parametrize("module,fn", PLAIN_READERS, ids=[f"{m.rsplit('.', 1)[1]}.{f}" for m, f in PLAIN_READERS])
+def test_W11_R55_CONTROL_a_malformed_body_keeps_each_readers_own_refusal(module, fn, monkeypatch):
+    with pytest.raises(HTTPException) as e:
+        _read(module, fn, b"{", monkeypatch)
+    assert e.value.detail != wbody.S_UNREADABLE_BODY, (module, fn)
+    assert e.value.status_code in (400, 422), (module, fn, e.value.status_code)
+    ok = _read(module, fn, b'{"a": [[1]]}', monkeypatch)                 # and a shallow object is read
+    assert ok is None or isinstance(ok, (dict, int)), (module, fn, ok)
+
+
+def test_W11_R55_the_expiry_doors_keep_their_422_sentence_for_a_malformed_body(monkeypatch):
+    from api.services.journal_two import note_shares
+    with pytest.raises(HTTPException) as e:
+        _read("api.routers.notebook_shares", "read_expiry", b"{", monkeypatch)
+    assert e.value.status_code == 422 and e.value.detail == note_shares.EXPIRY_SENTENCE

@@ -44,6 +44,21 @@ def loads_json(raw: bytes | str) -> Any:
         raise BodyTooDeep() from None
 
 
+#: The headers of the depth refusal below: an answer about one member's request is never cached.
+NO_STORE = {"Cache-Control": "no-store"}
+
+
+def loads_plain_body(raw: bytes | str) -> Any:
+    """THE decode of the notebook routers' plain-shape body readers (`{"detail": "<sentence>"}`): `loads_json`, with a
+    body too deep to parse (`BodyTooDeep`) answered here as ONE 400 `S_UNREADABLE_BODY` with no-store, never a 500
+    (F-ALIAS-1R A5; W11-R55 for the five readers its review found). A malformed body is still the parser's
+    `ValueError`, so each reader keeps its OWN malformed-body refusal (the expiry doors' 422 sentence included)."""
+    try:
+        return loads_json(raw)
+    except BodyTooDeep:
+        raise HTTPException(status_code=400, detail=S_UNREADABLE_BODY, headers=dict(NO_STORE)) from None
+
+
 def bad_character_sentence() -> str:
     """The ONE sentence for text that cannot be saved (`share.S_BAD_CHARACTER`, the reducer's own), never retyped."""
     return S_BAD_CHARACTER
