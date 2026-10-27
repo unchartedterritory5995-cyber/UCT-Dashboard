@@ -30,6 +30,8 @@ import { objectTypeName, objectSummary } from '../../components/chart/drawingObj
 import { UCT_DRAW_GOLD } from '../../components/chart/drawingColors'
 import { LINE_DASH } from '../../components/chart/drawingStyle'
 import { normalizeColor } from './chart'
+// the drawing layer's own rule for what a tool's points must be (C-3): every point the Agent writes is checked by it
+import { validateDrawing } from '../../components/chart/drawingTools'
 import { loadAlerts } from './alert'
 
 const STYLES = Object.keys(LINE_DASH)            // solid, dashed, dotted
@@ -205,6 +207,7 @@ export function registerDrawingCapabilities() {
       if (color != null && !normalizeColor(color)) return `“${color}” isn't a colour I know — use a name like blue or a #hex.`
       if (style != null && !STYLES.includes(style)) return `Line styles are ${STYLES.join(', ')}.`
       if (st.drawings.some(d => d.type === 'horizontal' && !d.hidden && d.points?.[0]?.price === price)) return `There is already a horizontal line at ${money(price)} on ${st.symbol}.`
+      if (!validateDrawing('horizontal', [{ price }]).ok) return 'Say the price for the line (a positive number).'
       return null
     },
     apply(st, { price, color, style }) {
@@ -354,6 +357,9 @@ export function registerDrawingCapabilities() {
       if (!LEVEL_TYPES.has(d.type)) return `That ${objectTypeName(d.type)} isn't a horizontal level — only horizontal lines and rays can be moved to a price.`
       if (d.locked) return `That ${objectTypeName(d.type)} is locked — unlock it first.`
       if (!Number.isFinite(price) || price <= 0) return 'Say the new price (a positive number).'
+      // the moved line must still be a drawing the overlay can draw (its time anchor, if any, is kept)
+      const pts = [{ ...(d.points?.[0] || {}), price }, ...(d.points || []).slice(1)]
+      if (d.type !== 'hray' && !validateDrawing(d.type, pts).ok) return `That ${objectTypeName(d.type)} can't be moved to that price.`
       if (!boundIds(env)) return 'I couldn\'t check whether an alert is attached to that line, so I left it alone.'
       return null
     },
