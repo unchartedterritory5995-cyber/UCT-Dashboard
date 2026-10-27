@@ -2126,6 +2126,15 @@ def _placeholder_kind(node: Any) -> str | None:
     return m.group(1) if m else None
 
 
+def _inline_rest(node: Any) -> list[dict]:
+    """Post-walk p-1: a placeholder paragraph's OTHER inline nodes (a mention, an image), as a paragraph of their own
+    (`[]` when there are none). Only a placeholder's TEXT is the placeholder (`_plain` reads text children only), so
+    whenever the text is dropped or replaced by a block, these are the author's and stay at its place. A bare
+    hardBreak is not kept: it is nothing without the text. The client twin is templateSlots.outlineWithBlockNames."""
+    kept = [c for c in (node.get("content") or []) if isinstance(c, dict) and c.get("type") not in ("text", "hardBreak")]
+    return [{"type": "paragraph", "content": kept}] if kept else []
+
+
 def without_placeholder_lines(body: Any) -> Any:
     """W11-R77 (review n-1): `body` with every `{{block:<id>}}` placeholder paragraph (`_placeholder_kind`, the
     composer's own test) removed at any depth, for a door that makes a NOTE from a member template without composing
@@ -2135,6 +2144,7 @@ def without_placeholder_lines(body: Any) -> Any:
         out = []
         for node in content:
             if _placeholder_kind(node) is not None:
+                out.extend(_inline_rest(node))                 # p-1: only the placeholder's text goes
                 continue
             if isinstance(node, dict) and isinstance(node.get("content"), list):
                 node = {**node, "content": _never_empty(node["content"], strip(node["content"]))}
@@ -2334,16 +2344,20 @@ def compose(user_id: str, style: dict, *, ticker: str | None, conn: sqlite3.Conn
                     out.append(node)
                     continue
                 if bid is not None:
+                    rest = _inline_rest(node)               # p-1: a mention or an image beside it stays
                     if not top:
                         # ⛔ Review I-1: a block is placed in place ONLY at the doc's top level. A
                         # widgetEmbed is not valid as a list item's first child, and a drop could
                         # empty a container; a nested placeholder becomes an empty paragraph (valid
                         # in every container) and its block falls through to after the first heading.
-                        out.append({"type": "paragraph"})
+                        out.append(rest[0] if rest else {"type": "paragraph"})
                     elif bid in enabled:
+                        out.extend(rest)
                         out.extend(build(enabled[bid]))
                         placed.add(bid)
-                    continue                                # a disabled block's top-level placeholder vanishes
+                    else:
+                        out.extend(rest)                    # a disabled block's top-level placeholder text vanishes
+                    continue
                 if isinstance(node, dict) and isinstance(node.get("content"), list):
                     node = {**node, "content": _never_empty(node["content"], walk(node["content"], False))}
                 out.append(node)

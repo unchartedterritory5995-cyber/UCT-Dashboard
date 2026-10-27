@@ -156,13 +156,17 @@ export function outlineWithBlockNames(doc, blocks = null, names = {}) {
     return m ? m[1] : null
   }
   const line = (id, b) => ({ type: 'paragraph', content: [{ type: 'text', text: slotFamily(id) ? slotLabel(b || { block: id }, names) : blockLabel(id), marks: [{ type: 'italic' }] }] })
+  // Post-walk p-1: only a placeholder's TEXT is the placeholder. Its other inline nodes (a mention, an image; never a
+  // bare hardBreak) are the author's and stay, in a paragraph of their own at its place (`journal_styles._inline_rest`).
+  const kept = (n) => n.content.filter((c) => isRec(c) && c.type !== 'text' && c.type !== 'hardBreak')
+  const keptPara = (n) => { const k = kept(n); return k.length ? [{ type: 'paragraph', content: k }] : [] }
   if (!Array.isArray(blocks)) {
     const bare = (n) => {
       const id = plainId(n)
-      if (id) return line(id)
-      return isRec(n) && Array.isArray(n.content) ? { ...n, content: n.content.map(bare) } : n
+      if (id) return [...keptPara(n), line(id)]
+      return [isRec(n) && Array.isArray(n.content) ? { ...n, content: n.content.flatMap(bare) } : n]
     }
-    return bare(doc)
+    return { ...doc, content: doc.content.flatMap(bare) }
   }
   const enabled = new Map()
   const disabled = new Set()
@@ -181,9 +185,11 @@ export function outlineWithBlockNames(doc, blocks = null, names = {}) {
       const id = plainId(n)
       if (id && !enabled.has(id) && !disabled.has(id)) { out.push(n); continue }     // the author's own text
       if (id) {
-        if (!top) out.push({ type: 'paragraph' })
-        else if (enabled.has(id)) { out.push(line(id, enabled.get(id))); placed.add(id) }
-        continue                                                                       // disabled: vanishes
+        const rest = keptPara(n)
+        if (!top) out.push(rest[0] || { type: 'paragraph' })
+        else if (enabled.has(id)) { out.push(...rest, line(id, enabled.get(id))); placed.add(id) }
+        else out.push(...rest)                                                          // disabled: its text vanishes
+        continue
       }
       if (isRec(n) && Array.isArray(n.content)) {
         const kids = walk(n.content, false)
