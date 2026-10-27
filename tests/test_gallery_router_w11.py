@@ -961,3 +961,34 @@ def test_busy_is_the_base_result_code_extended_codes_included(code, busy):
     e.sqlite_errorcode = code
     assert tgr._database_busy(e) is busy
     assert tgr._database_busy(sqlite3.OperationalError("database is locked")) is False   # no code: not SQLite's
+
+
+def test_a_busy_adopt_gives_back_the_charge_it_really_took(app, client, db, monkeypatch):
+    # Review I-2: the charge must be TAKEN first (the lock is free while `_spend_adopt` charges), then the adopt meets
+    # a held lock, then the lock is released before the refund runs. A refund that never ran leaves 1.
+    from api.routers import notebook_template_gallery as tgr
+    from api.services import daily_counters
+    from api.services.journal_two.calendar import et_today
+    r = routine(db)
+    gid = list_tool(db, "routine", r["id"], edits={"name": "Open", "items": ["Coffee", "Mark levels"]})
+    as_user(app, MEMBER)
+    real = gallery.adopt_tool
+    seen = {}
+
+    def adopt_under_a_held_lock(*a, **k):
+        seen["charged"] = daily_counters.value(et_today(), tgr.DAILY_ADOPT_SCOPE, MEMBER)
+        holder = _hold_write_lock()
+        try:
+            return real(*a, **k)
+        finally:
+            holder.rollback()
+            holder.close()
+    monkeypatch.setattr(gallery, "adopt_tool", adopt_under_a_held_lock)
+    got = _send(client, "POST", f"{GALLERY}/{gid}/adopt-tool", {})
+    assert got.status_code == 503 and got.json()["detail"]["code"] == "busy"
+    assert seen["charged"] == 1                                    # non-vacuity: the charge was really taken
+    assert daily_counters.value(et_today(), tgr.DAILY_ADOPT_SCOPE, MEMBER) == 0
+    # CONTROL: an adopt that succeeds keeps its charge.
+    monkeypatch.setattr(gallery, "adopt_tool", real)
+    assert _send(client, "POST", f"{GALLERY}/{gid}/adopt-tool", {}).status_code == 200
+    assert daily_counters.value(et_today(), tgr.DAILY_ADOPT_SCOPE, MEMBER) == 1
