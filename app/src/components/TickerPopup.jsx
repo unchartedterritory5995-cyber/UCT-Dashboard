@@ -559,7 +559,7 @@ export default function TickerPopup({ sym, as: Tag = 'span', customChartFn, clas
                   favourites, so a second row here would duplicate it. */}
             </div>
 
-            <div className={styles.chartArea}>
+            <div className={styles.chartArea} data-ticker-popup-chart="">
               {view === 'chart' ? (
                 <Suspense fallback={<div className={styles.chartLoading}>Loading chart…</div>}>
                   {/* `stored={null}` with no `onStore` = THE user's own chart:
