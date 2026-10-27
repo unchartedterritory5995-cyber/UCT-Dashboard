@@ -168,20 +168,67 @@ def _is_test_file(rel: str) -> bool:
     return bool(_re.search(r"(^tests/test_\w+\.py$)|(\.test\.(?:jsx|js|mjs)$)", rel))
 
 
-def _names_the_gate(src: str, block: str, env: str, rel: str) -> bool:
-    """W11-R71: the cited TEST names this gate: its block holds the env name or the payload key, or reads a constant
-    of the file whose definition does (`const W4 = {notebook_widgets_w4_enabled: true}`, `W11 = "..."`). A pytest
-    file may set its gate in a fixture, so for a .py citation the FILE naming the gate is enough; a vitest citation
-    must name it in the test itself (the m-2 defect: a real test in a file that names the wave elsewhere)."""
-    keys = (env, env.lower())
-    if any(k in block for k in keys):
-        return True
-    if rel.endswith(".py") and any(k in src for k in keys):
-        return True
+_GATE_NAME = _re.compile(r"\bNOTEBOOK_[A-Z0-9_]+?_(?:ENABLED|ON)\b|\bnotebook_[a-z0-9_]+?_(?:enabled|on)\b")
+_FALSY = r"(?:0|false|no|off)"
+_TRUTHY = r"(?:1|true|yes|on)"
+
+
+def _gates_named(src: str) -> set[str]:
+    return {g.upper() for g in _GATE_NAME.findall(src)}
+
+
+def _fixture_blocks(path: Path, src: str, block: str) -> str:
+    """For a pytest block: the bodies of the fixtures it takes (by parameter name) and of the file's autouse
+    fixtures, read from the file and from tests/conftest.py. What the test runs under, not only its own lines."""
+    sig = _re.match(r"\s*def \w+\(([^)]*)\)", block)
+    params = {p.split(":")[0].split("=")[0].strip() for p in (sig.group(1).split(",") if sig else [])} - {""}
+    out = []
+    for text in (src, (REPO / "tests" / "conftest.py").read_text(encoding="utf-8")):
+        for m in _re.finditer(r"^@pytest\.fixture(\([^)]*\))?\s*\ndef (\w+)\(", text, _re.M):
+            if m.group(2) in params or "autouse=True" in (m.group(1) or ""):
+                after = _re.compile(r"^(?:@|def )", _re.M).search(text, m.end())
+                out.append(text[m.start():after.start() if after else len(text)])
+    return "\n".join(out)
+
+
+def _gate_evidence(src: str, block: str, env: str, rel: str, path: Path, mode: bool) -> str | None:
+    """W11-R71 / W11-R72: the cited TEST is evidence for THIS gate, with the gate OFF. None when it is, else why not.
+      * It names the gate: the env name or payload key, or a constant of the file that holds one
+        (`W11 = "NOTEBOOK_..."`, `const W4 = {notebook_widgets_w4_enabled: true}`), in the test's own block or (pytest)
+        a fixture it runs under. A single-gate pytest file may name it at file level only (its fixtures set it); a
+        file naming two or more gates may not (m-6 a: the W6 reason citing the W1 test in a two-wave file).
+      * It shows the gate OFF (m-6 b): a false / "0" latch or set, a delenv, or no set at all (default off). A block
+        whose only set of the gate is ON is not off evidence. A MODE's citations are not on/off evidence."""
+    key = env.lower()
+    py = rel.endswith(".py")
+    scope = block + "\n" + _fixture_blocks(path, src, block) if py else block
+    aliases, truthy_c, falsy_c = set(), set(), set()
     for m in _re.finditer(r"^\s*(?:export\s+)?(?:const|let)?\s*([A-Za-z_]\w*)\s*=\s*(.*)$", src, _re.M):
-        if any(k in m.group(2) for k in keys) and _re.search(rf"\b{_re.escape(m.group(1))}\b", block):
-            return True
-    return False
+        name, val = m.group(1), m.group(2)
+        if _re.fullmatch(rf"""\s*["']{env}["']\s*""", val):
+            aliases.add(name)
+        if _re.search(rf"\b{key}\s*:\s*true\b", val):
+            truthy_c.add(name)
+        if _re.search(rf"\b{key}\s*:\s*false\b", val):
+            falsy_c.add(name)
+    used = lambda names: any(_re.search(rf"\b{_re.escape(n)}\b", scope) for n in names)
+    named = env in scope or key in scope or used(aliases | truthy_c | falsy_c)
+    if not named:
+        if py and len(_gates_named(src)) < 2 and (env in src or key in src):
+            pass                                     # a single-gate pytest file: its fixtures set the one gate
+        else:
+            return "never names"
+    if mode:
+        return None
+    ref = "(?:" + "|".join([_re.escape(f'"{env}"'), _re.escape(f"'{env}'"), *map(_re.escape, sorted(aliases))]) + ")"
+    falsy = (_re.search(rf"\b{key}\s*:\s*false\b", scope) or used(falsy_c)
+             or _re.search(rf"delenv\(\s*{ref}", scope)
+             or _re.search(rf"""setenv\(\s*{ref}\s*,\s*["']{_FALSY}["']""", scope, _re.I))
+    truthy = (_re.search(rf"\b{key}\s*:\s*true\b", scope) or used(truthy_c)
+              or _re.search(rf"""setenv\(\s*{ref}\s*,\s*["']{_TRUTHY}["']""", scope, _re.I))
+    if truthy and not falsy:
+        return "only ever turns it ON"
+    return None
 
 
 _STATUS = _re.compile(r"^(?:a MODE, )?(armed|dark|live)\b")
@@ -206,8 +253,12 @@ def reason_problems(reasons: dict, ledger: dict, repo: Path = REPO) -> list[str]
                 block = _test_block(path, n)
                 if block is None:
                     out.append(f"{env}: {rel} has no test named {n!r}")
-                elif _is_test_file(rel) and not _names_the_gate(src, block, env, rel):
-                    out.append(f"{env}: {rel} test {n!r} never names {env} or {env.lower()}")
+                elif _is_test_file(rel):
+                    why_not = _gate_evidence(src, block, env, rel, path, why.startswith("a MODE"))
+                    if why_not == "never names":
+                        out.append(f"{env}: {rel} test {n!r} never names {env} or {env.lower()}")
+                    elif why_not:
+                        out.append(f"{env}: {rel} test {n!r} {why_not}: it is not evidence of the gate OFF")
             if not names and _is_test_file(rel) and env not in src and env.lower() not in src:
                 out.append(f"{env}: {rel} never names {env} or {env.lower()}")
         e = ledger.get(env) or {}
@@ -280,6 +331,21 @@ def test_the_reason_rail_can_fail(t):
         assert any(g.startswith(f"{env}:") and words in g for g in got), (env, got)
     # the W4 control is the block check, not the file: the same file DOES name W4 elsewhere
     assert "notebook_widgets_w4_enabled" in (REPO / sm).read_text(encoding="utf-8")
+    # W11-R72 (m-6): the reviewer's three wrong-wave citations, each live in a multi-wave file, each red.
+    replant = {
+        "NOTEBOOK_WIDGETS_W6_ENABLED": "armed on web: tests/test_notebook_widgets_router.py (test_gate_off_404)",
+        "NOTEBOOK_WIDGETS_W3_ENABLED":
+            "armed on web: tests/test_notebook_widgets_e2e.py (test_wave2_routes_are_dark_without_their_flag)",
+        "NOTEBOOK_WIDGETS_W2_ENABLED":
+            f"armed on web: {sm} ('bare_slash_groups_in_order: the menu shows the five moment labels in order')",
+    }
+    got = reason_problems(replant, ledger)
+    assert any(g.startswith("NOTEBOOK_WIDGETS_W6_ENABLED:") and "never names" in g for g in got), got
+    assert any(g.startswith("NOTEBOOK_WIDGETS_W3_ENABLED:") and "never names" in g for g in got), got
+    assert any(g.startswith("NOTEBOOK_WIDGETS_W2_ENABLED:") and "only ever turns it ON" in g for g in got), got
+    # the two files name two or more gates, so the pytest file-level allowance does not apply to them
+    for rel in ("tests/test_notebook_widgets_router.py", "tests/test_notebook_widgets_e2e.py"):
+        assert len(_gates_named((REPO / rel).read_text(encoding="utf-8"))) >= 2, rel
 
 
 def test_every_door_is_a_route_the_app_registers(t):

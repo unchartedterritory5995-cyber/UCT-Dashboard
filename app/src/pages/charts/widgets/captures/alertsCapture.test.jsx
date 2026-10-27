@@ -113,7 +113,9 @@ describe('/alerts (Task 16)', () => {
   })
 
   it('W4 off: the item is absent', () => {
+    latchNotebookFlags({ notebook_widgets_w4_enabled: false })          // W11-R72: the gate OFF, latched explicitly (not only by default)
     expect(snapshotWidgetItems('alerts')).toEqual([])
+    __resetNotebookFlags()
     latchNotebookFlags(W4)                                        // control
     expect(snapshotWidgetItems('').find((i) => i.title === 'My price alerts').group).toBe('more')
   })

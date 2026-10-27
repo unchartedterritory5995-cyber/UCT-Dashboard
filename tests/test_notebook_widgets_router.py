@@ -52,7 +52,8 @@ def seen(monkeypatch):
     return calls
 
 
-def test_gate_off_404(seen):
+def test_gate_off_404(seen, monkeypatch):
+    monkeypatch.delenv("NOTEBOOK_WIDGETS_W1_ENABLED", raising=False)     # W11-R72: the gate OFF, stated here
     a = _client().get(URL + "tickerCard?symbol=AAPL")
     b = _client().get(URL + "noSuchKind")
     assert a.status_code == 404 and b.status_code == 404
@@ -123,7 +124,8 @@ def test_wave6_trade_recap_not_yours_is_a_400_with_one_sentence(monkeypatch):
     assert a.json() == b.json() == {"detail": "Trade not found"}
 
 
-def test_wave6_kinds_404_when_w6_off(seen):
+def test_wave6_kinds_404_when_w6_off(seen, monkeypatch):
+    monkeypatch.delenv("NOTEBOOK_WIDGETS_W6_ENABLED", raising=False)     # W11-R72: the gate OFF, stated here
     for kind in ("tradeRecap", "myPnlCalendar", "mySetupEdge", "myScreenToday",
                  "roomBuzzOnMyNames", "myEarningsReactions"):
         assert _client().get(URL + kind).status_code == 404, kind

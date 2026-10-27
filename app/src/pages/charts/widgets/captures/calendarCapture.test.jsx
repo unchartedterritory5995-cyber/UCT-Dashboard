@@ -108,10 +108,12 @@ describe('/calendar (Task 16)', () => {
   })
 
   it('W4 off: the item is absent', () => {
+    latchNotebookFlags({ notebook_widgets_w4_enabled: false })          // W11-R72: the gate OFF, latched explicitly (not only by default)
     expect(snapshotWidgetItems('calendar')).toEqual([])
     expect(snapshotWidgetItems('calendar 3/13')).toEqual([])
     expect(snapshotWidgetItems('').some((i) => i.title === 'UCT Terminal day')).toBe(false)
     // Control: the same queries answer once wave 4 is on, and the item sits under More.
+    __resetNotebookFlags()
     latchNotebookFlags(W4)
     const bare = snapshotWidgetItems('').find((i) => i.title === 'UCT Terminal day')
     expect(bare.group).toBe('more')
