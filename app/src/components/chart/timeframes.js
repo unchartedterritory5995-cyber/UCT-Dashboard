@@ -62,6 +62,8 @@ export function tfLabel(code) {
 // Spoken form of a code, for accessible names ("NVDA daily price chart", "NVDA 5-minute price
 // chart"). Derived from parseTf -- the same authority as tfLabel -- never a second map.
 export function tfSpokenLabel(code) {
+  // no timeframe -> nothing to say (never "undefined" in a name)
+  if (code == null || String(code).trim() === '') return ''
   const { unit, count, minutes } = parseTf(code)
   if (Number.isNaN(count)) return String(code)
   if (unit === 'minutes') return `${minutes}-minute`

@@ -219,6 +219,9 @@ function ChartPane({
   // dash for them (like Next Earnings), only real stocks get a value.
   const isFundLike = isEtf(sym) || themeIdx.isIndex || isBreadthLike || isEcon || String(sym || '').startsWith('^')
   const breadthTf = DWM.includes(tf) ? tf : 'D'
+  // The timeframe the CHART actually draws -- one value for StockChart, the drawing/period
+  // tools and the region's accessible name, so the name can never drift from the chart.
+  const effectiveTf = (isBreadthLike || isEcon) ? breadthTf : (themeIdx.isIndex ? indexTf : tf)
   const synthDailyOnly = themeIdx.isIndex || isBreadthLike || isEcon   // no live feed, D/W/M only
   // A theme index has no live-price feed (it's a synthetic pseudo-ticker), so
   // its header $/% change is the last bar's close vs the prior bar's close.
@@ -1000,7 +1003,7 @@ function ChartPane({
         // The timeframe is in the name: a /charts layout holds several panes of ONE
         // symbol, and same-named regions are indistinguishable landmarks (landmark-unique).
         role="region"
-        aria-label={`${sym} ${tfSpokenLabel((isBreadthLike || isEcon) ? breadthTf : (themeIdx.isIndex ? indexTf : tf))} price chart`}
+        aria-label={[sym, tfSpokenLabel(effectiveTf), 'price chart'].filter(Boolean).join(' ')}
         onClick={handleChartClick}
         onKeyDown={handleChartKeyDown}
       >
@@ -1008,7 +1011,7 @@ function ChartPane({
           sym={sym}
           studioDockHost={studioDockHost}
           onStudioDockChange={setStudioOpen}
-          tf={(isBreadthLike || isEcon) ? breadthTf : (themeIdx.isIndex ? indexTf : tf)}
+          tf={effectiveTf}
           /* The old drawing-toolbar compare entry is retired — comparisons are
              managed by the /charts Tools → Compare Symbols panel now (rendering via
              cs.comparisonSymbols is unchanged). */
@@ -1155,7 +1158,7 @@ function ChartPane({
       <AttachedPineDisclosures settings={chartCs} barsLoaded={drawnBars} />
       <ChartSettingsModal
         open={settingsOpen}
-        chartTf={(isBreadthLike || isEcon) ? breadthTf : (themeIdx.isIndex ? indexTf : tf)}
+        chartTf={effectiveTf}
         onClose={() => setSettingsOpen(false)}
         scrollTo={settingsOpen ? settingsTarget : null}
         settings={isBreadthLike ? { ...chartCs, chartType: breadthChartType } : chartCs}

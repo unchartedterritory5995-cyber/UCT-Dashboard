@@ -159,10 +159,16 @@ export default function TickerPopup({ sym, as: Tag = 'span', customChartFn, clas
     const area = chartAreaRef.current
     if (!modal || !area) return undefined
     let raf = 0
+    let ro = null
+    const watched = new WeakSet()
     const measure = () => {
       raf = 0
       const wrapper = area.querySelector(`.${CHART_FIT_TARGET}`)
       const pane = area.firstElementChild
+      // Watch the pane's OWN box from the moment it exists: its identity row, timeframe bar
+      // and the chart wrapper land after it mounts, inside an area the 560px loading floor
+      // may still be holding at a fixed height.
+      if (pane && ro && !watched.has(pane)) { ro.observe(pane); watched.add(pane) }
       if (!wrapper || !pane || !pane.contains(wrapper)) return
       const mcs = getComputedStyle(modal)
       const acs = getComputedStyle(area)
@@ -175,19 +181,28 @@ export default function TickerPopup({ sym, as: Tag = 'span', customChartFn, clas
       setChartFitPx((prev) => (shouldUpdateFit(prev, next) ? next : prev))
     }
     const schedule = () => { if (!raf) raf = requestAnimationFrame(measure) }
-    // The pane is a lazy chunk: the area GROWS when it lands, which is what fires this.
+    // ⛔ THE COLD OPEN. The pane is a lazy chunk: React commits the Suspense fallback, the
+    // first measure finds no wrapper, and when the pane lands the area may not change size at
+    // all -- its 560px loading floor holds it while the modal sits at its cap -- so no
+    // ResizeObserver fires and the chart never fits until a window resize (1366x657 laptop:
+    // ~125px of chart, axis and chips under the modal edge). The swap of the area's CHILD is
+    // the signal: a MutationObserver on the area's direct children (childList only, never the
+    // subtree -- the legend re-renders on every crosshair move) schedules the measure.
     // ⛔ Observe the modal's CONTENT, not just the modal: once fitted the modal sits at its
     // max-height cap, so its own box never changes when the chrome ABOVE the chart grows
     // (a live price, journal backlinks, a toast, a header that wraps to a second row of
     // 44px buttons). Each child's own box does -- and the chart area is one of them.
-    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(schedule) : null
+    ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(schedule) : null
     ro?.observe(modal)
     for (const child of modal.children) ro?.observe(child)
+    const mo = typeof MutationObserver !== 'undefined' ? new MutationObserver(schedule) : null
+    mo?.observe(area, { childList: true })
     window.addEventListener('resize', schedule)
     schedule()
     return () => {
       if (raf) cancelAnimationFrame(raf)
       ro?.disconnect()
+      mo?.disconnect()
       window.removeEventListener('resize', schedule)
     }
   }, [modalOpen, view])
