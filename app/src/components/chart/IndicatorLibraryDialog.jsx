@@ -565,7 +565,10 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
                             and compact strips take `shortName`; this surface and
                             the generated settings rows take the full one. */}
                         <span className={styles.name}>{row.name}</span>
-                        <span className={styles.chip}>{row.shortName}</span>
+                        {/* ⛔ VISIBLE, NOT SPOKEN: the abbreviation restates the
+                            name, and inside the button it made the accessible
+                            name "Parabolic SAR SAR". */}
+                        <span className={styles.chip} aria-hidden="true">{row.shortName}</span>
                         {/* ⭐ NAMED, NOT JUST TINTED. A colour alone is not a
                             distinction for a member who cannot see it, and the
                             heading scrolls out of view on a long list. */}

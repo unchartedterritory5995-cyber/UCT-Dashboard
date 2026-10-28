@@ -19343,21 +19343,33 @@ export default function StockChart({
              helper went with it. */
           style={{ bottom: '3px' }}
           title="Price scale: Arithmetic / Logarithmic / Percent"
+          /* ⛔ A GROUP WITH A NAME, AND CHIPS THAT SAY WHICH ONE IS ON. `title` is not
+             an accessible name a screen reader reliably speaks, and three buttons
+             that only differ by colour told a VoiceOver member nothing about the
+             current scale. `aria-pressed` carries what `.scaleToggleActive` paints. */
+          role="group"
+          aria-label="Price scale"
         >
           <button
+            type="button"
             className={`${styles.scaleToggleBtn} ${effectiveScale === 'arith' ? styles.scaleToggleActive : ''}`}
+            aria-pressed={effectiveScale === 'arith'}
             onClick={() => setScale('arith')}
             title="Arithmetic (linear) scale"
             aria-label="Arithmetic price scale"
           >A</button>
           <button
+            type="button"
             className={`${styles.scaleToggleBtn} ${effectiveScale === 'log' ? styles.scaleToggleActive : ''}`}
+            aria-pressed={effectiveScale === 'log'}
             onClick={() => setScale('log')}
             title="Logarithmic scale"
             aria-label="Logarithmic price scale"
           >L</button>
           <button
+            type="button"
             className={`${styles.scaleToggleBtn} ${effectiveScale === 'pct' ? styles.scaleToggleActive : ''}`}
+            aria-pressed={effectiveScale === 'pct'}
             onClick={() => setScale('pct')}
             title="Percentage scale"
             aria-label="Percentage price scale"

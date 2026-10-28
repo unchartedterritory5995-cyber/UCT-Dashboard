@@ -234,6 +234,20 @@ const featureRowId = (id) => `feature:${id}`
 // `TECHNICAL_MACD` stay apart.
 const resultIdSafe = (key) => String(key).replace(/[^A-Za-z0-9]/g, (ch) => `_${ch.codePointAt(0)}_`)
 
+/**
+ * Does this result row's short tag merely ABBREVIATE its name?
+ *
+ * ⛔ Then the tag is visible but not spoken: inside the row's button it would
+ * otherwise join the accessible name ("Parabolic SAR SAR"). Only the indicator
+ * kinds carry a definition `shortName`; a `chip` (breadth population) never
+ * restates the name, it is what tells same-named rows apart.
+ */
+function tagRestatesName(row) {
+  if (!row || row.chip) return false
+  // A catalogue definition row carries NO `kind` (only the discovery adapters set one).
+  return !row.kind || row.kind === 'technical' || row.kind === 'builtin' || row.kind === 'formula'
+}
+
 export default function ChartSettingsIndicators({
   rows,
   settings,
@@ -1395,6 +1409,21 @@ export default function ChartSettingsIndicators({
     [addedFeatures, selected],
   )
 
+  /**
+   * THE LIST'S ONE TAB STOP — the selected row, else the FIRST row.
+   *
+   * ⛔⛔ A ROVING TABINDEX MUST ALWAYS LEAVE EXACTLY ONE `0`. Keyed on
+   * `selected` alone, a list with nothing selected (the modal opening on the
+   * Add view, or the selected row leaving the chart) made every row `-1`, and
+   * Tab walked straight past "Series on this chart" — the only way in was a
+   * pointer. Same order as `onStructureKeys` walks, so the first Tab lands
+   * where ↓ would start.
+   */
+  const structureTabStop = useMemo(() => {
+    const ids = [...flatRows.map((r) => r.id), ...addedFeatures.map((f) => featureRowId(f.id))]
+    return ids.includes(selected) ? selected : (ids[0] ?? null)
+  }, [flatRows, addedFeatures, selected])
+
   /** The group a row is filed under, for the Inspector's contextual name. */
   const groupOfRow = useCallback(
     (rowId) => paneGroups.find((g) => g.rows.some((r) => r.id === rowId)) || null,
@@ -1521,7 +1550,7 @@ export default function ChartSettingsIndicators({
             type="button"
             className={styles.insRowPrimary}
             data-row-primary={rid}
-            tabIndex={isSel ? 0 : -1}
+            tabIndex={structureTabStop === rid ? 0 : -1}
             aria-current={isSel ? 'true' : undefined}
           >
             <i className={styles.insRail} style={{ background: 'transparent' }} aria-hidden="true" />
@@ -1626,7 +1655,7 @@ export default function ChartSettingsIndicators({
           type="button"
           className={styles.insRowPrimary}
           data-row-primary={row.id}
-          tabIndex={isSel ? 0 : -1}
+          tabIndex={structureTabStop === row.id ? 0 : -1}
           aria-current={isSel ? 'true' : undefined}
         >
           {/* ⭐⭐ THE MICRO-RAIL, TO LEGEND V2'S EXACT SPEC — 2×10px, 1px radius,
@@ -3149,7 +3178,18 @@ export default function ChartSettingsIndicators({
             <span className={styles.resName}>{row.name}</span>
             {/* ⭐ `chip` names a breadth row's POPULATION (UCT · US · NASDAQ · NYSE) so four
                 identically named metrics are told apart; every other kind keeps `shortName`. */}
-            {!isEcon && <span className={styles.resShort}>{row.chip || row.shortName}</span>}
+            {/* ⛔ THE ABBREVIATION IS NOT PART OF THE NAME. Inside the button its text
+                joined the accessible name, so VoiceOver read "Parabolic SAR SAR",
+                "TRIX TRIX". On an INDICATOR row (technical / built-in / the
+                member's formula) `shortName` is the definition's abbreviation of
+                the name, so it is `aria-hidden`. Every other kind's tag QUALIFIES
+                the name (a breadth row's population, a security's type, a
+                fundamental's cadence) and stays in it. */}
+            {!isEcon && (
+              <span className={styles.resShort} aria-hidden={tagRestatesName(row) ? 'true' : undefined}>
+                {row.chip || row.shortName}
+              </span>
+            )}
             {row.userDefined && <span className={styles.resMine}>Your formula</span>}
             {/* ⭐ PHASE 4 — IS IT USED HERE? The member's own indicator says so. */}
             {/* (`ACTIVE` already marks one that is on; this says the other half.) */}
