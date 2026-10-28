@@ -32,10 +32,15 @@ test('the name carries the minute, never the second -- a focused clock is not re
   expect(clock.textContent).toMatch(/:\d{2}:\d{2}/)
 })
 
-test('focus still reveals the session popup (the reason it is focusable)', () => {
+test('focus still reveals the session popup (the reason it is focusable), spoken ONCE', () => {
   render(<ChartMarketClock />)
   const clock = screen.getByRole('timer')
   fireEvent.focus(clock)
   // the name already carries the same status line the popup shows
   expect(clock.getAttribute('aria-label')).toMatch(/MARKET CLOSED|Opens|Closes/i)
+  // so the popup is visual only: no live region repeating it
+  const popup = document.body.querySelector('[class*="clockPopup"]') || [...document.body.children].find((el) => el !== clock && /Opens|Closes/.test(el.textContent || ''))
+  expect(popup).toBeTruthy()
+  expect(popup).toHaveAttribute('aria-hidden', 'true')
+  expect(screen.queryByRole('status')).toBeNull()
 })

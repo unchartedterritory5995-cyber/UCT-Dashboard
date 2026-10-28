@@ -122,11 +122,11 @@ describe('TickerHubSheet -- names and states', () => {
     expect(btn.getAttribute('aria-label')).not.toMatch(/search a different ticker/)
   })
 
-  it('the chart wrapper is a named region that keeps its tab stop (type-to-search, Shift+F)', async () => {
+  it('the chart wrapper is a named region (symbol + timeframe) that keeps its tab stop (type-to-search, Shift+F)', async () => {
     renderOpen()
     // ChartPane is a lazy chunk; cold, under a loaded box, it measured 10-13s here.
     await screen.findByTestId('stock-chart', {}, { timeout: 25000 })
-    const region = screen.getByRole('region', { name: 'CLS price chart' })
+    const region = screen.getByRole('region', { name: 'CLS daily price chart' })
     expect(region).toHaveAttribute('tabindex', '0')
     expect(within(region).getByTestId('stock-chart')).toBeInTheDocument()
   }, 60000)

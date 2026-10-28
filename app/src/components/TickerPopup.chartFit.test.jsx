@@ -71,20 +71,40 @@ describe('fitChartHeightPx', () => {
     expect(chartHeightCss(900)).toBe('min(820px, 68vh, 900px)')
   })
 
-  test('rounding never flips the value back and forth', () => {
+  test('growth waits for the hysteresis; rounding never flips the value back and forth', () => {
     expect(shouldUpdateFit(null, 500)).toBe(true)
+    expect(shouldUpdateFit(500, 500)).toBe(false)
     expect(shouldUpdateFit(500, 501)).toBe(false)
     expect(shouldUpdateFit(500, 502)).toBe(false)
     expect(shouldUpdateFit(500, 503)).toBe(true)
     expect(shouldUpdateFit(500, null)).toBe(true)
+  })
+
+  test('a SMALLER value always wins: a 1-2px shrink ignored is 1-2px of overflow, a scrollbar', () => {
+    expect(shouldUpdateFit(500, 499)).toBe(true)
+    expect(shouldUpdateFit(500, 498)).toBe(true)
+    // and it cannot then grow back by that same pixel (no oscillation)
+    expect(shouldUpdateFit(499, 500)).toBe(false)
   })
 })
 
 describe('TickerPopup wires the fit into the chart', () => {
   const realGCS = window.getComputedStyle
   let raf
+  // jsdom has no ResizeObserver: a fake that records what is observed, so a test can resize
+  // ONE element and see whether anything was listening to it.
+  let observers
+  class FakeRO {
+    constructor(cb) { this.cb = cb; this.els = new Set(); observers.push(this) }
+    observe(el) { this.els.add(el) }
+    unobserve(el) { this.els.delete(el) }
+    disconnect() { this.els.clear() }
+  }
+  const resizeOnly = (el) => { for (const o of observers) if (o.els.has(el)) o.cb([{ target: el }]) }
   beforeEach(() => {
     seen.heights = []; seen.renders = 0
+    observers = []
+    vi.stubGlobal('ResizeObserver', FakeRO)
     raf = vi.spyOn(window, 'requestAnimationFrame').mockImplementation((cb) => setTimeout(() => cb(0), 0))
   })
   afterEach(() => {
@@ -106,14 +126,15 @@ describe('TickerPopup wires the fit into the chart', () => {
     def(wrapper, 'offsetHeight', chartPx)
     def(pane, 'offsetHeight', () => chartPx() + 49)
     def(area, 'offsetHeight', () => chartPx() + 49 + 24)
-    def(dialog, 'scrollHeight', () => chartPx() + 214)
+    const chrome = { px: 214 }
+    def(dialog, 'scrollHeight', () => chartPx() + chrome.px)
     window.getComputedStyle = (el, ...rest) => {
       const cs = realGCS(el, ...rest)
       if (el === dialog) return { ...cs, maxHeight, borderTopWidth: '1px', borderBottomWidth: '1px' }
       if (el === area) return { ...cs, paddingTop: '12px', paddingBottom: '12px' }
       return cs
     }
-    return { area, wrapper }
+    return { area, wrapper, dialog, chrome }
   }
 
   async function settle() {
@@ -138,6 +159,23 @@ describe('TickerPopup wires the fit into the chart', () => {
     await settle()
     expect(seen.renders).toBe(renders)
     expect(wrapper.dataset.height).toBe('min(820px, 68vh, 517px)')
+  })
+
+  test('chrome ABOVE the chart growing after the fit re-measures (the modal box itself is capped)', async () => {
+    renderWithProviders(<TickerPopup sym="QQQ" open onClose={vi.fn()} />)
+    await screen.findByTestId('pane')
+    const { wrapper, dialog, chrome } = giveGeometry('733.92px')
+    await act(async () => { window.dispatchEvent(new Event('resize')) })
+    await settle()
+    expect(wrapper.dataset.height).toBe('min(820px, 68vh, 517px)')
+    // the header wraps to a second row of 44px buttons: +50px of chrome, and ONLY the header
+    // box changes -- the modal stays at its max-height, the chart area is untouched
+    chrome.px += 50
+    const header = dialog.firstElementChild
+    expect(header.contains(wrapper)).toBe(false)
+    await act(async () => { resizeOnly(header) })
+    await settle()
+    expect(wrapper.dataset.height).toBe('min(820px, 68vh, 467px)')
   })
 
   test('phone (max-height: none) keeps the old height', async () => {
