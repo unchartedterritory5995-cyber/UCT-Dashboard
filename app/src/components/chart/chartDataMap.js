@@ -41,6 +41,22 @@ import { isInstanceTombstone } from './instanceShape'
 import { resolvePaneOrder, PRICE_PANE, VOLUME_PANE } from './engine/paneOrder'
 import { orderPaneRows } from './engine/paneSeriesOrder'
 import { volumePaneRequired } from './engine/volumePresentation'
+import { readEnabled } from './indicatorRegistry'
+
+/**
+ * The rows Chart Data treats as ON THE CHART — the ones `paneMap` files into panes.
+ *
+ * ⭐ ONE RULE, TWO READERS (2026-10-27): the Chart Data panel and the Agent's pane read
+ * (`builder/agentPanes.js`) both ask this, so the panes the Agent names are the panes
+ * the member's Arrange list shows. Moved verbatim out of `ChartSettingsIndicators.jsx`.
+ *  · a fixture row (an MA overlay, the volume section) is always listed;
+ *  · A1 (D3): an engine row is listed while it EXISTS (`row.exists`), hidden or not;
+ *  · anything else by its enabled flag.
+ */
+export function activeIndicatorRows(rows) {
+  const isFixture = (r) => r?.path?.kind === 'overlay' || r?.path?.kind === 'section'
+  return (Array.isArray(rows) ? rows : []).filter((r) => isFixture(r) || (r.engineOwned && typeof r.exists === 'boolean' ? r.exists : readEnabled(r)))
+}
 
 /** The group ids that no instance hosts. */
 export const PRICE_GROUP = 'price'

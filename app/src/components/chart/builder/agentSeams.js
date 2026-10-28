@@ -18,6 +18,7 @@ import { adoptOverlayAverages } from '../maAdoption'
 import { isInstanceTombstone } from '../instanceShape'
 import { instanceLabel } from '../engine/sourceRef'
 import { STUDIO_PREVIEW_DEF_ID } from './studio/chartPreview'
+import { resolveDisplayTarget, paneOwnerOf } from '../engine/displayTarget'
 
 /**
  * ⭐ THE TOP-LEVEL CHART-SETTINGS KEYS INDICATORS OWNS — declared HERE, by the owner.
@@ -50,6 +51,13 @@ const USER_DEF = /^u_[0-9a-f]{12}$/
  *   enabled: boolean,                // = !hidden, the owner's word
  *   placement: 'price' | 'pane',
  *   setting?: true,                  // the Volume pane: a chart setting, not an instance
+ *   // ⭐ I-11 (additive, 2026-10-27) — what a copy, a "make it look like" and a show/hide
+ *   // of a definition-hidden group need. Absent on the Volume setting row.
+ *   hiddenVia?: string | null,       // A1.1: 'definition' when hidden by the definition switch
+ *   inputs?: object,                 // the STORED inputs (a copy; an absent key = the declared default)
+ *   presentation?: object | null,    // stored presentation overrides (style, stroke, colours)
+ *   displayTarget?: string | null,   // resolved: 'price' | 'volume' | 'pane' | '@<hostInstanceId>'
+ *   paneKey?: string | null,         // the pane it draws in: 'price' | 'volume' | <host instanceId> (I-9's keys)
  * }} IndicatorSummary
  */
 
@@ -83,6 +91,12 @@ export function instancesOf(cs, registry) {
     try { name = instanceLabel(def, inst) } catch { name = null }
     const target = (inst.placement && inst.placement.target) || (def.placement && def.placement.target)
     const custom = USER_DEF.test(defId)
+    let displayTarget = null
+    let paneKey = null
+    try {
+      displayTarget = resolveDisplayTarget(inst, adopted) || null
+      paneKey = displayTarget === 'price' || displayTarget === 'volume' ? displayTarget : (paneOwnerOf(inst, adopted) || null)
+    } catch { /* an unresolvable placement reads as unknown, never as a guess */ }
     out.push(Object.freeze({
       instanceId: inst.instanceId,
       defId,
@@ -92,6 +106,11 @@ export function instancesOf(cs, registry) {
       hidden: inst.hidden === true,
       enabled: inst.hidden !== true,
       placement: target === 'price' ? 'price' : 'pane',
+      hiddenVia: typeof inst.hiddenVia === 'string' ? inst.hiddenVia : null,
+      inputs: isObj(inst.inputs) ? JSON.parse(JSON.stringify(inst.inputs)) : {},
+      presentation: isObj(inst.presentation) ? JSON.parse(JSON.stringify(inst.presentation)) : null,
+      displayTarget,
+      paneKey,
     }))
   }
   // ⭐ the Volume pane is listed beside the indicators in Chart Settings, so a member
