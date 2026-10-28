@@ -19,6 +19,8 @@ class LifecycleS3(FakeS3):
         self.put_ok = put_ok
 
     def get_bucket_lifecycle_configuration(self, *, Bucket):
+        if self.days == "denied":
+            raise PermissionError("AccessDenied")
         if self.days is None:
             raise KeyError("NoSuchLifecycleConfiguration")
         return {"Rules": [{"Status": "Enabled", "Filter": {"Prefix": "trade-exchange-news/"},
@@ -61,6 +63,18 @@ def test_preflight_names_every_problem():
                for p in pf.check("web", env("web"), client=LifecycleS3(days=None)))
     assert any("r2 write failed" in p
                for p in pf.check("web", env("web"), r2_write=True, client=LifecycleS3(put_ok=False)))
+
+
+def test_preflight_scoped_key_lifecycle_needs_the_dashboard_confirmation(capsys):
+    """D2: an Object Read & Write key scoped to the bucket is refused the lifecycle read."""
+    probs = pf.check("web", env("web"), r2_write=True, client=LifecycleS3(days="denied"))
+    assert any("--lifecycle-confirmed-in-dashboard" in p for p in probs)
+    assert pf.check("web", env("web"), r2_write=True, client=LifecycleS3(days="denied"),
+                    lifecycle_confirmed=True) == []
+    # only a refusal is waived: any other failure still blocks
+    assert any("unreadable" in p for p in pf.check("web", env("web"), client=LifecycleS3(days=None),
+                                                   lifecycle_confirmed=True))
+    assert SECRET not in capsys.readouterr().out
 
 
 def test_probe_refuses_production_and_unconfirmed_runs(tmp_path, monkeypatch):

@@ -7,7 +7,10 @@ Checks, and prints only names, booleans and counts (never a value):
   * every variable the role needs is set; digests are 64 hex characters;
   * the receiver's dark/permission switches are in the state the runbook step expects;
   * R2: the bucket answers a LIST under the journal prefix, and its lifecycle
-    configuration expires that prefix (the retention the recovery floor assumes);
+    configuration expires that prefix (the retention the recovery floor assumes).
+    A correctly scoped key (Object Read & Write, this bucket only) is REFUSED the
+    lifecycle read (D2, staging 2026-10-28): the operator then confirms the two rules
+    in the dashboard and passes ``--lifecycle-confirmed-in-dashboard``;
   * --r2-write-check (web): this credential can PUT (it must, for the repair pass)
     — writes one canary object under ``trade-exchange-news/v1/preflight/``, a prefix
     the reconciler never reads.
@@ -35,7 +38,13 @@ SWITCHES = {
 PREFIX = "trade-exchange-news/v1/events"
 
 
-def check(role: str, env: dict[str, str], r2_write: bool = False, client=None) -> list[str]:
+def _access_denied(e: Exception) -> bool:
+    code = (getattr(e, "response", None) or {}).get("Error", {}).get("Code", "")
+    return code == "AccessDenied" or "AccessDenied" in str(e)
+
+
+def check(role: str, env: dict[str, str], r2_write: bool = False, client=None,
+          lifecycle_confirmed: bool = False) -> list[str]:
     problems: list[str] = []
     for name in REQUIRED[role]:
         if not env.get(name):
@@ -75,7 +84,14 @@ def check(role: str, env: dict[str, str], r2_write: bool = False, client=None) -
             if min(days) < 8:
                 problems.append("journal lifecycle is shorter than 8 days (recovery floor assumes >= history + 1 day)")
     except Exception as e:  # noqa: BLE001
-        problems.append(f"r2 lifecycle unreadable: {type(e).__name__}")
+        if _access_denied(e) and lifecycle_confirmed:
+            print("r2 lifecycle: not readable with this object-scoped key (expected); "
+                  "operator confirmed the rules in the dashboard")
+        elif _access_denied(e):
+            problems.append("r2 lifecycle unreadable with this object-scoped key (expected): confirm the "
+                            "8-day events rule in the dashboard, then rerun with --lifecycle-confirmed-in-dashboard")
+        else:
+            problems.append(f"r2 lifecycle unreadable: {type(e).__name__}")
     if r2_write:
         key = f"trade-exchange-news/v1/preflight/{int(time.time())}.txt"
         try:
@@ -90,8 +106,11 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--role", choices=sorted(REQUIRED), required=True)
     ap.add_argument("--r2-write-check", action="store_true")
+    ap.add_argument("--lifecycle-confirmed-in-dashboard", action="store_true",
+                    help="the key cannot read lifecycle settings; the operator checked the rules by eye")
     args = ap.parse_args(argv)
-    problems = check(args.role, dict(os.environ), r2_write=args.r2_write_check)
+    problems = check(args.role, dict(os.environ), r2_write=args.r2_write_check,
+                     lifecycle_confirmed=args.lifecycle_confirmed_in_dashboard)
     for p in problems:
         print(f"NOT READY: {p}")
     print("READY" if not problems else f"{len(problems)} problem(s)")

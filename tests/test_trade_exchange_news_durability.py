@@ -165,6 +165,35 @@ async def test_a_long_r2_outage_is_reported_never_silent(caplog, monkeypatch):
     await rxc.aclose()
 
 
+async def test_parallel_repair_keeps_only_the_failed_puts_in_the_backlog():
+    """D2: repair PUTs run in parallel; one failing PUT must not lose or block the rest."""
+    s3 = FakeS3()
+    s3.fail_put = True
+    net = Net(web_app())
+    p, r = await boot_web(s3)
+    rxc, f, _ = receiver(jr.S3Journal(s3, BUCKET), net)
+    ids = [(await post(rxc, f"SYNTHETIC: parallel repair {n}")).json()["id"] for n in range(20)]
+    await f.drain()
+    s3.fail_put = False
+    real_put, poisoned = s3.put_object, ids[7]
+
+    def put_object(**kw):
+        if poisoned in kw["Key"]:
+            raise ConnectionError("one PUT fails")
+        return real_put(**kw)
+
+    s3.put_object = put_object
+    out = await r.repair_once()
+    assert out["repaired"] == 19 and out["error"] == "ConnectionError"
+    assert out["backlog"]["count"] == 1 and r.last_repair_error == "ConnectionError"
+    assert r2_ids(s3) == set(ids) - {poisoned}
+    s3.put_object = real_put
+    out = await r.repair_once()
+    assert out["repaired"] == 1 and out["backlog"]["count"] == 0 and r.last_repair_error is None
+    assert r2_ids(s3) == set(ids)
+    await rxc.aclose()
+
+
 async def test_records_the_receiver_did_journal_are_confirmed_without_a_rewrite():
     s3 = FakeS3()
     net = Net(web_app())

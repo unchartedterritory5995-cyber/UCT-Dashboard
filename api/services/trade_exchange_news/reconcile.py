@@ -211,17 +211,30 @@ class Reconciler:
         else:
             present = set(self.reader.ids_after(cursor_for_ms(oldest - config.reconcile_overlap_ms())))
         confirmed = [eid for eid, _, _ in backlog if eid in present]
-        repaired = []
-        try:
-            for eid, _, body in backlog:
-                if eid in present or body is None:
-                    continue
-                self.reader.put(eid, body)
-                repaired.append(eid)
-            self.last_repair_error = None
-        finally:
-            store.mark_journaled(confirmed + repaired)
-        return {"confirmed": len(confirmed), "repaired": len(repaired)}
+        todo = [(eid, body) for eid, _, body in backlog if eid not in present and body is not None]
+
+        def put(item: tuple[str, str]) -> Exception | None:
+            try:
+                self.reader.put(*item)
+                return None
+            except Exception as e:  # noqa: BLE001 -- that one stays in the backlog
+                return e
+
+        # Parallel (D2, staging: one PUT ~0.6 s from Railway to R2, so 500 in
+        # series held the reconcile loop -- and its recovery scan -- for ~5 min).
+        # Each PUT is keyed by event id, so order does not matter.
+        errors = list(self._pool.map(put, todo))
+        repaired = [eid for (eid, _), err in zip(todo, errors) if err is None]
+        store.mark_journaled(confirmed + repaired)
+        out = {"confirmed": len(confirmed), "repaired": len(repaired)}
+        failed = [e for e in errors if e is not None]
+        if failed:
+            self.last_repair_error = type(failed[0]).__name__
+            logger.warning("[txn] journal repair: %d PUT(s) failed (%s); they stay in the backlog",
+                           len(failed), type(failed[0]).__name__)
+            return {**out, "error": type(failed[0]).__name__}
+        self.last_repair_error = None
+        return out
 
     async def repair_once(self) -> dict[str, Any]:
         if self.reader is None:
