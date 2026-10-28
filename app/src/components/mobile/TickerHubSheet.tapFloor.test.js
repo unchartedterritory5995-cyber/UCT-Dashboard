@@ -48,8 +48,25 @@ const SCOPE = ':global([data-ticker-hub-chart])'
 const CHART_TARGETS = [
   [WS_CSS, `${SCOPE} .tfBtn`, ['min-width', 'min-height']],
   [STOCK_CSS, `${SCOPE} .scaleToggleBtn`, ['min-width', 'min-height']],
-  [STOCK_CSS, `${SCOPE} .studyMore`, ['min-width', 'min-height']],
+  // "+N more": only its WIDTH is a floor here; its height rides `--study-more-h` (below),
+  // which the legend fold reads -- a min-height would be invisible to the fold.
+  [STOCK_CSS, `${SCOPE} .studyMore`, ['min-width']],
 ]
+
+/** A px length or a `calc()` of px terms joined by + / -, in px; null when it is neither. */
+function pxOf(raw) {
+  if (raw == null) return null
+  const s = String(raw).trim()
+  const inner = /^calc\((.*)\)$/.exec(s)?.[1] ?? s
+  const terms = inner.trim().split(/\s+([+-])\s+/)
+  let sum = 0
+  for (let i = 0; i < terms.length; i += 2) {
+    const m = /^(\d+(?:\.\d+)?)px$/.exec(terms[i])
+    if (!m) return null
+    sum += (i === 0 || terms[i - 1] === '+' ? 1 : -1) * Number(m[1])
+  }
+  return sum
+}
 
 /** The value a rule whose selector list holds exactly `selector` gives `prop`, or null. */
 function value(block, selector, prop) {
@@ -117,10 +134,40 @@ describe('TickerHubSheet "+ Compare" badge touch floor', () => {
     // the legend's responsive collapse hid it entirely (WebKit, 390 and 834).
     expect(JSX).toMatch(/stockChartProps=\{\{\s*(?:\/\/[^\n]*\n\s*)*height: 'var\(--hub-chart-h, 240px\)'/)
     for (const d of FINGERS) {
-      const h = timeAxisMinHeightFromCss(value(mediaBodiesOn(CSS, d), '.chartWrap', '--hub-chart-h') || '')
-      expect(h, `@${d.width}`).toBeGreaterThanOrEqual(240 + reserveOn(d) - 28)
+      const raw = value(mediaBodiesOn(CSS, d), '.chartWrap', '--hub-chart-h')
+      // written as the sum it is -- the 240px chart, plus the reserve, less the natural axis --
+      // and the reserve term is the one StockChart.module.css declares for the hub on this device
+      const m = /^calc\(240px \+ (\d+)px - 28px\)$/.exec(raw || '')
+      expect(m, `@${d.width}: ${raw}`).not.toBeNull()
+      expect(Number(m[1]), `@${d.width}`).toBe(reserveOn(d))
+      expect(pxOf(raw)).toBe(240 + reserveOn(d) - 28)
     }
     expect(value(mediaBodiesOn(CSS, DESKTOP_MOUSE), '.chartWrap', '--hub-chart-h')).toBeNull()
+  })
+
+  it('the legend fold SEES the 44px "+N more": the hub raises --study-more-h, not a min-height', () => {
+    for (const d of FINGERS) {
+      expect(value(mediaBodiesOn(STOCK_CSS, d), `${SCOPE} .studyStack`, '--study-more-h'), `@${d.width}`).toBe('var(--tap-min)')
+      expect(value(mediaBodiesOn(STOCK_CSS, d), `${SCOPE} .studyMore`, 'min-height'), `@${d.width}`).toBeNull()
+    }
+    expect(value(mediaBodiesOn(STOCK_CSS, DESKTOP_MOUSE), `${SCOPE} .studyStack`, '--study-more-h')).toBeNull()
+  })
+
+  it('while the chart chunk loads, the fallback holds the pane\'s final height (no jump on mount)', () => {
+    // WebKit, slow ChartPane chunk: the box was 19-21px under the fallback and 373-388px after.
+    const expected = { 390: 49 + 45, 834: 34 + 45, 1194: 34 + 45 }
+    for (const d of FINGERS) {
+      const block = mediaBodiesOn(CSS, d)
+      expect(value(block, '.chartWrap .chartLoading', 'height'), `@${d.width}`)
+        .toBe('calc(var(--hub-chart-h) + var(--hub-chart-chrome-h))')
+      // the LAST declaration of the chrome on this device wins, as in the cascade
+      const chrome = [...block.matchAll(/\.chartWrap\s*\{([^{}]*)\}/g)]
+        .map(([, decls]) => /--hub-chart-chrome-h:\s*([^;]+?)\s*(?:;|$)/.exec(decls.trim())?.[1]).filter(Boolean).pop()
+      expect(pxOf(chrome), `@${d.width}`).toBe(expected[d.width])
+    }
+    expect(value(mediaBodiesOn(CSS, DESKTOP_MOUSE), '.chartWrap .chartLoading', 'height')).toBeNull()
+    // the chart's fallback is the `.chartLoading` INSIDE `.chartWrap` (the fundamentals one is not)
+    expect(JSX).toMatch(/data-ticker-hub-chart="">\s*<Suspense fallback=\{<div className=\{styles\.chartLoading\}>Loading chart/)
   })
 
   it("the chart area the rules name is the one that holds the hub's ChartPane (the wire)", () => {
