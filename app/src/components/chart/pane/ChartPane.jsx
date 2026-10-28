@@ -601,7 +601,13 @@ function ChartPane({
   // Optional section to reveal on open (e.g. 'watermark' from the right-click
   // "Adjust watermark"). Callers like onClick pass an event — ignore non-strings.
   const [settingsTarget, setSettingsTarget] = useState(null)
+  // The control that opened the modal, so closing it puts focus BACK there. A
+  // click hands us its event; WebKit does not focus a button on click, so the
+  // modal cannot learn the gear from `document.activeElement` alone.
+  const settingsOpenerRef = useRef(null)
   const openSettings = useCallback((target = null) => {
+    const opener = target && typeof target === 'object' && target.currentTarget
+    settingsOpenerRef.current = opener && typeof opener.focus === 'function' ? opener : null
     setSettingsTarget(typeof target === 'string' ? target : null)
     setSettingsOpen(true)
   }, [])
@@ -1150,6 +1156,7 @@ function ChartPane({
         open={settingsOpen}
         chartTf={(isBreadthLike || isEcon) ? breadthTf : (themeIdx.isIndex ? indexTf : tf)}
         onClose={() => setSettingsOpen(false)}
+        returnFocusRef={settingsOpenerRef}
         scrollTo={settingsOpen ? settingsTarget : null}
         settings={isBreadthLike ? { ...chartCs, chartType: breadthChartType } : chartCs}
         /* ⭐ THE SAME VOLUME TRUTH THE CHART GETS. This pane passes

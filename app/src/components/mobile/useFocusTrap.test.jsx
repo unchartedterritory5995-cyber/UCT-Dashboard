@@ -1,7 +1,7 @@
 import { render, fireEvent, screen, cleanup } from '@testing-library/react'
 import { useRef } from 'react'
 import { describe, it, expect, afterEach } from 'vitest'
-import useFocusTrap, { focusableWithin, isHiddenForFocus, sheetOpenAbove, trapTabKey, FOCUSABLE_SELECTOR } from './useFocusTrap'
+import useFocusTrap, { focusableWithin, isHiddenForFocus, sheetOpenAbove, inertBeneath, trapTabKey, FOCUSABLE_SELECTOR } from './useFocusTrap'
 import Sheet from './Sheet'
 
 // ─── the ONE focus trap ──────────────────────────────────────────────────────
@@ -249,6 +249,29 @@ describe('useFocusTrap — installation', () => {
     expect(sheetOpenAbove(outer)).toBe(true)
     outer.appendChild(sheet)          // now the Sheet is INSIDE the container
     expect(sheetOpenAbove(outer)).toBe(false)
+  })
+
+  it('⛔ STANDS DOWN while another modal has made it INERT -- an inert dialog is never topmost', () => {
+    // The shape: the ticker popup (this hook, registered first) under Chart
+    // Settings, whose backgroundInert made the popup inert. Without the guard the
+    // popup sees focus "outside" on every Tab and yanks it back to its own (inert)
+    // first control. The upper modal's control is a MIDDLE one, so nothing but the
+    // lower trap reaching in can move focus.
+    render(<div data-testid="beneath"><Dialog /></div>)
+    screen.getByTestId('beneath').setAttribute('inert', '')
+    const above = document.createElement('div')
+    above.innerHTML = '<button>up-1</button><button>up-2</button><button>up-3</button>'
+    document.body.appendChild(above)
+    const middle = above.querySelectorAll('button')[1]
+    middle.focus()
+    fireEvent.keyDown(middle, { key: 'Tab' })
+    expect(document.activeElement).toBe(middle)
+    expect(inertBeneath(screen.getByTestId('dlg'))).toBe(true)
+    // CONTROL: the same trap, not inert, does reach in.
+    screen.getByTestId('beneath').removeAttribute('inert')
+    expect(inertBeneath(screen.getByTestId('dlg'))).toBe(false)
+    fireEvent.keyDown(middle, { key: 'Tab' })
+    expect(document.activeElement).toBe(alpha())
   })
 
   it('ignores every key that is not Tab', () => {

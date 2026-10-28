@@ -143,6 +143,7 @@ import { paneMap, paneRowMeta, activeIndicatorRows } from './chartDataMap'
 import { movePane, movePaneTo } from './engine/paneOrder'
 import { moveSeriesWithinPane, moveSeriesTo, canMoveSeries } from './engine/paneSeriesOrder'
 import { safeCssColour } from './engine/objectColour'
+import { tagRestatesName } from './shortTag'
 
 /**
  * Is this row a chart FIXTURE — an MA overlay or the volume pane — rather than an
@@ -1395,6 +1396,23 @@ export default function ChartSettingsIndicators({
     [addedFeatures, selected],
   )
 
+  /**
+   * THE LIST'S ONE TAB STOP — the selected row, else the FIRST row.
+   *
+   * ⛔⛔ A ROVING TABINDEX MUST ALWAYS LEAVE EXACTLY ONE `0`. Keyed on
+   * `selected` alone, a list with nothing selected (the modal opening on the
+   * Add view, or the selected row leaving the chart) made every row `-1`, and
+   * Tab walked straight past "Series on this chart" — the only way in was a
+   * pointer. Same order as `onStructureKeys` walks, so the first Tab lands
+   * where ↓ would start.
+   */
+  /** Every selectable row id in visual order -- what Tab enters and the arrows walk. */
+  const structureIds = useMemo(
+    () => [...flatRows.map((r) => r.id), ...addedFeatures.map((f) => featureRowId(f.id))],
+    [flatRows, addedFeatures],
+  )
+  const structureTabStop = structureIds.includes(selected) ? selected : (structureIds[0] ?? null)
+
   /** The group a row is filed under, for the Inspector's contextual name. */
   const groupOfRow = useCallback(
     (rowId) => paneGroups.find((g) => g.rows.some((r) => r.id === rowId)) || null,
@@ -1463,7 +1481,7 @@ export default function ChartSettingsIndicators({
    */
   const onStructureKeys = useCallback((e) => {
     const step = e.key === 'ArrowDown' ? 1 : e.key === 'ArrowUp' ? -1 : 0
-    const ids = [...flatRows.map((r) => r.id), ...addedFeatures.map((f) => featureRowId(f.id))]
+    const ids = structureIds
     if (!ids.length) return
     let next = null
     if (step) {
@@ -1479,7 +1497,7 @@ export default function ChartSettingsIndicators({
     try {
       listRef.current?.querySelector(`[data-row-primary="${CSS.escape(next)}"]`)?.focus()
     } catch { /* jsdom has no CSS.escape; the selection still moved */ }
-  }, [flatRows, addedFeatures, selected])
+  }, [structureIds, selected])
 
   // ─── HOST FEATURES IN THE STRUCTURE LIST ──────────────────────────────────
   //
@@ -1521,7 +1539,7 @@ export default function ChartSettingsIndicators({
             type="button"
             className={styles.insRowPrimary}
             data-row-primary={rid}
-            tabIndex={isSel ? 0 : -1}
+            tabIndex={structureTabStop === rid ? 0 : -1}
             aria-current={isSel ? 'true' : undefined}
           >
             <i className={styles.insRail} style={{ background: 'transparent' }} aria-hidden="true" />
@@ -1626,7 +1644,7 @@ export default function ChartSettingsIndicators({
           type="button"
           className={styles.insRowPrimary}
           data-row-primary={row.id}
-          tabIndex={isSel ? 0 : -1}
+          tabIndex={structureTabStop === row.id ? 0 : -1}
           aria-current={isSel ? 'true' : undefined}
         >
           {/* ⭐⭐ THE MICRO-RAIL, TO LEGEND V2'S EXACT SPEC — 2×10px, 1px radius,
@@ -3149,7 +3167,17 @@ export default function ChartSettingsIndicators({
             <span className={styles.resName}>{row.name}</span>
             {/* ⭐ `chip` names a breadth row's POPULATION (UCT · US · NASDAQ · NYSE) so four
                 identically named metrics are told apart; every other kind keeps `shortName`. */}
-            {!isEcon && <span className={styles.resShort}>{row.chip || row.shortName}</span>}
+            {/* ⛔ A TAG THE NAME ALREADY SAYS IS NOT READ TWICE. Inside the button its
+                text joins the accessible name, so VoiceOver read "Parabolic SAR
+                SAR", "TRIX TRIX". It is `aria-hidden` ONLY when its words are
+                literally a run of the name's words (`shortTag.js`); any other tag
+                (RSI, a ticker, a population, a type) is visible text and stays in
+                the name -- WCAG 2.5.3 Label in Name. */}
+            {!isEcon && (
+              <span className={styles.resShort} aria-hidden={tagRestatesName(row.name, row.chip || row.shortName) ? 'true' : undefined}>
+                {row.chip || row.shortName}
+              </span>
+            )}
             {row.userDefined && <span className={styles.resMine}>Your formula</span>}
             {/* ⭐ PHASE 4 — IS IT USED HERE? The member's own indicator says so. */}
             {/* (`ACTIVE` already marks one that is on; this says the other half.) */}
