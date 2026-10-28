@@ -107,7 +107,7 @@ export default function MemberTemplates({ onPick, busy = false, query = '', onPr
 
   return (
     <section className={styles.family} aria-labelledby="member-templates-label">
-      <div id="member-templates-label" className={styles.famLabel}>Your templates</div>
+      <h3 id="member-templates-label" className={styles.famLabel}>Your templates</h3>
       {message && (
         <div className={message.tone === 'error' ? styles.memberError : styles.memberNote}
           role={message.tone === 'error' ? 'alert' : 'status'}>

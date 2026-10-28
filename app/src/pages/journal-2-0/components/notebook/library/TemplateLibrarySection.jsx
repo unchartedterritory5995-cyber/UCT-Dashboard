@@ -16,7 +16,7 @@
 // ⛔ Its cards are NOT picker cards (`data-template-card`): the picker's arrow keys, Home/End, Tab order and the
 //    search box's Enter target stay exactly as they were (TemplatePicker.gallery.test.jsx's rails).
 // ⛔ LAZY. Reached only through TemplatePicker.jsx's dynamic import while `widgetsWaveOn(11)`.
-import { useEffect, useId, useMemo, useState } from 'react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { familyKeeps, LIBRARY_GROUPS, libraryList } from '../../../lib/templateLibrary'
 import LibraryCardFacts from './LibraryCardFacts'
 import TemplateDetailSheet from './TemplateDetailSheet'
@@ -60,8 +60,10 @@ function LibraryCard({ item, busy, onPreview }) {
       <h5 className={styles.previewTitle} id={`${uid}-title`}>{text(item.title)}</h5>
       {item.inYourTemplates === true && <span className={styles.badge} data-in-yours="">{IN_YOURS}</span>}
       <LibraryCardFacts item={item} showAuthor />
-      <div className={styles.actions} role="group" aria-labelledby={`${uid}-title`}>
-        <button type="button" className={styles.btn} onClick={() => onPreview(item)} disabled={busy}
+      {/* ⛔ A plain wrapper, not a `group` named by the title: the title is already the card's h5 and inside the
+          button's own name, so a named group made a screen reader say it a third time around one button. */}
+      <div className={styles.actions}>
+        <button type="button" className={styles.btn} onClick={(e) => onPreview(item, e.currentTarget)} disabled={busy}
           aria-label={`${PREVIEW_LABEL} ${text(item.title)}, from the Template library`}>
           <UIcon name="eye" size={13} gold={false} /> {PREVIEW_LABEL}
         </button>
@@ -82,6 +84,10 @@ export default function TemplateLibrarySection({ query = '', category = ALL, bus
   const uid = useId()
   const [answer, setAnswer] = useState(null)      // null while asking, then {ok, data | code, message}
   const [open, setOpen] = useState(null)          // the row whose detail is open
+  // The Preview button that opened it: focus returns there on close, a tap included (WebKit never focuses a tapped
+  // button, so the Sheet's own record of "where focus was" is the New note panel, not this button).
+  const openerRef = useRef(null)
+  const preview = (item, button) => { openerRef.current = button || null; setOpen(item) }
 
   useEffect(() => {
     let alive = true
@@ -116,11 +122,12 @@ export default function TemplateLibrarySection({ query = '', category = ALL, bus
         <div key={g.key} className={styles.libraryGroup} data-library-group={g.key}>
           <h4 className={styles.label} id={`${uid}-${g.key}`}>{g.label}</h4>
           <ul className={styles.libraryRow} aria-labelledby={`${uid}-${g.key}`}>
-            {g.items.map((item) => <LibraryCard key={item.id} item={item} busy={busy} onPreview={setOpen} />)}
+            {g.items.map((item) => <LibraryCard key={item.id} item={item} busy={busy} onPreview={preview} />)}
           </ul>
         </div>
       ))}
-      {open && <TemplateDetailSheet item={open} onClose={() => setOpen(null)} navigate={navigate} busy={busy} landNote={landNote} />}
+      {open && <TemplateDetailSheet item={open} onClose={() => setOpen(null)} navigate={navigate} busy={busy}
+        landNote={landNote} returnFocusTo={openerRef} />}
     </section>
   )
 }

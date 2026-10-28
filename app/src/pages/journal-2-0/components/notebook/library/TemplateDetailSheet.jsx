@@ -35,6 +35,10 @@ export const DATA_HEADING = 'Preview with your data'
 export const LOADING_SENTENCE = 'Getting your preview ready…'
 export const OUTLINE_LOADING = 'Loading the outline…'
 export const OUTLINE_FAILED = "Couldn't load this template's outline."
+// The footer's dismiss button. ⛔ Not "Close": the Sheet's header × is already the button named "Close", and two
+// controls with one name are indistinguishable in a screen reader's list. "Cancel" beside the primary action is the
+// picker's own built-in preview's word (TemplatePreview.jsx: Cancel when a Use button sits beside it).
+export const CANCEL_LABEL = 'Cancel'
 
 const isRecord = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
 const listOf = (v) => (Array.isArray(v) ? v : [])
@@ -54,8 +58,10 @@ const drawBuilt = (payload) => (
  * @param busy     the picker is making a note: "Use this template" waits (fix round 1 m-4)
  * @param landNote `(note) => void` from the picker's host (11.20 walk D1): the new note is landed by it, which closes
  *                 the New note sheet, instead of a bare navigate that left the sheet open over the note
+ * @param returnFocusTo the card's Preview button that opened this (Sheet's `returnFocusTo`): focus goes back to it on
+ *                 close even after a TAP, which WebKit never focuses
  */
-export default function TemplateDetailSheet({ item, onClose, navigate = null, busy = false, landNote = null }) {
+export default function TemplateDetailSheet({ item, onClose, navigate = null, busy = false, landNote = null, returnFocusTo = null }) {
   const uid = useId()
   const id = item?.id
   const [outline, setOutline] = useState({ status: 'loading', body: null })
@@ -93,7 +99,8 @@ export default function TemplateDetailSheet({ item, onClose, navigate = null, bu
   const tools = listOf(answer?.tools).filter(isRecord)
 
   return (
-    <Sheet open onClose={onClose} title={text(item?.title) || 'Template'} labelledByTitle variant="auto" maxWidth={640}>
+    <Sheet open onClose={onClose} title={text(item?.title) || 'Template'} labelledByTitle variant="auto" maxWidth={640}
+      returnFocusTo={returnFocusTo || undefined}>
       <div className={styles.sheet} data-template-detail={id}>
         {credit && <p className={styles.credit} data-credit="">{credit}</p>}
         <section className={styles.section} aria-label="Outline">
@@ -110,7 +117,7 @@ export default function TemplateDetailSheet({ item, onClose, navigate = null, bu
         </section>
         {doorProblem && <p className={styles.notice} role="alert">{doorProblem}</p>}
         <div className={styles.actions}>
-          <button type="button" className={styles.btn} onClick={onClose}>Close</button>
+          <button type="button" className={styles.btn} onClick={onClose}>{CANCEL_LABEL}</button>
           <button type="button" className={styles.btnPrimary} onClick={use} disabled={busy}>{USE_TEMPLATE_LABEL}</button>
         </div>
       </div>

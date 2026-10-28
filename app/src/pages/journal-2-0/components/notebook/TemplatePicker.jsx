@@ -96,6 +96,7 @@ import { templateGalleryEnabled } from '../../lib/templateGallery'
 import { widgetsWaveOn } from '../../lib/notebookWidgetsFlags'
 import lazyChunk from '../../lib/lazyChunk'
 import UIcon from '../../../../components/ui/UIcon'
+import { useHasCoarsePointer } from '../../../../hooks/useBreakpoint'
 import styles from './TemplatePicker.module.css'
 
 // The community gallery (and the admin review panel it carries) is dark behind
@@ -124,6 +125,9 @@ const MEMBER = 'member'
 export const libraryMatchWords = (n) => (n === 1
   ? '1 template in the Template library matches. Enter does nothing.'
   : `${n} templates in the Template library match. Enter does nothing.`)
+
+/** The live line on a touch screen (n >= 0): how many templates the search and chip leave, never a key to press. */
+const touchMatchWords = (n) => (n === 1 ? '1 template.' : `${n} templates.`)
 
 /** Case-insensitive substring match over a template's searchable text. */
 function templateMatches(tpl, q) {
@@ -193,6 +197,11 @@ function TemplatePickerBody({ onPick, onPickMember, onLandNote, busy = false, au
   const wrapRef = useRef(null)
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState(ALL)
+  // A touch screen (VoiceOver, TalkBack) has no Up, Down or Enter to press: the search box's key hint is not drawn
+  // there, and the live line says how many templates are left instead of what Enter would open.
+  const coarse = useHasCoarsePointer()
+  const [touchCount, setTouchCount] = useState(null)   // null until the member first searches or picks a chip
+  const [filtered, setFiltered] = useState(false)
   // The search-box-driven virtual focus (13Q-5): which `data-template-card`
   // Enter would pick right now. Painted via `data-active`, never via real
   // DOM focus -- the input keeps it.
@@ -240,6 +249,19 @@ function TemplatePickerBody({ onPick, onPickMember, onLandNote, busy = false, au
   const [libraryShown, setLibraryShown] = useState(0)
   const libraryCount = libraryOn ? libraryShown : 0
   const noBuiltInMatches = !catalogFailed && visibleFamilies.length === 0 && category !== MEMBER && libraryCount === 0
+
+  // The touch live line's count: every real template card on screen (built-in and the member's own, never Blank or
+  // the Playbook pointer) plus the Template library's. Read from the DOM after the render the query or chip caused,
+  // because the member's templates are a child component's cards. Only once the member has filtered, so opening the
+  // picker announces nothing over the dialog's own name.
+  useEffect(() => {
+    if (!coarse || !filtered) return
+    const cards = wrapRef.current
+      ? wrapRef.current.querySelectorAll('[data-template-card]:not([data-template-anchor])').length
+      : 0
+    const n = cards + libraryCount
+    setTouchCount((prev) => (prev === n ? prev : n))
+  }, [coarse, filtered, q, category, libraryCount])
 
   // 13Q-5: a query or a category change re-aims the search box's "Enter picks
   // this" target. Never at Blank/Playbook (`data-template-anchor`, always
@@ -327,7 +349,7 @@ function TemplatePickerBody({ onPick, onPickMember, onLandNote, busy = false, au
             type="search"
             className={styles.searchInput}
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => { setFiltered(true); setQuery(e.target.value) }}
             onKeyDown={onSearchKeyDown}
             onFocus={() => setSearchFocused(true)}
             onBlur={() => setSearchFocused(false)}
@@ -336,26 +358,31 @@ function TemplatePickerBody({ onPick, onPickMember, onLandNote, busy = false, au
             aria-autocomplete="list"
             aria-controls={`${uid}cards`}
             aria-activedescendant={activeCard?.id}
-            aria-describedby={`${uid}keys`}
+            aria-describedby={coarse ? undefined : `${uid}keys`}
             autoFocus={autoFocusSearch}
           />
-          <span id={`${uid}keys`} className="sr-only">
-            Up and Down choose a template. Enter opens it.
-          </span>
+          {!coarse && (
+            <span id={`${uid}keys`} className="sr-only">
+              Up and Down choose a template. Enter opens it.
+            </span>
+          )}
           {/* Always mounted, so a change of text is announced (a status that mounts with
               its text is often skipped). Says what Enter will do right now. A live
               region, not role="status": the "no matches" message below is the one
               status this dialog has. */}
           <span className="sr-only" aria-live="polite" data-template-search-status="">
-            {targetName
-              ? `Enter opens ${targetName}.`
-              : (q ? (libraryCount > 0 ? libraryMatchWords(libraryCount) : 'No template matches. Enter does nothing.') : '')}
+            {coarse
+              // 0 says nothing here: the "No templates match" status below is drawn then, and speaks for it.
+              ? (touchCount ? touchMatchWords(touchCount) : '')
+              : targetName
+                ? `Enter opens ${targetName}.`
+                : (q ? (libraryCount > 0 ? libraryMatchWords(libraryCount) : 'No template matches. Enter does nothing.') : '')}
           </span>
           {query && (
             <button
               type="button"
               className={styles.searchClear}
-              onClick={() => setQuery('')}
+              onClick={() => { setFiltered(true); setQuery('') }}
               aria-label="Clear search"
             >
               <UIcon name="x" size={12} gold={false} />
@@ -367,7 +394,7 @@ function TemplatePickerBody({ onPick, onPickMember, onLandNote, busy = false, au
             type="button"
             className={`${styles.chip} ${category === ALL ? styles.chipActive : ''}`}
             aria-pressed={category === ALL}
-            onClick={() => setCategory(ALL)}
+            onClick={() => { setFiltered(true); setCategory(ALL) }}
           >
             All
           </button>
@@ -377,7 +404,7 @@ function TemplatePickerBody({ onPick, onPickMember, onLandNote, busy = false, au
               type="button"
               className={`${styles.chip} ${category === fam.key ? styles.chipActive : ''}`}
               aria-pressed={category === fam.key}
-              onClick={() => setCategory(fam.key)}
+              onClick={() => { setFiltered(true); setCategory(fam.key) }}
             >
               {fam.label}
             </button>
@@ -387,7 +414,7 @@ function TemplatePickerBody({ onPick, onPickMember, onLandNote, busy = false, au
               type="button"
               className={`${styles.chip} ${category === MEMBER ? styles.chipActive : ''}`}
               aria-pressed={category === MEMBER}
-              onClick={() => setCategory(MEMBER)}
+              onClick={() => { setFiltered(true); setCategory(MEMBER) }}
             >
               Your templates
             </button>
@@ -450,8 +477,10 @@ function TemplatePickerBody({ onPick, onPickMember, onLandNote, busy = false, au
 
       {visibleFamilies.map((fam) => (
         <section key={fam.key} className={styles.family}>
-          {/* Wave 8 (8A): each family's cards are a group named by its label. */}
-          <div className={styles.famLabel} id={`${uid}-family-${fam.key}`}>{fam.label}</div>
+          {/* Wave 8 (8A): each family's cards are a group named by its label. The label is an h3, a peer of the
+              Template library's and "Your templates"' h3 (the picker's top level), so heading navigation reaches
+              every family; `.famLabel` resets the heading's margin and weight, so it looks exactly as the div did. */}
+          <h3 className={styles.famLabel} id={`${uid}-family-${fam.key}`}>{fam.label}</h3>
           <div className={styles.grid} role="group" aria-labelledby={`${uid}-family-${fam.key}`}>
             {fam.items.map((tpl) => {
               const id = `${uid}-tpl-${tpl.key}`

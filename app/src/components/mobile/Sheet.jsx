@@ -38,6 +38,15 @@ import styles from './Sheet.module.css'
  *                      only reach for a percentage height, which resolves
  *                      against the WHOLE body and silently overflows it by
  *                      the height of whatever sits above.
+ *   returnFocusTo      opt-in: the element (or a ref to it) that opened this
+ *                      sheet, focused again on close. Needed because WebKit
+ *                      (iOS Safari, and VoiceOver's double-tap) does NOT focus
+ *                      a tapped <button>: `document.activeElement` at open is
+ *                      whatever held focus before (often an enclosing sheet's
+ *                      panel), so the default restore lands there instead of
+ *                      on the opener. Only used while it is still connected;
+ *                      otherwise the default restore below runs. Off by
+ *                      default, so every other caller is byte-identical.
  *   zIndex             optional: inline-style override for THIS instance's
  *                      backdrop, above the shared --z-modal rung (1000) that
  *                      every other Sheet caller (TickerHubSheet, MoreSheet,
@@ -66,6 +75,7 @@ export default function Sheet({
   labelledByTitle = false,
   className = '',
   bodyClassName = '',
+  returnFocusTo,
   zIndex,
 }) {
   const isTouch = useIsTouch()
@@ -98,6 +108,10 @@ export default function Sheet({
   // does not guarantee.
   const onCloseRef = useRef(onClose)
   useLayoutEffect(() => { onCloseRef.current = onClose }, [onClose])
+  // The caller's named opener (see `returnFocusTo`), read at close through a ref like onClose, so a new element or
+  // ref identity never re-runs the focus effect below.
+  const returnFocusToRef = useRef(returnFocusTo)
+  useLayoutEffect(() => { returnFocusToRef.current = returnFocusTo }, [returnFocusTo])
 
   // ⛔⛔ WHERE FOCUS WAS BEFORE THE SHEET OPENED IS READ DURING RENDER — the one
   // moment no child of this sheet can have taken it yet. React applies a
@@ -224,7 +238,11 @@ export default function Sheet({
     return () => {
       document.removeEventListener('keydown', onKey, true)
       cancelAnimationFrame(t)
-      const el = restoreFocusRef.current
+      // ⛔ A caller-named opener wins over the recorded one: on a TAP in WebKit the recorded one is not the opener
+      // (a tapped button is never focused there). Independent of the open-time focus logic above, which stays as is.
+      const named = returnFocusToRef.current
+      const opener = named && typeof named === 'object' && 'current' in named ? named.current : named
+      const el = opener && opener.isConnected && typeof opener.focus === 'function' ? opener : restoreFocusRef.current
       if (el && typeof el.focus === 'function') el.focus()
     }
     // `openerAtRender` changes exactly when `open` does (it is memoised on it),
