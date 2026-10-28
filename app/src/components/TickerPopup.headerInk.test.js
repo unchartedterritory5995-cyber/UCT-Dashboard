@@ -75,3 +75,48 @@ describe('TickerPopup header day change uses the text inks', () => {
     expect(fails.length).toBeGreaterThan(10)
   })
 })
+
+// The popup's earnings strip (beat / miss) and analyst counts (buy / sell) are red/green TEXT
+// too, and took --ut-red / --ut-green-bright (--ut-red read 2.41:1 on Nord's --bg-hover in the
+// reachable-contrast audit). Same rule: the text inks, measured on the popup's own surface
+// (`.modal`, --bg-surface) and the page under it, in every theme.
+const STRIP = { '.eiBeat': '--success-ink', '.eiBuyCount': '--success-ink', '.eiMiss': '--danger-ink', '.eiSellCount': '--danger-ink' }
+const SURFACES = ['--bg', '--bg-surface']
+
+function stripFailures(colorOf) {
+  const out = []
+  for (const [name, raw] of Object.entries(allThemes())) {
+    const vars = new Map(raw)
+    for (const sel of Object.keys(STRIP)) {
+      for (const s of SURFACES) {
+        const bg = opaque(`var(${s})`, vars, [0, 0, 0])
+        const r = contrast(opaque(colorOf(sel), vars, bg), bg)
+        if (r < 4.5) out.push(`${name} ${sel} on ${s} ${r.toFixed(2)}`)
+      }
+    }
+  }
+  return out
+}
+
+describe('TickerPopup earnings / analyst red-green text uses the text inks', () => {
+  it('each rule takes its ink, and only its ink, anywhere in the sheet', () => {
+    for (const [sel, token] of Object.entries(STRIP)) expect(allDeclared(CSS, sel, 'color'), sel).toEqual([`var(${token})`])
+  })
+
+  it('NOTE, not a wire: no component renders these classes today', () => {
+    // EarningsIntelSection was removed from TickerPopup.jsx (22f974516a) and its rules stayed
+    // behind. They are railed anyway: the audit counts them, and a revival would ship whatever
+    // colour they hold. If this goes red a component renders them again; make it a wire test.
+    for (const sel of Object.keys(STRIP)) expect(JSX).not.toMatch(new RegExp(`styles\\.${sel.slice(1)}\\b`))
+  })
+
+  it('every app theme: every ink clears 4.5:1 on the popup surface and the page', () => {
+    expect(stripFailures((sel) => allDeclared(CSS, sel, 'color')[0])).toEqual([])
+  })
+
+  it('CONTROL: the old --ut-red / --ut-green-bright fail the same check', () => {
+    const old = (sel) => (STRIP[sel] === '--danger-ink' ? 'var(--ut-red, var(--danger-ink))' : 'var(--ut-green-bright)')
+    const fails = stripFailures(old)
+    expect(fails.some((f) => /^uct:nord \.eiMiss on --bg-surface /.test(f)), fails.join('\n')).toBe(true)
+  })
+})
