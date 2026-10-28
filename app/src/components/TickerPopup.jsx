@@ -63,6 +63,23 @@ function isCaptureSuccessMessage(msg) {
   return typeof msg === 'string' && /captured to Notebook$/.test(msg)
 }
 
+// Is there a layer ABOVE the popup that owns Escape? Either the popup sits beneath an inert
+// background (a modal above made everything under it inert -- checked inline, the shared
+// helper is not on this base), or another modal dialog is showing that is not beneath the
+// popup: inside it, or later in the document (portals append in open order, so later = on top).
+export function escapeBelongsToLayerAbove(popup) {
+  if (!popup) return false
+  if (popup.closest('[inert]')) return true
+  for (const d of document.querySelectorAll('[role="dialog"][aria-modal="true"], dialog[open]')) {
+    // a dialog that is mounted but not showing is not a layer
+    if (d.closest('[hidden], [aria-hidden="true"], [inert]') || getComputedStyle(d).display === 'none') continue
+    // DOCUMENT_POSITION_FOLLOWING: `d` comes after the popup in document order -- which
+    // includes a dialog INSIDE the popup (a descendant also follows its ancestor)
+    if (popup.compareDocumentPosition(d) & Node.DOCUMENT_POSITION_FOLLOWING) return true
+  }
+  return false
+}
+
 export default function TickerPopup({ sym, as: Tag = 'span', customChartFn, className, children, markers = null, priceLines = null, stopPrice = null, anchorDate = null, darkPool = false, flowMeta = null, open: openProp, onClose, focusable = true }) {
   // Controlled mode (open/onClose provided): no trigger element renders and the
   // parent owns open state — used for delegated $TICKER-chip clicks in The Floor,
@@ -337,7 +354,13 @@ export default function TickerPopup({ sym, as: Tag = 'span', customChartFn, clas
     const handleKey = (e) => {
       // An Escape that ends an IME composition (in the switch-ticker box) is not a close.
       if (e.isComposing) return
-      if (e.key === 'Escape') { closeModal(); return }
+      if (e.key === 'Escape') {
+        // ⛔ ONE Escape, ONE layer. A layer opened OVER the popup (Chart Settings from the
+        // chart's context menu, the symbol search, any modal dialog) owns this key; this
+        // window listener used to close the popup underneath it in the same keystroke.
+        if (escapeBelongsToLayerAbove(modalRef.current)) return
+        closeModal(); return
+      }
       // S2 CP6 — reads the DECLARED chord table instead of spelling the modifier
       // set out inline. Behaviour is identical by construction and proved so in
       // TickerPopup.chordAdoption.test.jsx.
