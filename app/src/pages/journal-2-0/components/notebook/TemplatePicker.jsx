@@ -97,6 +97,7 @@ import { widgetsWaveOn } from '../../lib/notebookWidgetsFlags'
 import lazyChunk from '../../lib/lazyChunk'
 import UIcon from '../../../../components/ui/UIcon'
 import { useHasCoarsePointer } from '../../../../hooks/useBreakpoint'
+import { CONFIG_TIMEOUT_MS } from './NotebookFlagGate'
 import styles from './TemplatePicker.module.css'
 
 // The community gallery (and the admin review panel it carries) is dark behind
@@ -264,17 +265,28 @@ function TemplatePickerBody({ onPick, onPickMember, onLandNote, busy = false, au
   const memberCount = showMemberSection ? (memberShown || 0) : 0
   const memberKnown = !showMemberSection || memberShown !== null
   const builtInCount = visibleFamilies.reduce((n, f) => n + f.items.length, 0)
-  // N3: the "No templates match" status counts every section's matches, so it never sits beside the member's own.
+  // N3: the "No templates match" status counts every section's matches, so it never sits beside the member's own,
+  // and waits for "Your templates" to answer (a list still loading is not "none": it would show, then vanish).
   const noBuiltInMatches = !catalogFailed && visibleFamilies.length === 0 && category !== MEMBER && libraryCount === 0
-    && memberCount === 0
+    && memberCount === 0 && memberKnown
 
   // The touch live line: built-in + the member's own + the Template library's, DERIVED from what each section says it
   // shows (never a DOM count: that went stale when the member's list loaded, and missed a card being renamed). Said
   // only once every addend is known for this filter, and after a short settle (PoliteStatus's), so the one commit in
   // which a child has not yet reported the new filter's number is never spoken. Only once the member has filtered,
   // so opening the picker announces nothing over the dialog's own name.
+  // ⛔ BOUNDED: a request that never answers must not keep the line silent for good. After CONFIG_TIMEOUT_MS (the
+  // Notebook's own wait for its config, NotebookFlagGate) from the first filter with an addend still unknown, the
+  // line speaks what IS known, and keeps doing so; a late answer then changes the number, which is spoken again.
+  const [gaveUp, setGaveUp] = useState(false)
+  const allKnown = memberKnown && libraryKnown
+  useEffect(() => {
+    if (!coarse || !filtered || allKnown || gaveUp) return undefined
+    const t = setTimeout(() => setGaveUp(true), CONFIG_TIMEOUT_MS)
+    return () => clearTimeout(t)
+  }, [coarse, filtered, allKnown, gaveUp])
   const touchTotal = builtInCount + memberCount + libraryCount
-  const touchReady = coarse && filtered && memberKnown && libraryKnown
+  const touchReady = coarse && filtered && (allKnown || gaveUp)
   useEffect(() => {
     if (!touchReady) return undefined
     const t = setTimeout(() => setTouchSaid(touchTotal ? touchMatchWords(touchTotal) : ''), TOUCH_SETTLE_MS)
