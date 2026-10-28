@@ -77,6 +77,10 @@ CP3_SIGNED = {
     # FT-034, TERMINAL-NEXT lane S 2026-10-02: built DARK (ALERT_RATING_CHANGE_ENABLED);
     # its per-type ruling (TERM-025) is unsigned, so main.py must not register it.
     "rating_change": False,
+    # Trade Exchange News Checkpoint C 2026-10-27: owner approved the type
+    # (Checkpoint A); built DARK (ALERT_NEWS_MATCH_ENABLED), registered on demand by
+    # its own routes, so main.py must not register it.
+    "news_match": False,
 }
 
 

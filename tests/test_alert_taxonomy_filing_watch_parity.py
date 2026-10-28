@@ -718,6 +718,13 @@ def test_CONTROL_document_arrival_is_still_the_only_trigger_type_in_the_package(
     # tests/test_alert_rating_change.py::test_the_feed_carries_ONE_copy_* runs
     # the feed observables against its own fixture fire.
     #
+    # `news-match` (Trade Exchange News Checkpoint C, built DARK 2026-10-27 behind
+    # ALERT_NEWS_MATCH_ENABLED) RECORDS AND DELIVERS, like rating-change, so steps 2
+    # and 3 are DONE in the same commit: `news_match.alert_shape_for_fire` is its
+    # `_s7_durable_alerts` branch, read parity keys on `s7_fire_key`, and
+    # tests/test_alert_news_match.py::test_the_feed_carries_ONE_copy_* runs the feed
+    # observables against its own fixture fire.
+    #
     # THE FLIP (lane f-flip, 2026-10-10, owner-approved; flags DEFAULT OFF):
     # `regime-change`, `scan-membership-change` and `catalyst-match` now RECORD
     # live fires in alert_fires behind their *_LIVE_ENABLED flags. Step 2 was
@@ -736,7 +743,7 @@ def test_CONTROL_document_arrival_is_still_the_only_trigger_type_in_the_package(
     _EXPECTED = {"document-arrival", "price-level", "event-proximity",
                  "catalyst-match", "position-risk",
                  "scan-membership-change", "regime-change",
-                 "indicator-condition", "rating-change"}
+                 "indicator-condition", "rating-change", "news-match"}
 
     files, declared = _declared_trigger_types()
 

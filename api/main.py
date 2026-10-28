@@ -74,6 +74,9 @@ from api.routers import support_status as support_status_router
 from api.routers import avatar as avatar_router
 from api.routers import webhooks as webhooks_router
 from api.routers import inbound_alerts as inbound_alerts_router
+# Trade Exchange News (Checkpoint B): the receiver's private-network ingest + an admin
+# status read, DARK behind TXN_ENABLED (routes do not MATCH while off).
+from api.routers import trade_exchange_news as trade_exchange_news_router
 from api.routers import alerts as alerts_router
 from api.routers import journal_two as journal_two_router
 # Wave 6 (controller wiring). notebook_insights MUST be mounted BEFORE
@@ -323,10 +326,16 @@ class CompassPaywallMiddleware(BaseHTTPMiddleware):
                 )
         return await call_next(request)
 if _SENTRY_DSN:
+    # ⛔ before_send / before_send_transaction redact credentials that ride in a
+    # URL (logging_redaction.REDACTED_PATH_PREFIXES + credential-named query
+    # values) and touch nothing else -- see api/sentry_redaction.py.
+    from api import sentry_redaction as _sentry_redaction
     sentry_sdk.init(
         dsn=_SENTRY_DSN,
         traces_sample_rate=0.1,
         environment=os.environ.get("RAILWAY_ENVIRONMENT", "development"),
+        before_send=_sentry_redaction.before_send,
+        before_send_transaction=_sentry_redaction.before_send_transaction,
     )
 
 # ⛔ IMPORTED, NOT RESTATED. This was a second hardcoded copy of the same
@@ -4174,6 +4183,16 @@ async def lifespan(app: FastAPI):
         logging.getLogger(__name__).info("chat presence broadcaster started")
     except Exception as e:
         logging.getLogger(__name__).warning(f"chat presence broadcaster skip: {e}")
+
+    # Trade Exchange News (Checkpoint B): the single-writer pipeline + journal
+    # reconciler. DARK: nothing starts and /data is not touched unless TXN_ENABLED=1.
+    try:
+        from api.services.trade_exchange_news import config as _txn_config
+        if _txn_config.enabled():
+            await trade_exchange_news_router.start_background()
+            logging.getLogger(__name__).info("trade-exchange-news pipeline started")
+    except Exception as e:
+        logging.getLogger(__name__).warning(f"trade-exchange-news start skip: {type(e).__name__}: {e}")
 
     # Load ticker baselines (per-ticker premium percentiles) into in-memory
     # cache for fast lookup by the LiveFlow worker's gate-check logic. Data
@@ -9532,6 +9551,10 @@ async def lifespan(app: FastAPI):
         print(f"[startup] discord-render V2 runtime failed to start (non-fatal): {_e}")
 
     yield
+    try:
+        trade_exchange_news_router.stop_background()
+    except Exception as e:
+        print(f"[shutdown] trade-exchange-news stop failed (non-fatal): {type(e).__name__}")
     # -- Massive WS graceful stop (deploy-survival P1) ---------------------
     # Runs on SIGTERM during the Railway drain window. Sends a clean WS close
     # so Massive frees the OPRA slot in seconds and the replacement deploy
@@ -9682,6 +9705,7 @@ def _is_gzip_exempt(path: str) -> bool:
         path.startswith("/api/stream")
         or path.startswith("/api/live/massive/stream")  # flow SSE
         or path == "/api/community/chat/stream"          # Floor live-chat SSE
+        or path == "/api/trade-exchange-news/stream"     # Trade Exchange News SSE
         or path == "/api/ai-search/stream"               # AI Search token stream
         or path == "/api/agent/turn/stream"              # UCT Agent turn (answer streaming)
         or path == "/api/j2/ask/stream"                  # unified Ask token stream
@@ -10074,6 +10098,9 @@ app.include_router(webhooks_router.router)
 # its routes do not MATCH while the flag is off, so mount order cannot shadow
 # anything; its own path space (/api/inbound-alerts) touches no other router.
 app.include_router(inbound_alerts_router.router)
+# Trade Exchange News: dark unless TXN_ENABLED; own path space (/api/trade-exchange-news,
+# /api/admin/trade-exchange-news), so mount order cannot shadow anything.
+app.include_router(trade_exchange_news_router.router)
 app.include_router(alerts_router.router)
 # Wave 6 (controller wiring) -- ORDER IS LOAD-BEARING: notebook_insights before
 # journal_two, or /api/j2/notes/tasks is answered as a note called "tasks"

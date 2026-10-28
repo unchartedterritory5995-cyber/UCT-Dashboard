@@ -1,0 +1,28 @@
+<!doctype html>
+<!--
+  TRADE EXCHANGE NEWS · VISUAL COMPARISON HARNESS.
+  The real Watchlist, Theme Tracker and News widgets side by side, synthetic data
+  only, every write refused. Dev-server only (vite builds index.html alone) —
+  railed by src/testing/tradeExchangeNews/newsCompareHarnessAbsent.test.js.
+
+  Run:  npx vite --host 127.0.0.1      (from app/)
+  Then: /news-compare-harness.html?theme=dark|light&apply=<chartThemeId>&density=compact
+  Driver: tools/txn_news_visual_compare.py (screenshots + computed-style table)
+-->
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>news compare harness</title>
+    <style>
+      html, body { margin: 0; background: var(--bg, #101216); }
+      .row { display: flex; gap: 18px; padding: 14px; align-items: flex-start; }
+      .paneLabel { font: 600 11px/1.6 system-ui, sans-serif; color: #8b8674; margin-bottom: 4px; }
+      .pane > div:last-child { border: 1px solid #2a2c30; border-radius: 6px; overflow: hidden; }
+    </style>
+  </head>
+  <body>
+    <div id="root">booting…</div>
+    <script type="module" src="/src/testing/tradeExchangeNews/newsCompareHarness.jsx"></script>
+  </body>
+</html>

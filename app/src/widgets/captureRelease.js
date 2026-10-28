@@ -53,7 +53,7 @@ export const CAPTURE_FLAG_KEY = 'uct.nb.capture.enabled'
  * see the whole blast radius at once — the registry describes what EXISTS, this
  * describes what is RELEASED.
  */
-export const UNRELEASED_CAPTURE_WIDGETS = Object.freeze(['indexes', 'marketcontext'])
+export const UNRELEASED_CAPTURE_WIDGETS = Object.freeze(['indexes', 'marketcontext', 'tradeExchangeNews'])
 
 export function captureEnabled(storage = globalThis.localStorage) {
   try {

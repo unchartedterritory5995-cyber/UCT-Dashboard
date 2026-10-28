@@ -88,10 +88,36 @@ def _rating_change() -> dict[str, Any]:
     }
 
 
+def _news_match() -> dict[str, Any]:
+    """Trade Exchange News (dark). Event-driven: evaluated the moment a headline
+    arrives, one alert per member per headline, never re-armed for that headline."""
+    from api.services.alert_taxonomy import news_match as _nm
+    checking = _nm.is_enabled()
+    if checking:
+        sentence = ("Checked the moment each Trade Exchange headline arrives. Each "
+                    "matching headline alerts you once, however many of your news "
+                    "alerts it matches. Headlines that arrive late after an outage "
+                    "are shown in the News widget but not alerted.")
+    else:
+        sentence = ("Checks are paused right now; your news alerts are kept and "
+                    "resume when checks restart.")
+    return {
+        "type_id": _nm.TYPE_ID,
+        "label": "News alert",
+        "checking": checking,
+        "check_every_minutes": None,      # event-driven, not a sweep
+        "rearm_grain": "headline",
+        "max_alerts_per_check": 1,
+        "time_cooldown_seconds": None,
+        "sentence": sentence,
+    }
+
+
 #: type_id -> builder. One entry per member-facing trigger type.
 _PUBLISHERS = {
     _doc.TYPE_ID: _document_arrival,
     "rating-change": _rating_change,
+    "news-match": _news_match,
 }
 
 

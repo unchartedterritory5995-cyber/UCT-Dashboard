@@ -329,6 +329,15 @@ FAMILIES: dict[str, Family] = {
         "api/routers/inbound_alerts.py (INBOUND_ALERTS_RATE).",
         ("/api/inbound-alerts",),
     ),
+    "trade-exchange-news-internal": Family(
+        TIER_BULK,
+        "Trade Exchange News: the receiver service's private-network push of each "
+        "headline (one sender, bursty during market-moving news; bearer-gated inline, "
+        "a refused push loses nothing -- the reconciler recovers it from the R2 "
+        "journal) plus the admin-only member reads: one /recent page per widget "
+        "mount and one long-lived /stream per browser (the pool shares it).",
+        ("/api/trade-exchange-news",),
+    ),
     "admin-ops": Family(
         TIER_STANDARD,
         "Admin and ops reads/writes. Internal pollers carry the PUSH_SECRET bearer "

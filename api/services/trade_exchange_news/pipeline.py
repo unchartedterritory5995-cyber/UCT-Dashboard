@@ -1,0 +1,210 @@
+"""The single writer: validate -> store (assigns seq) -> publish, strictly in order.
+
+⭐ STORE FIRST, THEN PUBLISH -- a deliberate reversal of the Checkpoint A sketch
+("broadcast first, persist after"). Publishing before the commit would put a
+headline on members' screens that has no seq yet, so a client reconnecting a
+moment later could not resume past it, and a failed commit would leave members
+holding a headline the replay path has never heard of. The commit is one local
+SQLite transaction on a dedicated file (measured in the Checkpoint B tests at
+well under a millisecond on this machine), so the price of being correct is
+noise beside the network hops either side of it.
+
+⭐ ONE WRITER THREAD IS THE ORDERING MECHANISM. ``submit`` runs ``_apply`` on a
+one-thread executor, and ``_apply`` schedules ``hub.publish`` with
+``loop.call_soon_threadsafe`` right after its commit. One thread => commits in
+order; ``call_soon_threadsafe`` is FIFO => publishes in the same order.
+
+⭐ BOOT GATE. Until the first recovery scan has finished, a live push waits (up
+to ``TXN_BOOT_READY_WAIT_S``) so headlines that arrived while web was down are
+assigned their seq BEFORE the newer ones arriving now. If the journal is slow
+the wait times out and live wins -- latency is not held hostage by recovery.
+"""
+from __future__ import annotations
+
+import asyncio
+import logging
+import time
+from concurrent.futures import ThreadPoolExecutor
+from typing import Any, AsyncIterator
+
+from api.services.trade_exchange_news import config, records
+from api.services.trade_exchange_news.hub import RESYNC, Hub
+from api.services.trade_exchange_news.store import KNOWN, NEW, REPEAT, Store
+
+logger = logging.getLogger(__name__)
+
+PRUNE_EVERY = 200          # ingests between bound checks (plus the reconciler's timer)
+REPLAY_PAGE = 500
+
+
+def _tickers_for(content: str) -> list[str]:
+    """⚠️ PROVISIONAL: the one resolver, HEADLINE context, no AI. Final
+    extraction rules wait on sanitized real headline samples (owner, item 9).
+    The original content is never altered by this."""
+    try:
+        from api.services.ticker_resolver import HEADLINE, resolve_tickers
+        return resolve_tickers(content, HEADLINE)[:12]
+    except Exception:  # noqa: BLE001 -- a resolver fault must never cost a headline
+        return []
+
+
+#: A headline committed more than this long after its receipt reached members
+#: late (recovered from the journal after an outage, or a failed push). It is
+#: marked ``delayed`` so the widget can say so instead of passing it off as new.
+DELAYED_AFTER_MS = 15_000
+
+
+def _alert_hook(ev: dict[str, Any]) -> None:
+    """Hand a NEW headline to the S7 news-match alerts (dark behind its own flag).
+    ``on_headline`` only enqueues onto news-match's own thread, so delivery I/O
+    never runs on, or waits for, this writer. Never raises."""
+    try:
+        from api.services.alert_taxonomy import news_match
+        news_match.on_headline(ev)
+    except Exception:  # noqa: BLE001 -- an alert fault must never cost a headline
+        pass
+
+
+def headline_event(row: dict[str, Any], epoch: str = "") -> dict[str, Any]:
+    """⭐ ``seq`` is THE order: assigned once, by the single writer, at commit,
+    contiguous within an ``epoch`` (AUTOINCREMENT, never reused; a rolled-back
+    insert does not consume one). It is NOT receipt order -- ``received_at_ms``
+    is the receiver's clock, ULIDs from two receiver instances may interleave
+    differently, and an R2 LIST is only the order RECOVERY ingests in. Every
+    client sees the same seq order, and a client that ever sees seq != last+1
+    knows it missed something and replays."""
+    return {"type": "headline", "epoch": epoch, "seq": row["seq"], "id": row["event_id"],
+            "source": row["source"], "content": row["content"],
+            "received_at_ms": row["received_at_ms"], "tickers": row["tickers"],
+            "repeat_count": row["repeat_count"], "via": row["via"],
+            "delayed": (row["ingested_at_ms"] - row["received_at_ms"]) > DELAYED_AFTER_MS}
+
+
+def repeat_event(row: dict[str, Any], epoch: str = "") -> dict[str, Any]:
+    return {"type": "repeat", "epoch": epoch, "seq": row["seq"],
+            "repeat_count": row["repeat_count"], "last_repeat_ms": row["last_repeat_ms"]}
+
+
+class Pipeline:
+    def __init__(self, store: Store, hub: Hub, loop: asyncio.AbstractEventLoop) -> None:
+        self.store, self.hub, self.loop = store, hub, loop
+        self._writer = ThreadPoolExecutor(max_workers=1, thread_name_prefix="txn-writer")
+        self._since_prune = 0
+        self.ready = asyncio.Event()
+        self.counts = {NEW: 0, REPEAT: 0, KNOWN: 0, "invalid": 0, "push": 0, "reconcile": 0,
+                       "boot_wait_timeouts": 0}
+        self.last_ingest_latency_ms: float | None = None
+
+    # ── writing ──────────────────────────────────────────────────────────────
+
+    def _apply(self, rec: dict[str, Any], via: str, record_json: str | None = None) -> dict[str, Any]:
+        t0 = time.perf_counter()
+        out = self.store.ingest(rec, via=via, dedupe_key=records.dedupe_key(rec["source"], rec["content"]),
+                                window_ms=config.dedupe_window_ms(),
+                                tickers=_tickers_for(rec["content"]), record_json=record_json)
+        if out["kind"] == NEW:
+            ev = headline_event(out["headline"], self.store.epoch)
+            self.loop.call_soon_threadsafe(self.hub.publish, ev)
+            _alert_hook(ev)
+        elif out["kind"] == REPEAT:
+            self.loop.call_soon_threadsafe(self.hub.publish,
+                                           repeat_event(out["headline"], self.store.epoch))
+        self.counts[out["kind"]] += 1
+        self.counts[via] += 1
+        self._since_prune += 1
+        if self._since_prune >= PRUNE_EVERY:
+            self._prune_now()
+        self.last_ingest_latency_ms = (time.perf_counter() - t0) * 1000
+        return out
+
+    def _prune_now(self) -> dict[str, int]:
+        self._since_prune = 0
+        return self.store.prune(max_age_ms=config.history_max_age_ms(),
+                                max_items=config.history_max_items())
+
+    async def prune(self) -> dict[str, int]:
+        return await self.loop.run_in_executor(self._writer, self._prune_now)
+
+    async def submit(self, raw: Any, via: str) -> dict[str, Any]:
+        """Validate and ingest one journal record. Raises ``RecordError``."""
+        try:
+            rec = records.validate(raw)
+        except records.RecordError:
+            self.counts["invalid"] += 1
+            raise
+        # The record is kept EXACTLY as received (journal encoding), so the repair
+        # pass can rewrite the identical object if the journal never got it.
+        return await self.loop.run_in_executor(self._writer, self._apply, rec, via,
+                                               records.encode_record(raw))
+
+    async def submit_live(self, raw: Any) -> dict[str, Any]:
+        if not self.ready.is_set():
+            try:
+                await asyncio.wait_for(self.ready.wait(), timeout=config.boot_ready_wait_s())
+            except asyncio.TimeoutError:
+                self.counts["boot_wait_timeouts"] += 1
+        return await self.submit(raw, "push")
+
+    # ── reading ──────────────────────────────────────────────────────────────
+
+    async def stream(self, after_seq: int) -> AsyncIterator[dict[str, Any]]:
+        """Every headline after ``after_seq``, then live, with no gap and no
+        duplicate. Subscribes BEFORE reading the backlog, so a headline
+        committed during the read is in the queue and skipped by seq if the
+        backlog already had it."""
+        sub = self.hub.subscribe()
+        last = int(after_seq)
+        try:
+            while True:
+                page = await asyncio.to_thread(self.store.after, last, REPLAY_PAGE)
+                for row in page:
+                    last = row["seq"]
+                    yield headline_event(row, self.store.epoch)
+                if len(page) < REPLAY_PAGE:
+                    break
+            while True:
+                ev = await sub.queue.get()
+                if ev is RESYNC:
+                    while True:
+                        page = await asyncio.to_thread(self.store.after, last, REPLAY_PAGE)
+                        for row in page:
+                            last = row["seq"]
+                            yield headline_event(row, self.store.epoch)
+                        if len(page) < REPLAY_PAGE:
+                            break
+                    continue
+                if ev["type"] == "headline":
+                    if ev["seq"] <= last:
+                        continue
+                    last = ev["seq"]
+                yield ev
+        finally:
+            self.hub.unsubscribe(sub)
+
+    def close(self) -> None:
+        self._writer.shutdown(wait=True)
+
+
+# ── the process-wide instance ────────────────────────────────────────────────
+
+_PIPELINE: Pipeline | None = None
+
+
+def get() -> Pipeline | None:
+    return _PIPELINE
+
+
+def start(loop: asyncio.AbstractEventLoop | None = None, store: Store | None = None) -> Pipeline:
+    global _PIPELINE
+    if _PIPELINE is None:
+        _PIPELINE = Pipeline(store or Store(config.db_path()),
+                             Hub(config.subscriber_queue_max()),
+                             loop or asyncio.get_running_loop())
+    return _PIPELINE
+
+
+def stop() -> None:
+    global _PIPELINE
+    if _PIPELINE is not None:
+        _PIPELINE.close()
+        _PIPELINE = None

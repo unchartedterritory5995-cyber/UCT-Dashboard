@@ -170,6 +170,10 @@ AUDITED_PREFIXES = (
     # the paired handler assertion in tests/test_term086_inbound_alerts.py; every
     # other mutating route under this prefix is Depends-gated.
     "/api/inbound-alerts",
+    # Trade Exchange News (Checkpoint B, 2026-10-27): the receiver service's
+    # private-network ingest is a bearer-gated POST with no session, so it is
+    # audited here and recorded in ALLOWED_OPEN with its paired assertion.
+    "/api/trade-exchange-news",
 )
 
 # Routes with no Depends() gate that are nonetheless protected, each with its
@@ -221,6 +225,18 @@ ALLOWED_OPEN: dict[tuple[str, str], str] = {
     ("POST", "/api/inbound-alerts/hook/{token}"):
         "Authenticated INLINE by the per-member secret in the path "
         "(inbound_alerts.verify); DARK behind INBOUND_ALERTS_ENABLED.",
+
+    # ── Trade Exchange News, 2026-10-27 ──────────────────────────────────────
+    # The receiver service (services/trade_exchange_news_receiver) pushes each
+    # journaled headline here over Railway's private network. Its handler's
+    # first act is _check_ingest_auth(request): the bearer's sha-256 compared
+    # (constant-time, every slot) to TXN_INGEST_TOKEN_SHA256, fail-closed when
+    # unset, and any request carrying cf-ray (i.e. via the public edge) refused.
+    # Paired assertion:
+    # test_trade_exchange_news_web.py::test_the_ALLOWED_OPEN_ingest_still_checks_its_bearer.
+    ("POST", "/api/trade-exchange-news/internal/ingest"):
+        "Authenticated INLINE by the receiver's bearer (_check_ingest_auth, "
+        "sha-256 digest compare); DARK behind TXN_ENABLED.",
 }
 
 
