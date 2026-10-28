@@ -5,9 +5,9 @@
 // chart and price (t~1972ms): the sheet grew 773 -> 957px and its top went 421 -> 237, moving
 // everything above the section by 184px. Reproduced locally (route-mocked /api, the tweets answered
 // 2.5s late): top 528 -> 440. With "no tweets" a reserve would have had to collapse just as late,
-// so the panel instead takes the bottom sheet's own height cap as its height (the phone already
-// opens at it: its content is taller), and late content fills space that is already there.
-// After: top 95.5 in every frame at 834 with tweets late AND with none; 390 unchanged (53.1).
+// so the panel instead takes a FIXED height -- the bottom sheet's own cap, held to 960px so a tall
+// tablet does not open near-full-screen -- and late content fills space that is already there.
+// After (WebKit): one top in every frame at 834 and 1024x1366 portrait, tweets late AND none.
 //
 // A STRUCTURAL RAIL (jsdom lays nothing out); the WebKit trace is the measurement.
 import { render, screen, fireEvent } from '@testing-library/react'
@@ -52,10 +52,19 @@ function Opener() {
 }
 
 describe('Ticker Hub sheet: late content never changes its height', () => {
-  it('the panel takes a fixed height, equal to the bottom sheet\'s own cap', () => {
+  it('the panel takes a FIXED height: the bottom sheet\'s own cap, held to 960px (never content-sized)', () => {
     const cap = decl(SHEET_CSS, '.panel_bottom-sheet', 'max-height')
-    expect(cap, 'Sheet.module.css .panel_bottom-sheet max-height').toBeTruthy()
-    expect(decl(HUB_CSS, '.panel', 'height')).toBe(cap)
+    const terms = /^min\((.+)\)$/.exec(cap || '')
+    expect(terms, 'Sheet.module.css .panel_bottom-sheet max-height is a min()').toBeTruthy()
+    // `height`, not `max-height` or auto: a height that cannot change when content lands. Every
+    // term of the sheet's own cap, plus the 960px hold (the measured with-tweets content at 834 is
+    // 957px, so the common case fits and anything taller scrolls inside the body).
+    expect(decl(HUB_CSS, '.panel', 'height')).toBe(`min(${terms[1]}, 960px)`)
+    expect(decl(HUB_CSS, '.panel', 'max-height'), 'no second authority over the height').toBeNull()
+  })
+
+  it('CONTROL: a content-sized panel does not satisfy the rule', () => {
+    expect(decl('.panel { max-height: min(92vh, 92dvh, 960px); }', '.panel', 'height')).toBeNull()
   })
 
   it('the hub hands that class to the Sheet panel (the dialog itself), while the tweets are still loading', () => {

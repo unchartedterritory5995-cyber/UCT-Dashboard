@@ -195,7 +195,7 @@ describe('TickerHubSheet "+ Compare" badge touch floor', () => {
 
   it('the range row still fits on a phone: capped short of the price scale and scrolling, not wrapping', () => {
     // six buttons at --tap-min need ~277px; the 390 pane leaves ~256 left of the price scale.
-    // The cap is derived from the MEASURED price-scale width: StockChart.priceAxisReserve.test.js
+    // The cap is derived from the MEASURED price-scale width: StockChart.lookbackPlacement.test.jsx
     for (const d of FINGERS) {
       const block = mediaBodiesOn(STOCK_CSS, d)
       expect(value(block, `${SCOPE} .rangeBar`, 'overflow-x'), `@${d.width}`).toBe('auto')

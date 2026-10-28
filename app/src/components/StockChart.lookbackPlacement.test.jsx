@@ -66,7 +66,12 @@ vi.mock('../context/AuthContext', () => ({
 }))
 
 const { default: StockChart } = await import('./StockChart')
-const { LOOKBACK_REVEAL_MAX_MS } = await import('./chart/chromeGeometry')
+const { LOOKBACK_REVEAL_MAX_MS, lookbackPlacementSettled } = await import('./chart/chromeGeometry')
+const { mergeChartSettings } = await import('./chart/chartDefaults')
+const { addInstance, setInstanceInput } = await import('./chart/engine/instanceControls')
+const registry = await import('./chart/engine/nativeRegistry')
+const { lastCreatedInstance } = await import('./chart/discoveryCatalog')
+const { volumePaneRequired, nativeVolumeOwnsPane } = await import('./chart/engine/volumePresentation')
 
 const bars = Array.from({ length: 60 }, (_, i) => {
   const t = new Date(Date.UTC(2026, 0, 1) + i * 86400000).toISOString().slice(0, 10)
@@ -126,14 +131,45 @@ describe('the lookback bar appears only at the anchor it keeps', () => {
     } finally { style.remove() }
   })
 
-  it('a volume pane that never arrives cannot keep it hidden: the time limit reveals it', async () => {
-    mount()
-    await vi.waitFor(() => expect(rangeBar()).not.toBeNull(), { timeout: 5000 })
-    await frames()
-    expect(rangeBar().hasAttribute('data-placed')).toBe(false)
-    await act(async () => { await new Promise((r) => setTimeout(r, LOOKBACK_REVEAL_MAX_MS + 100)) })
-    await frames()
-    expect(rangeBar().hasAttribute('data-placed')).toBe(true)
+  it('a volume pane that never arrives cannot keep it hidden: the time limit, and only it, reveals it', async () => {
+    // The clock is the one the sampler reads, moved by the test: no real wait, and nothing but
+    // the elapsed time changes between the three reads.
+    const realNow = performance.now.bind(performance)
+    let skew = 0
+    const spy = vi.spyOn(performance, 'now').mockImplementation(() => realNow() + skew)
+    try {
+      mount()
+      await vi.waitFor(() => expect(rangeBar()).not.toBeNull(), { timeout: 5000 })
+      await frames()
+      expect(rangeBar().hasAttribute('data-placed')).toBe(false)
+      skew = LOOKBACK_REVEAL_MAX_MS - 700 // real time since the bar mounted is well under 700ms here
+      await frames()
+      expect(rangeBar().hasAttribute('data-placed'), 'revealed before the limit').toBe(false)
+      skew = LOOKBACK_REVEAL_MAX_MS + 200
+      await frames()
+      expect(rangeBar().hasAttribute('data-placed')).toBe(true)
+    } finally { spy.mockRestore() }
+  })
+
+  it('a GUEST-only volume pane (native Volume removed, an MA sent to it) does not hold the bar: there is no volume series, so the fallback anchor is final', async () => {
+    // Built through the shipped writers, as volumePaneResidency.test.js does.
+    let cs = mergeChartSettings(JSON.stringify({ volume: { visible: true, separatePane: true } }))
+    const added = addInstance(cs, 'movingAverage', registry)
+    const id = lastCreatedInstance(cs, added).instanceId
+    cs = setInstanceInput(added, id, 'source', 'volume', registry)
+    const gone = { ...cs, volume: { ...cs.volume, removed: true } }
+    const opts = { cs: gone, instances: gone.indicatorInstances, shown: false }
+    // PREMISE: the pane is required (a guest holds it) while the native bars are not in it.
+    expect(volumePaneRequired(opts)).toBe(true)
+    expect(nativeVolumeOwnsPane(opts)).toBe(false)
+    const realNow = performance.now.bind(performance)
+    const spy = vi.spyOn(performance, 'now').mockImplementation(() => realNow()) // the limit never passes here
+    try {
+      render(<StockChart sym="ENPH" tf="D" barsOverride={bars} showRangeSelector settingsOverride={gone} />)
+      await vi.waitFor(() => expect(rangeBar()).not.toBeNull(), { timeout: 5000 })
+      await frames()
+      expect(rangeBar().hasAttribute('data-placed'), 'hidden waiting for a volume series that will never exist').toBe(true)
+    } finally { spy.mockRestore() }
   })
 
   it('the stylesheet hides exactly the unplaced bar (the wire between the attribute and the paint)', () => {
@@ -158,5 +194,24 @@ describe('the price-scale width is published for the hub range bar cap', () => {
     const m = /:global\(\[data-ticker-hub-chart\]\) \.rangeBar \{([^}]*)\}/.exec(css)
     expect(m, 'hub .rangeBar rule').toBeTruthy()
     expect(m[1]).toMatch(/max-width:\s*calc\(100% - 8px - var\(--price-axis-w, 88px\) - 4px\)/)
+  })
+})
+
+describe('lookbackPlacementSettled, the pure rule', () => {
+  it('no reserve requested and no volume pane expected: settled at once, whatever the axis reads', () => {
+    expect(lookbackPlacementSettled({ volumePaneExpected: false })).toBe(true)
+    expect(lookbackPlacementSettled({ volumePaneExpected: false, timeAxisMinHeight: 0, timeAxisHeight: 0 })).toBe(true)
+  })
+  it('a reserve requested: not settled until the axis reaches it', () => {
+    expect(lookbackPlacementSettled({ volumePaneExpected: false, timeAxisMinHeight: 80, timeAxisHeight: 28 })).toBe(false)
+    expect(lookbackPlacementSettled({ volumePaneExpected: false, timeAxisMinHeight: 80, timeAxisHeight: 80 })).toBe(true)
+  })
+  it('volume expected: null index or a zero-height pane waits; a laid-out pane settles', () => {
+    expect(lookbackPlacementSettled({ volumePaneExpected: true, volumeIndex: null, paneHeights: [300] })).toBe(false)
+    expect(lookbackPlacementSettled({ volumePaneExpected: true, volumeIndex: 1, paneHeights: [300, 0] })).toBe(false)
+    expect(lookbackPlacementSettled({ volumePaneExpected: true, volumeIndex: 1, paneHeights: [240, 60] })).toBe(true)
+  })
+  it('volume at the very top (index 0) takes the fallback by design, so it is settled even with no height read', () => {
+    expect(lookbackPlacementSettled({ volumePaneExpected: true, volumeIndex: 0, paneHeights: [] })).toBe(true)
   })
 })
