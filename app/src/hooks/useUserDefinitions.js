@@ -292,6 +292,30 @@ export async function forkUserDefinition(defId) {
   return { ok: false, error: detail || `The server could not copy this indicator (${r.status}).` }
 }
 
+/**
+ * ⭐ ONE STORED DEFINITION, READ BACK (`GET /{def_id}`, owner-scoped). The Agent's
+ * definitions contract reads before a delete (so its Undo can restore the exact
+ * document) and after (to confirm it is gone) through this one door.
+ * @returns {Promise<{ok: true, row: object} | {ok: false, status: number|null, error: string}>}
+ *   `status: 404` is the authoritative "not live"; `null` is a transport failure.
+ */
+export async function readUserDefinition(defId) {
+  let r
+  try {
+    r = await fetch(`${USER_DEFINITIONS_KEY}/${encodeURIComponent(defId)}`, { credentials: 'include' })
+  } catch {
+    return { ok: false, status: null, error: 'Could not reach the server — check your connection and try again.' }
+  }
+  if (r.ok) {
+    try {
+      const row = await r.json()
+      if (row && row.def_id) return { ok: true, row }
+    } catch { /* fall through */ }
+    return { ok: false, status: r.status, error: 'The server answered without the definition.' }
+  }
+  return { ok: false, status: r.status, error: `The server could not read this indicator (${r.status}).` }
+}
+
 /** HTTP statuses that are an AUTHORITATIVE "this session has no definitions".
  *
  *  ⛔ 5xx IS NOT IN HERE, AND THAT IS LOAD-BEARING TWICE. A transport failure or

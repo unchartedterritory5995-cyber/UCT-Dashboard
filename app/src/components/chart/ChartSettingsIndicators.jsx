@@ -112,21 +112,20 @@ import SourceField from './SourceField'
 // VITE_INDICATOR_TEMPLATES_ENABLED=1; see IndicatorTemplatesBar.jsx).
 import IndicatorTemplatesBar from './IndicatorTemplatesBar'
 import { availableStyles, resolvePlotStyle, PLOT_STYLE_CHOICES, resolveSignColors } from './engine/presentation'
-import { ohlcCapabilityOf, outputIsSource } from './engine/ohlcCapability'
-import { anyCachedBars } from './engine/secondaryBars'
 // ⭐ THE COMPOSED CLASSIFIER — breadth AND market indicators, ONE authority.
 // ⚰️ This used to import `symbolFamily` (breadth only). Every call site here asks
 // about a symbol that may now come from either catalogue, so asking the breadth-only
 // function would classify a Cboe volatility index as a plain security and offer it
 // candles for the wrong reason. `canonicalFamily` composes both and is fail-closed
 // until both registries have landed.
-import useMarketIndicators, { canonicalFamily, canonicalSourceCapability, presentationFamily } from '../../hooks/useMarketIndicators'
+import useMarketIndicators, { presentationFamily } from '../../hooks/useMarketIndicators'
 import useBreadthSymbols from '../../hooks/useBreadthSymbols'
 import { POPULAR_RESULTS, INDICES_PRESET } from './symbolSearchModel'
 import {
   resolveDisplayTarget, displayTargetOptions, hasExplicitTarget, automaticTargetOf,
 } from './engine/displayTarget'
 import { sourceInputsOf, parseSource } from './engine/sourceRef'
+import { ohlcCapableFor, sourceCapabilityFor } from './engine/styleCapability'
 import { setInstancePlotStyle, setInstanceDisplayTarget } from './engine/instanceControls'
 // ⭐⭐ THE PANE MAP, AS A READ. `chartDataMap` asks `resolveDisplayTarget`,
 // `paneOwnerOf`, `paneOwnKeys` and `paneOwnersNeeded` — the same four answers
@@ -137,7 +136,7 @@ import { setInstancePlotStyle, setInstanceDisplayTarget } from './engine/instanc
 // group is called, and what it reads. It lives beside `paneMap` because a row's
 // NAME depends on the pane it is filed under (`EMA 20` inside QQQ, `EMA 20 · QQQ`
 // on Price), which makes it a placement answer like every other in that file.
-import { paneMap, paneRowMeta } from './chartDataMap'
+import { paneMap, paneRowMeta, activeIndicatorRows } from './chartDataMap'
 // ⭐ THE ONE REORDER WRITER. Drag and Move up / Move down both end here, so the
 // two paths cannot produce different stored states — asserted in
 // `engine/__tests__/paneOrder.test.js`.
@@ -214,52 +213,8 @@ function mainColorFields(row) {
  *  cannot answer anything is a control that cannot refuse; see `canRemove`'s
  *  gravestone further down for the same ruling. */
 
-/**
- * Is this instance's source genuinely OHLC-bearing?
- *
- * ⭐ ONE CAPABILITY ANSWER, TWO READERS. It began as an IIFE inside the style
- * control; the COLLAPSED row's summary needs the same answer, and a second copy
- * is how "Candles" ends up offered in one place and denied in the other.
- *
- * ⚠️ `anyCachedBars` IS THE WINDOW-AGNOSTIC READ: this tab knows the INSTRUMENT
- * and never the chart's timeframe, so asking for a specific (tf, bars) window
- * would make the answer flicker with the chart.
- */
-function ohlcCapableFor(def, inst) {
-  if (!inst || !def) return false
-  const declared = sourceInputsOf(def, inst)
-  if (!declared.length) return false
-  const parsed = parseSource(declared[0][1])
-  if (!parsed || parsed.kind !== 'symbol') return false
-  return ohlcCapabilityOf(def, parsed, anyCachedBars(parsed.symbol), canonicalFamily).ok
-}
-
-/**
- * The SOURCE's presentation capability for one instance — the exact answer the
- * binder computes, from the exact same two functions.
- *
- * ⛔⛔ THE MENU AND THE RENDERER MUST READ ONE CONTRACT, and this is the whole
- * reason this helper exists rather than an inline object. A dropdown that offers a
- * style the resolver then clamps is a dropdown that lies; a dropdown that hides a
- * style the resolver would have honoured silently removes a member's control. Both
- * are the same bug — two implementations of one rule — and the way to not have it
- * is for `styleCtx` here and `sourceCapabilityFor` in `binder.js` to be the same
- * three lines over the same inputs.
- *
- * ⚠️ THE DEFAULT IS GATED ON `passthrough` HERE TOO, identically: only a row that
- * IS its source takes its source's default, because `dataSeries` declares
- * `style: 'line'` generically while an authored definition means it.
- */
-function sourceCapabilityFor(def, inst) {
-  if (!inst || !def) return null
-  const declared = sourceInputsOf(def, inst)
-  if (!declared.length) return null
-  const parsed = parseSource(declared[0][1])
-  if (!parsed || parsed.kind !== 'symbol' || !parsed.symbol) return null
-  const cap = canonicalSourceCapability(parsed.symbol, ohlcCapableFor(def, inst))
-  if (outputIsSource(def)) return cap
-  return { defaultStyle: null, allowedStyles: cap.allowedStyles }
-}
+// ⭐ `ohlcCapableFor` / `sourceCapabilityFor` moved to `engine/styleCapability.js` (2026-10-27),
+// shared with the Agent's `setPlotStyle` (I-2) so the two offer one set of styles.
 
 /** `overlay-<i>` → the instance id slot `i` was adopted as, when it was. */
 function aliasRowId(rowId, settings) {
@@ -783,7 +738,8 @@ export default function ChartSettingsIndicators({
   const activeRows = useMemo(
     // ⭐ A1 (D3): an engine row is LISTED while it EXISTS (`row.exists`), hidden or not —
     // `enabled` now means "shown", and a hidden indicator must stay findable here.
-    () => (rows || []).filter((r) => isFixtureRow(r) || (r.engineOwned && typeof r.exists === 'boolean' ? r.exists : readEnabled(r))),
+    // ⭐ The rule lives in `chartDataMap.activeIndicatorRows`, shared with the Agent's pane read.
+    () => activeIndicatorRows(rows),
     [rows],
   )
 
