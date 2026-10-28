@@ -29,7 +29,8 @@ export function holdSheetKeys(name, handler) {
   let entry = held.get(name)
   if (!entry) {
     const handlers = []
-    const dispatch = (e) => { for (const fn of handlers.slice()) fn(e) }
+    // A holder released by an earlier handler in this same dispatch is skipped (it has unmounted).
+    const dispatch = (e) => { for (const fn of handlers.slice()) if (handlers.includes(fn)) fn(e) }
     entry = { handlers, release: BIND[name](dispatch) }
     held.set(name, entry)
   }

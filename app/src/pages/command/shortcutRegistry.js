@@ -791,8 +791,8 @@ export function registerShortcuts(handlers) {
   entries.forEach(([, fn], i) => {
     const d = decls[i]
     const k = `${d.target}|${d.capture ? 1 : 0}|${d.type}`
-    if (!groups.has(k)) groups.set(k, { target: d.target, capture: d.capture, type: d.type, items: [] })
-    groups.get(k).items.push({ d, fn })
+    if (!groups.has(k)) groups.set(k, { target: d.target, capture: d.capture, type: d.type, observers: [], items: [] })
+    groups.get(k)[d.observe === true ? 'observers' : 'items'].push({ d, fn })
   })
 
   const installed = []
@@ -800,12 +800,11 @@ export function registerShortcuts(handlers) {
     const node = resolveTarget(g.target)
     if (!node) continue
     const listener = (e) => {
+      // Observers FIRST, every one that matches, before any binding of this call acts: an observer must see the key
+      // even when a binding answers it. Each gets NO event, so it cannot preventDefault or stop propagation.
+      for (const { d, fn } of g.observers) if (bindingMatches(d, e)) fn()
       for (const { d, fn } of g.items) {
-        if (!bindingMatches(d, e)) continue
-        // An observer gets NO event (it cannot preventDefault or stop propagation) and never ends the walk.
-        if (d.observe === true) { fn(); continue }
-        fn(e)
-        return
+        if (bindingMatches(d, e)) { fn(e); return }
       }
     }
     node.addEventListener(g.type, listener, g.capture)
