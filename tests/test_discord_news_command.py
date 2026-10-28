@@ -161,10 +161,10 @@ def test_the_embed_names_the_window_and_says_so_when_there_is_nothing():
     from api.services import discord_tx_news as n
     now = dt.datetime(2026, 10, 27, 15, 0, tzinfo=UTC)
     empty = n.build_embed("ZZZZ", "today", [], now)
-    assert "No TradeXchange headlines on **ZZZZ**" in empty["description"]
+    assert "No UCT News headlines on **$ZZZZ**" in empty["description"]
     rows = [(now - dt.timedelta(days=d), f"headline {d}") for d in range(3)]
     e = n.build_embed("NVDA", "3d", rows, now)
-    assert e["title"] == "NVDA | TradeXchange News | Last 3 days"
+    assert e["title"] == "$NVDA · UCT News · Last 3 days"
     assert e["description"].count("**") >= 6, "multi-day windows get a date header per day"
     assert "3 headlines" in e["footer"]["text"]
 
@@ -190,3 +190,33 @@ def test_the_job_edits_the_reply_with_the_embed_and_never_raises():
     n.run_news_job("1", "t", "NVDA", "today", now=now, edit_fn=lambda a, t, p: edits.append(p), feed_fn=boom,
                    name_fn=lambda t: None)
     assert "Could not read" in edits[-1]["content"]
+
+
+def test_the_reply_wears_the_uct_news_brand():
+    """Same look as the UCT News cards and recaps: the UCT mark, UCT INTELLIGENCE · NEWS, UCT gold."""
+    from api.services import discord_tx_news as n
+    now = dt.datetime(2026, 10, 28, 15, 0, tzinfo=UTC)
+    e = n.build_embed("VRT", "today", [(now, "VRT highs pm")], now)
+    assert e["author"]["name"] == "UCT INTELLIGENCE · NEWS" and e["author"]["icon_url"] == n.MARK_URL
+    assert e["color"] == 0xDCBB5E
+    assert "source TradeXchange" in e["footer"]["text"] and "#tradexchange" not in e["footer"]["text"]
+    assert e["footer"]["icon_url"].endswith(".png")
+
+
+def test_reads_the_raw_feed_channel_by_default(monkeypatch):
+    from api.services import discord_tx_news as n
+    monkeypatch.delenv("TX_NEWS_CHANNEL_ID", raising=False)
+    assert n.channel_id() == "1564853978615775252"
+
+
+@pytest.mark.parametrize("text, body", [
+    ("ADP ADP - ADP Reports First Quarter Fiscal 2027 Results", "ADP Reports First Quarter Fiscal 2027 Results"),
+    ("ADPreported Q1 2027 Adj EPS of $2.82, beating the $2.77 estimate", "Reported Q1 2027 Adj EPS of $2.82, beating the $2.77 estimate"),
+    ("ADPEarnings Release: · Revenue of 5.5B exceeds estimates", "Earnings Release: · Revenue of 5.5B exceeds estimates"),
+])
+def test_txs_own_tag_finds_a_ticker_the_matcher_reads_as_a_word(text, body):
+    """ADP is a macro word to the shared matcher; TX's own tag still names the stock."""
+    from api.services import discord_tx_news as n
+    now = dt.datetime(2026, 10, 28, 15, 0, tzinfo=UTC)
+    rows = n.headlines_for("ADP", [(now, text), (now, "ADP Employment Change: ACTUAL 120K")], None)
+    assert [r[1] for r in rows] == [body]
