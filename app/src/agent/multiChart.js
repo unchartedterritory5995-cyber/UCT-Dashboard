@@ -8,12 +8,15 @@
 //   positional symbols   "NVDA on the left and AMD on the right", "put SPY top, QQQ bottom, both weekly",
 //                        "TSLA on the second chart, AAPL on the third" → chart.setSymbol per named chart
 //                        (each chart the member NAMED — applied as ONE change, one Undo)
+//   chart grid           "create four charts for SPY, QQQ, NVDA and TSLA and make them all daily", "put SPY, QQQ,
+//                        NVDA and TSLA in a 2x2 grid" (live test 2026-10-28) → chartGrid.set, APPLIED: the
+//                        board's charts reused top-left first, the rest added, the charts' area re-tiled evenly —
+//                        one change, one Undo. Only the tickers, a count that matches them, one timeframe and a
+//                        layout word may be said; anything else ("…with RSI") is the model's.
 //   side by side         "show NVDA and AMD side by side" — OWNER 2026-10-27: reuse suitable charts, create
 //                        new ones only when needed or asked ("…in new charts"):
-//                          0 charts            → propose two new charts (widget.addCharts)
-//                          1 chart             → it shows the first (applied), then a new chart for the
-//                                                second is proposed (two steps — a plan may not both
-//                                                change a chart and create one)
+//                          0 or 1 chart, or    → chartGrid.set as columns (the one chart is reused; the
+//                          "new charts"          second is added beside it) — applied (live test 2026-10-28)
 //                          2 charts            → both reused (a chart already on one of them keeps it) — applied
 //                          3+ charts           → already showing both: said; else the charts are PROPOSED
 //                                                (named on the card), never picked silently
@@ -84,36 +87,115 @@ function linkedTogether(refs, charts) {
 }
 const setSymbol = (ref, symbol) => ({ action: 'chart.setSymbol', target: ref, args: { symbol } })
 const setTf = (ref, timeframe) => ({ action: 'chart.setTimeframe', target: ref, args: { timeframe } })
-const addCharts = (symbols, timeframe) => ({ action: 'widget.addCharts', target: 'workspace', args: { symbols, timeframe: timeframe || null, chart_type: null, exact: null } })
+const chartGrid = (symbols, timeframe, layout, newCharts) => ({ action: 'chartGrid.set', target: 'board', args: { symbols, timeframe: timeframe || null, layout: layout || null, new_charts: newCharts ? true : null } })
+
+// ── N charts for these tickers ──
+const COUNT_WORDS = { two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9 }
+const COUNT_RE = /\b(two|three|four|five|six|seven|eight|nine|[2-9])\s+(?:new\s+)?(?:(?:daily|weekly|monthly|hourly|intraday)\s+)?(?:separate\s+)?charts?\b/i
+const GRID_LAYOUT = [[/\b(?:side[\s-]by[\s-]side|next to each other|in (?:a )?row)\b/i, 'columns'], [/\b(?:stacked|on top of each other|in (?:a )?column)\b/i, 'rows'],
+  [/\b(?:grid|2\s*x\s*2|2\s*by\s*2|3\s*x\s*3|quad)\b/i, 'grid']]
+// everything else such a sentence may say — any other word means it is not ONLY a grid of these tickers
+const GRID_FILLER = /\b(?:please|can|could|would|you|i|want|need|like|to|create|make|open|add|show|set|setup|up|give|me|put|load|pull|bring|build|chart|charts|display|lay|out|new|separate|for|of|with|on|showing|and|them|all|each|every|one|a|an|the|in|into|as|be|is|are|my|grid|2x2|2|x|by|side|stacked|top|other|row|column|quad|equal|equally|sized|size|evenly|layout|arrangement|arranged|time ?frames?|daily|weekly|monthly|hourly|intraday|minutes?|min|hour|hr|1h|4h|1|5|15|30|60|two|three|four|five|six|seven|eight|nine|both|too|also|just|now)\b/gi
+function gridRequest(raw, lower, charts, host) {
+  const syms = tickersIn(raw)
+  if (syms.length < 2) return null
+  const layoutHit = GRID_LAYOUT.find(([re]) => re.test(raw))
+  const count = COUNT_RE.exec(raw)
+  if (!count && !layoutHit) return null
+  if (count && (COUNT_WORDS[count[1].toLowerCase()] || Number(count[1])) !== syms.length) return null
+  const tf = timeframeIn(lower)
+  if (tf === false) return null
+  let rest = raw
+  for (const s of syms) rest = rest.replace(new RegExp(`\\$?\\b${escapeRe(s)}\\b`, 'gi'), ' ')
+  rest = rest.replace(/[,;.!?&()]/g, ' ').replace(GRID_FILLER, ' ').trim()
+  if (rest) return null
+  const fresh = wantsNew(raw, syms.length, charts.length)
+  // least disruptive: NEW charts (no layout asked for) that fit in the empty space go there — nothing re-tiled
+  if (fresh && !layoutHit && fitsEmpty(host, syms.length)) {
+    return { kind: 'ops', ops: [{ action: 'widget.addCharts', target: 'workspace', args: { symbols: syms, timeframe: tf || null, chart_type: null, exact: null } }], mode: 'apply' }
+  }
+  return { kind: 'ops', ops: [chartGrid(syms, tf, layoutHit ? layoutHit[1] : null, fresh)], mode: 'apply' }
+}
+// OWNER 2026-10-27 (+ live test 2026-10-28): reuse the board's charts when there are no more of them than tickers
+// ("four charts for …" on a one-chart board: that chart becomes the first of the four); NEW charts when the member
+// asks for new ones, or when the board already has more charts than tickers (their tickers are never overwritten).
+const ASKS_NEW = /\b(?:new|add|another|more|additional|extra)\b/i
+const wantsNew = (text, n, onBoard) => ASKS_NEW.test(String(text || '')) || n < onBoard
+// n new charts land in EMPTY space as the product places them (nothing resized or moved)
+function fitsEmpty(host, n) {
+  let s = null
+  try { s = host?.widgets?.snapshot?.() || null } catch { s = null }
+  return !!s && s.count + n <= s.max && s.fitsSequence?.(Array(n).fill('chart')) === true
+}
+const readingOrder = (a, b) => ((a.cell?.y ?? 0) - (b.cell?.y ?? 0)) || ((a.cell?.x ?? 0) - (b.cell?.x ?? 0))
+
+/**
+ * Live test 2026-10-28 — the MODEL's plan for "N charts for these tickers" (charts added — widget.add with an
+ * `as`, or widget.addCharts with literal tickers — each given its ticker, maybe a timeframe, maybe re-arranged)
+ * cannot run on a full board, and may not mix a change to an existing chart with an add. Exactly that shape,
+ * and nothing else, becomes ONE chartGrid.set on the same tickers in the same order (the board's charts
+ * reused unless the member's own words ask for new ones) — unless it only ADDS charts that fit in the empty
+ * space as they are (then nothing needs re-tiling and it runs as planned). Anything else is left exactly as planned.
+ */
+const GRID_SHAPE = new Set(['widget.add', 'widget.addCharts', 'chart.setSymbol', 'chart.setTimeframe', 'widget.arrange'])
+export function screenChartGrid(ops, text, host) {
+  if (!Array.isArray(ops) || !ops.length || !ops.every(o => GRID_SHAPE.has(o?.action))) return { ops, corrected: false }
+  const adds = ops.filter(o => o.action === 'widget.add')
+  if (adds.some(o => o.args?.type !== 'chart' || !o.args?.as)) return { ops, corrected: false }
+  const lists = ops.filter(o => o.action === 'widget.addCharts')
+  if (lists.some(o => !Array.isArray(o.args?.symbols) || o.args?.chart_type)) return { ops, corrected: false }
+  if (!adds.length && !lists.length) return { ops, corrected: false }
+  const symbols = []
+  const tfs = new Set()
+  for (const o of ops) {
+    if (o.action === 'chart.setSymbol') symbols.push(String(o.args?.symbol || '').trim().toUpperCase())
+    if (o.action === 'widget.addCharts') { symbols.push(...o.args.symbols.map(s => String(s || '').trim().toUpperCase())); if (o.args.timeframe) tfs.add(o.args.timeframe) }
+    if (o.action === 'chart.setTimeframe') tfs.add(o.args?.timeframe)
+  }
+  // every new chart has its ticker; one timeframe at most; at least two charts
+  const aliases = new Set(adds.map(o => String(o.args.as)))
+  const named = new Set(ops.filter(o => o.action === 'chart.setSymbol').map(o => String(o.target)))
+  if ([...aliases].some(a => !named.has(a))) return { ops, corrected: false }
+  if (symbols.some(s => !s) || tfs.size > 1) return { ops, corrected: false }
+  // a ticker typed twice is ONE chart (widget.addCharts' own rule: the first keeps its place)
+  const uniq = [...new Set(symbols)]
+  if (uniq.length < 2) return { ops, corrected: false }
+  symbols.splice(0, symbols.length, ...uniq)
+  // a ticker the model put on an EXISTING chart: only the board's first charts in reading order, listed first
+  // (exactly the charts the grid reuses) — else the plan is not this shape
+  let charts = []
+  try { charts = (host?.charts?.list?.() || []).slice().sort(readingOrder) } catch { charts = [] }
+  const existing = ops.filter(o => o.action === 'chart.setSymbol' && !aliases.has(String(o.target))).map(o => String(o.target))
+  if (existing.length && (existing.some((r, i) => charts[i]?.ref !== r) || ops.findIndex(o => o.action === 'chart.setSymbol' && aliases.has(String(o.target))) < ops.findLastIndex(o => o.action === 'chart.setSymbol' && !aliases.has(String(o.target))))) return { ops, corrected: false }
+  // least disruptive: NEW charts that fit in the empty space are added there as planned (nothing re-tiled)
+  if (!existing.length && fitsEmpty(host, symbols.length)) return { ops, corrected: false }
+  const fresh = !existing.length && wantsNew(text, symbols.length, charts.length)
+  const layout = ops.find(o => o.action === 'widget.arrange')?.args?.pattern
+  const target = ops.find(o => o.action === 'widget.arrange')?.target || 'board'
+  return { ops: [{ ...chartGrid(symbols, [...tfs][0] || null, ['grid', 'columns', 'rows'].includes(layout) ? layout : null, fresh), target }], corrected: true }
+}
 
 // ── side by side ──
 const SIDE = /\b(side[\s-]by[\s-]side|next to each other|beside each other|alongside each other)\b/i
 const NEW_CHARTS = /\b(?:in|on|as|with)\s+(?:two\s+|2\s+)?new\s+charts?\b|\bnew charts?\b/i
-function sideBySide(raw, lower, charts) {
+function sideBySide(raw, lower, charts, host) {
   if (!SIDE.test(raw)) return null
   const syms = tickersIn(raw.replace(SIDE, ' '))
   if (syms.length !== 2) return null
   const tf = timeframeIn(lower)
   if (tf === false) return null
   const [a, b] = syms
-  if (NEW_CHARTS.test(lower) || charts.length === 0) {
-    return { kind: 'ops', ops: [addCharts([a, b], tf)], mode: 'propose' }
+  // ⭐ live test 2026-10-28 — applied, never a card: NEW charts (asked for, or no chart here) that fit in the empty
+  // space go there; otherwise ONE grid change: the one chart is reused (it keeps a ticker it already shows) and the
+  // other is added beside it — the two side by side, one Undo
+  const fresh = NEW_CHARTS.test(lower) || charts.length === 0
+  if (fresh && fitsEmpty(host, 2)) return { kind: 'ops', ops: [{ action: 'widget.addCharts', target: 'workspace', args: { symbols: [a, b], timeframe: tf || null, chart_type: null, exact: null } }], mode: 'apply' }
+  if (fresh || charts.length === 1) {
+    const has = charts.length === 1 ? String(charts[0].symbol || '').toUpperCase() : null
+    const order = !fresh && has === b ? [b, a] : [a, b]
+    return { kind: 'ops', ops: [chartGrid(order, tf, 'columns', fresh && charts.length > 0)], mode: 'apply' }
   }
   const showing = (s) => charts.filter(c => String(c.symbol || '').toUpperCase() === s)
-  if (charts.length === 1) {
-    const only = charts[0]
-    const has = String(only.symbol || '').toUpperCase()
-    const missing = has === a ? b : has === b ? a : null
-    if (missing) return { kind: 'ops', ops: [addCharts([missing], tf || null)], mode: 'propose', note: `${has} stays on ${only.label}; a new chart for ${missing} goes beside it.` }
-    // reuse the one chart for the first, then propose a chart for the second (two steps)
-    return {
-      kind: 'steps',
-      steps: [
-        { ops: [setSymbol(only.ref, a), ...(tf ? [setTf(only.ref, tf)] : [])], mode: 'apply' },
-        { ops: [addCharts([b], tf || null)], mode: 'propose', needs: { ref: only.ref, symbol: a } },
-      ],
-    }
-  }
   if (charts.length === 2) {
     // a chart already on one of them keeps it; the other chart takes the other symbol
     let [c1, c2] = charts
@@ -212,5 +294,5 @@ export function multiChartPlan(text, { host } = {}) {
   let charts = []
   try { charts = host?.charts?.list?.() || [] } catch { charts = [] }
   const lower = raw.toLowerCase()
-  return copyLook(raw, charts, host) || sideBySide(raw, lower, charts) || positional(raw, charts)
+  return copyLook(raw, charts, host) || sideBySide(raw, lower, charts, host) || positional(raw, charts) || gridRequest(raw, lower, charts, host)
 }

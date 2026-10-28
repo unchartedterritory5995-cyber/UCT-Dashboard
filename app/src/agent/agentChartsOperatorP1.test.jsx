@@ -519,16 +519,14 @@ describe('multiChartPlan — several charts in one sentence', () => {
     expect(multiChartPlan('show NVDA and AMD side by side', { host })).toEqual({ kind: 'ops', mode: 'apply',
       ops: [{ action: 'chart.setSymbol', target: 'c2', args: { symbol: 'NVDA' } }, { action: 'chart.setSymbol', target: 'c1', args: { symbol: 'AMD' } }] })
   })
-  it('side by side — 1 chart: it is reused, then ONE new chart is proposed; 0 charts or "new charts": proposed', () => {
-    const one = makeBoard([{ id: 'c1', type: 'chart', x: 0, y: 0, w: 12, h: 20, color: 'N' }], { 'N:c1': 'SPY' }).host
-    const s = multiChartPlan('NVDA and AMD side by side', { host: one })
-    expect(s.kind).toBe('steps')
-    expect(s.steps[0]).toMatchObject({ mode: 'apply', ops: [{ action: 'chart.setSymbol', target: 'c1', args: { symbol: 'NVDA' } }] })
-    expect(s.steps[1]).toMatchObject({ mode: 'propose', ops: [{ action: 'widget.addCharts', args: { symbols: ['AMD'] } }] })
+  // ⭐ live test 2026-10-28: APPLIED — one grid change (reuse + add + re-tile, one Undo), or new charts into empty space
+  it('side by side — 1 chart: ONE grid change, applied (it is reused, keeping a ticker it shows); 0 charts or "new charts": added, applied', () => {
+    const one = makeBoard([{ id: 'c1', type: 'chart', x: 0, y: 0, w: 24, h: 20, color: 'N' }], { 'N:c1': 'SPY' }).host
+    expect(multiChartPlan('NVDA and AMD side by side', { host: one })).toEqual({ kind: 'ops', mode: 'apply', ops: [{ action: 'chartGrid.set', target: 'board', args: { symbols: ['NVDA', 'AMD'], timeframe: null, layout: 'columns', new_charts: null } }] })
     const has = makeBoard([{ id: 'c1', type: 'chart', x: 0, y: 0, w: 12, h: 20, color: 'N' }], { 'N:c1': 'AMD' }).host
-    expect(multiChartPlan('NVDA and AMD side by side', { host: has })).toMatchObject({ kind: 'ops', mode: 'propose', ops: [{ action: 'widget.addCharts', args: { symbols: ['NVDA'] } }] })
-    expect(multiChartPlan('show NVDA and AMD side by side in new charts', { host: board(2) })).toMatchObject({ mode: 'propose', ops: [{ action: 'widget.addCharts', args: { symbols: ['NVDA', 'AMD'] } }] })
-    expect(multiChartPlan('NVDA and AMD side by side', { host: makeBoard([]).host })).toMatchObject({ mode: 'propose', ops: [{ action: 'widget.addCharts' }] })
+    expect(multiChartPlan('NVDA and AMD side by side', { host: has })).toMatchObject({ kind: 'ops', mode: 'apply', ops: [{ action: 'chartGrid.set', args: { symbols: ['AMD', 'NVDA'] } }] })
+    expect(multiChartPlan('show NVDA and AMD side by side in new charts', { host: board(2) })).toMatchObject({ mode: 'apply', ops: [{ action: 'chartGrid.set', args: { symbols: ['NVDA', 'AMD'], new_charts: true } }] })
+    expect(multiChartPlan('NVDA and AMD side by side', { host: makeBoard([]).host })).toMatchObject({ mode: 'apply', ops: [{ action: 'widget.addCharts', args: { symbols: ['NVDA', 'AMD'] } }] })
   })
   it('side by side — 3+ charts: PROPOSED with the charts named (never a silent pick); both already shown → said', () => {
     const host = board(4)

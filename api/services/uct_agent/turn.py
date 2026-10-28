@@ -15,9 +15,17 @@ A model that says "done" has done nothing; the receipt is never model text.
 TALK vs DO is explicit:
   answer / clarify / unsupported -> ops are forced EMPTY here, before the
                                     browser ever sees them (zero mutation)
-  apply                          -> a small, explicitly requested change
-  propose                        -> needs interpretation or is broad; the
+  apply                          -> what the member explicitly asked for, however
+                                    many steps or targets (live test 2026-10-28:
+                                    AUTO-APPLY for reversible workspace changes)
+  propose                        -> needs interpretation, taste or judgment; the
                                     browser shows it and waits for approval
+APPROVAL IS ENFORCED, NOT SUGGESTED: an `apply` that carries an action the
+manifest marks `risk: confirm` or `reversible: false` is turned into a
+`propose` HERE (enforce_approval), whatever the model said -- except the
+actions in EXPLICIT_OK_ACTIONS, whose no-card path the browser decides from the
+member's own words (policy.js `explicitOk`); the browser's planner applies the
+same rule again (policy.decideMode).
 
 RESEARCH is OPT-IN and READ-ONLY. The model's call carries NO tools; instead the
 envelope has a `research` field (null, or {query, recency}). The server honours
@@ -44,6 +52,10 @@ from typing import Any, Callable
 
 DISPOSITIONS = ("answer", "clarify", "apply", "propose", "unsupported")
 MUTATING = ("apply", "propose")
+# The one capability whose explicit-words path runs without a card when every condition holds (indicator
+# saves the member's own words asked for -- the browser decides; its confirmIf still applies). Mirrors
+# app/src/agent/contract/manifest.contract.json `approval.explicitOk` (tests/test_uct_agent_contract.py).
+EXPLICIT_OK_ACTIONS = frozenset({"indicator.saveDraft"})
 MAX_MESSAGE = 2000
 MAX_CONTEXT_BYTES = 24000   # charts + layouts + watchlists + the Screener field catalog (~4 KB)
 MAX_OPS = 12
@@ -442,8 +454,8 @@ MIXED REQUESTS. A message can ask a question AND ask for a change ("what is RSI,
 DISPOSITIONS
 - answer: informational reply; ops MUST be []. Use ONLY when nothing is asked to change (a question plus a change is a MIXED REQUEST: apply/propose). Use for questions, explanations and advice, including advice about what the member could change ("what would you change for swing trading?" is an answer or a propose, never an apply).
 - clarify: you need one thing first that no default covers, usually WHICH existing target to change. ops []; fill `question` with short `choices` (use target labels). Never clarify a matter of taste or judgment ("cleaner", "nicer", "better for swing trading") — propose your best plan instead; the member can adjust or dismiss it.
-- apply: the member directly asked for specific changes that AVAILABLE ACTIONS can make. ops = exactly what they asked for, nothing extra.
-- propose: the request needs interpretation, taste or judgment ("make it look cleaner", "set this up for day trading"), or touches several targets. ops = your proposed changes; UCT asks before executing. Example: "make the right chart look cleaner" → propose (not clarify) concrete ops on the right chart, such as hiding its Volume and/or a calmer theme.
+- apply: the member directly asked for specific changes that AVAILABLE ACTIONS can make — however many steps, charts or widgets it takes ("create four charts for SPY, QQQ, NVDA and TSLA, all daily", "make the 9 green on both charts", "add the 9 and 20 EMA and copy them to my other charts"). ops = exactly what they asked for, nothing extra. UCT itself asks first for anything permanent, destructive or broad (the actions marked "needs confirmation" or "permanent"), so never propose just because a request has several parts.
+- propose: the request needs interpretation, taste or judgment ("make it look cleaner", "set this up for day trading"). ops = your proposed changes; UCT asks before executing. Example: "make the right chart look cleaner" → propose (not clarify) concrete ops on the right chart, such as hiding its Volume and/or a calmer theme.
 - unsupported: they asked you to DO something no available action can do. ops []. Say plainly that you can't do that yet and, if you know it, where in UCT they can do it by hand. Set unsupported_category to one short lowercase word naming the area (for example indicators, widgets, layouts, alerts, scanners, drawings, navigation, account, other).
 
 ACT ON CLEAR INTENT — DON'T MAKE THE MEMBER MANAGE YOU
@@ -453,7 +465,7 @@ WHOLE REQUESTS
 A request with several steps is ONE plan: put every step in `ops`, in order, connected by `as` names — e.g. "make a watchlist of X and open it" is: run the screen (as "screen1"), create the list (as "list1"), add the screen's results to "list1" ({from:"screen1", top:null}), open "list1" in the workspace. Pick `as` names that are not refs in <workspace_context>. Never plan only the first step, and never tell the member you "will" do the rest later. UCT shows the whole plan once and asks for approval where an action needs it.
 
 TARGETING
-Every op has `target` = a `ref` from <workspace_context> (each action says which kind of target it acts on). If exactly one target of that kind exists, use it. To CHANGE, delete or overwrite one of several that the member did not identify (by name, symbol, position such as left / top-right, or "all of them"), use clarify — never guess which one to change. "All of them" means one op per target (and that is a propose).
+Every op has `target` = a `ref` from <workspace_context> (each action says which kind of target it acts on). If exactly one target of that kind exists, use it. To CHANGE, delete or overwrite one of several that the member did not identify (by name, symbol, position such as left / top-right, or "all of them"), use clarify — never guess which one to change. "All of them" means one op per target (still apply when they asked for it).
 "This chart", "this stock", "here" and "it" (for a chart) mean the chart marked `selected: true` in <workspace_context> (the one the member last clicked), and the same chart in the other chart-based entries (match by its label); with several charts and none selected, clarify — for a question about "this stock" too.
 
 PLAN SIZE: at most 12 ops per request. If what they ask needs more, do not plan part of it: use disposition answer, say it is too many changes for one request and suggest splitting it (or use a bulk action below that covers it, such as widget.addCharts).
@@ -1258,6 +1270,20 @@ def sanitize_envelope(env: dict, valid_refs: set[str], cap_names: set[str] | Non
     }
 
 
+def enforce_approval(envelope: dict, caps: list[dict] | None) -> dict:
+    """⛔ APPROVAL BOUNDARY (server half). An `apply` carrying an action this member's manifest marks
+    `risk: confirm` or `reversible: false` is a `propose`, whatever the model said -- except the
+    EXPLICIT_OK_ACTIONS, whose no-card path the browser decides from the member's own words. Nothing is
+    ever made LESS guarded here: a propose stays a propose, talk stays talk."""
+    if not isinstance(envelope, dict) or envelope.get("disposition") != "apply" or not caps:
+        return envelope
+    guarded = {c["name"] for c in caps if isinstance(c, dict) and c.get("name") not in EXPLICIT_OK_ACTIONS
+               and (c.get("risk") == "confirm" or c.get("reversible") is False)}
+    if any(isinstance(o, dict) and o.get("action") in guarded for o in envelope.get("ops") or []):
+        return {**envelope, "disposition": "propose"}
+    return envelope
+
+
 _REPAIR_TEXT = re.compile(r"[\x00-\x1f<>`]+")
 MAX_REPAIR_ERRORS = 5
 
@@ -1695,7 +1721,7 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
             # The change planned before the research, with the researched answer as its reply.
             env = {**env, "disposition": pre_research["disposition"], "ops": pre_research["ops"],
                    "question": None, "research": None}
-            envelope = finish(sanitize_envelope(env, valid_refs, cap_names, unselected_ids), env)
+            envelope = enforce_approval(finish(sanitize_envelope(env, valid_refs, cap_names, unselected_ids), env), caps)
             usage["latency_ms"] = int((time.monotonic() - started) * 1000)
             usage["citations"] = list(dict.fromkeys(usage["citations"]))[:8]
             return {"envelope": envelope, "usage": usage, "title": clean_title(env) if conversation_title else None}
@@ -1711,7 +1737,7 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
                    else env.get("reply")}
         if compact and isinstance(env, dict) and env.get("disposition") in MUTATING:
             env = expand_compact_ops(env, caps)
-        envelope = finish(sanitize_envelope(env, valid_refs, cap_names, unselected_ids, local_notice=notice), env)
+        envelope = enforce_approval(finish(sanitize_envelope(env, valid_refs, cap_names, unselected_ids, local_notice=notice), env), caps)
         usage["latency_ms"] = int((time.monotonic() - started) * 1000)
         usage["citations"] = list(dict.fromkeys(usage["citations"]))[:8]
         title = clean_title(env) if conversation_title and not envelope.get("need_groups") else None

@@ -21,6 +21,7 @@ import VoiceInputButton from '../pages/journal-2-0/components/VoiceInputButton'
 import compassMark from '../components/intro/assets/compass-mark.png'
 import { HeadIcon, AgentAvatar, MemberAvatar, SenderLine, Hl } from './agentUi'
 import AgentResult, { Rows } from './AgentResult'
+import { receiptView } from './receiptView'
 import styles from './AgentPanel.module.css'
 // structured answers take the column's width (a single figure and prose stay as small as they are)
 const WIDE_VIEWS = new Set(['comparison', 'metrics', 'range', 'table', 'headlines'])
@@ -209,19 +210,28 @@ function Item({ it, agent, member, at, cont }) {
         </div>
         </AgentSays>
       )
-    case 'receipt':
+    case 'receipt': {
+      // live test 2026-10-28: ONE short line; the exact record (every line, word for word) one click away
+      const view = receiptView(it.lines, { isUndo: !!it.isUndo })
       return (
         <AgentSays at={at} cont={cont}>
         {/* No Undo button: the member just says "undo" / "reverse that" (the newest change). The card
             still marks itself undoable for tests and the harnesses. */}
         <div className={`${styles.bubble} ${styles.cardBubble}`} data-testid="agent-receipt"
           data-undoable={it.undoId && !it.undone && agent.canUndo(it.undoId) ? 'true' : undefined}>
-          <div className={styles.receiptLines}>{(it.lines || []).join(' · ')}</div>
+          <div className={styles.receiptLines} data-testid="agent-receipt-summary">{view.summary}</div>
+          {view.details && (
+            <details className={styles.receiptDetails}>
+              <summary>Details</summary>
+              <div className={styles.receiptDetailLines}>{view.details}</div>
+            </details>
+          )}
           {it.notes?.length > 0 && <div className={styles.cardMeta}>{it.notes.join(' · ')}</div>}
           {it.undoId && it.undone && <div className={styles.cardMeta}>Undone</div>}
         </div>
         </AgentSays>
       )
+    }
     case 'refusal':
     case 'error':
       if (!String(it.text || '').trim()) return null

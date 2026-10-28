@@ -272,14 +272,14 @@ describe('through the real panel — multi-chart indicator customisation and cop
   }
   const ixeOf = (body, chart) => (body.context.indicatorEdits || []).find(e => e.chart.startsWith(chart))?.ref
 
-  it('E1 · "make the 9 green on both charts" (instant) → shown once, then each chart\'s EMA 9 recoloured, one step per chart; Undo twice puts both back', async () => {
+  it('E1 · "make the 9 green on both charts" (instant) → applied at once (no card), each chart\'s EMA 9 recoloured, one step per chart; Undo twice puts both back', async () => {
     const b = board()
     const { say } = mount(b)
     await say('make the 9 green on both charts')
-    // the same change on several charts is shown once, then run once per chart (each its own receipt and Undo)
-    await screen.findByTestId('agent-proposal')
-    await say('do it')
+    // ⭐ AUTO-APPLY (live test 2026-10-28): asked for → no card; run once per chart (each its own receipt and Undo)
     await waitFor(() => { expect(inst(b, 'c1', 'ovl:0').inputs?.color).toBe('#2faf68'); expect(inst(b, 'c2', 'ovl:0').inputs?.color).toBe('#2faf68') })
+    expect(screen.queryAllByTestId('agent-proposal')).toHaveLength(0)
+    await waitFor(() => expect(screen.getAllByTestId('agent-receipt')).toHaveLength(2))
     expect(turns).toHaveLength(0)
     await say('undo')
     await say('undo')

@@ -70,6 +70,7 @@
   "widget.remove": "workspace",
   "widget.move": "workspace",
   "widget.arrange": "workspace",
+  "chartGrid.set": "chartGrid",
   "widget.setLink": "workspace",
   "widget.showList": "workspace",
   "watchlist.open": "lists",
@@ -132,6 +133,10 @@
   {
    "id": "chartSetup",
    "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only"
+  },
+  {
+   "id": "chartGrid",
+   "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
   },
   {
    "id": "workspace",
@@ -248,6 +253,10 @@
      {
       "id": "chartSetup",
       "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only"
+     },
+     {
+      "id": "chartGrid",
+      "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
      },
      {
       "id": "workspace",
@@ -382,6 +391,10 @@
      {
       "id": "chartSetup",
       "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only"
+     },
+     {
+      "id": "chartGrid",
+      "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
      },
      {
       "id": "workspace",
@@ -523,6 +536,10 @@
      {
       "id": "chartSetup",
       "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only"
+     },
+     {
+      "id": "chartGrid",
+      "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
      },
      {
       "id": "workspace",
@@ -675,6 +692,10 @@
       "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only"
      },
      {
+      "id": "chartGrid",
+      "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
+     },
+     {
       "id": "workspace",
       "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
      },
@@ -805,6 +826,10 @@
       "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only"
      },
      {
+      "id": "chartGrid",
+      "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
+     },
+     {
       "id": "workspace",
       "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
      },
@@ -871,6 +896,7 @@
    "selected": [
     "charts",
     "chartSetup",
+    "chartGrid",
     "workspace",
     "layouts",
     "indicators",
@@ -949,6 +975,7 @@
     "widget.remove",
     "widget.move",
     "widget.arrange",
+    "chartGrid.set",
     "widget.setLink",
     "widget.showList",
     "watchlist.open",

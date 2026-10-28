@@ -362,7 +362,8 @@ describe('M1 — no unrequested preview in indicator creation; asked-for preview
   it('the S6 shape: a new draft + an unrequested preview → the preview is dropped (with a note); the draft runs', () => {
     const h = host([L])
     const s = screenModelOps(h, [draftOp, previewOp(NEW)], 'Build me an indicator that marks pivot highs with 5 bars on each side on the QQQ chart.', CTX)
-    expect(s.ops.map(o => o.action)).toEqual(['indicator.draft'])
+    // live test 2026-10-28: "build me an indicator that …" is the request to HAVE it — its Save (onto the chart) rides along
+    expect(s.ops.map(o => o.action)).toEqual(['indicator.draft', 'indicator.saveDraft'])
     expect(s.notes).toContain('I won’t show a preview unless you ask for one.')
   })
   it('an explicit preview request is kept (alone, or with a change)', () => {
@@ -380,7 +381,8 @@ describe('M1 — no unrequested preview in indicator creation; asked-for preview
       { action: 'indicator.previewDraft', target: b.context.indicatorDrafts.find(e => e.new).ref, args: { chart: 'L' } },
     ] }))
     send('Build me an EMA 20 indicator on the left chart.')
-    await waitFor(() => expect(transcript()).toMatch(/Draft ready \(not saved yet\)/), { timeout: 4000 })
+    // live test 2026-10-28: built, saved and on the chart in one go (no card); still no preview
+    await waitFor(() => expect(transcript()).toMatch(/Done — created your “EMA 20” indicator and added it to Left chart \(NVDA\)\./), { timeout: 6000 })
     expect(transcript()).toContain('I won’t show a preview unless you ask for one.')
     expect(transcript()).not.toMatch(/There is no draft to preview yet/)
     expect(previews).toBe(0)

@@ -157,8 +157,9 @@ describe('B — build and apply in ONE message (R1)', () => {
 describe('C — refine the draft before applying', () => {
   it('"Make the candles yellow instead." → "Draft updated (not saved yet): … yellow …"; then "apply it" applies the yellow one', async () => {
     const { board, say } = mount()
-    envelopes.push(b => env('apply', [draftOp(b, 'build an inside candles indicator')]))
-    await say('build an inside candles indicator')
+    // (live test 2026-10-28: "build an indicator" now builds, saves and applies it — a DRAFT is asked for by name)
+    envelopes.push(b => env('apply', [draftOp(b, 'draft an inside candles indicator')]))
+    await say('draft an inside candles indicator')
     await waitFor(() => expect(transcript()).toMatch(/Draft ready/), { timeout: 6000 })
     envelopes.push(b => env('apply', [draftOp(b, 'Make the candles yellow instead.', activeRef(b), null)]))
     await say('Make the candles yellow instead.')

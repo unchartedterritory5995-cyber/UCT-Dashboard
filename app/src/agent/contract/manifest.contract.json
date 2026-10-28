@@ -1,7 +1,18 @@
 {
   "manifestVersion": 1,
   "doc": "docs/agent/CAPABILITY-CONTRACT.md",
-  "entryKeys": ["args", "domain", "hints", "name", "query", "reversible", "risk", "summary", "target", "undo"],
+  "entryKeys": [
+    "args",
+    "domain",
+    "hints",
+    "name",
+    "query",
+    "reversible",
+    "risk",
+    "summary",
+    "target",
+    "undo"
+  ],
   "limits": {
     "maxCapabilities": 60,
     "maxCapBytes": 6000,
@@ -15,5 +26,11 @@
     "maxRegistered": 200,
     "maxGroupSize": 40,
     "note": "maxCapabilities is PER REQUEST (what one /api/agent/turn may carry; the server refuses more). maxRegistered bounds the browser catalog. routingThreshold is the routed budget per request. No routing group may exceed maxGroupSize, so any single group (plus the always-on group) fits one request."
+  },
+  "approval": {
+    "explicitOk": [
+      "indicator.saveDraft"
+    ],
+    "note": "APPROVAL BOUNDARY (live test 2026-10-28: auto-apply). An explicitly requested change applies at once when every action is risk 'local' and reversible; an action with risk 'confirm' or reversible false is always proposed - the server turns such an 'apply' into a 'propose' (turn.enforce_approval) and the browser's policy.decideMode does again. explicitOk = the only actions whose no-card path the browser may decide from the member's own words (their confirmIf still applies)."
   }
 }

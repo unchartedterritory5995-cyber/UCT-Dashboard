@@ -114,6 +114,9 @@ export default function GlobalAddPositionProvider() {
         sections: Array.isArray(d.sections) ? d.sections : [],
         clickPrice: Number.isFinite(d.clickPrice) ? d.clickPrice : null,
         currentPrice: Number.isFinite(d.currentPrice) ? d.currentPrice : null,
+        // The chart element the menu opened on: Escape and a pick give focus back
+        // to its region (ChartContextMenu `returnFocusTo`).
+        opener: d.opener && typeof d.opener.closest === 'function' ? d.opener : null,
       })
     }
     window.addEventListener('uct:chart-contextmenu', onEvt)
@@ -288,6 +291,8 @@ export default function GlobalAddPositionProvider() {
         y={menu?.clientY || 0}
         sections={menuSections}
         onClose={() => setMenu(null)}
+        ariaLabel={sym ? `Chart actions for ${sym}` : 'Chart actions'}
+        returnFocusTo={menu?.opener || null}
       />
 
       {prefill && settings && (

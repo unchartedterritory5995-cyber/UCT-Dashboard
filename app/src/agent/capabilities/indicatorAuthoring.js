@@ -146,10 +146,20 @@ export function asksToApply(text) {
 // is theirs or the draft's; a chart they named (or the one they clicked, still valid); an
 // acknowledgement, a new version of a saved indicator or a duplicate name keeps the card (confirmIf). ──
 const APPLY_IT = /\b(?:apply|add|put|place|attach)\s+(?:it|this|that|this one|the indicator|the draft|my indicator)\b/i
+// ⭐ OWNER (live test 2026-10-28): "create a custom indicator that …" IS the request to have it — built, saved as a
+// NEW indicator and put on the chart, with no second click (natural-language request → valid indicator → saved →
+// on the chart → in the pane they asked for). Not when they ask only for a draft or a preview, or say not to save.
+const CREATE_INDICATOR = /\b(?:create|make|build|design|write|code|give me)\b[^.;!?]*\b(?:indicators?|oscillator|study)\b/i
+const DRAFT_ONLY = /\b(?:draft|preview|help me|let['’]?s|work on|walk me through|start (?:a|an|building|making)|don['’]?t (?:save|add|apply|put)|do not (?:save|add|apply|put)|without (?:saving|adding|applying)|not (?:save|add) it|just show me|show me (?:how|what))\b/i
+export function createsIndicatorWords(text) {
+  const t = String(text || '').trim()
+  return CREATE_INDICATOR.test(t) && !DRAFT_ONLY.test(t) && !/\?\s*$/.test(t)
+}
 /** Did the member's own words in THIS message ask to save or apply the indicator? */
 export function explicitSaveWords(text) {
   const t = String(text || '').trim()
   if (LAYOUT_WORDS.test(t) && !INDICATOR_WORDS.test(t)) return false
+  if (createsIndicatorWords(t)) return true
   if (GENERIC_SAVE.test(t) || INDICATOR_SAVE.test(t)) return true
   if (/\bsave\b/i.test(t) && /\b(indicator|draft|it|this)\b/i.test(t) && !NEGATION.test(t)) return true
   return asksToApply(t) || t.split(/[.;!?\n]+|,\s*(?:but|then)\b/i).some(c => APPLY_IT.test(c) && !NEGATION.test(c))
@@ -183,7 +193,7 @@ function ownNames() {
 /** ONE line that says what the draft does (Indicators' order): the colour / paint rule or signal
  *  line first, else the first VISIBLE output — never a hidden one. */
 // Indicators 10-12: the builder's derived names can read like formulas ("EMA 9 > EMA 20") — never put one in chat
-const FORMULA_NAME = /[<>=+*^[\]·]|&&|\|\|/
+const FORMULA_NAME = /[<>=+*^[\]·−×÷]|&&|\|\||\(.*\)\s*\//
 export const looksLikeFormula = (name) => FORMULA_NAME.test(String(name || ''))
 /** “Name” for chat, or the fallback when the name is missing or reads like a formula. */
 export const shownName = (name, fallback) => (name && !looksLikeFormula(name) ? `“${name}”` : fallback)
@@ -378,6 +388,14 @@ function markExplicitSaves(host, ops, words, notes) {
   void notes
   const explicit = explicitSaveWords(words)
   const turn = ops.find(o => o?.action === 'indicator.draft')
+  // ⭐ live test 2026-10-28: "create a custom indicator that …" planned as the build alone → the Save that puts it
+  // on the chart rides with it (R1 — every condition is still checked after the build; a failing one stops at a
+  // ready draft). Only for a NEW draft, on the chart the draft is for (named, the board's only chart, or clicked).
+  if (turn && turn.target === NEW && !ops.some(o => o?.action === 'indicator.saveDraft') && createsIndicatorWords(words)) {
+    const charts = boardCharts(host)
+    const chart = turn.args?.chart || (charts.length === 1 ? charts[0].ref : (charts.some(c => c.ref === clickedChart(host)) ? clickedChart(host) : null))
+    if (chart) ops = [...ops, { action: 'indicator.saveDraft', target: NEW, args: { addTo: [chart], name: null } }]
+  }
   // the build runs before its save, whatever order the model listed them in
   if (turn) ops = [...ops.filter(o => o?.action !== 'indicator.saveDraft'), ...ops.filter(o => o?.action === 'indicator.saveDraft')]
   return ops.flatMap(o => {
@@ -412,6 +430,26 @@ export const BUILDER_DOWN_GATES = new Set(['model:transport', 'model:unavailable
 export const BUILDER_DOWN = 'I couldn’t build that indicator right now — nothing was saved. Please try again shortly.'
 const builderDown = (gate) => BUILDER_DOWN_GATES.has(gate) || (/^network|^http:/.test(gate) && !/^http:429/.test(gate))
 
+// ── live test 2026-10-28: "The indicator builder couldn't do that" said nothing about WHY. The builder's own first
+// line (the server's member-safe reason, or the engine's error words) IS the why — said when it is specific; a
+// malformed answer from the builder's model (it already had its one repair) is said as exactly that. The gate code
+// stays in the outcome record (diagnostics only), never in chat. ──
+const MALFORMED_GATES = /^(?:envelope:|converse:unchecked|schema:)/
+const NOT_SPECIFIC = /did not follow the change format|could not be checked as a chart formula|^nothing (?:was )?changed\.?$|^no change was made/i
+function builderRefused(res) {
+  const gate = String(res?.detail?.gate || '')
+  const lines = (res?.lines || []).map(l => String(l || '').trim()).filter(l => l && !/^nothing (?:was )?changed\.?$/i.test(l) && !/^no change was made/i.test(l))
+  const malformed = MALFORMED_GATES.test(gate) || (!gate && (res?.detail?.codes || []).length > 0 && !lines.length)
+  if (malformed || (lines[0] && NOT_SPECIFIC.test(lines[0]))) {
+    return 'The indicator builder’s answer wasn’t a valid indicator, so nothing was saved. Try asking again, or describe the calculation step by step.'
+  }
+  if (lines[0]) {
+    const why = lines[0].replace(/\s*[—-]\s*nothing (?:was )?(?:changed|saved)\.?$/i, '').replace(/[.!]+$/, '')
+    return `The indicator builder couldn’t build that: ${why.charAt(0).toLowerCase()}${why.slice(1)}. Nothing was saved.`
+  }
+  return 'The indicator builder couldn’t do that — nothing was saved.'
+}
+
 // ── what the member is told when the specialist refuses (every reason in §10/§16) ──
 export function refusalSentence(res) {
   const r = res && res.reason
@@ -443,7 +481,7 @@ export function refusalSentence(res) {
       if (gate === 'cost:user') return 'Today’s indicator-builder allowance is used up — nothing changed.'
       if (gate === 'cost:global') return 'The indicator builder is paused for today — nothing changed.'
       if (builderDown(gate)) return BUILDER_DOWN
-      return 'The indicator builder couldn’t do that — nothing was saved.'
+      return builderRefused(res)
     case R.BAD_REQUEST: return 'That isn’t a valid request for the indicator builder.'
     default: return 'That did not work — nothing changed.'
   }
@@ -689,7 +727,9 @@ export const indicatorDraftsKind = {
         // the builder's own ASSUMPTIONS (Indicators condition 8: "Assumed: 20-bar lookback") — not the
         // engine's presentation defaults
         const assumed = (st.readback?.assumptions || []).filter(a => /^(Assumed|UCT Intelligence assumed)/.test(String(a)))
-        const what = op.r1 ? ` — ${sentence(oneLineOf(st))}${assumed.length ? ` (${assumed.join('; ')})` : ''}` : ''
+        // live test 2026-10-28: where it draws, said once ("put it in a separate pane" → "drawn in its own pane")
+        const drawn = op.r1 ? (st.readback?.presentation || []).find(l => /^drawn (?:in its own pane|on the price chart)$/.test(String(l))) : null
+        const what = op.r1 ? ` — ${sentence(oneLineOf(st))}${assumed.length ? ` (${assumed.join('; ')})` : ''}${drawn ? ` — ${drawn}` : ''}` : ''
         lines.length = op.r1 ? 0 : lines.length                                // R1: this line replaces the draft line
         lines.push(op.addTo?.length
           ? `Saved to your indicators${what} — that’s permanent; Undo takes it off the chart, the saved indicator stays.`
@@ -784,7 +824,10 @@ export function registerIndicatorAuthoringCapabilities() {
     describe: (b, a) => {
       const op = a.ops.find(o => o.type === 'turn')
       const where = (b.charts || []).find(c => c.ref === op?.chartRef)?.label
-      return op ? `Ask the indicator builder${b.new ? (op.edit ? ' (editing your saved indicator)' : ' (new draft)') : ` about ${nameOf(b)}`}${where ? ` on ${where}` : ''}: “${op.message}”` : null
+      // live test 2026-10-28: never the member's whole instruction read back to them — a short quote at most
+      const said = String(op?.message || '').trim()
+      const quote = said.length <= 60 ? said : `${said.slice(0, 57).replace(/\s+\S*$/, '')}…`
+      return op ? `Ask the indicator builder${b.new ? (op.edit ? ' (editing your saved indicator)' : ' (new draft)') : ` about ${nameOf(b)}`}${where ? ` on ${where}` : ''}: “${quote}”` : null
     },
   })
 
