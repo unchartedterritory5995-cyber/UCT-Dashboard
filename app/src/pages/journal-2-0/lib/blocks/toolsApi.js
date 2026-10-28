@@ -26,6 +26,7 @@
 // dropped, and a re-read applies only if no write landed after the read began.
 
 import { todayET } from '../calendar'
+import { readSuccessBody } from '../../../../lib/responseBody'
 
 export const ROUTINES_URL = '/api/j2/routines'
 export const TRACKERS_URL = '/api/j2/trackers'
@@ -80,8 +81,10 @@ async function postDays(kind, body) {
     const res = kind === 'routine'
       ? await fetch('/api/j2/routines/days', { method: 'POST', credentials: 'include', headers: JSON_HEADERS, body: payload })
       : await fetch('/api/j2/trackers/days', { method: 'POST', credentials: 'include', headers: JSON_HEADERS, body: payload })
-    const data = res.ok ? await res.json().catch(() => null) : null
-    return { status: res.status, ok: res.ok, data }
+    if (!res.ok) return { status: res.status, ok: false, data: null }
+    // TERM-033: a success whose body cannot be read is a failed read (answerFor says 'network'), stated, never data.
+    const read = await readSuccessBody(res)
+    return { status: res.status, ok: read.ok, data: read.ok ? read.body : null }
   } catch {
     return { status: 0, ok: false, data: null }
   }
@@ -413,9 +416,19 @@ function offlineFailure() {
 
 /** The merged entry on success; on a refusal the server's own code and sentence. */
 async function settle(res) {
-  const data = await res.json().catch(() => null)
-  if (res.ok) return data && typeof data === 'object' ? { ok: true, entry: data } : { ok: false, code: 'network', message: TOOL_COPY.tickFailed }
-  const detail = data?.detail
+  if (res.ok) {
+    // TERM-033: the merged entry, or a stated failed read when the body is unreadable or not an entry.
+    const read = await readSuccessBody(res)
+    const entry = read.ok ? read.body : null
+    return entry && typeof entry === 'object' ? { ok: true, entry } : { ok: false, code: 'network', message: TOOL_COPY.tickFailed }
+  }
+  // A refusal: the STATUS already decided it failed; its body only adds the server's code and sentence when readable.
+  let detail
+  try {
+    detail = (await res.json())?.detail
+  } catch {
+    detail = undefined   // no readable explanation: the status picks the code below
+  }
   let code = typeof detail?.code === 'string' ? detail.code : res.status === 429 ? 'rate' : res.status === 404 ? 'missing' : 'invalid'
   if (code === 'not_found') code = 'missing'
   const message = typeof detail?.message === 'string' && detail.message ? detail.message : TOOL_COPY.tickFailed
@@ -522,8 +535,8 @@ export async function vsPnl(kind, id) {
       ? await fetch(`/api/j2/routines/${enc(id)}/vs-pnl`, { credentials: 'include' })
       : await fetch(`/api/j2/trackers/${enc(id)}/vs-pnl`, { credentials: 'include' })
     if (!res.ok) return { ok: false, code: failureCode(res.status) }
-    const data = await res.json().catch(() => null)
-    return data ? { ok: true, data } : { ok: false, code: 'network' }
+    const read = await readSuccessBody(res)   // TERM-033: an unreadable success is a stated 'network' failure
+    return read.ok && read.body ? { ok: true, data: read.body } : { ok: false, code: 'network' }
   } catch {
     return { ok: false, code: 'network' }
   }

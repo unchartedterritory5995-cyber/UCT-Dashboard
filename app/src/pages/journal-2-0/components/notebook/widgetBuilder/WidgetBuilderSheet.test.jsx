@@ -409,7 +409,12 @@ describe('WidgetBuilderSheet', () => {
   it('ctrl_enter_saves', async () => {
     route('POST', (u) => u === '/api/j2/widget-definitions', () => answer({ ...SAVED, id: 'd-9', rev: 1, usedIn: 0 }))
     const { onClose } = await openBuilder()
-    fireEvent.keyDown(screen.getByLabelText('Name'), { key: 'Enter', ctrlKey: true })
+    // FOCUSED, so the registry's own focus guard is exercised (notebook.builderSave is inEditable: the raw listener
+    // answered Ctrl/Cmd+Enter typed in the Name field). A keyDown on an unfocused input would not test that.
+    const name = screen.getByLabelText('Name')
+    act(() => name.focus())
+    expect(document.activeElement).toBe(name)
+    fireEvent.keyDown(name, { key: 'Enter', ctrlKey: true })
     await flush()
     expect(callsTo(fetchSpy, 'POST', (u) => u === '/api/j2/widget-definitions')).toHaveLength(1)
     expect(onClose).toHaveBeenCalled()
@@ -425,6 +430,26 @@ describe('WidgetBuilderSheet', () => {
     expect(screen.getByRole('radio', { name: 'Trading days' })).toBeChecked()
     fireEvent.click(screen.getByRole('button', { name: 'Undo' }))
     expect(screen.getByRole('radio', { name: 'Closed trades' })).toBeChecked()
+  })
+
+  // The builder's keys go through the shared key registry (notebook.builderUndo): the chord must keep the raw
+  // listener's rule exactly, Ctrl OR Cmd with z/Z/y/Y, Shift and Alt not read, and nothing without Ctrl/Cmd.
+  it('ctrl+y and cmd+Y redo, ctrl+alt+z still undoes, and a bare z or y does nothing', async () => {
+    await openBuilder()
+    const days = () => screen.getByRole('radio', { name: 'Trading days' })
+    const closed = () => screen.getByRole('radio', { name: 'Closed trades' })
+    fireEvent.click(days())
+    fireEvent.keyDown(document.body, { key: 'z' })
+    fireEvent.keyDown(document.body, { key: 'y' })
+    expect(days()).toBeChecked()
+    fireEvent.keyDown(document.body, { key: 'z', ctrlKey: true, altKey: true })
+    expect(closed()).toBeChecked()
+    fireEvent.keyDown(document.body, { key: 'y', ctrlKey: true })
+    expect(days()).toBeChecked()
+    fireEvent.keyDown(document.body, { key: 'z', metaKey: true })
+    expect(closed()).toBeChecked()
+    fireEvent.keyDown(document.body, { key: 'Y', metaKey: true, shiftKey: true })
+    expect(days()).toBeChecked()
   })
 
   it('live_region_announces_summary_only', async () => {

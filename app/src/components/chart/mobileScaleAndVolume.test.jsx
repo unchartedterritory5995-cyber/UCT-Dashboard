@@ -25,7 +25,7 @@
  * axis makes the region this whole first suite is about unreachable.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, cleanup, act, fireEvent } from '@testing-library/react'
+import { render, cleanup, act, fireEvent, within } from '@testing-library/react'
 import bars200 from '../../pages/parityBars/ramp200.json'
 import { legendTextOf, settledLegend } from './engine/__tests__/legendProbe'
 import { __resetCoarsePointerForTest } from './coarsePointer'
@@ -371,6 +371,23 @@ describe("MOB-06′ #1 — the phone can reach every price-scale mode", () => {
     const active = [...view.container.querySelectorAll('[class*="scaleToggleActive"]')]
       .map(b => b.textContent)
     expect(active).toEqual(['L'])
+  })
+
+  it('⛔ A11Y · the chips are a NAMED group and each SAYS whether it is on (aria-pressed)', () => {
+    // WebKit + VoiceOver, 2026-10-27: three buttons named only by their scale,
+    // with the current one told apart by colour alone, inside a wrapper named by
+    // `title`. The pressed state must follow the SAME resolver the colour does.
+    const view = draw({ settings: { logScale: true } })
+    const group = within(view.container).getByRole('group', { name: 'Price scale' })
+    const pressed = () => within(group).getAllByRole('button')
+      .map((b) => `${b.getAttribute('aria-label')}=${b.getAttribute('aria-pressed')}`)
+    expect(pressed()).toEqual([
+      'Arithmetic price scale=false', 'Logarithmic price scale=true', 'Percentage price scale=false',
+    ])
+    act(() => { fireEvent.click(within(group).getByRole('button', { name: 'Percentage price scale' })) })
+    expect(pressed()).toEqual([
+      'Arithmetic price scale=false', 'Logarithmic price scale=false', 'Percentage price scale=true',
+    ])
   })
 
   it('the menu is POINTER-AGNOSTIC — a coarse pointer gets the same rows', () => {

@@ -234,7 +234,7 @@ describe('the Template library section', () => {
     const byTitle = (title) => seed.find((r) => r.title === title)
     const chip = (r) => FAMILIES.filter((f) => familyKeeps(f.key, r)).map((f) => f.key)
     // The three pinned templates, found by their shipped TITLE (never the key the override names), land in trades.
-    for (const t of ['Trade plan (one idea)', 'Options trade plan', 'Trade post-mortem']) {
+    for (const t of ['Trade plan (one idea)', 'Options trade plan', 'Trade replay and rules check']) {
       expect(byTitle(t), t).toBeTruthy()
       expect(chip(byTitle(t)), t).toEqual(['trades'])
     }
@@ -242,10 +242,10 @@ describe('the Template library section', () => {
     expect(byTitle('Mid-day and risk check').group).toBe('during_day')
     expect(chip(byTitle('Mid-day and risk check'))).toEqual(['rituals'])
     // A template with no override follows its group, also beside a pinned neighbour in the same group.
-    expect(chip(byTitle("Tag today's trades"))).toEqual(['rituals'])        // after_close, like Trade post-mortem
+    expect(chip(byTitle("Tag today's trades"))).toEqual(['rituals'])        // after_close, like Trade replay and rules check
     expect(chip(byTitle('Setup study'))).toEqual(['research'])              // playbook, like Options trade plan
     // The same rows without their seed key fall back to their group: the override is by key, never by title.
-    expect(chip({ ...byTitle('Trade post-mortem'), seedKey: undefined })).toEqual(['rituals'])
+    expect(chip({ ...byTitle('Trade replay and rules check'), seedKey: undefined })).toEqual(['rituals'])
     // Every override names a live seed row, under exactly one chip that is a real chip.
     const live = new Set(seed.map((r) => r.seedKey))
     const pinned = Object.entries(FAMILY_TEMPLATES).flatMap(([f, keys]) => keys.map((k) => [f, k]))
@@ -258,7 +258,7 @@ describe('the Template library section', () => {
     // Every chip keeps at least one shipped template; "Around a trade" is never empty.
     for (const fam of FAMILIES) expect(seed.filter((r) => familyKeeps(fam.key, r)).length, fam.key).toBeGreaterThan(0)
     expect(seed.filter((r) => familyKeeps('trades', r)).map((r) => r.title).sort())
-      .toEqual(['Options trade plan', 'Trade plan (one idea)', 'Trade post-mortem'])
+      .toEqual(['Options trade plan', 'Trade plan (one idea)', 'Trade replay and rules check'])
   })
 
   it("every picker chip shows the library rows it keeps, from the server's REAL /library answer (contract fixture)", async () => {

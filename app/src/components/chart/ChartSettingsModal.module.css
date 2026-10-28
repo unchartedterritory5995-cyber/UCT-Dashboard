@@ -13,6 +13,10 @@
   background: transparent;
   padding: 20px;
 }
+/* The dialog layer takes focus on open (so focus is IN the modal, not on the page
+   behind it). It is the full-screen transparent catcher, not a control: no ring. */
+.backdrop:focus,
+.backdrop:focus-visible { outline: none; }
 
 .panel {
   /* ⚰️⚰️ THE SHELL BELONGED TO THE TAB, AND IT SHOULD NEVER HAVE. This was
@@ -2425,8 +2429,11 @@
 .insAdd .resShort {
   border-color: transparent;
   background: transparent;
+  /* ⛔ NO `opacity` ON TOP OF THE FAINT TIER. It stood here at 0.75 and
+     composited #93939a down to #727278 on --menu-bg: 4.03:1 at 9.5px, under WCAG
+     AA (axe `color-contrast`, WebKit, 2026-10-27). The faint TOKEN is already
+     the quiet tier (6.3:1); dimming it again is a second, unaudited tier. */
   color: var(--menu-text-faint, #93939a);
-  opacity: 0.75;
   padding-inline: 0;
 }
 /* ⭐ AND THE ADD AFFORDANCE STAYS PUT BUT STEPS BACK. It is not hidden until

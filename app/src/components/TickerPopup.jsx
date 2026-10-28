@@ -1,5 +1,5 @@
 // app/src/components/TickerPopup.jsx
-import { useState, useEffect, useRef, lazy, Suspense } from 'react'
+import { useState, useEffect, useLayoutEffect, useRef, useId, useSyncExternalStore, lazy, Suspense } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { createPortal } from 'react-dom'
 import useRealtimePrices from '../hooks/useRealtimePrices'
@@ -16,10 +16,13 @@ import { useIsTouch } from '../hooks/useBreakpoint'
 import { prefetchAllTimeframes, prefetchBar } from '../utils/prefetchBars'
 import JournalBacklinks from './JournalBacklinks'
 import useAppFocus from '../hooks/useAppFocus'
-import useFocusTrap, { focusableWithin } from './mobile/useFocusTrap'
-import SymbolSearch from './chart/SymbolSearch'
+import useFocusTrap, { focusableWithin, inertBeneath } from './mobile/useFocusTrap'
+import CompareSymbolSearch from './CompareSymbolSearch'
 import styles from './TickerPopup.module.css'
+import { CHART_FIT_TARGET, fitChartHeightPx, chartHeightCss, shouldUpdateFit } from './tickerPopupChartFit'
 import { chordById, matchesChord } from '../pages/command/chords.js'
+import { openLayers, layerOpenedSince } from '../lib/topLayer'
+import { registerShortcuts } from '../pages/command/shortcutRegistry'
 
 // The SAME chart the /charts workspace renders — identity row, session toggle,
 // market clock, timeframe bar, market-cap/earnings/UCT-rating meta, settings
@@ -60,6 +63,76 @@ const CAPTURE_TOAST_HOLD_MS = 8000
 // failure flag threaded through the two capture functions.
 function isCaptureSuccessMessage(msg) {
   return typeof msg === 'string' && /captured to Notebook$/.test(msg)
+}
+
+// ⛔⛔ WHO OWNS ESCAPE OVER AN OPEN POPUP -- decided BEFORE any layer reacts.
+//
+// A layer is what lib/topLayer.js says it is (a Sheet panel, an aria-modal dialog, a non-modal
+// [data-escape-layer] -- the chart's right-click menu, earnings popover, IPO tag -- or an open
+// <dialog>). One is ABOVE the popup when it OPENED after the popup (open order, not document
+// order: the right-click menu renders inside #root, BEFORE the popup's <body> portal), or when
+// the popup sits beneath an inert background (Chart Settings makes everything under it inert;
+// `inertBeneath` is useFocusTrap's own test for that).
+//
+// ⛔ The answer is taken in the WINDOW CAPTURE phase (`tickerPopup.escapeGate`, observe-only):
+// a layer that closes from its own document listener is already UNMOUNTED by the time the
+// popup's window-bubble listener runs -- browsers run a microtask checkpoint between the two and
+// React commits the close in it. Closing stays in the bubble phase, so anything inside the
+// popup that handles Escape and stops propagation (the switch-ticker suggestions) still wins.
+const OPEN_POPUPS = new Map()       // popup element -> the layers that were open when it opened
+// The record the gate takes for the key being dispatched NOW. A registry observer is called without
+// the event, so the record is not keyed by it: it is the latest one, taken in this very event's window
+// capture phase: every event that reaches the popup's window-bubble listener passed through window
+// capture first, and events are dispatched one at a time, so the latest record is this key's.
+let escapeSnapshot = null
+let releaseEscapeGate = null
+
+export function escapeBelongsToLayerAbove(popup, beneath = OPEN_POPUPS.get(popup)) {
+  if (!popup) return false
+  if (inertBeneath(popup)) return true
+  return layerOpenedSince(popup, beneath || new Set())
+}
+
+// On EVERY key while a popup is open (an observer hears every key, it cannot filter): one
+// querySelectorAll over the layer selector per open popup -- cheap, and only while one is open.
+function snapshotEscape() {
+  const owned = new Map()
+  for (const [popup, beneath] of OPEN_POPUPS) owned.set(popup, escapeBelongsToLayerAbove(popup, beneath))
+  escapeSnapshot = owned
+}
+
+/** Register an open popup (one gate for all of them: a nested popup must not bind it twice). */
+function trackOpenPopup(popup) {
+  OPEN_POPUPS.set(popup, openLayers())
+  if (!releaseEscapeGate) releaseEscapeGate = registerShortcuts({ 'tickerPopup.escapeGate': snapshotEscape })
+  notifyTopChanged()
+  return () => {
+    OPEN_POPUPS.delete(popup)
+    if (!OPEN_POPUPS.size) {
+      if (releaseEscapeGate) { releaseEscapeGate(); releaseEscapeGate = null }
+      escapeSnapshot = null   // drop the last record: it holds the closed popup's element
+    }
+    notifyTopChanged()
+  }
+}
+
+// ⛔⛔ ONLY THE TOPMOST OPEN POPUP SPEAKS FOR THE APP (rule H14). Each popup writes the app focus
+// symbol (useAppFocus) and the Compass page hint while it is open. Two open at once wrote them
+// in turn FOREVER: setSymbol is a new function after every write (it closes over the prefs it
+// just changed), so each write re-ran BOTH popups' effects -- AAA, BBB, AAA, ... a preferences
+// POST per turn, with the app frozen. The topmost is the LAST popup in OPEN_POPUPS, the same
+// open-order stack the Escape gate reads; when it closes, the next one down becomes topmost and
+// writes its own symbol again.
+const TOP_LISTENERS = new Set()
+function notifyTopChanged() { for (const fn of TOP_LISTENERS) fn() }
+function subscribeTop(fn) { TOP_LISTENERS.add(fn); return () => { TOP_LISTENERS.delete(fn) } }
+function topPopup() { let top = null; for (const p of OPEN_POPUPS.keys()) top = p; return top }
+
+/** Was this Escape, at capture time, owned by a layer above `popup`? */
+function escapeOwnedAbove(popup) {
+  const snap = escapeSnapshot
+  if (snap && snap.has(popup)) return snap.get(popup)
+  return escapeBelongsToLayerAbove(popup)   // no record (the gate was not live for this key)
 }
 
 export default function TickerPopup({ sym, as: Tag = 'span', customChartFn, className, children, markers = null, priceLines = null, stopPrice = null, anchorDate = null, darkPool = false, flowMeta = null, open: openProp, onClose, focusable = true }) {
@@ -144,6 +217,72 @@ export default function TickerPopup({ sym, as: Tag = 'span', customChartFn, clas
   useFocusTrap(modalOpen, modalRef)
   const [tab, setTab] = useState('Daily')
   const [view, setView] = useState('chart') // 'chart' | 'fundamentals'
+
+  // The chart takes the height the modal has LEFT, so the whole chart (date axis and A/L/%
+  // chips included) fits inside the modal's max height without scrolling on a short
+  // landscape screen. See tickerPopupChartFit.js for the arithmetic and why it settles in
+  // one measurement. ⛔ Rule H14: re-measures are rAF-coalesced and a change within the
+  // hysteresis is ignored, so this can never become a per-frame render loop.
+  const chartAreaRef = useRef(null)
+  const [chartFitPx, setChartFitPx] = useState(null)
+  useLayoutEffect(() => {
+    if (!modalOpen || view !== 'chart') { setChartFitPx(null); return undefined }
+    const modal = modalRef.current
+    const area = chartAreaRef.current
+    if (!modal || !area) return undefined
+    let raf = 0
+    let ro = null
+    let watchedPane = null
+    const measure = () => {
+      raf = 0
+      const wrapper = area.querySelector(`.${CHART_FIT_TARGET}`)
+      const pane = area.firstElementChild
+      // Watch the pane's OWN box from the moment it exists: its identity row, timeframe bar
+      // and the chart wrapper land after it mounts, inside an area the 560px loading floor
+      // may still be holding at a fixed height.
+      // (a re-suspend can REPLACE the pane: stop watching the old one, which is detached)
+      if (pane && ro && pane !== watchedPane) {
+        if (watchedPane) ro.unobserve(watchedPane)
+        ro.observe(pane)
+        watchedPane = pane
+      }
+      if (!wrapper || !pane || !pane.contains(wrapper)) return
+      const mcs = getComputedStyle(modal)
+      const acs = getComputedStyle(area)
+      const next = fitChartHeightPx({
+        maxHeight: mcs.maxHeight, borderTop: mcs.borderTopWidth, borderBottom: mcs.borderBottomWidth,
+        modalScrollHeight: modal.scrollHeight, areaHeight: area.offsetHeight,
+        areaPaddingTop: acs.paddingTop, areaPaddingBottom: acs.paddingBottom,
+        paneHeight: pane.offsetHeight, wrapperHeight: wrapper.offsetHeight,
+      })
+      setChartFitPx((prev) => (shouldUpdateFit(prev, next) ? next : prev))
+    }
+    const schedule = () => { if (!raf) raf = requestAnimationFrame(measure) }
+    // ⛔ THE COLD OPEN. The pane is a lazy chunk: React commits the Suspense fallback, the
+    // first measure finds no wrapper, and when the pane lands the area may not change size at
+    // all -- its 560px loading floor holds it while the modal sits at its cap -- so no
+    // ResizeObserver fires and the chart never fits until a window resize (1366x657 laptop:
+    // ~125px of chart, axis and chips under the modal edge). The swap of the area's CHILD is
+    // the signal: a MutationObserver on the area's direct children (childList only, never the
+    // subtree -- the legend re-renders on every crosshair move) schedules the measure.
+    // ⛔ Observe the modal's CONTENT, not just the modal: once fitted the modal sits at its
+    // max-height cap, so its own box never changes when the chrome ABOVE the chart grows
+    // (a live price, journal backlinks, a toast, a header that wraps to a second row of
+    // 44px buttons). Each child's own box does -- and the chart area is one of them.
+    ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(schedule) : null
+    ro?.observe(modal)
+    for (const child of modal.children) ro?.observe(child)
+    const mo = typeof MutationObserver !== 'undefined' ? new MutationObserver(schedule) : null
+    mo?.observe(area, { childList: true })
+    window.addEventListener('resize', schedule)
+    schedule()
+    return () => {
+      if (raf) cancelAnimationFrame(raf)
+      ro?.disconnect()
+      mo?.disconnect()
+      window.removeEventListener('resize', schedule)
+    }
+  }, [modalOpen, view])
   // Anchored+reveal (Desk recordings): open positioned at the session date; the
   // chart's "⟲ Back to today" pill un-anchors. Re-arm on every open so the next
   // look at the recording starts back at the session again.
@@ -270,10 +409,25 @@ export default function TickerPopup({ sym, as: Tag = 'span', customChartFn, clas
     }
   }
 
+  // The popup's place in the open order (see trackOpenPopup above). A layout effect, so the
+  // layers already open are recorded before anything the popup opens can mount.
+  useLayoutEffect(() => {
+    if (!modalOpen || !modalRef.current) return undefined
+    return trackOpenPopup(modalRef.current)
+  }, [modalOpen])
+
   useEffect(() => {
     if (!modalOpen) return
     const handleKey = (e) => {
-      if (e.key === 'Escape') { closeModal(); return }
+      // An Escape that ends an IME composition (in the switch-ticker box) is not a close.
+      if (e.isComposing) return
+      if (e.key === 'Escape') {
+        // ⛔ ONE Escape, ONE layer. A layer opened OVER the popup (Chart Settings from the
+        // chart's context menu, the symbol search, any modal dialog) owns this key; this
+        // window listener used to close the popup underneath it in the same keystroke.
+        if (escapeOwnedAbove(modalRef.current)) return
+        closeModal(); return
+      }
       // S2 CP6 — reads the DECLARED chord table instead of spelling the modifier
       // set out inline. Behaviour is identical by construction and proved so in
       // TickerPopup.chordAdoption.test.jsx.
@@ -296,19 +450,23 @@ export default function TickerPopup({ sym, as: Tag = 'span', customChartFn, clas
   // useAppFocus), so this is the same value /charts already persists, not a
   // second one. Set on OPEN only; a hover preview must never move focus.
   const { setSymbol: setFocusSymbol } = useAppFocus()
+  const isTopPopup = useSyncExternalStore(subscribeTop,
+    () => !!modalRef.current && topPopup() === modalRef.current, () => false)
   useEffect(() => {
-    if (modalOpen && activeSym) setFocusSymbol(activeSym)
-  }, [modalOpen, activeSym, setFocusSymbol])
+    if (modalOpen && activeSym && isTopPopup) setFocusSymbol(activeSym)
+  }, [modalOpen, activeSym, setFocusSymbol, isTopPopup])
 
   // P4-F unification: while this ticker modal is open, tell Compass the
   // user is looking at this symbol. So if they open the orb from inside
   // the modal, Compass starts the session knowing the ticker context.
+  // Topmost popup only (see TOP_LISTENERS): a popup underneath must neither set the hint nor
+  // clear the top one's when it closes.
   useEffect(() => {
-    if (!modalOpen || !activeSym) return
+    if (!modalOpen || !activeSym || !isTopPopup) return
     const tabHint = tab && tab !== 'Daily' ? `, ${tab}` : ''
     setVoicePageHint(`chart of ${activeSym}${tabHint}`)
     return () => setVoicePageHint(null)
-  }, [modalOpen, activeSym, tab])
+  }, [modalOpen, activeSym, tab, isTopPopup])
 
   return (
     <>
@@ -485,7 +643,10 @@ export default function TickerPopup({ sym, as: Tag = 'span', customChartFn, clas
                   <UIcon name="dollar" size={14} />
                 </button>
                 <span className={styles.compareEntry} data-testid="ticker-popup-compare-entry">
-                  <SymbolSearch sym={activeSym} displayLabel="+ Compare" onSymbolChange={goToCompare} />
+                  {/* The badge's default name ("QQQ — click to search a different
+                      ticker") describes retargeting THIS chart and omits the
+                      visible "Compare"; this door opens a comparison. */}
+                  <CompareSymbolSearch sym={activeSym} onSymbolChange={goToCompare} />
                 </span>
                 {/* Dark until S7_FILING_WATCH_ENABLED; the gate is owned by useFilingWatch. */}
                 {filingWatch.enabled && (
@@ -559,7 +720,13 @@ export default function TickerPopup({ sym, as: Tag = 'span', customChartFn, clas
                   favourites, so a second row here would duplicate it. */}
             </div>
 
-            <div className={styles.chartArea} data-ticker-popup-chart="">
+            <div
+              ref={chartAreaRef}
+              className={styles.chartArea}
+              data-ticker-popup-chart=""
+              // Fitted: the 560px loading floor must not hold the area taller than the chart.
+              style={chartFitPx != null && view === 'chart' ? { minHeight: 0 } : undefined}
+            >
               {view === 'chart' ? (
                 <Suspense fallback={<div className={styles.chartLoading}>Loading chart…</div>}>
                   {/* `stored={null}` with no `onStore` = THE user's own chart:
@@ -601,7 +768,8 @@ export default function TickerPopup({ sym, as: Tag = 'span', customChartFn, clas
                       ),
                     } : undefined}
                     stockChartProps={{
-                      height: 'min(820px, 68vh)',
+                      height: chartHeightCss(chartFitPx),
+                      className: CHART_FIT_TARGET,
                       markers,
                       priceLines,
                       darkPoolBars,
@@ -652,6 +820,16 @@ function SwitchTickerBox({ onPick }) {
   const [open, setOpen] = useState(false)
   const [active, setActive] = useState(0)
   const boxRef = useRef(null)
+  // ARIA combobox (APG "list autocomplete"): the input owns the listbox by id and
+  // points at the arrowed-to option with aria-activedescendant, so a screen reader
+  // hears the suggestion focus is on without focus ever leaving the input.
+  const listId = useId()
+  const optId = (i) => `${listId}-opt-${i}`
+  const expanded = open && results.length > 0
+  // Enter takes the TYPED symbol unless you arrowed onto a suggestion (index > 0),
+  // so only an arrowed-to row is "the active descendant" -- the row painted at
+  // index 0 is a hint, never what Enter will open.
+  const kbdActive = expanded && active > 0 ? active : -1
 
   useEffect(() => {
     const t = q.trim()
@@ -680,16 +858,24 @@ function SwitchTickerBox({ onPick }) {
   }
 
   const onKey = (e) => {
+    // An IME composition owns Enter and Escape until it commits (CJK input, dictation).
+    if (e.nativeEvent?.isComposing) return
     if (e.key === 'Enter') {
       e.preventDefault()
       // Enter takes the TYPED symbol unless you arrowed onto a suggestion.
       submit(active > 0 ? (results[active]?.ticker || q) : q)
     } else if (e.key === 'ArrowDown') {
-      e.preventDefault(); setActive(i => Math.min(i + 1, Math.max(0, results.length - 1)))
+      e.preventDefault()
+      if (!open && results.length) { setOpen(true); return }
+      setActive(i => Math.min(i + 1, Math.max(0, results.length - 1)))
     } else if (e.key === 'ArrowUp') {
       e.preventDefault(); setActive(i => Math.max(i - 1, 0))
     } else if (e.key === 'Escape') {
-      setOpen(false)
+      // ⛔ ONE Escape, ONE layer. With suggestions showing, Escape closes THEM and
+      // stops there -- it used to bubble on to the popup's window listener and close
+      // the whole chart along with the list. With nothing showing it still falls
+      // through, so Escape from an idle box closes the popup exactly as before.
+      if (expanded) { e.stopPropagation(); setOpen(false) }
     }
   }
 
@@ -703,20 +889,33 @@ function SwitchTickerBox({ onPick }) {
         onKeyDown={onKey}
         placeholder="Switch ticker…"
         aria-label="Switch ticker — type a symbol to open its chart"
+        role="combobox"
+        aria-autocomplete="list"
+        aria-expanded={expanded}
+        aria-controls={listId}
+        aria-activedescendant={kbdActive >= 0 ? optId(kbdActive) : undefined}
         spellCheck={false}
         autoComplete="off"
       />
-      {open && results.length > 0 && (
-        <div className={styles.switchMenu} role="listbox">
+      {/* Always mounted, like the capture status above (RW-NEW-02): a live region
+          inserted together with its text is often never announced. */}
+      <span className="sr-only" role="status" aria-live="polite" aria-atomic="true" data-testid="switch-ticker-status">
+        {expanded ? `${results.length} suggestion${results.length === 1 ? '' : 's'}` : ''}
+      </span>
+      {expanded && (
+        <div className={styles.switchMenu} role="listbox" id={listId} aria-label="Ticker suggestions">
           {results.map((r, i) => (
             <button
               type="button"
               key={r.ticker}
+              id={optId(i)}
+              // Options are reached with the arrows from the input, never with Tab.
+              tabIndex={-1}
               className={`${styles.switchOpt} ${i === active ? styles.switchOptActive : ''}`}
               onMouseDown={(e) => { e.preventDefault(); submit(r.ticker) }}
               onMouseEnter={() => setActive(i)}
               role="option"
-              aria-selected={i === active}
+              aria-selected={i === kbdActive}
             >
               <span className={styles.switchOptSym}>{r.ticker}</span>
               {r.name && <span className={styles.switchOptName}>{r.name}</span>}

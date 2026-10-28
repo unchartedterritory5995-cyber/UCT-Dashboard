@@ -17,7 +17,9 @@ import { readFileSync } from 'node:fs'
 import * as acorn from 'acorn'
 import { DOC, runEveryVector } from './test-vectors.js'
 
-const SRC = readFileSync(new URL('./widgetFormula.js', import.meta.url), 'utf8')
+// CRLF -> LF only: a Windows checkout (core.autocrlf=true) puts a CR before every newline, which the refused-character
+// rail below would report on every line while CI's LF checkout has none. A lone CR is still in SRC and still caught.
+const SRC = readFileSync(new URL('./widgetFormula.js', import.meta.url), 'utf8').replace(/\r\n/g, '\n')
 
 /** Names allowed as an index: loop counters and positions the module computes itself. */
 const INDEX_NAMES = new Set(['i', 'j', 'k', 'idx', 'mi', 'mid', 'wi', 'found', 'from'])

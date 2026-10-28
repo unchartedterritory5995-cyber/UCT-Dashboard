@@ -60,6 +60,14 @@
   border-top: 1px solid var(--border);
 }
 
+/* Touch: the "+ Compare" badge is SymbolSearch's own, sized for a chart TF bar (14px tall at
+   834, 40px from its own <=640 rule). This sheet is a finger surface, so the badge clears
+   --tap-min on the whole touch tier AND on any coarse pointer (the same condition as the
+   TickerPopup floor). Rail: `mobile/TickerHubSheet.tapFloor.test.js`. */
+@media (max-width: 1024px), (pointer: coarse) {
+  .compareRow button { min-height: var(--tap-min); }
+}
+
 .alertForm { display: flex; gap: var(--space-sm); align-items: center; }
 .alertSel, .alertInput {
   min-height: var(--tap-min);

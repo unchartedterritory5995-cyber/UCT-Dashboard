@@ -55,7 +55,10 @@ const SEVEN = {
 }
 const attrsOf = (p) => widgetEmbedNode('builtWidget', { ...BASE, ...p }).attrs
 const P = (p) => ({ ...BASE, ...p })
+// CRLF -> LF: `ruleBody` and the 11 px rail match multi-line selectors with `\n`, and a Windows checkout
+// (core.autocrlf=true) has CRLF on disk, so an unnormalised read finds no such rule there while CI's LF checkout does.
 const CSS = readFileSync(join(process.cwd(), 'src/pages/journal-2-0/components/notebook/widgets/builtViews/builtViews.module.css'), 'utf8')
+  .replace(/\r\n/g, '\n')
 const ruleBody = (sel) => {
   const m = new RegExp(`(^|\\n)${sel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\{([^}]*)\\}`).exec(CSS)
   return m ? m[2] : ''

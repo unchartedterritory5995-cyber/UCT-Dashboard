@@ -386,13 +386,13 @@ def test_library_lists_by_group_with_in_your_templates(app, client, db):
 def test_library_cards_carry_their_seed_key(app, client, db):
     """The owner's chip ruling (2026-10-27): the client pins a few templates to a chip by seed key
     (`FAMILY_TEMPLATES`, lib/templateLibrary.js), so each library card carries its row's own `seed_key`."""
-    seeded = _official(db, title="Trade post-mortem", group="after_close")
-    db.execute("UPDATE j2_template_gallery SET seed_key = ? WHERE id = ?", ("uct-template-trade-post-mortem-v1", seeded))
+    seeded = _official(db, title="Trade replay and rules check", group="after_close")
+    db.execute("UPDATE j2_template_gallery SET seed_key = ? WHERE id = ?", ("uct-template-trade-post-mortem-v2", seeded))
     db.commit()
     unseeded = _official(db)
     as_user(app, MEMBER)
     by_id = {r["id"]: r for r in client.get(f"{GALLERY}/library").json()["templates"]}
-    assert by_id[seeded]["seedKey"] == "uct-template-trade-post-mortem-v1"
+    assert by_id[seeded]["seedKey"] == "uct-template-trade-post-mortem-v2"
     assert by_id[unseeded]["seedKey"] is None
     assert "seedKey" not in client.get(GALLERY).json()["templates"][0]      # the library cards only
 

@@ -34,7 +34,7 @@ function highlighted(text, query, styles) {
   return parts
 }
 
-const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hideIcon = false, logoSym = null, brandLogo = false, displayLabel = null, fullLabel = false, labelColor = null, boundsRef = null, themeVars = null, economic = false }, ref) {
+const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hideIcon = false, logoSym = null, brandLogo = false, displayLabel = null, fullLabel = false, labelColor = null, boundsRef = null, themeVars = null, economic = false, ariaLabel = null }, ref) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [results, setResults] = useState(POPULAR_RESULTS)
@@ -251,7 +251,9 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
         style={hideIcon ? { justifyContent: fullLabel ? 'flex-start' : 'center', width: fullLabel ? 'auto' : '100%' } : undefined}
         onClick={() => { if (open) { setOpen(false) } else { setQuery(''); setChip('all'); setOpen(true) } }}
         title={displayLabel ? `${sym} — click to search` : 'Search ticker'}
-        aria-label={sym ? `${sym} — click to search a different ticker` : 'Search ticker'}
+        // `ariaLabel`: a caller whose badge does something OTHER than retarget this
+        // chart (the "+ Compare" doors) names that action; omitted = unchanged.
+        aria-label={ariaLabel || (sym ? `${sym} — click to search a different ticker` : 'Search ticker')}
       >
         {displayLabel ? (
           <span

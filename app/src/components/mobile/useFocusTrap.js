@@ -109,6 +109,20 @@ export function sheetOpenAbove(container) {
 }
 
 /**
+ * Has a modal ABOVE this one made it inert?
+ *
+ * ⛔ AN INERT DIALOG IS NEVER THE TOPMOST ONE. A modal opened over another
+ * (Chart Settings over the ticker popup) makes everything under it `inert`
+ * (backgroundInert.js), the lower dialog included. Its trap, registered FIRST on
+ * the same document capture phase, would otherwise see focus "outside" on every
+ * Tab, `preventDefault()` it, and focus its own first control -- which cannot
+ * take focus, because it is inert. Tab went nowhere at all.
+ */
+export function inertBeneath(container) {
+  return !!(container && typeof container.closest === 'function' && container.closest('[inert]'))
+}
+
+/**
  * Install the trap for a dialog that is NOT a `Sheet` (a `Sheet` already runs
  * `trapTabKey` itself — adding this inside one is a second authority over one
  * behaviour, which is the defect this extraction removes).
@@ -120,7 +134,8 @@ export function sheetOpenAbove(container) {
  * `IndicatorSettingsDialog`: the forward wrap passed and the backward one
  * walked to `body`.
  *
- * It also stands down while a `Sheet` is open above it (see `sheetOpenAbove`).
+ * It also stands down while a `Sheet` is open above it (see `sheetOpenAbove`),
+ * and while any other modal has made it inert (see `inertBeneath`).
  *
  * @param {boolean} active     trap only while the dialog is open
  * @param {{current: Element|null}} containerRef  the dialog panel
@@ -133,6 +148,7 @@ export default function useFocusTrap(active, containerRef, shouldTrap) {
       if (e.key !== 'Tab') return
       const container = containerRef?.current
       if (sheetOpenAbove(container)) return
+      if (inertBeneath(container)) return
       if (shouldTrap && !shouldTrap()) return
       trapTabKey(e, container)
     }
