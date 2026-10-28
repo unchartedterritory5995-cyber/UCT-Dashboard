@@ -33,7 +33,8 @@ export function afterRender() {
     const finish = () => {
       if (done) return
       done = true
-      document.removeEventListener('visibilitychange', onVisibility)
+      // (the page — or a test's DOM — may be gone by the time a late frame lands)
+      if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', onVisibility)
       resolve()
     }
     // Hidden while waiting: the frame may never come — continue on a macrotask instead.
