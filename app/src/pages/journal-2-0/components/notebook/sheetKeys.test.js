@@ -47,6 +47,41 @@ describe('holdSheetKeys', () => {
     spy.mockRestore()
   })
 
+  // The raw listeners these replaced had NO focus guard: each handler decides about fields itself (the builder lets
+  // Ctrl+Enter save from the Name field, keeps a text field's own undo but undoes from a checkbox or radio). So every
+  // sheet binding is inEditable, and the registry must hand them the key with an editable element focused. At the
+  // builder's main level no real checkbox or radio exists (its radios are buttons), so this is railed here, on the
+  // declarations, with a focused <input type=checkbox> and <input type=text>.
+  it.each([
+    ['builder', [{ key: 'Escape' }, { key: 'Enter', ctrlKey: true }, { key: 'z', ctrlKey: true }, { key: 'y', metaKey: true }]],
+    ['toolEditor', [{ key: 'Escape' }]],
+    ['myToolsTab', [{ key: 'Escape' }]],
+  ])('%s: its keys reach the handler with a text field or a checkbox focused', (name, keys) => {
+    const fn = vi.fn()
+    const off = holdSheetKeys(name, fn)
+    for (const type of ['text', 'checkbox']) {
+      const input = document.body.appendChild(document.createElement('input'))
+      input.type = type
+      input.focus()
+      expect(document.activeElement).toBe(input)
+      for (const init of keys) input.dispatchEvent(new KeyboardEvent('keydown', { ...init, bubbles: true }))
+      input.remove()
+    }
+    expect(fn).toHaveBeenCalledTimes(keys.length * 2)
+    off()
+  })
+
+  it('a holder released DURING a dispatch (its sheet unmounted by an earlier handler) is not called', () => {
+    const calls = []
+    let releaseB = null
+    const a = holdSheetKeys('toolEditor', () => { calls.push('a'); releaseB() })
+    releaseB = holdSheetKeys('toolEditor', () => calls.push('b'))
+    const c = holdSheetKeys('toolEditor', () => calls.push('c'))
+    esc()
+    expect(calls).toEqual(['a', 'c'])
+    a(); c()
+  })
+
   it('an unknown key set is refused by name', () => {
     expect(() => holdSheetKeys('nope', () => {})).toThrow(/nope/)
   })

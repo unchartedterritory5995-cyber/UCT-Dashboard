@@ -332,6 +332,23 @@ describe('TERM-063 — an observer hears every key and can answer none', () => {
     off()
   })
 
+  it('an observer registered alongside a MATCHING binding still runs, and runs first (wherever it is listed)', () => {
+    // palette.close is document capture like the observer, so the two share ONE native listener in this call.
+    const order = []
+    const off = registerShortcuts({
+      'palette.close': (e) => { order.push('binding'); e.preventDefault() },
+      'notebook.inputKind': () => { order.push('observer') },
+    })
+    const e = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })
+    document.body.dispatchEvent(e)
+    expect(order).toEqual(['observer', 'binding'])
+    expect(e.defaultPrevented).toBe(true)        // the binding still acted
+    // A key no binding answers: the observer alone.
+    document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'q', bubbles: true }))
+    expect(order).toEqual(['observer', 'binding', 'observer'])
+    off()
+  })
+
   it('the conflict rail skips observers and ONLY observers', () => {
     const obs = observers[0]
     expect(findShortcutConflicts([obs, ...SHORTCUTS.filter((d) => !d.observe)].slice(0, 2))).toEqual([])

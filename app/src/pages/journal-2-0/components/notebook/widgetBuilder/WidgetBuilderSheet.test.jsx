@@ -409,7 +409,12 @@ describe('WidgetBuilderSheet', () => {
   it('ctrl_enter_saves', async () => {
     route('POST', (u) => u === '/api/j2/widget-definitions', () => answer({ ...SAVED, id: 'd-9', rev: 1, usedIn: 0 }))
     const { onClose } = await openBuilder()
-    fireEvent.keyDown(screen.getByLabelText('Name'), { key: 'Enter', ctrlKey: true })
+    // FOCUSED, so the registry's own focus guard is exercised (notebook.builderSave is inEditable: the raw listener
+    // answered Ctrl/Cmd+Enter typed in the Name field). A keyDown on an unfocused input would not test that.
+    const name = screen.getByLabelText('Name')
+    act(() => name.focus())
+    expect(document.activeElement).toBe(name)
+    fireEvent.keyDown(name, { key: 'Enter', ctrlKey: true })
     await flush()
     expect(callsTo(fetchSpy, 'POST', (u) => u === '/api/j2/widget-definitions')).toHaveLength(1)
     expect(onClose).toHaveBeenCalled()
