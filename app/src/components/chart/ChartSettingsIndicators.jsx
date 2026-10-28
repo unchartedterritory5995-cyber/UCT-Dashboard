@@ -143,6 +143,7 @@ import { paneMap, paneRowMeta, activeIndicatorRows } from './chartDataMap'
 import { movePane, movePaneTo } from './engine/paneOrder'
 import { moveSeriesWithinPane, moveSeriesTo, canMoveSeries } from './engine/paneSeriesOrder'
 import { safeCssColour } from './engine/objectColour'
+import { tagRestatesName } from './shortTag'
 
 /**
  * Is this row a chart FIXTURE — an MA overlay or the volume pane — rather than an
@@ -233,20 +234,6 @@ const featureRowId = (id) => `feature:${id}`
 // code point), so two keys can never share an id — `technical:macd` and a ticker
 // `TECHNICAL_MACD` stay apart.
 const resultIdSafe = (key) => String(key).replace(/[^A-Za-z0-9]/g, (ch) => `_${ch.codePointAt(0)}_`)
-
-/**
- * Does this result row's short tag merely ABBREVIATE its name?
- *
- * ⛔ Then the tag is visible but not spoken: inside the row's button it would
- * otherwise join the accessible name ("Parabolic SAR SAR"). Only the indicator
- * kinds carry a definition `shortName`; a `chip` (breadth population) never
- * restates the name, it is what tells same-named rows apart.
- */
-function tagRestatesName(row) {
-  if (!row || row.chip) return false
-  // A catalogue definition row carries NO `kind` (only the discovery adapters set one).
-  return !row.kind || row.kind === 'technical' || row.kind === 'builtin' || row.kind === 'formula'
-}
 
 export default function ChartSettingsIndicators({
   rows,
@@ -1419,10 +1406,12 @@ export default function ChartSettingsIndicators({
    * pointer. Same order as `onStructureKeys` walks, so the first Tab lands
    * where ↓ would start.
    */
-  const structureTabStop = useMemo(() => {
-    const ids = [...flatRows.map((r) => r.id), ...addedFeatures.map((f) => featureRowId(f.id))]
-    return ids.includes(selected) ? selected : (ids[0] ?? null)
-  }, [flatRows, addedFeatures, selected])
+  /** Every selectable row id in visual order -- what Tab enters and the arrows walk. */
+  const structureIds = useMemo(
+    () => [...flatRows.map((r) => r.id), ...addedFeatures.map((f) => featureRowId(f.id))],
+    [flatRows, addedFeatures],
+  )
+  const structureTabStop = structureIds.includes(selected) ? selected : (structureIds[0] ?? null)
 
   /** The group a row is filed under, for the Inspector's contextual name. */
   const groupOfRow = useCallback(
@@ -1492,7 +1481,7 @@ export default function ChartSettingsIndicators({
    */
   const onStructureKeys = useCallback((e) => {
     const step = e.key === 'ArrowDown' ? 1 : e.key === 'ArrowUp' ? -1 : 0
-    const ids = [...flatRows.map((r) => r.id), ...addedFeatures.map((f) => featureRowId(f.id))]
+    const ids = structureIds
     if (!ids.length) return
     let next = null
     if (step) {
@@ -1508,7 +1497,7 @@ export default function ChartSettingsIndicators({
     try {
       listRef.current?.querySelector(`[data-row-primary="${CSS.escape(next)}"]`)?.focus()
     } catch { /* jsdom has no CSS.escape; the selection still moved */ }
-  }, [flatRows, addedFeatures, selected])
+  }, [structureIds, selected])
 
   // ─── HOST FEATURES IN THE STRUCTURE LIST ──────────────────────────────────
   //
@@ -3180,13 +3169,12 @@ export default function ChartSettingsIndicators({
                 identically named metrics are told apart; every other kind keeps `shortName`. */}
             {/* ⛔ THE ABBREVIATION IS NOT PART OF THE NAME. Inside the button its text
                 joined the accessible name, so VoiceOver read "Parabolic SAR SAR",
-                "TRIX TRIX". On an INDICATOR row (technical / built-in / the
-                member's formula) `shortName` is the definition's abbreviation of
-                the name, so it is `aria-hidden`. Every other kind's tag QUALIFIES
-                the name (a breadth row's population, a security's type, a
-                fundamental's cadence) and stays in it. */}
+                "TRIX TRIX". A tag that only RESTATES the name (`shortTag.js`
+                derives that from the two strings) is `aria-hidden`; one that adds
+                something (a breadth population, a security's type, a cadence,
+                an abbreviation not spelled by the name) stays in it. */}
             {!isEcon && (
-              <span className={styles.resShort} aria-hidden={tagRestatesName(row) ? 'true' : undefined}>
+              <span className={styles.resShort} aria-hidden={tagRestatesName(row.name, row.chip || row.shortName) ? 'true' : undefined}>
                 {row.chip || row.shortName}
               </span>
             )}

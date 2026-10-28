@@ -91,6 +91,7 @@ import {
   createFromResult, CAPABILITY,
 } from './discoveryCatalog'
 import useSymbolDiscovery from './useSymbolDiscovery'
+import { tagRestatesName } from './shortTag'
 
 /** Does this row match the search box? Name, short name, id, category and tags —
  *  five ways in, because a user who knows an indicator as "BB", as "Bollinger",
@@ -565,10 +566,13 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
                             and compact strips take `shortName`; this surface and
                             the generated settings rows take the full one. */}
                         <span className={styles.name}>{row.name}</span>
-                        {/* ⛔ VISIBLE, NOT SPOKEN: the abbreviation restates the
-                            name, and inside the button it made the accessible
-                            name "Parabolic SAR SAR". */}
-                        <span className={styles.chip} aria-hidden="true">{row.shortName}</span>
+                        {/* ⛔ VISIBLE, NOT SPOKEN, WHEN IT ONLY RESTATES THE NAME:
+                            inside the button it made the accessible name
+                            "Parabolic SAR SAR". `shortTag.js` decides from the
+                            two strings; an abbreviation the name does not spell
+                            (ADX) is information and is still read. */}
+                        <span className={styles.chip}
+                          aria-hidden={tagRestatesName(row.name, row.shortName) ? 'true' : undefined}>{row.shortName}</span>
                         {/* ⭐ NAMED, NOT JUST TINTED. A colour alone is not a
                             distinction for a member who cannot see it, and the
                             heading scrolls out of view on a long list. */}

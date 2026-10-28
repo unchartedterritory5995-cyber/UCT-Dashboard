@@ -27,7 +27,7 @@ import IndicatorLibraryDialog from './IndicatorLibraryDialog'
 import ChartSettingsModal from './ChartSettingsModal'
 import { mergeChartSettings } from './chartDefaults'
 import * as engineRegistry from './engine/nativeRegistry'
-import { focusableWithin } from '../mobile/useFocusTrap'
+import useFocusTrap, { focusableWithin } from '../mobile/useFocusTrap'
 import { runAxe, formatViolations } from '../../pages/journal-2-0/a11y/axeHarness'
 import { resultRows, primaryOf } from './__tests__/resultRows'
 
@@ -72,10 +72,45 @@ describe('"Series on this chart" always has exactly one Tab stop', () => {
     expect(rows.filter((r) => rowPrimary(r).getAttribute('tabindex') === '0')).toEqual([rows[2]])
   })
 
-  it('axe finds no keyboard or structure violations in the list', async () => {
-    mount()
-    const { violations } = await runAxe(screen.getByTestId('chart-structure'))
-    expect(violations, formatViolations(violations)).toEqual([])
+  // ⛔ axe's `scrollable-region-focusable` needs a box that SCROLLS, and jsdom
+  // lays nothing out -- so the list is given the metrics WebKit measured (its
+  // content taller than its box, overflow auto). With them the rule runs for
+  // real: the CONTROL (every row -1, the shipped state) must go red first.
+  const rect = (top, bottom) => () => ({ top, bottom, left: 0, right: 300, width: 300, height: bottom - top, x: 0, y: top, toJSON() {} })
+  const asScroller = (el) => {
+    el.style.overflowY = 'auto'
+    Object.defineProperty(el, 'scrollHeight', { configurable: true, value: 1200 })
+    Object.defineProperty(el, 'clientHeight', { configurable: true, value: 240 })
+    // axe also asks that some content lie OUTSIDE the box (it scrolls past it).
+    el.getBoundingClientRect = rect(0, 240)
+    for (const d of el.querySelectorAll('*')) d.getBoundingClientRect = rect(0, 1200)
+  }
+  const scrollFindings = async (el) => {
+    const { violations } = await runAxe(el)
+    return violations.filter((v) => v.id === 'scrollable-region-focusable')
+  }
+
+  it('axe scrollable-region-focusable: red with no tab stop (CONTROL), clean with the fix', async () => {
+    const hadRects = typeof Range.prototype.getClientRects === 'function'
+    const prevRects = Range.prototype.getClientRects
+    Range.prototype.getClientRects = () => [rect(0, 1200)()]
+    try {
+      mount()
+      const list = screen.getByRole('group', { name: 'Series on this chart' })
+      asScroller(list)
+      const stops = structureRows().map(rowPrimary)
+      const live = stops.filter((b) => b.getAttribute('tabindex') === '0')
+      expect(live.length).toBe(1)
+      live[0].setAttribute('tabindex', '-1')          // the shipped markup
+      const red = await scrollFindings(list)
+      expect(red.map((v) => v.id), 'the rule did not run: the CONTROL proves nothing').toEqual(['scrollable-region-focusable'])
+      live[0].setAttribute('tabindex', '0')           // what the fix renders
+      const found = await scrollFindings(list)
+      expect(found, formatViolations(found)).toEqual([])
+    } finally {
+      if (hadRects) Range.prototype.getClientRects = prevRects
+      else delete Range.prototype.getClientRects
+    }
   })
 })
 
@@ -92,12 +127,14 @@ describe('a result row\'s accessible name is the indicator name, once', () => {
   it('Indicator library: exact names, and the short tag is still on screen', () => {
     render(<IndicatorLibraryDialog open onClose={() => {}} settings={base()}
       onChange={vi.fn()} registry={engineRegistry} />)
-    for (const name of ['Parabolic SAR', 'TRIX', 'SuperTrend', 'Average Directional Index']) {
+    for (const name of ['Parabolic SAR', 'TRIX', 'SuperTrend']) {
       const btn = screen.getByRole('button', { name })
       expect(btn.matches('[data-result-primary]')).toBe(true)
       // still VISIBLE: the tag is in the button, just not in its name
       expect(btn.querySelector('[aria-hidden="true"]')?.textContent?.trim()).toBeTruthy()
     }
+    // An abbreviation the name does not spell is information, and is still read.
+    expect(screen.getByRole('button', { name: /^Average Directional Index\s*ADX$/ }).matches('[data-result-primary]')).toBe(true)
     const names = resultRows(screen.getByRole('dialog')).map((r) => computeAccessibleName(primaryOf(r)))
     expect(names.length).toBeGreaterThan(20)
     expect(names.filter(stutters)).toEqual([])
@@ -118,11 +155,12 @@ describe('a result row\'s accessible name is the indicator name, once', () => {
 })
 
 // ─── 3. CHART SETTINGS IS A REAL MODAL ──────────────────────────────────────
-function Host({ withRef = true }) {
+function Host({ withRef = true, under = null }) {
   const [open, setOpen] = useState(false)
   const gearRef = useRef(null)
   return (
     <>
+      {under}
       <main>
         <button type="button" data-testid="gear" ref={gearRef}
           onClick={(e) => { gearRef.current = e.currentTarget; setOpen(true) }}>Chart settings</button>
@@ -224,5 +262,53 @@ describe('the Add surface short tag meets WCAG AA (4.5:1)', () => {
     const op = body.match(/opacity:\s*([\d.]+)/)
     const fg = mix(token(tok[1]), token('--menu-bg'), op ? Number(op[1]) : 1)
     expect(ratio(fg, token('--menu-bg'))).toBeGreaterThanOrEqual(4.5)
+  })
+})
+
+// ─── 3b. A MODAL OVER A MODAL, AND THE LAYERS THIS ONE OPENS ────────────────
+// The ticker popup consumes the same shared trap, registered FIRST on document
+// capture, and its chart can open Chart Settings above it (right-click "Chart
+// settings", Alt+,). The popup is then inert; its trap must not keep the Tab.
+function PopupLike() {
+  const ref = useRef(null)
+  useFocusTrap(true, ref)
+  return (
+    <div ref={ref} role="dialog" aria-modal="true" aria-label="Ticker popup" tabIndex={-1}>
+      <button type="button">popup-first</button>
+      <button type="button">popup-last</button>
+    </div>
+  )
+}
+
+describe('Chart Settings over another trapped dialog, and its own popouts', () => {
+  it('⛔ Tab moves FORWARD through Chart Settings while the popup beneath is trapped', async () => {
+    const user = userEvent.setup()
+    render(<Host under={<PopupLike />} />)
+    fireEvent.click(screen.getByTestId('gear'))
+    expect(screen.getByText('popup-first').closest('[inert]'), 'the popup beneath is not inert').toBeTruthy()
+    const nodes = focusableWithin(dialog())
+    nodes[1].focus()
+    await user.tab()
+    expect(document.activeElement, `Tab went to ${document.activeElement?.textContent}`).toBe(nodes[2])
+    await user.tab()
+    expect(document.activeElement).toBe(nodes[3])
+  })
+
+  it('the trap STANDS DOWN while the colour panel is open, so Tab can walk it', async () => {
+    const user = userEvent.setup()
+    render(<Host />)
+    fireEvent.click(screen.getByTestId('gear'))
+    const swatch = dialog().querySelector('[data-color-swatch]')
+    expect(swatch, 'no colour swatch on the opening tab').toBeTruthy()
+    fireEvent.click(swatch)
+    const panel = document.body.querySelector('[data-color-panel]')
+    expect(panel, 'the colour panel did not open').toBeTruthy()
+    expect(dialog().contains(panel)).toBe(false)
+    const ring = focusableWithin(panel)
+    expect(ring.length).toBeGreaterThan(2)
+    ring[0].focus()
+    await user.tab()
+    expect(dialog().contains(document.activeElement),
+      'the modal trap pulled focus out of the colour panel').toBe(false)
   })
 })
