@@ -16,7 +16,7 @@ import ChartSettingsModal from '../ChartSettingsModal'
 import AttachedPineDisclosures from './AttachedPineDisclosures'
 import UIcon from '../../ui/UIcon'
 import { VOLUME_PANE_SURFACE_FIXED } from '../indicatorRegistry'
-import { tfLabel, tfSortKey } from '../timeframes'
+import { tfLabel, tfSortKey, tfSpokenLabel } from '../timeframes'
 import { TF_ORDER, shortcutClaimsKey } from '../keyboardShortcuts'
 import useMarketOpen from '../../../hooks/useMarketOpen'
 import { getExtSessionCached } from '../../../utils/extSession'
@@ -997,8 +997,10 @@ function ChartPane({
         // A tab stop on purpose: focus here is what arms type-to-search, Shift+F and the
         // chart's own key handling. Unnamed, VoiceOver read it as a run-on of every
         // control inside it, so it is a named region (its controls stay reachable).
+        // The timeframe is in the name: a /charts layout holds several panes of ONE
+        // symbol, and same-named regions are indistinguishable landmarks (landmark-unique).
         role="region"
-        aria-label={`${sym} price chart`}
+        aria-label={`${sym} ${tfSpokenLabel((isBreadthLike || isEcon) ? breadthTf : (themeIdx.isIndex ? indexTf : tf))} price chart`}
         onClick={handleChartClick}
         onKeyDown={handleChartKeyDown}
       >

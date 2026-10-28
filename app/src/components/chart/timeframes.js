@@ -59,6 +59,19 @@ export function tfLabel(code) {
   return String(code)
 }
 
+// Spoken form of a code, for accessible names ("NVDA daily price chart", "NVDA 5-minute price
+// chart"). Derived from parseTf -- the same authority as tfLabel -- never a second map.
+export function tfSpokenLabel(code) {
+  const { unit, count, minutes } = parseTf(code)
+  if (Number.isNaN(count)) return String(code)
+  if (unit === 'minutes') return `${minutes}-minute`
+  if (unit === 'hours') return `${count}-hour`
+  if (unit === 'days') return count === 1 ? 'daily' : `${count}-day`
+  if (unit === 'weeks') return count === 1 ? 'weekly' : `${count}-week`
+  if (unit === 'months') return count === 1 ? 'monthly' : `${count}-month`
+  return String(code)
+}
+
 // Ascending duration weight for ordering the Favorites row lowest→highest
 // (1m < 5m < 1h < 4h < 1D < 2W < 1M < 3M …). Minutes and hours share the total-
 // minutes scale; days/weeks/months use day-equivalents so units never interleave.

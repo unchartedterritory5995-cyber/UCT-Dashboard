@@ -97,7 +97,9 @@ export default function ChartMarketClock() {
       {hover && pos && createPortal(
         <div
           className={styles.clockPopup}
-          role="status"
+          // Visual only: the clock's own name already carries this line, so a live region
+          // here made a screen reader speak it twice on focus.
+          aria-hidden="true"
           style={{ position: 'fixed', top: pos.top, right: pos.right, ...popupVars() }}
         >{detail}</div>,
         document.body,

@@ -176,9 +176,13 @@ export default function TickerPopup({ sym, as: Tag = 'span', customChartFn, clas
     }
     const schedule = () => { if (!raf) raf = requestAnimationFrame(measure) }
     // The pane is a lazy chunk: the area GROWS when it lands, which is what fires this.
+    // ⛔ Observe the modal's CONTENT, not just the modal: once fitted the modal sits at its
+    // max-height cap, so its own box never changes when the chrome ABOVE the chart grows
+    // (a live price, journal backlinks, a toast, a header that wraps to a second row of
+    // 44px buttons). Each child's own box does -- and the chart area is one of them.
     const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(schedule) : null
-    ro?.observe(area)
     ro?.observe(modal)
+    for (const child of modal.children) ro?.observe(child)
     window.addEventListener('resize', schedule)
     schedule()
     return () => {
@@ -316,6 +320,8 @@ export default function TickerPopup({ sym, as: Tag = 'span', customChartFn, clas
   useEffect(() => {
     if (!modalOpen) return
     const handleKey = (e) => {
+      // An Escape that ends an IME composition (in the switch-ticker box) is not a close.
+      if (e.isComposing) return
       if (e.key === 'Escape') { closeModal(); return }
       // S2 CP6 — reads the DECLARED chord table instead of spelling the modifier
       // set out inline. Behaviour is identical by construction and proved so in
@@ -743,6 +749,8 @@ function SwitchTickerBox({ onPick }) {
   }
 
   const onKey = (e) => {
+    // An IME composition owns Enter and Escape until it commits (CJK input, dictation).
+    if (e.nativeEvent?.isComposing) return
     if (e.key === 'Enter') {
       e.preventDefault()
       // Enter takes the TYPED symbol unless you arrowed onto a suggestion.

@@ -59,8 +59,15 @@ export function chartHeightCss(fitPx) {
   return fitPx == null ? 'min(820px, 68vh)' : `min(820px, 68vh, ${fitPx}px)`
 }
 
-/** Should a fresh measurement replace the current one? */
+/**
+ * Should a fresh measurement replace the current one?
+ * ⛔ A SMALLER value always wins: ignoring a 1-2px shrink leaves 1-2px of overflow, which is a
+ * scrollbar, and a classic Windows scrollbar narrows the content ~17px and can wrap the header.
+ * Only GROWTH waits for the hysteresis, which is what stops rounding from oscillating: a value
+ * that shrank cannot grow back by the same 1px.
+ */
 export function shouldUpdateFit(prev, next) {
   if (prev == null || next == null) return prev !== next
-  return Math.abs(next - prev) > CHART_FIT_HYSTERESIS_PX
+  if (next < prev) return true
+  return next - prev > CHART_FIT_HYSTERESIS_PX
 }
