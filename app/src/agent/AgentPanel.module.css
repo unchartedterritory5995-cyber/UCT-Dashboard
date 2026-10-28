@@ -120,6 +120,10 @@
 .cardMeta { margin-top: 6px; font-size: 11px; color: var(--text-muted); }
 .receipt { border-color: var(--ut-gold-glow); }
 .receiptLines { color: var(--text-bright); }
+.receiptDetails { margin-top: 4px; font-size: 11px; color: var(--text-muted); }
+.receiptDetails > summary { cursor: pointer; width: fit-content; }
+.receiptDetails > summary:focus-visible { outline: 1px solid var(--ut-gold-glow, currentColor); outline-offset: 2px; }
+.receiptDetailLines { margin-top: 4px; line-height: 1.45; }
 
 .bubble.refusal { border-color: var(--warn-border, var(--border)); background: var(--warn-bg, var(--bg-elevated)); color: var(--text); }
 .outcome { font-size: 12px; color: var(--text-muted); }

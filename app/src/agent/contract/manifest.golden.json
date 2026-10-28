@@ -2248,6 +2248,70 @@
    "query": false
   },
   {
+   "name": "chartGrid.set",
+   "domain": "chartGrid",
+   "target": "board",
+   "summary": "Show these tickers as that many charts, in equal cells: the charts already on the board are reused (top-left first), any still needed are ADDED, and the charts' area is re-tiled as an even grid. Other widgets stay where they are; nothing is removed. One change, one Undo.",
+   "hints": "Use for \"create/open/show N charts for A, B, C…\", \"put SPY, QQQ, NVDA and TSLA in a 2x2 grid\", \"show NVDA and AMD side by side\" — whenever the member names the tickers for several charts. target = the ref of the board entry. symbols = the tickers in the member's order, uppercase. timeframe = the one timeframe they gave for all of them (1|5|15|30|60 minutes, D, W, M), else null. layout = \"columns\" for side by side, \"rows\" for stacked, \"grid\" for a grid, else null. new_charts = true only when they ask for NEW charts (\"in new charts\", \"add four new charts\") — the charts already there then keep their tickers; else null. Never widget.add + chart.setSymbol for this.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "symbols": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "timeframe": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "enum": [
+       "1",
+       "5",
+       "15",
+       "30",
+       "60",
+       "D",
+       "W",
+       "M",
+       null
+      ]
+     },
+     "layout": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "enum": [
+       "grid",
+       "columns",
+       "rows",
+       null
+      ]
+     },
+     "new_charts": {
+      "type": [
+       "boolean",
+       "null"
+      ]
+     }
+    },
+    "required": [
+     "symbols",
+     "timeframe",
+     "layout",
+     "new_charts"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false
+  },
+  {
    "name": "widget.setLink",
    "domain": "widget",
    "target": "board",

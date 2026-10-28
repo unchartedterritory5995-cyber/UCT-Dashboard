@@ -243,14 +243,13 @@ describe('Open chart REUSES a chart — one chart switches, several ask, none ad
     await waitFor(() => expect(charts(board)).toEqual(['NYSE:A200']), { timeout: 8000 })
   }, 20000)
 
-  it('an EXPLICIT new-chart request keeps the add: "Open NASDAQ:A50 in a new chart" → a new chart (the add’s own proposal)', async () => {
-    const { board, say, idle } = mount(ONE, { B: 'QQQ' })
+  it('an EXPLICIT new-chart request keeps the add: "Open NASDAQ:A50 in a new chart" → a new chart, made at once', async () => {
+    const { board, say } = mount(ONE, { B: 'QQQ' })
     await say('Open NASDAQ:A50 in a new chart')
-    await waitFor(() => expect(screen.queryAllByTestId('agent-proposal')).toHaveLength(1), { timeout: 8000 })
-    expect(screen.getByTestId('agent-proposal').textContent).toMatch(/Create a chart: NASDAQ:A50/)
-    await idle()
-    await say('do it')
+    // ⭐ AUTO-APPLY (live test 2026-10-28): asked for → no card
     await waitFor(() => expect(charts(board)).toEqual(['QQQ', 'NASDAQ:A50']), { timeout: 8000 })
+    expect(screen.queryAllByTestId('agent-proposal')).toHaveLength(0)
+    await waitFor(() => expect(screen.getByTestId('agent-receipt').textContent).toMatch(/Created a chart: NASDAQ:A50/))
     expect(turns).toHaveLength(0)
   }, 30000)
 })

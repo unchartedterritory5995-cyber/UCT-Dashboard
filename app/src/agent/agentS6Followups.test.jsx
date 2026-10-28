@@ -93,11 +93,11 @@ describe('F4 — a new chart for a named ticker is born on it, not linked', () =
   it('end to end (the S6 W2b repro): "Open a QQQ chart." makes ONE chart on QQQ, not linked; group A keeps its symbol and the existing chart is untouched', async () => {
     const { state, h, say } = mount([{ id: 'c', type: 'chart', x: 0, y: 0, w: 12, h: 20, color: 'A' }], { A: 'NASDAQ:DEC' })
     say('Open a QQQ chart.')
-    await waitFor(() => expect(screen.getAllByTestId('agent-proposal').length).toBe(1))
-    expect(screen.getAllByTestId('agent-proposal')[0].textContent).toMatch(/Create a chart: QQQ — each on its own symbol, not linked/)
-    expect(turns()).toBe(0)
-    say('do it')
+    // ⭐ AUTO-APPLY (live test 2026-10-28): the member asked for it — made at once (one receipt, no card)
     await waitFor(() => expect(state.widgets.filter(w => w.type === 'chart')).toHaveLength(2), { timeout: 4000 })
+    await waitFor(() => expect(screen.getAllByTestId('agent-receipt')[0].textContent).toMatch(/QQQ/))
+    expect(screen.queryAllByTestId('agent-proposal')).toHaveLength(0)
+    expect(turns()).toBe(0)
     const fresh = state.widgets.find(w => w.id !== 'c')
     expect(fresh.color).toBe('N')
     expect(h.charts.read(fresh.id).symbol).toBe('QQQ')
@@ -118,11 +118,25 @@ describe('F4 — a new chart for a named ticker is born on it, not linked', () =
 
 // ── F5 ─────────────────────────────────────────────────────────────────────────────
 const ADD = (b, pos, defId = 'rsi') => ({ action: 'indicator.add', target: b.context.indicatorEdits.find(e => e.position === pos).ref, args: { defId, inputs: null } })
-describe('F5 — "add this indicator to both charts": one proposal, then each chart on its own (M2 adds, own receipts + Undo)', () => {
-  it('proposed once naming both charts; Apply adds to each separately; Undo removes ONE and leaves the other', async () => {
+describe('F5 — "add this indicator to both charts": each chart on its own (M2 adds, own receipts + Undo)', () => {
+  // ⭐ AUTO-APPLY (live test 2026-10-28): the member ASKED for it → no card; each chart its own step, receipt and Undo
+  it('explicit: applied at once, each chart separately (two receipts, no card); Undo removes ONE and leaves the other', async () => {
     const { state, say } = mount([W('L', 0, 'left'), W('R', 8, 'right')], { 'N:L': 'NVDA', 'N:R': 'AAPL' })
     envelopes.push(b => env('apply', [ADD(b, 'left'), ADD(b, 'right')]))
     say('Add RSI to both charts.')
+    await waitFor(() => expect(screen.getAllByTestId('agent-receipt').length).toBe(2), { timeout: 5000 })
+    expect(screen.queryAllByTestId('agent-proposal')).toHaveLength(0)
+    expect(liveOf({ state }, 'L', 'rsi')).toHaveLength(1)
+    expect(liveOf({ state }, 'R', 'rsi')).toHaveLength(1)
+    say('undo')
+    await waitFor(() => expect(liveOf({ state }, 'R', 'rsi')).toHaveLength(0), { timeout: 4000 })
+    expect(liveOf({ state }, 'L', 'rsi')).toHaveLength(1)                   // independent Undo
+  })
+  // a fan-out the model PROPOSES (taste or judgment) is still one card, bound to exactly what it showed
+  it('proposed once naming both charts; Apply adds to each separately; Undo removes ONE and leaves the other', async () => {
+    const { state, say } = mount([W('L', 0, 'left'), W('R', 8, 'right')], { 'N:L': 'NVDA', 'N:R': 'AAPL' })
+    envelopes.push(b => env('propose', [ADD(b, 'left'), ADD(b, 'right')]))
+    say('Perhaps add RSI to both charts.')
     await waitFor(() => expect(screen.getAllByTestId('agent-proposal').length).toBe(1))
     const card = screen.getAllByTestId('agent-proposal')[0].textContent
     expect(card).toMatch(/Add Relative Strength[^·]* to Left chart \(NVDA\)/)
@@ -147,8 +161,8 @@ describe('F5 — "add this indicator to both charts": one proposal, then each ch
   })
   it('a chart closed between the card and Apply → refused at Apply; nothing added', async () => {
     const { state, say } = mount([W('L', 0, 'left'), W('R', 8, 'right')], { 'N:L': 'NVDA', 'N:R': 'AAPL' })
-    envelopes.push(b => env('apply', [ADD(b, 'left'), ADD(b, 'right')]))
-    say('Add RSI to both charts.')
+    envelopes.push(b => env('propose', [ADD(b, 'left'), ADD(b, 'right')]))
+    say('Perhaps add RSI to both charts.')
     await waitFor(() => expect(screen.getAllByTestId('agent-proposal').length).toBe(1))
     state.widgets = state.widgets.filter(w => w.id !== 'R')
     say('do it')
@@ -157,8 +171,8 @@ describe('F5 — "add this indicator to both charts": one proposal, then each ch
   })
   it('applied only as a whole: "just the first one" is refused and the card stays', async () => {
     const { state, say } = mount([W('L', 0, 'left'), W('R', 8, 'right')], { 'N:L': 'NVDA', 'N:R': 'AAPL' })
-    envelopes.push(b => env('apply', [ADD(b, 'left'), ADD(b, 'right')]))
-    say('Add RSI to both charts.')
+    envelopes.push(b => env('propose', [ADD(b, 'left'), ADD(b, 'right')]))
+    say('Perhaps add RSI to both charts.')
     await waitFor(() => expect(screen.getAllByTestId('agent-proposal').length).toBe(1))
     say('just do the first one')
     await saysSoon(/can only be applied as a whole/)

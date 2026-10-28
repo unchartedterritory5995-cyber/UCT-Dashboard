@@ -124,18 +124,23 @@ describe('Charts operator P1 — through the real panel (legacy lane, no model)'
     expect(turns).toHaveLength(0)
   })
 
-  it('A5 · one chart + "side by side" → it shows the first symbol; a new chart for the second is proposed', async () => {
-    const b = makeBoard([{ id: 'L', type: 'chart', x: 0, y: 0, w: 12, h: 20, color: 'N' }], { 'N:L': 'SPY' })
-    const { say, transcript } = mount(b)
+  // ⭐ live test 2026-10-28: no card — ONE grid change (the chart reused, the other added beside it), ONE Undo
+  it('A5 · one full-width chart + "side by side" → it shows the first symbol, the second is added beside it; applied; one Undo', async () => {
+    const b = makeBoard([{ id: 'L', type: 'chart', x: 0, y: 0, w: 24, h: 20, color: 'N' }], { 'N:L': 'SPY' })
+    const { say } = mount(b)
     await say('NVDA and AMD side by side')
-    await waitFor(() => expect(sym(b, 'L')).toBe('NVDA'))
-    await screen.findByTestId('agent-proposal')
-    expect(transcript()).toMatch(/Create .*AMD/)
-    expect(b.state.widgets.filter(w => w.type === 'chart')).toHaveLength(1)          // nothing created before approval
-    await say('do it')
     await waitFor(() => expect(b.state.widgets.filter(w => w.type === 'chart')).toHaveLength(2))
+    expect(screen.queryAllByTestId('agent-proposal')).toHaveLength(0)
+    expect(sym(b, 'L')).toBe('NVDA')
     const added = b.state.widgets.find(w => w.type === 'chart' && w.id !== 'L')
     expect(b.state.groupSyms[`N:${added.id}`]).toBe('AMD')
+    expect(b.state.widgets.find(w => w.id === 'L')).toMatchObject({ x: 0, y: 0, w: 12, h: 20 })
+    expect(added).toMatchObject({ x: 12, y: 0, w: 12, h: 20 })
+    await screen.findByTestId('agent-receipt')
+    await say('undo')
+    await waitFor(() => expect(b.state.widgets.filter(w => w.type === 'chart')).toHaveLength(1))
+    expect(b.state.widgets[0]).toMatchObject({ id: 'L', x: 0, y: 0, w: 24, h: 20 })
+    expect(sym(b, 'L')).toBe('SPY')
   })
 })
 

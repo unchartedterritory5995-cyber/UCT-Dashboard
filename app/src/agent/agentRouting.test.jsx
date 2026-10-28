@@ -200,7 +200,7 @@ describe('release audit: every registered action is reachable through routing', 
       for (const n of mine) covered.add(n)
     }
     expect(FULL.filter(c => !covered.has(c.name)).map(c => c.name)).toEqual([])
-    expect(FULL.length).toBe(116)             // Indicators P2: + indicatorStyle.set/placeIn, pane.move/resize, indicatorCopy.duplicate/copyTo, definition.search/describe/duplicate/delete. Charts operator P1: + 6 chartSetup, + 5 drawing, + widget.addTab, + watchlist.reorder/setNote, + indicator.discardDraft. Gate C: + indicator.update. Phase 1: + watchlist.open; MI breadth slice 1: + breadth.show; breadth intelligence: + breadth.history
+    expect(FULL.length).toBe(117)             // live test 2026-10-28: + chartGrid.set. Indicators P2: + indicatorStyle.set/placeIn, pane.move/resize, indicatorCopy.duplicate/copyTo, definition.search/describe/duplicate/delete. Charts operator P1: + 6 chartSetup, + 5 drawing, + widget.addTab, + watchlist.reorder/setNote, + indicator.discardDraft. Gate C: + indicator.update. Phase 1: + watchlist.open; MI breadth slice 1: + breadth.show; breadth intelligence: + breadth.history
     // M2: + indicator.add / remove / show / hide; M3: + draft / previewDraft / saveDraft / undoDraft
   })
 })

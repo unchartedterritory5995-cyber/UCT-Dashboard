@@ -319,19 +319,19 @@ describe('Watchlist → Charts and the last screen → Charts', () => {
 
   it('PROVENANCE is narrow: explicit tickers stay literal, and a near-miss of a named list is not rebound', async () => {
     const { say, syms, newCharts } = await mount()
-    envelopes.push(b => env('apply', [CHARTS(b, ['SPY', 'QQQ'])]))
-    say('Add two daily charts for SPY and QQQ.')
-    expect(await nth('agent-proposal', 1)).toContain('Create 2 charts: SPY and QQQ')
-    say('do it')
-    await nth('agent-receipt', 1)
+    say('Add two daily charts for SPY and QQQ.')              // the instant path (no model call)
+    // ⭐ AUTO-APPLY (live test 2026-10-28): asked for → made at once (no card), the tickers as typed — read on the
+    // instant path, which keeps the "daily" the member said
+    expect(await nth('agent-receipt', 1)).toContain('Created 2 daily charts: SPY and QQQ')
+    expect(screen.queryAllByTestId('agent-proposal')).toHaveLength(0)
     expect(syms()).toEqual(['SPY', 'QQQ'])
     say('undo')
-    await saysSoon(/Undid: Created 2 charts/)
+    await saysSoon(/Undid: Created 2 daily charts/)
     expect(newCharts()).toHaveLength(0)
     // Names the list, but the tickers are NOT its first N in order → left as typed (shown in the proposal).
     envelopes.push(b => env('apply', [CHARTS(b, ['SPY', 'NVDA'])]))
     say('Chart SPY and NVDA next to my Agent Test Watchlist stuff.')
-    expect(await nth('agent-proposal', 2)).toContain('Create 2 charts: SPY and NVDA')
+    expect(await nth('agent-receipt', 3)).toContain('Created 2 charts: SPY and NVDA')
   })
 
   it('PROVENANCE: ALL of a named list (copied) binds with top = its size', async () => {
@@ -397,9 +397,9 @@ describe('literal tickers and typed references', () => {
     const { say, syms } = await mount()
     envelopes.push(b => env('apply', [CHARTS(b, ['spy', 'QQQ', 'SPY', 'NVDA'])]))
     say('Chart SPY, QQQ and NVDA.')
-    expect(await nth('agent-proposal', 1)).toContain('Create 3 charts: SPY, QQQ and NVDA')    // always proposed
-    say('do it')
+    // ⭐ AUTO-APPLY (live test 2026-10-28): no card for an explicit request — made at once, deduplicated
     expect(await nth('agent-receipt', 1)).toContain('Created 3 charts: SPY, QQQ and NVDA')
+    expect(screen.queryAllByTestId('agent-proposal')).toHaveLength(0)
     expect(syms()).toEqual(['SPY', 'QQQ', 'NVDA'])
     envelopes.push(b => env('apply', [CHARTS(b, ['SPY', 'ZZZZQ'])]))
     say('Chart SPY and ZZZZQ.')

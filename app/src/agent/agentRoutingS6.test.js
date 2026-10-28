@@ -66,7 +66,10 @@ describe('F1 — building an indicator in conversation is the default', () => {
     const text = 'Build me a new custom indicator that plots the EMA 20 of close on the SPY chart.'
     const s = screen(host(), [openCreate()], text)
     expect(s.ask).toBeUndefined()
-    expect(s.ops).toEqual([{ action: 'indicator.draft', target: 'draft:new', args: { message: text, chart: 'L', edit: null } }])
+    // live test 2026-10-28: a request to CREATE one is a request to have it — its Save onto that chart rides along (R1)
+    expect(s.ops.map(o => ({ action: o.action, target: o.target, args: o.args }))).toEqual([{ action: 'indicator.draft', target: 'draft:new', args: { message: text, chart: 'L', edit: null } },
+      { action: 'indicator.saveDraft', target: 'draft:new', args: { addTo: ['L'], name: null } }])
+    expect(s.ops[1].explicit).toBe(true)
     expect(s.notes[0]).toMatch(/Building it with you here in the chat/)
   })
   it('an EXPLICIT request for the visual builder keeps openCreate', () => {

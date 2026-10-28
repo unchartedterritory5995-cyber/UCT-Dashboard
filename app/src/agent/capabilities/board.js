@@ -9,6 +9,10 @@
 //   • widget.move    = a DROP: the product's repackAroundMoved (the moved widget lands where
 //                      asked; every other widget re-tiles around it, as when you drag).
 //   • widget.arrange = placement/arrange.js (fill gaps, or an even grid / columns / rows).
+//   • chartGrid.set = agent/chartGrid.js (live test 2026-10-28): N tickers as N equal charts — the board's
+//                      charts reused in reading order, the rest ADDED (born on their ticker, not linked), the
+//                      charts' area re-tiled evenly; every other widget stays put, nothing is removed. ONE
+//                      change, ONE exact Undo (new charts closed, cells, links, tickers and timeframes back).
 //   • chart.applyThemeAll = chartThemes.themeAllChartWidgets (the theme gallery's "all charts").
 //   • widget.showList / showScan write exactly the opts the widget's own picker writes.
 // Before ANY write the resulting board must pass boardProblems (inside the grid, min sizes,
@@ -36,6 +40,8 @@ import { CHART_THEMES, CHART_THEME_BY_ID } from '../../components/chart/chartThe
 import { positionWord } from '../host'
 import { addChartTab, closeChartTab, setActiveChartTab, renameChartTab, patchChartTab, chartTabList, sanitizeChartTabs } from '../../pages/charts/chartTabs'
 import { CHART_TIMEFRAMES } from './chart'
+import { planChartGrid, GRID_PATTERNS, MAX_GRID_CHARTS } from '../chartGrid'
+import { unknownSymbols } from '../agentClient'
 import { widgetTabList, setActiveWidgetTab, renameWidgetTab, closeWidgetTab, sanitizeWidgetTabs, addWidgetTab, WIDGET_TAB_TYPES } from '../../pages/charts/widgetTabs'
 // a slot holds a handful of widgets as tabs — the Agent stops adding at this many (the header scrolls beyond)
 const MAX_WIDGET_TABS = 8
@@ -66,7 +72,21 @@ function snapOf(host) {
   // (host `visible`) leaves them out. Nothing here may re-tile or edit one it cannot see.
   const onGrid = new Set((s.visible || s.raw).map(w => String(w.id)))
   const detached = s.raw.filter(w => !onGrid.has(String(w.id))).map(w => String(w.id))
-  return { ref: 'board', label: 'Board', raw: s.raw, layoutTheme: s.layoutTheme, grid: s.grid, minOf: s.minOf, repack: s.repack, resize: s.resize, themeAll: s.themeAll, extraGroups: s.extraGroups === true, lists, detached, fitsWatchlist: s.fits?.watchlist === true }
+  return { ref: 'board', label: 'Board', raw: s.raw, layoutTheme: s.layoutTheme, grid: s.grid, minOf: s.minOf, repack: s.repack, resize: s.resize, themeAll: s.themeAll, extraGroups: s.extraGroups === true, lists, detached, fitsWatchlist: s.fits?.watchlist === true,
+    charts: chartsOf(host), maxWidgets: s.max }
+}
+// widget id → { ref, symbol, tf } of each chart on the board (the chart a widget shows now: its own ref,
+// else its first tab's) — what chartGrid.set reuses. Read only.
+function chartsOf(host) {
+  const m = new Map()
+  let list = []
+  try { list = host?.charts?.list?.() || [] } catch { list = [] }
+  for (const c of list) {
+    const id = String(c?.ref || '').split('~')[0]
+    if (!id || (m.has(id) && c.ref !== id)) continue
+    m.set(id, { ref: c.ref, symbol: c.symbol ?? null, tf: c.tf ?? null })
+  }
+  return m
 }
 const nameOf = (w, all) => {
   const pos = positionWord(w, all)
@@ -81,8 +101,10 @@ export const boardKind = {
   name: 'board',
   list: (host) => { const s = snapOf(host); return s ? [s] : [] },
   read: (host, ref) => (ref === 'board' ? snapOf(host) : null),
-  stateOf: (s) => ({ board: clone(s.raw), layoutTheme: s.layoutTheme ?? null, did: [], adds: [] }),
+  stateOf: (s) => ({ board: clone(s.raw), layoutTheme: s.layoutTheme ?? null, did: [], adds: [], grid: null }),
   patch(before, after) {
+    // chartGrid.set: its own write (charts added, cells, links and tickers together), alone
+    if (after.grid) return after.grid.noop ? null : { grid: clone(after.grid) }
     const removed = before.board.filter(w => !after.board.some(x => x.id === w.id)).map(w => w.id)
     const set = {}
     for (const w of after.board) {
@@ -101,6 +123,8 @@ export const boardKind = {
     return Object.keys(p).length ? p : null
   },
   async commit(host, ref, patch) {
+    if (patch.grid) return commitGrid(host, patch.grid)
+    if (patch.gridUndo) return undoGrid(host, patch.gridUndo)
     if (patch.add) {
       const added = []
       for (const a of patch.add) {
@@ -125,6 +149,8 @@ export const boardKind = {
   },
   landed(snap, patch) {
     if (!snap) return false
+    if (patch.grid) return gridLanded(snap, patch.grid)
+    if (patch.gridUndo) return gridUndone(snap, patch.gridUndo)
     if (patch.add) return patch.add.every(a => snap.raw.some(w => w.type === a.type && same(w.opts?.watchKey, a.opts?.watchKey)))
     const by = new Map(snap.raw.map(w => [w.id, w]))
     if ((patch.remove || []).some(id => by.has(id))) return false
@@ -141,6 +167,8 @@ export const boardKind = {
   undoPatch(item) {
     const before = item.before?.raw || []           // the target's snapshot before the commit
     const p = item.patch || {}
+    // chartGrid.set: exactly what its commit recorded (the charts it added, the cells, links and tickers it changed)
+    if (p.grid) return item.undoData?.grid ? { gridUndo: clone(item.undoData.grid) } : null
     // A widget this change ADDED: Undo removes exactly it (the board writer's remove).
     if (p.add) return item.undoData?.added?.length ? { remove: [...item.undoData.added] } : null
     const out = {}
@@ -161,6 +189,17 @@ export const boardKind = {
   // Undo is stale only if a widget THIS change touched has changed since (or a removed one is back).
   fingerprintFor(host, s, item) {
     const p = item.patch || {}
+    if (p.grid) {
+      // the charts this change touched — their cell, link and settings, and the ticker they show
+      const g = item.undoData?.grid
+      const gids = [...new Set([...(p.grid.reuse || []).map(r => r.id), ...(g?.added || [])])]
+      return JSON.stringify(gids.map(id => {
+        const w = s.raw.find(x => String(x.id) === id)
+        let sym = null
+        try { sym = host?.widgets?.configOf?.(id)?.symbol ?? null } catch { sym = null }
+        return w ? [id, ...FIELDS.map(f => JSON.stringify(w[f] ?? null)), sym] : [id, 'gone']
+      }))
+    }
     const ids = [...new Set([...(p.remove || []), ...Object.keys(p.set || {}), ...(p.restore || []).map(w => w.id), ...(p.add ? item.undoData?.added || [] : [])])]
     return JSON.stringify(ids.map(id => {
       const w = s.raw.find(x => x.id === id)
@@ -169,6 +208,102 @@ export const boardKind = {
   },
 }
 
+
+// ── chartGrid.set's writer: ONE change through the board's own doors, in this order, each confirmed on
+// the board before the next — unlink (the colour dot's own writer), re-tile the reused charts (applyBoard), add
+// each new chart in its planned (now empty) cell, born on its ticker and timeframe (handleAddWidget's exact
+// slot + unlinkedSymbol), then the reused charts' ticker / timeframe (each chart's own writer). Any step that
+// does not land takes back everything before it (newest first) and the change fails as a whole.
+const rectOf = (w) => ({ x: w.x, y: w.y, w: w.w, h: w.h })
+const sameRect = (a, b) => !!a && !!b && GEOM.every(k => a[k] === b[k])
+async function settle(pred, ms = 5000) {
+  const t0 = Date.now()
+  while (!pred() && Date.now() - t0 < ms) await afterRender()
+  return pred()
+}
+const rawNow = (host) => host.widgets.snapshot().raw || []
+async function commitGrid(host, g) {
+  const raw0 = rawNow(host)
+  const geom = {}
+  for (const id of Object.keys(g.set || {})) { const w = raw0.find(x => String(x.id) === id); if (w) geom[id] = rectOf(w) }
+  const colors = {}
+  const added = []
+  const charts = []
+  const undo = () => ({ added: [...added], geom: Object.fromEntries(Object.keys(geom).filter(id => Object.keys(g.set || {}).includes(id)).map(id => [id, geom[id]])), colors: { ...colors }, charts: [...charts] })
+  try {
+    for (const id of g.unlink || []) {
+      const w = raw0.find(x => String(x.id) === id)
+      colors[id] = w?.color || 'A'
+      host.widgets.color(id, 'N')
+    }
+    if ((g.unlink || []).length && !(await settle(() => g.unlink.every(id => rawNow(host).find(x => String(x.id) === id)?.color === 'N')))) throw new Error('a chart could not be unlinked')
+    if (Object.keys(g.set || {}).length) {
+      host.widgets.applyBoard({ set: clone(g.set) })
+      if (!(await settle(() => Object.entries(g.set).every(([id, r]) => sameRect(rawNow(host).find(x => String(x.id) === id), r))))) throw new Error('the board did not take the new arrangement')
+    }
+    for (const a of g.add || []) {
+      const known = new Set(rawNow(host).map(w => String(w.id)))
+      host.widgets.add('chart', { ...a.rect }, { symbol: a.symbol, tf: a.tf || null })
+      let fresh = null
+      await settle(() => !!(fresh = rawNow(host).find(w => !known.has(String(w.id)) && w.type === 'chart') || null))
+      if (!fresh) { host.widgets.cancelPending?.(); throw new Error('a new chart did not appear') }
+      added.push(String(fresh.id))
+      if (!sameRect(fresh, a.rect)) throw new Error('a new chart did not land in its planned place')
+      if (fresh.color !== 'N') { host.widgets.color(fresh.id, 'N'); await afterRender() }
+    }
+    for (const r of g.reuse || []) {
+      const p = {}
+      if (r.symbol) p.symbol = r.symbol
+      if (r.tf) p.tf = r.tf
+      if (!Object.keys(p).length) continue
+      const back = {}
+      if (r.symbol) back.symbol = r.from?.symbol ?? null
+      if (r.tf) back.tf = r.from?.tf ?? null
+      if (!host.charts?.commit?.(r.ref, p)) throw new Error('a chart did not take its new ticker')
+      charts.push({ ref: r.ref, back })
+    }
+  } catch (e) {
+    try { await undoGrid(host, undo()) } catch { /* the failure below still says so */ }
+    throw e
+  }
+  return { undoData: { grid: undo() } }
+}
+async function undoGrid(host, u) {
+  for (const c of [...(u.charts || [])].reverse()) {
+    const back = Object.fromEntries(Object.entries(c.back || {}).filter(([, v]) => v != null))
+    if (Object.keys(back).length) host.charts?.commit?.(c.ref, back)
+  }
+  for (const [id, color] of Object.entries(u.colors || {})) host.widgets.color(id, color)
+  for (const id of u.added || []) host.widgets.remove(id)
+  if (Object.keys(u.geom || {}).length) {
+    // the closed charts' cells are empty again before the reused charts grow back into them
+    await settle(() => (u.added || []).every(id => !rawNow(host).some(w => String(w.id) === id)))
+    host.widgets.applyBoard({ set: clone(u.geom) })
+  }
+  return true
+}
+function gridLanded(snap, g) {
+  const by = new Map(snap.raw.map(w => [String(w.id), w]))
+  for (const [id, r] of Object.entries(g.set || {})) if (!sameRect(by.get(id), r)) return false
+  for (const id of g.unlink || []) if (by.get(id)?.color !== 'N') return false
+  return (g.add || []).every(a => snap.raw.some(w => w.type === 'chart' && sameRect(w, a.rect)))
+}
+function gridUndone(snap, u) {
+  const by = new Map(snap.raw.map(w => [String(w.id), w]))
+  if ((u.added || []).some(id => by.has(id))) return false
+  for (const [id, r] of Object.entries(u.geom || {})) if (!sameRect(by.get(id), r)) return false
+  for (const [id, c] of Object.entries(u.colors || {})) if ((by.get(id)?.color || 'A') !== c) return false
+  return true
+}
+const TF_WORD = { 1: '1-minute', 5: '5-minute', 15: '15-minute', 30: '30-minute', 60: '1-hour', D: 'daily', W: 'weekly', M: 'monthly' }
+const NUM_WORD = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine']
+const andList = (xs) => (xs.length <= 1 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`)
+/** "four daily charts for SPY, QQQ, NVDA and TSLA" (new: "two new daily charts for …") — the grid's own words. */
+export function gridPhrase(g, { fresh = false } = {}) {
+  const n = g.symbols.length
+  const tf = g.timeframe ? `${TF_WORD[g.timeframe] || g.timeframe} ` : ''
+  return `${NUM_WORD[n] || n} ${fresh ? 'new ' : ''}${tf}chart${n === 1 ? '' : 's'} for ${andList(g.symbols)}`
+}
 
 // widget.resize: the dragged-edge rectangle → the product's resolveResize (neighbours shrink).
 // The board's own resolver (the drag handles' resolveResize) shrinks each neighbour on its own
@@ -281,7 +416,7 @@ export function registerBoardCapabilities() {
   // Every board action first passes the detached-widget rule: arranging (move / arrange / resize)
   // re-tiles the whole grid, so it waits while ANY widget floats or is popped out; an action aimed
   // at one widget refuses when that widget is detached. Then the action's own check runs.
-  const REPACKS = new Set(['widget.move', 'widget.arrange', 'widget.resize'])
+  const REPACKS = new Set(['widget.move', 'widget.arrange', 'widget.resize', 'chartGrid.set'])
   const detachedWhy = (name, args, env) => {
     const det = env?.target?.detached || []
     if (!det.length) return null
@@ -389,6 +524,56 @@ export function registerBoardCapabilities() {
       return pattern === 'fill' ? `Grew ${moved.length} widget${moved.length === 1 ? '' : 's'} to fill the empty space` : `Arranged ${moved.length} widgets as ${pattern}`
     },
     noop: (b, a, { pattern } = {}) => (pattern === 'fill' ? 'There was no empty space next to them to fill' : 'They are already arranged that way'),
+  })
+
+  reg({
+    ...common,
+    name: 'chartGrid.set',
+    summary: 'Show these tickers as that many charts, in equal cells: the charts already on the board are reused (top-left first), any still needed are ADDED, and the charts\' area is re-tiled as an even grid. Other widgets stay where they are; nothing is removed. One change, one Undo.',
+    hints: 'Use for "create/open/show N charts for A, B, C…", "put SPY, QQQ, NVDA and TSLA in a 2x2 grid", "show NVDA and AMD side by side" — whenever the member names the tickers for several charts. '
+      + 'target = the ref of the board entry. symbols = the tickers in the member\'s order, uppercase. timeframe = the one timeframe they gave for all of them (1|5|15|30|60 minutes, D, W, M), else null. '
+      + 'layout = "columns" for side by side, "rows" for stacked, "grid" for a grid, else null. '
+      + 'new_charts = true only when they ask for NEW charts ("in new charts", "add four new charts") — the charts already there then keep their tickers; else null. Never widget.add + chart.setSymbol for this.',
+    args: { type: 'object', properties: {
+      symbols: { type: 'array', items: { type: 'string' } },
+      timeframe: { type: ['string', 'null'], enum: [...CHART_TIMEFRAMES, null] },
+      layout: { type: ['string', 'null'], enum: [...GRID_PATTERNS, null] },
+      new_charts: { type: ['boolean', 'null'] },
+    }, required: ['symbols', 'timeframe', 'layout', 'new_charts'], additionalProperties: false },
+    async prepare(ops) {
+      const syms = [...new Set(ops.flatMap(o => (Array.isArray(o.args?.symbols) ? o.args.symbols : [])).map(s => String(s || '').trim().toUpperCase()).filter(Boolean))]
+      return syms.length ? { unknownSymbols: await unknownSymbols(syms) } : {}
+    },
+    check(st, { symbols, timeframe, layout, new_charts: newCharts }, env) {
+      const s = env?.target
+      if (!s) return 'The board is not available.'
+      if (!Array.isArray(symbols) || !symbols.length) return 'Which tickers?'
+      if (symbols.length > MAX_GRID_CHARTS) return `That's more than ${MAX_GRID_CHARTS} charts in one grid — ask for fewer.`
+      if (timeframe != null && !CHART_TIMEFRAMES.includes(timeframe)) return `“${timeframe}” is not a timeframe UCT charts.`
+      const unknown = symbols.map(x => String(x || '').trim().toUpperCase()).filter(x => env?.unknownSymbols?.has?.(x))
+      if (unknown.length) return `UCT has no symbol ${andList(unknown.map(u => `“${u}”`))}, so I didn't change the charts.`
+      if (st.grid) return 'One chart grid at a time.'
+      const plan = planChartGrid({ board: st.board, charts: s.charts || new Map(), symbols, timeframe, layout, newCharts: newCharts === true, cols: s.grid.cols, rows: s.grid.rows, minOf: s.minOf, maxWidgets: s.maxWidgets ?? 16, detached: s.detached })
+      return plan.ok ? null : plan.reason
+    },
+    apply(st, { symbols, timeframe, layout, new_charts: newCharts }, env) {
+      const s = env.target
+      const plan = planChartGrid({ board: st.board, charts: s.charts || new Map(), symbols, timeframe, layout, newCharts: newCharts === true, cols: s.grid.cols, rows: s.grid.rows, minOf: s.minOf, maxWidgets: s.maxWidgets ?? 16, detached: s.detached })
+      if (!plan.ok) return st
+      const board = st.board.map(w => (plan.set[String(w.id)] ? { ...w, ...plan.set[String(w.id)] } : (plan.unlink.includes(String(w.id)) ? { ...w, color: 'N' } : w)))
+      return { ...st, board, grid: plan }
+    },
+    describe(b, a) {
+      const g = a.grid
+      if (!g || g.noop) return null
+      const shape = g.tiled && g.shape && g.shape.rows > 1 && g.shape.cols > 1 && g.symbols.length === g.shape.rows * g.shape.cols ? ` in a ${g.shape.rows}×${g.shape.cols} grid`
+        : g.tiled && g.shape?.rows === 1 && g.symbols.length > 1 ? ' side by side' : g.tiled && g.shape?.cols === 1 && g.symbols.length > 1 ? ' stacked' : ''
+      if (g.newCharts) return `Added ${gridPhrase(g, { fresh: true })}${g.kept ? ` beside your ${g.kept === 1 ? 'chart' : `${g.kept} charts`}, re-tiled evenly` : ''}`
+      const parts = [g.reuse.length && g.add.length ? `${g.reuse.length} reused, ${g.add.length} new` : g.add.length ? `${g.add.length} new` : null,
+        g.unlink.length ? `${g.unlink.length} unlinked so ${g.unlink.length === 1 ? 'it' : 'each'} can show its own ticker` : null].filter(Boolean)
+      return `Set up ${gridPhrase(g)}${shape}${parts.length ? ` (${parts.join('; ')})` : ''}`
+    },
+    noop: () => 'Those charts already show those tickers',
   })
 
   reg({
