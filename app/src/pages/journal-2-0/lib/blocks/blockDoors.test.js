@@ -146,6 +146,9 @@ export const IMPORT_ALLOW = {
   'app/src/pages/journal-2-0/components/notebook/widgets/builtViews/svg': "useChartWidth and the scale helpers of the built widget views (inline-SVG layout math and one ResizeObserver); no network, no writes",
   // Wave 10 Task 10.20 (the position size calculator): with wave 10 off it says "Not available right now."
   'app/src/pages/journal-2-0/lib/notebookWidgetsFlags': 'widgetsWaveOn: the calculator makes no request, so it learns the wave from the latched flag',
+  // TERM-033 (swallowedFetch census): toolsApi.js reads a successful response's body as a TAGGED outcome instead of
+  // `res.json().catch(() => null)`. Named export only (IMPORT_NAMES below).
+  'app/src/lib/responseBody': "readSuccessBody: a tagged read of a response the block file's own request already got; no request of its own, no writes",
 }
 
 /**
@@ -160,6 +163,7 @@ export const IMPORT_NAMES = {
   // navigation hook cannot slip in under the same allow-list row.
   swr: ['default'],
   'react-router-dom': ['Link'],
+  'app/src/lib/responseBody': ['readSuccessBody'],
 }
 
 /**
