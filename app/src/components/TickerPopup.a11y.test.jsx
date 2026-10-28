@@ -115,6 +115,65 @@ describe('Switch ticker is an ARIA combobox', () => {
   })
 })
 
+describe('Escape belongs to the TOP layer (Chart Settings opened over the popup)', () => {
+  // Chart Settings, the symbol search, a confirm: each is a modal dialog portaled to <body>
+  // AFTER the popup. Escape there used to close that layer AND the popup in one keystroke.
+  function openLayerAbove({ inertBeneath = false } = {}) {
+    const layer = document.createElement('div')
+    layer.setAttribute('role', 'dialog')
+    layer.setAttribute('aria-modal', 'true')
+    layer.setAttribute('aria-label', 'Chart settings')
+    const btn = document.createElement('button')
+    btn.textContent = 'Done'
+    layer.appendChild(btn)
+    document.body.appendChild(layer)
+    // what fix/chart-a11y's inertBeneath() does: everything under the top layer goes inert
+    const popupRoot = screen.getByTestId('chart-modal')
+    if (inertBeneath) popupRoot.setAttribute('inert', '')
+    return { layer, btn, close: () => { layer.remove(); popupRoot.removeAttribute('inert') } }
+  }
+
+  test('a modal dialog above the popup owns Escape; the popup stays open', () => {
+    const { onClose } = openPopup()
+    const { btn, close } = openLayerAbove()
+    // whether focus is still on the page or inside the layer
+    fireEvent.keyDown(document.body, { key: 'Escape' })
+    btn.focus()
+    fireEvent.keyDown(btn, { key: 'Escape' })
+    expect(onClose).not.toHaveBeenCalled()
+    close()
+    // once that layer is gone, Escape closes the popup again
+    fireEvent.keyDown(document.body, { key: 'Escape' })
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  test('the popup beneath an inert background never closes on Escape', () => {
+    const { onClose } = openPopup()
+    const { close, layer } = openLayerAbove({ inertBeneath: true })
+    layer.remove()   // only the inert wrapper is left: that alone must hold the popup
+    fireEvent.keyDown(document.body, { key: 'Escape' })
+    expect(onClose).not.toHaveBeenCalled()
+    close()
+    fireEvent.keyDown(document.body, { key: 'Escape' })
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  test('a dialog that is mounted but hidden is not a layer', () => {
+    const { onClose } = openPopup()
+    const { layer, close } = openLayerAbove()
+    layer.hidden = true
+    fireEvent.keyDown(document.body, { key: 'Escape' })
+    expect(onClose).toHaveBeenCalledTimes(1)
+    close()
+  })
+
+  test('the IME guard still holds', () => {
+    const { onClose } = openPopup()
+    fireEvent.keyDown(document.body, { key: 'Escape', isComposing: true })
+    expect(onClose).not.toHaveBeenCalled()
+  })
+})
+
 describe('+ Compare names its own action', () => {
   test('the name says Compare and names the ticker, never "search a different ticker"', () => {
     openPopup()
@@ -131,4 +190,16 @@ describe('axe', () => {
     await waitFor(() => expect(screen.getByTestId('switch-ticker-status')).toHaveTextContent('3 suggestions'))
     await expectNoAxeViolations(dialog)
   }, 30000)
+})
+
+describe('a dialog INSIDE the popup is a layer above it too', () => {
+  test('Escape with an open modal dialog inside the popup does not close the popup', () => {
+    const { onClose, dialog } = openPopup()
+    const inner = document.createElement('div')
+    inner.setAttribute('role', 'dialog'); inner.setAttribute('aria-modal', 'true')
+    dialog.appendChild(inner)
+    fireEvent.keyDown(document.body, { key: 'Escape' })
+    expect(onClose).not.toHaveBeenCalled()
+    inner.remove()
+  })
 })
