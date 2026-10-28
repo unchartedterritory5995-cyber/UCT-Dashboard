@@ -9,6 +9,8 @@
  */
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup } from '@testing-library/react'
+import { useState } from 'react'
+import isModalOpen from '../../utils/modalOpen'
 import axe from 'axe-core'
 import ChartContextMenu from './ChartContextMenu'
 
@@ -150,5 +152,55 @@ describe('ChartContextMenu: the ARIA menu pattern (desktop)', () => {
       const res = await axe.run(document, { runOnly: { type: 'rule', values: ['region'] }, resultTypes: ['violations'] })
       expect(res.violations.map((v) => v.id)).toEqual(['region'])
     } finally { loose.remove() }
+  })
+
+  it('the dialog wrapper is labelled BY the menu: one name, not two different ones', () => {
+    renderOverChart()
+    const menu = screen.getByRole('menu')
+    const wrapper = menu.parentElement
+    expect(wrapper).toHaveAttribute('role', 'dialog')
+    expect(wrapper.getAttribute('aria-labelledby')).toBe(menu.id)
+    expect(wrapper).not.toHaveAttribute('aria-label')
+    expect(screen.getByRole('dialog', { name: 'Chart actions for NVDA' })).toBe(wrapper)
+  })
+})
+
+// A host that really unmounts the menu on close, the way GlobalAddPositionProvider does.
+function Host({ onClosed = () => {} }) {
+  const [open, setOpen] = useState(true)
+  return (
+    <>
+      <main><div role="region" aria-label="NVDA daily price chart" tabIndex={0}>chart</div>
+        <button type="button">after the chart</button></main>
+      <ChartContextMenu open={open} x={10} y={10} sections={sections()} ariaLabel="Chart actions for NVDA"
+        onClose={() => { setOpen(false); onClosed() }} />
+    </>
+  )
+}
+
+describe('ChartContextMenu: Tab leaves the menu, so the menu goes (APG)', () => {
+  it('Tab closes it, without preventDefault, and the chart shortcuts come back (isModalOpen false)', () => {
+    const onClosed = vi.fn()
+    render(<Host onClosed={onClosed} />)
+    expect(isModalOpen()).toBe(true)              // CONTROL: the open menu's dialog wrapper holds them off
+    const item = document.activeElement
+    expect(screen.getByRole('menu').contains(item)).toBe(true)
+    const notPrevented = fireEvent.keyDown(item, { key: 'Tab' })
+    expect(notPrevented).toBe(true)               // focus is left to move on naturally
+    expect(onClosed).toHaveBeenCalledTimes(1)
+    expect(screen.queryByRole('menu')).toBeNull()
+    expect(isModalOpen()).toBe(false)
+  })
+
+  it('Shift+Tab closes it too', () => {
+    render(<Host />)
+    fireEvent.keyDown(document.activeElement, { key: 'Tab', shiftKey: true })
+    expect(screen.queryByRole('menu')).toBeNull()
+  })
+
+  it('NON-VACUITY: an arrow key does not close it', () => {
+    render(<Host />)
+    fireEvent.keyDown(document.activeElement, { key: 'ArrowDown' })
+    expect(screen.getByRole('menu')).toBeInTheDocument()
   })
 })

@@ -86,6 +86,17 @@ describe('the REAL app-root ChartContextMenu over the popup', () => {
     expect(onClose).toHaveBeenCalledTimes(1)
   })
 
+  test('Tab inside the popup closes the MENU (APG) and leaves the popup open', async () => {
+    const { onClose, popup } = mountAppTopology()
+    const menu = await rightClickMenu()
+    expect(menu.contains(document.activeElement)).toBe(true)   // focus went into the menu
+    fireEvent.keyDown(document.activeElement, { key: 'Tab' })
+    expect(screen.queryByRole('menu')).toBeNull()
+    expect(screen.queryByRole('dialog', { name: /Chart actions/ })).toBeNull()
+    expect(onClose).not.toHaveBeenCalled()
+    expect(popup.isConnected).toBe(true)
+  })
+
   test('also without the early commit (menu still mounted when window sees the key)', async () => {
     const { onClose } = mountAppTopology()
     await rightClickMenu()
