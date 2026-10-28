@@ -21,6 +21,34 @@ export function isTopmostLayer(el) {
   return true
 }
 
+/** The same layers plus a native <dialog> opened with show()/showModal(). */
+export const LAYER_SELECTOR = `${LAYERS},dialog[open]`
+
+/** Is `el` actually on screen? A layer that is mounted but hidden -- by itself, by an
+ *  ancestor's `display: none` or `hidden`, or by `visibility: hidden` -- is not a layer. */
+function isShowing(el) {
+  if (el.closest('[aria-hidden="true"], [inert]')) return false
+  if (typeof el.checkVisibility === 'function') return el.checkVisibility({ visibilityProperty: true })
+  for (let n = el; n && n.nodeType === 1; n = n.parentElement) {
+    if (n.hidden || getComputedStyle(n).display === 'none') return false
+  }
+  return getComputedStyle(el).visibility !== 'hidden'
+}
+
+/** Whether a showing layer is open ABOVE `el`: one that follows it in document order,
+ *  INCLUDING one inside it (a context menu or popover that `el` itself opened -- a descendant
+ *  also follows its ancestor). For a surface deciding whether ITS OWN Escape should close it;
+ *  unlike `isTopmostLayer`, a layer inside `el` counts, because it is drawn over `el`. */
+export function layerAbove(el) {
+  if (!el) return false
+  for (const layer of document.querySelectorAll(LAYER_SELECTOR)) {
+    if (layer === el || layer.contains(el)) continue
+    if (!isShowing(layer)) continue
+    if (el.compareDocumentPosition(layer) & Node.DOCUMENT_POSITION_FOLLOWING) return true
+  }
+  return false
+}
+
 /** Whether any layer is open above the page (for a page-level surface, which is not a layer
  *  itself). `within` (optional) is the surface's own root: a layer inside it is its own. */
 export function modalLayerOpen(within = null) {

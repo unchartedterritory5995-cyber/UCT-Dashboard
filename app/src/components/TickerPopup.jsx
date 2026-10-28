@@ -21,6 +21,7 @@ import CompareSymbolSearch from './CompareSymbolSearch'
 import styles from './TickerPopup.module.css'
 import { CHART_FIT_TARGET, fitChartHeightPx, chartHeightCss, shouldUpdateFit } from './tickerPopupChartFit'
 import { chordById, matchesChord } from '../pages/command/chords.js'
+import { layerAbove } from '../lib/topLayer'
 
 // The SAME chart the /charts workspace renders — identity row, session toggle,
 // market clock, timeframe bar, market-cap/earnings/UCT-rating meta, settings
@@ -64,20 +65,17 @@ function isCaptureSuccessMessage(msg) {
 }
 
 // Is there a layer ABOVE the popup that owns Escape? Either the popup sits beneath an inert
-// background (a modal above made everything under it inert -- checked inline, the shared
-// helper is not on this base), or another modal dialog is showing that is not beneath the
-// popup: inside it, or later in the document (portals append in open order, so later = on top).
+// background (a modal above made everything under it inert -- checked inline because
+// fix/chart-a11y's `inertBeneath` helper is not on this base), or a showing layer as the app
+// defines one (lib/topLayer.js: a Sheet panel, an aria-modal dialog, a non-modal
+// [data-escape-layer] such as the chart's right-click menu or earnings popover, or an open
+// <dialog>) is above it -- later in the document, or inside the popup.
+// ⛔ ONE definition of a layer. This used to restate its own selector and missed the
+// [data-escape-layer] popovers the chart opens INSIDE the popup.
 export function escapeBelongsToLayerAbove(popup) {
   if (!popup) return false
   if (popup.closest('[inert]')) return true
-  for (const d of document.querySelectorAll('[role="dialog"][aria-modal="true"], dialog[open]')) {
-    // a dialog that is mounted but not showing is not a layer
-    if (d.closest('[hidden], [aria-hidden="true"], [inert]') || getComputedStyle(d).display === 'none') continue
-    // DOCUMENT_POSITION_FOLLOWING: `d` comes after the popup in document order -- which
-    // includes a dialog INSIDE the popup (a descendant also follows its ancestor)
-    if (popup.compareDocumentPosition(d) & Node.DOCUMENT_POSITION_FOLLOWING) return true
-  }
-  return false
+  return layerAbove(popup)
 }
 
 export default function TickerPopup({ sym, as: Tag = 'span', customChartFn, className, children, markers = null, priceLines = null, stopPrice = null, anchorDate = null, darkPool = false, flowMeta = null, open: openProp, onClose, focusable = true }) {
@@ -177,7 +175,7 @@ export default function TickerPopup({ sym, as: Tag = 'span', customChartFn, clas
     if (!modal || !area) return undefined
     let raf = 0
     let ro = null
-    const watched = new WeakSet()
+    let watchedPane = null
     const measure = () => {
       raf = 0
       const wrapper = area.querySelector(`.${CHART_FIT_TARGET}`)
@@ -185,7 +183,12 @@ export default function TickerPopup({ sym, as: Tag = 'span', customChartFn, clas
       // Watch the pane's OWN box from the moment it exists: its identity row, timeframe bar
       // and the chart wrapper land after it mounts, inside an area the 560px loading floor
       // may still be holding at a fixed height.
-      if (pane && ro && !watched.has(pane)) { ro.observe(pane); watched.add(pane) }
+      // (a re-suspend can REPLACE the pane: stop watching the old one, which is detached)
+      if (pane && ro && pane !== watchedPane) {
+        if (watchedPane) ro.unobserve(watchedPane)
+        ro.observe(pane)
+        watchedPane = pane
+      }
       if (!wrapper || !pane || !pane.contains(wrapper)) return
       const mcs = getComputedStyle(modal)
       const acs = getComputedStyle(area)
