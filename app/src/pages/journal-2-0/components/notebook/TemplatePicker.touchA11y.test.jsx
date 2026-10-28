@@ -265,15 +265,57 @@ describe('a hung request: the line speaks what is known after the cap', () => {
     await mount({ members: false })                    // the member list is never released (hung)
     vi.useFakeTimers()
     fireEvent.click(chip('All'))
-    await act(async () => { vi.advanceTimersByTime(2900) })
-    expect(liveEl().textContent).toBe('')                // still waiting: under the cap
-    await act(async () => { vi.advanceTimersByTime(200) })   // past 3000: gave up waiting
-    await act(async () => { vi.advanceTimersByTime(100) })   // the settle
+    // Two separate acts under the cap: anything the cap's timer set off inside the first (the 60 ms settle starts when
+    // that act ends) has the second act to land in, so a cap shorter than 3 s cannot pass as "still waiting".
+    await act(async () => { vi.advanceTimersByTime(2899) })
+    expect(liveEl().textContent).toBe('')                // t = 2899 ms
+    await act(async () => { vi.advanceTimersByTime(100) })
+    expect(liveEl().textContent).toBe('')                // t = 2999 ms: still under the cap
+    await act(async () => { vi.advanceTimersByTime(2) })     // t = 3001: gave up waiting
+    await act(async () => { vi.advanceTimersByTime(70) })    // + the 60 ms settle
     expect(liveEl().textContent).toBe(touchMatchWords(builtInExpected('', 'all') + libraryExpected('', 'all')))
     vi.useRealTimers()
     releaseMembers()
     await screen.findByRole('button', { name: MEMBER[0].name })
     await says(touchMatchWords(expected('', 'all')))
+  })
+})
+
+// Review L-A: the wait also bounds "No templates match" -- with the member list hung and a search nothing else
+// matches, the touch line defers to the status (0 says nothing), so the status must not wait forever too.
+describe('a hung member list and a zero-match search', () => {
+  afterEach(() => { vi.useRealTimers() })
+  it('"No templates match" is held under the cap, then shown', async () => {
+    coarse.on = true
+    await mount({ members: false })
+    const query = 'qqq no such template anywhere'
+    expect(builtInExpected(query, 'all') + libraryExpected(query, 'all')).toBe(0)        // non-vacuity
+    vi.useFakeTimers()
+    fireEvent.change(box(), { target: { value: query } })
+    await act(async () => { vi.advanceTimersByTime(2899) })
+    await act(async () => { vi.advanceTimersByTime(100) })
+    expect(screen.queryByText(/No templates match/)).toBeNull()                         // still waiting on the list
+    await act(async () => { vi.advanceTimersByTime(2) })
+    await act(async () => { vi.advanceTimersByTime(70) })
+    expect(screen.getByText(/No templates match/)).toBeInTheDocument()                  // and then it says so
+    expect(liveEl().textContent).toBe('')                                                // the status speaks, not both
+  })
+
+  it('the same wait bounds the status on a FINE pointer (the status is drawn there too)', async () => {
+    await mount({ members: false })
+    vi.useFakeTimers()
+    fireEvent.change(box(), { target: { value: 'qqq no such template anywhere' } })
+    await act(async () => { vi.advanceTimersByTime(2999) })
+    expect(screen.queryByText(/No templates match/)).toBeNull()
+    await act(async () => { vi.advanceTimersByTime(2) })
+    expect(screen.getByText(/No templates match/)).toBeInTheDocument()
+  })
+
+  it('a member list that ERRORS is an answer: a zero-match search shows "No templates match" without waiting', async () => {
+    serve.members = 500
+    await mount()
+    fireEvent.change(box(), { target: { value: 'qqq no such template anywhere' } })
+    await vi.waitFor(() => expect(screen.getByText(/No templates match/)).toBeInTheDocument(), { timeout: 1500 })
   })
 })
 
