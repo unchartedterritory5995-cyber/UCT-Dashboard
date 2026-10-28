@@ -114,17 +114,43 @@ describe('"Series on this chart" always has exactly one Tab stop', () => {
   })
 })
 
-// ─── 2. RESULT ROWS SAY THEIR NAME ONCE ─────────────────────────────────────
-/** A name that ends by repeating a word or tail it already said: "TRIX TRIX",
- *  "Parabolic SAR SAR", "Average Directional Index ADX" is not caught here
- *  (different words) — the exact-name assertions below cover that kind. */
+// ─── 2. RESULT ROWS SAY THEIR NAME ONCE, AND SAY WHAT THEY SHOW ─────────────
+/** A name that ends by repeating its last word: "TRIX TRIX", "Parabolic SAR SAR". */
 const stutters = (name) => {
   const w = name.trim().split(/\s+/)
   return w.length > 1 && w[w.length - 1] === w[w.length - 2]
 }
+const squash = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '')
+const wordsOf = (s) => String(s || '').toLowerCase().split(/[^a-z0-9]+/).filter(Boolean)
 
-describe('a result row\'s accessible name is the indicator name, once', () => {
-  it('Indicator library: exact names, and the short tag is still on screen', () => {
+/**
+ * ⛔ WCAG 2.5.3 LABEL IN NAME, per row. Every VISIBLE tag in a row's button is
+ * either IN the button's accessible name, or the visible name already contains
+ * it as a run of whole words (so the name says it). Written independently of
+ * `shortTag.js`, so it can catch that module hiding something it should not.
+ * Returns the offending rows, readably.
+ */
+function labelInNameBreaks(rows) {
+  const out = []
+  for (const row of rows) {
+    const btn = primaryOf(row)
+    const acc = squash(computeAccessibleName(btn))
+    const nameEl = btn.querySelector('[class*="resName"], [class*="name"]')
+    const visibleName = nameEl ? nameEl.textContent : ''
+    for (const tagEl of btn.querySelectorAll('[class*="resShort"], [class*="chip"]')) {
+      const t = tagEl.textContent.trim()
+      if (!t) continue
+      if (acc.includes(squash(t))) continue
+      const n = ' ' + wordsOf(visibleName).join(' ') + ' '
+      if (n.includes(' ' + wordsOf(t).join(' ') + ' ')) continue
+      out.push(`"${visibleName}" shows "${t}" but is named "${computeAccessibleName(btn)}"`)
+    }
+  }
+  return out
+}
+
+describe('a result row\'s accessible name says the name once, and every visible tag', () => {
+  it('Indicator library: no stutter, and Label in Name on every row', () => {
     render(<IndicatorLibraryDialog open onClose={() => {}} settings={base()}
       onChange={vi.fn()} registry={engineRegistry} />)
     for (const name of ['Parabolic SAR', 'TRIX', 'SuperTrend']) {
@@ -133,45 +159,58 @@ describe('a result row\'s accessible name is the indicator name, once', () => {
       // still VISIBLE: the tag is in the button, just not in its name
       expect(btn.querySelector('[aria-hidden="true"]')?.textContent?.trim()).toBeTruthy()
     }
-    // An abbreviation the name does not spell is information, and is still read.
+    // An abbreviation the name does not literally contain is visible text, and is read.
     expect(screen.getByRole('button', { name: /^Average Directional Index\s*ADX$/ }).matches('[data-result-primary]')).toBe(true)
-    const names = resultRows(screen.getByRole('dialog')).map((r) => computeAccessibleName(primaryOf(r)))
-    expect(names.length).toBeGreaterThan(20)
-    expect(names.filter(stutters)).toEqual([])
+    expect(screen.getByRole('button', { name: /^Relative Strength Index\s*RSI$/ }).matches('[data-result-primary]')).toBe(true)
+    const rows = resultRows(screen.getByRole('dialog'))
+    expect(rows.length).toBeGreaterThan(20)
+    expect(rows.map((r) => computeAccessibleName(primaryOf(r))).filter(stutters)).toEqual([])
+    expect(labelInNameBreaks(rows)).toEqual([])
   })
 
-  it('Add surface in Chart Settings: exact names for indicator rows', () => {
+  it('Add surface in Chart Settings: exact names, no stutter, Label in Name', () => {
     render(<ChartSettingsModal open settings={base()} onChange={vi.fn()} />)
     fireEvent.click(screen.getByRole('tab', { name: 'Indicators' }))
     if (!document.body.querySelector('[data-testid="add-surface"]')) fireEvent.click(screen.getByTestId('add-enter'))
     const surface = screen.getByTestId('add-surface')
-    fireEvent.change(screen.getByRole('searchbox', { name: /Search indicators/i }), { target: { value: 'sar' } })
+    const browse = resultRows(surface)
+    expect(browse.length).toBeGreaterThan(20)
+    expect(labelInNameBreaks(browse)).toEqual([])
+    const box = () => screen.getByRole('searchbox', { name: /Search indicators/i })
+    fireEvent.change(box(), { target: { value: 'sar' } })
     expect(screen.getByRole('button', { name: 'Parabolic SAR' }).matches('[data-result-primary]')).toBe(true)
-    fireEvent.change(screen.getByRole('searchbox', { name: /Search indicators/i }), { target: { value: 'trix' } })
+    fireEvent.change(box(), { target: { value: 'trix' } })
     expect(screen.getByRole('button', { name: 'TRIX' }).matches('[data-result-primary]')).toBe(true)
-    // the INITIALS rule, through the real door: RSI is not read after its own name
-    fireEvent.change(screen.getByRole('searchbox', { name: /Search indicators/i }), { target: { value: 'relative strength' } })
-    expect(screen.getByRole('button', { name: 'Relative Strength Index' }).matches('[data-result-primary]')).toBe(true)
-    const names = resultRows(surface).map((r) => computeAccessibleName(primaryOf(r)))
-    expect(names.filter(stutters)).toEqual([])
+    fireEvent.change(box(), { target: { value: 'relative strength' } })
+    expect(screen.getByRole('button', { name: /^Relative Strength Index\s*RSI$/ }).matches('[data-result-primary]')).toBe(true)
+    expect(resultRows(surface).map((r) => computeAccessibleName(primaryOf(r))).filter(stutters)).toEqual([])
+  })
+
+  it('CONTROL: the Label-in-Name rail catches a hidden tag the name does not say', () => {
+    const li = document.createElement('li')
+    li.innerHTML = '<button data-result-primary="true"><span class="resName">Relative Strength Index</span>'
+      + '<span class="resShort" aria-hidden="true">RSI</span></button>'
+    document.body.appendChild(li)
+    expect(labelInNameBreaks([li])).toHaveLength(1)
+    li.querySelector('.resShort').removeAttribute('aria-hidden')
+    expect(labelInNameBreaks([li])).toEqual([])
+    li.remove()
   })
 })
 
 // ─── 2b. A TICKER IS AN IDENTIFIER, NOT AN ABBREVIATION ─────────────────────
 // A BROWSE security row (symbolSearchModel's POPULAR list) is named with the
-// COMPANY and tagged with the TICKER, so the tag is the only place the ticker is
-// in the button's name. The abbreviation rules hid it: "Meta Platforms Inc." /
-// META by leading cut, "Advanced Micro Devices" / AMD by initials. (A SEARCH row
-// from /api/ticker-search is the other shape, `name: F` / tag `STOCK`, so the
-// ticker is its name and nothing can hide it.)
-const spokenTicker = (row, ticker) => [...primaryOf(row).querySelectorAll('span')]
-  .some((n) => n.textContent.trim() === ticker && !n.closest('[aria-hidden="true"]'))
+// COMPANY and tagged with the TICKER. The ticker is spoken unless the company
+// name literally contains it as a word: "Advanced Micro Devices" / AMD is read
+// out; "Meta Platforms Inc." / META is not repeated, because the name says it.
+const tickerSpan = (row, ticker) => [...primaryOf(row).querySelectorAll('span')]
+  .find((n) => n.textContent.trim() === ticker)
 
-describe('security rows keep the ticker in the name', () => {
+describe('security rows keep the ticker where the name does not say it', () => {
   afterEach(() => vi.unstubAllGlobals())
 
-  it.each([['meta', 'META', 'Meta Platforms Inc.'], ['amd', 'AMD', 'Advanced Micro Devices']])(
-    'search "%s" -> the %s row still says %s', async (q, ticker, company) => {
+  it.each([['amd', 'AMD', 'Advanced Micro Devices', false], ['meta', 'META', 'Meta Platforms Inc.', true]])(
+    'search "%s" -> the %s row (Label in Name holds)', async (q, ticker, company, hidden) => {
       vi.stubGlobal('fetch', vi.fn(async (url) => (String(url).startsWith('/api/ticker-search')
         ? { ok: true, status: 200, json: async () => ({ results: [] }) }
         : { ok: false, status: 404, json: async () => ({}) })))
@@ -185,7 +224,10 @@ describe('security rows keep the ticker in the name', () => {
         expect(r, `no browse-shape ${ticker} row`).toBeTruthy()
         return r
       })
-      expect(spokenTicker(row, ticker), `${ticker} is hidden from "${computeAccessibleName(primaryOf(row))}"`).toBe(true)
+      const span = tickerSpan(row, ticker)
+      expect(span, `no ${ticker} tag on the row`).toBeTruthy()
+      expect(!!span.closest('[aria-hidden="true"]'), computeAccessibleName(primaryOf(row))).toBe(hidden)
+      expect(labelInNameBreaks([row])).toEqual([])
     })
 })
 

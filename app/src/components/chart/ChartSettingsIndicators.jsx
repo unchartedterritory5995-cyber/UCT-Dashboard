@@ -143,7 +143,7 @@ import { paneMap, paneRowMeta, activeIndicatorRows } from './chartDataMap'
 import { movePane, movePaneTo } from './engine/paneOrder'
 import { moveSeriesWithinPane, moveSeriesTo, canMoveSeries } from './engine/paneSeriesOrder'
 import { safeCssColour } from './engine/objectColour'
-import { rowTagRestatesName } from './shortTag'
+import { tagRestatesName } from './shortTag'
 
 /**
  * Is this row a chart FIXTURE — an MA overlay or the volume pane — rather than an
@@ -3167,14 +3167,14 @@ export default function ChartSettingsIndicators({
             <span className={styles.resName}>{row.name}</span>
             {/* ⭐ `chip` names a breadth row's POPULATION (UCT · US · NASDAQ · NYSE) so four
                 identically named metrics are told apart; every other kind keeps `shortName`. */}
-            {/* ⛔ THE ABBREVIATION IS NOT PART OF THE NAME. Inside the button its text
-                joined the accessible name, so VoiceOver read "Parabolic SAR SAR",
-                "TRIX TRIX". A tag that only RESTATES the name (`shortTag.js`
-                derives that from the two strings) is `aria-hidden`; one that adds
-                something (a breadth population, a security's type, a cadence,
-                an abbreviation not spelled by the name) stays in it. */}
+            {/* ⛔ A TAG THE NAME ALREADY SAYS IS NOT READ TWICE. Inside the button its
+                text joins the accessible name, so VoiceOver read "Parabolic SAR
+                SAR", "TRIX TRIX". It is `aria-hidden` ONLY when its words are
+                literally a run of the name's words (`shortTag.js`); any other tag
+                (RSI, a ticker, a population, a type) is visible text and stays in
+                the name -- WCAG 2.5.3 Label in Name. */}
             {!isEcon && (
-              <span className={styles.resShort} aria-hidden={rowTagRestatesName(row, row.chip || row.shortName) ? 'true' : undefined}>
+              <span className={styles.resShort} aria-hidden={tagRestatesName(row.name, row.chip || row.shortName) ? 'true' : undefined}>
                 {row.chip || row.shortName}
               </span>
             )}
