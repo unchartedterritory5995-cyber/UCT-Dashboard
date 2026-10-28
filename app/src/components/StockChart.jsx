@@ -346,17 +346,35 @@ const STUDY_ROW_PX = 22
  * `collapseThresholdPx`, the responsive collapse latches, and the member gets a hover-only
  * legend (measured, WebKit, the hub at 390 and 834 with 20 studies).
  *
- * ⭐ THE HEIGHT IS READ, NOT RESTATED: `.studyStack` declares `--study-more-h` and `.studyMore`
- * takes its height from it, so the stylesheet that sizes the button is the one the fold
- * counts. A row of the stack is its line plus the gap ABOVE the next one, so the button needs
- * its own height plus one `row-gap` of the reservation: ceil((h + gap) / pitch). 14px -> 1,
- * 44px -> 3. Unreadable or unset reads as the one row the fold always reserved.
+ * ⭐ THE HEIGHT IS MEASURED, NOT RESTATED: the sampler passes the RENDERED button's own
+ * `offsetHeight` when one is drawn, and only before that the stack's `--study-more-h` (which
+ * `.studyMore` takes its height from), resolved by `cssLengthPx`. A row of the stack is its
+ * line plus the gap ABOVE the next one, so the button needs its own height plus one `row-gap`
+ * of the reservation: ceil((h + gap) / pitch). 14px -> 1, 44px -> 3.
+ *
+ * ⛔ A HEIGHT IT CANNOT READ IS `null`, NEVER "ONE ROW". One row for a 44px button is the
+ * latch this exists to prevent; on null the sampler keeps what it had and measures the
+ * button on the next frame.
  */
-export function studyDisclosureRows(heightRaw, gapRaw, rowPx = STUDY_ROW_PX) {
-  const h = timeAxisMinHeightFromCss(heightRaw)
-  const gap = timeAxisMinHeightFromCss(gapRaw)
-  if (!h) return 1
-  return Math.max(1, Math.ceil((h + gap) / rowPx))
+export function studyDisclosureRows(heightPx, gapPx, rowPx = STUDY_ROW_PX) {
+  if (!Number.isFinite(heightPx) || heightPx <= 0) return null
+  const gap = Number.isFinite(gapPx) && gapPx > 0 ? gapPx : 0
+  return Math.max(1, Math.ceil((heightPx + gap) / rowPx))
+}
+
+/**
+ * A computed CSS length in px: `Npx`, or `Nrem` against the root font size; `null` for anything
+ * else. An UNREGISTERED custom property computes to its raw token text, so `--study-more-h` can
+ * read back as `2.75rem` or `var(...)`/`calc(...)` text -- the last two are reported as unresolved
+ * rather than mis-parsed as some px number.
+ */
+export function cssLengthPx(raw, rootPx = 16) {
+  const s = String(raw ?? '').trim()
+  let m = /^(\d+(?:\.\d+)?)px$/.exec(s)
+  if (m) return Number(m[1])
+  m = /^(\d+(?:\.\d+)?)rem$/.exec(s)
+  if (m && Number.isFinite(rootPx) && rootPx > 0) return Number(m[1]) * rootPx
+  return null
 }
 
 /**
@@ -17446,9 +17464,15 @@ export default function StockChart({
               const fit = Math.max(0, Math.floor(Math.min(room, share) / STUDY_ROW_PX))
               if (fit !== studyRowBudgetRef.current) { setStudyRowBudget(fit); foldSettled = false }
               // The disclosure's real cost, from the same stylesheet that sizes it.
+              // The rendered button's own height when one is drawn (it is sized by CSS alone, never
+              // by the budget, so measuring it is not a feedback loop); before that, the variable.
               const stackCs = getComputedStyle(stack)
-              const moreRows = studyDisclosureRows(stackCs.getPropertyValue('--study-more-h'), stackCs.rowGap)
-              if (moreRows !== studyMoreRowsRef.current) { setStudyMoreRows(moreRows); foldSettled = false }
+              const moreBtn = stack.querySelector('[data-study-more]')
+              const rootPx = parseFloat(getComputedStyle(document.documentElement).fontSize)
+              const moreH = moreBtn ? moreBtn.offsetHeight
+                : cssLengthPx(stackCs.getPropertyValue('--study-more-h'), rootPx)
+              const moreRows = studyDisclosureRows(moreH, cssLengthPx(stackCs.rowGap))
+              if (moreRows !== null && moreRows !== studyMoreRowsRef.current) { setStudyMoreRows(moreRows); foldSettled = false }
             }
             const leg = legendRef.current
             if (foldSettled && leg && !compactLegendRef.current) {
@@ -19950,7 +19974,7 @@ export default function StockChart({
                 })}
 
                 {studyCanFold && (
-                  <button type="button" className={`${chipStyles.chipMore} ${styles.studyMore}`}
+                  <button type="button" className={`${chipStyles.chipMore} ${styles.studyMore}`} data-study-more=""
                     onClick={() => setChipsExpanded((e) => !e)}
                     aria-expanded={chipsExpanded}
                     aria-label={chipsExpanded ? 'Show fewer indicators' : `Show ${studyMoreCount} more indicators`}
