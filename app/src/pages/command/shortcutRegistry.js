@@ -41,6 +41,7 @@
 //   ctrl?, meta?, shift?, alt?:  true = required · false = forbidden · undefined = don't care
 //   mod?:   'either'   Ctrl OR Cmd required (the palette's original `metaKey || ctrlKey`)
 //           'platform' Cmd on a Mac, Ctrl elsewhere (push-to-talk's original rule)
+//   any?:   true       EVERY key, any modifiers. Only for an `observe: true` declaration (see below).
 // }
 
 const MODIFIERS = ['ctrl', 'meta', 'shift', 'alt']
@@ -59,6 +60,7 @@ export function platformIsMac() {
 /** Does this event satisfy the chord? `env.isMac` overrides the platform read (tests, overlap). */
 export function chordMatches(chord, e, env = {}) {
   if (!chord || !e) return false
+  if (chord.any === true) return true
   if (chord.code != null) {
     if (e.code !== chord.code) return false
   } else {
@@ -127,6 +129,14 @@ export function validateDeclaration(d) {
   if (typeof d.why !== 'string' || d.why.length < 10) throw new Error(`${where}: say why`)
   const c = d.chord
   if (!c || typeof c !== 'object') throw new Error(`${where}: missing chord`)
+  // An observer hears every key and is handed no event, so it can never answer one. `any` is ONLY for an
+  // observer, and an observer is ONLY `any`: a binding that acts on a key always names the key.
+  if (d.observe !== undefined && d.observe !== true) throw new Error(`${where}: observe must be true or absent`)
+  if ((c.any === true) !== (d.observe === true)) throw new Error(`${where}: chord.any goes with observe: true, and only with it`)
+  if (c.any !== undefined) {
+    if (c.any !== true || Object.keys(c).length !== 1) throw new Error(`${where}: an observer's chord is exactly { any: true }`)
+    return d
+  }
   const hasKeys = Array.isArray(c.keys) && c.keys.length > 0
   const hasCode = typeof c.code === 'string' && c.code.length > 0
   if (hasKeys === hasCode) throw new Error(`${where}: chord needs exactly one of keys / code`)
@@ -346,13 +356,54 @@ export const SHORTCUTS = Object.freeze([
       + 'a non-modal step lets Tab through untouched.',
   }),
   decl({
-    // W11-R86: wave 11's My tools Templates tab added this raw (TemplatesTab.jsx); migrated unchanged.
-    id: 'myTools.templatesEscape',
+    // W11-R86: wave 11's My tools Templates tab added this raw (TemplatesTab.jsx); migrated unchanged. Wave 10's
+    // Widgets tab and the Routines / Trackers tab (ToolsTab.jsx) added the same listener raw; they share this id,
+    // because My tools mounts exactly ONE tab at a time (MyToolsSheet renders `active === key && <Tab/>`).
+    id: 'myTools.tabEscape',
     chord: { keys: ['Escape'] },
     target: 'window', capture: true, inEditable: true, repeat: true,
-    why: 'Escape on the My tools Templates tab closes its open menu, else steps back from a template view to '
+    why: 'Escape on the open My tools tab closes its open menu, else steps back from a panel to '
       + 'the list. Bound while the tab is mounted; it acts only when the sheet panel it sits in is the topmost '
       + 'one, and stops propagation when it acts. Window capture, inside a field too.',
+  }),
+  // Wave 9/10 Notebook sheets that added raw window-capture listeners (ToolEditor.jsx, WidgetBuilderSheet.jsx),
+  // migrated unchanged: every key the raw handler looked at is in the chord, with the raw handler's own modifier
+  // test (the builder's Ctrl/Cmd keys were `e.ctrlKey || e.metaKey`, i.e. mod 'either', Shift and Alt not read).
+  // Each handler keeps its own topmost-sheet-panel test. One builder and one tool editor at a time (their doors).
+  // The reasons live here, not in `why`: `why` strings ship in the entry chunk (the Notebook bytes budget).
+  decl({
+    id: 'notebook.toolEditorEscape',
+    chord: { keys: ['Escape'] },
+    target: 'window', capture: true, inEditable: true, repeat: true,
+    why: 'Routine/tracker editor: Escape steps back a level.',
+  }),
+  decl({
+    id: 'notebook.builderEscape',
+    chord: { keys: ['Escape'] },
+    target: 'window', capture: true, inEditable: true, repeat: true,
+    why: 'Widget builder: Escape steps back a level.',
+  }),
+  decl({
+    id: 'notebook.builderSave',
+    chord: { keys: ['Enter'], mod: 'either' },
+    target: 'window', capture: true, inEditable: true, repeat: true,
+    why: 'Widget builder: Ctrl/Cmd+Enter saves.',
+  }),
+  decl({
+    id: 'notebook.builderUndo',
+    chord: { keys: ['z', 'y'], fold: true, mod: 'either' },
+    target: 'window', capture: true, inEditable: true, repeat: true,
+    why: 'Widget builder: Ctrl/Cmd+Z undo, +Shift+Z / +Y redo.',
+  }),
+  // An OBSERVER, not a binding: built widget views (builtViews/svg.js) note that the last input was a key, for
+  // every key, to decide whether a focused mark shows its readout. It is called WITHOUT the event, so it cannot
+  // preventDefault or stop anything: it can never answer a key, and the conflict rail skips it for that reason.
+  decl({
+    id: 'notebook.inputKind',
+    chord: { any: true },
+    observe: true,
+    target: 'document', capture: true, inEditable: true, repeat: true,
+    why: 'Built widget views: note a key was the last input.',
   }),
   decl({
     id: 'notebook.bulkBar',
@@ -463,6 +514,13 @@ const ack = (ids, kind, why) => Object.freeze({ ids, kind, why })
 
 /** The three surface Escape bindings, and what each one closes (for the overlap reasons). */
 const SURFACE_ESCAPES = ['archive.lightboxClose', 'screener.gridMenuClose', 'studyReview.card']
+/** The Notebook sheet Escapes (window capture, each acting only when its own sheet panel is the topmost one). */
+const SHEET_ESCAPES = ['myTools.tabEscape', 'notebook.toolEditorEscape', 'notebook.builderEscape']
+const SHEET_WHAT = {
+  'myTools.tabEscape': 'The open My tools tab closes its menu, or steps back from a panel, on it.',
+  'notebook.toolEditorEscape': 'The routine or tracker editor steps back from an inner level on it.',
+  'notebook.builderEscape': 'The widget builder steps back from a picker or question on it.',
+}
 const SURFACE_WHAT = {
   'archive.lightboxClose': 'The archive lightbox closes on it while its image is open.',
   'screener.gridMenuClose': 'The screener layout menu closes on it while the menu is open.',
@@ -511,24 +569,35 @@ export const ACKNOWLEDGED_OVERLAPS = Object.freeze([
   ...SURFACE_ESCAPES.map((id) => ack([id, 'notebook.tourEscape'], 'surface',
     'Escape matches both. The tour runs only on the Notebook, which never mounts this '
       + 'binding; and if both were live, each acts only when it is the topmost layer.')),
-  // W11-R86: the My tools Templates tab's Escape (migrated from its raw listener, behaviour unchanged).
-  ack(['myTools.templatesEscape', 'palette.close'], 'propagation',
-    'Escape matches both. The palette is not a sheet, so with it open over My tools the Templates tab is '
-      + 'still the topmost sheet panel: its window-capture binding runs before the document-capture binding of the palette '
-      + 'one and, when it acts (a menu open, or a template view to step back from), stops propagation, so '
-      + 'the palette stays open; on the plain list it does not act and the palette closes. Exactly what the '
-      + 'raw listener did.'),
-  ack(['myTools.templatesEscape', 'video.escape'], 'propagation',
-    'Escape matches both. The Templates tab listens in the window capture phase and stops propagation '
-      + 'when it acts, so the video binding (window bubble) never sees that press; on the plain list it does '
-      + 'not act and the video key works as usual.'),
-  ack(['myTools.templatesEscape', 'notebook.tourEscape'], 'layer',
-    'Escape matches both. Each acts only when its own layer is the topmost one (the tour its card, the '
-      + 'Templates tab its sheet panel), and each stops propagation when it acts, so one press is answered '
-      + 'by one of them.'),
-  ...SURFACE_ESCAPES.map((id) => ack([id, 'myTools.templatesEscape'], 'surface',
-    'Escape matches both. My tools opens only from the Notebook, which mounts none of the trader archive '
-      + 'lightbox, the screener layout menu or the admin study review.')),
+  // The Notebook sheet Escapes: My tools' open tab (W11-R86 and its wave 10 siblings), the routine/tracker editor
+  // and the widget builder, each migrated from its raw window-capture listener, behaviour unchanged.
+  ...SHEET_ESCAPES.map((id) => ack([id, 'palette.close'], 'propagation',
+    `Escape matches both. ${SHEET_WHAT[id]} The palette is not a sheet, so with it open over this sheet the sheet `
+      + 'is still the topmost sheet panel: its window-capture binding runs before the document-capture one of the palette '
+      + 'and, when it acts, stops propagation, so the palette stays open; when it does not act the palette closes. '
+      + 'Exactly what the raw listener did.')),
+  ...SHEET_ESCAPES.map((id) => ack([id, 'video.escape'], 'propagation',
+    `Escape matches both. ${SHEET_WHAT[id]} It listens in the window capture phase and stops propagation when it `
+      + 'acts, so the video binding (window bubble) never sees that press; when it does not act the video key works '
+      + 'as usual.')),
+  ...SHEET_ESCAPES.map((id) => ack([id, 'notebook.tourEscape'], 'layer',
+    `Escape matches both. ${SHEET_WHAT[id]} Each acts only when its own layer is the topmost one (the tour its `
+      + 'card, the sheet its sheet panel), and each stops propagation when it acts, so one press is answered by '
+      + 'one of them.')),
+  ...SHEET_ESCAPES.flatMap((id) => SURFACE_ESCAPES.map((other) => ack([other, id], 'surface',
+    'Escape matches both. This sheet opens only from the Notebook, which mounts none of the trader archive '
+      + 'lightbox, the screener layout menu or the admin study review.'))),
+  ...SHEET_ESCAPES.flatMap((id, i) => SHEET_ESCAPES.slice(i + 1).map((other) => ack([id, other], 'layer',
+    `Escape matches both. ${SHEET_WHAT[id]} ${SHEET_WHAT[other]} Each acts only when the sheet panel it sits in `
+      + 'is the topmost one, and the editor and the builder open as sheets of their own above My tools and the '
+      + 'note, so one press is answered by the top sheet only.'))),
+  ...['indicators.undo', 'indicators.redo', 'indicators.redoY'].map((id) => ack([id, 'notebook.builderUndo'], 'layer',
+    'Ctrl/Cmd+Z or Y matches both. The indicator toast stands down whenever any modal is open (isModalOpen), and '
+      + 'the widget builder is a modal sheet, so with the builder open only the builder answers; with it closed the '
+      + 'builder binding is not live.')),
+  ack(['drill.primary', 'notebook.builderSave'], 'surface',
+    'Ctrl/Cmd+Enter matches both. A drill opens only from the Desk (CoursesSection), the widget builder only from '
+      + 'the Notebook; they are never mounted on the same page.'),
   ack(['archive.lightboxClose', 'screener.gridMenuClose'], 'surface',
     'Escape matches both. One is on the trader archive, the other on the screener Charts '
       + 'view; they are never mounted on the same page.'),
@@ -595,6 +664,7 @@ function candidatesOf(chord) {
       push(s, NAMED_CODE_FOR[s] || s)
     }
   }
+  if (chord.any === true) return out // every key: the OTHER chord's candidates are the events both answer
   if (chord.code != null) {
     const m = /^Key([A-Z])$/.exec(chord.code) || /^Digit([0-9])$/.exec(chord.code)
     if (m) fromChar(m[1])
@@ -636,7 +706,11 @@ export function overlapExample(a, b) {
 export function findShortcutConflicts(decls) {
   const out = []
   for (let i = 0; i < decls.length; i += 1) {
+    // An observer is called without the event (see registerShortcuts), so it cannot answer a keystroke and
+    // cannot conflict with one. Nothing else is skipped.
+    if (decls[i].observe === true) continue
     for (let j = i + 1; j < decls.length; j += 1) {
+      if (decls[j].observe === true) continue
       const ex = overlapExample(decls[i], decls[j])
       if (ex) out.push({ ids: [decls[i].id, decls[j].id], example: ex })
     }
@@ -727,7 +801,11 @@ export function registerShortcuts(handlers) {
     if (!node) continue
     const listener = (e) => {
       for (const { d, fn } of g.items) {
-        if (bindingMatches(d, e)) { fn(e); return }
+        if (!bindingMatches(d, e)) continue
+        // An observer gets NO event (it cannot preventDefault or stop propagation) and never ends the walk.
+        if (d.observe === true) { fn(); continue }
+        fn(e)
+        return
       }
     }
     node.addEventListener(g.type, listener, g.capture)
