@@ -21,7 +21,8 @@ import CompareSymbolSearch from './CompareSymbolSearch'
 import styles from './TickerPopup.module.css'
 import { CHART_FIT_TARGET, fitChartHeightPx, chartHeightCss, shouldUpdateFit } from './tickerPopupChartFit'
 import { chordById, matchesChord } from '../pages/command/chords.js'
-import { layerAbove } from '../lib/topLayer'
+import { openLayers, layerOpenedSince } from '../lib/topLayer'
+import { registerShortcuts } from '../pages/command/shortcutRegistry'
 
 // The SAME chart the /charts workspace renders — identity row, session toggle,
 // market clock, timeframe bar, market-cap/earnings/UCT-rating meta, settings
@@ -64,18 +65,51 @@ function isCaptureSuccessMessage(msg) {
   return typeof msg === 'string' && /captured to Notebook$/.test(msg)
 }
 
-// Is there a layer ABOVE the popup that owns Escape? Either the popup sits beneath an inert
-// background (a modal above made everything under it inert -- checked inline because
-// fix/chart-a11y's `inertBeneath` helper is not on this base), or a showing layer as the app
-// defines one (lib/topLayer.js: a Sheet panel, an aria-modal dialog, a non-modal
-// [data-escape-layer] such as the chart's right-click menu or earnings popover, or an open
-// <dialog>) is above it -- later in the document, or inside the popup.
-// ⛔ ONE definition of a layer. This used to restate its own selector and missed the
-// [data-escape-layer] popovers the chart opens INSIDE the popup.
-export function escapeBelongsToLayerAbove(popup) {
+// ⛔⛔ WHO OWNS ESCAPE OVER AN OPEN POPUP -- decided BEFORE any layer reacts.
+//
+// A layer is what lib/topLayer.js says it is (a Sheet panel, an aria-modal dialog, a non-modal
+// [data-escape-layer] -- the chart's right-click menu, earnings popover, IPO tag -- or an open
+// <dialog>). One is ABOVE the popup when it OPENED after the popup (open order, not document
+// order: the right-click menu renders inside #root, BEFORE the popup's <body> portal), or when
+// the popup sits beneath an inert background (fix/chart-a11y's Chart Settings; checked inline,
+// its `inertBeneath` helper is not on this base).
+//
+// ⛔ The answer is taken in the WINDOW CAPTURE phase (`tickerPopup.escapeGate`, observe-only):
+// a layer that closes from its own document listener is already UNMOUNTED by the time the
+// popup's window-bubble listener runs -- browsers run a microtask checkpoint between the two and
+// React commits the close in it. Closing stays in the bubble phase, so anything inside the
+// popup that handles Escape and stops propagation (the switch-ticker suggestions) still wins.
+const OPEN_POPUPS = new Map()       // popup element -> the layers that were open when it opened
+const ESCAPE_SNAPSHOTS = new WeakMap() // keydown event -> Map(popup element -> owned by a layer above)
+let releaseEscapeGate = null
+
+export function escapeBelongsToLayerAbove(popup, beneath = OPEN_POPUPS.get(popup)) {
   if (!popup) return false
   if (popup.closest('[inert]')) return true
-  return layerAbove(popup)
+  return layerOpenedSince(popup, beneath || new Set())
+}
+
+function snapshotEscape(e) {
+  const owned = new Map()
+  for (const [popup, beneath] of OPEN_POPUPS) owned.set(popup, escapeBelongsToLayerAbove(popup, beneath))
+  ESCAPE_SNAPSHOTS.set(e, owned)
+}
+
+/** Register an open popup (one gate for all of them: a nested popup must not bind it twice). */
+function trackOpenPopup(popup) {
+  OPEN_POPUPS.set(popup, openLayers())
+  if (!releaseEscapeGate) releaseEscapeGate = registerShortcuts({ 'tickerPopup.escapeGate': snapshotEscape })
+  return () => {
+    OPEN_POPUPS.delete(popup)
+    if (!OPEN_POPUPS.size && releaseEscapeGate) { releaseEscapeGate(); releaseEscapeGate = null }
+  }
+}
+
+/** Was this Escape, at capture time, owned by a layer above `popup`? */
+function escapeOwnedAbove(e, popup) {
+  const snap = ESCAPE_SNAPSHOTS.get(e)
+  if (snap && snap.has(popup)) return snap.get(popup)
+  return escapeBelongsToLayerAbove(popup)   // no snapshot (a synthetic event dispatched on window only)
 }
 
 export default function TickerPopup({ sym, as: Tag = 'span', customChartFn, className, children, markers = null, priceLines = null, stopPrice = null, anchorDate = null, darkPool = false, flowMeta = null, open: openProp, onClose, focusable = true }) {
@@ -352,6 +386,13 @@ export default function TickerPopup({ sym, as: Tag = 'span', customChartFn, clas
     }
   }
 
+  // The popup's place in the open order (see trackOpenPopup above). A layout effect, so the
+  // layers already open are recorded before anything the popup opens can mount.
+  useLayoutEffect(() => {
+    if (!modalOpen || !modalRef.current) return undefined
+    return trackOpenPopup(modalRef.current)
+  }, [modalOpen])
+
   useEffect(() => {
     if (!modalOpen) return
     const handleKey = (e) => {
@@ -361,7 +402,7 @@ export default function TickerPopup({ sym, as: Tag = 'span', customChartFn, clas
         // ⛔ ONE Escape, ONE layer. A layer opened OVER the popup (Chart Settings from the
         // chart's context menu, the symbol search, any modal dialog) owns this key; this
         // window listener used to close the popup underneath it in the same keystroke.
-        if (escapeBelongsToLayerAbove(modalRef.current)) return
+        if (escapeOwnedAbove(e, modalRef.current)) return
         closeModal(); return
       }
       // S2 CP6 — reads the DECLARED chord table instead of spelling the modifier

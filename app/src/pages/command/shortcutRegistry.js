@@ -446,6 +446,17 @@ export const SHORTCUTS = Object.freeze([
       + 'while that image is open, and it acts only while that lightbox is the topmost layer. '
       + 'Window capture, stops propagation when it acts.',
   }),
+  // ── the ticker popup (components/TickerPopup.jsx) ──
+  // OBSERVE-ONLY: records, before any layer reacts, whether a layer opened over each open popup.
+  // A layer that closes from its own document listener is already unmounted by the popup's
+  // window-bubble Escape (React commits in the microtask between the two), so the popup must ask
+  // here, first. It never stops propagation, never prevents default, never closes anything.
+  decl({
+    id: 'tickerPopup.escapeGate',
+    chord: { keys: ['Escape'] },
+    target: 'window', capture: true, inEditable: true, repeat: true,
+    why: 'Escape over a ticker popup: note which layers were open. Observe only.',
+  }),
 ])
 
 const BY_ID = new Map(SHORTCUTS.map((d) => [d.id, d]))
@@ -529,6 +540,11 @@ export const ACKNOWLEDGED_OVERLAPS = Object.freeze([
   ...SURFACE_ESCAPES.map((id) => ack([id, 'myTools.templatesEscape'], 'surface',
     'Escape matches both. My tools opens only from the Notebook, which mounts none of the trader archive '
       + 'lightbox, the screener layout menu or the admin study review.')),
+  // The ticker popup's gate observes and never acts, so it cannot take a press from anyone.
+  ...['palette.close', 'video.escape', 'notebook.tourEscape', 'myTools.templatesEscape', ...SURFACE_ESCAPES]
+    .map((id) => ack(['tickerPopup.escapeGate', id], 'observe',
+      'Escape matches both. The ticker popup gate only records which layers are open; it never '
+        + 'stops propagation or acts, so the other binding answers the press exactly as before.')),
   ack(['archive.lightboxClose', 'screener.gridMenuClose'], 'surface',
     'Escape matches both. One is on the trader archive, the other on the screener Charts '
       + 'view; they are never mounted on the same page.'),

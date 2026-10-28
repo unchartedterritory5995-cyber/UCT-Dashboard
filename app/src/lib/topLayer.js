@@ -25,26 +25,35 @@ export function isTopmostLayer(el) {
 export const LAYER_SELECTOR = `${LAYERS},dialog[open]`
 
 /** Is `el` actually on screen? A layer that is mounted but hidden -- by itself, by an
- *  ancestor's `display: none` or `hidden`, or by `visibility: hidden` -- is not a layer. */
+ *  ancestor's `display: none` or `hidden`, or by `visibility: hidden` -- is not a layer.
+ *  (`checkVisibilityCSS` too: Chrome 105-120 and Firefox 106-121 know only that name.) */
 function isShowing(el) {
   if (el.closest('[aria-hidden="true"], [inert]')) return false
-  if (typeof el.checkVisibility === 'function') return el.checkVisibility({ visibilityProperty: true })
+  if (typeof el.checkVisibility === 'function') {
+    return el.checkVisibility({ visibilityProperty: true, checkVisibilityCSS: true })
+  }
   for (let n = el; n && n.nodeType === 1; n = n.parentElement) {
     if (n.hidden || getComputedStyle(n).display === 'none') return false
   }
   return getComputedStyle(el).visibility !== 'hidden'
 }
 
-/** Whether a showing layer is open ABOVE `el`: one that follows it in document order,
- *  INCLUDING one inside it (a context menu or popover that `el` itself opened -- a descendant
- *  also follows its ancestor). For a surface deciding whether ITS OWN Escape should close it;
- *  unlike `isTopmostLayer`, a layer inside `el` counts, because it is drawn over `el`. */
-export function layerAbove(el) {
+/** The layers open right now (a snapshot to compare against later). */
+export function openLayers() {
+  return new Set(document.querySelectorAll(LAYER_SELECTOR))
+}
+
+/** Whether a showing layer has opened ABOVE `el` since `beneath` (an `openLayers()` snapshot
+ *  taken when `el` opened) -- by OPEN ORDER, not document order. Document order cannot tell:
+ *  the chart's right-click menu renders inside #root (GlobalAddPositionProvider), BEFORE a
+ *  popup portaled onto <body>, and is still drawn over it. A layer inside `el` counts; `el`
+ *  itself and anything holding it do not. */
+export function layerOpenedSince(el, beneath) {
   if (!el) return false
   for (const layer of document.querySelectorAll(LAYER_SELECTOR)) {
     if (layer === el || layer.contains(el)) continue
-    if (!isShowing(layer)) continue
-    if (el.compareDocumentPosition(layer) & Node.DOCUMENT_POSITION_FOLLOWING) return true
+    if (beneath && beneath.has(layer)) continue
+    if (isShowing(layer)) return true
   }
   return false
 }
