@@ -496,10 +496,16 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     if (deferred.length) {
       // each one on its own (they run one at a time, so they are checked one at a time)
       const okd = []
+      // ⭐ P2: a step aimed at a chart an EARLIER step of this request adds indicators to ("add the 9 EMA, make the
+      // 9 green") cannot be checked yet — what it names does not exist until then. It is checked at its own turn
+      // (and refused there, with the real reason, if it still cannot run).
+      const grows = new Set(allOps.filter(o => getCapability(o?.action)?.addsIndicators).map(o => o.target))
       for (const d of deferred) {
         const dp = planOps(collectTargets(host, kindsOf([d])), [d], { pendingLists: pendingNames }, capCtx)
-        if (!dp.ok) push({ role: 'agent', text: `I'll do the rest, but not this part: ${[...new Set(dp.refusals.map(r => r.reason))].join(' ')}` })
+        if (!dp.ok && grows.has(d.target)) okd.push(d)
+        else if (!dp.ok) push({ role: 'agent', text: `I'll do the rest, but not this part: ${[...new Set(dp.refusals.map(r => r.reason))].join(' ')}` })
         else { okd.push(d); deferredLines.push(...dp.lines) }
+        if (getCapability(d?.action)?.addsIndicators) grows.add(d.target)
       }
       deferred = okd
     }

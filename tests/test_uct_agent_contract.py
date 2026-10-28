@@ -23,7 +23,8 @@ _GROUP_OF = {"chart": "charts", "volume": "charts", "widget": "workspace", "layo
              "watchlist": "lists", "screener": "screener", "alert": "alerts", "stock": "data",
              "news": "data", "settings": "settings", "app": "settings", "agent": "agent",
              "drawing": "drawings", "indicator": "indicators", "breadth": "breadth",
-             "chartSetup": "chartSetup"}
+             "chartSetup": "chartSetup", "indicatorStyle": "indicatorSetup", "indicatorCopy": "indicatorSetup",
+             "pane": "indicatorSetup", "definition": "definitions"}
 
 
 def _requests():

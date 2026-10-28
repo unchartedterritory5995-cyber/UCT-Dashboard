@@ -3589,6 +3589,313 @@
    "query": false
   },
   {
+   "name": "indicatorStyle.set",
+   "domain": "indicatorStyle",
+   "target": "indicatorEdits",
+   "summary": "Change how ONE indicator on ONE chart looks — its colour (or a histogram's up / down colours), line width, line style or plot style — exactly what its settings / Inspector offer. One change per op; Undo puts it back.",
+   "hints": "target = the ref of that chart's indicatorEdits entry; instance = the indicator's id from that chart's indicators list (or \"#20\" for the one of length 20, \"#20:ema\"). property = color | upColor | downColor | lineWidth (1–4, or \"thicker\" / \"thinner\") | lineStyle (solid | dashed | dotted) | plotStyle (line, histogram, area… as offered) | overlap. value = the member's value (a colour name or #hex for colours). output = which line or colour when the indicator has several (its label), else null. \"Make the 9 green and the 20 red and dashed\" = three ops.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "instance": {
+      "type": "string"
+     },
+     "property": {
+      "type": "string",
+      "enum": [
+       "color",
+       "upColor",
+       "downColor",
+       "lineWidth",
+       "lineStyle",
+       "plotStyle",
+       "overlap"
+      ]
+     },
+     "value": {
+      "type": [
+       "string",
+       "number",
+       "boolean"
+      ]
+     },
+     "output": {
+      "type": [
+       "string",
+       "null"
+      ]
+     }
+    },
+    "required": [
+     "instance",
+     "property",
+     "value",
+     "output"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false
+  },
+  {
+   "name": "indicatorStyle.placeIn",
+   "domain": "indicatorStyle",
+   "target": "indicatorEdits",
+   "summary": "Move ONE indicator on ONE chart to where it draws — on the price pane, on the volume pane, in its own pane, inside another indicator's pane, or back to automatic (the Inspector's \"Display in\"). Undo puts it back.",
+   "hints": "target = the chart's indicatorEdits entry; instance = the indicator; place = price | volume | pane (its own) | auto | another indicator on that chart (its id or name) to draw inside its pane.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "instance": {
+      "type": "string"
+     },
+     "place": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "instance",
+     "place"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false
+  },
+  {
+   "name": "pane.move",
+   "domain": "pane",
+   "target": "indicatorEdits",
+   "summary": "Reorder ONE chart's panes (Chart Data → Arrange): move a pane up, down, to the top or bottom, or above / below another pane (\"move RSI above price\"). Undo puts the order back.",
+   "hints": "target = the chart's indicatorEdits entry; pane = price | volume | an indicator drawn in its own pane (its id, name or kind, e.g. \"rsi\"); to = up | down | top | bottom | above | below; relativeTo = the other pane for above / below, else null.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "pane": {
+      "type": "string"
+     },
+     "to": {
+      "type": "string",
+      "enum": [
+       "up",
+       "down",
+       "top",
+       "bottom",
+       "above",
+       "below"
+      ]
+     },
+     "relativeTo": {
+      "type": [
+       "string",
+       "null"
+      ]
+     }
+    },
+    "required": [
+     "pane",
+     "to",
+     "relativeTo"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false
+  },
+  {
+   "name": "pane.resize",
+   "domain": "pane",
+   "target": "indicatorEdits",
+   "summary": "Change the height of ONE pane on ONE chart (what dragging its divider does): a percent of the chart's height, bigger, smaller, or back to automatic. Undo puts it back.",
+   "hints": "target = the chart's indicatorEdits entry; pane = price | volume | an indicator in its own pane; size = a percent (4–90) or \"bigger\" | \"smaller\" | \"auto\".",
+   "args": {
+    "type": "object",
+    "properties": {
+     "pane": {
+      "type": "string"
+     },
+     "size": {
+      "type": [
+       "string",
+       "number"
+      ]
+     }
+    },
+    "required": [
+     "pane",
+     "size"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false
+  },
+  {
+   "name": "indicatorCopy.duplicate",
+   "domain": "indicatorCopy",
+   "target": "indicatorEdits",
+   "summary": "Add a second copy of ONE indicator on the same chart, with everything it is configured with (the legend's Duplicate). Undo removes only the copy.",
+   "hints": "target = the chart's indicatorEdits entry; instance = the indicator to copy. To put indicators on ANOTHER chart use indicatorCopy.copyTo.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "instance": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "instance"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false
+  },
+  {
+   "name": "indicatorCopy.copyTo",
+   "domain": "indicatorCopy",
+   "target": "indicatorEdits",
+   "summary": "Copy indicators from one chart onto ANOTHER chart, exactly as configured (colours, settings, panes and links between them — the Indicator templates copy). One op per destination chart; an indicator already there is skipped and said. Undo removes what was added.",
+   "hints": "target = the DESTINATION chart's indicatorEdits entry; from = the ref of the chart to copy FROM; instances = the indicators to copy (ids or names from that chart), or [] for all of them. \"Copy these indicators to all my charts\" = one op per other chart.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "from": {
+      "type": "string"
+     },
+     "instances": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     }
+    },
+    "required": [
+     "from",
+     "instances"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false
+  },
+  {
+   "name": "definition.search",
+   "domain": "definition",
+   "target": "definitionLibrary",
+   "summary": "Find indicators by name or what they do — UCT's built-in indicators and the member's own saved ones (never anyone else's). Read-only.",
+   "hints": "target = the definitionLibrary entry; query = the member's words (\"momentum\", \"volatility bands\", \"my trend\"); kind = builtin | custom | null (both).",
+   "args": {
+    "type": "object",
+    "properties": {
+     "query": {
+      "type": "string"
+     },
+     "kind": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "enum": [
+       "builtin",
+       "custom",
+       null
+      ]
+     }
+    },
+    "required": [
+     "query",
+     "kind"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true
+  },
+  {
+   "name": "definition.describe",
+   "domain": "definition",
+   "target": "definitionLibrary",
+   "summary": "Describe ONE indicator — its settings and their ranges, what it outputs, where it draws, and whether each output can drive an alert or a scan. Read-only.",
+   "hints": "target = the definitionLibrary entry; defId = its id (from a search or a chart's indicators list), or its exact name.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "defId": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "defId"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true
+  },
+  {
+   "name": "definition.duplicate",
+   "domain": "definition",
+   "target": "definitionLibrary",
+   "summary": "Save a COPY of an indicator as one of the member's own indicators (the legend's \"Create custom copy\") — a built-in becomes an editable formula, one of theirs is forked. Shown first; Undo deletes the copy (while no chart draws it).",
+   "hints": "target = the definitionLibrary entry; defId = the indicator's id (or its exact name). To put an indicator on a chart twice use indicatorCopy.duplicate instead.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "defId": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "defId"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "confirm",
+   "reversible": true,
+   "undo": "exact",
+   "query": false
+  },
+  {
+   "name": "definition.delete",
+   "domain": "definition",
+   "target": "definitionLibrary",
+   "summary": "Delete one of the member's OWN saved indicators (built-ins cannot be deleted). Always shown first, naming every chart still drawing it (they stop drawing it). Undo restores it under the same id, so those charts draw it again.",
+   "hints": "target = the definitionLibrary entry; defId = the indicator's id from yourIndicators or a chart's indicators list (or its exact name). If more than one of theirs could be meant, ask — never pick by similarity.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "defId": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "defId"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "confirm",
+   "reversible": true,
+   "undo": "exact",
+   "query": false
+  },
+  {
    "name": "agent.capabilities",
    "domain": "agent",
    "target": "about",

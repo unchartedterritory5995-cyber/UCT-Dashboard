@@ -32,6 +32,7 @@ import PreviewPane from './PreviewPane'
 import ExamplesGallery from './ExamplesGallery'
 import SaveQuestion, { UPDATE_ALL, SAVE_NEW, preselectAnswer } from './SaveQuestion'
 import styles from './WidgetBuilderSheet.module.css'
+import { holdSheetKeys } from '../sheetKeys'
 
 /**
  * Notebook widgets phase 2 (wave 8, Task 8.15): the widget builder (spec 5.2, 5.9-5.11).
@@ -1133,8 +1134,11 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
       e.preventDefault()
       dispatch({ type: z && !e.shiftKey ? 'undo' : 'redo' })
     }
-    window.addEventListener('keydown', onKey, true)
-    return () => window.removeEventListener('keydown', onKey, true)
+    // Through the shared key registry (declared there: notebook.builderEscape / builderSave / builderUndo), so the
+    // key-listener census sees it. ONE native listener on window, capture phase, as before; the chords cover exactly
+    // the keys this handler acts on (Escape; Ctrl/Cmd with Enter, Z or Y), and the handler keeps every test of its own.
+    // Held through sheetKeys.js, which keeps one registration while a closing builder and the next one overlap.
+    return holdSheetKeys('builder', onKey)
   }, [])
 
   // ── render ─────────────────────────────────────────────────────────────────────────────────────

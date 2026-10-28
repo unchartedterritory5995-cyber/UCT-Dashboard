@@ -1,18 +1,19 @@
 import { embedAutoCaption } from '../../../lib/widgetEmbedCore'
+import { formatCompact } from '../../../../../lib/presentation/presentationPrimitives'
 import SnapshotFrame, { useSnapshotFrame, numCell, NA, own, snapshotStyles as s } from './SnapshotFrame'
 
 const NO_NET = 'The flow record for this name carries no net premium figure'
 const SIDE = { C: 'Call', P: 'Put' }
 const DIRECTION = { Bull: 'Bullish', Bear: 'Bearish', Mixed: 'Mixed', Unclear: 'Unclear' }
 
+/** TERM-066: premium's ladder (trailing zeros dropped: `trim`), passed to the ONE K/M/B decision. */
+const PREMIUM_TIERS = Object.freeze([
+  Object.freeze({ at: 1e9, suffix: 'B', decimals: 2 }),
+  Object.freeze({ at: 1e6, suffix: 'M', decimals: 2 }),
+  Object.freeze({ at: 1e3, suffix: 'K', decimals: 1 }),
+])
 /** Premium in dollars, short: $85K, $1.25M. */
-export function fmtPremium(v) {
-  const a = Math.abs(v)
-  if (a >= 1e9) return `$${+(v / 1e9).toFixed(2)}B`
-  if (a >= 1e6) return `$${+(v / 1e6).toFixed(2)}M`
-  if (a >= 1e3) return `$${+(v / 1e3).toFixed(1)}K`
-  return `$${Math.round(v)}`
-}
+export const fmtPremium = (v) => formatCompact(v, { tiers: PREMIUM_TIERS, prefix: '$', trim: true })
 
 function Row({ label, children }) {
   return (

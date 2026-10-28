@@ -746,9 +746,9 @@ export function mineGroupItems(query, editor) {
 // ── Notebook widgets wave 10 (Task 10.21, spec 8): the ready-made widgets. A bare `/` lists at most eight under
 // "Widgets" (the member's most used, then the defaults), then "All widgets…"; typed, every card is ranked with the
 // blocks. The rows live in lib/builtInWidgets, reached only by this dynamic import (first-open bytes). Dark while
-// wave 10 is off; a shelf that cannot be read leaves the defaults that need none.
+// wave 10 is off; a shelf that cannot be read leaves the defaults that need none (SHELF_UNREAD says so by name).
 const builtIn = background(() => import('../../lib/builtInWidgets')
-  .then(async (m) => ({ m, doc: await m.loadBuiltIn().catch(() => null) })))
+  .then(async (m) => ({ m, doc: await m.loadBuiltIn().catch(() => m.SHELF_UNREAD) })))
 export function builtInItems(query, editor) {
   if (!widgetsWaveOn(8) || !widgetsWaveOn(10)) return []
   const v = builtIn.kick(editor)

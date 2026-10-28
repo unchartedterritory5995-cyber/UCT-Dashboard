@@ -140,9 +140,15 @@ describe('a new routine', () => {
     expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Move item 1 up' }))
     fireEvent.click(screen.getByRole('button', { name: 'Remove item 1' }))
     expect(itemValues()).toEqual(['A'])
-    for (let i = 0; i < 30; i += 1) fireEvent.click(screen.getByRole('button', { name: 'Add an item' }))
+    // ONE role query, clicked 30 times: a role query per click computes the accessible name of every element in a
+    // DOM growing to 25 items, and that alone took this test past its 15 s timeout (16 s alone on master). The
+    // button is the same element throughout; if it were re-created, clicks on the stale one would add nothing and
+    // the 25 below would fail, and the re-query after the loop must find this same element.
+    const addOnce = screen.getByRole('button', { name: 'Add an item' })
+    for (let i = 0; i < 30; i += 1) fireEvent.click(addOnce)
     expect(itemInputs()).toHaveLength(25)
     const add = screen.getByRole('button', { name: 'Add an item' })
+    expect(add).toBe(addOnce)
     expect(add.getAttribute('aria-disabled')).toBe('true')
     expect(add.hasAttribute('disabled')).toBe(false)              // aria-disabled plus a guard, never `disabled`
     expect(screen.getByText('A routine can hold up to 25 items.')).toBeTruthy()

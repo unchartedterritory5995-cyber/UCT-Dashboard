@@ -1,15 +1,19 @@
 import { embedAutoCaption } from '../../../lib/widgetEmbedCore'
+import { formatCompact } from '../../../../../lib/presentation/presentationPrimitives'
 import { fmtShortDay } from '../../../lib/earningsPrepShared'
 import SnapshotFrame, { useSnapshotFrame, numCell, NA, toneOf, fmtChangePct, snapshotStyles as s } from './SnapshotFrame'
 
 const fmtEps = (v) => (v < 0 ? `-$${Math.abs(v).toFixed(2)}` : `$${v.toFixed(2)}`)
-/** Revenue in the units a trader reads it in: $25.1B, $412.3M. */
+/** TERM-066: revenue's ladder, passed to the ONE K/M/B decision (presentationPrimitives.formatCompact). */
+const REVENUE_TIERS = Object.freeze([
+  Object.freeze({ at: 1e9, suffix: 'B', decimals: 1 }),
+  Object.freeze({ at: 1e6, suffix: 'M', decimals: 1 }),
+])
+/** Revenue in the units a trader reads it in: $25.1B, $412.3M; under a million, whole dollars with separators. */
 export function fmtRevenue(v) {
-  const a = Math.abs(v)
+  if (Math.abs(v) >= 1e6) return formatCompact(v, { tiers: REVENUE_TIERS, prefix: '$' })
   const sign = v < 0 ? '-' : ''
-  if (a >= 1e9) return `${sign}$${(a / 1e9).toFixed(1)}B`
-  if (a >= 1e6) return `${sign}$${(a / 1e6).toFixed(1)}M`
-  return `${sign}$${Math.round(a).toLocaleString('en-US')}`
+  return `${sign}$${Math.round(Math.abs(v)).toLocaleString('en-US')}`
 }
 
 /** "actual vs estimate": each side n/a with its own reason, so an unknown is never 0. */

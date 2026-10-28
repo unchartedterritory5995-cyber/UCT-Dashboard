@@ -6,6 +6,7 @@
 // view's `width` prop.
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useIsTouch } from '../../../../../../hooks/useBreakpoint'
+import { registerShortcuts } from '../../../../../command/shortcutRegistry'
 
 export const W = 600
 /** The touch tier's finger floor (tokens.css --tap-min), and the desktop mark size. */
@@ -139,7 +140,9 @@ export function trackInputKind() {
   if (tracking || typeof document === 'undefined') return
   tracking = true
   const pointer = () => { lastInput = 'pointer' }
-  document.addEventListener('keydown', () => { lastInput = 'key' }, true)
+  // Every key, document capture, through the shared key registry as an OBSERVER (it is handed no event, so it can
+  // never answer or stop a key), so the key-listener census sees it.
+  registerShortcuts({ 'notebook.inputKind': () => { lastInput = 'key' } })
   document.addEventListener('pointerdown', pointer, true)
   document.addEventListener('mousedown', pointer, true)
   document.addEventListener('touchstart', pointer, { capture: true, passive: true })

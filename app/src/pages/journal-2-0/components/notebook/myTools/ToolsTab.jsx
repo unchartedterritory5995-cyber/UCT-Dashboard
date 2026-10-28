@@ -18,6 +18,7 @@ import {
 } from './myToolsLib'
 import { libraryOn, openShare, takeUpdate } from './libraryActions'
 import styles from './myTools.module.css'
+import { holdSheetKeys } from '../sheetKeys'
 
 /**
  * My tools, the Routines and Trackers tabs (spec 5.8, Task 9.18): one component, `kind` 'routine' or 'tracker'. The
@@ -327,8 +328,10 @@ export default function ToolsTab({ kind, phone, navigate = null, onCloseAll }) {
       e.stopPropagation()
       k.back()
     }
-    window.addEventListener('keydown', onKey, true)
-    return () => window.removeEventListener('keydown', onKey, true)
+    // Through the shared key registry (declared there with its scope, `myTools.tabEscape`), so the key-listener census
+    // sees it. Same node (window), same phase (capture), same rule (every Escape, in a field too). One tab at a time;
+    // held through sheetKeys.js, which keeps one registration while a closing sheet and its successor overlap.
+    return holdSheetKeys('myToolsTab', onKey)
   }, [])
 
   /** A tool gone in another tab: say so, leave any panel, read the list again. */
