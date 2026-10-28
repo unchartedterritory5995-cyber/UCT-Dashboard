@@ -9,6 +9,9 @@
   gap: 8px;
 }
 .famLabel {
+  /* An h3 since the picker's heading pass: no heading margin, the weight the old div inherited. */
+  margin: 0;
+  font-weight: inherit;
   font-size: 11px;
   letter-spacing: 0.07em;
   text-transform: uppercase;
