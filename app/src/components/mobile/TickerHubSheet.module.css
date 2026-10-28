@@ -66,6 +66,13 @@
    TickerPopup floor). Rail: `mobile/TickerHubSheet.tapFloor.test.js`. */
 @media (max-width: 1024px), (pointer: coarse) {
   .compareRow button { min-height: var(--tap-min); }
+  /* The fixed 240px box held identity row + timeframe bar + a 240px chart behind
+     `overflow: hidden`, so the date axis and the A/L/% chips were clipped below the border
+     (WebKit, 390 and 834). On touch, where those chips are finger targets, the box takes the
+     pane's own height, and the chart gets back the 52px the date-axis reserve costs it
+     (80px reserve - 28px natural axis; StockChart.module.css), so the price pane keeps its
+     240px-chart height and the legend still fits. Rail: `mobile/TickerHubSheet.tapFloor.test.js`. */
+  .chartWrap { height: auto; --hub-chart-h: 292px; }
 }
 
 .alertForm { display: flex; gap: var(--space-sm); align-items: center; }

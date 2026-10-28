@@ -1199,6 +1199,27 @@
   }
 }
 
+/* ── The Ticker Hub sheet's chart on the touch tier ──
+   The same treatment for the hub (`TickerHubSheet.jsx` marks its chart area
+   `data-ticker-hub-chart`): WebKit measured the A/L/% chips 17x11 and the legend's "+N more"
+   47-51x14 at 390 and 834. The hub reserves the same 80px date axis as the popup above so the
+   44px chips sit under the date labels, not on them (the sheet's `.chartWrap` stops clipping
+   the pane on touch so the axis is on screen at all). Same device condition as the popup.
+   Rail: `components/mobile/TickerHubSheet.tapFloor.test.js`. */
+@media (max-width: 1024px), (pointer: coarse) {
+  :global([data-ticker-hub-chart]) .scaleToggleBtn {
+    min-width: var(--tap-min);
+    min-height: var(--tap-min);
+  }
+  :global([data-ticker-hub-chart]) .studyMore {
+    min-width: var(--tap-min);
+    min-height: var(--tap-min);
+  }
+  :global([data-ticker-hub-chart]) .wrapper {
+    --time-axis-min-height: 80px;
+  }
+}
+
 @media (max-width: 900px) and (orientation: landscape) {
   .container {
     min-height: 200px;
