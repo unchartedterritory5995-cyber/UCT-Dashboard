@@ -92,6 +92,13 @@
   --danger-ink: #e87878; /* 4.61:1 worst across dark + the 12 dark catalog themes */
   --success-ink: var(--gain); /* dark: 5.20:1 worst, already clears 4.5:1 */
   --field-edge: #6a6f7c; /* dark: 3.28:1 worst vs bg/bg-surface/bg-elevated */
+  /* --on-loss / --on-gain: TEXT drawn ON a --loss / --gain FILL (a BULL/BEAR badge). The fill
+     keeps the candle hue (a fill is not text), so the ink over it is the one that must clear
+     4.5:1. dark + the dark catalog themes: black, 5.10:1 on --loss and 7.45:1 on --gain
+     (var(--bg) read 4.41:1 on Nord's --loss; white reads 4.12 / 2.82). light: white, 6.33 /
+     5.36 (black reads 3.32 / 3.92). Rail: components/TickerPopup.flowBadge.test.js. */
+  --on-loss: #000000;
+  --on-gain: #000000;
 
   /* ── LEGACY ALIASES ─────────────────────────────────────────────────────
      These nine names are used across ~212 CSS declarations in app/src and were
@@ -669,6 +676,8 @@
   --danger-ink: #e87878;
   --success-ink: var(--gain);
   --field-edge: #666666;
+  --on-loss: #000000;
+  --on-gain: #000000;
 
   /* Research-kit glass on true black: the olive tint of the dark theme reads
      as a smudge over #000, so the surfaces go neutral and slightly denser. */
@@ -764,6 +773,8 @@
   --danger-ink: var(--loss);
   --success-ink: #1a703f;
   --field-edge: #7e8790;
+  --on-loss: #ffffff;
+  --on-gain: #ffffff;
 
   --info: #1f5d7a;
   --info-bg: #1f5d7a12;

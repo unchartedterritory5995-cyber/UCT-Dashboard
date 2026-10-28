@@ -21,6 +21,9 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { mediaBodiesOn } from '../../testing/cssMediaAt'
 import { timeAxisMinHeightFromCss } from '../StockChart'
+import { panelFor, toolbarFor } from '../../utils/dividerColor'
+import { allThemes, parseColor, resolveVars } from '../../pages/terminal/a11y/__tests__/terminalContrast'
+import { contrast } from '../../styles/__tests__/contrastMath'
 
 const read = (p) => readFileSync(join(process.cwd(), 'src', p), 'utf8')
 const stripComments = (s) => s.replace(/\/\*[\s\S]*?\*\//g, '')
@@ -51,6 +54,9 @@ const CHART_TARGETS = [
   // "+N more": only its WIDTH is a floor here; its height rides `--study-more-h` (below),
   // which the legend fold reads -- a min-height would be invisible to the fold.
   [STOCK_CSS, `${SCOPE} .studyMore`, ['min-width']],
+  // the in-chart range row (3M / 6M / YTD / 1Y / 5Y / Origin): 44 tall but 28-49 wide in WebKit
+  // at 390/834. The shared <=1024 rule raises only its height, and not on a coarse pointer > 1024.
+  [STOCK_CSS, `${SCOPE} .rangeBtn`, ['min-width', 'min-height']],
 ]
 
 /** A px length or a `calc()` of px terms joined by + / -, in px; null when it is neither. */
@@ -185,6 +191,83 @@ describe('TickerHubSheet "+ Compare" badge touch floor', () => {
     expect(reserveOn(FINGERS[1], popup)).toBeNull()
     expect(reserveOn(FINGERS[1], unscoped)).toBeNull()
     expect(reserveOn(FINGERS[1], small)).toBeLessThan(NEEDED)
+  })
+
+  it('the range row still fits on a phone: capped short of the price scale and scrolling, not wrapping', () => {
+    // six buttons at --tap-min need ~277px; the 390 pane leaves ~256 left of the price scale
+    for (const d of FINGERS) {
+      const block = mediaBodiesOn(STOCK_CSS, d)
+      expect(value(block, `${SCOPE} .rangeBar`, 'overflow-x'), `@${d.width}`).toBe('auto')
+      expect(value(block, `${SCOPE} .rangeBar`, 'max-width'), `@${d.width}`).toBe('calc(100% - 96px)')
+      // a button must not shrink under its floor inside the capped flex row
+      expect(value(block, `${SCOPE} .rangeBtn`, 'flex'), `@${d.width}`).toBe('none')
+      // never wrap: a second row grows UP (the bar is bottom-anchored) into the legend's "+N more"
+      expect(value(block, `${SCOPE} .rangeBar`, 'flex-wrap'), `@${d.width}`).toBeNull()
+    }
+    const desk = mediaBodiesOn(STOCK_CSS, DESKTOP_MOUSE)
+    expect(value(desk, `${SCOPE} .rangeBar`, 'overflow-x')).toBeNull()
+    expect(value(desk, `${SCOPE} .rangeBar`, 'max-width')).toBeNull()
+    // the wire: the buttons the rule names are the range bar's
+    expect(STOCK_JSX).toMatch(/className=\{styles\.rangeBar\}>\s*\{RANGE_OPTS\.map\([\s\S]{0,200}?className=\{styles\.rangeBtn\}/)
+  })
+
+  // "+N more" on touch is a 44px box over the candles: it must be OPAQUE, at full opacity, with
+  // its text >= 4.5:1 on that surface -- and its height still only through --study-more-h.
+  const MORE_BG = (d) => value(mediaBodiesOn(STOCK_CSS, d), `${SCOPE} .studyMore`, 'background')
+  const MORE_INK = (d) => value(mediaBodiesOn(STOCK_CSS, d), `${SCOPE} .studyMore`, 'color')
+  /** The colour a `var(--chart-*, fallback)` resolves to with the chart's published vars. */
+  const chartVars = (canvas) => {
+    const vars = new Map()
+    const t = toolbarFor(canvas)
+    const p = panelFor(canvas)
+    vars.set('--chart-toolbar-bg', t.bg)
+    vars.set('--chart-panel-text-strong', p.textStrong)
+    return vars
+  }
+  // the default canvas (StockChart's MB_BG), sunrise's, and the two extremes a member can pick
+  const CANVASES = [/const MB_BG = '(#[0-9a-f]{6})'/i.exec(STOCK_JSX)[1], '#eaf1fa', '#000000', '#ffffff']
+
+  it('"+N more" on touch is opaque, at full opacity, and its text clears 4.5:1 on it', () => {
+    expect(CANVASES[0]).toBe('#0e0f0d')
+    for (const d of FINGERS) {
+      expect(MORE_BG(d), `@${d.width}`).toBe('var(--chart-toolbar-bg, var(--bg-elevated))')
+      expect(MORE_INK(d), `@${d.width}`).toBe('var(--chart-panel-text-strong, var(--text-bright))')
+      expect(value(mediaBodiesOn(STOCK_CSS, d), `${SCOPE} .studyMore`, 'opacity'), `@${d.width}`).toBe('1')
+      // height is NOT set here (the fold measures --study-more-h; see the test above)
+      for (const prop of ['height', 'min-height', 'max-height']) {
+        expect(value(mediaBodiesOn(STOCK_CSS, d), `${SCOPE} .studyMore`, prop), `${prop} @${d.width}`).toBeNull()
+      }
+    }
+    const fails = []
+    // with the chart's published vars, on every canvas
+    for (const canvas of CANVASES) {
+      const vars = chartVars(canvas)
+      const bg = parseColor(resolveVars(MORE_BG(FINGERS[0]), vars))
+      const ink = parseColor(resolveVars(MORE_INK(FINGERS[0]), vars))
+      if (bg.alpha < 1) fails.push(`${canvas}: background not opaque (${bg.alpha})`)
+      const r = contrast(ink.rgb, bg.rgb)
+      if (r < 4.5) fails.push(`${canvas}: ${r.toFixed(2)}`)
+    }
+    // and with the app fallbacks (the vars unset), in every app theme
+    for (const [name, raw] of Object.entries(allThemes())) {
+      const vars = new Map(raw)
+      const bg = parseColor(resolveVars(MORE_BG(FINGERS[0]), vars))
+      const ink = parseColor(resolveVars(MORE_INK(FINGERS[0]), vars))
+      if (bg.alpha < 1) fails.push(`${name}: fallback background not opaque`)
+      const r = contrast(ink.rgb, bg.rgb)
+      if (r < 4.5) fails.push(`${name}: fallback ${r.toFixed(2)}`)
+    }
+    expect(fails).toEqual([])
+    // a mouse desktop keeps the shared legend styling
+    expect(MORE_BG(DESKTOP_MOUSE)).toBeNull()
+  })
+
+  it('CONTROL: the shared "+N more" styling is see-through (what the hub rule exists to cover)', () => {
+    const CHIP_CSS = stripComments(read('components/chart/legend/IndicatorChip.module.css'))
+    expect(value(CHIP_CSS, '.chipMore', 'background')).toBe('transparent')
+    expect(Number(value(CHIP_CSS, '.chipMore', 'opacity'))).toBeLessThan(1)
+    // and the panel wash (the canvas at 0.88) is not opaque either, so it is not a substitute
+    expect(parseColor(panelFor('#0e0f0d').bg).alpha).toBeLessThan(1)
   })
 
   it('CONTROL: a phone-only or literal-px floor does not count', () => {

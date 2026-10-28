@@ -31,11 +31,10 @@
       "why": "the text ink is already --danger-ink/--success-ink but the rule dims it (opacity) or sits it on its own tinted --loss/--gain chip"
     },
     "components/TickerPopup.module.css": {
-      "count": 11,
+      "count": 8,
       "inks": [
         "--text-bright",
-        "--text-muted",
-        "--ut-red"
+        "--text-muted"
       ],
       "why": "base-theme inks (--text-muted, --text-bright, --bg, --ut-red, --score-*, ...) under AA on a catalog surface, often dimmed by opacity or on a tinted chip - token-level debt outside this lane"
     },

@@ -627,10 +627,16 @@
    identity row, not `.chartDayGainWrap`: an index's day change is ChartIdentityRow's own
    span, outside that wrap. The pill sits on `--bg-surface` here: its 16% `--text-muted` tint lifts a dark header enough that even the
    inks fell to 3.6-4.4:1 on it in 13 of 21 themes. Desktop /charts keeps its chart colours.
+   The TickerPopup's chart (`data-ticker-popup-chart`) is the same case: its header is the same
+   unset-`--widget-canvas` app surface, and axe (WebKit, light theme, a DOWN ticker) flagged
+   #ff3b47 on #ffffff there (3.6:1). Rail: `components/TickerPopup.chartHeaderInk.test.js`.
    Rail: `components/mobile/TickerHubSheet.dayGainInk.test.jsx`. */
-:global([data-ticker-hub-chart]) .chartHeaderTop [data-day-gain='up'] { color: var(--success-ink) !important; }
-:global([data-ticker-hub-chart]) .chartHeaderTop [data-day-gain='down'] { color: var(--danger-ink) !important; }
-:global([data-ticker-hub-chart]) .chartDayGainExt { background: var(--bg-surface); }
+:global([data-ticker-hub-chart]) .chartHeaderTop [data-day-gain='up'],
+:global([data-ticker-popup-chart]) .chartHeaderTop [data-day-gain='up'] { color: var(--success-ink) !important; }
+:global([data-ticker-hub-chart]) .chartHeaderTop [data-day-gain='down'],
+:global([data-ticker-popup-chart]) .chartHeaderTop [data-day-gain='down'] { color: var(--danger-ink) !important; }
+:global([data-ticker-hub-chart]) .chartDayGainExt,
+:global([data-ticker-popup-chart]) .chartDayGainExt { background: var(--bg-surface); }
 
 /* The hub's 1D/1W/1M chips measured 32-35 x 40 (390) and x 18 (834) in WebKit: on the touch
    tier, and on any coarse pointer, they clear `--tap-min`. Three chips in a row, so the extra
@@ -1182,6 +1188,17 @@
 /* Market clock text is hardcoded light — turn it dark so it reads on the bright canvas. */
 :global([data-charts-theme='sunrise']) .clockTime { color: #223243; }
 :global([data-charts-theme='sunrise']) .clockEt { color: #566577; }
+/* ...but the Ticker Hub's and the TickerPopup's chart headers are not on a chart canvas: they sit
+   on the app's `--bg-elevated` (`--widget-canvas` is unset outside WidgetHost), and the clock's
+   own fallbacks (#d8d2c2 / #9b9684, `--widget-text*` unset there too) read 1.5:1 and 2.9:1 on the
+   light theme's white header (axe, WebKit). There the clock takes the app's text tokens, which
+   clear 6.29:1 or better on `--bg-elevated` in every theme. AFTER the Sunrise remap above so it
+   wins at equal specificity (that remap is for a bright chart CANVAS, which this is not).
+   Rail: `components/TickerPopup.chartHeaderInk.test.js`. */
+:global([data-ticker-hub-chart]) .clockTime,
+:global([data-ticker-popup-chart]) .clockTime { color: var(--text-bright); }
+:global([data-ticker-hub-chart]) .clockEt,
+:global([data-ticker-popup-chart]) .clockEt { color: var(--text-muted); }
 /* Market-open clock dot → dark candle green. */
 :global([data-charts-theme='sunrise']) .clkOpen { --clk-tone: #0a5c22; --clk-glow: rgba(10, 92, 34, 0.5); }
 

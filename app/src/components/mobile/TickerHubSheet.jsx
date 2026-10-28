@@ -97,16 +97,31 @@ function TickerHubBody({ sym, onClose }) {
     // aria-dialog-name; VoiceOver said only "dialog"). One value, not a copy.
     <Sheet open onClose={onClose} variant="bottom-sheet" title={sym} labelledByTitle>
       <div className={styles.body}>
-        {live?.price != null && (
-          <div className={styles.quote}>
-            <span className={styles.price}>${live.price.toFixed(2)}</span>
-            {live.change_pct != null && (
-              <span className={live.change_pct >= 0 ? styles.up : styles.down}>
-                {live.change_pct >= 0 ? '+' : ''}{live.change_pct.toFixed(2)}%
-              </span>
-            )}
-          </div>
-        )}
+        {/* The quote row is ALWAYS laid out. It used to mount only once the live price
+            arrived, and that poll lands after the sheet is up (often after the chart), so
+            the row appeared ~44px tall and pushed everything: WebKit, 834 touch, the sheet
+            top jumped 465 -> 421; at 390 everything under it moved down 44px. Until the
+            price lands it holds the SAME spans with a no-break space, so its height comes
+            from the same type as the loaded row, not a measured number; hidden from AT,
+            so nothing is announced for an empty row.
+            Rail: `mobile/TickerHubSheet.quoteReserve.test.jsx`. */}
+        <div className={styles.quote} data-hub-quote={live?.price != null ? 'live' : 'pending'}>
+          {live?.price != null ? (
+            <>
+              <span className={styles.price}>${live.price.toFixed(2)}</span>
+              {live.change_pct != null && (
+                <span className={live.change_pct >= 0 ? styles.up : styles.down}>
+                  {live.change_pct >= 0 ? '+' : ''}{live.change_pct.toFixed(2)}%
+                </span>
+              )}
+            </>
+          ) : (
+            <>
+              <span className={styles.price} aria-hidden="true">{' '}</span>
+              <span className={styles.up} aria-hidden="true">{' '}</span>
+            </>
+          )}
+        </div>
 
         {/* Mini-chart — ChartPane is the SAME chart /charts renders. `density`
             compact drops the meta row, session toggle and clock so the pane
