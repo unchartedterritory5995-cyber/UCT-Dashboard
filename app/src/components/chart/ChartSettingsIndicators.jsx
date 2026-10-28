@@ -143,7 +143,7 @@ import { paneMap, paneRowMeta, activeIndicatorRows } from './chartDataMap'
 import { movePane, movePaneTo } from './engine/paneOrder'
 import { moveSeriesWithinPane, moveSeriesTo, canMoveSeries } from './engine/paneSeriesOrder'
 import { safeCssColour } from './engine/objectColour'
-import { tagRestatesName } from './shortTag'
+import { rowTagRestatesName } from './shortTag'
 
 /**
  * Is this row a chart FIXTURE — an MA overlay or the volume pane — rather than an
@@ -3174,7 +3174,7 @@ export default function ChartSettingsIndicators({
                 something (a breadth population, a security's type, a cadence,
                 an abbreviation not spelled by the name) stays in it. */}
             {!isEcon && (
-              <span className={styles.resShort} aria-hidden={tagRestatesName(row.name, row.chip || row.shortName) ? 'true' : undefined}>
+              <span className={styles.resShort} aria-hidden={rowTagRestatesName(row, row.chip || row.shortName) ? 'true' : undefined}>
                 {row.chip || row.shortName}
               </span>
             )}

@@ -91,7 +91,7 @@ import {
   createFromResult, CAPABILITY,
 } from './discoveryCatalog'
 import useSymbolDiscovery from './useSymbolDiscovery'
-import { tagRestatesName } from './shortTag'
+import { rowTagRestatesName } from './shortTag'
 
 /** Does this row match the search box? Name, short name, id, category and tags —
  *  five ways in, because a user who knows an indicator as "BB", as "Bollinger",
@@ -572,7 +572,7 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
                             two strings; an abbreviation the name does not spell
                             (ADX) is information and is still read. */}
                         <span className={styles.chip}
-                          aria-hidden={tagRestatesName(row.name, row.shortName) ? 'true' : undefined}>{row.shortName}</span>
+                          aria-hidden={rowTagRestatesName(row, row.shortName) ? 'true' : undefined}>{row.shortName}</span>
                         {/* ⭐ NAMED, NOT JUST TINTED. A colour alone is not a
                             distinction for a member who cannot see it, and the
                             heading scrolls out of view on a long list. */}

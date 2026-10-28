@@ -20,7 +20,7 @@ import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { useRef, useState } from 'react'
-import { render, screen, fireEvent, cleanup, act } from '@testing-library/react'
+import { render, screen, fireEvent, cleanup, act, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { computeAccessibleName } from 'dom-accessibility-api'
 import IndicatorLibraryDialog from './IndicatorLibraryDialog'
@@ -149,9 +149,44 @@ describe('a result row\'s accessible name is the indicator name, once', () => {
     expect(screen.getByRole('button', { name: 'Parabolic SAR' }).matches('[data-result-primary]')).toBe(true)
     fireEvent.change(screen.getByRole('searchbox', { name: /Search indicators/i }), { target: { value: 'trix' } })
     expect(screen.getByRole('button', { name: 'TRIX' }).matches('[data-result-primary]')).toBe(true)
+    // the INITIALS rule, through the real door: RSI is not read after its own name
+    fireEvent.change(screen.getByRole('searchbox', { name: /Search indicators/i }), { target: { value: 'relative strength' } })
+    expect(screen.getByRole('button', { name: 'Relative Strength Index' }).matches('[data-result-primary]')).toBe(true)
     const names = resultRows(surface).map((r) => computeAccessibleName(primaryOf(r)))
     expect(names.filter(stutters)).toEqual([])
   })
+})
+
+// ─── 2b. A TICKER IS AN IDENTIFIER, NOT AN ABBREVIATION ─────────────────────
+// A BROWSE security row (symbolSearchModel's POPULAR list) is named with the
+// COMPANY and tagged with the TICKER, so the tag is the only place the ticker is
+// in the button's name. The abbreviation rules hid it: "Meta Platforms Inc." /
+// META by leading cut, "Advanced Micro Devices" / AMD by initials. (A SEARCH row
+// from /api/ticker-search is the other shape, `name: F` / tag `STOCK`, so the
+// ticker is its name and nothing can hide it.)
+const spokenTicker = (row, ticker) => [...primaryOf(row).querySelectorAll('span')]
+  .some((n) => n.textContent.trim() === ticker && !n.closest('[aria-hidden="true"]'))
+
+describe('security rows keep the ticker in the name', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  it.each([['meta', 'META', 'Meta Platforms Inc.'], ['amd', 'AMD', 'Advanced Micro Devices']])(
+    'search "%s" -> the %s row still says %s', async (q, ticker, company) => {
+      vi.stubGlobal('fetch', vi.fn(async (url) => (String(url).startsWith('/api/ticker-search')
+        ? { ok: true, status: 200, json: async () => ({ results: [] }) }
+        : { ok: false, status: 404, json: async () => ({}) })))
+      render(<ChartSettingsModal open settings={base()} onChange={vi.fn()} />)
+      fireEvent.click(screen.getByRole('tab', { name: 'Indicators' }))
+      if (!document.body.querySelector('[data-testid="add-surface"]')) fireEvent.click(screen.getByTestId('add-enter'))
+      fireEvent.change(screen.getByRole('searchbox', { name: /Search indicators/i }), { target: { value: q } })
+      const row = await waitFor(() => {
+        const r = resultRows().find((li) => li.dataset.resultKind === 'security'
+          && primaryOf(li).textContent.includes(company))
+        expect(r, `no browse-shape ${ticker} row`).toBeTruthy()
+        return r
+      })
+      expect(spokenTicker(row, ticker), `${ticker} is hidden from "${computeAccessibleName(primaryOf(row))}"`).toBe(true)
+    })
 })
 
 // ─── 3. CHART SETTINGS IS A REAL MODAL ──────────────────────────────────────
@@ -308,7 +343,6 @@ describe('Chart Settings over another trapped dialog, and its own popouts', () =
     expect(ring.length).toBeGreaterThan(2)
     ring[0].focus()
     await user.tab()
-    expect(dialog().contains(document.activeElement),
-      'the modal trap pulled focus out of the colour panel').toBe(false)
+    expect(document.activeElement, 'Tab did not walk on inside the colour panel').toBe(ring[1])
   })
 })
