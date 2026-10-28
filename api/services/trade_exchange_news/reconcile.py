@@ -222,8 +222,15 @@ class Reconciler:
 
         # Parallel (D2, staging: one PUT ~0.6 s from Railway to R2, so 500 in
         # series held the reconcile loop -- and its recovery scan -- for ~5 min).
-        # Each PUT is keyed by event id, so order does not matter.
-        errors = list(self._pool.map(put, todo))
+        # Each PUT is keyed by event id, so order does not matter. A chunk with a
+        # failure ends the cycle: R2 is likely down, and every further PUT would
+        # wait out its own timeout.
+        errors: list[Exception | None] = []
+        for i in range(0, len(todo), FETCH_CHUNK):
+            errors += self._pool.map(put, todo[i:i + FETCH_CHUNK])
+            if any(e is not None for e in errors):
+                break
+        todo = todo[:len(errors)]
         repaired = [eid for (eid, _), err in zip(todo, errors) if err is None]
         store.mark_journaled(confirmed + repaired)
         out = {"confirmed": len(confirmed), "repaired": len(repaired)}

@@ -62,17 +62,25 @@ R2. **Settings → Source**: Root Directory `services/trade_exchange_news_receiv
     `drainingSeconds` 10, restart ALWAYS). Confirm the deploy watch path only
     matches this directory (other merges must NOT redeploy it).
     ⛔ **Do not attach a volume.** A volume disables overlapping deploys.
-    ⛔ **VERIFY THE SETTINGS ARE STORED ON THE SERVICE** (D2 finding, staging
-    2026-10-28): a `railway.json` that arrives only inside an upload (`railway up`)
-    applies to THAT deployment and is not saved to the service. A later
-    `railway redeploy` / restart then used the service's own settings — Railway
-    defaults: builder Railpack (the build failed: "No start command"), no
-    healthcheck, no overlap, draining 0, restart ON_FAILURE. Either point the
-    service at the config file (Settings → Config-as-code path, read on every
-    deploy) or store the values on the service, then read them back:
-    `serviceInstance(environmentId, serviceId) { dockerfilePath healthcheckPath
-    healthcheckTimeout overlapSeconds drainingSeconds restartPolicyType }` must show
-    `Dockerfile`, `/health`, 60, 20, 10, `ALWAYS`.
+    ⛔ **VERIFY THE SETTINGS ARE STORED ON THE SERVICE, AND ON THE LAST DEPLOYMENT**
+    (D2 findings, staging 2026-10-28):
+    - A `railway.json` that arrives only inside an upload (`railway up`) is applied
+      to THAT deployment and not saved to the service. Railway now also refuses to
+      set a config-as-code path ("Config as Code (railway.json / railway.toml) is
+      deprecated. Use Infrastructure as Code (.railway/railway.ts)"), so the
+      settings must be stored on the service (dashboard, or the environment config).
+    - `railway redeploy` / a restart reuses the build recipe RECORDED ON THE
+      PREVIOUS DEPLOYMENT, not the service's current settings. A deployment made
+      before the settings were stored keeps the old builder for every redeploy
+      (staging web: Railpack, "No start command", twice). Old one kept serving.
+      Fix: one fresh deploy after storing the settings; every plain redeploy
+      since built with the Dockerfile (8 of 8).
+    Read back BOTH before relying on a redeploy:
+    `environment(id) { config }` -> `services.<id>.build.builder = DOCKERFILE`,
+    `deploy` healthcheck `/health` 60, `overlapSeconds` 20, `drainingSeconds` 10,
+    `restartPolicyType` ALWAYS; and `deployments(first:1) { meta }` ->
+    `serviceManifest.build.builder = DOCKERFILE`. (`serviceInstance.builder` reads
+    RAILPACK regardless; it is not the setting that is used.)
 R3. **Variables** (names: `env.receiver.example`) with `TXN_RECEIVER_ENABLED`
     and `TXN_STORAGE_PERMISSION_CONFIRMED` **unset** first.
     ⚠️ `railway variables --set` auto-redeploys; prefer the dashboard raw editor.
@@ -83,7 +91,7 @@ R4. **Networking**: Generate Domain (`*.up.railway.app`). ⛔ Do **not** put a
 R5. Deploy. Expected: healthcheck **fails** (503 `receiver_disabled`,
     `storage_permission_unconfirmed`) — so the deploy is marked failed and nothing
     serves. That is the dark state working. Then:
-    `railway run -s trade-exchange-news-receiver -- python tools/txn_preflight.py --role receiver`
+    `railway run -s trade-exchange-news-receiver -- python tools/txn_preflight.py --role receiver --lifecycle-confirmed-in-dashboard`
     → must print `READY` apart from the two switches.
 R6. Replicas (recommended, owner decision): 2 replicas in one region
     (Settings → Scaling, or `multiRegionConfig` in railway.json). Stateless, so a
@@ -96,7 +104,9 @@ W1. The Trade Exchange code reaches `master` (owner merge approval) — every ro
     stays unmatched and nothing starts while `TXN_ENABLED` is unset.
 W2. Set web variables from `env.web.example` **except** `TXN_ENABLED`,
     `TXN_STORAGE_PERMISSION_CONFIRMED`, `ALERT_NEWS_MATCH_ENABLED`. Preflight:
-    `railway run -s web -- python tools/txn_preflight.py --role web --r2-write-check`
+    `railway run -s web -- python tools/txn_preflight.py --role web --r2-write-check --lifecycle-confirmed-in-dashboard`
+    (a correctly scoped key is refused the lifecycle read: look at the two rules in the
+    dashboard first; that flag records that you did. Anything else still fails.)
 W3. `TXN_ENABLED=1` + `TXN_SYNTHETIC_ONLY=1` for the synthetic stage
     (`TXN_STORAGE_PERMISSION_CONFIRMED=1` only after Trade Exchange's written
     permission, and then `TXN_SYNTHETIC_ONLY` is removed). One web redeploy (the known 82–119 s web window; receiver keeps

@@ -194,6 +194,31 @@ async def test_parallel_repair_keeps_only_the_failed_puts_in_the_backlog():
     await rxc.aclose()
 
 
+async def test_repair_stops_at_the_first_failing_chunk_while_r2_is_down():
+    """D2: with R2 black-holed every PUT waits out its timeout -- do not try them all."""
+    s3 = FakeS3()
+    s3.fail_put = True
+    net = Net(web_app())
+    p, r = await boot_web(s3)
+    rxc, f, _ = receiver(jr.S3Journal(s3, BUCKET), net)
+    for n in range(150):
+        await post(rxc, f"SYNTHETIC: outage backlog {n}")
+    await f.drain()
+    attempts = 0
+    real_put = s3.put_object
+
+    def put_object(**kw):
+        nonlocal attempts
+        attempts += 1
+        return real_put(**kw)
+
+    s3.put_object = put_object
+    out = await r.repair_once()
+    assert out["repaired"] == 0 and out["backlog"]["count"] == 150
+    assert attempts == rc.FETCH_CHUNK
+    await rxc.aclose()
+
+
 async def test_records_the_receiver_did_journal_are_confirmed_without_a_rewrite():
     s3 = FakeS3()
     net = Net(web_app())

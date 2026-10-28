@@ -68,7 +68,7 @@ def check(role: str, env: dict[str, str], r2_write: bool = False, client=None,
     prefix = env.get("TXN_JOURNAL_PREFIX") or PREFIX
     try:
         page = client.list_objects_v2(Bucket=bucket, Prefix=prefix + "/", MaxKeys=5)
-        print(f"r2 list ok: {page.get('KeyCount', len(page.get('Contents', []) or []))} object(s) visible (≤5 shown)")
+        print(f"r2 list ok: {page.get('KeyCount', len(page.get('Contents', []) or []))} object(s) visible (at most 5 shown)")
     except Exception as e:  # noqa: BLE001
         problems.append(f"r2 list failed: {type(e).__name__}")
         return problems
