@@ -24,11 +24,6 @@ vi.mock('../context/AuthContext', async (orig) => {
   return { ...real, useAuth: () => ({ user, plan: 'pro', isPaid: true, loading: false }), useIsPaid: () => true }
 })
 
-// ⛔ Two OPEN popups write the app focus symbol in turn forever (AAA, BBB, AAA, ...) through
-// useAppFocus -- a pre-existing render loop with nested popups, reported separately, not this
-// file's subject. A stable setter keeps the Escape question answerable here.
-const stableSetSymbol = () => {}
-vi.mock('../hooks/useAppFocus', () => ({ default: () => ({ setSymbol: stableSetSymbol }) }))
 import TickerPopup from './TickerPopup'
 import GlobalAddPositionProvider from '../pages/journal-2-0/GlobalAddPositionProvider'
 
