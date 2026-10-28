@@ -222,7 +222,7 @@ export const FAMILY_TEMPLATES = Object.freeze({
   trades: Object.freeze([
     'uct-template-trade-plan-one-idea-v1',     // Trade plan (one idea), during the day
     'uct-template-options-trade-plan-v1',      // Options trade plan, playbook
-    'uct-template-trade-post-mortem-v1',       // Trade post-mortem, after the close
+    'uct-template-trade-post-mortem-v2',       // Trade replay and rules check, after the close
   ]),
 })
 

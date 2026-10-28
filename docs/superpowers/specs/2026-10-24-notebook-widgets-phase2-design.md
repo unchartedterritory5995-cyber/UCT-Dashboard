@@ -356,7 +356,7 @@ The position size helper (shares for a symbol/entry/stop from own size and risk 
   - The night before: Night-before prep (tomorrow's watchlist and levels; routine slots bound "for the next trading day")
   - Before the open: Pre-market prep · Game plan · Earnings day prep · Watchlist review
   - During the day: Mid-day and risk check · Trade plan (one idea)
-  - After the close: End-of-day recap · Tag today's trades (setup, mistakes, emotions for broker-imported trades, one row each) · Trade post-mortem · Mistake log entry · Tilt reset
+  - After the close: End-of-day recap · Tag today's trades (setup, mistakes, emotions for broker-imported trades, one row each) · Trade replay and rules check (released as Trade post-mortem; renamed 2026-10-27 so it is not read as a twin of the built-in Trade Post-Mortem) · Mistake log entry · Tilt reset
   - Weekly / monthly: Weekly review · Weekend swing review (open positions, stops, earnings next week; routine slots bound "for the trading week") · Monthly review · Quarterly edge review · Year in review · Goal setting
   - Playbook: Setup study (fills with my stats on that setup) · New setup idea · Rules review · Options trade plan (strategy, max loss, IV, expiry)
   - Mindset: Pre-session check-in (sleep, mood, focus trackers)

@@ -616,6 +616,56 @@
    "slots": []
   },
   {
+   "seedKey": "uct-template-trade-post-mortem-v2",
+   "slug": "trade-post-mortem",
+   "title": "Trade replay and rules check",
+   "group": "after_close",
+   "kindId": "post_trade_review",
+   "category": "review",
+   "description": "Replay one trade from its record and chart, then check it against your rules.",
+   "blocks": [
+    {
+     "block": "tradeReview",
+     "enabled": true,
+     "settings": {}
+    },
+    {
+     "block": "chart",
+     "enabled": true,
+     "settings": {}
+    },
+    {
+     "block": "myRules",
+     "enabled": true,
+     "settings": {}
+    }
+   ],
+   "sections": [
+    {
+     "heading": "What happened",
+     "prompt": "Walk through the trade from entry to exit.",
+     "blocks": [
+      "tradeReview",
+      "chart"
+     ]
+    },
+    {
+     "heading": "Did you keep your trading plan?",
+     "prompt": "Which of your rules you followed, and which you broke.",
+     "blocks": [
+      "myRules"
+     ]
+    },
+    {
+     "heading": "What you'd change",
+     "prompt": "One thing you would do differently next time.",
+     "blocks": []
+    }
+   ],
+   "definitions": [],
+   "slots": []
+  },
+  {
    "seedKey": "uct-template-mistake-log-entry-v1",
    "slug": "mistake-log-entry",
    "title": "Mistake log entry",
@@ -1736,5 +1786,7 @@
    "slots": []
   }
  ],
- "retired": []
+ "retired": [
+  "uct-template-trade-post-mortem-v1"
+ ]
 }
