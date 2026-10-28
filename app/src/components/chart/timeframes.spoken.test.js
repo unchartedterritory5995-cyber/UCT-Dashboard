@@ -23,3 +23,11 @@ test('custom codes follow the same authority as tfLabel', () => {
 test('an unparseable code is passed through, never "NaN-minute"', () => {
   expect(tfSpokenLabel('weird')).toBe('weird')
 })
+
+test('no timeframe says nothing -- a name never reads "SYM undefined price chart"', () => {
+  expect(tfSpokenLabel(undefined)).toBe('')
+  expect(tfSpokenLabel(null)).toBe('')
+  expect(tfSpokenLabel('')).toBe('')
+  // the region label drops the empty part rather than leaving a double space
+  expect(['NVDA', tfSpokenLabel(undefined), 'price chart'].filter(Boolean).join(' ')).toBe('NVDA price chart')
+})

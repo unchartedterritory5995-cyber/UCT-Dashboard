@@ -93,7 +93,6 @@ describe('Switch ticker is an ARIA combobox', () => {
   })
 
   test('an IME composition owns Enter and Escape until it commits', async () => {
-    const onPick = vi.fn()
     const { onClose } = openPopup()
     const box = screen.getByRole('combobox', { name: /Switch ticker/ })
     await typeAndWait(box, 'NV')
@@ -104,7 +103,6 @@ describe('Switch ticker is an ARIA combobox', () => {
     // Enter during composition did not pick: the box still holds the text and the list
     expect(box).toHaveValue('NV')
     expect(screen.getByRole('listbox')).toBeInTheDocument()
-    expect(onPick).not.toHaveBeenCalled()
     // once composition ends, the same keys behave as before
     fireEvent.keyDown(box, { key: 'Escape' })
     expect(screen.queryByRole('listbox')).not.toBeInTheDocument()

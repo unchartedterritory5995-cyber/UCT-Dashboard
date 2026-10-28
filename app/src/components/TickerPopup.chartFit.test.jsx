@@ -10,12 +10,16 @@ import { vi, test, expect, describe, beforeEach, afterEach } from 'vitest'
 import { fitChartHeightPx, chartHeightCss, shouldUpdateFit, CHART_FIT_FLOOR_PX, CHART_FIT_TARGET } from './tickerPopupChartFit'
 
 const seen = vi.hoisted(() => ({ heights: [], renders: 0 }))
+// A slow lazy chunk: while `gate.ready` is false the pane SUSPENDS, so React commits the
+// Suspense fallback first and the pane lands later -- the cold first open.
+const gate = vi.hoisted(() => ({ ready: true, promise: null }))
 vi.mock('../utils/prefetchBars', () => ({
   prefetchAllTimeframes: vi.fn(), prefetchBars: vi.fn(), prefetchBar: vi.fn(), default: vi.fn(),
 }))
 vi.mock('./chart/SymbolSearch', () => ({ default: () => null }))
 vi.mock('./chart/pane/ChartPane', () => ({
   default: ({ stockChartProps }) => {
+    if (!gate.ready) throw gate.promise
     seen.renders += 1
     seen.heights.push(stockChartProps.height)
     return (
@@ -176,6 +180,58 @@ describe('TickerPopup wires the fit into the chart', () => {
     await act(async () => { resizeOnly(header) })
     await settle()
     expect(wrapper.dataset.height).toBe('min(820px, 68vh, 467px)')
+  })
+
+  test('COLD first open: the pane lands late inside an area its 560px floor holds; it still fits, with NO resize event', async () => {
+    // 1366x768 laptop (viewport ~1366x657, mouse): modal cap 576px. Chart 68vh = 447, pane
+    // 496, and the area held at 560 by its loading floor -- so the area box does NOT change
+    // when the pane lands, the modal is already at its cap, and no ResizeObserver fires.
+    const realOH = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetHeight')
+    const realSH = Object.getOwnPropertyDescriptor(Element.prototype, 'scrollHeight')
+    const chartPx = (w) => { const m = /,\s*(\d+)px\)$/.exec(w?.dataset.height || ''); return m ? Number(m[1]) : 447 }
+    const wrapperOf = (el) => el.closest('[role=dialog]')?.querySelector('[data-testid=wrapper]')
+    const areaH = (area) => {
+      const w = area.querySelector('[data-testid=wrapper]')
+      const content = w ? chartPx(w) + 49 + 24 : 30          // fallback text is ~30px
+      return area.style.minHeight === '0px' ? content : Math.max(560, content)
+    }
+    Object.defineProperty(HTMLElement.prototype, 'offsetHeight', { configurable: true, get() {
+      if (this.dataset?.testid === 'wrapper') return chartPx(this)
+      if (this.dataset?.testid === 'pane') return chartPx(this.querySelector('[data-testid=wrapper]')) + 49
+      if (this.hasAttribute?.('data-ticker-popup-chart')) return areaH(this)
+      return realOH.get.call(this)
+    } })
+    Object.defineProperty(Element.prototype, 'scrollHeight', { configurable: true, get() {
+      if (this.getAttribute?.('role') === 'dialog') return areaH(this.querySelector('[data-ticker-popup-chart]')) + 141
+      return realSH.get.call(this)
+    } })
+    window.getComputedStyle = (el, ...rest) => {
+      const cs = realGCS(el, ...rest)
+      if (el.getAttribute?.('role') === 'dialog') return { ...cs, maxHeight: '576px', borderTopWidth: '1px', borderBottomWidth: '1px' }
+      if (el.hasAttribute?.('data-ticker-popup-chart')) return { ...cs, paddingTop: '12px', paddingBottom: '12px' }
+      return cs
+    }
+    try {
+      gate.ready = false
+      gate.promise = new Promise((r) => setTimeout(() => { gate.ready = true; r() }, 80))
+      renderWithProviders(<TickerPopup sym="QQQ" open onClose={vi.fn()} />)
+      // the fallback is what committed first
+      expect(screen.queryByTestId('pane')).toBeNull()
+      await screen.findByTestId('pane')
+      await settle()
+      // no window resize was dispatched and the fake ResizeObserver never fired
+      // maxClient 574 - chrome (141 + 24 + 49 = 214) = 360
+      expect(wrapperOf(screen.getByTestId('pane')).dataset.height).toBe('min(820px, 68vh, 360px)')
+      expect(document.querySelector('[data-ticker-popup-chart]').style.minHeight).toBe('0px')
+      // and the pane's OWN box is watched from then on (its rows can land after it mounts,
+      // inside an area whose box the floor would otherwise hold still)
+      const pane = screen.getByTestId('pane')
+      expect(observers.some((o) => o.els.has(pane))).toBe(true)
+    } finally {
+      gate.ready = true
+      Object.defineProperty(HTMLElement.prototype, 'offsetHeight', realOH)
+      Object.defineProperty(Element.prototype, 'scrollHeight', realSH)
+    }
   })
 
   test('phone (max-height: none) keeps the old height', async () => {
