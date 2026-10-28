@@ -43,20 +43,23 @@ let releaseMembers                     // resolves the member list when a test s
 let memberGate
 let releaseLibrary                     // resolves the library list (open by default; one test re-gates it)
 let libraryGate
+const serve = { library: 200, members: 200, w11: true }   // per-test answers (reset in beforeEach)
 beforeAll(() => loadTemplates())
 beforeEach(() => {
   memberGate = new Promise((r) => { releaseMembers = r })
   libraryGate = new Promise((r) => { releaseLibrary = r })
   releaseLibrary()
-  latchNotebookFlags({ notebook_widgets_w11_enabled: true })
+  Object.assign(serve, { library: 200, members: 200, w11: true })
   globalThis.fetch = vi.fn(async (url) => {
     const path = new URL(String(url), 'http://x').pathname
     if (path === '/api/j2/template-gallery/library') {
       await libraryGate
+      if (serve.library !== 200) return { ok: false, status: serve.library, json: async () => ({ detail: 'boom' }) }
       return { ok: true, status: 200, json: async () => LIBRARY_FIXTURE.body }
     }
     if (path === '/api/j2/note-templates') {
       await memberGate
+      if (serve.members !== 200) return { ok: false, status: serve.members, json: async () => ({ detail: 'boom' }) }
       return { ok: true, status: 200, json: async () => ({ templates: MEMBER }) }
     }
     return { ok: false, status: 404, json: async () => ({}) }
@@ -113,15 +116,20 @@ function recordLive() {
 }
 
 async function mount({ members = true, library = true } = {}) {
+  if (serve.w11) latchNotebookFlags({ notebook_widgets_w11_enabled: true })
   // A fresh SWR cache per test, so the member list is asked for (and gated) every time.
   render(
     <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
       <MemoryRouter><TemplatePicker onPick={() => {}} onPickMember={() => {}} /></MemoryRouter>
     </SWRConfig>,
   )
-  await screen.findByRole('heading', { name: 'Template library' })
+  if (serve.w11) await screen.findByRole('heading', { name: 'Template library' })
   if (!library) return
-  if (members) { releaseMembers(); await screen.findByRole('button', { name: MEMBER[0].name }) }
+  if (members) {
+    releaseMembers()
+    if (serve.members === 200) await screen.findByRole('button', { name: MEMBER[0].name })
+    else await screen.findByText("Couldn't load your templates.")
+  }
   await settle()
 }
 
@@ -217,6 +225,58 @@ describe('4. touch: no keyboard words, a count instead', () => {
   })
 })
 
+// Review M-1: an ABSENT or FAILED section is a known 0, not a reason to stay silent. Each says the other two.
+describe('a section that is off or failed counts as a known 0', () => {
+  // Inside the cap (CONFIG_TIMEOUT_MS = 3000): the line must speak because the addend is KNOWN, not because it gave up.
+  const promptly = (text) => vi.waitFor(() => expect(liveEl().textContent).toBe(text), { timeout: 1500 })
+
+  it('wave 11 off (no Template library): "All" says built-ins + the member\'s own', async () => {
+    coarse.on = true
+    serve.w11 = false
+    await mount()
+    expect(document.querySelector('[data-template-library]')).toBeNull()        // non-vacuity: the section is absent
+    fireEvent.click(chip('All'))
+    await promptly(touchMatchWords(builtInExpected('', 'all') + memberExpected('', 'all')))
+  })
+
+  it('the library answering 500: "All" says built-ins + the member\'s own', async () => {
+    coarse.on = true
+    serve.library = 500
+    await mount()
+    await vi.waitFor(() => expect(document.querySelector('[data-template-library] [data-refusal]')).not.toBeNull())
+    fireEvent.click(chip('All'))
+    await promptly(touchMatchWords(builtInExpected('', 'all') + memberExpected('', 'all')))
+  })
+
+  it('the member list answering 500: "All" says built-ins + the library\'s', async () => {
+    coarse.on = true
+    serve.members = 500
+    await mount()
+    fireEvent.click(chip('All'))
+    await promptly(touchMatchWords(builtInExpected('', 'all') + libraryExpected('', 'all')))
+  })
+})
+
+// Review L-1: a request that never answers cannot keep the line silent for good. Fake timers, so the cap is exact.
+describe('a hung request: the line speaks what is known after the cap', () => {
+  afterEach(() => { vi.useRealTimers() })
+  it('silent just under 3 s, then built-ins + the library; a late member answer then updates it', async () => {
+    coarse.on = true
+    await mount({ members: false })                    // the member list is never released (hung)
+    vi.useFakeTimers()
+    fireEvent.click(chip('All'))
+    await act(async () => { vi.advanceTimersByTime(2900) })
+    expect(liveEl().textContent).toBe('')                // still waiting: under the cap
+    await act(async () => { vi.advanceTimersByTime(200) })   // past 3000: gave up waiting
+    await act(async () => { vi.advanceTimersByTime(100) })   // the settle
+    expect(liveEl().textContent).toBe(touchMatchWords(builtInExpected('', 'all') + libraryExpected('', 'all')))
+    vi.useRealTimers()
+    releaseMembers()
+    await screen.findByRole('button', { name: MEMBER[0].name })
+    await says(touchMatchWords(expected('', 'all')))
+  })
+})
+
 describe('N3: "No templates match" counts the member\'s own matches too', () => {
   it('a search matching only the member\'s templates shows them and no "No templates match"', async () => {
     coarse.on = true
@@ -226,6 +286,19 @@ describe('N3: "No templates match" counts the member\'s own matches too', () => 
     await says(touchMatchWords(1))
     expect(screen.getByRole('button', { name: MEMBER[0].name })).toBeInTheDocument()
     expect(screen.queryByText(/No templates match/)).toBeNull()
+  })
+
+  it('L-2: while "Your templates" is still loading, "No templates match" is not shown (it would vanish after)', async () => {
+    await mount({ members: false })
+    fireEvent.change(box(), { target: { value: ONLY_MEMBER } })
+    await settle(200)
+    expect(screen.queryByText(/No templates match/)).toBeNull()
+    releaseMembers()
+    await screen.findByRole('button', { name: MEMBER[0].name })
+    expect(screen.queryByText(/No templates match/)).toBeNull()
+    // CONTROL in the same state: a search the member's list does not match shows it once the list has answered.
+    fireEvent.change(box(), { target: { value: 'qqq no such template anywhere' } })
+    expect(await screen.findByText(/No templates match/)).toBeInTheDocument()
   })
 
   it('CONTROL: a search matching nothing anywhere still says "No templates match"', async () => {
