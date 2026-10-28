@@ -457,6 +457,14 @@ export function inputsOfEditWords(defId, words) {
 // explicit edits the instant path reads without memory ("change the 20 to a 50", "make the rsi 7")
 const EDIT_VERB = '(?:please )?(?:change|make|set|switch|turn|bump|move)'
 function updateOfWords(lower) {
+  // ⭐ Charts operator P1: "swap the 9 for a 10" / "replace the 20 ema with a 21" — the same in-place length
+  // change (never a remove + add), on the moving average of that length
+  const sw = new RegExp(`^(?:please )?(?:swap|replace|trade) (?:the |my )?(\\d{1,4})(?:[- ](?:day|period))?(?: (${TYPE_WORDS}|ma|moving average))? (?:for|with) (?:an? |the )?(\\d{1,4})(?:[- ](?:day|period))?(?: (?:${TYPE_WORDS}|ma|moving average))?$`).exec(lower)
+  if (sw) {
+    const type = sw[2] && sw[2] !== 'ma' && sw[2] !== 'moving average' ? typeValue(sw[2]) : null
+    const key = lengthKeyOf('movingAverage')
+    return key ? { instance: `#${sw[1]}${type ? `:${type}` : ''}`, inputs: [{ key, value: Number(sw[3]) }] } : null
+  }
   // "change the 20 ema to a 50" / "make the 20 a 9" / "change the 20 to an sma"
   let m = new RegExp(`^${EDIT_VERB} (?:the |my )?(\\d{1,4})(?:[- ](?:day|period))?(?: (${TYPE_WORDS}|ma|moving average))? (?:to |into )?(?:an? |the )?(.+)$`).exec(lower)
   if (m) {

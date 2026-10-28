@@ -17,6 +17,8 @@ export const PAST_TO_PENDING = Object.freeze({
   Linked: 'Link', Unlinked: 'Unlink', Resized: 'Resize', Arranged: 'Arrange', Drew: 'Draw', Restyled: 'Restyle',
   Selected: 'Select', Updated: 'Update', Restored: 'Restore', Put: 'Put', Made: 'Make', Enabled: 'Enable',
   Disabled: 'Disable', Replaced: 'Replace', Duplicated: 'Duplicate', Copied: 'Copy', Pinned: 'Pin', Undid: 'Undo',
+  // Charts operator P1
+  Locked: 'Lock', Unlocked: 'Unlock', Starred: 'Star', Unstarred: 'Unstar', Reordered: 'Reorder', Discarded: 'Discard',
 })
 // phrases that state a RESULT as already true
 const PHRASES = [

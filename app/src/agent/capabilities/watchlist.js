@@ -27,8 +27,13 @@
 //                            never a list a Watchlist widget on this board is showing (the
 //                            widget would keep pointing at a list that is gone); no Undo.
 //
-// ⛔ Not here: reorder, the flagged list (it syncs as a
-// whole set — an overwrite race), prebuilt / community / linked lists (read-only).
+//   watchlist.reorder        ⭐ Charts operator P1: sort A–Z / Z–A and/or move tickers to the top — the
+//                            page's own reorder route (the whole order, by item id); Undo restores the
+//                            old order only onto the list exactly as the Agent left it.
+//   watchlist.setNote        ⭐ one ticker's note — the page's notes route; Undo puts the old note back.
+//
+// ⛔ Not here: the flagged list (it syncs as a whole set — an overwrite race), prebuilt / community /
+// linked lists (read-only).
 // No revision exists server-side, so every write re-reads the list from the server
 // first and refuses if it moved since the plan was made.
 
@@ -124,13 +129,15 @@ export const watchlistKind = {
   list: (host) => { const all = listsOf(host); return all.map(l => snapOf(l, all)) },
   read: (host, ref) => { const all = listsOf(host); const l = all.find(x => x.id === ref); return l ? snapOf(l, all) : null },
   virtual: ({ alias, spec }) => ({ ref: alias, label: spec?.name || 'New watchlist', name: spec?.name || 'New watchlist', items: [], symbols: [], editable: true, why: null, shownIn: [], position: null, otherNames: [], virtual: true }),
-  stateOf: (snap) => ({ name: snap.name, symbols: snap.symbols, items: snap.items, otherNames: snap.otherNames || [], add: [], skipped: [], remove: [], absent: [], rename: null, addFrom: null, deleteList: false }),
+  stateOf: (snap) => ({ name: snap.name, symbols: snap.symbols, items: snap.items, otherNames: snap.otherNames || [], add: [], skipped: [], remove: [], absent: [], rename: null, addFrom: null, deleteList: false, reorder: null, notes: [] }),
   patch(before, after) {
     if (after.deleteList) return { deleteList: true, name: before.name, beforeSig: sigOf(before.items) }
     const p = {}
     if (after.add.length) p.add = after.add
     if (after.remove.length) p.remove = after.remove
     if (after.rename) p.rename = after.rename
+    if (after.reorder) p.reorder = after.reorder
+    if (after.notes.length) p.notes = after.notes
     if (!Object.keys(p).length) return null
     return { ...p, beforeSig: sigOf(before.items), beforeItems: before.items }
   },
@@ -195,6 +202,18 @@ export const watchlistKind = {
       try { await W.rename(ref, patch.rename.to) } catch (e) { throw await takeBackAdds(e) }
     }
     if (patch.undoRename) await W.rename(ref, patch.undoRename)
+    // ⭐ notes: each one only over the note the plan read (a note edited since → refused, nothing written)
+    if (patch.notes) {
+      const byId = new Map(curItems.map(i => [i.id, i]))
+      if (patch.notes.some(n => (byId.get(n.id)?.notes ?? null) !== n.from)) throw new Error('a note changed since I read it — ask again')
+      for (const n of patch.notes) await W.setNotes(ref, n.id, n.to)
+    }
+    // ⭐ order: the whole order, by item id (the page's reorder route) — the ids must be exactly the list's
+    if (patch.reorder) {
+      const ids = new Set(curItems.map(i => i.id))
+      if (patch.reorder.length !== ids.size || !patch.reorder.every(id => ids.has(id))) throw new Error('changed since I read it — ask again')
+      await W.reorder(ref, patch.reorder)
+    }
     await W.settle(ref)
     await nextFrame()
     return true
@@ -209,6 +228,8 @@ export const watchlistKind = {
     if (patch.undoRemove && !patch.undoRemove.every(it => have.has(it.sym))) return false
     if (patch.rename && snap.name !== patch.rename.to) return false
     if (patch.undoRename && snap.name !== patch.undoRename) return false
+    if (patch.reorder && JSON.stringify(snap.items.map(i => i.id)) !== JSON.stringify(patch.reorder)) return false
+    if (patch.notes && patch.notes.some(n => (snap.items.find(i => i.id === n.id)?.notes ?? null) !== n.to)) return false
     return true
   },
   // Undo an add = remove exactly the rows THIS add created (found by comparing the
@@ -228,6 +249,9 @@ export const watchlistKind = {
       out.expectSig = sigOf(item.after?.items || [])
     }
     if (p.rename) out.undoRename = p.rename.from
+    // a reorder is undone onto the list exactly as the Agent left it (beforeSig), back to the old order
+    if (p.reorder) { out.reorder = (item.before?.items || []).map(i => i.id); out.beforeSig = sigOf(item.after?.items || []) }
+    if (p.notes) out.notes = p.notes.map(n => ({ id: n.id, sym: n.sym, from: n.to, to: n.from }))
     return Object.keys(out).length ? out : null
   },
   fingerprint: (snap) => (snap ? sigOf(snap.items) + '|' + snap.name : 'gone'),
@@ -253,6 +277,7 @@ export const watchlistKind = {
       return JSON.stringify((u?.undoAdd || []).map(id => ids.has(id)))
     }
     if (p.rename) return snap.name
+    if (p.notes && !p.reorder) return JSON.stringify(p.notes.map(n => snap.items.find(i => i.id === n.id)?.notes ?? null))
     return sigOf(snap.items)
   },
 }
@@ -656,5 +681,95 @@ export function registerWatchlistCapabilities() {
     apply: (st, { name }) => (String(name).trim() === st.name ? st : { ...st, rename: { from: st.name, to: String(name).trim() }, name: String(name).trim() }),
     noop: (st) => `It is already called ${quote(st.name)}`,
     describe: (b, a) => (a.rename ? `Renamed the watchlist ${quote(a.rename.from)} to ${quote(a.rename.to)}` : null),
+  })
+
+  // ── watchlist.reorder (Charts operator P1) ──
+  const SORTS = { az: 'A–Z', za: 'Z–A' }
+  registerCapability({
+    name: 'watchlist.reorder',
+    surfaces: ['charts'],
+    target: 'watchlist',
+    fastWhole: true,
+    summary: 'Reorder one of the member\'s saved watchlists: sort it alphabetically (A–Z or Z–A) and/or move some tickers to the top, in the order given. Nothing is added or removed. Undo puts the old order back.',
+    hints: 'target = the ref of the watchlist; sort = az | za | null (keep the order); top = tickers to put first, in this order ([] for none). "Sort my Momentum list" = az. Sorting by price, change or other data is not available.',
+    args: { type: 'object', properties: { sort: { type: ['string', 'null'], enum: ['az', 'za', null] }, top: { type: 'array', items: { type: 'string' } } }, required: ['sort', 'top'], additionalProperties: false },
+    fast: ({ raw, host }) => {
+      const t = String(raw).trim()
+      const m = /^(?:please )?sort (?:my |the )?(.+?)(?: (?:alphabetically|a ?- ?z|a to z))?[.!]?$/i.exec(t)
+      if (m && /\b(alphabetically|a ?- ?z|a to z)\b/i.test(t) && host?.watchlists) {
+        const l = resolveList(host, m[1].replace(/ (?:alphabetically|a ?- ?z|a to z)$/i, ''))
+        return l ? { sort: 'az', top: [], __target: l.id } : null
+      }
+      const mv = /^(?:please )?(?:move|put) (.+?) (?:to the top of|at the top of|first in) (?:my |the )?(.+?)[.!]?$/i.exec(t)
+      if (mv && host?.watchlists) {
+        const syms = parseTickers(mv[1], raw)
+        const l = syms && resolveList(host, mv[2])
+        return l ? { sort: null, top: syms, __target: l.id } : null
+      }
+      return null
+    },
+    check(st, { sort, top }, env) {
+      const bad = editProblem(st, env)
+      if (bad) return bad
+      if (st.add.length || st.remove.length) return 'Reorder the list on its own, then ask for other changes.'
+      if (sort == null && !(top || []).length) return 'Say how to order it: A–Z, Z–A, or which tickers go first.'
+      if (st.items.length < 2) return `${quote(st.name)} has fewer than two stocks — there is nothing to reorder.`
+      const want = [...new Set((top || []).map(upper))]
+      const missing = want.filter(s => !st.symbols.includes(s))
+      if (missing.length) return `${andList(missing)} ${missing.length === 1 ? "isn't" : "aren't"} in ${quote(st.name)}.`
+      return null
+    },
+    apply(st, { sort, top }) {
+      const want = [...new Set((top || []).map(upper))]
+      let items = [...st.items]
+      if (sort === 'az') items.sort((a, b) => a.sym.localeCompare(b.sym))
+      if (sort === 'za') items.sort((a, b) => b.sym.localeCompare(a.sym))
+      if (want.length) items = [...want.map(s => items.find(i => i.sym === s)), ...items.filter(i => !want.includes(i.sym))]
+      const order = items.map(i => i.id)
+      if (JSON.stringify(order) === JSON.stringify(st.items.map(i => i.id))) return st
+      return { ...st, reorder: order, items, symbols: items.map(i => i.sym) }
+    },
+    noop: (st) => `${quote(st.name)} is already in that order`,
+    describe(b, a, { sort, top }) {
+      if (!a.reorder) return null
+      const parts = []
+      if (sort) parts.push(`sorted ${SORTS[sort]}`)
+      if ((top || []).length) parts.push(`${andList([...new Set(top.map(upper))])} first`)
+      return `Reordered ${quote(a.name)}: ${parts.join(', ')}`
+    },
+  })
+
+  // ── watchlist.setNote (Charts operator P1) ──
+  const NOTE_MAX = 500
+  registerCapability({
+    name: 'watchlist.setNote',
+    surfaces: ['charts'],
+    target: 'watchlist',
+    summary: 'Write, change or clear the NOTE on one ticker in one of the member\'s saved watchlists (the note column on the Watchlists page). Undo puts the old note back.',
+    hints: `target = the ref of the watchlist; symbol = the ticker (it must be in that list); note = the text exactly as the member gave it ("" clears it; at most ${NOTE_MAX} characters).`,
+    args: { type: 'object', properties: { symbol: { type: 'string' }, note: { type: 'string' } }, required: ['symbol', 'note'], additionalProperties: false },
+    check(st, { symbol, note }, env) {
+      const bad = editProblem(st, env)
+      if (bad) return bad
+      const s = upper(symbol)
+      if (!st.items.some(i => i.sym === s)) return `${s || 'That ticker'} isn't in ${quote(st.name)}.`
+      if (typeof note !== 'string') return 'What should the note say?'
+      if (note.length > NOTE_MAX) return `Notes can be at most ${NOTE_MAX} characters.`
+      return null
+    },
+    apply(st, { symbol, note }) {
+      const s = upper(symbol)
+      const it = st.items.find(i => i.sym === s)
+      const to = note.trim()
+      if ((it.notes || '') === to) return st
+      const notes = [...st.notes.filter(n => n.id !== it.id), { id: it.id, sym: s, from: it.notes ?? '', to }]
+      return { ...st, notes, items: st.items.map(i => (i.id === it.id ? { ...i, notes: to } : i)) }
+    },
+    noop: (st, _a, { symbol }) => `${upper(symbol)} in ${quote(st.name)} already has that note`,
+    describe(b, a, { symbol }) {
+      const n = a.notes.find(x => x.sym === upper(symbol))
+      if (!n) return null
+      return n.to ? `Set the note on ${n.sym} in ${quote(a.name)}: “${n.to.length > 60 ? `${n.to.slice(0, 57)}…` : n.to}”` : `Cleared the note on ${n.sym} in ${quote(a.name)}`
+    },
   })
 }

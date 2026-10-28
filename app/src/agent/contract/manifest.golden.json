@@ -350,6 +350,7 @@
        "textColor",
        "watermark.sizeScale",
        "watermark.weight",
+       "watermark.color",
        "watermark.lines.logo",
        "watermark.lines.ticker",
        "watermark.lines.interval",
@@ -1073,6 +1074,71 @@
     "additionalProperties": false
    },
    "risk": "confirm",
+   "reversible": true,
+   "undo": "exact",
+   "query": false
+  },
+  {
+   "name": "watchlist.reorder",
+   "domain": "watchlist",
+   "target": "watchlist",
+   "summary": "Reorder one of the member's saved watchlists: sort it alphabetically (A–Z or Z–A) and/or move some tickers to the top, in the order given. Nothing is added or removed. Undo puts the old order back.",
+   "hints": "target = the ref of the watchlist; sort = az | za | null (keep the order); top = tickers to put first, in this order ([] for none). \"Sort my Momentum list\" = az. Sorting by price, change or other data is not available.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "sort": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "enum": [
+       "az",
+       "za",
+       null
+      ]
+     },
+     "top": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     }
+    },
+    "required": [
+     "sort",
+     "top"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false
+  },
+  {
+   "name": "watchlist.setNote",
+   "domain": "watchlist",
+   "target": "watchlist",
+   "summary": "Write, change or clear the NOTE on one ticker in one of the member's saved watchlists (the note column on the Watchlists page). Undo puts the old note back.",
+   "hints": "target = the ref of the watchlist; symbol = the ticker (it must be in that list); note = the text exactly as the member gave it (\"\" clears it; at most 500 characters).",
+   "args": {
+    "type": "object",
+    "properties": {
+     "symbol": {
+      "type": "string"
+     },
+     "note": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "symbol",
+     "note"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
    "reversible": true,
    "undo": "exact",
    "query": false
@@ -2510,6 +2576,52 @@
    "query": false
   },
   {
+   "name": "widget.addTab",
+   "domain": "widget",
+   "target": "board",
+   "summary": "Add another widget as a TAB inside an existing (non-chart) widget — the widget header's \"+\" — and show it. Nothing else on the board moves. Undo closes it.",
+   "hints": "target = the ref of the board entry; widget = its id; type = one of chart, watchlist, themes, scanner, fundamentals, breadth, aisearch, news, notebook, profile, alerts, calendar, optionsflow, nhnl, nhnlPulse, volumescan, scatter. For a chart's own tabs (symbols, timeframes) use chart.addTab.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "widget": {
+      "type": "string"
+     },
+     "type": {
+      "type": "string",
+      "enum": [
+       "chart",
+       "watchlist",
+       "themes",
+       "scanner",
+       "fundamentals",
+       "breadth",
+       "aisearch",
+       "news",
+       "notebook",
+       "profile",
+       "alerts",
+       "calendar",
+       "optionsflow",
+       "nhnl",
+       "nhnlPulse",
+       "volumescan",
+       "scatter"
+      ]
+     }
+    },
+    "required": [
+     "widget",
+     "type"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false
+  },
+  {
    "name": "chart.addTab",
    "domain": "chart",
    "target": "board",
@@ -2748,7 +2860,7 @@
    "domain": "drawing",
    "target": "drawing",
    "summary": "Change ONE drawing's colour, line style or width (what its settings do). Undo puts the old style back.",
-   "hints": "target = the drawings entry; drawing = its id from that entry's drawings (the most recent one the member drew is last); color / style / width null = leave as is. \"Make that line pink and dashed\" = the line just drawn.",
+   "hints": "target = the drawings entry; drawing = its id from that entry's drawings (the most recent one the member drew is last; the one marked recent is the one I last drew or changed); color / style / width null = leave as is. \"Make that line pink and dashed\" / \"make it red\" = the recent one (else the line just drawn).",
    "args": {
     "type": "object",
     "properties": {
@@ -2804,8 +2916,8 @@
    "name": "drawing.remove",
    "domain": "drawing",
    "target": "drawing",
-   "summary": "Remove ONE drawing by id from a chart's symbol (every chart and layout showing it). Always shown as a proposal first. Refused for a locked drawing and for one an alert is attached to. Undo puts it back.",
-   "hints": "target = the drawings entry; drawing = its id. \"Remove the line I just added\" = the newest one. Clearing ALL drawings is not available.",
+   "summary": "Remove ONE drawing by id from a chart's symbol (every chart and layout showing it). Refused for a locked drawing and for one an alert is attached to. A hidden drawing is shown as a proposal first. Undo puts it back.",
+   "hints": "target = the drawings entry; drawing = its id. \"Remove the line I just added\" = the newest one (or the one marked recent). To remove EVERY drawing use drawing.clear.",
    "args": {
     "type": "object",
     "properties": {
@@ -2816,6 +2928,127 @@
     "required": [
      "drawing"
     ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false
+  },
+  {
+   "name": "drawing.setVisible",
+   "domain": "drawing",
+   "target": "drawing",
+   "summary": "Show or hide ONE drawing (its eye in the drawing's menu) on a chart's symbol — every chart on that symbol. Nothing is deleted. Undo puts it back.",
+   "hints": "target = the drawings entry; drawing = its id; visible = true to show, false to hide. For EVERY drawing on the symbol use drawing.setAllVisible.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "drawing": {
+      "type": "string"
+     },
+     "visible": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "drawing",
+     "visible"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false
+  },
+  {
+   "name": "drawing.lock",
+   "domain": "drawing",
+   "target": "drawing",
+   "summary": "Lock or unlock ONE drawing (its lock in the drawing's menu): a locked drawing can't be moved, restyled or removed until it is unlocked. Undo puts it back.",
+   "hints": "target = the drawings entry; drawing = its id; locked = true to lock, false to unlock.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "drawing": {
+      "type": "string"
+     },
+     "locked": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "drawing",
+     "locked"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false
+  },
+  {
+   "name": "drawing.setLevel",
+   "domain": "drawing",
+   "target": "drawing",
+   "summary": "Move a HORIZONTAL line (or a horizontal ray) to a new price — what dragging it does. Refused for a locked drawing. A line an alert is attached to is shown first (its alert moves with it). Undo puts it back.",
+   "hints": "target = the drawings entry; drawing = the horizontal line's id (the one marked recent for \"move it\"); price = the new level as the member said it — never invented.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "drawing": {
+      "type": "string"
+     },
+     "price": {
+      "type": "number"
+     }
+    },
+    "required": [
+     "drawing",
+     "price"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false
+  },
+  {
+   "name": "drawing.setAllVisible",
+   "domain": "drawing",
+   "target": "drawing",
+   "summary": "Show or hide EVERY drawing on a chart's symbol at once (every chart on that symbol). Nothing is deleted. Undo puts each one back as it was.",
+   "hints": "target = the drawings entry; visible = true to show them all, false to hide them all.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "visible": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "visible"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false
+  },
+  {
+   "name": "drawing.clear",
+   "domain": "drawing",
+   "target": "drawing",
+   "summary": "Remove EVERY drawing on a chart's symbol (every chart and layout showing it) — always shown as a proposal first. Locked drawings and drawings with an alert attached are kept (and said). Undo puts them all back.",
+   "hints": "target = the drawings entry for the chart's symbol.",
+   "args": {
+    "type": "object",
+    "properties": {},
+    "required": [],
     "additionalProperties": false
    },
    "risk": "confirm",
@@ -3161,6 +3394,198 @@
    "risk": "local",
    "reversible": true,
    "undo": "none",
+   "query": false
+  },
+  {
+   "name": "indicator.discardDraft",
+   "domain": "indicator",
+   "target": "indicatorDrafts",
+   "summary": "Throw away ONE unsaved indicator draft (\"never mind that indicator\", \"discard the draft\"). Always shown as a proposal first. Saved indicators and charts are never touched.",
+   "hints": "target = the draft's ref (usually the active one). Only a draft — to remove an indicator from a chart use indicator.remove.",
+   "args": {
+    "type": "object",
+    "properties": {},
+    "required": [],
+    "additionalProperties": false
+   },
+   "risk": "confirm",
+   "reversible": false,
+   "undo": "none",
+   "query": false
+  },
+  {
+   "name": "chartSetup.copyLook",
+   "domain": "chartSetup",
+   "target": "chart",
+   "summary": "Make ONE chart look like another chart on the board: it takes the other chart's colours, theme, chart type, scale and display settings. Its own indicators, comparisons and timeframe menu stay exactly as they are. Shown as a proposal first; Undo puts the old look back.",
+   "hints": "target = the chart that CHANGES; from = the ref of the chart to copy the look FROM. \"Make the left chart look like the right one\" → target = left, from = right.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "from": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "from"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "confirm",
+   "reversible": true,
+   "undo": "exact",
+   "query": false
+  },
+  {
+   "name": "chartSetup.removeTimeframe",
+   "domain": "chartSetup",
+   "target": "chart",
+   "summary": "Remove a CUSTOM timeframe (e.g. 45 minutes, 2 hours) from ONE chart's timeframe menu — the menu's own ✕. Built-in timeframes cannot be removed. Undo puts it back.",
+   "hints": "timeframe = the custom code as the chart lists it (e.g. \"45\", \"2h\", \"3D\") or words (\"45m\", \"2 hours\").",
+   "args": {
+    "type": "object",
+    "properties": {
+     "timeframe": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "timeframe"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false
+  },
+  {
+   "name": "chartSetup.favoriteTimeframe",
+   "domain": "chartSetup",
+   "target": "chart",
+   "summary": "Star or un-star a timeframe on ONE chart (the timeframe menu's ★): starred timeframes show in the chart's header bar. Undo puts it back.",
+   "hints": "timeframe = a code (1, 5, 15, 30, 60, D, W, M, or a custom one the chart has); favorite = true to star, false to un-star.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "timeframe": {
+      "type": "string"
+     },
+     "favorite": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "timeframe",
+     "favorite"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false
+  },
+  {
+   "name": "chartSetup.compareDisplay",
+   "domain": "chartSetup",
+   "target": "chart",
+   "summary": "Change how ONE chart's comparison overlays are shown (Tools → Compare Symbols): each overlay's scale (\"same\" = share the main price scale, \"new\" = its own % scale), showing or hiding an overlay, and \"Group only\" (hide the chart's own symbol). To add or remove overlays use chart.compare.",
+   "hints": "symbols = the compared tickers this applies to ([] = every comparison on the chart); scale = same | new | null (keep); visible = true | false | null (keep); groupOnly = true | false | null (keep).",
+   "args": {
+    "type": "object",
+    "properties": {
+     "symbols": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "scale": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "enum": [
+       "same",
+       "new",
+       null
+      ]
+     },
+     "visible": {
+      "type": [
+       "boolean",
+       "null"
+      ]
+     },
+     "groupOnly": {
+      "type": [
+       "boolean",
+       "null"
+      ]
+     }
+    },
+    "required": [
+     "symbols",
+     "scale",
+     "visible",
+     "groupOnly"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false
+  },
+  {
+   "name": "chartSetup.saveTemplate",
+   "domain": "chartSetup",
+   "target": "chartTemplates",
+   "summary": "Save ONE chart's current settings as one of the member's chart templates (Chart Settings → Templates → Save as Template) — its look and its indicators, exactly what the button saves. A template with the same name is replaced (then it is shown first). Undo puts the old list back.",
+   "hints": "target = the ref of the chartTemplateLibrary entry; chart = the ref of the chart to save from; name = exactly as the member said it (at most 40 characters).",
+   "args": {
+    "type": "object",
+    "properties": {
+     "name": {
+      "type": "string"
+     },
+     "chart": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "name",
+     "chart"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false
+  },
+  {
+   "name": "chartSetup.deleteTemplate",
+   "domain": "chartSetup",
+   "target": "chartTemplates",
+   "summary": "Delete one of the member's saved chart templates (a template's ✕ in Chart Settings → Templates). Charts that used it keep their settings. Shown first; Undo puts it back.",
+   "hints": "target = the ref of the chartTemplateLibrary entry; name = a template name from that entry, exactly.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "name": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "name"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "confirm",
+   "reversible": true,
+   "undo": "exact",
    "query": false
   },
   {

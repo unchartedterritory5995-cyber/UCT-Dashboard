@@ -52,7 +52,7 @@ describe('the core', () => {
     expect(coreOf(f)).toEqual(NL1_CORE_GROUPS)
     const core = f.filter(c => NL1_CORE_GROUPS.includes(groupOfAction(c.name)))
     expect(core.length).toBeLessThanOrEqual(NL1_CORE_MAX)
-    expect(core.length).toBe(41)                                      // charts 21 + indicators 11 + screener 8 + agent 1
+    expect(core.length).toBe(42)                                      // charts 21 + indicators 12 (P1: + discardDraft) + screener 8 + agent 1
     const s = selectNl1(f, { text: 'hello' })
     expect(s.core).toEqual(NL1_CORE_GROUPS)
     invariants(f, s)

@@ -36,7 +36,9 @@ import { CHART_THEMES, CHART_THEME_BY_ID } from '../../components/chart/chartThe
 import { positionWord } from '../host'
 import { addChartTab, closeChartTab, setActiveChartTab, renameChartTab, patchChartTab, chartTabList, sanitizeChartTabs } from '../../pages/charts/chartTabs'
 import { CHART_TIMEFRAMES } from './chart'
-import { widgetTabList, setActiveWidgetTab, renameWidgetTab, closeWidgetTab, sanitizeWidgetTabs } from '../../pages/charts/widgetTabs'
+import { widgetTabList, setActiveWidgetTab, renameWidgetTab, closeWidgetTab, sanitizeWidgetTabs, addWidgetTab, WIDGET_TAB_TYPES } from '../../pages/charts/widgetTabs'
+// a slot holds a handful of widgets as tabs — the Agent stops adding at this many (the header scrolls beyond)
+const MAX_WIDGET_TABS = 8
 
 const LABEL = labelMap('menu')
 const label = (t) => LABEL[t] || t
@@ -641,6 +643,39 @@ export function registerBoardCapabilities() {
     describe(b, a, { widget, tab }) {
       const o = b.board.find(w => w.id === String(widget)), n = a.board.find(w => w.id === String(widget))
       return o && n && !same(o, n) ? `Closed the “${findWtab(o, tab)?.label || tab}” tab of the ${nameOf(o, b.board)}` : null
+    },
+  })
+
+  // ⭐ Charts operator P1: the widget header's "+" (WidgetHost.handleAddTab → addWidgetTab): another widget as a
+  // tab in this slot, coloured like the slot's active tab, and shown. The tab's id is made deterministic here
+  // (addWidgetTab mints a random one), so a re-plan of the same request — an approval — writes the same board.
+  reg({
+    ...common,
+    name: 'widget.addTab',
+    summary: 'Add another widget as a TAB inside an existing (non-chart) widget — the widget header\'s "+" — and show it. Nothing else on the board moves. Undo closes it.',
+    hints: `target = the ref of the board entry; widget = its id; type = one of ${WIDGET_TAB_TYPES.join(', ')}. For a chart's own tabs (symbols, timeframes) use chart.addTab.`,
+    args: { type: 'object', properties: { widget: widgetArg, type: { type: 'string', enum: [...WIDGET_TAB_TYPES] } }, required: ['widget', 'type'], additionalProperties: false },
+    check(st, { widget, type }) {
+      const t = widgetOf(st, widget)
+      if (!t) return notOnBoard(widget)
+      if (t.type === 'chart') return 'That is a chart — its own tabs are chart tabs (add one with chart.addTab).'
+      if (!WIDGET_TAB_TYPES.includes(type)) return `“${type}” can't be added as a tab.`
+      if (wtabsOf(t).length >= MAX_WIDGET_TABS) return `The ${label(t.type)} already holds ${MAX_WIDGET_TABS} tabs — close one first.`
+      return null
+    },
+    apply(st, { widget, type }) {
+      const t = widgetOf(st, widget)
+      const active = widgetTabList(t)[sanitizeWidgetTabs(t).active] || {}
+      const next = addWidgetTab(t, { type, color: active.color || t.color || 'A' })
+      const ids = new Set(sanitizeWidgetTabs(t).tabs.map(x => x.id))
+      let n = ids.size + 1
+      while (ids.has(`wta${n}`)) n += 1
+      const tabs = next.wtabs.map((x, i) => (i === next.wtabs.length - 1 ? { ...x, id: `wta${n}` } : x))
+      return setWidget(st, t, { ...next, wtabs: tabs })
+    },
+    describe(b, a, { widget, type }) {
+      const o = b.board.find(w => w.id === String(widget)), n = a.board.find(w => w.id === String(widget))
+      return o && n && !same(o, n) ? `Added a ${label(type)} tab to the ${nameOf(o, b.board)} (showing it now)` : null
     },
   })
 

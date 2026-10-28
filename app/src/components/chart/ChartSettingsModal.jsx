@@ -37,7 +37,7 @@ import styles from './ChartSettingsModal.module.css'
 import { MAX_CHART_TEMPLATES } from './chartCeilings'
 // ⭐ The ONE apply every saved-template door shares (this modal, the right-click
 // flyout, UCT Agent) — see chartTemplateApply.js for the ruling behind it.
-import { chartTemplateSettings } from './chartTemplateApply'
+import { chartTemplateSettings, chartTemplatesAfterSave, chartTemplatesAfterDelete } from './chartTemplateApply'
 import { keepIndicatorState } from './indicatorPreservation'
 import { recordIndicatorChange } from './indicatorHistoryStore'
 
@@ -448,14 +448,12 @@ export default function ChartSettingsModal({
 
   const persistTemplates = (arr) => setPref(CHART_TEMPLATES_KEY, JSON.stringify(arr.slice(0, MAX_CHART_TEMPLATES)))
   const commitSaveTemplate = () => {
-    const name = tplName.trim().slice(0, 40)
-    if (!name) { setSavingTpl(false); setTplName(''); return }
-    // Snapshot the CURRENT settings as the template body. Overwrite a same-named
-    // template (case-insensitive) so re-saving updates in place instead of piling up.
-    const snapshot = JSON.parse(JSON.stringify({ ...settings, preset: 'custom' }))
-    const id = `tpl${Math.random().toString(36).slice(2, 9)}`
-    const without = templates.filter(t => (t.name || '').toLowerCase() !== name.toLowerCase())
-    persistTemplates([{ id, name, settings: snapshot }, ...without])
+    // Snapshot the CURRENT settings as the template body. A same-named template (case-insensitive)
+    // is overwritten so re-saving updates in place — the ONE shared save (chartTemplateApply.js),
+    // which UCT Agent's template save also uses.
+    const saved = chartTemplatesAfterSave(templates, tplName, settings)
+    if (!saved) { setSavingTpl(false); setTplName(''); return }
+    persistTemplates(saved.templates)
     setSavingTpl(false); setTplName(''); setTplMenuOpen(false)
   }
   const applyTemplate = (t) => {
@@ -469,7 +467,7 @@ export default function ChartSettingsModal({
     onChange?.(next)
     setTplMenuOpen(false)
   }
-  const deleteTemplate = (id) => persistTemplates(templates.filter(t => t.id !== id))
+  const deleteTemplate = (id) => persistTemplates(chartTemplatesAfterDelete(templates, id))
 
   useEffect(() => { if (!open) { setPos(null); setConfirmReset(false); setTplMenuOpen(false); setSavingTpl(false); setTplName(''); setThemesOpen(false) } }, [open]) // re-center + reset transient UI on each open
 
