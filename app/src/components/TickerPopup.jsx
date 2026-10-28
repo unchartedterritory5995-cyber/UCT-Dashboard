@@ -1,5 +1,5 @@
 // app/src/components/TickerPopup.jsx
-import { useState, useEffect, useLayoutEffect, useRef, useId, lazy, Suspense } from 'react'
+import { useState, useEffect, useLayoutEffect, useRef, useId, useSyncExternalStore, lazy, Suspense } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { createPortal } from 'react-dom'
 import useRealtimePrices from '../hooks/useRealtimePrices'
@@ -99,11 +99,25 @@ function snapshotEscape(e) {
 function trackOpenPopup(popup) {
   OPEN_POPUPS.set(popup, openLayers())
   if (!releaseEscapeGate) releaseEscapeGate = registerShortcuts({ 'tickerPopup.escapeGate': snapshotEscape })
+  notifyTopChanged()
   return () => {
     OPEN_POPUPS.delete(popup)
     if (!OPEN_POPUPS.size && releaseEscapeGate) { releaseEscapeGate(); releaseEscapeGate = null }
+    notifyTopChanged()
   }
 }
+
+// ⛔⛔ ONLY THE TOPMOST OPEN POPUP SPEAKS FOR THE APP (rule H14). Each popup writes the app focus
+// symbol (useAppFocus) and the Compass page hint while it is open. Two open at once wrote them
+// in turn FOREVER: setSymbol is a new function after every write (it closes over the prefs it
+// just changed), so each write re-ran BOTH popups' effects -- AAA, BBB, AAA, ... a preferences
+// POST per turn, with the app frozen. The topmost is the LAST popup in OPEN_POPUPS, the same
+// open-order stack the Escape gate reads; when it closes, the next one down becomes topmost and
+// writes its own symbol again.
+const TOP_LISTENERS = new Set()
+function notifyTopChanged() { for (const fn of TOP_LISTENERS) fn() }
+function subscribeTop(fn) { TOP_LISTENERS.add(fn); return () => { TOP_LISTENERS.delete(fn) } }
+function topPopup() { let top = null; for (const p of OPEN_POPUPS.keys()) top = p; return top }
 
 /** Was this Escape, at capture time, owned by a layer above `popup`? */
 function escapeOwnedAbove(e, popup) {
@@ -427,19 +441,23 @@ export default function TickerPopup({ sym, as: Tag = 'span', customChartFn, clas
   // useAppFocus), so this is the same value /charts already persists, not a
   // second one. Set on OPEN only; a hover preview must never move focus.
   const { setSymbol: setFocusSymbol } = useAppFocus()
+  const isTopPopup = useSyncExternalStore(subscribeTop,
+    () => !!modalRef.current && topPopup() === modalRef.current, () => false)
   useEffect(() => {
-    if (modalOpen && activeSym) setFocusSymbol(activeSym)
-  }, [modalOpen, activeSym, setFocusSymbol])
+    if (modalOpen && activeSym && isTopPopup) setFocusSymbol(activeSym)
+  }, [modalOpen, activeSym, setFocusSymbol, isTopPopup])
 
   // P4-F unification: while this ticker modal is open, tell Compass the
   // user is looking at this symbol. So if they open the orb from inside
   // the modal, Compass starts the session knowing the ticker context.
+  // Topmost popup only (see TOP_LISTENERS): a popup underneath must neither set the hint nor
+  // clear the top one's when it closes.
   useEffect(() => {
-    if (!modalOpen || !activeSym) return
+    if (!modalOpen || !activeSym || !isTopPopup) return
     const tabHint = tab && tab !== 'Daily' ? `, ${tab}` : ''
     setVoicePageHint(`chart of ${activeSym}${tabHint}`)
     return () => setVoicePageHint(null)
-  }, [modalOpen, activeSym, tab])
+  }, [modalOpen, activeSym, tab, isTopPopup])
 
   return (
     <>
