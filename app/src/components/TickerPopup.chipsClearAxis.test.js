@@ -16,6 +16,7 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { timeAxisMinHeightFromCss } from './StockChart'
+import { mediaBodiesOn } from '../testing/cssMediaAt'
 
 const SRC = join(process.cwd(), 'src')
 const read = (p) => readFileSync(join(SRC, p), 'utf8')
@@ -37,27 +38,17 @@ const TAP_MIN = Number(/--tap-min:\s*(\d+)px/.exec(TOKENS)[1])
 const DOCK_PX = Number(/style=\{\{\s*bottom:\s*'(\d+)px'\s*\}\}\s*title="Price scale: Arithmetic/.exec(STOCK_JSX)?.[1])
 const NEEDED = NATURAL_AXIS_PX + TAP_MIN + 4 + DOCK_PX
 
-/** Bodies of the @media blocks that APPLY at `width` (same helper as tapFloor.test.js). */
-function mediaBodiesAt(css, width) {
-  const out = []
-  const re = /@media([^{]+)\{/g
-  let m
-  while ((m = re.exec(css))) {
-    const cond = m[1]
-    const max = /max-width:\s*(\d+)px/.exec(cond)
-    const min = /min-width:\s*(\d+)px/.exec(cond)
-    let depth = 1
-    let i = re.lastIndex
-    for (; i < css.length && depth > 0; i += 1) {
-      if (css[i] === '{') depth += 1
-      else if (css[i] === '}') depth -= 1
-    }
-    if (max && width > Number(max[1])) continue
-    if (min && width < Number(min[1])) continue
-    out.push(css.slice(re.lastIndex, i - 1))
-  }
-  return out.join('\n')
-}
+// Devices, through the shared parser (it understands `pointer`, so the touch iPad in
+// landscape -- 1194px, past the width tier, and shown THIS popup -- is a real case here).
+const IPAD_LANDSCAPE = 1194
+const FINGERS = [
+  { width: PHONE, pointer: 'coarse' },
+  { width: TABLET, pointer: 'coarse' },
+  { width: IPAD_LANDSCAPE, pointer: 'coarse' },
+]
+const DESKTOP_MOUSE = { width: DESKTOP, pointer: 'fine' }
+const ON_TABLET = { width: TABLET, pointer: 'coarse' }
+const ON_PHONE = { width: PHONE, pointer: 'coarse' }
 
 /** The px value a rule whose selector list contains exactly `selector` gives `prop`, or null. */
 function declared(block, selector, prop) {
@@ -69,19 +60,31 @@ function declared(block, selector, prop) {
   return null
 }
 
-describe('TickerPopup scale chips clear the date-axis labels on phone AND tablet', () => {
-  it('the popup reserves enough axis for the label band AND the chip row at 390 and 820', () => {
+describe('TickerPopup scale chips clear the date-axis labels on phone, tablet AND a touch iPad in landscape', () => {
+  it('the popup reserves enough axis for the label band AND the chip row at 390, 820 and 1194 (touch)', () => {
     expect(TAP_MIN).toBe(44)
     expect(DOCK_PX).toBe(3)
-    for (const w of [PHONE, TABLET]) {
-      const px = declared(mediaBodiesAt(STOCK_CSS, w), SEL, VAR)
-      expect(px, `${SEL} ${VAR} @${w}px`).not.toBeNull()
-      expect(px, `@${w}px`).toBeGreaterThanOrEqual(NEEDED)
+    for (const d of FINGERS) {
+      const px = declared(mediaBodiesOn(STOCK_CSS, d), SEL, VAR)
+      expect(px, `${SEL} ${VAR} @${d.width}px`).not.toBeNull()
+      expect(px, `@${d.width}px`).toBeGreaterThanOrEqual(NEEDED)
     }
   })
 
-  it('desktop declares no reserve -- the axis stays at its natural height', () => {
-    expect(declared(mediaBodiesAt(STOCK_CSS, DESKTOP), SEL, VAR)).toBeNull()
+  it('a mouse desktop declares no reserve -- the axis stays at its natural height', () => {
+    expect(declared(mediaBodiesOn(STOCK_CSS, DESKTOP_MOUSE), SEL, VAR)).toBeNull()
+  })
+
+  it('the reserve and the chip floor it pays for apply on the SAME devices', () => {
+    // A floor without its reserve is the covered-axis bug again; a reserve without the floor
+    // wastes 52px of chart. Both ride one media block, so they cannot drift apart per device.
+    const chip = ':global([data-ticker-popup-chart]) .scaleToggleBtn'
+    for (const d of [...FINGERS, DESKTOP_MOUSE]) {
+      const block = mediaBodiesOn(STOCK_CSS, d)
+      const hasFloor = /min-height:\s*var\(--tap-min\)/.test(
+        [...block.matchAll(/([^{}]+)\{([^{}]*)\}/g)].filter(([, sel]) => sel.split(',').some((x) => x.trim() === chip)).map(([, , b]) => b).join(';'))
+      expect(declared(block, SEL, VAR) != null, `@${d.width}px/${d.pointer}`).toBe(hasFloor)
+    }
   })
 
   it('StockChart hands the variable to the time scale (the wire, not just the stylesheet)', () => {
@@ -107,10 +110,12 @@ describe('TickerPopup scale chips clear the date-axis labels on phone AND tablet
     const phoneOnly = `@media (max-width: 640px) { ${SEL} { ${VAR}: 80px; } }`
     const tooSmall = `@media (max-width: 1024px) { ${SEL} { ${VAR}: 60px; } }`
     const good = `@media (max-width: 1024px) { ${SEL} { ${VAR}: 80px; } }`
-    expect(declared(mediaBodiesAt(unscoped, TABLET), SEL, VAR)).toBeNull()
-    expect(declared(mediaBodiesAt(phoneOnly, PHONE), SEL, VAR)).toBe(80)
-    expect(declared(mediaBodiesAt(phoneOnly, TABLET), SEL, VAR)).toBeNull()
-    expect(declared(mediaBodiesAt(tooSmall, TABLET), SEL, VAR)).toBeLessThan(NEEDED)
-    expect(declared(mediaBodiesAt(good, TABLET), SEL, VAR)).toBeGreaterThanOrEqual(NEEDED)
+    expect(declared(mediaBodiesOn(unscoped, ON_TABLET), SEL, VAR)).toBeNull()
+    expect(declared(mediaBodiesOn(phoneOnly, ON_PHONE), SEL, VAR)).toBe(80)
+    expect(declared(mediaBodiesOn(phoneOnly, ON_TABLET), SEL, VAR)).toBeNull()
+    expect(declared(mediaBodiesOn(tooSmall, ON_TABLET), SEL, VAR)).toBeLessThan(NEEDED)
+    expect(declared(mediaBodiesOn(good, ON_TABLET), SEL, VAR)).toBeGreaterThanOrEqual(NEEDED)
+    // a width-only reserve does not reach the touch iPad in landscape
+    expect(declared(mediaBodiesOn(good, FINGERS[2]), SEL, VAR)).toBeNull()
   })
 })

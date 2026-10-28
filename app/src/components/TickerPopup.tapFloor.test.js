@@ -1,5 +1,6 @@
 // The TickerPopup's finger targets clear `--tap-min` on the WHOLE touch tier (phone 390 AND
-// tablet 820), with the token, not a literal.
+// tablet 820) and on any COARSE pointer past it (a touch iPad in landscape, 1194), with the
+// token, not a literal. A mouse desktop keeps its compact header.
 //
 // Measured by a Playwright + axe walk at 820 and 390: the header icon buttons (`.actionBtn`:
 // research / Ask AI / save price) were 28x26, the "Switch ticker" box (`.switchInput`) 148x34,
@@ -13,6 +14,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { mediaBodiesOn } from '../testing/cssMediaAt'
 
 const SRC = join(process.cwd(), 'src')
 const read = (p) => readFileSync(join(SRC, p), 'utf8')
@@ -24,29 +26,18 @@ const POPUP_JSX = read('components/TickerPopup.jsx')
 const SCOPE = ':global([data-ticker-popup-chart])'
 const PHONE = 390
 const TABLET = 820
+const IPAD_LANDSCAPE = 1194
 const DESKTOP = 1200
 
-/** Bodies of the @media blocks that APPLY at `width` (the tapFloor.test.js helper). */
-function mediaBodiesAt(css, width) {
-  const out = []
-  const re = /@media([^{]+)\{/g
-  let m
-  while ((m = re.exec(css))) {
-    const cond = m[1]
-    const max = /max-width:\s*(\d+)px/.exec(cond)
-    const min = /min-width:\s*(\d+)px/.exec(cond)
-    let depth = 1
-    let i = re.lastIndex
-    for (; i < css.length && depth > 0; i += 1) {
-      if (css[i] === '{') depth += 1
-      else if (css[i] === '}') depth -= 1
-    }
-    if (max && width > Number(max[1])) continue
-    if (min && width < Number(min[1])) continue
-    out.push(css.slice(re.lastIndex, i - 1))
-  }
-  return out.join('\n')
-}
+// The devices the floor is FOR (a finger) and the one it must leave alone (a mouse desktop).
+const ON_PHONE = { width: PHONE, pointer: 'coarse' }
+const ON_TABLET = { width: TABLET, pointer: 'coarse' }
+// A touch iPad in LANDSCAPE: past the 1024 width tier, so it gets the TickerPopup, not the
+// hub sheet -- and its header buttons measured 28x26 there (WebKit walk, 1194px, touch).
+const ON_IPAD_LANDSCAPE = { width: IPAD_LANDSCAPE, pointer: 'coarse' }
+const ON_DESKTOP_MOUSE = { width: DESKTOP, pointer: 'fine' }
+const FINGER_DEVICES = [ON_PHONE, ON_TABLET, ON_IPAD_LANDSCAPE]
+const tag = (d) => `@${d.width}px/${d.pointer}`
 
 /** Does a rule whose selector list contains exactly `selector` pin `prop` to the TOKEN? */
 function pinned(block, selector, prop) {
@@ -68,21 +59,21 @@ const TARGETS = [
   [STOCK_CSS, `${SCOPE} .scaleToggleBtn`, ['min-width', 'min-height']],
 ]
 
-describe('TickerPopup touch targets clear --tap-min on phone AND tablet', () => {
-  it('every header control and scale chip is pinned to the token at 390 and 820', () => {
+describe('TickerPopup touch targets clear --tap-min on phone, tablet AND a touch iPad in landscape', () => {
+  it('every header control and scale chip is pinned to the token at 390, 820 and 1194 (touch)', () => {
     const misses = []
     for (const [css, sel, props] of TARGETS) {
-      for (const w of [PHONE, TABLET]) {
-        const block = mediaBodiesAt(css, w)
-        for (const prop of props) if (!pinned(block, sel, prop)) misses.push(`${sel} ${prop} @${w}px`)
+      for (const d of FINGER_DEVICES) {
+        const block = mediaBodiesOn(css, d)
+        for (const prop of props) if (!pinned(block, sel, prop)) misses.push(`${sel} ${prop} ${tag(d)}`)
       }
     }
     expect(misses).toEqual([])
   })
 
-  it('desktop is untouched -- the floor lives only in the touch tier', () => {
+  it('a mouse desktop is untouched -- the floor follows the finger, not the width alone', () => {
     for (const [css, sel] of TARGETS) {
-      expect(pinned(mediaBodiesAt(css, DESKTOP), sel, 'min-height'), sel).toBe(false)
+      expect(pinned(mediaBodiesOn(css, ON_DESKTOP_MOUSE), sel, 'min-height'), sel).toBe(false)
     }
   })
 
@@ -95,15 +86,29 @@ describe('TickerPopup touch targets clear --tap-min on phone AND tablet', () => 
 
   it('⭐ CONTROL -- a phone-only floor does NOT satisfy the tablet width', () => {
     const phoneOnly = '@media (max-width: 640px) { .actionBtn { min-height: var(--tap-min); } }'
-    expect(pinned(mediaBodiesAt(phoneOnly, PHONE), '.actionBtn', 'min-height')).toBe(true)
-    expect(pinned(mediaBodiesAt(phoneOnly, TABLET), '.actionBtn', 'min-height')).toBe(false)
+    expect(pinned(mediaBodiesOn(phoneOnly, ON_PHONE), '.actionBtn', 'min-height')).toBe(true)
+    expect(pinned(mediaBodiesOn(phoneOnly, ON_TABLET), '.actionBtn', 'min-height')).toBe(false)
+  })
+
+  it('⭐ CONTROL -- a width-only touch tier does NOT reach the touch iPad in landscape', () => {
+    const widthOnly = '@media (max-width: 1024px) { .actionBtn { min-height: var(--tap-min); } }'
+    const withPointer = '@media (max-width: 1024px), (pointer: coarse) { .actionBtn { min-height: var(--tap-min); } }'
+    expect(pinned(mediaBodiesOn(widthOnly, ON_TABLET), '.actionBtn', 'min-height')).toBe(true)
+    expect(pinned(mediaBodiesOn(widthOnly, ON_IPAD_LANDSCAPE), '.actionBtn', 'min-height')).toBe(false)
+    expect(pinned(mediaBodiesOn(withPointer, ON_IPAD_LANDSCAPE), '.actionBtn', 'min-height')).toBe(true)
+    expect(pinned(mediaBodiesOn(withPointer, ON_DESKTOP_MOUSE), '.actionBtn', 'min-height')).toBe(false)
+  })
+
+  it('⭐ CONTROL -- a condition the parser does not understand never counts as applying', () => {
+    const hoverNone = '@media (hover: none) { .actionBtn { min-height: var(--tap-min); } }'
+    expect(pinned(mediaBodiesOn(hoverNone, ON_IPAD_LANDSCAPE), '.actionBtn', 'min-height')).toBe(false)
   })
 
   it('⭐ CONTROL -- an UNSCOPED or literal-px chip floor does not count as the popup fix', () => {
     const unscoped = '@media (max-width: 1024px) { .scaleToggleBtn { min-height: var(--tap-min); } }'
     const literal = `@media (max-width: 1024px) { ${SCOPE} .scaleToggleBtn { min-height: 44px; } }`
     const sel = `${SCOPE} .scaleToggleBtn`
-    expect(pinned(mediaBodiesAt(unscoped, TABLET), sel, 'min-height')).toBe(false)
-    expect(pinned(mediaBodiesAt(literal, TABLET), sel, 'min-height')).toBe(false)
+    expect(pinned(mediaBodiesOn(unscoped, ON_TABLET), sel, 'min-height')).toBe(false)
+    expect(pinned(mediaBodiesOn(literal, ON_TABLET), sel, 'min-height')).toBe(false)
   })
 })
