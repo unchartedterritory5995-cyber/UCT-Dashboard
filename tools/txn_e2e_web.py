@@ -39,6 +39,10 @@ sqlite3.connect = lambda db, *a, **k: (_guard(db) if isinstance(db, (str, os.Pat
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
+# The shared-root census (tests/test_tools_pin_the_root.py): leaves the harness's own
+# temp DATA_DIR / TXN_DB_PATH / TXN_JOURNAL_DIR alone, redirects anything else.
+import conftest  # noqa: E402,F401  side effect: redirects every *_DB_PATH/*_DIR to an isolated sandbox
+
 import uvicorn  # noqa: E402
 from fastapi import FastAPI  # noqa: E402
 from fastapi.responses import JSONResponse  # noqa: E402
