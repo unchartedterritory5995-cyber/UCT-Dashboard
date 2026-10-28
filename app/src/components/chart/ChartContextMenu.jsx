@@ -31,8 +31,11 @@
  *     (`returnFocusTo`: the chart's element; its nearest focusable
  *     `role="region"` wins). An OUTSIDE click does not pull focus back: the
  *     member clicked somewhere else on purpose;
- *   · the desktop popover sits inside a NON-MODAL `role="dialog"` with the
- *     same short name the touch branch's Sheet carries ("Chart actions"). The
+ *   · Tab closes the menu (APG) without preventDefault, so focus moves on
+ *     naturally; an open-but-unfocused menu would otherwise keep its dialog
+ *     wrapper in the DOM and isModalOpen() would hold every chart shortcut off;
+ *   · the desktop popover sits inside a NON-MODAL `role="dialog"`, labelled BY
+ *     the menu (aria-labelledby, so it is not a second, different name). The
  *     menu renders at the app root, outside every landmark, and a dialog is
  *     what axe's `region` rule accepts for a transient popup (its
  *     regionMatcher). That is the repo's own precedent for root-level
@@ -41,7 +44,7 @@
  *     dialog holding the role="menu").
  */
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { useIsTouch } from '../../hooks/useBreakpoint'
 import Sheet from '../mobile/Sheet'
 import UIcon from '../ui/UIcon'
@@ -79,6 +82,7 @@ export function returnTargetFor(origin) {
 export default function ChartContextMenu({ open, x, y, sections = [], onClose, ariaLabel = 'Chart actions', returnFocusTo = null }) {
   const menuRef = useRef(null)
   const listRef = useRef(null)
+  const menuId = useId()
   const [expanded, setExpanded] = useState(null)  // id of the open submenu
   const isTouch = useIsTouch()
   // Read at close through a ref, so a new element on a re-render never re-runs the effects.
@@ -155,6 +159,9 @@ export default function ChartContextMenu({ open, x, y, sections = [], onClose, a
 
   // ArrowUp/ArrowDown wrap, Home/End jump, between the menu's own enabled items.
   const onMenuKeyDown = (e) => {
+    // Tab leaves the menu, so the menu goes (APG). No preventDefault: focus
+    // moves to wherever Tab takes it (a popup's focus trap still applies).
+    if (e.key === 'Tab') { onClose?.(); return }
     const MOVES = { ArrowDown: 1, ArrowUp: -1, Home: 'first', End: 'last' }
     const move = MOVES[e.key]
     if (move == null) return
@@ -199,10 +206,11 @@ export default function ChartContextMenu({ open, x, y, sections = [], onClose, a
       className={styles.menu}
       style={{ left: clampedX, top: clampedY }}
       role="dialog"
-      aria-label="Chart actions"
+      aria-labelledby={menuId}
     >
       <div
         ref={listRef}
+        id={menuId}
         role="menu"
         aria-label={ariaLabel}
         tabIndex={-1}
