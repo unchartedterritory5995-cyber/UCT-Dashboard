@@ -1293,6 +1293,11 @@ def build_renderhealth_command() -> dict:
             "default_member_permissions": "8"}
 
 
+def _build_news_command() -> dict:
+    from api.services.discord_tx_news import build_news_command
+    return build_news_command()
+
+
 def build_commands(activity: bool = False, renderhealth: bool = False) -> list:
     """Every application command this bot registers (one authority).
     `activity=True` adds the Entry Point command (only valid once Activities
@@ -1303,7 +1308,8 @@ def build_commands(activity: bool = False, renderhealth: bool = False) -> list:
     # command set does not get an error.
     cmds = [build_chart_command(), build_alias_command(),
             build_settings_command(), build_buzz_command(), build_flow_command(),
-            build_lesson_command(), build_cot_command(), build_study_command()]
+            build_lesson_command(), build_cot_command(), build_study_command(),
+            _build_news_command()]
     if activity:
         cmds.append(build_launch_command())
     if renderhealth:
