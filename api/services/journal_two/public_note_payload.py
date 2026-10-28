@@ -260,6 +260,7 @@ MARKET_DATA_VENDORS: dict[tuple[str, str | None], str] = {
     ("widgetEmbed", "marketcontext"): "mixed",    # regime + prices
     ("widgetEmbed", "aisearch"): "mixed",         # an AI answer over several sources
     ("widgetEmbed", "news"): "mixed",             # AlphaVantage / RSS headlines
+    ("widgetEmbed", "tradeExchangeNews"): "tradexchange",  # Trade Exchange breaking news (licensed feed)
     ("widgetEmbed", "notebook"): "private",       # the member's OTHER notes -- never public
     ("widgetEmbed", "profile"): "mixed",          # AI profile + price statistics
     ("widgetEmbed", "alerts"): "private",         # the member's own alert list + prices
@@ -356,6 +357,9 @@ VENDOR_VERDICT: dict[str, str] = {
     "massive": NEUTRAL,    # not named by the owner: charts and bars stay neutral
     "mixed": NEUTRAL,      # not attributable to an approved vendor alone (L3 as sent)
     "document": NEUTRAL,   # D-B4, unchanged
+    # Trade Exchange headlines are licensed for UCT's paid product, not for public pages:
+    # a stranger sees the neutral line. Not loosened without the licence saying so.
+    "tradexchange": NEUTRAL,
     "private": NEUTRAL,    # member-private, not a vendor question at all
     # An account figure the MEMBER may switch on (`params.share is True`). Any caller that asks the
     # table and ignores the switch gets NEUTRAL: fails closed. `_market_data` is what reads the switch.
