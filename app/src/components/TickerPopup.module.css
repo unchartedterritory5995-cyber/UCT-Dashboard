@@ -531,17 +531,20 @@
   font-size: 13px;
   font-weight: 700;
 }
-.eiBeat { color: var(--ut-green-bright); }
-.eiMiss { color: var(--ut-red, var(--danger-ink)); }
+/* Earnings beat/miss and analyst buy/sell counts are red/green TEXT: the text inks, never
+   --ut-red / --ut-green-bright (--ut-red read 2.41:1 on Nord's --bg-hover). Rail:
+   TickerPopup.headerInk.test.js. */
+.eiBeat { color: var(--success-ink); }
+.eiMiss { color: var(--danger-ink); }
 .eiNA { color: var(--text-muted); opacity: 0.5; }
 .eiConsensus {
   display: flex;
   gap: 8px;
   font-size: 11px;
 }
-.eiBuyCount { color: var(--ut-green-bright); font-weight: 600; }
+.eiBuyCount { color: var(--success-ink); font-weight: 600; }
 .eiHoldCount { color: var(--text-muted); font-weight: 600; }
-.eiSellCount { color: var(--ut-red, var(--danger-ink)); font-weight: 600; }
+.eiSellCount { color: var(--danger-ink); font-weight: 600; }
 .eiTarget {
   font-weight: 600;
   color: var(--ut-cream);

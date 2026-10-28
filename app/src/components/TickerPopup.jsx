@@ -538,7 +538,7 @@ export default function TickerPopup({ sym, as: Tag = 'span', customChartFn, clas
                     flow figures belong to the ticker the caller opened, not the next. */}
                 {flowMeta && !searchSym && (
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, marginLeft: 10 }}>
-                    <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: 0.5, padding: '2px 7px', borderRadius: 4, color: 'var(--bg)', background: flowMeta.bull ? 'var(--gain)' : 'var(--loss)' }}>
+                    <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: 0.5, padding: '2px 7px', borderRadius: 4, color: flowMeta.bull ? 'var(--on-gain)' : 'var(--on-loss)', background: flowMeta.bull ? 'var(--gain)' : 'var(--loss)' }}>
                       {flowMeta.bull ? 'BULL' : 'BEAR'}
                     </span>
                     {flowMeta.premium && <span style={{ fontSize: 12, fontWeight: 800, color: 'var(--ut-gold)', background: 'var(--ut-gold-dim)', padding: '2px 8px', borderRadius: 4 }}>{flowMeta.premium}</span>}
