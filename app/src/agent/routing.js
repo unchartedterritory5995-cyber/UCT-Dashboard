@@ -120,7 +120,20 @@ const tickerWords = (raw) => (String(raw).match(/(?:^|[\s$])([A-Z]{1,5})(?=[\s,.
   .map(w => w.trim().replace('$', '')).filter(w => !NOT_TICKERS.has(w))
 
 const BY_DOMAIN = new Map(GROUPS.flatMap(g => g.domains.map(d => [d, g.id])))
-export const groupOfAction = (name) => BY_DOMAIN.get(String(name || '').split('.')[0]) || null
+// ⭐ Memoised per action name: BY_DOMAIN is a module constant, so a name's group never changes. Selection
+// asks this per action per group per reroute (the eval's reroute table is ~100 selections per request), and
+// the split allocated on every call (2026-10-28: 85% of agentNl1SelectionCoverage's time after PR #481).
+// Bounded: names come from the registry and from model output, so the memo stops growing past GROUP_MEMO_MAX.
+const GROUP_MEMO = new Map()
+const GROUP_MEMO_MAX = 4096
+export const groupOfAction = (name) => {
+  const key = String(name || '')
+  const hit = GROUP_MEMO.get(key)
+  if (hit !== undefined) return hit
+  const id = BY_DOMAIN.get(key.split('.')[0]) || null
+  if (GROUP_MEMO.size < GROUP_MEMO_MAX) GROUP_MEMO.set(key, id)
+  return id
+}
 
 export function routingEnabled() {
   try { return globalThis.localStorage?.getItem('uct.agent.routing') !== '0' } catch { return true }
@@ -209,7 +222,10 @@ export function routeManifest(manifest, message, opts = {}, extra = []) {
   if (!matched && !extra.length && manifest.length <= limit) return { manifest, routing: null }
   // A reroute's requested groups come straight after the always-on ones.
   const always = GROUPS.filter(g => g.always).map(g => g.id)
-  const sizeOf = (id) => manifest.filter(c => groupOfAction(c.name) === id).length
+  // one pass: each group's action count (null = ungrouped) — the packing and both sorts read it many times
+  const counts = new Map()
+  for (const c of manifest) { const g = groupOfAction(c.name); counts.set(g, (counts.get(g) || 0) + 1) }
+  const sizeOf = (id) => counts.get(id) || 0
   // The message's OWN groups are packed smallest-first (after the always-on, reroute and follow-up
   // groups, which keep their place): more of the distinct things a multi-part request names fit,
   // and if one must wait it is the biggest, most often incidental, group.
@@ -229,7 +245,7 @@ export function routeManifest(manifest, message, opts = {}, extra = []) {
   // PACK under the budget, in priority order. A group that would overflow is NOT sent — it is
   // named (unselected), so the model can ask for it; nothing is ever partially sent.
   const want = new Set()
-  let used = manifest.filter(c => groupOfAction(c.name) === null).length
+  let used = counts.get(null) || 0
   const over = []
   for (const id of order) {
     const n = sizeOf(id)
@@ -237,7 +253,7 @@ export function routeManifest(manifest, message, opts = {}, extra = []) {
     if (used + n > budget && want.size >= always.length) { over.push(id); continue }
     want.add(id); used += n
   }
-  const present = GROUPS.filter(g => manifest.some(c => groupOfAction(c.name) === g.id))
+  const present = GROUPS.filter(g => counts.has(g.id))
   const routed = manifest.filter(c => want.has(groupOfAction(c.name)) || groupOfAction(c.name) === null)
   if (routed.length === manifest.length) return { manifest, routing: null }
   return {
