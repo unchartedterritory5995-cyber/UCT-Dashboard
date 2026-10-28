@@ -66,6 +66,16 @@ _GLUED = re.compile(r"(?<![A-Za-z0-9])([A-Z]{2,6})([a-z]{3,})")            # "AM
 # Earnings lines TX runs together: "…Revenue BeatEGBN EPS of…", "…MissedMCRI EPS…"
 _GLUED_AFTER = re.compile(r"(?<=[a-z])([A-Z]{2,5})(?=\s+(?:EPS|FFO|AFFO|Q[1-4]|Revenue)\b)")
 _WORD = re.compile(r"(?<![A-Za-z0-9$.])([A-Z][A-Z0-9]{1,5}(?:\.[A-Z])?)(?![A-Za-z0-9])")
+# One- and two-letter tickers only lead when tape talk follows: "V vol drop", "WM down ah".
+_SHORT_LEAD = re.compile(r"^([A-Z]{1,2})\s+(?=(?:down|up|vol|volume|highs?|lows?|halt(?:ed)?|resumes?|"
+                         r"ah|pm|pre|premarket|gap(?:s|ping)?|squeeze|bid|offered|pop|drop|spike|dump|"
+                         r"ripping|tanking|moving|flush|breaking|breakout|news|red|green)\b)", re.I)
+# A ticker run straight into the quarter: "VQ4 ADJUSTED EPS…", "WMQ3 ADJUSTED EPS…"
+_QUARTER = re.compile(r"^([A-Z]{1,5})(?:F?Q[1-4]|FY\d{2,4})\b")
+# Insider filings: "FORM 4P - STC - STEWART INFORMATION SERVICES…"
+_FORM = re.compile(r"^FORM\s+\w+\s+-\s+([A-Z][A-Z.]{0,5})\s+-\s")
+# A leading capital run that is longer than one ticker: "SKHYSK Hynix…" (SKHY + "SK Hynix")
+_RUN = re.compile(r"^([A-Z]{4,9})(?=\s+[A-Z][a-z])")
 
 
 @dataclass
@@ -73,9 +83,13 @@ class Parsed:
     prefix: list[str] = field(default_factory=list)
     body: str = ""
     candidates: list[str] = field(default_factory=list)
-    #: "AMDPartners" could be AMD+"Partners" or AMDP+"artners": the shorter guess, mapped to the
-    #: longer one it is only to be used without ("LPLAreported" is LPLA, never LPL).
-    fallback: dict[str, str] = field(default_factory=dict)
+    #: Glued capital runs, each a list of readings longest first: "AMDPartners" -> [AMDP, AMD],
+    #: "SKHYSK Hynix" -> [SKHYS, SKHY, SKH, SK]. `confirm` takes the FIRST real one per run,
+    #: so "LPLAreported" is LPLA and never also LPL.
+    runs: list[list[str]] = field(default_factory=list)
+
+    def all_tickers(self) -> list[str]:
+        return list(dict.fromkeys(self.prefix + self.candidates + [t for r in self.runs for t in r]))
 
 
 def is_shouting(text: str) -> bool:
@@ -102,6 +116,15 @@ def parse(text: str) -> Parsed:
         p.prefix = [t for t in _toks(m.group(1)) if t not in PREFIX_STOP]
         if p.prefix:
             p.body = m.group(2).strip()
+    if not p.prefix and (f := _FORM.match(text)):
+        _add(p.candidates, f.group(1), explicit=True)
+    if not p.prefix and (q := _QUARTER.match(text)):
+        _add(p.candidates, q.group(1), explicit=True)
+    if not p.prefix and (sl := _SHORT_LEAD.match(text)):
+        _add(p.candidates, sl.group(1), explicit=True)
+    if not p.prefix and (r := _RUN.match(text)) and r.group(1) not in STOP:
+        word = r.group(1)
+        p.runs.append([word[:k] for k in range(min(len(word), 6), 1, -1)])
     if not p.prefix:
         c = _COLON.match(text)
         if c and (lead := [t for t in _toks(c.group(1)) if t not in PREFIX_STOP]):
@@ -118,10 +141,11 @@ def parse(text: str) -> Parsed:
     for t in _GLUED_AFTER.findall(text):
         _add(p.candidates, t, p.prefix)
     for run, _rest in _GLUED.findall(p.body):
-        _add(p.candidates, run, p.prefix)
-        if len(run) >= 3 and run[:-1] not in STOP and run[:-1] not in p.prefix and run[:-1] not in p.candidates:
-            p.candidates.append(run[:-1])
-            p.fallback[run[:-1]] = run
+        if run in p.prefix or run in STOP:
+            continue
+        readings = [run] + ([run[:-1]] if len(run) >= 3 and run[:-1] not in STOP else [])
+        if readings not in p.runs:
+            p.runs.append(readings)
     if not is_shouting(p.body):
         for t in _WORD.findall(p.body):
             if len(t) >= 3:          # two-letter words only count as $XX or (XX)
@@ -130,14 +154,12 @@ def parse(text: str) -> Parsed:
 
 
 def confirm(p: Parsed, is_real) -> list[str]:
-    """Candidates that `is_real(ticker)` accepts, honouring glued fallbacks."""
-    out = []
-    for t in p.candidates:
-        parent = p.fallback.get(t)
-        if parent and is_real(parent):
-            continue
-        if is_real(t) and t not in out:
-            out.append(t)
+    """Candidates that `is_real(ticker)` accepts, plus the longest real reading of each glued run."""
+    out = [t for t in dict.fromkeys(p.candidates) if is_real(t)]
+    for readings in p.runs:
+        hit = next((t for t in readings if is_real(t)), None)
+        if hit and hit not in out:
+            out.append(hit)
     return out
 
 
@@ -157,10 +179,23 @@ trade target block gap match square live core open rocket snap box sun pool ball
 signet news fox dollar state regions citizens discover progressive insight compass frontier delta
 carnival best value edge arrow ross eagle shift vital vista summit pinnacle apex atlas titan liberty
 freedom patriot genesis element alpha beta omega prime premier main union pilgrim pioneer sterling
+strategy unity bill sonder figure circle bright clear present future world wise sky stable trust
+commercial nordic post meta global industrial consolidated continental mutual premium quantum
+""".split())
+#: Single-word company names that are also ordinary words; never a name match on their own.
+COMMON_WORDS = _GENERIC
+#: First words that are people or places in the news, never a company short form.
+NAME_BLOCK = COMMON_WORDS | frozenset("""
+trump biden musk powell america americas china chinese india japan europe european israel russia
+canada mexico brazil germany france britain korea taiwan ukraine pentagon federal treasury congress
+senate washington london beijing berlin moscow tokyo
+nasdaq dow nyse russell founder founders exchange market markets street
 """.split())
 ALIASES = {"GOOGL": ["google"], "GOOG": ["google"], "META": ["facebook", "instagram"],
            "BRK.B": ["berkshire"], "TSM": ["tsmc"], "XOM": ["exxon"], "CVX": ["chevron"],
-           "KO": ["coca-cola", "coke"], "HD": ["home depot"], "WMT": ["walmart"]}
+           "KO": ["coca-cola", "coke"], "HD": ["home depot"], "WMT": ["walmart"], "HPQ": ["hp"],
+           "UNH": ["unitedhealthcare"], "AAL": ["american airlines"], "DAL": ["delta air"],
+           "UAL": ["united airlines"], "LUV": ["southwest airlines"], "JPM": ["jpmorgan", "jp morgan"]}
 
 
 def name_keys(ticker: str, name: str | None) -> list[str]:
@@ -168,10 +203,10 @@ def name_keys(ticker: str, name: str | None) -> list[str]:
     keys = list(ALIASES.get(ticker, []))
     if name:
         clean = re.sub(r"\s+", " ", _SUFFIX.sub(" ", name.replace(",", " "))).strip(" .&-").lower()
-        if len(clean) >= 4:
+        if len(clean) >= 4 and (" " in clean or clean not in NAME_BLOCK):   # "Nasdaq" is the index
             keys.append(clean)
         first = clean.split(" ")[0] if clean else ""
-        if len(first) >= 4 and first not in _GENERIC and first not in keys:
+        if len(first) >= 4 and first not in NAME_BLOCK and first not in keys:
             keys.append(first)
     return keys
 
@@ -180,7 +215,12 @@ def names_regex(keys) -> re.Pattern | None:
     keys = sorted({k for k in keys if k}, key=len, reverse=True)
     if not keys:
         return None
-    return re.compile(r"(?<![a-z0-9])(" + "|".join(re.escape(k) for k in keys) + r")(?![a-z0-9])", re.I)
+    # A long name may run into a brand ("UnitedHealth" -> "UNITEDHEALTHCARE"); a short one may not
+    # ("Visa" is never "Visage").
+    long_ = [re.escape(k) for k in keys if len(k) >= 11]
+    short = [re.escape(k) for k in keys if len(k) < 11]
+    alts = ([r"(" + "|".join(long_) + r")[a-z]*"] if long_ else []) + ([r"(" + "|".join(short) + r")"] if short else [])
+    return re.compile(r"(?<![a-z0-9])(?:" + "|".join(alts) + r")(?![a-z0-9])", re.I)
 
 
 def find_names(rx: re.Pattern | None, text: str) -> list[str]:
@@ -188,13 +228,18 @@ def find_names(rx: re.Pattern | None, text: str) -> list[str]:
     ("Robinhood", "ROBINHOOD") - so "and trade" is never The Trade Desk."""
     if rx is None:
         return []
-    return [m.group(1).lower() for m in rx.finditer(text) if m.group(1)[0].isupper()]
+    out = []
+    for m in rx.finditer(text):
+        key = next(g for g in m.groups() if g)
+        if key[0].isupper():
+            out.append(key.lower())
+    return out
 
 
 def mentions(text: str, ticker: str, name: str | None = None) -> bool:
     """Is this headline about `ticker`? (/news: one known ticker, so guesses can be accepted.)"""
     p = parse(text)
-    if ticker in p.prefix or ticker in p.candidates:
+    if ticker in p.all_tickers():
         return True
     # A shouting headline's words are not candidates, but for one known ticker of 3+
     # letters that is not a word, "CIGNA, UNITEDHEALTHCARE …" / "… BY COREWEAVE" is fine.

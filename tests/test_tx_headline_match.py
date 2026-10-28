@@ -34,7 +34,7 @@ def test_prefix_is_txs_own_tag_with_any_separator(text, prefix):
     ("ADT Secures AI Innovation with Oracle", ["ADT"]),
 ])
 def test_candidates_find_tickers_written_any_other_way(text, expect):
-    c = parse(text).candidates
+    c = parse(text).all_tickers()
     assert all(t in c for t in expect), c
 
 
@@ -104,3 +104,46 @@ def test_confirm_keeps_real_tickers_and_prefers_the_full_glued_run():
     assert confirm(parse("LPLAreported Q3 2026 Adj EPS of $5.97"), real) == ["LPLA"]
     assert confirm(parse("AMDPartners with GOOGL"), real) == ["AMD"]
     assert confirm(parse("TRUMP: 100M BARRELS OF VENEZUELAN OIL"), real) == []
+
+
+@pytest.mark.parametrize("text, real, expect", [
+    ("V vol drop", {"V"}, ["V"]),
+    ("WM down ah", {"WM"}, ["WM"]),
+    ("VQ4 ADJUSTED EPS BEATS ESTIMATES AT $3.48", {"V"}, ["V"]),
+    ("WMQ3 ADJUSTED EPS MISSES ESTIMATES AT $2.15, REVENUE BEATS", {"WM"}, ["WM"]),
+    ("SKHYSK Hynix Profit Jumps Seven-Fold to Soothe Doubts Over AI Rush (Bloomberg)", {"SKHY", "SK"}, ["SKHY"]),
+    ("FORM 4P - STC - STEWART INFORMATION SERVICES CORPDIRECTOR|OFFICER", {"STC"}, ["STC"]),
+    ("HP and Asus shift some PC making back to China", {"HP"}, []),       # two letters, no tape talk
+    ("US insurance regulators back down on credit ratings", {"US"}, []),
+])
+def test_short_glued_and_filing_leads(text, real, expect):
+    assert confirm(parse(text), real.__contains__) == expect
+
+
+@pytest.mark.parametrize("text, ticker, name", [
+    ("CIGNA, UNITEDHEALTHCARE QUERIED BY SENATORS OVER COVERAGE", "UNH", "UnitedHealth Group Incorporated"),
+    ("LETTERS WERE SENT TO CENTENE, ELEVANCE, OTHERS", "ELV", "Elevance Health, Inc."),
+    ("LETTERS WERE SENT TO CENTENE, ELEVANCE, OTHERS", "CNC", "Centene Corporation"),
+    ("EXCLUSIVE-JETBLUE CEO SAYS COMPANY NOT IN TALKS WITH ITS CREDITORS", "JBLU", "JetBlue Airways Corporation"),
+    ("AMERICAN AIRLINES DISPATCHERS HAVE APPROVED A NEW 5-YEAR CONTRACT", "AAL", "American Airlines Group Inc."),
+    ("HP and Asus shift some PC making back to China -- NIKKEI", "HPQ", "HP Inc."),
+    ("Google’s next Genie AI model generates more realistic experiences - Verge", "GOOGL", "Alphabet Inc. Class A"),
+    ("Moody's: AI-driven financing is fueling private credit growth", "MCO", "Moody's Corporation"),
+    ("Microsoft AI launches MAI image 2.7", "MSFT", "Microsoft Corporation"),
+    ("SKHYSK Hynix Profit Jumps Seven-Fold", "SKHY", "SK hynix Inc."),
+])
+def test_names_from_the_full_feed_audit(text, ticker, name):
+    assert mentions(text, ticker, name)
+
+
+def test_a_short_name_does_not_run_into_a_longer_word():
+    assert not mentions("Visage Imaging raises funds", "V", "Visa Inc.")
+
+
+@pytest.mark.parametrize("text, ticker, name", [
+    ("Netflix Grapples With Digital-Ad Squeeze Amid Widening Glut of Streaming Commercials", "CMC", "Commercial Metals Company"),
+    ("Maersk: surcharge will be applied to all inland shipments for Nordic region", "NAT", "Nordic American Tankers Limited"),
+    ("Asia-Pacific Equities Gain After Wall Street Rally, With Nasdaq Outperforming", "NDAQ", "Nasdaq, Inc."),
+])
+def test_ordinary_words_in_title_case_are_not_company_names(text, ticker, name):
+    assert not mentions(text, ticker, name)
