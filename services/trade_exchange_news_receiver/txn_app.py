@@ -50,7 +50,7 @@ def readiness(cfg: rx.Config, journal: Journal) -> list[str]:
         problems.append("receiver_disabled")
     if not cfg.token_hashes:
         problems.append("no_webhook_token_hash")
-    if not cfg.storage_permitted:
+    if not (cfg.storage_permitted or cfg.synthetic_only):
         problems.append("storage_permission_unconfirmed")
     if cfg.on_railway and not journal.durable and not cfg.allow_ephemeral:
         # ⛔ Fail CLOSED: a deploy whose journal is not durable never passes its
@@ -206,7 +206,7 @@ def create_app(cfg: rx.Config | None = None, journal: Journal | None = None,
         if not cfg.enabled or not rx.verify_token(presented, cfg.token_hashes):
             counters.inc("refused_unknown")
             return JSONResponse(NOT_FOUND, status_code=404)
-        if not cfg.storage_permitted:
+        if not (cfg.storage_permitted or cfg.synthetic_only):
             # ⛔ Owner rule: no real Trade Exchange content is stored anywhere
             # until retention/redistribution permission is confirmed in writing.
             counters.inc("refused_unpermitted")
@@ -226,6 +226,10 @@ def create_app(cfg: rx.Config | None = None, journal: Journal | None = None,
             counters.inc("refused_source" if e.reason.startswith("source is not")
                          else "refused_oversize" if e.status == 413 else "refused_malformed")
             return JSONResponse({"detail": e.reason}, status_code=e.status)
+        if cfg.synthetic_only and not content.startswith(rx.SYNTHETIC_PREFIX):
+            # Staging never stores or forwards anything that is not synthetic.
+            counters.inc("refused_not_synthetic")
+            return JSONResponse({"detail": "synthetic-only deployment"}, status_code=422)
 
         meta = rx.delivery_meta(dict(request.headers), len(raw),
                                 request.headers.get("x-real-ip")

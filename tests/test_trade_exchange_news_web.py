@@ -519,3 +519,19 @@ async def test_a_long_outage_backlog_is_fetched_in_parallel_but_ingested_in_orde
     r = _rc_with(p, FileJournalReader(str(tmp_path / "j")))
     assert (await r.run_once())["recovered"] == 300
     assert [h["event_id"] for h in p.store.after(0, 1000)] == [x["id"] for x in recs]
+
+
+async def test_synthetic_only_web_refuses_a_non_synthetic_record_on_every_path(monkeypatch):
+    """Staging (D2) stores synthetic records only: the push route AND recovery both go
+    through records.validate, so neither can hold real content."""
+    monkeypatch.setenv("TXN_SYNTHETIC_ONLY", "1")
+    assert config.storage_allowed()
+    p = new_pipeline()
+    p.ready.set()
+    async with _client(_web_app()) as c:
+        ok = await c.post(route.INGEST_PATH, json=rec(), headers=AUTH)
+        real = await c.post(route.INGEST_PATH, json=rec("Example Corp beats estimates"), headers=AUTH)
+    assert ok.status_code == 200 and real.status_code == 422
+    with pytest.raises(pl.records.RecordError):
+        await p.submit(rec("Example Corp beats estimates"), via="reconcile")
+    assert p.store.stats()["deliveries"] == 1

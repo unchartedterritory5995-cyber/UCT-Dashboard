@@ -44,6 +44,8 @@ def validate(obj: Any) -> dict[str, Any]:
         raise RecordError("empty content")
     if len(content) > config.max_content_chars():
         raise RecordError("content too long")
+    if config.synthetic_only() and not content.startswith(config.SYNTHETIC_PREFIX):
+        raise RecordError("synthetic-only deployment: content is not synthetic")
     delivery = obj.get("delivery") if isinstance(obj.get("delivery"), dict) else {}
     return {"id": eid, "received_at_ms": ms, "source": source, "content": content,
             "extra_keys": sorted(k for k in (obj.get("extra") or {}) if isinstance(k, str))

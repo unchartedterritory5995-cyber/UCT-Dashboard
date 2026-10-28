@@ -240,6 +240,20 @@ def test_nothing_is_stored_until_storage_permission_is_confirmed():
     assert "storage_permission_unconfirmed" in h["problems"]
 
 
+def test_synthetic_only_staging_stores_synthetic_and_refuses_everything_else():
+    c, journal, pushes, app = _client(_cfg(TXN_STORAGE_PERMISSION_CONFIRMED="", TXN_SYNTHETIC_ONLY="1"))
+    with c:
+        ok = c.post(f"/hook/{TOKEN}", json=GOOD)
+        real = c.post(f"/hook/{TOKEN}", json={"source": "TXNews1", "content": "Example Corp beats estimates"})
+        h = c.get("/health").json()
+    assert ok.status_code == 200 and len(journal.objects) == 1 and len(pushes.bodies) == 1
+    assert real.status_code == 422 and len(journal.objects) == 1 and len(pushes.bodies) == 1
+    assert app.state.counters.values["refused_not_synthetic"] == 1
+    assert "storage_permission_unconfirmed" not in h.get("problems", [])
+    assert rx.SYNTHETIC_PREFIX == __import__("api.services.trade_exchange_news.config",
+                                             fromlist=["x"]).SYNTHETIC_PREFIX
+
+
 @pytest.mark.parametrize("modes,headers,path,ok", [
     ("bearer", {"authorization": f"Bearer {TOKEN}"}, "/hook", True),
     ("basic", {"authorization": "Basic " + __import__("base64").b64encode(f"txn:{TOKEN}".encode()).decode()}, "/hook", True),

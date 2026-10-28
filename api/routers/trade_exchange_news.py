@@ -231,6 +231,7 @@ def status(_admin: dict = Depends(require_admin)) -> dict[str, Any]:
         "store": pipe.store.stats() if pipe else None,
         "reconcile": rec.snapshot() if rec else None,
         "storage_permission_confirmed": config.storage_permitted(),
+        "synthetic_only": config.synthetic_only(),
         "streams": dict(_streams),
     }
 
@@ -239,9 +240,10 @@ async def start_background() -> None:
     """Called from main.py's lifespan when the flag is on. Starts the pipeline
     and the reconciler; the boot gate opens when the first scan finishes."""
     from api.services.trade_exchange_news.journal_reader import reader_from_env
-    if not config.storage_permitted():
+    if not config.storage_allowed():
         # ⛔ Owner rule: nothing is stored until Trade Exchange's retention and
-        # redistribution permission is confirmed (TXN_STORAGE_PERMISSION_CONFIRMED=1).
+        # redistribution permission is confirmed (TXN_STORAGE_PERMISSION_CONFIRMED=1),
+        # except in a synthetic-only staging deployment (TXN_SYNTHETIC_ONLY=1).
         import logging
         logging.getLogger(__name__).warning(
             "[txn] TXN_ENABLED=1 but storage permission is unconfirmed; pipeline not started")

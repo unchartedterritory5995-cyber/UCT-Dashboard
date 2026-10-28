@@ -31,6 +31,8 @@ from txn_journal import new_event_id
 RECORD_VERSION = 1
 
 DEFAULT_SOURCES = ("TXNews1",)
+#: Content prefix a synthetic-only (staging) receiver requires; must match web config.SYNTHETIC_PREFIX.
+SYNTHETIC_PREFIX = "SYNTHETIC"
 DEFAULT_MAX_BODY_BYTES = 16 * 1024
 DEFAULT_MAX_CONTENT_CHARS = 8000
 #: A real token is ``txn_`` + 43 base64url chars. Anything far longer is
@@ -84,6 +86,8 @@ class Config:
         # ⛔ Real Trade Exchange content is stored (R2 + web) only once its
         # retention/redistribution permission is confirmed in writing (owner rule).
         self.storage_permitted = env.get("TXN_STORAGE_PERMISSION_CONFIRMED", "") == "1"
+        # Staging (D2): store ONLY content starting with SYNTHETIC_PREFIX, refuse the rest.
+        self.synthetic_only = env.get("TXN_SYNTHETIC_ONLY", "") == "1"
         self.web_ingest_url = env.get(
             "TXN_WEB_INGEST_URL",
             "http://web.railway.internal:8080/api/trade-exchange-news/internal/ingest")
@@ -260,7 +264,7 @@ class Counters:
     NAMES = ("received", "accepted", "refused_unknown", "rate_limited", "refused_oversize",
              "refused_malformed", "refused_source", "journal_failed",
              "forwarded", "forward_failed", "durable_via_journal", "durable_via_web",
-             "rejournaled", "rejournal_failed", "refused_unpermitted")
+             "rejournaled", "rejournal_failed", "refused_unpermitted", "refused_not_synthetic")
 
     def __init__(self) -> None:
         self._lock = threading.Lock()

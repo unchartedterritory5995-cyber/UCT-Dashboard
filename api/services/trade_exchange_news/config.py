@@ -80,6 +80,23 @@ def storage_permitted() -> bool:
     return os.environ.get("TXN_STORAGE_PERMISSION_CONFIRMED", "").strip() == "1"
 
 
+#: Every headline a staging (synthetic-only) deployment will accept starts with this.
+SYNTHETIC_PREFIX = "SYNTHETIC"
+
+
+def synthetic_only() -> bool:
+    """Staging mode (D2): stores ONLY records whose content starts with
+    ``SYNTHETIC_PREFIX`` and refuses everything else, so a staging stack cannot
+    hold a real Trade Exchange headline even if one were sent to it. It is what
+    lets staging run without TXN_STORAGE_PERMISSION_CONFIRMED, which stays the
+    real-content permission."""
+    return os.environ.get("TXN_SYNTHETIC_ONLY", "").strip() == "1"
+
+
+def storage_allowed() -> bool:
+    return storage_permitted() or synthetic_only()
+
+
 def max_content_chars() -> int:
     return _int("TXN_MAX_CONTENT_CHARS", 8000, lo=1)
 
