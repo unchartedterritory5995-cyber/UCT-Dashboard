@@ -112,6 +112,9 @@ export function registerIndicatorCapabilities() {
         indicators: s.indicators.map(i => ({
           name: i.name, ...(i.setting ? {} : { id: i.instanceId }), ...(i.kind === 'custom' ? { defId: i.defId, custom: true } : {}),
           ...(i.hidden ? { hidden: true } : {}), placement: i.placement, ...(i.setting ? { setting: true } : {}),
+          // ⭐ P2 (I-11): the pane it draws in (pane.move / pane.resize take it) and its look, when set
+          ...(i.paneKey && i.paneKey !== 'price' ? { pane: i.paneKey } : {}),
+          ...(i.presentation && typeof i.presentation === 'object' && Object.keys(i.presentation).length ? { look: i.presentation } : {}),
         })),
       })) : undefined
     },

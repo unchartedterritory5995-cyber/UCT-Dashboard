@@ -109,6 +109,7 @@ export function resolveDeictic({ host, kind, candidates, text, chartOp = false }
 const POS_WORDS = /\b(top-left|top-right|bottom-left|bottom-right|top left|top right|bottom left|bottom right|left|right|top|bottom|upper|lower)\b/gi
 // "both", "all (four) charts", "every chart", "all of them" — a SET of charts (never "remove all comparisons")
 const MANY_COUNT = /\b(?:(both)\b|(?:all|every|each)(?:\s+(?:the|of the))?(?:\s+(two|three|four|five|six|seven|eight|nine|ten|\d{1,2}))?\s+(?:charts?|of them|ones)\b)/i
+const OTHER_CHARTS = /\b(?:(?:my|the|all(?: my| the)?|every) )?other charts\b/i
 const COUNT_WORDS = { two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 }
 const ORDINAL = { first: 1, second: 2, third: 3, fourth: 4, '1st': 1, '2nd': 2, '3rd': 3, '4th': 4 }
 const escapeRe = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -205,6 +206,8 @@ export function screenUnnamedTargets({ host, ops, text, context = null, pickedRe
   if (!targets.size) return null
   // "all / every / both (four) charts": the member named the set — but a COUNT they said must match
   // the charts this plan changes ("both" = two), else it is only proposed
+  // ⭐ P2: "copy these to my other charts" — with the chart the request is about, the member named every chart
+  if (OTHER_CHARTS.test(words)) return null
   const many = MANY_COUNT.exec(words)
   if (many) {
     const count = many[1] ? 2 : many[2] ? (COUNT_WORDS[many[2].toLowerCase()] || Number(many[2])) : null

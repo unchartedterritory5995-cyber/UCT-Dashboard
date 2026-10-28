@@ -86,17 +86,17 @@ export const TOPICS = [
   {
     id: 'customIndicator', title: 'Creating a custom indicator',
     words: [/\b(custom|my own|new|build|write|author)\b.*\b(indicator|formula|study|script)s?\b/, /\b(indicator|formula)s? (from|in) (plain |natural )?(english|words|language)\b/, /\bcreate indicator\b/, /\bpine ?script\b/],
-    caps: ['indicator.openCreate', 'indicator.draft', 'indicator.previewDraft', 'indicator.saveDraft', 'indicator.undoDraft', 'indicator.discardDraft'], productHas: true,
-    canDo: 'build a custom indicator with you through Create Indicator’s own builder — describe it, ask what to add, change it, undo a change, throw a draft away, preview it on a chart you name, then save it (always shown to you first) and add it to the charts you choose, each with its own receipt; or open Create Indicator on a chart with your request typed in. Only when Create Indicator is available to your account (admins and a rollout group today)',
-    known: () => ['editing one of your saved indicators through me (open Modify in Create Indicator)', 'alerts on a new indicator (set them in Create Indicator)'],
+    caps: ['indicator.openCreate', 'indicator.draft', 'indicator.previewDraft', 'indicator.saveDraft', 'indicator.undoDraft', 'indicator.discardDraft', 'definition.search', 'definition.describe', 'definition.duplicate', 'definition.delete'], productHas: true,
+    canDo: 'build a custom indicator with you through Create Indicator’s own builder — describe it, ask what to add, change it, undo a change, throw a draft away, preview it on a chart you name, then save it (always shown to you first) and add it to the charts you choose, each with its own receipt; or open Create Indicator on a chart with your request typed in. Also: find indicators (UCT’s and your own), describe one, save a copy of one, and delete one of your own (shown first, naming the charts that use it; Undo restores it). Building is only when Create Indicator is available to your account (admins and a rollout group today)',
+    known: () => ['sharing an indicator or restoring an older version of it', 'alerts on a new indicator (set them in Create Indicator)'],
     planned: null,
   },
   {
     id: 'indicators', title: 'Indicators',
     words: [/\bindicators?\b/, /\b(rsi|macd|bollinger|vwap|atr|stochastic|ema|sma|moving averages?|oscillators?|studies|study)\b/, /\bpanes?\b/],
-    caps: ['indicator.list', 'indicator.add', 'indicator.update', 'indicator.remove', 'indicator.show', 'indicator.hide'], productHas: true,
-    canDo: 'list the indicators on a chart; add one (a built-in indicator or one of your own saved ones, with its numeric settings, e.g. a 20 EMA), change its numeric settings, remove one (shown to you first, with anything it would disconnect, and undone exactly) and show or hide one — one at a time, on charts whose indicators you can change',
-    known: () => ['an indicator’s colours, line style and pane placement, and copying indicators between charts (Chart Settings → Indicators)', 'classic overlay averages and Volume Profile (Chart Settings)'],
+    caps: ['indicator.list', 'indicator.add', 'indicator.update', 'indicator.remove', 'indicator.show', 'indicator.hide', 'indicatorStyle.set', 'indicatorStyle.placeIn', 'pane.move', 'pane.resize', 'indicatorCopy.duplicate', 'indicatorCopy.copyTo'], productHas: true,
+    canDo: 'list the indicators on a chart; add one (a built-in indicator or one of your own saved ones, with its numeric settings, e.g. a 20 EMA), change its numeric settings, its colours, line width, line style and plot style, put it on price, on volume or in its own pane, reorder and resize panes, duplicate it, copy indicators onto other charts, remove one (shown to you first, with anything it would disconnect, and undone exactly) and show or hide one — one at a time, on charts whose indicators you can change',
+    known: () => ['indicator alerts (set them on the chart)', 'classic overlay averages and Volume Profile (Chart Settings)'],
     planned: null,
   },
   {

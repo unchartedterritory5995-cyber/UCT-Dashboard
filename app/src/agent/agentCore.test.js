@@ -53,7 +53,9 @@ describe('capability registry', () => {
     const names = allCapabilityNames()
     expect(names).toEqual(expect.arrayContaining(['chart.setType', 'chart.setTimeframe', 'chart.setSymbol', 'chart.setSession',
       'chart.applyTheme', 'chart.setBackground', 'chart.setCandleColors', 'volume.setState', 'chart.setScale']))
-    for (const n of names) expect(n).not.toMatch(/^pane\./)
+    // (P2, AGENT-CONTRACT-P2: pane order / size ARE Agent actions now — on the indicatorEdits kind, through the
+    // Indicators mutation interface, never a chart writer)
+    for (const n of names.filter(x => x.startsWith('pane.'))) expect(getCapability(n).target, n).toBe('indicatorEdits')
     // M1 reads + the Create Indicator door; M2 writes — every writer on the `indicatorEdits` kind
     // (the Indicators mutation interface), none elsewhere
     expect(names.filter(n => n.startsWith('indicator.')).sort()).toEqual(['indicator.add', 'indicator.draft', 'indicator.hide', 'indicator.list', 'indicator.openCreate', 'indicator.previewDraft', 'indicator.remove', 'indicator.saveDraft', 'indicator.show', 'indicator.undoDraft', 'indicator.update', 'indicator.discardDraft'].sort())
