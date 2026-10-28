@@ -1,5 +1,5 @@
 // app/src/components/TickerPopup.jsx
-import { useState, useEffect, useRef, useId, lazy, Suspense } from 'react'
+import { useState, useEffect, useLayoutEffect, useRef, useId, lazy, Suspense } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { createPortal } from 'react-dom'
 import useRealtimePrices from '../hooks/useRealtimePrices'
@@ -17,8 +17,9 @@ import { prefetchAllTimeframes, prefetchBar } from '../utils/prefetchBars'
 import JournalBacklinks from './JournalBacklinks'
 import useAppFocus from '../hooks/useAppFocus'
 import useFocusTrap, { focusableWithin } from './mobile/useFocusTrap'
-import SymbolSearch from './chart/SymbolSearch'
+import CompareSymbolSearch from './CompareSymbolSearch'
 import styles from './TickerPopup.module.css'
+import { CHART_FIT_TARGET, fitChartHeightPx, chartHeightCss, shouldUpdateFit } from './tickerPopupChartFit'
 import { chordById, matchesChord } from '../pages/command/chords.js'
 
 // The SAME chart the /charts workspace renders — identity row, session toggle,
@@ -144,6 +145,48 @@ export default function TickerPopup({ sym, as: Tag = 'span', customChartFn, clas
   useFocusTrap(modalOpen, modalRef)
   const [tab, setTab] = useState('Daily')
   const [view, setView] = useState('chart') // 'chart' | 'fundamentals'
+
+  // The chart takes the height the modal has LEFT, so the whole chart (date axis and A/L/%
+  // chips included) fits inside the modal's max height without scrolling on a short
+  // landscape screen. See tickerPopupChartFit.js for the arithmetic and why it settles in
+  // one measurement. ⛔ Rule H14: re-measures are rAF-coalesced and a change within the
+  // hysteresis is ignored, so this can never become a per-frame render loop.
+  const chartAreaRef = useRef(null)
+  const [chartFitPx, setChartFitPx] = useState(null)
+  useLayoutEffect(() => {
+    if (!modalOpen || view !== 'chart') { setChartFitPx(null); return undefined }
+    const modal = modalRef.current
+    const area = chartAreaRef.current
+    if (!modal || !area) return undefined
+    let raf = 0
+    const measure = () => {
+      raf = 0
+      const wrapper = area.querySelector(`.${CHART_FIT_TARGET}`)
+      const pane = area.firstElementChild
+      if (!wrapper || !pane || !pane.contains(wrapper)) return
+      const mcs = getComputedStyle(modal)
+      const acs = getComputedStyle(area)
+      const next = fitChartHeightPx({
+        maxHeight: mcs.maxHeight, borderTop: mcs.borderTopWidth, borderBottom: mcs.borderBottomWidth,
+        modalScrollHeight: modal.scrollHeight, areaHeight: area.offsetHeight,
+        areaPaddingTop: acs.paddingTop, areaPaddingBottom: acs.paddingBottom,
+        paneHeight: pane.offsetHeight, wrapperHeight: wrapper.offsetHeight,
+      })
+      setChartFitPx((prev) => (shouldUpdateFit(prev, next) ? next : prev))
+    }
+    const schedule = () => { if (!raf) raf = requestAnimationFrame(measure) }
+    // The pane is a lazy chunk: the area GROWS when it lands, which is what fires this.
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(schedule) : null
+    ro?.observe(area)
+    ro?.observe(modal)
+    window.addEventListener('resize', schedule)
+    schedule()
+    return () => {
+      if (raf) cancelAnimationFrame(raf)
+      ro?.disconnect()
+      window.removeEventListener('resize', schedule)
+    }
+  }, [modalOpen, view])
   // Anchored+reveal (Desk recordings): open positioned at the session date; the
   // chart's "⟲ Back to today" pill un-anchors. Re-arm on every open so the next
   // look at the recording starts back at the session again.
@@ -488,7 +531,7 @@ export default function TickerPopup({ sym, as: Tag = 'span', customChartFn, clas
                   {/* The badge's default name ("QQQ — click to search a different
                       ticker") describes retargeting THIS chart and omits the
                       visible "Compare"; this door opens a comparison. */}
-                  <SymbolSearch sym={activeSym} displayLabel="+ Compare" ariaLabel={`Compare ${activeSym} with another ticker`} onSymbolChange={goToCompare} />
+                  <CompareSymbolSearch sym={activeSym} onSymbolChange={goToCompare} />
                 </span>
                 {/* Dark until S7_FILING_WATCH_ENABLED; the gate is owned by useFilingWatch. */}
                 {filingWatch.enabled && (
@@ -562,7 +605,13 @@ export default function TickerPopup({ sym, as: Tag = 'span', customChartFn, clas
                   favourites, so a second row here would duplicate it. */}
             </div>
 
-            <div className={styles.chartArea} data-ticker-popup-chart="">
+            <div
+              ref={chartAreaRef}
+              className={styles.chartArea}
+              data-ticker-popup-chart=""
+              // Fitted: the 560px loading floor must not hold the area taller than the chart.
+              style={chartFitPx != null && view === 'chart' ? { minHeight: 0 } : undefined}
+            >
               {view === 'chart' ? (
                 <Suspense fallback={<div className={styles.chartLoading}>Loading chart…</div>}>
                   {/* `stored={null}` with no `onStore` = THE user's own chart:
@@ -604,7 +653,8 @@ export default function TickerPopup({ sym, as: Tag = 'span', customChartFn, clas
                       ),
                     } : undefined}
                     stockChartProps={{
-                      height: 'min(820px, 68vh)',
+                      height: chartHeightCss(chartFitPx),
+                      className: CHART_FIT_TARGET,
                       markers,
                       priceLines,
                       darkPoolBars,

@@ -9,7 +9,7 @@ import useFilingWatch from '../../hooks/useFilingWatch'
 import useTickerTweets from '../../hooks/useTickerTweets'
 import CompassAssistButton from '../voice/CompassAssistButton'
 import UIcon from '../ui/UIcon'
-import SymbolSearch from '../chart/SymbolSearch'
+import CompareSymbolSearch from '../CompareSymbolSearch'
 import styles from './TickerHubSheet.module.css'
 import Input from '../ui/Input'
 import Select from '../ui/Select'
@@ -208,7 +208,7 @@ function TickerHubBody({ sym, onClose }) {
             TickerPopup/TickerActions, toggled by the Compare action above. */}
         {showCompare && (
           <div className={styles.compareRow}>
-            <SymbolSearch sym={sym} displayLabel="+ Compare" ariaLabel={`Compare ${sym} with another ticker`} onSymbolChange={goToCompare} />
+            <CompareSymbolSearch sym={sym} onSymbolChange={goToCompare} />
           </div>
         )}
 
