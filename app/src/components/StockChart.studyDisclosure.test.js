@@ -14,7 +14,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { nextCompactLegend, studyDisclosureRows, studyFoldRoom } from './StockChart'
+import { cssLengthPx, nextCompactLegend, studyDisclosureRows, studyFoldRoom } from './StockChart'
 
 const SRC = join(process.cwd(), 'src')
 const read = (p) => readFileSync(join(SRC, p), 'utf8')
@@ -39,20 +39,45 @@ function values(css, selector, prop) {
 const shownPx = (rows, buttonPx) => rows * ROW + buttonPx + GAP
 
 describe('the legend fold pays for the disclosure button it renders', () => {
-  it('a 14px button costs one row, a 44px one three, an unreadable one the old single row', () => {
+  it('a 14px button costs one row, a 44px one three', () => {
     expect(ROW).toBe(22)
     expect(GAP).toBe(8)
-    expect(studyDisclosureRows('14px', '8px')).toBe(1)
-    expect(studyDisclosureRows('44px', '8px')).toBe(3)
-    expect(studyDisclosureRows(' 44px ', '8px')).toBe(3)
-    expect(studyDisclosureRows('', '8px')).toBe(1)
-    expect(studyDisclosureRows('var(--tap-min)', '8px')).toBe(1)
+    expect(studyDisclosureRows(14, 8)).toBe(1)
+    expect(studyDisclosureRows(44, 8)).toBe(3)
+    expect(studyDisclosureRows(44, null)).toBe(2)   // no gap read -> the line alone
+  })
+
+  it('⛔ an height it cannot read is NO ANSWER, never a silent "one row"', () => {
+    // A one-row answer for a 44px button is the hover-only latch. When the height cannot be
+    // resolved the sampler keeps what it had and measures the rendered button next frame.
+    for (const h of [null, undefined, NaN, 0, -4]) expect(studyDisclosureRows(h, 8), String(h)).toBeNull()
+  })
+
+  it('the variable fallback resolves px AND rem; anything else is unresolved, not px', () => {
+    expect(cssLengthPx('44px')).toBe(44)
+    expect(cssLengthPx(' 14px ')).toBe(14)
+    expect(cssLengthPx('2.75rem', 16)).toBe(44)
+    expect(cssLengthPx('2.75rem', 20)).toBe(55)
+    for (const raw of ['var(--tap-min)', 'calc(40px + 4px)', '3em', '', null, '44']) {
+      expect(cssLengthPx(raw), String(raw)).toBeNull()
+    }
+    // so a non-px --tap-min can never read as the old single row
+    for (const raw of ['var(--tap-min)', 'calc(40px + 4px)', '3em']) {
+      expect(studyDisclosureRows(cssLengthPx(raw), 8), raw).not.toBe(1)
+    }
+  })
+
+  it('--tap-min is a plain px token in every theme block (what the fallback resolves)', () => {
+    const tokens = read('styles/tokens.css')
+    const decls = [...tokens.matchAll(/--tap-min:\s*([^;]+);/g)].map((m) => m[1].trim())
+    expect(decls.length).toBeGreaterThan(0)
+    for (const v of decls) expect(cssLengthPx(v), v).toBe(44)
   })
 
   it('with a 44px button, the folded legend never overruns the room its budget measured', () => {
     const over = []
     for (let budget = 4; budget <= 14; budget += 1) {
-      const rows = studyFoldRoom(30, budget, studyDisclosureRows('44px', `${GAP}px`))
+      const rows = studyFoldRoom(30, budget, studyDisclosureRows(44, GAP))
       if (shownPx(rows, 44) > budget * ROW) over.push(`budget ${budget}: ${shownPx(rows, 44)} > ${budget * ROW}`)
     }
     expect(over).toEqual([])
@@ -62,7 +87,7 @@ describe('the legend fold pays for the disclosure button it renders', () => {
     const budget = 6
     expect(shownPx(studyFoldRoom(30, budget, 1), 44)).toBeGreaterThan(budget * ROW)
     // and a 14px button never did
-    expect(shownPx(studyFoldRoom(30, budget, studyDisclosureRows('14px', '8px')), 14)).toBeLessThanOrEqual(budget * ROW)
+    expect(shownPx(studyFoldRoom(30, budget, studyDisclosureRows(14, GAP)), 14)).toBeLessThanOrEqual(budget * ROW)
   })
 
   it('nothing to disclose ⇒ nothing reserved, whatever the button would cost', () => {
@@ -100,7 +125,7 @@ describe('the legend fold pays for the disclosure button it renders', () => {
 
   it('the sampler marks the fold unsettled whenever it sets a new budget or cost, and gates on it (the wire)', () => {
     expect(JSX).toMatch(/if \(fit !== studyRowBudgetRef\.current\) \{ setStudyRowBudget\(fit\); foldSettled = false \}/)
-    expect(JSX).toMatch(/if \(moreRows !== studyMoreRowsRef\.current\) \{ setStudyMoreRows\(moreRows\); foldSettled = false \}/)
+    expect(JSX).toMatch(/if \(moreRows !== null && moreRows !== studyMoreRowsRef\.current\) \{ setStudyMoreRows\(moreRows\); foldSettled = false \}/)
     expect(JSX).toMatch(/if \(foldSettled && leg && !compactLegendRef\.current\) \{/)
     expect(JSX).toMatch(/nextCompactLegend\(compactLegendRef\.current, lastFullBottomRef\.current,\s*plan\.collapseThresholdPx, foldSettled\)/)
     // and no second, ungated writer of the collapse is left in the sampler
@@ -108,7 +133,13 @@ describe('the legend fold pays for the disclosure button it renders', () => {
   })
 
   it('the sampler reads the variable and the gap off the stack, and the fold uses the result (the wire)', () => {
-    expect(JSX).toMatch(/studyDisclosureRows\(stackCs\.getPropertyValue\('--study-more-h'\), stackCs\.rowGap\)/)
+    // the RENDERED button's own height first; the stylesheet variable only when none is drawn
+    expect(JSX).toMatch(/const moreBtn = stack\.querySelector\('\[data-study-more\]'\)/)
+    expect(JSX).toMatch(/const moreH = moreBtn \? moreBtn\.offsetHeight\s*: cssLengthPx\(stackCs\.getPropertyValue\('--study-more-h'\), rootPx\)/)
+    expect(JSX).toMatch(/studyDisclosureRows\(moreH, cssLengthPx\(stackCs\.rowGap\)\)/)
+    expect(JSX).toMatch(/if \(moreRows !== null && moreRows !== studyMoreRowsRef\.current\)/)
+    // the attribute the sampler looks for is on the disclosure button itself
+    expect(JSX).toMatch(/className=\{`\$\{chipStyles\.chipMore\} \$\{styles\.studyMore\}`\}\s*data-study-more=""/)
     expect(JSX).toMatch(/const stackCs = getComputedStyle\(stack\)/)
     expect(JSX).toMatch(/const studyRoom = studyFoldRoom\(studyTotal, studyRowBudget, studyMoreRows\)/)
     // `stack` is the element the `.studyStack` class is rendered on
