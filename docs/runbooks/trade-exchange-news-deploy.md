@@ -62,6 +62,17 @@ R2. **Settings → Source**: Root Directory `services/trade_exchange_news_receiv
     `drainingSeconds` 10, restart ALWAYS). Confirm the deploy watch path only
     matches this directory (other merges must NOT redeploy it).
     ⛔ **Do not attach a volume.** A volume disables overlapping deploys.
+    ⛔ **VERIFY THE SETTINGS ARE STORED ON THE SERVICE** (D2 finding, staging
+    2026-10-28): a `railway.json` that arrives only inside an upload (`railway up`)
+    applies to THAT deployment and is not saved to the service. A later
+    `railway redeploy` / restart then used the service's own settings — Railway
+    defaults: builder Railpack (the build failed: "No start command"), no
+    healthcheck, no overlap, draining 0, restart ON_FAILURE. Either point the
+    service at the config file (Settings → Config-as-code path, read on every
+    deploy) or store the values on the service, then read them back:
+    `serviceInstance(environmentId, serviceId) { dockerfilePath healthcheckPath
+    healthcheckTimeout overlapSeconds drainingSeconds restartPolicyType }` must show
+    `Dockerfile`, `/health`, 60, 20, 10, `ALWAYS`.
 R3. **Variables** (names: `env.receiver.example`) with `TXN_RECEIVER_ENABLED`
     and `TXN_STORAGE_PERMISSION_CONFIRMED` **unset** first.
     ⚠️ `railway variables --set` auto-redeploys; prefer the dashboard raw editor.
@@ -86,17 +97,19 @@ W1. The Trade Exchange code reaches `master` (owner merge approval) — every ro
 W2. Set web variables from `env.web.example` **except** `TXN_ENABLED`,
     `TXN_STORAGE_PERMISSION_CONFIRMED`, `ALERT_NEWS_MATCH_ENABLED`. Preflight:
     `railway run -s web -- python tools/txn_preflight.py --role web --r2-write-check`
-W3. `TXN_ENABLED=1` (+ `TXN_STORAGE_PERMISSION_CONFIRMED=1` **only** for the
-    synthetic stage with written owner approval, or after Trade Exchange's written
-    permission). One web redeploy (the known 82–119 s web window; receiver keeps
+W3. `TXN_ENABLED=1` + `TXN_SYNTHETIC_ONLY=1` for the synthetic stage
+    (`TXN_STORAGE_PERMISSION_CONFIRMED=1` only after Trade Exchange's written
+    permission, and then `TXN_SYNTHETIC_ONLY` is removed). One web redeploy (the known 82–119 s web window; receiver keeps
     journaling through it). Check `GET /api/admin/trade-exchange-news`
     → `enabled:true, started:true, ready:true`, journal `s3`, backlog 0.
 W4. Optional, separate step: `ALERT_NEWS_MATCH_ENABLED=1` (admin-only alert routes).
 
 ## 5. Arm the receiver (synthetic stage) — S1–S4
 
-S1. Receiver: `TXN_RECEIVER_ENABLED=1` (+ `TXN_STORAGE_PERMISSION_CONFIRMED=1` for
-    synthetic only). Healthcheck now passes.
+S1. Receiver: `TXN_RECEIVER_ENABLED=1` + `TXN_SYNTHETIC_ONLY=1` (stores only content
+    starting with `SYNTHETIC`; refuses the rest with 422). Healthcheck now passes.
+    `TXN_STORAGE_PERMISSION_CONFIRMED` stays UNSET until Trade Exchange's written
+    permission — it is the real-content switch, not the synthetic one.
 S2. Synthetic POST from the owner's machine (URL from the secrets file, never typed
     into chat): `{"source":"TXNews1","content":"SYNTHETIC ..."}` → 200; the admin
     News widget shows it; admin status shows `push:1` (not `reconcile`) — that
