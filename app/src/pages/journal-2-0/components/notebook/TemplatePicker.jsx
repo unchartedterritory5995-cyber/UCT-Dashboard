@@ -97,7 +97,6 @@ import { widgetsWaveOn } from '../../lib/notebookWidgetsFlags'
 import lazyChunk from '../../lib/lazyChunk'
 import UIcon from '../../../../components/ui/UIcon'
 import { useHasCoarsePointer } from '../../../../hooks/useBreakpoint'
-import { CONFIG_TIMEOUT_MS } from './NotebookFlagGate'
 import styles from './TemplatePicker.module.css'
 
 // The community gallery (and the admin review panel it carries) is dark behind
@@ -131,6 +130,11 @@ export const libraryMatchWords = (n) => (n === 1
 // The settle before the touch count is spoken: PoliteStatus.jsx's SETTLE_MS, for the same reason (a live region
 // announces a CHANGE, so the text is set once the children have reported, not in the commit before they do).
 const TOUCH_SETTLE_MS = 60
+// How long the picker waits for "Your templates" and the Template library to answer before it speaks (and shows "No
+// templates match") with what it has. Its own number, not borrowed: long enough for an ordinary list request on a
+// phone connection to land (so the count is usually complete), short enough that a member who tapped a chip still
+// hears the answer to THAT tap, not one many seconds later.
+const TOUCH_COUNT_WAIT_MS = 3000
 const touchMatchWords = (n) => (n === 1 ? '1 template.' : `${n} templates.`)
 
 /** Case-insensitive substring match over a template's searchable text. */
@@ -265,26 +269,29 @@ function TemplatePickerBody({ onPick, onPickMember, onLandNote, busy = false, au
   const memberCount = showMemberSection ? (memberShown || 0) : 0
   const memberKnown = !showMemberSection || memberShown !== null
   const builtInCount = visibleFamilies.reduce((n, f) => n + f.items.length, 0)
+  const allKnown = memberKnown && libraryKnown
+  // ⛔ BOUNDED: a request that never answers must not keep the picker silent for good. TOUCH_COUNT_WAIT_MS after the
+  // first filter with an addend still unknown, `gaveUp` lets the touch line speak what IS known (and keep doing so; a
+  // late answer changes the number, which is spoken again), and lets "No templates match" stop waiting for "Your
+  // templates". Runs on every pointer: the status it unblocks is shown on desktop too.
+  const [gaveUp, setGaveUp] = useState(false)
+  useEffect(() => {
+    if (!filtered || allKnown || gaveUp) return undefined
+    const t = setTimeout(() => setGaveUp(true), TOUCH_COUNT_WAIT_MS)
+    return () => clearTimeout(t)
+  }, [filtered, allKnown, gaveUp])
   // N3: the "No templates match" status counts every section's matches, so it never sits beside the member's own,
-  // and waits for "Your templates" to answer (a list still loading is not "none": it would show, then vanish).
+  // and waits for "Your templates" to answer (a list still loading is not "none": it would show, then vanish) -- but
+  // only up to the wait above, or a hung list would leave a zero-match search with nothing said at all.
   const noBuiltInMatches = !catalogFailed && visibleFamilies.length === 0 && category !== MEMBER && libraryCount === 0
-    && memberCount === 0 && memberKnown
+    && memberCount === 0 && (memberKnown || gaveUp)
 
   // The touch live line: built-in + the member's own + the Template library's, DERIVED from what each section says it
   // shows (never a DOM count: that went stale when the member's list loaded, and missed a card being renamed). Said
   // only once every addend is known for this filter, and after a short settle (PoliteStatus's), so the one commit in
   // which a child has not yet reported the new filter's number is never spoken. Only once the member has filtered,
   // so opening the picker announces nothing over the dialog's own name.
-  // ⛔ BOUNDED: a request that never answers must not keep the line silent for good. After CONFIG_TIMEOUT_MS (the
-  // Notebook's own wait for its config, NotebookFlagGate) from the first filter with an addend still unknown, the
-  // line speaks what IS known, and keeps doing so; a late answer then changes the number, which is spoken again.
-  const [gaveUp, setGaveUp] = useState(false)
-  const allKnown = memberKnown && libraryKnown
-  useEffect(() => {
-    if (!coarse || !filtered || allKnown || gaveUp) return undefined
-    const t = setTimeout(() => setGaveUp(true), CONFIG_TIMEOUT_MS)
-    return () => clearTimeout(t)
-  }, [coarse, filtered, allKnown, gaveUp])
+  // Bounded by `gaveUp` above.
   const touchTotal = builtInCount + memberCount + libraryCount
   const touchReady = coarse && filtered && (allKnown || gaveUp)
   useEffect(() => {
