@@ -33,7 +33,7 @@ export const GROUPS = [
   // Charts operator P1 (2026-10-27): the rest of a chart's own controls, in their OWN group so the NL-1 core
   // (charts + indicators + screener + agent ≤ 45) keeps its size — templates (save / delete), one chart's
   // look copied onto another, custom-timeframe removal and ★ favourites, comparison display.
-  { id: 'chartSetup', title: 'Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only', domains: ['chartSetup'],
+  { id: 'chartSetup', title: 'Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only', domains: ['chartSetup'], fillLast: true,
     words: [/\btemplates?\b/, /\blooks? (just )?like\b/, /\bsame (look|style|colou?rs|settings|setup) as\b/, /\bcopy (the |its |this |that )?(look|style|colou?rs|settings|setup)\b/,
       /\b(custom|favou?rite|starred?|star) (time ?frames?|intervals?)\b|\b(remove|delete|drop|un-?star|star)\b.*\b(time ?frames?|intervals?)\b/,
       /\b(same|new|own) (%|percent|price) scale\b|\bgroup only\b|\bhide (the )?base\b/] },
@@ -59,6 +59,14 @@ export const GROUPS = [
       /\b(colou?r|paint|highlight|shade)\w*\b.*\bby (trend|momentum|strength|signal|condition)\b/,
       // INDICATORS M3: the authoring draft ("show me the preview", "save the draft")
       /\b(preview|draft)\b/] },
+  // ⭐ INDICATORS P2 (AGENT-CONTRACT-P2, 2026-10-27): how an indicator looks and where it draws, pane order and
+  // size, duplicating and copying across charts — their own group, so the NL-1 core keeps its size.
+  { id: 'indicatorSetup', title: 'Indicator look and placement: colours, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts', domains: ['indicatorStyle', 'indicatorCopy', 'pane'], fillLast: true,
+    words: [/\b(thick|thicker|thin|thinner|width|dashed|dotted|solid|histogram|columns|plot style|line style)\b/, /\bpanes?\b/, /\b(above|below) (the )?(price|volume)\b/,
+      /\b(own|separate|new) pane\b|\b(overlay|put|move)\b.*\b(on|onto) (the )?(price|volume)\b/, /\b(duplicate|copy|copies|clone)\b.*\b(indicators?|studies|rsi|macd|ema|sma)\b/, /\b(same|these|my) indicators\b/,
+      /\b(make|turn|colou?r|paint)\b.*\bthe \d{1,3}\b.*\b(red|green|blue|white|black|orange|yellow|purple|pink|teal|gr[ae]y)\b/] },
+  { id: 'definitions', title: 'Indicator definitions: search UCT\'s and your own indicators, describe one, save a copy, delete one of yours', domains: ['definition'], fillLast: true,
+    words: [/\b(my|saved|custom|own) indicators?\b/, /\bindicators? (for|that|which|to)\b/, /\b(find|search|look for|what) .*\bindicators?\b/, /\b(describe|explain|what does)\b.*\b(indicator|rsi|macd|atr|study)\b/, /\b(delete|remove|copy|duplicate)\b.*\b(my|saved|custom)\b(?:\s+[a-z0-9-]+){0,3}\s+(indicator|formula|study)\b/] },
   { id: 'drawings', title: 'Chart drawings: horizontal price levels (draw, move to a price), restyle, show/hide, lock, remove one, clear all, list', domains: ['drawing'],
     words: [/\bdraw\w*\b/, /\b(a |the )?line at \$?\d/, /\b(horizontal (line|level)s?|levels?|price lines?|rays?|trend ?lines?|fib\w*|rectangles?|annotat\w+|support|resistance)\b/] },
   { id: 'lists', title: 'Watchlists (show, create, rename, add, remove, clear, delete, sort / reorder, notes)', domains: ['watchlist'],
@@ -211,9 +219,12 @@ export function routeManifest(manifest, message, opts = {}, extra = []) {
   // every other group SMALLEST first — the most groups that fit, so a message nothing named (a breadth
   // follow-up, a market question) is not one action short of its group. (Gate C: catalog order sent only
   // charts / workspace / layouts / indicators once the indicators group grew by one.)
+  // (`fillLast`: a specialised group is never a filler — when nothing named it, it comes after every other group)
+  const LAST = new Set(GROUPS.filter(g => g.fillLast).map(g => g.id))
   const bySize = (a, b) => sizeOf(a) - sizeOf(b)
+  const fillOrder = (a, b) => (LAST.has(a) - LAST.has(b)) || bySize(a, b)
   const own = matched ? [...rest].sort(bySize)
-    : [...new Set([...(soft || []).filter(id => rest.includes(id)), ...rest.filter(id => id === 'charts'), ...rest.filter(id => id !== 'charts').sort(bySize)])]
+    : [...new Set([...(soft || []).filter(id => rest.includes(id)), ...rest.filter(id => id === 'charts'), ...rest.filter(id => id !== 'charts').sort(fillOrder)])]
   const order = [...new Set([...pinned, ...own])]
   // PACK under the budget, in priority order. A group that would overflow is NOT sent — it is
   // named (unselected), so the model can ask for it; nothing is ever partially sent.

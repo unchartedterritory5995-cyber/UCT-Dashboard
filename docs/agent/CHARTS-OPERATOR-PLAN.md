@@ -8,8 +8,8 @@
 
 | Phase | Contents | Depends on | Status |
 |---|---|---|---|
-| **1. Agent-only completion** | Multi-chart sentences, ordinal targeting, chart setup (templates, copy a look, timeframe menu, comparison display), drawing visibility / lock / level / bulk, watchlist order and notes, widget tabs, A1 integration (`keepIndicatorState`, Undo compatibility tests), hardening, draft discard, drawing-layer exports | nothing | **built** — branch `feat/agent-charts-operator-p1`, draft PR; not merged |
-| **2. Indicator control + custom-indicator management** | Agent wrappers for Indicators' new mutation ops (appearance, plot style, colour, display target, pane order and size, duplicate, copy between charts), structured targeting, definition delete / fork / version restore | Indicators ships the ops (PHASE2-SHARED-CONTRACT §3, I-1…I-13) | waiting on Indicators |
+| **1. Agent-only completion** | Multi-chart sentences, ordinal targeting, chart setup (templates, copy a look, timeframe menu, comparison display), drawing visibility / lock / level / bulk, watchlist order and notes, widget tabs, A1 integration (`keepIndicatorState`, Undo compatibility tests), hardening, draft discard, drawing-layer exports | nothing | **released** — PR #479, merge `b5712f409d`, in production 2026-10-28 |
+| **2. Indicator control + custom-indicator management** | Agent wrappers for Indicators' mutation ops I-1…I-12 and `definitions/1` (AGENT-CONTRACT-P2-2026-10-27, PR #477 `853826da41`) | Indicators' contract (done) | **built** — branch `feat/agent-indicators-p2`; PR, not merged |
 | **3. Anchored drawings** | Trendline, ray, rectangle, Fibonacci, channel, text… from explicit dates and prices (or deterministic bar reads); anchor edits; per-tool styling | Phase 1's drawing-layer exports (done) | next Agent phase |
 | **4. Qualification and release** | The acceptance catalog in the real-workspace harness, corpus extension, real-model qualification on the sealed sets, fixes, release | Phases 1–3; owner's paid-eval decision | — |
 
@@ -35,6 +35,24 @@
 **Two Undo histories stay separate** (owner): the Agent's stack and A1's member history never record or undo each other's changes; each refuses on conflict. Proven by `agentA1UndoCompat.test.jsx` (a)–(c).
 
 **Not in Phase 1 (by design or dependency):** indicator colours / styles / panes / copy (Phase 2, Indicators); anchored drawings (Phase 3); replay, float / pop-out / merge, screenshots, Multi-Chart grid presets, layout version history (out of scope); flagging tickers (the flagged list syncs as a whole set); sorting a list by price or change (no data in the list); reset view / zoom (no read-back the Agent can verify).
+
+## Phase 2 — what was built (2026-10-28)
+
+| Agent action | Indicators op | Approval / Undo |
+|---|---|---|
+| `indicatorStyle.set` — colour, up/down colours, line width (incl. "thicker"), line style, plot style, overlap | `setColor` / `setAppearance` / `setPlotStyle` (options from `styleOptionsOf`) | applied; exact Undo |
+| `indicatorStyle.placeIn` — price pane, volume pane, its own pane, another indicator's pane, automatic | `setDisplayTarget` | applied (proposed when other series move with it); exact Undo |
+| `pane.move` — up, down, top, bottom, above / below another pane | `movePane` (keys from `paneKeysOf`) | applied; exact Undo |
+| `pane.resize` — a percent, bigger, smaller, automatic | `setPaneSize` | applied; exact Undo |
+| `indicatorCopy.duplicate` | `duplicate` | applied; Undo removes the copy |
+| `indicatorCopy.copyTo` — one op per destination chart (fan-out; several charts are shown once, then run per chart) | `copyFrom` | applied; Undo removes what was added; "already there" said |
+| `definition.search` / `definition.describe` | `searchDefinitions` / `describeDefinition` | read-only |
+| `definition.duplicate` | `executeDefinitionAction({op:'duplicate'})` | proposed; Undo deletes the copy |
+| `definition.delete` — the card names every chart drawing it | `executeDefinitionAction({op:'delete', allowInUse})` | proposed; Undo re-saves the same id |
+
+Also: `#20` / `#20:ema` resolve through Indicators' structured `resolveIndicatorTarget` (I-10; ambiguity is a question with the real names); `volumeOpts` passed to plan, apply, confirm and undo; the approval pin covers pane sizes; a later step of the same request may name an indicator an earlier step adds ("add the 9 EMA, make the 9 green"); "my other charts" names the board's other charts. New routing groups `indicatorSetup` and `definitions` (never fillers), so the NL-1 core stays at 42.
+
+**Not in Phase 2:** indicator alerts; sharing a definition or restoring an older version of it (no Agent-facing interface); unified Undo (owner: histories stay separate).
 
 ## Acceptance (Phase 1)
 

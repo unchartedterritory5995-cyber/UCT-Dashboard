@@ -112,6 +112,16 @@
   "chartSetup.compareDisplay": "chartSetup",
   "chartSetup.saveTemplate": "chartSetup",
   "chartSetup.deleteTemplate": "chartSetup",
+  "indicatorStyle.set": "indicatorSetup",
+  "indicatorStyle.placeIn": "indicatorSetup",
+  "pane.move": "indicatorSetup",
+  "pane.resize": "indicatorSetup",
+  "indicatorCopy.duplicate": "indicatorSetup",
+  "indicatorCopy.copyTo": "indicatorSetup",
+  "definition.search": "definitions",
+  "definition.describe": "definitions",
+  "definition.duplicate": "definitions",
+  "definition.delete": "definitions",
   "agent.capabilities": "agent"
  },
  "groups": [
@@ -134,6 +144,14 @@
   {
    "id": "indicators",
    "title": "Indicators on a chart (list, add, remove, show, hide; build, preview and save indicator drafts)"
+  },
+  {
+   "id": "indicatorSetup",
+   "title": "Indicator look and placement: colours, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
+  },
+  {
+   "id": "definitions",
+   "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
   },
   {
    "id": "drawings",
@@ -242,6 +260,14 @@
      {
       "id": "indicators",
       "title": "Indicators on a chart (list, add, remove, show, hide; build, preview and save indicator drafts)"
+     },
+     {
+      "id": "indicatorSetup",
+      "title": "Indicator look and placement: colours, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
+     },
+     {
+      "id": "definitions",
+      "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
       "id": "drawings",
@@ -368,6 +394,14 @@
      {
       "id": "indicators",
       "title": "Indicators on a chart (list, add, remove, show, hide; build, preview and save indicator drafts)"
+     },
+     {
+      "id": "indicatorSetup",
+      "title": "Indicator look and placement: colours, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
+     },
+     {
+      "id": "definitions",
+      "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
       "id": "drawings",
@@ -501,6 +535,14 @@
      {
       "id": "indicators",
       "title": "Indicators on a chart (list, add, remove, show, hide; build, preview and save indicator drafts)"
+     },
+     {
+      "id": "indicatorSetup",
+      "title": "Indicator look and placement: colours, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
+     },
+     {
+      "id": "definitions",
+      "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
       "id": "drawings",
@@ -645,6 +687,14 @@
       "title": "Indicators on a chart (list, add, remove, show, hide; build, preview and save indicator drafts)"
      },
      {
+      "id": "indicatorSetup",
+      "title": "Indicator look and placement: colours, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
+     },
+     {
+      "id": "definitions",
+      "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
+     },
+     {
       "id": "drawings",
       "title": "Chart drawings: horizontal price levels (draw, move to a price), restyle, show/hide, lock, remove one, clear all, list"
      },
@@ -767,6 +817,14 @@
       "title": "Indicators on a chart (list, add, remove, show, hide; build, preview and save indicator drafts)"
      },
      {
+      "id": "indicatorSetup",
+      "title": "Indicator look and placement: colours, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
+     },
+     {
+      "id": "definitions",
+      "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
+     },
+     {
       "id": "drawings",
       "title": "Chart drawings: horizontal price levels (draw, move to a price), restyle, show/hide, lock, remove one, clear all, list"
      },
@@ -816,6 +874,8 @@
     "workspace",
     "layouts",
     "indicators",
+    "indicatorSetup",
+    "definitions",
     "drawings",
     "lists",
     "screener",
@@ -931,6 +991,16 @@
     "chartSetup.compareDisplay",
     "chartSetup.saveTemplate",
     "chartSetup.deleteTemplate",
+    "indicatorStyle.set",
+    "indicatorStyle.placeIn",
+    "pane.move",
+    "pane.resize",
+    "indicatorCopy.duplicate",
+    "indicatorCopy.copyTo",
+    "definition.search",
+    "definition.describe",
+    "definition.duplicate",
+    "definition.delete",
     "agent.capabilities"
    ],
    "routing": null
