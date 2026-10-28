@@ -321,9 +321,13 @@ describe('indicator builder unavailable (owner tests 7–8) — one short, true 
     // proven in agentOperatorLive.test.jsx, where it does)
     await waitFor(() => expect(saved.size).toBe(1), { timeout: 8000 })
     expect(screen.queryAllByTestId('agent-proposal')).toHaveLength(0)
+    // the request runs to its end here (its chart add waits out the list, then says so) — nothing left running
+    // after the test (the master gate's unhandled-error rule, 2026-10-28)
+    await waitFor(() => expect(transcript()).toMatch(/is saved, but your indicator list hasn’t caught up yet/), { timeout: 15000 })
+    await waitFor(() => expect(screen.getByLabelText('Message UCT Agent').disabled).toBe(false), { timeout: 5000 })
     expect(transcript()).not.toMatch(/Want me to apply it/)
     expect(transcript()).not.toMatch(/high\[1\]|&&|barcolor/)                          // no formula dump
-  })
+  }, 40000)
 })
 
 describe('refusalSentence — gate codes stay out of chat', () => {
