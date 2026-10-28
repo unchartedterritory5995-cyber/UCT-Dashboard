@@ -37,6 +37,11 @@ export const GROUPS = [
     words: [/\btemplates?\b/, /\blooks? (just )?like\b/, /\bsame (look|style|colou?rs|settings|setup) as\b/, /\bcopy (the |its |this |that )?(look|style|colou?rs|settings|setup)\b/,
       /\b(custom|favou?rite|starred?|star) (time ?frames?|intervals?)\b|\b(remove|delete|drop|un-?star|star)\b.*\b(time ?frames?|intervals?)\b/,
       /\b(same|new|own) (%|percent|price) scale\b|\bgroup only\b|\bhide (the )?base\b/] },
+  // ⭐ live test 2026-10-28: N tickers as N equal charts (reuse, add, re-tile — one change, one Undo) — its OWN group
+  // (one action), so neither the NL-1 core nor the workspace group grows: core + workspace is exactly the budget.
+  { id: 'chartGrid', title: 'Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells', domains: ['chartGrid'], fillLast: true,
+    words: [/\b(two|three|four|five|six|seven|eight|nine|[2-9]) (new |separate |more )?(\w+ )?charts? (for|of|with|showing|on)\b/, /\bcharts? (for|of|with|showing)\b/, /\b(as|into) (\w+ )?(\w+ )?charts\b/,
+      /\b(grid|2 ?x ?2|2 by 2|side[\s-]by[\s-]side|next to each other|stacked|split (the )?screen)\b/] },
   { id: 'workspace', title: 'Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)', domains: ['widget'],
     words: [/\bwidgets?\b/, /\bworkspaces?\b/, /\bboard\b/, /\b(another|new|one more|second|extra) chart\b/, /\b(add|open|close|remove|delete)\b.*\bcharts?\b/, /\b(move|resize|arrange|rearrange|swap|wider|narrower|taller|shorter|bigger|smaller|fill|side by side|grid of|left|right|top|bottom)\b/,
       /\b(link|unlink|colou?r group)\b/, /\btabs?\b/] },

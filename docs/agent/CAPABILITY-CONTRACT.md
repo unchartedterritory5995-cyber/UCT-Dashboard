@@ -78,6 +78,8 @@ When one of these domains needs execution, it gets the same treatment: an owner-
 
 **`reversible`** is a policy flag. `false` means the plan is always proposed, never auto-applied.
 
+**Approval policy (owner live test 2026-10-28 — AUTO-APPLY).** What the member explicitly asked for is applied at once, however many steps, charts or widgets it takes, when every action is `risk: local` and reversible; the receipt and its Undo are the record. An action with `risk: confirm` or `reversible: false` is ALWAYS proposed (26 actions, railed in `agentOperatorLive.test.jsx` and `tests/test_uct_agent_autoapply.py`). The server enforces it: `turn.enforce_approval` turns an `apply` that carries such an action into a `propose`, whatever the model said — except `approval.explicitOk` (`indicator.saveDraft`), whose no-card path the browser decides from the member's own words (its `confirmIf` still applies). The browser applies the same rule again (`policy.decideMode`). Taste, judgment or a genuinely unclear target is still a proposal or a question.
+
 **`undo`** states what the receipt can honestly offer:
 - `exact` means the target kind restores the change.
 - `none` means no Undo exists. For example, navigation, or the email-digest switch, which carries an `undoNote` telling the member how to reverse it.

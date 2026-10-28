@@ -26,7 +26,7 @@ import { setAuthoringSources, draftAmbiguity, selectDraft, isDraftAction, lastSa
 import { fastParse, matchPosition } from './fastPath'
 import { screenNewChart } from './capabilities/workspace'
 import { resolveDeictic, screenDeicticOps, screenUnnamedTargets, pickedChoice, chartRefOf } from './deixis'
-import { multiChartPlan } from './multiChart'
+import { multiChartPlan, screenChartGrid } from './multiChart'
 import { planOps, prepareOps, collectTargets, undoNotesFor, approvalBinding, bindingDrift } from './executor'
 import { decideMode } from './policy'
 import { commitPlan, undoEntry, undoEntryFor } from './runtime'
@@ -644,11 +644,15 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     if (!ops.length) return
     // ── F5: one change, several charts — each target planned (and refused) ON ITS OWN, all of them
     // before anything is proposed or written; the Apply re-checks all again, then runs them one by one
+    // ⭐ AUTO-APPLY (live test 2026-10-28): an EXPLICIT request ("make the 9 green on both charts") whose every
+    // per-chart plan the policy applies (local risk, reversible, no confirmIf) runs at once — each chart its own
+    // execution, receipt and Undo, exactly as an approved fan-out. Anything that needs eyes is still proposed.
     const fan = fanOutOf(ops)
     if (fan) {
       const actions = fan.map(o => o.action)
       const lines = []
       const binds = []
+      let needsCard = suggested !== 'apply'
       for (const o of fan) {
         const one = planOps(collectTargets(host, kindsOf([o])), [o], await prepareOps([o]), capCtx)
         if (one.ok) binds.push(approvalBinding(one, host))
@@ -660,7 +664,9 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
           return
         }
         lines.push(...(one.lines.length ? one.lines : one.noops))
+        if (decideMode('apply', one) !== 'apply') needsCard = true
       }
+      if (!needsCard) return { followUps: fan }
       const plines = pendingWording([...lines, 'Each chart is changed separately, with its own receipt and Undo.'])
       if (suggested === 'approved') {
         // only the charts and the change the member approved — else nothing runs
@@ -749,8 +755,9 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       interruptedRef.current = null
       push({ role: 'refusal', text: 'This is the same change that was interrupted a moment ago, and part of it may already be on the board. Check the board first — apply it again only if it is still needed.' })
     }
-    // An expansion is always proposed first (it creates several widgets at once).
-    const mode = repeatOfInterrupted ? 'propose' : (suggested === 'approved' ? 'apply' : (expansion ? 'propose' : decideMode(suggested, plan)))
+    // ⭐ AUTO-APPLY (live test 2026-10-28): an expansion ("add 4 charts on SPY, QQQ, …") the member asked for is
+    // applied like any explicit change — the policy (decideMode) still sends anything confirm-risk to a card.
+    const mode = repeatOfInterrupted ? 'propose' : (suggested === 'approved' ? 'apply' : decideMode(suggested, plan))
     // Any write to the board is preceded by the cross-session check (once per Apply).
     if (mode !== 'propose' && !composed && !(await boardStillOurs(ops, earlySync))) return
     if (mode === 'propose') {
@@ -1532,7 +1539,9 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         disposition = 'propose'
       }
       // S6 F4: a new chart for a named ticker is born on it (not linked), even if the plan dropped the ticker
-      const screenedOps = screenNewChart(screened.ops, text).ops
+      // ⭐ live test 2026-10-28: "N charts for these tickers" planned as adds + tickers → ONE chart grid (reuses
+      // the board's charts, re-tiles to make room) — never "there isn't enough open space"
+      const screenedOps = screenChartGrid(screenNewChart(screened.ops, text).ops, text, host).ops
       // NL-1: no wording-dependent approval shortcut — every indicator save shows its approval card
       const ops = nl1 ? withoutWordingApprovals(screenedOps) : screenedOps
       lastActionsRef.current = ops.map(o => o.action)

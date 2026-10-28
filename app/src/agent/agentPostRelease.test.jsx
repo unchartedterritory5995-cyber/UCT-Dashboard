@@ -303,15 +303,25 @@ describe('indicator builder unavailable (owner tests 7–8) — one short, true 
     expect(transcript()).not.toMatch(NOISE)
   })
 
-  it('test 7 with the model healthy: a draft, one short line, "Want me to apply it" — nothing written to the chart', async () => {
+  // ⭐ OWNER (live test 2026-10-28): "create an indicator that …" IS the request to have it — built, saved, on the chart,
+  // one short sentence, no card (it was a draft + "Want me to apply it?" until then)
+  it('test 7 with the model healthy: built, saved and on the chart in one go — one short sentence, no card, no formula dump', async () => {
     turnMode = 'up'; converseMode = 'up'
+    const saved = new Map()
+    setAuthoringSources({ access: () => true, rows: () => [...saved.values()], extra: { converse, readBack: async (id) => saved.get(id) || null,
+      store: (s, o) => storeConversation(s, { ...o, save: async (doc) => { const id = 'u_aaaaaaaaad01'; saved.set(id, { def_id: id, version: 1, rev: 1, definition: { ...doc, id, version: 1 } }); return { ok: true, row: { def_id: id, version: 1, rev: 1 } } } }) } })
+    const real = globalThis.fetch          // the member's indicator list shows what was saved (the chart add waits for it)
+    globalThis.fetch = vi.fn(async (url, init) => (String(url).startsWith('/api/user-definitions')
+      ? new Response(JSON.stringify({ definitions: [...saved.values()] }), { status: 200, headers: { 'content-type': 'application/json' } }) : real(url, init)))
     const host = makeHost(['c1'])
     mount(host, null)
     await act(async () => { type('I want to create an indicator that colors all inside candles white.') })
     await waitFor(() => expect(converseCalls).toHaveLength(1), { timeout: 8000 })
-    await waitFor(() => expect(transcript()).toMatch(/Draft ready \(not saved yet\).*Want me to apply it/), { timeout: 8000 })
-    expect(host.charts.list().every(c => c.stored == null)).toBe(true)
+    // saved with no card (this harness's SWR cache never refreshes the indicator list, so the chart add itself is
+    // proven in agentOperatorLive.test.jsx, where it does)
+    await waitFor(() => expect(saved.size).toBe(1), { timeout: 8000 })
     expect(screen.queryAllByTestId('agent-proposal')).toHaveLength(0)
+    expect(transcript()).not.toMatch(/Want me to apply it/)
     expect(transcript()).not.toMatch(/high\[1\]|&&|barcolor/)                          // no formula dump
   })
 })
@@ -326,7 +336,9 @@ describe('refusalSentence — gate codes stay out of chat', () => {
     expect(s('http:429')).toMatch(/hourly limit/)
     expect(s('rate:busy')).toMatch(/still working/)
     expect(s('cost:user')).toMatch(/allowance is used up/)
-    expect(s('schema:node')).toBe('The indicator builder couldn’t do that — nothing was saved.')
+    // live test 2026-10-28: a malformed builder answer says exactly that (and what to try), never a bare "couldn't"
+    expect(s('schema:node')).toBe('The indicator builder’s answer wasn’t a valid indicator, so nothing was saved. Try asking again, or describe the calculation step by step.')
+    expect(s('envelope:schema')).toBe(s('schema:node'))
     expect(s('')).not.toMatch(/\(|:/)
   })
 })
