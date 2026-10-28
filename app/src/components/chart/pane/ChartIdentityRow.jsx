@@ -83,7 +83,7 @@ export default function ChartIdentityRow({
           Delisted {delistedLabel}
         </span>
       ) : showChange && (dayGain ? (
-        <span className={styles.chartDayGain} style={{ color: dayGain.up ? dayGainColors.up : dayGainColors.down }}>
+        <span className={styles.chartDayGain} data-day-gain={dayGain.up ? 'up' : 'down'} style={{ color: dayGain.up ? dayGainColors.up : dayGainColors.down }}>
           {dayGain.up ? '+' : ''}{dayGain.abs.toFixed(2)} ({dayGain.up ? '+' : ''}{dayGain.pct.toFixed(2)}%)
         </span>
       ) : (

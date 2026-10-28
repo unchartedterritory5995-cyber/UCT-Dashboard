@@ -338,13 +338,19 @@ describe('§8 — the geometric fold', () => {
     // responsive collapse fired, and the member got a HOVER-ONLY legend with NO
     // rows instead of the rows and a disclosure the budget had just computed.
     // There was no chart height in between where the fold was reachable at all.
-    expect(STOCK_CHART).toMatch(/studyTotal > studyRowBudget\s*\n\s*\?\s*Math\.max\(0, studyRowBudget - 1\)\s*:\s*studyRowBudget/)
+    // ⭐ The reservation is now as many rows as the button is tall (`studyFoldRoom` /
+    // `studyDisclosureRows`, railed in components/StockChart.studyDisclosure.test.js); the
+    // "only when there is something to disclose" half is the ternary inside `studyFoldRoom`.
+    expect(STOCK_CHART).toMatch(/const studyRoom = studyFoldRoom\(studyTotal, studyRowBudget, studyMoreRows\)/)
+    expect(STOCK_CHART).toMatch(/return total > budget \? Math\.max\(0, budget - disclosureRows\) : budget/)
   })
 
-  it('⛔ AND THE BUTTON MUST MEASURE ONE ROW, or the reservation buys nothing', () => {
+  it('⛔ AND THE BUTTON MUST MEASURE ONE ROW BY DEFAULT, or the reservation buys nothing', () => {
     const more = /\.studyMore\s*\{([^}]*)\}/.exec(STOCK_CSS)
     expect(more, '.studyMore is gone — has the disclosure been renamed?').toBeTruthy()
-    expect(more[1]).toMatch(/height:\s*14px/)
+    // its height is the stack's `--study-more-h`, which the fold reads; by default one 14px line
+    expect(more[1]).toMatch(/height:\s*var\(--study-more-h\)/)
+    expect(/\.studyStack\s*\{([^}]*)\}/.exec(STOCK_CSS)[1]).toMatch(/--study-more-h:\s*14px/)
     expect(more[1]).toMatch(/margin-top:\s*0/)
   })
 

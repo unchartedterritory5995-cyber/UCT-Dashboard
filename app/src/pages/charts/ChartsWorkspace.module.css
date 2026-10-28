@@ -616,6 +616,32 @@
   color: var(--text-muted, #8a8a8a);
 }
 
+/* ── The Ticker Hub sheet's chart (`TickerHubSheet.jsx` marks it `data-ticker-hub-chart`) ──
+   Its header is an APP surface (`--widget-canvas` is unset outside WidgetHost, so
+   `.chartHeaderTop` falls back to `--bg-elevated`), and the chart's header colours are not
+   calibrated for it: axe (WebKit, 390) read a pre-market "PRE -32.24 (-7.02%)" pill at 3.8:1 in
+   dark, 2.8:1 in light, and the regular number beside it 3.5:1 on the light header.
+   Red/green as TEXT is the text inks, never the candle hues (`terminalReachableContrast`), in
+   every theme. `!important` because the chart colour is an inline style (and the Sunrise remap
+   above is `!important` too; the extra class keeps this one ahead of it). Keyed on the
+   identity row, not `.chartDayGainWrap`: an index's day change is ChartIdentityRow's own
+   span, outside that wrap. The pill sits on `--bg-surface` here: its 16% `--text-muted` tint lifts a dark header enough that even the
+   inks fell to 3.6-4.4:1 on it in 13 of 21 themes. Desktop /charts keeps its chart colours.
+   Rail: `components/mobile/TickerHubSheet.dayGainInk.test.jsx`. */
+:global([data-ticker-hub-chart]) .chartHeaderTop [data-day-gain='up'] { color: var(--success-ink) !important; }
+:global([data-ticker-hub-chart]) .chartHeaderTop [data-day-gain='down'] { color: var(--danger-ink) !important; }
+:global([data-ticker-hub-chart]) .chartDayGainExt { background: var(--bg-surface); }
+
+/* The hub's 1D/1W/1M chips measured 32-35 x 40 (390) and x 18 (834) in WebKit: on the touch
+   tier, and on any coarse pointer, they clear `--tap-min`. Three chips in a row, so the extra
+   width costs nothing. Rail: `components/mobile/TickerHubSheet.tapFloor.test.js`. */
+@media (max-width: 1024px), (pointer: coarse) {
+  :global([data-ticker-hub-chart]) .tfBtn {
+    min-width: var(--tap-min);
+    min-height: var(--tap-min);
+  }
+}
+
 .tfBarDivider {
   width: 1px;
   align-self: stretch;

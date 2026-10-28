@@ -96,7 +96,21 @@ export default function MobileChartsApp({
   // P14b: the board version-history row is offered only while the store answers (the same
   // probe the desktop VersionHistoryMenuItem runs), asked when the Tools sheet opens.
   const versionHistoryAvailable = useVersionHistoryAvailable(sheet === 'more' && !!onOpenVersionHistory)
+  // The toolbar door that opened the current sheet. A sheet row that opens the
+  // Chart Settings modal ("All chart settings…" in Indicators and in Tools) closes
+  // its own sheet in the same tap, so the row the modal would hand focus back to
+  // is gone by the time it closes and focus fell to <body> (WebKit + axe,
+  // 390/834, 2026-10-28). The door that opened the sheet is still on screen, so
+  // it is the modal's opener. Recorded from the click because WebKit does not
+  // focus a tapped <button>.
+  const sheetOpenerRef = useRef(null)
+  const openSheetFrom = useCallback((name, e) => {
+    const el = e && e.currentTarget
+    sheetOpenerRef.current = el && typeof el.focus === 'function' ? el : null
+    setSheet(name)
+  }, [])
   const legendStudyTap = useCallback((target) => {
+    sheetOpenerRef.current = null
     setSheetEditing(target)
     setSheet('indicators')
   }, [])
@@ -279,7 +293,12 @@ export default function MobileChartsApp({
     setSheet(null)
   }, [color, setGroupSym])
 
-  const openSettings = useCallback(() => paneRef.current?.openSettings(), [])
+  // ChartPane's openSettings reads its opener off an event's `currentTarget`
+  // (the gear hands it the click); give it the sheet's toolbar door the same way.
+  const openSettings = useCallback(() => {
+    const door = sheetOpenerRef.current
+    paneRef.current?.openSettings(door && door.isConnected ? { currentTarget: door } : undefined)
+  }, [])
   const browseLibrary = useCallback(() => { toolbarApiRef.current?.openIndicatorLibrary?.() }, [])
   // Tools → "Draw on chart": the discoverable door onto the drawing toolbar,
   // which starts collapsed on phone (clean canvas, a chevron nobody new would
@@ -539,9 +558,9 @@ export default function MobileChartsApp({
           </div>
           <MobileChartToolbar
             onOpenType={() => setSheet('type')}
-            onOpenIndicators={() => setSheet('indicators')}
+            onOpenIndicators={(e) => openSheetFrom('indicators', e)}
             onOpenWatchlist={handleOpenWatchlist}
-            onOpenMore={() => setSheet('more')}
+            onOpenMore={(e) => openSheetFrom('more', e)}
             indicatorCount={indicatorCount}
           />
           </div>

@@ -66,6 +66,28 @@
    TickerPopup floor). Rail: `mobile/TickerHubSheet.tapFloor.test.js`. */
 @media (max-width: 1024px), (pointer: coarse) {
   .compareRow button { min-height: var(--tap-min); }
+  /* The fixed 240px box held identity row + timeframe bar + a 240px chart behind
+     `overflow: hidden`, so the date axis and the A/L/% chips were clipped below the border
+     (WebKit, 390 and 834). On touch, where those chips are finger targets, the box takes the
+     pane's own height, and the chart gets back what the date-axis reserve costs it: the
+     `--time-axis-min-height: 80px` reserve on the hub's `.wrapper` (StockChart.module.css)
+     less the 28px natural axis, so the price pane keeps its 240px-chart height and the
+     legend still fits. Rail: `mobile/TickerHubSheet.tapFloor.test.js`. */
+  .chartWrap {
+    height: auto;
+    --hub-chart-h: calc(240px + 80px - 28px);
+    /* The pane's chrome above the chart: identity row (34px, ChartsWorkspace `.chartHeaderTop`)
+       + timeframe bar (44px chips + its 1px rule). Measured in WebKit at 834: 34 + 45. */
+    --hub-chart-chrome-h: calc(34px + 45px);
+  }
+  /* While the ChartPane chunk loads, its fallback holds the pane's final height, so the box
+     does not grow ~350px (and push the sheet) when the chart mounts (WebKit, slow chunk). */
+  .chartWrap .chartLoading { height: calc(var(--hub-chart-h) + var(--hub-chart-chrome-h)); }
+}
+/* Phone: the identity row is 49px there (ChartsWorkspace's <=640 `.symbolSlot` 40px floor + its
+   padding and rule), measured in WebKit at 390 and 375. */
+@media (max-width: 640px) {
+  .chartWrap { --hub-chart-chrome-h: calc(49px + 45px); }
 }
 
 .alertForm { display: flex; gap: var(--space-sm); align-items: center; }
