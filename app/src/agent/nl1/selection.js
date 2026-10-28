@@ -33,15 +33,21 @@ export const NL1_BUDGET = MANIFEST_CONTRACT.routingThreshold
 export const NL1_MAX_NEED = 3
 
 const ALWAYS = GROUPS.filter(g => g.always).map(g => g.id)
-const presentGroups = (full) => GROUPS.filter(g => full.some(c => groupOfAction(c.name) === g.id))
-const sizeOf = (full, id) => full.filter(c => groupOfAction(c.name) === id).length
+// each group's action count in `full`, one pass (selection reads it per group, per reroute)
+const groupCounts = (full) => {
+  const n = new Map()
+  for (const c of full) { const g = groupOfAction(c.name); n.set(g, (n.get(g) || 0) + 1) }
+  return n
+}
+const presentGroups = (full) => { const n = groupCounts(full); return GROUPS.filter(g => n.has(g.id)) }
 
 /** The core groups present in this member's available manifest, whole, in order, within NL1_CORE_MAX. */
 export function coreOf(full) {
   const out = []
   let used = 0
+  const counts = groupCounts(full)
   for (const id of NL1_CORE_GROUPS) {
-    const n = sizeOf(full, id)
+    const n = counts.get(id) || 0
     if (!n || used + n > NL1_CORE_MAX) continue
     out.push(id)
     used += n
