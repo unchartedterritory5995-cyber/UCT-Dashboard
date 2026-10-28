@@ -86,7 +86,7 @@
 // catalog has arrived the picker renders TemplatePickerSkeleton (the same box, holding
 // the tour's gallery-door anchor); everything below the loader is the picker exactly as
 // it was, handed the catalog module as a prop.
-import { Suspense, useEffect, useId, useMemo, useRef, useState } from 'react'
+import { Suspense, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { loadTemplates, loadedTemplates } from '../../lib/templatesLoader'
 import TemplatePickerSkeleton from './TemplatePickerSkeleton'
@@ -127,6 +127,9 @@ export const libraryMatchWords = (n) => (n === 1
   : `${n} templates in the Template library match. Enter does nothing.`)
 
 /** The live line on a touch screen (n >= 0): how many templates the search and chip leave, never a key to press. */
+// The settle before the touch count is spoken: PoliteStatus.jsx's SETTLE_MS, for the same reason (a live region
+// announces a CHANGE, so the text is set once the children have reported, not in the commit before they do).
+const TOUCH_SETTLE_MS = 60
 const touchMatchWords = (n) => (n === 1 ? '1 template.' : `${n} templates.`)
 
 /** Case-insensitive substring match over a template's searchable text. */
@@ -199,9 +202,11 @@ function TemplatePickerBody({ onPick, onPickMember, onLandNote, busy = false, au
   const [category, setCategory] = useState(ALL)
   // A touch screen (VoiceOver, TalkBack) has no Up, Down or Enter to press: the search box's key hint is not drawn
   // there, and the live line says how many templates are left instead of what Enter would open.
+  // A coarse pointer, not a narrow width: an iPad with a keyboard attached still reads as coarse, and there the
+  // keys keep working (the handlers are unchanged); only the spoken hint is gone.
   const coarse = useHasCoarsePointer()
-  const [touchCount, setTouchCount] = useState(null)   // null until the member first searches or picks a chip
-  const [filtered, setFiltered] = useState(false)
+  const [touchSaid, setTouchSaid] = useState('')       // the touch live line, set once its count has settled
+  const [filtered, setFiltered] = useState(false)      // false until the member first searches or picks a chip
   // The search-box-driven virtual focus (13Q-5): which `data-template-card`
   // Enter would pick right now. Painted via `data-active`, never via real
   // DOM focus -- the input keeps it.
@@ -246,22 +251,35 @@ function TemplatePickerBody({ onPick, onPickMember, onLandNote, busy = false, au
   const showMemberSection = Boolean(onPickMember) && (category === ALL || category === MEMBER)
   // Wave 11 (Task 11.16 fix round 1, I-2): what the Template library section shows right now (0 while it is off).
   const libraryOn = widgetsWaveOn(11)
-  const [libraryShown, setLibraryShown] = useState(0)
-  const libraryCount = libraryOn ? libraryShown : 0
+  // `known` is false while the library's list is still being asked for (it reports 0 then, which is not an answer).
+  const [libraryShown, setLibraryShown] = useState({ n: 0, known: false })
+  const onLibraryMatches = useCallback((n, known = true) => {
+    setLibraryShown((prev) => (prev.n === n && prev.known === known ? prev : { n, known }))
+  }, [])
+  const libraryCount = libraryOn ? libraryShown.n : 0
+  const libraryKnown = !libraryOn || libraryShown.known
+  // How many of the member's own templates "Your templates" shows (MemberTemplates' `onMatches`): null while their
+  // list is loading, 0 while the section is not drawn.
+  const [memberShown, setMemberShown] = useState(null)
+  const memberCount = showMemberSection ? (memberShown || 0) : 0
+  const memberKnown = !showMemberSection || memberShown !== null
+  const builtInCount = visibleFamilies.reduce((n, f) => n + f.items.length, 0)
+  // N3: the "No templates match" status counts every section's matches, so it never sits beside the member's own.
   const noBuiltInMatches = !catalogFailed && visibleFamilies.length === 0 && category !== MEMBER && libraryCount === 0
+    && memberCount === 0
 
-  // The touch live line's count: every real template card on screen (built-in and the member's own, never Blank or
-  // the Playbook pointer) plus the Template library's. Read from the DOM after the render the query or chip caused,
-  // because the member's templates are a child component's cards. Only once the member has filtered, so opening the
-  // picker announces nothing over the dialog's own name.
+  // The touch live line: built-in + the member's own + the Template library's, DERIVED from what each section says it
+  // shows (never a DOM count: that went stale when the member's list loaded, and missed a card being renamed). Said
+  // only once every addend is known for this filter, and after a short settle (PoliteStatus's), so the one commit in
+  // which a child has not yet reported the new filter's number is never spoken. Only once the member has filtered,
+  // so opening the picker announces nothing over the dialog's own name.
+  const touchTotal = builtInCount + memberCount + libraryCount
+  const touchReady = coarse && filtered && memberKnown && libraryKnown
   useEffect(() => {
-    if (!coarse || !filtered) return
-    const cards = wrapRef.current
-      ? wrapRef.current.querySelectorAll('[data-template-card]:not([data-template-anchor])').length
-      : 0
-    const n = cards + libraryCount
-    setTouchCount((prev) => (prev === n ? prev : n))
-  }, [coarse, filtered, q, category, libraryCount])
+    if (!touchReady) return undefined
+    const t = setTimeout(() => setTouchSaid(touchTotal ? touchMatchWords(touchTotal) : ''), TOUCH_SETTLE_MS)
+    return () => clearTimeout(t)
+  }, [touchReady, touchTotal])
 
   // 13Q-5: a query or a category change re-aims the search box's "Enter picks
   // this" target. Never at Blank/Playbook (`data-template-anchor`, always
@@ -373,7 +391,7 @@ function TemplatePickerBody({ onPick, onPickMember, onLandNote, busy = false, au
           <span className="sr-only" aria-live="polite" data-template-search-status="">
             {coarse
               // 0 says nothing here: the "No templates match" status below is drawn then, and speaks for it.
-              ? (touchCount ? touchMatchWords(touchCount) : '')
+              ? touchSaid
               : targetName
                 ? `Enter opens ${targetName}.`
                 : (q ? (libraryCount > 0 ? libraryMatchWords(libraryCount) : 'No template matches. Enter does nothing.') : '')}
@@ -450,7 +468,7 @@ function TemplatePickerBody({ onPick, onPickMember, onLandNote, busy = false, au
       {libraryOn && (
         <Suspense fallback={null}>
           <TemplateLibrarySection query={q} category={category} busy={busy} navigate={navigate}
-            onMatches={setLibraryShown} landNote={onLandNote} />
+            onMatches={onLibraryMatches} landNote={onLandNote} />
         </Suspense>
       )}
 
@@ -460,6 +478,7 @@ function TemplatePickerBody({ onPick, onPickMember, onLandNote, busy = false, au
           busy={busy}
           query={q}
           onPreview={(p) => setPreview(p)}
+          onMatches={setMemberShown}
         />
       )}
 

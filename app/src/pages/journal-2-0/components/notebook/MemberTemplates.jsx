@@ -28,7 +28,7 @@
  * rendered only while notebook_template_gallery_enabled is LATCHED on, so with the
  * gate off this component is byte-for-byte what it was.
  */
-import { Suspense, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import {
   deleteMemberTemplate, getMemberTemplate, renameMemberTemplate, useMemberTemplates,
 } from '../../lib/memberTemplates'
@@ -43,7 +43,9 @@ import styles from './TemplatePicker.module.css'
 // loads then and not with the Notebook's first open.
 const GalleryPublishForm = lazyChunk(() => import('./GalleryPublishForm'))
 
-export default function MemberTemplates({ onPick, busy = false, query = '', onPreview = () => {} }) {
+// `onMatches(n)`: how many of the member's templates this shows for the picker's search (null while the list is
+// loading), derived from the list, never from the cards drawn (a template being renamed is a form, still a match).
+export default function MemberTemplates({ onPick, busy = false, query = '', onPreview = () => {}, onMatches }) {
   const { templates, error, isLoading } = useMemberTemplates()
   const [renaming, setRenaming] = useState(null) // { id, draft }
   const [confirmDelete, setConfirmDelete] = useState(null) // id
@@ -53,6 +55,9 @@ export default function MemberTemplates({ onPick, busy = false, query = '', onPr
   const galleryOn = templateGalleryEnabled()
   const q = query.trim().toLowerCase()
   const visible = q ? templates.filter((t) => t.name.toLowerCase().includes(q)) : templates
+  const matchCount = isLoading ? null : visible.length
+  useEffect(() => { onMatches?.(matchCount) }, [matchCount, onMatches])
+  useEffect(() => () => { onMatches?.(0) }, [onMatches])
 
   const openPreview = async (t) => {
     const base = { label: t.name, subtitle: t.title && t.title !== t.name ? t.title : null }

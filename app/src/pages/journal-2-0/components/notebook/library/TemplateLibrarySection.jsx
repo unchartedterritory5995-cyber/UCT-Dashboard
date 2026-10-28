@@ -77,7 +77,8 @@ function LibraryCard({ item, busy, onPreview }) {
  * @param category the picker's category chip ('all', a family key, or 'member')
  * @param busy     the picker is making a note
  * @param navigate the app router's navigate, for the adoption sheet a detail opens
- * @param onMatches `(n) => void`: how many templates the section shows right now (0 when it shows none)
+ * @param onMatches `(n, settled) => void`: how many templates the section shows right now (0 when it shows none);
+ *                 `settled` is false until the list has answered
  * @param landNote `(note) => void`: the picker's host lands a note made by a Use (closing its sheet; 11.20 walk D1)
  */
 export default function TemplateLibrarySection({ query = '', category = ALL, busy = false, navigate = null, onMatches, landNote = null }) {
@@ -104,7 +105,10 @@ export default function TemplateLibrarySection({ query = '', category = ALL, bus
   }, [rows, query, category])
 
   const shownCount = answer?.ok && category !== MEMBER ? groups.reduce((n, g) => n + g.items.length, 0) : 0
-  useEffect(() => { onMatches?.(shownCount) }, [shownCount, onMatches])
+  // The second argument says the count is an answer: false while the list is still being asked for (0 then means
+  // "not yet", not "none"), so the picker's touch count waits for it instead of speaking a number that will change.
+  const settled = answer !== null
+  useEffect(() => { onMatches?.(shownCount, settled) }, [shownCount, settled, onMatches])
   useEffect(() => () => { onMatches?.(0) }, [onMatches])
 
   if (category === MEMBER) return null
