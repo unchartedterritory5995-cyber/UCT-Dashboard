@@ -1,6 +1,7 @@
 # Trade Exchange News — deployment & rollback runbook
 
-Status: **PREPARED, NOT EXECUTED** (Checkpoint D1, 2026-10-27). Every step below
+Status: **PREPARED, NOT EXECUTED in production** (D1 2026-10-27; staging rehearsed in D2,
+2026-10-28; production plan + checklist: `docs/trade-exchange-news/first-live-test.md`). Every step below
 needs the owner's explicit go at the stage it belongs to (D2 staging-synthetic,
 then D3 production). Nothing here has been provisioned.
 
@@ -55,12 +56,13 @@ both are stored.
 
 ## 3. Receiver service (Railway dashboard) — R1–R6
 
-R1. **New → GitHub repo** → this repo → service name `trade-exchange-news-receiver`.
-R2. **Settings → Source**: Root Directory `services/trade_exchange_news_receiver`;
-    Config-as-code file `services/trade_exchange_news_receiver/railway.json`
-    (Dockerfile builder, healthcheck `/health` 60 s, `overlapSeconds` 20,
-    `drainingSeconds` 10, restart ALWAYS). Confirm the deploy watch path only
-    matches this directory (other merges must NOT redeploy it).
+R1. **New → GitHub repo** → this repo → service name `trade-exchange-news-receiver`,
+    branch **`production`** (web deploys from `production`, `deploy-windows.md`).
+R2. **Settings**: Root Directory `services/trade_exchange_news_receiver`; watch path
+    `services/trade_exchange_news_receiver/**` only (other merges must NOT redeploy
+    it); Dockerfile builder, healthcheck `/health` 60 s, overlap 20 s, draining 10 s,
+    restart ALWAYS — all entered ON THE SERVICE (the repo `railway.json` mirrors
+    them, but Railway no longer accepts a config-as-code path). Then ONE fresh deploy.
     ⛔ **Do not attach a volume.** A volume disables overlapping deploys.
     ⛔ **VERIFY THE SETTINGS ARE STORED ON THE SERVICE, AND ON THE LAST DEPLOYMENT**
     (D2 findings, staging 2026-10-28):
