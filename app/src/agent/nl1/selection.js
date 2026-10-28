@@ -33,8 +33,15 @@ export const NL1_BUDGET = MANIFEST_CONTRACT.routingThreshold
 export const NL1_MAX_NEED = 3
 
 const ALWAYS = GROUPS.filter(g => g.always).map(g => g.id)
-const presentGroups = (full) => GROUPS.filter(g => full.some(c => groupOfAction(c.name) === g.id))
-const sizeOf = (full, id) => full.filter(c => groupOfAction(c.name) === id).length
+// how many of `full`'s actions each group has, counted in ONE pass (a scan per group was the bulk of
+// NL-1's selection time once the catalog passed 110 actions)
+function countsOf(full) {
+  const counts = new Map()
+  for (const c of full) { const g = groupOfAction(c.name); counts.set(g, (counts.get(g) || 0) + 1) }
+  return counts
+}
+const presentGroups = (full) => { const n = countsOf(full); return GROUPS.filter(g => n.has(g.id)) }
+const sizeOf = (full, id) => countsOf(full).get(id) || 0
 
 /** The core groups present in this member's available manifest, whole, in order, within NL1_CORE_MAX. */
 export function coreOf(full) {

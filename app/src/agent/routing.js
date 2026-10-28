@@ -209,7 +209,11 @@ export function routeManifest(manifest, message, opts = {}, extra = []) {
   if (!matched && !extra.length && manifest.length <= limit) return { manifest, routing: null }
   // A reroute's requested groups come straight after the always-on ones.
   const always = GROUPS.filter(g => g.always).map(g => g.id)
-  const sizeOf = (id) => manifest.filter(c => groupOfAction(c.name) === id).length
+  // each action's group, read ONCE per request (the sort below compares sizes many times)
+  const groupOf = new Map(manifest.map(c => [c, groupOfAction(c.name)]))
+  const counts = new Map()
+  for (const g of groupOf.values()) counts.set(g, (counts.get(g) || 0) + 1)
+  const sizeOf = (id) => counts.get(id) || 0
   // The message's OWN groups are packed smallest-first (after the always-on, reroute and follow-up
   // groups, which keep their place): more of the distinct things a multi-part request names fit,
   // and if one must wait it is the biggest, most often incidental, group.
@@ -229,7 +233,7 @@ export function routeManifest(manifest, message, opts = {}, extra = []) {
   // PACK under the budget, in priority order. A group that would overflow is NOT sent — it is
   // named (unselected), so the model can ask for it; nothing is ever partially sent.
   const want = new Set()
-  let used = manifest.filter(c => groupOfAction(c.name) === null).length
+  let used = sizeOf(null)
   const over = []
   for (const id of order) {
     const n = sizeOf(id)
@@ -237,8 +241,8 @@ export function routeManifest(manifest, message, opts = {}, extra = []) {
     if (used + n > budget && want.size >= always.length) { over.push(id); continue }
     want.add(id); used += n
   }
-  const present = GROUPS.filter(g => manifest.some(c => groupOfAction(c.name) === g.id))
-  const routed = manifest.filter(c => want.has(groupOfAction(c.name)) || groupOfAction(c.name) === null)
+  const present = GROUPS.filter(g => counts.has(g.id))
+  const routed = manifest.filter(c => want.has(groupOf.get(c)) || groupOf.get(c) === null)
   if (routed.length === manifest.length) return { manifest, routing: null }
   return {
     manifest: routed,
