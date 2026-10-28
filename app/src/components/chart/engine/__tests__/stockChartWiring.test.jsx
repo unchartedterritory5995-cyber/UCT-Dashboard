@@ -4528,6 +4528,17 @@ describe('the Flip-B machinery, live (Task 10)', () => {
 // had no way into the menu a user actually right-clicks. That is not a refactor
 // artefact; it is the defect, and `volumeProfile` is exactly the row a
 // definitions-only list drops (B3 Task 11's refusal).
+// The app-root menu (ChartContextMenu, via GlobalAddPositionProvider) gives focus
+// back to the chart's region on Escape / a pick. It can only find that region if
+// the event names the chart element it was opened on.
+describe('the right-click event names the chart it was opened on', () => {
+  it('carries `opener`: the chart container the menu was right-clicked on', () => {
+    const view = renderChart({ settings: mergeChartSettings(null) })
+    const hit = openContextMenuHit(view, { region: 'price' })
+    expect(hit.opener, 'no opener: the menu cannot hand focus back to this chart').toBe(H.chartContainers.at(-1))
+  })
+})
+
 describe('B4 Task 3 — the right-click doors read the catalog', () => {
   it('the Indicators submenu offers every settings section, not a hand-picked eight', () => {
     const view = renderChart({ settings: mergeChartSettings(null) })

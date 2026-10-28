@@ -17700,6 +17700,9 @@ export default function StockChart({
             sections,
             clickPrice,
             currentPrice,
+            // The chart's element, so the app-root menu can hand focus back to
+            // this chart's region on Escape / a pick (ChartContextMenu).
+            opener: el,
           },
         }))
       }
