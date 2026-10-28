@@ -1183,8 +1183,13 @@
    scale's `minimumHeight`. The date labels draw at the TOP of the axis band, the chips sit
    in the blank strip under them. 80px = the 28px natural axis + 48px chip row (tap-min +
    1px padding + 1px border, each side) + the 3px dock + 1px gap.
-   Rail: `components/TickerPopup.chipsClearAxis.test.js`. */
-@media (max-width: 1024px) {
+   Rail: `components/TickerPopup.chipsClearAxis.test.js`.
+
+   ⛔ `(pointer: coarse)` too: the TickerPopup is what a touch iPad shows in LANDSCAPE
+   (1194px, past the width tier), where these chips measured 22px. A FINGER is the reason
+   for the floor, so the floor and the reserve it pays for follow the pointer as well as
+   the width; a mouse desktop (pointer: fine, > 1024) is untouched. */
+@media (max-width: 1024px), (pointer: coarse) {
   :global([data-ticker-popup-chart]) .scaleToggleBtn {
     min-width: var(--tap-min);
     min-height: var(--tap-min);

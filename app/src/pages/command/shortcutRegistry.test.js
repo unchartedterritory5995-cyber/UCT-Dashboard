@@ -293,6 +293,83 @@ describe('TERM-063 — runtime registration', () => {
 })
 
 // ═══════════════════════════════════════════════════════════════════════════
+// An OBSERVER (`observe: true`, chord `{ any: true }`) hears every key and is handed NO event, so it can never answer,
+// prevent or stop one. That is the whole reason the conflict rail may skip it, so each half is railed here.
+describe('TERM-063 — an observer hears every key and can answer none', () => {
+  const observers = SHORTCUTS.filter((d) => d.observe === true)
+
+  it('NON-VACUITY: the registry declares an observer, and every observer is exactly { any: true }', () => {
+    expect(observers.map((d) => d.id)).toEqual(['notebook.inputKind', 'tickerPopup.escapeGate'])
+    for (const d of observers) expect(d.chord).toEqual({ any: true })
+  })
+
+  it('it is called for every key, on its declared node and phase, WITHOUT the event', () => {
+    const d = vi.spyOn(document, 'addEventListener')
+    const seen = []
+    const off = registerShortcuts({ 'notebook.inputKind': (...args) => { seen.push(args.length) } })
+    expect(d.mock.calls.filter((c) => c[0] === 'keydown').map((c) => c[2])).toEqual([true])
+    for (const init of [{ key: 'Tab' }, { key: 'a' }, { key: 'Escape', ctrlKey: true }, { key: 'ArrowLeft', repeat: true }]) {
+      document.body.dispatchEvent(new KeyboardEvent('keydown', { ...init, bubbles: true }))
+    }
+    const input = document.body.appendChild(document.createElement('input'))
+    input.focus()
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'x', bubbles: true }))
+    expect(seen).toEqual([0, 0, 0, 0, 0])
+    off()
+    document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true }))
+    expect(seen).toHaveLength(5)
+  })
+
+  it('a key it hears is not consumed: the event is neither prevented nor stopped', () => {
+    const off = registerShortcuts({ 'notebook.inputKind': () => {} })
+    const after = vi.fn()
+    document.addEventListener('keydown', after)
+    const e = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })
+    document.body.dispatchEvent(e)
+    expect(e.defaultPrevented).toBe(false)
+    expect(after).toHaveBeenCalledTimes(1)
+    document.removeEventListener('keydown', after)
+    off()
+  })
+
+  it('an observer registered alongside a MATCHING binding still runs, and runs first (wherever it is listed)', () => {
+    // palette.close is document capture like the observer, so the two share ONE native listener in this call.
+    const order = []
+    const off = registerShortcuts({
+      'palette.close': (e) => { order.push('binding'); e.preventDefault() },
+      'notebook.inputKind': () => { order.push('observer') },
+    })
+    const e = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })
+    document.body.dispatchEvent(e)
+    expect(order).toEqual(['observer', 'binding'])
+    expect(e.defaultPrevented).toBe(true)        // the binding still acted
+    // A key no binding answers: the observer alone.
+    document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'q', bubbles: true }))
+    expect(order).toEqual(['observer', 'binding', 'observer'])
+    off()
+  })
+
+  it('the conflict rail skips observers and ONLY observers', () => {
+    const obs = observers[0]
+    expect(findShortcutConflicts([obs, ...SHORTCUTS.filter((d) => !d.observe)].slice(0, 2))).toEqual([])
+    // CONTROL: the same declaration WITHOUT the observe mark (an every-key binding) conflicts with any binding.
+    const binding = { ...obs, id: 'planted.everyKey', observe: undefined }
+    const found = findShortcutConflicts([binding, shortcutById('palette.close')])
+    expect(found.map((c) => c.ids)).toEqual([['planted.everyKey', 'palette.close']])
+  })
+
+  it('validation: `any` only with observe, observe only with `any`, and nothing else in an observer chord', () => {
+    const base = { id: 'v.obs', type: 'keydown', target: 'document', capture: true, inEditable: true, repeat: true,
+      why: 'a planted observer for the rail' }
+    expect(() => validateDeclaration({ ...base, observe: true, chord: { any: true } })).not.toThrow()
+    expect(() => validateDeclaration({ ...base, chord: { any: true } })).toThrow(/observe/)
+    expect(() => validateDeclaration({ ...base, observe: true, chord: { keys: ['Escape'] } })).toThrow(/observe/)
+    expect(() => validateDeclaration({ ...base, observe: true, chord: { any: true, ctrl: true } })).toThrow(/any: true/)
+    expect(() => validateDeclaration({ ...base, observe: false, chord: { keys: ['Escape'] } })).toThrow(/observe/)
+  })
+})
+
+// ═══════════════════════════════════════════════════════════════════════════
 describe('TERM-063 — INPUT FOCUS: no stolen keys inside a text control', () => {
   const press = (key, init = {}) => window.dispatchEvent(
     new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...init }))

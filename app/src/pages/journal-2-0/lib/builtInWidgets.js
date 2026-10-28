@@ -157,3 +157,8 @@ export function builtInRows(query, doc, insert, uid) {
 
 /** The shelf as this file reads it: loadShelfIndex (one GET per tab). */
 export const loadBuiltIn = () => loadShelfIndex()
+
+/** TERM-033: the shelf stated as UNREAD, never a `null` that reads like an empty answer. It has no example cards and
+ *  no served keywords, so the / menu lists the defaults that need no shelf (and the dedicated widgets with their own
+ *  words): what it did when the read failed before. A frozen, named value, so a caller can tell it from a shelf. */
+export const SHELF_UNREAD = Object.freeze({ examples: Object.freeze([]), dedicated: Object.freeze([]), unread: true })

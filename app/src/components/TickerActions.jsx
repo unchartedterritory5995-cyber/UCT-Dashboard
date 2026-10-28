@@ -11,7 +11,7 @@ import useTagColors from '../hooks/useTagColors'
 import { useIsTouch } from '../hooks/useBreakpoint'
 import Sheet from './mobile/Sheet'
 import UIcon from './ui/UIcon'
-import SymbolSearch from './chart/SymbolSearch'
+import CompareSymbolSearch from './CompareSymbolSearch'
 import { targetsFor } from '../pages/journal-2-0/lib/captureTargets'
 // ⛔ `buildWidgetEmbedAttrs` / `sendCaptureToJournal` are LAZY (see the loader's
 // header): a static import here put the whole Pine chart engine in the entry chunk.
@@ -353,7 +353,7 @@ export default function TickerActionsMenu({ menu, onClose, lists, mutateLists })
           </button>
         ) : (
           <div className={styles.compareSection}>
-            <SymbolSearch sym={sym} displayLabel="+ Compare" onSymbolChange={goToCompare} />
+            <CompareSymbolSearch sym={sym} onSymbolChange={goToCompare} />
           </div>
         )}
 

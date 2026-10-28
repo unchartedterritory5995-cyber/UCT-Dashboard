@@ -46,7 +46,7 @@ import { notebookFlag } from '../../lib/offline/notebookFlags'
 import usePreferences from '../../../../hooks/usePreferences'
 import { LAYOUT_PREF, DEFAULT_LAYOUT, normalizeLayout, resolvePanels } from '../../lib/pageLayouts'
 import { pageLayoutsEnabled } from '../../lib/pageLayoutsFlag'
-import SymbolSearch from '../../../../components/chart/SymbolSearch'
+import CompareSymbolSearch from '../../../../components/CompareSymbolSearch'
 import { useJournalToast, JournalToast } from '../../lib/useJournalToast'
 // The Customize editor loads only when the button is pressed (its slot holds the lazy import).
 import PageLayoutEditorSlot from '../layout/PageLayoutEditorSlot'
@@ -229,7 +229,7 @@ function TradeResearchMenu({ symbol, tradeId }) {
             </button>
           ) : (
             <div className={styles.researchMenuCompare}>
-              <SymbolSearch sym={symbol} displayLabel="+ Compare" onSymbolChange={goToCompare} />
+              <CompareSymbolSearch sym={symbol} onSymbolChange={goToCompare} />
             </div>
           )}
         </div>
