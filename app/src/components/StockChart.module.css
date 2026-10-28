@@ -790,7 +790,7 @@
   grid-column: 1 / -1;
   justify-self: start;
   margin-top: 0;
-  /* Exactly one stack row — 14 + the 1px `row-gap` = the 15px pitch. The fold
+  /* By default one stack row (14px + the 8px `row-gap` = the 22px STUDY_ROW_PX pitch). The fold
      RESERVES a row for this button, so a button taller than a row would overrun
      the space that was measured and trip the responsive collapse. The height is
      `.studyStack`'s `--study-more-h` (14px), which the fold reads to know how many rows
