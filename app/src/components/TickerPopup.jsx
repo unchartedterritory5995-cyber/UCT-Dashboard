@@ -16,7 +16,7 @@ import { useIsTouch } from '../hooks/useBreakpoint'
 import { prefetchAllTimeframes, prefetchBar } from '../utils/prefetchBars'
 import JournalBacklinks from './JournalBacklinks'
 import useAppFocus from '../hooks/useAppFocus'
-import useFocusTrap, { focusableWithin } from './mobile/useFocusTrap'
+import useFocusTrap, { focusableWithin, inertBeneath } from './mobile/useFocusTrap'
 import CompareSymbolSearch from './CompareSymbolSearch'
 import styles from './TickerPopup.module.css'
 import { CHART_FIT_TARGET, fitChartHeightPx, chartHeightCss, shouldUpdateFit } from './tickerPopupChartFit'
@@ -71,8 +71,8 @@ function isCaptureSuccessMessage(msg) {
 // [data-escape-layer] -- the chart's right-click menu, earnings popover, IPO tag -- or an open
 // <dialog>). One is ABOVE the popup when it OPENED after the popup (open order, not document
 // order: the right-click menu renders inside #root, BEFORE the popup's <body> portal), or when
-// the popup sits beneath an inert background (fix/chart-a11y's Chart Settings; checked inline,
-// its `inertBeneath` helper is not on this base).
+// the popup sits beneath an inert background (Chart Settings makes everything under it inert;
+// `inertBeneath` is useFocusTrap's own test for that).
 //
 // ⛔ The answer is taken in the WINDOW CAPTURE phase (`tickerPopup.escapeGate`, observe-only):
 // a layer that closes from its own document listener is already UNMOUNTED by the time the
@@ -89,7 +89,7 @@ let releaseEscapeGate = null
 
 export function escapeBelongsToLayerAbove(popup, beneath = OPEN_POPUPS.get(popup)) {
   if (!popup) return false
-  if (popup.closest('[inert]')) return true
+  if (inertBeneath(popup)) return true
   return layerOpenedSince(popup, beneath || new Set())
 }
 
@@ -108,7 +108,10 @@ function trackOpenPopup(popup) {
   notifyTopChanged()
   return () => {
     OPEN_POPUPS.delete(popup)
-    if (!OPEN_POPUPS.size && releaseEscapeGate) { releaseEscapeGate(); releaseEscapeGate = null }
+    if (!OPEN_POPUPS.size) {
+      if (releaseEscapeGate) { releaseEscapeGate(); releaseEscapeGate = null }
+      escapeSnapshot = null   // drop the last record: it holds the closed popup's element
+    }
     notifyTopChanged()
   }
 }

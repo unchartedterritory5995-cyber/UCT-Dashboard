@@ -128,7 +128,7 @@ describe('Escape belongs to the TOP layer (Chart Settings opened over the popup)
     btn.textContent = 'Done'
     layer.appendChild(btn)
     document.body.appendChild(layer)
-    // what fix/chart-a11y's inertBeneath() does: everything under the top layer goes inert
+    // what backgroundInert does when Chart Settings opens: everything under the top layer goes inert
     const popupRoot = screen.getByTestId('chart-modal')
     if (inertBeneath) popupRoot.setAttribute('inert', '')
     return { layer, btn, close: () => { layer.remove(); popupRoot.removeAttribute('inert') } }
