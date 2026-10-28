@@ -154,14 +154,20 @@ describe('ChartContextMenu: the ARIA menu pattern (desktop)', () => {
     } finally { loose.remove() }
   })
 
-  it('the dialog wrapper is labelled BY the menu: one name, not two different ones', () => {
+  it('ONE hidden label element names both the menu and its dialog wrapper; neither has an aria-label', () => {
     renderOverChart()
-    const menu = screen.getByRole('menu')
-    const wrapper = menu.parentElement
-    expect(wrapper).toHaveAttribute('role', 'dialog')
-    expect(wrapper.getAttribute('aria-labelledby')).toBe(menu.id)
+    const menu = screen.getByRole('menu', { name: 'Chart actions for NVDA' })
+    const wrapper = screen.getByRole('dialog', { name: 'Chart actions for NVDA' })
+    expect(menu.parentElement).toBe(wrapper)
+    expect(menu).not.toHaveAttribute('aria-label')
     expect(wrapper).not.toHaveAttribute('aria-label')
-    expect(screen.getByRole('dialog', { name: 'Chart actions for NVDA' })).toBe(wrapper)
+    const id = menu.getAttribute('aria-labelledby')
+    expect(id).toBeTruthy()
+    expect(wrapper.getAttribute('aria-labelledby')).toBe(id)
+    const label = document.getElementById(id)
+    expect(label.textContent).toBe('Chart actions for NVDA')     // the single source of the text
+    expect(label).toHaveClass('sr-only')
+    expect(document.querySelectorAll(`[id="${id}"]`)).toHaveLength(1)
   })
 })
 
