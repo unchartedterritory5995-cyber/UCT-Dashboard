@@ -41,6 +41,8 @@
   "watchlist.delete": "lists",
   "watchlist.create": "lists",
   "watchlist.rename": "lists",
+  "watchlist.reorder": "lists",
+  "watchlist.setNote": "lists",
   "screener.run": "screener",
   "screener.runSaved": "screener",
   "screener.state": "screener",
@@ -77,6 +79,7 @@
   "widget.selectTab": "workspace",
   "widget.renameTab": "workspace",
   "widget.closeTab": "workspace",
+  "widget.addTab": "workspace",
   "chart.addTab": "charts",
   "chart.selectTab": "charts",
   "chart.closeTab": "charts",
@@ -86,6 +89,11 @@
   "drawing.addLevel": "drawings",
   "drawing.style": "drawings",
   "drawing.remove": "drawings",
+  "drawing.setVisible": "drawings",
+  "drawing.lock": "drawings",
+  "drawing.setLevel": "drawings",
+  "drawing.setAllVisible": "drawings",
+  "drawing.clear": "drawings",
   "indicator.list": "indicators",
   "indicator.openCreate": "indicators",
   "indicator.add": "indicators",
@@ -97,12 +105,33 @@
   "indicator.previewDraft": "indicators",
   "indicator.saveDraft": "indicators",
   "indicator.undoDraft": "indicators",
+  "indicator.discardDraft": "indicators",
+  "chartSetup.copyLook": "chartSetup",
+  "chartSetup.removeTimeframe": "chartSetup",
+  "chartSetup.favoriteTimeframe": "chartSetup",
+  "chartSetup.compareDisplay": "chartSetup",
+  "chartSetup.saveTemplate": "chartSetup",
+  "chartSetup.deleteTemplate": "chartSetup",
+  "indicatorStyle.set": "indicatorSetup",
+  "indicatorStyle.placeIn": "indicatorSetup",
+  "pane.move": "indicatorSetup",
+  "pane.resize": "indicatorSetup",
+  "indicatorCopy.duplicate": "indicatorSetup",
+  "indicatorCopy.copyTo": "indicatorSetup",
+  "definition.search": "definitions",
+  "definition.describe": "definitions",
+  "definition.duplicate": "definitions",
+  "definition.delete": "definitions",
   "agent.capabilities": "agent"
  },
  "groups": [
   {
    "id": "charts",
    "title": "Chart symbol, timeframe, type, scale, session, theme, colours, display settings, volume"
+  },
+  {
+   "id": "chartSetup",
+   "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only"
   },
   {
    "id": "workspace",
@@ -117,12 +146,20 @@
    "title": "Indicators on a chart (list, add, remove, show, hide; build, preview and save indicator drafts)"
   },
   {
+   "id": "indicatorSetup",
+   "title": "Indicator look and placement: colours, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
+  },
+  {
+   "id": "definitions",
+   "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
+  },
+  {
    "id": "drawings",
-   "title": "Chart drawings: horizontal price levels (draw, restyle, remove, list)"
+   "title": "Chart drawings: horizontal price levels (draw, move to a price), restyle, show/hide, lock, remove one, clear all, list"
   },
   {
    "id": "lists",
-   "title": "Watchlists (show, create, rename, add, remove, clear, delete)"
+   "title": "Watchlists (show, create, rename, add, remove, clear, delete, sort / reorder, notes)"
   },
   {
    "id": "screener",
@@ -198,6 +235,7 @@
     "indicator.previewDraft",
     "indicator.saveDraft",
     "indicator.undoDraft",
+    "indicator.discardDraft",
     "agent.capabilities"
    ],
    "routing": {
@@ -206,6 +244,10 @@
      {
       "id": "charts",
       "title": "Chart symbol, timeframe, type, scale, session, theme, colours, display settings, volume"
+     },
+     {
+      "id": "chartSetup",
+      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only"
      },
      {
       "id": "workspace",
@@ -220,12 +262,20 @@
       "title": "Indicators on a chart (list, add, remove, show, hide; build, preview and save indicator drafts)"
      },
      {
+      "id": "indicatorSetup",
+      "title": "Indicator look and placement: colours, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
+     },
+     {
+      "id": "definitions",
+      "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
+     },
+     {
       "id": "drawings",
-      "title": "Chart drawings: horizontal price levels (draw, restyle, remove, list)"
+      "title": "Chart drawings: horizontal price levels (draw, move to a price), restyle, show/hide, lock, remove one, clear all, list"
      },
      {
       "id": "lists",
-      "title": "Watchlists (show, create, rename, add, remove, clear, delete)"
+      "title": "Watchlists (show, create, rename, add, remove, clear, delete, sort / reorder, notes)"
      },
      {
       "id": "screener",
@@ -258,7 +308,7 @@
      "screener",
      "agent"
     ],
-    "stable": 41
+    "stable": 42
    }
   },
   {
@@ -310,6 +360,7 @@
     "indicator.previewDraft",
     "indicator.saveDraft",
     "indicator.undoDraft",
+    "indicator.discardDraft",
     "agent.capabilities",
     "layout.current",
     "layout.list",
@@ -329,6 +380,10 @@
       "title": "Chart symbol, timeframe, type, scale, session, theme, colours, display settings, volume"
      },
      {
+      "id": "chartSetup",
+      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only"
+     },
+     {
       "id": "workspace",
       "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
      },
@@ -341,12 +396,20 @@
       "title": "Indicators on a chart (list, add, remove, show, hide; build, preview and save indicator drafts)"
      },
      {
+      "id": "indicatorSetup",
+      "title": "Indicator look and placement: colours, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
+     },
+     {
+      "id": "definitions",
+      "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
+     },
+     {
       "id": "drawings",
-      "title": "Chart drawings: horizontal price levels (draw, restyle, remove, list)"
+      "title": "Chart drawings: horizontal price levels (draw, move to a price), restyle, show/hide, lock, remove one, clear all, list"
      },
      {
       "id": "lists",
-      "title": "Watchlists (show, create, rename, add, remove, clear, delete)"
+      "title": "Watchlists (show, create, rename, add, remove, clear, delete, sort / reorder, notes)"
      },
      {
       "id": "screener",
@@ -380,7 +443,7 @@
      "screener",
      "agent"
     ],
-    "stable": 41
+    "stable": 42
    }
   },
   {
@@ -433,6 +496,7 @@
     "indicator.previewDraft",
     "indicator.saveDraft",
     "indicator.undoDraft",
+    "indicator.discardDraft",
     "agent.capabilities",
     "watchlist.list",
     "watchlist.show",
@@ -442,6 +506,8 @@
     "watchlist.delete",
     "watchlist.create",
     "watchlist.rename",
+    "watchlist.reorder",
+    "watchlist.setNote",
     "alert.list",
     "alert.create",
     "alert.delete",
@@ -453,6 +519,10 @@
      {
       "id": "charts",
       "title": "Chart symbol, timeframe, type, scale, session, theme, colours, display settings, volume"
+     },
+     {
+      "id": "chartSetup",
+      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only"
      },
      {
       "id": "workspace",
@@ -467,12 +537,20 @@
       "title": "Indicators on a chart (list, add, remove, show, hide; build, preview and save indicator drafts)"
      },
      {
+      "id": "indicatorSetup",
+      "title": "Indicator look and placement: colours, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
+     },
+     {
+      "id": "definitions",
+      "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
+     },
+     {
       "id": "drawings",
-      "title": "Chart drawings: horizontal price levels (draw, restyle, remove, list)"
+      "title": "Chart drawings: horizontal price levels (draw, move to a price), restyle, show/hide, lock, remove one, clear all, list"
      },
      {
       "id": "lists",
-      "title": "Watchlists (show, create, rename, add, remove, clear, delete)"
+      "title": "Watchlists (show, create, rename, add, remove, clear, delete, sort / reorder, notes)"
      },
      {
       "id": "screener",
@@ -507,7 +585,7 @@
      "alerts",
      "agent"
     ],
-    "stable": 41
+    "stable": 42
    }
   },
   {
@@ -560,6 +638,7 @@
     "indicator.previewDraft",
     "indicator.saveDraft",
     "indicator.undoDraft",
+    "indicator.discardDraft",
     "agent.capabilities",
     "widget.add",
     "widget.addCharts",
@@ -573,10 +652,16 @@
     "widget.selectTab",
     "widget.renameTab",
     "widget.closeTab",
+    "widget.addTab",
     "drawing.list",
     "drawing.addLevel",
     "drawing.style",
-    "drawing.remove"
+    "drawing.remove",
+    "drawing.setVisible",
+    "drawing.lock",
+    "drawing.setLevel",
+    "drawing.setAllVisible",
+    "drawing.clear"
    ],
    "routing": {
     "version": 1,
@@ -584,6 +669,10 @@
      {
       "id": "charts",
       "title": "Chart symbol, timeframe, type, scale, session, theme, colours, display settings, volume"
+     },
+     {
+      "id": "chartSetup",
+      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only"
      },
      {
       "id": "workspace",
@@ -598,12 +687,20 @@
       "title": "Indicators on a chart (list, add, remove, show, hide; build, preview and save indicator drafts)"
      },
      {
+      "id": "indicatorSetup",
+      "title": "Indicator look and placement: colours, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
+     },
+     {
+      "id": "definitions",
+      "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
+     },
+     {
       "id": "drawings",
-      "title": "Chart drawings: horizontal price levels (draw, restyle, remove, list)"
+      "title": "Chart drawings: horizontal price levels (draw, move to a price), restyle, show/hide, lock, remove one, clear all, list"
      },
      {
       "id": "lists",
-      "title": "Watchlists (show, create, rename, add, remove, clear, delete)"
+      "title": "Watchlists (show, create, rename, add, remove, clear, delete, sort / reorder, notes)"
      },
      {
       "id": "screener",
@@ -638,7 +735,7 @@
      "screener",
      "agent"
     ],
-    "stable": 41
+    "stable": 42
    }
   },
   {
@@ -688,6 +785,7 @@
     "indicator.previewDraft",
     "indicator.saveDraft",
     "indicator.undoDraft",
+    "indicator.discardDraft",
     "agent.capabilities",
     "stock.profile",
     "stock.earnings",
@@ -703,6 +801,10 @@
       "title": "Chart symbol, timeframe, type, scale, session, theme, colours, display settings, volume"
      },
      {
+      "id": "chartSetup",
+      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only"
+     },
+     {
       "id": "workspace",
       "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
      },
@@ -715,12 +817,20 @@
       "title": "Indicators on a chart (list, add, remove, show, hide; build, preview and save indicator drafts)"
      },
      {
+      "id": "indicatorSetup",
+      "title": "Indicator look and placement: colours, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
+     },
+     {
+      "id": "definitions",
+      "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
+     },
+     {
       "id": "drawings",
-      "title": "Chart drawings: horizontal price levels (draw, restyle, remove, list)"
+      "title": "Chart drawings: horizontal price levels (draw, move to a price), restyle, show/hide, lock, remove one, clear all, list"
      },
      {
       "id": "lists",
-      "title": "Watchlists (show, create, rename, add, remove, clear, delete)"
+      "title": "Watchlists (show, create, rename, add, remove, clear, delete, sort / reorder, notes)"
      },
      {
       "id": "screener",
@@ -754,15 +864,18 @@
      "data",
      "agent"
     ],
-    "stable": 41
+    "stable": 42
    }
   },
   {
    "selected": [
     "charts",
+    "chartSetup",
     "workspace",
     "layouts",
     "indicators",
+    "indicatorSetup",
+    "definitions",
     "drawings",
     "lists",
     "screener",
@@ -807,6 +920,8 @@
     "watchlist.delete",
     "watchlist.create",
     "watchlist.rename",
+    "watchlist.reorder",
+    "watchlist.setNote",
     "screener.run",
     "screener.runSaved",
     "screener.state",
@@ -843,6 +958,7 @@
     "widget.selectTab",
     "widget.renameTab",
     "widget.closeTab",
+    "widget.addTab",
     "chart.addTab",
     "chart.selectTab",
     "chart.closeTab",
@@ -852,6 +968,11 @@
     "drawing.addLevel",
     "drawing.style",
     "drawing.remove",
+    "drawing.setVisible",
+    "drawing.lock",
+    "drawing.setLevel",
+    "drawing.setAllVisible",
+    "drawing.clear",
     "indicator.list",
     "indicator.openCreate",
     "indicator.add",
@@ -863,6 +984,23 @@
     "indicator.previewDraft",
     "indicator.saveDraft",
     "indicator.undoDraft",
+    "indicator.discardDraft",
+    "chartSetup.copyLook",
+    "chartSetup.removeTimeframe",
+    "chartSetup.favoriteTimeframe",
+    "chartSetup.compareDisplay",
+    "chartSetup.saveTemplate",
+    "chartSetup.deleteTemplate",
+    "indicatorStyle.set",
+    "indicatorStyle.placeIn",
+    "pane.move",
+    "pane.resize",
+    "indicatorCopy.duplicate",
+    "indicatorCopy.copyTo",
+    "definition.search",
+    "definition.describe",
+    "definition.duplicate",
+    "definition.delete",
     "agent.capabilities"
    ],
    "routing": null

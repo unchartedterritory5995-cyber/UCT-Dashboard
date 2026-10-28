@@ -21,6 +21,7 @@ from api.services import discord_chart_context as chart_context
 from api.services import discord_chart_house as house
 from api.services import discord_chart_prefs as prefs_mod
 from api.services import discord_interactions as di
+from api.services import discord_tx_news as tx_news
 from api.services.discord_chart_render import compute_stats, render_chart_png
 
 router = APIRouter()
@@ -740,6 +741,9 @@ async def _dispatch_interaction(request: Request, background: BackgroundTasks):
             return v2_response
     name = (interaction.get("data") or {}).get("name")
     if itype == 4:
+        if name == tx_news.NEWS_COMMAND:
+            q = di.parse_autocomplete(interaction).lstrip("$")
+            return _autocomplete(fetch_ticker_choices(q) if q else [])
         if name == di.BUZZ_COMMAND:
             # Backed by what the room ACTUALLY said, so an empty query is still
             # useful: it offers the most-mentioned names.
@@ -805,6 +809,29 @@ async def _dispatch_interaction(request: Request, background: BackgroundTasks):
         return {"type": 5, "data": {"flags": di.EPHEMERAL}}
     if itype == 2 and name == di.STUDY_COMMAND:
         return study_feedback_reply(interaction)
+    if itype == 2 and name == tx_news.NEWS_COMMAND:
+        # /news TICKER [window] - TradeXchange headlines from #tradexchange. EPHEMERAL and
+        # role-checked: the feed is a paid channel, so neither a public reply nor a
+        # non-VIP caller may read it out. Defer first; the channel read runs after the ack.
+        if not tx_news.member_allowed(interaction):
+            return _ephemeral(tx_news.NOT_VIP_MESSAGE)
+        wait = di.user_rate_check(di.interaction_user_id(interaction))
+        if wait:
+            return _ephemeral(di.throttle_message(wait, noun="news lookups"))
+        opts = {o["name"]: o.get("value") for o in
+                ((interaction.get("data") or {}).get("options") or [])}
+        ticker = tx_news.parse_ticker(opts.get("ticker"))
+        if not ticker:
+            return _ephemeral("Give me one ticker, e.g. `/news NVDA`.")
+        window = str(opts.get("window") or "today")
+        if window not in tx_news.WINDOWS:
+            window = "today"
+        app_id = str(interaction.get("application_id") or os.environ.get("DISCORD_CHART_APP_ID") or "")
+        token = str(interaction.get("token") or "")
+        if not app_id or not token:
+            return _ephemeral("Discord did not supply a reply token.")
+        background.add_task(tx_news.run_news_job, app_id, token, ticker, window)
+        return {"type": 5, "data": {"flags": di.EPHEMERAL}}
     if itype == 2 and name == di.BUZZ_COMMAND:
         import time as _t
         # ⛔ NOTHING IS IMPORTED HERE ANY MORE, AND THAT IS PART OF THE FIX. `buzz_image`

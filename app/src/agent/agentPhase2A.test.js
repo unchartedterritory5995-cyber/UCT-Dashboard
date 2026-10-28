@@ -3,7 +3,8 @@
 //   F5  chart.compare: the product's published ceiling, counted on the result; honest no-op text
 //   F6  chart.goToDate: a jump with no known earlier view says it can't be undone; a scrolled view makes Undo stale
 //   F7  chart.setType on a breadth / market-indicator series writes (and reports) `breadthChartType`
-//   D2  drawing.remove is always a proposal (owner decision 2, 2026-10-25)
+//   D2  drawing.remove — superseded 2026-10-27 (Charts operator P1, owner): approval is for BROAD destructive
+//       drawing operations (drawing.clear); one visible drawing is removed at once with Undo, a hidden one is shown first
 //   F15 drawing.style on a Price Move writes `labelColor`
 //   F14 "undo that indicator removal" never undoes a change of another kind
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
@@ -140,14 +141,21 @@ describe('D2 / F15 — drawings', () => {
   const dop = (action, args) => ({ action, target: SYM, args })
   beforeEach(() => { SYM = `P2A${++n}X`; _resetAlertCache() })
 
-  it('drawing.remove is ALWAYS a proposal, and its card says every chart and layout on the symbol', async () => {
+  // OWNER 2026-10-27 (Charts operator P1): approval is for BROAD destructive drawing operations (drawing.clear),
+  // not every single removal — one visible drawing goes at once (Undo); a HIDDEN one is still shown first
+  it('drawing.remove: one visible drawing is applied; a hidden one is a proposal; the receipt says every chart and layout on the symbol', async () => {
     const h = dhost()
     store.addDrawing(SYM, { type: 'horizontal', points: [{ time: 0, price: 150 }], color: '#ffffff' })
-    const id = store.peekDrawings(SYM)[0].id
-    const { p } = await plan(h, [dop('drawing.remove', { drawing: id })], ['drawing'])
+    store.addDrawing(SYM, { type: 'horizontal', points: [{ time: 0, price: 160 }], color: '#ffffff', hidden: true })
+    const [shown, hidden] = store.peekDrawings(SYM).map(d => d.id)
+    const { p } = await plan(h, [dop('drawing.remove', { drawing: shown })], ['drawing'])
     expect(p.ok).toBe(true)
-    expect(decideMode('apply', p)).toBe('propose')
+    expect(decideMode('apply', p)).toBe('apply')
     expect(p.lines[0]).toMatch(new RegExp(`every chart and layout showing ${SYM}`))
+    const { p: ph } = await plan(h, [dop('drawing.remove', { drawing: hidden })], ['drawing'])
+    expect(ph.ok).toBe(true)
+    expect(decideMode('apply', ph)).toBe('propose')
+    expect(ph.lines[0]).toMatch(/\(hidden\)/)
   })
   it('a Price Move\'s colour is its label colour (the key its own settings write)', async () => {
     const h = dhost()

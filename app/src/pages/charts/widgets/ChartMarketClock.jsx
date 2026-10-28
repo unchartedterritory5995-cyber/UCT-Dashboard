@@ -71,6 +71,14 @@ export default function ChartMarketClock() {
     : session.isExtended ? `${label} · Closes 8:00 PM ET`
     : `${label} · ${nextOpenHint()}`
 
+  // ⛔ It is FOCUSABLE on purpose (tabIndex 0 below): focus is the keyboard's way to
+  // reveal the hover popup's status line. A tab stop with no role and no name read as
+  // a bare run of digits, so it is a named `timer`. The name carries the minute, never
+  // the second, so a focused clock is not re-announced every tick.
+  const spokenTime = now.toLocaleTimeString('en-US', {
+    timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit', hour12: true,
+  })
+
   return (
     <div
       ref={rootRef}
@@ -80,6 +88,8 @@ export default function ChartMarketClock() {
       onFocus={() => setHover(true)}
       onBlur={() => setHover(false)}
       tabIndex={0}
+      role="timer"
+      aria-label={`Market clock, ${spokenTime} ET, ${detail}`}
     >
       <span className={styles.clockDot} aria-hidden="true" />
       <span className={styles.clockTime}>{time}</span>
@@ -87,7 +97,9 @@ export default function ChartMarketClock() {
       {hover && pos && createPortal(
         <div
           className={styles.clockPopup}
-          role="status"
+          // Visual only: the clock's own name already carries this line, so a live region
+          // here made a screen reader speak it twice on focus.
+          aria-hidden="true"
           style={{ position: 'fixed', top: pos.top, right: pos.right, ...popupVars() }}
         >{detail}</div>,
         document.body,

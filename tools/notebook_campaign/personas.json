@@ -64,20 +64,20 @@
   },
   "tool_unavailable": {
    "text": "Not available right now.",
-   "source": "app/src/pages/journal-2-0/lib/blocks/toolsApi.js:36",
+   "source": "app/src/pages/journal-2-0/lib/blocks/toolsApi.js:37",
    "fragment": "flagOff: 'Not available right now.'"
   },
   "tool_window": {
    "text": "Ticks can be added up to 7 trading days back.",
-   "source": "app/src/pages/journal-2-0/lib/blocks/toolsApi.js:41"
+   "source": "app/src/pages/journal-2-0/lib/blocks/toolsApi.js:42"
   },
   "tool_offline": {
    "text": "You're offline. Ticks save when you're back online.",
-   "source": "app/src/pages/journal-2-0/lib/blocks/toolsApi.js:35"
+   "source": "app/src/pages/journal-2-0/lib/blocks/toolsApi.js:36"
   },
   "tick_failed": {
    "text": "Didn't save. Retry?",
-   "source": "app/src/pages/journal-2-0/lib/blocks/toolsApi.js:40"
+   "source": "app/src/pages/journal-2-0/lib/blocks/toolsApi.js:41"
   },
   "off_day": {
    "text": "Off day",
@@ -120,7 +120,7 @@
   },
   "library_title": {
    "text": "Template library",
-   "source": "app/src/pages/journal-2-0/components/notebook/library/TemplateLibrarySection.jsx:25",
+   "source": "app/src/pages/journal-2-0/components/notebook/library/TemplateLibrarySection.jsx:26",
    "fragment": "SECTION_TITLE = 'Template library'"
   },
   "adopt_title": {

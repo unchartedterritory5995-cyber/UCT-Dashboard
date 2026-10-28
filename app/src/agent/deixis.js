@@ -109,6 +109,7 @@ export function resolveDeictic({ host, kind, candidates, text, chartOp = false }
 const POS_WORDS = /\b(top-left|top-right|bottom-left|bottom-right|top left|top right|bottom left|bottom right|left|right|top|bottom|upper|lower)\b/gi
 // "both", "all (four) charts", "every chart", "all of them" — a SET of charts (never "remove all comparisons")
 const MANY_COUNT = /\b(?:(both)\b|(?:all|every|each)(?:\s+(?:the|of the))?(?:\s+(two|three|four|five|six|seven|eight|nine|ten|\d{1,2}))?\s+(?:charts?|of them|ones)\b)/i
+const OTHER_CHARTS = /\b(?:(?:my|the|all(?: my| the)?|every) )?other charts\b/i
 const COUNT_WORDS = { two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 }
 const ORDINAL = { first: 1, second: 2, third: 3, fourth: 4, '1st': 1, '2nd': 2, '3rd': 3, '4th': 4 }
 const escapeRe = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -124,11 +125,42 @@ export function pickedChoice(text, choices = []) {
   return n >= 1 && n <= choices.length ? choices[n - 1]?.ref || null : null
 }
 
+// ── Charts operator P1: a chart named by its ORDER on the board ──
+// "the second chart", "chart 3", "the 2nd one", "the last chart", "the middle chart". Reading order is the
+// board's (top to bottom, then left to right — host.charts.list()). "middle" only when it is unambiguous:
+// an odd number (3 or 5) of charts in ONE row or ONE column. → { ref, word } | { ask } | null (no such words).
+const ORD_WORDS = { first: 1, second: 2, third: 3, fourth: 4, fifth: 5, sixth: 6, '1st': 1, '2nd': 2, '3rd': 3, '4th': 4, '5th': 5, '6th': 6 }
+// ("chart 5" is an ordinal only when no unit follows: "the chart 5 min" is a timeframe, never the fifth chart)
+export const ORD_RE = /\b(?:the\s+)?(first|second|third|fourth|fifth|sixth|1st|2nd|3rd|4th|5th|6th|last|middle|center|centre)\s+(?:chart|one)\b|\bchart\s+(?:#\s*)?([1-9])\b(?!\s*(?:(?:m|min|mins|minutes?|h|hr|hrs|hours?|d|days?|w|wk|wks|weeks?|mo|months?|x)\b|[%.:/-]))/i
+export function ordinalChart(text, charts = []) {
+  const m = ORD_RE.exec(String(text || ''))
+  if (!m) return null
+  const n = charts.length
+  const word = (m[1] || `chart ${m[2]}`).toLowerCase()
+  if (!n) return { ask: { text: 'There are no charts on this board.', choices: [] }, match: m }
+  let idx = null
+  if (m[2]) idx = Number(m[2]) - 1
+  else if (word === 'last') idx = n - 1
+  else if (['middle', 'center', 'centre'].includes(word)) {
+    const cells = charts.map(c => c.cell).filter(Boolean)
+    const oneRow = cells.length === n && new Set(cells.map(c => c.y)).size === 1
+    const oneCol = cells.length === n && new Set(cells.map(c => c.x)).size === 1
+    idx = (n === 3 || n === 5) && (oneRow || oneCol) ? (n - 1) / 2 : null
+    if (idx == null) return { ask: { text: 'Which chart is the middle one here? Pick one:', choices: charts.map(c => ({ ref: c.ref, label: c.label })) }, match: m }
+  } else idx = ORD_WORDS[word] - 1
+  if (idx < 0 || idx >= n) return { ask: { text: `There ${n === 1 ? 'is only one chart' : `are only ${n} charts`} here — which one do you mean?`, choices: charts.map(c => ({ ref: c.ref, label: c.label })) }, match: m }
+  return { ref: charts[idx].ref, word, match: m }
+}
+
 /** The charts on this board the member's words NAME: a position word that fits exactly one chart, or a
  *  symbol exactly one chart shows ("put RSI on NVDA"). Short tickers count only as typed in capitals. */
 export function chartsNamedBy(text, charts = []) {
   const s = String(text || '')
   const named = new Set()
+  // P1: "the second chart", "chart 3", "the middle chart" — only with the word CHART ("the first one" is as often a
+  // list item or a result as a chart, so it never identifies a chart for a model plan)
+  const ord = ordinalChart(s, charts)
+  if (ord?.ref && /chart/i.test(ord.match[0])) named.add(ord.ref)
   for (const m of s.matchAll(POS_WORDS)) {
     const w = m[1].toLowerCase().replace(' ', '-').replace('upper', 'top').replace('lower', 'bottom')
     const parts = w.split('-')
@@ -174,6 +206,8 @@ export function screenUnnamedTargets({ host, ops, text, context = null, pickedRe
   if (!targets.size) return null
   // "all / every / both (four) charts": the member named the set — but a COUNT they said must match
   // the charts this plan changes ("both" = two), else it is only proposed
+  // ⭐ P2: "copy these to my other charts" — with the chart the request is about, the member named every chart
+  if (OTHER_CHARTS.test(words)) return null
   const many = MANY_COUNT.exec(words)
   if (many) {
     const count = many[1] ? 2 : many[2] ? (COUNT_WORDS[many[2].toLowerCase()] || Number(many[2])) : null

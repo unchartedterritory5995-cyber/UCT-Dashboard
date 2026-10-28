@@ -33,11 +33,13 @@ import usePreferences, { parsePref } from '../../hooks/usePreferences'
 import UIcon from '../ui/UIcon'
 import { HEADER_FIELDS, HEADER_FIELD_BY_KEY, headerFieldKeys, SIGN_POS, SIGN_NEG } from './headerFields'
 import styles from './ChartSettingsModal.module.css'
+import useFocusTrap from '../mobile/useFocusTrap'
+import { inertBackground, MODAL_Z } from '../mobile/backgroundInert'
 // TERM-052: the template cap is published in Settings from this same constant.
 import { MAX_CHART_TEMPLATES } from './chartCeilings'
 // ⭐ The ONE apply every saved-template door shares (this modal, the right-click
 // flyout, UCT Agent) — see chartTemplateApply.js for the ruling behind it.
-import { chartTemplateSettings } from './chartTemplateApply'
+import { chartTemplateSettings, chartTemplatesAfterSave, chartTemplatesAfterDelete } from './chartTemplateApply'
 import { keepIndicatorState } from './indicatorPreservation'
 import { recordIndicatorChange } from './indicatorHistoryStore'
 
@@ -337,8 +339,12 @@ export default function ChartSettingsModal({
   onCreateIndicator = null,
   // ⭐ PHASE 4 — the definition's own doors (modify / edit formula / custom copy).
   definitionDoors = null,
+  // Optional `{ current: Element }` -- the control that opened this modal (the
+  // gear). Focus returns there on close; without it, to whatever held focus at open.
+  returnFocusRef = null,
 }) {
   const panelRef = useRef(null)
+  const dialogRef = useRef(null)      // the `role="dialog"` layer (the backdrop) -- focus target + trap container
   const watermarkRef = useRef(null)   // Watermark section (Canvas) — scrolled in for scrollTo='watermark'
   const axisRef = useRef(null)        // Axis Labels section (Canvas) — for scrollTo='axis'
   const volumeRef = useRef(null)      // Volume group (Indicators) — for scrollTo='volume'
@@ -448,14 +454,12 @@ export default function ChartSettingsModal({
 
   const persistTemplates = (arr) => setPref(CHART_TEMPLATES_KEY, JSON.stringify(arr.slice(0, MAX_CHART_TEMPLATES)))
   const commitSaveTemplate = () => {
-    const name = tplName.trim().slice(0, 40)
-    if (!name) { setSavingTpl(false); setTplName(''); return }
-    // Snapshot the CURRENT settings as the template body. Overwrite a same-named
-    // template (case-insensitive) so re-saving updates in place instead of piling up.
-    const snapshot = JSON.parse(JSON.stringify({ ...settings, preset: 'custom' }))
-    const id = `tpl${Math.random().toString(36).slice(2, 9)}`
-    const without = templates.filter(t => (t.name || '').toLowerCase() !== name.toLowerCase())
-    persistTemplates([{ id, name, settings: snapshot }, ...without])
+    // Snapshot the CURRENT settings as the template body. A same-named template (case-insensitive)
+    // is overwritten so re-saving updates in place — the ONE shared save (chartTemplateApply.js),
+    // which UCT Agent's template save also uses.
+    const saved = chartTemplatesAfterSave(templates, tplName, settings)
+    if (!saved) { setSavingTpl(false); setTplName(''); return }
+    persistTemplates(saved.templates)
     setSavingTpl(false); setTplName(''); setTplMenuOpen(false)
   }
   const applyTemplate = (t) => {
@@ -469,7 +473,7 @@ export default function ChartSettingsModal({
     onChange?.(next)
     setTplMenuOpen(false)
   }
-  const deleteTemplate = (id) => persistTemplates(templates.filter(t => t.id !== id))
+  const deleteTemplate = (id) => persistTemplates(chartTemplatesAfterDelete(templates, id))
 
   useEffect(() => { if (!open) { setPos(null); setConfirmReset(false); setTplMenuOpen(false); setSavingTpl(false); setTplName(''); setThemesOpen(false) } }, [open]) // re-center + reset transient UI on each open
 
@@ -541,6 +545,57 @@ export default function ChartSettingsModal({
   }, [open, onClose, activeTarget])
 
   useEffect(() => { if (!open) setActiveTarget(null) }, [open])
+
+  // ⛔⛔ A MODAL THAT DOES NOT TAKE FOCUS IS NOT A MODAL. This portal said
+  // `aria-modal="true"` and did none of what that promises: opening it left focus
+  // on <main> behind it, Tab walked out into the page it covers, the page stayed
+  // in the accessibility tree, and Escape dropped focus on <body> (WebKit +
+  // axe, iPhone/iPad, 2026-10-27). The four parts below use the repo's own
+  // primitives, the ones `Sheet` runs -- never a second copy of them.
+  //
+  // 1. The opener, captured at RENDER, before this commit moves focus anywhere.
+  //    The host's own record of the opener wins: WebKit does not focus a button
+  //    on click, so there `activeElement` is still whatever sat behind the gear.
+  const openerAtOpen = useMemo(
+    () => (open && typeof document !== 'undefined'
+      ? (returnFocusRef?.current?.isConnected ? returnFocusRef.current : document.activeElement)
+      : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [open],
+  )
+  // 2. The page behind is `inert` (backgroundInert.js). ⛔ DECLARED BEFORE the
+  //    focus effect: cleanups run in declaration order, and an inert opener
+  //    cannot take focus back. Layers this modal opens later (colour panel,
+  //    field picker, theme gallery) mount after the snapshot and stay live.
+  useEffect(() => {
+    if (!open) return undefined
+    const el = dialogRef.current
+    if (!el) return undefined
+    const z = parseInt(typeof getComputedStyle === 'function' ? getComputedStyle(el).zIndex : '', 10)
+    return inertBackground(el, Number.isFinite(z) ? z : MODAL_Z)
+  }, [open])
+  // 3. Focus goes IN on open (unless a child already took it) and BACK to the
+  //    opener on close -- Escape, ✕, a backdrop click, all one path.
+  useEffect(() => {
+    if (!open) return undefined
+    const el = dialogRef.current
+    if (el && !el.contains(document.activeElement)) el.focus({ preventScroll: true })
+    return () => {
+      const back = openerAtOpen
+      if (back && back !== document.body && back.isConnected && typeof back.focus === 'function') {
+        back.focus({ preventScroll: true })
+      }
+    }
+  }, [open, openerAtOpen])
+  // 4. Tab wraps inside (useFocusTrap -- the ONE trap). It stands down while a
+  //    layer this modal opened is up: those are portaled OUTSIDE the dialog, and
+  //    a trap that pulled focus back would make them unreachable by keyboard.
+  const trapWhileNoPopout = useCallback(() => (
+    typeof document === 'undefined'
+    || !document.querySelector('[data-color-panel],[data-uct-theme-gallery],[data-chart-settings-popout]')
+  ), [])
+  useFocusTrap(!!open, dialogRef, trapWhileNoPopout)
+
   // Location-aware right-click targets → which settings tab to open on. 'candles',
   // 'canvas', 'ma' are tab-tops (no scroll — fresh DOM opens at scrollTop 0);
   // 'watermark'/'axis' are deeper Canvas sections that get scrolled in below. Both
@@ -886,7 +941,7 @@ export default function ChartSettingsModal({
           Indicators tab, so the feed must not be gated on which tab is active. */}
       <UserFormulaFeed onLoaded={onUserDefsLoaded} />
       {createPortal(
-        <div className={styles.backdrop} onMouseDown={onClose} role="dialog" aria-modal="true" aria-label="Chart settings">
+        <div ref={dialogRef} tabIndex={-1} className={styles.backdrop} onMouseDown={onClose} role="dialog" aria-modal="true" aria-label="Chart settings">
       <div
         /* ⚰️⚰️⚰️ THREE TIMES, AND THE THIRD IS THE LAST. Chart Data widened
            this modal to 880 for a two-column pane map and was reverted; the
@@ -1729,6 +1784,7 @@ export default function ChartSettingsModal({
       {fieldMenuOpen && fieldMenuPos && createPortal(
         <div
           ref={fieldMenuRef}
+          data-chart-settings-popout
           className={styles.fieldMenu}
           style={{ position: 'fixed', left: fieldMenuPos.left, top: fieldMenuPos.top, right: 'auto', zIndex: 9200 }}
           onMouseDown={(e) => e.stopPropagation()}

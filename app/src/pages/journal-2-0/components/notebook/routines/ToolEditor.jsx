@@ -6,6 +6,7 @@ import {
 import { ArchivePanel, DeletePanel, DeletedPanel, ManageSection, UsedInPanel } from './ToolManage'
 import { COPY, fieldOf, restoredSentence } from './toolEditorLib'
 import styles from './routines.module.css'
+import { holdSheetKeys } from '../sheetKeys'
 
 /**
  * The frame both editors share (Task 9.16): ONE Sheet, the form, Save, and the item's own management (Used in,
@@ -144,8 +145,10 @@ export default function ToolEditor({
       e.stopPropagation()
       back()
     }
-    window.addEventListener('keydown', onKey, true)
-    return () => window.removeEventListener('keydown', onKey, true)
+    // Through the shared key registry (declared there, `notebook.toolEditorEscape`), so the key-listener census sees
+    // it: window, capture, every Escape, in a field too. The handler and its topmost-panel test are unchanged; held
+    // through sheetKeys.js, which keeps one registration while a closing editor and the next one overlap.
+    return holdSheetKeys('toolEditor', onKey)
   }, [back])
 
   // ── closing ────────────────────────────────────────────────────────────────────────────────────

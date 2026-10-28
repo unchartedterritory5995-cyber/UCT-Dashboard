@@ -1170,6 +1170,35 @@
   }
 }
 
+/* ── The TickerPopup's chart on the touch tier ──
+   The same A/L/% chips measured ~22px inside the popup (axe `target-size`, 820 and 390).
+   `TickerPopup.jsx` marks its chart area `data-ticker-popup-chart`; scoped like the embed rule
+   above so workspace grid cells and the phone shell keep their sizing.
+   Rail: `components/TickerPopup.tapFloor.test.js`.
+
+   ⛔ A 44px chip no longer fits the 28px date axis it is docked on (inline `bottom: 3px`):
+   at 390 and 820 the A/L/% row covered the right end of the date labels and the volume
+   pane's axis. So the popup RESERVES the room instead of moving the chips onto the candles:
+   `--time-axis-min-height` is read by StockChart (`timeAxisMinHeightFromCss`) into the time
+   scale's `minimumHeight`. The date labels draw at the TOP of the axis band, the chips sit
+   in the blank strip under them. 80px = the 28px natural axis + 48px chip row (tap-min +
+   1px padding + 1px border, each side) + the 3px dock + 1px gap.
+   Rail: `components/TickerPopup.chipsClearAxis.test.js`.
+
+   ⛔ `(pointer: coarse)` too: the TickerPopup is what a touch iPad shows in LANDSCAPE
+   (1194px, past the width tier), where these chips measured 22px. A FINGER is the reason
+   for the floor, so the floor and the reserve it pays for follow the pointer as well as
+   the width; a mouse desktop (pointer: fine, > 1024) is untouched. */
+@media (max-width: 1024px), (pointer: coarse) {
+  :global([data-ticker-popup-chart]) .scaleToggleBtn {
+    min-width: var(--tap-min);
+    min-height: var(--tap-min);
+  }
+  :global([data-ticker-popup-chart]) .wrapper {
+    --time-axis-min-height: 80px;
+  }
+}
+
 @media (max-width: 900px) and (orientation: landscape) {
   .container {
     min-height: 200px;

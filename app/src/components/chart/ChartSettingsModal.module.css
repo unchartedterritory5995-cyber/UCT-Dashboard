@@ -13,6 +13,10 @@
   background: transparent;
   padding: 20px;
 }
+/* The dialog layer takes focus on open (so focus is IN the modal, not on the page
+   behind it). It is the full-screen transparent catcher, not a control: no ring. */
+.backdrop:focus,
+.backdrop:focus-visible { outline: none; }
 
 .panel {
   /* ⚰️⚰️ THE SHELL BELONGED TO THE TAB, AND IT SHOULD NEVER HAVE. This was
@@ -1234,10 +1238,31 @@
   transition: background 110ms, color 110ms;
 }
 .insRow:hover { background: var(--menu-hover, rgba(255, 255, 255, 0.055)); }
-.insRow:focus-visible {
+/* ⚠️ THE ROW IS NOT FOCUSABLE ANY MORE — its name is a real button (see
+   `renderStructureRow`), so the ring is drawn round the ROW while that button
+   has keyboard focus, exactly where it used to be. */
+.insRow:has(.insRowPrimary:focus-visible) {
   outline: none;
   box-shadow: 0 0 0 1px var(--menu-accent, #dcbb5e);
 }
+/* The name button: rail · name · Off, laid out as the row laid them out, and
+   reset to the plain text it replaced. It takes the row's flexible space. */
+.insRowPrimary {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: inherit;
+}
+.insRowPrimary:focus-visible { outline: none; }
 
 /* ⭐⭐ THE SELECTED STATE — A TONAL STEP AND A GOLD EDGE, AND NOTHING ELSE.
    ⛔ NOT A GLOWING CARD. The owner's brief names it directly; a selected row in a
@@ -1352,6 +1377,9 @@
    is joined by `Dollar Volume` nothing shifts. */
 .insRowGripSlot {
   flex: none;
+  /* ⚠️ DRAWN FIRST, WRITTEN SECOND: the slot follows the name button in the DOM
+     so Tab reaches the row before its grip; `order` puts it back on the left. */
+  order: -1;
   /* 13px, which is the middle of the 12–14px the brief asks for — big enough to
      aim at with a pointer, small enough that the column it opens does not read as
      a second control column. */
@@ -2401,8 +2429,11 @@
 .insAdd .resShort {
   border-color: transparent;
   background: transparent;
+  /* ⛔ NO `opacity` ON TOP OF THE FAINT TIER. It stood here at 0.75 and
+     composited #93939a down to #727278 on --menu-bg: 4.03:1 at 9.5px, under WCAG
+     AA (axe `color-contrast`, WebKit, 2026-10-27). The faint TOKEN is already
+     the quiet tier (6.3:1); dimming it again is a second, unaudited tier. */
   color: var(--menu-text-faint, #93939a);
-  opacity: 0.75;
   padding-inline: 0;
 }
 /* ⭐ AND THE ADD AFFORDANCE STAYS PUT BUT STEPS BACK. It is not hidden until
@@ -3048,7 +3079,22 @@
 }
 .resRow + .resRow { border-top: 1px solid var(--menu-divider, #202022); }
 .resRow:hover { background: var(--menu-hover, rgba(255, 255, 255, 0.04)); }
-.resRow:focus-visible { outline: 1px solid var(--menu-accent, #dcbb5e); outline-offset: -1px; }
+/* ⚠️ THE ROW IS NOT FOCUSABLE ANY MORE — its title line is a real button (see
+   `renderResult`), so the ring is drawn round the ROW while that button has
+   keyboard focus, exactly where it used to be. */
+.resRow:has(.resPrimary:focus-visible) { outline: 1px solid var(--menu-accent, #dcbb5e); outline-offset: -1px; }
+/* The title-line button, reset to the span it replaced. */
+.resPrimary {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: inherit;
+}
+.resPrimary:focus-visible { outline: none; }
 .resRowOn { cursor: default; }
 .resRowOn:hover { background: transparent; }
 /* ⚰️ IT WAS A COLUMN — a title row stacked over a description. The description

@@ -1,5 +1,11 @@
 # Agent ⇄ Indicators (and Charts) — Phase 2 shared interface contract
 
+> **Status 2026-10-27 (Charts operator P1, `feat/agent-charts-operator-p1`):**
+> - §4 — the two Undo histories stay SEPARATE (owner). The A1 integration tests (a)–(c) are now Agent suites: `app/src/agent/agentA1UndoCompat.test.jsx`.
+> - §5 — done: `chart.resetDefaults` uses A1's `keepIndicatorState` (also `header.infoValues`); `keepOwned` is a thin alias of it.
+> - §6 C-3 — done: `components/chart/drawingTools.js` exports `POINT_COUNT` (parity-tested against the overlay), `validateDrawing`, `drawingTimeFor`.
+> - §3 (I-1…I-13) — shipped by Indicators (PR #477, `853826da41`; AGENT-CONTRACT-P2-2026-10-27). **2026-10-28:** the Agent wrappers are built on `feat/agent-indicators-p2` (CHARTS-OPERATOR-PLAN Phase 2).
+
 **Status:** PROPOSAL for the Indicators session to review and ACK, 2026-10-25. Written by the Agent session (P2-G).
 **Basis:** origin/master `f0b4599b6f`; Indicators A1 = draft PR #325 (`feat/indicators-a1` `2928cfc55e`), read only, never checked out.
 **Companion:** `docs/agent/PHASE2-CHART-CONTROL-AUDIT.md` (capability matrix, defects F1–F16, batches).

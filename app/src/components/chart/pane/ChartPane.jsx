@@ -16,7 +16,7 @@ import ChartSettingsModal from '../ChartSettingsModal'
 import AttachedPineDisclosures from './AttachedPineDisclosures'
 import UIcon from '../../ui/UIcon'
 import { VOLUME_PANE_SURFACE_FIXED } from '../indicatorRegistry'
-import { tfLabel, tfSortKey } from '../timeframes'
+import { tfLabel, tfSortKey, tfSpokenLabel } from '../timeframes'
 import { TF_ORDER, shortcutClaimsKey } from '../keyboardShortcuts'
 import useMarketOpen from '../../../hooks/useMarketOpen'
 import { getExtSessionCached } from '../../../utils/extSession'
@@ -219,6 +219,9 @@ function ChartPane({
   // dash for them (like Next Earnings), only real stocks get a value.
   const isFundLike = isEtf(sym) || themeIdx.isIndex || isBreadthLike || isEcon || String(sym || '').startsWith('^')
   const breadthTf = DWM.includes(tf) ? tf : 'D'
+  // The timeframe the CHART actually draws -- one value for StockChart, the drawing/period
+  // tools and the region's accessible name, so the name can never drift from the chart.
+  const effectiveTf = (isBreadthLike || isEcon) ? breadthTf : (themeIdx.isIndex ? indexTf : tf)
   const synthDailyOnly = themeIdx.isIndex || isBreadthLike || isEcon   // no live feed, D/W/M only
   // A theme index has no live-price feed (it's a synthetic pseudo-ticker), so
   // its header $/% change is the last bar's close vs the prior bar's close.
@@ -601,7 +604,13 @@ function ChartPane({
   // Optional section to reveal on open (e.g. 'watermark' from the right-click
   // "Adjust watermark"). Callers like onClick pass an event — ignore non-strings.
   const [settingsTarget, setSettingsTarget] = useState(null)
+  // The control that opened the modal, so closing it puts focus BACK there. A
+  // click hands us its event; WebKit does not focus a button on click, so the
+  // modal cannot learn the gear from `document.activeElement` alone.
+  const settingsOpenerRef = useRef(null)
   const openSettings = useCallback((target = null) => {
+    const opener = target && typeof target === 'object' && target.currentTarget
+    settingsOpenerRef.current = opener && typeof opener.focus === 'function' ? opener : null
     setSettingsTarget(typeof target === 'string' ? target : null)
     setSettingsOpen(true)
   }, [])
@@ -994,6 +1003,13 @@ function ChartPane({
         ref={focusableRef}
         className={styles.chartFill}
         tabIndex={0}
+        // A tab stop on purpose: focus here is what arms type-to-search, Shift+F and the
+        // chart's own key handling. Unnamed, VoiceOver read it as a run-on of every
+        // control inside it, so it is a named region (its controls stay reachable).
+        // The timeframe is in the name: a /charts layout holds several panes of ONE
+        // symbol, and same-named regions are indistinguishable landmarks (landmark-unique).
+        role="region"
+        aria-label={[sym, tfSpokenLabel(effectiveTf), 'price chart'].filter(Boolean).join(' ')}
         onClick={handleChartClick}
         onKeyDown={handleChartKeyDown}
       >
@@ -1001,7 +1017,7 @@ function ChartPane({
           sym={sym}
           studioDockHost={studioDockHost}
           onStudioDockChange={setStudioOpen}
-          tf={(isBreadthLike || isEcon) ? breadthTf : (themeIdx.isIndex ? indexTf : tf)}
+          tf={effectiveTf}
           /* The old drawing-toolbar compare entry is retired — comparisons are
              managed by the /charts Tools → Compare Symbols panel now (rendering via
              cs.comparisonSymbols is unchanged). */
@@ -1148,8 +1164,9 @@ function ChartPane({
       <AttachedPineDisclosures settings={chartCs} barsLoaded={drawnBars} />
       <ChartSettingsModal
         open={settingsOpen}
-        chartTf={(isBreadthLike || isEcon) ? breadthTf : (themeIdx.isIndex ? indexTf : tf)}
+        chartTf={effectiveTf}
         onClose={() => setSettingsOpen(false)}
+        returnFocusRef={settingsOpenerRef}
         scrollTo={settingsOpen ? settingsTarget : null}
         settings={isBreadthLike ? { ...chartCs, chartType: breadthChartType } : chartCs}
         /* ⭐ THE SAME VOLUME TRUTH THE CHART GETS. This pane passes

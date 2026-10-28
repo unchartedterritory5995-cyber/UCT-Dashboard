@@ -1,5 +1,7 @@
 # UCT Agent — Master Roadmap
 
+> ⭐ **2026-10-27: the remaining Charts work is planned in [`CHARTS-OPERATOR-PLAN.md`](CHARTS-OPERATOR-PLAN.md)** (four finite phases and the definition of done). Phase 1 (Agent-only completion) is built on `feat/agent-charts-operator-p1`, not released. The rows below are updated for it where marked **P1**.
+
 > **Owner:** UCT Agent project.
 > **Status:** approved direction, 2026-10-08. Adopted from the Charts Capability & Architecture Audit with the Batch 4 release.
 >
@@ -44,14 +46,14 @@ UCT Agent is one product initiative. It is not one engine, and not one team.
 |---|---|---|
 | Chart symbol / timeframe / type / scale / session | `chart.setSymbol/.setTimeframe/.setType/.setScale/.setSession`. Session follows the UI's pre/post window rules. | available |
 | Chart appearance | `chart.applyTheme` (one chart) and `chart.applyThemeAll` (every chart), `.setBackground`, `.setCandleColors`, `volume.setState`, and `chart.setSetting`: **54** display settings (post-integration, local: + crosshair thickness/style/magnet, swing-label and earnings colours) from the product descriptor table (Batch 6 added grid/crosshair/text colours, watermark size/weight/lines, previous-day level style/width/colour, swing-label tint/background), colour names accepted | partial (indicator and drawing settings are owned elsewhere) |
-| Chart templates / defaults | **`chart.applyTemplate`** (one of your saved templates, exactly as clicking it does — its look and its indicators, confirmed first; the one shared `chartTemplateSettings` apply, ruling 2026-10-11), **`chart.resetDefaults`** (the default look, confirmed first, every indicator-owned key carried over unchanged via `keepOwned`). Both exact Undo. | partial (saving a new template is not supported) |
+| Chart templates / defaults | **`chart.applyTemplate`** (one of your saved templates, exactly as clicking it does — its look and its indicators, confirmed first; the one shared `chartTemplateSettings` apply, ruling 2026-10-11), **`chart.resetDefaults`** (the default look, confirmed first, every indicator-owned key and `header.infoValues` carried over through A1's `keepIndicatorState` — **P1**). **P1:** `chartSetup.saveTemplate` / `deleteTemplate`, `chartSetup.copyLook`. All exact Undo. | available (P1, unreleased) |
 | Go to a date / compare | **`chart.goToDate`** (a view change: the receipt waits for the chart's right edge to read back; Undo scrolls back), **`chart.compare`** (add / remove / clear overlay symbols, the Compare panel's own entries) | partial (a date RANGE and replay are not supported) |
 | Custom timeframes | **`chart.addCustomTimeframe`** (minutes / hours / days / weeks / months; optionally switches to it) | partial (removing one is not supported) |
 | Chart tabs | **`chart.addTab` / `.selectTab` / `.closeTab` / `.renameTab` / `.linkTab`** — the tab strip's own reducers, one board write, exact Undo | available (the main tab cannot be closed) |
 | Widgets | `widget.add`, `widget.addCharts` (into empty space); **`widget.showList`** (a Watchlist widget shows one of your lists), **`widget.showScan`** (a Scanner widget shows one of UCT's scans) | partial (other widgets' settings are not supported) |
 | Arranging widgets | `widget.remove` (exact Undo), `widget.move` (a drop: the others re-tile), `widget.arrange` (fill / grid / columns / rows), **`widget.resize`** (one edge, the resize handles' own resolver; a neighbour never goes below its minimum and no gap is left), `widget.setLink` (A–D, N; E–H while `CHARTS_EXTRA_GROUPS_ENABLED` is on — overnight, unreleased) | partial (float, pop-out and merge are not supported — see Batch 6 evaluation) |
 | Layouts | `layout.*` (9): list, open, save as, **save into the open layout**, rename, create blank, duplicate, delete | available |
-| Watchlists | `watchlist.*` (8) | partial. Reorder, sort and notes are not supported. |
+| Watchlists | `watchlist.*` (11; **P1:** `reorder` A–Z / to the top, `setNote`) | partial. Flagging and sorting by data are not supported. |
 | Screener | `screener.run` / `.state`: numeric and yes/no fields, one sort, refine | partial |
 | Saved screens | list, run, save as, copy (keeps rank and logic), rename, delete | partial. Overwrite is not supported. |
 | Alerts | `alert.list/.create/.delete`, price alerts only | partial. Product gap: no background price-alert monitor. |
@@ -59,7 +61,7 @@ UCT Agent is one product initiative. It is not one engine, and not one team.
 | App settings / pages | `settings.*`, `app.open` | available |
 | Capability questions | `agent.capabilities`: deterministic, backed by the registry | available |
 | Indicators / custom indicators | `indicator.list`, `indicator.openCreate` (M1, local) | list a chart's indicators; open Create Indicator with the request prefilled (access-gated). Add/remove/show/hide = M2, authoring hand-off = M3 (`M2-M3-PROPOSALS.md`) |
-| Drawings | **`drawing.addLevel`** (horizontal line at a price), **`drawing.style`**, **`drawing.remove`** (not with an alert attached), **`drawing.list`** — the product's drawing store, Undo by id (overnight, unreleased) | partial (trendlines, rectangles, Fibonacci, text: Batch 8b, PRODUCT-HANDOFFS §11) |
+| Drawings | **`drawing.addLevel`** (horizontal line at a price), **`drawing.style`**, **`drawing.remove`** (not with an alert attached), **`drawing.list`** — the product's drawing store, Undo by id. **P1:** `setVisible`, `lock`, `setLevel`, `setAllVisible`, `clear` (always proposed); the drawing layer exports `POINT_COUNT` / `validateDrawing` / `drawingTimeFor` | partial (anchored tools: CHARTS-OPERATOR-PLAN Phase 3) |
 | Visual chart reading | — | planned (Stage 2) |
 | Historical questions | — | planned (Stage 3) |
 | Backtesting | — | planned (Stage 4) |
@@ -191,3 +193,5 @@ One conversation that coordinates workspace actions, historical queries, visual 
 | Overnight integration release (E–H, drawings narrow, refusal wording, audit fixes) | `9c5837c64a` / Railway `d3cd9982` (2026-10-09 09:39 EDT) | audit added Drawing Board-aware staleness and server-confirmed drawing receipts; prod smoke 8/8 HTTP 200 (planning only) |
 | Batch 6b (protected layouts, detached-widget guards, widget tabs, 8 settings, layouts group) | `7023808c29`; promotion held by an unrelated notebook-bytes breach until `7f4afed178` / Railway `f444255c` (2026-10-09 11:36 EDT) | Agent chunk markers verified in production |
 | Indicators M1 (`indicator.list`, `indicator.openCreate`, `indicators` group) | `feat/uct-agent-m1` — local, NOT released | 19 acceptance cases + 9 more executable (scripted); see the M1 release report |
+| Charts operator P1 (Agent-only completion — CHARTS-OPERATOR-PLAN.md) | PR #479, merge `b5712f409d`, promoted 2026-10-28 | 106 registered actions (+15); unit, panel and A1 Undo-compatibility suites; dev corpus +14; no real-model run (not authorized) |
+| Indicators P2 integration (styling, panes, copy, definitions — AGENT-CONTRACT-P2) | `feat/agent-indicators-p2` — PR, NOT merged | 116 registered actions (+10); `agentIndicatorsP2.test.jsx` incl. three-chart end-to-end; dev corpus +7; no real-model run |

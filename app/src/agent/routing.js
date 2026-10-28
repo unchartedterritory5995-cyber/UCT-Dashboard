@@ -27,7 +27,16 @@ export const GROUPS = [
     vocab: [/\b(next to (this|it)|on top of (this|it)|swap \$?[a-z]{1,5} (for|with)|instead of \$?[a-z]{1,5})\b/],
     words: [/\bcharts?\b/, /\b(timeframe|daily|weekly|monthly|hourly|intraday|\d+ ?(min|minute|hour|hr)s?|1h|4h)\b/, /\b(candles?|candlesticks?|hollow|bars|hlc|line chart|area chart|heikin)\b/,
       /\b(log|logarithmic|percent|linear) scale\b|\bscale\b/, /\b(extended|pre-?market|post-?market|regular hours|rth)\b/, /\b(theme|colou?rs?|background|grid|crosshair|legend|watermark|labels?|markers?|countdown|swing|thin bars|invert|template|defaults?|tabs?|compar(?:e|es|ing|isons?)|versus|against|overlays?|go to|scroll|as it looked|custom (time ?frame|interval))\b/,
-      /\bvolume\b/] },
+      /\bvolume\b/,
+      // P1: a symbol / setting put on a chart NAMED by position or order ("TSLA on the left", "on the second one")
+      /\bon the (left|right|top|bottom|first|second|third|fourth|last|middle)\b/] },
+  // Charts operator P1 (2026-10-27): the rest of a chart's own controls, in their OWN group so the NL-1 core
+  // (charts + indicators + screener + agent ≤ 45) keeps its size — templates (save / delete), one chart's
+  // look copied onto another, custom-timeframe removal and ★ favourites, comparison display.
+  { id: 'chartSetup', title: 'Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only', domains: ['chartSetup'], fillLast: true,
+    words: [/\btemplates?\b/, /\blooks? (just )?like\b/, /\bsame (look|style|colou?rs|settings|setup) as\b/, /\bcopy (the |its |this |that )?(look|style|colou?rs|settings|setup)\b/,
+      /\b(custom|favou?rite|starred?|star) (time ?frames?|intervals?)\b|\b(remove|delete|drop|un-?star|star)\b.*\b(time ?frames?|intervals?)\b/,
+      /\b(same|new|own) (%|percent|price) scale\b|\bgroup only\b|\bhide (the )?base\b/] },
   { id: 'workspace', title: 'Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)', domains: ['widget'],
     words: [/\bwidgets?\b/, /\bworkspaces?\b/, /\bboard\b/, /\b(another|new|one more|second|extra) chart\b/, /\b(add|open|close|remove|delete)\b.*\bcharts?\b/, /\b(move|resize|arrange|rearrange|swap|wider|narrower|taller|shorter|bigger|smaller|fill|side by side|grid of|left|right|top|bottom)\b/,
       /\b(link|unlink|colou?r group)\b/, /\btabs?\b/] },
@@ -44,15 +53,23 @@ export const GROUPS = [
       // Gate C: moving averages by name or by LENGTH ("add a 200 day moving average", "add the 9 and 20",
       // "put the 50 on it", "make it a 9" after an add) and the short names traders type ("bollies", "bb")
       /\bmoving averages?\b|\b(mas?|bbands?|bb|bollies|boll)\b|\b\d{1,3}[- ]?(?:day|week|period)\b/,
-      /\b(add|put|throw|slap|stick|plot|show|hide|remove|take off|clear|get rid of|make)\b.*\bthe \d{1,3}(?:\s*(?:,|and|&)\s*(?:the )?\d{1,3})*\b/,
+      /\b(add|put|throw|slap|stick|plot|show|hide|remove|take off|clear|get rid of|make|swap|replace)\b.*\bthe \d{1,3}(?:\s*(?:,|and|&)\s*(?:the )?\d{1,3})*\b/,
       /\b(build|make|create|write|code)\b.*\b(indicator|study|signal|formula)\b/, /\b(when|whenever|if)\b.*\b(cross(es)?|above|below)\b/,
       // a colour RULE ("colour the candles by trend"), not a colour ("colour the candles green")
       /\b(colou?r|paint|highlight|shade)\w*\b.*\bby (trend|momentum|strength|signal|condition)\b/,
       // INDICATORS M3: the authoring draft ("show me the preview", "save the draft")
       /\b(preview|draft)\b/] },
-  { id: 'drawings', title: 'Chart drawings: horizontal price levels (draw, restyle, remove, list)', domains: ['drawing'],
+  // ⭐ INDICATORS P2 (AGENT-CONTRACT-P2, 2026-10-27): how an indicator looks and where it draws, pane order and
+  // size, duplicating and copying across charts — their own group, so the NL-1 core keeps its size.
+  { id: 'indicatorSetup', title: 'Indicator look and placement: colours, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts', domains: ['indicatorStyle', 'indicatorCopy', 'pane'], fillLast: true,
+    words: [/\b(thick|thicker|thin|thinner|width|dashed|dotted|solid|histogram|columns|plot style|line style)\b/, /\bpanes?\b/, /\b(above|below) (the )?(price|volume)\b/,
+      /\b(own|separate|new) pane\b|\b(overlay|put|move)\b.*\b(on|onto) (the )?(price|volume)\b/, /\b(duplicate|copy|copies|clone)\b.*\b(indicators?|studies|rsi|macd|ema|sma)\b/, /\b(same|these|my) indicators\b/,
+      /\b(make|turn|colou?r|paint)\b.*\bthe \d{1,3}\b.*\b(red|green|blue|white|black|orange|yellow|purple|pink|teal|gr[ae]y)\b/] },
+  { id: 'definitions', title: 'Indicator definitions: search UCT\'s and your own indicators, describe one, save a copy, delete one of yours', domains: ['definition'], fillLast: true,
+    words: [/\b(my|saved|custom|own) indicators?\b/, /\bindicators? (for|that|which|to)\b/, /\b(find|search|look for|what) .*\bindicators?\b/, /\b(describe|explain|what does)\b.*\b(indicator|rsi|macd|atr|study)\b/, /\b(delete|remove|copy|duplicate)\b.*\b(my|saved|custom)\b(?:\s+[a-z0-9-]+){0,3}\s+(indicator|formula|study)\b/] },
+  { id: 'drawings', title: 'Chart drawings: horizontal price levels (draw, move to a price), restyle, show/hide, lock, remove one, clear all, list', domains: ['drawing'],
     words: [/\bdraw\w*\b/, /\b(a |the )?line at \$?\d/, /\b(horizontal (line|level)s?|levels?|price lines?|rays?|trend ?lines?|fib\w*|rectangles?|annotat\w+|support|resistance)\b/] },
-  { id: 'lists', title: 'Watchlists (show, create, rename, add, remove, clear, delete)', domains: ['watchlist'],
+  { id: 'lists', title: 'Watchlists (show, create, rename, add, remove, clear, delete, sort / reorder, notes)', domains: ['watchlist'],
     words: [/\bwatch ?lists?\b/, /\blists?\b/, /\b(add|put|remove|drop)\b.+\b(to|into|from|off)\b/] },
   { id: 'screener', title: 'Screener (run screens, saved screens: run, save, copy, rename, delete)', domains: ['screener'],
     words: [/\bscreen\w*\b/, /\bscans?\b/, /\bfind (me )?(stocks|names|tickers)\b/, /\bfilter\w*\b/, /\b(stocks|names) (with|above|below|over|under)\b/, /\b(top|first) \d+\b/, /\bresults?\b/, /\b(adr|rs rating|rvol|market cap|dollar volume|52[- ]week)\b/,
@@ -103,7 +120,20 @@ const tickerWords = (raw) => (String(raw).match(/(?:^|[\s$])([A-Z]{1,5})(?=[\s,.
   .map(w => w.trim().replace('$', '')).filter(w => !NOT_TICKERS.has(w))
 
 const BY_DOMAIN = new Map(GROUPS.flatMap(g => g.domains.map(d => [d, g.id])))
-export const groupOfAction = (name) => BY_DOMAIN.get(String(name || '').split('.')[0]) || null
+// ⭐ Memoised per action name: BY_DOMAIN is a module constant, so a name's group never changes. Selection
+// asks this per action per group per reroute (the eval's reroute table is ~100 selections per request), and
+// the split allocated on every call (2026-10-28: 85% of agentNl1SelectionCoverage's time after PR #481).
+// Bounded: names come from the registry and from model output, so the memo stops growing past GROUP_MEMO_MAX.
+const GROUP_MEMO = new Map()
+const GROUP_MEMO_MAX = 4096
+export const groupOfAction = (name) => {
+  const key = String(name || '')
+  const hit = GROUP_MEMO.get(key)
+  if (hit !== undefined) return hit
+  const id = BY_DOMAIN.get(key.split('.')[0]) || null
+  if (GROUP_MEMO.size < GROUP_MEMO_MAX) GROUP_MEMO.set(key, id)
+  return id
+}
 
 export function routingEnabled() {
   try { return globalThis.localStorage?.getItem('uct.agent.routing') !== '0' } catch { return true }
@@ -192,7 +222,10 @@ export function routeManifest(manifest, message, opts = {}, extra = []) {
   if (!matched && !extra.length && manifest.length <= limit) return { manifest, routing: null }
   // A reroute's requested groups come straight after the always-on ones.
   const always = GROUPS.filter(g => g.always).map(g => g.id)
-  const sizeOf = (id) => manifest.filter(c => groupOfAction(c.name) === id).length
+  // one pass: each group's action count (null = ungrouped) — the packing and both sorts read it many times
+  const counts = new Map()
+  for (const c of manifest) { const g = groupOfAction(c.name); counts.set(g, (counts.get(g) || 0) + 1) }
+  const sizeOf = (id) => counts.get(id) || 0
   // The message's OWN groups are packed smallest-first (after the always-on, reroute and follow-up
   // groups, which keep their place): more of the distinct things a multi-part request names fit,
   // and if one must wait it is the biggest, most often incidental, group.
@@ -202,14 +235,17 @@ export function routeManifest(manifest, message, opts = {}, extra = []) {
   // every other group SMALLEST first — the most groups that fit, so a message nothing named (a breadth
   // follow-up, a market question) is not one action short of its group. (Gate C: catalog order sent only
   // charts / workspace / layouts / indicators once the indicators group grew by one.)
+  // (`fillLast`: a specialised group is never a filler — when nothing named it, it comes after every other group)
+  const LAST = new Set(GROUPS.filter(g => g.fillLast).map(g => g.id))
   const bySize = (a, b) => sizeOf(a) - sizeOf(b)
+  const fillOrder = (a, b) => (LAST.has(a) - LAST.has(b)) || bySize(a, b)
   const own = matched ? [...rest].sort(bySize)
-    : [...new Set([...(soft || []).filter(id => rest.includes(id)), ...rest.filter(id => id === 'charts'), ...rest.filter(id => id !== 'charts').sort(bySize)])]
+    : [...new Set([...(soft || []).filter(id => rest.includes(id)), ...rest.filter(id => id === 'charts'), ...rest.filter(id => id !== 'charts').sort(fillOrder)])]
   const order = [...new Set([...pinned, ...own])]
   // PACK under the budget, in priority order. A group that would overflow is NOT sent — it is
   // named (unselected), so the model can ask for it; nothing is ever partially sent.
   const want = new Set()
-  let used = manifest.filter(c => groupOfAction(c.name) === null).length
+  let used = counts.get(null) || 0
   const over = []
   for (const id of order) {
     const n = sizeOf(id)
@@ -217,7 +253,7 @@ export function routeManifest(manifest, message, opts = {}, extra = []) {
     if (used + n > budget && want.size >= always.length) { over.push(id); continue }
     want.add(id); used += n
   }
-  const present = GROUPS.filter(g => manifest.some(c => groupOfAction(c.name) === g.id))
+  const present = GROUPS.filter(g => counts.has(g.id))
   const routed = manifest.filter(c => want.has(groupOfAction(c.name)) || groupOfAction(c.name) === null)
   if (routed.length === manifest.length) return { manifest, routing: null }
   return {

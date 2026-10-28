@@ -71,3 +71,17 @@ test('picking a different symbol from the Compare picker fires onSymbolChange', 
   fireEvent.click(row)
   expect(onSymbolChange).toHaveBeenCalledWith('MSFT')
 })
+
+// "+ Compare" doors: the default name ("AAPL — click to search a different ticker")
+// describes retargeting the chart and omits the visible word. `ariaLabel` lets the
+// caller name its real action; every caller that passes nothing keeps the default.
+test('ariaLabel names the trigger for a caller whose badge does something else', () => {
+  render(<SymbolSearch sym="AAPL" displayLabel="+ Compare" ariaLabel="Compare AAPL with another ticker" onSymbolChange={vi.fn()} />)
+  const btn = screen.getByRole('button', { name: 'Compare AAPL with another ticker' })
+  expect(btn).toHaveTextContent('+ Compare')
+})
+
+test('without ariaLabel the trigger keeps its default name', () => {
+  render(<SymbolSearch sym="AAPL" displayLabel="+ Compare" onSymbolChange={vi.fn()} />)
+  expect(screen.getByRole('button', { name: 'AAPL — click to search a different ticker' })).toBeInTheDocument()
+})

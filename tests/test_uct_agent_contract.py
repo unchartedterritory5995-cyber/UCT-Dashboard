@@ -22,7 +22,9 @@ BY = {c["name"]: c for c in CAPS}
 _GROUP_OF = {"chart": "charts", "volume": "charts", "widget": "workspace", "layout": "layouts",
              "watchlist": "lists", "screener": "screener", "alert": "alerts", "stock": "data",
              "news": "data", "settings": "settings", "app": "settings", "agent": "agent",
-             "drawing": "drawings", "indicator": "indicators", "breadth": "breadth"}
+             "drawing": "drawings", "indicator": "indicators", "breadth": "breadth",
+             "chartSetup": "chartSetup", "indicatorStyle": "indicatorSetup", "indicatorCopy": "indicatorSetup",
+             "pane": "indicatorSetup", "definition": "definitions"}
 
 
 def _requests():

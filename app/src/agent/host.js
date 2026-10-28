@@ -81,6 +81,8 @@ export function buildChartSource({ chartApiById, getWidgets, selectedChart = nul
           ref: e.ref, label: `${name} (${e.r.symbol})`, position: pos || null,
           symbol: e.r.symbol, tf: e.r.tf, cs: e.r.cs, stored: e.r.stored,
           linkedCount, group: e.r.groupKey,
+          // where the chart sits on the board (grid cells) — "the middle chart" (agent/deixis.js ordinalChart)
+          cell: { x: e.w.x, y: e.w.y, w: e.w.w, h: e.w.h },
           ...(sel != null && e.r.chartId === sel ? { selected: true } : {}),
           view: e.api.agent.view?.() || null,
           // the exact symbol string StockChart keys its drawings by (useChartDrawings(sym))
@@ -324,6 +326,8 @@ export function buildWatchlistSource({ getLists, getWidgets, revalidate, request
     addItem: async (id, sym, notes = '') => json(await request(`/api/watchlists/${enc(id)}/items`, send('POST', { sym, notes })), 'Adding'),
     removeItem: async (id, itemId) => json(await request(`/api/watchlists/${enc(id)}/items/${enc(itemId)}`, { method: 'DELETE' }), 'Removing'),
     reorder: async (id, itemIds) => json(await request(`/api/watchlists/${enc(id)}/reorder`, send('PUT', { item_ids: itemIds })), 'Reordering'),
+    // one ticker's note — the Watchlists page's own notes route
+    setNotes: async (id, itemId, notes) => json(await request(`/api/watchlists/${enc(id)}/items/${enc(itemId)}/notes`, send('PUT', { notes })), 'Saving the note'),
     async create(name) {
       const row = await json(await request('/api/watchlists', send('POST', { name, description: '', is_public: false })), 'Creating the watchlist')
       remember({ ...row, items: row.items || [] })

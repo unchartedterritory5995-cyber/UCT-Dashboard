@@ -38,12 +38,18 @@ let ownedSource = () => []
 export function setOwnedDefinitionSource(fn) { ownedSource = typeof fn === 'function' ? fn : () => [] }
 const ownedIds = () => { try { return [...(ownedSource() || [])] } catch { return [] } }
 
+// ⭐ INDICATORS P2 (AGENT-CONTRACT-P2 §3): the volume presentation the Charts workspace's chart host hands
+// Chart Settings (`ChartPane`: separate volume pane, never blank). Part of the PANE fingerprint, so the SAME
+// value goes to plan, apply, confirm and undo.
+export const VOLUME_OPTS = Object.freeze({ volumeSeparatePane: true, blankVolume: false })
+
 /** A FRESH permission context for one chart — built at the moment it is used. */
 export function mutationCtx(host, chartRef) {
   let canManage = false
   try { canManage = host?.charts?.canManageIndicators?.(chartRef) === true } catch { canManage = false }
-  return { canManage, ownedDefinitionIds: ownedIds(), registry: nativeRegistry, chartId: chartRef }
+  return { canManage, ownedDefinitionIds: ownedIds(), registry: nativeRegistry, chartId: chartRef, volumeOpts: VOLUME_OPTS }
 }
+export { ownedIds as ownedDefinitionIds }
 
 const rowsOf = (cs) => { try { return instancesOf(cs, nativeRegistry).filter(r => !r.setting) } catch { return [] } }
 
@@ -51,6 +57,7 @@ const snapOf = (host, c) => ({
   ref: refOf(c.ref), chartRef: c.ref, label: c.label, position: c.position || null, symbol: c.symbol,
   cs: c.cs, canManage: mutationCtx(host, c.ref).canManage, rows: rowsOf(c.cs),
 })
+export { refOf as indicatorEditsRef, chartRefOf as chartOfIndicatorEdits, rowsOf as indicatorRowsOf }
 
 // ── what can be ADDED: the Library's own rows (shipped definitions + the member's own),
 // never the legacy overlay rows or the carved-out Volume Profile (§14.9.2) ──
@@ -168,7 +175,13 @@ export function refusalSentence(res, { chart = 'that chart', op = null } = {}) {
     case REASONS.DEPENDENT_EXISTS: return 'Something now reads the indicator I added, so removing it would disconnect that. Nothing was undone.'
     case REASONS.UNCONFIRMED: return 'UCT could not read the saved chart back, so I am not reporting it as done.'
     case REASONS.NOT_LANDED: return 'The saved chart does not show the change — it did not land.'
-    case REASONS.BAD_REQUEST: return 'That request (or Undo) is not valid for this chart.'
+    case REASONS.BAD_REQUEST: {
+      // ⭐ P2: an output or a pane to name — the real choices
+      const d = res.detail || {}
+      if (Array.isArray(d.plots) && d.plots.length) return `That indicator draws more than one line — which one: ${d.plots.map(p => p.label || p.plotKey).join(', ')}?`
+      if (Array.isArray(d.panes) && d.panes.length) return `Say where to move it: above or below one of ${d.panes.map(p => p.label).join(', ')}.`
+      return 'That request (or Undo) is not valid for this chart.'
+    }
     // ⭐ PHASE 2.5 — a setting the indicator does not have, or a value it does not allow: the
     // Indicators rule's own reason, then what IS allowed (its declared range / options).
     case REASONS.BAD_INPUT: {
@@ -179,12 +192,15 @@ export function refusalSentence(res, { chart = 'that chart', op = null } = {}) {
       else if (spec && (Number.isFinite(spec.min) || Number.isFinite(spec.max))) {
         allowed = ` ${spec.label || spec.key} takes ${spec.type === 'int' ? 'a whole number' : 'a number'}${Number.isFinite(spec.min) && Number.isFinite(spec.max) ? ` from ${spec.min} to ${spec.max}` : Number.isFinite(spec.min) ? ` of at least ${spec.min}` : ` up to ${spec.max}`}.`
       }
-      return `I didn't ${op === 'setInputs' ? 'change it' : 'add it'}: ${d.why || 'that setting is not valid'}.${allowed} Nothing was changed.`
+      // ⭐ P2: the op's own allowed values (`detail.options`: values, or {label} rows)
+      if (!allowed && Array.isArray(d.options) && d.options.length) allowed = ` It can be ${d.options.map(o => (o && typeof o === 'object' ? (o.label ?? o.value ?? o.target) : o)).join(', ')}.`
+      return `I didn't ${op === 'setInputs' || P2_OPS.has(op) ? 'change it' : 'add it'}: ${d.why || 'that setting is not valid'}.${allowed} Nothing was changed.`
     }
     default: return 'That did not work.'
   }
 }
 
+const P2_OPS = new Set(['setAppearance', 'setPlotStyle', 'setColor', 'setDisplayTarget', 'movePane', 'setPaneSize', 'duplicate', 'copyFrom'])
 const severText = (list) => (list || []).map(d => (d.kind === 'infoValue' ? `a header value reading it` : `${d.name}'s ${d.key || 'source'} input`))
 
 /** The receipt sentence — only from a CONFIRMED receipt. */
@@ -192,6 +208,10 @@ export function receiptLine(receipt, chart) {
   const name = receipt.name || 'the indicator'
   const where = chart ? ` on ${chart}` : ''
   if (receipt.op === 'undo') {
+    // ⭐ P2: style / placement / pane edits put back exactly; a duplicate or a copy removed again
+    if (['setAppearance', 'setPlotStyle', 'setColor', 'setDisplayTarget'].includes(receipt.undoOf)) return `Put ${name}${where} back as it was.`
+    if (receipt.undoOf === 'movePane' || receipt.undoOf === 'setPaneSize') return `Put the ${name} pane${where} back as it was.`
+    if (receipt.undoOf === 'duplicate' || receipt.undoOf === 'copyFrom') return `Removed the ${name} I added${where}.`
     if (receipt.undoOf === 'remove') {
       const back = severText(receipt.restored)
       return `Restored ${name}${where} with its original identity${back.length ? ` and reconnected ${back.join(', ')}` : ''}.`
@@ -213,6 +233,8 @@ export function receiptLine(receipt, chart) {
     const pairs = Object.keys(receipt.inputs.after).map(k => `${String(specs.get(k)?.label || k).toLowerCase()} ${shown(k, receipt.inputs.before[k])} → ${shown(k, receipt.inputs.after[k])}`)
     return `Changed ${name}${where} — ${pairs.join(', ')}.`
   }
+  const ext = extReceiptLine(receipt, name, where)
+  if (ext) return ext
   if (receipt.op === 'remove') {
     const cut = severText(receipt.severed)
     return `Removed ${name}${where}${cut.length ? ` — disconnected ${cut.join(', ')}` : ''}.`
@@ -220,13 +242,44 @@ export function receiptLine(receipt, chart) {
   return `${receipt.visible ? 'Showed' : 'Hid'} ${name}${where}.`
 }
 
+// ⭐ P2 — the receipt of a style / placement / pane / copy op, from the CONFIRMED receipt's own `change`
+const STYLE_WORD = { lineWidth: 'line width', lineStyle: 'line style', overlap: 'overlap' }
+export const placeWord = (t) => (t === 'price' ? 'on the price pane' : t === 'volume' ? 'on the volume pane' : t === 'pane' ? 'in its own pane' : typeof t === 'string' && t.startsWith('@') ? 'in another indicator\'s pane' : String(t || 'where it was'))
+export const shareWord = (s) => (s == null ? 'automatic height' : `${Math.round(s * 100)}% of the chart's height`)
+export function extReceiptLine(receipt, name, where) {
+  const c = receipt.change || {}
+  switch (receipt.op) {
+    case 'setAppearance': return `Changed ${name}'s ${STYLE_WORD[c.key] || c.key}${where} — ${c.before} → ${c.after}.`
+    case 'setPlotStyle': return `Changed how ${name}${c.plotKey ? ` (${c.plotKey})` : ''} is drawn${where} — ${c.before || 'default'} → ${c.after}.`
+    case 'setColor': return `Changed ${name}'s ${String(c.target || '').startsWith('sign:') ? `${c.target === 'sign:up' ? 'up' : 'down'} colour` : 'colour'}${where} to ${c.after}.`
+    case 'setDisplayTarget': return `Moved ${name} ${placeWord(c.after)}${where}${(c.guests || []).length ? ` — ${c.guests.map(g => g.name).join(', ')} moved with it` : ''}.`
+    case 'movePane': return `Moved the ${name} pane${where} — now ${paneOrderWord(c.after, c.paneKey)}.`
+    case 'setPaneSize': return `Set the ${name} pane${where} to ${shareWord(c.after)}.`
+    case 'duplicate': return `Added a copy of ${receipt.from || name}${where} (${name}).`
+    case 'copyFrom': {
+      const done = (receipt.copied || []).map(x => x.name)
+      const had = (receipt.already || []).map(x => x.name)
+      return `Copied ${done.join(', ') || name}${where}${had.length ? ` · already there: ${had.join(', ')}` : ''}.`
+    }
+    default: return null
+  }
+}
+/** "2nd of 4 from the top" for a pane key in a resolved order */
+function paneOrderWord(order, key) {
+  const i = Array.isArray(order) ? order.indexOf(key) : -1
+  if (i < 0) return 'in its new place'
+  if (i === 0) return 'at the top'
+  if (i === order.length - 1) return 'at the bottom'
+  return `${['1st', '2nd', '3rd', '4th', '5th', '6th'][i] || `#${i + 1}`} of ${order.length} from the top`
+}
+
 // ── proposal-time plans (§14.4): a proposal's Apply re-plans; the pins must be the ones
 // the member SAW. Kept per chart + request, in memory, briefly. ──
 const PLAN_TTL_MS = 10 * 60 * 1000
 const proposed = new Map()
 const planKey = (chartRef, req) => `${chartRef}|${JSON.stringify(req)}`
-const planCtx = (st) => ({ canManage: st.canManage === true, ownedDefinitionIds: ownedIds(), registry: nativeRegistry, chartId: st.chartRef })
-function planFor(st, req) {
+const planCtx = (st) => ({ canManage: st.canManage === true, ownedDefinitionIds: ownedIds(), registry: nativeRegistry, chartId: st.chartRef, volumeOpts: VOLUME_OPTS })
+export function planFor(st, req) {
   const key = planKey(st.chartRef, req)
   const hit = proposed.get(key)
   if (hit && Date.now() - hit.at < PLAN_TTL_MS) return { ok: true, plan: hit.plan }
@@ -277,6 +330,10 @@ export const indicatorEditsKind = {
       : applyIndicatorMutation(cur.cs, patch.change.plan, ctx)
     if (!step.ok) throw fail(refusalSentence(step, { chart: label, op: patch.change?.plan?.op }))
     if (!patch.undo) proposed.delete(planKey(chartRef, patch.change.request))
+    // ⭐ P2: the Agent itself is about to change this chart's indicators — every other plan cached for it was made
+    // on the state before ("make the 20 red AND dashed": the second step), so it is planned afresh. A change made
+    // ELSEWHERE leaves the cache alone, so an approval still meets the pins the member saw.
+    for (const k of [...proposed.keys()]) if (k.startsWith(`${chartRef}|`)) proposed.delete(k)
     if (!host.charts.commit(chartRef, { settings: step.cs })) throw fail('the chart did not accept the change')
     const saved = await persistAndReadBack(host, chartRef)
     if (!saved.ok) throw fail(`the save was not confirmed (${saved.reason}), so it is not done`, { unreverted: true })
@@ -287,6 +344,7 @@ export const indicatorEditsKind = {
     if (!patch.undo && ['add', 'setInputs', 'setVisible'].includes(r.op) && r.instanceIds?.length === 1) {
       touched = { chartRef, instanceId: r.instanceIds[0], defId: r.defId, name: r.name }
     }
+    if (!patch.undo && r.op === 'duplicate' && patch.change?.plan?.preview?.from) r.from = patch.change.plan.preview.from
     return { lines: [receiptLine(done.receipt, label)], undoData: done.undo || null }
   },
   // `confirmIndicatorMutation` already verified the read-back inside commit.
@@ -302,7 +360,8 @@ export const indicatorEditsKind = {
   // instances (identity, inputs, links between them) and the pane order. Any change to them since the
   // card (another indicator added that reads this one, the instance replaced…) refuses the approval;
   // an unrelated colour change does not. The plan itself is the one the member saw (planFor's cache).
-  approvalState: (s) => [s.chartRef, s.cs?.indicatorInstances ?? null, s.cs?.paneOrder ?? null],
+  // ⭐ P2: …and the pane SIZES (an instance's presentation is inside indicatorInstances already)
+  approvalState: (s) => [s.chartRef, s.cs?.indicatorInstances ?? null, s.cs?.paneOrder ?? null, s.cs?.paneSizes ?? null],
   // …and the server's copy of the chart must equal this tab's (another tab's indicator edit), else closed.
   async refreshForApproval(host, ref) {
     const chartRef = chartRefOf(ref)
@@ -314,18 +373,24 @@ export const indicatorEditsKind = {
 
 // `sequential`: in a request that asks for more, each indicator change still runs ALONE (exclusive) —
 // as its own step right after the rest, with its own receipt and Undo (useAgent), never mixed in a plan.
-const common = { target: 'indicatorEdits', surfaces: ['charts'], exclusive: true, sequential: true,
+export const common = { target: 'indicatorEdits', surfaces: ['charts'], exclusive: true, sequential: true,
   exclusiveReason: 'Change one indicator at a time, on its own — ask for anything else separately.',
   // Never advertised where the member cannot manage indicators (no writable chart on the board).
   available: (ctx) => ctx.surface === 'charts' && ctx.manageIndicators !== false }
 
-function oneChange(st) { return st.change ? 'One indicator change at a time — ask for the next one after this.' : null }
+export function oneChange(st) { return st.change ? 'One indicator change at a time — ask for the next one after this.' : null }
 
 /** Instance argument → the interface's own resolver (exact id, else a legend name). */
-function targetOf(st, instance) {
-  // GATE C: "#20" / "#20:ema" — the one instance whose legend shows that length (and type)
+export function targetOf(st, instance) {
+  // GATE C: "#20" / "#20:ema" — the one instance of that length (and type). ⭐ P2 (I-10): Indicators' STRUCTURED
+  // lookup on the effective inputs first; the legend-name reading only when that finds nothing (a length that
+  // is not a `period` input)
   const len = /^#(\d{1,4})(?::([a-z]+))?$/.exec(String(instance || ''))
-  if (len) return instanceByLength(st, Number(len[1]), len[2] || null)
+  if (len) {
+    const s = resolveIndicatorTarget(st.cs, nativeRegistry, len[2] ? { defId: 'movingAverage', inputs: { period: Number(len[1]), maType: len[2] } } : { inputs: { period: Number(len[1]) } })
+    if (s.ok || s.reason === REASONS.AMBIGUOUS) return s
+    return instanceByLength(st, Number(len[1]), len[2] || null)
+  }
   const byId = resolveIndicatorTarget(st.cs, nativeRegistry, { instanceId: instance })
   if (byId.ok) return byId
   const byName = resolveIndicatorTarget(st.cs, nativeRegistry, { name: instance })
@@ -336,7 +401,7 @@ function targetOf(st, instance) {
   return kinds.length === 1 ? { ok: true, instanceId: kinds[0].instanceId } : byName
 }
 /** "rsi" / "relative strength index" → the catalog id, when the words name exactly one indicator. */
-function defIdOfWords(words) {
+export function defIdOfWords(words) {
   const want = String(words || '').trim().toLowerCase()
   if (!want || NOT_ADDABLE.test(want)) return null
   const hits = addableRows().filter(r => String(r.defId).toLowerCase() === want || String(r.name).toLowerCase() === want)
@@ -457,6 +522,14 @@ export function inputsOfEditWords(defId, words) {
 // explicit edits the instant path reads without memory ("change the 20 to a 50", "make the rsi 7")
 const EDIT_VERB = '(?:please )?(?:change|make|set|switch|turn|bump|move)'
 function updateOfWords(lower) {
+  // ⭐ Charts operator P1: "swap the 9 for a 10" / "replace the 20 ema with a 21" — the same in-place length
+  // change (never a remove + add), on the moving average of that length
+  const sw = new RegExp(`^(?:please )?(?:swap|replace|trade) (?:the |my )?(\\d{1,4})(?:[- ](?:day|period))?(?: (${TYPE_WORDS}|ma|moving average))? (?:for|with) (?:an? |the )?(\\d{1,4})(?:[- ](?:day|period))?(?: (?:${TYPE_WORDS}|ma|moving average))?$`).exec(lower)
+  if (sw) {
+    const type = sw[2] && sw[2] !== 'ma' && sw[2] !== 'moving average' ? typeValue(sw[2]) : null
+    const key = lengthKeyOf('movingAverage')
+    return key ? { instance: `#${sw[1]}${type ? `:${type}` : ''}`, inputs: [{ key, value: Number(sw[3]) }] } : null
+  }
   // "change the 20 ema to a 50" / "make the 20 a 9" / "change the 20 to an sma"
   let m = new RegExp(`^${EDIT_VERB} (?:the |my )?(\\d{1,4})(?:[- ](?:day|period))?(?: (${TYPE_WORDS}|ma|moving average))? (?:to |into )?(?:an? |the )?(.+)$`).exec(lower)
   if (m) {
@@ -494,7 +567,7 @@ export function updateOfSubject(host, subject, words) {
   return { op: { action: 'indicator.update', target: refOf(subject.chart), args: { instance: subject.instanceId, inputs } } }
 }
 
-function planCheck(st, req) {
+export function planCheck(st, req) {
   if (!st.canManage) return refusalSentence({ reason: REASONS.READONLY }, { chart: st.chart })
   const p = planFor(st, req)
   if (!p.ok && p.reason === REASONS.NO_CHANGE) return null          // said as a no-op, not a refusal
@@ -526,6 +599,7 @@ export function registerIndicatorEditCapabilities() {
   registerCapability({
     ...common,
     name: 'indicator.add',
+    addsIndicators: true,          // ⭐ P2: a later step of the same request may name what this adds (useAgent)
     // ⭐ F5: the same add on several charts is proposed once and run once PER CHART (useAgent fan-out)
     fanOut: true,
     summary: 'Add ONE indicator to ONE chart — exactly what the Indicator Library\'s Add to Chart does. Built-in indicators or the member\'s own saved ones; Undo removes it again.',

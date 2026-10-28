@@ -18,7 +18,7 @@ import CompassAssistButton from '../../../components/voice/CompassAssistButton'
 import CaptureMenu from './CaptureMenu'
 import LinkedNotesPanel from './notebook/LinkedNotesPanel'
 import UIcon from '../../../components/ui/UIcon'
-import SymbolSearch from '../../../components/chart/SymbolSearch'
+import CompareSymbolSearch from '../../../components/CompareSymbolSearch'
 import { useIsPhone } from '../../../hooks/useBreakpoint'
 import { money, moneySigned, percent, rMultiple as fmtR, dateShort, withResearchReturnParam } from '../../../lib/journal-2-0'
 import { useIsPaid } from '../../../context/AuthContext'
@@ -122,7 +122,7 @@ function TradeResearchTrigger({ symbol, tradeId }) {
             </button>
           ) : (
             <div style={{ padding: '6px 12px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-              <SymbolSearch sym={symbol} displayLabel="+ Compare" onSymbolChange={goToCompare} />
+              <CompareSymbolSearch sym={symbol} onSymbolChange={goToCompare} />
             </div>
           )}
         </div>

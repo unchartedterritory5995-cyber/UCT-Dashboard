@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import CompanyLogo from '../../components/CompanyLogo'
 import SymbolSearch from '../../components/chart/SymbolSearch'
+import CompareSymbolSearch from '../../components/CompareSymbolSearch'
 import RsBadge from '../../components/RsBadge'
 import RatingBadges from './RatingBadges'
 import UIcon from '../../components/ui/UIcon'
@@ -108,7 +109,7 @@ export default function ResearchHeader({ sym, meta, live, ratings, onSymbolChang
         </div>
       </div>
       <div className={styles.hdrCompare} data-testid="research-compare-entry">
-        <SymbolSearch sym={sym} displayLabel="+ Compare" onSymbolChange={goToCompare} />
+        <CompareSymbolSearch sym={sym} onSymbolChange={goToCompare} />
       </div>
       <div className={styles.hdrRatings}>
         <RatingBadges ratings={ratings} />

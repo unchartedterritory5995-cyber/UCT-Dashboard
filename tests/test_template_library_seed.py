@@ -77,8 +77,8 @@ RULED = (
     ("tag-todays-trades", "Tag today's trades", "after_close", "post_trade_review", "review",
      "Today's trades, one row each, to tag setup, mistakes and emotions.",
      ["i:a", "myMistakes"]),
-    ("trade-post-mortem", "Trade post-mortem", "after_close", "post_trade_review", "review",
-     "One trade: what happened, whether you kept your trading plan, what you'd change.",
+    ("trade-post-mortem", "Trade replay and rules check", "after_close", "post_trade_review", "review",
+     "Replay one trade from its record and chart, then check it against your rules.",
      ["tradeReview", "chart", "myRules"]),
     ("mistake-log-entry", "Mistake log entry", "after_close", "post_trade_review", "review",
      "One mistake, what caused it and the rule that would have stopped it.",
@@ -159,6 +159,13 @@ def _notation(block: dict) -> str:
     return bid
 
 
+#: The rows replaced by a newer version (the seed's `retired` list), and the version each replaced slug lives at now.
+#: 2026-10-27: "Trade post-mortem" (v1) read as a twin of the built-in Trade Post-Mortem under "Around a trade", so
+#: v2 renames it "Trade replay and rules check"; its blocks, sections and stored payload are v1's.
+RETIRED = ("uct-template-trade-post-mortem-v1",)
+LIVE_VERSION = {"trade-post-mortem": 2}
+
+
 def _live() -> list[dict]:
     return tl.live_rows()
 
@@ -169,7 +176,7 @@ def test_twenty_seven_rows_in_spec_order_and_groups():
     got = [(r["slug"], r["title"], r["group"], r["kindId"], r["category"], r["description"],
             [_notation(b) for b in r["blocks"]]) for r in rows]
     assert got == [(s, t, g, k, c, d, list(bl)) for s, t, g, k, c, d, bl in RULED]
-    assert [r["seedKey"] for r in rows] == [f"uct-template-{s}-v1" for s, *_ in RULED]
+    assert [r["seedKey"] for r in rows] == [f"uct-template-{s}-v{LIVE_VERSION.get(s, 1)}" for s, *_ in RULED]
     assert all(r["blocks"][i]["enabled"] is True for r in rows for i in range(len(r["blocks"])))
     # every group is used, and the rows come in group order (the section draws GROUPS order)
     order = [tl.GROUP_KEYS.index(r["group"]) for r in rows]
@@ -210,7 +217,7 @@ def test_the_seed_files_are_lf_json():
         blob = _stored_blob(rel)
         assert _cr_free(blob), rel                        # not one CR byte, CRLF or bare
         assert blob.endswith(b"}\n") and json.loads(blob)
-    assert json.loads(_stored_blob(SEED_REL))["retired"] == []
+    assert json.loads(_stored_blob(SEED_REL))["retired"] == list(RETIRED)
     # control: the check sees a CR, CRLF and bare alike
     assert not _cr_free(b'{"a": 1}\r\n') and not _cr_free(b'{"a":\r 1}\n') and _cr_free(b'{"a": 1}\n')
 
@@ -291,9 +298,11 @@ BREAKS = [
     ("a second live row for one slug", "uct-template-morning-routine-v2", _break(lambda d: d["templates"].append(
         dict(copy.deepcopy(_row(d, "morning-routine")), seedKey="uct-template-morning-routine-v2")))),
     ("a retired key that is no row", "uct-template-nothing-v1", _break(lambda d: d.update(
-        retired=["uct-template-nothing-v1"]))),
+        retired=d["retired"] + ["uct-template-nothing-v1"]))),
     ("a retired row with no newer row", "uct-template-morning-routine-v1", _break(lambda d: d.update(
-        retired=["uct-template-morning-routine-v1"]))),
+        retired=d["retired"] + ["uct-template-morning-routine-v1"]))),
+    ("a retirement undone: two live rows for one slug", "uct-template-trade-post-mortem-v2", _break(lambda d: d.update(
+        retired=[k for k in d["retired"] if k != "uct-template-trade-post-mortem-v1"]))),
 ]
 
 
@@ -312,7 +321,7 @@ def test_seed_validates_at_import(tmp_path, what, names, edit):
 def test_a_retired_row_may_share_its_slug_with_its_replacement(tmp_path):
     doc = _seed_doc()
     doc["templates"].append(dict(copy.deepcopy(_row(doc, "morning-routine")), seedKey="uct-template-morning-routine-v2"))
-    doc["retired"] = ["uct-template-morning-routine-v1"]
+    doc["retired"] = doc["retired"] + ["uct-template-morning-routine-v1"]
     rows = tl.load_library_seed(_write(tmp_path, doc))
     assert rows[-1]["seedKey"] == "uct-template-morning-routine-v2"
 
@@ -321,7 +330,8 @@ def test_the_shipped_seed_is_valid():
     """The CI guard (W11-R37): the committed seed loads with no error, so a broken seed cannot ship."""
     tl.reset_library_state()
     state = tl.library_state()
-    assert state.error is None and len(state.rows) == 27
+    assert state.error is None and len(state.rows) == 27 + len(RETIRED) and state.retired == RETIRED
+    assert len(tl.live_rows()) == 27
     assert [r["seedKey"] for r in tl.load_library_seed()] == [r["seedKey"] for r in state.rows]
 
 
@@ -350,7 +360,8 @@ def test_the_module_imports_even_when_the_seed_is_broken():
     # control: the same probe with the real seed reports a valid library, so the patch above is what broke it
     ok = subprocess.run([sys.executable, "-c", _BROKEN_IMPORT.replace('"template_library_seed.json"', '"nothing"')],
                         capture_output=True, text=True, cwd=str(REPO), env=_scrubbed_env(), timeout=120)
-    assert ok.returncode == 0 and "IMPORTED habits False 27" in ok.stdout, ok.stdout[-2000:] + ok.stderr[-2000:]
+    want = f"IMPORTED habits False {27 + len(RETIRED)}"                    # every row, the retired ones included
+    assert ok.returncode == 0 and want in ok.stdout, ok.stdout[-2000:] + ok.stderr[-2000:]
 
 
 @pytest.fixture
@@ -510,7 +521,7 @@ def test_a_retired_row_is_hidden_only_when_its_replacement_is_new_and_an_unhide_
     v1, v2 = "uct-template-morning-routine-v1", "uct-template-morning-routine-v2"
     doc = _seed_doc()
     doc["templates"].append(dict(copy.deepcopy(_row(doc, "morning-routine")), seedKey=v2))
-    doc["retired"] = [v1]
+    doc["retired"] = doc["retired"] + [v1]
     real = tl.SEED_FILE
     tl.SEED_FILE = _write(tmp_path, doc)
     tl.reset_library_state()
@@ -532,6 +543,56 @@ def test_a_retired_row_is_hidden_only_when_its_replacement_is_new_and_an_unhide_
     finally:
         tl.SEED_FILE = real
         tl.reset_library_state()
+
+
+def test_the_shipped_retirement_on_an_install_that_holds_v1_keeps_every_members_copy(db, tmp_path):
+    """The first real retirement (2026-10-27, Trade post-mortem v1 -> Trade replay and rules check v2), on an install
+    seeded BEFORE it: the boot that inserts v2 hides the stored v1 (never deletes it), the library lists v2 in its
+    place, and a member who already used v1 keeps their copy and their note, can still make notes from the copy, and
+    a Use of the hidden v1 answers None (the route's 404), never a 500."""
+    from api.services.journal_two import notes as notes_service
+    v1, v2 = RETIRED[0], "uct-template-trade-post-mortem-v2"
+    released = _seed_doc()                       # the seed as it was released: v1 live, v2 absent, nothing retired
+    released["templates"] = [r for r in released["templates"] if r["seedKey"] != v2]
+    released["retired"] = []
+    db.execute("DELETE FROM j2_template_gallery")
+    db.commit()
+    real = tl.SEED_FILE
+    tl.SEED_FILE = _write(tmp_path, released)
+    tl.reset_library_state()
+    try:
+        assert tl.seed_template_library(db) == 27
+    finally:
+        tl.SEED_FILE = real
+        tl.reset_library_state()
+    g1, g2 = gallery.firm_style_id(v1), gallery.firm_style_id(v2)
+    assert g1 in _listed_official(db) and g2 not in _listed_official(db)
+    used = _fill(db, MEMBER, next(r for r in tl.rows() if r["seedKey"] == v1), None)
+    assert used is not None
+    copy_id, note_id = used["style"]["id"], used["note"]["id"]
+
+    gallery.ensure_gallery_schema(db)                                         # the boot that ships this seed
+    row = lambda k: db.execute("SELECT hidden, hidden_by, status FROM j2_template_gallery WHERE seed_key = ?",  # noqa
+                               (k,)).fetchone()
+    assert tuple(row(v1)) == (1, tl.RETIRED_BY, "approved")                   # hidden, kept, never deleted
+    assert tuple(row(v2)) == (0, None, "approved")
+    listed = _listed_official(db)
+    assert g1 not in listed and g2 in listed and len(listed) == 27
+    titles = {x["id"]: x["title"] for x in gallery.list_gallery(MEMBER, conn=db)}
+    assert titles[g2] == "Trade replay and rules check" and "Trade post-mortem" not in titles.values()
+    # the member's copy and note are untouched, and the copy still makes notes
+    style = db.execute("SELECT source_gallery_id, deleted_at, archived_at FROM j2_journal_styles WHERE id = ?",
+                       (copy_id,)).fetchone()
+    assert tuple(style) == (g1, None, None)
+    assert notes_service.get_note(MEMBER, note_id, db) is not None
+    again, _ = js.create_styled_note(MEMBER, {"styleId": copy_id, "title": "After the rename"}, conn=db)
+    assert again["id"] != note_id
+    # a Use of the retired row is an absent item (the route's 404); a Use of v2 makes the member a fresh copy
+    assert gallery.use_library_template(MEMBER, g1, conn=db) is None
+    fresh = gallery.use_library_template(MEMBER, g2, conn=db)
+    assert fresh is not None and fresh["style"]["id"] != copy_id
+    # a second boot changes nothing
+    assert tl.seed_template_library(db) == 0 and tuple(row(v1)) == (1, tl.RETIRED_BY, "approved")
 
 
 # ── visibility ───────────────────────────────────────────────────────────────────────────────────────────────────
@@ -823,7 +884,9 @@ def test_every_live_row_stores_its_committed_payload():
     every live row, so a change in the deriving code is seen, not only a change in the seed row."""
     want = _payloads()
     got = {r["seedKey"]: tl.payload_hash(r) for r in _live()}
-    assert got == want
+    assert got == {k: want[k] for k in got}
+    # a retired row keeps its entry, unchanged (append-only): existing installs still store it
+    assert {r["seedKey"]: tl.payload_hash(r) for r in tl.rows()} == want and set(RETIRED) <= set(want)
     # control: a change to the deriving code moves the hash
     row = _live()[0]
     real = tl._outline_from_sections

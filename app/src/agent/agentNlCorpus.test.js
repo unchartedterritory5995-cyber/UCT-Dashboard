@@ -19,9 +19,10 @@ import { registerBuiltins } from './builtins'
 import { fastParse, matchPosition } from './fastPath'
 import { selectGroups, GROUPS } from './routing'
 import { getCapability, getTargetKind } from './capabilities'
-import { resolveDeictic } from './deixis'
+import { resolveDeictic, chartRefOf } from './deixis'
 import { buildChartSource } from './host'
 import { makeBoard } from './__fixtures__/board'
+import { multiChartPlan } from './multiChart'
 import { mergeChartSettings } from '../components/chart/chartDefaults'
 
 registerBuiltins()
@@ -69,6 +70,9 @@ function targetOf(host, ops, fast, text) {
   const kind = getTargetKind(kinds[0])
   let list = kind ? kind.list(host) : []
   if (fast.target?.all && list.length > 1) return { all: list.map(s => s.label) }
+  // P1: "the second chart" (fastPath.extractTarget, resolved on the live board) — the panel's rule (useAgent.send)
+  if (fast.target?.ask) return { ask: true }
+  if (fast.target?.chart) { const hit = list.filter(s => chartRefOf(kind, s) === fast.target.chart); return hit.length === 1 ? { label: hit[0].label, ref: hit[0].ref } : { ask: true } }
   if (fast.target?.position && list.length > 1) { const hit = matchPosition(list, fast.target.position); if (hit.length) list = hit }
   if (!fast.target?.position && list.length > 1) {
     const d = resolveDeictic({ host, kind, candidates: list, text, chartOp: true })
@@ -81,10 +85,23 @@ function measure(c) {
   const host = hostFor(c.fx)
   const e = c.expect
   let fast = null
-  try { fast = fastParse(c.text, { host }) } catch (err) { fast = { kind: 'error', err: String(err) } }
-  const row = { id: c.id, cat: c.cat, text: c.text, ideal: e.ideal, kind: e.kind, fast: fast ? fast.kind : null, outcome: null, detail: null }
+  // ⭐ Charts operator P1: whole sentences that name SEVERAL charts are read BEFORE the fast path (useAgent.send,
+  // agent/multiChart.js) — each op carries its own target, checked here against the case's chart labels
+  let multi = null
+  try { multi = multiChartPlan(c.text, { host }) } catch { multi = null }
+  if (!multi) { try { fast = fastParse(c.text, { host }) } catch (err) { fast = { kind: 'error', err: String(err) } } }
+  const row = { id: c.id, cat: c.cat, text: c.text, ideal: e.ideal, kind: e.kind, fast: multi ? `multi:${multi.kind}` : fast ? fast.kind : null, outcome: null, detail: null }
   // ── fast path ──
-  if (c.pending && e.ideal === 'local-clarify') {
+  if (multi && (multi.kind === 'ops' || multi.kind === 'steps')) {
+    const got = multi.kind === 'ops' ? multi.ops : multi.steps.flatMap(s => s.ops)
+    const labelOf = (o) => host.charts.read?.(o.target)?.label || o.target
+    row.detail = got.map(o => `${o.action}@${labelOf(o)} ${JSON.stringify(o.args)}`).join(' ; ')
+    const plans = [e.ops, ...(e.alt || [])].filter(Boolean)
+    row.outcome = plans.some(p => sameOps(p, got) && p.every((w, i) => !w.t || w.t === labelOf(got[i]))) ? 'fast-correct' : 'fast-WRONG'
+  } else if (multi && multi.kind === 'say') {
+    row.outcome = e.kind === 'clarify' || e.kind === 'refuse' ? 'fast-correct' : 'fast-WRONG'
+    row.detail = multi.text
+  } else if (c.pending && e.ideal === 'local-clarify') {
     row.outcome = 'not-measured'                     // needs a stored local question (pendingRef)
   } else if (!fast) {
     // needsState: the fast phrase needs session state this fixture does not load (Screener catalog,

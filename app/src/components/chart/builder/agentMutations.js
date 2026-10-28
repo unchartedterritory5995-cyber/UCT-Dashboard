@@ -21,7 +21,15 @@
 // settings through the chart's one persist path and hands the read-back to
 // `confirmIndicatorMutation`; nothing here claims a save it did not see.
 
-import { addInstance, removeInstance, setInstanceHidden, findInstance, groupMemberIds, setInstanceInput, setIndicatorInput, checkInstanceInput, inputSpecOf } from '../engine/instanceControls'
+import { addInstance, removeInstance, setInstanceHidden, findInstance, groupMemberIds, setInstanceInput, setIndicatorInput, checkInstanceInput, inputSpecOf,
+  setInstanceAppearance, setInstancePlotStyle, setInstanceCandleColor, setInstanceDisplayTarget, duplicateInstance, isValidColorValue } from '../engine/instanceControls'
+import { displayTargetOptions, automaticTargetOf, resolveDisplayTarget, paneOwnerOf } from '../engine/displayTarget'
+import { movePane as movePaneWriter, movePaneTo, resolvePaneOrder, storedPaneOrder } from '../engine/paneOrder'
+import { setPaneSize as setPaneSizeWriter, clearPaneSize, storedPaneSizes } from '../engine/paneSizes'
+import { LINE_WIDTH_CHOICES, LINE_STYLE_CHOICES, DEFAULT_LINE_WIDTH_CHOICE, DEFAULT_LINE_STYLE_CHOICE, resolveSignColors, resolvePlotStyle } from '../engine/presentation'
+import { styleChoicesFor } from '../engine/styleCapability'
+import { paneArrangeArgs } from './agentPanes'
+import { captureIndicatorTemplate, applyIndicatorTemplate } from './indicatorTemplates'
 import { legacyInstanceId } from '../engine/instances'
 import { sourceInputsOf, sourceDependsOn, instanceLabel } from '../engine/sourceRef'
 import { infoValuesOf } from '../engine/infoValues'
@@ -33,7 +41,13 @@ import { instancesOf, instanceFingerprint } from './agentSeams'
 import { canon, same, changeRecord, holds, revertRecord } from '../engine/settingsRecord'
 
 export const MUTATION_CONTRACT = 'uct.indicators.mutation/1'
-export const MUTATION_OPS = Object.freeze(['add', 'remove', 'setVisible', 'setInputs'])
+/** ⭐ I-1…I-8 (2026-10-27, ADDITIVE — the first four ops are unchanged): presentation and
+ *  placement of ONE instance, the pane stack, and creating copies. */
+export const STYLE_OPS = Object.freeze(['setAppearance', 'setPlotStyle', 'setColor', 'setDisplayTarget'])
+export const PANE_OPS = Object.freeze(['movePane', 'setPaneSize'])
+export const CREATE_OPS = Object.freeze(['duplicate', 'copyFrom'])
+export const MUTATION_OPS = Object.freeze(['add', 'remove', 'setVisible', 'setInputs', ...STYLE_OPS, ...PANE_OPS, ...CREATE_OPS])
+const EXT_OPS = new Set([...STYLE_OPS, ...PANE_OPS, ...CREATE_OPS])
 
 /** Every refusal this interface returns. Stable strings: receipts and tests pin them. */
 export const REASONS = Object.freeze({
@@ -302,11 +316,16 @@ export function checkIndicatorPermission(op, args, ctx) {
  * when more than one instance carries it. Volume (a setting) and the live preview are
  * never targets.
  */
-export function resolveIndicatorTarget(cs, registry, { instanceId, name } = {}) {
+export function resolveIndicatorTarget(cs, registry, { instanceId, name, defId, inputs, ordinal } = {}) {
   const rows = instancesOf(cs, registry).filter((r) => !r.setting)
   if (typeof instanceId === 'string' && instanceId) {
     const hit = rows.find((r) => r.instanceId === instanceId)
     return hit ? { ok: true, instanceId: hit.instanceId, name: hit.name } : refuse(REASONS.NOT_FOUND)
+  }
+  // ⭐ I-10 (2026-10-27): STRUCTURED — `{defId?, inputs?, ordinal?}` (and an optional `name`
+  // to narrow). "the 20 EMA" is `{defId:'movingAverage', inputs:{period:20, maType:'ema'}}`.
+  if ((typeof defId === 'string' && defId) || isObj(inputs) || Number.isInteger(ordinal)) {
+    return resolveStructured(rows, registry, { name, defId, inputs, ordinal })
   }
   if (typeof name === 'string' && name.trim()) {
     const want = name.trim().toLowerCase()
@@ -316,6 +335,41 @@ export function resolveIndicatorTarget(cs, registry, { instanceId, name } = {}) 
     return refuse(REASONS.NOT_FOUND)
   }
   return refuse(REASONS.BAD_REQUEST)
+}
+
+/**
+ * I-10 — match on the definition, on the EFFECTIVE input values (stored, else the declared
+ * default; each requested value coerced by `checkInstanceInput`, so `'20'` matches `20`),
+ * and optionally a legend `name`. `ordinal` (1-based, stored order; `-1` = the last) picks
+ * one of several matches; without it, more than one match is `ambiguous` with candidates.
+ */
+function resolveStructured(rows, registry, { name, defId, inputs, ordinal }) {
+  const defOf = getDefOf(registry)
+  const want = typeof name === 'string' && name.trim() ? name.trim().toLowerCase() : null
+  const hits = rows.filter((r) => {
+    if (typeof defId === 'string' && defId && r.defId !== defId) return false
+    if (want && r.name.toLowerCase() !== want) return false
+    if (isObj(inputs)) {
+      const def = defOf(r.defId)
+      for (const [key, value] of Object.entries(inputs)) {
+        const c = checkInstanceInput(def, key, value)
+        if (!c.ok) return false
+        const declared = ((def && def.inputs) || []).find((i) => i && i.key === key)
+        const stored = (r.inputs || {})[key]
+        const current = stored === undefined ? (declared || {}).default : stored
+        if (!same(current, c.value)) return false
+      }
+    }
+    return true
+  })
+  const candidates = () => hits.map((h) => ({ instanceId: h.instanceId, name: h.name, defId: h.defId, inputs: { ...(h.inputs || {}) } }))
+  if (Number.isInteger(ordinal) && ordinal !== 0) {
+    const pick = ordinal > 0 ? hits[ordinal - 1] : hits[hits.length + ordinal]
+    return pick ? { ok: true, instanceId: pick.instanceId, name: pick.name } : refuse(REASONS.NOT_FOUND, { matches: hits.length })
+  }
+  if (hits.length === 1) return { ok: true, instanceId: hits[0].instanceId, name: hits[0].name }
+  if (hits.length > 1) return refuse(REASONS.AMBIGUOUS, { candidates: candidates() })
+  return refuse(REASONS.NOT_FOUND)
 }
 
 // ─── plan → apply → confirm → (undo → confirm) ────────────────────────────────
@@ -341,6 +395,7 @@ export function planIndicatorMutation(cs, request, ctx) {
   if (!perm.ok) return perm
   const registry = ctx.registry
   const base = { contract: MUTATION_CONTRACT, op: req.op, boardRevision: ctx.boardRevision ?? null, instanceFingerprint: instanceFingerprint(view) }
+  if (EXT_OPS.has(req.op)) return planExt(view, req, ctx, base)
 
   if (req.op === 'add') {
     const made = addWithInputs(view, req.defId, req.inputs, registry)
@@ -428,6 +483,7 @@ export function applyIndicatorMutation(cs, plan, ctx) {
   const view = viewOf(cs)
   if (!view || !isObj(plan) || plan.contract !== MUTATION_CONTRACT || !MUTATION_OPS.includes(plan.op)) return refuse(REASONS.BAD_REQUEST)
   const c = ctx || {}
+  if (EXT_OPS.has(plan.op)) return applyExt(view, plan, c)
   const ok = revalidate(view, plan, c)
   if (!ok.ok) return ok
   const registry = c.registry
@@ -483,19 +539,25 @@ export function confirmIndicatorMutation(persisted, pending, ctx) {
     ...(pending.op === 'setInputs' && pending.inputs ? { inputs: { before: { ...pending.inputs.before }, after: { ...pending.inputs.after } } } : {}),
     ...(pending.op === 'remove' && !pending.undoOf ? { severed: (pending.severed || []).map((d) => ({ ...d })) } : {}),
     ...(pending.restored ? { restored: pending.restored.map((d) => ({ ...d })) } : {}),
+    // ⭐ I-1…I-8 (additive): what changed, the pane it was, what a copy made
+    ...(pending.change ? { change: JSON.parse(JSON.stringify(pending.change)) } : {}),
+    ...(pending.paneKey ? { paneKey: pending.paneKey } : {}),
+    ...(pending.copied && !pending.undoOf ? { copied: pending.copied.map((d) => ({ ...d })), already: (pending.already || []).map((d) => ({ ...d })) } : {}),
     chartId: (ctx && ctx.chartId) ?? null,
   })
   const view = normOf(persisted)
   if (!view) return { status: REASONS.UNCONFIRMED, reason: REASONS.UNCONFIRMED, receipt: receipt(REASONS.UNCONFIRMED) }
   const mismatch = pending.record.paths.find((e) => !holds(view, e))
   if (mismatch) return { status: REASONS.NOT_LANDED, reason: REASONS.NOT_LANDED, receipt: receipt(REASONS.NOT_LANDED), mismatch: { path: mismatch.path } }
-  const done = receipt('confirmed')
+  // ⭐ I-12: the receipt pins the POST-change state, read from the persisted copy
+  const done = { ...receipt('confirmed'), instanceFingerprintAfter: instanceFingerprint(view) }
   if (pending.undoOf) return { status: 'confirmed', receipt: done, undo: null }
   return {
     status: 'confirmed', receipt: done,
     undo: { contract: MUTATION_CONTRACT, kind: 'undo', op: pending.op, ids: pending.ids.slice(), defId: pending.defId,
       name: pending.name, chartId: done.chartId, record: pending.record, severed: (pending.severed || []).map((d) => ({ ...d })),
-      groupFingerprintAfter: groupFingerprint(view, pending.ids) },
+      groupFingerprintAfter: groupFingerprint(view, pending.ids),
+      ...(PANE_OPS.includes(pending.op) ? { paneKey: pending.paneKey, paneFingerprintAfter: paneFingerprint(view, ctx && ctx.registry, ctx && ctx.volumeOpts) } : {}) },
   }
 }
 
@@ -514,6 +576,7 @@ export function undoIndicatorMutation(cs, undo, ctx) {
   if (c.chartId !== undefined && undo.chartId !== null && c.chartId !== undo.chartId) return refuse(REASONS.BAD_REQUEST)
   if (c.canManage !== true) return refuse(REASONS.PERMISSION_CHANGED, { was: REASONS.READONLY })
   const plan = { target: { defId: undo.defId } }
+  if (EXT_OPS.has(undo.op)) return undoExt(view, undo, c, plan)
 
   if (undo.op === 'setInputs') {
     // exact or refused: the instance must still be exactly as the edit left it
@@ -543,6 +606,383 @@ export function undoIndicatorMutation(cs, undo, ctx) {
     return { ok: true, cs: r.cs, pending: pendingFor('remove', plan, view, r.cs, r.record, c.registry, { name: undo.name, undoOf: 'add' }) }
   }
   return refuse(REASONS.BAD_REQUEST)
+}
+
+// ─── ⭐ I-1…I-8 — PRESENTATION, PLACEMENT, PANES, DUPLICATE, COPY (2026-10-27) ───────
+//
+// The same plan → apply → confirm → undo shape, token, REASONS and permission answer as
+// the four ops above. ⛔ NO SECOND WRITER — each wraps the writer the product UI uses:
+//   setAppearance    → setInstanceAppearance     (Inspector: Line width / Line style / Overlap)
+//   setPlotStyle     → setInstancePlotStyle      (Inspector: Plot style; offers = `styleChoicesFor`)
+//   setColor         → `setInputsWith` (the settings rows' colour lane: setInstanceInput /
+//                      setIndicatorInput) or setInstanceCandleColor (the Up/Down swatches)
+//   setDisplayTarget → setInstanceDisplayTarget  (Inspector: Display in; offers = `displayTargetOptions`)
+//   movePane         → movePane / movePaneTo     (Chart Data Arrange: arrows / drag)
+//   setPaneSize      → setPaneSize / clearPaneSize (the pane divider / its reset)
+//   duplicate        → duplicateInstance         (legend popover / Inspector Duplicate)
+//   copyFrom         → captureIndicatorTemplate + applyIndicatorTemplate (Indicator templates)
+// Edits are per INSTANCE (never its group); Undo is the exact revert of the recorded leaves,
+// refused when anything moved since. A copy's Undo removes what it created (refused while
+// something else reads it), as `add`'s does.
+
+const APPEARANCE_SPEC = Object.freeze({
+  lineWidth: { dflt: DEFAULT_LINE_WIDTH_CHOICE, options: LINE_WIDTH_CHOICES, valid: (v) => LINE_WIDTH_CHOICES.includes(Number(v)) && v !== '' && v !== null, coerce: (v) => Number(v) },
+  lineStyle: { dflt: DEFAULT_LINE_STYLE_CHOICE, options: LINE_STYLE_CHOICES, valid: (v) => LINE_STYLE_CHOICES.includes(v), coerce: (v) => v },
+  overlap: { dflt: false, options: [true, false], valid: (v) => typeof v === 'boolean', coerce: (v) => v },
+})
+const nameOfDef = (def) => (def && def.meta && def.meta.name) || (def && def.id) || 'This indicator'
+/** A write that changed nothing but `preset` changed nothing the member can see. */
+const noChange = (view, next) => next === view
+  || !changeRecord(normOf(view), normOf(next)).paths.some((p) => !(p.path.length === 1 && p.path[0] === 'preset'))
+const plain = (v) => JSON.parse(JSON.stringify(v === undefined ? null : v))
+
+/**
+ * A fingerprint of the PANE STACK: the resolved order, the stored order and the stored
+ * sizes. `pf:<n>:<fnv1a>`. Pins `movePane` / `setPaneSize` plans and their Undo.
+ */
+export function paneFingerprint(cs, registry, volumeOpts = null) {
+  const view = viewOf(cs)
+  if (!view) return 'pf:0:00000000'
+  const { paneKeys, opts } = paneArrangeArgs(view, registry, volumeOpts)
+  const order = resolvePaneOrder(view, paneKeys, opts)
+  return `pf:${order.length}:${fnv(canon([order, storedPaneOrder(view), storedPaneSizes(view)]))}`
+}
+
+/** The live, editable instance a style/create op names. */
+function editableInstance(view, req, ctx) {
+  const t = resolveIndicatorTarget(view, ctx.registry, { instanceId: req.instanceId })
+  if (!t.ok) return t
+  const inst = findInstance(view, t.instanceId)
+  const editable = checkEditableDefinition(inst.defId, t.instanceId, ctx)
+  if (!editable.ok) return editable
+  return { ok: true, t, inst, def: getDefOf(ctx.registry)(inst.defId) }
+}
+
+/** The colour targets one instance offers (what the settings row shows). */
+function colorTargetsOf(view, inst, def) {
+  const out = []
+  for (const i of (def && def.inputs) || []) {
+    if (i && i.type === 'color') out.push({ target: `input:${i.key}`, label: i.label || i.key, current: ((inst.inputs || {})[i.key] ?? i.default) ?? null })
+  }
+  const candles = (view && view.candles) || null
+  for (const plot of (Array.isArray(def && def.plots) ? def.plots : [])) {
+    const style = resolvePlotStyle(inst, plot, {})
+    if (!(style === 'histogram' || (!style && plot.style === 'histogram'))) continue
+    const sign = resolveSignColors(inst, plot, candles)
+    if (!sign) continue
+    out.push({ target: 'sign:up', plotKey: plot.key, label: `Up color · ${plot.label || plot.key}`, current: sign.up ?? null })
+    out.push({ target: 'sign:down', plotKey: plot.key, label: `Down color · ${plot.label || plot.key}`, current: sign.down ?? null })
+  }
+  return out
+}
+
+/**
+ * ⭐ WHAT ONE INSTANCE MAY BE CHANGED TO — the choices the Inspector offers, as data. The
+ * Agent reads this to phrase a proposal ("thicker" → the next `lineWidth`) and to refuse
+ * an impossible one before asking; every value it lists is one the op accepts.
+ * @returns `{ok:true, instanceId, defId, name, appearance, plotStyles, colors, displayTargets}` | refusal
+ */
+export function styleOptionsOf(cs, registry, instanceId) {
+  const view = viewOf(cs)
+  if (!view) return refuse(REASONS.BAD_REQUEST)
+  const t = resolveIndicatorTarget(view, registry, { instanceId })
+  if (!t.ok) return t
+  const inst = findInstance(view, t.instanceId)
+  const def = getDefOf(registry)(inst.defId)
+  if (!def) return refuse(REASONS.UNKNOWN_DEFINITION)
+  const pres = isObj(inst.presentation) ? inst.presentation : {}
+  const declared = (def.meta && Array.isArray(def.meta.appearance) ? def.meta.appearance : []).filter((k) => APPEARANCE_SPEC[k])
+  let targets = []
+  try { targets = displayTargetOptions(inst, view, getDefOf(registry)).filter((o) => !o.missing).map((o) => ({ value: o.value, label: o.label })) } catch { targets = [] }
+  return {
+    ok: true, instanceId: t.instanceId, defId: inst.defId, name: t.name,
+    appearance: declared.map((key) => ({ key, current: pres[key] === undefined ? APPEARANCE_SPEC[key].dflt : pres[key], options: [...APPEARANCE_SPEC[key].options] })),
+    plotStyles: styleChoicesFor(def, inst, view).map((c) => ({ plotKey: c.key, label: c.label, current: c.current, options: [...c.choices] })),
+    colors: colorTargetsOf(view, inst, def),
+    displayTarget: { current: resolveDisplayTarget(inst, view), options: targets.length ? [{ value: 'auto', label: 'Automatic' }, ...targets] : [] },
+  }
+}
+
+/** Run one STYLE op's writer. `{ok:true, cs, change}` | refusal (nothing written). */
+function writeStyle(view, req, inst, def, registry) {
+  const id = inst.instanceId
+  const pres = isObj(inst.presentation) ? inst.presentation : {}
+  if (req.op === 'setAppearance') {
+    const declared = (def.meta && Array.isArray(def.meta.appearance) ? def.meta.appearance : []).filter((k) => APPEARANCE_SPEC[k])
+    if (!declared.includes(req.key)) return refuse(REASONS.BAD_INPUT, { key: req.key ?? null, why: `${nameOfDef(def)} has no "${req.key}" control`, options: declared })
+    const spec = APPEARANCE_SPEC[req.key]
+    if (!spec.valid(req.value)) return refuse(REASONS.BAD_INPUT, { key: req.key, value: req.value ?? null, why: `"${req.key}" takes one of ${JSON.stringify(spec.options)}`, options: [...spec.options] })
+    const value = spec.coerce(req.value)
+    const before = pres[req.key] === undefined ? spec.dflt : pres[req.key]
+    if (same(before, value)) return refuse(REASONS.NO_CHANGE)
+    const next = setInstanceAppearance(view, id, req.key, value, registry)
+    if (noChange(view, next)) return refuse(REASONS.WRITER_REFUSED)
+    return { ok: true, cs: next, change: { what: 'appearance', key: req.key, before, after: value } }
+  }
+  if (req.op === 'setPlotStyle') {
+    const choices = styleChoicesFor(def, inst, view)
+    if (!choices.length) return refuse(REASONS.BAD_INPUT, { why: `${nameOfDef(def)} has no plot style control`, options: [] })
+    const entry = typeof req.plotKey === 'string' && req.plotKey ? choices.find((c) => c.key === req.plotKey) : (choices.length === 1 ? choices[0] : null)
+    if (!entry) return refuse(REASONS.BAD_REQUEST, { why: 'name the output to restyle', plots: choices.map((c) => ({ plotKey: c.key, label: c.label })) })
+    if (!entry.choices.includes(req.style)) return refuse(REASONS.BAD_INPUT, { plotKey: entry.key, value: req.style ?? null, why: `"${entry.label}" can be drawn as ${entry.choices.join(', ')}`, options: [...entry.choices] })
+    if (entry.current === req.style) return refuse(REASONS.NO_CHANGE)
+    const next = setInstancePlotStyle(view, id, req.style, registry, entry.plotKey || undefined)
+    if (noChange(view, next)) return refuse(REASONS.WRITER_REFUSED)
+    return { ok: true, cs: next, change: { what: 'plotStyle', plotKey: entry.key, before: entry.current, after: req.style } }
+  }
+  if (req.op === 'setColor') {
+    const color = req.color !== undefined ? req.color : req.hex
+    const offered = colorTargetsOf(view, inst, def)
+    const options = offered.map((o) => ({ target: o.target, ...(o.plotKey && o.target.startsWith('sign:') ? { plotKey: o.plotKey } : {}), label: o.label }))
+    if (!isValidColorValue(color)) return refuse(REASONS.BAD_INPUT, { value: color ?? null, why: 'a colour is a hex value such as #22c55e, or a theme colour such as token:bull', options })
+    const target = typeof req.target === 'string' ? req.target : ''
+    if (target.startsWith('input:')) {
+      const key = target.slice('input:'.length)
+      if (!offered.some((o) => o.target === target)) return refuse(REASONS.BAD_INPUT, { target, why: `${nameOfDef(def)} has no colour setting "${key}"`, options })
+      const made = setInputsWith(view, id, { [key]: color }, registry)
+      if (!made.ok) return made
+      return { ok: true, cs: made.cs, change: { what: 'color', target, before: made.before[key] ?? null, after: made.after[key] } }
+    }
+    if (target === 'sign:up' || target === 'sign:down') {
+      const signs = offered.filter((o) => o.target === target)
+      const pick = typeof req.plotKey === 'string' && req.plotKey ? signs.find((o) => o.plotKey === req.plotKey) : signs[0]
+      if (!pick) return refuse(REASONS.BAD_INPUT, { target, why: `${nameOfDef(def)} has no up/down colours${req.plotKey ? ` on "${req.plotKey}"` : ''}`, options })
+      const which = target === 'sign:up' ? 'upColor' : 'downColor'
+      // ⭐ the swatch's own call: instance level unless an output is named; the chart's
+      // own candle colour is the default, so choosing it DELETES the key (follows the theme)
+      const fallback = (view.candles && view.candles[which]) || null
+      const next = setInstanceCandleColor(view, id, which, color, registry, typeof req.plotKey === 'string' && req.plotKey ? req.plotKey : undefined, fallback)
+      if (noChange(view, next)) return refuse(REASONS.NO_CHANGE)
+      return { ok: true, cs: next, change: { what: 'color', target, ...(req.plotKey ? { plotKey: req.plotKey } : {}), before: pick.current, after: color } }
+    }
+    return refuse(REASONS.BAD_INPUT, { target: target || null, why: 'name a colour target', options })
+  }
+  // setDisplayTarget
+  let options = []
+  try { options = displayTargetOptions(inst, view, getDefOf(registry)).filter((o) => !o.missing) } catch { options = [] }
+  if (!options.length) return refuse(REASONS.BAD_INPUT, { why: `${nameOfDef(def)} can only draw where it is`, options: [] })
+  const target = req.target === 'auto' ? automaticTargetOf(view, inst) : req.target
+  if (req.target !== 'auto' && !options.some((o) => o.value === target)) {
+    return refuse(REASONS.BAD_INPUT, { value: req.target ?? null, why: 'not a place this indicator can draw', options: [{ value: 'auto', label: 'Automatic' }, ...options.map((o) => ({ value: o.value, label: o.label }))] })
+  }
+  const before = resolveDisplayTarget(inst, view)
+  const next = setInstanceDisplayTarget(view, id, target, registry)
+  if (noChange(view, next)) return refuse(REASONS.NO_CHANGE)
+  const after = resolveDisplayTarget(findInstance(next, id), next)
+  // the series drawing INSIDE this one's pane (they travel with their host — or lose it)
+  const guests = instancesOf(view, registry).filter((r) => !r.setting && r.instanceId !== id && (() => {
+    try { return paneOwnerOf(findInstance(view, r.instanceId), view) === id } catch { return false }
+  })()).map((r) => ({ instanceId: r.instanceId, name: r.name }))
+  return { ok: true, cs: next, change: { what: 'displayTarget', before, after, ...(req.target === 'auto' ? { automatic: true } : {}), guests } }
+}
+
+/** Run one PANE op's writer. `{ok:true, cs, change, paneKey, ids}` | refusal. */
+function writePane(view, req, registry, volumeOpts) {
+  const { panes, paneKeys, opts } = paneArrangeArgs(view, registry, volumeOpts)
+  const pane = panes.find((p) => p.paneKey === req.paneKey)
+  if (!pane) return refuse(REASONS.NOT_FOUND, { panes: panes.map((p) => ({ paneKey: p.paneKey, label: p.label })) })
+  const ids = [...pane.ownerInstanceIds].sort()
+  if (req.op === 'movePane') {
+    const before = resolvePaneOrder(view, paneKeys, opts)
+    let next
+    if (req.delta === 1 || req.delta === -1) next = movePaneWriter(view, paneKeys, pane.paneKey, req.delta, opts)
+    else if (Object.prototype.hasOwnProperty.call(req, 'beforeKey') && (req.beforeKey === null || panes.some((p) => p.paneKey === req.beforeKey))) {
+      next = movePaneTo(view, paneKeys, pane.paneKey, req.beforeKey, opts)
+    } else return refuse(REASONS.BAD_REQUEST, { why: 'say where: delta ±1, or beforeKey (a pane key, or null for the bottom)', panes: panes.map((p) => ({ paneKey: p.paneKey, label: p.label })) })
+    if (noChange(view, next)) return refuse(REASONS.NO_CHANGE)
+    return { ok: true, cs: next, paneKey: pane.paneKey, ids, change: { what: 'paneOrder', paneKey: pane.paneKey, label: pane.label, before, after: resolvePaneOrder(next, paneKeys, opts) } }
+  }
+  // setPaneSize — `share: null` is "back to automatic"
+  const before = pane.share
+  let next
+  if (req.share === null) next = clearPaneSize(view, pane.paneKey)
+  else if (Number.isFinite(req.share) && req.share >= 0.04 && req.share <= 0.9) next = setPaneSizeWriter(view, pane.paneKey, req.share)
+  else return refuse(REASONS.BAD_INPUT, { value: req.share ?? null, why: 'a pane share is between 0.04 and 0.9 of the chart height, or null for automatic', min: 0.04, max: 0.9 })
+  if (noChange(view, next)) return refuse(REASONS.NO_CHANGE)
+  const after = storedPaneSizes(next)[pane.paneKey] ?? null
+  return { ok: true, cs: next, paneKey: pane.paneKey, ids, change: { what: 'paneSize', paneKey: pane.paneKey, label: pane.label, before, after } }
+}
+
+/** Run one CREATE op. `{ok:true, cs, ids, copied?, already?, template?}` | refusal. */
+function writeCreate(view, req, registry, template) {
+  if (req.op === 'duplicate') {
+    const before = new Set((view.indicatorInstances || []).map((i) => i && i.instanceId))
+    const next = duplicateInstance(view, req.instanceId, registry)
+    if (next === view) return refuse(REASONS.WRITER_REFUSED)
+    const ids = (next.indicatorInstances || []).filter((i) => i && !before.has(i.instanceId)).map((i) => i.instanceId).sort()
+    if (ids.length !== 1) return refuse(REASONS.WRITER_REFUSED)
+    return { ok: true, cs: next, ids }
+  }
+  const r = applyIndicatorTemplate(view, template, registry)
+  if (!r.ok) return refuse(REASONS.BAD_REQUEST, { why: r.detail || r.reason })
+  if (r.unavailable.length) return refuse(REASONS.UNKNOWN_DEFINITION, { unavailable: r.unavailable.map((u) => ({ defId: u.defId, name: u.label })) })
+  if (!r.added.length) return refuse(REASONS.NO_CHANGE, { already: r.already.map((a) => ({ instanceId: a.instanceId, name: a.label })) })
+  return {
+    ok: true, cs: r.cs, ids: r.added.map((a) => a.instanceId).sort(),
+    copied: r.added.map((a) => ({ instanceId: a.instanceId, name: a.label })),
+    already: r.already.map((a) => ({ instanceId: a.instanceId, name: a.label })),
+  }
+}
+
+/** I-8: the copy body, captured from the SOURCE chart at plan time (the template layer's rule). */
+function captureCopy(req, ctx) {
+  const ids = Array.isArray(req.instanceIds) ? [...new Set(req.instanceIds.filter((x) => typeof x === 'string' && x))] : []
+  const src = viewOf(req.sourceCs)
+  if (!src || !ids.length) return refuse(REASONS.BAD_REQUEST, { why: 'copyFrom needs sourceCs and instanceIds' })
+  for (const id of ids) {
+    const t = resolveIndicatorTarget(src, ctx.registry, { instanceId: id })
+    if (!t.ok) return refuse(REASONS.NOT_FOUND, { instanceId: id, where: 'source' })
+    const inst = findInstance(src, id)
+    const editable = checkEditableDefinition(inst.defId, id, ctx)
+    if (!editable.ok) return { ...editable, detail: { instanceId: id, defId: inst.defId } }
+  }
+  const cap = captureIndicatorTemplate(src, ctx.registry, { name: 'Agent copy', id: 'agent-copy', now: 0, onlyIds: ids })
+  if (!cap.ok) return refuse(REASONS.BAD_REQUEST, { why: cap.reason })
+  if (cap.template.instances.length !== ids.length) return refuse(REASONS.BAD_REQUEST, { why: 'too many indicators to copy at once', max: cap.template.instances.length })
+  return { ok: true, template: plain(cap.template) }
+}
+
+function planExt(view, req, ctx, base) {
+  const registry = ctx.registry
+  if (STYLE_OPS.includes(req.op)) {
+    const e = editableInstance(view, req, ctx)
+    if (!e.ok) return e
+    const made = writeStyle(view, req, e.inst, e.def, registry)
+    if (!made.ok) return made
+    const one = [e.t.instanceId]
+    const args = { ...plain(req) }
+    return { ok: true, plan: { ...base, args, target: { ids: one, defId: e.inst.defId },
+      pins: { groupFingerprint: groupFingerprint(view, one) },
+      preview: { name: e.t.name, nameAfter: nameOf(made.cs, registry, e.t.instanceId) || e.t.name, change: made.change, severs: [] } } }
+  }
+  if (PANE_OPS.includes(req.op)) {
+    const made = writePane(view, req, registry, ctx.volumeOpts)
+    if (!made.ok) return made
+    return { ok: true, plan: { ...base, args: plain(req), target: { ids: made.ids, defId: null, paneKey: made.paneKey },
+      pins: { paneFingerprint: paneFingerprint(view, registry, ctx.volumeOpts) },
+      preview: { name: made.change.label, change: made.change, severs: [] } } }
+  }
+  if (req.op === 'duplicate') {
+    const e = editableInstance(view, req, ctx)
+    if (!e.ok) return e
+    const made = writeCreate(view, { op: 'duplicate', instanceId: e.t.instanceId }, registry)
+    if (!made.ok) return made
+    return { ok: true, plan: { ...base, args: { instanceId: e.t.instanceId }, target: { ids: [], defId: e.inst.defId, sourceId: e.t.instanceId },
+      pins: { defVersion: defVersionOf(registry, e.inst.defId), groupFingerprint: groupFingerprint(view, [e.t.instanceId]) },
+      preview: { name: nameOf(made.cs, registry, made.ids[0]) || e.t.name, from: e.t.name, severs: [] } } }
+  }
+  // copyFrom
+  const cap = captureCopy(req, ctx)
+  if (!cap.ok) return cap
+  const made = writeCreate(view, req, registry, cap.template)
+  if (!made.ok) return made
+  const defIds = [...new Set(cap.template.instances.map((i) => i.defId))].sort()
+  return { ok: true, plan: { ...base, args: { instanceIds: [...req.instanceIds], template: cap.template, ...(req.sourceChartId !== undefined ? { sourceChartId: req.sourceChartId } : {}) },
+    target: { ids: [], defId: defIds.length === 1 ? defIds[0] : null, defIds },
+    pins: { defVersions: Object.fromEntries(defIds.map((d) => [d, defVersionOf(registry, d)])), already: made.already.map((a) => a.instanceId) },
+    preview: { name: made.copied.map((c) => c.name).join(', '), copied: made.copied.map((c) => ({ name: c.name })), already: made.already, severs: [] } } }
+}
+
+function revalidateExt(view, plan, ctx) {
+  const op = plan.op
+  if (ctx.canManage !== true) return refuse(REASONS.PERMISSION_CHANGED, { was: REASONS.READONLY })
+  if (plan.boardRevision !== null && ctx.boardRevision !== undefined && ctx.boardRevision !== plan.boardRevision) return refuse(REASONS.CHANGED_WHILE_WORKING, { what: 'board' })
+  if (PANE_OPS.includes(op)) {
+    if (paneFingerprint(view, ctx.registry, ctx.volumeOpts) !== plan.pins.paneFingerprint) return refuse(REASONS.CHANGED_WHILE_WORKING, { what: 'panes' })
+    return { ok: true }
+  }
+  if (op === 'copyFrom') {
+    for (const [d, v] of Object.entries(plan.pins.defVersions || {})) {
+      const editable = checkEditableDefinition(d, null, ctx)
+      if (!editable.ok) return refuse(REASONS.PERMISSION_CHANGED, { was: editable.reason })
+      if (defVersionOf(ctx.registry, d) !== v) return refuse(REASONS.CHANGED_WHILE_WORKING, { what: 'definition' })
+    }
+    return { ok: true }
+  }
+  const id = plan.args.instanceId
+  if (!findInstance(view, id) || isInstanceTombstone(findInstance(view, id))) return refuse(REASONS.NOT_FOUND)
+  const editable = checkEditableDefinition(plan.target.defId, id, ctx)
+  if (!editable.ok) return refuse(REASONS.PERMISSION_CHANGED, { was: editable.reason })
+  if (groupFingerprint(view, [id]) !== plan.pins.groupFingerprint) return refuse(REASONS.CHANGED_WHILE_WORKING, { what: 'indicator' })
+  if (op === 'duplicate' && defVersionOf(ctx.registry, plan.target.defId) !== plan.pins.defVersion) return refuse(REASONS.CHANGED_WHILE_WORKING, { what: 'definition' })
+  return { ok: true }
+}
+
+function applyExt(view, plan, ctx) {
+  const ok = revalidateExt(view, plan, ctx)
+  if (!ok.ok) return ok
+  const registry = ctx.registry
+  if (STYLE_OPS.includes(plan.op)) {
+    const inst = findInstance(view, plan.args.instanceId)
+    const made = writeStyle(view, plan.args, inst, getDefOf(registry)(inst.defId), registry)
+    if (!made.ok) return made
+    const record = recordOf(plan.target.ids, view, made.cs)
+    return { ok: true, cs: made.cs, pending: pendingFor(plan.op, plan, view, made.cs, record, registry,
+      { name: plan.preview.nameAfter || plan.preview.name, change: made.change }) }
+  }
+  if (PANE_OPS.includes(plan.op)) {
+    const made = writePane(view, plan.args, registry, ctx.volumeOpts)
+    if (!made.ok) return made
+    const record = recordOf(made.ids, view, made.cs)
+    return { ok: true, cs: made.cs, pending: pendingFor(plan.op, plan, view, made.cs, record, registry,
+      { name: made.change.label, change: made.change, paneKey: made.paneKey }) }
+  }
+  const made = writeCreate(view, plan.op === 'duplicate' ? { op: 'duplicate', instanceId: plan.args.instanceId } : plan, registry, plan.args.template)
+  if (!made.ok) return made
+  if (plan.op === 'copyFrom' && !same(made.already.map((a) => a.instanceId), plan.pins.already)) return refuse(REASONS.CHANGED_WHILE_WORKING, { what: 'chart' })
+  const record = recordOf(made.ids, view, made.cs)
+  const name = plan.op === 'duplicate' ? (nameOf(made.cs, registry, made.ids[0]) || plan.preview.name) : made.copied.map((c) => c.name).join(', ')
+  return { ok: true, cs: made.cs, pending: pendingFor(plan.op, plan, view, made.cs, record, registry,
+    { name, ...(plan.op === 'copyFrom' ? { copied: made.copied, already: made.already } : { from: plan.preview.from }) }) }
+}
+
+function undoExt(view, undo, ctx, plan) {
+  const registry = ctx.registry
+  if (STYLE_OPS.includes(undo.op) || PANE_OPS.includes(undo.op)) {
+    if (PANE_OPS.includes(undo.op)) {
+      if (paneFingerprint(view, registry, ctx.volumeOpts) !== undo.paneFingerprintAfter) return refuse(REASONS.RESTORE_CONFLICT, { path: ['paneOrder'] })
+    } else if (groupFingerprint(view, undo.ids) !== undo.groupFingerprintAfter) return refuse(REASONS.RESTORE_CONFLICT, { path: ['indicatorInstances'] })
+    const r = revert(view, undo.record)
+    if (!r.ok) return r
+    const record = recordOf(undo.ids, view, r.cs)
+    return { ok: true, cs: r.cs, pending: pendingFor(undo.op, plan, view, r.cs, record, registry,
+      { name: undo.name, undoOf: undo.op, ...(undo.paneKey ? { paneKey: undo.paneKey } : {}) }) }
+  }
+  // duplicate / copyFrom → remove what was created (the product's own delete), exact or refused
+  const ids = undo.ids || []
+  if (!ids.length || !ids.every((id) => findInstance(view, id) && !isInstanceTombstone(findInstance(view, id)))) return refuse(REASONS.RESTORE_CONFLICT, { path: null })
+  if (groupFingerprint(view, ids) !== undo.groupFingerprintAfter) return refuse(REASONS.RESTORE_CONFLICT, { path: ['indicatorInstances'] })
+  if (dependentsOf(view, ids, registry).length) return refuse(REASONS.DEPENDENT_EXISTS)
+  let next = view
+  for (const id of ids) {
+    const after = removeInstance(next, id, registry)
+    if (after === next) return refuse(REASONS.WRITER_REFUSED)
+    next = after
+  }
+  const record = recordOf(ids, view, next)
+  return { ok: true, cs: next, pending: pendingFor('remove', plan, view, next, record, registry, { name: undo.name, undoOf: undo.op }) }
+}
+
+/**
+ * ⭐ "APPLY IT TO ALL MY CHARTS" — plan ONE request on each of several charts. Pure: every
+ * chart keeps its own plan, its own persist, its own confirmation and its own Undo token
+ * (Agent applies and confirms them one chart at a time through each chart's persist path).
+ * A chart that refuses does not stop the others — its refusal is returned in its slot.
+ * @param {{chartId: string, cs: object, ctx: object}[]} charts   `ctx` as for `planIndicatorMutation`
+ * @param {object|function} request   one request for every chart, or `(chart) => request`
+ * @returns {{chartId, ok: true, plan} | {chartId, ok: false, reason, detail?}}[]
+ */
+export function planAcrossCharts(charts, request) {
+  return (Array.isArray(charts) ? charts : []).map((chart) => {
+    const chartId = chart && chart.chartId !== undefined ? chart.chartId : null
+    try {
+      const req = typeof request === 'function' ? request(chart) : request
+      const p = planIndicatorMutation(chart && chart.cs, req, { ...((chart && chart.ctx) || {}), chartId })
+      return { chartId, ...p }
+    } catch {
+      return { chartId, ...refuse(REASONS.BAD_REQUEST) }
+    }
+  })
 }
 
 export { inputSpecOf }

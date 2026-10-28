@@ -12,6 +12,9 @@
  *   pageHint: string           — describes the current surface/field for Compass
  *   disabled?: bool
  *   label?: string             — button text (default '🧭 Assist')
+ *   ariaLabel?: string         — accessible name override. Pass it when `label`
+ *                                is custom text, so the name CONTAINS the visible
+ *                                words (WCAG 2.5.3); omitted = the old name.
  *
  * Example:
  *   <CompassAssistButton pageHint="Daily Notes · eod_recap field" />
@@ -24,14 +27,14 @@ import UIcon from '../ui/UIcon'
 
 const DEFAULT_LABEL = <><UIcon name="compass" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Assist</>
 
-export default function CompassAssistButton({ pageHint, disabled = false, label = DEFAULT_LABEL }) {
+export default function CompassAssistButton({ pageHint, disabled = false, label = DEFAULT_LABEL, ariaLabel = null }) {
   const isPaid = useIsPaid()
   const voice = useContext(VoiceContext)
   // Voice/Compass is a paid, API-cost feature — hidden entirely for free users.
   if (!isPaid) return null
   if (!voice) return null
   return (
-    <CompassAssistInner pageHint={pageHint} disabled={disabled} label={label} />
+    <CompassAssistInner pageHint={pageHint} disabled={disabled} label={label} ariaLabel={ariaLabel} />
   )
 }
 
@@ -39,7 +42,7 @@ export default function CompassAssistButton({ pageHint, disabled = false, label 
  * Inner — only mounts inside a VoiceProvider, so useRealtimeSession (which
  * calls useVoice and would throw without a provider) is safe here.
  */
-function CompassAssistInner({ pageHint, disabled, label }) {
+function CompassAssistInner({ pageHint, disabled, label, ariaLabel }) {
   const { connect } = useRealtimeSession()
   const onClick = useCallback(() => {
     if (pageHint) setVoicePageHint(pageHint)
@@ -54,7 +57,7 @@ function CompassAssistInner({ pageHint, disabled, label }) {
       title={pageHint
         ? `Talk to Compass about: ${pageHint}`
         : 'Talk to Compass'}
-      aria-label={`Talk to Compass${pageHint ? ` about ${pageHint}` : ''}`}
+      aria-label={ariaLabel || `Talk to Compass${pageHint ? ` about ${pageHint}` : ''}`}
       style={{
         padding: '4px 10px', fontSize: 11, fontWeight: 600,
         background: 'transparent',

@@ -47,7 +47,7 @@
 //    verbs were the same control on this tab, which is why turning an indicator
 //    off used to make its settings vanish.
 import { orderCategories } from './technicalCategories'
-import { Fragment, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useCallback, useContext, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
   readEnabled, indTarget, signTarget, styleInputKeys, hiddenPlotOnlyInputKeys,
 } from './indicatorRegistry'
@@ -112,21 +112,20 @@ import SourceField from './SourceField'
 // VITE_INDICATOR_TEMPLATES_ENABLED=1; see IndicatorTemplatesBar.jsx).
 import IndicatorTemplatesBar from './IndicatorTemplatesBar'
 import { availableStyles, resolvePlotStyle, PLOT_STYLE_CHOICES, resolveSignColors } from './engine/presentation'
-import { ohlcCapabilityOf, outputIsSource } from './engine/ohlcCapability'
-import { anyCachedBars } from './engine/secondaryBars'
 // ⭐ THE COMPOSED CLASSIFIER — breadth AND market indicators, ONE authority.
 // ⚰️ This used to import `symbolFamily` (breadth only). Every call site here asks
 // about a symbol that may now come from either catalogue, so asking the breadth-only
 // function would classify a Cboe volatility index as a plain security and offer it
 // candles for the wrong reason. `canonicalFamily` composes both and is fail-closed
 // until both registries have landed.
-import useMarketIndicators, { canonicalFamily, canonicalSourceCapability, presentationFamily } from '../../hooks/useMarketIndicators'
+import useMarketIndicators, { presentationFamily } from '../../hooks/useMarketIndicators'
 import useBreadthSymbols from '../../hooks/useBreadthSymbols'
 import { POPULAR_RESULTS, INDICES_PRESET } from './symbolSearchModel'
 import {
   resolveDisplayTarget, displayTargetOptions, hasExplicitTarget, automaticTargetOf,
 } from './engine/displayTarget'
 import { sourceInputsOf, parseSource } from './engine/sourceRef'
+import { ohlcCapableFor, sourceCapabilityFor } from './engine/styleCapability'
 import { setInstancePlotStyle, setInstanceDisplayTarget } from './engine/instanceControls'
 // ⭐⭐ THE PANE MAP, AS A READ. `chartDataMap` asks `resolveDisplayTarget`,
 // `paneOwnerOf`, `paneOwnKeys` and `paneOwnersNeeded` — the same four answers
@@ -137,13 +136,14 @@ import { setInstancePlotStyle, setInstanceDisplayTarget } from './engine/instanc
 // group is called, and what it reads. It lives beside `paneMap` because a row's
 // NAME depends on the pane it is filed under (`EMA 20` inside QQQ, `EMA 20 · QQQ`
 // on Price), which makes it a placement answer like every other in that file.
-import { paneMap, paneRowMeta } from './chartDataMap'
+import { paneMap, paneRowMeta, activeIndicatorRows } from './chartDataMap'
 // ⭐ THE ONE REORDER WRITER. Drag and Move up / Move down both end here, so the
 // two paths cannot produce different stored states — asserted in
 // `engine/__tests__/paneOrder.test.js`.
 import { movePane, movePaneTo } from './engine/paneOrder'
 import { moveSeriesWithinPane, moveSeriesTo, canMoveSeries } from './engine/paneSeriesOrder'
 import { safeCssColour } from './engine/objectColour'
+import { tagRestatesName } from './shortTag'
 
 /**
  * Is this row a chart FIXTURE — an MA overlay or the volume pane — rather than an
@@ -214,52 +214,8 @@ function mainColorFields(row) {
  *  cannot answer anything is a control that cannot refuse; see `canRemove`'s
  *  gravestone further down for the same ruling. */
 
-/**
- * Is this instance's source genuinely OHLC-bearing?
- *
- * ⭐ ONE CAPABILITY ANSWER, TWO READERS. It began as an IIFE inside the style
- * control; the COLLAPSED row's summary needs the same answer, and a second copy
- * is how "Candles" ends up offered in one place and denied in the other.
- *
- * ⚠️ `anyCachedBars` IS THE WINDOW-AGNOSTIC READ: this tab knows the INSTRUMENT
- * and never the chart's timeframe, so asking for a specific (tf, bars) window
- * would make the answer flicker with the chart.
- */
-function ohlcCapableFor(def, inst) {
-  if (!inst || !def) return false
-  const declared = sourceInputsOf(def, inst)
-  if (!declared.length) return false
-  const parsed = parseSource(declared[0][1])
-  if (!parsed || parsed.kind !== 'symbol') return false
-  return ohlcCapabilityOf(def, parsed, anyCachedBars(parsed.symbol), canonicalFamily).ok
-}
-
-/**
- * The SOURCE's presentation capability for one instance — the exact answer the
- * binder computes, from the exact same two functions.
- *
- * ⛔⛔ THE MENU AND THE RENDERER MUST READ ONE CONTRACT, and this is the whole
- * reason this helper exists rather than an inline object. A dropdown that offers a
- * style the resolver then clamps is a dropdown that lies; a dropdown that hides a
- * style the resolver would have honoured silently removes a member's control. Both
- * are the same bug — two implementations of one rule — and the way to not have it
- * is for `styleCtx` here and `sourceCapabilityFor` in `binder.js` to be the same
- * three lines over the same inputs.
- *
- * ⚠️ THE DEFAULT IS GATED ON `passthrough` HERE TOO, identically: only a row that
- * IS its source takes its source's default, because `dataSeries` declares
- * `style: 'line'` generically while an authored definition means it.
- */
-function sourceCapabilityFor(def, inst) {
-  if (!inst || !def) return null
-  const declared = sourceInputsOf(def, inst)
-  if (!declared.length) return null
-  const parsed = parseSource(declared[0][1])
-  if (!parsed || parsed.kind !== 'symbol' || !parsed.symbol) return null
-  const cap = canonicalSourceCapability(parsed.symbol, ohlcCapableFor(def, inst))
-  if (outputIsSource(def)) return cap
-  return { defaultStyle: null, allowedStyles: cap.allowedStyles }
-}
+// ⭐ `ohlcCapableFor` / `sourceCapabilityFor` moved to `engine/styleCapability.js` (2026-10-27),
+// shared with the Agent's `setPlotStyle` (I-2) so the two offer one set of styles.
 
 /** `overlay-<i>` → the instance id slot `i` was adopted as, when it was. */
 function aliasRowId(rowId, settings) {
@@ -273,6 +229,11 @@ function aliasRowId(rowId, settings) {
 // A host feature's row id in the structure list. Namespaced so it can never
 // collide with an indicator row id (`ovl:0`, `inst:rsi:1`, `overlay-2`, …).
 const featureRowId = (id) => `feature:${id}`
+
+// A result key as an id fragment. Injective (every non-word character becomes its
+// code point), so two keys can never share an id — `technical:macd` and a ticker
+// `TECHNICAL_MACD` stay apart.
+const resultIdSafe = (key) => String(key).replace(/[^A-Za-z0-9]/g, (ch) => `_${ch.codePointAt(0)}_`)
 
 export default function ChartSettingsIndicators({
   rows,
@@ -329,6 +290,8 @@ export default function ChartSettingsIndicators({
   // the inspector offers only instance-level actions, exactly as before.
   definitionDoors = null,
 }) {
+  // ⭐ The prefix for each catalogue result's state id (`aria-describedby`).
+  const resultIdBase = useId()
   // ⭐ P2 Track B — DARK, TWO KEYS: the per-browser opt-in (see the flag module)
   // AND the server-provided admin role. A member flipping localStorage from
   // DevTools still sees exactly the old "+ New Formula".
@@ -776,7 +739,8 @@ export default function ChartSettingsIndicators({
   const activeRows = useMemo(
     // ⭐ A1 (D3): an engine row is LISTED while it EXISTS (`row.exists`), hidden or not —
     // `enabled` now means "shown", and a hidden indicator must stay findable here.
-    () => (rows || []).filter((r) => isFixtureRow(r) || (r.engineOwned && typeof r.exists === 'boolean' ? r.exists : readEnabled(r))),
+    // ⭐ The rule lives in `chartDataMap.activeIndicatorRows`, shared with the Agent's pane read.
+    () => activeIndicatorRows(rows),
     [rows],
   )
 
@@ -1432,6 +1396,23 @@ export default function ChartSettingsIndicators({
     [addedFeatures, selected],
   )
 
+  /**
+   * THE LIST'S ONE TAB STOP — the selected row, else the FIRST row.
+   *
+   * ⛔⛔ A ROVING TABINDEX MUST ALWAYS LEAVE EXACTLY ONE `0`. Keyed on
+   * `selected` alone, a list with nothing selected (the modal opening on the
+   * Add view, or the selected row leaving the chart) made every row `-1`, and
+   * Tab walked straight past "Series on this chart" — the only way in was a
+   * pointer. Same order as `onStructureKeys` walks, so the first Tab lands
+   * where ↓ would start.
+   */
+  /** Every selectable row id in visual order -- what Tab enters and the arrows walk. */
+  const structureIds = useMemo(
+    () => [...flatRows.map((r) => r.id), ...addedFeatures.map((f) => featureRowId(f.id))],
+    [flatRows, addedFeatures],
+  )
+  const structureTabStop = structureIds.includes(selected) ? selected : (structureIds[0] ?? null)
+
   /** The group a row is filed under, for the Inspector's contextual name. */
   const groupOfRow = useCallback(
     (rowId) => paneGroups.find((g) => g.rows.some((r) => r.id === rowId)) || null,
@@ -1493,14 +1474,14 @@ export default function ChartSettingsIndicators({
    * ↑ / ↓ / Home / End across the whole structure, panes included.
    *
    * ⛔ ACCESSIBILITY IS NOT THE PRICE OF MINIMALISM. The rows lost their per-row
-   * gear, ✕ and chevron; they did not lose keyboard reach. The list is a
-   * `listbox` of `option`s with a roving tabindex, so one Tab stop reaches it and
-   * the arrows walk it — and because the Inspector is driven by `selected`, moving
+   * gear, ✕ and chevron; they did not lose keyboard reach. Each row's name is a
+   * button with a roving tabindex, so one Tab stop reaches the list and the
+   * arrows walk it — and because the Inspector is driven by `selected`, moving
    * the selection IS opening the editor.
    */
   const onStructureKeys = useCallback((e) => {
     const step = e.key === 'ArrowDown' ? 1 : e.key === 'ArrowUp' ? -1 : 0
-    const ids = [...flatRows.map((r) => r.id), ...addedFeatures.map((f) => featureRowId(f.id))]
+    const ids = structureIds
     if (!ids.length) return
     let next = null
     if (step) {
@@ -1514,9 +1495,9 @@ export default function ChartSettingsIndicators({
     e.preventDefault()
     setSelected(next)
     try {
-      listRef.current?.querySelector(`[data-row-id="${CSS.escape(next)}"]`)?.focus()
+      listRef.current?.querySelector(`[data-row-primary="${CSS.escape(next)}"]`)?.focus()
     } catch { /* jsdom has no CSS.escape; the selection still moved */ }
-  }, [flatRows, addedFeatures, selected])
+  }, [structureIds, selected])
 
   // ─── HOST FEATURES IN THE STRUCTURE LIST ──────────────────────────────────
   //
@@ -1539,9 +1520,6 @@ export default function ChartSettingsIndicators({
       >
         <div className={styles.insGroupHead}>{f.group}</div>
         <div
-          role="option"
-          aria-selected={isSel}
-          tabIndex={isSel ? 0 : -1}
           data-row-id={rid}
           data-feature-row={f.id}
           data-structure-row="true"
@@ -1555,11 +1533,20 @@ export default function ChartSettingsIndicators({
         >
           {/* The grip slot and rail keep the name on the same column as every
               series row; both stay EMPTY — a feature is not reorderable and has
-              no plot colour to show. */}
+              no plot colour to show. The name is the row's roving tab stop, as
+              on a series row (see `renderStructureRow`). */}
+          <button
+            type="button"
+            className={styles.insRowPrimary}
+            data-row-primary={rid}
+            tabIndex={structureTabStop === rid ? 0 : -1}
+            aria-current={isSel ? 'true' : undefined}
+          >
+            <i className={styles.insRail} style={{ background: 'transparent' }} aria-hidden="true" />
+            <span className={styles.insRowName} title={f.name}>{f.name}</span>
+            {collapsed && <span className={styles.insRowOffTag}>Collapsed</span>}
+          </button>
           <span className={styles.insRowGripSlot} />
-          <i className={styles.insRail} style={{ background: 'transparent' }} aria-hidden="true" />
-          <span className={styles.insRowName} title={f.name}>{f.name}</span>
-          {collapsed && <span className={styles.insRowOffTag}>Collapsed</span>}
         </div>
       </div>
     )
@@ -1585,11 +1572,17 @@ export default function ChartSettingsIndicators({
     const markLast = seriesDrop && seriesDrop.paneKey === group.id && seriesDrop.beforeId === null
       && group.rows[group.rows.length - 1] && group.rows[group.rows.length - 1].id === row.id
     return (
+      /* ⛔⛔ THE ROW IS NOT A CONTROL; ITS NAME IS. This `<div>` was a
+         `role="option"` holding the reorder grip — a `<button>`, tabbable on the
+         selected row of a pane with more than one series — which is a control
+         nested inside a control (axe `nested-interactive`). Moving the grip
+         beside the option does not help: a listbox may own only options, and axe
+         reports the button as a child it does not allow. So the list is not a
+         listbox: the roving tab stop is the `<button data-row-primary>` below
+         (the same ↑/↓/Home/End on the list, the same one Tab stop), and the grip
+         is its sibling. Click, drag and the grip's own keys are unchanged. */
       <div
         key={row.id}
-        role="option"
-        aria-selected={isSel}
-        tabIndex={isSel ? 0 : -1}
         data-row-id={row.id}
         data-def-id={row.defId || (row.path?.kind === 'indicator' ? row.id : undefined)}
         data-structure-row="true"
@@ -1641,6 +1634,42 @@ export default function ChartSettingsIndicators({
         } : undefined}
         onDragEnd={endSeriesDrag}
       >
+        {/* ⭐ THE ROVING TAB STOP. No handler of its own: a click bubbles to the
+            row's `onClick`, and ↑/↓/Home/End reach the list's `onKeyDown`.
+            `aria-current` is what `aria-selected` said on the option. It comes
+            FIRST in the DOM so Tab still lands here before the grip, exactly as
+            it did when the grip was inside; `.insRowGripSlot` is drawn first by
+            `order`. */}
+        <button
+          type="button"
+          className={styles.insRowPrimary}
+          data-row-primary={row.id}
+          tabIndex={structureTabStop === row.id ? 0 : -1}
+          aria-current={isSel ? 'true' : undefined}
+        >
+          {/* ⭐⭐ THE MICRO-RAIL, TO LEGEND V2'S EXACT SPEC — 2×10px, 1px radius,
+              `flex: none`, nudged half a pixel onto the text's x-height. Not a
+              swatch (retired: reads as a bullet), not a chevron (retired), not a
+              line sample. `aria-hidden` and no handler of its own: the ROW is the
+              target, so pointing at the rail already points at the row. */}
+          <i
+            className={styles.insRail}
+            style={tint ? { background: tint } : undefined}
+            aria-hidden="true"
+          />
+          {/* ⚠️⚠️ THE FULL NAME IS ON THE ROW, because the column truncates now. At
+              35% `Relative Strength Index (period 14)` ellipsizes — which is
+              explicitly acceptable — but the member must still be able to find out
+              what it says without selecting it. `title` is this panel's existing
+              convention for exactly that, and the canonical name is untouched:
+              nothing is abbreviated, persisted or renamed. */}
+          <span className={styles.insRowName} title={meta.name}>{meta.name}</span>
+          {/* ⭐ THE VISIBILITY STATE, AS ONE DIMMED WORD. A switch on every row is
+              the toolbar the brief rules out; the row is dimmed AND says why, so a
+              member scanning the column sees which lines are off without hovering
+              anything, and a screen reader is told rather than shown. */}
+          {!on && <span className={styles.insRowOffTag}>Off</span>}
+        </button>
         {/* ⚰️⚰️ FOURTEEN ARROWS STOOD AT THE FAR RIGHT OF THIS LIST — a ↑ and a
             ↓ on every row, two of them permanently dimmed at each pane's edges.
             They were correct and they were LOUD: owner, 2026-09-17: *"with many
@@ -1727,28 +1756,6 @@ export default function ChartSettingsIndicators({
             </button>
           )}
         </span>
-        {/* ⭐⭐ THE MICRO-RAIL, TO LEGEND V2'S EXACT SPEC — 2×10px, 1px radius,
-            `flex: none`, nudged half a pixel onto the text's x-height. Not a
-            swatch (retired: reads as a bullet), not a chevron (retired), not a
-            line sample. `aria-hidden` and no handler of its own: the ROW is the
-            target, so pointing at the rail already points at the row. */}
-        <i
-          className={styles.insRail}
-          style={tint ? { background: tint } : undefined}
-          aria-hidden="true"
-        />
-        {/* ⚠️⚠️ THE FULL NAME IS ON THE ROW, because the column truncates now. At
-            35% `Relative Strength Index (period 14)` ellipsizes — which is
-            explicitly acceptable — but the member must still be able to find out
-            what it says without selecting it. `title` is this panel's existing
-            convention for exactly that, and the canonical name is untouched:
-            nothing is abbreviated, persisted or renamed. */}
-        <span className={styles.insRowName} title={meta.name}>{meta.name}</span>
-        {/* ⭐ THE VISIBILITY STATE, AS ONE DIMMED WORD. A switch on every row is
-            the toolbar the brief rules out; the row is dimmed AND says why, so a
-            member scanning the column sees which lines are off without hovering
-            anything, and a screen reader is told rather than shown. */}
-        {!on && <span className={styles.insRowOffTag}>Off</span>}
         {/* ⚰️⚰️ A `↑` AND A `↓` STOOD HERE ON EVERY ORDERABLE ROW — a span at
             the far right, boundary members carrying a dimmed, `aria-disabled`
             ghost so the column would not ripple as rows moved. Every word of that
@@ -3096,13 +3103,24 @@ export default function ChartSettingsIndicators({
     // click is not offered.
     const refused = row.capability === CAPABILITY.UNSUPPORTED
     const canAdd = !on && !refused
+    const canAct = canAdd || (isFeature && on)
     const isEcon = row.kind === 'economic'
+    // The state word ("Active" / "Unavailable") sits beside the add control, not
+    // inside the title button, so the button names it by reference.
+    const stateId = (refused || on) ? `${resultIdBase}-state-${resultIdSafe(row.key || row.id)}` : undefined
     return (
+      /* ⛔⛔ THE ROW IS NOT A CONTROL; ITS TITLE LINE IS. This `<li>` was a
+         `role="option"` with `tabIndex={0}` — and an ACTIVE row carries "Add
+         another", a user formula carries Modify / Edit formula / Custom copy, so
+         axe measured a focusable control nested inside an interactive one
+         (`nested-interactive`, on `movingAverage` — the one row on the chart).
+         An option cannot hold buttons, so the list is a plain list now: the
+         keyboard door is the real `<button>` around the title line below, and
+         its click BUBBLES to this `onClick` — one writer, so pointer and
+         keyboard add exactly the same way. The secondary buttons are siblings
+         of that button, never inside it. */
       <li
         key={row.key || row.id}
-        role="option"
-        aria-selected={on}
-        aria-disabled={refused ? 'true' : undefined}
         data-def-id={row.id}
         /* ⭐ THE ANCHOR'S ADDRESS, and it is `row.key` rather than `row.id` because
            a ticker and a definition can collide on `id` while `key` is what React
@@ -3115,12 +3133,8 @@ export default function ChartSettingsIndicators({
            be. `title` on the row rather than on the name, so the whole row is the
            hover target for it. */
         title={row.description || undefined}
-        tabIndex={0}
         className={`${styles.resRow} ${on ? styles.resRowOn : ''} ${refused ? styles.resRefused : ''}`}
-        onClick={() => { if (canAdd || (isFeature && on)) addRow(row) }}
-        onKeyDown={(e) => {
-          if ((e.key === 'Enter' || e.key === ' ') && (canAdd || (isFeature && on))) { e.preventDefault(); addRow(row) }
-        }}
+        onClick={() => { if (canAct) addRow(row) }}
       >
         {/* ⭐⭐ THE FAMILY MARK. ⛔ IT IS NOT A DECORATION AND IT IS NOT THE SERIES'
             COLOUR: the LEFT column's micro-rail says *this is the plotted line you
@@ -3138,11 +3152,32 @@ export default function ChartSettingsIndicators({
             On one line the name, chip and metadata split ~330px three ways and every
             name truncated to a word. Economic only — every other kind keeps its line. */}
         <span className={`${styles.resMain} ${isEcon ? styles.resMainStacked : ''}`}>
-          <span className={styles.resTitleRow}>
+          {/* ⭐ THE ROW'S KEYBOARD DOOR — see the note on the `<li>`. No handler of
+              its own: Enter and Space click a native button, and that click
+              bubbles to the row. `aria-disabled`, not `disabled`, so a row that
+              is already on stays reachable and still says so. */}
+          <button
+            type="button"
+            className={`${styles.resTitleRow} ${styles.resPrimary}`}
+            data-result-primary="true"
+            aria-disabled={canAct ? undefined : 'true'}
+            aria-describedby={stateId}
+            title={row.description || undefined}
+          >
             <span className={styles.resName}>{row.name}</span>
             {/* ⭐ `chip` names a breadth row's POPULATION (UCT · US · NASDAQ · NYSE) so four
                 identically named metrics are told apart; every other kind keeps `shortName`. */}
-            {!isEcon && <span className={styles.resShort}>{row.chip || row.shortName}</span>}
+            {/* ⛔ A TAG THE NAME ALREADY SAYS IS NOT READ TWICE. Inside the button its
+                text joins the accessible name, so VoiceOver read "Parabolic SAR
+                SAR", "TRIX TRIX". It is `aria-hidden` ONLY when its words are
+                literally a run of the name's words (`shortTag.js`); any other tag
+                (RSI, a ticker, a population, a type) is visible text and stays in
+                the name -- WCAG 2.5.3 Label in Name. */}
+            {!isEcon && (
+              <span className={styles.resShort} aria-hidden={tagRestatesName(row.name, row.chip || row.shortName) ? 'true' : undefined}>
+                {row.chip || row.shortName}
+              </span>
+            )}
             {row.userDefined && <span className={styles.resMine}>Your formula</span>}
             {/* ⭐ PHASE 4 — IS IT USED HERE? The member's own indicator says so. */}
             {/* (`ACTIVE` already marks one that is on; this says the other half.) */}
@@ -3167,7 +3202,7 @@ export default function ChartSettingsIndicators({
             {row.tier && row.tier !== 'free' && !row.userDefined && (
               <span className={styles.resTier}>{row.tier}</span>
             )}
-          </span>
+          </button>
           {/* ⭐ PHASE 4 — the DEFINITION's own doors on the member's saved indicator:
               the same calls as the legend menu and the inspector. Buttons stop the
               click from also adding the row. */}
@@ -3242,10 +3277,10 @@ export default function ChartSettingsIndicators({
             — exactly as the library's "+ Add another" does. `volumeProfile` is
             carved out and has nothing to instantiate, so it gets the word alone. */}
         {refused ? (
-          <span className={styles.resActive}><span className={styles.resActiveTag}>Unavailable</span></span>
+          <span className={styles.resActive}><span className={styles.resActiveTag} id={stateId}>Unavailable</span></span>
         ) : on ? (
           <span className={styles.resActive}>
-            <span className={styles.resActiveTag}>Active</span>
+            <span className={styles.resActiveTag} id={stateId}>Active</span>
             {!row.carvedOut && !row.singleton && (
               <button
                 type="button"
@@ -3526,7 +3561,7 @@ export default function ChartSettingsIndicators({
                 `Popular` and `Formulas` resolve to a single group whose name is
                 the tab's own word; printing it again is furniture. */}
             {groups.length > 1 && <div className={styles.insSectionLabel}>{c}</div>}
-            <ul className={styles.resList} role="listbox" aria-label={c}>
+            <ul className={styles.resList} aria-label={c}>
               {tabResults.filter((r) => r.category === c).map(renderResult)}
             </ul>
           </section>
@@ -3652,12 +3687,12 @@ export default function ChartSettingsIndicators({
             ) : (
               <div
                 className={styles.insStructure}
-                role="listbox"
+                role="group"
                 aria-label="Series on this chart"
                 /* ⚰️ `aria-controls` WAS ON EVERY ROW'S EXPANDER, paired with
                    `aria-expanded`, because each row opened a region of its own.
-                   There is ONE region now and the LIST drives it — which is what
-                   `listbox` means — so the pointer belongs here, and
+                   There is ONE region now and the LIST drives it, so the pointer
+                   belongs here, and
                    `aria-expanded` has nothing left to describe. A member told
                    that something changed still has a way to find WHAT changed. */
                 aria-controls={selected ? inspectorDomId(selected) : undefined}

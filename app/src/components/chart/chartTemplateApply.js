@@ -38,3 +38,34 @@ export function chartTemplateSettings(template) {
   if (!settings || typeof settings !== 'object' || Array.isArray(settings)) return null
   return JSON.parse(JSON.stringify({ ...settings, preset: 'custom' }))
 }
+
+// ─── ⭐ THE ONE WAY A CHART TEMPLATE IS SAVED OR DELETED (Charts operator P1, 2026-10-27) ───────
+// Chart Settings → Templates → Save as Template / ✕, and UCT Agent's template save / delete, all
+// compute the member's new `chart_templates` list HERE, so the two doors cannot drift apart. Pure:
+// the caller writes the returned list through its own preference writer.
+
+/** The longest name Save as Template keeps (the dialog's input clips to it). */
+export const CHART_TEMPLATE_NAME_MAX = 40
+
+/**
+ * The template list after saving `settings` as `name`: the new template goes FIRST, and a template
+ * with the same name (case-insensitive) is REPLACED — re-saving updates in place, never piles up.
+ * The list is capped at `max` (the oldest fall off, as the dialog's write always did).
+ * @returns {{ templates: object[], template: object, replaced: object|null } | null} null when the
+ *          name is empty or the settings are not a settings object
+ */
+export function chartTemplatesAfterSave(templates, name, settings, { id = null, max = Infinity } = {}) {
+  const nm = String(name || '').trim().slice(0, CHART_TEMPLATE_NAME_MAX)
+  if (!nm || !settings || typeof settings !== 'object' || Array.isArray(settings)) return null
+  const list = Array.isArray(templates) ? templates : []
+  const template = { id: id || `tpl${Math.random().toString(36).slice(2, 9)}`, name: nm, settings: JSON.parse(JSON.stringify({ ...settings, preset: 'custom' })) }
+  const same = (t) => String(t?.name || '').toLowerCase() === nm.toLowerCase()
+  const replaced = list.find(same) || null
+  return { templates: [template, ...list.filter(t => !same(t))].slice(0, max), template, replaced }
+}
+
+/** The template list without the template whose id is `id` (unchanged when there is none). */
+export function chartTemplatesAfterDelete(templates, id) {
+  const list = Array.isArray(templates) ? templates : []
+  return list.filter(t => t?.id !== id)
+}

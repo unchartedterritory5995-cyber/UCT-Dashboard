@@ -35,6 +35,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, cleanup, act, fireEvent, within } from '@testing-library/react'
 import { LIBRARY_HIDDEN_IDS } from './discoveryCatalog'
+import { resultRows } from './__tests__/resultRows'
 
 // ⚠️ A SIGNED-IN USER, AND A REAL `createContext`. `useUserDefinitions` reads
 // `useContext(AuthContext)` and hands SWR a NULL KEY without a user — so a file
@@ -127,7 +128,7 @@ const reasons = () =>
   screen.queryAllByTestId('user-definition-refusal-reason').map((n) => n.textContent)
 const refusalIds = () =>
   screen.queryAllByTestId('user-definition-refusal').map((n) => n.dataset.defId)
-const optionIds = () => screen.getAllByRole('option').map((o) => o.dataset.defId)
+const optionIds = () => resultRows().map((o) => o.dataset.defId)
 const headings = () => screen.getAllByRole('heading', { level: 3 }).map((h) => h.textContent)
 const type = (v) => fireEvent.change(screen.getByRole('searchbox'), { target: { value: v } })
 
@@ -242,6 +243,9 @@ describe('🔴 a formula the gates refuse SAYS SO, in the gate\'s own words', ()
     // control that writes nowhere.
     const row = screen.getByTestId('user-definition-refusal')
     expect(row.getAttribute('role')).toBeNull()
+    // ⚠️ No offered row has a role either now (see `__tests__/resultRows.js`), so
+    // the control a refused row must lack is the title button an offered row has.
+    expect(row.querySelector('[data-result-primary]')).toBeNull()
     expect(optionIds()).not.toContain(BAD_ID)
     fireEvent.click(row)
     expect(onChange).not.toHaveBeenCalled()

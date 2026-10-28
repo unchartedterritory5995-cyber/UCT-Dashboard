@@ -30,9 +30,10 @@ import { getExtSessionCached } from '../../utils/extSession'
 import { unknownSymbols } from '../agentClient'
 import { mergeChartSettings, CHART_TYPE_OPTIONS } from '../../components/chart/chartDefaults'
 import { NATIVE_TFS, tfLabel as productTfLabel } from '../../components/chart/timeframes'
-import { ELIGIBLE_SETTINGS, OWNED_TOP_KEYS, settingDescriptor, coerceSettingValue, settingUnavailable, withSetting, settingValue } from '../../components/chart/chartSettingsDescriptors'
+import { ELIGIBLE_SETTINGS, settingDescriptor, coerceSettingValue, settingUnavailable, withSetting, settingValue } from '../../components/chart/chartSettingsDescriptors'
 import { CHART_DEFAULTS } from '../../components/chart/chartDefaults'
 import { chartTemplateSettings } from '../../components/chart/chartTemplateApply'
+import { keepIndicatorState } from '../../components/chart/indicatorPreservation'
 import { makeTfCode, isValidTf, tfLabel as tfShort } from '../../components/chart/timeframes'
 import { pickComparisonColor } from '../../components/chart/comparisonUtils'
 import { MAX_COMPARISONS } from '../../components/chart/chartCeilings'
@@ -301,17 +302,14 @@ export const chartKind = {
   },
 }
 
-// A whole-look write (restore defaults) with every indicator-owned top-level key carried
-// over from the chart as it is now. (chart.applyTemplate no longer uses this: it matches the click,
-// which applies the template's indicators too — see chartTemplateApply.js.) — present keeps its value, absent stays absent (door SEVEN: a bulk
-// write must never stamp indicatorInstances over what the member had).
+// A whole-look write (restore defaults) with every indicator-owned key carried over from the chart as it
+// is now. ⭐ A1.3: this IS the shared Restore — `keepIndicatorState` (indicatorPreservation.js,
+// Indicators-owned), the call Chart Settings' own Reset makes: every indicator-owned top-level key AND
+// `header.infoValues` (finding C5). Present keeps its value, absent stays absent (door SEVEN: a bulk write
+// must never stamp indicatorInstances over what the member had). (chart.applyTemplate does not use this:
+// it matches the click, which applies the template's indicators too — see chartTemplateApply.js.)
 export function keepOwned(next, prev) {
-  const out = JSON.parse(JSON.stringify(next))
-  for (const k of OWNED_TOP_KEYS) {
-    if (prev && Object.prototype.hasOwnProperty.call(prev, k)) out[k] = JSON.parse(JSON.stringify(prev[k]))
-    else delete out[k]
-  }
-  return out
+  return keepIndicatorState(next, prev)
 }
 
 export function describeChart(snap, shortRef) {

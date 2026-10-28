@@ -10,7 +10,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import useSWR from 'swr'
 import CompanyLogo from '../../../../components/CompanyLogo'
 import UIcon from '../../../../components/ui/UIcon'
-import SymbolSearch from '../../../../components/chart/SymbolSearch'
+import CompareSymbolSearch from '../../../../components/CompareSymbolSearch'
 import useFundamentalSnapshot from '../../../../hooks/useFundamentalSnapshot'
 import useRealtimePrices from '../../../../hooks/useRealtimePrices'
 import useBrokerMarkPreference from '../../../../hooks/useBrokerMarkPreference'
@@ -255,7 +255,7 @@ export default function PositionDetailPage() {
             <UIcon name="columns" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Compare
           </button>
         ) : (
-          <SymbolSearch sym={sym} displayLabel="+ Compare" onSymbolChange={goToCompare} />
+          <CompareSymbolSearch sym={sym} onSymbolChange={goToCompare} />
         )}
       </div>
 

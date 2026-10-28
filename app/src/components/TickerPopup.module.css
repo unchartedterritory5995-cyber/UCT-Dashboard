@@ -640,3 +640,31 @@
     margin: -11px -6px;
   }
 }
+
+/* Touch: the header's icon buttons measured 28x26 and the switch box 34px tall
+   at 820 AND 390. They sit 10px apart, so a hit-area trick would overlap the
+   neighbours — the boxes grow for real, and the right cluster may wrap onto a
+   second row instead of running off the modal. The 640px `.closeBtn` sizing
+   above only ever covered phone. Rail: `TickerPopup.tapFloor.test.js`.
+   ⛔ `(pointer: coarse)` too: a touch iPad in LANDSCAPE (1194px) is past the width tier and
+   gets THIS popup, not the hub sheet, and its header buttons measured 28x26 there. The
+   floor is for a finger, so it follows the pointer; a mouse desktop keeps its compact header. */
+@media (max-width: 1024px), (pointer: coarse) {
+  .modalHeader { flex-wrap: wrap; }
+  .modalHeaderRight {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    flex-shrink: 1;
+    min-width: 0;
+  }
+  .actionBtn,
+  .flagBtn,
+  .closeBtn {
+    min-width: var(--tap-min);
+    min-height: var(--tap-min);
+  }
+  .switchInput { min-height: var(--tap-min); }
+  /* "+ Compare" is SymbolSearch's own badge, sized for the chart TF bar (14px tall at 820,
+     40px from its own <=640 rule); the floor is scoped to the popup's entry. */
+  .compareEntry button { min-height: var(--tap-min); }
+}

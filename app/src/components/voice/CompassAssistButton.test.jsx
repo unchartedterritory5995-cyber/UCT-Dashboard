@@ -65,4 +65,17 @@ describe('CompassAssistButton', () => {
     ))
     expect(screen.getByRole('button', { name: /compass/i })).toBeDisabled()
   })
+
+  // WCAG 2.5.3 label in name: a caller with custom visible text names the button with
+  // those words (the Ticker Hub sheet's "Ask Compass about CLS"); the default name is
+  // unchanged for every caller that passes nothing.
+  it('ariaLabel names the button; omitted, the default name is unchanged', () => {
+    const { unmount } = render(withVoiceProvider(
+      <CompassAssistButton pageHint="chart of CLS" label="Ask Compass about CLS" ariaLabel="Ask Compass about CLS" />,
+    ))
+    expect(screen.getByRole('button')).toHaveAccessibleName('Ask Compass about CLS')
+    unmount()
+    render(withVoiceProvider(<CompassAssistButton pageHint="chart of CLS" />))
+    expect(screen.getByRole('button')).toHaveAccessibleName('Talk to Compass about chart of CLS')
+  })
 })

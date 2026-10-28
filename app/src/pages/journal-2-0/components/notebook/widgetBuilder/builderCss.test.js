@@ -14,7 +14,9 @@ import { contrast } from '../../../../../styles/__tests__/contrastMath'
 import { parseRules, declarations, themeVars, resolveVars, parseColor, colorsIn, opaque, THEMES } from '../../../a11y/cssAudit'
 
 const DIR = join(process.cwd(), 'src', 'pages', 'journal-2-0', 'components', 'notebook', 'widgetBuilder')
-const CSS = readFileSync(join(DIR, 'WidgetBuilderSheet.module.css'), 'utf8')
+// CRLF -> LF: the rules below name multi-line selectors with `\n`, and a Windows checkout (core.autocrlf=true) has
+// CRLF on disk, so an unnormalised read finds no such rule there while CI's LF checkout does.
+const CSS = readFileSync(join(DIR, 'WidgetBuilderSheet.module.css'), 'utf8').replace(/\r\n/g, '\n')
 
 function jsxFiles(dir = DIR, out = []) {
   for (const name of readdirSync(dir)) {

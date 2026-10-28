@@ -25,6 +25,7 @@ import { useState } from 'react'
 import ChartSettingsModal from './ChartSettingsModal'
 import { mergeChartSettings } from './chartDefaults'
 import { parseSource } from './engine/sourceRef'
+import { resultRows, resultIsOn } from './__tests__/resultRows'
 
 // `/api/breadth-symbols` is fetched once per module by `useBreadthSymbols`; the
 // Breadth tab browses whatever it holds. Two published rows is enough to click.
@@ -72,7 +73,7 @@ const pickTab = (key) => {
   expect(btn, `no discovery tab keyed ${key}`).toBeTruthy()
   fireEvent.click(btn)
 }
-const rows = () => screen.queryAllByRole('option')
+const rows = () => resultRows()
 const rowByKey = (key) => rows().find((o) => o.dataset.resultKey === key)
 const rowNames = () => rows().map((o) => (o.querySelector('[class*="resName"]')?.textContent || '').trim())
 
@@ -312,7 +313,7 @@ describe('⭐ WHAT THE MEMBER SEES AFTERWARDS — and what stays hidden', () => 
     openAdd(); pickTab('symbols')
     await waitFor(() => expect(rowByKey('security:SPX')).toBeTruthy())
     const row = rowByKey('security:SPX')
-    expect(row.getAttribute('aria-selected')).toBe('false')
+    expect(resultIsOn(row)).toBe(false)
     expect(row.textContent).not.toMatch(/Active/)
     expect(row.querySelector('[class*="resAdd"]'), 'the row stopped offering to add').toBeTruthy()
   })
