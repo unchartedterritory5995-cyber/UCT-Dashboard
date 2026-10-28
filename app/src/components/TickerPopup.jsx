@@ -80,7 +80,11 @@ function isCaptureSuccessMessage(msg) {
 // React commits the close in it. Closing stays in the bubble phase, so anything inside the
 // popup that handles Escape and stops propagation (the switch-ticker suggestions) still wins.
 const OPEN_POPUPS = new Map()       // popup element -> the layers that were open when it opened
-const ESCAPE_SNAPSHOTS = new WeakMap() // keydown event -> Map(popup element -> owned by a layer above)
+// The record the gate takes for the key being dispatched NOW. A registry observer is called without
+// the event, so the record is not keyed by it: it is the latest one, taken in this very event's window
+// capture phase: every event that reaches the popup's window-bubble listener passed through window
+// capture first, and events are dispatched one at a time, so the latest record is this key's.
+let escapeSnapshot = null
 let releaseEscapeGate = null
 
 export function escapeBelongsToLayerAbove(popup, beneath = OPEN_POPUPS.get(popup)) {
@@ -89,10 +93,12 @@ export function escapeBelongsToLayerAbove(popup, beneath = OPEN_POPUPS.get(popup
   return layerOpenedSince(popup, beneath || new Set())
 }
 
-function snapshotEscape(e) {
+// On EVERY key while a popup is open (an observer hears every key, it cannot filter): one
+// querySelectorAll over the layer selector per open popup -- cheap, and only while one is open.
+function snapshotEscape() {
   const owned = new Map()
   for (const [popup, beneath] of OPEN_POPUPS) owned.set(popup, escapeBelongsToLayerAbove(popup, beneath))
-  ESCAPE_SNAPSHOTS.set(e, owned)
+  escapeSnapshot = owned
 }
 
 /** Register an open popup (one gate for all of them: a nested popup must not bind it twice). */
@@ -120,10 +126,10 @@ function subscribeTop(fn) { TOP_LISTENERS.add(fn); return () => { TOP_LISTENERS.
 function topPopup() { let top = null; for (const p of OPEN_POPUPS.keys()) top = p; return top }
 
 /** Was this Escape, at capture time, owned by a layer above `popup`? */
-function escapeOwnedAbove(e, popup) {
-  const snap = ESCAPE_SNAPSHOTS.get(e)
+function escapeOwnedAbove(popup) {
+  const snap = escapeSnapshot
   if (snap && snap.has(popup)) return snap.get(popup)
-  return escapeBelongsToLayerAbove(popup)   // no snapshot (a synthetic event dispatched on window only)
+  return escapeBelongsToLayerAbove(popup)   // no record (the gate was not live for this key)
 }
 
 export default function TickerPopup({ sym, as: Tag = 'span', customChartFn, className, children, markers = null, priceLines = null, stopPrice = null, anchorDate = null, darkPool = false, flowMeta = null, open: openProp, onClose, focusable = true }) {
@@ -416,7 +422,7 @@ export default function TickerPopup({ sym, as: Tag = 'span', customChartFn, clas
         // ⛔ ONE Escape, ONE layer. A layer opened OVER the popup (Chart Settings from the
         // chart's context menu, the symbol search, any modal dialog) owns this key; this
         // window listener used to close the popup underneath it in the same keystroke.
-        if (escapeOwnedAbove(e, modalRef.current)) return
+        if (escapeOwnedAbove(modalRef.current)) return
         closeModal(); return
       }
       // S2 CP6 — reads the DECLARED chord table instead of spelling the modifier

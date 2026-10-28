@@ -498,15 +498,16 @@ export const SHORTCUTS = Object.freeze([
       + 'Window capture, stops propagation when it acts.',
   }),
   // ── the ticker popup (components/TickerPopup.jsx) ──
-  // OBSERVE-ONLY: records, before any layer reacts, whether a layer opened over each open popup.
-  // A layer that closes from its own document listener is already unmounted by the popup's
-  // window-bubble Escape (React commits in the microtask between the two), so the popup must ask
-  // here, first. It never stops propagation, never prevents default, never closes anything.
+  // An OBSERVER: while a ticker popup is open it records, on every key in the WINDOW CAPTURE phase -- before any
+  // layer's own document or bubble handler can close that layer -- which open popups have a layer above them.
+  // The popup's window-bubble Escape reads that record: a layer closed from a document listener is already
+  // unmounted by then (React commits in the microtask between the two phases).
   decl({
     id: 'tickerPopup.escapeGate',
-    chord: { keys: ['Escape'] },
+    chord: { any: true },
+    observe: true,
     target: 'window', capture: true, inEditable: true, repeat: true,
-    why: 'Escape over a ticker popup: note which layers were open. Observe only.',
+    why: 'Ticker popup: note which layers are open before any closes.',
   }),
 ])
 
