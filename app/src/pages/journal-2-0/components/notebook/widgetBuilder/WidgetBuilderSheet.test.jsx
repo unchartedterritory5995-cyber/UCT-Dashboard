@@ -427,6 +427,26 @@ describe('WidgetBuilderSheet', () => {
     expect(screen.getByRole('radio', { name: 'Closed trades' })).toBeChecked()
   })
 
+  // The builder's keys go through the shared key registry (notebook.builderUndo): the chord must keep the raw
+  // listener's rule exactly, Ctrl OR Cmd with z/Z/y/Y, Shift and Alt not read, and nothing without Ctrl/Cmd.
+  it('ctrl+y and cmd+Y redo, ctrl+alt+z still undoes, and a bare z or y does nothing', async () => {
+    await openBuilder()
+    const days = () => screen.getByRole('radio', { name: 'Trading days' })
+    const closed = () => screen.getByRole('radio', { name: 'Closed trades' })
+    fireEvent.click(days())
+    fireEvent.keyDown(document.body, { key: 'z' })
+    fireEvent.keyDown(document.body, { key: 'y' })
+    expect(days()).toBeChecked()
+    fireEvent.keyDown(document.body, { key: 'z', ctrlKey: true, altKey: true })
+    expect(closed()).toBeChecked()
+    fireEvent.keyDown(document.body, { key: 'y', ctrlKey: true })
+    expect(days()).toBeChecked()
+    fireEvent.keyDown(document.body, { key: 'z', metaKey: true })
+    expect(closed()).toBeChecked()
+    fireEvent.keyDown(document.body, { key: 'Y', metaKey: true, shiftKey: true })
+    expect(days()).toBeChecked()
+  })
+
   it('live_region_announces_summary_only', async () => {
     await openBuilder()
     const live = screen.getByTestId('builder-live')
