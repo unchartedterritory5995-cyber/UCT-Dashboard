@@ -1,0 +1,1307 @@
+{
+ "generated": "2026-10-27",
+ "images_root": "C:\\Users\\pgosz\\projects\\study-review-sheets",
+ "note": "Every image is the firm's own review-screen render (admin/pattern-review?mode=study), captured 2026-10-26/27. Verdict and words are the owner's latest ruling for that chart from owner_verdicts.jsonl.",
+ "ruled": 66,
+ "total": 87,
+ "charts": [
+  {
+   "setup": "Gap Support",
+   "position": 1,
+   "sym": "MSFT",
+   "asof": "2022-10-11",
+   "item": null,
+   "image": "study-review-sheets/2026-10-27/img/gs_01_MSFT_2022.png",
+   "verdict": "cut",
+   "grade": null,
+   "owner_words": "Cut",
+   "nuance": [
+    "fixture #1 of the 42-item Gap Support queue; downtrend, no gap on the chart; picked from the menu"
+   ],
+   "ruled": true
+  },
+  {
+   "setup": "Gap Support",
+   "position": 2,
+   "sym": "META",
+   "asof": "2023-02-24",
+   "item": null,
+   "image": "study-review-sheets/2026-10-27/img/gs_02_META.png",
+   "verdict": "keep",
+   "grade": "great",
+   "owner_words": "Such a great setup on this PEG there",
+   "nuance": [
+    "fixture #2; early-Feb 2023 earnings gap (a PEG in the owner's words), three weeks later sitting on the gap-day low area ~170",
+    "owner calls the gap-support test on a post-earnings gap a great setup: PEG + gap-up low hold = lead example"
+   ],
+   "ruled": true
+  },
+  {
+   "setup": "Gap Support",
+   "position": 3,
+   "sym": "AMZN",
+   "asof": "2022-11-18",
+   "item": null,
+   "image": "study-review-sheets/2026-10-27/img/gs_03_AMZN.png",
+   "verdict": "keep_lesser",
+   "grade": "okay",
+   "owner_words": "Gap support yes but not a great setup",
+   "nuance": [
+    "fixture #3; post-earnings gap DOWN, price drifting under the 50 SMA",
+    "owner: the mechanics qualify as gap support but the context (downtrend, gap down) makes it a weak example"
+   ],
+   "ruled": true
+  },
+  {
+   "setup": "Gap Support",
+   "position": 4,
+   "sym": "AAPL",
+   "asof": "2022-10-11",
+   "item": null,
+   "image": "study-review-sheets/2026-10-27/img/gs_04_AAPL_2022.png",
+   "verdict": "cut",
+   "grade": null,
+   "owner_words": "Cut",
+   "nuance": [
+    "fixture #4; downtrend, no gap on the chart; picked from the menu"
+   ],
+   "ruled": true
+  },
+  {
+   "setup": "Gap Support",
+   "position": 5,
+   "sym": "GOOGL",
+   "asof": "2023-02-07",
+   "item": null,
+   "image": "study-review-sheets/2026-10-27/img/gs_05_GOOGL.png",
+   "verdict": "keep_lesser",
+   "grade": "okay",
+   "owner_words": "Keep — okay",
+   "nuance": [
+    "fixture #5; early-Feb 2023 gap up off the lows, the cutoff bar IS the gap bar, nothing tested yet; menu pick"
+   ],
+   "ruled": true
+  },
+  {
+   "setup": "Gap Support",
+   "position": 6,
+   "sym": "NVDA",
+   "asof": "2023-03-02",
+   "item": null,
+   "image": "study-review-sheets/2026-10-27/img/gs_06_NVDA_2023.png",
+   "verdict": "keep",
+   "grade": "great",
+   "owner_words": "Keep — great",
+   "nuance": [
+    "fixture #6; late-Feb 2023 earnings gap, a week later holding above it on the 9 EMA; menu pick",
+    "great without a deep test: a strong PEG that holds its gap-up low in a tight drift counts as a lead example (same as AFRM)"
+   ],
+   "ruled": true
+  },
+  {
+   "setup": "Gap Support",
+   "position": 7,
+   "sym": "NVDA",
+   "asof": "2026-09-09",
+   "item": null,
+   "image": "study-review-sheets/2026-10-27/img/gs_07_NVDA_2026_badbars.png",
+   "verdict": "pending",
+   "grade": null,
+   "owner_words": "Don’t have enough price data in that pic",
+   "nuance": [
+    "fixture #7; the item's bars start only weeks before the cutoff so the chart is nearly empty; owner could not judge",
+    "TODO: fix the bars (data gap for NVDA 2026) and re-show; do not ship as is"
+   ],
+   "ruled": true
+  },
+  {
+   "setup": "Gap Support",
+   "position": 8,
+   "sym": "MSFT",
+   "asof": "2023-05-24",
+   "item": null,
+   "image": "study-review-sheets/2026-10-27/img/gs_08_MSFT_2023.png",
+   "verdict": "cut",
+   "grade": null,
+   "owner_words": "Cut",
+   "nuance": [
+    "fixture #8; steady uptrend, cutoff bar is the gap-up bar itself on heavy volume, nothing tested; menu pick"
+   ],
+   "ruled": true
+  },
+  {
+   "setup": "Gap Support",
+   "position": 9,
+   "sym": "AAPL",
+   "asof": "2024-05-08",
+   "item": null,
+   "image": "study-review-sheets/2026-10-27/img/gs_09_AAPL_2024.png",
+   "verdict": "keep",
+   "grade": "good",
+   "owner_words": "Keep — good",
+   "nuance": [
+    "fixture #9; early-May 2024 earnings gap up through the 50, cutoff a few days later holding above the gap; menu pick"
+   ],
+   "ruled": true
+  },
+  {
+   "setup": "Gap Support",
+   "position": 10,
+   "sym": "NVDA",
+   "asof": "2022-10-11",
+   "item": null,
+   "image": "study-review-sheets/2026-10-27/img/gs_10_NVDA_2022.png",
+   "verdict": "cut",
+   "grade": null,
+   "owner_words": "Cut",
+   "nuance": [
+    "fixture #10; downtrend under every average, no gap; menu pick"
+   ],
+   "ruled": true
+  },
+  {
+   "setup": "Gap Support",
+   "position": 11,
+   "sym": "AMZN",
+   "asof": "2022-11-17",
+   "item": null,
+   "image": "study-review-sheets/2026-10-27/img/gs_11_AMZN_2022b.png",
+   "verdict": "keep_lesser",
+   "grade": "okay",
+   "owner_words": "Keep — okay",
+   "nuance": [
+    "fixture #11; same post-earnings gap down as #3 one day earlier; menu pick"
+   ],
+   "ruled": true
+  },
+  {
+   "setup": "Gap Support",
+   "position": 12,
+   "sym": "MSFT",
+   "asof": "2023-10-30",
+   "item": null,
+   "image": "study-review-sheets/2026-10-27/img/gs_12_MSFT_2023b.png",
+   "verdict": "keep_lesser",
+   "grade": "okay",
+   "owner_words": "Keep — okay",
+   "nuance": [
+    "fixture #12; cutoff bar is the earnings gap-up bar itself, no test yet; menu pick (contrast: #8 MSFT 2023-05-24 same shape was CUT)"
+   ],
+   "ruled": true
+  },
+  {
+   "setup": "Gap Support",
+   "position": 13,
+   "sym": "AMZN",
+   "asof": "2022-10-11",
+   "item": null,
+   "image": "study-review-sheets/2026-10-27/img/gs_13_AMZN_2022c.png",
+   "verdict": "cut",
+   "grade": null,
+   "owner_words": "Cut",
+   "nuance": [
+    "fixture #13; downtrend, no gap; menu pick"
+   ],
+   "ruled": true
+  },
+  {
+   "setup": "Gap Support",
+   "position": 14,
+   "sym": "AAPL",
+   "asof": "2022-08-29",
+   "item": null,
+   "image": "study-review-sheets/2026-10-27/img/gs_14_AAPL_2022b.png",
+   "verdict": "keep_lesser",
+   "grade": "okay",
+   "owner_words": "Keep — okay",
+   "nuance": [
+    "fixture #14; rolling over from the August high, no obvious gap; menu pick"
+   ],
+   "ruled": true
+  },
+  {
+   "setup": "Gap Support",
+   "position": 15,
+   "sym": "MSFT",
+   "asof": "2025-08-04",
+   "item": null,
+   "image": "study-review-sheets/2026-10-27/img/gs_15_MSFT_2025.png",
+   "verdict": "keep_lesser",
+   "grade": "okay",
+   "owner_words": "A lot of the are more PEGs but also gap support",
+   "nuance": [
+    "fixture #15; late-July 2025 earnings gap to new highs, cutoff a few days later pulling back toward the gap",
+    "owner: many of these fixtures are really PEGs (post-earnings gaps) that also qualify as gap support; kept as a lesser example"
+   ],
+   "ruled": true
+  },
+  {
+   "setup": "Gap Support",
+   "position": 16,
+   "sym": "NVDA",
+   "asof": "2023-06-01",
+   "item": null,
+   "image": "study-review-sheets/2026-10-27/img/gs_16_NVDA_2023b.png",
+   "verdict": "cut",
+   "grade": null,
+   "owner_words": "Never really tested gap support",
+   "nuance": [
+    "fixture #16; late-May 2023 earnings gap, cutoff a few days later still well above the gap",
+    "RULE: a gap that was never tested is not a Gap Support example, however strong the gap"
+   ],
+   "ruled": true
+  },
+  {
+   "setup": "Gap Support",
+   "position": 17,
+   "sym": "AAPL",
+   "asof": "2024-05-07",
+   "item": null,
+   "image": "study-review-sheets/2026-10-27/img/gs_17_AAPL_2024b.png",
+   "verdict": "cut_as_peg",
+   "grade": null,
+   "owner_words": "Just a PEG",
+   "nuance": [
+    "fixture #17; the early-May 2024 earnings gap bar itself (one day before #9, which he kept as good)",
+    "RULE: the gap bar on its own is a PEG, not gap support; gap support is the later test of the gap-up low"
+   ],
+   "ruled": true
+  },
+  {
+   "setup": "Gap Support",
+   "position": 18,
+   "sym": "MSFT",
+   "asof": "2023-02-17",
+   "item": null,
+   "image": "study-review-sheets/2026-10-27/img/gs_18_MSFT_2023c.png",
+   "verdict": "keep",
+   "grade": "good",
+   "owner_words": "Keep — good",
+   "nuance": [
+    "fixture #18; early-Feb 2023 pop, cutoff two weeks later drifting back onto it; menu pick"
+   ],
+   "ruled": true
+  },
+  {
+   "setup": "Gap Support",
+   "position": 19,
+   "sym": "AXP",
+   "asof": "2023-03-10",
+   "item": "si_34da7ed38547",
+   "image": "study-review-sheets/2026-10-27/img/gs_19_AXP.png",
+   "verdict": "cut",
+   "grade": null,
+   "owner_words": "Cut",
+   "nuance": [
+    "pass-1 #19; late-Jan 2023 earnings gap, five weeks later the cutoff bar is a hard down day through the 20 EMA toward the gap; menu pick",
+    "a test that is still falling on the cutoff bar (no hold, no reclaim) is not the setup"
+   ],
+   "ruled": true
+  },
+  {
+   "setup": "Gap Support",
+   "position": 20,
+   "sym": "MU",
+   "asof": "2024-01-02",
+   "item": "si_392fa99527a1",
+   "image": "study-review-sheets/2026-10-27/img/gs_20_MU_2024.png",
+   "verdict": "keep",
+   "grade": "great",
+   "owner_words": "Keep — great",
+   "nuance": [
+    "pass-1 #20; late-Dec 2023 earnings gap, cutoff a week later pulling back onto the 9 EMA above the gap; menu pick",
+    "great without a deep test (like NVDA 2023-03-02 and AFRM): a strong PEG holding its gap-up low in a tight pullback is a lead example"
+   ],
+   "ruled": true
+  },
+  {
+   "setup": "Gap Support",
+   "position": 21,
+   "sym": "NFLX",
+   "asof": "2022-02-07",
+   "item": "si_3a2ecf317c4e",
+   "image": "study-review-sheets/2026-10-27/img/gs_21_NFLX.png",
+   "verdict": "cut",
+   "grade": null,
+   "owner_words": "Don’t want to do downtrend gaps but will do bear gaps off the highs",
+   "nuance": [
+    "pass-1 #21; the Jan 2022 earnings crash gap DOWN inside a downtrend, cutoff two weeks later still falling",
+    "RULE: no Gap Support examples from gaps inside a downtrend; a BEAR gap off the highs (the first gap down from a top) is a different, acceptable lesson, to be built as its own variant"
+   ],
+   "ruled": true
+  },
+  {
+   "setup": "Gap Support",
+   "position": 22,
+   "sym": "UAL",
+   "asof": "2024-02-06",
+   "item": "si_5300cd8fafc6",
+   "image": "study-review-sheets/2026-10-27/img/gs_22_UAL.png",
+   "verdict": "keep_lesser",
+   "grade": "okay",
+   "owner_words": "Keep — okay",
+   "nuance": [
+    "pass-1 #22; late-Jan 2024 earnings gap up, cutoff a week later holding above it on the 9 EMA; menu pick"
+   ],
+   "ruled": true
+  },
+  {
+   "setup": "Gap Support",
+   "position": 23,
+   "sym": "LYFT",
+   "asof": "2021-11-15",
+   "item": "si_645115b2fe4c",
+   "image": "study-review-sheets/2026-10-27/img/gs_23_LYFT.png",
+   "verdict": "cut",
+   "grade": null,
+   "owner_words": "Cut",
+   "nuance": [
+    "pass-1 #23; early-Nov 2021 earnings gap up, cutoff a week later rolling over at the 50 SMA, then it collapsed; menu pick"
+   ],
+   "ruled": true
+  },
+  {
+   "setup": "Gap Support",
+   "position": 24,
+   "sym": "EDU",
+   "asof": "2023-01-30",
+   "item": "si_b8b6df7ef791",
+   "image": "study-review-sheets/2026-10-27/img/gs_24_EDU.png",
+   "verdict": "keep",
+   "grade": "good",
+   "owner_words": "Keep — good",
+   "nuance": [
+    "pass-1 #24; steady uptrend, small gap, cutoff near the top with no deep test; menu pick"
+   ],
+   "ruled": true
+  },
+  {
+   "setup": "Gap Support",
+   "position": 25,
+   "sym": "BABA",
+   "asof": "2023-04-20",
+   "item": "si_c2a4cc4dd3d3",
+   "image": "study-review-sheets/2026-10-27/img/gs_25_BABA.png",
+   "verdict": "cut",
+   "grade": null,
+   "owner_words": "Failed example / nah not even a good failed example",
+   "nuance": [
+    "pass-1 #25; late-March 2023 gap up through the 50, three weeks later the cutoff bar is a down day back onto the gap area at the 20 EMA, and the forward strip breaks it",
+    "owner asked whether failed = keep as a failed-setup lesson (WFRD precedent) or cut: CUT, not even a good failed example"
+   ],
+   "ruled": true
+  },
+  {
+   "setup": "Gap Support",
+   "position": 26,
+   "sym": "TTD",
+   "asof": "2022-01-04",
+   "item": "si_cfdff8a667cb",
+   "image": "study-review-sheets/2026-10-27/img/gs_26_TTD_2022.png",
+   "verdict": "cut",
+   "grade": null,
+   "owner_words": "Failed example / nah not even a good failed example",
+   "nuance": [
+    "pass-1 #26; early-Nov 2021 earnings gap, two months later the cutoff bar is back at the 50 and the forward strip breaks down",
+    "owner asked whether failed = keep as a failed-setup lesson (WFRD precedent) or cut: CUT, not even a good failed example"
+   ],
+   "ruled": true
+  },
+  {
+   "setup": "Gap Support",
+   "position": 27,
+   "sym": "SBUX",
+   "asof": "2022-04-05",
+   "item": "si_d3c73e1a77ed",
+   "image": "study-review-sheets/2026-10-27/img/gs_27_SBUX.png",
+   "verdict": "cut",
+   "grade": null,
+   "owner_words": "Cut",
+   "nuance": [
+    "pass-1 #27; downtrend under the 50, small bounce, no gap up; menu pick"
+   ],
+   "ruled": true
+  },
+  {
+   "setup": "Gap Support",
+   "position": 28,
+   "sym": "FMS",
+   "asof": "2024-03-14",
+   "item": "si_e86fa18ab8f5",
+   "image": "study-review-sheets/2026-10-27/img/gs_28_FMS.png",
+   "verdict": "cut",
+   "grade": null,
+   "owner_words": "Failed example / nah not even a good failed example",
+   "nuance": [
+    "pass-1 #28; sideways range, late-Feb pop, cutoff drifting back on the 50, forward strip falls",
+    "owner asked whether failed = keep as a failed-setup lesson (WFRD precedent) or cut: CUT, not even a good failed example"
+   ],
+   "ruled": true
+  },
+  {
+   "setup": "Gap Support",
+   "position": 29,
+   "sym": "ARGX",
+   "asof": "2024-11-19",
+   "item": "si_0e8969ad6e26",
+   "image": "study-review-sheets/2026-10-27/img/gs_29_ARGX.png",
+   "verdict": "keep_lesser",
+   "grade": "okay",
+   "owner_words": "It’s correct but think there are better examples",
+   "nuance": [
+    "the first Gap Support ruling of the 2026-10-26 sitting (pass-2 queue, position 29/42); gap rays verified live on this chart",
+    "owner wants stronger examples to lead the gallery: a gap that is TESTED and held, not merely a gap that keeps trending (ARGX never came back to the gap top)"
+   ],
+   "ruled": true
+  },
+  {
+   "setup": "Gap Support",
+   "position": 30,
+   "sym": "KKR",
+   "asof": "2024-08-05",
+   "item": "si_16d3d6d6d30e",
+   "image": "study-review-sheets/2026-10-27/img/gs_30_KKR.png",
+   "verdict": "keep",
+   "grade": "good",
+   "owner_words": "Yeah this is good because it’s a little subtle",
+   "nuance": [
+    "RAY READING (verified from facts): gold lower ray = gap top 99.99 (gap-fill spot, prior-day high); faint upper ray = gap-up day low ~104",
+    "subtle = the Aug 5 panic bar breached the gap-up low and spiked to the gap-fill spot, then closed back above both",
+    "owner values the subtle test over the obvious trend (contrast with ARGX keep_lesser)"
+   ],
+   "ruled": true
+  },
+  {
+   "setup": "Gap Support",
+   "position": 31,
+   "sym": "TTD",
+   "asof": "2023-03-13",
+   "item": "si_1ac78c2bafb7",
+   "image": "study-review-sheets/2026-10-27/img/gs_31_TTD.png",
+   "verdict": "cut",
+   "grade": null,
+   "owner_words": "Pass on that one",
+   "nuance": [
+    "no reason typed; chart facts: a month of sideways chop ON the gap top before the test, the cutoff bar closed only back AT the gap top, not above it",
+    "contrast with KKR (keep, good): a clean one-bar undercut of the gap top caught at the gap-day low with a strong close"
+   ],
+   "ruled": true
+  },
+  {
+   "setup": "Gap Support",
+   "position": 32,
+   "sym": "TWLO",
+   "asof": "2025-11-21",
+   "item": "si_2d52398a8294",
+   "image": "study-review-sheets/2026-10-27/img/gs_32_TWLO.png",
+   "verdict": "keep",
+   "grade": "good",
+   "owner_words": "That’s good but I want the gap up low to hold or be slightly breached instead of the gap fill spot btw",
+   "nuance": [
+    "RAY READING: gold lower ray = gap top 114.73 (gap-fill spot); faint upper ray = gap-up day low ~124",
+    "chart: two-week drift onto the gap-up low, breached it by a few percent, never reached the gap-fill spot; kept as good",
+    "owner words set the rule: he wants the GAP-UP LOW to hold or be slightly breached, not a test of the gap-fill spot"
+   ],
+   "ruled": true
+  },
+  {
+   "setup": "Gap Support",
+   "position": 33,
+   "sym": "CLS",
+   "asof": "2025-08-20",
+   "item": "si_2fba5f9ca97c",
+   "image": "study-review-sheets/2026-10-27/img/gs_33_CLS.png",
+   "verdict": "keep_lesser",
+   "grade": "okay",
+   "owner_words": "Keep — okay",
+   "nuance": [
+    "picked from the menu, no words typed",
+    "RAY READING: gold lower ray = gap top 173.71 (gap-fill spot); faint upper ray = gap-up day low ~183",
+    "chart: breached the gap-up low by ~4% on the cutoff bar, held above the gap-fill spot, closed back above the gap-up low; only okay, probably the three-week drift before the test"
+   ],
+   "ruled": true
+  },
+  {
+   "setup": "Gap Support",
+   "position": 34,
+   "sym": "AFRM",
+   "asof": "2024-09-10",
+   "item": "si_4b6e48474eda",
+   "image": "study-review-sheets/2026-10-27/img/gs_34_AFRM.png",
+   "verdict": "keep",
+   "grade": "great",
+   "owner_words": "Keep — great",
+   "nuance": [
+    "picked from the menu",
+    "RAY READING (verified): gold lower ray = gap top 32.51 (gap-fill spot); faint upper ray = gap-up day low ~37.5",
+    "chart: a week after a 24% earnings gap the cutoff bar tagged the gap-up low to the tick and bounced; this is the exact shape of the rule (gap-up low holds) and the owner rated it GREAT"
+   ],
+   "ruled": true
+  },
+  {
+   "setup": "Gap Support",
+   "position": 35,
+   "sym": "TER",
+   "asof": "2025-11-21",
+   "item": "si_50e0092a7d9f",
+   "image": "study-review-sheets/2026-10-27/img/gs_35_TER.png",
+   "verdict": "keep",
+   "grade": "good",
+   "owner_words": "Keep — good",
+   "nuance": [
+    "picked from the menu",
+    "chart: three weeks after a late-Oct earnings gap the cutoff bar undercut the gap-up low by ~5% and closed back above it, never near the gap-fill spot",
+    "a ~5% breach of the gap-up low with a close back above still rates good (same shape as CLS, which rated okay; TER had the cleaner drift)"
+   ],
+   "ruled": true
+  },
+  {
+   "setup": "Gap Support",
+   "position": 36,
+   "sym": "FTAI",
+   "asof": "2026-05-19",
+   "item": "si_51599e9ff0a5",
+   "image": "study-review-sheets/2026-10-27/img/gs_36_FTAI.png",
+   "verdict": "keep_lesser",
+   "grade": "okay",
+   "owner_words": "Keep — okay",
+   "nuance": [
+    "picked from the menu",
+    "chart: early-May gap up out of a two-month decline, still under the 50 SMA; cutoff bar undercut the gap-up low slightly and closed back above it",
+    "the test itself fits the rule; context (gap out of a downtrend, under the 50) is the likely reason it is only okay"
+   ],
+   "ruled": true
+  },
+  {
+   "setup": "Gap Support",
+   "position": 37,
+   "sym": "VECO",
+   "asof": "2026-05-19",
+   "item": "si_7a1ca1d6b10e",
+   "image": "study-review-sheets/2026-10-27/img/gs_37_VECO.png",
+   "verdict": "keep_lesser",
+   "grade": "okay",
+   "owner_words": "Keep — okay",
+   "nuance": [
+    "pass-2 #37; early-May 2026 gap in a strong uptrend, two weeks sitting on the gap-up low, cutoff bar undercut it slightly and closed back above; owner first asked to clarify, then picked okay"
+   ],
+   "ruled": true
+  },
+  {
+   "setup": "Gap Support",
+   "position": 38,
+   "sym": "KYMR",
+   "asof": "2026-01-20",
+   "item": "si_9195a239a5c8",
+   "image": "study-review-sheets/2026-10-27/img/gs_38_KYMR.png",
+   "verdict": "keep_lesser",
+   "grade": "okay",
+   "owner_words": "Keep — okay",
+   "nuance": [
+    "pass-2 #38; early-Dec 2025 gap up, six weeks of drift, cutoff bar on the gap-up low ~72 with the gap-fill spot ~67 below; menu pick"
+   ],
+   "ruled": true
+  },
+  {
+   "setup": "Gap Support",
+   "position": 39,
+   "sym": "CAVA",
+   "asof": "2026-03-27",
+   "item": "si_b9fd6781ef1b",
+   "image": "study-review-sheets/2026-10-27/img/gs_39_CAVA.png",
+   "verdict": "keep_lesser",
+   "grade": "okay",
+   "owner_words": "Keep — okay",
+   "nuance": [
+    "pass-2 #39; early-March 2026 gap up, three weeks later the cutoff bar dipped under the gap-up low ~77 to the 50 and closed back above; menu pick"
+   ],
+   "ruled": true
+  },
+  {
+   "setup": "Gap Support",
+   "position": 40,
+   "sym": "DOCS",
+   "asof": "2023-01-06",
+   "item": "si_cb5438c88229",
+   "image": "study-review-sheets/2026-10-27/img/gs_40_DOCS.png",
+   "verdict": "keep",
+   "grade": "great",
+   "owner_words": "Keep — great",
+   "nuance": [
+    "pass-2 #40; early-Nov 2022 earnings gap off the lows, two months later the cutoff bar dipped to the gap-up low ~29 at the 50 SMA and closed back above; menu pick",
+    "lead example: a long drift back to the gap-up low that holds to the tick, with the 50 SMA arriving at the same spot"
+   ],
+   "ruled": true
+  },
+  {
+   "setup": "Gap Support",
+   "position": 41,
+   "sym": "UBER",
+   "asof": "2022-10-11",
+   "item": "si_dfc2a7f81656",
+   "image": "study-review-sheets/2026-10-27/img/gs_41_UBER.png",
+   "verdict": "keep_lesser",
+   "grade": "okay",
+   "owner_words": "Prefer holding open gap vs filling gap btw",
+   "nuance": [
+    "pass-2 #41; early-Aug 2022 earnings gap, two months later the cutoff bar spiked through the gap-up low ~27 to the gap-fill spot ~25 and closed back up",
+    "RULE: a gap that stays OPEN (gap-up low holds) is preferred to one that FILLS (price trades down to the prior-day high); a fill-and-reclaim is still a lesser example, not a cut (KKR, which filled on a panic day, rated good as a subtle case)"
+   ],
+   "ruled": true
+  },
+  {
+   "setup": "Gap Support",
+   "position": 42,
+   "sym": "QBTS",
+   "asof": "2026-04-29",
+   "item": "si_ea63fba184ae",
+   "image": "study-review-sheets/2026-10-27/img/gs_42_QBTS.png",
+   "verdict": "keep_lesser",
+   "grade": "okay",
+   "owner_words": "Eh B-",
+   "nuance": [
+    "pass-2 #42; mid-April 2026 gap up out of a long downtrend, still under the 50, cutoff two weeks later sitting on the gap-up low ~17.5",
+    "B- in the owner's words: the test is fine, the context (downtrend, under the 50) holds it back, same as FTAI"
+   ],
+   "ruled": true
+  },
+  {
+   "setup": "Go Signal",
+   "position": 1,
+   "sym": "AAPL",
+   "asof": "2023-02-17",
+   "item": null,
+   "image": "study-review-sheets/2026-10-27/img/go_01_AAPL_2023.png",
+   "verdict": "pending",
+   "grade": null,
+   "owner_words": "GO SIGNAL is similar to the oops reversal or the UNR but is an hourly GO SIGNAL btw",
+   "nuance": [
+    "fixture #1; owner answered with the definition instead of a grade; re-show on hourly bars"
+   ],
+   "ruled": true
+  },
+  {
+   "setup": "Go Signal",
+   "position": 2,
+   "sym": "MSFT",
+   "asof": "2022-11-14",
+   "item": null,
+   "image": "study-review-sheets/2026-10-27/img/go_02_MSFT_2022.png",
+   "verdict": "pending",
+   "grade": null,
+   "owner_words": "Take first notes and feedback and make the proper adjustments",
+   "nuance": [
+    "fixture #2; owner answered with the process instruction instead of a grade; re-show on hourly bars"
+   ],
+   "ruled": true
+  },
+  {
+   "setup": "Go Signal",
+   "position": 3,
+   "sym": "AMZN",
+   "asof": "2022-08-18",
+   "item": null,
+   "image": "study-review-sheets/2026-10-27/img/go_03_AMZN_2022.png",
+   "verdict": "keep_lesser",
+   "grade": "okay",
+   "owner_words": "Keep — okay",
+   "nuance": [
+    "fixture #3; daily chart only; menu pick; to be re-cut on hourly bars"
+   ],
+   "ruled": true
+  },
+  {
+   "setup": "Go Signal",
+   "position": 4,
+   "sym": "AAPL",
+   "asof": "2022-08-24",
+   "item": null,
+   "image": "study-review-sheets/2026-10-27/img/go_04_AAPL_2022.png",
+   "verdict": "keep_lesser",
+   "grade": "okay",
+   "owner_words": "Keep — okay",
+   "nuance": [
+    "fixture #4; daily chart only; menu pick; to be re-cut on hourly bars"
+   ],
+   "ruled": true
+  },
+  {
+   "setup": "Go Signal",
+   "position": 5,
+   "sym": "NVDA",
+   "asof": "2022-07-25",
+   "item": null,
+   "image": "study-review-sheets/2026-10-27/img/go_05_NVDA_2022.png",
+   "verdict": "pending_hourly",
+   "grade": null,
+   "owner_words": "Gonna need to see the hourly but there are all most likely good 20EMA APULLBSCKS or UNR setups",
+   "nuance": [
+    "fixture #5; bear-market bounce off the lows into the 20 EMA",
+    "owner: cannot grade without the hourly; the daily footprints are most likely 20-EMA pullbacks or UNR (undercut and rally) setups, which is the Go Signal context"
+   ],
+   "ruled": true
+  },
+  {
+   "setup": "Go Signal",
+   "position": 6,
+   "sym": "META",
+   "asof": "2022-08-09",
+   "item": null,
+   "image": "study-review-sheets/2026-10-27/img/go_06_META_2022.png",
+   "verdict": "cut",
+   "grade": null,
+   "owner_words": "Cut",
+   "nuance": [
+    "fixture #6; downtrend under every average"
+   ],
+   "ruled": true
+  },
+  {
+   "setup": "Go Signal",
+   "position": 7,
+   "sym": "MSFT",
+   "asof": "2022-10-11",
+   "item": null,
+   "image": "study-review-sheets/2026-10-27/img/go_07_MSFT_2022b.png",
+   "verdict": "cut",
+   "grade": null,
+   "owner_words": "Cut",
+   "nuance": [
+    "fixture #7; downtrend making new lows"
+   ],
+   "ruled": true
+  },
+  {
+   "setup": "Go Signal",
+   "position": 8,
+   "sym": "AMZN",
+   "asof": "2022-10-11",
+   "item": null,
+   "image": "study-review-sheets/2026-10-27/img/go_08_AMZN_2022b.png",
+   "verdict": "pending_hourly",
+   "grade": null,
+   "owner_words": "GO SIGNALS are supposed to be notable hourly flags that undercut a slight range and quickly go red to green in the first hour",
+   "nuance": [
+    "fixture #8; owner answered with the definition, no grade; downtrend making new lows, unlikely to survive the hourly look"
+   ],
+   "ruled": true
+  },
+  {
+   "setup": "Go Signal",
+   "position": 9,
+   "sym": "AAPL",
+   "asof": "2022-10-11",
+   "item": null,
+   "image": "study-review-sheets/2026-10-27/img/go_09_AAPL_2022b.png",
+   "verdict": "cut",
+   "grade": null,
+   "owner_words": "Cut",
+   "nuance": [
+    "fixture #9; downtrend, lower lows"
+   ],
+   "ruled": true
+  },
+  {
+   "setup": "Go Signal",
+   "position": 10,
+   "sym": "GOOGL",
+   "asof": "2022-11-16",
+   "item": null,
+   "image": "study-review-sheets/2026-10-27/img/go_10_GOOGL_2022.png",
+   "verdict": "cut",
+   "grade": null,
+   "owner_words": "Cut",
+   "nuance": [
+    "fixture #10; bounce off the November low back to the 20 EMA"
+   ],
+   "ruled": true
+  },
+  {
+   "setup": "Go Signal",
+   "position": 11,
+   "sym": "AAPL",
+   "asof": "2022-09-01",
+   "item": null,
+   "image": "study-review-sheets/2026-10-27/img/go_11_AAPL_2022c.png",
+   "verdict": "keep",
+   "grade": "good",
+   "owner_words": "Keep — good",
+   "nuance": [
+    "fixture #11; pullback from the August high into the 20 EMA; a good daily footprint, hourly chart to be built"
+   ],
+   "ruled": true
+  },
+  {
+   "setup": "Go Signal",
+   "position": 12,
+   "sym": "AAPL",
+   "asof": "2022-11-16",
+   "item": null,
+   "image": "study-review-sheets/2026-10-27/img/go_12_AAPL_2022d.png",
+   "verdict": "pending_hourly",
+   "grade": null,
+   "owner_words": "Idk",
+   "nuance": [
+    "fixture #12; rolling over from the October high, short data; owner undecided, decide on the hourly"
+   ],
+   "ruled": true
+  },
+  {
+   "setup": "Go Signal",
+   "position": 13,
+   "sym": "MSFT",
+   "asof": "2022-11-17",
+   "item": null,
+   "image": "study-review-sheets/2026-10-27/img/go_13_MSFT_2022c.png",
+   "verdict": "keep",
+   "grade": "great",
+   "owner_words": "Keep — great",
+   "nuance": [
+    "fixture #13; bounce off the November 2022 low pushing into the 50 from below; lead footprint, build the hourly first"
+   ],
+   "ruled": true
+  },
+  {
+   "setup": "Go Signal",
+   "position": 14,
+   "sym": "MSFT",
+   "asof": "2022-07-14",
+   "item": null,
+   "image": "study-review-sheets/2026-10-27/img/go_14_MSFT_2022e.png",
+   "verdict": "pending_hourly",
+   "grade": null,
+   "owner_words": "Need the hourly",
+   "nuance": [
+    "fixture #14; bear market, a small green day on the 9 EMA after a dip"
+   ],
+   "ruled": true
+  },
+  {
+   "setup": "Go Signal",
+   "position": 15,
+   "sym": "MSFT",
+   "asof": "2022-11-22",
+   "item": null,
+   "image": "study-review-sheets/2026-10-27/img/go_15_MSFT_2022d.png",
+   "verdict": "keep",
+   "grade": "good",
+   "owner_words": "Keep — good",
+   "nuance": [
+    "fixture #15; the same November bounce as #13, a few days later at the 50"
+   ],
+   "ruled": true
+  },
+  {
+   "setup": "Go Signal",
+   "position": 16,
+   "sym": "NVDA",
+   "asof": "2022-10-11",
+   "item": null,
+   "image": "study-review-sheets/2026-10-27/img/go_16_NVDA_2022b.png",
+   "verdict": "pending_hourly",
+   "grade": null,
+   "owner_words": "Not sure, maybe but doubtful",
+   "nuance": [
+    "fixture #16; downtrend, new lows; owner doubtful, decide on the hourly"
+   ],
+   "ruled": true
+  },
+  {
+   "setup": "Go Signal",
+   "position": 17,
+   "sym": "VST",
+   "asof": "2026-10-16",
+   "item": null,
+   "image": "study-review-sheets/2026-10-27/img/go_17_VST_fast.png",
+   "verdict": "pending_hourly",
+   "grade": null,
+   "owner_words": "Ya possibly but would need full chart but also might just be an oops vs a real like GO SIGNAL",
+   "nuance": [
+    "scanner pick #17 (fast item with entry/stop/target); hourly bars exist on the pod",
+    "owner: needs the full hourly chart; may be an Oops rather than a real Go Signal; the difference is the hourly flag + first-hour red-to-green"
+   ],
+   "ruled": true
+  },
+  {
+   "setup": "Go Signal",
+   "position": 18,
+   "sym": "VEON",
+   "asof": "2026-10-16",
+   "item": null,
+   "image": "study-review-sheets/2026-10-27/img/go_18_VEON_fast.png",
+   "verdict": "pending_hourly",
+   "grade": null,
+   "owner_words": "Need the hourly but needs to be more higher low ish most likely",
+   "nuance": [
+    "scanner pick #18; strong uptrend",
+    "owner: the Go Signal day should come off a HIGHER LOW in the hourly flag, not just any dip"
+   ],
+   "ruled": true
+  },
+  {
+   "setup": "Go Signal",
+   "position": 19,
+   "sym": "VGZ",
+   "asof": "2026-10-16",
+   "item": null,
+   "image": "study-review-sheets/2026-10-27/img/go_19_VGZ_fast.png",
+   "verdict": "replace_with_earlier",
+   "grade": null,
+   "owner_words": "Prob a few days earlier not that day",
+   "nuance": [
+    "scanner pick #19, .55 stock",
+    "owner: the Go Signal day is probably a few days EARLIER than the scanner date; re-cut the date on the hourly"
+   ],
+   "ruled": true
+  },
+  {
+   "setup": "Go Signal",
+   "position": 20,
+   "sym": "XERS",
+   "asof": "2026-10-16",
+   "item": null,
+   "image": "study-review-sheets/2026-10-27/img/go_20_XERS_2026.png",
+   "verdict": "pending_hourly",
+   "grade": null,
+   "owner_words": "Need the hourly",
+   "nuance": [
+    "scanner pick #20, 0 stock, flag after an early-October spike"
+   ],
+   "ruled": true
+  },
+  {
+   "setup": "Go Signal",
+   "position": 21,
+   "sym": "GIC",
+   "asof": "2026-10-21",
+   "item": null,
+   "image": "study-review-sheets/2026-10-27/img/go_21_GIC_2026.png",
+   "verdict": "cut",
+   "grade": null,
+   "owner_words": "Maybe but not a stock I would trade",
+   "nuance": [
+    "scanner pick #21; UNIVERSE RULE again: good spots on good stocks only"
+   ],
+   "ruled": true
+  },
+  {
+   "setup": "Go Signal",
+   "position": 22,
+   "sym": "CSCO",
+   "asof": "2023-03-16",
+   "item": "si_0848ac23a804",
+   "image": "study-review-sheets/2026-10-27/img/go_22_CSCO.png",
+   "verdict": "pending_hourly",
+   "grade": null,
+   "owner_words": "Let me see could be great",
+   "nuance": [
+    "pass-1 #22; tight sideways on the 50, green day off the 20 EMA; owner thinks it could be great: build this hourly early"
+   ],
+   "ruled": true
+  },
+  {
+   "setup": "Go Signal",
+   "position": 23,
+   "sym": "QQQ",
+   "asof": "2021-12-15",
+   "item": "si_4c8b6554a5f7",
+   "image": "study-review-sheets/2026-10-27/img/go_23_QQQ_2021.png",
+   "verdict": "cut",
+   "grade": null,
+   "owner_words": "Maybe a downside go signal but who cares",
+   "nuance": [
+    "pass-1 #23; index at the highs, a reversal day that rolled over; at most a downside signal, owner not interested"
+   ],
+   "ruled": true
+  },
+  {
+   "setup": "Go Signal",
+   "position": 24,
+   "sym": "ZM",
+   "asof": "2023-02-14",
+   "item": "si_4cc6eeb30566",
+   "image": "study-review-sheets/2026-10-27/img/go_24_ZM.png",
+   "verdict": "good_setup_bad_result",
+   "grade": null,
+   "owner_words": "Prob a good one but doesn’t follow through to the upside it looks like",
+   "nuance": [
+    "pass-1 #24; downtrend bounce into the 50 that failed after",
+    "owner: probably a real Go Signal day that did not follow through; the MUST WORK rule says examples must work, so hold it as a possible failed-setup lesson, decide on the hourly"
+   ],
+   "ruled": true
+  },
+  {
+   "setup": "Go Signal",
+   "position": 25,
+   "sym": "COLM",
+   "asof": "2024-02-02",
+   "item": null,
+   "image": "study-review-sheets/2026-10-27/img/go_25_COLM.png",
+   "verdict": null,
+   "grade": null,
+   "owner_words": null,
+   "nuance": null,
+   "ruled": false
+  },
+  {
+   "setup": "Go Signal",
+   "position": 26,
+   "sym": "SNOW",
+   "asof": "2022-03-24",
+   "item": null,
+   "image": "study-review-sheets/2026-10-27/img/go_26_SNOW.png",
+   "verdict": null,
+   "grade": null,
+   "owner_words": null,
+   "nuance": null,
+   "ruled": false
+  },
+  {
+   "setup": "Go Signal",
+   "position": 27,
+   "sym": "INTC",
+   "asof": "2022-01-14",
+   "item": null,
+   "image": "study-review-sheets/2026-10-27/img/go_27_INTC.png",
+   "verdict": null,
+   "grade": null,
+   "owner_words": null,
+   "nuance": null,
+   "ruled": false
+  },
+  {
+   "setup": "Go Signal",
+   "position": 28,
+   "sym": "CCI",
+   "asof": "2021-11-15",
+   "item": null,
+   "image": "study-review-sheets/2026-10-27/img/go_28_CCI.png",
+   "verdict": null,
+   "grade": null,
+   "owner_words": null,
+   "nuance": null,
+   "ruled": false
+  },
+  {
+   "setup": "Go Signal",
+   "position": 29,
+   "sym": "CELH",
+   "asof": "2024-01-02",
+   "item": null,
+   "image": "study-review-sheets/2026-10-27/img/go_29_CELH.png",
+   "verdict": null,
+   "grade": null,
+   "owner_words": null,
+   "nuance": null,
+   "ruled": false
+  },
+  {
+   "setup": "Go Signal",
+   "position": 30,
+   "sym": "ANET",
+   "asof": "2022-02-16",
+   "item": null,
+   "image": "study-review-sheets/2026-10-27/img/go_30_ANET.png",
+   "verdict": null,
+   "grade": null,
+   "owner_words": null,
+   "nuance": null,
+   "ruled": false
+  },
+  {
+   "setup": "Go Signal",
+   "position": 31,
+   "sym": "RKLB",
+   "asof": "2023-01-10",
+   "item": null,
+   "image": "study-review-sheets/2026-10-27/img/go_31_RKLB_2023.png",
+   "verdict": null,
+   "grade": null,
+   "owner_words": null,
+   "nuance": null,
+   "ruled": false
+  },
+  {
+   "setup": "Go Signal",
+   "position": 32,
+   "sym": "DOCN",
+   "asof": "2026-04-27",
+   "item": null,
+   "image": "study-review-sheets/2026-10-27/img/go_32_DOCN.png",
+   "verdict": null,
+   "grade": null,
+   "owner_words": null,
+   "nuance": null,
+   "ruled": false
+  },
+  {
+   "setup": "Go Signal",
+   "position": 33,
+   "sym": "TEAM",
+   "asof": "2024-11-05",
+   "item": null,
+   "image": "study-review-sheets/2026-10-27/img/go_33_TEAM.png",
+   "verdict": null,
+   "grade": null,
+   "owner_words": null,
+   "nuance": null,
+   "ruled": false
+  },
+  {
+   "setup": "Go Signal",
+   "position": 34,
+   "sym": "HOOD",
+   "asof": "2024-11-15",
+   "item": null,
+   "image": "study-review-sheets/2026-10-27/img/go_34_HOOD.png",
+   "verdict": null,
+   "grade": null,
+   "owner_words": null,
+   "nuance": null,
+   "ruled": false
+  },
+  {
+   "setup": "Go Signal",
+   "position": 35,
+   "sym": "DUOL",
+   "asof": "2023-11-16",
+   "item": null,
+   "image": "study-review-sheets/2026-10-27/img/go_35_DUOL.png",
+   "verdict": null,
+   "grade": null,
+   "owner_words": null,
+   "nuance": null,
+   "ruled": false
+  },
+  {
+   "setup": "Go Signal",
+   "position": 36,
+   "sym": "MU",
+   "asof": "2024-03-19",
+   "item": null,
+   "image": "study-review-sheets/2026-10-27/img/go_36_MU.png",
+   "verdict": null,
+   "grade": null,
+   "owner_words": null,
+   "nuance": null,
+   "ruled": false
+  },
+  {
+   "setup": "Go Signal",
+   "position": 37,
+   "sym": "DASH",
+   "asof": "2024-11-04",
+   "item": null,
+   "image": "study-review-sheets/2026-10-27/img/go_37_DASH.png",
+   "verdict": null,
+   "grade": null,
+   "owner_words": null,
+   "nuance": null,
+   "ruled": false
+  },
+  {
+   "setup": "Go Signal",
+   "position": 38,
+   "sym": "SMH",
+   "asof": "2026-04-15",
+   "item": null,
+   "image": "study-review-sheets/2026-10-27/img/go_38_SMH.png",
+   "verdict": null,
+   "grade": null,
+   "owner_words": null,
+   "nuance": null,
+   "ruled": false
+  },
+  {
+   "setup": "Go Signal",
+   "position": 39,
+   "sym": "RKLB",
+   "asof": "2026-01-05",
+   "item": null,
+   "image": "study-review-sheets/2026-10-27/img/go_39_RKLB_2026.png",
+   "verdict": null,
+   "grade": null,
+   "owner_words": null,
+   "nuance": null,
+   "ruled": false
+  },
+  {
+   "setup": "Go Signal",
+   "position": 40,
+   "sym": "HL",
+   "asof": "2025-11-21",
+   "item": null,
+   "image": "study-review-sheets/2026-10-27/img/go_40_HL.png",
+   "verdict": null,
+   "grade": null,
+   "owner_words": null,
+   "nuance": null,
+   "ruled": false
+  },
+  {
+   "setup": "Go Signal",
+   "position": 41,
+   "sym": "ONON",
+   "asof": "2024-09-11",
+   "item": null,
+   "image": "study-review-sheets/2026-10-27/img/go_41_ONON.png",
+   "verdict": null,
+   "grade": null,
+   "owner_words": null,
+   "nuance": null,
+   "ruled": false
+  },
+  {
+   "setup": "Go Signal",
+   "position": 42,
+   "sym": "PHM",
+   "asof": "2023-11-30",
+   "item": null,
+   "image": "study-review-sheets/2026-10-27/img/go_42_PHM.png",
+   "verdict": null,
+   "grade": null,
+   "owner_words": null,
+   "nuance": null,
+   "ruled": false
+  },
+  {
+   "setup": "Go Signal",
+   "position": 43,
+   "sym": "MDB",
+   "asof": "2023-06-01",
+   "item": null,
+   "image": "study-review-sheets/2026-10-27/img/go_43_MDB.png",
+   "verdict": null,
+   "grade": null,
+   "owner_words": null,
+   "nuance": null,
+   "ruled": false
+  },
+  {
+   "setup": "Go Signal",
+   "position": 44,
+   "sym": "SOFI",
+   "asof": "2025-06-23",
+   "item": null,
+   "image": "study-review-sheets/2026-10-27/img/go_44_SOFI.png",
+   "verdict": null,
+   "grade": null,
+   "owner_words": null,
+   "nuance": null,
+   "ruled": false
+  },
+  {
+   "setup": "Go Signal",
+   "position": 45,
+   "sym": "TSLA",
+   "asof": "2023-05-31",
+   "item": null,
+   "image": "study-review-sheets/2026-10-27/img/go_45_TSLA.png",
+   "verdict": null,
+   "grade": null,
+   "owner_words": null,
+   "nuance": null,
+   "ruled": false
+  }
+ ]
+}

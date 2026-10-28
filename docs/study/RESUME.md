@@ -580,6 +580,11 @@ Method) drilled on real charts, with no AI at runtime, every item reviewed by th
   OWNER STILL RUNS (classifier blocks pod writes): `scratchpad/apply_verdicts_gap_run.ps1` (the 42 rulings),
   `import_contrasts_run.ps1`, `retire_xom_sling_run.ps1`. Railway SSH timed out twice around 16:30Z then worked.
 
+- **2026-10-27 (later):** owner widened the training rule: "all the entirety of the teaching and education module
+  here can be used to train the brain and full system of analysis and recognition". Manifest written at
+  `docs/study/TRAINING_CORPUS.md` (every source, its weight, what is excluded, how to assemble a pass); rule line
+  appended to `owner_verdicts.jsonl`; `review_images.json` (87 charts, 66 ruled) joins rulings to captured renders.
+
 ## Owner review packet (Phase 0 — read in this order, one session)
 1. `docs/study/VOICE.md` — the voice rules derived from your Substack/Scans prose; §8 open items.
 2. `docs/study/UNITS-foundations.md` — 129 units; read "Gaps for the owner" (8 content gaps +
