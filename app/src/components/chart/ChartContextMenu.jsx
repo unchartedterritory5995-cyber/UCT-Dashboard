@@ -21,7 +21,14 @@
  * Keyboard + screen reader (the ARIA menu pattern, measured WebKit + Chromium
  * + axe, 2026-10-28; before this the menu had no name, focus stayed on the
  * page behind it, and page-scope axe reported every row under `region`):
- *   · named: `ariaLabel` (the host passes "Chart actions for <SYM>");
+ *   · named: `ariaLabel` (the host passes "Chart actions for <SYM>"). The text
+ *     lives in ONE visually-hidden element (`.sr-only`, tokens.css), and both
+ *     the role="menu" and its dialog wrapper are aria-labelledby it. Not an
+ *     aria-label on the menu with the wrapper labelled BY the menu: that chain
+ *     (labelledby -> an element named only by its aria-label) is resolved
+ *     differently by different engines (Playwright's name computation left
+ *     the dialog unnamed, 2026-10-28), and VoiceOver/WebKit cannot be read
+ *     back from here. Text content behind an IDREF is what every engine reads;
  *   · focus moves to the first enabled item on open; ArrowUp/ArrowDown wrap,
  *     Home/End jump (element-level onKeyDown, never a document listener: the
  *     key-listener census in pages/command/keyListenerCensus.test.js);
@@ -34,8 +41,8 @@
  *   · Tab closes the menu (APG) without preventDefault, so focus moves on
  *     naturally; an open-but-unfocused menu would otherwise keep its dialog
  *     wrapper in the DOM and isModalOpen() would hold every chart shortcut off;
- *   · the desktop popover sits inside a NON-MODAL `role="dialog"`, labelled BY
- *     the menu (aria-labelledby, so it is not a second, different name). The
+ *   · the desktop popover sits inside a NON-MODAL `role="dialog"` carrying the
+ *     same name from the same element (one name, not a second, different one). The
  *     menu renders at the app root, outside every landmark, and a dialog is
  *     what axe's `region` rule accepts for a transient popup (its
  *     regionMatcher). That is the repo's own precedent for root-level
@@ -82,7 +89,7 @@ export function returnTargetFor(origin) {
 export default function ChartContextMenu({ open, x, y, sections = [], onClose, ariaLabel = 'Chart actions', returnFocusTo = null }) {
   const menuRef = useRef(null)
   const listRef = useRef(null)
-  const menuId = useId()
+  const labelId = useId()
   const [expanded, setExpanded] = useState(null)  // id of the open submenu
   const isTouch = useIsTouch()
   // Read at close through a ref, so a new element on a re-render never re-runs the effects.
@@ -185,11 +192,14 @@ export default function ChartContextMenu({ open, x, y, sections = [], onClose, a
         open
         onClose={onClose}
         variant="bottom-sheet"
-        ariaLabel="Chart actions"
+        ariaLabel={ariaLabel}
         zIndex={TOUCH_SHEET_Z_INDEX}
         returnFocusTo={returnTargetFor(returnFocusTo) || undefined}
       >
-        <div className={styles.sheetMenu} role="menu" aria-label={ariaLabel}>{rows}</div>
+        {/* Sheet names its dialog by `ariaLabel` (its API has no labelledby door); the
+            menu inside reads the same string through the one hidden label element. */}
+        <span id={labelId} className="sr-only">{ariaLabel}</span>
+        <div className={styles.sheetMenu} role="menu" aria-labelledby={labelId}>{rows}</div>
       </Sheet>
     )
   }
@@ -206,13 +216,13 @@ export default function ChartContextMenu({ open, x, y, sections = [], onClose, a
       className={styles.menu}
       style={{ left: clampedX, top: clampedY }}
       role="dialog"
-      aria-labelledby={menuId}
+      aria-labelledby={labelId}
     >
+      <span id={labelId} className="sr-only">{ariaLabel}</span>
       <div
         ref={listRef}
-        id={menuId}
         role="menu"
-        aria-label={ariaLabel}
+        aria-labelledby={labelId}
         tabIndex={-1}
         data-escape-layer=""
         onKeyDown={onMenuKeyDown}
