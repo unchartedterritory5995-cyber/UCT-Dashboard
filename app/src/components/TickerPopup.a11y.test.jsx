@@ -5,7 +5,7 @@
 //   5. The "Switch ticker" box was a plain textbox over an UNNAMED listbox (axe
 //      aria-input-field-name, serious): no combobox semantics, no active option, no count,
 //      and Escape with suggestions open closed the whole popup, not the list.
-import { renderWithProviders, screen, fireEvent, waitFor, within } from '../test-utils'
+import { renderWithProviders, render, screen, fireEvent, waitFor, within } from '../test-utils'
 import { vi, test, expect, describe, beforeEach } from 'vitest'
 import { expectNoAxeViolations } from '../pages/journal-2-0/a11y/axeHarness'
 
@@ -15,6 +15,7 @@ vi.mock('../utils/prefetchBars', () => ({
 vi.mock('./chart/pane/ChartPane', () => ({ default: () => <div data-testid="pane-stub" /> }))
 
 import TickerPopup from './TickerPopup'
+import ChartContextMenu from './chart/ChartContextMenu'
 
 const RESULTS = [
   { ticker: 'NVDA', name: 'NVIDIA Corp' },
@@ -201,5 +202,53 @@ describe('a dialog INSIDE the popup is a layer above it too', () => {
     fireEvent.keyDown(document.body, { key: 'Escape' })
     expect(onClose).not.toHaveBeenCalled()
     inner.remove()
+  })
+})
+
+describe("the chart's OWN non-modal layers inside the popup own Escape too", () => {
+  // ChartContextMenu (role=menu), the earnings marker popover (role=dialog WITHOUT aria-modal)
+  // and the IPO tag carry [data-escape-layer] -- lib/topLayer.js's one definition of a layer.
+  // The popup's own selector used to miss them: right-click, Escape, and the menu AND the
+  // popup closed.
+  test('the REAL ChartContextMenu opened inside the popup: Escape closes the menu, not the popup', () => {
+    const { onClose, dialog } = openPopup()
+    const host = document.createElement('div')
+    dialog.querySelector('[data-ticker-popup-chart]').appendChild(host)
+    const closeMenu = vi.fn()
+    render(<ChartContextMenu open x={40} y={40} onClose={closeMenu}
+      sections={[{ id: 's', items: [{ id: 'chart-set', label: 'Chart settings…', onSelect: () => {} }] }]} />, { container: host })
+    expect(screen.getByRole('menu')).toHaveAttribute('data-escape-layer')
+    fireEvent.keyDown(document.body, { key: 'Escape' })
+    expect(closeMenu).toHaveBeenCalledTimes(1)
+    expect(onClose).not.toHaveBeenCalled()
+  })
+
+  test('a [data-escape-layer] popover inside the popup (non-modal role=dialog) holds it open', () => {
+    const { onClose, dialog } = openPopup()
+    const pop = document.createElement('div')
+    pop.setAttribute('role', 'dialog')          // no aria-modal: the earnings popover's shape
+    pop.setAttribute('data-escape-layer', '')
+    dialog.appendChild(pop)
+    fireEvent.keyDown(document.body, { key: 'Escape' })
+    expect(onClose).not.toHaveBeenCalled()
+    pop.remove()
+    fireEvent.keyDown(document.body, { key: 'Escape' })
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  test('a layer under a display:none ANCESTOR, or with visibility:hidden, is not showing and does not count', () => {
+    const { onClose } = openPopup()
+    const wrap = document.createElement('div')
+    wrap.style.display = 'none'
+    const hiddenByAncestor = document.createElement('div')
+    hiddenByAncestor.setAttribute('data-escape-layer', '')
+    wrap.appendChild(hiddenByAncestor)
+    const invisible = document.createElement('div')
+    invisible.setAttribute('aria-modal', 'true')
+    invisible.style.visibility = 'hidden'
+    document.body.append(wrap, invisible)
+    fireEvent.keyDown(document.body, { key: 'Escape' })
+    expect(onClose).toHaveBeenCalledTimes(1)
+    wrap.remove(); invisible.remove()
   })
 })

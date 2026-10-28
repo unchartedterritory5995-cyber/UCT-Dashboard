@@ -227,6 +227,13 @@ describe('TickerPopup wires the fit into the chart', () => {
       // inside an area whose box the floor would otherwise hold still)
       const pane = screen.getByTestId('pane')
       expect(observers.some((o) => o.els.has(pane))).toBe(true)
+      // a re-suspend REPLACES the pane: the detached one is no longer watched
+      const area = document.querySelector('[data-ticker-popup-chart]')
+      const replacement = document.createElement('div')
+      area.insertBefore(replacement, area.firstChild)
+      await settle()
+      expect(observers.some((o) => o.els.has(replacement))).toBe(true)
+      expect(observers.some((o) => o.els.has(pane))).toBe(false)
     } finally {
       gate.ready = true
       Object.defineProperty(HTMLElement.prototype, 'offsetHeight', realOH)
