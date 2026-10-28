@@ -17,6 +17,28 @@
  * On touch / coarse-pointer devices (≤1024px) the same sections render inside
  * a bottom-sheet (so the menu is reachable + tappable on phones/tablets);
  * desktop keeps the anchored fixed popover unchanged.
+ *
+ * Keyboard + screen reader (the ARIA menu pattern, measured WebKit + Chromium
+ * + axe, 2026-10-28; before this the menu had no name, focus stayed on the
+ * page behind it, and page-scope axe reported every row under `region`):
+ *   · named: `ariaLabel` (the host passes "Chart actions for <SYM>");
+ *   · focus moves to the first enabled item on open; ArrowUp/ArrowDown wrap,
+ *     Home/End jump (element-level onKeyDown, never a document listener: the
+ *     key-listener census in pages/command/keyListenerCensus.test.js);
+ *   · Escape (still the ONE document listener below, so it still closes ONLY
+ *     the menu and TickerPopup's layer check is unchanged) and picking an item
+ *     hand focus back to the chart region the menu was opened from
+ *     (`returnFocusTo`: the chart's element; its nearest focusable
+ *     `role="region"` wins). An OUTSIDE click does not pull focus back: the
+ *     member clicked somewhere else on purpose;
+ *   · the desktop popover sits inside a NON-MODAL `role="dialog"` with the
+ *     same short name the touch branch's Sheet carries ("Chart actions"). The
+ *     menu renders at the app root, outside every landmark, and a dialog is
+ *     what axe's `region` rule accepts for a transient popup (its
+ *     regionMatcher). That is the repo's own precedent for root-level
+ *     non-modal popups (EarningsMarkerPopover, GlobalVideoLayer's "Next up"
+ *     card), and exactly the shape the touch branch already has (a Sheet
+ *     dialog holding the role="menu").
  */
 
 import { useEffect, useRef, useState } from 'react'
@@ -36,12 +58,60 @@ import styles from './ChartContextMenu.module.css'
 // rail, not by hand — if the two ever drift, the rail reds.
 const TOUCH_SHEET_Z_INDEX = 8700
 
-export default function ChartContextMenu({ open, x, y, sections = [], onClose }) {
+const ITEM = '[role="menuitem"], [role="menuitemcheckbox"], [role="menuitemradio"]'
+
+// Enabled items, in document order (submenu children included while expanded).
+function itemsOf(root) {
+  if (!root) return []
+  return [...root.querySelectorAll(ITEM)]
+    .filter((el) => !el.disabled && el.getAttribute('aria-disabled') !== 'true')
+}
+
+// Where focus goes back to when the menu closes by keyboard or by a pick: the
+// chart region the menu was opened on (ChartPane's `role="region"` tab stop),
+// else the nearest focusable ancestor of the chart element, else nothing.
+export function returnTargetFor(origin) {
+  const el = origin && typeof origin === 'object' && 'current' in origin ? origin.current : origin
+  if (!el || !el.isConnected || typeof el.closest !== 'function') return null
+  return el.closest('[role="region"][tabindex]') || el.closest('[tabindex]') || null
+}
+
+export default function ChartContextMenu({ open, x, y, sections = [], onClose, ariaLabel = 'Chart actions', returnFocusTo = null }) {
   const menuRef = useRef(null)
+  const listRef = useRef(null)
   const [expanded, setExpanded] = useState(null)  // id of the open submenu
   const isTouch = useIsTouch()
+  // Read at close through a ref, so a new element on a re-render never re-runs the effects.
+  const returnRef = useRef(returnFocusTo)
+  returnRef.current = returnFocusTo
+  const giveFocusBack = () => {
+    const back = returnTargetFor(returnRef.current)
+    if (back && typeof back.focus === 'function') back.focus({ preventScroll: true })
+  }
 
   useEffect(() => { if (!open) setExpanded(null) }, [open])
+
+  // Desktop: focus INTO the menu on open (the first enabled item). Asked again
+  // for a few frames: with "reduce motion" tokens.css gives every element a
+  // 0.01 ms transition, and a browser refuses to focus a node that is still
+  // mid-transition from hidden (the ContextPopover lesson, 2026-10-07).
+  useEffect(() => {
+    if (!open || isTouch) return undefined
+    let raf = 0
+    let tries = 0
+    const take = () => {
+      const list = listRef.current
+      if (!list) return
+      const first = itemsOf(list)[0]
+      ;(first || list).focus?.({ preventScroll: true })
+      if (!list.contains(document.activeElement) && tries < 12 && typeof requestAnimationFrame === 'function') {
+        tries += 1
+        raf = requestAnimationFrame(take)
+      }
+    }
+    take()
+    return () => { if (raf && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(raf) }
+  }, [open, isTouch])
 
   useEffect(() => {
     // Desktop popover dismisses on outside click / Esc. On touch the Sheet
@@ -51,7 +121,14 @@ export default function ChartContextMenu({ open, x, y, sections = [], onClose })
       if (menuRef.current?.contains(e.target)) return
       onClose?.()
     }
-    const onKey = (e) => { if (e.key === 'Escape') onClose?.() }
+    const onKey = (e) => {
+      if (e.key !== 'Escape') return
+      // Only when focus is in the menu (or nowhere): an Escape pressed in some
+      // other field must not yank focus to the chart.
+      const a = document.activeElement
+      if (!a || a === document.body || menuRef.current?.contains(a)) giveFocusBack()
+      onClose?.()
+    }
     document.addEventListener('mousedown', onClick)
     document.addEventListener('keydown', onKey)
     return () => {
@@ -68,8 +145,28 @@ export default function ChartContextMenu({ open, x, y, sections = [], onClose })
 
   const select = (item) => {
     if (item.disabled) return
+    // Focus goes back BEFORE the action runs: an action that opens a modal then
+    // records the chart as its opener (the row it was picked from is about to
+    // unmount), and the modal's own focus-in still wins.
+    giveFocusBack()
     item.onSelect?.()
     onClose?.()
+  }
+
+  // ArrowUp/ArrowDown wrap, Home/End jump, between the menu's own enabled items.
+  const onMenuKeyDown = (e) => {
+    const MOVES = { ArrowDown: 1, ArrowUp: -1, Home: 'first', End: 'last' }
+    const move = MOVES[e.key]
+    if (move == null) return
+    const rowsNow = itemsOf(listRef.current)
+    if (!rowsNow.length) return
+    const at = rowsNow.indexOf(e.target?.closest?.(ITEM))
+    const next = move === 'first' ? 0
+      : move === 'last' ? rowsNow.length - 1
+        : at < 0 ? (move > 0 ? 0 : rowsNow.length - 1)
+          : (at + move + rowsNow.length) % rowsNow.length
+    e.preventDefault()
+    rowsNow[next].focus()
   }
 
   const rows = renderSections({ visible, styles, expanded, setExpanded, select })
@@ -83,8 +180,9 @@ export default function ChartContextMenu({ open, x, y, sections = [], onClose })
         variant="bottom-sheet"
         ariaLabel="Chart actions"
         zIndex={TOUCH_SHEET_Z_INDEX}
+        returnFocusTo={returnTargetFor(returnFocusTo) || undefined}
       >
-        <div className={styles.sheetMenu} role="menu">{rows}</div>
+        <div className={styles.sheetMenu} role="menu" aria-label={ariaLabel}>{rows}</div>
       </Sheet>
     )
   }
@@ -100,10 +198,19 @@ export default function ChartContextMenu({ open, x, y, sections = [], onClose })
       ref={menuRef}
       className={styles.menu}
       style={{ left: clampedX, top: clampedY }}
-      role="menu"
-      data-escape-layer=""
+      role="dialog"
+      aria-label="Chart actions"
     >
-      {rows}
+      <div
+        ref={listRef}
+        role="menu"
+        aria-label={ariaLabel}
+        tabIndex={-1}
+        data-escape-layer=""
+        onKeyDown={onMenuKeyDown}
+      >
+        {rows}
+      </div>
     </div>
   )
 }
