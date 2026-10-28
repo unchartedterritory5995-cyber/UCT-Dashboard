@@ -93,7 +93,9 @@ function TickerHubBody({ sym, onClose }) {
   const topTweets = Array.isArray(tweets) ? tweets.slice(0, 2) : []
 
   return (
-    <Sheet open onClose={onClose} variant="bottom-sheet" title={sym}>
+    // `labelledByTitle`: the dialog is NAMED by its visible ticker heading (axe
+    // aria-dialog-name; VoiceOver said only "dialog"). One value, not a copy.
+    <Sheet open onClose={onClose} variant="bottom-sheet" title={sym} labelledByTitle>
       <div className={styles.body}>
         {live?.price != null && (
           <div className={styles.quote}>
@@ -142,6 +144,12 @@ function TickerHubBody({ sym, onClose }) {
             type="button"
             className={`${styles.action} ${hasAlert(sym) ? styles.on : ''}`}
             onClick={() => setAlertOpen((o) => !o)}
+            aria-expanded={alertOpen}
+            // The gold "on" state (an alert exists) was class-only. This button
+            // OPENS the form, it does not toggle the alert, so the state is not
+            // aria-pressed: it is spoken in the name, which still starts with
+            // the visible word. No alert = the name is the visible text.
+            aria-label={hasAlert(sym) ? 'Alert, alert set' : undefined}
           >
             <span className={styles.aicon} aria-hidden="true"><UIcon name="bell" size={14} /></span>Alert
           </button>
@@ -163,6 +171,7 @@ function TickerHubBody({ sym, onClose }) {
             type="button"
             className={`${styles.action} ${flagged ? styles.on : ''}`}
             onClick={() => toggle(sym)}
+            aria-pressed={flagged}
           >
             <span className={styles.aicon} aria-hidden="true"><UIcon name="flag" size={14} /></span>Flag
           </button>
@@ -199,7 +208,7 @@ function TickerHubBody({ sym, onClose }) {
             TickerPopup/TickerActions, toggled by the Compare action above. */}
         {showCompare && (
           <div className={styles.compareRow}>
-            <SymbolSearch sym={sym} displayLabel="+ Compare" onSymbolChange={goToCompare} />
+            <SymbolSearch sym={sym} displayLabel="+ Compare" ariaLabel={`Compare ${sym} with another ticker`} onSymbolChange={goToCompare} />
           </div>
         )}
 
@@ -237,7 +246,9 @@ function TickerHubBody({ sym, onClose }) {
 
         {/* Compass voice (real; self-hides if no VoiceProvider) */}
         <div className={styles.compassRow}>
-          <CompassAssistButton pageHint={`chart of ${sym}`} label={`🧭 Ask Compass about ${sym}`} />
+          {/* ariaLabel = the visible words (WCAG 2.5.3 label in name); the
+              default "Talk to Compass about chart of X" did not contain them. */}
+          <CompassAssistButton pageHint={`chart of ${sym}`} label={`🧭 Ask Compass about ${sym}`} ariaLabel={`Ask Compass about ${sym}`} />
         </div>
 
         {/* Why it's moving — recent tweets */}

@@ -1,6 +1,7 @@
 // app/src/components/StockChart.jsx — TradingView Lightweight Charts v5 wrapper
 // Optimized: chart instance reuse, O(n) HVC, memoized data transforms
 import { formatCompact } from '../lib/presentation/presentationPrimitives'
+import { markChartLayoutPresentational } from '../utils/chartLayoutTable'
 import { useEffect, useLayoutEffect, useRef, useCallback, useState, useMemo, useId } from 'react'
 import { createPortal } from 'react-dom'
 import isModalOpen from '../utils/modalOpen'
@@ -11268,6 +11269,8 @@ export default function StockChart({
         hoveredSeriesOnTop: false,
       })
       chartRef.current = chart
+      // The library's layout <table> is not a data table (utils/chartLayoutTable.js).
+      markChartLayoutPresentational(chart)
       // Read-only debug handle for probes/rigs (the __uctBarsPush idiom):
       // the mobile pinch gate needs the visible logical range and every
       // pixel/UI side-channel for it proved unreliable (gridlines light every

@@ -1,5 +1,5 @@
 // app/src/components/TickerPopup.jsx
-import { useState, useEffect, useRef, lazy, Suspense } from 'react'
+import { useState, useEffect, useRef, useId, lazy, Suspense } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { createPortal } from 'react-dom'
 import useRealtimePrices from '../hooks/useRealtimePrices'
@@ -485,7 +485,10 @@ export default function TickerPopup({ sym, as: Tag = 'span', customChartFn, clas
                   <UIcon name="dollar" size={14} />
                 </button>
                 <span className={styles.compareEntry} data-testid="ticker-popup-compare-entry">
-                  <SymbolSearch sym={activeSym} displayLabel="+ Compare" onSymbolChange={goToCompare} />
+                  {/* The badge's default name ("QQQ — click to search a different
+                      ticker") describes retargeting THIS chart and omits the
+                      visible "Compare"; this door opens a comparison. */}
+                  <SymbolSearch sym={activeSym} displayLabel="+ Compare" ariaLabel={`Compare ${activeSym} with another ticker`} onSymbolChange={goToCompare} />
                 </span>
                 {/* Dark until S7_FILING_WATCH_ENABLED; the gate is owned by useFilingWatch. */}
                 {filingWatch.enabled && (
@@ -652,6 +655,16 @@ function SwitchTickerBox({ onPick }) {
   const [open, setOpen] = useState(false)
   const [active, setActive] = useState(0)
   const boxRef = useRef(null)
+  // ARIA combobox (APG "list autocomplete"): the input owns the listbox by id and
+  // points at the arrowed-to option with aria-activedescendant, so a screen reader
+  // hears the suggestion focus is on without focus ever leaving the input.
+  const listId = useId()
+  const optId = (i) => `${listId}-opt-${i}`
+  const expanded = open && results.length > 0
+  // Enter takes the TYPED symbol unless you arrowed onto a suggestion (index > 0),
+  // so only an arrowed-to row is "the active descendant" -- the row painted at
+  // index 0 is a hint, never what Enter will open.
+  const kbdActive = expanded && active > 0 ? active : -1
 
   useEffect(() => {
     const t = q.trim()
@@ -685,11 +698,17 @@ function SwitchTickerBox({ onPick }) {
       // Enter takes the TYPED symbol unless you arrowed onto a suggestion.
       submit(active > 0 ? (results[active]?.ticker || q) : q)
     } else if (e.key === 'ArrowDown') {
-      e.preventDefault(); setActive(i => Math.min(i + 1, Math.max(0, results.length - 1)))
+      e.preventDefault()
+      if (!open && results.length) { setOpen(true); return }
+      setActive(i => Math.min(i + 1, Math.max(0, results.length - 1)))
     } else if (e.key === 'ArrowUp') {
       e.preventDefault(); setActive(i => Math.max(i - 1, 0))
     } else if (e.key === 'Escape') {
-      setOpen(false)
+      // ⛔ ONE Escape, ONE layer. With suggestions showing, Escape closes THEM and
+      // stops there -- it used to bubble on to the popup's window listener and close
+      // the whole chart along with the list. With nothing showing it still falls
+      // through, so Escape from an idle box closes the popup exactly as before.
+      if (expanded) { e.stopPropagation(); setOpen(false) }
     }
   }
 
@@ -703,20 +722,33 @@ function SwitchTickerBox({ onPick }) {
         onKeyDown={onKey}
         placeholder="Switch ticker…"
         aria-label="Switch ticker — type a symbol to open its chart"
+        role="combobox"
+        aria-autocomplete="list"
+        aria-expanded={expanded}
+        aria-controls={listId}
+        aria-activedescendant={kbdActive >= 0 ? optId(kbdActive) : undefined}
         spellCheck={false}
         autoComplete="off"
       />
-      {open && results.length > 0 && (
-        <div className={styles.switchMenu} role="listbox">
+      {/* Always mounted, like the capture status above (RW-NEW-02): a live region
+          inserted together with its text is often never announced. */}
+      <span className="sr-only" role="status" aria-live="polite" aria-atomic="true" data-testid="switch-ticker-status">
+        {expanded ? `${results.length} suggestion${results.length === 1 ? '' : 's'}` : ''}
+      </span>
+      {expanded && (
+        <div className={styles.switchMenu} role="listbox" id={listId} aria-label="Ticker suggestions">
           {results.map((r, i) => (
             <button
               type="button"
               key={r.ticker}
+              id={optId(i)}
+              // Options are reached with the arrows from the input, never with Tab.
+              tabIndex={-1}
               className={`${styles.switchOpt} ${i === active ? styles.switchOptActive : ''}`}
               onMouseDown={(e) => { e.preventDefault(); submit(r.ticker) }}
               onMouseEnter={() => setActive(i)}
               role="option"
-              aria-selected={i === active}
+              aria-selected={i === kbdActive}
             >
               <span className={styles.switchOptSym}>{r.ticker}</span>
               {r.name && <span className={styles.switchOptName}>{r.name}</span>}

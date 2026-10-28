@@ -994,6 +994,11 @@ function ChartPane({
         ref={focusableRef}
         className={styles.chartFill}
         tabIndex={0}
+        // A tab stop on purpose: focus here is what arms type-to-search, Shift+F and the
+        // chart's own key handling. Unnamed, VoiceOver read it as a run-on of every
+        // control inside it, so it is a named region (its controls stay reachable).
+        role="region"
+        aria-label={`${sym} price chart`}
         onClick={handleChartClick}
         onKeyDown={handleChartKeyDown}
       >
