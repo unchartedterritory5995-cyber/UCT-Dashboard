@@ -3672,6 +3672,12 @@ export default function StockChart({
     cs, instances: _volPresenceInstances, shown: showVolume, blankVolume, volumeSeparatePane,
   }
   const volumePaneExists = volumePaneRequired(_volPresenceOpts)
+  // Will a NATIVE volume series (and so its own pane) exist? Narrower than `volumePaneExists`, which
+  // is also true when only a GUEST (an MA sent to the Volume pane) holds that pane open with no bars.
+  // The lookback bar anchors on the volume SERIES' pane (`lookbackBottomFor`), so this is the question
+  // its reveal waits on: a guest-only pane takes the fallback anchor, which is final at once.
+  const nativeVolumePaneExpectedRef = useRef(false)
+  nativeVolumePaneExpectedRef.current = nativeVolumeOwnsPane(_volPresenceOpts)
   // When the SURFACE passes these props they WIN over the saved prefs — the OR
   // above ignores a saved `false`, and the height reads `volumePaneHeightPct ??
   // cs.volume.paneHeightPct`. That's deliberate (the charts-workspace recipe tunes
@@ -17421,7 +17427,7 @@ export default function StockChart({
             // The axis reserve is read only while the bar is still hidden (one style read a frame,
             // for at most `LOOKBACK_REVEAL_MAX_MS`).
             if (!rb.hasAttribute('data-placed') && lookbackPlacementSettled({
-              volumePaneExpected: volumeOwnsItsPaneRef.current === true,
+              volumePaneExpected: nativeVolumePaneExpectedRef.current === true,
               volumeIndex: indexOfSeries(volumeSeriesRef),
               paneHeights,
               timeAxisHeight: axisH,

@@ -4,11 +4,13 @@
    834 took the sheet 773 -> 957px tall, its top 421 -> 237 (WebKit, t~1972ms, after the chart
    and price). A reserve cannot fix that for every timing: when the answer is "no tweets" and it
    lands after the slide, collapsing the reserve moves the sheet just the same. So the panel
-   takes the bottom-sheet's own cap (Sheet.module.css `.panel_bottom-sheet` max-height) as its
-   height -- the phone already opens at it, because the content is taller -- and late content
-   fills space that is already there, or scrolls inside the body. Rail:
+   takes a FIXED height: the bottom-sheet's own cap (Sheet.module.css `.panel_bottom-sheet`
+   max-height, which the phone already opens at because its content is taller), held to 960px so
+   a tall tablet does not open a near-full-screen sheet with ~325-450px of nothing under the
+   actions. 960 holds the measured with-tweets content at 834 (957px); anything taller scrolls
+   inside the body. Late content fills space that is already there. Rail:
    `mobile/TickerHubSheet.stableHeight.test.jsx`. */
-.panel { height: min(92vh, 92dvh); }
+.panel { height: min(92vh, 92dvh, 960px); }
 
 .body { display: flex; flex-direction: column; gap: var(--space-md); }
 

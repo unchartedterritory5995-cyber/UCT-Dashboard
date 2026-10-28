@@ -33,7 +33,7 @@
    or after `LOOKBACK_REVEAL_MAX_MS`). Without it the bar painted at the fallback above, then at
    the time-axis fallback, then jumped ~76px up when the volume pane mounted (WebKit, 390/834).
    `visibility`, not `display`: the box still exists, so the legend-collapse measurement that
-   reads around it is unchanged. Rail: `chart/__tests__/lookbackPlacement.test.js`. */
+   reads around it is unchanged. Rail: `components/StockChart.lookbackPlacement.test.jsx`. */
 .rangeBar:not([data-placed]) { visibility: hidden; }
 
 /* Volume-pane legend — top-left of the volume pane: dollar volume + avg volume
