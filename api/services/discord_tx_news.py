@@ -22,6 +22,8 @@ import threading
 import time
 from zoneinfo import ZoneInfo
 
+from api.services import tx_headline_match as match
+
 log = logging.getLogger(__name__)
 
 ET = ZoneInfo("America/New_York")
@@ -42,8 +44,6 @@ EMBED_LIMIT = 4000
 GOLD = 0xC9A84C
 NOT_VIP_MESSAGE = "`/news` reads the TradeXchange feed, which is part of Exclusive VIP Access."
 
-# "ETN - Eaton declares..." / "AEMC AKEMF V7F - RecycLiCo ..." -> ticker prefix (same shape tx-recap parses)
-_PREFIX = re.compile(r"^((?:[A-Z][A-Z0-9.]{0,6}\s+){0,6}[A-Z][A-Z0-9.]{0,6})\s+-\s+(.+)$")
 _TICKER = re.compile(r"^[A-Z][A-Z0-9.]{0,6}$")
 
 
@@ -83,13 +83,6 @@ def build_news_command() -> dict:
 def parse_ticker(raw) -> str | None:
     t = str(raw or "").strip().upper().lstrip("$")
     return t if _TICKER.match(t) else None
-
-
-def split_tickers(text: str) -> tuple[list[str], str]:
-    m = _PREFIX.match(text)
-    if not m:
-        return [], text
-    return m.group(1).split(), m.group(2).strip()
 
 
 def window_start(window: str, now: dt.datetime) -> dt.datetime:
@@ -200,16 +193,38 @@ def feed_since(start: dt.datetime, *, client=None) -> list[tuple[dt.datetime, st
 
 # ── the reply ────────────────────────────────────────────────────────────────
 
-def headlines_for(ticker: str, items) -> list[tuple[dt.datetime, str]]:
-    """(ts, line) newest first. A line naming only this ticker drops the prefix;
-    a multi-ticker line keeps the others so the member sees who else it is about."""
+def company_name(ticker: str) -> str | None:
+    """The dashboard's own name for `ticker` (ticker search over cap_universe + the meta
+    cache), so "ROBINHOOD TO INTEGRATE…" is found for HOOD. None when unknown."""
+    try:
+        from api.routers import ticker_search as ts
+        for row in (ts.ticker_search(q=ticker, limit=5, type="") or {}).get("results") or []:
+            if str(row.get("ticker") or "").upper() == ticker and row.get("name"):
+                return row["name"]
+        # Not in the search cache yet: the same meta path the search backfills from.
+        from api.services import ticker_meta
+        return ticker_meta._base_meta(ticker).get("name") or None
+    except Exception as e:  # noqa: BLE001 - a name only widens the match
+        log.debug("[news] name lookup failed %s: %s", ticker, e)
+    return None
+
+
+def headlines_for(ticker: str, items, name: str | None = None) -> list[tuple[dt.datetime, str]]:
+    """(ts, line) newest first, for every headline about `ticker` however TX wrote it
+    (tx_headline_match: its tag, $AMD, "AMDpartners", "STX EPS of…", the company name).
+    A line TX tagged with only this ticker drops the tag; other tagged tickers are kept
+    so the member sees who else it is about; anything else is shown as written."""
     out = []
     for ts, text in items:
-        tickers, rest = split_tickers(text)
-        if ticker not in tickers:
+        if not match.mentions(text, ticker, name):
             continue
-        others = [t for t in tickers if t != ticker]
-        out.append((ts, f"{rest} ({', '.join(others)})" if others else rest))
+        p = match.parse(text)
+        if ticker in p.prefix:
+            others = [t for t in p.prefix if t != ticker]
+            line = f"{p.body} ({', '.join(others)})" if others else p.body
+        else:
+            line = text
+        out.append((ts, line))
     out.sort(key=lambda x: x[0], reverse=True)
     return out
 
@@ -271,13 +286,13 @@ def _edit(app_id: str, token: str, payload: dict, client=None) -> bool:
 
 
 def run_news_job(app_id: str, token: str, ticker: str, window: str, *,
-                 feed_fn=None, edit_fn=None, now: dt.datetime | None = None) -> None:
+                 feed_fn=None, edit_fn=None, name_fn=None, now: dt.datetime | None = None) -> None:
     """Background half of `/news`: read the feed, filter, edit the deferred reply."""
     edit = edit_fn or _edit
     now = now or dt.datetime.now(dt.timezone.utc)
     try:
         items = (feed_fn or feed_since)(window_start(window, now))
-        embed = build_embed(ticker, window, headlines_for(ticker, items), now)
+        embed = build_embed(ticker, window, headlines_for(ticker, items, (name_fn or company_name)(ticker)), now)
         edit(app_id, token, {"content": "", "embeds": [embed]})
     except Exception as e:  # noqa: BLE001 — a background job must never raise
         log.warning("[news] %s failed: %s", ticker, e)

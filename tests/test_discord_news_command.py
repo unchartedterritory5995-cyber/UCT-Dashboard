@@ -89,15 +89,25 @@ def test_a_bad_ticker_and_an_unknown_window(route, monkeypatch):
 
 # ── filter, window, cache, reply ─────────────────────────────────────────────
 
-def test_headlines_match_the_ticker_PREFIX_only_and_keep_co_tickers():
+def test_headlines_match_however_tx_wrote_the_ticker_and_keep_co_tickers():
     from api.services import discord_tx_news as n
     t0 = dt.datetime(2026, 10, 27, 14, 0, tzinfo=UTC)
     items = [(t0, "NVDA - Nvidia unveils new chip"),
              (t0 + dt.timedelta(minutes=5), "AMD NVDA - Both rally on AI capex"),
-             (t0 + dt.timedelta(minutes=9), "TSM - Supplier to NVDA raises guide"),   # mention, not about NVDA
+             (t0 + dt.timedelta(minutes=9), "TSM - Supplier to NVDA raises guide"),
+             (t0 + dt.timedelta(minutes=10), "AMDpartners with NVDA on racks"),
+             (t0 + dt.timedelta(minutes=11), "NVIDIA SAYS VERA CPU IN PRODUCTION AT OPENAI"),
              (t0 + dt.timedelta(minutes=12), "Fed holds rates")]
-    rows = n.headlines_for("NVDA", items)
-    assert [line for _, line in rows] == ["Both rally on AI capex (AMD)", "Nvidia unveils new chip"]
+    rows = n.headlines_for("NVDA", items, "NVIDIA Corporation")
+    assert [line for _, line in rows] == [
+        "NVIDIA SAYS VERA CPU IN PRODUCTION AT OPENAI",     # company name, no ticker at all
+        "AMDpartners with NVDA on racks",                   # typo'd headline, shown as written
+        "TSM - Supplier to NVDA raises guide",              # about TSM, but names NVDA
+        "Both rally on AI capex (AMD)",                     # TX's tag: dropped, co-ticker kept
+        "Nvidia unveils new chip",
+    ]
+    assert [line for _, line in n.headlines_for("AMD", items, "Advanced Micro Devices, Inc.")] == [
+        "AMDpartners with NVDA on racks", "Both rally on AI capex (NVDA)"]
 
 
 def test_today_starts_at_4am_et_and_before_4am_means_yesterdays():
@@ -172,10 +182,11 @@ def test_the_job_edits_the_reply_with_the_embed_and_never_raises():
     edits = []
     now = dt.datetime(2026, 10, 27, 15, 0, tzinfo=UTC)
     n.run_news_job("1", "t", "NVDA", "today", now=now, edit_fn=lambda a, t, p: edits.append(p),
-                   feed_fn=lambda start: [(now, "NVDA - beat and raise")])
+                   feed_fn=lambda start: [(now, "NVDA - beat and raise")], name_fn=lambda t: None)
     assert edits[-1]["embeds"][0]["description"].endswith("beat and raise")
 
     def boom(start):
         raise RuntimeError("discord down")
-    n.run_news_job("1", "t", "NVDA", "today", now=now, edit_fn=lambda a, t, p: edits.append(p), feed_fn=boom)
+    n.run_news_job("1", "t", "NVDA", "today", now=now, edit_fn=lambda a, t, p: edits.append(p), feed_fn=boom,
+                   name_fn=lambda t: None)
     assert "Could not read" in edits[-1]["content"]
