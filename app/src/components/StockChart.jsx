@@ -669,6 +669,15 @@ function computeDefaultLogicalRange(barsLen, tf, { dailyDefaultBars = null, left
   return { from, to }
 }
 
+// `--time-axis-min-height` (a host stylesheet's reserve under the date labels, see the
+// effect beside `chart.remove()`) → the time scale's `minimumHeight`. Only a plain px
+// length counts; unset, blank or anything unparseable is 0, the library default, so a
+// surface that declares nothing keeps its natural axis. Exported for its rail.
+export function timeAxisMinHeightFromCss(raw) {
+  const m = /^\s*(\d+(?:\.\d+)?)px\s*$/.exec(String(raw ?? ''))
+  return m ? Math.round(Number(m[1])) : 0
+}
+
 // Last bar at/before the END (UTC) of anchor day. Daily bars carry ISO 'YYYY-MM-DD'
 // strings; intraday bars carry unix seconds. Exported for its unit tests.
 // ⚠️ REQUIRES `bars` ASCENDING by time — it walks forward and `break`s at the first
@@ -18013,6 +18022,32 @@ export default function StockChart({
     _listingDeepenReleaseRef.current = null
     release()
   }, [loading, bars])
+
+  // ── A host stylesheet may RESERVE room under the date labels ──
+  // The TickerPopup's touch tier grows the A/L/% chips to `--tap-min`, taller than the
+  // 28px date axis they dock on, so they covered the axis labels. Its stylesheet declares
+  // `--time-axis-min-height` on this wrapper (scoped + media-gated there, so the decision
+  // of WHO reserves and AT WHAT WIDTH lives in CSS beside the floor it pays for), and this
+  // effect hands it to the time scale's own `minimumHeight`. The labels draw at the TOP of
+  // that band; the chips sit in the blank strip below. Unset ⇒ 0 ⇒ the library default, so
+  // every surface that declares nothing renders exactly as before. Re-read on resize: the
+  // var appears and disappears as the viewport crosses the media query.
+  useEffect(() => {
+    if (!chartReady) return undefined
+    let last = null
+    const apply = () => {
+      const chart = chartRef.current
+      const host = wrapperRef.current
+      if (!chart || !host) return
+      const px = timeAxisMinHeightFromCss(getComputedStyle(host).getPropertyValue('--time-axis-min-height'))
+      if (px === last) return
+      last = px
+      try { chart.applyOptions({ timeScale: { minimumHeight: px } }) } catch { /* disposed */ }
+    }
+    apply()
+    window.addEventListener('resize', apply)
+    return () => window.removeEventListener('resize', apply)
+  }, [chartReady])
 
   // Cleanup: destroy chart only on unmount
   useEffect(() => {
