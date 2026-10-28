@@ -731,6 +731,10 @@
      rows and the container's own padding is unchanged. */
   row-gap: 8px;
   align-content: start;
+  /* The `+N more` disclosure's height, declared HERE so the fold reads it off the stack it
+     budgets (`studyDisclosureRows` in StockChart.jsx): a touch surface that raises it to
+     `--tap-min` pays for the extra rows instead of tripping the responsive collapse. */
+  --study-more-h: 14px;
   /* ⛔ AN EXPLICIT LINE-HEIGHT, BECAUSE THE ROW PITCH IS A NUMBER JS RELIES ON.
      `STUDY_ROW_PX` in StockChart.jsx counts how many rows fit in the pane, and
      with `line-height: normal` that pitch is whatever the font metrics happen to
@@ -788,8 +792,10 @@
   margin-top: 0;
   /* Exactly one stack row — 14 + the 1px `row-gap` = the 15px pitch. The fold
      RESERVES a row for this button, so a button taller than a row would overrun
-     the space that was measured and trip the responsive collapse. */
-  height: 14px;
+     the space that was measured and trip the responsive collapse. The height is
+     `.studyStack`'s `--study-more-h` (14px), which the fold reads to know how many rows
+     to reserve, so a surface that raises it pays for it. */
+  height: var(--study-more-h);
   min-width: 0;
   padding: 0 4px;
   font: 600 9.5px var(--font-mono);
@@ -1162,6 +1168,11 @@
     min-width: var(--tap-min);
     min-height: var(--tap-min);
   }
+  /* ...and the fold must SEE that height (`studyDisclosureRows`), or a 44px button in a one-row
+     reservation trips the legend's responsive collapse. */
+  :global([data-notebook-chart-embed]) .studyStack {
+    --study-more-h: var(--tap-min);
+  }
   /* The "back to the latest bar" arrow (26px) shows in a LIVE or peek-to-now embed once the
      member scrolls back; its left/top are set imperatively, so growing it moves nothing. */
   :global([data-notebook-chart-embed]) .toPresentBtn {
@@ -1195,6 +1206,32 @@
     min-height: var(--tap-min);
   }
   :global([data-ticker-popup-chart]) .wrapper {
+    --time-axis-min-height: 80px;
+  }
+}
+
+/* ── The Ticker Hub sheet's chart on the touch tier ──
+   The same treatment for the hub (`TickerHubSheet.jsx` marks its chart area
+   `data-ticker-hub-chart`): WebKit measured the A/L/% chips 17x11 and the legend's "+N more"
+   47-51x14 at 390 and 834. The hub reserves the same 80px date axis as the popup above so the
+   44px chips sit under the date labels, not on them (the sheet's `.chartWrap` stops clipping
+   the pane on touch so the axis is on screen at all). Same device condition as the popup.
+   Rail: `components/mobile/TickerHubSheet.tapFloor.test.js`. */
+@media (max-width: 1024px), (pointer: coarse) {
+  :global([data-ticker-hub-chart]) .scaleToggleBtn {
+    min-width: var(--tap-min);
+    min-height: var(--tap-min);
+  }
+  /* "+N more": its height through the stack's `--study-more-h`, which the fold reads, so the
+     legend reserves three rows for a 44px button instead of hiding itself (a `min-height`
+     here was invisible to the fold and collapsed the legend with many studies). */
+  :global([data-ticker-hub-chart]) .studyStack {
+    --study-more-h: var(--tap-min);
+  }
+  :global([data-ticker-hub-chart]) .studyMore {
+    min-width: var(--tap-min);
+  }
+  :global([data-ticker-hub-chart]) .wrapper {
     --time-axis-min-height: 80px;
   }
 }
