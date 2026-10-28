@@ -338,6 +338,57 @@ const CHIP_COLLAPSE_AT = 4
 const STUDY_ROW_PX = 22
 
 /**
+ * How many stack rows the `+N more` disclosure costs, from its REAL height.
+ *
+ * ⛔ IT IS NOT ALWAYS ONE. A touch surface floors the button at `--tap-min` (44px: the Ticker
+ * Hub sheet, a Notebook embed), and a 44px button in a reservation of one 22px row hangs
+ * 30px below the room the budget measured -- the legend's bottom crosses
+ * `collapseThresholdPx`, the responsive collapse latches, and the member gets a hover-only
+ * legend (measured, WebKit, the hub at 390 and 834 with 20 studies).
+ *
+ * ⭐ THE HEIGHT IS READ, NOT RESTATED: `.studyStack` declares `--study-more-h` and `.studyMore`
+ * takes its height from it, so the stylesheet that sizes the button is the one the fold
+ * counts. A row of the stack is its line plus the gap ABOVE the next one, so the button needs
+ * its own height plus one `row-gap` of the reservation: ceil((h + gap) / pitch). 14px -> 1,
+ * 44px -> 3. Unreadable or unset reads as the one row the fold always reserved.
+ */
+export function studyDisclosureRows(heightRaw, gapRaw, rowPx = STUDY_ROW_PX) {
+  const h = timeAxisMinHeightFromCss(heightRaw)
+  const gap = timeAxisMinHeightFromCss(gapRaw)
+  if (!h) return 1
+  return Math.max(1, Math.ceil((h + gap) / rowPx))
+}
+
+/**
+ * How many study rows the fold may SHOW: the whole budget when everything fits, else the
+ * budget less the rows the disclosure button costs (`studyDisclosureRows`). Reserved only
+ * when there is something to disclose -- reserving unconditionally would fold a stack that fits.
+ */
+export function studyFoldRoom(total, budget, disclosureRows = 1) {
+  return total > budget ? Math.max(0, budget - disclosureRows) : budget
+}
+
+/**
+ * The responsive-collapse decision for one sampler frame: true / false to set `compactLegend`,
+ * null to leave it.
+ *
+ * ⛔ NO DECISION IN A FRAME WHOSE FOLD IS STALE (`foldSettled` false). The sampler computes a
+ * new row budget (or disclosure cost) and, in the SAME frame, measured the legend React drew
+ * with the OLD one -- on first paint that is the seeded budget of 99, i.e. every study row. With
+ * many studies on a short pane that unfolded legend always overran, the collapse latched, and
+ * because the full height is remembered only while NOT collapsed it never let go: a hover-only
+ * legend for the life of the chart, before the fold ever got to fold it (measured, WebKit, 20
+ * studies, the hub at 390/834 AND a mouse desktop at 1200). Waiting one frame for the folded
+ * legend to render is what lets the fold do its job.
+ */
+export function nextCompactLegend(cur, fullBottom, rbTop, foldSettled = true) {
+  if (!foldSettled || !(fullBottom > 0)) return null
+  if (!cur && fullBottom > rbTop) return true
+  if (cur && fullBottom < rbTop - 12) return false
+  return null
+}
+
+/**
  * The most of the PRICE PANE the study stack may cover, as a fraction.
  *
  * ⭐⭐ THE BRIEF'S OWN SENTENCE, AS A NUMBER: *"the vertical stack must not
@@ -4601,6 +4652,10 @@ export default function StockChart({
   const [studyRowBudget, setStudyRowBudget] = useState(99)
   const studyRowBudgetRef = useRef(99)
   studyRowBudgetRef.current = studyRowBudget
+  /** Rows the `+N more` button costs (`studyDisclosureRows`), read off the stack each frame. */
+  const [studyMoreRows, setStudyMoreRows] = useState(1)
+  const studyMoreRowsRef = useRef(1)
+  studyMoreRowsRef.current = studyMoreRows
   /** The study stack element — read for its TOP, never repositioned. It is laid
    *  out by the legend box's own flow; only the box is pinned. */
   const studyStackRef = useRef(null)
@@ -17376,6 +17431,9 @@ export default function StockChart({
             // bar-info strip that WRAPS when the pane is narrow, so a constant
             // offset would over-count by a line exactly when space is tightest.
             const stack = studyStackRef.current
+            // The legend on screen was drawn with the budget this frame computes (see
+            // `nextCompactLegend`): false the frame a new budget or disclosure cost is set.
+            let foldSettled = true
             if (stack) {
               // ⛔ TWO LIMITS, AND THE SMALLER WINS. (1) THE ROOM: everything from
               // the stack's own top down to the lookback band, which is what makes a
@@ -17386,21 +17444,21 @@ export default function StockChart({
                 - (stack.getBoundingClientRect().top - container.getBoundingClientRect().top)
               const share = plan.priceHeight * STUDY_STACK_MAX_FRAC
               const fit = Math.max(0, Math.floor(Math.min(room, share) / STUDY_ROW_PX))
-              if (fit !== studyRowBudgetRef.current) setStudyRowBudget(fit)
+              if (fit !== studyRowBudgetRef.current) { setStudyRowBudget(fit); foldSettled = false }
+              // The disclosure's real cost, from the same stylesheet that sizes it.
+              const stackCs = getComputedStyle(stack)
+              const moreRows = studyDisclosureRows(stackCs.getPropertyValue('--study-more-h'), stackCs.rowGap)
+              if (moreRows !== studyMoreRowsRef.current) { setStudyMoreRows(moreRows); foldSettled = false }
             }
             const leg = legendRef.current
-            if (leg && !compactLegendRef.current) {
+            if (foldSettled && leg && !compactLegendRef.current) {
               lastFullBottomRef.current = leg.getBoundingClientRect().bottom - container.getBoundingClientRect().top
             }
-            const fullBottom = lastFullBottomRef.current
-            if (fullBottom > 0) {
-              // The PRICE pane's own bottom, in container coordinates — the legend
-              // lives in Price, so "does it still fit" is a question about Price.
-              const rbTop = plan.collapseThresholdPx
-              const cur = compactLegendRef.current
-              if (!cur && fullBottom > rbTop) setCompactLegend(true)
-              else if (cur && fullBottom < rbTop - 12) setCompactLegend(false)
-            }
+            // The PRICE pane's own bottom, in container coordinates — the legend
+            // lives in Price, so "does it still fit" is a question about Price.
+            const nextCompact = nextCompactLegend(compactLegendRef.current, lastFullBottomRef.current,
+              plan.collapseThresholdPx, foldSettled)
+            if (nextCompact !== null) setCompactLegend(nextCompact)
           }
         }
       } catch { /* pane API missing → CSS fallback */ }
@@ -19604,8 +19662,9 @@ export default function StockChart({
         //
         // ⛔ SO THE ROW IS RESERVED ONLY WHEN THERE IS SOMETHING TO DISCLOSE.
         // Reserving it unconditionally would fold a stack that fits.
-        const studyRoom = studyTotal > studyRowBudget
-          ? Math.max(0, studyRowBudget - 1) : studyRowBudget
+        // ⛔ AND IT IS AS MANY ROWS AS THE BUTTON IS TALL (`studyDisclosureRows`): one at 14px,
+        // three where a touch surface floors it at 44px.
+        const studyRoom = studyFoldRoom(studyTotal, studyRowBudget, studyMoreRows)
         let studyFitFrom = Math.max(0, Math.min(studyRoom, studyTotal))
         // ⚠️ THE SAME WALK-BACK, OVER ONE ARRAY INSTEAD OF AN OFFSET INTO A SECOND.
         // It used to index `priceChips[i - studyChipAt]`, which needed the chips to
