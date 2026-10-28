@@ -26,17 +26,22 @@
 import { describe, it, expect } from 'vitest'
 import { createFillPrimitive, fillGroups, visibleWindow, EDGE_BARS, EDGE_PAD_PX } from '../fillPrimitive'
 import { createRecordingCtx } from './fakeChart'
+import { W, band, visibleSegments } from './fillTestKit'
 
-const W = 800
+// ⚠️ WHY A DOUBLE OF ITS OWN, NOT `fakeChart.js`: the shared fake's time scale has
+// no `width()` (its `width: () => 0` belongs to the PRICE scale), so every older
+// fill test draws through the full-walk FALLBACK. That keeps their byte-level
+// pins stable, and it means none of them exercises the window. This file and
+// `fillRealChart.test.js` (the real lightweight-charts, daily string times) are
+// what cover the windowed path.
 const H = 400
-/** Antialiasing reach: a segment within this many px of the canvas edge can still
- *  tint an edge pixel, so it counts as visible. */
-const AA_PX = 2
 
 /** A lightweight-charts-shaped chart + host series. `offset` is the (fractional)
  *  time-scale index sitting at x = 0, `spacing` the bar spacing in px. */
-function lwcLike({ times, spacing = 10, offset = 0, mode = 0, min = 50, max = 150, extraTimes = [] }) {
-  const all = [...new Set([...times, ...extraTimes])].sort((a, b) => a - b)
+function lwcLike({ times, spacing = 10, offset = 0, mode = 0, min = 50, max = 150, extraTimes = [], nullTimes = new Set() }) {
+  // A BusinessDay object keys by value, as the library's own `horzScaleBehavior` does.
+  const key = (t) => (t && typeof t === 'object' ? t.year * 10000 + t.month * 100 + t.day : t)
+  const all = [...new Set([...times, ...extraTimes].map(key))].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
   const index = new Map(all.map((t, i) => [t, i]))
   const counts = { time: 0, price: 0 }
   const view = { spacing, offset, min, max, mode }
@@ -44,8 +49,8 @@ function lwcLike({ times, spacing = 10, offset = 0, mode = 0, min = 50, max = 15
     width: () => W,
     timeToCoordinate: (t) => {
       counts.time += 1
-      const i = index.get(t)
-      return i === undefined ? null : (i - view.offset) * view.spacing
+      const i = index.get(key(t))
+      return i === undefined || nullTimes.has(key(t)) ? null : (i - view.offset) * view.spacing
     },
     getVisibleLogicalRange: () => ({ from: view.offset, to: view.offset + W / view.spacing }),
   }
@@ -61,25 +66,6 @@ function lwcLike({ times, spacing = 10, offset = 0, mode = 0, min = 50, max = 15
   return { chart, series, counts, view, calls: () => counts.time + counts.price, reset: () => { counts.time = 0; counts.price = 0 } }
 }
 
-/** A Clouds-shaped band: a wavy upper/lower pair crossing each other, a colour per
- *  bar that flips with the sign, optional NaN holes. */
-function band(n, { holes = [], lead = 0, colours = true, phase = 0 } = {}) {
-  const times = Array.from({ length: n }, (_, i) => 1_000 + i * 7)
-  const upper = new Float64Array(n)
-  const lower = new Float64Array(n)
-  const cols = []
-  for (let i = 0; i < n; i += 1) {
-    const j = i - phase
-    const a = 100 + 20 * Math.sin(j / 9) + 3 * Math.sin(j * 1.7)
-    const b = 100 + 15 * Math.cos(j / 13)
-    upper[i] = i < lead ? NaN : a
-    lower[i] = i < lead ? NaN : b
-    cols.push(a >= b ? 'rgba(0, 137, 123, 0.3)' : 'rgba(136, 14, 79, 0.3)')
-  }
-  for (const h of holes) { upper[h] = NaN }
-  return { times, upper, lower, colors: colours ? cols : undefined }
-}
-
 function draw(prim, env) {
   const rec = createRecordingCtx()
   prim.primitive.paneViews()[0].renderer().draw(rec.target)
@@ -90,36 +76,6 @@ function attach(data, env) {
   const prim = createFillPrimitive({ ...data, color: '#2962FF', opacity: 0.2 })
   prim.primitive.attached({ chart: env.chart, series: env.series, requestUpdate: () => {} })
   return prim
-}
-
-/** Every path segment of every polygon the recorder saw, with the colour it was
- *  painted in, keeping only segments whose x-extent reaches [-AA_PX, W + AA_PX] —
- *  the pixels a viewer can see, plus the antialiasing reach of the canvas edge. Walls the clip introduced off-canvas are dropped on purpose;
- *  anything ON canvas must match exactly. */
-function visibleSegments(rec) {
-  const out = []
-  let cur = null
-  let pt = null
-  let start = null
-  const keep = (s) => {
-    const xs = [s.x0, s.x1, s.cx ?? s.x0]
-    if (Math.max(...xs) >= -AA_PX && Math.min(...xs) <= W + AA_PX) cur.push(s)
-  }
-  for (const o of rec.ops) {
-    if (o.op === 'beginPath') { cur = []; pt = null; continue }
-    if (!cur) continue
-    if (o.op === 'moveTo') { pt = { x: o.x, y: o.y }; start = pt; continue }
-    if (o.op === 'lineTo') { keep({ k: 'L', x0: pt.x, y0: pt.y, x1: o.x, y1: o.y }); pt = { x: o.x, y: o.y } }
-    if (o.op === 'quadraticCurveTo') {
-      keep({ k: 'Q', x0: pt.x, y0: pt.y, cx: o.cpx, cy: o.cpy, x1: o.x, y1: o.y }); pt = { x: o.x, y: o.y }
-    }
-    if (o.op === 'closePath') keep({ k: 'L', x0: pt.x, y0: pt.y, x1: start.x, y1: start.y })
-    if (o.op === 'fill' && o.compositeOp !== 'destination-out') {
-      if (cur.length) out.push({ colour: o.style, segs: cur })
-      cur = null
-    }
-  }
-  return out
 }
 
 /** The full walk drawn through the SAME canvas code — the reference. */
@@ -133,9 +89,12 @@ function fullWalkRecording(data, env) {
 }
 
 describe('rail 1 — work per paint does not grow with series length', () => {
-  const callsFor = (n) => {
+  const callsFor = (n, shape = 'number') => {
     // phase = n: the bars at the right edge carry the SAME values for both lengths.
-    const data = band(n, { phase: n })
+    const data = band(n, { phase: n, iso: shape !== 'number' })
+    if (shape === 'businessDay') {
+      data.times = data.times.map((d) => ({ year: +d.slice(0, 4), month: +d.slice(5, 7), day: +d.slice(8, 10) }))
+    }
     // Same viewport for both: the last 80 bars (10 px each) right-anchored.
     const env = lwcLike({ times: data.times, spacing: 10, offset: n - 80 + 0.37 })
     const prim = attach(data, env)
@@ -144,9 +103,12 @@ describe('rail 1 — work per paint does not grow with series length', () => {
     return { calls: env.calls(), polys: visibleSegments(rec).length, paints: rec.fillStyles().length }
   }
 
-  it('⛔⛔ 500 bars and 5,000 bars cost the same coordinate calls and the same polygons', () => {
-    const small = callsFor(500)
-    const big = callsFor(5000)
+  it.each(['number', 'iso', 'businessDay'])('⛔⛔ [%s times] 500 bars and 5,000 bars cost the same coordinate calls and the same polygons', (shape) => {
+    // ⛔⛔ `iso` IS THE PRODUCTION SHAPE OF EVERY DAILY CHART ('YYYY-MM-DD'). The
+    // first cut accepted numeric times only and fell back to the full walk on
+    // every D/W/M chart — this row is the rail that review demanded.
+    const small = callsFor(500, shape)
+    const big = callsFor(5000, shape)
     // Visible bars ≈ 80 (+ the 2×EDGE_BARS margin); three calls per bar plus the
     // O(log n) window search plus the five-sample mapping proof.
     const windowBars = 80 + 2 * EDGE_BARS + 2
@@ -226,6 +188,90 @@ describe('rail 2 — a live tick rebuilds only the tail', () => {
     env.view.offset -= 3.25 // scroll
     const rec2 = draw(prim, env)
     expect(visibleSegments(rec2)).toEqual(visibleSegments(draw(attach(data, env), env)))
+  })
+
+  // ⛔⛔ THE x PROOF, RAILED BY MOVES THAT KEEP THE WINDOW'S BOUNDS. Every case above
+  // that moves the time axis also moves `from`/`to`, so a cache that skipped the
+  // three x samples entirely survived them (review mutant M4). These two keep the
+  // window bounds IDENTICAL — asserted, not assumed — so only the x proof can
+  // notice the move.
+  const windowOf = (env, n) => visibleWindow(n, (i) => env.chart.timeScale().timeToCoordinate(env.timesRef[i]), W)
+
+  it('⛔⛔ a SUB-BAR PAN (0.3 bar = 3 px, same window bounds) re-resolves — no stale x', () => {
+    const n = 2000
+    const data = band(n)
+    const env = lwcLike({ times: data.times, spacing: 10, offset: n - 80 + 0.2 })
+    env.timesRef = data.times
+    const prim = attach(data, env)
+    draw(prim, env)
+    const before = windowOf(env, n)
+    env.view.offset += 0.3
+    expect(windowOf(env, n), 'NON-VACUITY: the pan must keep the window bounds').toEqual(before)
+    const rec = draw(prim, env)
+    expect(visibleSegments(rec)).toEqual(visibleSegments(draw(attach(data, env), env)))
+  })
+
+  it('⛔⛔ a BAR-SPACING change with the same window bounds re-resolves — no stale x', () => {
+    const n = 2000
+    const data = band(n)
+    const env = lwcLike({ times: data.times, spacing: 10, offset: n - 80 + 0.5 })
+    env.timesRef = data.times
+    const prim = attach(data, env)
+    draw(prim, env)
+    const before = windowOf(env, n)
+    env.view.spacing = 10.04
+    expect(windowOf(env, n), 'NON-VACUITY: the zoom must keep the window bounds').toEqual(before)
+    const rec = draw(prim, env)
+    expect(visibleSegments(rec)).toEqual(visibleSegments(draw(attach(data, env), env)))
+  })
+
+  it('⛔ a probe that does NOT resolve proves nothing: null === cached null is no licence to reuse', () => {
+    // The three x samples' bars are absent from the time scale (null), the rest
+    // resolve, and the axis pans. Two nulls compare equal — the reuse they would
+    // license is exactly the stale-pixel defect.
+    const n = 1500
+    const data = band(n)
+    // Pick a viewport whose window search never probes the three sample bars (the
+    // search is deterministic, so this is found, not hoped for).
+    let env = null
+    let win = null
+    for (let offset = 600.2; offset < 900 && !env; offset += 7) {
+      const probe = lwcLike({ times: data.times, spacing: 10, offset })
+      probe.timesRef = data.times
+      const w = windowOf(probe, n)
+      const mid = (w.from + w.to) >>> 1
+      const nulls = new Set([data.times[w.from], data.times[mid], data.times[w.to]])
+      const e = lwcLike({ times: data.times, spacing: 10, offset, nullTimes: nulls })
+      e.timesRef = data.times
+      const again = windowOf(e, n)
+      if (again && again.from === w.from && again.to === w.to) { env = e; win = w }
+    }
+    expect(env, 'NON-VACUITY: no viewport keeps the window search resolvable').not.toBe(null)
+    const prim = attach(data, env)
+    draw(prim, env)
+    env.view.offset += 0.3
+    expect(windowOf(env, n)).toEqual(win)
+    const rec = draw(prim, env)
+    expect(visibleSegments(rec)).toEqual(visibleSegments(draw(attach(data, env), env)))
+  })
+
+  it('⛔ daily ISO-string times: a last-bar tick still reuses the window (strings compare by value)', () => {
+    const n = 5000
+    const data = band(n, { iso: true })
+    const env = lwcLike({ times: data.times, spacing: 10, offset: n - 80 + 0.5 })
+    const prim = attach(data, env)
+    draw(prim, env)
+    env.reset()
+    draw(prim, env)
+    const idle = env.calls()
+    expect(idle, 'an idle redraw on string times re-resolved bars').toBeLessThanOrEqual(2 * 13 + 5)
+    const upper = Float64Array.from(data.upper)
+    upper[n - 1] += 0.5
+    prim.setOptions({ upper, lower: Float64Array.from(data.lower), times: data.times.map((t) => `${t}`), colors: [...data.colors] })
+    env.reset()
+    const rec = draw(prim, env)
+    expect(env.calls()).toBeLessThanOrEqual(idle + 3)
+    expect(visibleSegments(rec)).toEqual(visibleSegments(fullWalkRecording({ ...data, upper }, env)))
   })
 
   it('⛔ a LOG scale never reuses a coordinate (no cheap proof exists), and stays correct', () => {
