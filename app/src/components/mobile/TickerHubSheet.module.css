@@ -1,3 +1,15 @@
+/* The sheet's HEIGHT does not depend on what loads after it opens. The hub is a bottom sheet,
+   so anything that grew it moved its top edge and everything above the growth: the "Why it's
+   moving" tweets (`.why`, ~172px) arrive from their own fetch, often after the slide-up, and at
+   834 took the sheet 773 -> 957px tall, its top 421 -> 237 (WebKit, t~1972ms, after the chart
+   and price). A reserve cannot fix that for every timing: when the answer is "no tweets" and it
+   lands after the slide, collapsing the reserve moves the sheet just the same. So the panel
+   takes the bottom-sheet's own cap (Sheet.module.css `.panel_bottom-sheet` max-height) as its
+   height -- the phone already opens at it, because the content is taller -- and late content
+   fills space that is already there, or scrolls inside the body. Rail:
+   `mobile/TickerHubSheet.stableHeight.test.jsx`. */
+.panel { height: min(92vh, 92dvh); }
+
 .body { display: flex; flex-direction: column; gap: var(--space-md); }
 
 .quote { display: flex; align-items: baseline; gap: var(--space-md); }

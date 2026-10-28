@@ -638,6 +638,33 @@
 :global([data-ticker-hub-chart]) .chartDayGainExt,
 :global([data-ticker-popup-chart]) .chartDayGainExt { background: var(--bg-surface); }
 
+/* The same app surface, the identity label and the info strip. Their colours are CHART-canvas
+   colours: the title is `header.colors.title`, which applying a /charts theme writes from that
+   theme's canvas (`applyThemeToSettings`: #e8e8ec on a dark canvas, #14181d on a light one), and
+   the popup shows the member's own chart settings; the info values are each field's built-in
+   `dflt` (headerFields.js: #6ba3be market cap / next earnings, #dcbb5e UCT rating) or the
+   member's override. On the light app theme's white header axe (WebKit) read the title at 1.22:1
+   and the values at 2.76:1 and 1.85:1; a light /charts theme under a dark app theme fails the
+   other way round. Here they take app tokens that clear 4.5:1 on `--bg-elevated` in every theme
+   (worst: --text-bright 14:1, --info 6.0:1, --accent 6.1:1, the sign inks 5.3:1), keeping each
+   field's hue family and a signed field's meaning. `!important` because the chart colour is an
+   inline style. Desktop /charts keeps its chart colours: every rule is scoped.
+   Rail: `components/TickerPopup.chartHeaderInk.test.js`. */
+:global([data-ticker-hub-chart]) .chartHeaderTop [data-testid='sym-label'],
+:global([data-ticker-popup-chart]) .chartHeaderTop [data-testid='sym-label'] { color: var(--text-bright) !important; }
+:global([data-ticker-hub-chart]) .chartMetaVal,
+:global([data-ticker-popup-chart]) .chartMetaVal { color: var(--text-bright) !important; }
+:global([data-ticker-hub-chart]) .chartMetaVal[data-meta-key='mcap'],
+:global([data-ticker-hub-chart]) .chartMetaVal[data-meta-key='earn'],
+:global([data-ticker-popup-chart]) .chartMetaVal[data-meta-key='mcap'],
+:global([data-ticker-popup-chart]) .chartMetaVal[data-meta-key='earn'] { color: var(--info) !important; }
+:global([data-ticker-hub-chart]) .chartMetaVal[data-meta-key='rating'],
+:global([data-ticker-popup-chart]) .chartMetaVal[data-meta-key='rating'] { color: var(--accent) !important; }
+:global([data-ticker-hub-chart]) .chartMetaVal[data-sign='pos'],
+:global([data-ticker-popup-chart]) .chartMetaVal[data-sign='pos'] { color: var(--success-ink) !important; }
+:global([data-ticker-hub-chart]) .chartMetaVal[data-sign='neg'],
+:global([data-ticker-popup-chart]) .chartMetaVal[data-sign='neg'] { color: var(--danger-ink) !important; }
+
 /* The hub's 1D/1W/1M chips measured 32-35 x 40 (390) and x 18 (834) in WebKit: on the touch
    tier, and on any coarse pointer, they clear `--tap-min`. Three chips in a row, so the extra
    width costs nothing. Rail: `components/mobile/TickerHubSheet.tapFloor.test.js`. */

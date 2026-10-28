@@ -134,6 +134,48 @@ export function lookbackBottomFor(m, insetPx = 6) {
 }
 
 /**
+ * Has the LOOKBACK BAR reached the anchor it will keep? Until it has, the bar is not shown.
+ *
+ * ⚰️ IT USED TO PAINT THREE TIMES, AT THREE HEIGHTS. The bar mounts with the chart, but the
+ * separate VOLUME pane it anchors above (`lookbackBottomFor`) is created a few frames later,
+ * by the update pass that sets the volume data, and has no height for a frame or two after
+ * that. So the bar painted at its CSS fallback, then at the time-axis fallback, then jumped
+ * up by the whole volume pane (~76px; WebKit, the Ticker Hub at 390/834, canvases 9 -> 13).
+ *
+ * And the TIME AXIS grows too: a host that reserves room under the date labels
+ * (`--time-axis-min-height`, the hub's 80px) gets it from the time scale's `minimumHeight`,
+ * which lands a frame or more after the panes, and the bar (which sits above the axis and the
+ * volume pane) moved up again by the difference (WebKit 390: 66px -> 112px from the bottom).
+ *
+ * Settled = the time axis has reached the reserve the host asked for (if any), AND either no
+ * separate Volume pane is expected (the fallback IS the final anchor) or the volume series'
+ * pane exists and has a height. Volume at the very top (index 0) takes the fallback by design,
+ * so it is settled too. The caller adds a time limit
+ * (`LOOKBACK_REVEAL_MAX_MS`), so a volume pane that is expected and never arrives cannot
+ * keep the bar hidden.
+ *
+ * @param {object} m
+ * @param {boolean} m.volumePaneExpected `volumePaneRequired(...)` for this render
+ * @param {number|null} m.volumeIndex    the pane the VOLUME series is in, or null
+ * @param {number[]} m.paneHeights       every pane height, in render order
+ * @param {number} [m.timeAxisHeight]    `chart.timeScale().height()`
+ * @param {number} [m.timeAxisMinHeight] the host's reserve (`timeAxisMinHeightFromCss`), 0 = none
+ */
+export function lookbackPlacementSettled(m) {
+  const want = Number.isFinite(m?.timeAxisMinHeight) ? m.timeAxisMinHeight : 0
+  if (want > 0 && !(Number.isFinite(m?.timeAxisHeight) && m.timeAxisHeight >= want)) return false
+  if (!m?.volumePaneExpected) return true
+  const vi = m.volumeIndex
+  if (!Number.isInteger(vi) || vi < 0) return false
+  if (vi === 0) return true
+  const h = heightsOf(m.paneHeights)[vi]
+  return Number.isFinite(h) && h > 0
+}
+
+/** How long the lookback bar may stay hidden waiting for the volume pane (see above). */
+export const LOOKBACK_REVEAL_MAX_MS = 1500
+
+/**
  * The top of the VOLUME pane's own readout.
  *
  * ⚠️ THE THIRD INSTANCE OF THE SAME STALE ASSUMPTION, found while tracing the

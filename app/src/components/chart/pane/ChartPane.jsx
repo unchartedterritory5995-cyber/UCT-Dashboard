@@ -550,7 +550,7 @@ function ChartPane({
       } else {
         finalColor = (f.colorKey ? hdrColors[f.colorKey] : null) || color || f.dflt || null
       }
-      return { key, label: f.label, short: f.short || f.label, title: f.title, value, color: finalColor }
+      return { key, label: f.label, short: f.short || f.label, title: f.title, value, color: finalColor, sign: f.signed ? (sign || 'pos') : null }
     }).filter(Boolean)
   }, [infoFieldKeys, hdrColors, fund, hdrPrices, hdrMeta, hdrTheme, perfData, sym, companyName, isFundLike, volCurve])
 
