@@ -261,17 +261,46 @@ export function visibleWindow(count, xAt, width) {
   return { from: Math.max(0, first - EDGE_BARS), to: Math.min(count - 1, last + EDGE_BARS) }
 }
 
-/** True when every time is a finite number and the column never goes backwards —
- *  the precondition for `visibleWindow`'s binary search. */
+/**
+ * A bar time reduced to something that orders the way the time scale orders it,
+ * or `undefined` when this primitive cannot vouch for the order.
+ *
+ * ⛔⛔ DAILY BARS ARE STRINGS. D/W/M bars reach the fill as `'YYYY-MM-DD'`
+ * (`api/services/bars_fetch.py` `_fmt_sqlite_bars`; `StockChart`'s `adjustTime`
+ * shifts only numbers; the binder hands `bars.map(adjustTime(bar.t))`). The first
+ * cut of this change accepted numbers only, so EVERY daily chart — the exact case
+ * it was written for — silently took the full walk (measured: 104 vs 5,000
+ * `timeToCoordinate` calls per paint). A zero-padded ISO date sorts lexically in
+ * date order, so the string itself is its key. A `BusinessDay` object keys as
+ * `year·10⁴ + month·10² + day`. Anything else is unknown and falls back.
+ */
+const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/
+function timeKey(t) {
+  if (typeof t === 'number') return Number.isFinite(t) ? t : undefined
+  if (typeof t === 'string') return ISO_DAY.test(t) ? t : undefined
+  if (t && typeof t === 'object' && Number.isInteger(t.year) && Number.isInteger(t.month) && Number.isInteger(t.day)) {
+    return t.year * 10000 + t.month * 100 + t.day
+  }
+  return undefined
+}
+
+/** True when every time keys (`timeKey`), all keys are ONE type, and the column
+ *  never goes backwards — the precondition for `visibleWindow`'s binary search. */
 function timesAscending(times, m) {
-  let prev = -Infinity
+  let prev
+  let kind
   for (let i = 0; i < m; i += 1) {
-    const t = times[i]
-    if (typeof t !== 'number' || !Number.isFinite(t) || t < prev) return false
-    prev = t
+    const k = timeKey(times[i])
+    if (k === undefined) return false
+    if (i === 0) kind = typeof k
+    else if (typeof k !== kind || k < prev) return false
+    prev = k
   }
   return true
 }
+
+/** Two bar times are the same bar: same key (a BusinessDay compares by value). */
+const sameTime = (a, b) => a === b || (timeKey(a) !== undefined && timeKey(a) === timeKey(b))
 
 const sameValue = (a, b) => a === b || (a !== a && b !== b) // eslint-disable-line no-self-compare
 const lengthOf = (a) => (a && typeof a.length === 'number' ? a.length : 0)
@@ -302,11 +331,22 @@ const AFFINE_PRICE_MODES = new Set([0, 2, 3])
  * The mapping moved (scroll, zoom, autoscale, resize, pane/scale change) ⇒ the
  * window is resolved afresh — still the window, never the series.
  *
+ * ⚠️ THE KNOWN BLIND SPOT OF THE x PROOF, recorded rather than hidden: bar x is
+ * `W − (base + rightOffset − index + ½)·spacing − 1`, and three samples pin it only
+ * if the time scale's index of each sampled bar is unchanged. Another series
+ * inserting time points into BOTH halves of the window (between `from` and `mid`
+ * and between `mid` and `to`) while the bar spacing shrinks by EXACTLY the factor
+ * that lands all three sampled bars back on their old x would pass the proof with
+ * the bars between them moved. That needs a coincidence of exact floating-point
+ * equality across a data change on another series in the same frame; any of the
+ * real moves (scroll, zoom, sub-bar pan, a spacing change, a points insertion on
+ * one side) moves at least one sample and is railed.
+ *
  * ⛔ LOGARITHMIC (or an unreadable mode) NEVER REUSES A COORDINATE: two samples do
  * not pin a log map whose formula itself depends on the visible range, so there
  * is no cheap proof, and an unproved reuse is how a band drifts off its lines.
  * ⛔ AND WHEN THE WINDOW CANNOT BE PROVED (no `width()`, times not ascending
- * numbers, a probe that did not resolve) the draw walks the WHOLE series exactly
+ * (see `timeKey`), a probe that did not resolve) the draw walks the WHOLE series exactly
  * as it always did — the slow path is the old path, not a guess.
  */
 function createFillGeometry() {
@@ -339,6 +379,12 @@ function createFillGeometry() {
       const dyn = lengthOf(colors) > 0
       const mid = (from + to) >>> 1
       const xs3 = () => [timeToX(times[from]), timeToX(times[mid]), timeToX(times[to])]
+      // ⛔ A PROBE THAT DID NOT RESOLVE PROVES NOTHING — a null that equals a cached
+      // null is two unanswered questions, not one unchanged mapping. ONE guard, at
+      // the build: a cache whose references did not all resolve is never kept, so
+      // a reuse always compares fresh numbers against cached NUMBERS (a fresh null
+      // then fails `===` by itself; a second guard there could not be mutation-proved).
+      const resolved = (v) => typeof v === 'number' && Number.isFinite(v)
 
       const yU = (i) => (Number.isFinite(upper[i]) ? priceToY(upper[i]) : null)
       const yL = (i) => (Number.isFinite(lower[i]) ? priceToY(lower[i]) : null)
@@ -359,12 +405,14 @@ function createFillGeometry() {
       if (affine && c && c.from === from && c.to === to && c.dyn === dyn && c.mode === mode
         && c.width === width) {
         const sx = xs3()
+        const y1 = priceToY(c.p1)
+        const y2 = priceToY(c.p2)
         if (sx[0] === c.sx[0] && sx[1] === c.sx[1] && sx[2] === c.sx[2]
-          && priceToY(c.p1) === c.y1 && priceToY(c.p2) === c.y2) {
+          && y1 === c.y1 && y2 === c.y2) {
           let d = from
           while (d <= to) {
             const k = d - from
-            if (!sameValue(c.u[k], upper[d]) || !sameValue(c.l[k], lower[d]) || c.t[k] !== times[d]
+            if (!sameValue(c.u[k], upper[d]) || !sameValue(c.l[k], lower[d]) || !sameTime(c.t[k], times[d])
               || (dyn && c.c[k] !== colors[d])) break
             d += 1
           }
@@ -401,7 +449,8 @@ function createFillGeometry() {
         c.y1 = priceToY(p1)
         c.y2 = priceToY(p2)
         c.sx = xs3()
-        return c.groups
+        // a reference that did not resolve can never prove a later reuse
+        if (c.sx.every(resolved) && resolved(c.y1) && resolved(c.y2)) return c.groups
       }
       const { groups } = c
       c = null
