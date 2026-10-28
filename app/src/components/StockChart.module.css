@@ -1228,11 +1228,41 @@
   :global([data-ticker-hub-chart]) .studyStack {
     --study-more-h: var(--tap-min);
   }
+  /* ...and at 44px tall it is a BOX over the candles, not a row of the legend: the shared
+     `.chipMore` is `background: transparent` at `opacity: 0.75`, so candles and MA lines showed
+     through its text (WebKit, 390/834). Opaque here, on the chart's own one-step-off-canvas
+     surface (`--chart-toolbar-bg`, published by StockChart from the canvas colour, a solid rgb),
+     with the chart's strong panel ink, at full opacity (an opacity under 1 makes the background
+     see-through again). Height untouched: it rides `--study-more-h` above, which the fold reads.
+     Rail: `components/mobile/TickerHubSheet.tapFloor.test.js`. */
   :global([data-ticker-hub-chart]) .studyMore {
     min-width: var(--tap-min);
+    background: var(--chart-toolbar-bg, var(--bg-elevated));
+    color: var(--chart-panel-text-strong, var(--text-bright));
+    opacity: 1;
   }
   :global([data-ticker-hub-chart]) .wrapper {
     --time-axis-min-height: 80px;
+  }
+  /* The range row (3M / 6M / YTD / 1Y / 5Y / Origin) is a finger target here too: the shared
+     <=1024 rule below raises only its HEIGHT (and not on a coarse pointer past 1024), so the
+     buttons were 28-49 x 44 (WebKit, 390/834). At --tap-min wide the six need ~277px, more than
+     the price pane leaves at 390 (the bar starts 8px in, the price scale takes ~76px), so the
+     bar is capped short of the price scale and SCROLLS sideways rather than wrapping: a second
+     row would grow up into the legend's "+N more" (the bar is anchored by its bottom). */
+  :global([data-ticker-hub-chart]) .rangeBar {
+    max-width: calc(100% - 96px);
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+  }
+  :global([data-ticker-hub-chart]) .rangeBtn {
+    flex: none;
+    min-width: var(--tap-min);
+    min-height: var(--tap-min);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
   }
 }
 

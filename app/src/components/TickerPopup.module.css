@@ -153,11 +153,15 @@
   margin-left: 8px;
   margin-right: auto;
 }
+/* The header's day change is TEXT, so it takes the text inks, never a candle/brand hue: the old
+   `--ut-red` (#c0392b) read 3.64:1 on the dark popup (`.modal`, --bg-surface #0a0a0a, axe on the
+   live site, 13px). --danger-ink / --success-ink are calibrated >= 4.5:1 on every theme's app
+   surfaces (terminalReachableContrast.test.js's rule). Rail: TickerPopup.headerInk.test.js. */
 .modalChangeUp {
-  color: var(--ut-green-bright);
+  color: var(--success-ink);
 }
 .modalChangeDown {
-  color: var(--ut-red, var(--danger-ink));
+  color: var(--danger-ink);
 }
 /* ── Close button (icon-only, square; red-tinted hover = the close affordance) ── */
 .closeBtn {

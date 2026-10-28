@@ -31,7 +31,7 @@
       "why": "the text ink is already --danger-ink/--success-ink but the rule dims it (opacity) or sits it on its own tinted --loss/--gain chip"
     },
     "components/TickerPopup.module.css": {
-      "count": 11,
+      "count": 10,
       "inks": [
         "--text-bright",
         "--text-muted",
