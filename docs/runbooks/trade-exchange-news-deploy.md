@@ -74,7 +74,7 @@ R2. **Settings → Source**: Root Directory `services/trade_exchange_news_receiv
       before the settings were stored keeps the old builder for every redeploy
       (staging web: Railpack, "No start command", twice). Old one kept serving.
       Fix: one fresh deploy after storing the settings; every plain redeploy
-      since built with the Dockerfile (8 of 8).
+      since built with the Dockerfile (9 of 9).
     Read back BOTH before relying on a redeploy:
     `environment(id) { config }` -> `services.<id>.build.builder = DOCKERFILE`,
     `deploy` healthcheck `/health` 60, `overlapSeconds` 20, `drainingSeconds` 10,
