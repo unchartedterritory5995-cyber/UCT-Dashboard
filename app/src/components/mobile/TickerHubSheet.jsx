@@ -113,8 +113,11 @@ function TickerHubBody({ sym, onClose }) {
             fits in 240px; `tfCodes` locks the bar to the retired TFS row's
             three codes; `onSymbolChange` is omitted so the identity row is a
             static label — the sheet's ticker isn't user-retargetable here.
-            `stored={null}` with no `onStore` = the user's own chart everywhere. */}
-        <div className={styles.chartWrap}>
+            `stored={null}` with no `onStore` = the user's own chart everywhere.
+            `data-ticker-hub-chart` scopes the hub-only chart rules (touch floors + the
+            date-axis reserve in StockChart.module.css / ChartsWorkspace.module.css, the
+            day-change text inks), like the TickerPopup's `data-ticker-popup-chart`. */}
+        <div className={styles.chartWrap} data-ticker-hub-chart="">
           <Suspense fallback={<div className={styles.chartLoading}>Loading chart…</div>}>
             <ChartPane
               sym={sym}
@@ -124,7 +127,11 @@ function TickerHubBody({ sym, onClose }) {
               tfCodes={TF_CODES}
               density="compact"
               stockChartProps={{
-                height: '240px',
+                // 240px, or the touch tier's taller box (TickerHubSheet.module.css): the
+                // 80px date-axis reserve under the 44px A/L/% chips comes out of this
+                // height, and without the extra 52px the price pane is too short for the
+                // legend, which then collapses to hover-only (measured, WebKit 390/834).
+                height: 'var(--hub-chart-h, 240px)',
                 showDrawingTools: false,
                 hideReplay: true,
                 hidePatterns: true,

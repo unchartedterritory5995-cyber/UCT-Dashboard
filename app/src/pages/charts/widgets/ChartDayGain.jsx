@@ -18,6 +18,10 @@ import styles from '../ChartsWorkspace.module.css'
  * ISOLATED on purpose: this owns the per-tick price hooks so its frequent re-renders
  * stay contained here and never re-render its parent (ChartWidget) or the heavy
  * StockChart sibling. Keep this a leaf.
+ *
+ * `data-day-gain` names each number's direction so a surface whose header is an APP surface
+ * (the Ticker Hub sheet) can colour it with the text inks instead of the chart colours
+ * (ChartsWorkspace.module.css, `data-ticker-hub-chart`). Elsewhere it changes nothing.
  */
 export default function ChartDayGain({ sym, upOverride = null, downOverride = null }) {
   const { chartsTheme } = useWorkspace()
@@ -84,12 +88,12 @@ export default function ChartDayGain({ sym, upOverride = null, downOverride = nu
   return (
     <span className={styles.chartDayGainWrap}>
       {hasReg && (
-        <span className={styles.chartDayGain} style={{ color: regUp ? upColor : downColor }}>
+        <span className={styles.chartDayGain} data-day-gain={regUp ? 'up' : 'down'} style={{ color: regUp ? upColor : downColor }}>
           {regUp ? '+' : ''}{regAbs.toFixed(2)} ({regUp ? '+' : ''}{regPct.toFixed(2)}%)
         </span>
       )}
       {hasExt && (
-        <span className={styles.chartDayGainExt} style={{ color: extUp ? upColor : downColor }}>
+        <span className={styles.chartDayGainExt} data-day-gain={extUp ? 'up' : 'down'} style={{ color: extUp ? upColor : downColor }}>
           <span className={styles.chartDayGainExtLabel}>{extLabel}</span>
           {extUp ? '+' : ''}{extAbs.toFixed(2)} ({extUp ? '+' : ''}{extPct.toFixed(2)}%)
         </span>
