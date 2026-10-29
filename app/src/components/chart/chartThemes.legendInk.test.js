@@ -15,6 +15,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { CHART_THEMES, applyThemeToSettings, legendInkForCanvas, legendCanvasRgb, legendTextContrast, LEGEND_INK_ON_DARK, LEGEND_INK_ON_LIGHT } from './chartThemes'
 import { legendInkVars, LEGEND_ROLES } from './legendInk'
+import { parseColor as parseColorRgb, parseColorAlpha } from '../../utils/dividerColor'
 import { CHART_DEFAULTS, PRESETS } from './chartDefaults'
 import { allThemes, parseColor, resolveVars } from '../../pages/terminal/a11y/__tests__/terminalContrast'
 import { contrast, composite, hexRgb } from '../../styles/__tests__/contrastMath'
@@ -135,7 +136,10 @@ describe('the legend reads it: every neutral legend text rule, and StockChart pu
     expect(STOCK_JSX).toMatch(/legendInkVars\(\{ tokens, top: canvasSample\.top, low: canvasSample\.low, under, legendColor \}\)/)
     expect(STOCK_JSX).toMatch(/style=\{\{ height, \.\.\.panelVars, \.\.\.legendInks \}\}/)
     // re-run on an app theme change, not only on a canvas change
-    expect(STOCK_JSX).toMatch(/attributeFilter: \['data-theme', 'class', 'style'\]/)
+    // through the app's ONE theme observer (lib/theme/useThemeInk.js), never a second per chart
+    expect(STOCK_JSX).toMatch(/import \{ useThemeVersion \} from '\.\.\/lib\/theme\/useThemeInk'/)
+    expect(STOCK_JSX).toMatch(/const appThemeTick = useThemeVersion\(\)/)
+    expect(STOCK_JSX).not.toMatch(/new MutationObserver/)
     expect(STOCK_JSX).toMatch(/\}, \[canvasSample\.top, canvasSample\.low, legendColor, appThemeTick\]\)/)
   })
 })
@@ -219,5 +223,22 @@ describe('CONTROL: the old fallback (the app tokens) fails on the default canvas
     // while the canvas ink clears it at the same step
     const ink = hexRgb(legendInkForCanvas(CHART_DEFAULTS.background))
     expect(contrast(composite(ink, 0.82, canvas), canvas)).toBeGreaterThanOrEqual(4.5)
+  })
+})
+
+describe('the one colour parser reads what a computed style can answer', () => {
+  it('color(srgb …) — a color-mix() token, as the browser resolves it — keeps its look', () => {
+    expect(parseColorAlpha('color(srgb 1 1 1)')).toEqual({ rgb: [255, 255, 255], a: 1 })
+    expect(parseColorAlpha('color(srgb 0 0 0 / 0.5)')).toEqual({ rgb: [0, 0, 0], a: 0.5 })
+    // a light near-white token mixed with color-mix still passes on a dark canvas and is KEPT
+    const v = legendInkVars({ tokens: { bright: 'color(srgb 0.97 0.97 0.95)', text: 'color(srgb 0.9 0.9 0.9)', muted: 'color(srgb 0.8 0.79 0.75)' }, top: '#17181a', low: '#17181a' })
+    expect(v['--legend-ink-bright']).toBe('color(srgb 0.97 0.97 0.95)')
+    expect(v['--legend-ink-muted']).toBe('color(srgb 0.8 0.79 0.75)')
+  })
+  it('#rgba (4 digits) is read on purpose; the panel/toolbar helpers are unaffected for 3/6/8 digits', () => {
+    expect(parseColorAlpha('#fff8')).toEqual({ rgb: [255, 255, 255], a: 0x88 / 255 })
+    expect(parseColorRgb('#fff8')).toEqual([255, 255, 255])
+    expect(parseColorRgb('#ffffffcc')).toEqual([255, 255, 255])
+    expect(parseColorRgb('transparent')).toBeNull()
   })
 })
