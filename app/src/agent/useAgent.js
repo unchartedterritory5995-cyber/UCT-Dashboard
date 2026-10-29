@@ -40,7 +40,7 @@ import { createMemory, tickersOfAnswer } from './memory'
 import { resolveReference, subjectTarget } from './references'
 import { resolveFollowUp, resolvePicked } from './conversation'
 import { planCompound, resolveStep, chartsShowing, MAX_STEP_OPS } from './compound'
-import { screenDuplicateAdds } from './duplicates'
+import { screenDuplicateAdds, wantsCopy } from './duplicates'
 import { nl1Enabled, exactLane, buildNl1Request, correctionPlan, preflightRefusals, repairedDisposition, withoutWordingApprovals } from './nl1/interpreter'
 import { NL1_MAX_NEED } from './nl1/selection'
 import { takeIndicatorTouches, takeIndicatorMentions } from './capabilities/indicatorEdits'
@@ -862,12 +862,19 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
   }, [host, push, record, capCtx, withdrawPending])
 
   // Every execution is traced (agent/trace.js): phase timestamps, memory only.
-  const execute = useCallback(async (opsIn, { path, mode: suggested, member, voice, chosen = false, approval = null, card = null, onTarget = null, binding = null, subset = false, noDuplicates = false }) => {
-    // ⭐ PHASE 2 (agent/duplicates.js): inside a MULTI-STEP request, an add of an indicator the chart already shows, same
-    // settings, is not added a second time (a hidden one is shown instead) — the receipt says so. A single typed "add a 20
-    // EMA" keeps its Gate C behaviour (a second EMA 20 beside a default one — agentGateCIndicators).
-    if (noDuplicates) {
+  const execute = useCallback(async (opsIn, { path, mode: suggested, member, voice, chosen = false, approval = null, card = null, onTarget = null, binding = null, subset = false, noDuplicates = null }) => {
+    // ⭐ PHASE 2 (agent/duplicates.js, owner decision 2026-10-29): an add of an indicator the chart already shows, same
+    // settings, is not added a second time — the existing one is reused (and is what "make it a 9" means next); a hidden
+    // one is shown instead. Never on an approved card, nor when the member asked for another copy ("add another RSI").
+    if (noDuplicates ?? (path !== 'approved' && !wantsCopy(saidRef.current))) {
       const d = screenDuplicateAdds(opsIn, host)
+      // the add the member asked for is in place — memory records it as this turn's change, on the instance reused
+      // ("make it a 9" edits that one; "do the same on the right one" repeats the add there, screened again)
+      if (d.reused.length) memoryRef.current?.noteChange({ ops: d.reused.map(t => ({ ...t.op, target: t.chartRef })), epoch: epochOf(host), undoId: null })
+      for (const t of d.reused) {
+        memoryRef.current?.noteIndicator({ chart: t.chartRef, instanceId: t.instanceId, defId: t.defId, label: t.name, epoch: epochOf(host) })
+        memoryRef.current?.noteMention({ chart: t.chartRef, instanceId: t.instanceId, epoch: epochOf(host) })
+      }
       if (d.note && !d.ops.length) {
         const text = d.note.replace(/ — not added again\.$/, ', so there was nothing to add.')
         push({ role: 'outcome', text })

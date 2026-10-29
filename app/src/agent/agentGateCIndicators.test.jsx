@@ -6,7 +6,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react'
 import { SWRConfig } from 'swr'
-import { mergeChartSettings } from '../components/chart/chartDefaults'
+import { mergeChartSettings, CHART_DEFAULTS } from '../components/chart/chartDefaults'
 import { adoptOverlayAverages } from '../components/chart/maAdoption'
 import { AuthContext } from '../context/AuthContext'
 import { registerBuiltins } from './builtins'
@@ -80,19 +80,19 @@ function mount(h, name) {
 }
 
 describe('Gate C — "make it a 9": the SAME indicator changes, exactly undone', () => {
-  it('add a 20 EMA → make it a 9 → change that to an SMA → undo → undo', async () => {
+  it('add a 21 EMA → make it a 9 → change that to an SMA → undo → undo', async () => {
     const h = makeHost()
     const { say, transcript, save } = mount(h, 'conversation-5-indicator-edit')
-    await say('add a 20 ema')
+    await say('add a 21 ema')
     await waitFor(() => expect(live(h)).toHaveLength(1))
     const id = live(h)[0].instanceId
-    expect(live(h)[0].inputs).toMatchObject({ period: 20, maType: 'ema' })
+    expect(live(h)[0].inputs).toMatchObject({ period: 21, maType: 'ema' })
     await say('make it a 9')
     await waitFor(() => expect(live(h)[0].inputs.period).toBe(9))
     expect(live(h)).toHaveLength(1)                                     // edited in place — no second copy
     expect(live(h)[0].instanceId).toBe(id)
     expect(live(h)[0].inputs.maType).toBe('ema')                       // the type it had is kept
-    await waitFor(() => expect(transcript()).toMatch(/period 20 → 9/))
+    await waitFor(() => expect(transcript()).toMatch(/period 21 → 9/))
     await say('change that to an sma')
     await waitFor(() => expect(live(h)[0].inputs.maType).toBe('sma'))
     expect(live(h)[0].inputs.period).toBe(9)
@@ -100,8 +100,41 @@ describe('Gate C — "make it a 9": the SAME indicator changes, exactly undone',
     await waitFor(() => expect(live(h)[0].inputs.maType).toBe('ema'))
     expect(live(h)[0].inputs.period).toBe(9)                            // undo took back ONLY the last edit
     await say('undo')
-    await waitFor(() => expect(live(h)[0].inputs.period).toBe(20))
+    await waitFor(() => expect(live(h)[0].inputs.period).toBe(21))
     expect(live(h)[0].instanceId).toBe(id)
+    expect(turns).toHaveLength(0)
+    save()
+  }, 60000)
+
+  // ⭐ Owner decision (Phase 2, 2026-10-29): an add of what the chart ALREADY shows reuses it — no stacked duplicate
+  it('"add a 20 ema" on a default chart REUSES its EMA 20 (said, nothing added); "make it a 9" edits THAT one; undo restores it', async () => {
+    const h = makeHost()
+    const { say, transcript, save } = mount(h, 'conversation-5b-reuse')
+    await say('add a 20 ema')
+    await waitFor(() => expect(transcript()).toMatch(/EMA 20 is already on Chart \(QQQ\), so there was nothing to add\./))
+    expect(mas(h)).toHaveLength(4)                                     // the chart's own four — no second EMA 20
+    expect(live(h)).toHaveLength(0)
+    await say('make it a 9')
+    await waitFor(() => expect(ovl(h, 'ovl:1').inputs.period).toBe(9))  // the reused instance, same identity
+    expect(mas(h)).toHaveLength(4)
+    expect(ovl(h, 'ovl:1').inputs.maType).toBe('ema')
+    await say('undo')
+    await waitFor(() => expect(ovl(h, 'ovl:1').inputs.period).toBe(20))
+    expect(turns).toHaveLength(0)
+    save()
+  }, 60000)
+
+  it('an explicit copy is still added: "add another 20 ema" → a second EMA 20 beside the default one (its own Undo)', async () => {
+    const h = makeHost()
+    const { say, transcript, save } = mount(h, 'conversation-5c-another')
+    await say('add another 20 ema')
+    await waitFor(() => expect(live(h)).toHaveLength(1))
+    expect(live(h)[0].inputs).toMatchObject({ period: 20, maType: 'ema' })
+    expect(ovl(h, 'ovl:1').inputs.period).toBe(20)                     // the default one untouched
+    expect(transcript()).not.toMatch(/already on/)
+    await say('undo')
+    await waitFor(() => expect(live(h)).toHaveLength(0))
+    expect(mas(h)).toHaveLength(4)
     expect(turns).toHaveLength(0)
     save()
   }, 60000)
@@ -130,7 +163,7 @@ describe('Gate C — "make it a 9": the SAME indicator changes, exactly undone',
   it('stale: after the indicator is removed by hand, "make it a 9" changes nothing and says so', async () => {
     const h = makeHost()
     const { say, transcript, save } = mount(h, 'conversation-7-stale-indicator')
-    await say('add a 20 ema')
+    await say('add a 21 ema')
     await waitFor(() => expect(live(h)).toHaveLength(1))
     h.store.c1 = {}                                                      // the member deleted it from the legend
     await say('make it a 9')
@@ -141,6 +174,7 @@ describe('Gate C — "make it a 9": the SAME indicator changes, exactly undone',
 
   it('the owner\'s MA defaults: "add the 9" → EMA 9; "add the 50" → SMA 50; an unlisted length is not guessed', async () => {
     const h = makeHost()
+    h.store.c1 = { overlays: CHART_DEFAULTS.overlays.map(() => ({ removed: true })) }   // its default averages removed
     const { say, save } = mount(h, 'conversation-8-ma-defaults')
     await say('add the 9')
     await waitFor(() => expect(live(h).map(i => [i.inputs.period, i.inputs.maType])).toEqual([[9, 'ema']]))
