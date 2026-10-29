@@ -124,3 +124,33 @@ describe('canonical theme integration (theme gallery + Apply to all + frame)', (
     expect(chrome).not.toBeNull()
   })
 })
+
+describe('daily-performance tones, tooltips and the bounded quote set', () => {
+  it('tone follows the change vs prior close; missing or stale is neutral', async () => {
+    const { tickerTone } = await import('./tradeExchangeNewsModel')
+    expect(tickerTone({ change_pct: 1.2 })).toBe('up')
+    expect(tickerTone({ change_pct: -0.01 })).toBe('down')
+    expect(tickerTone({ change_pct: 0 })).toBe('flat')
+    expect(tickerTone(undefined)).toBe('none')
+    expect(tickerTone({ change_pct: NaN })).toBe('none')
+    expect(tickerTone({ change_pct: 3 }, true)).toBe('none')
+  })
+
+  it('quote symbols are distinct, newest rows first, and capped', async () => {
+    const { quoteSymbols, QUOTE_SYMBOL_CAP } = await import('./tradeExchangeNewsModel')
+    const rows = Array.from({ length: 400 }, (_, i) => ({ tickers: [`S${i}`, 'AAPL'] }))
+    const got = quoteSymbols(rows)
+    expect(got).toHaveLength(QUOTE_SYMBOL_CAP)
+    expect(got.slice(0, 3)).toEqual(['S0', 'AAPL', 'S1'])
+    expect(new Set(got).size).toBe(got.length)
+  })
+
+  it('names link exactly as written, several per headline, with no overlap', async () => {
+    const { tokenize } = await import('./tradeExchangeNewsModel')
+    const parts = tokenize('Microsoft and NVDA rally; Rocket Lab too', ['MSFT', 'NVDA', 'RKLB'],
+      [['Microsoft', 'MSFT'], ['Rocket Lab', 'RKLB']])
+    expect(parts.filter((p) => p.sym).map((p) => [p.text, p.sym])).toEqual(
+      [['Microsoft', 'MSFT'], ['NVDA', 'NVDA'], ['Rocket Lab', 'RKLB']])
+    expect(parts.map((p) => p.text).join('')).toBe('Microsoft and NVDA rally; Rocket Lab too')
+  })
+})

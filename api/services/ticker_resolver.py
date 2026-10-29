@@ -415,3 +415,155 @@ def resolve_tickers(text: Optional[str], context: Context = QUERY) -> list[str]:
         if sym in uni:
             out.append(sym)
     return out
+
+
+# ── company NAMES -> symbols (headline mentions without a ticker) ────────────
+#
+# ⭐ Same authority, a second input form: "MICROSOFT EXPECTS TO RAISE ..." names
+# MSFT without writing it. PRECISION OVER RECALL -- a wrong link puts the wrong
+# chart and the wrong price colour on breaking news:
+#   * a SINGLE word is a company only through the curated alias list
+#     (api/data/buzz_aliases.json), minus aliases that are ordinary English in a
+#     headline (_ALIAS_NOT_IN_HEADLINES);
+#   * reference-data names (catalyst/news_match's normalised variants of the cap
+#     universe's cached names) count only as MULTI-word sequences ("rocket lab",
+#     "truist financial"), and never as the 2-word prefix of a longer name
+#     ("new york" from "New York Times", "united states" from a steel company);
+#   * a name that maps to more than one security (share classes, look-alikes) is
+#     dropped -- never a guess -- unless the curated list settles it.
+# The index is built OFF the delivery path (prewarm_company_index, a thread);
+# until it is ready, live headlines simply carry no name links, and history picks
+# them up on its next read. No network, ever: names come from the on-disk cache.
+
+_ALIAS_NOT_IN_HEADLINES = frozenset({"open", "affirm", "arm", "novo"})
+_COMPANY_INDEX: Optional[dict] = None
+_COMPANY_LOCK = None
+_NAME_TOKEN_RE = re.compile(r"[A-Za-z0-9]+")
+
+
+def build_company_index(names_by_ticker: dict, aliases: dict) -> dict:
+    """{token tuple: symbol}. Pure -- tests drive it with their own names."""
+    from api.services.catalyst.news_match import _SUFFIXES, _norm_tokens, _variants
+    seen: dict = {}
+    for sym, name in (names_by_ticker or {}).items():
+        stage = _norm_tokens(name)
+        while len(stage) > 1 and (stage[-1] in _SUFFIXES or len(stage[-1]) == 1):
+            stage = stage[:-1]
+        # news_match's shortened-name prefix ("new york" of "New York Times") is too generic.
+        prefix = tuple(stage[:2]) if len(stage) >= 3 else None
+        for v in _variants(name):
+            toks = tuple(v.split())
+            if len(toks) >= 2 and toks != prefix:      # single words: curated list only
+                seen.setdefault(toks, set()).add(canonical(sym))
+    index = {k: next(iter(v)) for k, v in seen.items() if len(v) == 1}
+    for alias, sym in (aliases or {}).items():
+        a = str(alias).strip().lower()
+        if a and a not in _ALIAS_NOT_IN_HEADLINES:
+            index[tuple(_NAME_TOKEN_RE.findall(a))] = canonical(sym)   # curated settles ambiguity
+    return index
+
+
+def prewarm_company_index() -> None:
+    """Build the name index once, OFF any delivery path. Never raises."""
+    global _COMPANY_INDEX, _COMPANY_LOCK
+    import threading
+    if _COMPANY_LOCK is None:
+        _COMPANY_LOCK = threading.Lock()
+    with _COMPANY_LOCK:
+        if _COMPANY_INDEX is not None:
+            return
+        try:
+            from api.services.buzz_universe import _load_json
+            from api.services.catalyst.news_match import _load_universe_names
+            aliases = {str(k).lower(): str(v).upper()
+                       for k, v in (_load_json("buzz_aliases.json") or {}).items()}
+            _COMPANY_INDEX = build_company_index(_load_universe_names(), aliases)
+        except Exception:
+            _COMPANY_INDEX = {}
+
+
+#: What follows a company named in a headline: its stock, its corporate form, or
+#: what it DID ("MICROSOFT EXPECTS", "Apple unveils", "NVIDIA SHARES"). Context, not
+#: a word list of banned names: "apple pie" / "Alphabet soup" carry none of it.
+_COMPANY_CUE_NEXT = frozenset("""
+shares stock stocks inc corp corporation co ceo cfo board investors earnings revenue sales results
+guidance outlook forecast profit quarter q1 q2 q3 q4 dividend buyback offering bonds bond debt
+says said expects expected plans plan reports reported posts unveils unveiled launches launched
+announces announced sues sued buys bought acquires acquired agrees signs signed files filed warns
+warned delays cuts raises raised beats misses tops faces wins won loses hires names named invests
+seeks wants targets considers explores weighs halts pauses resumes nears completes prices sells
+rises rose falls fell jumps surges soars slides slumps sinks drops gains climbs rallies tumbles
+plunges dips expands leads joins partners is was has will to in
+""".split())
+# A coordinated subject takes the plural ("Microsoft and Nvidia EXPAND", "Apple, Google
+# FACE"): the base form of every -s cue verb is a cue too -- derived, not restated.
+_COMPANY_CUE_NEXT = _COMPANY_CUE_NEXT | frozenset(
+    w[:-1] for w in _COMPANY_CUE_NEXT if w.endswith("s") and not w.endswith("ss") and len(w) > 4)
+#: A mention joined to another confident one ("Microsoft and Nvidia", "Apple, Google").
+_COORDINATION = frozenset({"and", "&", "or", "vs", "versus"})
+
+
+def _proper(word: str) -> bool:
+    return word[:1].isupper()
+
+
+def resolve_company_mentions(text: Optional[str], index: Optional[dict] = None,
+                             explicit: Optional[set] = None) -> list[tuple[str, str]]:
+    """[(exact text as written, symbol)] for company names in ``text``, in mention
+    order, longest name first, never overlapping, one link per symbol. Uses the
+    prebuilt index only: an index that is not ready yet means no name links.
+
+    ⭐ CONTEXTUAL CONFIDENCE. Every name must be written as a proper noun (initial
+    capital or ALL CAPS): "apple pie" is not Apple. A multi-word name ("Rocket Lab")
+    is then distinctive enough. A SINGLE word additionally needs company context:
+    a cue right after it (_COMPANY_CUE_NEXT, or the possessive "Apple's"), its own
+    ticker elsewhere in the headline (``explicit``), or a coordination ("and", ",")
+    with another confident mention. Otherwise it stays plain text."""
+    idx = _COMPANY_INDEX if index is None else index
+    if not idx or not text:
+        return []
+    words = [(m.group(0), m.start(), m.end()) for m in _NAME_TOKEN_RE.finditer(text)]
+    low = [w.lower() for w, _, _ in words]
+    used = [False] * len(words)
+    hits: list[tuple[int, str, str]] = []            # (start, text, sym)
+    pending: list[tuple[int, str, str]] = []         # single words awaiting coordination: (i, text, sym)
+    explicit = explicit or set()
+
+    def taken(sym):
+        return sym in {s for _, _, s in hits}
+
+    for n in (4, 3, 2, 1):
+        for i in range(len(words) - n + 1):
+            if any(used[i:i + n]):
+                continue
+            sym = idx.get(tuple(low[i:i + n]))
+            if not sym or taken(sym) or not all(_proper(words[k][0]) for k in range(i, i + n)):
+                continue
+            start, end = words[i][1], words[i + n - 1][2]
+            if n == 1:
+                nxt = low[i + 1] if i + 1 < len(words) else ""
+                possessive = text[end:end + 2] in ("'s", "’s")
+                if not (nxt in _COMPANY_CUE_NEXT or possessive or sym in explicit):
+                    pending.append((i, text[start:end], sym))
+                    continue
+            hits.append((start, text[start:end], sym))
+            for k in range(i, i + n):
+                used[k] = True
+
+    def joined(i, j):                                # words i < j joined by "and" / "," only
+        between = text[words[i][2]:words[j][1]]
+        rest = between.replace(",", " ").split()
+        return (j == i + 1 and "," in between) or (j == i + 2 and low[i + 1] in _COORDINATION and len(rest) == 1)
+
+    changed = True
+    while changed and pending:
+        changed = False
+        anchors = [k for k in range(len(words)) if used[k]]
+        for item in list(pending):
+            i, t, sym = item
+            if taken(sym):
+                pending.remove(item); continue
+            if any(joined(min(i, a), max(i, a)) for a in anchors):
+                hits.append((words[i][1], t, sym)); used[i] = True
+                pending.remove(item); changed = True
+    return [(t, s) for _, t, s in sorted(hits)]

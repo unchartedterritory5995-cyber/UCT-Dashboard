@@ -100,24 +100,63 @@ export function mergeItems(items, incoming) {
   return out.length > cap ? out.slice(out.length - cap) : out
 }
 
-// ⏱ LATENCY AUDIT (admin-only widget): browser clock vs web clock, estimated
-// from the /recent round trip (offset error <= rtt/2), so publish -> SSE receipt
-// can be measured across two machines. Reports numbers and an event id only.
+// ⏱ LATENCY AUDIT (admin-only widget), measurement only. Browser clock vs web
+// clock from SEVERAL tiny /clock round trips (the fastest one wins; error <=
+// rtt/2, and a best rtt over CLOCK_MAX_RTT_MS is not trusted). A sample counts
+// only for a LIVE headline (not a reconnect replay) in a VISIBLE tab that painted
+// within RENDER_MAX_MS -- a background tab pauses painting and would report
+// minutes. Reports numbers and the event id only.
 export const TIMING_URL = '/api/trade-exchange-news/client-timing'
+export const CLOCK_URL = '/api/trade-exchange-news/clock'
+const CLOCK_SAMPLES = 5
+const CLOCK_MAX_RTT_MS = 250
+const CLOCK_TTL_MS = 5 * 60_000
+const RENDER_MAX_MS = 2000
 let _clock = null
+let _clockSyncing = null
 
-function noteServerClock(serverMs, sentAt, gotAt) {
-  if (typeof serverMs !== 'number') return
-  const rtt = gotAt - sentAt
-  if (!_clock || rtt <= _clock.rtt) _clock = { offset: serverMs - (sentAt + gotAt) / 2, rtt }
+async function syncClock() {
+  if (_clockSyncing) return _clockSyncing
+  _clockSyncing = (async () => {
+    let best = null
+    for (let i = 0; i < CLOCK_SAMPLES; i++) {
+      try {
+        const sentAt = Date.now()
+        const r = await fetch(CLOCK_URL, { credentials: 'include', cache: 'no-store' })
+        const gotAt = Date.now()
+        const body = r.ok ? await r.json() : null
+        if (typeof body?.server_ms !== 'number') continue
+        const rtt = gotAt - sentAt
+        if (!best || rtt < best.rtt) best = { offset: body.server_ms - (sentAt + gotAt) / 2, rtt }
+      } catch { /* best effort */ }
+    }
+    _clock = best && best.rtt <= CLOCK_MAX_RTT_MS ? { ...best, at: Date.now(), samples: CLOCK_SAMPLES } : null
+  })().finally(() => { _clockSyncing = null })
+  return _clockSyncing
 }
+
+const visible = () => typeof document === 'undefined' || document.visibilityState === 'visible'
 
 function reportTiming(ev, heardAt, heardPerf) {
   if (typeof ev.server_ms !== 'number' || !ev.id || typeof requestAnimationFrame !== 'function') return
-  const sse = _clock ? Math.round(heardAt + _clock.offset - ev.server_ms) : null
-  requestAnimationFrame(() => setTimeout(() => {
-    const body = { id: ev.id, sse_ms: sse, render_ms: Math.round(performance.now() - heardPerf),
-      clock_rtt_ms: _clock ? _clock.rtt : null }
+  if (!visible()) return
+  // The offset does not depend on WHEN it is measured, so a first live headline
+  // syncs lazily (no clock traffic until there is news to time) and still counts.
+  const clockReady = !_clock || Date.now() - _clock.at > CLOCK_TTL_MS ? syncClock() : Promise.resolve()
+  requestAnimationFrame(() => setTimeout(async () => {
+    const render = performance.now() - heardPerf
+    if (!visible() || render > RENDER_MAX_MS) return          // throttled or hidden: not a sample
+    const paintAt = Date.now()
+    await clockReady
+    const c = _clock
+    const body = {
+      id: ev.id,
+      sse_ms: c ? Math.round(heardAt + c.offset - ev.server_ms) : null,
+      render_ms: Math.round(render),
+      e2e_ms: c && typeof ev.received_at_ms === 'number' ? Math.round(paintAt + c.offset - ev.received_at_ms) : null,
+      clock_rtt_ms: c ? c.rtt : null,
+      clock_samples: c ? c.samples : 0,
+    }
     fetch(TIMING_URL, { method: 'POST', credentials: 'include', keepalive: true,
       headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).catch(() => {})
   }, 0))
@@ -148,9 +187,7 @@ async function start() {
   publish((s) => ({ ...s, status: s.items.length ? 'reconnecting' : 'connecting', reason: null }))
   let body
   try {
-    const sentAt = Date.now()
     body = await fetchJson(`${RECENT_URL}?limit=${PAGE}`)
-    noteServerClock(body?.server_ms, sentAt, Date.now())
   } catch (e) {
     if (gen !== _gen) return
     const final = e.status && e.status !== 503 && e.status < 500
@@ -208,6 +245,7 @@ function openStream() {
       start()
       return
     }
+    conn.replayUntil = typeof d.last_seq === 'number' ? d.last_seq : 0   // backlog, not live news
     publish((s) => ({ ...s, status: 'live', reason: null, coverage: d.coverage || s.coverage,
       truncated: !!d.truncated, lastEventAt: Date.now() }))
   })
@@ -227,7 +265,7 @@ function openStream() {
     const heardPerf = performance.now()
     publish((st) => ({ ...st, status: 'live', items: mergeItems(st.items, [ev]), lastSeq: ev.seq,
       lastEventAt: Date.now(), lastHeadlineAt: Date.now() }))
-    reportTiming(ev, heardAt, heardPerf)
+    if (ev.seq > (conn.replayUntil || 0)) reportTiming(ev, heardAt, heardPerf)
   })
   es.addEventListener('repeat', (e) => {
     if (!live()) return
@@ -322,6 +360,7 @@ export function claimAnnouncement(seq) {
 
 export function _resetForTests() {
   _clock = null
+  _clockSyncing = null
   _gen++
   shut()
   _listeners.clear()

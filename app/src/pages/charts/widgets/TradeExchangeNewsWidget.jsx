@@ -24,6 +24,7 @@ import useSWR from 'swr'
 import { useWorkspace } from '../WorkspaceContext'
 import usePreferences from '../../../hooks/usePreferences'
 import usePlacedTheme from '../../../hooks/usePlacedTheme'
+import useRealtimePrices from '../../../hooks/useRealtimePrices'
 import { menuThemeVars } from '../../../utils/dividerColor'
 import { playAlertSound, previewSound } from '../../../utils/alertSound'
 import { declareNeed, DELIVERY } from '../../../lib/panelContract'
@@ -35,10 +36,13 @@ import Select from '../../../components/ui/Select'
 import NewsSettingsPanel from './NewsSettingsPanel'
 import TradeExchangeNewsAlerts from './TradeExchangeNewsAlerts'
 import { TXN_SOUND_OPTIONS, txnSettingsFor, txnWidgetStyleVars } from './tradeExchangeNewsSettings'
-import { categoryTitle, coverageNotice, fmtReceived, fmtReceivedFull, liveStatus, tokenize, visibleItems } from './tradeExchangeNewsModel'
+import { categoryTitle, coverageNotice, fmtReceived, fmtReceivedFull, liveStatus, quoteSymbols, tickerTitle, tickerTone, tokenize, visibleItems } from './tradeExchangeNewsModel'
 import styles from './TradeExchangeNewsWidget.module.css'
 
-const FLASH_MS = 950
+//: New-headline highlight: held for 1.5 s, then a 0.6 s fade (CSS .flash), then removed.
+const FLASH_MS = 2100
+//: Only news this recent flashes: a reconnect's replayed backlog is not "new".
+const FLASH_FRESH_MS = 60_000
 const SOUND_GAP_MS = 1500
 const SEARCH_DEBOUNCE_MS = 140
 
@@ -47,19 +51,29 @@ const fetchList = (url) => fetch(url, { credentials: 'include' }).then((r) => (r
 /** Stable across renders, so useSyncExternalStore never re-subscribes. */
 const NEED = declareNeed({ kind: 'trade-exchange-news', delivery: DELIVERY.EVERY_MESSAGE_MATTERS })
 
-function Headline({ item, linkedSym, onSym, provisional }) {
-  const parts = useMemo(() => tokenize(item.content, item.tickers), [item.content, item.tickers])
+const TONE_CLASS = { up: 'symUp', down: 'symDown', flat: 'symFlat', none: 'symNone' }
+
+function Headline({ item, linkedSym, onSym, colorMode, prices, staleSymbols, provisional }) {
+  const parts = useMemo(() => tokenize(item.content, item.tickers, item.mentions),
+    [item.content, item.tickers, item.mentions])
   return (
     <span className={styles.headline}>
-      {parts.map((p, i) => (p.sym ? (
-        <button
-          key={i}
-          type="button"
-          className={`${styles.sym}${p.sym === linkedSym ? ' ' + styles.symLinked : ''}`}
-          onClick={() => onSym(p.sym)}
-          title={`Open ${p.sym} on this widget's linked charts${provisional ? ' · ticker detected automatically (provisional)' : ''}`}
-        >{p.text}</button>
-      ) : <span key={i}>{p.text}</span>))}
+      {parts.map((p, i) => {
+        if (!p.sym) return <span key={i}>{p.text}</span>
+        const q = prices?.[p.sym]
+        const stale = !!staleSymbols?.has?.(p.sym)
+        const tone = colorMode === 'performance' ? styles[TONE_CLASS[tickerTone(q, stale)]]
+          : colorMode === 'neutral' ? styles.symNeutral : ''
+        return (
+          <button
+            key={i}
+            type="button"
+            className={`${styles.sym}${tone ? ' ' + tone : ''}${p.sym === linkedSym ? ' ' + styles.symLinked : ''}`}
+            onClick={() => onSym(p.sym)}
+            title={`${tickerTitle(p.sym, q, stale, { named: p.named })}${provisional ? ' · ticker detected automatically (provisional)' : ''}`}
+          >{p.text}</button>
+        )
+      })}
     </span>
   )
 }
@@ -118,12 +132,23 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange }) {
   }, [myLists, prebuilt])
 
   const shown = useMemo(
-    () => visibleItems(feed.items, { query, linkedSym: linked ? linkedSym : null, watchSet }),
-    [feed.items, query, linked, linkedSym, watchSet],
+    () => visibleItems(feed.items, { query, linkedSym: linked ? linkedSym : null, watchSet,
+      hidePlaceholders: settings.graphicPlaceholders !== 'show' }),
+    [feed.items, query, linked, linkedSym, watchSet, settings.graphicPlaceholders],
   )
+  const hiddenPlaceholders = useMemo(() => (settings.graphicPlaceholders === 'show' ? 0
+    : feed.items.reduce((n, it) => n + (it.placeholder === 'graphic' ? 1 : 0), 0)),
+  [feed.items, settings.graphicPlaceholders])
+
+  // ── daily-performance ticker colours: the shared, pooled price stream, for a
+  //    BOUNDED set (the newest rows' distinct symbols). The headline never waits. ──
+  const quoteSyms = useMemo(() => (settings.tickerColorMode === 'performance' ? quoteSymbols(shown) : []),
+    [shown, settings.tickerColorMode])
+  const { prices, staleSymbols } = useRealtimePrices(quoteSyms)
 
   // ── new-headline highlight + sound (seeded, never flashes history) ──
   const seenRef = useRef(null)
+  const newestRef = useRef(0)
   const [flashing, setFlashing] = useState(() => new Set())
   const lastSoundRef = useRef(0)
   useEffect(() => {
@@ -131,10 +156,18 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange }) {
     const seen = seenRef.current
     if (seen === null) {                                  // first real list: seed silently
       seenRef.current = new Set(feed.items.map((it) => it.seq))
+      newestRef.current = Math.max(0, ...feed.items.map((it) => it.seq))
       return
     }
-    const fresh = shown.filter((it) => !seen.has(it.seq))
+    // ⭐ New = beyond the newest seq already seen AND received just now. An older
+    // history page (loadOlder), a filter change, a repeat, or a reconnect's replayed
+    // backlog is never "new" -- only a genuinely arriving headline flashes.
+    const newest = newestRef.current
+    const now = Date.now()
+    const fresh = shown.filter((it) => !seen.has(it.seq) && it.seq > newest
+      && now - (it.received_at_ms || 0) < FLASH_FRESH_MS)
     for (const it of feed.items) seen.add(it.seq)
+    newestRef.current = Math.max(newest, ...feed.items.map((it) => it.seq))
     const live = fresh.filter((it) => !it.delayed)
     if (!live.length) return
     if (settings.highlightNew === 'on') {
@@ -233,6 +266,10 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange }) {
                 { key: 'on', label: 'On' }, { key: 'off', label: 'Off' }] },
               { key: 'showCategory', label: 'Category', hint: 'under each time', type: 'segmented', options: [
                 { key: 'on', label: 'On' }, { key: 'off', label: 'Off' }] },
+              { key: 'tickerColorMode', label: 'Ticker color mode', type: 'segmented', options: [
+                { key: 'performance', label: 'Daily' }, { key: 'accent', label: 'Accent' }, { key: 'neutral', label: 'Neutral' }] },
+              { key: 'graphicPlaceholders', label: 'Graphic-only posts', hint: 'e.g. CRYPTO with no picture', type: 'segmented', options: [
+                { key: 'hide', label: 'Hide' }, { key: 'show', label: 'Show' }] },
             ] },
             { label: 'Sound', rows: [
               { key: 'sound', label: 'New headline', hint: 'off by default', type: 'segmented', options: [
@@ -255,11 +292,15 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange }) {
       )}
 
       <div className={styles.bar}>
+        <span className={styles.brand}>
+          <span className={styles.brandTitle}>UCT News</span>
+          <span className={styles.brandSub}>Powered by Trade Exchange</span>
+        </span>
+        <span className={styles.spacer} />
         <span className={`${styles.status} ${toneCls}`} title={status.title} aria-live="polite">
           <span className={styles.dot} aria-hidden="true" />
           <span className={styles.statusText}>{status.label}</span>
         </span>
-        <span className={styles.spacer} />
         <button
           type="button"
           className={`${styles.iconBtn}${follow ? ' ' + styles.iconBtnOn : ''}`}
@@ -351,9 +392,10 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange }) {
           </div>
         )}
         {shown.map((it) => {
-          const selected = !!(linkedSym && (it.tickers || []).includes(linkedSym))
+          // ⛔ No selected-row background: a ticker click links the chart and nothing
+          // else, so it can never be mistaken for a newly arriving headline.
           return (
-            <div key={it.seq} className={`${styles.row}${selected ? ' ' + styles.rowSelected : ''}`} data-seq={it.seq}>
+            <div key={it.seq} className={styles.row} data-seq={it.seq}>
               {flashing.has(it.seq) && <span className={styles.flash} aria-hidden="true" />}
               <span className={styles.when}>
                 <span className={styles.time} title={`Received by UCT ${fmtReceivedFull(it.received_at_ms)} · Trade Exchange does not send a publication time`}>
@@ -363,7 +405,8 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange }) {
                   <span className={styles.category} title={categoryTitle(it)}>{it.category}</span>
                 )}
               </span>
-              <Headline item={it} linkedSym={linkedSym} onSym={onSym} provisional={feed.provisional} />
+              <Headline item={it} linkedSym={linkedSym} onSym={onSym} colorMode={settings.tickerColorMode}
+                prices={prices} staleSymbols={staleSymbols} provisional={feed.provisional} />
               <span className={styles.badges}>
                 {it.repeat_count > 0 && (
                   <span className={styles.badge} title={`Received ${it.repeat_count + 1} times within a minute (a resend or a repeat publication)`}>×{it.repeat_count + 1}</span>
@@ -388,6 +431,12 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange }) {
         <span className={styles.footerNote} title="Times are when UCT received each headline (Trade Exchange sends no publication time). Tickers are detected automatically.">
           · received times ET{feed.provisional ? ' · tickers provisional' : ''}
         </span>
+        {hiddenPlaceholders > 0 && (
+          <span className={styles.footerNote}
+            title="Trade Exchange posted these as a label with a picture (e.g. CRYPTO). The webhook delivers only the label, so they are hidden here; they are stored and counted, not lost. ⚙ → Graphic-only posts → Show.">
+            · {hiddenPlaceholders} graphic-only hidden
+          </span>
+        )}
       </div>
     </div>
   )

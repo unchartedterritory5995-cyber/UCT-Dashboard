@@ -290,3 +290,19 @@ async def test_client_timing_is_admin_only_and_validated(caplog):
     assert r.status_code == 200
     line = [m for m in (x.getMessage() for x in caplog.records) if "[txn] timing client" in m][-1]
     assert "sse_ms=41.0" in line and "render_ms=None" in line and "SYNTHETIC" not in line
+
+
+async def test_clock_is_admin_only_and_loop_lag_is_measured():
+    from api.services.trade_exchange_news.loop_lag import LoopLag
+    pl.start(asyncio.get_running_loop())
+    assert (await _get(None, route.CLOCK_PATH)).status_code == 401
+    assert (await _get(MEMBER, route.CLOCK_PATH)).status_code == 403
+    r = await _get(ADMIN, route.CLOCK_PATH)
+    assert r.status_code == 200 and isinstance(r.json()["server_ms"], int)
+    lag = LoopLag()
+    lag.start()
+    await asyncio.sleep(0.6)
+    lag.stop()
+    snap = lag.snapshot()
+    assert snap["n"] >= 1 and snap["max_ms"] >= 0
+    assert LoopLag().snapshot()["n"] == 0

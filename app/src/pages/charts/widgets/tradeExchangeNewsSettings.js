@@ -22,6 +22,8 @@ export const TXN_WIDGET_DEFAULTS = {
   density: 'comfortable',                           // 'compact' | 'comfortable'
   highlightNew: 'on',                               // 'on' | 'off'
   showCategory: 'on',                               // 'on' | 'off' — label under each time
+  tickerColorMode: 'performance',                   // 'performance' (theme up/down candles) | 'accent' | 'neutral'
+  graphicPlaceholders: 'hide',                      // 'hide' | 'show' — label-only posts whose graphic we never receive
   sound: 'off',                                     // ⛔ muted by default (owner rule)
   soundKey: 'ding',                                 // one of utils/alertSound ALERT_SOUNDS
 }
@@ -43,6 +45,8 @@ const ENUMS = {
   density: ['compact', 'comfortable'],
   highlightNew: ['on', 'off'],
   showCategory: ['on', 'off'],
+  tickerColorMode: ['performance', 'accent', 'neutral'],
+  graphicPlaceholders: ['hide', 'show'],
   sound: ['off', 'on'],
   bgMode: ['solid', 'gradient'],
 }

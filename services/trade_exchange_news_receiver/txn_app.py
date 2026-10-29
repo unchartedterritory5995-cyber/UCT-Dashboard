@@ -154,7 +154,8 @@ def create_app(cfg: rx.Config | None = None, journal: Journal | None = None,
 
     app.state.rejournal_tasks = rejournal_tasks
 
-    async def _deliver(record: dict[str, Any], marks: dict[str, float] | None = None) -> str | None:
+    async def _deliver(record: dict[str, Any], marks: dict[str, float] | None = None,
+                       trace: list | None = None) -> str | None:
         """Start the push and the journal PUT together; return which durable store
         confirmed FIRST ("journal" | "web"), or None if neither did in time.
 
@@ -168,7 +169,7 @@ def create_app(cfg: rx.Config | None = None, journal: Journal | None = None,
         ledger (``deliveries.journaled`` + reconcile.repair_once), which rewrites
         the identical object once R2 accepts writes (Checkpoint D1 audit).
         """
-        push = forwarder.start(record, on_done=_forward_done)
+        push = forwarder.start(record, on_done=_forward_done, trace=trace)
         put = asyncio.get_running_loop().create_task(_put(record))
         if marks is not None:  # ⏱ latency audit: when each store answered
             push.add_done_callback(lambda _t: marks.setdefault("push", time.perf_counter()))
@@ -201,12 +202,13 @@ def create_app(cfg: rx.Config | None = None, journal: Journal | None = None,
                                   (lambda t: t.cancelled() or t.exception()))
         return via
 
-    def _log_timing(eid, edge, t_in, t_built, t_acked, marks, via) -> None:
+    def _log_timing(eid, edge, t_in, t_built, t_acked, marks, via, attempts=()) -> None:
         # ⏱ LATENCY AUDIT: durations only (ms from handler entry), an event id, never content.
         ms = lambda t: None if t is None else round((t - t_in) * 1000, 1)
         logger.info("[txn] timing rx id=%s edge_to_handler_ms=%s parse_ms=%s push_ack_ms=%s "
-                    "journal_ack_ms=%s acked_ms=%s via=%s", eid, edge, ms(t_built),
-                    ms(marks.get("push")), ms(marks.get("journal")), ms(t_acked), via)
+                    "journal_ack_ms=%s acked_ms=%s via=%s push_attempts=%s", eid, edge, ms(t_built),
+                    ms(marks.get("push")), ms(marks.get("journal")), ms(t_acked), via,
+                    ",".join(f"{o}:{t}" for o, t in attempts) or "-")
 
     def _forward_done(ok: bool) -> None:
         counters.inc("forwarded" if ok else "forward_failed")
@@ -253,11 +255,12 @@ def create_app(cfg: rx.Config | None = None, journal: Journal | None = None,
         record = rx.build_record(source, content, extra, meta, cfg)
         t_built = time.perf_counter()
         marks: dict[str, float] = {}
-        via = await _deliver(record, marks)
+        attempts: list = []
+        via = await _deliver(record, marks, attempts)
         t_acked = time.perf_counter()
         edge = rx.edge_lag_ms(request.headers.get("x-request-start"), record["received_at_ms"])
         asyncio.get_running_loop().call_later(TIMING_LOG_DELAY_S, _log_timing, record["id"], edge, t_in, t_built,
-                                              t_acked, marks, via)
+                                              t_acked, marks, via, attempts)
         if via is None:
             # ⛔ NEITHER store confirmed => NOT acknowledged.
             logger.warning("[txn] not durable in time id=%s", record["id"])

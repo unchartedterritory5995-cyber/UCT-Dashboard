@@ -11,13 +11,18 @@ import { formatDateTimeEt, formatTimeEt } from '../../../lib/presentation/presen
 /** `content` split into plain-text and ticker segments, in order.
  *  A ticker matches as `$SYM` or as the bare upper-case word (class shares in either
  *  `BRK-B` or `BRK.B` form). Matching is case-sensitive: "Apple" never links AAPL. */
-export function tokenize(content, tickers) {
+export function tokenize(content, tickers, mentions = []) {
   const text = String(content || '')
   const syms = [...new Set((tickers || []).map((t) => String(t).toUpperCase()))].filter(Boolean)
-  if (!syms.length || !text) return [{ text }]
-  const alts = syms
-    .sort((a, b) => b.length - a.length)
-    .map((s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/-/g, '[-.]'))
+  // Company names exactly as written ("MICROSOFT" -> MSFT): the server resolved them
+  // with the canonical resolver; the text itself is never rewritten.
+  const named = new Map((mentions || []).filter((m) => m && m[0] && m[1]).map(([t, sym]) => [t, String(sym).toUpperCase()]))
+  if ((!syms.length && !named.size) || !text) return [{ text }]
+  const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const alts = [
+    ...[...named.keys()].sort((a, b) => b.length - a.length).map(esc),
+    ...syms.sort((a, b) => b.length - a.length).map((s) => esc(s).replace(/-/g, '[-.]')),
+  ]
   const re = new RegExp(`(\\$?)\\b(${alts.join('|')})\\b(?![a-z])`, 'g')
   const out = []
   let last = 0
@@ -26,11 +31,50 @@ export function tokenize(content, tickers) {
     const start = m.index
     if (start > last) out.push({ text: text.slice(last, start) })
     const raw = m[0]
-    const sym = m[2].toUpperCase().replace('.', '-')
-    out.push({ text: raw, sym: syms.includes(sym) ? sym : m[2].toUpperCase() })
+    const word = m[2]
+    const sym = named.get(word) || word.toUpperCase().replace('.', '-')
+    out.push({ text: raw, sym: named.has(word) || syms.includes(sym) ? sym : word.toUpperCase(), named: named.has(word) })
     last = start + raw.length
   }
   if (last < text.length) out.push({ text: text.slice(last) })
+  return out
+}
+
+/** Daily-performance tone for one symbol: vs the previous regular-session close
+ *  (useRealtimePrices' change_pct). Missing or stale data is neutral, never a guess. */
+export function tickerTone(quote, stale = false) {
+  const pct = quote?.change_pct
+  if (stale || typeof pct !== 'number' || !Number.isFinite(pct)) return 'none'
+  if (pct > 0) return 'up'
+  if (pct < 0) return 'down'
+  return 'flat'
+}
+
+/** Hover text for a symbol: identification always, price details only when reliable. */
+export function tickerTitle(sym, quote, stale = false, { named = false } = {}) {
+  const head = named ? `${sym} (named in the headline)` : sym
+  const px = quote?.price
+  const pct = quote?.change_pct
+  if (stale || typeof px !== 'number' || typeof pct !== 'number') return `${head} · open on linked charts`
+  const at = quote.updated_at || quote.timestamp
+  const when = at ? ` · as of ${formatTimeEt(typeof at === 'number' && at < 1e12 ? at * 1000 : at, { seconds: true })} ET` : ''
+  return `${head} · $${px.toFixed(px >= 100 ? 2 : px >= 1 ? 2 : 4)} · ${pct >= 0 ? '+' : ''}${pct.toFixed(2)}% vs prior close${when} · open on linked charts`
+}
+
+/** The symbols whose quotes the widget asks for: the newest rows first, distinct,
+ *  bounded (one shared price-stream connection's worth). Rows beyond stay neutral. */
+export const QUOTE_SYMBOL_CAP = 50
+export function quoteSymbols(items, cap = QUOTE_SYMBOL_CAP) {
+  const out = []
+  const seen = new Set()
+  for (const it of items || []) {
+    for (const t of it.tickers || []) {
+      if (seen.has(t)) continue
+      seen.add(t)
+      out.push(t)
+      if (out.length >= cap) return out
+    }
+  }
   return out
 }
 
@@ -45,10 +89,13 @@ export function matchesQuery(item, query) {
 /** Items passing every active filter, NEWEST FIRST (seq descending).
  *  `linkedSym`: only headlines naming the widget's colour-group symbol.
  *  `watchSet`: a Set of symbols (a watchlist) — headlines naming any of them. */
-export function visibleItems(items, { query = '', linkedSym = null, watchSet = null } = {}) {
+export function visibleItems(items, { query = '', linkedSym = null, watchSet = null, hidePlaceholders = false } = {}) {
   const out = []
   for (let i = items.length - 1; i >= 0; i--) {
     const it = items[i]
+    // A graphic-only placeholder ("CRYPTO" without its picture) is kept in storage
+    // and counted in the footer -- hidden from the feed, never lost.
+    if (hidePlaceholders && it.placeholder === 'graphic') continue
     const syms = it.tickers || []
     if (linkedSym && !syms.includes(linkedSym)) continue
     if (watchSet && !syms.some((t) => watchSet.has(t))) continue
