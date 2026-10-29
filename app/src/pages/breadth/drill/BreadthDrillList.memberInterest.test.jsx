@@ -1,6 +1,8 @@
-// D-9 (UC-1) in the Breadth drill: which drilled names the member already follows.
-// Gate off: no line and NO request to /api/member/interest. Gate on: the line, in
-// the drill's own order, from the route's because[]; nothing when no name matches.
+// The "Already on your radar" line was REMOVED from the Breadth drill (owner call
+// 2026-10-28: Breadth should not narrate the member's own watchlists/flags). This
+// rail keeps it gone: even with MEMBER_INTEREST_BREADTH_ENABLED on, the drill
+// renders no line and never requests /api/member/interest. Screener and the
+// Morning Wire keep their own notice.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, cleanup } from '@testing-library/react'
 import { SWRConfig } from 'swr'
@@ -45,25 +47,13 @@ function mount(on) {
 }
 const interestCalls = () => global.fetch.mock.calls.filter(([u]) => String(u).startsWith('/api/member/interest'))
 
-describe('BreadthDrillList: member interest (D-9)', () => {
-  it('gate off: no line and no /api/member/interest request', async () => {
-    mount(false)
+describe('BreadthDrillList: member interest line removed', () => {
+  it.each([false, true])('gate %s: no line and no /api/member/interest request', async (on) => {
+    mount(on)
+    await screen.findByTestId('watchlists-probe')
     await new Promise((r) => setTimeout(r, 25))
     expect(interestCalls()).toHaveLength(0)
     expect(screen.queryByTestId('member-interest-breadth')).not.toBeInTheDocument()
-  })
-
-  it('gate on: names the followed drilled tickers in the drill order, with reasons', async () => {
-    mount(true)
-    const line = await screen.findByTestId('member-interest-breadth')
-    expect(line.textContent).toContain('You follow 2 names in this list: COHU (on your watchlists); SRPT (in your open Journal positions).')
-  })
-
-  it('gate on, no drilled ticker followed: nothing renders', async () => {
-    reply = { entities: { NVDA: { because: ['flagged'] } } }
-    mount(true)
-    await vi.waitFor(() => expect(interestCalls().length).toBeGreaterThan(0))
-    await new Promise((r) => setTimeout(r, 25))
-    expect(screen.queryByTestId('member-interest-breadth')).not.toBeInTheDocument()
+    expect(document.body.textContent).not.toContain('Already on your radar')
   })
 })
