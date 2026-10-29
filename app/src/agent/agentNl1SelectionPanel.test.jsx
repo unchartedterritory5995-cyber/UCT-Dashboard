@@ -97,7 +97,7 @@ describe('each NL-1 request: the core first, ≤ 60 actions, every other group n
     const b = oneChart()
     const { say } = mount(b)
     script = () => answer({ reply: 'An EMA weights recent prices more.' })
-    await say('what is an ema?')
+    await say('how is an ema different from an sma?')
     expect(turns).toHaveLength(1)
     expect(turns[0].interpreter).toBeUndefined()
     expect(turns[0].routing?.stable).toBeUndefined()

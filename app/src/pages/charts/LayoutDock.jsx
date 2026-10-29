@@ -291,6 +291,7 @@ export default function LayoutDock({
       ref={dockRef}
       role="toolbar"
       aria-label="Saved layouts"
+      data-guide="workspace.layouts"
     >
       <div className={styles.strip} ref={stripRef}>
         {shown.map(s => renderItem(s))}
@@ -347,6 +348,7 @@ export default function LayoutDock({
           onClick={() => { setOverflowOpen(false); setMenu(null); setLibraryOpen(o => !o) }}
           title="Layout library"
           aria-label="Layout library"
+          data-guide="workspace.layoutLibrary"
           aria-expanded={libraryOpen}
         >
           <UIcon name="plus" size={13} gold={false} />
@@ -355,7 +357,7 @@ export default function LayoutDock({
 
       {/* ── the layout library ──────────────────────────────────────────── */}
       {libraryOpen && (
-        <div className={styles.library} role="menu" aria-label="Layout library">
+        <div className={styles.library} role="menu" aria-label="Layout library" data-guide="workspace.layoutLibraryMenu">
           <div className={styles.libraryHead}>Layout library</div>
           <button
             type="button" role="menuitem" className={styles.libraryNew}

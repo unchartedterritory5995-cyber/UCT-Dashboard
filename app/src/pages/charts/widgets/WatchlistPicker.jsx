@@ -197,7 +197,7 @@ export default function WatchlistPicker({ onPick, settingsOverride = null, onSet
   )
 
   return (
-    <div className={styles.picker} ref={rootRef} style={wlStyle}>
+    <div className={styles.picker} ref={rootRef} style={wlStyle} data-guide="watchlist.picker">
       {settingsOpen && onSettingsPersist && (
         <WatchlistSettingsPanel
           settings={wlSettings}
