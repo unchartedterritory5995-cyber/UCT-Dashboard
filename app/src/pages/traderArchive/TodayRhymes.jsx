@@ -8,6 +8,7 @@
 // ⛔ Display only: nothing here is a signal. No price level is on the wire and none is drawn.
 // ⛔ A 404 (flag off), a 402 (unpaid) and a 503 (scan or store unreadable) are said as such,
 // never rendered as "nothing rhymes".
+import { useEffect, useState } from 'react'
 import useSWR from 'swr'
 
 import jsonFetcher from '../../utils/jsonFetcher'
@@ -63,10 +64,26 @@ function Hit({ hit, onTicker, onSetup }) {
   )
 }
 
+// After this long the wait is said out loud, instead of "Reading…" sitting there indefinitely.
+export const SLOW_MS = 8000
+
+function Waiting() {
+  const [slow, setSlow] = useState(false)
+  useEffect(() => {
+    const t = setTimeout(() => setSlow(true), SLOW_MS)
+    return () => clearTimeout(t)
+  }, [])
+  return (
+    <p className={styles.loading} data-testid="rhymes-waiting">
+      {slow ? 'Matching today’s scan against the archive is taking longer than usual. It can take a minute or two during the trading day.' : 'Reading today’s scan…'}
+    </p>
+  )
+}
+
 export default function TodayRhymes({ onTicker, onSetup }) {
   const { data, error } = useSWR(`${ARCHIVE_API}/rhymes`, jsonFetcher, SWR_OPTS)
   if (error) return <StateLine error={error} />
-  if (!data) return <p className={styles.loading}>Reading today&apos;s scan…</p>
+  if (!data) return <Waiting />
   const hits = data.hits || []
   return (
     <div data-testid="rhymes-view">

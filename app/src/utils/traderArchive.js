@@ -103,9 +103,16 @@ export function fmtDay(value) {
   return `${MONTHS[Number(m[2]) - 1] || m[2]} ${Number(m[3])}, ${m[1]}`
 }
 
-/** A server setup id ('pullback_ma') as a label ('Pullback ma' → 'Pullback MA' is the server's job). */
+// Trading shorthand that stays upper case in a label ('pullback_ma' → 'Pullback MA').
+const SETUP_ACRONYMS = new Set(['ma', 'ema', 'sma', 'vcp', 'rs', 'htf', 'orb', 'vwap', 'avwap', 'ep', 'peg',
+  'hvc', 'hve', 'atr', 'adr', 'ipo', 'odte', '0dte', 'u&r', 'h&s', 'ath', 'fomc', 'cpi'])
+
+/** A server setup id ('pullback_ma') as a label ('Pullback MA'). */
 export function setupName(id) {
   if (!id) return ''
-  const s = String(id).replace(/_/g, ' ').trim()
-  return s.charAt(0).toUpperCase() + s.slice(1)
+  const words = String(id).replace(/_/g, ' ').trim().split(/\s+/)
+  return words.map((w, i) => {
+    if (SETUP_ACRONYMS.has(w.toLowerCase())) return w.toUpperCase()
+    return i === 0 ? w.charAt(0).toUpperCase() + w.slice(1) : w
+  }).join(' ')
 }

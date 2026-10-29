@@ -61,6 +61,17 @@ function DetailRow({ label, value }) {
 
 const fmtTradeR = (v) => (v === null || v === undefined ? null : `${Number(v) > 0 ? '+' : ''}${Number(v).toFixed(2)}R`)
 
+// The server withholds a call's prices and outcome until it is PRICE_AGE_SESSIONS old.
+const isPending = (call) => call.prices_status === 'pending_age'
+
+function ResultValue({ call, r20 }) {
+  if (isPending(call)) return <span className={`${styles.resultValue} ${styles.resultPending}`}>Too early</span>
+  if (r20 === null || r20 === undefined) return <span className={`${styles.resultValue} ${styles.resultPending}`}>Not scored</span>
+  return <Outcome value={r20} className={styles.resultValue} />
+}
+
+const DIR_CLASS = { long: styles.dir, short: `${styles.dir} ${styles.dirShort}` }
+
 export function CallCard({ call }) {
   const r20 = call.outcome?.r20 ?? call.r20
   const words = call.evidence || call.record_note
@@ -73,11 +84,14 @@ export function CallCard({ call }) {
       <header className={styles.cardHead}>
         <div className={styles.cardTitle}>
           <span className={styles.ticker}>{call.ticker}</span>
-          {dir && <span className={dir === 'short' ? `${styles.dir} ${styles.dirShort}` : styles.dir}>{dir}</span>}
+          {dir && <span className={DIR_CLASS[dir] || `${styles.dir} ${styles.dirNeutral}`}>{dir}</span>}
         </div>
         <div className={styles.result}>
-          <Outcome value={r20} className={styles.resultValue} />
+          <ResultValue call={call} r20={r20} />
           <span className={styles.resultLabel}>20-day result</span>
+          {/* A playbook's best calls and failures are ranked by the TRADE's result, which can
+              disagree with the stock's 20-day move: show it, or the ranking reads as wrong. */}
+          {fmtTradeR(call.sim_R) && <span className={styles.resultTrade}>trade {fmtTradeR(call.sim_R)}</span>}
         </div>
       </header>
       {call.setup && <span className={styles.setupChip}>{setupName(call.setup)}</span>}
@@ -93,7 +107,6 @@ export function CallCard({ call }) {
               <DetailRow label="Stop" value={call.stop} />
               <DetailRow label="5-day result" value={r5 != null ? fmtR(r5) : null} />
               <DetailRow label="60-day result" value={r60 != null ? fmtR(r60) : null} />
-              <DetailRow label="Trade result" value={fmtTradeR(call.sim_R)} />
               <DetailRow label="Market" value={call.regime} />
             </dl>
           </details>

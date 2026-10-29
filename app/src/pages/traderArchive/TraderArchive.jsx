@@ -30,12 +30,18 @@ import PlaybookCharts from './PlaybookCharts'
 import TodayRhymes from './TodayRhymes'
 import styles from './TraderArchive.module.css'
 
+// Playbooks leads and is the landing view: it answers at once. Today waits on the server's
+// /rhymes computation, which measured >130 s in production on 2026-10-29 (its cache key moves
+// with every new detection during the session), so it is a tab you choose, not the front door.
 const VIEWS = [
-  { key: 'today', label: 'Today', icon: 'flame' },
   { key: 'playbooks', label: 'Playbooks', icon: 'book' },
+  { key: 'today', label: 'Today', icon: 'flame' },
   { key: 'traders', label: 'Traders', icon: 'community' },
 ]
 const VIEW_KEYS = new Set([...VIEWS.map((v) => v.key), 'search'])
+
+// GET /ticker/{sym}'s default `limit` (api/routers/wisdom_archive.py member_ticker).
+const TICKER_POST_LIMIT = 500
 
 // A term that could be a symbol is looked up as one AND searched as words: RS, GAP and PEG are
 // real tickers and real setup words, so neither reading is allowed to hide the other.
@@ -48,7 +54,7 @@ function useArchiveParams() {
   const setup = (params.get('setup') || '').toLowerCase().trim()
   const trader = (params.get('trader') || '').trim()
   const asked = params.get('view')
-  const view = VIEW_KEYS.has(asked) ? asked : term ? 'search' : setup ? 'playbooks' : 'today'
+  const view = VIEW_KEYS.has(asked) ? asked : term ? 'search' : 'playbooks'
   const go = (patch) => {
     const next = new URLSearchParams(params)
     for (const [k, v] of Object.entries(patch)) {
@@ -90,8 +96,9 @@ function SearchView({ term, onTicker }) {
           <div className={styles.profileHead}>
             <span className={styles.bigTicker}>{tick.ticker}</span>
             <div className={styles.tiles} data-testid="ta-ticker-summary">
-              <StatTile label="calls">{calls.length}</StatTile>
-              <StatTile label="posts">{posts.length}</StatTile>
+              <StatTile label="calls">{tick.n_calls ?? calls.length}</StatTile>
+              {/* The ticker route returns at most TICKER_POST_LIMIT posts: a full page is "at least". */}
+              <StatTile label="posts">{posts.length >= TICKER_POST_LIMIT ? `${TICKER_POST_LIMIT}+` : posts.length}</StatTile>
               <StatTile label="avg 20-day result"><Outcome value={tick.mean_r20} /></StatTile>
             </div>
           </div>
@@ -307,7 +314,7 @@ function PlaybooksView({ setup, onPick }) {
 export default function TraderArchive() {
   const { view, term, setup, trader, go } = useArchiveParams()
   const { data: stats, error } = useSWR(`${ARCHIVE_API}/stats`, jsonFetcher, SWR_OPTS)
-  const search = (q) => go({ view: q ? 'search' : 'today', q, sym: '' })
+  const search = (q) => go({ view: q ? 'search' : 'playbooks', q, sym: '' })
   const openTicker = (t) => go({ view: 'search', q: t, sym: '' })
 
   return (

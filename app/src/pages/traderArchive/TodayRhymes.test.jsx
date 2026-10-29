@@ -2,11 +2,11 @@
 // (unpaid) and a 503 (scan unreadable) are said as such, never as "nothing rhymes"; no price
 // level is ever drawn. Synthetic data only: the repo is public.
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { act, render, screen, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { SWRConfig } from 'swr'
 
-import TodayRhymes from './TodayRhymes'
+import TodayRhymes, { SLOW_MS } from './TodayRhymes'
 import TraderArchive from './TraderArchive'
 
 const API = '/api/wisdom/archive'
@@ -78,14 +78,27 @@ describe('TodayRhymes', () => {
     expect(await screen.findByText(/None of today's scanner hits match/)).toBeInTheDocument()
   })
 
-  it('is the Archive’s first view, and its tab returns to it', async () => {
+  it('says out loud when the scan is slow, instead of "Reading…" forever', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      globalThis.fetch = vi.fn(() => new Promise(() => {}))                 // never answers
+      mount(<TodayRhymes />)
+      expect(screen.getByTestId('rhymes-waiting')).toHaveTextContent('Reading today')
+      await act(async () => { await vi.advanceTimersByTimeAsync(SLOW_MS + 10) })
+      expect(screen.getByTestId('rhymes-waiting')).toHaveTextContent('taking longer than usual')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('is a tab of the Archive, which opens on Playbooks', async () => {
     serve({
       [`${API}/stats`]: ok({ records: 1, calls: 1, records_by_author: {}, calls_by_setup: {}, traders: {} }),
       [`${API}/rhymes`]: ok({ market_state: 'downtrend', n_hits: 1, hits: [HIT] }),
     })
     mount(<TraderArchive />)
-    expect(await screen.findByTestId('rhyme-hit')).toHaveTextContent('ZZTA')          // opens on Today
-    fireEvent.click(screen.getByRole('tab', { name: /Playbooks/ }))
+    expect(await screen.findByRole('tab', { name: /Playbooks/ })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.queryByTestId('rhyme-hit')).toBeNull()                            // Today is not fetched first
     fireEvent.click(screen.getByRole('tab', { name: /Today/ }))
     expect(await screen.findByTestId('rhyme-hit')).toHaveTextContent('ZZTA')
   })
