@@ -48,11 +48,24 @@ export function findTarget(target, { chartRef = null } = {}) {
   return visible(document.querySelectorAll(sel))
 }
 
-/** The rectangle to highlight, in viewport coordinates (with a little room around the control). */
+// the nearest ancestor that clips what overflows it (a toolbar row with overflow: hidden) — the highlight never reaches past
+// what the member can see of the control
+function clipOf(el) {
+  for (let p = el?.parentElement; p && p !== document.body; p = p.parentElement) {
+    let o = ''
+    try { const cs = getComputedStyle(p); o = `${cs.overflowX} ${cs.overflow}` } catch { o = '' }
+    if (/hidden|clip/.test(o)) return p.getBoundingClientRect()
+  }
+  return null
+}
+/** The rectangle to highlight, in viewport coordinates (with a little room around the control), clipped to what shows. */
 export function rectOf(el, pad = 4) {
   if (!el?.getBoundingClientRect) return null
   const r = el.getBoundingClientRect()
-  return { top: r.top - pad, left: r.left - pad, width: r.width + pad * 2, height: r.height + pad * 2 }
+  const c = typeof document === 'undefined' ? null : clipOf(el)
+  const left = c && c.width > 0 ? Math.max(r.left, c.left) : r.left
+  const right = c && c.width > 0 ? Math.min(r.right ?? r.left + r.width, c.right) : (r.right ?? r.left + r.width)
+  return { top: r.top - pad, left: left - pad, width: Math.max(0, right - left) + pad * 2, height: r.height + pad * 2 }
 }
 
 /** Bring a target that is below the fold into view (never sideways, never a smooth jump that hides it). */

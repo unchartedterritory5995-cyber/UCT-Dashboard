@@ -123,7 +123,9 @@ function rowsOnChart(host, chartRef) {
  * Words → the indicators they mean. → { list } (one or more, in order) | { ask: { text, choices } } | { say } | null
  * (the words are not an indicator reference this module reads).
  */
-export function resolveReferent(words, { host, memory, epoch = null, live = null, pinned = null, dry = false, working = null } = {}) {
+// `taken`: the indicators an EARLIER part of the same instruction already named ("make the fast one green and the other
+// one yellow" — "the other one" is the one that is left)
+export function resolveReferent(words, { host, memory, epoch = null, live = null, pinned = null, dry = false, working = null, taken = null } = {}) {
   const w = String(words || '').trim()
   if (!w) return null
   // `dry`: is this a reference at all? (a multi-step request is read in full before anything runs — compound.js)
@@ -190,7 +192,7 @@ export function resolveReferent(words, { host, memory, epoch = null, live = null
   if (m) {
     if (set.length < 2) return set.length ? null : (gone().say ? gone() : null)
     if (m[1] === 'other') {
-      const picked = memory?.lastPick?.() || []
+      const picked = (Array.isArray(taken) && taken.length ? taken : null) || memory?.lastPick?.() || []
       const rest = set.filter(i => !picked.includes(i.instanceId))
       return rest.length === 1 && picked.length ? { list: rest } : { ask: askOne(set, `Which one — ${set.map(i => i.name).join(' or ')}?`) }
     }
@@ -452,7 +454,7 @@ function indicatorClauses(t, ctx) {
     const clause = v ? c : verb ? `${verb} ${c.replace(/^(?:the )?/, 'the ')}` : null
     if (!clause) return null
     if (v) verb = v[1]
-    const r = indicatorClause(clause, ctx)
+    const r = indicatorClause(clause, ids.length ? { ...ctx, taken: [...ids] } : ctx)
     if (!r || r.say || r.ask) return r && (r.say || r.ask) ? r : null
     ops.push(...r.ops); ids.push(...r.ids)
   }
