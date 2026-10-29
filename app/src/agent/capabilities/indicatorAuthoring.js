@@ -349,6 +349,24 @@ export function screenModelOps(host, ops, text, capCtx = {}) {
     notes.push('I won’t show a preview unless you ask for one.')
     if (!out.length) return { ops: [], notes }
   }
+  // ⭐ LIVE PRODUCTION TEST 2026-10-28: "create a custom indicator that …" asks for a NEW indicator built, saved and on the
+  // chart (R1, markExplicitSaves). The model's extras never block that: its own Save of the new draft (a name the member
+  // didn't say, an add it may lose to F3) is replaced by the R1 Save below, and on a board of several charts its guess
+  // of WHICH chart is not the member's word — they are asked, and their pick builds, saves and adds it (createWithSave).
+  const creating = canAuthor && createsIndicatorWords(words) && out.some(o => o?.action === 'indicator.draft' && o.target === NEW)
+  if (creating) {
+    const charts = boardCharts(host)
+    out = out.flatMap(o => {
+      if (o?.action === 'indicator.saveDraft' && o.target === NEW) {
+        const nm = o.args?.name
+        return nm != null && String(words).toLowerCase().includes(String(nm).trim().toLowerCase()) ? [o] : []
+      }
+      if (o?.action === 'indicator.draft' && o.target === NEW && o.args?.chart != null && charts.length > 1 && !chartNamed(host, asChartRef(o.args.chart), words)) {
+        return [{ ...o, args: { ...o.args, chart: null } }]
+      }
+      return [o]
+    })
+  }
   // S6 nit — a NEW draft with no chart on a board of several: ask with the charts as choices (the
   // member's pick fills `chart`; nothing is sent to the builder until then)
   // ⛔ only for a member who CAN author: without access the op is left alone and refused, never asked about
@@ -361,7 +379,7 @@ export function screenModelOps(host, ops, text, capCtx = {}) {
     const charts = boardCharts(host)
     if (charts.length > 1) {
       return { ops: [], notes, ask: { text: 'Which chart is this indicator for?',
-        choices: charts.map(c => ({ ref: c.ref, label: c.label })), pick: { ops: out, action: 'indicator.draft', arg: 'chart' } } }
+        choices: charts.map(c => ({ ref: c.ref, label: c.label })), pick: { ops: out, action: 'indicator.draft', arg: 'chart', ...(creating ? { then: createWithSave } : {}) } } }
     }
   }
   // F5 — "add it to both / all charts": the charts must be unambiguous before anything is proposed
@@ -378,6 +396,22 @@ export function screenModelOps(host, ops, text, capCtx = {}) {
     return { ...o, args: { ...o.args, addTo: [] } }
   })
   return { ops: markExplicitSaves(host, out, words, notes), notes }
+}
+
+/** The member PICKED the chart for the indicator they asked to create: the R1 Save of the new draft on that chart rides
+ *  with the build (explicit — the pick is the member's own answer; every R1 condition is still checked after the build). */
+export function createWithSave(ops, chartRef) {
+  const turn = (ops || []).find(o => o?.action === 'indicator.draft' && o.target === NEW)
+  if (!turn || !chartRef || ops.some(o => o?.action === 'indicator.saveDraft')) return ops
+  return [...ops, { action: 'indicator.saveDraft', target: NEW, args: { addTo: [chartRef], name: null }, explicit: true }]
+}
+/** ⭐ LIVE PRODUCTION TEST 2026-10-28: the plan is EXACTLY the explicit creation of a NEW indicator — its build and the
+ *  R1 Save the member's own words asked for (explicit, set only by markExplicitSaves / createWithSave). That is their
+ *  instruction, not an idea to approve: it is applied whatever the model suggested (policy.js). */
+export function explicitIndicatorCreate(ops) {
+  return Array.isArray(ops) && ops.length === 2
+    && ops[0]?.action === 'indicator.draft' && ops[0].target === NEW && ops[0].args?.edit == null
+    && ops[1]?.action === 'indicator.saveDraft' && ops[1].target === NEW && ops[1].explicit === true && ops[1].args?.name == null
 }
 
 /** OWNER 2026-10-12 + Indicators' conditions: a Save is EXPLICIT (no second click) only when the
@@ -502,8 +536,15 @@ const sortedRefs = (xs) => [...new Set((xs || []).map(asChartRef))].sort()
 /** The approval-critical facts of ONE planned Save (the indicatorDrafts plan's after-state). */
 export function sealSave(snap, after, now = Date.now()) {
   const op = (after?.ops || []).find(o => o.type === 'save')
+  const turn = (after?.ops || []).find(o => o.type === 'turn')
+  // ⭐ LIVE PRODUCTION TEST 2026-10-28: the R1 Save of a NEW draft (there is no draft or revision yet) seals what the member
+  // approved — this build request, on this chart, added to these charts. Without it the card could never be approved
+  // ("I can’t check that approval any more"). The build's result is still checked after the build (R1, commit).
+  if (op && op.r1 && snap?.new && turn) {
+    return Object.freeze({ action: 'indicator.saveDraft', ref: snap.ref, new: true, turn: turn.message, chart: turn.chartRef || null,
+      name: null, addTo: sortedRefs(op.addTo), issuedAt: now, expiresAt: now + PROPOSAL_TTL_MS })
+  }
   if (!op || !snap?.draftRef || !snap.status) return null
-  const turn = after.ops.find(o => o.type === 'turn')
   const s = snap.status
   return Object.freeze({
     action: 'indicator.saveDraft', ref: snap.ref,
@@ -520,6 +561,12 @@ const STALE_SAVE = 'so nothing was saved or added to a chart — ask me to save 
 export function validateSaveSeal(seal, snap, req, now = Date.now()) {
   if (!seal || seal.action !== 'indicator.saveDraft') return `I can’t check that approval any more, ${STALE_SAVE}`
   if (!(now <= seal.expiresAt)) return `That proposal expired (a proposal is good for 10 minutes), ${STALE_SAVE}`
+  if (seal.new) {
+    if (!snap?.new || snap.ref !== seal.ref) return `That proposal was for a different draft, ${STALE_SAVE}`
+    if ((req.name ?? null) !== null || (req.turn ?? null) !== seal.turn || (req.chart ?? null) !== seal.chart) return `That isn’t the indicator you approved, ${STALE_SAVE}`
+    if (!sameList(sortedRefs(req.addTo), seal.addTo)) return `The charts it would be added to changed since you approved it, ${STALE_SAVE}`
+    return null
+  }
   const s = snap?.status
   if (!snap?.draftRef || !s || snap.ref !== seal.ref || snap.draftRef.key !== seal.draft.key || snap.draftRef.lineage !== seal.draft.lineage) return `That proposal was for a different draft, ${STALE_SAVE}`
   if (s.revision !== seal.revision) return `The draft changed since you approved it (revision ${seal.revision} → ${s.revision}), ${STALE_SAVE}`
@@ -922,7 +969,7 @@ export function registerIndicatorAuthoringCapabilities() {
       if (env?.approved) {
         const turn = st.ops.find(o => o.type === 'turn')
         const nm = typeof name === 'string' && name.trim() ? name.trim() : null
-        return validateSaveSeal(sealFor(env, st.ref), st, { name: nm, turn: turn ? turn.message : null, addTo })
+        return validateSaveSeal(sealFor(env, st.ref), st, { name: nm, turn: turn ? turn.message : null, chart: turn ? turn.chartRef || null : null, addTo })
       }
       return null
     },

@@ -378,3 +378,45 @@ describe('⛔ F6 in the real panel', () => {
     await waitFor(() => expect(stored).toHaveLength(1), { timeout: 4000 })
   })
 })
+
+// LIVE PRODUCTION BUG 2026-10-28: a card holding the R1 Save of a NEW draft ("create an indicator that …") had no seal,
+// so its Apply always answered "I can’t check that approval any more". It is sealed now (the build request, its chart,
+// the charts to add it to, the expiry) and its Apply is checked against that seal before anything runs.
+describe('⛔ F6 — the R1 Save of a NEW draft', () => {
+  const create = (message = 'Build me an EMA 20 indicator', addTo = ['L']) => [say(NEW, message), { action: 'indicator.saveDraft', target: NEW, args: { addTo, name: null }, explicit: true }]
+  it('its card is sealed; Apply builds it once, saves it as a new indicator and adds it to exactly the approved chart', async () => {
+    const T = 1_800_000_000_000
+    at(T)
+    const h = host([L, R])
+    const prop = await propose(h, create())
+    expect(prop.seals).toHaveLength(1)
+    expect(prop.seals[0]).toMatchObject({ action: 'indicator.saveDraft', new: true, turn: 'Build me an EMA 20 indicator', chart: 'L', addTo: ['L'], expiresAt: T + PROPOSAL_TTL_MS })
+    expect(calls).toHaveLength(0)
+    expect(stored).toHaveLength(0)
+    at(T + 60_000)
+    const res = await approve(h, prop)
+    expect(res.ok, JSON.stringify(res.failed)).toBe(true)
+    expect(calls).toHaveLength(1)
+    expect(stored).toHaveLength(1)
+    expect(res.followUps.map(f => f.target)).toEqual(['ixe:L'])
+  })
+  for (const [k, change, why] of [
+    ['no seal', () => ({ seals: [] }), /^I can’t check that approval any more/],
+    ['expired', () => (at(1_800_000_000_000 + PROPOSAL_TTL_MS + 1000), {}), /^That proposal expired/],
+    ['another build request', () => ({ ops: create('mark pivot highs') }), /^That isn’t the indicator you approved/],
+    ['another chart to add it to', () => ({ ops: create('Build me an EMA 20 indicator', ['R']) }), /^The charts it would be added to changed/],
+    ['a sealed EXISTING-draft Save offered for it', (p) => ({ seals: [{ ...p.seals[0], new: false }] }), /./],
+  ]) {
+    it(`stale (${k}) → refused before anything runs: no model call, no Save, no chart add`, async () => {
+      at(1_800_000_000_000)
+      const h = host([L, R])
+      const prop = await propose(h, create())
+      const before = snapshot(h)
+      const res = await approve(h, prop, change(prop))
+      expect(res.ok).toBe(false)
+      expect(res.failed[0].reason).toMatch(why)
+      expect(res.failed[0].reason).toMatch(/nothing was saved or added to a chart/)
+      expect(snapshot(h)).toEqual(before)
+    })
+  }
+})
