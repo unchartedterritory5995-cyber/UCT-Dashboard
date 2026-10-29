@@ -87,3 +87,14 @@ def test_the_prompt_says_creating_a_custom_indicator_is_applied():
     # the server boundary leaves the creation's build + Save as the browser decides (indicator.saveDraft is explicitOk)
     assert turn.enforce_approval(_env("apply", "indicator.draft"), CAPS)["disposition"] == "apply"
     assert turn.enforce_approval(_env("apply", "indicator.draft", "indicator.saveDraft"), CAPS)["disposition"] == "apply"
+
+
+def test_phase2_the_model_is_told_what_recent_indicators_and_my_other_charts_mean():
+    """PHASE 2 (2026-10-29): the browser sends conversation_memory.recent_indicators (the latest adding change's
+    indicators, in order, with their target ref and instance id). The prompt says how "the first one", "the fast one",
+    "those" and "my other charts" read against them — the model resolves the same references the instant path does."""
+    from api.services.uct_agent import turn
+    p = turn._system_prompt_core([])
+    assert "`recent_indicators` are the indicators UCT's latest adding change put on charts, in that order" in p
+    assert '"the fast one" is the shortest length' in p
+    assert '"My other charts", "the others", "the rest" mean every chart in <workspace_context> except the one(s) this conversation is about' in p

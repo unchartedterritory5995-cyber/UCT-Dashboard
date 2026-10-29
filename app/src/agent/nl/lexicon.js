@@ -113,6 +113,10 @@ export const MAX_VARIANTS = 16
  * one distinct safe action results (the parser disambiguates, nothing here guesses). Case, spacing
  * and punctuation of the rest are kept. Too many combinations → null.
  */
+// ⭐ PHASE 2: the short words traders mistype most. Words under four letters are otherwise never corrected (too
+// many real words sit one edit away); these few have exactly one meaning in an instruction to UCT. The corrected
+// sentence is still used only when it parses into a safe, reversible action (fastPath / conversation).
+export const SHORT_FIXES = Object.freeze({ teh: 'the', hte: 'the', th: 'the', ad: 'add', mak: 'make', mke: 'make', amke: 'make', adn: 'and', nad: 'and', ot: 'to', fo: 'of', ont: 'on', jsut: 'just', wiht: 'with', iwth: 'with', chrt: 'chart' })
 export function correctTypos(text, lex) {
   const raw = String(text || '')
   if (!raw || raw.length > 160) return null
@@ -122,6 +126,10 @@ export function correctTypos(text, lex) {
   for (const m of raw.matchAll(/\$?[A-Za-z]+/g)) {
     const tok = m[0]
     const lw = tok.toLowerCase()
+    if (!tok.startsWith('$') && SHORT_FIXES[lw] && !(/^[A-Z]+$/.test(tok) && /[a-z]/.test(raw))) {
+      slots.push({ index: m.index, tok, options: [SHORT_FIXES[lw]] })
+      continue
+    }
     if (tok.startsWith('$') || lw.length < 4 || lex.words.has(lw)) continue
     if (/^[A-Z]+$/.test(tok) && /[a-z]/.test(raw)) continue                  // TYPED IN CAPITALS: a ticker
     if (lex.symbols.has(lw) || isPronounToken(tok, raw)) continue
