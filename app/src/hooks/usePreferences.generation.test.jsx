@@ -10,7 +10,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { act, renderHook } from '@testing-library/react'
 import { SWRConfig, mutate as globalMutate, useSWRConfig } from 'swr'
-import usePreferences, { __resetRevisionStateForTests, PREFS_URL } from './usePreferences'
+import usePreferences, { __resetRevisionStateForTests, PREFS_URL, refreshPreferences, mergeIntoPreferenceCache, beginPrefsOp } from './usePreferences'
 import { publishPrefsUser, __resetPrefsSessionForTests } from '../lib/prefsSession'
 
 const GROUPS = 'charts_workspace_groups'
@@ -205,5 +205,117 @@ describe('F3 — the session ceiling holds even when every series is reset by a 
     }
     void result
     expect(seriesGets - initial, 'series re-reads in the session').toBe(24)
+  })
+})
+
+// ─── The remaining doors, replayed (review of 89e9069420): refresh, the fetcher, postPref's answer,
+// the cache merge. Each ran a step for the previous member after the switch. ────────────────────
+describe('N1-N4 — no step that answers after the switch reaches the next member', () => {
+  it('N1: A\'s refreshPreferences answering after A->B returns null, and B\'s cache never holds A\'s fields', async () => {
+    servers.a = { [GROUPS]: JSON.stringify({ A: 'A1', B: 'A2' }), SECRET: 'A_ONLY' }
+    publishPrefsUser('a')
+    const { result } = renderHook(() => usePreferences(), { wrapper: gwrapper })
+    await flush()
+    holdGet = () => true                                         // hold the next read (A's refresh)
+    let refreshed
+    let rp
+    await act(async () => { rp = refreshPreferences().then((v) => { refreshed = v }) })
+    holdGet = null
+    who = 'b'
+    await switchTo('b')
+    await flush()
+    await act(async () => { heldGets.splice(0).forEach((r) => r()) })
+    await act(async () => { await rp })
+    await flush()
+    expect(refreshed, 'a refresh for A handed its data to a caller after B signed in').toBeNull()
+    expect(result.current.prefs.SECRET).toBeUndefined()
+    await act(async () => { await result.current.setPrefMerged(GROUPS, (g) => ({ ...g, A: 'B_PICK' })) })
+    await flush()
+    expect(JSON.stringify(posts)).not.toMatch(/A_ONLY/)
+    expect(posts.map((x) => [x.account, JSON.parse(x.value)])).toEqual([['b', { A: 'B_PICK', B: 'B2' }]])
+  })
+
+  it('N2: A\'s first read stamped v=7 answering after A->B sets nothing for B (B writes with its own base)', async () => {
+    getStamp = (acct) => (acct === 'a' ? 'v=7' : 'v=3')
+    publishPrefsUser('a')
+    holdGet = (n) => n <= 2                                   // A's first read AND B's first read stall
+    const { result } = renderHook(() => usePreferences(), { wrapper: gwrapper })
+    await flush()
+    who = 'b'
+    await switchTo('b')
+    await flush()
+    expect(heldGets).toHaveLength(2)
+    const [releaseA, releaseB] = heldGets.splice(0)
+    who = 'a'                                                   // A's read is answered with A's account…
+    await act(async () => { releaseA() })                       // …and lands FIRST, after the switch
+    await flush()
+    who = 'b'
+    await act(async () => { releaseB() })
+    await flush()
+    let ok
+    await act(async () => { ok = await result.current.setPref('theme', 'light') })
+    expect(posts.at(-1)).toMatchObject({ account: 'b', base_version: 3 })
+    expect(ok).toBe(true)
+  })
+
+  it('N3: A\'s 409 answering after A->B does not refuse the key for B', async () => {
+    publishPrefsUser('a')
+    const { result } = renderHook(() => usePreferences(), { wrapper: gwrapper })
+    await flush()
+    // the 409 is IN HAND before the switch; its body is still being read when B signs in
+    let releaseBody
+    postAnswer = () => {
+      postAnswer = null
+      return { ok: false, status: 409, headers: { get: () => null }, json: () => new Promise((r) => { releaseBody = () => r({ detail: { code: 'workspace_conflict' } }) }) }
+    }
+    let p1
+    await act(async () => { p1 = result.current.setPref(GROUPS, 'a-value') })
+    await flush()
+    expect(typeof releaseBody).toBe('function')
+    who = 'b'
+    await switchTo('b')
+    await act(async () => { releaseBody(); await p1 })
+    await flush()
+    let ok
+    await act(async () => { ok = await result.current.setPref(GROUPS, 'b-value') })
+    expect(posts.at(-1)).toMatchObject({ account: 'b', value: 'b-value' })
+    expect(ok).toBe(true)
+  })
+
+  it("N3b: A's {version} body read after A->B does not become B's base", async () => {
+    getStamp = (acct) => (acct === 'a' ? 'v=7' : 'v=3')
+    publishPrefsUser('a')
+    const { result } = renderHook(() => usePreferences(), { wrapper: gwrapper })
+    await flush()
+    let releaseBody
+    postAnswer = () => {
+      postAnswer = null
+      return { ok: true, status: 200, headers: { get: () => null }, json: () => new Promise((r) => { releaseBody = () => r({ ok: true, version: 99 }) }) }
+    }
+    let p1
+    await act(async () => { p1 = result.current.setPref(GROUPS, 'a-value') })
+    await flush()
+    who = 'b'
+    await switchTo('b')
+    await act(async () => { releaseBody(); await p1 })
+    await flush()
+    await act(async () => { await result.current.setPref(GROUPS, 'b-value') })
+    expect(posts.at(-1)).toMatchObject({ account: 'b', value: 'b-value', base_version: 3 })
+  })
+
+  it('N4: a cache merge whose operation began for A (before its door\'s await) does not land in B\'s cache', async () => {
+    publishPrefsUser('a')
+    const { result } = renderHook(() => usePreferences(), { wrapper: gwrapper })
+    await flush()
+    const op = beginPrefsOp()                                   // a caller starts, then awaits a door
+    who = 'b'
+    await switchTo('b')
+    await flush()
+    await act(async () => { await mergeIntoPreferenceCache('notebook_tours', JSON.stringify({ t: 'A_TOUR' }), op) })
+    await flush()
+    expect(result.current.prefs.notebook_tours).toBeUndefined()
+    // CONTROL: an operation begun for B lands
+    await act(async () => { await mergeIntoPreferenceCache('notebook_tours', JSON.stringify({ t: 'B_TOUR' }), beginPrefsOp()) })
+    expect(JSON.parse(result.current.prefs.notebook_tours)).toEqual({ t: 'B_TOUR' })
   })
 })
