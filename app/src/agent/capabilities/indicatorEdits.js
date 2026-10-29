@@ -359,9 +359,10 @@ export const indicatorEditsKind = {
     if (!patch.undo && ['add', 'setInputs', 'setVisible'].includes(r.op) && r.instanceIds?.length === 1) {
       touched = [...touched, { chartRef, instanceId: r.instanceIds[0], defId: r.defId, name: r.name }].slice(-24)
     }
-    // ⭐ PHASE 2: every indicator a confirmed change acted on (a colour, a pane, an add …) — "copy those indicators" right
-    // after "add the 9 and 20, make the 9 green, move RSI into its own pane" means all three (never a removal or a copy)
-    if (!patch.undo && !['remove', 'copyFrom', 'duplicate'].includes(r.op) && Array.isArray(r.instanceIds)) {
+    // ⭐ PHASE 2: every indicator a confirmed change acted on (a colour, a pane, an add, the copies a copy made …) —
+    // "copy those indicators" right after "add the 9 and 20, make the 9 green, move RSI into its own pane" means all
+    // three; "make them all green" right after "put those on my other charts" includes the copies (never a removal)
+    if (!patch.undo && !['remove', 'duplicate'].includes(r.op) && Array.isArray(r.instanceIds)) {
       mentioned = [...mentioned, ...r.instanceIds.map(id => ({ chartRef, instanceId: id }))].slice(-48)
     }
     if (!patch.undo && r.op === 'duplicate' && patch.change?.plan?.preview?.from) r.from = patch.change.plan.preview.from
