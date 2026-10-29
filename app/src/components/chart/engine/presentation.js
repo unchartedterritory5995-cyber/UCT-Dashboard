@@ -396,12 +396,17 @@ export function presentedPlot(plot, instance, ctx) {
   const styleChanged = !!defStyle && defStyle !== plot.style
   const look = lineLookPatch(instance, effective)
   const bar = effective === 'histogram' ? histogramBarOf(instance) : null
+  // ⭐ AUDIT P0-5 (2026-10-13): `lastValueHorizontal` was offered and drew the whole
+  // line, because nothing ever asked `drawsHistory`. It asks here, and the pool reads
+  // the answer (`pool.seriesOptionsForPlot`, `levelOnly`): the series keeps every
+  // value — crosshair and legend still read them — and only the ink becomes one level.
+  const levelOnly = !drawsHistory(style)
   // ⚠️ BOTH QUESTIONS BEFORE THE EARLY RETURN. This read `if (defStyle === plot.style)
   // return plot`, which is correct for style alone and wrong the moment a SECOND
   // property is resolved here: a member turning sign colours on for an output that
   // was ALREADY a histogram would have been handed back the untouched plot and seen
   // nothing happen.
-  if (!styleChanged && !sign && !look && !bar) return plot
+  if (!styleChanged && !sign && !look && !bar && !levelOnly) return plot
   const next = { ...plot }
   // ⭐ A SIDE-BY-SIDE PARTICIPANT TAGS ITS OWN LATEST VALUE ON THE AXIS (owner,
   // 2026-09-30). In a COT pane the guests would otherwise defer to the host and the
@@ -409,6 +414,7 @@ export function presentedPlot(plot, instance, ctx) {
   // contracts there. A plot-level answer outranks placement's (`pool.seriesOptionsForPlot`).
   if (bar) { next.bar = bar; next.lastValueVisible = true }
   if (styleChanged) next.style = defStyle
+  if (levelOnly) next.levelOnly = true
   if (look) Object.assign(next, look)
   // Dots carry their size in `width`, because that is the field the `markers`
   // branch of `seriesOptionsForPlot` already reads as the point radius.

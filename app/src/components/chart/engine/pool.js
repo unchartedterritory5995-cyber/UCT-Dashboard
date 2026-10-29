@@ -705,6 +705,13 @@ export function seriesOptionsForPlot(plot, ctx) {
     : (plot.lineType === 'curved' ? 'Curved' : 'Simple'), c.LineType)
   base.pointMarkersVisible = markers
   base.pointMarkersRadius = (markers && Number.isFinite(plot.width)) ? plot.width : DEFAULT_DOT_RADIUS
+  // ⭐ "Last value horizontal" (`presentation.presentedPlot` → `plot.levelOnly`): no
+  // history ink, one level at the latest value. EMITTED ON EVERY LINE-FAMILY BIND, true
+  // by default, because LWC's merge skips undefined — a series re-purposed from a level
+  // back to a line would otherwise keep its line hidden.
+  const levelOnly = plot.levelOnly === true
+  base.lineVisible = !levelOnly
+  if (levelOnly) { base.priceLineVisible = true; base.lastValueVisible = true }
 
   if (pk === 'area') {
     const color = effectiveColor(plot, null)
