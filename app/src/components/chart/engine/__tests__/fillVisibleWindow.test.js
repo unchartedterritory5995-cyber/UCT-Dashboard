@@ -24,7 +24,7 @@
 // unchanged algorithm the primitive ran before this change (and still runs when it
 // cannot prove a window). A rail comparing the window to itself would prove nothing.
 import { describe, it, expect } from 'vitest'
-import { createFillPrimitive, fillGroups, visibleWindow, EDGE_BARS, EDGE_PAD_PX } from '../fillPrimitive'
+import { createFillPrimitive, fillGroups, visibleWindow, timesAscending, sameTime, EDGE_BARS, EDGE_PAD_PX } from '../fillPrimitive'
 import { createRecordingCtx } from './fakeChart'
 import { W, band, visibleSegments } from './fillTestKit'
 
@@ -364,5 +364,53 @@ describe('rail 3 — the window draws exactly what the full walk draws, on scree
     })
     const rec = fullWalkRecording(data, env)
     expect(rec.fillStyles().length).toBe(groups.reduce((s, g) => s + g.polys.length, 0))
+  })
+})
+
+describe('which time columns may take the window — and which must not', () => {
+  const BD = (y, m, d) => ({ year: y, month: m, day: d })
+  /** Coordinate calls one paint costs with `times[k]` replaced by `bad`. */
+  const callsWith = (bad, k = 0) => {
+    const n = 3000
+    const data = band(n, { iso: true })
+    const times = [...data.times]
+    times[k] = bad
+    const env = lwcLike({ times: data.times, spacing: 10, offset: n - 80 })
+    const prim = attach({ ...data, times }, env)
+    env.reset()
+    draw(prim, env)
+    return env.calls()
+  }
+
+  it('⛔ CONTROL — a clean ISO column takes the window', () => {
+    expect(callsWith(band(3000, { iso: true }).times[0])).toBeLessThan(400)
+  })
+
+  it.each([
+    ['unpadded month/day', '2024-1-5'],
+    ['a datetime', '2024-01-05T09:30'],
+    ['a trailing space', '2006-01-02 '],
+    ['a leading space', ' 2006-01-02'],
+  ])('⛔⛔ %s (%j) is NOT an ISO day: the column falls back to the full walk', (_name, bad) => {
+    // A lexical order is only a date order for exactly `YYYY-MM-DD`; anything
+    // looser could put the binary search on an unsorted axis.
+    expect(timesAscending([bad, '2025-01-01']), 'must not pass the ascending check').toBe(false)
+    expect(callsWith(bad), 'a malformed string must send the draw down the full walk').toBeGreaterThan(3 * 2900)
+  })
+
+  it('⛔⛔ a BusinessDay and a timestamp are different KINDS — a mixed column falls back', () => {
+    expect(timesAscending([BD(2024, 1, 5), 1.7e9]), 'BD then number passed the one-kind check').toBe(false)
+    expect(timesAscending([20240105, BD(2024, 1, 6)])).toBe(false)
+    expect(timesAscending([BD(2024, 1, 5), BD(2024, 1, 6)]), 'CONTROL: BusinessDays alone').toBe(true)
+    expect(timesAscending([1, 2, 2, 3]), 'CONTROL: numbers alone').toBe(true)
+    expect(timesAscending(['2024-01-05', '2024-01-04']), 'a backwards ISO column').toBe(false)
+  })
+
+  it('⛔⛔ sameTime compares the kind: 20240105 is not { 2024, 1, 5 }', () => {
+    expect(sameTime(20240105, BD(2024, 1, 5))).toBe(false)
+    expect(sameTime(BD(2024, 1, 5), 20240105)).toBe(false)
+    expect(sameTime(BD(2024, 1, 5), BD(2024, 1, 5)), 'CONTROL: equal BusinessDays by value').toBe(true)
+    expect(sameTime('2024-01-05', `${'2024-01-0'}5`), 'CONTROL: equal strings').toBe(true)
+    expect(sameTime('2024-1-5', '2024-1-5'), 'identical values are the same bar whatever they are').toBe(true)
   })
 })
