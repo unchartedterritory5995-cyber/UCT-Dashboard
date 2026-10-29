@@ -21,6 +21,7 @@ export const TXN_WIDGET_DEFAULTS = {
   downColor: NEWS_WIDGET_DEFAULTS.downColor,        // offline / coverage-gap accent
   density: 'comfortable',                           // 'compact' | 'comfortable'
   highlightNew: 'on',                               // 'on' | 'off'
+  showCategory: 'on',                               // 'on' | 'off' — label under each time
   sound: 'off',                                     // ⛔ muted by default (owner rule)
   soundKey: 'ding',                                 // one of utils/alertSound ALERT_SOUNDS
 }
@@ -41,6 +42,7 @@ export function txnDefaultsForTheme(theme) {
 const ENUMS = {
   density: ['compact', 'comfortable'],
   highlightNew: ['on', 'off'],
+  showCategory: ['on', 'off'],
   sound: ['off', 'on'],
   bgMode: ['solid', 'gradient'],
 }

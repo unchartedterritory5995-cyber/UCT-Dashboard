@@ -386,8 +386,9 @@ def test_main_mounts_the_router_and_starts_it_only_behind_the_flag():
 
 
 def test_ticker_extraction_delegates_to_the_one_resolver():
-    src = inspect.getsource(pl._tickers_for)
-    assert "resolve_tickers(content, HEADLINE)" in src
+    from api.services.trade_exchange_news import categories
+    assert "categories import tickers_for" in inspect.getsource(pl._tickers_for)
+    assert "tr.resolve_tickers(" in inspect.getsource(categories.tickers_for)
     assert pl._tickers_for("SYNTHETIC: $ABCD jumps") == ["ABCD"]
 
 

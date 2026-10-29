@@ -87,6 +87,24 @@ describe('TradeExchangeNewsWidget', () => {
     expect(screen.getByRole('button', { name: '$NVDA' }).title).toMatch(/provisional/)
   })
 
+  it('shows the server-derived category under each time, with the provider label in the tooltip', () => {
+    render(<TradeExchangeNewsWidget color="A" opts={{}} onOptsChange={vi.fn()} />)
+    act(() => feed.set({ status: 'live', lastSeq: 2, lastHeadlineAt: NOW, items: [
+      H(1, 'SYNTHETIC: ABC - Example Corp Reports Results', ['ABC'], { source: 'TX-PressRelease', category: 'Earnings' }),
+      H(2, 'SYNTHETIC: an older row without a category', [])] }))
+    const label = screen.getByText('Earnings')
+    expect(label.title).toBe('Category (assigned by UCT) · Trade Exchange label: TX-PressRelease')
+    expect(label.closest('[data-seq]').dataset.seq).toBe('1')
+    expect(document.querySelectorAll('[title^="Category (assigned by UCT)"]')).toHaveLength(1)  // no blank label
+  })
+
+  it('the category label can be switched off per widget', () => {
+    render(<TradeExchangeNewsWidget color="A" opts={{ settings: { showCategory: 'off' } }} onOptsChange={vi.fn()} />)
+    act(() => feed.set({ status: 'live', lastSeq: 1, lastHeadlineAt: NOW,
+      items: [H(1, 'SYNTHETIC: macro', [], { category: 'Macro' })] }))
+    expect(screen.queryByText('Macro')).toBeNull()
+  })
+
   it('search narrows the feed (debounced)', async () => {
     const { container } = mount()
     fireEvent.change(screen.getByLabelText('Search headlines'), { target: { value: 'guidance' } })

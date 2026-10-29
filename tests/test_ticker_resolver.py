@@ -312,7 +312,12 @@ def resolver_defs(tree) -> list:
 def _stop_sets() -> dict:
     # A context with no stop vocabulary (CASHTAG_POST: cashtags only) has nothing a
     # module could restate, so it is not a census subject.
-    sets = {c.name: c.stop for c in R.CONTEXTS if c.stop}
+    # A context that SHARES another's vocabulary (the wire contexts reuse HEADLINE's)
+    # adds no vocabulary of its own: the census counts each distinct set once.
+    sets: dict = {}
+    for c in R.CONTEXTS:
+        if c.stop and c.stop not in sets.values():
+            sets[c.name] = c.stop
     sets["lower_only"] = frozenset(R._LOWER_ONLY_STOP)
     return sets
 
