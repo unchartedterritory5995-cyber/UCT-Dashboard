@@ -617,6 +617,15 @@ export function buildDefinition({ defId, name, source, ast, mode, rev = 1, versi
                 colorMode: r.fill.colorMode,
                 colorUp: r.fill.colorUp,
                 colorDown: r.fill.colorDown,
+                // ⭐⭐ …and which `input.color` each colour IS, when the script's is
+                // one (`memberPaneDefinition`): the member's pick then colours the
+                // band (`binder.bandColoursFor`). Only an input this document declares.
+                ...(typeof r.fill.colorUpInput === 'string'
+                  && declared.some((s) => s.key === r.fill.colorUpInput && s.type === 'color')
+                  ? { colorUpInput: r.fill.colorUpInput } : {}),
+                ...(typeof r.fill.colorDownInput === 'string'
+                  && declared.some((s) => s.key === r.fill.colorDownInput && s.type === 'color')
+                  ? { colorDownInput: r.fill.colorDownInput } : {}),
               }
               : {}),
             ...(r.fill.colorMode && !r.fill.colorUp && Array.isArray(r.fill.colorPalette)
@@ -626,6 +635,9 @@ export function buildDefinition({ defId, name, source, ast, mode, rev = 1, versi
               : {}),
           },
           ...(typeof r.fillColor === 'string' ? { fillColor: r.fillColor } : {}),
+          ...(typeof r.fillColorInput === 'string'
+            && declared.some((s) => s.key === r.fillColorInput && s.type === 'color')
+            ? { fillColorInput: r.fillColorInput } : {}),
           ...(Number.isFinite(r.fillOpacity) ? { fillOpacity: r.fillOpacity } : {}),
         }
         : {}),

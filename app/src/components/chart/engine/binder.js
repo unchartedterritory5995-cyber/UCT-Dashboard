@@ -62,8 +62,10 @@ import {
   OHLC_POOL_KEYS,
 } from './pool'
 import { paneMode, paneStretchPlan, paneHeightMismatch } from './paneLayout'
-import { createFillPrimitive } from './fillPrimitive'
+import { createFillPrimitive, createFillLayerGroup } from './fillPrimitive'
+import { MAIN_PRICE_SCALE_ID } from './placement'
 import { fillOpacityOf, fillPaint, staticFillOf } from './fillPaint'
+import { opaqueOf } from '../designTokens'
 import { createBackgroundPrimitive, isNaColour, staticPaintColour } from './paintPrimitive'
 import { markersFor, createMarkerLayer } from './markerPrimitive'
 import { semanticsOf, SEMANTICS_UNKNOWN_PROPAGATES } from './definitionSemantics'
@@ -135,8 +137,16 @@ const _projMemo = new WeakMap()
  *  ⛔ DEFAULTED THERE, NOT IN THE SCHEMA. `defSchema` validates SHAPE; inventing a
  *  colour there would write it into every stored document as though the author
  *  had chosen it, which is the same "stamped default" defect `legendMode` names. */
-function effectiveFillColour(plot) {
-  return staticFillOf(plot)
+function effectiveFillColour(plot, inputs = null) {
+  const base = staticFillOf(plot)
+  // ⭐⭐ A STATIC BAND WHOSE COLOUR IS THE SCRIPT'S `input.color` paints the
+  // member's pick — its hue under a declared band opacity (`color.new` sets the
+  // transparency), the pick as it is otherwise. Same rule as `bandColoursFor`.
+  const ref = plot && typeof plot.fillColorInput === 'string' ? plot.fillColorInput : null
+  const v = ref && inputs ? inputs[ref] : undefined
+  if (typeof v !== 'string' || !v) return base
+  if (fillOpacityOf(plot) === null) return { color: v, opacity: null }
+  return { ...base, color: opaqueOf(v) || v }
 }
 
 /** Monotonic id stamped on each resolved source column, so a consumer's memo key
@@ -460,10 +470,21 @@ function fillColours(fillSpec, instanceId, columns, n, unknownNone = false) {
  * ⛔ The spec's own `opacity` is STRIPPED before the colour rule reads it, so
  * there is exactly one alpha, applied exactly once.
  */
-export function bandColoursFor(plot, instanceId, columns, n, unknownNone = false) {
+export function bandColoursFor(plot, instanceId, columns, n, unknownNone = false, inputs = null) {
   const spec = plot && plot.fill
   if (!spec || typeof spec.colorMode !== 'string') return null
   const { opacity: _ignored, ...rule } = spec
+  // ⭐⭐ A BAND COLOUR THAT IS THE SCRIPT'S `input.color` (`colorUpInput` /
+  // `colorDownInput`) IS THE MEMBER'S PICK. With a band opacity the script wrote
+  // `color.new(c, t)`, which SETS the transparency — so the pick gives the HUE and
+  // its own alpha is dropped (TradingView set E5: a 70%-opaque bull colour still
+  // paints band 0 at alpha 13). Without one, the pick is used as it is.
+  const opacityDeclared = fillOpacityOf(plot) !== null
+  for (const [field, ref] of [['colorUp', spec.colorUpInput], ['colorDown', spec.colorDownInput]]) {
+    const v = typeof ref === 'string' && inputs ? inputs[ref] : undefined
+    if (typeof v !== 'string' || !v) continue
+    rule[field] = opacityDeclared ? (opaqueOf(v) || v) : v
+  }
   const colours = fillColours(rule, instanceId, columns, n, unknownNone)
   if (!colours) return null
   const opacity = fillOpacityOf(plot)
@@ -751,6 +772,19 @@ export function __resetPaneHeightAlerts() {
 export function createBinder({ chart, LWC }) {
   /** Last pass's bindings, each carrying `series`, `guideHandles`, `paneIndex`. */
   let held = []
+  /** ⭐⭐ Bands hosted on the CHART'S OWN PRICE SERIES, for an instance that has no
+   *  visible binding of its own to host them: `instanceId → {host, fills: Map}`. */
+  let priceHosted = new Map()
+  /** ⭐⭐ One paint layer per host series (`fillPrimitive.createFillLayerGroup`):
+   *  every band riding one series paints into it, so they do not compound and the
+   *  chart's own background stays under them. */
+  const fillGroups = new WeakMap()
+  const fillGroupFor = (series) => {
+    if (!series || typeof series !== 'object') return createFillLayerGroup()
+    let g = fillGroups.get(series)
+    if (!g) { g = createFillLayerGroup(); fillGroups.set(series, g) }
+    return g
+  }
   // ⭐ P1 info value — WHY an instance's columns are missing, as of the last
   // sync (`nativeRegistry.columnErrors` of what step 1 computed). Read-only for
   // the header's info values, so a refused output says the chart's own reason
@@ -1303,6 +1337,10 @@ export function createBinder({ chart, LWC }) {
   }
 
   function releaseAll() {
+    for (const was of priceHosted.values()) {
+      for (const h of was.fills.values()) attempt(() => was.host.detachPrimitive(h.primitive))
+    }
+    priceHosted = new Map()
     for (const b of held) { attempt(() => chart.removeSeries(b.series)); removeRunSeries(chart, b) }
     // ⛔ THE DRAWINGS GO WITH THE SERIES. A layer that merely stopped updating
     // would leave its last picture frozen over the chart, which reads as "the
@@ -1827,35 +1865,14 @@ export function createBinder({ chart, LWC }) {
       for (const f of staleFrames) attempt(() => ctx.onFrameStale(f, ctx.sym))
     }
 
-    const hasData = (key, candidate) => {
+    const hasData = (key) => {
       const col = columns.get(key)
       // ⭐ "IS THERE ANYTHING TO DRAW" HAS TWO SHAPES NOW. `hasAnyFinite` walks a
       // numeric column and would read an OHLC payload as EMPTY — which would drop
       // the binding before the renderer ever saw it, silently, with the bars
       // sitting right there in the cache.
       if (isOhlcPayload(col)) return col.bars.some(barHasOhlc)
-      if (col !== undefined && registry.hasAnyFinite(col)) return true
-      return hostsBands(candidate)
-    }
-    // ⭐⭐ A PLOT THAT DRAWS NOTHING CAN STILL HAVE TO HOST THE BANDS. Hosted fills
-    // ride the instance's first VISIBLE binding (the hosted-fill pass below), so a
-    // visible plot with no finite value — Uncharted Clouds with both MAs switched
-    // off (`showMA1 ? fastMA : na`) — bound nothing, and all twenty bands vanished
-    // with the lines. TradingView keeps drawing them (set E6: plot_0 / plot_2
-    // blank, every band painted). The instance's FIRST visible plot is still bound
-    // when its hidden siblings declare a band whose two edges hold data; its own
-    // series carries no value, so it draws no line.
-    function hostsBands(candidate) {
-      const def = candidate && candidate.def
-      const plots = (def && Array.isArray(def.plots)) ? def.plots : []
-      const firstVisible = plots.find((p) => p && p.hidden !== true)
-      if (!firstVisible || !candidate.plot || firstVisible.key !== candidate.plot.key) return false
-      const has = (k) => {
-        const c = columns.get(bindingKey(candidate.instanceId, k))
-        return c !== undefined && !isOhlcPayload(c) && registry.hasAnyFinite(c)
-      }
-      return plots.some((p) => p && p.hidden === true && p.fill && typeof p.fill.with === 'string'
-        && has(p.key) && has(p.fill.with))
+      return col !== undefined && registry.hasAnyFinite(col)
     }
 
     // ── 1b. ⭐⭐ C3B — the object programs, evaluated and drawn ──
@@ -2268,9 +2285,9 @@ export function createBinder({ chart, LWC }) {
         const other = displacedColumn(columns.get(bindingKey(b.instanceId, fillWith)), plotShift(fillWith))
         const own = displacedColumn(columns.get(b.key), ownShift)
         if (own && other) {
-          const colour = effectiveFillColour(b.plot)
+          const colour = effectiveFillColour(b.plot, (b.inst && b.inst.inputs) || null)
           if (!fill) {
-            fill = createFillPrimitive({})
+            fill = createFillPrimitive({ group: fillGroupFor(series) })
             attempt(() => series.attachPrimitive(fill.primitive))
           }
           fill.setOptions({
@@ -2278,7 +2295,7 @@ export function createBinder({ chart, LWC }) {
             color: colour.color, opacity: colour.opacity,
             // ⛔ a per-point band colour travels with its edges; the door refuses a
             // band whose two edges are displaced differently (memberPaneDefinition).
-            colors: displacedColumn(bandColoursFor(b.plot, b.instanceId, columns, bars.length, unknownColourRule(b.def)), ownShift),
+            colors: displacedColumn(bandColoursFor(b.plot, b.instanceId, columns, bars.length, unknownColourRule(b.def), (b.inst && b.inst.inputs) || null), ownShift),
           })
         }
       }
@@ -2329,16 +2346,16 @@ export function createBinder({ chart, LWC }) {
           if (!upper || !lower) continue
           let h = (hostedFills && hostedFills.get(hp.key)) || null
           if (!h) {
-            h = createFillPrimitive({})
+            h = createFillPrimitive({ group: fillGroupFor(series) })
             attempt(() => series.attachPrimitive(h.primitive))
           }
-          const hc = effectiveFillColour(hp)
+          const hc = effectiveFillColour(hp, (b.inst && b.inst.inputs) || null)
           h.setOptions({
             upper, lower, times: bars.map((bar) => adjustTime(bar.t)),
             color: hc.color, opacity: hc.opacity,
             // ⭐ (j) j.3 — the HOSTED band is Clouds' case: the fill is declared on
             // a `display.none` anchor, so this is the site that colours a cloud.
-            colors: displacedColumn(bandColoursFor(hp, b.instanceId, columns, bars.length, unknownColourRule(b.def)), drawShiftOf(hp)),
+            colors: displacedColumn(bandColoursFor(hp, b.instanceId, columns, bars.length, unknownColourRule(b.def), (b.inst && b.inst.inputs) || null), drawShiftOf(hp)),
           })
           kept.set(hp.key, h)
         }
@@ -2554,6 +2571,61 @@ export function createBinder({ chart, LWC }) {
     // `fill.with`. A definition's `plots[]` entry carries no source line (the
     // binder is handed a DEFINITION, never source text), so a `line` field could
     // only be null or invented.
+    // ⭐⭐ BANDS WITH NO VISIBLE PLOT TO RIDE ON — hosted on the PRICE SERIES.
+    //
+    // ⚰️ A band's polygon is placed through its HOST series' `priceToCoordinate`, and
+    // lightweight-charts answers null for a series holding no value (5.2.0: no first
+    // value, no coordinate). So a band riding an EMPTY series draws nothing, and an
+    // instance whose every visible plot is `na` (Uncharted Clouds with both MAs
+    // switched off, TradingView set E6 — every band still painted there) had no host
+    // at all. Its bands now ride the chart's own price series, which holds values
+    // and answers the SAME price→pixel map, when — and only when — the instance is
+    // placed on the price pane on the price series' own scale. Anywhere else the
+    // note below still says why nothing was drawn.
+    const priceSeriesNow = typeof ctx.priceSeries === 'function' ? (attempt(() => ctx.priceSeries()).value || null) : null
+    const priceScaleOf = (series) => {
+      const r = attempt(() => series.options().priceScaleId)
+      return r.value === undefined || r.value === null ? MAIN_PRICE_SCALE_ID : r.value
+    }
+    const keptPriceHosted = new Map()
+    for (const inst of (ctx.instances || [])) {
+      const id = inst && inst.instanceId
+      if (!id || fillHostSeen.has(id) || !priceSeriesNow) continue
+      const def = inst.def || (ctx.registry && ctx.registry.getDefinition ? ctx.registry.getDefinition(inst.defId) : null)
+      const hidden = ((def && def.plots) || []).filter((p) => p && p.hidden === true && p.fill && typeof p.fill.with === 'string' && p.fill.with !== p.key)
+      if (!hidden.length) continue
+      const placement = attempt(() => resolvePlacement(inst, def, ctx)).value
+      if (!placement || placement.paneIndex !== 0) continue
+      const scaleId = (typeof placement.scaleId === 'string' && placement.scaleId) ? placement.scaleId : MAIN_PRICE_SCALE_ID
+      if (scaleId !== priceScaleOf(priceSeriesNow)) continue
+      const was = priceHosted.get(id)
+      const prev = was && was.host === priceSeriesNow ? was.fills : new Map()
+      if (was && was.host !== priceSeriesNow) for (const h of was.fills.values()) attempt(() => was.host.detachPrimitive(h.primitive))
+      const kept = new Map()
+      const shiftOf = (key) => drawShiftOf(((def && def.plots) || []).find((p) => p && p.key === key))
+      for (const hp of hidden) {
+        const upper = displacedColumn(columns.get(bindingKey(id, hp.key)), drawShiftOf(hp))
+        const lower = displacedColumn(columns.get(bindingKey(id, hp.fill.with)), shiftOf(hp.fill.with))
+        if (!upper || !lower || !registry.hasAnyFinite(upper) || !registry.hasAnyFinite(lower)) continue
+        let h = prev.get(hp.key) || null
+        if (!h) { h = createFillPrimitive({ group: fillGroupFor(priceSeriesNow) }); attempt(() => priceSeriesNow.attachPrimitive(h.primitive)) }
+        const hc = effectiveFillColour(hp, inst.inputs || null)
+        h.setOptions({
+          upper, lower, times: bars.map((bar) => adjustTime(bar.t)),
+          color: hc.color, opacity: hc.opacity,
+          colors: displacedColumn(bandColoursFor(hp, id, columns, bars.length, unknownColourRule(def), inst.inputs || null), drawShiftOf(hp)),
+        })
+        kept.set(hp.key, h)
+      }
+      for (const [k, h] of prev) if (!kept.has(k)) attempt(() => priceSeriesNow.detachPrimitive(h.primitive))
+      if (kept.size) { keptPriceHosted.set(id, { host: priceSeriesNow, fills: kept }); fillHostSeen.add(id) }
+    }
+    for (const [id, was] of priceHosted) {
+      if (keptPriceHosted.has(id)) continue
+      for (const h of was.fills.values()) attempt(() => was.host.detachPrimitive(h.primitive))
+    }
+    priceHosted = keptPriceHosted
+
     const notes = []
     for (const inst of (ctx.instances || [])) {
       const id = inst && inst.instanceId

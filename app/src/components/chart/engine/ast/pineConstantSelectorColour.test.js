@@ -133,7 +133,8 @@ describe('ruling 1 — a selector that reads a KNOB is never folded', () => {
     const src = `${theme('Aurora')}useAdapt = input.bool(true, "Adaptive")\nlen = input.int(7, "Len")\n`
       + 'plot(close, "a", useAdapt ? thA : color.new(thA, 60))\nplot(ta.sma(close, len), "b")\n'
     const t = translate(src, { paramManifest: true })
-    expect(t.outputs[0].presentation.colorPalette).toEqual(['#00e5ff', 'rgba(0, 229, 255, 0.4)'])
+    // the entry's own alpha as an EXACT byte (`paletteEntryWithAlpha`: 0.4 x 255 = 102 = 0x66)
+    expect(t.outputs[0].presentation.colorPalette).toEqual(['#00e5ff', '#00E5FF66'])
     expect(t.inputParams.map((p) => [p.id, p.sourceName])).toEqual([['__uct_param_1003', 'len']])
   })
 })

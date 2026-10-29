@@ -40,8 +40,13 @@ const valuesOf = (definition) => {
   return Object.fromEntries(Object.keys(state).map((id) => [id, state[id].value]))
 }
 const build = (script) => {
+  // ⭐ WITHOUT the enum knobs (`enumInputs: false`): an `input.string(…, options)`
+  // the door now carries LIVE (`pine.js::enumCompare`) is a capability this document
+  // never had — like a minted id, an append — and its trees read `kind == 1` where
+  // the saved ones hold the default's branch. A document saved before keeps its
+  // trees and draws what it drew; this rail asks that everything ELSE still lands.
   const built = memberPaneDefinition({
-    source: fs.readFileSync(path.join(REPO, script), 'utf8'), id: 'u_member-pane-c46',
+    source: fs.readFileSync(path.join(REPO, script), 'utf8'), id: 'u_member-pane-c46', enumInputs: false,
   })
   if (built.ok) {
     MINTED.set(built.definition, new Set((built.rows || []).filter((r) => r && typeof r.conditionFor === 'string').map((r) => r.key)))
@@ -60,9 +65,28 @@ const paintOnlyKeys = (definition) => {
     if (typeof p.colorMode === 'string' && p.colorMode.startsWith('column:')) used.add(p.colorMode.slice(7))
     if (p.fill && typeof p.fill.colorMode === 'string') used.add(p.fill.colorMode.slice(7))
   }
-  return new Set((definition.paints || [])
+  const out = new Set((definition.paints || [])
     .map((p) => (typeof p.colorMode === 'string' ? p.colorMode.slice(7) : null))
     .filter((k) => k && !used.has(k)))
+  // ⭐ …AND A COLUMN ONLY AN ALPHA-ONLY CONDITIONAL FILL READS — one colour, two
+  // transparencies (`cond ? color.new(c, 85) : color.new(c, 95)`). The door used to
+  // DECLINE that band (one alpha field, two alphas); it carries it now, each branch
+  // baked as `#RRGGBBAA` (`pine.js::colourConditional`), so its condition column is
+  // an append exactly as a paint's is. Only such a column, and only when nothing
+  // else reads it.
+  const otherReads = new Set()
+  for (const p of definition.plots || []) {
+    if (typeof p.colorMode === 'string' && p.colorMode.startsWith('column:')) otherReads.add(p.colorMode.slice(7))
+  }
+  for (const p of definition.plots || []) {
+    const f = p && p.fill
+    if (!f || typeof f.colorMode !== 'string' || typeof f.colorUp !== 'string' || typeof f.colorDown !== 'string') continue
+    const alphaOnly = /^#[0-9a-f]{8}$/i.test(f.colorUp) && /^#[0-9a-f]{8}$/i.test(f.colorDown)
+      && f.colorUp.slice(0, 7).toLowerCase() === f.colorDown.slice(0, 7).toLowerCase()
+    const k = f.colorMode.slice(7)
+    if (alphaOnly && !otherReads.has(k)) out.add(k)
+  }
+  return out
 }
 const computeBeforePaints = (definition) => {
   const keys = paintOnlyKeys(definition)

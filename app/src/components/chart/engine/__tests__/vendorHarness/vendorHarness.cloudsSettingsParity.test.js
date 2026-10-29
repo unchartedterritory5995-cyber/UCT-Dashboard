@@ -9,20 +9,28 @@
 // doors (`cloudsDraw.js` says which) — never a hand-built document — then grades,
 // per capture, what the chart draws:
 //
-//   • values  — 2 MAs + 21 layers, every window bar, ≤ 1e-9 relative;
-//   • bands   — every band's PAINTED colour on every bar, hue and alpha BYTE;
+//   • values  — 2 MAs + 21 layers, every graded bar, ≤ 1e-9 relative;
+//   • bands   — every band's PAINTED colour on every graded bar, hue and alpha BYTE;
 //   • lines   — each MA's colour, alpha byte and line width (and, for a hidden
 //               MA, that it draws nothing).
 //
-// ⛔⛔ A SETTING THE PRODUCT CANNOT EXPRESS IS NOT SKIPPED — IT IS PINNED. Each
-// capture's row in `PINNED` names the Pine inputs no door reaches (`gaps`) and the
-// verdict of each family. A family a gap breaks must read `differ`, so the gap is
-// shown to be CONSEQUENTIAL (the chart really is wrong), and the day a door is
-// built the pin goes red and has to be updated to `equal` — the rail cannot be
-// quietly satisfied by closing nothing, or by closing something without saying.
+// ⭐⭐ EVERY SETTING TRADINGVIEW OFFERS REACHES THE CHART, and every capture is a
+// full PASS. Round 1 pinned three gaps (MA type, MA source, cloud colours: no
+// door) and one defect (a member's MA colour multiplied by the default's opacity);
+// each is closed and the rail below would read red if any reopened:
+//   • `input.string(…, options)` is a live dropdown knob (`pine.js::enumCompare`);
+//   • a band's `input.color` is the member's pick (`fill.colorUpInput`);
+//   • a row's colour carries its own alpha, so a pick replaces both (`rowColour`).
+// `gaps` must be EMPTY for every capture: a door that stops reaching a setting is
+// named here, never quietly graded around.
 //
 // ⭐ The alpha byte is TradingView's: `round(opacity × 255)` half-up, which E5's
 // own bull colour proves (0.7 × 255 = 178.5 → 179, `0xB376E600`).
+//
+// ⭐ E8 (NVDA 4H) has no committed NVDA 4H history before its window, so it replays
+// COLD. Both of its averages are SMAs, and an SMA reads exactly its own window:
+// from bar `max(len) − 1` on, a cold SMA is the same number as a warm one, so E8 is
+// graded from that bar — derived from the capture's own inputs, never typed.
 import { describe, it, expect, afterAll } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -40,34 +48,17 @@ const CAPTURES = fs.readdirSync(DIR).filter((f) => f.endsWith('.meta.json')).sor
   const order = pineInputOrder()
   const settings = {}
   const platform = {}
+  const live = {}
   for (const li of meta.capture.liveInputs) {
+    const m = /^in_(\d+)$/.exec(li.id)
+    if (m) live[order[Number(m[1])]] = li.value
     if (JSON.stringify(li.value) === JSON.stringify(li.defval)) continue
     if (PLATFORM_INPUTS.has(li.id)) { platform[li.id] = li.value; continue }
-    const m = /^in_(\d+)$/.exec(li.id)
     if (!m) throw new Error(`${name}: unrecognised input id ${li.id}`)
     settings[order[Number(m[1])]] = li.value
   }
-  return { id: meta.capture.id, name, settings, platform }
+  return { id: meta.capture.id, name, settings, platform, live }
 })
-
-/** Per capture: the Pine inputs no product door reaches, and each family's verdict. */
-const PINNED = {
-  E0: { gaps: [], values: 'equal', bands: 'equal', lines: 'equal' },
-  E1: { gaps: ['ma1Type', 'ma2Type'], values: 'differ', bands: 'differ', lines: 'equal' },
-  E2: { gaps: ['ma1Type', 'ma1Source', 'ma2Source'], values: 'differ', bands: 'differ', lines: 'equal' },
-  E3: { gaps: [], values: 'equal', bands: 'equal', lines: 'equal' },
-  E4: { gaps: [], values: 'equal', bands: 'equal', lines: 'equal' },
-  // ⛔ E5 lines are a DEFECT, not a gap: the Style colour door takes the member's
-  // colour, but the plot still carries the SCRIPT DEFAULT's transparency as
-  // `plots[].opacity` (0 for `color.new(white, 100)`, 0.05 for `(white, 95)`) and
-  // the renderer multiplies the two — so a member's opaque yellow draws alpha 0 and
-  // their 60% blue draws 3%. Pinned exactly in the test below.
-  E5: { gaps: ['bullColor', 'bearColor'], values: 'equal', bands: 'differ', lines: 'differ' },
-  E6: { gaps: [], values: 'equal', bands: 'equal', lines: 'equal' },
-  E7a: { gaps: [], values: 'equal', bands: 'equal', lines: 'equal' },
-  E7b: { gaps: [], values: 'equal', bands: 'equal', lines: 'equal' },
-  E8: { gaps: ['ma1Type', 'ma2Type'], values: 'differ', bands: 'differ', lines: 'equal' },
-}
 
 const RUNS = new Map()
 const runOf = (c) => {
@@ -76,15 +67,24 @@ const runOf = (c) => {
 }
 afterAll(() => uninstallHarness())
 
-/** Values: every bar where either side is finite. `skip` = TV plot ids TradingView blanks. */
-function valuesVerdict(r) {
+/** The first window bar graded: 0 on a warm replay; on a COLD one, the bar from
+ *  which both averages are exact — only provable for an SMA (its window is its
+ *  whole memory), so a cold EMA replay grades nothing and the NON-VACUITY test
+ *  refuses it. */
+function firstGraded(c, r) {
+  if (r.supply.kind === 'warm') return 0
+  if (c.live.ma1Type === 'SMA' && c.live.ma2Type === 'SMA') return Math.max(c.live.ma1Length, c.live.ma2Length) - 1
+  return null
+}
+
+function valuesVerdict(r, from) {
   const tv = tvColumns(r)
   const keys = ourKeys(r)
   const bad = []
   keys.forEach((k, j) => {
     const ours = r.cols[k]
     const theirs = tv.col(tv.lines[j])
-    for (let i = 0; i < r.n; i += 1) {
+    for (let i = from; i < r.n; i += 1) {
       const a = ours[i]
       const b = theirs[i]
       if (Number.isFinite(a) !== Number.isFinite(b)) { bad.push(`${tv.lines[j]} bar ${i}: ${a} vs ${b}`); continue }
@@ -94,13 +94,13 @@ function valuesVerdict(r) {
   return bad
 }
 
-function bandsVerdict(r) {
+function bandsVerdict(r, from) {
   const tv = tvColumns(r)
   const bad = []
   r.bands.forEach((band, j) => {
     if (band.twice.length) bad.push(`band ${j}: bars painted twice ${band.twice.slice(0, 3)}`)
     const theirs = tv.col(tv.colourOf(`fill_${j}`))
-    for (let i = 0; i < r.n; i += 1) {
+    for (let i = from; i < r.n; i += 1) {
       if (!Number.isFinite(theirs[i])) { if (band.perBar[i] !== null) bad.push(`band ${j} bar ${i}: painted where TradingView has none`); continue }
       const t = unpackVendorColor(theirs[i])
       const o = cssToRgba(band.perBar[i])
@@ -122,8 +122,7 @@ function linesVerdict(r) {
       return `${u.hex}/${u.alphaByte}`
     }))]
     if (theirs.length !== 1) bad.push(`${pid}: TradingView colour not constant: ${theirs}`)
-    // ⛔ a hidden MA: TradingView blanks the plot; ours must DRAW NOTHING there —
-    // either no series at all, or a series (the bands' host) holding no value.
+    // ⛔ a hidden MA: TradingView blanks the plot; ours must DRAW NOTHING there.
     const blank = tv.col(pid).every((v) => !Number.isFinite(v))
     const drawn = s ? ((r.setDataOf(s) || []).slice(r.pre).filter((p) => p && Number.isFinite(p.value)).length) : 0
     if (blank) {
@@ -139,17 +138,18 @@ function linesVerdict(r) {
 }
 
 describe('set E — the captures and their settings are what the meta says', () => {
-  it('NON-VACUITY — ten captures, each pinned, the changed inputs read from the meta', () => {
-    expect(CAPTURES.map((c) => c.id)).toEqual(Object.keys(PINNED))
+  it('NON-VACUITY — ten captures, the changed inputs read from the meta', () => {
+    expect(CAPTURES.map((c) => c.id)).toEqual(['E0', 'E1', 'E2', 'E3', 'E4', 'E5', 'E6', 'E7a', 'E7b', 'E8'])
     const byId = Object.fromEntries(CAPTURES.map((c) => [c.id, c.settings]))
     expect(byId.E0).toEqual({})
+    expect(byId.E1).toEqual({ ma1Type: 'SMA', ma2Type: 'SMA' })
+    expect(byId.E2).toEqual({ ma1Type: 'SMA', ma1Source: 'High', ma2Source: 'Low' })
     expect(byId.E3).toEqual({ ma1Length: 5, ma2Length: 50 })
     expect(byId.E5).toMatchObject({ bullColor: 'rgba(0,230,118,0.7)', bearColor: '#FF6D00' })
     expect(byId.E6).toEqual({ showMA1: false, showMA2: false })
   })
 
   it('⭐ TradingView rounds alpha HALF-UP to a byte, and so does our encoder', () => {
-    // E5's bull colour, as the capture's own study title carries it.
     const e5 = JSON.parse(fs.readFileSync(path.join(DIR, 'e5-custom-colours-spy-1d-250.meta.json'), 'utf8'))
     const title = e5.studies.find((s) => s.slug === 'uncharted_clouds').title
     expect(title).toContain('3,010,913,792')
@@ -169,51 +169,66 @@ describe('set E — the captures and their settings are what the meta says', () 
   })
 })
 
-describe("⛔ E5 — a member's MA colour is multiplied by the script default's opacity (open defect)", () => {
-  it('pins the exact wrong bytes, so a fix turns this red and the pin to "equal"', () => {
-    const c = CAPTURES.find((x) => x.id === 'E5')
-    const r = runOf(c)
-    const [fast, slow] = r.drawnPlots
-    expect(fmt(cssToRgba(r.lineOf.get(fast.key).__options.color))).toBe('#FFEB3B/0')     // TradingView #FFEB3B/255
-    expect(fmt(cssToRgba(r.lineOf.get(slow.key).__options.color))).toBe('#2196F3/8')     // TradingView #2196F3/153 (0.6 x 0.05)
-    expect(linesVerdict(r)).toEqual([
-      'plot_0 colour: ours #FFEB3B/0 vs TradingView #FFEB3B/255',
-      'plot_2 colour: ours #2196F3/8 vs TradingView #2196F3/153',
-    ])
+// ⭐⭐ ONE MA HIDDEN, THE OTHER SHOWN. No capture holds these, and none is needed:
+// `showMA1` gates only the Fast MA PLOT's value (`showMA1 ? fastMA : na`); every
+// layer and every band reads `fastMA` itself, so TradingView's bands are E0's.
+// ⚰️ The reviewer's case: with the Fast MA bound EMPTY as the band host, every band
+// rode a series lightweight-charts maps no price on, and vanished on a real chart.
+describe.each([
+  { id: 'MA1 off / MA2 on', settings: { showMA1: false }, blank: 0 },
+  { id: 'MA1 on / MA2 off', settings: { showMA2: false }, blank: 1 },
+])('Uncharted Clouds at E0 with $id', ({ id, settings, blank }) => {
+  const e0 = CAPTURES.find((x) => x.id === 'E0')
+  let r = null
+  const run = () => { r = r || runCloudsCapture({ dir: DIR, name: e0.name, settings }); return r }
+  it('every band, every bar, is E0\'s — hue + alpha byte exact', () => {
+    expect(run().bands).toHaveLength(20)
+    expect(bandsVerdict(run(), 0).slice(0, 8)).toEqual([])
+  })
+  it('the hidden MA draws nothing; the shown one is E0\'s line exactly', () => {
+    const rr = run()
+    const tv = tvColumns(rr)
+    const styles = rr.meta.plotStyles || rr.study.properties.styles
+    rr.drawnPlots.forEach((plot, j) => {
+      const s = rr.lineOf.get(plot.key)
+      const drawn = s ? (rr.setDataOf(s) || []).slice(rr.pre).filter((p) => p && Number.isFinite(p.value)).length : 0
+      if (j === blank) { expect(drawn, `${id}: the hidden MA drew`).toBe(0); return }
+      expect(s, `${id}: the shown MA has no series`).toBeTruthy()
+      expect(drawn).toBe(rr.n)
+      const pid = tv.lines[j]
+      const u = unpackVendorColor(tv.col(tv.colourOf(pid))[0])
+      expect(fmt(cssToRgba(s.__options.color))).toBe(`${u.hex}/${u.alphaByte}`)
+      expect(s.__options.lineWidth).toBe(styles[pid].linewidth)
+    })
   })
 })
 
 describe.each(CAPTURES)('Uncharted Clouds at $id ($name)', (c) => {
-  const pin = PINNED[c.id]
-
-  it('the settings reach the chart through the product, and the gaps are exactly the pinned ones', () => {
+  it('every setting reaches the chart through the product — no gap', () => {
     const r = runOf(c)
-    expect(r.supply.kind === 'warm' || r.pre === 0).toBe(true)
-    expect(r.gaps.map((g) => g.name).sort(), JSON.stringify(r.gaps)).toEqual([...pin.gaps].sort())
-    expect(r.applied.length + r.gaps.length).toBe(Object.keys(c.settings).length)
+    expect(r.gaps, JSON.stringify(r.gaps)).toEqual([])
+    expect(r.applied.length).toBe(Object.keys(c.settings).length)
+    const from = firstGraded(c, r)
+    expect(from, `${c.id}: cold replay with no provable convergence bar (${r.supply.reason})`).not.toBe(null)
+    expect(r.n - from).toBeGreaterThanOrEqual(250)
   })
 
-  it(`values: ${pin.values}`, () => {
+  it('values: every graded bar within 1e-9 relative', () => {
     const r = runOf(c)
-    if (pin.values === 'equal') expect(r.supply.kind, `${c.id} needs warm prehistory: ${r.supply.reason}`).toBe('warm')
-    const bad = valuesVerdict(r)
-    if (pin.values === 'equal') expect(bad.slice(0, 8), `${bad.length} value(s) off`).toEqual([])
-    else expect(bad.length, 'a pinned gap must make the values WRONG, or it is not a gap').toBeGreaterThan(0)
+    const bad = valuesVerdict(r, firstGraded(c, r))
+    expect(bad.slice(0, 8), `${bad.length} value(s) off`).toEqual([])
   })
 
-  it(`bands, every bar, hue + alpha byte: ${pin.bands}`, () => {
+  it('bands, every graded bar: hue + alpha byte exact', () => {
     const r = runOf(c)
     expect(r.bands).toHaveLength(20)
-    const bad = bandsVerdict(r)
-    if (pin.bands === 'equal') expect(bad.slice(0, 8), `${bad.length} band bar(s) off`).toEqual([])
-    else expect(bad.length, 'a pinned gap must make the bands WRONG, or it is not a gap').toBeGreaterThan(0)
+    const bad = bandsVerdict(r, firstGraded(c, r))
+    expect(bad.slice(0, 8), `${bad.length} band bar(s) off`).toEqual([])
   })
 
-  it(`MA lines — colour, alpha byte, line width: ${pin.lines}`, () => {
+  it('MA lines — colour, alpha byte, line width', () => {
     const r = runOf(c)
     expect(r.drawnPlots).toHaveLength(2)
-    const bad = linesVerdict(r)
-    if (pin.lines === 'equal') expect(bad, 'line(s) off').toEqual([])
-    else expect(bad.length).toBeGreaterThan(0)
+    expect(linesVerdict(r)).toEqual([])
   })
 })

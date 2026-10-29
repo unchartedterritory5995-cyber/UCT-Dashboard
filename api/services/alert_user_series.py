@@ -319,14 +319,30 @@ def _inputs_for(definition: Mapping[str, Any], params: Optional[Mapping]) -> dic
     wrong one.
     """
     out: dict[str, float] = {}
+    # ⭐⭐ A TEXT ENUM REACHES THE TREE AS ITS OPTION'S INDEX — the client's
+    # `nativeRegistry.treeScalars`, the same rule. A Pine `input.string(…, options)`
+    # becomes `kind == 1` in the tree (`pine.js::enumCompare`); the instance and
+    # the alert row hold the TEXT the member picked. An unknown text is dropped
+    # (the default's index stands), never guessed.
+    enum_options: dict[str, list] = {}
     for spec in (definition.get("inputs") or []):
         if not isinstance(spec, dict):
             continue
         key, default = spec.get("key"), spec.get("default")
+        if spec.get("type") == "enum" and isinstance(key, str):
+            opts = [o[0] if isinstance(o, list) and o else o for o in (spec.get("options") or [])]
+            if opts and all(isinstance(o, str) for o in opts) and default in opts:
+                enum_options[key] = opts
+                out[key] = float(opts.index(default))
+                continue
         if isinstance(key, str) and isinstance(default, (int, float)) \
                 and not isinstance(default, bool) and math.isfinite(float(default)):
             out[key] = float(default)
     for key, value in (params or {}).items():
+        if key in enum_options:
+            if isinstance(value, str) and value in enum_options[key]:
+                out[key] = float(enum_options[key].index(value))
+            continue
         if key in out and isinstance(value, (int, float)) \
                 and not isinstance(value, bool) and math.isfinite(float(value)):
             out[key] = float(value)

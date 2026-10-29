@@ -202,14 +202,19 @@ describe('what is NOT added, and why', () => {
     expect(conditionOf(after, 'a').source).toBe(conditionOf(before, 'a').source)
   })
 
-  it('⛔ an `input.string` has no knob in this product — its default still selects the branch (ruling 1)', () => {
+  it('⭐ an `input.string` with `options` IS a knob now — a dropdown, and the colour rule reads it live', () => {
+    // ⚰️ This pinned ruling 1's old answer ("an `input.string` has no knob in this
+    // product"): the default's branch was welded in. TradingView offers the setting,
+    // so the member door now carries it as an enum input (`pine.js::enumCompare`):
+    // the colour column reads `theme == 0`, and at the default it is the same teal.
     const src = `${V5}theme = input.string("Aurora", "Theme", options = ["Aurora", "Ember"])\n`
       + 'plot(close, "a", color = theme == "Aurora" ? color.teal : color.orange)\n'
     const after = door(src)
     expect(after.ok, after.reason).toBe(true)
-    expect(keys(after)).not.toContain('theme')
-    // the selector folded to the default's branch: a constant condition column
-    expect(conditionOf(after, 'a').source).toBe('1')
+    expect(keys(after)).toContain('theme')
+    const spec = after.definition.inputs.find((i) => i.key === 'theme')
+    expect(spec).toMatchObject({ type: 'enum', default: 'Aurora', options: ['Aurora', 'Ember'] })
+    expect(conditionOf(after, 'a').source).toBe('theme == 0')
     expect(after.rows.find((row) => row.label === 'a').colorUp).toBe('#00897B')
   })
 

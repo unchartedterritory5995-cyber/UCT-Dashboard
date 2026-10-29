@@ -198,7 +198,7 @@ export function guideSignature(guides) {
  * Returns the plot UNCHANGED (same reference) when there is nothing to re-apply,
  * so the common case allocates nothing.
  */
-export function resolvePlotForInstance(plot, inputs) {
+export function resolvePlotForInstance(plot, inputs, { pickReplacesOpacity = false } = {}) {
   const refs = plot && plot.$refs
   if (!refs || !inputs) return plot
 
@@ -213,6 +213,18 @@ export function resolvePlotForInstance(plot, inputs) {
     if (v === undefined) continue
     out = out || { ...plot }
     out[field] = v
+    // ⭐⭐ A MEMBER'S COLOUR PICK IS AUTHORITATIVE FOR COLOUR *AND* ALPHA, the way
+    // TradingView's style colour is. A document in the old shape carries the
+    // script default's transparency as `opacity` beside a `$color` ref
+    // (`memberPaneDefinition::rowColour` says why the new shape does not), and
+    // multiplying a pick by it drew an opaque yellow at alpha 0 (set E5). So once
+    // the instance's colour differs from the definition's own, that default
+    // opacity no longer applies; an unchanged colour keeps it, so the default
+    // renders exactly as it always did.
+    // ⛔ ONLY FOR A PINE TRANSLATION (`pickReplacesOpacity`): a native's `opacity`
+    // is a deliberate MULTIPLIER over one shared colour (VWAP's ±σ bands at 0.6 of
+    // `$color`), and a pick there must keep it.
+    if (pickReplacesOpacity && field === 'color' && plot.opacity !== undefined && v !== plot.color) delete out.opacity
   }
 
   if (Array.isArray(refs.levels) && Array.isArray(plot.levels)) {
@@ -872,7 +884,7 @@ function gradientOf(plot) {
   const a = objectHexToPacked(g.from)
   const b = objectHexToPacked(g.to)
   if (a === null || b === null) return null
-  const transparency = Number.isInteger(g.transparency) && g.transparency >= 0 && g.transparency <= 100
+  const transparency = Number.isFinite(g.transparency) && g.transparency >= 0 && g.transparency <= 100
     ? g.transparency : null
   return { a, b, transparency, sig: `${a}|${b}|${transparency}` }
 }
@@ -998,7 +1010,8 @@ export function planBindings(instances, registry, prevBindings, opts) {
       // cannot mean has to be clamped HERE too — otherwise the plan would create
       // a candlestick the binder then refuses to feed.
       const srcCap = sourceCapability ? sourceCapability(inst) : null
-      const plot = presentedPlot(resolvePlotForInstance(rawPlot, inst.inputs), inst,
+      const plot = presentedPlot(resolvePlotForInstance(rawPlot, inst.inputs,
+        { pickReplacesOpacity: !!(def && def.meta && def.meta.recurrenceOrigin === 'pine') }), inst,
         { ohlcCapable: !!(ohlcCapable && ohlcCapable(inst)),
           candles,
           // ⛔ THE SOURCE ANSWER REACHES THE PLAN, NOT ONLY THE MENU. `poolKey` picks

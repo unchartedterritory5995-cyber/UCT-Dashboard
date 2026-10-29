@@ -533,6 +533,24 @@ export function inputsFromFolded(folded, source) {
           + 'Pine variable the input was assigned to).')
       continue
     }
+    // ⭐⭐ AN `input.string` WITH `options = [...]` IS AN ENUM KNOB (`pine.js::
+    // enumCompare`): the tree reads the option's INDEX, the member picks the TEXT
+    // from a dropdown, and `nativeRegistry` hands the tree the index. Only an entry
+    // the translator stamped with its options — any other `input.string` stays
+    // inexpressible below, with its reason.
+    if (entry.call === 'input.string' && Array.isArray(entry.options) && entry.options.length >= 2
+        && typeof entry.folded === 'string' && entry.options.includes(entry.folded)) {
+      if (TABLE_NAMES.has(key) || taken.has(key)) {
+        push(`\`${key}\` is already a name this engine or builder declares — an enum knob under it `
+          + 'would shadow it, so the default stays folded.')
+        continue
+      }
+      taken.add(key)
+      const row = { key, type: 'enum', label: entry.title || key, default: entry.folded, options: entry.options.slice() }
+      decided.push({ entry, row })
+      candidates.push(row)
+      continue
+    }
     if (own(FOLDED_INPUT_INEXPRESSIBLE, entry.call)) {
       push(`\`${entry.call}\` ${FOLDED_INPUT_INEXPRESSIBLE[entry.call]}`)
       continue
@@ -790,6 +808,40 @@ export function memberInputTranslation(translate, source, opts = {}) {
     const keep = attempt.declaredNames.filter((n) => !unbacked.has(n))
     attempt = withDeclarations(keep)
   }
+  // ⭐⭐ AN ENUM KNOB MAY NEVER COST THE CHART ANYTHING. A live `input.string`
+  // (`pine.js::enumCompare`) makes EVERY branch it selects resolve — where folding
+  // to the default resolved only the taken one — so a branch this lane cannot read
+  // could refuse a column (or withhold a paint / a band) that translated before.
+  // So the knobs are admitted only while the result is no worse than the same
+  // translation with the enums folded: all of them if nothing got worse, else one
+  // at a time, each kept only if it costs nothing.
+  {
+    const isEnum = (n) => probed.some((o) => (o.inputsFolded || []).some((e) => e && e.name === n && e.call === 'input.string'))
+    const enums = attempt.declaredNames.filter(isEnum)
+    if (enums.length) {
+      const carried = (t) => {
+        const outs = (t.outputs || []).filter((o) => o && !o.refusal && o.formula).length
+        const paints = ((t.presentation || {}).paints || []).filter((p) => p && !p.withheld).length
+        const fills = ((t.presentation || {}).fills || []).length
+        return [outs, paints, fills]
+      }
+      const notWorse = (a, b) => carried(a).every((v, i) => v >= carried(b)[i])
+      const base = attempt.declaredNames.filter((n) => !isEnum(n))
+      const folded = withDeclarations(base)
+      if (!notWorse(attempt, folded)) {
+        let kept = base
+        let best = folded
+        for (const n of enums) {
+          const trial = withDeclarations([...kept, n])
+          if (notWorse(trial, best) && !unbackedDeclaredInputs(trial.outputs, trial.declaredNames).size) {
+            kept = [...kept, n]
+            best = trial
+          }
+        }
+        attempt = best
+      }
+    }
+  }
   const final = attempt
 
   let out = { ...final, outputs: final.outputs, declared: final.declaredNames }
@@ -1005,7 +1057,7 @@ function withColourInputs(first, final, withDeclarations, { windowBound, displac
   const already = new Set(final.declaredNames || [])
   // ⛔ A name the colour reads in a WINDOW (`ta.rising(hma, len)`) is not added:
   // a window takes a literal only, so declaring it would decline the colour rule.
-  let names = [...entryByName.keys()].filter((n) => memberInputKey(n) && !valueNames.has(n)
+  const names = [...entryByName.keys()].filter((n) => memberInputKey(n) && !valueNames.has(n)
     && !objectNames.has(n) && !windowBound.has(n) && !displacementBound.has(n)
     && !windowed.has(n) && !already.has(n))
   // (`sameParamIds` … `samePresentationShape` — module level since C43, shared
@@ -1018,6 +1070,13 @@ function withColourInputs(first, final, withDeclarations, { windowBound, displac
   const sameValues = sameValueOutputs
   const sameObjects = sameObjectProgram
   const samePresentation = samePresentationShape
+  // ⭐⭐ An `input.string` ENUM a colour reads is tried first; if declaring it moves
+  // a colour's SHAPE (a static branch becomes a per-bar rule — the invariant below
+  // refuses that), the lane retries without the enums, so the non-enum knobs it
+  // carried before still come across.
+  const isEnumName = (n) => { const e = entryByName.get(n); return !!(e && e.call === 'input.string') }
+  const tryNames = (initial) => {
+  let names = initial
   for (let round = 0; round < 4 && names.length; round += 1) {
     // A name the final pass MINTED is declared AND keeps minting its id
     // (`mintDeclared`, `pine.js::resolveInput`), so no later id moves.
@@ -1050,6 +1109,10 @@ function withColourInputs(first, final, withDeclarations, { windowBound, displac
     names = keep
   }
   return null
+  }
+  const all = tryNames(names)
+  if (all || !names.some(isEnumName)) return all
+  return tryNames(names.filter((n) => !isEnumName(n)))
 }
 
 /** The single-output convenience over `memberInputTranslation`. */

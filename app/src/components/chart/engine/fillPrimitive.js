@@ -529,6 +529,54 @@ function tracePath(ctx, points) {
   ctx.quadraticCurveTo(secondLast.x, secondLast.y, last.x, last.y)
 }
 
+/** True when `target` can hand out a BITMAP coordinate space and this runtime can
+ *  make an offscreen canvas — a real chart. A test's recording target cannot. */
+function layerDrawable(target) {
+  if (!target || typeof target.useBitmapCoordinateSpace !== 'function') return false
+  return typeof OffscreenCanvas === 'function'
+    || (typeof document !== 'undefined' && typeof document.createElement === 'function')
+}
+
+/**
+ * ⭐⭐ ONE PAINT LAYER FOR EVERY BAND ON ONE HOST SERIES.
+ *
+ * The bands of one host (Uncharted Clouds' twenty) are separate primitives, drawn
+ * one after another onto one canvas; the compounding fix needs them to erase each
+ * other's footprint, and compositing over the chart's background needs that erase
+ * to touch nothing but bands. So they share a layer: the first live member draws
+ * every member into it and composites it once (`draw`). `touch` asks the chart to
+ * repaint when any member's data changes, since only the leader draws.
+ */
+export function createFillLayerGroup() {
+  const list = []
+  const updates = new Map()
+  let canvas = null
+  let ctx2d = null
+  return {
+    join(m, requestUpdate) { if (!list.includes(m)) list.push(m); updates.set(m, requestUpdate || null) },
+    leave(m) { const i = list.indexOf(m); if (i >= 0) list.splice(i, 1); updates.delete(m) },
+    members: () => list.slice(),
+    leader: () => list.find((m) => m.isLive()) || null,
+    touch() { const l = list.find((m) => m.isLive()); const u = l ? updates.get(l) : null; if (u) u() },
+    layerContext({ width, height }) {
+      if (!(width > 0) || !(height > 0)) return null
+      if (!canvas || canvas.width !== width || canvas.height !== height) {
+        try {
+          canvas = typeof OffscreenCanvas === 'function' ? new OffscreenCanvas(width, height) : document.createElement('canvas')
+          canvas.width = width
+          canvas.height = height
+          ctx2d = canvas.getContext('2d')
+        } catch { canvas = null; ctx2d = null }
+      }
+      if (!ctx2d) return null
+      ctx2d.setTransform(1, 0, 0, 1, 0, 0)
+      ctx2d.globalCompositeOperation = 'source-over'
+      ctx2d.clearRect(0, 0, width, height)
+      return ctx2d
+    },
+  }
+}
+
 /**
  * A lightweight-charts series primitive that fills between its host series'
  * column and a second one.
@@ -545,6 +593,105 @@ export function createFillPrimitive(initial) {
   let chart = null
   let requestUpdate = null
   const geometry = createFillGeometry()
+  // ⭐⭐ THE BANDS THAT SHARE THIS HOST PAINT INTO ONE LAYER (see `createFillLayerGroup`).
+  // Without a group handed in, a band is a group of one: its erase-then-paint still
+  // runs in a layer of its own, never on the chart's canvas.
+  const layerGroup = (initial && initial.group) || createFillLayerGroup()
+  const member = { isLive: () => !!(series && chart), paintOwn: (ctx) => paintOwn(ctx) }
+
+  /** This band's own polygons, erase-then-paint, onto `ctx` in MEDIA coordinates. */
+  function paintOwn(ctx) {
+    if (!series || !chart) return
+    const { upper, lower, times, colors } = opts
+    if (!upper || !lower || !times) return
+    const groups = geometry.groups({ upper, lower, times, colors, ts: chart.timeScale(), series })
+    if (!groups.length) return
+    // ⭐⭐ R30 — ONE `fillStyle` PER RUN when the fill is colour-driven, and ONE
+    // FOR THE WHOLE FRAME when it is not.
+    //
+    // ⛔ THE STATIC CASE IS NOT A SECOND PATH, IT IS THE DEGENERATE ONE, and it
+    // is written this way on purpose: a single-colour band is ONE run however
+    // many polygons an `na` hole splits it into, so its call list is what it
+    // has always been. Setting the style per GEOMETRY run instead would make a
+    // shipped band with a gap start assigning `fillStyle` three times — a
+    // change to the drawing of every fill nobody made dynamic.
+    //
+    // ⛔ AND THE RUN COLOUR IS USED VERBATIM. Per-bar colours arrive from
+    // `binder.bandColoursFor`, which has ALREADY joined each bar's colour with
+    // the band's opacity through `fillPaint`; the static style above goes
+    // through that same `fillPaint`. Applying `opts.opacity` to a run colour
+    // would dim it a second time and be a second authority over one value.
+    const dynamic = !!(colors && colors.length)
+    ctx.save()
+    if (!dynamic) ctx.fillStyle = fillPaint(opts.color, opts.opacity) || opts.color
+    for (const group of groups) {
+      if (dynamic) ctx.fillStyle = group.color
+      const style = ctx.fillStyle
+      for (const poly of group.polys) {
+        ctx.beginPath()
+        // poly is [...top, ...bottom.reverse()] with top.length ===
+        // bottom.length always (runPolygon pushes both in lockstep) —
+        // so the midpoint split recovers each edge exactly. Smooth
+        // WITHIN each edge; the two cross-edges (the run's actual
+        // start/end, a real vertical wall in the data) stay straight.
+        const half = poly.length / 2
+        const top = poly.slice(0, half)
+        const bottomRev = poly.slice(half)
+        ctx.moveTo(top[0].x, top[0].y)
+        tracePath(ctx, top)
+        ctx.lineTo(bottomRev[0].x, bottomRev[0].y)
+        tracePath(ctx, bottomRev)
+        ctx.closePath()
+        // ⭐⭐ THE COMPOUNDING FIX (Uncharted Clouds, 2026-09-19). `binder.js`
+        // gives a "chained" stack of fills (its hostedFills — one
+        // createFillPrimitive PER Pine fill() call) one INDEPENDENT primitive
+        // per layer, all attached to the SAME series, all drawn onto the SAME
+        // shared canvas. Where the underlying plots run close together (near
+        // an MA crossover, or really anywhere the 21 interpolated levels
+        // compress into a few pixels), several of those independent layers'
+        // thin bands geometrically land on the SAME pixels — and each layer
+        // composites there with plain `source-over`, so a pixel FIFTEEN
+        // layers touch gets fifteen ROUNDS of alpha blending, not one.
+        // `1-(1-a)^n` climbs toward full opacity fast even for a modest `a`:
+        // measured on the real fixture's own transparency range, a run of
+        // bars with a converging fast/slowMA rendered as a nearly SOLID block
+        // of the base colour, not the soft 5-55%-opacity gradient the script
+        // asked for — which is the "excess opacity" / "scaled" texture this
+        // was reported against, and it reproduces with NO other primitive
+        // involved: a single isolated thin band, drawn 15-20 times over
+        // itself, saturates the same way a real chained stack does.
+        //
+        // ⛔ NEITHER A STROKE NOR A DIFFERENT GLOBAL BLEND MODE FIXES THIS —
+        // both were tried and measured. Stroking a many-vertex, per-bar
+        // polyline boundary makes the boundary's own bar-to-bar zigzag
+        // visible as a fine ribbed texture (worse, not better). `lighten`
+        // still compounds: canvas blend functions only change the RESULT
+        // colour, never the alpha math, and alpha compositing onto an
+        // already-opaque destination is alpha=1 after the FIRST draw
+        // regardless of blend mode — so a second "lighten" pass still pulls
+        // the destination toward the new source via its own `(1-as)*Cb` term.
+        //
+        // ⭐ THE FIX: erase this polygon's OWN footprint before drawing it.
+        // `destination-out` with the path's own antialiased coverage clears
+        // exactly the pixels (fully or partially, matching real sub-pixel
+        // coverage) this polygon is about to repaint — wiping out whatever
+        // ANY earlier layer (a sibling primitive, or this same primitive's
+        // own previous run) left there — so `source-over` then draws THIS
+        // layer's colour at ITS OWN alpha with nothing underneath to compound
+        // with. The net effect at a genuinely SHARED boundary between two
+        // adjacent (non-overlapping) bands is the same fractional-coverage
+        // antialiasing blend a smooth edge always had; the fix only changes
+        // pixels where MULTIPLE layers actually overlap.
+        ctx.globalCompositeOperation = 'destination-out'
+        ctx.fillStyle = '#000'
+        ctx.fill()
+        ctx.globalCompositeOperation = 'source-over'
+        ctx.fillStyle = style
+        ctx.fill()
+      }
+    }
+    ctx.restore()
+  }
 
   const paneView = {
     // ⛔ BELOW THE LINES IT SITS BETWEEN. A band painted over its own edges hides
@@ -552,98 +699,37 @@ export function createFillPrimitive(initial) {
     zOrder: () => 'bottom',
     renderer: () => ({
       draw: (target) => {
+        // ⭐⭐ IN A LAYER, COMPOSITED ONCE — so a band composites over the CHART'S own
+        // background, as TradingView's does. ⚰️ The compounding fix erased each
+        // polygon's footprint (`destination-out`) ON THE CHART'S CANVAS, which also
+        // erased the pane's own background there: a band then composited over
+        // whatever sits BEHIND the canvas (measured: a magenta page turned every
+        // band magenta, worst channel off by 220). The erase now runs inside an
+        // offscreen layer that starts empty; every band sharing this host paints
+        // into it in attach order, and the layer is drawn onto the chart once,
+        // `source-over` — no compounding between those bands, the background under
+        // them untouched. The FIRST live member of the group draws for all.
+        // ⛔ Where no layer can be made (no bitmap space — a test target), each band
+        // paints itself directly, exactly as it always did.
         if (!series || !chart) return
-        const { upper, lower, times, colors } = opts
-        if (!upper || !lower || !times) return
-        const groups = geometry.groups({ upper, lower, times, colors, ts: chart.timeScale(), series })
-        if (!groups.length) return
-        // ⭐⭐ R30 — ONE `fillStyle` PER RUN when the fill is colour-driven, and ONE
-        // FOR THE WHOLE FRAME when it is not.
-        //
-        // ⛔ THE STATIC CASE IS NOT A SECOND PATH, IT IS THE DEGENERATE ONE, and it
-        // is written this way on purpose: a single-colour band is ONE run however
-        // many polygons an `na` hole splits it into, so its call list is what it
-        // has always been. Setting the style per GEOMETRY run instead would make a
-        // shipped band with a gap start assigning `fillStyle` three times — a
-        // change to the drawing of every fill nobody made dynamic.
-        //
-        // ⛔ AND THE RUN COLOUR IS USED VERBATIM. Per-bar colours arrive from
-        // `binder.bandColoursFor`, which has ALREADY joined each bar's colour with
-        // the band's opacity through `fillPaint`; the static style above goes
-        // through that same `fillPaint`. Applying `opts.opacity` to a run colour
-        // would dim it a second time and be a second authority over one value.
-        const dynamic = !!(colors && colors.length)
-        target.useMediaCoordinateSpace(({ context: ctx }) => {
-          ctx.save()
-          if (!dynamic) ctx.fillStyle = fillPaint(opts.color, opts.opacity) || opts.color
-          for (const group of groups) {
-            if (dynamic) ctx.fillStyle = group.color
-            const style = ctx.fillStyle
-            for (const poly of group.polys) {
-              ctx.beginPath()
-              // poly is [...top, ...bottom.reverse()] with top.length ===
-              // bottom.length always (runPolygon pushes both in lockstep) —
-              // so the midpoint split recovers each edge exactly. Smooth
-              // WITHIN each edge; the two cross-edges (the run's actual
-              // start/end, a real vertical wall in the data) stay straight.
-              const half = poly.length / 2
-              const top = poly.slice(0, half)
-              const bottomRev = poly.slice(half)
-              ctx.moveTo(top[0].x, top[0].y)
-              tracePath(ctx, top)
-              ctx.lineTo(bottomRev[0].x, bottomRev[0].y)
-              tracePath(ctx, bottomRev)
-              ctx.closePath()
-              // ⭐⭐ THE COMPOUNDING FIX (Uncharted Clouds, 2026-09-19). `binder.js`
-              // gives a "chained" stack of fills (its hostedFills — one
-              // createFillPrimitive PER Pine fill() call) one INDEPENDENT primitive
-              // per layer, all attached to the SAME series, all drawn onto the SAME
-              // shared canvas. Where the underlying plots run close together (near
-              // an MA crossover, or really anywhere the 21 interpolated levels
-              // compress into a few pixels), several of those independent layers'
-              // thin bands geometrically land on the SAME pixels — and each layer
-              // composites there with plain `source-over`, so a pixel FIFTEEN
-              // layers touch gets fifteen ROUNDS of alpha blending, not one.
-              // `1-(1-a)^n` climbs toward full opacity fast even for a modest `a`:
-              // measured on the real fixture's own transparency range, a run of
-              // bars with a converging fast/slowMA rendered as a nearly SOLID block
-              // of the base colour, not the soft 5-55%-opacity gradient the script
-              // asked for — which is the "excess opacity" / "scaled" texture this
-              // was reported against, and it reproduces with NO other primitive
-              // involved: a single isolated thin band, drawn 15-20 times over
-              // itself, saturates the same way a real chained stack does.
-              //
-              // ⛔ NEITHER A STROKE NOR A DIFFERENT GLOBAL BLEND MODE FIXES THIS —
-              // both were tried and measured. Stroking a many-vertex, per-bar
-              // polyline boundary makes the boundary's own bar-to-bar zigzag
-              // visible as a fine ribbed texture (worse, not better). `lighten`
-              // still compounds: canvas blend functions only change the RESULT
-              // colour, never the alpha math, and alpha compositing onto an
-              // already-opaque destination is alpha=1 after the FIRST draw
-              // regardless of blend mode — so a second "lighten" pass still pulls
-              // the destination toward the new source via its own `(1-as)*Cb` term.
-              //
-              // ⭐ THE FIX: erase this polygon's OWN footprint before drawing it.
-              // `destination-out` with the path's own antialiased coverage clears
-              // exactly the pixels (fully or partially, matching real sub-pixel
-              // coverage) this polygon is about to repaint — wiping out whatever
-              // ANY earlier layer (a sibling primitive, or this same primitive's
-              // own previous run) left there — so `source-over` then draws THIS
-              // layer's colour at ITS OWN alpha with nothing underneath to compound
-              // with. The net effect at a genuinely SHARED boundary between two
-              // adjacent (non-overlapping) bands is the same fractional-coverage
-              // antialiasing blend a smooth edge always had; the fix only changes
-              // pixels where MULTIPLE layers actually overlap.
-              ctx.globalCompositeOperation = 'destination-out'
-              ctx.fillStyle = '#000'
-              ctx.fill()
-              ctx.globalCompositeOperation = 'source-over'
-              ctx.fillStyle = style
-              ctx.fill()
-            }
-          }
-          ctx.restore()
-        })
+        if (layerDrawable(target)) {
+          if (layerGroup.leader() !== member) return
+          let painted = false
+          target.useBitmapCoordinateSpace(({ context, bitmapSize, horizontalPixelRatio, verticalPixelRatio }) => {
+            const lctx = layerGroup.layerContext(bitmapSize)
+            if (!lctx) return
+            lctx.setTransform(horizontalPixelRatio, 0, 0, verticalPixelRatio, 0, 0)
+            for (const m of layerGroup.members()) if (m.isLive()) m.paintOwn(lctx)
+            context.save()
+            context.setTransform(1, 0, 0, 1, 0, 0)
+            context.globalCompositeOperation = 'source-over'
+            context.drawImage(lctx.canvas, 0, 0)
+            context.restore()
+            painted = true
+          })
+          if (painted) return
+        }
+        target.useMediaCoordinateSpace(({ context: ctx }) => paintOwn(ctx))
       },
     }),
   }
@@ -656,12 +742,13 @@ export function createFillPrimitive(initial) {
       chart = param.chart || null
       requestUpdate = param.requestUpdate || null
       geometry.reset()
+      layerGroup.join(member, requestUpdate)
     },
-    detached: () => { series = null; chart = null; requestUpdate = null; geometry.reset() },
+    detached: () => { layerGroup.leave(member); series = null; chart = null; requestUpdate = null; geometry.reset() },
   }
 
   return {
     primitive,
-    setOptions(patch) { opts = { ...opts, ...patch }; if (requestUpdate) requestUpdate() },
+    setOptions(patch) { opts = { ...opts, ...patch }; if (requestUpdate) requestUpdate(); layerGroup.touch() },
   }
 }

@@ -77,10 +77,12 @@ describe('B1 — the verdict on the real captures', () => {
     expect(verdict.verdictWithoutPaints).toBe('DIVERGE')
   }, 120000)
 
-  it('btc-charlie — three paints neither side draws are counted, not graded, and do not move a MATCH', () => {
+  it('btc-charlie — four paints neither side draws are counted, not graded, and do not move a MATCH', () => {
     const { verdict } = gradeCapture(load(BTC))
     expect(verdict.paints.verdict).toBe('MATCH')
-    expect(verdict.paints.undrawn).toBe(3)
+    // ⭐ FOUR since `maTypeChoice` became a live knob: line 122's paint no longer
+    // folds to `na` at the default, and draws nothing on these bars, as TradingView.
+    expect(verdict.paints.undrawn).toBe(4)
     expect(verdict.verdict).toBe('MATCH')
     expect(verdict.verdictWithoutPaints).toBe('MATCH')
   }, 120000)

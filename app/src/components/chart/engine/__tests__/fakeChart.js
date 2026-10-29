@@ -79,8 +79,14 @@ export function createFakeChart(coords) {
       __live: live,
       get __pane() { return currentPane },
 
-      setData: (data) => rec('series', id, 'setData', [data]),
-      update: (point) => rec('series', id, 'update', [point]),
+      setData: (data) => {
+        series.__hasValue = Array.isArray(data) && data.some((d) => d && (Number.isFinite(d.value) || Number.isFinite(d.close)))
+        return rec('series', id, 'setData', [data])
+      },
+      update: (point) => {
+        if (point && (Number.isFinite(point.value) || Number.isFinite(point.close))) series.__hasValue = true
+        return rec('series', id, 'update', [point])
+      },
       applyOptions: (opts) => {
         Object.assign(series.__options, opts || {})
         return rec('series', id, 'applyOptions', [opts])
@@ -97,7 +103,10 @@ export function createFakeChart(coords) {
         return rec('series', id, 'removePriceLine', [handle])
       },
       setMarkers: (m) => rec('series', id, 'setMarkers', [m]),
-      priceToCoordinate: (p) => priceToY(p),
+      // ⛔ LIKE lightweight-charts 5.2.0: a series holding NO value has no
+      // first value, so it maps no price to a pixel (null). A double that answered
+      // anyway let a band ride an empty host in jsdom and vanish on a real chart.
+      priceToCoordinate: (p) => (series.__hasValue ? priceToY(p) : null),
       attachPrimitive: (p) => rec('series', id, 'attachPrimitive', [p]),
       detachPrimitive: (p) => rec('series', id, 'detachPrimitive', [p]),
       options: () => series.__options,

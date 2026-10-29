@@ -66,12 +66,24 @@ function plotColourInputs(src = CLOUDS_SRC) {
   return out
 }
 
+/** Install a stored document under the harness id, as the registry installs any. */
+function installSaved(document) {
+  registry.uninstallUserDefinition(HARNESS_DEF_ID)
+  const doc = { ...document, id: HARNESS_DEF_ID }
+  const { installed, errors } = registry.installUserDefinitions([doc])
+  if (!installed.length) return { def: null, refusal: `the saved document did not install: ${errors.join(' | ')}` }
+  return { def: installed[0], built: { definition: doc } }
+}
+
 /**
  * Apply a member's settings (`{pineInputName: value}`) through the product's doors.
  * @returns {{def, cs, instanceId, applied: string[], gaps: {name, value, why}[]}}
  */
-function applySettings(settings) {
-  const door = enterMemberDoor(CLOUDS_SRC)
+function applySettings(settings, document = null) {
+  // ⭐ A SAVED document is installed as it was stored — through the registry's own
+  // door, which migrates it on load (`memberDocumentMigration.js`) — instead of the
+  // door building one fresh from the Pine.
+  const door = document ? installSaved(document) : enterMemberDoor(CLOUDS_SRC)
   if (!door.def) throw new Error(door.refusal)
   let def = door.def
   const applied = []
@@ -127,7 +139,7 @@ function applySettings(settings) {
  * Run one capture: values (registry.computeFor over warm bars) and the drawn chart
  * (binder + fill primitive), with the member's settings applied.
  */
-export function runCloudsCapture({ dir, name, settings = {} }) {
+export function runCloudsCapture({ dir, name, settings = {}, document = null }) {
   const meta = JSON.parse(fs.readFileSync(path.join(dir, `${name}.meta.json`), 'utf8'))
   const rows = readCsv(path.join(dir, `${name}.csv`))
   const study = (meta.studies || []).find((s) => s.slug === 'uncharted_clouds')
@@ -142,7 +154,7 @@ export function runCloudsCapture({ dir, name, settings = {} }) {
   const n = rows.length
   const tf = tfCodeOf(meta.resolution)
 
-  const { def, cs, instanceId, applied, gaps } = applySettings(settings)
+  const { def, cs, instanceId, applied, gaps } = applySettings(settings, document)
   const instances = (cs.indicatorInstances || []).filter((i) => i.defId === def.id)
   const inputs = (instances[0] && instances[0].inputs) || {}
 
@@ -154,6 +166,7 @@ export function runCloudsCapture({ dir, name, settings = {} }) {
   const fake = createFakeChart({ timeToX: (t) => (Number.isInteger(t) && t >= pre ? t * 10 : null) })
   const binder = createBinder({ chart: fake.chart, LWC: fake.LWC })
   const candles = fake.chart.addSeries(fake.LWC.CandlestickSeries, {}, 0)
+  candles.setData(bars.map((b, i) => ({ time: i, open: b.o, high: b.h, low: b.l, close: b.c })))
   binder.sync({
     priceSeries: () => candles, setBarColours: () => {}, enabled: true, cs, instances, registry, bars, tf,
     symbol: { ticker: meta.symbol.name }, adjustTime: (t) => idx.get(String(t)),

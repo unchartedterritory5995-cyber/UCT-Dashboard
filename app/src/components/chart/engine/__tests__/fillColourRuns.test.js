@@ -67,6 +67,14 @@ const COND_NA = [1, 1, 1, 0, NaN, 0, 1]
  *  at all. Written here as the expectation; j.3 makes the binder produce it. */
 const coloursFor = (cond) => cond.map((c) => (Number.isFinite(c) ? (c !== 0 ? UP : DOWN) : null))
 
+/** A host series HOLDING values, as every real band host does: lightweight-charts
+ *  (and the fake, matching it) maps no price on an empty series. */
+function hostWithValues(fake) {
+  const series = fake.chart.addSeries(fake.LWC.LineSeries, {}, 0)
+  series.setData(TIMES.map((t, i) => ({ time: t, value: UPPER[i] })))
+  return series
+}
+
 function drawWith(opts) {
   const fake = createFakeChart()
   const rec = createRecordingCtx()
@@ -75,7 +83,7 @@ function drawWith(opts) {
   })
   drawPrimitive(primitive, {
     chart: fake.chart,
-    series: fake.seriesCreated[0] || fake.chart.addSeries(fake.LWC.LineSeries, {}, 0),
+    series: fake.seriesCreated[0] || hostWithValues(fake),
     recorder: rec,
   })
   return rec
@@ -302,7 +310,7 @@ describe('the compounding fix — erase-then-paint, never fill-on-fill', () => {
     // chained layers' thin bands land on the same pixels.
     const fake = createFakeChart()
     const rec = createRecordingCtx()
-    const series = fake.chart.addSeries(fake.LWC.LineSeries, {}, 0)
+    const series = hostWithValues(fake)
     const layerA = createFillPrimitive({ upper: UPPER, lower: LOWER, times: TIMES, color: '#111111', opacity: 0.3 })
     const layerB = createFillPrimitive({ upper: UPPER, lower: LOWER, times: TIMES, color: '#222222', opacity: 0.3 })
     drawPrimitive(layerA.primitive, { chart: fake.chart, series, recorder: rec })

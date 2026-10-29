@@ -68,7 +68,7 @@ import { foldBound } from './ast/bind'
 import { unknownMask } from './objectColumns'
 import { defaultNumberText } from './objectRuntime'
 import {
-  resolveInputs, bindConstsFor, historyFromListingFor, registerRuntimeErrorStop,
+  resolveInputs, treeScalars, bindConstsFor, historyFromListingFor, registerRuntimeErrorStop,
 } from './nativeRegistry'
 import { periodValuesDiffer } from './periodReads'
 import { runtimeErrorWords } from './runtimeErrorText'
@@ -163,7 +163,7 @@ const MEMO = new WeakMap()
 export function runtimeErrorStopFor(def, bars, instanceInputs, ctx = {}) {
   const stamp = stampOf(def)
   if (!stamp || !Array.isArray(bars) || !bars.length) return null
-  const inputs = resolveInputs(def, instanceInputs)
+  const inputs = treeScalars(def, resolveInputs(def, instanceInputs))
   const fromListing = historyFromListingFor(def, ctx)
   let key
   try {

@@ -463,6 +463,10 @@ export default function IndicatorSettingsDialog({ open, instanceId, settings, on
             // it is rendered as visible row text above instead, which every user
             // can read. Named rather than quietly dropped.
             <ColorPicker
+              // ⭐⭐ COLOUR + OPACITY for a PINE script's colour: a pick is the whole
+              // colour, alpha included, as TradingView's style colour is. A native
+              // indicator keeps the plain picker (its `opacity` is its own multiplier).
+              withOpacity={!!(def && def.meta && def.meta.recurrenceOrigin === 'pine')}
               value={value} title={field.label} disabled={!active}
               onChange={(hex) => { setDraft((d) => ({ ...d, [field.key]: hex })); schedule(field.key, hex) }}
             />

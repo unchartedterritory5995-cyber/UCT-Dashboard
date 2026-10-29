@@ -6403,6 +6403,8 @@ export class Resolver {
     /** Which bound input names this run may emit as identifiers: `'all'`, a Set,
      *  or null for the shipped default (fold everything, as before). */
     this.declareInputs = null
+    /** ⭐⭐ `enumCompare`'s switch: `input.string` options as live knobs. */
+    this.enumInputs = false
     /** ⭐⭐ THE MEMBER'S OWN VALUE FOR AN INPUT, by bound name — how a pasted
      *  script's knob becomes a knob again.
      *
@@ -7862,6 +7864,74 @@ export class Resolver {
    * path and refuse the script for code it does not execute. TradingView's own
    * screener folds inputs to their defaults for exactly this reason.
    */
+  /** ⭐⭐ THE `input.string(…, options = [...])` CALL A NAME IS BOUND TO, or null.
+   *  Only a call whose every option is a written string, bound to a name (the
+   *  member's knob needs a key). Follows plain bindings only. */
+  enumInputCallOf(node, depth = 0) {
+    if (!node || typeof node !== 'object' || depth > 16) return null
+    if (node.type === 'name') {
+      if (own(this.table.series, node.name)) return null
+      const bound = this.env && this.env.get(node.name)
+      if (!bound || bound.kind !== 'expr') return null
+      return this.enumInputCallOf(bound.node, depth + 1)
+    }
+    if (node.type !== 'call' || node.name !== 'input.string') return null
+    if (typeof node.boundName !== 'string' || !node.boundName) return null
+    const opt = (node.args || []).find((a) => a && a.name === 'options')
+    const els = opt && opt.value && opt.value.type === 'collection' ? opt.value.elements : null
+    if (!Array.isArray(els) || els.length < 2 || !els.every((e) => e && e.type === 'string')) return null
+    const options = els.map((e) => e.value)
+    if (new Set(options).size !== options.length) return null
+    const named = (node.args || []).find((a) => a && a.name === 'defval')
+    const positional = (node.args || [])[0]
+    const defNode = named ? named.value : (positional && !positional.name ? positional.value : null)
+    const def = defNode && defNode.type === 'string' ? defNode.value : null
+    if (def === null || !options.includes(def)) return null
+    const titleArg = (node.args || []).find((a) => a && a.name === 'title')
+      || ((node.args || [])[1] && !(node.args || [])[1].name ? node.args[1] : null)
+    const title = titleArg && titleArg.value && titleArg.value.type === 'string' ? titleArg.value.value : null
+    return { call: node, name: node.boundName, options, def, title }
+  }
+
+  /** ⭐⭐ `kind == "SMA"` (or `!=`) where `kind` is an `input.string` with
+   *  `options = [...]` and `"SMA"` is one of them, as a LIVE per-bar NUMBER: the
+   *  knob is a member input carrying the option's INDEX, so the tree reads
+   *  `kind == 1` and TradingView's own setting reaches the column instead of the
+   *  author's default being welded in. Opt-in (`enumInputs`, the member door) and
+   *  only for a DECLARED name, so every other translation is byte-identical.
+   *  ⛔ A literal outside the options can never match: it folds to the constant
+   *  answer, as Pine's own comparison would. */
+  enumCompare(node) {
+    if (!this.enumInputs || !this.declareInputs) return null
+    let side = null
+    let lit = null
+    if (node.right && node.right.type === 'string') { side = node.left; lit = node.right.value }
+    else if (node.left && node.left.type === 'string') { side = node.right; lit = node.left.value }
+    if (side === null) return null
+    const en = this.enumInputCallOf(side)
+    if (!en) return null
+    if (this.declareInputs !== 'all' && !this.declareInputs.has(en.name)) return null
+    const want = node.op === '=='
+    const idx = en.options.indexOf(lit)
+    const tok = en.call.tok
+    this.usedInputs.set(`${tok.line}:${tok.column}`, {
+      call: 'input.string',
+      title: en.title,
+      folded: en.def,
+      name: en.name,
+      options: en.options.slice(),
+      min: null,
+      max: null,
+      line: tok.line,
+      column: tok.column,
+    })
+    if (idx < 0) return cNum(want ? 0 : 1)
+    const leaf = { type: 'series', name: en.name }
+    Object.defineProperty(leaf, 'inputName', { value: en.name, enumerable: false })
+    Object.defineProperty(leaf, 'inputDefault', { value: en.options.indexOf(en.def), enumerable: false })
+    return cOp(want ? '==' : '!=', [leaf, cNum(idx)])
+  }
+
   stringValueOf(node, depth = 0) {
     if (!node || typeof node !== 'object' || depth > 64) return null
     if (node.type === 'string') return node.value
@@ -9190,6 +9260,14 @@ export class Resolver {
         // `naGuardDroppedFrom` for why the term cannot change the answer.
         const viaNaGuard = this.naGuardDroppedFrom(node)
         if (viaNaGuard) return viaNaGuard
+        // ⭐⭐ AN `input.string` WITH `options = [...]`, COMPARED WITH ONE OF ITS
+        // OWN OPTIONS, IS A LIVE MEMBER KNOB — never folded to the default when
+        // the member door asks (`enumInputs`). See `enumCompare`. Asked before the
+        // two-strings fold below, which would otherwise answer it from the default.
+        if (node.op === '==' || node.op === '!=') {
+          const en = this.enumCompare(node)
+          if (en) return en
+        }
         // ⭐ TWO STRINGS COMPARED IS A CONSTANT — see `stringValueOf`. Asked
         // BEFORE the operands are resolved, because resolving either of them is
         // the `pine:text-value` refusal this is deciding not to need.
@@ -24334,6 +24412,9 @@ function translatePineResult(source, opts = {}) {
       r.declareInputs = opts.declareInputs === 'all'
         ? 'all' : new Set(opts.declareInputs)
     }
+    // ⭐⭐ `input.string(…, options = [...])` as a LIVE knob (`enumCompare`) —
+    // the member door's option only; every other caller folds it as before.
+    if (opts.enumInputs === true) r.enumInputs = true
     if (Array.isArray(opts.mintDeclared) && opts.mintDeclared.length) {
       r.mintDeclared = new Set(opts.mintDeclared)
     }
@@ -25874,6 +25955,11 @@ function constantColourSelector(node, env, ctx) {
     r.paramMint = null
     r.noteSink = () => {}
     r.knobReads = knobs
+    // ⛔ A COLOUR SELECTOR STILL FOLDS AN `input.string` TO ITS DEFAULT (ruling 1):
+    // a live enum here would turn a static colour into a per-bar rule, which the
+    // member door's colour lane refuses to move. Enum knobs are the VALUE lane's.
+    const prevEnum = r.enumInputs
+    r.enumInputs = false
     try {
       if (ctx.inline) test = r.resolveInFrame(ctx.inline, cur.test)
       else {
@@ -25887,6 +25973,7 @@ function constantColourSelector(node, env, ctx) {
       r.paramMint = minted
       r.noteSink = sink
       r.knobReads = prevKnobs
+      r.enumInputs = prevEnum
       r.usedInputs.clear()
       for (const [k2, v] of used) r.usedInputs.set(k2, v)
       r.windowBoundInputs.clear()
@@ -26352,6 +26439,72 @@ function staticColourOf(node, env, depth = 0, ctx = null) {
   return null
 }
 
+/** ⭐⭐ THE `input.color` A STATIC COLOUR'S HUE COMES FROM, by its bound name, or
+ *  null (`{name, title, hex}`) — `staticColourOf`'s own walk (bindings, a constant-selected branch,
+ *  `color.new`'s base, a single-expression colour helper), asking WHERE the
+ *  colour came from instead of WHAT it is. `bullColor = input.color(color.teal)`
+ *  then `color.new(bullColor, t)` answers `bullColor`: the band's hue is the
+ *  member's knob, not the author's default welded in. */
+function colourInputNameOf(node, env, depth = 0, ctx = null) {
+  if (!node || depth > 8) return null
+  if (node.type === 'bound') {
+    const arm = openBoundArm(node, env)
+    return arm ? colourInputNameOf(arm.node, arm.env, depth + 1, ctx) : null
+  }
+  if (node.type === 'ternary') {
+    const taken = constantColourSelector(node, env, ctx)
+    return taken !== node ? colourInputNameOf(taken, env, depth + 1, ctx) : null
+  }
+  if (node.type === 'name') {
+    const par = env && typeof env.get === 'function' ? env.get(node.name) : null
+    if (par && par.kind === 'param' && ctx && ctx.inline) {
+      const a = (ctx.inline.args || [])[par.index]
+      const v = a && a.value !== undefined ? a.value : a
+      return colourInputNameOf(v, ctx.inline.callerEnv || env, depth + 1, { ...ctx, inline: null })
+    }
+    const bound = env && typeof env.get === 'function' ? env.get(node.name) : null
+    if (bound && bound.kind === 'expr') return colourInputNameOf(bound.node, bound.env || env, depth + 1, ctx)
+    return null
+  }
+  if (node.type === 'call' && (node.name === 'input.color' || node.name === 'input')) {
+    const hex = typeof node.boundName === 'string' && node.boundName ? staticColourOf(node, env, depth, ctx) : null
+    if (!hex) return null
+    const t = (node.args || []).find((x) => x && x.name === 'title') || (node.args || []).filter((x) => x && !x.name)[1]
+    const title = t && t.value && t.value.type === 'string' ? t.value.value : null
+    return { name: node.boundName, title, hex }
+  }
+  if (node.type === 'call' && node.name === 'color.new') {
+    return colourInputNameOf(((node.args || [])[0] || {}).value, env, depth + 1, ctx)
+  }
+  const helper = openColourHelper(node, env, ctx)
+  if (helper) return colourInputNameOf(helper.node, helper.env, depth + 1, { ...ctx, inline: helper.inline })
+  return null
+}
+
+/** For a fill's colour argument: which `input.color` each of its two colours
+ *  (`colorUp` / `colorDown`) comes from, matched by the colour each branch folds
+ *  to. Null where a branch reads no input, or the match is ambiguous. */
+function fillColourInputsOf(args, env, colorUp, colorDown, ctx = null) {
+  const a = (args || []).find((x) => x && x.name === 'color')
+    || (args || []).filter((x) => x && !x.name)[2]
+  const node = a && a.value
+  if (!node || node.type !== 'ternary') return null
+  const yesHex = staticColourOf(node.yes, env, 0, ctx)
+  const noHex = staticColourOf(node.no, env, 0, ctx)
+  const yesIn = colourInputNameOf(node.yes, env, 0, ctx)
+  const noIn = colourInputNameOf(node.no, env, 0, ctx)
+  const pick = (hex) => {
+    const fromYes = yesHex && yesHex === hex ? yesIn : undefined
+    const fromNo = noHex && noHex === hex ? noIn : undefined
+    const nm = (x) => (x ? x.name : x)
+    if (fromYes !== undefined && fromNo !== undefined && nm(fromYes) !== nm(fromNo)) return null
+    return (fromYes !== undefined ? fromYes : fromNo) || null
+  }
+  const up = pick(colorUp)
+  const down = pick(colorDown)
+  return (up || down) ? { up, down } : null
+}
+
 /** The opacity a colour helper asks for, or null.
  *
  *  ⭐⭐ a6.0 / H.1 — `color.rgb(r, g, b, t)` CARRIES ITS FOURTH ARGUMENT TOO.
@@ -26455,7 +26608,7 @@ function colourHelperAlpha(node, env, ctx, depth = 0) {
  *  drew a changing one — so the first thing this asks is whether the colour is
  *  static at all, and a null there is a null here.
  */
-function colourTransparencyOf(node, env, depth = 0) {
+function colourTransparencyOf(node, env, depth = 0, exact = false) {
   if (!node || depth > 8) return null
   // ⛔ THE GATE: no static colour, no static transparency. Same question, one
   // authority, so the two answers cannot disagree about what counts as a colour.
@@ -26464,7 +26617,7 @@ function colourTransparencyOf(node, env, depth = 0) {
   if (node.type === 'name') {
     const bound = env && typeof env.get === 'function' ? env.get(node.name) : null
     if (bound && bound.kind === 'expr') {
-      return colourTransparencyOf(bound.node, bound.env || env, depth + 1)
+      return colourTransparencyOf(bound.node, bound.env || env, depth + 1, exact)
     }
     // A bare Pine colour name (`color.teal`, or v3/v4 `teal`) is OPAQUE.
     return 0
@@ -26482,14 +26635,16 @@ function colourTransparencyOf(node, env, depth = 0) {
     // ⚠️ THE DISCLOSURE RIDES HERE: this reads the input's DEFAULT. A member who
     // moves the colour picker's alpha still gets the default rendering, and for
     // Uncharted Clouds that governs the entire cloud opacity.
-    return colourTransparencyOf(inputColourDefaultNode(node), env, depth + 1)
+    return colourTransparencyOf(inputColourDefaultNode(node), env, depth + 1, exact)
   }
   if (node.type === 'call' && (node.name === 'color.new' || node.name === 'color.rgb')) {
     const opacity = colourHelperAlpha(node, env, null)
     // ⭐ C29 — what `color.t` ANSWERS is a WHOLE transparency, truncated
     // (`color.t(color.new(c, 70.5))` reads 70, measured). The paint keeps the
     // exact float (`colourHelperAlpha`); this is the read-back, so it truncates.
-    return opacity === null ? null : wholeTransparency((1 - opacity) * 100)
+    // `exact`: what the colour PAINTS (an object's own `#RRGGBBAA`), never truncated.
+    if (opacity === null) return null
+    return exact ? (1 - opacity) * 100 : wholeTransparency((1 - opacity) * 100)
   }
   return null
 }
@@ -26522,7 +26677,9 @@ function staticObjectColourOf(node, env) {
   const hex = staticColourOf(node, env)
   if (!hex) return null
   const base = /^#[0-9a-f]{6}/i.exec(hex)
-  const t = colourTransparencyOf(node, env)
+  // ⛔ THE PAINT'S transparency, exact (`colourTransparencyOf(…, exact)`): an object
+  // paints what TradingView paints, never `color.t`'s whole-number read-back.
+  const t = colourTransparencyOf(node, env, 0, true)
   if (!base || t === null) return hex
   const own = /^#[0-9a-f]{6}([0-9a-f]{2})$/i.exec(hex)
   if (own && t === Math.round((1 - parseInt(own[1], 16) / 255) * 100)) return hex
@@ -26775,7 +26932,11 @@ function paletteEntryWithAlpha(hex, a) {
   const m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(String(hex))
   if (!m || !Number.isFinite(a)) return null
   const ch = [m[1], m[2], m[3]].map((x) => parseInt(x, 16))
-  return `rgba(${ch[0]}, ${ch[1]}, ${ch[2]}, ${Math.round(a * 1e4) / 1e4})`
+  // ⭐⭐ THE EXACT BYTE, `#RRGGBBAA` — TradingView's `round(opacity × 255)`. A
+  // 4-decimal `rgba()` re-rounded by the browser can land a byte off on a half step.
+  const byte = Math.round(Math.max(0, Math.min(1, a)) * 255)
+  const h2 = (x) => x.toString(16).padStart(2, '0').toUpperCase()
+  return byte >= 255 ? `#${h2(ch[0])}${h2(ch[1])}${h2(ch[2])}` : `#${h2(ch[0])}${h2(ch[1])}${h2(ch[2])}${h2(byte)}`
 }
 
 function colourIndexChain(node, env, ctx, depth = 0, acc = { entries: [], keys: [] }) {
@@ -26984,6 +27145,14 @@ function colourConditional(node, env, depth = 0, ctx = null) {
     }
   }
   const opacity = (a !== null && b !== null && a === b) ? a : null
+  // ⭐⭐ TWO BRANCHES, TWO ALPHAS: each colour carries its OWN, baked as
+  // `#RRGGBBAA`. ⚰️ With alphas exact (never truncated), `cond ? color.new(c, 70.4)
+  // : color.new(c, 70.5)` disagrees by a byte, and the pair fell back to NO opacity
+  // — both branches painted OPAQUE. A branch with no alpha of its own stays as is.
+  if (opacity === null && (a !== null || b !== null)) {
+    const bake = (hex, x) => (x !== null && x < 1 ? (paletteEntryWithAlpha(hex, x) || hex) : hex)
+    return { test: node.test, up: bake(up, a), down: bake(down, b), opacity: null }
+  }
   return { test: node.test, up, down, opacity }
 }
 
@@ -27086,8 +27255,10 @@ function colourGradientRule(node, env, ctx, depth = 0) {
     const args = node.args || []
     if (args.length !== 2 || args.some((a) => !a || a.name)) return null
     const raw = alphaNumberOf(args[1].value, env, ctx)
-    const t = raw === null ? null : wholeTransparency(raw)
-    if (!Number.isInteger(t) || t < 0 || t > 100) return null
+    // ⛔ EXACT, never truncated: the transparency a `color.new` sets is what PAINTS
+    // (Clouds capture A); only `color.t`'s read-back is whole.
+    const t = raw === null ? null : raw
+    if (!(Number.isFinite(t) && t >= 0 && t <= 100)) return null
     const inner = colourGradientRule(args[0].value, env, ctx, depth + 1)
     return inner ? { ...inner, transparency: t } : null
   }
@@ -27365,15 +27536,33 @@ function resolveFillHandles(fills, outputs, resolved, ctx) {
       ? (pres.colorUp !== pres.colorDown ? pres : null)
       : null
     if (ctx && ctx.carried) ctx.carried.add(f)
+    // ⭐⭐ WHICH `input.color` EACH BAND COLOUR IS (see `colourInputNameOf`) — so
+    // the member door can make the band's hue the member's knob. Additive.
+    let fromInputs = null
+    if (pair) {
+      const fenv = f.env || (ctx && ctx.env)
+      try { fromInputs = fillColourInputsOf(f.args, fenv, pair.colorUp, pair.colorDown, { env: fenv, resolver: ctx && ctx.resolver, kind: 'fill' }) } catch { fromInputs = null }
+    }
+    let staticInput = null
+    if (!pair && pres.color) {
+      try {
+        const a = (f.args || []).find((x) => x && x.name === 'color') || (f.args || []).filter((x) => x && !x.name)[2]
+        const fenv = f.env || (ctx && ctx.env)
+        staticInput = a ? colourInputNameOf(a.value, fenv, 0, { env: fenv, resolver: ctx && ctx.resolver, kind: 'fill' }) : null
+      } catch { staticInput = null }
+    }
     out.push({
       a: ai,
       b: bi,
       ...(pres.color ? { color: pres.color } : {}),
+      ...(staticInput ? { colorInput: { ...staticInput } } : {}),
       ...(Number.isFinite(pres.opacity) ? { opacity: pres.opacity } : {}),
       ...(pair ? {
         colorUp: pair.colorUp,
         colorDown: pair.colorDown,
         ...(pair.colorCondition ? { colorCondition: pair.colorCondition } : {}),
+        ...(fromInputs && fromInputs.up ? { colorUpInput: { ...fromInputs.up } } : {}),
+        ...(fromInputs && fromInputs.down ? { colorDownInput: { ...fromInputs.down } } : {}),
       } : {}),
       // ⭐ An N-way chain rides the same way a plot's does: palette + index.
       ...(Array.isArray(pres.colorPalette) && pres.colorIndex

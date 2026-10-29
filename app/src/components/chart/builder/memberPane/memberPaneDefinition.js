@@ -23,6 +23,8 @@
 // path rather than a first attempt: the rows, the manifest placements and the
 // `buildDefinition` call are the shapes it already proved land a valid document.
 import { translatePine } from '../../engine/ast/pine'
+import { withAlphaByte } from '../../designTokens'
+import { migrateMemberDocument } from '../../engine/memberDocumentMigration'
 import { DEFAULT_SERIES_COLOUR, V3_DEFAULT_SERIES_OPACITY } from '../../engine/pinePalette'
 import { paneGate, paneObjectsGate, runtimeRouteOf, runtimeFallbackOf } from '../../engine/ast/paneGate'
 import { runtimePaneEnabled } from '../../engine/runtimePaneGate'
@@ -45,7 +47,7 @@ import {
 import { applyParamEdit } from '../paramEdit'
 import { buildDefinition } from '../BuilderSheet'
 import { evaluateFormula } from '../FormulaField'
-import { BUILDER_INPUT_SCOPE, seriesNamesOf } from '../builderInputs'
+import { BUILDER_INPUT_SCOPE, seriesNamesOf, memberInputKey } from '../builderInputs'
 
 /** ⭐ ≈ A QUARTER OF THE CHART, and the unit is the schema's own.
  *  `defSchema` validates `placement.pane.height` as a FRACTION in (0, 1) — a
@@ -130,7 +132,7 @@ function tradingViewDefaultColour(output, version) {
   }
 }
 
-export function memberPaneDefinition({ source, id, name, translation = null } = {}) {
+export function memberPaneDefinition({ source, id, name, translation = null, enumInputs = true } = {}) {
   const no = (reason, guard = null, t = null) => ({
     ok: false, definition: null, reason, guard, translation: t, rows: [], notes: [],
   })
@@ -152,6 +154,10 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
       // validation as it does on TradingView — `builderInputs.withGuardInputs`.
       t = memberInputTranslation(translatePine, source, {
         paramManifest: true, strict: true, colourInputs: true, guardInputs: true,
+        // ⭐⭐ `input.string(…, options = [...])` as a LIVE dropdown knob
+        // (`pine.js::enumCompare`), not welded to the author's default.
+        // (`enumInputs: false` is the pre-enum door, kept for the saved-document rail.)
+        enumInputs: enumInputs !== false,
         objectRuntimeCheck: probeObjectRuntime,
         // ⭐ RT1 — with the runtime fallback switched on, every refused row keeps
         // what the author said it looks like (`pine.js`, `refusedPresentation`):
@@ -318,6 +324,8 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
   const conditionKeyByFormula = new Map()
   /** ⭐ B1 — the paints this document draws (`definition.paints`), built below. */
   const docPaints = []
+  /** ⭐⭐ The `input.color` specs a band's hue reads, by key (see the fills loop). */
+  const fillColourSpecs = new Map()
   const conditionColumnFor = (cc) => {
     if (!cc || typeof cc.formula !== 'string' || !cc.ast) return null
     const formula = cc.formula
@@ -380,7 +388,7 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
       mode: (ev && ev.verdict && ev.verdict.mode) || 'clean',
       readback: (ev && ev.readback) || '',
       style: typeof p.style === 'string' ? p.style : 'line',
-      color: typeof p.color === 'string' ? p.color : undefined,
+      ...rowColour(p),
       // ⭐ (j) j.1 — THE AUTHOR'S OWN `display.none`, CARRIED AS WRITTEN. It was
       // hard-coded `false` because the filter above had already removed every
       // hidden row, so the field could only ever be false and said nothing. Now
@@ -395,7 +403,6 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
       // on it, and an artefact of the import rather than anything the script asks
       // for. `defSchema` validates it and the renderer reads it (I-4, "an author's
       // declaration dropped on the floor — Wired"); only this step was missing.
-      ...(p.opacity !== undefined ? { opacity: p.opacity } : {}),
       // ⚰️ AND SO WAS `linewidth`. `outputPresentation` reads it (`pres.width`) and
       // `chromeInputsFor` makes a row's `width` the DEFAULT of its width input, but
       // this projection never named it, so every member-pane plot drew at the
@@ -410,7 +417,7 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
         colorMode: `column:${gradientKey}`,
         colorGradient: {
           from: g.from, to: g.to,
-          ...(Number.isInteger(g.transparency) ? { transparency: g.transparency } : {}),
+          ...(Number.isFinite(g.transparency) ? { transparency: g.transparency } : {}),
         },
       } : {}),
     }
@@ -449,6 +456,13 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
       if (!row || row.fill) continue
       row.fill = { with: kb }
       if (typeof f.color === 'string') row.fillColor = f.color
+      // ⭐⭐ …and a static band colour that is the script's `input.color` is the
+      // member's pick (`binder.effectiveFillColour`), like the two above.
+      if (f.colorInput && memberInputKey(f.colorInput.name)) {
+        const k = memberInputKey(f.colorInput.name)
+        row.fillColorInput = k
+        if (!fillColourSpecs.has(k)) fillColourSpecs.set(k, { key: k, type: 'color', label: f.colorInput.title || k, default: f.colorInput.hex })
+      }
       if (Number.isFinite(f.opacity)) row.fillOpacity = f.opacity
       // ⭐⭐ (j) j.3b(b) / R34 — A CONDITIONAL FILL NAMES A CONDITION COLUMN.
       //
@@ -467,6 +481,16 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
         row.fill.colorMode = `column:${fillKey}`
         row.fill.colorUp = f.colorUp
         row.fill.colorDown = f.colorDown
+        // ⭐⭐ THE BAND'S HUE IS THE MEMBER'S KNOB when the script's colour is an
+        // `input.color` (`pine.js::colourInputNameOf`): the fill names the input and
+        // the binder reads the instance's value; `colorUp` / `colorDown` stay the
+        // author's defaults, which is what an older reader draws.
+        for (const [side, field] of [['colorUpInput', f.colorUpInput], ['colorDownInput', f.colorDownInput]]) {
+          const k = field && memberInputKey(field.name)
+          if (!k) continue
+          row.fill[side] = k
+          if (!fillColourSpecs.has(k)) fillColourSpecs.set(k, { key: k, type: 'color', label: field.title || k, default: field.hex })
+        }
       } else if (Array.isArray(f.colorPalette) && f.colorPalette.length >= 2) {
         const palKey = conditionColumnFor(f.colorIndex)
         if (palKey) {
@@ -523,7 +547,7 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
           colorMode: `column:${k}`,
           colorGradient: {
             from: g.from, to: g.to,
-            ...(Number.isInteger(g.transparency) ? { transparency: g.transparency } : {}),
+            ...(Number.isFinite(g.transparency) ? { transparency: g.transparency } : {}),
           },
         })
       } else if (typeof doc.color !== 'string') {
@@ -676,8 +700,13 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
   // the inputs a document already declared keep their exact order and index.
   const runtimeErrors = runtimeErrorsStamp(t)
   const guardDeclared = guardInputSpecs(t, runtimeErrors, [...(memberSpecs || []), ...colourDeclared])
-  const docInputs = (colourDeclared.length || guardDeclared.length)
-    ? [...(memberSpecs || []), ...colourDeclared, ...guardDeclared] : memberSpecs
+  // ⭐⭐ The colour inputs a BAND's hue reads (collected with the fills, above),
+  // appended after every other input, so the inputs a document already declared
+  // keep their order. One the value or colour lanes already declare is not added twice.
+  const priorKeys = new Set([...(memberSpecs || []), ...colourDeclared, ...guardDeclared].map((x) => x && x.key))
+  const fillDeclared = [...fillColourSpecs.values()].filter((x) => !priorKeys.has(x.key))
+  const docInputs = (colourDeclared.length || guardDeclared.length || fillDeclared.length)
+    ? [...(memberSpecs || []), ...colourDeclared, ...guardDeclared, ...fillDeclared] : memberSpecs
   let definition = null
   try {
     definition = buildDefinition({
@@ -729,6 +758,12 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
   // ⭐⭐ B1 — THE PAINTS RIDE ON THE DOCUMENT (`defSchema.validatePaints`), and
   // only when there are any, so every other document keeps its exact shape.
   if (docPaints.length) definition.paints = docPaints
+  // ⭐⭐ ONE PLACEMENT RULE FOR A CONDITION COLUMN, the door's and a saved
+  // document's: a parameter a drawn row locates is placed at the SAME call in
+  // every colour-rule column (`memberDocumentMigration.js`) — including a rule
+  // carried for the first time, whose literals the translator does not tag (R36).
+  // So a document built today and one saved yesterday land identically.
+  definition = migrateMemberDocument(definition)
   // ⭐ THE CONDITIONS THE PANE DECLINED, AS SENTENCES — ruling D1's disclosure,
   // produced here rather than left for the pane to compose. A member whose script
   // declares an alert should be told where it went, on the surface that did not
@@ -1197,9 +1232,8 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
       mode: repaint.mode,
       readback: '',
       style: typeof p.style === 'string' ? p.style : 'line',
-      color: typeof p.color === 'string' ? p.color : undefined,
+      ...rowColour(p),
       hidden: false,
-      ...(p.opacity !== undefined ? { opacity: p.opacity } : {}),
       // `linewidth`, as the host lane's rows carry it (see that projection).
       ...(Number.isFinite(p.width) ? { width: Math.max(1, Math.min(4, Math.round(p.width))) } : {}),
       ...(p.marker && p.marker.shape ? { marker: p.marker } : {}),
@@ -1610,6 +1644,26 @@ function guardInputSpecs(t, stamp, existing) {
   for (const spec of (t.guardInputs || [])) take(spec)
   for (const o of (t.outputs || [])) for (const spec of (o.memberInputs || [])) take(spec)
   return out
+}
+
+/** ⭐⭐ A ROW'S COLOUR CARRIES ITS OWN ALPHA (`#RRGGBBAA`), never a separate
+ *  `opacity` beside it. The colour becomes the row's Style colour input's DEFAULT
+ *  (`chromeInputsFor`), so a member's pick REPLACES colour and alpha together, the
+ *  way TradingView's style colour does. ⚰️ With `opacity` beside it the renderer
+ *  MULTIPLIED the pick by the script default's transparency: Uncharted Clouds' fast
+ *  MA (`color.new(white, 100)`) drew a member's opaque yellow at alpha 0 (set E5).
+ *  ⭐ A document saved in the old shape still renders TradingView's default and
+ *  honours a pick: `pool.resolvePlotForInstance`. The alpha byte is TradingView's
+ *  (`designTokens.withAlphaByte`). An opaque colour keeps its six digits. */
+function rowColour(p) {
+  // ⛔ No colour of its own (a palette / condition / gradient row): its opacity is
+  // the palette's shared alpha and stays where it was.
+  if (typeof p.color !== 'string') return { color: undefined, ...(p.opacity !== undefined ? { opacity: p.opacity } : {}) }
+  if (Number.isFinite(p.opacity) && p.opacity < 1) {
+    const c = withAlphaByte(p.color, p.opacity)
+    if (c) return { color: c }
+  }
+  return { color: p.color, ...(p.opacity !== undefined ? { opacity: p.opacity } : {}) }
 }
 
 function memberInputSpecs(rows) {

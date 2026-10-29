@@ -253,6 +253,15 @@ export function withAlpha(color, alpha) {
  * Uncharted Clouds' twenty bands (`tests/fixtures/vendor/reference/A`).
  * Returns null if the colour is unparseable.
  */
+/** The colour with its own alpha DROPPED (`#RRGGBB`), or null if unparseable —
+ *  Pine's `color.new(c, t)`, which SETS the transparency rather than stacking on
+ *  `c`'s own. */
+export function opaqueOf(color) {
+  const v = withAlphaByte(color, 1)
+  if (!v) return null
+  return v.slice(0, 7)
+}
+
 export function withAlphaByte(color, alpha) {
   let rgba = parseHex(color)
   if (!rgba) {
