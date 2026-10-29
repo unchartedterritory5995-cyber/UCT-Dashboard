@@ -319,7 +319,7 @@ export default function TraderArchive() {
             <div className={styles.eyebrow}>From the team</div>
             <h2 className={styles.heading}>Trader Archive</h2>
             <p className={styles.lede}>
-              {stats ? `${stats.calls.toLocaleString()} calls and ${stats.records.toLocaleString()} posts` : 'Calls and posts'} from
+              {stats ? `${Number(stats.calls ?? 0).toLocaleString()} calls and ${Number(stats.records ?? 0).toLocaleString()} posts` : 'Calls and posts'} from
               the UCT trading team, each scored by how the stock did afterwards.
             </p>
           </div>
