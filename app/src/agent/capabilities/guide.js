@@ -42,7 +42,16 @@ export function showFeature(f, host) {
   if (needsChart(f) && !chart) return `There’s no chart on this board to show that on. Add one from Widgets ▾ → Chart first.`
   const chartRef = chart?.ref || null
   // an optional opening step (the board's own watchlist) only when it is there
-  const steps = f.steps.filter(s => !s.optional || findTarget(s.target, { chartRef }))
+  const all = f.steps.filter(s => !s.optional || findTarget(s.target, { chartRef }))
+  // ⭐ CONTEXT-AWARE: where the member already is. A step whose control is on screen BECAUSE the step before it was
+  // done (Chart settings is open → its Indicators tab; the Indicators tab is open → its search box) is where the
+  // walkthrough starts — never "open the gear" when the settings are already open.
+  let from = 0
+  for (let i = all.length - 1; i > 0; i--) {
+    const prev = all[i - 1]
+    if (prev.waitFor && findTarget(prev.waitFor, { chartRef }) && findTarget(all[i].target, { chartRef })) { from = i; break }
+  }
+  const steps = all.slice(from)
   const first = steps[0]
   if (!first || !findTarget(first.target, { chartRef })) {
     return `I can’t see ${f.control || 'that control'} on your screen right now — ${chart ? `${chart.label} may be scrolled out of view or covered by a panel` : 'a panel may be covering it'}. ${f.explain}`
@@ -50,7 +59,8 @@ export function showFeature(f, host) {
   if (guideState()) endGuide('replaced')
   startGuide(f, { chartRef, chartLabel: chart?.label || null, steps })
   const where = chart && chartsOf(host).length > 1 ? ` on ${chart.label}` : ''
-  return `I’ve highlighted it${where} — follow the card (Next, Back or Exit). Nothing on your board has changed.`
+  const already = from > 0 ? ' You’re already part of the way there, so I started from where you are.' : ''
+  return `I’ve highlighted it${where} — follow the card (Next, Back or Exit). Nothing on your board has changed.${already}`
 }
 
 /**

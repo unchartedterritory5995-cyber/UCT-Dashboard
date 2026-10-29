@@ -153,6 +153,18 @@ describe('S · Show me highlights the real control and changes nothing', () => {
     expect(p.turns()).toBe(0)
   }, 30000)
 
+  it('S4b context-aware: with Chart settings ALREADY open on the Indicators tab, the walkthrough starts at its search box — never "open the gear"', async () => {
+    const root = controls(['c'])
+    const modal = document.createElement('div')
+    modal.setAttribute('data-guide', 'chartSettings')
+    modal.innerHTML = '<button data-guide="chartSettings.tab.indicators">Indicators</button><input aria-label="Search indicators" />'
+    root.appendChild(modal)
+    const { say } = p.mount(...ONE())
+    const out = await say('how do I add an indicator?')
+    expect(out).toMatch(/You’re already part of the way there, so I started from where you are\./)
+    await waitFor(() => expect(cardText()).toMatch(/Search for an indicator and add it/))
+  }, 30000)
+
   it('S5 the control disappears mid-walkthrough → the guide stops and says why (never points at nothing)', async () => {
     const root = controls(['c'])
     const { say } = p.mount(...ONE())
