@@ -775,14 +775,24 @@ export function createBinder({ chart, LWC }) {
   /** ⭐⭐ Bands hosted on the CHART'S OWN PRICE SERIES, for an instance that has no
    *  visible binding of its own to host them: `instanceId → {host, fills: Map}`. */
   let priceHosted = new Map()
-  /** ⭐⭐ One paint layer per host series (`fillPrimitive.createFillLayerGroup`):
-   *  every band riding one series paints into it, so they do not compound and the
-   *  chart's own background stays under them. */
+  /** ⭐⭐ One paint layer per (host series, INSTANCE) (`fillPrimitive.createFillLayerGroup`):
+   *  every band one instance rides on one series paints into it, so its bands do not
+   *  compound and the chart's own background stays under them.
+   *  ⛔ N4: PER INSTANCE, not per series — the price series hosts the bands of every
+   *  instance with no visible plot, and one shared layer erased one instance's bands
+   *  under another's where they overlapped. Two indicators' bands overlap on
+   *  TradingView as two layers do: composited, one over the other.
+   *  A group holds no bitmap once its last band detaches (`createFillLayerGroup`). */
   const fillGroups = new WeakMap()
-  const fillGroupFor = (series) => {
+  const fillGroupFor = (series, instanceId) => {
     if (!series || typeof series !== 'object') return createFillLayerGroup()
-    let g = fillGroups.get(series)
-    if (!g) { g = createFillLayerGroup(); fillGroups.set(series, g) }
+    let byInst = fillGroups.get(series)
+    if (!byInst) { byInst = new Map(); fillGroups.set(series, byInst) }
+    let g = byInst.get(instanceId)
+    if (!g) {
+      g = createFillLayerGroup({ onEmpty: () => { if (byInst.get(instanceId) === g) byInst.delete(instanceId) } })
+      byInst.set(instanceId, g)
+    }
     return g
   }
   // ⭐ P1 info value — WHY an instance's columns are missing, as of the last
@@ -2287,7 +2297,7 @@ export function createBinder({ chart, LWC }) {
         if (own && other) {
           const colour = effectiveFillColour(b.plot, (b.inst && b.inst.inputs) || null)
           if (!fill) {
-            fill = createFillPrimitive({ group: fillGroupFor(series) })
+            fill = createFillPrimitive({ group: fillGroupFor(series, b.instanceId) })
             attempt(() => series.attachPrimitive(fill.primitive))
           }
           fill.setOptions({
@@ -2346,7 +2356,7 @@ export function createBinder({ chart, LWC }) {
           if (!upper || !lower) continue
           let h = (hostedFills && hostedFills.get(hp.key)) || null
           if (!h) {
-            h = createFillPrimitive({ group: fillGroupFor(series) })
+            h = createFillPrimitive({ group: fillGroupFor(series, b.instanceId) })
             attempt(() => series.attachPrimitive(h.primitive))
           }
           const hc = effectiveFillColour(hp, (b.inst && b.inst.inputs) || null)
@@ -2591,6 +2601,9 @@ export function createBinder({ chart, LWC }) {
     for (const inst of (ctx.instances || [])) {
       const id = inst && inst.instanceId
       if (!id || fillHostSeen.has(id) || !priceSeriesNow) continue
+      // ⛔ N5: a HIDDEN instance draws nothing of its own — kept in the pass only when
+      // another instance reads it (`dependedOn`), and a source is not a picture.
+      if (inst.hidden === true) continue
       const def = inst.def || (ctx.registry && ctx.registry.getDefinition ? ctx.registry.getDefinition(inst.defId) : null)
       const hidden = ((def && def.plots) || []).filter((p) => p && p.hidden === true && p.fill && typeof p.fill.with === 'string' && p.fill.with !== p.key)
       if (!hidden.length) continue
@@ -2608,7 +2621,7 @@ export function createBinder({ chart, LWC }) {
         const lower = displacedColumn(columns.get(bindingKey(id, hp.fill.with)), shiftOf(hp.fill.with))
         if (!upper || !lower || !registry.hasAnyFinite(upper) || !registry.hasAnyFinite(lower)) continue
         let h = prev.get(hp.key) || null
-        if (!h) { h = createFillPrimitive({ group: fillGroupFor(priceSeriesNow) }); attempt(() => priceSeriesNow.attachPrimitive(h.primitive)) }
+        if (!h) { h = createFillPrimitive({ group: fillGroupFor(priceSeriesNow, id) }); attempt(() => priceSeriesNow.attachPrimitive(h.primitive)) }
         const hc = effectiveFillColour(hp, inst.inputs || null)
         h.setOptions({
           upper, lower, times: bars.map((bar) => adjustTime(bar.t)),

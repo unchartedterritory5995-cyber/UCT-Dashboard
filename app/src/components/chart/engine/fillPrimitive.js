@@ -538,7 +538,7 @@ function layerDrawable(target) {
 }
 
 /**
- * ⭐⭐ ONE PAINT LAYER FOR EVERY BAND ON ONE HOST SERIES.
+ * ⭐⭐ ONE PAINT LAYER FOR THE BANDS ONE INSTANCE RIDES ON ONE HOST SERIES.
  *
  * The bands of one host (Uncharted Clouds' twenty) are separate primitives, drawn
  * one after another onto one canvas; the compounding fix needs them to erase each
@@ -546,33 +546,93 @@ function layerDrawable(target) {
  * to touch nothing but bands. So they share a layer: the first live member draws
  * every member into it and composites it once (`draw`). `touch` asks the chart to
  * repaint when any member's data changes, since only the leader draws.
+ *
+ * ⭐ N4 — WHAT THE LAYER COSTS, AND WHEN IT IS FREED:
+ *   • it is sized to the UNION of the members' polygons (padded for antialiasing,
+ *     clipped to the pane), never the whole pane by default;
+ *   • it is re-rendered only when some member's frame changed — the geometry cache
+ *     hands back the SAME groups when nothing moved, and the members' styles and the
+ *     bitmap size are compared too; otherwise the cached layer is just composited;
+ *   • it is RELEASED (canvas dropped, `onEmpty` told) when its last member leaves.
  */
-export function createFillLayerGroup() {
+export function createFillLayerGroup({ onEmpty = null } = {}) {
   const list = []
   const updates = new Map()
   let canvas = null
   let ctx2d = null
+  let key = null
+  const stats = { renders: 0, composites: 0, allocations: 0, released: 0 }
+  const release = () => { if (canvas) stats.released += 1; canvas = null; ctx2d = null; key = null }
   return {
-    join(m, requestUpdate) { if (!list.includes(m)) list.push(m); updates.set(m, requestUpdate || null) },
-    leave(m) { const i = list.indexOf(m); if (i >= 0) list.splice(i, 1); updates.delete(m) },
+    stats,
+    join(m, requestUpdate) { if (!list.includes(m)) list.push(m); updates.set(m, requestUpdate || null); key = null },
+    leave(m) {
+      const i = list.indexOf(m)
+      if (i >= 0) list.splice(i, 1)
+      updates.delete(m)
+      key = null
+      if (!list.length) { release(); if (onEmpty) onEmpty() }
+    },
     members: () => list.slice(),
     leader: () => list.find((m) => m.isLive()) || null,
-    touch() { const l = list.find((m) => m.isLive()); const u = l ? updates.get(l) : null; if (u) u() },
-    layerContext({ width, height }) {
-      if (!(width > 0) || !(height > 0)) return null
-      if (!canvas || canvas.width !== width || canvas.height !== height) {
-        try {
-          canvas = typeof OffscreenCanvas === 'function' ? new OffscreenCanvas(width, height) : document.createElement('canvas')
-          canvas.width = width
-          canvas.height = height
-          ctx2d = canvas.getContext('2d')
-        } catch { canvas = null; ctx2d = null }
+    touch() { key = null; const l = list.find((m) => m.isLive()); const u = l ? updates.get(l) : null; if (u) u() },
+    hasLayer: () => !!canvas,
+    /** Paint the live members into the layer and composite it onto `context`
+     *  (bitmap space). False when no layer can be made — the caller then paints
+     *  every member directly. */
+    composite(context, bitmapSize, hr, vr) {
+      const frames = []
+      let minX = Infinity; let minY = Infinity; let maxX = -Infinity; let maxY = -Infinity
+      for (const m of list) {
+        if (!m.isLive()) continue
+        const f = m.frame()
+        if (!f) continue
+        frames.push(f)
+        if (f.bounds) {
+          minX = Math.min(minX, f.bounds.minX); minY = Math.min(minY, f.bounds.minY)
+          maxX = Math.max(maxX, f.bounds.maxX); maxY = Math.max(maxY, f.bounds.maxY)
+        }
       }
-      if (!ctx2d) return null
-      ctx2d.setTransform(1, 0, 0, 1, 0, 0)
-      ctx2d.globalCompositeOperation = 'source-over'
-      ctx2d.clearRect(0, 0, width, height)
-      return ctx2d
+      if (!frames.length || !(maxX >= minX) || !(maxY >= minY)) { stats.composites += 1; return true }
+      const PAD = 2
+      const W = bitmapSize.width
+      const H = bitmapSize.height
+      const x0 = Math.max(0, Math.floor(minX * hr) - PAD)
+      const y0 = Math.max(0, Math.floor(minY * vr) - PAD)
+      const x1 = Math.min(W, Math.ceil(maxX * hr) + PAD)
+      const y1 = Math.min(H, Math.ceil(maxY * vr) + PAD)
+      const w = x1 - x0
+      const h = y1 - y0
+      if (!(w > 0) || !(h > 0)) { stats.composites += 1; return true }
+      const want = [x0, y0, w, h, hr, vr]
+      const same = key && key.box.every((v, i) => v === want[i]) && key.frames.length === frames.length
+        && key.frames.every((f, i) => f.groups === frames[i].groups && f.style === frames[i].style)
+      if (!same) {
+        if (!canvas || canvas.width < w || canvas.height < h || canvas.width * canvas.height > 4 * w * h) {
+          try {
+            canvas = typeof OffscreenCanvas === 'function' ? new OffscreenCanvas(w, h) : document.createElement('canvas')
+            canvas.width = w
+            canvas.height = h
+            ctx2d = canvas.getContext('2d')
+            stats.allocations += 1
+          } catch { canvas = null; ctx2d = null }
+        }
+        if (!ctx2d) { key = null; return false }
+        ctx2d.setTransform(1, 0, 0, 1, 0, 0)
+        ctx2d.globalCompositeOperation = 'source-over'
+        ctx2d.clearRect(0, 0, w, h)
+        ctx2d.setTransform(hr, 0, 0, vr, -x0, -y0)
+        for (const f of frames) f.paint(ctx2d)
+        key = { box: want, frames: frames.map((f) => ({ groups: f.groups, style: f.style })) }
+        stats.renders += 1
+      }
+      context.save()
+      context.setTransform(1, 0, 0, 1, 0, 0)
+      context.globalCompositeOperation = 'source-over'
+      context.drawImage(canvas, 0, 0, w, h, x0, y0, w, h)
+      context.restore()
+      stats.composites += 1
+      return true
     },
   }
 }
@@ -597,15 +657,45 @@ export function createFillPrimitive(initial) {
   // Without a group handed in, a band is a group of one: its erase-then-paint still
   // runs in a layer of its own, never on the chart's canvas.
   const layerGroup = (initial && initial.group) || createFillLayerGroup()
-  const member = { isLive: () => !!(series && chart), paintOwn: (ctx) => paintOwn(ctx) }
+  const member = { isLive: () => !!(series && chart), frame: () => frameOf(), paintOwn: (ctx, erase) => paintOwn(ctx, erase) }
+
+  /** This band's frame: its geometry (the SAME groups while nothing moved), the
+   *  style it paints them in, their media-space bounds, and a painter. */
+  let boundsFor = null
+  let bounds = null
+  function frameOf() {
+    if (!series || !chart) return null
+    const { upper, lower, times, colors } = opts
+    if (!upper || !lower || !times) return null
+    const groups = geometry.groups({ upper, lower, times, colors, ts: chart.timeScale(), series })
+    if (!groups.length) return null
+    const dynamic = !!(colors && colors.length)
+    const style = dynamic ? 'dynamic' : `${opts.color}|${opts.opacity}`
+    if (boundsFor === groups) return { groups, style, bounds, paint: (ctx) => paintGroups(ctx, groups) }
+    let minX = Infinity; let minY = Infinity; let maxX = -Infinity; let maxY = -Infinity
+    for (const g of groups) {
+      for (const poly of g.polys) {
+        for (const pt of poly) {
+          if (pt.x < minX) minX = pt.x
+          if (pt.x > maxX) maxX = pt.x
+          if (pt.y < minY) minY = pt.y
+          if (pt.y > maxY) maxY = pt.y
+        }
+      }
+    }
+    boundsFor = groups
+    bounds = { minX, minY, maxX, maxY }
+    return { groups, style, bounds, paint: (ctx) => paintGroups(ctx, groups) }
+  }
 
   /** This band's own polygons, erase-then-paint, onto `ctx` in MEDIA coordinates. */
-  function paintOwn(ctx) {
-    if (!series || !chart) return
-    const { upper, lower, times, colors } = opts
-    if (!upper || !lower || !times) return
-    const groups = geometry.groups({ upper, lower, times, colors, ts: chart.timeScale(), series })
-    if (!groups.length) return
+  function paintOwn(ctx, erase = true) {
+    const f = frameOf()
+    if (f) paintGroups(ctx, f.groups, erase)
+  }
+
+  function paintGroups(ctx, groups, erase = true) {
+    const { colors } = opts
     // ⭐⭐ R30 — ONE `fillStyle` PER RUN when the fill is colour-driven, and ONE
     // FOR THE WHOLE FRAME when it is not.
     //
@@ -682,11 +772,16 @@ export function createFillPrimitive(initial) {
         // adjacent (non-overlapping) bands is the same fractional-coverage
         // antialiasing blend a smooth edge always had; the fix only changes
         // pixels where MULTIPLE layers actually overlap.
-        ctx.globalCompositeOperation = 'destination-out'
-        ctx.fillStyle = '#000'
-        ctx.fill()
-        ctx.globalCompositeOperation = 'source-over'
-        ctx.fillStyle = style
+        // ⭐ N4: a band ALONE in its group has no sibling to compound with and is
+        // painted straight onto the chart (`draw`), where an erase would cut the
+        // chart's own background — so it skips the erase there.
+        if (erase) {
+          ctx.globalCompositeOperation = 'destination-out'
+          ctx.fillStyle = '#000'
+          ctx.fill()
+          ctx.globalCompositeOperation = 'source-over'
+          ctx.fillStyle = style
+        }
         ctx.fill()
       }
     }
@@ -714,20 +809,26 @@ export function createFillPrimitive(initial) {
         if (!series || !chart) return
         if (layerDrawable(target)) {
           if (layerGroup.leader() !== member) return
+          // ⭐ N4 — A BAND ALONE NEEDS NO LAYER. The layer exists so SIBLING bands do
+          // not compound; one band (a Bollinger or Keltner background, Ichimoku's
+          // cloud) cannot compound with anything, so it paints straight onto the
+          // chart, `source-over`, with no erase — over the chart's own background,
+          // at no layer's cost (measured: the composite is the layer's whole price).
+          if (layerGroup.members().filter((m) => m.isLive()).length === 1) {
+            target.useMediaCoordinateSpace(({ context: ctx }) => paintOwn(ctx, false))
+            return
+          }
           let painted = false
           target.useBitmapCoordinateSpace(({ context, bitmapSize, horizontalPixelRatio, verticalPixelRatio }) => {
-            const lctx = layerGroup.layerContext(bitmapSize)
-            if (!lctx) return
-            lctx.setTransform(horizontalPixelRatio, 0, 0, verticalPixelRatio, 0, 0)
-            for (const m of layerGroup.members()) if (m.isLive()) m.paintOwn(lctx)
-            context.save()
-            context.setTransform(1, 0, 0, 1, 0, 0)
-            context.globalCompositeOperation = 'source-over'
-            context.drawImage(lctx.canvas, 0, 0)
-            context.restore()
-            painted = true
+            painted = layerGroup.composite(context, bitmapSize, horizontalPixelRatio, verticalPixelRatio)
           })
           if (painted) return
+          // ⛔ NO LAYER COULD BE MADE: the leader paints EVERY live member directly —
+          // the others returned above, so painting only its own would drop them.
+          target.useMediaCoordinateSpace(({ context: ctx }) => {
+            for (const m of layerGroup.members()) if (m.isLive()) m.paintOwn(ctx)
+          })
+          return
         }
         target.useMediaCoordinateSpace(({ context: ctx }) => paintOwn(ctx))
       },
