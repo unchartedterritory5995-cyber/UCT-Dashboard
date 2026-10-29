@@ -31,7 +31,10 @@ export const RHYMES_RETRY = { count: 20, intervalMs: 15000 }
 // every WARMING_POLL_MS until the answer lands, then stop polling.
 export const WARMING_POLL_MS = 15000
 const isWarming = (d) => d?.status === 'warming'
-const isRetryable = (error) => error?.status >= 500
+// Only a definite 4xx answer is final (404 off, 402 unpaid). A 5xx, and a failure with NO status at
+// all (the connection reset while a deploy swapped pods: jsonFetcher sets .status only on an HTTP
+// answer), are retried. Measured 2026-10-29: the status-less case left Today on an error for good.
+const isRetryable = (error) => !(error?.status >= 400 && error?.status < 500)
 
 function useRhymes() {
   // How many 5xx retries are still to come: while any are, the page keeps saying "matching"

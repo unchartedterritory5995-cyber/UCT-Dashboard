@@ -93,6 +93,24 @@ describe('TodayRhymes', () => {
     }
   })
 
+  it('a network failure with no status (a deploy swapping pods) is retried, not final', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      let n = 0
+      globalThis.fetch = vi.fn(() => (++n < 2 ? Promise.reject(new TypeError('Failed to fetch'))
+        : Promise.resolve(ok({ market_state: 'downtrend', hits: [HIT] }))))
+      mount(<TodayRhymes />)
+      expect(await screen.findByText(/this page checks back on its own/)).toBeInTheDocument()
+      expect(screen.queryByTestId('rhymes-unavailable')).toBeNull()
+      for (let i = 0; i < 3 && !screen.queryByTestId('rhyme-hit'); i += 1) {
+        await act(async () => { await vi.advanceTimersByTimeAsync(RHYMES_RETRY.intervalMs + 10) })
+      }
+      expect(screen.getByTestId('rhyme-hit')).toHaveTextContent('ZZTA')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('an unreadable scan (503) is said as such once the retries are spent', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     try {
