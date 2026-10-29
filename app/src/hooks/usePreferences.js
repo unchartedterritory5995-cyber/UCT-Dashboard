@@ -714,7 +714,7 @@ export default function usePreferences(enabled = true) {
     // off the returned promise, which still resolves — a fire-and-forget caller
     // never gets an unhandled rejection.
     return queueWrite(key, () => postPref(key, serialized, op)).catch(() => {
-      // Revert on failure — same contract as setPref (and never into another member's cache).
+      // Revert on failure — same contract as setPref, and never into another member's cache.
       if (op.stale()) return
       mutate()
     })
