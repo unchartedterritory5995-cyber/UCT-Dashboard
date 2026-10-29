@@ -130,3 +130,52 @@ describe('TickerPopup chart header text clears 4.5:1 on the popup header', () =>
     expect(fails.some((f) => /^light down-hue 3\.\d\d$/.test(f)), fails.join('\n')).toBe(true)
   })
 })
+
+// The identity label and the info strip on the same app surface. Measured (WebKit + axe, light theme,
+// 1200 mouse, the member's stored /charts title colour): the label at 1.22:1 (#e8e8ec on #ffffff,
+// `header.colors.title`, written by applying a dark /charts theme), the Market Cap / Next Earnings
+// values at 2.76:1 (#6ba3be) and the UCT Rating at 1.85:1 (#dcbb5e), all inline styles. After: 0.
+describe('TickerPopup / Ticker Hub chart header: identity label and info values clear 4.5:1', () => {
+  const VALUE_KEYS = { mcap: 'info', earn: 'info', rating: 'accent' }
+  it('both scopes re-ink the label and every info value with app tokens, over the inline colour', () => {
+    for (const scope of [POPUP, HUB]) {
+      expect(last(WS, `${scope} .chartHeaderTop [data-testid='sym-label']`, 'color'), scope).toBe('var(--text-bright) !important')
+      expect(last(WS, `${scope} .chartMetaVal`, 'color'), scope).toBe('var(--text-bright) !important')
+      for (const [key, token] of Object.entries(VALUE_KEYS)) {
+        expect(last(WS, `${scope} .chartMetaVal[data-meta-key='${key}']`, 'color'), `${scope} ${key}`).toBe(`var(--${token}) !important`)
+      }
+      expect(last(WS, `${scope} .chartMetaVal[data-sign='pos']`, 'color'), scope).toBe('var(--success-ink) !important')
+      expect(last(WS, `${scope} .chartMetaVal[data-sign='neg']`, 'color'), scope).toBe('var(--danger-ink) !important')
+    }
+  })
+
+  it('every app theme: label, default, keyed and signed values clear 4.5:1 on the header', () => {
+    const v = (sel) => last(WS, `${POPUP} ${sel}`, 'color').replace(' !important', '')
+    const inks = {
+      'label': v(".chartHeaderTop [data-testid='sym-label']"),
+      'value': v('.chartMetaVal'),
+      'mcap': v(".chartMetaVal[data-meta-key='mcap']"),
+      'rating': v(".chartMetaVal[data-meta-key='rating']"),
+      'pos': v(".chartMetaVal[data-sign='pos']"),
+      'neg': v(".chartMetaVal[data-sign='neg']"),
+    }
+    expect(failures(inks)).toEqual([])
+  })
+
+  it('CONTROL: the chart colours the rules replace fail on the light header (the math can fail)', () => {
+    const fails = failures({ 'title': '#e8e8ec', 'mcap-dflt': '#6ba3be', 'rating-dflt': '#dcbb5e' })
+    expect(fails).toContain('light title 1.22')
+    expect(fails).toContain('light mcap-dflt 2.76')
+    expect(fails).toContain('light rating-dflt 1.86') // axe truncates to 1.85
+  })
+
+  it('the wire: the static label carries the test id, the value span carries its key and sign', () => {
+    expect(read('components/chart/pane/ChartIdentityRow.jsx')).toMatch(/data-testid="sym-label"\s*className=\{styles\.symbolStatic\}/)
+    const row = read('components/chart/pane/ChartMetaRow.jsx')
+    expect(row).toMatch(/className=\{styles\.chartMetaVal\} data-meta-key=\{it\.key\} data-sign=\{it\.sign \|\| undefined\}/)
+    expect(read('components/chart/pane/ChartPane.jsx')).toMatch(/sign: f\.signed \? \(sign \|\| 'pos'\) : null/)
+    // the keys the rules name are the field registry's own
+    const fields = read('components/chart/headerFields.js')
+    for (const key of Object.keys(VALUE_KEYS)) expect(fields, key).toMatch(new RegExp(`key: '${key}'`))
+  })
+})
