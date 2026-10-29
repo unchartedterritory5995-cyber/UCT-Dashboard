@@ -24,7 +24,6 @@
 // `buildDefinition` call are the shapes it already proved land a valid document.
 import { translatePine } from '../../engine/ast/pine'
 import { withAlphaByte } from '../../designTokens'
-import { migrateMemberDocument } from '../../engine/memberDocumentMigration'
 import { DEFAULT_SERIES_COLOUR, V3_DEFAULT_SERIES_OPACITY } from '../../engine/pinePalette'
 import { paneGate, paneObjectsGate, runtimeRouteOf, runtimeFallbackOf } from '../../engine/ast/paneGate'
 import { runtimePaneEnabled } from '../../engine/runtimePaneGate'
@@ -758,12 +757,12 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
   // ⭐⭐ B1 — THE PAINTS RIDE ON THE DOCUMENT (`defSchema.validatePaints`), and
   // only when there are any, so every other document keeps its exact shape.
   if (docPaints.length) definition.paints = docPaints
-  // ⭐⭐ ONE PLACEMENT RULE FOR A CONDITION COLUMN, the door's and a saved
-  // document's: a parameter a drawn row locates is placed at the SAME call in
-  // every colour-rule column (`memberDocumentMigration.js`) — including a rule
-  // carried for the first time, whose literals the translator does not tag (R36).
-  // So a document built today and one saved yesterday land identically.
-  definition = migrateMemberDocument(definition)
+  // ⛔⛔ THE DOOR NEVER GUESSES A PLACEMENT. Every locator above is one the
+  // translator TAGGED (`paramLocatorsIn`): a literal that came from the parameter.
+  // ⚰️ Round 2 also ran the saved-document migration here, which matched the call
+  // SHAPE — and claimed a constant the author hard-coded at the parameter's value
+  // (`len = input.int(21)` beside a literal `ta.ema(close, 21)` in the colour rule),
+  // so an edit silently rewrote the colour. `memberPaneDefinition.noGuess.test.js`.
   // ⭐ THE CONDITIONS THE PANE DECLINED, AS SENTENCES — ruling D1's disclosure,
   // produced here rather than left for the pane to compose. A member whose script
   // declares an alert should be told where it went, on the surface that did not

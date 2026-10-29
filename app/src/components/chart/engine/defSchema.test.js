@@ -1242,10 +1242,7 @@ describe('schema v2 — many trees, one hash', () => {
         + 'hands the two COLUMNS to `fillPrimitive.js`, which never sees the schema field. '
         + 'A NEW name here is a second authority over one field; a MISSING one means the '
         + 'band stopped being drawn and every "fills are supported" claim went stale with it.',
-      // ⭐ …AND `memberDocumentMigration.js`, which READS a saved document's fill
-      // colour rule (`fill.colorMode`) to place a parameter in the condition column it
-      // names — a load-time repair of the document, drawing nothing (its own header).
-      ).toEqual(['binder.js', 'memberDocumentMigration.js'])
+      ).toEqual(['binder.js'])
       // ⛔ AND THE PROBE IS NOT VACUOUS, in both directions. `defSchema.js` — the
       // one legitimate reader, excluded above — must MATCH, or the pattern has
       // rotted into one that reports every deletion as done; and the Array

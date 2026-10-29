@@ -1,16 +1,17 @@
 // app/src/components/chart/engine/__tests__/memberDocumentMigration.test.js
 //
-// ⭐⭐ A SAVED MEMBER DOCUMENT GETS TODAY'S BEHAVIOUR ON LOAD (`memberDocumentMigration.js`).
+// ⭐⭐ A SAVED MEMBER DOCUMENT GETS TODAY'S BEHAVIOUR ON LOAD (`memberDocumentMigration.js`)
+// — exactly what its own bytes prove, and nothing they do not.
 //
-//   • on the SAVED CORPUS (the C46 fixture's scripts): a document in the old door's
-//     shape — no condition-column locators — migrates to exactly the locators the
-//     door places today, parameter for parameter;
-//   • on a REAL saved document: Uncharted Clouds as origin/master's door saved it
-//     with both lengths edited (TradingView set E3) — refused by `defSchema` before
-//     (stale handle), installed after, and DRAWN exactly as TradingView draws E3:
-//     values, every band's bytes, the MA lines;
-//   • pure, deterministic, idempotent, and the identity on a document that needs
-//     nothing.
+//   • a REAL saved document — Uncharted Clouds as origin/master's door saved it with
+//     both lengths edited (TradingView set E3) — was refused (stale handle) and now
+//     installs; its drawn values are TradingView's;
+//   • ⛔ it places NO parameter in a condition column: graded over the saved corpus
+//     against an INDEPENDENT truth — the door's TAGGED locators on a fresh paste of the
+//     same source (the door no longer runs this migration, so the two cannot agree by
+//     construction);
+//   • pure, deterministic, idempotent, memoised, the identity on a document that
+//     needs nothing.
 import { describe, it, expect, afterAll } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -27,9 +28,10 @@ const SAVED = JSON.parse(fs.readFileSync(path.join(REPO, 'tests/fixtures/pine_pa
 const CLOUDS_SAVED = JSON.parse(fs.readFileSync(path.join(REPO, 'tests/fixtures/pine_param_ids/clouds-saved-master-e3-edit.json'), 'utf8'))
 const scripts = Object.keys(SAVED).filter((k) => k !== '_about' && fs.existsSync(path.join(REPO, k)))
 
-/** Measured 2026-10-29 over the C46 saved corpus (see the corpus case). */
-const CORPUS_WANTED = 1029
-const CORPUS_RECOVERED = 824
+/** Measured 2026-10-29: the door's TAGGED condition-column placements over the C46 corpus. */
+const CORPUS_TAGGED = 759
+/** Measured 2026-10-29: band-bars the stored 9/20 colour rule puts on the other side in E3. */
+const SIDE_OFF_E3 = 520
 const mintedOf = (built) => new Set((built.rows || []).filter((r) => r && typeof r.conditionFor === 'string').map((r) => r.key))
 const locKey = (l) => `${l.treeIndex}|${JSON.stringify(l.astPath)}`
 /** The OLD door's shape: today's document with every condition-column locator removed. */
@@ -55,37 +57,45 @@ describe('migrateMemberDocument — pure, deterministic, idempotent', () => {
     expect(migrateMemberDocument(once)).toBe(once)
     expect(JSON.stringify(migrateMemberDocument(JSON.parse(before)))).toBe(JSON.stringify(once))
   })
+
+  it('⭐ N6: memoised per document — a repeat call on the same object is the same answer, no re-hash', () => {
+    const doc = JSON.parse(JSON.stringify(CLOUDS_SAVED.definition))
+    const a = migrateMemberDocument(doc)
+    expect(a).not.toBe(doc)
+    expect(migrateMemberDocument(doc)).toBe(a)
+  })
 })
 
-describe('the SAVED CORPUS — an old-shape document migrates to today\'s placements', () => {
-  it('every script: old door shape → migrate → ONLY placements the door makes today, most of them', () => {
-    // ⭐ What a saved document can recover is what its own drawn rows prove: a column
-    // call identical to a call a parameter locates. The door today also places the
-    // literals the translator TAGGED inside a condition (a parameter read only there,
-    // or through a different call), which a saved document no longer carries — so the
-    // migration recovers a SUBSET, and must never place one the door would not.
-    const extra = []
+describe('the SAVED CORPUS — graded against the door\'s TAGGED locators on a fresh paste', () => {
+  it('every script: the door\'s document is untouched, and an old-shape copy gains NOTHING', () => {
+    // ⭐ The truth is independent of the migration: `memberPaneDefinition` places only
+    // literals the translator tagged (`paramLocatorsIn`) and does not call the
+    // migration. A saved document cannot prove which condition-column literal came
+    // from a parameter (see the module header), so the migration must add none —
+    // not one of the TAGGED placements it is missing, and certainly no other.
+    const touched = []
+    const invented = []
     let wanted = 0
-    let recovered = 0
     for (const script of scripts) {
       const b = memberPaneDefinition({ source: fs.readFileSync(path.join(REPO, script), 'utf8'), id: 'u_member-pane-mig', enumInputs: false })
       if (!b.ok || !b.definition.compute.paramManifest) continue
+      if (migrateMemberDocument(b.definition) !== b.definition) touched.push(script)
       const minted = mintedOf(b)
       const old = asOldDoor(b.definition, minted)
       const got = migrateMemberDocument(old)
       for (const [id, e] of Object.entries(b.definition.compute.paramManifest)) {
-        const want = new Set(e.locators.filter((l) => minted.has(l.treeIndex)).map(locKey))
-        const have = new Set(got.compute.paramManifest[id].locators.filter((l) => minted.has(l.treeIndex)).map(locKey))
-        wanted += want.size
-        recovered += [...want].filter((k) => have.has(k)).length
-        const more = [...have].filter((k) => !want.has(k))
-        if (more.length) extra.push({ script, id, more })
+        wanted += e.locators.filter((l) => minted.has(l.treeIndex)).length
+        const had = new Set(old.compute.paramManifest[id].locators.map(locKey))
+        const more = got.compute.paramManifest[id].locators.map(locKey).filter((k) => !had.has(k))
+        if (more.length) invented.push({ script, id, more })
       }
     }
-    expect(extra, 'a placement the door itself does not make').toEqual([])
-    expect(wanted, 'NON-VACUITY: corpus parameters really are placed in condition columns').toBeGreaterThan(20)
-    // ⭐ MEASURED 2026-10-29: pinned so a regression in either half reads red.
-    expect({ wanted, recovered }).toEqual({ wanted: CORPUS_WANTED, recovered: CORPUS_RECOVERED })
+    expect(touched, 'a document the door built today needs no repair').toEqual([])
+    expect(invented, 'a placement the saved bytes cannot prove').toEqual([])
+    // NON-VACUITY: the corpus really has tagged condition-column placements the
+    // old-shape copies lack — the ones a re-save through the door restores.
+    expect(wanted).toBeGreaterThan(20)
+    expect(wanted).toBe(CORPUS_TAGGED)
   }, 900000)
 })
 
@@ -97,15 +107,11 @@ describe('a Clouds document SAVED by origin/master\'s door, lengths edited (E3: 
     expect(validateDefinition(m).ok, (validateDefinition(m).errors || []).join(' ')).toBe(true)
   })
 
-  it('…and a further edit now moves the cloud\'s colour condition too', () => {
+  it('⛔ …and its colour condition is left exactly as stored — unprovable, so unclaimed', () => {
     const m = migrateMemberDocument(CLOUDS_SAVED.definition)
-    const pid = Object.keys(m.compute.paramManifest).find((k) => m.compute.paramManifest[k].sourceName === 'ma1Length')
     const cond = m.plots.find((p) => p.fill && p.fill.colorMode).fill.colorMode.slice(7)
-    const before = JSON.stringify(m.compute.trees[cond])
-    const e = applyParamEdit(m, pid, 7)
-    expect(e.ok, e.error).toBe(true)
-    expect(JSON.stringify(e.definition.compute.trees[cond])).not.toBe(before)
-    expect(validateDefinition(e.definition).ok).toBe(true)
+    expect(JSON.stringify(m.compute.trees[cond])).toBe(JSON.stringify(CLOUDS_SAVED.definition.compute.trees[cond]))
+    for (const e of Object.values(m.compute.paramManifest)) expect(e.locators.filter((l) => l.treeIndex === cond)).toEqual([])
   })
 
   it('⭐ the OLD shape honours a member\'s colour pick, alpha included (E5\'s MA colours)', () => {
@@ -128,7 +134,7 @@ describe('a Clouds document SAVED by origin/master\'s door, lengths edited (E3: 
     })
   }, 300000)
 
-  it('DRAWN exactly as TradingView draws E3 — values, every band byte, the MA lines', () => {
+  it('DRAWN: values and MA lines are TradingView\'s E3; the band side follows the STORED colour rule', () => {
     const r = runCloudsCapture({ dir: path.join(REF, 'E'), name: 'e3-ema-5-50-spy-1d-250', document: CLOUDS_SAVED.definition })
     expect(r.supply.kind).toBe('warm')
     const tv = tvColumns(r)
@@ -146,23 +152,32 @@ describe('a Clouds document SAVED by origin/master\'s door, lengths edited (E3: 
     // fractional transparency to a whole percent BEFORE writing `fillOpacity` (87.5 was
     // saved as 87), and the exact value is not in the document to recover — so a band
     // paints the stored opacity's exact byte, which is TradingView's for the ten whole
-    // transparencies and a byte or two off for the ten fractional ones. Pinned, both
-    // halves: what the document says is painted exactly, and the hue is TradingView's.
+    // transparencies and a byte or two off for the ten fractional ones.
+    // ⚠️ AND THE SIDE (bull/bear hue) IS DECIDED BY THE COLOUR RULE AS STORED — at the
+    // lengths the script was pasted with (9/20): the old door never placed the lengths
+    // there, and the document cannot prove which literal is the parameter's (module
+    // header). Pinned: every band's alpha is what the document stores, and the
+    // band-bars where the stored rule picks the other side from TradingView's E3 are
+    // COUNTED, so the remedy (a re-save through today's door, which places the tagged
+    // lengths) is measured, never silent.
     const stored = r.owners.map((p) => Math.round(p.fillOpacity * 255))
-    const bandBad = []
+    const alphaBad = []
     let offTv = 0
+    let sideOff = 0
     r.bands.forEach((band, j) => {
       const th = tv.col(tv.colourOf(`fill_${j}`))
       if (stored[j] !== unpackVendorColor(th[0]).alphaByte) offTv += 1
       for (let i = 0; i < r.n; i += 1) {
         const t = unpackVendorColor(th[i])
         const o = cssToRgba(band.perBar[i])
-        if (!o || o.hex !== t.hex || o.a !== stored[j]) bandBad.push(`band ${j} bar ${i}: ${fmt(o)} vs ${t.hex}/${stored[j]}`)
+        if (!o || o.a !== stored[j]) alphaBad.push(`band ${j} bar ${i}: ${fmt(o)} vs ${t.hex}/${stored[j]}`)
+        else if (o.hex !== t.hex) sideOff += 1
       }
     })
     expect(r.bands).toHaveLength(20)
-    expect(bandBad.slice(0, 5)).toEqual([])
+    expect(alphaBad.slice(0, 5)).toEqual([])
     expect(offTv, 'the old door\'s truncated fractional transparencies, stored in the document').toBe(10)
+    expect(sideOff, 'band-bars on the other side from TradingView\'s E3 (stored colour rule at 9/20)').toBe(SIDE_OFF_E3)
     const styles = r.meta.plotStyles
     r.drawnPlots.forEach((plot, j) => {
       const s = r.lineOf.get(plot.key)
