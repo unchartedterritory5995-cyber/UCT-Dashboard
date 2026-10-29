@@ -463,3 +463,36 @@ def test_mint_tool_prints_digests_only_and_refuses_the_repo(tmp_path, capsys):
     assert mint.main(["--out", str(out)]) == 2                       # never overwrite
     assert mint.main(["--out", str(mint.REPO / "x.json")]) == 2       # never in the repo
     assert not (mint.REPO / "x.json").exists()
+
+
+# ── a refused source label is logged (capped, plain charset), content never ─────
+
+def test_refused_source_logs_only_the_capped_label_once(caplog):
+    caplog.set_level(logging.INFO, logger="txn.receiver")
+    c, journal, pushes, _ = _client()
+    body = {"source": "TXNews2\nINJECTED " + "x" * 60, "content": "Example Corp headline text"}
+    with c:
+        statuses = [c.post(f"/hook/{TOKEN}", json=body).status_code for _ in range(3)]
+    assert statuses == [422, 422, 422]
+    assert journal.objects == {} and pushes.bodies == []
+    lines = [r.getMessage() for r in caplog.records if "refused source label" in r.getMessage()]
+    assert len(lines) == 1                              # rate-limited per label
+    assert "label='TXNews2?INJECTED xxxxxxxxxxxxxxx'" in lines[0]  # 32 chars, newline neutralised
+    text = "\n".join(r.getMessage() for r in caplog.records)
+    assert "Example Corp" not in text and TOKEN not in text
+
+
+def test_label_log_limit_caps_distinct_labels_and_repeats_after_the_window():
+    lim = appmod._LabelLogLimit(every_s=10, cap=2)
+    assert lim.due("a", 0) and lim.due("b", 0)
+    assert not lim.due("c", 0)                          # cap reached: a new label stays silent
+    assert not lim.due("a", 5) and lim.due("a", 11)     # same label again only after the window
+
+
+def test_allowlisted_source_still_accepted_and_not_logged(caplog):
+    caplog.set_level(logging.INFO, logger="txn.receiver")
+    c, journal, _, _ = _client(_cfg(TXN_SOURCE_ALLOWLIST="TXNews1,TXNews2"))
+    with c:
+        r = c.post(f"/hook/{TOKEN}", json={"source": "TXNews2", "content": "Example"})
+    assert r.status_code == 200 and len(journal.objects) == 1
+    assert not any("refused source label" in r.getMessage() for r in caplog.records)
