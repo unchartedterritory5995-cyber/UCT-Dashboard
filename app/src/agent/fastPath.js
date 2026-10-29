@@ -127,7 +127,8 @@ const NOUN = '(?:\\s+(?:chart|one|widget))'
 const POS_RE = new RegExp(`\\b(?:(?:on|for|in|to)\\s+)?the\\s+${POS}${NOUN}?\\b|\\b${POS}${NOUN}\\b`, 'i')
 // P2-B: "all four charts", "all 3 of them" — the COUNT the member said is kept, and checked against the
 // board by the orchestrator (a mismatch asks; it never changes a different set of charts than they counted)
-const ALL_RE = /\b(?:(?:on|for|in|to)\s+)?(both|all|every)(?:\s+(?:the|of the))?(?:\s+(two|three|four|five|six|seven|eight|nine|ten|\d{1,2}))?(?:\s+(?:charts?|of them|ones))?\b/i
+// ⭐ acceptance 2026-10-29: "each", "each of them", "every one of them", "each one" too ("…, with a 50 sma on each")
+const ALL_RE = /\b(?:(?:on|for|in|to)\s+)?(both|all|every|each)(?:\s+one)?(?:\s+(?:the|of the))?(?:\s+(two|three|four|five|six|seven|eight|nine|ten|\d{1,2}))?(?:\s+(?:charts?|of them|ones))?\b/i
 const COUNT_WORD = { two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 }
 const NORM_POS = { upper: 'top', lower: 'bottom' }
 

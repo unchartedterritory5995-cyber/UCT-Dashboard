@@ -53,6 +53,8 @@ export const GROUPS = [
   // indicators word AND a charts word routes BOTH; the hints decide.
   { id: 'indicators', title: 'Indicators on a chart (list, add, remove, show, hide; build, preview and save indicator drafts)', domains: ['indicator'],
     words: [/\bindicators?\b/, /\b(rsi|macd|ema|sma|vwap|atr|bollinger|keltner|stochastic|supertrend|regression|correlation|momentum|oscillator|histogram)\b/,
+      // ⭐ acceptance 2026-10-29: "each with a 50sma", "9ema" — a length typed against its type
+      /\b\d{1,4}-?(?:ema|sma|wma|hma|ma)s?\b/,
       // "what's on this chart", "do i have the 50 on here", "a weekly 10 line": the chart's indicators
       /\bwhat'?s on (this|the|my) chart\b|\b(have|got) the \d+ on\b|\b\d+ (line|ma|average)\b/,
       // Gate C: moving averages by name or by LENGTH ("add a 200 day moving average", "add the 9 and 20",
@@ -180,6 +182,13 @@ export function routingNames(host) {
   }
 }
 
+const INDICATOR_LOOK = /\b(red|green|blue|white|black|orange|yellow|purple|pink|teal|gr[ae]y|cyan|magenta|lime|gold|navy|maroon|colou?rs?|thick|thicker|thin|thinner|dashed|dotted|solid|bolder)\b/
+/** Did the message's own words select this group (not the always-on, follow-up or fallback ones)? */
+export function wordsSelect(id, message) {
+  const q = String(message || '').toLowerCase()
+  const g = GROUPS.find(x => x.id === id)
+  return !!g && (g.words || []).some(re => re.test(q))
+}
 export function selectGroups(message, { pendingActions = [], recentActions = [], names = null, correct = null } = {}) {
   const raw = String(message || '')
   const q = raw.toLowerCase()
@@ -198,6 +207,9 @@ export function selectGroups(message, { pendingActions = [], recentActions = [],
   // "put NVDA on the left", "Switch to AMD": a ticker-shaped word (case-sensitive, on the raw
   // text) after a show/switch verb is a chart symbol request.
   if (SYMBOL_VERB.test(q) && tickerWords(raw).length) hits.add('charts')
+  // ⭐ acceptance 2026-10-29: "throw the 9 and 20 ema on … make the fast one green and the other one yellow" — a colour or
+  // line look in a message about indicators is the indicators' look (indicatorSetup), however the indicator is named
+  if (hits.has('indicators') && texts.some(t => INDICATOR_LOOK.test(t))) hits.add('indicatorSetup')
   const followUps = [...new Set([...pendingActions, ...recentActions].map(groupOfAction).filter(Boolean))]
   const matched = hits.size > 0
   // ⭐ Gate B (0C) SOFT VOCABULARY: when no group's own words matched, trading vocabulary ("semis",

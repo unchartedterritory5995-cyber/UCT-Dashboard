@@ -27,6 +27,7 @@ import { instancesOf } from '../../components/chart/builder/agentSeams'
 import { catalogRows, userCatalogRows } from '../../components/chart/indicatorCatalog'
 import * as nativeRegistry from '../../components/chart/engine/nativeRegistry'
 import { afterRender } from '../frames'
+import { wordsSelect } from '../routing'
 
 const REF = 'ixe:'
 const refOf = (chartRef) => `${REF}${chartRef}`
@@ -429,6 +430,32 @@ export function defIdOfWords(words) {
   return hits.length === 1 ? hits[0].defId : null
 }
 
+/**
+ * ⭐ acceptance 2026-10-29 — a model's indicator.add whose `defId` is not a catalog id but NAMES one exactly the way the
+ * member's own words would ("ema" + period 9, "EMA 20", "rsi", "Relative Strength Index") → the canonical built-in, read
+ * by the same readers the instant path uses (defIdOfWords / settingsOfWords). Anything else is left exactly as planned
+ * (the check still refuses it, by name). Never a guess between two.
+ */
+export function canonicalIndicatorAdds(ops) {
+  if (!Array.isArray(ops) || !ops.some(o => o?.action === 'indicator.add')) return ops
+  let known = null
+  return ops.map(o => {
+    if (o?.action !== 'indicator.add' || typeof o.args?.defId !== 'string') return o
+    known = known || new Set(addableRows().map(r => r.defId))
+    if (known.has(o.args.defId)) return o
+    const words = o.args.defId.trim().toLowerCase().replace(/[_-]+/g, ' ')
+    const byName = defIdOfWords(words)
+    if (byName) return { ...o, args: { ...o.args, defId: byName } }
+    const given = Array.isArray(o.args.inputs) ? o.args.inputs : []
+    const len = given.find(i => i && (i.key === 'period' || i.key === 'length'))?.value
+    const s = settingsOfWords(/\d/.test(words) || len == null ? words : `${len} ${words}`)
+    if (!s || s.assumed) return o
+    const keys = new Set(s.inputs.map(i => i.key))
+    const inputs = [...s.inputs, ...given.filter(i => i && !keys.has(i.key) && i.key !== 'length')]
+    return { ...o, args: { ...o.args, defId: s.defId, inputs } }
+  })
+}
+
 // ⭐ PHASE 2.5 — the few settings phrasings that are unambiguous, mapped onto the definition's
 // DECLARED keys and options (`inputsOfDef`), never onto a key this file invents. Every value is
 // still the Indicators rule's to accept (an out-of-range "EMA 900" is refused BY NAME there).
@@ -459,7 +486,8 @@ export function defaultMaType(n) {
   return Number.isInteger(n) && n >= 50 ? 'sma' : null
 }
 export function settingsOfWords(words) {
-  const w = String(words || '').trim().toLowerCase()
+  // "a 50 sma", "the 50sma", "9ema" — the article dropped, a length typed against its type split from it
+  const w = String(words || '').trim().toLowerCase().replace(/^(?:an?|the) /, '').replace(/\b(\d{1,4})(ema|sma|wma|hma|ma)\b/g, '$1 $2')
   // "the 9", "20" — a bare length is a moving average under the owner's defaults (or nothing)
   const bare = /^(?:the )?(\d{1,4})$/.exec(w)
   if (bare) {
@@ -601,6 +629,7 @@ export function planCheck(st, req) {
   return p.ok ? null : refusalSentence(p, { chart: st.chart, op: req.op })
 }
 
+const ADD_WORDS = /\b(add|put|apply|insert|load|plot|throw|slap|stick|toss|chuck|pop|drop|overlay|give me)\b/i
 let registered = false
 export function registerIndicatorEditCapabilities() {
   if (registered) return
@@ -617,9 +646,11 @@ export function registerIndicatorEditCapabilities() {
   })
   registerContextProvider({
     key: 'indicatorCatalog',
-    // what can be added — only when the request is about adding something
+    // what can be added — only when the request is about adding something, or names an indicator at all
+    // (⭐ acceptance 2026-10-29: "throw the 9 and 20 ema on my chart" named no add verb, so the model planned without the
+    // catalog's ids and invented one — "I don't know that indicator"); the indicators routing group's own words decide
     // NL-1 (`nl1`, flag off by default): always — the model reads the request, so no keyword decides what it can choose from
-    build: (host, refFor, { message, nl1 = false }) => (nl1 || /\b(add|put|apply|insert|load|plot)\b/i.test(message || '') ? addableRows() : undefined),
+    build: (host, refFor, { message, nl1 = false }) => (nl1 || ADD_WORDS.test(message || '') || wordsSelect('indicators', message) ? addableRows() : undefined),
     compact: (sec) => (sec || []).map(r => r.defId),
   })
 

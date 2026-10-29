@@ -7,38 +7,46 @@ import TimeframeMenu from '../../../pages/charts/widgets/TimeframeMenu'
 // explicit timeframe set has decided which intervals it supports — leaving the
 // chevron would let the user pick one the host never offered, silently
 // defeating the lock (Journal is Daily/Weekly by design, for example).
+// ⭐ acceptance 2026-10-29: the product guide's "chart.timeframe" target is the timeframe buttons and the ⌄ arrow ONLY —
+// the bar also carries the host's own controls (`children`: the info row, date, settings), which the highlight must not
+// cover. The group keeps its natural width (never shrinks), so the bar still overflows — and sheds a button into the ⌄
+// menu — exactly as before; its gap is the bar's own.
+const TF_GROUP = { display: 'flex', alignItems: 'center', gap: 'inherit', flex: '0 0 auto' }
+
 export default function ChartTfBar({ tf, visibleTfs, onTf, menu = {}, showMenu = true, styles, children, rootRef = null }) {
   const [open, setOpen] = useState(false)
   const [anchor, setAnchor] = useState(null)
   return (
     // data-guide: stable targets for UCT Agent's product guide (agent/guide/registry.js) — no behaviour
-    <div ref={rootRef} className={styles.tfBar} data-guide="chart.timeframe">
-      {visibleTfs.map(([code, label]) => (
-        <button
-          key={code}
-          type="button"
-          className={`${styles.tfBtn} ${tf === code ? styles.tfBtnActive : ''}`}
-          onClick={() => onTf(code)}
-        >{label}</button>
-      ))}
-      {showMenu && (
-        <button
-          type="button"
-          className={styles.tfBtn}
-          // Flex-center the chevron: the old "⌄" text glyph rendered low in its
-          // line-box (owner: "arrow sits near the bottom"). An inline SVG centered by
-          // flex sits dead-center regardless of which host's styles module is passed.
-          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
-          title="More timeframes"
-          aria-label="More timeframes"
-          data-guide="chart.timeframeMore"
-          onClick={(e) => { setAnchor(e.currentTarget.getBoundingClientRect()); setOpen(v => !v) }}
-        >
-          <svg width="9" height="6" viewBox="0 0 10 6" aria-hidden="true">
-            <path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </button>
-      )}
+    <div ref={rootRef} className={styles.tfBar}>
+      <div style={TF_GROUP} data-guide="chart.timeframe">
+        {visibleTfs.map(([code, label]) => (
+          <button
+            key={code}
+            type="button"
+            className={`${styles.tfBtn} ${tf === code ? styles.tfBtnActive : ''}`}
+            onClick={() => onTf(code)}
+          >{label}</button>
+        ))}
+        {showMenu && (
+          <button
+            type="button"
+            className={styles.tfBtn}
+            // Flex-center the chevron: the old "⌄" text glyph rendered low in its
+            // line-box (owner: "arrow sits near the bottom"). An inline SVG centered by
+            // flex sits dead-center regardless of which host's styles module is passed.
+            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+            title="More timeframes"
+            aria-label="More timeframes"
+            data-guide="chart.timeframeMore"
+            onClick={(e) => { setAnchor(e.currentTarget.getBoundingClientRect()); setOpen(v => !v) }}
+          >
+            <svg width="9" height="6" viewBox="0 0 10 6" aria-hidden="true">
+              <path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+        )}
+      </div>
       {showMenu && open && (
         <TimeframeMenu
           tf={tf}

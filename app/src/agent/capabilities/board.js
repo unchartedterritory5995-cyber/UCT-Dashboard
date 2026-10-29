@@ -38,6 +38,7 @@ import { BASE_GROUPS, EXTRA_GROUPS, NOT_LINKED, isExtraGroup, linkGroups } from 
 import { PRESET_SCANS } from '../../pages/charts/widgets/ScannerPicker'
 import { CHART_THEMES, CHART_THEME_BY_ID } from '../../components/chart/chartThemes'
 import { positionWord } from '../host'
+import { mergeChartSettings } from '../../components/chart/chartDefaults'
 import { addChartTab, closeChartTab, setActiveChartTab, renameChartTab, patchChartTab, chartTabList, sanitizeChartTabs } from '../../pages/charts/chartTabs'
 import { CHART_TIMEFRAMES } from './chart'
 import { planChartGrid, GRID_PATTERNS, MAX_GRID_CHARTS } from '../chartGrid'
@@ -57,6 +58,19 @@ const extraOff = (env, color) => (isExtraGroup(color) && env?.target?.extraGroup
 const SCAN_KEYS = PRESET_SCANS.map(s => s.key)
 const GEOM = ['x', 'y', 'w', 'h']
 const FIELDS = ['x', 'y', 'w', 'h', 'color', 'opts', 'wtabs', 'activeWtab', 'mainTabName']
+// ⭐ acceptance 2026-10-29: a chart the GRID ADDED, as it draws — it stores no settings (it reads the defaults); the first
+// indicator change writes them out in full and marks the style preset "custom", and that change's own Undo leaves both
+// so. Nothing the member sees differs, and the grid's Undo removes the chart whole, so it is not stale for it ("open
+// daily charts for …, each with RSI" → undo, undo, …: the board exactly as it was). A removed indicator's tombstone
+// draws nothing either. A chart the grid REUSED keeps the exact comparison (its Undo keeps the chart).
+function addedChartOpts(w) {
+  const o = w?.opts ?? null
+  if (!o || typeof o !== 'object' || w.type !== 'chart') return JSON.stringify(o)
+  let cs = null
+  try { cs = mergeChartSettings(o.settings == null ? null : (typeof o.settings === 'string' ? o.settings : JSON.stringify(o.settings))) } catch { return JSON.stringify(o) }
+  const { preset, ...rest } = cs || {}                                    // eslint-disable-line no-unused-vars
+  return JSON.stringify({ ...o, settings: { ...rest, indicatorInstances: (cs?.indicatorInstances || []).filter(i => i && !i.deleted) } })
+}
 const same = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null)
 const clone = (o) => JSON.parse(JSON.stringify(o))
 const intOk = (v, lo, hi) => Number.isInteger(v) && v >= lo && v <= hi
@@ -197,7 +211,8 @@ export const boardKind = {
         const w = s.raw.find(x => String(x.id) === id)
         let sym = null
         try { sym = host?.widgets?.configOf?.(id)?.symbol ?? null } catch { sym = null }
-        return w ? [id, ...FIELDS.map(f => JSON.stringify(w[f] ?? null)), sym] : [id, 'gone']
+        const added = (g?.added || []).includes(id)
+        return w ? [id, ...FIELDS.map(f => (f === 'opts' && added ? addedChartOpts(w) : JSON.stringify(w[f] ?? null))), sym] : [id, 'gone']
       }))
     }
     const ids = [...new Set([...(p.remove || []), ...Object.keys(p.set || {}), ...(p.restore || []).map(w => w.id), ...(p.add ? item.undoData?.added || [] : [])])]
