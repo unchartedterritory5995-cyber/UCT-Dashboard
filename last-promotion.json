@@ -4,6 +4,6 @@
   "gate_run_id": null,
   "range_scan_state": null,
   "range_scan_verdict": null,
-  "ts": "2026-10-28T20:51:46.524199Z",
+  "ts": "2026-10-29T00:04:20.671390Z",
   "range_scan_note": "the gate log could not be read or carried no range-scan line; recorded as unknown, never as clean"
 }
