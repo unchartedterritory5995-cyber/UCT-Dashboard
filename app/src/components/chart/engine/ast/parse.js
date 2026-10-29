@@ -28,7 +28,7 @@
 
 import jsep from 'jsep'
 import TABLE_JSON from './closedTable.json'
-import { expandCalls, ExpansionRefusal } from './callExpansions.js'
+import { expandCalls, ExpansionRefusal, recogniseExpansion, CALL_EXPANSIONS } from './callExpansions.js'
 
 // --------------------------------------------------------------------------- //
 // the table
@@ -547,6 +547,22 @@ export function vendorNotesForTree(ast, notes = VENDOR_NOTES) {
           && !taken.has(family)) {
         taken.add(family)
         seen.push({ name: family, note: notes[family] })
+      }
+    }
+    // ⭐ AN EXPANSION CAN CARRY ONE TOO (2026-10-29). A stored definition holds only
+    // the expansion's tree, so the call name is gone by construction — the shape is
+    // what survives. `recogniseExpansion` rebuilds and compares, and only an entry
+    // that DECLARES a `vendorNote` (today: supertrend, the one expansion that is a
+    // bounded recurrence rather than an exact identity) contributes. ⚠️ Pre-filtered
+    // to the `?:` root that entry's tree has, so the recogniser never runs on the
+    // ordinary nodes of an ordinary formula.
+    if (node.type === 'op' && node.name === '?:' && notes === VENDOR_NOTES) {
+      const hit = recogniseExpansion(node)
+      const spec = hit && CALL_EXPANSIONS[hit.name]
+      if (spec && typeof spec.vendorNote === 'string' && !taken.has(hit.name)) {
+        taken.add(hit.name)
+        seen.push({ name: hit.name, note: spec.vendorNote })
+        continue // the note covers the whole expansion; its inner nodes are its own
       }
     }
     for (const a of (node.args || [])) stack.push(a)

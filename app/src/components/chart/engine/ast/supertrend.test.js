@@ -9,11 +9,13 @@
 //   2. a published value does NOT depend on how many bars were fetched (bounded);
 //   3. nothing is published before the bands it reads exist (the withheld edge).
 import { describe, it, expect } from 'vitest'
-import { parseFormula, RECURRENCES } from './parse.js'
+import { parseFormula, RECURRENCES, vendorNotesForTree } from './parse.js'
+import { OUTCOME } from './importOutcome.js'
+import { inspectSource } from '../../builder/PineBox.jsx'
 import { interpret } from './interpret.js'
 import {
   expandCall, recogniseExpansion, supertrendTrees, SUPERTREND_WARMUP, ACCUM_SELF, expandedSize,
-  MAX_EXPANDED_NODES,
+  MAX_EXPANDED_NODES, SUPERTREND_NOTE,
 } from './callExpansions.js'
 import { slotsOfTree } from '../../builder/authoring/slots.js'
 
@@ -161,6 +163,31 @@ describe('supertrend — agrees with Pine\'s published source on every bar it pu
       if (dir[i] === -1) expect(value[i]).toBeLessThanOrEqual(bars[i].c + 1e-9)
       else expect(value[i]).toBeGreaterThanOrEqual(bars[i].c - 1e-9)
     }
+  })
+})
+
+describe('supertrend — disclosed, never labelled exact', () => {
+  // ⛔ It is the one expansion that is a bounded recurrence rather than an exact
+  // identity, so wherever vendor notes are read it says so — and an import of
+  // `ta.supertrend` reads "with disclosed differences", not "Exact import".
+  it('the stored tree carries the note, found by shape (the call name is gone)', () => {
+    const notes = vendorNotesForTree(parseFormula('close > supertrend(3, 10)').ast)
+    expect(notes.map((n) => n.name)).toContain('supertrend')
+    expect(notes.find((n) => n.name === 'supertrend').note).toBe(SUPERTREND_NOTE)
+    expect(SUPERTREND_NOTE).toMatch(/can differ/)
+    expect(vendorNotesForTree(parseFormula('supertrendDirection(2, 7) == -1').ast).map((n) => n.name))
+      .toContain('supertrendDirection')
+  })
+
+  it('an ordinary formula carries no supertrend note (non-vacuity)', () => {
+    const notes = vendorNotesForTree(parseFormula('close > open ? close : na').ast)
+    expect(notes.map((n) => n.name)).not.toContain('supertrend')
+  })
+
+  it('a Pine `ta.supertrend` import is DISCLOSED, with the sentence', () => {
+    const r = inspectSource('//@version=5\nindicator("ST", overlay=true)\n[st, dir] = ta.supertrend(3, 10)\nplot(st)\n')
+    expect(r.outcome.verdict).toBe(OUTCOME.DISCLOSED)
+    expect(r.outcome.semantic.map((s) => s.note)).toContain(SUPERTREND_NOTE)
   })
 })
 

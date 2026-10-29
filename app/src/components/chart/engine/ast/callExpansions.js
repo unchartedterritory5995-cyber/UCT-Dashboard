@@ -87,6 +87,10 @@ export function trueRangeTree() {
 // principle disagree for longer than W; that is the bounded-recurrence bargain
 // `_functions_recurrence` already states for every `accum`, and it is why W is 200.
 export const SUPERTREND_WARMUP = 200
+/** What a member is told wherever vendor notes are shown. ⛔ The claim is the measured
+ *  one and no stronger: the bounded window agrees on every bar we have measured, and a
+ *  band whose last reset is older than the window CAN disagree. */
+export const SUPERTREND_NOTE = `TradingView carries the Supertrend bands from the first bar of history; this engine re-seeds each band ${SUPERTREND_WARMUP} bars back and shows nothing for the first ~${2 * SUPERTREND_WARMUP} bars. Every shown bar matched TradingView's published formula on the series we measured, but a band whose last reset is more than ${SUPERTREND_WARMUP} bars old can differ.`
 /** The name an `accum` body reads its own previous value through —
  *  `closedTable.json::functions.accum.recurrence.binds`. Typed here only because this
  *  module is also run by plain node (the parity test), which cannot import JSON; the
@@ -230,12 +234,18 @@ export const CALL_EXPANSIONS = Object.freeze({
     },
   },
   // ta.supertrend(factor, atrPeriod)[0] / [1] — see `supertrendTrees` above.
+  // ⛔ `vendorNote`: the ONE expansion that is not an exact identity. Its bands are
+  // bounded recurrences, so it is disclosed wherever vendor notes are read
+  // (`parse.js::vendorNotesForTree`) and an import of `ta.supertrend` is never
+  // labelled "exact" — the honesty rule `importOutcome.js` exists for (audit P0-7).
   supertrend: {
     min: 2, max: 2, signature: 'supertrend(factor, atrPeriod)', describe: `Supertrend: the ATR trailing stop that only tightens while the trend holds and flips when price closes through it (TradingView's ta.supertrend; shown after a ${SUPERTREND_WARMUP}-bar warm-up)`,
+    vendorNote: SUPERTREND_NOTE,
     build: (a) => { const t = supertrendTrees(a[0], a[1]); return t ? t.value : null },
   },
   supertrendDirection: {
     min: 2, max: 2, signature: 'supertrendDirection(factor, atrPeriod)', describe: 'the Supertrend direction: −1 in an up-trend (the line below price), 1 in a down-trend — TradingView\'s convention',
+    vendorNote: SUPERTREND_NOTE,
     build: (a) => { const t = supertrendTrees(a[0], a[1]); return t ? t.direction : null },
   },
 })
