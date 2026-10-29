@@ -488,6 +488,8 @@ function repeatOps(last, dests, host) {
       const args = { ...(o.args || {}) }
       for (const key of ['instance', 'pane']) {
         if (typeof args[key] !== 'string' || /^(?:price|volume)$/.test(args[key])) continue
+        // already said by what it IS ("#20:ema", "rsi" — the instant path's own form): re-found on each chart as it is
+        if (/^#\d/.test(args[key]) || defIdOfWords(args[key])) continue
         const row = rows.find(r => r.instanceId === args[key])
         const p = portable(row)
         if (!p) return null                                            // not re-findable on another chart
