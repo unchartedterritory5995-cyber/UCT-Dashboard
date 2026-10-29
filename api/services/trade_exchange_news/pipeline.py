@@ -97,14 +97,22 @@ class Pipeline:
 
     # ── writing ──────────────────────────────────────────────────────────────
 
-    def _apply(self, rec: dict[str, Any], via: str, record_json: str | None = None) -> dict[str, Any]:
+    def _apply(self, rec: dict[str, Any], via: str, record_json: str | None = None,
+               queued_at: float | None = None) -> dict[str, Any]:
         t0 = time.perf_counter()
+        arrive_lag_ms = time.time() * 1000 - rec["received_at_ms"]  # receiver clock -> web clock
+        tickers = _tickers_for(rec["content"])
+        t1 = time.perf_counter()
         out = self.store.ingest(rec, via=via, dedupe_key=records.dedupe_key(rec["source"], rec["content"]),
                                 window_ms=config.dedupe_window_ms(),
-                                tickers=_tickers_for(rec["content"]), record_json=record_json)
+                                tickers=tickers, record_json=record_json)
+        t2 = time.perf_counter()
         if out["kind"] == NEW:
             ev = headline_event(out["headline"], self.store.epoch)
-            self.loop.call_soon_threadsafe(self.hub.publish, ev)
+            timing = {"id": rec["id"], "via": via, "arrive_lag_ms": arrive_lag_ms,
+                      "queue_ms": (t0 - queued_at) * 1000 if queued_at else None,
+                      "tickers_ms": (t1 - t0) * 1000, "store_ms": (t2 - t1) * 1000, "t2": t2}
+            self.loop.call_soon_threadsafe(self._publish_timed, ev, timing)
             _alert_hook(ev)
         elif out["kind"] == REPEAT:
             self.loop.call_soon_threadsafe(self.hub.publish,
@@ -116,6 +124,18 @@ class Pipeline:
             self._prune_now()
         self.last_ingest_latency_ms = (time.perf_counter() - t0) * 1000
         return out
+
+    def _publish_timed(self, ev: dict[str, Any], timing: dict[str, Any]) -> None:
+        # ⏱ LATENCY AUDIT: ``server_ms`` (web wall clock at publish) lets an admin
+        # browser measure publish -> SSE receipt; the log line carries stage
+        # durations only -- an event id, never content.
+        ev["server_ms"] = int(time.time() * 1000)
+        self.hub.publish(ev)
+        logger.info("[txn] timing web id=%s via=%s arrive_lag_ms=%.0f queue_ms=%s tickers_ms=%.1f "
+                    "store_ms=%.1f to_publish_ms=%.1f subscribers=%d", timing["id"], timing["via"],
+                    timing["arrive_lag_ms"], None if timing["queue_ms"] is None else round(timing["queue_ms"], 1),
+                    timing["tickers_ms"], timing["store_ms"], (time.perf_counter() - timing["t2"]) * 1000,
+                    self.hub.subscribers)
 
     def _prune_now(self) -> dict[str, int]:
         self._since_prune = 0
@@ -135,7 +155,7 @@ class Pipeline:
         # The record is kept EXACTLY as received (journal encoding), so the repair
         # pass can rewrite the identical object if the journal never got it.
         return await self.loop.run_in_executor(self._writer, self._apply, rec, via,
-                                               records.encode_record(raw))
+                                               records.encode_record(raw), time.perf_counter())
 
     async def submit_live(self, raw: Any) -> dict[str, Any]:
         if not self.ready.is_set():

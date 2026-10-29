@@ -32,7 +32,9 @@ from __future__ import annotations
 import asyncio
 import hmac
 import json
+import logging
 import os
+import time
 from typing import Any
 
 from fastapi import APIRouter, Depends, Query, Request
@@ -41,12 +43,13 @@ from fastapi.routing import APIRoute
 from starlette.routing import Match
 
 from api.middleware.auth_middleware import require_admin
-from api.services.trade_exchange_news import config, pipeline as txn_pipeline
+from api.services.trade_exchange_news import config, pipeline as txn_pipeline, records
 from api.services.trade_exchange_news import reconcile as txn_reconcile
 from api.services.trade_exchange_news.records import RecordError
 
 INGEST_PATH = "/api/trade-exchange-news/internal/ingest"
 STATUS_PATH = "/api/admin/trade-exchange-news"
+TIMING_PATH = "/api/trade-exchange-news/client-timing"
 RECENT_PATH = "/api/trade-exchange-news/recent"
 STREAM_PATH = "/api/trade-exchange-news/stream"
 HEARTBEAT_S = 10.0
@@ -149,6 +152,7 @@ async def recent(limit: int = Query(200, ge=1, le=500), before: int | None = Que
         "epoch": store.epoch, "first_seq": first, "last_seq": last,
         "items": [txn_pipeline.headline_event(r, store.epoch) for r in rows],
         "coverage": _coverage(), "tickers_provisional": TICKERS_PROVISIONAL,
+        "server_ms": int(time.time() * 1000),
     })
 
 
@@ -211,6 +215,33 @@ async def stream(request: Request, after: int | None = Query(None, ge=0), epoch:
     # ⛔ the literal stays in THIS handler: tests/api/test_sse_gzip_exempt.py finds
     # SSE routes by reading their source for it.
     return StreamingResponse(gen(), media_type="text/event-stream", headers=SSE_HEADERS)
+
+
+_timing_log = logging.getLogger("api.services.trade_exchange_news.timing")
+
+
+def _num(v: Any, lo: float, hi: float) -> float | None:
+    return float(v) if isinstance(v, (int, float)) and not isinstance(v, bool) and lo <= v <= hi else None
+
+
+@router.post(TIMING_PATH)
+async def client_timing(request: Request, _admin: dict = Depends(require_admin)) -> JSONResponse:
+    """⏱ LATENCY AUDIT: an admin browser reports publish -> SSE receipt and
+    receipt -> paint for one headline. Numbers and an event id only."""
+    body = await request.body()
+    if len(body) > 512:
+        return JSONResponse({"detail": "too large"}, status_code=413)
+    try:
+        d = json.loads(body)
+    except ValueError:
+        return JSONResponse({"detail": "not JSON"}, status_code=400)
+    eid = d.get("id") if isinstance(d, dict) else None
+    if not isinstance(eid, str) or not records.EVENT_ID_RE.match(eid):
+        return JSONResponse({"detail": "bad id"}, status_code=422)
+    _timing_log.info("[txn] timing client id=%s sse_ms=%s render_ms=%s clock_rtt_ms=%s",
+                     eid, _num(d.get("sse_ms"), -60000, 600000), _num(d.get("render_ms"), 0, 600000),
+                     _num(d.get("clock_rtt_ms"), 0, 600000))
+    return JSONResponse({"ok": True})
 
 
 @router.get(STATUS_PATH)

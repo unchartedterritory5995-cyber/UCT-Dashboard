@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 
 import httpx
 import pytest
@@ -254,3 +255,38 @@ def test_the_stream_path_is_gzip_exempt():
     from api.main import _is_gzip_exempt
     assert _is_gzip_exempt(route.STREAM_PATH)
     assert config.FLAG == "TXN_ENABLED"
+
+
+# ── ⏱ latency audit: timings only, admin-only, never content ─────────────────
+
+async def _post(user, path, body):
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=_app(user)),
+                                 base_url="http://web.test") as c:
+        return await c.post(path, content=body if isinstance(body, bytes) else json.dumps(body))
+
+
+async def test_live_event_and_recent_carry_the_web_clock_and_the_log_carries_no_content(caplog):
+    caplog.set_level(logging.INFO)
+    p = pl.start(asyncio.get_running_loop())
+    sub = p.hub.subscribe()
+    await p.submit(rec("SYNTHETIC timing probe", 1), "push")
+    ev = await asyncio.wait_for(sub.queue.get(), 2)
+    assert isinstance(ev["server_ms"], int)
+    lines = [r.getMessage() for r in caplog.records if "[txn] timing web" in r.getMessage()]
+    assert len(lines) == 1 and "store_ms=" in lines[0] and "tickers_ms=" in lines[0]
+    assert "SYNTHETIC" not in "\n".join(r.getMessage() for r in caplog.records)
+    assert isinstance((await _get(ADMIN, route.RECENT_PATH)).json()["server_ms"], int)
+
+
+async def test_client_timing_is_admin_only_and_validated(caplog):
+    caplog.set_level(logging.INFO)
+    pl.start(asyncio.get_running_loop())
+    good = {"id": "01JABCDEFGHJKMNPQRSTVWXYZ0", "sse_ms": 41, "render_ms": 9, "clock_rtt_ms": 60}
+    assert (await _post(None, route.TIMING_PATH, good)).status_code == 401
+    assert (await _post(MEMBER, route.TIMING_PATH, good)).status_code == 403
+    assert (await _post(ADMIN, route.TIMING_PATH, {**good, "id": "SYNTHETIC text"})).status_code == 422
+    assert (await _post(ADMIN, route.TIMING_PATH, b"x" * 600)).status_code == 413
+    r = await _post(ADMIN, route.TIMING_PATH, {**good, "render_ms": "SYNTHETIC", "extra": "SYNTHETIC"})
+    assert r.status_code == 200
+    line = [m for m in (x.getMessage() for x in caplog.records) if "[txn] timing client" in m][-1]
+    assert "sse_ms=41.0" in line and "render_ms=None" in line and "SYNTHETIC" not in line
