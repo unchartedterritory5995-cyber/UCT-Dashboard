@@ -137,11 +137,123 @@ def test_single_word_brands_with_company_context_link(text, want):
     assert m(text) == want
 
 
-def test_its_own_ticker_in_the_headline_is_context():
-    assert tr.resolve_company_mentions("Apple (AAPL) event set", IDX, explicit={"AAPL"}) == [("Apple", "AAPL")]
-    assert cat.mentions_for("TX-News", "Apple pie stand opens near $AAPL store") == [["Apple", "AAPL"]]
+def test_its_own_ticker_in_the_headline_is_the_link_not_the_name():
+    # The name is recognised (its security is the ticker's) but the ticker is the one link.
+    assert tr.resolve_company_mentions("Apple (AAPL) event set", IDX, explicit={"AAPL"}) == []
+    assert cat.mentions_for("TX-News", "Apple pie stand opens near $AAPL store") == []
+    assert cat.tickers_for("TX-News", "Apple (AAPL) event set") == ["AAPL"]   # filters/alerts keep it
 
 
 def test_filters_and_alerts_see_the_same_corrected_resolution():
     assert cat.tickers_for("TX-News", "APPLE PIE CONTEST DRAWS RECORD CROWD") == []
     assert cat.tickers_for("TX-News", "MICROSOFT EXPECTS TO RAISE $25 BILLION") == ["MSFT"]
+
+
+# ── follow-up (production review 2026-10-29): shortened names that are not names ──
+
+NAMES_FU = {**NAMES, "USB": "U.S. Bancorp", "GIC": "Global Industrial Company",
+            "LMT": "Lockheed Martin Corporation", "RHI": "Robert Half Inc.",
+            "ROK": "Rockwell Automation, Inc.", "BRCB": "Black Rock Coffee Bar, Inc.",
+            "GM": "General Motors Company", "AMAT": "Applied Materials, Inc."}
+IDX_FU = tr.build_company_index(NAMES_FU, ALIASES)
+
+
+def m_fu(source, text):
+    explicit = set(tr.resolve_tickers(text, cat.SOURCE_TICKER_CONTEXT.get(source, tr.WIRE_NEWS)))
+    return [s for _, s in tr.resolve_company_mentions(text, IDX_FU, explicit=explicit)]
+
+
+def test_initials_left_by_dropping_a_corporate_form_are_not_a_name():
+    assert ("u", "s") not in IDX_FU                       # "U.S" of U.S. Bancorp
+    assert m_fu("TX-News", "TALKS AIM TO SECURE U.S. SUPPORT - WSJ") == []
+    assert m_fu("TX-News", "U.S. says talks will resume") == []
+    assert ("u", "s", "bancorp") in IDX_FU               # the full name still links
+
+
+@pytest.mark.parametrize("text", [
+    "CEO speaks at the 2026 Global Industrial Conference",
+    "Global Industrial Expo opens in Chicago",
+])
+def test_a_name_of_only_generic_words_needs_company_context(text):
+    assert ("global", "industrial") in IDX_FU.weak
+    assert m_fu("TX-News", text) == []
+
+
+@pytest.mark.parametrize("source,text,want", [
+    ("TX-News", "Global Industrial reports record quarter", ["GIC"]),
+    ("TX-News", "Global Industrial shares rise", ["GIC"]),
+    ("TX-News", "LOCKHEED MARTIN SELECTED FOR NEW CONTRACT", ["LMT"]),
+    ("TX-News", "MICROSOFT EXPECTS AI CAPACITY CONSTRAINTS", ["MSFT"]),
+    ("TX-News", "Apple cuts prices in China", ["AAPL"]),
+    ("TX-News", "NVIDIA CEO ADDRESSES REPORT", ["NVDA"]),
+    ("TX-News", "General Motors recalls 10,000 trucks", ["GM"]),
+    ("TX-News", "Rockwell Automation Introduces New Drives", ["ROK"]),     # distinctive: no cue needed
+    ("TX-News", "Robert Half says hiring is slowing", ["RHI"]),
+    ("TX-News", "Black Rock Coffee Bar Expands Footprint", ["BRCB"]),
+])
+def test_confirmed_names_still_link(source, text, want):
+    assert m_fu(source, text) == want
+
+
+# ── follow-up: one link per security -- the ticker wins over its own company name ──
+
+@pytest.mark.parametrize("source,text,tickers", [
+    ("TX-PressRelease", "BRCB - Black Rock Coffee Bar Expands Footprint in California", ["BRCB"]),
+    ("TX-PressRelease", "ROK - Rockwell Automation Introduces New Drives", ["ROK"]),
+    ("TX-PressRelease", "RHI - Robert Half honored for workplace culture", ["RHI"]),
+    ("TX-News", "Microsoft (MSFT) expects to raise $25 billion", ["MSFT"]),
+    ("TX-News", "Global Industrial (GIC) shares rise", ["GIC"]),
+])
+def test_a_name_whose_ticker_is_present_is_plain_text(source, text, tickers):
+    assert m_fu(source, text) == []
+    assert tr.resolve_tickers(text, cat.SOURCE_TICKER_CONTEXT.get(source, tr.WIRE_NEWS)) == tickers
+
+
+def test_the_rule_is_per_security_not_per_headline():
+    text = "BRCB - Black Rock Coffee Bar and Microsoft Announce a Partnership"
+    assert m_fu("TX-PressRelease", text) == ["MSFT"]
+    assert m_fu("TX-News", "Microsoft and NVIDIA lead gains as AAPL tops record") == ["MSFT", "NVDA"]
+    assert m_fu("TX-News", "Apple and NVIDIA lead gains as AAPL tops record") == ["NVDA"]
+
+
+def test_another_share_class_of_the_same_issuer_counts_as_present():
+    assert IDX.issuer["GOOG"] == IDX.issuer["GOOGL"]
+    assert tr.resolve_company_mentions("Alphabet reports cloud growth; GOOG climbs", IDX,
+                                       explicit={"GOOG"}) == []
+
+
+def test_without_its_ticker_the_name_links():
+    assert m_fu("TX-News", "Microsoft Expects to Raise About $25 Billion in US Bond Sale") == ["MSFT"]
+
+
+def test_a_suppressed_name_still_shields_shorter_names_inside_it():
+    idx = tr.build_company_index({"BRCB": "Black Rock Coffee Bar, Inc.", "BKR": "Black Rock Holdings Inc."}, {})
+    got = tr.resolve_company_mentions("BRCB - Black Rock Coffee Bar Expands", idx, explicit={"BRCB"})
+    assert got == []
+
+
+# ── follow-up: capitalised words in wire prose that are text, not tickers ──
+
+@pytest.mark.parametrize("source,text,bad", [
+    ("TX-News", "Top Admiral Briefs Trump On Iran Attack Options -- WSJ (SM Circulations)", "SM"),
+    ("TX-News", "Hackers exploit Cisco SD-WAN flaw to deploy custom malware - BC", "SD"),
+    ("TX-News", "Hackers exploit Cisco SD-WAN flaw to deploy custom malware - BC", "BC"),
+    ("TX-News", "Tariff talks resume after a pause - AP", "AP"),
+    ("TX-PressRelease", "XGMS - X Games USA Launches New Series", "USA"),
+    ("TX-News", "Lawmakers say they'll refuse an AI-BUBBLE bailout", "AI"),
+])
+def test_ordinary_wire_text_is_not_a_ticker(source, text, bad):
+    assert bad not in cat.tickers_for(source, text)
+
+
+@pytest.mark.parametrize("source,text,want", [
+    ("TX-News", "GM says it will recall trucks", ["GM"]),
+    ("TX-News", "GE shares rise after upgrade", ["GE"]),
+    ("TX-News", "Stocks slip as $SM falls - BC", ["SM"]),                   # a cashtag always counts
+    ("TX-News", "GOOGL lows", ["GOOGL"]),
+    ("TX-News", "NVDA JUMPS ON EARNINGS", ["NVDA"]),
+    ("TX-PressRelease", "S - SentinelOne Named Partner's Most Valuable Vendor", ["S"]),
+    ("TX-PressRelease", "BRK.B - Berkshire Hathaway Annual Letter", ["BRK-B"]),
+])
+def test_real_tickers_in_wire_text_are_kept(source, text, want):
+    assert tr.resolve_tickers(text, cat.SOURCE_TICKER_CONTEXT.get(source, tr.WIRE_NEWS)) == want
