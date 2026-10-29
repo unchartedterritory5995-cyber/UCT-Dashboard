@@ -8,7 +8,8 @@
 //   • the target is re-found every POLL_MS (scrolling, resizing, a panel opening or closing); the ring follows it
 //   • a target that is gone for LOST_MS ends the walkthrough and says so (an `optional` step is skipped instead) —
 //     the card never points at nothing and never claims a control is visible when it is not
-//   • Escape ends it when it is the topmost layer (lib/topLayer); a sheet or dialog above it keeps its own Escape
+//   • Escape from inside the card ends it — no window-level key listener, so every other Escape (a sheet, the palette,
+//     the chart's own keys) works exactly as before; the card's × always ends it
 //   • leaving Charts or closing the Agent unmounts it: the walkthrough ends, every timer and listener with it
 //   • the card is announced politely (aria-live) and never takes focus from what the member is doing
 
@@ -17,7 +18,6 @@ import { createPortal } from 'react-dom'
 import { subscribeGuide, guideSnapshot, nextStep, prevStep, endGuide } from './guideStore'
 import { findTarget, rectOf, reveal } from './targets'
 import { POLL_MS, LOST_MS, sameRect, placeCard } from './placement'
-import { isTopmostLayer } from '../../lib/topLayer'
 import styles from './GuideOverlay.module.css'
 
 export default function GuideOverlay() {
@@ -60,20 +60,6 @@ export default function GuideOverlay() {
     return () => { cancelled = true; clearTimeout(first); clearInterval(t) }
   }, [st, step, stepKey])
 
-  // Escape ends it — only when it is the layer on top
-  useEffect(() => {
-    if (!st) return undefined
-    const onKey = (e) => {
-      if (e.key !== 'Escape') return
-      const card = cardRef.current
-      if (card && !isTopmostLayer(card)) return
-      e.stopPropagation()
-      endGuide('exit')
-    }
-    document.addEventListener('keydown', onKey, true)
-    return () => document.removeEventListener('keydown', onKey, true)
-  }, [st])
-
   // closing the Agent / leaving Charts ends the walkthrough
   useEffect(() => () => endGuide('closed'), [])
 
@@ -98,6 +84,8 @@ export default function GuideOverlay() {
         data-escape-layer=""
         data-testid="guide-card"
         style={{ top: pos.top, left: pos.left, width: pos.width }}
+        // Escape from inside the card ends it (no window-level key listener: the board's own keys are untouched)
+        onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); endGuide('exit') } }}
       >
         <div className={styles.head}>
           <span id={titleId} className={styles.title}>{st.feature.title}</span>

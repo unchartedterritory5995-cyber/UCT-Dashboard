@@ -49,13 +49,13 @@ export function tidy(text) {
 
 const IND_NOUN = '(?:one|indicator|line|ema|sma|wma|hma|ma|average|moving average|study)'
 const IND_NOUNS = '(?:ones|indicators|lines|emas|smas|mas|averages|moving averages|studies)'
-const R_PLURAL = new RegExp(`^(?:them|those|these|both|both of (?:them|those)|them both|all of (?:them|those)|all (?:the |those |these |of the |of those )?${IND_NOUNS}|(?:the|those|these) (?:two|three|four|2|3|4)(?: ${IND_NOUNS})?|(?:those|these|the) (?:new )?${IND_NOUNS}|the (?:ones|indicators) (?:i|you) (?:just )?added)$`)
+const R_PLURAL = new RegExp(`^(?:them|those|these|both|both of (?:them|those)|them both|them all|those all|all of (?:them|those)|all (?:the |those |these |of the |of those )?${IND_NOUNS}|(?:the|those|these) (?:two|three|four|2|3|4)(?: ${IND_NOUNS})?|(?:those|these|the) (?:new )?${IND_NOUNS}|the (?:ones|indicators) (?:i|you) (?:just )?added)$`)
 // (the shared normaliser drops the word "indicator": "that indicator I just added" arrives as "that i just added")
 const R_IT = new RegExp(`^(?:it|that|this|that one|this one|(?:that|this|the) (?:new )?(?:indicator|line|study)|the new one|(?:the|that|this) (?:one |indicator |line )?(?:i|you) (?:just )?(?:added|put on)|what (?:i|you) (?:just )?added|the last (?:one|indicator )?(?:i|you) added)$`)
 const R_ORD = new RegExp(`^the (first|second|third|fourth|1st|2nd|3rd|4th|last|top|bottom|other)(?: ${IND_NOUN})?$`)
 const R_SPEED = new RegExp(`^the (fast|faster|fastest|quick|quicker|short|shorter|shortest|slow|slower|slowest|long|longer|longest)(?: ${IND_NOUN})?$`)
 const R_LEN = /^(?:the )?(\d{1,4})(?: (ema|sma|wma|hma|ma|moving average|line|one|day|period))?$/
-const PRONOUN = /^(?:it|that|this|that one|this one|them|those|these|both|them both)$/
+const PRONOUN = /^(?:it|that|this|that one|this one|them|those|these|both|them both|them all)$/
 /** Was the last committed change about indicators? (a pronoun then points at them) */
 export function aboutIndicators(memory, epoch) {
   const last = memory?.lastTurn?.(epoch)
@@ -172,6 +172,12 @@ export function resolveReferent(words, { host, memory, epoch = null, live = null
     return { list: all }
   }
   if (R_PLURAL.test(w)) {
+    // right after a COPY ("put those on my other charts"), "them all" is the originals AND their copies
+    const last = memory?.lastTurn?.(epoch)
+    if (!live && last && last.ops.length && last.ops.every(o => o.action === 'indicatorCopy.copyTo')) {
+      const copies = liveMentions(host, memory, epoch).filter(c => !set.some(i => i.chart === c.chart && i.instanceId === c.instanceId))
+      if (copies.length) return { list: [...set, ...copies] }
+    }
     if (set.length >= 1) return { list: set }
     return gone().say ? gone() : null
   }
@@ -482,6 +488,8 @@ function repeatOps(last, dests, host) {
       const args = { ...(o.args || {}) }
       for (const key of ['instance', 'pane']) {
         if (typeof args[key] !== 'string' || /^(?:price|volume)$/.test(args[key])) continue
+        // already said by what it IS ("#20:ema", "rsi" — the instant path's own form): re-found on each chart as it is
+        if (/^#\d/.test(args[key]) || defIdOfWords(args[key])) continue
         const row = rows.find(r => r.instanceId === args[key])
         const p = portable(row)
         if (!p) return null                                            // not re-findable on another chart

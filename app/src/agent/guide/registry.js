@@ -65,8 +65,8 @@ export const GUIDE_FEATURES = [
       { target: { within: 'chartSettings', aria: 'Search indicators' }, text: 'Search for an indicator and add it. The ones already on the chart are listed here too — click one to change its settings, colours and pane.' },
     ],
     doIt: {
-      action: 'indicator.add', arg: 'defId', ask: 'Which indicator?',
-      choices: [['rsi', 'RSI'], ['macd', 'MACD'], ['vwap', 'VWAP'], ['atr', 'ATR']],
+      // the choices are the chart's OWN quick set (catalog rows its right-click menu offers) — never a hand list here
+      action: 'indicator.add', arg: 'defId', ask: 'Which indicator?', choicesFrom: 'quickIndicators',
       extra: { inputs: null }, kind: 'indicatorEdits',
     },
   },

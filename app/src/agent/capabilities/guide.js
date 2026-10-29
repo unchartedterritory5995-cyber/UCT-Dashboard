@@ -16,6 +16,17 @@ import { GUIDE_IDS, GUIDE_FEATURES, guideFeature, guideFeatures, matchFeature } 
 import { explainTopic, explainWords } from '../guide/explain'
 import { startGuide, lastShownGuide, forgetLastShown, endGuide, guideState } from '../guide/guideStore'
 import { findTarget } from '../guide/targets'
+import { catalogRows } from '../../components/chart/indicatorCatalog'
+import * as nativeRegistry from '../../components/chart/engine/nativeRegistry'
+
+/** The first few studies of the chart's own quick set (its right-click "Indicators" toggles: `meta.quickMenu` not
+ *  false), pane studies first — the catalog's order, its names. Never a hand-written list. */
+function quickIndicators(n = 4) {
+  let rows = []
+  try { rows = catalogRows(nativeRegistry).filter(r => !r.userDefined && !r.carvedOut && nativeRegistry.getDefinition(r.id)?.meta?.quickMenu !== false) } catch { rows = [] }
+  const pane = rows.filter(r => r.target === 'pane')
+  return [...pane, ...rows.filter(r => r.target !== 'pane')].slice(0, n).map(r => [r.id, r.shortName || r.name])
+}
 
 // "where do I change the timeframe?", "show me where to add an indicator", "how do I use watchlists?"
 const SHOW = /^(?:(?:can|could) you |please |ok |okay |so |hey )*(?:show me (?:where|how)|where (?:do|can|would|should) i|where(?:'s| is| are)|whereabouts|how (?:do|can|would|should) i|how to|walk me through|guide me (?:through|to)|teach me(?: how)?(?: to)?|help me (?:find|with)|give me a (?:tour|walkthrough)|tutorial (?:on|for))\b/i
@@ -42,7 +53,16 @@ export function showFeature(f, host) {
   if (needsChart(f) && !chart) return `There’s no chart on this board to show that on. Add one from Widgets ▾ → Chart first.`
   const chartRef = chart?.ref || null
   // an optional opening step (the board's own watchlist) only when it is there
-  const steps = f.steps.filter(s => !s.optional || findTarget(s.target, { chartRef }))
+  const all = f.steps.filter(s => !s.optional || findTarget(s.target, { chartRef }))
+  // ⭐ CONTEXT-AWARE: where the member already is. A step whose control is on screen BECAUSE the step before it was
+  // done (Chart settings is open → its Indicators tab; the Indicators tab is open → its search box) is where the
+  // walkthrough starts — never "open the gear" when the settings are already open.
+  let from = 0
+  for (let i = all.length - 1; i > 0; i--) {
+    const prev = all[i - 1]
+    if (prev.waitFor && findTarget(prev.waitFor, { chartRef }) && findTarget(all[i].target, { chartRef })) { from = i; break }
+  }
+  const steps = all.slice(from)
   const first = steps[0]
   if (!first || !findTarget(first.target, { chartRef })) {
     return `I can’t see ${f.control || 'that control'} on your screen right now — ${chart ? `${chart.label} may be scrolled out of view or covered by a panel` : 'a panel may be covering it'}. ${f.explain}`
@@ -50,7 +70,8 @@ export function showFeature(f, host) {
   if (guideState()) endGuide('replaced')
   startGuide(f, { chartRef, chartLabel: chart?.label || null, steps })
   const where = chart && chartsOf(host).length > 1 ? ` on ${chart.label}` : ''
-  return `I’ve highlighted it${where} — follow the card (Next, Back or Exit). Nothing on your board has changed.`
+  const already = from > 0 ? ' You’re already part of the way there, so I started from where you are.' : ''
+  return `I’ve highlighted it${where} — follow the card (Next, Back or Exit). Nothing on your board has changed.${already}`
 }
 
 /**
@@ -74,7 +95,9 @@ export function doItForMe(text, host) {
   const snap = kind ? (kind.list(host) || []).find(s => (s.chartRef || s.ref) === chart.ref) : null
   if (!snap) return { say: 'I can’t change that on this chart.' }
   const ops = [{ action: d.action, target: snap.ref, args: { [d.arg]: null, ...(d.extra || {}) } }]
-  return { ask: { text: `${d.ask} (on ${chart.label})`, choices: d.choices.map(([ref, label]) => ({ ref, label })), ops, pickArg: { action: d.action, arg: d.arg } } }
+  const choices = d.choicesFrom === 'quickIndicators' ? quickIndicators() : d.choices
+  if (!choices?.length) return { say: 'Tell me which one and I’ll do it.' }
+  return { ask: { text: `${d.ask} (on ${chart.label})`, choices: choices.map(([ref, label]) => ({ ref, label })), ops, pickArg: { action: d.action, arg: d.arg } } }
 }
 
 let registered = false

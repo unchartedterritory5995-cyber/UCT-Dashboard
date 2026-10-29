@@ -116,6 +116,18 @@ describe('S · "my other charts", "the same", "match this one"', () => {
     expect(p.turns()).toBe(0)
   }, 40000)
 
+  it('S1b …then "make them all green" — the originals AND the copies on the other charts', async () => {
+    const { board, say } = p.mount(...FOUR())
+    await say('add the 9 and 20 ema to the top left chart')
+    await say('Now put those on my other charts')
+    await say('make them all green')
+    for (const id of ['c0', 'c1', 'c2', 'c3']) {
+      expect(colorOf(board, id, 'EMA 9'), id).toBe(GREEN)
+      expect(colorOf(board, id, 'EMA 20'), id).toBe(GREEN)
+    }
+    expect(p.turns()).toBe(0)
+  }, 60000)
+
   it('S2 "add rsi to the top left chart" → "Do the same thing on the other charts" — the last turn repeated on each other chart', async () => {
     const { board, say } = p.mount(...FOUR())
     await say('add rsi to the top left chart')
@@ -123,6 +135,16 @@ describe('S · "my other charts", "the same", "match this one"', () => {
     for (const id of ['c0', 'c1', 'c2', 'c3']) expect(rsiOn(board, id), id).toHaveLength(1)
     expect(p.turns()).toBe(0)
   }, 40000)
+
+  it('S2b a typed "make the 20 ema red" on one chart → "same on the other charts" — re-found by what it is on each', async () => {
+    const { board, say } = p.mount(...FOUR())
+    await say('add the 9 and 20 ema to the top left chart')
+    await say('now put those on my other charts')
+    await say('make the 20 ema on the top left chart red')
+    await say('do the same on the other charts')
+    for (const id of ['c0', 'c1', 'c2', 'c3']) expect(colorOf(board, id, 'EMA 20'), id).toBe(RED)
+    expect(p.turns()).toBe(0)
+  }, 60000)
 
   it('S3 "make the top left chart weekly" → "make all my charts match this one" — ONE proposal for the three others (a look copy is approved first); nothing changed yet', async () => {
     const { h, say } = p.mount(...FOUR())

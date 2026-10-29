@@ -1133,7 +1133,8 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     for (let i = 0; i < steps.length; i++) {
       const step = steps[i]
       const r = resolveStep(step, { host, memory: memoryRef.current, epoch: epochOf(host), working })
-      if (r.noop) { done += 1; continue }
+      if (r.noop) { if (r.note) push({ role: 'outcome', text: r.note }); done += 1; continue }
+      if (r.note) push({ role: 'outcome', text: r.note })
       if (r.say || !r.ops?.length) { stop(i, String(r.say || 'there was nothing to do there').replace(/[.]+$/, '')); return }
       if (r.ops.length > MAX_STEP_OPS) { stop(i, `that step would make ${r.ops.length} changes, and UCT makes at most ${MAX_STEP_OPS} in one step`); return }
       if (r.pick) memoryRef.current.notePick(r.pick)
