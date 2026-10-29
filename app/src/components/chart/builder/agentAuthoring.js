@@ -29,6 +29,7 @@ import {
   localTurn, modelTurn, renameTurn, undoTurn, saveConversation, noteDiscarded, previewDefinitionOf,
 } from './authoring/authoringSession'
 import { withPendingInputs } from './studio/editPreview'
+import { sameMaths } from './authoring/sameMaths'
 
 export const AUTHORING_CONTRACT = 'uct.indicators.authoring/1'
 
@@ -120,7 +121,25 @@ function statusOf(key, snap, ctx = {}) {
     // the dock started, or one opened without a chart): the Agent must ASK for a target chart,
     // never substitute another one.
     chartRef: (snap.meta && typeof snap.meta.chartRef === 'string') ? snap.meta.chartRef : null,
+    // ⭐ #500 (Agent contract 2026-10-29) — the member's own saved definitions that CALCULATE
+    // exactly what this draft does (`authoring/sameMaths.js`: a proven 'same' only; unknown and
+    // different never list). The draft's own definition is excluded, so an edit never matches
+    // itself. Only the rows the caller passed are read — no network.
+    sameMathsAs: sameMathsAsOf(st, ctx),
   })
+}
+
+function sameMathsAsOf(st, ctx) {
+  if (!st.working) return Object.freeze([])
+  const own = st.defId || null
+  const out = []
+  for (const r of rowsOf(ctx)) {
+    if (!r || !r.def_id || r.def_id === own || !r.definition) continue
+    if (!sameMaths(st.working, r.definition)) continue
+    const name = r.definition.meta && typeof r.definition.meta.name === 'string' ? r.definition.meta.name : null
+    out.push(Object.freeze({ defId: r.def_id, name }))
+  }
+  return Object.freeze(out)
 }
 
 /** Resolve a draftRef to its live session, or a refusal. Read-only. */
