@@ -485,7 +485,7 @@ def prewarm_company_index() -> None:
 #: What follows a company named in a headline: its stock, its corporate form, or
 #: what it DID ("MICROSOFT EXPECTS", "Apple unveils", "NVIDIA SHARES"). Context, not
 #: a word list of banned names: "apple pie" / "Alphabet soup" carry none of it.
-_COMPANY_CUE_NEXT = frozenset("""
+_COMPANY_CUE_BASE = frozenset("""
 shares stock stocks inc corp corporation co ceo cfo board investors earnings revenue sales results
 guidance outlook forecast profit quarter q1 q2 q3 q4 dividend buyback offering bonds bond debt
 says said expects expected plans plan reports reported posts unveils unveiled launches launched
@@ -497,8 +497,8 @@ plunges dips expands leads joins partners is was has will to in
 """.split())
 # A coordinated subject takes the plural ("Microsoft and Nvidia EXPAND", "Apple, Google
 # FACE"): the base form of every -s cue verb is a cue too -- derived, not restated.
-_COMPANY_CUE_NEXT = _COMPANY_CUE_NEXT | frozenset(
-    w[:-1] for w in _COMPANY_CUE_NEXT if w.endswith("s") and not w.endswith("ss") and len(w) > 4)
+_COMPANY_CUE_NEXT = _COMPANY_CUE_BASE | frozenset(
+    w[:-1] for w in _COMPANY_CUE_BASE if w.endswith("s") and not w.endswith("ss") and len(w) > 4)
 #: A mention joined to another confident one ("Microsoft and Nvidia", "Apple, Google").
 _COORDINATION = frozenset({"and", "&", "or", "vs", "versus"})
 
