@@ -19,7 +19,9 @@ vi.mock('../pages/journal-2-0/lib/styleLibrary', async (orig) => ({
   adoptLayout: vi.fn(() => new Promise((r) => { adopt.resolve = r })),
 }))
 // eslint-disable-next-line import/first
-import AdoptLayoutSheet from '../pages/journal-2-0/components/notebook/AdoptLayoutSheet'
+import AdoptLayoutSheet, { CHANGE_FAILED } from '../pages/journal-2-0/components/notebook/AdoptLayoutSheet'
+// eslint-disable-next-line import/first
+import { saveSets, __resetSetsCache } from '../pages/journal-2-0/lib/notebookSets'
 
 let servers, who, posts, puts, putGate, putAnswer
 function installFetch() {
@@ -57,6 +59,7 @@ beforeEach(async () => {
     b: { [TOURS_PREF]: JSON.stringify({ 'b-tour': { v: 1, state: 'started', step: 's1' } }) },
   }
   who = 'a'; posts = []; puts = []; putGate = null; putAnswer = null; adopt.resolve = null
+  __resetSetsCache()
   installFetch()
 })
 afterEach(() => { vi.restoreAllMocks() })
@@ -154,5 +157,110 @@ describe('AdoptLayoutSheet across A -> B', () => {
     await act(async () => { await ok.action.run() })
     await flush()
     expect(posts.filter((x) => x.key === LAYOUT_PREF).map((x) => x.account)).toEqual(['a'])
+  })
+})
+
+describe('AdoptLayoutSheet — Try again and the write\'s answer belong to the member who adopted', () => {
+  const item = { id: 'lay-2', layoutPage: 'today', title: 'Calm open' }
+  const lists = { market: [{ id: 'regime', shown: true }], premarket: [{ id: 'checklistToday', shown: true }] }
+  const answer = { layout: { page: 'today', lists }, credit: '' }
+
+  it('A\'s read failed during the adopt (Try again offered), then B signs in: B\'s Try again posts nothing', async () => {
+    publishPrefsUser('a')
+    let failGets = true
+    const base = global.fetch
+    global.fetch = vi.fn(async (url, init) => {
+      if (String(url).includes('/api/auth/preferences') && !(init && init.method === 'POST') && failGets) {
+        return { ok: false, status: 502, headers: { get: () => null }, json: async () => ({}) }
+      }
+      return base(url, init)
+    })
+    const onClose = vi.fn()
+    render(<SWRConfig value={{ dedupingInterval: 0, shouldRetryOnError: false }}>
+      <AdoptLayoutSheet item={item} version={1} layout={{ lists }} onClose={onClose} onMessage={() => {}} />
+    </SWRConfig>)
+    await flush()
+    failGets = false
+    // the sheet's own Use is disabled while the read failed; drive the adopt answer through the
+    // failed-read branch: Use was pressed while the read was still good, the read failed during it
+    await act(async () => { await globalMutate('/api/auth/preferences') })
+    await flush()
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Use this layout' })) })
+    failGets = true
+    await act(async () => { await globalMutate('/api/auth/preferences') })   // the read fails during the round trip
+    await flush()
+    await act(async () => { adopt.resolve(answer) })
+    await flush()
+    const retry = screen.queryByRole('button', { name: 'Try again' })
+    expect(retry, 'Try again was not offered after the failed read').toBeTruthy()
+    failGets = false
+    who = 'b'
+    await switchTo('b')
+    await act(async () => { fireEvent.click(retry) })
+    await flush()
+    expect(posts.filter((x) => x.key === LAYOUT_PREF), 'A\'s adopted layout was posted into B').toEqual([])
+  })
+
+  it('the write answers after the switch: B sees neither A\'s "now uses" nor a stuck failure', async () => {
+    publishPrefsUser('a')
+    servers.a[LAYOUT_PREF] = JSON.stringify({ v: 1 })
+    let releasePost
+    const base = global.fetch
+    global.fetch = vi.fn(async (url, init) => {
+      if (String(url).includes('/api/auth/preferences') && init && init.method === 'POST') {
+        await new Promise((r) => { releasePost = r })
+      }
+      return base(url, init)
+    })
+    const msgs = []
+    const onClose = vi.fn()
+    render(<SWRConfig value={{ dedupingInterval: 0, shouldRetryOnError: false }}>
+      <AdoptLayoutSheet item={item} version={1} layout={{ lists }} onClose={onClose} onMessage={(m) => msgs.push(m)} />
+    </SWRConfig>)
+    await flush()
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Use this layout' })) })
+    await flush()
+    await act(async () => { adopt.resolve(answer) })
+    await flush()
+    expect(typeof releasePost).toBe('function')               // A's write is in flight
+    who = 'b'
+    await switchTo('b')
+    await act(async () => { releasePost() })
+    await flush()
+    expect(msgs.filter((m) => m.tone === 'ok'), 'B was told A\'s layout is now in use').toEqual([])
+    expect(screen.queryByText(CHANGE_FAILED)).toBeNull()
+    expect(onClose).toHaveBeenCalled()
+  })
+})
+
+describe('notebookSets.saveSets — a switch during the fresh read posts nothing', () => {
+  it('A\'s read answers after A->B: no POST of A\'s sets under B\'s cookie', async () => {
+    publishPrefsUser('a')
+    let releaseGet
+    const base = global.fetch
+    global.fetch = vi.fn(async (url, init) => {
+      if (String(url).includes('/api/auth/preferences') && !(init && init.method === 'POST') && !releaseGet) {
+        await new Promise((r) => { releaseGet = r })
+      }
+      return base(url, init)
+    })
+    let p
+    await act(async () => { p = saveSets({ presets: [] }) })
+    await flush()
+    expect(typeof releaseGet).toBe('function')
+    who = 'b'
+    await switchTo('b')
+    let r
+    await act(async () => { releaseGet(); r = await p })
+    expect(r.ok).toBe(false)
+    expect(posts).toEqual([])
+  })
+
+  it('CONTROL: the same member: the save posts once', async () => {
+    publishPrefsUser('a')
+    let r
+    await act(async () => { r = await saveSets({ presets: [] }) })
+    expect(r.ok).toBe(true)
+    expect(posts.map((x) => x.account)).toEqual(['a'])
   })
 })

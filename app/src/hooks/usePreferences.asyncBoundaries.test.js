@@ -263,6 +263,11 @@ describe('usePreferences.js — every async boundary checks the member before it
 const NOTEBOOK_CALLERS_PENDING = {}
 const WRITE_FNS = new Set(['mergeIntoPreferenceCache', 'setPref', 'setPrefMerged'])
 const CALLERS_ALLOWED = {
+  // ⚠️ FOUND BY THIS RAIL, NOT FIXED HERE, REPORTED: outside the files this change may touch.
+  'pages/journal-2-0/components/notebook/styles/StarterPackOffer.jsx|writeStarterPackState(…bare writer)':
+    'PENDING owner approval (rule 12: a Notebook path not in the 2026-10-29 approval): writes notebook_starter_pack through setPrefMerged after awaiting installStarterPack, with no op',
+  'pages/Settings.jsx|fetch(PREFS_URL POST)':
+    'PENDING (outside this change’s approved scope): the backup-restore loop POSTs each key after its own reads; a member change mid-restore is not checked',
   'testing/device/authHarness.js|setPref':
     'a device test harness: `api.setPref` is its own HTTP client for ONE scripted session, not the hook; there is no member change inside a run',
 }
@@ -270,36 +275,101 @@ const CALLERS_ALLOWED = {
 function callName(node) {
   const c = node.callee
   if (c.type === 'Identifier') return c.name
-  if (c.type === 'MemberExpression' && !c.computed && c.property.type === 'Identifier') return c.property.name
+  if (c.type === 'MemberExpression' && !c.computed && c.property.type === 'Identifier') {
+    // an indirect writer held in a ref: setPrefMergedRef.current(...), setPrefRef.current(...)
+    if (c.property.name === 'current' && c.object.type === 'Identifier' && /^(setPref|setPrefMerged|mergeIntoPreferenceCache)Ref$/.test(c.object.name)) {
+      return c.object.name.replace(/Ref$/, '')
+    }
+    return c.property.name
+  }
   return null
 }
 
-/** Calls of a write after an await in the same function, without the op and without a guard
- *  right before them. Returns [{ name, line }]. */
+const isPrefsUrl = (n) => n && ((n.type === 'Identifier' && n.name === 'PREFS_URL')
+  || (n.type === 'Literal' && n.value === '/api/auth/preferences'))
+const isPostOptions = (n) => n && n.type === 'ObjectExpression' && n.properties.some((p) => p.type === 'Property'
+  && ((p.key.type === 'Identifier' && p.key.name === 'method') || (p.key.type === 'Literal' && p.key.value === 'method'))
+  && p.value.type === 'Literal' && String(p.value.value).toUpperCase() === 'POST')
+
+/** The function the node sits in, and whether an await ran in it BEFORE the node (not inside a
+ *  nested function). Also returns the first such await's start. */
+function awaitContext(node, parents) {
+  const fi = parents.map(isFn).lastIndexOf(true)
+  if (fi < 0) return null
+  const fn = parents[fi]
+  let first = null
+  walk(fn.body, (n, ps) => {
+    if (n.type === 'AwaitExpression' && n.end <= node.start && !ps.some((x) => isFn(x))) {
+      if (first === null || n.start < first) first = n.start
+    }
+  })
+  return first === null ? null : { fi, fn, firstAwait: first }
+}
+
+/** The statement holding `node` is preceded by the stale exit — directly, or as the first statement
+ *  of a block (try / if) whose own statement is so preceded. */
+function guardedBefore(node, parents, fi) {
+  let si = parents.length - 1
+  while (si > fi && !/Statement$|Declaration$/.test(parents[si].type)) si -= 1
+  let stmt = parents[si]
+  for (let i = si - 1; i > fi; i -= 1) {
+    const block = parents[i]
+    const list = block.type === 'BlockStatement' ? block.body : null
+    if (!list) { stmt = block; continue }
+    const idx = list.indexOf(stmt)
+    if (idx > 0) return isStaleExit(list[idx - 1])
+    if (idx < 0) return false
+    stmt = block                                       // first of its block: look before the block's owner
+  }
+  return false
+}
+
+/** Is identifier `name` bound before `before` — a parameter of an enclosing function, or declared
+ *  ahead of that position in one? (An op begun AFTER the await proves nothing.) */
+function boundBefore(name, parents, before) {
+  for (let i = parents.length - 1; i >= 0; i -= 1) {
+    const p = parents[i]
+    if (isFn(p)) {
+      const params = p.params.flatMap((x) => (x.type === 'Identifier' ? [x.name]
+        : x.type === 'AssignmentPattern' && x.left.type === 'Identifier' ? [x.left.name] : []))
+      if (params.includes(name)) return true
+      let declaredAt = null
+      walk(p.body, (n, ps) => {
+        if (n.type === 'VariableDeclarator' && n.id.type === 'Identifier' && n.id.name === name && !ps.some((x) => isFn(x) && x !== p)) declaredAt = n.start
+      })
+      if (declaredAt !== null) return declaredAt < before
+    }
+  }
+  return false
+}
+
+/** Writes after an await of the caller's own without a valid op (or a stale exit right before).
+ *  Returns [{ name, line }]. */
 export function writesAfterAwaitWithoutOp(code) {
   const out = []
   walk(parse(code), (node, parents) => {
     if (node.type !== 'CallExpression') return
     const name = callName(node)
-    if (!WRITE_FNS.has(name)) return
-    if (node.arguments.length >= 3) return
-    const fi = parents.map(isFn).lastIndexOf(true)
-    if (fi < 0) return
-    const fn = parents[fi]
-    let awaitBefore = false
-    walk(fn.body, (n, ps) => {
-      if (n.type === 'AwaitExpression' && n.end <= node.start && !ps.some((x) => isFn(x))) awaitBefore = true
-    })
-    if (!awaitBefore) return
-    // immediately guarded: the statement holding the call is preceded, in its block, by the stale exit
-    let si = parents.length - 1
-    while (si > fi && !/Statement$|Declaration$/.test(parents[si].type)) si -= 1
-    const stmt = parents[si]
-    const block = parents[si - 1]
-    const list = block && (block.type === 'BlockStatement' || block.type === 'Program') ? block.body : null
-    const idx = list ? list.indexOf(stmt) : -1
-    if (idx > 0 && isStaleExit(list[idx - 1], code)) return
-    out.push({ name, line: node.loc.start.line })
+    // (1) setPref / setPrefMerged / mergeIntoPreferenceCache (also through a ref)
+    // (2) a raw POST to the preferences endpoint
+    // (3) an op BEGUN after the await and handed on (`write(answer, beginPrefsOp())`)
+    // (4) a writer handed on bare (`replayBoardWrites(steps, setPref)`) after an await
+    const isWrite = WRITE_FNS.has(name)
+    const isRawPost = name === 'fetch' && isPrefsUrl(node.arguments[0]) && isPostOptions(node.arguments[1])
+    const lateOp = node.arguments.some((x) => x.type === 'CallExpression' && x.callee.type === 'Identifier' && x.callee.name === 'beginPrefsOp'
+      || (x.type === 'LogicalExpression' && x.right.type === 'CallExpression' && x.right.callee.name === 'beginPrefsOp'))
+    const bareWriter = node.arguments.some((x) => x.type === 'Identifier' && WRITE_FNS.has(x.name))
+    if (!isWrite && !isRawPost && !lateOp && !bareWriter) return
+    const ctx = awaitContext(node, parents)
+    if (!ctx) return
+    if (lateOp) { out.push({ name: `${name}(…beginPrefsOp())`, line: node.loc.start.line }); return }
+    if (bareWriter && !isWrite) { out.push({ name: `${name}(…bare writer)`, line: node.loc.start.line }); return }
+    if (isWrite) {
+      const opArg = node.arguments[2]
+      if (opArg && opArg.type === 'Identifier' && boundBefore(opArg.name, parents, ctx.firstAwait)) return
+    }
+    if (guardedBefore(node, parents, ctx.fi)) return
+    out.push({ name: isRawPost ? 'fetch(PREFS_URL POST)' : name, line: node.loc.start.line })
   })
   return out
 }
@@ -348,5 +418,23 @@ describe('callers — a write after an await of their own carries the op begun b
     expect(writesAfterAwaitWithoutOp('async function a(op, setPrefMerged) { await door(); if (op.stale()) return false; await setPrefMerged("k", f) }')).toHaveLength(0)
     expect(writesAfterAwaitWithoutOp('async function a(op, setPrefMerged) { await door(); if (!op.stale()) return false; await setPrefMerged("k", f) }')).toHaveLength(1)
     expect(writesAfterAwaitWithoutOp('function a(setPref) { setPref("k", v) }')).toHaveLength(0)
+  })
+
+  it('CONTROL (hardened): an op begun AFTER the await, a raw POST, a ref writer and a bare writer are caught', () => {
+    // an op begun after the await, as a write's argument or handed on
+    expect(writesAfterAwaitWithoutOp('async function a(setPref) { await door(); const op = beginPrefsOp(); setPref("k", v, op) }')).toHaveLength(1)
+    expect(writesAfterAwaitWithoutOp('async function a(setPref) { await door(); setPref("k", v, beginPrefsOp()) }')).toHaveLength(1)
+    expect(writesAfterAwaitWithoutOp('async function a(write) { await door(); await write(answer, beginPrefsOp()) }')).toHaveLength(1)
+    expect(writesAfterAwaitWithoutOp('async function a(write, r) { await door(); await write(r, r.op || beginPrefsOp()) }')).toHaveLength(1)
+    // a raw POST to the endpoint after an await
+    expect(writesAfterAwaitWithoutOp('async function a() { await readRaw(); await fetch(PREFS_URL, { method: "POST", body: b }) }')).toHaveLength(1)
+    expect(writesAfterAwaitWithoutOp('async function a() { const op = beginPrefsOp(); await readRaw(); if (op.stale()) return null; try { await fetch(PREFS_URL, { method: "POST", body: b }) } catch {} }')).toHaveLength(0)
+    expect(writesAfterAwaitWithoutOp('async function a() { await readRaw(); await fetch(PREFS_URL) }')).toHaveLength(0)
+    // an indirect writer in a ref, and a writer handed on bare
+    expect(writesAfterAwaitWithoutOp('async function a() { await door(); setPrefMergedRef.current("k", f) }')).toHaveLength(1)
+    expect(writesAfterAwaitWithoutOp('async function a(setPref) { await door(); replayBoardWrites(steps, setPref) }')).toHaveLength(1)
+    // the op as a parameter, and declared before the first await, both pass
+    expect(writesAfterAwaitWithoutOp('async function a(setPref, op) { await door(); setPref("k", v, op) }')).toHaveLength(0)
+    expect(writesAfterAwaitWithoutOp('async function a(setPref) { const op = beginPrefsOp(); await door(); setPref("k", v, op) }')).toHaveLength(0)
   })
 })
