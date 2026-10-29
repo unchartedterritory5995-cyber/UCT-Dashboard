@@ -482,24 +482,88 @@ def prewarm_company_index() -> None:
             _COMPANY_INDEX = {}
 
 
-def resolve_company_mentions(text: Optional[str], index: Optional[dict] = None) -> list[tuple[str, str]]:
+#: What follows a company named in a headline: its stock, its corporate form, or
+#: what it DID ("MICROSOFT EXPECTS", "Apple unveils", "NVIDIA SHARES"). Context, not
+#: a word list of banned names: "apple pie" / "Alphabet soup" carry none of it.
+_COMPANY_CUE_NEXT = frozenset("""
+shares stock stocks inc corp corporation co ceo cfo board investors earnings revenue sales results
+guidance outlook forecast profit quarter q1 q2 q3 q4 dividend buyback offering bonds bond debt
+says said expects expected plans plan reports reported posts unveils unveiled launches launched
+announces announced sues sued buys bought acquires acquired agrees signs signed files filed warns
+warned delays cuts raises raised beats misses tops faces wins won loses hires names named invests
+seeks wants targets considers explores weighs halts pauses resumes nears completes prices sells
+rises rose falls fell jumps surges soars slides slumps sinks drops gains climbs rallies tumbles
+plunges dips expands leads joins partners is was has will to in
+""".split())
+# A coordinated subject takes the plural ("Microsoft and Nvidia EXPAND", "Apple, Google
+# FACE"): the base form of every -s cue verb is a cue too -- derived, not restated.
+_COMPANY_CUE_NEXT = _COMPANY_CUE_NEXT | frozenset(
+    w[:-1] for w in _COMPANY_CUE_NEXT if w.endswith("s") and not w.endswith("ss") and len(w) > 4)
+#: A mention joined to another confident one ("Microsoft and Nvidia", "Apple, Google").
+_COORDINATION = frozenset({"and", "&", "or", "vs", "versus"})
+
+
+def _proper(word: str) -> bool:
+    return word[:1].isupper()
+
+
+def resolve_company_mentions(text: Optional[str], index: Optional[dict] = None,
+                             explicit: Optional[set] = None) -> list[tuple[str, str]]:
     """[(exact text as written, symbol)] for company names in ``text``, in mention
     order, longest name first, never overlapping, one link per symbol. Uses the
-    prebuilt index only: an index that is not ready yet means no name links."""
+    prebuilt index only: an index that is not ready yet means no name links.
+
+    ⭐ CONTEXTUAL CONFIDENCE. Every name must be written as a proper noun (initial
+    capital or ALL CAPS): "apple pie" is not Apple. A multi-word name ("Rocket Lab")
+    is then distinctive enough. A SINGLE word additionally needs company context:
+    a cue right after it (_COMPANY_CUE_NEXT, or the possessive "Apple's"), its own
+    ticker elsewhere in the headline (``explicit``), or a coordination ("and", ",")
+    with another confident mention. Otherwise it stays plain text."""
     idx = _COMPANY_INDEX if index is None else index
     if not idx or not text:
         return []
-    words = [(m.group(0).lower(), m.start(), m.end()) for m in _NAME_TOKEN_RE.finditer(text)]
+    words = [(m.group(0), m.start(), m.end()) for m in _NAME_TOKEN_RE.finditer(text)]
+    low = [w.lower() for w, _, _ in words]
     used = [False] * len(words)
-    hits: list[tuple[int, str, str]] = []
+    hits: list[tuple[int, str, str]] = []            # (start, text, sym)
+    pending: list[tuple[int, str, str]] = []         # single words awaiting coordination: (i, text, sym)
+    explicit = explicit or set()
+
+    def taken(sym):
+        return sym in {s for _, _, s in hits}
+
     for n in (4, 3, 2, 1):
         for i in range(len(words) - n + 1):
             if any(used[i:i + n]):
                 continue
-            sym = idx.get(tuple(w for w, _, _ in words[i:i + n]))
-            if sym and sym not in {s for _, _, s in hits}:
-                start, end = words[i][1], words[i + n - 1][2]
-                hits.append((start, text[start:end], sym))
-                for k in range(i, i + n):
-                    used[k] = True
+            sym = idx.get(tuple(low[i:i + n]))
+            if not sym or taken(sym) or not all(_proper(words[k][0]) for k in range(i, i + n)):
+                continue
+            start, end = words[i][1], words[i + n - 1][2]
+            if n == 1:
+                nxt = low[i + 1] if i + 1 < len(words) else ""
+                possessive = text[end:end + 2] in ("'s", "’s")
+                if not (nxt in _COMPANY_CUE_NEXT or possessive or sym in explicit):
+                    pending.append((i, text[start:end], sym))
+                    continue
+            hits.append((start, text[start:end], sym))
+            for k in range(i, i + n):
+                used[k] = True
+
+    def joined(i, j):                                # words i < j joined by "and" / "," only
+        between = text[words[i][2]:words[j][1]]
+        rest = between.replace(",", " ").split()
+        return (j == i + 1 and "," in between) or (j == i + 2 and low[i + 1] in _COORDINATION and len(rest) == 1)
+
+    changed = True
+    while changed and pending:
+        changed = False
+        anchors = [k for k in range(len(words)) if used[k]]
+        for item in list(pending):
+            i, t, sym = item
+            if taken(sym):
+                pending.remove(item); continue
+            if any(joined(min(i, a), max(i, a)) for a in anchors):
+                hits.append((words[i][1], t, sym)); used[i] = True
+                pending.remove(item); changed = True
     return [(t, s) for _, t, s in sorted(hits)]

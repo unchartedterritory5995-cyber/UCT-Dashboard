@@ -103,7 +103,8 @@ def mentions_for(source: str, content: str) -> list[list[str]]:
     """[[text as written, symbol]] for company names to link in the headline."""
     if source in NAME_SOURCES_EXCLUDED:
         return []
-    return [[t, s] for t, s in tr.resolve_company_mentions(content)]
+    explicit = set(tr.resolve_tickers(content, SOURCE_TICKER_CONTEXT.get(source, tr.WIRE_NEWS)))
+    return [[t, s] for t, s in tr.resolve_company_mentions(content, explicit=explicit)]
 
 
 #: ⛔ Graphic-only placeholders: Trade Exchange's own app shows a picture under

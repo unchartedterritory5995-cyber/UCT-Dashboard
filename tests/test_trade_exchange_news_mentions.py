@@ -117,7 +117,31 @@ def test_the_event_carries_mentions_and_the_placeholder_mark_and_keeps_content()
     assert pl.headline_event({**row, "content": "CRYPTO"}, "e")["placeholder"] == "graphic"
 
 
-def test_known_limit_a_curated_brand_word_used_as_plain_english_still_links():
-    """Stated, not hidden: a curated single-word brand ("apple") links even in
-    "apple pie". Headlines rarely use these words any other way; the list stays short."""
-    assert m("Alphabet soup and apple pie at the fair") == [("Alphabet", "GOOGL"), ("apple", "AAPL")]
+@pytest.mark.parametrize("text", [
+    "apple pie and alphabet soup at the fair",           # not written as proper nouns
+    "Apple pie recipe goes viral",                       # capitalised, but no company context
+    "APPLE PIE CONTEST DRAWS RECORD CROWD",              # shouted, no company context
+    "Alphabet soup of new rules confuses traders",
+    "Google Doodle celebrates a holiday",                # brand word, nothing a company did
+])
+def test_a_single_word_brand_needs_company_context(text):
+    assert m(text) == []
+
+
+@pytest.mark.parametrize("text,want", [
+    ("Apple's new chip ships", [("Apple", "AAPL")]),                          # possessive
+    ("APPLE SHARES SLIDE PREMARKET", [("APPLE", "AAPL")]),                    # stock cue
+    ("Apple, Google face EU probe", [("Apple", "AAPL"), ("Google", "GOOGL")]),  # coordination
+])
+def test_single_word_brands_with_company_context_link(text, want):
+    assert m(text) == want
+
+
+def test_its_own_ticker_in_the_headline_is_context():
+    assert tr.resolve_company_mentions("Apple (AAPL) event set", IDX, explicit={"AAPL"}) == [("Apple", "AAPL")]
+    assert cat.mentions_for("TX-News", "Apple pie stand opens near $AAPL store") == [["Apple", "AAPL"]]
+
+
+def test_filters_and_alerts_see_the_same_corrected_resolution():
+    assert cat.tickers_for("TX-News", "APPLE PIE CONTEST DRAWS RECORD CROWD") == []
+    assert cat.tickers_for("TX-News", "MICROSOFT EXPECTS TO RAISE $25 BILLION") == ["MSFT"]
