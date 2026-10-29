@@ -1,0 +1,153 @@
+{
+  "_comment": "Slot ids per tree, in slots.js coordinates. Read by slotIdCases.test.js (slotsOfTree) AND tests/test_builder_reference_repair.py (definition_conversation._slots_of_tree): the server's pre-check and the browser engine must name the same slots.",
+  "cases": [
+    {
+      "name": "EMA 9/20 percent difference",
+      "key": "diff",
+      "tree": {
+        "type": "op",
+        "name": "*",
+        "args": [
+          {
+            "type": "op",
+            "name": "/",
+            "args": [
+              {
+                "type": "op",
+                "name": "-",
+                "args": [
+                  {
+                    "type": "call",
+                    "name": "ema",
+                    "args": [
+                      {
+                        "type": "series",
+                        "name": "close"
+                      },
+                      {
+                        "type": "num",
+                        "value": 9
+                      }
+                    ]
+                  },
+                  {
+                    "type": "call",
+                    "name": "ema",
+                    "args": [
+                      {
+                        "type": "series",
+                        "name": "close"
+                      },
+                      {
+                        "type": "num",
+                        "value": 20
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "call",
+                "name": "ema",
+                "args": [
+                  {
+                    "type": "series",
+                    "name": "close"
+                  },
+                  {
+                    "type": "num",
+                    "value": 20
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "num",
+            "value": 100
+          }
+        ]
+      },
+      "ids": [
+        "diff#0.0.0.0",
+        "diff#0.0.0.1",
+        "diff#0.0.1.0",
+        "diff#0.0.1.1",
+        "diff#0.1.0",
+        "diff#0.1.1",
+        "diff#1"
+      ]
+    },
+    {
+      "name": "offset, negation",
+      "key": "k",
+      "tree": {
+        "type": "op",
+        "name": "-",
+        "args": [
+          {
+            "type": "offset",
+            "value": 3,
+            "args": [
+              {
+                "type": "call",
+                "name": "sma",
+                "args": [
+                  {
+                    "type": "series",
+                    "name": "close"
+                  },
+                  {
+                    "type": "num",
+                    "value": 50
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "op",
+            "name": "u-",
+            "args": [
+              {
+                "type": "num",
+                "value": 2
+              }
+            ]
+          }
+        ]
+      },
+      "ids": [
+        "k#0.n",
+        "k#0.0.0",
+        "k#0.0.1",
+        "k#1.0"
+      ]
+    },
+    {
+      "name": "symbol and timeframe wrappers",
+      "key": "k",
+      "tree": {
+        "type": "sym",
+        "value": "SPY",
+        "args": [
+          {
+            "type": "tf",
+            "value": "W",
+            "args": [
+              {
+                "type": "series",
+                "name": "close"
+              }
+            ]
+          }
+        ]
+      },
+      "ids": [
+        "k#root",
+        "k#0",
+        "k#0.0"
+      ]
+    }
+  ]
+}
