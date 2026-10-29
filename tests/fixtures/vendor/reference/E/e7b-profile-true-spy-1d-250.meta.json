@@ -1,0 +1,1903 @@
+{
+ "capturedAt": "2026-10-29T18:13:26.746Z",
+ "symbol": {
+  "name": "SPY",
+  "full_name": "AMEX:SPY",
+  "description": "State Street SPDR S&P 500 ETF",
+  "exchange": "AMEX",
+  "type": "fund",
+  "pricescale": 100,
+  "timezone": "America/New_York",
+  "session": "0930-1600"
+ },
+ "resolution": "1D",
+ "barCount": 250,
+ "barRange": {
+  "firstIndex": 13,
+  "lastIndex": 262,
+  "firstTime": 1757511000,
+  "lastTime": 1788874200
+ },
+ "layout": {
+  "url": "https://www.tradingview.com/chart/gMYHQ1jg/",
+  "title": "SPY 767.39 \u25bc \u22120.64% UCT CLOUDS SETTINGS CAPTURE (disposable)"
+ },
+ "chartTheme": {
+  "background": "rgba(255, 255, 255, 1)",
+  "vertGridColor": "rgba(46, 46, 46, 0.06)",
+  "horzGridColor": "rgba(46, 46, 46, 0.06)"
+ },
+ "mainSeriesStyle": {
+  "upColor": "#089981",
+  "downColor": "#F23645"
+ },
+ "studies": [
+  {
+   "slug": "uncharted_clouds",
+   "id": "Script$PUB;d8c2be5638dc419a8732c4341d84c290@tv-scripting",
+   "title": "Uncharted Clouds (true, EMA, Close, 9, 16,777,215, true, EMA, Close, 20, 234,881,023, 4,286,683,400, 4,283,371,144, false, true)",
+   "description": "Uncharted Clouds",
+   "plots": [
+    {
+     "id": "plot_0",
+     "type": "line",
+     "target": null
+    },
+    {
+     "id": "plot_1",
+     "type": "colorer",
+     "target": "plot_0"
+    },
+    {
+     "id": "plot_2",
+     "type": "line",
+     "target": null
+    },
+    {
+     "id": "plot_3",
+     "type": "colorer",
+     "target": "plot_2"
+    },
+    {
+     "id": "plot_4",
+     "type": "line",
+     "target": null
+    },
+    {
+     "id": "plot_5",
+     "type": "line",
+     "target": null
+    },
+    {
+     "id": "plot_6",
+     "type": "line",
+     "target": null
+    },
+    {
+     "id": "plot_7",
+     "type": "line",
+     "target": null
+    },
+    {
+     "id": "plot_8",
+     "type": "line",
+     "target": null
+    },
+    {
+     "id": "plot_9",
+     "type": "line",
+     "target": null
+    },
+    {
+     "id": "plot_10",
+     "type": "line",
+     "target": null
+    },
+    {
+     "id": "plot_11",
+     "type": "line",
+     "target": null
+    },
+    {
+     "id": "plot_12",
+     "type": "line",
+     "target": null
+    },
+    {
+     "id": "plot_13",
+     "type": "line",
+     "target": null
+    },
+    {
+     "id": "plot_14",
+     "type": "line",
+     "target": null
+    },
+    {
+     "id": "plot_15",
+     "type": "line",
+     "target": null
+    },
+    {
+     "id": "plot_16",
+     "type": "line",
+     "target": null
+    },
+    {
+     "id": "plot_17",
+     "type": "line",
+     "target": null
+    },
+    {
+     "id": "plot_18",
+     "type": "line",
+     "target": null
+    },
+    {
+     "id": "plot_19",
+     "type": "line",
+     "target": null
+    },
+    {
+     "id": "plot_20",
+     "type": "line",
+     "target": null
+    },
+    {
+     "id": "plot_21",
+     "type": "line",
+     "target": null
+    },
+    {
+     "id": "plot_22",
+     "type": "line",
+     "target": null
+    },
+    {
+     "id": "plot_23",
+     "type": "line",
+     "target": null
+    },
+    {
+     "id": "plot_24",
+     "type": "line",
+     "target": null
+    },
+    {
+     "id": "plot_25",
+     "type": "colorer",
+     "target": "fill_0"
+    },
+    {
+     "id": "plot_26",
+     "type": "colorer",
+     "target": "fill_1"
+    },
+    {
+     "id": "plot_27",
+     "type": "colorer",
+     "target": "fill_2"
+    },
+    {
+     "id": "plot_28",
+     "type": "colorer",
+     "target": "fill_3"
+    },
+    {
+     "id": "plot_29",
+     "type": "colorer",
+     "target": "fill_4"
+    },
+    {
+     "id": "plot_30",
+     "type": "colorer",
+     "target": "fill_5"
+    },
+    {
+     "id": "plot_31",
+     "type": "colorer",
+     "target": "fill_6"
+    },
+    {
+     "id": "plot_32",
+     "type": "colorer",
+     "target": "fill_7"
+    },
+    {
+     "id": "plot_33",
+     "type": "colorer",
+     "target": "fill_8"
+    },
+    {
+     "id": "plot_34",
+     "type": "colorer",
+     "target": "fill_9"
+    },
+    {
+     "id": "plot_35",
+     "type": "colorer",
+     "target": "fill_10"
+    },
+    {
+     "id": "plot_36",
+     "type": "colorer",
+     "target": "fill_11"
+    },
+    {
+     "id": "plot_37",
+     "type": "colorer",
+     "target": "fill_12"
+    },
+    {
+     "id": "plot_38",
+     "type": "colorer",
+     "target": "fill_13"
+    },
+    {
+     "id": "plot_39",
+     "type": "colorer",
+     "target": "fill_14"
+    },
+    {
+     "id": "plot_40",
+     "type": "colorer",
+     "target": "fill_15"
+    },
+    {
+     "id": "plot_41",
+     "type": "colorer",
+     "target": "fill_16"
+    },
+    {
+     "id": "plot_42",
+     "type": "colorer",
+     "target": "fill_17"
+    },
+    {
+     "id": "plot_43",
+     "type": "colorer",
+     "target": "fill_18"
+    },
+    {
+     "id": "plot_44",
+     "type": "colorer",
+     "target": "fill_19"
+    }
+   ],
+   "styles": {
+    "plot_0": {
+     "histogramBase": 0,
+     "isHidden": false,
+     "joinPoints": false,
+     "title": "Fast MA"
+    },
+    "plot_10": {
+     "histogramBase": 0,
+     "isHidden": true,
+     "joinPoints": false,
+     "title": "Plot"
+    },
+    "plot_11": {
+     "histogramBase": 0,
+     "isHidden": true,
+     "joinPoints": false,
+     "title": "Plot"
+    },
+    "plot_12": {
+     "histogramBase": 0,
+     "isHidden": true,
+     "joinPoints": false,
+     "title": "Plot"
+    },
+    "plot_13": {
+     "histogramBase": 0,
+     "isHidden": true,
+     "joinPoints": false,
+     "title": "Plot"
+    },
+    "plot_14": {
+     "histogramBase": 0,
+     "isHidden": true,
+     "joinPoints": false,
+     "title": "Plot"
+    },
+    "plot_15": {
+     "histogramBase": 0,
+     "isHidden": true,
+     "joinPoints": false,
+     "title": "Plot"
+    },
+    "plot_16": {
+     "histogramBase": 0,
+     "isHidden": true,
+     "joinPoints": false,
+     "title": "Plot"
+    },
+    "plot_17": {
+     "histogramBase": 0,
+     "isHidden": true,
+     "joinPoints": false,
+     "title": "Plot"
+    },
+    "plot_18": {
+     "histogramBase": 0,
+     "isHidden": true,
+     "joinPoints": false,
+     "title": "Plot"
+    },
+    "plot_19": {
+     "histogramBase": 0,
+     "isHidden": true,
+     "joinPoints": false,
+     "title": "Plot"
+    },
+    "plot_2": {
+     "histogramBase": 0,
+     "isHidden": false,
+     "joinPoints": false,
+     "title": "Slow MA"
+    },
+    "plot_20": {
+     "histogramBase": 0,
+     "isHidden": true,
+     "joinPoints": false,
+     "title": "Plot"
+    },
+    "plot_21": {
+     "histogramBase": 0,
+     "isHidden": true,
+     "joinPoints": false,
+     "title": "Plot"
+    },
+    "plot_22": {
+     "histogramBase": 0,
+     "isHidden": true,
+     "joinPoints": false,
+     "title": "Plot"
+    },
+    "plot_23": {
+     "histogramBase": 0,
+     "isHidden": true,
+     "joinPoints": false,
+     "title": "Plot"
+    },
+    "plot_24": {
+     "histogramBase": 0,
+     "isHidden": true,
+     "joinPoints": false,
+     "title": "Plot"
+    },
+    "plot_4": {
+     "histogramBase": 0,
+     "isHidden": true,
+     "joinPoints": false,
+     "title": "Plot"
+    },
+    "plot_5": {
+     "histogramBase": 0,
+     "isHidden": true,
+     "joinPoints": false,
+     "title": "Plot"
+    },
+    "plot_6": {
+     "histogramBase": 0,
+     "isHidden": true,
+     "joinPoints": false,
+     "title": "Plot"
+    },
+    "plot_7": {
+     "histogramBase": 0,
+     "isHidden": true,
+     "joinPoints": false,
+     "title": "Plot"
+    },
+    "plot_8": {
+     "histogramBase": 0,
+     "isHidden": true,
+     "joinPoints": false,
+     "title": "Plot"
+    },
+    "plot_9": {
+     "histogramBase": 0,
+     "isHidden": true,
+     "joinPoints": false,
+     "title": "Plot"
+    }
+   },
+   "properties": {
+    "inputs": {
+     "__fast_calc": false,
+     "__profile": true,
+     "in_0": true,
+     "in_1": "EMA",
+     "in_10": "#089981",
+     "in_11": "#880E4F",
+     "in_2": "Close",
+     "in_3": 9,
+     "in_4": "rgba(255,255,255,0)",
+     "in_5": true,
+     "in_6": "EMA",
+     "in_7": "Close",
+     "in_8": 20,
+     "in_9": "rgba(255,255,255,0.05)",
+     "pineFeatures": "{\"indicator\":1,\"plot\":1,\"array\":1,\"ta\":1}",
+     "pineId": "",
+     "pineVersion": "",
+     "text": "<ILScript omitted: 4386 chars>"
+    },
+    "styles": {
+     "plot_0": {
+      "color": "#2962ff",
+      "display": 4294967295,
+      "linestyle": 0,
+      "linewidth": 2,
+      "plottype": 0,
+      "trackPrice": false,
+      "title": "plot_0"
+     },
+     "plot_10": {
+      "color": "#2962FF",
+      "display": 0,
+      "linestyle": 0,
+      "linewidth": 1,
+      "plottype": 0,
+      "trackPrice": false,
+      "title": "plot_10"
+     },
+     "plot_11": {
+      "color": "#2962FF",
+      "display": 0,
+      "linestyle": 0,
+      "linewidth": 1,
+      "plottype": 0,
+      "trackPrice": false,
+      "title": "plot_11"
+     },
+     "plot_12": {
+      "color": "#2962FF",
+      "display": 0,
+      "linestyle": 0,
+      "linewidth": 1,
+      "plottype": 0,
+      "trackPrice": false,
+      "title": "plot_12"
+     },
+     "plot_13": {
+      "color": "#2962FF",
+      "display": 0,
+      "linestyle": 0,
+      "linewidth": 1,
+      "plottype": 0,
+      "trackPrice": false,
+      "title": "plot_13"
+     },
+     "plot_14": {
+      "color": "#2962FF",
+      "display": 0,
+      "linestyle": 0,
+      "linewidth": 1,
+      "plottype": 0,
+      "trackPrice": false,
+      "title": "plot_14"
+     },
+     "plot_15": {
+      "color": "#2962FF",
+      "display": 0,
+      "linestyle": 0,
+      "linewidth": 1,
+      "plottype": 0,
+      "trackPrice": false,
+      "title": "plot_15"
+     },
+     "plot_16": {
+      "color": "#2962FF",
+      "display": 0,
+      "linestyle": 0,
+      "linewidth": 1,
+      "plottype": 0,
+      "trackPrice": false,
+      "title": "plot_16"
+     },
+     "plot_17": {
+      "color": "#2962FF",
+      "display": 0,
+      "linestyle": 0,
+      "linewidth": 1,
+      "plottype": 0,
+      "trackPrice": false,
+      "title": "plot_17"
+     },
+     "plot_18": {
+      "color": "#2962FF",
+      "display": 0,
+      "linestyle": 0,
+      "linewidth": 1,
+      "plottype": 0,
+      "trackPrice": false,
+      "title": "plot_18"
+     },
+     "plot_19": {
+      "color": "#2962FF",
+      "display": 0,
+      "linestyle": 0,
+      "linewidth": 1,
+      "plottype": 0,
+      "trackPrice": false,
+      "title": "plot_19"
+     },
+     "plot_2": {
+      "color": "#2962ff",
+      "display": 4294967295,
+      "linestyle": 0,
+      "linewidth": 2,
+      "plottype": 0,
+      "trackPrice": false,
+      "title": "plot_2"
+     },
+     "plot_20": {
+      "color": "#2962FF",
+      "display": 0,
+      "linestyle": 0,
+      "linewidth": 1,
+      "plottype": 0,
+      "trackPrice": false,
+      "title": "plot_20"
+     },
+     "plot_21": {
+      "color": "#2962FF",
+      "display": 0,
+      "linestyle": 0,
+      "linewidth": 1,
+      "plottype": 0,
+      "trackPrice": false,
+      "title": "plot_21"
+     },
+     "plot_22": {
+      "color": "#2962FF",
+      "display": 0,
+      "linestyle": 0,
+      "linewidth": 1,
+      "plottype": 0,
+      "trackPrice": false,
+      "title": "plot_22"
+     },
+     "plot_23": {
+      "color": "#2962FF",
+      "display": 0,
+      "linestyle": 0,
+      "linewidth": 1,
+      "plottype": 0,
+      "trackPrice": false,
+      "title": "plot_23"
+     },
+     "plot_24": {
+      "color": "#2962FF",
+      "display": 0,
+      "linestyle": 0,
+      "linewidth": 1,
+      "plottype": 0,
+      "trackPrice": false,
+      "title": "plot_24"
+     },
+     "plot_4": {
+      "color": "#2962FF",
+      "display": 0,
+      "linestyle": 0,
+      "linewidth": 1,
+      "plottype": 0,
+      "trackPrice": false,
+      "title": "plot_4"
+     },
+     "plot_5": {
+      "color": "#2962FF",
+      "display": 0,
+      "linestyle": 0,
+      "linewidth": 1,
+      "plottype": 0,
+      "trackPrice": false,
+      "title": "plot_5"
+     },
+     "plot_6": {
+      "color": "#2962FF",
+      "display": 0,
+      "linestyle": 0,
+      "linewidth": 1,
+      "plottype": 0,
+      "trackPrice": false,
+      "title": "plot_6"
+     },
+     "plot_7": {
+      "color": "#2962FF",
+      "display": 0,
+      "linestyle": 0,
+      "linewidth": 1,
+      "plottype": 0,
+      "trackPrice": false,
+      "title": "plot_7"
+     },
+     "plot_8": {
+      "color": "#2962FF",
+      "display": 0,
+      "linestyle": 0,
+      "linewidth": 1,
+      "plottype": 0,
+      "trackPrice": false,
+      "title": "plot_8"
+     },
+     "plot_9": {
+      "color": "#2962FF",
+      "display": 0,
+      "linestyle": 0,
+      "linewidth": 1,
+      "plottype": 0,
+      "trackPrice": false,
+      "title": "plot_9"
+     }
+    },
+    "filledAreasStyle": {
+     "fill_0": {
+      "color": "#2962ff",
+      "visible": true
+     },
+     "fill_1": {
+      "color": "#2962ff",
+      "visible": true
+     },
+     "fill_10": {
+      "color": "#2962ff",
+      "visible": true
+     },
+     "fill_11": {
+      "color": "#2962ff",
+      "visible": true
+     },
+     "fill_12": {
+      "color": "#2962ff",
+      "visible": true
+     },
+     "fill_13": {
+      "color": "#2962ff",
+      "visible": true
+     },
+     "fill_14": {
+      "color": "#2962ff",
+      "visible": true
+     },
+     "fill_15": {
+      "color": "#2962ff",
+      "visible": true
+     },
+     "fill_16": {
+      "color": "#2962ff",
+      "visible": true
+     },
+     "fill_17": {
+      "color": "#2962ff",
+      "visible": true
+     },
+     "fill_18": {
+      "color": "#2962ff",
+      "visible": true
+     },
+     "fill_19": {
+      "color": "#2962ff",
+      "visible": true
+     },
+     "fill_2": {
+      "color": "#2962ff",
+      "visible": true
+     },
+     "fill_3": {
+      "color": "#2962ff",
+      "visible": true
+     },
+     "fill_4": {
+      "color": "#2962ff",
+      "visible": true
+     },
+     "fill_5": {
+      "color": "#2962ff",
+      "visible": true
+     },
+     "fill_6": {
+      "color": "#2962ff",
+      "visible": true
+     },
+     "fill_7": {
+      "color": "#2962ff",
+      "visible": true
+     },
+     "fill_8": {
+      "color": "#2962ff",
+      "visible": true
+     },
+     "fill_9": {
+      "color": "#2962ff",
+      "visible": true
+     }
+    },
+    "visible": true,
+    "showLegendValues": true,
+    "showLegendInputs": true,
+    "showLabelsOnPriceScale": true,
+    "precision": "default",
+    "intervalsVisibilities": {
+     "ticks": true,
+     "seconds": true,
+     "secondsFrom": 1,
+     "secondsTo": 59,
+     "minutes": true,
+     "minutesFrom": 1,
+     "minutesTo": 59,
+     "hours": true,
+     "hoursFrom": 1,
+     "hoursTo": 24,
+     "days": true,
+     "daysFrom": 1,
+     "daysTo": 366,
+     "weeks": true,
+     "weeksFrom": 1,
+     "weeksTo": 52,
+     "months": true,
+     "monthsFrom": 1,
+     "monthsTo": 12,
+     "ranges": true
+    },
+    "version": 55
+   },
+   "rowCount": 250
+  }
+ ],
+ "transport": "staged textarea + real ctrl+c gesture, hash-verified on the shell side",
+ "targets": "Uncharted Clouds at NON-default inputs (set E). Clouds only: no Uncharted Volume and no built-in Volume on this chart.",
+ "capture": {
+  "id": "E7b",
+  "settings": "trailing bool #2 = __profile (hidden platform input: Pine profiler) = true; all script inputs default",
+  "intendedInputs": {
+   "in_0": true,
+   "in_1": "EMA",
+   "in_2": "Close",
+   "in_3": 9,
+   "in_4": "rgba(255,255,255,0)",
+   "in_5": true,
+   "in_6": "EMA",
+   "in_7": "Close",
+   "in_8": 20,
+   "in_9": "rgba(255,255,255,0.05)",
+   "in_10": "#089981",
+   "in_11": "#880E4F",
+   "__fast_calc": false,
+   "__profile": true
+  },
+  "liveInputs": [
+   {
+    "id": "pineId",
+    "name": "pineId",
+    "type": "text",
+    "defval": "",
+    "value": "",
+    "options": null,
+    "group": null,
+    "inline": null,
+    "isHidden": true
+   },
+   {
+    "id": "pineVersion",
+    "name": "pineVersion",
+    "type": "text",
+    "defval": "",
+    "value": "",
+    "options": null,
+    "group": null,
+    "inline": null,
+    "isHidden": true
+   },
+   {
+    "id": "pineFeatures",
+    "name": "pineFeatures",
+    "type": "text",
+    "defval": "{\"indicator\":1,\"plot\":1,\"array\":1,\"ta\":1}",
+    "value": "{\"indicator\":1,\"plot\":1,\"array\":1,\"ta\":1}",
+    "options": null,
+    "group": null,
+    "inline": null,
+    "isHidden": true
+   },
+   {
+    "id": "in_0",
+    "name": "Fast MA",
+    "type": "bool",
+    "defval": true,
+    "value": true,
+    "options": null,
+    "group": "Moving Averages",
+    "inline": "ma1",
+    "isHidden": false
+   },
+   {
+    "id": "in_1",
+    "name": "",
+    "type": "text",
+    "defval": "EMA",
+    "value": "EMA",
+    "options": [
+     "EMA",
+     "SMA"
+    ],
+    "group": "Moving Averages",
+    "inline": "ma1",
+    "isHidden": false
+   },
+   {
+    "id": "in_2",
+    "name": "",
+    "type": "text",
+    "defval": "Close",
+    "value": "Close",
+    "options": [
+     "Open",
+     "High",
+     "Low",
+     "Close"
+    ],
+    "group": "Moving Averages",
+    "inline": "ma1",
+    "isHidden": false
+   },
+   {
+    "id": "in_3",
+    "name": "",
+    "type": "integer",
+    "defval": 9,
+    "value": 9,
+    "options": null,
+    "group": "Moving Averages",
+    "inline": "ma1",
+    "isHidden": false
+   },
+   {
+    "id": "in_4",
+    "name": "",
+    "type": "color",
+    "defval": "rgba(255,255,255,0)",
+    "value": "rgba(255,255,255,0)",
+    "options": null,
+    "group": "Moving Averages",
+    "inline": "ma1",
+    "isHidden": false
+   },
+   {
+    "id": "in_5",
+    "name": "Slow MA",
+    "type": "bool",
+    "defval": true,
+    "value": true,
+    "options": null,
+    "group": "Moving Averages",
+    "inline": "ma2",
+    "isHidden": false
+   },
+   {
+    "id": "in_6",
+    "name": "",
+    "type": "text",
+    "defval": "EMA",
+    "value": "EMA",
+    "options": [
+     "EMA",
+     "SMA"
+    ],
+    "group": "Moving Averages",
+    "inline": "ma2",
+    "isHidden": false
+   },
+   {
+    "id": "in_7",
+    "name": "",
+    "type": "text",
+    "defval": "Close",
+    "value": "Close",
+    "options": [
+     "Open",
+     "High",
+     "Low",
+     "Close"
+    ],
+    "group": "Moving Averages",
+    "inline": "ma2",
+    "isHidden": false
+   },
+   {
+    "id": "in_8",
+    "name": "",
+    "type": "integer",
+    "defval": 20,
+    "value": 20,
+    "options": null,
+    "group": "Moving Averages",
+    "inline": "ma2",
+    "isHidden": false
+   },
+   {
+    "id": "in_9",
+    "name": "",
+    "type": "color",
+    "defval": "rgba(255,255,255,0.05)",
+    "value": "rgba(255,255,255,0.05)",
+    "options": null,
+    "group": "Moving Averages",
+    "inline": "ma2",
+    "isHidden": false
+   },
+   {
+    "id": "in_10",
+    "name": "Bullish Cloud Color",
+    "type": "color",
+    "defval": "#089981",
+    "value": "#089981",
+    "options": null,
+    "group": "Cloud Settings",
+    "inline": null,
+    "isHidden": false
+   },
+   {
+    "id": "in_11",
+    "name": "Bearish Cloud Color",
+    "type": "color",
+    "defval": "#880E4F",
+    "value": "#880E4F",
+    "options": null,
+    "group": "Cloud Settings",
+    "inline": null,
+    "isHidden": false
+   },
+   {
+    "id": "__fast_calc",
+    "name": "Fast calculation",
+    "type": "bool",
+    "defval": false,
+    "value": false,
+    "options": null,
+    "group": "Calculation",
+    "inline": null,
+    "isHidden": true
+   },
+   {
+    "id": "__profile",
+    "name": "",
+    "type": "bool",
+    "defval": false,
+    "value": true,
+    "options": null,
+    "group": null,
+    "inline": null,
+    "isHidden": true
+   }
+  ],
+  "titleBuiltFrom": "study.title(true) + \" (\" + inputsInParts(true).map(p=>p.value).join(\", \") + \")\" -- the legend on this layout hides inputs, so the A-D title format is rebuilt from the same parts",
+  "studyStatus": "{\"type\":2}",
+  "overridesFromDefault": {
+   "__profile": true
+  },
+  "selfCheck": {
+   "what": "in-page recompute of fast/slow MA (TV OHLC, same inputs) at the last window bar; SMA exact, EMA seeded with SMA over loaded history",
+   "barTime": 1788874200,
+   "fastTV": 767.70611959146,
+   "fastJS": 767.7061195914603,
+   "fastRel": 2.961728057661315e-16,
+   "slowTV": 766.2195685299213,
+   "slowJS": 766.2195685299213,
+   "slowRel": 0,
+   "showMA1": true,
+   "showMA2": true
+  },
+  "screenshot": "e7b-profile-true-spy-1d.jpg"
+ },
+ "studyBuffer": {
+  "bars_loaded": 1749,
+  "firstTime": 1573655400,
+  "lastTime": 1793280600,
+  "firstIndex": -1449,
+  "seriesBarsLoaded": 1749,
+  "seriesFirstTime": 1573655400
+ },
+ "plotStyles": {
+  "plot_0": {
+   "title": "plot_0",
+   "linewidth": 2,
+   "linestyle": 0,
+   "plottype": 0,
+   "color": "#2962ff",
+   "display": 4294967295
+  },
+  "plot_10": {
+   "title": "plot_10",
+   "linewidth": 1,
+   "linestyle": 0,
+   "plottype": 0,
+   "color": "#2962FF",
+   "display": 0
+  },
+  "plot_11": {
+   "title": "plot_11",
+   "linewidth": 1,
+   "linestyle": 0,
+   "plottype": 0,
+   "color": "#2962FF",
+   "display": 0
+  },
+  "plot_12": {
+   "title": "plot_12",
+   "linewidth": 1,
+   "linestyle": 0,
+   "plottype": 0,
+   "color": "#2962FF",
+   "display": 0
+  },
+  "plot_13": {
+   "title": "plot_13",
+   "linewidth": 1,
+   "linestyle": 0,
+   "plottype": 0,
+   "color": "#2962FF",
+   "display": 0
+  },
+  "plot_14": {
+   "title": "plot_14",
+   "linewidth": 1,
+   "linestyle": 0,
+   "plottype": 0,
+   "color": "#2962FF",
+   "display": 0
+  },
+  "plot_15": {
+   "title": "plot_15",
+   "linewidth": 1,
+   "linestyle": 0,
+   "plottype": 0,
+   "color": "#2962FF",
+   "display": 0
+  },
+  "plot_16": {
+   "title": "plot_16",
+   "linewidth": 1,
+   "linestyle": 0,
+   "plottype": 0,
+   "color": "#2962FF",
+   "display": 0
+  },
+  "plot_17": {
+   "title": "plot_17",
+   "linewidth": 1,
+   "linestyle": 0,
+   "plottype": 0,
+   "color": "#2962FF",
+   "display": 0
+  },
+  "plot_18": {
+   "title": "plot_18",
+   "linewidth": 1,
+   "linestyle": 0,
+   "plottype": 0,
+   "color": "#2962FF",
+   "display": 0
+  },
+  "plot_19": {
+   "title": "plot_19",
+   "linewidth": 1,
+   "linestyle": 0,
+   "plottype": 0,
+   "color": "#2962FF",
+   "display": 0
+  },
+  "plot_2": {
+   "title": "plot_2",
+   "linewidth": 2,
+   "linestyle": 0,
+   "plottype": 0,
+   "color": "#2962ff",
+   "display": 4294967295
+  },
+  "plot_20": {
+   "title": "plot_20",
+   "linewidth": 1,
+   "linestyle": 0,
+   "plottype": 0,
+   "color": "#2962FF",
+   "display": 0
+  },
+  "plot_21": {
+   "title": "plot_21",
+   "linewidth": 1,
+   "linestyle": 0,
+   "plottype": 0,
+   "color": "#2962FF",
+   "display": 0
+  },
+  "plot_22": {
+   "title": "plot_22",
+   "linewidth": 1,
+   "linestyle": 0,
+   "plottype": 0,
+   "color": "#2962FF",
+   "display": 0
+  },
+  "plot_23": {
+   "title": "plot_23",
+   "linewidth": 1,
+   "linestyle": 0,
+   "plottype": 0,
+   "color": "#2962FF",
+   "display": 0
+  },
+  "plot_24": {
+   "title": "plot_24",
+   "linewidth": 1,
+   "linestyle": 0,
+   "plottype": 0,
+   "color": "#2962FF",
+   "display": 0
+  },
+  "plot_4": {
+   "title": "plot_4",
+   "linewidth": 1,
+   "linestyle": 0,
+   "plottype": 0,
+   "color": "#2962FF",
+   "display": 0
+  },
+  "plot_5": {
+   "title": "plot_5",
+   "linewidth": 1,
+   "linestyle": 0,
+   "plottype": 0,
+   "color": "#2962FF",
+   "display": 0
+  },
+  "plot_6": {
+   "title": "plot_6",
+   "linewidth": 1,
+   "linestyle": 0,
+   "plottype": 0,
+   "color": "#2962FF",
+   "display": 0
+  },
+  "plot_7": {
+   "title": "plot_7",
+   "linewidth": 1,
+   "linestyle": 0,
+   "plottype": 0,
+   "color": "#2962FF",
+   "display": 0
+  },
+  "plot_8": {
+   "title": "plot_8",
+   "linewidth": 1,
+   "linestyle": 0,
+   "plottype": 0,
+   "color": "#2962FF",
+   "display": 0
+  },
+  "plot_9": {
+   "title": "plot_9",
+   "linewidth": 1,
+   "linestyle": 0,
+   "plottype": 0,
+   "color": "#2962FF",
+   "display": 0
+  }
+ },
+ "filledAreas": [
+  {
+   "id": "fill_0",
+   "objAId": "plot_4",
+   "objBId": "plot_5",
+   "type": "plot_plot",
+   "title": "Plots Background",
+   "fillgaps": false
+  },
+  {
+   "id": "fill_1",
+   "objAId": "plot_5",
+   "objBId": "plot_6",
+   "type": "plot_plot",
+   "title": "Plots Background",
+   "fillgaps": false
+  },
+  {
+   "id": "fill_2",
+   "objAId": "plot_6",
+   "objBId": "plot_7",
+   "type": "plot_plot",
+   "title": "Plots Background",
+   "fillgaps": false
+  },
+  {
+   "id": "fill_3",
+   "objAId": "plot_7",
+   "objBId": "plot_8",
+   "type": "plot_plot",
+   "title": "Plots Background",
+   "fillgaps": false
+  },
+  {
+   "id": "fill_4",
+   "objAId": "plot_8",
+   "objBId": "plot_9",
+   "type": "plot_plot",
+   "title": "Plots Background",
+   "fillgaps": false
+  },
+  {
+   "id": "fill_5",
+   "objAId": "plot_9",
+   "objBId": "plot_10",
+   "type": "plot_plot",
+   "title": "Plots Background",
+   "fillgaps": false
+  },
+  {
+   "id": "fill_6",
+   "objAId": "plot_10",
+   "objBId": "plot_11",
+   "type": "plot_plot",
+   "title": "Plots Background",
+   "fillgaps": false
+  },
+  {
+   "id": "fill_7",
+   "objAId": "plot_11",
+   "objBId": "plot_12",
+   "type": "plot_plot",
+   "title": "Plots Background",
+   "fillgaps": false
+  },
+  {
+   "id": "fill_8",
+   "objAId": "plot_12",
+   "objBId": "plot_13",
+   "type": "plot_plot",
+   "title": "Plots Background",
+   "fillgaps": false
+  },
+  {
+   "id": "fill_9",
+   "objAId": "plot_13",
+   "objBId": "plot_14",
+   "type": "plot_plot",
+   "title": "Plots Background",
+   "fillgaps": false
+  },
+  {
+   "id": "fill_10",
+   "objAId": "plot_14",
+   "objBId": "plot_15",
+   "type": "plot_plot",
+   "title": "Plots Background",
+   "fillgaps": false
+  },
+  {
+   "id": "fill_11",
+   "objAId": "plot_15",
+   "objBId": "plot_16",
+   "type": "plot_plot",
+   "title": "Plots Background",
+   "fillgaps": false
+  },
+  {
+   "id": "fill_12",
+   "objAId": "plot_16",
+   "objBId": "plot_17",
+   "type": "plot_plot",
+   "title": "Plots Background",
+   "fillgaps": false
+  },
+  {
+   "id": "fill_13",
+   "objAId": "plot_17",
+   "objBId": "plot_18",
+   "type": "plot_plot",
+   "title": "Plots Background",
+   "fillgaps": false
+  },
+  {
+   "id": "fill_14",
+   "objAId": "plot_18",
+   "objBId": "plot_19",
+   "type": "plot_plot",
+   "title": "Plots Background",
+   "fillgaps": false
+  },
+  {
+   "id": "fill_15",
+   "objAId": "plot_19",
+   "objBId": "plot_20",
+   "type": "plot_plot",
+   "title": "Plots Background",
+   "fillgaps": false
+  },
+  {
+   "id": "fill_16",
+   "objAId": "plot_20",
+   "objBId": "plot_21",
+   "type": "plot_plot",
+   "title": "Plots Background",
+   "fillgaps": false
+  },
+  {
+   "id": "fill_17",
+   "objAId": "plot_21",
+   "objBId": "plot_22",
+   "type": "plot_plot",
+   "title": "Plots Background",
+   "fillgaps": false
+  },
+  {
+   "id": "fill_18",
+   "objAId": "plot_22",
+   "objBId": "plot_23",
+   "type": "plot_plot",
+   "title": "Plots Background",
+   "fillgaps": false
+  },
+  {
+   "id": "fill_19",
+   "objAId": "plot_23",
+   "objBId": "plot_24",
+   "type": "plot_plot",
+   "title": "Plots Background",
+   "fillgaps": false
+  }
+ ],
+ "filledAreasStyle": {
+  "fill_0": {
+   "color": "#2962ff",
+   "visible": true
+  },
+  "fill_1": {
+   "color": "#2962ff",
+   "visible": true
+  },
+  "fill_10": {
+   "color": "#2962ff",
+   "visible": true
+  },
+  "fill_11": {
+   "color": "#2962ff",
+   "visible": true
+  },
+  "fill_12": {
+   "color": "#2962ff",
+   "visible": true
+  },
+  "fill_13": {
+   "color": "#2962ff",
+   "visible": true
+  },
+  "fill_14": {
+   "color": "#2962ff",
+   "visible": true
+  },
+  "fill_15": {
+   "color": "#2962ff",
+   "visible": true
+  },
+  "fill_16": {
+   "color": "#2962ff",
+   "visible": true
+  },
+  "fill_17": {
+   "color": "#2962ff",
+   "visible": true
+  },
+  "fill_18": {
+   "color": "#2962ff",
+   "visible": true
+  },
+  "fill_19": {
+   "color": "#2962ff",
+   "visible": true
+  },
+  "fill_2": {
+   "color": "#2962ff",
+   "visible": true
+  },
+  "fill_3": {
+   "color": "#2962ff",
+   "visible": true
+  },
+  "fill_4": {
+   "color": "#2962ff",
+   "visible": true
+  },
+  "fill_5": {
+   "color": "#2962ff",
+   "visible": true
+  },
+  "fill_6": {
+   "color": "#2962ff",
+   "visible": true
+  },
+  "fill_7": {
+   "color": "#2962ff",
+   "visible": true
+  },
+  "fill_8": {
+   "color": "#2962ff",
+   "visible": true
+  },
+  "fill_9": {
+   "color": "#2962ff",
+   "visible": true
+  }
+ },
+ "colourDecode": {
+  "note": "Colorer values are 0xAABBGGRR; the high byte is ALPHA (opacity 0-255). Distinct values seen per colorer plot over this window.",
+  "perPlot": {
+   "plot_1": [
+    {
+     "int": 16777215,
+     "hex": "0x00FFFFFF",
+     "r": 255,
+     "g": 255,
+     "b": 255,
+     "a": 0,
+     "rgba": "rgba(255,255,255,0)",
+     "opacityPct": 0
+    }
+   ],
+   "plot_3": [
+    {
+     "int": 234881023,
+     "hex": "0x0DFFFFFF",
+     "r": 255,
+     "g": 255,
+     "b": 255,
+     "a": 13,
+     "rgba": "rgba(255,255,255,0.051)",
+     "opacityPct": 5.1
+    }
+   ],
+   "plot_25": [
+    {
+     "int": 223284872,
+     "hex": "0x0D4F0E88",
+     "r": 136,
+     "g": 14,
+     "b": 79,
+     "a": 13,
+     "rgba": "rgba(136,14,79,0.051)",
+     "opacityPct": 5.1
+    },
+    {
+     "int": 226597128,
+     "hex": "0x0D819908",
+     "r": 8,
+     "g": 153,
+     "b": 129,
+     "a": 13,
+     "rgba": "rgba(8,153,129,0.051)",
+     "opacityPct": 5.1
+    }
+   ],
+   "plot_26": [
+    {
+     "int": 323948168,
+     "hex": "0x134F0E88",
+     "r": 136,
+     "g": 14,
+     "b": 79,
+     "a": 19,
+     "rgba": "rgba(136,14,79,0.0745)",
+     "opacityPct": 7.45
+    },
+    {
+     "int": 327260424,
+     "hex": "0x13819908",
+     "r": 8,
+     "g": 153,
+     "b": 129,
+     "a": 19,
+     "rgba": "rgba(8,153,129,0.0745)",
+     "opacityPct": 7.45
+    }
+   ],
+   "plot_27": [
+    {
+     "int": 424611464,
+     "hex": "0x194F0E88",
+     "r": 136,
+     "g": 14,
+     "b": 79,
+     "a": 25,
+     "rgba": "rgba(136,14,79,0.098)",
+     "opacityPct": 9.8
+    },
+    {
+     "int": 427923720,
+     "hex": "0x19819908",
+     "r": 8,
+     "g": 153,
+     "b": 129,
+     "a": 25,
+     "rgba": "rgba(8,153,129,0.098)",
+     "opacityPct": 9.8
+    }
+   ],
+   "plot_28": [
+    {
+     "int": 542051976,
+     "hex": "0x204F0E88",
+     "r": 136,
+     "g": 14,
+     "b": 79,
+     "a": 32,
+     "rgba": "rgba(136,14,79,0.1255)",
+     "opacityPct": 12.55
+    },
+    {
+     "int": 545364232,
+     "hex": "0x20819908",
+     "r": 8,
+     "g": 153,
+     "b": 129,
+     "a": 32,
+     "rgba": "rgba(8,153,129,0.1255)",
+     "opacityPct": 12.55
+    }
+   ],
+   "plot_29": [
+    {
+     "int": 642715272,
+     "hex": "0x264F0E88",
+     "r": 136,
+     "g": 14,
+     "b": 79,
+     "a": 38,
+     "rgba": "rgba(136,14,79,0.149)",
+     "opacityPct": 14.9
+    },
+    {
+     "int": 646027528,
+     "hex": "0x26819908",
+     "r": 8,
+     "g": 153,
+     "b": 129,
+     "a": 38,
+     "rgba": "rgba(8,153,129,0.149)",
+     "opacityPct": 14.9
+    }
+   ],
+   "plot_30": [
+    {
+     "int": 760155784,
+     "hex": "0x2D4F0E88",
+     "r": 136,
+     "g": 14,
+     "b": 79,
+     "a": 45,
+     "rgba": "rgba(136,14,79,0.1765)",
+     "opacityPct": 17.65
+    },
+    {
+     "int": 763468040,
+     "hex": "0x2D819908",
+     "r": 8,
+     "g": 153,
+     "b": 129,
+     "a": 45,
+     "rgba": "rgba(8,153,129,0.1765)",
+     "opacityPct": 17.65
+    }
+   ],
+   "plot_31": [
+    {
+     "int": 860819080,
+     "hex": "0x334F0E88",
+     "r": 136,
+     "g": 14,
+     "b": 79,
+     "a": 51,
+     "rgba": "rgba(136,14,79,0.2)",
+     "opacityPct": 20
+    },
+    {
+     "int": 864131336,
+     "hex": "0x33819908",
+     "r": 8,
+     "g": 153,
+     "b": 129,
+     "a": 51,
+     "rgba": "rgba(8,153,129,0.2)",
+     "opacityPct": 20
+    }
+   ],
+   "plot_32": [
+    {
+     "int": 961482376,
+     "hex": "0x394F0E88",
+     "r": 136,
+     "g": 14,
+     "b": 79,
+     "a": 57,
+     "rgba": "rgba(136,14,79,0.2235)",
+     "opacityPct": 22.35
+    },
+    {
+     "int": 964794632,
+     "hex": "0x39819908",
+     "r": 8,
+     "g": 153,
+     "b": 129,
+     "a": 57,
+     "rgba": "rgba(8,153,129,0.2235)",
+     "opacityPct": 22.35
+    }
+   ],
+   "plot_33": [
+    {
+     "int": 1078922888,
+     "hex": "0x404F0E88",
+     "r": 136,
+     "g": 14,
+     "b": 79,
+     "a": 64,
+     "rgba": "rgba(136,14,79,0.251)",
+     "opacityPct": 25.1
+    },
+    {
+     "int": 1082235144,
+     "hex": "0x40819908",
+     "r": 8,
+     "g": 153,
+     "b": 129,
+     "a": 64,
+     "rgba": "rgba(8,153,129,0.251)",
+     "opacityPct": 25.1
+    }
+   ],
+   "plot_34": [
+    {
+     "int": 1179586184,
+     "hex": "0x464F0E88",
+     "r": 136,
+     "g": 14,
+     "b": 79,
+     "a": 70,
+     "rgba": "rgba(136,14,79,0.2745)",
+     "opacityPct": 27.45
+    },
+    {
+     "int": 1182898440,
+     "hex": "0x46819908",
+     "r": 8,
+     "g": 153,
+     "b": 129,
+     "a": 70,
+     "rgba": "rgba(8,153,129,0.2745)",
+     "opacityPct": 27.45
+    }
+   ],
+   "plot_35": [
+    {
+     "int": 1297026696,
+     "hex": "0x4D4F0E88",
+     "r": 136,
+     "g": 14,
+     "b": 79,
+     "a": 77,
+     "rgba": "rgba(136,14,79,0.302)",
+     "opacityPct": 30.2
+    },
+    {
+     "int": 1300338952,
+     "hex": "0x4D819908",
+     "r": 8,
+     "g": 153,
+     "b": 129,
+     "a": 77,
+     "rgba": "rgba(8,153,129,0.302)",
+     "opacityPct": 30.2
+    }
+   ],
+   "plot_36": [
+    {
+     "int": 1397689992,
+     "hex": "0x534F0E88",
+     "r": 136,
+     "g": 14,
+     "b": 79,
+     "a": 83,
+     "rgba": "rgba(136,14,79,0.3255)",
+     "opacityPct": 32.55
+    },
+    {
+     "int": 1401002248,
+     "hex": "0x53819908",
+     "r": 8,
+     "g": 153,
+     "b": 129,
+     "a": 83,
+     "rgba": "rgba(8,153,129,0.3255)",
+     "opacityPct": 32.55
+    }
+   ],
+   "plot_37": [
+    {
+     "int": 1498353288,
+     "hex": "0x594F0E88",
+     "r": 136,
+     "g": 14,
+     "b": 79,
+     "a": 89,
+     "rgba": "rgba(136,14,79,0.349)",
+     "opacityPct": 34.9
+    },
+    {
+     "int": 1501665544,
+     "hex": "0x59819908",
+     "r": 8,
+     "g": 153,
+     "b": 129,
+     "a": 89,
+     "rgba": "rgba(8,153,129,0.349)",
+     "opacityPct": 34.9
+    }
+   ],
+   "plot_38": [
+    {
+     "int": 1615793800,
+     "hex": "0x604F0E88",
+     "r": 136,
+     "g": 14,
+     "b": 79,
+     "a": 96,
+     "rgba": "rgba(136,14,79,0.3765)",
+     "opacityPct": 37.65
+    },
+    {
+     "int": 1619106056,
+     "hex": "0x60819908",
+     "r": 8,
+     "g": 153,
+     "b": 129,
+     "a": 96,
+     "rgba": "rgba(8,153,129,0.3765)",
+     "opacityPct": 37.65
+    }
+   ],
+   "plot_39": [
+    {
+     "int": 1716457096,
+     "hex": "0x664F0E88",
+     "r": 136,
+     "g": 14,
+     "b": 79,
+     "a": 102,
+     "rgba": "rgba(136,14,79,0.4)",
+     "opacityPct": 40
+    },
+    {
+     "int": 1719769352,
+     "hex": "0x66819908",
+     "r": 8,
+     "g": 153,
+     "b": 129,
+     "a": 102,
+     "rgba": "rgba(8,153,129,0.4)",
+     "opacityPct": 40
+    }
+   ],
+   "plot_40": [
+    {
+     "int": 1817120392,
+     "hex": "0x6C4F0E88",
+     "r": 136,
+     "g": 14,
+     "b": 79,
+     "a": 108,
+     "rgba": "rgba(136,14,79,0.4235)",
+     "opacityPct": 42.35
+    },
+    {
+     "int": 1820432648,
+     "hex": "0x6C819908",
+     "r": 8,
+     "g": 153,
+     "b": 129,
+     "a": 108,
+     "rgba": "rgba(8,153,129,0.4235)",
+     "opacityPct": 42.35
+    }
+   ],
+   "plot_41": [
+    {
+     "int": 1934560904,
+     "hex": "0x734F0E88",
+     "r": 136,
+     "g": 14,
+     "b": 79,
+     "a": 115,
+     "rgba": "rgba(136,14,79,0.451)",
+     "opacityPct": 45.1
+    },
+    {
+     "int": 1937873160,
+     "hex": "0x73819908",
+     "r": 8,
+     "g": 153,
+     "b": 129,
+     "a": 115,
+     "rgba": "rgba(8,153,129,0.451)",
+     "opacityPct": 45.1
+    }
+   ],
+   "plot_42": [
+    {
+     "int": 2035224200,
+     "hex": "0x794F0E88",
+     "r": 136,
+     "g": 14,
+     "b": 79,
+     "a": 121,
+     "rgba": "rgba(136,14,79,0.4745)",
+     "opacityPct": 47.45
+    },
+    {
+     "int": 2038536456,
+     "hex": "0x79819908",
+     "r": 8,
+     "g": 153,
+     "b": 129,
+     "a": 121,
+     "rgba": "rgba(8,153,129,0.4745)",
+     "opacityPct": 47.45
+    }
+   ],
+   "plot_43": [
+    {
+     "int": 2152664712,
+     "hex": "0x804F0E88",
+     "r": 136,
+     "g": 14,
+     "b": 79,
+     "a": 128,
+     "rgba": "rgba(136,14,79,0.502)",
+     "opacityPct": 50.2
+    },
+    {
+     "int": 2155976968,
+     "hex": "0x80819908",
+     "r": 8,
+     "g": 153,
+     "b": 129,
+     "a": 128,
+     "rgba": "rgba(8,153,129,0.502)",
+     "opacityPct": 50.2
+    }
+   ],
+   "plot_44": [
+    {
+     "int": 2253328008,
+     "hex": "0x864F0E88",
+     "r": 136,
+     "g": 14,
+     "b": 79,
+     "a": 134,
+     "rgba": "rgba(136,14,79,0.5255)",
+     "opacityPct": 52.55
+    },
+    {
+     "int": 2256640264,
+     "hex": "0x86819908",
+     "r": 8,
+     "g": 153,
+     "b": 129,
+     "a": 134,
+     "rgba": "rgba(8,153,129,0.5255)",
+     "opacityPct": 52.55
+    }
+   ]
+  }
+ }
+}
