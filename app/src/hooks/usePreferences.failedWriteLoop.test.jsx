@@ -201,3 +201,41 @@ describe('a failed preferences write is bounded, never a tight loop', () => {
     expect(JSON.parse(posts[0].value).A).toBe('ENPH')
   })
 })
+
+describe('a member asking again is never held (only a re-assert with no input is)', () => {
+  let api = null
+  function Saver() {
+    const { setPref } = usePreferences()
+    api = setPref
+    return null
+  }
+
+  it('after a failed save, the SAME value sent again right after a click goes out at once', async () => {
+    installFetch(reject)
+    mount(<Saver />)
+    await runFor(100)
+    await act(async () => { await api('theme', 'light') })
+    expect(posts).toHaveLength(1)
+    // a re-send with no input in between: held (this is the loop's shape)
+    await act(async () => { await api('theme', 'light') })
+    expect(posts).toHaveLength(1)
+    // the member presses Try again: a click, then the same save
+    await act(async () => { document.body.dispatchEvent(new MouseEvent('click', { bubbles: true })) })
+    await act(async () => { await api('theme', 'light') })
+    expect(posts).toHaveLength(2)
+  })
+
+  it('a keyboard Try again arrives as a click on the button, so it is not held either', async () => {
+    installFetch(http502)
+    mount(<Saver />)
+    await runFor(100)
+    await act(async () => { await api('theme', 'light') })
+    const btn = document.createElement('button')
+    document.body.appendChild(btn)
+    btn.addEventListener('click', () => { api('theme', 'light') })
+    await act(async () => { btn.click() })          // what Enter/Space on a focused button dispatches
+    await runFor(100)
+    btn.remove()
+    expect(posts).toHaveLength(2)
+  })
+})

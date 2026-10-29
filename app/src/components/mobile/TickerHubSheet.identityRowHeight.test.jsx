@@ -14,7 +14,9 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { render } from '@testing-library/react'
 import { mediaBodiesOn } from '../../testing/cssMediaAt'
+import ChartIdentityRow from '../chart/pane/ChartIdentityRow'
 
 const read = (p) => readFileSync(join(process.cwd(), 'src', p), 'utf8')
 const stripComments = (s) => s.replace(/\/\*[\s\S]*?\*\//g, '')
@@ -62,7 +64,10 @@ describe('Ticker Hub chart identity row (phone): one height in every session', (
   const ws = mediaBodiesOn(WS_CSS, PHONE)
 
   it('the row\'s height IS the token the fallback reserve is built from', () => {
-    expect(decl(ws, `${SCOPE} .chartHeaderTop`, 'height')).toMatch(/^var\(--hub-id-row-h\b/)
+    // a FLOOR at the token sum, never a cap: larger text grows the row instead of clipping line 2
+    expect(decl(ws, `${SCOPE} .chartHeaderTop`, 'min-height')).toMatch(/^var\(--hub-id-row-h\b/)
+    expect(decl(ws, `${SCOPE} .chartHeaderTop`, 'height')).toBe('auto')
+    expect(decl(ws, `${SCOPE} .chartHeaderTop`, 'overflow')).toBeNull()
     expect(decl(hub, '.chartWrap', '--hub-chart-chrome-h')).toMatch(/var\(--hub-id-row-h\)/)
     // and the fallback uses the chrome, so the loading box and the loaded box share it
     expect(decl(hub, '.chartWrap .chartLoading', 'height')).toBe('calc(var(--hub-chart-h) + var(--hub-chart-chrome-h))')
@@ -77,8 +82,9 @@ describe('Ticker Hub chart identity row (phone): one height in every session', (
     }
     expect(decl(ws, `${SCOPE} .chartHeaderTop > .symbolSlot`, 'min-height')).toMatch(/^var\(--hub-id-line1-h\b/)
     expect(decl(ws, `${SCOPE} .chartHeaderTop`, 'row-gap')).toMatch(/^var\(--hub-id-gap\b/)
-    // the compact pane's empty right cluster is not a third line
-    expect(decl(ws, `${SCOPE} .chartHeaderTop > .headerTopRight:empty`, 'display')).toBe('none')
+    // no rule leans on emptiness: the compact pane does not render the right cluster at all
+    // (ChartIdentityRow, railed below)
+    expect(WS_CSS).not.toMatch(/headerTopRight:empty/)
   })
 
   it('each token is the size of the part it names (derived from the rules, not retyped)', () => {
@@ -103,12 +109,27 @@ describe('Ticker Hub chart identity row (phone): one height in every session', (
 
   it('CONTROL: none of it reaches the tablet tier, and nothing outside the hub scope', () => {
     const wsTab = mediaBodiesOn(WS_CSS, TABLET)
-    expect(decl(wsTab, `${SCOPE} .chartHeaderTop`, 'height')).toBeNull()
+    expect(decl(wsTab, `${SCOPE} .chartHeaderTop`, 'min-height')).toBeNull()
     expect(decl(mediaBodiesOn(HUB_CSS, TABLET), '.chartWrap', '--hub-id-row-h')).toBeNull()
     // the unscoped phone row keeps its content-sized height (the /charts phone shell)
     expect(decl(ws, '.chartHeaderTop', 'height')).toBe('auto')
     // and a literal reserve would not count as the shared token
     const literal = '@media (max-width: 640px) { .chartWrap { --hub-chart-chrome-h: calc(49px + 45px); } }'
     expect(decl(mediaBodiesOn(literal, PHONE), '.chartWrap', '--hub-chart-chrome-h')).not.toMatch(/var\(--hub-id-row-h\)/)
+  })
+})
+
+describe('ChartIdentityRow renders the right cluster only when something goes in it', () => {
+  const styles = { chartHeaderTop: 'chartHeaderTop', symbolSlot: 'symbolSlot', symbolStatic: 'symbolStatic', headerTopRight: 'headerTopRight', chartDayGain: 'chartDayGain', sessionToggle: 'sessionToggle', sessionBtn: 'sessionBtn', sessionBtnActive: 'on' }
+  const base = { sym: 'ENPH', displayLabel: 'Enphase', styles, showChange: false }
+  it('compact (no session, no clock, no slot): no cluster, so no third line on a phone', () => {
+    const { container } = render(<ChartIdentityRow {...base} session={null} showClock={false} />)
+    expect(container.querySelector('.headerTopRight')).toBeNull()
+  })
+  it('CONTROL: a session toggle or a host slot still gets its cluster', () => {
+    const { container } = render(<ChartIdentityRow {...base} session={{ mode: 'intraday', extHoursOn: false, onExtHours: () => {} }} showClock={false} />)
+    expect(container.querySelector('.headerTopRight')).not.toBeNull()
+    const { container: c2 } = render(<ChartIdentityRow {...base} session={null} showClock={false} rightSlot={<button type="button">gear</button>} />)
+    expect(c2.querySelector('.headerTopRight')).not.toBeNull()
   })
 })
