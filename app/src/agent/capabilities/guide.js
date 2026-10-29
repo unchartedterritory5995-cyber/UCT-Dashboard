@@ -16,6 +16,17 @@ import { GUIDE_IDS, GUIDE_FEATURES, guideFeature, guideFeatures, matchFeature } 
 import { explainTopic, explainWords } from '../guide/explain'
 import { startGuide, lastShownGuide, forgetLastShown, endGuide, guideState } from '../guide/guideStore'
 import { findTarget } from '../guide/targets'
+import { catalogRows } from '../../components/chart/indicatorCatalog'
+import * as nativeRegistry from '../../components/chart/engine/nativeRegistry'
+
+/** The first few studies of the chart's own quick set (its right-click "Indicators" toggles: `meta.quickMenu` not
+ *  false), pane studies first — the catalog's order, its names. Never a hand-written list. */
+function quickIndicators(n = 4) {
+  let rows = []
+  try { rows = catalogRows(nativeRegistry).filter(r => !r.userDefined && !r.carvedOut && nativeRegistry.getDefinition(r.id)?.meta?.quickMenu !== false) } catch { rows = [] }
+  const pane = rows.filter(r => r.target === 'pane')
+  return [...pane, ...rows.filter(r => r.target !== 'pane')].slice(0, n).map(r => [r.id, r.shortName || r.name])
+}
 
 // "where do I change the timeframe?", "show me where to add an indicator", "how do I use watchlists?"
 const SHOW = /^(?:(?:can|could) you |please |ok |okay |so |hey )*(?:show me (?:where|how)|where (?:do|can|would|should) i|where(?:'s| is| are)|whereabouts|how (?:do|can|would|should) i|how to|walk me through|guide me (?:through|to)|teach me(?: how)?(?: to)?|help me (?:find|with)|give me a (?:tour|walkthrough)|tutorial (?:on|for))\b/i
@@ -84,7 +95,9 @@ export function doItForMe(text, host) {
   const snap = kind ? (kind.list(host) || []).find(s => (s.chartRef || s.ref) === chart.ref) : null
   if (!snap) return { say: 'I can’t change that on this chart.' }
   const ops = [{ action: d.action, target: snap.ref, args: { [d.arg]: null, ...(d.extra || {}) } }]
-  return { ask: { text: `${d.ask} (on ${chart.label})`, choices: d.choices.map(([ref, label]) => ({ ref, label })), ops, pickArg: { action: d.action, arg: d.arg } } }
+  const choices = d.choicesFrom === 'quickIndicators' ? quickIndicators() : d.choices
+  if (!choices?.length) return { say: 'Tell me which one and I’ll do it.' }
+  return { ask: { text: `${d.ask} (on ${chart.label})`, choices: choices.map(([ref, label]) => ({ ref, label })), ops, pickArg: { action: d.action, arg: d.arg } } }
 }
 
 let registered = false

@@ -180,7 +180,9 @@ describe('S · Show me highlights the real control and changes nothing', () => {
     const { say } = p.mount(...ONE())
     await say('where do I change the timeframe?')
     await waitFor(() => expect(card()).toBeTruthy())
-    fireEvent.keyDown(document, { key: 'Escape' })
+    fireEvent.keyDown(document, { key: 'Escape' })                   // a page-level Escape is not the guide's
+    expect(card()).toBeTruthy()
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Exit the guide' }), { key: 'Escape' })   // from inside the card
     await waitFor(() => expect(card()).toBeNull())
     await say('how do i draw a trendline')
     await waitFor(() => expect(cardText()).toMatch(/drawing tools for this chart/))

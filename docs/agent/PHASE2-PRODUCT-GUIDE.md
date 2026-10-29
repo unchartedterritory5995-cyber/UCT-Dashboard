@@ -34,7 +34,7 @@ control.
 |---|---|---|---|
 | 1 | Changing a chart's symbol | The symbol name. | Says what to say ("change this chart to NVDA"), because the value comes from the member. |
 | 2 | Changing timeframes | The timeframe buttons, then "More timeframes". | Asks "Which timeframe?" with choices, then runs `chart.setTimeframe` with a receipt and Undo. |
-| 3 | Adding and configuring an indicator | The gear, then the Indicators tab, then the search box and the list of indicators already on the chart. It waits for the member's clicks and starts where they already are. | Asks "Which indicator?" (RSI, MACD, VWAP, ATR), then runs `indicator.add`. |
+| 3 | Adding and configuring an indicator | The gear, then the Indicators tab, then the search box and the list of indicators already on the chart. It waits for the member's clicks and starts where they already are. | Asks "Which indicator?" with the chart's own quick-menu studies as choices, then runs `indicator.add`. |
 | 4 | Creating and arranging several charts | Widgets ▾, then Chart (with a note on dragging headers and edges). | Says what to say ("four daily charts for …"). |
 | 5 | Using watchlists | The board's own watchlist (only if there is one), then Widgets ▾, then Watchlist. | Says what to say. |
 | 6 | Saving and switching layouts | The layouts bar, then the library. | Says what to say. |
@@ -51,7 +51,8 @@ control.
   control disappears mid-walkthrough, the guide stops and says why.
 - **Does not interfere:** the ring has `pointer-events: none`, the card is non-modal (`data-escape-layer`), the
   overlay never takes focus, and it cleans up every timer and listener on unmount.
-- **Escape:** it ends the guide only when the guide is the topmost layer (`lib/topLayer`).
+- **Escape:** pressed inside the card, it ends the guide. There is no window-level key listener, so the app's key
+  census and shortcut registry are untouched and every other Escape works as before.
 
 ## Decision to review
 
