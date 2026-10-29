@@ -332,3 +332,37 @@ def test_a_ticker_on_many_setups_reads_its_history_once(env, monkeypatch):
     out = rhymes.today(force=True)
     assert sorted(h["setup"] for h in out["hits"]) == ["flag_htf", "kicker"]       # control: two hits, one ticker
     assert lookups == ["ZZTA"]
+
+
+def test_a_cold_route_answers_warming_instead_of_outliving_the_cdn(env, monkeypatch):
+    import threading
+
+    from api.routers import wisdom_archive as route_mod
+
+    _seed_archive()
+    _detect([("ZZTA", "uct_kicker", "uct", 0, 80.0)])
+    gate = threading.Event()
+    real = rhymes._compute
+
+    def slow(*a, **k):
+        gate.wait(10)
+        return real(*a, **k)
+
+    monkeypatch.setattr(rhymes, "_compute", slow)
+    monkeypatch.setattr(route_mod, "RHYMES_WAIT_S", 0.2)
+    first = _client(PAID_MEMBER).get(ROUTE)
+    assert first.status_code == 202 and first.json()["status"] == "warming"
+    gate.set()
+    for _ in range(100):
+        if rhymes._CACHE["value"] is not None:
+            break
+        time.sleep(0.02)
+    second = _client(PAID_MEMBER).get(ROUTE)
+    assert second.status_code == 200 and second.json()["n_hits"] == 1           # the background answer landed
+
+
+def test_wait_s_returns_the_answer_when_it_lands_in_time(env):
+    _seed_archive()
+    _detect([("ZZTA", "uct_kicker", "uct", 0, 80.0)])
+    out = rhymes.today(wait_s=10)
+    assert out is not rhymes.WARMING and out["n_hits"] == 1

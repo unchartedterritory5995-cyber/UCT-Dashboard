@@ -21,8 +21,15 @@ export const RHYMES_URL = `${ARCHIVE_API}/rhymes`
 // A cold server computes Today in the background (archive/rhymes.py) and a request that outlives
 // the CDN's timeout comes back 5xx. Retry those a few times; a 404 (off) or 402 (unpaid) is final.
 export const RHYMES_RETRY = { count: 4, intervalMs: 15000 }
+// A cold server answers 202 {status: "warming"} while it computes in the background: ask again
+// every WARMING_POLL_MS until the answer lands, then stop polling.
+export const WARMING_POLL_MS = 15000
+const isWarming = (d) => d?.status === 'warming'
 const RHYMES_SWR = {
   revalidateOnFocus: false,
+  // SWR reads this at MOUNT (no data yet) and again only after each poll, so "no data" must poll
+  // too, or polling never starts; an answer that is not "warming" returns 0 and stops it.
+  refreshInterval: (d) => (d === undefined || isWarming(d) ? WARMING_POLL_MS : 0),
   onErrorRetry: (error, _key, _config, revalidate, { retryCount }) => {
     if (!(error?.status >= 500) || retryCount > RHYMES_RETRY.count) return
     setTimeout(() => revalidate({ retryCount }), RHYMES_RETRY.intervalMs)
@@ -81,23 +88,25 @@ function Hit({ hit, onTicker, onSetup }) {
 // After this long the wait is said out loud, instead of "Reading…" sitting there indefinitely.
 export const SLOW_MS = 8000
 
-function Waiting() {
+function Waiting({ warming = false }) {
   const [slow, setSlow] = useState(false)
   useEffect(() => {
     const t = setTimeout(() => setSlow(true), SLOW_MS)
     return () => clearTimeout(t)
   }, [])
-  return (
-    <p className={styles.loading} data-testid="rhymes-waiting">
-      {slow ? 'Matching today’s scan against the archive is taking longer than usual. It can take a minute or two during the trading day.' : 'Reading today’s scan…'}
-    </p>
-  )
+  const text = warming
+    ? 'Matching today’s scan against the archive. Right after an update this takes a few minutes; this page checks back on its own.'
+    : slow
+      ? 'Matching today’s scan against the archive is taking longer than usual. It can take a minute or two during the trading day.'
+      : 'Reading today’s scan…'
+  return <p className={styles.loading} data-testid="rhymes-waiting">{text}</p>
 }
 
 export default function TodayRhymes({ onTicker, onSetup }) {
   const { data, error } = useSWR(RHYMES_URL, jsonFetcher, RHYMES_SWR)
   if (error) return <StateLine error={error} />
   if (!data) return <Waiting />
+  if (isWarming(data)) return <Waiting warming />
   const hits = data.hits || []
   return (
     <div data-testid="rhymes-view">

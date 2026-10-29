@@ -31,8 +31,12 @@ day: GET /rhymes ran >130 s and never answered, so the Desk's Today view never l
 Now a cached answer is served WITHOUT touching the scan; once it is REFRESH_S old a single
 background thread recomputes and members keep the previous answer meanwhile; only a cold (or
 STALE_MAX_S-old) cache computes in the request, and concurrent cold callers wait on ONE compute.
-`force=True` still computes now (tests, an explicit refresh). `warm()` starts a background compute
-so the first member to open Today does not pay for it (the archive routes call it).
+`force=True` still computes now (tests, an explicit refresh). `warm()` starts a background compute.
+⛔ After a deploy the first (cold) compute measured MINUTES in production (2026-10-29: >140 s; the
+same compute on a local copy of the scan with a production-sized archive took ~5 s, so the cost is
+the volume, not the code). So the member route asks with `wait_s`: a cold cache starts the compute in
+the background, waits that long, and answers WARMING rather than holding a request open past the
+CDN's timeout. Ask AI and Compass keep the blocking default.
 
 NOT BUILT, ON PURPOSE: a "this rhymes" ALERT. Pushing a hit to a member is a new S7 alert type,
 which trips the alert taxonomy's parity rail (test_alert_taxonomy_filing_watch_parity) and needs the
@@ -64,9 +68,13 @@ STALE_MAX_S = 3 * 3600    # older than this is not served: the request computes 
 CACHE_TTL_S = REFRESH_S   # the name older readers know
 
 _LOCK = threading.Lock()          # guards _CACHE and _STATE
+_READY = threading.Condition(_LOCK)  # notified whenever a compute stores an answer
 _COMPUTE = threading.Lock()       # ONE compute at a time, in a request or in the background
 _CACHE: dict = {"at": 0.0, "value": None}
 _STATE: dict = {"refreshing": False}
+
+#: today(wait_s=...) returns this when the cache is cold and the background compute has not landed.
+WARMING = object()
 
 
 def clear_cache() -> None:
@@ -222,6 +230,7 @@ def _refresh(now: Optional[float] = None) -> Optional[dict]:
         value = _compute(_detections(now), setup_map.market_state())
         with _LOCK:
             _CACHE.update(at=t, value=value)
+            _READY.notify_all()
         return value
     except Exception:  # noqa: BLE001 — a missing scan or store answers None, never an error
         log.exception("[wisdom] archive rhymes failed")
@@ -266,8 +275,11 @@ def warm() -> None:
         _start_background()
 
 
-def today(*, now: Optional[float] = None, force: bool = False) -> Optional[dict]:
-    """Today's rhyming hits, or None (flag off, no scan, store unavailable). Never raises."""
+def today(*, now: Optional[float] = None, force: bool = False, wait_s: Optional[float] = None):
+    """Today's rhyming hits, or None (flag off, no scan, store unavailable). Never raises.
+
+    `wait_s`: on a cold cache, compute in the BACKGROUND and wait at most this long; WARMING if the
+    answer has not landed by then. None (the default) computes in this call, as before."""
     if not flags.archive_enabled():  # the gate first: off touches no store
         return None
     if not force:
@@ -277,6 +289,12 @@ def today(*, now: Optional[float] = None, force: bool = False) -> Optional[dict]
             if age >= REFRESH_S:
                 _start_background()
             return value  # served WITHOUT reading the scan
+        if wait_s is not None:
+            _start_background()
+            with _READY:
+                _READY.wait_for(lambda: _CACHE["value"] is not None and time.time() - _CACHE["at"] < STALE_MAX_S,
+                                timeout=max(0.0, float(wait_s)))
+                return _CACHE["value"] if _CACHE["value"] is not None else WARMING
     with _COMPUTE:  # cold, too stale, or forced: concurrent callers wait on ONE compute
         if not force:
             with _LOCK:

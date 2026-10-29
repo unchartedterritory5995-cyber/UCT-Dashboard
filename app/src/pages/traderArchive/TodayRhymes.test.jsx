@@ -6,7 +6,7 @@ import { act, render, screen, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { SWRConfig } from 'swr'
 
-import TodayRhymes, { RHYMES_RETRY, SLOW_MS } from './TodayRhymes'
+import TodayRhymes, { RHYMES_RETRY, SLOW_MS, WARMING_POLL_MS } from './TodayRhymes'
 import TraderArchive from './TraderArchive'
 
 const API = '/api/wisdom/archive'
@@ -110,6 +110,28 @@ describe('TodayRhymes', () => {
       expect(await screen.findByTestId('rhymes-off')).toBeInTheDocument()
       await act(async () => { await vi.advanceTimersByTimeAsync(RHYMES_RETRY.intervalMs * 3) })
       expect(calls).toHaveBeenCalledTimes(1)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('a 202 "warming" answer says so and checks back until the hits land, then stops', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      let n = 0
+      const calls = vi.fn(() => Promise.resolve(++n < 3
+        ? { ok: true, status: 202, json: async () => ({ status: 'warming' }), text: async () => '{"status":"warming"}' }
+        : ok({ market_state: 'downtrend', hits: [HIT] })))
+      globalThis.fetch = calls
+      mount(<TodayRhymes />)
+      expect(await screen.findByTestId('rhymes-waiting')).toHaveTextContent('this page checks back on its own')
+      for (let i = 0; i < 3 && !screen.queryByTestId('rhyme-hit'); i += 1) {
+        await act(async () => { await vi.advanceTimersByTimeAsync(WARMING_POLL_MS + 10) })
+      }
+      expect(screen.getByTestId('rhyme-hit')).toHaveTextContent('ZZTA')
+      const settled = calls.mock.calls.length
+      await act(async () => { await vi.advanceTimersByTimeAsync(WARMING_POLL_MS * 3) })
+      expect(calls.mock.calls.length).toBe(settled)                            // landed: polling stopped
     } finally {
       vi.useRealTimers()
     }
