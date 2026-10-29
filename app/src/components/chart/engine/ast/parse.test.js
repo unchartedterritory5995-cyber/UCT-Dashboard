@@ -9,7 +9,7 @@ import path from 'node:path'
 import {
   parseFormula, canonicalise, astHash, sha256Hex, assertCanonical,
   TABLE, NODE_TYPES, REFUSALS, TableRefusal, LOOKBACK_RE, SESSION_LOOKBACK, SERIES_LOOKBACK,
-  BAR_READS, BAR_READERS, barReadersOf,
+  BAR_READS, BAR_READERS, barReadersOf, WORD_OPERATORS, WORD_UNARY,
 } from './parse.js'
 import jsep from 'jsep'
 
@@ -180,8 +180,11 @@ describe('the table is closed at the parse boundary', () => {
   // because "it returns an error" is satisfied by a blocklist too, and a
   // blocklist is a list of what somebody remembered.
   it('the parser carries ONLY the table\'s operators — the rest are REMOVED, not blocked', () => {
-    const declaredBinary = Object.entries(TABLE.operators)
-      .filter(([, s]) => s.arity === 2).map(([op]) => op).sort()
+    // ⭐ PLUS THE DECLARED WORD SPELLINGS (`and`/`or`), each an ALIAS that
+    // canonicalises to a table operator — asserted below to carry that operator's
+    // binding power, so the set is "the table's operators, and spellings of them".
+    const declaredBinary = [...Object.entries(TABLE.operators)
+      .filter(([, s]) => s.arity === 2).map(([op]) => op), ...Object.keys(WORD_OPERATORS)].sort()
 
     // ⛔⛔ READ `jsep.Jsep.*`, NEVER `jsep.*`, AND THIS IS A MEASURED TRAP RATHER
     // THAN A STYLE NOTE. jsep's ESM build copies the class's static properties
@@ -201,7 +204,7 @@ describe('the table is closed at the parse boundary', () => {
 
     expect(Object.keys(live.unary_ops).sort(),
       'jsep ships ~ and unary + by default; neither has a meaning in a column formula',
-    ).toEqual(['!', '-'])
+    ).toEqual(['!', '-', ...Object.keys(WORD_UNARY)].sort())
 
     expect(Object.keys(live.literals).sort(),
       'jsep ships `null` by default and the table has no null',
@@ -245,11 +248,16 @@ describe('the table is closed at the parse boundary', () => {
     // `jsep.addBinaryOp(op, undefined)` does not fail — it registers a broken
     // binding power and misparses. `parse.js` throws by name at load rather than
     // shipping that; this is the case that proves the two lists agree today.
-    const declaredBinary = Object.entries(TABLE.operators)
-      .filter(([, s]) => s.arity === 2).map(([op]) => op).sort()
+    const declaredBinary = [...Object.entries(TABLE.operators)
+      .filter(([, s]) => s.arity === 2).map(([op]) => op), ...Object.keys(WORD_OPERATORS)].sort()
     const registered = Object.entries(jsep.Jsep.binary_ops)
     expect(registered.every(([, bp]) => typeof bp === 'number' && bp > 0)).toBe(true)
     expect(registered.map(([op]) => op).sort()).toEqual(declaredBinary)
+    // a word spelling binds EXACTLY as its operator does — otherwise `a or b and c`
+    // and `a || b && c` would be two different formulas
+    for (const [word, op] of Object.entries(WORD_OPERATORS)) {
+      expect(jsep.Jsep.binary_ops[word], word).toBe(jsep.Jsep.binary_ops[op])
+    }
   })
 
   // ⭐ DRIVEN BY `escapes.json`, NEVER BY A LIST RE-TYPED HERE. The corpus is

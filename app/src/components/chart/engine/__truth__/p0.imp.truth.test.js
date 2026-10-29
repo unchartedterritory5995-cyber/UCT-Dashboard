@@ -197,9 +197,14 @@ describe('0K language routing', () => {
     expect(r.dialect).toBe('thinkscript')
     expect(r.refusal.guard).toBe('thinkscript:arity')
   })
-  it('UNSUPPORTED — ASKED a native formula with lower-case `and`; CLAIMED only "`close` is not a TC2000 name"; DID say it reads like the native syntax', () => {
+  // ⭐ 2026-10-29: SUPPORTED. The word operators are native spellings of `&&`/`||`
+  // (`parse.js::WORD_OPERATORS`) and a lower-case price word routes the source to the
+  // native reader (`pcf.js` NATIVE_MARKERS), so it no longer needs the "reads like the
+  // native syntax — write && / ||" refusal it used to get.
+  it('SUPPORTED — ASKED a native formula with lower-case `and`; CLAIMED only "`close` is not a TC2000 name"; DID read it natively, as `&&`', () => {
     const r = inspectSource('close > sma(close,50) and volume > 1000000')
-    expect(r.refusal.message).toMatch(/`&&` and `\|\|`/)
+    expect(r.dialect).toBe('formula')
+    expect(r.refusal).toBeNull()
   })
   it('a native formula still reads natively; a Pine script is never called foreign', () => {
     expect(inspectSource('close > sma(close, 50)').dialect).toBe('formula')
