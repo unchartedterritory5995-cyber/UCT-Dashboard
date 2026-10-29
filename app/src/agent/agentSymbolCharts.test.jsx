@@ -515,7 +515,7 @@ describe('one thing at a time: Apply / Undo / a choice can never run alongside a
       return realFetch(url, init)
     })
     envelopes.push(() => env('answer', [], 'An EMA weights recent prices more.'))
-    say('what is an EMA?')
+    say('how is an EMA different from an SMA?')
     const apply = screen.getAllByRole('button', { name: 'Apply' })[0]
     expect(apply.disabled).toBe(true)
     fireEvent.click(apply)                                    // ignored: the lock is held

@@ -6,7 +6,7 @@ The guide has three modes, and they are kept strictly apart:
 
 | Mode | Example | What happens | Changes the board? |
 |---|---|---|---|
-| **Explain** | "What's the difference between a chart indicator and a condition?" | A short answer in UCT's own words, drawn from the product's concepts and the indicator catalog's descriptions. | Never. `guide.explain` is a query. |
+| **Explain** | "What is RSI?", "What does ADR mean?", "What is an EMA?", "What's the difference between a chart indicator and a condition?" | An instant answer in UCT's own words: the indicator catalog's own description (name, short name or tag naming exactly one row; "an EMA" is the Moving Average's Type), or the product's concepts and features. | Never. `guide.explain` is a query. |
 | **Show me** | "Where do I change the timeframe?" | The **real** control is highlighted on the board, with a step card (Next, Back, Exit, Done). | Never. `guide.show` is a query and the overlay clicks nothing. |
 | **Do it for me** | "Now do it for me" (after a walkthrough) | The feature's **existing** capability runs on the chart that was shown. It asks for the value first ("Which timeframe?"). | Yes, through the ordinary planner, policy, receipt and Undo. |
 
@@ -54,22 +54,24 @@ control.
 - **Escape:** pressed inside the card, it ends the guide. There is no window-level key listener, so the app's key
   census and shortcut registry are untouched and every other Escape works as before.
 
-## Decision to review
+## Instant indicator explanations (owner decision 2026-10-29)
 
-**General trading terms ("what is RSI?", "EMA vs SMA") still go to the model.** The sealed NL corpus records them
-as model answers (talk-01, talk-07), and so does `agentCore` "what is an EMA?". The instant path answers only UCT's
-own concepts and features: indicator vs condition, link colours, what a layout or watchlist is, and so on.
-`guide.explain` can return the catalog's own wording for any indicator (ADR % is "Average daily range: the average
-of each bar's high ÷ low"), and the model is pointed at it.
+A simple question naming exactly one catalog indicator is answered instantly from the catalog
+(`components/chart/indicatorCatalog`): "What is RSI?", "What does ADR mean?", "What is MACD?", "What is an EMA?"
+(one of the Moving Average's types, read from its own `Type` options), and "RSI vs MACD". A name, short name or id
+wins over a tag ("ATR" is ATR, not SuperTrend's `atr` tag); a term that names several rows is not guessed. There is
+no separate glossary: the hand-written EMA-vs-SMA entry was removed.
 
-**Recommendation:** answer catalog indicators instantly too. That needs the corpus expectations for those cases
-updated, which is your call.
+The model still answers anything more: "EMA vs SMA" (two types of one indicator), "what is RSI telling me about
+NVDA", "a good RSI setting for the 5 minute", and terms the catalog lacks ("a dead cat bounce", "a VCP").
+The NL corpus `talk-01` ("what is rsi") now expects the instant answer; `talk-07` (EMA vs SMA) still expects the
+model. `agentCore` and `agentGuide` were updated to match.
 
 ## Tests
 
 | File | What it covers |
 |---|---|
-| `agentGuide.test.jsx` | 22 tests through the real panel with the controls in the document. **Explain** changes nothing; general terms go to the model. **Show me** covers the real control, steps, the clicked chart, "can't see it", waiting for the member's click, a context-aware start, a lost control, Escape and Exit, and that it is non-modal with no focus steal. **Do it for me** covers Weekly with Undo, RSI, a feature that needs the member's words, no hijack without a walkthrough, and a direct command. |
+| `agentGuide.test.jsx` | 28 tests through the real panel with the controls in the document. **Explain** changes nothing; catalog indicators are instant; anything more goes to the model. **Show me** covers the real control, steps, the clicked chart, "can't see it", waiting for the member's click, a context-aware start, a lost control, Escape and Exit, and that it is non-modal with no focus steal. **Do it for me** covers Weekly with Undo, RSI, a feature that needs the member's words, no hijack without a walkthrough, and a direct command. |
 | `agentGuideTargets.test.js` | 19 tests: every target is real; capabilities and topics exist; both guide capabilities are queries; access gating; feature matching. |
 | `agentPhase2Integration.test.jsx` | The brief's Phase 5 conversations with both workstreams together. |
 

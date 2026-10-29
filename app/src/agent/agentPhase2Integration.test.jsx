@@ -58,11 +58,10 @@ describe('Phase 2 — the brief\'s integrated conversations', () => {
     expect(p.turns()).toBe(0)
   }, 40000)
 
-  it('"Explain RSI." (the model) → "Add RSI to this chart." → "Make that indicator green." → "Show me how to change its settings." — each does exactly its job', async () => {
+  it('"Explain RSI." (the catalog, instant) → "Add RSI to this chart." → "Make that indicator green." → "Show me how to change its settings." — each does exactly its job', async () => {
     controls(['c'])
     const { board, say } = p.mount(...ONE())
-    p.st.envelopes.push(p.env('answer', [], 'RSI measures momentum on a 0–100 scale.'))
-    await say('Explain RSI.')
+    expect(await say('Explain RSI.')).toMatch(/RSI \(Relative Strength Index\) — Momentum on a 0-100 scale/)
     expect(rsi(board, 'c')).toHaveLength(0)                              // Explain never mutates
     await say('Add RSI to this chart.')
     expect(rsi(board, 'c')).toHaveLength(1)
@@ -71,7 +70,7 @@ describe('Phase 2 — the brief\'s integrated conversations', () => {
     await say('Show me how to change its settings.')
     await waitFor(() => expect(card()).toBeTruthy())
     expect(rsi(board, 'c')).toHaveLength(1)
-    expect(p.turns()).toBe(1)                                            // only the general explanation asked the model
+    expect(p.turns()).toBe(0)                                            // no step needed the model
   }, 40000)
 
   it('"Create four charts for SPY, QQQ, NVDA and TSLA and make them daily." → "Now put the same indicators on the others." — after RSI on the first', async () => {

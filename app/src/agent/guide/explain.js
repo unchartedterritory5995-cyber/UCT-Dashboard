@@ -10,9 +10,11 @@
 // Anything else returns null: the model answers it (general trading knowledge), as before. Nothing here is ever a
 // change to the workspace — the guide.explain capability is a query.
 //
-// INSTANT vs MODEL. Only UCT's OWN meanings (`local`: a UCT concept, a guide feature) are answered on the instant path.
-// A general trading term ("what is an EMA?", "what is rsi") stays the model's, as the sealed NL corpus records
-// (talk-01, talk-07; agentCore "all-or-nothing") — the model can still call guide.explain for UCT's catalog wording.
+// INSTANT vs MODEL (owner decision 2026-10-29). A SIMPLE question whose words name exactly one catalog indicator (or
+// two, compared), one of an indicator's own types ("an EMA" — the Moving Average's Type), a UCT concept or a guide
+// feature is answered on the instant path (`local`), in the catalog's own words — there is no separate glossary.
+// Anything more ("what is RSI telling me about NVDA?", "the best RSI setting for swing trades", a term the catalog
+// does not name exactly once) returns null or stays the model's.
 
 import { catalogRows } from '../../components/chart/indicatorCatalog'
 import * as nativeRegistry from '../../components/chart/engine/nativeRegistry'
@@ -32,12 +34,6 @@ export const CONCEPTS = [
     text: 'A condition is a true/false rule — “close crosses above the 20 EMA”, “RSI below 30” — built in Create Indicator. UCT marks the bars where it is true with a marker, or a candle or background colour, instead of drawing a line.',
   },
   {
-    id: 'ema-vs-sma', title: 'EMA vs SMA',
-    words: [/\bema\b.*\bsma\b|\bsma\b.*\bema\b/, /\bexponential\b.*\bsimple\b|\bsimple\b.*\bexponential\b/],
-    // components/chart/chartDefaults.js (the default EMA 9 / EMA 20 / SMA 50 / SMA 200)
-    text: 'Both average the closes over a length. An SMA weights every bar in that length equally; an EMA weights the most recent bars more, so it turns sooner. UCT’s default charts draw the 9 and 20 as EMAs and the 50 and 200 as SMAs.',
-  },
-  {
     id: 'link-colours', title: 'Link colours', local: true,
     words: [/\blink(ed)? (colou?rs?|groups?)\b/, /\bcolou?r (dot|link|group)s?\b/],
     // pages/charts/WidgetHost (the colour-link dot) — widgets in one group share a symbol
@@ -49,14 +45,26 @@ const norm = (s) => String(s || '').toLowerCase().replace(/[’']/g, "'").replac
 // "the rsi", "an adr", "rsi indicator" → "rsi"
 const core = (s) => norm(s).replace(/^(?:a|an|the|my|this|that)\s+/, '').replace(/\s+(?:indicator|study|line|mean|means|stand for|stands for|measure|measures|show|shows|do|does)$/, '').trim()
 
+// the catalog's own enum options of a row ("EMA" is one of the Moving Average's Types) → { label, setting } | null
+function optionOf(row, w) {
+  for (const i of row.inputs || []) {
+    const o = i?.type === 'enum' ? (i.options || []).find(x => norm(x.label) === w || String(x.value).toLowerCase() === w) : null
+    if (o) return { label: o.label, setting: i.label || i.key }
+  }
+  return null
+}
+
+// the one catalog row the words NAME: its name, short name or id first ("atr" is ATR, not SuperTrend's "atr" tag),
+// then its tags — never a guess between several
 function indicatorRow(words) {
   const w = core(words)
   if (!w || w.length > 40) return null
   let rows = []
-  try { rows = catalogRows(nativeRegistry) } catch { rows = [] }
-  const hits = rows.filter(r => r.description && (
-    norm(r.name) === w || norm(r.shortName) === w || String(r.id).toLowerCase() === w || (r.tags || []).some(t => norm(t) === w)))
-  return hits.length === 1 ? hits[0] : null
+  try { rows = catalogRows(nativeRegistry).filter(r => r.description && !r.userDefined) } catch { rows = [] }
+  const named = rows.filter(r => norm(r.name) === w || norm(r.shortName) === w || String(r.id).toLowerCase() === w)
+  if (named.length) return named.length === 1 ? { row: named[0], option: null } : null
+  const tagged = rows.filter(r => (r.tags || []).some(t => norm(t) === w))
+  return tagged.length === 1 ? { row: tagged[0], option: optionOf(tagged[0], w) } : null
 }
 
 /** An explanation of what the words name, from UCT's own sources → { id, kind, title, text } | null. */
@@ -68,14 +76,20 @@ export function explainTopic(words) {
   // "rsi vs macd": both, from the catalog, when each names exactly one indicator
   const pair = / and /.test(w) ? w.split(/ and /) : null
   if (pair && pair.length === 2) {
-    const [a, b] = pair.map(indicatorRow)
-    if (a && b && a.id !== b.id) return { id: `indicators:${a.id}+${b.id}`, kind: 'indicator', title: `${a.shortName || a.name} vs ${b.shortName || b.name}`, text: `${a.shortName || a.name}: ${a.description} ${b.shortName || b.name}: ${b.description}` }
+    const [a, b] = pair.map(x => indicatorRow(x)?.row || null)
+    if (a && b && a.id !== b.id) return { id: `indicators:${a.id}+${b.id}`, kind: 'indicator', title: `${a.shortName || a.name} vs ${b.shortName || b.name}`, text: `${a.shortName || a.name}: ${a.description} ${b.shortName || b.name}: ${b.description}`, local: true }
   }
-  const row = indicatorRow(w)
-  if (row) {
+  const hit = indicatorRow(w)
+  if (hit) {
+    const { row, option } = hit
     const where = row.target === 'price' ? 'It draws on the price chart.' : 'It draws in its own pane below price.'
     const name = row.shortName && row.shortName !== row.name ? `${row.shortName} (${row.name})` : row.name
-    return { id: `indicator:${row.id}`, kind: 'indicator', title: name, text: `${name} — ${row.description.replace(/\.$/, '')}. ${where} Say “add ${row.shortName || row.name}” to put it on this chart.` }
+    if (option) {
+      // "what is an EMA?" — the catalog names it as one of the Moving Average's types; said as exactly that
+      return { id: `indicator:${row.id}:${option.label}`, kind: 'indicator', title: option.label, local: true,
+        text: `${option.label} is one of the types of UCT’s ${row.name} indicator, chosen in its “${option.setting}” setting. ${row.name}: ${row.description.replace(/\.$/, '')}. ${where} Choose ${option.label} in that setting when you add ${row.shortName || row.name}.` }
+    }
+    return { id: `indicator:${row.id}`, kind: 'indicator', title: name, text: `${name} — ${row.description.replace(/\.$/, '')}. ${where} Say “add ${row.shortName || row.name}” to put it on this chart.`, local: true }
   }
   const c = core(w)
   const f = GUIDE_FEATURES.find(x => norm(x.title) === w || (x.terms || []).includes(c))

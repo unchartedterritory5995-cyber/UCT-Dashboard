@@ -57,13 +57,20 @@ const boardJson = (board) => JSON.stringify(board.state.widgets)
 
 // ═══ E — explain ═════════════════════════════════════════════════════════════════════════════════════════
 describe('E · Explain teaches and changes nothing', () => {
-  // UCT's OWN meanings are answered instantly from UCT's own words; a general trading term stays the model's (the sealed
-  // NL corpus records "what is rsi" / "ema vs sma" as model answers) — either way nothing on the board changes
+  // UCT's OWN meanings — its concepts, features AND its catalog's indicators (owner decision 2026-10-29) — are answered
+  // instantly in UCT's own words; anything more stays the model's. Either way nothing on the board changes.
   it.each([
     ["What's the difference between a chart indicator and a condition?", /An indicator draws VALUES on the chart.*A condition is a true\/false rule/],
     ['what is a layout?', /A layout is a saved board/],
     ['what are link colours', /Widgets in the same colour share a symbol/],
     ['explain the drawing tools', /The drawing tools run along the chart’s toolbar/],
+    // the catalog's own rows (components/chart/indicatorCatalog) — name, short name or tag, exactly one
+    ['What is RSI?', /RSI \(Relative Strength Index\) — Momentum on a 0-100 scale/],
+    ['Explain RSI', /RSI \(Relative Strength Index\) — Momentum on a 0-100 scale/],
+    ['What does ADR mean?', /ADR % — Average daily range/],
+    ['What is MACD?', /MACD — The gap between two moving averages/],
+    ['What is an EMA?', /EMA is one of the types of UCT’s Moving Average indicator, chosen in its “Type” setting\. Moving Average: The average of any series/],
+    ['rsi vs macd', /RSI: Momentum.*MACD: The gap between two moving averages/],
   ])('%s', async (q, want) => {
     const { board, say } = p.mount(...ONE())
     const before = boardJson(board)
@@ -75,8 +82,10 @@ describe('E · Explain teaches and changes nothing', () => {
     expect(p.summaries()).toEqual([])                                   // no receipt: nothing was done
   }, 30000)
 
-  it.each(['Explain RSI', 'What does ADR mean?', 'what is the difference between an ema and an sma', 'what does a dead cat bounce mean?'])(
-    'a general trading term goes to the model, which answers — nothing is invented locally and nothing changes: %s', async (q) => {
+  // the catalog names no single row (a comparison of two types of one indicator, a term it lacks) or the question asks
+  // for more than what the indicator is → the model
+  it.each(['what is the difference between an ema and an sma', 'what does a dead cat bounce mean?', 'what is rsi telling me about nvda right now', "what's a good setting for rsi on the 5 minute"])(
+    'more than the catalog says goes to the model, which answers — nothing is invented locally and nothing changes: %s', async (q) => {
       const { board, say } = p.mount(...ONE())
       const before = boardJson(board)
       p.st.envelopes.push(p.env('answer', [], 'A model answer.'))

@@ -74,7 +74,7 @@ describe('NL-1 flag OFF (the default): production behaviour is unchanged', () =>
     await waitFor(() => expect(tf(b, 'L')).toBe('W'))
     expect(turns).toHaveLength(0)
     script = () => answer({ reply: 'An EMA weights recent prices more.' })
-    await say('what is an ema?')
+    await say('how is an ema different from an sma?')
     expect(turns).toHaveLength(1)
     expect(turns[0].interpreter).toBeUndefined()
   })
@@ -88,7 +88,7 @@ describe('NL-1 flag OFF (the default): production behaviour is unchanged', () =>
     await waitFor(() => expect(tf(b, 'L')).toBe('W'))
     expect(turns).toHaveLength(0)
     script = () => answer({ reply: 'An EMA weights recent prices more.' })
-    await say('what is an ema?')
+    await say('how is an ema different from an sma?')
     expect(turns).toHaveLength(1)
     expect(turns[0].interpreter).toBeUndefined()            // the legacy request: routed, no NL-1 field
     expect(turns[0].routing).toBeTruthy()
