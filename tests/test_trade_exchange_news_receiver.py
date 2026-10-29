@@ -496,3 +496,27 @@ def test_allowlisted_source_still_accepted_and_not_logged(caplog):
         r = c.post(f"/hook/{TOKEN}", json={"source": "TXNews2", "content": "Example"})
     assert r.status_code == 200 and len(journal.objects) == 1
     assert not any("refused source label" in r.getMessage() for r in caplog.records)
+
+
+# ── ⏱ latency audit: edge lag parsing and a timing line with no content ───────
+
+@pytest.mark.parametrize("raw,want", [
+    ("1800000000000", 250), ("t=1800000000000", 250), ("1800000000.000", 250),
+    ("1800000000000000", 250), ("1800000000", 250), ("", None), ("abc", None),
+    ("1700000000000", None),                       # implausible (days old)
+])
+def test_edge_lag_ms(raw, want):
+    assert rx.edge_lag_ms(raw, 1_800_000_000_250) == want
+
+
+def test_accepted_delivery_logs_stage_timings_without_content(caplog, monkeypatch):
+    caplog.set_level(logging.INFO, logger="txn.receiver")
+    c, journal, pushes, app = _client()
+    monkeypatch.setattr(appmod, "TIMING_LOG_DELAY_S", 0.0)
+    with c:
+        r = c.post(f"/hook/{TOKEN}", json=GOOD, headers={"x-request-start": str(int(time.time() * 1000))})
+        time.sleep(0.3)
+    assert r.status_code == 200
+    lines = [m for m in (x.getMessage() for x in caplog.records) if "[txn] timing rx" in m]
+    assert len(lines) == 1 and "edge_to_handler_ms=" in lines[0] and "acked_ms=" in lines[0]
+    assert "Example Corp" not in "\n".join(x.getMessage() for x in caplog.records)

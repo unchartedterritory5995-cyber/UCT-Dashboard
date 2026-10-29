@@ -254,6 +254,19 @@ def delivery_meta(headers: dict[str, str], body_bytes: int, remote: str | None) 
             "remote": (remote or "")[:64]}
 
 
+def edge_lag_ms(raw: str | None, received_at_ms: int) -> int | None:
+    """Railway edge arrival (``X-Request-Start``) -> our receipt stamp, in ms.
+    Accepts epoch s / ms / us, optionally ``t=``-prefixed; anything else, or an
+    implausible lag, is None. A timing only: the header value is never stored."""
+    v = (raw or "").strip().removeprefix("t=").replace(".", "")
+    if not v.isdigit() or not 10 <= len(v) <= 19:
+        return None
+    n = int(v)
+    edge_ms = n * 1000 if len(v) <= 10 else n // 1000 if len(v) >= 16 else n
+    lag = received_at_ms - edge_ms
+    return lag if -5000 <= lag <= 60000 else None
+
+
 def build_record(source: str, content: str, extra: dict[str, Any], meta: dict[str, Any],
                  cfg: Config, now_ms: int | None = None) -> dict[str, Any]:
     ms = int(time.time() * 1000) if now_ms is None else int(now_ms)
