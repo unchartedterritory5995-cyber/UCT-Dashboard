@@ -20,8 +20,9 @@ import styles from './TraderArchive.module.css'
 // The route's maximum page (rhymes.MAX_HITS): enough hits for several setups to appear.
 export const RHYMES_LIMIT = 200
 export const RHYMES_URL = `${ARCHIVE_API}/rhymes?limit=${RHYMES_LIMIT}`
-// Tickers shown under each setup before "show all".
-export const TICKERS_SHOWN = 8
+// Simple first (owner, 2026-10-29): the top setups and the top names in each, the rest one click away.
+export const SETUPS_SHOWN = 5
+export const TICKERS_SHOWN = 5
 
 // A cold server computes Today in the background (archive/rhymes.py); during the boot rush a request
 // can come back 5xx. Retry those for ~5 minutes (measured 2026-10-29: the first compute after a deploy
@@ -168,6 +169,7 @@ function SetupGroup({ group, onTicker, onSetup }) {
 export default function TodayRhymes({ onTicker, onSetup }) {
   const { data, error, recovering } = useRhymes()
   const groups = useMemo(() => groupBySetup(data?.hits), [data])
+  const [allSetups, setAllSetups] = useState(false)
   if (error && recovering) return <Waiting warming />
   if (error) return <StateLine error={error} />
   if (!data) return <Waiting />
@@ -179,7 +181,7 @@ export default function TodayRhymes({ onTicker, onSetup }) {
       <p className={styles.intro}>
         {total.toLocaleString()} of today&apos;s scanner hits look like setups the team has traded before
         {data.market_state ? <> · market: {data.market_state}</> : ''}.
-        {total > hits.length && <> The {hits.length} the team knows best, grouped by setup.</>}
+        {total > hits.length && <> The names the team knows best, grouped by setup.</>}
       </p>
       {hits.length === 0
         ? <p className={styles.empty}>None of today&apos;s scanner hits match a setup in the team archive.</p>
@@ -187,8 +189,14 @@ export default function TodayRhymes({ onTicker, onSetup }) {
           <>
             <SectionTitle count={groups.length}>Setups on today&apos;s scan</SectionTitle>
             <div className={styles.groupList}>
-              {groups.map((g) => <SetupGroup key={g.key} group={g} onTicker={onTicker} onSetup={onSetup} />)}
+              {(allSetups ? groups : groups.slice(0, SETUPS_SHOWN)).map((g) => (
+                <SetupGroup key={g.key} group={g} onTicker={onTicker} onSetup={onSetup} />))}
             </div>
+            {groups.length > SETUPS_SHOWN && (
+              <button type="button" className={styles.moreBtn} aria-expanded={allSetups} onClick={() => setAllSetups((x) => !x)}>
+                {allSetups ? 'Show fewer setups' : `Show ${groups.length - SETUPS_SHOWN} more setups`}
+              </button>
+            )}
           </>
         )}
     </div>

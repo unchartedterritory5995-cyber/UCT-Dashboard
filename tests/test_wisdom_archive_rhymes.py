@@ -423,3 +423,54 @@ def test_one_setup_cannot_take_every_slot(env, monkeypatch):
     assert out["n_hits"] == 5                                                     # the total is still the total
     assert [h["setup"] for h in out["hits"]].count("kicker") == 2                 # capped
     assert "flag_htf" in [h["setup"] for h in out["hits"]]                        # the other setup got a slot
+
+
+# ── 9. the answer survives a restart (2026-10-29) ─────────────────────────────────────────────
+
+def _restart():
+    """What a new process sees: an empty in-memory cache that has not yet looked at the disk."""
+    with rhymes._LOCK:
+        rhymes._CACHE.update(at=0.0, value=None)
+    rhymes._DISK_LOADED["done"] = False
+
+
+def test_a_restarted_process_serves_the_saved_answer_without_reading_the_scan(env, monkeypatch):
+    _seed_archive()
+    _detect([("ZZTA", "uct_kicker", "uct", 0, 80.0)])
+    first = rhymes.today()
+    assert first["n_hits"] == 1
+    _restart()
+    reads = _count(monkeypatch, "_detections")
+    again = rhymes.today(wait_s=0)
+    assert again is not rhymes.WARMING and again["n_hits"] == 1 and again["hits"][0]["ticker"] == "ZZTA"
+    assert reads == []                                                             # served from the file
+
+
+def test_a_saved_answer_too_old_to_serve_is_ignored(env, monkeypatch):
+    _seed_archive()
+    _detect([("ZZTA", "uct_kicker", "uct", 0, 80.0)])
+    rhymes.today()
+    import json as _json
+
+    path = rhymes._disk_path()
+    saved = _json.load(open(path, encoding="utf-8"))
+    saved["at"] -= rhymes.STALE_MAX_S + 1
+    _json.dump(saved, open(path, "w", encoding="utf-8"))
+    _restart()
+    started = []
+    monkeypatch.setattr(rhymes, "_start_background", lambda: started.append(1) or True)
+    assert rhymes.today(wait_s=0) is rhymes.WARMING and started == [1]            # never served stale
+
+
+def test_a_corrupt_saved_answer_is_ignored_never_served(env, monkeypatch):
+    open(rhymes._disk_path(), "w", encoding="utf-8").write("{not json")
+    _restart()
+    started = []
+    monkeypatch.setattr(rhymes, "_start_background", lambda: started.append(1) or True)
+    assert rhymes.today(wait_s=0) is rhymes.WARMING and started == [1]
+
+
+def test_flag_off_reads_no_saved_answer(env, monkeypatch):
+    monkeypatch.setenv("WISDOM_ARCHIVE_ENABLED", "0")
+    monkeypatch.setattr(rhymes, "_load_from_disk", lambda: (_ for _ in ()).throw(AssertionError("read while off")))
+    assert rhymes.today() is None

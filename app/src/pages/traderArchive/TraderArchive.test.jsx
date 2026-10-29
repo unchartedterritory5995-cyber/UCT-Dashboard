@@ -172,6 +172,12 @@ describe('Trader Archive in The Desk', () => {
     fireEvent.click(await screen.findByRole('button', { name: /Synthetic setup/ }))
     expect(await screen.findByTestId('ta-playbook-verdict')).toHaveTextContent('Not proven yet')
     expect(screen.getByTestId('ta-playbook-verdict')).toHaveAttribute('title', 'z 1.4')
+    // Simple first: the calls are up front, the context cuts and teachings one click away.
+    expect(screen.getByText('“synthetic winner evidence”')).toBeInTheDocument()
+    expect(screen.queryByTestId('ta-playbook-more')).toBeNull()
+    expect(screen.queryByText('synthetic teaching note')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'More about this setup' }))
+    expect(screen.getByTestId('ta-playbook-more')).toBeInTheDocument()
     // On the face as a bar, and again in the folded "full numbers" table.
     expect(screen.getAllByText('market: downtrend').filter((n) => n.tagName === 'SPAN')).toHaveLength(1)
     expect(screen.getByText('62% worked')).toBeInTheDocument()
@@ -272,6 +278,8 @@ it('Playbooks: short titles with the detail beneath, catch-all categories groupe
   expect(within(named).getByText('Moving-average pullback')).toBeInTheDocument()
   expect(within(named).getByText('8/10/20/21 EMA, 50 SMA')).toBeInTheDocument()
   expect(within(named).queryByText(/Watchlist mention/)).toBeNull()            // most calls, still not a setup
+  expect(screen.queryByRole('list', { name: 'Other kinds of calls' })).toBeNull()  // folded by default
+  fireEvent.click(screen.getByRole('button', { name: 'Other kinds of calls (1)' }))
   const other = screen.getByRole('list', { name: 'Other kinds of calls' })
   expect(within(other).getByText('Watchlist mention')).toBeInTheDocument()
 })

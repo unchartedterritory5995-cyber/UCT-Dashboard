@@ -6,7 +6,7 @@ import { act, render, screen, fireEvent, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { SWRConfig } from 'swr'
 
-import TodayRhymes, { RHYMES_LIMIT, RHYMES_RETRY, SLOW_MS, TICKERS_SHOWN, WARMING_POLL_MS } from './TodayRhymes'
+import TodayRhymes, { RHYMES_LIMIT, RHYMES_RETRY, SETUPS_SHOWN, SLOW_MS, TICKERS_SHOWN, WARMING_POLL_MS } from './TodayRhymes'
 import TraderArchive from './TraderArchive'
 
 const API = '/api/wisdom/archive'
@@ -206,4 +206,14 @@ describe('TodayRhymes', () => {
     fireEvent.click(screen.getByRole('tab', { name: /Today/ }))
     expect(await screen.findByTestId('rhyme-hit')).toHaveTextContent('ZZTA')
   })
+})
+
+it('shows the top setups first and the rest behind one button', async () => {
+  const many = Array.from({ length: SETUPS_SHOWN + 2 }, (_, i) => ({ ...HIT, ticker: `ZS${i}`, setup: `s${i}`,
+    playbook: { ...HIT.playbook, setup_id: `s${i}`, name: `Setup ${i}` } }))
+  serve({ [`${API}/rhymes`]: ok({ market_state: 'mixed', n_hits: many.length, hits: many }) })
+  mount(<TodayRhymes />)
+  expect(await screen.findAllByTestId('rhyme-group')).toHaveLength(SETUPS_SHOWN)
+  fireEvent.click(screen.getByRole('button', { name: 'Show 2 more setups' }))
+  expect(screen.getAllByTestId('rhyme-group')).toHaveLength(SETUPS_SHOWN + 2)
 })
