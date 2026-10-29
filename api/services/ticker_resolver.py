@@ -232,6 +232,18 @@ _PLAIN_SYM = re.compile(r"^[A-Z]{1,5}$")
 _WORD_RE = re.compile(r"[A-Za-z]{2,}")
 #: Strong cues that survive shouting: an explicit stock noun next to the symbol.
 _SHOUT_CUE = re.compile(r"\b([A-Z]{2,5})\s+(?:SHARES|STOCK)\b|\bSHARES\s+OF\s+([A-Z]{2,5})\b")
+#: The SUBJECT of a shouted stock headline: its first word, directly followed by a
+#: price/rating/results verb ("NVDA JUMPS ON EARNINGS"). A symbol that is also a common
+#: English word (every stop vocabulary above: CAN, ALL, NOW, LOW, GOLD, FED ...) never
+#: qualifies by position alone -- "CAN RISE" stays English; "CAN SHARES" still counts.
+_SHOUT_SUBJECT = re.compile(r"^\s*([A-Z]{2,5})\s+(?:SHARES\s+|STOCK\s+)?(?:JUMPS?|SURGES?|SOARS?|RISES|RALLIES|GAINS|CLIMBS|SPIKES|POPS"
+                            r"|FALLS|DROPS|SLIDES|SLUMPS|SINKS|TUMBLES|PLUNGES|DIPS|HALTED|UPGRADED|DOWNGRADED"
+                            r"|BEATS|MISSES|REPORTS|GUIDES)\b")
+
+
+def _english_collisions() -> frozenset:
+    return frozenset().union(_TICKER_STOP, _TICKER_BLACKLIST, _NON_TICKER_WORDS, _LOWER_ONLY_STOP)
+
 
 
 def _shouting(text: str) -> bool:
@@ -375,6 +387,9 @@ def resolve_tickers(text: Optional[str], context: Context = QUERY) -> list[str]:
         # explicit stock noun ("CAN SHARES") counts as the strong cue.
         stop = _ALL_BARE
         strong = {(a or b) for a, b in _SHOUT_CUE.findall(q)}
+        subj = _SHOUT_SUBJECT.match(q)
+        if subj and subj.group(1) not in _english_collisions():
+            strong.add(subj.group(1))
     for m in _TOKEN_RE.finditer(q):
         cash, bare = m.group(1), m.group(2)
         if cash:

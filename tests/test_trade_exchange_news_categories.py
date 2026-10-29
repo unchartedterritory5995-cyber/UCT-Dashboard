@@ -115,3 +115,60 @@ def test_a_classifier_fault_costs_nothing(monkeypatch):
     monkeypatch.setattr(cat, "category_for", lambda *a: 1 / 0)
     monkeypatch.setattr(cat, "tickers_for", lambda *a: 1 / 0)
     assert pl._category_for("TX-News", "x") == "Other" and pl._tickers_for("x", "TX-News") == []
+
+
+# ── shouted headlines: the high-confidence SUBJECT case, and what it must not reopen ──
+
+@pytest.mark.parametrize("text,want", [
+    ("NVDA JUMPS ON EARNINGS", ["NVDA"]),
+    ("AAPL FALLS AFTER SUPPLIER WARNING", ["AAPL"]),
+    ("META DOWNGRADED AT EXAMPLE BROKER", ["META"]),
+    ("TSLA SHARES SLIDE IN PREMARKET TRADING", ["TSLA"]),
+    ("AMD BEATS ON REVENUE, RAISES OUTLOOK", ["AMD"]),
+])
+def test_a_shouted_headline_keeps_its_stock_subject(text, want):
+    assert cat.tickers_for("TX-News", text) == want
+    assert cat.tickers_for("TX-News1", text) == want                  # the same wire context
+
+
+@pytest.mark.parametrize("text", [
+    HASSETT,                                                           # CAN mid-sentence
+    "CAN RISES ARE NOT EXPECTED, OFFICIALS SAY",                       # English word at the front
+    "ALL GAINS ERASED AS INDEXES FALL",
+    "GOLD JUMPS TO A RECORD AS DOLLAR SLIDES",
+    "NOW FALLS SILENT ON THE TRADE TALKS",
+    "LOW RATES BOOST HOUSING DEMAND",
+    "FED BEATS EXPECTATIONS WITH A HOLD",
+    "STOCKS RALLY AS INVESTORS CHEER DATA",
+])
+def test_the_subject_rule_does_not_reopen_english_words(text):
+    assert cat.tickers_for("TX-News", text) == []
+
+
+def test_a_subject_later_in_a_shouted_sentence_stays_conservative():
+    # Not the first word: no capitalisation signal and no cue -> not claimed.
+    assert cat.tickers_for("TX-News", "STOCKS RALLY AS NVDA JUMPS ON EARNINGS") == []
+    assert cat.tickers_for("TX-News", "STOCKS RALLY AS $NVDA JUMPS ON EARNINGS") == ["NVDA"]
+
+
+# ── every approved source variant maps as intended (the receiver allowlist is not touched) ──
+
+@pytest.mark.parametrize("source", ["TX-News", "TX-News1"])
+@pytest.mark.parametrize("text,want", [
+    ("GOOGL lows", cat.PRICE), (HASSETT, cat.MACRO),
+    ("Example Corp beats estimates, EPS $1.10 vs $0.95 est", cat.EARNINGS),
+    ("Unusual options activity in Example Corp", cat.OPTIONS),
+    ("Example Corp opens a new plant in Texas", cat.NEWS),
+])
+def test_both_broad_news_labels_classify_the_same_way(source, text, want):
+    assert cat.category_for(source, text) == want
+
+
+@pytest.mark.parametrize("source,want", [
+    ("TX-PressRelease", cat.PRESS), ("TX-Filings", cat.FILING), ("TX-Options", cat.OPTIONS),
+    ("TX-News", cat.NEWS), ("TX-News1", cat.NEWS), ("TX-Team", cat.OTHER),
+])
+def test_each_label_has_its_category_and_ticker_context(source, want):
+    assert cat.category_for(source, "Example Corp names a new chief operating officer") == want
+    ctx = cat.SOURCE_TICKER_CONTEXT.get(source, tr.WIRE_NEWS)
+    assert ctx in (tr.WIRE_NEWS, tr.WIRE_RELEASE, tr.WIRE_FILING)
