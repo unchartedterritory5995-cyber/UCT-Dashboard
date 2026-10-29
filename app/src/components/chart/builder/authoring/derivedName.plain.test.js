@@ -69,3 +69,21 @@ describe('a name saved in the formula wording is still automatic', () => {
       .toBe('EMA 9 above EMA 20')
   })
 })
+
+// ⭐ 2026-10-29 — the spellings #498 added (supertrend, `if`, `na`, word logic) read as words too.
+describe('plain names over the expressiveness formulas', () => {
+  it.each([
+    ['supertrend(3, 10)', 'Supertrend 3,10'],
+    ['supertrendDirection(3, 10) == -1', 'Supertrend direction 3,10 equals −1'],
+    ['close > supertrend(2.5, 7)', 'Close above Supertrend 2.5,7'],
+    ['close > sma(close, 50) ? close : na', 'Close when Close above SMA 50'],
+    ['if(close > open, high, low)', 'High when Close above Open, else Low'],
+    ['close > open and volume > 1000000', 'Close above Open and Volume above 1000000'],
+    ['not (close > open)', 'not (Close above Open)'],
+    ['close > open or close < low[1]', 'Close above Open or Close below previous Low'],
+  ])('%s → %s', (src, name) => expect(plain(src)).toBe(name))
+
+  it('the formula wording keeps the upper-case call convention', () => {
+    expect(formula('supertrend(3, 10)')).toBe('SUPERTREND 3,10')
+  })
+})

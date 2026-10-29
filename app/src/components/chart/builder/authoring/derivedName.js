@@ -143,6 +143,8 @@ const fmtNum = (v) => {
   if (!Number.isFinite(v)) return String(v)
   return Number.isInteger(v) ? String(v) : String(Number(v.toPrecision(6)))
 }
+/** Plain-mode words for calls the upper-case chart convention garbles. */
+const PLAIN_CALL_WORDS = Object.freeze({ supertrend: 'Supertrend', supertrendDirection: 'Supertrend direction' })
 const cap = (s) => (s ? s[0].toUpperCase() + s.slice(1) : s)
 
 /** One node → compact chart words. Deterministic; total over the node grammar. */
@@ -200,7 +202,11 @@ export function nameOfTree(node, parentPrec = 0, mode = 'plain') {
         const dir = node.name === 'crossOver' ? 'above' : 'below'
         return `${sub(args[0], 9)} crosses ${dir} ${sub(args[1], 9)}`
       }
-      const fn = String(node.name || '').toUpperCase()
+      // A call whose name is a camel-case phrase reads as words in plain mode
+      // ("Supertrend direction 3,10", not "SUPERTRENDDIRECTION 3,10"); the
+      // formula wording keeps the upper-case convention byte for byte.
+      const fn = plain && PLAIN_CALL_WORDS[node.name] ? PLAIN_CALL_WORDS[node.name]
+        : String(node.name || '').toUpperCase()
       // ⭐ THE CHART CONVENTION: "EMA 20", "RSI 14", "MACD 12,26,9". The bar
       // field `close` is the default source and is not repeated; any other source
       // IS part of the name ("EMA 20 (Open)") — a name must not hide what it reads.
