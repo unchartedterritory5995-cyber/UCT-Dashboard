@@ -63,7 +63,9 @@ describe('⛔⛔ RISK-004 — the assisted-edit mechanism has exactly ONE offer'
       // full v5 reference manual text), so it refuses as an unrecognised
       // name, with no suggest — the identical shape this probe exists to cover.
       ['ta.cmf not real Pine syntax', 'x = ta.cmf(21)\nplot(x > 0 ? 1 : 0)'],
-      ['ta.supertrend tuple', '[st, dir] = ta.supertrend(3.0, 10)\nplot(dir < 0 ? 1 : 0)'],
+      // ⭐ `ta.supertrend` left this list on 2026-10-29 — its tuple TRANSLATES now (see
+      // the multifactor case below). `ta.sar` takes its place: ruled, stateful, no offer.
+      ['ta.sar ruled stateful', 'x = ta.sar(0.02, 0.02, 0.2)\nplot(close > x ? 1 : 0)'],
       ['ta.cci role-order', 'x = ta.cci(close, 20)\nplot(x < -100 ? 1 : 0)'],
       ['undefined name', 'plot(neverDefined ? 1 : 0)'],
     ]
@@ -356,15 +358,20 @@ describe('⭐ RISK-004 — confirmed SECONDARY blockers behind the first-reporte
     expect(bothTogether.refusal.message).toContain('CUMULATIVE FROM THE FIRST BAR')
   })
 
-  it('multifactor-gap-up-continuation-hold: ta.supertrend is refused in BOTH the tuple form and the bare single-assignment form — there is no expressible spelling, by design', () => {
+  // ⭐⭐ 2026-10-29: THE TUPLE NOW TRANSLATES. This case recorded "refused in both forms,
+  // by design" while the grammar had no self-reference; `ta.supertrend` is now the
+  // three bounded `accum` recurrences of `callExpansions.js::supertrendTrees`, which keep
+  // the ratchet and the flip (`supertrend.test.js` checks every published bar against
+  // Pine's own source). The BARE form stays refused — it does not compile on TradingView
+  // either — and now says the spelling that works.
+  it('multifactor-gap-up-continuation-hold: ta.supertrend translates as a tuple, and the bare single-assignment form is told to destructure', () => {
     const tuple = translatePine(['//@version=6', 'indicator("t")', '[st, dir] = ta.supertrend(3.0, 10)', 'plot(dir < 0 ? 1 : 0)'].join('\r\n'))
-    expect(tuple.ok).toBe(false)
-    expect(tuple.refusal.guard).toBe('pine:tuple')
+    expect(tuple.ok).toBe(true)
 
     const bare = translatePine(['//@version=6', 'indicator("t")', 'st = ta.supertrend(3.0, 10)', 'plot(close > st ? 1 : 0)'].join('\r\n'))
     expect(bare.ok).toBe(false)
     expect(bare.refusal.guard).toBe('pine:function')
-    expect(bare.refusal.message).toContain('NOT EXPRESSIBLE')
+    expect(bare.refusal.message).toContain('returns 2 values')
   })
 
   it('recency-macd-turn-recent: fixing ta.valuewhen\'s ARITY alone is not enough — the correctly-arranged 3-arg call still fails on role-order', () => {
@@ -581,7 +588,11 @@ describe('✅ RISK-004 REMEDIATION — ta.barssince bounding-heuristic gaps (nz-
     expect(misses).not.toContain('volatility-range-contraction-base')
     // ⭐⭐ 20 → 19 ON 2026-09-20. See this test's own title-string changelog.
     expect(misses).not.toContain('recency-macd-turn-recent')
-    expect(misses.length).toBe(19)
+    // ⭐⭐ 19 → 18 ON 2026-10-29: `ta.supertrend` translates (the bounded-recurrence
+    // expansion), and `multifactor-gap-up-continuation-hold` — held by it — leaves the
+    // miss set: new capability, read rather than argued.
+    expect(misses).not.toContain('multifactor-gap-up-continuation-hold')
+    expect(misses.length).toBe(18)
   })
 })
 

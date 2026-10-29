@@ -148,6 +148,28 @@
         "k#0",
         "k#0.0"
       ]
+    },
+    {
+      "name": "supertrend call (the model writes the call; the browser collapses the stored expansion back to it)",
+      "key": "st",
+      "tree": {
+        "type": "call",
+        "name": "supertrend",
+        "args": [
+          {
+            "type": "num",
+            "value": 3
+          },
+          {
+            "type": "num",
+            "value": 10
+          }
+        ]
+      },
+      "ids": [
+        "st#0",
+        "st#1"
+      ]
     }
   ]
 }

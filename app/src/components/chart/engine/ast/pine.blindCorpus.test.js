@@ -199,7 +199,6 @@ const UNSERVED_PROBES = Object.freeze({
   'ta.cmf': 'plot(ta.cmf(21) > 0.1 ? 1 : 0)',
   'ta.obv': 'plot(ta.obv > 1000 ? 1 : 0)',
   'ta.accdist': 'plot(ta.accdist > 1000 ? 1 : 0)',
-  'ta.supertrend': '[st, dir] = ta.supertrend(3.0, 10)\nplot(dir < 0 and st > 0 ? 1 : 0)',
   'ta.cci': 'plot(ta.cci(close, 20) > 100 ? 1 : 0)',
   // ➕ ADDENDUM 2026-09-12 (ruling 3.5, `29d64a2ef`): this probe asked for "D" and
   // "D" now TRANSLATES — a literal naming the engine's own base folds to the identity.
@@ -237,6 +236,9 @@ const SERVED_CONTROLS = Object.freeze({
   // correctly still refuse (the LEVEL stays excluded, exactly like `ta.obv`).
   'ta.falling': 'plot(ta.falling(close, 3) ? 1 : 0)',
   'ta.kcw': 'plot(ta.kcw(close, 20, 2.0) > 0.1 ? 1 : 0)',
+  // ⭐⭐ 2026-10-29 — moved from UNSERVED_PROBES: the tuple translates to the bounded-
+  // recurrence expansion (`callExpansions.js::supertrendTrees`, `supertrend.test.js`).
+  'ta.supertrend': '[st, dir] = ta.supertrend(3.0, 10)\nplot(dir < 0 and st > 0 ? 1 : 0)',
 })
 
 /** ⭐ 2026-09-04 — 20 → 21 / 27 → 28: A VENUE-QUALIFIED TICKER.
