@@ -67,6 +67,12 @@ export function fmtReceived(ms, nowMs = Date.now()) {
   return _etDay(ms) === _etDay(nowMs) ? formatTimeEt(ms, { seconds: true }) : formatDateTimeEt(ms / 1000)
 }
 
+/** Tooltip for the category label: derived by UCT, the provider's own label kept. */
+export function categoryTitle(item) {
+  const src = item?.source ? ` · Trade Exchange label: ${item.source}` : ''
+  return `Category (assigned by UCT)${src}`
+}
+
 /** The full receipt instant with its zone, for tooltips. */
 export const fmtReceivedFull = (ms) => (ms ? formatDateTimeEt(ms / 1000) : '')
 

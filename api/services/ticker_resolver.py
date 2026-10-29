@@ -183,6 +183,13 @@ class Context:
     exclude: frozenset = frozenset()
     #: Only the explicit cashtag tier counts; a bare word is never a ticker here.
     cashtags_only: bool = False
+    #: A wire's explicit leading symbol slot (``NVAX - Novavax …``, ``FORM 4 - TFC - …``):
+    #: "" = not parsed; "listed" = in the universe only; "trusted" = also a plain
+    #: 1-5 letter symbol the universe lacks (the wire itself names it).
+    leading: str = ""
+    #: ALL-CAPS text carries no capitalisation signal, so its bare words need a
+    #: strong cue there ("RATES CAN BE LOWER" is English, not Canaan).
+    shout_guard: bool = False
 
 
 #: A member's typed question (AI Search, the palette, the AI door).
@@ -201,7 +208,58 @@ HEADLINE = Context("headline", frozenset(_TICKER_BLACKLIST), lowercase_cued=Fals
 CASHTAG_POST = Context("cashtag_post", frozenset(), lowercase_cued=False,
                        exclude=CASHTAG_EXCLUDED, cashtags_only=True)
 
-CONTEXTS = (QUERY, DISCOVERY_PROSE, HEADLINE, CASHTAG_POST)
+#: Trade Exchange wire headlines (News widget). Same headline vocabulary; the wire's
+#: own symbol slot is read first, and shouted text never promotes a bare word.
+WIRE_NEWS = Context("wire_news", frozenset(_TICKER_BLACKLIST), lowercase_cued=False,
+                    leading="listed", shout_guard=True)
+#: A wire press release: the leading slot is the issuer's symbol, so it is trusted.
+WIRE_RELEASE = Context("wire_release", frozenset(_TICKER_BLACKLIST), lowercase_cued=False,
+                       leading="trusted", shout_guard=True)
+#: A wire SEC-filing line (``FORM 4P - TFC - TRUIST …|DIRECTOR|…|SCHMITT DANIEL MP``):
+#: the body is names and roles, so ONLY the slot and cashtags count.
+WIRE_FILING = Context("wire_filing", frozenset(), lowercase_cued=False,
+                      cashtags_only=True, leading="trusted")
+
+CONTEXTS = (QUERY, DISCOVERY_PROSE, HEADLINE, CASHTAG_POST, WIRE_NEWS, WIRE_RELEASE, WIRE_FILING)
+
+#: The wire's leading slot: an optional SEC form prefix (``FORM 4P - `` or ``FORM 4P  ``),
+#: then 1-4 symbols, then " - ".
+_LEAD_SYM = r"[A-Z][A-Z0-9]{0,5}(?:[.\-][A-Z]{1,2})?"
+_LEADING_RE = re.compile(r"^\s*(?:FORM\s+[0-9][0-9A-Z/\-]{0,5}\s+(?:-\s+)?)?"
+                         rf"((?:{_LEAD_SYM}\s+){{0,3}}{_LEAD_SYM})\s+-\s+")
+_PLAIN_SYM = re.compile(r"^[A-Z]{1,5}$")
+#: Words-with-letters in a headline; >= 80% of them in capitals (and >= 4 words) is shouting.
+_WORD_RE = re.compile(r"[A-Za-z]{2,}")
+#: Strong cues that survive shouting: an explicit stock noun next to the symbol.
+_SHOUT_CUE = re.compile(r"\b([A-Z]{2,5})\s+(?:SHARES|STOCK)\b|\bSHARES\s+OF\s+([A-Z]{2,5})\b")
+
+
+def _shouting(text: str) -> bool:
+    words = _WORD_RE.findall(text)
+    return len(words) >= 4 and sum(w.isupper() for w in words) >= 0.8 * len(words)
+
+
+def _leading(text: str, context: Context, uni: set, exclude: frozenset) -> tuple[list[str], int]:
+    """The wire's explicit symbol slot, and where the rest of the text starts."""
+    m = _LEADING_RE.match(text) if context.leading else None
+    if not m:
+        return [], 0
+    out: list[str] = []
+    for raw in m.group(1).split():
+        sym = canonical(raw)
+        listed = sym in uni
+        trusted = context.leading == "trusted" and _PLAIN_SYM.match(sym) and sym not in context.stop
+        if (listed or trusted) and sym not in out and sym not in exclude:
+            out.append(sym)
+    return out, m.end()
+
+
+class _Everything(frozenset):
+    def __contains__(self, _item) -> bool:  # every bare word is "stop-listed"
+        return True
+
+
+_ALL_BARE = _Everything()
 
 
 # ── the universe ─────────────────────────────────────────────────────────────
@@ -305,12 +363,18 @@ def resolve_tickers(text: Optional[str], context: Context = QUERY) -> list[str]:
     Total: never raises on a string or None.
     """
     q = text or ""
+    uni = universe()
+    stop, exclude = context.stop, context.exclude
+    out, rest = _leading(q, context, uni, exclude)
+    q = q[rest:]
     strong = {(a or b).upper() for a, b in _STRONG_TICKER_CUE.findall(q)}
     lower_cued = ({(a or b).upper() for a, b in _LOWER_TICKER_CUE.findall(q)}
                   if context.lowercase_cued else set())
-    uni = universe()
-    stop, exclude = context.stop, context.exclude
-    out: list[str] = []
+    if context.shout_guard and _shouting(q):
+        # No capitalisation signal: every bare word is stop-listed, and only an
+        # explicit stock noun ("CAN SHARES") counts as the strong cue.
+        stop = _ALL_BARE
+        strong = {(a or b) for a, b in _SHOUT_CUE.findall(q)}
     for m in _TOKEN_RE.finditer(q):
         cash, bare = m.group(1), m.group(2)
         if cash:

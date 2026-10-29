@@ -68,10 +68,29 @@ const HEADLINES = [
   ['SYNTHETIC: GLFX example headline', ['GLFX']],
   ['SYNTHETIC: HTLX example headline with a longer body to show the two-line clamp in compact density', ['HTLX']],
 ]
-const NEWS = HEADLINES.map(([content, tickers], i) => ({
+// ?wire=old|new — Trade Exchange wire FORMATS (illustrative text), with the server's
+// output under the OLD resolver (HEADLINE context, no category) or the NEW one (wire
+// contexts + category). Both columns were produced by the real Python resolver.
+const WIRE = [
+  ['TX-News', 'HASSETT: TRUMP BELIEVES RATES CAN BE LOWER; TRUMP RESPECTS FED INDEPENDENCE', ['CAN'], [], 'Macro'],
+  ['TX-News', 'GOOGL lows', ['GOOGL'], ['GOOGL'], 'Price'],
+  ['TX-Filings', 'FORM 4P - TFC - TRUIST FINANCIAL CORP*DIRECTOR|OFFICER - CEO: EXAMPLE NAME MP | 25,000 | $48.36', ['FORM', 'TFC', 'MP'], ['TFC'], 'Filing'],
+  ['TX-PressRelease', 'DTE - Example Energy Reports Third Quarter 2026 Results', ['DTE'], ['DTE'], 'Earnings'],
+  ['TX-PressRelease', 'NVAX NVAX - Example Bio Earns $125 Million Milestone in Partnership', ['NVAX'], ['NVAX'], 'Press Release'],
+  ['TX-Options', 'AAPL unusual call activity ahead of the event', ['AAPL'], ['AAPL'], 'Options'],
+  ['TX-PressRelease', 'S - Example Security Named Most Valuable Vendor at a Regional Summit', [], ['S'], 'Press Release'],
+  ['TX-News', 'Example Corp names a new chief operating officer', [], [], 'News'],
+  ['TX-News', 'WHITE HOUSE: WE CAN BE FLEXIBLE ON TIMING, ALL OPTIONS ARE ON THE TABLE', ['CAN', 'ALL'], [], 'News'],
+]
+const WIRE_MODE = params.get('wire')
+const ROWS = WIRE_MODE
+  ? WIRE.map(([source, content, oldT, newT, category]) => ({ source, content,
+    tickers: WIRE_MODE === 'old' ? oldT : newT, ...(WIRE_MODE === 'old' ? {} : { category }) }))
+  : HEADLINES.map(([content, tickers]) => ({ source: 'TXNews1', content, tickers }))
+const NEWS = ROWS.map((r, i) => ({
   type: 'headline', epoch: 'harness0harness0', seq: i + 1, id: `HARNESS${String(i).padStart(18, '0')}`,
-  source: 'TXNews1', content, tickers, received_at_ms: NOW - (HEADLINES.length - i) * 97_000,
-  repeat_count: i === 4 ? 1 : 0, via: i === 2 ? 'reconcile' : 'push', delayed: i === 2,
+  ...r, received_at_ms: NOW - (ROWS.length - i) * 97_000,
+  repeat_count: !WIRE_MODE && i === 4 ? 1 : 0, via: !WIRE_MODE && i === 2 ? 'reconcile' : 'push', delayed: !WIRE_MODE && i === 2,
 }))
 
 const BLOCKED = []
@@ -130,7 +149,8 @@ class HarnessES {
     this.l = {}
     setTimeout(() => this.emit('hello', { epoch: 'harness0harness0', reset: false, coverage: { complete: true, gaps: [] } }), 50)
     setTimeout(() => this.emit('headline', { ...NEWS[0], seq: NEWS.length + 1, id: 'HARNESSLIVE0000000000000000'.slice(0, 26),
-      content: 'SYNTHETIC: live headline arriving to show the new-row highlight', tickers: [], received_at_ms: Date.now(), via: 'push', delayed: false }), 1500)
+      content: 'SYNTHETIC: live headline arriving to show the new-row highlight', tickers: [],
+      ...(WIRE_MODE === 'new' ? { category: 'News', source: 'TX-News' } : {}), received_at_ms: Date.now(), via: 'push', delayed: false }), 1500)
   }
   addEventListener(n, fn) { (this.l[n] ||= []).push(fn) }
   emit(n, d) { if (this.readyState !== 2) for (const fn of this.l[n] || []) fn({ data: JSON.stringify(d) }) }
