@@ -300,6 +300,9 @@ REFUSALS: Mapping[str, str] = {
     "envelope:disposition": (
         "the assistant's answer said one thing and did another, so nothing was "
         "offered to apply"),
+    "envelope:reference": (
+        "the assistant's change named a part of the indicator that does not exist, so "
+        "nothing was offered to apply"),
     "envelope:revision": (
         "the assistant's change was written against a different version of this "
         "indicator, so nothing was offered to apply"),
@@ -505,6 +508,13 @@ CONVERSE_SYSTEM_PROMPT = (
     "that exists; `create` only when the view is empty.\n"
     "  * Address outputs by `key` and slots/clauses by the ids in the view; keys never "
     "change. Never write a type, id, version, semantics, description or repaint field.\n"
+    "  * On `create`, give EVERY output its own short `key` (letters, digits, "
+    "underscore; never \"levels\"); `primary`, assumptions and later turns name an "
+    "output only by a key that exists.\n"
+    "  * Where it draws: a separate / own / new / lower pane, a sub-chart or \"below "
+    "the chart\" is placement \"pane\"; on the price chart, an overlay or \"on the "
+    "candles\" is placement \"price\". A ratio, percentage or difference that is not "
+    "in price units belongs in \"pane\" unless the member says otherwise.\n"
     "  * Presentation: set_style (colour, width, style, hidden, lineStyle "
     "solid/dashed/dotted/largeDashed), set_marker / remove_marker, set_paint / "
     "remove_paint (markers, paints and alerts need a yes/no output, type \"condition\"), "
@@ -586,7 +596,12 @@ CONVERSE_SYSTEM_PROMPT = (
     "optionally 2-4 `choices`), set disposition clarify and emit `ops: []`. Nothing is "
     "applied on a question turn.\n"
     "  * ASSUMABLE: a UCT convention decides it. Proceed and disclose each choice in "
-    "`assumptions`, naming the slot id when the value sits in a slot. UCT conventions:\n"
+    "`assumptions`, naming the slot id when the value sits in a slot. A slot id is "
+    "`<output key>#<path>`, the `args` indices from that output's root tree (`root` "
+    "for the root itself, `n` for an offset's bar count): an output `d` whose tree is "
+    "ema(close, 9) - ema(close, 20) has `d#0.1` for the 9. Use an id shown in the "
+    "view, or one into a tree you write in this turn; when unsure, give the "
+    "assumption `text` alone. UCT conventions:\n"
     + "".join(f"      {name}: {value}\n" for name, value in UCT_DEFAULTS)
     + "    A number the member wrote is never an assumption: use it exactly.\n"
     "  * IRRELEVANT: anything the definition does not depend on. Never ask about it.\n\n"
@@ -840,8 +855,29 @@ def _refuse_scalars(trees: List[Tuple[str, Any]]) -> None:
                            member=f"it reads {', '.join(named)}")
 
 
+def _branch_errors(error: Any) -> List[Any]:
+    """⭐ 2026-10-28 -- a ``oneOf`` failure, said as the branch the value MEANT.
+    jsonschema reports "<the whole op> is not valid under any of the given schemas",
+    which (cut to 200 chars) told the repair nothing: `placement: "separate"` came
+    back as a dump of the tree. The branch meant is the one whose discriminator
+    (a direct ``const`` such as ``op`` / ``type``) the value satisfies; its own
+    errors (enum, required, unknown field) are the diagnostic. Any other failure,
+    or no single such branch, keeps the original error."""
+    if error.validator != "oneOf" or not error.context:
+        return [error]
+    by_branch: Dict[Any, List[Any]] = {}
+    for sub in error.context:
+        by_branch.setdefault(sub.relative_schema_path[0], []).append(sub)
+    meant = [subs for subs in by_branch.values()
+             if not any(s.validator == "const" and len(s.relative_path) == 1 for s in subs)]
+    if len(meant) != 1:
+        return [error]
+    return [b for s in meant[0] for b in _branch_errors(s)]
+
+
 def _schema_errors(envelope: Any) -> List[str]:
-    errors = sorted(_validator().iter_errors(envelope), key=lambda e: list(e.absolute_path))
+    errors = sorted((b for e in _validator().iter_errors(envelope) for b in _branch_errors(e)),
+                    key=lambda e: [str(p) for p in e.absolute_path])
     out = []
     for e in errors[:5]:
         path = "/".join(str(p) for p in e.absolute_path) or "(envelope)"
@@ -1050,6 +1086,143 @@ def _check_disposition(envelope: Mapping[str, Any], ops: List[Any]) -> None:
                        f"{'' if has_reply else ' and no reply'}")
 
 
+#: The output key a ``create``'s first output takes when it names none, and the key
+#: the browser reserves for a definition's level lines. Mirrors ``applyPatch.js``
+#: (``OPS.create``) and ``BuilderSheet.LEVELS_PLOT_KEY``.
+DEFAULT_FIRST_KEY = "value"
+RESERVED_OUTPUT_KEY = "levels"
+_SLOT_ID = re.compile(r"^([A-Za-z][A-Za-z0-9_]*)#(root|(?:\d+|n)(?:\.(?:\d+|n))*)$")
+#: Ops after which an existing output's slot ids may have moved (its tree changed
+#: shape). A slot named on such an output is left to the browser to resolve.
+_RESHAPING_OPS = frozenset({"add_clause", "remove_clause", "set_color_rule", "set_color_states"})
+
+
+def _create_keys(create: Mapping[str, Any]) -> List[Optional[str]]:
+    outs = create.get("outputs") or []
+    return [o.get("key") if isinstance(o, Mapping) and o.get("key") else
+            (DEFAULT_FIRST_KEY if j == 0 else None) for j, o in enumerate(outs)]
+
+
+def _slots_of_tree(key: str, tree: Any) -> List[Tuple[str, Any]]:
+    """``(slot id, value)`` for every slot of ONE tree, in the browser's coordinates
+    (``slots.js::slotsOfTree``): a ``num``, a bar-field ``series``, an offset's bar
+    count (segment ``n``), and the field of a ``sym`` / ``tf`` / ``tf_live``."""
+    from api.services import ast_table
+    bar_fields = set((ast_table.TABLE.get("series") or {}).keys())
+    found: List[Tuple[str, Any]] = []
+
+    def sid(segs: List[Any]) -> str:
+        return f"{key}#{'.'.join(str(s) for s in segs) if segs else 'root'}"
+
+    def walk(node: Any, segs: List[Any]) -> None:
+        if not isinstance(node, Mapping):
+            return
+        t = node.get("type")
+        if t == "num":
+            found.append((sid(segs), node.get("value")))
+            return
+        if t == "series" and node.get("name") in bar_fields:
+            found.append((sid(segs), node.get("name")))
+            return
+        if t == "offset" and isinstance(node.get("value"), (int, float)):
+            found.append((sid(segs + ["n"]), node.get("value")))
+        if t in ("sym", "tf", "tf_live") and isinstance(node.get("value"), str):
+            found.append((sid(segs), node.get("value")))
+        for i, a in enumerate(node.get("args") or []):
+            walk(a, segs + [i])
+
+    walk(tree, [])
+    return found
+
+
+def _check_references(envelope: Mapping[str, Any], view: Any) -> None:
+    """⭐ 2026-10-28 -- THE NAMES A PATCH USES MUST NAME SOMETHING. The browser engine
+    refuses a whole patch whose output keys or assumption references do not resolve
+    (``create:key-required``, ``output:duplicate`` / ``reserved`` / ``unknown``,
+    ``assumption:unknown-output`` / ``unknown-slot``). It runs AFTER this door has
+    answered ``ok``, so the model never got its repair and the member read only
+    "proposed a change that does not fit this indicator" for a correct formula.
+    The same rules run here, so a dangling reference costs the ONE bounded repair,
+    with the exact valid names in the diagnostic. ⛔ Never stricter than the browser:
+    a reference this door cannot judge (a reshaped existing output, a helper) passes
+    and stays the browser's to decide."""
+    d = (view or {}).get("definition") if isinstance(view, Mapping) else None
+    view_outputs = [o for o in ((d or {}).get("outputs") or []) if isinstance(o, Mapping)]
+    keys = {o["key"] for o in view_outputs if isinstance(o.get("key"), str)}
+    view_slots = {o["key"]: {s.get("id") for s in o.get("slots") or [] if isinstance(s, Mapping)}
+                  for o in view_outputs if isinstance(o.get("key"), str) and "slots" in o}
+    authored: Dict[str, Any] = {}
+    reshaped: set = set()
+    ops = [o for o in (envelope.get("ops") or []) if isinstance(o, Mapping)]
+    for i, o in enumerate(ops):
+        name = o.get("op")
+        if name == "create":
+            ck = _create_keys(o)
+            if any(k is None for k in ck):
+                raise _Refused("envelope:reference",
+                               f"ops[{i}] create: every output after the first needs its own `key`")
+            if len(set(ck)) != len(ck):
+                raise _Refused("envelope:reference",
+                               f"ops[{i}] create: two outputs share one key ({', '.join(ck)})")
+            if RESERVED_OUTPUT_KEY in ck:
+                raise _Refused("envelope:reference",
+                               f"ops[{i}] create: the key {RESERVED_OUTPUT_KEY!r} is reserved; pick another")
+            if o.get("primary") is not None and o.get("primary") not in ck:
+                raise _Refused("envelope:reference",
+                               f"ops[{i}] create: primary {o.get('primary')!r} is not one of its keys "
+                               f"({', '.join(ck)})")
+            keys.update(ck)
+            for k, out in zip(ck, o.get("outputs") or []):
+                if isinstance(out, Mapping) and "tree" in out:
+                    authored[k] = out["tree"]
+        elif name == "add_output" and isinstance(o.get("key"), str):
+            if o["key"] == RESERVED_OUTPUT_KEY:
+                raise _Refused("envelope:reference",
+                               f"ops[{i}] add_output: the key {RESERVED_OUTPUT_KEY!r} is reserved; pick another")
+            keys.add(o["key"])
+            if "tree" in o:
+                authored[o["key"]] = o["tree"]
+        elif name == "set_output_tree" and isinstance(o.get("output"), str) and "tree" in o:
+            authored[o["output"]] = o["tree"]
+        elif name == "remove_output" and isinstance(o.get("output"), str):
+            keys.discard(o["output"])
+        if name in _RESHAPING_OPS and isinstance(o.get("output"), str):
+            reshaped.add(o["output"])
+
+    for j, a in enumerate(envelope.get("assumptions") or []):
+        if not isinstance(a, Mapping):
+            continue
+        where = f"assumptions[{j}]"
+        if a.get("slot") is not None:
+            m = _SLOT_ID.match(str(a["slot"]))
+            key = m.group(1) if m else None
+            valid: List[Tuple[str, Any]] = []
+            if key in authored:
+                valid = _slots_of_tree(key, authored[key])
+                if a["slot"] in {sid for sid, _ in valid}:
+                    continue
+            elif key in reshaped or (key in keys and key not in view_slots):
+                continue                    # not judgeable here: the browser decides
+            elif key in view_slots:
+                if a["slot"] in view_slots[key]:
+                    continue
+                valid = [(sid, "") for sid in sorted(s for s in view_slots[key] if s)]
+            listed = ", ".join(f"{sid} = {v}" if v != "" else sid for sid, v in valid[:16]) or "none"
+            raise _Refused(
+                "envelope:reference",
+                f"{where}.slot {a['slot']!r} names no parameter of the result. A slot id is "
+                "`<output key>#<path>`: the `args` indices from that output's root tree "
+                "(`root` for the root, `n` for an offset's bar count). "
+                f"The slots of {key!r} are: {listed}. Use one of those ids, or give the "
+                "assumption `text` alone with no `slot`.")
+        elif a.get("output") is not None and a["output"] not in keys:
+            raise _Refused(
+                "envelope:reference",
+                f"{where}.output {a['output']!r} is not an output key of the result "
+                f"({', '.join(sorted(keys)) or 'none'}); use one of those keys, or give the "
+                "assumption `text` alone.")
+
+
 def check_envelope(envelope: Any, revision: int, view: Any = None) -> Dict[str, Any]:
     """Structural pre-check of the model's answer. Returns it UNCHANGED, or raises
     ``_Refused``. ⛔ Never applies, never repairs, never strips: an envelope with
@@ -1083,6 +1256,7 @@ def check_envelope(envelope: Any, revision: int, view: Any = None) -> Dict[str, 
                        member=f"a setting may not be named {', '.join(clash)}")
     for where, tree in _trees_of(envelope):
         _check_tree(where, tree, inputs)
+    _check_references(envelope, view)
     # ⭐ PHASE 5 -- THE FAN-OUT BOUND, over the whole turn (the browser gate holds
     # it over the whole RESULT, which also counts symbols already in the indicator).
     named = scope_tickers(_trees_of(envelope))
