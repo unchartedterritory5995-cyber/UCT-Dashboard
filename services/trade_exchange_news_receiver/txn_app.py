@@ -91,6 +91,7 @@ def create_app(cfg: rx.Config | None = None, journal: Journal | None = None,
     forwarder = forwarder or Forwarder(cfg.web_ingest_url, cfg.ingest_token)
     bucket = rx.TokenBucket(cfg.rate_burst, cfg.rate_per_sec)
     counters = rx.Counters()
+    refused_labels = _LabelLogLimit()
 
     async def _summary_loop() -> None:
         while True:
@@ -225,6 +226,8 @@ def create_app(cfg: rx.Config | None = None, journal: Journal | None = None,
         except rx.PayloadError as e:
             counters.inc("refused_source" if e.reason.startswith("source is not")
                          else "refused_oversize" if e.status == 413 else "refused_malformed")
+            if e.label is not None and refused_labels.due(e.label):
+                logger.warning("[txn] refused source label=%r (not on TXN_SOURCE_ALLOWLIST)", e.label)
             return JSONResponse({"detail": e.reason}, status_code=e.status)
         if cfg.synthetic_only and not content.startswith(rx.SYNTHETIC_PREFIX):
             # Staging never stores or forwards anything that is not synthetic.
@@ -254,6 +257,24 @@ def create_app(cfg: rx.Config | None = None, journal: Journal | None = None,
                             status_code=200 if not problems else 503)
 
     return app
+
+
+class _LabelLogLimit:
+    """Each distinct refused label logs at most once per ``every_s``; at most ``cap``
+    labels are tracked, so a sender cycling labels cannot flood the log."""
+
+    def __init__(self, every_s: float = 600.0, cap: int = 16) -> None:
+        self.every_s, self.cap, self.last = every_s, cap, {}
+
+    def due(self, label: str, now: float | None = None) -> bool:
+        now = time.monotonic() if now is None else now
+        seen = self.last.get(label)
+        if seen is not None and now - seen < self.every_s:
+            return False
+        if seen is None and len(self.last) >= self.cap:
+            return False
+        self.last[label] = now
+        return True
 
 
 def _boot_app() -> Any:
