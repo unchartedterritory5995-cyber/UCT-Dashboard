@@ -20,6 +20,7 @@ import { createHash } from 'node:crypto'
 import { memberPaneDefinition } from './memberPaneDefinition.js'
 import { applyParamEdit, reconcileParams } from '../paramEdit.js'
 import { treesHash } from '../../engine/ast/trees.js'
+import { validateDefinition } from '../../engine/defSchema.js'
 
 const REPO = path.resolve(__dirname, '../../../../../..')
 const DIR = path.join(REPO, 'tests/fixtures/pine_param_ids')
@@ -38,9 +39,15 @@ const valuesOf = (definition) => {
   const state = reconcileParams(definition)
   return Object.fromEntries(Object.keys(state).map((id) => [id, state[id].value]))
 }
-const build = (script) => memberPaneDefinition({
-  source: fs.readFileSync(path.join(REPO, script), 'utf8'), id: 'u_member-pane-c46',
-})
+const build = (script) => {
+  const built = memberPaneDefinition({
+    source: fs.readFileSync(path.join(REPO, script), 'utf8'), id: 'u_member-pane-c46',
+  })
+  if (built.ok) {
+    MINTED.set(built.definition, new Set((built.rows || []).filter((r) => r && typeof r.conditionFor === 'string').map((r) => r.key)))
+  }
+  return built
+}
 
 /** ⭐ B1 — A PAINT'S COLOUR COLUMN IS AN APPEND (the manifest's own rule, C46 ruling 3 /
  *  R-P, applied to the computation). A `bgcolor` / `barcolor` the door now carries adds a
@@ -69,6 +76,53 @@ const computeBeforePaints = (definition) => {
   return c
 }
 
+/** ⭐⭐ A CONDITION COLUMN'S LOCATORS ARE AN APPEND TOO (2026-10-29, the fill-alpha fix).
+ *  A conditional colour's hidden column reads the same parameters its plot does
+ *  (`isBullish = fastMA > slowMA` reads both of Uncharted Clouds' lengths), and the door
+ *  now places those parameters THERE as well — before, an edit moved the lines and left
+ *  the colour deciding on the OLD lengths (TradingView set E3/E4). A saved document
+ *  never held such a locator, so the comparison takes exactly those out: a locator in a
+ *  hidden column a plot's or a fill's `colorMode` names. Every other place must match. */
+/** The condition columns the DOOR minted (`rows[].conditionFor`), per built document —
+ *  never an author's own hidden row, whose locators were always there. */
+const MINTED = new WeakMap()
+const conditionColumnKeys = (definition) => MINTED.get(definition) || new Set()
+const savedLocators = (definition, locators) => {
+  const keys = conditionColumnKeys(definition)
+  return (locators || []).filter((l) => !keys.has(l.treeIndex))
+}
+/** ⭐⭐ …AND AN EDIT'S HANDLE NOW MOVES WITH ITS TREE. `applyParamEdit` used to leave
+ *  `compute.fn` at the UNEDITED tree's hash when it rewrote the scan tree, and
+ *  `defSchema` refuses exactly that (`compute.fn` must be `astHash(compute.ast)`) — so
+ *  the edited documents this fixture recorded were never installable (railed below).
+ *  The comparison restores the stale handle the old edit left and the condition
+ *  columns it failed to move (below) — those two, and nothing else. */
+const asSaved = (definition, staleFn, unedited) => {
+  const keysOf = unedited || definition
+  let d = definition
+  if (unedited && definition.compute.trees && conditionColumnKeys(keysOf).size) {
+    // ⭐ THE EDIT AS THE OLD DOOR MADE IT: the condition columns did NOT follow the
+    // edit (no locator reached them), so they are put back to the unedited tree —
+    // the ONE other thing today's edit changes, and the defect it fixes.
+    const keys = conditionColumnKeys(keysOf)
+    const trees = { ...definition.compute.trees }
+    const sources = { ...(definition.compute.sources || {}) }
+    for (const k of keys) {
+      if (unedited.compute.trees && k in unedited.compute.trees) trees[k] = unedited.compute.trees[k]
+      if (unedited.compute.sources && k in unedited.compute.sources) sources[k] = unedited.compute.sources[k]
+    }
+    const compute = { ...definition.compute, trees, ...(definition.compute.sources ? { sources } : {}) }
+    if (definition.compute.treesHash !== undefined) compute.treesHash = treesHash(trees)
+    d = { ...definition, compute }
+  }
+  const c0 = computeBeforePaints(d)
+  const manifest = c0.paramManifest
+    ? Object.fromEntries(Object.entries(c0.paramManifest).map(([id, e]) => [id, { ...e, locators: savedLocators(keysOf, e.locators) }]))
+    : c0.paramManifest
+  const c = { ...c0, paramManifest: manifest }
+  return staleFn ? { ...c, fn: staleFn } : c
+}
+
 const scripts = Object.keys(SAVED).filter((k) => k !== '_about' && fs.existsSync(path.join(REPO, k)))
 
 describe('C46 — documents saved under the walk-order ids', () => {
@@ -88,7 +142,8 @@ describe('C46 — documents saved under the walk-order ids', () => {
       const manifest = built.definition.compute.paramManifest || {}
       for (const id of new Set([...Object.keys(was.params), ...Object.keys(manifest)])) {
         const a = was.params[id]
-        const b = manifest[id]
+        const b0 = manifest[id]
+        const b = b0 ? { ...b0, locators: savedLocators(built.definition, b0.locators) } : b0
         // ⭐ A GAIN IS AN APPEND (C46 ruling 3; R-P 2026-10-01): an id the saved document never
         // held, minted because the door now carries more of the script, moves nothing a member
         // saved. Only an id the saved document HELD and the door no longer builds is a move.
@@ -100,7 +155,7 @@ describe('C46 — documents saved under the walk-order ids', () => {
         if (!same) moved.push({ script, id, was: a.sourceName, now: b.sourceName, locators: [a.locators, (b.locators || []).length] })
       }
       // …and the document around the manifest is the same document.
-      if (sha(JSON.stringify(computeBeforePaints(built.definition))) !== was.computeSha) moved.push({ script, problem: 'the saved computation changed' })
+      if (sha(JSON.stringify(asSaved(built.definition))) !== was.computeSha) moved.push({ script, problem: 'the saved computation changed' })
     }
     expect(moved, `saved documents no longer round-trip:\n${JSON.stringify(moved, null, 2)}`).toEqual([])
   }, 900000)
@@ -125,7 +180,7 @@ describe('C46 — documents saved under the walk-order ids', () => {
         wrong.push({ script, was: was.editedState, now: valuesOf(doc) })
       }
       // the edited document is byte-for-byte the one the old assignment saved
-      if (sha(JSON.stringify(computeBeforePaints(doc))) !== was.editedComputeSha) wrong.push({ script, problem: 'the edited document differs' })
+      if (sha(JSON.stringify(asSaved(doc, built.definition.compute.fn, built.definition))) !== was.editedComputeSha) wrong.push({ script, problem: 'the edited document differs' })
     }
     expect(wrong, `saved values landed elsewhere:\n${JSON.stringify(wrong, null, 2)}`).toEqual([])
   }, 900000)
@@ -161,11 +216,31 @@ describe('C46 — documents saved under the walk-order ids', () => {
     expect(paintOnlyKeys(built.definition).size).toBeGreaterThan(0)
     expect(sha(JSON.stringify(built.definition.compute))).not.toBe(SAVED[script].computeSha)
     // …and with it out, the computation is the saved one exactly.
-    expect(sha(JSON.stringify(computeBeforePaints(built.definition)))).toBe(SAVED[script].computeSha)
+    expect(sha(JSON.stringify(asSaved(built.definition)))).toBe(SAVED[script].computeSha)
     // a script that writes no paint takes the identity path: nothing is taken out.
     const plain = build('tests/fixtures/member/uncharted-volume-v2.pine')
     expect(plain.ok).toBe(true)
     expect(computeBeforePaints(plain.definition)).toBe(plain.definition.compute)
+  }, 120000)
+
+  it('⛔⛔ the stale handle is a DEFECT, not a shape: the old edit was refused, today\'s installs', () => {
+    // Uncharted Clouds, the saved edit replayed: with the handle the old `applyParamEdit`
+    // left, `defSchema` refuses the document; with today's, it validates.
+    const script = 'tests/fixtures/member/uncharted-clouds.pine'
+    const was = SAVED[script]
+    const built = build(script)
+    expect(built.ok).toBe(true)
+    let doc = built.definition
+    for (const id of Object.keys(was.values)) {
+      const applied = applyParamEdit(doc, id, was.values[id])
+      expect(applied.ok, applied.error).toBe(true)
+      doc = applied.definition
+    }
+    expect(doc.compute.fn, 'NON-VACUITY: this edit moves the scan tree').not.toBe(built.definition.compute.fn)
+    const stale = { ...doc, compute: { ...doc.compute, fn: built.definition.compute.fn } }
+    expect(validateDefinition(stale).ok).toBe(false)
+    expect(validateDefinition(stale).errors.join(' ')).toMatch(/compute handle IS its astHash/)
+    expect(validateDefinition(doc).ok, (validateDefinition(doc).errors || []).join(' ')).toBe(true)
   }, 120000)
 
   it('⛔ a value moved on ONE id reaches that input only', () => {

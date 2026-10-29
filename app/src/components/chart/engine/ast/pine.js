@@ -26420,10 +26420,18 @@ function colourHelperAlpha(node, env, ctx, depth = 0) {
   const arity = node.name === 'color.new' ? 1 : (node.name === 'color.rgb' ? 3 : null)
   if (arity === null) return null
   const raw = alphaNumberOf(((node.args || [])[arity] || {}).value, env, ctx)
-  // ⭐ C29 — Pine holds a WHOLE transparency, truncated (`color.new(c, 70.5)` →
-  // 70; measured on `vw-gradient-spy-1d-2026-09-30`), in the plot lane too.
-  const t = raw === null ? null : wholeTransparency(raw)
-  return t === null ? null : Math.max(0, Math.min(1, 1 - t / 100))
+  // ⛔⛔ THE PAINT IS NOT TRUNCATED — only `color.t`'s READ-BACK is. C29's probe
+  // (`vw-gradient-spy-1d-2026-09-30`) plotted `color.t(color.new(c, 70.5))` and
+  // read 70: that is what `color.t` ANSWERS, and `colourTransparencyOf` (the
+  // `color.t` fold) still truncates. What a colour PAINTS is the exact float:
+  // Uncharted Clouds' bands are `color.new(c, 92.5)`, `(c, 87.5)`, … and
+  // TradingView paints them alpha 19, 32, … = round((1 − t/100) × 255) on the
+  // EXACT t (truncated they would be 20, 33 — 10 of the 20 bands a byte or two
+  // off; captures A and D, `tests/fixtures/vendor/reference/`). ⚰️ This read
+  // `wholeTransparency(raw)` here "in the plot lane too", an extrapolation from
+  // the read-back to the paint that no capture had measured.
+  if (raw === null || !Number.isFinite(raw)) return null
+  return Math.max(0, Math.min(1, 1 - raw / 100))
 }
 
 /** ⭐⭐ R35d — THE TRANSPARENCY OF A COLOUR THAT FOLDS, 0-100, or null.
@@ -26478,7 +26486,10 @@ function colourTransparencyOf(node, env, depth = 0) {
   }
   if (node.type === 'call' && (node.name === 'color.new' || node.name === 'color.rgb')) {
     const opacity = colourHelperAlpha(node, env, null)
-    return opacity === null ? null : (1 - opacity) * 100
+    // ⭐ C29 — what `color.t` ANSWERS is a WHOLE transparency, truncated
+    // (`color.t(color.new(c, 70.5))` reads 70, measured). The paint keeps the
+    // exact float (`colourHelperAlpha`); this is the read-back, so it truncates.
+    return opacity === null ? null : wholeTransparency((1 - opacity) * 100)
   }
   return null
 }

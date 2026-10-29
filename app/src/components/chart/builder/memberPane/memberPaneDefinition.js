@@ -396,6 +396,13 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
       // for. `defSchema` validates it and the renderer reads it (I-4, "an author's
       // declaration dropped on the floor — Wired"); only this step was missing.
       ...(p.opacity !== undefined ? { opacity: p.opacity } : {}),
+      // ⚰️ AND SO WAS `linewidth`. `outputPresentation` reads it (`pres.width`) and
+      // `chromeInputsFor` makes a row's `width` the DEFAULT of its width input, but
+      // this projection never named it, so every member-pane plot drew at the
+      // input's fallback of 1. Uncharted Clouds asks `linewidth = 2` for both MAs
+      // and TradingView draws 2 (capture A's own `styles.plot_0.linewidth`).
+      // Clamped to the width input's own [1, 4], the Builder's Pine-import rule.
+      ...(Number.isFinite(p.width) ? { width: Math.max(1, Math.min(4, Math.round(p.width))) } : {}),
       ...(p.marker && p.marker.shape ? { marker: p.marker } : {}),
       ...(condKey ? { colorMode: `column:${condKey}`, colorUp: p.colorUp, colorDown: p.colorDown } : {}),
       ...(paletteKey ? { colorMode: `column:${paletteKey}`, colorPalette: p.colorPalette.slice() } : {}),
@@ -539,10 +546,30 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
   // and `reconcile` reported the control dead. Measured on the rail below. `null` is
   // the one address a single-tree document has, and it is unambiguous there.
   const singleTree = rows.length === 1
-  const manifest = manifestFromPlacements(t.inputParams || [], drawable.map((o, i) => ({
+  // ⛔⛔ …AND THE CONDITION COLUMNS ARE TREES TOO. A conditional colour's column
+  // (`conditionColumnFor`, above) reads the SAME parameters its plot or fill does —
+  // Uncharted Clouds' `isBullish = fastMA > slowMA` reads both lengths. ⚰️ They were
+  // left out of the placements, so an edit to `ma1Length` moved the MAs and the
+  // twenty layers and left the colour deciding which way the cloud faces on the OLD
+  // lengths: TradingView set E3 (EMA 5/50) painted 520 band-bars the wrong side and
+  // E4 (21/8) 4,980.
+  // ⛔ ONLY A PARAMETER A DRAWN ROW ALREADY CARRIES IS EXTENDED. A parameter that
+  // lives in a condition column ALONE (a `useAdapt ? teal : orange` toggle) is the
+  // colour-input lane's (`colourSpecs`), and minting a folded parameter for it here
+  // would be a second door onto one knob — and would move every saved document's
+  // manifest for a script nobody edited.
+  const drawnPlacements = drawable.map((o, i) => ({
     treeIndex: singleTree ? null : keyAt(i),
     locators: paramLocatorsIn(t.inputParams || [], o.ast),
-  })))
+  }))
+  const drawnParams = new Set(drawnPlacements.flatMap((p) => p.locators.map((l) => l.id)))
+  const manifest = manifestFromPlacements(t.inputParams || [], [
+    ...drawnPlacements,
+    ...conditionRows.map((cr) => ({
+      treeIndex: cr.key,
+      locators: paramLocatorsIn(t.inputParams || [], cr.ast).filter((l) => drawnParams.has(l.id)),
+    })),
+  ])
 
   // ⭐⭐ 2026-09-26 — A LEFTWARD DISPLACEMENT IS DRAWN, NOT DROPPED.
   //
@@ -1173,6 +1200,8 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
       color: typeof p.color === 'string' ? p.color : undefined,
       hidden: false,
       ...(p.opacity !== undefined ? { opacity: p.opacity } : {}),
+      // `linewidth`, as the host lane's rows carry it (see that projection).
+      ...(Number.isFinite(p.width) ? { width: Math.max(1, Math.min(4, Math.round(p.width))) } : {}),
       ...(p.marker && p.marker.shape ? { marker: p.marker } : {}),
       // The host output this row draws — the vendor harness and the pane's
       // disclosures read it; nothing computes from it.

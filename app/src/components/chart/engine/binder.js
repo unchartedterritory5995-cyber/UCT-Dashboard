@@ -63,6 +63,7 @@ import {
 } from './pool'
 import { paneMode, paneStretchPlan, paneHeightMismatch } from './paneLayout'
 import { createFillPrimitive } from './fillPrimitive'
+import { fillOpacityOf, fillPaint, staticFillOf } from './fillPaint'
 import { createBackgroundPrimitive, isNaColour, staticPaintColour } from './paintPrimitive'
 import { markersFor, createMarkerLayer } from './markerPrimitive'
 import { semanticsOf, SEMANTICS_UNKNOWN_PROPAGATES } from './definitionSemantics'
@@ -129,17 +130,13 @@ function rthFrameBars(fbars) {
 /** Projection memo: frame column set → (chart bars → projected set). */
 const _projMemo = new WeakMap()
 
-/** A fill's colour and opacity — the plot's own `fillColor`/`fillOpacity` when it
- *  declares them, else its series colour at a low default alpha.
- *  ⛔ DEFAULTED HERE, NOT IN THE SCHEMA. `defSchema` validates SHAPE; inventing a
+/** A STATIC fill's colour and opacity -- `fillPaint.staticFillOf`, the one
+ *  authority both band paths share (the per-bar half is `bandColoursFor`).
+ *  ⛔ DEFAULTED THERE, NOT IN THE SCHEMA. `defSchema` validates SHAPE; inventing a
  *  colour there would write it into every stored document as though the author
  *  had chosen it, which is the same "stamped default" defect `legendMode` names. */
 function effectiveFillColour(plot) {
-  const color = (plot && typeof plot.fillColor === 'string' && plot.fillColor)
-    || (plot && typeof plot.color === 'string' && plot.color) || '#2962FF'
-  const opacity = (plot && Number.isFinite(plot.fillOpacity))
-    ? Math.max(0, Math.min(1, plot.fillOpacity)) : 0.15
-  return { color, opacity }
+  return staticFillOf(plot)
 }
 
 /** Monotonic id stamped on each resolved source column, so a consumer's memo key
@@ -449,6 +446,30 @@ function fillColours(fillSpec, instanceId, columns, n, unknownNone = false) {
   const out = new Array(n)
   for (let i = 0; i < n; i += 1) out[i] = pointColour(cc, cond, i, unknownNone)
   return out
+}
+
+/**
+ * ⭐⭐ A BAND'S PER-BAR PAINT: the colour its `fill.colorMode` rule picks on each
+ * bar, at the band's OWN opacity (`plots[].fillOpacity`), joined by
+ * `fillPaint` -- the same function the static band paints through.
+ *
+ * ⚰️ THIS WAS `fillColours(plot.fill)`, which reads the alpha off the SPEC
+ * (`plotAlpha(fill)` inside `columnColorsForPlot`) -- a `fill.opacity` no door
+ * writes -- so every conditional band painted opaque while the document said
+ * 5%-52.5% (Uncharted Clouds vs TradingView, captures A and D).
+ * ⛔ The spec's own `opacity` is STRIPPED before the colour rule reads it, so
+ * there is exactly one alpha, applied exactly once.
+ */
+export function bandColoursFor(plot, instanceId, columns, n, unknownNone = false) {
+  const spec = plot && plot.fill
+  if (!spec || typeof spec.colorMode !== 'string') return null
+  const { opacity: _ignored, ...rule } = spec
+  const colours = fillColours(rule, instanceId, columns, n, unknownNone)
+  if (!colours) return null
+  const opacity = fillOpacityOf(plot)
+  if (opacity === null) return colours
+  for (let i = 0; i < colours.length; i += 1) colours[i] = fillPaint(colours[i], opacity)
+  return colours
 }
 
 /**
@@ -1806,14 +1827,35 @@ export function createBinder({ chart, LWC }) {
       for (const f of staleFrames) attempt(() => ctx.onFrameStale(f, ctx.sym))
     }
 
-    const hasData = (key) => {
+    const hasData = (key, candidate) => {
       const col = columns.get(key)
       // ⭐ "IS THERE ANYTHING TO DRAW" HAS TWO SHAPES NOW. `hasAnyFinite` walks a
       // numeric column and would read an OHLC payload as EMPTY — which would drop
       // the binding before the renderer ever saw it, silently, with the bars
       // sitting right there in the cache.
       if (isOhlcPayload(col)) return col.bars.some(barHasOhlc)
-      return col !== undefined && registry.hasAnyFinite(col)
+      if (col !== undefined && registry.hasAnyFinite(col)) return true
+      return hostsBands(candidate)
+    }
+    // ⭐⭐ A PLOT THAT DRAWS NOTHING CAN STILL HAVE TO HOST THE BANDS. Hosted fills
+    // ride the instance's first VISIBLE binding (the hosted-fill pass below), so a
+    // visible plot with no finite value — Uncharted Clouds with both MAs switched
+    // off (`showMA1 ? fastMA : na`) — bound nothing, and all twenty bands vanished
+    // with the lines. TradingView keeps drawing them (set E6: plot_0 / plot_2
+    // blank, every band painted). The instance's FIRST visible plot is still bound
+    // when its hidden siblings declare a band whose two edges hold data; its own
+    // series carries no value, so it draws no line.
+    function hostsBands(candidate) {
+      const def = candidate && candidate.def
+      const plots = (def && Array.isArray(def.plots)) ? def.plots : []
+      const firstVisible = plots.find((p) => p && p.hidden !== true)
+      if (!firstVisible || !candidate.plot || firstVisible.key !== candidate.plot.key) return false
+      const has = (k) => {
+        const c = columns.get(bindingKey(candidate.instanceId, k))
+        return c !== undefined && !isOhlcPayload(c) && registry.hasAnyFinite(c)
+      }
+      return plots.some((p) => p && p.hidden === true && p.fill && typeof p.fill.with === 'string'
+        && has(p.key) && has(p.fill.with))
     }
 
     // ── 1b. ⭐⭐ C3B — the object programs, evaluated and drawn ──
@@ -2236,7 +2278,7 @@ export function createBinder({ chart, LWC }) {
             color: colour.color, opacity: colour.opacity,
             // ⛔ a per-point band colour travels with its edges; the door refuses a
             // band whose two edges are displaced differently (memberPaneDefinition).
-            colors: displacedColumn(fillColours(fillSpec, b.instanceId, columns, bars.length, unknownColourRule(b.def)), ownShift),
+            colors: displacedColumn(bandColoursFor(b.plot, b.instanceId, columns, bars.length, unknownColourRule(b.def)), ownShift),
           })
         }
       }
@@ -2296,7 +2338,7 @@ export function createBinder({ chart, LWC }) {
             color: hc.color, opacity: hc.opacity,
             // ⭐ (j) j.3 — the HOSTED band is Clouds' case: the fill is declared on
             // a `display.none` anchor, so this is the site that colours a cloud.
-            colors: displacedColumn(fillColours(hp.fill, b.instanceId, columns, bars.length, unknownColourRule(b.def)), drawShiftOf(hp)),
+            colors: displacedColumn(bandColoursFor(hp, b.instanceId, columns, bars.length, unknownColourRule(b.def)), drawShiftOf(hp)),
           })
           kept.set(hp.key, h)
         }

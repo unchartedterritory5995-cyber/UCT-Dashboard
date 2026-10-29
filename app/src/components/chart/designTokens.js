@@ -236,6 +236,41 @@ export function withAlpha(color, alpha) {
   return `rgba(${m[1]}, ${m[2]}, ${m[3]}, ${round(a * alpha)})`
 }
 
+/**
+ * `withAlpha`'s multiply-through rule, answered as an EXACT 8-bit colour:
+ * `#RRGGBBAA` (or the colour unchanged when the product is fully opaque), with
+ * the alpha byte `round(ownAlpha × alpha × 255)`.
+ *
+ * ⛔ WHY NOT `withAlpha`: its alpha is a 4-decimal STRING (`rgba(…, 0.3)`), and
+ * the canvas then converts that float to a byte itself. Two roundings, the
+ * second one the browser's, land a byte off on a half step — `0.30000000000000004`
+ * is TradingView's 77 (`round(76.5000…01)`) and `0.3` is a coin flip at 76.5.
+ * A per-bar fill that must equal a vendor capture byte for byte cannot go through
+ * a decimal string. Same parse, same multiply; only the encoding differs.
+ *
+ * ⭐ `alpha` is an OPACITY in [0, 1] (`1 − transparency/100`, Pine's own
+ * conversion); the byte is TradingView's `round((1 − t/100) × 255)`, measured on
+ * Uncharted Clouds' twenty bands (`tests/fixtures/vendor/reference/A`).
+ * Returns null if the colour is unparseable.
+ */
+export function withAlphaByte(color, alpha) {
+  let rgba = parseHex(color)
+  if (!rgba) {
+    const m = /^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)\s*(?:,\s*([\d.]+)\s*)?\)$/i.exec(
+      typeof color === 'string' ? color.trim() : '',
+    )
+    if (!m) return null
+    rgba = [Number(m[1]), Number(m[2]), Number(m[3]), m[4] === undefined ? 1 : parseFloat(m[4])]
+  }
+  const [r, g, b, a] = rgba
+  const k = Math.max(0, Math.min(1, Number(alpha)))
+  if (!Number.isFinite(k)) return null
+  const byte = Math.round(a * k * 255)
+  const hex2 = (x) => Math.max(0, Math.min(255, Math.round(x))).toString(16).padStart(2, '0').toUpperCase()
+  const base = `#${hex2(r)}${hex2(g)}${hex2(b)}`
+  return byte >= 255 ? base : `${base}${hex2(byte)}`
+}
+
 /** Trim float noise (0.16 * 1 must serialise as "0.16", not "0.16000000000002"). */
 function round(n) {
   return Math.round(n * 1e4) / 1e4

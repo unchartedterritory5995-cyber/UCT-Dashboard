@@ -28,7 +28,7 @@
 // missing data invents a relationship the indicator never asserted, and it is
 // invisible as a bug — it looks like a band.
 
-import { withAlpha } from '../designTokens'
+import { fillPaint } from './fillPaint'
 
 /**
  * The contiguous spans in which BOTH columns hold a finite value.
@@ -567,14 +567,15 @@ export function createFillPrimitive(initial) {
         // shipped band with a gap start assigning `fillStyle` three times — a
         // change to the drawing of every fill nobody made dynamic.
         //
-        // ⛔ AND THE RUN COLOUR IS USED VERBATIM — no `withAlpha` here. The two
-        // colours arrive from `columnColorsForPlot`, which has ALREADY applied the
-        // fill's alpha through `twoColoursOf`; applying `opts.opacity` on top would
-        // dim them a second time and be a second authority over one value.
+        // ⛔ AND THE RUN COLOUR IS USED VERBATIM. Per-bar colours arrive from
+        // `binder.bandColoursFor`, which has ALREADY joined each bar's colour with
+        // the band's opacity through `fillPaint`; the static style above goes
+        // through that same `fillPaint`. Applying `opts.opacity` to a run colour
+        // would dim it a second time and be a second authority over one value.
         const dynamic = !!(colors && colors.length)
         target.useMediaCoordinateSpace(({ context: ctx }) => {
           ctx.save()
-          if (!dynamic) ctx.fillStyle = withAlpha(opts.color, opts.opacity) || opts.color
+          if (!dynamic) ctx.fillStyle = fillPaint(opts.color, opts.opacity) || opts.color
           for (const group of groups) {
             if (dynamic) ctx.fillStyle = group.color
             const style = ctx.fillStyle
