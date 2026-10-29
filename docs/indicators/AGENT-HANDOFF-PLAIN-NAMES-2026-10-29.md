@@ -71,14 +71,46 @@ skipped, and the test sees no "Not saved or applied yet" line.
   - Indicators can add a small named helper (e.g. `legacyDerivedName(model)`) if the Agent prefers not to
     call `nameOfTree` directly. Ask and it ships in #500.
 
+## Owner ruling, 2026-10-29
+
+1. **The 7 receipt wording changes are APPROVED.** The receipt names the indicator.
+2. **C4: preserve duplicate detection for existing saved indicators that carry legacy auto-generated,
+   formula-style names.**
+   - Prefer canonical definition identity, or normalised formula equivalence, over matching display names.
+   - A member who explicitly asks for a distinct copy still gets one.
+3. **The Agent session owns** the Agent test files and the duplicate-detection logic. Indicators does not
+   edit Agent-owned files without coordination.
+4. **#500 does not merge** until the Agent compatibility change is done and tested.
+
+### Proposed split
+
+**Indicators** adds, in #500, a pure helper on the authoring side:
+`sameMaths(defA, defB) -> boolean`.
+
+- It compares the definitions' output trees after `parse.js::canonicalise`.
+- It ignores names, labels, colours, ids and presentation.
+- It compares output trees by position, plus the default values of their inputs.
+- It does not change any stored document.
+- It is railed by tests covering both name wordings, an explicit name, a different length (must be false),
+  and swapped `ema(close,9)` vs `ema(9)` spellings (must be true whenever the canonical trees match).
+
+**The Agent** uses it in `indicatorAuthoring.js`'s R1 stop:
+
+- "you already have this indicator" fires when any saved definition has the same maths, whatever its name.
+- The current exact-name check stays, as a second reason.
+- An explicit "make a copy" / "another one" request bypasses the stop. That cue wording is the Agent's call.
+- The Agent updates C4, plus a new case: a legacy formula-named saved indicator plus the same request
+  equals a stop.
+- The Agent updates the 7 receipt assertions.
+
+The Agent session confirms or amends this split before either side builds.
+
 ## What Indicators needs back
 
 1. An ACK that the 7 receipt changes are wanted (the named indicator in the receipt).
-2. A decision on C4:
-   - **(a)** fixture update only; or
-   - **(b)** fixture update plus legacy-name matching in the collision check.
-3. Either the Agent session lands the test updates on its own branch, or it authorises Indicators to edit
-   those two test files in #500.
+2. Agreement on the split above, or an amendment. Item 1 is now approved by the owner, so the Agent session
+   only needs to land it.
+3. The Agent branch with the C4 stop and the test updates, landed together with #500 once both are green.
 
 #500 will also be rebased onto master after #497 and #498 release. Before it merges, the plain names are
 re-checked on #498's new nodes (`supertrend`, `if`, `na`).
