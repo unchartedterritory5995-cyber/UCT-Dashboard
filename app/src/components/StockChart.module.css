@@ -159,7 +159,7 @@
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--legend-ink, var(--text-bright));
+  color: var(--legend-ink-bright, var(--text-bright));
   white-space: nowrap;
   margin-bottom: -3px;
 }
@@ -215,8 +215,9 @@
    legends sit ~80% down a gradient canvas, so the rows inside them (LegendRow, IndicatorChip)
    take the LOW sample. Outside a chart neither variable exists and every rule keeps its token. */
 .volLegend, .paneLegend {
-  --legend-ink: var(--legend-ink-low);
-  --legend-ink-muted: var(--legend-ink-low-muted);
+  --legend-ink-bright: var(--legend-ink-bright-low, var(--text-bright));
+  --legend-ink-text: var(--legend-ink-text-low, var(--text));
+  --legend-ink-muted: var(--legend-ink-muted-low, var(--text-muted));
 }
 .volLegItem { display: inline-flex; gap: 5px; align-items: baseline; }
 /* ⚰️ A `.volLegend:hover span[data-legend-ctl]` REVEAL STOOD HERE. It existed
@@ -251,8 +252,8 @@
    from value by WEIGHT (500 vs 600) at full opacity; layering an opacity on top
    would make this strip the one place where a label is dimmer than every other
    label on the chart. */
-.volLegLabel { color: var(--legend-ink, var(--text)); font-weight: 500; }
-.volLegVal { color: var(--legend-ink, var(--text-bright)); font-weight: 600; font-variant-numeric: tabular-nums; }
+.volLegLabel { color: var(--legend-ink-text, var(--text)); font-weight: 500; }
+.volLegVal { color: var(--legend-ink-bright, var(--text-bright)); font-weight: 600; font-variant-numeric: tabular-nums; }
 :global([data-charts-theme='sunrise']) .volLegend,
 :global([data-charts-theme='sunrise']) .paneLegend { background: rgba(255, 255, 255, 0.55); }
 :global([data-charts-theme='sunrise']) .volLegLabel { color: #3f4a57; }
@@ -472,7 +473,7 @@
   gap: 4px 10px;
   font-family: var(--font-mono);
   font-size: 11px;
-  color: var(--legend-ink, var(--text-muted));
+  color: var(--legend-ink-muted, var(--text-muted));
   pointer-events: none;
   background: var(--chart-panel-bg, rgba(26, 28, 23, 0.88));
   padding: 3px 8px;
@@ -487,15 +488,15 @@
   transform: translateY(-26px);
 }
 .legendTime {
-  color: var(--legend-ink, var(--text));
+  color: var(--legend-ink-text, var(--text));
   font-weight: 600;
 }
 .legendLabel {
-  color: var(--legend-ink, var(--text));
+  color: var(--legend-ink-text, var(--text));
   font-weight: 500;
 }
 .legendVal {
-  color: var(--legend-ink, var(--text-bright));
+  color: var(--legend-ink-bright, var(--text-bright));
   font-weight: 600;
 }
 .legendUp {
@@ -645,7 +646,7 @@
    numbers a rival at the left edge. Same family as the keys now; the letter
    spacing stays, because that is what keeps `SEP 15` from reading as a ticker. */
 .barDate {
-  color: var(--legend-ink, var(--text-muted));
+  color: var(--legend-ink-muted, var(--text-muted));
   font-weight: 500;
   opacity: 0.82;
   letter-spacing: 0.02em;
@@ -677,12 +678,12 @@
    than indicator numbers; that half is fixed in the JSX. This is the first half:
    the key steps back and the value is left exactly as it was. */
 .barKey {
-  color: var(--legend-ink, var(--text-muted));
+  color: var(--legend-ink-muted, var(--text-muted));
   font-weight: 400;
   opacity: 0.72;
 }
 .barVal {
-  color: var(--legend-ink, var(--text-bright));
+  color: var(--legend-ink-bright, var(--text-bright));
   font-weight: 600;
 }
 /* ⛔ THE CHANGE FIGURES CARRY NO KEY AND THEIR OWN INK — the colour IS the
@@ -860,13 +861,13 @@
 }
 .vlCtlPad { display: block; width: 0; }
 .vlLabel {
-  color: var(--legend-ink, var(--text));
+  color: var(--legend-ink-text, var(--text));
   font-weight: 500;
   white-space: nowrap;
 }
 .vlVal {
   text-align: right;
-  color: var(--legend-ink, var(--text-bright));
+  color: var(--legend-ink-bright, var(--text-bright));
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;

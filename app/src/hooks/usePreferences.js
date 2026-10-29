@@ -1,5 +1,5 @@
 import useSWR, { mutate as mutateGlobal } from 'swr'
-import { useCallback, useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import { mergeSettingsOverride } from '../components/chart/instanceShape'
 import { noteWorkspaceDocResponse } from '../lib/workspaceDoc'
 import { emitWorkspaceConflict } from '../lib/workspaceConflict'
@@ -23,12 +23,66 @@ const readFailedOnce = () => { _lastReadOk = false }
 // name. Measured 2026-10-28: a focus write fired while the read was in flight posted {A:'ENPH'}
 // and would have erased the member's comparison slots B/C/D.
 let _inflightRead = null
+
+// ─── Where the cached value CAME FROM ────────────────────────────────────────
+//
+// ⛔⛔ "A read succeeded" is not "the cache holds that read's answer". A setPref during the FIRST
+// read writes an optimistic `{...DEFAULTS, key}` into an empty cache, and SWR then DISCARDS the
+// read's answer (a mutation started after the request) — while the fetcher has already recorded
+// the read as good. A merge onto that cache is a merge onto DEFAULTS + one key, and posting it
+// erased B/C/D (reproduced in review: POSTs [default_chart_tf:'W', groups:{"A":"AMD"}]).
+// So every object the cache holds is TAGGED by origin: the fetcher's answer, `refreshPreferences`'
+// answer, and anything derived from a tagged object by a write that merges onto it. A merge is
+// posted only onto a tagged base. WeakSet: the tag dies with the object, and nothing else is
+// keyed on it.
+const _serverBased = new WeakSet()
+const tagServer = (obj) => { if (obj && typeof obj === 'object') _serverBased.add(obj); return obj }
+/** `next`, derived from `prev`, inherits prev's origin. */
+const derive = (prev, next) => { if (prev && _serverBased.has(prev)) _serverBased.add(next); return next }
+const isServerBased = (obj) => !!obj && typeof obj === 'object' && _serverBased.has(obj)
+
+// ─── Re-reading after a read that did not produce the server's value ─────────
+//
+// A refused read (a 5xx is served as `{}`, so SWR sees success and never retries), or a cache whose
+// answer was discarded (above), leaves the session without a base. Every merge would then stay
+// local for good, silently. So the hook schedules a bounded re-read — 1 s, doubling, capped at
+// REREAD_CAP_MS, at most REREAD_MAX_ATTEMPTS in a row — and merges refused meanwhile are kept and
+// RE-APPLIED onto the real base once a good read lands (each updater runs again on the server's
+// value, so nothing is merged onto a guess). A good read resets the series.
+const REREAD_BASE_MS = 1000
+const REREAD_CAP_MS = 30000
+const REREAD_MAX_ATTEMPTS = 8
+let _rereadTimer = null
+let _rereadAttempts = 0
+const _pendingMerges = []          // [() => void] — re-run a refused merge onto the fresh base
+function scheduleReread(revalidate) {
+  if (_rereadTimer || _rereadAttempts >= REREAD_MAX_ATTEMPTS) return
+  const delay = Math.min(REREAD_CAP_MS, REREAD_BASE_MS * 2 ** _rereadAttempts)
+  _rereadAttempts += 1
+  _rereadTimer = setTimeout(() => {
+    _rereadTimer = null
+    // A refused re-read answers `{}` again, which SWR may treat as "no change" and not re-render
+    // for, so the series is chained here rather than left to the effect: still no server base
+    // after this read ⇒ the next, longer, wait.
+    let p
+    try { p = revalidate() } catch { p = null }
+    Promise.resolve(p).then(
+      (d) => { if (!isServerBased(d)) scheduleReread(revalidate) },
+      () => { scheduleReread(revalidate) },
+    )
+  }, delay)
+}
+function noteGoodRead() {
+  _rereadAttempts = 0
+  if (_rereadTimer) { clearTimeout(_rereadTimer); _rereadTimer = null }
+}
+
 const fetcher = url => {
   const p = fetch(url).then(
     r => {
       noteWorkspaceDocResponse(r); noteRevision(r, false)
       if (!r.ok) { readFailedOnce(); return {} }
-      return r.json().then(j => { _lastReadOk = true; return j }, err => { readFailedOnce(); throw err })
+      return r.json().then(j => { _lastReadOk = true; noteGoodRead(); return tagServer(j) }, err => { readFailedOnce(); throw err })
     },
     err => { readFailedOnce(); throw err },
   )
@@ -140,14 +194,31 @@ function noteRevision(res, adopt) {
 //
 // A 409 conflict is NOT recorded here: `_conflicted` already refuses every later write of the key
 // without a request, per the revision design above.
+//
+// ⛔ AND A MEMBER'S OWN RETRY IS NEVER HELD. The loop this guards against re-asserts with NO
+// input from anybody; a "Try again" button (AdoptLayoutSheet) or a second press of Save is a
+// person asking again, and holding it answers "failed" without a request (that shipped in the
+// first cut of this guard and broke LayoutLibrary's Try again). So every pointer, touch or click
+// anywhere in the document advances `_inputSeq`, and an identical re-send is held only while
+// no input has happened since that value's failure.
 const RETRY_BASE_MS = 1000
 const RETRY_CAP_MS = 60000
-const _failedWrites = new Map()    // key -> { serialized, failures, retryAt }
+const _failedWrites = new Map()    // key -> { serialized, failures, retryAt, inputSeq }
+let _inputSeq = 0
+if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+  const bump = () => { _inputSeq += 1 }
+  // (no key listener: a keyboard press of a button arrives as a `click`, and raw key listeners go
+  // through the shortcut registry — keyListenerCensus.test.js)
+  for (const ev of ['pointerdown', 'touchstart', 'click']) {
+    window.addEventListener(ev, bump, { capture: true, passive: true })
+  }
+}
 
 function backoffHolds(key, serialized) {
   const f = _failedWrites.get(key)
   if (!f) return false
   if (f.serialized !== serialized) { _failedWrites.delete(key); return false }   // superseded
+  if (_inputSeq !== f.inputSeq) return false                                     // a person asked again
   return Date.now() < f.retryAt
 }
 
@@ -155,7 +226,7 @@ function noteWriteFailed(key, serialized) {
   const prev = _failedWrites.get(key)
   const failures = prev && prev.serialized === serialized ? prev.failures + 1 : 1
   const delay = Math.min(RETRY_CAP_MS, RETRY_BASE_MS * 2 ** (failures - 1))
-  _failedWrites.set(key, { serialized, failures, retryAt: Date.now() + delay })
+  _failedWrites.set(key, { serialized, failures, retryAt: Date.now() + delay, inputSeq: _inputSeq })
 }
 
 /** Resolves once every write queued so far for these keys has answered (success or not). */
@@ -167,6 +238,8 @@ export function whenWritesSettle(keys) {
 export function __resetRevisionStateForTests() {
   _revBaseline = null; _keyRev.clear(); _conflicted.clear(); _writeChains.clear(); _lastReadOk = null
   _failedWrites.clear(); _inflightRead = null
+  if (_rereadTimer) clearTimeout(_rereadTimer)
+  _rereadTimer = null; _rereadAttempts = 0; _pendingMerges.length = 0
 }
 
 // THE one POST. Runs inside the per-key queue, so the revision is read at SEND time — after this
@@ -294,7 +367,8 @@ export async function refreshPreferences({ signal } = {}) {
   if (!res || !res.ok) return null
   if (!data || typeof data !== 'object') return null
   _lastReadOk = true
-  await mutateGlobal(PREFS_URL, data, { revalidate: false })
+  noteGoodRead()
+  await mutateGlobal(PREFS_URL, tagServer(data), { revalidate: false })
   return { ...DEFAULTS, ...data }
 }
 
@@ -315,7 +389,7 @@ export async function mergeIntoPreferenceCache(key, updater) {
     const current = parsePref(prev[key], undefined)
     const next = typeof updater === 'function' ? updater(current) : updater
     if (next === undefined) return prev
-    return { ...prev, [key]: typeof next === 'string' ? next : JSON.stringify(next) }
+    return derive(prev, { ...prev, [key]: typeof next === 'string' ? next : JSON.stringify(next) })
   }, { revalidate: false })
 }
 
@@ -343,7 +417,9 @@ export default function usePreferences(enabled = true) {
     // back with parsePref).
     const serialized = typeof value === 'string' ? value : JSON.stringify(value)
     // Optimistic update
-    mutate(prev => ({ ...DEFAULTS, ...prev, [key]: serialized }), false)
+    // (derive: the result is server-based only when what it was built on was — an optimistic
+    // write onto an EMPTY cache is not a base anyone may merge onto)
+    mutate(prev => derive(prev, { ...DEFAULTS, ...prev, [key]: serialized }), false)
 
     /** Report the failure and CHANGE NOTHING. This is the settle contract.
      *
@@ -456,7 +532,7 @@ export default function usePreferences(enabled = true) {
     }
 
     await mutate(prev => {
-      if (prev === undefined || prev === null || _lastReadOk === false) unknownBase = true
+      unknownBase = !isServerBased(prev)
       const base = { ...DEFAULTS, ...prev }
       const current = parsePref(base[key], undefined)
 
@@ -471,12 +547,18 @@ export default function usePreferences(enabled = true) {
 
       const resolved = resolveWriteValue(key, current, next)
       serialized = typeof resolved === 'string' ? resolved : JSON.stringify(resolved)
-      return { ...base, [key]: serialized }
+      return derive(prev, { ...base, [key]: serialized })
     }, false)
 
     if (updaterError) throw updaterError
     if (serialized === null) return
-    if (unknownBase) return false           // applied locally above, deliberately never posted
+    if (unknownBase) {
+      // Applied locally above, deliberately never posted. Kept, and re-applied onto the server's
+      // value when a good read lands; a re-read is scheduled so that it does.
+      _pendingMerges.push(() => { setPrefMergedRef.current?.(key, updater) })
+      scheduleReread(() => mutate())
+      return false
+    }
 
     // The value is FROZEN at merge time and the POSTs are queued in that same
     // order, so what the server ends up with is what the last merge computed.
@@ -491,6 +573,21 @@ export default function usePreferences(enabled = true) {
       mutate()
     })
   }, [mutate])
+  const setPrefMergedRef = useRef(setPrefMerged)
+  setPrefMergedRef.current = setPrefMerged
+
+  // A cache that is NOT the server's answer (a refused read served as `{}`, or an answer SWR
+  // discarded under an optimistic write) schedules the bounded re-read; a cache that IS re-applies
+  // the merges refused meanwhile, each onto the real base.
+  const cacheIsServer = isServerBased(data)
+  useEffect(() => {
+    if (!enabled || data === undefined) return
+    if (!cacheIsServer) { scheduleReread(() => mutate()); return }
+    if (_pendingMerges.length) {
+      const replay = _pendingMerges.splice(0)
+      for (const run of replay) run()
+    }
+  }, [enabled, data, cacheIsServer, mutate])
 
   // `readFailed`: the last read of the preferences was refused or never arrived, so the cached value is NOT the
   // server's (see `_lastReadOk`). Read at render; every read that answers re-renders the consumers.

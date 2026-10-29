@@ -100,7 +100,7 @@
      Bright neutral against a mid-luminance series colour, 600 against 500: the eye
      lands on `711.65` before `EMA 9` at every hue, including the pale ones, which
      is exactly what a per-series coloured value could not promise. */
-  color: var(--legend-ink, var(--text-bright));
+  color: var(--legend-ink-bright, var(--text-bright));
 }
 /* ⚰️ `.rail` STOOD HERE — a 2×9px bar of the line colour before every name.
    Retired with the chip's (owner, 2026-09-14): on a nine-row legend it read as

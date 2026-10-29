@@ -428,7 +428,7 @@
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
-  color: var(--legend-ink, var(--text-bright));
+  color: var(--legend-ink-bright, var(--text-bright));
 }
 /* ⚰️ THE GUTTER CELL HELD A CONTROL AND NOW HOLDS NOTHING. It is still EMITTED
    — `.legendVertical` is ONE grid for the whole legend and fills by ORDER, so a

@@ -1742,19 +1742,21 @@
    tweets 26px. ChartPane's own collision ladder (collapse the title to the ticker) never runs
    here, because a row that may wrap never reports `scrollWidth > clientWidth`.
    So in the hub the day change ALWAYS takes the second line, in every session, and the row's
-   height is a SUM OF TOKENS that `TickerHubSheet.module.css` declares on `.chartWrap`, where the
+   minimum height is a SUM OF TOKENS that `TickerHubSheet.module.css` declares on `.chartWrap`, where the
    loading fallback's reserve (`--hub-chart-chrome-h`) is built from the SAME tokens: the loading
    box and the loaded box cannot disagree in either session. A regular session simply shows the
-   one number on line two, the same place the pre/post pill sits. Fallbacks are today's phone
+   one number on line two, the same place the pre/post pill sits. (The compact pane renders no
+   right cluster at all — ChartIdentityRow — so there is no third line to hide.) Fallbacks are today's phone
    values, so a stray `data-ticker-hub-chart` outside the sheet still lays out.
    Rail: `components/mobile/TickerHubSheet.identityRowHeight.test.js`. */
 @media (max-width: 640px) {
   :global([data-ticker-hub-chart]) .chartHeaderTop {
-    height: var(--hub-id-row-h, 71px);
-    min-height: 0;
+    /* A FLOOR, not a cap: at the default text size the row is exactly the token sum, so the
+       loading box equals the loaded box; under larger text it grows rather than clipping line two. */
+    height: auto;
+    min-height: var(--hub-id-row-h, 71px);
     align-content: flex-start;
     row-gap: var(--hub-id-gap, 4px);
-    overflow: hidden;
   }
   :global([data-ticker-hub-chart]) .chartHeaderTop > .symbolSlot {
     min-height: var(--hub-id-line1-h, 40px);
@@ -1774,8 +1776,6 @@
     min-height: var(--hub-id-line2-h, 22px);
     margin: 0;
   }
-  /* compact: nothing in it, and an empty full-width item is a third (0px) line plus a gap */
-  :global([data-ticker-hub-chart]) .chartHeaderTop > .headerTopRight:empty { display: none; }
 }
 
 /* Session toggle on touch: 109x19 and 148x19 measured on a 390px phone, well
