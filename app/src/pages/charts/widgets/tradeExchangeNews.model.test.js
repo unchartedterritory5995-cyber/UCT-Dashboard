@@ -9,6 +9,7 @@ import { mergeNewsWidgetSettings } from './newsWidgetSettings'
 import { mergeWatchlistSettings, watchlistStyleVars } from '../../watchlist/watchlistSettings'
 import { CHART_THEME_BY_ID, mapThemeToWidgetSettings, patchWidgetOptsWithTheme } from '../../../components/chart/chartThemes'
 import { widgetOwnChrome } from '../widgetChrome'
+import { contrastRatio } from '../../../lib/theme'
 
 const item = (seq, content, tickers = []) => ({ seq, content, tickers })
 
@@ -98,6 +99,18 @@ describe('settings — the News & Catalysts shape, plus behaviour', () => {
     expect(txnWidgetStyleVars(mergeTxnWidgetSettings({ bg: '#203040' }))['--txn-bg']).toBe('#203040')
     const grad = txnWidgetStyleVars(mergeTxnWidgetSettings({ bgMode: 'gradient', bgGradient: { top: '#111111', bottom: '#222222' } }))
     expect(grad['--txn-bg']).toBe('linear-gradient(to bottom, #111111 0%, #222222 100%)')
+  })
+  it('ticker up/down TEXT clears 4.5:1 on its own canvas; the theme colour itself is untouched', () => {
+    const light = mergeTxnWidgetSettings({ bg: '#ffffff', upColor: '#3fbf7f', downColor: '#ff6b6b' })
+    const v = txnWidgetStyleVars(light)
+    expect(v['--txn-up']).toBe('#3fbf7f')                       // status dot / highlight: raw theme colour
+    expect(contrastRatio(v['--txn-sym-up'], '#ffffff')).toBeGreaterThanOrEqual(4.5)
+    expect(contrastRatio(v['--txn-sym-down'], '#ffffff')).toBeGreaterThanOrEqual(4.5)
+    const dark = txnWidgetStyleVars(txnSettingsFor(null, 'dark'))
+    expect(dark['--txn-sym-up']).toBe(dark['--txn-up'])         // already readable: unchanged
+    const grad = txnWidgetStyleVars(mergeTxnWidgetSettings({ bgMode: 'gradient', upColor: '#3fbf7f',
+      bgGradient: { top: '#ffffff', bottom: '#f0f0f0' } }))
+    expect(contrastRatio(grad['--txn-sym-up'], '#f0f0f0')).toBeGreaterThanOrEqual(4.5)
   })
 })
 
