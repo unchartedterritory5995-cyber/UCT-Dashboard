@@ -248,7 +248,7 @@ describe('L4 · the owner\'s custom indicator, end to end', () => {
     expect(saved[0].definition.placement).toMatchObject({ target: 'pane' })   // its own pane
     expect(JSON.stringify(saved[0].definition)).toMatch(/"ema"/)
     // one sentence: what, where, which pane (the builder named it after its formula — a formula-like name never goes in chat)
-    await waitFor(() => expect(screen.getAllByTestId('agent-receipt-summary').map(e => e.textContent)).toContain('Done — created your indicator and added it to Chart (QQQ), in its own pane.'), { timeout: 8000 })
+    await waitFor(() => expect(screen.getAllByTestId('agent-receipt-summary').map(e => e.textContent)).toContain('Done — created your “EMA 9 vs EMA 20 %” indicator and added it to Chart (QQQ), in its own pane.'), { timeout: 8000 })
     expect(proposals()).toHaveLength(0)
     expect(transcript()).not.toMatch(/Want me to apply it|couldn’t do that|nothing was saved/)
     expect((transcript().match(/difference between the 9 EMA and 20 EMA/g) || []).length).toBe(1)    // never read back
