@@ -2916,7 +2916,10 @@ describe('the refusals', () => {
     // question and the two operand shapes it takes), and `canonicalise:text-escapes`
     // — the one that says text may only ever be an OPERAND. Each is its own
     // sentence because each sends a member to a different edit.
-    expect(Object.keys(PARSE_REFUSALS).length).toBe(17)
+    // ⚠️ 17 -> 18 with `canonicalise:if` (2026-10-29): `if(c, a, b)` is a spelling of
+    // the ternary and a wrong part count is refused by its own sentence, which names
+    // the three parts — disjoint from every other guard's, as this case requires.
+    expect(Object.keys(PARSE_REFUSALS).length).toBe(18)
     // ⚠️ 11 -> 12 with `interpret:timeframe` (W2b): a higher-timeframe read can
     // name a code the ladder does not declare, or one at or BELOW the bars it
     // was handed — neither is answerable from those bars, and inventing an
@@ -2959,7 +2962,9 @@ describe('the refusals', () => {
     // Measured on the member pane: three of `uncharted-volume-v2`'s four series.
     // ⭐ The interpreter's opinion is now one sentence long and names the FIELD
     // the binding did not settle, which is the part a member can act on.
-    expect(all.length).toBe(41)
+    // ⚠️ 41 -> 42 with `canonicalise:if` (2026-10-29), on the PARSE door; the loop
+    // below is what proves its sentence contains no other door's and vice versa.
+    expect(all.length).toBe(42)
     for (const a of all) {
       const containing = all.filter((b) => b.includes(a))
       expect(containing, `${JSON.stringify(a)} is a substring of another refusal`).toHaveLength(1)

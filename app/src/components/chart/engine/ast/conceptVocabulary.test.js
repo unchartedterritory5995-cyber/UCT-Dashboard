@@ -192,10 +192,13 @@ describe('the concept vocabulary', () => {
   // ─── the planted illegals: the rail must be able to go red ────────────────
 
   it('a PLANTED unparseable expansion is caught, and the guard is named', () => {
-    // CORRECTION 5's exact mistake: `and` is not an operator, jsep reads it as
-    // several expressions, and the parser answers "a formula is one expression".
+    // CORRECTION 5's mistake was writing two conditions with nothing joining them.
+    // ⚠️ It used to be spelled with `and`, which is not an operator — until
+    // 2026-10-29, when `and` became a native spelling of `&&` and the probe would
+    // have stopped probing. Two bare conditions side by side are still several
+    // expressions, so the parser still answers "a formula is one expression".
     const planted = {
-      concepts: { zzplanted: { source: 'rs_rank > 80 and adr_pct > 4', ast: {} } },
+      concepts: { zzplanted: { source: 'rs_rank > 80 adr_pct > 4', ast: {} } },
       _refused: {},
     }
     const problems = problemsIn(planted)

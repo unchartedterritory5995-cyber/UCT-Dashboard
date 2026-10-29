@@ -1659,7 +1659,16 @@ const PCF_MARKERS = [
  *  binding grammar `letPrepass.js` enforces (`KEY_RE`): a malformed binding must
  *  reach the native door and be refused `let:syntax` at its own token, not
  *  disappear into the other dialect. */
-const NATIVE_MARKERS = [/&&/, /\|\|/, /==/, /!=/, /\?/, /^\s*let\s+[A-Za-z_][A-Za-z0-9_]*\s*=/m]
+const NATIVE_MARKERS = [/&&/, /\|\|/, /==/, /!=/, /\?/, /^\s*let\s+[A-Za-z_][A-Za-z0-9_]*\s*=/m,
+  // ⭐ A WHOLE LOWER-CASE PRICE WORD IS NEVER TC2000. TC2000 spells the price
+  // fields `C O H L V` (or fused into `AVGC50`), and this reader REFUSES `close` by
+  // name ("not a TC2000 name this reader knows") — so a source that writes one
+  // can only be native. Without this, `close > open and volume > 1000` (the word
+  // `and` is a PCF marker) reached the TC2000 reader and the member read a
+  // refusal about a language they never typed (audit 2026-10-13 P2-8).
+  // ⛔ CASE-SENSITIVE and whole-word: `c > avgc50 and v > 1000000` (the committed
+  // lower-case PCF) carries no such word and stays TC2000.
+  /\b(?:close|open|high|low|volume)\b/]
 
 /** Which reader should read this source.
  *
