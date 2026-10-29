@@ -957,6 +957,7 @@ export default function ChartSettingsModal({
            use the shell's width now. `.body` carries no cap and no per-tab
            class — one shell, one content width, every tab. */
         className={styles.panel}
+        data-guide="chartSettings"
         ref={panelRef}
         onMouseDown={(e) => e.stopPropagation()}
         style={{ ...(themeVars || {}), ...(pos ? { position: 'fixed', left: pos.left, top: pos.top, margin: 0, animation: 'none' } : {}) }}
@@ -1055,6 +1056,7 @@ export default function ChartSettingsModal({
               type="button"
               role="tab"
               aria-selected={activeTab === id}
+              data-guide={`chartSettings.tab.${id}`}
               className={`${styles.tab} ${activeTab === id ? styles.tabActive : ''}`}
               onClick={() => setActiveTab(id)}
             >{label}</button>

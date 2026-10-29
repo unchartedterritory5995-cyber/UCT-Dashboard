@@ -41,6 +41,7 @@ import { resolveReference, subjectTarget } from './references'
 import { nl1Enabled, exactLane, buildNl1Request, correctionPlan, preflightRefusals, repairedDisposition, withoutWordingApprovals } from './nl1/interpreter'
 import { NL1_MAX_NEED } from './nl1/selection'
 import { takeIndicatorTouch } from './capabilities/indicatorEdits'
+import { doItForMe } from './capabilities/guide'
 import { correctTypos, lexiconFor } from './nl/lexicon'
 import { agentTurn, agentTurnStream, serverStreams, loadAgentConfig, agentRecord, agentConversation } from './agentClient'
 import { AGENT_CONVERSATION_KEY, AGENT_INFLIGHT_KEY, readLocal, writeLocal } from './agentFlag'
@@ -617,7 +618,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       const answers = []
       for (const o of queries) {
         let a
-        try { a = await getCapability(o.action).answer(targets.get(o.target)?.snap || null, o.args || {}, host) } catch (e) { a = `That didn't work: ${e?.message || 'error'}` }
+        try { a = await getCapability(o.action).answer(targets.get(o.target)?.snap || null, o.args || {}, host, capCtx) } catch (e) { a = `That didn't work: ${e?.message || 'error'}` }
         answers.push(typeof a === 'string' || a == null ? { text: a || '' } : a)
       }
       // ⭐ ONE presentation contract (present.js): each answer → the smallest view that carries it,
@@ -1151,6 +1152,22 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         return await execute(second.ops, { path: 'fast', mode: second.mode, member: text, voice })
       }
       // "put a 20 EMA on it" with several charts and no click: `it` = the chart this conversation last changed
+      // ⭐ PHASE 2 — DO IT FOR ME: "now do it for me" right after a walkthrough runs that feature's EXISTING capability
+      // on the chart it showed (agent/capabilities/guide.doItForMe) — asked first when a value is needed (which
+      // timeframe?), then planned, checked, receipted and undoable like any other request. Never with a proposal waiting.
+      const guideDo = answering || memRef || pendingRef.current ? null : doItForMe(text, host)
+      if (guideDo?.say) {
+        push({ role: 'agent', text: guideDo.say })
+        record({ member: text, outcome: guideDo.say, outcomeData: { kind: 'guide-do-say' }, telemetry: { path: 'fast', disposition: 'clarify', voice } })
+        return
+      }
+      if (guideDo?.ask) {
+        const a = guideDo.ask
+        pendingRef.current = { kind: 'target', ops: a.ops, path: 'fast', mode: 'apply', member: text, voice, epoch: epochOf(host), pickArg: a.pickArg }
+        push({ role: 'question', text: a.text, choices: a.choices, local: true })
+        record({ member: text, outcome: a.text, outcomeData: { kind: 'clarify-arg', actions: a.ops.map(o => o.action) }, telemetry: { path: 'fast', clarified: true, voice } })
+        return
+      }
       const fast = answering ? null : subjectTarget(memRef || fastParse(text, { host }), text, { host, memory: memoryRef.current, epoch: epochNow })
       if (fast?.kind === 'undo') return await doUndo(null, { member: text, voice, about: fast.about || null })
       if (fast?.kind === 'confirm' && pendingRef.current?.kind === 'proposal') return await approve(null, { member: text, voice })

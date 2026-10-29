@@ -11,7 +11,8 @@ export default function ChartTfBar({ tf, visibleTfs, onTf, menu = {}, showMenu =
   const [open, setOpen] = useState(false)
   const [anchor, setAnchor] = useState(null)
   return (
-    <div ref={rootRef} className={styles.tfBar}>
+    // data-guide: stable targets for UCT Agent's product guide (agent/guide/registry.js) — no behaviour
+    <div ref={rootRef} className={styles.tfBar} data-guide="chart.timeframe">
       {visibleTfs.map(([code, label]) => (
         <button
           key={code}
@@ -30,6 +31,7 @@ export default function ChartTfBar({ tf, visibleTfs, onTf, menu = {}, showMenu =
           style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
           title="More timeframes"
           aria-label="More timeframes"
+          data-guide="chart.timeframeMore"
           onClick={(e) => { setAnchor(e.currentTarget.getBoundingClientRect()); setOpen(v => !v) }}
         >
           <svg width="9" height="6" viewBox="0 0 10 6" aria-hidden="true">

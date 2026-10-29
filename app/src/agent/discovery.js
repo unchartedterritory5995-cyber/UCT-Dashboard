@@ -171,6 +171,14 @@ export const TOPICS = [
     known: () => [], planned: null,
   },
   {
+    id: 'guide', title: 'Learning UCT: explain, show me, do it for me',
+    words: [/\b(show me (where|how)|walk me through|tutorial|teach me|guide me|explain|what does .+ mean)\b/],
+    caps: ['guide.explain', 'guide.show'], productHas: true,
+    canDo: 'explain what a UCT term, indicator or feature is (from UCT’s own catalog), show you where a Charts control is by highlighting it on your board step by step (symbol, timeframe, indicators, several charts, watchlists, layouts, drawing tools, chart settings) — without changing anything — and then do it for you when you ask',
+    known: () => [],
+    planned: null,
+  },
+  {
     id: 'similarity', title: 'Finding similar historical charts',
     // (P2-B: never a bare "look like" — "make the left chart look like the right one" is about a chart's
     // settings, not a historical-similarity search)

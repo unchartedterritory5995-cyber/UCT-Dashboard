@@ -3327,6 +3327,8 @@ export default function ChartsWorkspace() {
           <div
             key={w.id}
             data-widget-id={w.id}
+            // UCT Agent's product guide finds a board's watchlist / chart by its type (agent/guide/targets.js)
+            data-widget-type={w.type}
             // main board charts only (a popped-out board's renderGrid passes no onPopOut): the
             // UCT Agent's "this chart". Capture phase, so a chart that stops propagation still counts.
             onPointerDownCapture={w.type === 'chart' && h.onPopOut ? () => { selectedChartRef.current = { widgetId: w.id, layoutId: dockActiveIdRef.current } } : undefined}
@@ -3435,10 +3437,11 @@ export default function ChartsWorkspace() {
             <button
               type="button"
               className={styles.toolbarBtn}
+              data-guide="workspace.widgets"
               onClick={() => { const n = !widgetsMenuOpen; closeToolbarMenus(); setWidgetsMenuOpen(n) }}
             >Widgets ▾</button>
             {widgetsMenuOpen && (
-              <div className={`${styles.addMenu} ${styles.wAddMenu}`} onMouseLeave={() => { setWidgetsMenuOpen(false); setWidgetsSub(null) }}>
+              <div className={`${styles.addMenu} ${styles.wAddMenu}`} data-guide="workspace.widgetsMenu" onMouseLeave={() => { setWidgetsMenuOpen(false); setWidgetsSub(null) }}>
                 {/* Grouped, iconified quick-add — a compact anchored menu (no modal), one
                     click to drop a widget onto the board via smart placement. */}
                 {/* TERM-001: a full board says why in words and offers nothing to add. */}
@@ -3458,6 +3461,7 @@ export default function ChartsWorkspace() {
                             key={t}
                             type="button"
                             className={styles.wAddChip}
+                            data-guide={`workspace.widgets.${t}`}
                             disabled={!boardHasRoom}
                             title={meta.blurb || WIDGET_LABELS[t]}
                             onClick={() => { handleAddWidget(t); setWidgetsMenuOpen(false) }}

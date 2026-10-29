@@ -37,7 +37,8 @@ export default function ChartIdentityRow({
   })()
   return (
     <div ref={rootRef} className={styles.chartHeaderTop}>
-      <div className={styles.symbolSlot}>
+      {/* data-guide: a STABLE target for UCT Agent's product guide (agent/guide/registry.js) — no behaviour */}
+      <div className={styles.symbolSlot} data-guide="chart.symbol">
         {onSymbolChange ? (
           <SymbolSearch
             ref={searchRef}

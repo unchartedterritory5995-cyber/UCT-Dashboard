@@ -1,0 +1,121 @@
+/* UCT Agent product guide — the ring around a real control and the step card beside it.
+   ⛔ The ring and its dim never take a click (pointer-events: none): the board works as always underneath.
+   Above the board's own popups (8500+) so the card is never hidden by a menu it points at. */
+
+.ring {
+  position: fixed;
+  z-index: 9600;
+  pointer-events: none;
+  border: 2px solid var(--ut-gold, #c9a84c);
+  border-radius: 8px;
+  box-shadow: 0 0 0 4px var(--ut-gold-glow, rgba(201, 168, 76, 0.25)), 0 0 0 9999px rgba(0, 0, 0, 0.18);
+  transition: top 120ms ease, left 120ms ease, width 120ms ease, height 120ms ease;
+}
+
+.card {
+  position: fixed;
+  z-index: 9601;
+  box-sizing: border-box;
+  max-width: calc(100vw - 24px);
+  padding: 12px 14px 10px;
+  border: 1px solid var(--border-accent, rgba(201, 168, 76, 0.45));
+  border-radius: 10px;
+  background: var(--bg-elevated, #16181c);
+  color: var(--text, #e6e6e6);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.title {
+  flex: 1;
+  min-width: 0;
+  color: var(--text-bright, #fff);
+  font-weight: 600;
+}
+
+.count {
+  color: var(--text-muted, #9aa0a6);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.close {
+  min-width: 28px;
+  min-height: 28px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted, #9aa0a6);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.close:hover,
+.close:focus-visible {
+  background: var(--bg-hover, rgba(255, 255, 255, 0.06));
+  color: var(--text-bright, #fff);
+}
+
+.text {
+  margin: 0 0 10px;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.btn {
+  min-height: 30px;
+  padding: 4px 12px;
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.12));
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text, #e6e6e6);
+  font: inherit;
+  cursor: pointer;
+}
+
+.btn:hover,
+.btn:focus-visible {
+  background: var(--bg-hover, rgba(255, 255, 255, 0.06));
+}
+
+.primary {
+  border-color: var(--ut-gold, #c9a84c);
+  color: var(--ut-gold, #c9a84c);
+}
+
+.notice {
+  position: fixed;
+  z-index: 9601;
+  right: 16px;
+  bottom: 16px;
+  max-width: min(360px, calc(100vw - 32px));
+  padding: 10px 14px;
+  border: 1px solid var(--border-accent, rgba(201, 168, 76, 0.45));
+  border-radius: 10px;
+  background: var(--bg-elevated, #16181c);
+  color: var(--text, #e6e6e6);
+  font-size: 13px;
+}
+
+.btn:focus-visible,
+.close:focus-visible {
+  outline: 2px solid var(--ut-gold, #c9a84c);
+  outline-offset: 1px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ring { transition: none; }
+}
