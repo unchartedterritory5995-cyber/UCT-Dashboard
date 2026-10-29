@@ -49,7 +49,7 @@ the model reads every request, and it now gets `recent_indicators` to resolve th
 
 | File | What it covers |
 |---|---|
-| `agentConversationP2.test.jsx` | 23 conversations through the real panel, asserting **board outcomes** and **zero model calls**. Groups: R (references), S (chart sets), M (multi-step: the flagship, stop-and-say, nothing half-run, the step limit, per-step Undo), G (guards: stale reference, a pronoun after a chart change, nothing invented, typos, "above the 20"). |
+| `agentConversationP2.test.jsx` | 24 conversations through the real panel, asserting **board outcomes** and **zero model calls**. Groups: R (references), S (chart sets, including "make them all green" after a copy), M (multi-step: the flagship, stop-and-say, nothing half-run, the step limit, per-step Undo), G (guards: stale reference, a pronoun after a chart change, nothing invented, typos, "above the 20"). |
 | `agentConversationUnits.test.js` | 30 unit tests: memory turns, sets, mentions, undo and TTL; words; chart sets; the planner. |
 | `testing/panelHarness.jsx` | The shared harness. The real panel over a fixture board, with the model stubbed by a visible sentinel. |
 
@@ -68,5 +68,5 @@ The full Agent suite on this branch is 1653 passed, 0 failed. The Python Agent t
 - **Owner decision 1:** the no-duplicate rule for single adds.
 - **Model path:** a compact "working set" in conversation memory for the steps a multi-step request leaves to the
   model.
-- **Copied indicators:** referents for copies ("make them all green" after "put those on my other charts").
-  `copyFrom` receipts are not recorded as touches yet.
+- **Copies by position:** "make the copy on the right red". After a copy, copies are referents as a group only
+  ("make them all green" covers the originals and every copy).
