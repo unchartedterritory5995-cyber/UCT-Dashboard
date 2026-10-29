@@ -89,19 +89,35 @@ def _internal_ids() -> tuple:
 
 
 def _detections(now: Optional[float] = None) -> list:
-    """Active daily detections: (sym, pattern_id, direction, confidence, detected_at)."""
-    from api.services.pattern_engine import pattern_db
+    """Active daily detections that map to an archive setup, the BEST one per (sym, pattern_id)
+    (highest confidence, then newest): (sym, pattern_id, direction, confidence, detected_at).
 
+    ⛔ Narrowed IN SQL, never in Python (2026-10-29): the window holds ~97k rows on a local copy of
+    the scan, and turning each into a Python tuple holds the GIL — production logged the web pod's
+    bar stream stalling 3-5 s while this read ran. Filtering to the mapped detectors and keeping one
+    row per (sym, pattern_id) returns ~13k rows for the same SQL time (SQLite releases the GIL while
+    it scans). _compute's per-(sym, setup) rule is unchanged: it picks among these rows exactly as it
+    picked among all of them, because the dropped rows could never win."""
+    from api.services.pattern_engine import pattern_db
+    from api.services.wisdom.archive import setup_map
+
+    mapped = setup_map.pattern_ids()
+    if not mapped:
+        return []
     cutoff = int(now if now is not None else time.time()) - WINDOW_SECS
     internal = _internal_ids()
-    sql = (
-        "SELECT sym, pattern_id, direction, confidence, detected_at FROM pattern_detections "
-        f"WHERE tf = 'D' AND status IN ({','.join('?' * len(ACTIVE_STATUSES))}) AND detected_at >= ? "
-        f"AND (category IS NULL OR category NOT IN ({','.join('?' * len(EXCLUDED_CATEGORIES))}))")
-    params: list = [*ACTIVE_STATUSES, cutoff, *EXCLUDED_CATEGORIES]
+    where = (
+        f"tf = 'D' AND status IN ({','.join('?' * len(ACTIVE_STATUSES))}) AND detected_at >= ? "
+        f"AND (category IS NULL OR category NOT IN ({','.join('?' * len(EXCLUDED_CATEGORIES))})) "
+        f"AND pattern_id IN ({','.join('?' * len(mapped))})")
+    params: list = [*ACTIVE_STATUSES, cutoff, *EXCLUDED_CATEGORIES, *mapped]
     if internal:
-        sql += f" AND pattern_id NOT IN ({','.join('?' * len(internal))})"
+        where += f" AND pattern_id NOT IN ({','.join('?' * len(internal))})"
         params.extend(internal)
+    sql = ("SELECT sym, pattern_id, direction, confidence, detected_at FROM ("
+           " SELECT sym, pattern_id, direction, confidence, detected_at, ROW_NUMBER() OVER ("
+           "  PARTITION BY sym, pattern_id ORDER BY confidence DESC, detected_at DESC) AS rn"
+           f" FROM pattern_detections WHERE {where}) WHERE rn = 1")
     with contextlib.closing(pattern_db.get_connection()) as conn:
         rows = conn.execute(sql, tuple(params)).fetchall()
     return [(r[0], r[1], r[2], r[3], r[4]) for r in rows]

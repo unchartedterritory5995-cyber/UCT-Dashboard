@@ -322,9 +322,8 @@ def test_a_ticker_on_many_setups_reads_its_history_once(env, monkeypatch):
     c = _client(None)
     flag = _playbook(setup_id="flag_htf", name="Flag", aliases=["flag"], stats=_stats(90, 0.1, 1.0))
     assert c.post(BATCH, json={"kind": "setups", "items": [flag]}, headers=AUTH).json()["inserted"] == 1
-    real_map = setup_map.setup_for_pattern
-    monkeypatch.setattr(setup_map, "setup_for_pattern",
-                        lambda pid: "flag_htf" if pid == "uct_flag_synthetic" else real_map(pid))
+    index = dict(setup_map._index(), uct_flag_synthetic="flag_htf")
+    monkeypatch.setattr(setup_map, "_index", lambda: index)
     _detect([("ZZTA", "uct_kicker", "uct", 0, 80.0), ("ZZTA", "uct_flag_synthetic", "uct", 0, 70.0)])
     lookups = []
     real_summary = service.ticker_summary
@@ -366,3 +365,20 @@ def test_wait_s_returns_the_answer_when_it_lands_in_time(env):
     _detect([("ZZTA", "uct_kicker", "uct", 0, 80.0)])
     out = rhymes.today(wait_s=10)
     assert out is not rhymes.WARMING and out["n_hits"] == 1
+
+
+def test_the_scan_read_returns_only_mapped_detectors_and_the_best_row_per_detector(env):
+    _detect([
+        ("ZZTA", "uct_kicker", "uct", 0, 60.0),
+        ("ZZTA", "uct_kicker", "uct", 1, 90.0),                  # the best ZZTA kicker
+        ("ZZTA", "uct_kicker", "uct", 0, 70.0),
+        ("ZZB", "doji_not_a_mapped_detector", "uct", 0, 99.0),   # maps to no setup: never read
+    ])
+    rows = rhymes._detections()
+    assert [(r[0], r[1], r[3]) for r in rows] == [("ZZTA", "uct_kicker", 90.0)]
+
+
+def test_an_empty_vocabulary_reads_no_scan(env, monkeypatch):
+    monkeypatch.setattr(setup_map, "pattern_ids", lambda: ())
+    _detect([("ZZTA", "uct_kicker", "uct", 0, 80.0)])
+    assert rhymes._detections() == []

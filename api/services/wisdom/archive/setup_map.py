@@ -39,6 +39,11 @@ def setup_for_pattern(pattern_id: Optional[str]) -> Optional[str]:
     return _index().get(str(pattern_id or "").strip().lower()) or None
 
 
+def pattern_ids() -> tuple:
+    """Every detector id that maps to an archive setup (the keys of the one vocabulary map)."""
+    return tuple(sorted(_index()))
+
+
 def clear_cache() -> None:
     _index.cache_clear()
     with _MARKET_LOCK:
