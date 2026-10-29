@@ -195,3 +195,55 @@ def test_card_plain_single_print_unchanged():
     desc = lmr._build_massive_embed(a, mode="single")["description"]
     assert "$1.25M" in desc and "ask build" not in desc
     assert "Volume: 200" in desc
+
+
+# ── directional one-sidedness ("Flow: X% one-sided (ask/bid)") ────────────────
+
+def test_flow_split_call_bull_is_ask():
+    flow = {"CRWD|C|257.5|1/21/2028": {"Bull": 8_100_000.0, "Bear": 500_000.0}}
+    push = _leaps_alert()
+    lmr._stamp_flow_split(push, _leaps_alert(), flow)
+    assert push["_flowPct"] == 94
+    assert push["_flowSide"] == "ask"
+    assert push["_flowDom"] == 8_100_000.0 and push["_flowOther"] == 500_000.0
+
+
+def test_flow_split_put_bought_is_ask():
+    # a PUT bought (Bear) is ask-side buying
+    flow = {"ARM|P|200|6/17/2027": {"Bull": 200_000.0, "Bear": 3_000_000.0}}
+    p = {"ticker": "ARM", "cp": "P", "strike": 200, "exp": "6/17/2027", "_direction": "Bear"}
+    lmr._stamp_flow_split(p, dict(p), flow)
+    assert p["_flowSide"] == "ask" and p["_flowPct"] == 94
+
+
+def test_flow_split_put_written_is_bid():
+    # a PUT sold (Bull) is bid-side writing
+    flow = {"PAGP|P|26|1/15/2027": {"Bull": 1_000_000.0, "Bear": 100_000.0}}
+    p = {"ticker": "PAGP", "cp": "P", "strike": 26, "exp": "1/15/2027", "_direction": "Bull"}
+    lmr._stamp_flow_split(p, dict(p), flow)
+    assert p["_flowSide"] == "bid"
+
+
+def test_flow_split_no_data_noops():
+    push = _leaps_alert()
+    lmr._stamp_flow_split(push, _leaps_alert(), {})      # no entry for this contract
+    assert "_flowPct" not in push
+
+
+def test_card_renders_flow_line():
+    flow = {"CRWD|C|257.5|1/21/2028": {"Bull": 8_100_000.0, "Bear": 500_000.0}}
+    push = _leaps_alert()
+    lmr._stamp_flow_split(push, _leaps_alert(), flow)
+    desc = lmr._build_massive_embed(push, mode="single")["description"]
+    assert "📐 Flow: 94% one-sided (ask)" in desc
+    assert "$8.10M vs $500K" in desc
+
+
+def test_unverified_relabel_has_no_flow_line():
+    # relabel is never stamped -> no Flow line on a neutral card
+    desc = lmr._build_massive_embed(_relabel_helper(), mode="single")["description"]
+    assert "Flow:" not in desc
+
+
+def _relabel_helper():
+    return lmr._relabel_unverified(_leaps_alert())

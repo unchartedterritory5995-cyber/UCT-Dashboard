@@ -5516,6 +5516,15 @@ def _build_massive_embed(alert: dict, *, mode: str = "single") -> dict:
         vol_group = [x for x in (vol_l1, (f"Vol/OI: {voi:.2f}x" if voi is not None else None)) if x]
         if vol_group:
             lines.append("📊 " + "\n".join(vol_group))
+        # 📐 Directional one-sidedness (stamped on CONFIRMED directional pushes):
+        # the contract's net-flow lean. For a call, "(ask)" == ask-side buying.
+        fpct = alert.get("_flowPct")
+        if fpct is not None:
+            _fside = alert.get("_flowSide")
+            _ftag = f" ({_fside})" if _fside else ""
+            lines.append(f"📐 Flow: {int(fpct)}% one-sided{_ftag}  ·  "
+                         f"{_fmt_money_m(alert.get('_flowDom') or 0)} vs "
+                         f"{_fmt_money_m(alert.get('_flowOther') or 0)}")
         default_name = alert.get("alertName") or "UCT Massive"
 
     # Premium-collecting side, surfaced explicitly so the card isn't confusing:
@@ -6072,6 +6081,35 @@ def _relabel_unverified(a: dict) -> dict:
     return out
 
 
+def _stamp_flow_split(push_alert: dict, src: dict, flow: dict) -> None:
+    """Attach the contract's directional one-sidedness for the card's Flow line:
+    dominant vs other directional premium this session + whether the dominant flow
+    is ask- or bid-side. Uses the SAME per-contract split the net-flow push gate
+    computes (`flow` = {contract: {Bull, Bear}}). No-op if unavailable. Only called
+    for a CONFIRMED directional push — never a neutral relabel."""
+    try:
+        key = f"{src.get('ticker','')}|{src.get('cp','')}|{src.get('strike','')}|{src.get('exp','')}"
+        fs = flow.get(key)
+        if not fs:
+            return
+        bull, bear = float(fs.get("Bull", 0) or 0), float(fs.get("Bear", 0) or 0)
+        total = bull + bear
+        if total <= 0:
+            return
+        direction = push_alert.get("_direction")
+        dom = bull if direction == "Bull" else bear
+        cp = (src.get("cp") or "").upper()
+        # ask-side = CALL bought (Bull) or PUT bought (Bear); else bid-side (writing)
+        ask_side = (cp.startswith("C") and direction == "Bull") or \
+                   (cp.startswith("P") and direction == "Bear")
+        push_alert["_flowPct"] = round(100 * dom / total)
+        push_alert["_flowDom"] = dom
+        push_alert["_flowOther"] = total - dom
+        push_alert["_flowSide"] = "ask" if ask_side else "bid"
+    except Exception:
+        pass
+
+
 def should_auto_push(alert: dict, cfg: dict = None) -> bool:
     """Decide whether an alert qualifies for auto-push under the current algo.
 
@@ -6481,6 +6519,8 @@ def _apply_auto_push(alerts: list, mode: str = "single", live: bool = True):
                         and a.get("_direction") in ("Bull", "Bear")
                         and not _side_confirms(a, _thr)):
                     push_alert = _relabel_unverified(a)   # neutral card; feed row `a` untouched
+                elif a.get("_direction") in ("Bull", "Bear"):
+                    _stamp_flow_split(push_alert, a, _flow)   # confirmed dir -> Flow line
             if _record_push(a, mode, "auto"):           # atomic claim (keyed on the original)
                 a["forwardedToDiscord"] = True
                 to_push.append(push_alert)
