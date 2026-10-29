@@ -6,6 +6,7 @@
 // (textColor, headerColor, upColor, downColor), so the widget theme gallery and
 // "Apply to all widgets" recolour it exactly as they recolour every other widget.
 import { dividerFor, chromeFor, toolbarFor } from '../../../utils/dividerColor'
+import { ensureContrast } from '../../../lib/theme'
 import { ALERT_SOUNDS } from '../../../utils/alertSound'
 import { NEWS_WIDGET_DEFAULTS, NEWS_WIDGET_LIGHT_OVERRIDES } from './newsWidgetSettings'
 
@@ -91,6 +92,13 @@ export function txnWidgetStyleVars(s) {
     '--txn-up': s.upColor || D.upColor,
     '--txn-down': s.downColor || D.downColor,
   }
+  // Ticker TEXT in the daily-performance colours: the theme's candle hues, nudged
+  // (same hue) until 11px text clears WCAG AA on this widget's own canvas. The
+  // status dot and highlight keep the theme's raw colour.
+  const surfaces = s.bgMode === 'gradient' ? [solid, s.bgGradient?.bottom] : [solid]
+  const readable = (c) => surfaces.reduce((acc, bg) => (bg ? ensureContrast(acc, bg, 4.5) : acc), c)
+  vars['--txn-sym-up'] = readable(vars['--txn-up'])
+  vars['--txn-sym-down'] = readable(vars['--txn-down'])
   const div = dividerFor(solid)
   const divStrong = dividerFor(solid, { strong: true })
   if (div) vars['--txn-divider'] = div
