@@ -20,8 +20,9 @@ describe('ColorPicker withOpacity', () => {
     expect(range.value).toBe('5')
     fireEvent.change(range, { target: { value: '60' } })
     expect(onChange).toHaveBeenLastCalledWith('#FFFFFF99')
+    // ⭐ raising a translucent colour to 100% is an EXPLICIT opaque pick (N3)
     fireEvent.change(range, { target: { value: '100' } })
-    expect(onChange).toHaveBeenLastCalledWith('#FFFFFF')
+    expect(onChange).toHaveBeenLastCalledWith('#FFFFFFFF')
   })
 
   it('a swatch takes the hue and KEEPS the current opacity', () => {

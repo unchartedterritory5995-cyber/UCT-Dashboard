@@ -58,7 +58,7 @@
 // answer to "which scale do the candles own", consumed here so that the
 // complete option set can name `priceScaleId` even when a caller supplies no
 // placement at all.
-import { ALPHA, withAlpha } from '../designTokens'
+import { ALPHA, withAlpha, withAlphaByte } from '../designTokens'
 import { fromGradient, objectHexToPacked, packedToObjectHex } from './runtime/colours'
 import { withObjectTransparency } from './ast/objectProgram'
 import { MAIN_PRICE_SCALE_ID } from './placement'
@@ -198,6 +198,37 @@ export function guideSignature(guides) {
  * Returns the plot UNCHANGED (same reference) when there is nothing to re-apply,
  * so the common case allocates nothing.
  */
+/** A colour as one comparable string: `#RRGGBB` (opaque) or `#RRGGBBAA`, upper case,
+ *  from `#rgb`, `#rrggbb`, `#rrggbbaa`, `rgb()` or `rgba()` — EXCEPT that an explicit
+ *  `#RRGGBBFF` stays eight digits: the colour picker writes it when a member makes a
+ *  translucent colour opaque, and that is a pick, not the seeded default. */
+export function normalColour(c) {
+  if (typeof c !== 'string') return null
+  const v = c.trim()
+  if (/^#[0-9a-f]{6}ff$/i.test(v)) return v.toUpperCase()
+  return withAlphaByte(v, 1)
+}
+
+/** ⭐⭐ Does an old-shape document's `plots[].opacity` (the script default's
+ *  transparency, stored beside a `$color` ref) still apply to the instance's colour
+ *  `v`? Only while `v` IS the default colour — what `addInstance` seeds. Any other
+ *  value is the member's pick, and a pick is the whole colour, alpha included. */
+export function storedOpacityApplies(plot, v) {
+  if (!plot || plot.opacity === undefined) return false
+  const a = normalColour(v)
+  return a !== null && a === normalColour(plot.color)
+}
+
+/** The colour the member SEES for `$key` on a Pine document: an old-shape default
+ *  with its stored opacity folded in (so the picker shows 0%, not 100%, for a
+ *  transparent default), else the value itself. */
+export function effectiveColourFor(def, key, value) {
+  if (!def || !def.meta || def.meta.recurrenceOrigin !== 'pine' || typeof value !== 'string') return value
+  const plot = (def.plots || []).find((p) => p && p.$refs && p.$refs.color === key && p.opacity !== undefined)
+  if (!plot || !storedOpacityApplies(plot, value) || !(Number(plot.opacity) < 1)) return value
+  return withAlphaByte(value, Number(plot.opacity)) || value
+}
+
 export function resolvePlotForInstance(plot, inputs, { pickReplacesOpacity = false } = {}) {
   const refs = plot && plot.$refs
   if (!refs || !inputs) return plot
@@ -224,7 +255,10 @@ export function resolvePlotForInstance(plot, inputs, { pickReplacesOpacity = fal
     // ⛔ ONLY FOR A PINE TRANSLATION (`pickReplacesOpacity`): a native's `opacity`
     // is a deliberate MULTIPLIER over one shared colour (VWAP's ±σ bands at 0.6 of
     // `$color`), and a pick there must keep it.
-    if (pickReplacesOpacity && field === 'color' && plot.opacity !== undefined && v !== plot.color) delete out.opacity
+    // ⭐ N3: compared NORMALISED (case, `#rgb`, `rgb()`/`rgba()` are not picks), and an
+    // explicit `#RRGGBBFF` — what the picker emits when a member raises a translucent
+    // colour to 100% — IS a pick, distinct from the seeded `#RRGGBB` default.
+    if (pickReplacesOpacity && field === 'color' && !storedOpacityApplies(plot, v)) delete out.opacity
   }
 
   if (Array.isArray(refs.levels) && Array.isArray(plot.levels)) {

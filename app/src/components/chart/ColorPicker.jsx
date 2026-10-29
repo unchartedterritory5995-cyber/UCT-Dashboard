@@ -42,7 +42,9 @@ function opacityOfColour(value) {
 function colourAtOpacity(value, opacity) {
   const base = opaqueOf(value)
   if (!base) return value
-  if (opacity >= 1) return opacityOfColour(value) >= 1 ? value : base
+  // ⭐ raising a translucent colour to 100% writes an EXPLICIT `#RRGGBBFF`: a pick,
+  // which a seeded `#RRGGBB` default is not (`pool.storedOpacityApplies`).
+  if (opacity >= 1) return opacityOfColour(value) >= 1 ? value : `${base}FF`
   return withAlphaByte(base, opacity) || base
 }
 
