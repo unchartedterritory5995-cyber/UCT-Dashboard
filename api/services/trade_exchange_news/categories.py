@@ -57,7 +57,8 @@ _OPTIONS = re.compile(
 #: A price line: a symbol and one or two price words, nothing else ("GOOGL lows", "ADT Open").
 _PRICE = re.compile(
     r"^\s*\$?[A-Z][A-Z0-9.\-]{0,9}\s+(?:new\s+)?(?:lows?|highs?|open|opens|opened|halted|halt|resumed"
-    r"|52[- ]week (?:highs?|lows?)|all[- ]time (?:highs?|lows?)|gaps? (?:up|down)|up|down)\s*[.!]?\s*$", re.I)
+    r"|52[- ]week (?:highs?|lows?)|all[- ]time (?:highs?|lows?)|gaps? (?:up|down)|up|down|green|red|flat"
+    r"|[-+]?\$?\d+(?:\.\d+)?%?)\s*[.!]?\s*$", re.I)
 _MACRO = re.compile(
     r"\b(?:FED|FOMC|POWELL|FEDERAL RESERVE|RATE (?:CUT|HIKE)S?|INTEREST RATES?|RATES|INFLATION|CPI|PPI|PCE|GDP"
     r"|PAYROLLS?|JOBLESS CLAIMS|UNEMPLOYMENT|JOBS REPORT|TREASURY|TREASURIES|YIELDS?|TARIFFS?|BESSENT|HASSETT"
@@ -84,6 +85,39 @@ def category_for(source: str, content: str) -> str:
     return NEWS
 
 
+#: Labels whose text names companies in prose (a filing line's names are people/roles).
+NAME_SOURCES_EXCLUDED = frozenset({"TX-Filings"})
+
+
 def tickers_for(source: str, content: str) -> list[str]:
-    """The canonical resolver, read with the context this label's format calls for."""
-    return tr.resolve_tickers(content, SOURCE_TICKER_CONTEXT.get(source, tr.WIRE_NEWS))[:12]
+    """Explicit symbols (the canonical resolver, in this label's context) plus the
+    symbols of high-confidence company NAMES -- what filters and alerts match on."""
+    out = tr.resolve_tickers(content, SOURCE_TICKER_CONTEXT.get(source, tr.WIRE_NEWS))
+    for _text, sym in mentions_for(source, content):
+        if sym not in out:
+            out.append(sym)
+    return out[:12]
+
+
+def mentions_for(source: str, content: str) -> list[list[str]]:
+    """[[text as written, symbol]] for company names to link in the headline."""
+    if source in NAME_SOURCES_EXCLUDED:
+        return []
+    return [[t, s] for t, s in tr.resolve_company_mentions(content)]
+
+
+#: ⛔ Graphic-only placeholders: Trade Exchange's own app shows a picture under
+#: these, but the webhook carries only the label (no image, embed or extra field
+#: has been seen: admin status extra_keys_seen is empty). CONFIRMED labels only --
+#: a short headline is NOT a placeholder ("GOOGL lows", "VIX 16.40" stay).
+GRAPHIC_PLACEHOLDERS = frozenset({"CRYPTO"})
+_INVISIBLE = re.compile(r"[\s\u200b-\u200f\u2060\ufeff\u00ad]+")
+
+
+def placeholder_for(content: str) -> str | None:
+    visible = _INVISIBLE.sub("", content or "")
+    if not visible:
+        return "graphic"                 # nothing to read: an image-only post
+    if visible.upper() in GRAPHIC_PLACEHOLDERS and (content or "").strip().upper() in GRAPHIC_PLACEHOLDERS:
+        return "graphic"
+    return None

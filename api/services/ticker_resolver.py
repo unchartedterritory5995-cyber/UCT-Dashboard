@@ -415,3 +415,91 @@ def resolve_tickers(text: Optional[str], context: Context = QUERY) -> list[str]:
         if sym in uni:
             out.append(sym)
     return out
+
+
+# ── company NAMES -> symbols (headline mentions without a ticker) ────────────
+#
+# ⭐ Same authority, a second input form: "MICROSOFT EXPECTS TO RAISE ..." names
+# MSFT without writing it. PRECISION OVER RECALL -- a wrong link puts the wrong
+# chart and the wrong price colour on breaking news:
+#   * a SINGLE word is a company only through the curated alias list
+#     (api/data/buzz_aliases.json), minus aliases that are ordinary English in a
+#     headline (_ALIAS_NOT_IN_HEADLINES);
+#   * reference-data names (catalyst/news_match's normalised variants of the cap
+#     universe's cached names) count only as MULTI-word sequences ("rocket lab",
+#     "truist financial"), and never as the 2-word prefix of a longer name
+#     ("new york" from "New York Times", "united states" from a steel company);
+#   * a name that maps to more than one security (share classes, look-alikes) is
+#     dropped -- never a guess -- unless the curated list settles it.
+# The index is built OFF the delivery path (prewarm_company_index, a thread);
+# until it is ready, live headlines simply carry no name links, and history picks
+# them up on its next read. No network, ever: names come from the on-disk cache.
+
+_ALIAS_NOT_IN_HEADLINES = frozenset({"open", "affirm", "arm", "novo"})
+_COMPANY_INDEX: Optional[dict] = None
+_COMPANY_LOCK = None
+_NAME_TOKEN_RE = re.compile(r"[A-Za-z0-9]+")
+
+
+def build_company_index(names_by_ticker: dict, aliases: dict) -> dict:
+    """{token tuple: symbol}. Pure -- tests drive it with their own names."""
+    from api.services.catalyst.news_match import _SUFFIXES, _norm_tokens, _variants
+    seen: dict = {}
+    for sym, name in (names_by_ticker or {}).items():
+        stage = _norm_tokens(name)
+        while len(stage) > 1 and (stage[-1] in _SUFFIXES or len(stage[-1]) == 1):
+            stage = stage[:-1]
+        # news_match's shortened-name prefix ("new york" of "New York Times") is too generic.
+        prefix = tuple(stage[:2]) if len(stage) >= 3 else None
+        for v in _variants(name):
+            toks = tuple(v.split())
+            if len(toks) >= 2 and toks != prefix:      # single words: curated list only
+                seen.setdefault(toks, set()).add(canonical(sym))
+    index = {k: next(iter(v)) for k, v in seen.items() if len(v) == 1}
+    for alias, sym in (aliases or {}).items():
+        a = str(alias).strip().lower()
+        if a and a not in _ALIAS_NOT_IN_HEADLINES:
+            index[tuple(_NAME_TOKEN_RE.findall(a))] = canonical(sym)   # curated settles ambiguity
+    return index
+
+
+def prewarm_company_index() -> None:
+    """Build the name index once, OFF any delivery path. Never raises."""
+    global _COMPANY_INDEX, _COMPANY_LOCK
+    import threading
+    if _COMPANY_LOCK is None:
+        _COMPANY_LOCK = threading.Lock()
+    with _COMPANY_LOCK:
+        if _COMPANY_INDEX is not None:
+            return
+        try:
+            from api.services.buzz_universe import _load_json
+            from api.services.catalyst.news_match import _load_universe_names
+            aliases = {str(k).lower(): str(v).upper()
+                       for k, v in (_load_json("buzz_aliases.json") or {}).items()}
+            _COMPANY_INDEX = build_company_index(_load_universe_names(), aliases)
+        except Exception:
+            _COMPANY_INDEX = {}
+
+
+def resolve_company_mentions(text: Optional[str], index: Optional[dict] = None) -> list[tuple[str, str]]:
+    """[(exact text as written, symbol)] for company names in ``text``, in mention
+    order, longest name first, never overlapping, one link per symbol. Uses the
+    prebuilt index only: an index that is not ready yet means no name links."""
+    idx = _COMPANY_INDEX if index is None else index
+    if not idx or not text:
+        return []
+    words = [(m.group(0).lower(), m.start(), m.end()) for m in _NAME_TOKEN_RE.finditer(text)]
+    used = [False] * len(words)
+    hits: list[tuple[int, str, str]] = []
+    for n in (4, 3, 2, 1):
+        for i in range(len(words) - n + 1):
+            if any(used[i:i + n]):
+                continue
+            sym = idx.get(tuple(w for w, _, _ in words[i:i + n]))
+            if sym and sym not in {s for _, _, s in hits}:
+                start, end = words[i][1], words[i + n - 1][2]
+                hits.append((start, text[start:end], sym))
+                for k in range(i, i + n):
+                    used[k] = True
+    return [(t, s) for _, t, s in sorted(hits)]

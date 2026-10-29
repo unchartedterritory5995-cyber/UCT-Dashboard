@@ -281,6 +281,11 @@ async def start_background() -> None:
         return
     pipe = txn_pipeline.start()
     txn_reconcile.start(pipe, reader_from_env())
+    # Company-name links: built on a side thread from the on-disk name cache, never
+    # on the delivery path (until it is ready, headlines simply carry no name links).
+    import threading
+    from api.services.ticker_resolver import prewarm_company_index
+    threading.Thread(target=prewarm_company_index, name="txn-company-index", daemon=True).start()
 
 
 def stop_background() -> None:

@@ -48,6 +48,15 @@ def _tickers_for(content: str, source: str = "") -> list[str]:
         return []
 
 
+def _display_for(source: str, content: str) -> dict:
+    """Company-name links and the graphic-placeholder mark, derived like the category."""
+    try:
+        from api.services.trade_exchange_news.categories import mentions_for, placeholder_for
+        return {"mentions": mentions_for(source, content), "placeholder": placeholder_for(content)}
+    except Exception:  # noqa: BLE001 -- never cost a headline
+        return {"mentions": [], "placeholder": None}
+
+
 def _category_for(source: str, content: str) -> str:
     try:
         from api.services.trade_exchange_news.categories import category_for
@@ -89,6 +98,7 @@ def headline_event(row: dict[str, Any], epoch: str = "") -> dict[str, Any]:
             # value at ingest; the source label itself is never rewritten).
             "tickers": _tickers_for(row["content"], row["source"]),
             "category": _category_for(row["source"], row["content"]),
+            **_display_for(row["source"], row["content"]),
             "repeat_count": row["repeat_count"], "via": row["via"],
             "delayed": (row["ingested_at_ms"] - row["received_at_ms"]) > DELAYED_AFTER_MS}
 

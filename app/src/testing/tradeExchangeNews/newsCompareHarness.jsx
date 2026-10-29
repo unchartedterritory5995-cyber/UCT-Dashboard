@@ -81,11 +81,19 @@ const WIRE = [
   ['TX-PressRelease', 'S - Example Security Named Most Valuable Vendor at a Regional Summit', [], ['S'], 'Press Release'],
   ['TX-News', 'Example Corp names a new chief operating officer', [], [], 'News'],
   ['TX-News', 'WHITE HOUSE: WE CAN BE FLEXIBLE ON TIMING, ALL OPTIONS ARE ON THE TABLE', ['CAN', 'ALL'], [], 'News'],
+  ['TX-News1', 'CRYPTO', [], [], 'News', { placeholder: 'graphic' }],
+  ['TX-News1', 'VIX 16.40', ['VIX'], ['VIX'], 'Price'],
+  ['TX-News', 'MICROSOFT EXPECTS TO RAISE ABOUT $25 BILLION IN US BOND SALE - SOURCE', [], ['MSFT'], 'News',
+    { mentions: [['MICROSOFT', 'MSFT']] }],
 ]
+// Deterministic synthetic quotes for the wire rows: up, down, flat, and one symbol
+// (VIX) with NO quote, so every tone is on screen.
+const WIRE_QUOTES = { MSFT: [412.3, 1.24], GOOGL: [171.1, -2.05], TFC: [48.36, 0.62], DTE: [131.9, 0.4],
+  NVAX: [9.12, -3.1], AAPL: [228.4, 0.88], S: [21.05, 0] }
 const WIRE_MODE = params.get('wire')
 const ROWS = WIRE_MODE
-  ? WIRE.map(([source, content, oldT, newT, category]) => ({ source, content,
-    tickers: WIRE_MODE === 'old' ? oldT : newT, ...(WIRE_MODE === 'old' ? {} : { category }) }))
+  ? WIRE.map(([source, content, oldT, newT, category, extra]) => ({ source, content,
+    tickers: WIRE_MODE === 'old' ? oldT : newT, ...(WIRE_MODE === 'old' ? {} : { category, ...(extra || {}) }) }))
   : HEADLINES.map(([content, tickers]) => ({ source: 'TXNews1', content, tickers }))
 const NEWS = ROWS.map((r, i) => ({
   type: 'headline', epoch: 'harness0harness0', seq: i + 1, id: `HARNESS${String(i).padStart(18, '0')}`,
@@ -127,6 +135,11 @@ window.fetch = (input, init) => {
   if (path.startsWith('/api/live-prices')) {
     const prices = {}
     SYMS.forEach((s, i) => { prices[s] = { price: 20 + i * 3.1, change_pct: rnd(i, 1) * 6, change: rnd(i, 2) } })
+    if (WIRE_MODE) {
+      for (const [sym, [price, pct]] of Object.entries(WIRE_QUOTES)) {
+        prices[sym] = { price, change_pct: pct, change: price * pct / 100, prev_close: price / (1 + pct / 100), updated_at: Date.now() / 1000 }
+      }
+    }
     return json({ prices, ...prices })
   }
   if (path.startsWith('/api/theme-performance')) {
