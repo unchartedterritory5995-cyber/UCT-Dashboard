@@ -62,7 +62,18 @@ vi.mock('../hooks/usePreferences', () => ({
         forceRender((n) => n + 1)
         return true
       },
-      setPrefMerged: vi.fn(),
+      // useAppFocus writes the focus through `setPrefMerged` (a merge onto the stored value, so
+      // an early write cannot replace B/C/D): applied to the same one value, same re-render.
+      setPrefMerged: vi.fn((key, updater) => {
+        const raw = hoisted.prefs[key]
+        let cur
+        try { cur = typeof raw === 'string' ? JSON.parse(raw) : raw } catch { cur = undefined }
+        const next = typeof updater === 'function' ? updater(cur) : updater
+        if (next === undefined) return Promise.resolve(undefined)
+        hoisted.prefs = { ...hoisted.prefs, [key]: typeof next === 'string' ? next : JSON.stringify(next) }
+        forceRender((n) => n + 1)
+        return Promise.resolve(true)
+      }),
       loading: false,
     }
   },

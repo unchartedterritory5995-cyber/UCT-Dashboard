@@ -135,8 +135,11 @@ describe('⚰ THE PERMANENT CHEVRON IS RETIRED — and stays retired', () => {
       const L = lab.exec(css); const V = val.exec(css)
       expect(L, `${name}: no label rule`).toBeTruthy()
       expect(V, `${name}: no value rule`).toBeTruthy()
-      expect(L[1], `${name}'s label is not the muted neutral`).toMatch(/color:\s*var\(--text-muted\)/)
-      expect(V[1], `${name}'s value is not the bright neutral`).toMatch(/color:\s*var\(--text-bright\)/)
+      // On a chart both read the CANVAS ink (chartThemes `legendInkForCanvas`, published by
+      // StockChart): the label its muted step, the value the full ink. Outside a chart (a portaled
+      // row) neither variable exists and the old neutral pair is the fallback.
+      expect(L[1], `${name}'s label is not the muted neutral`).toMatch(/color:\s*var\(--legend-ink-muted, var\(--text-muted\)\)/)
+      expect(V[1], `${name}'s value is not the bright neutral`).toMatch(/color:\s*var\(--legend-ink, var\(--text-bright\)\)/)
       // ⛔ AND NO RESTING OPACITY ON THE LABEL. It existed to separate label from
       // value back when both wore the hue; dimming a member's chosen series colour
       // only made it look wrong.
