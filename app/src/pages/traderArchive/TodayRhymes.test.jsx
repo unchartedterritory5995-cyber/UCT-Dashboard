@@ -2,11 +2,11 @@
 // (unpaid) and a 503 (scan unreadable) are said as such, never as "nothing rhymes"; no price
 // level is ever drawn. Synthetic data only: the repo is public.
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { act, render, screen, fireEvent } from '@testing-library/react'
+import { act, render, screen, fireEvent, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { SWRConfig } from 'swr'
 
-import TodayRhymes, { RHYMES_RETRY, SLOW_MS, WARMING_POLL_MS } from './TodayRhymes'
+import TodayRhymes, { RHYMES_LIMIT, RHYMES_RETRY, SLOW_MS, TICKERS_SHOWN, WARMING_POLL_MS } from './TodayRhymes'
 import TraderArchive from './TraderArchive'
 
 const API = '/api/wisdom/archive'
@@ -39,16 +39,37 @@ const mount = (node) => render(
 afterEach(() => { vi.restoreAllMocks() })
 
 describe('TodayRhymes', () => {
-  it('shows each hit as a card: the verdict, the team history and the closest calls, and no level', async () => {
+  it('shows one card per setup: its record, the tickers with their team history, the closest calls, and no level', async () => {
     serve({ [`${API}/rhymes`]: ok({ market_state: 'downtrend', n_hits: 1, hits: [HIT] }) })
     mount(<TodayRhymes />)
-    expect(await screen.findByTestId('rhyme-hit')).toHaveTextContent('ZZTA')
-    expect(screen.getByText('measured edge')).toBeInTheDocument()
-    expect(screen.getByTestId('rhyme-hit')).toHaveTextContent('worked 55% of the time over 140 team calls')
-    expect(screen.getByTestId('rhyme-history')).toHaveTextContent('The team called ZZTA 2 times. Last: TSDR, Jun 2, 2025, 20-day result +12.0%.')
+    const group = await screen.findByTestId('rhyme-group')
+    expect(group).toHaveTextContent('Kicker candle')
+    expect(group).toHaveTextContent('Proven edge')                              // z 3.4 on 140 calls
+    expect(group).toHaveTextContent('55%worked, over 140 team calls')
+    expect(group).toHaveTextContent("60%worked in today's market (40 calls)")
+    expect(screen.getByTestId('rhyme-hit')).toHaveTextContent('ZZTA')
+    expect(screen.getByTestId('rhyme-history')).toHaveTextContent('Team called it 2×. Last: TSDR, Jun 2, 2025, 20-day +12.0%')
     expect(screen.getByTestId('rhyme-closest')).toHaveTextContent('ZZB Bracco · May 1, 2025 · +20.0%')
-    expect(screen.getByTestId('rhymes-view')).toHaveTextContent("in today's market: 40 calls, win 60%")
     expect(screen.getByTestId('rhymes-view').textContent).not.toMatch(/entry|stop|target/i)
+  })
+
+  it('groups many hits under their setups, says the real total, and folds long lists', async () => {
+    const hit = (ticker, setup_id, name, extra = {}) => ({ ...HIT, ticker, setup: setup_id,
+      playbook: { ...HIT.playbook, setup_id, name, edgeR_z: 1.0 }, ...extra })
+    const kicks = Array.from({ length: TICKERS_SHOWN + 2 }, (_, i) => hit(`ZK${i}`, 'kicker', 'Kicker candle'))
+    const young = hit('ZZY', 'flag_htf', 'Flag / high tight flag / continuation',
+      { ticker_history: { n_calls: 1, last_call: { ...HIT.ticker_history.last_call, r20: null } } })
+    serve({ [`${API}/rhymes`]: ok({ market_state: 'mixed', n_hits: 12376, hits: [...kicks, young] }) })
+    mount(<TodayRhymes />)
+    const groups = await screen.findAllByTestId('rhyme-group')
+    expect(groups).toHaveLength(2)
+    expect(screen.getByTestId('rhymes-view')).toHaveTextContent('12,376 of today')
+    expect(groups[1]).toHaveTextContent('Flag / high tight flag / continuation')
+    expect(groups[1]).toHaveTextContent('Not proven yet')
+    expect(groups[1]).toHaveTextContent('too early to score')                   // never a bare dash
+    expect(within(groups[0]).getAllByTestId('rhyme-hit')).toHaveLength(TICKERS_SHOWN)
+    fireEvent.click(within(groups[0]).getByRole('button', { name: `Show all ${TICKERS_SHOWN + 2}` }))
+    expect(within(groups[0]).getAllByTestId('rhyme-hit')).toHaveLength(TICKERS_SHOWN + 2)
   })
 
   it('a card’s ticker and setup open that ticker and that playbook', async () => {
@@ -92,6 +113,7 @@ describe('TodayRhymes', () => {
     serve({ [`${API}/rhymes`]: ok({ market_state: 'mixed', n_hits: 0, hits: [] }) })
     mount(<TodayRhymes />)
     expect(await screen.findByText(/None of today's scanner hits match/)).toBeInTheDocument()
+    expect(globalThis.fetch.mock.calls[0][0]).toBe(`${API}/rhymes?limit=${RHYMES_LIMIT}`)   // asks for the full page
   })
 
   it('says out loud when the scan is slow, instead of "Reading…" forever', async () => {

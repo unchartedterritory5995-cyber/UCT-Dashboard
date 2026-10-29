@@ -64,7 +64,7 @@ describe('Trader Archive in The Desk', () => {
     expect(screen.getByRole('tab', { name: /Playbooks/ })).toHaveAttribute('aria-selected', 'true')
     expect(await screen.findByRole('button', { name: /Kicker/ })).toBeInTheDocument()
     const urls = () => globalThis.fetch.mock.calls.map(([u]) => String(u))
-    await waitFor(() => expect(urls()).toContain(`${API}/rhymes`))
+    await waitFor(() => expect(urls().some((u) => u.startsWith(`${API}/rhymes`))).toBe(true))
     expect(screen.queryByTestId('rhymes-view')).toBeNull()                      // warmed, not shown
   })
 

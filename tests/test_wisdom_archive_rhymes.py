@@ -407,3 +407,19 @@ def test_the_scan_read_walks_the_detected_at_index(env, monkeypatch):
     assert len(rhymes._detections()) == 1                                       # control: it read
     assert any("idx_pd_detected" in p for p in plans), plans
     assert not any("idx_pd_status" in p or "idx_pd_pattern" in p for p in plans), plans
+
+
+def test_one_setup_cannot_take_every_slot(env, monkeypatch):
+    _seed_archive()
+    c = _client(None)
+    flag = _playbook(setup_id="flag_htf", name="Flag", aliases=["flag"], stats=_stats(90, 0.1, 1.0))
+    assert c.post(BATCH, json={"kind": "setups", "items": [flag]}, headers=AUTH).json()["inserted"] == 1
+    index = dict(setup_map._index(), uct_flag_synthetic="flag_htf")
+    monkeypatch.setattr(setup_map, "_index", lambda: index)
+    monkeypatch.setattr(rhymes, "PER_SETUP_MAX", 2)
+    _detect([(f"ZK{i}", "uct_kicker", "uct", 0, 80.0 + i) for i in range(4)]
+            + [("ZF0", "uct_flag_synthetic", "uct", 0, 50.0)])
+    out = rhymes.today(force=True)
+    assert out["n_hits"] == 5                                                     # the total is still the total
+    assert [h["setup"] for h in out["hits"]].count("kicker") == 2                 # capped
+    assert "flag_htf" in [h["setup"] for h in out["hits"]]                        # the other setup got a slot
