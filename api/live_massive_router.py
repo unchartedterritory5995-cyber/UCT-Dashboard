@@ -5480,25 +5480,37 @@ def _build_massive_embed(alert: dict, *, mode: str = "single") -> dict:
         size = alert.get("tradeSize") or 0
         oi = alert.get("priorOI")
         fill = alert.get("averageFillPrice")
-        voi = round(size / oi, 2) if (oi and oi > 0 and size) else None
+        tier = alert.get("_tierKey")
+        agg_prem = alert.get("aggAskPremium") or 0
+        agg_vol = alert.get("aggAskVolume") or 0
+        # D2 (2026-10-29): Aggregate tiers (Ask Accumulation / Alpha LEAPS) grade
+        # the whole SESSION ask build on the contract, not the single print that
+        # tripped the floor — so the headline must be the aggregate, or a $12.87M
+        # build shows as the $570K print that fired it (CRWD 10/29). The neutral
+        # "Large Ask Build (Unverified)" relabel (tier -> size, _sideUnconfirmed)
+        # is the same build, so it headlines the aggregate too. Single-print tiers
+        # keep the print's own numbers.
+        is_agg = ((tier in ("ask_accum", "alpha_leaps") or alert.get("_sideUnconfirmed"))
+                  and agg_prem > 0)
+        head_prem = agg_prem if is_agg else prem
+        head_vol = int(agg_vol) if (is_agg and agg_vol) else (int(size) if size else 0)
+        voi = round(head_vol / oi, 2) if (oi and oi > 0 and head_vol) else None
         if voi and voi > 1.0:
             badges.append(f"🚀 **OI BREAK** {voi:.1f}x")
-        # Ask Accumulation fires on the print that pushes the contract's SESSION
-        # ask premium over the floor — a single print here can be well under $1M,
-        # so lead with the aggregate build or the card looks under-sized.
-        _agg = alert.get("aggAskPremium") or 0
-        if alert.get("_tierKey") == "ask_accum" and _agg > prem:
-            badges.insert(0, f"🧱 **ASK BUILD {_fmt_money_m(_agg)}**")
+        money = (f"💰 **{_fmt_money_m(head_prem)} ask build**" if is_agg
+                 else f"💰 **{_fmt_money_m(head_prem)}**")
         lines.append(_row(
-            f"💰 **{_fmt_money_m(prem)}**",
+            money,
             (f"Fill ${fill:.2f}" if fill else None),
             (f"{dte} DTE" if dte is not None else None),
         ))
         if spot_line:
             lines.append(spot_line)
-        # 📊 volume group — Volume + OI on line 1, Vol/OI on its own line.
+        # 📊 volume group — aggregate tiers show the session ASK volume (the build),
+        # single-print tiers the print's own size; Vol/OI uses whichever is shown.
+        vol_label = "Volume (ask)" if is_agg else "Volume"
         vol_l1 = _row(
-            (f"Volume: {int(size):,}" if size else None),
+            (f"{vol_label}: {head_vol:,}" if head_vol else None),
             (f"OI: {int(oi):,}" if oi is not None else None),
         )
         vol_group = [x for x in (vol_l1, (f"Vol/OI: {voi:.2f}x" if voi is not None else None)) if x]

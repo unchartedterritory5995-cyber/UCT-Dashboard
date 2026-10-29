@@ -153,3 +153,45 @@ def test_relabel_unverified_copies_and_neutralizes():
     # original (feed row + dedup key) untouched
     assert a["_direction"] == "Bull"
     assert "alertName" not in a or a.get("alertName") != lmr._UNVERIFIED_NAME
+
+
+# ── D2: aggregate-tier cards headline the build, not the triggering print ──────
+
+def _leaps_alert(**kw):
+    # CRWD 10/29: triggering print $570K/77, real build $12.87M/1,734, OI 5
+    base = {"ticker": "CRWD", "cp": "C", "strike": 257.5, "exp": "1/21/2028",
+            "dte": 449, "_direction": "Bull", "_tierKey": "alpha_leaps",
+            "alertName": "UCT Alpha LEAPS Bull", "grade": "A+",
+            "alertPremium": 569800, "tradeSize": 77, "priorOI": 5,
+            "averageFillPrice": 74.0, "aggAskPremium": 12874515,
+            "aggAskVolume": 1734, "spot": 258.46, "moneynessLabel": "ATM",
+            "moneynessPct": 0.0, "timestamp": 1793293877}
+    base.update(kw)
+    return base
+
+
+def test_card_aggregate_headlines_build():
+    desc = lmr._build_massive_embed(_leaps_alert(), mode="single")["description"]
+    assert "$12.87M ask build" in desc           # aggregate, not the $570K print
+    assert "Volume (ask): 1,734" in desc         # aggregate volume, not 77
+    assert "346" in desc                         # Vol/OI from agg_vol/oi, not 15.4x
+    assert "570" not in desc and "77" not in desc
+
+
+def test_card_unverified_relabel_still_shows_build():
+    relbl = lmr._relabel_unverified(_leaps_alert())
+    desc = lmr._build_massive_embed(relbl, mode="single")["description"]
+    assert "$12.87M ask build" in desc           # neutral card keeps the build size
+    assert "Volume (ask): 1,734" in desc
+
+
+def test_card_plain_single_print_unchanged():
+    a = {"ticker": "NVDA", "cp": "C", "strike": 205, "exp": "4/16/2027", "dte": 170,
+         "_direction": "Bull", "_tierKey": "bullish", "alertName": "UCT Bullish",
+         "grade": "B", "alertPremium": 1250000, "tradeSize": 200, "priorOI": 800,
+         "averageFillPrice": 6.25, "aggAskPremium": 0, "aggAskVolume": 0,
+         "spot": 210.0, "moneynessLabel": "ITM", "moneynessPct": 2.4,
+         "timestamp": 1793293877}
+    desc = lmr._build_massive_embed(a, mode="single")["description"]
+    assert "$1.25M" in desc and "ask build" not in desc
+    assert "Volume: 200" in desc
