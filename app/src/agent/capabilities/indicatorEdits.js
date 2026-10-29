@@ -660,8 +660,10 @@ export function registerIndicatorEditCapabilities() {
     // ⭐ Phase 2.5 — and with ONE length or a moving average's length + type ("a 20 EMA", "RSI 7",
     // "RSI with length 7", "a 200-period simple moving average"): `settingsOfWords`. Anything else
     // with parameters, or a near-name, goes to the model; the check below still decides.
+    // ⭐ Phase 2 — "add another 20 EMA" / "a second RSI" / "RSI again": the member's explicit copy (agent/duplicates.js
+    // reuses an identical one otherwise).
     fast: ({ lower }) => {
-      const m = /^(?:please )?(?:add|put|apply|plot)(?: an?| the| my)? (.+?)(?: indicator| study)?(?: (?:on|to|onto|in) (?:my|the|this) chart)?$/.exec(lower)
+      const m = /^(?:please )?(?:add|put|apply|plot)(?: another| a second| one more| an extra| an?| the| my)? (.+?)(?: indicator| study)?(?: again)?(?: (?:on|to|onto|in) (?:my|the|this) chart)?(?: again)?$/.exec(lower)
       if (!m) return null
       const defId = defIdOfWords(m[1])
       if (defId) return { defId, inputs: null }

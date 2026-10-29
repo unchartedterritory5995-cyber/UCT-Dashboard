@@ -17,7 +17,7 @@ the model reads every request, and it now gets `recent_indicators` to resolve th
 | `agent/conversation.js` | Indicator references: "the first / second / last one", "the fast / slow one", "the 9", "the rsi", "it", "that indicator I just added", "the other one", "those", "them both". Chart sets: "my other charts", "the others", "the rest", "all of them", "both", "everywhere", a position, an ordinal or a symbol. Actions: colour, line style or width, remove, hide or show, a new length or type, pane size ("a little taller"), where it draws ("in its own pane", "under price"), copy onto charts, "do the same on …", "make … match / look like …". | References come from session memory and are **re-checked on the live chart every time**. A bare pronoun only counts while the last change was an indicator change. When something is genuinely ambiguous it asks locally ("Which one — EMA 9 or EMA 20?") with the indicators as choices. It never guesses. |
 | `agent/compound.js` | One message with several steps. Each step's chart scope carries forward from earlier steps ("make the 9 green" means the four charts the request just set up). | The plan is read **in full before anything runs**: the request is cut at commas, "and" and "then" into the fewest clauses that each read as one step. If one clause cannot be read, the whole request goes to the model. Then it runs step by step on the live board. A step that is refused, fails, asks a question or needs approval **stops** the request, and the reply says what was and was not done. |
 | `agent/memory.js` | A member message is one **turn**. Memory keeps the latest adding turn's **indicator set** (kept across restyling turns) and the turn's **mentions**. | It is bounded: 24 steps, 30-minute TTL, dropped on a board or layout change and on undo of a step. `forModel().recent_indicators` sends ids and legend names only. |
-| `agent/duplicates.js` | Inside a multi-step request, an add of an indicator the chart already shows with the same settings is not added again. A hidden one is shown instead. | Every new chart already draws EMA 9/20 and SMA 50/200. See the owner decision below. |
+| `agent/duplicates.js` | Any add (typed, model-planned, or a step of a multi-step request) of an indicator the chart already shows with the same settings **reuses** the existing one: nothing is added, the reply says so, and memory points at that instance ("make it a 9" edits it). A hidden one is shown instead. | Every new chart already draws EMA 9/20 and SMA 50/200. An explicit copy ("add another 20 EMA", "a second RSI", "RSI again") is added through the same canonical Add to Chart. An approved card is never re-screened. |
 | `fastPath.js` | "top left" without a hyphen. "make them all daily" (the pronoun belongs to "all"). "put the 9 and 20 ema on …" (the verb "put" carries over). | |
 | `nl/lexicon.js` | `SHORT_FIXES` for the short words traders mistype ("ad teh 20 ema", "mak it green"). | They are used only when the corrected sentence parses into a safe, reversible action. |
 | `api/services/uct_agent/turn.py` | The prompt says how `recent_indicators` and "my other charts" read. | The server's validation, approvals and limits are unchanged. |
@@ -34,11 +34,10 @@ the model reads every request, and it now gets `recent_indicators` to resolve th
 
 ## Decisions to review
 
-1. **A single typed "add a 20 EMA" on a chart that already shows EMA 20 still adds a second one.** That behaviour
-   is railed in `agentGateCIndicators`. The no-duplicate rule applies only inside multi-step requests, where the
-   next step names the indicator. **Recommendation:** apply it to single commands too. Every new chart already
-   draws EMA 9/20 and SMA 50/200, so "throw the 9 and 20 on my chart" stacks identical lines. This would need the
-   Gate C tests updated.
+1. **Decided (owner, 2026-10-29): duplicates are reused.** A single typed "add a 20 EMA" on a chart that already
+   shows EMA 20 now reuses it, and "add another 20 EMA" adds a second one. `agentGateCIndicators` was updated
+   deliberately: the edit-and-undo conversation now uses a 21 EMA, and two new tests rail the reuse (same instance
+   edited, Undo restores it) and the explicit copy.
 2. **"Actually, make the 20 yellow instead" leaves the earlier colour change in place.** It applies the new change.
    "Instead" is not treated as a reversal; the member can say "undo".
 3. **"Move that over there" goes to the model.** It is genuinely unclear where "there" is.
@@ -65,7 +64,6 @@ The full Agent suite on this branch is 1653 passed, 0 failed. The Python Agent t
 
 ## Next
 
-- **Owner decision 1:** the no-duplicate rule for single adds.
 - **Model path:** a compact "working set" in conversation memory for the steps a multi-step request leaves to the
   model.
 - **Copies by position:** "make the copy on the right red". After a copy, copies are referents as a group only
