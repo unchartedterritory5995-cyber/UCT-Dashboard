@@ -149,7 +149,7 @@ describe('P2 engine — the scenario (items 1, 2, 3, 4, 7, 8, 17, 19, 36)', () =
   it('7 CANDLE PAINT — ASKED "gold candles"; CLAIMED candles gold where true, nothing else; DID: the P1 signal paint (colour where true, transparent where false/unknown) (EXACT)', () => {
     expect(def(3).paints).toEqual(signalPaintsFor('value', { barcolor: '#FFD700' }))
     // P3S: the one-output label reads back as the WHOLE name -- the chip cut "RSI 14 above 80" hid the AND clause
-    expect(turns[3].readback.presentation).toContain('candles painted gold where RSI 14 above 80 and Close above 1.08× EMA 20 is true (normal colour otherwise)')
+    expect(turns[3].readback.presentation).toContain('candles painted gold where RSI 14 above 80 and Close above 1.08 times EMA 20 is true (normal colour otherwise)')
     expect(def(3).compute).toEqual(def(2).compute) // presentation-only: maths identical
   })
 
@@ -166,7 +166,7 @@ describe('P2 engine — the scenario (items 1, 2, 3, 4, 7, 8, 17, 19, 36)', () =
     expect(Object.keys(turns[5].state.requests.alerts[0]).sort()).toEqual(['plotKey', 'triggerPolicy'])
     expect(def(5)).toBe(def(5)) // sanity
     expect(stableJson(def(5))).toBe(stableJson(def(4)))
-    expect(turns[5].readback.alerts).toEqual(['Alert when RSI 14 above 80 and Close above 1.08× EMA 20 becomes true'])
+    expect(turns[5].readback.alerts).toEqual(['Alert when RSI 14 above 80 and Close above 1.08 times EMA 20 becomes true'])
   })
 
   it('17 INFO VALUE REQUEST — ASKED "show the RSI value"; CLAIMED the latest RSI in the header; DID: an RSI output plus a {plotKey, format} reference — no formula copy in the request (EXACT)', () => {
@@ -189,7 +189,7 @@ describe('P2 engine — the scenario (items 1, 2, 3, 4, 7, 8, 17, 19, 36)', () =
         { style: 'markers', marker: { shape: 'circle', position: 'belowBar' } }),
       builderRow('rsi', 'rsi(close, 14)', { label: 'RSI 14' }),   // derived, not the model's "RSI"
     ]
-    const expected = builderSave({ name: 'RSI 14 above 75 and Close above 1.08× EMA 20 · RSI 14', rows, scanPlot: 'value',
+    const expected = builderSave({ name: 'RSI 14 above 75 and Close above 1.08 times EMA 20 · RSI 14', rows, scanPlot: 'value',
       paints: signalPaintsFor('value', { barcolor: '#FFD700' }) })
     expect(stableJson(s.working)).toBe(stableJson(expected))
     expect(validateUserDefinitions([s.working]).errors).toEqual([])
@@ -219,7 +219,7 @@ describe('P2 engine — the scenario (items 1, 2, 3, 4, 7, 8, 17, 19, 36)', () =
 
   it('readback — deterministic lines from the resulting definition (EXACT)', () => {
     const rb = turns[7].readback
-    expect(rb.lines[0]).toBe('Name: RSI 14 above 75 and Close above 1.08× EMA 20 · RSI 14')
+    expect(rb.lines[0]).toBe('Name: RSI 14 above 75 and Close above 1.08 times EMA 20 · RSI 14')
     expect(rb.lines).toContain(SEMANTICS_LINE)
     expect(rb.outputs.map((o) => [o.key, o.type])).toEqual([['value', 'condition'], ['rsi', 'series']])
     expect(rb.outputs[0].sentence).toMatch(/14-bar RSI of close\) is greater than 75/)

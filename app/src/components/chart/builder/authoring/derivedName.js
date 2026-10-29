@@ -245,7 +245,7 @@ export function nameOfTree(node, parentPrec = 0, mode = 'plain') {
       }
       if (node.name === '*' && args.length === 2 && (isNum(args[0]) || isNum(args[1]))) {
         const [k, x] = isNum(args[0]) ? args : [args[1], args[0]]
-        return `${fmtNum(k.value)}× ${sub(x, 9)}`
+        return `${fmtNum(k.value)} times ${sub(x, 9)}`
       }
       const p = PREC[node.name] || 7
       const word = PLAIN_RELATIONS[node.name] || PLAIN_ARITHMETIC[node.name] || OP_WORDS[node.name] || node.name

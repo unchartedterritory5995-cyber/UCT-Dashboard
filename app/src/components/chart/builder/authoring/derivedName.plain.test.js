@@ -17,7 +17,7 @@ describe('the plain wording', () => {
     ['high < high[1] && low > low[1]', 'High below previous High and Low above previous Low'],
     ['(ema(close, 9) - ema(close, 20)) / ema(close, 20) * 100', 'EMA 9 vs EMA 20 %'],
     ['(close - sma(close, 50)) / sma(close, 50) * 100', 'Close vs SMA 50 %'],
-    ['volume > 1.5 * sma(volume, 20)', 'Volume above 1.5× SMA 20 (Volume)'],
+    ['volume > 1.5 * sma(volume, 20)', 'Volume above 1.5 times SMA 20 (Volume)'],
     // `0 / 0` is “no value” (the native formula's `na` spelling lands with the expressiveness PR)
     ['close > sma(close, 50) ? close : 0 / 0', 'Close when Close above SMA 50'],
     ['close - close[5]', 'Close 5-bar change'],
