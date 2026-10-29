@@ -63,12 +63,28 @@ describe('TodayRhymes', () => {
   })
 
   it('says the archive is off, unpaid or unreadable as such, never as nothing rhymes', async () => {
-    for (const [status, id] of [[404, 'rhymes-off'], [402, 'rhymes-paywall'], [503, 'rhymes-unavailable']]) {
+    for (const [status, id] of [[404, 'rhymes-off'], [402, 'rhymes-paywall']]) {
       serve({ [`${API}/rhymes`]: fail(status) })
       const { unmount } = mount(<TodayRhymes />)
       expect(await screen.findByTestId(id)).toBeInTheDocument()
       expect(screen.queryByText(/None of today/)).toBeNull()
       unmount()
+    }
+  })
+
+  it('an unreadable scan (503) is said as such once the retries are spent', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      serve({ [`${API}/rhymes`]: fail(503) })
+      mount(<TodayRhymes />)
+      expect(await screen.findByText(/this page checks back on its own/)).toBeInTheDocument()
+      for (let i = 0; i <= RHYMES_RETRY.count + 1 && !screen.queryByTestId('rhymes-unavailable'); i += 1) {
+        await act(async () => { await vi.advanceTimersByTimeAsync(RHYMES_RETRY.intervalMs + 10) })
+      }
+      expect(screen.getByTestId('rhymes-unavailable')).toBeInTheDocument()
+      expect(screen.queryByText(/None of today/)).toBeNull()
+    } finally {
+      vi.useRealTimers()
     }
   })
 
@@ -97,7 +113,9 @@ describe('TodayRhymes', () => {
       let n = 0
       globalThis.fetch = vi.fn(() => Promise.resolve(++n < 3 ? fail(524) : ok({ market_state: 'downtrend', hits: [HIT] })))
       const { unmount } = mount(<TodayRhymes />)
-      expect(await screen.findByTestId('rhymes-unavailable')).toBeInTheDocument()
+      // While retries remain, a 5xx reads as "still matching", never as a failure.
+      expect(await screen.findByText(/this page checks back on its own/)).toBeInTheDocument()
+      expect(screen.queryByTestId('rhymes-unavailable')).toBeNull()
       for (let i = 0; i < 3 && !screen.queryByTestId('rhyme-hit'); i += 1) {
         await act(async () => { await vi.advanceTimersByTimeAsync(RHYMES_RETRY.intervalMs + 10) })
       }

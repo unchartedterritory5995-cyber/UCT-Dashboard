@@ -382,3 +382,28 @@ def test_an_empty_vocabulary_reads_no_scan(env, monkeypatch):
     monkeypatch.setattr(setup_map, "pattern_ids", lambda: ())
     _detect([("ZZTA", "uct_kicker", "uct", 0, 80.0)])
     assert rhymes._detections() == []
+
+
+def test_the_scan_read_walks_the_detected_at_index(env, monkeypatch):
+    """The query plan, not a timing: idx_pd_detected, never idx_pd_status (see _detections)."""
+    from api.services.pattern_engine import pattern_db
+
+    plans = []
+    real = pattern_db.get_connection
+
+    class Spy:
+        def __init__(self, conn):
+            self._c = conn
+
+        def execute(self, sql, params=()):
+            plans.extend(r[-1] for r in self._c.execute("EXPLAIN QUERY PLAN " + sql, params).fetchall())
+            return self._c.execute(sql, params)
+
+        def close(self):
+            self._c.close()
+
+    _detect([("ZZTA", "uct_kicker", "uct", 0, 80.0)])
+    monkeypatch.setattr(pattern_db, "get_connection", lambda: Spy(real()))
+    assert len(rhymes._detections()) == 1                                       # control: it read
+    assert any("idx_pd_detected" in p for p in plans), plans
+    assert not any("idx_pd_status" in p or "idx_pd_pattern" in p for p in plans), plans
