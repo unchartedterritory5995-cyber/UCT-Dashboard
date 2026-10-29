@@ -41,7 +41,7 @@ describe('TraderArchiveBlock', () => {
     expect(notes).toEqual(['synthetic newer note', 'synthetic older note'])
     expect(screen.getByText('+10.0%')).toBeInTheDocument()
     expect(screen.getByText('-2.0%')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /Open the trader archive/ }).getAttribute('href')).toBe('/trader-archive?sym=ZZTA')
+    expect(screen.getByRole('link', { name: /Open the trader archive/ }).getAttribute('href')).toBe('/desk?section=archive&sym=ZZTA')
     expect(String(globalThis.fetch.mock.calls[0][0])).toContain('/api/wisdom/archive/ticker/ZZTA')
   })
 

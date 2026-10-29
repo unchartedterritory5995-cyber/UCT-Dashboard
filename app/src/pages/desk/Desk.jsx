@@ -1,12 +1,17 @@
 // app/src/pages/desk/Desk.jsx
-// "The Desk" — unified first-party content hub. One paid tab with four
-// sub-sections: Videos · Articles · Posts · Team.
+// "The Desk" — unified first-party content hub. One paid tab with these
+// sub-sections: Videos · Courses · Articles · Posts · Team · Archive.
+// Archive is the TSDR trader archive (moved in from /trader-archive, owner ruling
+// 2026-10-28) and is DARK with the archive itself: the tab exists only while the
+// auth payload's `wisdom_archive_enabled` is on, the same reader as the archive
+// routes' own 404 gate.
 import { lazy, Suspense, useState, useEffect } from 'react'
 import { preload } from 'swr'
 import DeskSectionSkeleton from './DeskSectionSkeleton'
 import { useSearchParams } from 'react-router-dom'
 import { GraduationIcon, CourseIcon, ArticleIcon, PostIcon, TeamIcon } from '../education/icons'
 import UIcon from '../../components/ui/UIcon'
+import { useAuth } from '../../context/AuthContext'
 import styles from './Desk.module.css'
 
 const VideosSection = lazy(() => import('./VideosSection'))
@@ -14,6 +19,9 @@ const CoursesSection = lazy(() => import('./CoursesSection'))
 const ArticlesSection = lazy(() => import('./ArticlesSection'))
 const PostsSection = lazy(() => import('./PostsSection'))
 const TeamSection = lazy(() => import('./TeamSection'))
+const TraderArchive = lazy(() => import('../traderArchive/TraderArchive'))
+
+const ArchiveIcon = ({ size }) => <UIcon name="quote" size={size} gold={false} />
 
 const SECTIONS = [
   { key: 'videos', label: 'Videos', Icon: GraduationIcon, Comp: VideosSection },
@@ -21,6 +29,7 @@ const SECTIONS = [
   { key: 'articles', label: 'Articles', Icon: ArticleIcon, Comp: ArticlesSection },
   { key: 'posts', label: 'Posts', Icon: PostIcon, Comp: PostsSection },
   { key: 'team', label: 'Team', Icon: TeamIcon, Comp: TeamSection },
+  { key: 'archive', label: 'Archive', Icon: ArchiveIcon, Comp: TraderArchive, archive: true },
 ]
 
 const STORAGE_KEY = 'desk_section'
@@ -46,12 +55,14 @@ function warmVideoLibrary(section) {
 
 export default function Desk() {
   const [params, setParams] = useSearchParams()
+  const { wisdomArchiveEnabled } = useAuth()
+  const sections = SECTIONS.filter((s) => !s.archive || wisdomArchiveEnabled === true)
   const initial =
     params.get('section') ||
     (typeof localStorage !== 'undefined' && localStorage.getItem(STORAGE_KEY)) ||
     'videos'
   const [active, setActive] = useState(
-    SECTIONS.some((s) => s.key === initial) ? initial : 'videos',
+    sections.some((s) => s.key === initial) ? initial : 'videos',
   )
   // Before paint, not in an effect: an effect runs after the section's lazy
   // import has already been kicked off by render.
@@ -59,16 +70,18 @@ export default function Desk() {
 
   useEffect(() => {
     try { localStorage.setItem(STORAGE_KEY, active) } catch { /* ignore */ }
-    // keep ?section= in sync without stacking history entries
+    // keep ?section= in sync without stacking history entries. Switching away from a
+    // section drops its params (Articles and the Archive both own `q`); a first visit
+    // with no ?section keeps them (`/desk?v=…` opens a video).
     if (params.get('section') !== active) {
-      const next = new URLSearchParams(params)
+      const next = params.get('section') ? new URLSearchParams() : new URLSearchParams(params)
       next.set('section', active)
       setParams(next, { replace: true })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active])
 
-  const Active = SECTIONS.find((s) => s.key === active) || SECTIONS[0]
+  const Active = sections.find((s) => s.key === active) || sections[0]
 
   return (
     <div className={styles.hub}>
@@ -76,7 +89,7 @@ export default function Desk() {
         <div className={styles.brandRow}>
           <span className={styles.brandTag}><UIcon name="desk" size={18} style={{ verticalAlign: '-3px', marginRight: 8 }} />The Desk</span>
         </div>
-        {SECTIONS.map((s) => (
+        {sections.map((s) => (
           <button
             key={s.key}
             role="tab"

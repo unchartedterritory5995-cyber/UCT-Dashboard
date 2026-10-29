@@ -43,12 +43,6 @@ export const NAV_ITEMS = [
   { to: '/catalysts/history', label: 'Catalysts History', icon: 'star' },
   // CHARTS
   { to: '/model-book',   label: 'Model Book',    icon: 'book' },
-  // The TSDR trader archive. Paid like every other row (FREE_PAGES is empty, so a free member
-  // gets the locked row to /subscribe), and DARK with the archive itself: the row renders only
-  // while the auth payload's `wisdom_archive_enabled` (WISDOM_ARCHIVE_ENABLED, the archive
-  // routes' own 404 gate) is on, so the nav never links to a switched-off page. `search` opens
-  // the page on its Today view; `to` stays the bare route every census rail reads.
-  { to: '/trader-archive', label: 'Trader Archive', icon: 'quote', search: '?view=today' },
   { to: '/formulas/reference', label: 'Formula Reference', icon: 'chart' },
   // JOURNAL
   { to: '/desk',         label: 'The Desk',      icon: 'desk' },
@@ -93,7 +87,7 @@ const GROUPED_NAV_ITEMS = (() => {
 })()
 
 export default function NavBar({ onOpenPalette }) {
-  const { user, isPaid, plan, wisdomArchiveEnabled } = useAuth()
+  const { user, isPaid, plan } = useAuth()
   const isAdmin = user?.role === 'admin'
   const showAll = isPaid  // admin + pro/premium/lifetime (AuthContext single source)
   // V19: the UCT Terminal entry honours "keep classic calendar" (TerminalRoutes.jsx).
@@ -140,8 +134,6 @@ export default function NavBar({ onOpenPalette }) {
   function renderItem(item) {
     // Dark launch: hide The Floor entirely until COMMUNITY_ENABLED is on.
     if (item.to === '/community' && !communityStatus?.enabled) return null
-    // Dark launch: hide the Trader Archive until WISDOM_ARCHIVE_ENABLED is on (auth payload).
-    if (item.to === '/trader-archive' && wisdomArchiveEnabled !== true) return null
     // Show paid tools instead of hiding them — a free user can't want what
     // they can't see. Locked rows are dimmed with a gold lock and route to
     // the upgrade page rather than the tool.

@@ -11,7 +11,7 @@
 import { Link } from 'react-router-dom'
 
 import useArchiveTicker, { newestCalls } from '../../components/research/sections/useArchiveTicker'
-import { dayOf, fmtR, traderOf } from '../../utils/traderArchive'
+import { archiveHref, dayOf, fmtR, traderOf } from '../../utils/traderArchive'
 import styles from './ResearchPage.module.css'
 
 const MAX_ROWS = 6
@@ -37,7 +37,7 @@ export default function TeamCoverage({ sym }) {
       <ul className={styles.deskCovList}>
         {shown.map((c) => (
           <li key={c.call_id}>
-            <Link className={styles.deskCovRow} to={`/trader-archive?sym=${encodeURIComponent(s)}`}>
+            <Link className={styles.deskCovRow} to={archiveHref({ sym: s })}>
               <span className={styles.deskCovDate}>{dayOf(c.posted)}</span>
               <span className={styles.deskCovName}>
                 {traderOf(c)}{c.direction ? ` · ${c.direction}` : ''}{c.setup ? ` · ${c.setup}` : ''}
@@ -48,7 +48,7 @@ export default function TeamCoverage({ sym }) {
         ))}
       </ul>
 
-      <Link className={styles.deskCovMore} to={`/trader-archive?sym=${encodeURIComponent(s)}`}>
+      <Link className={styles.deskCovMore} to={archiveHref({ sym: s })}>
         {calls.length > shown.length ? `All ${calls.length} calls in the trader archive →` : 'Open the trader archive →'}
       </Link>
     </section>

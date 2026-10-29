@@ -402,7 +402,7 @@ const ARCHIVE_MENTIONS = [
 
 describe('archive desk rows', () => {
   it('an archive row with no levels opens the trader archive for its ticker', () => {
-    expect(deskMentionHref(ARCHIVE_MENTIONS[0])).toBe('/trader-archive?sym=ZZTA')
+    expect(deskMentionHref(ARCHIVE_MENTIONS[0])).toBe('/desk?section=archive&sym=ZZTA')
     expect(archiveCallLevels(ARCHIVE_MENTIONS[0])).toBeNull()
   })
 
@@ -440,7 +440,7 @@ describe('archive desk rows', () => {
       settingsOverride={{ markers: { desk: true } }} />)
     await waitFor(() => expect(deskMarkersDrawn()).toHaveLength(2), { timeout: 3000 })
     clickArchive(ARCH_DAY_RECENT)
-    expect(open).toHaveBeenCalledWith('/trader-archive?sym=ZZTA', '_self')
+    expect(open).toHaveBeenCalledWith('/desk?section=archive&sym=ZZTA', '_self')
     expect(lw.priceLines.filter(l => /^TSDR /.test(l.title || ''))).toEqual([])
     open.mockRestore()
   })

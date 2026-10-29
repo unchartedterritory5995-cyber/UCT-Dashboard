@@ -45,9 +45,6 @@ const NAV_SECTIONS = [
     label: 'Trading',
     items: [
       { to: '/model-book', label: 'Model Book', icon: 'book' },
-      // DARK with the archive (auth payload `wisdom_archive_enabled`, mirrors the NavBar gate);
-      // `search` opens it on its Today view.
-      { to: '/trader-archive', label: 'Trader Archive', icon: 'quote', search: '?view=today' },
       { to: '/desk', label: 'The Desk', icon: 'desk' },
       { to: '/journal', label: 'Journal', icon: 'journal' },
       { to: '/community', label: 'Community', icon: 'community' },
@@ -76,7 +73,7 @@ const WEBSITE_URL = 'https://whop.com/uncharted/uncharted'
 export default function MoreSheet({ open, onClose }) {
   const navigate = useNavigate()
   const { pathname } = useLocation()
-  const { user, plan, isPaid, wisdomArchiveEnabled } = useAuth()
+  const { user, plan, isPaid } = useAuth()
   const isAdmin = user?.role === 'admin'
   const showAll = isPaid  // admin + pro/premium/lifetime (AuthContext single source)
 
@@ -143,7 +140,6 @@ export default function MoreSheet({ open, onClose }) {
               <div className={styles.sectionLabel}>{section.label}</div>
               {section.items
                 .filter((l) => l.to !== '/community' || communityStatus?.enabled)
-                .filter((l) => l.to !== '/trader-archive' || wisdomArchiveEnabled === true)
                 .map((l) => {
                 const locked = !showAll && !FREE_PAGES.includes(l.to)
                 return (

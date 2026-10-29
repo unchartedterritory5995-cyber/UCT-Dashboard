@@ -104,28 +104,9 @@ test('V19: UCT Terminal opens the terminal for everyone else', () => {
   expect(screen.getByTestId('where').textContent).toBe('/terminal')
 })
 
-// Trader Archive: paid like its siblings, DARK with the archive (mirrors the NavBar gate).
-test('Trader Archive: a paid member with the archive on opens its Today view', () => {
-  mockArchiveOn = true
-  function Where() { const l = useLocation(); return <span data-testid="where">{l.pathname + l.search}</span> }
-  render(
-    <MemoryRouter initialEntries={['/dashboard']}>
-      <MoreSheet open onClose={vi.fn()} />
-      <Routes><Route path="*" element={<Where />} /></Routes>
-    </MemoryRouter>,
-  )
-  fireEvent.click(screen.getByText('Trader Archive'))
-  expect(screen.getByTestId('where').textContent).toBe('/trader-archive?view=today')
-})
-
-test('Trader Archive: a free member with the archive on sees it locked to upgrade', () => {
-  mockArchiveOn = true
-  mockPlan = 'free'
-  renderSheet()
-  expect(screen.getByRole('button', { name: 'Trader Archive — unlock with Pro' })).toBeInTheDocument()
-})
-
-test('Trader Archive: hidden while the archive flag is off', () => {
+// Trader Archive: lives in The Desk since 2026-10-28, so the menu has no row for it, on or off.
+test.each([true, false])('Trader Archive: no menu row (archive on: %s)', (on) => {
+  mockArchiveOn = on
   renderSheet()
   expect(screen.getByText('Model Book')).toBeInTheDocument()   // control: the section rendered
   expect(screen.queryByText('Trader Archive')).toBeNull()

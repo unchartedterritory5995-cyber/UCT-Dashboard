@@ -58,7 +58,7 @@ describe('PatternArchiveStats', () => {
     expect(screen.getByTestId('archive-ticker-line').textContent)
       .toBe('ZZTA: 3 team calls, last Manrav on 2025-03-04 (kicker, 20d +12.0%).')
     expect(screen.getByRole('link', { name: 'Open the full playbook' }).getAttribute('href'))
-      .toBe('/trader-archive?view=playbooks&setup=kicker')
+      .toBe('/desk?section=archive&view=playbooks&setup=kicker')
   })
 
   it('calls a z of 3 on 30+ calls a measured edge, and a thin cut thin', async () => {

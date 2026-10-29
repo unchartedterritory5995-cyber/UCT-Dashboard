@@ -39,15 +39,27 @@ const mount = (node) => render(
 afterEach(() => { vi.restoreAllMocks() })
 
 describe('TodayRhymes', () => {
-  it('lists each hit with the verdict, the team history and the closest calls, and no level', async () => {
+  it('shows each hit as a card: the verdict, the team history and the closest calls, and no level', async () => {
     serve({ [`${API}/rhymes`]: ok({ market_state: 'downtrend', n_hits: 1, hits: [HIT] }) })
     mount(<TodayRhymes />)
     expect(await screen.findByTestId('rhyme-hit')).toHaveTextContent('ZZTA')
     expect(screen.getByText('measured edge')).toBeInTheDocument()
-    expect(screen.getByTestId('rhyme-history')).toHaveTextContent('last TSDR, 2025-06-02 (kicker) r20 +12.0% · t9501')
-    expect(screen.getByTestId('rhyme-closest')).toHaveTextContent('ZZB Bracco 2025-05-01 r20 +20.0%')
+    expect(screen.getByTestId('rhyme-hit')).toHaveTextContent('worked 55% of the time over 140 team calls')
+    expect(screen.getByTestId('rhyme-history')).toHaveTextContent('The team called ZZTA 2 times. Last: TSDR, Jun 2, 2025, 20-day result +12.0%.')
+    expect(screen.getByTestId('rhyme-closest')).toHaveTextContent('ZZB Bracco · May 1, 2025 · +20.0%')
     expect(screen.getByTestId('rhymes-view')).toHaveTextContent("in today's market: 40 calls, win 60%")
     expect(screen.getByTestId('rhymes-view').textContent).not.toMatch(/entry|stop|target/i)
+  })
+
+  it('a card’s ticker and setup open that ticker and that playbook', async () => {
+    serve({ [`${API}/rhymes`]: ok({ market_state: 'downtrend', n_hits: 1, hits: [HIT] }) })
+    const onTicker = vi.fn()
+    const onSetup = vi.fn()
+    mount(<TodayRhymes onTicker={onTicker} onSetup={onSetup} />)
+    fireEvent.click(await screen.findByRole('button', { name: 'ZZTA' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Kicker candle' }))
+    expect(onTicker).toHaveBeenCalledWith('ZZTA')
+    expect(onSetup).toHaveBeenCalledWith('kicker')
   })
 
   it('says the archive is off, unpaid or unreadable as such, never as nothing rhymes', async () => {
@@ -63,16 +75,18 @@ describe('TodayRhymes', () => {
   it('an empty day says so (control: an answered empty list is not an error)', async () => {
     serve({ [`${API}/rhymes`]: ok({ market_state: 'mixed', n_hits: 0, hits: [] }) })
     mount(<TodayRhymes />)
-    expect(await screen.findByText(/None of today's scanner hits map/)).toBeInTheDocument()
+    expect(await screen.findByText(/None of today's scanner hits match/)).toBeInTheDocument()
   })
 
-  it('is reachable as the Today tab of /trader-archive', async () => {
+  it('is the Archive’s first view, and its tab returns to it', async () => {
     serve({
       [`${API}/stats`]: ok({ records: 1, calls: 1, records_by_author: {}, calls_by_setup: {}, traders: {} }),
       [`${API}/rhymes`]: ok({ market_state: 'downtrend', n_hits: 1, hits: [HIT] }),
     })
     mount(<TraderArchive />)
-    fireEvent.click(await screen.findByRole('tab', { name: 'Today' }))
+    expect(await screen.findByTestId('rhyme-hit')).toHaveTextContent('ZZTA')          // opens on Today
+    fireEvent.click(screen.getByRole('tab', { name: /Playbooks/ }))
+    fireEvent.click(screen.getByRole('tab', { name: /Today/ }))
     expect(await screen.findByTestId('rhyme-hit')).toHaveTextContent('ZZTA')
   })
 })

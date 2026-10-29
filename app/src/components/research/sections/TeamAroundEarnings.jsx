@@ -8,7 +8,7 @@
 // ⛔ RENDERS NOTHING unless there is a match: archive off (404), no paid plan (402), an error,
 // loading, or no call near any report all leave the history section exactly as it was.
 import { callsAroundReports, AROUND_REPORT_DAYS } from '../archiveEarnings'
-import { dayOf, fmtR, rTone, traderOf } from '../../../utils/traderArchive'
+import { archiveHref, dayOf, fmtR, rTone, traderOf } from '../../../utils/traderArchive'
 import useArchiveTicker from './useArchiveTicker'
 import styles from './TraderArchiveBlock.module.css'
 
@@ -51,7 +51,7 @@ export default function TeamAroundEarnings({ sym, quarters }) {
       </table>
       <p className={styles.footer}>
         Team calls posted within {AROUND_REPORT_DAYS} days of a report; outcomes are measured after the fact and are not advice.{' '}
-        <a className={styles.link} href={`/trader-archive?sym=${encodeURIComponent(s)}`}>Open the trader archive</a>
+        <a className={styles.link} href={archiveHref({ sym: s })}>Open the trader archive</a>
       </p>
     </section>
   )

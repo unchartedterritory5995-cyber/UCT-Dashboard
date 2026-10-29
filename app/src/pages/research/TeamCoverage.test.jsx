@@ -30,7 +30,7 @@ describe('TeamCoverage', () => {
     const rows = card.querySelectorAll('li')
     expect(rows).toHaveLength(6)
     expect(rows[0].textContent).toContain('2025-08-02')
-    expect(screen.getByRole('link', { name: /All 8 calls in the trader archive/ }).getAttribute('href')).toBe('/trader-archive?sym=ZZTA')
+    expect(screen.getByRole('link', { name: /All 8 calls in the trader archive/ }).getAttribute('href')).toBe('/desk?section=archive&sym=ZZTA')
   })
 
   it.each([[fail(404)], [ok({ paywalled: true })], [ok({ ...ARCHIVE, calls: [] })]])('renders nothing (%#)', async (res) => {

@@ -79,3 +79,33 @@ export function clip(text, n = 240) {
   const t = String(text || '').replace(/\s+/g, ' ').trim()
   return t.length <= n ? t : `${t.slice(0, n - 1).trimEnd()}…`
 }
+
+/**
+ * The archive lives in The Desk (owner ruling 2026-10-28): every door into it goes through here.
+ * `sym` opens a ticker lookup, `setup` a playbook, `view` a named view (today | playbooks |
+ * traders | search). /trader-archive still redirects here for old links and bookmarks.
+ */
+export function archiveHref({ sym, setup, view } = {}) {
+  const p = new URLSearchParams({ section: 'archive' })
+  if (view) p.set('view', view)
+  if (sym) p.set('sym', String(sym).toUpperCase())
+  if (setup) p.set('setup', setup)
+  return `/desk?${p.toString()}`
+}
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+/** '2025-01-02…' → 'Jan 2, 2025'; anything unparseable falls back to the raw day. */
+export function fmtDay(value) {
+  const d = dayOf(value)
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(d)
+  if (!m) return d
+  return `${MONTHS[Number(m[2]) - 1] || m[2]} ${Number(m[3])}, ${m[1]}`
+}
+
+/** A server setup id ('pullback_ma') as a label ('Pullback ma' → 'Pullback MA' is the server's job). */
+export function setupName(id) {
+  if (!id) return ''
+  const s = String(id).replace(/_/g, ' ').trim()
+  return s.charAt(0).toUpperCase() + s.slice(1)
+}
