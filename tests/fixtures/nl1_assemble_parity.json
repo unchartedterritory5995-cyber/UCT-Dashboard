@@ -123,7 +123,9 @@
   "definition.describe": "definitions",
   "definition.duplicate": "definitions",
   "definition.delete": "definitions",
-  "agent.capabilities": "agent"
+  "agent.capabilities": "agent",
+  "guide.explain": "guide",
+  "guide.show": "guide"
  },
  "groups": [
   {
@@ -189,6 +191,10 @@
   {
    "id": "agent",
    "title": "Questions about what UCT Agent can do"
+  },
+  {
+   "id": "guide",
+   "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
   }
  ],
  "cases": [
@@ -309,6 +315,10 @@
      {
       "id": "agent",
       "title": "Questions about what UCT Agent can do"
+     },
+     {
+      "id": "guide",
+      "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      }
     ],
     "selected": [
@@ -447,6 +457,10 @@
      {
       "id": "agent",
       "title": "Questions about what UCT Agent can do"
+     },
+     {
+      "id": "guide",
+      "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      }
     ],
     "selected": [
@@ -592,6 +606,10 @@
      {
       "id": "agent",
       "title": "Questions about what UCT Agent can do"
+     },
+     {
+      "id": "guide",
+      "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      }
     ],
     "selected": [
@@ -746,6 +764,10 @@
      {
       "id": "agent",
       "title": "Questions about what UCT Agent can do"
+     },
+     {
+      "id": "guide",
+      "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      }
     ],
     "selected": [
@@ -880,6 +902,10 @@
      {
       "id": "agent",
       "title": "Questions about what UCT Agent can do"
+     },
+     {
+      "id": "guide",
+      "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      }
     ],
     "selected": [
@@ -909,7 +935,8 @@
     "data",
     "breadth",
     "settings",
-    "agent"
+    "agent",
+    "guide"
    ],
    "names": [
     "chart.setType",
@@ -1028,7 +1055,9 @@
     "definition.describe",
     "definition.duplicate",
     "definition.delete",
-    "agent.capabilities"
+    "agent.capabilities",
+    "guide.explain",
+    "guide.show"
    ],
    "routing": null
   }

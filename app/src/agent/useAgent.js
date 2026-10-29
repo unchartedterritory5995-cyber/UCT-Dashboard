@@ -36,6 +36,7 @@ import { traceStart, mark, traceEnd, turnStart, turnPath, turnVisible, turnOutpu
 import { buildContext, refreshContext, manifestFor, getCapability, getTargetKind, runWarmups, MANIFEST_VERSION, MANIFEST_CONTRACT } from './capabilities'
 import { registerBuiltins } from './builtins'
 import { routeManifest, routingEnabled, routingNames } from './routing'
+import { doItForMe } from './capabilities/guide'
 import { createMemory, tickersOfAnswer } from './memory'
 import { resolveReference, subjectTarget } from './references'
 import { resolveFollowUp, resolvePicked } from './conversation'
@@ -637,7 +638,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       const answers = []
       for (const o of queries) {
         let a
-        try { a = await getCapability(o.action).answer(targets.get(o.target)?.snap || null, o.args || {}, host) } catch (e) { a = `That didn't work: ${e?.message || 'error'}` }
+        try { a = await getCapability(o.action).answer(targets.get(o.target)?.snap || null, o.args || {}, host, capCtx) } catch (e) { a = `That didn't work: ${e?.message || 'error'}` }
         answers.push(typeof a === 'string' || a == null ? { text: a || '' } : a)
       }
       // ⭐ ONE presentation contract (present.js): each answer → the smallest view that carries it,
@@ -1213,6 +1214,22 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       if (memRef?.kind === 'say') {
         push({ role: 'agent', text: memRef.text })
         record({ member: text, outcome: memRef.text, outcomeData: { kind: 'reference-refused' }, telemetry: { path: 'fast', disposition: 'clarify', voice } })
+        return
+      }
+      // ⭐ PHASE 2 — DO IT FOR ME: "now do it for me" right after a walkthrough runs that feature's EXISTING capability
+      // on the chart it showed (agent/capabilities/guide.doItForMe) — asked first when a value is needed (which
+      // timeframe?), then planned, checked, receipted and undoable like any other request. Never with a proposal waiting.
+      const guideDo = answering || memRef || pendingRef.current ? null : doItForMe(text, host)
+      if (guideDo?.say) {
+        push({ role: 'agent', text: guideDo.say })
+        record({ member: text, outcome: guideDo.say, outcomeData: { kind: 'guide-do-say' }, telemetry: { path: 'fast', disposition: 'clarify', voice } })
+        return
+      }
+      if (guideDo?.ask) {
+        const a = guideDo.ask
+        pendingRef.current = { kind: 'target', ops: a.ops, path: 'fast', mode: 'apply', member: text, voice, epoch: epochOf(host), pickArg: a.pickArg }
+        push({ role: 'question', text: a.text, choices: a.choices, local: true })
+        record({ member: text, outcome: a.text, outcomeData: { kind: 'clarify-arg', actions: a.ops.map(o => o.action) }, telemetry: { path: 'fast', clarified: true, voice } })
         return
       }
       // ⭐ Charts operator P1: whole sentences that name SEVERAL charts — "NVDA on the left and AMD on the right",

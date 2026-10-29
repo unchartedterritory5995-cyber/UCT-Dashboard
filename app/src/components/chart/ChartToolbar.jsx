@@ -1548,7 +1548,7 @@ function ChartToolbar({
           as ~6px of breathing room between lines / shapes / studies / annotation,
           and the owner's call on the real chart was that the even row reads better.
           One rhythm the whole way across. */}
-      <div className={styles.tools}>
+      <div className={styles.tools} data-guide="chart.drawingTools">
         {(toolFilter ? DRAW_TOOL_LIST.filter(t => toolFilter.includes(t.id)) : DRAW_TOOL_LIST).map((t) => (
           <button
             key={t.id}
@@ -1556,6 +1556,7 @@ function ChartToolbar({
                so show/hide animates smoothly instead of popping. */
             className={`${styles.btn} ${activeTool === t.id ? styles.active : ''} ${(!toolFilter && hiddenTools.includes(t.id)) ? styles.toolHidden : ''}`}
             onClick={() => selectTool(t.id)}
+            data-guide={`chart.tool.${t.id}`}
             title={t.label}
             aria-label={t.label}
           >

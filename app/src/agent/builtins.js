@@ -25,6 +25,7 @@ import { registerIndicatorControlCapabilities } from './capabilities/indicatorCo
 import { registerDefinitionCapabilities } from './capabilities/definitions'
 import { registerBreadthCapabilities } from './capabilities/breadth'
 import { registerBreadthHistoryCapability } from './capabilities/breadthHistory'
+import { registerGuideCapabilities } from './capabilities/guide'
 
 let done = false
 export function registerBuiltins() {
@@ -54,4 +55,5 @@ export function registerBuiltins() {
   registerIndicatorControlCapabilities()
   registerDefinitionCapabilities()
   registerAboutCapabilities()
+  registerGuideCapabilities()
 }

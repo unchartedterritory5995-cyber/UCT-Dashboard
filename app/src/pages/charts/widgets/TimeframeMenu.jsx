@@ -59,7 +59,7 @@ export default function TimeframeMenu({ tf, onSelect, favorites = [], onToggleFa
   const top = anchor ? anchor.bottom + 4 : 60
 
   return createPortal(
-    <div ref={ref} className={styles.menu} style={{ left, top, ...(themeVars || {}) }} role="dialog" aria-label="Timeframes">
+    <div ref={ref} className={styles.menu} style={{ left, top, ...(themeVars || {}) }} role="dialog" aria-label="Timeframes" data-guide="chart.timeframeMenu">
       <div className={styles.scroll}>
         {TF_MENU.map(g => (
           <div className={styles.group} key={g.group}>
