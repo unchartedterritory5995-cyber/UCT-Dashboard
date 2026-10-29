@@ -63,6 +63,9 @@ ACTIVE_STATUSES = ("forming", "ready", "triggered")
 EXCLUDED_CATEGORIES = ("candlestick",)
 CLOSEST_N = 3
 MAX_HITS = 200
+# At most this many of the MAX_HITS go to one setup: production's 2026-10-29 scan had 12,376 hits,
+# and the rank (history first) would fill all 200 with one setup and say nothing about the others.
+PER_SETUP_MAX = 25
 REFRESH_S = 900           # a cached answer this old is refreshed in the background
 STALE_MAX_S = 3 * 3600    # older than this is not served: the request computes (or waits on one)
 CACHE_TTL_S = REFRESH_S   # the name older readers know
@@ -236,8 +239,17 @@ def _compute(dets: list, state: Optional[str]) -> dict:
                 _num(h["confidence"]) or 0.0)
 
     hits.sort(key=rank, reverse=True)
+    kept: list = []
+    per_setup: dict = {}
+    for h in hits:  # rank order kept; a setup stops taking slots once it holds PER_SETUP_MAX
+        if len(kept) >= MAX_HITS:
+            break
+        n = per_setup.get(h["setup"], 0)
+        if n < PER_SETUP_MAX:
+            per_setup[h["setup"]] = n + 1
+            kept.append(h)
     return {"market_state": state, "market_rule": "QQQ close vs its 50/200-day averages",
-            "n_detections": len(dets), "n_hits": len(hits), "hits": hits[:MAX_HITS],
+            "n_detections": len(dets), "n_hits": len(hits), "hits": kept,
             "note": ("The team's archive beside today's scanner hits: measured after the fact, "
                      "display only, not advice. 'Closest' = same setup, same market state, newest first.")}
 
@@ -248,7 +260,14 @@ def _refresh(now: Optional[float] = None) -> Optional[dict]:
         from api.services.wisdom.archive import setup_map
 
         t = time.time()
-        value = _compute(_detections(now), setup_map.market_state())
+        log.info("[wisdom] rhymes refresh: reading the scan")
+        dets = _detections(now)
+        t_read = time.time()
+        log.info("[wisdom] rhymes refresh: %d detections read in %.1fs", len(dets), t_read - t)
+        state = setup_map.market_state()
+        value = _compute(dets, state)
+        log.info("[wisdom] rhymes refresh: %d hits computed in %.1fs (market %s; %.1fs total)",
+                 value.get("n_hits", 0), time.time() - t_read, state, time.time() - t)
         with _LOCK:
             _CACHE.update(at=t, value=value)
             _READY.notify_all()

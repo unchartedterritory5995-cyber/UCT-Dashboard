@@ -151,6 +151,24 @@
 .closestSym { font-family: var(--font-mono); font-weight: 700; color: var(--text-bright); }
 .closestItem { font-variant-numeric: tabular-nums; }
 
+/* ── Today, grouped by setup ── */
+.groupList { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(420px, 100%), 1fr)); gap: var(--space-md); }
+.rhymeGroup {
+  display: flex; flex-direction: column; gap: var(--space-sm); padding: var(--space-md) var(--space-lg);
+  background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-xl);
+}
+.groupTitle { margin: 0; font-size: var(--text-lg); font-weight: 700; color: var(--text-heading); }
+.groupTitleBtn {
+  background: none; border: none; padding: 0; cursor: pointer; text-align: left;
+  font-family: var(--font-sans); font-size: var(--text-lg); font-weight: 700; color: var(--text-heading);
+}
+.groupTitleBtn:hover { color: var(--ut-gold); }
+.groupTitleBtn:focus-visible { outline: var(--focus-ring); }
+.rhymeRows { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.rhymeRow { display: flex; align-items: baseline; gap: var(--space-md); padding: 6px 0; border-top: 1px solid var(--border); font-size: var(--text-sm); }
+.rhymeRow .ticker { font-size: var(--text-base); min-width: 64px; }
+.rhymeHistory { color: var(--text-muted); font-variant-numeric: tabular-nums; }
+
 /* ── Playbook detail ── */
 .pbHero { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: var(--space-md); margin: var(--space-sm) 0 var(--space-md); }
 .pbMeta { margin: 4px 0 0; color: var(--text-muted); font-size: var(--text-sm); }

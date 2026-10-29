@@ -1,22 +1,27 @@
 // app/src/pages/traderArchive/TodayRhymes.jsx
 //
 // The "Today" view of The Desk → Archive: THIS RHYMES. Today's active scanner detections that map
-// to a setup in the team archive, each as a card beside the setup's measured record, the ticker's
-// own team history and the closest past team calls of that setup in the same market state.
+// to a setup in the team archive, GROUPED BY SETUP: one card per setup carries its measured record,
+// today's market cut and its closest past team calls (said once, not once per ticker), followed by
+// the tickers that rhyme with it and each one's own team history.
 // Reads GET /api/wisdom/archive/rhymes (require_paid, WISDOM_ARCHIVE_ENABLED).
 //
 // ⛔ Display only: nothing here is a signal. No price level is on the wire and none is drawn.
 // ⛔ A 404 (flag off), a 402 (unpaid) and a 503 (scan or store unreadable) are said as such,
 // never rendered as "nothing rhymes".
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import useSWR from 'swr'
 
 import jsonFetcher from '../../utils/jsonFetcher'
-import { ARCHIVE_API, fmtDay, setupName, splitSetupName } from '../../utils/traderArchive'
-import { Outcome, pct0 } from './archiveUi'
+import { ARCHIVE_API, EDGE_Z, MIN_CONTEXT_N, fmtDay, setupName, splitSetupName } from '../../utils/traderArchive'
+import { Outcome, SectionTitle, StatTile, pct0 } from './archiveUi'
 import styles from './TraderArchive.module.css'
 
-export const RHYMES_URL = `${ARCHIVE_API}/rhymes`
+// The route's maximum page (rhymes.MAX_HITS): enough hits for several setups to appear.
+export const RHYMES_LIMIT = 200
+export const RHYMES_URL = `${ARCHIVE_API}/rhymes?limit=${RHYMES_LIMIT}`
+// Tickers shown under each setup before "show all".
+export const TICKERS_SHOWN = 8
 
 // A cold server computes Today in the background (archive/rhymes.py) and a request that outlives
 // the CDN's timeout comes back 5xx. Retry those a few times; a 404 (off) or 402 (unpaid) is final.
@@ -55,49 +60,6 @@ function StateLine({ error }) {
   return <p className={styles.notice} data-testid="rhymes-unavailable">Today&apos;s scan or the archive couldn&apos;t be read. Try again in a moment.</p>
 }
 
-function Hit({ hit, onTicker, onSetup }) {
-  const pb = hit.playbook || {}
-  const th = hit.ticker_history || {}
-  const last = th.last_call
-  const cut = pb.today_cut
-  const setupId = pb.setup_id || hit.setup
-  const setupLabel = pb.name ? splitSetupName(pb.name).title : setupName(hit.setup)
-  return (
-    <article className={styles.card} data-testid="rhyme-hit">
-      <header className={styles.cardHead}>
-        <div className={styles.cardTitle}>
-          {onTicker
-            ? <button type="button" className={`${styles.ticker} ${styles.tickerBtn}`} onClick={() => onTicker(hit.ticker)}>{hit.ticker}</button>
-            : <span className={styles.ticker}>{hit.ticker}</span>}
-        </div>
-        {pb.verdict && <span className={styles.verdict}>{pb.verdict}</span>}
-      </header>
-      {onSetup && setupId
-        ? <button type="button" className={`${styles.setupChip} ${styles.setupChipBtn}`} onClick={() => onSetup(setupId)}>{setupLabel}</button>
-        : <span className={styles.setupChip}>{setupLabel}</span>}
-      <p className={styles.rhymeLine}>
-        This setup worked <strong>{pct0(pb.win20)}</strong> of the time over {pb.n_scored ?? 0} team calls
-        {cut ? <>; in today&apos;s market: {cut.n_scored} calls, win {pct0(cut.win20)}</> : ''}.
-      </p>
-      <p className={styles.rhymeLine} data-testid="rhyme-history">
-        {last
-          ? <>The team called {hit.ticker} {th.n_calls} time{th.n_calls === 1 ? '' : 's'}. Last: {last.trader}, {fmtDay(last.posted)}, 20-day result <Outcome value={last.r20} />.</>
-          : <>No team call on {hit.ticker} in the archive yet.</>}
-      </p>
-      {(hit.closest || []).length > 0 && (
-        <div className={styles.closest} data-testid="rhyme-closest">
-          <span className={styles.closestLabel}>Closest past calls</span>
-          {hit.closest.map((c, i) => (
-            <span key={`${c.record_id}-${c.ticker}-${i}`} className={styles.closestItem}>
-              <span className={styles.closestSym}>{c.ticker}</span> {c.trader} · {fmtDay(c.posted)} · <Outcome value={c.r20} />
-            </span>
-          ))}
-        </div>
-      )}
-    </article>
-  )
-}
-
 // After this long the wait is said out loud, instead of "Reading…" sitting there indefinitely.
 export const SLOW_MS = 8000
 
@@ -115,22 +77,116 @@ function Waiting({ warming = false }) {
   return <p className={styles.loading} data-testid="rhymes-waiting">{text}</p>
 }
 
+/** The server's verdict in the Playbooks' words: proven at |z| >= EDGE_Z on >= MIN_CONTEXT_N calls. */
+function verdictLabel(pb) {
+  const z = pb?.edgeR_z
+  const proven = z !== null && z !== undefined && Math.abs(z) >= EDGE_Z && (pb?.n_scored ?? 0) >= MIN_CONTEXT_N
+  return { proven, label: proven ? 'Proven edge' : 'Not proven yet', z }
+}
+
+/** Hits grouped by setup, in the server's rank order (a setup sits where its best hit ranked). */
+export function groupBySetup(hits) {
+  const groups = new Map()
+  for (const h of hits || []) {
+    const key = h.playbook?.setup_id || h.setup
+    if (!groups.has(key)) groups.set(key, { key, playbook: h.playbook || {}, setup: h.setup, closest: h.closest || [], hits: [] })
+    groups.get(key).hits.push(h)
+  }
+  return [...groups.values()]
+}
+
+function TickerRow({ hit, onTicker }) {
+  const th = hit.ticker_history || {}
+  const last = th.last_call
+  return (
+    <li className={styles.rhymeRow} data-testid="rhyme-hit">
+      {onTicker
+        ? <button type="button" className={`${styles.ticker} ${styles.tickerBtn}`} onClick={() => onTicker(hit.ticker)}>{hit.ticker}</button>
+        : <span className={styles.ticker}>{hit.ticker}</span>}
+      <span className={styles.rhymeHistory} data-testid="rhyme-history">
+        {last
+          ? <>Team called it {th.n_calls}×. Last: {last.trader}, {fmtDay(last.posted)}, {last.r20 === null || last.r20 === undefined
+            ? 'too early to score'
+            : <>20-day <Outcome value={last.r20} /></>}</>
+          : <>No team call on {hit.ticker} yet.</>}
+      </span>
+    </li>
+  )
+}
+
+function SetupGroup({ group, onTicker, onSetup }) {
+  const [all, setAll] = useState(false)
+  const pb = group.playbook
+  const cut = pb.today_cut
+  const v = verdictLabel(pb)
+  const title = pb.name ? splitSetupName(pb.name).title : setupName(group.setup)
+  const shown = all ? group.hits : group.hits.slice(0, TICKERS_SHOWN)
+  // "Closest" excludes each hit's own ticker server-side; the group shows the first hit's list.
+  const closest = group.closest
+  return (
+    <article className={styles.rhymeGroup} data-testid="rhyme-group">
+      <header className={styles.cardHead}>
+        <div>
+          {onSetup && group.key
+            ? <button type="button" className={styles.groupTitleBtn} onClick={() => onSetup(group.key)}>{title}</button>
+            : <h3 className={styles.groupTitle}>{title}</h3>}
+          <p className={styles.byline}>{group.hits.length} name{group.hits.length === 1 ? '' : 's'} on today&apos;s scan</p>
+        </div>
+        <span className={v.proven ? `${styles.verdict} ${styles.verdictOn}` : styles.verdict}
+          title={v.z !== null && v.z !== undefined ? `z ${v.z}` : undefined}>{v.label}</span>
+      </header>
+      <div className={styles.tiles}>
+        <StatTile label={`worked, over ${pb.n_scored ?? 0} team calls`}>{pct0(pb.win20)}</StatTile>
+        {cut && <StatTile label={`worked in today's market (${cut.n_scored} calls)`}>{pct0(cut.win20)}</StatTile>}
+      </div>
+      <ul className={styles.rhymeRows}>
+        {shown.map((h) => <TickerRow key={h.ticker} hit={h} onTicker={onTicker} />)}
+      </ul>
+      {group.hits.length > TICKERS_SHOWN && (
+        <button type="button" className={styles.linkBtn} onClick={() => setAll((x) => !x)}>
+          {all ? 'Show fewer' : `Show all ${group.hits.length}`}
+        </button>
+      )}
+      {closest.length > 0 && (
+        <div className={styles.closest} data-testid="rhyme-closest">
+          <span className={styles.closestLabel}>Closest past team calls of this setup</span>
+          {closest.map((c, i) => (
+            <span key={`${c.record_id}-${c.ticker}-${i}`} className={styles.closestItem}>
+              <span className={styles.closestSym}>{c.ticker}</span> {c.trader} · {fmtDay(c.posted)} · <Outcome value={c.r20} />
+            </span>
+          ))}
+        </div>
+      )}
+    </article>
+  )
+}
+
 export default function TodayRhymes({ onTicker, onSetup }) {
   const { data, error, recovering } = useRhymes()
+  const groups = useMemo(() => groupBySetup(data?.hits), [data])
   if (error && recovering) return <Waiting warming />
   if (error) return <StateLine error={error} />
   if (!data) return <Waiting />
   if (isWarming(data)) return <Waiting warming />
   const hits = data.hits || []
+  const total = data.n_hits ?? hits.length
   return (
     <div data-testid="rhymes-view">
       <p className={styles.intro}>
-        {hits.length} of today&apos;s scanner hits look like setups the team has traded before
+        {total.toLocaleString()} of today&apos;s scanner hits look like setups the team has traded before
         {data.market_state ? <> · market: {data.market_state}</> : ''}.
+        {total > hits.length && <> The {hits.length} the team knows best, grouped by setup.</>}
       </p>
       {hits.length === 0
         ? <p className={styles.empty}>None of today&apos;s scanner hits match a setup in the team archive.</p>
-        : <div className={styles.grid}>{hits.map((h) => <Hit key={`${h.ticker}-${h.setup}`} hit={h} onTicker={onTicker} onSetup={onSetup} />)}</div>}
+        : (
+          <>
+            <SectionTitle count={groups.length}>Setups on today&apos;s scan</SectionTitle>
+            <div className={styles.groupList}>
+              {groups.map((g) => <SetupGroup key={g.key} group={g} onTicker={onTicker} onSetup={onSetup} />)}
+            </div>
+          </>
+        )}
     </div>
   )
 }
