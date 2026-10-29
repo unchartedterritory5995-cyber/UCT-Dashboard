@@ -195,21 +195,56 @@ describe('tradeExchangeNewsStreamManager', () => {
     expect(out.at(-1).seq).toBe(pool.MAX_ITEMS + 1)
   })
 
-  it('⏱ reports publish -> receipt and receipt -> paint for a live headline: numbers and the id only', async () => {
-    globalThis.requestAnimationFrame = (fn) => setTimeout(fn, 0)
-    recent.body.server_ms = Date.now()
-    const off = pool.subscribe(() => {})
-    await flush()
-    lastES().emit('hello', { epoch: EPOCH, reset: false })
-    lastES().emit('headline', H(4, { server_ms: Date.now() - 40 }))
-    await flush(); await flush()
-    const call = fetchMock.mock.calls.find(([url]) => url === pool.TIMING_URL)
-    expect(call).toBeTruthy()
-    const body = JSON.parse(call[1].body)
-    expect(Object.keys(body).sort()).toEqual(['clock_rtt_ms', 'id', 'render_ms', 'sse_ms'])
-    expect(body.id).toBe('id4')
-    expect(typeof body.sse_ms).toBe('number')
-    expect(call[1].body).not.toContain('SYNTHETIC')
-    off()
+  describe('⏱ latency audit (measurement only)', () => {
+    const withClock = () => {
+      recent = (url) => (url === pool.CLOCK_URL
+        ? { status: 200, body: { server_ms: Date.now() } }
+        : { status: 200, body: { epoch: EPOCH, first_seq: 1, last_seq: 3, items: [H(1), H(2), H(3)] } })
+      globalThis.requestAnimationFrame = (fn) => setTimeout(fn, 0)
+    }
+    const timingCalls = () => fetchMock.mock.calls.filter(([url]) => url === pool.TIMING_URL)
+    const settle = async () => { for (let i = 0; i < 8; i++) await flush() }
+
+    it('a live headline in a visible tab reports sse, render and end-to-end ms with the id only', async () => {
+      withClock()
+      const off = pool.subscribe(() => {})
+      await settle()
+      lastES().emit('hello', { epoch: EPOCH, reset: false, last_seq: 3 })
+      await settle()
+      expect(fetchMock.mock.calls.filter(([u]) => u === pool.CLOCK_URL)).toHaveLength(0)   // lazy: no news, no traffic
+      lastES().emit('headline', H(4, { server_ms: Date.now() - 40, received_at_ms: Date.now() - 120 }))
+      await settle()
+      expect(fetchMock.mock.calls.filter(([u]) => u === pool.CLOCK_URL)).toHaveLength(5)   // several samples
+      const body = JSON.parse(timingCalls()[0][1].body)
+      expect(Object.keys(body).sort()).toEqual(['clock_rtt_ms', 'clock_samples', 'e2e_ms', 'id', 'render_ms', 'sse_ms'])
+      expect(body.id).toBe('id4')
+      expect(body.e2e_ms).toBeGreaterThanOrEqual(100)
+      expect(timingCalls()[0][1].body).not.toContain('SYNTHETIC')
+      off()
+    })
+
+    it('a replayed backlog headline after a reconnect is not a sample', async () => {
+      withClock()
+      const off = pool.subscribe(() => {})
+      await settle()
+      lastES().emit('hello', { epoch: EPOCH, reset: false, last_seq: 5 })   // 4 and 5 are backlog
+      lastES().emit('headline', H(4, { server_ms: Date.now() - 60_000 }))
+      await settle()
+      expect(timingCalls()).toHaveLength(0)
+      off()
+    })
+
+    it('a hidden tab never reports', async () => {
+      withClock()
+      const vis = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden')
+      const off = pool.subscribe(() => {})
+      await settle()
+      lastES().emit('hello', { epoch: EPOCH, reset: false, last_seq: 3 })
+      lastES().emit('headline', H(4, { server_ms: Date.now() }))
+      await settle()
+      expect(timingCalls()).toHaveLength(0)
+      vis.mockRestore()
+      off()
+    })
   })
 })
