@@ -19,7 +19,9 @@ export default function ChartMetaRow({ items = [], abbrev = false, tight = false
         return (
           <span key={it.key} className={styles.chartMetaItem}>
             <span className={styles.chartMetaLabel} title={it.title || it.label}>{label}</span>
-            <span className={styles.chartMetaVal} style={safeCssColour(it.color) ? { color: safeCssColour(it.color) } : undefined}>
+            {/* `data-meta-key` + `data-sign` (signed fields only) let a host on an APP surface re-ink the value by its
+                meaning -- the TickerPopup header, ChartsWorkspace.module.css -- without reading colours. */}
+            <span className={styles.chartMetaVal} data-meta-key={it.key} data-sign={it.sign || undefined} style={safeCssColour(it.color) ? { color: safeCssColour(it.color) } : undefined}>
               {it.value != null && it.value !== '' ? it.value : '—'}
             </span>
           </span>

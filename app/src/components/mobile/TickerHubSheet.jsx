@@ -95,7 +95,10 @@ function TickerHubBody({ sym, onClose }) {
   return (
     // `labelledByTitle`: the dialog is NAMED by its visible ticker heading (axe
     // aria-dialog-name; VoiceOver said only "dialog"). One value, not a copy.
-    <Sheet open onClose={onClose} variant="bottom-sheet" title={sym} labelledByTitle>
+    // `className`: the panel opens at its FULL height (TickerHubSheet.module.css `.panel`), so
+    // content that lands late -- the "Why it's moving" tweets, or nothing at all -- fills or leaves
+    // space inside it and never moves the sheet. Rail: `mobile/TickerHubSheet.stableHeight.test.jsx`.
+    <Sheet open onClose={onClose} variant="bottom-sheet" title={sym} labelledByTitle className={styles.panel}>
       <div className={styles.body}>
         {/* The quote row is ALWAYS laid out. It used to mount only once the live price
             arrived, and that poll lands after the sheet is up (often after the chart), so

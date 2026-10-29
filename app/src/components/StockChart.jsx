@@ -933,7 +933,7 @@ import {
   derivedTargetOf,
 } from './chart/engine/displayTarget'
 import { parsePaneOfTarget, parseSource, sourceInputsOf } from './chart/engine/sourceRef'
-import { chromePlan, capturedPriceRange, viewLockFractions } from './chart/chromeGeometry'
+import { chromePlan, capturedPriceRange, viewLockFractions, lookbackPlacementSettled, LOOKBACK_REVEAL_MAX_MS } from './chart/chromeGeometry'
 import { LIBRARY_HIDDEN_IDS } from './chart/discoveryCatalog'
 import { useSecondarySources, useOtherSymbolExchanges, useLowerTfSources } from './chart/engine/useSecondarySources'
 import { useCalcFrames } from './chart/engine/useCalcFrames'
@@ -3672,6 +3672,12 @@ export default function StockChart({
     cs, instances: _volPresenceInstances, shown: showVolume, blankVolume, volumeSeparatePane,
   }
   const volumePaneExists = volumePaneRequired(_volPresenceOpts)
+  // Will a NATIVE volume series (and so its own pane) exist? Narrower than `volumePaneExists`, which
+  // is also true when only a GUEST (an MA sent to the Volume pane) holds that pane open with no bars.
+  // The lookback bar anchors on the volume SERIES' pane (`lookbackBottomFor`), so this is the question
+  // its reveal waits on: a guest-only pane takes the fallback anchor, which is final at once.
+  const nativeVolumePaneExpectedRef = useRef(false)
+  nativeVolumePaneExpectedRef.current = nativeVolumeOwnsPane(_volPresenceOpts)
   // When the SURFACE passes these props they WIN over the saved prefs — the OR
   // above ignores a saved `false`, and the height reads `volumePaneHeightPct ??
   // cs.volume.paneHeightPct`. That's deliberate (the charts-workspace recipe tunes
@@ -4106,6 +4112,12 @@ export default function StockChart({
       let aw = 0
       try { aw = chart.priceScale('right').width() || 0 } catch { /* no right axis */ }
       setLegendAxisReserve((prev) => (Math.abs(prev - aw) > 1 ? aw : prev))
+      // …and the same width as a variable on the wrapper, so CSS that must stop short of the
+      // price scale (the hub's scrolling lookback bar, StockChart.module.css) reads the chart's
+      // own answer instead of guessing it.
+      const host = wrapperRef.current
+      const want = `${Math.round(aw)}px`
+      if (host && host.style.getPropertyValue('--price-axis-w') !== want) host.style.setProperty('--price-axis-w', want)
     }
     try { ts.subscribeSizeChange(onSize) } catch { return undefined }
     onSize()
@@ -17344,8 +17356,16 @@ export default function StockChart({
     // guard would skip re-writing the new node because the computed value didn't
     // change; keying on the element as well re-pins it immediately after a remount.
     let raf = null, lastBottom = -1, lastTop = -1, lastRb = null, lastVl = null
+    // The lookback bar is hidden (CSS: `.rangeBar:not([data-placed])`) until it sits at the anchor it
+    // will keep -- see `lookbackPlacementSettled`. `rbSeen*` times each bar NODE, so a remount (a
+    // symbol flip) waits again, and the time limit can never leave it hidden.
+    let rbSeenNode = null, rbSeenAt = 0
+    const revealRangeBar = (rb) => { if (!rb.hasAttribute('data-placed')) rb.setAttribute('data-placed', '') }
     const tick = () => {
       try {
+        const rbNow = rangeBarRef.current
+        if (rbNow && rbNow !== rbSeenNode) { rbSeenNode = rbNow; rbSeenAt = performance.now() }
+        if (rbNow && performance.now() - rbSeenAt > LOOKBACK_REVEAL_MAX_MS) revealRangeBar(rbNow)
         const panes = chart.panes ? chart.panes() : null
         const H = container.clientHeight || 0
         // ─── WHO OWNS WHICH EDGE ─────────────────────────────────────
@@ -17401,6 +17421,20 @@ export default function StockChart({
             // than a number that happens to come out right today.
             const bottom = plan.lookbackBottom
             if (bottom !== lastBottom || rb !== lastRb) { lastBottom = bottom; lastRb = rb; rb.style.bottom = `${bottom}px` }
+            // Shown only once the anchor is final: the axis reserve has landed, and no separate
+            // Volume pane is expected or that pane exists with a height. Before that the bar painted
+            // ~76px low and then jumped up (WebKit, Ticker Hub 390/834).
+            // The axis reserve is read only while the bar is still hidden (one style read a frame,
+            // for at most `LOOKBACK_REVEAL_MAX_MS`).
+            if (!rb.hasAttribute('data-placed') && lookbackPlacementSettled({
+              volumePaneExpected: nativeVolumePaneExpectedRef.current === true,
+              volumeIndex: indexOfSeries(volumeSeriesRef),
+              paneHeights,
+              timeAxisHeight: axisH,
+              timeAxisMinHeight: wrapperRef.current
+                ? timeAxisMinHeightFromCss(getComputedStyle(wrapperRef.current).getPropertyValue('--time-axis-min-height'))
+                : 0,
+            })) revealRangeBar(rb)
           }
           // …and the same number as a variable on the WRAPPER, so chrome that must
           // stack on the lookback band (PatternOverlay's deal-status notice) reads

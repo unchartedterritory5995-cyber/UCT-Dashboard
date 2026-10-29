@@ -28,6 +28,13 @@
   backdrop-filter: blur(2px);
   pointer-events: auto;
 }
+/* Hidden until the sampler has pinned it at the anchor it keeps (`data-placed`, written by
+   StockChart once `lookbackPlacementSettled` says the separate Volume pane it sits above exists,
+   or after `LOOKBACK_REVEAL_MAX_MS`). Without it the bar painted at the fallback above, then at
+   the time-axis fallback, then jumped ~76px up when the volume pane mounted (WebKit, 390/834).
+   `visibility`, not `display`: the box still exists, so the legend-collapse measurement that
+   reads around it is unchanged. Rail: `components/StockChart.lookbackPlacement.test.jsx`. */
+.rangeBar:not([data-placed]) { visibility: hidden; }
 
 /* Volume-pane legend — top-left of the volume pane: dollar volume + avg volume
    over the MA period. `top` is pinned live to the pane boundary by a rAF sampler. */
@@ -1249,9 +1256,14 @@
      buttons were 28-49 x 44 (WebKit, 390/834). At --tap-min wide the six need ~277px, more than
      the price pane leaves at 390 (the bar starts 8px in, the price scale takes ~76px), so the
      bar is capped short of the price scale and SCROLLS sideways rather than wrapping: a second
-     row would grow up into the legend's "+N more" (the bar is anchored by its bottom). */
+     row would grow up into the legend's "+N more" (the bar is anchored by its bottom).
+     The cap is the bar's own 8px inset + the chart's MEASURED right price-scale width
+     (`--price-axis-w`, published by StockChart from `priceScale('right').width()`) + 4px of air.
+     It was a guessed `100% - 96px`, which at 390 ended the strip 9px short of the scale and
+     would put buttons under any wider scale (a 4-digit price). Every button stays reachable
+     by scrolling, and none can sit under the scale canvas. */
   :global([data-ticker-hub-chart]) .rangeBar {
-    max-width: calc(100% - 96px);
+    max-width: calc(100% - 8px - var(--price-axis-w, 88px) - 4px);
     overflow-x: auto;
     overflow-y: hidden;
     overscroll-behavior-x: contain;
