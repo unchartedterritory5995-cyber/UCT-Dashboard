@@ -63,7 +63,25 @@ const opPlumbingRemoved = (line) => line.replace(/\s+/g, '')
   .replace(/,retryOpRef\.current\|\|beginPrefsOp\(\)(?=\))/g, '')
   .replace(/,beginPrefsOp(?=\})/g, '')
   .replace(/,op(?=\))/g, '')
-const carriesOp = (line) => /\bop\b|beginPrefsOp|retryOpRef/.test(line) || /^\s*(\/\/|\*|\/\*)/.test(line)
+/** An ADDED line that is op plumbing in one of the allowed SHAPES (comments stripped first, so a
+ *  word in a trailing comment proves nothing). Anything else — `if (op) send(x)`, `sendAll() // op` —
+ *  is not plumbing. Comment-only lines are allowed (they change no behaviour). */
+const STALE_EXIT_STMT = '(?:workingRef\\.current = false|setWorking\\(false\\)|onClose\\(\\))'
+const STALE_EXIT = `(?:return(?: false| null| \\{ ok: false, reason: [A-Z_]+ \\})?|\\{ (?:${STALE_EXIT_STMT}; )*return \\})`
+const OP_SHAPES = [
+  /^import \{ beginPrefsOp \} from '(?:\.\.\/)+lib\/prefsSession'$/,
+  /^const op = beginPrefsOp\(\)$/,
+  /^const op = retryOpRef\.current$/,
+  /^const retryOpRef = useRef\(null\)$/,
+  /^retryOpRef\.current = (?:op|null)$/,
+  new RegExp(`^if \\((?:!op \\|\\| )?op\\.stale\\(\\)\\) ${STALE_EXIT}$`),
+]
+const stripComment = (line) => line.replace(/\/\*.*?\*\//g, '').replace(/\s*\/\/.*$/, '').trim()
+const carriesOp = (line) => {
+  if (/^\s*(\/\/|\*|\/\*)/.test(line)) return true          // a comment line
+  const code = stripComment(line)
+  return code === '' || OP_SHAPES.some((re) => re.test(code))
+}
 
 // ⛔ EVERY GIT CALL RUNS AT THE REPO ROOT. vitest's cwd is `app/`, and git resolves a PATHSPEC
 // relative to the cwd — so `git diff -- app/src/...` from `app/` looks for `app/app/src/...`,
@@ -365,6 +383,18 @@ describe('rule 12 — the owner-approved op plumbing (2026-10-29) is a shape, no
     expect(opPlumbingRemoved('  await save(other)')).not.toBe(opPlumbingRemoved('  await save(x)'))
     expect(carriesOp('    if (op.stale()) return false')).toBe(true)
     expect(carriesOp('    setWorking(false)')).toBe(false)
+    // the allowed shapes, with and without a trailing comment
+    expect(carriesOp('  const op = beginPrefsOp()            // the member this save is for')).toBe(true)
+    expect(carriesOp('    if (!op || op.stale()) { workingRef.current = false; setWorking(false); return }   // x')).toBe(true)
+    expect(carriesOp('  if (op.stale()) return { ok: false, reason: SAVE_FAILED_REASON }')).toBe(true)
+    expect(carriesOp('      retryOpRef.current = op')).toBe(true)
+    // ⛔ disguised lines: op as a word, in a comment, as a condition, or an exit that does more
+    expect(carriesOp('    sendAll(rows) // op')).toBe(false)
+    expect(carriesOp('    if (op) send(x)')).toBe(false)
+    expect(carriesOp('    if (!op.stale()) return')).toBe(false)
+    expect(carriesOp('    if (op.stale()) { send(x); return }')).toBe(false)
+    expect(carriesOp('    const op = beginPrefsOp(); send(x)')).toBe(false)
+    expect(carriesOp('    if (op.stale()) return send(x)')).toBe(false)
     expect(Object.keys(OWNER_APPROVED_OP_FILES).every((f) => f.startsWith(FORBIDDEN_PREFIX))).toBe(true)
     expect(OWNER_APPROVED_OP_FILES[FORBIDDEN_FILE]).toBeUndefined()
   })

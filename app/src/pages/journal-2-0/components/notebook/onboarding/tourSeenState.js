@@ -14,7 +14,8 @@
 // inside the same synchronous mutate the merge computes from, so this can never be
 // a blind POST. `tourSeenState.test.js` mutation-proves it: reverting the merge to
 // a blind overwrite loses a sibling tour's row, and the rail catches it.
-import { mergeIntoPreferenceCache, parsePref, beginPrefsOp } from '../../../../../hooks/usePreferences'
+import { mergeIntoPreferenceCache, parsePref } from '../../../../../hooks/usePreferences'
+import { beginPrefsOp } from '../../../../../lib/prefsSession'
 
 export const TOURS_PREF = 'notebook_tours'
 export const TOUR_STATES = Object.freeze({ started: 'started', done: 'done', dismissed: 'dismissed' })

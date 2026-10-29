@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef } from 'react'
 import { mergeSettingsOverride } from '../components/chart/instanceShape'
 import { noteWorkspaceDocResponse } from '../lib/workspaceDoc'
 import { emitWorkspaceConflict } from '../lib/workspaceConflict'
-import { onPrefsUserChange, prefsUser } from '../lib/prefsSession'
+import { onPrefsUserChange, prefsUser, beginPrefsOp } from '../lib/prefsSession'
 
 export { onWorkspaceConflict } from '../lib/workspaceConflict'
 
@@ -19,13 +19,9 @@ export { onWorkspaceConflict } from '../lib/workspaceConflict'
 // .test.js` parses this file and fails on a boundary that does not, unless it is listed there with
 // a reason.
 let _prefsUser          // undefined = not yet known (the first answer of /api/auth/me)
-let _prefsGen = 0       // bumped on every change of member (setPreferencesUser)
-/** Start an operation for the current member. `op.stale()` is true once the member has changed. */
-export function beginPrefsOp() {
-  const gen = _prefsGen
-  const user = _prefsUser
-  return { gen, user, stale: () => gen !== _prefsGen }
-}
+// The session generation and `beginPrefsOp` live in lib/prefsSession.js (one authority for "is
+// this still the member it began for"); re-exported here for the hook's callers.
+export { beginPrefsOp }
 
 // TERM-021 read-new: every preferences response says whether the versioned workspace
 // document is armed (the `X-Workspace-Doc` header, absent while dark). Recording it here
@@ -102,7 +98,7 @@ const _pendingMerges = []
 function flushPendingMerges() {
   if (!_pendingMerges.length) return
   const replay = _pendingMerges.splice(0)
-  for (const m of replay) if (!m.op.stale() && m.op.user === _prefsUser) m.run()
+  for (const m of replay) if (!m.op.stale() && m.op.user === prefsUser()) m.run()
 }
 /** A confirmed write of `key` is newer than any merge still waiting for it: the replay must not undo it. */
 function dropPendingFor(key) {
@@ -323,7 +319,7 @@ export function whenWritesSettle(keys) {
 // read landed. `setPreferencesUser` is called by AuthContext on every committed user change
 // (sign-out, sign-in as someone else, a session that died and came back as another member): it
 // clears all of it AND the cached preferences, so B never renders or merges onto A's.
-// (`_prefsUser` / `_prefsGen` and `beginPrefsOp` are declared at the top of the module.)
+// (`_prefsUser` is declared at the top of the module; the generation lives in lib/prefsSession.)
 
 /** Clear every piece of module state this hook keeps (not the SWR cache: see setPreferencesUser). */
 export function resetPreferencesState() {
@@ -338,8 +334,7 @@ export function setPreferencesUser(id) {
   const next = id ?? null
   if (_prefsUser === undefined) { _prefsUser = next; return }   // first answer: nothing to clear
   if (next === _prefsUser) return
-  _prefsUser = next
-  _prefsGen += 1
+  _prefsUser = next                       // (lib/prefsSession has already moved the generation)
   resetPreferencesState()
   // Drop the previous member's cached preferences (no request), then read the new member's own.
   // A read still in flight for the previous member is discarded by SWR (a mutation started after it).

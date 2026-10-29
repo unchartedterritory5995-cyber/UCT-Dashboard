@@ -17,7 +17,8 @@
 //    goes through the same door, replacing exactly the captured lists with what they were.
 import { useEffect, useRef, useState } from 'react'
 import Sheet from '../../../../components/mobile/Sheet'
-import usePreferences, { mergeIntoPreferenceCache, refreshPreferences, beginPrefsOp } from '../../../../hooks/usePreferences'
+import usePreferences, { mergeIntoPreferenceCache, refreshPreferences } from '../../../../hooks/usePreferences'
+import { beginPrefsOp } from '../../../../lib/prefsSession'
 import { LAYOUT_UNSUPPORTED_SENTENCE, adoptLayout } from '../../lib/styleLibrary'
 import {
   LAYOUT_PREF, LOAD_FAILED, PHASE_LABELS, applySharedPage, layoutDiff, listsFor, normalizeLayout, replaceLists,
@@ -106,6 +107,7 @@ export default function AdoptLayoutSheet({ item, version, layout, onClose, onMes
         ok = false
       }
       running = false
+      if (op.stale()) return
       if (ok) {
         onMessage?.({ tone: 'ok', text: `Your previous ${PAGE_WORDS[page]} layout is back.` })
       } else {
@@ -117,6 +119,7 @@ export default function AdoptLayoutSheet({ item, version, layout, onClose, onMes
 
   // The one write. `captured` is set by the updater, from the layout the write merges into.
   const write = async (answer, op) => {
+    if (!op || op.stale()) { workingRef.current = false; setWorking(false); return }   // no op of this member's: nothing is written
     const lists = answer?.layout?.lists
     if (!lists || typeof lists !== 'object') {       // the server never answers this; nothing to apply is not a write
       workingRef.current = false
@@ -128,10 +131,10 @@ export default function AdoptLayoutSheet({ item, version, layout, onClose, onMes
       workingRef.current = false
       setWorking(false)
       setRetry(answer)
+      retryOpRef.current = op
       setError(CHANGE_FAILED)                         // said, with Try again (disabled until a read answers) (review N-2)
       return
     }
-    if (op.stale()) { workingRef.current = false; setWorking(false); return }   // another member signed in during the adopt round trip
     let captured = null
     let applied = null                                // the optimistic value this attempt put in the cache
     let ok = false
@@ -147,6 +150,7 @@ export default function AdoptLayoutSheet({ item, version, layout, onClose, onMes
     } catch {
       ok = false
     }
+    if (op.stale()) { workingRef.current = false; setWorking(false); onClose(); return }   // the member changed during the write
     if (!ok || !captured) {
       // Said at once, and the sheet is free at once: Cancel works even if the re-read never answers (review N-1). Use stays
       // off (`retry`), and Try again waits for the re-read, so it never captures the optimistic value (review I-3).
@@ -196,6 +200,7 @@ export default function AdoptLayoutSheet({ item, version, layout, onClose, onMes
     setWorking(true)
     setError('')
     setRetry(null)
+    retryOpRef.current = null
     firstCaptureRef.current = null
     const op = beginPrefsOp()                         // before the adopt round trip (see retryOpRef)
     let answer
@@ -212,10 +217,12 @@ export default function AdoptLayoutSheet({ item, version, layout, onClose, onMes
 
   const tryAgain = async () => {
     if (workingRef.current || !retry || cantRead || refreshing) return
+    const op = retryOpRef.current
+    if (!op || op.stale()) { onClose(); return }      // the retry belongs to a member no longer signed in
     workingRef.current = true
     setWorking(true)
     setError('')
-    await write(retry, retryOpRef.current || beginPrefsOp())
+    await write(retry, op)
   }
 
   const footer = (

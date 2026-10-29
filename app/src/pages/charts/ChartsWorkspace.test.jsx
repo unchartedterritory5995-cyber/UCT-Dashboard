@@ -47,8 +47,6 @@ let mockPrefs = {}
 let mockPrefsLoading = false
 vi.mock('../../hooks/usePreferences', () => ({
   default: () => ({ prefs: mockPrefs, setPref, loading: mockPrefsLoading }),
-  // ChartsWorkspace begins a preferences operation before a save/rename await (beginPrefsOp): one member here.
-  beginPrefsOp: () => ({ gen: 0, user: undefined, stale: () => false }),
   // Named export used by ChartsWorkspace to read chart_settings when saving a
   // template — mirror the real parse-defensively implementation.
   parsePref: (raw, fallback) => {

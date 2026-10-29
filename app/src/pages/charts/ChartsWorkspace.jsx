@@ -2,7 +2,8 @@ import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRe
 import { dropAverages } from '../../components/chart/maAdoption'
 import { Responsive, WidthProvider } from 'react-grid-layout'
 import 'react-grid-layout/css/styles.css'
-import usePreferences, { parsePref, refreshPreferences, beginPrefsOp } from '../../hooks/usePreferences'
+import usePreferences, { parsePref, refreshPreferences } from '../../hooks/usePreferences'
+import { beginPrefsOp } from '../../lib/prefsSession'
 import { onWorkspaceConflict, hasWorkspaceConflict } from '../../lib/workspaceConflict'
 import { whenWritesSettle } from '../../hooks/usePreferences'
 import useMediaQuery from '../../hooks/useMediaQuery'
@@ -1994,6 +1995,11 @@ export default function ChartsWorkspace() {
   // `serializeLayout`'s bypass rail) read.
   const workspaceNoticeRef = useRef(null)   // assigned where showWorkspaceNotice is declared
   const commitBoard = useCallback(async ({ build, applyLocal, onCommitted }) => {
+    // the member this commit is for, begun before the document write's await: every branch after
+    // it (the per-key fallback after a 'dark' answer above all) exits when another member signed in
+    // meanwhile. The fallback replays synchronously right after that check, so each setPref begins
+    // its own operation for the same member.
+    const op = beginPrefsOp()
     const steps = recordBoardWrites(build)
     const legacy = () => {
       applyLocal()
@@ -2011,6 +2017,7 @@ export default function ChartsWorkspace() {
     } finally {
       boardCommitInFlightRef.current = false
     }
+    if (op.stale()) return 'stale'
     if (r.status === 'dark') { legacy(); return 'legacy' }
     if (r.status === 'applied') {
       // Re-read BEFORE the board switches, so the widgets it mounts read the values the
