@@ -20,6 +20,7 @@ import { mergeChartSettings } from '../components/chart/chartDefaults'
 import { selectGroups } from './routing'
 import { canonicalIndicatorAdds } from './capabilities/indicatorEdits'
 import { planCompound } from './compound'
+import { gridTickers } from './multiChart'
 
 vi.mock('../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
 registerBuiltins()
@@ -231,4 +232,78 @@ describe('unchanged: instant explanations, and Explain / Show me never change th
     expect(out).toMatch(/RSI \(Relative Strength Index\)|MACD — |EMA is one of the types of UCT’s Moving Average/)
     expect(JSON.stringify(board.state.widgets)).toBe(before)
   }, 20000)
+})
+
+// ⭐ FINAL LIVE ACCEPTANCE, 2026-10-29 (authenticated production, one BRCB daily chart filling the board):
+// "open daily charts for aapl msft nvda, each with a 50sma" answered "UCT Agent returned something unreadable". Root cause:
+// the chart-grid reader took only tickers typed in CAPITALS (or $-prefixed), so the lowercase tickers left it nothing to
+// read and the whole request went to the model, whose reply the server refused (a 400 before any plan reached the
+// browser — nothing on the board changed). A grid's tickers may now be lowercase words, under the shared N4 rule.
+describe('D2 · the tickers typed in lowercase, exactly as typed live', () => {
+  const BRCB = () => { const [w] = FULL(); return [w, { 'N:c': 'BRCB' }] }
+  it.each([
+    'open daily charts for aapl msft nvda, each with a 50sma',                                   // exactly as typed live
+    'open daily charts for aapl, msft and nvda and put a 50 sma on each',
+    'Open daily charts for AAPL msft nvda. Each with a 50 SMA',
+  ])('%s → BRCB kept, three new daily charts, an equal 2×2, SMA 50 on each; no model call; Undo restores the board', async (q) => {
+    const { say, board, h } = p.mount(...BRCB())
+    const before = JSON.stringify(board.state.widgets)
+    const brcb = JSON.stringify(board.state.widgets[0].opts.settings)
+    const out = await say(q)
+    await waitFor(() => expect(charts(board)).toHaveLength(4), { timeout: 8000 })
+    expect(p.turns()).toBe(0)
+    expect(out).not.toMatch(/unreadable|enough open space/)
+    expect(cells(board)).toEqual([[0, 0, 12, 10], [12, 0, 12, 10], [0, 10, 12, 10], [12, 10, 12, 10]])
+    const [first, ...added] = charts(board)
+    expect(h.charts.read(first.id).symbol).toBe('BRCB')
+    expect(JSON.stringify(first.opts.settings)).toBe(brcb)
+    expect(added.map(w => [h.charts.read(w.id).symbol, h.charts.read(w.id).tf])).toEqual([['AAPL', 'D'], ['MSFT', 'D'], ['NVDA', 'D']])
+    expect(added.every(w => sma50On(board, w.id))).toBe(true)
+    expect(out).toMatch(/Added three new daily charts for AAPL, MSFT and NVDA beside your chart, re-tiled evenly/)
+    expect(out).toMatch(/All 2 steps done/)
+    await undoAll(say, () => charts(board).length === 1)
+    expect(JSON.stringify(board.state.widgets)).toBe(before)
+  }, 40000)
+
+  it('the planner reads the lowercase sentence as the grid, then the add — the same plan as in capitals', () => {
+    const { board } = p.mount(...BRCB())
+    const kinds = (q) => planCompound(q, { host: board.host })?.steps?.map(s => s.kind)
+    expect(kinds('open daily charts for aapl msft nvda, each with a 50sma')).toEqual(['grid', 'fast'])
+    expect(kinds('open daily charts for aapl msft nvda, each with a 50sma')).toEqual(kinds('open daily charts for AAPL MSFT NVDA, each with a 50sma'))
+  })
+
+  it('a lowercase word that is not a ticker is refused by the ticker search: nothing changes, nothing is called done', async () => {
+    const { say, board } = p.mount(...BRCB())
+    const before = JSON.stringify(board.state.widgets)
+    const base = globalThis.fetch
+    globalThis.fetch = vi.fn((url, init) => (/ticker-search\?q=ZQXV/i.test(String(url))
+      ? Promise.resolve(new Response(JSON.stringify({ results: [] }), { status: 200, headers: { 'content-type': 'application/json' } }))
+      : base(url, init)))
+    const out = await say('open daily charts for aapl zqxv nvda, each with a 50sma')
+    expect(out).toMatch(/UCT has no symbol “ZQXV”/)
+    expect(out).not.toMatch(/All 2 steps done|Added three/)
+    expect(JSON.stringify(board.state.widgets)).toBe(before)
+  }, 30000)
+
+  it('words that are not tickers stay out of it: company names, pronouns, words UCT knows and short typos go on as before', () => {
+    const { board } = p.mount(...BRCB())
+    expect(gridTickers('open daily charts for apple and microsoft', board.host)).toEqual([])        // a name is the model's
+    expect(gridTickers('open charts for it and them', board.host)).toEqual([])
+    expect(gridTickers('open charts for teh SPY', board.host)).toEqual(['SPY'])
+    expect(gridTickers('open daily charts for AAPL msft, and nvda', board.host)).toEqual(['AAPL', 'MSFT', 'NVDA'])  // the member's order
+    expect(gridTickers('show me charts for nvda and amd side by side', board.host)).toEqual(['NVDA', 'AMD'])
+  })
+
+  it('a model reply the server refuses shows its sentence and changes nothing (never a success)', async () => {
+    const { say, board } = p.mount(...BRCB())
+    const before = JSON.stringify(board.state.widgets)
+    const base = globalThis.fetch
+    globalThis.fetch = vi.fn((url, init) => (url === '/api/agent/turn'
+      ? Promise.resolve(new Response(JSON.stringify({ detail: 'UCT Agent returned something unreadable. Try rephrasing.' }), { status: 400, headers: { 'content-type': 'application/json' } }))
+      : base(url, init)))
+    const out = await say('could you open apple, microsoft and nvidia daily charts and give each of them a 50 sma')
+    expect(out).toMatch(/returned something unreadable/)
+    expect(out).not.toMatch(/All \d steps done|Added/)
+    expect(JSON.stringify(board.state.widgets)).toBe(before)
+  }, 30000)
 })
