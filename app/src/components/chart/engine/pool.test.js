@@ -533,10 +533,12 @@ const BASE_KEYS = [
   'autoscaleInfoProvider',
 ]
 
-/** …plus the ones every LINE-SHAPED series carries. */
+/** …plus the ones every LINE-SHAPED series carries. `lineVisible` (2026-10-29) is the
+ *  "Last value horizontal" switch (`plot.levelOnly`), emitted true on every bind so a
+ *  series re-purposed from a level back to a line cannot inherit a hidden line. */
 const LINE_SHAPE_KEYS = [
   'crosshairMarkerVisible', 'lineWidth', 'lineStyle', 'lineType',
-  'pointMarkersVisible', 'pointMarkersRadius',
+  'pointMarkersVisible', 'pointMarkersRadius', 'lineVisible',
 ]
 
 /** The key set each pool key must ALWAYS produce, whatever the plot says. */

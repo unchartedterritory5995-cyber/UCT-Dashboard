@@ -83,6 +83,7 @@ const LWC_LINE_DEFAULTS_RESTATED = {
   lineType: 0,            // lineStyleDefaults.lineType     = LineType.Simple
   pointMarkersVisible: false, // lineStyleDefaults.pointMarkersVisible
   pointMarkersRadius: 3,  // no LWC default — inert while pointMarkersVisible is false
+  lineVisible: true,     // lineStyleDefaults.lineVisible ("Last value horizontal" turns it off)
   // seriesOptionsDefaults.priceFormat.precision. The legacy RSI block sets no
   // `priceFormat` at all, so this IS a restatement: LWC's `merge` recurses into
   // a nested plain object, leaving the series' own `minMove: 0.01` in place, and
