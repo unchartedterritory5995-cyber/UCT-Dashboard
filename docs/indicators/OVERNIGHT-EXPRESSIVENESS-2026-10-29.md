@@ -22,7 +22,7 @@ Historical references (`close[1]`, `highest(high, 20)[1]`), rolling aggregates, 
 
 ## 2. Stateful foundation — supertrend as three bounded recurrences
 
-`accum(seed, body, warmup)` already existed in both interpreters. It is a recurrence that reads its own previous value through `self` and re-seeds `warmup` bars back, so a value never depends on how much history was fetched. TradingView's `ta.supertrend(factor, atrPeriod)` is exactly three of these:
+`accum(seed, body, warmup)` already existed in both interpreters. It is a recurrence that reads its own previous value through `self` and re-seeds `warmup` bars back, so a value never depends on how much history was fetched. TradingView's published `ta.supertrend(factor, atrPeriod)` formula is built from three of these (the structure matches; the values are disclosed, not exact — see below):
 
 - the upper band's ratchet;
 - the lower band's ratchet;
