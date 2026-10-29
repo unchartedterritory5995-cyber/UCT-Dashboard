@@ -319,3 +319,32 @@ describe('N1-N4 — no step that answers after the switch reaches the next membe
     expect(JSON.parse(result.current.prefs.notebook_tours)).toEqual({ t: 'B_TOUR' })
   })
 })
+
+describe('setPref / setPrefMerged accept the op a caller began before its own await', () => {
+  it('a stale op given to setPref or setPrefMerged refuses with no side effect (no cache change, no request)', async () => {
+    publishPrefsUser('a')
+    const { result } = renderHook(() => usePreferences(), { wrapper: gwrapper })
+    await flush()
+    const op = beginPrefsOp()
+    who = 'b'
+    await switchTo('b')
+    let r1; let r2
+    await act(async () => {
+      r1 = await result.current.setPref('theme', 'A_THEME', op)
+      r2 = await result.current.setPrefMerged(GROUPS, (g) => ({ ...g, A: 'A_PICK' }), op)
+    })
+    await flush()
+    expect([r1, r2]).toEqual([false, false])
+    expect(posts).toEqual([])
+    expect(result.current.prefs.theme).not.toBe('A_THEME')
+    expect(JSON.parse(result.current.prefs[GROUPS])).toEqual({ A: 'B1', B: 'B2' })
+  })
+
+  it('CONTROL: a live op is used as the write\'s own', async () => {
+    publishPrefsUser('a')
+    const { result } = renderHook(() => usePreferences(), { wrapper: gwrapper })
+    await flush()
+    await act(async () => { await result.current.setPref('theme', 'light', beginPrefsOp()) })
+    expect(posts.map((x) => [x.account, x.value])).toEqual([['a', 'light']])
+  })
+})
