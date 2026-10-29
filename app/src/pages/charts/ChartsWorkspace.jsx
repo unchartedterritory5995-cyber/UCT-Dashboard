@@ -2,7 +2,7 @@ import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRe
 import { dropAverages } from '../../components/chart/maAdoption'
 import { Responsive, WidthProvider } from 'react-grid-layout'
 import 'react-grid-layout/css/styles.css'
-import usePreferences, { parsePref, refreshPreferences } from '../../hooks/usePreferences'
+import usePreferences, { parsePref, refreshPreferences, beginPrefsOp } from '../../hooks/usePreferences'
 import { onWorkspaceConflict, hasWorkspaceConflict } from '../../lib/workspaceConflict'
 import { whenWritesSettle } from '../../hooks/usePreferences'
 import useMediaQuery from '../../hooks/useMediaQuery'
@@ -2334,6 +2334,9 @@ export default function ChartsWorkspace() {
     const fundamentalsSettings = parsePref(prefs?.fundamentals_settings, null)
     const breadthSettings = parsePref(prefs?.breadth_widget_settings, null)
     const watchlistColumns = readWatchlistColumns()
+    // the member this save is for, begun before the save's await (usePreferences `beginPrefsOp`):
+    // the active-template pointer below is never written into a member who signed in meanwhile
+    const op = beginPrefsOp()
     const saved = await saveLayout({
       name: nm,
       layout: { ...layout, chartSettings, watchlistSettings, themeTrackerSettings, fundamentalsSettings, breadthSettings, watchlistColumns },
@@ -2344,7 +2347,7 @@ export default function ChartsWorkspace() {
     // The just-saved template becomes the active one, so "Save current
     // arrangement" updates it going forward.
     if (saved?.id != null) {
-      setPref('charts_active_template', JSON.stringify({ id: saved.id, name: saved.name || nm, scope: saved.scope || scope }))
+      setPref('charts_active_template', JSON.stringify({ id: saved.id, name: saved.name || nm, scope: saved.scope || scope }), op)
     }
     return saved
   }, [layout, prefs?.chart_settings, prefs?.watchlist_settings, prefs?.theme_tracker_settings, prefs?.fundamentals_settings, prefs?.breadth_widget_settings, saveLayout, setPref])
@@ -2782,11 +2785,12 @@ export default function ChartsWorkspace() {
   // under its old name — a duplicate, from a rename. Keep the two in step.
   const handleDockRename = useCallback(async (id, name) => {
     suppressAutoSave()
+    const op = beginPrefsOp()            // the member this rename is for, before its await
     try {
       const saved = await renameLayout(id, name)
       const active = parsePref(prefs?.charts_active_template, null)
       if (active?.id === id) {
-        setPref('charts_active_template', JSON.stringify({ ...active, name: saved?.name || name }))
+        setPref('charts_active_template', JSON.stringify({ ...active, name: saved?.name || name }), op)
       }
     } catch { /* rolled back in the hook */ }
   }, [renameLayout, prefs?.charts_active_template, setPref, suppressAutoSave])

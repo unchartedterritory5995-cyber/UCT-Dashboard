@@ -14,7 +14,7 @@
 // inside the same synchronous mutate the merge computes from, so this can never be
 // a blind POST. `tourSeenState.test.js` mutation-proves it: reverting the merge to
 // a blind overwrite loses a sibling tour's row, and the rail catches it.
-import { mergeIntoPreferenceCache, parsePref } from '../../../../../hooks/usePreferences'
+import { mergeIntoPreferenceCache, parsePref, beginPrefsOp } from '../../../../../hooks/usePreferences'
 
 export const TOURS_PREF = 'notebook_tours'
 export const TOUR_STATES = Object.freeze({ started: 'started', done: 'done', dismissed: 'dismissed' })
@@ -74,10 +74,15 @@ function queueRow(task) {
  *
  *  Signature unchanged, so GenericTourEngine.jsx (not this lane's file) is untouched. */
 export function recordTourState(setPrefMerged, tourId, state, stepId) {
+  // ⛔ The member this record is FOR, begun at ENTRY (before the queue and the PUT's await): the
+  // door's answer, and the fallback merge, never reach a member who signed in meanwhile
+  // (usePreferences `beginPrefsOp`). Owner-approved rule-12 edit, 2026-10-29.
+  const op = beginPrefsOp()
   const row = { v: 1, state, step: stepId ?? null }
   const merge = (current) => ({ ...readToursPref(current), [tourId]: row })
-  mergeIntoPreferenceCache(TOURS_PREF, merge).catch(() => {})
+  mergeIntoPreferenceCache(TOURS_PREF, merge, op).catch(() => {})
   return queueRow(async () => {
+    if (op.stale()) return false                // queued behind another row while the member changed: never sent
     let res = null
     try {
       res = await fetch(TOUR_ROW_URL(tourId), {
@@ -91,10 +96,11 @@ export function recordTourState(setPrefMerged, tourId, state, stepId) {
     if (res && res.ok) {
       let body = null
       try { body = await res.json() } catch { body = null }
-      if (body && typeof body.value === 'string') await mergeIntoPreferenceCache(TOURS_PREF, body.value)
+      if (body && typeof body.value === 'string') await mergeIntoPreferenceCache(TOURS_PREF, body.value, op)
       return true
     }
     if (!res || res.status === 404 || res.status === 405) {
+      if (op.stale()) return false              // checked with no await before the merge begins its own op
       await setPrefMerged(TOURS_PREF, merge)
       return true
     }

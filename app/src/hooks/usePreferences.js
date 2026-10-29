@@ -545,7 +545,11 @@ export default function usePreferences(enabled = true) {
   const dataRef = useRef(data)
   dataRef.current = data
 
-  const setPref = useCallback(async (key, value) => {
+  // `givenOp` (optional): the operation a caller began BEFORE an await of its own (a door, an adopt
+  // round trip). Given and stale — the member changed meanwhile — the write is refused with no side
+  // effect at all: no cache change, no request.
+  const setPref = useCallback(async (key, value, givenOp = null) => {
+    if (givenOp && givenOp.stale()) return false
     // The backend's SetPreferenceRequest types `value` as a str, so an
     // object/array would be rejected with a 422. Coerce non-strings to JSON
     // here so callers can pass structured values transparently (read them
@@ -554,7 +558,7 @@ export default function usePreferences(enabled = true) {
     // Optimistic update
     // (derive: the result is server-based only when what it was built on was — an optimistic
     // write onto an EMPTY cache is not a base anyone may merge onto)
-    const op = beginPrefsOp()
+    const op = givenOp || beginPrefsOp()
     mutate(prev => {
       if (op.stale()) return prev
       return derive(prev, { ...DEFAULTS, ...prev, [key]: serialized })
@@ -653,11 +657,12 @@ export default function usePreferences(enabled = true) {
    * @param {string} key
    * @param {(current: any) => any} updater
    */
-  const setPrefMerged = useCallback(async (key, updater) => {
+  const setPrefMerged = useCallback(async (key, updater, givenOp = null) => {
+    if (givenOp && givenOp.stale()) return false     // see setPref: begun for another member
     let serialized = null
     let updaterError = null
     let unknownBase = false
-    const op = beginPrefsOp()         // the member this merge is FOR
+    const op = givenOp || beginPrefsOp()   // the member this merge is FOR
 
     // ⛔⛔ NEVER POST A MERGE ONTO A BASE THAT HAS NOT BEEN READ. Before the first read answers, the
     // cache holds nothing, and a merge onto nothing is a WHOLE value built from an empty base —

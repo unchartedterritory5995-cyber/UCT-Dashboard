@@ -15,7 +15,7 @@
 import { chartInsertNodes } from './widgetEmbedCore'
 import { WIDGET_KINDS } from './notebookWidgets'
 import { widgetsWaveOn } from './notebookWidgetsFlags'
-import { PREFS_URL, mergeIntoPreferenceCache } from '../../../hooks/usePreferences'
+import { PREFS_URL, mergeIntoPreferenceCache, beginPrefsOp } from '../../../hooks/usePreferences'
 
 export const CHART_SETS_PREF = 'notebook_chart_sets'
 export const MAX_SETS = 30
@@ -192,6 +192,7 @@ export async function saveSets(update, { uid } = {}) {
   if (why) return { ok: false, reason: why }
   const doc = readSets(merged)
   const value = JSON.stringify(doc)
+  const op = beginPrefsOp()            // the member this save is for, before the POST's await (owner-approved rule-12 edit, 2026-10-29)
   try {
     const res = await fetch(PREFS_URL, {
       method: 'POST', credentials: 'include',
@@ -203,7 +204,7 @@ export async function saveSets(update, { uid } = {}) {
     return { ok: false, reason: SAVE_FAILED_REASON }
   }
   if (mine && uid === _uid) _cached = doc
-  try { await mergeIntoPreferenceCache(CHART_SETS_PREF, value) } catch { /* the cache is a convenience */ }
+  try { await mergeIntoPreferenceCache(CHART_SETS_PREF, value, op) } catch { /* the cache is a convenience */ }
   return { ok: true, doc }
 }
 
