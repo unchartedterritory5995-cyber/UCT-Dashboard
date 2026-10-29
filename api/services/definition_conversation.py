@@ -230,7 +230,12 @@ def composed_schema() -> Dict[str, Any]:
         n for n in call_expansions.EXPANSION_NAMES if n not in call_name["enum"]]
     call_name["description"] = ("Also: " + "; ".join(
         spec[2] for spec in call_expansions.CALL_EXPANSIONS.values())
-        + ". Lengths are whole-number literals; these are exact closed forms over the table.")
+        + ". Lengths are whole-number literals (supertrend's factor is any positive number). "
+        "supertrend / supertrendDirection follow TradingView's published ta.supertrend "
+        "formula as bounded recurrences, shown after a ~400-bar warm-up; they carry a "
+        "disclosed difference (a band last reset long ago can differ from TradingView), "
+        "so never call them identical to TradingView. The others are exact closed forms "
+        "over the table.")
     # ⭐ SLICE 2 — THE MODEL MUST SAY WHAT ITS TURN IS. Optional in the shared
     # engine file (older envelopes and the engine's own tests carry none); required
     # of the model here, so mutation is never inferred from which fields happen to

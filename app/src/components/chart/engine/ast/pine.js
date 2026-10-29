@@ -2198,6 +2198,10 @@ export const BUILTIN_CALL_TREE = Object.freeze({
   // the same reasoning `vwma` above states for its own length. `stdev` of a
   // single sample is a divide-by-zero waiting to happen, so 2 is the floor.
   correlation: (a) => CALL_EXPANSIONS.correlation.build(a),
+  // the two legs of `ta.supertrend` (`PINE_TUPLE_BUILTINS.supertrend`) — the native
+  // language's `supertrend` / `supertrendDirection`, one builder for both doors
+  supertrendvalue: (a) => CALL_EXPANSIONS.supertrend.build(a),
+  supertrenddirection: (a) => CALL_EXPANSIONS.supertrendDirection.build(a),
   // ⭐⭐ BATCH 1 — `ta.kcw(src, length, mult, useTrueRange=true)`, Keltner
   // Channel Width. TradingView's own published `f_kcw` reference-manual
   // source, verbatim:
@@ -3335,6 +3339,19 @@ const PINE_TUPLE_BUILTINS = Object.freeze({
       const mid = pc('ta.ema', [a[0], a[1]])
       const band = bin('*', a[2], pc('ta.ema', [span, a[1]]))
       return [mid, bin('+', mid, band), bin('-', mid, band)]
+    },
+  },
+  // ⭐⭐ SUPERTREND — `[st, dir] = ta.supertrend(factor, atrPeriod)`. Not a stateless
+  // expansion: each leg is `callExpansions.js::supertrendTrees`, the three bounded
+  // `accum` recurrences that KEEP the band ratchet and the direction flip (see the
+  // header there and `closedTable.json::_functions_excluded._supertrend_was_here`).
+  // Order is Pine's: `[supertrend, direction]`, direction −1 = up-trend.
+  supertrend: {
+    arity: 2,
+    parts: 2,
+    build: (a, tok) => {
+      const pc = (n, args) => ({ type: 'call', name: n, args: args.map((v) => ({ value: v })), tok })
+      return [pc('supertrendvalue', [a[0], a[1]]), pc('supertrenddirection', [a[0], a[1]])]
     },
   },
 })
@@ -12520,6 +12537,16 @@ export class Resolver {
         throw new PineRefusal('pine:arity',
           `\`${pineName}\` averages two or more values`, locate(tok))
       }
+      if (bare === 'supertrendvalue' || bare === 'supertrenddirection') {
+        const tree = built.length === 2 ? BUILTIN_CALL_TREE[bare](built) : null
+        if (!tree) {
+          throw new PineRefusal('pine:window',
+            '`ta.supertrend` needs its factor and its ATR period written as numbers '
+            + '(`ta.supertrend(3, 10)`) — the band each bar ratchets from is built '
+            + 'from them, so this engine reads them once rather than per bar', locate(tok))
+        }
+        return tree
+      }
       if (bare === 'cross' && built.length !== 2) {
         // ⛔ ARITY IS CHECKED BEFORE THE EXPANSION RUNS, like its two neighbours.
         // `cross(x)` would otherwise build `crossOver(x, undefined)` and die in
@@ -12828,6 +12855,17 @@ export class Resolver {
           + ', and this table has RULED on that name: ' + rulingLead(ruled),
           locate(tok))
       }
+      // ⭐ A TUPLE BUILT-IN READ AS ONE VALUE is a Pine type error before it is
+      // anything of ours — `st = ta.supertrend(3, 10)` does not compile on
+      // TradingView either — and this engine DOES translate the destructure. So it
+      // is told the spelling that works rather than handed the vocabulary.
+      if (own(PINE_TUPLE_BUILTINS, bare)) {
+        const parts = PINE_TUPLE_BUILTINS[bare].parts
+        throw new PineRefusal('pine:function',
+          `${REFUSALS['pine:function']} — \`${pineName}\` returns ${parts} values, `
+          + `so it is read by destructuring them: \`[${Array.from({ length: parts }, (_, i) => `v${i + 1}`).join(', ')}] = ${pineName}(…)\``,
+          locate(tok))
+      }
       // ⭐ THE SUGGESTION COMES FIRST, THE FULL LIST STILL FOLLOWS — the native
       // door's own words for the same problem (`sentence.js`). Sixty-four names
       // is the answer buried in a wall of text; one name in front of it is the
@@ -13024,6 +13062,28 @@ export class Resolver {
         // told it rather than left to find it.
         // ⛔ IT IS A SENTENCE, NOT AN AUTO-REWRITE. This door has no span to
         // replace and no business renaming a member call.
+        //
+        // ⭐⭐ 2026-10-29 — EXCEPT WHERE THE TRANSLATION IS PINE'S OWN DEFINITION, which
+        // is not a rename: `ta.change(source, length)` on a NUMBER is published as
+        // `source - source[length]`, the exact tree `ta.mom` already translates to
+        // (`CALL_EXPANSIONS.mom`), so the two spellings are one `astHash`. This is
+        // `BUILTIN_CALL_TREE`'s rule ("an exact expansion beats a refusal"), reached
+        // here only because the table declares the one-argument `change`.
+        // ⛔ TWO CASES STAY SENTENCES. A BOOL source: Pine's change of a bool is
+        // "did it change", not a difference, so the number this would write is a
+        // different series. A length that is not a written whole number: the offset
+        // has to be read once, as `mom`'s builder requires.
+        if (bare === 'change' && args.length === 2 && !args.some((a) => a && a.name)) {
+          const built = args.map((a) => this.resolve(a.value !== undefined ? a.value : a))
+          if (treeYieldsBool(built[0], this.table)) {
+            throw new PineRefusal('pine:arity',
+              REFUSALS['pine:arity'] + ' — ' + '`' + pineName + '`' + ' of a true/false '
+              + 'series asks whether it changed, which is not a difference this engine '
+              + 'writes for it — TO UNBLOCK: compare it yourself, `x != x[length]`', locate(tok))
+          }
+          const tree = CALL_EXPANSIONS.mom.build(built)
+          if (tree) return tree
+        }
         const hint = own(ARITY_HINTS, bare) ? ' — ' + ARITY_HINTS[bare] : ''
         throw new PineRefusal('pine:arity',
           REFUSALS['pine:arity'] + ' — ' + '`' + pineName + '`' + ' was given '
@@ -15796,26 +15856,15 @@ function tupleRefusalTail(call, names, env) {
   }
   const shown = String(call.name)
   const supplied = call.args || []
-  // ⭐⭐ TASK 3 — `ta.supertrend` NAMES ITS OWN REASON, NOT THE GENERIC LIST.
-  //
-  // `closedTable.json::_functions_excluded.supertrend` already states
-  // this in full: Supertrend carries state that depends on its OWN PREVIOUS
-  // VALUE (the band ratchet + the direction flip), which this grammar — a
-  // pure expression tree over sealed primitives, no self-reference — cannot
-  // hold without a NEW SEALED RECURRENCE PRIMITIVE, the same class of work
-  // `ema`/`rma`/`atr`/`rsi`/`adx` already needed. That is materially larger
-  // than "the tuple mechanism does not know this name," and the generic "the
-  // ones it can take apart are bb/macd/kc/dmi" list invites exactly the
-  // wrong fix: silently adding `supertrend` to `PINE_TUPLE_BUILTINS` (a table
-  // of PURE, STATELESS expansions) would drop the ratchet and the flip and
-  // serve a different series under the Supertrend name.
+  // ⭐⭐ `ta.supertrend` TRANSLATES SINCE 2026-10-29 (`PINE_TUPLE_BUILTINS.supertrend`),
+  // as the bounded recurrences that KEEP the ratchet and the flip — the history is
+  // `closedTable.json::_functions_excluded._supertrend_was_here`. A destructure that
+  // reaches HERE has the wrong shape (named or extra arguments, or not two names),
+  // so it is told the shape rather than the generic list.
   const bareForSupertrend = normaliseName(shown.split('.').pop())
   if (bareForSupertrend === 'supertrend') {
-    return '`' + shown + '`' + ' carries state that depends on its own previous '
-      + 'value — the band only tightens while the trend holds, and the direction '
-      + 'flips only when price crosses the band it produced last bar. This engine '
-      + 'has no self-reference in its expression grammar yet, so this is not a '
-      + 'missing tuple form, it is a missing primitive'
+    return '`' + shown + '`' + ' is written `[supertrend, direction] = ' + shown
+      + '(factor, atrPeriod)` — two names, and two arguments given by position'
   }
   const callee = env.get(call.name)
   // ⭐ H3 (2026-10-02) — A HELPER THIS ENGINE REFUSED NAMES ITS OWN WALL. The

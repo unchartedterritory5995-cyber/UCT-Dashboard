@@ -51,6 +51,7 @@ const LWC_LINE_DEFAULTS_RESTATED = {
   lineType: 0,
   pointMarkersVisible: false,
   pointMarkersRadius: 3,
+  lineVisible: true,     // lineStyleDefaults.lineVisible ("Last value horizontal" turns it off)
   priceFormat: { type: 'price', precision: 2 },
   priceScaleId: 'right',
 }

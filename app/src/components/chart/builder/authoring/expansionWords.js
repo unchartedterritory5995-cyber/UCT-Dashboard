@@ -36,6 +36,8 @@ function phraseOf(hit, scope, named) {
     case 'kcMiddle': return `the ${n}-bar Keltner Channel middle line of ${say(a0)}`
     case 'kcUpper':
     case 'kcLower': return `the ${hit.name === 'kcUpper' ? 'upper' : 'lower'} Keltner Channel band of ${say(a0)} (${n} bars, ${say(a2)} × the average true range)`
+    case 'supertrend': return `the Supertrend (factor ${fmt(numOf(a0))}, ${n}-bar ATR)`
+    case 'supertrendDirection': return `the Supertrend direction (factor ${fmt(numOf(a0))}, ${n}-bar ATR; −1 up, 1 down)`
     default: return hit.name
   }
 }

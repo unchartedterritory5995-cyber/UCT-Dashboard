@@ -37,6 +37,8 @@ from txn_journal import Journal, JournalError, journal_from_env
 from txn_redaction import install_log_redaction
 
 logger = logging.getLogger("txn.receiver")
+#: ⏱ The timing line waits for BOTH stores to answer (or for this long).
+TIMING_LOG_DELAY_S = 10.0
 
 NOT_FOUND = {"detail": "Not Found"}
 SUMMARY_EVERY_S = 300
@@ -91,6 +93,7 @@ def create_app(cfg: rx.Config | None = None, journal: Journal | None = None,
     forwarder = forwarder or Forwarder(cfg.web_ingest_url, cfg.ingest_token)
     bucket = rx.TokenBucket(cfg.rate_burst, cfg.rate_per_sec)
     counters = rx.Counters()
+    refused_labels = _LabelLogLimit()
 
     async def _summary_loop() -> None:
         while True:
@@ -151,7 +154,7 @@ def create_app(cfg: rx.Config | None = None, journal: Journal | None = None,
 
     app.state.rejournal_tasks = rejournal_tasks
 
-    async def _deliver(record: dict[str, Any]) -> str | None:
+    async def _deliver(record: dict[str, Any], marks: dict[str, float] | None = None) -> str | None:
         """Start the push and the journal PUT together; return which durable store
         confirmed FIRST ("journal" | "web"), or None if neither did in time.
 
@@ -167,6 +170,9 @@ def create_app(cfg: rx.Config | None = None, journal: Journal | None = None,
         """
         push = forwarder.start(record, on_done=_forward_done)
         put = asyncio.get_running_loop().create_task(_put(record))
+        if marks is not None:  # ⏱ latency audit: when each store answered
+            push.add_done_callback(lambda _t: marks.setdefault("push", time.perf_counter()))
+            put.add_done_callback(lambda _t: marks.setdefault("journal", time.perf_counter()))
         pending: set[asyncio.Task] = {push, put}
         via = None
         deadline = time.monotonic() + cfg.journal_timeout_s
@@ -195,6 +201,13 @@ def create_app(cfg: rx.Config | None = None, journal: Journal | None = None,
                                   (lambda t: t.cancelled() or t.exception()))
         return via
 
+    def _log_timing(eid, edge, t_in, t_built, t_acked, marks, via) -> None:
+        # ⏱ LATENCY AUDIT: durations only (ms from handler entry), an event id, never content.
+        ms = lambda t: None if t is None else round((t - t_in) * 1000, 1)
+        logger.info("[txn] timing rx id=%s edge_to_handler_ms=%s parse_ms=%s push_ack_ms=%s "
+                    "journal_ack_ms=%s acked_ms=%s via=%s", eid, edge, ms(t_built),
+                    ms(marks.get("push")), ms(marks.get("journal")), ms(t_acked), via)
+
     def _forward_done(ok: bool) -> None:
         counters.inc("forwarded" if ok else "forward_failed")
 
@@ -202,6 +215,7 @@ def create_app(cfg: rx.Config | None = None, journal: Journal | None = None,
     @app.post("/hook/{token}")
     async def hook(request: Request, token: str = "") -> Response:
         counters.inc("received")
+        t_in = time.perf_counter()
         presented = rx.presented_credential(token, request.headers, cfg.auth_modes)
         if not cfg.enabled or not rx.verify_token(presented, cfg.token_hashes):
             counters.inc("refused_unknown")
@@ -225,6 +239,8 @@ def create_app(cfg: rx.Config | None = None, journal: Journal | None = None,
         except rx.PayloadError as e:
             counters.inc("refused_source" if e.reason.startswith("source is not")
                          else "refused_oversize" if e.status == 413 else "refused_malformed")
+            if e.label is not None and refused_labels.due(e.label):
+                logger.warning("[txn] refused source label=%r (not on TXN_SOURCE_ALLOWLIST)", e.label)
             return JSONResponse({"detail": e.reason}, status_code=e.status)
         if cfg.synthetic_only and not content.startswith(rx.SYNTHETIC_PREFIX):
             # Staging never stores or forwards anything that is not synthetic.
@@ -235,7 +251,13 @@ def create_app(cfg: rx.Config | None = None, journal: Journal | None = None,
                                 request.headers.get("x-real-ip")
                                 or (request.client.host if request.client else None))
         record = rx.build_record(source, content, extra, meta, cfg)
-        via = await _deliver(record)
+        t_built = time.perf_counter()
+        marks: dict[str, float] = {}
+        via = await _deliver(record, marks)
+        t_acked = time.perf_counter()
+        edge = rx.edge_lag_ms(request.headers.get("x-request-start"), record["received_at_ms"])
+        asyncio.get_running_loop().call_later(TIMING_LOG_DELAY_S, _log_timing, record["id"], edge, t_in, t_built,
+                                              t_acked, marks, via)
         if via is None:
             # ⛔ NEITHER store confirmed => NOT acknowledged.
             logger.warning("[txn] not durable in time id=%s", record["id"])
@@ -254,6 +276,24 @@ def create_app(cfg: rx.Config | None = None, journal: Journal | None = None,
                             status_code=200 if not problems else 503)
 
     return app
+
+
+class _LabelLogLimit:
+    """Each distinct refused label logs at most once per ``every_s``; at most ``cap``
+    labels are tracked, so a sender cycling labels cannot flood the log."""
+
+    def __init__(self, every_s: float = 600.0, cap: int = 16) -> None:
+        self.every_s, self.cap, self.last = every_s, cap, {}
+
+    def due(self, label: str, now: float | None = None) -> bool:
+        now = time.monotonic() if now is None else now
+        seen = self.last.get(label)
+        if seen is not None and now - seen < self.every_s:
+            return False
+        if seen is None and len(self.last) >= self.cap:
+            return False
+        self.last[label] = now
+        return True
 
 
 def _boot_app() -> Any:

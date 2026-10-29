@@ -100,6 +100,29 @@ export function mergeItems(items, incoming) {
   return out.length > cap ? out.slice(out.length - cap) : out
 }
 
+// ⏱ LATENCY AUDIT (admin-only widget): browser clock vs web clock, estimated
+// from the /recent round trip (offset error <= rtt/2), so publish -> SSE receipt
+// can be measured across two machines. Reports numbers and an event id only.
+export const TIMING_URL = '/api/trade-exchange-news/client-timing'
+let _clock = null
+
+function noteServerClock(serverMs, sentAt, gotAt) {
+  if (typeof serverMs !== 'number') return
+  const rtt = gotAt - sentAt
+  if (!_clock || rtt <= _clock.rtt) _clock = { offset: serverMs - (sentAt + gotAt) / 2, rtt }
+}
+
+function reportTiming(ev, heardAt, heardPerf) {
+  if (typeof ev.server_ms !== 'number' || !ev.id || typeof requestAnimationFrame !== 'function') return
+  const sse = _clock ? Math.round(heardAt + _clock.offset - ev.server_ms) : null
+  requestAnimationFrame(() => setTimeout(() => {
+    const body = { id: ev.id, sse_ms: sse, render_ms: Math.round(performance.now() - heardPerf),
+      clock_rtt_ms: _clock ? _clock.rtt : null }
+    fetch(TIMING_URL, { method: 'POST', credentials: 'include', keepalive: true,
+      headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).catch(() => {})
+  }, 0))
+}
+
 async function fetchJson(url) {
   const r = await fetch(url, { credentials: 'include', cache: 'no-store' })
   if (!r.ok) {
@@ -125,7 +148,9 @@ async function start() {
   publish((s) => ({ ...s, status: s.items.length ? 'reconnecting' : 'connecting', reason: null }))
   let body
   try {
+    const sentAt = Date.now()
     body = await fetchJson(`${RECENT_URL}?limit=${PAGE}`)
+    noteServerClock(body?.server_ms, sentAt, Date.now())
   } catch (e) {
     if (gen !== _gen) return
     const final = e.status && e.status !== 503 && e.status < 500
@@ -198,8 +223,11 @@ function openStream() {
       openStream()
       return
     }
+    const heardAt = Date.now()
+    const heardPerf = performance.now()
     publish((st) => ({ ...st, status: 'live', items: mergeItems(st.items, [ev]), lastSeq: ev.seq,
       lastEventAt: Date.now(), lastHeadlineAt: Date.now() }))
+    reportTiming(ev, heardAt, heardPerf)
   })
   es.addEventListener('repeat', (e) => {
     if (!live()) return
@@ -293,6 +321,7 @@ export function claimAnnouncement(seq) {
 }
 
 export function _resetForTests() {
+  _clock = null
   _gen++
   shut()
   _listeners.clear()

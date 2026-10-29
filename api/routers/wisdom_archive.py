@@ -60,6 +60,7 @@ import logging
 import sqlite3
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user, require_admin
@@ -361,6 +362,11 @@ def member_check(ticker: str = Query(..., min_length=1, max_length=16),
     return {"label": team_record.LABEL, "setup": rec, "ticker": trec}
 
 
+#: How long a cold /rhymes request waits for the background compute before answering 202 warming:
+#: well under the CDN's ~100 s timeout, long enough that a warm-ish box answers in one round trip.
+RHYMES_WAIT_S = 20.0
+
+
 @member_router.get("/rhymes")
 def member_rhymes(limit: int = Query(60, ge=1, le=rhymes.MAX_HITS),
                   _user: dict = Depends(require_paid)) -> dict:
@@ -368,7 +374,9 @@ def member_rhymes(limit: int = Query(60, ge=1, le=rhymes.MAX_HITS),
     setup's measured record, the ticker's archive history and the closest past team calls. Display
     only; never a price level. 503 when the scan or the store cannot be read."""
     _require_enabled()
-    out = rhymes.today()
+    out = rhymes.today(wait_s=RHYMES_WAIT_S)
+    if out is rhymes.WARMING:  # a cold cache: the compute runs in the background; ask again shortly
+        return JSONResponse(status_code=202, content={"status": "warming", "retry_after_s": 15})
     if out is None:
         raise HTTPException(status_code=503, detail="The scan or the archive is unavailable")
     return {**out, "hits": out["hits"][:limit]}

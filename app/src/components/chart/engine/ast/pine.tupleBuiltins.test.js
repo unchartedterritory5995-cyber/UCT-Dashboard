@@ -127,7 +127,10 @@ plot(close > ${use} ? 1 : 0)
 `)
 
   const CAUSES = [
-    ['unknown name', '[st, d] = ta.supertrend(3, 10)', 'st'],
+    // ⭐ 2026-10-29: this row was `ta.supertrend`, which now TRANSLATES (the bounded-
+    // recurrence expansion). `ta.alma` is a real Pine call answering ONE value, so a
+    // member destructuring it still arrives here.
+    ['unknown name', '[st, d] = ta.alma(close, 9, 0.85, 6)', 'st'],
     // ✅ THIS ROW WAS `ta.kc` UNTIL IT GAINED A TUPLE FORM. Keltner is now
     // taken apart (see `pine.blindCorpus.test.js`), so it stopped being an
     // example of this cause — which is the ratchet working: a name that
@@ -179,21 +182,19 @@ plot(close > ${use} ? 1 : 0)
     expect(msg).toContain('WITHOUT the brackets')
   })
 
-  it('⛔⛔ CONTROL — `ta.supertrend` names ITS OWN reason, never the list', () => {
-    // ⭐⭐ THE OTHER HALF, AND IT IS WHY THE CASE ABOVE HAD TO MOVE. Supertrend
-    // carries state that depends on its own previous value, so the generic
-    // "the ones it can take apart are …" list invites precisely the WRONG fix:
-    // adding it to `PINE_TUPLE_BUILTINS`, a table of PURE, STATELESS expansions,
-    // would drop the band ratchet and the direction flip and serve a different
-    // series under the Supertrend name.
-    //
-    // ⛔ Without this, moving the case above would have DELETED that guarantee
-    // rather than relocated it, and nothing in the suite would have said so.
-    const msg = bind('[st, d] = ta.supertrend(3, 10)', 'st').refusal.message
-    expect(msg).toContain('ta.supertrend')
-    expect(msg).toMatch(/own previous value/)
-    expect(msg).toMatch(/missing primitive/)
-    expect(msg).not.toContain('the ones it can take apart')
+  it('⛔⛔ CONTROL — `ta.supertrend` translates, and keeps its ratchet and flip', () => {
+    // ⭐⭐ THE GUARANTEE THIS CASE HELD IS RELOCATED, NOT DELETED. It refused the tuple
+    // because a STATELESS entry here would drop the band ratchet and the direction
+    // flip and serve a different series under the Supertrend name. The entry added on
+    // 2026-10-29 is not stateless: each part is `callExpansions.js::supertrendTrees`,
+    // three bounded `accum` recurrences, and `supertrend.test.js` checks every
+    // published bar against an independent implementation of Pine's own source — the
+    // rail that now fails if the ratchet or the flip is ever dropped.
+    const out = bind('[st, d] = ta.supertrend(3, 10)', 'st')
+    expect(out.ok, out.ok ? '' : out.refusal.message).toBe(true)
+    const formula = out.outputs[out.selected].formula
+    expect(formula).toContain('accum(')
+    expect(formula).toContain('self')
   })
 
   it('⛔ the working tuples are untouched', () => {

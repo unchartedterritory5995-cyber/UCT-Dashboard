@@ -19,8 +19,24 @@ HIST_SCORE or confirmed_only. It reads patterns.db and never writes it.
 the screener's join applies, read from the same authorities.
 
 Ranking: the archive has history on this ticker > the setup's edge is measured > more scored calls
-> higher detection confidence. Cached per scan state (newest detection, row count, market state),
-with a TTL so a re-import is picked up.
+> higher detection confidence.
+
+⛔ CACHING — STALE-WHILE-REFRESH, ONE COMPUTE AT A TIME (2026-10-29). Measured in production that
+day: GET /rhymes ran >130 s and never answered, so the Desk's Today view never loaded. Two causes:
+  1. The cache KEY was built from the active detections, so EVERY request — hit or miss — first ran
+     the full detection read: ~97k rows of a table whose `status` / `detected_at` sit behind five
+     large JSON columns, so SQLite reads each ~9 KB row whole (27 s cold, 1.7 s warm on a local
+     copy). And the key moved with every new detection during the session, so it rarely hit.
+  2. Nothing stopped N members from each running that compute at once.
+Now a cached answer is served WITHOUT touching the scan; once it is REFRESH_S old a single
+background thread recomputes and members keep the previous answer meanwhile; only a cold (or
+STALE_MAX_S-old) cache computes in the request, and concurrent cold callers wait on ONE compute.
+`force=True` still computes now (tests, an explicit refresh). `warm()` starts a background compute.
+⛔ After a deploy the first (cold) compute measured MINUTES in production (2026-10-29: >140 s; the
+same compute on a local copy of the scan with a production-sized archive took ~5 s, so the cost is
+the volume, not the code). So the member route asks with `wait_s`: a cold cache starts the compute in
+the background, waits that long, and answers WARMING rather than holding a request open past the
+CDN's timeout. Ask AI and Compass keep the blocking default.
 
 NOT BUILT, ON PURPOSE: a "this rhymes" ALERT. Pushing a hit to a member is a new S7 alert type,
 which trips the alert taxonomy's parity rail (test_alert_taxonomy_filing_watch_parity) and needs the
@@ -47,15 +63,23 @@ ACTIVE_STATUSES = ("forming", "ready", "triggered")
 EXCLUDED_CATEGORIES = ("candlestick",)
 CLOSEST_N = 3
 MAX_HITS = 200
-CACHE_TTL_S = 900
+REFRESH_S = 900           # a cached answer this old is refreshed in the background
+STALE_MAX_S = 3 * 3600    # older than this is not served: the request computes (or waits on one)
+CACHE_TTL_S = REFRESH_S   # the name older readers know
 
-_LOCK = threading.Lock()
-_CACHE: dict = {"key": None, "at": 0.0, "value": None}
+_LOCK = threading.Lock()          # guards _CACHE and _STATE
+_READY = threading.Condition(_LOCK)  # notified whenever a compute stores an answer
+_COMPUTE = threading.Lock()       # ONE compute at a time, in a request or in the background
+_CACHE: dict = {"at": 0.0, "value": None}
+_STATE: dict = {"refreshing": False}
+
+#: today(wait_s=...) returns this when the cache is cold and the background compute has not landed.
+WARMING = object()
 
 
 def clear_cache() -> None:
     with _LOCK:
-        _CACHE.update(key=None, at=0.0, value=None)
+        _CACHE.update(at=0.0, value=None)
 
 
 def _internal_ids() -> tuple:
@@ -65,19 +89,35 @@ def _internal_ids() -> tuple:
 
 
 def _detections(now: Optional[float] = None) -> list:
-    """Active daily detections: (sym, pattern_id, direction, confidence, detected_at)."""
-    from api.services.pattern_engine import pattern_db
+    """Active daily detections that map to an archive setup, the BEST one per (sym, pattern_id)
+    (highest confidence, then newest): (sym, pattern_id, direction, confidence, detected_at).
 
+    ⛔ Narrowed IN SQL, never in Python (2026-10-29): the window holds ~97k rows on a local copy of
+    the scan, and turning each into a Python tuple holds the GIL — production logged the web pod's
+    bar stream stalling 3-5 s while this read ran. Filtering to the mapped detectors and keeping one
+    row per (sym, pattern_id) returns ~13k rows for the same SQL time (SQLite releases the GIL while
+    it scans). _compute's per-(sym, setup) rule is unchanged: it picks among these rows exactly as it
+    picked among all of them, because the dropped rows could never win."""
+    from api.services.pattern_engine import pattern_db
+    from api.services.wisdom.archive import setup_map
+
+    mapped = setup_map.pattern_ids()
+    if not mapped:
+        return []
     cutoff = int(now if now is not None else time.time()) - WINDOW_SECS
     internal = _internal_ids()
-    sql = (
-        "SELECT sym, pattern_id, direction, confidence, detected_at FROM pattern_detections "
-        f"WHERE tf = 'D' AND status IN ({','.join('?' * len(ACTIVE_STATUSES))}) AND detected_at >= ? "
-        f"AND (category IS NULL OR category NOT IN ({','.join('?' * len(EXCLUDED_CATEGORIES))}))")
-    params: list = [*ACTIVE_STATUSES, cutoff, *EXCLUDED_CATEGORIES]
+    where = (
+        f"tf = 'D' AND status IN ({','.join('?' * len(ACTIVE_STATUSES))}) AND detected_at >= ? "
+        f"AND (category IS NULL OR category NOT IN ({','.join('?' * len(EXCLUDED_CATEGORIES))})) "
+        f"AND pattern_id IN ({','.join('?' * len(mapped))})")
+    params: list = [*ACTIVE_STATUSES, cutoff, *EXCLUDED_CATEGORIES, *mapped]
     if internal:
-        sql += f" AND pattern_id NOT IN ({','.join('?' * len(internal))})"
+        where += f" AND pattern_id NOT IN ({','.join('?' * len(internal))})"
         params.extend(internal)
+    sql = ("SELECT sym, pattern_id, direction, confidence, detected_at FROM ("
+           " SELECT sym, pattern_id, direction, confidence, detected_at, ROW_NUMBER() OVER ("
+           "  PARTITION BY sym, pattern_id ORDER BY confidence DESC, detected_at DESC) AS rn"
+           f" FROM pattern_detections WHERE {where}) WHERE rn = 1")
     with contextlib.closing(pattern_db.get_connection()) as conn:
         rows = conn.execute(sql, tuple(params)).fetchall()
     return [(r[0], r[1], r[2], r[3], r[4]) for r in rows]
@@ -152,6 +192,7 @@ def _compute(dets: list, state: Optional[str]) -> dict:
     with store.read() as conn:
         setups: dict = {}
         closest: dict = {}
+        history: dict = {}  # per TICKER, not per (ticker, setup): one ticker can map to many setups
         for (sym, setup), h in best.items():
             if setup not in setups:
                 try:
@@ -164,11 +205,14 @@ def _compute(dets: list, state: Optional[str]) -> dict:
             sv = setups[setup]
             if sv is None:
                 continue  # a mapped setup the import never carried: nothing to say
-            try:
-                summary = service.ticker_summary(conn, sym)
-                last = service.last_call(conn, sym)
-            except service.ItemError:
+            if sym not in history:
+                try:
+                    history[sym] = (service.ticker_summary(conn, sym), service.last_call(conn, sym))
+                except service.ItemError:
+                    history[sym] = None
+            if history[sym] is None:
                 continue
+            summary, last = history[sym]
             last_out = None
             if last:
                 o = last.get("outcome") or {}
@@ -193,28 +237,87 @@ def _compute(dets: list, state: Optional[str]) -> dict:
                      "display only, not advice. 'Closest' = same setup, same market state, newest first.")}
 
 
-def today(*, now: Optional[float] = None, force: bool = False) -> Optional[dict]:
-    """Today's rhyming hits, or None (flag off, no scan, store unavailable). Never raises."""
-    if not flags.archive_enabled():  # the gate first: off touches no store
-        return None
+def _refresh(now: Optional[float] = None) -> Optional[dict]:
+    """Compute and cache. Caller holds _COMPUTE. Never raises."""
     try:
         from api.services.wisdom.archive import setup_map
 
-        dets = _detections(now)
-        state = setup_map.market_state()
-        key = (max((d[4] or 0 for d in dets), default=0), len(dets), state)
         t = time.time()
+        value = _compute(_detections(now), setup_map.market_state())
         with _LOCK:
-            if (not force and _CACHE["key"] == key and _CACHE["value"] is not None
-                    and t - _CACHE["at"] < CACHE_TTL_S):
-                return _CACHE["value"]
-        value = _compute(dets, state)
-        with _LOCK:
-            _CACHE.update(key=key, at=t, value=value)
+            _CACHE.update(at=t, value=value)
+            _READY.notify_all()
         return value
     except Exception:  # noqa: BLE001 — a missing scan or store answers None, never an error
         log.exception("[wisdom] archive rhymes failed")
         return None
+
+
+def _background() -> None:
+    try:
+        with _COMPUTE:
+            with _LOCK:
+                fresh = _CACHE["value"] is not None and time.time() - _CACHE["at"] < REFRESH_S
+            if not fresh:  # a request may have computed while this thread waited for the lock
+                _refresh()
+    finally:
+        with _LOCK:
+            _STATE["refreshing"] = False
+
+
+def _start_background() -> bool:
+    """Start one background refresh unless one is already running. True when one started."""
+    with _LOCK:
+        if _STATE["refreshing"]:
+            return False
+        _STATE["refreshing"] = True
+    try:
+        threading.Thread(target=_background, name="wisdom-rhymes-refresh", daemon=True).start()
+    except Exception:  # noqa: BLE001 — a thread that cannot start must not leave the flag set
+        with _LOCK:
+            _STATE["refreshing"] = False
+        log.exception("[wisdom] archive rhymes refresh could not start")
+        return False
+    return True
+
+
+def warm() -> None:
+    """Compute in the background if nothing usable is cached. Flag-gated; never raises."""
+    if not flags.archive_enabled():
+        return
+    with _LOCK:
+        fresh = _CACHE["value"] is not None and time.time() - _CACHE["at"] < REFRESH_S
+    if not fresh:
+        _start_background()
+
+
+def today(*, now: Optional[float] = None, force: bool = False, wait_s: Optional[float] = None):
+    """Today's rhyming hits, or None (flag off, no scan, store unavailable). Never raises.
+
+    `wait_s`: on a cold cache, compute in the BACKGROUND and wait at most this long; WARMING if the
+    answer has not landed by then. None (the default) computes in this call, as before."""
+    if not flags.archive_enabled():  # the gate first: off touches no store
+        return None
+    if not force:
+        with _LOCK:
+            value, age = _CACHE["value"], time.time() - _CACHE["at"]
+        if value is not None and age < STALE_MAX_S:
+            if age >= REFRESH_S:
+                _start_background()
+            return value  # served WITHOUT reading the scan
+        if wait_s is not None:
+            _start_background()
+            with _READY:
+                _READY.wait_for(lambda: _CACHE["value"] is not None and time.time() - _CACHE["at"] < STALE_MAX_S,
+                                timeout=max(0.0, float(wait_s)))
+                return _CACHE["value"] if _CACHE["value"] is not None else WARMING
+    with _COMPUTE:  # cold, too stale, or forced: concurrent callers wait on ONE compute
+        if not force:
+            with _LOCK:
+                value, age = _CACHE["value"], time.time() - _CACHE["at"]
+            if value is not None and age < STALE_MAX_S:
+                return value  # another caller computed it while this one waited
+        return _refresh(now)
 
 
 def format_line(payload: Optional[dict], *, limit: int = 5, max_chars: int = 900) -> str:

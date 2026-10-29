@@ -2,11 +2,11 @@
 // (unpaid) and a 503 (scan unreadable) are said as such, never as "nothing rhymes"; no price
 // level is ever drawn. Synthetic data only: the repo is public.
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { act, render, screen, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { SWRConfig } from 'swr'
 
-import TodayRhymes from './TodayRhymes'
+import TodayRhymes, { RHYMES_RETRY, SLOW_MS, WARMING_POLL_MS } from './TodayRhymes'
 import TraderArchive from './TraderArchive'
 
 const API = '/api/wisdom/archive'
@@ -78,14 +78,73 @@ describe('TodayRhymes', () => {
     expect(await screen.findByText(/None of today's scanner hits match/)).toBeInTheDocument()
   })
 
-  it('is the Archive’s first view, and its tab returns to it', async () => {
+  it('says out loud when the scan is slow, instead of "Reading…" forever', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      globalThis.fetch = vi.fn(() => new Promise(() => {}))                 // never answers
+      mount(<TodayRhymes />)
+      expect(screen.getByTestId('rhymes-waiting')).toHaveTextContent('Reading today')
+      await act(async () => { await vi.advanceTimersByTimeAsync(SLOW_MS + 10) })
+      expect(screen.getByTestId('rhymes-waiting')).toHaveTextContent('taking longer than usual')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('a CDN timeout (5xx) is retried until the warm answer lands; a 404 is final', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      let n = 0
+      globalThis.fetch = vi.fn(() => Promise.resolve(++n < 3 ? fail(524) : ok({ market_state: 'downtrend', hits: [HIT] })))
+      const { unmount } = mount(<TodayRhymes />)
+      expect(await screen.findByTestId('rhymes-unavailable')).toBeInTheDocument()
+      for (let i = 0; i < 3 && !screen.queryByTestId('rhyme-hit'); i += 1) {
+        await act(async () => { await vi.advanceTimersByTimeAsync(RHYMES_RETRY.intervalMs + 10) })
+      }
+      expect(screen.getByTestId('rhyme-hit')).toHaveTextContent('ZZTA')
+      unmount()
+
+      const calls = vi.fn(() => Promise.resolve(fail(404)))
+      globalThis.fetch = calls
+      mount(<TodayRhymes />)
+      expect(await screen.findByTestId('rhymes-off')).toBeInTheDocument()
+      await act(async () => { await vi.advanceTimersByTimeAsync(RHYMES_RETRY.intervalMs * 3) })
+      expect(calls).toHaveBeenCalledTimes(1)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('a 202 "warming" answer says so and checks back until the hits land, then stops', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      let n = 0
+      const calls = vi.fn(() => Promise.resolve(++n < 3
+        ? { ok: true, status: 202, json: async () => ({ status: 'warming' }), text: async () => '{"status":"warming"}' }
+        : ok({ market_state: 'downtrend', hits: [HIT] })))
+      globalThis.fetch = calls
+      mount(<TodayRhymes />)
+      expect(await screen.findByTestId('rhymes-waiting')).toHaveTextContent('this page checks back on its own')
+      for (let i = 0; i < 3 && !screen.queryByTestId('rhyme-hit'); i += 1) {
+        await act(async () => { await vi.advanceTimersByTimeAsync(WARMING_POLL_MS + 10) })
+      }
+      expect(screen.getByTestId('rhyme-hit')).toHaveTextContent('ZZTA')
+      const settled = calls.mock.calls.length
+      await act(async () => { await vi.advanceTimersByTimeAsync(WARMING_POLL_MS * 3) })
+      expect(calls.mock.calls.length).toBe(settled)                            // landed: polling stopped
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('is a tab of the Archive, which opens on Playbooks', async () => {
     serve({
       [`${API}/stats`]: ok({ records: 1, calls: 1, records_by_author: {}, calls_by_setup: {}, traders: {} }),
       [`${API}/rhymes`]: ok({ market_state: 'downtrend', n_hits: 1, hits: [HIT] }),
     })
     mount(<TraderArchive />)
-    expect(await screen.findByTestId('rhyme-hit')).toHaveTextContent('ZZTA')          // opens on Today
-    fireEvent.click(screen.getByRole('tab', { name: /Playbooks/ }))
+    expect(await screen.findByRole('tab', { name: /Playbooks/ })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.queryByTestId('rhyme-hit')).toBeNull()                            // Today is not fetched first
     fireEvent.click(screen.getByRole('tab', { name: /Today/ }))
     expect(await screen.findByTestId('rhyme-hit')).toHaveTextContent('ZZTA')
   })

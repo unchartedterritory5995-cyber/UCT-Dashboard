@@ -54,6 +54,91 @@ export function trueRangeTree() {
   ])
 }
 
+// ─── ⭐⭐ SUPERTREND — THE FIRST EXPANSION THAT CARRIES BAR-TO-BAR STATE ─────────
+//
+// The manifest used to refuse this name because the grammar had "no self-reference"
+// (`closedTable.json::_functions_excluded._supertrend_was_here` keeps the history). It has
+// one now: `accum(seed, body, warmup)`
+// (`_functions_recurrence`), the bounded recurrence both interpreters run. TradingView's
+// `ta.supertrend(factor, atrPeriod)` is three such recurrences composed, and nothing
+// else — so it is an EXPANSION, never a new table entry or a new evaluator:
+//
+//   upper  = accum(up, (up < self || close[1] > self) ? up : self, W)   — the ratchet
+//   lower  = accum(dn, (dn > self || close[1] < self) ? dn : self, W)
+//   dir    = accum(1, self == 1 ? (close > upper ? -1 : 1)
+//                              : (close < lower ? 1 : -1), W)           — the flip
+//   value  = dir == -1 ? lower : upper
+//
+// with `up/dn = hl2 ± factor × atrPine(n)` — Pine's own ATR seed (`atrPine`), so the
+// band is TradingView's band, and Pine's direction convention: −1 is an UP-trend (the
+// line sits below price), 1 a DOWN-trend. `prevSuperTrend == prevUpperBand` in Pine's
+// source is "the previous direction was 1", which is what `dir`'s own state says.
+//
+// ⛔ BOUNDED, AND THEREFORE HONEST ABOUT ITS LEFT EDGE. Each recurrence re-seeds `W`
+// bars back, so a value is a function of a fixed window and never of how many bars were
+// fetched. The direction reads the two bands across ITS window, so the value is WITHHELD
+// (`na`) until both bands were already known `W` bars earlier — the guard below. Before
+// it, the direction would be read off bands that do not exist yet (measured: the first
+// ~W published bars disagreed with a full-history reference on every seed).
+// ⭐ MEASURED AGREEMENT (2026-10-29, `supertrend.test.js`): against an independent
+// full-history implementation of Pine's published `ta.supertrend`, 0 of 77,820 published
+// bars differ at W = 200 over 30 random-walk series × 3 (factor, period) settings — and
+// the rail re-measures it on every run. A ratchet seeded from a different history can in
+// principle disagree for longer than W; that is the bounded-recurrence bargain
+// `_functions_recurrence` already states for every `accum`, and it is why W is 200.
+export const SUPERTREND_WARMUP = 200
+/** What a member is told wherever vendor notes are shown. ⛔ The claim is the measured
+ *  one and no stronger: the bounded window agrees on every bar we have measured, and a
+ *  band whose last reset is older than the window CAN disagree. */
+export const SUPERTREND_NOTE = `TradingView carries the Supertrend bands from the first bar of history; this engine re-seeds each band ${SUPERTREND_WARMUP} bars back and shows nothing for the first ~${2 * SUPERTREND_WARMUP} bars. Every shown bar matched TradingView's published formula on the series we measured, but a band whose last reset is more than ${SUPERTREND_WARMUP} bars old can differ.`
+/** The name an `accum` body reads its own previous value through —
+ *  `closedTable.json::functions.accum.recurrence.binds`. Typed here only because this
+ *  module is also run by plain node (the parity test), which cannot import JSON; the
+ *  rail `supertrend.test.js` (and the Python one) asserts it IS the manifest's value. */
+export const ACCUM_SELF = 'self'
+
+/** A positive finite number literal (a supertrend factor), or NaN. */
+function factorOf(node) {
+  const f = node && node.type === 'num' ? Number(node.value) : NaN
+  return Number.isFinite(f) && f > 0 ? f : NaN
+}
+
+/** `{value, direction}` trees for `ta.supertrend(factor, n)`, or null. */
+export function supertrendTrees(factorNode, periodNode, warmup = SUPERTREND_WARMUP) {
+  const f = factorOf(factorNode)
+  const n = windowOf(periodNode, 1)
+  if (!Number.isFinite(f) || !Number.isFinite(n)) return null
+  const self = cSeries(ACCUM_SELF)
+  const close = cSeries('close')
+  const prevClose = { type: 'offset', value: 1, args: [close] }
+  const hl2 = cOp('/', [cOp('+', [cSeries('high'), cSeries('low')]), cNum(2)])
+  const atr = cCall('atrPine', [cSeries('high'), cSeries('low'), close, cNum(n)])
+  const band = (sign) => cOp(sign, [hl2, cOp('*', [cNum(f), atr])])
+  const up = band('+')
+  const dn = band('-')
+  const W = cNum(warmup)
+  const upper = cCall('accum', [up, cOp('?:', [
+    cOp('||', [cOp('<', [up, self]), cOp('>', [prevClose, self])]), up, self]), W])
+  const lower = cCall('accum', [dn, cOp('?:', [
+    cOp('||', [cOp('>', [dn, self]), cOp('<', [prevClose, self])]), dn, self]), W])
+  const one = cNum(1)
+  const minusOne = cNum(-1)
+  const direction = cCall('accum', [one, cOp('?:', [
+    cOp('==', [self, one]),
+    cOp('?:', [cOp('>', [close, upper]), minusOne, one]),
+    cOp('?:', [cOp('<', [close, lower]), one, minusOne]),
+  ]), W])
+  const unknown = cOp('||', [
+    cCall('na', [{ type: 'offset', value: warmup, args: [upper] }]),
+    cCall('na', [{ type: 'offset', value: warmup, args: [lower] }]),
+  ])
+  const na = cOp('/', [cNum(0), cNum(0)])
+  return {
+    value: cOp('?:', [unknown, na, cOp('?:', [cOp('==', [direction, minusOne]), lower, upper])]),
+    direction: cOp('?:', [unknown, na, direction]),
+  }
+}
+
 /**
  * name → `{ min, max, describe, build(args) → tree | null }`. `args` are canonical
  * trees; `describe` is the formula-reference line for the vocabulary list.
@@ -148,6 +233,21 @@ export const CALL_EXPANSIONS = Object.freeze({
       return cOp('-', [mid, cOp('*', [a[2], cCall('ema', [trueRangeTree(), cNum(n)])])])
     },
   },
+  // ta.supertrend(factor, atrPeriod)[0] / [1] — see `supertrendTrees` above.
+  // ⛔ `vendorNote`: the ONE expansion that is not an exact identity. Its bands are
+  // bounded recurrences, so it is disclosed wherever vendor notes are read
+  // (`parse.js::vendorNotesForTree`) and an import of `ta.supertrend` is never
+  // labelled "exact" — the honesty rule `importOutcome.js` exists for (audit P0-7).
+  supertrend: {
+    min: 2, max: 2, signature: 'supertrend(factor, atrPeriod)', describe: `Supertrend: the ATR trailing stop that only tightens while the trend holds and flips when price closes through it (TradingView's ta.supertrend; shown after a ${SUPERTREND_WARMUP}-bar warm-up)`,
+    vendorNote: SUPERTREND_NOTE,
+    build: (a) => { const t = supertrendTrees(a[0], a[1]); return t ? t.value : null },
+  },
+  supertrendDirection: {
+    min: 2, max: 2, signature: 'supertrendDirection(factor, atrPeriod)', describe: 'the Supertrend direction: −1 in an up-trend (the line below price), 1 in a down-trend — TradingView\'s convention',
+    vendorNote: SUPERTREND_NOTE,
+    build: (a) => { const t = supertrendTrees(a[0], a[1]); return t ? t.direction : null },
+  },
 })
 
 export const EXPANSION_NAMES = Object.freeze(Object.keys(CALL_EXPANSIONS))
@@ -161,6 +261,9 @@ export function expansionProblem(call) {
   const n = (call.args || []).length
   if (n < spec.min || n > spec.max) {
     return `${call.name} takes ${spec.min === spec.max ? spec.min : `${spec.min} or ${spec.max}`} arguments — ${spec.signature}`
+  }
+  if (call.name === 'supertrend' || call.name === 'supertrendDirection') {
+    return `${call.name} needs a positive factor and a whole-number ATR period, both written as numbers — ${spec.signature}`
   }
   return `${call.name} needs a whole-number length${call.name === 'linreg' || call.name === 'correlation' ? ' of at least 2' : ''} written as a number — ${spec.signature}`
 }
@@ -211,7 +314,7 @@ export function expandCalls(tree, declared = () => false) {
 export const MAX_EXPANDED_NODES = 1000
 /** A tree holding an expansion deeper than this is refused before the recursive pass. */
 export const MAX_EXPANSION_DEPTH = 200
-const TOO_LARGE = `this formula nests linreg, correlation, vwma, roc, mom or the Keltner bands so deeply that it would write out more than ${MAX_EXPANDED_NODES} terms — nest fewer of them`
+const TOO_LARGE = `this formula nests linreg, correlation, vwma, roc, mom, the Keltner bands or supertrend so deeply that it would write out more than ${MAX_EXPANDED_NODES} terms — nest fewer of them`
 const TOO_DEEP = `this formula is nested more than ${MAX_EXPANSION_DEPTH} levels deep`
 
 function scanExpansions(tree, declared) {
@@ -316,6 +419,19 @@ function candidates(t) {
   if (isCall(t, 'ema') && t.args.length === 2) out.push(['kcMiddle', [t.args[0], t.args[1]]])
   if ((isOp(t, '+', 2) || isOp(t, '-', 2)) && isCall(t.args[0], 'ema') && isOp(t.args[1], '*', 2)) {
     out.push([t.name === '+' ? 'kcUpper' : 'kcLower', [t.args[0].args[0], t.args[0].args[1], t.args[1].args[0]]])
+  }
+  // supertrend / supertrendDirection: `unknown ? na : …`, where `unknown` reads the upper
+  // band `W` bars back; the factor and the ATR period are read off that band's seed.
+  if (isOp(t, '?:', 3) && isOp(t.args[0], '||', 2) && isCall(t.args[0].args[0], 'na')) {
+    const back = t.args[0].args[0].args[0]
+    const upper = back && back.type === 'offset' ? back.args && back.args[0] : null
+    const up = isCall(upper, 'accum') ? upper.args[0] : null
+    const scaled = isOp(up, '+', 2) && isOp(up.args[1], '*', 2) ? up.args[1] : null
+    const atr = scaled && isCall(scaled.args[1], 'atrPine') ? scaled.args[1] : null
+    if (atr && atr.args.length === 4) {
+      out.push(['supertrend', [scaled.args[0], atr.args[3]]])
+      out.push(['supertrendDirection', [scaled.args[0], atr.args[3]]])
+    }
   }
   return out
 }

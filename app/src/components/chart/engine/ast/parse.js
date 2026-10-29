@@ -28,7 +28,7 @@
 
 import jsep from 'jsep'
 import TABLE_JSON from './closedTable.json'
-import { expandCalls, ExpansionRefusal } from './callExpansions.js'
+import { expandCalls, ExpansionRefusal, recogniseExpansion, CALL_EXPANSIONS } from './callExpansions.js'
 
 // --------------------------------------------------------------------------- //
 // the table
@@ -549,6 +549,22 @@ export function vendorNotesForTree(ast, notes = VENDOR_NOTES) {
         seen.push({ name: family, note: notes[family] })
       }
     }
+    // ⭐ AN EXPANSION CAN CARRY ONE TOO (2026-10-29). A stored definition holds only
+    // the expansion's tree, so the call name is gone by construction — the shape is
+    // what survives. `recogniseExpansion` rebuilds and compares, and only an entry
+    // that DECLARES a `vendorNote` (today: supertrend, the one expansion that is a
+    // bounded recurrence rather than an exact identity) contributes. ⚠️ Pre-filtered
+    // to the `?:` root that entry's tree has, so the recogniser never runs on the
+    // ordinary nodes of an ordinary formula.
+    if (node.type === 'op' && node.name === '?:' && notes === VENDOR_NOTES) {
+      const hit = recogniseExpansion(node)
+      const spec = hit && CALL_EXPANSIONS[hit.name]
+      if (spec && typeof spec.vendorNote === 'string' && !taken.has(hit.name)) {
+        taken.add(hit.name)
+        seen.push({ name: hit.name, note: spec.vendorNote })
+        continue // the note covers the whole expansion; its inner nodes are its own
+      }
+    }
     for (const a of (node.args || [])) stack.push(a)
   }
   return seen.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))
@@ -929,9 +945,17 @@ export const REFUSALS = Object.freeze({
     + 'value into every walk that prices, lints and evaluates it',
   'canonicalise:node':
     'the parser produced a construct with no canonical form',
+  'canonicalise:if':
+    '`if` takes exactly three parts — `if(condition, value when true, value when false)`, '
+    + 'the same as `condition ? value when true : value when false`',
 })
 
 const refuse = (guard) => { throw new TableRefusal(guard, REFUSALS[guard]) }
+
+/** The two surface spellings that canonicalise to existing nodes (see `enterNode`):
+ *  `if(c, a, b)` → `?:`, and the bare word `na` → `0 / 0` (no value). */
+export const IF_SPELLING = 'if'
+export const NA_SPELLING = 'na'
 
 // --------------------------------------------------------------------------- //
 // configure the parser FROM the table
@@ -957,7 +981,23 @@ const PRECEDENCE = Object.freeze({
 /** The arity-1 operator names the CANONICAL tree uses, mapped to the character
  *  the SOURCE spells them with. `u-` is unary minus; `-` alone is the binary
  *  operator and they are different table entries. */
-const UNARY_CANONICAL = Object.freeze({ '-': 'u-', '!': '!' })
+const UNARY_CANONICAL = Object.freeze({ '-': 'u-', '!': '!', not: '!', NOT: '!' })
+
+/** ⭐ THE WORD SPELLINGS OF THE TABLE'S LOGICAL OPERATORS — a surface alias, never
+ *  a node. `close > open and volume > 1000` is what a member types (and what
+ *  thinkScript, TC2000 and most platform help pages write); it canonicalises to
+ *  the SAME `&&` tree `close > open && volume > 1000` does, so the stored tree,
+ *  its `astHash`, Python's walker and every lint/budget door are unchanged.
+ *
+ *  ⛔ AN ALIAS TAKES ITS OPERATOR'S BINDING POWER, read from `PRECEDENCE` — a
+ *  word spelling with its own number would parse `a or b and c` differently from
+ *  `a || b && c`, i.e. two meanings for one formula. Lower and upper case only:
+ *  `And`/`Or` are not spellings any platform documents.
+ *
+ *  ⚰️ BEFORE THIS (audit 2026-10-13 P2-8) the word reached `pcf.js::detectDialect`
+ *  as a TC2000 marker and the member read "`close` is not a TC2000 name". */
+export const WORD_OPERATORS = Object.freeze({ and: '&&', AND: '&&', or: '||', OR: '||' })
+export const WORD_UNARY = Object.freeze({ not: '!', NOT: '!' })
 
 /** The arity-3 operator: the ternary. jsep produces `ConditionalExpression` for
  *  it; the table names it `?:`. */
@@ -990,10 +1030,17 @@ function configureParser() {
     }
     jsep.addBinaryOp(op, bp)
   }
+  for (const [word, op] of Object.entries(WORD_OPERATORS)) {
+    if (typeof PRECEDENCE[op] !== 'number' || TABLE.operators[op]?.arity !== 2) {
+      throw new Error(`WORD_OPERATORS aliases ${JSON.stringify(word)} to ${JSON.stringify(op)}, which the table does not declare as a binary operator`)
+    }
+    jsep.addBinaryOp(word, PRECEDENCE[op])
+  }
 
   jsep.removeAllUnaryOps()
   jsep.addUnaryOp('-')
   jsep.addUnaryOp('!')
+  for (const word of Object.keys(WORD_UNARY)) jsep.addUnaryOp(word)
 
   jsep.removeAllLiterals()
   // The table has NO boolean node type — see `_booleans` in the manifest. These
@@ -1226,6 +1273,16 @@ function enterNode(node) {
       // `globalThis` / `toString` / `hasOwnProperty` to that guard. Refusing
       // them here would move three census cases out from under the guard that
       // is supposed to catch them and make its first zero mean less.
+      //
+      // ⭐ `na` — "no value" — IS `0 / 0`, the spelling the Pine translator has
+      // always written for Pine's `na` (`pine.js`, `name === 'na'`): IEEE NaN in
+      // both lanes, pinned by Python's `_binary_div`. It is what makes "show the
+      // close only when it is above its 50 SMA" writable:
+      // `close > sma(close, 50) ? close : na`. ⛔ Only while the table declares
+      // no `na` SERIES (it declares the FUNCTION `na(x)`, a different node).
+      if (node.name === NA_SPELLING && !Object.prototype.hasOwnProperty.call(TABLE.series, NA_SPELLING)) {
+        return { leaf: op('/', [num(0), num(0)]) }
+      }
       return { leaf: series(node.name) }
     case 'UnaryExpression': {
       const name = UNARY_CANONICAL[node.operator]
@@ -1237,8 +1294,10 @@ function enterNode(node) {
       // the removal in `configureParser` is the primary defence and the ops-table
       // case in parse.test.js is what asserts the removal itself. This is the
       // belt, and it is exercised directly rather than left theoretical.
-      if (TABLE.operators[node.operator]?.arity !== 2) return refuse('canonicalise:operator')
-      return { children: [node.left, node.right], build: (k) => op(node.operator, k) }
+      const name = Object.prototype.hasOwnProperty.call(WORD_OPERATORS, node.operator)
+        ? WORD_OPERATORS[node.operator] : node.operator
+      if (TABLE.operators[name]?.arity !== 2) return refuse('canonicalise:operator')
+      return { children: [node.left, node.right], build: (k) => op(name, k) }
     }
     case 'ConditionalExpression':
       return {
@@ -1246,6 +1305,18 @@ function enterNode(node) {
         build: (k) => op(TERNARY, k),
       }
     case 'CallExpression': {
+      // ⭐ `if(cond, a, b)` IS A SPELLING OF THE TERNARY, never a function. It is
+      // what TC2000 (`IIF`), spreadsheets and most help pages write, and it becomes
+      // the SAME `?:` node `cond ? a : b` does — one tree, one `astHash`, no new
+      // name for any lane. Exactly three arguments, or it refuses by its own name.
+      // ⛔ ONLY WHILE THE TABLE DECLARES NO `if` FUNCTION: a declared entry would
+      // own the name, and this spelling must then stop meaning the ternary.
+      if (node.callee && node.callee.type === 'Identifier' && node.callee.name === IF_SPELLING
+          && !Object.prototype.hasOwnProperty.call(TABLE.functions, IF_SPELLING)) {
+        const args = node.arguments || []
+        if (args.length !== 3) return refuse('canonicalise:if')
+        return { children: args, build: (k) => op(TERNARY, k) }
+      }
       // ⭐ `tf` IS THE ONE CALL THAT IS NOT A CALL. `tf(close, 'W')` reads a
       // HIGHER TIMEFRAME, and the timeframe is a FIELD on the node rather than a
       // child expression — the same shape rule `offset` follows for its bar
