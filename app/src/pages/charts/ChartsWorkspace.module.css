@@ -1733,6 +1733,51 @@
   .sessionToggle { flex-shrink: 0; }
 }
 
+/* ── Ticker Hub sheet, phone: the identity row is ALWAYS two lines, at a height it declares ──
+   The wrap above made the row's height depend on what it holds. In the hub (compact ChartPane:
+   no session toggle, no clock, so `.headerTopRight` is empty) the row was ONE line in a regular
+   session and TWO in pre/post, where the shaded extended-hours pill no longer fits beside the
+   company name: 49px vs 75px (WebKit, 390). The sheet's loading fallback reserves one height,
+   so the chart box grew 388 -> 414 when ChartPane replaced it and pushed the action row and the
+   tweets 26px. ChartPane's own collision ladder (collapse the title to the ticker) never runs
+   here, because a row that may wrap never reports `scrollWidth > clientWidth`.
+   So in the hub the day change ALWAYS takes the second line, in every session, and the row's
+   height is a SUM OF TOKENS that `TickerHubSheet.module.css` declares on `.chartWrap`, where the
+   loading fallback's reserve (`--hub-chart-chrome-h`) is built from the SAME tokens: the loading
+   box and the loaded box cannot disagree in either session. A regular session simply shows the
+   one number on line two, the same place the pre/post pill sits. Fallbacks are today's phone
+   values, so a stray `data-ticker-hub-chart` outside the sheet still lays out.
+   Rail: `components/mobile/TickerHubSheet.identityRowHeight.test.js`. */
+@media (max-width: 640px) {
+  :global([data-ticker-hub-chart]) .chartHeaderTop {
+    height: var(--hub-id-row-h, 71px);
+    min-height: 0;
+    align-content: flex-start;
+    row-gap: var(--hub-id-gap, 4px);
+    overflow: hidden;
+  }
+  :global([data-ticker-hub-chart]) .chartHeaderTop > .symbolSlot {
+    min-height: var(--hub-id-line1-h, 40px);
+    max-width: 100%;
+    flex-shrink: 1;
+    overflow: hidden;
+  }
+  :global([data-ticker-hub-chart]) .chartHeaderTop > .symbolSlot [data-testid='sym-label'] {
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  :global([data-ticker-hub-chart]) .chartHeaderTop > .chartDayGainWrap,
+  :global([data-ticker-hub-chart]) .chartHeaderTop > .chartDayGain {
+    flex: 0 0 100%;
+    min-height: var(--hub-id-line2-h, 22px);
+    margin: 0;
+  }
+  /* compact: nothing in it, and an empty full-width item is a third (0px) line plus a gap */
+  :global([data-ticker-hub-chart]) .chartHeaderTop > .headerTopRight:empty { display: none; }
+}
+
 /* Session toggle on touch: 109x19 and 148x19 measured on a 390px phone, well
    under the 44px `--tap-min`. These two sit SIDE BY SIDE, so growing them
    VERTICALLY costs nothing and cannot make neighbours overlap — widening

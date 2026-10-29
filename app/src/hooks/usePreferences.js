@@ -110,6 +110,42 @@ function noteRevision(res, adopt) {
   }
 }
 
+// ─── Failed-write backoff ────────────────────────────────────────────────────
+//
+// ⛔⛔ A FAILED WRITE MUST NOT RE-FIRE ITSELF (rule H14). Measured 2026-10-28 in WebKit: the
+// TickerPopup's focus write (`charts_workspace_groups`) against a failing endpoint sent 50 POSTs
+// in ~18 s and never stopped. The cycle is not specific to that key: the throw path below reverts
+// by re-reading the server, the re-read takes the optimistic value back out of the cache, `prefs`
+// changes, and ANY `prefs`-keyed effect that writes a pref re-asserts its value — POST, fail,
+// re-read, re-assert, entirely in microtasks, with nothing to slow it down.
+//
+// So the write path itself remembers, per key, the value whose POST last failed. Asking to save
+// that SAME value again is answered without a request until its retry time, which doubles with
+// each consecutive failure (RETRY_BASE_MS, 2x, 4x ... capped at RETRY_CAP_MS). A DIFFERENT value
+// for the key is a new edit that supersedes the failed one and is sent at once; a confirmed write
+// clears the record. There is no timer and no automatic resend: a retry is still a caller asking
+// again, this only bounds how often an identical ask reaches the network.
+//
+// A 409 conflict is NOT recorded here: `_conflicted` already refuses every later write of the key
+// without a request, per the revision design above.
+const RETRY_BASE_MS = 1000
+const RETRY_CAP_MS = 60000
+const _failedWrites = new Map()    // key -> { serialized, failures, retryAt }
+
+function backoffHolds(key, serialized) {
+  const f = _failedWrites.get(key)
+  if (!f) return false
+  if (f.serialized !== serialized) { _failedWrites.delete(key); return false }   // superseded
+  return Date.now() < f.retryAt
+}
+
+function noteWriteFailed(key, serialized) {
+  const prev = _failedWrites.get(key)
+  const failures = prev && prev.serialized === serialized ? prev.failures + 1 : 1
+  const delay = Math.min(RETRY_CAP_MS, RETRY_BASE_MS * 2 ** (failures - 1))
+  _failedWrites.set(key, { serialized, failures, retryAt: Date.now() + delay })
+}
+
 /** Resolves once every write queued so far for these keys has answered (success or not). */
 export function whenWritesSettle(keys) {
   return Promise.all((keys || []).map(k => _writeChains.get(k) || Promise.resolve())).then(() => undefined)
@@ -118,21 +154,32 @@ export function whenWritesSettle(keys) {
 /** Tests only. */
 export function __resetRevisionStateForTests() {
   _revBaseline = null; _keyRev.clear(); _conflicted.clear(); _writeChains.clear(); _lastReadOk = null
+  _failedWrites.clear()
 }
 
 // THE one POST. Runs inside the per-key queue, so the revision is read at SEND time — after this
 // tab's previous write of the key has answered — and a tab's rapid edits never refuse each other.
 async function postPref(key, serialized) {
   if (_conflicted.has(key)) return { ok: false, conflict: true }
+  // Resolves (never throws) so a held write keeps the optimistic value and does NOT take the
+  // throw path's re-read — the re-read is what re-arms the loop this guard exists to break.
+  if (backoffHolds(key, serialized)) return { ok: false, backoff: true }
   const base = _keyRev.has(key) ? _keyRev.get(key) : _revBaseline
   const body = { key, value: serialized }
   if (base !== null && base !== undefined) body.base_version = base
-  const res = await fetch(PREFS_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  })
+  let res
+  try {
+    res = await fetch(PREFS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+  } catch (err) {
+    noteWriteFailed(key, serialized)
+    throw err
+  }
   if (res && res.ok) {
+    _failedWrites.delete(key)
     try {
       const j = await res.json()
       if (j && Number.isInteger(j.version)) _keyRev.set(key, j.version)
@@ -148,6 +195,7 @@ async function postPref(key, serialized) {
       return { ok: false, conflict: true }
     }
   }
+  noteWriteFailed(key, serialized)
   return { ok: false }
 }
 
