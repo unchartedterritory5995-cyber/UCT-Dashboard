@@ -74,6 +74,25 @@ function pxOf(raw) {
   return sum
 }
 
+/** A custom property's value on `.chartWrap` on this device, in px, with every `var()` it names
+ *  resolved from the same `.chartWrap` rules (the LAST declaration of each wins, as in the
+ *  cascade) and nested `calc()`s summed. null when any term is not a px length. */
+function chartWrapPx(block, name, depth = 0) {
+  const raw = [...block.matchAll(/\.chartWrap\s*\{([^{}]*)\}/g)]
+    .map(([, decls]) => new RegExp(`${name}:\\s*([^;]+?)\\s*(?:;|$)`).exec(decls.trim())?.[1]).filter(Boolean).pop()
+  if (raw == null || depth > 8) return null
+  let expr = raw
+  for (const [ref, inner] of raw.matchAll(/var\((--[\w-]+)\)/g)) {
+    const v = chartWrapPx(block, inner, depth + 1)
+    if (v == null) return null
+    expr = expr.replace(ref, `${v}px`)
+  }
+  expr = expr.replace(/calc\(/g, '(')
+  if (!/^[\d.px+\-()\s]+$/.test(expr)) return null
+  // eslint-disable-next-line no-new-func
+  return Function(`return (${expr.replace(/px/g, '')})`)()
+}
+
 /** The value a rule whose selector list holds exactly `selector` gives `prop`, or null. */
 function value(block, selector, prop) {
   for (const [, sels, decls] of block.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
@@ -161,15 +180,15 @@ describe('TickerHubSheet "+ Compare" badge touch floor', () => {
 
   it('while the chart chunk loads, the fallback holds the pane\'s final height (no jump on mount)', () => {
     // WebKit, slow ChartPane chunk: the box was 19-21px under the fallback and 373-388px after.
-    const expected = { 390: 49 + 45, 834: 34 + 45, 1194: 34 + 45 }
+    // At 390 the identity row is a fixed two lines (71px, the sum of the --hub-id-* tokens: see
+    // TickerHubSheet.identityRowHeight.test.js); before that it was 49px in a regular session and
+    // 75px in pre/post, and the 49px reserve left the box 26px short out of market hours.
+    const expected = { 390: 71 + 45, 834: 34 + 45, 1194: 34 + 45 }
     for (const d of FINGERS) {
       const block = mediaBodiesOn(CSS, d)
       expect(value(block, '.chartWrap .chartLoading', 'height'), `@${d.width}`)
         .toBe('calc(var(--hub-chart-h) + var(--hub-chart-chrome-h))')
-      // the LAST declaration of the chrome on this device wins, as in the cascade
-      const chrome = [...block.matchAll(/\.chartWrap\s*\{([^{}]*)\}/g)]
-        .map(([, decls]) => /--hub-chart-chrome-h:\s*([^;]+?)\s*(?:;|$)/.exec(decls.trim())?.[1]).filter(Boolean).pop()
-      expect(pxOf(chrome), `@${d.width}`).toBe(expected[d.width])
+      expect(chartWrapPx(block, '--hub-chart-chrome-h'), `@${d.width}`).toBe(expected[d.width])
     }
     expect(value(mediaBodiesOn(CSS, DESKTOP_MOUSE), '.chartWrap .chartLoading', 'height')).toBeNull()
     // the chart's fallback is the `.chartLoading` INSIDE `.chartWrap` (the fundamentals one is not)

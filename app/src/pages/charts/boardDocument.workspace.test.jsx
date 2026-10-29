@@ -59,6 +59,7 @@ import ChartsWorkspace, { serializeLayout, uctDefaultChartSettings } from './Cha
 import { WORKSPACE_DOC_URL } from './VersionHistory'
 import { BOARD_APPLY_URL } from './boardDocument'
 import { __setWorkspaceDocStampForTests } from '../../lib/workspaceDoc'
+import { publishPrefsUser, __resetPrefsSessionForTests } from '../../lib/prefsSession'
 import { WATCHLIST_DEFAULTS } from '../watchlist/watchlistSettings'
 import { themeTrackerDefaultsForTheme } from '../theme-tracker/themeTrackerSettings'
 import { fundamentalsDefaultsForTheme } from './widgets/fundamentalsSettings'
@@ -260,6 +261,52 @@ describe('ARMED: a board change is ONE compare-and-set document write', () => {
     expect(boardWrites().map(([k]) => k)[0]).toBe('charts_workspace_layout')
     expect(boardWrites()).toHaveLength(9)
     expect(screen.getByTestId('body-scanner')).toBeInTheDocument()
+  })
+
+  test('the store went dark DURING the write and another member signed in meanwhile: no per-key fallback into them', async () => {
+    // commitBoard begins its preferences operation before the document write's await
+    // (lib/prefsSession beginPrefsOp); the 'dark' fallback replays the recorded writes through
+    // setPref only while that operation is still the member's.
+    __resetPrefsSessionForTests()
+    publishPrefsUser('member-a')
+    __setWorkspaceDocStampForTests('document; v=3')
+    let answer
+    global.fetch = vi.fn(async (url, init) => {
+      // the document write's first request (whichever it is) is held, then answered 404: dark
+      if (!answer && (String(url).startsWith(WORKSPACE_DOC_URL) || String(url) === BOARD_APPLY_URL)) {
+        return new Promise((r) => { answer = () => r(res(404, { detail: 'Not Found' })) })
+      }
+      return res(404, {})
+    })
+    renderWS('?openLayout=7')
+    await flush()
+    expect(typeof answer).toBe('function')
+    act(() => { publishPrefsUser('member-b') })
+    await act(async () => { answer() })
+    await flush()
+    expect(boardWrites()).toEqual([])
+    expect(screen.getByTestId('body-chart')).toBeInTheDocument()
+    __resetPrefsSessionForTests()
+  })
+
+  test('CONTROL: the same member throughout, the store went dark during the write: the per-key path', async () => {
+    __resetPrefsSessionForTests()
+    publishPrefsUser('member-a')
+    __setWorkspaceDocStampForTests('document; v=3')
+    let answer
+    global.fetch = vi.fn(async (url, init) => {
+      // the document write's first request (whichever it is) is held, then answered 404: dark
+      if (!answer && (String(url).startsWith(WORKSPACE_DOC_URL) || String(url) === BOARD_APPLY_URL)) {
+        return new Promise((r) => { answer = () => r(res(404, { detail: 'Not Found' })) })
+      }
+      return res(404, {})
+    })
+    renderWS('?openLayout=7')
+    await flush()
+    await act(async () => { answer() })
+    await flush()
+    expect(boardWrites()).toHaveLength(9)
+    __resetPrefsSessionForTests()
   })
 
   test('New Layout is one write too, and the linked symbols come back with it', async () => {
