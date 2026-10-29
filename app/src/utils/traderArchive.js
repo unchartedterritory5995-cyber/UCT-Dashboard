@@ -103,6 +103,29 @@ export function fmtDay(value) {
   return `${MONTHS[Number(m[2]) - 1] || m[2]} ${Number(m[3])}, ${m[1]}`
 }
 
+/**
+ * A playbook's server name is a classifier description, e.g. "Moving-average pullback (8/10/20/21
+ * EMA, 50 SMA)" or "Support / level hold (horizontal level, prior pivot, AVWAP) -- buy at a price".
+ * Shown as a short title with the rest as a detail line: { title, detail }.
+ */
+export function splitSetupName(name) {
+  const raw = String(name || '').trim()
+  const [head, tail] = raw.split(/\s+--\s+/, 2)
+  const m = /^(.*?)\s*\((.*)\)\s*$/.exec(head)
+  const title = (m ? m[1] : head).trim() || raw
+  const detail = [m ? m[2].trim() : '', (tail || '').trim()].filter(Boolean).join(' · ')
+  return { title, detail }
+}
+
+/**
+ * The archive's catch-all categories: calls the classifier could not put under a named setup.
+ * ⚠️ A COPY of the upstream authority — the setups with `bucket: true` in uct-intelligence's
+ * data/trader_playbooks_brain.json, which the archive import does not carry to this server.
+ * Display only: they are listed under "Other kinds of calls", never hidden.
+ */
+export const CATCH_ALL_SETUPS = new Set(['bearish_view', 'breakout_other', 'entry_unspecified', 'other',
+  'position_update', 'short_other', 'thesis', 'watchlist'])
+
 // Trading shorthand that stays upper case in a label ('pullback_ma' → 'Pullback MA').
 const SETUP_ACRONYMS = new Set(['ma', 'ema', 'sma', 'vcp', 'rs', 'htf', 'orb', 'vwap', 'avwap', 'ep', 'peg',
   'hvc', 'hve', 'atr', 'adr', 'ipo', 'odte', '0dte', 'u&r', 'h&s', 'ath', 'fomc', 'cpi'])

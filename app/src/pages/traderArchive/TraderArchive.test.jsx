@@ -2,7 +2,7 @@
 // A 404 (flag off) and a 402 (unpaid) are said as such, never as "nothing found".
 // Synthetic data only: the repo is public.
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { render, screen, fireEvent, within } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { SWRConfig } from 'swr'
 
@@ -56,12 +56,22 @@ const search = (text) => {
 afterEach(() => { vi.restoreAllMocks() })
 
 describe('Trader Archive in The Desk', () => {
-  it('opens on Playbooks with the archive size in plain words, and does not ask for Today', async () => {
-    serve({ [`${API}/stats`]: ok(STATS), [`${API}/playbooks`]: ok({ setups: [{ setup_id: 'kicker', name: 'Kicker', n: 9 }] }) })
+  it('opens on Playbooks with the archive size in plain words, and starts Today warming behind it', async () => {
+    serve({ [`${API}/stats`]: ok(STATS), [`${API}/playbooks`]: ok({ setups: [{ setup_id: 'kicker', name: 'Kicker', n: 9 }] }),
+      [`${API}/rhymes`]: ok({ hits: [] }) })
     mount()
     expect(await screen.findByText(/3 calls and 2 posts/)).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: /Playbooks/ })).toHaveAttribute('aria-selected', 'true')
     expect(await screen.findByRole('button', { name: /Kicker/ })).toBeInTheDocument()
+    const urls = () => globalThis.fetch.mock.calls.map(([u]) => String(u))
+    await waitFor(() => expect(urls()).toContain(`${API}/rhymes`))
+    expect(screen.queryByTestId('rhymes-view')).toBeNull()                      // warmed, not shown
+  })
+
+  it('an archive that is off or unpaid does not warm Today', async () => {
+    serve({ [`${API}/stats`]: fail(404) })
+    mount()
+    await screen.findByTestId('archive-off')
     expect(globalThis.fetch.mock.calls.map(([u]) => String(u)).some((u) => u.includes('/rhymes'))).toBe(false)
   })
 
@@ -246,4 +256,22 @@ it('a ticker with a full page of posts says "500+", not a count it cannot know',
   })
   mount('/desk?section=archive&view=search&q=ZZTC')
   expect(await screen.findByTestId('ta-ticker-summary')).toHaveTextContent('500+posts')
+})
+
+it('Playbooks: short titles with the detail beneath, catch-all categories grouped under "Other kinds of calls"', async () => {
+  serve({
+    [`${API}/stats`]: ok(STATS),
+    [`${API}/rhymes`]: ok({ hits: [] }),
+    [`${API}/playbooks`]: ok({ setups: [
+      { setup_id: 'pullback_ma', name: 'Moving-average pullback (8/10/20/21 EMA, 50 SMA)', n: 900 },
+      { setup_id: 'watchlist', name: 'Watchlist mention (no specific setup or trigger)', n: 4800 },
+    ] }),
+  })
+  mount('/desk?section=archive&view=playbooks')
+  const named = await screen.findByRole('list', { name: 'Playbooks' })
+  expect(within(named).getByText('Moving-average pullback')).toBeInTheDocument()
+  expect(within(named).getByText('8/10/20/21 EMA, 50 SMA')).toBeInTheDocument()
+  expect(within(named).queryByText(/Watchlist mention/)).toBeNull()            // most calls, still not a setup
+  const other = screen.getByRole('list', { name: 'Other kinds of calls' })
+  expect(within(other).getByText('Watchlist mention')).toBeInTheDocument()
 })

@@ -208,3 +208,127 @@ def test_the_compass_tool_answers_bounded_while_on(env):
     out = tools.rhymes(limit=50)
     assert out["ok"] and out["count"] == 1 and len(out["hits"]) <= tools.MAX_RHYMES
     assert "trader_archive_rhymes" in tools.NAMES
+
+
+# ── 8. the cache: never the scan on a hit, ONE compute at a time (2026-10-29) ──────────────────
+# Production, 2026-10-29: GET /rhymes ran >130 s and never answered, because every request ran the
+# full detection read just to build its cache key, and nothing stopped N requests computing at once.
+
+def _count(monkeypatch, name):
+    calls = []
+    real = getattr(rhymes, name)
+
+    def wrapped(*a, **k):
+        calls.append(1)
+        return real(*a, **k)
+
+    monkeypatch.setattr(rhymes, name, wrapped)
+    return calls
+
+
+def test_a_cached_answer_is_served_without_reading_the_scan(env, monkeypatch):
+    _seed_archive()
+    _detect([("ZZTA", "uct_kicker", "uct", 0, 80.0)])
+    reads = _count(monkeypatch, "_detections")
+    first = rhymes.today()
+    assert len(reads) == 1 and first["n_hits"] == 1                               # control: a cold cache reads
+    for _ in range(5):
+        assert rhymes.today() is first
+    assert len(reads) == 1
+
+
+def test_a_stale_answer_is_served_at_once_and_refreshed_once_in_the_background(env, monkeypatch):
+    _seed_archive()
+    _detect([("ZZTA", "uct_kicker", "uct", 0, 80.0)])
+    first = rhymes.today()
+    computes = _count(monkeypatch, "_compute")
+    started = []
+    monkeypatch.setattr(rhymes, "_start_background", lambda: started.append(1) or True)
+    with rhymes._LOCK:
+        rhymes._CACHE["at"] -= rhymes.REFRESH_S + 1                                # make it refresh-old
+    assert rhymes.today() is first and rhymes.today() is first                    # served, not recomputed
+    assert computes == [] and len(started) == 2                                   # _start_background is the single-flight
+    with rhymes._LOCK:
+        rhymes._CACHE["at"] -= rhymes.STALE_MAX_S                                  # too old to serve
+    assert rhymes.today() is not first and len(computes) == 1                     # the request computes
+
+
+def test_only_one_background_refresh_runs_at_a_time(env, monkeypatch):
+    import threading
+
+    gate = threading.Event()
+    ran = []
+
+    def slow(*a, **k):
+        ran.append(1)
+        gate.wait(5)
+        return None
+
+    monkeypatch.setattr(rhymes, "_refresh", slow)
+    assert rhymes._start_background() is True
+    assert rhymes._start_background() is False and rhymes._start_background() is False
+    gate.set()
+    for _ in range(100):
+        if not rhymes._STATE["refreshing"]:
+            break
+        time.sleep(0.02)
+    assert ran == [1] and rhymes._STATE["refreshing"] is False
+
+
+def test_concurrent_cold_callers_share_one_compute(env, monkeypatch):
+    import threading
+
+    _seed_archive()
+    _detect([("ZZTA", "uct_kicker", "uct", 0, 80.0)])
+    real = rhymes._compute
+    computes = []
+
+    def slow(*a, **k):
+        computes.append(1)
+        time.sleep(0.3)
+        return real(*a, **k)
+
+    monkeypatch.setattr(rhymes, "_compute", slow)
+    out = []
+    threads = [threading.Thread(target=lambda: out.append(rhymes.today())) for _ in range(4)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join(10)
+    assert len(out) == 4 and all(o is not None and o["n_hits"] == 1 for o in out)
+    assert computes == [1]
+
+
+def test_warm_is_flag_gated_and_starts_nothing_when_fresh(env, monkeypatch):
+    started = []
+    monkeypatch.setattr(rhymes, "_start_background", lambda: started.append(1) or True)
+    monkeypatch.setenv("WISDOM_ARCHIVE_ENABLED", "0")
+    rhymes.warm()
+    assert started == []
+    monkeypatch.setenv("WISDOM_ARCHIVE_ENABLED", "1")
+    rhymes.warm()
+    assert started == [1]                                                          # control: cold, on => starts
+    _seed_archive()
+    _detect([("ZZTA", "uct_kicker", "uct", 0, 80.0)])
+    rhymes.today(force=True)
+    rhymes.warm()
+    assert started == [1]                                                          # fresh => nothing
+
+
+def test_a_ticker_on_many_setups_reads_its_history_once(env, monkeypatch):
+    from api.services.wisdom.archive import service
+
+    _seed_archive()
+    c = _client(None)
+    flag = _playbook(setup_id="flag_htf", name="Flag", aliases=["flag"], stats=_stats(90, 0.1, 1.0))
+    assert c.post(BATCH, json={"kind": "setups", "items": [flag]}, headers=AUTH).json()["inserted"] == 1
+    real_map = setup_map.setup_for_pattern
+    monkeypatch.setattr(setup_map, "setup_for_pattern",
+                        lambda pid: "flag_htf" if pid == "uct_flag_synthetic" else real_map(pid))
+    _detect([("ZZTA", "uct_kicker", "uct", 0, 80.0), ("ZZTA", "uct_flag_synthetic", "uct", 0, 70.0)])
+    lookups = []
+    real_summary = service.ticker_summary
+    monkeypatch.setattr(service, "ticker_summary", lambda conn, sym: lookups.append(sym) or real_summary(conn, sym))
+    out = rhymes.today(force=True)
+    assert sorted(h["setup"] for h in out["hits"]) == ["flag_htf", "kicker"]       # control: two hits, one ticker
+    assert lookups == ["ZZTA"]

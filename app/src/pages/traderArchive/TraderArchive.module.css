@@ -76,7 +76,8 @@
 .pickCard:hover { border-color: var(--ut-gold-glow); transform: translateY(-2px); }
 .pickCard:focus-visible { outline: var(--focus-ring); }
 .pickName { font-size: var(--text-md); font-weight: 700; color: var(--text-bright); }
-.pickMeta { font-size: var(--text-sm); color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.pickMeta { font-size: var(--text-sm); color: var(--text-muted); font-variant-numeric: tabular-nums; margin-top: auto; }
+.pickDetail { font-size: var(--text-xs); color: var(--text-muted); line-height: 1.4; }
 
 .avatar {
   display: inline-flex; align-items: center; justify-content: center; flex: none;
@@ -153,6 +154,7 @@
 /* ── Playbook detail ── */
 .pbHero { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: var(--space-md); margin: var(--space-sm) 0 var(--space-md); }
 .pbMeta { margin: 4px 0 0; color: var(--text-muted); font-size: var(--text-sm); }
+.pbDetail { margin: 4px 0 0; color: var(--text); font-size: var(--text-sm); }
 .pbHero .verdict { font-size: var(--text-sm); padding: 5px 14px; }
 .bars { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-sm); }
 .barRow { display: grid; grid-template-columns: minmax(140px, 1.4fr) 2fr auto auto; align-items: center; gap: var(--space-md); font-size: var(--text-sm); }

@@ -1,7 +1,7 @@
 // The archive's formatting and its one door (archiveHref). Synthetic values only.
 import { describe, it, expect } from 'vitest'
 
-import { archiveHref, fmtDay, setupName } from './traderArchive'
+import { CATCH_ALL_SETUPS, archiveHref, fmtDay, setupName, splitSetupName } from './traderArchive'
 
 describe('archiveHref — every door into the archive lands on The Desk tab', () => {
   it('builds the Desk URL, upper-casing a symbol', () => {
@@ -31,4 +31,20 @@ describe('fmtDay', () => {
     expect(fmtDay('2025-01-02T23:30:00-05:00')).toBe('Jan 2, 2025')
     expect(fmtDay('not a date')).toBe('not a date')
   })
+})
+
+describe('splitSetupName — a classifier description as a title and a detail line', () => {
+  it.each([
+    ['Moving-average pullback (8/10/20/21 EMA, 50 SMA)', 'Moving-average pullback', '8/10/20/21 EMA, 50 SMA'],
+    ['Support / level hold (horizontal level, prior pivot, AVWAP) -- buy at a price', 'Support / level hold',
+      'horizontal level, prior pivot, AVWAP · buy at a price'],
+    ['Flag / high tight flag / continuation', 'Flag / high tight flag / continuation', ''],
+    ['Classical chart pattern (inverse H&S, double bottom / W, cup)', 'Classical chart pattern', 'inverse H&S, double bottom / W, cup'],
+    ['', '', ''],
+  ])('%s', (name, title, detail) => expect(splitSetupName(name)).toEqual({ title, detail }))
+})
+
+it('the catch-all categories are the upstream bucket: true set, eight of them', () => {
+  expect([...CATCH_ALL_SETUPS].sort()).toEqual(['bearish_view', 'breakout_other', 'entry_unspecified', 'other',
+    'position_update', 'short_other', 'thesis', 'watchlist'])
 })

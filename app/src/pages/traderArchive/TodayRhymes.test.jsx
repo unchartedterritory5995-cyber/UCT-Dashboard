@@ -6,7 +6,7 @@ import { act, render, screen, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { SWRConfig } from 'swr'
 
-import TodayRhymes, { SLOW_MS } from './TodayRhymes'
+import TodayRhymes, { RHYMES_RETRY, SLOW_MS } from './TodayRhymes'
 import TraderArchive from './TraderArchive'
 
 const API = '/api/wisdom/archive'
@@ -86,6 +86,30 @@ describe('TodayRhymes', () => {
       expect(screen.getByTestId('rhymes-waiting')).toHaveTextContent('Reading today')
       await act(async () => { await vi.advanceTimersByTimeAsync(SLOW_MS + 10) })
       expect(screen.getByTestId('rhymes-waiting')).toHaveTextContent('taking longer than usual')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('a CDN timeout (5xx) is retried until the warm answer lands; a 404 is final', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      let n = 0
+      globalThis.fetch = vi.fn(() => Promise.resolve(++n < 3 ? fail(524) : ok({ market_state: 'downtrend', hits: [HIT] })))
+      const { unmount } = mount(<TodayRhymes />)
+      expect(await screen.findByTestId('rhymes-unavailable')).toBeInTheDocument()
+      for (let i = 0; i < 3 && !screen.queryByTestId('rhyme-hit'); i += 1) {
+        await act(async () => { await vi.advanceTimersByTimeAsync(RHYMES_RETRY.intervalMs + 10) })
+      }
+      expect(screen.getByTestId('rhyme-hit')).toHaveTextContent('ZZTA')
+      unmount()
+
+      const calls = vi.fn(() => Promise.resolve(fail(404)))
+      globalThis.fetch = calls
+      mount(<TodayRhymes />)
+      expect(await screen.findByTestId('rhymes-off')).toBeInTheDocument()
+      await act(async () => { await vi.advanceTimersByTimeAsync(RHYMES_RETRY.intervalMs * 3) })
+      expect(calls).toHaveBeenCalledTimes(1)
     } finally {
       vi.useRealTimers()
     }

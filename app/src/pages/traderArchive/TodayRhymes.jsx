@@ -12,9 +12,22 @@ import { useEffect, useState } from 'react'
 import useSWR from 'swr'
 
 import jsonFetcher from '../../utils/jsonFetcher'
-import { ARCHIVE_API, fmtDay, setupName } from '../../utils/traderArchive'
-import { Outcome, SWR_OPTS, pct0 } from './archiveUi'
+import { ARCHIVE_API, fmtDay, setupName, splitSetupName } from '../../utils/traderArchive'
+import { Outcome, pct0 } from './archiveUi'
 import styles from './TraderArchive.module.css'
+
+export const RHYMES_URL = `${ARCHIVE_API}/rhymes`
+
+// A cold server computes Today in the background (archive/rhymes.py) and a request that outlives
+// the CDN's timeout comes back 5xx. Retry those a few times; a 404 (off) or 402 (unpaid) is final.
+export const RHYMES_RETRY = { count: 4, intervalMs: 15000 }
+const RHYMES_SWR = {
+  revalidateOnFocus: false,
+  onErrorRetry: (error, _key, _config, revalidate, { retryCount }) => {
+    if (!(error?.status >= 500) || retryCount > RHYMES_RETRY.count) return
+    setTimeout(() => revalidate({ retryCount }), RHYMES_RETRY.intervalMs)
+  },
+}
 
 function StateLine({ error }) {
   if (error?.status === 404) return <p className={styles.notice} data-testid="rhymes-off">The trader archive isn&apos;t available yet.</p>
@@ -28,6 +41,7 @@ function Hit({ hit, onTicker, onSetup }) {
   const last = th.last_call
   const cut = pb.today_cut
   const setupId = pb.setup_id || hit.setup
+  const setupLabel = pb.name ? splitSetupName(pb.name).title : setupName(hit.setup)
   return (
     <article className={styles.card} data-testid="rhyme-hit">
       <header className={styles.cardHead}>
@@ -39,8 +53,8 @@ function Hit({ hit, onTicker, onSetup }) {
         {pb.verdict && <span className={styles.verdict}>{pb.verdict}</span>}
       </header>
       {onSetup && setupId
-        ? <button type="button" className={`${styles.setupChip} ${styles.setupChipBtn}`} onClick={() => onSetup(setupId)}>{pb.name || setupName(hit.setup)}</button>
-        : <span className={styles.setupChip}>{pb.name || setupName(hit.setup)}</span>}
+        ? <button type="button" className={`${styles.setupChip} ${styles.setupChipBtn}`} onClick={() => onSetup(setupId)}>{setupLabel}</button>
+        : <span className={styles.setupChip}>{setupLabel}</span>}
       <p className={styles.rhymeLine}>
         This setup worked <strong>{pct0(pb.win20)}</strong> of the time over {pb.n_scored ?? 0} team calls
         {cut ? <>; in today&apos;s market: {cut.n_scored} calls, win {pct0(cut.win20)}</> : ''}.
@@ -81,7 +95,7 @@ function Waiting() {
 }
 
 export default function TodayRhymes({ onTicker, onSetup }) {
-  const { data, error } = useSWR(`${ARCHIVE_API}/rhymes`, jsonFetcher, SWR_OPTS)
+  const { data, error } = useSWR(RHYMES_URL, jsonFetcher, RHYMES_SWR)
   if (error) return <StateLine error={error} />
   if (!data) return <Waiting />
   const hits = data.hits || []

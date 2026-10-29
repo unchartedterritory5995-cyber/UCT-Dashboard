@@ -18,16 +18,16 @@
 // such, never rendered as "nothing found".
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import useSWR from 'swr'
+import useSWR, { preload } from 'swr'
 
 import jsonFetcher from '../../utils/jsonFetcher'
 import UIcon from '../../components/ui/UIcon'
-import { ARCHIVE_API, EDGE_Z, MIN_CONTEXT_N } from '../../utils/traderArchive'
+import { ARCHIVE_API, CATCH_ALL_SETUPS, EDGE_Z, MIN_CONTEXT_N, splitSetupName } from '../../utils/traderArchive'
 import {
   Avatar, CallGrid, Outcome, PostFeed, SWR_OPTS, SectionTitle, StatTile, StateLine, pct0,
 } from './archiveUi'
 import PlaybookCharts from './PlaybookCharts'
-import TodayRhymes from './TodayRhymes'
+import TodayRhymes, { RHYMES_URL } from './TodayRhymes'
 import styles from './TraderArchive.module.css'
 
 // Playbooks leads and is the landing view: it answers at once. Today waits on the server's
@@ -205,6 +205,7 @@ function PlaybookDetail({ setup, onBack }) {
   }, [data])
   const all = data?.stats?.all
   const v = verdictOf(all)
+  const label = splitSetupName(data?.name)
   return (
     <div>
       <button type="button" className={styles.back} onClick={onBack}>← All playbooks</button>
@@ -214,7 +215,8 @@ function PlaybookDetail({ setup, onBack }) {
         <div data-testid="ta-playbook">
           <div className={styles.pbHero}>
             <div>
-              <h2 className={styles.subheading}>{data.name}</h2>
+              <h2 className={styles.subheading}>{label.title}</h2>
+              {label.detail && <p className={styles.pbDetail}>{label.detail}</p>}
               <p className={styles.pbMeta}>
                 {(data.aliases || []).length > 0 && <>Also called {data.aliases.join(', ')}. </>}
                 {(data.used_by || []).length > 0 && <>Used by {data.used_by.map((u) => u.trader || u.author).join(', ')}.</>}
@@ -297,23 +299,52 @@ function PlaybooksView({ setup, onPick }) {
   if (!index) return <p className={styles.loading}>Loading the playbooks…</p>
   const setups = [...(index.setups || [])].sort((a, b) => (b.n ?? 0) - (a.n ?? 0))
   if (!setups.length) return <p className={styles.empty}>No playbooks yet.</p>
-  return (
-    <ul className={styles.pickGrid} aria-label="Playbooks">
-      {setups.map((s) => (
-        <li key={s.setup_id}>
-          <button type="button" className={styles.pickCard} onClick={() => onPick(s.setup_id)}>
-            <span className={styles.pickName}>{s.name}</span>
-            <span className={styles.pickMeta}>{s.n ?? 0} calls</span>
-          </button>
-        </li>
-      ))}
+  const named = setups.filter((s) => !CATCH_ALL_SETUPS.has(s.setup_id))
+  const other = setups.filter((s) => CATCH_ALL_SETUPS.has(s.setup_id))
+  const grid = (list, label) => (
+    <ul className={styles.pickGrid} aria-label={label}>
+      {list.map((s) => {
+        const { title, detail } = splitSetupName(s.name)
+        return (
+          <li key={s.setup_id}>
+            <button type="button" className={styles.pickCard} onClick={() => onPick(s.setup_id)}>
+              <span className={styles.pickName}>{title}</span>
+              {detail && <span className={styles.pickDetail}>{detail}</span>}
+              <span className={styles.pickMeta}>{s.n ?? 0} calls</span>
+            </button>
+          </li>
+        )
+      })}
     </ul>
+  )
+  return (
+    <>
+      {grid(named, 'Playbooks')}
+      {other.length > 0 && (
+        <>
+          <SectionTitle count={other.length}>Other kinds of calls</SectionTitle>
+          <p className={styles.intro}>Calls the archive could not file under a named setup: watchlist mentions, position updates, theses.</p>
+          {grid(other, 'Other kinds of calls')}
+        </>
+      )}
+    </>
   )
 }
 
 export default function TraderArchive() {
   const { view, term, setup, trader, go } = useArchiveParams()
   const { data: stats, error } = useSWR(`${ARCHIVE_API}/stats`, jsonFetcher, SWR_OPTS)
+  // Start Today's request as soon as the archive answers (so it is on and this member is paid):
+  // the server computes it in the background, and Today then opens on a warm answer.
+  const archiveOpen = !!stats
+  useEffect(() => {
+    if (!archiveOpen) return
+    try {
+      preload(RHYMES_URL, jsonFetcher)?.catch?.(() => {})   // an untaken failure is not unhandled
+    } catch {
+      // A head start must never break the page.
+    }
+  }, [archiveOpen])
   const search = (q) => go({ view: q ? 'search' : 'playbooks', q, sym: '' })
   const openTicker = (t) => go({ view: 'search', q: t, sym: '' })
 
