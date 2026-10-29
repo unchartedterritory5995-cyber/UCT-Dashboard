@@ -1,5 +1,5 @@
 import useSWR, { mutate as mutateGlobal } from 'swr'
-import { useCallback } from 'react'
+import { useCallback, useRef } from 'react'
 import { mergeSettingsOverride } from '../components/chart/instanceShape'
 import { noteWorkspaceDocResponse } from '../lib/workspaceDoc'
 import { emitWorkspaceConflict } from '../lib/workspaceConflict'
@@ -17,14 +17,26 @@ export { onWorkspaceConflict } from '../lib/workspaceConflict'
 // refuse (P4a m1: the page-layout editor). null = no read has answered yet.
 let _lastReadOk = null
 const readFailedOnce = () => { _lastReadOk = false }
-const fetcher = url => fetch(url).then(
-  r => {
-    noteWorkspaceDocResponse(r); noteRevision(r, false)
-    if (!r.ok) { readFailedOnce(); return {} }
-    return r.json().then(j => { _lastReadOk = true; return j }, err => { readFailedOnce(); throw err })
-  },
-  err => { readFailedOnce(); throw err },
-)
+// The read in flight, if any. A MERGING write issued before the first read has answered waits on it
+// (setPrefMerged, below): merging onto a cache that holds nothing yet builds the whole value from
+// an empty base, and posting THAT replaces every field the server holds that the writer did not
+// name. Measured 2026-10-28: a focus write fired while the read was in flight posted {A:'ENPH'}
+// and would have erased the member's comparison slots B/C/D.
+let _inflightRead = null
+const fetcher = url => {
+  const p = fetch(url).then(
+    r => {
+      noteWorkspaceDocResponse(r); noteRevision(r, false)
+      if (!r.ok) { readFailedOnce(); return {} }
+      return r.json().then(j => { _lastReadOk = true; return j }, err => { readFailedOnce(); throw err })
+    },
+    err => { readFailedOnce(); throw err },
+  )
+  _inflightRead = p
+  const clear = () => { if (_inflightRead === p) _inflightRead = null }
+  p.then(clear, clear)
+  return p
+}
 
 const DEFAULTS = {
   default_chart_tf: 'D',
@@ -154,7 +166,7 @@ export function whenWritesSettle(keys) {
 /** Tests only. */
 export function __resetRevisionStateForTests() {
   _revBaseline = null; _keyRev.clear(); _conflicted.clear(); _writeChains.clear(); _lastReadOk = null
-  _failedWrites.clear()
+  _failedWrites.clear(); _inflightRead = null
 }
 
 // THE one POST. Runs inside the per-key queue, so the revision is read at SEND time — after this
@@ -319,6 +331,10 @@ export default function usePreferences(enabled = true) {
 
   // Merge server prefs over defaults
   const prefs = { ...DEFAULTS, ...(data || {}) }
+  // The cache as of this render, for setPrefMerged's "has anything been read yet" check (a stable
+  // callback must not close over `data`).
+  const dataRef = useRef(data)
+  dataRef.current = data
 
   const setPref = useCallback(async (key, value) => {
     // The backend's SetPreferenceRequest types `value` as a str, so an
@@ -423,8 +439,24 @@ export default function usePreferences(enabled = true) {
   const setPrefMerged = useCallback(async (key, updater) => {
     let serialized = null
     let updaterError = null
+    let unknownBase = false
+
+    // ⛔⛔ NEVER POST A MERGE ONTO A BASE THAT HAS NOT BEEN READ. Before the first read answers, the
+    // cache holds nothing, and a merge onto nothing is a WHOLE value built from an empty base —
+    // posting it replaces every field of the server's copy the updater did not name (the focus
+    // write erasing B/C/D). So a merge issued while the cache is empty waits for the read in
+    // flight. If no read has produced the server's value (still empty, or the last read was
+    // refused and served as `{}`), the merge is applied to THIS TAB's cache only — the member's
+    // edit still shows, and a surface keyed on it (the hub's focus symbol) still works — but it is
+    // NOT POSTED, and `false` is returned. The next read that lands replaces the local value with
+    // the server's, and a caller that re-asserts on `prefs` (TickerPopup's focus effect) then
+    // writes properly, merged onto what the server actually holds.
+    if (dataRef.current === undefined && _inflightRead) {
+      try { await _inflightRead } catch { /* a failed read is judged below */ }
+    }
 
     await mutate(prev => {
+      if (prev === undefined || prev === null || _lastReadOk === false) unknownBase = true
       const base = { ...DEFAULTS, ...prev }
       const current = parsePref(base[key], undefined)
 
@@ -444,6 +476,7 @@ export default function usePreferences(enabled = true) {
 
     if (updaterError) throw updaterError
     if (serialized === null) return
+    if (unknownBase) return false           // applied locally above, deliberately never posted
 
     // The value is FROZEN at merge time and the POSTs are queued in that same
     // order, so what the server ends up with is what the last merge computed.
