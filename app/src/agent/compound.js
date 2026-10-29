@@ -167,6 +167,7 @@ export function resolveStep(step, { host, memory, epoch = null, working = null }
     if (!want) return { say: `I couldn't read “${t}”.` }
     if (!charts) return { say: `Which chart should “${t}” go on? Name it (“on the top left chart”) and ask again.` }
     const ops = []
+    const already = []
     for (const ref of charts) {
       const target = indicatorEditsRef(ref)
       const c = (() => { try { return host.charts.read(ref) } catch { return null } })()
@@ -174,11 +175,12 @@ export function resolveStep(step, { host, memory, epoch = null, working = null }
       const have = rows.find(r => r.defId === want.defId && (!want.inputs || want.inputs.every(i => String(r.inputs?.[i.key] ?? '') === String(i.value))))
       if (!have) ops.push({ action: 'indicator.add', target, args: { defId: want.defId, inputs: want.inputs } })
       // drawn on the price chart by default (an EMA): put in its own pane once it is there — a step of its own
-      if (have ? (have.displayTarget || have.placement) === 'price' : defaultPlacement(want.defId) === 'price') {
-        ops.push({ action: 'indicatorStyle.placeIn', target, args: { instance: have ? have.instanceId : placeWordFor(want), place: 'pane' } })
-      }
+      const onPrice = have ? (have.displayTarget || have.placement) === 'price' : defaultPlacement(want.defId) === 'price'
+      if (onPrice) ops.push({ action: 'indicatorStyle.placeIn', target, args: { instance: have ? have.instanceId : placeWordFor(want), place: 'pane' } })
+      if (have && !onPrice) already.push(`${have.name} is already in its own pane on ${c?.label || 'that chart'}`)
     }
-    return ops.length ? { ops } : { say: null, noop: true }
+    // nothing to do on any chart: said, and the step counts as done (it is)
+    return ops.length ? { ops, note: already.length ? `${already.join('; ')}.` : null } : { noop: true, note: `${already.join('; ')}.` }
   }
   if (step.kind === 'follow') {
     const r = resolveFollowUp(t, { host, memory, epoch, working })
