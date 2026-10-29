@@ -988,6 +988,7 @@ function ChartPane({
               <button
                 type="button"
                 className={styles.chartSettingsBtn}
+                data-guide="chart.settings"
                 onClick={openSettings}
                 title="Chart settings"
                 aria-label="Chart settings"

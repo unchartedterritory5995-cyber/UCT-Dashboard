@@ -41,6 +41,48 @@ const FORBIDDEN_FILE = 'app/src/pages/journal-2-0/tabs/NotebookTab.jsx'
 const PERMITTED_FILE = 'app/src/pages/journal-2-0/components/notebook/NoteCard.jsx'
 const PERMITTED_INSERT = ' data-note-card-id={note.id}'
 
+/**
+ * ⭐ OWNER-APPROVED EXCEPTION, 2026-10-29 (branch fix/pref-retry-hub-wrap): the preferences
+ * member-generation fix. The owner approved, in chat, edits to exactly these three Notebook files so
+ * that a write begun for one member can never land in the next member's cache or account
+ * (`beginPrefsOp` in hooks/usePreferences.js). Reviewers reproduced A's notebook_tours posted into B.
+ *
+ * ⛔ SAME RULE AS R-18: A FILE *AND* A SHAPE. The allowance is not the filename. Every added line
+ * must carry the op plumbing (`op`, `beginPrefsOp`, `retryOpRef`) or be a comment, and every removed
+ * line must reappear as an added line that differs from it ONLY by that plumbing
+ * (`opPlumbingRemoved` below). Any other change to these files is still a RULE 12 violation.
+ */
+const OWNER_APPROVED_OP_FILES = {
+  'app/src/pages/journal-2-0/components/notebook/onboarding/tourSeenState.js': '2026-10-29, owner in chat: member-generation fix',
+  'app/src/pages/journal-2-0/lib/notebookSets.js': '2026-10-29, owner in chat: member-generation fix',
+  'app/src/pages/journal-2-0/components/notebook/AdoptLayoutSheet.jsx': '2026-10-29, owner in chat: member-generation fix',
+}
+/** A line with the op plumbing taken out, whitespace-insensitive: `, op` argument / parameter,
+ *  `, beginPrefsOp` import, `, retryOpRef.current || beginPrefsOp()` argument. */
+const opPlumbingRemoved = (line) => line.replace(/\s+/g, '')
+  .replace(/,retryOpRef\.current\|\|beginPrefsOp\(\)(?=\))/g, '')
+  .replace(/,beginPrefsOp(?=\})/g, '')
+  .replace(/,op(?=\))/g, '')
+/** An ADDED line that is op plumbing in one of the allowed SHAPES (comments stripped first, so a
+ *  word in a trailing comment proves nothing). Anything else — `if (op) send(x)`, `sendAll() // op` —
+ *  is not plumbing. Comment-only lines are allowed (they change no behaviour). */
+const STALE_EXIT_STMT = '(?:workingRef\\.current = false|setWorking\\(false\\)|onClose\\(\\))'
+const STALE_EXIT = `(?:return(?: false| null| \\{ ok: false, reason: [A-Z_]+ \\})?|\\{ (?:${STALE_EXIT_STMT}; )*return \\})`
+const OP_SHAPES = [
+  /^import \{ beginPrefsOp \} from '(?:\.\.\/)+lib\/prefsSession'$/,
+  /^const op = beginPrefsOp\(\)$/,
+  /^const op = retryOpRef\.current$/,
+  /^const retryOpRef = useRef\(null\)$/,
+  /^retryOpRef\.current = (?:op|null)$/,
+  new RegExp(`^if \\((?:!op \\|\\| )?op\\.stale\\(\\)\\) ${STALE_EXIT}$`),
+]
+const stripComment = (line) => line.replace(/\/\*.*?\*\//g, '').replace(/\s*\/\/.*$/, '').trim()
+const carriesOp = (line) => {
+  if (/^\s*(\/\/|\*|\/\*)/.test(line)) return true          // a comment line
+  const code = stripComment(line)
+  return code === '' || OP_SHAPES.some((re) => re.test(code))
+}
+
 // ⛔ EVERY GIT CALL RUNS AT THE REPO ROOT. vitest's cwd is `app/`, and git resolves a PATHSPEC
 // relative to the cwd — so `git diff -- app/src/...` from `app/` looks for `app/app/src/...`,
 // matches nothing, and returns an EMPTY diff. The shape check below then compared zero added
@@ -259,6 +301,7 @@ describe('rule 12 — the Notebook workstream owns these paths', () => {
     const offenders = changedPaths()
       .filter((f) => f.startsWith(FORBIDDEN_PREFIX))
       .filter((f) => f !== PERMITTED_FILE)
+      .filter((f) => !OWNER_APPROVED_OP_FILES[f])
     expect(
       offenders,
       'RULE 12 VIOLATION — this branch touches files the Notebook workstream owns beyond the one permitted card. ' +
@@ -308,6 +351,55 @@ describe('rule 12 — the Notebook workstream owns these paths', () => {
  * invented fixture proves the regex matches itself; a real one proves it matches the branches
  * this repository actually ships from.
  */
+describe('rule 12 — the owner-approved op plumbing (2026-10-29) is a shape, not a filename', () => {
+  it('⛔ each approved file changes ONLY by the op plumbing', () => {
+    if (!rule12Applies({ branch: currentBranch(), changed: changedPaths() })) {
+      expectMachineryCanSee('scoped out — this change set is not joystick work')
+      return
+    }
+    const { sha } = mergeBase()
+    for (const file of Object.keys(OWNER_APPROVED_OP_FILES)) {
+      const diff = `${git(['diff', '-U0', `${sha}..HEAD`, '--', file])}\n${git(['diff', '-U0', 'HEAD', '--', file])}`
+      const added = diff.split('\n').filter((l) => l.startsWith('+') && !l.startsWith('+++')).map((l) => l.slice(1))
+      const removed = diff.split('\n').filter((l) => l.startsWith('-') && !l.startsWith('---')).map((l) => l.slice(1))
+      const pool = added.map(opPlumbingRemoved)
+      const unpaired = removed.filter((r) => {
+        const i = pool.indexOf(opPlumbingRemoved(r))
+        if (i < 0) return true
+        pool.splice(i, 1)
+        return false
+      })
+      expect(unpaired, `RULE 12 — ${file}: a removed line that is not the same line with op plumbing added:\n  ${unpaired.join('\n  ')}`).toEqual([])
+      const stray = added.filter((a) => !carriesOp(a) && !removed.some((r) => opPlumbingRemoved(r) === opPlumbingRemoved(a)))
+      expect(stray, `RULE 12 — ${file}: an added line that is not op plumbing:\n  ${stray.join('\n  ')}`).toEqual([])
+    }
+  })
+
+  it('CONTROL: the shape check pairs plumbing and refuses anything else', () => {
+    expect(opPlumbingRemoved('  await write(retry, retryOpRef.current || beginPrefsOp())')).toBe(opPlumbingRemoved('  await write(retry)'))
+    expect(opPlumbingRemoved('const undo = (captured, op) => {')).toBe(opPlumbingRemoved('const undo = (captured) => {'))
+    expect(opPlumbingRemoved("import { a, beginPrefsOp } from 'x'")).toBe(opPlumbingRemoved("import { a } from 'x'"))
+    expect(opPlumbingRemoved('  }, op)')).toBe(opPlumbingRemoved('  })'))
+    expect(opPlumbingRemoved('  await save(other)')).not.toBe(opPlumbingRemoved('  await save(x)'))
+    expect(carriesOp('    if (op.stale()) return false')).toBe(true)
+    expect(carriesOp('    setWorking(false)')).toBe(false)
+    // the allowed shapes, with and without a trailing comment
+    expect(carriesOp('  const op = beginPrefsOp()            // the member this save is for')).toBe(true)
+    expect(carriesOp('    if (!op || op.stale()) { workingRef.current = false; setWorking(false); return }   // x')).toBe(true)
+    expect(carriesOp('  if (op.stale()) return { ok: false, reason: SAVE_FAILED_REASON }')).toBe(true)
+    expect(carriesOp('      retryOpRef.current = op')).toBe(true)
+    // ⛔ disguised lines: op as a word, in a comment, as a condition, or an exit that does more
+    expect(carriesOp('    sendAll(rows) // op')).toBe(false)
+    expect(carriesOp('    if (op) send(x)')).toBe(false)
+    expect(carriesOp('    if (!op.stale()) return')).toBe(false)
+    expect(carriesOp('    if (op.stale()) { send(x); return }')).toBe(false)
+    expect(carriesOp('    const op = beginPrefsOp(); send(x)')).toBe(false)
+    expect(carriesOp('    if (op.stale()) return send(x)')).toBe(false)
+    expect(Object.keys(OWNER_APPROVED_OP_FILES).every((f) => f.startsWith(FORBIDDEN_PREFIX))).toBe(true)
+    expect(OWNER_APPROVED_OP_FILES[FORBIDDEN_FILE]).toBeUndefined()
+  })
+})
+
 describe('rule 12 — the rail fires on joystick work and nowhere else (B7)', () => {
   const CASES = [
     // ── The Notebook workstream's own family. Every one of these tripped the rail before B7,

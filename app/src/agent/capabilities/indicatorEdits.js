@@ -115,6 +115,21 @@ export function inputsOfArgs(list) {
   return { ok: true, inputs: out }
 }
 const addRequest = (defId, inputs) => (inputs ? { op: 'add', defId, inputs } : { op: 'add', defId })
+// ⭐ PHASE 2 (finding 2026-10-29): every new chart already draws EMA 9 / EMA 20 / SMA 50 / SMA 200, so a typed "throw
+// the 9 and 20 on my chart" added a SECOND EMA 9 — and then "make the 9 green" could not tell them apart. The instance
+// already on this chart with exactly these settings (every settable input, its default where not named — Indicators'
+// own structured lookup on effective values), or null. Used by the instant path (agent/duplicates.js); the capability
+// itself is unchanged (Add to Chart adds every time it is asked).
+export function alreadyOnChart(st, defId, inputs) {
+  if (!st?.cs || !defId) return null
+  const want = Object.fromEntries(inputsOfDef(defId).filter(i => i.default !== undefined).map(i => [i.key, i.default]))
+  Object.assign(want, inputs || {})
+  let r
+  try { r = resolveIndicatorTarget(st.cs, nativeRegistry, Object.keys(want).length ? { defId, inputs: want } : { defId }) } catch { r = null }
+  if (r?.ok) return (st.rows || []).find(x => x.instanceId === r.instanceId) || { name: r.name }
+  if (r?.reason === REASONS.AMBIGUOUS) return (st.rows || []).find(x => x.instanceId === r.detail?.candidates?.[0]?.instanceId) || { name: r.detail?.candidates?.[0]?.name }
+  return null
+}
 
 // ⛔ F4 (Phase 2 audit 2026-10-25): the Agent WRITES only what it advertises (SETTABLE). A setting the
 // definition declares as a colour, a source or text is refused here, before Indicators is asked — paint
@@ -342,7 +357,13 @@ export const indicatorEditsKind = {
     // GATE C: the indicator this chat is now talking about ("make it a 9") — only from a CONFIRMED receipt
     const r = done.receipt
     if (!patch.undo && ['add', 'setInputs', 'setVisible'].includes(r.op) && r.instanceIds?.length === 1) {
-      touched = { chartRef, instanceId: r.instanceIds[0], defId: r.defId, name: r.name }
+      touched = [...touched, { chartRef, instanceId: r.instanceIds[0], defId: r.defId, name: r.name }].slice(-24)
+    }
+    // ⭐ PHASE 2: every indicator a confirmed change acted on (a colour, a pane, an add, the copies a copy made …) —
+    // "copy those indicators" right after "add the 9 and 20, make the 9 green, move RSI into its own pane" means all
+    // three; "make them all green" right after "put those on my other charts" includes the copies (never a removal)
+    if (!patch.undo && !['remove', 'duplicate'].includes(r.op) && Array.isArray(r.instanceIds)) {
+      mentioned = [...mentioned, ...r.instanceIds.map(id => ({ chartRef, instanceId: id }))].slice(-48)
     }
     if (!patch.undo && r.op === 'duplicate' && patch.change?.plan?.preview?.from) r.from = patch.change.plan.preview.from
     return { lines: [receiptLine(done.receipt, label)], undoData: done.undo || null }
@@ -548,9 +569,15 @@ function updateOfWords(lower) {
 }
 
 // ── GATE C: the indicator a confirmed change last touched (session memory: "make it a 9") ──
-let touched = null
+let touched = []
 /** The last CONFIRMED add / edit / show / hide: { chartRef, instanceId, defId, name } — taken once. */
-export function takeIndicatorTouch() { const t = touched; touched = null; return t }
+export function takeIndicatorTouch() { const t = touched[touched.length - 1] || null; touched = []; return t }
+/** ⭐ PHASE 2: EVERY confirmed add / edit / show / hide since the last take, in commit order (a plan that changed
+ *  several charts' indicators at once — "add RSI to all my charts" — confirms one per chart) — taken once. */
+export function takeIndicatorTouches() { const t = touched; touched = []; return t }
+let mentioned = []
+/** ⭐ PHASE 2: every indicator a confirmed change ACTED ON since the last take (adds, edits, colours, panes …), in order. */
+export function takeIndicatorMentions() { const t = mentioned; mentioned = []; return t }
 /** "make it a 9" / "change that to an SMA" on the indicator this chat last touched (`subject` from session
  *  memory, re-validated: still on that chart). → { op } | { say } | null (not an edit of it). */
 export function updateOfSubject(host, subject, words) {
@@ -633,8 +660,10 @@ export function registerIndicatorEditCapabilities() {
     // ⭐ Phase 2.5 — and with ONE length or a moving average's length + type ("a 20 EMA", "RSI 7",
     // "RSI with length 7", "a 200-period simple moving average"): `settingsOfWords`. Anything else
     // with parameters, or a near-name, goes to the model; the check below still decides.
+    // ⭐ Phase 2 — "add another 20 EMA" / "a second RSI" / "RSI again": the member's explicit copy (agent/duplicates.js
+    // reuses an identical one otherwise).
     fast: ({ lower }) => {
-      const m = /^(?:please )?(?:add|put|apply|plot)(?: an?| the| my)? (.+?)(?: indicator| study)?(?: (?:on|to|onto|in) (?:my|the|this) chart)?$/.exec(lower)
+      const m = /^(?:please )?(?:add|put|apply|plot)(?: another| a second| one more| an extra| an?| the| my)? (.+?)(?: indicator| study)?(?: again)?(?: (?:on|to|onto|in) (?:my|the|this) chart)?(?: again)?$/.exec(lower)
       if (!m) return null
       const defId = defIdOfWords(m[1])
       if (defId) return { defId, inputs: null }

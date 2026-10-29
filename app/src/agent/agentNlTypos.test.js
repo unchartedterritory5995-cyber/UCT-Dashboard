@@ -4,7 +4,7 @@
 import { describe, it, expect } from 'vitest'
 import { registerBuiltins } from './builtins'
 import { fastParse } from './fastPath'
-import { correctTypos } from './nl/lexicon'
+import { correctTypos, SHORT_FIXES } from './nl/lexicon'
 import { makeBoard } from './__fixtures__/board'
 import corpus from './__fixtures__/nlIntent/corpus.json'
 
@@ -59,10 +59,20 @@ describe('never corrected into something unsafe or wrong', () => {
   })
   it('short words, numbers, pronouns and capitals are left alone', () => {
     const lex = { words: new Set(['add', 'weekly', 'that']), symbols: new Set(['nvda']) }
-    expect(correctTypos('ad', lex)).toBeNull()
+    expect(correctTypos('ab', lex)).toBeNull()                    // (a short word outside SHORT_FIXES)
     expect(correctTypos('add 2O', lex)).toBeNull()
     expect(correctTypos('add NVDB', lex)).toBeNull()
     expect(correctTypos('add nvda', lex)).toBeNull()
+  })
+  // ⭐ PHASE 2: the handful of short words traders mistype most ("ad teh 20 ema", "mak it green") — one meaning each;
+  // still used only when the corrected sentence parses into a safe, reversible action
+  it('SHORT_FIXES: "ad teh 20 ema" → add the 20 ema; a capitalised AD (a ticker) is never touched', () => {
+    const lex = { words: new Set(['add', 'the', 'make', 'green']), symbols: new Set() }
+    expect(correctTypos('ad teh 20 ema', lex).map(v => v.text)).toEqual(['add the 20 ema'])
+    expect(correctTypos('mak it green', lex).map(v => v.text)).toEqual(['make it green'])
+    expect(correctTypos('add AD to Momentum', lex)).toBeNull()
+    expect(Object.values(SHORT_FIXES).every(w => /^[a-z]+$/.test(w))).toBe(true)
+    expect(parse('ad teh 20 ema')).toMatchObject({ kind: 'ops', ops: [{ action: 'indicator.add', args: { defId: 'movingAverage' } }], corrected: expect.any(Array) })
   })
   it('across the whole 192-case corpus, a correction never changes what an exactly-parsed request does, and never fires on a request meant for the model or a question', () => {
     const misfires = []

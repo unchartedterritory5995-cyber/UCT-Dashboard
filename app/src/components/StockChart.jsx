@@ -41,6 +41,8 @@ import { historyFromListingOf, listingReferenceDate } from './chart/engine/listi
 import { definitionWithholdsOffListing, wantsListingDeepen, listingDeepenGate } from './chart/engine/listingDeepen'
 import useWatermarkDrag from '../hooks/useWatermarkDrag'
 import { panelFor, toolbarFor, commandBarFor, sampleGradient, parseColor, luminance, menuThemeVars } from '../utils/dividerColor'
+import { legendInkVars, readLegendContext } from './chart/legendInk'
+import { useThemeVersion } from '../lib/theme/useThemeInk'
 // ⛔⭐ THIS FILE IMPORTS **ZERO** `compute*` FUNCTIONS — B5 TASK 8, AND THAT IS
 // THE WHOLE STATEMENT. All fourteen series-expressible natives are FLIPPED, so
 // every column is computed once, by the definition that declares it, at bind
@@ -3092,6 +3094,24 @@ export default function StockChart({
       '--chart-panel-hover-low': pLow.hover,
     }
   }, [canvasSample])
+
+  // ⭐ THE LEGEND'S NEUTRAL INK, per role and per canvas sample (chart/legendInk.js): the member's
+  // explicit legend colour; else the app token where it already reads >= 4.5:1 on this canvas
+  // (a dark theme over a dark canvas keeps --text-bright / --text / --text-muted exactly); else
+  // the canvas ink. The tokens are read from the DOM inside this chart (a /charts widget re-points
+  // them), so it is a layout effect, re-run when the canvas, the legend colour or the app theme
+  // changes. Before it runs (and in jsdom) the rules fall back to their tokens, as before.
+  const [legendInks, setLegendInks] = useState(undefined)
+  // The app's ONE theme observer (lib/theme/useThemeInk.js: data-theme plus the catalog's inline
+  // tokens on <html>, deduped by token signature), not a second one per chart.
+  const appThemeTick = useThemeVersion()
+  useLayoutEffect(() => {
+    const el = wrapperRef.current
+    if (!el) return
+    const { tokens, under } = readLegendContext(el)
+    const next = legendInkVars({ tokens, top: canvasSample.top, low: canvasSample.low, under, legendColor })
+    setLegendInks((prev) => (prev && JSON.stringify(prev) === JSON.stringify(next) ? prev : next))
+  }, [canvasSample.top, canvasSample.low, legendColor, appThemeTick])
 
   // ── Price-scale: forceLogScale (Model Book) defaults to log without touching
   // the user's global chart-settings pref. A per-instance override lets the
@@ -18728,7 +18748,7 @@ export default function StockChart({
   const _rangeVolPct = Math.min(45, Math.max(8, volumePaneHeightPct ?? cs.volume?.paneHeightPct ?? 22))
 
   return (
-    <div ref={wrapperRef} className={`${styles.wrapper} ${className}`} style={{ height, ...panelVars }}
+    <div ref={wrapperRef} className={`${styles.wrapper} ${className}`} style={{ height, ...panelVars, ...legendInks }}
       data-bar-currentness={barCurrentness ?? undefined}
       data-bar-tail={typeof _renderedTailT === 'number' ? _renderedTailT : undefined}
       data-live-badge={liveBadge}>
@@ -19520,6 +19540,10 @@ export default function StockChart({
         // User override for the BASE legend text (time + O/H/L/C/V). Inline so it beats
         // the base classes' own color; change%/overlays/indicators are intentionally
         // left to their semantic colors. undefined = keep the CSS-class default.
+        // The member's explicit legend colour, inline so it beats the base classes. Unset, every
+        // neutral legend rule reads the `--legend-ink-*` variables published on the wrapper
+        // (`legendInks` below): the app token where it reads on this canvas, the canvas ink
+        // where it would not.
         const legBase = legendColor ? { color: legendColor } : undefined
         const legUp = parseFloat(crosshairData.change) >= 0
         // Day-change color: explicit setting wins; else the Sunset pair; else the

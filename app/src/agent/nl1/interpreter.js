@@ -142,6 +142,12 @@ export function memoryForModel(memory, epoch, back) {
   const m = memory.forModel() || {}
   const out = { ...m }
   if (m.subject_chart) out.subject_chart = back[m.subject_chart] || null
+  // ⭐ PHASE 2: each recent indicator's chart as the indicatorEdits ref an indicator change targets
+  if (Array.isArray(m.recent_indicators)) {
+    const inds = m.recent_indicators.map(i => ({ target: back[`ixe:${i.chart}`] || null, id: i.id, name: i.name })).filter(i => i.target)
+    if (inds.length) out.recent_indicators = inds
+    else delete out.recent_indicators
+  }
   const last = memory.lastChange?.(epoch)
   if (last) {
     out.last_change_detail = last.ops.map(o => {

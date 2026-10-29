@@ -37,15 +37,23 @@ PRUNE_EVERY = 200          # ingests between bound checks (plus the reconciler's
 REPLAY_PAGE = 500
 
 
-def _tickers_for(content: str) -> list[str]:
-    """⚠️ PROVISIONAL: the one resolver, HEADLINE context, no AI. Final
-    extraction rules wait on sanitized real headline samples (owner, item 9).
+def _tickers_for(content: str, source: str = "") -> list[str]:
+    """The one resolver, read in the context the source label's format calls for
+    (``categories.tickers_for``: wire news / press release / filing), no AI.
     The original content is never altered by this."""
     try:
-        from api.services.ticker_resolver import HEADLINE, resolve_tickers
-        return resolve_tickers(content, HEADLINE)[:12]
+        from api.services.trade_exchange_news.categories import tickers_for
+        return tickers_for(source, content)
     except Exception:  # noqa: BLE001 -- a resolver fault must never cost a headline
         return []
+
+
+def _category_for(source: str, content: str) -> str:
+    try:
+        from api.services.trade_exchange_news.categories import category_for
+        return category_for(source, content)
+    except Exception:  # noqa: BLE001 -- a classifier fault must never cost a headline
+        return "Other"
 
 
 #: A headline committed more than this long after its receipt reached members
@@ -75,7 +83,12 @@ def headline_event(row: dict[str, Any], epoch: str = "") -> dict[str, Any]:
     knows it missed something and replays."""
     return {"type": "headline", "epoch": epoch, "seq": row["seq"], "id": row["event_id"],
             "source": row["source"], "content": row["content"],
-            "received_at_ms": row["received_at_ms"], "tickers": row["tickers"],
+            "received_at_ms": row["received_at_ms"],
+            # ⭐ Derived at EVERY event build, history and live alike, so a stored row
+            # and a new arrival always read the same rules (the stored column is the
+            # value at ingest; the source label itself is never rewritten).
+            "tickers": _tickers_for(row["content"], row["source"]),
+            "category": _category_for(row["source"], row["content"]),
             "repeat_count": row["repeat_count"], "via": row["via"],
             "delayed": (row["ingested_at_ms"] - row["received_at_ms"]) > DELAYED_AFTER_MS}
 
@@ -101,7 +114,7 @@ class Pipeline:
                queued_at: float | None = None) -> dict[str, Any]:
         t0 = time.perf_counter()
         arrive_lag_ms = time.time() * 1000 - rec["received_at_ms"]  # receiver clock -> web clock
-        tickers = _tickers_for(rec["content"])
+        tickers = _tickers_for(rec["content"], rec["source"])
         t1 = time.perf_counter()
         out = self.store.ingest(rec, via=via, dedupe_key=records.dedupe_key(rec["source"], rec["content"]),
                                 window_ms=config.dedupe_window_ms(),

@@ -35,9 +35,12 @@ export default function ChartIdentityRow({
     const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
     return `${MON[Math.max(0, Math.min(11, parseInt(m[2], 10) - 1))]} ${m[1]}`
   })()
+  const hasRight = session?.mode === 'dwm' || session?.mode === 'intraday' || !!showClock
+    || (rightSlot !== null && rightSlot !== undefined && rightSlot !== false)
   return (
     <div ref={rootRef} className={styles.chartHeaderTop}>
-      <div className={styles.symbolSlot}>
+      {/* data-guide: a STABLE target for UCT Agent's product guide (agent/guide/registry.js) — no behaviour */}
+      <div className={styles.symbolSlot} data-guide="chart.symbol">
         {onSymbolChange ? (
           <SymbolSearch
             ref={searchRef}
@@ -89,7 +92,11 @@ export default function ChartIdentityRow({
       ) : (
         <ChartDayGain sym={sym} upOverride={dayGainColors.up || null} downOverride={dayGainColors.down || null} />
       ))}
-      <div className={styles.headerTopRight}>
+      {/* The right cluster holds the session toggle, the clock and the host's slot. A compact
+          pane (the Ticker Hub sheet) passes none of them, and the cluster is then NOT RENDERED:
+          on a phone the row wraps and the cluster is `width: 100%`, so an empty one was a third
+          (0px) line plus a row gap, which the hub's fixed identity-row height had to hide. */}
+      {hasRight && <div className={styles.headerTopRight}>
         {session?.mode === 'dwm' && (
           <div className={styles.sessionToggle} role="group" aria-label="Chart session view">
             <button
@@ -125,7 +132,7 @@ export default function ChartIdentityRow({
         )}
         {showClock && <ChartMarketClock />}
         {rightSlot}
-      </div>
+      </div>}
     </div>
   )
 }

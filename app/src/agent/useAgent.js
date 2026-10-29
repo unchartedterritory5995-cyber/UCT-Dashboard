@@ -36,11 +36,15 @@ import { traceStart, mark, traceEnd, turnStart, turnPath, turnVisible, turnOutpu
 import { buildContext, refreshContext, manifestFor, getCapability, getTargetKind, runWarmups, MANIFEST_VERSION, MANIFEST_CONTRACT } from './capabilities'
 import { registerBuiltins } from './builtins'
 import { routeManifest, routingEnabled, routingNames } from './routing'
+import { doItForMe } from './capabilities/guide'
 import { createMemory, tickersOfAnswer } from './memory'
 import { resolveReference, subjectTarget } from './references'
+import { resolveFollowUp, resolvePicked } from './conversation'
+import { planCompound, resolveStep, chartsShowing, MAX_STEP_OPS } from './compound'
+import { screenDuplicateAdds, wantsCopy } from './duplicates'
 import { nl1Enabled, exactLane, buildNl1Request, correctionPlan, preflightRefusals, repairedDisposition, withoutWordingApprovals } from './nl1/interpreter'
 import { NL1_MAX_NEED } from './nl1/selection'
-import { takeIndicatorTouch } from './capabilities/indicatorEdits'
+import { takeIndicatorTouches, takeIndicatorMentions } from './capabilities/indicatorEdits'
 import { correctTypos, lexiconFor } from './nl/lexicon'
 import { agentTurn, agentTurnStream, serverStreams, loadAgentConfig, agentRecord, agentConversation } from './agentClient'
 import { AGENT_CONVERSATION_KEY, AGENT_INFLIGHT_KEY, readLocal, writeLocal } from './agentFlag'
@@ -124,11 +128,25 @@ function rememberChange(memory, host, ops, undoId = null) {
     const sym = refs.length === 1 ? host?.charts?.read?.(refs[0])?.symbol || null : null
     memory?.seeBoard(visitOf(host))       // refs from an earlier visit go first; this change is on THIS one
     memory?.noteChange({ ops: clean, epoch: epochOf(host), chartSymbol: sym, undoId })
-    // the indicator a confirmed add / edit touched ("make it a 9"), taken from Indicators' own receipt
-    const t = takeIndicatorTouch()
-    if (t) memory?.noteIndicator({ chart: t.chartRef, instanceId: t.instanceId, defId: t.defId, label: t.name, epoch: epochOf(host) })
+    // the indicator a confirmed add / edit touched ("make it a 9"), taken from Indicators' own receipt —
+    // ⭐ PHASE 2: every one this plan confirmed, in order (the last is the subject, as before)
+    for (const t of takeIndicatorTouches()) memory?.noteIndicator({ chart: t.chartRef, instanceId: t.instanceId, defId: t.defId, label: t.name, epoch: epochOf(host) })
+    for (const t of takeIndicatorMentions()) memory?.noteMention({ chart: t.chartRef, instanceId: t.instanceId, epoch: epochOf(host) })
   } catch { /* memory is best-effort */ }
 }
+// session memory → the refs the model was given (subject chart; ⭐ PHASE 2: each recent indicator's chart as its
+// indicatorEdits entry — the `target` an indicator change takes — an indicator whose chart has no ref is left out)
+export function withModelRefs(m, back) {
+  const out = m.subject_chart ? { ...m, subject_chart: back[m.subject_chart] || null } : { ...m }
+  if (Array.isArray(m.recent_indicators)) {
+    const inds = m.recent_indicators.map(i => ({ target: back[`ixe:${i.chart}`] || null, id: i.id, name: i.name })).filter(i => i.target)
+    if (inds.length) out.recent_indicators = inds
+    else delete out.recent_indicators
+  }
+  return out
+}
+// ⭐ PHASE 2: words that point back at what the conversation did — the follow-up reader goes first for these
+const FOLLOW_CUES = /\b(?:it|that|this|them|those|these|both|first|second|third|last|other|others|rest|fast|faster|fastest|slow|slower|slowest|short|long|same|match|look like|next to|just added|i added|new one|everywhere|all of them|all my|every)\b/i
 // GATE C: a message that corrects the last one ("no, I meant…", "not that", "wrong one", "I said…")
 const CORRECTION = /^(?:no|nope|nah|not that|not those|wrong|that's wrong|that is wrong|actually,? i meant|i meant|i said|i asked for)\b/i
 // Which board the host is showing (null for hosts without layouts).
@@ -332,6 +350,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
   const lastActionsRef = useRef([])         // actions of the last plan (routing keeps follow-ups' groups)
   const saidRef = useRef('')                // the member's words this turn (how much an answer shows)
   const memoryRef = useRef(null)            // GATE C session memory (agent/memory.js) — this chat only
+  const tapRef = useRef(null)               // ⭐ PHASE 2: outcome kinds recorded while one step of a multi-step request runs
   // NL-1 (flag off by default): the question UCT is waiting on, sent to the model with the next message
   // (pending_question) so a TYPED answer is read with the question in front of it
   const lastQuestionRef = useRef(null)      // the newest question shown (local or the model's)
@@ -449,6 +468,8 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
   }, [push])
 
   const record = useCallback(async (body) => {
+    // ⭐ PHASE 2: a multi-step request watches what each of its steps came to (runCompound) — synchronous, before any await
+    if (tapRef.current && body?.outcomeData?.kind) tapRef.current.push(body.outcomeData.kind)
     // a local turn's time to its first useful output (content-free: one number) rides the telemetry row
     const ms = turnOutputMs()
     if (body?.telemetry && body.telemetry.latency_ms == null && ms != null) body = { ...body, telemetry: { ...body.telemetry, latency_ms: ms } }
@@ -503,7 +524,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       for (const d of deferred) {
         const dp = planOps(collectTargets(host, kindsOf([d])), [d], { pendingLists: pendingNames }, capCtx)
         if (!dp.ok && grows.has(d.target)) okd.push(d)
-        else if (!dp.ok) push({ role: 'agent', text: `I'll do the rest, but not this part: ${[...new Set(dp.refusals.map(r => r.reason))].join(' ')}` })
+        else if (!dp.ok) { push({ role: 'agent', text: `I'll do the rest, but not this part: ${[...new Set(dp.refusals.map(r => r.reason))].join(' ')}` }); tapRef.current?.push('partial') }
         else { okd.push(d); deferredLines.push(...dp.lines) }
         if (getCapability(d?.action)?.addsIndicators) grows.add(d.target)
       }
@@ -617,7 +638,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       const answers = []
       for (const o of queries) {
         let a
-        try { a = await getCapability(o.action).answer(targets.get(o.target)?.snap || null, o.args || {}, host) } catch (e) { a = `That didn't work: ${e?.message || 'error'}` }
+        try { a = await getCapability(o.action).answer(targets.get(o.target)?.snap || null, o.args || {}, host, capCtx) } catch (e) { a = `That didn't work: ${e?.message || 'error'}` }
         answers.push(typeof a === 'string' || a == null ? { text: a || '' } : a)
       }
       // ⭐ ONE presentation contract (present.js): each answer → the smallest view that carries it,
@@ -842,7 +863,28 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
   }, [host, push, record, capCtx, withdrawPending])
 
   // Every execution is traced (agent/trace.js): phase timestamps, memory only.
-  const execute = useCallback(async (opsIn, { path, mode: suggested, member, voice, chosen = false, approval = null, card = null, onTarget = null, binding = null, subset = false }) => {
+  const execute = useCallback(async (opsIn, { path, mode: suggested, member, voice, chosen = false, approval = null, card = null, onTarget = null, binding = null, subset = false, noDuplicates = null }) => {
+    // ⭐ PHASE 2 (agent/duplicates.js, owner decision 2026-10-29): an add of an indicator the chart already shows, same
+    // settings, is not added a second time — the existing one is reused (and is what "make it a 9" means next); a hidden
+    // one is shown instead. Never on an approved card, nor when the member asked for another copy ("add another RSI").
+    if (noDuplicates ?? (path !== 'approved' && !wantsCopy(saidRef.current))) {
+      const d = screenDuplicateAdds(opsIn, host)
+      // the add the member asked for is in place — memory records it as this turn's change, on the instance reused
+      // ("make it a 9" edits that one; "do the same on the right one" repeats the add there, screened again)
+      if (d.reused.length) memoryRef.current?.noteChange({ ops: d.reused.map(t => ({ ...t.op, target: t.chartRef })), epoch: epochOf(host), undoId: null })
+      for (const t of d.reused) {
+        memoryRef.current?.noteIndicator({ chart: t.chartRef, instanceId: t.instanceId, defId: t.defId, label: t.name, epoch: epochOf(host) })
+        memoryRef.current?.noteMention({ chart: t.chartRef, instanceId: t.instanceId, epoch: epochOf(host) })
+      }
+      if (d.note && !d.ops.length) {
+        const text = d.note.replace(/ — not added again\.$/, ', so there was nothing to add.')
+        push({ role: 'outcome', text })
+        record({ member, outcome: text, outcomeData: { kind: 'noop', actions: opsIn.map(o => o?.action) }, telemetry: { path, disposition: 'apply', voice } })
+        return undefined
+      }
+      if (d.note) { opsIn = d.ops; onTarget = onTarget ? `${onTarget} ${d.note}` : d.note }
+      else opsIn = d.ops
+    }
     // ⛔ M3: with several indicator drafts open, a request on one the member has not selected is
     // never planned — they are shown the drafts and pick one (chooseTarget), nothing changes.
     // ARGUMENT RESOLUTION: a capability may turn the member's WORDS in an argument into a real
@@ -1053,6 +1095,15 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       push({ role: 'refusal', text: "A different layout is open now, so I didn't change anything. Ask again." })
       return
     }
+    if (p.follow) {
+      // ⭐ PHASE 2: "which one?" about the conversation's indicators — the same words, on the one picked
+      const r = resolvePicked(p.follow.words, ref, { host, memory: memoryRef.current, epoch: epochOf(host) })
+      if (r?.ops?.length) {
+        memoryRef.current.notePick(r.ids)
+        await execute(r.ops, { path: p.path, mode: 'apply', member: `${p.member || ''} → ${label}`, voice: p.voice })
+      } else push({ role: 'refusal', text: r?.say || 'That indicator isn’t on the chart any more, so nothing changed.' })
+      return
+    }
     if (p.pickArg) {
       const { action, arg, then } = p.pickArg
       const filled = p.ops.map(o => (o.action === action ? { ...o, args: { ...o.args, [arg]: ref } } : o))
@@ -1071,6 +1122,49 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     await execute(p.ops.map(o => ({ ...o, target: ref })), { path: p.path, mode: p.mode === 'propose' ? 'propose' : 'apply', member: `${p.member} → ${label}`, voice: p.voice })
   }, [execute, push, host])
 
+  // ⭐ PHASE 2 — A MULTI-STEP REQUEST (agent/compound.js): read in full before anything runs, then step by step on the
+  // live board, each step through the ordinary execute (own plan, policy, receipt, Undo). A step that does not fully
+  // land — refused, failed, asking, or waiting for approval — STOPS the request: what was done and what was not is
+  // said plainly, never reported as the whole request.
+  const runCompound = useCallback(async (steps, { member, voice }) => {
+    let working = null
+    let done = 0
+    const stop = (i, why) => {
+      const rest = steps.slice(i).map(s => `“${s.text}”`)
+      const text = done
+        ? `Done ${done} of ${steps.length} steps, then stopped at ${rest[0]}: ${why}. Not done: ${rest.join(', ')}.`
+        : `Stopped at ${rest[0]}: ${why}. ${rest.length > 1 ? `Nothing after it was started: ${rest.slice(1).join(', ')}.` : ''}`.trim()
+      push({ role: 'agent', text })
+      record({ member, outcome: text, outcomeData: { kind: 'compound-stopped', step: i, of: steps.length }, telemetry: { path: 'fast', refused: true, voice } })
+    }
+    for (let i = 0; i < steps.length; i++) {
+      const step = steps[i]
+      const r = resolveStep(step, { host, memory: memoryRef.current, epoch: epochOf(host), working })
+      if (r.noop) { if (r.note) push({ role: 'outcome', text: r.note }); done += 1; continue }
+      if (r.note) push({ role: 'outcome', text: r.note })
+      if (r.say || !r.ops?.length) { stop(i, String(r.say || 'there was nothing to do there').replace(/[.]+$/, '')); return }
+      if (r.ops.length > MAX_STEP_OPS) { stop(i, `that step would make ${r.ops.length} changes, and UCT makes at most ${MAX_STEP_OPS} in one step`); return }
+      if (r.pick) memoryRef.current.notePick(r.pick)
+      lastActionsRef.current = r.ops.map(o => o.action)
+      const kinds = []
+      tapRef.current = kinds
+      try { await execute(r.ops, { path: 'fast', mode: 'apply', member, voice, noDuplicates: true }) } finally { tapRef.current = null }
+      const landed = kinds.includes('applied') || kinds.includes('noop')
+      const off = kinds.filter(k => k !== 'applied' && k !== 'noop')
+      if (!landed || off.length) {
+        const why = off.includes('proposed') ? 'that step needs your approval first — the card above'
+          : off.some(k => k.startsWith('clarify')) ? 'that step needs your answer first'
+            : 'that step didn’t fully go through (see above)'
+        stop(i, why)
+        return
+      }
+      done += 1
+      if (r.grid) working = chartsShowing(host, r.grid)
+    }
+    const text = `All ${steps.length} steps done.`
+    push({ role: 'agent', text })
+  }, [host, execute, push, record])
+
   const send = useCallback(async (raw, { voice = false, answering = false } = {}) => {
     const text = String(raw || '').trim()
     if (!text || lockRef.current) return
@@ -1081,6 +1175,8 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     askedForRef.current = null
     push({ role: 'member', text, voice })
     setBusy(true)
+    // ⭐ PHASE 2: everything this message commits is one turn of session memory ("do the same on the others")
+    memoryRef.current.beginTurn()
     try {
       if (gridMode) {
         const t = 'UCT Agent works on the Charts workspace. Switch out of Multi Chart (Layouts ▸ Multi Chart) and ask again.'
@@ -1128,6 +1224,22 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         record({ member: text, outcome: memRef.text, outcomeData: { kind: 'reference-refused' }, telemetry: { path: 'fast', disposition: 'clarify', voice } })
         return
       }
+      // ⭐ PHASE 2 — DO IT FOR ME: "now do it for me" right after a walkthrough runs that feature's EXISTING capability
+      // on the chart it showed (agent/capabilities/guide.doItForMe) — asked first when a value is needed (which
+      // timeframe?), then planned, checked, receipted and undoable like any other request. Never with a proposal waiting.
+      const guideDo = answering || memRef || pendingRef.current ? null : doItForMe(text, host)
+      if (guideDo?.say) {
+        push({ role: 'agent', text: guideDo.say })
+        record({ member: text, outcome: guideDo.say, outcomeData: { kind: 'guide-do-say' }, telemetry: { path: 'fast', disposition: 'clarify', voice } })
+        return
+      }
+      if (guideDo?.ask) {
+        const a = guideDo.ask
+        pendingRef.current = { kind: 'target', ops: a.ops, path: 'fast', mode: 'apply', member: text, voice, epoch: epochOf(host), pickArg: a.pickArg }
+        push({ role: 'question', text: a.text, choices: a.choices, local: true })
+        record({ member: text, outcome: a.text, outcomeData: { kind: 'clarify-arg', actions: a.ops.map(o => o.action) }, telemetry: { path: 'fast', clarified: true, voice } })
+        return
+      }
       // ⭐ Charts operator P1: whole sentences that name SEVERAL charts — "NVDA on the left and AMD on the right",
       // "show NVDA and AMD side by side", "make the left chart look like the right one" (agent/multiChart.js). The
       // same registry ops through the same execute; anything it can't read with certainty goes on as before.
@@ -1150,8 +1262,32 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         if (String(now?.symbol || '').toUpperCase() !== second.needs.symbol) return
         return await execute(second.ops, { path: 'fast', mode: second.mode, member: text, voice })
       }
+      // ⭐ PHASE 2 FOLLOW-UPS (agent/conversation.js): "make the first one green", "put those on my other charts",
+      // "do the same on the others", "make all my charts match this one" — the conversation's indicators and charts,
+      // re-checked on the live board. Tried FIRST when the words point back at the conversation (a fast phrase
+      // would read "the first one" without it); otherwise only when nothing else read the message.
+      const followable = !answering && !memRef && !pendingRef.current && !peekAuthoringIntent()
+      const followFirst = followable && FOLLOW_CUES.test(text) ? resolveFollowUp(text, { host, memory: memoryRef.current, epoch: epochNow }) : null
       // "put a 20 EMA on it" with several charts and no click: `it` = the chart this conversation last changed
-      const fast = answering ? null : subjectTarget(memRef || fastParse(text, { host }), text, { host, memory: memoryRef.current, epoch: epochNow })
+      const fast0 = answering || followFirst ? null : subjectTarget(memRef || fastParse(text, { host }), text, { host, memory: memoryRef.current, epoch: epochNow })
+      const follow = followFirst || (followable && !fast0 && !FOLLOW_CUES.test(text) ? resolveFollowUp(text, { host, memory: memoryRef.current, epoch: epochNow }) : null)
+      if (follow?.kind === 'say') {
+        push({ role: 'agent', text: follow.text })
+        record({ member: text, outcome: follow.text, outcomeData: { kind: 'followup-refused' }, telemetry: { path: 'fast', disposition: 'clarify', voice } })
+        return
+      }
+      if (follow?.kind === 'ask') {
+        pendingRef.current = { kind: 'target', ops: [], path: 'fast', member: text, voice, epoch: epochOf(host), follow: { words: follow.words } }
+        push({ role: 'question', text: follow.text, choices: follow.choices, local: true })
+        record({ member: text, outcome: follow.text, outcomeData: { kind: 'clarify-referent' }, telemetry: { path: 'fast', clarified: true, voice } })
+        return
+      }
+      if (follow?.kind === 'ops') {
+        if (follow.pick) memoryRef.current.notePick(follow.pick)
+        lastActionsRef.current = follow.ops.map(o => o.action)
+        return await execute(follow.ops, { path: 'fast', mode: 'apply', member: text, voice })
+      }
+      const fast = fast0
       if (fast?.kind === 'undo') return await doUndo(null, { member: text, voice, about: fast.about || null })
       if (fast?.kind === 'confirm' && pendingRef.current?.kind === 'proposal') return await approve(null, { member: text, voice })
       if (fast?.kind === 'subset' && pendingRef.current?.kind === 'proposal') return await approve(fast.count, { member: text, voice })
@@ -1283,6 +1419,15 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         record({ member: text, outcome: ref.text, outcomeData: { kind: 'clarify-save-target' }, telemetry: { path: 'fast', disposition: 'clarify', voice } })
         return
       }
+      // ⭐ PHASE 2: one message, several steps ("create four daily charts for …, put the 9 and 20 on all of them, make the
+      // 9 green …") — only when EVERY clause reads as a step; otherwise the model reads the whole request, as before
+      const compound = followable && !fast ? planCompound(text, { host }) : null
+      if (compound?.say) {
+        push({ role: 'agent', text: compound.say })
+        record({ member: text, outcome: compound.say, outcomeData: { kind: 'compound-too-long' }, telemetry: { path: 'fast', refused: true, voice } })
+        return
+      }
+      if (compound?.steps) return await runCompound(compound.steps, { member: text, voice })
       } // ── end of the legacy instant path ──
       // ── model path ──
       // Context from every registered provider; actions from every AVAILABLE
@@ -1382,7 +1527,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       const memoryFor = () => {
         const m = memoryRef.current.forModel()
         if (!m) return null
-        return m.subject_chart ? { ...m, subject_chart: back[m.subject_chart] || null } : m
+        return withModelRefs(m, back)
       }
       const ask = (r, extra = {}) => {
         const mem = memoryFor()
@@ -1576,7 +1721,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       setActivity(null)
       turnEnd()
     }
-  }, [push, gridMode, host, record, doUndo, approve, dismiss, execute, setConversationId, patchItem, capCtx, streamLine])
+  }, [push, gridMode, host, record, doUndo, approve, dismiss, execute, runCompound, setConversationId, patchItem, capCtx, streamLine])
 
   // ⭐ INDICATORS ⇄ AGENT — the chart's Create Indicator / Modify door opened the Agent on a chart:
   // ask the question and hold ONE intent (indicatorEntry.js). No model call; the member's answer is

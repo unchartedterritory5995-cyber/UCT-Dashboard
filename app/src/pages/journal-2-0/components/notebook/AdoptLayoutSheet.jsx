@@ -18,6 +18,7 @@
 import { useEffect, useRef, useState } from 'react'
 import Sheet from '../../../../components/mobile/Sheet'
 import usePreferences, { mergeIntoPreferenceCache, refreshPreferences } from '../../../../hooks/usePreferences'
+import { beginPrefsOp } from '../../../../lib/prefsSession'
 import { LAYOUT_UNSUPPORTED_SENTENCE, adoptLayout } from '../../lib/styleLibrary'
 import {
   LAYOUT_PREF, LOAD_FAILED, PHASE_LABELS, applySharedPage, layoutDiff, listsFor, normalizeLayout, replaceLists,
@@ -75,6 +76,10 @@ export default function AdoptLayoutSheet({ item, version, layout, onClose, onMes
   // optimistic value in the hook's cache, so a Try again's updater would see the adopted layout and capture the shared
   // lists as "previous"; the first capture is the member's real previous layout, so it wins (review I-3).
   const firstCaptureRef = useRef(null)
+  // ⛔ The member an adopt is FOR, begun in use() BEFORE the adopt round trip and carried into its
+  // write, its Try again and its Undo: none of them may write into a member who signed in
+  // meanwhile (usePreferences `beginPrefsOp`). Owner-approved rule-12 edit, 2026-10-29.
+  const retryOpRef = useRef(null)
 
   const cantRead = readFailed === true
   const shared = layout && typeof layout.lists === 'object' ? layout.lists : {}
@@ -86,21 +91,23 @@ export default function AdoptLayoutSheet({ item, version, layout, onClose, onMes
   // the member's layout is always stored, so a MISSING stored value means the preferences read failed and the cache holds
   // nothing: merging onto it would write defaults over every list Undo did not capture. The write is abandoned instead
   // (`undefined` from the updater), and that is a failure to say (review I-1).
-  const undo = (captured) => {
+  const undo = (captured, op) => {
     let running = false
     return async () => {
       if (running) return
+      if (op.stale()) return                          // the member changed since the adopt: nothing of theirs to undo here
       running = true
       let ok = false
       try {
         const answer = await setPrefMerged(LAYOUT_PREF, (prev) => (
           prev == null || typeof prev !== 'object' ? undefined : replaceLists(normalizeLayout(prev), page, captured)
-        ))
+        ), op)
         ok = answer?.ok === true
       } catch {
         ok = false
       }
       running = false
+      if (op.stale()) return
       if (ok) {
         onMessage?.({ tone: 'ok', text: `Your previous ${PAGE_WORDS[page]} layout is back.` })
       } else {
@@ -111,7 +118,8 @@ export default function AdoptLayoutSheet({ item, version, layout, onClose, onMes
   }
 
   // The one write. `captured` is set by the updater, from the layout the write merges into.
-  const write = async (answer) => {
+  const write = async (answer, op) => {
+    if (!op || op.stale()) { workingRef.current = false; setWorking(false); return }   // no op of this member's: nothing is written
     const lists = answer?.layout?.lists
     if (!lists || typeof lists !== 'object') {       // the server never answers this; nothing to apply is not a write
       workingRef.current = false
@@ -123,6 +131,7 @@ export default function AdoptLayoutSheet({ item, version, layout, onClose, onMes
       workingRef.current = false
       setWorking(false)
       setRetry(answer)
+      retryOpRef.current = op
       setError(CHANGE_FAILED)                         // said, with Try again (disabled until a read answers) (review N-2)
       return
     }
@@ -136,17 +145,19 @@ export default function AdoptLayoutSheet({ item, version, layout, onClose, onMes
         if (!firstCaptureRef.current) firstCaptureRef.current = captured
         applied = applySharedPage(base, page, lists)
         return applied
-      })
+      }, op)
       ok = res?.ok === true
     } catch {
       ok = false
     }
+    if (op.stale()) { workingRef.current = false; setWorking(false); onClose(); return }   // the member changed during the write
     if (!ok || !captured) {
       // Said at once, and the sheet is free at once: Cancel works even if the re-read never answers (review N-1). Use stays
       // off (`retry`), and Try again waits for the re-read, so it never captures the optimistic value (review I-3).
       workingRef.current = false
       setWorking(false)
       setRetry(answer)
+      retryOpRef.current = op
       setError(CHANGE_FAILED)
       setRefreshing(true)
       // The hook applied the value optimistically. Take the server's back, bounded so a hung read cannot hold Try again:
@@ -164,7 +175,7 @@ export default function AdoptLayoutSheet({ item, version, layout, onClose, onMes
           cur && typeof cur === 'object' && sameLayout(cur, optimistic)
             ? replaceLists(normalizeLayout(cur), page, previous)
             : undefined
-        ))
+        ), op)
       }
       setRefreshing(false)
       return
@@ -177,7 +188,7 @@ export default function AdoptLayoutSheet({ item, version, layout, onClose, onMes
     onMessage?.({
       tone: 'ok',
       text: `${PAGE_SUBJECTS[page]} now uses "${item.title}".${credit}`,
-      action: { label: 'Undo', run: undo(captured) },
+      action: { label: 'Undo', run: undo(captured, op) },
     })
   }
 
@@ -189,7 +200,9 @@ export default function AdoptLayoutSheet({ item, version, layout, onClose, onMes
     setWorking(true)
     setError('')
     setRetry(null)
+    retryOpRef.current = null
     firstCaptureRef.current = null
+    const op = beginPrefsOp()                         // before the adopt round trip (see retryOpRef)
     let answer
     try {
       answer = await adoptLayout(item.id, { version })
@@ -199,15 +212,17 @@ export default function AdoptLayoutSheet({ item, version, layout, onClose, onMes
       setError(refusalSentence(err, CHANGE_FAILED))
       return
     }
-    await write(answer)
+    await write(answer, op)
   }
 
   const tryAgain = async () => {
     if (workingRef.current || !retry || cantRead || refreshing) return
+    const op = retryOpRef.current
+    if (!op || op.stale()) { onClose(); return }      // the retry belongs to a member no longer signed in
     workingRef.current = true
     setWorking(true)
     setError('')
-    await write(retry)
+    await write(retry, op)
   }
 
   const footer = (

@@ -27,7 +27,17 @@ vi.mock('../hooks/usePreferences', async (orig) => {
     ...real,
     default: function usePreferencesStandIn() {
       const prefs = useSyncExternalStore(subscribe, () => store.prefs)
-      return { prefs, setPref, loading: false }
+      // useAppFocus writes through `setPrefMerged` (a merge onto the stored value): the same
+      // counted write, after the updater ran on what the store holds.
+      const setPrefMerged = (key, updater) => {
+        const raw = store.prefs[key]
+        let cur
+        try { cur = typeof raw === 'string' ? JSON.parse(raw) : raw } catch { cur = undefined }
+        const next = typeof updater === 'function' ? updater(cur) : updater
+        if (next !== undefined) setPref(key, next)
+        return Promise.resolve()
+      }
+      return { prefs, setPref, setPrefMerged, loading: false }
     },
   }
 })

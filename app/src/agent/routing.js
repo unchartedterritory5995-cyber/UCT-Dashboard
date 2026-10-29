@@ -117,6 +117,10 @@ export const GROUPS = [
   { id: 'settings', title: 'App settings (app theme, default timeframe, alert sound, email digest) and opening UCT pages', domains: ['settings', 'app'],
     words: [/\bsettings?\b/, /\b(dark|light) mode\b/, /\bapp theme\b/, /\bdefault (chart )?timeframe\b/, /\b(alert )?sound\b/, /\bdigest\b/, /\bemail\b/, /\b(open|go to|take me to)\b.*\b(page|screener|dashboard|breadth|research)\b/] },
   { id: 'agent', title: 'Questions about what UCT Agent can do', domains: ['agent'], always: true, words: [] },
+  // ⭐ PHASE 2 Workstream B: EXPLAIN a term or feature, SHOW ME where a control is — both change nothing
+  { id: 'guide', title: 'Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing', domains: ['guide'],
+    // (show-me words only: an explanation question is the model's to answer, as before — it may reroute to this group)
+    words: [/\b(where (do|can|would|should) i|where(?:'s| is| are) the|show me (where|how)|how (do|can|would|should) i|walk me through|guide me|teach me|tutorial)\b/] },
 ]
 
 const SYMBOL_VERB = /\b(switch|change|put|show|pull up|load|open|chart)\b/

@@ -35,7 +35,7 @@ import Select from '../../../components/ui/Select'
 import NewsSettingsPanel from './NewsSettingsPanel'
 import TradeExchangeNewsAlerts from './TradeExchangeNewsAlerts'
 import { TXN_SOUND_OPTIONS, txnSettingsFor, txnWidgetStyleVars } from './tradeExchangeNewsSettings'
-import { coverageNotice, fmtReceived, fmtReceivedFull, liveStatus, tokenize, visibleItems } from './tradeExchangeNewsModel'
+import { categoryTitle, coverageNotice, fmtReceived, fmtReceivedFull, liveStatus, tokenize, visibleItems } from './tradeExchangeNewsModel'
 import styles from './TradeExchangeNewsWidget.module.css'
 
 const FLASH_MS = 950
@@ -231,6 +231,8 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange }) {
                 { key: 'compact', label: 'Compact' }, { key: 'comfortable', label: 'Comfortable' }] },
               { key: 'highlightNew', label: 'Highlight new', type: 'segmented', options: [
                 { key: 'on', label: 'On' }, { key: 'off', label: 'Off' }] },
+              { key: 'showCategory', label: 'Category', hint: 'under each time', type: 'segmented', options: [
+                { key: 'on', label: 'On' }, { key: 'off', label: 'Off' }] },
             ] },
             { label: 'Sound', rows: [
               { key: 'sound', label: 'New headline', hint: 'off by default', type: 'segmented', options: [
@@ -353,8 +355,13 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange }) {
           return (
             <div key={it.seq} className={`${styles.row}${selected ? ' ' + styles.rowSelected : ''}`} data-seq={it.seq}>
               {flashing.has(it.seq) && <span className={styles.flash} aria-hidden="true" />}
-              <span className={styles.time} title={`Received by UCT ${fmtReceivedFull(it.received_at_ms)} · Trade Exchange does not send a publication time`}>
-                {fmtReceived(it.received_at_ms)}
+              <span className={styles.when}>
+                <span className={styles.time} title={`Received by UCT ${fmtReceivedFull(it.received_at_ms)} · Trade Exchange does not send a publication time`}>
+                  {fmtReceived(it.received_at_ms)}
+                </span>
+                {settings.showCategory !== 'off' && it.category && (
+                  <span className={styles.category} title={categoryTitle(it)}>{it.category}</span>
+                )}
               </span>
               <Headline item={it} linkedSym={linkedSym} onSym={onSym} provisional={feed.provisional} />
               <span className={styles.badges}>

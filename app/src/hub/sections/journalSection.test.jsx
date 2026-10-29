@@ -377,13 +377,15 @@ describe('⛔ an OPTION row carries a STRATEGY id — every position action is d
     expect(cfg().readout(CTX)).toBe('NVDA')
   })
 
-  it('it publishes NO selectedPosition, which is what disables every requires:"position" bubble', () => {
+  it('it publishes NO selectedPosition, which is what disables every requires:"position" bubble', async () => {
     openTab({ view: 'table' })
     tap(2)
     // HubRoot's own rule: `have = { position: !!selectedPosition }`, and an action whose
     // `requires` is unmet renders DISABLED. This is the half the section owns.
     expect(hubCtx.selectedPosition).toBeNull()
-    expect(hubCtx.symbol).toBe('NVDA')
+    // The symbol is the app focus, written by a MERGE that waits for the preferences read in
+    // flight (never a value built from an unread base), so it lands a tick later, not in the tap.
+    await waitFor(() => expect(hubCtx.symbol).toBe('NVDA'))
     expect(positionRequiredActionIds().length).toBeGreaterThan(0)
   })
 

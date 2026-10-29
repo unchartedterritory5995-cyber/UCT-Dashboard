@@ -122,7 +122,7 @@ function matchWhole(text, host) {
 // (exactly one match → that target; several → it asks; "both/all" → one op per
 // target, applied as ONE change with one Undo — policy.js, owner 2026-10-12). The
 // fast path never resolves a target itself.
-const POS = '(top-left|top-right|bottom-left|bottom-right|left|right|top|bottom|upper|lower)'
+const POS = '(top[- ]left|top[- ]right|bottom[- ]left|bottom[- ]right|upper[- ]left|upper[- ]right|lower[- ]left|lower[- ]right|left|right|top|bottom|upper|lower)'
 const NOUN = '(?:\\s+(?:chart|one|widget))'
 const POS_RE = new RegExp(`\\b(?:(?:on|for|in|to)\\s+)?the\\s+${POS}${NOUN}?\\b|\\b${POS}${NOUN}\\b`, 'i')
 // P2-B: "all four charts", "all 3 of them" — the COUNT the member said is kept, and checked against the
@@ -134,7 +134,8 @@ const NORM_POS = { upper: 'top', lower: 'bottom' }
 const cut = (s, m) => (s.slice(0, m.index) + ' ' + s.slice(m.index + m[0].length)).replace(/\s+/g, ' ').trim()
 
 export function extractTarget(text, host = null) {
-  const s = String(text || '')
+  // ⭐ PHASE 2: "make them all daily", "switch them both to weekly" — the pronoun belongs to the "all" / "both"
+  const s = String(text || '').replace(/\b(?:them|those|these) (all|both)\b/i, '$1')
   const all = ALL_RE.exec(s)
   if (all) {
     const count = all[1].toLowerCase() === 'both' ? 2 : all[2] ? (COUNT_WORD[all[2].toLowerCase()] || Number(all[2])) : null
@@ -147,7 +148,8 @@ export function extractTarget(text, host = null) {
   if (ord) return { text: cut(s, ord.match), target: ord.ref ? { chart: ord.ref, word: ord.word } : { ask: ord.ask } }
   const m = POS_RE.exec(s)
   if (m) {
-    const word = (m[1] || m[2] || '').toLowerCase()
+    // ⭐ PHASE 2: "top left" / "upper right" (no hyphen) are the same position as "top-left"
+    const word = (m[1] || m[2] || '').toLowerCase().replace(' ', '-').replace(/^upper(?=-)/, 'top').replace(/^lower(?=-)/, 'bottom')
     return { text: cut(s, m), target: { position: NORM_POS[word] || word } }
   }
   // NL (2026-10-12): "… to the AMD chart" / "… on the 5 minute chart" — a chart named by the symbol or
@@ -166,7 +168,8 @@ export function matchPosition(snaps, position) {
   return snaps.filter(s => s.position && parts.every(p => s.position.split('-').includes(p)))
 }
 
-const VERB_LEAD = /^(add|remove|show|hide)\b/
+// ⭐ PHASE 2: "put the 9 and 20 ema on …" — "put" carries to a bare follow-on clause as "add" does
+const VERB_LEAD = /^(add|remove|show|hide|put)\b/
 
 // ── NL N3: obvious typos in an instant command ("weeky", "hide volumn", "swtich to daily") ──
 // The exact parse always runs first and is never changed. Only when it finds nothing is the sentence

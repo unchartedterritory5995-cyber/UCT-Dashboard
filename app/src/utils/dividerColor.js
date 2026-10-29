@@ -7,25 +7,56 @@
 // Used by the /charts workspace (per-widget --widget-divider) and by the watchlist's
 // own style vars (--wl-divider) so both behave identically.
 
+/** Parse the color forms the canvas pickers actually produce, WITH their alpha.
+ *  Handles #rgb, #rgba, #rrggbb, #rrggbbaa, rgb()/rgba() (decimals, comma or space separated,
+ *  `/ a` or `, a`, a percentage alpha), `transparent`, and `color(srgb r g b / a)` (0..1
+ *  channels) — what a browser's computed style answers for a token defined with color-mix().
+ *  Returns { rgb: [r,g,b], a } with a in 0..1, or null when unreadable. THE one parser:
+ *  `parseColor` below is this without the alpha.
+ *  ⚠️ #rgba (4 digits) is read deliberately: it is valid CSS and the colour menu can produce it.
+ *  `parseColor` returned null for it before this parser existed; nothing depended on that (the
+ *  panelFor / toolbarFor / divider rails pass unchanged). */
+export function parseColorAlpha(c) {
+  if (typeof c !== 'string') return null
+  const s = c.trim()
+  if (/^transparent$/i.test(s)) return { rgb: [0, 0, 0], a: 0 }
+  const srgb = /^color\(\s*srgb\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)(?:\s*\/\s*([\d.]+)(%?))?\s*\)$/i.exec(s)
+  if (srgb) {
+    const v = [srgb[1], srgb[2], srgb[3]].map((x) => Math.round(Math.max(0, Math.min(1, Number(x))) * 255))
+    if (v.some((n) => !Number.isFinite(n))) return null
+    let a = srgb[4] == null ? 1 : Number(srgb[4]) / (srgb[5] ? 100 : 1)
+    if (!Number.isFinite(a)) return null
+    a = Math.max(0, Math.min(1, a))
+    return { rgb: v, a }
+  }
+  const hex = /^#([0-9a-f]{3,8})$/i.exec(s)
+  if (hex) {
+    let h = hex[1]
+    if (h.length === 3 || h.length === 4) h = h.split('').map((ch) => ch + ch).join('')
+    if (h.length !== 6 && h.length !== 8) return null
+    const v = [h.slice(0, 2), h.slice(2, 4), h.slice(4, 6)].map((p) => parseInt(p, 16))
+    if (v.some(Number.isNaN)) return null
+    const a = h.length === 8 ? parseInt(h.slice(6, 8), 16) / 255 : 1
+    return Number.isNaN(a) ? null : { rgb: v, a }
+  }
+  const m = /^rgba?\(\s*([\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)(?:\s*[,/]\s*([\d.]+)(%?))?/i.exec(s)
+  if (!m) return null
+  const v = [Number(m[1]), Number(m[2]), Number(m[3])]
+  if (v.some((n) => !Number.isFinite(n))) return null
+  let a = m[4] == null ? 1 : Number(m[4]) / (m[5] ? 100 : 1)
+  if (!Number.isFinite(a)) return null
+  a = Math.max(0, Math.min(1, a))
+  return { rgb: v, a }
+}
+
 /** Parse the color forms the canvas pickers actually produce.
  *  Handles #rgb, #rrggbb, #rrggbbaa (alpha ignored — the swatch sits on an opaque
  *  surface) and rgb()/rgba(). Returns [r,g,b], or null when unreadable so callers
  *  can leave the existing hardcoded divider alone rather than guess. */
 export function parseColor(c) {
-  if (typeof c !== 'string') return null
-  const s = c.trim()
-  const hex = /^#([0-9a-f]{3,8})$/i.exec(s)
-  if (hex) {
-    let h = hex[1]
-    if (h.length === 3) h = h.split('').map((ch) => ch + ch).join('')
-    if (h.length !== 6 && h.length !== 8) return null
-    const v = [h.slice(0, 2), h.slice(2, 4), h.slice(4, 6)].map((p) => parseInt(p, 16))
-    return v.some(Number.isNaN) ? null : v
-  }
-  const m = /^rgba?\(\s*([\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)/i.exec(s)
-  if (!m) return null
-  const v = [Number(m[1]), Number(m[2]), Number(m[3])]
-  return v.some((n) => !Number.isFinite(n)) ? null : v
+  if (typeof c === 'string' && /^transparent$/i.test(c.trim())) return null
+  const p = parseColorAlpha(c)
+  return p ? p.rgb : null
 }
 
 /** Rec. 709 relative luminance, 0..1. Cheap and good enough to pick a side. */

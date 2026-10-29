@@ -272,9 +272,15 @@ describe('fast path (capability-contributed phrases)', () => {
     expect(fastParse('a cleaner theme')).toBeNull()
     expect(fastParse('weekly').target).toBeNull()
   })
+  it('a simple question about one catalog indicator is answered instantly from the catalog (guide.explain, a query)', () => {
+    expect(fastParse('what is an EMA?')).toMatchObject({ kind: 'ops', ops: [{ action: 'guide.explain' }] })
+    expect(fastParse('what is rsi')).toMatchObject({ kind: 'ops', ops: [{ action: 'guide.explain' }] })
+    expect(fastParse('what is rsi telling me about nvda')).toBeNull()
+  })
+
   it('all-or-nothing: any unrecognised clause goes to the model', () => {
     expect(fastParse('bars and make it look like TradingView')).toBeNull()
-    expect(fastParse('what is an EMA?')).toBeNull()
+    expect(fastParse('what is a dead cat bounce?')).toBeNull()
     expect(fastParse('show volume profile')).toBeNull()
     expect(fastParse('make the left chart look like TradingView')).toBeNull()
     expect(fastParse('show me apple')).toBeNull()

@@ -4,7 +4,8 @@ import { MemoryRouter } from 'react-router-dom'
 import { AuthProvider } from '../../../context/AuthContext'
 
 vi.mock('../../../components/community/ShareToFloor', () => ({ default: () => <button>Share to Floor</button> }))
-vi.mock('../../../hooks/usePreferences', () => ({ default: () => ({ prefs: {}, setPref: vi.fn() }), parsePref: (v, d) => d }))
+// useAppFocus (TickerPopup's focus write) writes through `setPrefMerged`, a merge onto the stored value.
+vi.mock('../../../hooks/usePreferences', () => ({ default: () => ({ prefs: {}, setPref: vi.fn(), setPrefMerged: vi.fn(() => Promise.resolve()) }), parsePref: (v, d) => d }))
 
 import AskAiSection from './AskAiSection'
 import { suggestionsFor } from '../askAiSuggestions'

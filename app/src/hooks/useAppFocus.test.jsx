@@ -41,7 +41,15 @@ vi.mock('./usePreferences', async (orig) => {
     default: () => ({
       prefs: H.prefs,
       setPref: (k, v) => { H.posted.push([k, v]); H.prefs = { ...H.prefs, [k]: v }; return Promise.resolve() },
-      setPrefMerged: () => Promise.resolve(),
+      // The focus write is a MERGE onto the stored value (never onto this render's prefs), so an
+      // early write cannot replace B/C/D. Applied to H exactly as setPref is, and recorded.
+      setPrefMerged: (k, updater) => {
+        const next = updater(actual.parsePref(H.prefs[k], undefined))
+        if (next === undefined) return Promise.resolve()
+        const v = typeof next === 'string' ? next : JSON.stringify(next)
+        H.posted.push([k, v]); H.prefs = { ...H.prefs, [k]: v }
+        return Promise.resolve()
+      },
       loading: false,
     }),
   }

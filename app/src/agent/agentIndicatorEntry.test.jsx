@@ -189,7 +189,7 @@ describe('⭐ Create Indicator opens UCT Agent', () => {
     await act(async () => { document.querySelector('[data-door="formula"]').click() })
     expect(await screen.findByText('Opened Formula on the chart.')).toBeTruthy()
     expect(host.doors).toEqual([['c1', 'formula']])
-    await act(async () => { type('what is an EMA?') })
+    await act(async () => { type('how is an EMA different from an SMA?') })
     await waitFor(() => expect(turnCalls).toHaveLength(1))     // the question was ended by the door
     expect(converseCalls).toHaveLength(0)
   })

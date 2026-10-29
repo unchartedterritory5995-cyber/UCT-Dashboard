@@ -260,7 +260,7 @@
     { "id": "recover-07", "cat": "recover", "fx": "one_chart", "text": "the first one", "pending": { "question": "Which layout — “Day Trading” or “Earnings Week”?", "choices": ["Day Trading", "Earnings Week"], "request": "open my trading week layout" }, "expect": { "kind": "act", "ideal": "local-clarify", "ops": [{ "a": "layout.open", "args": { "layout": "2" } }] } },
     { "id": "recover-08", "cat": "recover", "fx": "one_chart", "text": "no I meant the swing list", "hist": ["open momentum", "[UCT executed] Momentum is now showing"], "expect": { "kind": "act", "ideal": "model", "ops": [{ "a": "watchlist.open" }], "why": "a correction after the fact: show Swing (and say Undo exists for the previous change)" } },
 
-    { "id": "talk-01", "cat": "talk", "fx": "one_chart", "text": "what is rsi", "expect": { "kind": "answer", "ideal": "model" } },
+    { "id": "talk-01", "cat": "talk", "fx": "one_chart", "text": "what is rsi", "expect": { "kind": "answer", "ideal": "fast", "ops": [{ "a": "guide.explain" }], "why": "one catalog indicator: answered instantly in the catalog's words (owner decision 2026-10-29)" } },
     { "id": "talk-02", "cat": "talk", "fx": "one_chart", "text": "explain a vcp", "expect": { "kind": "answer", "ideal": "model" } },
     { "id": "talk-03", "cat": "talk", "fx": "one_chart", "text": "thanks!", "expect": { "kind": "answer", "ideal": "model" } },
     { "id": "talk-04", "cat": "talk", "fx": "one_chart", "text": "what can you do", "expect": { "kind": "answer", "ideal": "fast", "ops": [{ "a": "agent.capabilities" }] } },

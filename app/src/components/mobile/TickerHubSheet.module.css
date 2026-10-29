@@ -98,10 +98,24 @@
      does not grow ~350px (and push the sheet) when the chart mounts (WebKit, slow chunk). */
   .chartWrap .chartLoading { height: calc(var(--hub-chart-h) + var(--hub-chart-chrome-h)); }
 }
-/* Phone: the identity row is 49px there (ChartsWorkspace's <=640 `.symbolSlot` 40px floor + its
-   padding and rule), measured in WebKit at 390 and 375. */
+/* Phone: the identity row is a fixed TWO lines here, in every session (ChartsWorkspace's hub
+   rule at <=640 puts the day change on line two and sets the row's height to --hub-id-row-h).
+   It was 49px in a regular session and 75px in pre/post, where the extended-hours pill wraps,
+   so the fallback below (sized for 49) was 26px short whenever the market was not open
+   (WebKit, 390). The row's height and the fallback's reserve are now ONE sum of these tokens:
+     line 1  40px  ChartsWorkspace's <=640 `.symbolSlot` floor
+     gap      4px  the row's row-gap
+     line 2  22px  `.chartDayGainExt`: 14px text (line-height 1) + 4px padding top and bottom
+     + 4px padding-bottom + 1px rule (`.chartHeaderTop` at <=640).
+   Rail: `mobile/TickerHubSheet.identityRowHeight.test.js`. */
 @media (max-width: 640px) {
-  .chartWrap { --hub-chart-chrome-h: calc(49px + 45px); }
+  .chartWrap {
+    --hub-id-line1-h: 40px;
+    --hub-id-gap: 4px;
+    --hub-id-line2-h: 22px;
+    --hub-id-row-h: calc(var(--hub-id-line1-h) + var(--hub-id-gap) + var(--hub-id-line2-h) + 4px + 1px);
+    --hub-chart-chrome-h: calc(var(--hub-id-row-h) + 45px);
+  }
 }
 
 .alertForm { display: flex; gap: var(--space-sm); align-items: center; }

@@ -21,6 +21,7 @@ import VoiceInputButton from '../pages/journal-2-0/components/VoiceInputButton'
 import compassMark from '../components/intro/assets/compass-mark.png'
 import { HeadIcon, AgentAvatar, MemberAvatar, SenderLine, Hl } from './agentUi'
 import AgentResult, { Rows } from './AgentResult'
+import GuideOverlay from './guide/GuideOverlay'
 import { receiptView } from './receiptView'
 import styles from './AgentPanel.module.css'
 // structured answers take the column's width (a single figure and prose stay as small as they are)
@@ -492,6 +493,8 @@ export default function AgentPanel({ host, gridMode, onClose, request = null }) 
         </div>
         <div className={styles.hint}>Enter to send · Shift + Enter for a new line</div>
       </div>
+      {/* ⭐ PHASE 2: SHOW ME — the walkthrough on the real board (guide/GuideOverlay); ends when the panel closes */}
+      <GuideOverlay />
     </aside>
   )
 }

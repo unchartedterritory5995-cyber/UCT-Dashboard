@@ -422,13 +422,13 @@
   /* ⭐ The same two-level rule `LegendRow`'s `.vLabel` states — series colour on
      the label (inline, from the plot), muted neutral when there is none. Declared
      twice because these are deliberately two components (see `LegendRow.jsx`). */
-  color: var(--text-muted);
+  color: var(--legend-ink-muted, var(--text-muted));
 }
 .chipGridVal {
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
-  color: var(--text-bright);
+  color: var(--legend-ink-bright, var(--text-bright));
 }
 /* ⚰️ THE GUTTER CELL HELD A CONTROL AND NOW HOLDS NOTHING. It is still EMITTED
    — `.legendVertical` is ONE grid for the whole legend and fills by ORDER, so a

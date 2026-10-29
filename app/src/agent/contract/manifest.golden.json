@@ -3988,6 +3988,7 @@
        "alerts",
        "stockInfo",
        "appSettings",
+       "guide",
        "similarity",
        "overview",
        "other"
@@ -3996,6 +3997,62 @@
     },
     "required": [
      "topic"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true
+  },
+  {
+   "name": "guide.explain",
+   "domain": "guide",
+   "target": "guide",
+   "summary": "Explain what a UCT term, indicator or feature IS (“what does ADR mean?”, “explain RSI”, “the difference between an indicator and a condition”), from UCT's own catalog. Changes nothing.",
+   "hints": "target = the guide entry. topic = the member's words for what to explain (an indicator, a UCT term or feature). Prefer it for UCT's own indicators and features — its text is UCT's catalog. Use ONLY for \"what is / what does / explain / difference\" questions; a request to change something is a command — plan it.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "topic": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "topic"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true
+  },
+  {
+   "name": "guide.show",
+   "domain": "guide",
+   "target": "guide",
+   "summary": "SHOW the member where a Charts control is: highlight the real control on their board with a short step-by-step card (Next / Back / Exit). Changes nothing — use it for \"where do I…\", \"show me how to…\", \"how do I…\" questions, never to do the thing.",
+   "hints": "target = the guide entry. feature = one of: symbol (changing a chart’s symbol); timeframe (changing the timeframe); indicators (adding and configuring an indicator); charts (creating and arranging several charts); watchlists (using watchlists); layouts (saving and switching layouts); drawing (basic drawing tools); settings (finding chart settings). A request to DO it (\"change my chart to weekly\") is a command, not this.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "feature": {
+      "type": "string",
+      "enum": [
+       "symbol",
+       "timeframe",
+       "indicators",
+       "charts",
+       "watchlists",
+       "layouts",
+       "drawing",
+       "settings"
+      ]
+     }
+    },
+    "required": [
+     "feature"
     ],
     "additionalProperties": false
    },

@@ -16,6 +16,7 @@
 // the workspace (patchOptsWithTheme + ChartsWorkspace.applyThemeToAllCharts).
 
 import { APP_THEME_BY_ID } from '../../styles/appThemes'
+import { parseColor, parseColorAlpha } from '../../utils/dividerColor'
 import { isAdoptedSlot, recolorAdoptedAverage } from './maAdoption'
 
 // The families, in gallery order. Each theme carries a `family` key matching one
@@ -277,6 +278,54 @@ function _luminance(hex) {
   return (0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255
 }
 
+// ⭐ THE ONE RULE FOR THE LEGEND'S INK: dark ink on a light canvas, light ink on a dark one,
+// decided by the luminance of the CANVAS the legend is drawn over. `applyThemeToSettings` below
+// stores it as `header.colors.legend` when a /charts theme is applied, and StockChart falls back
+// to it when that key is unset — so the legend follows the chart's canvas, never the APP theme.
+// (Unset, the legend used to take the app's `--text-*` tokens over a canvas painted from
+// chart_settings: a light app theme over the default dark canvas measured 2.28:1 in WebKit.)
+// The choice is the ink with the higher WCAG contrast against the canvas. On every catalogued
+// theme that is the same answer the old `perceived luminance > 0.6` split gave (railed in
+// chartThemes.legendInk.test.js); it differs only on mid-grey canvases a member can pick, where
+// the old split put #d6d8dd on #959595 (2.1:1) although #1c2128 reads at 5.4:1 there.
+export const LEGEND_INK_ON_LIGHT = '#1c2128'
+export const LEGEND_INK_ON_DARK = '#d6d8dd'
+function _wcagLum([r, g, b]) {
+  const f = (v) => { const x = v / 255; return x <= 0.04045 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4 }
+  return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b)
+}
+const _ratio = (a, b) => { const [x, y] = [_wcagLum(a), _wcagLum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05) }
+const _INK_LIGHT_RGB = parseColor(LEGEND_INK_ON_LIGHT)
+const _INK_DARK_RGB = parseColor(LEGEND_INK_ON_DARK)
+
+/** The canvas colour a legend actually sits on, as [r,g,b]: `bg` parsed by the app's one colour
+ *  parser (utils/dividerColor), and — when it carries alpha (the colour menu's opacity slider can
+ *  store an 8-digit canvas) — composited over `under`, the opaque surface the chart is mounted
+ *  on (black when the caller cannot say). null when `bg` is unreadable. */
+export function legendCanvasRgb(bg, under = null) {
+  const p = parseColorAlpha(bg)
+  if (!p) return null
+  if (p.a >= 1) return p.rgb
+  const u = (under && parseColor(under)) || [0, 0, 0]
+  return p.rgb.map((c, i) => Math.round(c * p.a + u[i] * (1 - p.a)))
+}
+
+/** WCAG contrast of text `fg` (any colour the parser reads; its own alpha times `opacity`)
+ *  against the opaque canvas `canvasRgb`. null when `fg` is unreadable. */
+export function legendTextContrast(fg, canvasRgb, opacity = 1) {
+  const p = parseColorAlpha(fg)
+  if (!p || !canvasRgb) return null
+  const a = p.a * opacity
+  const comp = p.rgb.map((c, i) => c * a + canvasRgb[i] * (1 - a))
+  return _ratio(comp, canvasRgb)
+}
+
+export function legendInkForCanvas(bg, under = null) {
+  const c = legendCanvasRgb(bg, under)
+  if (!c) return LEGEND_INK_ON_DARK            // unreadable canvas: the dark-canvas ink, as before
+  return _ratio(_INK_LIGHT_RGB, c) > _ratio(_INK_DARK_RGB, c) ? LEGEND_INK_ON_LIGHT : LEGEND_INK_ON_DARK
+}
+
 // Return `color` at alpha `a` as an rgba() string. Handles #rgb / #rrggbb / #rrggbbaa
 // and rgb()/rgba() (overriding any existing alpha). Passes anything else through.
 function _rgbaAlpha(color, a) {
@@ -347,7 +396,7 @@ export function applyThemeToSettings(settings, theme) {
   // two always match (ChartPane feeds it to StockChart's single `legendColor`).
   const legendBg = bgGrad ? bgGrad.top : theme.bg
   const isLightBg = _luminance(legendBg) > 0.6
-  const legend = theme.legend || (isLightBg ? '#1c2128' : '#d6d8dd')
+  const legend = theme.legend || legendInkForCanvas(legendBg)
   const title = theme.title || (isLightBg ? '#14181d' : '#e8e8ec')
 
   const out = {

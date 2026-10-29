@@ -165,7 +165,9 @@ const BASELINE_KEYS = {
 const BASELINE_OPAQUE = {
   'components/chart/ChartSettingsModal.jsx': 1,
   'components/chart/useTracingsSync.js': 1,
-  'hooks/useAppFocus.js': 1,
+  // ⭐ 2026-10-28: `hooks/useAppFocus.js` REMOVED (was 1). Its one opaque site was
+  // `setPref(FOCUS_PREF_KEY, ...)`; the focus write is now `setPrefMerged`, a merge onto the
+  // stored value, so an early write cannot replace the comparison slots B/C/D.
   'pages/BreadthCharts.jsx': 1,
   'pages/ThemeTrackerPage.jsx': 2,
   // ⭐ S5 CP2 sweep 2026-09-29: `pages/Watchlists.jsx` is REMOVED from this map,

@@ -93,14 +93,14 @@
      coloured row back when BOTH wore the hue; the value is bright neutral white
      now, so hue-versus-white is the separation and dimming the label only made a
      member's chosen series colour look wrong. */
-  color: var(--text-muted);
+  color: var(--legend-ink-muted, var(--text-muted));
 }
 .vVal, .flatVal {
   /* ⭐⭐ §4 — THE NUMBER WINS THE ROW, and it wins on luminance rather than size.
      Bright neutral against a mid-luminance series colour, 600 against 500: the eye
      lands on `711.65` before `EMA 9` at every hue, including the pale ones, which
      is exactly what a per-series coloured value could not promise. */
-  color: var(--text-bright);
+  color: var(--legend-ink-bright, var(--text-bright));
 }
 /* ⚰️ `.rail` STOOD HERE — a 2×9px bar of the line colour before every name.
    Retired with the chip's (owner, 2026-09-14): on a nine-row legend it read as

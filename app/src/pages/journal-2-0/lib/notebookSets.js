@@ -16,6 +16,7 @@ import { chartInsertNodes } from './widgetEmbedCore'
 import { WIDGET_KINDS } from './notebookWidgets'
 import { widgetsWaveOn } from './notebookWidgetsFlags'
 import { PREFS_URL, mergeIntoPreferenceCache } from '../../../hooks/usePreferences'
+import { beginPrefsOp } from '../../../lib/prefsSession'
 
 export const CHART_SETS_PREF = 'notebook_chart_sets'
 export const MAX_SETS = 30
@@ -178,6 +179,7 @@ export const SAVE_FAILED_REASON = "Couldn't save just now. Your sets are unchang
  *  replace only the key(s) given, and post the WHOLE value (the endpoint replaces it).
  *  `{ok: true, doc}` or `{ok: false, reason}`. */
 export async function saveSets(update, { uid } = {}) {
+  const op = beginPrefsOp()            // the member this save is for, at ENTRY: before the read and the POST (owner-approved rule-12 edit, 2026-10-29)
   const mine = ownCache(uid)
   const cur = await readRaw()
   if (!cur.ok) return { ok: false, reason: READ_FAILED_REASON }
@@ -192,6 +194,7 @@ export async function saveSets(update, { uid } = {}) {
   if (why) return { ok: false, reason: why }
   const doc = readSets(merged)
   const value = JSON.stringify(doc)
+  if (op.stale()) return { ok: false, reason: SAVE_FAILED_REASON }   // read for another member: never posted
   try {
     const res = await fetch(PREFS_URL, {
       method: 'POST', credentials: 'include',
@@ -203,7 +206,7 @@ export async function saveSets(update, { uid } = {}) {
     return { ok: false, reason: SAVE_FAILED_REASON }
   }
   if (mine && uid === _uid) _cached = doc
-  try { await mergeIntoPreferenceCache(CHART_SETS_PREF, value) } catch { /* the cache is a convenience */ }
+  try { await mergeIntoPreferenceCache(CHART_SETS_PREF, value, op) } catch { /* the cache is a convenience */ }
   return { ok: true, doc }
 }
 

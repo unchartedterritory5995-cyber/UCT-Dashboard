@@ -106,13 +106,18 @@ def _detections(now: Optional[float] = None) -> list:
         return []
     cutoff = int(now if now is not None else time.time()) - WINDOW_SECS
     internal = _internal_ids()
+    # ⛔ THE UNARY `+` IS LOAD-BEARING: it takes tf/status/category/pattern_id out of index
+    # selection, so the planner walks idx_pd_detected over the 7-day window. Without it SQLite
+    # chose idx_pd_status (no ANALYZE stats), whose "active" statuses match most of a table holding
+    # MONTHS of detections, and read each ~9 KB row whole: production's stall watchdog caught the
+    # refresh thread inside this query for minutes on 2026-10-29. Same rows either way.
     where = (
-        f"tf = 'D' AND status IN ({','.join('?' * len(ACTIVE_STATUSES))}) AND detected_at >= ? "
-        f"AND (category IS NULL OR category NOT IN ({','.join('?' * len(EXCLUDED_CATEGORIES))})) "
-        f"AND pattern_id IN ({','.join('?' * len(mapped))})")
+        f"+tf = 'D' AND +status IN ({','.join('?' * len(ACTIVE_STATUSES))}) AND detected_at >= ? "
+        f"AND (+category IS NULL OR +category NOT IN ({','.join('?' * len(EXCLUDED_CATEGORIES))})) "
+        f"AND +pattern_id IN ({','.join('?' * len(mapped))})")
     params: list = [*ACTIVE_STATUSES, cutoff, *EXCLUDED_CATEGORIES, *mapped]
     if internal:
-        where += f" AND pattern_id NOT IN ({','.join('?' * len(internal))})"
+        where += f" AND +pattern_id NOT IN ({','.join('?' * len(internal))})"
         params.extend(internal)
     sql = ("SELECT sym, pattern_id, direction, confidence, detected_at FROM ("
            " SELECT sym, pattern_id, direction, confidence, detected_at, ROW_NUMBER() OVER ("

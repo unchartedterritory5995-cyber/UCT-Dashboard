@@ -3,6 +3,7 @@ import { dropAverages } from '../../components/chart/maAdoption'
 import { Responsive, WidthProvider } from 'react-grid-layout'
 import 'react-grid-layout/css/styles.css'
 import usePreferences, { parsePref, refreshPreferences } from '../../hooks/usePreferences'
+import { beginPrefsOp } from '../../lib/prefsSession'
 import { onWorkspaceConflict, hasWorkspaceConflict } from '../../lib/workspaceConflict'
 import { whenWritesSettle } from '../../hooks/usePreferences'
 import useMediaQuery from '../../hooks/useMediaQuery'
@@ -1994,6 +1995,11 @@ export default function ChartsWorkspace() {
   // `serializeLayout`'s bypass rail) read.
   const workspaceNoticeRef = useRef(null)   // assigned where showWorkspaceNotice is declared
   const commitBoard = useCallback(async ({ build, applyLocal, onCommitted }) => {
+    // the member this commit is for, begun before the document write's await: every branch after
+    // it (the per-key fallback after a 'dark' answer above all) exits when another member signed in
+    // meanwhile. The fallback replays synchronously right after that check, so each setPref begins
+    // its own operation for the same member.
+    const op = beginPrefsOp()
     const steps = recordBoardWrites(build)
     const legacy = () => {
       applyLocal()
@@ -2011,6 +2017,7 @@ export default function ChartsWorkspace() {
     } finally {
       boardCommitInFlightRef.current = false
     }
+    if (op.stale()) return 'stale'
     if (r.status === 'dark') { legacy(); return 'legacy' }
     if (r.status === 'applied') {
       // Re-read BEFORE the board switches, so the widgets it mounts read the values the
@@ -2334,6 +2341,9 @@ export default function ChartsWorkspace() {
     const fundamentalsSettings = parsePref(prefs?.fundamentals_settings, null)
     const breadthSettings = parsePref(prefs?.breadth_widget_settings, null)
     const watchlistColumns = readWatchlistColumns()
+    // the member this save is for, begun before the save's await (usePreferences `beginPrefsOp`):
+    // the active-template pointer below is never written into a member who signed in meanwhile
+    const op = beginPrefsOp()
     const saved = await saveLayout({
       name: nm,
       layout: { ...layout, chartSettings, watchlistSettings, themeTrackerSettings, fundamentalsSettings, breadthSettings, watchlistColumns },
@@ -2344,7 +2354,7 @@ export default function ChartsWorkspace() {
     // The just-saved template becomes the active one, so "Save current
     // arrangement" updates it going forward.
     if (saved?.id != null) {
-      setPref('charts_active_template', JSON.stringify({ id: saved.id, name: saved.name || nm, scope: saved.scope || scope }))
+      setPref('charts_active_template', JSON.stringify({ id: saved.id, name: saved.name || nm, scope: saved.scope || scope }), op)
     }
     return saved
   }, [layout, prefs?.chart_settings, prefs?.watchlist_settings, prefs?.theme_tracker_settings, prefs?.fundamentals_settings, prefs?.breadth_widget_settings, saveLayout, setPref])
@@ -2782,11 +2792,12 @@ export default function ChartsWorkspace() {
   // under its old name — a duplicate, from a rename. Keep the two in step.
   const handleDockRename = useCallback(async (id, name) => {
     suppressAutoSave()
+    const op = beginPrefsOp()            // the member this rename is for, before its await
     try {
       const saved = await renameLayout(id, name)
       const active = parsePref(prefs?.charts_active_template, null)
       if (active?.id === id) {
-        setPref('charts_active_template', JSON.stringify({ ...active, name: saved?.name || name }))
+        setPref('charts_active_template', JSON.stringify({ ...active, name: saved?.name || name }), op)
       }
     } catch { /* rolled back in the hook */ }
   }, [renameLayout, prefs?.charts_active_template, setPref, suppressAutoSave])
@@ -3327,6 +3338,8 @@ export default function ChartsWorkspace() {
           <div
             key={w.id}
             data-widget-id={w.id}
+            // UCT Agent's product guide finds a board's watchlist / chart by its type (agent/guide/targets.js)
+            data-widget-type={w.type}
             // main board charts only (a popped-out board's renderGrid passes no onPopOut): the
             // UCT Agent's "this chart". Capture phase, so a chart that stops propagation still counts.
             onPointerDownCapture={w.type === 'chart' && h.onPopOut ? () => { selectedChartRef.current = { widgetId: w.id, layoutId: dockActiveIdRef.current } } : undefined}
@@ -3435,10 +3448,11 @@ export default function ChartsWorkspace() {
             <button
               type="button"
               className={styles.toolbarBtn}
+              data-guide="workspace.widgets"
               onClick={() => { const n = !widgetsMenuOpen; closeToolbarMenus(); setWidgetsMenuOpen(n) }}
             >Widgets ▾</button>
             {widgetsMenuOpen && (
-              <div className={`${styles.addMenu} ${styles.wAddMenu}`} onMouseLeave={() => { setWidgetsMenuOpen(false); setWidgetsSub(null) }}>
+              <div className={`${styles.addMenu} ${styles.wAddMenu}`} data-guide="workspace.widgetsMenu" onMouseLeave={() => { setWidgetsMenuOpen(false); setWidgetsSub(null) }}>
                 {/* Grouped, iconified quick-add — a compact anchored menu (no modal), one
                     click to drop a widget onto the board via smart placement. */}
                 {/* TERM-001: a full board says why in words and offers nothing to add. */}
@@ -3458,6 +3472,7 @@ export default function ChartsWorkspace() {
                             key={t}
                             type="button"
                             className={styles.wAddChip}
+                            data-guide={`workspace.widgets.${t}`}
                             disabled={!boardHasRoom}
                             title={meta.blurb || WIDGET_LABELS[t]}
                             onClick={() => { handleAddWidget(t); setWidgetsMenuOpen(false) }}

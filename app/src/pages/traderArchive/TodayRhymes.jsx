@@ -8,7 +8,7 @@
 // ⛔ Display only: nothing here is a signal. No price level is on the wire and none is drawn.
 // ⛔ A 404 (flag off), a 402 (unpaid) and a 503 (scan or store unreadable) are said as such,
 // never rendered as "nothing rhymes".
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import useSWR from 'swr'
 
 import jsonFetcher from '../../utils/jsonFetcher'
@@ -25,15 +25,28 @@ export const RHYMES_RETRY = { count: 4, intervalMs: 15000 }
 // every WARMING_POLL_MS until the answer lands, then stop polling.
 export const WARMING_POLL_MS = 15000
 const isWarming = (d) => d?.status === 'warming'
-const RHYMES_SWR = {
-  revalidateOnFocus: false,
-  // SWR reads this at MOUNT (no data yet) and again only after each poll, so "no data" must poll
-  // too, or polling never starts; an answer that is not "warming" returns 0 and stops it.
-  refreshInterval: (d) => (d === undefined || isWarming(d) ? WARMING_POLL_MS : 0),
-  onErrorRetry: (error, _key, _config, revalidate, { retryCount }) => {
-    if (!(error?.status >= 500) || retryCount > RHYMES_RETRY.count) return
-    setTimeout(() => revalidate({ retryCount }), RHYMES_RETRY.intervalMs)
-  },
+const isRetryable = (error) => error?.status >= 500
+
+function useRhymes() {
+  // How many 5xx retries are still to come: while any are, the page keeps saying "matching"
+  // instead of flashing an error it is about to recover from (a pod restart answers 502 once).
+  const retriesLeft = useRef(RHYMES_RETRY.count)
+  const swr = useSWR(RHYMES_URL, jsonFetcher, {
+    revalidateOnFocus: false,
+    // SWR reads this at MOUNT (no data yet) and again only after each poll, so "no data" must poll
+    // too, or polling never starts; an answer that is not "warming" returns 0 and stops it.
+    refreshInterval: (d) => (d === undefined || isWarming(d) ? WARMING_POLL_MS : 0),
+    onSuccess: () => { retriesLeft.current = RHYMES_RETRY.count },
+    onErrorRetry: (error, _key, _config, revalidate, { retryCount }) => {
+      if (!isRetryable(error) || retryCount > RHYMES_RETRY.count) {
+        retriesLeft.current = 0
+        return
+      }
+      retriesLeft.current = RHYMES_RETRY.count - retryCount
+      setTimeout(() => revalidate({ retryCount }), RHYMES_RETRY.intervalMs)
+    },
+  })
+  return { ...swr, recovering: isRetryable(swr.error) && retriesLeft.current > 0 }
 }
 
 function StateLine({ error }) {
@@ -103,7 +116,8 @@ function Waiting({ warming = false }) {
 }
 
 export default function TodayRhymes({ onTicker, onSetup }) {
-  const { data, error } = useSWR(RHYMES_URL, jsonFetcher, RHYMES_SWR)
+  const { data, error, recovering } = useRhymes()
+  if (error && recovering) return <Waiting warming />
   if (error) return <StateLine error={error} />
   if (!data) return <Waiting />
   if (isWarming(data)) return <Waiting warming />
