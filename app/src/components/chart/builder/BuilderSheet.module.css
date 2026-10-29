@@ -100,6 +100,14 @@
    exceeded ("measures 600 and the cap is 500"); truncating it removes exactly
    the part a user can act on. */
 .errorText { min-width: 0; overflow-wrap: anywhere; }
+/* the one-line fix under a refused formula (`formulaHints.js`) */
+.formulaHint {
+  margin: 6px 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
 
 /* ── the read-back ────────────────────────────────────────────────────────── */
 
