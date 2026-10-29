@@ -82,7 +82,7 @@ const _pendingMerges = []
 function flushPendingMerges() {
   if (!_pendingMerges.length) return
   const replay = _pendingMerges.splice(0)
-  for (const m of replay) if (m.user === _prefsUser) m.run()
+  for (const m of replay) if (m.gen === _prefsGen && m.user === _prefsUser) m.run()
 }
 /** A confirmed write of `key` is newer than any merge still waiting for it: the replay must not undo it. */
 function dropPendingFor(key) {
@@ -285,6 +285,14 @@ export function whenWritesSettle(keys) {
 // (sign-out, sign-in as someone else, a session that died and came back as another member): it
 // clears all of it AND the cached preferences, so B never renders or merges onto A's.
 let _prefsUser          // undefined = not yet known (the first answer of /api/auth/me)
+// ⛔⛔ THE SESSION GENERATION. Bumped on every change of member. A write is a sequence of awaits
+// (the read in flight, the per-key queue, the POST itself), and the member can change between any
+// two of them: a merge that waited on A's stalled first read was stamped with B and replayed into
+// B's account; a setPref queued behind an in-flight POST ran after the reset and POSTed A's value
+// under B's cookie (review). So setPref / setPrefMerged capture the generation at ENTRY, re-check
+// it after every await and inside every cache updater, and postPref refuses to send (or to record
+// anything) once it has moved.
+let _prefsGen = 0
 
 /** Clear every piece of module state this hook keeps (not the SWR cache: see setPreferencesUser). */
 export function resetPreferencesState() {
@@ -300,6 +308,7 @@ export function setPreferencesUser(id) {
   if (_prefsUser === undefined) { _prefsUser = next; return }   // first answer: nothing to clear
   if (next === _prefsUser) return
   _prefsUser = next
+  _prefsGen += 1
   resetPreferencesState()
   // Drop the previous member's cached preferences (no request), then read the new member's own.
   // A read still in flight for the previous member is discarded by SWR (a mutation started after it).
@@ -317,7 +326,8 @@ export function __resetRevisionStateForTests() {
 
 // THE one POST. Runs inside the per-key queue, so the revision is read at SEND time — after this
 // tab's previous write of the key has answered — and a tab's rapid edits never refuse each other.
-async function postPref(key, serialized) {
+async function postPref(key, serialized, gen = _prefsGen) {
+  if (gen !== _prefsGen) return { ok: false, stale: true }     // made for another member: never sent
   if (_conflicted.has(key)) return { ok: false, conflict: true }
   // Resolves (never throws) so a held write keeps the optimistic value and does NOT take the
   // throw path's re-read — the re-read is what re-arms the loop this guard exists to break.
@@ -333,9 +343,12 @@ async function postPref(key, serialized) {
       body: JSON.stringify(body),
     })
   } catch (err) {
-    noteWriteFailed(key, serialized)
+    if (gen === _prefsGen) noteWriteFailed(key, serialized)
     throw err
   }
+  // The member changed while this POST was in flight: its answer is about the previous member's
+  // account and must not touch this member's revision, conflict or backoff state.
+  if (gen !== _prefsGen) return { ok: !!(res && res.ok), stale: true }
   if (res && res.ok) {
     _failedWrites.delete(key)
     dropPendingFor(key)
@@ -494,7 +507,8 @@ export default function usePreferences(enabled = true) {
     // Optimistic update
     // (derive: the result is server-based only when what it was built on was — an optimistic
     // write onto an EMPTY cache is not a base anyone may merge onto)
-    mutate(prev => derive(prev, { ...DEFAULTS, ...prev, [key]: serialized }), false)
+    const gen = _prefsGen
+    mutate(prev => (gen !== _prefsGen ? prev : derive(prev, { ...DEFAULTS, ...prev, [key]: serialized })), false)
 
     /** Report the failure and CHANGE NOTHING. This is the settle contract.
      *
@@ -531,8 +545,8 @@ export default function usePreferences(enabled = true) {
       // Queued per key (see `postPref`): the revision it sends is read after this tab's previous
       // write of the key answered. A refused stale write keeps the local value on screen and
       // returns false — it is NOT saved and nothing claims it was.
-      const r = await queueWrite(key, () => postPref(key, serialized))
-      if (!r.ok) {
+      const r = await queueWrite(key, () => postPref(key, serialized, gen))
+      if (!r.ok || r.stale) {
         // A 4xx/5xx used to read exactly like success. It is still reported —
         // that is MOB-09's real requirement — but it is reported by the RETURN
         // VALUE, not by mutating shared cache state. See the settle note above.
@@ -547,7 +561,7 @@ export default function usePreferences(enabled = true) {
       // failure", which drives `fetch` to THROW). Removing it here as well was
       // over-broad and turned that green test red; the narrow fix is the
       // non-ok branch alone.
-      mutate()
+      if (gen === _prefsGen) mutate()
       return false
     }
     // ⭐ RETURNS WHETHER THE WRITE WAS CONFIRMED. Every existing caller ignores
@@ -591,6 +605,8 @@ export default function usePreferences(enabled = true) {
     let serialized = null
     let updaterError = null
     let unknownBase = false
+    const gen = _prefsGen             // the member this merge is FOR (see `_prefsGen`)
+    const who = _prefsUser
 
     // ⛔⛔ NEVER POST A MERGE ONTO A BASE THAT HAS NOT BEEN READ. Before the first read answers, the
     // cache holds nothing, and a merge onto nothing is a WHOLE value built from an empty base —
@@ -605,8 +621,11 @@ export default function usePreferences(enabled = true) {
     if (dataRef.current === undefined && _inflightRead) {
       try { await _inflightRead } catch { /* a failed read is judged below */ }
     }
+    if (gen !== _prefsGen) return false          // the member changed while it waited: dropped
 
+    let stale = false
     await mutate(prev => {
+      if (gen !== _prefsGen) { stale = true; return prev }
       unknownBase = !isServerBased(prev)
       const base = { ...DEFAULTS, ...prev }
       const current = parsePref(base[key], undefined)
@@ -625,12 +644,13 @@ export default function usePreferences(enabled = true) {
       return derive(prev, { ...base, [key]: serialized })
     }, false)
 
+    if (stale) return false
     if (updaterError) throw updaterError
     if (serialized === null) return
     if (unknownBase) {
       // Applied locally above, deliberately never posted. Kept, and re-applied onto the server's
       // value when a good read lands; a re-read is scheduled so that it does.
-      _pendingMerges.push({ key, user: _prefsUser, run: () => { setPrefMergedRef.current?.(key, updater) } })
+      _pendingMerges.push({ key, user: who, gen, run: () => { setPrefMergedRef.current?.(key, updater) } })
       scheduleReread(() => mutate())
       return false
     }
@@ -643,9 +663,9 @@ export default function usePreferences(enabled = true) {
     // resolves would make that handling unreachable. The revert therefore hangs
     // off the returned promise, which still resolves — a fire-and-forget caller
     // never gets an unhandled rejection.
-    return queueWrite(key, () => postPref(key, serialized)).catch(() => {
-      // Revert on failure — same contract as setPref.
-      mutate()
+    return queueWrite(key, () => postPref(key, serialized, gen)).catch(() => {
+      // Revert on failure — same contract as setPref (and never into another member's cache).
+      if (gen === _prefsGen) mutate()
     })
   }, [mutate])
   const setPrefMergedRef = useRef(setPrefMerged)

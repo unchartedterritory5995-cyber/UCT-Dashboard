@@ -13,6 +13,19 @@ import { readCalendarDepth } from '../pages/calendar/depth/calendarDepthFlags'
 
 export const AuthContext = createContext(null)
 
+// ⛔⛔ ANOTHER TAB CAN CHANGE WHO THIS TAB IS. The session is one cookie per browser: sign in as B
+// in tab 2 and tab 1 still believes it is A, while every request it sends now carries B's cookie —
+// so tab 1's preference writes (and any held merge it replays) land in B's account (a shared
+// computer). Two cheap re-checks of /api/auth/me, committed through setUser so the member-change
+// publication below fires: a `storage` ping that this provider writes on every sign-in / sign-out
+// (other tabs receive it; the writing tab does not), and the tab becoming visible again
+// (throttled to once per AUTH_RECHECK_MIN_MS).
+export const AUTH_PING_KEY = 'uct.auth.ping'
+export const AUTH_RECHECK_MIN_MS = 30000
+function pingOtherTabs() {
+  try { localStorage.setItem(AUTH_PING_KEY, `${Date.now()}:${Math.random().toString(36).slice(2, 8)}`) } catch { /* storage blocked: the visibility re-check still covers it */ }
+}
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [plan, setPlan] = useState('free')
@@ -304,6 +317,38 @@ export function AuthProvider({ children }) {
     return () => setUnauthorizedHandler(null)
   }, [fetchUser])
 
+  // The cross-tab re-check (see AUTH_PING_KEY above). It asks /me WHO this cookie is and commits
+  // (through fetchUser) only when the answer is a different member, or none: the same member costs
+  // one GET and re-renders nothing (fetchUser would hand every `user`-keyed effect a new object).
+  // A transient failure changes nothing.
+  const recheckIdentity = useCallback(async () => {
+    let id
+    try {
+      const res = await fetch('/api/auth/me')
+      if (res.status >= 500) return
+      id = res.ok ? ((await res.json())?.user?.id ?? null) : null
+    } catch { return }
+    if (id !== (userRef.current?.id ?? null)) fetchUser()
+  }, [fetchUser])
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined
+    let lastVisibleCheck = 0
+    const onStorage = (e) => { if (e.key === AUTH_PING_KEY) recheckIdentity() }
+    const onVisible = () => {
+      if (typeof document === 'undefined' || document.visibilityState !== 'visible') return
+      const now = Date.now()
+      if (now - lastVisibleCheck < AUTH_RECHECK_MIN_MS) return
+      lastVisibleCheck = now
+      recheckIdentity()
+    }
+    window.addEventListener('storage', onStorage)
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      window.removeEventListener('storage', onStorage)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
+  }, [recheckIdentity])
+
   const login = async (email, password) => {
     const res = await fetch('/api/auth/login', {
       method: 'POST',
@@ -319,6 +364,7 @@ export function AuthProvider({ children }) {
     // shows the code step and finishes via verifyTotp.
     if (data.requires_totp) return data
     setUser(data.user)
+    pingOtherTabs()
     setPlan(data.plan)
     setTrial(data.trial || null)
     setAnnualAvailable(!!(data.billing && data.billing.annual_available))
@@ -342,6 +388,7 @@ export function AuthProvider({ children }) {
     }
     const data = await res.json()
     setUser(data.user)
+    pingOtherTabs()
     setPlan(data.plan)
     setTrial(data.trial || null)
     setAnnualAvailable(!!(data.billing && data.billing.annual_available))
@@ -363,6 +410,7 @@ export function AuthProvider({ children }) {
     }
     const data = await res.json()
     setUser(data.user)
+    pingOtherTabs()
     setPlan(data.plan)
     setTrial(data.trial || null)
     setAnnualAvailable(!!(data.billing && data.billing.annual_available))
@@ -373,6 +421,7 @@ export function AuthProvider({ children }) {
   const logout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' })
     setUser(null)
+    pingOtherTabs()
     setPlan('free')
     setTrial(null)
     clearIntroSeen()
