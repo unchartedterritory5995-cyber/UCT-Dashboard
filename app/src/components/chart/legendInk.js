@@ -16,6 +16,7 @@
 // Published by StockChart as CSS variables on its wrapper; every legend rule reads them with its
 // old token as the fallback, so text rendered outside a chart is unchanged.
 import { legendCanvasRgb, legendInkForCanvas, legendTextContrast } from './chartThemes'
+import { parseColorAlpha } from '../../utils/dividerColor'
 
 export const LEGEND_MIN_CONTRAST = 4.5
 
@@ -54,10 +55,11 @@ export function legendInkVars({ tokens = {}, top, low, under = null, legendColor
   return out
 }
 
-/** Read each role's token as the browser resolves it INSIDE `el` (a probe span, so a token
- *  defined with color-mix() or a var() chain still comes back as one rgb() value), and the first
- *  opaque background behind `el`. Browser-only; jsdom answers empty strings, which read as
- *  "unknown" and fall back to the canvas ink. */
+/** Read each role's token as the browser resolves it INSIDE `el` (a probe span: a var() chain
+ *  comes back as one computed colour — rgb()/rgba(), or `color(srgb r g b / a)` for a token
+ *  defined with color-mix(), which parseColorAlpha reads too, so such a token keeps its look),
+ *  and the first opaque background behind `el`. Browser-only; jsdom answers empty strings, which
+ *  read as "unknown" and fall back to the canvas ink. */
 export function readLegendContext(el) {
   const tokens = {}
   if (!el || typeof document === 'undefined' || typeof getComputedStyle !== 'function') return { tokens, under: null }
@@ -78,10 +80,8 @@ export function readLegendContext(el) {
   let under = null
   for (let a = el.parentElement; a; a = a.parentElement) {
     const bg = getComputedStyle(a).backgroundColor
-    const m = bg && /rgba?\(([^)]+)\)/.exec(bg)
-    if (!m) continue
-    const parts = m[1].split(/[\s,/]+/).filter(Boolean).map(Number)
-    if (parts.length >= 3 && (parts.length < 4 || parts[3] >= 1)) { under = bg; break }
+    const p = parseColorAlpha(bg)
+    if (p && p.a >= 1) { under = bg; break }
   }
   return { tokens, under }
 }

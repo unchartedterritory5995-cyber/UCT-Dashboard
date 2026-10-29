@@ -42,6 +42,7 @@ import { definitionWithholdsOffListing, wantsListingDeepen, listingDeepenGate } 
 import useWatermarkDrag from '../hooks/useWatermarkDrag'
 import { panelFor, toolbarFor, commandBarFor, sampleGradient, parseColor, luminance, menuThemeVars } from '../utils/dividerColor'
 import { legendInkVars, readLegendContext } from './chart/legendInk'
+import { useThemeVersion } from '../lib/theme/useThemeInk'
 // ⛔⭐ THIS FILE IMPORTS **ZERO** `compute*` FUNCTIONS — B5 TASK 8, AND THAT IS
 // THE WHOLE STATEMENT. All fourteen series-expressible natives are FLIPPED, so
 // every column is computed once, by the definition that declares it, at bind
@@ -3100,13 +3101,9 @@ export default function StockChart({
   // them), so it is a layout effect, re-run when the canvas, the legend colour or the app theme
   // changes. Before it runs (and in jsdom) the rules fall back to their tokens, as before.
   const [legendInks, setLegendInks] = useState(undefined)
-  const [appThemeTick, setAppThemeTick] = useState(0)
-  useEffect(() => {
-    if (typeof MutationObserver === 'undefined' || typeof document === 'undefined') return undefined
-    const mo = new MutationObserver(() => setAppThemeTick((n) => n + 1))
-    mo.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme', 'class', 'style'] })
-    return () => mo.disconnect()
-  }, [])
+  // The app's ONE theme observer (lib/theme/useThemeInk.js: data-theme plus the catalog's inline
+  // tokens on <html>, deduped by token signature), not a second one per chart.
+  const appThemeTick = useThemeVersion()
   useLayoutEffect(() => {
     const el = wrapperRef.current
     if (!el) return

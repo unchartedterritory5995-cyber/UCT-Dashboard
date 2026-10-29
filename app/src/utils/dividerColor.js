@@ -9,12 +9,26 @@
 
 /** Parse the color forms the canvas pickers actually produce, WITH their alpha.
  *  Handles #rgb, #rgba, #rrggbb, #rrggbbaa, rgb()/rgba() (decimals, comma or space separated,
- *  `/ a` or `, a`, a percentage alpha) and `transparent`. Returns { rgb: [r,g,b], a } with a in
- *  0..1, or null when unreadable. THE one parser: `parseColor` below is this without the alpha. */
+ *  `/ a` or `, a`, a percentage alpha), `transparent`, and `color(srgb r g b / a)` (0..1
+ *  channels) — what a browser's computed style answers for a token defined with color-mix().
+ *  Returns { rgb: [r,g,b], a } with a in 0..1, or null when unreadable. THE one parser:
+ *  `parseColor` below is this without the alpha.
+ *  ⚠️ #rgba (4 digits) is read deliberately: it is valid CSS and the colour menu can produce it.
+ *  `parseColor` returned null for it before this parser existed; nothing depended on that (the
+ *  panelFor / toolbarFor / divider rails pass unchanged). */
 export function parseColorAlpha(c) {
   if (typeof c !== 'string') return null
   const s = c.trim()
   if (/^transparent$/i.test(s)) return { rgb: [0, 0, 0], a: 0 }
+  const srgb = /^color\(\s*srgb\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)(?:\s*\/\s*([\d.]+)(%?))?\s*\)$/i.exec(s)
+  if (srgb) {
+    const v = [srgb[1], srgb[2], srgb[3]].map((x) => Math.round(Math.max(0, Math.min(1, Number(x))) * 255))
+    if (v.some((n) => !Number.isFinite(n))) return null
+    let a = srgb[4] == null ? 1 : Number(srgb[4]) / (srgb[5] ? 100 : 1)
+    if (!Number.isFinite(a)) return null
+    a = Math.max(0, Math.min(1, a))
+    return { rgb: v, a }
+  }
   const hex = /^#([0-9a-f]{3,8})$/i.exec(s)
   if (hex) {
     let h = hex[1]

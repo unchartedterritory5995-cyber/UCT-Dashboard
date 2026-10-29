@@ -4,6 +4,7 @@ import { clearIntroSeen } from '../components/intro/introStorage'
 import { latchNotebookFlags, FLAG_FALLBACKS } from '../pages/journal-2-0/lib/offline/notebookFlags'
 import { latchRuntimePanePermission } from '../lib/runtimePanePermission'
 import { setUnauthorizedHandler } from '../hooks/livePriceStore'
+import { publishPrefsUser } from '../lib/prefsSession'
 import { readFeatureStatus } from '../components/featureStatus/featureStatus'
 import { readResearchDepth } from '../pages/research/depth/researchDepthFlags'
 import { readResearchNotices } from '../pages/research/notices/researchNoticeFlags'
@@ -240,6 +241,11 @@ export function AuthProvider({ children }) {
   // ⛔ Clearing on sign-out is not optional: a stale id points a write at the
   // PREVIOUS member's IndexedDB store.
   useEffect(() => { setCurrentAccountId(user?.id ?? null) }, [user])
+  // ⛔⛔ And the same for the PREFERENCES hook's module state (held merges, re-read series, write
+  // backoff, origin tags) and its cached preferences: sign-out is not a reload, and a merge held
+  // for one member must never replay into the next member's account. Published once auth has
+  // ANSWERED, so boot's `null` before /api/auth/me is not read as a sign-out.
+  useEffect(() => { if (!loading) publishPrefsUser(user?.id ?? null) }, [user, loading])
 
   const fetchUser = useCallback(async () => {
     // The backend did not ANSWER (>=500, or fetch threw). Distinct from a

@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef } from 'react'
 import { mergeSettingsOverride } from '../components/chart/instanceShape'
 import { noteWorkspaceDocResponse } from '../lib/workspaceDoc'
 import { emitWorkspaceConflict } from '../lib/workspaceConflict'
+import { onPrefsUserChange, prefsUser } from '../lib/prefsSession'
 
 export { onWorkspaceConflict } from '../lib/workspaceConflict'
 
@@ -39,7 +40,21 @@ const _serverBased = new WeakSet()
 const tagServer = (obj) => { if (obj && typeof obj === 'object') _serverBased.add(obj); return obj }
 /** `next`, derived from `prev`, inherits prev's origin. */
 const derive = (prev, next) => { if (prev && _serverBased.has(prev)) _serverBased.add(next); return next }
-const isServerBased = (obj) => !!obj && typeof obj === 'object' && _serverBased.has(obj)
+// ⛔ AND SWR CAN KEEP THE OLD OBJECT. When a good read's answer is deep-equal to what the cache
+// holds (a new member: a refused first read served `{}`, then the server's own `{}`), SWR 2.4 keeps
+// the cached object (`compare(cacheData, newData) ? cacheData : newData`), so the tag on the answer
+// never reaches the cache. An untagged cache read as "no server base", re-scheduled the re-read,
+// and the fetcher's reset of the attempt count made that run forever (review: 601 GETs in ten
+// minutes). So the last good answer is kept, and a cached object EQUAL to it is the server's value
+// and is tagged on sight.
+let _lastGoodAnswer = null
+const _stableKey = (o) => JSON.stringify(Object.keys(o).sort().map((k) => [k, o[k]]))
+const isServerBased = (obj) => {
+  if (!obj || typeof obj !== 'object') return false
+  if (_serverBased.has(obj)) return true
+  if (_lastGoodAnswer && _stableKey(obj) === _stableKey(_lastGoodAnswer)) { _serverBased.add(obj); return true }
+  return false
+}
 
 // ─── Re-reading after a read that did not produce the server's value ─────────
 //
@@ -49,16 +64,35 @@ const isServerBased = (obj) => !!obj && typeof obj === 'object' && _serverBased.
 // REREAD_CAP_MS, at most REREAD_MAX_ATTEMPTS in a row — and merges refused meanwhile are kept and
 // RE-APPLIED onto the real base once a good read lands (each updater runs again on the server's
 // value, so nothing is merged onto a guess). A good read resets the series.
+//
+// ⛔ THE SERIES PROVABLY ENDS. The attempt count resets ONLY when the cache is seen to hold the
+// server's value (never merely because some read answered 200), and a session ceiling
+// (REREAD_SESSION_MAX) caps the total however often that happens; both reset only with the member.
 const REREAD_BASE_MS = 1000
 const REREAD_CAP_MS = 30000
 const REREAD_MAX_ATTEMPTS = 8
+const REREAD_SESSION_MAX = 24
 let _rereadTimer = null
 let _rereadAttempts = 0
-const _pendingMerges = []          // [() => void] — re-run a refused merge onto the fresh base
+let _rereadTotal = 0
+// Refused merges waiting for the server's base: { key, user, run }. `user` is the member the merge
+// was made for; one made for another member is DROPPED at replay, never posted (defence in depth
+// behind `setPreferencesUser`, which clears the list on any change of member).
+const _pendingMerges = []
+function flushPendingMerges() {
+  if (!_pendingMerges.length) return
+  const replay = _pendingMerges.splice(0)
+  for (const m of replay) if (m.user === _prefsUser) m.run()
+}
+/** A confirmed write of `key` is newer than any merge still waiting for it: the replay must not undo it. */
+function dropPendingFor(key) {
+  for (let i = _pendingMerges.length - 1; i >= 0; i -= 1) if (_pendingMerges[i].key === key) _pendingMerges.splice(i, 1)
+}
 function scheduleReread(revalidate) {
-  if (_rereadTimer || _rereadAttempts >= REREAD_MAX_ATTEMPTS) return
+  if (_rereadTimer || _rereadAttempts >= REREAD_MAX_ATTEMPTS || _rereadTotal >= REREAD_SESSION_MAX) return
   const delay = Math.min(REREAD_CAP_MS, REREAD_BASE_MS * 2 ** _rereadAttempts)
   _rereadAttempts += 1
+  _rereadTotal += 1
   _rereadTimer = setTimeout(() => {
     _rereadTimer = null
     // A refused re-read answers `{}` again, which SWR may treat as "no change" and not re-render
@@ -67,12 +101,15 @@ function scheduleReread(revalidate) {
     let p
     try { p = revalidate() } catch { p = null }
     Promise.resolve(p).then(
-      (d) => { if (!isServerBased(d)) scheduleReread(revalidate) },
+      (d) => {
+        if (isServerBased(d)) { noteServerBase(); flushPendingMerges() } else scheduleReread(revalidate)
+      },
       () => { scheduleReread(revalidate) },
     )
   }, delay)
 }
-function noteGoodRead() {
+/** The cache was SEEN holding the server's value: the series is over, and may start afresh later. */
+function noteServerBase() {
   _rereadAttempts = 0
   if (_rereadTimer) { clearTimeout(_rereadTimer); _rereadTimer = null }
 }
@@ -82,7 +119,11 @@ const fetcher = url => {
     r => {
       noteWorkspaceDocResponse(r); noteRevision(r, false)
       if (!r.ok) { readFailedOnce(); return {} }
-      return r.json().then(j => { _lastReadOk = true; noteGoodRead(); return tagServer(j) }, err => { readFailedOnce(); throw err })
+      return r.json().then(j => {
+        _lastReadOk = true
+        if (j && typeof j === 'object') _lastGoodAnswer = j
+        return tagServer(j)
+      }, err => { readFailedOnce(); throw err })
     },
     err => { readFailedOnce(); throw err },
   )
@@ -234,12 +275,44 @@ export function whenWritesSettle(keys) {
   return Promise.all((keys || []).map(k => _writeChains.get(k) || Promise.resolve())).then(() => undefined)
 }
 
+// ─── One member's state, never another's ─────────────────────────────────────
+//
+// ⛔⛔ EVERYTHING ABOVE IS MODULE STATE, and sign-out is not a reload (AuthContext's logout sets
+// the user to null; Settings and Subscribe navigate in-app). Kept across a change of member, a held
+// merge made for A replayed onto B's preferences and POSTed into B's ACCOUNT (review repro:
+// posts [{groups:{"A":"A_USER_PICK","B":"B2"}}]), and B rendered A's cached preferences until a
+// read landed. `setPreferencesUser` is called by AuthContext on every committed user change
+// (sign-out, sign-in as someone else, a session that died and came back as another member): it
+// clears all of it AND the cached preferences, so B never renders or merges onto A's.
+let _prefsUser          // undefined = not yet known (the first answer of /api/auth/me)
+
+/** Clear every piece of module state this hook keeps (not the SWR cache: see setPreferencesUser). */
+export function resetPreferencesState() {
+  _revBaseline = null; _keyRev.clear(); _conflicted.clear(); _writeChains.clear(); _lastReadOk = null
+  _failedWrites.clear(); _inflightRead = null; _lastGoodAnswer = null
+  if (_rereadTimer) clearTimeout(_rereadTimer)
+  _rereadTimer = null; _rereadAttempts = 0; _rereadTotal = 0; _pendingMerges.length = 0
+}
+
+/** "Whose preferences these are" changed (AuthContext publishes it: lib/prefsSession.js). */
+export function setPreferencesUser(id) {
+  const next = id ?? null
+  if (_prefsUser === undefined) { _prefsUser = next; return }   // first answer: nothing to clear
+  if (next === _prefsUser) return
+  _prefsUser = next
+  resetPreferencesState()
+  // Drop the previous member's cached preferences (no request), then read the new member's own.
+  // A read still in flight for the previous member is discarded by SWR (a mutation started after it).
+  mutateGlobal(PREFS_URL, undefined, { revalidate: false })
+  if (next !== null) mutateGlobal(PREFS_URL)
+}
+onPrefsUserChange((id) => setPreferencesUser(id))
+if (prefsUser() !== undefined) _prefsUser = prefsUser()   // published before this module loaded
+
 /** Tests only. */
 export function __resetRevisionStateForTests() {
-  _revBaseline = null; _keyRev.clear(); _conflicted.clear(); _writeChains.clear(); _lastReadOk = null
-  _failedWrites.clear(); _inflightRead = null
-  if (_rereadTimer) clearTimeout(_rereadTimer)
-  _rereadTimer = null; _rereadAttempts = 0; _pendingMerges.length = 0
+  resetPreferencesState()
+  _prefsUser = undefined
 }
 
 // THE one POST. Runs inside the per-key queue, so the revision is read at SEND time — after this
@@ -265,6 +338,7 @@ async function postPref(key, serialized) {
   }
   if (res && res.ok) {
     _failedWrites.delete(key)
+    dropPendingFor(key)
     try {
       const j = await res.json()
       if (j && Number.isInteger(j.version)) _keyRev.set(key, j.version)
@@ -367,7 +441,8 @@ export async function refreshPreferences({ signal } = {}) {
   if (!res || !res.ok) return null
   if (!data || typeof data !== 'object') return null
   _lastReadOk = true
-  noteGoodRead()
+  _lastGoodAnswer = data
+  noteServerBase()
   await mutateGlobal(PREFS_URL, tagServer(data), { revalidate: false })
   return { ...DEFAULTS, ...data }
 }
@@ -555,7 +630,7 @@ export default function usePreferences(enabled = true) {
     if (unknownBase) {
       // Applied locally above, deliberately never posted. Kept, and re-applied onto the server's
       // value when a good read lands; a re-read is scheduled so that it does.
-      _pendingMerges.push(() => { setPrefMergedRef.current?.(key, updater) })
+      _pendingMerges.push({ key, user: _prefsUser, run: () => { setPrefMergedRef.current?.(key, updater) } })
       scheduleReread(() => mutate())
       return false
     }
@@ -583,10 +658,8 @@ export default function usePreferences(enabled = true) {
   useEffect(() => {
     if (!enabled || data === undefined) return
     if (!cacheIsServer) { scheduleReread(() => mutate()); return }
-    if (_pendingMerges.length) {
-      const replay = _pendingMerges.splice(0)
-      for (const run of replay) run()
-    }
+    noteServerBase()
+    flushPendingMerges()
   }, [enabled, data, cacheIsServer, mutate])
 
   // `readFailed`: the last read of the preferences was refused or never arrived, so the cached value is NOT the
