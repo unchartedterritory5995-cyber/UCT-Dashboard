@@ -103,7 +103,7 @@ describe('P2 engine — the scenario (items 1, 2, 3, 4, 7, 8, 17, 19, 36)', () =
   it('1 CREATE — ASKED "RSI overbought"; CLAIMED a definition built from the tree; DID: byte-identical to a Builder save of the same formula (EXACT)', () => {
     // ⭐ NAME-DRIFT FIX (release gate 2026-10-06): the create's model name ("RSI
     // overbought") is prose, not authority — the name is DERIVED from the tree.
-    const expected = builderSave({ name: 'RSI 14 > 70', rows: [builderRow('value', 'rsi(close, 14) > 70')] })
+    const expected = builderSave({ name: 'RSI 14 above 70', rows: [builderRow('value', 'rsi(close, 14) > 70')] })
     expect(stableJson(def(0))).toBe(stableJson(expected))
     expect(JSON.stringify(def(0))).toBe(JSON.stringify(expected)) // key order too
     expect(validateUserDefinitions([def(0)]).errors).toEqual([])
@@ -115,11 +115,15 @@ describe('P2 engine — the scenario (items 1, 2, 3, 4, 7, 8, 17, 19, 36)', () =
     const paths = diffPaths(def(0), def(1))
     // ⭐ …AND THE AUTO NAME MOVES WITH THE LITERAL (name-drift fix): the name, its
     // short form and plot 1's label (which follows the name) are the only other bytes.
+    // ⭐ 2026-10-29 plain names: "RSI 14 above 70" -> "RSI 14 above 80" moves the NAME; its
+    // 12-character chip ("RSI 14 above") and plot 1's label (which follows the chip) are
+    // the same text either side, so they are no longer among the moved bytes. Surfaces
+    // with room show the whole name over a chip cut (`labelText.untruncatedLabel`).
     expect(paths.sort()).toEqual(['compute.ast.args', 'compute.fn', 'compute.source', 'meta.description',
-      'meta.name', 'meta.shortName', 'plots[value].label'])
+      'meta.name'])
     expect(paths.every((p) => /^(compute\.(ast|fn|source)|meta\.(description|name|shortName)|plots\[value\]\.label)/.test(p))).toBe(true)
     expect(def(1).compute.source).toBe('rsi(close, 14) > 80')
-    expect(def(1).meta.name).toBe('RSI 14 > 80')
+    expect(def(1).meta.name).toBe('RSI 14 above 80')
     expect(turns[1].result.changes[0]).toMatchObject({ kind: 'slot-set', slot: 'value#1', fromValue: 70, toValue: 80 })
   })
 
@@ -144,8 +148,8 @@ describe('P2 engine — the scenario (items 1, 2, 3, 4, 7, 8, 17, 19, 36)', () =
 
   it('7 CANDLE PAINT — ASKED "gold candles"; CLAIMED candles gold where true, nothing else; DID: the P1 signal paint (colour where true, transparent where false/unknown) (EXACT)', () => {
     expect(def(3).paints).toEqual(signalPaintsFor('value', { barcolor: '#FFD700' }))
-    // P3S: the one-output label reads back as the WHOLE name -- the chip cut "RSI 14 > 80" hid the AND clause
-    expect(turns[3].readback.presentation).toContain('candles painted gold where RSI 14 > 80 and Close > EMA 20 × 1.08 is true (normal colour otherwise)')
+    // P3S: the one-output label reads back as the WHOLE name -- the chip cut "RSI 14 above 80" hid the AND clause
+    expect(turns[3].readback.presentation).toContain('candles painted gold where RSI 14 above 80 and Close above 1.08× EMA 20 is true (normal colour otherwise)')
     expect(def(3).compute).toEqual(def(2).compute) // presentation-only: maths identical
   })
 
@@ -162,7 +166,7 @@ describe('P2 engine — the scenario (items 1, 2, 3, 4, 7, 8, 17, 19, 36)', () =
     expect(Object.keys(turns[5].state.requests.alerts[0]).sort()).toEqual(['plotKey', 'triggerPolicy'])
     expect(def(5)).toBe(def(5)) // sanity
     expect(stableJson(def(5))).toBe(stableJson(def(4)))
-    expect(turns[5].readback.alerts).toEqual(['Alert when RSI 14 > 80 and Close > EMA 20 × 1.08 becomes true'])
+    expect(turns[5].readback.alerts).toEqual(['Alert when RSI 14 above 80 and Close above 1.08× EMA 20 becomes true'])
   })
 
   it('17 INFO VALUE REQUEST — ASKED "show the RSI value"; CLAIMED the latest RSI in the header; DID: an RSI output plus a {plotKey, format} reference — no formula copy in the request (EXACT)', () => {
@@ -185,7 +189,7 @@ describe('P2 engine — the scenario (items 1, 2, 3, 4, 7, 8, 17, 19, 36)', () =
         { style: 'markers', marker: { shape: 'circle', position: 'belowBar' } }),
       builderRow('rsi', 'rsi(close, 14)', { label: 'RSI 14' }),   // derived, not the model's "RSI"
     ]
-    const expected = builderSave({ name: 'RSI 14 > 75 and Close > EMA 20 × 1.08 · RSI 14', rows, scanPlot: 'value',
+    const expected = builderSave({ name: 'RSI 14 above 75 and Close above 1.08× EMA 20 · RSI 14', rows, scanPlot: 'value',
       paints: signalPaintsFor('value', { barcolor: '#FFD700' }) })
     expect(stableJson(s.working)).toBe(stableJson(expected))
     expect(validateUserDefinitions([s.working]).errors).toEqual([])
@@ -215,7 +219,7 @@ describe('P2 engine — the scenario (items 1, 2, 3, 4, 7, 8, 17, 19, 36)', () =
 
   it('readback — deterministic lines from the resulting definition (EXACT)', () => {
     const rb = turns[7].readback
-    expect(rb.lines[0]).toBe('Name: RSI 14 > 75 and Close > EMA 20 × 1.08 · RSI 14')
+    expect(rb.lines[0]).toBe('Name: RSI 14 above 75 and Close above 1.08× EMA 20 · RSI 14')
     expect(rb.lines).toContain(SEMANTICS_LINE)
     expect(rb.outputs.map((o) => [o.key, o.type])).toEqual([['value', 'condition'], ['rsi', 'series']])
     expect(rb.outputs[0].sentence).toMatch(/14-bar RSI of close\) is greater than 75/)
@@ -445,7 +449,7 @@ describe('P2 engine — atomicity, undo, multi-output, imports, semantics, prose
     const ra = readback(a.definition, { assumptions: a.assumptions })
     const rb = readback(b.definition, { assumptions: b.assumptions })
     expect(rb.lines).toEqual(ra.lines)
-    expect(rb.assumptions).toEqual(['Assumed RSI period 14 (on RSI 14 > 80)']) // two outputs: named
+    expect(rb.assumptions).toEqual(['Assumed RSI period 14 (on RSI 14 above 80)']) // two outputs: named
   })
 })
 

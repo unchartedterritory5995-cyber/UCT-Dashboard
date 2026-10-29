@@ -112,12 +112,18 @@ export function outputNamer(def) {
   // name, exactly as the legend shows it. With several outputs the first label
   // names that output, not the definition, so it is shown as stored. Display
   // only: no stored label is touched.
-  const shown = (p) => (plots.length === 1 ? untruncatedLabel(def, p.label) : p.label) || p.key
+  // ⭐ 2026-10-29 — AND WITH SEVERAL OUTPUTS, plot 1's stored label is still that chip cut
+  // of the definition's name, whose FIRST PART names plot 1 ("RSI 14 above 70 · RSI 14"
+  // cuts to "RSI 14", which is the second output's label too). So plot 1 reads back as the
+  // name's first part — the whole name up to its " · " separator — again display only.
+  const firstPart = () => String((def && def.meta && def.meta.name) || '').split(' · ')[0].trim()
+  const shown = (p, i) => (plots.length === 1 ? untruncatedLabel(def, p.label)
+    : (i === 0 && untruncatedLabel(def, p.label) !== p.label && firstPart()) || p.label) || p.key
   const counts = new Map()
-  for (const p of plots) { const l = shown(p); counts.set(l, (counts.get(l) || 0) + 1) }
+  plots.forEach((p, i) => { const l = shown(p, i); counts.set(l, (counts.get(l) || 0) + 1) })
   return (key) => {
-    const p = plots.find((x) => x.key === key)
-    const label = p ? shown(p) : key
+    const i = plots.findIndex((x) => x.key === key)
+    const label = i >= 0 ? shown(plots[i], i) : key
     return counts.get(label) > 1 ? `${label} (${key})` : label
   }
 }

@@ -52,7 +52,7 @@ describe('P3 UX — studio dock voice', () => {
     const card = screen.getByTestId('create-indicator-readback')
     expect(card.textContent).toContain('true when the 14-bar RSI of close is above 70')
     expect(card.textContent).not.toMatch(/0 otherwise/)
-    expect(lastUct().textContent).toContain('RSI 14 > 70 — true when the 14-bar RSI of close is above 70')
+    expect(lastUct().textContent).toContain('RSI 14 above 70 — true when the 14-bar RSI of close is above 70')
     expect(lastUct().textContent).toContain('Using RSI period 14.')
   })
 

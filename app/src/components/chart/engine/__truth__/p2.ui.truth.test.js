@@ -112,7 +112,7 @@ describe('P2 ui — item 36: ONE definition across N conversational turns and sa
     const alertCalls = []
     const alerts = await armConversationAlerts({ storedDoc: first.storedDoc, requests: first.requests, sym: 'SPY', tf: 'D',
       instanceId: att.instanceId, create: async (p) => { alertCalls.push(p); return { ok: true, id: 1 } } })
-    expect(alerts).toEqual([{ kind: 'alert', plotKey: 'value', ok: true, text: 'Alert when RSI 14 > 75 becomes true on SPY D: created.' }])  // BATCH 1: the output's name, not its key
+    expect(alerts).toEqual([{ kind: 'alert', plotKey: 'value', ok: true, text: 'Alert when RSI 14 above 75 and Close above 1.08× EMA 20 becomes true on SPY D: created.' }])  // BATCH 1: the output's name, not its key
     expect(alertCalls[0]).toEqual({ sym: 'SPY', indicator: 'u_0000000000b2.value', trigger_policy: 'becomes_true',
       condition: 'cross_above', threshold: 0.5, tf: 'D', instance_id: att.instanceId })
     expect(JSON.stringify(alertCalls[0])).not.toMatch(/ast|rsi\(|ema\(/) // address only, no tree copy

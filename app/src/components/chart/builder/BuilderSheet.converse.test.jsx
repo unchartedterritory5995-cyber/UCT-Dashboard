@@ -65,7 +65,7 @@ describe('BuilderSheet hosts the conversation', () => {
     expect(sent.view.contract).toBe('uct.authoring.view/1')
     expect(sent.view.revision).toBe(0)
     const rb = screen.getByTestId('converse-readback').textContent
-    expect(rb).toContain('RSI 14 > 70 — true when the 14-bar RSI of close is above 70')
+    expect(rb).toContain('RSI 14 above 70 — true when the 14-bar RSI of close is above 70')
     expect(screen.getByTestId('converse').textContent).not.toContain('MACD')
 
     // ⭐ SLICE 2 — ONE primary save: the sheet footer commits the conversation; the

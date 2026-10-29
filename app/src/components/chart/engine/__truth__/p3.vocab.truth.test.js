@@ -300,7 +300,7 @@ describe('P3 vocab 3 — fill between two outputs', () => {
       builderRow('up', 'ema(close, 10) > ema(close, 30)', { hidden: true }),
     ] }))
     expect(fidelityResidual(d, modelOf(d))).toEqual([])
-    expect(readback(d).lines).toEqual(expect.arrayContaining(['Look: area between Imported and slow shaded bright green where up is true, red where false']))
+    expect(readback(d).lines).toEqual(expect.arrayContaining(['Look: area between Imported band and slow shaded bright green where up is true, red where false']))
     const recolour = applyPatch(d, env(0, [{ op: 'set_fill', output: 'fast', with: 'slow', when: 'up', colorAbove: '#089981', colorBelow: '#F23645' }]))
     expect(recolour.ok, JSON.stringify(recolour.errors)).toBe(true)
     expect(recolour.definition.plots.find((p) => p.key === 'fast').fill)

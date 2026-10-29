@@ -149,22 +149,56 @@ const cap = (s) => (s ? s[0].toUpperCase() + s.slice(1) : s)
 /** ⭐ BATCH 2 — how an exact-identity function reads in a name ("LINREG 50"). */
 const EXPANSION_LABELS = Object.freeze({ kcUpper: 'KC upper', kcLower: 'KC lower', kcMiddle: 'KC middle' })
 
-export function nameOfTree(node, parentPrec = 0) {
+/** ⭐⭐ 2026-10-29 — A NAME IS WORDS, NOT A FORMULA (owner: "no formulas in chat").
+ *  `plain` (the default) says the maths the way a chart label reads: "EMA 9 above
+ *  EMA 20", "High below previous High and Low above previous Low", "EMA 9 vs EMA 20 %",
+ *  "Close when Close above SMA 50". `formula` is the wording every name was derived in
+ *  before — kept so a name SAVED under it still reads as automatic (`namingSnapshot`)
+ *  and follows its maths, rather than being frozen as if a member had typed it. */
+export const NAME_MODES = Object.freeze(['plain', 'formula'])
+
+const PLAIN_RELATIONS = Object.freeze({
+  '>': 'above', '<': 'below', '>=': 'at or above', '<=': 'at or below', '==': 'equals', '!=': 'not equal to',
+})
+const PLAIN_ARITHMETIC = Object.freeze({ '+': 'plus', '-': 'minus', '*': 'times', '/': 'divided by' })
+const isNum = (n, v) => isObj(n) && n.type === 'num' && (v === undefined || n.value === v)
+const isOpNode = (n, name, arity) => isObj(n) && n.type === 'op' && n.name === name
+  && Array.isArray(n.args) && n.args.length === arity
+const isNoValue = (n) => isOpNode(n, '/', 2) && isNum(n.args[0], 0) && isNum(n.args[1], 0)
+const sameShape = (a, b) => { try { return JSON.stringify(a) === JSON.stringify(b) } catch { return false } }
+
+/** `(A − B) ÷ B × 100` (either factor order) → [A, B], else null. */
+function percentDifference(node) {
+  if (!isOpNode(node, '*', 2)) return null
+  const [l, r] = node.args
+  const ratio = isNum(r, 100) ? l : isNum(l, 100) ? r : null
+  if (!isOpNode(ratio, '/', 2) || !isOpNode(ratio.args[0], '-', 2)) return null
+  const [a, b] = ratio.args[0].args
+  return sameShape(b, ratio.args[1]) ? [a, b] : null
+}
+
+export function nameOfTree(node, parentPrec = 0, mode = 'plain') {
   if (!isObj(node)) return '?'
+  const plain = mode !== 'formula'
+  const sub = (n, p) => nameOfTree(n, p, mode)
   // ⭐ BATCH 2 — a stored expansion is named by the function it IS, not its arithmetic.
   const hit = recogniseExpansion(node)
-  if (hit) return nameOfTree({ type: 'call', name: EXPANSION_LABELS[hit.name] || hit.name, args: hit.args }, parentPrec)
+  if (hit) return sub({ type: 'call', name: EXPANSION_LABELS[hit.name] || hit.name, args: hit.args }, parentPrec)
   switch (node.type) {
     case 'num': return fmtNum(node.value)
     case 'series': return cap(String(node.name || ''))
-    case 'offset': return `${nameOfTree(node.args ? node.args[0] : node.of, 9)}[${fmtNum(node.value)}]`
+    case 'offset': {
+      const child = sub(node.args ? node.args[0] : node.of, 9)
+      if (!plain) return `${child}[${fmtNum(node.value)}]`
+      return node.value === 1 ? `previous ${child}` : `${child} ${fmtNum(node.value)} bars ago`
+    }
     case 'call': {
       const args = Array.isArray(node.args) ? node.args : []
       // ⭐ P3S — an event reads as one: "RSI 28 crosses above 70", not
       // "CROSSOVER 70 (RSI 28)" (P3R). Presentation only — names are not identity.
       if ((node.name === 'crossOver' || node.name === 'crossUnder') && args.length === 2) {
         const dir = node.name === 'crossOver' ? 'above' : 'below'
-        return `${nameOfTree(args[0], 9)} crosses ${dir} ${nameOfTree(args[1], 9)}`
+        return `${sub(args[0], 9)} crosses ${dir} ${sub(args[1], 9)}`
       }
       const fn = String(node.name || '').toUpperCase()
       // ⭐ THE CHART CONVENTION: "EMA 20", "RSI 14", "MACD 12,26,9". The bar
@@ -174,26 +208,60 @@ export function nameOfTree(node, parentPrec = 0) {
       const other = args.filter((a) => !(isObj(a) && a.type === 'num')
         && !(isObj(a) && a.type === 'series' && a.name === 'close'))
       const head = nums.length ? `${fn} ${nums.join(',')}` : fn
-      return other.length ? `${head} (${other.map((a) => nameOfTree(a)).join(', ')})` : head
+      return other.length ? `${head} (${other.map((a) => sub(a)).join(', ')})` : head
     }
     case 'op': {
       const args = Array.isArray(node.args) ? node.args : []
-      const word = OP_WORDS[node.name] || node.name
-      if (args.length === 1) return `${node.name === '!' ? 'not ' : word}${nameOfTree(args[0], 9)}`
+      if (!plain) {
+        const word = OP_WORDS[node.name] || node.name
+        if (args.length === 1) return `${node.name === '!' ? 'not ' : word}${sub(args[0], 9)}`
+        const p = PREC[node.name] || 7
+        const text = args.map((a) => sub(a, p)).join(` ${word} `)
+        return p < parentPrec ? `(${text})` : text
+      }
+      if (isNoValue(node)) return 'no value'
+      if (node.name === '?:' && args.length === 3) {
+        // "X when C" — the shape of "show a value only when the condition holds"
+        const [c, x, y] = args
+        const text = isNoValue(y) ? `${sub(x, 1)} when ${sub(c, 1)}`
+          : isNoValue(x) ? `${sub(y, 1)} unless ${sub(c, 1)}`
+            : `${sub(x, 1)} when ${sub(c, 1)}, else ${sub(y, 1)}`
+        return parentPrec > 0 ? `(${text})` : text
+      }
+      if (args.length === 1) {
+        if (node.name === '!') return `not ${sub(args[0], 9)}`
+        return isNum(args[0]) ? `−${sub(args[0], 9)}` : `negative ${sub(args[0], 9)}`
+      }
+      // `x − x[n]` is the n-bar change in x ("Close 5-bar change")
+      if (node.name === '-' && args.length === 2 && isObj(args[1]) && args[1].type === 'offset'
+          && sameShape(args[0], (args[1].args || [])[0])) {
+        const text = `${sub(args[0], 9)} ${fmtNum(args[1].value)}-bar change`
+        return parentPrec > 4 ? `(${text})` : text
+      }
+      const pct = percentDifference(node)
+      if (pct) {
+        const text = `${sub(pct[0], 5)} vs ${sub(pct[1], 5)} %`
+        return parentPrec > 4 ? `(${text})` : text
+      }
+      if (node.name === '*' && args.length === 2 && (isNum(args[0]) || isNum(args[1]))) {
+        const [k, x] = isNum(args[0]) ? args : [args[1], args[0]]
+        return `${fmtNum(k.value)}× ${sub(x, 9)}`
+      }
       const p = PREC[node.name] || 7
-      const text = args.map((a) => nameOfTree(a, p)).join(` ${word} `)
+      const word = PLAIN_RELATIONS[node.name] || PLAIN_ARITHMETIC[node.name] || OP_WORDS[node.name] || node.name
+      const text = args.map((a) => sub(a, p)).join(` ${word} `)
       return p < parentPrec ? `(${text})` : text
     }
     // ⭐ PHASE 5 — the scope wrappers name what they read: "SPY Close", "EMA 50 (W)",
     // "High (W, forming)". A name must not hide another symbol or timeframe.
     case 'sym': {
       const child = Array.isArray(node.args) ? node.args[0] : null
-      return `${String(node.value || '?')} ${nameOfTree(child, 9)}`
+      return `${String(node.value || '?')} ${sub(child, 9)}`
     }
     case 'tf':
     case 'tf_live': {
       const child = Array.isArray(node.args) ? node.args[0] : null
-      return `${nameOfTree(child, 9)} (${String(node.value || '?')}${node.type === 'tf_live' ? ', forming' : ''})`
+      return `${sub(child, 9)} (${String(node.value || '?')}${node.type === 'tf_live' ? ', forming' : ''})`
     }
     default: return '?'
   }
@@ -202,8 +270,8 @@ export function nameOfTree(node, parentPrec = 0) {
 const clip = (s, max) => (s.length <= max ? s : `${s.slice(0, max - 1).trimEnd()}…`)
 
 /** The formula-derived label of ONE output row (`{key, ast}`) — the P2 rule. */
-function formulaRowName(row) {
-  return clip(row && row.ast ? nameOfTree(row.ast) : String((row && row.key) || ''), LABEL_MAX)
+function formulaRowName(row, mode = 'plain') {
+  return clip(row && row.ast ? nameOfTree(row.ast, 0, mode) : String((row && row.key) || ''), LABEL_MAX)
 }
 
 // ─── ⭐ STABILIZATION 3 — A CALCULATOR / TABLE INDICATOR IS NAMED BY ITS TABLE ───
@@ -300,7 +368,7 @@ export function derivedDefName(model) {
 }
 
 /** The P2 formula-derived definition name (also what older saves stored). */
-function formulaDefName(model) {
+function formulaDefName(model, mode = 'plain') {
   // ⭐ PHASE 5 — a colour rule's / cloud's hidden column is not part of the name
   // (found in the sandbox flow: "EMA 50 · EMA 50 > EMA 50[1]", "EMA 10 · EMA 30 +1").
   const helpers = helperKeysOfRows(model && model.rows)
@@ -308,7 +376,7 @@ function formulaDefName(model) {
   if (!rows.length) return ''
   const primary = rows.find((r) => r.key === model.scanKey) || rows[0]
   const rest = rows.filter((r) => r !== primary)
-  const parts = [nameOfTree(primary.ast), ...(rest.length ? [nameOfTree(rest[0].ast)] : [])]
+  const parts = [nameOfTree(primary.ast, 0, mode), ...(rest.length ? [nameOfTree(rest[0].ast, 0, mode)] : [])]
   const more = rest.length > 1 ? ` +${rest.length - 1}` : ''
   return clip(parts.join(' · ') + more, NAME_MAX)
 }
@@ -338,11 +406,20 @@ export function namingSnapshot(model) {
     label: r.label || '',
     auto: i === 0
       ? (r.label || '') === '' || r.label === derivedRowName(r, model)
-        || (notPrimary(model, r) && r.label === formulaRowName(r))
-      : !!r.label && (r.label === derivedRowName(r, model) || r.label === formulaRowName(r)),
+        || (notPrimary(model, r) && (r.label === formulaRowName(r) || r.label === formulaRowName(r, 'formula')))
+      : !!r.label && (r.label === derivedRowName(r, model) || r.label === formulaRowName(r)
+        || r.label === formulaRowName(r, 'formula')),
   }]))
   // ⭐ An older save stored the FORMULA name; it is still automatic, so it follows.
-  return { name: model.name, nameAuto: model.name === derivedDefName(model) || model.name === formulaDefName(model), rows }
+  // ⭐ 2026-10-29: and a name derived in the FORMULA wording ("EMA 9 > EMA 20", what every
+  // save before the plain wording stored) is automatic too, so it moves to the plain words
+  // on the next maths edit rather than being frozen as if the member had typed it.
+  return {
+    name: model.name,
+    nameAuto: model.name === derivedDefName(model) || model.name === formulaDefName(model)
+      || model.name === formulaDefName(model, 'formula'),
+    rows,
+  }
 }
 
 /**

@@ -650,8 +650,8 @@
       }
     },
     "meta": {
-      "name": "EMA 12 − EMA 26",
-      "shortName": "EMA 12 −",
+      "name": "EMA 12 minus EMA 26",
+      "shortName": "EMA 12",
       "category": "Custom",
       "description": "(the 12-bar exponential average of close) minus (the 26-bar exponential average of close)",
       "tags": [
@@ -703,7 +703,7 @@
     "plots": [
       {
         "key": "hist",
-        "label": "EMA 12 −",
+        "label": "EMA 12",
         "style": "histogram",
         "color": "$color",
         "width": "$lineWidth",
@@ -1598,13 +1598,13 @@
       {
         "key": "bullColor",
         "type": "color",
-        "label": "RSI 14 > 50 colour",
+        "label": "RSI 14 above 50 colour",
         "default": "#c9a84c"
       },
       {
         "key": "bullWidth",
         "type": "int",
-        "label": "RSI 14 > 50 width",
+        "label": "RSI 14 above 50 width",
         "default": 1,
         "min": 1,
         "max": 4,
@@ -1641,7 +1641,7 @@
       },
       {
         "key": "bull",
-        "label": "RSI 14 > 50",
+        "label": "RSI 14 above 50",
         "style": "line",
         "color": "$bullColor",
         "width": "$bullWidth",
