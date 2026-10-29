@@ -153,6 +153,9 @@
 
 /* ── Today, grouped by setup ── */
 .groupList { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(420px, 100%), 1fr)); gap: var(--space-md); }
+/* `.tiles` carries `flex: 1 1 360px` for the profile header ROW; in this COLUMN card that basis
+   became a 360px HEIGHT (measured on the live page 2026-10-29). */
+.rhymeGroup .tiles { flex: none; }
 .rhymeGroup {
   display: flex; flex-direction: column; gap: var(--space-sm); padding: var(--space-md) var(--space-lg);
   background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-xl);

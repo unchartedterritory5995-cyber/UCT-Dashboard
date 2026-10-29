@@ -23,9 +23,10 @@ export const RHYMES_URL = `${ARCHIVE_API}/rhymes?limit=${RHYMES_LIMIT}`
 // Tickers shown under each setup before "show all".
 export const TICKERS_SHOWN = 8
 
-// A cold server computes Today in the background (archive/rhymes.py) and a request that outlives
-// the CDN's timeout comes back 5xx. Retry those a few times; a 404 (off) or 402 (unpaid) is final.
-export const RHYMES_RETRY = { count: 4, intervalMs: 15000 }
+// A cold server computes Today in the background (archive/rhymes.py); during the boot rush a request
+// can come back 5xx. Retry those for ~5 minutes (measured 2026-10-29: the first compute after a deploy
+// landed 215 s after boot, and 4 retries gave up before it); a 404 (off) or 402 (unpaid) is final.
+export const RHYMES_RETRY = { count: 20, intervalMs: 15000 }
 // A cold server answers 202 {status: "warming"} while it computes in the background: ask again
 // every WARMING_POLL_MS until the answer lands, then stop polling.
 export const WARMING_POLL_MS = 15000
