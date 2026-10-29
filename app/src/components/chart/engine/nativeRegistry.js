@@ -2838,19 +2838,35 @@ export function resolveInputs(def, inputs) {
  * `kind == "SMA"`), so an `enum` input whose options are text reaches it as the
  * position of the member's pick. The INSTANCE keeps the text — what the dropdown
  * shows and what `defSchema` validates — and only the evaluation scope sees the
- * number. An unknown value is passed through unchanged (the tree then compares
- * text with a number and matches nothing, which is visible, never a guess).
+ * number.
+ *
+ * ⭐⭐ ONE RULE, SHARED WITH THE SERVER (`api/services/alert_user_series._inputs_for`),
+ * pinned by ONE fixture both suites read (`tests/fixtures/enum_input_parity.json`):
+ *   • a value that IS one of the options → that option's index;
+ *   • anything else — unknown text, a number, null, a boolean — → the DEFAULT's index;
+ *   • a default that is not among the options → index 0. (Pine refuses to compile
+ *     such a script, so the door never mints one; this guards a hand-made document.)
+ * ⚰️ An unknown value used to pass through as text, the tree compared text with a
+ * number, and EVERY `kind == i` was false — the script's else arm, which the server
+ * did not agree with (it took the default).
  * ⛔ Only for the TREE lanes: a native's enum (`lineStyle: 'dashed'`) is text its
  * compute reads as text, and `resolveInputs` stays exactly what it was.
  */
+export function enumIndexOf(input, value) {
+  const opts = Array.isArray(input && input.options) ? input.options.map((o) => (Array.isArray(o) ? o[0] : o)) : []
+  if (!opts.length || !opts.every((o) => typeof o === 'string')) return null
+  const at = typeof value === 'string' ? opts.indexOf(value) : -1
+  if (at >= 0) return at
+  const def = opts.indexOf(input.default)
+  return def >= 0 ? def : 0
+}
+
 export function treeScalars(def, scalars) {
   let out = scalars
   for (const input of def?.inputs || []) {
     if (!input || input.type !== 'enum' || typeof input.key !== 'string') continue
-    const opts = Array.isArray(input.options) ? input.options.map((o) => (Array.isArray(o) ? o[0] : o)) : []
-    if (!opts.length || !opts.every((o) => typeof o === 'string')) continue
-    const i = opts.indexOf(scalars[input.key])
-    if (i < 0) continue
+    const i = enumIndexOf(input, scalars[input.key])
+    if (i === null) continue
     if (out === scalars) out = { ...scalars }
     out[input.key] = i
   }

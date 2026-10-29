@@ -1,0 +1,17 @@
+{
+  "_about": "ONE enum-input rule for the tree lanes, read by BOTH app/src/components/chart/engine/__tests__/enumInputParity.test.js (nativeRegistry.treeScalars over resolveInputs) and tests/test_enum_input_parity.py (alert_user_series._inputs_for). An option's text -> its index; anything else (unknown text, a number, null, a boolean, absent) -> the DEFAULT's index; a default not among the options -> index 0. Each case's `value` is what the instance / alert row stores; `absent` means no value stored.",
+  "cases": [
+    { "name": "a listed option", "input": { "key": "kind", "type": "enum", "default": "EMA", "options": ["SMA", "EMA", "WMA"] }, "value": "WMA", "index": 2 },
+    { "name": "the default itself", "input": { "key": "kind", "type": "enum", "default": "EMA", "options": ["SMA", "EMA", "WMA"] }, "value": "EMA", "index": 1 },
+    { "name": "no stored value", "input": { "key": "kind", "type": "enum", "default": "EMA", "options": ["SMA", "EMA", "WMA"] }, "absent": true, "index": 1 },
+    { "name": "unknown text", "input": { "key": "kind", "type": "enum", "default": "EMA", "options": ["SMA", "EMA", "WMA"] }, "value": "HMA", "index": 1 },
+    { "name": "wrong case is unknown text", "input": { "key": "kind", "type": "enum", "default": "EMA", "options": ["SMA", "EMA", "WMA"] }, "value": "wma", "index": 1 },
+    { "name": "a number (even a valid index)", "input": { "key": "kind", "type": "enum", "default": "EMA", "options": ["SMA", "EMA", "WMA"] }, "value": 2, "index": 1 },
+    { "name": "null", "input": { "key": "kind", "type": "enum", "default": "EMA", "options": ["SMA", "EMA", "WMA"] }, "value": null, "index": 1 },
+    { "name": "a boolean", "input": { "key": "kind", "type": "enum", "default": "EMA", "options": ["SMA", "EMA", "WMA"] }, "value": true, "index": 1 },
+    { "name": "default not among the options, no value", "input": { "key": "kind", "type": "enum", "default": "HMA", "options": ["SMA", "EMA", "WMA"] }, "absent": true, "index": 0 },
+    { "name": "default not among the options, unknown value", "input": { "key": "kind", "type": "enum", "default": "HMA", "options": ["SMA", "EMA", "WMA"] }, "value": "VWMA", "index": 0 },
+    { "name": "default not among the options, a listed value", "input": { "key": "kind", "type": "enum", "default": "HMA", "options": ["SMA", "EMA", "WMA"] }, "value": "EMA", "index": 1 },
+    { "name": "options as [value, label] pairs", "input": { "key": "src", "type": "enum", "default": "close", "options": [["open", "Open"], ["close", "Close"], ["hl2", "HL2"]] }, "value": "hl2", "index": 2 }
+  ]
+}

@@ -322,8 +322,11 @@ def _inputs_for(definition: Mapping[str, Any], params: Optional[Mapping]) -> dic
     # ⭐⭐ A TEXT ENUM REACHES THE TREE AS ITS OPTION'S INDEX — the client's
     # `nativeRegistry.treeScalars`, the same rule. A Pine `input.string(…, options)`
     # becomes `kind == 1` in the tree (`pine.js::enumCompare`); the instance and
-    # the alert row hold the TEXT the member picked. An unknown text is dropped
-    # (the default's index stands), never guessed.
+    # the alert row hold the TEXT the member picked. ONE RULE, the client's, pinned
+    # by one fixture both suites read (`tests/fixtures/enum_input_parity.json`):
+    # an option's text -> its index; anything else (unknown text, a number, null,
+    # a bool) -> the DEFAULT's index; a default not among the options -> index 0
+    # (Pine refuses such a script, so the door never mints one).
     enum_options: dict[str, list] = {}
     for spec in (definition.get("inputs") or []):
         if not isinstance(spec, dict):
@@ -331,9 +334,9 @@ def _inputs_for(definition: Mapping[str, Any], params: Optional[Mapping]) -> dic
         key, default = spec.get("key"), spec.get("default")
         if spec.get("type") == "enum" and isinstance(key, str):
             opts = [o[0] if isinstance(o, list) and o else o for o in (spec.get("options") or [])]
-            if opts and all(isinstance(o, str) for o in opts) and default in opts:
+            if opts and all(isinstance(o, str) for o in opts):
                 enum_options[key] = opts
-                out[key] = float(opts.index(default))
+                out[key] = float(opts.index(default) if default in opts else 0)
                 continue
         if isinstance(key, str) and isinstance(default, (int, float)) \
                 and not isinstance(default, bool) and math.isfinite(float(default)):
