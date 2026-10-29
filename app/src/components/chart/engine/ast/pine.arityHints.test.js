@@ -21,11 +21,29 @@ const screen = (body) =>
   translatePine(`//@version=6\nindicator("s")\nplot(${body} ? 1 : 0)\n`)
 
 describe('the arity hint', () => {
-  it('⭐ `ta.change(src, n)` refuses and names `ta.mom`', () => {
-    const out = screen('ta.change(close, 5) > 0')
+  // ⭐⭐ 2026-10-29: `ta.change(src, n)` on a NUMBER now TRANSLATES — to Pine's own
+  // definition, `source - source[length]`, the very tree `ta.mom` writes (one astHash).
+  // The hint still answers the cases that stay refused: a length that is not a
+  // written number, given by name.
+  it('⭐ `ta.change(src, n)` translates to exactly what `ta.mom(src, n)` does', () => {
+    const change = screen('ta.change(close, 5) > 0')
+    const mom = screen('ta.mom(close, 5) > 0')
+    expect(change.ok, change.ok ? '' : change.refusal.message).toBe(true)
+    expect(change.outputs[change.selected].formula).toBe('close - close[5] > 0 ? 1 : 0')
+    expect(change.outputs[change.selected].formula).toBe(mom.outputs[mom.selected].formula)
+  })
+
+  it('⛔ `ta.change` of a true/false series stays refused — it asks "did it change", not a difference', () => {
+    const out = translatePine('//@version=6\nindicator("s")\nb = close > open\nplot(ta.change(b, 2) ? 1 : 0)\n')
     expect(out.ok).toBe(false)
     expect(out.refusal.guard).toBe('pine:arity')
-    expect(out.refusal.message).toMatch(/TO UNBLOCK/)
+    expect(out.refusal.message).toContain('x != x[length]')
+  })
+
+  it('⭐ a computed length still refuses, and the hint still names `ta.mom`', () => {
+    const out = screen('ta.change(close, bar_index % 5 + 1) > 0')
+    expect(out.ok).toBe(false)
+    expect(out.refusal.guard).toBe('pine:arity')
     expect(out.refusal.message).toContain('ta.mom(source, length)')
   })
 

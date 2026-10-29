@@ -13062,6 +13062,28 @@ export class Resolver {
         // told it rather than left to find it.
         // ⛔ IT IS A SENTENCE, NOT AN AUTO-REWRITE. This door has no span to
         // replace and no business renaming a member call.
+        //
+        // ⭐⭐ 2026-10-29 — EXCEPT WHERE THE TRANSLATION IS PINE'S OWN DEFINITION, which
+        // is not a rename: `ta.change(source, length)` on a NUMBER is published as
+        // `source - source[length]`, the exact tree `ta.mom` already translates to
+        // (`CALL_EXPANSIONS.mom`), so the two spellings are one `astHash`. This is
+        // `BUILTIN_CALL_TREE`'s rule ("an exact expansion beats a refusal"), reached
+        // here only because the table declares the one-argument `change`.
+        // ⛔ TWO CASES STAY SENTENCES. A BOOL source: Pine's change of a bool is
+        // "did it change", not a difference, so the number this would write is a
+        // different series. A length that is not a written whole number: the offset
+        // has to be read once, as `mom`'s builder requires.
+        if (bare === 'change' && args.length === 2 && !args.some((a) => a && a.name)) {
+          const built = args.map((a) => this.resolve(a.value !== undefined ? a.value : a))
+          if (treeYieldsBool(built[0], this.table)) {
+            throw new PineRefusal('pine:arity',
+              REFUSALS['pine:arity'] + ' — ' + '`' + pineName + '`' + ' of a true/false '
+              + 'series asks whether it changed, which is not a difference this engine '
+              + 'writes for it — TO UNBLOCK: compare it yourself, `x != x[length]`', locate(tok))
+          }
+          const tree = CALL_EXPANSIONS.mom.build(built)
+          if (tree) return tree
+        }
         const hint = own(ARITY_HINTS, bare) ? ' — ' + ARITY_HINTS[bare] : ''
         throw new PineRefusal('pine:arity',
           REFUSALS['pine:arity'] + ' — ' + '`' + pineName + '`' + ' was given '
