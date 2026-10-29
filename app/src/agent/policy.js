@@ -17,7 +17,9 @@
 // deterministic checks of their text (the fast path, or the capability's screen of a model plan),
 // never by the model (executor.planShape). The capability's `confirmIf` still sends it to a
 // proposal when its state needs one (indicator.saveDraft: an acknowledgement, a new version of an
-// indicator used elsewhere, a duplicate name).
+// indicator used elsewhere, a duplicate name). The explicit CREATION of a new indicator (its build plus that Save —
+// indicatorAuthoring.explicitIndicatorCreate) is the member's instruction: useAgent applies it even when the model
+// suggested propose (production test 2026-10-28); the Save's own conditions still stop it at a ready draft.
 //
 // The model SUGGESTS apply vs propose; capability metadata + this module have the last word — and the SERVER
 // enforces the same boundary first (turn.enforce_approval: an `apply` carrying a confirm-risk or irreversible

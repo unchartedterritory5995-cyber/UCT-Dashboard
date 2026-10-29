@@ -76,3 +76,14 @@ def test_the_prompt_says_explicit_multi_step_requests_are_applied():
     assert "never propose just because a request has several parts" in p
     assert "or touches several targets" not in p
     assert "(and that is a propose)" not in p
+
+
+def test_the_prompt_says_creating_a_custom_indicator_is_applied():
+    # live production bug 2026-10-28: the model PROPOSED "create a custom indicator that ..." and the member had to
+    # approve the instruction they had just given (the browser also applies the explicit creation whatever the model says)
+    p = turn.system_prompt(turn.validate_manifest(GOLDEN["capabilities"][:20]))
+    assert "A request to CREATE a custom indicator" in p
+    assert "is apply: ONE indicator.draft on the NEW-draft entry with the member's words verbatim" in p
+    # the server boundary leaves the creation's build + Save as the browser decides (indicator.saveDraft is explicitOk)
+    assert turn.enforce_approval(_env("apply", "indicator.draft"), CAPS)["disposition"] == "apply"
+    assert turn.enforce_approval(_env("apply", "indicator.draft", "indicator.saveDraft"), CAPS)["disposition"] == "apply"

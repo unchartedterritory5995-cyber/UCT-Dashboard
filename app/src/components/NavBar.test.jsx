@@ -15,8 +15,8 @@ test('no free tier: every nav entry, the Morning Wire included, is locked to upg
   expect(screen.getByTestId('nav-sidebar')).toBeInTheDocument()
   expect(screen.getByRole('link', { name: /morning wire — unlock with pro/i })).toHaveAttribute('href', '/subscribe')
   // DERIVED, not a hand-picked sample: every declared item that renders.
-  // (/community and /trader-archive are dark-launched and render nothing until enabled.)
-  const rendered = NAV_ITEMS.filter((i) => i.to !== '/community' && i.to !== '/trader-archive')
+  // (/community is dark-launched and renders nothing until enabled.)
+  const rendered = NAV_ITEMS.filter((i) => i.to !== '/community')
   expect(rendered.length).toBeGreaterThan(5)
   for (const item of rendered) {
     const link = screen.getByRole('link', { name: `${item.label} — unlock with Pro` })
@@ -133,9 +133,8 @@ test('V19: a kept-calendar member on /terminal still sees the entry lit', async 
   }
 })
 
-// ── Trader Archive: paid like every row, and DARK with the archive itself ────────────────
-// The row follows the auth payload's `wisdom_archive_enabled` (WISDOM_ARCHIVE_ENABLED, the
-// archive routes' own 404 gate), so the nav never links to a switched-off page.
+// ── Trader Archive: lives in The Desk since 2026-10-28, so the sidebar has NO row for it ──────
+// Not even with the archive switched on: the Desk's Archive tab is the one door.
 function stubArchive({ plan, archiveOn }) {
   vi.stubGlobal('fetch', vi.fn((url) => {
     const u = String(url)
@@ -151,29 +150,13 @@ function renderNav() {
   renderWithProviders(<SWRConfig value={{ provider: () => new Map() }}><NavBar /></SWRConfig>)
 }
 
-test('Trader Archive: a paid member with the archive on gets the row, opening its Today view', async () => {
-  stubArchive({ plan: 'pro', archiveOn: true })
-  try {
-    renderNav()
-    const link = await screen.findByRole('link', { name: /^trader archive$/i })
-    expect(link).toHaveAttribute('href', '/trader-archive?view=today')
-  } finally {
-    vi.unstubAllGlobals()
-  }
-})
-
-test('Trader Archive: a free member with the archive on sees it LOCKED to upgrade, like its siblings', async () => {
-  stubArchive({ plan: 'free', archiveOn: true })
-  try {
-    renderNav()
-    const link = await screen.findByRole('link', { name: 'Trader Archive — unlock with Pro' })
-    expect(link).toHaveAttribute('href', '/subscribe')
-  } finally {
-    vi.unstubAllGlobals()
-  }
+test('Trader Archive: the archive is not a sidebar route', () => {
+  expect(NAV_ITEMS.some((i) => i.to === '/trader-archive')).toBe(false)
+  expect(NAV_ITEMS.some((i) => i.to === '/desk')).toBe(true)              // control: its new home is
 })
 
 test.each([
+  ['on', true],
   ['off', false],
   ['absent from the payload', undefined],
 ])('Trader Archive: no row at all while the archive flag is %s (paid member)', async (_l, archiveOn) => {

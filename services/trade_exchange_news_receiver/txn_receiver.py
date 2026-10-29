@@ -56,10 +56,23 @@ MAX_HEADER_VALUE_CHARS = 200
 
 
 class PayloadError(ValueError):
-    def __init__(self, status: int, reason: str) -> None:
+    def __init__(self, status: int, reason: str, label: str | None = None) -> None:
         super().__init__(reason)
         self.status = status
         self.reason = reason
+        #: Only set for an allowlist refusal: the rejected ``source`` label, already
+        #: passed through ``loggable_label`` (never content, never the payload).
+        self.label = label
+
+
+#: A rejected source label is logged so the real one can be put on the allowlist;
+#: capped and reduced to a plain charset so a payload cannot smuggle text into logs.
+LABEL_LOG_MAX = 32
+_LABEL_CHARS = frozenset("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 _.-")
+
+
+def loggable_label(source: str) -> str:
+    return "".join(c if c in _LABEL_CHARS else "?" for c in source[:LABEL_LOG_MAX])
 
 
 # ── configuration ────────────────────────────────────────────────────────────
@@ -224,7 +237,7 @@ def parse_payload(raw: bytes, cfg: Config) -> tuple[str, str, dict[str, Any]]:
         raise PayloadError(422, "content must be a non-empty string")
     source = source.strip()
     if source not in cfg.sources:
-        raise PayloadError(422, "source is not on the allowlist")
+        raise PayloadError(422, "source is not on the allowlist", loggable_label(source))
     if len(content) > cfg.max_content_chars:
         raise PayloadError(413, "content is longer than the configured limit")
     extra = {k: v for k, v in obj.items() if k not in ("source", "content")}

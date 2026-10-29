@@ -1,0 +1,91 @@
+{
+  "_": "⭐ THE WORDS `formulaHints.js` SAYS BESIDE A REFUSED FORMULA. Data, not code, for the same reason `preflightRules.json` is: a module that hand-lists four or more indicator names is an enumeration site (`enumerationSites.test.js`), and this table names dozens. Every `instead` is the idiom the matching ruling in `closedTable.json::_functions_excluded` names; every spelling maps a name another platform uses onto a function this table already declares. `formulaHints.test.js` evaluates every concrete formula below at the formula sheet, so a suggestion that stops working fails by name.",
+  "ruled": {
+    "hl2": {
+      "instead": "(high + low) / 2"
+    },
+    "hlc3": {
+      "instead": "(high + low + close) / 3"
+    },
+    "ohlc4": {
+      "instead": "(open + high + low + close) / 4"
+    },
+    "variance": {
+      "instead": "stdev(close, 20) * stdev(close, 20)",
+      "why": "the square of the population standard deviation"
+    },
+    "cross": {
+      "instead": "crossOver(close, ema(close, 20)) || crossUnder(close, ema(close, 20))"
+    },
+    "macdSignal": {
+      "instead": "ema(macd(close, 12, 26), 9)"
+    },
+    "bbUpper": {
+      "instead": "sma(close, 20) + 2 * stdev(close, 20)"
+    },
+    "bbMiddle": {
+      "instead": "sma(close, 20)"
+    },
+    "bbLower": {
+      "instead": "sma(close, 20) - 2 * stdev(close, 20)"
+    },
+    "stochD": {
+      "instead": "sma(stoch(high, low, close, 14), 3)"
+    },
+    "obv": {
+      "instead": "obvN(50)",
+      "why": "an all-history running total depends on how much history is loaded, so it is bounded to the last n bars"
+    },
+    "pvt": {
+      "instead": "pvtN(50)",
+      "why": "bounded to the last n bars, for the same reason as OBV"
+    },
+    "sar": {
+      "not": "Parabolic SAR carries a trend, an extreme point and an acceleration factor forward from the first bar, so it is not available as a formula yet; the Supertrend is — `supertrend(3, 10)`"
+    }
+  },
+  "spellings": {
+    "avg": "sma(close, 20)",
+    "average": "sma(close, 20)",
+    "mean": "sma(close, 20)",
+    "ma": "sma(close, 20)",
+    "movavg": "sma(close, 20)",
+    "xavg": "ema(close, 20)",
+    "expavg": "ema(close, 20)",
+    "smma": "rma(close, 14)",
+    "wilders": "rma(close, 14)",
+    "stddev": "stdev(close, 20)",
+    "std": "stdev(close, 20)",
+    "hhv": "highest(high, 20)",
+    "llv": "lowest(low, 20)",
+    "iif": "if(close > open, 1, -1)",
+    "ref": "close[1]",
+    "prev": "close[1]",
+    "tr": "max(high - low, max(abs(high - close[1]), abs(low - close[1])))",
+    "truerange": "max(high - low, max(abs(high - close[1]), abs(low - close[1])))",
+    "c": "close",
+    "o": "open",
+    "h": "high",
+    "l": "low",
+    "v": "volume",
+    "price": "close"
+  },
+  "arity": {
+    "change": {
+      "args": 2,
+      "say": "`change(x)` is the one-bar change. For n bars write `close - close[5]` (or `mom(close, 5)`)"
+    },
+    "macd": {
+      "args": 4,
+      "say": "`macd(close, 12, 26)` is the MACD line; its 9-bar signal is `ema(macd(close, 12, 26), 9)`"
+    }
+  },
+  "alsoSuggested": [
+    "supertrend(3, 10)",
+    "close - close[5]",
+    "mom(close, 5)",
+    "macd(close, 12, 26)",
+    "ema(macd(close, 12, 26), 9)",
+    "sma(close, 20)"
+  ]
+}

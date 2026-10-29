@@ -56,6 +56,7 @@ const LEGACY_SAR = {
   lineWidth: 0,
   pointMarkersVisible: true,
   pointMarkersRadius: 3,
+  lineVisible: true,     // lineStyleDefaults.lineVisible ("Last value horizontal" turns it off)
   priceLineVisible: false,
   lastValueVisible: false,
   crosshairMarkerVisible: false,
@@ -106,6 +107,7 @@ const LWC_LINE_DEFAULTS_RESTATED = {
   lineType: 0,
   pointMarkersVisible: false,
   pointMarkersRadius: 3,
+  lineVisible: true,     // lineStyleDefaults.lineVisible ("Last value horizontal" turns it off)
   priceFormat: { type: 'price', precision: 2 },
 }
 

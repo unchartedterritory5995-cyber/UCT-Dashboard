@@ -84,7 +84,6 @@ gets the measurement it requires for a new NavBar route. Code: `app/src/pages/te
 | Live Flow | `/live-massive` |
 | Catalysts History | `/catalysts/history` |
 | Model Book | `/model-book` |
-| Trader Archive | `/trader-archive` |
 | Formula Reference | `/formulas/reference` |
 | The Desk | `/desk` |
 | Journal | `/journal` |
@@ -92,7 +91,7 @@ gets the measurement it requires for a new NavBar route. Code: `app/src/pages/te
 | Community | `/community` |
 | Support | `/support` |
 
-**20 entries** (was 19 — `/trader-archive` added 2026-10-20: the TSDR trader archive,
+**19 entries** (back to 19 on 2026-10-28: the Trader Archive moved into The Desk as its Archive tab, gated on `wisdom_archive_enabled`, and `/trader-archive` is now a redirect into `/desk?section=archive`. It was 20 — `/trader-archive` added 2026-10-20: the TSDR trader archive,
 paid-gated the normal way and DARK with the archive itself — NavBar and MoreSheet render
 the row only while `/api/auth/me` carries `wisdom_archive_enabled`, the same
 `flags.archive_enabled()` reader as the archive routes' 404 gate; the row opens

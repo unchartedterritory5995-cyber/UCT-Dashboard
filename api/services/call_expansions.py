@@ -123,6 +123,74 @@ def _kc_band(sign: str) -> Callable[[List[Any]], Optional[Dict[str, Any]]]:
     return build
 
 
+#: ``callExpansions.js::SUPERTREND_WARMUP`` -- the bars each of supertrend's three bounded
+#: recurrences re-seeds over. Same number in both lanes (the parity test pins the trees).
+SUPERTREND_WARMUP = 200
+#: ``closedTable.json::functions.accum.recurrence.binds`` -- asserted equal to the manifest
+#: by ``tests/test_call_expansions_parity.py`` rather than read here, so this module stays
+#: importable without the interpreter.
+ACCUM_SELF = "self"
+
+
+def _factor(node: Any) -> Optional[Any]:
+    """A positive finite number literal (kept as the node carried it), or None."""
+    if not isinstance(node, Mapping) or node.get("type") != "num":
+        return None
+    v = node.get("value")
+    if isinstance(v, bool) or not isinstance(v, (int, float)):
+        return None
+    if v != v or v in (float("inf"), float("-inf")) or v <= 0:
+        return None
+    return int(v) if v == int(v) else v     # JS writes 3.0 as 3
+
+
+def supertrend_trees(factor_node: Any, period_node: Any,
+                     warmup: int = SUPERTREND_WARMUP) -> Optional[Dict[str, Any]]:
+    """``{"value", "direction"}`` for TradingView's ``ta.supertrend(factor, n)`` as three
+    bounded ``accum`` recurrences -- ``callExpansions.js::supertrendTrees``, node for node."""
+    f = _factor(factor_node)
+    n = _window(period_node, 1)
+    if f is None or n is None:
+        return None
+    self_ = _series(ACCUM_SELF)
+    close = _series("close")
+    prev_close = {"type": "offset", "value": 1, "args": [close]}
+    hl2 = _op("/", [_op("+", [_series("high"), _series("low")]), _num(2)])
+    atr = _call("atrPine", [_series("high"), _series("low"), close, _num(n)])
+
+    def band(sign: str) -> Dict[str, Any]:
+        return _op(sign, [hl2, _op("*", [_num(f), atr])])
+
+    up, dn = band("+"), band("-")
+    w = _num(warmup)
+    upper = _call("accum", [up, _op("?:", [
+        _op("||", [_op("<", [up, self_]), _op(">", [prev_close, self_])]), up, self_]), w])
+    lower = _call("accum", [dn, _op("?:", [
+        _op("||", [_op(">", [dn, self_]), _op("<", [prev_close, self_])]), dn, self_]), w])
+    one, minus_one = _num(1), _num(-1)
+    direction = _call("accum", [one, _op("?:", [
+        _op("==", [self_, one]),
+        _op("?:", [_op(">", [close, upper]), minus_one, one]),
+        _op("?:", [_op("<", [close, lower]), one, minus_one]),
+    ]), w])
+    unknown = _op("||", [
+        _call("na", [{"type": "offset", "value": warmup, "args": [upper]}]),
+        _call("na", [{"type": "offset", "value": warmup, "args": [lower]}]),
+    ])
+    na = _op("/", [_num(0), _num(0)])
+    return {
+        "value": _op("?:", [unknown, na, _op("?:", [_op("==", [direction, minus_one]), lower, upper])]),
+        "direction": _op("?:", [unknown, na, direction]),
+    }
+
+
+def _supertrend_part(part: str) -> Callable[[List[Any]], Optional[Dict[str, Any]]]:
+    def build(a: List[Any]) -> Optional[Dict[str, Any]]:
+        trees = supertrend_trees(a[0], a[1])
+        return None if trees is None else trees[part]
+    return build
+
+
 #: name -> (min args, max args, signature, builder). Same order and words as the JS module.
 CALL_EXPANSIONS: Dict[str, tuple] = {
     "roc": (2, 2, "roc(source, length)", _roc),
@@ -133,6 +201,8 @@ CALL_EXPANSIONS: Dict[str, tuple] = {
     "kcMiddle": (2, 2, "kcMiddle(source, length)", _kc_middle),
     "kcUpper": (3, 3, "kcUpper(source, length, multiplier)", _kc_band("+")),
     "kcLower": (3, 3, "kcLower(source, length, multiplier)", _kc_band("-")),
+    "supertrend": (2, 2, "supertrend(factor, atrPeriod)", _supertrend_part("value")),
+    "supertrendDirection": (2, 2, "supertrendDirection(factor, atrPeriod)", _supertrend_part("direction")),
 }
 
 EXPANSION_NAMES = tuple(CALL_EXPANSIONS)
@@ -150,6 +220,9 @@ def expansion_problem(name: str, n_args: int) -> str:
     if n_args < lo or n_args > hi:
         count = str(lo) if lo == hi else f"{lo} or {hi}"
         return f"{name} takes {count} arguments -- {sig}"
+    if name in ("supertrend", "supertrendDirection"):
+        return (f"{name} needs a positive factor and a whole-number ATR period, "
+                f"both written as numbers -- {sig}")
     tail = " of at least 2" if name in ("linreg", "correlation") else ""
     return f"{name} needs a whole-number length{tail} written as a number -- {sig}"
 
@@ -166,7 +239,7 @@ def expand_call(node: Mapping[str, Any]) -> Optional[Dict[str, Any]]:
 #: ``MAX_EXPANDED_NODES``, same number, same refusal text (the parity test pins both).
 MAX_EXPANDED_NODES = 1000
 MAX_EXPANSION_DEPTH = 200
-TOO_LARGE = (f"this formula nests linreg, correlation, vwma, roc, mom or the Keltner bands so deeply "
+TOO_LARGE = (f"this formula nests linreg, correlation, vwma, roc, mom, the Keltner bands or supertrend so deeply "
              f"that it would write out more than {MAX_EXPANDED_NODES} terms — nest fewer of them")
 TOO_DEEP = f"this formula is nested more than {MAX_EXPANSION_DEPTH} levels deep"
 

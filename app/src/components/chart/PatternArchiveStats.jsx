@@ -21,7 +21,7 @@
 import { useEffect } from 'react'
 import useSWR from 'swr'
 import jsonFetcher from '../../utils/jsonFetcher'
-import { ARCHIVE_API, MIN_CONTEXT_N, archiveRefPriceLines, dayOf, edgeVerdict, fmtR, rTone, traderOf } from '../../utils/traderArchive'
+import { ARCHIVE_API, MIN_CONTEXT_N, archiveHref, archiveRefPriceLines, dayOf, edgeVerdict, fmtR, rTone, traderOf } from '../../utils/traderArchive'
 import WatchLink from '../../pages/traderArchive/WatchLink'
 import LoadFailed from '../../pages/journal-2-0/components/LoadFailed'
 import styles from './PatternSidePanel.module.css'
@@ -114,7 +114,7 @@ export default function PatternArchiveStats({ patternId, sym, onLines }) {
             : <>{t.ticker}: the team has not called it.</>}
         </p>
       )}
-      <a className={styles.archiveLink} href={`/trader-archive?view=playbooks&setup=${encodeURIComponent(data.setup_id)}`}>
+      <a className={styles.archiveLink} href={archiveHref({ view: 'playbooks', setup: data.setup_id })}>
         Open the full playbook
       </a>
     </div>

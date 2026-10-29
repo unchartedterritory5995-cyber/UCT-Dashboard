@@ -881,7 +881,7 @@ export function archiveCallLevels(mention) {
 export function deskMentionHref(mention) {
   // A TSDR trader-archive row has no video: its door is the archive page for that ticker.
   if (!mention?.youtube_id && mention?.source_detail === 'archive' && mention?.archive_ticker) {
-    return `/trader-archive?sym=${encodeURIComponent(mention.archive_ticker)}`
+    return archiveHref({ sym: mention.archive_ticker })
   }
   if (!mention?.youtube_id) return null
   const t = _mentionSeek(mention)
@@ -956,6 +956,7 @@ import { sourceCapabilityOf } from './chart/engine/sourceCapability'
 import { observationReadout, economicStatusLine } from './chart/economic/econUi'
 import { runtimePaneEnabled } from './chart/engine/runtimePaneGate'
 import { readSuccessBody } from '../lib/responseBody'
+import { archiveHref } from '../utils/traderArchive'
 
 // ⭐ RT1 — HOW A SAVED RUNTIME-LANE DOCUMENT GETS ITS LANE on a chart that never
 // opened the member door. The registry asks this loader only when it meets a

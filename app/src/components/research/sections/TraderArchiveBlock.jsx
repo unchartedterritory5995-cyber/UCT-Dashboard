@@ -8,7 +8,7 @@
 // WISDOM_ARCHIVE_ENABLED is off and 402 without a paid plan, and the block must not turn
 // either into an empty-looking panel on a tab that already has its own content. Loading,
 // error and an empty archive render nothing too.
-import { clip, dayOf, fmtR, rTone, traderOf } from '../../../utils/traderArchive'
+import { archiveHref, clip, dayOf, fmtR, rTone, traderOf } from '../../../utils/traderArchive'
 import useArchiveTicker, { newestCalls } from './useArchiveTicker'
 import styles from './TraderArchiveBlock.module.css'
 
@@ -85,7 +85,7 @@ export default function TraderArchiveBlock({ sym }) {
 
       <p className={styles.footer}>
         Historical posts by the UCT team; outcomes are measured after the fact and are not advice.{' '}
-        <a className={styles.link} href={`/trader-archive?sym=${encodeURIComponent(s)}`}>Open the trader archive</a>
+        <a className={styles.link} href={archiveHref({ sym: s })}>Open the trader archive</a>
       </p>
     </section>
   )

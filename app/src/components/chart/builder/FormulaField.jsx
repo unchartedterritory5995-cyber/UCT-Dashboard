@@ -26,6 +26,7 @@ import { sentenceFor } from '../engine/ast/sentence'
 import { describeTree } from './authoring/expansionWords'
 import { lintRepaint } from '../engine/ast/lint'
 import { interpret } from '../engine/ast/interpret'
+import { formulaHint } from '../engine/ast/formulaHints'
 import styles from './BuilderSheet.module.css'
 import editorStyles from './editor/CodeEditor.module.css'
 
@@ -448,6 +449,7 @@ export default function FormulaField({
   const handle = useCallback((e) => { onChange?.(e.target.value) }, [onChange])
 
   const refused = !!(result && result.error)
+  const hint = refused ? formulaHint(result) : null
   // ⭐ THE MEMBER IS TOLD WHICH LANGUAGE WE READ, AND IT IS READ OFF THE RESULT
   // — never re-derived here. `evaluateFormula` already decided; a second
   // `detectDialect(value)` in this component would be a SECOND AUTHORITY OVER
@@ -478,7 +480,7 @@ export default function FormulaField({
         placeholder="sma(close, 20)"
         aria-label={label}
         aria-invalid={refused || undefined}
-        aria-describedby={refused ? `${inputId}-error` : undefined}
+        aria-describedby={refused ? (hint ? `${inputId}-error ${inputId}-hint` : `${inputId}-error`) : undefined}
         value={value}
         onChange={handle}
         data-dialect={result?.dialect || 'native'}
@@ -524,6 +526,14 @@ export default function FormulaField({
           <UIcon name="warning" size={14} />
           {/* ⛔ VERBATIM. See the header. */}
           <span className={styles.errorText}>{result.error}</span>
+        </p>
+      )}
+      {/* ⭐ THE FIX, IN ONE LINE, BESIDE (never instead of) the verbatim refusal —
+          `formulaHints.js` reads the refusal and names the spelling to use. */}
+      {refused && hint && (
+        <p id={`${inputId}-hint`} className={styles.formulaHint} data-testid="formula-hint">
+          {/* `code` spans are written in backticks; even parts are prose */}
+          {hint.split('`').map((part, i) => (i % 2 ? <code key={i}>{part}</code> : part))}
         </p>
       )}
     </div>

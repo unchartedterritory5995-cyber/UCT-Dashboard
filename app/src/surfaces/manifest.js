@@ -73,7 +73,7 @@ export const MANIFEST = [
   // 2026-10-15: the TSDR trader archive page (paid members). 2026-10-20: a sidebar + More-sheet
   // entry ("Trader Archive", dark behind WISDOM_ARCHIVE_ENABLED). `order` stays null: telemetry
   // has not measured it, and a nav row is not a rank (/formulas/reference is the precedent).
-  { path: "/trader-archive", pathKind: "literal", element: "TraderArchive", kind: "surface", order: null },
+  { path: "/trader-archive", pathKind: "literal", element: "TraderArchiveRedirect", kind: "redirect", order: null },
   { path: "/traders", pathKind: "literal", element: "Traders", kind: "surface", order: null },
   // ⚰️ ADDED 2026-09-29 (TERM-037). App.jsx moved /provenance-demo inside <Layout/> on
   // 2026-09-25 (`7e0ab34c2`, gated with OI-17's siblings) without a row here, and this

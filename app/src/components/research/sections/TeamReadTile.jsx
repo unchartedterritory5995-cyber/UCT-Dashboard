@@ -13,7 +13,7 @@
 import useSWR from 'swr'
 
 import { EyebrowLabel, StatTile } from '../../research-kit'
-import { ARCHIVE_API, dayOf, edgeVerdict, fmtR, traderOf } from '../../../utils/traderArchive'
+import { ARCHIVE_API, archiveHref, dayOf, edgeVerdict, fmtR, traderOf } from '../../../utils/traderArchive'
 import { sectionFetcher } from './sectionFetch'
 import useArchiveTicker, { ARCHIVE_SWR_OPTS, newestCalls } from './useArchiveTicker'
 import styles from './SetupSection.module.css'
@@ -44,7 +44,7 @@ export default function TeamReadTile({ sym }) {
             sub={`win 20d · ${edgeVerdict(all)}`} />
         ) : null}
       </div>
-      <a className={styles.teamReadLink} href={`/trader-archive?sym=${encodeURIComponent(s)}`}>
+      <a className={styles.teamReadLink} href={archiveHref({ sym: s })}>
         The team on {s} in the trader archive
       </a>
     </div>

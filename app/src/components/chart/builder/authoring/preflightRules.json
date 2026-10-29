@@ -237,7 +237,8 @@
       ["correlation", "correlation"], ["correlation coefficient", "correlation"],
       ["rate of change", "roc"], ["roc", "roc"],
       ["vwma", "vwma"], ["volume weighted moving average", "vwma"],
-      ["keltner channel", "kcUpper"], ["keltner channels", "kcUpper"], ["keltner", "kcUpper"]
+      ["keltner channel", "kcUpper"], ["keltner channels", "kcUpper"], ["keltner", "kcUpper"],
+      ["supertrend", "supertrend"], ["super trend", "supertrend"]
     ]
   },
   "questionShape": {

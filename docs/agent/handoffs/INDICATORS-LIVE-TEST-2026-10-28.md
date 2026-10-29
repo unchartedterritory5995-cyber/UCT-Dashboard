@@ -2,6 +2,8 @@
 
 The owner tested the Agent in production. One failure involves the Indicators authoring subsystem, and the new end-to-end test found two naming issues. None of this changes an Indicators-owned file. The Agent-side fixes are on branch `feat/agent-operator-autoapply`.
 
+> **Update (production test, 2026-10-28, after #486).** The same request in production showed a Proposed-changes card, and its Apply answered "I can’t check that approval any more". That was the **Agent's** approval state, not the builder: the model proposed the build, and the card's new-draft Save had no seal. Fixed Agent-side on branch `fix/agent-indicator-create` (CHARTS-OPERATOR-PLAN, "Custom-indicator creation"). No Indicators-owned file changes. Whether the builder's model refuses this request live (§1 below) is still unconfirmed until its telemetry is read and an authenticated test succeeds.
+
 ---
 
 ## 1. "Create a custom indicator … EMA percentage difference … separate pane" — refused

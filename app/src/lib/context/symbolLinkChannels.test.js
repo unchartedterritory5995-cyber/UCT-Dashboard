@@ -123,6 +123,10 @@ const HAND_TYPED_BASELINE = [
   'testing/panes/paneHarness.jsx',
   // A headless renderer for the Discord/bot image path — a different door by design.
   'pages/ChartRender.jsx',
+  // /trader-archive moved into The Desk (2026-10-28). The redirect reads ?sym once to carry an
+  // old link's ticker to the Desk's Archive tab and renders nothing: a different door, not a
+  // /charts deep link.
+  'pages/traderArchive/TraderArchiveRedirect.jsx',
   // The UCT Terminal's GEX function opens Options Flow at `?view=gex&ticker=SYM`. A different
   // door (OptionsFlow's own initial GEX ticker, not a /charts deep link): it seeds the page's
   // initial state once, validates the symbol, and falls back to SPY on anything else.

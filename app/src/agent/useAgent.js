@@ -22,7 +22,7 @@ import { useCreateIndicatorAccess } from '../components/chart/builder/studio/cre
 import { useUserDefinitions, USER_DEFINITIONS_KEY } from '../hooks/useUserDefinitions'
 import { mutate } from 'swr'
 import { setOwnedDefinitionSource } from './capabilities/indicatorEdits'
-import { setAuthoringSources, draftAmbiguity, selectDraft, isDraftAction, lastSaved, screenModelOps, PROPOSAL_TTL_MS, saveReferent, splitSaveAs, renameBeforeSave } from './capabilities/indicatorAuthoring'
+import { setAuthoringSources, draftAmbiguity, selectDraft, isDraftAction, lastSaved, screenModelOps, PROPOSAL_TTL_MS, saveReferent, splitSaveAs, renameBeforeSave, explicitIndicatorCreate } from './capabilities/indicatorAuthoring'
 import { fastParse, matchPosition } from './fastPath'
 import { screenNewChart } from './capabilities/workspace'
 import { resolveDeictic, screenDeicticOps, screenUnnamedTargets, pickedChoice, chartRefOf } from './deixis'
@@ -1054,8 +1054,11 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       return
     }
     if (p.pickArg) {
-      const { action, arg } = p.pickArg
-      await execute(p.ops.map(o => (o.action === action ? { ...o, args: { ...o.args, [arg]: ref } } : o)), { path: p.path, mode: p.mode === 'propose' ? 'propose' : 'apply', member: `${p.member || ''} → ${label}`, voice: p.voice })
+      const { action, arg, then } = p.pickArg
+      const filled = p.ops.map(o => (o.action === action ? { ...o, args: { ...o.args, [arg]: ref } } : o))
+      // the chart picked for an indicator the member asked to CREATE: built, saved and added there (createWithSave)
+      const ops = typeof then === 'function' ? then(filled, ref) : filled
+      await execute(ops, { path: p.path, mode: p.mode === 'propose' && !explicitIndicatorCreate(ops) ? 'propose' : 'apply', member: `${p.member || ''} → ${label}`, voice: p.voice })
       return
     }
     if (p.draft) {
@@ -1521,6 +1524,11 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       // charts the member identified (words, click, an answer). One unidentified chart → "Which chart?" (their
       // pick resumes THIS plan); several → the change is only proposed. Never the model's guess, never silent.
       let disposition = env.disposition
+      // ⭐ LIVE PRODUCTION TEST 2026-10-28: "create a custom indicator that …" is the member's own instruction — the model
+      // proposing it put a card in front of what they had just asked for. The explicit creation of a NEW indicator
+      // (indicatorAuthoring.explicitIndicatorCreate: decided from their words, never by the model) is applied; its Save
+      // still stops at a ready draft when an R1 condition fails after the build (an acknowledgement, a name they already use)
+      if (!nl1 && disposition === 'propose' && explicitIndicatorCreate(screened.ops)) { mark('deescalate', 'explicit-create'); disposition = 'apply' }
       const unnamed = screenUnnamedTargets({ host, ops: screened.ops, text, context: askedFor, pickedRefs: answeredRefs, getTargetKind, getCapability })
       if (unnamed?.ask) {
         const kinds = kindsOf(screened.ops)

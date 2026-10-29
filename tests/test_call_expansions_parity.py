@@ -38,9 +38,13 @@ CASES = [
     ("linreg", [CLOSE, n(2), n(5)]), ("linreg", [CLOSE, n(7), n(1.5)]), ("linreg", [CLOSE, n(200), n(0)]),
     ("correlation", [CLOSE, SPY, n(20)]), ("correlation", [CLOSE, {"type": "series", "name": "volume"}, n(2)]),
     ("kcMiddle", [CLOSE, n(20)]), ("kcUpper", [CLOSE, n(20), n(2)]), ("kcLower", [CLOSE, n(20), n(1.5)]),
+    ("supertrend", [n(3), n(10)]), ("supertrend", [n(2.5), n(7)]), ("supertrend", [n(3.0), n(14)]),
+    ("supertrendDirection", [n(3), n(10)]), ("supertrendDirection", [n(1.5), n(20)]),
     # declined (null) in both lanes
     ("linreg", [CLOSE, n(1)]), ("linreg", [CLOSE, {"type": "series", "name": "len"}]),
     ("vwma", [CLOSE, n(2.5)]), ("correlation", [CLOSE, SPY, n(1)]), ("roc", [CLOSE, n(0)]),
+    ("supertrend", [n(0), n(10)]), ("supertrend", [n(3), {"type": "series", "name": "len"}]),
+    ("supertrendDirection", [{"type": "series", "name": "f"}, n(10)]), ("supertrend", [n(3), n(2.5)]),
 ]
 
 
@@ -54,7 +58,7 @@ def test_the_two_lanes_build_byte_identical_trees():
     browser = json.loads(res.stdout)
     server = [ce.expand_call({"type": "call", "name": name, "args": args}) for name, args in CASES]
     assert json.dumps(server, sort_keys=True) == json.dumps(browser, sort_keys=True)
-    assert sum(1 for t in server if t is None) == 5     # the declined cases are declined in both
+    assert sum(1 for t in server if t is None) == 9     # the declined cases are declined in both
 
 
 @pytest.mark.skipif(shutil.which("node") is None, reason="node not on PATH")
@@ -64,6 +68,14 @@ def test_the_two_lanes_name_the_same_functions_and_signatures():
     res = subprocess.run(["node", "--input-type=module", "-e", script], capture_output=True, text=True, timeout=60)
     assert res.returncode == 0, res.stderr
     assert json.loads(res.stdout) == [[k, v[0], v[1], v[2]] for k, v in ce.CALL_EXPANSIONS.items()]
+
+
+def test_supertrend_reads_its_own_past_through_the_manifests_binding():
+    """``ACCUM_SELF`` is typed in both builder modules (they must stay importable without
+    the interpreter); this is what keeps it the manifest's value."""
+    from api.services import ast_table
+    assert ce.ACCUM_SELF == ast_table.recurrences()["accum"]["binds"]
+    assert ce.SUPERTREND_WARMUP == 200
 
 
 def test_nested_expansion_and_the_declared_guard():
@@ -128,6 +140,8 @@ def test_browser_and_server_compute_the_same_values_for_every_expansion():
         ("mom_10", "mom", [CLOSE, n(10)]),
         ("kc_upper", "kcUpper", [CLOSE, n(20), n(2)]),
         ("kc_lower", "kcLower", [CLOSE, n(20), n(1.5)]),
+        ("supertrend_3_10", "supertrend", [n(3), n(10)]),
+        ("supertrend_dir_2_7", "supertrendDirection", [n(2), n(7)]),
     ]
     cases = [{"id": cid, "ast": ce.expand_call({"type": "call", "name": name, "args": args})}
              for cid, name, args in calls]
@@ -136,7 +150,10 @@ def test_browser_and_server_compute_the_same_values_for_every_expansion():
     verdict = ac.compare_lanes(js, py)
     assert verdict["differences"] == [], verdict["differences"][:5]
     for cid, _, _ in calls:     # non-vacuity: real numbers, in both lanes
-        assert sum(1 for v in py[cid] if v is not None) > len(bars) // 2, cid
+        # supertrend withholds its first ~2 x 200 bars (the bounded warm-up), so it is
+        # held to a smaller floor than the rolling windows
+        floor = 100 if cid.startswith("supertrend") else len(bars) // 2
+        assert sum(1 for v in py[cid] if v is not None) > floor, cid
 
 
 # --------------------------------------------------------------------------- #

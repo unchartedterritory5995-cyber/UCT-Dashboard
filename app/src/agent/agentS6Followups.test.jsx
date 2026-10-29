@@ -9,7 +9,7 @@ import { buildContext } from './capabilities'
 import { planOps, collectTargets, prepareOps } from './executor'
 import { commitPlan } from './runtime'
 import { newChartTicker, screenNewChart } from './capabilities/workspace'
-import { screenModelOps, multiChartAmbiguity } from './capabilities/indicatorAuthoring'
+import { screenModelOps, createWithSave, multiChartAmbiguity } from './capabilities/indicatorAuthoring'
 import { positionWord } from './host'
 import { makeBoard } from './__fixtures__/board'
 import { mergeChartSettings } from '../components/chart/chartDefaults'
@@ -220,7 +220,12 @@ describe('S6 wording nits', () => {
     expect(s.ops).toEqual([])
     expect(s.ask.text).toBe('Which chart is this indicator for?')
     expect(s.ask.choices.map(c => c.ref)).toEqual(['L', 'R'])
-    expect(s.ask.pick).toEqual({ ops, action: 'indicator.draft', arg: 'chart' })
+    // live production bug 2026-10-28: "build me an … indicator" asks to CREATE it — the pick builds, saves and adds it there
+    expect(s.ask.pick).toEqual({ ops, action: 'indicator.draft', arg: 'chart', then: createWithSave })
+    expect(createWithSave(ops, 'R')).toEqual([...ops, { action: 'indicator.saveDraft', target: 'draft:new', args: { addTo: ['R'], name: null }, explicit: true }])
+    // asking for a draft only → the pick builds the draft, nothing more
+    const draftOnly = screenModelOps(board.host, ops, 'Help me build an RSI 14 indicator.', { surface: 'charts', createIndicator: true })
+    expect(draftOnly.ask.pick).toEqual({ ops, action: 'indicator.draft', arg: 'chart' })
     // ⛔ no Create Indicator access → never asked about (left to be refused, exactly as before)
     const off = screenModelOps(board.host, ops, 'Build me an RSI 14 indicator.', { surface: 'charts', createIndicator: false })
     expect(off.ask).toBeUndefined()

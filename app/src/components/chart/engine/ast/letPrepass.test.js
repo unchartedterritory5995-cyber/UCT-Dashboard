@@ -252,7 +252,11 @@ describe('HB-1 — the ONE read door applies the pre-pass, so `let` reaches the 
     // `=` is a TC2000 marker. That is the whole reason the marker exists: a
     // `let` source handed to the wrong reader is refused for a reason that has
     // nothing to do with what the member typed.
-    expect(detectDialect('fast = ema(close, 12)')).toBe('pcf')
+    // ⚠️ The probe names no whole lower-case price word: since 2026-10-29 `close`
+    // is itself a native marker (TC2000 refuses that name), which would answer
+    // native for a reason other than the one this case is about.
+    expect(detectDialect('fast = ema(src, 12)')).toBe('pcf')
+    expect(detectDialect('fast = ema(close, 12)')).toBe('native')
     expect(detectDialect(LET_MACD)).toBe('native')
     expect(detectDialect('let fast = 2\nfastest + fast')).toBe('native')
   })
