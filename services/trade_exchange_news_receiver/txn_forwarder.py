@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from typing import Any
 
 import httpx
@@ -50,16 +51,21 @@ class Forwarder:
                 headers={"User-Agent": "uct-trade-exchange-news-receiver/1"})
         return self._client
 
-    async def push(self, record: dict[str, Any]) -> bool:
-        """True once web answered 2xx. Never raises."""
+    async def push(self, record: dict[str, Any], trace: list | None = None) -> bool:
+        """True once web answered 2xx. Never raises. ``trace`` (⏱ latency audit)
+        collects one ``(outcome, ms)`` per attempt: an HTTP status or an error
+        class name such as ``ReadTimeout`` -- never the body or the token."""
         if not self.configured:
             return False
         headers = {"Authorization": f"Bearer {self.token}"}
         for attempt, delay in enumerate((0.0, *RETRY_DELAYS_S)):
             if delay:
                 await asyncio.sleep(delay)
+            t0 = time.perf_counter()
             try:
                 r = await self.client().post(self.url, json=record, headers=headers)
+                if trace is not None:
+                    trace.append((r.status_code, round((time.perf_counter() - t0) * 1000)))
                 if 200 <= r.status_code < 300:
                     return True
                 if r.status_code in (400, 401, 403, 404, 413, 422):
@@ -69,15 +75,17 @@ class Forwarder:
                                    record.get("id"), r.status_code)
                     return False
             except httpx.HTTPError as e:
+                if trace is not None:
+                    trace.append((type(e).__name__, round((time.perf_counter() - t0) * 1000)))
                 if attempt == len(RETRY_DELAYS_S):
                     logger.warning("[txn] push to web failed id=%s: %s",
                                    record.get("id"), type(e).__name__)
         return False
 
-    def start(self, record: dict[str, Any], on_done=None) -> asyncio.Task:
+    def start(self, record: dict[str, Any], on_done=None, trace: list | None = None) -> asyncio.Task:
         """Fire the push without awaiting it; keep a reference so the task is
         not garbage-collected mid-flight."""
-        task = asyncio.get_running_loop().create_task(self.push(record))
+        task = asyncio.get_running_loop().create_task(self.push(record, trace))
         self._tasks.add(task)
 
         def _finish(t: asyncio.Task) -> None:

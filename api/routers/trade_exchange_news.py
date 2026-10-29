@@ -45,11 +45,13 @@ from starlette.routing import Match
 from api.middleware.auth_middleware import require_admin
 from api.services.trade_exchange_news import config, pipeline as txn_pipeline, records
 from api.services.trade_exchange_news import reconcile as txn_reconcile
+from api.services.trade_exchange_news.loop_lag import LAG as _loop_lag
 from api.services.trade_exchange_news.records import RecordError
 
 INGEST_PATH = "/api/trade-exchange-news/internal/ingest"
 STATUS_PATH = "/api/admin/trade-exchange-news"
 TIMING_PATH = "/api/trade-exchange-news/client-timing"
+CLOCK_PATH = "/api/trade-exchange-news/clock"
 RECENT_PATH = "/api/trade-exchange-news/recent"
 STREAM_PATH = "/api/trade-exchange-news/stream"
 HEARTBEAT_S = 10.0
@@ -98,6 +100,8 @@ def _check_ingest_auth(request: Request) -> bool:
 async def ingest(request: Request) -> JSONResponse:
     if not _check_ingest_auth(request):
         return JSONResponse(NOT_FOUND, status_code=404)
+    t_route = time.perf_counter()        # ⏱ after the bearer check, which stays FIRST
+    lag_at_entry = _loop_lag.samples[-1] if _loop_lag.samples else None
     pipe = txn_pipeline.get()
     if pipe is None:
         return JSONResponse({"detail": "not started"}, status_code=503)
@@ -108,10 +112,17 @@ async def ingest(request: Request) -> JSONResponse:
         raw = json.loads(body)
     except ValueError:
         return JSONResponse({"detail": "not JSON"}, status_code=400)
+    t_body = time.perf_counter()
     try:
         out = await pipe.submit_live(raw)
     except RecordError as e:
         return JSONResponse({"detail": str(e)}, status_code=422)
+    # ⏱ LATENCY AUDIT: where the receiver's wait went on web (ids and ms only).
+    _timing_log.info("[txn] timing ingest id=%s status=%s body_ms=%.1f submit_ms=%.1f route_ms=%.1f "
+                     "loop_lag_last_ms=%s loop_lag_1m=%s", raw.get("id") if isinstance(raw, dict) else None,
+                     out["kind"], (t_body - t_route) * 1000, (time.perf_counter() - t_body) * 1000,
+                     (time.perf_counter() - t_route) * 1000,
+                     None if lag_at_entry is None else round(lag_at_entry, 1), _loop_lag.snapshot())
     return JSONResponse({"status": out["kind"], "seq": out["seq"]})
 
 
@@ -224,6 +235,12 @@ def _num(v: Any, lo: float, hi: float) -> float | None:
     return float(v) if isinstance(v, (int, float)) and not isinstance(v, bool) and lo <= v <= hi else None
 
 
+@router.get(CLOCK_PATH)
+async def clock(_admin: dict = Depends(require_admin)) -> JSONResponse:
+    """⏱ LATENCY AUDIT: web's wall clock, for the admin browser's clock sync."""
+    return JSONResponse({"server_ms": int(time.time() * 1000)}, headers={"Cache-Control": "no-store"})
+
+
 @router.post(TIMING_PATH)
 async def client_timing(request: Request, _admin: dict = Depends(require_admin)) -> JSONResponse:
     """⏱ LATENCY AUDIT: an admin browser reports publish -> SSE receipt and
@@ -238,9 +255,10 @@ async def client_timing(request: Request, _admin: dict = Depends(require_admin))
     eid = d.get("id") if isinstance(d, dict) else None
     if not isinstance(eid, str) or not records.EVENT_ID_RE.match(eid):
         return JSONResponse({"detail": "bad id"}, status_code=422)
-    _timing_log.info("[txn] timing client id=%s sse_ms=%s render_ms=%s clock_rtt_ms=%s",
-                     eid, _num(d.get("sse_ms"), -60000, 600000), _num(d.get("render_ms"), 0, 600000),
-                     _num(d.get("clock_rtt_ms"), 0, 600000))
+    _timing_log.info("[txn] timing client id=%s sse_ms=%s render_ms=%s e2e_ms=%s clock_rtt_ms=%s "
+                     "clock_samples=%s", eid, _num(d.get("sse_ms"), -60000, 600000),
+                     _num(d.get("render_ms"), 0, 600000), _num(d.get("e2e_ms"), -60000, 600000),
+                     _num(d.get("clock_rtt_ms"), 0, 600000), _num(d.get("clock_samples"), 0, 100))
     return JSONResponse({"ok": True})
 
 
@@ -264,6 +282,7 @@ def status(_admin: dict = Depends(require_admin)) -> dict[str, Any]:
         "storage_permission_confirmed": config.storage_permitted(),
         "synthetic_only": config.synthetic_only(),
         "streams": dict(_streams),
+        "loop_lag": _loop_lag.snapshot(),
     }
 
 
@@ -281,8 +300,10 @@ async def start_background() -> None:
         return
     pipe = txn_pipeline.start()
     txn_reconcile.start(pipe, reader_from_env())
+    _loop_lag.start()
 
 
 def stop_background() -> None:
+    _loop_lag.stop()
     txn_reconcile.stop()
     txn_pipeline.stop()
