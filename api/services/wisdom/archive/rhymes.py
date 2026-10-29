@@ -248,7 +248,14 @@ def _refresh(now: Optional[float] = None) -> Optional[dict]:
         from api.services.wisdom.archive import setup_map
 
         t = time.time()
-        value = _compute(_detections(now), setup_map.market_state())
+        log.info("[wisdom] rhymes refresh: reading the scan")
+        dets = _detections(now)
+        t_read = time.time()
+        log.info("[wisdom] rhymes refresh: %d detections read in %.1fs", len(dets), t_read - t)
+        state = setup_map.market_state()
+        value = _compute(dets, state)
+        log.info("[wisdom] rhymes refresh: %d hits computed in %.1fs (market %s; %.1fs total)",
+                 value.get("n_hits", 0), time.time() - t_read, state, time.time() - t)
         with _LOCK:
             _CACHE.update(at=t, value=value)
             _READY.notify_all()
