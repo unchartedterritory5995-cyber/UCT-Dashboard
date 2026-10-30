@@ -141,9 +141,9 @@ describe('TradeExchangeNewsWidget', () => {
     expect(quotes.asked).toEqual(['AMD', 'NVDA'])                 // newest rows first, distinct
   })
 
-  it('ticker colour mode accent/neutral needs no quotes at all', () => {
+  it('ticker colour mode accent/neutral with % change off needs no quotes at all', () => {
     quotes.asked = null
-    render(<TradeExchangeNewsWidget color="A" opts={{ settings: { tickerColorMode: 'neutral' } }} onOptsChange={vi.fn()} />)
+    render(<TradeExchangeNewsWidget color="A" opts={{ settings: { tickerColorMode: 'neutral', showPct: 'off' } }} onOptsChange={vi.fn()} />)
     act(() => feed.set({ status: 'live', items: HISTORY, lastSeq: 3, lastHeadlineAt: NOW }))
     expect(quotes.asked).toEqual([])
     expect(screen.getAllByRole('button', { name: /NVDA/ })[0].className).toMatch(/symNeutral/)

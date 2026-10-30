@@ -2,7 +2,7 @@
 //
 // ⛔ NOTHING HERE INVENTS DATA. Trade Exchange sends `{source, content}` only, so:
 //   * the time shown is the RECEIPT time UCT stamped, labelled as such;
-//   * there are no categories, no urgency, no publication time;
+//   * no publication time; the category and impact kind are the SERVER's (categories.py);
 //   * tickers are the server resolver's (provisional) list, and a ticker is made
 //     clickable only where its own text appears in the headline as sent.
 
@@ -50,6 +50,15 @@ export function tickerTone(quote, stale = false) {
   return 'flat'
 }
 
+/** The inline daily change beside a ticker ("+2.4%"), or null when the quote is
+ *  missing or stale -- the same reading tickerTone colours by, never a guess. */
+export function pctText(quote, stale = false) {
+  const pct = quote?.change_pct
+  if (stale || typeof pct !== 'number' || !Number.isFinite(pct)) return null
+  const r = Math.round(pct * 10) / 10 || 0
+  return `${r > 0 ? '+' : ''}${r.toFixed(1)}%`
+}
+
 /** Hover text for a symbol: identification always, price details only when reliable. */
 export function tickerTitle(sym, quote, stale = false, { named = false } = {}) {
   const head = named ? `${sym} (named in the headline)` : sym
@@ -86,16 +95,36 @@ export function matchesQuery(item, query) {
   return (item.tickers || []).some((t) => String(t).toLowerCase() === q.replace(/^\$/, ''))
 }
 
-/** Items passing every active filter, NEWEST FIRST (seq descending).
+/** The server classifier's categories (api/services/trade_exchange_news/categories.py
+ *  CATEGORIES), in toolbar order. The widget filters on `item.category`; it never
+ *  classifies anything itself. */
+export const CATEGORY_FILTERS = ['News', 'Macro', 'Options', 'Earnings', 'Price', 'Press Release', 'Filing', 'Other']
+
+/** A saved category selection, cleaned: known categories only, toolbar order. Empty = All. */
+export function cleanCategories(raw) {
+  const want = new Set(Array.isArray(raw) ? raw : [])
+  return CATEGORY_FILTERS.filter((c) => want.has(c))
+}
+
+/** The filter button's label: "All", one category, or "3 types". */
+export function categoriesLabel(categories) {
+  const c = cleanCategories(categories)
+  return !c.length || c.length === CATEGORY_FILTERS.length ? 'All' : c.length === 1 ? c[0] : `${c.length} types`
+}
+
+/** Items passing every active filter (AND), NEWEST FIRST (seq descending).
  *  `linkedSym`: only headlines naming the widget's colour-group symbol.
- *  `watchSet`: a Set of symbols (a watchlist) — headlines naming any of them. */
-export function visibleItems(items, { query = '', linkedSym = null, watchSet = null, hidePlaceholders = false } = {}) {
+ *  `watchSet`: a Set of symbols (a watchlist) — headlines naming any of them.
+ *  `categories`: the selected categories (empty = all). */
+export function visibleItems(items, { query = '', linkedSym = null, watchSet = null, hidePlaceholders = false, categories = null } = {}) {
+  const cats = categories && categories.length && categories.length < CATEGORY_FILTERS.length ? new Set(categories) : null
   const out = []
   for (let i = items.length - 1; i >= 0; i--) {
     const it = items[i]
     // A graphic-only placeholder ("CRYPTO" without its picture) is kept in storage
     // and counted in the footer -- hidden from the feed, never lost.
     if (hidePlaceholders && it.placeholder === 'graphic') continue
+    if (cats && !cats.has(it.category || 'Other')) continue
     const syms = it.tickers || []
     if (linkedSym && !syms.includes(linkedSym)) continue
     if (watchSet && !syms.some((t) => watchSet.has(t))) continue
@@ -173,4 +202,185 @@ export function coverageNotice(coverage, nowMs = Date.now()) {
     text: `Headlines may be missing between ${fmtReceived(g.from_ms, nowMs)} and ${fmtReceived(g.to_ms, nowMs)}`,
     title: `${GAP_REASON[g.reason] || g.reason}. ${gaps.length > 1 ? `${gaps.length} gaps recorded.` : ''}`.trim(),
   }
+}
+
+// ── market-impact marks ──────────────────────────────────────────────────────
+//
+// ⭐ The SERVER decides (categories.impact_for: plain rules over the text, no
+// model, no score); the widget only words it. "Breaking" is the same mark while
+// the headline is fresh: received in the last BREAKING_MS and not recovered late.
+
+/** Mirrors categories.IMPACT_REASONS word for word. */
+export const IMPACT_REASONS = {
+  halt: 'Trading halt or resumption',
+  central_bank: 'Central-bank rate decision',
+  econ_release: 'Major economic release (with a figure)',
+  mna: 'Merger or acquisition agreement',
+  bankruptcy: 'Bankruptcy filing',
+  regulatory: 'Regulatory decision (FDA, SEC, DOJ)',
+  guidance: 'Guidance raised, cut or withdrawn',
+  leadership: 'CEO departure',
+}
+export const BREAKING_MS = 5 * 60_000
+export const IMPACT_CRITERIA = `Marked only when the headline plainly reports: ${
+  Object.values(IMPACT_REASONS).join('; ').toLowerCase()
+}. Fixed rules over the text: no prediction, no score. "Breaking" = such a headline received in the last 5 minutes.`
+
+/** { label, title, breaking } for a marked headline, or null. */
+export function impactMark(item, nowMs = Date.now()) {
+  const reason = IMPACT_REASONS[item?.impact]
+  if (!reason) return null
+  const breaking = !item.delayed && nowMs - (item.received_at_ms || 0) < BREAKING_MS
+  return { label: breaking ? 'Breaking' : 'High impact', breaking, title: `${reason}. ${IMPACT_CRITERIA}` }
+}
+
+// ── related-headline grouping ────────────────────────────────────────────────
+//
+// ⛔ MEASURED BEFORE IT SHIPPED (544 production headlines, 2026-10-29): topic-level
+// similarity is NOT reliable -- earnings boilerplate from different companies
+// overlaps 60-70% word for word. What IS reliable is the same story sent again in
+// near-identical words (on another label, or re-sent after the dedupe window). So a
+// group is: >= 90% of the same words, within GROUP_WINDOW_MS of the group's newest
+// headline, and never two headlines naming DIFFERENT tickers. Every headline keeps
+// its own row, time and links inside the group.
+export const GROUP_WINDOW_MS = 15 * 60_000
+export const GROUP_MIN_WORDS = 4
+export const GROUP_SIMILARITY = 0.9
+const GROUP_LOOKBACK = 40               // open groups compared per headline: bounded work
+const GROUP_STOP = new Set('the a an of to in on for and or by with at from as is are be its it this that says said'.split(' '))
+const _words = new WeakMap()
+function wordsOf(it) {
+  let w = _words.get(it)
+  if (!w) {
+    w = new Set((String(it.content || '').toLowerCase().match(/[a-z0-9%]+(?:[.,][0-9]+)?/g) || [])
+      .filter((t) => t.length > 1 && !GROUP_STOP.has(t)))
+    _words.set(it, w)
+  }
+  return w
+}
+
+/** Two headlines tell the same story in (nearly) the same words. */
+export function relatedHeadlines(a, b) {
+  const A = wordsOf(a)
+  const B = wordsOf(b)
+  if (A.size < GROUP_MIN_WORDS || B.size < GROUP_MIN_WORDS) return false
+  const ta = a.tickers || []
+  const tb = b.tickers || []
+  if (ta.length && tb.length && !ta.some((t) => tb.includes(t))) return false
+  let inter = 0
+  for (const w of A) if (B.has(w)) inter++
+  return inter / (A.size + B.size - inter) >= GROUP_SIMILARITY
+}
+
+/** `items` newest first -> [{ key, lead, rest }] newest first. `rest` holds the older
+ *  members, newest first (empty for an ungrouped headline). `key` is the group's
+ *  OLDEST seq, so it stays put while newer updates join. */
+export function groupRelated(items) {
+  const groups = []
+  const open = []                       // groups still inside the window, newest first
+  for (let i = items.length - 1; i >= 0; i--) {       // oldest -> newest
+    const it = items[i]
+    const t = it.received_at_ms || 0
+    let home = null
+    for (let k = 0; k < open.length && k < GROUP_LOOKBACK; k++) {
+      const g = open[k]
+      if (t - (g.lead.received_at_ms || 0) > GROUP_WINDOW_MS) continue
+      if (relatedHeadlines(g.lead, it)) { home = g; break }
+    }
+    if (home) {
+      home.rest.unshift(home.lead)
+      home.lead = it
+      open.splice(open.indexOf(home), 1)
+      open.unshift(home)
+    } else {
+      const g = { key: it.seq, lead: it, rest: [] }
+      groups.push(g)
+      open.unshift(g)
+      if (open.length > GROUP_LOOKBACK) open.length = GROUP_LOOKBACK
+    }
+  }
+  groups.sort((a, b) => b.lead.seq - a.lead.seq)
+  return groups
+}
+
+// ── feed health ──────────────────────────────────────────────────────────────
+
+const _ago = (ms) => {
+  const s = Math.max(0, Math.round(ms / 1000))
+  return s < 60 ? `${s}s ago` : s < 3600 ? `${Math.round(s / 60)}m ago` : `${Math.round(s / 3600)}h ago`
+}
+
+/** The LIVE popover's lines: [{ key, label, value, tone }]. Every line says only what
+ *  this browser knows -- UCT's connection is never passed off as the provider's. */
+export function feedHealth(state, nowMs = Date.now()) {
+  const s = state || {}
+  const items = s.items || []
+  const conn = liveStatus(s, nowMs)
+  let newest = 0
+  let recovered = 0
+  for (const it of items) {
+    if ((it.received_at_ms || 0) > newest) newest = it.received_at_ms
+    if (it.delayed) recovered++
+  }
+  const replaying = s.status === 'live' && (s.replayUntil || 0) > (s.lastSeq || 0)
+  const gaps = s.coverage?.gaps || []
+  const measured = typeof s.lastLatencyMs === 'number' && s.lastLatencyAt
+  const reconnecting = s.status === 'reconnecting' || s.status === 'dropped'
+  return [
+    { key: 'connection', label: 'UCT connection', tone: conn.tone,
+      value: conn.tone === 'live' ? 'Connected — live stream open' : conn.label },
+    { key: 'latest', label: 'Latest headline', tone: 'none',
+      value: newest ? `${fmtReceived(newest, nowMs)} ET · ${_ago(nowMs - newest)} · received by UCT` : 'None received yet' },
+    { key: 'provider', label: 'Trade Exchange', tone: 'none',
+      value: 'A live connection does not mean Trade Exchange is publishing: a quiet feed and a silent provider look the same here.' },
+    { key: 'sync', label: 'Sync', tone: replaying || reconnecting ? 'warn' : 'none',
+      value: s.status === 'live' ? (replaying ? `Replaying missed headlines (to #${s.replayUntil})` : 'Caught up')
+        : reconnecting ? 'Reconnecting — missed headlines replay in order on return' : '—' },
+    { key: 'recovery', label: 'Recovery', tone: 'none',
+      value: recovered ? `${recovered} loaded headline${recovered === 1 ? '' : 's'} reached UCT late and ${recovered === 1 ? 'was' : 'were'} recovered (marked delayed)`
+        : 'No recovered headlines in the loaded history' },
+    { key: 'gaps', label: 'Delivery gaps', tone: gaps.length ? 'warn' : 'none',
+      value: gaps.length ? coverageNotice(s.coverage, nowMs).text : 'None known' },
+    { key: 'latency', label: 'Latency', tone: 'none',
+      value: measured ? `${(s.lastLatencyMs / 1000).toFixed(1)} s from UCT receipt to this screen · measured ${_ago(nowMs - s.lastLatencyAt)}`
+        : 'Not measured yet in this browser (needs a live headline in a visible tab)' },
+  ]
+}
+
+// ── saved presets (per widget, in opts.presets) ──────────────────────────────
+
+export const PRESET_SETTING_KEYS = ['longHeadlines', 'groupRelated', 'impactMarks', 'showPct']
+export const MAX_PRESETS = 12
+
+/** The widget's current filters + display preferences, as a preset body. */
+export function presetSnapshot(opts, settings, query = '') {
+  const o = opts || {}
+  return {
+    categories: cleanCategories(o.categories),
+    linked: !!o.linked,
+    watchlistId: typeof o.watchlistId === 'string' ? o.watchlistId : '',
+    query: String(query || '').slice(0, 80),
+    settings: Object.fromEntries(PRESET_SETTING_KEYS.map((k) => [k, settings?.[k]]).filter(([, v]) => v != null)),
+  }
+}
+
+/** The opts patch that applies `preset`: this widget's filters and display only --
+ *  never a chart symbol, a colour, or anything outside this widget. */
+export function presetPatch(settings, preset) {
+  const p = preset || {}
+  const keep = Object.fromEntries(Object.entries(p.settings || {}).filter(([k]) => PRESET_SETTING_KEYS.includes(k)))
+  return {
+    categories: cleanCategories(p.categories),
+    linked: !!p.linked,
+    watchlistId: p.watchlistId || null,
+    presetId: p.id || null,
+    settings: { ...(settings || {}), ...keep },
+  }
+}
+
+/** opts.presets, cleaned (tolerates garbled blobs). */
+export function cleanPresets(raw) {
+  return (Array.isArray(raw) ? raw : [])
+    .filter((p) => p && typeof p.id === 'string' && typeof p.name === 'string' && p.name.trim())
+    .slice(0, MAX_PRESETS)
 }

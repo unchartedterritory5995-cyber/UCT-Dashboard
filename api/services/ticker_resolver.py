@@ -381,11 +381,30 @@ _NEXT_WORD = re.compile(r"[\s(]*([A-Za-z]+)")
 #: Acronyms that are words in wire prose (USA, CEO, IPO, AI ...): the discovery
 #: vocabulary, minus the banks it lists only because answers cite them as a SOURCE.
 _WIRE_ACRONYMS = frozenset(_NON_TICKER_WORDS) - {"JPM", "GS"}
+#: News agencies a wire credits in parentheses: "... (CNA)*", "(AP)", "(Kyodo)".
+_NEWS_AGENCIES = frozenset({
+    "AP", "AFP", "ANI", "ANSA", "BBC", "BBG", "BNN", "CNA", "CNBC", "CNN", "DJ", "DPA",
+    "FT", "IANS", "KYODO", "NHK", "NYT", "PTI", "RTRS", "SCMP", "TASS", "WSJ", "XINHUA",
+    "YONHAP",
+})
+
+
+def _attribution(q: str, m: "re.Match", sym: str) -> bool:
+    """A source credit in parentheses: "(CNA)*", "(CNA*)", or a known agency alone in
+    parentheses. "(NYSE: CNA)" is a listing, not a credit -- it never starts at "("."""
+    if m.start() == 0 or q[m.start() - 1] != "(":
+        return False
+    after = q[m.end():m.end() + 2]
+    if after.startswith("*") or after == ")*":
+        return True
+    return sym in _NEWS_AGENCIES and after[:1] == ")"
 
 
 def _wire_prose_skip(q: str, m: "re.Match", sym: str, strong: set, tail_at: int) -> bool:
     """True when a capitalised bare word in wire prose is text, not a ticker."""
     if _COMPOUND_NEXT.match(q, m.end()) or m.start() >= tail_at:
+        return True
+    if _attribution(q, m, sym) and sym not in strong:
         return True
     if sym in _WIRE_ACRONYMS and sym not in strong:
         return True
@@ -465,7 +484,8 @@ def resolve_tickers(text: Optional[str], context: Context = QUERY) -> list[str]:
 #   * a name that maps to more than one security (share classes, look-alikes) is
 #     dropped -- never a guess -- unless the curated list settles it;
 #   * a shortened name that is only initials ("U.S" of U.S. Bancorp) is not a name,
-#     and one made only of generic words ("Global Industrial") is WEAK: like a single
+#     and one made only of generic words ("Global Industrial", or a technology topic
+#     such as "Quantum Computing") is WEAK: like a single
 #     word it needs company context in the headline ("Global Industrial Conference"
 #     is an event).
 # The index is built OFF the delivery path (prewarm_company_index, a thread);
@@ -486,6 +506,9 @@ global industrial international american america national united general first c
 standard world universal federal pacific atlantic western eastern northern southern
 central north south east west great premier advanced applied integrated strategic
 community security services partners resources
+quantum computing artificial intelligence robotics nuclear solar fusion hydrogen
+blockchain crypto semiconductor semiconductors cybersecurity genomics autonomous
+renewable clean digital cloud data space battery batteries
 """.split())
 
 

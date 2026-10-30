@@ -122,3 +122,69 @@ def placeholder_for(content: str) -> str | None:
     if visible.upper() in GRAPHIC_PLACEHOLDERS and (content or "").strip().upper() in GRAPHIC_PLACEHOLDERS:
         return "graphic"
     return None
+
+
+# ── market-impact marks (``impact``) ─────────────────────────────────────────
+#
+# ⭐ A FACT ABOUT THE TEXT, NEVER A PREDICTION. A headline is marked only when it
+# plainly reports one of a short list of event kinds traders treat as material --
+# each a compiled rule that can be read and tested, no model, no score. Anything
+# uncertain is left unmarked (precision over recall); the widget explains every
+# rule in its tooltip. Derived like the category, at every event build.
+HALT, CENTRAL_BANK, ECON_RELEASE, MNA, BANKRUPTCY, REGULATORY, GUIDANCE, LEADERSHIP = (
+    "halt", "central_bank", "econ_release", "mna", "bankruptcy", "regulatory", "guidance", "leadership")
+
+#: [kind, rule] in order; the first that matches wins.
+_IMPACT_RULES = (
+    (HALT, re.compile(
+        r"\b(?:trading\s+)?(?:halted|halts? trading|trading halt|resumes? trading|trading resumes?"
+        r"|LULD|circuit breaker)\b", re.I)),
+    # The bank itself is the subject of the decision verb ("FED HOLDS RATES", "ECB cuts
+    # its deposit rate") -- never "ECB officials are ready to raise rates" (commentary).
+    (CENTRAL_BANK, re.compile(
+        r"\b(?:FED|FOMC|FEDERAL RESERVE|ECB|BOJ|BOE|BANK OF (?:JAPAN|ENGLAND|CANADA)|PBOC|SNB|RBA|RBNZ)"
+        r"\s+(?:unexpectedly\s+)?(?:holds|keeps|leaves|raises|hikes|cuts|lowers|maintains"
+        r"|held|kept|left|raised|hiked|cut|lowered)\b[^.;]{0,30}\b(?:rates?|policy rate|benchmark|funds rate)\b"
+        r"|\b(?:FOMC|FED|ECB|BOJ|BOE) (?:RATE|POLICY|INTEREST RATE) DECISION\b", re.I)),
+    (ECON_RELEASE, re.compile(
+        r"\b(?:CPI|CORE CPI|PPI|CORE PPI|PCE|CORE PCE|NONFARM PAYROLLS|NON-FARM PAYROLLS|PAYROLLS|GDP"
+        r"|INITIAL JOBLESS CLAIMS|JOBLESS CLAIMS|UNEMPLOYMENT RATE|RETAIL SALES|ISM (?:MANUFACTURING|SERVICES))\b"
+        r"[^.;]{0,40}?(?:[-+]?\d+(?:\.\d+)?\s*%|\d+(?:\.\d+)?\s*[KM]\b|\bACTUAL\b|\bVS\.?\s|\bEST\b|\bEXP\b)", re.I)),
+    (MNA, re.compile(
+        r"\b(?:to acquire|agrees? to (?:buy|acquire|be acquired|merge)|definitive (?:merger )?agreement"
+        r"|merger agreement|to be acquired by|takeover bid|tender offer for|to go private)\b", re.I)),
+    (BANKRUPTCY, re.compile(r"\b(?:files? for (?:chapter 11|bankruptcy)|chapter 11 (?:bankruptcy|protection))\b", re.I)),
+    (REGULATORY, re.compile(
+        r"\bFDA (?:approves|approval of|grants? (?:accelerated )?approval|rejects|declines to approve)\b"
+        r"|\bcomplete response letter\b|\bSEC charges\b|\bDOJ sues\b", re.I)),
+    (GUIDANCE, re.compile(
+        r"\b(?:raises|cuts|lowers|withdraws|suspends)\b[^.;]{0,40}\b(?:guidance|outlook|forecast)\b", re.I)),
+    (LEADERSHIP, re.compile(
+        r"\b(?:CEO|chief executive)\b[^.;]{0,30}\b(?:resigns|to step down|steps down|is out|ousted|fired)\b", re.I)),
+)
+
+#: What each mark means, word for word what the widget's tooltip says.
+IMPACT_REASONS = {
+    HALT: "Trading halt or resumption",
+    CENTRAL_BANK: "Central-bank rate decision",
+    ECON_RELEASE: "Major economic release (with a figure)",
+    MNA: "Merger or acquisition agreement",
+    BANKRUPTCY: "Bankruptcy filing",
+    REGULATORY: "Regulatory decision (FDA, SEC, DOJ)",
+    GUIDANCE: "Guidance raised, cut or withdrawn",
+    LEADERSHIP: "CEO departure",
+}
+
+#: Labels whose text is a price line or a filing form: their wording is not prose.
+_IMPACT_SKIP_SOURCES = frozenset({"TX-Filings"})
+
+
+def impact_for(source: str, content: str) -> str | None:
+    """The event kind a headline plainly reports (``IMPACT_REASONS`` key), or None."""
+    if source in _IMPACT_SKIP_SOURCES:
+        return None
+    text = content or ""
+    for kind, rule in _IMPACT_RULES:
+        if rule.search(text):
+            return kind
+    return None

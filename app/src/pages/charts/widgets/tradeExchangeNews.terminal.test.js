@@ -1,0 +1,202 @@
+// News terminal upgrade — the pure model: category filters (AND with the others),
+// the inline % change, impact marks, related-headline grouping, feed health and
+// presets. Synthetic headlines only.
+import { describe, expect, it } from 'vitest'
+import {
+  BREAKING_MS, CATEGORY_FILTERS, categoriesLabel, cleanCategories, cleanPresets, feedHealth, groupRelated,
+  GROUP_WINDOW_MS, impactMark, MAX_PRESETS, pctText, presetPatch, presetSnapshot, relatedHeadlines, visibleItems,
+} from './tradeExchangeNewsModel'
+import { mergeTxnWidgetSettings, txnClampLines, txnShowPct } from './tradeExchangeNewsSettings'
+
+const NOW = 1_800_000_000_000
+const H = (seq, content, extra = {}) => ({ seq, content, tickers: [], category: 'News', source: 'TX-News',
+  received_at_ms: NOW - (100 - seq) * 1000, delayed: false, ...extra })
+
+describe('category filters', () => {
+  const items = [H(1, 'a', { category: 'Earnings', tickers: ['AAA'] }), H(2, 'b', { category: 'Macro' }),
+    H(3, 'c', { category: 'Earnings', tickers: ['BBB'] }), H(4, 'd', { category: undefined }), H(5, 'e')]
+
+  it('filters by one or several categories, newest first; empty = all', () => {
+    expect(visibleItems(items, { categories: ['Earnings'] }).map((i) => i.seq)).toEqual([3, 1])
+    expect(visibleItems(items, { categories: ['Earnings', 'Macro'] }).map((i) => i.seq)).toEqual([3, 2, 1])
+    expect(visibleItems(items, { categories: [] }).map((i) => i.seq)).toEqual([5, 4, 3, 2, 1])
+    expect(visibleItems(items, { categories: CATEGORY_FILTERS }).length).toBe(5)
+  })
+
+  it('a headline without a category counts as Other', () => {
+    expect(visibleItems(items, { categories: ['Other'] }).map((i) => i.seq)).toEqual([4])
+  })
+
+  it('combines with search, linked symbol and watchlist by AND', () => {
+    expect(visibleItems(items, { categories: ['Earnings'], linkedSym: 'BBB' }).map((i) => i.seq)).toEqual([3])
+    expect(visibleItems(items, { categories: ['Earnings'], watchSet: new Set(['AAA']) }).map((i) => i.seq)).toEqual([1])
+    expect(visibleItems(items, { categories: ['Earnings'], query: 'zzz' })).toEqual([])
+    expect(visibleItems(items, { categories: ['Macro'], linkedSym: 'BBB' })).toEqual([])
+  })
+
+  it('cleans saved selections and labels them compactly', () => {
+    expect(cleanCategories(['Macro', 'bogus', 'News'])).toEqual(['News', 'Macro'])
+    expect(cleanCategories('x')).toEqual([])
+    expect(categoriesLabel([])).toBe('All')
+    expect(categoriesLabel(['Macro'])).toBe('Macro')
+    expect(categoriesLabel(['Macro', 'Earnings', 'Price'])).toBe('3 types')
+  })
+})
+
+describe('inline % change', () => {
+  it('shows the regular-session change, one decimal, signed', () => {
+    expect(pctText({ change_pct: 2.43 })).toBe('+2.4%')
+    expect(pctText({ change_pct: -0.06 })).toBe('-0.1%')
+    expect(pctText({ change_pct: 0.04 })).toBe('0.0%')
+    expect(pctText({ change_pct: -0.04 })).toBe('0.0%')
+  })
+
+  it('missing or stale data shows nothing, never a guess', () => {
+    expect(pctText(undefined)).toBeNull()
+    expect(pctText({ price: 10 })).toBeNull()
+    expect(pctText({ change_pct: NaN })).toBeNull()
+    expect(pctText({ change_pct: 3 }, true)).toBeNull()
+  })
+
+  it('defaults: on in Comfortable, off in Compact; an explicit choice wins', () => {
+    expect(txnShowPct(mergeTxnWidgetSettings({}))).toBe(true)
+    expect(txnShowPct(mergeTxnWidgetSettings({ density: 'compact' }))).toBe(false)
+    expect(txnShowPct(mergeTxnWidgetSettings({ density: 'compact', showPct: 'on' }))).toBe(true)
+    expect(txnShowPct(mergeTxnWidgetSettings({ showPct: 'off' }))).toBe(false)
+    expect(mergeTxnWidgetSettings({ showPct: 'loud' }).showPct).toBe('auto')
+  })
+
+  it('long-headline setting: 3 lines by default, 5, or always expanded', () => {
+    expect(txnClampLines(mergeTxnWidgetSettings({}))).toBe(3)
+    expect(txnClampLines(mergeTxnWidgetSettings({ longHeadlines: '5' }))).toBe(5)
+    expect(txnClampLines(mergeTxnWidgetSettings({ longHeadlines: 'all' }))).toBe(0)
+    expect(txnClampLines(mergeTxnWidgetSettings({ longHeadlines: 7 }))).toBe(3)
+  })
+})
+
+describe('impact marks', () => {
+  it('words the server kind; Breaking only while fresh and live', () => {
+    const fresh = H(1, 'x', { impact: 'central_bank', received_at_ms: NOW - 60_000 })
+    expect(impactMark(fresh, NOW)).toMatchObject({ label: 'Breaking', breaking: true })
+    expect(impactMark(fresh, NOW).title).toMatch(/^Central-bank rate decision\. Marked only when/)
+    expect(impactMark({ ...fresh, received_at_ms: NOW - BREAKING_MS - 1 }, NOW)).toMatchObject({ label: 'High impact', breaking: false })
+    expect(impactMark({ ...fresh, delayed: true }, NOW).label).toBe('High impact')
+  })
+
+  it('no kind, or one the widget does not know, is no mark', () => {
+    expect(impactMark(H(1, 'x'), NOW)).toBeNull()
+    expect(impactMark(H(1, 'x', { impact: 'vibes' }), NOW)).toBeNull()
+  })
+})
+
+describe('related-headline grouping', () => {
+  const story = 'Example Corp agrees to sell its cloud unit to Sample Holdings for $2 billion'
+  it('groups the same story re-sent in near-identical words', () => {
+    const a = H(1, story, { tickers: ['EXMP'] })
+    const b = H(2, `EXMP - ${story}`, { tickers: ['EXMP'], source: 'TX-PressRelease' })
+    expect(relatedHeadlines(a, b)).toBe(true)
+    const g = groupRelated([b, a])
+    expect(g).toHaveLength(1)
+    expect(g[0].lead.seq).toBe(2)
+    expect(g[0].rest.map((i) => i.seq)).toEqual([1])
+    expect(g[0].key).toBe(1)                       // the OLDEST seq: stable as updates join
+  })
+
+  it('never merges boilerplate from different companies', () => {
+    const a = H(1, 'AAAA - Alpha Bancorp, Inc. Announces Third Quarter 2026 Results', { tickers: ['AAAA'] })
+    const b = H(2, 'BBBB - Bravo Bancorp, Inc. Announces Third Quarter 2026 Results', { tickers: ['BBBB'] })
+    expect(relatedHeadlines(a, b)).toBe(false)
+    expect(groupRelated([b, a])).toHaveLength(2)
+  })
+
+  it('never merges merely on a shared ticker or a shared topic', () => {
+    const a = H(1, 'NVDA shares rise after the chip export ruling', { tickers: ['NVDA'] })
+    const b = H(2, 'NVDA announces a new data-center partnership in Japan', { tickers: ['NVDA'] })
+    expect(relatedHeadlines(a, b)).toBe(false)
+    const c = H(3, 'FED HOLDS RATES STEADY AT 4.25%-4.50%')
+    const d = H(4, 'POWELL: WE ARE WELL POSITIONED TO WAIT FOR MORE CLARITY')
+    expect(relatedHeadlines(c, d)).toBe(false)
+  })
+
+  it('short lines and stories outside the window stay apart', () => {
+    expect(relatedHeadlines(H(1, 'GOOGL lows'), H(2, 'GOOGL lows'))).toBe(false)
+    const a = H(1, story, { received_at_ms: NOW - GROUP_WINDOW_MS - 1000 })
+    const b = H(2, story, { received_at_ms: NOW })
+    expect(groupRelated([b, a])).toHaveLength(2)
+  })
+
+  it('keeps every headline, in order, and is bounded on a large history', () => {
+    const items = []
+    for (let i = 1; i <= 1000; i++) items.push(H(i, `Story number ${i} about topic ${i % 7} with detail ${i * 3}`, { received_at_ms: NOW + i * 1000 }))
+    items.push(H(1001, items[999].content, { received_at_ms: NOW + 1001 * 1000 }))
+    const newestFirst = [...items].reverse()
+    const t0 = performance.now()
+    const g = groupRelated(newestFirst)
+    const ms = performance.now() - t0
+    expect(g.reduce((n, x) => n + 1 + x.rest.length, 0)).toBe(1001)
+    expect(g[0].lead.seq).toBe(1001)
+    expect(g[0].rest.map((i) => i.seq)).toEqual([1000])
+    for (let i = 1; i < g.length; i++) expect(g[i - 1].lead.seq).toBeGreaterThan(g[i].lead.seq)
+    expect(ms).toBeLessThan(250)
+  })
+})
+
+describe('feed health', () => {
+  const by = (lines) => Object.fromEntries(lines.map((l) => [l.key, l]))
+  it('separates UCT connection from provider freshness and never invents latency', () => {
+    const l = by(feedHealth({ status: 'live', items: [H(1, 'a', { received_at_ms: NOW - 120_000 })], lastSeq: 1, replayUntil: 1 }, NOW))
+    expect(l.connection.value).toMatch(/Connected/)
+    expect(l.latest.value).toMatch(/2m ago · received by UCT/)
+    expect(l.provider.value).toMatch(/does not mean Trade Exchange is publishing/)
+    expect(l.sync.value).toBe('Caught up')
+    expect(l.latency.value).toMatch(/Not measured yet/)
+    expect(l.gaps.value).toBe('None known')
+    expect(l.recovery.value).toMatch(/No recovered/)
+  })
+
+  it('reports replay, recovery, gaps and a real latency sample', () => {
+    const l = by(feedHealth({ status: 'live', lastSeq: 40, replayUntil: 55,
+      items: [H(1, 'a', { delayed: true }), H(2, 'b', { delayed: true })],
+      coverage: { gaps: [{ from_ms: NOW - 3_600_000, to_ms: NOW - 3_000_000, reason: 'journal_unreachable' }] },
+      lastLatencyMs: 1240, lastLatencyAt: NOW - 30_000 }, NOW))
+    expect(l.sync.value).toMatch(/Replaying missed headlines/)
+    expect(l.sync.tone).toBe('warn')
+    expect(l.recovery.value).toMatch(/^2 loaded headlines .* were recovered/)
+    expect(l.gaps.tone).toBe('warn')
+    expect(l.latency.value).toBe('1.2 s from UCT receipt to this screen · measured 30s ago')
+  })
+
+  it('reconnecting is said plainly', () => {
+    const l = by(feedHealth({ status: 'reconnecting', items: [] }, NOW))
+    expect(l.connection.tone).toBe('warn')
+    expect(l.sync.value).toMatch(/Reconnecting/)
+    expect(l.latest.value).toBe('None received yet')
+  })
+})
+
+describe('presets', () => {
+  const settings = mergeTxnWidgetSettings({ bg: '#123456', longHeadlines: '5', groupRelated: 'on' })
+  it('snapshots filters and display preferences only', () => {
+    const snap = presetSnapshot({ categories: ['Macro'], linked: true, watchlistId: 'wl1' }, settings, 'fed')
+    expect(snap).toEqual({ categories: ['Macro'], linked: true, watchlistId: 'wl1', query: 'fed',
+      settings: { longHeadlines: '5', groupRelated: 'on', impactMarks: 'on', showPct: 'auto' } })
+  })
+
+  it('applying never touches colours, chart symbols or other settings', () => {
+    const patch = presetPatch(settings, { id: 'p1', categories: ['Earnings'], linked: false, watchlistId: '',
+      settings: { longHeadlines: 'all', bg: '#ff0000', symbol: 'TSLA' } })
+    expect(patch.categories).toEqual(['Earnings'])
+    expect(patch.presetId).toBe('p1')
+    expect(patch.watchlistId).toBeNull()
+    expect(patch.settings.longHeadlines).toBe('all')
+    expect(patch.settings.bg).toBe('#123456')
+    expect(patch.settings.symbol).toBeUndefined()
+    expect(Object.keys(patch).sort()).toEqual(['categories', 'linked', 'presetId', 'settings', 'watchlistId'])
+  })
+
+  it('tolerates garbled saved presets and caps the count', () => {
+    expect(cleanPresets(null)).toEqual([])
+    expect(cleanPresets([{ id: 'a', name: ' ' }, { id: 1, name: 'x' }, { id: 'b', name: 'Macro' }])).toEqual([{ id: 'b', name: 'Macro' }])
+    expect(cleanPresets(Array.from({ length: 30 }, (_, i) => ({ id: `p${i}`, name: `P${i}` })))).toHaveLength(MAX_PRESETS)
+  })
+})
