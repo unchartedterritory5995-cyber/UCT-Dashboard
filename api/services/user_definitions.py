@@ -2319,6 +2319,23 @@ def _save_runtime(user_id: Any, def_id: str, definition: dict, limits: Any,
         raise ValueError(f"{ungraded} — so it is not saved. Nothing else of yours was touched.")
     runtime_definitions.validate(definition)
 
+    # ⭐ PRESENTATION PARITY WITH THE FORMULA LANE (`save`). A runtime document draws
+    # through the SAME top-level `plots`/`inputs`/`paints` the browser validates with
+    # the same `defSchema.validatePlot`/`validatePaints` (only `compute` differs), so
+    # the same two rules hold here: a COPY (share install, fork) is CLAMPED to the
+    # width ceiling before the blob, and any other save is MEASURED here and ENFORCED
+    # in the lock against the stored predecessor (an unchanged legacy entry is kept,
+    # not enforced). ⚰️ Before this a hand-built runtime document could store a width
+    # of 10000, and a copy of it carried that width to a second member.
+    from api.services import presentation_schema
+    if copy_of_stored:
+        definition, clamped_widths = presentation_schema.clamp_plot_widths(definition)
+        if clamped_widths:
+            _log.warning("[user-definitions] %s: copy clamps plot width to the ceiling: %s",
+                         def_id, "; ".join(clamped_widths))
+    presentation_found = (presentation_schema.presentation_errors(definition)
+                          if not copy_of_stored else [])
+
     new_hash = runtime_definitions.handle(definition)
     blob = json.dumps(definition, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
     size = len(blob.encode("utf-8"))
@@ -2350,6 +2367,24 @@ def _save_runtime(user_id: Any, def_id: str, definition: dict, limits: Any,
                 "formula is unchanged.")
         if prev is None or prev["deleted_at"] is not None:
             entitlements.check_definition_count(_live_def_count(c, user_id), limits)
+        if presentation_found:
+            prev_doc = json.loads(prev["definition"]) if prev is not None else None
+            refused_p, kept_p = presentation_schema.new_presentation_errors(
+                definition, prev_doc)
+            if kept_p:
+                _log.warning(
+                    "[user-definitions] %s keeps stored presentation today's rule "
+                    "refuses (unchanged, not enforced): %s", def_id,
+                    "; ".join(f"{e['path']} [{e['code']}]" for e in kept_p))
+            if refused_p:
+                raise SaveRefused(
+                    "presentation",
+                    "presentation the chart cannot draw as written: "
+                    + "; ".join(e["message"] for e in refused_p)
+                    + ". Nothing was saved.",
+                    guard=f"presentation:{refused_p[0]['code']}",
+                    errors=[{k: e[k] for k in ("path", "code", "message")}
+                            for e in refused_p])
         if prev is None:
             version, rev, rev_bumped = 1, FIRST_REV, False
         else:

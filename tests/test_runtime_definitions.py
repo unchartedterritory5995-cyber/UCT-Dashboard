@@ -333,3 +333,101 @@ def test_the_old_regex_gate_is_gone_on_both_sides():
     assert "export const RUNTIME_REPAINT_RISK" not in js
     assert "runtimeRepaintOf(source)" in js
     assert not hasattr(rt, "REPAINT_RISK")
+
+
+# ─── presentation parity with the formula lane ───────────────────────────────
+
+FRIEND = "u-rt1-friend"
+RUNTIME_DOCUMENTS = ROOT / "tests" / "fixtures" / "runtime_documents" / "documents.json"
+
+
+def _wide(width, as_="literal", def_id=DEF_ID):
+    """`runtime_defn` with its plot drawn at `width` -- a literal, or a `$lineWidth`
+    input whose default is the width (the member door's own shape)."""
+    d = runtime_defn(def_id=def_id)
+    if as_ == "input":
+        d["inputs"] = [{"key": "lineWidth", "type": "int", "label": "Line width",
+                        "default": width, "min": 1, "max": max(width, 4)}]
+        d["plots"][0]["width"] = "$lineWidth"
+    else:
+        d["plots"][0]["width"] = width
+    return d
+
+
+def _drawn(d):
+    w = d["plots"][0]["width"]
+    return d["inputs"][0]["default"] if isinstance(w, str) else w
+
+
+def _tamper(def_id, d, user=USER):
+    """Write a stored row past the door -- a row saved BEFORE the ceiling."""
+    import sqlite3
+    with sqlite3.connect(svc._DB_PATH) as c:
+        c.execute("UPDATE user_definitions SET definition = ? WHERE user_id = ? AND def_id = ?",
+                  (json.dumps(d), user, def_id))
+
+
+@pytest.mark.parametrize("as_", ["literal", "input"])
+def test_a_runtime_document_cannot_store_a_width_over_the_ceiling(store, monkeypatch, as_):
+    """The formula lane's width ceiling, at the runtime door: refused by name, nothing
+    written. At the ceiling it saves, unchanged."""
+    from api.services import presentation_schema as ps
+    monkeypatch.setenv(rt.SAVE_ENV, "1")
+    with pytest.raises(svc.SaveRefused) as exc:
+        svc.save(USER, DEF_ID, _wide(10000, as_))
+    assert exc.value.guard == "presentation:plot-width"
+    assert svc.get(USER, DEF_ID) is None
+    at_cap = _wide(ps.LINE_WIDTH_HARD_MAX, as_)
+    assert svc.save(USER, DEF_ID, at_cap)["appended"] is True
+    assert svc.get(USER, DEF_ID)["definition"]["plots"] == at_cap["plots"]
+
+
+def test_a_runtime_document_with_an_unknown_plot_style_is_refused(store, monkeypatch):
+    monkeypatch.setenv(rt.SAVE_ENV, "1")
+    d = runtime_defn()
+    d["plots"][0]["style"] = "zones"
+    with pytest.raises(svc.SaveRefused) as exc:
+        svc.save(USER, DEF_ID, d)
+    assert exc.value.guard == "presentation:plot-style"
+
+
+def test_a_legacy_over_cap_runtime_row_saves_an_unrelated_edit_but_not_a_raised_width(store, monkeypatch):
+    """Grandfathering against the STORED predecessor, as the formula lane does."""
+    monkeypatch.setenv(rt.SAVE_ENV, "1")
+    svc.save(USER, DEF_ID, _wide(4))
+    _tamper(DEF_ID, _wide(60))
+    relabelled = _wide(60)
+    relabelled["meta"]["name"] = "Renamed"
+    assert svc.save(USER, DEF_ID, relabelled)["appended"] is True
+    raised = _wide(10000)
+    raised["meta"]["name"] = "Renamed"
+    with pytest.raises(svc.SaveRefused) as exc:
+        svc.save(USER, DEF_ID, raised)
+    assert exc.value.guard == "presentation:plot-width"
+
+
+@pytest.mark.parametrize("as_", ["literal", "input"])
+def test_a_shared_over_cap_runtime_row_installs_and_forks_CLAMPED(store, monkeypatch, as_):
+    from api.services import presentation_schema as ps
+    monkeypatch.setenv(rt.SAVE_ENV, "1")
+    svc.save(USER, DEF_ID, _wide(4, as_))
+    _tamper(DEF_ID, _wide(10000, as_))
+    token = svc.share(USER, DEF_ID)["token"]
+    installed = svc.get(FRIEND, svc.install_share(FRIEND, token)["def_id"])["definition"]
+    forked = svc.get(USER, svc.fork(USER, DEF_ID)["def_id"])["definition"]
+    for copy in (installed, forked):
+        assert _drawn(copy) == ps.LINE_WIDTH_HARD_MAX
+        assert ps.presentation_errors(copy) == []
+    assert _drawn(svc.get(USER, DEF_ID)["definition"]) == 10000   # the author's row is untouched
+
+
+def test_every_minted_runtime_document_passes_the_presentation_rule():
+    """No behaviour change for a valid document: every runtime document the member
+    door mints (the round-trip fixture) carries no presentation error, and its copy
+    is not rewritten by the clamp."""
+    from api.services import presentation_schema as ps
+    docs = [d["definition"] for d in json.loads(RUNTIME_DOCUMENTS.read_text(encoding="utf-8"))["documents"]]
+    assert docs and all(rt.is_runtime(d) for d in docs)
+    for d in docs:
+        assert ps.presentation_errors(d) == [], d["id"]
+        assert ps.clamp_plot_widths(d) == (d, [])
