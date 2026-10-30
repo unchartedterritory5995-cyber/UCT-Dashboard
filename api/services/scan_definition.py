@@ -413,6 +413,10 @@ def def_hash(definition: Any) -> str:
     wire carrying a stale ``fn`` would otherwise file its answers under the
     previous formula's name, silently.
     """
+    # ⭐ R2 — a param-edited document's stale handle is repaired in memory first, by
+    # the browser's exact rule (`user_definitions.refresh_stale_handle`); any other
+    # disagreement is still refused below.
+    definition = user_definitions.refresh_stale_handle(definition)
     compute = _compute_of(definition)
     tree = compute.get("ast")
     try:
