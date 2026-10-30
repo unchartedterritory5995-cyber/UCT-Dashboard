@@ -224,3 +224,79 @@ describe('stale state — unrelated changes survive, conflicts refuse', () => {
     expect(back.preset).toBe('tradingview')
   })
 })
+
+// ─── the Agent's Phase 3 handoff (PHASE3-INDICATORS-HANDOFF.md, 5 suggested tests) ───────
+describe('Agent Phase 3 handoff — byte-identical stored settings', () => {
+  const stored = () => {
+    // a stored blob NOT in merged key order (as a pref written by an older client might be)
+    const m = withPanes()
+    const rev = {}
+    for (const k of Object.keys(m).reverse()) rev[k] = m[k]
+    return rev
+  }
+  it('(1) stored settings: add rsi -> confirm -> undo gives JSON.stringify exactly as before', () => {
+    const raw = stored()
+    const before = JSON.stringify(raw)
+    const r = run(raw, { op: 'add', defId: 'rsi' }, ctx({ storedSettings: raw }))
+    const back = runUndo(r.cs, r.undo, ctx({ storedSettings: r.cs }))
+    expect(JSON.stringify(back.cs)).toBe(before)
+  })
+  it('(1b) without storedSettings, the settings handed to apply come back byte for byte', () => {
+    const cs = fresh()
+    const before = JSON.stringify(cs)
+    const r = run(cs, { op: 'add', defId: 'rsi' })
+    expect(JSON.stringify(runUndo(r.cs, r.undo).cs)).toBe(before)
+  })
+  it('(2) a chart that STORES NO settings stores none again after add -> undo', () => {
+    // the Agent hands in what the chart draws (the effective settings) and, as storedSettings, null
+    const effective = fresh()
+    const r = run(effective, { op: 'add', defId: 'rsi' }, ctx({ storedSettings: null }))
+    const u = undoIndicatorMutation(r.cs, r.undo, ctx())
+    expect(u.ok).toBe(true)
+    expect(u.cs).toBeNull()
+    expect(confirmIndicatorMutation(null, u.pending, ctx())).toMatchObject({ status: 'confirmed', receipt: { op: 'undo', undoOf: 'add' } })
+    // a read-back that is NOT "nothing stored" did not land
+    expect(confirmIndicatorMutation(r.cs, u.pending, ctx()).status).toBe('did-not-land')
+  })
+  it('(2b) "stored nothing" is restored only while nothing changed since; otherwise the exact merge', () => {
+    const r = run(fresh(), { op: 'add', defId: 'rsi' }, ctx({ storedSettings: null }))
+    const back = runUndo(json({ ...r.cs, background: '#101010' }), r.undo).cs
+    expect(back).not.toBeNull()
+    expect(back.background).toBe('#101010')
+    expect(findInstance(back, 'inst:rsi:1')).toBeNull()
+  })
+  it('(2c) planIndicatorMutation(null, …) is refused and writes nothing — the caller passes the effective settings', () => {
+    expect(planIndicatorMutation(null, { op: 'add', defId: 'rsi' }, ctx())).toMatchObject({ ok: false, reason: REASONS.BAD_REQUEST })
+    expect(applyIndicatorMutation(null, { contract: 'x', op: 'add' }, ctx())).toMatchObject({ ok: false, reason: REASONS.BAD_REQUEST })
+  })
+  it('(3) add -> undo -> add -> undo, twice over: no tombstones, preset unchanged, byte-identical', () => {
+    const cs = fresh()
+    const before = JSON.stringify(cs)
+    let s = cs
+    for (let i = 0; i < 2; i++) {
+      const r = run(s, { op: 'add', defId: 'rsi' })
+      expect(r.receipt.instanceIds).toEqual(['inst:rsi:1'])
+      s = runUndo(r.cs, r.undo).cs
+      expect(s.indicatorInstances.filter((x) => x.deleted)).toEqual(cs.indicatorInstances.filter((x) => x.deleted))
+      expect(s.preset).toBe('classic')
+      expect(JSON.stringify(s)).toBe(before)
+    }
+  })
+  it('(4) undoing an add after the instance was edited is still refused (RESTORE_CONFLICT)', () => {
+    const r = run(fresh(), { op: 'add', defId: 'rsi' })
+    const edited = json(r.cs)
+    edited.indicatorInstances.find((i) => i.instanceId === 'inst:rsi:1').inputs.period = 30
+    expect(undoIndicatorMutation(edited, r.undo, ctx())).toMatchObject({ ok: false, reason: REASONS.RESTORE_CONFLICT })
+  })
+  it('(5) "add the 9 ema" -> undo: the overlays mirror and everything else unchanged', () => {
+    const cs = fresh()
+    const before = JSON.stringify(cs)
+    const r = run(cs, { op: 'add', defId: 'movingAverage', inputs: { period: 9, maType: 'ema' } })
+    const back = runUndo(r.cs, r.undo).cs
+    expect(JSON.stringify(back.overlays)).toBe(JSON.stringify(cs.overlays))
+    expect(JSON.stringify(back)).toBe(before)
+    // and the same with the restore point unusable (a change since): stored-state equality still holds for the mirror
+    const later = runUndo(json({ ...r.cs, background: '#101010' }), r.undo).cs
+    expect(JSON.stringify(load(later).overlays)).toBe(JSON.stringify(load(cs).overlays))
+  })
+})

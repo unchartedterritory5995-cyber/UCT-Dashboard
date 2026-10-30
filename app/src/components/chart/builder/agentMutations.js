@@ -583,6 +583,28 @@ const pendingFor = (op, plan, view, next, record, registry, extra = {}) => ({
  *          read-back. ⛔ Nothing is "done" yet. | refusal (nothing to write).
  */
 export function applyIndicatorMutation(cs, plan, ctx) {
+  return withRestorePoint(applyInner(cs, plan, ctx), cs, ctx)
+}
+
+/**
+ * ⭐ WS3 — THE RESTORE POINT. Every applied change carries the exact settings it was made
+ * on, so an Undo with NOTHING changed since (`stateFingerprintAfter`) hands them back
+ * VERBATIM — byte-identical, key order included — instead of a rebuilt equivalent.
+ * `ctx.storedSettings`, when the caller passes it (an own property, `null` allowed), is
+ * the chart's STORED pref, and is what comes back: a chart that stored nothing (`null`)
+ * stores nothing again. Without it, the `cs` handed to apply comes back.
+ */
+function withRestorePoint(r, cs, ctx) {
+  if (!r || !r.ok || !isObj(r.pending)) return r
+  const c = ctx || {}
+  const hasStored = Object.prototype.hasOwnProperty.call(c, 'storedSettings')
+  const raw = hasStored ? c.storedSettings : cs
+  const point = raw === null || raw === undefined ? null : (isObj(raw) ? clone(raw) : undefined)
+  if (point === undefined) return r
+  return { ...r, pending: { ...r.pending, restorePoint: { cs: point } } }
+}
+
+function applyInner(cs, plan, ctx) {
   const view = viewOf(cs)
   if (!view || !isObj(plan) || plan.contract !== MUTATION_CONTRACT || !MUTATION_OPS.includes(plan.op)) return refuse(REASONS.BAD_REQUEST)
   const c = ctx || {}
@@ -648,6 +670,11 @@ export function confirmIndicatorMutation(persisted, pending, ctx) {
     ...(pending.copied && !pending.undoOf ? { copied: pending.copied.map((d) => ({ ...d })), already: (pending.already || []).map((d) => ({ ...d })) } : {}),
     chartId: (ctx && ctx.chartId) ?? null,
   })
+  // ⭐ WS3: an Undo that put back "stored nothing" lands as a read-back of nothing
+  if (pending.expectAbsent) {
+    if (persisted !== null && persisted !== undefined) return { status: REASONS.NOT_LANDED, reason: REASONS.NOT_LANDED, receipt: receipt(REASONS.NOT_LANDED), mismatch: { path: [] } }
+    return { status: 'confirmed', receipt: { ...receipt('confirmed'), instanceFingerprintAfter: null }, undo: null }
+  }
   const view = normOf(persisted)
   if (!view) return { status: REASONS.UNCONFIRMED, reason: REASONS.UNCONFIRMED, receipt: receipt(REASONS.UNCONFIRMED) }
   const mismatch = pending.record.paths.find((e) => !holds(view, e))
@@ -661,6 +688,7 @@ export function confirmIndicatorMutation(persisted, pending, ctx) {
       name: pending.name, chartId: done.chartId, record: pending.record, severed: (pending.severed || []).map((d) => ({ ...d })),
       groupFingerprintAfter: groupFingerprint(view, pending.ids),
       ...(typeof pending.stateBefore === 'string' ? { stateFingerprintBefore: pending.stateBefore } : {}),
+      ...(isObj(pending.restorePoint) ? { restorePoint: pending.restorePoint, stateFingerprintAfter: stateFingerprint(view) } : {}),
       ...(PANE_OPS.includes(pending.op) ? { paneKey: pending.paneKey, paneFingerprintAfter: paneFingerprint(view, ctx && ctx.registry, ctx && ctx.volumeOpts) } : {}) },
   }
 }
@@ -674,6 +702,18 @@ export function confirmIndicatorMutation(persisted, pending, ctx) {
  * @returns `{ok:true, cs, pending}` (confirm it like any mutation) | refusal.
  */
 export function undoIndicatorMutation(cs, undo, ctx) {
+  const r = undoInner(cs, undo, ctx)
+  // ⭐ WS3: every guard above ran and passed. If the chart is EXACTLY as the change left it,
+  // the settings it was made on come back verbatim (or "stored nothing").
+  if (!r.ok || !isObj(undo.restorePoint) || typeof undo.stateFingerprintAfter !== 'string') return r
+  if (stateFingerprint(cs) !== undo.stateFingerprintAfter) return r
+  const back = undo.restorePoint.cs
+  if (back === null) return { ok: true, cs: null, pending: { ...r.pending, record: { ...r.pending.record, paths: [] }, expectAbsent: true } }
+  if (!isObj(back) || !normOf(back)) return r
+  return { ok: true, cs: clone(back), pending: { ...r.pending, record: recordOf(r.pending.ids, cs, back), instanceFingerprintAfter: instanceFingerprint(back) } }
+}
+
+function undoInner(cs, undo, ctx) {
   const view = normOf(cs)
   const c = ctx || {}
   if (!view || !isObj(undo) || undo.contract !== MUTATION_CONTRACT || undo.kind !== 'undo' || !isObj(undo.record)) return refuse(REASONS.BAD_REQUEST)
