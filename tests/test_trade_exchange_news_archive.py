@@ -450,6 +450,35 @@ async def test_recent_events_equal_a_fresh_build():
     assert all(ev == fresh[ev["seq"]] for ev in body["items"])
 
 
+async def test_events_are_built_from_the_index_with_current_repeat_counts(monkeypatch):
+    """No per-row database read: rows come from the in-memory index, and only the
+    repeat counts (the one column that changes) are read -- in one small query."""
+    monkeypatch.setenv("TXN_DEDUPE_WINDOW_S", "60")
+    p = await _fill_day(n=20)
+    content, source = _content(7)
+    await p.submit(rec(content, et_ms(DAY, 4) + 7 * 300_000 + 5_000, source), "push")    # a resend: a repeat
+    assert p.store.repeats() == {8: 1}
+    reads = []
+    real = p.store._conn
+    monkeypatch.setattr(p.store, "_conn", lambda: reads.append(1) or real())
+    r = await _day({"date": DAY.isoformat(), "limit": 50, "hide_placeholders": False})
+    fresh = {row["seq"]: pl.headline_event(row, p.store.epoch) for row in p.store.recent(100)}
+    assert all(ev == fresh[ev["seq"]] for ev in r["items"]) and len(r["items"]) == 20
+    assert next(ev for ev in r["items"] if ev["seq"] == 8)["repeat_count"] == 1
+    assert len(reads) < 12                                              # a handful of statements, not one per row
+
+
+async def test_recent_reads_the_index_including_before():
+    p = await _fill_day(n=30)
+    fresh = {row["seq"]: pl.headline_event(row, p.store.epoch) for row in p.store.recent(100)}
+    newest = (await _call(ADMIN, "GET", route.RECENT_PATH + "?limit=5")).json()
+    assert [x["seq"] for x in newest["items"]] == [26, 27, 28, 29, 30]
+    assert (newest["first_seq"], newest["last_seq"]) == (1, 30)
+    older = (await _call(ADMIN, "GET", route.RECENT_PATH + "?limit=5&before=26")).json()
+    assert [x["seq"] for x in older["items"]] == [21, 22, 23, 24, 25]
+    assert all(ev == fresh[ev["seq"]] for ev in newest["items"] + older["items"])
+
+
 def test_category_names_match_the_classifier():
     from api.services.trade_exchange_news import categories
     assert set(arc.CATEGORIES) == set(categories.CATEGORIES)

@@ -169,13 +169,15 @@ async def recent(limit: int = Query(200, ge=1, le=500), before: int | None = Que
     if pipe is None:
         return JSONResponse({"reason": "not_started"}, status_code=503)
     store = pipe.store
-    rows = await asyncio.to_thread(store.before if before else store.recent,
-                                   *((before, limit) if before else (limit,)))
-    # Built on a worker thread from the cached derivation (archive.event_fields): the
-    # same fields, never re-derived per request and never on the event loop.
-    items = await asyncio.to_thread(lambda: [
-        txn_pipeline.headline_event(r, store.epoch, txn_archive.event_fields(r["source"], r["content"])) for r in rows])
-    first, last = await asyncio.to_thread(lambda: (store.first_seq(), store.last_seq()))
+
+    # From the archive's verified in-memory index and cached derivation, on a worker
+    # thread: no per-row database read, nothing re-derived, nothing on the event loop.
+    def build():
+        rows, first, last = txn_archive.recent_rows(store, limit, before)
+        return [txn_pipeline.headline_event(r, store.epoch, txn_archive.event_fields(r["source"], r["content"]))
+                for r in rows], first, last
+
+    items, first, last = await asyncio.to_thread(build)
     return JSONResponse({
         "epoch": store.epoch, "first_seq": first, "last_seq": last,
         "items": items,
@@ -238,9 +240,9 @@ async def day(request: Request, _user: dict = Depends(get_current_user)) -> JSON
             symbol=d.get("symbol") if isinstance(d.get("symbol"), str) else None, symbols=syms,
             hide_placeholders=d.get("hide_placeholders", True) is not False)
         t1 = time.perf_counter()
-        seqs = out.pop("seqs")
+        out.pop("seqs")
         out["items"] = [txn_pipeline.headline_event(r, store.epoch, txn_archive.event_fields(r["source"], r["content"]))
-                        for r in store.by_seqs(seqs)]
+                        for r in txn_archive.rows_for(store, out.pop("_rows"))]
         # ⏱ times and counts only: where a slow answer spends its time.
         out["timing_ms"] = {"wait": round((t0 - t_req) * 1000, 1), "scan": round((t1 - t0) * 1000, 1),
                             "events": round((time.perf_counter() - t1) * 1000, 1),
