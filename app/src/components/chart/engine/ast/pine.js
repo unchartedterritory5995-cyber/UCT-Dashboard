@@ -25499,7 +25499,7 @@ function translatePineResult(source, opts = {}) {
 
   // ⭐ C1-B's bands, resolved HERE rather than inside the literal below, so the
   // `fill` sentences can say whether each band was carried (B1, step 61).
-  const presentationFills = resolveFillHandles(fills, outputs, resolved, { env, resolver: makeResolver(), carried: carriedFills })
+  const presentationFills = resolveFillHandles(fills, outputs, resolved, { env, resolver: makeResolver(), carried: carriedFills, version })
   sayChartOnly()
 
   const result = {
@@ -27349,6 +27349,26 @@ const PAINT_PROBE = 'tools/visual_conformance/probes/vw-bgcolor-barcolor.pine'
  *  `vw-bgcolor-v4-default-spy-1d-2026-10-02`, `styleState.transparency` 90). */
 const V4_BGCOLOR_DEFAULT_TRANSP = 90
 
+/** ⭐ F2 — the transparency a v3/v4 `fill` takes with no `transp` (TradingView set F,
+ *  `f2-fill-v4`: `filledAreasStyle.transparency` 90, painted alpha byte 26). */
+const V4_FILL_DEFAULT_TRANSP = 90
+
+/** ⭐⭐ A STYLE TRANSPARENCY (`transp =`, a v4 default) → the opacity whose exact
+ *  byte TradingView paints: `round((100 − t) × 255 / 100)`, half-up. Stored as the
+ *  decimal `(100 − t) / 100`, which `designTokens.withAlphaByte` rounds to exactly
+ *  that byte (0.1 → 26, 0.7 → 179) and which leaves every other opacity a document
+ *  already holds bit-for-bit unchanged.
+ *  ⚰️ `1 − t / 100` is a different number in floating point (1 − 0.9 =
+ *  0.09999999999999998 → byte 25), and F2's pixels are byte 26 (255,237,237 over
+ *  white for #FF5252; 25 would paint 238). ⛔ NOT `color.new`'s rule: a colour a
+ *  script BUILDS goes through TradingView's runtime, which is the floating
+ *  `round((1 − t/100) × 255)` (Uncharted Clouds capture A: t = 90 → 25, t = 70 →
+ *  77) — `colourHelperAlpha`, unchanged. */
+function styleTransparencyOpacity(t) {
+  const n = Math.max(0, Math.min(100, Number(t)))
+  return (100 - n) / 100
+}
+
 /** A whole-number literal (`5`, `-2`, `0`) → its value; null for anything else
  *  (`na`, a name, an expression). */
 function paintIntLiteral(n) {
@@ -27530,6 +27550,7 @@ function resolveFillHandles(fills, outputs, resolved, ctx) {
         env: f.env || (ctx && ctx.env),
         resolver: ctx && ctx.resolver,
         kind: 'fill',
+        version: ctx && ctx.version,
       }) || {}
     } catch { pres = {} }
     const pair = (typeof pres.colorUp === 'string' && typeof pres.colorDown === 'string')
@@ -27551,12 +27572,27 @@ function resolveFillHandles(fills, outputs, resolved, ctx) {
         staticInput = a ? colourInputNameOf(a.value, fenv, 0, { env: fenv, resolver: ctx && ctx.resolver, kind: 'fill' }) : null
       } catch { staticInput = null }
     }
+    // ⭐⭐ A STATIC FILL WHOSE COLOUR CARRIES NO TRANSPARENCY IS STATED, NOT GUESSED
+    // (TradingView set F, `tests/fixtures/vendor/reference/F/`). ⚰️ It carried no
+    // opacity, so the document had no `fillOpacity` and the band drew at the
+    // engine's own 0.15 — a value no Pine version paints:
+    //   • v5 / v6: OPAQUE (F1: `fill(p1, p2, color = color.red)` paints exactly
+    //     #F23645; `filledAreasStyle` stores no transparency);
+    //   • v4 (and earlier, the same predicate `bgcolor`'s default uses): the
+    //     `transp` default 90 (F2: `filledAreasStyle.transparency` 90, pixels
+    //     alpha 0.102-0.104 → byte 26; `transp = 0` paints opaque).
+    // A colour with its own alpha (`color.new(c, 50)`) or an explicit `transp`
+    // keeps exactly what it says. ⚠️ A CONDITIONAL fill keeps today's rule (its
+    // colours are the paint): set F measured static colours only.
+    const staticOpacity = (!pair && pres.color && !Number.isFinite(pres.opacity))
+      ? ((Number.isInteger(ctx && ctx.version) && ctx.version <= 4) ? styleTransparencyOpacity(V4_FILL_DEFAULT_TRANSP) : 1)
+      : pres.opacity
     out.push({
       a: ai,
       b: bi,
       ...(pres.color ? { color: pres.color } : {}),
       ...(staticInput ? { colorInput: { ...staticInput } } : {}),
-      ...(Number.isFinite(pres.opacity) ? { opacity: pres.opacity } : {}),
+      ...(Number.isFinite(staticOpacity) ? { opacity: staticOpacity } : {}),
       ...(pair ? {
         colorUp: pair.colorUp,
         colorDown: pair.colorDown,
@@ -27624,6 +27660,24 @@ const POSITIONAL_PRESENTATION = Object.freeze({
   plotchar: Object.freeze([null, 'title', 'char', 'location', 'color']),
 })
 
+/** ⭐⭐ A `fill`'s positional colour (and v4's positional `transp`).
+ *
+ *  ⚰️ `fill(p1, p2, color.red)` — the colour by POSITION — was never read: the band
+ *  had no colour of its own, drew its first plot's colour at the engine's 0.15, and
+ *  set F's per-version default (opaque on v5/v6, transparency 90 on v4) never
+ *  reached it (`vwap-fibo-dev-extensions-strategy`, `rsi-vwap-indicator`, both v4).
+ *  Pine's own signatures: every version is `fill(plot1, plot2, color, …)`; v4's next
+ *  slot is `transp`, v5/v6's is `title`. ⛔ The GRADIENT form
+ *  `fill(p1, p2, top_value, bottom_value, top_color, bottom_color, …)` puts a NUMBER
+ *  at index 2 — six or more positionals is that form, and nothing is read by
+ *  position there. */
+function fillPositionalSignature(count, version) {
+  if (count >= 6) return null
+  return (Number.isInteger(version) && version <= 4)
+    ? Object.freeze([null, null, 'color', 'transp'])
+    : Object.freeze([null, null, 'color'])
+}
+
 /** ⭐ RT1 — the earliest positional slot `offset` can occupy in each output call
  *  across Pine versions (v5: `plot` 7, `plotshape`/`plotchar` 5; v4's `transp`
  *  pushes each one later). The EARLIER slot is taken, so a script reaching it is
@@ -27670,9 +27724,10 @@ function displacedPresentation(pres, shift) {
 function outputPresentation(args, ctx) {
   const pres = {}
   const kind = ctx && ctx.kind
-  const signature = Object.hasOwn(POSITIONAL_PRESENTATION, kind || '')
-    ? POSITIONAL_PRESENTATION[kind] : null
   const positional = args.filter((a) => !a.name)
+  const signature = kind === 'fill'
+    ? fillPositionalSignature(positional.length, ctx && ctx.version)
+    : (Object.hasOwn(POSITIONAL_PRESENTATION, kind || '') ? POSITIONAL_PRESENTATION[kind] : null)
   // ⭐ A NAMED argument wins; a positional one answers only where the signature
   // places that name. Pine refuses both at once, so the order is never a choice
   // between two values the author wrote.
@@ -27921,7 +27976,7 @@ function outputPresentation(args, ctx) {
   const tr = numberValue((arg('transp') || {}).value)
   // ⛔ A `transp=` never makes an absent colour visible: `color = na` stays at
   // opacity 0 whatever transparency the author also wrote.
-  if (tr !== null && !(c && isNaColourLeaf(c.value)) && !settledNa) pres.opacity = Math.max(0, Math.min(1, 1 - tr / 100))
+  if (tr !== null && !(c && isNaColourLeaf(c.value)) && !settledNa) pres.opacity = styleTransparencyOpacity(tr)
   return pres
 }
 
