@@ -236,6 +236,9 @@ function fastParseExact(text, { host = null, controlWords = true } = {}) {
 function controlWord(t) {
   // M3: "Actually, undo that last change." — a leading filler word never changes what Undo means
   const u = t.replace(/^(?:(?:actually|ok|okay|oops|wait|sorry|hmm|hm|ah|no),?\s+)+(?=(?:undo|revert|reverse|go back|put it back|take (?:that|it) back)\b)/, '')
+  // ⭐ PHASE 3: "undo all of that", "undo everything you just did", "take it all back" — EVERY change of the last request
+  // (useAgent undoTurn: newest first, each through the same Undo; it stops at the first one that can't be undone)
+  if (/^(?:undo|revert|reverse) (?:all (?:of )?(?:that|it|this|those|them|those changes|of those changes)|everything(?: (?:you|i) just (?:did|made|changed|asked for))?|that whole (?:thing|request|change|lot)|the whole (?:thing|request|lot)|all (?:the|those|your|my) (?:last )?changes)$|^take (?:it|that|them|everything) all back$|^take (?:everything|all of (?:that|it|them)) back$/.test(u)) return { kind: 'undo', all: true }
   if (/^(undo|undo (that|it|this|the last (one|change|action|thing))|(revert|reverse)( that| it| this)?|(undo|revert|reverse) (the |my )?last (one|change|action|thing)|go back|put it back|take (that|it) back)$/.test(u)) return { kind: 'undo' }
   // "undo that indicator removal", "undo the last hide", "undo removing that" — the same Undo (the
   // newest change); the noun only describes it, it never picks a different entry. ⛔ F14: a NAMED
