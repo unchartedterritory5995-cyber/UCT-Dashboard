@@ -273,6 +273,36 @@ async def test_a_derivation_fault_never_costs_a_headline(monkeypatch):
     assert r["total"] == 6
 
 
+async def test_a_warm_page_derives_nothing_and_its_events_match_the_stream_build():
+    p = await _fill(40)
+    cold = (await _post(ADMIN, {"size": 10, "hide_placeholders": False})).json()
+    warm = (await _post(ADMIN, {"page": 3, "size": 10, "top": cold["top"], "hide_placeholders": False})).json()
+    distinct = len({(r["source"], r["content"]) for r in p.store.recent(100)})   # repeats share one derivation
+    assert cold["timing_ms"]["derived"] == distinct and warm["timing_ms"]["derived"] == 0
+    assert set(warm["timing_ms"]) == {"wait", "scan", "events", "derived"}
+    fresh = {r["seq"]: pl.headline_event(r, p.store.epoch) for r in p.store.recent(100)}
+    for ev in cold["items"] + warm["items"]:
+        assert ev == fresh[ev["seq"]]                       # the cached build IS the stream's build
+
+
+async def test_page_builds_are_admitted_a_few_at_a_time(monkeypatch):
+    await _fill(5)
+    running, peak = 0, 0
+    real = txn_pages.page
+
+    def slow(*a, **k):
+        nonlocal running, peak
+        running += 1
+        peak = max(peak, running)
+        time.sleep(0.05)
+        running -= 1
+        return real(*a, **k)
+    monkeypatch.setattr(txn_pages, "page", slow)
+    monkeypatch.setattr(route, "_page_slots", None)
+    rs = await asyncio.gather(*[_post(ADMIN, {}) for _ in range(6)])
+    assert all(r.status_code == 200 for r in rs) and peak <= txn_pages.CONCURRENT
+
+
 def test_category_names_match_the_classifier():
     from api.services.trade_exchange_news import categories
     assert set(txn_pages.CATEGORIES) == set(categories.CATEGORIES)
