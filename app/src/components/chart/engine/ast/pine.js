@@ -27349,6 +27349,14 @@ const PAINT_PROBE = 'tools/visual_conformance/probes/vw-bgcolor-barcolor.pine'
  *  `vw-bgcolor-v4-default-spy-1d-2026-10-02`, `styleState.transparency` 90). */
 const V4_BGCOLOR_DEFAULT_TRANSP = 90
 
+/** ⭐⭐ IS THIS A v1-v4 SCRIPT? The ONE predicate the legacy defaults read (`bgcolor`'s
+ *  and `fill`'s `transp` 90, their positional `transp`). ⚠️ A script with NO
+ *  `//@version` line has version null, and TradingView compiles it as v1 — legacy,
+ *  so a missing version is legacy, never "modern". */
+export function isLegacyPineVersion(version) {
+  return !Number.isInteger(version) || version <= 4
+}
+
 /** ⭐ F2 — the transparency a v3/v4 `fill` takes with no `transp` (TradingView set F,
  *  `f2-fill-v4`: `filledAreasStyle.transparency` 90, painted alpha byte 26). */
 const V4_FILL_DEFAULT_TRANSP = 90
@@ -27393,7 +27401,7 @@ function resolvePaint(p, ctx) {
   const rec = { kind: p.kind, line: at ? at.line : null }
   const withhold = (code, why) => ({ ...rec, withheld: { code, reason: why } })
   if (!Array.isArray(p.args)) return withhold('paint:arguments', `\`${p.kind}(…)\`'s arguments could not be read`)
-  const legacy = Number.isInteger(ctx.version) && ctx.version <= 4
+  const legacy = isLegacyPineVersion(ctx.version)
   const sig = (legacy ? PAINT_SIGNATURES.legacy : PAINT_SIGNATURES.modern)[p.kind]
   const named = new Map()
   let pos = 0
@@ -27585,7 +27593,7 @@ function resolveFillHandles(fills, outputs, resolved, ctx) {
     // keeps exactly what it says. ⚠️ A CONDITIONAL fill keeps today's rule (its
     // colours are the paint): set F measured static colours only.
     const staticOpacity = (!pair && pres.color && !Number.isFinite(pres.opacity))
-      ? ((Number.isInteger(ctx && ctx.version) && ctx.version <= 4) ? styleTransparencyOpacity(V4_FILL_DEFAULT_TRANSP) : 1)
+      ? (isLegacyPineVersion(ctx && ctx.version) ? styleTransparencyOpacity(V4_FILL_DEFAULT_TRANSP) : 1)
       : pres.opacity
     out.push({
       a: ai,
@@ -27671,9 +27679,20 @@ const POSITIONAL_PRESENTATION = Object.freeze({
  *  `fill(p1, p2, top_value, bottom_value, top_color, bottom_color, …)` puts a NUMBER
  *  at index 2 — six or more positionals is that form, and nothing is read by
  *  position there. */
-function fillPositionalSignature(count, version) {
-  if (count >= 6) return null
-  return (Number.isInteger(version) && version <= 4)
+const FILL_GRADIENT_ARGS = Object.freeze(['top_value', 'bottom_value', 'top_color', 'bottom_color'])
+const NOT_A_COLOUR_NAMES = new Set(['open', 'high', 'low', 'close', 'volume', 'hl2', 'hlc3', 'ohlc4', 'hlcc4', 'time', 'bar_index'])
+function fillPositionalSignature(args, version) {
+  const positional = args.filter((a) => !a.name)
+  // ⛔ THE GRADIENT FORM, by any spelling: six positionals, or any of its own names
+  // (`fill(p1, p2, 100, 0, top_color = …, bottom_color = …)`), or a third positional
+  // that cannot be a colour (a number, a price series). Read by position, `close` or
+  // `100` there became a "colour this lane could not carry" — a false disclosure.
+  if (positional.length >= 6) return null
+  if (args.some((a) => a.name && FILL_GRADIENT_ARGS.includes(a.name))) return null
+  const third = positional[2] && positional[2].value
+  if (third && (third.type === 'number' || (third.type === 'unary' && third.arg && third.arg.type === 'number')
+    || (third.type === 'name' && NOT_A_COLOUR_NAMES.has(third.name)))) return null
+  return isLegacyPineVersion(version)
     ? Object.freeze([null, null, 'color', 'transp'])
     : Object.freeze([null, null, 'color'])
 }
@@ -27726,7 +27745,7 @@ function outputPresentation(args, ctx) {
   const kind = ctx && ctx.kind
   const positional = args.filter((a) => !a.name)
   const signature = kind === 'fill'
-    ? fillPositionalSignature(positional.length, ctx && ctx.version)
+    ? fillPositionalSignature(args, ctx && ctx.version)
     : (Object.hasOwn(POSITIONAL_PRESENTATION, kind || '') ? POSITIONAL_PRESENTATION[kind] : null)
   // ⭐ A NAMED argument wins; a positional one answers only where the signature
   // places that name. Pine refuses both at once, so the order is never a choice
