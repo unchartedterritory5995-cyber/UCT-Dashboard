@@ -367,7 +367,7 @@
       "label": "Line width",
       "default": 1,
       "min": 1,
-      "max": 4,
+      "max": 10,
       "step": 1
     },
     {
@@ -382,7 +382,7 @@
       "label": "Moving Average width",
       "default": 1,
       "min": 1,
-      "max": 4,
+      "max": 10,
       "step": 1
     }
   ],
