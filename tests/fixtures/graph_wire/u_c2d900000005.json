@@ -3384,7 +3384,7 @@
       "label": "Line width",
       "default": 1,
       "min": 1,
-      "max": 4,
+      "max": 10,
       "step": 1
     },
     {
@@ -3399,7 +3399,7 @@
       "label": "Zero Cross Down width",
       "default": 1,
       "min": 1,
-      "max": 4,
+      "max": 10,
       "step": 1
     },
     {
@@ -3414,7 +3414,7 @@
       "label": "Coppock width",
       "default": 1,
       "min": 1,
-      "max": 4,
+      "max": 10,
       "step": 1
     },
     {
@@ -3429,7 +3429,7 @@
       "label": "Histogram width",
       "default": 1,
       "min": 1,
-      "max": 4,
+      "max": 10,
       "step": 1
     },
     {
@@ -3444,7 +3444,7 @@
       "label": "Zero Up width",
       "default": 1,
       "min": 1,
-      "max": 4,
+      "max": 10,
       "step": 1
     },
     {
@@ -3459,7 +3459,7 @@
       "label": "Zero Down width",
       "default": 1,
       "min": 1,
-      "max": 4,
+      "max": 10,
       "step": 1
     }
   ],

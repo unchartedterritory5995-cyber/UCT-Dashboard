@@ -14,19 +14,27 @@
 //   ⭐ RESUME. The server stamps `id: <epoch>:<seq>` on every headline, so the
 //      browser's own reconnect sends Last-Event-ID; a reopen built here passes
 //      `?after=<seq>&epoch=<epoch>` (a new EventSource cannot set the header).
-//   ⭐ BOUNDED. The pool holds at most MAX_ITEMS headlines (newest kept); older pages
-//      come from `/recent?before=` on demand (`loadOlder`).
+//   ⭐ BOUNDED. The pool holds at most MAX_ITEMS headlines (newest kept): the live
+//      edge. History is browsed one America/New_York calendar day at a time, which
+//      the SERVER filters and serves in cursor steps (`fetchDay` -> POST /day,
+//      `fetchDays` -> GET /days; api/services/trade_exchange_news/archive.py) --
+//      the archive is never downloaded to the browser.
 //   The last unsubscribe closes the stream and forgets the state.
 //
 // State: { status, items (seq ascending), epoch, lastSeq, firstSeq, coverage,
-//          reason, lastEventAt, lastHeadlineAt, hasOlder, loadingOlder, provisional }
+//          reason, lastEventAt, lastHeadlineAt, provisional,
+//          replayUntil, lastLatencyMs, lastLatencyAt }
+//   replayUntil: the server's last seq when this connection opened -- lastSeq below
+//                it means the reconnect backlog is still replaying (feed health).
+//   lastLatencyMs: the newest MEASURED receipt -> this screen time (reportTiming's
+//                  e2e sample, only when the clock sync was trustworthy), else null.
 //   status: connecting | live | reconnecting | dropped | failed | unavailable
 
 export const RECENT_URL = '/api/trade-exchange-news/recent'
 export const STREAM_URL = '/api/trade-exchange-news/stream'
+export const DAY_URL = '/api/trade-exchange-news/day'
+export const DAYS_URL = '/api/trade-exchange-news/days'
 export const MAX_ITEMS = 1000
-// Loading older pages may grow the held history past MAX_ITEMS, up to this.
-export const HARD_MAX = 2000
 export const PAGE = 200
 const RETRY_MIN = 1000
 const RETRY_MAX = 15000
@@ -38,7 +46,8 @@ const WATCHDOG_MS = 22000
 export const EMPTY_NEWS = Object.freeze({
   status: 'idle', items: Object.freeze([]), epoch: null, lastSeq: 0, firstSeq: 0,
   coverage: null, reason: null, lastEventAt: null, lastHeadlineAt: null,
-  hasOlder: false, loadingOlder: false, provisional: true,
+  provisional: true,
+  replayUntil: 0, lastLatencyMs: null, lastLatencyAt: null,
 })
 
 let _state = EMPTY_NEWS
@@ -89,15 +98,14 @@ function scheduleReopen() {
   _retry = Math.min(RETRY_MAX, _retry * 2)
 }
 
-/** Merge headline rows (any order) into seq-ascending items. Never shrinks a list
- *  the member grew with "Load older" (up to HARD_MAX); the OLDEST rows are dropped. */
+/** Merge headline rows (any order) into seq-ascending items, at most MAX_ITEMS;
+ *  the OLDEST rows are dropped. */
 export function mergeItems(items, incoming) {
   if (!incoming?.length) return items
   const bySeq = new Map(items.map((it) => [it.seq, it]))
   for (const it of incoming) bySeq.set(it.seq, { ...(bySeq.get(it.seq) || {}), ...it })
   const out = [...bySeq.values()].sort((a, b) => a.seq - b.seq)
-  const cap = Math.min(HARD_MAX, Math.max(MAX_ITEMS, items.length))
-  return out.length > cap ? out.slice(out.length - cap) : out
+  return out.length > MAX_ITEMS ? out.slice(out.length - MAX_ITEMS) : out
 }
 
 // ⏱ LATENCY AUDIT (admin-only widget), measurement only. Browser clock vs web
@@ -157,6 +165,10 @@ function reportTiming(ev, heardAt, heardPerf) {
       clock_rtt_ms: c ? c.rtt : null,
       clock_samples: c ? c.samples : 0,
     }
+    // The feed-health popover shows the newest real sample, never an estimate.
+    if (typeof body.e2e_ms === 'number' && body.e2e_ms >= 0) {
+      publish((s) => ({ ...s, lastLatencyMs: body.e2e_ms, lastLatencyAt: Date.now() }))
+    }
     fetch(TIMING_URL, { method: 'POST', credentials: 'include', keepalive: true,
       headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).catch(() => {})
   }, 0))
@@ -202,7 +214,6 @@ async function start() {
     items: s.epoch && s.epoch === body.epoch ? mergeItems(s.items, items) : items,
     epoch: body.epoch, lastSeq: body.last_seq || 0, firstSeq: body.first_seq || 0,
     coverage: body.coverage || null, provisional: body.tickers_provisional !== false,
-    hasOlder: (items[0]?.seq || 0) > (body.first_seq || 0),
   }))
   // Everything already on screen at load is history, not news: never announce it.
   for (const it of items) _sounded.add(it.seq)
@@ -246,8 +257,9 @@ function openStream() {
       return
     }
     conn.replayUntil = typeof d.last_seq === 'number' ? d.last_seq : 0   // backlog, not live news
+    conn.timing = d.timing === true          // the latency audit: only the browsers the server asks
     publish((s) => ({ ...s, status: 'live', reason: null, coverage: d.coverage || s.coverage,
-      truncated: !!d.truncated, lastEventAt: Date.now() }))
+      truncated: !!d.truncated, lastEventAt: Date.now(), replayUntil: conn.replayUntil }))
   })
   es.addEventListener('headline', (e) => {
     if (!live()) return
@@ -265,7 +277,7 @@ function openStream() {
     const heardPerf = performance.now()
     publish((st) => ({ ...st, status: 'live', items: mergeItems(st.items, [ev]), lastSeq: ev.seq,
       lastEventAt: Date.now(), lastHeadlineAt: Date.now() }))
-    if (ev.seq > (conn.replayUntil || 0)) reportTiming(ev, heardAt, heardPerf)
+    if (conn.timing && ev.seq > (conn.replayUntil || 0)) reportTiming(ev, heardAt, heardPerf)
   })
   es.addEventListener('repeat', (e) => {
     if (!live()) return
@@ -321,28 +333,28 @@ export function retry() {
   if (_listeners.size) { _retry = RETRY_MIN; start() }
 }
 
-/** Fetch the page before the oldest headline held (bounded history). */
-export async function loadOlder() {
-  const s = _state
-  if (s.loadingOlder || !s.hasOlder || !s.items.length) return
-  const gen = _gen
-  publish((st) => ({ ...st, loadingOlder: true }))
-  try {
-    const body = await fetchJson(`${RECENT_URL}?limit=${PAGE}&before=${s.items[0].seq}`)
-    if (gen !== _gen) return
-    const older = body.items || []
-    for (const it of older) _sounded.add(it.seq)
-    publish((st) => {
-      const merged = [...older, ...st.items].sort((a, b) => a.seq - b.seq)
-      const seen = new Set()
-      const uniq = merged.filter((it) => (seen.has(it.seq) ? false : (seen.add(it.seq), true)))
-      const items = uniq.length > HARD_MAX ? uniq.slice(uniq.length - HARD_MAX) : uniq
-      return { ...st, loadingOlder: false, items,
-        hasOlder: older.length > 0 && older[0].seq > (body.first_seq || 0) && items.length < HARD_MAX }
-    })
-  } catch {
-    if (gen === _gen) publish((st) => ({ ...st, loadingOlder: false }))
+/** A slice of one ET calendar day, filtered by the SERVER over the whole day:
+ *  the newest, a time of day (`at`), or a keyset step from `cursor` (`direction`
+ *  older | newer). Rows on it are history: never announced. Rejects with
+ *  `err.status` on a refusal. */
+export async function fetchDay(body) {
+  const r = await fetch(DAY_URL, {
+    method: 'POST', credentials: 'include', cache: 'no-store',
+    headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}),
+  })
+  if (!r.ok) {
+    const err = new Error(`HTTP ${r.status}`)
+    err.status = r.status
+    throw err
   }
+  const out = await r.json()
+  for (const it of out.items || []) _sounded.add(it.seq)
+  return out
+}
+
+/** Retained headline counts per ET date and where retention begins (the calendar). */
+export function fetchDays() {
+  return fetchJson(DAYS_URL)
 }
 
 /** True exactly once per headline across every widget in this browser — the

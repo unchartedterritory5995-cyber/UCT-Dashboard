@@ -257,3 +257,57 @@ def test_ordinary_wire_text_is_not_a_ticker(source, text, bad):
 ])
 def test_real_tickers_in_wire_text_are_kept(source, text, want):
     assert tr.resolve_tickers(text, cat.SOURCE_TICKER_CONTEXT.get(source, tr.WIRE_NEWS)) == want
+
+
+# ── terminal upgrade (2026-10-29): source credits and technology topics ──
+
+@pytest.mark.parametrize("source,text", [
+    ("TX-News1", "Taiwan exports hit a record on AI demand (CNA)*"),
+    ("TX-News1", "Taiwan exports hit a record on AI demand (CNA*)"),
+    ("TX-News1", "Taiwan exports hit a record on AI demand (CNA)"),
+    ("TX-News", "Japan weighs new chip subsidies (Kyodo)"),
+])
+def test_a_parenthesised_source_credit_is_not_a_ticker(source, text):
+    assert "CNA" not in cat.tickers_for(source, text)
+    assert cat.mentions_for(source, text) == [] or all(s != "CNA" for _, s in cat.mentions_for(source, text))
+
+
+@pytest.mark.parametrize("source,text", [
+    ("TX-News", "$CNA rises after earnings"),                                 # a cashtag always counts
+    ("TX-PressRelease", "CNA - CNA Financial Announces Third Quarter Results"),  # the leading slot
+    ("TX-PressRelease", "Example Corp. (NYSE: CNA) declares a dividend"),      # a listing, not a credit
+])
+def test_a_real_cna_reference_still_links(source, text):
+    assert "CNA" in cat.tickers_for(source, text)
+
+
+NAMES_TOPIC = {**NAMES_FU, "QUBT": "Quantum Computing Inc.", "DLR": "Digital Realty Trust, Inc."}
+IDX_TOPIC = tr.build_company_index(NAMES_TOPIC, ALIASES)
+
+
+def m_topic(text):
+    explicit = set(tr.resolve_tickers(text, tr.WIRE_RELEASE))
+    return [s for _, s in tr.resolve_company_mentions(text, IDX_TOPIC, explicit=explicit)]
+
+
+@pytest.mark.parametrize("text", [
+    "IonQ Expands Partnership to Accelerate Commercial Quantum Computing",
+    "New Center Advances Research in Quantum Computing and Materials",
+    "Universities Launch Quantum Computing Curriculum",
+])
+def test_a_technology_topic_is_not_a_company(text):
+    assert ("quantum", "computing") in IDX_TOPIC.weak
+    assert "QUBT" not in m_topic(text)
+
+
+@pytest.mark.parametrize("text", [
+    "Quantum Computing Inc. Announces Third Quarter Results",
+    "Quantum Computing shares jump after contract win",
+    "Quantum Computing reports record revenue",
+])
+def test_the_company_quantum_computing_still_links_with_context(text):
+    assert m_topic(text) == ["QUBT"]
+
+
+def test_a_topic_named_company_with_its_ticker_links_only_the_ticker():
+    assert m_topic("QUBT - Quantum Computing Inc. Announces New Photonic Chip Order") == []

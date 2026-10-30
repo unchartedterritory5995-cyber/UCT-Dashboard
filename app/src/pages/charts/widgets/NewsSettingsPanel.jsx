@@ -11,9 +11,9 @@ import styles from './NewsSettingsPanel.module.css'
 
 const PANEL_W = 268
 
-function Row({ label, hint, children }) {
+function Row({ label, hint, title, children }) {
   return (
-    <div className={styles.row}>
+    <div className={styles.row} title={title}>
       <div className={styles.rowLabel}>
         {label}
         {hint && <span className={styles.hint}>{hint}</span>}
@@ -172,7 +172,7 @@ export default function NewsSettingsPanel({ settings: s, onChange, onReset, onCl
             <div key={sec.label}>
               <div className={styles.sectionLabel}>{sec.label}</div>
               {sec.rows.map(r => (
-                <Row key={r.key} label={r.label} hint={r.hint}>
+                <Row key={r.key} label={r.label} hint={r.hint} title={r.title}>
                   {r.type === 'segmented' ? (
                     <div className={styles.seg}>
                       {r.options.map(o => (

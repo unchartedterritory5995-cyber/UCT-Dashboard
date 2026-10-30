@@ -16,9 +16,17 @@ answers as though the router were never mounted.
 the public domain, which the receiver never uses; it is refused as Not Found
 before the bearer is even compared.
 
-Member surface (Checkpoint C) -- ADMIN-ONLY while dark (``require_admin``):
+Member surface -- every SIGNED-IN user (``get_current_user``; owner release
+2026-10-30, Trade Exchange redistribution confirmed); anonymous requests get 401:
   * ``GET /api/trade-exchange-news/recent`` -- bounded history page (newest
     ``limit``, or the page before ``before=<seq>``), plus epoch and coverage.
+  * ``POST /api/trade-exchange-news/day`` -- one America/New_York calendar day of
+    the retained archive, newest first, with the widget's filters applied ON THE
+    SERVER over the whole day; keyset steps from a cursor in either direction, or
+    from a time of day (archive.py). POST only because a watchlist filter's
+    symbol set can outgrow a URL; it reads, never writes.
+  * ``GET /api/trade-exchange-news/days`` -- retained headline counts per ET date
+    and where retention begins (the calendar's availability).
   * ``GET /api/trade-exchange-news/stream`` -- SSE. Resumes from
     ``Last-Event-ID: <epoch>:<seq>`` (sent by the browser on its own reconnect)
     or ``?after=<seq>&epoch=<epoch>`` (a pooled manager reopening). Opens with
@@ -42,8 +50,9 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.routing import APIRoute
 from starlette.routing import Match
 
-from api.middleware.auth_middleware import require_admin
+from api.middleware.auth_middleware import get_current_user, require_admin
 from api.services.trade_exchange_news import config, pipeline as txn_pipeline, records
+from api.services.trade_exchange_news import archive as txn_archive
 from api.services.trade_exchange_news import reconcile as txn_reconcile
 from api.services.trade_exchange_news.loop_lag import LAG as _loop_lag
 from api.services.trade_exchange_news.records import RecordError
@@ -54,6 +63,10 @@ TIMING_PATH = "/api/trade-exchange-news/client-timing"
 CLOCK_PATH = "/api/trade-exchange-news/clock"
 RECENT_PATH = "/api/trade-exchange-news/recent"
 STREAM_PATH = "/api/trade-exchange-news/stream"
+DAY_PATH = "/api/trade-exchange-news/day"
+DAYS_PATH = "/api/trade-exchange-news/days"
+MAX_DAY_BODY = 96 * 1024
+_archive_slots: asyncio.Semaphore | None = None
 HEARTBEAT_S = 10.0
 MAX_STREAMS = int(os.environ.get("TXN_MAX_STREAMS", "200"))
 MAX_STREAMS_PER_USER = int(os.environ.get("TXN_MAX_STREAMS_PER_USER", "6"))
@@ -151,29 +164,112 @@ def _sse(event: str, data: dict[str, Any], event_id: str | None = None) -> str:
 
 @router.get(RECENT_PATH)
 async def recent(limit: int = Query(200, ge=1, le=500), before: int | None = Query(None, ge=1),
-                 _admin: dict = Depends(require_admin)) -> JSONResponse:
+                 _user: dict = Depends(get_current_user)) -> JSONResponse:
     pipe = txn_pipeline.get()
     if pipe is None:
         return JSONResponse({"reason": "not_started"}, status_code=503)
     store = pipe.store
     rows = await asyncio.to_thread(store.before if before else store.recent,
                                    *((before, limit) if before else (limit,)))
+    # Built on a worker thread from the cached derivation (archive.event_fields): the
+    # same fields, never re-derived per request and never on the event loop.
+    items = await asyncio.to_thread(lambda: [
+        txn_pipeline.headline_event(r, store.epoch, txn_archive.event_fields(r["source"], r["content"])) for r in rows])
     first, last = await asyncio.to_thread(lambda: (store.first_seq(), store.last_seq()))
     return JSONResponse({
         "epoch": store.epoch, "first_seq": first, "last_seq": last,
-        "items": [txn_pipeline.headline_event(r, store.epoch) for r in rows],
+        "items": items,
         "coverage": _coverage(), "tickers_provisional": TICKERS_PROVISIONAL,
         "server_ms": int(time.time() * 1000),
     })
 
 
-@router.get(STREAM_PATH)
-async def stream(request: Request, after: int | None = Query(None, ge=0), epoch: str = "",
-                 last_event_id: str = "", admin: dict = Depends(require_admin)):
+async def _read_body(request: Request) -> dict[str, Any] | JSONResponse:
+    body = await request.body()
+    if len(body) > MAX_DAY_BODY:
+        return JSONResponse({"detail": "too large"}, status_code=413)
+    try:
+        d = json.loads(body or b"{}")
+    except ValueError:
+        return JSONResponse({"detail": "not JSON"}, status_code=400)
+    if not isinstance(d, dict):
+        return JSONResponse({"detail": "expected an object"}, status_code=422)
+    return d
+
+
+async def _in_slot(fn):
+    global _archive_slots
+    if _archive_slots is None:
+        _archive_slots = asyncio.Semaphore(txn_archive.CONCURRENT)
+    async with _archive_slots:
+        return await asyncio.to_thread(fn)
+
+
+@router.post(DAY_PATH)
+async def day(request: Request, _user: dict = Depends(get_current_user)) -> JSONResponse:
     pipe = txn_pipeline.get()
     if pipe is None:
         return JSONResponse({"reason": "not_started"}, status_code=503)
-    uid = str(admin.get("id"))
+    d = await _read_body(request)
+    if isinstance(d, JSONResponse):
+        return d
+    which = txn_archive.parse_day(d.get("date")) or txn_archive.today()
+    if d.get("date") and txn_archive.parse_day(d.get("date")) is None:
+        return JSONResponse({"detail": "date is YYYY-MM-DD"}, status_code=422)
+    cats, syms = d.get("categories"), d.get("symbols")
+    if (cats is not None and not isinstance(cats, list)) or (syms is not None and not isinstance(syms, list)):
+        return JSONResponse({"detail": "categories and symbols are lists"}, status_code=422)
+    at = None
+    if d.get("at"):
+        at = txn_archive.at_ms(which, d.get("at"))
+        if at is None:
+            return JSONResponse({"detail": "at is HH:MM (24 h, America/New_York)"}, status_code=422)
+    limit = d.get("limit") if isinstance(d.get("limit"), int) and not isinstance(d.get("limit"), bool) else txn_archive.DEFAULT_LIMIT
+    store = pipe.store
+    t_req = time.perf_counter()
+
+    def build() -> dict[str, Any]:
+        t0 = time.perf_counter()
+        misses0 = txn_archive.stats["misses"]
+        out = txn_archive.day_slice(
+            store, day=which, limit=limit, cursor=d.get("cursor"),
+            direction="newer" if d.get("direction") == "newer" else "older", at=at,
+            query=d.get("query") if isinstance(d.get("query"), str) else "", categories=cats,
+            symbol=d.get("symbol") if isinstance(d.get("symbol"), str) else None, symbols=syms,
+            hide_placeholders=d.get("hide_placeholders", True) is not False)
+        t1 = time.perf_counter()
+        seqs = out.pop("seqs")
+        out["items"] = [txn_pipeline.headline_event(r, store.epoch, txn_archive.event_fields(r["source"], r["content"]))
+                        for r in store.by_seqs(seqs)]
+        # ⏱ times and counts only: where a slow answer spends its time.
+        out["timing_ms"] = {"wait": round((t0 - t_req) * 1000, 1), "scan": round((t1 - t0) * 1000, 1),
+                            "events": round((time.perf_counter() - t1) * 1000, 1),
+                            "derived": txn_archive.stats["misses"] - misses0}
+        return out
+
+    out = await _in_slot(build)
+    out.update(date=which.isoformat(), epoch=store.epoch, coverage=_coverage(),
+               tickers_provisional=TICKERS_PROVISIONAL, server_ms=int(time.time() * 1000))
+    return JSONResponse(out)
+
+
+@router.get(DAYS_PATH)
+async def days(_user: dict = Depends(get_current_user)) -> JSONResponse:
+    pipe = txn_pipeline.get()
+    if pipe is None:
+        return JSONResponse({"reason": "not_started"}, status_code=503)
+    out = await _in_slot(lambda: txn_archive.days(pipe.store))
+    out.update(epoch=pipe.store.epoch, server_ms=int(time.time() * 1000))
+    return JSONResponse(out)
+
+
+@router.get(STREAM_PATH)
+async def stream(request: Request, after: int | None = Query(None, ge=0), epoch: str = "",
+                 last_event_id: str = "", user: dict = Depends(get_current_user)):
+    pipe = txn_pipeline.get()
+    if pipe is None:
+        return JSONResponse({"reason": "not_started"}, status_code=503)
+    uid = str(user.get("id"))
     if sum(_streams.values()) >= MAX_STREAMS or _streams.get(uid, 0) >= MAX_STREAMS_PER_USER:
         return JSONResponse({"reason": "at_capacity"}, status_code=503)
     store = pipe.store
@@ -194,7 +290,10 @@ async def stream(request: Request, after: int | None = Query(None, ge=0), epoch:
             yield _sse("hello", {"epoch": store.epoch, "cursor": cursor, "last_seq": last,
                                  "first_seq": first, "reset": reset, "truncated": truncated,
                                  "coverage": _coverage(),
-                                 "tickers_provisional": TICKERS_PROVISIONAL})
+                                 "tickers_provisional": TICKERS_PROVISIONAL,
+                                 # ⏱ the latency audit (client-timing) is an ADMIN measurement:
+                                 # only an admin's browser is asked to report.
+                                 "timing": user.get("role") == "admin"})
             while True:
                 if await request.is_disconnected():
                     break
@@ -236,7 +335,7 @@ def _num(v: Any, lo: float, hi: float) -> float | None:
 
 
 @router.get(CLOCK_PATH)
-async def clock(_admin: dict = Depends(require_admin)) -> JSONResponse:
+async def clock(_user: dict = Depends(get_current_user)) -> JSONResponse:
     """⏱ LATENCY AUDIT: web's wall clock, for the admin browser's clock sync."""
     return JSONResponse({"server_ms": int(time.time() * 1000)}, headers={"Cache-Control": "no-store"})
 
@@ -278,6 +377,7 @@ def status(_admin: dict = Depends(require_admin)) -> dict[str, Any]:
         "subscribers": pipe.hub.subscribers if pipe else 0,
         "resyncs": pipe.hub.resyncs if pipe else 0,
         "store": pipe.store.stats() if pipe else None,
+        "archive_cache": txn_archive.cache_stats(),
         "reconcile": rec.snapshot() if rec else None,
         "storage_permission_confirmed": config.storage_permitted(),
         "synthetic_only": config.synthetic_only(),

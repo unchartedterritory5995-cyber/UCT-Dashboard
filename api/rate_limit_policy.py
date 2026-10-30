@@ -334,8 +334,9 @@ FAMILIES: dict[str, Family] = {
         "Trade Exchange News: the receiver service's private-network push of each "
         "headline (one sender, bursty during market-moving news; bearer-gated inline, "
         "a refused push loses nothing -- the reconciler recovers it from the R2 "
-        "journal) plus the admin-only member reads: one /recent page per widget "
-        "mount and one long-lived /stream per browser (the pool shares it).",
+        "journal) plus the signed-in member reads: one /recent page per browser, "
+        "one long-lived /stream per browser (the pool shares it), /days per widget "
+        "every 5 min, and /day cursor steps as a reader scrolls a date.",
         ("/api/trade-exchange-news",),
     ),
     "admin-ops": Family(

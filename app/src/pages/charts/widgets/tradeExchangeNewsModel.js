@@ -2,7 +2,7 @@
 //
 // ⛔ NOTHING HERE INVENTS DATA. Trade Exchange sends `{source, content}` only, so:
 //   * the time shown is the RECEIPT time UCT stamped, labelled as such;
-//   * there are no categories, no urgency, no publication time;
+//   * no publication time; the category is the SERVER's (categories.py);
 //   * tickers are the server resolver's (provisional) list, and a ticker is made
 //     clickable only where its own text appears in the headline as sent.
 
@@ -86,16 +86,36 @@ export function matchesQuery(item, query) {
   return (item.tickers || []).some((t) => String(t).toLowerCase() === q.replace(/^\$/, ''))
 }
 
-/** Items passing every active filter, NEWEST FIRST (seq descending).
+/** The server classifier's categories (api/services/trade_exchange_news/categories.py
+ *  CATEGORIES), in toolbar order. The widget filters on `item.category`; it never
+ *  classifies anything itself. */
+export const CATEGORY_FILTERS = ['News', 'Macro', 'Options', 'Earnings', 'Price', 'Press Release', 'Filing', 'Other']
+
+/** A saved category selection, cleaned: known categories only, toolbar order. Empty = All. */
+export function cleanCategories(raw) {
+  const want = new Set(Array.isArray(raw) ? raw : [])
+  return CATEGORY_FILTERS.filter((c) => want.has(c))
+}
+
+/** The filter button's label: "All", one category, or "3 types". */
+export function categoriesLabel(categories) {
+  const c = cleanCategories(categories)
+  return !c.length || c.length === CATEGORY_FILTERS.length ? 'All' : c.length === 1 ? c[0] : `${c.length} types`
+}
+
+/** Items passing every active filter (AND), NEWEST FIRST (seq descending).
  *  `linkedSym`: only headlines naming the widget's colour-group symbol.
- *  `watchSet`: a Set of symbols (a watchlist) — headlines naming any of them. */
-export function visibleItems(items, { query = '', linkedSym = null, watchSet = null, hidePlaceholders = false } = {}) {
+ *  `watchSet`: a Set of symbols (a watchlist) — headlines naming any of them.
+ *  `categories`: the selected categories (empty = all). */
+export function visibleItems(items, { query = '', linkedSym = null, watchSet = null, hidePlaceholders = false, categories = null } = {}) {
+  const cats = categories && categories.length && categories.length < CATEGORY_FILTERS.length ? new Set(categories) : null
   const out = []
   for (let i = items.length - 1; i >= 0; i--) {
     const it = items[i]
     // A graphic-only placeholder ("CRYPTO" without its picture) is kept in storage
     // and counted in the footer -- hidden from the feed, never lost.
     if (hidePlaceholders && it.placeholder === 'graphic') continue
+    if (cats && !cats.has(it.category || 'Other')) continue
     const syms = it.tickers || []
     if (linkedSym && !syms.includes(linkedSym)) continue
     if (watchSet && !syms.some((t) => watchSet.has(t))) continue
@@ -173,4 +193,282 @@ export function coverageNotice(coverage, nowMs = Date.now()) {
     text: `Headlines may be missing between ${fmtReceived(g.from_ms, nowMs)} and ${fmtReceived(g.to_ms, nowMs)}`,
     title: `${GAP_REASON[g.reason] || g.reason}. ${gaps.length > 1 ? `${gaps.length} gaps recorded.` : ''}`.trim(),
   }
+}
+
+// ── related-headline grouping ────────────────────────────────────────────────
+//
+// ⛔ MEASURED BEFORE IT SHIPPED (544 production headlines, 2026-10-29): topic-level
+// similarity is NOT reliable -- earnings boilerplate from different companies
+// overlaps 60-70% word for word. What IS reliable is the same story sent again in
+// near-identical words (on another label, or re-sent after the dedupe window). So a
+// group is: >= 90% of the same words, within GROUP_WINDOW_MS of the group's newest
+// headline, and never two headlines naming DIFFERENT tickers. Every headline keeps
+// its own row, time and links inside the group.
+export const GROUP_WINDOW_MS = 15 * 60_000
+export const GROUP_MIN_WORDS = 4
+export const GROUP_SIMILARITY = 0.9
+const GROUP_LOOKBACK = 40               // open groups compared per headline: bounded work
+const GROUP_STOP = new Set('the a an of to in on for and or by with at from as is are be its it this that says said'.split(' '))
+const _words = new WeakMap()
+function wordsOf(it) {
+  let w = _words.get(it)
+  if (!w) {
+    w = new Set((String(it.content || '').toLowerCase().match(/[a-z0-9%]+(?:[.,][0-9]+)?/g) || [])
+      .filter((t) => t.length > 1 && !GROUP_STOP.has(t)))
+    _words.set(it, w)
+  }
+  return w
+}
+
+/** Two headlines tell the same story in (nearly) the same words. */
+export function relatedHeadlines(a, b) {
+  const A = wordsOf(a)
+  const B = wordsOf(b)
+  if (A.size < GROUP_MIN_WORDS || B.size < GROUP_MIN_WORDS) return false
+  const ta = a.tickers || []
+  const tb = b.tickers || []
+  if (ta.length && tb.length && !ta.some((t) => tb.includes(t))) return false
+  let inter = 0
+  for (const w of A) if (B.has(w)) inter++
+  return inter / (A.size + B.size - inter) >= GROUP_SIMILARITY
+}
+
+/** `items` newest first -> [{ key, lead, rest }] newest first. `rest` holds the older
+ *  members, newest first (empty for an ungrouped headline). `key` is the group's
+ *  OLDEST seq, so it stays put while newer updates join. */
+export function groupRelated(items) {
+  const groups = []
+  const open = []                       // groups still inside the window, newest first
+  for (let i = items.length - 1; i >= 0; i--) {       // oldest -> newest
+    const it = items[i]
+    const t = it.received_at_ms || 0
+    let home = null
+    for (let k = 0; k < open.length && k < GROUP_LOOKBACK; k++) {
+      const g = open[k]
+      if (t - (g.lead.received_at_ms || 0) > GROUP_WINDOW_MS) continue
+      if (relatedHeadlines(g.lead, it)) { home = g; break }
+    }
+    if (home) {
+      home.rest.unshift(home.lead)
+      home.lead = it
+      open.splice(open.indexOf(home), 1)
+      open.unshift(home)
+    } else {
+      const g = { key: it.seq, lead: it, rest: [] }
+      groups.push(g)
+      open.unshift(g)
+      if (open.length > GROUP_LOOKBACK) open.length = GROUP_LOOKBACK
+    }
+  }
+  groups.sort((a, b) => b.lead.seq - a.lead.seq)
+  return groups
+}
+
+// ── feed health ──────────────────────────────────────────────────────────────
+
+const _ago = (ms) => {
+  const s = Math.max(0, Math.round(ms / 1000))
+  return s < 60 ? `${s}s ago` : s < 3600 ? `${Math.round(s / 60)}m ago` : `${Math.round(s / 3600)}h ago`
+}
+
+/** The LIVE popover's lines: [{ key, label, value, tone }]. Every line says only what
+ *  this browser knows -- UCT's connection is never passed off as the provider's. */
+export function feedHealth(state, nowMs = Date.now()) {
+  const s = state || {}
+  const items = s.items || []
+  const conn = liveStatus(s, nowMs)
+  let newest = 0
+  let recovered = 0
+  for (const it of items) {
+    if ((it.received_at_ms || 0) > newest) newest = it.received_at_ms
+    if (it.delayed) recovered++
+  }
+  const replaying = s.status === 'live' && (s.replayUntil || 0) > (s.lastSeq || 0)
+  const gaps = s.coverage?.gaps || []
+  const measured = typeof s.lastLatencyMs === 'number' && s.lastLatencyAt
+  const reconnecting = s.status === 'reconnecting' || s.status === 'dropped'
+  return [
+    { key: 'connection', label: 'UCT connection', tone: conn.tone,
+      value: conn.tone === 'live' ? 'Connected — live stream open' : conn.label },
+    { key: 'latest', label: 'Latest headline', tone: 'none',
+      value: newest ? `${fmtReceived(newest, nowMs)} ET · ${_ago(nowMs - newest)} · received by UCT` : 'None received yet' },
+    { key: 'provider', label: 'Trade Exchange', tone: 'none',
+      value: 'A live connection does not mean Trade Exchange is publishing: a quiet feed and a silent provider look the same here.' },
+    { key: 'sync', label: 'Sync', tone: replaying || reconnecting ? 'warn' : 'none',
+      value: s.status === 'live' ? (replaying ? `Replaying missed headlines (to #${s.replayUntil})` : 'Caught up')
+        : reconnecting ? 'Reconnecting — missed headlines replay in order on return' : '—' },
+    { key: 'recovery', label: 'Recovery', tone: 'none',
+      value: recovered ? `${recovered} loaded headline${recovered === 1 ? '' : 's'} reached UCT late and ${recovered === 1 ? 'was' : 'were'} recovered (marked delayed)`
+        : 'No recovered headlines in the loaded history' },
+    { key: 'gaps', label: 'Delivery gaps', tone: gaps.length ? 'warn' : 'none',
+      value: gaps.length ? coverageNotice(s.coverage, nowMs).text : 'None known' },
+    { key: 'latency', label: 'Latency', tone: 'none',
+      value: measured ? `${(s.lastLatencyMs / 1000).toFixed(1)} s from UCT receipt to this screen · measured ${_ago(nowMs - s.lastLatencyAt)}`
+        : 'Not measured yet in this browser (needs a live headline in a visible tab)' },
+  ]
+}
+
+// ── saved presets (per widget, in opts.presets) ──────────────────────────────
+
+export const PRESET_SETTING_KEYS = ['longHeadlines', 'groupRelated']
+export const MAX_PRESETS = 12
+
+/** The widget's current filters + display preferences, as a preset body. */
+export function presetSnapshot(opts, settings, query = '') {
+  const o = opts || {}
+  return {
+    categories: cleanCategories(o.categories),
+    linked: !!o.linked,
+    watchlistId: typeof o.watchlistId === 'string' ? o.watchlistId : '',
+    query: String(query || '').slice(0, 80),
+    settings: Object.fromEntries(PRESET_SETTING_KEYS.map((k) => [k, settings?.[k]]).filter(([, v]) => v != null)),
+  }
+}
+
+/** The opts patch that applies `preset`: this widget's filters and display only --
+ *  never a chart symbol, a colour, or anything outside this widget. */
+export function presetPatch(settings, preset) {
+  const p = preset || {}
+  const keep = Object.fromEntries(Object.entries(p.settings || {}).filter(([k]) => PRESET_SETTING_KEYS.includes(k)))
+  return {
+    categories: cleanCategories(p.categories),
+    linked: !!p.linked,
+    watchlistId: p.watchlistId || null,
+    presetId: p.id || null,
+    settings: { ...(settings || {}), ...keep },
+  }
+}
+
+/** opts.presets, cleaned (tolerates garbled blobs). */
+export function cleanPresets(raw) {
+  return (Array.isArray(raw) ? raw : [])
+    .filter((p) => p && typeof p.id === 'string' && typeof p.name === 'string' && p.name.trim())
+    .slice(0, MAX_PRESETS)
+}
+
+// ── one America/New_York calendar day at a time ──────────────────────────────
+//
+// ⭐ The SERVER filters a whole day (api/services/trade_exchange_news/archive.py
+// mirrors visibleItems) and serves it newest first by (received_at_ms, seq) in
+// cursor steps; the widget scrolls a day continuously and keeps the live pool's
+// headlines for that day merged in. Dates are ET calendar dates by UCT's RECEIPT
+// time, as 'YYYY-MM-DD'.
+
+export const DAY_LIMIT = 60
+
+/** The day request for a widget's filters (null `symbols` = no watchlist filter). */
+export function dayRequest({ query = '', linkedSym = null, watchSet = null, categories = null, hidePlaceholders = false } = {}) {
+  return {
+    query: String(query || '').trim().slice(0, 80),
+    categories: cleanCategories(categories),
+    symbol: linkedSym || null,
+    symbols: watchSet ? [...watchSet].sort() : null,
+    hide_placeholders: !!hidePlaceholders,
+  }
+}
+
+// ET's offset is a whole number of hours (EDT -4 / EST -5), so every UTC hour lies in
+// ONE New York date: one formatter call per hour, not per headline (a day view merges
+// up to a thousand live rows on every arrival).
+const _etDayByHour = new Map()
+
+/** 'YYYY-MM-DD' of an instant in America/New_York (through the shared ET formatter). */
+export function etDateKey(ms) {
+  if (!Number.isFinite(ms)) return null
+  const hour = Math.floor(ms / 3_600_000)
+  const hit = _etDayByHour.get(hour)
+  if (hit) return hit
+  const head = (formatDateTimeEt(hour * 3600) || '').split(',')[0]          // "10/30/2026"
+  const [m, d, y] = head.split('/').map(Number)
+  if (!y || !m || !d) return null
+  const key = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+  if (_etDayByHour.size > 20_000) _etDayByHour.clear()
+  _etDayByHour.set(hour, key)
+  return key
+}
+
+const _parse = (key) => {
+  const [y, m, d] = String(key || '').split('-').map(Number)
+  return y && m && d ? Date.UTC(y, m - 1, d) : NaN
+}
+const _key = (utc) => {
+  const t = new Date(utc)
+  return `${t.getUTCFullYear()}-${String(t.getUTCMonth() + 1).padStart(2, '0')}-${String(t.getUTCDate()).padStart(2, '0')}`
+}
+
+/** A calendar date `n` days from `key` (plain date arithmetic, no time zone). */
+export const addDays = (key, n) => _key(_parse(key) + n * 86_400_000)
+
+export const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September',
+  'October', 'November', 'December']
+export const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+
+/** "Thu, Oct 30" (and the year when it is not `todayKey`'s). */
+export function dayLabel(key, todayKey = null) {
+  const t = new Date(_parse(key))
+  if (Number.isNaN(t.getTime())) return ''
+  const year = todayKey && String(todayKey).slice(0, 4) !== String(key).slice(0, 4) ? `, ${t.getUTCFullYear()}` : ''
+  return `${WEEKDAYS[t.getUTCDay()]}, ${MONTHS[t.getUTCMonth()].slice(0, 3)} ${t.getUTCDate()}${year}`
+}
+
+/** "9:30 AM" for 'HH:MM' (24 h). */
+export function timeLabel(hhmm) {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(String(hhmm || ''))
+  if (!m) return ''
+  const h = Number(m[1])
+  return `${h % 12 || 12}:${m[2]} ${h < 12 ? 'AM' : 'PM'}`
+}
+
+/** A typed time: 'H:MM' / 'HH:MM' (24 h) within the day, else null. */
+export function cleanTime(raw) {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(String(raw || '').trim())
+  if (!m || Number(m[1]) > 23 || Number(m[2]) > 59) return null
+  return `${String(Number(m[1])).padStart(2, '0')}:${m[2]}`
+}
+
+/** Six weeks of a month for the calendar, Sunday first: [{ key, inMonth }]. */
+export function monthGrid(year, month) {
+  const first = Date.UTC(year, month, 1)
+  const start = first - new Date(first).getUTCDay() * 86_400_000
+  return Array.from({ length: 42 }, (_, i) => {
+    const key = _key(start + i * 86_400_000)
+    return { key, inMonth: new Date(start + i * 86_400_000).getUTCMonth() === month }
+  })
+}
+
+/** What the calendar may say about one date, from the server's `days` answer
+ *  (never invented): future | unretained | news (count) | empty. */
+export function dayStatus(key, meta) {
+  if (!meta?.today) return { kind: 'unknown', count: null }
+  if (key > meta.today) return { kind: 'future', count: null }
+  if (!meta.first_day || key < meta.first_day) return { kind: 'unretained', count: null }
+  const hit = (meta.days || []).find((d) => d.date === key)
+  return hit ? { kind: 'news', count: hit.count } : { kind: 'empty', count: 0 }
+}
+
+/** The day order: newest first by (received_at_ms, seq). */
+export const dayCmp = (a, b) => ((b.received_at_ms || 0) - (a.received_at_ms || 0)) || (b.seq - a.seq)
+
+/** One day's rows: the server's slices plus the live pool's headlines OF THAT DAY.
+ *  Pool rows are kept only inside the range the server has covered (or above it,
+ *  when nothing newer is still to load), so a live row never appears beside a
+ *  gap. A pool row wins a tie (its repeat count is the live one). */
+export function mergeDay(serverRows, poolMatches, { dateKey, hasNewer = false, hasOlder = false } = {}) {
+  const rows = serverRows || []
+  const bySeq = new Map(rows.map((it) => [it.seq, it]))
+  const top = rows[0]
+  const bottom = rows[rows.length - 1]
+  for (const it of poolMatches || []) {
+    if (etDateKey(it.received_at_ms) !== dateKey) continue
+    if (hasNewer && top && dayCmp(it, top) < 0) continue             // newer than what is loaded, with a gap between
+    if (hasOlder && bottom && dayCmp(it, bottom) > 0) continue       // older than what is loaded, with a gap between
+    bySeq.set(it.seq, it)
+  }
+  return [...bySeq.values()].sort(dayCmp)
+}
+
+/** The footer's archive note: how far back the retained history actually reaches. */
+export function archiveTitle(oldestMs, nowMs = Date.now()) {
+  const back = oldestMs ? `back to ${fmtReceived(oldestMs, nowMs)}${_etDay(oldestMs) === _etDay(nowMs) ? ' ET' : ''}` : 'empty so far'
+  return `The retained archive reaches ${back}. UCT keeps about 7 days of headlines, up to 5,000; nothing older is available.`
 }
