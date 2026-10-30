@@ -250,6 +250,8 @@ FAMILIES: dict[str, Family] = {
          "/api/backtest", "/api/user-definitions", "/api/setup-templates",
          "/api/setup-performance", "/api/model-examples", "/api/indicator-alerts",
          "/api/indicator-telemetry",
+         # The Pine support loop (gap counts + opt-in mismatch reports).
+         "/api/indicator-support",
          # The Pine library store the chart's translators fetch an `import` line from.
          "/api/pine"),
     ),
