@@ -10,19 +10,24 @@ const feed = vi.hoisted(() => {
   const claimed = new Set()
   let state = { status: 'idle', items: [], epoch: 'e', lastSeq: 0, firstSeq: 0, coverage: null, provisional: true }
   return {
+    archive: null, pageCalls: [],
     listeners, claimed,
     get: () => state,
     set(next) { state = { ...state, ...next }; for (const fn of [...listeners]) fn(state) },
-    reset() { listeners.clear(); claimed.clear(); state = { status: 'idle', items: [], epoch: 'e', lastSeq: 0, firstSeq: 0, coverage: null, provisional: true } },
+    reset() { this.archive = null; this.pageCalls = []; listeners.clear(); claimed.clear(); state = { status: 'idle', items: [], epoch: 'e', lastSeq: 0, firstSeq: 0, coverage: null, provisional: true } },
   }
 })
-vi.mock('../../../lib/tradeExchangeNewsStreamManager', () => ({
+vi.mock('../../../lib/tradeExchangeNewsStreamManager', async () => {
+  const { fakeNewsPage } = await import('../../../testing/tradeExchangeNews/fakeNewsPages')
+  return {
   subscribe: (fn) => { feed.listeners.add(fn); return () => feed.listeners.delete(fn) },
   getSnapshot: () => feed.get(),
   retry: vi.fn(),
-  loadOlder: vi.fn(),
+  // The server's pages over the synthetic archive (the pool's rows unless a test sets one).
+  fetchPage: async (body) => { feed.pageCalls.push(body); return fakeNewsPage(feed.archive || feed.get().items, body) },
   claimAnnouncement: (seq) => (feed.claimed.has(seq) ? false : (feed.claimed.add(seq), true)),
-}))
+}
+})
 const setGroupSym = vi.fn()
 let groupSyms = { A: 'NVDA' }
 vi.mock('../WorkspaceContext', () => ({
@@ -141,9 +146,9 @@ describe('TradeExchangeNewsWidget', () => {
     expect(quotes.asked).toEqual(['AMD', 'NVDA'])                 // newest rows first, distinct
   })
 
-  it('ticker colour mode accent/neutral needs no quotes at all', () => {
+  it('ticker colour mode accent/neutral with % change off needs no quotes at all', () => {
     quotes.asked = null
-    render(<TradeExchangeNewsWidget color="A" opts={{ settings: { tickerColorMode: 'neutral' } }} onOptsChange={vi.fn()} />)
+    render(<TradeExchangeNewsWidget color="A" opts={{ settings: { tickerColorMode: 'neutral', showPct: 'off' } }} onOptsChange={vi.fn()} />)
     act(() => feed.set({ status: 'live', items: HISTORY, lastSeq: 3, lastHeadlineAt: NOW }))
     expect(quotes.asked).toEqual([])
     expect(screen.getAllByRole('button', { name: /NVDA/ })[0].className).toMatch(/symNeutral/)

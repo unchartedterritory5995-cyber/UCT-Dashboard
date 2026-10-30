@@ -91,7 +91,7 @@ import { freshnessFor } from '../engine/ast/freshness'
 // it" are the same fact rather than two lists somebody keeps in step.
 import {
   BUILDER_INPUTS, BUILDER_INPUT_SCOPE, chromeInputKeys, chromeInputsFor,
-  formulaNameRoles, formulaTabWindowRefusal,
+  formulaNameRoles, formulaTabWindowRefusal, pineLineWidth,
 } from './builderInputs'
 import { declaredInputs } from '../engine/ast/lint'
 // ⛔ THE TWO BADGE AGGREGATORS, IMPORTED FROM THE ONE MODULE THAT OWNS THEM.
@@ -2724,7 +2724,7 @@ export default function BuilderSheet({
                   const o = pres.output || {}
                   const patch = {}
                   if (typeof o.color === 'string') patch.color = o.color
-                  if (Number.isFinite(o.width)) patch.width = Math.max(1, Math.min(4, Math.round(o.width)))
+                  if (Number.isFinite(o.width)) patch.width = pineLineWidth(o.width)
                   if (typeof o.style === 'string') patch.style = o.style
                   if (Object.keys(patch).length) setPlot0((prev) => ({ ...prev, ...patch }))
                 }
@@ -2857,7 +2857,7 @@ export default function BuilderSheet({
                       label: String((out && out.title) || ''),
                       ...(typeof op.color === 'string' ? { color: op.color } : {}),
                       ...(Number.isFinite(op.width)
-                        ? { width: Math.max(1, Math.min(4, Math.round(op.width))) } : {}),
+                        ? { width: pineLineWidth(op.width) } : {}),
                       ...(typeof op.style === 'string' ? { style: op.style } : {}),
                       // ⭐ C3A — carried verbatim; the translator has already
                       // reduced Pine's twelve shapes to the four the renderer
