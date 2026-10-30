@@ -323,6 +323,17 @@
       "yields": "num",
       "sentence": "the running value that starts at {0} and becomes {1} on each of the last {2} bars"
     },
+    "acos": {
+      "args": [
+        "series"
+      ],
+      "argRoles": [
+        "source"
+      ],
+      "lookback": 0,
+      "yields": "num",
+      "sentence": "the arccosine of {0}"
+    },
     "adx": {
       "args": [
         "series",
@@ -339,6 +350,23 @@
       "lookback": "2*arg3",
       "yields": "num",
       "sentence": "the {3}-bar ADX of {0}, {1} and {2}"
+    },
+    "alma": {
+      "args": [
+        "series",
+        "int",
+        "series",
+        "series"
+      ],
+      "argRoles": [
+        "source",
+        "period",
+        "weightCentre",
+        "weightSpread"
+      ],
+      "lookback": "arg1",
+      "yields": "num",
+      "sentence": "the {1}-bar Arnaud Legoux average of {0} at offset {2} and sigma {3}"
     },
     "aroonDown": {
       "args": [
@@ -1054,6 +1082,21 @@
       "yields": "num",
       "sentence": "the {2}th percentile of {0} over the last {1} bars, linearly interpolated between the two nearest ranks"
     },
+    "percentileNearestRank": {
+      "args": [
+        "series",
+        "int",
+        "int"
+      ],
+      "argRoles": [
+        "source",
+        "period",
+        "percentage"
+      ],
+      "lookback": "arg1",
+      "yields": "num",
+      "sentence": "the nearest-rank {2}th percentile of {0} over the last {1} bars"
+    },
     "percentrank": {
       "args": [
         "series",
@@ -1153,6 +1196,19 @@
       "lookback": "arg1",
       "yields": "bool",
       "sentence": "{0} rising for {1} bars"
+    },
+    "rci": {
+      "args": [
+        "series",
+        "int"
+      ],
+      "argRoles": [
+        "source",
+        "period"
+      ],
+      "lookback": "arg1",
+      "yields": "num",
+      "sentence": "the {1}-bar rank correlation index of {0}"
     },
     "rma": {
       "args": [

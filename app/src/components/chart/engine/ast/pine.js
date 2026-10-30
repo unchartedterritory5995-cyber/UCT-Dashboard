@@ -734,6 +734,16 @@ export function timeframeIsSeconds(code) {
   return isSecondsCode(code) ? 1 : 0
 }
 
+/** ⭐ PHASE 1 (2026-10-30) — `timeframe.isdwm`: TradingView's "true if the current
+ *  resolution is a daily, weekly or monthly resolution". Every code this engine
+ *  holds is a minute count, a seconds count or one of `D`/`W`/`M`, so it is the
+ *  complement of the two tests above — ASKED of them, not restated, so the three
+ *  predicates cannot disagree about one code. `null` when the code is not held. */
+export function timeframeIsDwm(code) {
+  if (!TF_CODES.has(code)) return null
+  return isMinuteCode(code) || isSecondsCode(code) ? 0 : 1
+}
+
 /** `timeframe.in_seconds(<code>)`, or `null` when the code is not one this engine
  *  holds a length for. */
 export function timeframeSeconds(code) {
@@ -1069,6 +1079,20 @@ export const PINE_CALL_SHAPES = Object.freeze({
     pineArity: 3,
     build: [{ pine: 0 }, { pine: 1 }, { pine: 2 }],
   },
+  // ⭐ PHASE 1 (2026-10-30) — the nearest-rank sibling, the same identity build
+  // onto its own camelCase key (TradingView's order: source, length, percentage).
+  percentile_nearest_rank: {
+    table: 'percentileNearestRank',
+    pineArity: 3,
+    build: [{ pine: 0 }, { pine: 1 }, { pine: 2 }],
+  },
+  // ⭐ PHASE 1 (2026-10-30) — `ta.alma(series, length, offset, sigma)` onto the
+  // table's `alma`, in TradingView's own order. Three `series` slots (offset and
+  // sigma are columns: this table has no float-literal kind), so the order is
+  // WRITTEN here rather than matched by position — the measured reference is
+  // `vw-alma-spy-1d-2026-09-27` (A01–A05). The optional fifth `floor` argument is
+  // read in `resolveTableCall` before this shape is consulted.
+  alma: { table: 'alma', pineArity: 4, build: [{ pine: 0 }, { pine: 1 }, { pine: 2 }, { pine: 3 }] },
   // ⭐ THE PERMUTATION. Pine (source, high, low, length) → table (high, low, close,
   // length): Pine's `source` plays the role this table calls `c`.
   stoch: { table: 'stoch', pineArity: 4, build: [{ pine: 1 }, { pine: 2 }, { pine: 0 }, { pine: 3 }] },
@@ -1367,7 +1391,80 @@ const BUILTIN_SERIES_TREE = Object.freeze({
     cOp('-', [cSeries('high'), cSeries('low')]),
     BUILTIN_SERIES_TREE.tr(),
   ]),
+  // ⭐⭐ PHASE 1 (2026-10-30) — `ta.accdist`, `ta.nvi`, `ta.pvi`: THE `cum` BARGAIN,
+  // EXTENDED THE WAY THEIR OWN RULINGS SAY IT CAN BE. `_functions_excluded.nvi`
+  // ends "the `cum` pane-only pattern is ready to extend to it; nothing here
+  // forecloses that", and `accdist`'s says the same of its bounded twin. Each is a
+  // running total from the first loaded bar, so each is written as `cum(…)` — the
+  // ONE declared running total — and inherits `cum`'s containment unchanged: a pane
+  // draws it (one symbol, one fetch, the member can see where the data starts) and
+  // `_requirement_tags.window_dependent` makes every screen, sweep, alert, share and
+  // listing refuse it BY NAME, because the LEVEL moves with the fetch. On
+  // TradingView it moves with the loaded history too; that is the same fact.
+  //
+  // `ta.accdist` — the per-bar money-flow volume TradingView's own
+  // Accumulation/Distribution script sums, `close == high and close == low or
+  // high == low ? 0 : ((2 * close - low - high) / (high - low)) * volume` (the
+  // per-bar formula `ta-accdist-delta5-2026-09-06` already verified).
+  accdist: () => {
+    const flat = cOp('||', [
+      cOp('&&', [cOp('==', [cSeries('close'), cSeries('high')]), cOp('==', [cSeries('close'), cSeries('low')])]),
+      cOp('==', [cSeries('high'), cSeries('low')]),
+    ])
+    const mfv = cOp('*', [
+      cOp('/', [
+        cOp('-', [cOp('-', [cOp('*', [cNum(2), cSeries('close')]), cSeries('low')]), cSeries('high')]),
+        cOp('-', [cSeries('high'), cSeries('low')]),
+      ]),
+      cSeries('volume'),
+    ])
+    return cCall('cum', [cOp('?:', [flat, cNum(0), mfv])])
+  },
+  // `ta.nvi` / `ta.pvi` — TradingView's published `f_nvi`/`f_pvi`: seed 1.0, and on
+  // a bar whose volume FELL (nvi) / ROSE (pvi) against `nz(volume[1])`,
+  // `prev + ((close - close[1]) / close[1]) * prev`; otherwise, and wherever
+  // `close` or `close[1]` is `na`/zero, the previous value held. That is a PRODUCT
+  // of `1 + change` over the qualifying bars, and the one running total this table
+  // has is a SUM, so it is written `exp(cum(ln(1 + change)))` — the same product,
+  // read through the identity exp(Σ ln) = Π. ⚠️ NOT BIT-IDENTICAL: the two
+  // association orders differ by float rounding (~1e-12 relative over 8,000 bars,
+  // measured against the full-history capture in `pinePhase1Builtins.test.js`).
+  nvi: () => volumeIndexTree('<'),
+  pvi: () => volumeIndexTree('>'),
 })
+
+/** The names Phase 1 (2026-10-30) taught the Pine door, each with the ONLY
+ *  spelling a v5/v6 script may use for it — see `Resolver.refuseBareModernSpelling`. */
+const PHASE1_MODERN_SPELLING = Object.freeze({
+  alma: 'ta.alma',
+  rci: 'ta.rci',
+  swma: 'ta.swma',
+  tsi: 'ta.tsi',
+  acos: 'math.acos',
+  // keyed as `normaliseName` reads a name: lower case, underscores dropped
+  percentilenearestrank: 'ta.percentile_nearest_rank',
+  nvi: 'ta.nvi',
+  pvi: 'ta.pvi',
+  accdist: 'ta.accdist',
+})
+
+/** The `BUILTIN_SERIES_TREE` names that are running totals (`cum`), so only a
+ *  pane is handed them — see `Resolver.seriesTreeOf`. */
+const PINE_WINDOW_DEPENDENT_SERIES = Object.freeze(new Set(['accdist', 'nvi', 'pvi']))
+
+/** `exp(cum(cond ? ln(1 + (close - close[1]) / close[1]) : 0))` — see `nvi`/`pvi`
+ *  above. `cmp` is how this bar's volume must compare with `nz(volume[1], 0)`. */
+function volumeIndexTree(cmp) {
+  const prevClose = { type: 'offset', value: 1, args: [cSeries('close')] }
+  const prevVolume = { type: 'offset', value: 1, args: [cSeries('volume')] }
+  const known = (x) => cOp('!=', [cCall('nz', [x, cNum(0)]), cNum(0)])
+  const qualifies = cOp('&&', [
+    cOp('&&', [known(cSeries('close')), known(prevClose)]),
+    cOp(cmp, [cSeries('volume'), cCall('nz', [prevVolume, cNum(0)])]),
+  ])
+  const step = cCall('ln', [cOp('+', [cNum(1), cOp('/', [cOp('-', [cSeries('close'), prevClose]), prevClose])])])
+  return cCall('exp', [cCall('cum', [cOp('?:', [qualifies, step, cNum(0)])])])
+}
 
 /** ⭐⭐ PINE BUILT-INS THIS ENGINE'S EVALUATION MODEL ALREADY ANSWERS.
  *
@@ -1529,6 +1626,7 @@ export const BUILTIN_TIMEFRAME_SCALAR = Object.freeze({
   // this way, and `BUILTIN_TIMEFRAME_RULED` says so in its own words.
   'timeframe.isminutes': timeframeIsMinutes,
   'timeframe.isseconds': timeframeIsSeconds,
+  'timeframe.isdwm': timeframeIsDwm,
 })
 
 /** The `timeframe.*` names that arrive as CALLS. Their arity and their argument
@@ -2243,6 +2341,36 @@ export const BUILTIN_CALL_TREE = Object.freeze({
     cCall('crossOver', [a[0], a[1]]),
     cCall('crossUnder', [a[0], a[1]]),
   ]),
+  // ⭐ PHASE 1 (2026-10-30) — `ta.swma(x)`, TradingView's published `pine_swma`,
+  // verbatim in its arithmetic and its order:
+  //     x[3] * 1 / 6 + x[2] * 2 / 6 + x[1] * 2 / 6 + x[0] * 1 / 6
+  // (`* 1` is dropped: multiplying by one is exact, so the number is the same).
+  // `na` anywhere in the four bars is `na`, by plain arithmetic, as there.
+  swma: (a) => {
+    if (a.length !== 1) return null
+    const x = a[0]
+    const at = (k) => (k === 0 ? x : { type: 'offset', value: k, args: [x] })
+    const term = (k, w) => (w === 1 ? cOp('/', [at(k), cNum(6)]) : cOp('/', [cOp('*', [at(k), cNum(w)]), cNum(6)]))
+    return cOp('+', [cOp('+', [cOp('+', [term(3, 1), term(2, 2)]), term(1, 2)]), term(0, 1)])
+  },
+  // ⭐ PHASE 1 (2026-10-30) — `ta.tsi(source, short_length, long_length)`: the
+  // True Strength Index as a RATIO in [-1, 1] (TradingView: "A value in range
+  // [-1, 1]"), the double-smoothed momentum over the double-smoothed absolute
+  // momentum that TradingView's own TSI script computes with `ta.ema` before it
+  // multiplies by 100:
+  //     ema(ema(change(src), long), short) / ema(ema(abs(change(src)), long), short)
+  // Both smoothers are the table's `ema`, whose seed and `na` hold are
+  // vendor-pinned. ⚠️ `ta.tsi` ITSELF HAS NO CAPTURE YET.
+  tsi: (a) => {
+    if (a.length !== 3) return null
+    const shortLen = foldWindow(a[1])
+    const longLen = foldWindow(a[2])
+    const whole = (n) => n && n.type === 'num' && Number.isInteger(Number(n.value)) && Number(n.value) >= 1
+    if (!whole(shortLen) || !whole(longLen)) return null
+    const pc = cCall('change', [a[0]])
+    const doubleSmooth = (s) => cCall('ema', [cCall('ema', [s, longLen]), shortLen])
+    return cOp('/', [doubleSmooth(pc), doubleSmooth(cCall('abs', [pc]))])
+  },
   // ⭐⭐ THE `timenow` CLOCK-FIELD IDENTITY FORMS (2026-09-20). Pine spells
   // five calendar values two ways: a bare global (`year`) reads THIS bar's
   // own value, and a one-argument function form (`year(timestamp)`) reads
@@ -2668,6 +2796,12 @@ function stripTypeArguments(tokens) {
   return out
 }
 
+/** Blanks beyond space and tab that the lexer skips between tokens — see the
+ *  `PINE_EXTRA_BLANKS` read in `lexPine`. ⚠️ Not counted as INDENT: a line's
+ *  indent is still the run of spaces and tabs it opens with, so these only ever
+ *  sit between tokens or before a comment (the measured case). */
+const PINE_EXTRA_BLANKS = Object.freeze(new Set(['\u3000']))
+
 export function lexPine(src) {
   const raw = String(src == null ? '' : src)
   // ⭐⭐ RISK-004 FIX (2026-09-06) — THE CANONICAL RAW↔NORMALIZED OFFSET
@@ -2726,6 +2860,14 @@ export function lexPine(src) {
     const ch = text[i]
     if (ch === '\n') { i += 1; line += 1; lineStart = i; continue }
     if (ch === ' ' || ch === '\t') { i += 1; continue }
+    // ⭐ PHASE 1 (2026-10-30) — THE IDEOGRAPHIC SPACE (U+3000) IS A BLANK, BECAUSE
+    // A PUBLISHED SCRIPT PROVES TRADINGVIEW TAKES IT: `footprint__6848998fe8`
+    // indents a comment with two of them and compiles there, and was refused
+    // `pine:character` here before its first statement. ⛔ ONLY THAT ONE: a no-break
+    // space stays refused (`lexerGaps.test.js` pins it) — nothing measured says
+    // TradingView reads it as a blank. Blank OUTSIDE strings only — a string keeps
+    // every character it was written with, because the string branch reads it first.
+    if (PINE_EXTRA_BLANKS.has(ch)) { i += 1; continue }
     const col = i - lineStart + 1
 
     // comments — and the version pragma, which is one
@@ -10236,7 +10378,8 @@ export class Resolver {
         // define their own `tr` and Pine says their name wins. `ta.tr` is not a
         // name a script can bind, so there is nothing to lose to and no order to
         // get wrong.
-        if (own(BUILTIN_SERIES_TREE, short)) return BUILTIN_SERIES_TREE[short]()
+        const served = own(BUILTIN_SERIES_TREE, short) ? this.seriesTreeOf(short, name, node.tok) : null
+        if (served) return served
         // ⭐ A NAMESPACED CONSTANT IS A VALUE, NOT A ZERO-ARGUMENT CALL. `math.pi`
         // reached `resolveTableCall` and was told "this Pine function maps to
         // nothing the engine grammar declares" — a true sentence about functions,
@@ -10267,7 +10410,11 @@ export class Resolver {
     // binding the script itself wrote, so a member who defines their own `tr`
     // gets THEIR `tr`, not ours. Shadowing a built-in is legal Pine and the
     // script is the authority on its own names.
-    if (own(BUILTIN_SERIES_TREE, name)) return BUILTIN_SERIES_TREE[name]()
+    if (own(BUILTIN_SERIES_TREE, name)) {
+      this.refuseBareModernSpelling(name, name, node.tok)
+      const served = this.seriesTreeOf(name, name, node.tok)
+      if (served) return served
+    }
     // ⭐ ASK THE MANIFEST BEFORE EITHER HAND-TYPED ANSWER. A name the closed
     // table holds must not be told "the engine grammar does not hold" (false),
     // and must never be told "your script never defined this" (blames the member
@@ -10599,8 +10746,28 @@ export class Resolver {
         && !this.shadowedByDefinition(name)) {
       return this.resolve(node.args[0].value)
     }
+    // ⭐⭐ PHASE 1 (2026-10-30) — `fixnan(x)` IS `ta.valuewhen(not na(x), x, 0)`,
+    // AND THAT FUNCTION IS ALREADY DECLARED, UNBOUNDED. The ruling above refused a
+    // BOUND — `accum`'s window, which would answer a different question whenever
+    // `x` stayed `na` longer than the window — and it is still right about that.
+    // `valuewhenOccurrence` (C45, `_functions_valuewhen_occurrence`) is not bounded:
+    // occurrence 0 is the value on the most recent bar, EVER, where its condition
+    // held. With the condition "x is known" that is, word for word, TradingView's
+    // "replaces na values with previous nearest non-na value", and `na` before the
+    // first known value, exactly as the runtime lane's `fixnanPine` answers (RT7,
+    // `vw-rt7-empty-reduce-fixnan-spy-1d-2026-10-04` F01). Each call site is its own
+    // tree, so two calls keep two memories (F02). It carries the occurrence tag, so
+    // a pane draws it and every screen consumer refuses it by name, as for
+    // `ta.valuewhen` itself.
     if (name === 'fixnan') {
-      throw new PineRefusal('pine:na', `${REFUSALS['pine:na']} — \`${name}\``, locate(node.tok))
+      if (this.shadowedByDefinition(name)) {
+        // a member's own `fixnan(…) =>` is theirs — fall through to it
+      } else if (node.args.length === 1 && !node.args[0].name) {
+        const x = this.resolve(node.args[0].value)
+        return cCall('valuewhenOccurrence', [cOp('!', [cCall('na', [x])]), x, cNum(0)])
+      } else {
+        throw new PineRefusal('pine:arity', '`fixnan` takes one series, by position', locate(node.tok))
+      }
     }
     if (ns === 'input' || name === 'input') return this.resolveInput(node)
 
@@ -10959,6 +11126,18 @@ export class Resolver {
       // Pine spellings of codes this engine already holds, and recognising them
       // here rather than only their bare forms is free.
       code = lit === null ? null : (PINE_TF_SPELLING[String(lit).trim().toUpperCase()] || null)
+      // ⚰️ PHASE 1 (2026-10-30) BUILT AND WITHDREW `timeframe.in_seconds("")` AS
+      // THE CHART'S OWN LENGTH, and the reason is the next thing to fix, not the
+      // rule. Pine reads an empty timeframe as the chart's (it is what
+      // `input.timeframe("")` hands over, and `request.security` below already
+      // serves it), but serving it here turned `ict-killzones-pivots-tfo`'s
+      // `if timeframe.in_seconds("") <= timeframe.in_seconds(tf_limit) and …`
+      // drawing blocks from unevaluable (their ops dropped, the rest drawn: a
+      // MATCH on `ict-killzones-pivots-tfo-spy-1d-2026-10-03`) into LIVE blocks
+      // on the minute rungs of the C29 period ladder — where they delete inside a
+      // loop — and the door then refused the whole script
+      // (`pine:object-removal-lost`) on a daily chart where those blocks never run.
+      // ⛔ It waits for the object lane to fold a timeframe-dead branch per rung.
       // ⭐ A MULTI-MONTH CODE ("3M", "12M") IS NOT A TIMEFRAME THIS ENGINE
       // SERVES, but its LENGTH is measured — "12M" read exactly 12 × "M" on the
       // vendor (vw-time-tf, T15) — so the number is answered without pretending
@@ -12475,6 +12654,35 @@ export class Resolver {
     }
   }
 
+  /** A `BUILTIN_SERIES_TREE` expansion, and the ONE place its lane is decided —
+   *  or `null`, and the caller goes on to the refusal the name always had.
+   *  ⛔ PHASE 1 (2026-10-30): `accdist`, `nvi` and `pvi` are running totals from
+   *  the first loaded bar, so only a PANE (`strict`) is handed them. A SCREEN gets
+   *  `null` and so meets the ruling it always met (`_functions_excluded`), the
+   *  same containment `ta.cum` has at the screen door. */
+  seriesTreeOf(short, pineName, tok) {
+    if (!this.strict && PINE_WINDOW_DEPENDENT_SERIES.has(short)) return null
+    return BUILTIN_SERIES_TREE[short]()
+  }
+
+  /** ⛔ PHASE 1 (2026-10-30) — A NAME THIS PHASE TAUGHT THE DOOR IS TAUGHT IN
+   *  PINE'S OWN SPELLING, NOT IN EVERY SPELLING. From v5 TradingView REFUSES the
+   *  bare `alma` (`r11-alma-spy-2026-09-11`: "Could not find function"), and
+   *  `PARITY-PROGRAMME.md` records why accepting it would be the one divergence
+   *  nothing here measures: a script the vendor rejects, accepted. So the bare
+   *  spellings of the names Phase 1 added refuse in a v5/v6 script and keep their
+   *  v1–v4 meaning (the v4 reference lists them bare; `h3-alma-v4` captured bare
+   *  `alma`). A versionless source is the formula box, where the table's own names
+   *  are the language, and is untouched. */
+  refuseBareModernSpelling(pineName, base, tok) {
+    if (pineName !== base || this.pineVersion === null || this.pineVersion < 5) return
+    const spelled = PHASE1_MODERN_SPELLING[normaliseName(base)]
+    if (!spelled) return
+    throw new PineRefusal('pine:function',
+      `${REFUSALS['pine:function']} — \`${base}\` has no bare spelling from Pine v5 on; `
+      + `TradingView names it \`${spelled}\``, locate(tok))
+  }
+
   /** ⭐ THE DERIVED MAP. `pineName` is what the member wrote; `base` is it with a
    *  value namespace stripped; the MANIFEST decides whether the name exists, how
    *  many arguments it takes and what kind each one is. The only thing this
@@ -12502,6 +12710,22 @@ export class Resolver {
       })
     }
     const bare = normaliseName(base)
+    this.refuseBareModernSpelling(pineName, base, tok)
+    // ⭐ PHASE 1 (2026-10-30) — `ta.alma`'s optional fifth argument, `floor`.
+    // A written `false` is the four-argument call exactly (TradingView's
+    // reference applies `math.floor` to `m` only when it is true), so it is
+    // dropped; a `true` is a DIFFERENT weighting this table does not carry, and
+    // is refused by name rather than read as the unfloored one.
+    if (bare === 'alma' && Array.isArray(args) && args.length === 5 && !args.some((a) => a && a.name)) {
+      const flag = foldWindow(this.resolve(args[4].value !== undefined ? args[4].value : args[4]))
+      if (flag && flag.type === 'num' && Number(flag.value) === 0) {
+        return this.resolveTableCall(pineName, base, args.slice(0, 4), tok)
+      }
+      throw new PineRefusal('pine:arity',
+        `\`${pineName}\` with \`floor = true\` rounds the weights' centre down to a whole bar, `
+        + 'and this engine carries only the unrounded weighting — TO UNBLOCK: drop the fifth '
+        + 'argument, or write it as `false`', locate(tok))
+    }
     const ownCross = this.crossOfOwnState(base, args, tok)
     if (ownCross) return ownCross
     // ⛔⛔ `ta.valuewhen`'S NAMESPACED SPELLING MEANS A DIFFERENT FUNCTION THAN
@@ -12632,6 +12856,17 @@ export class Resolver {
         // about the wrong subject.
         throw new PineRefusal('pine:arity',
           `\`${pineName}\` crosses one series with another, and needs both`, locate(tok))
+      }
+      // ⭐ PHASE 1 — the two expansions that decline (`null`) on a shape they do
+      // not take say which shape, rather than handing `null` on as a tree.
+      if (bare === 'swma' || bare === 'tsi') {
+        const tree = BUILTIN_CALL_TREE[bare](built)
+        if (tree) return tree
+        throw new PineRefusal(bare === 'swma' ? 'pine:arity' : 'pine:window',
+          bare === 'swma'
+            ? `\`${pineName}\` takes one series, by position`
+            : `\`${pineName}\` needs its source and its two lengths, each length a whole `
+              + 'number this engine can read when it builds the formula', locate(tok))
       }
       if (bare === 'kcw' && (built.length < 3 || built.length > 4)) {
         throw new PineRefusal('pine:arity',
@@ -12772,8 +13007,16 @@ export class Resolver {
       // and this gate sits outside it. Same call, same order — spelled out rather
       // than reached for, so the two cannot quietly become different lists.
       const resolvedRaw = args.map((a) => this.resolve(a.value !== undefined ? a.value : a))
+      // ⭐ PHASE 1 (2026-10-30) — `ta.highestbars(high, length + 1)` (TradingView's
+      // own Aroon) FOLDS ITS LENGTH HERE, the way the table path folds a window.
+      // Unfolded, the `length + 1` tree translated and was then refused AT THE
+      // INSTALL DOOR (`resolve:window`): a member was told the paste worked and
+      // the pane never drew — `aroon__Aroon`, `pivot-high-low-points__hoTsDQRY3L`.
       const resolved = (namespacedName === 'ta.pivothigh' || namespacedName === 'ta.pivotlow')
-        ? this.foldPivotBars(resolvedRaw) : resolvedRaw
+        ? this.foldPivotBars(resolvedRaw)
+        : ((namespacedName === 'ta.highestbars' || namespacedName === 'ta.lowestbars')
+          ? resolvedRaw.map((a, k) => (k === resolvedRaw.length - 1 ? foldWindow(a) : a))
+          : resolvedRaw)
       const shifted = PINE_NAMESPACED_TREE[namespacedName](resolved)
       // ⛔⛔ A BUILDER MAY REFUSE IN ITS OWN WORDS, and one that does not gets a
       // sentence about ARITY rather than about pivots. ⚰️ This site used to
@@ -12852,6 +13095,25 @@ export class Resolver {
       // comment records that this arm was split from the bare-NAME arm so each
       // construct gets its own true sentence; it stopped one notch short.
       const anchorForm = bare === 'time' && args.length === 1
+      // ⭐⭐ PHASE 1 (2026-10-30) — PINE'S UNBOUNDED `ta.barssince(cond)` ON A PANE,
+      // EXACTLY, AND STILL NOT CAPPED. The refusal below exists because the house
+      // `barssince(cond, n)` SATURATES at a window, and "add a number" would buy a
+      // capped count under an uncapped name. Nothing here caps: the count since the
+      // most recent bar where `cond` held is the bar counter's difference,
+      //     cum(1) − valuewhenOccurrence(cond, cum(1), 0)
+      // — `valuewhenOccurrence` is unbounded (C45), so a condition true 3,000 bars
+      // ago reads 3,000, and one never true reads `na`, as TradingView's does. The
+      // counter's own level is fetch-dependent and CANCELS in the difference (the
+      // invariance `_functions_cumulative` states for `C - C[n]`); it still carries
+      // `cum`'s tag, so a screen keeps the refusal, and only the pane (`strict`)
+      // takes this. Namespaced only: the bare `barssince` is this table's own.
+      if (bare === 'barssince' && this.strict && pineName !== base
+          && Array.isArray(args) && args.length === 1 && args[0] && !args[0].name) {
+        const cond = this.condition(this.resolve(args[0].value !== undefined ? args[0].value : args[0]),
+          'arg:condition', tok)
+        const counter = () => cCall('cum', [cNum(1)])
+        return cOp('-', [counter(), cCall('valuewhenOccurrence', [cond, counter(), cNum(0)])])
+      }
       // ⭐⭐ (2026-09-28) THE SESSION FORM IS SERVED ON THE CHART PANE, as the
       // vendor was measured answering it — `sessionClockOf` carries the readings
       // and refuses, by name, every form they do not cover. ⛔ HOST LANE ONLY: a
@@ -13011,6 +13273,23 @@ export class Resolver {
       if (shape.sourceMustBe) {
         const want = derivedSeriesTree(shape.sourceMustBe.series, this.table)
         const got = this.resolve(args[shape.sourceMustBe.at].value)
+        // ⭐⭐ PHASE 1 (2026-10-30) — `ta.cci` OF ANY OTHER SOURCE IS ITS OWN
+        // DEFINITION, AND EVERY PIECE OF IT IS DECLARED. TradingView's CCI script
+        // computes `(src - ta.sma(src, length)) / (0.015 * ta.dev(src, length))`;
+        // `sma` and `dev` (the mean absolute deviation, `na` propagating) are
+        // both table functions, so `ta.cci(close, 20)` is that tree rather than a
+        // refusal. The `hlc3` source keeps the table's `cci` above — the shipped
+        // column — and `pinePhase1Builtins.test.js` holds the two equal on `hlc3`,
+        // so the expansion and the column cannot drift into two CCIs.
+        if (bare === 'cci' && (!want || JSON.stringify(got) !== JSON.stringify(want))) {
+          const n = foldWindow(this.resolve(args[1].value))
+          if (n && n.type === 'num' && Number.isInteger(Number(n.value)) && Number(n.value) >= 1) {
+            return cOp('/', [
+              cOp('-', [got, cCall('sma', [got, n])]),
+              cOp('*', [cNum(0.015), cCall('dev', [got, n])]),
+            ])
+          }
+        }
         if (!want || JSON.stringify(got) !== JSON.stringify(want)) {
           throw new PineRefusal('pine:role-order',
             REFUSALS['pine:role-order'] + ' — '

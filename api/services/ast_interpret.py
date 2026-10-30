@@ -1099,6 +1099,90 @@ def _window_percentile_linear(series: Sequence[float], lo: int, hi: int,
     return vals[lower] + (pos - lower) * (vals[upper] - vals[lower])
 
 
+def _window_percentile_nearest(series: Sequence[float], lo: int, hi: int,
+                               percentage: float) -> float:
+    """``ta.percentile_nearest_rank(source, length, percentage)`` (Phase 1,
+    2026-10-30): the value at ordinal rank ``ceil(percentage / 100 * n)``,
+    clamped into ``1..n``. ``na`` propagates (the linear sibling's published
+    rule; this one's is not captured yet). JS twin:
+    ``interpret.js::windowPercentileNearest``."""
+    vals = []
+    for i in range(lo, hi + 1):
+        v = series[i]
+        if _isnan(v):
+            return NAN
+        vals.append(v)
+    vals.sort()
+    n = len(vals)
+    rank = min(n, max(1, math.ceil((percentage / 100) * n)))
+    return vals[rank - 1]
+
+
+def _window_rci(series: Sequence[float], lo: int, hi: int) -> float:
+    """``ta.rci(source, length)`` (Phase 1, 2026-10-30): Spearman's rank
+    correlation between time order (newest = 1) and price order (highest = 1),
+    ``(1 - 6 * sum(d^2) / (n * (n^2 - 1))) * 100``; ties share their average
+    rank, ``na`` propagates. JS twin: ``interpret.js::windowRci``."""
+    n = hi - lo + 1
+    if n < 2:
+        return NAN
+    total = 0.0
+    for k in range(n):
+        v = series[hi - k]
+        if _isnan(v):
+            return NAN
+        above = 0
+        same = 0
+        for j in range(lo, hi + 1):
+            w = series[j]
+            if _isnan(w):
+                return NAN
+            if w > v:
+                above += 1
+            elif w == v:
+                same += 1
+        price_rank = 1 + above + (same - 1) / 2
+        d = (k + 1) - price_rank
+        total += d * d
+    return (1 - (6 * total) / (n * (n * n - 1))) * 100
+
+
+def _alma_col(series: Sequence[float], n: int, offset: Sequence[float],
+              sigma: Sequence[float]) -> List[float]:
+    """``ta.alma(series, length, offset, sigma)`` (Phase 1, 2026-10-30) --
+    TradingView's published ``pine_alma`` in its own arithmetic and order:
+    ``m = offset * (length - 1)``, ``s = length / sigma``, weight ``i`` is
+    ``exp(-1 * pow(i - m, 2) / (2 * pow(s, 2)))`` on ``series[length - i - 1]``,
+    and the answer is ``sum / norm``. ``na`` in the window is ``na``. JS twin:
+    ``interpret.js::almaCol``."""
+    out = _nan_col(len(series))
+    cache_key = None
+    weights: List[float] = []
+    norm = NAN
+    for i in range(n - 1, len(series)):
+        off = offset[i]
+        sg = sigma[i]
+        if not math.isfinite(off) or not math.isfinite(sg) or sg == 0:
+            continue
+        if cache_key != (off, sg):
+            m = off * (n - 1)
+            s = n / sg
+            weights = []
+            norm = 0.0
+            for k in range(n):
+                w = math.exp(-1 * math.pow(k - m, 2) / (2 * math.pow(s, 2)))
+                norm += w
+                weights.append(w)
+            cache_key = (off, sg)
+        total = 0.0
+        for k in range(n):
+            total += series[i - (n - 1 - k)] * weights[k]
+        v = total / norm
+        if math.isfinite(v):
+            out[i] = v
+    return out
+
+
 def _percentrank_at(series: Sequence[float], i: int, length: int) -> float:
     """``ta.percentrank(src, length)`` — ``100 * count(prior length bars <=
     current) / length``. NOT expressible via a running ``sum`` (each ``sum``
@@ -1689,6 +1773,16 @@ def _guarded_atan(x: float) -> float:
     return NAN if _isnan(x) else math.atan(x)
 
 
+def _guarded_acos(x: float) -> float:
+    """``math.acos`` (Phase 1, 2026-10-30): ``na`` outside [-1, 1], where
+    TradingView answers ``na`` and Python's ``math.acos`` would RAISE rather
+    than return NaN -- so the domain is spelled here. JS twin:
+    ``interpret.js::POINTWISE.acos``."""
+    if _isnan(x) or x < -1.0 or x > 1.0:
+        return NAN
+    return math.acos(x)
+
+
 #: Where ``sinh`` overflows: ``sinh(x) ≈ exp(x)/2``, so it passes the largest
 #: double at ``log(2 * max)`` — DERIVED, not rounded.
 #:
@@ -1727,6 +1821,7 @@ _POINTWISE: Mapping[str, Callable[..., float]] = {
     "cos": _guarded_cos,
     "tan": _guarded_tan,
     "atan": _guarded_atan,
+    "acos": _guarded_acos,
     "sinh": _guarded_sinh,
 }
 
@@ -2324,6 +2419,12 @@ FN: Dict[str, Callable[..., List[float]]] = {
     # helper that has no slot for a third argument.
     "percentileLinearInterpolation": lambda series, n, percentage: _rolling(
         series, n, lambda s, lo, hi: _window_percentile_linear(s, lo, hi, percentage), NA_PROPAGATE),
+    # ⭐ PHASE 1 (2026-10-30) -- three window functions Pine names under ``ta.``,
+    # bespoke for the same reason as the entry above. JS twins in ``interpret.js``.
+    "percentileNearestRank": lambda series, n, percentage: _rolling(
+        series, n, lambda s, lo, hi: _window_percentile_nearest(s, lo, hi, percentage), NA_PROPAGATE),
+    "rci": lambda series, n: _rolling(series, n, _window_rci, NA_PROPAGATE),
+    "alma": lambda series, n, offset, sigma: _alma_col(series, n, offset, sigma),
     "percentrank": lambda series, n: [
         _percentrank_at(series, i, n) if i >= n else NAN for i in range(len(series))
     ],
@@ -2349,6 +2450,7 @@ FN: Dict[str, Callable[..., List[float]]] = {
     "cos": lambda a: [_guarded_cos(v) for v in a],
     "tan": lambda a: [_guarded_tan(v) for v in a],
     "atan": lambda a: [_guarded_atan(v) for v in a],
+    "acos": lambda a: [_guarded_acos(v) for v in a],
     "sinh": lambda a: [_guarded_sinh(v) for v in a],
     "pow": lambda a, b: _elementwise2(a, b, _guarded_pow),
     "mod": lambda a, b: _elementwise2(a, b, _guarded_mod),

@@ -393,7 +393,9 @@ describe('`timeframe.change` is SERVED where it was measured, and REFUSED — te
     //
     // ⛔ SO THE FIXTURE CHECKS ITSELF FIRST. If a later wave serves this name
     // too, the assertion below fails with an instruction instead of a puzzle.
-    const UNSERVED = 'timeframe.isdwm'
+    // ⚰️ …and it expired again 2026-10-30: `timeframe.isdwm` is served (Pine
+    // coverage Phase 1) and the self-check below said so. `isticks` is unserved.
+    const UNSERVED = 'timeframe.isticks'
     for (const map of [BUILTIN_TIMEFRAME_SCALAR, BUILTIN_TIMEFRAME_ALIAS,
       BUILTIN_TIMEFRAME_CALL, BUILTIN_TIMEFRAME_RULED]) {
       expect(Object.prototype.hasOwnProperty.call(map, UNSERVED),

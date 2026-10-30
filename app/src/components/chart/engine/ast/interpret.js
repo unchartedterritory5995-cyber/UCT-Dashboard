@@ -1692,6 +1692,103 @@ function windowPercentileLinear(series, lo, hi, percentage) {
   return vals[lower] + (pos - lower) * (vals[upper] - vals[lower])
 }
 
+/** ⭐ PHASE 1 (2026-10-30) — `ta.percentile_nearest_rank(source, length,
+ *  percentage)`: TradingView's "percentile using method of Nearest Rank", whose
+ *  page adds that the answer "will always be a member of the input data set" and
+ *  that the 100th percentile is the largest value. The ordinal rank is
+ *  `ceil(percentage / 100 × n)`, clamped into `1..n` (so the 0th percentile is
+ *  the smallest — the boundary the linear sibling measured for itself).
+ *  ⚠️ `na` PROPAGATES, the convention TradingView publishes for the LINEAR
+ *  sibling; this function's own `na` rule has no capture yet. Python twin:
+ *  `ast_interpret._window_percentile_nearest`. */
+function windowPercentileNearest(series, lo, hi, percentage) {
+  const vals = []
+  for (let i = lo; i <= hi; i++) {
+    const v = series[i]
+    if (Number.isNaN(v)) return NaN
+    vals.push(v)
+  }
+  vals.sort((a, b) => a - b)
+  const n = vals.length
+  const rank = Math.min(n, Math.max(1, Math.ceil((percentage / 100) * n)))
+  return vals[rank - 1]
+}
+
+/** ⭐ PHASE 1 (2026-10-30) — `ta.rci(source, length)`: the Rank Correlation
+ *  Index, Spearman's rank correlation between the bars' TIME order (newest = 1)
+ *  and their PRICE order (highest = 1), scaled to −100..100 —
+ *  `(1 − 6·Σd² / (n·(n² − 1))) × 100`. A rising window reads +100. Tied prices
+ *  share the average of the ranks they span. ⚠️ TradingView publishes no
+ *  formula and no capture holds `ta.rci` yet: the tie rule and the `na` rule
+ *  (propagates here) are the two readings a capture must settle. Python twin:
+ *  `ast_interpret._window_rci`. */
+function windowRci(series, lo, hi) {
+  const n = hi - lo + 1
+  if (n < 2) return NaN
+  let sum = 0
+  for (let k = 0; k < n; k++) {
+    const v = series[hi - k]
+    if (Number.isNaN(v)) return NaN
+    let above = 0
+    let same = 0
+    for (let j = lo; j <= hi; j++) {
+      const w = series[j]
+      if (Number.isNaN(w)) return NaN
+      if (w > v) above += 1
+      else if (w === v) same += 1
+    }
+    const priceRank = 1 + above + (same - 1) / 2
+    const d = (k + 1) - priceRank
+    sum += d * d
+  }
+  return (1 - (6 * sum) / (n * (n * n - 1))) * 100
+}
+
+/** ⭐ PHASE 1 (2026-10-30) — `ta.alma(series, length, offset, sigma)`:
+ *  TradingView's published `pine_alma`, verbatim in its arithmetic and its order —
+ *
+ *      m = offset * (length - 1)        s = length / sigma
+ *      weight_i = exp(-1 * pow(i - m, 2) / (2 * pow(s, 2)))      i = 0 … length-1
+ *      norm += weight_i ; sum += series[length - i - 1] * weight_i ; sum / norm
+ *
+ *  so the OLDEST bar of the window carries `i = 0` and an offset near 1 leans on
+ *  the newest. `offset` and `sigma` arrive as columns (Pine passes them as simple
+ *  values; this table has no float-literal kind), so the weights are rebuilt only
+ *  when either changes. `na` anywhere in the window is `na` — the plain arithmetic
+ *  of the reference, and what `vw-alma-spy-1d-2026-09-27` A05 reads. Python twin:
+ *  `ast_interpret._alma_col`; the runtime lane's `pineRuntimeFrontend.js`
+ *  `runtimeRespelling` writes the same reference as a tree. */
+function almaCol(series, n, offset, sigma) {
+  const out = nan(series.length)
+  let cacheOff = NaN
+  let cacheSig = NaN
+  let weights = null
+  let norm = NaN
+  for (let i = n - 1; i < series.length; i++) {
+    const off = offset[i]
+    const sg = sigma[i]
+    if (!Number.isFinite(off) || !Number.isFinite(sg) || sg === 0) continue
+    if (weights === null || off !== cacheOff || sg !== cacheSig) {
+      const m = off * (n - 1)
+      const s = n / sg
+      weights = new Float64Array(n)
+      norm = 0
+      for (let k = 0; k <= n - 1; k++) {
+        const w = Math.exp(-1 * Math.pow(k - m, 2) / (2 * Math.pow(s, 2)))
+        norm += w
+        weights[k] = w
+      }
+      cacheOff = off
+      cacheSig = sg
+    }
+    let sum = 0
+    for (let k = 0; k <= n - 1; k++) sum += series[i - (n - 1 - k)] * weights[k]
+    const v = sum / norm
+    if (Number.isFinite(v)) out[i] = v
+  }
+  return out
+}
+
 /** `ta.percentrank(src, length)` — `100 * count(prior length bars <= current)
  *  / length`. NOT `sum`-expressible: `sum` evaluates each term at ITS OWN
  *  bar, and percentrank compares every prior term against the SAME current
@@ -2182,6 +2279,10 @@ const POINTWISE = Object.freeze({
   // point, so there is no domain refusal to make here — it is left alone.
   tan: (x) => (Number.isNaN(x) ? NaN : Math.tan(x)),
   atan: (x) => (Number.isNaN(x) ? NaN : Math.atan(x)),
+  // ⭐ PHASE 1 (2026-10-30) — `math.acos`. Outside [-1, 1] it has no real answer
+  // and is `na` (TradingView: "or na if y is outside of range [-1, 1]");
+  // `Math.acos` already answers NaN there, so the guard is the language's own.
+  acos: (x) => (Number.isNaN(x) ? NaN : Math.acos(x)),
   sinh: (x) => {
     if (Number.isNaN(x)) return NaN
     const v = Math.sinh(x)
@@ -2621,6 +2722,12 @@ export const FN = Object.freeze({
   // than a `FINITE_WINDOW` entry that does not fit.
   percentileLinearInterpolation: (series, n, percentage) =>
     rolling(series, n, (s, lo, hi) => windowPercentileLinear(s, lo, hi, percentage), NA.PROPAGATE),
+  // ⭐ PHASE 1 (2026-10-30) — three window functions Pine names under `ta.`, each a
+  // bespoke closure for the reason `percentileLinearInterpolation` states above.
+  percentileNearestRank: (series, n, percentage) =>
+    rolling(series, n, (s, lo, hi) => windowPercentileNearest(s, lo, hi, percentage), NA.PROPAGATE),
+  rci: (series, n) => rolling(series, n, windowRci, NA.PROPAGATE),
+  alma: (series, n, offset, sigma) => almaCol(series, n, offset, sigma),
   percentrank: (series, n) => {
     const out = nan(series.length)
     for (let i = n; i < series.length; i++) out[i] = percentrankAt(series, i, n)
@@ -2684,6 +2791,7 @@ export const FN = Object.freeze({
   cos: (a) => elementwise1(a, POINTWISE.cos),
   tan: (a) => elementwise1(a, POINTWISE.tan),
   atan: (a) => elementwise1(a, POINTWISE.atan),
+  acos: (a) => elementwise1(a, POINTWISE.acos),
   sinh: (a) => elementwise1(a, POINTWISE.sinh),
   pow: (a, b) => elementwise2(a, b, POINTWISE.pow),
   mod: (a, b) => elementwise2(a, b, POINTWISE.mod),

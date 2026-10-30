@@ -574,9 +574,10 @@ describe('every unsupported construct refuses BY NAME, AT ITS OWN TOKEN', () => 
     // REPLACE not-computable, while a bare `na` is a literal this table has no
     // spelling for. Collapsing all three into one refusal is what made the
     // distinction invisible for as long as it was.
-    ['fixnan, which carries a value forward across bars with no stated bound',
-      '//@version=5\nindicator("t")\nplot(fixnan(ta.sma(close, 5)))\n',
-      'pine:na', 3, 6, 'fixnan'],
+    // ⚰️ `fixnan` WAS HERE, refused `pine:na` for carrying a value forward with no
+    // stated bound. Since 2026-10-30 (Pine coverage Phase 1) it is
+    // `valuewhenOccurrence(!na(x), x, 0)` — the declared occurrence function, which
+    // has no bound to state — matched to the vendor in `pinePhase1Builtins.test.js`.
     ['a text value',
       '//@version=5\nindicator("t")\nplot(close > 0 ? "up" : "down")\n',
       'pine:text-value', 3, 18, 'up'],
