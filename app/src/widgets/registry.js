@@ -832,8 +832,10 @@ const PANEL_MANIFESTS = {
     // "News": the Trade Exchange breaking-news feed (one shared, seq-ordered stream
     // for every instance). NOT the per-stock `news` (News & Catalysts) widget, which
     // stays registered with all its dependants. Released to every SIGNED-IN user
-    // (owner, 2026-10-30; the server routes need a session, never admin). Still
-    // listed in captureRelease's UNRELEASED_CAPTURE_WIDGETS: no Notebook capture.
+    // (owner, 2026-10-30; the server routes need a session, never admin): offered in
+    // the workspace and add-tab menus to every member. ⛔ Never re-add it to
+    // captureRelease's UNRELEASED_CAPTURE_WIDGETS -- that list hides a widget from
+    // every member's menus. No Notebook capture: `menus.journal` is false.
     labels: { header: 'News', menu: 'News', tab: 'News' },
     defaults: { w: 4, h: 10, minW: 2, minH: 4 },
     placement: { family: 'panel', fill: 'narrow' },
