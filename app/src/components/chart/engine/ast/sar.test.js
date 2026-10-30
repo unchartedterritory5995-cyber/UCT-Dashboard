@@ -18,6 +18,8 @@ import { interpret } from './interpret.js'
 import { checkBudget } from './budget.js'
 import { astReach } from './lint.js'
 import { computeParabolicSAR } from '../../indicators.js'
+import { nameOfTree } from '../../builder/authoring/derivedName.js'
+import { describeTree } from '../../builder/authoring/expansionWords.js'
 import {
   sarTrees, SAR_WARMUP, SAR_MIN_STEP, SAR_MIN_MAX_STEP, SAR_NOTE, expandCall, expansionProblem,
   recogniseExpansion, collapseExpansions,
@@ -189,5 +191,15 @@ describe('a saved definition carries only the expansion, and it round-trips', ()
   it('discloses its vendor note wherever notes are read', () => {
     const notes = vendorNotesForTree(ast('sar(0.02, 0.2) > close'))
     expect(JSON.stringify(notes)).toContain(SAR_NOTE.slice(0, 40))
+  })
+})
+
+describe('a member reads it in plain words', () => {
+  it('the derived name and the named read-back say Parabolic SAR, never SARDIRECTION', () => {
+    expect(nameOfTree(ast('sar(0.02, 0.2)'))).toBe('Parabolic SAR 0.02,0.2')
+    expect(nameOfTree(ast('close > sar(0.02, 0.2)'))).toBe('Close above Parabolic SAR 0.02,0.2')
+    expect(nameOfTree(ast('sarDirection(0.03, 0.3)'))).toBe('Parabolic SAR trend 0.03,0.3')
+    expect(describeTree(ast('close > sar(0.02, 0.2)'))).toBe(
+      '1 when close is greater than the Parabolic SAR (step 0.02, maximum 0.2) and 0 otherwise')
   })
 })
