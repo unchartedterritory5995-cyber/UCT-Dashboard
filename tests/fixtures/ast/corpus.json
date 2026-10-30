@@ -2517,6 +2517,455 @@
       }
     },
     {
+      "id": "accum2_fibonacci_steps_together",
+      "source": "accum2(2, 6, 0, 1, state2, state1 + state2)",
+      "why": "(2026-10-30) the simplest multi-state recurrence, and its answer proves SIMULTANEOUS update: both states are replaced from LAST bar's pair, so six steps from (0, 1) read 13 on every bar answered. A lane that updated state2 from the NEW state1 would read a different number here.",
+      "ast": {
+        "type": "call",
+        "name": "accum2",
+        "args": [
+          {
+            "type": "num",
+            "value": 2
+          },
+          {
+            "type": "num",
+            "value": 6
+          },
+          {
+            "type": "num",
+            "value": 0
+          },
+          {
+            "type": "num",
+            "value": 1
+          },
+          {
+            "type": "series",
+            "name": "state2"
+          },
+          {
+            "type": "op",
+            "name": "+",
+            "args": [
+              {
+                "type": "series",
+                "name": "state1"
+              },
+              {
+                "type": "series",
+                "name": "state2"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "accum3_band_from_its_own_extremes",
+      "source": "accum3(3, 25, high, low, 0, max(state1, high), min(state2, low), state1 - state2)",
+      "why": "(2026-10-30) three states where the third reads the other two: a 25-bar band and its width one step behind. Exercises a pointwise call on the spine, a seed that is a series, and an output that is not the first state.",
+      "ast": {
+        "type": "call",
+        "name": "accum3",
+        "args": [
+          {
+            "type": "num",
+            "value": 3
+          },
+          {
+            "type": "num",
+            "value": 25
+          },
+          {
+            "type": "series",
+            "name": "high"
+          },
+          {
+            "type": "series",
+            "name": "low"
+          },
+          {
+            "type": "num",
+            "value": 0
+          },
+          {
+            "type": "call",
+            "name": "max",
+            "args": [
+              {
+                "type": "series",
+                "name": "state1"
+              },
+              {
+                "type": "series",
+                "name": "high"
+              }
+            ]
+          },
+          {
+            "type": "call",
+            "name": "min",
+            "args": [
+              {
+                "type": "series",
+                "name": "state2"
+              },
+              {
+                "type": "series",
+                "name": "low"
+              }
+            ]
+          },
+          {
+            "type": "op",
+            "name": "-",
+            "args": [
+              {
+                "type": "series",
+                "name": "state1"
+              },
+              {
+                "type": "series",
+                "name": "state2"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "accum4_conditional_trend_machine",
+      "source": "accum4(2, 40, 1, close, 0, 0, (state1 == 1 && close < state2 * 0.97) || (state1 == -1 && close > state2 * 1.03) ? -state1 : state1, (state1 == 1 && close < state2 * 0.97) || (state1 == -1 && close > state2 * 1.03) ? close : (state1 == 1 ? max(state2, close) : min(state2, close)), state3 + 1, state4)",
+      "why": "(2026-10-30) the shape Parabolic SAR needs: a trend that flips against an extreme it carries, with the flip test read on the PREVIOUS bar's states. Conditional arms on the spine and shared subtrees across two updates.",
+      "ast": {
+        "type": "call",
+        "name": "accum4",
+        "args": [
+          {
+            "type": "num",
+            "value": 2
+          },
+          {
+            "type": "num",
+            "value": 40
+          },
+          {
+            "type": "num",
+            "value": 1
+          },
+          {
+            "type": "series",
+            "name": "close"
+          },
+          {
+            "type": "num",
+            "value": 0
+          },
+          {
+            "type": "num",
+            "value": 0
+          },
+          {
+            "type": "op",
+            "name": "?:",
+            "args": [
+              {
+                "type": "op",
+                "name": "||",
+                "args": [
+                  {
+                    "type": "op",
+                    "name": "&&",
+                    "args": [
+                      {
+                        "type": "op",
+                        "name": "==",
+                        "args": [
+                          {
+                            "type": "series",
+                            "name": "state1"
+                          },
+                          {
+                            "type": "num",
+                            "value": 1
+                          }
+                        ]
+                      },
+                      {
+                        "type": "op",
+                        "name": "<",
+                        "args": [
+                          {
+                            "type": "series",
+                            "name": "close"
+                          },
+                          {
+                            "type": "op",
+                            "name": "*",
+                            "args": [
+                              {
+                                "type": "series",
+                                "name": "state2"
+                              },
+                              {
+                                "type": "num",
+                                "value": 0.97
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "op",
+                    "name": "&&",
+                    "args": [
+                      {
+                        "type": "op",
+                        "name": "==",
+                        "args": [
+                          {
+                            "type": "series",
+                            "name": "state1"
+                          },
+                          {
+                            "type": "op",
+                            "name": "u-",
+                            "args": [
+                              {
+                                "type": "num",
+                                "value": 1
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "type": "op",
+                        "name": ">",
+                        "args": [
+                          {
+                            "type": "series",
+                            "name": "close"
+                          },
+                          {
+                            "type": "op",
+                            "name": "*",
+                            "args": [
+                              {
+                                "type": "series",
+                                "name": "state2"
+                              },
+                              {
+                                "type": "num",
+                                "value": 1.03
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "op",
+                "name": "u-",
+                "args": [
+                  {
+                    "type": "series",
+                    "name": "state1"
+                  }
+                ]
+              },
+              {
+                "type": "series",
+                "name": "state1"
+              }
+            ]
+          },
+          {
+            "type": "op",
+            "name": "?:",
+            "args": [
+              {
+                "type": "op",
+                "name": "||",
+                "args": [
+                  {
+                    "type": "op",
+                    "name": "&&",
+                    "args": [
+                      {
+                        "type": "op",
+                        "name": "==",
+                        "args": [
+                          {
+                            "type": "series",
+                            "name": "state1"
+                          },
+                          {
+                            "type": "num",
+                            "value": 1
+                          }
+                        ]
+                      },
+                      {
+                        "type": "op",
+                        "name": "<",
+                        "args": [
+                          {
+                            "type": "series",
+                            "name": "close"
+                          },
+                          {
+                            "type": "op",
+                            "name": "*",
+                            "args": [
+                              {
+                                "type": "series",
+                                "name": "state2"
+                              },
+                              {
+                                "type": "num",
+                                "value": 0.97
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "op",
+                    "name": "&&",
+                    "args": [
+                      {
+                        "type": "op",
+                        "name": "==",
+                        "args": [
+                          {
+                            "type": "series",
+                            "name": "state1"
+                          },
+                          {
+                            "type": "op",
+                            "name": "u-",
+                            "args": [
+                              {
+                                "type": "num",
+                                "value": 1
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "type": "op",
+                        "name": ">",
+                        "args": [
+                          {
+                            "type": "series",
+                            "name": "close"
+                          },
+                          {
+                            "type": "op",
+                            "name": "*",
+                            "args": [
+                              {
+                                "type": "series",
+                                "name": "state2"
+                              },
+                              {
+                                "type": "num",
+                                "value": 1.03
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "series",
+                "name": "close"
+              },
+              {
+                "type": "op",
+                "name": "?:",
+                "args": [
+                  {
+                    "type": "op",
+                    "name": "==",
+                    "args": [
+                      {
+                        "type": "series",
+                        "name": "state1"
+                      },
+                      {
+                        "type": "num",
+                        "value": 1
+                      }
+                    ]
+                  },
+                  {
+                    "type": "call",
+                    "name": "max",
+                    "args": [
+                      {
+                        "type": "series",
+                        "name": "state2"
+                      },
+                      {
+                        "type": "series",
+                        "name": "close"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "call",
+                    "name": "min",
+                    "args": [
+                      {
+                        "type": "series",
+                        "name": "state2"
+                      },
+                      {
+                        "type": "series",
+                        "name": "close"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "op",
+            "name": "+",
+            "args": [
+              {
+                "type": "series",
+                "name": "state3"
+              },
+              {
+                "type": "num",
+                "value": 1
+              }
+            ]
+          },
+          {
+            "type": "series",
+            "name": "state4"
+          }
+        ]
+      }
+    },
+    {
       "id": "vwap_of_close_session",
       "source": "vwapOf(close)",
       "why": "(2026-10-02, H3) Pine's `ta.vwap(close)`: the SAME session accumulator as `vwap()` -- one `computeVWAP` / `compute_vwap_raw`, its ET-day boundary and all -- weighting the close instead of the typical price. These 579 bars cross the Friday 20:00 ET print that is 00:00 UTC, so a second accumulator with its own boundary would move this case and not `vwap_session`. Graded against TradingView on `vw-clock-vwap-spy-5-ext-2026-09-28` (V08 + V09) in `vendorHarness.h3VwapSource.test.js` and `tests/test_ast_vwap_of.py`.",

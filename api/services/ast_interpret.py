@@ -56,7 +56,7 @@ from api.services.ast_table import (
     usable_window_bound,
     TABLE, CLOCK_SECTION, FUNCTIONS_SECTION, OPERATORS_SECTION, SCALARS_SECTION,
     SERIES_SECTION, ARG_DOMAIN, arg_domains, bar_readers, recurrences,
-    recurrence_bindings, is_pointwise,
+    recurrence_bindings, is_pointwise, multi_states,
 )
 
 # ⭐⭐ NOT ONE LINE OF INDICATOR MATHS LIVES IN THIS FILE. ``indicator_compute``
@@ -1734,6 +1734,31 @@ _POINTWISE: Mapping[str, Callable[..., float]] = {
 #: per call: two readings of one manifest is how a lane comes to disagree with
 #: itself between a chart request and an alert evaluation.
 RECURRENCES: Mapping[str, Any] = recurrences()
+
+#: ⭐ 2026-10-30 -- the manifest's MULTI-STATE declarations (``accum2``…), read once.
+MULTI_STATES: Mapping[str, Any] = multi_states()
+
+
+def _body_args_of(node: Any) -> frozenset:
+    """The argument positions of a call that are PER-BAR BODIES rather than columns:
+    ``accum``'s ``body``, an ``accumK``'s ``updates``. The port of
+    ``interpret.js::bodyArgsOf``."""
+    if not isinstance(node, dict) or node.get("type") != "call":
+        return frozenset()
+    name = node.get("name")
+    rec = RECURRENCES.get(name)
+    if isinstance(rec, Mapping):
+        return frozenset([rec["body"]]) if isinstance(rec.get("body"), int) else frozenset()
+    ms = MULTI_STATES.get(name)
+    if isinstance(ms, Mapping):
+        return frozenset(ms.get("updates") or ())
+    return frozenset()
+
+
+def _is_stateful_call(node: Any) -> bool:
+    """Is this call bar-to-bar state of either kind (``accum``, ``accumK``)?"""
+    return (isinstance(node, dict) and node.get("type") == "call"
+            and (node.get("name") in RECURRENCES or node.get("name") in MULTI_STATES))
 
 
 # --------------------------------------------------------------------------- #
@@ -3919,8 +3944,10 @@ def unresolved_lookback(ast: Any, bars: Optional[List[dict]]) -> int:
 def _bind_names() -> frozenset:
     """Recurrence bind names (``self``, today), read off the manifest."""
     return frozenset(
-        spec["binds"] for spec in RECURRENCES.values()
-        if isinstance(spec, Mapping) and isinstance(spec.get("binds"), str))
+        [spec["binds"] for spec in RECURRENCES.values()
+         if isinstance(spec, Mapping) and isinstance(spec.get("binds"), str)]
+        # ⭐ 2026-10-30 -- an ``accumK`` update's ``state1``… are binds as ``self`` is.
+        + [b for ms in MULTI_STATES.values() for b in (ms.get("binds") or ())])
 
 
 def structural_maps(root: Any) -> tuple:
@@ -3984,8 +4011,8 @@ def structural_maps(root: Any) -> tuple:
         # ``accum`` whose seed and warm-up read no outer ``self`` is a plain
         # column of these bars. Counting its body's own ``self`` as free left
         # every accumulator, and every ancestor of one, out of the memo.
-        rec = RECURRENCES.get(node.get("name")) if node.get("type") == "call" else None
-        body_at = rec.get("body") if isinstance(rec, Mapping) and isinstance(rec.get("body"), int) else -1
+        # ⭐ 2026-10-30 -- and an ``accumK`` binds ``state1``… in its updates the same way.
+        bodies = _body_args_of(node)
         for ai, a in enumerate(args):
             # ⛔⛔ RAISE, NEVER INVENT A KEY. The JS side's first draft pushed a
             # placeholder for a missing child, and a 128-deep chain collapsed to
@@ -3997,7 +4024,7 @@ def structural_maps(root: Any) -> tuple:
                     "structural_maps: a child was keyed after its parent — "
                     "the post-order is broken")
             child_ids.append(id_of[id(a)])
-            if ai != body_at and not free_of[id(a)]:
+            if ai not in bodies and not free_of[id(a)]:
                 free = False
         # ⚠️ DELIMITED. Without separators `op`+`u-`+`` and `op`+`u`+`-` produce
         # one shape, and a collision under-counts exactly like the fallback did.
@@ -4101,10 +4128,9 @@ def evaluation_units(root: Any) -> int:
             continue
         args = node.get("args") if isinstance(node.get("args"), list) else []
         child_scope = "%s>%s" % (scope, sid) if node.get("type") in _SCOPE_TYPES else scope
-        spec = RECURRENCES.get(node.get("name")) if node.get("type") == "call" else None
-        body_at = spec.get("body") if isinstance(spec, Mapping) and isinstance(spec.get("body"), int) else -1
+        bodies = _body_args_of(node)
         for ai, a in enumerate(args):
-            stack.append((a, child_scope, "%s|%s" % (scope, sid) if ai == body_at else rec))
+            stack.append((a, child_scope, "%s|%s" % (scope, sid) if ai in bodies else rec))
     return len(units)
 
 
@@ -4428,7 +4454,7 @@ def history_read_mask(tree: Any, bars: List[dict],
         into = nested or node.get("type") in ("tf", "tf_live", "sym")
         spec = functions.get(name) if is_call else None
         opened = unbounded or bool(
-            spec is not None and (spec.get("lookback") == SERIES_LOOKBACK or name in RECURRENCES))
+            spec is not None and (spec.get("lookback") == SERIES_LOOKBACK or _is_stateful_call(node)))
         args = node.get("args")
         if isinstance(args, list):
             for a in args:
@@ -5492,7 +5518,7 @@ def _interpret_column(ast: Any, bars: List[dict],
             if isinstance(name, str) and name in RECURRENCE_BINDINGS:
                 _refuse("interpret:recurrence",
                         f"— `{name}` was read outside the update of a "
-                        f"{_declared(RECURRENCES)} call")
+                        f"{', '.join(list(RECURRENCES) + list(MULTI_STATES))} call")
             _refuse("resolve:name",
                     f"{name!r} — this table declares {', '.join(scope)}")
         return scope[name]
@@ -5791,6 +5817,9 @@ def _interpret_column(ast: Any, bars: List[dict],
             # declaring a ``recurrence`` carries a per-bar BODY, not a column.
             if n["name"] in RECURRENCES:
                 return run_recurrence(n, spec)
+            # ⭐ 2026-10-30 -- and an ``accumK`` carries K per-bar UPDATES.
+            if n["name"] in MULTI_STATES:
+                return run_multi_state(n, spec)
             args: List[Any] = []
             for i in range(len(n["args"])):
                 if spec["args"][i] == "int":
@@ -6317,6 +6346,162 @@ def _interpret_column(ast: Any, bars: List[dict],
                 history[0] = nxt
             out[i] = history[0]
         return out
+
+    def run_multi_state(node: dict, spec: Mapping[str, Any]) -> Any:
+        """⭐⭐ 2026-10-30 -- a declared MULTI-STATE recurrence (``accum2``…``accum4``),
+        ``closedTable.json``'s ``_functions_multi_state``. The port of
+        ``interpret.js::runMultiState``, line for line.
+
+        At bar ``i`` every state is seeded fresh from its seed at bar ``i - warmup``;
+        on each bar of ``(i - warmup, i]`` ALL K updates are evaluated against the
+        PREVIOUS bar's K values and replace them TOGETHER; the value is state number
+        ``output``. Simultaneous update is the cycle guard by construction: an
+        update reads ``state1``… only as last bar's values.
+
+        ⛔ Refused BY NAME (``interpret:recurrence``): a bind in a seed, under an
+        offset, under a windowed call, or inside a nested recurrence. ``output``
+        outside 1…K is ``resolve:window``; ``bars x warmup x K`` past
+        ``MAX_RECURRENCE_STEPS`` is ``interpret:steps``.
+
+        ⚠️ The K outputs share one run per pass (``multi_state_runs``), keyed
+        structurally on everything but ``output``.
+        """
+        ms = spec["multiState"]
+        binds = list(ms["binds"])
+        K = len(binds)
+        seeds_at = list(ms.get("seeds") or [])
+        updates_at = list(ms.get("updates") or [])
+        if len(seeds_at) != K or len(updates_at) != K:
+            _refuse("interpret:recurrence",
+                    f"— {node['name']}'s declaration names {K} states but not {K} seeds and {K} updates")
+        output = _window_literal(node, ms["output"])
+        if output > K:
+            _refuse("resolve:window",
+                    f"— {node['name']} argument {ms['output']} names state {output}, "
+                    f"and it carries {K} (1 to {K})")
+        warmup = _window_literal(node, ms["warmup"])
+        bind_at = {b: m for m, b in enumerate(binds)}
+
+        def is_bind(x: Any) -> bool:
+            return isinstance(x, dict) and x.get("type") == "series" and x.get("name") in bind_at
+
+        steps = length * warmup * K
+        if steps > MAX_RECURRENCE_STEPS:
+            _refuse("interpret:steps",
+                    f"— {node['name']} over {length} bars with a {warmup}-bar warm-up and "
+                    f"{K} states is {steps} steps and the ceiling is {MAX_RECURRENCE_STEPS}")
+
+        def sk(x: Any) -> Any:
+            got = _id_of.get(id(x))
+            return ("obj", id(x)) if got is None else got
+
+        run_key = (node["name"],) + tuple(
+            "*" if ai == ms["output"] else sk(a) for ai, a in enumerate(node["args"]))
+        held_run = multi_state_runs.get(run_key)
+        if held_run is not None:
+            return held_run[output - 1]
+
+        reads_cache: Dict[int, bool] = {}
+
+        def reads(x: Any) -> bool:
+            key = id(x)
+            if key in reads_cache:
+                return reads_cache[key]
+            answer = is_bind(x)
+            nested = _is_stateful_call(x)
+            if not answer and not nested and isinstance(x, dict) and isinstance(x.get("args"), list):
+                for child in x["args"]:
+                    if reads(child):
+                        answer = True
+                        break
+            reads_cache[key] = answer
+            return answer
+
+        for at in seeds_at:
+            if reads(node["args"][at]):
+                _refuse("interpret:recurrence",
+                        f"— a seed of {node['name']}(…) reads {'/'.join(binds)}; a seed is the "
+                        f"value the window STARTS from, so it cannot read the running values")
+
+        columns: Dict[Any, Any] = {}
+        planned = set()
+
+        def plan(x: Any) -> None:
+            if sk(x) in planned:
+                return
+            planned.add(sk(x))
+            if not reads(x):
+                columns[sk(x)] = eval_node(x)
+                return
+            if is_bind(x):
+                return
+            kind = x.get("type") if isinstance(x, dict) else None
+            if kind == "offset":
+                _refuse("interpret:recurrence",
+                        f"— a running value of {node['name']}(…) sits under a bar offset. One "
+                        f"previous set of states is carried per step, not a history, so last "
+                        f"bar's value is the only past it holds — written `{binds[0]}`, never "
+                        f"`{binds[0]}[1]`.")
+            if kind == "call":
+                if _is_stateful_call(x):
+                    _refuse("interpret:recurrence",
+                            f"— a running value of {node['name']}(…) sits inside a nested "
+                            f"{x['name']}(…), so which value it names would depend on where a "
+                            f"reader started counting.")
+                inner = _fn_spec(x.get("name"))
+                if not is_pointwise(inner):
+                    _refuse("interpret:recurrence",
+                            f"— a running value of {node['name']}(…) sits inside {x['name']}(…), "
+                            f"which reads a window of bars rather than one. Write the windowed "
+                            f"part outside the update, or spell it with "
+                            f"{_declared(TABLE[OPERATORS_SECTION])}.")
+                _assert_arity(x, inner)
+            for child in ((x.get("args") or []) if isinstance(x, dict) else []):
+                plan(child)
+
+        for at in updates_at:
+            plan(node["args"][at])
+
+        step_memo: dict = {}
+
+        def step(x: Any, j: int, state: list) -> float:
+            got = columns.get(sk(x), _MISSING)
+            if got is not _MISSING:
+                return got[j] if _is_column(got) else got
+            if is_bind(x):
+                return state[bind_at[x["name"]]]
+            held = step_memo.get(sk(x), _MISSING)
+            if held is not _MISSING:
+                return held
+            values = [step(child, j, state) for child in x["args"]]
+            if x["type"] == "op":
+                out_v = apply_op_step(x, values)
+            else:
+                out_v = _POINTWISE[x["name"]](*values)
+            step_memo[sk(x)] = out_v
+            return out_v
+
+        updates = [node["args"][at] for at in updates_at]
+        seeds = [_to_column(eval_node(node["args"][at]), length) for at in seeds_at]
+        probe = (opts or {}).get("prefixProbe")
+        fill = (float(probe) if isinstance(probe, (int, float)) and not isinstance(probe, bool)
+                else math.nan)
+        outs = [_nan_col(length) for _ in range(K)]
+        for o in outs:
+            for i in range(min(warmup, length)):
+                o[i] = fill
+        for i in range(warmup, length):
+            state = [seeds[m][i - warmup] for m in range(K)]
+            for j in range(i - warmup + 1, i + 1):
+                step_memo.clear()
+                state = [step(u, j, state) for u in updates]
+            for m in range(K):
+                outs[m][i] = state[m]
+        multi_state_runs[run_key] = outs
+        return outs[output - 1]
+
+    #: Per-pass memo for ``run_multi_state`` -- one tuple run per recurrence.
+    multi_state_runs: Dict[Any, Any] = {}
 
     return _to_column(eval_node(ast), length)
 

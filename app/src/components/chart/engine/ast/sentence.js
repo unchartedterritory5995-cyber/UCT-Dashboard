@@ -94,7 +94,7 @@
 // this file has, it is the only one, and `sentence.test.js` measures it by
 // rendering through a manifest whose keys were rebuilt in reverse order.
 
-import { TABLE, NODE_TYPES, RECURRENCE_BINDINGS, TICKER_SHAPE } from './parse.js'
+import { TABLE, NODE_TYPES, RECURRENCE_BINDINGS, MULTI_STATES, TICKER_SHAPE } from './parse.js'
 
 // --------------------------------------------------------------------------- //
 // the refusals
@@ -819,6 +819,15 @@ function renderName(node, rules, inputs, path, trace) {
   // already refused, which helps nobody.
   if (RECURRENCE_BINDINGS.includes(name)) {
     trace.push({ path, rule: 'series:recurrence' })
+    // ⭐ 2026-10-30 — a MULTI-STATE bind says WHICH running value it reads. Without
+    // the number `state1` and `state2` read back as the same words, and a member
+    // could not tell an update that swaps them from one that does not (the
+    // round-trip rail found exactly that). The number is its position in the
+    // entry's own `binds`, read off the manifest.
+    for (const ms of Object.values(MULTI_STATES)) {
+      const at = ms.binds.indexOf(name)
+      if (at >= 0) return `the running value ${at + 1} so far`
+    }
     return 'the running value so far'
   }
   // ⛔ THE TABLE IS CONSULTED FIRST AND THE ORDER IS LOAD-BEARING. A definition

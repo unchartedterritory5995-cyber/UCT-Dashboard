@@ -407,7 +407,10 @@ def test_our_atr_IS_WILDER_and_the_difference_from_pine_is_the_SEED(bars):
 #: slot rather than a claim that it is one. No ordering-ambiguity risk: this
 #: function's other ``series`` roles are ``condition``/``source``, and it has
 #: no ``period`` role at all to confuse this one with.
-_INT_ROLES = frozenset({"anchor", "mult", "percentage", "occurrence"})
+#: ⭐ 2026-10-30 -- ``stateIndex``: a multi-state recurrence's OUTPUT slot (which of
+#: its K running values the call reads, 1…K). It names a position, never a window,
+#: and the window slot beside it is ``warmupPeriod``.
+_INT_ROLES = frozenset({"anchor", "mult", "percentage", "occurrence", "stateIndex"})
 
 
 def test_every_function_PINS_ITS_ARGUMENT_ORDER_for_the_translators():
@@ -516,7 +519,20 @@ def test_every_function_PINS_ITS_ARGUMENT_ORDER_for_the_translators():
     # that filled it with `close` because it looked like a second source would read
     # hundreds of bars back and be refused by the buffer on every bar.
     generic = {"source", "left", "right", "seed", "update", "condition", "offset"}
-    allowed = set(ast_table.TABLE["series"]) | generic
+    # ⭐ (2026-10-30) A MULTI-STATE ENTRY'S SEEDS AND UPDATES ARE NUMBERED, because a
+    # role may not repeat within one entry. DERIVED from the manifest's own
+    # `multiState` declarations and PINNED to them: `seed<k>` / `update<k>` sit
+    # exactly on the slots `multiState.seeds` / `.updates` name, on those entries only.
+    numbered = set()
+    for ms_name, ms in ast_table.multi_states().items():
+        ms_roles = functions[ms_name]["argRoles"]
+        for k, (s_at, u_at) in enumerate(zip(ms["seeds"], ms["updates"]), start=1):
+            assert ms_roles[s_at] == f"seed{k}" and ms_roles[u_at] == f"update{k}", ms_name
+            numbered |= {f"seed{k}", f"update{k}"}
+    for other, spec in functions.items():
+        if other not in ast_table.multi_states():
+            assert not (set(spec.get("argRoles") or ()) & numbered), other
+    allowed = set(ast_table.TABLE["series"]) | generic | numbered
 
     # AND `offset` IS ONLY LEGAL WHERE THE ENTRY BOUNDS IT. The slot must be a
     # `series`, the NEXT slot must be the `int` window, that window must be what the

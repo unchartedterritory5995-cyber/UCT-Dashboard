@@ -327,7 +327,9 @@ def test_ast_table_SPELLS_NO_TABLE_NAME_so_it_cannot_be_a_hand_copy():
     # No new node type, argument kind or lookback form. The scalar half is untouched.
     # (2026-10-02, H3) 130 -> 131: `vwapOf(source)`, Pine's `ta.vwap(source)` for a
     # bar price -- the same session accumulator as `vwap()`.
-    assert len(ast_table.bar_names()) == 131, len(ast_table.bar_names())
+    # (2026-10-30) 131 -> 134: `accum2`, `accum3`, `accum4` -- the multi-state recurrence
+    # (`_functions_multi_state`). No new node type, argument kind or lookback form.
+    assert len(ast_table.bar_names()) == 134, len(ast_table.bar_names())
     # +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
     # +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
     # ⭐ 111 -> 137 (2026-09-02): the TWENTY-SIX Wave-1 screener columns promoted
@@ -383,7 +385,9 @@ def test_ast_table_SPELLS_NO_TABLE_NAME_so_it_cannot_be_a_hand_copy():
     # 267 -> 268 (2026-10-02, H3): `vwapOf`. The bar half moved 130 -> 131,
     # the scalar half is untouched at 137; this is their sum.
     # 268 -> 269 (2026-10-11): `dollar_vol_1d` (the scalar half above)
-    assert len(declared) == 269, f"the table declares {len(declared)} names, not 269"
+    # 269 -> 272 (2026-10-30): `accum2`, `accum3`, `accum4`. The bar half moved
+    # 131 -> 134, the scalar half is untouched at 138; this is their sum.
+    assert len(declared) == 272, f"the table declares {len(declared)} names, not 272"
     # +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
     # +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
     leaked = sorted(_string_constants(pathlib.Path(ast_table.__file__)) & declared)
@@ -455,7 +459,8 @@ def test_every_declared_FUNCTION_has_an_implementation_and_vice_versa():
     # real instant where ``_bind_shipped`` can only offer a bar index. Same rule:
     # the roster is the MANIFEST's, so a third such entry needs no edit here.
     bar_readers = sorted(ast_table.bar_readers())
-    by_walker = sorted(set(ast_table.recurrences()) | set(bar_readers))
+    # ⭐ 2026-10-30 -- multi-state entries are walker-stepped too, read off the manifest.
+    by_walker = sorted(set(ast_table.recurrences()) | set(ast_table.multi_states()) | set(bar_readers))
     assert by_walker, "the exception must be non-empty or this rail widened for nothing"
     assert bar_readers, "the bar-reading exception must be non-empty too"
     missing, extra = totality(ast_table.TABLE, ast_interpret.FN, "functions")
@@ -554,6 +559,7 @@ def test_a_planted_manifest_entry_lands_RED():
         # went missing for a BAD reason would hide inside that expectation.
         missing = [m for m in missing
                    if m not in ast_table.recurrences()
+                   and m not in ast_table.multi_states()
                    and m not in ast_table.bar_readers()]
         assert missing == [planted], (
             f"a planted {section} entry {planted!r} did NOT land red — the "
