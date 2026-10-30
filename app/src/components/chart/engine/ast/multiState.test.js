@@ -196,6 +196,81 @@ describe('bounded, deterministic, window-independent', () => {
   })
 })
 
+describe('the merged-window speed-up changes no number — any history length, any live update', () => {
+  // ⭐ Release check (owner, 2026-10-30): the ~15x speed-up merges windows whose K
+  // states are bit-identical (`Object.is`) and steps them once. This holds the
+  // engine to the PLAIN loop with `Object.is` (bit-for-bit, not `near`) across
+  // fetch lengths, fetch starts and a developing bar that is rewritten and then
+  // closed — the three ways a chart actually hands the engine bars.
+  const W = 60
+  const up = '(state1 == 1 && close < state2 * 0.97)'
+  const dn = '(state1 == -1 && close > state2 * 1.03)'
+  const flip = `(${up} || ${dn})`
+  const MACHINE = (out) => `accum4(${out}, ${W}, 1, close, 0, 0, `
+    + `${flip} ? -state1 : state1, `
+    + `${flip} ? close : (state1 == 1 ? max(state2, close) : min(state2, close)), `
+    + `${flip} ? 0 : state3 + 1, `
+    + `${flip} ? state4 + 1 : state4)`
+  const machineRef = (b) => referenceWindow(b, W, (s0) => [1, s0.c, 0, 0], (s, bar) => {
+    const f = (s[0] === 1 && bar.c < s[1] * 0.97) || (s[0] === -1 && bar.c > s[1] * 1.03)
+    return [
+      f ? -s[0] : s[0],
+      f ? bar.c : (s[0] === 1 ? Math.max(s[1], bar.c) : Math.min(s[1], bar.c)),
+      f ? 0 : s[2] + 1,
+      f ? s[3] + 1 : s[3],
+    ]
+  })
+  const FILTER = (out) => `accum2(${out}, ${W}, close, 0, state1 + 0.3 * (close - state1) + state2, 0.1 * (close - state1))`
+  const filterRef = (b) => referenceWindow(b, W, (s0) => [s0.c, 0], (s, bar) => [
+    s[0] + 0.3 * (bar.c - s[0]) + s[1],
+    0.1 * (bar.c - s[0]),
+  ])
+  const CASES = [['four-state machine', MACHINE, machineRef, 4], ['two-state filter', FILTER, filterRef, 2]]
+
+  function exact(src, ref, K, b, label) {
+    const want = ref(b)
+    for (let out = 1; out <= K; out++) {
+      const got = col(interpret(ast(src(out)), b, {}))
+      for (let i = 0; i < b.length; i++) {
+        const w = want[i] ? want[i][out - 1] : NaN
+        if (!Object.is(got[i], w)) throw new Error(`${label} out ${out} bar ${i}: ${got[i]} vs ${w}`)
+      }
+    }
+  }
+
+  it.each(CASES)('%s: every fetch length and start', (_, src, ref, K) => {
+    const all = bars(3200, { seed: 23 })
+    for (const n of [W + 1, W + 2, 2 * W, 500, 3000]) {
+      for (const start of [0, 7, 133]) exact(src, ref, K, all.slice(start, start + n), `n ${n} start ${start}`)
+    }
+  }, 120000)
+
+  it.each(CASES)('%s: a developing bar rewritten, then closed, bar after bar', (_, src, ref, K) => {
+    const b = bars(400, { seed: 29 })
+    let x = 3
+    const rnd = () => { x = (x * 1103515245 + 12345) % 2147483648; return x / 2147483648 }
+    for (let step = 0; step < 30; step++) {
+      const last = b[b.length - 1]
+      // three ticks on the developing bar, then it closes and a new one opens
+      for (let tick = 0; tick < 3; tick++) {
+        const c = last.c * (1 + (rnd() - 0.5) * 0.06)
+        b[b.length - 1] = { ...last, c, h: Math.max(last.h, c), l: Math.min(last.l, c) }
+        exact(src, ref, K, b, `step ${step} tick ${tick}`)
+      }
+      const prev = b[b.length - 1]
+      b.push({ ...prev, t: prev.t + 1, o: prev.c })
+    }
+  }, 120000)
+
+  it('non-vacuity: the machine really merges (so the fast path is what was graded) and really flips', () => {
+    const b = bars(3000, { seed: 23 })
+    const sink = []
+    const four = col(interpret(ast(MACHINE(4)), b, {}, undefined, undefined, { stepSink: sink }))
+    expect(sink[0].steps).toBeLessThan(sink[0].worst / 2)
+    expect(Math.max(...four.slice(W))).toBeGreaterThan(0)
+  })
+})
+
 describe('refused BY NAME — never a silent number', () => {
   const guard = (e) => e && e.guard
   it('a bind in a seed', () => expect(guard(refusal('accum2(1, 5, state1, 0, 1, 2)'))).toBe('interpret:recurrence'))
