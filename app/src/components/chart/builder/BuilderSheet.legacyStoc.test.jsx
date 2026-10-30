@@ -13,7 +13,7 @@ import { evaluateFormula, FORMULA_DEBOUNCE_MS } from './FormulaField'
 import { AuthContext } from '../../../context/AuthContext'
 import { clearUserDefinitions } from '../engine/nativeRegistry'
 import { validateDefinition } from '../engine/defSchema'
-import { legacyPcfReadings, PCF_STOC_LEGACY_NOTICE } from '../engine/ast/pcf'
+import { legacyPcfReadings, pcfLegacyNotice } from '../engine/ast/pcf'
 
 const DEF_ID = 'u_5toc0000aa11'
 const SOURCE = 'STOC14.3 < 20'
@@ -59,7 +59,7 @@ describe('P0-1 — the legacy STOC reading is disclosed on reopen', () => {
     mount(storedDoc({ legacy: true }))
     await act(async () => { vi.advanceTimersByTime(FORMULA_DEBOUNCE_MS) })
     await flush()
-    expect(screen.getByTestId('legacy-reading-notice').textContent).toBe(PCF_STOC_LEGACY_NOTICE)
+    expect(screen.getByTestId('legacy-reading-notice').textContent).toBe(pcfLegacyNotice(SOURCE))
   })
 
   it('control: a document on the current reading shows no notice', async () => {

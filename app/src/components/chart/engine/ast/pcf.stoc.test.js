@@ -11,7 +11,7 @@
 // computing what it computed.
 import { describe, it, expect } from 'vitest'
 import {
-  parsePcf, legacyPcfReadings, legacyReadingOf, PCF_STOC_LEGACY_NOTICE, checkSeriesRoles,
+  parsePcf, legacyPcfReadings, legacyReadingOf, pcfLegacyNotice, checkSeriesRoles,
 } from './pcf.js'
 import { astHash } from './parse.js'
 import TABLE from './closedTable.json'
@@ -119,8 +119,8 @@ describe('P0-1 — a saved definition keeps computing what it computed', () => {
 
   it('names exactly one legacy reading for a STOC source, and none for a source without STOC', () => {
     expect(legacy).toHaveLength(1)
-    expect(legacy[0].id).toBe('pcf-stoc-hlc-2026-10-30')
-    expect(legacy[0].notice).toBe(PCF_STOC_LEGACY_NOTICE)
+    expect(legacy[0].id).toBe('pcf-reader-before-2026-10-30')
+    expect(legacy[0].notice).toBe(pcfLegacyNotice(source))
     expect(astHash(legacy[0].ast)).not.toBe(astHash(current))
     // The legacy tree is byte-for-byte what the pre-fix reader emitted.
     expect(JSON.stringify(legacy[0].ast)).toContain(
@@ -155,8 +155,77 @@ describe('P0-1 — a saved definition keeps computing what it computed', () => {
 
   it('legacyComputeReadings discloses the legacy tree and is silent on the current one', () => {
     expect(legacyComputeReadings(defWith(legacy[0].ast))).toEqual([
-      { where: 'compute.source', id: 'pcf-stoc-hlc-2026-10-30', notice: PCF_STOC_LEGACY_NOTICE }])
+      { where: 'compute.source', id: 'pcf-reader-before-2026-10-30', notice: pcfLegacyNotice(source) }])
     expect(legacyComputeReadings(defWith(current))).toEqual([])
     expect(legacyComputeReadings(null)).toEqual([])
+  })
+})
+
+// ⭐⭐ THE SIBLING DEFECT, FOUND READING THE SAME PRIMARY SOURCE: TC2000's `ATR`
+// is a SIMPLE average of true range ("Average True Range (uses simple moving
+// average for smoothing)", help.tc2000.com/m/69445/l/745531; Wilder's is written
+// `XAVG(ATR, 27)`, help.tc2000.com/m/69445/l/755843). The reader mapped it to the
+// engine's Wilder `atr`.
+function referenceTr(bars) {
+  return bars.map((b, i) => (i === 0 ? NaN
+    : Math.max(b.h - b.l, Math.abs(b.h - bars[i - 1].c), Math.abs(b.l - bars[i - 1].c))))
+}
+function referenceAtr(bars, n) {
+  const tr = referenceTr(bars)
+  return tr.map((_, i) => {
+    if (i < n) return NaN   // the window must not touch bar 0, which has no previous close
+    let s = 0
+    for (let j = i - n + 1; j <= i; j++) s += tr[j]
+    return s / n
+  })
+}
+
+describe('TC2000 ATR is the simple average of true range', () => {
+  const bars = synthBars(200, 11)
+
+  for (const n of [1, 5, 14]) {
+    it(`⭐ ATR${n} equals the published formula bar for bar`, () => {
+      const ours = interpret(tree(`ATR${n}`), bars)
+      const ref = referenceAtr(bars, n)
+      let compared = 0
+      for (let i = 0; i < bars.length; i++) {
+        if (!Number.isFinite(ref[i])) continue
+        expect(Math.abs(ours[i] - ref[i]), `ATR${n} bar ${i}`).toBeLessThan(1e-9)
+        compared++
+      }
+      expect(compared).toBeGreaterThan(150)
+    })
+  }
+
+  it('the offset wraps the average (ATR14.2 is the ATR of two bars ago)', () => {
+    const ours = interpret(tree('ATR14.2'), bars)
+    const ref = referenceAtr(bars, 14)
+    for (let i = 20; i < bars.length; i++) expect(Math.abs(ours[i] - ref[i - 2])).toBeLessThan(1e-9)
+  })
+
+  it('control: Wilder’s ATR (the legacy reading) is a DIFFERENT number', () => {
+    const legacy = legacyPcfReadings('ATR14 > 1')
+    expect(legacy).toHaveLength(1)
+    const old = legacy[0].ast.args[0]
+    expect(old).toEqual({ type: 'call', name: 'atr', args: [
+      { type: 'series', name: 'high' }, { type: 'series', name: 'low' },
+      { type: 'series', name: 'close' }, { type: 'num', value: 14 }] })
+    const wilder = interpret(old, bars)
+    const ref = referenceAtr(bars, 14)
+    const apart = ref.filter((v, i) => Number.isFinite(v) && Number.isFinite(wilder[i])
+      && Math.abs(wilder[i] - v) > 1e-6).length
+    expect(apart).toBeGreaterThan(100)
+    expect(legacy[0].notice).toMatch(/ATR was computed with Wilder/)
+    expect(legacy[0].notice).not.toMatch(/STOC/)
+  })
+
+  it('one legacy reading covers a source using both, and names both', () => {
+    const src = 'STOC14.3 < 20 AND ATR14 > 1'
+    const [r] = legacyPcfReadings(src)
+    expect(r.notice).toMatch(/STOC was given/)
+    expect(r.notice).toMatch(/ATR was computed/)
+    const json = JSON.stringify(r.ast)
+    expect(json).toContain('"name":"atr"')
+    expect(json).toContain('{"type":"call","name":"stoch","args":[{"type":"series","name":"close"}')
   })
 })

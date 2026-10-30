@@ -51,7 +51,7 @@
 //   * Indicator Formula Template Table — `/m/69445/l/745033`
 //   * Condition Formula Template Table — `/m/69445/l/756693`
 
-import { TABLE, NODE_TYPES, assertCanonical, parseFormula } from './parse.js'
+import { TABLE, NODE_TYPES, assertCanonical, parseFormula, astHash } from './parse.js'
 import { prepareSource } from './letPrepass.js'
 
 // --------------------------------------------------------------------------- //
@@ -201,7 +201,16 @@ export const PCF_FUSED = Object.freeze({
   MIN:    { spelling: 'MIN<field><period>[.<offset>]',    fn: 'lowest',  field: true, params: ['period', 'offset'] },
   STDDEV: { spelling: 'STDDEV<period>[.<offset>]',        fn: 'stdev',   series: ['close'], params: ['period', 'offset'] },
   WRSI:   { spelling: 'WRSI<period>[.<offset>]',          fn: 'rsi',     series: ['close'], params: ['period', 'offset'] },
-  ATR:    { spelling: 'ATR<period>[.<offset>]',           fn: 'atr',     series: ['high', 'low', 'close'], params: ['period', 'offset'] },
+  // ⭐⭐ TC2000's ATR IS A SIMPLE AVERAGE OF TRUE RANGE, NOT WILDER'S.
+  // help.tc2000.com/m/69445/l/745531 lists `ATR(x, z)` as "Average True Range
+  // (uses simple moving average for smoothing)", and the ATR page
+  // (help.tc2000.com/m/69445/l/755843) writes every OTHER average as
+  // `tAVG(ATR1.z, x)` and Wilder's as `XAVG(ATR, 27)` for a 14-bar ATR — so
+  // `ATRx` is `sma(true range, x)`, and `ATR1` is the true range itself.
+  // ⚰️ This row mapped to `atr` (Wilder's) until 2026-10-30: a different number
+  // labelled exact. Trees saved from that reading are honoured as stored — see
+  // `legacyPcfReadings`.
+  ATR:    { spelling: 'ATR<period>[.<offset>]',           expand: true, series: [], params: ['period', 'offset'] },
   MACD:   { spelling: 'MACD<fast>.<slow>[.<offset>]',     fn: 'macd',    series: ['close'], params: ['fast', 'slow', 'offset'] },
   // ⭐ TC2000's own definition (help.tc2000.com/m/69445/l/755874, "Stochastic
   // Oscillator"): `K = ((C - Ln)/(Hn - Ln)) * 100` — C the latest close, Ln/Hn the
@@ -269,6 +278,24 @@ export const PCF_FUSED = Object.freeze({
   // places. One does. The expansion is gone, the entry is bound to the shipped
   // rolling mean, and `tests/test_ast_tc2000_remainder.py` pins the two equal.
   BOP:     { spelling: 'BOP<period>[.<offset>]', fn: 'bop', series: [], params: ['period', 'offset'] },
+})
+
+/** ⭐ WHICH VERSION OF THIS READER IS READING. `CURRENT_READING` is every
+ *  caller's default; a LEGACY reading reproduces, exactly, the tree an earlier
+ *  version built, so a stored definition can be recognised as one (see
+ *  `legacyPcfReadings`). A legacy reading skips the role rail — it exists to
+ *  rebuild trees that rail now refuses. */
+const CURRENT_READING = Object.freeze({ fused: PCF_FUSED, legacy: false })
+
+/** The reader as it stood before 2026-10-30 (audit P0-1 and its ATR sibling):
+ *  `STOC` passed close, high, low and `ATR` mapped to Wilder's `atr`. */
+const READING_BEFORE_2026_10_30 = Object.freeze({
+  legacy: true,
+  fused: Object.freeze({
+    ...PCF_FUSED,
+    STOC: Object.freeze({ ...PCF_FUSED.STOC, series: ['close', 'high', 'low'] }),
+    ATR: Object.freeze({ spelling: 'ATR<period>[.<offset>]', fn: 'atr', series: ['high', 'low', 'close'], params: ['period', 'offset'] }),
+  }),
 })
 
 /** 🔴 NAMES THIS TABLE HAS SOMETHING SIMILAR TO, AND MUST NOT MAP.
@@ -559,15 +586,28 @@ const OPERATOR_CALLS = Object.freeze({
  *  ⛔ ADMISSIBLE ONLY AS AN IDENTITY, the same rule the Pine reader's
  *  `BUILTIN_CALL_TREE` follows. Anything needing a judgement about what Worden
  *  meant belongs in `PCF_DIFFERENT_FORMULA`, refusing by name. */
+/** ⭐ Each expansion DECLARES the functions and operators it builds with, and the
+ *  reader checks every one against the manifest before emitting it — this file
+ *  may say how TC2000 spells a formula, never that this table owns its parts. */
 const PCF_EXPANSIONS = Object.freeze({
-  // BOP<n> = the n-bar average of (close - open) / (high - low).
-  BOP: (n) => callNode('sma', [
-    opNode('/', [
-      opNode('-', [seriesNode('close'), seriesNode('open')]),
-      opNode('-', [seriesNode('high'), seriesNode('low')]),
-    ]),
-    num(n),
-  ]),
+  // ATR<n> = the n-bar SIMPLE average of true range, where true range is the
+  // largest of high - low, |high - previous close| and |low - previous close|
+  // (help.tc2000.com/m/69445/l/755843). Previous close is `close[1]`.
+  ATR: {
+    fns: ['sma', 'max', 'abs'],
+    ops: [['-', 2]],
+    build: (n, prev) => {
+      const pc = prev(seriesNode('close'))
+      const tr = callNode('max', [
+        callNode('max', [
+          opNode('-', [seriesNode('high'), seriesNode('low')]),
+          callNode('abs', [opNode('-', [seriesNode('high'), pc])]),
+        ]),
+        callNode('abs', [opNode('-', [seriesNode('low'), pc])]),
+      ])
+      return n === 1 ? tr : callNode('sma', [tr, num(n)])
+    },
+  },
 })
 
 const DERIVED_LOGIC = Object.freeze({
@@ -980,7 +1020,7 @@ export const PCF_VOCABULARY = (() => {
 })()
 
 /** One fused token → a canonical node. */
-function readFused(table, token, letters, nodeTypes) {
+function readFused(table, token, letters, nodeTypes, reading = CURRENT_READING) {
   const { base, dotted } = splitDotted(token)
   const upper = base.toUpperCase()
 
@@ -1006,7 +1046,7 @@ function readFused(table, token, letters, nodeTypes) {
   }
 
   // A family, optionally followed by a price letter, then digits.
-  for (const [name, family] of Object.entries(PCF_FUSED)) {
+  for (const [name, family] of Object.entries(reading.fused)) {
     const pattern = family.field
       ? new RegExp(`^${name}([A-Z])(\\d*)$`)
       : new RegExp(`^${name}(\\d*)$`)
@@ -1102,11 +1142,11 @@ function readFused(table, token, letters, nodeTypes) {
 
     if (family.expand) {
       // ⛔ EVERY NAME THE EXPANSION USES IS CHECKED AGAINST THE MANIFEST, never
-      // assumed -- this file declares only that TC2000 spells it `BOP`.
-      resolveFn(table, 'sma', family.spelling, token.index, token.text)
-      operator(table, '-', 2, token.index, token.text)
-      operator(table, '/', 2, token.index, token.text)
-      const built = PCF_EXPANSIONS[name](ints[0])
+      // assumed -- this file declares only how TC2000 spells the formula.
+      const exp = PCF_EXPANSIONS[name]
+      for (const fn of exp.fns) resolveFn(table, fn, family.spelling, token.index, token.text)
+      for (const [op, arity] of exp.ops) operator(table, op, arity, token.index, token.text)
+      const built = exp.build(ints[0], (node) => applyOffset(nodeTypes, node, 1, token.index, token.text))
       const offX = values.offset
       return offX ? applyOffset(nodeTypes, built, offX.value, offX.index, token.text) : built
     }
@@ -1114,7 +1154,7 @@ function readFused(table, token, letters, nodeTypes) {
     const spec = resolveFn(table, family.fn, family.spelling, token.index, token.text)
     const wanted = [...series.map(() => 'series'), ...ints.map(() => 'int')]
     checkSignature(spec, wanted, family.fn, family.spelling, token.index, token.text)
-    if (!family.field) checkSeriesRoles(table, spec, series, family.fn, token.index, token.text)
+    if (!family.field && !reading.legacy) checkSeriesRoles(table, spec, series, family.fn, token.index, token.text)
     for (const s of series) {
       if (!own(table.series, s)) {
         refuse('pcf:name',
@@ -1190,7 +1230,8 @@ function readFused(table, token, letters, nodeTypes) {
 // --------------------------------------------------------------------------- //
 
 class Reader {
-  constructor(tokens, table, nodeTypes) {
+  constructor(tokens, table, nodeTypes, reading = CURRENT_READING) {
+    this.reading = reading
     this.tokens = tokens
     this.pos = 0
     this.table = table
@@ -1318,7 +1359,7 @@ class Reader {
     if (t.kind === 'name') {
       const after = this.peek()
       if (after.kind === 'op' && after.text === '(') return this.call(t)
-      return readFused(this.table, t, this.letters, this.nodeTypes)
+      return readFused(this.table, t, this.letters, this.nodeTypes, this.reading)
     }
     refuse('pcf:syntax',
       `character ${t.index} carries ${t.kind === 'eof' ? 'the end of the formula' : `\`${t.text}\``} where a value was expected`,
@@ -1533,7 +1574,7 @@ class Reader {
  *  @returns {{ok: true, ast: object, dialect: 'pcf'}
  *          | {ok: false, error: string, guard: string, index: number, token: string, dialect: 'pcf'}}
  */
-export function parsePcf(source, table = TABLE, nodeTypes = NODE_TYPES) {
+export function parsePcf(source, table = TABLE, nodeTypes = NODE_TYPES, reading = CURRENT_READING) {
   if (typeof source !== 'string' || source.trim() === '') {
     return {
       ok: false, dialect: 'pcf', guard: 'pcf:empty', index: 0, token: '',
@@ -1557,7 +1598,7 @@ export function parsePcf(source, table = TABLE, nodeTypes = NODE_TYPES) {
     }
   }
   try {
-    const reader = new Reader(tokenize(source), table, nodeTypes)
+    const reader = new Reader(tokenize(source), table, nodeTypes, reading)
     const ast = reader.expression(0)
     const rest = reader.peek()
     if (rest.kind !== 'eof') {
@@ -1819,42 +1860,23 @@ export function readFormulaSource(source, dialect = 'auto', inputs = undefined) 
 // legacy readings — what an EARLIER version of this reader built from a source
 // --------------------------------------------------------------------------- //
 
-/** The P0-1 notice, shown wherever a stored tree is the legacy STOC reading. */
-export const PCF_STOC_LEGACY_NOTICE =
-  'This TC2000 formula was saved before 2026-10-30, when the reader passed STOC its '
-  + 'prices in the wrong order (close, high, low instead of high, low, close). It still '
-  + 'computes exactly what it computed when you saved it — including any alert or scan '
-  + 'built on it — and that value is NOT TC2000\'s stochastic. Re-save the formula to '
-  + 'get TC2000\'s %K, ((C - Ln)/(Hn - Ln)) × 100; alerts on it will then fire on the '
-  + 'corrected value.'
-
-const isSeries = (n, name) => n && n.type === 'series' && n.name === name
-
-/** Rewrite every `stoch(high, low, close, n)` this reader emits into the
- *  `stoch(close, high, low, n)` the pre-2026-10-30 reader emitted. Returns the
- *  same object when nothing changed. Only the exact current shape is touched —
- *  the PCF reader is the only author of a `stoch` call in a PCF tree, and it
- *  always passes the three bare series. */
-function rotateStocToLegacy(node) {
-  if (Array.isArray(node)) {
-    let changed = false
-    const out = node.map((c) => { const r = rotateStocToLegacy(c); if (r !== c) changed = true; return r })
-    return changed ? out : node
+/** The notice for a stored tree built by the pre-2026-10-30 reader. Names
+ *  only the spellings this source actually uses. */
+export function pcfLegacyNotice(source) {
+  const src = String(source || '')
+  const parts = []
+  if (/\bSTOC\d/i.test(src)) {
+    parts.push('STOC was given its prices in the wrong order (close, high, low instead of '
+      + 'high, low, close), so it was not TC2000’s %K, ((C - Ln)/(Hn - Ln)) × 100')
   }
-  if (!node || typeof node !== 'object') return node
-  let changed = false
-  const out = {}
-  for (const [k, v] of Object.entries(node)) {
-    const r = rotateStocToLegacy(v)
-    if (r !== v) changed = true
-    out[k] = r
+  if (/\bATR\d/i.test(src)) {
+    parts.push('ATR was computed with Wilder’s smoothing, where TC2000’s ATR is a simple '
+      + 'average of true range')
   }
-  const base = changed ? out : node
-  if (base.type === 'call' && base.name === 'stoch' && Array.isArray(base.args) && base.args.length === 4
-      && isSeries(base.args[0], 'high') && isSeries(base.args[1], 'low') && isSeries(base.args[2], 'close')) {
-    return { ...base, args: [base.args[2], base.args[0], base.args[1], base.args[3]] }
-  }
-  return base
+  return 'This TC2000 formula was saved before 2026-10-30, when the reader had a mistake: '
+    + `${parts.join('; and ')}. It still computes exactly what it computed when you saved it — `
+    + 'including any alert or scan built on it. Re-save the formula to use TC2000’s '
+    + 'definition; alerts on it will then fire on the corrected value.'
 }
 
 /** ⭐⭐ THE TREES EARLIER VERSIONS OF THIS READER BUILT FROM `source`, when they
@@ -1871,14 +1893,16 @@ function rotateStocToLegacy(node) {
  *  told so (`notice`). The member opts into the correction by re-saving.
  *
  *  ⚠️ This is a READING, never a migration: nothing here rewrites a stored tree.
- *  Only non-native (TC2000) sources have legacy readings. */
+ *  Only TC2000-dialect sources have legacy readings. ⛔ A FUTURE READER FIX that
+ *  changes a tree adds a reading here, or it blanks the definitions saved
+ *  before it. */
 export function legacyPcfReadings(source) {
   if (detectDialect(source) !== 'pcf') return []
   const now = parsePcf(source)
   if (!now.ok) return []
-  const legacy = rotateStocToLegacy(now.ast)
-  if (legacy === now.ast) return []
-  return [{ id: 'pcf-stoc-hlc-2026-10-30', ast: legacy, notice: PCF_STOC_LEGACY_NOTICE }]
+  const old = parsePcf(source, TABLE, NODE_TYPES, READING_BEFORE_2026_10_30)
+  if (!old.ok || astHash(old.ast) === astHash(now.ast)) return []
+  return [{ id: 'pcf-reader-before-2026-10-30', ast: old.ast, notice: pcfLegacyNotice(source) }]
 }
 
 /** The legacy reading a stored `{source, ast}` pair is, or `null` when the

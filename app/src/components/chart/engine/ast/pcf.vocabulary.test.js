@@ -356,10 +356,13 @@ describe('the coverage map does not disagree with the reader', () => {
     // …and they are genuinely readable, which is the fact the report matches.
     expect(reads('BOP20 > 0')).toBe(true)
     expect(reads('AROONUP25 > 70')).toBe(true)
-    // ⛔ AND THE EXPANSION MACHINERY IS NOW UNUSED, said out loud rather than
-    // left as a silently-dead branch: if a future family needs it, it still
-    // works; if none ever does, this is the line that says it can go.
-    expect(cov.expanded).toEqual([])
+    // ⭐ THE EXPANSION MACHINERY HAS ONE USER AGAIN (2026-10-30): TC2000's `ATR`
+    // is the simple average of true range, which this table says in its own
+    // words (`sma` over `max`/`abs` of `close[1]`) rather than through the Wilder
+    // `atr` entry it used to be mapped to. Named exactly, so a second user is a
+    // deliberate edit here.
+    expect(cov.expanded.map((e) => e.spelling)).toEqual(['ATR<period>[.<offset>]'])
+    expect(reads('ATR14 > 1')).toBe(true)
   })
 
   it('…and the control proves a REAL block is still reported', () => {
