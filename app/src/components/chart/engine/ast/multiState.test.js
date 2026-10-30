@@ -206,11 +206,30 @@ describe('refused BY NAME — never a silent number', () => {
   it('an output past K', () => expect(guard(refusal('accum2(3, 5, 0, 1, state2, state1)'))).toBe('resolve:window'))
   it('an output of zero', () => expect(guard(refusal('accum2(0, 5, 0, 1, state2, state1)'))).toBe('resolve:window'))
   it('a computed warm-up', () => expect(guard(refusal('accum2(1, 2 + 3, 0, 1, state2, state1)'))).toBe('resolve:window'))
-  it('bars × warm-up × K past the ceiling', () => {
+  it('work past the ceiling, counted as it is done', () => {
+    // Seeded from each window's own close and counting up, so no two windows ever
+    // share a state and every window is stepped in full (`close[k] + (t - k)`).
     const W = 600
-    const n = Math.ceil(MAX_RECURRENCE_STEPS / (W * 4)) + 10
-    const e = refusal(`accum4(1, ${W}, 0, 0, 0, 0, state1, state2, state3, state4)`, bars(n))
+    const n = Math.ceil(MAX_RECURRENCE_STEPS / (W * 4)) + W + 10   // the first W bars do no work
+    const e = refusal(`accum4(1, ${W}, close, close, close, close, state1 + 1, state2 + 1, state3 + 1, state4 + 1)`, bars(n))
     expect(guard(e)).toBe('interpret:steps')
+  })
+
+  it('merged windows are cheap AND identical to stepping every window in full', () => {
+    // A clamp merges every window into its neighbour on the first step, so the work
+    // is ~2K per bar instead of W·K — and the answer is the naive one.
+    const b = bars(3000)
+    const sink = []
+    const got = col(interpret(ast('accum2(1, 400, 10, 0, min(state1, 5), state2)'), b, {}, undefined, undefined, { stepSink: sink }))
+    expect(sink[0].steps).toBeLessThan(b.length * 2 * 4)
+    expect(sink[0].worst).toBe(b.length * 400 * 2)
+    expect(got.slice(400).every((v) => v === 5)).toBe(true)
+    // ⛔ and a recurrence that NEVER merges (a swap: neighbouring windows sit one step
+    // out of phase) is stepped in full and still exact: 400 swaps from (1, 2) read 1.
+    const swap = []
+    const sw = col(interpret(ast('accum2(1, 400, 1, 2, state2, state1)'), b, {}, undefined, undefined, { stepSink: swap }))
+    expect(swap[0].steps).toBe((b.length - 400) * 400 * 2)
+    expect(sw.slice(400).every((v) => v === 1)).toBe(true)
   })
   it('a NESTED independent accumK inside an update is fine — it binds its own names', () => {
     const b = bars(40)

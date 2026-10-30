@@ -6385,11 +6385,15 @@ def _interpret_column(ast: Any, bars: List[dict],
         def is_bind(x: Any) -> bool:
             return isinstance(x, dict) and x.get("type") == "series" and x.get("name") in bind_at
 
-        steps = length * warmup * K
-        if steps > MAX_RECURRENCE_STEPS:
+        # ⭐ The ceiling counts the work ACTUALLY done (K update evaluations per step),
+        # checked once per window -- ``interpret.js::runMultiState``, same rule.
+        work = {"n": 0}
+
+        def over_ceiling(at: int) -> None:
             _refuse("interpret:steps",
                     f"— {node['name']} over {length} bars with a {warmup}-bar warm-up and "
-                    f"{K} states is {steps} steps and the ceiling is {MAX_RECURRENCE_STEPS}")
+                    f"{K} states had done {work['n']} steps by bar {at} and the ceiling is "
+                    f"{MAX_RECURRENCE_STEPS}")
 
         def sk(x: Any) -> Any:
             got = _id_of.get(id(x))
@@ -6490,13 +6494,46 @@ def _interpret_column(ast: Any, bars: List[dict],
         for o in outs:
             for i in range(min(warmup, length)):
                 o[i] = fill
+        # ⭐⭐ MERGED WINDOWS -- the port of ``interpret.js::runMultiState``'s, and the
+        # answer is the naive one exactly: once a window's K states equal the held
+        # reference trajectory's at a bar (``_same``: -0 is not 0, NaN is NaN), the two
+        # are one trajectory from there on, so the window reads it and steps only the
+        # bars past it. A window that never merges becomes the reference.
+        def _same(a: float, b: float) -> bool:
+            if a != a:
+                return b != b
+            return a == b and (a != 0 or math.copysign(1.0, a) == math.copysign(1.0, b))
+
+        held = [[0.0] * length for _ in range(K)]
+        cand = [[0.0] * length for _ in range(K)]
+        held_from, held_to = -1, -2
         for i in range(warmup, length):
             state = [seeds[m][i - warmup] for m in range(K)]
+            merged = False
             for j in range(i - warmup + 1, i + 1):
                 step_memo.clear()
                 state = [step(u, j, state) for u in updates]
+                work["n"] += K
+                for m in range(K):
+                    cand[m][j] = state[m]
+                if held_from <= j <= held_to and all(_same(state[m], held[m][j]) for m in range(K)):
+                    state = [held[m][held_to] for m in range(K)]
+                    for jj in range(held_to + 1, i + 1):
+                        step_memo.clear()
+                        state = [step(u, jj, state) for u in updates]
+                        work["n"] += K
+                        for m in range(K):
+                            held[m][jj] = state[m]
+                    held_to = i
+                    merged = True
+                    break
+            if not merged:
+                held, cand = cand, held
+                held_from, held_to = i - warmup + 1, i
             for m in range(K):
                 outs[m][i] = state[m]
+            if work["n"] > MAX_RECURRENCE_STEPS:
+                over_ceiling(i)
         multi_state_runs[run_key] = outs
         return outs[output - 1]
 

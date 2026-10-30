@@ -6897,19 +6897,25 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
     // BEFORE the step record, so a second output of one run reports no work it
     // did not do; the run that was held already passed the ceiling below.
     const runKey = `${node.name}|${node.args.map((a, ai) => (ai === ms.output ? '*' : String(idOf.get(a) ?? '?'))).join(',')}`
-    const held = multiStateRuns.get(runKey)
-    if (held) return held[output - 1]
+    const prior = multiStateRuns.get(runKey)
+    if (prior) return prior[output - 1]
 
-    const steps = length * warmup * K
+    // ⭐ THE CEILING COUNTS THE WORK ACTUALLY DONE — K update evaluations per step —
+    // because the merged windows below make the naive `bars × warmup × K` a worst case
+    // that real indicators rarely reach (Parabolic SAR: ~15× less). Counted as the run
+    // goes and checked once per window, so the same bars refuse at the same point
+    // every time, and the refusal still names the cost instead of hanging a chart.
     let stepRecord = null
     if (opts && Array.isArray(opts.stepSink)) {
-      stepRecord = { name: node.name, warmup, bars: length, steps, exceeded: steps > MAX_RECURRENCE_STEPS }
+      stepRecord = { name: node.name, warmup, bars: length, steps: 0, worst: length * warmup * K, exceeded: false }
       opts.stepSink.push(stepRecord)
     }
-    if (steps > MAX_RECURRENCE_STEPS) {
+    let work = 0
+    const overCeiling = (at) => {
+      if (stepRecord) { stepRecord.steps = work; stepRecord.exceeded = true }
       refuse('interpret:steps',
-        `— ${node.name} over ${length} bars with a ${warmup}-bar warm-up and ${K} states is `
-        + `${steps} steps and the ceiling is ${MAX_RECURRENCE_STEPS}`)
+        `— ${node.name} over ${length} bars with a ${warmup}-bar warm-up and ${K} states had done `
+        + `${work} steps by bar ${at} and the ceiling is ${MAX_RECURRENCE_STEPS}`)
     }
 
     // Which nodes read a bind. A NESTED stateful call binds its own names, so the
@@ -7011,19 +7017,73 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
     if (opts && typeof opts.prefixProbe === 'number') {
       for (const o of outs) o.fill(opts.prefixProbe, 0, Math.min(warmup, length))
     }
+    // ⭐⭐ THE WINDOWS ARE RUN BY MERGING, AND THE ANSWER IS THE NAIVE ONE EXACTLY.
+    // Window `i` is the trajectory seeded at `i - W`, stepped to `i`. Consecutive
+    // windows apply the SAME deterministic step to the same bars from different
+    // seeds, so the moment window `i`'s K states EQUAL (`Object.is`, so -0 and NaN
+    // are never confused) the previous window's states at some bar `j`, the two are
+    // the same trajectory from `j` on — and the previous one is already held. So a
+    // window steps only until it merges, then reads the held trajectory and steps
+    // the one new bar. A window that never merges is stepped in full, exactly as
+    // before; the result is bit-identical either way, and the step ceiling above
+    // still prices the worst case. (Measured on Parabolic SAR: the trajectories of
+    // a stop that clamps to the prior lows merge within a few dozen bars.)
+    // `held[m][t]` is the reference trajectory's state m at bar t, valid on
+    // [heldFrom, heldTo].
+    let held = binds.map(() => new Float64Array(length))
+    // The window being tried records its own states as it goes, so a window that
+    // never merges becomes the reference by a swap — no second pass, and the worst
+    // case stays exactly the naive cost the ceiling prices.
+    let cand = binds.map(() => new Float64Array(length))
+    let heldFrom = -1
+    let heldTo = -2
     let state = new Array(K)
     let next = new Array(K)
+    const sameAsHeld = (st, t) => {
+      for (let m = 0; m < K; m++) if (!Object.is(st[m], held[m][t])) return false
+      return true
+    }
     for (let i = warmup; i < length; i++) {
       for (let m = 0; m < K; m++) state[m] = seeds[m][i - warmup]
+      let merged = false
       for (let j = i - warmup + 1; j <= i; j++) {
         stepNo += 1
+        work += K
         for (let m = 0; m < K; m++) next[m] = updates[m](j, state)
         const t = state
         state = next
         next = t
+        for (let m = 0; m < K; m++) cand[m][j] = state[m]
+        if (j >= heldFrom && j <= heldTo && sameAsHeld(state, j)) {
+          // From `j` this window IS the held trajectory: read it to `heldTo`, then
+          // step the bars past it (only `i` itself, in the steady case).
+          for (let m = 0; m < K; m++) state[m] = held[m][heldTo]
+          for (let jj = heldTo + 1; jj <= i; jj++) {
+            stepNo += 1
+            work += K
+            for (let m = 0; m < K; m++) next[m] = updates[m](jj, state)
+            const u = state
+            state = next
+            next = u
+            for (let m = 0; m < K; m++) held[m][jj] = state[m]
+          }
+          heldTo = i
+          merged = true
+          break
+        }
+      }
+      if (!merged) {
+        // No merge: this window becomes the reference trajectory.
+        const swap = held
+        held = cand
+        cand = swap
+        heldFrom = i - warmup + 1
+        heldTo = i
       }
       for (let m = 0; m < K; m++) outs[m][i] = state[m]
+      if (work > MAX_RECURRENCE_STEPS) overCeiling(i)
     }
+    if (stepRecord) stepRecord.steps = work
     multiStateRuns.set(runKey, outs)
     return outs[output - 1]
   }
