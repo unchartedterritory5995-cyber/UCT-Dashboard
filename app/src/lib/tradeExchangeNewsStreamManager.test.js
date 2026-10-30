@@ -225,12 +225,31 @@ describe('tradeExchangeNewsStreamManager', () => {
 
     it('a replayed backlog headline after a reconnect is not a sample', async () => {
       withClock()
-      const off = pool.subscribe(() => {})
+      let st = null
+      const off = pool.subscribe((s) => { st = s })
       await settle()
       lastES().emit('hello', { epoch: EPOCH, reset: false, last_seq: 5 })   // 4 and 5 are backlog
       lastES().emit('headline', H(4, { server_ms: Date.now() - 60_000 }))
       await settle()
       expect(timingCalls()).toHaveLength(0)
+      // feed health: still replaying (4 of 5), and no latency was claimed
+      expect(st.replayUntil).toBe(5)
+      expect(st.lastSeq).toBe(4)
+      expect(st.lastLatencyMs).toBeNull()
+      off()
+    })
+
+    it('the newest real sample is kept for the feed-health popover', async () => {
+      withClock()
+      let st = null
+      const off = pool.subscribe((s) => { st = s })
+      await settle()
+      lastES().emit('hello', { epoch: EPOCH, reset: false, last_seq: 3 })
+      lastES().emit('headline', H(4, { server_ms: Date.now() - 40, received_at_ms: Date.now() - 120 }))
+      await settle()
+      const body = JSON.parse(timingCalls()[0][1].body)
+      expect(st.lastLatencyMs).toBe(body.e2e_ms)
+      expect(st.lastLatencyAt).toBeGreaterThan(0)
       off()
     })
 

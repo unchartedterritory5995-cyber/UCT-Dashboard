@@ -19,7 +19,12 @@
 //   The last unsubscribe closes the stream and forgets the state.
 //
 // State: { status, items (seq ascending), epoch, lastSeq, firstSeq, coverage,
-//          reason, lastEventAt, lastHeadlineAt, hasOlder, loadingOlder, provisional }
+//          reason, lastEventAt, lastHeadlineAt, hasOlder, loadingOlder, provisional,
+//          replayUntil, lastLatencyMs, lastLatencyAt }
+//   replayUntil: the server's last seq when this connection opened -- lastSeq below
+//                it means the reconnect backlog is still replaying (feed health).
+//   lastLatencyMs: the newest MEASURED receipt -> this screen time (reportTiming's
+//                  e2e sample, only when the clock sync was trustworthy), else null.
 //   status: connecting | live | reconnecting | dropped | failed | unavailable
 
 export const RECENT_URL = '/api/trade-exchange-news/recent'
@@ -39,6 +44,7 @@ export const EMPTY_NEWS = Object.freeze({
   status: 'idle', items: Object.freeze([]), epoch: null, lastSeq: 0, firstSeq: 0,
   coverage: null, reason: null, lastEventAt: null, lastHeadlineAt: null,
   hasOlder: false, loadingOlder: false, provisional: true,
+  replayUntil: 0, lastLatencyMs: null, lastLatencyAt: null,
 })
 
 let _state = EMPTY_NEWS
@@ -157,6 +163,10 @@ function reportTiming(ev, heardAt, heardPerf) {
       clock_rtt_ms: c ? c.rtt : null,
       clock_samples: c ? c.samples : 0,
     }
+    // The feed-health popover shows the newest real sample, never an estimate.
+    if (typeof body.e2e_ms === 'number' && body.e2e_ms >= 0) {
+      publish((s) => ({ ...s, lastLatencyMs: body.e2e_ms, lastLatencyAt: Date.now() }))
+    }
     fetch(TIMING_URL, { method: 'POST', credentials: 'include', keepalive: true,
       headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).catch(() => {})
   }, 0))
@@ -247,7 +257,7 @@ function openStream() {
     }
     conn.replayUntil = typeof d.last_seq === 'number' ? d.last_seq : 0   // backlog, not live news
     publish((s) => ({ ...s, status: 'live', reason: null, coverage: d.coverage || s.coverage,
-      truncated: !!d.truncated, lastEventAt: Date.now() }))
+      truncated: !!d.truncated, lastEventAt: Date.now(), replayUntil: conn.replayUntil }))
   })
   es.addEventListener('headline', (e) => {
     if (!live()) return
