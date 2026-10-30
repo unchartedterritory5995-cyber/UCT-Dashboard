@@ -431,3 +431,104 @@ def test_every_minted_runtime_document_passes_the_presentation_rule():
     for d in docs:
         assert ps.presentation_errors(d) == [], d["id"]
         assert ps.clamp_plot_widths(d) == (d, [])
+
+
+# ─── colour parity with the formula lane ─────────────────────────────────────
+
+BEACON = "url(https://attacker.example/pixel)"
+
+
+def _coloured(colour, where="plot", def_id=DEF_ID):
+    """`runtime_defn` with `colour` on a plot, a colour input's default, a paint, or a
+    drawing-program literal."""
+    d = runtime_defn(def_id=def_id)
+    if where == "plot":
+        d["plots"][0]["color"] = colour
+    elif where == "input":
+        d["inputs"] = [{"key": "lineColour", "type": "color", "label": "Colour", "default": colour}]
+    elif where == "paint":
+        d["paints"] = [{"kind": "bgcolor", "color": colour}]
+    elif where == "object":
+        d["objects"] = {"v": 1, "items": [{"kind": "label", "fill": {"c": "lit", "hex": colour}}]}
+    return d
+
+
+@pytest.mark.parametrize("where, guard", [
+    ("plot", "presentation:colour"), ("input", "presentation:colour"),
+    ("paint", "presentation:colour"), ("object", "presentation:object-colour")])
+def test_a_runtime_document_with_a_url_colour_is_refused(store, monkeypatch, where, guard):
+    monkeypatch.setenv(rt.SAVE_ENV, "1")
+    with pytest.raises(svc.SaveRefused) as exc:
+        svc.save(USER, DEF_ID, _coloured(BEACON, where))
+    assert exc.value.guard == guard
+    assert svc.get(USER, DEF_ID) is None
+
+
+@pytest.mark.parametrize("where", ["plot", "input", "paint", "object"])
+def test_a_runtime_document_with_valid_colours_still_saves(store, monkeypatch, where):
+    monkeypatch.setenv(rt.SAVE_ENV, "1")
+    d = _coloured("#26a69a", where)
+    assert svc.save(USER, DEF_ID, d)["appended"] is True
+    assert svc.get(USER, DEF_ID)["definition"] == d
+
+
+@pytest.mark.parametrize("where, guard", [
+    ("plot", "presentation:colour"), ("object", "presentation:object-colour")])
+def test_a_shared_unsafe_runtime_row_is_refused_on_install_and_fork(store, monkeypatch, where, guard):
+    """The cross-member path: a stored row carrying a beacon (written before the rule)
+    cannot be copied -- share install or fork -- and nothing is written."""
+    monkeypatch.setenv(rt.SAVE_ENV, "1")
+    svc.save(USER, DEF_ID, _coloured("#26a69a", where))
+    _tamper(DEF_ID, _coloured(BEACON, where))
+    token = svc.share(USER, DEF_ID)["token"]
+    with pytest.raises(svc.SaveRefused) as installed:
+        svc.install_share(FRIEND, token)
+    assert installed.value.guard == guard
+    assert svc.list_for_user(FRIEND) == []                       # nothing was written for the friend
+    with pytest.raises(svc.SaveRefused) as forked:
+        svc.fork(USER, DEF_ID)
+    assert forked.value.guard == guard
+
+
+def test_a_legacy_unsafe_runtime_colour_is_grandfathered_on_an_unrelated_edit(store, monkeypatch):
+    """Grandfathered by (path, value) against the stored predecessor: an unrelated edit
+    saves; a CHANGED unsafe value, or a new one elsewhere, is refused."""
+    monkeypatch.setenv(rt.SAVE_ENV, "1")
+    svc.save(USER, DEF_ID, _coloured("#26a69a"))
+    _tamper(DEF_ID, _coloured(BEACON))
+    renamed = _coloured(BEACON)
+    renamed["meta"]["name"] = "Renamed"
+    assert svc.save(USER, DEF_ID, renamed)["appended"] is True
+    changed = _coloured("url(https://attacker.example/other)")
+    changed["meta"]["name"] = "Renamed"
+    with pytest.raises(svc.SaveRefused) as exc:
+        svc.save(USER, DEF_ID, changed)
+    assert exc.value.guard == "presentation:colour"
+    added = _coloured(BEACON)
+    added["meta"]["name"] = "Renamed"
+    added["paints"] = [{"kind": "bgcolor", "color": BEACON}]
+    with pytest.raises(svc.SaveRefused):
+        svc.save(USER, DEF_ID, added)
+
+
+def test_every_minted_runtime_document_passes_the_colour_rules():
+    from api.services import presentation_schema as ps
+    docs = [d["definition"] for d in json.loads(RUNTIME_DOCUMENTS.read_text(encoding="utf-8"))["documents"]]
+    assert any("objects" in d for d in docs)
+    for d in docs:
+        assert ps.definition_colour_errors(d) == [], d["id"]
+        assert ps.object_colour_errors(d) == [], d["id"]
+
+
+def test_a_copy_is_never_grandfathered_even_over_a_row_that_carries_the_colour(store, monkeypatch):
+    """The copy exemption is the ast lane's: a copy's colours are its SOURCE's, never
+    "unchanged" against whatever row its id holds, so an unsafe one is refused even when
+    the stored predecessor carries the same value (only a member's own edit is kept)."""
+    monkeypatch.setenv(rt.SAVE_ENV, "1")
+    svc.save(USER, DEF_ID, _coloured("#26a69a"))
+    _tamper(DEF_ID, _coloured(BEACON))
+    copy = _coloured(BEACON)
+    copy["meta"]["name"] = "A copy"
+    with pytest.raises(svc.SaveRefused) as exc:
+        svc.save(USER, DEF_ID, copy, _copy_of_stored=True)
+    assert exc.value.guard == "presentation:colour"

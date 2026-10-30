@@ -2335,6 +2335,22 @@ def _save_runtime(user_id: Any, def_id: str, definition: dict, limits: Any,
                          def_id, "; ".join(clamped_widths))
     presentation_found = (presentation_schema.presentation_errors(definition)
                           if not copy_of_stored else [])
+    # ⛔ …AND THE FORMULA LANE'S COLOUR RULES, on the same fields. A runtime document's
+    # plot / input / paint colours reach the same inline CSS (legend rows, chips), so a
+    # stored `url(...)` is a beacon for every member who installs a shared copy. The
+    # drawing-program colours are refused on EVERY save, a copy included; presentation
+    # colours are measured here and enforced in the lock against the stored predecessor
+    # (a copy has none of its own, so every unsafe colour in it is refused).
+    colour_found = presentation_schema.definition_colour_errors(definition)
+    unsafe_colours = presentation_schema.object_colour_errors(definition)
+    if unsafe_colours:
+        raise SaveRefused(
+            "presentation",
+            "a drawing colour that is not a colour: "
+            + "; ".join(e["message"] for e in unsafe_colours[:3])
+            + ". Nothing was saved.",
+            guard="presentation:object-colour",
+            errors=[{k: e[k] for k in ("path", "code", "message")} for e in unsafe_colours[:20]])
 
     new_hash = runtime_definitions.handle(definition)
     blob = json.dumps(definition, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
@@ -2367,8 +2383,26 @@ def _save_runtime(user_id: Any, def_id: str, definition: dict, limits: Any,
                 "formula is unchanged.")
         if prev is None or prev["deleted_at"] is not None:
             entitlements.check_definition_count(_live_def_count(c, user_id), limits)
+        prev_doc = json.loads(prev["definition"]) if prev is not None else None
+        if colour_found:
+            kept_c = set() if copy_of_stored or prev_doc is None else {
+                (e["path"], e["value"])
+                for e in presentation_schema.definition_colour_errors(prev_doc)}
+            refused_c = [e for e in colour_found if (e["path"], e["value"]) not in kept_c]
+            if len(refused_c) < len(colour_found):
+                _log.warning(
+                    "[user-definitions] %s keeps stored colours today's rule refuses "
+                    "(unchanged, not enforced): %s", def_id,
+                    "; ".join(e["path"] for e in colour_found if e not in refused_c))
+            if refused_c:
+                raise SaveRefused(
+                    "presentation",
+                    "a colour that is not a colour: "
+                    + "; ".join(e["message"] for e in refused_c[:3])
+                    + ". Nothing was saved.",
+                    guard="presentation:colour",
+                    errors=[{k: e[k] for k in ("path", "code", "message")} for e in refused_c[:20]])
         if presentation_found:
-            prev_doc = json.loads(prev["definition"]) if prev is not None else None
             refused_p, kept_p = presentation_schema.new_presentation_errors(
                 definition, prev_doc)
             if kept_p:
