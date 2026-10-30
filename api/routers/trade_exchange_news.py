@@ -61,6 +61,7 @@ RECENT_PATH = "/api/trade-exchange-news/recent"
 STREAM_PATH = "/api/trade-exchange-news/stream"
 PAGES_PATH = "/api/trade-exchange-news/pages"
 MAX_PAGES_BODY = 96 * 1024
+_page_slots: asyncio.Semaphore | None = None
 HEARTBEAT_S = 10.0
 MAX_STREAMS = int(os.environ.get("TXN_MAX_STREAMS", "200"))
 MAX_STREAMS_PER_USER = int(os.environ.get("TXN_MAX_STREAMS_PER_USER", "6"))
@@ -203,20 +204,34 @@ async def pages(request: Request, _admin: dict = Depends(require_admin)) -> JSON
     top = None if reset else _int("top", None)
     sym = d.get("symbol") if isinstance(d.get("symbol"), str) else None
 
+    t_req = time.perf_counter()
+
     def build() -> dict[str, Any]:
+        t0 = time.perf_counter()
+        misses0 = txn_pages.stats["misses"]
         out = txn_pages.page(store, page_no=_int("page", 1) or 1, size=_int("size", txn_pages.DEFAULT_SIZE) or 25,
                              top=top, query=d.get("query") if isinstance(d.get("query"), str) else "",
                              categories=cats, symbol=sym, symbols=syms,
                              hide_placeholders=d.get("hide_placeholders", True) is not False)
+        t1 = time.perf_counter()
         seqs = out.pop("seqs")
-        out["items"] = [txn_pipeline.headline_event(r, store.epoch) for r in store.by_seqs(seqs)]
+        out["items"] = [txn_pipeline.headline_event(r, store.epoch, txn_pages.event_fields(r["source"], r["content"]))
+                        for r in store.by_seqs(seqs)]
         first = store.first_seq()
         oldest = store.by_seqs([first]) if first else []
         out.update(first_seq=first, last_seq=store.last_seq(),
                    oldest_ms=oldest[0]["received_at_ms"] if oldest else None)
+        # ⏱ times and counts only: where a slow page spends its time.
+        out["timing_ms"] = {"wait": round((t0 - t_req) * 1000, 1), "scan": round((t1 - t0) * 1000, 1),
+                            "events": round((time.perf_counter() - t1) * 1000, 1),
+                            "derived": txn_pages.stats["misses"] - misses0}
         return out
 
-    out = await asyncio.to_thread(build)
+    global _page_slots
+    if _page_slots is None:
+        _page_slots = asyncio.Semaphore(txn_pages.CONCURRENT)
+    async with _page_slots:
+        out = await asyncio.to_thread(build)
     out.update(epoch=store.epoch, reset=reset, coverage=_coverage(),
                tickers_provisional=TICKERS_PROVISIONAL, server_ms=int(time.time() * 1000))
     return JSONResponse(out)

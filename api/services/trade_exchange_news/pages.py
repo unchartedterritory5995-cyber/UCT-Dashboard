@@ -11,7 +11,11 @@ never from whatever a browser happens to hold.
 primary key -- no OFFSET. The derived fields are a pure function of
 ``(source, content)``, cached (LRU, ``DERIVED_CACHE_MAX``), so a warm request is
 one key-ordered read plus set lookups (measured in
-tests/test_trade_exchange_news_pages.py).
+tests/test_trade_exchange_news_pages.py). The page's own events reuse the same
+cached derivation (``pipeline.derived_for``), so a warm page derives nothing.
+⛔ MEASURED IN PRODUCTION (2026-10-30, 930 headlines): re-deriving per request
+cost 2-3.5 s a page -- the production company-name index is far larger than a
+dev machine's.
 
 ⭐ STABLE BOUNDARIES. Every page is cut from the snapshot ``seq <= top``. The
 browser fixes ``top`` when it leaves page 1, so headlines arriving while it reads
@@ -24,7 +28,9 @@ whole retained archive is scanned -- and ``oldest_ms`` says how far back it
 reaches. Nothing older than the archive is ever promised.
 
 Runs on a worker thread (``asyncio.to_thread``), never on the single writer:
-a reader connection of its own (WAL), so it cannot delay ingestion.
+a reader connection of its own (WAL), so it cannot delay ingestion; the router
+admits at most ``CONCURRENT`` page builds at a time, so a burst of widgets or
+keystrokes cannot crowd the event loop.
 """
 from __future__ import annotations
 
@@ -42,52 +48,48 @@ MAX_QUERY = 80
 #: the count bound above this would see its oldest rows unpaged, never a crash).
 SCAN_MAX = 20_000
 DERIVED_CACHE_MAX = 12_000
+CONCURRENT = 2
 #: categories.CATEGORIES, restated so this module imports nothing heavy (the pages
 #: tests assert the two never drift).
 CATEGORIES = ("News", "Macro", "Options", "Press Release", "Earnings", "Price", "Filing", "Other")
 
 _lock = threading.Lock()
-_derived: OrderedDict[tuple[str, str], tuple[str, frozenset[str], bool, str]] = OrderedDict()
+_derived: OrderedDict[tuple[str, str], tuple] = OrderedDict()
+#: Derivations made since start (cache misses): reported per page as `derived`.
+stats = {"misses": 0}
 
 
-def _derive(source: str, content: str) -> tuple[str, frozenset[str], bool, str]:
-    """(category, tickers, graphic placeholder?, lower-cased text) -- exactly what
-    ``headline_event`` derives, with the same never-raise fallbacks."""
+def _derive(source: str, content: str) -> tuple:
+    """(category, tickers, graphic placeholder?, lower-cased text, event fields): the
+    filter fields read from EXACTLY what ``headline_event`` puts on the event
+    (``pipeline.derived_for``, never-raise), plus those event fields."""
     key = (source, content)
     with _lock:
         hit = _derived.get(key)
         if hit is not None:
             _derived.move_to_end(key)
             return hit
-    # Imported here, as pipeline.py does: the resolver behind categories is not part
-    # of the standalone staging bundle, and a fault there must never cost a headline.
-    try:
-        from api.services.trade_exchange_news import categories as _cat
-    except Exception:  # noqa: BLE001
-        _cat = None
-    try:
-        cat = _cat.category_for(source, content)
-    except Exception:  # noqa: BLE001 -- the event build's fallback
-        cat = "Other"
-    try:
-        tickers = frozenset(_cat.tickers_for(source, content))
-    except Exception:  # noqa: BLE001
-        tickers = frozenset()
-    try:
-        graphic = _cat.placeholder_for(content) == "graphic"
-    except Exception:  # noqa: BLE001
-        graphic = False
-    val = (cat or "Other", tickers, graphic, content.lower())
+    from api.services.trade_exchange_news import pipeline
+    fields = pipeline.derived_for(source, content)
+    val = (fields.get("category") or "Other", frozenset(fields.get("tickers") or ()),
+           fields.get("placeholder") == "graphic", content.lower(), fields)
     with _lock:
+        stats["misses"] += 1
         _derived[key] = val
         while len(_derived) > DERIVED_CACHE_MAX:
             _derived.popitem(last=False)
     return val
 
 
+def event_fields(source: str, content: str) -> dict[str, Any]:
+    """The cached derivation for one row's event (``headline_event(derived=...)``)."""
+    return _derive(source, content)[4]
+
+
 def clear_cache() -> None:
     with _lock:
         _derived.clear()
+        stats["misses"] = 0
 
 
 def _clean_syms(raw: Iterable[Any] | None) -> frozenset[str] | None:
@@ -102,10 +104,10 @@ def _clean_syms(raw: Iterable[Any] | None) -> frozenset[str] | None:
     return frozenset(out)
 
 
-def _matches(d: tuple[str, frozenset[str], bool, str], *, q: str, q_sym: str, cats: frozenset[str] | None,
+def _matches(d: tuple, *, q: str, q_sym: str, cats: frozenset[str] | None,
              symbol: str | None, symbols: frozenset[str] | None, hide_placeholders: bool) -> bool:
     """Mirrors the widget's ``visibleItems`` + ``matchesQuery`` (tradeExchangeNewsModel.js)."""
-    cat, tickers, graphic, lc = d
+    cat, tickers, graphic, lc = d[:4]
     if hide_placeholders and graphic:
         return False
     if cats is not None and cat not in cats:
