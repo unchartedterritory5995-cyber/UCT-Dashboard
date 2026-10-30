@@ -19,6 +19,10 @@ before the bearer is even compared.
 Member surface (Checkpoint C) -- ADMIN-ONLY while dark (``require_admin``):
   * ``GET /api/trade-exchange-news/recent`` -- bounded history page (newest
     ``limit``, or the page before ``before=<seq>``), plus epoch and coverage.
+  * ``POST /api/trade-exchange-news/pages`` -- one numbered page of the retained
+    archive with the widget's filters applied ON THE SERVER, cut from a stable
+    ``seq <= top`` snapshot (pages.py). POST only because a watchlist filter's
+    symbol set can outgrow a URL; it reads, never writes.
   * ``GET /api/trade-exchange-news/stream`` -- SSE. Resumes from
     ``Last-Event-ID: <epoch>:<seq>`` (sent by the browser on its own reconnect)
     or ``?after=<seq>&epoch=<epoch>`` (a pooled manager reopening). Opens with
@@ -44,6 +48,7 @@ from starlette.routing import Match
 
 from api.middleware.auth_middleware import require_admin
 from api.services.trade_exchange_news import config, pipeline as txn_pipeline, records
+from api.services.trade_exchange_news import pages as txn_pages
 from api.services.trade_exchange_news import reconcile as txn_reconcile
 from api.services.trade_exchange_news.loop_lag import LAG as _loop_lag
 from api.services.trade_exchange_news.records import RecordError
@@ -54,6 +59,8 @@ TIMING_PATH = "/api/trade-exchange-news/client-timing"
 CLOCK_PATH = "/api/trade-exchange-news/clock"
 RECENT_PATH = "/api/trade-exchange-news/recent"
 STREAM_PATH = "/api/trade-exchange-news/stream"
+PAGES_PATH = "/api/trade-exchange-news/pages"
+MAX_PAGES_BODY = 96 * 1024
 HEARTBEAT_S = 10.0
 MAX_STREAMS = int(os.environ.get("TXN_MAX_STREAMS", "200"))
 MAX_STREAMS_PER_USER = int(os.environ.get("TXN_MAX_STREAMS_PER_USER", "6"))
@@ -165,6 +172,54 @@ async def recent(limit: int = Query(200, ge=1, le=500), before: int | None = Que
         "coverage": _coverage(), "tickers_provisional": TICKERS_PROVISIONAL,
         "server_ms": int(time.time() * 1000),
     })
+
+
+@router.post(PAGES_PATH)
+async def pages(request: Request, _admin: dict = Depends(require_admin)) -> JSONResponse:
+    pipe = txn_pipeline.get()
+    if pipe is None:
+        return JSONResponse({"reason": "not_started"}, status_code=503)
+    body = await request.body()
+    if len(body) > MAX_PAGES_BODY:
+        return JSONResponse({"detail": "too large"}, status_code=413)
+    try:
+        d = json.loads(body or b"{}")
+    except ValueError:
+        return JSONResponse({"detail": "not JSON"}, status_code=400)
+    if not isinstance(d, dict):
+        return JSONResponse({"detail": "expected an object"}, status_code=422)
+
+    def _int(k: str, default: int | None) -> int | None:
+        v = d.get(k, default)
+        return v if isinstance(v, int) and not isinstance(v, bool) else default
+
+    cats, syms = d.get("categories"), d.get("symbols")
+    if (cats is not None and not isinstance(cats, list)) or (syms is not None and not isinstance(syms, list)):
+        return JSONResponse({"detail": "categories and symbols are lists"}, status_code=422)
+    store = pipe.store
+    # A snapshot from another epoch (database recreated) means nothing here: serve
+    # the newest page and say so, so the widget returns to the live view.
+    reset = bool(d.get("epoch")) and d.get("epoch") != store.epoch
+    top = None if reset else _int("top", None)
+    sym = d.get("symbol") if isinstance(d.get("symbol"), str) else None
+
+    def build() -> dict[str, Any]:
+        out = txn_pages.page(store, page_no=_int("page", 1) or 1, size=_int("size", txn_pages.DEFAULT_SIZE) or 25,
+                             top=top, query=d.get("query") if isinstance(d.get("query"), str) else "",
+                             categories=cats, symbol=sym, symbols=syms,
+                             hide_placeholders=d.get("hide_placeholders", True) is not False)
+        seqs = out.pop("seqs")
+        out["items"] = [txn_pipeline.headline_event(r, store.epoch) for r in store.by_seqs(seqs)]
+        first = store.first_seq()
+        oldest = store.by_seqs([first]) if first else []
+        out.update(first_seq=first, last_seq=store.last_seq(),
+                   oldest_ms=oldest[0]["received_at_ms"] if oldest else None)
+        return out
+
+    out = await asyncio.to_thread(build)
+    out.update(epoch=store.epoch, reset=reset, coverage=_coverage(),
+               tickers_provisional=TICKERS_PROVISIONAL, server_ms=int(time.time() * 1000))
+    return JSONResponse(out)
 
 
 @router.get(STREAM_PATH)

@@ -241,6 +241,23 @@ class Store:
             (int(seq), int(limit))).fetchall()
         return [_row(r) for r in reversed(rows)]
 
+    def index_desc(self, top: int, limit: int) -> list[tuple[int, str, str]]:
+        """(seq, source, content) for ``seq <= top``, newest first: the page scan
+        (pages.py). Primary-key order, bounded by ``limit`` and the archive bound."""
+        return self._conn().execute(
+            "SELECT seq, source, content FROM headlines WHERE seq <= ? ORDER BY seq DESC LIMIT ?",
+            (int(top), int(limit))).fetchall()
+
+    def by_seqs(self, seqs: list[int]) -> list[dict[str, Any]]:
+        """The rows for ``seqs`` (at most a page), in the order given."""
+        if not seqs:
+            return []
+        rows = self._conn().execute(
+            f"SELECT {','.join(_COLS)} FROM headlines WHERE seq IN ({','.join('?' * len(seqs))})",
+            [int(s) for s in seqs]).fetchall()
+        by = {r[0]: _row(r) for r in rows}
+        return [by[s] for s in seqs if s in by]
+
     def first_seq(self) -> int:
         r = self._conn().execute("SELECT MIN(seq) FROM headlines").fetchone()
         return int(r[0] or 0)
