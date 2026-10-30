@@ -32,8 +32,12 @@ written anywhere, starts empty in every process (a restart rebuilds it from the
 database), and every request re-checks it against the database:
   * new headlines -- live or recovered from R2 -- get a NEW seq (AUTOINCREMENT,
     never reused), so they are exactly the rows after the last one held;
-  * a row's text never changes once written (only its repeat count does, and a
-    response's events are always built from fresh rows: ``store.by_seqs``);
+  * a row never changes once written except its repeat count, so the index holds
+    every other column and a response reads only the current repeat counts
+    (``store.repeats``: the few rows received more than once). ⛔ MEASURED IN
+    PRODUCTION after #532: re-fetching a response's 60 rows from SQLite cost
+    1.5-3.5 s in a busy process (each row hands the GIL back) -- so rows are built
+    from the index (``rows_for``), for /day and /recent alike;
   * pruning deletes the lowest seqs (count bound) AND any row past the age
     cutoff -- which may be a recovered headline in the MIDDLE (old receipt time,
     new seq). So every request compares ``COUNT(*) WHERE seq <= last held`` with
@@ -153,7 +157,8 @@ def clear_cache() -> None:
 
 # ── the archive's index, in memory, extended incrementally ───────────────────
 _idx_lock = threading.Lock()
-#: rows: (seq, source, content, received_at_ms), seq ascending. `rebuilds` counts
+#: rows: (seq, source, content, received_at_ms, event_id, via, ingested_at_ms), seq
+#: ascending -- every column that never changes once written. `rebuilds` counts
 #: full reads (a process's first request, a new epoch, or an inconsistency).
 _idx: dict[str, Any] = {"epoch": None, "rows": [], "rebuilds": 0}
 #: Rows received this close to the age cutoff are re-checked when counts differ.
@@ -168,7 +173,7 @@ def _read_after(store, rows: list) -> None:
             return
 
 
-def _index(store) -> list[tuple[int, str, str, int]]:
+def _index(store) -> list[tuple]:
     """Every retained row, seq ascending -- verified against the database on every
     call (see the module note). Normally reads a few new rows plus one COUNT.
     Returns a snapshot list (the caller iterates it without the lock)."""
@@ -245,7 +250,8 @@ def _warm_run() -> None:
         if not rows:
             return
         n = 0
-        for _seq, source, content, _at in reversed(rows):
+        for r in reversed(rows):
+            source, content = r[1], r[2]
             with _lock:
                 if _warm["pending"] is not None:
                     break                          # a newer snapshot arrived: start over from it
@@ -313,7 +319,8 @@ def days(store, now_ms: int | None = None) -> dict[str, Any]:
     rows = _index(store)
     counts: dict[str, int] = {}
     by_hour: dict[int, str] = {}                      # ET offsets are whole hours: one lookup per UTC hour
-    for _seq, _s, _c, at in rows:
+    for r in rows:
+        at = r[3]
         hour = at // 3_600_000
         key = by_hour.get(hour)
         if key is None:
@@ -336,6 +343,25 @@ def days(store, now_ms: int | None = None) -> dict[str, Any]:
 
 
 # ── one day's slice ───────────────────────────────────────────────────────────
+
+def rows_for(store, picked: list[tuple]) -> list[dict[str, Any]]:
+    """Index tuples -> the row dicts ``pipeline.headline_event`` reads, with the
+    CURRENT repeat counts. No per-row database read."""
+    reps = store.repeats() if picked else {}
+    return [{"seq": t[0], "source": t[1], "content": t[2], "received_at_ms": t[3], "event_id": t[4],
+             "via": t[5], "ingested_at_ms": t[6], "repeat_count": reps.get(t[0], 0)} for t in picked]
+
+
+def recent_rows(store, limit: int, before: int | None = None) -> tuple[list[dict[str, Any]], int, int]:
+    """/recent from the index: the newest ``limit`` (seq order), or those before
+    ``before``. Returns (rows seq ascending, first_seq, last_seq)."""
+    rows = _index(store)
+    if before:
+        rows = rows[:bisect.bisect_left(rows, (int(before),))]
+    picked = rows[-int(limit):] if limit else []
+    full = _idx["rows"]
+    return rows_for(store, picked), (full[0][0] if full else 0), (full[-1][0] if full else 0)
+
 
 def _clean_syms(raw: Iterable[Any] | None) -> frozenset[str] | None:
     if raw is None:
@@ -368,7 +394,7 @@ def day_slice(store, *, day: _date, limit: int = DEFAULT_LIMIT, cursor: Any = No
     Mirrors the widget's ``visibleItems`` + ``matchesQuery``
     (tradeExchangeNewsModel.js). Returns ``{start_ms, end_ms, total, day_total,
     hidden_placeholders, has_older, has_newer, older_cursor, newer_cursor, top,
-    seqs}``; the router turns ``seqs`` into events. ``total`` counts every match in
+    seqs, _rows}``; the router turns ``_rows`` (index tuples, ``rows_for``) into events. ``total`` counts every match in
     the day; ``top`` is the newest seq considered (newer arrivals reach the
     browser live).
     """
@@ -389,10 +415,12 @@ def day_slice(store, *, day: _date, limit: int = DEFAULT_LIMIT, cursor: Any = No
     day_rows = [r for r in rows if start <= r[3] < end]
     day_rows.sort(key=lambda r: (r[3], r[0]), reverse=True)
     match: list[tuple[int, int]] = []                 # (received_at_ms, seq), newest first
+    by_seq: dict[int, tuple] = {}
     hidden = 0
-    for i, (seq, source, content, received) in enumerate(day_rows):
-        if i and i % 256 == 0:
-            time.sleep(0)                             # a cold day: let the event loop in
+    # ⛔ No voluntary GIL yields here: Python already switches threads every 5 ms, and
+    # in a busy process every give-back is a wait to get it again.
+    for r in day_rows:
+        seq, source, content, received = r[:4]
         cat, graphic, lc = _light_of(source, content)
         if graphic:
             hidden += 1
@@ -409,6 +437,7 @@ def day_slice(store, *, day: _date, limit: int = DEFAULT_LIMIT, cursor: Any = No
         if q and q not in lc and not (q_needs_tickers and q_sym in _tickers(source, content)):
             continue
         match.append((received, seq))
+        by_seq[seq] = r
 
     neg = [(-k[0], -k[1]) for k in match]             # ascending, for bisect
     cur = _cursor(cursor)
@@ -437,4 +466,4 @@ def day_slice(store, *, day: _date, limit: int = DEFAULT_LIMIT, cursor: Any = No
             "has_newer": sl[0] > 0, "has_older": sl[1] < len(match),
             "newer_cursor": list(keys[0]) if keys else None,
             "older_cursor": list(keys[-1]) if keys else None,
-            "top": top, "seqs": [k[1] for k in keys]}
+            "top": top, "seqs": [k[1] for k in keys], "_rows": [by_seq[k[1]] for k in keys]}

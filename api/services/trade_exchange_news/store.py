@@ -241,12 +241,18 @@ class Store:
             (int(seq), int(limit))).fetchall()
         return [_row(r) for r in reversed(rows)]
 
-    def index_after(self, seq: int, limit: int) -> list[tuple[int, str, str, int]]:
-        """(seq, source, content, received_at_ms) for ``seq > seq``, oldest first: the
-        page index's increment (pages.py keeps a rebuildable copy in memory)."""
+    def index_after(self, seq: int, limit: int) -> list[tuple]:
+        """(seq, source, content, received_at_ms, event_id, via, ingested_at_ms) --
+        every column that never changes once written -- for ``seq > seq``, oldest
+        first: the archive index's increment (archive.py holds a rebuildable copy)."""
         return self._conn().execute(
-            "SELECT seq, source, content, received_at_ms FROM headlines WHERE seq > ? ORDER BY seq LIMIT ?",
-            (int(seq), int(limit))).fetchall()
+            "SELECT seq, source, content, received_at_ms, event_id, via, ingested_at_ms FROM headlines "
+            "WHERE seq > ? ORDER BY seq LIMIT ?", (int(seq), int(limit))).fetchall()
+
+    def repeats(self) -> dict[int, int]:
+        """seq -> repeat_count for the (few) headlines received more than once: the
+        one headline column that changes after it is written."""
+        return dict(self._conn().execute("SELECT seq, repeat_count FROM headlines WHERE repeat_count > 0"))
 
     def count_upto(self, seq: int) -> int:
         """How many headlines have ``seq <= seq``: one aggregate row, the page
@@ -262,16 +268,6 @@ class Store:
             out.update(r[0] for r in self._conn().execute(
                 f"SELECT seq FROM headlines WHERE seq IN ({','.join('?' * len(chunk))})", chunk))
         return out
-
-    def by_seqs(self, seqs: list[int]) -> list[dict[str, Any]]:
-        """The rows for ``seqs`` (at most a page), in the order given."""
-        if not seqs:
-            return []
-        rows = self._conn().execute(
-            f"SELECT {','.join(_COLS)} FROM headlines WHERE seq IN ({','.join('?' * len(seqs))})",
-            [int(s) for s in seqs]).fetchall()
-        by = {r[0]: _row(r) for r in rows}
-        return [by[s] for s in seqs if s in by]
 
     def first_seq(self) -> int:
         r = self._conn().execute("SELECT MIN(seq) FROM headlines").fetchone()
