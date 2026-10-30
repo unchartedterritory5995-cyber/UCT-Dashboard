@@ -38,7 +38,7 @@ import { mergeChartSettings } from '../chartDefaults'
 import { isInstanceTombstone } from '../instanceShape'
 import { STUDIO_PREVIEW_DEF_ID } from './studio/chartPreview'
 import { instancesOf, instanceFingerprint } from './agentSeams'
-import { canon, same, changeRecord, holds, revertRecord } from '../engine/settingsRecord'
+import { canon, same, changeRecord, holds, revertRecord, setAt, clone } from '../engine/settingsRecord'
 
 export const MUTATION_CONTRACT = 'uct.indicators.mutation/1'
 /** ⭐ I-1…I-8 (2026-10-27, ADDITIVE — the first four ops are unchanged): presentation and
@@ -250,6 +250,101 @@ function revert(cs, record) {
   return r.ok ? r : refuse(REASONS.RESTORE_CONFLICT, { path: r.path })
 }
 
+// ─── ⭐ WS3 (2026-10-30): EXACT Undo of the stored settings ───────────────────────
+//
+// Agent Phase 2 measured "add rsi" → "undo" on a default-preset chart leaving three stored
+// differences the member could not see: a tombstone in `indicatorInstances`, an
+// `indicators.rsi = {enabled:false}` mirror that was not there, and `preset: 'custom'`
+// where it was 'classic'. Undo-of-add ran the product's DELETE (`removeInstance`), which
+// is right for a member's delete and wrong for an Undo: an Undo puts back what was.
+//
+// `preset` is a STAMP ("changed since a style preset was applied"), not a value any op
+// chose. So it is never a conflict path, and Undo restores it only when the whole chart
+// is then exactly what it was before the op (`stateFingerprint`): an unrelated change
+// made since keeps the chart 'custom', and a preset applied since is kept.
+
+const LIST = 'indicatorInstances'
+const isPresetPath = (p) => Array.isArray(p.path) && p.path.length === 1 && p.path[0] === 'preset'
+const withoutPreset = (record) => ({ ...record, paths: record.paths.filter((p) => !isPresetPath(p)) })
+
+/** The whole chart as it reads back after a save. `sf:<fnv1a>`. Pins an op's PRE-state
+ *  on its Undo token (`stateFingerprintBefore`) so Undo can tell "exactly as before". */
+export function stateFingerprint(cs) {
+  const n = normOf(cs)
+  return n ? `sf:${fnv(canon(n))}` : null
+}
+
+/** `next` (the Undo's result, preset untouched) with the op's preset stamp settled. */
+function settlePreset(current, next, record, fpBefore) {
+  const e = record.paths.find(isPresetPath)
+  if (!e) return next
+  if (typeof fpBefore !== 'string') return holds(current, e) ? setAt(next, ['preset'], e.before) : next   // a token minted before WS3
+  if (!same(current.preset, e.after)) return next        // a preset applied since is the member's
+  const back = setAt(next, ['preset'], e.before)
+  return stateFingerprint(back) === fpBefore ? back : next
+}
+
+/** The record's revert with the preset stamp settled rather than compared. */
+function revertExact(view, undo) {
+  const r = revert(view, withoutPreset(undo.record))
+  return r.ok ? { ok: true, cs: settlePreset(view, r.cs, undo.record, undo.stateFingerprintBefore) } : r
+}
+
+const idsIn = (arr) => (Array.isArray(arr) ? arr.map((e) => (isObj(e) && typeof e.instanceId === 'string' ? e.instanceId : null)) : [])
+
+/**
+ * ⭐ THE UNDO OF A CREATE (add, duplicate, copyFrom): the instances the op created are
+ * taken OUT — no tombstone, no `enabled:false` mirror, ids free again — and every other
+ * leaf it wrote is put back. Nothing changed since ⇒ the list exactly as it was. Something
+ * changed since ⇒ only what the op created goes; a pre-existing instance the op itself
+ * rewrote gets its old value back only if it still holds what the op left (else refused).
+ * `null` when the record is not a create's (the caller keeps the product delete).
+ */
+function undoCreated(view, undo) {
+  const paths = undo.record.paths
+  const list = paths.find((p) => !p.order && p.path.length === 1 && p.path[0] === LIST)
+  if (!list || paths.some((p) => p.order || (p !== list && p.path[0] === LIST))) return null
+  const beforeIds = new Set(idsIn(list.before))
+  const created = new Set(idsIn(list.after).filter((id) => id && !beforeIds.has(id)))
+  if (!created.size || !(undo.ids || []).every((id) => created.has(id))) return null
+  const cur = Array.isArray(view[LIST]) ? view[LIST] : []
+  let next
+  if (same(cur, list.after)) {
+    next = setAt(view, [LIST], list.before)
+  } else {
+    const beforeById = new Map((list.before || []).filter(isObj).map((e) => [e.instanceId, e]))
+    const afterById = new Map((list.after || []).filter(isObj).map((e) => [e.instanceId, e]))
+    let out = []
+    for (const e of cur) {
+      const id = isObj(e) ? e.instanceId : null
+      if (created.has(id)) continue
+      if (beforeById.has(id) && afterById.has(id) && !same(beforeById.get(id), afterById.get(id))) {
+        if (!same(e, afterById.get(id))) return refuse(REASONS.RESTORE_CONFLICT, { path: [LIST, { instanceId: id }] })
+        out.push(clone(beforeById.get(id)))
+      } else out.push(e)
+    }
+    // the pre-existing instances' relative order as before, if the op re-sorted them and
+    // nothing re-ordered them since; anything added since keeps its place
+    const was = idsIn(list.before).filter((id) => id)
+    const left = idsIn(list.after).filter((id) => id && !created.has(id))
+    const kept = new Set(was)
+    const now = idsIn(out).filter((id) => kept.has(id))
+    if (!same(was, left) && same(now, left.filter((id) => now.includes(id)))) {
+      const byId = new Map(out.map((e) => [e.instanceId, e]))
+      const seq = was.filter((id) => byId.has(id))
+      let k = 0
+      out = out.map((e) => (kept.has(e.instanceId) ? byId.get(seq[k++]) : e))
+    }
+    next = { ...view, [LIST]: out }
+  }
+  for (const p of paths) {
+    if (p === list || isPresetPath(p)) continue
+    if (!holds(view, p)) return refuse(REASONS.RESTORE_CONFLICT, { path: p.path })
+    next = setAt(next, p.path, p.before)
+  }
+  return { ok: true, cs: settlePreset(view, next, undo.record, undo.stateFingerprintBefore) }
+}
+
 /**
  * ⭐ `removeInstance`, plus the record that undoes it exactly. The returned `cs` is
  * the writer's own result (identical to `removeInstance`); `record.paths` lists every
@@ -280,6 +375,12 @@ export function restoreRemoved(cs, record) {
   if (!r.ok) return r
   if (!record.ids.every((id) => findInstance(r.cs, id))) return refuse(REASONS.RESTORE_CONFLICT, { path: null })
   return r
+}
+
+/** `restoreRemoved` with the preset stamp settled rather than compared (WS3). */
+function restoreRemovedExact(view, undo) {
+  const r = restoreRemoved(view, withoutPreset(undo.record))
+  return r.ok ? { ok: true, cs: settlePreset(normOf(view), r.cs, undo.record, undo.stateFingerprintBefore) } : r
 }
 
 // ─── permission ───────────────────────────────────────────────────────────────
@@ -471,6 +572,8 @@ const pendingFor = (op, plan, view, next, record, registry, extra = {}) => ({
   record,
   ...extra,
   instanceFingerprintAfter: instanceFingerprint(next),
+  // ⭐ WS3: the whole chart BEFORE this op — the Undo token carries it (`settlePreset`)
+  stateBefore: stateFingerprint(view),
 })
 
 /**
@@ -557,6 +660,7 @@ export function confirmIndicatorMutation(persisted, pending, ctx) {
     undo: { contract: MUTATION_CONTRACT, kind: 'undo', op: pending.op, ids: pending.ids.slice(), defId: pending.defId,
       name: pending.name, chartId: done.chartId, record: pending.record, severed: (pending.severed || []).map((d) => ({ ...d })),
       groupFingerprintAfter: groupFingerprint(view, pending.ids),
+      ...(typeof pending.stateBefore === 'string' ? { stateFingerprintBefore: pending.stateBefore } : {}),
       ...(PANE_OPS.includes(pending.op) ? { paneKey: pending.paneKey, paneFingerprintAfter: paneFingerprint(view, ctx && ctx.registry, ctx && ctx.volumeOpts) } : {}) },
   }
 }
@@ -581,7 +685,7 @@ export function undoIndicatorMutation(cs, undo, ctx) {
   if (undo.op === 'setInputs') {
     // exact or refused: the instance must still be exactly as the edit left it
     if (groupFingerprint(view, undo.ids) !== undo.groupFingerprintAfter) return refuse(REASONS.RESTORE_CONFLICT, { path: ['indicatorInstances'] })
-    const r = revert(view, undo.record)
+    const r = revertExact(view, undo)
     if (!r.ok) return r
     const record = recordOf(undo.ids, view, r.cs)
     return { ok: true, cs: r.cs, pending: pendingFor('setInputs', plan, view, r.cs, record, c.registry, { name: undo.name, undoOf: 'setInputs' }) }
@@ -590,7 +694,7 @@ export function undoIndicatorMutation(cs, undo, ctx) {
     if (undo.op === 'setVisible' && groupFingerprint(view, undo.ids) !== undo.groupFingerprintAfter) {
       return refuse(REASONS.RESTORE_CONFLICT, { path: ['indicatorInstances'] })
     }
-    const r = undo.op === 'remove' ? restoreRemoved(view, undo.record) : revert(view, undo.record)
+    const r = undo.op === 'remove' ? restoreRemovedExact(view, undo) : revertExact(view, undo)
     if (!r.ok) return r
     const record = recordOf(undo.ids, view, r.cs)
     return { ok: true, cs: r.cs, pending: pendingFor(undo.op, plan, view, r.cs, record, c.registry, {
@@ -601,9 +705,14 @@ export function undoIndicatorMutation(cs, undo, ctx) {
     if (!id || !findInstance(view, id)) return refuse(REASONS.RESTORE_CONFLICT, { path: null })
     if (groupFingerprint(view, undo.ids) !== undo.groupFingerprintAfter) return refuse(REASONS.RESTORE_CONFLICT, { path: ['indicatorInstances', { instanceId: id }] })
     if (dependentsOf(view, undo.ids, c.registry).length) return refuse(REASONS.DEPENDENT_EXISTS)
-    const r = removeInstanceWithRecord(view, id, c.registry)
+    // ⭐ WS3: the add taken back out exactly; the product delete only for a record that is
+    // not a create's (never minted by this file, kept so an odd token is still undone)
+    const exact = undoCreated(view, undo)
+    if (exact && !exact.ok) return exact
+    const r = exact || removeInstanceWithRecord(view, id, c.registry)
     if (!r.ok) return r
-    return { ok: true, cs: r.cs, pending: pendingFor('remove', plan, view, r.cs, r.record, c.registry, { name: undo.name, undoOf: 'add' }) }
+    const record = exact ? recordOf(undo.ids, view, r.cs) : r.record
+    return { ok: true, cs: r.cs, pending: pendingFor('remove', plan, view, r.cs, record, c.registry, { name: undo.name, undoOf: 'add' }) }
   }
   return refuse(REASONS.BAD_REQUEST)
 }
@@ -942,7 +1051,7 @@ function undoExt(view, undo, ctx, plan) {
     if (PANE_OPS.includes(undo.op)) {
       if (paneFingerprint(view, registry, ctx.volumeOpts) !== undo.paneFingerprintAfter) return refuse(REASONS.RESTORE_CONFLICT, { path: ['paneOrder'] })
     } else if (groupFingerprint(view, undo.ids) !== undo.groupFingerprintAfter) return refuse(REASONS.RESTORE_CONFLICT, { path: ['indicatorInstances'] })
-    const r = revert(view, undo.record)
+    const r = revertExact(view, undo)
     if (!r.ok) return r
     const record = recordOf(undo.ids, view, r.cs)
     return { ok: true, cs: r.cs, pending: pendingFor(undo.op, plan, view, r.cs, record, registry,
@@ -953,6 +1062,12 @@ function undoExt(view, undo, ctx, plan) {
   if (!ids.length || !ids.every((id) => findInstance(view, id) && !isInstanceTombstone(findInstance(view, id)))) return refuse(REASONS.RESTORE_CONFLICT, { path: null })
   if (groupFingerprint(view, ids) !== undo.groupFingerprintAfter) return refuse(REASONS.RESTORE_CONFLICT, { path: ['indicatorInstances'] })
   if (dependentsOf(view, ids, registry).length) return refuse(REASONS.DEPENDENT_EXISTS)
+  // ⭐ WS3: what the copy created taken back out exactly (see `undoCreated`)
+  const exact = undoCreated(view, undo)
+  if (exact && !exact.ok) return exact
+  if (exact) {
+    return { ok: true, cs: exact.cs, pending: pendingFor('remove', plan, view, exact.cs, recordOf(ids, view, exact.cs), registry, { name: undo.name, undoOf: undo.op }) }
+  }
   let next = view
   for (const id of ids) {
     const after = removeInstance(next, id, registry)
