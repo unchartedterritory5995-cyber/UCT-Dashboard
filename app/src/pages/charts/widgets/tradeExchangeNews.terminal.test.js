@@ -1,12 +1,14 @@
 // News terminal upgrade — the pure model: category filters (AND with the others),
-// the inline % change, impact marks, related-headline grouping, feed health and
-// presets. Synthetic headlines only.
+// impact marks, related-headline grouping, feed health, presets and the numbered
+// pages helpers. Synthetic headlines only.
 import { describe, expect, it } from 'vitest'
 import {
-  BREAKING_MS, CATEGORY_FILTERS, categoriesLabel, cleanCategories, cleanPresets, feedHealth, groupRelated,
-  GROUP_WINDOW_MS, impactMark, MAX_PRESETS, pctText, presetPatch, presetSnapshot, relatedHeadlines, visibleItems,
+  archiveTitle, BREAKING_MS, CATEGORY_FILTERS, categoriesLabel, cleanCategories, cleanPresets, feedHealth, groupRelated,
+  GROUP_WINDOW_MS, impactMark, livePage, MAX_PRESETS, newerThan, PAGE_SIZE, pageCount, pageRequest, parsePageInput,
+  presetPatch, presetSnapshot, relatedHeadlines, visibleItems,
 } from './tradeExchangeNewsModel'
-import { mergeTxnWidgetSettings, txnClampLines, txnShowPct } from './tradeExchangeNewsSettings'
+import * as model from './tradeExchangeNewsModel'
+import { mergeTxnWidgetSettings, txnClampLines } from './tradeExchangeNewsSettings'
 
 const NOW = 1_800_000_000_000
 const H = (seq, content, extra = {}) => ({ seq, content, tickers: [], category: 'News', source: 'TX-News',
@@ -43,27 +45,11 @@ describe('category filters', () => {
   })
 })
 
-describe('inline % change', () => {
-  it('shows the regular-session change, one decimal, signed', () => {
-    expect(pctText({ change_pct: 2.43 })).toBe('+2.4%')
-    expect(pctText({ change_pct: -0.06 })).toBe('-0.1%')
-    expect(pctText({ change_pct: 0.04 })).toBe('0.0%')
-    expect(pctText({ change_pct: -0.04 })).toBe('0.0%')
-  })
-
-  it('missing or stale data shows nothing, never a guess', () => {
-    expect(pctText(undefined)).toBeNull()
-    expect(pctText({ price: 10 })).toBeNull()
-    expect(pctText({ change_pct: NaN })).toBeNull()
-    expect(pctText({ change_pct: 3 }, true)).toBeNull()
-  })
-
-  it('defaults: on in Comfortable, off in Compact; an explicit choice wins', () => {
-    expect(txnShowPct(mergeTxnWidgetSettings({}))).toBe(true)
-    expect(txnShowPct(mergeTxnWidgetSettings({ density: 'compact' }))).toBe(false)
-    expect(txnShowPct(mergeTxnWidgetSettings({ density: 'compact', showPct: 'on' }))).toBe(true)
-    expect(txnShowPct(mergeTxnWidgetSettings({ showPct: 'off' }))).toBe(false)
-    expect(mergeTxnWidgetSettings({ showPct: 'loud' }).showPct).toBe('auto')
+describe('settings', () => {
+  it('the inline % change is retired: no helper, no setting, a saved value is dropped', () => {
+    expect(model.pctText).toBeUndefined()
+    expect(mergeTxnWidgetSettings({ showPct: 'on' })).not.toHaveProperty('showPct')
+    expect(mergeTxnWidgetSettings({})).not.toHaveProperty('showPct')
   })
 
   it('long-headline setting: 3 lines by default, 5, or always expanded', () => {
@@ -179,18 +165,19 @@ describe('presets', () => {
   it('snapshots filters and display preferences only', () => {
     const snap = presetSnapshot({ categories: ['Macro'], linked: true, watchlistId: 'wl1' }, settings, 'fed')
     expect(snap).toEqual({ categories: ['Macro'], linked: true, watchlistId: 'wl1', query: 'fed',
-      settings: { longHeadlines: '5', groupRelated: 'on', impactMarks: 'on', showPct: 'auto' } })
+      settings: { longHeadlines: '5', groupRelated: 'on', impactMarks: 'on' } })
   })
 
   it('applying never touches colours, chart symbols or other settings', () => {
     const patch = presetPatch(settings, { id: 'p1', categories: ['Earnings'], linked: false, watchlistId: '',
-      settings: { longHeadlines: 'all', bg: '#ff0000', symbol: 'TSLA' } })
+      settings: { longHeadlines: 'all', bg: '#ff0000', symbol: 'TSLA', showPct: 'on' } })
     expect(patch.categories).toEqual(['Earnings'])
     expect(patch.presetId).toBe('p1')
     expect(patch.watchlistId).toBeNull()
     expect(patch.settings.longHeadlines).toBe('all')
     expect(patch.settings.bg).toBe('#123456')
     expect(patch.settings.symbol).toBeUndefined()
+    expect(patch.settings.showPct).toBeUndefined()                // an old preset's retired setting
     expect(Object.keys(patch).sort()).toEqual(['categories', 'linked', 'presetId', 'settings', 'watchlistId'])
   })
 
@@ -198,5 +185,44 @@ describe('presets', () => {
     expect(cleanPresets(null)).toEqual([])
     expect(cleanPresets([{ id: 'a', name: ' ' }, { id: 1, name: 'x' }, { id: 'b', name: 'Macro' }])).toEqual([{ id: 'b', name: 'Macro' }])
     expect(cleanPresets(Array.from({ length: 30 }, (_, i) => ({ id: `p${i}`, name: `P${i}` })))).toHaveLength(MAX_PRESETS)
+  })
+})
+
+describe('numbered pages', () => {
+  it('a page request carries every filter, 25 to a page', () => {
+    expect(PAGE_SIZE).toBe(25)
+    expect(pageRequest({ query: '  fed ', linkedSym: 'NVDA', watchSet: new Set(['MSFT', 'AMD']), categories: ['Macro', 'bogus'], hidePlaceholders: true }))
+      .toEqual({ query: 'fed', categories: ['Macro'], symbol: 'NVDA', symbols: ['AMD', 'MSFT'], hide_placeholders: true, size: 25 })
+    expect(pageRequest({})).toEqual({ query: '', categories: [], symbol: null, symbols: null, hide_placeholders: false, size: 25 })
+  })
+
+  it('page 1 merges the server page and the live pool: newest first, no duplicates, pool row wins', () => {
+    const server = [H(9, 'a'), H(8, 'b'), H(5, 'c')]
+    const pool = [H(11, 'x'), H(10, 'y'), H(9, 'a', { repeat_count: 2 })]
+    const out = livePage(server, pool, 4)
+    expect(out.map((i) => i.seq)).toEqual([11, 10, 9, 8])
+    expect(out[2].repeat_count).toBe(2)
+    expect(livePage(undefined, pool).map((i) => i.seq)).toEqual([11, 10, 9])
+  })
+
+  it('counts arrivals after a snapshot', () => {
+    expect(newerThan([H(12, 'a'), H(11, 'b'), H(9, 'c'), H(8, 'd')], 10)).toBe(2)
+    expect(newerThan([], 10)).toBe(0)
+  })
+
+  it('page counts and typed page numbers are validated, never guessed', () => {
+    expect(pageCount(0)).toBe(1)
+    expect(pageCount(25)).toBe(1)
+    expect(pageCount(26)).toBe(2)
+    expect(pageCount(null)).toBeNull()
+    expect(parsePageInput('7', 10)).toBe(7)
+    expect(parsePageInput(' 10 ', 10)).toBe(10)
+    for (const bad of ['0', '11', '-1', '2.5', 'abc', '', '1e2']) expect(parsePageInput(bad, 10)).toBeNull()
+    expect(parsePageInput('400', null)).toBe(400)                       // total unknown: the server clamps
+  })
+
+  it('the archive note states the real reach and the retention bound', () => {
+    expect(archiveTitle(NOW - 3 * 86_400_000, NOW)).toMatch(/^The retained archive reaches back to .+\. UCT keeps about 7 days of headlines, up to 5,000; nothing older is available\.$/)
+    expect(archiveTitle(null, NOW)).toMatch(/empty so far/)
   })
 })
