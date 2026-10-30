@@ -156,7 +156,12 @@ describe('C24 — the comparison probe is replayed, not resolved twice', () => {
         // 632 bars, `vendorHarness.b1Paints`). Every output, presentation and the object
         // program byte-identical (translation census). Pre-B1: plain [729, 429977,
         // '60011f510b56bd70'] / manifest [729, 429985, 'bde49be716751a27'].
-        plain: [730, 429985, '9817f6afa92980bd'], manifest: [730, 429993, 'b3663793714b5924'] },
+        // ⭐ Set F (2026-10-29): a `fill`'s POSITIONAL colour is read now, and artemis
+        // passes five that way (`fill(p1, p2, color.new(thVpBuy, 100 - vpAlpha))`);
+        // resolving them through its theme chains costs ONE more Resolver and 65,248
+        // steps in each lane. Pre-F: plain [730, 429985, '9817f6afa92980bd'] /
+        // manifest [730, 429993, 'b3663793714b5924'].
+        plain: [731, 495233, '746db5aac03f75e8'], manifest: [731, 495241, '2680617189ad5026'] },
       // ⭐ C22 moved htf-liquidity (7fc4c8cc5 — its window reads now resolve
       // where they stand; drawing identical, no refusal moved). Re-pinned from
       // the C22 tree WITHOUT C24 (783ed6a50), which reads 5704 / 83d96de7…

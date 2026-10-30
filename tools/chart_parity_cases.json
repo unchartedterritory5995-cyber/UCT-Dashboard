@@ -4437,7 +4437,7 @@
               "label": "Line width",
               "default": 1,
               "min": 1,
-              "max": 4,
+              "max": 10,
               "step": 1
             },
             {
@@ -4452,7 +4452,7 @@
               "label": "slow width",
               "default": 1,
               "min": 1,
-              "max": 4,
+              "max": 10,
               "step": 1
             }
           ],

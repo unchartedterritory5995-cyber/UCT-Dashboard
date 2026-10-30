@@ -1555,7 +1555,7 @@
       "label": "Line width",
       "default": 1,
       "min": 1,
-      "max": 4,
+      "max": 10,
       "step": 1
     },
     {
@@ -1570,7 +1570,7 @@
       "label": "Rung 2 — bull support width",
       "default": 1,
       "min": 1,
-      "max": 4,
+      "max": 10,
       "step": 1
     },
     {
@@ -1585,7 +1585,7 @@
       "label": "Rung 3 — equilibrium width",
       "default": 1,
       "min": 1,
-      "max": 4,
+      "max": 10,
       "step": 1
     },
     {
@@ -1600,7 +1600,7 @@
       "label": "Rung 4 — bear resistance width",
       "default": 1,
       "min": 1,
-      "max": 4,
+      "max": 10,
       "step": 1
     },
     {
@@ -1615,7 +1615,7 @@
       "label": "Rung 5 — overbought width",
       "default": 1,
       "min": 1,
-      "max": 4,
+      "max": 10,
       "step": 1
     },
     {
@@ -1630,7 +1630,7 @@
       "label": "Support test width",
       "default": 1,
       "min": 1,
-      "max": 4,
+      "max": 10,
       "step": 1
     },
     {
@@ -1645,7 +1645,7 @@
       "label": "Resistance test width",
       "default": 1,
       "min": 1,
-      "max": 4,
+      "max": 10,
       "step": 1
     },
     {
@@ -1660,7 +1660,7 @@
       "label": "Positive reversal (bullish continuation) width",
       "default": 1,
       "min": 1,
-      "max": 4,
+      "max": 10,
       "step": 1
     },
     {
@@ -1675,7 +1675,7 @@
       "label": "Negative reversal (bearish continuation) width",
       "default": 1,
       "min": 1,
-      "max": 4,
+      "max": 10,
       "step": 1
     },
     {
@@ -1690,7 +1690,7 @@
       "label": "EXP_RSI width",
       "default": 1,
       "min": 1,
-      "max": 4,
+      "max": 10,
       "step": 1
     },
     {
@@ -1705,7 +1705,7 @@
       "label": "EXP_Regime width",
       "default": 1,
       "min": 1,
-      "max": 4,
+      "max": 10,
       "step": 1
     },
     {
@@ -1720,7 +1720,7 @@
       "label": "EXP_L30 width",
       "default": 1,
       "min": 1,
-      "max": 4,
+      "max": 10,
       "step": 1
     }
   ],
