@@ -19,6 +19,10 @@
 //   ?density=compact|comfortable
 //   ?width=<px>           pane width (responsive checks; default 320)
 //   ?only=news&count=<n>  render only <n> News widgets (multi-widget checks)
+//   ?wire=terminal        the terminal-upgrade fixture (long headline, impact marks,
+//                         a re-sent story, several tickers, % change)
+//   ?rows=<n>             <n> synthetic headlines (performance checks; max 2000)
+//   ?opts=<json>          initial News widget opts (e.g. {"settings":{"groupRelated":"on"}})
 //   ?live=1               LIVE MODE for tools/txn_local_e2e.py: /api/trade-exchange-news/*
 //                         goes to the real (local, synthetic) web process through
 //                         vite.txn-e2e.config.mjs, and the News pool opens its own
@@ -89,7 +93,7 @@ const WIRE = [
 // Deterministic synthetic quotes for the wire rows: up, down, flat, and one symbol
 // (VIX) with NO quote, so every tone is on screen.
 const WIRE_QUOTES = { MSFT: [412.3, 1.24], GOOGL: [171.1, -2.05], TFC: [48.36, 0.62], DTE: [131.9, 0.4],
-  NVAX: [9.12, -3.1], AAPL: [228.4, 0.88], S: [21.05, 0], BRCB: [24.1, 1.9], NVDA: [181.2, -1.4],
+  NVAX: [9.12, -3.1], AAPL: [228.4, 0.88], S: [21.05, 0], BRCB: [24.1, 1.9], NVDA: [181.2, -1.4], SAMP: [31.4, 12.6],
   SM: [27.3, 0.7], SD: [12.4, -0.6], BC: [88.2, 0.3], USB: [47.9, 0.2], USA: [6.1, -0.4], GIC: [33.6, 0.5], XGMS: [14.2, 2.2] }
 // ?wire=review&phase=before|after -- the 2026-10-29 production review: each row with
 // the tickers/mentions production served (before) and the server's corrected answer
@@ -109,18 +113,40 @@ const REVIEW = [
     [['MSFT'], [['MICROSOFT', 'MSFT']]], [['MSFT'], [['MICROSOFT', 'MSFT']]]],
   ['TX-PressRelease', 'CBWA - Example Bancorp, Inc. Announces Third Quarter 2026 Results', 'Earnings', [['CBWA'], []], [['CBWA'], []], 86_400_000],
 ]
+// ?wire=terminal -- the terminal upgrade: [source, content, category, tickers, extra]
+const T_STORY = 'Example Holdings agrees to acquire Sample Robotics for $4.2 billion in cash'
+const TERMINAL = [
+  ['TX-PressRelease', 'DTE - Example Energy Reports Third Quarter 2026 Results', 'Earnings', ['DTE']],
+  ['TX-News', `SAMP - ${T_STORY}`, 'News', ['SAMP'], { impact: 'mna' }],
+  ['TX-News1', 'US CPI (Y/Y) Oct: 3.1% (est 3.0%)', 'Macro', [], { impact: 'econ_release' }],
+  ['TX-News', 'Microsoft and NVIDIA lead gains as AAPL tops a record; NVIDIA extends the run', 'News',
+    ['AAPL', 'MSFT', 'NVDA'], { mentions: [['Microsoft', 'MSFT'], ['NVIDIA', 'NVDA']] }],
+  ['TX-News', `${'SYNTHETIC LONG WIRE: GOOGL outlines a multi-year capital plan covering data centers, power purchase agreements, custom silicon and network buildouts across three continents, with management walking analysts through every segment. '.repeat(3)}Full text continues to the final sentence.`,
+    'News', ['GOOGL']],
+  ['TX-PressRelease', T_STORY, 'Press Release', ['SAMP'], { impact: 'mna' }],
+  ['TX-News', 'FED HOLDS RATES STEADY AT 4.25%-4.50%', 'Macro', [], { impact: 'central_bank', fresh: true }],
+]
 const WIRE_MODE = params.get('wire')
+const ROWS_N = Math.max(0, Math.min(2000, Number(params.get('rows')) || 0))
+let OPTS_PARAM = {}
+try { OPTS_PARAM = JSON.parse(params.get('opts') || '{}') || {} } catch { OPTS_PARAM = {} }
 const REVIEW_PHASE = params.get('phase') === 'before' ? 3 : 4
-const ROWS = WIRE_MODE === 'review'
+const ROWS = ROWS_N
+  ? Array.from({ length: ROWS_N }, (_, i) => ({ source: 'TX-News', category: ['News', 'Earnings', 'Macro', 'Press Release'][i % 4],
+    content: `SYNTHETIC ${i + 1}: ${SYMS[i % SYMS.length]} example headline ${i % 3 ? 'with a little more text to wrap across a line' : ''}`,
+    tickers: [SYMS[i % SYMS.length]], ...(i % 97 === 0 ? { impact: 'guidance' } : {}) }))
+  : WIRE_MODE === 'terminal'
+    ? TERMINAL.map(([source, content, category, tickers, extra]) => ({ source, content, category, tickers, ...(extra || {}) }))
+    : WIRE_MODE === 'review'
   ? REVIEW.map((r) => ({ source: r[0], content: r[1], category: r[2], tickers: r[REVIEW_PHASE][0],
     mentions: r[REVIEW_PHASE][1], ...(r[5] ? { ageMs: r[5] } : {}) }))
   : WIRE_MODE
     ? WIRE.map(([source, content, oldT, newT, category, extra]) => ({ source, content,
       tickers: WIRE_MODE === 'old' ? oldT : newT, ...(WIRE_MODE === 'old' ? {} : { category, ...(extra || {}) }) }))
     : HEADLINES.map(([content, tickers]) => ({ source: 'TXNews1', content, tickers }))
-const NEWS = ROWS.map(({ ageMs, ...r }, i) => ({
+const NEWS = ROWS.map(({ ageMs, fresh, ...r }, i) => ({
   type: 'headline', epoch: 'harness0harness0', seq: i + 1, id: `HARNESS${String(i).padStart(18, '0')}`,
-  ...r, received_at_ms: NOW - (ROWS.length - i) * 97_000 - (ageMs || 0),
+  ...r, received_at_ms: fresh ? NOW - 40_000 : NOW - (ROWS.length - i) * (WIRE_MODE === 'terminal' ? 120_000 : 97_000) - (ageMs || 0),
   repeat_count: !WIRE_MODE && i === 4 ? 1 : 0, via: !WIRE_MODE && i === 2 ? 'reconcile' : 'push', delayed: !WIRE_MODE && i === 2,
 }))
 
@@ -227,7 +253,7 @@ function Harness() {
     groupSyms,
     setGroupSym: (c, s) => setGroupSyms((g) => ({ ...g, [c]: s })),
   }), [groupSyms])
-  const newsOpts = DENSITY ? { settings: { density: DENSITY } } : {}
+  const newsOpts = { ...OPTS_PARAM, ...(DENSITY ? { settings: { ...(OPTS_PARAM.settings || {}), density: DENSITY } } : {}) }
   return (
     <MemoryRouter>
       <AuthProvider>

@@ -31,9 +31,11 @@ function ruleLabel(p) {
   return parts.join(params.mode === 'all' ? ' + ' : ', ')
 }
 
-export default function TradeExchangeNewsAlerts({ onClose, anchorEl, themeVars }) {
+export default function TradeExchangeNewsAlerts({ onClose, anchorEl, themeVars, initialTickers = null }) {
   const { data, error, mutate } = useSWR(NEWS_ALERTS_URL, fetchRules, { revalidateOnFocus: false })
-  const [tickers, setTickers] = useState('')
+  // A headline's "Create news alert" opens this with its tickers filled in; the rule
+  // is still the member's to review and save (nothing is created on their behalf).
+  const [tickers, setTickers] = useState(() => (initialTickers || []).join(' '))
   const [keywords, setKeywords] = useState('')
   const [mode, setMode] = useState('any')
   const [busy, setBusy] = useState(false)

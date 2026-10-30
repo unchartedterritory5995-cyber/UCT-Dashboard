@@ -25,6 +25,10 @@ export const TXN_WIDGET_DEFAULTS = {
   showCategory: 'on',                               // 'on' | 'off' — label under each time
   tickerColorMode: 'performance',                   // 'performance' (theme up/down candles) | 'accent' | 'neutral'
   graphicPlaceholders: 'hide',                      // 'hide' | 'show' — label-only posts whose graphic we never receive
+  longHeadlines: '3',                               // '3' | '5' | 'all' — lines before "Show more"
+  showPct: 'auto',                                  // 'auto' (on in Comfortable, off in Compact) | 'on' | 'off'
+  impactMarks: 'on',                                // 'on' | 'off' — Breaking / High impact labels
+  groupRelated: 'off',                              // 'off' | 'on' — the same story re-sent, grouped
   sound: 'off',                                     // ⛔ muted by default (owner rule)
   soundKey: 'ding',                                 // one of utils/alertSound ALERT_SOUNDS
 }
@@ -48,6 +52,10 @@ const ENUMS = {
   showCategory: ['on', 'off'],
   tickerColorMode: ['performance', 'accent', 'neutral'],
   graphicPlaceholders: ['hide', 'show'],
+  longHeadlines: ['3', '5', 'all'],
+  showPct: ['auto', 'on', 'off'],
+  impactMarks: ['on', 'off'],
+  groupRelated: ['off', 'on'],
   sound: ['off', 'on'],
   bgMode: ['solid', 'gradient'],
 }
@@ -67,6 +75,12 @@ export function mergeTxnWidgetSettings(saved) {
 
 /** A placed widget's effective settings: its own blob, or the placed theme's defaults. */
 export const txnSettingsFor = (saved, theme) => mergeTxnWidgetSettings(saved ?? txnDefaultsForTheme(theme))
+
+/** Lines a long headline shows before "Show more" (0 = always expanded). */
+export const txnClampLines = (s) => (s.longHeadlines === 'all' ? 0 : s.longHeadlines === '5' ? 5 : 3)
+
+/** The inline ticker % change: Auto follows the density (on in Comfortable). */
+export const txnShowPct = (s) => (s.showPct === 'auto' ? s.density !== 'compact' : s.showPct === 'on')
 
 export function isCustomCanvas(s) {
   return s.bgMode === 'gradient'
