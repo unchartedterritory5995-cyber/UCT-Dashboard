@@ -171,19 +171,21 @@ describe('tradeExchangeNewsStreamManager', () => {
     off()
   })
 
-  it('history is bounded and "load older" prepends without dropping the newest rows', async () => {
-    const many = Array.from({ length: pool.PAGE }, (_, i) => H(1001 + i))
-    recent = (url) => (url.includes('before=')
-      ? { status: 200, body: { epoch: EPOCH, first_seq: 1, last_seq: 1200, items: Array.from({ length: pool.PAGE }, (_, i) => H(801 + i)) } }
-      : { status: 200, body: { epoch: EPOCH, first_seq: 1, last_seq: 1200, items: many } })
+  it('fetchPage asks the server for one filtered page and never announces its rows', async () => {
     const off = pool.subscribe(() => {})
     await flush()
-    expect(pool.getSnapshot().hasOlder).toBe(true)
-    await pool.loadOlder()
-    const seqs = pool.getSnapshot().items.map((i) => i.seq)
-    expect(seqs[0]).toBe(801)
-    expect(seqs[seqs.length - 1]).toBe(1200)               // newest kept
-    expect(fetchMock.mock.calls.at(-1)[0]).toBe('/api/trade-exchange-news/recent?limit=200&before=1001')
+    recent = (url) => (url === pool.PAGES_URL
+      ? { status: 200, body: { epoch: EPOCH, top: 3, page: 2, pages: 4, total: 80, items: [H(900)] } }
+      : { status: 200, body: { epoch: EPOCH, first_seq: 1, last_seq: 3, items: [] } })
+    const out = await pool.fetchPage({ page: 2, top: 3, categories: ['Macro'] })
+    expect(out.page).toBe(2)
+    const [url, init] = fetchMock.mock.calls.at(-1)
+    expect(url).toBe(pool.PAGES_URL)
+    expect(init.method).toBe('POST')
+    expect(JSON.parse(init.body)).toEqual({ page: 2, top: 3, categories: ['Macro'] })
+    expect(pool.claimAnnouncement(900)).toBe(false)        // history, not news
+    recent = () => ({ status: 503, body: {} })
+    await expect(pool.fetchPage({})).rejects.toMatchObject({ status: 503 })
     off()
   })
 

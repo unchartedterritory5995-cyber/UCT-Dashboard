@@ -1,7 +1,9 @@
 // News terminal upgrade — the widget: long-headline collapse, category filter,
-// inline % change, row actions (chart / watchlist / copy / alert, permission-gated),
-// impact marks, related groups, feed health, presets, several widgets at once, and
-// re-render economy on a quote tick. The shared pool is mocked; synthetic only.
+// plain tickers (no inline %), one-click copy, ⋯ = add to watchlist only, impact
+// marks, related groups, feed health, presets, numbered pages of the archive (live
+// page 1, stable snapshots behind it), several widgets at once, and re-render
+// economy on a quote tick. The shared pool and the page server are faked
+// (fakeNewsPages); synthetic only.
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -9,19 +11,24 @@ const feed = vi.hoisted(() => {
   const listeners = new Set()
   let state = { status: 'idle', items: [], epoch: 'e', lastSeq: 0, firstSeq: 0, coverage: null, provisional: true }
   return {
+    archive: null, pageCalls: [],
     listeners,
     get: () => state,
     set(next) { state = { ...state, ...next }; for (const fn of [...listeners]) fn(state) },
-    reset() { listeners.clear(); state = { status: 'idle', items: [], epoch: 'e', lastSeq: 0, firstSeq: 0, coverage: null, provisional: true } },
+    reset() { this.archive = null; this.pageCalls = []; listeners.clear(); state = { status: 'idle', items: [], epoch: 'e', lastSeq: 0, firstSeq: 0, coverage: null, provisional: true } },
   }
 })
-vi.mock('../../../lib/tradeExchangeNewsStreamManager', () => ({
+vi.mock('../../../lib/tradeExchangeNewsStreamManager', async () => {
+  const { fakeNewsPage } = await import('../../../testing/tradeExchangeNews/fakeNewsPages')
+  return {
   subscribe: (fn) => { feed.listeners.add(fn); return () => feed.listeners.delete(fn) },
   getSnapshot: () => feed.get(),
   retry: vi.fn(),
-  loadOlder: vi.fn(),
+  // The server's pages over the synthetic archive (the pool's rows unless a test sets one).
+  fetchPage: async (body) => { feed.pageCalls.push(body); return fakeNewsPage(feed.archive || feed.get().items, body) },
   claimAnnouncement: () => true,
-}))
+}
+})
 const setGroupSym = vi.fn()
 vi.mock('../WorkspaceContext', () => ({
   useWorkspace: () => ({ groupSyms: { A: 'NVDA' }, setGroupSym, applyThemeToAllWidgets: vi.fn() }),
@@ -143,7 +150,7 @@ describe('long headlines', () => {
 })
 
 describe('category filter', () => {
-  it('filters instantly, persists per widget, and combines with the linked filter', () => {
+  it('filters instantly, persists per widget, and combines with the linked filter', async () => {
     const { container, onOptsChange } = mount()
     fireEvent.click(screen.getByRole('button', { name: /Categories: All/ }))
     fireEvent.click(within(screen.getByRole('dialog', { name: 'Filters and presets' })).getByRole('button', { name: 'Earnings' }))
@@ -152,117 +159,131 @@ describe('category filter', () => {
     expect(rows(r2.container)).toEqual([3, 1])
     const r3 = mount({ categories: ['Earnings'], linked: true })              // linked = NVDA: AND
     expect(rows(r3.container)).toEqual([])
-    expect(within(r3.container).getByText('No headlines match these filters.')).toBeTruthy()
+    expect(await within(r3.container).findByText('No headlines match these filters.')).toBeTruthy()
     expect(container).toBeTruthy()
   })
 
-  it('the empty state offers Clear filters', () => {
+  it('the empty state offers Clear filters', async () => {
     const onOptsChange = vi.fn()
     const { container } = mount({ categories: ['Filing'] }, BASE, onOptsChange)
-    fireEvent.click(within(container).getByRole('button', { name: 'Clear filters' }))
+    fireEvent.click(await within(container).findByRole('button', { name: 'Clear filters' }))
     expect(onOptsChange).toHaveBeenLastCalledWith(expect.objectContaining({ categories: [], linked: false, watchlistId: null }))
   })
 })
 
-describe('inline % change', () => {
-  it('shows each security once per headline, in the up/down colours; stale is omitted', () => {
+describe('tickers without inline % change', () => {
+  it('shows no % beside a ticker; links, up/down colours and the price tooltip stay', () => {
     quotes.prices = { NVDA: { price: 100, change_pct: 2.43 }, AMD: { price: 50, change_pct: -1.06 } }
     const { container } = mount()
     const r = rowEl(container, 3)
-    expect(within(r).getAllByText('+2.4%')).toHaveLength(1)                  // NVDA named twice
-    expect(within(r).getByText('-1.1%').className).toMatch(/symDown/)
-    quotes.stale = new Set(['AMD'])
-    act(() => feed.set({ lastEventAt: NOW + 1 }))
-    expect(within(rowEl(container, 3)).queryByText('-1.1%')).toBeNull()
-    expect(within(rowEl(container, 1)).queryByText(/%$/)).toBeNull()
+    expect(r.textContent).not.toMatch(/%/)
+    expect(r.querySelector('[class*="pct"]')).toBeNull()
+    const [nvda] = within(r).getAllByRole('button', { name: 'NVDA' })
+    expect(nvda.className).toMatch(/symUp/)
+    expect(within(r).getByRole('button', { name: 'AMD' }).className).toMatch(/symDown/)
+    expect(nvda.title).toMatch(/\$100\.00 · \+2\.43% vs prior close/)
+    fireEvent.click(nvda)
+    expect(setGroupSym).toHaveBeenCalledWith('A', 'NVDA')
   })
 
-  it('is off by default in Compact; neutral (uncoloured) in Accent mode', () => {
+  it('the retired % setting is gone from ⚙ and ignored in saved settings', () => {
     quotes.prices = { NVDA: { price: 100, change_pct: 2.43 } }
-    const { container, unmount } = mount({ settings: { density: 'compact' } })
-    expect(within(container).queryByText('+2.4%')).toBeNull()
-    unmount()
-    const r2 = mount({ settings: { tickerColorMode: 'accent' } })
-    expect(within(r2.container).getByText('+2.4%').className).not.toMatch(/symUp/)
+    const { container } = mount({ settings: { showPct: 'on' } })
+    expect(container.textContent).not.toMatch(/\+2\.4%/)
+    fireEvent.click(screen.getByRole('button', { name: 'News widget settings' }))
+    expect(screen.queryByText('Ticker % change')).toBeNull()
   })
 })
 
-describe('row actions', () => {
-  const openMenu = (container, seq) => {
-    fireEvent.click(within(rowEl(container, seq)).getByRole('button', { name: 'Headline actions' }))
-    return screen.getByRole('menu', { name: 'Headline actions' })
-  }
+describe('one-click copy', () => {
+  const copyBtn = (container, seq) => within(rowEl(container, seq)).getByRole('button', { name: 'Copy headline' })
 
-  it('Open chart links the colour group, like a ticker click; several securities let you choose', () => {
-    const { container } = mount()
-    const menu = openMenu(container, 3)
-    fireEvent.click(within(menu).getByRole('button', { name: 'AMD', pressed: false }))
-    fireEvent.click(within(menu).getByRole('menuitem', { name: /Open AMD chart/ }))
-    expect(setGroupSym).toHaveBeenCalledWith('A', 'AMD')
+  it('copies the whole original text, also of a collapsed headline, and confirms with a check', async () => {
+    const writeText = vi.fn().mockResolvedValue()
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
+    const odd = `SYNTHETIC: "Q3" — $NVDA (+4.6%) & AMD's * note… ${LONG}`
+    const { container } = mount({}, [...BASE, H(4, odd, ['NVDA'])])
+    expect(rowEl(container, 4).querySelector('[class*="headline"]').className).toMatch(/clamped/)
+    fireEvent.click(copyBtn(container, 4))
+    expect(writeText).toHaveBeenCalledWith(odd)                           // exact, untruncated
+    expect(await within(rowEl(container, 4)).findByRole('status')).toHaveTextContent('Headline copied')
+    expect(within(rowEl(container, 4)).getByRole('button', { name: 'Headline copied' })).toBeTruthy()
+    // copying is not a ticker click, an expansion, or a menu
+    expect(setGroupSym).not.toHaveBeenCalled()
+    expect(rowEl(container, 4).querySelector('[class*="headline"]').className).toMatch(/clamped/)
     expect(screen.queryByRole('menu')).toBeNull()
   })
 
-  it('Add to watchlist offers personal lists only and reports the server answer', async () => {
+  it('sits to the left of ⋯ and is there on rows without a ticker too', () => {
+    const { container } = mount()
+    const btns = [...rowEl(container, 3).querySelectorAll('[class*="rowActions"] button')].map((b) => b.getAttribute('aria-label'))
+    expect(btns).toEqual(['Copy headline', 'Add a symbol to a watchlist'])
+    expect([...rowEl(container, 2).querySelectorAll('[class*="rowActions"] button')].map((b) => b.getAttribute('aria-label')))
+      .toEqual(['Copy headline'])                                          // no ticker: no ⋯
+  })
+
+  it('a blocked clipboard says so instead of failing silently', async () => {
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText: vi.fn().mockRejectedValue(new Error('denied')) }, configurable: true })
+    document.execCommand = vi.fn(() => false)
+    const { container } = mount()
+    fireEvent.click(copyBtn(container, 2))
+    expect(await within(rowEl(container, 2)).findByRole('status')).toHaveTextContent(/Copy failed/)
+  })
+
+  it('falls back to the legacy copy command when the async clipboard is missing', async () => {
+    Object.defineProperty(navigator, 'clipboard', { value: undefined, configurable: true })
+    document.execCommand = vi.fn(() => true)
+    const { container } = mount()
+    fireEvent.click(copyBtn(container, 2))
+    expect(await within(rowEl(container, 2)).findByRole('status')).toHaveTextContent('Headline copied')
+    expect(document.execCommand).toHaveBeenCalledWith('copy')
+  })
+})
+
+describe('⋯ = add to watchlist', () => {
+  const openMenu = (container, seq) => {
+    fireEvent.click(within(rowEl(container, seq)).getByRole('button', { name: 'Add a symbol to a watchlist' }))
+    return screen.getByRole('menu', { name: 'Add to watchlist' })
+  }
+
+  it('holds only the watchlist action: no Open chart, Copy or news alert, even with alerts on', () => {
+    server.alerts = 'on'
+    const { container } = mount()
+    const menu = openMenu(container, 3)
+    expect(within(menu).getAllByRole('menuitem').map((b) => b.textContent.trim())).toEqual(['Mine'])
+    expect(within(menu).queryByText(/Open .* chart/)).toBeNull()
+    expect(within(menu).queryByText(/Copy/)).toBeNull()
+    expect(within(menu).queryByText(/alert/i)).toBeNull()
+    expect(within(menu).queryByText('UCT List')).toBeNull()               // personal lists only
+  })
+
+  it('several securities let you choose, and the server answer is the result', async () => {
     const fetchMock = vi.fn().mockResolvedValueOnce({ ok: true, json: async () => ({ id: 'x' }) })
       .mockResolvedValueOnce({ ok: true, json: async () => ({ duplicate: true }) })
       .mockResolvedValueOnce({ ok: false, status: 404, json: async () => ({ detail: 'Watchlist not found' }) })
     vi.stubGlobal('fetch', fetchMock)
     const { container } = mount()
-    const menu = openMenu(container, 1)
-    fireEvent.click(within(menu).getByRole('menuitem', { name: /Add AMD to watchlist/ }))
-    expect(within(menu).queryByText('UCT List')).toBeNull()
+    const menu = openMenu(container, 3)
+    expect(within(menu).getByText('Add NVDA to watchlist')).toBeTruthy()
+    fireEvent.click(within(menu).getByRole('button', { name: 'AMD', pressed: false }))
+    expect(within(menu).getByText('Add AMD to watchlist')).toBeTruthy()
     fireEvent.click(within(menu).getByRole('menuitem', { name: 'Mine' }))
     await waitFor(() => expect(within(menu).getByRole('status').textContent).toBe('Added AMD to Mine'))
     expect(fetchMock).toHaveBeenCalledWith('/api/watchlists/wl1/items', expect.objectContaining({ method: 'POST', body: JSON.stringify({ sym: 'AMD', notes: '' }) }))
-    fireEvent.click(within(menu).getByRole('menuitem', { name: /Add AMD to watchlist/ }))
     fireEvent.click(within(menu).getByRole('menuitem', { name: 'Mine' }))
     await waitFor(() => expect(within(menu).getByRole('status').textContent).toBe('AMD is already on Mine'))
-    fireEvent.click(within(menu).getByRole('menuitem', { name: /Add AMD to watchlist/ }))
     fireEvent.click(within(menu).getByRole('menuitem', { name: 'Mine' }))
     await waitFor(() => expect(within(menu).getByRole('status').textContent).toBe('Watchlist not found'))
+    expect(setGroupSym).not.toHaveBeenCalled()
   })
 
-  it('Copy headline copies the original text', async () => {
-    const writeText = vi.fn().mockResolvedValue()
-    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
+  it('is keyboard reachable: focus lands on a list, Escape returns focus to ⋯', () => {
     const { container } = mount()
-    fireEvent.click(within(openMenu(container, 2)).getByRole('menuitem', { name: /Copy headline/ }))
-    expect(writeText).toHaveBeenCalledWith('SYNTHETIC: Fed minutes due')
-    await waitFor(() => expect(screen.getByRole('status').textContent).toBe('Headline copied'))
-  })
-
-  it('a headline with no ticker offers Copy only', () => {
-    const { container } = mount()
-    const menu = openMenu(container, 2)
-    expect(within(menu).getAllByRole('menuitem').map((b) => b.textContent.trim())).toEqual(['Copy headline'])
-    expect(within(menu).getByText('No ticker identified in this headline.')).toBeTruthy()
-  })
-
-  it('Create news alert does not exist while news alerts are switched off', () => {
-    const { container } = mount()
-    expect(within(openMenu(container, 1)).queryByRole('menuitem', { name: /Create news alert/ })).toBeNull()
-  })
-
-  it('with alerts on, it opens the alert form prefilled — nothing is saved for you', () => {
-    server.alerts = 'on'
-    const fetchMock = vi.fn()
-    vi.stubGlobal('fetch', fetchMock)
-    const { container } = mount()
-    fireEvent.click(within(openMenu(container, 3)).getByRole('menuitem', { name: /Create news alert/ }))
-    expect(screen.getByLabelText('Alert tickers').value).toBe('NVDA AMD')
-    expect(fetchMock).not.toHaveBeenCalledWith(expect.stringContaining('news-match'), expect.objectContaining({ method: 'POST' }))
-  })
-
-  it('is keyboard reachable: focus lands on the first item, arrows move, Escape returns focus', () => {
-    const { container } = mount()
-    const btn = within(rowEl(container, 3)).getByRole('button', { name: 'Headline actions' })
+    const btn = within(rowEl(container, 1)).getByRole('button', { name: 'Add a symbol to a watchlist' })
     btn.focus()
     fireEvent.click(btn)
     const menu = screen.getByRole('menu')
-    const items = within(menu).getAllByRole('menuitem')
-    expect(document.activeElement).toBe(items[0])
-    fireEvent.keyDown(menu, { key: 'ArrowDown' })
-    expect(document.activeElement).toBe(items[1])
+    expect(document.activeElement).toBe(within(menu).getAllByRole('menuitem')[0])
     fireEvent.keyDown(menu, { key: 'Escape' })
     expect(screen.queryByRole('menu')).toBeNull()
     expect(document.activeElement).toBe(btn)
@@ -352,18 +373,197 @@ describe('several widgets and large histories', () => {
     expect(lists.map((l) => [...l.querySelectorAll('[data-seq]')].map((r) => Number(r.dataset.seq)))).toEqual([[2], [1]])
   })
 
-  it('a quote tick re-renders only the rows naming that symbol (1,000 headlines)', () => {
+  it('a quote tick re-renders only the rows naming that symbol (1,000 pooled, one page shown)', () => {
     const items = Array.from({ length: 1000 }, (_, i) => H(i + 1, `SYNTHETIC: row ${i + 1} about ${i % 2 ? 'NVDA' : 'AMD'}`, [i % 2 ? 'NVDA' : 'AMD']))
     quotes.prices = { NVDA: { price: 100, change_pct: 1 }, AMD: { price: 50, change_pct: 1 } }
-    mount({}, items)
+    const { container } = mount({}, items)
+    expect(rows(container)).toHaveLength(25)                              // one page, not the pool
     spy.tokenize.clear()
     quotes.prices = { ...quotes.prices, AMD: { price: 51, change_pct: 3 } }
     const t0 = performance.now()
     act(() => feed.set({ lastEventAt: NOW + 5 }))
     const ms = performance.now() - t0
     const rerendered = [...spy.tokenize.keys()]
-    expect(rerendered.length).toBe(500)
+    expect(rerendered.length).toBe(rows(container).filter((seq) => seq % 2 === 1).length)   // odd seq = AMD
     expect(rerendered.every((c) => c.endsWith('AMD'))).toBe(true)
     expect(ms).toBeLessThan(3000)
+  })
+})
+
+describe('numbered pages', () => {
+  // An archive larger than the pool: the pool holds the newest 200, the server 5,000.
+  const ARCH = Array.from({ length: 5000 }, (_, i) => H(i + 1, `SYNTHETIC: archive row ${i + 1}${i % 10 === 0 ? ' about AMD' : ''}`,
+    i % 10 === 0 ? ['AMD'] : [], { category: i % 4 === 0 ? 'Macro' : 'News', received_at_ms: NOW - (5000 - i) * 60_000 }))
+  const pool = () => ARCH.slice(-200)
+  const mountArchive = (opts = {}) => {
+    feed.archive = ARCH
+    const utils = render(<TradeExchangeNewsWidget color="A" opts={opts} onOptsChange={vi.fn()} />)
+    act(() => feed.set({ status: 'live', items: pool(), lastSeq: 5000, replayUntil: 5000, lastHeadlineAt: NOW }))
+    return utils
+  }
+  const nav = () => screen.getByRole('navigation', { name: 'Headline pages' })
+  const btn = (name) => within(nav()).getByRole('button', { name })
+  const pageInput = () => within(nav()).getByRole('textbox', { name: /Page number/ })
+  const waitRows = async (c, first) => waitFor(() => expect(rows(c)[0]).toBe(first))
+
+  it('page 1 is the newest 25; the exact page count comes from the server', async () => {
+    const { container } = mountArchive()
+    expect(rows(container)).toHaveLength(25)
+    expect(rows(container)[0]).toBe(5000)
+    await waitFor(() => expect(within(nav()).getByText('/ 200')).toBeTruthy())
+    expect(btn('First page (newest)')).toBeDisabled()
+    expect(btn('Previous page (newer)')).toBeDisabled()
+    expect(within(container).queryByText('Load older headlines')).toBeNull()
+    expect(container.textContent).toMatch(/5,000 headlines/)
+  })
+
+  it('moves in both directions, and First / Last reach the ends', async () => {
+    const { container } = mountArchive()
+    await waitFor(() => expect(btn('Next page (older)')).not.toBeDisabled())
+    fireEvent.click(btn('Next page (older)'))
+    await waitRows(container, 4975)
+    expect(pageInput().value).toBe('2')
+    fireEvent.click(btn('Last page (oldest)'))
+    await waitRows(container, 25)
+    expect(rows(container).at(-1)).toBe(1)
+    expect(btn('Next page (older)')).toBeDisabled()
+    expect(btn('Last page (oldest)')).toBeDisabled()
+    fireEvent.click(btn('Previous page (newer)'))
+    await waitRows(container, 50)
+    fireEvent.click(btn('First page (newest)'))
+    await waitRows(container, 5000)
+    expect(within(nav()).queryByRole('button', { name: 'Latest' })).toBeNull()
+  })
+
+  it('a typed page number jumps there; out-of-range or non-numeric input is refused', async () => {
+    const { container } = mountArchive()
+    await waitFor(() => expect(within(nav()).getByText('/ 200')).toBeTruthy())
+    fireEvent.change(pageInput(), { target: { value: '137' } })
+    fireEvent.keyDown(pageInput(), { key: 'Enter' })
+    await waitRows(container, 5000 - 136 * 25)
+    fireEvent.change(pageInput(), { target: { value: '201' } })
+    fireEvent.keyDown(pageInput(), { key: 'Enter' })
+    expect(pageInput().value).toBe('137')
+    expect(pageInput().getAttribute('aria-invalid')).toBe('true')
+    fireEvent.change(pageInput(), { target: { value: '0' } })
+    fireEvent.keyDown(pageInput(), { key: 'Enter' })
+    expect(pageInput().value).toBe('137')
+    fireEvent.change(pageInput(), { target: { value: '4x' } })            // letters are dropped as typed
+    expect(pageInput().value).toBe('4')
+    fireEvent.keyDown(pageInput(), { key: 'Escape' })
+    expect(pageInput().value).toBe('137')
+    expect(rows(container)[0]).toBe(5000 - 136 * 25)
+  })
+
+  it('pages the FILTERED archive, not the rows this browser holds', async () => {
+    const { container } = mountArchive({ categories: ['Macro'] })
+    // Macro = every 4th row: 1,250 in the archive, 50 in the pool
+    await waitFor(() => expect(within(nav()).getByText('/ 50')).toBeTruthy())
+    expect(container.textContent).toMatch(/1,250 of 5,000 headlines/)
+    fireEvent.change(pageInput(), { target: { value: '50' } })
+    fireEvent.keyDown(pageInput(), { key: 'Enter' })
+    await waitRows(container, 97)
+    expect(rows(container).at(-1)).toBe(1)
+    const last = feed.pageCalls.at(-1)
+    expect(last).toMatchObject({ categories: ['Macro'], page: 50, top: 5000, size: 25 })
+  })
+
+  it('a live headline never shifts an older page; it is counted and Return to latest brings it', async () => {
+    const { container } = mountArchive()
+    await waitFor(() => expect(btn('Next page (older)')).not.toBeDisabled())
+    fireEvent.click(btn('Next page (older)'))
+    await waitRows(container, 4975)
+    const before = rows(container)
+    const items = [...pool(), H(5001, 'SYNTHETIC: breaking while reading page 2', [], { received_at_ms: Date.now() })]
+    ARCH.push(items.at(-1))
+    act(() => feed.set({ items, lastSeq: 5001 }))
+    expect(rows(container)).toEqual(before)                               // no insert, no shift
+    expect(pageInput().value).toBe('2')                                   // not sent back to page 1
+    fireEvent.click(btn('Next page (older)'))
+    await waitRows(container, 4950)                                       // the snapshot still holds
+    expect(feed.pageCalls.at(-1)).toMatchObject({ page: 3, top: 5000 })
+    fireEvent.click(screen.getByRole('button', { name: /1 newer · Return to latest/ }))
+    await waitRows(container, 5001)
+    expect(pageInput().value).toBe('1')
+    ARCH.pop()
+  })
+
+  it('stable boundaries: walking every page of a snapshot gives each row exactly once', async () => {
+    feed.archive = ARCH.slice(0, 260)
+    render(<TradeExchangeNewsWidget color="A" opts={{}} onOptsChange={vi.fn()} />)
+    act(() => feed.set({ status: 'live', items: feed.archive.slice(-200), lastSeq: 260, lastHeadlineAt: NOW }))
+    await waitFor(() => expect(within(nav()).getByText('/ 11')).toBeTruthy())
+    const seen = [...document.querySelectorAll('[data-seq]')].map((r) => Number(r.dataset.seq))
+    for (let n = 2; n <= 11; n++) {
+      fireEvent.click(btn('Next page (older)'))
+      const want = 260 - (n - 1) * 25
+      await waitFor(() => expect(Number(document.querySelector('[data-seq]').dataset.seq)).toBe(want))
+      seen.push(...[...document.querySelectorAll('[data-seq]')].map((r) => Number(r.dataset.seq)))
+    }
+    expect(seen).toEqual(Array.from({ length: 260 }, (_, i) => 260 - i))
+  })
+
+  it('a filter change returns to page 1 and never resets the filters', async () => {
+    const onOptsChange = vi.fn()
+    feed.archive = ARCH
+    const { container, rerender } = render(<TradeExchangeNewsWidget color="A" opts={{}} onOptsChange={onOptsChange} />)
+    act(() => feed.set({ status: 'live', items: pool(), lastSeq: 5000, lastHeadlineAt: NOW }))
+    await waitFor(() => expect(btn('Next page (older)')).not.toBeDisabled())
+    fireEvent.click(btn('Next page (older)'))
+    await waitRows(container, 4975)
+    rerender(<TradeExchangeNewsWidget color="A" opts={{ categories: ['Macro'] }} onOptsChange={onOptsChange} />)
+    await waitFor(() => expect(pageInput().value).toBe('1'))
+    expect(onOptsChange).not.toHaveBeenCalled()
+  })
+
+  it('a recreated database (new epoch) returns to the live page; a reconnect keeps the reader\'s page', async () => {
+    const { container } = mountArchive()
+    await waitFor(() => expect(btn('Next page (older)')).not.toBeDisabled())
+    fireEvent.click(btn('Next page (older)'))
+    await waitRows(container, 4975)
+    act(() => feed.set({ status: 'reconnecting' }))
+    act(() => feed.set({ status: 'live' }))
+    expect(pageInput().value).toBe('2')
+    expect(screen.getByRole('button', { name: /Live/ })).toBeTruthy()      // LIVE stays honest on page 2
+    act(() => feed.set({ epoch: 'e2' }))
+    await waitFor(() => expect(pageInput().value).toBe('1'))
+  })
+
+  it('a page that fails to load says so and retries', async () => {
+    const { container } = mountArchive()
+    await waitFor(() => expect(btn('Next page (older)')).not.toBeDisabled())
+    const real = feed.archive
+    feed.archive = { filter: () => { throw new Error('HTTP 503') } }
+    fireEvent.click(btn('Next page (older)'))
+    fireEvent.click(await within(container).findByRole('button', { name: 'Retry' }))
+    feed.archive = real
+    await waitFor(() => expect(within(container).queryByText('This page could not be loaded.')).toBeNull())
+  })
+
+  it('several widgets page independently', async () => {
+    feed.archive = ARCH
+    render(<>
+      <TradeExchangeNewsWidget color="A" opts={{}} onOptsChange={vi.fn()} />
+      <TradeExchangeNewsWidget color="A" opts={{ categories: ['Macro'] }} onOptsChange={vi.fn()} />
+    </>)
+    act(() => feed.set({ status: 'live', items: pool(), lastSeq: 5000, lastHeadlineAt: NOW }))
+    const navs = () => screen.getAllByRole('navigation', { name: 'Headline pages' })
+    await waitFor(() => expect(within(navs()[0]).getByRole('button', { name: 'Next page (older)' })).not.toBeDisabled())
+    fireEvent.click(within(navs()[0]).getByRole('button', { name: 'Next page (older)' }))
+    const lists = () => [...document.querySelectorAll('[class*="_list_"]')]
+    await waitFor(() => expect(Number(lists()[0].querySelector('[data-seq]').dataset.seq)).toBe(4975))
+    expect(Number(lists()[1].querySelector('[data-seq]').dataset.seq)).toBe(4997)   // still page 1 of Macro
+    expect(within(navs()[1]).getByRole('textbox').value).toBe('1')
+  })
+
+  it('pager controls are labelled buttons and keyboard-operable', async () => {
+    mountArchive()
+    await waitFor(() => expect(btn('Next page (older)')).not.toBeDisabled())
+    for (const name of ['First page (newest)', 'Previous page (newer)', 'Next page (older)', 'Last page (oldest)']) {
+      expect(btn(name).tagName).toBe('BUTTON')
+      expect(btn(name).title).toBe(name)
+    }
+    expect(pageInput().getAttribute('inputmode')).toBe('numeric')
+    expect(pageInput().getAttribute('aria-label')).toBe('Page number, 1 to 200')
   })
 })

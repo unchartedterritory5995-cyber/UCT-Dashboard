@@ -50,15 +50,6 @@ export function tickerTone(quote, stale = false) {
   return 'flat'
 }
 
-/** The inline daily change beside a ticker ("+2.4%"), or null when the quote is
- *  missing or stale -- the same reading tickerTone colours by, never a guess. */
-export function pctText(quote, stale = false) {
-  const pct = quote?.change_pct
-  if (stale || typeof pct !== 'number' || !Number.isFinite(pct)) return null
-  const r = Math.round(pct * 10) / 10 || 0
-  return `${r > 0 ? '+' : ''}${r.toFixed(1)}%`
-}
-
 /** Hover text for a symbol: identification always, price details only when reliable. */
 export function tickerTitle(sym, quote, stale = false, { named = false } = {}) {
   const head = named ? `${sym} (named in the headline)` : sym
@@ -349,7 +340,7 @@ export function feedHealth(state, nowMs = Date.now()) {
 
 // ── saved presets (per widget, in opts.presets) ──────────────────────────────
 
-export const PRESET_SETTING_KEYS = ['longHeadlines', 'groupRelated', 'impactMarks', 'showPct']
+export const PRESET_SETTING_KEYS = ['longHeadlines', 'groupRelated', 'impactMarks']
 export const MAX_PRESETS = 12
 
 /** The widget's current filters + display preferences, as a preset body. */
@@ -383,4 +374,64 @@ export function cleanPresets(raw) {
   return (Array.isArray(raw) ? raw : [])
     .filter((p) => p && typeof p.id === 'string' && typeof p.name === 'string' && p.name.trim())
     .slice(0, MAX_PRESETS)
+}
+
+// ── numbered pages of the retained archive ───────────────────────────────────
+//
+// ⭐ The SERVER filters and cuts every page (api/services/trade_exchange_news/
+// pages.py mirrors visibleItems), over the whole retained archive -- never just
+// the rows this browser holds. Page 1 is the live edge; pages 2+ are cut from a
+// snapshot (`seq <= top`) fixed when the reader left page 1, so arriving headlines
+// never shift a page while it is being read.
+
+export const PAGE_SIZE = 25
+
+/** The page request for a widget's filters (null `symbols` = no watchlist filter). */
+export function pageRequest({ query = '', linkedSym = null, watchSet = null, categories = null, hidePlaceholders = false } = {}) {
+  return {
+    query: String(query || '').trim().slice(0, 80),
+    categories: cleanCategories(categories),
+    symbol: linkedSym || null,
+    symbols: watchSet ? [...watchSet].sort() : null,
+    hide_placeholders: !!hidePlaceholders,
+    size: PAGE_SIZE,
+  }
+}
+
+/** Page 1: the newest `size` rows of the server's newest page and the live pool's
+ *  matches together. Exact: the pool is a contiguous run of the newest headlines,
+ *  so every match newer than the server's page is in it. A pool row wins a tie
+ *  (its repeat count is the live one). `poolMatches` newest first. */
+export function livePage(serverItems, poolMatches, size = PAGE_SIZE) {
+  const bySeq = new Map()
+  for (const it of serverItems || []) bySeq.set(it.seq, it)
+  for (const it of poolMatches || []) bySeq.set(it.seq, it)
+  return [...bySeq.values()].sort((a, b) => b.seq - a.seq).slice(0, size)
+}
+
+/** How many of `items` (newest first) arrived after the snapshot `top`. */
+export function newerThan(items, top) {
+  let n = 0
+  for (const it of items || []) {
+    if (it.seq > top) n++
+    else break
+  }
+  return n
+}
+
+export const pageCount = (total, size = PAGE_SIZE) => (typeof total === 'number' ? Math.max(1, Math.ceil(total / size)) : null)
+
+/** A typed page number: a whole number within 1..pages, else null. */
+export function parsePageInput(raw, pages) {
+  const t = String(raw ?? '').trim()
+  if (!/^\d{1,6}$/.test(t)) return null
+  const n = Number(t)
+  if (n < 1 || (typeof pages === 'number' && n > pages)) return null
+  return n
+}
+
+/** The footer's archive note: how far back the retained history actually reaches. */
+export function archiveTitle(oldestMs, nowMs = Date.now()) {
+  const back = oldestMs ? `back to ${fmtReceived(oldestMs, nowMs)}${_etDay(oldestMs) === _etDay(nowMs) ? ' ET' : ''}` : 'empty so far'
+  return `The retained archive reaches ${back}. UCT keeps about 7 days of headlines, up to 5,000; nothing older is available.`
 }
