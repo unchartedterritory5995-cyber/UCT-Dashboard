@@ -1,0 +1,16 @@
+{
+  "_about": "ONE plot-width sanity ceiling, read by BOTH app/src/components/chart/engine/__tests__/lineWidthCapParity.test.js (defSchema.validateDefinition over a member-door document) and tests/test_line_width_cap_parity.py (presentation_schema.presentation_errors). TradingView paints a Pine linewidth unclamped (set F: 1..10 is N px); the ceiling stops linewidth = 10000 from smearing the pane of everyone who installs a shared script. `as` = literal (plots[0].width is the number) or input (plots[0].width is $lineWidth and the input default is the number).",
+  "max": 50,
+  "cases": [
+    { "width": 1, "as": "input", "ok": true },
+    { "width": 4, "as": "input", "ok": true },
+    { "width": 10, "as": "input", "ok": true },
+    { "width": 50, "as": "input", "ok": true },
+    { "width": 51, "as": "input", "ok": false },
+    { "width": 10000, "as": "input", "ok": false },
+    { "width": 10, "as": "literal", "ok": true },
+    { "width": 50, "as": "literal", "ok": true },
+    { "width": 51, "as": "literal", "ok": false },
+    { "width": 10000, "as": "literal", "ok": false }
+  ]
+}

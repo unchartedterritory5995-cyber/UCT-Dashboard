@@ -86,11 +86,14 @@ describe('a6 / R10 — the fill note contract', () => {
     expect(fills[0].colorDown).toBe('#F23645')
   })
 
-  it('⛔⛔ CONTROL — a 3-argument colour carries NO opacity', () => {
+  it('⛔⛔ CONTROL — a 3-argument colour carries no alpha of its own, so the v6 fill is OPAQUE', () => {
+    // TradingView set F (`f1-fill-v6`): a v5/v6 `fill` whose colour carries no
+    // transparency paints opaque; the band states it rather than leaving the engine's
+    // 0.15 to guess.
     const { fills } = fillsOf(`${TWO}fill(p1, p2, color=color.rgb(0, 255, 0))\n`)
     expect(fills.length).toBe(1)
     expect(fills[0].color).toBe('#00FF00')
-    expect(Object.hasOwn(fills[0], 'opacity')).toBe(false)
+    expect(fills[0].opacity).toBe(1)
   })
 
   it('⛔⛔ CONTROL — a6 did NOT touch plots: a plot presentation is unchanged', () => {
