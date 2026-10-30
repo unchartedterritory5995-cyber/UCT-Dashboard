@@ -878,6 +878,51 @@ def normalize_graph_document(definition: dict) -> tuple:
     return stored, working
 
 
+def refresh_stale_handle(definition: Any) -> Any:
+    """⭐⭐ THE ONE PROVABLE REPAIR OF A SAVED DOCUMENT, mirrored EXACTLY from the
+    browser's `memberDocumentMigration.migrateStaleHandle`, pinned by one fixture both
+    suites read (`tests/fixtures/stale_handle_cases.json`).
+
+    ⚰️ `applyParamEdit` used to rewrite the scan tree and leave `compute.fn` at the
+    UNEDITED tree's hash. The chart repairs such a document on load; this door refused
+    it (`validate_v2`, `scan_definition.def_hash`), so an old edited document drew on
+    the chart while its scan and alerts stayed refused until a re-save.
+
+    The handle is set back to the hash of the tree the document holds ONLY for a
+    param-edited `ast` document (it carries `compute.paramManifest`) whose trees are
+    otherwise self-consistent (`treesHash`, when declared, is its trees' hash). A
+    handle that disagrees for any other reason is still refused.
+
+    ⛔ PURE AND IN MEMORY: a new dict when repaired, the SAME object otherwise; no
+    stored row is touched here (a member's own save then stores what it stores).
+    """
+    if not isinstance(definition, dict):
+        return definition
+    c = definition.get("compute")
+    if not isinstance(c, dict) or c.get("kind") != "ast" or not isinstance(c.get("paramManifest"), dict):
+        return definition
+    fn = c.get("fn")
+    ast = c.get("ast")
+    if not isinstance(fn, str) or ast is None or (not isinstance(ast, (dict, list)) and not ast):
+        return definition
+    try:
+        now = ast_hash(ast)
+    except ValueError:
+        return definition
+    if now == fn:
+        return definition
+    trees = c.get("trees")
+    if isinstance(trees, dict) and isinstance(c.get("treesHash"), str):
+        try:
+            if trees_hash(trees) != c["treesHash"]:
+                return definition
+        except ValueError:
+            return definition
+    out = dict(definition)
+    out["compute"] = {**c, "fn": now}
+    return out
+
+
 def validate_v2(definition: dict) -> None:
     """The rules `defSchema.validateAstCompute` / `validateTrees` /
     `validateTreesAgainstPlots` apply in the browser, applied again at the LAST
@@ -1769,6 +1814,10 @@ def save(user_id: Any, def_id: str, definition: dict,
         raise ValueError(
             "definition: a user definition is a FORMULA — compute.kind must be "
             f"'ast', got {(compute or {}).get('kind')!r}")
+    # ⭐ R2 — the browser's one provable load-time repair, applied here too, so an old
+    # param-edited document with a stale handle saves under its tree's own name.
+    definition = refresh_stale_handle(definition)
+    compute = definition["compute"]
 
     # ⛔⛔ TRACK F PARAMETER-MANIFEST HOOK (DEC-006, TRACK_F_PARAMETER_ADR_V2*.md)
     # — INERT for every definition without a `compute.paramManifest` key (see

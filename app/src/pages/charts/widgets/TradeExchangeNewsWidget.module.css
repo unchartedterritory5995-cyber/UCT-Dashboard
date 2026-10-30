@@ -59,6 +59,35 @@
 .toneOff .dot { background: var(--txn-down, var(--ut-red-bright)); }
 .spacer { flex: 1 1 auto; }
 
+/* ── brand: "UCT News / Powered by Trade Exchange" (text only: no logo asset or
+   permission is on file). Two short lines inside the shared 34px header row. ── */
+.brand {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  line-height: 1.15;
+}
+.brandTitle {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  color: var(--txn-chrome-strong, var(--widget-text-strong, var(--text)));
+  white-space: nowrap;
+  /* a very narrow widget clips the title -- it never runs under the status dot */
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.brandSub {
+  font-size: 9px;
+  font-weight: 400;
+  letter-spacing: 0.2px;
+  color: var(--txn-chrome, var(--widget-text, var(--text-muted)));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .iconBtn {
   display: inline-flex;
   align-items: center;
@@ -200,52 +229,51 @@
   border: 2px solid transparent;
   background-clip: padding-box;
 }
+/* ONE layout at every width: the metadata line (time · category) on top, the
+   headline below it at the full row width, any badges at its right. */
 .row {
   position: relative;
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: 1fr auto;
   column-gap: 8px;
+  row-gap: 1px;
   align-items: baseline;
-  padding: 7px 10px;
+  padding: 6px 10px;
   border-bottom: 1px solid var(--txn-row-divider, var(--widget-divider-strong, var(--border)));
   transition: background 0.1s;
 }
-.compact .row { padding: 5px 8px; }
+.compact .row { padding: 4px 8px; row-gap: 0; }
 .row:hover { background: var(--txn-row-hover, var(--widget-row-hover, var(--bg-hover))); }
-.rowSelected {
-  background: var(--ut-gold-dim) !important;
-  box-shadow: inset 2px 0 0 0 var(--ut-gold);
-}
-/* The left column: the receipt time, and under it the derived category, in the
-   vertical space a wrapped headline already gives the row. Same chrome colour and
-   tabular rhythm as the time, one step smaller and lighter. */
+/* The metadata line: the receipt time, then the derived category, one step smaller
+   and lighter. It wraps (an older row's "10/28/2026, 9:31:05 AM ET" in a very narrow
+   widget) instead of scrolling or clipping. */
 .when {
+  grid-column: 1 / -1;
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 1px;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 6px;
+  row-gap: 0;
+  font-size: 10.5px;
+  line-height: 1.3;
   min-width: 0;
 }
 .category {
   font-size: 9.5px;
-  font-weight: 500;
+  font-weight: 400;
   line-height: 1.25;
   letter-spacing: 0.3px;
-  color: var(--txn-chrome, var(--text-muted));
-  opacity: 0.8;
+  /* the headline's own colour (per-widget text setting / theme), softened */
+  color: color-mix(in srgb, var(--txn-text, var(--text-bright)) 72%, transparent);
   white-space: nowrap;
-  /* the TIME sets the column width; a longer label ("Press Release") may run into
-     the column gap but never pushes its headline out of line with the others */
-  width: 0;
-  min-width: 100%;
 }
 .compact .category { font-size: 9px; line-height: 1.15; }
 .time {
   font-size: 10.5px;
-  font-weight: 600;
+  font-weight: 400;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.3px;
-  color: var(--txn-chrome, var(--text-muted));
+  color: color-mix(in srgb, var(--txn-text, var(--text-bright)) 88%, transparent);
   white-space: nowrap;
 }
 .headline {
@@ -272,9 +300,20 @@
   letter-spacing: 0.5px;
   color: var(--txn-sym, var(--text-bright));
   cursor: pointer;
-  border-bottom: 1px dotted color-mix(in srgb, currentColor 45%, transparent);
+  /* attached to the letters (not the line box) and skipping descenders */
+  text-decoration: underline dotted;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 1.5px;
+  text-decoration-skip-ink: auto;
+  text-decoration-color: color-mix(in srgb, currentColor 55%, transparent);
 }
-.sym:hover, .symLinked { color: var(--ut-gold); }
+/* Daily performance (vs prior regular close): the widget theme's candle colours.
+   No data / stale = the headline colour, never a guessed direction. */
+.symUp { color: var(--txn-sym-up, var(--txn-up, var(--ut-green-bright))); }
+.symDown { color: var(--txn-sym-down, var(--txn-down, var(--ut-red-bright))); }
+.symFlat, .symNone, .symNeutral { color: var(--txn-text, var(--text-bright)); }
+.sym:hover, .symLinked { text-decoration-style: solid; text-decoration-color: currentColor; }
+.sym:focus-visible { outline: 1px solid currentColor; outline-offset: 1px; border-radius: 2px; }
 .badges { display: inline-flex; gap: 4px; align-self: center; }
 .badge {
   font-size: 9.5px;
@@ -290,12 +329,14 @@
 
 .flash {
   position: absolute; inset: 0; z-index: 0; pointer-events: none;
-  opacity: 0; animation: txnRowFlash 0.9s ease-out;
-  background: var(--txn-up, var(--ut-green-bright));
+  opacity: 0; animation: txnRowFlash 2.1s linear forwards;
+  background: var(--txn-accent, var(--widget-accent, var(--ut-gold)));
 }
+/* held 1.5 s (0 -> 71.4% of 2.1 s), then a gentle 0.6 s fade */
 @keyframes txnRowFlash {
-  0%   { opacity: 0.18; }
-  100% { opacity: 0; }
+  0%     { opacity: 0.2; }
+  71.4%  { opacity: 0.2; animation-timing-function: ease-out; }
+  100%   { opacity: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
   .flash { animation: none; }
@@ -443,11 +484,13 @@
   .listSelect { max-width: 92px; }
 }
 @container (max-width: 290px) {
-  .row { grid-template-columns: 1fr auto; }
-  /* time on its own line above the headline; the category rides beside it */
-  .when { grid-column: 1 / -1; flex-direction: row; align-items: baseline; gap: 6px; }
-  .category { width: auto; min-width: 0; }
   .statusText { display: none; }
+}
+@container (max-width: 200px) {
+  .time { white-space: normal; }       /* only a dated time this narrow needs to break */
+}
+@container (max-width: 220px) {
+  .bar { gap: 4px; padding: 0 6px; }
 }
 @container (max-width: 250px) {
   .filterLabel { display: none; }

@@ -1,13 +1,12 @@
 // app/src/components/chart/engine/colorInt.js
 //
-// ─── THE COLORER INTEGER — `0xTTBBGGRR`, AND THE BYTE ORDER IS THE TRAP ─────
+// ─── THE COLORER INTEGER — BYTE ORDER `0x··BBGGRR`, AND TWO MEANINGS OF THE HIGH BYTE ─
 //
 // A Pine `colorer` plot does not emit a colour. It emits a 32-bit INTEGER, and
 // every drawing decision downstream depends on reading its bytes in the right
-// order. TradingView packs it as:
+// order. The three colour bytes run BLUE, GREEN, RED from high to low:
 //
-//     0xTT BB GG RR      transparency, then BLUE, GREEN, RED
-//                        ↑ NOT alpha, and NOT R-G-B
+//     0x·· BB GG RR      ↑ NOT R-G-B
 //
 // ⛔⛔ READING THOSE THREE BYTES AS RGB PRODUCES A PLAUSIBLE COLOUR THAT IS WRONG.
 // Measured on Uncharted Clouds: `226597128` = `0x0D819908`. Read as RGB the colour
@@ -15,13 +14,26 @@
 // looks like a deliberate choice. Read correctly it is `#089981` — which is
 // `color.teal`, a Pine palette constant. **That is the tell: the correct byte
 // order lands exactly on named palette constants and the wrong one lands on
-// nothing.** A renderer with the bytes reversed draws a chart that looks fine to
-// everyone who has not seen the original.
+// nothing.**
 //
-// ⚠️ AND THE HIGH BYTE IS TRANSPARENCY, NOT ALPHA — they run in opposite
-// directions. Pine's transparency is 0 = fully opaque, 100 = invisible; CSS alpha
-// is 1 = opaque, 0 = invisible. Passing the byte straight into an `rgba()` alpha
-// slot inverts every fade in the script.
+// ⛔⛔ THE HIGH BYTE MEANS DIFFERENT THINGS IN THE TWO WORDS THIS FILE SEES.
+//
+//   • TRADINGVIEW'S word (a vendor capture's colorer column, an `input.color`
+//     in a study title) is `0xAABBGGRR`: the high byte is OPACITY — 255 opaque,
+//     0 invisible. Proven by the capture's own inputs: `color.teal` (opaque) is
+//     `4,286,683,400` = `0xFF819908`, `color.new(color.white, 100)` is
+//     `16,777,215` = `0x00FFFFFF`. Clouds' band 0 above, `0x0D…`, is 13/255 =
+//     5% opaque — the script's `maxTransparency = 95`. Decode it with
+//     `unpackVendorColor`.
+//   • THIS ENGINE'S runtime word (`runtime/colours.js` packs it, `unpackColor`
+//     reads it) keeps TRANSPARENCY in that byte, `255 − opacity`, so 0 is
+//     opaque. That is an internal convention and every reader of it agrees.
+//
+// ⚰️ This header used to say TradingView's high byte was transparency, and its
+// rail decoded the vendor capture with `unpackColor`: band 0 came out 95%
+// OPAQUE and the Clouds fade read backwards ("fades AWAY from the fast MA").
+// The hues were right, which is why nobody noticed. Passing either byte into an
+// `rgba()` slot without knowing which word it came from inverts every fade.
 //
 // Provenance: docs/pine/render-rules.md rule 3, proven against
 // tests/fixtures/vendor/reference/A/clouds-volume-spy-1d-250.csv.
@@ -37,7 +49,12 @@ export const BYTE_MAX = 255
  *  (measured, `vw-gradient-spy-1d-2026-09-30`: `color.new(c, 70.5)` and
  *  `(c, 70.4)` both hold 70). ONE authority for every lane. Snapped to 1e-9
  *  FIRST, so an arithmetic 19.999999999999996 (`(1 − 0.8) × 100`) is the 20 it
- *  names, never 19; a real fraction still truncates. Non-finite passes through. */
+ *  names, never 19; a real fraction still truncates. Non-finite passes through.
+ *  ⚠️ C29 measured what `color.t` READS BACK, not what a colour PAINTS: Uncharted
+ *  Clouds' `color.new(c, 87.5)` paints alpha 32 on TradingView (exact t), not the
+ *  33 a truncated 87 would give. The columnar plot/fill lane paints the exact float
+ *  (`pine.js::colourHelperAlpha`); the runtime lane's packed word still holds a
+ *  whole transparency (`runtime/colours.js::pineTransparency`). */
 export function wholeTransparency(t) {
   const n = Number(t)
   if (!Number.isFinite(n)) return n
@@ -74,6 +91,22 @@ export function unpackColor(value) {
     transparency: (transparencyByte / BYTE_MAX) * TRANSPARENCY_MAX,
     alpha: 1 - transparencyByte / BYTE_MAX,
   }
+}
+
+/**
+ * Unpack a TRADINGVIEW colour integer, `0xAABBGGRR` — the high byte is OPACITY.
+ * This is the decoder for vendor captures; `unpackColor` is the engine's own word.
+ *
+ * @returns {{hex: string, r: number, g: number, b: number, alphaByte: number, alpha: number}}
+ */
+export function unpackVendorColor(value) {
+  const v = requireInt(value)
+  const alphaByte = (v >>> 24) & 0xff
+  const b = (v >>> BYTE_ORDER.blue) & 0xff
+  const g = (v >>> BYTE_ORDER.green) & 0xff
+  const r = (v >>> BYTE_ORDER.red) & 0xff
+  const hex2 = (x) => x.toString(16).toUpperCase().padStart(2, '0')
+  return { hex: `#${hex2(r)}${hex2(g)}${hex2(b)}`, r, g, b, alphaByte, alpha: alphaByte / BYTE_MAX }
 }
 
 /** The CSS the renderer should actually paint with. */

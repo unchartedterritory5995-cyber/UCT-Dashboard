@@ -428,5 +428,18 @@ export function applyParamEdit(definition, paramId, newValue) {
     compute.source = updatedFormulaByTreeIndex.get(null)
   }
 
+  // ⛔⛔ AN "ast" DOCUMENT'S HANDLE IS ITS OWN TREE'S HASH (`defSchema`: `compute.fn`
+  // must equal `astHash(compute.ast)`), so a rewrite of `compute.ast` moves it too.
+  // ⚰️ It did not: an edit whose locators reach the SCAN tree (Uncharted Clouds'
+  // `ma1Length` / `ma2Length`, both of which feed the Fast MA row) came back with
+  // the old `fn`, and the install door refused the variant — `memberPaneVariants`,
+  // the documented way a member varies a folded length, could not vary Clouds at
+  // all (TradingView set E, E3 / E4). Only a handle that WAS the hash is moved; a
+  // document whose `fn` names something else keeps it.
+  const oldHash = (() => { try { return astHash(definition.compute.ast) } catch { return undefined } })()
+  if (oldHash !== undefined && compute.fn === oldHash && compute.ast !== definition.compute.ast) {
+    compute.fn = astHash(compute.ast)
+  }
+
   return { ok: true, definition: { ...definition, compute, ...(plots !== definition.plots ? { plots } : {}) } }
 }

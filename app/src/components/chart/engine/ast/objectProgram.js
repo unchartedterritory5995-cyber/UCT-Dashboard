@@ -292,9 +292,12 @@ export function withObjectTransparency(hex, t) {
   }
   const base = /^#[0-9a-f]{6}/i.exec(String(hex || ''))
   if (!base) return null
-  // ⭐ C29 — Pine holds a WHOLE transparency, truncated (`color.new(c, 70.5)` is
-  // 70; measured on `vw-gradient-spy-1d-2026-09-30`).
-  const tw = wholeTransparency(t)
+  // ⛔⛔ THE PAINT IS THE EXACT TRANSPARENCY, NOT A WHOLE ONE. C29's probe
+  // (`vw-gradient-spy-1d-2026-09-30`) measured what `color.t` READS BACK (70.5 → 70);
+  // what a colour PAINTS is `round((1 − t/100) × 255)` on the exact t — Uncharted
+  // Clouds' `color.new(c, 87.5)` is alpha 32 on TradingView, not the 33 of a
+  // truncated 87 (capture A). A whole t is unchanged.
+  const tw = Number(t)
   if (!(tw > 0)) return base[0]
   const alpha = Math.round((1 - Math.min(100, tw) / 100) * 255)
   return base[0] + alpha.toString(16).padStart(2, '0').toUpperCase()

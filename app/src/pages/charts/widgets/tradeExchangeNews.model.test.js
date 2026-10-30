@@ -9,6 +9,7 @@ import { mergeNewsWidgetSettings } from './newsWidgetSettings'
 import { mergeWatchlistSettings, watchlistStyleVars } from '../../watchlist/watchlistSettings'
 import { CHART_THEME_BY_ID, mapThemeToWidgetSettings, patchWidgetOptsWithTheme } from '../../../components/chart/chartThemes'
 import { widgetOwnChrome } from '../widgetChrome'
+import { contrastRatio } from '../../../lib/theme'
 
 const item = (seq, content, tickers = []) => ({ seq, content, tickers })
 
@@ -99,6 +100,18 @@ describe('settings — the News & Catalysts shape, plus behaviour', () => {
     const grad = txnWidgetStyleVars(mergeTxnWidgetSettings({ bgMode: 'gradient', bgGradient: { top: '#111111', bottom: '#222222' } }))
     expect(grad['--txn-bg']).toBe('linear-gradient(to bottom, #111111 0%, #222222 100%)')
   })
+  it('ticker up/down TEXT clears 4.5:1 on its own canvas; the theme colour itself is untouched', () => {
+    const light = mergeTxnWidgetSettings({ bg: '#ffffff', upColor: '#3fbf7f', downColor: '#ff6b6b' })
+    const v = txnWidgetStyleVars(light)
+    expect(v['--txn-up']).toBe('#3fbf7f')                       // status dot / highlight: raw theme colour
+    expect(contrastRatio(v['--txn-sym-up'], '#ffffff')).toBeGreaterThanOrEqual(4.5)
+    expect(contrastRatio(v['--txn-sym-down'], '#ffffff')).toBeGreaterThanOrEqual(4.5)
+    const dark = txnWidgetStyleVars(txnSettingsFor(null, 'dark'))
+    expect(dark['--txn-sym-up']).toBe(dark['--txn-up'])         // already readable: unchanged
+    const grad = txnWidgetStyleVars(mergeTxnWidgetSettings({ bgMode: 'gradient', upColor: '#3fbf7f',
+      bgGradient: { top: '#ffffff', bottom: '#f0f0f0' } }))
+    expect(contrastRatio(grad['--txn-sym-up'], '#f0f0f0')).toBeGreaterThanOrEqual(4.5)
+  })
 })
 
 describe('canonical theme integration (theme gallery + Apply to all + frame)', () => {
@@ -122,5 +135,35 @@ describe('canonical theme integration (theme gallery + Apply to all + frame)', (
     const sibling = widgetOwnChrome({ type: 'news', opts: { settings: { bg: '#203040' } } })
     expect(chrome).toEqual(sibling)
     expect(chrome).not.toBeNull()
+  })
+})
+
+describe('daily-performance tones, tooltips and the bounded quote set', () => {
+  it('tone follows the change vs prior close; missing or stale is neutral', async () => {
+    const { tickerTone } = await import('./tradeExchangeNewsModel')
+    expect(tickerTone({ change_pct: 1.2 })).toBe('up')
+    expect(tickerTone({ change_pct: -0.01 })).toBe('down')
+    expect(tickerTone({ change_pct: 0 })).toBe('flat')
+    expect(tickerTone(undefined)).toBe('none')
+    expect(tickerTone({ change_pct: NaN })).toBe('none')
+    expect(tickerTone({ change_pct: 3 }, true)).toBe('none')
+  })
+
+  it('quote symbols are distinct, newest rows first, and capped', async () => {
+    const { quoteSymbols, QUOTE_SYMBOL_CAP } = await import('./tradeExchangeNewsModel')
+    const rows = Array.from({ length: 400 }, (_, i) => ({ tickers: [`S${i}`, 'AAPL'] }))
+    const got = quoteSymbols(rows)
+    expect(got).toHaveLength(QUOTE_SYMBOL_CAP)
+    expect(got.slice(0, 3)).toEqual(['S0', 'AAPL', 'S1'])
+    expect(new Set(got).size).toBe(got.length)
+  })
+
+  it('names link exactly as written, several per headline, with no overlap', async () => {
+    const { tokenize } = await import('./tradeExchangeNewsModel')
+    const parts = tokenize('Microsoft and NVDA rally; Rocket Lab too', ['MSFT', 'NVDA', 'RKLB'],
+      [['Microsoft', 'MSFT'], ['Rocket Lab', 'RKLB']])
+    expect(parts.filter((p) => p.sym).map((p) => [p.text, p.sym])).toEqual(
+      [['Microsoft', 'MSFT'], ['NVDA', 'NVDA'], ['Rocket Lab', 'RKLB']])
+    expect(parts.map((p) => p.text).join('')).toBe('Microsoft and NVDA rally; Rocket Lab too')
   })
 })

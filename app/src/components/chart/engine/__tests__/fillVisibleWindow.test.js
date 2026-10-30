@@ -26,6 +26,7 @@
 import { describe, it, expect } from 'vitest'
 import { createFillPrimitive, fillGroups, visibleWindow, timesAscending, sameTime, EDGE_BARS, EDGE_PAD_PX } from '../fillPrimitive'
 import { createRecordingCtx } from './fakeChart'
+import { fillPaint } from '../fillPaint'
 import { W, band, visibleSegments } from './fillTestKit'
 
 // ⚠️ WHY A DOUBLE OF ITS OWN, NOT `fakeChart.js`: the shared fake's time scale has
@@ -173,6 +174,27 @@ describe('rail 2 — a live tick rebuilds only the tail', () => {
     const ref = visibleSegments(draw(attach({ ...data, colors }, env), env))
     expect(visibleSegments(rec)).toEqual(ref)
     expect(ref.at(-1).colour, 'NON-VACUITY: the flipped bar paints the new colour').toBe(colors[n - 1])
+  })
+
+  it('⛔ a tick that changes ONLY the ALPHA BYTE (same hue) repaints that run', () => {
+    // Per-bar band colours carry their alpha in the string (`fillPaint` →
+    // `#RRGGBBAA`), so an opacity-only change must reach the cache's colour key
+    // exactly as a hue change does — or a band keeps its old alpha on screen.
+    const n = 1200
+    const data = band(n)
+    const at = (a) => fillPaint('#089981', a)
+    const base = data.colors.map(() => at(0.125))
+    const env = lwcLike({ times: data.times, spacing: 10, offset: n - 80 })
+    const prim = attach({ ...data, colors: base }, env)
+    draw(prim, env)
+    const colors = [...base]
+    colors[n - 1] = at(0.15)
+    expect(colors[n - 1].slice(0, 7), 'NON-VACUITY: the hue is unchanged').toBe(base[n - 1].slice(0, 7))
+    prim.setOptions({ colors })
+    const rec = draw(prim, env)
+    const ref = visibleSegments(draw(attach({ ...data, colors }, env), env))
+    expect(visibleSegments(rec)).toEqual(ref)
+    expect(ref.at(-1).colour, 'the last bar paints the NEW alpha').toBe('#08998126')
   })
 
   it('⛔ a MAPPING change (autoscale / scroll) re-resolves the window — never reuses a stale pixel', () => {

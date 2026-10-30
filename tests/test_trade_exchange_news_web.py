@@ -536,3 +536,15 @@ async def test_synthetic_only_web_refuses_a_non_synthetic_record_on_every_path(m
     with pytest.raises(pl.records.RecordError):
         await p.submit(rec("Example Corp beats estimates"), via="reconcile")
     assert p.store.stats()["deliveries"] == 1
+
+
+async def test_ingest_logs_where_the_wait_went_without_content(caplog):
+    import logging
+    caplog.set_level(logging.INFO)
+    p = new_pipeline()
+    p.ready.set()
+    async with _client(_web_app()) as c:
+        await c.post(route.INGEST_PATH, json=rec("SYNTHETIC timing"), headers=AUTH)
+    line = [m for m in (x.getMessage() for x in caplog.records) if "[txn] timing ingest" in m][-1]
+    assert "route_ms=" in line and "submit_ms=" in line and "loop_lag_1m=" in line
+    assert "SYNTHETIC" not in "\n".join(x.getMessage() for x in caplog.records if "timing" in x.getMessage())

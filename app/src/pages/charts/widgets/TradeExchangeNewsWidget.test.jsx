@@ -43,6 +43,12 @@ vi.mock('../../watchlist/prebuiltDirectory', () => ({
   usePrebuiltMembership: (ids) => (ids.includes('wl1') ? { wl1: [{ sym: 'AMD' }] } : {}),
 }))
 
+// The shared price stream, driven directly: { prices, staleSymbols } and the symbols asked for.
+const quotes = vi.hoisted(() => ({ prices: {}, stale: new Set(), asked: [] }))
+vi.mock('../../../hooks/useRealtimePrices', () => ({
+  default: (syms) => { quotes.asked = syms; return { prices: quotes.prices, staleSymbols: quotes.stale, isLoading: false, isStreaming: true } },
+}))
+
 import TradeExchangeNewsWidget from './TradeExchangeNewsWidget'
 
 const NOW = Date.now()
@@ -103,6 +109,92 @@ describe('TradeExchangeNewsWidget', () => {
     act(() => feed.set({ status: 'live', lastSeq: 1, lastHeadlineAt: NOW,
       items: [H(1, 'SYNTHETIC: macro', [], { category: 'Macro' })] }))
     expect(screen.queryByText('Macro')).toBeNull()
+  })
+
+  it('the header brands the widget and keeps LIVE, pause, alerts and settings', () => {
+    mount()
+    expect(screen.getByText('UCT News')).toBeInTheDocument()
+    expect(screen.getByText('Powered by Trade Exchange')).toBeInTheDocument()
+    expect(screen.getByText('Live')).toBeInTheDocument()
+    for (const label of ['Turn auto-follow off', 'News alerts', 'News widget settings']) {
+      expect(screen.getByLabelText(label)).toBeInTheDocument()
+    }
+  })
+
+  it('tickers take the theme up/down colour from the daily change, neutral when missing or stale', () => {
+    quotes.prices = { NVDA: { price: 100, change_pct: 2.1 }, AMD: { price: 50, change_pct: -1.3 } }
+    quotes.stale = new Set()
+    const { rerender } = mount()
+    const sym = (s) => screen.getAllByRole('button', { name: new RegExp(`^\\$?${s}$`) })[0]
+    expect(sym('NVDA').className).toMatch(/symUp/)
+    expect(sym('AMD').className).toMatch(/symDown/)
+    expect(sym('NVDA').title).toMatch(/\$100\.00 · \+2\.10% vs prior close/)
+    // crossing zero re-colours on the next quote
+    quotes.prices = { NVDA: { price: 98, change_pct: -0.4 }, AMD: { price: 50, change_pct: 0 } }
+    rerender(<TradeExchangeNewsWidget color="A" opts={{}} onOptsChange={vi.fn()} />)
+    expect(sym('NVDA').className).toMatch(/symDown/)
+    expect(sym('AMD').className).toMatch(/symFlat/)
+    quotes.stale = new Set(['NVDA'])
+    rerender(<TradeExchangeNewsWidget color="A" opts={{}} onOptsChange={vi.fn()} />)
+    expect(sym('NVDA').className).toMatch(/symNone/)
+    expect(sym('NVDA').title).not.toMatch(/\$/)
+    expect(quotes.asked).toEqual(['AMD', 'NVDA'])                 // newest rows first, distinct
+  })
+
+  it('ticker colour mode accent/neutral needs no quotes at all', () => {
+    quotes.asked = null
+    render(<TradeExchangeNewsWidget color="A" opts={{ settings: { tickerColorMode: 'neutral' } }} onOptsChange={vi.fn()} />)
+    act(() => feed.set({ status: 'live', items: HISTORY, lastSeq: 3, lastHeadlineAt: NOW }))
+    expect(quotes.asked).toEqual([])
+    expect(screen.getAllByRole('button', { name: /NVDA/ })[0].className).toMatch(/symNeutral/)
+  })
+
+  it('a company NAME links its symbol without rewriting the headline', () => {
+    render(<TradeExchangeNewsWidget color="A" opts={{}} onOptsChange={vi.fn()} />)
+    act(() => feed.set({ status: 'live', lastSeq: 1, lastHeadlineAt: NOW, items: [
+      H(1, 'MICROSOFT EXPECTS TO RAISE ABOUT $25 BILLION', ['MSFT'], { mentions: [['MICROSOFT', 'MSFT']] })] }))
+    const btn = screen.getByRole('button', { name: 'MICROSOFT' })
+    expect(btn.title).toMatch(/^MSFT \(named in the headline\)/)
+    fireEvent.click(btn)
+    expect(setGroupSym).toHaveBeenCalledWith('A', 'MSFT')
+    expect(document.querySelector('[data-seq="1"]').textContent).toContain('MICROSOFT EXPECTS TO RAISE ABOUT $25 BILLION')
+  })
+
+  it('clicking a ticker links the chart but never leaves a highlighted row', () => {
+    const { container } = mount()
+    fireEvent.click(screen.getAllByRole('button', { name: /NVDA/ })[0])
+    expect(setGroupSym).toHaveBeenCalledWith('A', 'NVDA')
+    for (const row of container.querySelectorAll('[data-seq]')) expect(row.className).not.toMatch(/Selected/)
+    expect(container.querySelector('[class*="flash"]')).toBeNull()
+  })
+
+  it('a graphic-only placeholder is hidden and counted, and can be shown', () => {
+    const items = [...HISTORY, H(4, 'CRYPTO', [], { placeholder: 'graphic' })]
+    const { unmount } = render(<TradeExchangeNewsWidget color="A" opts={{}} onOptsChange={vi.fn()} />)
+    act(() => feed.set({ status: 'live', items, lastSeq: 4, lastHeadlineAt: NOW }))
+    expect(document.querySelector('[data-seq="4"]')).toBeNull()
+    expect(screen.getByText(/1 graphic-only hidden/)).toBeInTheDocument()
+    unmount()
+    render(<TradeExchangeNewsWidget color="A" opts={{ settings: { graphicPlaceholders: 'show' } }} onOptsChange={vi.fn()} />)
+    act(() => feed.set({ status: 'live', items, lastSeq: 4, lastHeadlineAt: NOW }))
+    expect(document.querySelector('[data-seq="4"]')).not.toBeNull()
+    expect(screen.queryByText(/graphic-only hidden/)).toBeNull()
+  })
+
+  it('the new-headline highlight lasts 2.1 s (1.5 s hold + fade) and never fires for history pages or old replays', () => {
+    vi.useFakeTimers({ now: NOW })
+    const { container } = mount()
+    act(() => feed.set({ items: [H(0, 'SYNTHETIC: older page', [], { received_at_ms: NOW - 3_600_000 }), ...HISTORY], firstSeq: 0 }))
+    expect(container.querySelector('[class*="flash"]')).toBeNull()             // loadOlder: not new
+    act(() => feed.set({ items: [...HISTORY, H(4, 'SYNTHETIC: replayed', [], { received_at_ms: NOW - 600_000 })], lastSeq: 4 }))
+    expect(container.querySelector('[class*="flash"]')).toBeNull()             // reconnect replay: not new
+    act(() => feed.set({ items: [...HISTORY, H(5, 'SYNTHETIC: breaking', [], { received_at_ms: Date.now() })], lastSeq: 5 }))
+    expect(container.querySelector('[data-seq="5"] [class*="flash"]')).not.toBeNull()
+    act(() => { vi.advanceTimersByTime(2000) })
+    expect(container.querySelector('[data-seq="5"] [class*="flash"]')).not.toBeNull()
+    act(() => { vi.advanceTimersByTime(150) })
+    expect(container.querySelector('[data-seq="5"] [class*="flash"]')).toBeNull()
+    vi.useRealTimers()
   })
 
   it('search narrows the feed (debounced)', async () => {

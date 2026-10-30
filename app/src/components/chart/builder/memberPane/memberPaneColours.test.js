@@ -33,6 +33,14 @@ const COND = [
   '',
 ].join('\n')
 
+// ⭐⭐ 2026-10-29 — A ROW'S ALPHA RIDES IN ITS COLOUR (`#RRGGBBAA`), never a
+// separate `opacity` beside it (`memberPaneDefinition::rowColour`): the colour is
+// the Style input's default, so a member's pick replaces colour and alpha together,
+// as TradingView's does. These assert the SAME alpha in its new place — the byte
+// is TradingView's `round(opacity × 255)`.
+const alphaByteOf = (c) => (typeof c === 'string' && /^#[0-9a-f]{8}$/i.test(c) ? parseInt(c.slice(7), 16) : 255)
+const byteOf = (opacity) => Math.round(opacity * 255)
+
 describe('a conditionally coloured PLOT draws per point', () => {
   it('⭐ carries colorMode column:<key> with both colours, and the column is a hidden derived row', () => {
     const d = build(COND)
@@ -77,16 +85,21 @@ describe('a conditionally coloured PLOT draws per point', () => {
 })
 
 describe("a plot's OPACITY reaches the saved document", () => {
-  it('⭐ color.rgb(…, 70) becomes plots[].opacity 0.3', () => {
+  it('⭐ color.rgb(…, 70) reaches the document as 30% alpha, in the colour', () => {
     const d = build("//@version=5\nindicator('o')\nplot(open, color = color.rgb(255, 255, 255, 70))\n")
     expect(d.ok, d.reason).toBe(true)
-    expect(d.definition.plots[0].opacity).toBeCloseTo(0.3, 6)
+    expect(d.definition.plots[0].opacity).toBeUndefined()
+    const spec = d.definition.inputs.find((i) => i.key === d.definition.plots[0].color.slice(1))
+    expect(spec.default).toBe('#FFFFFF4D')
+    expect(alphaByteOf(spec.default)).toBe(byteOf(0.3))
   })
 
-  it('⭐ the Pine v4 transp= argument becomes plots[].opacity', () => {
+  it('⭐ the Pine v4 transp= argument reaches the document as the colour\'s alpha', () => {
     const d = build("//@version=4\nstudy('t')\nplot(close, color = color.green, transp = 70)\n")
     expect(d.ok, d.reason).toBe(true)
-    expect(d.definition.plots[0].opacity).toBeCloseTo(0.3, 6)
+    expect(d.definition.plots[0].opacity).toBeUndefined()
+    const spec = d.definition.inputs.find((i) => i.key === d.definition.plots[0].color.slice(1))
+    expect(alphaByteOf(spec.default)).toBe(byteOf(0.3))
   })
 
   it('⛔ CONTROL — an opaque plot carries no opacity', () => {
@@ -110,18 +123,20 @@ describe('a transparency behind a NAME or an input default is carried', () => {
 
   it('⭐ a name bound to input.color(color.new(c, 25)) draws at 75% opacity', () => {
     const r = rowOf("S = input.color(color.new(#90EE90, 25), title='s')\nplot(close, color = S)")
-    expect(r.color).toBe('#90EE90')
-    expect(r.opacity).toBeCloseTo(0.75, 10)
+    expect(r.color).toBe('#90EE90BF')
+    expect(r.opacity).toBeUndefined()
+    expect(alphaByteOf(r.color)).toBe(byteOf(0.75))
   })
 
   it('⭐ input.color(color.new(...)) written inline too', () => {
-    expect(rowOf('plot(close, color = input.color(color.new(#90EE90, 25)))').opacity).toBeCloseTo(0.75, 10)
+    expect(alphaByteOf(rowOf('plot(close, color = input.color(color.new(#90EE90, 25)))').color)).toBe(byteOf(0.75))
   })
 
   it('⭐ a name bound to color.new(c, 60) draws at 40% opacity', () => {
     const r = rowOf('C = color.new(color.red, 60)\nplot(close, color = C)')
-    expect(r.color).toBe('#FF5252')
-    expect(r.opacity).toBeCloseTo(0.4, 10)
+    expect(r.color).toBe('#FF525266')
+    expect(r.opacity).toBeUndefined()
+    expect(alphaByteOf(r.color)).toBe(byteOf(0.4))
   })
 
   it('⛔ CONTROL — an opaque colour behind a name or an input stays opaque', () => {

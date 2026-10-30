@@ -520,3 +520,20 @@ def test_accepted_delivery_logs_stage_timings_without_content(caplog, monkeypatc
     lines = [m for m in (x.getMessage() for x in caplog.records) if "[txn] timing rx" in m]
     assert len(lines) == 1 and "edge_to_handler_ms=" in lines[0] and "acked_ms=" in lines[0]
     assert "Example Corp" not in "\n".join(x.getMessage() for x in caplog.records)
+
+
+def test_push_trace_records_each_attempt_without_content():
+    calls = {"n": 0}
+
+    def flaky(request):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise httpx.ReadTimeout("slow")
+        return httpx.Response(200, json={"status": "new", "seq": 1})
+
+    f = fw.Forwarder("http://web.test/ingest", "ingest-test",
+                     client=httpx.AsyncClient(transport=httpx.MockTransport(flaky)))
+    trace: list = []
+    ok = asyncio.run(f.push({"id": "X", "content": "Example Corp"}, trace))
+    assert ok and [t[0] for t in trace] == ["ReadTimeout", 200]
+    assert all(isinstance(t[1], int) for t in trace) and "Example" not in repr(trace)

@@ -190,6 +190,10 @@ class Context:
     #: ALL-CAPS text carries no capitalisation signal, so its bare words need a
     #: strong cue there ("RATES CAN BE LOWER" is English, not Canaan).
     shout_guard: bool = False
+    #: Wire prose (``_wire_prose_skip``): a capitalised word that is part of
+    #: another word ("SD-WAN"), the line's source tag ("... - BC") or a short,
+    #: uncued abbreviation ("(SM Circulations)") is text, not a ticker.
+    wire_prose: bool = False
 
 
 #: A member's typed question (AI Search, the palette, the AI door).
@@ -211,10 +215,10 @@ CASHTAG_POST = Context("cashtag_post", frozenset(), lowercase_cued=False,
 #: Trade Exchange wire headlines (News widget). Same headline vocabulary; the wire's
 #: own symbol slot is read first, and shouted text never promotes a bare word.
 WIRE_NEWS = Context("wire_news", frozenset(_TICKER_BLACKLIST), lowercase_cued=False,
-                    leading="listed", shout_guard=True)
+                    leading="listed", shout_guard=True, wire_prose=True)
 #: A wire press release: the leading slot is the issuer's symbol, so it is trusted.
 WIRE_RELEASE = Context("wire_release", frozenset(_TICKER_BLACKLIST), lowercase_cued=False,
-                       leading="trusted", shout_guard=True)
+                       leading="trusted", shout_guard=True, wire_prose=True)
 #: A wire SEC-filing line (``FORM 4P - TFC - TRUIST …|DIRECTOR|…|SCHMITT DANIEL MP``):
 #: the body is names and roles, so ONLY the slot and cashtags count.
 WIRE_FILING = Context("wire_filing", frozenset(), lowercase_cued=False,
@@ -368,6 +372,31 @@ def symbol_shape(symbol: str) -> str:
     return require_route_shape(symbol)
 
 
+#: "SD-WAN", "AI-BUBBLE": a capitalised word joined to another word (a class share,
+#: BRK-B, joins ONE letter and is read by the cashtag/class grammar instead).
+_COMPOUND_NEXT = re.compile(r"-[A-Za-z]{2,}")
+#: The wire's closing source tag: "... flaw to deploy malware - BC", "... -- WSJ".
+_SOURCE_TAIL = re.compile(r"\s-{1,2}\s+[A-Z][A-Za-z.&]{0,15}\s*$")
+_NEXT_WORD = re.compile(r"[\s(]*([A-Za-z]+)")
+#: Acronyms that are words in wire prose (USA, CEO, IPO, AI ...): the discovery
+#: vocabulary, minus the banks it lists only because answers cite them as a SOURCE.
+_WIRE_ACRONYMS = frozenset(_NON_TICKER_WORDS) - {"JPM", "GS"}
+
+
+def _wire_prose_skip(q: str, m: "re.Match", sym: str, strong: set, tail_at: int) -> bool:
+    """True when a capitalised bare word in wire prose is text, not a ticker."""
+    if _COMPOUND_NEXT.match(q, m.end()) or m.start() >= tail_at:
+        return True
+    if sym in _WIRE_ACRONYMS and sym not in strong:
+        return True
+    if len(sym) <= 2 and sym not in strong:
+        # Two letters are an abbreviation far more often than a symbol: only a
+        # company cue right after it ("GM says", "GE shares") makes it one.
+        nxt = _NEXT_WORD.match(q, m.end())
+        return not (nxt and nxt.group(1).lower() in _COMPANY_CUE_NEXT)
+    return False
+
+
 def resolve_tickers(text: Optional[str], context: Context = QUERY) -> list[str]:
     """Tickers named in `text`, in mention order, canonical spelling.
 
@@ -390,6 +419,8 @@ def resolve_tickers(text: Optional[str], context: Context = QUERY) -> list[str]:
         subj = _SHOUT_SUBJECT.match(q)
         if subj and subj.group(1) not in _english_collisions():
             strong.add(subj.group(1))
+    tail = _SOURCE_TAIL.search(q) if context.wire_prose else None
+    tail_at = tail.start() if tail else len(q) + 1
     for m in _TOKEN_RE.finditer(q):
         cash, bare = m.group(1), m.group(2)
         if cash:
@@ -401,6 +432,8 @@ def resolve_tickers(text: Optional[str], context: Context = QUERY) -> list[str]:
             continue
         sym = bare.upper()
         if sym in out or sym in exclude:
+            continue
+        if context.wire_prose and bare == sym and _wire_prose_skip(q, m, sym, strong, tail_at):
             continue
         if bare != sym:
             # lowercase/mixed-case path: member input + cue + universe + never stop-listed
@@ -415,3 +448,212 @@ def resolve_tickers(text: Optional[str], context: Context = QUERY) -> list[str]:
         if sym in uni:
             out.append(sym)
     return out
+
+
+# ── company NAMES -> symbols (headline mentions without a ticker) ────────────
+#
+# ⭐ Same authority, a second input form: "MICROSOFT EXPECTS TO RAISE ..." names
+# MSFT without writing it. PRECISION OVER RECALL -- a wrong link puts the wrong
+# chart and the wrong price colour on breaking news:
+#   * a SINGLE word is a company only through the curated alias list
+#     (api/data/buzz_aliases.json), minus aliases that are ordinary English in a
+#     headline (_ALIAS_NOT_IN_HEADLINES);
+#   * reference-data names (catalyst/news_match's normalised variants of the cap
+#     universe's cached names) count only as MULTI-word sequences ("rocket lab",
+#     "truist financial"), and never as the 2-word prefix of a longer name
+#     ("new york" from "New York Times", "united states" from a steel company);
+#   * a name that maps to more than one security (share classes, look-alikes) is
+#     dropped -- never a guess -- unless the curated list settles it;
+#   * a shortened name that is only initials ("U.S" of U.S. Bancorp) is not a name,
+#     and one made only of generic words ("Global Industrial") is WEAK: like a single
+#     word it needs company context in the headline ("Global Industrial Conference"
+#     is an event).
+# The index is built OFF the delivery path (prewarm_company_index, a thread);
+# until it is ready, live headlines simply carry no name links, and history picks
+# them up on its next read. No network, ever: names come from the on-disk cache.
+
+_ALIAS_NOT_IN_HEADLINES = frozenset({"open", "affirm", "arm", "novo"})
+_COMPANY_INDEX: Optional[dict] = None
+_COMPANY_LOCK = None
+_NAME_TOKEN_RE = re.compile(r"[A-Za-z0-9]+")
+
+
+#: Words a company name shares with ordinary descriptive English. Derived from the
+#: corporate-form list and the resolver's own English vocabularies, plus the
+#: geographic/scale adjectives company names are built from.
+_GENERIC_NAME_DESCRIPTORS = frozenset("""
+global industrial international american america national united general first capital
+standard world universal federal pacific atlantic western eastern northern southern
+central north south east west great premier advanced applied integrated strategic
+community security services partners resources
+""".split())
+
+
+class CompanyIndex(dict):
+    """{token tuple: symbol}, plus ``weak`` (the keys that need headline context) and
+    ``issuer`` (symbol -> its core name tokens: share classes of one company share it)."""
+    weak: frozenset = frozenset()
+    issuer: dict = {}
+
+
+def _generic_name_words() -> frozenset:
+    from api.services.catalyst.news_match import _SUFFIXES
+    return (_GENERIC_NAME_DESCRIPTORS | frozenset(_SUFFIXES)
+            | frozenset(w.lower() for w in _english_collisions()))
+
+
+def build_company_index(names_by_ticker: dict, aliases: dict) -> dict:
+    """{token tuple: symbol} (a ``CompanyIndex``). Pure -- tests drive it with their own names."""
+    from api.services.catalyst.news_match import _SUFFIXES, _norm_tokens, _variants
+    generic = _generic_name_words()
+    seen: dict = {}
+    issuer: dict = {}
+    for sym, name in (names_by_ticker or {}).items():
+        stage = _norm_tokens(name)
+        while len(stage) > 1 and (stage[-1] in _SUFFIXES or len(stage[-1]) == 1):
+            stage = stage[:-1]
+        if stage:
+            issuer[canonical(sym)] = tuple(stage)
+        # news_match's shortened-name prefix ("new york" of "New York Times") is too generic.
+        prefix = tuple(stage[:2]) if len(stage) >= 3 else None
+        for v in _variants(name):
+            toks = tuple(v.split())
+            if len(toks) < 2 or toks == prefix:        # single words: curated list only
+                continue
+            if all(len(t) <= 2 for t in toks):         # initials ("u s"): not a name
+                continue
+            seen.setdefault(toks, set()).add(canonical(sym))
+    index = CompanyIndex((k, next(iter(v))) for k, v in seen.items() if len(v) == 1)
+    weak = {k for k in index if all(t in generic for t in k)}
+    for alias, sym in (aliases or {}).items():
+        a = str(alias).strip().lower()
+        if a and a not in _ALIAS_NOT_IN_HEADLINES:
+            key = tuple(_NAME_TOKEN_RE.findall(a))
+            index[key] = canonical(sym)                 # curated settles ambiguity
+            weak.discard(key)
+    index.weak = frozenset(weak)
+    index.issuer = issuer
+    return index
+
+
+def prewarm_company_index() -> None:
+    """Build the name index once, OFF any delivery path. Never raises."""
+    global _COMPANY_INDEX, _COMPANY_LOCK
+    import threading
+    if _COMPANY_LOCK is None:
+        _COMPANY_LOCK = threading.Lock()
+    with _COMPANY_LOCK:
+        if _COMPANY_INDEX is not None:
+            return
+        try:
+            from api.services.buzz_universe import _load_json
+            from api.services.catalyst.news_match import _load_universe_names
+            aliases = {str(k).lower(): str(v).upper()
+                       for k, v in (_load_json("buzz_aliases.json") or {}).items()}
+            _COMPANY_INDEX = build_company_index(_load_universe_names(), aliases)
+        except Exception:
+            _COMPANY_INDEX = {}
+
+
+#: What follows a company named in a headline: its stock, its corporate form, or
+#: what it DID ("MICROSOFT EXPECTS", "Apple unveils", "NVIDIA SHARES"). Context, not
+#: a word list of banned names: "apple pie" / "Alphabet soup" carry none of it.
+_COMPANY_CUE_BASE = frozenset("""
+shares stock stocks inc corp corporation co ceo cfo board investors earnings revenue sales results
+guidance outlook forecast profit quarter q1 q2 q3 q4 dividend buyback offering bonds bond debt
+says said expects expected plans plan reports reported posts unveils unveiled launches launched
+announces announced sues sued buys bought acquires acquired agrees signs signed files filed warns
+warned delays cuts raises raised beats misses tops faces wins won loses hires names named invests
+seeks wants targets considers explores weighs halts pauses resumes nears completes prices sells
+rises rose falls fell jumps surges soars slides slumps sinks drops gains climbs rallies tumbles
+plunges dips expands leads joins partners is was has will to in
+""".split())
+# A coordinated subject takes the plural ("Microsoft and Nvidia EXPAND", "Apple, Google
+# FACE"): the base form of every -s cue verb is a cue too -- derived, not restated.
+_COMPANY_CUE_NEXT = _COMPANY_CUE_BASE | frozenset(
+    w[:-1] for w in _COMPANY_CUE_BASE if w.endswith("s") and not w.endswith("ss") and len(w) > 4)
+#: A mention joined to another confident one ("Microsoft and Nvidia", "Apple, Google").
+_COORDINATION = frozenset({"and", "&", "or", "vs", "versus"})
+
+
+def _proper(word: str) -> bool:
+    return word[:1].isupper()
+
+
+def resolve_company_mentions(text: Optional[str], index: Optional[dict] = None,
+                             explicit: Optional[set] = None) -> list[tuple[str, str]]:
+    """[(exact text as written, symbol)] for company names in ``text``, in mention
+    order, longest name first, never overlapping, one link per symbol. Uses the
+    prebuilt index only: an index that is not ready yet means no name links.
+
+    ⭐ CONTEXTUAL CONFIDENCE. Every name must be written as a proper noun (initial
+    capital or ALL CAPS): "apple pie" is not Apple. A multi-word name ("Rocket Lab")
+    is then distinctive enough -- unless it is only generic words (the index's
+    ``weak`` keys), which, like a SINGLE word, additionally need company context:
+    a cue right after it (_COMPANY_CUE_NEXT, or the possessive "Apple's"), its own
+    ticker elsewhere in the headline (``explicit``), or a coordination ("and", ",")
+    with another confident mention. Otherwise it stays plain text.
+
+    ⭐ ONE LINK PER SECURITY. A name whose security is already an explicit ticker in
+    the headline ("BRCB - Black Rock Coffee Bar Expands ...") is recognised -- its
+    words are spoken for, so no shorter name inside it can link -- but not returned:
+    the ticker is the link. Same company = same symbol, or another share class of
+    one issuer (GOOG / GOOGL). Per security: other companies still link."""
+    idx = _COMPANY_INDEX if index is None else index
+    if not idx or not text:
+        return []
+    words = [(m.group(0), m.start(), m.end()) for m in _NAME_TOKEN_RE.finditer(text)]
+    low = [w.lower() for w, _, _ in words]
+    used = [False] * len(words)
+    hits: list[tuple[int, str, str]] = []            # (start, text, sym)
+    pending: list[tuple[int, str, str]] = []         # single words awaiting coordination: (i, text, sym)
+    explicit = explicit or set()
+    weak = getattr(idx, "weak", frozenset())
+    issuer = getattr(idx, "issuer", {})
+
+    def ticker_present(sym):
+        core = issuer.get(sym)
+        return sym in explicit or (core is not None and any(issuer.get(e) == core for e in explicit))
+
+    def taken(sym):
+        return sym in {s for _, _, s in hits}
+
+    for n in (4, 3, 2, 1):
+        for i in range(len(words) - n + 1):
+            if any(used[i:i + n]):
+                continue
+            sym = idx.get(tuple(low[i:i + n]))
+            if not sym or taken(sym) or not all(_proper(words[k][0]) for k in range(i, i + n)):
+                continue
+            start, end = words[i][1], words[i + n - 1][2]
+            if n == 1 or tuple(low[i:i + n]) in weak:
+                nxt = low[i + n] if i + n < len(words) else ""
+                possessive = text[end:end + 2] in ("'s", "’s")
+                if not (nxt in _COMPANY_CUE_NEXT or possessive or sym in explicit):
+                    if n == 1:                         # may still join a confident mention
+                        pending.append((i, text[start:end], sym))
+                    continue
+            if not ticker_present(sym):
+                hits.append((start, text[start:end], sym))
+            for k in range(i, i + n):
+                used[k] = True
+
+    def joined(i, j):                                # words i < j joined by "and" / "," only
+        between = text[words[i][2]:words[j][1]]
+        rest = between.replace(",", " ").split()
+        return (j == i + 1 and "," in between) or (j == i + 2 and low[i + 1] in _COORDINATION and len(rest) == 1)
+
+    changed = True
+    while changed and pending:
+        changed = False
+        anchors = [k for k in range(len(words)) if used[k]]
+        for item in list(pending):
+            i, t, sym = item
+            if taken(sym):
+                pending.remove(item); continue
+            if any(joined(min(i, a), max(i, a)) for a in anchors):
+                if not ticker_present(sym):
+                    hits.append((words[i][1], t, sym))
+                used[i] = True
+                pending.remove(item); changed = True
+    return [(t, s) for _, t, s in sorted(hits)]

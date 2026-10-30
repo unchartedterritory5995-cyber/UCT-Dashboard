@@ -324,6 +324,23 @@ DEFAULT_THRESHOLDS = {
     "ask_accum_max_mktcap": 50_000_000_000,  # PRIMARY noise guard: exclude mega-caps + index
                                              # options (0/unknown mktcap); 0 disables. Replaced
                                              # name-dormancy 2026-09-05 (see _ask_accum_qualifies).
+    # ── Ex-dividend play exclusion (2026-10-29) — auto-push only ────────────
+    # A deep-ITM call into an imminent ex-dividend is exercise/dividend-capture
+    # arbitrage, not conviction (PAGP 10/29 $26C: spot 28.84, fill 2.95,
+    # extrinsic 0.11 vs a 0.42 dividend). Never auto-push it. Signature = ITM
+    # CALL whose extrinsic (fill - intrinsic) <= dividend * buffer, ex-div within
+    # the window AND before expiry. Validated over 307 pushed calls: excludes 5
+    # (all real plays incl. both PAGP strikes, TXN/HUM below intrinsic), keeps
+    # the 4 div-window non-plays (e.g. MRVL, tiny div vs real extrinsic).
+    "dividend_excl_enabled": True,
+    "dividend_excl_days": 3,            # ex-div within N calendar days of today
+    "dividend_extrinsic_buffer": 1.15,  # extrinsic <= dividend * buffer => play
+    # ── Push-time side fresh-confirm (2026-10-29) — auto-push only ──────────
+    # Re-pull the CONSOLIDATED NBBO at push time; keep a Bull/Bear label only if
+    # a fresh quote still reads ask-side, else relabel neutral. Closes the stale/
+    # per-exchange NBBO inversions (COIN sold-put->Bear, META sold-call->Bull).
+    "side_confirm_enabled": True,
+    "side_confirm_max_age_ms": 2000,    # consolidated quote must be this fresh
     # Global deep-ITM filter (added 6/30 morning).
     #
     # Trades deeper than this threshold are "synthetic stock substitute"
@@ -5463,30 +5480,51 @@ def _build_massive_embed(alert: dict, *, mode: str = "single") -> dict:
         size = alert.get("tradeSize") or 0
         oi = alert.get("priorOI")
         fill = alert.get("averageFillPrice")
-        voi = round(size / oi, 2) if (oi and oi > 0 and size) else None
+        tier = alert.get("_tierKey")
+        agg_prem = alert.get("aggAskPremium") or 0
+        agg_vol = alert.get("aggAskVolume") or 0
+        # D2 (2026-10-29): Aggregate tiers (Ask Accumulation / Alpha LEAPS) grade
+        # the whole SESSION ask build on the contract, not the single print that
+        # tripped the floor — so the headline must be the aggregate, or a $12.87M
+        # build shows as the $570K print that fired it (CRWD 10/29). The neutral
+        # "Large Ask Build (Unverified)" relabel (tier -> size, _sideUnconfirmed)
+        # is the same build, so it headlines the aggregate too. Single-print tiers
+        # keep the print's own numbers.
+        is_agg = ((tier in ("ask_accum", "alpha_leaps") or alert.get("_sideUnconfirmed"))
+                  and agg_prem > 0)
+        head_prem = agg_prem if is_agg else prem
+        head_vol = int(agg_vol) if (is_agg and agg_vol) else (int(size) if size else 0)
+        voi = round(head_vol / oi, 2) if (oi and oi > 0 and head_vol) else None
         if voi and voi > 1.0:
             badges.append(f"🚀 **OI BREAK** {voi:.1f}x")
-        # Ask Accumulation fires on the print that pushes the contract's SESSION
-        # ask premium over the floor — a single print here can be well under $1M,
-        # so lead with the aggregate build or the card looks under-sized.
-        _agg = alert.get("aggAskPremium") or 0
-        if alert.get("_tierKey") == "ask_accum" and _agg > prem:
-            badges.insert(0, f"🧱 **ASK BUILD {_fmt_money_m(_agg)}**")
+        money = (f"💰 **{_fmt_money_m(head_prem)} ask build**" if is_agg
+                 else f"💰 **{_fmt_money_m(head_prem)}**")
         lines.append(_row(
-            f"💰 **{_fmt_money_m(prem)}**",
+            money,
             (f"Fill ${fill:.2f}" if fill else None),
             (f"{dte} DTE" if dte is not None else None),
         ))
         if spot_line:
             lines.append(spot_line)
-        # 📊 volume group — Volume + OI on line 1, Vol/OI on its own line.
+        # 📊 volume group — aggregate tiers show the session ASK volume (the build),
+        # single-print tiers the print's own size; Vol/OI uses whichever is shown.
+        vol_label = "Volume (ask)" if is_agg else "Volume"
         vol_l1 = _row(
-            (f"Volume: {int(size):,}" if size else None),
+            (f"{vol_label}: {head_vol:,}" if head_vol else None),
             (f"OI: {int(oi):,}" if oi is not None else None),
         )
         vol_group = [x for x in (vol_l1, (f"Vol/OI: {voi:.2f}x" if voi is not None else None)) if x]
         if vol_group:
             lines.append("📊 " + "\n".join(vol_group))
+        # 📐 Directional one-sidedness (stamped on CONFIRMED directional pushes):
+        # the contract's net-flow lean. For a call, "(ask)" == ask-side buying.
+        fpct = alert.get("_flowPct")
+        if fpct is not None:
+            _fside = alert.get("_flowSide")
+            _ftag = f" ({_fside})" if _fside else ""
+            lines.append(f"📐 Flow: {int(fpct)}% one-sided{_ftag}  ·  "
+                         f"{_fmt_money_m(alert.get('_flowDom') or 0)} vs "
+                         f"{_fmt_money_m(alert.get('_flowOther') or 0)}")
         default_name = alert.get("alertName") or "UCT Massive"
 
     # Premium-collecting side, surfaced explicitly so the card isn't confusing:
@@ -5861,6 +5899,215 @@ def _push_window_ok(alert: dict, mode: str, cfg: dict) -> bool:
         if age is not None and age > max_age:
             return False
     return True
+
+
+# ─── Push-quality gates: ex-dividend exclusion + side fresh-confirm (2026-10-29)
+# Both run ONLY on the auto-push path (in _apply_auto_push, at the single point a
+# candidate fires), never on the feed, and never on a manual force-push.
+#   • Ex-div: a deep-ITM call into an imminent ex-dividend is exercise / dividend-
+#     capture arbitrage, not conviction (PAGP 10/29: ITM calls, ex-div next day,
+#     extrinsic ~$0.10 vs a $0.42 dividend). Never push it.
+#   • Fresh-confirm: our side read is only as good as the NBBO it classified
+#     against, and that NBBO is stale >3s on ~45% of pushes and per-exchange (not
+#     consolidated) — so ~1 in 4 confident directional pushes invert vs the
+#     consolidated tape (COIN 10/26 sold put shown Bear; META 10/28 sold call
+#     shown Bull). Before pushing a direction, re-pull the CONSOLIDATED NBBO; keep
+#     the Bull/Bear label only if a FRESH quote still confirms the ask, else push
+#     a neutral "Large Ask Build (Unverified)" card.
+# flow-worker has no httpx -> stdlib urllib; Massive auth is the ?apiKey= param.
+_DIV_MEMO: dict = {}          # sym -> (fetched_epoch, {"date","amount"} | None)
+_DIV_MEMO_TTL = 43_200        # 12h, matches dividends_calendar's own cache
+
+
+def _exp_parts(exp):
+    """(month, day, year) from an alert exp in M/D/YYYY or YYYY-MM-DD/MM-DD-YYYY;
+    (None, None, None) on any failure."""
+    s = str(exp or "").strip()
+    for sep in ("/", "-"):
+        if sep in s:
+            parts = s.split(sep)
+            if len(parts) == 3:
+                try:
+                    a, b, c = (int(p) for p in parts)
+                except ValueError:
+                    return (None, None, None)
+                return (b, c, a) if a > 1900 else (a, b, c)  # YYYY-first vs M/D/Y
+    return (None, None, None)
+
+
+def _alert_occ(a: dict):
+    """OCC option symbol for an alert (O:META270617C00600000), or None."""
+    try:
+        t = str(a.get("ticker") or "").upper().strip()
+        m, d, y = _exp_parts(a.get("exp"))
+        if not (t and m):
+            return None
+        cp = "C" if str(a.get("cp") or "").upper().startswith("C") else "P"
+        k = int(round(float(a.get("strike")) * 1000))
+        return f"O:{t}{y % 100:02d}{m:02d}{d:02d}{cp}{k:08d}"
+    except (TypeError, ValueError):
+        return None
+
+
+def _classify_side_px(price, bid, ask) -> str:
+    """Deployed worker side rule (midpoint split) for the fresh re-check."""
+    try:
+        b, a, p = float(bid), float(ask), float(price)
+    except (TypeError, ValueError):
+        return ""
+    if b <= 0 or a <= 0 or a < b:
+        return ""
+    if p > a + 0.005:
+        return "AA"
+    if p < b - 0.005:
+        return "BB"
+    mid = (b + a) / 2.0
+    return "A" if p > mid else ("B" if p < mid else "")
+
+
+def _massive_rest(path: str, params: dict, timeout: float = 4.0):
+    """One Massive REST GET via stdlib urllib (?apiKey=). None on any failure; the
+    key never enters an exception message."""
+    key = os.environ.get("MASSIVE_API_KEY", "")
+    if not key:
+        return None
+    import urllib.request
+    import urllib.parse
+    q = dict(params)
+    q["apiKey"] = key
+    url = f"https://api.massive.com{path}?{urllib.parse.urlencode(q)}"
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "uct-push-gate"})
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            return json.load(r)
+    except Exception:
+        return None
+
+
+def _consolidated_nbbo(occ: str):
+    """(bid, ask, quote_age_ms) for the current consolidated NBBO, or None."""
+    now_ns = int(time.time() * 1e9)
+    r = _massive_rest(f"/v3/quotes/{occ}", {"timestamp.lte": now_ns, "order": "desc", "limit": 1})
+    res = (r or {}).get("results") or []
+    if not res:
+        return None
+    q = res[0]
+    return (q.get("bid_price"), q.get("ask_price"),
+            (now_ns - (q.get("sip_timestamp") or now_ns)) / 1e6)
+
+
+def _side_confirms(a: dict, thr: dict) -> bool:
+    """True only if a FRESH consolidated NBBO still reads ask-side for the fill.
+    Abstains (False) on a missing / stale / unusable quote — the caller relabels."""
+    occ = _alert_occ(a)
+    if not occ:
+        return False
+    nb = _consolidated_nbbo(occ)
+    if not nb:
+        return False
+    bid, ask, age_ms = nb
+    if age_ms is None or age_ms > float(thr.get("side_confirm_max_age_ms", 2000) or 0):
+        return False
+    return _classify_side_px(a.get("averageFillPrice"), bid, ask) in ("A", "AA")
+
+
+def _next_ex_div(sym: str):
+    """Next forward ex-dividend {date, amount} for sym (memoized 12h), via the
+    owned dividends_calendar wrapper (Massive reference). None if none/unavailable.
+    Only ITM calls reach here, so the lookup is rare."""
+    now = time.time()
+    hit = _DIV_MEMO.get(sym)
+    if hit and now - hit[0] < _DIV_MEMO_TTL:
+        return hit[1]
+    ev = None
+    try:
+        from api.services.dividends_calendar import _get_forward_dividend
+        ev = _get_forward_dividend(sym, datetime.now(ET).date())
+    except Exception:
+        ev = hit[1] if hit else None   # keep last-known on a vendor blip
+    _DIV_MEMO[sym] = (now, ev)
+    return ev
+
+
+def _is_dividend_play(a: dict, thr: dict) -> bool:
+    """A deep-ITM call into an imminent ex-dividend = exercise/capture arbitrage,
+    not conviction. Tell: ITM CALL whose EXTRINSIC (fill - intrinsic) is at/under
+    the upcoming dividend, with ex-div within the window AND before expiry. When
+    the dividend amount is unknown, an ITM call with imminent ex-div is enough to
+    abstain."""
+    if not thr.get("dividend_excl_enabled", True):
+        return False
+    if str(a.get("cp") or "").upper() not in ("C", "CALL"):
+        return False
+    if (a.get("moneynessLabel") or "") != "ITM":
+        return False
+    ev = _next_ex_div(str(a.get("ticker") or "").upper())
+    if not ev or not ev.get("date"):
+        return False
+    try:
+        ex = datetime.strptime(ev["date"], "%Y-%m-%d").date()
+    except (TypeError, ValueError):
+        return False
+    days = (ex - datetime.now(ET).date()).days
+    if days < 0 or days > int(thr.get("dividend_excl_days", 3)):
+        return False
+    m, d, y = _exp_parts(a.get("exp"))
+    if m:
+        try:
+            if ex > datetime(y, m, d).date():
+                return False   # ex-div falls after the option expires
+        except ValueError:
+            pass
+    amt = ev.get("amount")
+    spot, strike, fill = a.get("spot"), a.get("strike"), a.get("averageFillPrice")
+    if amt and spot and strike and fill:
+        extrinsic = float(fill) - max(0.0, float(spot) - float(strike))
+        return extrinsic <= float(amt) * float(thr.get("dividend_extrinsic_buffer", 1.15))
+    return True
+
+
+_UNVERIFIED_NAME = "UCT Size - Large Ask Build (Unverified)"
+
+
+def _relabel_unverified(a: dict) -> dict:
+    """Return a COPY with the directional claim stripped — it renders as a neutral
+    gold Size card. The original alert (feed row + dedup key) is left untouched."""
+    out = dict(a)
+    out["_direction"] = None
+    out["_directionUnconfirmed"] = True
+    out["_sideUnconfirmed"] = True
+    out["alertName"] = _UNVERIFIED_NAME
+    out["_tierKey"] = "size"
+    return out
+
+
+def _stamp_flow_split(push_alert: dict, src: dict, flow: dict) -> None:
+    """Attach the contract's directional one-sidedness for the card's Flow line:
+    dominant vs other directional premium this session + whether the dominant flow
+    is ask- or bid-side. Uses the SAME per-contract split the net-flow push gate
+    computes (`flow` = {contract: {Bull, Bear}}). No-op if unavailable. Only called
+    for a CONFIRMED directional push — never a neutral relabel."""
+    try:
+        key = f"{src.get('ticker','')}|{src.get('cp','')}|{src.get('strike','')}|{src.get('exp','')}"
+        fs = flow.get(key)
+        if not fs:
+            return
+        bull, bear = float(fs.get("Bull", 0) or 0), float(fs.get("Bear", 0) or 0)
+        total = bull + bear
+        if total <= 0:
+            return
+        direction = push_alert.get("_direction")
+        dom = bull if direction == "Bull" else bear
+        cp = (src.get("cp") or "").upper()
+        # ask-side = CALL bought (Bull) or PUT bought (Bear); else bid-side (writing)
+        ask_side = (cp.startswith("C") and direction == "Bull") or \
+                   (cp.startswith("P") and direction == "Bear")
+        push_alert["_flowPct"] = round(100 * dom / total)
+        push_alert["_flowDom"] = dom
+        push_alert["_flowOther"] = total - dom
+        push_alert["_flowSide"] = "ask" if ask_side else "bid"
+    except Exception:
+        pass
 
 
 def should_auto_push(alert: dict, cfg: dict = None) -> bool:
@@ -6259,9 +6506,24 @@ def _apply_auto_push(alerts: list, mode: str = "single", live: bool = True):
                 and _push_window_ok(a, mode, _AUTO_PUSH_CFG)):
             if curated_ok is not None and not curated_ok(a):
                 continue   # conviction match, but failed its cap-tier curated floor
-            if _record_push(a, mode, "auto"):           # atomic claim
+            # ── Push-quality gates (2026-10-29), single-print auto-push only ──
+            # Ex-div arb never pushes; a directional push whose side a fresh
+            # consolidated NBBO can't confirm pushes as a neutral relabel copy.
+            # Manual force-push (its own route) is unaffected.
+            push_alert = a
+            if mode == "single":
+                _thr = _load_thresholds()
+                if _is_dividend_play(a, _thr):
+                    continue   # dividend-capture arbitrage — never push
+                if (_thr.get("side_confirm_enabled", True)
+                        and a.get("_direction") in ("Bull", "Bear")
+                        and not _side_confirms(a, _thr)):
+                    push_alert = _relabel_unverified(a)   # neutral card; feed row `a` untouched
+                elif a.get("_direction") in ("Bull", "Bear"):
+                    _stamp_flow_split(push_alert, a, _flow)   # confirmed dir -> Flow line
+            if _record_push(a, mode, "auto"):           # atomic claim (keyed on the original)
                 a["forwardedToDiscord"] = True
-                to_push.append(a)
+                to_push.append(push_alert)
     if to_push:
         def _fire(batch):
             for a in batch:
@@ -6769,6 +7031,9 @@ async def save_thresholds(request: Request, _auth: dict = Depends(require_flow_a
         "close_net_frac",            # DEPRECATED (renamed -> close_min_long_frac). Kept in the
                                      # allowlist ONLY so old saved threshold blobs still POST
                                      # without a 400; the code no longer reads it.
+        # Push-quality gates (2026-10-29): ex-dividend exclusion + side fresh-confirm.
+        "dividend_excl_enabled", "dividend_excl_days", "dividend_extrinsic_buffer",
+        "side_confirm_enabled", "side_confirm_max_age_ms",
     }
     bad_keys = set(body.keys()) - allowed_top
     if bad_keys:

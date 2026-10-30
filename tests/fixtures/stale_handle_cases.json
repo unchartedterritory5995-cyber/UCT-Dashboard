@@ -1,0 +1,14 @@
+{
+  "_about": "ONE stale-handle repair rule, read by BOTH app/src/components/chart/engine/__tests__/staleHandleParity.test.js (memberDocumentMigration.migrateMemberDocument) and tests/test_stale_handle_parity.py (user_definitions.refresh_stale_handle). Each case starts from `base` (a Clouds document origin/master's door saved with both lengths edited: its compute.fn is the UNEDITED tree's hash) and applies `transform`; `repaired` says whether compute.fn must become the hash of compute.ast (`expectFn`), or stay exactly as given.",
+  "base": "tests/fixtures/pine_param_ids/clouds-saved-master-e3-edit.json",
+  "expectFn": "sha256:2515a1ed5d3f7e631c60dbd6d8adc74e9f5f5d50c82564696b5ee9157eef2fb7",
+  "cases": [
+    { "name": "a param-edited document with a stale handle", "transform": "none", "repaired": true },
+    { "name": "trees declared without a treesHash", "transform": "dropTreesHash", "repaired": true },
+    { "name": "no parameter manifest: not a param edit", "transform": "dropManifest", "repaired": false },
+    { "name": "trees disagree with treesHash: not self-consistent", "transform": "tamperTree", "repaired": false },
+    { "name": "no handle at all", "transform": "dropFn", "repaired": false },
+    { "name": "a handle that already agrees", "transform": "freshFn", "repaired": false },
+    { "name": "not an ast document", "transform": "kindJs", "repaired": false }
+  ]
+}

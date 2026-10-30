@@ -25,7 +25,7 @@
 // maxOps), at most MAX_STEPS steps. A larger step stops the request before it runs, with the reason.
 
 import { fastParse, matchPosition, canon } from './fastPath'
-import { multiChartPlan, tickersIn } from './multiChart'
+import { multiChartPlan, gridTickers } from './multiChart'
 import { followUpShape, resolveFollowUp } from './conversation'
 import { getCapability, getTargetKind } from './capabilities'
 import { chartRefOf } from './deixis'
@@ -37,8 +37,18 @@ import MANIFEST_CONTRACT from './contract/manifest.contract.json'
 export const MAX_STEPS = 6
 export const MAX_STEP_OPS = MANIFEST_CONTRACT.limits.maxOps
 
-// segments: cut at ", and", ",", " and ", " then ", ";" — the separators are kept so a span reads as typed
-const SEP = /(\s*,\s*(?:and\s+|then\s+)?|\s+and then\s+|\s+and\s+|\s+then\s+|\s*;\s*)/i
+// segments: cut at ", and", ",", " and ", " then ", ";" and between sentences (". ", "! ", "? " — a decimal such as
+// "1.5" has no space after its point) — the separators are kept so a span reads as typed
+const SEP = /(\s*,\s*(?:and\s+|then\s+)?|\s+and then\s+|\s+and\s+|\s+then\s+|\s*;\s*|[.!?]\s+)/i
+
+// ⭐ acceptance 2026-10-29: "…, each with a 50sma" / "with RSI on each" / "all with the 9 and 20 ema" after a step that
+// set up charts — the same add as "add a 50 sma to all of them" (the fast path reads it; the working set is "them")
+const EACH_WITH = /^(?:(?:and )?(?:each|every one|all|both)(?: of them| one| chart| of the charts)? (?:with|having|getting|gets|get)|(?:and )?with) (.+?)(?: (?:on|for|to) (?:each|all|every one|both)(?: of them| one| chart| of the charts)?)?$/i
+/** "each with X" → "add X to all of them" (then read by the fast path, like any other clause), else the words. */
+export function eachWith(text) {
+  const m = EACH_WITH.exec(String(text || '').trim().replace(/[.!?]+$/, ''))
+  return m ? `add ${m[1]} to all of them` : text
+}
 
 // ── "put RSI under price", "put the 20 ema in its own pane", "add MACD in a separate pane" ──
 const NEW_PANE = /^(?:put|add|place|stick|throw|slap|give me|load|plot) (.+?) (?:in (?:its own|a separate|a seperate|a new|a different|their own) (?:pane|window)|in (?:a )?(?:separate|seperate|own) panes?|(?:under|below|beneath|underneath) (?:the )?(?:price|price chart|chart|candles|main chart))$/
@@ -61,7 +71,7 @@ function clauseKind(text, host) {
   const g = multiChartPlan(t, { host })
   if (g?.kind === 'ops' && g.ops.some(o => o.action === 'chartGrid.set' || o.action === 'widget.addCharts')) return 'grid'
   if (newPaneIndicator(canon(t).replace(/[.!?]+$/, ''))) return 'pane'
-  const f = fastParse(t, { host })
+  const f = fastParse(eachWith(t), { host })
   if (f?.kind === 'ops') return 'fast'
   if (followUpShape(t)) return 'follow'
   return null
@@ -155,10 +165,25 @@ function aim(ops, charts, host) {
  */
 export function resolveStep(step, { host, memory, epoch = null, working = null } = {}) {
   const t = step.text
+  // a step already planned (the model's plan, screened — screenChartGrid): the grid as planned, then each change aimed at
+  // the chart that NOW shows its ticker (one of the working set's)
+  if (step.kind === 'planned') {
+    if (step.grid) return { ops: step.ops, grid: step.grid }
+    const ops = []
+    for (const { symbol, op } of step.each || []) {
+      const refs = chartsShowing(host, [symbol]).filter(r => !working?.length || working.includes(r))
+      if (refs.length !== 1) return { say: `I couldn't tell which ${symbol} chart to change` }
+      const { target, ...rest } = op                                      // eslint-disable-line no-unused-vars
+      const aimed = aim([rest], refs, host)
+      if (!aimed) return { say: `that change doesn't apply to the ${symbol} chart` }
+      ops.push(...aimed)
+    }
+    return { ops }
+  }
   if (step.kind === 'grid') {
     const g = multiChartPlan(t, { host })
     if (g?.kind !== 'ops') return { say: g?.text || `I couldn't read “${t}” any more.` }
-    const symbols = tickersIn(t)
+    const symbols = gridTickers(t, host)
     return { ops: g.ops, grid: symbols }
   }
   if (step.kind === 'pane') {
@@ -188,7 +213,7 @@ export function resolveStep(step, { host, memory, epoch = null, working = null }
     if (r?.kind === 'say') return { say: r.text }
     // its referents are not in the conversation (an add that was a no-op): the instant reading, on the working set
   }
-  const f = fastParse(t, { host })
+  const f = fastParse(eachWith(t), { host })
   if (f?.kind !== 'ops') return { say: `I couldn't read “${t}” on the board as it is now.` }
   if (f.ops.every(o => o.target)) return { ops: f.ops }
   const charts = f.target ? chartsForHint(f.target, host, working) : defaultCharts(host, memory, epoch, working)

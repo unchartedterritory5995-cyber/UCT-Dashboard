@@ -34,7 +34,7 @@ import {
   withObjectTransparency, opReadsState, BAR_COORD_PROPS,
 } from './ast/objectProgram'
 // ⭐ C20 — a colour the runtime lane computed is a packed integer; the ONE unpacker.
-import { unpackColor, wholeTransparency } from './colorInt.js'
+import { unpackColor } from './colorInt.js'
 // ⭐ C37 — the gradient's one curve, and the object colour string's one packer.
 import { fromGradient, objectHexToPacked, packedToObjectHex } from './runtime/colours.js'
 
@@ -921,8 +921,10 @@ export function beginObjects(program, ctx) {
         // (`color.t(color.new(c, 70.5))` = 70, and 70.4 → 70, measured on
         // `vw-gradient-spy-1d-2026-09-30`); `na` or out of range is still held.
         const raw = value(c.t)
-        const t = typeof raw === 'number' && Number.isFinite(raw) ? wholeTransparency(raw) : NaN
-        if (!Number.isInteger(t) || t < 0 || t > 100) return null
+        // ⛔ …and the PAINT is the exact t (`withObjectTransparency` says why); a theme
+        // reference keeps its whole-number encoding inside that function.
+        const t = typeof raw === 'number' && Number.isFinite(raw) ? raw : NaN
+        if (!(t >= 0 && t <= 100)) return null
         const base = colorOf(c.of)
         return base ? withObjectTransparency(base, t) : null
       }

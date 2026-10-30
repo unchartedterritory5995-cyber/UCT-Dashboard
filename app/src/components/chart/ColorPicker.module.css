@@ -108,3 +108,26 @@
 .hexOk:hover {
   background: rgba(220, 187, 94, 0.35);
 }
+
+/* The opacity row (`withOpacity`): a colour is hue AND alpha, as TradingView's style colour. */
+.opacityRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+.opacityLabel,
+.opacityValue {
+  font-size: 10px;
+  color: var(--text);
+  white-space: nowrap;
+}
+.opacityValue {
+  min-width: 30px;
+  text-align: right;
+}
+.opacityRange {
+  flex: 1;
+  min-width: 0;
+  accent-color: #dcbb5e;
+}

@@ -44,7 +44,7 @@ import { planCompound, resolveStep, chartsShowing, MAX_STEP_OPS } from './compou
 import { screenDuplicateAdds, wantsCopy } from './duplicates'
 import { nl1Enabled, exactLane, buildNl1Request, correctionPlan, preflightRefusals, repairedDisposition, withoutWordingApprovals } from './nl1/interpreter'
 import { NL1_MAX_NEED } from './nl1/selection'
-import { takeIndicatorTouches, takeIndicatorMentions } from './capabilities/indicatorEdits'
+import { takeIndicatorTouches, takeIndicatorMentions, canonicalIndicatorAdds } from './capabilities/indicatorEdits'
 import { correctTypos, lexiconFor } from './nl/lexicon'
 import { agentTurn, agentTurnStream, serverStreams, loadAgentConfig, agentRecord, agentConversation } from './agentClient'
 import { AGENT_CONVERSATION_KEY, AGENT_INFLIGHT_KEY, readLocal, writeLocal } from './agentFlag'
@@ -1694,7 +1694,20 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       // S6 F4: a new chart for a named ticker is born on it (not linked), even if the plan dropped the ticker
       // ⭐ live test 2026-10-28: "N charts for these tickers" planned as adds + tickers → ONE chart grid (reuses
       // the board's charts, re-tiles to make room) — never "there isn't enough open space"
-      const screenedOps = screenChartGrid(screenNewChart(screened.ops, text).ops, text, host).ops
+      const gridded = screenChartGrid(screenNewChart(canonicalIndicatorAdds(screened.ops), text).ops, text, host)
+      // ⭐ acceptance 2026-10-29: the plan also changes the charts the grid makes ("…, each with a 50sma") — the grid runs,
+      // then those changes, on the charts that now show their tickers: two steps of one request (runCompound — each step
+      // the same execute, policy, receipts and Undo; a step that does not land stops the rest, said plainly)
+      if (gridded.then?.length && !nl1 && !env.correction) {
+        const grid = gridded.ops[0]?.args?.symbols || []
+        const steps = [
+          { text: `set up the ${grid.join(', ')} charts`, kind: 'planned', ops: gridded.ops, grid },
+          { text: 'the rest on those charts', kind: 'planned', each: gridded.then },
+        ]
+        if (disposition === 'apply') return await runCompound(steps, { member: text, voice })
+        push({ role: 'agent', text: 'Once those charts are there, ask me again for the rest — I can only plan it on charts that exist.' })
+      }
+      const screenedOps = gridded.ops
       // NL-1: no wording-dependent approval shortcut — every indicator save shows its approval card
       const ops = nl1 ? withoutWordingApprovals(screenedOps) : screenedOps
       lastActionsRef.current = ops.map(o => o.action)

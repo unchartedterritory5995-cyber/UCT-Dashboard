@@ -227,9 +227,13 @@ describe('⭐⭐ (b) colours the run computes', () => {
     expect(live.map((o) => o.props.color)).toEqual(['#F236454D'])
   })
 
-  it('⭐ C29 — a fractional transparency is the truncated whole one (70.5 → 70)', () => {
+  it('⭐ a fractional transparency PAINTS exactly — 70.5 is alpha 75, not 70\'s 77', () => {
+    // ⚰️ This pinned C29's truncation (70.5 → 70) on the PAINT. C29 measured what
+    // `color.t` READS BACK; what TradingView PAINTS is `round((1 − t/100) × 255)` on
+    // the exact t (Uncharted Clouds capture A: `color.new(c, 87.5)` is alpha 32).
+    // 70.5 → round(75.225) = 75 = 0x4B; a whole 70 is still 77 = 0x4D.
     const src = COL('color.new(c, tr)').replace('    c = net', '    tr = 70.5 + i * 0\n    c = net')
-    expect(draw(door(src)).live.map((o) => o.props.color)).toEqual(['#F236454D'])
+    expect(draw(door(src)).live.map((o) => o.props.color)).toEqual(['#F236454B'])
     expect(draw(door(src.replace('70.5', '70'))).live.map((o) => o.props.color)).toEqual(['#F236454D'])
   })
 })

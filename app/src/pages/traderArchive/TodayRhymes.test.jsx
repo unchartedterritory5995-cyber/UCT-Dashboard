@@ -6,7 +6,7 @@ import { act, render, screen, fireEvent, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { SWRConfig } from 'swr'
 
-import TodayRhymes, { RHYMES_LIMIT, RHYMES_RETRY, SLOW_MS, TICKERS_SHOWN, WARMING_POLL_MS } from './TodayRhymes'
+import TodayRhymes, { RHYMES_LIMIT, RHYMES_RETRY, SETUPS_SHOWN, SLOW_MS, TICKERS_SHOWN, WARMING_POLL_MS } from './TodayRhymes'
 import TraderArchive from './TraderArchive'
 
 const API = '/api/wisdom/archive'
@@ -90,6 +90,24 @@ describe('TodayRhymes', () => {
       expect(await screen.findByTestId(id)).toBeInTheDocument()
       expect(screen.queryByText(/None of today/)).toBeNull()
       unmount()
+    }
+  })
+
+  it('a network failure with no status (a deploy swapping pods) is retried, not final', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      let n = 0
+      globalThis.fetch = vi.fn(() => (++n < 2 ? Promise.reject(new TypeError('Failed to fetch'))
+        : Promise.resolve(ok({ market_state: 'downtrend', hits: [HIT] }))))
+      mount(<TodayRhymes />)
+      expect(await screen.findByText(/this page checks back on its own/)).toBeInTheDocument()
+      expect(screen.queryByTestId('rhymes-unavailable')).toBeNull()
+      for (let i = 0; i < 3 && !screen.queryByTestId('rhyme-hit'); i += 1) {
+        await act(async () => { await vi.advanceTimersByTimeAsync(RHYMES_RETRY.intervalMs + 10) })
+      }
+      expect(screen.getByTestId('rhyme-hit')).toHaveTextContent('ZZTA')
+    } finally {
+      vi.useRealTimers()
     }
   })
 
@@ -188,4 +206,14 @@ describe('TodayRhymes', () => {
     fireEvent.click(screen.getByRole('tab', { name: /Today/ }))
     expect(await screen.findByTestId('rhyme-hit')).toHaveTextContent('ZZTA')
   })
+})
+
+it('shows the top setups first and the rest behind one button', async () => {
+  const many = Array.from({ length: SETUPS_SHOWN + 2 }, (_, i) => ({ ...HIT, ticker: `ZS${i}`, setup: `s${i}`,
+    playbook: { ...HIT.playbook, setup_id: `s${i}`, name: `Setup ${i}` } }))
+  serve({ [`${API}/rhymes`]: ok({ market_state: 'mixed', n_hits: many.length, hits: many }) })
+  mount(<TodayRhymes />)
+  expect(await screen.findAllByTestId('rhyme-group')).toHaveLength(SETUPS_SHOWN)
+  fireEvent.click(screen.getByRole('button', { name: 'Show 2 more setups' }))
+  expect(screen.getAllByTestId('rhyme-group')).toHaveLength(SETUPS_SHOWN + 2)
 })

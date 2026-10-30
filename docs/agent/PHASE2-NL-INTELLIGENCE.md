@@ -68,3 +68,38 @@ The full Agent suite on this branch is 1653 passed, 0 failed. The Python Agent t
   model.
 - **Copies by position:** "make the copy on the right red". After a copy, copies are referents as a group only
   ("make them all green" covers the originals and every copy).
+
+## Live acceptance corrections (2026-10-29)
+
+Three failures from the owner's authenticated production test. Regression tests: `agentAcceptanceP2.test.jsx` (D1, D2)
+and `agentGuideTarget.test.jsx` (D3).
+
+| Defect | Root cause | Fix |
+|---|---|---|
+| D1 "throw the 9 and 20 ema on my chart. make the fast one green and the other one yellow" → "I don't know that indicator" | The multi-step reader did not cut at a sentence boundary, so the request went to the model. The model's context carried the indicator catalog only after add/put/apply/insert/load/plot, so it planned without catalog ids. The colour look routed only as "make the 9 green". "The other one" ignored the one named earlier in the same instruction. | `compound.js` cuts at `. ! ?`. The catalog is sent whenever the message names an indicator (the routing group's own words) or uses a placing verb. A colour or line look in an indicator message routes `indicatorSetup`. `conversation.js` passes what an earlier part named (`taken`). A model add naming a built-in instead of its id ("ema" + period 9) resolves through the instant path's own readers (`canonicalIndicatorAdds`). |
+| D2 "open daily charts for AAPL MSFT NVDA, each with a 50sma" → "There isn't enough open space…" | The grid reader needed a count or a layout word. "Each with a 50sma" read as nothing, so the request went to the model. The model's plan (new charts plus an indicator on each) was not the grid shape `screenChartGrid` converts. | "Charts for <tickers>" is a grid. "Open" asks for new charts (the existing one is kept). "Each with X" is "add X to all of them" on the grid's charts. "50sma" reads as "50 sma". A model plan whose extra ops target the new charts becomes the grid, then those ops on the charts now showing their tickers (`runCompound`, same execute and policy). The grid's Undo compares an ADDED chart by what it draws, so an indicator added then undone on it no longer blocks that Undo. |
+| D3 "Show me how to change the timeframe" highlighted the whole toolbar row | `data-guide="chart.timeframe"` sat on `ChartTfBar`'s root, and `ChartPane` renders the row's other controls as its children. | A non-shrinking group around the timeframe buttons and ⌄ carries the target. `rectOf` clips the ring to an overflow-hidden ancestor. Verified in the real workspace (agent-harness): one or two charts, the panel open and closed, several widths, the selected chart, Next/Back/Done. |
+
+Note for Indicators (not changed here): the Indicators interface's own Undo of an add leaves bookkeeping in the stored
+settings (a tombstone, renumbered ids, `preset: "custom"`), also on master for a plain "add rsi" → "undo". Nothing
+the member sees differs.
+
+### Final live acceptance (2026-10-29): lowercase tickers in a chart grid
+
+"open daily charts for aapl msft nvda, each with a 50sma" (one BRCB daily chart on the board) answered "UCT Agent
+returned something unreadable".
+
+- **Root cause.** The chart-grid reader (`multiChart.js`) took only tickers typed in capitals or with `$`. With
+  lowercase tickers it read nothing, the multi-step planner had no grid step, and the request went to the model.
+- **What the server did.** It refused the model's reply (`_unreadable` → 400) before any plan reached the browser, so
+  nothing on the board changed. The `uct_agent unreadable: <reason>` log line from that time records which shape check
+  failed.
+- **Fix.** `gridTickers` also takes lowercase words in a grid sentence:
+  - only words left once the sentence's own words are removed;
+  - at most four letters, so a company name like "apple" stays with the model;
+  - only words that pass the shared N4 rule `plainSymbolWord`: not a word UCT knows or a typo of one, not a short typo
+    such as "teh", not a pronoun.
+- **Existence check.** The ticker search in `chartGrid.set` prepare still decides whether each ticker exists. An
+  unknown one refuses the whole grid by name, and nothing changes.
+- **Tests.** Regression tests in `agentAcceptanceP2.test.jsx`, under "the tickers typed in lowercase". Verified in the
+  real workspace (agent-harness): an equal 2×2 with no model call, and one Undo restored the single chart.

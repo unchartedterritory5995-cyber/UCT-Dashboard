@@ -65,11 +65,17 @@ def closes_for(tickers) -> dict:
 
 
 def parse_tickers(raw: str) -> list:
-    """Comma list -> upper-case, de-duplicated, order kept, capped at MAX_TICKERS."""
+    """Comma list -> the one symbol spelling, de-duplicated, order kept, capped at MAX_TICKERS.
+
+    Each symbol goes through ticker_resolver.route_symbol, the authority for a symbol the caller
+    already named: upper-case, class shares in the hyphen form the bar store holds (BRK.B ->
+    BRK-B), and junk refused rather than read from the bars store."""
+    from api.services import ticker_resolver
+
     seen, out = set(), []
     for part in (raw or "").split(","):
-        t = part.strip().upper()
-        if t and t not in seen and len(t) <= 12:
+        t = ticker_resolver.route_symbol(part)
+        if t and t not in seen:
             seen.add(t)
             out.append(t)
         if len(out) >= MAX_TICKERS:

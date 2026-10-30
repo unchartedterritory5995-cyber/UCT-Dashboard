@@ -24,6 +24,29 @@ import { useState, useRef, useEffect, useLayoutEffect } from 'react'
 import { createPortal } from 'react-dom'
 import styles from './ColorPicker.module.css'
 import { safeCssColour } from './engine/objectColour'
+import { withAlphaByte, opaqueOf } from './designTokens'
+
+/** ⭐⭐ The OPACITY (0-1) a colour carries — `#RRGGBBAA`'s last byte, `rgba()`'s
+ *  fourth number — or 1 when it carries none. */
+function opacityOfColour(value) {
+  if (typeof value !== 'string') return 1
+  const v = value.trim()
+  const h8 = /^#[0-9a-f]{6}([0-9a-f]{2})$/i.exec(v)
+  if (h8) return parseInt(h8[1], 16) / 255
+  const m = /^rgba\(\s*[\d.]+\s*,\s*[\d.]+\s*,\s*[\d.]+\s*,\s*([\d.]+)\s*\)$/i.exec(v)
+  return m ? Math.max(0, Math.min(1, Number(m[1]))) : 1
+}
+
+/** A colour at an opacity, as TradingView's style colour is: `#RRGGBB` when opaque,
+ *  else `#RRGGBBAA` with the exact byte (`designTokens.withAlphaByte`). */
+function colourAtOpacity(value, opacity) {
+  const base = opaqueOf(value)
+  if (!base) return value
+  // ⭐ raising a translucent colour to 100% writes an EXPLICIT `#RRGGBBFF`: a pick,
+  // which a seeded `#RRGGBB` default is not (`pool.storedOpacityApplies`).
+  if (opacity >= 1) return opacityOfColour(value) >= 1 ? value : `${base}FF`
+  return withAlphaByte(base, opacity) || base
+}
 
 /** The marker every portaled popup that is logically INSIDE a dismiss-on-outside
  *  surface must carry. Exported so the handler and the popup name the same
@@ -41,7 +64,7 @@ const SWATCHES = [
 const POPUP_W = 160
 const POPUP_H = 132
 
-export default function ColorPicker({ value, onChange, label, disabled = false, title }) {
+export default function ColorPicker({ value, onChange, label, disabled = false, title, withOpacity = false }) {
   const [open, setOpen] = useState(false)
   const [hex, setHex] = useState(value || '#c9a84c')
   const [pos, setPos] = useState(null)
@@ -79,14 +102,22 @@ export default function ColorPicker({ value, onChange, label, disabled = false, 
     return () => document.removeEventListener('mousedown', handler)
   }, [open])
 
+  // ⭐⭐ `withOpacity`: the picker also holds the colour's ALPHA, so a pick is the
+  // whole colour — hue and opacity together — the way TradingView's style colour is.
+  // A swatch keeps the current opacity; the slider changes only the opacity.
+  const opacity = opacityOfColour(value)
   const pick = (c) => {
-    setHex(c)
-    onChange(c)
+    const out = withOpacity ? colourAtOpacity(c, opacity) : c
+    setHex(out)
+    onChange(out)
     setOpen(false)
   }
 
   const commitHex = () => {
-    if (/^#[0-9a-fA-F]{6}$/.test(hex) || /^#[0-9a-fA-F]{3}$/.test(hex)) {
+    if (withOpacity && /^#[0-9a-fA-F]{8}$/.test(hex)) {
+      onChange(hex.toUpperCase())
+      setOpen(false)
+    } else if (/^#[0-9a-fA-F]{6}$/.test(hex) || /^#[0-9a-fA-F]{3}$/.test(hex)) {
       onChange(hex)
       setOpen(false)
     } else if (/^[0-9a-fA-F]{6}$/.test(hex) || /^[0-9a-fA-F]{3}$/.test(hex)) {
@@ -139,6 +170,23 @@ export default function ColorPicker({ value, onChange, label, disabled = false, 
             />
             <button className={styles.hexOk} onClick={commitHex}>OK</button>
           </div>
+          {withOpacity && (
+            <label className={styles.opacityRow}>
+              <span className={styles.opacityLabel}>Opacity</span>
+              <input
+                type="range" min={0} max={100} step={1}
+                className={styles.opacityRange}
+                aria-label="Opacity"
+                value={Math.round(opacity * 100)}
+                onChange={(e) => {
+                  const next = colourAtOpacity(value || hex, Number(e.target.value) / 100)
+                  setHex(next)
+                  onChange(next)
+                }}
+              />
+              <span className={styles.opacityValue}>{Math.round(opacity * 100)}%</span>
+            </label>
+          )}
         </div>
       ), document.body)}
     </div>

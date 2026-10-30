@@ -28,6 +28,7 @@
 
 import { matchPosition } from './fastPath'
 import { ordinalChart, selectedChart } from './deixis'
+import { plainSymbolWord, SHORT_FIXES } from './nl/lexicon'
 
 // ── tickers as typed (capitals, or $-prefixed) — never a lowercase word ──
 const NOT_TICKERS = new Set(['I', 'A', 'UCT', 'ETF', 'ADR', 'RS', 'RSI', 'MACD', 'EMA', 'SMA', 'ATR', 'VWAP', 'ET', 'AM', 'PM', 'OK', 'US', 'NYSE', 'HLC', 'OHLC', 'MA', 'D', 'W', 'M', 'AND', 'VS'])
@@ -91,17 +92,36 @@ const chartGrid = (symbols, timeframe, layout, newCharts) => ({ action: 'chartGr
 
 // ── N charts for these tickers ──
 const COUNT_WORDS = { two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9 }
+const CHARTS_FOR = /\bcharts (?:for|of|showing|on)\b/i
 const COUNT_RE = /\b(two|three|four|five|six|seven|eight|nine|[2-9])\s+(?:new\s+)?(?:(?:daily|weekly|monthly|hourly|intraday)\s+)?(?:separate\s+)?charts?\b/i
 const GRID_LAYOUT = [[/\b(?:side[\s-]by[\s-]side|next to each other|in (?:a )?row)\b/i, 'columns'], [/\b(?:stacked|on top of each other|in (?:a )?column)\b/i, 'rows'],
   [/\b(?:grid|2\s*x\s*2|2\s*by\s*2|3\s*x\s*3|quad)\b/i, 'grid']]
 // everything else such a sentence may say — any other word means it is not ONLY a grid of these tickers
 const GRID_FILLER = /\b(?:please|can|could|would|you|i|want|need|like|to|create|make|open|add|show|set|setup|up|give|me|put|load|pull|bring|build|chart|charts|display|lay|out|new|separate|for|of|with|on|showing|and|them|all|each|every|one|a|an|the|in|into|as|be|is|are|my|grid|2x2|2|x|by|side|stacked|top|other|row|column|quad|equal|equally|sized|size|evenly|layout|arrangement|arranged|time ?frames?|daily|weekly|monthly|hourly|intraday|minutes?|min|hour|hr|1h|4h|1|5|15|30|60|two|three|four|five|six|seven|eight|nine|both|too|also|just|now)\b/gi
+// ⭐ live acceptance 2026-10-29: "open daily charts for aapl msft nvda, each with a 50sma" — the tickers of a grid may be
+// typed in lowercase. Only the words a grid sentence leaves once its own words are taken out, each at most four letters
+// (a longer word is more often a company name — "apple" — and stays the model's) and passing the shared N4 rule: not a
+// word UCT knows, nor one edit from one, nor a short typo ("teh"), nor a pronoun. Whether each exists is decided by the
+// ticker search (chartGrid.set prepare), which refuses the whole grid by name otherwise.
+const LOWER_TICKER = /^[a-z][a-z0-9]{0,3}$/
+export function gridTickers(raw, host) {
+  const marked = tickersIn(raw)
+  let rest = String(raw || '')
+  for (const s of marked) rest = rest.replace(new RegExp(`\\$?\\b${escapeRe(s)}\\b`, 'gi'), ' ')
+  const lower = rest.replace(/[,;!?&()]|\.(?=\s|$)/g, ' ').replace(GRID_FILLER, ' ').split(/\s+/)
+    .filter(w => /[a-z]/.test(w) && LOWER_TICKER.test(w) && !SHORT_FIXES[w.toLowerCase()] && plainSymbolWord(w, host, raw)).map(w => w.toUpperCase())
+  if (!lower.length) return marked
+  // the member's order: each ticker where it was first typed
+  const at = (s) => String(raw).search(new RegExp(`(?:^|[^A-Za-z0-9$])\\$?${escapeRe(s)}(?![A-Za-z0-9])`, 'i'))
+  return [...new Set([...marked, ...lower])].sort((a, b) => at(a) - at(b))
+}
 function gridRequest(raw, lower, charts, host) {
-  const syms = tickersIn(raw)
+  const syms = gridTickers(raw, host)
   if (syms.length < 2) return null
   const layoutHit = GRID_LAYOUT.find(([re]) => re.test(raw))
   const count = COUNT_RE.exec(raw)
-  if (!count && !layoutHit) return null
+  // ⭐ acceptance 2026-10-29: "open daily charts for AAPL MSFT NVDA" — charts (plural) for the named tickers, no count
+  if (!count && !layoutHit && !CHARTS_FOR.test(raw)) return null
   if (count && (COUNT_WORDS[count[1].toLowerCase()] || Number(count[1])) !== syms.length) return null
   const tf = timeframeIn(lower)
   if (tf === false) return null
@@ -119,7 +139,8 @@ function gridRequest(raw, lower, charts, host) {
 // OWNER 2026-10-27 (+ live test 2026-10-28): reuse the board's charts when there are no more of them than tickers
 // ("four charts for …" on a one-chart board: that chart becomes the first of the four); NEW charts when the member
 // asks for new ones, or when the board already has more charts than tickers (their tickers are never overwritten).
-const ASKS_NEW = /\b(?:new|add|another|more|additional|extra)\b/i
+// ⭐ acceptance 2026-10-29: "open daily charts for AAPL MSFT NVDA" on a one-chart board keeps that chart and adds three
+const ASKS_NEW = /\b(?:new|add|another|more|additional|extra|open)\b/i
 const wantsNew = (text, n, onBoard) => ASKS_NEW.test(String(text || '')) || n < onBoard
 // n new charts land in EMPTY space as the product places them (nothing resized or moved)
 function fitsEmpty(host, n) {
@@ -138,8 +159,23 @@ const readingOrder = (a, b) => ((a.cell?.y ?? 0) - (b.cell?.y ?? 0)) || ((a.cell
  * space as they are (then nothing needs re-tiling and it runs as planned). Anything else is left exactly as planned.
  */
 const GRID_SHAPE = new Set(['widget.add', 'widget.addCharts', 'chart.setSymbol', 'chart.setTimeframe', 'widget.arrange'])
-export function screenChartGrid(ops, text, host) {
-  if (!Array.isArray(ops) || !ops.length || !ops.every(o => GRID_SHAPE.has(o?.action))) return { ops, corrected: false }
+// ⭐ acceptance 2026-10-29 ("open daily charts for AAPL MSFT NVDA, each with a 50sma"): the plan may also change the NEW
+// charts (an op aimed at an `as`) — those ride along as `then`, each with the ticker its chart was given, to run once the
+// grid has made the charts (useAgent: one more step, the same execute)
+export function screenChartGrid(input, text, host) {
+  if (!Array.isArray(input) || !input.length) return { ops: input, corrected: false }
+  const aliasesIn = new Set(input.filter(o => o?.action === 'widget.add' && o.args?.as).map(o => String(o.args.as)))
+  const extra = input.filter(o => !GRID_SHAPE.has(o?.action) && aliasesIn.has(String(o?.target)))
+  const ops = extra.length ? input.filter(o => !extra.includes(o)) : input
+  if (!ops.every(o => GRID_SHAPE.has(o?.action))) return { ops: input, corrected: false }
+  const r = screenGridShape(ops, text, host)
+  if (!extra.length) return r
+  if (!r.corrected) return { ops: input, corrected: false }
+  const symbolOf = new Map(ops.filter(o => o.action === 'chart.setSymbol').map(o => [String(o.target), String(o.args?.symbol || '').trim().toUpperCase()]))
+  const then = extra.map(o => ({ symbol: symbolOf.get(String(o.target)), op: o }))
+  return then.every(t => t.symbol) ? { ...r, then } : { ops: input, corrected: false }
+}
+function screenGridShape(ops, text, host) {
   const adds = ops.filter(o => o.action === 'widget.add')
   if (adds.some(o => o.args?.type !== 'chart' || !o.args?.as)) return { ops, corrected: false }
   const lists = ops.filter(o => o.action === 'widget.addCharts')

@@ -194,6 +194,7 @@ const CUTS_SHOWN = 5
 function PlaybookDetail({ setup, onBack }) {
   const { data, error } = useSWR(`${ARCHIVE_API}/playbook/${encodeURIComponent(setup)}`, jsonFetcher, SWR_OPTS)
   const [allCuts, setAllCuts] = useState(false)
+  const [more, setMore] = useState(false)
   const cuts = useMemo(() => {
     const out = []
     for (const [group, rows] of Object.entries(data?.context || {})) {
@@ -234,58 +235,66 @@ function PlaybookDetail({ setup, onBack }) {
             <StatTile label="vs. the stock on a random day"><Outcome value={all?.med_edge20} /></StatTile>
           </div>
 
-          <SectionTitle>Where it worked best</SectionTitle>
-          {cuts.length === 0 ? <p className={styles.empty}>No market context has enough scored calls yet.</p> : (
-            <ul className={styles.bars}>
-              {(allCuts ? cuts : cuts.slice(0, CUTS_SHOWN)).map((c) => (
-                <li key={`${c.group}:${c.value}`} className={styles.barRow}>
-                  <span className={styles.barLabel}>{c.group}: {c.value}</span>
-                  <span className={styles.barTrack} aria-hidden="true">
-                    <span className={styles.barFill} style={{ width: `${Math.round((c.st.win20 ?? 0) * 100)}%` }} />
-                  </span>
-                  <span className={styles.barValue}>{pct0(c.st.win20)} worked</span>
-                  <span className={styles.barN}>{c.st.n_scored} calls</span>
-                </li>
-              ))}
-            </ul>
-          )}
-          {cuts.length > CUTS_SHOWN && (
-            <button type="button" className={styles.linkBtn} onClick={() => setAllCuts((x) => !x)}>
-              {allCuts ? 'Show fewer' : `Show all ${cuts.length}`}
-            </button>
-          )}
-
           <SectionTitle count={(data.winners || []).length}>Best calls</SectionTitle>
           <CallGrid calls={data.winners || []} empty="None recorded." />
           <SectionTitle count={(data.failures || []).length}>When it failed</SectionTitle>
           <CallGrid calls={data.failures || []} empty="None recorded." />
           <PlaybookCharts winners={data.winners || []} failures={data.failures || []} lines={data.lines || null} />
 
-          {(data.teachings || []).length > 0 && (
-            <>
-              <SectionTitle count={data.teachings.length}>In the traders&apos; words</SectionTitle>
-              <PostFeed posts={data.teachings} empty="" />
-            </>
-          )}
+          {/* Up front: the verdict, the tiles and the calls. The rest is one click away (owner, 2026-10-29: simple first). */}
+          <button type="button" className={styles.moreBtn} aria-expanded={more} onClick={() => setMore((x) => !x)}>
+            {more ? 'Less about this setup' : 'More about this setup'}
+          </button>
+          {more && (
+            <div data-testid="ta-playbook-more">
+              <SectionTitle>Where it worked best</SectionTitle>
+              {cuts.length === 0 ? <p className={styles.empty}>No market context has enough scored calls yet.</p> : (
+                <ul className={styles.bars}>
+                  {(allCuts ? cuts : cuts.slice(0, CUTS_SHOWN)).map((c) => (
+                    <li key={`${c.group}:${c.value}`} className={styles.barRow}>
+                      <span className={styles.barLabel}>{c.group}: {c.value}</span>
+                      <span className={styles.barTrack} aria-hidden="true">
+                        <span className={styles.barFill} style={{ width: `${Math.round((c.st.win20 ?? 0) * 100)}%` }} />
+                      </span>
+                      <span className={styles.barValue}>{pct0(c.st.win20)} worked</span>
+                      <span className={styles.barN}>{c.st.n_scored} calls</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {cuts.length > CUTS_SHOWN && (
+                <button type="button" className={styles.linkBtn} onClick={() => setAllCuts((x) => !x)}>
+                  {allCuts ? 'Show fewer' : `Show all ${cuts.length}`}
+                </button>
+              )}
 
-          <details className={styles.numbers}>
-            <summary>The full numbers</summary>
-            <p className={styles.fine}>
-              &ldquo;vs. the stock&rdquo; is the call&apos;s 20-day result minus the same stock on a random day.
-              Edge R is the trade result in risk units, capped at −1 to +10. An edge is called proven at
-              |z| ≥ {EDGE_Z} on at least {MIN_CONTEXT_N} calls{v.z !== null ? ` (this one: z ${v.z})` : ''}.
-            </p>
-            <div className={styles.tableWrap}>
-              <table className={styles.table}>
-                <thead><tr><th></th><th>Scored</th><th>Worked 20d</th><th>Median 20d</th><th>vs stock</th><th>Edge R</th></tr></thead>
-                <tbody>
-                  <NumbersRow label="All calls" st={all} />
-                  <NumbersRow label="Entries, ideas, adds" st={data.stats?.trades} />
-                  {cuts.map((c) => <NumbersRow key={`n:${c.group}:${c.value}`} label={`${c.group}: ${c.value}`} st={c.st} />)}
-                </tbody>
-              </table>
+              {(data.teachings || []).length > 0 && (
+                <>
+                  <SectionTitle count={data.teachings.length}>In the traders&apos; words</SectionTitle>
+                  <PostFeed posts={data.teachings} empty="" />
+                </>
+              )}
+
+              <div className={styles.numbers}>
+                <h3 className={styles.h3}>The full numbers</h3>
+                <p className={styles.fine}>
+                  &ldquo;vs. the stock&rdquo; is the call&apos;s 20-day result minus the same stock on a random day.
+                  Edge R is the trade result in risk units, capped at −1 to +10. An edge is called proven at
+                  |z| ≥ {EDGE_Z} on at least {MIN_CONTEXT_N} calls{v.z !== null ? ` (this one: z ${v.z})` : ''}.
+                </p>
+                <div className={styles.tableWrap}>
+                  <table className={styles.table}>
+                    <thead><tr><th></th><th>Scored</th><th>Worked 20d</th><th>Median 20d</th><th>vs stock</th><th>Edge R</th></tr></thead>
+                    <tbody>
+                      <NumbersRow label="All calls" st={all} />
+                      <NumbersRow label="Entries, ideas, adds" st={data.stats?.trades} />
+                      {cuts.map((c) => <NumbersRow key={`n:${c.group}:${c.value}`} label={`${c.group}: ${c.value}`} st={c.st} />)}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
-          </details>
+          )}
         </div>
       )}
     </div>
@@ -294,6 +303,7 @@ function PlaybookDetail({ setup, onBack }) {
 
 function PlaybooksView({ setup, onPick }) {
   const { data: index, error } = useSWR(`${ARCHIVE_API}/playbooks`, jsonFetcher, SWR_OPTS)
+  const [showOther, setShowOther] = useState(false)
   if (setup) return <PlaybookDetail setup={setup} onBack={() => onPick('')} />
   if (error) return <StateLine error={error} what="the setup playbooks" />
   if (!index) return <p className={styles.loading}>Loading the playbooks…</p>
@@ -322,9 +332,15 @@ function PlaybooksView({ setup, onPick }) {
       {grid(named, 'Playbooks')}
       {other.length > 0 && (
         <>
-          <SectionTitle count={other.length}>Other kinds of calls</SectionTitle>
-          <p className={styles.intro}>Calls the archive could not file under a named setup: watchlist mentions, position updates, theses.</p>
-          {grid(other, 'Other kinds of calls')}
+          <button type="button" className={styles.moreBtn} aria-expanded={showOther} onClick={() => setShowOther((x) => !x)}>
+            {showOther ? 'Hide other kinds of calls' : `Other kinds of calls (${other.length})`}
+          </button>
+          {showOther && (
+            <>
+              <p className={styles.intro}>Calls the archive could not file under a named setup: watchlist mentions, position updates, theses.</p>
+              {grid(other, 'Other kinds of calls')}
+            </>
+          )}
         </>
       )}
     </>

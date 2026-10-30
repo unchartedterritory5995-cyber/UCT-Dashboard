@@ -58,7 +58,7 @@
 // answer to "which scale do the candles own", consumed here so that the
 // complete option set can name `priceScaleId` even when a caller supplies no
 // placement at all.
-import { ALPHA, withAlpha } from '../designTokens'
+import { ALPHA, withAlpha, withAlphaByte } from '../designTokens'
 import { fromGradient, objectHexToPacked, packedToObjectHex } from './runtime/colours'
 import { withObjectTransparency } from './ast/objectProgram'
 import { MAIN_PRICE_SCALE_ID } from './placement'
@@ -198,7 +198,38 @@ export function guideSignature(guides) {
  * Returns the plot UNCHANGED (same reference) when there is nothing to re-apply,
  * so the common case allocates nothing.
  */
-export function resolvePlotForInstance(plot, inputs) {
+/** A colour as one comparable string: `#RRGGBB` (opaque) or `#RRGGBBAA`, upper case,
+ *  from `#rgb`, `#rrggbb`, `#rrggbbaa`, `rgb()` or `rgba()` — EXCEPT that an explicit
+ *  `#RRGGBBFF` stays eight digits: the colour picker writes it when a member makes a
+ *  translucent colour opaque, and that is a pick, not the seeded default. */
+export function normalColour(c) {
+  if (typeof c !== 'string') return null
+  const v = c.trim()
+  if (/^#[0-9a-f]{6}ff$/i.test(v)) return v.toUpperCase()
+  return withAlphaByte(v, 1)
+}
+
+/** ⭐⭐ Does an old-shape document's `plots[].opacity` (the script default's
+ *  transparency, stored beside a `$color` ref) still apply to the instance's colour
+ *  `v`? Only while `v` IS the default colour — what `addInstance` seeds. Any other
+ *  value is the member's pick, and a pick is the whole colour, alpha included. */
+export function storedOpacityApplies(plot, v) {
+  if (!plot || plot.opacity === undefined) return false
+  const a = normalColour(v)
+  return a !== null && a === normalColour(plot.color)
+}
+
+/** The colour the member SEES for `$key` on a Pine document: an old-shape default
+ *  with its stored opacity folded in (so the picker shows 0%, not 100%, for a
+ *  transparent default), else the value itself. */
+export function effectiveColourFor(def, key, value) {
+  if (!def || !def.meta || def.meta.recurrenceOrigin !== 'pine' || typeof value !== 'string') return value
+  const plot = (def.plots || []).find((p) => p && p.$refs && p.$refs.color === key && p.opacity !== undefined)
+  if (!plot || !storedOpacityApplies(plot, value) || !(Number(plot.opacity) < 1)) return value
+  return withAlphaByte(value, Number(plot.opacity)) || value
+}
+
+export function resolvePlotForInstance(plot, inputs, { pickReplacesOpacity = false } = {}) {
   const refs = plot && plot.$refs
   if (!refs || !inputs) return plot
 
@@ -213,6 +244,21 @@ export function resolvePlotForInstance(plot, inputs) {
     if (v === undefined) continue
     out = out || { ...plot }
     out[field] = v
+    // ⭐⭐ A MEMBER'S COLOUR PICK IS AUTHORITATIVE FOR COLOUR *AND* ALPHA, the way
+    // TradingView's style colour is. A document in the old shape carries the
+    // script default's transparency as `opacity` beside a `$color` ref
+    // (`memberPaneDefinition::rowColour` says why the new shape does not), and
+    // multiplying a pick by it drew an opaque yellow at alpha 0 (set E5). So once
+    // the instance's colour differs from the definition's own, that default
+    // opacity no longer applies; an unchanged colour keeps it, so the default
+    // renders exactly as it always did.
+    // ⛔ ONLY FOR A PINE TRANSLATION (`pickReplacesOpacity`): a native's `opacity`
+    // is a deliberate MULTIPLIER over one shared colour (VWAP's ±σ bands at 0.6 of
+    // `$color`), and a pick there must keep it.
+    // ⭐ N3: compared NORMALISED (case, `#rgb`, `rgb()`/`rgba()` are not picks), and an
+    // explicit `#RRGGBBFF` — what the picker emits when a member raises a translucent
+    // colour to 100% — IS a pick, distinct from the seeded `#RRGGBB` default.
+    if (pickReplacesOpacity && field === 'color' && !storedOpacityApplies(plot, v)) delete out.opacity
   }
 
   if (Array.isArray(refs.levels) && Array.isArray(plot.levels)) {
@@ -872,7 +918,7 @@ function gradientOf(plot) {
   const a = objectHexToPacked(g.from)
   const b = objectHexToPacked(g.to)
   if (a === null || b === null) return null
-  const transparency = Number.isInteger(g.transparency) && g.transparency >= 0 && g.transparency <= 100
+  const transparency = Number.isFinite(g.transparency) && g.transparency >= 0 && g.transparency <= 100
     ? g.transparency : null
   return { a, b, transparency, sig: `${a}|${b}|${transparency}` }
 }
@@ -998,7 +1044,8 @@ export function planBindings(instances, registry, prevBindings, opts) {
       // cannot mean has to be clamped HERE too — otherwise the plan would create
       // a candlestick the binder then refuses to feed.
       const srcCap = sourceCapability ? sourceCapability(inst) : null
-      const plot = presentedPlot(resolvePlotForInstance(rawPlot, inst.inputs), inst,
+      const plot = presentedPlot(resolvePlotForInstance(rawPlot, inst.inputs,
+        { pickReplacesOpacity: !!(def && def.meta && def.meta.recurrenceOrigin === 'pine') }), inst,
         { ohlcCapable: !!(ohlcCapable && ohlcCapable(inst)),
           candles,
           // ⛔ THE SOURCE ANSWER REACHES THE PLAN, NOT ONLY THE MENU. `poolKey` picks

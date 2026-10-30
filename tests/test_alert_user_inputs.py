@@ -335,3 +335,22 @@ def test_a_definition_that_only_DECLARES_an_input_needs_no_override_at_all(defs_
         "no params and every alert would be on the default instance, which is "
         "spec §8's two sentences being unrepresentable again")
     assert entry["plots"][0]["instance_label"] == "My Line(1)"
+
+
+def test_text_enum_reaches_the_tree_as_its_option_index():
+    """A Pine ``input.string(..., options=[...])`` is a TEXT enum on the
+    definition and an INDEX in the tree (``pine.js::enumCompare`` writes
+    ``kind == 1``). The alert lane hands the tree the index, as the chart's
+    ``nativeRegistry.treeScalars`` does; an unknown text never moves it."""
+    from api.services.alert_user_series import _inputs_for
+
+    defn = {"inputs": [
+        {"key": "kind", "type": "enum", "default": "EMA", "options": ["EMA", "SMA"]},
+        {"key": "src", "type": "enum", "default": "Close", "options": [["Open", "Open"], ["Close", "Close"]]},
+        {"key": "len", "type": "int", "default": 9},
+    ]}
+    assert _inputs_for(defn, None) == {"kind": 0.0, "src": 1.0, "len": 9.0}
+    assert _inputs_for(defn, {"kind": "SMA", "src": "Open"}) == {"kind": 1.0, "src": 0.0, "len": 9.0}
+    # an unknown text, or a number aimed at an enum, keeps the default's index
+    assert _inputs_for(defn, {"kind": "WMA", "src": 0})["kind"] == 0.0
+    assert _inputs_for(defn, {"kind": "WMA", "src": 0})["src"] == 1.0

@@ -49,7 +49,9 @@ archive block (a bounded line when the question asks what is rhyming), and the C
 from __future__ import annotations
 
 import contextlib
+import json
 import logging
+import os
 import threading
 import time
 from typing import Optional
@@ -80,9 +82,60 @@ _STATE: dict = {"refreshing": False}
 WARMING = object()
 
 
+# ⛔ THE ANSWER SURVIVES A RESTART (2026-10-29). Every deploy emptied the in-memory cache, and the
+# first compute after boot measured 3-4 minutes in production, so Today said "Matching..." for that
+# long after every deploy. Each refresh now also writes its answer next to wisdom.db, and a cold
+# process serves that file (if under STALE_MAX_S old) while a fresh compute runs behind it.
+# Best effort both ways: an unreadable or unwritable file only means the old cold-start behaviour.
+_DISK_LOADED = {"done": False}
+
+
+def _disk_path() -> str:
+    from api.services.wisdom.core import store
+
+    return os.path.join(os.path.dirname(os.path.abspath(store.db_path())), "wisdom_rhymes_cache.json")
+
+
+def _save_to_disk(at: float, value: dict) -> None:
+    path = _disk_path()
+    tmp = path + ".tmp"
+    try:
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump({"at": at, "value": value}, fh)
+        os.replace(tmp, path)
+    except Exception:  # noqa: BLE001 — a cache that cannot be saved is only a slower next boot
+        log.warning("[wisdom] rhymes cache could not be saved to %s", path, exc_info=True)
+
+
+def _load_from_disk() -> None:
+    """Once per process: seed an EMPTY in-memory cache from the saved answer, if it is fresh enough."""
+    if _DISK_LOADED["done"]:
+        return
+    _DISK_LOADED["done"] = True
+    try:
+        with open(_disk_path(), encoding="utf-8") as fh:
+            saved = json.load(fh)
+        at, value = float(saved["at"]), saved["value"]
+    except FileNotFoundError:
+        return
+    except Exception:  # noqa: BLE001 — a corrupt file is ignored, never served
+        log.warning("[wisdom] rhymes cache on disk is unreadable; ignoring it", exc_info=True)
+        return
+    if not isinstance(value, dict) or time.time() - at >= STALE_MAX_S:
+        return
+    with _LOCK:
+        if _CACHE["value"] is None:
+            _CACHE.update(at=at, value=value)
+
+
 def clear_cache() -> None:
     with _LOCK:
         _CACHE.update(at=0.0, value=None)
+    _DISK_LOADED["done"] = False
+    try:
+        os.remove(_disk_path())
+    except OSError:
+        pass
 
 
 def _internal_ids() -> tuple:
@@ -271,6 +324,7 @@ def _refresh(now: Optional[float] = None) -> Optional[dict]:
         with _LOCK:
             _CACHE.update(at=t, value=value)
             _READY.notify_all()
+        _save_to_disk(t, value)
         return value
     except Exception:  # noqa: BLE001 — a missing scan or store answers None, never an error
         log.exception("[wisdom] archive rhymes failed")
@@ -309,6 +363,7 @@ def warm() -> None:
     """Compute in the background if nothing usable is cached. Flag-gated; never raises."""
     if not flags.archive_enabled():
         return
+    _load_from_disk()
     with _LOCK:
         fresh = _CACHE["value"] is not None and time.time() - _CACHE["at"] < REFRESH_S
     if not fresh:
@@ -323,6 +378,7 @@ def today(*, now: Optional[float] = None, force: bool = False, wait_s: Optional[
     if not flags.archive_enabled():  # the gate first: off touches no store
         return None
     if not force:
+        _load_from_disk()
         with _LOCK:
             value, age = _CACHE["value"], time.time() - _CACHE["at"]
         if value is not None and age < STALE_MAX_S:

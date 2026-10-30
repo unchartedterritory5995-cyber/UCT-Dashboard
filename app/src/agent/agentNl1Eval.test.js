@@ -172,9 +172,11 @@ describe('NL-1 request capture', () => {
     const [nl1] = captureCase(spec, c, 'nl1')
     const [legacy] = captureCase(spec, c, 'legacy')
     expect(nl1.body.capabilities.length).toBeGreaterThan(legacy.body.capabilities.length)
-    expect(nl1.body.reference.indicatorCatalog).toBeTruthy()        // always; legacy: only after add/put/apply/…
+    expect(nl1.body.reference.indicatorCatalog).toBeTruthy()        // always; legacy: when the request adds or names an indicator
     expect(nl1.body.context.indicatorCatalog).toBeUndefined()        // a stable catalog travels apart (cached server-side)
-    expect(legacy.body.context.indicatorCatalog).toBeUndefined()
+    // acceptance 2026-10-29: "bollinger bands" names an indicator, so the legacy request carries the catalog too (a request
+    // with no add verb — "throw the 9 and 20 ema on my chart" — must never plan an indicator without its ids)
+    expect(legacy.body.context.indicatorCatalog).toBeTruthy()
   })
 
   it('a conversation turn carries the earlier turns and the last change (with its target) for corrections', () => {

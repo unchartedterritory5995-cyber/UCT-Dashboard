@@ -62,6 +62,13 @@
 }
 .back { background: none; border: none; color: var(--text-muted); font-size: var(--text-sm); cursor: pointer; padding: 0; min-height: var(--tap-min); }
 .back:hover { color: var(--ut-gold); }
+.moreBtn {
+  display: block; margin: var(--space-lg) auto 0; min-height: var(--tap-min); padding: 0 var(--space-lg);
+  background: var(--bg-elevated); color: var(--text-bright); border: 1px solid var(--border);
+  border-radius: var(--radius-pill); font-family: var(--font-sans); font-size: var(--text-sm); font-weight: 600; cursor: pointer;
+}
+.moreBtn:hover { border-color: var(--ut-gold-glow); color: var(--text-heading); }
+.moreBtn:focus-visible { outline: var(--focus-ring); }
 .linkBtn { background: none; border: none; color: var(--ut-gold); font-size: var(--text-sm); cursor: pointer; padding: var(--space-xs) 0; min-height: var(--tap-min); }
 
 /* ── Picker cards (playbooks, traders) ── */
@@ -153,6 +160,9 @@
 
 /* ── Today, grouped by setup ── */
 .groupList { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(420px, 100%), 1fr)); gap: var(--space-md); }
+/* `.tiles` carries `flex: 1 1 360px` for the profile header ROW; in this COLUMN card that basis
+   became a 360px HEIGHT (measured on the live page 2026-10-29). */
+.rhymeGroup .tiles { flex: none; }
 .rhymeGroup {
   display: flex; flex-direction: column; gap: var(--space-sm); padding: var(--space-md) var(--space-lg);
   background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-xl);
