@@ -1909,8 +1909,9 @@ export function pcfLegacyNotice(source) {
   }
   return 'This TC2000 formula was saved before 2026-10-30, when the reader had a mistake: '
     + `${parts.join('; and ')}. It still computes exactly what it computed when you saved it — `
-    + 'including any alert or scan built on it. Re-save the formula to use TC2000’s '
-    + 'definition; alerts on it will then fire on the corrected value.'
+    + 'including any alert or scan built on it, and saving it keeps that calculation. To use '
+    + 'TC2000’s definition, choose Switch to TC2000’s calculation; its values, and any alert '
+    + 'on it, will then change.'
 }
 
 /** ⭐⭐ THE TREES EARLIER VERSIONS OF THIS READER BUILT FROM `source`, when they
@@ -1924,7 +1925,9 @@ export function pcfLegacyNotice(source) {
  *  the editor, still firing on the old maths. The rule this lane holds instead:
  *  **a saved definition keeps computing what it computed**, accepted as long as
  *  its stored tree is exactly a reading this reader once produced, and it is
- *  told so (`notice`). The member opts into the correction by re-saving.
+ *  told so (`notice`). An ordinary save keeps the stored tree (owner ruling
+ *  2026-10-30, `builder/legacyReadingPin.js`); the member opts into the
+ *  correction only through the builder's explicit, confirmed switch.
  *
  *  ⚠️ This is a READING, never a migration: nothing here rewrites a stored tree.
  *  Only TC2000-dialect sources have legacy readings. ⛔ A FUTURE READER FIX that

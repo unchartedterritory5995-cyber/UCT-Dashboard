@@ -80,6 +80,7 @@ import Sheet from '../../mobile/Sheet'
 import UIcon from '../../ui/UIcon'
 import { PORTAL_POPUP_ATTR } from '../ColorPicker'
 import { SCHEMA_VERSION, MARKER_SHAPES, MARKER_POSITIONS, PLOT_LINE_STYLES, legacyComputeReadings } from '../engine/defSchema'
+import { legacyTreesOf, pinRow, legacyReadingsLost } from './legacyReadingPin'
 import { astHash } from '../engine/ast/parse'
 // ⛔ THE SECOND MACHINE-ASSIGNED BADGE, AND IT IS MEASURED HERE FOR THE SAME
 // REASON `repaint` IS: `validateUserDefinitions` REQUIRES `meta.freshness` on
@@ -979,6 +980,10 @@ export default function BuilderSheet({
    *  program, waiting for the member's explicit confirmation (`objectCarry`'s
    *  lossy verdict). Nothing is sent while this is set. */
   const [objectLoss, setObjectLoss] = useState(null)
+  /** ⭐⭐ P0-1 (owner ruling 2026-10-30) — the explicit switch from a legacy
+   *  TC2000 reading to TC2000's documented one, waiting for confirmation.
+   *  `{reason: 'switch' | 'edited'}`; nothing is sent while it is set. */
+  const [legacyConfirm, setLegacyConfirm] = useState(null)
   /** ⭐⭐ P2X — true once the member PASTED a different script into the edit.
    *  Until then the stored row's source stamps (`meta.recurrenceOrigin`, …) are
    *  carried through the save; after it, the new script's own stamps win. */
@@ -1711,10 +1716,16 @@ export default function BuilderSheet({
    *  `evaluatedDocArgs` is the one assembly both callers ask (see its docblock);
    *  only the three things that genuinely differ are overridden below, each
    *  beside its reason. */
+  // ⭐⭐ P0-1 (owner ruling 2026-10-30) — the stored legacy TC2000 trees an
+  // ordinary Save keeps. Only the explicit, confirmed switch drops them.
+  const legacyPins = useMemo(
+    () => legacyTreesOf(editing && !editing.runtime ? editing.prior : null),
+    [editing],
+  )
   const previewDefinition = useMemo(() => (
     result && result.ok && result.ast && result.verdict && inputsValid
       ? stampSemantics(buildDefinition({
-        ...evaluatedDocArgs(result, memberInputs, paramManifest),
+        ...evaluatedDocArgs(pinRow(result, legacyPins), memberInputs, paramManifest),
         // ⭐ THE PREVIEW DRAWS THE OBJECTS TOO. A preview that showed only the
         // columns would tell a member their import lost its lines, right up
         // until they saved and found it had not.
@@ -1728,7 +1739,7 @@ export default function BuilderSheet({
         readback: result.readback || '',
       }), semanticsContext(editing, importTelemetryRef.current))
       : null
-  ), [result, name, memberInputs, inputsValid, editing])
+  ), [result, name, memberInputs, inputsValid, editing, legacyPins])
 
   /**
    * ⭐⭐ P1 — THE ONE ASSEMBLY OF THE WHOLE DOCUMENT, for `save()` and for the
@@ -1739,13 +1750,18 @@ export default function BuilderSheet({
    * ⛔ With no look this is `save()`'s body verbatim: the same `plain` test and
    * the same `buildDefinition` call, so every existing document is unchanged.
    */
-  const documentFor = useCallback((evRows, { defId, version, name: docName, look = null, dropObjects = false }) => {
+  const documentFor = useCallback((rawRows, { defId, version, name: docName, look = null, dropObjects = false,
+    convertLegacy = false }) => {
+    // ⭐⭐ P0-1 — an unchanged legacy TC2000 source keeps its stored tree unless
+    // the member CONFIRMED the switch (`convertLegacy`).
+    const pins = convertLegacy ? null : legacyPins
+    const evRows = rawRows.map((r) => pinRow(r, pins))
     const touched = !!(look && look.key && hasSignalLook(look))
     const sig = touched ? applySignalLook(evRows, look.key, look) : { rows: evRows, paints: null }
     const plain = !touched && plotRows.length === 0 && target === 'pane' && levels.length === 0
       && isUntouchedRow(plot0)
     const built = buildDefinition({
-      ...evaluatedDocArgs(result, memberInputs, paramManifest),
+      ...evaluatedDocArgs(pinRow(result, pins), memberInputs, paramManifest),
       // ⭐ P2X — `dropObjects` only after the member CONFIRMED the lossy save.
       objects: dropObjects ? null : objectProgram,
       defId,
@@ -1779,7 +1795,7 @@ export default function BuilderSheet({
     // the member PASTED a different script, whose own stamps then win. Never
     // `semantics` (the store's decision, `decide_semantics`).
     return scriptReplaced ? kept : carryProgramMeta(kept, prior)
-  }, [result, memberInputs, paramManifest, objectProgram, plotRows, target, levels, plot0, scanIndex, editing, scriptReplaced])
+  }, [result, memberInputs, paramManifest, objectProgram, plotRows, target, levels, plot0, scanIndex, editing, scriptReplaced, legacyPins])
 
   /** Every row with its OWN settled evaluation, or null while any row has none. */
   const evaluatedRows = useMemo(() => {
@@ -1800,7 +1816,7 @@ export default function BuilderSheet({
   }, [evaluatedRows, inputsValid, documentFor, name])
   // ⭐ P2X — a lossy-save confirmation answers ONE draft; any change to the draft
   // withdraws it, so a Confirm can never apply to an edit the member did not see.
-  useEffect(() => { setObjectLoss(null) }, [baseDraft])
+  useEffect(() => { setObjectLoss(null); setLegacyConfirm((c) => (c && c.reason === 'edited' ? null : c)) }, [baseDraft])
 
   /** ⭐⭐ P1 — THE TYPED READ-BACK, through the ONE gate, over EVERY output. */
   const intentRead = useMemo(() => (baseDraft
@@ -1912,7 +1928,8 @@ export default function BuilderSheet({
   const converseActive = !!(conversationOn && buildMode !== 'picker' && converseCommit && converseCommit.dirty)
   // ⭐ P0-1 (2026-10-30) — a saved formula still running an EARLIER reading of
   // its own source (the pre-fix TC2000 `STOC` order) says so while it is open.
-  // It keeps computing what it computed; re-saving adopts the corrected reading.
+  // It keeps computing what it computed, an ordinary Save keeps that tree
+  // (`legacyPins`), and only the confirmed switch adopts the corrected reading.
   const legacyNotices = useMemo(
     () => (editing && !editing.runtime ? legacyComputeReadings(editing.prior) : []),
     [editing],
@@ -1986,6 +2003,8 @@ export default function BuilderSheet({
     // ⭐ P2X — `{confirmObjectLoss: true}` only from the lossy-save confirmation
     // below; the Save button's click event carries no such field.
     const confirmObjectLoss = !!(opts && opts.confirmObjectLoss === true)
+    // ⭐⭐ P0-1 — `{convertLegacy: true}` only from the legacy-switch confirmation.
+    const convertLegacy = !!(opts && opts.convertLegacy === true)
     // ⛔⛔ RISK-012's ACTUAL FIX. Checked-and-set BEFORE the state-derived
     // `canSave` guard, and synchronously — see the comment on `savingRef`'s
     // declaration for why `canSave` alone let a real double-click through.
@@ -2031,8 +2050,20 @@ export default function BuilderSheet({
       version: editing ? editing.version + 1 : 1,
       name,
       look: lookToApply,
+      convertLegacy,
     }
     let doc = withApplyProvenance(documentFor(rows, docArgs), applyProvenanceRef.current)
+    // ⭐⭐ P0-1 (owner ruling 2026-10-30) — A SAVE NEVER SILENTLY CONVERTS A LEGACY
+    // TC2000 READING. An unchanged source was pinned above; one the member EDITED
+    // would now run TC2000's documented calculation, so nothing is sent until they
+    // confirm that change, exactly as the explicit switch does.
+    if (!convertLegacy && legacyReadingsLost(editing && !editing.runtime ? editing.prior : null, doc).length) {
+      setLegacyConfirm({ reason: 'edited' })
+      savingRef.current = false
+      setSaving(false)
+      return
+    }
+    setLegacyConfirm(null)
     // ⭐⭐ P2X (owner decision 3) — A SAVE NEVER SILENTLY DESTROYS THE STORED
     // OBJECT PROGRAM. Kept → it rides byte-identically. Lossy → NOTHING is sent
     // until the member confirms a save that names what it removes; Cancel leaves
@@ -2040,7 +2071,7 @@ export default function BuilderSheet({
     const carry = objectCarry(editing && editing.prior, doc)
     if (carry.status === 'lossy') {
       if (!confirmObjectLoss) {
-        setObjectLoss({ sentence: carry.sentence, reasons: carry.reasons })
+        setObjectLoss({ sentence: carry.sentence, reasons: carry.reasons, convertLegacy })
         savingRef.current = false
         setSaving(false)
         return
@@ -3732,9 +3763,41 @@ export default function BuilderSheet({
               saved-formulas list, not this button, and two unrelated failures
               sharing one bar make neither obviously about anything. */}
           {legacyNotices.length > 0 && (
-            <p className={styles.saveHint} role="note" data-testid="legacy-reading-notice">
-              {legacyNotices[0].notice}
-            </p>
+            <div className={styles.saveHint} role="note">
+              <span data-testid="legacy-reading-notice">{legacyNotices[0].notice}</span>
+              {' '}
+              <button
+                type="button"
+                className="btn btn-ghost"
+                data-testid="legacy-convert"
+                onClick={() => setLegacyConfirm({ reason: 'switch' })}
+              >Switch to TC2000’s calculation…</button>
+            </div>
+          )}
+          {/* ⭐⭐ P0-1 (owner ruling 2026-10-30) — THE EXPLICIT SWITCH. Shown only
+              after the member asked for it, or edited a legacy formula; nothing
+              has been sent. Cancel keeps the stored calculation. */}
+          {legacyConfirm && (
+            <div className={styles.discardBar} role="alertdialog" data-testid="legacy-convert-confirm">
+              <span data-testid="legacy-convert-sentence">
+                {legacyConfirm.reason === 'edited'
+                  ? 'You changed this formula, so saving it uses TC2000’s documented calculation instead of the one it was saved with. '
+                  : 'This switches the formula to TC2000’s documented calculation. '}
+                Its values will change, and any alert or scan built on it will fire on the new values.
+              </span>
+              <button
+                type="button"
+                className="btn btn-ghost"
+                data-testid="legacy-convert-cancel"
+                onClick={() => setLegacyConfirm(null)}
+              >Cancel</button>
+              <button
+                type="button"
+                className="btn btn-ghost"
+                data-testid="legacy-convert-save"
+                onClick={() => save({ convertLegacy: true })}
+              >Switch and save</button>
+            </div>
           )}
           {storeError && (
             <p className={styles.storeError} role="alert" data-testid="store-error">{storeError}</p>
@@ -3761,7 +3824,7 @@ export default function BuilderSheet({
                 type="button"
                 className="btn btn-ghost"
                 data-testid="object-loss-confirm-save"
-                onClick={() => save({ confirmObjectLoss: true })}
+                onClick={() => save({ confirmObjectLoss: true, convertLegacy: !!objectLoss.convertLegacy })}
               >Remove drawings and save</button>
             </div>
           )}
