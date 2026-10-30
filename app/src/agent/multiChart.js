@@ -324,11 +324,33 @@ function copyLook(raw, charts, host) {
   return null
 }
 
+// ── ⭐ PHASE 3: keep one chart, re-symbol the others ──
+// "keep the NVDA chart but replace the others with aapl msft and amzn": the kept chart is named (symbol, position or
+// order); the others, in reading order, take the tickers in the member's order — exactly as many tickers as other charts
+// (fewer or more is said, never a guess). chart.setSymbol on each, ONE change and one Undo.
+const KEEP_RE = /^(?:please\s+)?(?:keep|leave)\s+(.+?)(?:\s+as is|\s+alone)?\s*,?\s+(?:but|and)\s+(?:replace|swap|change|switch|set)\s+(?:the\s+|all\s+the\s+)?(?:others|other charts|other ones|rest(?: of them| of the charts)?)\s+(?:with|to|for)\s+(.+)$/i
+function keepOthers(raw, charts, host) {
+  if (charts.length < 2) return null
+  const m = KEEP_RE.exec(raw.trim().replace(/[.!?]+$/, ''))
+  if (!m) return null
+  const keep = chartFromPhrase(m[1], charts, host)
+  if (!keep) return { kind: 'say', text: `I can't tell which chart “${m[1]}” is — name it by its ticker or position. Nothing has changed.` }
+  const others = charts.filter(c => c.ref !== keep).sort(readingOrder)
+  const syms = gridTickers(m[2], host)
+  const rest = m[2].replace(/[,;&]|\band\b/gi, ' ').split(/\s+/).filter(Boolean)
+  if (!syms.length || rest.length !== syms.length) return null                    // not only tickers → the model
+  if (syms.length !== others.length) {
+    return { kind: 'say', text: `There ${others.length === 1 ? 'is 1 other chart' : `are ${others.length} other charts`} here, and you named ${syms.length} ticker${syms.length === 1 ? '' : 's'} — name one for each. Nothing has changed.` }
+  }
+  if (linkedTogether(others.map(c => c.ref), charts)) return { kind: 'say', text: LINKED }
+  return { kind: 'ops', ops: others.map((c, i) => setSymbol(c.ref, syms[i])), mode: 'apply' }
+}
+
 export function multiChartPlan(text, { host } = {}) {
   const raw = String(text || '').trim()
   if (!raw || raw.length > 200) return null
   let charts = []
   try { charts = host?.charts?.list?.() || [] } catch { charts = [] }
   const lower = raw.toLowerCase()
-  return copyLook(raw, charts, host) || sideBySide(raw, lower, charts, host) || positional(raw, charts) || gridRequest(raw, lower, charts, host)
+  return copyLook(raw, charts, host) || keepOthers(raw, charts, host) || sideBySide(raw, lower, charts, host) || positional(raw, charts) || gridRequest(raw, lower, charts, host)
 }
