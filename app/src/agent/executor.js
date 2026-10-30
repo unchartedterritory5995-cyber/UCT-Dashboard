@@ -98,7 +98,8 @@ export function planOps(targets, ops, env = {}, ctx = null) {
       if (cap.target !== tgt.kind) { refusals.push({ index, action: op.action, target: ref, reason: `${op.action} doesn't apply to that.` }); continue }
       // `trusted`: this op's symbols came from UCT itself (a screen, a saved list) — not model text.
       // `explicit`: the member's own words asked for this op (fast path / a capability's screen) — policy.js
-      const oenv = op.trusted || op.explicit ? { ...opEnv, ...(op.trusted ? { trusted: true } : {}), ...(op.explicit === true ? { explicit: true } : {}) } : opEnv
+      // `copy`: the member's own words asked for ANOTHER one (a capability's screen) — never the model's
+      const oenv = op.trusted || op.explicit || op.copy ? { ...opEnv, ...(op.trusted ? { trusted: true } : {}), ...(op.explicit === true ? { explicit: true } : {}), ...(op.copy === true ? { copy: true } : {}) } : opEnv
       const why = cap.check(st, op.args, oenv)
       if (why) { refusals.push({ index, action: op.action, target: ref, reason: why }); continue }
       if (cap.confirmIf && cap.confirmIf(st, op.args, oenv)) confirm = true

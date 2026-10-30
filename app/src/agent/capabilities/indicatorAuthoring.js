@@ -184,6 +184,18 @@ function showsDefinition(host, defId) {
   if (!defId) return []
   return boardCharts(host).filter(c => (c.cs?.indicatorInstances || []).some(i => i && !i.deleted && i.defId === defId)).map(c => c.ref)
 }
+// #500 (owner ruling 2026-10-29): the same MATHS as a saved indicator is a duplicate whatever its name — a definition
+// saved before #500 keeps its formula-style name ("(EMA 9 − EMA 20) ÷ EMA 20 × 100"). The builder decides "same"
+// (statusOf.sameMathsAs — Indicators' sameMaths: only a proven 'same'); the member's own words can still ask for a copy.
+const COPY_WORDS = /\b(another|one more|an extra|a second|a third|a copy|copy of|duplicate|again)\b/i
+const asksForCopy = (words) => COPY_WORDS.test(String(words || ''))
+/** "you already have an indicator that calculates exactly this (“Name”)" — or null when no saved one has the same maths. */
+function sameMathsWhy(st) {
+  const m = (st && Array.isArray(st.sameMathsAs) && st.sameMathsAs[0]) || null
+  if (!m) return null
+  const nm = shownName(m.name, null)
+  return `you already have an indicator that calculates exactly this${nm ? ` (${nm})` : ''}`
+}
 /** The member's own saved indicator names (lower-case), for the duplicate-name rule. */
 function ownNames() {
   let rows = []
@@ -451,7 +463,7 @@ function markExplicitSaves(host, ops, words, notes) {
     if (nm != null && !String(words).toLowerCase().includes(String(nm).trim().toLowerCase())) return [o]  // a name they didn't say
     const charts = (o.args?.addTo || []).map(asChartRef)
     if (charts.some(c => !chartNamed(host, c, words))) return [o]               // a chart they didn't name
-    return [{ ...o, explicit: true }]
+    return [{ ...o, explicit: true, ...(asksForCopy(words) ? { copy: true } : {}) }]
   })
 }
 
@@ -728,6 +740,7 @@ export const indicatorDraftsKind = {
             if ((st.questions || []).length) return 'the builder has a question first'
             if ((st.readback?.outputs || []).some(o => o && o.status === 'refused' && !o.pending)) return 'part of it can’t be used this way'
             if ((st.ackText || []).length) return `it needs your acknowledgement first: ${st.ackText.join(' ')}`
+            if (!op.copy && sameMathsWhy(st)) return sameMathsWhy(st)
             if (st.name && ownNames().includes(String(st.name).trim().toLowerCase())) return `you already have an indicator named “${st.name}”`
             return null
           })()
@@ -935,11 +948,12 @@ export function registerIndicatorAuthoringCapabilities() {
     explicitOk: true,
     // …except when this draft needs the member's eyes: an acknowledgement of ANY kind (shown verbatim),
     // a NEW VERSION of a saved indicator (it changes every chart, layout and armed alert using it), or
-    // a new indicator under a name they already have.
-    confirmIf(st, { name }) {
+    // a new indicator under a name they already have, or with the same maths as one (unless they asked for a copy).
+    confirmIf(st, { name }, env) {
       if (st.new || !st.status) return false
       if ((st.status.ackText || []).length) return true
       if (st.status.mode === 'edit') return true
+      if (env?.copy !== true && sameMathsWhy(st.status)) return true
       const nm = String(name || st.status.name || '').trim().toLowerCase()
       return !!nm && ownNames().includes(nm)
     },
@@ -979,7 +993,7 @@ export function registerIndicatorAuthoringCapabilities() {
       // approved: EXACTLY the sealed values (check() proved the draft still matches them);
       // proposing: the draft as it is now, which is what the card will show and the seal will keep
       // R1: the new draft does not exist yet — its revision is the one the build produces (commit)
-      if (st.new) return { ...st, ops: [...st.ops, { type: 'save', addTo: add, name: null, pinRevision: null, ackShown: [], linesShown: [], nameShown: null, r1: true }] }
+      if (st.new) return { ...st, ops: [...st.ops, { type: 'save', addTo: add, name: null, pinRevision: null, ackShown: [], linesShown: [], nameShown: null, r1: true, copy: env?.copy === true }] }
       const seal = env?.approved ? sealFor(env, st.ref) : null
       const s = st.status
       const pin = seal

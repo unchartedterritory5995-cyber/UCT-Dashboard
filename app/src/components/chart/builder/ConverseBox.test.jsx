@@ -146,16 +146,16 @@ describe('ConverseBox — the 8-turn scenario end to end (items 1–4, 7, 8, 17,
     // T1 — create, with assumptions DISCLOSED from the definition, model note ignored
     await say('RSI overbought')
     const lines = linesOf(lastUct())
-    expect(lines).toContain('Name: RSI 14 > 70') // derived from the tree (name-drift fix)
+    expect(lines).toContain('Name: RSI 14 above 70') // derived from the tree (name-drift fix)
     // P3 UX: the condition said as what it is; no internal key with one output
-    expect(lines).toContain('RSI 14 > 70 — true when the 14-bar RSI of close is above 70')
+    expect(lines).toContain('RSI 14 above 70 — true when the 14-bar RSI of close is above 70')
     expect(lines).toContain('Assumed RSI period 14')
     expect(lines).toContain('Assumed threshold 70')
     expect(lines).toContain(SEMANTICS_LINE)
     expect(screen.getByTestId('converse').textContent).not.toMatch(/MACD|IGNORE THE ENGINE/)
     expect(identity().revision).toBe('1')
     expect(identity().saved).toBe('unsaved')
-    expect(screen.getByTestId('converse-identity').textContent).toMatch(/RSI 14 > 70.*Unsaved changes/)
+    expect(screen.getByTestId('converse-identity').textContent).toMatch(/RSI 14 above 70.*Unsaved changes/)
     expect(screen.getByTestId('converse-identity').textContent).not.toMatch(/revision/) // P3 UX: an engine counter, not member-facing
 
     // T2 — "make it 80"
@@ -165,21 +165,21 @@ describe('ConverseBox — the 8-turn scenario end to end (items 1–4, 7, 8, 17,
 
     // T3 — add clause
     await say('and close more than 8% above the 20 EMA')
-    expect(readbackLines()).toContain('RSI 14 > 80 and Close > EMA 20 × 1.08 — true when the 14-bar RSI of close is above 80 and close is above (the 20-bar exponential average of close) times 1.08')
+    expect(readbackLines()).toContain('RSI 14 above 80 and Close above 1.08 times EMA 20 — true when the 14-bar RSI of close is above 80 and close is above (the 20-bar exponential average of close) times 1.08')
     // the decided threshold assumption is gone; the undecided length is still disclosed
     expect(readbackLines()).toContain('Assumed RSI period 14')
     expect(readbackLines().some((l) => /^Assumed threshold/.test(l))).toBe(false)
 
     // T4 / T5 — presentation
     await say('gold candles')
-    expect(readbackLines()).toContain('Look: candles painted gold where RSI 14 > 80 and Close > EMA 20 × 1.08 is true (normal colour otherwise)')
+    expect(readbackLines()).toContain('Look: candles painted gold where RSI 14 above 80 and Close above 1.08 times EMA 20 is true (normal colour otherwise)')
     await say('circle below')
-    expect(readbackLines()).toContain('Look: RSI 14 > 80 and Close > EMA 20 × 1.08: UCT gold circle below the bar where it is true')
-    expect(readbackLines()).toContain('Look: candles painted gold where RSI 14 > 80 and Close > EMA 20 × 1.08 is true (normal colour otherwise)')
+    expect(readbackLines()).toContain('Look: RSI 14 above 80 and Close above 1.08 times EMA 20: UCT gold circle below the bar where it is true')
+    expect(readbackLines()).toContain('Look: candles painted gold where RSI 14 above 80 and Close above 1.08 times EMA 20 is true (normal colour otherwise)')
 
     // T6 / T7 — consumer requests (authoring state, not definition)
     await say('alert me when it becomes true')
-    expect(readbackLines()).toContain('Alert when RSI 14 > 80 and Close > EMA 20 × 1.08 becomes true')
+    expect(readbackLines()).toContain('Alert when RSI 14 above 80 and Close above 1.08 times EMA 20 becomes true')
     await say('show me the RSI value')
     expect(readbackLines()).toContain('Chart header shows the latest value of RSI 14')
     expect(readbackLines()).toContain('RSI 14 — a number on every bar: the 14-bar RSI of close') // derived label
@@ -241,7 +241,9 @@ describe('ConverseBox — the 8-turn scenario end to end (items 1–4, 7, 8, 17,
       'Added to the chart.',
       // ⭐ BATCH 1 — outcomes name the output as the member knows it, never its key
       'Header value for RSI 14: shown in the chart header.',
-      'Alert when RSI 14 > 75 becomes true on SPY D: created.',
+      // ⭐ 2026-10-29 plain names: the alert is on the WHOLE condition, and now says so (it
+      // used to read the name's 12-character chip, "RSI 14 > 75", which named half of it).
+      'Alert when RSI 14 above 75 and Close above 1.08 times EMA 20 becomes true on SPY D: created.',
     ])
     expect(identity().defId).toBe('u_aaaaaaaaaaaa')
     expect(identity().lineage).toBe(lineage)
@@ -278,7 +280,7 @@ describe('ConverseBox — undo, refusals, questions (items 26, 30, REQUIRED clas
     for (const w of SCENARIO.slice(0, 3)) await say(w)
     const before = readbackLines()
     await say('gold candles')
-    expect(readbackLines()).toContain('Look: candles painted gold where RSI 14 > 80 and Close > EMA 20 × 1.08 is true (normal colour otherwise)')
+    expect(readbackLines()).toContain('Look: candles painted gold where RSI 14 above 80 and Close above 1.08 times EMA 20 is true (normal colour otherwise)')
     fireEvent.click(screen.getByTestId('converse-undo'))
     await flush()
     expect(readbackLines()).toEqual(before)
@@ -377,7 +379,7 @@ describe('ConverseBox — refused consumers are said, not claimed', () => {
       'Saved — version 1.',
       'Saved. No chart is open here, so it was not added to one.',
       'Header value for RSI 14: not shown — There is no installed output to show as a value.',
-      'Alert when RSI 14 > 70 becomes true: not created — there is no chart symbol and timeframe to arm it on.',
+      'Alert when RSI 14 above 70 becomes true: not created — there is no chart symbol and timeframe to arm it on.',
     ])
   })
 })
