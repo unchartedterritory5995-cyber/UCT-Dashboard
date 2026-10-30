@@ -59,7 +59,7 @@ def _gap_rows():
     conn = auth_db.get_connection()
     try:
         conn.executescript(svc._SCHEMA)
-        return conn.execute("SELECT day, name, kind, user_id, hits FROM indicator_gap_hits"
+        return conn.execute("SELECT day, name, kind, member_key, hits FROM indicator_gap_hits"
                             " ORDER BY name").fetchall()
     finally:
         conn.close()
@@ -119,7 +119,7 @@ class TestGapAllowlist:
         assert top[("ta.supertrend", "name-unknown")]["hits"] == 4
         assert top[("ta.rci", "name-unknown")]["hits"] == 1 + svc.HITS_CAP_PER_DAY
         assert rank[0]["members"] >= rank[-1]["members"]
-        assert all("user_id" not in r for r in rank)
+        assert all("user_id" not in r and "member_key" not in r for r in rank)
 
     def test_gap_log_kill_switch(self, monkeypatch):
         monkeypatch.setenv(svc.GAP_LOG_OFF_ENV, "off")
@@ -311,3 +311,94 @@ def test_stored_gap_list_is_json_of_allowlisted_pairs(monkeypatch):
     assert full["gaps"] == [{"name": "ta.kc", "kind": "call-unmapped"},
                             {"name": svc.UNLISTED, "kind": "call-unmapped"}]
     assert "secretVar" not in json.dumps(full["gaps"])
+
+
+# ─── follow-up: the member key, and gap retention ────────────────────────────
+
+class TestMemberKey:
+    """`indicator_gap_hits` holds HMAC(PUSH_SECRET, member id), never the id."""
+
+    def test_no_raw_user_id_is_stored(self, monkeypatch, db):
+        monkeypatch.setenv("PUSH_SECRET", "test-secret-1")
+        uid = "u-raw-identifiable-7f3a"
+        svc.record_gaps(uid, [{"name": "ta.sma", "kind": "call-unmapped"}], 1)
+        rows = _gap_rows()
+        assert rows, "control: rows were written"
+        assert all(r[3] == svc.member_key(uid) and r[3] != uid for r in rows)
+        # ⛔ and the id appears NOWHERE in the database file's table
+        conn = auth_db.get_connection()
+        try:
+            dump = chr(10).join(conn.iterdump())
+        finally:
+            conn.close()
+        gap_lines = [ln for ln in dump.splitlines() if "indicator_gap_hits" in ln]
+        assert gap_lines and not any(uid in ln for ln in gap_lines)
+
+    def test_the_key_is_keyed_by_the_secret(self, monkeypatch):
+        monkeypatch.setenv("PUSH_SECRET", "secret-a")
+        a = svc.member_key("u1")
+        monkeypatch.setenv("PUSH_SECRET", "secret-b")
+        assert svc.member_key("u1") != a
+        import hashlib
+        assert a != hashlib.sha256(b"u1").hexdigest()
+
+    def test_same_member_on_two_days_counts_as_one(self, monkeypatch):
+        monkeypatch.setenv("PUSH_SECRET", "s")
+        g = [{"name": "ta.supertrend", "kind": "name-unknown"}]
+        today = svc._now()
+        svc.record_gaps("u1", g, day=today.strftime("%Y-%m-%d"))
+        svc.record_gaps("u1", g, day=(today - dt.timedelta(days=3)).strftime("%Y-%m-%d"))
+        row = {(r["name"], r["kind"]): r for r in svc.gap_ranking(30)}[("ta.supertrend", "name-unknown")]
+        assert row["members"] == 1 and row["hits"] == 2 and row["days_seen"] == 2
+
+    def test_two_members_count_as_two(self, monkeypatch):
+        monkeypatch.setenv("PUSH_SECRET", "s")
+        g = [{"name": "ta.supertrend", "kind": "name-unknown"}]
+        svc.record_gaps("u1", g)
+        svc.record_gaps("u2", g)
+        row = svc.gap_ranking(30)[0]
+        assert row["members"] == 2
+
+    def test_the_daily_cap_still_applies_per_member(self, monkeypatch):
+        monkeypatch.setenv("PUSH_SECRET", "s")
+        g = [{"name": "ta.rci", "kind": "name-unknown"}]
+        for _ in range(svc.HITS_CAP_PER_DAY + 7):
+            svc.record_gaps("u1", g)
+        svc.record_gaps("u2", g)
+        row = svc.gap_ranking(30)[0]
+        assert row["hits"] == svc.HITS_CAP_PER_DAY + 1 and row["members"] == 2
+
+    def test_an_old_raw_id_table_is_replaced(self):
+        conn = auth_db.get_connection()
+        try:
+            conn.execute("CREATE TABLE indicator_gap_hits (day TEXT, name TEXT, kind TEXT,"
+                         " user_id TEXT, hits INTEGER, PRIMARY KEY (day, name, kind, user_id))")
+            conn.execute("INSERT INTO indicator_gap_hits VALUES ('2026-10-30','ta.sma','name-unknown','u-raw',1)")
+            conn.commit()
+        finally:
+            conn.close()
+        svc.record_gaps("u1", [{"name": "ta.sma", "kind": "name-unknown"}])
+        rows = _gap_rows()
+        assert len(rows) == 1 and rows[0][3] != "u-raw"
+
+
+class TestGapRetention:
+    def test_purge_removes_rows_older_than_400_days_and_keeps_recent(self):
+        now = dt.datetime(2026, 10, 30, 12, tzinfo=dt.timezone.utc)
+        g = [{"name": "ta.sma", "kind": "name-unknown"}]
+        old = (now - dt.timedelta(days=svc.GAP_RETAIN_DAYS + 1)).strftime("%Y-%m-%d")
+        edge = (now - dt.timedelta(days=svc.GAP_RETAIN_DAYS)).strftime("%Y-%m-%d")
+        recent = (now - dt.timedelta(days=5)).strftime("%Y-%m-%d")
+        for d in (old, edge, recent):
+            svc.record_gaps("u1", g, day=d)
+        assert len(_gap_rows()) == 3
+        assert svc.purge_gap_hits(now) == 1
+        assert sorted(r[0] for r in _gap_rows()) == [edge, recent]
+
+    def test_retention_runs_where_report_retention_runs(self, monkeypatch):
+        old = (svc._now() - dt.timedelta(days=svc.GAP_RETAIN_DAYS + 10)).strftime("%Y-%m-%d")
+        svc.record_gaps("u1", [{"name": "ta.sma", "kind": "name-unknown"}], day=old)
+        svc.record_gaps("u1", [{"name": "ta.rsi", "kind": "name-unknown"}])
+        monkeypatch.setenv(svc.FLAG_ENV, "1")
+        svc.create_report("u9", consent=True, source="x")
+        assert [r[1] for r in _gap_rows()] == ["ta.rsi"]

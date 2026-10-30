@@ -58,9 +58,27 @@ distinct gap set per page (`supportApi.logImportGaps`), not once per keystroke.
 **Where:** a dedicated aggregate table, `indicator_gap_hits`, in the auth database:
 
 ```
-indicator_gap_hits(day TEXT, name TEXT, kind TEXT, user_id TEXT, hits INTEGER)
-PRIMARY KEY (day, name, kind, user_id)
+indicator_gap_hits(day TEXT, name TEXT, kind TEXT, member_key TEXT, hits INTEGER)
+PRIMARY KEY (day, name, kind, member_key)
 ```
+
+**The member key, not the member id.** `member_key` is
+`HMAC-SHA256(PUSH_SECRET, "indicator-gap-hits:v1|" + user_id)`, computed in one place
+(`indicator_support.member_key`). The raw id is never stored in this table.
+- `PUSH_SECRET` is the existing server secret (the internal bearer), and the one
+  `ai_search_log` already keys its member buckets with. The `indicator-gap-hits:v1|`
+  prefix keeps this key from ever equalling a key minted elsewhere from the same secret.
+- The key is the same on every day for one member, so distinct-member counts across a
+  window and the per-member daily hit cap both work exactly as before.
+- **Unset `PUSH_SECRET`** (a local dev box only; production has it) falls back to a fixed
+  dev salt with one logged warning. The key is then still one-way, but not secret.
+- **Rotating `PUSH_SECRET`** gives each member a new key, so a ranking window that spans
+  the rotation counts a member twice. Retention ages the old keys out.
+- The first build of this branch stored the raw id. That table never reached production;
+  `_migrate_gap_table` drops a table with the old `user_id` column and recreates it.
+
+**Gap retention:** rows whose day is more than 400 days old are deleted by
+`purge_gap_hits`, which `purge_expired` runs (every report create and every admin list).
 
 **Why a table and not a telemetry event.** `indicator_telemetry.py` forbids list and
 dict values on every event (its 2026-09-04 hardening). A paste that loses three
@@ -150,11 +168,11 @@ indicator_support_reports(
 deleted 30 days after it is marked `fixed` or `wontfix`, and in any case 365 days after
 it was created. Withdrawal deletes immediately.
 
-⚠️ **Open item:** account deletion (`journal_two/account_purge.py`) does not yet delete
-these two tables. That module is on the journal path, which this branch may not touch.
-Until it does, retention bounds a deleted member's reports at 365 days and gap rows hold
-only allowlisted names. Adding both tables to the purge is a one-line follow-up for
-whoever owns that file.
+**Account deletion** (`journal_two/account_purge.py`, owner-approved 2026-10-30) deletes
+the member's `indicator_support_reports` rows by `user_id`, and their
+`indicator_gap_hits` rows by `member_key`, computed with `indicator_support.member_key`
+(the HMAC is not duplicated in the purge). Both appear in
+`docs/account-deletion-manifest.md`.
 
 ## Flag
 
@@ -181,7 +199,10 @@ rail went red, the bytes were restored and the file's SHA-256 checked against th
 | A member cannot read or withdraw another member's report | every member query is `WHERE id = ? AND user_id = ?`; 404 either way | `TestOwnership::test_member_cannot_read…`, `…withdraw…` |
 | Non-admins cannot list, read or triage reports, or read the ranking | `require_admin` on those routes | `TestOwnership::test_non_admins_cannot_list_or_read_or_triage`; `TestGapAllowlist::test_ranking_is_admin_only` |
 | Rate limit and size cap | `create_report` counts per member per hour/day; byte cap | `TestLimits` |
-| Retention | `purge_expired` | `TestRetention` |
+| Retention | `purge_expired` (reports), `purge_gap_hits` (gap rows, 400 days) | `TestRetention`; `TestGapRetention` |
+| No raw member id in the gap table | `record_gaps` writes `member_key(user_id)` | `TestMemberKey::test_no_raw_user_id_is_stored` (reads the table's SQL dump) |
+| Distinct members and the daily cap survive the hashing | one key per member, the same every day | `TestMemberKey` (same member on two days = 1; two members = 2; cap) |
+| Account deletion removes both tables' rows for that member only | `account_purge.purge_user_rows` | `tests/test_indicator_support_account_purge.py` |
 
 ## Data shapes for Phase B
 
@@ -199,7 +220,8 @@ Sorted by `members` (distinct members) descending, then `hits`, then name. `name
 Pine built-in from `pineBuiltins.json` or `_unlisted` (gaps whose token was not a
 built-in: a member identifier, or a construct with no single name). No user ids are
 returned. For custom windows, query `indicator_gap_hits` directly:
-`COUNT(DISTINCT user_id) … GROUP BY name, kind`.
+`COUNT(DISTINCT member_key) … GROUP BY name, kind`. Neither the ranking nor any route
+returns a `member_key`.
 
 **Reports** — `indicator_support.admin_list_reports(status=None)`, also
 `GET /api/indicator-support/reports` (admin): each row is

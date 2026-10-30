@@ -13,15 +13,20 @@ reads what this module writes; the shapes it reads are named in that doc and in
 question, "rank names by the number of DISTINCT members hit", would be a JSON
 scan over a shared marketing table. A dedicated aggregate is cleaner:
 
-    indicator_gap_hits(day, name, kind, user_id, hits)   PK (day, name, kind, user_id)
+    indicator_gap_hits(day, name, kind, member_key, hits)   PK (day, name, kind, member_key)
 
 One row per member per name per kind per day; ``hits`` counts repeat pastes,
 capped at ``HITS_CAP_PER_DAY`` so one member cannot weigh a name by pasting it
-200 times. Distinct members is ``COUNT(DISTINCT user_id)``, exact, and the table
+200 times. Distinct members is ``COUNT(DISTINCT member_key)``, exact, and the table
 holds no content: ``name`` is ALWAYS either a member of the closed allowlist
 (``pineBuiltins.json``, the same file the client reads) or the constant
-``_unlisted``; ``kind`` is one of two constants; ``user_id`` is the member's own
-id, never a free-form string they typed.
+``_unlisted``; ``kind`` is one of two constants; ``member_key`` is
+``HMAC-SHA256(PUSH_SECRET, "indicator-gap-hits:v1|" + user_id)`` (``member_key``),
+never the raw member id and never a free-form string they typed. The key is the
+same every day for one member, so distinct members across a window and the
+per-member daily cap both still work; without the server secret it cannot be
+turned back into an id. Rows older than ``GAP_RETAIN_DAYS`` (400) are purged with
+the report retention (``purge_expired``).
 
 ⛔⛔ THE ALLOWLIST IS ENFORCED HERE, NOT TRUSTED FROM THE CLIENT. A name not in
 the list is never written, under any spelling; it is counted as ``_unlisted``.
@@ -57,6 +62,7 @@ from __future__ import annotations
 
 import datetime as _dt
 import hashlib
+import hmac
 import json
 import logging
 import os
@@ -90,6 +96,7 @@ STATUSES = ("new", "triaged", "fixed", "wontfix")
 CLOSED_STATUSES = ("fixed", "wontfix")
 RETAIN_AFTER_CLOSED_DAYS = 30
 RETAIN_MAX_DAYS = 365
+GAP_RETAIN_DAYS = 400
 
 _LINK_RE = re.compile(
     r"https://(www\.|[a-z]{2}\.)?tradingview\.com/[A-Za-z0-9._~:/?#\[\]@!$&'()*+,;=%-]{1,280}")
@@ -116,12 +123,12 @@ def is_pine_builtin(name: Any) -> bool:
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS indicator_gap_hits (
-    day     TEXT NOT NULL,
-    name    TEXT NOT NULL,
-    kind    TEXT NOT NULL CHECK (kind IN ('name-unknown', 'call-unmapped')),
-    user_id TEXT NOT NULL,
-    hits    INTEGER NOT NULL DEFAULT 1,
-    PRIMARY KEY (day, name, kind, user_id)
+    day        TEXT NOT NULL,
+    name       TEXT NOT NULL,
+    kind       TEXT NOT NULL CHECK (kind IN ('name-unknown', 'call-unmapped')),
+    member_key TEXT NOT NULL,
+    hits       INTEGER NOT NULL DEFAULT 1,
+    PRIMARY KEY (day, name, kind, member_key)
 );
 CREATE INDEX IF NOT EXISTS idx_indicator_gap_hits_name ON indicator_gap_hits(name, kind, day);
 
@@ -149,10 +156,58 @@ CREATE INDEX IF NOT EXISTS idx_isr_status ON indicator_support_reports(status, c
 """
 
 
+def _migrate_gap_table(conn) -> None:
+    """The first build of this branch keyed ``indicator_gap_hits`` by the RAW
+    ``user_id``. That table never reached production, so it is replaced rather
+    than converted: a raw id must not survive into the keyed table."""
+    cols = [r[1] for r in conn.execute("PRAGMA table_info(indicator_gap_hits)").fetchall()]
+    if cols and "member_key" not in cols:
+        conn.execute("DROP TABLE indicator_gap_hits")
+        conn.commit()
+
+
 def _conn():
     conn = auth_db.get_connection()
+    _migrate_gap_table(conn)
     conn.executescript(_SCHEMA)
     return conn
+
+
+# ─── the member key ─────────────────────────────────────────────────────────
+
+#: Domain separation: the same secret keys other things in this codebase
+#: (`ai_search_log._user_bucket`, the calendar's ICS tokens), and a key minted
+#: for one purpose must never equal one minted for another.
+_MEMBER_KEY_DOMAIN = b"indicator-gap-hits:v1|"
+_DEV_FALLBACK_SECRET = b"uct-indicator-gap-dev-salt"
+_warned_no_secret = False
+
+
+def _member_key_secret() -> bytes:
+    """``PUSH_SECRET``, the server secret every internal caller already holds and
+    the one ``ai_search_log`` keys its member buckets with. Read per call.
+
+    ⚠️ UNSET (a local dev box) falls back to a fixed salt, with one warning, as
+    ``ai_search_log`` does: the key is then still one-way to anyone without this
+    source, but it is not SECRET, so production must have ``PUSH_SECRET`` set (it
+    does: it is the internal bearer). Rotating ``PUSH_SECRET`` starts a new key per
+    member, so distinct-member counts that span the rotation count a member twice
+    for that window; the 400-day retention ages the old keys out."""
+    global _warned_no_secret
+    s = (os.environ.get("PUSH_SECRET") or "").strip()
+    if s:
+        return s.encode("utf-8")
+    if not _warned_no_secret:
+        _warned_no_secret = True
+        log.warning("[indicator-support] PUSH_SECRET unset; gap member keys use the dev salt")
+    return _DEV_FALLBACK_SECRET
+
+
+def member_key(user_id: Any) -> str:
+    """⭐ THE ONE PLACE A MEMBER'S GAP-COUNT KEY IS COMPUTED. Account deletion
+    (``journal_two/account_purge.py``) calls this to find the member's rows."""
+    return hmac.new(_member_key_secret(), _MEMBER_KEY_DOMAIN + str(user_id).encode("utf-8"),
+                    hashlib.sha256).hexdigest()
 
 
 def _now() -> _dt.datetime:
@@ -203,17 +258,17 @@ def record_gaps(user_id: Any, gaps: Any, unlisted: Any = 0, *, day: Optional[str
         pairs = clean_gaps(gaps, unlisted)
         if not pairs:
             return 0
-        uid = str(user_id)
+        key = member_key(user_id)
         d = day or _now().strftime("%Y-%m-%d")
         conn = _conn()
         try:
             for name, kind in pairs:
                 conn.execute(
-                    "INSERT INTO indicator_gap_hits (day, name, kind, user_id, hits)"
+                    "INSERT INTO indicator_gap_hits (day, name, kind, member_key, hits)"
                     " VALUES (?, ?, ?, ?, 1)"
-                    " ON CONFLICT(day, name, kind, user_id)"
+                    " ON CONFLICT(day, name, kind, member_key)"
                     " DO UPDATE SET hits = MIN(hits + 1, ?)",
-                    (d, name, kind, uid, HITS_CAP_PER_DAY),
+                    (d, name, kind, key, HITS_CAP_PER_DAY),
                 )
             conn.commit()
         finally:
@@ -234,7 +289,7 @@ def gap_ranking(days: int = 30, limit: int = 200) -> list[dict]:
     conn = _conn()
     try:
         rows = conn.execute(
-            "SELECT name, kind, COUNT(DISTINCT user_id) AS members, SUM(hits) AS hits,"
+            "SELECT name, kind, COUNT(DISTINCT member_key) AS members, SUM(hits) AS hits,"
             "       MIN(day), MAX(day), COUNT(DISTINCT day)"
             "  FROM indicator_gap_hits WHERE day >= ?"
             " GROUP BY name, kind"
@@ -280,8 +335,27 @@ def source_hash(source: str) -> str:
     return hashlib.sha256(norm.encode("utf-8")).hexdigest()
 
 
+def purge_gap_hits(now: Optional[_dt.datetime] = None) -> int:
+    """Gap-count retention: delete ``indicator_gap_hits`` rows whose day is more
+    than ``GAP_RETAIN_DAYS`` before ``now``. Returns the rows deleted."""
+    t = now or _now()
+    cutoff = (t - _dt.timedelta(days=GAP_RETAIN_DAYS)).strftime("%Y-%m-%d")
+    conn = _conn()
+    try:
+        cur = conn.execute("DELETE FROM indicator_gap_hits WHERE day < ?", (cutoff,))
+        conn.commit()
+        return cur.rowcount or 0
+    finally:
+        conn.close()
+
+
 def purge_expired(now: Optional[_dt.datetime] = None) -> int:
-    """The retention rule. Returns the number of reports deleted."""
+    """The retention rule, for reports AND gap counts (``purge_gap_hits``). Runs on
+    every report create and every admin list. Returns the number of REPORTS deleted."""
+    try:
+        purge_gap_hits(now)
+    except Exception:  # noqa: BLE001 - gap retention must never block a report
+        log.exception("[indicator-support] gap retention failed")
     t = now or _now()
     closed_before = _iso(t - _dt.timedelta(days=RETAIN_AFTER_CLOSED_DAYS))
     created_before = _iso(t - _dt.timedelta(days=RETAIN_MAX_DAYS))
