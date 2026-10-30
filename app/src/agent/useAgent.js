@@ -1037,6 +1037,24 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     return false
   }, [host, push, record, withdrawPending])
 
+  // ⭐ PHASE 3: "undo all of that" — every change the LAST request committed (memory.lastTurn's Undo entries), newest first,
+  // each through doUndo (its own refusals: protected, another board, changed since). The first that can't be undone
+  // stops it there, and the member is told exactly how many were taken back — never a partial Undo said as a whole one.
+  const undoTurn = useCallback(async ({ member, voice } = {}) => {
+    const ids = (memoryRef.current?.lastTurn?.(epochOf(host))?.undoIds || []).filter(id => undoRef.current.some(e => e.id === id))
+    if (ids.length <= 1) return await doUndo(ids[0] || null, { member, voice })
+    let done = 0
+    for (const id of [...ids].reverse()) {
+      const ok = await doUndo(id, { member: done ? null : member, voice })
+      if (!ok) break
+      done += 1
+    }
+    const text = done === ids.length ? `Took back all ${done} changes from your last request.`
+      : `Took back ${done} of the ${ids.length} changes from your last request, then stopped (above) — the other ${ids.length - done} ${ids.length - done === 1 ? 'is' : 'are'} still in place.`
+    push({ role: 'agent', text })
+    record({ member: null, outcome: text, outcomeData: { kind: 'undo-turn', done, of: ids.length }, telemetry: { path: 'fast', undo: true, voice } })
+  }, [host, doUndo, push, record])
+
   const approve = useCallback(async (count = null, { member, voice } = {}) => {
     const p = pendingRef.current
     if (!p || p.kind !== 'proposal') {
@@ -1314,6 +1332,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         record({ member: text, outcome: fast.text, outcomeData: { kind: 'clarify-referent' }, telemetry: { path: 'fast', disposition: 'clarify', voice } })
         return
       }
+      if (fast?.kind === 'undo' && fast.all) return await undoTurn({ member: text, voice })
       if (fast?.kind === 'undo') return await doUndo(null, { member: text, voice, about: fast.about || null })
       if (fast?.kind === 'confirm' && pendingRef.current?.kind === 'proposal') return await approve(null, { member: text, voice })
       if (fast?.kind === 'subset' && pendingRef.current?.kind === 'proposal') return await approve(fast.count, { member: text, voice })
@@ -1765,7 +1784,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       setActivity(null)
       turnEnd()
     }
-  }, [push, gridMode, host, record, doUndo, approve, dismiss, execute, runCompound, setConversationId, patchItem, capCtx, streamLine])
+  }, [push, gridMode, host, record, doUndo, undoTurn, approve, dismiss, execute, runCompound, setConversationId, patchItem, capCtx, streamLine])
 
   // ⭐ INDICATORS ⇄ AGENT — the chart's Create Indicator / Modify door opened the Agent on a chart:
   // ask the question and hold ONE intent (indicatorEntry.js). No model call; the member's answer is

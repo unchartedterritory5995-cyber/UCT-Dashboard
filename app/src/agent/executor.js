@@ -107,7 +107,10 @@ export function planOps(targets, ops, env = {}, ctx = null) {
       if (next === st && cap.noop) noops.push(cap.noop(st, st, op.args, oenv))
       st = next
     }
-    plans.push({ ref, kind: tgt.kind, snap: tgt.snap, virtual: !!tgt.virtual, before, after: st, items, noops, env: opEnv, confirm })
+    // ⭐ PHASE 3 (receipts): how many targets of this kind the board has — one chart's change on a board of several
+    // names the chart ("Chart (NVDA): Switched timeframe to Weekly"), as a change on several charts already does
+    const siblings = [...targets.values()].filter(t => t.kind === tgt.kind && !t.virtual).length
+    plans.push({ ref, kind: tgt.kind, snap: tgt.snap, virtual: !!tgt.virtual, before, after: st, items, noops, env: opEnv, confirm, siblings })
   }
 
   // A creating plan may only touch its creators and what it creates: mixing in
@@ -171,7 +174,9 @@ export function summarize(plans, labelOf = (p) => p.snap.label) {
   // never prefixed with its label again.
   const named = (p) => !!getTargetKind(p.kind)?.selfDescribing
   const multiReal = real.filter(p => p.lines.length).length > 1
-  for (const p of real) for (const l of p.lines) lines.push(multiReal && !named(p) ? `${labelOf(p)}: ${l}` : l)
+  // ⭐ PHASE 3: a CHART's lines don't say which chart — on a board of several, the one change still names it
+  const soloChart = (p) => p.kind === 'chart' && (p.siblings || 0) > 1
+  for (const p of real) for (const l of p.lines) lines.push((multiReal || soloChart(p)) && !named(p) ? `${labelOf(p)}: ${l}` : l)
   if (virt.length === 1) {
     for (const l of virt[0].lines) lines.push(named(virt[0]) ? l : `${labelOf(virt[0])}: ${l}`)
   } else if (virt.length > 1) {
