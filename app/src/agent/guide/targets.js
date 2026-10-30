@@ -7,7 +7,7 @@
 //                                             attribute of ours — e.g. Indicators' search box)
 //   { widgetType: 'watchlist' }               a board cell of that widget type (data-widget-type)
 //
-// `chart.*` targets are looked for inside the chart being talked about (`[data-widget-id="<chart>"]`, the board cell
+// `chart.*` and `widget.*` targets are looked for inside the chart being talked about (`[data-widget-id="<chart>"]`, the board cell
 // the chart ref names), then anywhere (a menu the chart opened may be portalled). A target counts only when the
 // member can SEE it — present is not visible (the Notebook tour's own `isOnScreen`, reused as-is: a box, on screen,
 // not clipped away). Nothing here clicks, focuses or changes anything.
@@ -38,7 +38,8 @@ export function findTarget(target, { chartRef = null } = {}) {
   }
   const id = String(target)
   const sel = `[data-guide="${esc(id)}"]`
-  if (id.startsWith('chart.')) {
+  // ⭐ PHASE 3: a widget header's own controls (`widget.*` — the link dot) are scoped to the chart talked about, too
+  if (id.startsWith('chart.') || id.startsWith('widget.')) {
     const cell = cellOf(chartRef)
     const inChart = cell ? visible(cell.querySelectorAll(sel)) : null
     if (inChart) return inChart

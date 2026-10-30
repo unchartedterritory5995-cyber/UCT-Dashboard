@@ -300,6 +300,7 @@ export default function WidgetHeader({
         className={`${styles.colorDot} ${styles[`colorDot${suspended ? 'N' : color}`]} charts-no-drag`}
         onClick={() => onColorChange(nextGroup(color, extraGroupsOn))}
         data-group-suspended={suspended ? color : undefined}
+        data-guide="widget.link"
         aria-label={suspended
           ? `Group ${color} is switched off: not linked — click to pick a color group`
           : isNone ? 'Not linked (grey) — click to link to a color group' : `Color group ${color} (click to cycle)`}
