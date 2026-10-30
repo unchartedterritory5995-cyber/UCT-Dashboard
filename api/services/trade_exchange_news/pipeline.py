@@ -84,7 +84,14 @@ def _alert_hook(ev: dict[str, Any]) -> None:
         pass
 
 
-def headline_event(row: dict[str, Any], epoch: str = "") -> dict[str, Any]:
+def derived_for(source: str, content: str) -> dict[str, Any]:
+    """Every field ``headline_event`` derives from the text: a pure function of
+    ``(source, content)``, so a reader of many rows may cache it (pages.py)."""
+    return {"tickers": _tickers_for(content, source), "category": _category_for(source, content),
+            **_display_for(source, content)}
+
+
+def headline_event(row: dict[str, Any], epoch: str = "", derived: dict[str, Any] | None = None) -> dict[str, Any]:
     """⭐ ``seq`` is THE order: assigned once, by the single writer, at commit,
     contiguous within an ``epoch`` (AUTOINCREMENT, never reused; a rolled-back
     insert does not consume one). It is NOT receipt order -- ``received_at_ms``
@@ -97,10 +104,9 @@ def headline_event(row: dict[str, Any], epoch: str = "") -> dict[str, Any]:
             "received_at_ms": row["received_at_ms"],
             # ⭐ Derived at EVERY event build, history and live alike, so a stored row
             # and a new arrival always read the same rules (the stored column is the
-            # value at ingest; the source label itself is never rewritten).
-            "tickers": _tickers_for(row["content"], row["source"]),
-            "category": _category_for(row["source"], row["content"]),
-            **_display_for(row["source"], row["content"]),
+            # value at ingest; the source label itself is never rewritten). `derived`
+            # is the same derivation, already made (derived_for) -- never other rules.
+            **(derived if derived is not None else derived_for(row["source"], row["content"])),
             "repeat_count": row["repeat_count"], "via": row["via"],
             "delayed": (row["ingested_at_ms"] - row["received_at_ms"]) > DELAYED_AFTER_MS}
 
