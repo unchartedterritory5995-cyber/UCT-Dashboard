@@ -229,3 +229,56 @@ describe('TC2000 ATR is the simple average of true range', () => {
     expect(json).toContain('{"type":"call","name":"stoch","args":[{"type":"series","name":"close"}')
   })
 })
+
+// ⭐ THE FUNCTION FORM — TC2000 publishes `STOC(x, y, z)` beside `STOCx.y.z` (and
+// the same for every fused indicator) with identical parameters, so it is read
+// by rewriting to the shorthand: one reading, two spellings.
+describe('PCF function form of a fused indicator', () => {
+  const same = (a, b) => expect(astHash(tree(a))).toBe(astHash(tree(b)))
+
+  it('⭐ each call is the same tree as its shorthand', () => {
+    same('STOC(14, 3) < 20', 'STOC14.3 < 20')
+    same('STOC(14, 3, 1) < 20', 'STOC14.3.1 < 20')
+    same('STOC(14) < 20', 'STOC14 < 20')
+    same('ATR(14) > 1', 'ATR14 > 1')
+    same('ATR(14, 2) > 1', 'ATR14.2 > 1')
+    same('WRSI(14) > 70', 'WRSI14 > 70')
+    same('CCI(20, 1) > 100', 'CCI20.1 > 100')
+    same('MACD(12, 26) > 0', 'MACD12.26 > 0')
+    same('STDDEV(20) > 1', 'STDDEV20 > 1')
+    same('AROONUP(25) > 70', 'AROONUP25 > 70')
+  })
+
+  it('is detected as TC2000, while the lower-case native call stays native', async () => {
+    const { detectDialect } = await import('./pcf.js')
+    expect(detectDialect('STOC(14, 3) < 20')).toBe('pcf')
+    expect(detectDialect('ATR(14) > 1')).toBe('pcf')
+    expect(detectDialect('atr(high, low, close, 14) > 1')).toBe('native')
+  })
+
+  it('refuses a computed or fractional parameter, naming the shorthand', () => {
+    for (const src of ['STOC(C, 3) < 20', 'STOC(14.5, 3) < 20', 'ATR(AVGC10) > 1']) {
+      const r = parsePcf(src)
+      expect(r.ok, src).toBe(false)
+      expect(r.guard).toBe('pcf:window')
+      expect(r.error).toMatch(/must be a written whole number/)
+    }
+  })
+
+  it('refuses too many arguments by count', () => {
+    const r = parsePcf('ATR(14, 1, 2) > 1')
+    expect(r.ok).toBe(false)
+    expect(r.guard).toBe('pcf:arity')
+  })
+
+  it('a WSTOC/RSI call is still refused with its own reason (a different formula)', () => {
+    expect(parsePcf('WSTOC(14, 3) < 20').error).toMatch(/RANK/)
+    expect(parsePcf('RSI(14) > 70').ok).toBe(false)
+  })
+
+  it('the legacy reading covers the function form too', () => {
+    const [r] = legacyPcfReadings('STOC(14, 3) < 20 AND ATR(14) > 1')
+    expect(r).toBeTruthy()
+    expect(astHash(r.ast)).toBe(astHash(legacyPcfReadings('STOC14.3 < 20 AND ATR14 > 1')[0].ast))
+  })
+})

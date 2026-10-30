@@ -1481,6 +1481,36 @@ class Reader {
       return callNode('accum', built)
     }
 
+    // ⭐⭐ THE FUNCTION FORM OF A FUSED INDICATOR (2026-10-30). TC2000's syntax
+    // table (help.tc2000.com/m/69445/l/745531) publishes every fused indicator
+    // TWICE with the SAME parameters in the SAME order — `STOC(x, y, z)` beside
+    // `STOCx.y.z`, `ATR(x, z)` beside `ATRx.z`, `MACD(s, l, z)` beside
+    // `MACDs.l.z`. So the call is rewritten to the shorthand and read by the ONE
+    // fused reader: the two spellings cannot disagree, because there is only one
+    // reading. ⛔ EVERY ARGUMENT MUST BE A WRITTEN WHOLE NUMBER — the shorthand
+    // can only carry digits, and a computed period is not a window the linter
+    // can price. Field families (`AVG(w, x)`, …) keep their own `PCF_CALLS` row.
+    const fused = !own(PCF_CALLS, upper) && own(this.reading.fused, upper) && !this.reading.fused[upper].field
+      ? this.reading.fused[upper] : null
+    if (fused) {
+      if (nodes.length < 1 || nodes.length > fused.params.length) {
+        refuse('pcf:arity',
+          `\`${token.text}(…)\` takes ${fused.params.length} (${fused.params.join(', ')}) and was handed ${nodes.length}`,
+          at, token.text)
+      }
+      const digits = nodes.map((n, i) => {
+        if (n.type !== 'num' || !Number.isInteger(n.value) || n.value < 0) {
+          refuse('pcf:window',
+            `\`${token.text}(…)\`'s ${fused.params[i]} must be a written whole number, as in its `
+            + `shorthand \`${fused.spelling}\``,
+            args[i] ? args[i].index : at, token.text)
+        }
+        return String(n.value)
+      })
+      const text = upper + digits[0] + digits.slice(1).map((d) => `.${d}`).join('')
+      return readFused(this.table, { text, index: at, kind: 'name' }, this.letters, this.nodeTypes, this.reading)
+    }
+
     const call = PCF_CALLS[upper]
     if (!call) {
       const lookalike = differentFormula(token.text)
@@ -1730,6 +1760,10 @@ const PCF_MARKERS = [
   // `rsi14` (lower case) is a native nightly scalar and must stay native; TC2000's
   // fused spellings are written in capitals. Derived from the refusal list itself.
   new RegExp('\\b(' + Object.keys(PCF_DIFFERENT_FORMULA).join('|') + ')\\d+(?![A-Za-z0-9_(])'),
+  // ⭐ THE FUNCTION FORM OF A NON-FIELD FUSED FAMILY (`STOC(14, 3)`, `ATR(14)`).
+  // ⛔ CASE-SENSITIVE for the reason above: every native name is lower case, so an
+  // upper-case `ATR(` can never be a native call, while `atr(` must stay native.
+  new RegExp('\\b(' + Object.keys(PCF_FUSED).filter((k) => !PCF_FUSED[k].field).join('|') + ')\\s*\\('),
 ]
 
 /** A marker only the native dialect produces.
