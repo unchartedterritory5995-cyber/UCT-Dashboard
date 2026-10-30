@@ -87,7 +87,7 @@
 // the insertion-workflow phase), and normalizeParams() below is the shared
 // normalizer that turns that loose read-out into schema-shaped frozen params.
 
-import { releasedTypes } from './captureRelease'
+import { releasedTypes, captureEnabled } from './captureRelease'
 
 // ⚠️ DELIBERATE MIRROR of the server's intraday fetch ceilings —
 // api/services/bars_fetch.py:684 `max_lookback` — the authority on how far
@@ -1141,8 +1141,23 @@ export const JOURNAL_MENU_TYPES_ALL = WIDGET_IDS.filter(id => WIDGET_REGISTRY[id
 // _MENU_TYPE_SETS). Gating here rather than at each menu is deliberate --
 // lesson_a_guard_repeated_is_a_guard_unproved: seven copies cannot be
 // mutation-proved, one can.
-export const WORKSPACE_MENU_TYPES = releasedTypes(WORKSPACE_MENU_TYPES_ALL)
-export const TAB_MENU_TYPES = releasedTypes(TAB_MENU_TYPES_ALL)
+//
+// ⛔ TWO lists per surface, on purpose. WORKSPACE_PICKER_TYPES / TAB_PICKER_TYPES are
+// what a MEMBER is offered (the workspace Widgets menu, ChartWidget's add-menu, the
+// add-tab menu, menuGroups). WORKSPACE_MENU_TYPES / TAB_MENU_TYPES are the lists UCT
+// Agent reads (widget.add and widget.addTab: types, enum, description; the host's
+// fit map) and stay EXACTLY what they were before UCT News
+// reached members: a widget in PICKER_ONLY_WIDGETS reaches it only where the Wave R
+// capture switch is on, as before. Measured 2026-10-30 (#536): letting News into
+// the Agent's list pushed widget.add's description past the 1000-character cap and
+// broke the golden manifest. Releasing a widget to members is not releasing it to
+// the Agent -- that is a separate, reviewed Agent change.
+export const PICKER_ONLY_WIDGETS = Object.freeze(['tradeExchangeNews'])
+const agentList = (picker) => (captureEnabled() ? picker : picker.filter(id => !PICKER_ONLY_WIDGETS.includes(id)))
+export const WORKSPACE_PICKER_TYPES = releasedTypes(WORKSPACE_MENU_TYPES_ALL)
+export const TAB_PICKER_TYPES = releasedTypes(TAB_MENU_TYPES_ALL)
+export const WORKSPACE_MENU_TYPES = agentList(WORKSPACE_PICKER_TYPES)
+export const TAB_MENU_TYPES = agentList(TAB_PICKER_TYPES)
 export const MOBILE_MENU_TYPES = releasedTypes(MOBILE_MENU_TYPES_ALL)
 export const JOURNAL_MENU_TYPES = releasedTypes(JOURNAL_MENU_TYPES_ALL)
 export const THEME_FOLLOW_TYPES = WIDGET_IDS.filter(id => WIDGET_REGISTRY[id].themeFollow)
@@ -1200,8 +1215,8 @@ export function catalogMeta(id) {
 }
 
 const _MENU_TYPE_SETS = {
-  workspace: WORKSPACE_MENU_TYPES,
-  tab: TAB_MENU_TYPES,
+  workspace: WORKSPACE_PICKER_TYPES,
+  tab: TAB_PICKER_TYPES,
   mobile: MOBILE_MENU_TYPES,
   journal: JOURNAL_MENU_TYPES,
 }
@@ -1209,7 +1224,7 @@ const _MENU_TYPE_SETS = {
 /** The add-menu widgets grouped into categories, filtered to one menu surface.
  *  Returns [{key, label, items:[id]}] with empty categories dropped. */
 export function menuGroups(menu = 'workspace') {
-  const allowed = new Set(_MENU_TYPE_SETS[menu] || WORKSPACE_MENU_TYPES)
+  const allowed = new Set(_MENU_TYPE_SETS[menu] || WORKSPACE_PICKER_TYPES)
   return WIDGET_CATEGORIES
     .map(c => ({ key: c.key, label: c.label, items: c.items.filter(id => allowed.has(id)) }))
     .filter(c => c.items.length > 0)

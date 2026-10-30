@@ -20,9 +20,10 @@
 // NOT offered in the +add-tab menu (menus.tab: false) — it's reachable only
 // from Tools → Custom-Period Sort (add-as-tab). Its labels stay in the maps so
 // existing periodsort tabs still render their chip/menu text.
-import { TAB_MENU_TYPES, labelMap } from '../../widgets/registry'
+import { TAB_MENU_TYPES, TAB_PICKER_TYPES, labelMap } from '../../widgets/registry'
 
-export const WIDGET_TAB_TYPES = TAB_MENU_TYPES
+export const WIDGET_TAB_TYPES = TAB_MENU_TYPES             // UCT Agent's widget.addTab list (registry: never News)
+export const WIDGET_TAB_PICKER_TYPES = TAB_PICKER_TYPES    // what the add-tab MENU offers a member
 export const WIDGET_TAB_LABEL = labelMap('tab')
 export const WIDGET_TAB_MENU_LABEL = labelMap('menu')
 
