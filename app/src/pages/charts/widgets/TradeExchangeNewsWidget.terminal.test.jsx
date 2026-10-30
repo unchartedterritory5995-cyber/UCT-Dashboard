@@ -1,9 +1,9 @@
 // News terminal upgrade — the widget: long-headline collapse, category filter,
-// plain tickers (no inline %), one-click copy, ⋯ = add to watchlist only, impact
-// marks, related groups, feed health, presets, numbered pages of the archive (live
-// page 1, stable snapshots behind it), several widgets at once, and re-render
-// economy on a quote tick. The shared pool and the page server are faked
-// (fakeNewsPages); synthetic only.
+// plain tickers (no inline %), one-click copy, ⋯ = add to watchlist only, no
+// impact labels, related groups, feed health, presets, one ET calendar day at a time
+// (continuous scrolling, calendar, previous/next day, jump to time, live Today),
+// several widgets at once, and re-render economy on a quote tick. The shared pool
+// and the day server are faked (fakeNewsDay); synthetic only.
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -11,21 +11,22 @@ const feed = vi.hoisted(() => {
   const listeners = new Set()
   let state = { status: 'idle', items: [], epoch: 'e', lastSeq: 0, firstSeq: 0, coverage: null, provisional: true }
   return {
-    archive: null, pageCalls: [],
+    archive: null, dayCalls: [], dayOpts: null, daysOpts: null,
     listeners,
     get: () => state,
     set(next) { state = { ...state, ...next }; for (const fn of [...listeners]) fn(state) },
-    reset() { this.archive = null; this.pageCalls = []; listeners.clear(); state = { status: 'idle', items: [], epoch: 'e', lastSeq: 0, firstSeq: 0, coverage: null, provisional: true } },
+    reset() { this.archive = null; this.dayCalls = []; this.dayOpts = null; this.daysOpts = null; listeners.clear(); state = { status: 'idle', items: [], epoch: 'e', lastSeq: 0, firstSeq: 0, coverage: null, provisional: true } },
   }
 })
 vi.mock('../../../lib/tradeExchangeNewsStreamManager', async () => {
-  const { fakeNewsPage } = await import('../../../testing/tradeExchangeNews/fakeNewsPages')
+  const { fakeNewsDay, fakeNewsDays } = await import('../../../testing/tradeExchangeNews/fakeNewsDay')
   return {
   subscribe: (fn) => { feed.listeners.add(fn); return () => feed.listeners.delete(fn) },
   getSnapshot: () => feed.get(),
   retry: vi.fn(),
-  // The server's pages over the synthetic archive (the pool's rows unless a test sets one).
-  fetchPage: async (body) => { feed.pageCalls.push(body); return fakeNewsPage(feed.archive || feed.get().items, body) },
+  // The server's days over the synthetic archive (the pool's rows unless a test sets one).
+  fetchDay: async (body) => { feed.dayCalls.push(body); return fakeNewsDay(feed.archive || feed.get().items, body, feed.dayOpts || {}) },
+  fetchDays: async () => fakeNewsDays(feed.archive || feed.get().items, feed.daysOpts || {}),
   claimAnnouncement: () => true,
 }
 })
@@ -159,7 +160,7 @@ describe('category filter', () => {
     expect(rows(r2.container)).toEqual([3, 1])
     const r3 = mount({ categories: ['Earnings'], linked: true })              // linked = NVDA: AND
     expect(rows(r3.container)).toEqual([])
-    expect(await within(r3.container).findByText('No headlines match these filters.')).toBeTruthy()
+    expect(await within(r3.container).findByText(/^No headlines on .+ match these filters\.$/)).toBeTruthy()
     expect(container).toBeTruthy()
   })
 
@@ -290,16 +291,15 @@ describe('⋯ = add to watchlist', () => {
   })
 })
 
-describe('impact marks and grouping', () => {
-  it('a fresh marked headline reads Breaking, with the criteria in its tooltip; the setting turns it off', () => {
-    const items = [...BASE, H(4, 'SYNTHETIC: ACME HALTED', ['ACME'], { impact: 'halt', received_at_ms: NOW - 10_000 })]
-    const { container, unmount } = mount({}, items)
-    const mark = within(rowEl(container, 4)).getByText('Breaking')
-    expect(mark.title).toMatch(/^Trading halt or resumption\. Marked only when/)
-    expect(container.querySelectorAll('[class*="impact"]')).toHaveLength(1)    // only the marked row
-    unmount()
-    const r2 = mount({ settings: { impactMarks: 'off' } }, items)
-    expect(within(r2.container).queryByText('Breaking')).toBeNull()
+describe('no impact labels, and grouping', () => {
+  it('never shows Breaking or High impact, whatever the server marks, and offers no such setting', () => {
+    const items = [...BASE, H(4, 'SYNTHETIC: ACME HALTED', ['ACME'], { impact: 'halt', received_at_ms: NOW - 10_000 }),
+      H(5, 'SYNTHETIC: ACME TO ACQUIRE BETA', ['ACME'], { impact: 'mna', received_at_ms: NOW - 3_600_000 })]
+    const { container } = mount({ settings: { impactMarks: 'on' } }, items)
+    expect(container.textContent).not.toMatch(/Breaking|High impact/i)
+    expect(container.querySelector('[class*="impact"]')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'News widget settings' }))
+    expect(screen.queryByText('Impact marks')).toBeNull()
   })
 
   it('groups the same story re-sent, keeps every copy, and expands to show them', () => {
@@ -373,11 +373,12 @@ describe('several widgets and large histories', () => {
     expect(lists.map((l) => [...l.querySelectorAll('[data-seq]')].map((r) => Number(r.dataset.seq)))).toEqual([[2], [1]])
   })
 
-  it('a quote tick re-renders only the rows naming that symbol (1,000 pooled, one page shown)', () => {
+  it('a quote tick re-renders only the rows naming that symbol (1,000 pooled, the loaded part of the day shown)', async () => {
     const items = Array.from({ length: 1000 }, (_, i) => H(i + 1, `SYNTHETIC: row ${i + 1} about ${i % 2 ? 'NVDA' : 'AMD'}`, [i % 2 ? 'NVDA' : 'AMD']))
     quotes.prices = { NVDA: { price: 100, change_pct: 1 }, AMD: { price: 50, change_pct: 1 } }
+    feed.archive = items                                                     // the server holds the day too
     const { container } = mount({}, items)
-    expect(rows(container)).toHaveLength(25)                              // one page, not the pool
+    await waitFor(() => expect(rows(container)).toHaveLength(60))         // the day's first step, not the pool
     spy.tokenize.clear()
     quotes.prices = { ...quotes.prices, AMD: { price: 51, change_pct: 3 } }
     const t0 = performance.now()
@@ -390,180 +391,264 @@ describe('several widgets and large histories', () => {
   })
 })
 
-describe('numbered pages', () => {
-  // An archive larger than the pool: the pool holds the newest 200, the server 5,000.
-  const ARCH = Array.from({ length: 5000 }, (_, i) => H(i + 1, `SYNTHETIC: archive row ${i + 1}${i % 10 === 0 ? ' about AMD' : ''}`,
-    i % 10 === 0 ? ['AMD'] : [], { category: i % 4 === 0 ? 'Macro' : 'News', received_at_ms: NOW - (5000 - i) * 60_000 }))
-  const pool = () => ARCH.slice(-200)
-  const mountArchive = (opts = {}) => {
-    feed.archive = ARCH
+describe('one calendar day at a time', () => {
+  // Late October 2026 is EDT (UTC-4): an ET wall time as an instant.
+  const ET = (d, h, m = 0) => Date.UTC(2026, 9, d, h + 4, m)
+  const key = (d) => `2026-10-${String(d).padStart(2, '0')}`
+  // Oct 26: 200 headlines 08:00-11:19 ET (1 min apart); Oct 27: none; Oct 25: 3.
+  // Today: the pool's own rows.
+  const D26 = Array.from({ length: 200 }, (_, i) => H(1000 + i, `SYNTHETIC: oct 26 row ${i}${i % 10 === 0 ? ' about AMD' : ''}`,
+    i % 10 === 0 ? ['AMD'] : [], { category: i % 4 === 0 ? 'Macro' : 'News', received_at_ms: ET(26, 8, i) }))
+  const D25 = [0, 1, 2].map((i) => H(900 + i, `SYNTHETIC: oct 25 row ${i}`, [], { received_at_ms: ET(25, 12, i) }))
+  const atMs = (date, hhmm) => {
+    const [h, m] = hhmm.split(':').map(Number)
+    return Date.UTC(Number(date.slice(0, 4)), Number(date.slice(5, 7)) - 1, Number(date.slice(8, 10)), h + 4, m) + 59_999
+  }
+  const mountDays = (opts = {}) => {
+    feed.archive = [...D25, ...D26, ...BASE]
+    feed.dayOpts = { atMs }
     const utils = render(<TradeExchangeNewsWidget color="A" opts={opts} onOptsChange={vi.fn()} />)
-    act(() => feed.set({ status: 'live', items: pool(), lastSeq: 5000, replayUntil: 5000, lastHeadlineAt: NOW }))
+    act(() => feed.set({ status: 'live', items: BASE, lastSeq: 3, replayUntil: 3, lastHeadlineAt: NOW }))
     return utils
   }
-  const nav = () => screen.getByRole('navigation', { name: 'Headline pages' })
-  const btn = (name) => within(nav()).getByRole('button', { name })
-  const pageInput = () => within(nav()).getByRole('textbox', { name: /Page number/ })
-  const waitRows = async (c, first) => waitFor(() => expect(rows(c)[0]).toBe(first))
-
-  it('page 1 is the newest 25; the exact page count comes from the server', async () => {
-    const { container } = mountArchive()
-    expect(rows(container)).toHaveLength(25)
-    expect(rows(container)[0]).toBe(5000)
-    await waitFor(() => expect(within(nav()).getByText('/ 200')).toBeTruthy())
-    expect(btn('First page (newest)')).toBeDisabled()
-    expect(btn('Previous page (newer)')).toBeDisabled()
-    expect(within(container).queryByText('Load older headlines')).toBeNull()
-    expect(container.textContent).toMatch(/5,000 headlines/)
-  })
-
-  it('moves in both directions, and First / Last reach the ends', async () => {
-    const { container } = mountArchive()
-    await waitFor(() => expect(btn('Next page (older)')).not.toBeDisabled())
-    fireEvent.click(btn('Next page (older)'))
-    await waitRows(container, 4975)
-    expect(pageInput().value).toBe('2')
-    fireEvent.click(btn('Last page (oldest)'))
-    await waitRows(container, 25)
-    expect(rows(container).at(-1)).toBe(1)
-    expect(btn('Next page (older)')).toBeDisabled()
-    expect(btn('Last page (oldest)')).toBeDisabled()
-    fireEvent.click(btn('Previous page (newer)'))
-    await waitRows(container, 50)
-    fireEvent.click(btn('First page (newest)'))
-    await waitRows(container, 5000)
-    expect(within(nav()).queryByRole('button', { name: 'Latest' })).toBeNull()
-  })
-
-  it('a typed page number jumps there; out-of-range or non-numeric input is refused', async () => {
-    const { container } = mountArchive()
-    await waitFor(() => expect(within(nav()).getByText('/ 200')).toBeTruthy())
-    fireEvent.change(pageInput(), { target: { value: '137' } })
-    fireEvent.keyDown(pageInput(), { key: 'Enter' })
-    await waitRows(container, 5000 - 136 * 25)
-    fireEvent.change(pageInput(), { target: { value: '201' } })
-    fireEvent.keyDown(pageInput(), { key: 'Enter' })
-    expect(pageInput().value).toBe('137')
-    expect(pageInput().getAttribute('aria-invalid')).toBe('true')
-    fireEvent.change(pageInput(), { target: { value: '0' } })
-    fireEvent.keyDown(pageInput(), { key: 'Enter' })
-    expect(pageInput().value).toBe('137')
-    fireEvent.change(pageInput(), { target: { value: '4x' } })            // letters are dropped as typed
-    expect(pageInput().value).toBe('4')
-    fireEvent.keyDown(pageInput(), { key: 'Escape' })
-    expect(pageInput().value).toBe('137')
-    expect(rows(container)[0]).toBe(5000 - 136 * 25)
-  })
-
-  it('pages the FILTERED archive, not the rows this browser holds', async () => {
-    const { container } = mountArchive({ categories: ['Macro'] })
-    // Macro = every 4th row: 1,250 in the archive, 50 in the pool
-    await waitFor(() => expect(within(nav()).getByText('/ 50')).toBeTruthy())
-    expect(container.textContent).toMatch(/1,250 of 5,000 headlines/)
-    fireEvent.change(pageInput(), { target: { value: '50' } })
-    fireEvent.keyDown(pageInput(), { key: 'Enter' })
-    await waitRows(container, 97)
-    expect(rows(container).at(-1)).toBe(1)
-    const last = feed.pageCalls.at(-1)
-    expect(last).toMatchObject({ categories: ['Macro'], page: 50, top: 5000, size: 25 })
-  })
-
-  it('a live headline never shifts an older page; it is counted and Return to latest brings it', async () => {
-    const { container } = mountArchive()
-    await waitFor(() => expect(btn('Next page (older)')).not.toBeDisabled())
-    fireEvent.click(btn('Next page (older)'))
-    await waitRows(container, 4975)
-    const before = rows(container)
-    const items = [...pool(), H(5001, 'SYNTHETIC: breaking while reading page 2', [], { received_at_ms: Date.now() })]
-    ARCH.push(items.at(-1))
-    act(() => feed.set({ items, lastSeq: 5001 }))
-    expect(rows(container)).toEqual(before)                               // no insert, no shift
-    expect(pageInput().value).toBe('2')                                   // not sent back to page 1
-    fireEvent.click(btn('Next page (older)'))
-    await waitRows(container, 4950)                                       // the snapshot still holds
-    expect(feed.pageCalls.at(-1)).toMatchObject({ page: 3, top: 5000 })
-    fireEvent.click(screen.getByRole('button', { name: /1 newer · Return to latest/ }))
-    await waitRows(container, 5001)
-    expect(pageInput().value).toBe('1')
-    ARCH.pop()
-  })
-
-  it('stable boundaries: walking every page of a snapshot gives each row exactly once', async () => {
-    feed.archive = ARCH.slice(0, 260)
-    render(<TradeExchangeNewsWidget color="A" opts={{}} onOptsChange={vi.fn()} />)
-    act(() => feed.set({ status: 'live', items: feed.archive.slice(-200), lastSeq: 260, lastHeadlineAt: NOW }))
-    await waitFor(() => expect(within(nav()).getByText('/ 11')).toBeTruthy())
-    const seen = [...document.querySelectorAll('[data-seq]')].map((r) => Number(r.dataset.seq))
-    for (let n = 2; n <= 11; n++) {
-      fireEvent.click(btn('Next page (older)'))
-      const want = 260 - (n - 1) * 25
-      await waitFor(() => expect(Number(document.querySelector('[data-seq]').dataset.seq)).toBe(want))
-      seen.push(...[...document.querySelectorAll('[data-seq]')].map((r) => Number(r.dataset.seq)))
+  const bar = () => screen.getByRole('navigation', { name: 'Date' })
+  const list = (c) => c.querySelector('[class*="_list_"]')
+  const pickDate = async (dateKey) => {
+    fireEvent.click(within(bar()).getByRole('button', { name: /Choose a date/ }))
+    const dlg = await screen.findByRole('dialog', { name: 'Choose a date' })
+    const want = `${['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'][Number(dateKey.slice(5, 7)) - 1]} ${dateKey.slice(0, 4)}`
+    for (let i = 0; i < 40 && !within(dlg).queryByText(want); i++) {
+      fireEvent.click(within(dlg).getByRole('button', { name: 'Previous month' }))
     }
-    expect(seen).toEqual(Array.from({ length: 260 }, (_, i) => 260 - i))
+    fireEvent.click(dlg.querySelector(`[data-day="${dateKey}"]`))
+  }
+  const scrollToEnd = (c) => {
+    const el = list(c)
+    el.scrollTop = 10 ** 7
+    fireEvent.scroll(el)
+  }
+  const scrollToTop = (c) => {
+    const el = list(c)
+    el.scrollTop = 0
+    fireEvent.scroll(el)
+  }
+
+  it('Today is the live default: newest first, and a live headline appears on top', async () => {
+    const { container } = mountDays()
+    await waitFor(() => expect(rows(container)).toEqual([3, 2, 1]))
+    expect(within(bar()).getByRole('button', { name: /Date: Today/ })).toBeTruthy()
+    expect(within(bar()).getByRole('button', { name: 'Next day' })).toBeDisabled()
+    expect(within(bar()).queryByRole('button', { name: 'Latest' })).toBeNull()
+    act(() => feed.set({ items: [...BASE, H(4, 'SYNTHETIC: just in', [], { received_at_ms: Date.now() })], lastSeq: 4 }))
+    expect(rows(container)[0]).toBe(4)
+    expect(container.querySelector('nav [aria-label*="Page number"]')).toBeNull()       // no page numbers
+    expect(within(container).queryByText(/Load older/)).toBeNull()                     // no Load More
   })
 
-  it('a filter change returns to page 1 and never resets the filters', async () => {
-    const onOptsChange = vi.fn()
-    feed.archive = ARCH
-    const { container, rerender } = render(<TradeExchangeNewsWidget color="A" opts={{}} onOptsChange={onOptsChange} />)
-    act(() => feed.set({ status: 'live', items: pool(), lastSeq: 5000, lastHeadlineAt: NOW }))
-    await waitFor(() => expect(btn('Next page (older)')).not.toBeDisabled())
-    fireEvent.click(btn('Next page (older)'))
-    await waitRows(container, 4975)
-    rerender(<TradeExchangeNewsWidget color="A" opts={{ categories: ['Macro'] }} onOptsChange={onOptsChange} />)
-    await waitFor(() => expect(pageInput().value).toBe('1'))
-    expect(onOptsChange).not.toHaveBeenCalled()
+  it('a past date scrolls continuously to its first headline, loading as it goes, with nothing twice', async () => {
+    const { container } = mountDays()
+    await pickDate(key(26))
+    await waitFor(() => expect(rows(container)[0]).toBe(1199))
+    expect(rows(container)).toHaveLength(60)                                           // a step, not the day
+    for (let i = 0; i < 6 && rows(container).length < 200; i++) {
+      scrollToEnd(container)
+      await waitFor(() => expect(rows(container).length).toBeGreaterThan(60 * (i + 1) > 200 ? 199 : 60 * (i + 1)))
+    }
+    const got = rows(container)
+    expect(got).toEqual(Array.from({ length: 200 }, (_, i) => 1199 - i))
+    expect(await within(container).findByText(/^Start of Mon, Oct 26/)).toBeTruthy()
+    expect(container.textContent).toMatch(/200 headlines/)
+    expect(feed.dayCalls.filter((b) => b.date === key(26)).every((b) => b.limit <= 60)).toBe(true)
   })
 
-  it('a recreated database (new epoch) returns to the live page; a reconnect keeps the reader\'s page', async () => {
-    const { container } = mountArchive()
-    await waitFor(() => expect(btn('Next page (older)')).not.toBeDisabled())
-    fireEvent.click(btn('Next page (older)'))
-    await waitRows(container, 4975)
-    act(() => feed.set({ status: 'reconnecting' }))
-    act(() => feed.set({ status: 'live' }))
-    expect(pageInput().value).toBe('2')
-    expect(screen.getByRole('button', { name: /Live/ })).toBeTruthy()      // LIVE stays honest on page 2
-    act(() => feed.set({ epoch: 'e2' }))
-    await waitFor(() => expect(pageInput().value).toBe('1'))
+  it('filters run over the whole selected day, not only the loaded rows, and keep the date', async () => {
+    feed.archive = [...D25, ...D26, ...BASE]
+    const { container, rerender } = render(<TradeExchangeNewsWidget color="A" opts={{}} onOptsChange={vi.fn()} />)
+    act(() => feed.set({ status: 'live', items: BASE, lastSeq: 3, lastHeadlineAt: NOW }))
+    await pickDate(key(26))
+    await waitFor(() => expect(rows(container)[0]).toBe(1199))
+    rerender(<TradeExchangeNewsWidget color="A" opts={{ categories: ['Macro'] }} onOptsChange={vi.fn()} />)
+    await waitFor(() => expect(container.textContent).toMatch(/50 of 200 headlines/))
+    expect(within(bar()).getByRole('button', { name: /Date: Mon, Oct 26/ })).toBeTruthy()  // same date
+    expect(feed.dayCalls.at(-1)).toMatchObject({ date: key(26), categories: ['Macro'] })
+    for (let i = 0; i < 3; i++) scrollToEnd(container)
+    await waitFor(() => expect(rows(container)).toHaveLength(50))
+    expect(rows(container).every((s) => (s - 1000) % 4 === 0)).toBe(true)
   })
 
-  it('a page that fails to load says so and retries', async () => {
-    const { container } = mountArchive()
-    await waitFor(() => expect(btn('Next page (older)')).not.toBeDisabled())
+  it('search reaches the whole day', async () => {
+    const { container } = mountDays()
+    await pickDate(key(26))
+    await waitFor(() => expect(rows(container)[0]).toBe(1199))
+    fireEvent.change(screen.getByLabelText('Search headlines'), { target: { value: 'row 3' } })
+    await waitFor(() => expect(rows(container)).toEqual([1039, 1038, 1037, 1036, 1035, 1034, 1033, 1032, 1031, 1030, 1003]))
+  })
+
+  it('previous / next day move one date; past dates offer Latest, which returns to live Today', async () => {
+    const { container } = mountDays()
+    await waitFor(() => expect(rows(container)).toEqual([3, 2, 1]))
+    await pickDate(key(26))
+    await waitFor(() => expect(rows(container)[0]).toBe(1199))
+    fireEvent.click(within(bar()).getByRole('button', { name: 'Previous day' }))
+    await waitFor(() => expect(rows(container)).toEqual([902, 901, 900]))
+    fireEvent.click(within(bar()).getByRole('button', { name: 'Next day' }))
+    await waitFor(() => expect(rows(container)[0]).toBe(1199))
+    fireEvent.click(within(bar()).getByRole('button', { name: 'Next day' }))           // Oct 27: retained, empty
+    expect(await within(container).findByText('No headlines retained for Tue, Oct 27.')).toBeTruthy()
+    fireEvent.click(within(bar()).getByRole('button', { name: 'Latest' }))
+    await waitFor(() => expect(rows(container)).toEqual([3, 2, 1]))
+  })
+
+  it('a live headline never enters a past date, and the date never changes by itself', async () => {
+    const { container } = mountDays()
+    await pickDate(key(26))
+    await waitFor(() => expect(rows(container)[0]).toBe(1199))
+    act(() => feed.set({ items: [...BASE, H(4, 'SYNTHETIC: today, live', [], { received_at_ms: Date.now() })], lastSeq: 4 }))
+    expect(rows(container)).not.toContain(4)
+    expect(within(bar()).getByRole('button', { name: /Date: Mon, Oct 26/ })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Live/ })).toBeTruthy()                 // LIVE stays honest
+    fireEvent.click(within(bar()).getByRole('button', { name: 'Latest' }))
+    await waitFor(() => expect(rows(container)[0]).toBe(4))
+  })
+
+  it('the calendar: month and year navigation, future and unretained dates disabled, news dates marked', async () => {
+    mountDays()
+    fireEvent.click(within(bar()).getByRole('button', { name: /Choose a date/ }))
+    const dlg = await screen.findByRole('dialog', { name: 'Choose a date' })
+    const title = () => dlg.querySelector('[class*="calTitle"]').textContent
+    const start = title()
+    fireEvent.click(within(dlg).getByRole('button', { name: 'Previous year' }))
+    expect(title()).toBe(start.replace(/\d{4}/, (y) => String(Number(y) - 1)))
+    fireEvent.click(within(dlg).getByRole('button', { name: 'Next year' }))
+    fireEvent.click(within(dlg).getByRole('button', { name: 'Next month' }))
+    fireEvent.click(within(dlg).getByRole('button', { name: 'Previous month' }))
+    expect(title()).toBe(start)
+    await waitFor(() => expect(dlg.querySelector('[class*="calToday"]')).not.toBeNull())
+    const today = dlg.querySelector('[class*="calToday"]').dataset.day
+    const nextDay = new Date(Date.parse(`${today}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10)
+    if (dlg.querySelector(`[data-day="${nextDay}"]`)) expect(dlg.querySelector(`[data-day="${nextDay}"]`)).toBeDisabled()
+    for (let i = 0; i < 40 && !within(dlg).queryByText('October 2026'); i++) {
+      fireEvent.click(within(dlg).getByRole('button', { name: 'Previous month' }))
+    }
+    const cell = (d) => dlg.querySelector(`[data-day="${key(d)}"]`)
+    expect(cell(24)).toBeDisabled()                                                      // before retention
+    expect(cell(24).title).toMatch(/Not retained/)
+    expect(cell(26).className).toMatch(/calNews/)
+    expect(cell(26).title).toBe('200 headlines')
+    expect(cell(27).className).toMatch(/calEmpty/)
+    expect(cell(27)).not.toBeDisabled()
+    expect(within(dlg).getByText(/History from Sun, Oct 25/)).toBeTruthy()
+  })
+
+  it('the calendar is keyboard-operable: arrows move by day and week, Enter picks, Escape closes', async () => {
+    const { container } = mountDays()
+    await pickDate(key(26))
+    await waitFor(() => expect(rows(container)[0]).toBe(1199))
+    fireEvent.click(within(bar()).getByRole('button', { name: /Choose a date/ }))
+    const dlg = await screen.findByRole('dialog', { name: 'Choose a date' })
+    expect(document.activeElement.dataset.day).toBe(key(26))
+    fireEvent.keyDown(document.activeElement, { key: 'ArrowLeft' })
+    expect(document.activeElement.dataset.day).toBe(key(25))
+    fireEvent.keyDown(document.activeElement, { key: 'ArrowDown' })
+    expect(document.activeElement.dataset.day).toBe('2026-11-01')
+    fireEvent.keyDown(dlg, { key: 'Escape' })
+    expect(screen.queryByRole('dialog', { name: 'Choose a date' })).toBeNull()
+  })
+
+  it('jump to a time starts at or before it, says so, and scrolling up loads the later rows', async () => {
+    const { container } = mountDays()
+    await pickDate(key(26))
+    await waitFor(() => expect(rows(container)[0]).toBe(1199))
+    fireEvent.click(within(bar()).getByRole('button', { name: 'Jump to a time' }))
+    const dlg = await screen.findByRole('dialog', { name: 'Jump to a time' })
+    fireEvent.change(within(dlg).getByLabelText('Time, hour and minute (ET)'), { target: { value: '09:30' } })
+    fireEvent.submit(within(dlg).getByLabelText('Time, hour and minute (ET)'))
+    const jump = await waitFor(() => {
+      const c = feed.dayCalls.find((b) => b.at === '09:30')
+      expect(c).toMatchObject({ date: key(26), limit: 60 })
+      return c
+    })
+    expect(jump.cursor).toBeUndefined()
+    await waitFor(() => expect(rows(container)).toContain(1090))                     // 09:30 ET = row 90
+    expect(rows(container)).not.toContain(1091 + 120)                                // the day's top is not loaded up front
+    expect(within(bar()).getByRole('button', { name: /From 9:30 AM ET/ }).textContent).toMatch(/≤ 9:30 AM/)
+    // at the top of the list, the later rows load (newer steps), each held in place
+    for (let i = 0; i < 4 && rows(container)[0] !== 1199; i++) {
+      scrollToTop(container)
+      await waitFor(() => expect(feed.dayCalls.at(-1).direction).toBe('newer'))
+    }
+    await waitFor(() => expect(rows(container)[0]).toBe(1199))
+    expect(rows(container).slice(0, 110)).toEqual(Array.from({ length: 110 }, (_, i) => 1199 - i))
+  })
+
+  it('presets for the time picker, and a time before the first headline lands on the earliest, saying so', async () => {
+    const { container } = mountDays()
+    await pickDate(key(26))
+    await waitFor(() => expect(rows(container)[0]).toBe(1199))
+    fireEvent.click(within(bar()).getByRole('button', { name: 'Jump to a time' }))
+    const dlg = await screen.findByRole('dialog', { name: 'Jump to a time' })
+    expect(within(dlg).getAllByRole('button').map((b) => b.textContent).slice(0, 3)).toEqual(['9:30 AM', '12:00 PM', '4:00 PM'])
+    fireEvent.change(within(dlg).getByLabelText('Time, hour and minute (ET)'), { target: { value: '06:00' } })
+    fireEvent.submit(within(dlg).getByLabelText('Time, hour and minute (ET)'))
+    await waitFor(() => expect(rows(container).at(-1)).toBe(1000))
+    expect(within(bar()).getByRole('button', { name: /From 6:00 AM ET/ }).title).toMatch(/Nothing at or before 6:00 AM ET/)
+  })
+
+  it('a filter change returns to the top of the same date and clears the time jump', async () => {
+    feed.archive = [...D25, ...D26, ...BASE]
+    feed.dayOpts = { atMs }
+    const { container, rerender } = render(<TradeExchangeNewsWidget color="A" opts={{}} onOptsChange={vi.fn()} />)
+    act(() => feed.set({ status: 'live', items: BASE, lastSeq: 3, lastHeadlineAt: NOW }))
+    await pickDate(key(26))
+    fireEvent.click(within(bar()).getByRole('button', { name: 'Jump to a time' }))
+    fireEvent.click(within(await screen.findByRole('dialog', { name: 'Jump to a time' })).getByText('9:30 AM'))
+    await waitFor(() => expect(rows(container)).toContain(1090))
+    rerender(<TradeExchangeNewsWidget color="A" opts={{ categories: ['News'] }} onOptsChange={vi.fn()} />)
+    await waitFor(() => expect(rows(container)[0]).toBe(1199))
+    expect(feed.dayCalls.at(-1).at).toBeUndefined()
+    expect(within(bar()).getByRole('button', { name: /Date: Mon, Oct 26/ })).toBeTruthy()
+  })
+
+  it('a day that fails to load says so and retries', async () => {
+    const { container } = mountDays()
+    await waitFor(() => expect(rows(container)).toEqual([3, 2, 1]))
     const real = feed.archive
-    feed.archive = { filter: () => { throw new Error('HTTP 503') } }
-    fireEvent.click(btn('Next page (older)'))
-    fireEvent.click(await within(container).findByRole('button', { name: 'Retry' }))
+    feed.archive = { filter: () => { throw new Error('HTTP 503') }, reduce: () => 0 }
+    await pickDate(key(26))
+    const retry = await within(container).findByRole('button', { name: 'Retry' })
+    expect(within(container).getByText(/Headlines for this date could not be loaded/)).toBeTruthy()
     feed.archive = real
-    await waitFor(() => expect(within(container).queryByText('This page could not be loaded.')).toBeNull())
+    fireEvent.click(retry)
+    await waitFor(() => expect(rows(container)[0]).toBe(1199))
   })
 
-  it('several widgets page independently', async () => {
-    feed.archive = ARCH
+  it('a recreated database (new epoch) reloads the selected date', async () => {
+    const { container } = mountDays()
+    await pickDate(key(26))
+    await waitFor(() => expect(rows(container)[0]).toBe(1199))
+    const n = feed.dayCalls.length
+    act(() => feed.set({ epoch: 'e2' }))
+    await waitFor(() => expect(feed.dayCalls.length).toBeGreaterThan(n))
+    expect(feed.dayCalls.at(-1).date).toBe(key(26))
+  })
+
+  it('several widgets browse dates independently', async () => {
+    feed.archive = [...D25, ...D26, ...BASE]
     render(<>
       <TradeExchangeNewsWidget color="A" opts={{}} onOptsChange={vi.fn()} />
-      <TradeExchangeNewsWidget color="A" opts={{ categories: ['Macro'] }} onOptsChange={vi.fn()} />
+      <TradeExchangeNewsWidget color="A" opts={{}} onOptsChange={vi.fn()} />
     </>)
-    act(() => feed.set({ status: 'live', items: pool(), lastSeq: 5000, lastHeadlineAt: NOW }))
-    const navs = () => screen.getAllByRole('navigation', { name: 'Headline pages' })
-    await waitFor(() => expect(within(navs()[0]).getByRole('button', { name: 'Next page (older)' })).not.toBeDisabled())
-    fireEvent.click(within(navs()[0]).getByRole('button', { name: 'Next page (older)' }))
-    const lists = () => [...document.querySelectorAll('[class*="_list_"]')]
-    await waitFor(() => expect(Number(lists()[0].querySelector('[data-seq]').dataset.seq)).toBe(4975))
-    expect(Number(lists()[1].querySelector('[data-seq]').dataset.seq)).toBe(4997)   // still page 1 of Macro
-    expect(within(navs()[1]).getByRole('textbox').value).toBe('1')
-  })
-
-  it('pager controls are labelled buttons and keyboard-operable', async () => {
-    mountArchive()
-    await waitFor(() => expect(btn('Next page (older)')).not.toBeDisabled())
-    for (const name of ['First page (newest)', 'Previous page (newer)', 'Next page (older)', 'Last page (oldest)']) {
-      expect(btn(name).tagName).toBe('BUTTON')
-      expect(btn(name).title).toBe(name)
+    act(() => feed.set({ status: 'live', items: BASE, lastSeq: 3, lastHeadlineAt: NOW }))
+    const bars = () => screen.getAllByRole('navigation', { name: 'Date' })
+    fireEvent.click(within(bars()[0]).getByRole('button', { name: /Choose a date/ }))
+    const dlg = await screen.findByRole('dialog', { name: 'Choose a date' })
+    for (let i = 0; i < 40 && !within(dlg).queryByText('October 2026'); i++) {
+      fireEvent.click(within(dlg).getByRole('button', { name: 'Previous month' }))
     }
-    expect(pageInput().getAttribute('inputmode')).toBe('numeric')
-    expect(pageInput().getAttribute('aria-label')).toBe('Page number, 1 to 200')
+    fireEvent.click(dlg.querySelector(`[data-day="${key(26)}"]`))
+    const lists = () => [...document.querySelectorAll('[class*="_list_"]')]
+    await waitFor(() => expect(Number(lists()[0].querySelector('[data-seq]').dataset.seq)).toBe(1199))
+    expect(Number(lists()[1].querySelector('[data-seq]').dataset.seq)).toBe(3)
+    expect(within(bars()[1]).getByRole('button', { name: /Date: Today/ })).toBeTruthy()
   })
 })

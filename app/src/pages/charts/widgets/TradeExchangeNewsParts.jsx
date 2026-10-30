@@ -1,12 +1,15 @@
 /**
  * News (Trade Exchange) — the row and its popovers, split out of the widget:
  *   Row            one headline (memoised: a quote tick re-renders only the rows
- *                  naming that symbol), its collapse, impact mark, one-click copy
+ *                  naming that symbol), its collapse, one-click copy
  *                  and ⋯ (add to watchlist)
  *   ActionsMenu    Add a headline's symbol to a personal watchlist
  *   FilterMenu     categories (multi-select) + this widget's saved presets
  *   HealthPopover  what this browser knows about the feed (feedHealth)
- *   Pager          numbered pages of the retained archive (useTradeExchangeNewsPages)
+ *   DayBar         the day being read: ‹ date › · calendar · jump to time · Latest
+ *                  (useTradeExchangeNewsDay); CalendarPopover, TimePopover
+ *   DayList        one day's rows, rendered by time block; blocks far off screen
+ *                  are replaced by spacers of their measured height
  *
  * Every integration is the canonical one: a ticker in the text opens the chart
  * (setGroupSym on the widget's colour group), Add to watchlist is the watchlist
@@ -16,9 +19,11 @@
 import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import useSWR from 'swr'
 import UIcon from '../../../components/ui/UIcon'
+import { formatNumber } from '../../../lib/presentation/presentationPrimitives'
 import Input from '../../../components/ui/Input'
 import { CATEGORY_FILTERS, categoryTitle, cleanCategories, fmtReceived, fmtReceivedFull,
-  MAX_PRESETS, parsePageInput, tickerTitle, tickerTone, tokenize } from './tradeExchangeNewsModel'
+  dayLabel, dayStatus, cleanTime, MAX_PRESETS, monthGrid, MONTHS, tickerTitle, tickerTone, timeLabel, tokenize,
+  WEEKDAYS } from './tradeExchangeNewsModel'
 import styles from './TradeExchangeNewsWidget.module.css'
 
 const TONE_CLASS = { up: 'symUp', down: 'symDown', flat: 'symFlat', none: 'symNone' }
@@ -90,7 +95,7 @@ function Headline({ item, linkedSym, onSym, colorMode, prices, staleSymbols, pro
 /** Only what a row DISPLAYS from a quote: a tick that moves none of it is no render. */
 const quoteKey = (q) => (q ? `${q.price}|${q.change_pct}|${q.updated_at || q.timestamp || ''}` : '')
 const ROW_KEYS = ['item', 'linkedSym', 'colorMode', 'provisional', 'clampLines', 'expanded', 'flashing',
-  'impact', 'showCategory', 'groupCount', 'groupOpen', 'related', 'onSym', 'onToggleExpand', 'onToggleGroup', 'onActions',
+  'showCategory', 'timeOnly', 'groupCount', 'groupOpen', 'related', 'onSym', 'onToggleExpand', 'onToggleGroup', 'onActions',
   'actionsOpen']
 function rowPropsEqual(a, b) {
   for (const k of ROW_KEYS) if (a[k] !== b[k]) return false
@@ -149,7 +154,7 @@ function CopyButton({ text }) {
 }
 
 export const Row = memo(function Row({ item, linkedSym, onSym, colorMode, prices, staleSymbols, provisional,
-  clampLines, expanded, onToggleExpand, flashing, impact, showCategory, groupCount = 0, groupOpen = false,
+  clampLines, expanded, onToggleExpand, flashing, showCategory, timeOnly = false, groupCount = 0, groupOpen = false,
   onToggleGroup, related = false, onActions, actionsOpen }) {
   const headRef = useRef(null)
   const long = useLong(headRef, clampLines, item.content, expanded)
@@ -160,13 +165,11 @@ export const Row = memo(function Row({ item, linkedSym, onSym, colorMode, prices
       {flashing && <span className={styles.flash} aria-hidden="true" />}
       <span className={styles.when}>
         <span className={styles.time} title={`Received by UCT ${fmtReceivedFull(item.received_at_ms)} · Trade Exchange does not send a publication time`}>
-          {fmtReceived(item.received_at_ms)}
+          {/* a day view names its date once (the date bar); each row says the time */}
+          {fmtReceived(item.received_at_ms, timeOnly ? item.received_at_ms : undefined)}
         </span>
         {showCategory && item.category && (
           <span className={styles.category} title={categoryTitle(item)}>{item.category}</span>
-        )}
-        {impact && (
-          <span className={`${styles.impact}${impact.breaking ? ' ' + styles.impactBreaking : ''}`} title={impact.title}>{impact.label}</span>
         )}
         {groupCount > 0 && (
           <button type="button" className={styles.groupBtn} onClick={() => onToggleGroup(item)} aria-expanded={groupOpen}
@@ -398,60 +401,198 @@ export function HealthPopover({ lines, anchorEl, hostEl, themeVars, onClose }) {
   )
 }
 
-/** The typed page number. Keyed by the page it shows, so a page change starts a
- *  fresh draft (no state synced in an effect). */
-function PageInput({ page, pages, onPage }) {
-  const [draft, setDraft] = useState(String(page))
-  const [bad, setBad] = useState(false)
-  const known = typeof pages === 'number'
-  const commit = () => {
-    const n = parsePageInput(draft, pages)
-    if (n == null) { setBad(true); setDraft(String(page)); return }
-    setBad(false)
-    if (n !== page) onPage(n)
+/** Where a popover opens from the bottom bar: ABOVE its anchor, kept inside. */
+function placeAbove(anchorEl, hostEl, width) {
+  if (!anchorEl || !hostEl) return { bottom: 32, left: 6 }
+  const a = anchorEl.getBoundingClientRect()
+  const h = hostEl.getBoundingClientRect()
+  const left = Math.max(4, Math.min(a.left - h.left, h.width - width - 4))
+  return { bottom: Math.max(4, h.bottom - a.top + 4), left }
+}
+
+/** A month of days. Future dates and dates before retention are disabled and say
+ *  why; a dot marks a retained date with headlines (only what the server reports). */
+export function CalendarPopover({ selected, meta, anchorEl, hostEl, themeVars, onPick, onClose }) {
+  const boxRef = useRef(null)
+  const onKey = usePopover(boxRef, anchorEl, onClose)
+  const [ym, setYm] = useState(() => [Number(selected.slice(0, 4)), Number(selected.slice(5, 7)) - 1])
+  const [focus, setFocus] = useState(selected)
+  const [year, month] = ym
+  const grid = monthGrid(year, month)
+  const move = (dy, dm) => {
+    const t = new Date(Date.UTC(year + dy, month + dm, 1))
+    setYm([t.getUTCFullYear(), t.getUTCMonth()])
   }
+  useEffect(() => { boxRef.current?.querySelector(`[data-day="${focus}"]`)?.focus() }, [focus, ym])
+  const keys = (e) => {
+    const step = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7 }[e.key]
+    if (!step || !e.target.dataset?.day) return
+    e.preventDefault()
+    const t = new Date(Date.parse(`${e.target.dataset.day}T00:00:00Z`) + step * 86_400_000)
+    const k = t.toISOString().slice(0, 10)
+    if (t.getUTCMonth() !== month || t.getUTCFullYear() !== year) setYm([t.getUTCFullYear(), t.getUTCMonth()])
+    setFocus(k)
+  }
+  const width = 232
+  const nav = (label, glyph, onClick) => (
+    <button type="button" className={styles.calNav} onClick={onClick} aria-label={label} title={label}>{glyph}</button>
+  )
   return (
-    <input
-      className={`${styles.pageInput}${bad ? ' ' + styles.pageInputBad : ''}`}
-      value={draft}
-      inputMode="numeric"
-      aria-label={known ? `Page number, 1 to ${pages}` : 'Page number'}
-      aria-invalid={bad || undefined}
-      title={known ? `Type a page from 1 to ${pages} and press Enter` : 'Type a page and press Enter'}
-      onChange={(e) => { setDraft(e.target.value.replace(/[^\d]/g, '').slice(0, 6)); setBad(false) }}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter') { e.preventDefault(); commit() }
-        if (e.key === 'Escape') { setDraft(String(page)); setBad(false); e.currentTarget.blur() }
-      }}
-      onBlur={() => { if (draft !== String(page)) commit() }}
-    />
+    <div ref={boxRef} className={styles.menuPop} style={{ ...(themeVars || {}), ...placeAbove(anchorEl, hostEl, width), top: 'auto', width }}
+      role="dialog" aria-label="Choose a date" onKeyDown={(e) => { onKey(e); keys(e) }}>
+      <div className={styles.calHead}>
+        {nav('Previous year', '«', () => move(-1, 0))}
+        {nav('Previous month', '‹', () => move(0, -1))}
+        <span className={styles.calTitle} aria-live="polite">{MONTHS[month]} {year}</span>
+        {nav('Next month', '›', () => move(0, 1))}
+        {nav('Next year', '»', () => move(1, 0))}
+      </div>
+      <div className={styles.calGrid} role="grid" aria-label={`${MONTHS[month]} ${year}`}>
+        {WEEKDAYS.map((w) => <span key={w} className={styles.calDow} role="columnheader" aria-label={w}>{w[0]}</span>)}
+        {grid.map(({ key, inMonth }) => {
+          const st = dayStatus(key, meta)
+          const off = st.kind === 'future' || st.kind === 'unretained'
+          const title = st.kind === 'future' ? 'In the future'
+            : st.kind === 'unretained' ? 'Not retained: UCT keeps about 7 days of headlines'
+              : st.kind === 'news' ? `${formatNumber(st.count, { decimals: 0 })} headline${st.count === 1 ? '' : 's'}`
+                : st.kind === 'empty' ? 'No headlines retained for this date' : ''
+          return (
+            <button key={key} type="button" data-day={key} role="gridcell" disabled={off}
+              tabIndex={key === focus ? 0 : -1} aria-selected={key === selected} aria-label={`${dayLabel(key, meta?.today)}${title ? `. ${title}` : ''}`}
+              title={title}
+              className={[styles.calDay, inMonth ? '' : styles.calOut, key === selected ? styles.calSel : '',
+                key === meta?.today ? styles.calToday : '', st.kind === 'news' ? styles.calNews : '',
+                st.kind === 'empty' ? styles.calEmpty : ''].filter(Boolean).join(' ')}
+              onClick={() => { onPick(key); onClose() }}>
+              {Number(key.slice(8))}
+            </button>
+          )
+        })}
+      </div>
+      {meta?.first_day && (
+        <div className={styles.menuNote}>
+          History from {dayLabel(meta.first_day, meta.today)}{meta.first_day_partial ? ' (partial day)' : ''} · about 7 days are kept
+        </div>
+      )}
+    </div>
   )
 }
 
-/** First · Previous · [page] / pages · Next · Last, and Latest off page 1.
- *  Page 1 is the newest; higher numbers go back in time. `pages` null = not
- *  known yet (Next and Last stay disabled rather than guessing). */
-export function Pager({ page, pages, loading, onPage, onLatest }) {
-  const known = typeof pages === 'number'
-  const nav = (n, label, icon, disabled, cls = '') => (
-    <button type="button" className={`${styles.pageBtn}${cls ? ' ' + cls : ''}`} onClick={() => onPage(n)} disabled={disabled}
-      aria-label={label} title={label}>
-      <UIcon name={icon} size={10} />
-    </button>
-  )
+const TIME_PRESETS = [['09:30', 'Open'], ['12:00', 'Midday'], ['16:00', 'Close']]
+
+/** Jump to a time of the selected day (ET): presets or any hour and minute. */
+export function TimePopover({ at, anchorEl, hostEl, themeVars, onPick, onClose }) {
+  const boxRef = useRef(null)
+  const onKey = usePopover(boxRef, anchorEl, onClose)
+  const [draft, setDraft] = useState(at || '')
+  const [bad, setBad] = useState(false)
+  useEffect(() => { boxRef.current?.querySelector('button')?.focus() }, [])
+  const go = (t) => { onPick(t); onClose() }
+  const width = 210
   return (
-    <nav className={styles.pager} aria-label="Headline pages" aria-busy={!!loading}>
-      {nav(1, 'First page (newest)', 'skipBack', page <= 1, styles.pageEdge)}
-      {nav(page - 1, 'Previous page (newer)', 'chevronLeft', page <= 1)}
-      <span className={styles.pageBox}>
-        <PageInput key={page} page={page} pages={pages} onPage={onPage} />
-        <span className={styles.pageOf}>/ {known ? pages : '…'}</span>
-      </span>
-      {nav(page + 1, 'Next page (older)', 'chevronRight', !known || page >= pages)}
-      {nav(pages || 1, 'Last page (oldest)', 'skipForward', !known || page >= pages, styles.pageEdge)}
-      {page > 1 && (
-        <button type="button" className={styles.pageLatest} onClick={onLatest} title="Back to the newest headlines and the live feed">Latest</button>
+    <div ref={boxRef} className={styles.menuPop} style={{ ...(themeVars || {}), ...placeAbove(anchorEl, hostEl, width), top: 'auto', width }}
+      role="dialog" aria-label="Jump to a time" onKeyDown={onKey}>
+      <div className={styles.menuHead}>Jump to time (ET)</div>
+      <div className={styles.timePresets}>
+        {TIME_PRESETS.map(([t, name]) => (
+          <button key={t} type="button" className={`${styles.menuSym}${at === t ? ' ' + styles.menuSymOn : ''}`}
+            aria-pressed={at === t} onClick={() => go(t)} title={name}>{timeLabel(t)}</button>
+        ))}
+      </div>
+      <form className={styles.presetForm} onSubmit={(e) => {
+        e.preventDefault()
+        const t = cleanTime(draft)
+        if (!t) { setBad(true); return }
+        go(t)
+      }}>
+        <input type="time" step={60} className={`${styles.alertsInput}${bad ? ' ' + styles.pageInputBad : ''}`} value={draft}
+          aria-label="Time, hour and minute (ET)" aria-invalid={bad || undefined}
+          onChange={(e) => { setDraft(e.target.value); setBad(false) }} />
+        <button type="submit" className={styles.alertsAdd}>Go</button>
+      </form>
+      <div className={styles.menuNote}>Starts at the closest headline at or before this time; scroll up for later ones.</div>
+      {at && <button type="button" className={styles.menuItem} onClick={() => go(null)}>Clear — show the whole day from the top</button>}
+    </div>
+  )
+}
+
+/** ‹ date › · calendar · time · Latest. Every control says what it does. */
+export function DayBar({ day, onCalendar, onTime, calendarOpen, timeOpen, calRef, timeRef }) {
+  const first = day.meta?.first_day
+  const prevOff = !!first && day.dateKey <= first
+  const label = day.isToday ? `Today · ${dayLabel(day.dateKey, day.todayKey)}` : dayLabel(day.dateKey, day.todayKey)
+  const short = day.isToday ? 'Today' : dayLabel(day.dateKey, day.todayKey).replace(/^\w+, /, '')
+  return (
+    <nav className={styles.dayBar} aria-label="Date">
+      <button type="button" className={styles.pageBtn} onClick={day.prevDay} disabled={prevOff}
+        aria-label="Previous day" title={prevOff ? 'Earlier dates are not retained' : 'Previous day'}>
+        <UIcon name="chevronLeft" size={10} />
+      </button>
+      <button ref={calRef} type="button" className={`${styles.dayBtn}${calendarOpen ? ' ' + styles.dayBtnOn : ''}`} onClick={onCalendar}
+        aria-haspopup="dialog" aria-expanded={calendarOpen} aria-label={`Date: ${label}. Choose a date`} title="Choose a date">
+        <span className={styles.dayIcon}><UIcon name="calendar" size={11} /></span>
+        <span className={`${styles.dayText} ${styles.dayLong}`}>{label}</span>
+        <span className={`${styles.dayText} ${styles.dayShort}`}>{short}</span>
+      </button>
+      <button type="button" className={styles.pageBtn} onClick={day.nextDay} disabled={day.isToday}
+        aria-label="Next day" title={day.isToday ? 'Today is the latest date' : 'Next day'}>
+        <UIcon name="chevronRight" size={10} />
+      </button>
+      <button ref={timeRef} type="button" className={`${styles.dayBtn}${day.at ? ' ' + styles.dayBtnOn : ''}`} onClick={onTime}
+        aria-haspopup="dialog" aria-expanded={timeOpen}
+        aria-label={day.at ? `From ${timeLabel(day.at)} ET. Change the time` : 'Jump to a time'}
+        title={day.at ? (day.atMatch === 'after'
+          ? `Nothing at or before ${timeLabel(day.at)} ET: showing from the day's first headline`
+          : `Showing from the closest headline at or before ${timeLabel(day.at)} ET`) : 'Jump to a time (ET)'}>
+        <UIcon name="clock" size={11} />
+        {day.at && <span className={`${styles.dayText} ${styles.dayTime}`}>{day.atMatch === 'after' ? 'after' : '≤'} {timeLabel(day.at)}</span>}
+      </button>
+      {(!day.live) && (
+        <button type="button" className={styles.pageLatest} onClick={day.toLatest} title="Today's newest headlines and the live feed">Latest</button>
       )}
     </nav>
   )
+}
+
+//: Rows render by 15-minute receipt block: a block's membership never changes when
+//: news arrives elsewhere, so a block measured off screen keeps its true height.
+const BLOCK_MS = 15 * 60_000
+
+function Block({ id, rootRef, children }) {
+  const ref = useRef(null)
+  // null = rendered; a number = off screen, held at the height it last measured
+  const [spacer, setSpacer] = useState(null)
+  useEffect(() => {
+    const el = ref.current
+    if (typeof IntersectionObserver === 'undefined' || !el) return undefined
+    const io = new IntersectionObserver(([e]) => {
+      if (e.isIntersecting) setSpacer(null)
+      else setSpacer(el.offsetHeight)                 // measured as it leaves: the true height
+    }, { root: rootRef.current || null, rootMargin: '1500px 0px' })
+    io.observe(el)
+    return () => io.disconnect()
+  }, [rootRef])
+  return (
+    <div ref={ref} data-block={id} style={spacer == null ? undefined : { height: spacer }}>
+      {spacer == null ? children : null}
+    </div>
+  )
+}
+
+/** One day's groups (newest first), in time blocks; far-off blocks are spacers.
+ *  `viewKey` (date | time | filters): a new view starts with fresh blocks -- a block
+ *  kept from the previous view would hold a spacer measured for other rows. */
+export function DayList({ groups, rootRef, renderGroup, viewKey = '' }) {
+  const blocks = []
+  for (const g of groups) {
+    const id = Math.floor((g.lead.received_at_ms || 0) / BLOCK_MS)
+    const last = blocks[blocks.length - 1]
+    if (last && last.id === id) last.groups.push(g)
+    else blocks.push({ id, groups: [g] })
+  }
+  return blocks.map((b) => (
+    <Block key={`${viewKey}|${b.id}`} id={b.id} rootRef={rootRef}>
+      {b.groups.map(renderGroup)}
+    </Block>
+  ))
 }

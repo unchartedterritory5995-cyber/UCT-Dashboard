@@ -2,7 +2,7 @@
 //
 // ⛔ NOTHING HERE INVENTS DATA. Trade Exchange sends `{source, content}` only, so:
 //   * the time shown is the RECEIPT time UCT stamped, labelled as such;
-//   * no publication time; the category and impact kind are the SERVER's (categories.py);
+//   * no publication time; the category is the SERVER's (categories.py);
 //   * tickers are the server resolver's (provisional) list, and a ticker is made
 //     clickable only where its own text appears in the headline as sent.
 
@@ -195,36 +195,6 @@ export function coverageNotice(coverage, nowMs = Date.now()) {
   }
 }
 
-// ── market-impact marks ──────────────────────────────────────────────────────
-//
-// ⭐ The SERVER decides (categories.impact_for: plain rules over the text, no
-// model, no score); the widget only words it. "Breaking" is the same mark while
-// the headline is fresh: received in the last BREAKING_MS and not recovered late.
-
-/** Mirrors categories.IMPACT_REASONS word for word. */
-export const IMPACT_REASONS = {
-  halt: 'Trading halt or resumption',
-  central_bank: 'Central-bank rate decision',
-  econ_release: 'Major economic release (with a figure)',
-  mna: 'Merger or acquisition agreement',
-  bankruptcy: 'Bankruptcy filing',
-  regulatory: 'Regulatory decision (FDA, SEC, DOJ)',
-  guidance: 'Guidance raised, cut or withdrawn',
-  leadership: 'CEO departure',
-}
-export const BREAKING_MS = 5 * 60_000
-export const IMPACT_CRITERIA = `Marked only when the headline plainly reports: ${
-  Object.values(IMPACT_REASONS).join('; ').toLowerCase()
-}. Fixed rules over the text: no prediction, no score. "Breaking" = such a headline received in the last 5 minutes.`
-
-/** { label, title, breaking } for a marked headline, or null. */
-export function impactMark(item, nowMs = Date.now()) {
-  const reason = IMPACT_REASONS[item?.impact]
-  if (!reason) return null
-  const breaking = !item.delayed && nowMs - (item.received_at_ms || 0) < BREAKING_MS
-  return { label: breaking ? 'Breaking' : 'High impact', breaking, title: `${reason}. ${IMPACT_CRITERIA}` }
-}
-
 // ── related-headline grouping ────────────────────────────────────────────────
 //
 // ⛔ MEASURED BEFORE IT SHIPPED (544 production headlines, 2026-10-29): topic-level
@@ -340,7 +310,7 @@ export function feedHealth(state, nowMs = Date.now()) {
 
 // ── saved presets (per widget, in opts.presets) ──────────────────────────────
 
-export const PRESET_SETTING_KEYS = ['longHeadlines', 'groupRelated', 'impactMarks']
+export const PRESET_SETTING_KEYS = ['longHeadlines', 'groupRelated']
 export const MAX_PRESETS = 12
 
 /** The widget's current filters + display preferences, as a preset body. */
@@ -376,58 +346,125 @@ export function cleanPresets(raw) {
     .slice(0, MAX_PRESETS)
 }
 
-// ── numbered pages of the retained archive ───────────────────────────────────
+// ── one America/New_York calendar day at a time ──────────────────────────────
 //
-// ⭐ The SERVER filters and cuts every page (api/services/trade_exchange_news/
-// pages.py mirrors visibleItems), over the whole retained archive -- never just
-// the rows this browser holds. Page 1 is the live edge; pages 2+ are cut from a
-// snapshot (`seq <= top`) fixed when the reader left page 1, so arriving headlines
-// never shift a page while it is being read.
+// ⭐ The SERVER filters a whole day (api/services/trade_exchange_news/archive.py
+// mirrors visibleItems) and serves it newest first by (received_at_ms, seq) in
+// cursor steps; the widget scrolls a day continuously and keeps the live pool's
+// headlines for that day merged in. Dates are ET calendar dates by UCT's RECEIPT
+// time, as 'YYYY-MM-DD'.
 
-export const PAGE_SIZE = 25
+export const DAY_LIMIT = 60
 
-/** The page request for a widget's filters (null `symbols` = no watchlist filter). */
-export function pageRequest({ query = '', linkedSym = null, watchSet = null, categories = null, hidePlaceholders = false } = {}) {
+/** The day request for a widget's filters (null `symbols` = no watchlist filter). */
+export function dayRequest({ query = '', linkedSym = null, watchSet = null, categories = null, hidePlaceholders = false } = {}) {
   return {
     query: String(query || '').trim().slice(0, 80),
     categories: cleanCategories(categories),
     symbol: linkedSym || null,
     symbols: watchSet ? [...watchSet].sort() : null,
     hide_placeholders: !!hidePlaceholders,
-    size: PAGE_SIZE,
   }
 }
 
-/** Page 1: the newest `size` rows of the server's newest page and the live pool's
- *  matches together. Exact: the pool is a contiguous run of the newest headlines,
- *  so every match newer than the server's page is in it. A pool row wins a tie
- *  (its repeat count is the live one). `poolMatches` newest first. */
-export function livePage(serverItems, poolMatches, size = PAGE_SIZE) {
-  const bySeq = new Map()
-  for (const it of serverItems || []) bySeq.set(it.seq, it)
-  for (const it of poolMatches || []) bySeq.set(it.seq, it)
-  return [...bySeq.values()].sort((a, b) => b.seq - a.seq).slice(0, size)
+// ET's offset is a whole number of hours (EDT -4 / EST -5), so every UTC hour lies in
+// ONE New York date: one formatter call per hour, not per headline (a day view merges
+// up to a thousand live rows on every arrival).
+const _etDayByHour = new Map()
+
+/** 'YYYY-MM-DD' of an instant in America/New_York (through the shared ET formatter). */
+export function etDateKey(ms) {
+  if (!Number.isFinite(ms)) return null
+  const hour = Math.floor(ms / 3_600_000)
+  const hit = _etDayByHour.get(hour)
+  if (hit) return hit
+  const head = (formatDateTimeEt(hour * 3600) || '').split(',')[0]          // "10/30/2026"
+  const [m, d, y] = head.split('/').map(Number)
+  if (!y || !m || !d) return null
+  const key = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+  if (_etDayByHour.size > 20_000) _etDayByHour.clear()
+  _etDayByHour.set(hour, key)
+  return key
 }
 
-/** How many of `items` (newest first) arrived after the snapshot `top`. */
-export function newerThan(items, top) {
-  let n = 0
-  for (const it of items || []) {
-    if (it.seq > top) n++
-    else break
+const _parse = (key) => {
+  const [y, m, d] = String(key || '').split('-').map(Number)
+  return y && m && d ? Date.UTC(y, m - 1, d) : NaN
+}
+const _key = (utc) => {
+  const t = new Date(utc)
+  return `${t.getUTCFullYear()}-${String(t.getUTCMonth() + 1).padStart(2, '0')}-${String(t.getUTCDate()).padStart(2, '0')}`
+}
+
+/** A calendar date `n` days from `key` (plain date arithmetic, no time zone). */
+export const addDays = (key, n) => _key(_parse(key) + n * 86_400_000)
+
+export const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September',
+  'October', 'November', 'December']
+export const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+
+/** "Thu, Oct 30" (and the year when it is not `todayKey`'s). */
+export function dayLabel(key, todayKey = null) {
+  const t = new Date(_parse(key))
+  if (Number.isNaN(t.getTime())) return ''
+  const year = todayKey && String(todayKey).slice(0, 4) !== String(key).slice(0, 4) ? `, ${t.getUTCFullYear()}` : ''
+  return `${WEEKDAYS[t.getUTCDay()]}, ${MONTHS[t.getUTCMonth()].slice(0, 3)} ${t.getUTCDate()}${year}`
+}
+
+/** "9:30 AM" for 'HH:MM' (24 h). */
+export function timeLabel(hhmm) {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(String(hhmm || ''))
+  if (!m) return ''
+  const h = Number(m[1])
+  return `${h % 12 || 12}:${m[2]} ${h < 12 ? 'AM' : 'PM'}`
+}
+
+/** A typed time: 'H:MM' / 'HH:MM' (24 h) within the day, else null. */
+export function cleanTime(raw) {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(String(raw || '').trim())
+  if (!m || Number(m[1]) > 23 || Number(m[2]) > 59) return null
+  return `${String(Number(m[1])).padStart(2, '0')}:${m[2]}`
+}
+
+/** Six weeks of a month for the calendar, Sunday first: [{ key, inMonth }]. */
+export function monthGrid(year, month) {
+  const first = Date.UTC(year, month, 1)
+  const start = first - new Date(first).getUTCDay() * 86_400_000
+  return Array.from({ length: 42 }, (_, i) => {
+    const key = _key(start + i * 86_400_000)
+    return { key, inMonth: new Date(start + i * 86_400_000).getUTCMonth() === month }
+  })
+}
+
+/** What the calendar may say about one date, from the server's `days` answer
+ *  (never invented): future | unretained | news (count) | empty. */
+export function dayStatus(key, meta) {
+  if (!meta?.today) return { kind: 'unknown', count: null }
+  if (key > meta.today) return { kind: 'future', count: null }
+  if (!meta.first_day || key < meta.first_day) return { kind: 'unretained', count: null }
+  const hit = (meta.days || []).find((d) => d.date === key)
+  return hit ? { kind: 'news', count: hit.count } : { kind: 'empty', count: 0 }
+}
+
+/** The day order: newest first by (received_at_ms, seq). */
+export const dayCmp = (a, b) => ((b.received_at_ms || 0) - (a.received_at_ms || 0)) || (b.seq - a.seq)
+
+/** One day's rows: the server's slices plus the live pool's headlines OF THAT DAY.
+ *  Pool rows are kept only inside the range the server has covered (or above it,
+ *  when nothing newer is still to load), so a live row never appears beside a
+ *  gap. A pool row wins a tie (its repeat count is the live one). */
+export function mergeDay(serverRows, poolMatches, { dateKey, hasNewer = false, hasOlder = false } = {}) {
+  const rows = serverRows || []
+  const bySeq = new Map(rows.map((it) => [it.seq, it]))
+  const top = rows[0]
+  const bottom = rows[rows.length - 1]
+  for (const it of poolMatches || []) {
+    if (etDateKey(it.received_at_ms) !== dateKey) continue
+    if (hasNewer && top && dayCmp(it, top) < 0) continue             // newer than what is loaded, with a gap between
+    if (hasOlder && bottom && dayCmp(it, bottom) > 0) continue       // older than what is loaded, with a gap between
+    bySeq.set(it.seq, it)
   }
-  return n
-}
-
-export const pageCount = (total, size = PAGE_SIZE) => (typeof total === 'number' ? Math.max(1, Math.ceil(total / size)) : null)
-
-/** A typed page number: a whole number within 1..pages, else null. */
-export function parsePageInput(raw, pages) {
-  const t = String(raw ?? '').trim()
-  if (!/^\d{1,6}$/.test(t)) return null
-  const n = Number(t)
-  if (n < 1 || (typeof pages === 'number' && n > pages)) return null
-  return n
+  return [...bySeq.values()].sort(dayCmp)
 }
 
 /** The footer's archive note: how far back the retained history actually reaches. */

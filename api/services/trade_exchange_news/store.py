@@ -241,12 +241,27 @@ class Store:
             (int(seq), int(limit))).fetchall()
         return [_row(r) for r in reversed(rows)]
 
-    def index_desc(self, top: int, limit: int) -> list[tuple[int, str, str]]:
-        """(seq, source, content) for ``seq <= top``, newest first: the page scan
-        (pages.py). Primary-key order, bounded by ``limit`` and the archive bound."""
+    def index_after(self, seq: int, limit: int) -> list[tuple[int, str, str, int]]:
+        """(seq, source, content, received_at_ms) for ``seq > seq``, oldest first: the
+        page index's increment (pages.py keeps a rebuildable copy in memory)."""
         return self._conn().execute(
-            "SELECT seq, source, content FROM headlines WHERE seq <= ? ORDER BY seq DESC LIMIT ?",
-            (int(top), int(limit))).fetchall()
+            "SELECT seq, source, content, received_at_ms FROM headlines WHERE seq > ? ORDER BY seq LIMIT ?",
+            (int(seq), int(limit))).fetchall()
+
+    def count_upto(self, seq: int) -> int:
+        """How many headlines have ``seq <= seq``: one aggregate row, the page
+        index's consistency check."""
+        return int(self._conn().execute("SELECT COUNT(*) FROM headlines WHERE seq <= ?",
+                                        (int(seq),)).fetchone()[0])
+
+    def present(self, seqs: list[int]) -> set[int]:
+        """Which of ``seqs`` still exist (pruning may delete any of them)."""
+        out: set[int] = set()
+        for i in range(0, len(seqs), 500):
+            chunk = [int(s) for s in seqs[i:i + 500]]
+            out.update(r[0] for r in self._conn().execute(
+                f"SELECT seq FROM headlines WHERE seq IN ({','.join('?' * len(chunk))})", chunk))
+        return out
 
     def by_seqs(self, seqs: list[int]) -> list[dict[str, Any]]:
         """The rows for ``seqs`` (at most a page), in the order given."""

@@ -18,9 +18,10 @@
 import { useEffect, useId, useState, useSyncExternalStore } from 'react'
 import { useSWRConfig } from 'swr'
 import usePreferences from '../../../../../hooks/usePreferences'
+import { beginPrefsOp } from '../../../../../lib/prefsSession'
 import { STYLES_URL } from '../../../lib/journalStyles'
 import { starterPacksEnabled } from '../../../lib/starterPacksFlag'
-import { PACKS, installStarterPack, readStarterPackState, writeStarterPackState } from '../../../lib/starterPacks'
+import { PACKS, STARTER_PACK_PREF, installStarterPack, readStarterPackState, writeStarterPackState } from '../../../lib/starterPacks'
 import { logIfUnexpected } from './styleErrors'
 import styles from './StarterPackOffer.module.css'
 
@@ -108,6 +109,15 @@ export default function StarterPackOffer({ onClose, offline = false }) {
   const [failed, setFailed] = useState(false)
   const [unsaved, setUnsaved] = useState(null)          // the answer whose write did not land, to write again
   const notSaved = unsaved !== null
+  // ⛔ THE OFFER BELONGS TO THE MEMBER IT OPENED FOR (lib/prefsSession). Another tab signing in as B leaves
+  // this card on screen with A's prefs read and A's unsaved answer: a pack chosen then was installed into B's
+  // account (the cookie is B's), and an install in flight wrote A's answer into B's preferences. Owner-approved
+  // rule-12 edit, 2026-10-30: once the member has changed the card acts on nothing and closes.
+  const [op] = useState(beginPrefsOp)
+  // The answer is written for THIS member only: the op rides into setPrefMerged, which drops the write once the
+  // member has changed (during the install or during its own read wait). writeStarterPackState names the key
+  // itself; it is restated here as the imported constant so the persistence census can resolve it.
+  const writeAnswer = (answer) => writeStarterPackState((_key, updater) => setPrefMerged(STARTER_PACK_PREF, updater, op), answer)
 
   if (!starterPacksEnabled()) return null
 
@@ -116,6 +126,7 @@ export default function StarterPackOffer({ onClose, offline = false }) {
   // that did not land is still unsaved, and the next Not now must write it again; it is replaced only below,
   // once the install succeeded and its own answer was written.
   const choose = async (pack) => {
+    if (op.stale()) { onClose?.(); return }             // opened for another member: nothing is installed for this one
     setBusy(true); setFailed(false); setLines(null)
     let out
     try {
@@ -127,7 +138,8 @@ export default function StarterPackOffer({ onClose, offline = false }) {
       return
     }
     const answer = { state: 'installed', pack }
-    const saved = await writeStarterPackState(setPrefMerged, answer)
+    const saved = await writeAnswer(answer)            // never lands in another member's preferences (see writeAnswer)
+    if (op.stale()) { onClose?.(); return }             // and A's result is not shown to B
     mutate(STYLES_URL)                                    // the new styles appear in the lists behind this card
     const said = resultLines(out)
     setLines(said.length ? said : [OFFER_EMPTY])
@@ -137,10 +149,12 @@ export default function StarterPackOffer({ onClose, offline = false }) {
   const notNow = async () => {
     // An answer that did not land is written again as it was (an install stays an install); otherwise only an
     // unanswered member is written 'dismissed', so Not now never overwrites an install.
+    if (op.stale()) { onClose?.(); return }             // the unsaved answer and the prefs read are another member's
     const answer = unsaved ?? (readStarterPackState(prefs) === null ? { state: 'dismissed' } : null)
     if (answer) {
       setBusy(true); setUnsaved(null)
-      const saved = await writeStarterPackState(setPrefMerged, answer)
+      const saved = await writeAnswer(answer)
+      if (op.stale()) { onClose?.(); return }
       setBusy(false)
       if (saved?.ok !== true) { setUnsaved(answer); return }   // the card stays, so it can be pressed again
     }
