@@ -585,6 +585,22 @@ Method) drilled on real charts, with no AI at runtime, every item reviewed by th
   `docs/study/TRAINING_CORPUS.md` (every source, its weight, what is excluded, how to assemble a pass); rule line
   appended to `owner_verdicts.jsonl`; `review_images.json` (87 charts, 66 ruled) joins rulings to captured renders.
 
+- **2026-10-28/30:** GO SIGNAL DAILY-FOOTPRINT SITTING COMPLETE 45/45 (four at a time from the contact sheet;
+  grade = worth building the hourly chart): great MSFT 2022-11-17, DOCN 2026-04-27, MU 2024-03-19, ONON 2024-09-11;
+  14 good (RKLB 2026-01-05 "plus the day before", DASH "decent, some nuance"); ZM + INTC good setup/no follow-through;
+  4 okay (TEAM "Eh"); 12 need-the-hourly; VGZ earlier day; 7 cut. All in `owner_verdicts.jsonl`; `review_images.json`
+  87/87 ruled. THE HOURLY BUILD (commit 23fe9bf0f8 on feat/study-setup-cards, PR #478): hourly bars fetched read-only
+  through the pod for all 37 keep/need-hourly names (`docs/study/setups/go_signal_hourly_bars.json`), the strict
+  first-hour finder (`scripts/study/find_go_signal_hourly.py`; only 6/40 fire on the strict read, the owner's hourly
+  rulings calibrate it), 40 drafts with EMBEDDED hourly bars (`docs/study/bank/spot.go_signal_hourly.json`, bars_embed
+  tf=60), `goSignalOverlay.js` (flag high faint, flag low gold), and the `normalizeBars` epoch fix (an hourly key was
+  being sliced as a date). SEQUENCE FROM HERE: owner merges PR #478 (classifier blocked `gh pr merge`) -> wait for web
+  SUCCESS -> owner runs scratchpad `import_go_hourly_run.ps1` (reads the bank file from /app on the pod; the repo is
+  private so no raw fetch) -> capture the 40 hourly charts on the review screen (Skill `setup.intraday.go_signal`) ->
+  grade four at a time -> log -> calibrate the finder from the rulings. Training-corpus manifest
+  `docs/study/TRAINING_CORPUS.md` (owner: the whole module trains the brain). Owner still runs
+  `apply_verdicts_gap_run.ps1`, `import_contrasts_run.ps1`, `retire_xom_sling_run.ps1`.
+
 ## Owner review packet (Phase 0 — read in this order, one session)
 1. `docs/study/VOICE.md` — the voice rules derived from your Substack/Scans prose; §8 open items.
 2. `docs/study/UNITS-foundations.md` — 129 units; read "Gaps for the owner" (8 content gaps +
