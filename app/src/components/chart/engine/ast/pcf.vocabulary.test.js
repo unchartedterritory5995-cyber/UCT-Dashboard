@@ -290,14 +290,14 @@ describe('`STOC14.3` — the smoothing is a wrapper, not an argument', () => {
     // translation instead of an interpretation — and it compares TREES, so
     // whitespace and spelling differences cannot make it pass for free.
     expect(astHash(tree('STOC14.3 < 30')))
-      .toBe(astHash(tree('sma(stoch(close, high, low, 14), 3) < 30')))
+      .toBe(astHash(tree('sma(stoch(high, low, close, 14), 3) < 30')))
   })
 
   it('a smoothing of 1 adds NOTHING — the old trees are unchanged', () => {
-    // ⛔ The compatibility half. Every `STOC14.1` already saved by a member must
-    // keep hashing to what it hashed before, or their stored scans silently
-    // become different formulas on deploy.
-    const raw = astHash(tree('stoch(close, high, low, 14) < 30'))
+    // ⛔ The smoothing-of-1 identity. ⚠️ The SAVED-tree compatibility half moved
+    // on 2026-10-30 (P0-1): the series order was corrected, so a stored `STOC`
+    // tree is honoured through `legacyPcfReadings`, pinned in `pcf.stoc.test.js`.
+    const raw = astHash(tree('stoch(high, low, close, 14) < 30'))
     expect(astHash(tree('STOC14.1 < 30'))).toBe(raw)
     expect(astHash(tree('STOC14 < 30'))).toBe(raw)
   })
@@ -315,7 +315,7 @@ describe('`STOC14.3` — the smoothing is a wrapper, not an argument', () => {
     // `STOC14.3.1` is the smoothed stochastic as it stood a bar ago. Smoothing a
     // shifted series instead is a different number, and it would be silent.
     expect(astHash(tree('STOC14.3.1 < 30')))
-      .toBe(astHash(tree('sma(stoch(close, high, low, 14), 3)[1] < 30')))
+      .toBe(astHash(tree('sma(stoch(high, low, close, 14), 3)[1] < 30')))
     expect(maxLookback(tree('STOC14.3.1 < 30'))).toBe(18)
   })
 

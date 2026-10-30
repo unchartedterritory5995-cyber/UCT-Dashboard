@@ -136,10 +136,20 @@ function refuse(guard, detail, index, token) {
  *  `field: true`  — a price letter follows the family name and supplies the
  *                   series argument (`AVG` + `C` + `50`).
  *  `series: [...]`— the series arguments are FIXED by what the indicator means.
- *                   Only families whose argument ORDER the manifest states in
- *                   its own words are declared here: `_functions_indicators`
- *                   writes `atr(high, low, close, 14)` and `stoch(source, high,
- *                   low, length)`, and `macd`'s read-back writes
+ *                   Only families whose argument ORDER the manifest states AS
+ *                   DATA are declared here — each function's `argRoles` — and
+ *                   the reader now CHECKS every fixed series against the role
+ *                   at its slot (`checkSeriesRoles`), refusing a mismatch.
+ *                   ⚰️⚰️ IT USED TO READ THE ORDER OFF PROSE, AND THE PROSE WAS
+ *                   PINE'S, NOT OURS. `_functions_indicators` says
+ *                   `stoch(source, high, low, length)` — Pine's `ta.stoch`
+ *                   shape — while the manifest's own `stoch` declares
+ *                   `argRoles: [high, low, close, period]`. `STOC` copied the
+ *                   prose and emitted `stoch(close, high, low, n)`: a number
+ *                   on every bar, ranging far outside 0–100, labelled an exact
+ *                   import (audit 2026-10-13 P0-1, fixed 2026-10-30). The data
+ *                   is the authority; the sentence is a picture of it.
+ *                   `macd`'s read-back writes
  *                   `the {1}/{2} MACD line of {0}`. ⛔ A family whose order is
  *                   NOT pinned by the manifest is deliberately absent — an
  *                   argument order guessed right today is a silent misread the
@@ -160,7 +170,7 @@ function refuse(guard, detail, index, token) {
  *
  *  ⚰️⚰️ THE `fixed` ENTRY USED TO CARRY THE `STOC14.3` EXAMPLE AND BOTH HALVES
  *  WERE WRONG. It said that call "refuses rather than being dropped" — measured,
- *  `STOC14.3 < 20` TRANSLATES, to `sma(stoch(close, high, low, 14), 3)` — and it
+ *  `STOC14.3 < 20` TRANSLATES, to `sma(stoch(high, low, close, 14), 3)` — and it
  *  credited `fixed` for a case `smoothParam` handles. The example outlived the
  *  behaviour it described: `smoothParam` was added to EXPRESS the smoothing, and
  *  the paragraph explaining the neighbouring field was never re-read.
@@ -193,7 +203,14 @@ export const PCF_FUSED = Object.freeze({
   WRSI:   { spelling: 'WRSI<period>[.<offset>]',          fn: 'rsi',     series: ['close'], params: ['period', 'offset'] },
   ATR:    { spelling: 'ATR<period>[.<offset>]',           fn: 'atr',     series: ['high', 'low', 'close'], params: ['period', 'offset'] },
   MACD:   { spelling: 'MACD<fast>.<slow>[.<offset>]',     fn: 'macd',    series: ['close'], params: ['fast', 'slow', 'offset'] },
-  STOC:   { spelling: 'STOC<period>.<smoothing>[.<offset>]', fn: 'stoch', series: ['close', 'high', 'low'], params: ['period', 'smoothing', 'offset'], smoothParam: 'smoothing' },
+  // ⭐ TC2000's own definition (help.tc2000.com/m/69445/l/755874, "Stochastic
+  // Oscillator"): `K = ((C - Ln)/(Hn - Ln)) * 100` — C the latest close, Ln/Hn the
+  // n-period low and high — and `STOC(x, y, z)` with "x=Period, y=SMA, z=Offset"
+  // (help.tc2000.com/m/69445/l/745531). So the series are HIGH, LOW, CLOSE in the
+  // manifest's `stoch` slot order, and `y` is a simple average around it.
+  // ⚰️ This row said `['close', 'high', 'low']` until 2026-10-30 (P0-1). Trees
+  // saved from that reading are honoured as stored — see `legacyPcfReadings`.
+  STOC:   { spelling: 'STOC<period>.<smoothing>[.<offset>]', fn: 'stoch', series: ['high', 'low', 'close'], params: ['period', 'smoothing', 'offset'], smoothParam: 'smoothing' },
 
   // Measured 2026-08-09 against Worden's own syntax table: these three were the
   // ONLY oscillators in the whole PCF vocabulary that this engine already
@@ -705,6 +722,29 @@ function checkSignature(spec, wanted, fn, spelling, index, token) {
   }
 }
 
+/** ⭐ A FIXED SERIES MUST BE THE SERIES ITS SLOT'S ROLE NAMES (P0-1).
+ *
+ *  `checkSignature` compares KINDS (`series`, `int`) and is blind to ORDER:
+ *  `stoch(close, high, low, n)` and `stoch(high, low, close, n)` are the same
+ *  shape. That blindness is how `STOC` shipped its series rotated. So when the
+ *  manifest's `argRoles` names a slot after a series this table declares
+ *  (`high`, `low`, `close`, …), the family's fixed series at that slot must be
+ *  that series, or the reader refuses — a refusal is an honest answer, a
+ *  rotated call is a confident wrong number. A role that names no series
+ *  (`source`, `period`) constrains nothing. */
+export function checkSeriesRoles(table, spec, series, fn, index, token) {
+  const roles = Array.isArray(spec && spec.argRoles) ? spec.argRoles : []
+  series.forEach((s, i) => {
+    const role = roles[i]
+    if (typeof role === 'string' && own(table.series, role) && role !== s) {
+      refuse('pcf:signature',
+        `\`${token}\` would pass \`${s}\` where \`${fn}\` reads its ${role} (slot ${i}) — `
+        + `the table declares \`${fn}\`(${roles.join(', ')})`,
+        index, token)
+    }
+  })
+}
+
 /** Every operator this reader emits is checked against the table first. */
 function operator(table, name, arity, index, token) {
   const spec = table.operators && table.operators[name]
@@ -1074,6 +1114,7 @@ function readFused(table, token, letters, nodeTypes) {
     const spec = resolveFn(table, family.fn, family.spelling, token.index, token.text)
     const wanted = [...series.map(() => 'series'), ...ints.map(() => 'int')]
     checkSignature(spec, wanted, family.fn, family.spelling, token.index, token.text)
+    if (!family.field) checkSeriesRoles(table, spec, series, family.fn, token.index, token.text)
     for (const s of series) {
       if (!own(table.series, s)) {
         refuse('pcf:name',
@@ -1772,6 +1813,82 @@ export function readFormulaSource(source, dialect = 'auto', inputs = undefined) 
   const named = dialect && dialect !== 'auto' && READERS[dialect] ? dialect : detectDialect(source)
   const use = READERS[named] ? named : 'native'
   return { dialect: use, result: READERS[use](source, inputs) }
+}
+
+// --------------------------------------------------------------------------- //
+// legacy readings — what an EARLIER version of this reader built from a source
+// --------------------------------------------------------------------------- //
+
+/** The P0-1 notice, shown wherever a stored tree is the legacy STOC reading. */
+export const PCF_STOC_LEGACY_NOTICE =
+  'This TC2000 formula was saved before 2026-10-30, when the reader passed STOC its '
+  + 'prices in the wrong order (close, high, low instead of high, low, close). It still '
+  + 'computes exactly what it computed when you saved it — including any alert or scan '
+  + 'built on it — and that value is NOT TC2000\'s stochastic. Re-save the formula to '
+  + 'get TC2000\'s %K, ((C - Ln)/(Hn - Ln)) × 100; alerts on it will then fire on the '
+  + 'corrected value.'
+
+const isSeries = (n, name) => n && n.type === 'series' && n.name === name
+
+/** Rewrite every `stoch(high, low, close, n)` this reader emits into the
+ *  `stoch(close, high, low, n)` the pre-2026-10-30 reader emitted. Returns the
+ *  same object when nothing changed. Only the exact current shape is touched —
+ *  the PCF reader is the only author of a `stoch` call in a PCF tree, and it
+ *  always passes the three bare series. */
+function rotateStocToLegacy(node) {
+  if (Array.isArray(node)) {
+    let changed = false
+    const out = node.map((c) => { const r = rotateStocToLegacy(c); if (r !== c) changed = true; return r })
+    return changed ? out : node
+  }
+  if (!node || typeof node !== 'object') return node
+  let changed = false
+  const out = {}
+  for (const [k, v] of Object.entries(node)) {
+    const r = rotateStocToLegacy(v)
+    if (r !== v) changed = true
+    out[k] = r
+  }
+  const base = changed ? out : node
+  if (base.type === 'call' && base.name === 'stoch' && Array.isArray(base.args) && base.args.length === 4
+      && isSeries(base.args[0], 'high') && isSeries(base.args[1], 'low') && isSeries(base.args[2], 'close')) {
+    return { ...base, args: [base.args[2], base.args[0], base.args[1], base.args[3]] }
+  }
+  return base
+}
+
+/** ⭐⭐ THE TREES EARLIER VERSIONS OF THIS READER BUILT FROM `source`, when they
+ *  differ from what it builds today. Each entry is `{id, ast, notice}`.
+ *
+ *  ⛔ WHY THIS EXISTS: a saved definition stores BOTH its source and its tree,
+ *  and `defSchema` re-reads the source and refuses a pair whose hashes differ.
+ *  Correcting a reader therefore does not merely change new imports — it makes
+ *  every definition saved under the old reading FAIL VALIDATION, while alerts and
+ *  scans keep evaluating the stored tree. That is the worst of both: blanked in
+ *  the editor, still firing on the old maths. The rule this lane holds instead:
+ *  **a saved definition keeps computing what it computed**, accepted as long as
+ *  its stored tree is exactly a reading this reader once produced, and it is
+ *  told so (`notice`). The member opts into the correction by re-saving.
+ *
+ *  ⚠️ This is a READING, never a migration: nothing here rewrites a stored tree.
+ *  Only non-native (TC2000) sources have legacy readings. */
+export function legacyPcfReadings(source) {
+  if (detectDialect(source) !== 'pcf') return []
+  const now = parsePcf(source)
+  if (!now.ok) return []
+  const legacy = rotateStocToLegacy(now.ast)
+  if (legacy === now.ast) return []
+  return [{ id: 'pcf-stoc-hlc-2026-10-30', ast: legacy, notice: PCF_STOC_LEGACY_NOTICE }]
+}
+
+/** The legacy reading a stored `{source, ast}` pair is, or `null` when the
+ *  stored tree is the current reading (or no reading at all). Hash-compared
+ *  through the caller's `hashOf` so this module needs no second hash. */
+export function legacyReadingOf(source, storedHash, hashOf) {
+  for (const r of legacyPcfReadings(source)) {
+    try { if (hashOf(r.ast) === storedHash) return r } catch { /* not canonical: not a match */ }
+  }
+  return null
 }
 
 // --------------------------------------------------------------------------- //

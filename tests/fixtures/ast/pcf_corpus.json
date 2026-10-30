@@ -335,14 +335,14 @@
       "cite": "help-indicator-templates",
       "what": "`STOCk.3.z` is the SLOW stochastic — %K smoothed over three bars. The smoothing is a moving average OVER the stochastic, not an argument to it, so it translates to this table without a new function",
       "source": "STOC14.3 > 80",
-      "native": "sma(stoch(close, high, low, 14), 3) > 80"
+      "native": "sma(stoch(high, low, close, 14), 3) > 80"
     },
     {
       "id": "stoc_smoothing_honoured",
       "cite": "worden-syntax-table",
       "what": "the smoothing a member wrote is neither dropped nor refused — dropping it would show them a DIFFERENT indicator under the name they typed",
       "source": "STOC14.3 < 20",
-      "native": "sma(stoch(close, high, low, 14), 3) < 20"
+      "native": "sma(stoch(high, low, close, 14), 3) < 20"
     },
     {
       "id": "aroon",

@@ -95,7 +95,7 @@ import { astHash, KEY_RE } from './ast/parse'
 // ⚠️ AND THE CONTRACT IS NOT WEAKENED: the comparison is still `astHash`
 // equality against the STORED tree, so a misread dialect fails loudly here
 // rather than storing a pair that disagree.
-import { readFormulaSource } from './ast/pcf'
+import { readFormulaSource, legacyReadingOf } from './ast/pcf'
 // ⭐ THE SECOND IMPORT, ADDED WITH `plots[].forward`, AND IT COSTS THE PURITY
 // CLAIM ABOVE NOTHING FOR THE SAME REASON THE FIRST ONE DOES NOT: `UNBOUNDED` is
 // a frozen string constant, and `./ast/parse` — which this module already pulls
@@ -862,7 +862,11 @@ function validateAstCompute(compute, errors, inputScope) {
     )
     return
   }
-  if (astHash(parsed.ast) !== storedHash) {
+  // ⭐ P0-1 (2026-10-30): a tree that is EXACTLY what an earlier version of the
+  // TC2000 reader built from this same source is accepted as stored — the saved
+  // definition keeps computing what it computed (and what its alerts evaluate);
+  // `legacyComputeReadings` is how a surface finds and discloses it.
+  if (astHash(parsed.ast) !== storedHash && !legacyReadingOf(compute.source, storedHash, astHash)) {
     errors.push(
       `compute.source does not parse to compute.ast — ${fmt(compute.source)} parses to ` +
       `${astHash(parsed.ast)} while the stored tree hashes to ${storedHash}. The AST is what ` +
@@ -1002,7 +1006,8 @@ function validateTrees(compute, storedHash, errors, inputScope) {
       errors.push(`compute.sources.${k} does not parse (${result.error})`)
       continue
     }
-    if (hashes[k] !== undefined && astHash(result.ast) !== hashes[k]) {
+    if (hashes[k] !== undefined && astHash(result.ast) !== hashes[k]
+        && !legacyReadingOf(sources[k], hashes[k], astHash)) {
       errors.push(
         `compute.sources.${k} does not parse to compute.trees.${k} — ${fmt(sources[k])} hashes to ` +
         `${astHash(result.ast)} while the stored tree hashes to ${hashes[k]}`,
@@ -2473,4 +2478,32 @@ export function validateDefinition(def) {
       errors: [`definition: validator raised unexpectedly (${err && err.message ? err.message : String(err)})`],
     }
   }
+}
+
+/** ⭐ P0-1 — the legacy readings a STORED definition is running, each
+ *  `{where, id, notice}`. Empty for every definition whose stored trees are the
+ *  current reading of their sources. A surface that shows a saved definition
+ *  (the builder, a library card) calls this to disclose that the formula is
+ *  computing an earlier, now-corrected reading. Never throws. */
+export function legacyComputeReadings(def) {
+  const out = []
+  try {
+    const compute = def && def.compute
+    if (!compute || compute.kind !== 'ast') return out
+    const check = (where, source, tree) => {
+      if (typeof source !== 'string' || !tree) return
+      let h
+      try { h = astHash(tree) } catch { return }
+      const r = legacyReadingOf(source, h, astHash)
+      if (r) out.push({ where, id: r.id, notice: r.notice })
+    }
+    check('compute.source', compute.source, compute.ast)
+    if (compute.trees && compute.sources) {
+      for (const k of Object.keys(compute.sources)) {
+        if (k === compute.scanPlot) continue
+        check(`compute.sources.${k}`, compute.sources[k], compute.trees[k])
+      }
+    }
+  } catch { /* a disclosure helper must never take a surface down */ }
+  return out
 }

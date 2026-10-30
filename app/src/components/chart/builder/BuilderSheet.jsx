@@ -79,7 +79,7 @@ import { useCreateIndicatorAccess } from './studio/createIndicatorFlag'
 import Sheet from '../../mobile/Sheet'
 import UIcon from '../../ui/UIcon'
 import { PORTAL_POPUP_ATTR } from '../ColorPicker'
-import { SCHEMA_VERSION, MARKER_SHAPES, MARKER_POSITIONS, PLOT_LINE_STYLES } from '../engine/defSchema'
+import { SCHEMA_VERSION, MARKER_SHAPES, MARKER_POSITIONS, PLOT_LINE_STYLES, legacyComputeReadings } from '../engine/defSchema'
 import { astHash } from '../engine/ast/parse'
 // ⛔ THE SECOND MACHINE-ASSIGNED BADGE, AND IT IS MEASURED HERE FOR THE SAME
 // REASON `repaint` IS: `validateUserDefinitions` REQUIRES `meta.freshness` on
@@ -1910,6 +1910,13 @@ export default function BuilderSheet({
   // would show whatever the PREVIOUS formula's verdict happened to be —
   // exactly the confusing-message failure mode this hint exists to prevent.
   const converseActive = !!(conversationOn && buildMode !== 'picker' && converseCommit && converseCommit.dirty)
+  // ⭐ P0-1 (2026-10-30) — a saved formula still running an EARLIER reading of
+  // its own source (the pre-fix TC2000 `STOC` order) says so while it is open.
+  // It keeps computing what it computed; re-saving adopts the corrected reading.
+  const legacyNotices = useMemo(
+    () => (editing && !editing.runtime ? legacyComputeReadings(editing.prior) : []),
+    [editing],
+  )
   const saveHint = converseActive
     ? 'Saves the indicator from the conversation above.'
     : supersededByConversation
@@ -3724,6 +3731,11 @@ export default function BuilderSheet({
               ⚠️ `list-error` deliberately stays in the body: it answers the
               saved-formulas list, not this button, and two unrelated failures
               sharing one bar make neither obviously about anything. */}
+          {legacyNotices.length > 0 && (
+            <p className={styles.saveHint} role="note" data-testid="legacy-reading-notice">
+              {legacyNotices[0].notice}
+            </p>
+          )}
           {storeError && (
             <p className={styles.storeError} role="alert" data-testid="store-error">{storeError}</p>
           )}
