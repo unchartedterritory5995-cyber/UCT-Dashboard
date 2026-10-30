@@ -4090,19 +4090,22 @@
    "domain": "guide",
    "target": "guide",
    "summary": "SHOW the member where a Charts control is: highlight the real control on their board with a short step-by-step card (Next / Back / Exit). Changes nothing — use it for \"where do I…\", \"show me how to…\", \"how do I…\" questions, never to do the thing.",
-   "hints": "target = the guide entry. feature = one of: symbol (changing a chart’s symbol); timeframe (changing the timeframe); indicators (adding and configuring an indicator); charts (creating and arranging several charts); watchlists (using watchlists); layouts (saving and switching layouts); drawing (basic drawing tools); settings (finding chart settings). A request to DO it (\"change my chart to weekly\") is a command, not this.",
+   "hints": "target = the guide entry. feature = one of: canvas (chart background, grid, crosshair and watermark); link (linking charts and widgets); symbol (changing a chart’s symbol); timeframe (changing the timeframe); indicators (adding and configuring an indicator); charts (creating and arranging several charts); watchlists (using watchlists); layouts (saving and switching layouts); hideDrawings (hiding and showing drawings); drawing (basic drawing tools); settings (finding chart settings). A request to DO it (\"change my chart to weekly\") is a command, not this.",
    "args": {
     "type": "object",
     "properties": {
      "feature": {
       "type": "string",
       "enum": [
+       "canvas",
+       "link",
        "symbol",
        "timeframe",
        "indicators",
        "charts",
        "watchlists",
        "layouts",
+       "hideDrawings",
        "drawing",
        "settings"
       ]
