@@ -820,7 +820,7 @@ async def _dispatch_interaction(request: Request, background: BackgroundTasks):
             return _ephemeral(di.throttle_message(wait, noun="news lookups"))
         opts = {o["name"]: o.get("value") for o in
                 ((interaction.get("data") or {}).get("options") or [])}
-        ticker = tx_news.parse_ticker(opts.get("ticker"))
+        ticker = tx_news.clean_ticker_option(opts.get("ticker"))
         if not ticker:
             return _ephemeral("Give me one ticker, e.g. `/news NVDA`.")
         window = str(opts.get("window") or "today")

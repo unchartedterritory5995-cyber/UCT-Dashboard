@@ -86,7 +86,13 @@ def build_news_command() -> dict:
     }
 
 
-def parse_ticker(raw) -> str | None:
+def clean_ticker_option(raw) -> str | None:
+    """The /news command's one `ticker` option: upper-case, a leading $ dropped, or None.
+
+    Not a resolver: the member typed ONE symbol into a slash-command field, so there is no text to
+    find tickers in. ⛔ It keeps the DOT form on purpose (BRK.B), unlike
+    ticker_resolver.route_symbol's hyphen: TX writes class shares with a dot in its own headline
+    tags, and headlines_for matches this value against that text."""
     t = str(raw or "").strip().upper().lstrip("$")
     return t if _TICKER.match(t) else None
 

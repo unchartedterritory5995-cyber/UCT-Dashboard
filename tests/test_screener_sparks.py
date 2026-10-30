@@ -72,6 +72,7 @@ def test_the_ticker_list_is_cleaned_deduped_and_capped():
     assert got[:2] == ["AAPL", "MSFT"] and len(got) == sparks.MAX_TICKERS
     assert sparks.parse_tickers("") == []
     assert sparks.parse_tickers("X" * 13) == []
+    assert sparks.parse_tickers("brk.b,BRK-B,<script>") == ["BRK-B"]           # the bar store's spelling, junk refused
 
 
 def test_the_route_carries_the_paid_gate():
