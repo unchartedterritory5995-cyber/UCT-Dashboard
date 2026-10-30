@@ -121,7 +121,13 @@ describe('🔴 THE RATCHET — these ceilings may only ever fall', () => {
 
   it('the name-mapping doors may not map fewer names than they do today', () => {
     expect(TS_REACH.size).toBeGreaterThanOrEqual(21)
-    expect(PCF_REACH.size).toBeGreaterThanOrEqual(33)
+    // ⚠️ 33 → 32 on 2026-10-30, and it is a CORRECTION, not a regression: one of
+    // the 33 was `atr`, reached by a WRONG mapping — TC2000's `ATR` is the simple
+    // average of true range, not Wilder's (help.tc2000.com/m/69445/l/745531), so
+    // it now expands to `sma`/`max`/`abs` and no longer names `atr`. A ratchet
+    // that holds a false mapping in place would forbid the fix it exists to allow.
+    expect(PCF_REACH.size).toBeGreaterThanOrEqual(32)
+    expect(PCF_REACH.has('atr')).toBe(false)
   })
 
   it('the Pine adapter-gap roster may only shrink', () => {
