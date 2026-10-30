@@ -2,7 +2,7 @@
  "generated": "2026-10-27",
  "images_root": "C:\\Users\\pgosz\\projects\\study-review-sheets",
  "note": "Every image is the firm's own review-screen render (admin/pattern-review?mode=study), captured 2026-10-26/27. Verdict and words are the owner's latest ruling for that chart from owner_verdicts.jsonl.",
- "ruled": 66,
+ "ruled": 87,
  "total": 87,
  "charts": [
   {
@@ -1037,11 +1037,14 @@
    "asof": "2024-02-02",
    "item": null,
    "image": "study-review-sheets/2026-10-27/img/go_25_COLM.png",
-   "verdict": null,
-   "grade": null,
-   "owner_words": null,
-   "nuance": null,
-   "ruled": false
+   "verdict": "keep",
+   "grade": "good",
+   "owner_words": "Good",
+   "nuance": [
+    "pass-2 #25; daily footprint graded 2026-10-27 (four at a time from the contact sheet); grade = worth building the hourly chart",
+    "item id to be filled from the pod draft (sym+asof match)"
+   ],
+   "ruled": true
   },
   {
    "setup": "Go Signal",
@@ -1050,11 +1053,14 @@
    "asof": "2022-03-24",
    "item": null,
    "image": "study-review-sheets/2026-10-27/img/go_26_SNOW.png",
-   "verdict": null,
-   "grade": null,
-   "owner_words": null,
-   "nuance": null,
-   "ruled": false
+   "verdict": "keep",
+   "grade": "good",
+   "owner_words": "Good",
+   "nuance": [
+    "pass-2 #26; daily footprint graded 2026-10-27; build the hourly chart",
+    "item id to be filled from the pod draft (sym+asof match)"
+   ],
+   "ruled": true
   },
   {
    "setup": "Go Signal",
@@ -1063,11 +1069,14 @@
    "asof": "2022-01-14",
    "item": null,
    "image": "study-review-sheets/2026-10-27/img/go_27_INTC.png",
-   "verdict": null,
-   "grade": null,
-   "owner_words": null,
-   "nuance": null,
-   "ruled": false
+   "verdict": "good_setup_bad_result",
+   "grade": "good",
+   "owner_words": "Yeah but looks like it didn’t follow through",
+   "nuance": [
+    "pass-2 #27; daily footprint graded 2026-10-27: the footprint reads as a Go Signal but the forward strip did not follow through; same bucket as ZM 2023-02-14 (possible failed-setup lesson; MUST WORK rule keeps it out of the main gallery); decide on the hourly",
+    "item id to be filled from the pod draft (sym+asof match)"
+   ],
+   "ruled": true
   },
   {
    "setup": "Go Signal",
@@ -1076,11 +1085,14 @@
    "asof": "2021-11-15",
    "item": null,
    "image": "study-review-sheets/2026-10-27/img/go_28_CCI.png",
-   "verdict": null,
-   "grade": null,
-   "owner_words": null,
-   "nuance": null,
-   "ruled": false
+   "verdict": "keep",
+   "grade": "good",
+   "owner_words": "Good",
+   "nuance": [
+    "pass-2 #28; daily footprint graded 2026-10-27; build the hourly chart",
+    "item id to be filled from the pod draft (sym+asof match)"
+   ],
+   "ruled": true
   },
   {
    "setup": "Go Signal",
@@ -1089,11 +1101,14 @@
    "asof": "2024-01-02",
    "item": null,
    "image": "study-review-sheets/2026-10-27/img/go_29_CELH.png",
-   "verdict": null,
-   "grade": null,
-   "owner_words": null,
-   "nuance": null,
-   "ruled": false
+   "verdict": "okay",
+   "grade": "okay",
+   "owner_words": "Okay but not much follow through",
+   "nuance": [
+    "pass-2 #29; daily footprint graded 2026-10-27: okay footprint, weak forward strip; lesser example, decide on the hourly",
+    "item id to be filled from the pod draft (sym+asof match)"
+   ],
+   "ruled": true
   },
   {
    "setup": "Go Signal",
@@ -1102,11 +1117,14 @@
    "asof": "2022-02-16",
    "item": null,
    "image": "study-review-sheets/2026-10-27/img/go_30_ANET.png",
-   "verdict": null,
-   "grade": null,
-   "owner_words": null,
-   "nuance": null,
-   "ruled": false
+   "verdict": "keep",
+   "grade": "good",
+   "owner_words": "Good",
+   "nuance": [
+    "pass-2 #30; daily footprint graded 2026-10-27; build the hourly chart",
+    "item id to be filled from the pod draft (sym+asof match)"
+   ],
+   "ruled": true
   },
   {
    "setup": "Go Signal",
@@ -1115,11 +1133,14 @@
    "asof": "2023-01-10",
    "item": null,
    "image": "study-review-sheets/2026-10-27/img/go_31_RKLB_2023.png",
-   "verdict": null,
-   "grade": null,
-   "owner_words": null,
-   "nuance": null,
-   "ruled": false
+   "verdict": "need_hourly",
+   "grade": "okay",
+   "owner_words": "Okay / need the hourly",
+   "nuance": [
+    "pass-2 #31; daily footprint graded 2026-10-27: cannot tell from the daily; the hourly chart decides",
+    "item id to be filled from the pod draft (sym+asof match)"
+   ],
+   "ruled": true
   },
   {
    "setup": "Go Signal",
@@ -1128,11 +1149,14 @@
    "asof": "2026-04-27",
    "item": null,
    "image": "study-review-sheets/2026-10-27/img/go_32_DOCN.png",
-   "verdict": null,
-   "grade": null,
-   "owner_words": null,
-   "nuance": null,
-   "ruled": false
+   "verdict": "keep",
+   "grade": "great",
+   "owner_words": "Great",
+   "nuance": [
+    "pass-2 #32; daily footprint graded 2026-10-27; build the hourly chart first (hourly bars on the pod exist only since 2026-09-28, so this one also needs the vendor fetch)",
+    "item id to be filled from the pod draft (sym+asof match)"
+   ],
+   "ruled": true
   },
   {
    "setup": "Go Signal",
@@ -1141,11 +1165,14 @@
    "asof": "2024-11-05",
    "item": null,
    "image": "study-review-sheets/2026-10-27/img/go_33_TEAM.png",
-   "verdict": null,
-   "grade": null,
-   "owner_words": null,
-   "nuance": null,
-   "ruled": false
+   "verdict": "weak",
+   "grade": "okay-minus",
+   "owner_words": "Eh",
+   "nuance": [
+    "pass-2 #33; daily footprint graded 2026-10-27: lukewarm ('Eh'); low priority for the hourly build, likely cut unless the hourly is clean",
+    "item id to be filled from the pod draft (sym+asof match)"
+   ],
+   "ruled": true
   },
   {
    "setup": "Go Signal",
@@ -1154,11 +1181,14 @@
    "asof": "2024-11-15",
    "item": null,
    "image": "study-review-sheets/2026-10-27/img/go_34_HOOD.png",
-   "verdict": null,
-   "grade": null,
-   "owner_words": null,
-   "nuance": null,
-   "ruled": false
+   "verdict": "need_hourly",
+   "grade": "okay",
+   "owner_words": "Okay / need the hourly",
+   "nuance": [
+    "pass-2 #34; daily footprint graded 2026-10-27: the hourly chart decides",
+    "item id to be filled from the pod draft (sym+asof match)"
+   ],
+   "ruled": true
   },
   {
    "setup": "Go Signal",
@@ -1167,11 +1197,14 @@
    "asof": "2023-11-16",
    "item": null,
    "image": "study-review-sheets/2026-10-27/img/go_35_DUOL.png",
-   "verdict": null,
-   "grade": null,
-   "owner_words": null,
-   "nuance": null,
-   "ruled": false
+   "verdict": "need_hourly",
+   "grade": "okay",
+   "owner_words": "Okay / need the hourly",
+   "nuance": [
+    "pass-2 #35; daily footprint graded 2026-10-27: the hourly chart decides",
+    "item id to be filled from the pod draft (sym+asof match)"
+   ],
+   "ruled": true
   },
   {
    "setup": "Go Signal",
@@ -1180,11 +1213,14 @@
    "asof": "2024-03-19",
    "item": null,
    "image": "study-review-sheets/2026-10-27/img/go_36_MU.png",
-   "verdict": null,
-   "grade": null,
-   "owner_words": null,
-   "nuance": null,
-   "ruled": false
+   "verdict": "keep",
+   "grade": "great",
+   "owner_words": "Great",
+   "nuance": [
+    "pass-2 #36; daily footprint graded 2026-10-27; build the hourly chart first",
+    "item id to be filled from the pod draft (sym+asof match)"
+   ],
+   "ruled": true
   },
   {
    "setup": "Go Signal",
@@ -1193,11 +1229,14 @@
    "asof": "2024-11-04",
    "item": null,
    "image": "study-review-sheets/2026-10-27/img/go_37_DASH.png",
-   "verdict": null,
-   "grade": null,
-   "owner_words": null,
-   "nuance": null,
-   "ruled": false
+   "verdict": "keep",
+   "grade": "good",
+   "owner_words": "Decent example but some nuance",
+   "nuance": [
+    "pass-2 #37; daily footprint graded 2026-10-27: decent, with nuance the owner has not yet spelled out; ask what the nuance is when the hourly chart is shown",
+    "item id to be filled from the pod draft (sym+asof match)"
+   ],
+   "ruled": true
   },
   {
    "setup": "Go Signal",
@@ -1206,11 +1245,14 @@
    "asof": "2026-04-15",
    "item": null,
    "image": "study-review-sheets/2026-10-27/img/go_38_SMH.png",
-   "verdict": null,
-   "grade": null,
-   "owner_words": null,
-   "nuance": null,
-   "ruled": false
+   "verdict": "keep",
+   "grade": "good",
+   "owner_words": "Good",
+   "nuance": [
+    "pass-2 #38; daily footprint graded 2026-10-27; build the hourly chart",
+    "item id to be filled from the pod draft (sym+asof match)"
+   ],
+   "ruled": true
   },
   {
    "setup": "Go Signal",
@@ -1219,11 +1261,14 @@
    "asof": "2026-01-05",
    "item": null,
    "image": "study-review-sheets/2026-10-27/img/go_39_RKLB_2026.png",
-   "verdict": null,
-   "grade": null,
-   "owner_words": null,
-   "nuance": null,
-   "ruled": false
+   "verdict": "keep",
+   "grade": "good",
+   "owner_words": "Good one, plus the day before too",
+   "nuance": [
+    "pass-2 #39; daily footprint graded 2026-10-27: good, AND the prior session (2026-01-02) is a Go Signal footprint too; build hourly charts for both days (two candidate examples from one base)",
+    "item id to be filled from the pod draft (sym+asof match)"
+   ],
+   "ruled": true
   },
   {
    "setup": "Go Signal",
@@ -1232,11 +1277,14 @@
    "asof": "2025-11-21",
    "item": null,
    "image": "study-review-sheets/2026-10-27/img/go_40_HL.png",
-   "verdict": null,
-   "grade": null,
-   "owner_words": null,
-   "nuance": null,
-   "ruled": false
+   "verdict": "keep",
+   "grade": "good",
+   "owner_words": "Good",
+   "nuance": [
+    "pass-2 #40; daily footprint graded 2026-10-27; build the hourly chart",
+    "item id to be filled from the pod draft (sym+asof match)"
+   ],
+   "ruled": true
   },
   {
    "setup": "Go Signal",
@@ -1245,11 +1293,14 @@
    "asof": "2024-09-11",
    "item": null,
    "image": "study-review-sheets/2026-10-27/img/go_41_ONON.png",
-   "verdict": null,
-   "grade": null,
-   "owner_words": null,
-   "nuance": null,
-   "ruled": false
+   "verdict": "keep",
+   "grade": "great",
+   "owner_words": "Great",
+   "nuance": [
+    "pass-2 #41; daily footprint graded 2026-10-27; build the hourly chart first",
+    "item id to be filled from the pod draft (sym+asof match)"
+   ],
+   "ruled": true
   },
   {
    "setup": "Go Signal",
@@ -1258,11 +1309,14 @@
    "asof": "2023-11-30",
    "item": null,
    "image": "study-review-sheets/2026-10-27/img/go_42_PHM.png",
-   "verdict": null,
-   "grade": null,
-   "owner_words": null,
-   "nuance": null,
-   "ruled": false
+   "verdict": "keep",
+   "grade": "good",
+   "owner_words": "Good",
+   "nuance": [
+    "pass-2 #42; daily footprint graded 2026-10-27; build the hourly chart",
+    "item id to be filled from the pod draft (sym+asof match)"
+   ],
+   "ruled": true
   },
   {
    "setup": "Go Signal",
@@ -1271,11 +1325,14 @@
    "asof": "2023-06-01",
    "item": null,
    "image": "study-review-sheets/2026-10-27/img/go_43_MDB.png",
-   "verdict": null,
-   "grade": null,
-   "owner_words": null,
-   "nuance": null,
-   "ruled": false
+   "verdict": "keep",
+   "grade": "good",
+   "owner_words": "Good",
+   "nuance": [
+    "pass-2 #43; daily footprint graded 2026-10-27; build the hourly chart",
+    "item id to be filled from the pod draft (sym+asof match)"
+   ],
+   "ruled": true
   },
   {
    "setup": "Go Signal",
@@ -1284,11 +1341,14 @@
    "asof": "2025-06-23",
    "item": null,
    "image": "study-review-sheets/2026-10-27/img/go_44_SOFI.png",
-   "verdict": null,
-   "grade": null,
-   "owner_words": null,
-   "nuance": null,
-   "ruled": false
+   "verdict": "keep",
+   "grade": "good",
+   "owner_words": "Both good",
+   "nuance": [
+    "pass-2 #44; graded together with TSLA 2023-05-31 ('Both good') 2026-10-27; build the hourly chart",
+    "item id to be filled from the pod draft (sym+asof match)"
+   ],
+   "ruled": true
   },
   {
    "setup": "Go Signal",
@@ -1297,11 +1357,14 @@
    "asof": "2023-05-31",
    "item": null,
    "image": "study-review-sheets/2026-10-27/img/go_45_TSLA.png",
-   "verdict": null,
-   "grade": null,
-   "owner_words": null,
-   "nuance": null,
-   "ruled": false
+   "verdict": "keep",
+   "grade": "good",
+   "owner_words": "Both good",
+   "nuance": [
+    "pass-2 #45; graded together with SOFI 2025-06-23 ('Both good') 2026-10-27; build the hourly chart",
+    "item id to be filled from the pod draft (sym+asof match)"
+   ],
+   "ruled": true
   }
  ]
 }
