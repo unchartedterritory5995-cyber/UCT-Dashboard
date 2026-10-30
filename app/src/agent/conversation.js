@@ -82,8 +82,8 @@ function chartSnap(host, ref) { try { return host?.charts?.read?.(ref) || null }
 function chartsOf(host) { try { return host?.charts?.list?.() || [] } catch { return [] } }
 
 /** The conversation's indicators that are STILL on their charts, in order, with what each one is. */
-export function liveIndicators(host, memory, epoch) {
-  const set = memory?.indicatorSet?.(epoch) || null
+export function liveIndicators(host, memory, epoch, { prior = false } = {}) {
+  const set = (prior ? memory?.priorIndicatorSet?.(epoch) : memory?.indicatorSet?.(epoch)) || null
   if (!set) return []
   const out = []
   for (const s of set) {
@@ -189,10 +189,20 @@ export function resolveReferent(words, { host, memory, epoch = null, live = null
     return gone().say ? gone() : null
   }
   let m = R_ORD.exec(w)
+  // ⭐ PHASE 3: "add the 9 and 20 ema" → "make the 9 green" → "make the other one yellow": the latest turn touched ONE of
+  // the indicators the turn before it added — "the other one" is the one of those it left (only when exactly one is left)
+  if (m && m[1] === 'other' && set.length === 1 && !live && !taken?.length) {
+    const prior = liveIndicators(host, memory, epoch, { prior: true })
+    const rest = prior.filter(i => !(i.chart === set[0].chart && i.instanceId === set[0].instanceId))
+    if (rest.length === 1 && rest.length < prior.length) return { list: rest }
+  }
   if (m) {
     if (set.length < 2) return set.length ? null : (gone().say ? gone() : null)
     if (m[1] === 'other') {
-      const picked = (Array.isArray(taken) && taken.length ? taken : null) || memory?.lastPick?.() || []
+      // ⭐ PHASE 3: …or the ones the latest turn acted on, when it acted on SOME of them ("make the 9 green" → "the other
+      // one" is the 20) — a turn that touched all of them picks none
+      const said = live ? [] : liveMentions(host, memory, epoch).filter(r => set.some(i => i.chart === r.chart && i.instanceId === r.instanceId)).map(r => r.instanceId)
+      const picked = (Array.isArray(taken) && taken.length ? taken : null) || memory?.lastPick?.() || (said.length && said.length < set.length ? said : null) || []
       const rest = set.filter(i => !picked.includes(i.instanceId))
       return rest.length === 1 && picked.length ? { list: rest } : { ask: askOne(set, `Which one — ${set.map(i => i.name).join(' or ')}?`) }
     }
@@ -259,7 +269,7 @@ function askOne(list, text) {
 // ── chart sets ────────────────────────────────────────────────────────────────────────────────────────
 const NUMW = '(?:two|three|four|five|six|2|3|4|5|6)'
 const R_OTHERS = new RegExp(`^(?:all )?(?:of )?(?:my |the |our )?(?:${NUMW} )?other(?: ${NUMW})?(?: (?:charts?|ones?))?$|^(?:the )?others$|^(?:all )?the rest(?: of (?:them|the charts|my charts|the board))?$|^every other chart$|^everything else$|^all the others$`)
-const R_ALL = new RegExp(`^(?:all(?: of)? (?:my |the |these |those )?charts|all (?:of )?(?:them|those|these)|(?:all )?(?:${NUMW}) (?:of them|charts)|all ${NUMW}(?: of them| charts)?|every chart|each chart|each of them|every one of them|everywhere|every single chart|both(?: charts| of them)?|the whole board|my whole board)$`)
+const R_ALL = new RegExp(`^(?:all(?: of)? (?:my |the |these |those )?charts|all (?:of )?(?:them|those|these)|(?:all )?(?:${NUMW}) (?:of them|charts)|all ${NUMW}(?: of them| charts)?|every chart|each chart|each of them|every one of them|everywhere|everything|every single chart|both(?: charts| of them)?|the whole board|my whole board)$`)
 
 /**
  * A chart-set phrase → { refs } (one or more live chart refs) | { say } | null. `sources` = the charts the
@@ -438,9 +448,27 @@ const CLAUSE_SPLIT = /\s*(?:,\s*(?:and\s+)?|\s+and\s+|;\s*|\s+then\s+)\s*/
 const LEAD_VERB = new RegExp(`^(${VERB}|${REMOVE_VERB}|hide|show|unhide|put|move|place)\\b`)
 // a part that starts a NEW instruction (any verb UCT reads) — in a multi-step request it is a step of its own
 const NEW_VERB = new RegExp(`^(?:${VERB}|${REMOVE_VERB}|hide|show|unhide|put|move|place|add|copy|throw|give|create|open|load|switch|apply|repeat|do|match)\\b`)
+// ⭐ PHASE 3: VERBLESS colour pairs — "fast one green slow one yellow", "the 9 green, the 20 yellow" (the owner's recorded
+// follow-up). Every word of the clause must be such a pair (an indicator description, then a colour UCT reads); each pair is
+// then read exactly as "make <description> <colour>". Anything else in it → null (the clause is not this shape).
+const PAIR_RE = /((?:the )?(?:(?:fast|slow|quick|short|long)(?:er|est)?|first|second|third|last|other|\d{1,4}(?: (?:ema|sma|wma|hma|ma))?)(?: (?:one|ema|sma|ma|line|average))?) ((?:light |dark |bright )?[a-z]+|#[0-9a-f]{3,6})(?= |,|;|$)/g
+function verblessPairs(t) {
+  if (LEAD_VERB.test(t) || NEW_VERB.test(t)) return null
+  const out = []
+  let rest = t
+  for (const m of t.matchAll(PAIR_RE)) {
+    if (!colorOf(m[2])) return null
+    out.push(`make ${m[1].replace(/^(?:the )?/, 'the ')} ${m[2]}`)
+    rest = rest.replace(m[0], ' ')
+  }
+  return out.length >= 1 && !rest.replace(/[,;]|\band\b|\bthen\b/g, ' ').trim() ? out : null
+}
 function indicatorClauses(t, ctx) {
   const whole = indicatorClause(t, ctx)
   if (whole) return whole
+  const pairs = verblessPairs(t)
+  if (pairs?.length === 1) return indicatorClause(pairs[0], ctx)
+  if (pairs) t = pairs.join(', ')
   const parts = t.split(CLAUSE_SPLIT).filter(Boolean)
   if (parts.length < 2 || parts.length > 6) return null
   // read for SHAPE (a multi-step request): one step is one instruction — "make the 9 green and 20 yellow" (the
@@ -532,6 +560,9 @@ function copyLookPlan(toWords, fromWords, ctx) {
   // (the shared normaliser reads "this chart" / "my chart" as "the chart")
   const THIS = /^(?:this|this one|this chart|it|that one|that chart|the chart|my chart|the selected chart)$/
   if (THIS.test(fromPhrase)) from = thisChart(host, memory, epoch)
+  // ⭐ PHASE 3: the source named outright ("…look like the NVDA chart") is read first, so "the others" / "the rest" means
+  // the charts other than it
+  if (!from && !NEXT_TO.test(fromPhrase)) { const s = chartSet(fromPhrase, { host }); from = s?.refs?.length === 1 ? s.refs[0] : null }
   let to = null
   const toSet = THIS.test(toWords) ? { refs: [thisChart(host, memory, epoch)].filter(Boolean) } : chartSet(toWords, { host, sources: from ? [from] : [] })
   if (!from && NEXT_TO.test(fromPhrase) && toSet?.refs?.length === 1) from = neighbour(charts, toSet.refs[0])

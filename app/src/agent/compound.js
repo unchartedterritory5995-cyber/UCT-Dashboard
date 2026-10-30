@@ -50,8 +50,8 @@ export function eachWith(text) {
   return m ? `add ${m[1]} to all of them` : text
 }
 
-// ── "put RSI under price", "put the 20 ema in its own pane", "add MACD in a separate pane" ──
-const NEW_PANE = /^(?:put|add|place|stick|throw|slap|give me|load|plot) (.+?) (?:in (?:its own|a separate|a seperate|a new|a different|their own) (?:pane|window)|in (?:a )?(?:separate|seperate|own) panes?|(?:under|below|beneath|underneath) (?:the )?(?:price|price chart|chart|candles|main chart))$/
+// ── "put RSI under price", "put the 20 ema in its own pane", "add MACD in a separate pane" (⭐ PHASE 3: "put rsi underneath") ──
+const NEW_PANE = /^(?:put|add|place|stick|throw|slap|give me|load|plot) (.+?) (?:in (?:its own|a separate|a seperate|a new|a different|their own) (?:pane|window)|in (?:a )?(?:separate|seperate|own) panes?|(?:under|below|beneath|underneath)(?: (?:the )?(?:price|price chart|chart|candles|main chart)| it)?)$/
 /** The indicator to add and where, from words → { defId, inputs, pane: bool } | null. */
 function newPaneIndicator(t) {
   const m = NEW_PANE.exec(t)
