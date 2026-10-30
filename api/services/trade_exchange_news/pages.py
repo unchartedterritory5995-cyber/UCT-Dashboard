@@ -9,7 +9,7 @@ never from whatever a browser happens to hold.
 ⭐ BOUNDED. The archive is itself bounded (``TXN_HISTORY_MAX_AGE_HOURS`` 168 /
 ``TXN_HISTORY_MAX_ITEMS`` 5,000), and the scan reads it once per request by its
 primary key -- no OFFSET. The derived fields are a pure function of
-``(source, content)``, cached (LRU, ``DERIVED_CACHE_MAX``), so a warm request is
+``(source, content)``, cached (LRU, bounded by ``_derived_max``), so a warm request is
 one key-ordered read plus set lookups (measured in
 tests/test_trade_exchange_news_pages.py). The page's own events reuse the same
 cached derivation (``pipeline.derived_for``), so a warm page derives nothing.
@@ -17,9 +17,23 @@ cached derivation (``pipeline.derived_for``), so a warm page derives nothing.
   * re-deriving per request cost 2-3.5 s a page (the production company-name
     index is far larger than a dev machine's) -> the derivation cache;
   * with that cached, READING the archive still cost ~2.1 s: in a busy process
-    each fetched row hands the GIL back and waits to get it again. So the
-    archive's (seq, source, content) index is held IN MEMORY too, and each
-    request reads only the rows committed since the last one (``_index``).
+    each fetched row hands the GIL back and waits to get it again. So a COPY of
+    the archive's (seq, source, content, received_at_ms) index is held in memory,
+    and each request reads only the rows committed since the last one (``_index``).
+
+⛔ THE DATABASE IS THE TRUTH; THE INDEX IS A REBUILDABLE CACHE. It is never
+written anywhere, starts empty in every process (a restart rebuilds it from the
+database), and every request re-checks it against the database:
+  * new headlines -- live or recovered from R2 -- get a NEW seq (AUTOINCREMENT,
+    never reused), so they are exactly the rows after the last one held;
+  * a row's text never changes once written (only its repeat count does, and the
+    page's events are always built from fresh rows: ``store.by_seqs``);
+  * pruning deletes the lowest seqs (count bound) AND any row past the age
+    cutoff -- which may be a recovered headline in the MIDDLE (old receipt time,
+    new seq). So every request compares ``COUNT(*) WHERE seq <= last held`` with
+    the rows held; on a difference it drops the held rows near the age cutoff
+    that are gone, and if anything still disagrees it rebuilds from scratch;
+  * a recreated database (new epoch) discards it.
 
 ⭐ STABLE BOUNDARIES. Every page is cut from the snapshot ``seq <= top``. The
 browser fixes ``top`` when it leaves page 1, so headlines arriving while it reads
@@ -40,6 +54,7 @@ from __future__ import annotations
 
 import bisect
 import threading
+import time
 from collections import OrderedDict
 from typing import Any, Iterable
 
@@ -52,7 +67,11 @@ MAX_QUERY = 80
 #: Rows read per scan: the archive's own bound with headroom (an env override of
 #: the count bound above this would see its oldest rows unpaged, never a crash).
 SCAN_MAX = 20_000
-DERIVED_CACHE_MAX = 12_000
+#: Derivations kept (LRU): the archive's count bound plus headroom, so a full scan
+#: never evicts what it is about to need.
+def _derived_max() -> int:
+    from api.services.trade_exchange_news import config
+    return max(6000, config.history_max_items() + 1000)
 CONCURRENT = 2
 #: categories.CATEGORIES, restated so this module imports nothing heavy (the pages
 #: tests assert the two never drift).
@@ -81,7 +100,8 @@ def _derive(source: str, content: str) -> tuple:
     with _lock:
         stats["misses"] += 1
         _derived[key] = val
-        while len(_derived) > DERIVED_CACHE_MAX:
+        cap = _derived_max()
+        while len(_derived) > cap:
             _derived.popitem(last=False)
     return val
 
@@ -99,26 +119,49 @@ def clear_cache() -> None:
 
 # ── the archive's index, in memory, extended incrementally ───────────────────
 _idx_lock = threading.Lock()
-_idx: dict[str, Any] = {"epoch": None, "rows": []}     # rows: (seq, source, content), seq ascending
+#: rows: (seq, source, content, received_at_ms), seq ascending. `rebuilds` counts
+#: full reads (a process's first page, a new epoch, or an inconsistency).
+_idx: dict[str, Any] = {"epoch": None, "rows": [], "rebuilds": 0}
+#: Rows received this close to the age cutoff are re-checked when counts differ.
+AGE_SLACK_MS = 15 * 60_000
 
 
-def _index(store, top: int) -> list[tuple[int, str, str]]:
-    """The retained rows with ``seq <= top``, seq ascending. Reads from the
-    database only what was committed since the previous call (normally a few
-    rows), and forgets rows the archive has pruned. Rows never change once
-    written (seq is never reused within an epoch), so nothing held goes stale."""
+def _read_after(store, rows: list) -> None:
+    while True:
+        more = store.index_after(rows[-1][0] if rows else 0, 5000)
+        rows.extend(more)
+        if len(more) < 5000:
+            return
+
+
+def _index(store, top: int) -> list[tuple[int, str, str, int]]:
+    """The retained rows with ``seq <= top``, seq ascending -- verified against the
+    database on every call (see the module note). Normally reads a few new rows
+    plus one COUNT."""
+    from api.services.trade_exchange_news import config
     with _idx_lock:
         if _idx["epoch"] != store.epoch:
             _idx.update(epoch=store.epoch, rows=[])
+            _idx["rebuilds"] += 1
         rows = _idx["rows"]
-        while True:
-            more = store.index_after(rows[-1][0] if rows else 0, 5000)
-            rows.extend(more)
-            if len(more) < 5000:
-                break
+        _read_after(store, rows)
         first = store.first_seq()
-        if rows and rows[0][0] < first:
+        if not first:
+            rows.clear()
+        elif rows and rows[0][0] < first:                         # the count bound: lowest seqs
             del rows[:bisect.bisect_left(rows, (first,))]
+        if rows and store.count_upto(rows[-1][0]) != len(rows):
+            # The age bound removed rows anywhere (a recovered headline keeps its
+            # old receipt time under a new seq): re-check those near the cutoff.
+            cutoff = int(time.time() * 1000) - config.history_max_age_ms() + AGE_SLACK_MS
+            near = [r[0] for r in rows if r[3] < cutoff]
+            if near:
+                alive = store.present(near)
+                rows[:] = [r for r in rows if r[3] >= cutoff or r[0] in alive]
+            if store.count_upto(rows[-1][0] if rows else 0) != len(rows):
+                rows.clear()                                     # anything else: start again
+                _idx["rebuilds"] += 1
+                _read_after(store, rows)
         if len(rows) > SCAN_MAX:
             del rows[:len(rows) - SCAN_MAX]
         return rows[:bisect.bisect_right(rows, (top, chr(0x10FFFF)))]
@@ -126,7 +169,15 @@ def _index(store, top: int) -> list[tuple[int, str, str]]:
 
 def clear_index() -> None:
     with _idx_lock:
-        _idx.update(epoch=None, rows=[])
+        _idx.update(epoch=None, rows=[], rebuilds=0)
+
+
+def cache_stats() -> dict[str, int]:
+    """Sizes only (admin status): rows indexed, derivations cached, full rebuilds."""
+    with _idx_lock:
+        n, rebuilds = len(_idx["rows"]), _idx["rebuilds"]
+    with _lock:
+        return {"index_rows": n, "derived": len(_derived), "rebuilds": rebuilds}
 
 
 def _clean_syms(raw: Iterable[Any] | None) -> frozenset[str] | None:
@@ -182,8 +233,10 @@ def page(store, *, page_no: int = 1, size: int = DEFAULT_SIZE, top: int | None =
     syms = _clean_syms(symbols)
     match: list[int] = []
     hidden = scanned = 0
-    for seq, source, content in reversed(_index(store, top)):
+    for seq, source, content, _received in reversed(_index(store, top)):
         scanned += 1
+        if scanned % 256 == 0:
+            time.sleep(0)                 # a cold scan derives every row: let the event loop in
         d = _derive(source, content)
         if d[2]:
             hidden += 1

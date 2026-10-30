@@ -323,6 +323,72 @@ async def test_the_index_is_held_in_memory_and_read_incrementally(monkeypatch):
     assert pruned["total"] == 20 and min(x["seq"] for x in pruned["items"]) == 14
 
 
+async def _recovered_old(p, content="SYNTHETIC LATE RECOVERED HEADLINE ABOUT RATES"):
+    """A headline recovered from R2 after an outage: a NEW seq, an OLD receipt time."""
+    await p.submit(rec(content, -10_000), "reconcile")
+    return p.store.last_seq()
+
+
+@pytest.mark.parametrize("near_cutoff", [True, False])
+async def test_a_recovered_headline_pruned_from_the_middle_leaves_the_index(monkeypatch, near_cutoff):
+    p = await _fill(30)
+    late = await _recovered_old(p)
+    for i in range(30, 35):
+        content, source = _content(i)
+        await p.submit(rec(content, i, source), "push")
+    before = (await _post(ADMIN, {"size": 100, "hide_placeholders": False})).json()
+    assert late in [x["seq"] for x in before["items"]] and before["total"] == 36
+    rebuilds = txn_pages.cache_stats()["rebuilds"]
+    # the age bound deletes ONLY the recovered row (seq 31, in the middle)
+    gone = p.store.prune(max_age_ms=5_000, max_items=10_000, now_ms=BASE_MS)
+    assert gone["by_age"] == 1
+    if near_cutoff:   # the configured age bound puts that row near the cutoff: targeted re-check
+        monkeypatch.setattr(txn_pages.time, "time", lambda: (BASE_MS + 10_000 * 1000) / 1000)
+        from api.services.trade_exchange_news import config
+        monkeypatch.setattr(config, "history_max_age_ms", lambda: 10_000 * 1000)
+    after = (await _post(ADMIN, {"size": 100, "hide_placeholders": False})).json()
+    seqs = [x["seq"] for x in after["items"]]
+    assert late not in seqs and after["total"] == 35 == after["archive_total"] and len(seqs) == 35
+    assert txn_pages.cache_stats()["rebuilds"] == rebuilds + (0 if near_cutoff else 1)
+    assert seqs == _oracle(p, hide=False)
+
+
+async def test_new_live_and_recovered_headlines_reach_the_index_and_totals_stay_exact():
+    p = await _fill(20)
+    await _post(ADMIN, {})
+    await _recovered_old(p)
+    content, source = _content(21)
+    await p.submit(rec(content, 21, source), "push")
+    r = (await _post(ADMIN, {"size": 100, "hide_placeholders": False})).json()
+    assert [x["seq"] for x in r["items"]] == _oracle(p, hide=False) and r["total"] == 22
+
+
+async def test_a_restart_or_another_process_rebuilds_the_same_answer():
+    p = await _fill(40)
+    warm = (await _post(ADMIN, {"page": 2, "size": 10, "categories": ["Macro", "News"]})).json()
+    txn_pages.clear_index()            # a fresh process: nothing held
+    txn_pages.clear_cache()
+    cold = (await _post(ADMIN, {"page": 2, "size": 10, "top": warm["top"], "categories": ["Macro", "News"]})).json()
+    for k in ("total", "pages", "archive_total", "items"):
+        assert cold[k] == warm[k]
+    assert txn_pages.cache_stats()["index_rows"] == 40
+
+
+async def test_cache_sizes_are_bounded_and_reported(monkeypatch):
+    p = await _fill(30)
+    await _post(ADMIN, {})
+    st = txn_pages.cache_stats()
+    assert st["index_rows"] == 30 and st["derived"] <= 30
+    monkeypatch.setattr(txn_pages, "_derived_max", lambda: 5)
+    for i in range(30, 40):
+        txn_pages._derive("TXNews1", f"SYNTHETIC unique {i}")
+    assert txn_pages.cache_stats()["derived"] == 5
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=_app(ADMIN)), base_url="http://web.test") as c:
+        status = (await c.get(route.STATUS_PATH)).json()
+    assert set(status["pages_cache"]) == {"index_rows", "derived", "rebuilds"}
+    assert "SYNTHETIC" not in str(status["pages_cache"])
+
+
 async def test_recent_events_equal_a_fresh_build():
     p = await _fill(12)
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=_app(ADMIN)), base_url="http://web.test") as c:

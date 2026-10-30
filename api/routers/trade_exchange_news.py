@@ -352,6 +352,7 @@ def status(_admin: dict = Depends(require_admin)) -> dict[str, Any]:
         "subscribers": pipe.hub.subscribers if pipe else 0,
         "resyncs": pipe.hub.resyncs if pipe else 0,
         "store": pipe.store.stats() if pipe else None,
+        "pages_cache": txn_pages.cache_stats(),
         "reconcile": rec.snapshot() if rec else None,
         "storage_permission_confirmed": config.storage_permitted(),
         "synthetic_only": config.synthetic_only(),
