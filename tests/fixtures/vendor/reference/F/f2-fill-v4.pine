@@ -1,0 +1,11 @@
+//@version=4
+study("UCT F2 fill v4", overlay=false)
+p1 = plot(100, "p1", color=color.gray)
+p2 = plot(80, "p2", color=color.gray)
+fill(p1, p2, color=color.red)
+p3 = plot(60, "p3", color=color.gray)
+p4 = plot(40, "p4", color=color.gray)
+fill(p3, p4, color=color.red, transp=0)
+p5 = plot(20, "p5", color=color.gray)
+p6 = plot(0, "p6", color=color.gray)
+fill(p5, p6, color=#2962FF)

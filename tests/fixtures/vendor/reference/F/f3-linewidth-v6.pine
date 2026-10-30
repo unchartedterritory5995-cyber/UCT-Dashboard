@@ -1,0 +1,12 @@
+//@version=6
+indicator("UCT F3 linewidth v6", overlay=false)
+plot(10, "w1", color=#FF0000, linewidth=1)
+plot(20, "w2", color=#00A000, linewidth=2)
+plot(30, "w3", color=#0000FF, linewidth=3)
+plot(40, "w4", color=#FF8000, linewidth=4)
+plot(50, "w5", color=#A000A0, linewidth=5)
+plot(60, "w6", color=#008080, linewidth=6)
+plot(70, "w7", color=#804000, linewidth=7)
+plot(80, "w8", color=#FF00FF, linewidth=8)
+plot(90, "w9", color=#000080, linewidth=9)
+plot(100, "w10", color=#808000, linewidth=10)

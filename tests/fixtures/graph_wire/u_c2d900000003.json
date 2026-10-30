@@ -6062,7 +6062,7 @@
       "label": "Line width",
       "default": 1,
       "min": 1,
-      "max": 4,
+      "max": 10,
       "step": 1
     },
     {
@@ -6077,7 +6077,7 @@
       "label": "Upper band width",
       "default": 1,
       "min": 1,
-      "max": 4,
+      "max": 10,
       "step": 1
     },
     {
@@ -6092,7 +6092,7 @@
       "label": "Lower band width",
       "default": 1,
       "min": 1,
-      "max": 4,
+      "max": 10,
       "step": 1
     },
     {
@@ -6107,7 +6107,7 @@
       "label": "Bull flip width",
       "default": 1,
       "min": 1,
-      "max": 4,
+      "max": 10,
       "step": 1
     },
     {
@@ -6122,7 +6122,7 @@
       "label": "Bear flip width",
       "default": 1,
       "min": 1,
-      "max": 4,
+      "max": 10,
       "step": 1
     },
     {
@@ -6137,7 +6137,7 @@
       "label": "Bull flip width",
       "default": 1,
       "min": 1,
-      "max": 4,
+      "max": 10,
       "step": 1
     },
     {
@@ -6152,7 +6152,7 @@
       "label": "Bear flip width",
       "default": 1,
       "min": 1,
-      "max": 4,
+      "max": 10,
       "step": 1
     }
   ],
