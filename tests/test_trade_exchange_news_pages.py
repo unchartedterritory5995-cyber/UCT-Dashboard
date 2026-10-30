@@ -34,6 +34,7 @@ def env(monkeypatch, tmp_path):
     monkeypatch.setenv("TXN_SOURCE_ALLOWLIST", "TXNews1,TX-PressRelease")
     route._streams.clear()
     txn_pages.clear_cache()
+    txn_pages.clear_index()
     yield
     rc.stop()
     pl.stop()
@@ -301,6 +302,33 @@ async def test_page_builds_are_admitted_a_few_at_a_time(monkeypatch):
     monkeypatch.setattr(route, "_page_slots", None)
     rs = await asyncio.gather(*[_post(ADMIN, {}) for _ in range(6)])
     assert all(r.status_code == 200 for r in rs) and peak <= txn_pages.CONCURRENT
+
+
+async def test_the_index_is_held_in_memory_and_read_incrementally(monkeypatch):
+    p = await _fill(30)
+    calls = []
+    real = p.store.index_after
+    monkeypatch.setattr(p.store, "index_after", lambda seq, limit: calls.append(seq) or real(seq, limit))
+    first = (await _post(ADMIN, {"size": 10, "hide_placeholders": False})).json()
+    assert calls == [0] and first["total"] == 30                  # the first page reads the archive once
+    for i in range(30, 33):
+        content, source = _content(i)
+        await p.submit(rec(content, i, source), "push")
+    again = (await _post(ADMIN, {"size": 10, "hide_placeholders": False})).json()
+    assert calls == [0, 30] and again["total"] == 33              # then only what arrived since
+    old = (await _post(ADMIN, {"page": 2, "size": 10, "top": first["top"], "hide_placeholders": False})).json()
+    assert [x["seq"] for x in old["items"]] == list(range(20, 10, -1)) and old["total"] == 30
+    p.store.prune(max_age_ms=10**15, max_items=20)                 # pruned rows leave the index too
+    pruned = (await _post(ADMIN, {"size": 50, "hide_placeholders": False})).json()
+    assert pruned["total"] == 20 and min(x["seq"] for x in pruned["items"]) == 14
+
+
+async def test_recent_events_equal_a_fresh_build():
+    p = await _fill(12)
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=_app(ADMIN)), base_url="http://web.test") as c:
+        body = (await c.get(route.RECENT_PATH + "?limit=12")).json()
+    fresh = {r["seq"]: pl.headline_event(r, p.store.epoch) for r in p.store.recent(100)}
+    assert [ev == fresh[ev["seq"]] for ev in body["items"]] == [True] * 12
 
 
 def test_category_names_match_the_classifier():

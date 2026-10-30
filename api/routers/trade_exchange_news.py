@@ -166,10 +166,14 @@ async def recent(limit: int = Query(200, ge=1, le=500), before: int | None = Que
     store = pipe.store
     rows = await asyncio.to_thread(store.before if before else store.recent,
                                    *((before, limit) if before else (limit,)))
+    # Built on a worker thread from the cached derivation (pages.event_fields): the
+    # same fields, never re-derived per request and never on the event loop.
+    items = await asyncio.to_thread(lambda: [
+        txn_pipeline.headline_event(r, store.epoch, txn_pages.event_fields(r["source"], r["content"])) for r in rows])
     first, last = await asyncio.to_thread(lambda: (store.first_seq(), store.last_seq()))
     return JSONResponse({
         "epoch": store.epoch, "first_seq": first, "last_seq": last,
-        "items": [txn_pipeline.headline_event(r, store.epoch) for r in rows],
+        "items": items,
         "coverage": _coverage(), "tickers_provisional": TICKERS_PROVISIONAL,
         "server_ms": int(time.time() * 1000),
     })

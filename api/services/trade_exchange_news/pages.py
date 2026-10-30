@@ -13,9 +13,13 @@ primary key -- no OFFSET. The derived fields are a pure function of
 one key-ordered read plus set lookups (measured in
 tests/test_trade_exchange_news_pages.py). The page's own events reuse the same
 cached derivation (``pipeline.derived_for``), so a warm page derives nothing.
-⛔ MEASURED IN PRODUCTION (2026-10-30, 930 headlines): re-deriving per request
-cost 2-3.5 s a page -- the production company-name index is far larger than a
-dev machine's.
+⛔ MEASURED IN PRODUCTION (2026-10-30, ~950 headlines):
+  * re-deriving per request cost 2-3.5 s a page (the production company-name
+    index is far larger than a dev machine's) -> the derivation cache;
+  * with that cached, READING the archive still cost ~2.1 s: in a busy process
+    each fetched row hands the GIL back and waits to get it again. So the
+    archive's (seq, source, content) index is held IN MEMORY too, and each
+    request reads only the rows committed since the last one (``_index``).
 
 ⭐ STABLE BOUNDARIES. Every page is cut from the snapshot ``seq <= top``. The
 browser fixes ``top`` when it leaves page 1, so headlines arriving while it reads
@@ -34,6 +38,7 @@ keystrokes cannot crowd the event loop.
 """
 from __future__ import annotations
 
+import bisect
 import threading
 from collections import OrderedDict
 from typing import Any, Iterable
@@ -92,6 +97,38 @@ def clear_cache() -> None:
         stats["misses"] = 0
 
 
+# ── the archive's index, in memory, extended incrementally ───────────────────
+_idx_lock = threading.Lock()
+_idx: dict[str, Any] = {"epoch": None, "rows": []}     # rows: (seq, source, content), seq ascending
+
+
+def _index(store, top: int) -> list[tuple[int, str, str]]:
+    """The retained rows with ``seq <= top``, seq ascending. Reads from the
+    database only what was committed since the previous call (normally a few
+    rows), and forgets rows the archive has pruned. Rows never change once
+    written (seq is never reused within an epoch), so nothing held goes stale."""
+    with _idx_lock:
+        if _idx["epoch"] != store.epoch:
+            _idx.update(epoch=store.epoch, rows=[])
+        rows = _idx["rows"]
+        while True:
+            more = store.index_after(rows[-1][0] if rows else 0, 5000)
+            rows.extend(more)
+            if len(more) < 5000:
+                break
+        first = store.first_seq()
+        if rows and rows[0][0] < first:
+            del rows[:bisect.bisect_left(rows, (first,))]
+        if len(rows) > SCAN_MAX:
+            del rows[:len(rows) - SCAN_MAX]
+        return rows[:bisect.bisect_right(rows, (top, chr(0x10FFFF)))]
+
+
+def clear_index() -> None:
+    with _idx_lock:
+        _idx.update(epoch=None, rows=[])
+
+
 def _clean_syms(raw: Iterable[Any] | None) -> frozenset[str] | None:
     if raw is None:
         return None
@@ -145,7 +182,7 @@ def page(store, *, page_no: int = 1, size: int = DEFAULT_SIZE, top: int | None =
     syms = _clean_syms(symbols)
     match: list[int] = []
     hidden = scanned = 0
-    for seq, source, content in store.index_desc(top, SCAN_MAX):
+    for seq, source, content in reversed(_index(store, top)):
         scanned += 1
         d = _derive(source, content)
         if d[2]:

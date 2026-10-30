@@ -241,12 +241,12 @@ class Store:
             (int(seq), int(limit))).fetchall()
         return [_row(r) for r in reversed(rows)]
 
-    def index_desc(self, top: int, limit: int) -> list[tuple[int, str, str]]:
-        """(seq, source, content) for ``seq <= top``, newest first: the page scan
-        (pages.py). Primary-key order, bounded by ``limit`` and the archive bound."""
+    def index_after(self, seq: int, limit: int) -> list[tuple[int, str, str]]:
+        """(seq, source, content) for ``seq > seq``, oldest first: the page index's
+        increment (pages.py keeps the archive's index in memory)."""
         return self._conn().execute(
-            "SELECT seq, source, content FROM headlines WHERE seq <= ? ORDER BY seq DESC LIMIT ?",
-            (int(top), int(limit))).fetchall()
+            "SELECT seq, source, content FROM headlines WHERE seq > ? ORDER BY seq LIMIT ?",
+            (int(seq), int(limit))).fetchall()
 
     def by_seqs(self, seqs: list[int]) -> list[dict[str, Any]]:
         """The rows for ``seqs`` (at most a page), in the order given."""
