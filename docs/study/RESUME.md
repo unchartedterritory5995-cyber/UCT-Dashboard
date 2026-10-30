@@ -601,6 +601,22 @@ Method) drilled on real charts, with no AI at runtime, every item reviewed by th
   `docs/study/TRAINING_CORPUS.md` (owner: the whole module trains the brain). Owner still runs
   `apply_verdicts_gap_run.ps1`, `import_contrasts_run.ps1`, `retire_xom_sling_run.ps1`.
 
+- **2026-10-30 (later, branch feat/study-go-hourly-sitting off the cards branch, PR #538):** the owner said "do it all
+  autonomously"; the classifier still blocks `gh pr merge` and every pod write, so #478 and the imports stay his.
+  DONE WITHOUT HIM: (1) the 42 Go Signal verdict lines carry their pod item ids (read-only scan; 46 daily drafts on the
+  pod, all draft; WING 2026-10-27 is a pod draft never shown to the owner, no verdict line); six cuts recorded in
+  `retire_go_daily_cuts.json` + scratchpad `retire_go_daily_cuts_run.ps1`; the other daily drafts stay in draft until
+  the hourly charts are ruled. (2) BEAR GAP OFF THE HIGHS first draft (owner 2026-10-27 "will do bear gaps off the
+  highs"): `find_bear_gap_examples.py` (top within 80 sessions, prior close within 30% of it, FIRST true gap down
+  since the top, 2x volume, close down 6%+; NFLX 2022-01-21 is the seed and was 26% off its top, under both averages,
+  bounced to 60% of its range, so close position and trend are facts not gates), `gen_bear_gap_examples.py` ->
+  `bank/spot.bear_gaps.json` (39 drafts, skill `setup.family3.bear_gap` in unit SET.22; 37 gap_held + 2 contrast),
+  `bearGapOverlay.js` (gap-fill level gold, gap-day high faint), definition OWNER RULING PENDING. Owner imports with
+  scratchpad `import_bear_gaps_run.ps1` after this PR deploys. SEQUENCE: owner merges #478 -> web SUCCESS ->
+  `import_go_hourly_run.ps1` -> I capture the 40 hourly charts and grade four at a time; then owner merges this PR ->
+  web SUCCESS -> `import_bear_gaps_run.ps1` -> the bear-gap review. Still his: `apply_verdicts_gap_run.ps1`,
+  `import_contrasts_run.ps1`, `retire_xom_sling_run.ps1`, `retire_go_daily_cuts_run.ps1`.
+
 ## Owner review packet (Phase 0 — read in this order, one session)
 1. `docs/study/VOICE.md` — the voice rules derived from your Substack/Scans prose; §8 open items.
 2. `docs/study/UNITS-foundations.md` — 129 units; read "Gaps for the owner" (8 content gaps +
