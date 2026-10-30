@@ -21,8 +21,9 @@ This module mirrors exactly what `defSchema.js` accepts for:
 saves would strand a member at Save; the shared fixture
 `tests/fixtures/ast/p2_presentation_schema.json` holds both lanes to the same
 answer case by case, and both lanes rail their vocabulary against its `vocab`.
-Fields `defSchema` checks that are not listed above (legend, lineStyle, width,
-…) are not checked here -- narrower, never different.
+Fields `defSchema` checks that are not listed above (legend, lineStyle, …) are
+not checked here -- narrower, never different. A plot's `width` IS checked, for its
+ceiling only (`LINE_WIDTH_HARD_MAX`, the browser's `defSchema.LINE_WIDTH_HARD_MAX`).
 
 Every error is ``{path, code, message, fingerprint}``. ``fingerprint`` names the
 offending ENTRY (the paint, or the plot's own presentation), so the save door can
@@ -81,6 +82,27 @@ def _plot_fp(plot: Mapping[str, Any]) -> str:
 
 def _err(out: list, path: str, code: str, message: str, fp: str) -> None:
     out.append({"path": path, "code": code, "message": message, "fingerprint": fp})
+
+
+#: ⭐ A plot width's sanity ceiling, in px -- `defSchema.LINE_WIDTH_HARD_MAX` in the
+#: browser, held to it by `tests/fixtures/line_width_cap.json` (read by both suites).
+#: TradingView paints a Pine `linewidth` unclamped (set F: 1..10 is N px), so the door
+#: carries a script's own width; `linewidth = 10000` would smear the pane of everyone
+#: who installs a shared script.
+LINE_WIDTH_HARD_MAX = 50
+
+
+def _check_width(plot: Mapping, inputs: Mapping, path: str, fp: str, out: list) -> None:
+    """A plot's width -- a number, or a `$key` naming an input whose default is one
+    (`defSchema.substitute`) -- above the ceiling. Only the ceiling: everything else
+    about a width is `defSchema`'s, so this lane is never stricter than the browser."""
+    w = plot.get("width")
+    if isinstance(w, str) and w.startswith("$"):
+        spec = inputs.get(w[1:])
+        w = spec.get("default") if isinstance(spec, Mapping) else None
+    if _is_num(w) and w > LINE_WIDTH_HARD_MAX:
+        _err(out, f"{path}.width", "plot-width",
+             f"{path}.width: at most {LINE_WIDTH_HARD_MAX} px, got {w!r}", fp)
 
 
 def _check_marker(plot: Mapping, path: str, fp: str, out: list) -> None:
@@ -394,6 +416,9 @@ def presentation_errors(definition: Mapping[str, Any]) -> list:
     events = events if isinstance(events, list) else []
     columns = {p.get("key") for p in plots if isinstance(p, Mapping) and isinstance(p.get("key"), str)}
     columns |= {e.get("key") for e in events if isinstance(e, Mapping) and isinstance(e.get("key"), str)}
+    inputs = definition.get("inputs")
+    inputs = {i.get("key"): i for i in inputs if isinstance(i, Mapping) and isinstance(i.get("key"), str)} \
+        if isinstance(inputs, list) else {}
     for i, plot in enumerate(plots):
         if not isinstance(plot, Mapping):
             continue
@@ -407,6 +432,7 @@ def presentation_errors(definition: Mapping[str, Any]) -> list:
                  + ("SCHEMA-RESERVED for a later phase" if reserved else "unknown")
                  + f" -- buildable styles are {', '.join(PLOT_STYLES)}", fp)
         _check_marker(plot, path, fp, out)
+        _check_width(plot, inputs, path, fp, out)
         _check_plot_colour_fields(plot, path, fp, out)
         _check_color_mode(plot, path, fp, columns, out)
     _check_paints(definition.get("paints"), columns, out)
