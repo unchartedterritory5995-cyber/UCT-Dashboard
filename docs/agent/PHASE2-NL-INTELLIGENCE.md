@@ -83,3 +83,23 @@ and `agentGuideTarget.test.jsx` (D3).
 Note for Indicators (not changed here): the Indicators interface's own Undo of an add leaves bookkeeping in the stored
 settings (a tombstone, renumbered ids, `preset: "custom"`), also on master for a plain "add rsi" → "undo". Nothing
 the member sees differs.
+
+### Final live acceptance (2026-10-29): lowercase tickers in a chart grid
+
+"open daily charts for aapl msft nvda, each with a 50sma" (one BRCB daily chart on the board) answered "UCT Agent
+returned something unreadable".
+
+- **Root cause.** The chart-grid reader (`multiChart.js`) took only tickers typed in capitals or with `$`. With
+  lowercase tickers it read nothing, the multi-step planner had no grid step, and the request went to the model.
+- **What the server did.** It refused the model's reply (`_unreadable` → 400) before any plan reached the browser, so
+  nothing on the board changed. The `uct_agent unreadable: <reason>` log line from that time records which shape check
+  failed.
+- **Fix.** `gridTickers` also takes lowercase words in a grid sentence:
+  - only words left once the sentence's own words are removed;
+  - at most four letters, so a company name like "apple" stays with the model;
+  - only words that pass the shared N4 rule `plainSymbolWord`: not a word UCT knows or a typo of one, not a short typo
+    such as "teh", not a pronoun.
+- **Existence check.** The ticker search in `chartGrid.set` prepare still decides whether each ticker exists. An
+  unknown one refuses the whole grid by name, and nothing changes.
+- **Tests.** Regression tests in `agentAcceptanceP2.test.jsx`, under "the tickers typed in lowercase". Verified in the
+  real workspace (agent-harness): an equal 2×2 with no model call, and one Undo restored the single chart.

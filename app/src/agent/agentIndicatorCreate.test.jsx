@@ -9,9 +9,10 @@
 //   C2  the model's own extras (its Save with a name, with or without a chart add) never turn it into "Saving only"
 //   C3  four charts: the model's guess of the chart is never used — asked; the pick builds, saves and adds it, no card
 //   C4  a name the member already has stops at a ready draft; its save is then a card (nothing saved before Apply)
+//       #500: so does the same MATHS saved under any name (a legacy formula-style one too); "another" still makes a copy
 //   C5  failures: a malformed builder answer, a refused Save — nothing saved or added, nothing reported as done
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, cleanup, act } from '@testing-library/react'
 import { registerBuiltins } from './builtins'
 import { setAuthoringSources, _resetAuthoring } from './capabilities/indicatorAuthoring'
 import { _resetProposedPlans } from './capabilities/indicatorEdits'
@@ -21,6 +22,8 @@ import { storeConversation } from '../components/chart/builder/conversationSave'
 import { _simulateReload, STORAGE_KEY } from '../components/chart/builder/authoring/conversationSessions'
 import { _resetDraftPreview, AUTHORING_REASONS as AR } from '../components/chart/builder/agentAuthoring'
 import { CREATE_INDICATOR_FLAG_KEY } from '../components/chart/builder/studio/createIndicatorFlag'
+import { mutate } from 'swr'
+import { USER_DEFINITIONS_KEY } from '../hooks/useUserDefinitions'
 import { AuthContext } from '../context/AuthContext'
 
 vi.mock('../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
@@ -42,7 +45,7 @@ function converse({ message, state }) {
   if (builder.mode === 'malformed') return { ok: false, gate: 'envelope:schema', reason: 'the assistant\'s change did not follow the change format, so nothing was offered to apply' }
   if (builder.mode === 'lower-tf') return { ok: false, gate: 'unsupported:node', reason: 'it reads a lower timeframe; conversational authoring draws on the chart\'s own bars or a higher timeframe only' }
   return { ok: true, disposition: 'change', turn: 'patch', reply: '', envelope: { contract: PATCH, baseRevision: state.revision, assumptions: [], disposition: 'change',
-    ops: [{ op: 'create', name: 'EMA 9/20 % Diff', placement: 'pane', outputs: [{ key: 'diff', label: 'EMA 9/20 % Diff', tree: PCT }] }] } }
+    ops: [{ op: 'create', name: 'EMA 9/20 % Diff', placement: 'pane', outputs: [{ key: 'diff', label: 'EMA 9/20 % Diff', tree: builder.tree || PCT }] }] } }
 }
 // ── the definitions server ──
 let server
@@ -111,7 +114,7 @@ const build = (disposition, { chart = 0, save = null } = {}) => (b) => env(dispo
   { action: 'indicator.draft', target: newRef(b), args: { message: ASK, chart: chart == null ? null : b.context.charts[chart].ref, edit: null } },
   ...(save ? [{ action: 'indicator.saveDraft', target: newRef(b), args: { addTo: save.addTo ? [b.context.charts[chart].ref] : [], name: save.name ?? null } }] : []),
 ])
-const DONE = 'Done — created your indicator and added it to Chart (QQQ), in its own pane.'
+const DONE = 'Done — created your “EMA 9 vs EMA 20 %” indicator and added it to Chart (QQQ), in its own pane.'
 const summaries = () => screen.queryAllByTestId('agent-receipt-summary').map(e => e.textContent)
 const NEVER = /can’t check that approval|Saving only|Want me to apply it|There is no draft to save/
 
@@ -169,7 +172,7 @@ describe('C3 · a board of four charts', () => {
     expect(server.size).toBe(0)
     fireEvent.click(screen.getByRole('button', { name: 'Chart (NVDA)' }))
     await waitFor(() => expect(customOn(board, 'c2')).toHaveLength(1), { timeout: 12000 })
-    await waitFor(() => expect(summaries()).toContain('Done — created your indicator and added it to Chart (NVDA), in its own pane.'), { timeout: 8000 })
+    await waitFor(() => expect(summaries()).toContain('Done — created your “EMA 9 vs EMA 20 %” indicator and added it to Chart (NVDA), in its own pane.'), { timeout: 8000 })
     for (const id of ['c0', 'c1', 'c3']) expect(customOn(board, id)).toHaveLength(0)
     expect(server.size).toBe(1)
     expect(proposals()).toHaveLength(0)
@@ -186,15 +189,33 @@ describe('C3 · a board of four charts', () => {
   }, 30000)
 })
 
-// the name the builder's engine gives this formula (a formula-derived name — INDICATORS-LIVE-TEST-2026-10-28 handoff)
-const DRAFT_NAME = '(EMA 9 − EMA 20) ÷ EMA 20 × 100'
+// the name the builder's engine gives this formula (plain derived names, #500)
+const DRAFT_NAME = 'EMA 9 vs EMA 20 %'
+// #500: the name the SAME formula was saved under before plain names — a legacy auto name, kept as stored
+const LEGACY_NAME = '(EMA 9 − EMA 20) ÷ EMA 20 × 100'
+// a real saved definition (built and saved through the real builder and Save), then stored under `name`
+async function savedBefore(name, tree = PCT) {
+  builder.tree = tree
+  const { say } = mount(...ONE(), { decorate: label1 })
+  envelopes.push(build('propose'))
+  await say(ASK)
+  await waitFor(() => expect(summaries().join(' ')).toMatch(/Done — created your/), { timeout: 12000 })
+  const [row] = [...server.values()]
+  server.set(row.def_id, { ...row, definition: { ...row.definition, meta: { ...row.definition.meta, name } } })
+  // the member's saved rows are re-read from the server, so the next panel has the row exactly as stored
+  await act(() => mutate(USER_DEFINITIONS_KEY))
+  cleanup(); _simulateReload(); _resetAuthoring(); _resetDraftPreview(); _resetProposedPlans()
+  try { sessionStorage.removeItem(STORAGE_KEY) } catch { /* */ }
+  envelopes = []; calls = []; builder = { mode: 'ok', calls: [] }
+  return row.def_id
+}
 describe('C4 · confirmations that stay', () => {
   it('a name the member already has: stops at a ready draft (nothing saved, nothing added); "apply it" is then a card, nothing saved before Apply', async () => {
     server.set('u_existing0001', { def_id: 'u_existing0001', version: 1, rev: 1, definition: { id: 'u_existing0001', version: 1, meta: { name: DRAFT_NAME } } })
     const { board, say } = mount(...ONE(), { decorate: label1 })
     envelopes.push(build('propose'))
     await say(ASK)
-    await waitFor(() => expect(transcript()).toMatch(/Not saved or applied yet — you already have an indicator named “\(EMA 9 − EMA 20\) ÷ EMA 20 × 100”/), { timeout: 12000 })
+    await waitFor(() => expect(transcript()).toMatch(/Not saved or applied yet — you already have an indicator named “EMA 9 vs EMA 20 %”/), { timeout: 12000 })
     expect(server.size).toBe(1)
     expect(customOn(board, 'c')).toHaveLength(0)
     expect(summaries().join(' ')).not.toMatch(/^Done/)
@@ -203,6 +224,53 @@ describe('C4 · confirmations that stay', () => {
     expect(server.size).toBe(1)
     expect(customOn(board, 'c')).toHaveLength(0)
   }, 40000)
+
+  // #500 (owner ruling 2026-10-29): the same MATHS is the same indicator, whatever name it was saved under
+  it('the same maths saved before #500 under its legacy formula name: stops at a ready draft — nothing saved, nothing added; "apply it" is then a card', async () => {
+    await savedBefore(LEGACY_NAME)
+    const { board, say } = mount(...ONE(), { decorate: label1 })
+    envelopes.push(build('propose'))
+    await say(ASK)
+    await waitFor(() => expect(transcript()).toMatch(/Not saved or applied yet — you already have an indicator that calculates exactly this\. Say “apply it”/), { timeout: 12000 })
+    expect(transcript()).not.toMatch(/EMA 20 × 100/)                       // a formula-style name is never put in chat
+    expect(server.size).toBe(1)
+    expect(customOn(board, 'c')).toHaveLength(0)
+    expect(summaries().join(' ')).not.toMatch(/^Done/)
+    await say('apply it')
+    await waitFor(() => expect(proposals()).toHaveLength(1), { timeout: 8000 })
+    expect(server.size).toBe(1)
+  }, 60000)
+
+  it('the same maths under a plain name the member typed: the stop names it', async () => {
+    await savedBefore('My Trend Gap')
+    const { say } = mount(...ONE(), { decorate: label1 })
+    envelopes.push(build('propose'))
+    await say(ASK)
+    await waitFor(() => expect(transcript()).toMatch(/Not saved or applied yet — you already have an indicator that calculates exactly this \(“My Trend Gap”\)/), { timeout: 12000 })
+    expect(server.size).toBe(1)
+  }, 60000)
+
+  it('an explicit copy ("create another …") of the legacy-named one is still made: a second indicator, on the chart, no card', async () => {
+    const first = await savedBefore(LEGACY_NAME)
+    const { board, say } = mount(...ONE(), { decorate: label1 })
+    envelopes.push(build('propose'))
+    await say(ASK.replace('Create a custom indicator', 'Create another custom indicator'))
+    await waitFor(() => expect(summaries()).toContain(DONE), { timeout: 12000 })
+    expect(server.size).toBe(2)
+    expect(server.get(first).definition.meta.name).toBe(LEGACY_NAME)       // the saved one is never rewritten
+    expect(customOn(board, 'c')).toHaveLength(1)
+    expect(proposals()).toHaveLength(0)
+  }, 60000)
+
+  it('different maths (EMA 9 vs EMA 50) under a legacy formula name: no stop — built, saved and on the chart', async () => {
+    await savedBefore('(EMA 9 − EMA 50) ÷ EMA 50 × 100', op('*', op('/', op('-', E9, call('ema', close, num(50))), call('ema', close, num(50))), num(100)))
+    const { board, say } = mount(...ONE(), { decorate: label1 })
+    envelopes.push(build('propose'))
+    await say(ASK)
+    await waitFor(() => expect(summaries()).toContain(DONE), { timeout: 12000 })
+    expect(server.size).toBe(2)
+    expect(customOn(board, 'c')).toHaveLength(1)
+  }, 60000)
 })
 
 describe('C5 · failures are never reported as done', () => {

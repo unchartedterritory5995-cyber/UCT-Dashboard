@@ -82,8 +82,12 @@ describe('B1 — paints graded against the captures that record them', () => {
     // not compute (`computeFor` answers no column), so nothing is drawn. At the
     // script's defaults TradingView draws nothing there either (every bar `na`), so
     // the picture agrees; with the member's toggle ON it would not — counted, not hidden.
-    'btc-charlie-trader-xo-macro-trend-scanner-rddt-1d-2026-09-30.json': ['supply bar0 warmup=0', 'plot_14 notDrawn', 'plot_15 agree 634/634 painted=0', 'plot_16 notDrawn', 'plot_17 notDrawn', 'plot_6 agree 634/634 painted=8', 'plot_7 agree 634/634 painted=9', 'plot_10 agree 634/634 painted=349', 'plot_11 agree 634/634 painted=244'],
-    'btc-charlie-trader-xo-macro-trend-scanner-spy-1d-2026-10-03.json': ['supply warm vw-clock-close-tfchange-spy-1d-2026-09-28.json 6677 listing=on', 'plot_14 notDrawn', 'plot_15 agree 1800/1800 painted=0', 'plot_16 notDrawn', 'plot_17 notDrawn', 'plot_6 agree 1800/1800 painted=25', 'plot_7 agree 1800/1800 painted=24', 'plot_10 agree 1800/1800 painted=1286', 'plot_11 agree 1800/1800 painted=465'],
+    // ⭐ plot_15 (line 122): `maTypeChoice` is a LIVE dropdown knob now (`pine.js::
+    // enumCompare`), so its colour no longer folds to `na` at the default — the paint
+    // is carried, and on these bars its condition never holds, so it draws no bar.
+    // TradingView paints none (painted=0 before): the same nothing, now `notDrawn`.
+    'btc-charlie-trader-xo-macro-trend-scanner-rddt-1d-2026-09-30.json': ['supply bar0 warmup=0', 'plot_14 notDrawn', 'plot_15 notDrawn', 'plot_16 notDrawn', 'plot_17 notDrawn', 'plot_6 agree 634/634 painted=8', 'plot_7 agree 634/634 painted=9', 'plot_10 agree 634/634 painted=349', 'plot_11 agree 634/634 painted=244'],
+    'btc-charlie-trader-xo-macro-trend-scanner-spy-1d-2026-10-03.json': ['supply warm vw-clock-close-tfchange-spy-1d-2026-09-28.json 6677 listing=on', 'plot_14 notDrawn', 'plot_15 notDrawn', 'plot_16 notDrawn', 'plot_17 notDrawn', 'plot_6 agree 1800/1800 painted=25', 'plot_7 agree 1800/1800 painted=24', 'plot_10 agree 1800/1800 painted=1286', 'plot_11 agree 1800/1800 painted=465'],
     'deadband-hysteresis-filter-backquant-rddt-1d-2026-10-03.json': ['refused pine:state'],
     'elliott-wave-3-finder-v2-rddt-1d-2026-09-28.json': ['supply bar0 warmup=0', 'plot_2 agree 632/632 painted=65', 'plot_3 agree 632/632 painted=44'],
     'elliott-wave-3-finder-v2-spy-1d-2026-10-03.json': ['supply warm vw-clock-close-tfchange-spy-1d-2026-09-28.json 6677 listing=on', 'plot_2 agree 1800/1800 painted=140', 'plot_3 agree 1800/1800 painted=117'],

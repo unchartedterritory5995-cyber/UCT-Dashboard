@@ -72,13 +72,20 @@ describe('C29 — the gradient, bar for bar, on the vendor capture', () => {
     }
   })
 
-  it('`color.new(c, 70.5)` and `(c, 70.4)` hold 70 — truncated', () => {
+  it('`color.new(c, 70.5)` and `(c, 70.4)` READ BACK 70 — and paint their exact alpha', () => {
     for (const t of ['G17_new_red_70p5_t', 'G19_new_0064C8_70p5_t', 'G20_new_0064C8_70p4_t']) {
       expect(col(t).every((x) => x === 70), t).toBe(true)
     }
     expect(pineTransparency(70.5)).toBe(70)
     expect(pineTransparency(70.4)).toBe(70)
-    expect(withObjectTransparency('#0064C8', 70.5)).toBe(withObjectTransparency('#0064C8', 70))
+    // ⚰️ These two pinned the PAINT truncated too ("70.5 paints as 70"), an
+    // extrapolation no capture made: this probe plots `color.t`, the read-back. What
+    // TradingView PAINTS is the exact t (Uncharted Clouds capture A, `color.new(c,
+    // 87.5)` → alpha 32). So an object colour paints 70.5 at alpha 75 (0x4B), 70 at 77
+    // (0x4D) — and the translator's read-back component (`witnessedColourOf` →
+    // `hexToPacked`) still holds the whole 70, which is what `color.t` answers.
+    expect(withObjectTransparency('#0064C8', 70.5)).toBe('#0064C84B')
+    expect(withObjectTransparency('#0064C8', 70)).toBe('#0064C84D')
     expect(tOf(hexToPacked('#0064C8', 70.5))).toBe(70)
   })
 

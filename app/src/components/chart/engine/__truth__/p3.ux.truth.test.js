@@ -2,7 +2,7 @@
 // REFUSAL ARE STILL THE DEFINITION'S OWN WORDS.
 //
 // Every case states ASKED / CLAIMED / DID and its outcome class. "Before" is the
-// P2 readback (engineer voice): "RSI 14 > 70 (value) — a yes/no on every bar: 1
+// P2 readback (engineer voice): "RSI 14 above 70 (value) — a yes/no on every bar: 1
 // when (the 14-bar RSI of close) is greater than 70 and 0 otherwise", "Look:
 // candles painted #FFD700 where value is true …", "How unknown bars are treated
 // is decided by the server when you save." on every readback, and refusals
@@ -43,7 +43,7 @@ const create = (src, extra = {}) => (s) => env(s, [{ op: 'create', name: 'x', ou
 describe('P3 UX — the readback says the definition in a trader\'s words', () => {
   it('1 COMPARISON — ASKED "RSI overbought"; CLAIMED (before) "1 when (…) is greater than 70 and 0 otherwise"; DID (now) "true when the 14-bar RSI of close is above 70" (EXACT)', () => {
     const { rb } = run([create('rsi(close, 14) > 70')])
-    expect(rb.lines[1]).toBe('RSI 14 > 70 — true when the 14-bar RSI of close is above 70')
+    expect(rb.lines[1]).toBe('RSI 14 above 70 — true when the 14-bar RSI of close is above 70')
     // the exact engine sentence is kept on the output for every other reader
     expect(rb.outputs[0].sentence).toBe('1 when (the 14-bar RSI of close) is greater than 70 and 0 otherwise')
     expect(rb.lines.join('\n')).not.toMatch(/\(value\)|0 otherwise/)
@@ -94,8 +94,8 @@ describe('P3 UX — the readback says the definition in a trader\'s words', () =
     const { rb } = run([create('rsi(close, 14) > 70'),
       (s) => env(s, [{ op: 'set_paint', output: 'value', channel: 'barcolor', color: '#FFD700' }]),
       (s) => env(s, [{ op: 'set_paint', output: 'value', channel: 'bgcolor', color: '#123456' }])])
-    expect(rb.lines).toContain('Look: candles painted gold where RSI 14 > 70 is true (normal colour otherwise)')
-    expect(rb.lines).toContain('Look: background shaded #123456 where RSI 14 > 70 is true (no shading otherwise)')
+    expect(rb.lines).toContain('Look: candles painted gold where RSI 14 above 70 is true (normal colour otherwise)')
+    expect(rb.lines).toContain('Look: background shaded #123456 where RSI 14 above 70 is true (no shading otherwise)')
   })
 
   it('7 UNKNOWN BARS — CLAIMED (before) "decided by the server" on EVERY readback; DID: the rule the store will apply, said as what shows, only where a comparison exists (EXACT)', () => {
@@ -124,13 +124,13 @@ describe('P3 UX — the readback says the definition in a trader\'s words', () =
       (s) => env(s, [{ op: 'request_alert', output: 'value', triggerPolicy: 'becomes_true' }]),
       (s) => env(s, [{ op: 'add_output', key: 'rsi', tree: P('rsi(close, 14)'), label: 'RSI' }, { op: 'request_info_value', output: 'rsi', format: 'auto' }])])
     expect(rb.lines).toEqual([
-      'Name: RSI 14 > 70 · RSI 14',
-      'RSI 14 > 70 — true when the 14-bar RSI of close is above 70',
+      'Name: RSI 14 above 70 · RSI 14',
+      'RSI 14 above 70 — true when the 14-bar RSI of close is above 70',
       'RSI 14 — a number on every bar: the 14-bar RSI of close',
-      'Look: RSI 14 > 70: UCT gold circle above the bar where it is true',
+      'Look: RSI 14 above 70: UCT gold circle above the bar where it is true',
       'Look: RSI 14: UCT gold line, width 1',
       'Look: drawn in its own pane',
-      'Alert when RSI 14 > 70 becomes true',
+      'Alert when RSI 14 above 70 becomes true',
       'Chart header shows the latest value of RSI 14',
       SEMANTICS_LINE,
     ])

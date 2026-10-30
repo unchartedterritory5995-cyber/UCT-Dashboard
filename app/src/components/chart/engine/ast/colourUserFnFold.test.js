@@ -56,8 +56,14 @@ const transparencyAt = (k) => {
   const b = MAX_T - STEP * k
   return Math.min(b + (100 - b) * (USER_T / 100), 100)
 }
-// ⭐ C29 — Pine holds a WHOLE transparency, truncated (measured, `vw-gradient-spy-1d-2026-09-30`).
-const opacityAt = (k) => Math.max(0, Math.min(1, 1 - wholeTransparency(transparencyAt(k)) / 100))
+// ⛔⛔ THE EXACT TRANSPARENCY, NOT A WHOLE ONE. This truncated (`wholeTransparency`,
+// C29) — but C29 measured what `color.t` READS BACK; what a colour PAINTS is the
+// exact float. TradingView paints Clouds' band 1 (`color.new(c, 92.5)`) alpha 19 and
+// band 3 (87.5) alpha 32 — `round((1 − t/100) × 255)` on the exact t; truncated they
+// are 20 and 33 (captures A/D, `vendorHarness.cloudsDrawParity.test.js`).
+const opacityAt = (k) => Math.max(0, Math.min(1, 1 - transparencyAt(k) / 100))
+// …and the read-back half of C29 still truncates: `color.t` of the same colour.
+const colourTAt = (k) => wholeTransparency(transparencyAt(k))
 
 describe('R35d — color.t of a static colour folds to its transparency', () => {
   it('⛔⛔ NON-VACUITY — the shape under test really is unfoldable today', () => {
@@ -144,7 +150,18 @@ describe('R35c — a single-expression colour helper is substituted and re-walke
     }
     // …and the three must DIFFER, or a flat band would satisfy the line above.
     const seen = new Set([0, 10, 19].map((k) => fills[k].opacity))
+    // ⛔ and an ODD layer is the fractional one (92.5, 87.5, …): truncation would
+    // land it on the whole percent below. Layer 1 must be 0.075, not 0.07/0.08.
+    expect(fills[1].opacity, 'layer 1 (t = 92.5) alpha').toBeCloseTo(0.075, 12)
     expect(seen.size, 'the per-layer gradient is flat — the feature is lost').toBe(3)
+  })
+
+  it('C29 STILL HOLDS FOR THE READ-BACK: color.t of a fractional colour is whole', () => {
+    // The paint is exact (above); what `color.t` ANSWERS is truncated, measured.
+    const t = transparencyAt(3) // 87.5
+    const { p } = presOf(`${HEAD}plot(close, "A", color = color.new(#112233, color.t(color.new(color.teal, ${t}))))\n`)
+    expect(colourTAt(3)).toBe(87)
+    expect(p.opacity, 'color.t must read the whole 87, so this paints 13% opaque').toBeCloseTo(1 - colourTAt(3) / 100, 12)
   })
 
   it('⛔ CLOUDS — the two branches are the author\'s bull and bear colours', () => {

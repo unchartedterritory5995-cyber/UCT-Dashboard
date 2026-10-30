@@ -246,7 +246,7 @@ describe('labels — the dock shows the authored name in full', () => {
     mount()
     await say('Build an RSI overbought signal')
     const name = screen.getByTestId('create-indicator-name')
-    expect(name.textContent).toMatch(/^RSI 14 . 70$/)
+    expect(name.textContent).toMatch(/^RSI 14 above 70$/) // the plain name (2026-10-29), read whole
     expect(name.getAttribute('title')).toBe(name.textContent)
   })
 })

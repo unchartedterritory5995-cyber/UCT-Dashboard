@@ -34,16 +34,17 @@ import { describe, it, expect } from 'vitest'
 import { createBinder } from '../binder'
 import { createFakeChart, createRecordingCtx, drawPrimitive } from './fakeChart'
 import { createFillPrimitive, fillRuns } from '../fillPrimitive'
-import { withAlpha } from '../../designTokens'
+import { fillPaint } from '../fillPaint'
 
 // ⚰️ THE STATIC CONTROLS WERE FIRST WRITTEN AGAINST `'#0000FF'` AND THAT WAS A
 // GUESS, NOT A MEASUREMENT — the shipped path puts the colour through
-// `withAlpha`, which answers `rgba(0, 0, 255, 1)`. A control that pins a value
+// `fillPaint` (it was `withAlpha`, which answered `rgba(0, 0, 255, 1)`; at
+// opacity 1 `fillPaint` hands the colour back unchanged). A control that pins a value
 // nobody measured fails on its first run and teaches the author to "fix" the
 // code to match it. It goes through the SAME helper the renderer does, so the
 // control pins the PATH rather than restating that function's output format,
 // which would be a second authority over one string.
-const STATIC_DRAWN = withAlpha('#0000FF', 1)
+const STATIC_DRAWN = fillPaint('#0000FF', 1)
 
 const UP = '#00AA00'
 const DOWN = '#AA0000'
@@ -66,6 +67,14 @@ const COND_NA = [1, 1, 1, 0, NaN, 0, 1]
  *  at all. Written here as the expectation; j.3 makes the binder produce it. */
 const coloursFor = (cond) => cond.map((c) => (Number.isFinite(c) ? (c !== 0 ? UP : DOWN) : null))
 
+/** A host series HOLDING values, as every real band host does: lightweight-charts
+ *  (and the fake, matching it) maps no price on an empty series. */
+function hostWithValues(fake) {
+  const series = fake.chart.addSeries(fake.LWC.LineSeries, {}, 0)
+  series.setData(TIMES.map((t, i) => ({ time: t, value: UPPER[i] })))
+  return series
+}
+
 function drawWith(opts) {
   const fake = createFakeChart()
   const rec = createRecordingCtx()
@@ -74,7 +83,7 @@ function drawWith(opts) {
   })
   drawPrimitive(primitive, {
     chart: fake.chart,
-    series: fake.seriesCreated[0] || fake.chart.addSeries(fake.LWC.LineSeries, {}, 0),
+    series: fake.seriesCreated[0] || hostWithValues(fake),
     recorder: rec,
   })
   return rec
@@ -270,8 +279,8 @@ describe('the compounding fix — erase-then-paint, never fill-on-fill', () => {
       // translucent erase would only PARTIALLY clear what a prior draw left,
       // which is the exact compounding this fix removes. A bare 3-digit hex
       // literal cannot itself carry an alpha channel, so this is a real check,
-      // not a restatement: `withAlpha` on anything BUT full opacity would
-      // produce an `rgba(...)` string, never survive as a plain hex triplet.
+      // not a restatement: `fillPaint` on anything BUT full opacity produces an
+      // 8-digit `#RRGGBBAA`, never a plain 3- or 6-digit hex.
       expect(fills[i].style, 'the erase pass is a plain opaque hex colour')
         .toMatch(/^#[0-9a-f]{3,6}$/i)
     }
@@ -301,7 +310,7 @@ describe('the compounding fix — erase-then-paint, never fill-on-fill', () => {
     // chained layers' thin bands land on the same pixels.
     const fake = createFakeChart()
     const rec = createRecordingCtx()
-    const series = fake.chart.addSeries(fake.LWC.LineSeries, {}, 0)
+    const series = hostWithValues(fake)
     const layerA = createFillPrimitive({ upper: UPPER, lower: LOWER, times: TIMES, color: '#111111', opacity: 0.3 })
     const layerB = createFillPrimitive({ upper: UPPER, lower: LOWER, times: TIMES, color: '#222222', opacity: 0.3 })
     drawPrimitive(layerA.primitive, { chart: fake.chart, series, recorder: rec })
@@ -314,7 +323,7 @@ describe('the compounding fix — erase-then-paint, never fill-on-fill', () => {
     expect(fills[3].compositeOp).toBe('source-over')
     // Layer B's own paint is UNCHANGED by what layer A drew — no accumulated
     // opacity, no third colour. This is the property compounding breaks.
-    expect(rec.fillStyles()).toEqual([withAlpha('#111111', 0.3), withAlpha('#222222', 0.3)])
+    expect(rec.fillStyles()).toEqual([fillPaint('#111111', 0.3), fillPaint('#222222', 0.3)])
   })
 })
 
@@ -398,9 +407,9 @@ describe('(j) j.3 — the fill is handed to the SAME colour reader a plot is', (
     // leaves every case above green, because none of those fixtures declares an
     // opacity and the two routes therefore agree.
     //
-    // ⭐ `twoColoursOf` is what folds a fill's `opacity` into BOTH colours, and it
-    // is the whole reason the fill is handed to the plot's reader rather than read
-    // field by field. Skipping it ships a cloud at full strength over the candles
+    // ⭐ `binder.bandColoursFor` is what folds the band's opacity into BOTH colours
+    // (through `fillPaint`, the one authority the static band also paints through).
+    // Skipping it ships a cloud at full strength over the candles
     // it is meant to sit BEHIND — a band that hides the indicator it annotates,
     // which is the same failure `zOrder: 'bottom'` exists to prevent, arriving by
     // a different door and visible only on a chart.
@@ -410,7 +419,12 @@ describe('(j) j.3 — the fill is handed to the SAME colour reader a plot is', (
     // that reads one run would call it fixed.
     const def = dynamicCloud('u_alpha')
     const owner = def.plots.find((p) => p.fill)
-    owner.fill.opacity = 0.2
+    // ⚰️ THIS SET `owner.fill.opacity` — A SHAPE NO DOOR WRITES. Every door (the
+    // member pane's Pine translation, the Builder sheet, the authoring model) puts
+    // a band's opacity on the PLOT as `fillOpacity`, so this rail was green while
+    // every real conditional band painted opaque (Uncharted Clouds, 20/20 bands vs
+    // TradingView). It now sets the field a member's document actually carries.
+    owner.fillOpacity = 0.2
     const { fake, attached } = bind(def)
     const rec = createRecordingCtx()
     drawPrimitive(attached[0].args[0], {
@@ -418,10 +432,11 @@ describe('(j) j.3 — the fill is handed to the SAME colour reader a plot is', (
       series: fake.seriesCreated[0],
       recorder: rec,
     })
-    // `withAlpha` MULTIPLIES through, so these are the measured strings, derived
-    // from the same helper the renderer uses rather than typed out here.
+    // Derived from the same helper the renderer uses rather than typed out here.
     expect(rec.fillStyles(), 'the fill\'s alpha reached neither colour')
-      .toEqual([withAlpha(UP, 0.2), withAlpha(DOWN, 0.2), withAlpha(UP, 0.2)])
+      .toEqual([fillPaint(UP, 0.2), fillPaint(DOWN, 0.2), fillPaint(UP, 0.2)])
+    // …and the byte is TradingView's: round(0.2 × 255) = 51 = 0x33.
+    expect(rec.fillStyles()[0]).toBe('#00AA0033')
     // …and the control: with NO opacity the colours are untouched, so the
     // assertion above is about the alpha and not about the colours in general.
     const plain = bind(dynamicCloud('u_plain'))
@@ -433,5 +448,17 @@ describe('(j) j.3 — the fill is handed to the SAME colour reader a plot is', (
     })
     expect(rec2.fillStyles(), 'a fill declaring no opacity must draw its colours verbatim')
       .toEqual([UP, DOWN, UP])
+    // ⛔ …and the dead spelling stays dead: an opacity on the SPEC is not a second
+    // authority over the band's alpha (it is stripped before the colour rule reads it).
+    const stray = dynamicCloud('u_stray')
+    stray.plots.find((p) => p.fill).fill.opacity = 0.2
+    const strayBound = bind(stray)
+    const rec3 = createRecordingCtx()
+    drawPrimitive(strayBound.attached[0].args[0], {
+      chart: strayBound.fake.chart,
+      series: strayBound.fake.seriesCreated[0],
+      recorder: rec3,
+    })
+    expect(rec3.fillStyles(), 'fill.opacity is not a document field').toEqual([UP, DOWN, UP])
   })
 })

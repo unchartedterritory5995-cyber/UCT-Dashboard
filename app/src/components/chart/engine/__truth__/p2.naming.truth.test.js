@@ -53,14 +53,14 @@ describe('P2 naming — derived names follow the maths; custom names stay custom
 
   it('4 CREATE RSI 14 > 70 — DID: deterministic name RSI 14 > 70 (not the model\'s "RSI overbought")', () => {
     const s = turn(newAuthoringState(), [{ op: 'create', name: 'RSI overbought', outputs: [{ tree: op('>', call('rsi', ser('close'), num(14)), num(70)) }] }])
-    expect(name(s)).toBe('RSI 14 > 70')
+    expect(name(s)).toBe('RSI 14 above 70')
   })
 
   it('5 THRESHOLD 70 → 80 — DID: the threshold is part of the name, so the name follows', () => {
     let s = turn(newAuthoringState(), [{ op: 'create', name: 'x', outputs: [{ tree: op('>', call('rsi', ser('close'), num(14)), num(70)) }] }])
     s = turn(s, [{ op: 'set_slot', slot: 'value#1', value: 80 }])
     expect(s.working.compute.source).toBe('rsi(close, 14) > 80')
-    expect(name(s)).toBe('RSI 14 > 80')
+    expect(name(s)).toBe('RSI 14 above 80')
   })
 
   it('6 EXPLICIT RENAME then MATHS EDIT — DID: "My Trend Line" survives "make the EMA 50"', () => {
@@ -116,16 +116,16 @@ describe('P2 naming — derived names follow the maths; custom names stay custom
     let s = turn(newAuthoringState(), [{ op: 'create', name: 'x', outputs: [
       { key: 'value', tree: op('>', call('rsi', ser('close'), num(14)), num(70)) },
       { key: 'rsi', tree: call('rsi', ser('close'), num(14)), label: 'RSI' }] }])
-    expect(name(s)).toBe('RSI 14 > 70 · RSI 14')
+    expect(name(s)).toBe('RSI 14 above 70 · RSI 14')
     expect(s.working.plots.find((p) => p.key === 'rsi').label).toBe('RSI 14')
     s = turn(s, [{ op: 'set_slot', slot: 'rsi#1', value: 21 }])
-    expect(name(s)).toBe('RSI 14 > 70 · RSI 21')
+    expect(name(s)).toBe('RSI 14 above 70 · RSI 21')
     expect(s.working.plots.find((p) => p.key === 'rsi').label).toBe('RSI 21')
     // a custom output label is kept through its own maths edit
     s = turn(s, [{ op: 'rename_output', output: 'rsi', label: 'Momentum' }])
     s = turn(s, [{ op: 'set_slot', slot: 'rsi#1', value: 9 }])
     expect(s.working.plots.find((p) => p.key === 'rsi').label).toBe('Momentum')
-    expect(name(s)).toBe('RSI 14 > 70 · RSI 9')
+    expect(name(s)).toBe('RSI 14 above 70 · RSI 9')
   })
 
   it('READBACK CONSISTENCY — after every turn, name / formula / type / presentation all describe the SAME definition', () => {

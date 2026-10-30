@@ -41,6 +41,7 @@
 import { useState, useRef, useEffect, useLayoutEffect, useMemo, useCallback, useId } from 'react'
 import Sheet from '../mobile/Sheet'
 import ColorPicker, { PORTAL_POPUP_ATTR } from './ColorPicker'
+import { effectiveColourFor } from './engine/pool'
 import { fieldsForInstance, evalActiveWhen } from './indicatorRegistry'
 import { findInstance, setInstanceInput, setInstanceHidden,
          setInstanceDisplayTarget } from './engine/instanceControls'
@@ -463,7 +464,12 @@ export default function IndicatorSettingsDialog({ open, instanceId, settings, on
             // it is rendered as visible row text above instead, which every user
             // can read. Named rather than quietly dropped.
             <ColorPicker
-              value={value} title={field.label} disabled={!active}
+              // ⭐⭐ COLOUR + OPACITY for a PINE script's colour: a pick is the whole
+              // colour, alpha included, as TradingView's style colour is. A native
+              // indicator keeps the plain picker (its `opacity` is its own multiplier).
+              withOpacity={!!(def && def.meta && def.meta.recurrenceOrigin === 'pine')}
+              // ⭐ the EFFECTIVE colour: an old-shape default shows its stored alpha
+              value={effectiveColourFor(def, field.key, value)} title={field.label} disabled={!active}
               onChange={(hex) => { setDraft((d) => ({ ...d, [field.key]: hex })); schedule(field.key, hex) }}
             />
           )}

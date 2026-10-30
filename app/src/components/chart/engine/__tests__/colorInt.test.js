@@ -15,7 +15,7 @@ import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 
-import { unpackColor, unpackColorRgbOrder, toCss, packColor, BYTE_ORDER } from '../colorInt'
+import { unpackColor, unpackVendorColor, unpackColorRgbOrder, toCss, packColor, BYTE_ORDER } from '../colorInt'
 import { PALETTE_BY_VERSION } from '../pinePalette.js'
 
 // The v6 named colours, from the one palette authority. (This came from
@@ -60,7 +60,20 @@ describe('⛔ RULE 3 — the colorer integer is 0xTTBBGGRR, not 0xTTRRGGBB', () 
     const c = unpackColor(226597128)          // 0x0D819908
     expect(c.hex).toBe('#089981')
     expect(c.hex.toLowerCase()).toBe(COLOR_V6.teal.toLowerCase())
-    expect(c.transparencyByte).toBe(13)
+    // ⚰️ This asserted `unpackColor(…).transparencyByte` 13 — the ENGINE word's
+    // reading of a VENDOR word. TradingView's high byte is OPACITY: 13/255 is 5%
+    // opaque, the script's `maxTransparency = 95` on band 0.
+    const v = unpackVendorColor(226597128)
+    expect(v.hex).toBe('#089981')
+    expect(v.alphaByte).toBe(13)
+    expect(v.alphaByte).toBe(Math.round((1 - 95 / 100) * 255))
+  })
+
+  it("the vendor high byte is OPACITY — the capture's own inputs say so", () => {
+    // The study title carries the inputs as TradingView integers: `color.teal`
+    // (opaque) and `color.new(color.white, 100)` (invisible).
+    expect(unpackVendorColor(4286683400)).toMatchObject({ hex: '#089981', alphaByte: 255 })
+    expect(unpackVendorColor(16777215)).toMatchObject({ hex: '#FFFFFF', alphaByte: 0 })
   })
 
   it('THE TELL: the reversed reading lands on a colour that is in no palette', () => {
@@ -132,16 +145,23 @@ describe('⚠️ transparency is not alpha — they run in opposite directions',
     expect(c.alpha).toBe(0)
   })
 
-  it('the Clouds gradient fades AWAY from the fast MA, monotonically', () => {
+  it('the Clouds gradient grows MORE OPAQUE toward the slow MA — byte for byte the script', () => {
+    // ⚰️ This read the vendor byte as transparency and concluded the cloud "fades
+    // AWAY from the fast MA". The script says the opposite: band k is
+    // `color.new(c, 95 − 2.5k)`, 5% opaque at the fast MA, 52.5% at the slow one.
     const r = rows[rows.length - 1]
-    const t = BAND_COLOURS.map((c) => unpackColor(r[c]).transparencyByte)
-    expect(t[0]).toBeLessThan(t[t.length - 1])
-    for (let i = 1; i < t.length; i += 1) expect(t[i]).toBeGreaterThan(t[i - 1])
+    const a = BAND_COLOURS.map((c) => unpackVendorColor(r[c]).alphaByte)
+    expect(a).toEqual(BAND_COLOURS.map((_, k) => Math.round((1 - (95 - 2.5 * k) / 100) * 255)))
+    for (let i = 1; i < a.length; i += 1) expect(a[i]).toBeGreaterThan(a[i - 1])
   })
 
   it('toCss emits a bare hex when opaque and rgba when not', () => {
     expect(toCss(packColor({ r: 8, g: 153, b: 129, transparencyByte: 0 }))).toBe('#089981')
-    expect(toCss(226597128)).toMatch(/^rgba\(8, 153, 129, 0\.949/)
+    // ⚰️ This fed the VENDOR integer 226597128 to the engine-word `toCss` and
+    // pinned 0.949 — the inverted alpha. The engine word for the same paint holds
+    // transparency `255 − 13 = 242`, and both decoders then agree on 5%.
+    expect(toCss(packColor({ r: 8, g: 153, b: 129, transparencyByte: 242 }))).toBe('rgba(8, 153, 129, 0.051)')
+    expect(unpackVendorColor(226597128).alpha).toBeCloseTo(13 / 255, 12)
   })
 })
 
@@ -162,7 +182,11 @@ describe('packing and edges', () => {
     const r = rows[rows.length - 1]
     expect(unpackColor(r['uncharted_clouds.plot_1']).hex).toBe('#FFFFFF')
     expect(unpackColor(r['uncharted_clouds.plot_3']).hex).toBe('#FFFFFF')
-    expect(unpackColor(r['uncharted_clouds.plot_1']).transparencyByte).toBe(0)
+    // ⚰️ This pinned plot_1's high byte 0 as "opaque". It is the vendor's OPACITY
+    // byte: the fast MA is `color.new(color.white, 100)` (invisible) and the slow
+    // MA `color.new(color.white, 95)` (13/255).
+    expect(unpackVendorColor(r['uncharted_clouds.plot_1']).alphaByte).toBe(0)
+    expect(unpackVendorColor(r['uncharted_clouds.plot_3']).alphaByte).toBe(13)
   })
 
   it('refuses a non-number instead of decoding NaN into a colour', () => {
