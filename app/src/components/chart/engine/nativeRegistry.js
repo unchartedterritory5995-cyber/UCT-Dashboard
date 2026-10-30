@@ -90,6 +90,7 @@ import {
 // which is a fact `__tests__/enumerationSites.test.js` asserts by walking
 // IMPORTS rather than by grepping for a name (a plain substring search for these
 // on this branch returned ten matches and every one was prose in a comment).
+import { migrateMemberDocument } from './memberDocumentMigration.js'
 import { interpret } from './ast/interpret'
 import { ENGINE_ERROR, isRefusal } from './ast/parse'
 // ⭐⭐ THE BIND STAGE, WIRED HERE FOR THE SAME REASON THE NOTE ABOVE GIVES:
@@ -2829,6 +2830,49 @@ export function resolveInputs(def, inputs) {
   return out
 }
 
+/**
+ * ⭐⭐ THE SCALARS A TREE READS: `resolveInputs`, with every TEXT enum handed over
+ * as its option's INDEX.
+ *
+ * A tree has no strings (`pine.js::enumCompare` writes `kind == 1` for Pine's
+ * `kind == "SMA"`), so an `enum` input whose options are text reaches it as the
+ * position of the member's pick. The INSTANCE keeps the text — what the dropdown
+ * shows and what `defSchema` validates — and only the evaluation scope sees the
+ * number.
+ *
+ * ⭐⭐ ONE RULE, SHARED WITH THE SERVER (`api/services/alert_user_series._inputs_for`),
+ * pinned by ONE fixture both suites read (`tests/fixtures/enum_input_parity.json`):
+ *   • a value that IS one of the options → that option's index;
+ *   • anything else — unknown text, a number, null, a boolean — → the DEFAULT's index;
+ *   • a default that is not among the options → index 0. (Pine refuses to compile
+ *     such a script, so the door never mints one; this guards a hand-made document.)
+ * ⚰️ An unknown value used to pass through as text, the tree compared text with a
+ * number, and EVERY `kind == i` was false — the script's else arm, which the server
+ * did not agree with (it took the default).
+ * ⛔ Only for the TREE lanes: a native's enum (`lineStyle: 'dashed'`) is text its
+ * compute reads as text, and `resolveInputs` stays exactly what it was.
+ */
+export function enumIndexOf(input, value) {
+  const opts = Array.isArray(input && input.options) ? input.options.map((o) => (Array.isArray(o) ? o[0] : o)) : []
+  if (!opts.length || !opts.every((o) => typeof o === 'string')) return null
+  const at = typeof value === 'string' ? opts.indexOf(value) : -1
+  if (at >= 0) return at
+  const def = opts.indexOf(input.default)
+  return def >= 0 ? def : 0
+}
+
+export function treeScalars(def, scalars) {
+  let out = scalars
+  for (const input of def?.inputs || []) {
+    if (!input || input.type !== 'enum' || typeof input.key !== 'string') continue
+    const i = enumIndexOf(input, scalars[input.key])
+    if (i === null) continue
+    if (out === scalars) out = { ...scalars }
+    out[input.key] = i
+  }
+  return out
+}
+
 // ─── public surface ──────────────────────────────────────────────────────────
 
 /**
@@ -3018,7 +3062,7 @@ export function computeFor(def, bars, inputs, ctx) {
   // for a native that lost its function and wrong for a definition that never
   // had one.
   if (def?.compute?.kind === 'ast') {
-    return astColumnsFor(def, Array.isArray(bars) ? bars : [], resolveInputs(def, inputs), ctx)
+    return astColumnsFor(def, Array.isArray(bars) ? bars : [], treeScalars(def, resolveInputs(def, inputs)), ctx)
   }
   const fn = NATIVE_COMPUTE[def?.compute?.fn]
   if (!fn) {
@@ -3585,7 +3629,11 @@ export function validateAstLane(def) {
  * @returns {{defs: object[], errors: string[]}}
  */
 export function validateUserDefinitions(rawDefs) {
-  const base = registerDefinitions(rawDefs)
+  // ⭐⭐ A SAVED MEMBER DOCUMENT GETS TODAY'S BEHAVIOUR ON LOAD — pure, deterministic,
+  // idempotent (`memberDocumentMigration.js`): a condition column its parameter
+  // manifest never placed, and a handle an old parameter edit left stale. Never a
+  // server-side write: the stored row is untouched; only what this tab installs moves.
+  const base = registerDefinitions(Array.isArray(rawDefs) ? rawDefs.map(migrateMemberDocument) : rawDefs)
   const errors = [...base.errors]
   const defs = []
   // ⭐ RF — the ids refused because the server lists them (`runtimeKilled` or

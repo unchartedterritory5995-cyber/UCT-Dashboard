@@ -257,7 +257,11 @@ export function hexToPacked(hex, transparency = 0) {
  *  through a hex string is three more chances to reorder them. */
 function withTransparency(packed, transparency) {
   const v = Number(packed) >>> 0
-  const byte = transparencyToByte(pineTransparency(transparency))
+  // ⛔⛔ THE PAINT IS THE EXACT TRANSPARENCY (`round((1 − t/100) × 255)` on the
+  // exact t — TradingView, Uncharted Clouds capture A: `color.new(c, 87.5)` is
+  // alpha 32). This VM has no `color.t`; the read-back C29 measured (70.5 → 70) is
+  // the translator's (`pine.js::colourTransparencyOf`, `witnessedColourOf`).
+  const byte = transparencyToByte(transparency)
   return (((byte << 24) >>> 0) + (v & 0x00ffffff)) >>> 0
 }
 
@@ -313,7 +317,7 @@ export const COLOUR_FNS = Object.freeze({
     minArgs: 3,
     maxArgs: 4,
     fn: (a) => (a.some((x) => Number.isNaN(Number(x))) ? NaN : packColor({
-      r: a[0], g: a[1], b: a[2], transparencyByte: transparencyToByte(pineTransparency(a.length > 3 ? a[3] : 0)),
+      r: a[0], g: a[1], b: a[2], transparencyByte: transparencyToByte(a.length > 3 ? a[3] : 0),
     })),
   },
   // ⭐⭐ C18 — `color.from_gradient(value, bottom, top, bottomColour, topColour)`

@@ -31,7 +31,7 @@ import {
 import { barIndexClass } from './ast/barIndexShift'
 import { RECURRENCES } from './ast/parse.js'
 import {
-  resolveInputs, bindConstsFor, historyFromListingFor, listingOptsFor, barIndexAbsoluteFor, otherSymbolsFor, lowerTfFor, computeFor,
+  resolveInputs, treeScalars, bindConstsFor, historyFromListingFor, listingOptsFor, barIndexAbsoluteFor, otherSymbolsFor, lowerTfFor, computeFor,
   runtimeErrorStopOf,
 } from './nativeRegistry'
 import { periodReadsObjectRefusal } from './periodReads'
@@ -569,7 +569,7 @@ export function objectReaderFor(definition, bars, opts = {}) {
   }
   // ⭐ ONE RESOLUTION FOR BOTH FORMS, and it is the PLOT lane's function — an
   // object's coordinate and the plot beside it now read the same knob.
-  const inputs = resolveInputs(definition, opts.inputs)
+  const inputs = treeScalars(definition, resolveInputs(definition, opts.inputs))
   // ⭐⭐ R2 STEP 6 — THE BIND-TIME FOLD REACHES THE OBJECT LANE, from the same
   // assembly the PLOT lane uses.
   //

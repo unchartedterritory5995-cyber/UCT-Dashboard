@@ -37,14 +37,15 @@ describe('no colour at all is TradingView\'s default', () => {
 
   it('⭐ v3 draws it at 35% transparency', () => {
     const [p] = build(3, 'plot(close)')
-    expect(p.color).toBe(DEFAULT_SERIES_COLOUR)
-    expect(p.opacity).toBeCloseTo(0.65, 10)
+    // ⭐ the alpha rides in the colour now (`memberPaneDefinition::rowColour`)
+    expect(p.color).toBe(`${DEFAULT_SERIES_COLOUR}${Math.round(0.65 * 255).toString(16).toUpperCase()}`)
+    expect(p.opacity).toBeUndefined()
   })
 
   it('⛔ v3 with the author\'s own transp keeps the author\'s transparency', () => {
     const [p] = build(3, 'plot(close, transp=80)')
-    expect(p.color).toBe(DEFAULT_SERIES_COLOUR)
-    expect(p.opacity).toBeCloseTo(0.2, 10)
+    expect(p.color).toBe(`${DEFAULT_SERIES_COLOUR}${Math.round(0.2 * 255).toString(16).toUpperCase()}`)
+    expect(p.opacity).toBeUndefined()
   })
 
   it('⭐ …and it reaches the SAVED document, as the colour input\'s default', () => {

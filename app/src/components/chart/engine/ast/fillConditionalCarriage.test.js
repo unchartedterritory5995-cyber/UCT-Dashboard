@@ -85,19 +85,23 @@ describe('(j) j.3b — the conditional-fill carrier', () => {
     expect(Object.hasOwn(fills[0], 'colorCondition')).toBe(false)
   })
 
-  it('⛔⛔ AN ALPHA-ONLY CONDITIONAL IS DECLINED — same colour, two transparencies', () => {
-    // ⭐ THE RAIL WRITTEN BEFORE THE MUTATION. Keltner's real shape. A carrier that
-    // takes this draws a flat band and silently loses the fade; today it draws
-    // nothing, which is the honest answer until the schema can hold two alphas.
+  it('⭐⭐ AN ALPHA-ONLY CONDITIONAL IS CARRIED — each branch with its OWN alpha', () => {
+    // ⚰️ This was "DECLINED … the honest answer until the schema can hold two
+    // alphas". It can now: each colour carries its own alpha as `#RRGGBBAA`
+    // (`pine.js::colourConditional`), so the band keeps its fade — TradingView's
+    // bytes, `round((1 − t/100) × 255)`: 70 → 77 (0x4D), 90 → 25 (0x19).
+    // ⛔ And no flat colour, and no shared opacity, is guessed.
     const fills = fillsOf(
       `${TWO}fill(p1, p2, color=close > open ? color.new(color.blue, 70) : color.new(color.blue, 90))\n`)
     expect(fills.length).toBe(1)
-    expect(Object.hasOwn(fills[0], 'colorUp'),
-      'an alpha-only conditional was carried as a flat colour — the fade is lost').toBe(false)
+    expect(fills[0].colorUp).toMatch(/^#[0-9A-F]{6}4D$/)
+    expect(fills[0].colorDown).toMatch(/^#[0-9A-F]{6}19$/)
+    expect(fills[0].colorUp.slice(0, 7)).toBe(fills[0].colorDown.slice(0, 7))
+    expect(fills[0].opacity, 'no shared opacity on top of the baked alphas').toBeUndefined()
     expect(fills[0].color, 'and no flat colour is guessed either').toBeUndefined()
   })
 
-  it('⛔⛔ …AND THE DECLINE IS DECLARED, because silence is a defect', () => {
+  it('⛔⛔ …AND NOTHING IS LOST, SO NOTHING IS DECLARED', () => {
     // ⭐ SPLIT FROM THE CONTROL ABOVE ON PURPOSE. "Not carried as a flat colour" is
     // true BEFORE and AFTER the carrier, which is what makes it a control. "The
     // member is TOLD" is only true after, so it is a separate, failing assertion —
@@ -108,7 +112,9 @@ describe('(j) j.3b — the conditional-fill carrier', () => {
     // (`pine.js:11288`) drops it, so a fill declines in silence while a plot says so.
     const fills = fillsOf(
       `${TWO}fill(p1, p2, color=close > open ? color.new(color.blue, 70) : color.new(color.blue, 90))\n`)
-    expect(fills[0].colorDynamic, 'the loss must be DECLARED, not silent').toBe(true)
+    // ⚰️ This asserted the loss was DECLARED (`colorDynamic`). There is no loss now:
+    // the conditional is carried whole, so a `colorDynamic` would be a false report.
+    expect(fills[0].colorDynamic, 'a carried conditional reports no loss').toBeUndefined()
   })
 
   it('⛔ CONTROL — the carrier touches FILLS only; a plot presentation is byte-identical', () => {
@@ -213,12 +219,15 @@ describe('(j) j.3b — the conditional-fill carrier', () => {
     // unchanged once more: `carried` is still 0, and 0 is what this case is
     // about. A head-count that moves when a REFUSAL is lifted is this number
     // working, not drifting.
+    // ⭐ AND 0 -> 2 ON 2026-10-29: its two alpha-only conditionals (`nzz ?
+    // color.new(color.blue, 70) : color.new(color.blue, 90)`) are carried now, each
+    // branch with its own alpha (see the first case). The static ten stay static.
     expect(measured['keltner-center-of-gravity-channel__e4a81d76f6.pine'])
-      .toEqual({ fills: 12, carried: 0 })
+      .toEqual({ fills: 12, carried: 2 })
 
     // …and the whole corpus delta is ONE fill. Stated as a number so a later change
     // that quietly widens the carrier has something to fail against.
     const total = Object.values(measured).reduce((n, m) => n + m.carried, 0)
-    expect(total, 'the measured corpus re-baseline for j.3b is exactly one fill').toBe(1)
+    expect(total, 'the measured corpus re-baseline for j.3b: one fill, plus keltner\'s two alpha-only ones').toBe(3)
   })
 })

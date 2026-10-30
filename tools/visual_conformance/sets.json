@@ -96,6 +96,27 @@
     "note": "images re-shot at 1835x895 with UT Vol rendering; see README section 4b"
    },
    "note": "Five distinct gaps between consecutive bars in one 300-bar window: 14400s (the 4h step), 72000s (overnight), 244800s (a weekend), 331200s (a holiday weekend) and 241200s (a weekend exactly one hour short — a DST transition). This is the set that earns its place."
+  },
+  {
+   "id": "E",
+   "symbol": "AMEX:SPY (E0-E7b), NASDAQ:NVDA (E8)",
+   "resolution": "1D (E0-E7b), 240 (E8)",
+   "bars": "250 (1D, the SAME bar window as set A: 1757511000..1788874200), 300 (E8)",
+   "why": "Uncharted Clouds at NON-default inputs, so the Pine engine is proven beyond defaults. Clouds only (no UT Vol, no built-in Volume). Captured 2026-10-29 on a disposable layout 'UCT CLOUDS SETTINGS CAPTURE (disposable)' (gMYHQ1jg) with 1,749 bars loaded (warm history). Column format and meta keys follow sets A-D; each meta adds capture{settings, intendedInputs, liveInputs, selfCheck}, studyBuffer, plotStyles, filledAreas and colourDecode (0xAABBGGRR, high byte = alpha).",
+   "control": "E0 = defaults over A's window: 0 of 250x(45 plots + OHLCV) cells differ from set A's committed capture, so the instrument and the window are proven before any non-default reading.",
+   "captures": {
+    "E0": "defaults (control)",
+    "E1": "ma1Type=SMA, ma2Type=SMA",
+    "E2": "SMA High / EMA Low",
+    "E3": "EMA 5 / 50",
+    "E4": "EMA 21 / 8 (fast longer than slow)",
+    "E5": "custom colours: ma1 rgba(255,235,59,1), ma2 rgba(33,150,243,0.6), bull rgba(0,230,118,0.7), bear #FF6D00",
+    "E6": "showMA1=false, showMA2=false",
+    "E7a": "__fast_calc=true (trailing title bool #1) -- output IDENTICAL to E0",
+    "E7b": "__profile=true (trailing title bool #2) -- output IDENTICAL to E0",
+    "E8": "NVDA 4H at E1 settings, the 300 completed bars before the forming bar"
+   },
+   "note": "The two trailing bools in the study title are NOT script inputs: they are TradingView's hidden platform inputs __fast_calc ('Fast calculation') and __profile (Pine profiler). The published script has exactly 12 user inputs (in_0..in_11), the same as tests/fixtures/member/uncharted-clouds.pine. The published source is NOT readable from this account: pine-facade get/PUB;d8c2.../last answers 401 'User is not allowed to see source code of pine' (protected script), so no published-source.pine was saved."
   }
  ],
  "_outstanding": [

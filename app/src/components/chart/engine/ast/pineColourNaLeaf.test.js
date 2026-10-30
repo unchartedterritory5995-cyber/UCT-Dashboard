@@ -60,7 +60,8 @@ describe('`color = na` is a colour — drawn in nothing', () => {
 describe('each palette entry keeps its own alpha when the entries disagree', () => {
   it('⭐ the Momentum Volatility Scanner shape: the 40%-transparent entry carries 0.6', () => {
     const p = pres(`${V5}weak = color.new(#81C784, 40)\nplot(close, color = close > open ? (close > close[1] ? #4CAF50 : weak) : #FF5252)\n`)
-    expect(p.colorPalette).toEqual(['#4CAF50', 'rgba(129, 199, 132, 0.6)', '#FF5252'])
+    // the entry's own alpha as an EXACT byte (`paletteEntryWithAlpha`: 0.6 x 255 = 153 = 0x99)
+    expect(p.colorPalette).toEqual(['#4CAF50', '#81C78499', '#FF5252'])
     expect(p.opacity).toBeUndefined()
   })
   it('⛔ CONTROL — entries that AGREE on an alpha keep riding the plot opacity, as before', () => {

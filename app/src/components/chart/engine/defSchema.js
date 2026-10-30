@@ -1578,15 +1578,16 @@ function validatePlot(plot, index, seenKeys, inputsByKey, errors) {
   // holds each bar's position between them (Pine's `color.from_gradient`, drawn
   // by `pool.columnColorsForPlot` + `binder.pointColour` through the one measured
   // curve, `runtime/colours.js::fromGradient`). `transparency` is the whole
-  // number a `color.new(<gradient>, t)` SET on the result.
+  // number a `color.new(<gradient>, t)` SET on the result — exact, never truncated
+  // (a fractional one paints its own alpha byte, as TradingView's does).
   if (plot.colorGradient !== undefined) {
     const g = plot.colorGradient
     const hex = (v) => typeof v === 'string' && /^#[0-9a-f]{6}([0-9a-f]{2})?$/i.test(v)
     if (!isPlainObject(g) || !hex(g.from) || !hex(g.to)) {
       errors.push(`${path}.colorGradient: expected {from, to} as "#RRGGBB" or "#RRGGBBAA" colours, got ${fmt(g)}`)
     } else if (g.transparency !== undefined
-      && !(Number.isInteger(g.transparency) && g.transparency >= 0 && g.transparency <= 100)) {
-      errors.push(`${path}.colorGradient.transparency: expected a whole number 0-100, got ${fmt(g.transparency)}`)
+      && !(isFiniteNumber(g.transparency) && g.transparency >= 0 && g.transparency <= 100)) {
+      errors.push(`${path}.colorGradient.transparency: expected a number 0-100, got ${fmt(g.transparency)}`)
     } else if (typeof plot.colorMode !== 'string' || !plot.colorMode.startsWith('column:')) {
       errors.push(`${path}.colorGradient: a gradient is read through a column, so colorMode must be "column:<key>", got ${fmt(plot.colorMode)}`)
     }
@@ -1998,7 +1999,7 @@ function validateBandEdges(plots, errors) {
  * declares — and the mirror, a fill declared ON a guide, which has no FIRST
  * edge. A HIDDEN plot is a legal `with`: hidden is computed, so its edge exists.
  */
-function validateFills(plots, errors) {
+function validateFills(plots, errors, inputsByKey = new Map()) {
   const styleByKey = new Map()
   for (const p of plots) {
     if (isPlainObject(p) && isNonEmptyString(p.key) && !styleByKey.has(p.key)) styleByKey.set(p.key, p.style)
@@ -2012,6 +2013,17 @@ function validateFills(plots, errors) {
         `fill on the data plot that owns the column`,
       )
       return
+    }
+    // ⭐⭐ `colorUpInput` / `colorDownInput`: the `color` input a band's hue is the
+    // member's pick of (`binder.bandColoursFor`). A name no colour input declares
+    // would be a knob into nothing, so it is refused.
+    for (const side of ['colorUpInput', 'colorDownInput']) {
+      const k = plot.fill[side]
+      if (k === undefined) continue
+      const spec = typeof k === 'string' ? inputsByKey.get(k) : null
+      if (!spec || spec.type !== 'color') {
+        errors.push(`${path}.${side}: ${fmt(k)} names no declared "color" input`)
+      }
     }
     const other = plot.fill.with
     if (other === plot.key) {
@@ -2436,7 +2448,7 @@ export function validateDefinition(def) {
     // ─ cross-section checks ─
     validateColorModes(plots, new Set([...plotKeyIndex.keys(), ...eventKeyIndex.keys()]), errors)
     validateBandEdges(plots, errors)
-    validateFills(plots, errors)
+    validateFills(plots, errors, inputsByKey)
     validateTreesAgainstPlots(out.compute, plots, errors)
     validateObjectProgramField(out, errors)
     validatePaints(out.paints, new Set([...plotKeyIndex.keys(), ...eventKeyIndex.keys()]), errors)
