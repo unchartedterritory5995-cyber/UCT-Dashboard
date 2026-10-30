@@ -681,7 +681,7 @@
         "label": "Line width",
         "default": 1,
         "min": 1,
-        "max": 4,
+        "max": 10,
         "step": 1
       },
       {
@@ -696,7 +696,7 @@
         "label": "hist colour rule width",
         "default": 1,
         "min": 1,
-        "max": 4,
+        "max": 10,
         "step": 1
       }
     ],
@@ -932,7 +932,7 @@
         "label": "Line width",
         "default": 1,
         "min": 1,
-        "max": 4,
+        "max": 10,
         "step": 1
       },
       {
@@ -947,7 +947,7 @@
         "label": "candles colour rule width",
         "default": 1,
         "min": 1,
-        "max": 4,
+        "max": 10,
         "step": 1
       }
     ],
@@ -1592,7 +1592,7 @@
         "label": "Line width",
         "default": 1,
         "min": 1,
-        "max": 4,
+        "max": 10,
         "step": 1
       },
       {
@@ -1607,7 +1607,7 @@
         "label": "RSI 14 above 50 width",
         "default": 1,
         "min": 1,
-        "max": 4,
+        "max": 10,
         "step": 1
       },
       {
@@ -1622,7 +1622,7 @@
         "label": "Trend width",
         "default": 1,
         "min": 1,
-        "max": 4,
+        "max": 10,
         "step": 1
       }
     ],
@@ -1728,7 +1728,7 @@
         "label": "Line width",
         "default": 1,
         "min": 1,
-        "max": 4,
+        "max": 10,
         "step": 1
       }
     ],
@@ -2091,7 +2091,7 @@
         "label": "Line width",
         "default": 1,
         "min": 1,
-        "max": 4,
+        "max": 10,
         "step": 1
       },
       {
@@ -2106,7 +2106,7 @@
         "label": "CORRELATION 20 (SPY Close) width",
         "default": 1,
         "min": 1,
-        "max": 4,
+        "max": 10,
         "step": 1
       }
     ],

@@ -23,11 +23,28 @@
 // whole of its life.
 
 import { declaredInputs } from '../engine/ast/lint'
+import { LINE_WIDTH_HARD_MAX } from '../engine/defSchema'
+
+/** ⭐ THE WIDTH CONTROL'S CEILING: 10, or a script's own `linewidth` when larger.
+ *  TradingView paints a Pine `linewidth` 1..10 as N device px, unclamped (set F,
+ *  `f3-linewidth-v6`); ⚰️ this control stopped at 4, below a value scripts ask for.
+ *  Native indicators declare their own width inputs and keep theirs. */
+export const LINE_WIDTH_MAX = 10
+const widthMax = (width) => Math.min(LINE_WIDTH_HARD_MAX, Math.max(LINE_WIDTH_MAX, Number.isFinite(width) ? Math.ceil(width) : 0))
+
+/** ⭐⭐ A PINE `linewidth` → the width a row carries: the script's own, unclamped
+ *  between 1 and the sanity ceiling (`defSchema.LINE_WIDTH_HARD_MAX`). ONE helper
+ *  for every door that imports Pine — the member pane and the Builder's Pine import —
+ *  so the two cannot diverge (⚰️ the Builder kept clamping to 4 after the door
+ *  stopped). */
+export function pineLineWidth(width) {
+  return Math.max(1, Math.min(LINE_WIDTH_HARD_MAX, Math.round(width)))
+}
 
 /** The `inputs[]` array of every document `buildDefinition` produces. */
 export const BUILDER_INPUTS = Object.freeze([
   { key: 'color', type: 'color', label: 'Color', default: '#c9a84c' },
-  { key: 'lineWidth', type: 'int', label: 'Line width', default: 1, min: 1, max: 4, step: 1 },
+  { key: 'lineWidth', type: 'int', label: 'Line width', default: 1, min: 1, max: LINE_WIDTH_MAX, step: 1 },
 ])
 
 /** The same names, in the shape `sentenceFor` and `lintRepaint` take.
@@ -86,12 +103,12 @@ export function chromeInputsFor(rows) {
     const width = (row && Number.isFinite(row.width)) ? row.width : BUILDER_INPUTS[1].default
     if (i === 0) {
       out.push({ ...BUILDER_INPUTS[0], default: color })
-      out.push({ ...BUILDER_INPUTS[1], default: width })
+      out.push({ ...BUILDER_INPUTS[1], default: width, max: widthMax(width) })
       return
     }
     const label = (row && (row.label || row.key)) || keys.color
     out.push({ key: keys.color, type: 'color', label: `${label} colour`, default: color })
-    out.push({ key: keys.width, type: 'int', label: `${label} width`, default: width, min: 1, max: 4, step: 1 })
+    out.push({ key: keys.width, type: 'int', label: `${label} width`, default: width, min: 1, max: widthMax(width), step: 1 })
   })
   return out
 }

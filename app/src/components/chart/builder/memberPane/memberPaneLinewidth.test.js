@@ -7,9 +7,9 @@
 //     settings UI shows it;
 //   • a member's STORED value is untouched — an instance that saved width 1
 //     under the old default still draws 1;
-//   • a `linewidth` above 4 is clamped to the width input's own 1-4 (TradingView's
-//     style UI range). ⚠️ What TradingView PAINTS for a Pine `linewidth = 5+` is in
-//     no committed capture — see the report; the clamp is the Builder's existing rule.
+//   • a `linewidth` above 4 is NOT clamped: TradingView paints linewidth 1..10 as N
+//     device px and reads it back unchanged (set F, `f3-linewidth-v6`), and the width
+//     control admits it (max 10, or the script's own value when larger).
 import { describe, it, expect, afterAll } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -30,7 +30,7 @@ describe('member plot linewidth', () => {
     const b = memberPaneDefinition({ source: CLOUDS, id: ID })
     expect(b.ok, b.reason).toBe(true)
     const spec = b.definition.inputs.find((i) => i.key === 'lineWidth')
-    expect(spec).toMatchObject({ default: 2, min: 1, max: 4 })
+    expect(spec).toMatchObject({ default: 2, min: 1, max: 10 })
     const { installed } = registry.installUserDefinitions([b.definition])
     const def = installed[0]
     const cs = addInstance(mergeChartSettings({}), def.id, registry)
@@ -52,10 +52,11 @@ describe('member plot linewidth', () => {
     expect(fieldsForInstance(def, stored).values.lineWidth).toBe(1)
   })
 
-  it('a linewidth above 4 is clamped to the width input\'s range', () => {
-    const src = '//@version=5\nindicator("w", overlay = true)\nplot(close, "a", linewidth = 6)\n'
+  it('⭐ a linewidth above 4 is NOT clamped, and the control admits it (max 10, or the script\'s own)', () => {
+    const src = '//@version=5\nindicator("w", overlay = true)\nplot(close, "a", linewidth = 6)\nplot(open, "b", linewidth = 14)\n'
     const b = memberPaneDefinition({ source: src, id: ID })
     expect(b.ok, b.reason).toBe(true)
-    expect(b.definition.inputs.find((i) => i.key === 'lineWidth').default).toBe(4)
+    const specs = b.definition.inputs.filter((i) => i.type === 'int' && /width/i.test(i.label))
+    expect(specs.map((s) => [s.default, s.min, s.max])).toEqual([[6, 1, 10], [14, 1, 14]])
   })
 })
