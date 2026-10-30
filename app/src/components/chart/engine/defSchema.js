@@ -182,6 +182,14 @@ export const MARKER_POSITIONS = Object.freeze(['aboveBar', 'belowBar', 'inBar'])
  *  hand-authored document may pick anything sane between them. */
 export const MARKER_SIZE_RANGE = Object.freeze({ min: 0.25, max: 4 })
 
+/** ⭐ A PLOT WIDTH'S SANITY CEILING, in px. TradingView paints a Pine `linewidth`
+ *  unclamped (set F: 1..10 is N px), so the door carries the script's own width —
+ *  but `linewidth = 10000` would smear the pane for everyone who installs a shared
+ *  script. 50 is far above any measured use; 1..10 stays exact. ONE value, held to
+ *  the server's (`api/services/presentation_schema.LINE_WIDTH_HARD_MAX`) by
+ *  `tests/fixtures/line_width_cap.json`, which both suites read. */
+export const LINE_WIDTH_HARD_MAX = 50
+
 /**
  * `plots[i].marker` — the glyph an event column draws.
  *
@@ -1512,7 +1520,13 @@ function validatePlot(plot, index, seenKeys, inputsByKey, errors) {
           `${plot.width !== width ? ` after substituting ${fmt(plot.width)}` : ''}, got ${fmt(width)}`,
         )
       }
-      plot.width = width
+      // ⭐ ABOVE THE CEILING IS DRAWN AT THE CEILING, NEVER REFUSED. No UCT door
+      // produces one (`builderInputs.pineLineWidth` clamps; the server refuses a save
+      // that introduces one and clamps a copy), so only a stored row predating the
+      // ceiling, or a hand-crafted one, reaches here — and refusing it would stop a
+      // member's indicator drawing at all. Same width the server's copy clamp stores
+      // (`presentation_schema.clamp_plot_widths`), held by `line_width_cap.json`.
+      plot.width = isFiniteNumber(width) && width > LINE_WIDTH_HARD_MAX ? LINE_WIDTH_HARD_MAX : width
     }
   }
 

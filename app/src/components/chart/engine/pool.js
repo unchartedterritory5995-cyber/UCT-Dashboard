@@ -63,6 +63,7 @@ import { fromGradient, objectHexToPacked, packedToObjectHex } from './runtime/co
 import { withObjectTransparency } from './ast/objectProgram'
 import { MAIN_PRICE_SCALE_ID } from './placement'
 import { presentedPlot } from './presentation'
+import { LINE_WIDTH_HARD_MAX } from './defSchema'
 
 /** The four LWC series constructors any v1 plot can need. */
 /**
@@ -243,7 +244,10 @@ export function resolvePlotForInstance(plot, inputs, { pickReplacesOpacity = fal
     const v = inputs[key]
     if (v === undefined) continue
     out = out || { ...plot }
-    out[field] = v
+    // ⭐ A member's width is drawn at most at the ceiling, as `defSchema.validatePlot`
+    // draws a definition's: an instance seeded from a stored over-cap default would
+    // otherwise carry that width past the clamp.
+    out[field] = field === 'width' && Number.isFinite(v) && v > LINE_WIDTH_HARD_MAX ? LINE_WIDTH_HARD_MAX : v
     // ⭐⭐ A MEMBER'S COLOUR PICK IS AUTHORITATIVE FOR COLOUR *AND* ALPHA, the way
     // TradingView's style colour is. A document in the old shape carries the
     // script default's transparency as `opacity` beside a `$color` ref

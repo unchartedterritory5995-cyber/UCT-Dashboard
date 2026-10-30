@@ -1817,6 +1817,18 @@ def save(user_id: Any, def_id: str, definition: dict,
     # ⭐ R2 — the browser's one provable load-time repair, applied here too, so an old
     # param-edited document with a stale handle saves under its tree's own name.
     definition = refresh_stale_handle(definition)
+    # ⭐ A COPY (share install, fork) SKIPS the presentation gate below -- it holds a
+    # row the store already admitted -- so a plot width above the ceiling would ride
+    # it to a second member. The copier did not author that width, so the copy is
+    # REPAIRED, not refused: clamped to the width the browser draws it at
+    # (`presentation_schema.clamp_plot_widths`). Before the hash, the split and the
+    # blob, so the stored bytes carry the clamped width.
+    if _copy_of_stored:
+        from api.services import presentation_schema
+        definition, clamped_widths = presentation_schema.clamp_plot_widths(definition)
+        if clamped_widths:
+            _log.warning("[user-definitions] %s: copy clamps plot width to the ceiling: %s",
+                         def_id, "; ".join(clamped_widths))
     compute = definition["compute"]
 
     # ⛔⛔ TRACK F PARAMETER-MANIFEST HOOK (DEC-006, TRACK_F_PARAMETER_ADR_V2*.md)
