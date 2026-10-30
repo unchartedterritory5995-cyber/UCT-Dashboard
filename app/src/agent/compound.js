@@ -25,7 +25,7 @@
 // maxOps), at most MAX_STEPS steps. A larger step stops the request before it runs, with the reason.
 
 import { fastParse, matchPosition, canon } from './fastPath'
-import { multiChartPlan, tickersIn } from './multiChart'
+import { multiChartPlan, gridTickers } from './multiChart'
 import { followUpShape, resolveFollowUp } from './conversation'
 import { getCapability, getTargetKind } from './capabilities'
 import { chartRefOf } from './deixis'
@@ -183,7 +183,7 @@ export function resolveStep(step, { host, memory, epoch = null, working = null }
   if (step.kind === 'grid') {
     const g = multiChartPlan(t, { host })
     if (g?.kind !== 'ops') return { say: g?.text || `I couldn't read “${t}” any more.` }
-    const symbols = tickersIn(t)
+    const symbols = gridTickers(t, host)
     return { ops: g.ops, grid: symbols }
   }
   if (step.kind === 'pane') {

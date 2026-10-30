@@ -28,6 +28,7 @@
 
 import { matchPosition } from './fastPath'
 import { ordinalChart, selectedChart } from './deixis'
+import { plainSymbolWord, SHORT_FIXES } from './nl/lexicon'
 
 // ── tickers as typed (capitals, or $-prefixed) — never a lowercase word ──
 const NOT_TICKERS = new Set(['I', 'A', 'UCT', 'ETF', 'ADR', 'RS', 'RSI', 'MACD', 'EMA', 'SMA', 'ATR', 'VWAP', 'ET', 'AM', 'PM', 'OK', 'US', 'NYSE', 'HLC', 'OHLC', 'MA', 'D', 'W', 'M', 'AND', 'VS'])
@@ -97,8 +98,25 @@ const GRID_LAYOUT = [[/\b(?:side[\s-]by[\s-]side|next to each other|in (?:a )?ro
   [/\b(?:grid|2\s*x\s*2|2\s*by\s*2|3\s*x\s*3|quad)\b/i, 'grid']]
 // everything else such a sentence may say — any other word means it is not ONLY a grid of these tickers
 const GRID_FILLER = /\b(?:please|can|could|would|you|i|want|need|like|to|create|make|open|add|show|set|setup|up|give|me|put|load|pull|bring|build|chart|charts|display|lay|out|new|separate|for|of|with|on|showing|and|them|all|each|every|one|a|an|the|in|into|as|be|is|are|my|grid|2x2|2|x|by|side|stacked|top|other|row|column|quad|equal|equally|sized|size|evenly|layout|arrangement|arranged|time ?frames?|daily|weekly|monthly|hourly|intraday|minutes?|min|hour|hr|1h|4h|1|5|15|30|60|two|three|four|five|six|seven|eight|nine|both|too|also|just|now)\b/gi
+// ⭐ live acceptance 2026-10-29: "open daily charts for aapl msft nvda, each with a 50sma" — the tickers of a grid may be
+// typed in lowercase. Only the words a grid sentence leaves once its own words are taken out, each at most four letters
+// (a longer word is more often a company name — "apple" — and stays the model's) and passing the shared N4 rule: not a
+// word UCT knows, nor one edit from one, nor a short typo ("teh"), nor a pronoun. Whether each exists is decided by the
+// ticker search (chartGrid.set prepare), which refuses the whole grid by name otherwise.
+const LOWER_TICKER = /^[a-z][a-z0-9]{0,3}$/
+export function gridTickers(raw, host) {
+  const marked = tickersIn(raw)
+  let rest = String(raw || '')
+  for (const s of marked) rest = rest.replace(new RegExp(`\\$?\\b${escapeRe(s)}\\b`, 'gi'), ' ')
+  const lower = rest.replace(/[,;!?&()]|\.(?=\s|$)/g, ' ').replace(GRID_FILLER, ' ').split(/\s+/)
+    .filter(w => /[a-z]/.test(w) && LOWER_TICKER.test(w) && !SHORT_FIXES[w.toLowerCase()] && plainSymbolWord(w, host, raw)).map(w => w.toUpperCase())
+  if (!lower.length) return marked
+  // the member's order: each ticker where it was first typed
+  const at = (s) => String(raw).search(new RegExp(`(?:^|[^A-Za-z0-9$])\\$?${escapeRe(s)}(?![A-Za-z0-9])`, 'i'))
+  return [...new Set([...marked, ...lower])].sort((a, b) => at(a) - at(b))
+}
 function gridRequest(raw, lower, charts, host) {
-  const syms = tickersIn(raw)
+  const syms = gridTickers(raw, host)
   if (syms.length < 2) return null
   const layoutHit = GRID_LAYOUT.find(([re]) => re.test(raw))
   const count = COUNT_RE.exec(raw)
