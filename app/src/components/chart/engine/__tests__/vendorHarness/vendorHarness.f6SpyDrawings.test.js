@@ -377,15 +377,18 @@ describe('F6 — what is not drawn on the SPY captures, why, and whose it is', (
     expect(graded('options-max-pain-calculator-backquant-rddt-1d-2026-09-28').objects.verdict).toBe('MATCH')
   }, T)
 
-  it('poor-man\'s volume profile: the 40 row labels read a last-bar loop over the instruction budget (`runtime:INSTRUCTIONS_PER_BAR`), the 2 bound lines a `line.set_xloc` the host lane does not carry — same on RDDT, from the listing', () => {
+  // ⭐ P2 RE-PIN (2026-10-30): `line.set_xloc` is carried now — the 2 bound lines are
+  // drawn (2 of 2, `vendorHarness.p2SetXloc` grades them id for id). The 40 labels
+  // are unchanged: their run is over the per-bar instruction budget.
+  it('poor-man\'s volume profile: the 40 row labels read a last-bar loop over the instruction budget (`runtime:INSTRUCTIONS_PER_BAR`); the 2 bound lines are drawn (P2 carries `line.set_xloc`) — same on RDDT, from the listing', () => {
     for (const id of ['poor-man039s-volume-profile-rddt-1d-2026-09-28', 'poor-man039s-volume-profile-spy-1d-2026-10-03']) {
       const c = cap(id)
       expect(runtimeValuesOn(c, true)).toMatchObject({ served: false, reason: 'runtime:INSTRUCTIONS_PER_BAR' })
       const d = doorDiagnostics(c)
-      expect(d.unsupported).toEqual(['line.set_xloc'])
-      expect(d.dropReasons).toEqual({ 'geometry:lost': 2 })
+      expect(d.unsupported).toEqual([])
+      expect(d.dropReasons).toEqual({})
       const v = graded(id)
-      expect([family(v, 'lines').ours, family(v, 'labels').ours]).toEqual([0, 0])
+      expect([family(v, 'lines').ours, family(v, 'labels').ours]).toEqual([2, 0])
     }
   }, T)
 
