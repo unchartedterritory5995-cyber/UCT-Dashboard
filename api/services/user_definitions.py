@@ -157,6 +157,7 @@ import contextlib
 import hashlib
 import json
 import logging
+import math
 import os
 import re
 import secrets
@@ -920,6 +921,79 @@ def refresh_stale_handle(definition: Any) -> Any:
             return definition
     out = dict(definition)
     out["compute"] = {**c, "fn": now}
+    return out
+
+
+#: ⚰️ The width control every door minted before #526 -- the Builder's own constant
+#: (`builderInputs.chromeInputsFor`), never an author's or a member's choice.
+OLD_WIDTH_CONTROL = {"type": "int", "min": 1, "max": 4, "step": 1}
+#: Today's control reaches 10, or the row's own width when larger
+#: (`builderInputs.LINE_WIDTH_MAX` / `widthControlMax`), never past the ceiling.
+LINE_WIDTH_CONTROL_MAX = 10
+
+
+def width_control_max(default: Any) -> int:
+    """`builderInputs.widthControlMax`, exactly: max(10, ceil(default)) capped at the
+    sanity ceiling; a non-number default reads as no width (10)."""
+    from api.services import presentation_schema
+    w = 0
+    if isinstance(default, (int, float)) and not isinstance(default, bool) and math.isfinite(default):
+        w = math.ceil(default)
+    return min(presentation_schema.LINE_WIDTH_HARD_MAX, max(LINE_WIDTH_CONTROL_MAX, w))
+
+
+def _is_old_width_control(spec: Any) -> bool:
+    # ⛔ A bool is not a number here (`True == 1` in Python, `true !== 1` in the
+    # browser); `4.0` IS 4, as it is to the browser's `===`.
+    return isinstance(spec, dict) and spec.get("type") == "int" and all(
+        isinstance(spec.get(k), (int, float)) and not isinstance(spec.get(k), bool) and spec.get(k) == v
+        for k, v in OLD_WIDTH_CONTROL.items() if k != "type")
+
+
+def refresh_width_control_max(definition: Any) -> Any:
+    """⭐⭐ THE SECOND PROVABLE UPGRADE OF A SAVED DOCUMENT, mirrored EXACTLY from the
+    browser's `memberDocumentMigration.migrateWidthControlMax`, pinned by one fixture
+    both suites read (`tests/fixtures/saved_document_upgrade_cases.json`).
+
+    A plot's width control saved before #526 stops at 4 (`OLD_WIDTH_CONTROL`), so the
+    settings dialog refused a member every width TradingView draws above it. Its `max`
+    becomes `width_control_max(default)` ONLY on an input that a plot's `width` names
+    (`$key`) with that plot's chrome key (`lineWidth` / `<plotKey>Width`) and whose
+    spec is exactly the old constant. The default and every other field are untouched;
+    no other input is touched (a member's own `maxval = 4` keeps its 4).
+
+    ⛔ PURE AND IN MEMORY: a new dict when upgraded, the SAME object otherwise.
+    """
+    if not isinstance(definition, dict):
+        return definition
+    plots = definition.get("plots")
+    inputs = definition.get("inputs")
+    if not isinstance(plots, list) or not isinstance(inputs, list):
+        return definition
+    keys = set()
+    for p in plots:
+        if not isinstance(p, dict):
+            continue
+        w = p.get("width")
+        if not isinstance(w, str) or not w.startswith("$"):
+            continue
+        key = w[1:]
+        pk = p.get("key")
+        if key == "lineWidth" or (isinstance(pk, str) and pk and key == f"{pk}Width"):
+            keys.add(key)
+    if not keys:
+        return definition
+    out_inputs = None
+    for i, spec in enumerate(inputs):
+        if not isinstance(spec, dict) or spec.get("key") not in keys or not _is_old_width_control(spec):
+            continue
+        if out_inputs is None:
+            out_inputs = list(inputs)
+        out_inputs[i] = {**spec, "max": width_control_max(spec.get("default"))}
+    if out_inputs is None:
+        return definition
+    out = dict(definition)
+    out["inputs"] = out_inputs
     return out
 
 
@@ -1817,6 +1891,9 @@ def save(user_id: Any, def_id: str, definition: dict,
     # ⭐ R2 — the browser's one provable load-time repair, applied here too, so an old
     # param-edited document with a stale handle saves under its tree's own name.
     definition = refresh_stale_handle(definition)
+    # ⭐ …and a width control saved under the old 1..4 constant reaches today's max,
+    # so the stored bytes converge on what the chart already installs on load.
+    definition = refresh_width_control_max(definition)
     # ⭐ A COPY (share install, fork) SKIPS the presentation gate below -- it holds a
     # row the store already admitted -- so a plot width above the ceiling would ride
     # it to a second member. The copier did not author that width, so the copy is
