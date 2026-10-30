@@ -21,7 +21,7 @@ beforeEach(() => {
     return json({})
   })
 })
-const grid = (symbols, timeframe = null, layout = null) => ({ action: 'chartGrid.set', target: 'board', args: { symbols, timeframe, layout, new_charts: null } })
+const grid = (symbols, timeframe = null, layout = null) => ({ action: 'chartGrid.set', target: 'board', args: { symbols, timeframe, layout, new_charts: null, watchlist: null } })
 async function plan(b, ops) {
   const env = await prepareOps(ops)
   return { p: planOps(collectTargets(b.host, ['board']), ops, env, CTX), env }

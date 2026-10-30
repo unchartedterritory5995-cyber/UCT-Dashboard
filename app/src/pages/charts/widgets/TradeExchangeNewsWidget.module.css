@@ -336,18 +336,6 @@
 .symFlat, .symNone, .symNeutral { color: var(--txn-text, var(--text-bright)); }
 .sym:hover, .symLinked { text-decoration-style: solid; text-decoration-color: currentColor; }
 .sym:focus-visible { outline: 1px solid currentColor; outline-offset: 1px; border-radius: 2px; }
-/* "NVDA +2.4%": the ticker and its day change never wrap apart. */
-.symPct { white-space: nowrap; }
-.pct {
-  margin-left: 3px;
-  font-size: 10px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  color: color-mix(in srgb, var(--txn-text, var(--text-bright)) 72%, transparent);
-}
-/* In Daily mode the % carries the ticker's own (contrast-safe) up/down colour. */
-.pct.symUp { color: var(--txn-sym-up, var(--txn-up, var(--ut-green-bright))); }
-.pct.symDown { color: var(--txn-sym-down, var(--txn-down, var(--ut-red-bright))); }
 
 /* Market-impact mark: a word in the metadata line, no fill. */
 .impact {
@@ -384,10 +372,9 @@
 .compact .related { padding-left: 16px; }
 .compact .related::before { left: 8px; }
 
-/* ⋯ row actions: revealed on hover / keyboard focus; always there on touch. */
-.rowMenuBtn {
-  margin-left: auto;
-  align-self: center;
+/* Row actions (copy, then ⋯): revealed on hover / keyboard focus; always there on touch. */
+.rowActions { margin-left: auto; align-self: center; display: inline-flex; gap: 2px; }
+.rowBtn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -404,13 +391,19 @@
   cursor: pointer;
   opacity: 0;
 }
-/* ⛔ No `.row:focus-within` here: on a 1,000-row feed it multiplied style recalculation
-   ~100x (harness: 0.05 s -> 5.8 s). Keyboard focus reveals the button itself. */
-.row:hover .rowMenuBtn, .rowMenuBtnOn { opacity: 1; }
-.rowMenuBtn:hover, .rowMenuBtnOn { color: var(--txn-chrome-strong, var(--text)); background: var(--txn-divider, var(--bg-hover)); }
-.rowMenuBtn:focus-visible { opacity: 1; outline: 1px solid currentColor; }
+/* ⛔ No `.row:focus-within` here: it multiplied style recalculation on a long feed
+   (harness, 1,000 rows: 0.05 s -> 5.8 s). Keyboard focus reveals each button itself. */
+.row:hover .rowBtn, .rowBtnOn { opacity: 1; }
+.rowBtn:hover, .rowBtnOn { color: var(--txn-chrome-strong, var(--text)); background: var(--txn-divider, var(--bg-hover)); }
+.rowBtn:focus-visible { opacity: 1; outline: 1px solid currentColor; }
+.rowBtnOk { color: var(--ut-green-bright); }
+.rowBtnErr { color: var(--ut-red-bright); }
 @media (hover: none) {
-  .rowMenuBtn { opacity: 0.7; width: 24px; height: 18px; }
+  .rowBtn { opacity: 0.7; width: 24px; height: 18px; }
+}
+.srOnly {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap;
 }
 .badges { display: inline-flex; gap: 4px; align-self: center; }
 .badge {
@@ -461,18 +454,7 @@
   cursor: pointer;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
 }
-.more {
-  display: block;
-  width: 100%;
-  padding: 8px 10px;
-  background: none;
-  border: none;
-  color: var(--txn-chrome, var(--text-muted));
-  font-family: var(--font-sans);
-  font-size: 10.5px;
-  cursor: pointer;
-}
-.more:hover { color: var(--ut-gold); }
+.listBusy { opacity: 0.55; transition: opacity 0.12s; }
 .empty {
   padding: 16px 12px;
   font-size: 11.5px;
@@ -504,7 +486,37 @@
   overflow: hidden;
 }
 .footerCount { font-weight: 600; color: var(--txn-sym, var(--text-bright)); flex: 0 0 auto; }
-.footerNote { overflow: hidden; text-overflow: ellipsis; }
+.footerNote { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+
+/* ── pages: one compact line at the foot of the list ── */
+.pager { display: inline-flex; align-items: center; gap: 1px; flex: 0 0 auto; margin-right: 4px; }
+.pageBtn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; padding: 0;
+  background: none; border: none; border-radius: 3px;
+  color: var(--txn-chrome, var(--text-muted));
+  cursor: pointer;
+}
+.pageBtn:hover:not(:disabled) { color: var(--txn-chrome-strong, var(--text)); background: var(--txn-divider, var(--bg-hover)); }
+.pageBtn:focus-visible, .pageLatest:focus-visible { outline: 1px solid currentColor; }
+.pageBtn:disabled { opacity: 0.35; cursor: default; }
+.pageBox { display: inline-flex; align-items: center; gap: 3px; margin: 0 2px; font-variant-numeric: tabular-nums; }
+.pageInput {
+  width: 3.2ch; min-width: 22px; height: 16px; padding: 0 2px;
+  text-align: center; font: inherit; font-weight: 600; font-variant-numeric: tabular-nums;
+  color: var(--txn-sym, var(--text-bright));
+  background: transparent;
+  border: 1px solid var(--txn-divider, var(--widget-divider, var(--border)));
+  border-radius: 3px;
+}
+.pageInput:focus { outline: none; border-color: var(--ut-gold); }
+.pageInputBad { border-color: var(--ut-red-bright); }
+.pageOf { white-space: nowrap; }
+.pageLatest {
+  margin-left: 4px; padding: 1px 6px;
+  background: none; border: 1px solid color-mix(in srgb, var(--ut-gold) 45%, transparent); border-radius: 9px;
+  color: var(--ut-gold); font: inherit; font-weight: 600; cursor: pointer;
+}
 
 /* ── alerts popover ────────────────────────────────────────────────────── */
 .alertsPop {
@@ -592,6 +604,16 @@
 }
 @container (max-width: 250px) {
   .filterLabel { display: none; }
+}
+/* The pager keeps every page reachable at any width; the notes give way first. */
+@container (max-width: 330px) {
+  .footer { padding: 5px 8px; }
+  .footerNote { display: none; }
+}
+@container (max-width: 200px) {
+  .footer { gap: 3px; padding: 4px 4px; }
+  .pageEdge { display: none; }          /* First / Last: page 1 and the typed number remain */
+  .footerCount { display: none; }
 }
 
 /* ── row actions, filters + presets, feed health: one popover look (alertsPop's) ── */

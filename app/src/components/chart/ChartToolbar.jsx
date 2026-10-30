@@ -2090,6 +2090,7 @@ function ChartToolbar({
           disabled={!drawingCount}
           title={chartSettings?.hideDrawings ? 'Show drawings' : 'Hide all drawings'}
           aria-label={chartSettings?.hideDrawings ? 'Show drawings' : 'Hide all drawings'}
+          data-guide="chart.drawingsHide"
           aria-pressed={!!chartSettings?.hideDrawings}
         >
           {chartSettings?.hideDrawings ? ICONS.eyeOff : ICONS.eye}

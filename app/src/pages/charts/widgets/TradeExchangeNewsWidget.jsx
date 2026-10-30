@@ -3,7 +3,9 @@
  *
  * One shared, seq-ordered feed for every News widget in the browser
  * (lib/tradeExchangeNewsStreamManager.js, reached through panelContract — never a
- * URL here). Newest on top. Per-widget, persisted in `opts`:
+ * URL here) for the live edge; history in numbered pages the SERVER filters and
+ * cuts (useTradeExchangeNewsPages -> pages.py). Newest on top. Per-widget,
+ * persisted in `opts`:
  *   settings    appearance + density / highlight / sound (⚙, tradeExchangeNewsSettings.js)
  *   follow      auto-follow the live edge (default on)
  *   linked      only headlines naming this widget's colour-group symbol
@@ -30,17 +32,18 @@ import useRealtimePrices from '../../../hooks/useRealtimePrices'
 import { menuThemeVars } from '../../../utils/dividerColor'
 import { playAlertSound, previewSound } from '../../../utils/alertSound'
 import { declareNeed, DELIVERY } from '../../../lib/panelContract'
-import { claimAnnouncement, loadOlder } from '../../../lib/tradeExchangeNewsStreamManager'
+import { claimAnnouncement } from '../../../lib/tradeExchangeNewsStreamManager'
 import { PICKER_MY_LISTS_URL, PREBUILT_DIRECTORY_URL, usePrebuiltMembership } from '../../watchlist/prebuiltDirectory'
 import UIcon from '../../../components/ui/UIcon'
 import Input from '../../../components/ui/Input'
 import Select from '../../../components/ui/Select'
 import NewsSettingsPanel from './NewsSettingsPanel'
 import TradeExchangeNewsAlerts from './TradeExchangeNewsAlerts'
-import { ActionsMenu, FilterMenu, HealthPopover, Row } from './TradeExchangeNewsParts'
-import { TXN_SOUND_OPTIONS, txnClampLines, txnSettingsFor, txnShowPct, txnWidgetStyleVars } from './tradeExchangeNewsSettings'
-import { categoriesLabel, cleanCategories, cleanPresets, coverageNotice, feedHealth, groupRelated, IMPACT_CRITERIA,
-  impactMark, liveStatus, presetPatch, presetSnapshot, quoteSymbols, visibleItems } from './tradeExchangeNewsModel'
+import { ActionsMenu, FilterMenu, HealthPopover, Pager, Row } from './TradeExchangeNewsParts'
+import { TXN_SOUND_OPTIONS, txnClampLines, txnSettingsFor, txnWidgetStyleVars } from './tradeExchangeNewsSettings'
+import { archiveTitle, categoriesLabel, cleanCategories, cleanPresets, coverageNotice, feedHealth, groupRelated, IMPACT_CRITERIA,
+  impactMark, liveStatus, pageRequest, presetPatch, presetSnapshot, quoteSymbols, visibleItems } from './tradeExchangeNewsModel'
+import useTradeExchangeNewsPages from './useTradeExchangeNewsPages'
 import styles from './TradeExchangeNewsWidget.module.css'
 
 //: New-headline highlight: held for 1.5 s, then a 0.6 s fade (CSS .flash), then removed.
@@ -87,7 +90,6 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange }) {
   const categories = useMemo(() => cleanCategories(opts?.categories), [opts?.categories])
   const presets = useMemo(() => cleanPresets(opts?.presets), [opts?.presets])
   const clampLines = txnClampLines(settings)
-  const showPct = txnShowPct(settings)
 
   // ── search (debounced, not persisted) ──
   const [queryRaw, setQueryRaw] = useState('')
@@ -114,23 +116,29 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange }) {
       .filter((o) => !seen.has(o.value) && seen.add(o.value))
   }, [myLists, prebuilt])
 
-  const shown = useMemo(
-    () => visibleItems(feed.items, { query, linkedSym: linked ? linkedSym : null, watchSet, categories,
-      hidePlaceholders: settings.graphicPlaceholders !== 'show' }),
-    [feed.items, query, linked, linkedSym, watchSet, categories, settings.graphicPlaceholders],
-  )
+  // The live pool's rows passing every filter (newest first): new-headline detection,
+  // page 1's live edge and the "newer headlines" count. Pages come from the server.
+  const filterArgs = { query, linkedSym: linked ? linkedSym : null, watchSet, categories,
+    hidePlaceholders: settings.graphicPlaceholders !== 'show' }
+  const shown = useMemo(() => visibleItems(feed.items, filterArgs),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [feed.items, query, linked, linkedSym, watchSet, categories, settings.graphicPlaceholders])
+  const pageReq = useMemo(() => pageRequest(filterArgs),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [query, linked, linkedSym, watchSet, categories, settings.graphicPlaceholders])
+  const pager = useTradeExchangeNewsPages({ feed, matches: shown, request: pageReq, enabled: feed.status !== 'unavailable' })
+  const rows = pager.rows
   // Grouping runs AFTER the filters, so a group only ever holds headlines the reader
-  // asked to see -- and each one keeps its own row, time and links.
-  const groups = useMemo(() => (settings.groupRelated === 'on' ? groupRelated(shown)
-    : shown.map((it) => ({ key: it.seq, lead: it, rest: NO_REST }))), [shown, settings.groupRelated])
-  const hiddenPlaceholders = useMemo(() => (settings.graphicPlaceholders === 'show' ? 0
-    : feed.items.reduce((n, it) => n + (it.placeholder === 'graphic' ? 1 : 0), 0)),
-  [feed.items, settings.graphicPlaceholders])
+  // asked to see -- and each one keeps its own row, time and links (within a page).
+  const groups = useMemo(() => (settings.groupRelated === 'on' ? groupRelated(rows)
+    : rows.map((it) => ({ key: it.seq, lead: it, rest: NO_REST }))), [rows, settings.groupRelated])
+  const hiddenPlaceholders = settings.graphicPlaceholders === 'show' ? 0
+    : pager.hiddenPlaceholders ?? feed.items.reduce((n, it) => n + (it.placeholder === 'graphic' ? 1 : 0), 0)
 
   // ── daily-performance ticker colours: the shared, pooled price stream, for a
-  //    BOUNDED set (the newest rows' distinct symbols). The headline never waits. ──
-  const quotesUsed = settings.tickerColorMode === 'performance' || showPct
-  const quoteSyms = useMemo(() => (quotesUsed ? quoteSymbols(shown) : []), [shown, quotesUsed])
+  //    BOUNDED set (the page's distinct symbols). The headline never waits. ──
+  const quotesUsed = settings.tickerColorMode === 'performance'
+  const quoteSyms = useMemo(() => (quotesUsed ? quoteSymbols(rows) : []), [rows, quotesUsed])
   const { prices, staleSymbols } = useRealtimePrices(quoteSyms)
 
   // ── new-headline highlight + sound (seeded, never flashes history) ──
@@ -147,9 +155,9 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange }) {
       newestRef.current = Math.max(0, ...feed.items.map((it) => it.seq))
       return
     }
-    // ⭐ New = beyond the newest seq already seen AND received just now. An older
-    // history page (loadOlder), a filter change, a repeat, or a reconnect's replayed
-    // backlog is never "new" -- only a genuinely arriving headline flashes.
+    // ⭐ New = beyond the newest seq already seen AND received just now. A history
+    // page, a filter change, a repeat, or a reconnect's replayed backlog is never
+    // "new" -- only a genuinely arriving headline flashes (and only on page 1).
     const newest = newestRef.current
     const now = Date.now()
     const fresh = shown.filter((it) => !seen.has(it.seq) && it.seq > newest
@@ -182,24 +190,30 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange }) {
   const [atTop, setAtTop] = useState(true)
   const [pending, setPending] = useState(0)
   const following = follow && atTop
-  const topSeq = shown[0]?.seq || 0
-  const prevRef = useRef({ topSeq, height: 0, count: shown.length })
+  const topSeq = pager.live ? rows[0]?.seq || 0 : 0
+  const prevRef = useRef({ topSeq, height: 0, count: rows.length })
   useLayoutEffect(() => {
     const el = listRef.current
     const prev = prevRef.current
     if (el) {
       const height = el.scrollHeight
-      if (topSeq !== prev.topSeq && prev.height) {
-        const added = shown.findIndex((it) => it.seq === prev.topSeq)
+      if (topSeq && topSeq !== prev.topSeq && prev.height && prev.topSeq) {
+        const added = rows.findIndex((it) => it.seq === prev.topSeq)
         if (!following && added > 0) {
           // Hold the reader's place: push the scroll down by what was prepended.
           el.scrollTop += height - prev.height
           setPending((n) => n + added)
         }
       }
-      prevRef.current = { topSeq, height, count: shown.length }
+      prevRef.current = { topSeq, height, count: rows.length }
     }
-  }, [topSeq, shown, following])
+  }, [topSeq, rows, following])
+  // A new page starts at its top.
+  useLayoutEffect(() => {
+    if (listRef.current) listRef.current.scrollTop = 0
+    setAtTop(true)
+    setPending(0)
+  }, [pager.page])
   const onScroll = useCallback((e) => {
     const top = e.currentTarget.scrollTop < 4
     setAtTop(top)
@@ -211,6 +225,7 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange }) {
     setPending(0)
     if (!follow) patchOpts({ follow: true })
   }, [follow, patchOpts])
+  const toLatest = pager.toLatest
   useEffect(() => { setPending(0) }, [query, linked, watchlistId, categories])
 
   const onSym = useCallback((sym) => setGroupSym?.(color, sym), [color, setGroupSym])
@@ -239,8 +254,6 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange }) {
   const [actions, setActions] = useState(null)              // { item, anchor }
   const onActions = useCallback((item, anchor) => setActions((a) => (a?.item.seq === item.seq ? null : { item, anchor })), [])
   const closeActions = useCallback(() => setActions(null), [])
-  const [alertTickers, setAlertTickers] = useState(null)
-  const onCreateAlert = useCallback((syms) => { setAlertTickers(syms); setAlertsOpen(true) }, [])
 
   // ── filters + presets (this widget's opts only) ──
   const [filterOpen, setFilterOpen] = useState(false)
@@ -285,12 +298,13 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange }) {
   const toneCls = status.tone === 'live' ? styles.toneLive : status.tone === 'warn' ? styles.toneWarn : styles.toneOff
   const gap = coverageNotice(feed.coverage)
   const unavailable = feed.status === 'unavailable'
-  const loading = (feed.status === 'connecting' || feed.status === 'idle') && !feed.items.length
+  const loading = ((feed.status === 'connecting' || feed.status === 'idle') && !feed.items.length && pager.live)
+    || (pager.loading && !rows.length)
   const filtered = !!(query || linked || watchlistId || categories.length)
   const now = Date.now()
   const impactOn = settings.impactMarks !== 'off'
   const rowProps = { linkedSym, onSym, colorMode: settings.tickerColorMode, prices, staleSymbols, quotesUsed,
-    provisional: feed.provisional, showPct, clampLines, onToggleExpand, showCategory: settings.showCategory !== 'off',
+    provisional: feed.provisional, clampLines, onToggleExpand, showCategory: settings.showCategory !== 'off',
     onToggleGroup, onActions }
   const renderRow = (it, extra) => (
     <Row key={it.seq} item={it} {...rowProps} expanded={expanded.has(it.seq)} flashing={flashing.has(it.seq)}
@@ -324,8 +338,6 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange }) {
                 { key: 'hide', label: 'Hide' }, { key: 'show', label: 'Show' }] },
               { key: 'longHeadlines', label: 'Long headlines', hint: 'lines before Show more', type: 'segmented', options: [
                 { key: '3', label: '3 lines' }, { key: '5', label: '5 lines' }, { key: 'all', label: 'Expanded' }] },
-              { key: 'showPct', label: 'Ticker % change', hint: 'Auto: on in Comfortable', type: 'segmented', options: [
-                { key: 'auto', label: 'Auto' }, { key: 'on', label: 'On' }, { key: 'off', label: 'Off' }] },
               { key: 'impactMarks', label: 'Impact marks', hint: 'Breaking / High impact', title: IMPACT_CRITERIA, type: 'segmented', options: [
                 { key: 'on', label: 'On' }, { key: 'off', label: 'Off' }] },
               { key: 'groupRelated', label: 'Group related', hint: 'the same story re-sent', type: 'segmented', options: [
@@ -348,12 +360,11 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange }) {
         />
       )}
       {alertsOpen && (
-        <TradeExchangeNewsAlerts onClose={() => { setAlertsOpen(false); setAlertTickers(null) }} anchorEl={bellRef.current}
-          themeVars={menuVars} initialTickers={alertTickers} />
+        <TradeExchangeNewsAlerts onClose={() => setAlertsOpen(false)} anchorEl={bellRef.current} themeVars={menuVars} />
       )}
       {actions && (
         <ActionsMenu key={actions.item.seq} item={actions.item} anchorEl={actions.anchor} hostEl={rootRef.current}
-          themeVars={menuVars} onClose={closeActions} onOpenChart={onSym} onCreateAlert={onCreateAlert} />
+          themeVars={menuVars} onClose={closeActions} />
       )}
       {filterOpen && (
         <FilterMenu anchorEl={filterRef.current} hostEl={rootRef.current} themeVars={menuVars} onClose={closeFilter}
@@ -457,13 +468,20 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange }) {
         </div>
       )}
 
-      {!following && pending > 0 && (
+      {pager.live && !following && pending > 0 && (
         <button type="button" className={styles.jump} onClick={jumpToLive}>
           <UIcon name="play" size={10} /> Jump to live · {pending} new
         </button>
       )}
+      {!pager.live && pager.newer > 0 && (
+        <button type="button" className={styles.jump} onClick={toLatest}
+          title="You are reading an older page; it stays put while news arrives. Click for the newest headlines.">
+          <UIcon name="chevronUp" size={10} /> {pager.newer} newer · Return to latest
+        </button>
+      )}
 
-      <div ref={listRef} className={styles.list} onScroll={onScroll}>
+      <div ref={listRef} className={`${styles.list}${pager.loading && rows.length ? ' ' + styles.listBusy : ''}`} onScroll={onScroll}
+        aria-busy={pager.loading || undefined}>
         {unavailable && (
           <div className={styles.empty}>{status.title}</div>
         )}
@@ -474,7 +492,13 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange }) {
             <button type="button" className={styles.emptyBtn} onClick={() => NEED.retry()}>Retry</button>
           </div>
         )}
-        {!unavailable && !loading && !shown.length && feed.status !== 'failed' && (
+        {!unavailable && pager.error && !pager.live && (
+          <div className={styles.empty}>
+            This page could not be loaded.
+            <button type="button" className={styles.emptyBtn} onClick={pager.retry}>Retry</button>
+          </div>
+        )}
+        {!unavailable && !loading && !rows.length && feed.status !== 'failed' && !(pager.error && !pager.live) && (
           <div className={styles.empty}>
             {filtered ? 'No headlines match these filters.' : 'No headlines yet. New Trade Exchange headlines appear here the moment they arrive.'}
             {filtered && <button type="button" className={styles.emptyBtn} onClick={clearFilters}>Clear filters</button>}
@@ -488,15 +512,13 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange }) {
             ...(open ? g.rest.map((it) => renderRow(it, { related: true })) : []),
           ]
         })}
-        {feed.hasOlder && shown.length > 0 && (
-          <button type="button" className={styles.more} onClick={() => loadOlder()} disabled={feed.loadingOlder}>
-            {feed.loadingOlder ? 'Loading…' : 'Load older headlines'}
-          </button>
-        )}
       </div>
       <div className={styles.footer}>
-        <span className={styles.footerCount}>
-          {filtered ? `${shown.length} of ${feed.items.length}` : feed.items.length} headline{(filtered ? shown.length : feed.items.length) === 1 ? '' : 's'}
+        {!unavailable && (
+          <Pager page={pager.page} pages={pager.pages} loading={pager.loading} onPage={pager.goTo} onLatest={toLatest} />
+        )}
+        <span className={styles.footerCount} title={archiveTitle(pager.oldestMs, now)}>
+          {footerCount(filtered, pager.total ?? shown.length, pager.archiveTotal ?? feed.items.length)}
         </span>
         <span className={styles.footerNote} title="Times are when UCT received each headline (Trade Exchange sends no publication time). Tickers are detected automatically.">
           · received times ET{feed.provisional ? ' · tickers provisional' : ''}
@@ -510,4 +532,9 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange }) {
       </div>
     </div>
   )
+}
+
+function footerCount(filtered, total, all) {
+  const n = filtered ? total : all
+  return `${filtered ? `${n.toLocaleString()} of ${all.toLocaleString()}` : n.toLocaleString()} headline${n === 1 ? '' : 's'}`
 }

@@ -47,7 +47,9 @@ PAINT_KINDS = ("bgcolor", "barcolor")
 COLOR_MODES = ("fixed", "sign")
 
 #: The plot fields that are presentation for the fingerprint. A change to any of
-#: them makes the plot's presentation "changed" for the legacy rule.
+#: them makes the plot's presentation "changed" for the legacy rule. ⚠️ `width` is
+#: NOT one of them and must not become one: its ceiling (`_check_width`) carries its
+#: OWN fingerprint, the plot's key + the width it draws (`_width_fp`).
 _PLOT_PRESENTATION = ("style", "marker", "colorMode", "colorUp", "colorDown",
                       "colorPalette", "colorGradient", "colorPacked")
 
@@ -92,17 +94,84 @@ def _err(out: list, path: str, code: str, message: str, fp: str) -> None:
 LINE_WIDTH_HARD_MAX = 50
 
 
-def _check_width(plot: Mapping, inputs: Mapping, path: str, fp: str, out: list) -> None:
-    """A plot's width -- a number, or a `$key` naming an input whose default is one
-    (`defSchema.substitute`) -- above the ceiling. Only the ceiling: everything else
-    about a width is `defSchema`'s, so this lane is never stricter than the browser."""
+def _drawn_width(plot: Mapping, inputs: Mapping) -> Any:
+    """The width a plot DRAWS: a number, or a `$key` naming an input whose default is
+    one (`defSchema.substitute`); anything else is returned as written."""
     w = plot.get("width")
     if isinstance(w, str) and w.startswith("$"):
         spec = inputs.get(w[1:])
         w = spec.get("default") if isinstance(spec, Mapping) else None
-    if _is_num(w) and w > LINE_WIDTH_HARD_MAX:
+    return w
+
+
+def _over_cap(w: Any) -> bool:
+    return _is_num(w) and w > LINE_WIDTH_HARD_MAX
+
+
+def _width_fp(plot: Mapping, width: Any) -> str:
+    """⭐ THE CEILING'S OWN FINGERPRINT: the plot's key + the width it draws -- NOT the
+    plot's presentation fingerprint (`_plot_fp`), which does not name `width`. ⚰️ On
+    the whole-plot fingerprint a stored over-cap row could RAISE its width (60 ->
+    10000) and still read as "kept", and an edit to the same plot's style or colour
+    made the untouched width look new and refused the save. Keyed on the drawn width,
+    an unchanged over-cap width stays grandfathered whatever else about the plot
+    changes, and ANY change to it -- the literal, or the input default it names -- is
+    new and refused."""
+    return "plot-width:" + _canon({"key": plot.get("key"), "width": width})
+
+
+def _check_width(plot: Mapping, inputs: Mapping, path: str, out: list) -> None:
+    """A plot's drawn width (`_drawn_width`) above the ceiling. Only the ceiling:
+    everything else about a width is `defSchema`'s, so this lane is never stricter
+    than the browser's validity rules (the browser DRAWS an over-cap stored width at
+    the ceiling; this door refuses to let a save introduce one)."""
+    w = _drawn_width(plot, inputs)
+    if _over_cap(w):
         _err(out, f"{path}.width", "plot-width",
-             f"{path}.width: at most {LINE_WIDTH_HARD_MAX} px, got {w!r}", fp)
+             f"{path}.width: at most {LINE_WIDTH_HARD_MAX} px, got {w!r}", _width_fp(plot, w))
+
+
+def _inputs_by_key(definition: Mapping) -> dict:
+    inputs = definition.get("inputs")
+    return {i.get("key"): i for i in inputs if isinstance(i, Mapping) and isinstance(i.get("key"), str)} \
+        if isinstance(inputs, list) else {}
+
+
+def clamp_plot_widths(definition: Any) -> tuple:
+    """``(definition, clamped)``: a COPY of a stored document (share install, fork)
+    with every plot width above the ceiling brought down TO it -- the width the
+    browser draws it at (`defSchema.validatePlot` clamps the same way), so a copy
+    never hands a second member a width no UCT door produces. The copier did not
+    author it, so the copy is repaired rather than refused. A literal is rewritten;
+    a `$key` width clamps its input (`default`, and a `max`/`min` above the ceiling)
+    -- the shape the member door builds (`builderInputs.pineLineWidth`: default and
+    max at the ceiling). Returns the SAME object and ``[]`` when nothing is over;
+    never raises on a malformed document."""
+    if not isinstance(definition, Mapping) or not isinstance(definition.get("plots"), list):
+        return definition, []
+    inputs = _inputs_by_key(definition)
+    if not any(isinstance(p, Mapping) and _over_cap(_drawn_width(p, inputs))
+               for p in definition["plots"]):
+        return definition, []
+    doc = json.loads(json.dumps(definition))
+    inputs = _inputs_by_key(doc)
+    clamped: list = []
+    for i, plot in enumerate(doc["plots"]):
+        if not isinstance(plot, dict):
+            continue
+        w = _drawn_width(plot, inputs)
+        if not _over_cap(w):
+            continue
+        ref = plot.get("width")
+        if isinstance(ref, str) and ref.startswith("$"):
+            spec = inputs[ref[1:]]
+            for bound in ("default", "max", "min"):
+                if _over_cap(spec.get(bound)):
+                    spec[bound] = LINE_WIDTH_HARD_MAX
+        else:
+            plot["width"] = LINE_WIDTH_HARD_MAX
+        clamped.append(f"plots[{i}].width {w!r} -> {LINE_WIDTH_HARD_MAX}")
+    return doc, clamped
 
 
 def _check_marker(plot: Mapping, path: str, fp: str, out: list) -> None:
@@ -416,9 +485,7 @@ def presentation_errors(definition: Mapping[str, Any]) -> list:
     events = events if isinstance(events, list) else []
     columns = {p.get("key") for p in plots if isinstance(p, Mapping) and isinstance(p.get("key"), str)}
     columns |= {e.get("key") for e in events if isinstance(e, Mapping) and isinstance(e.get("key"), str)}
-    inputs = definition.get("inputs")
-    inputs = {i.get("key"): i for i in inputs if isinstance(i, Mapping) and isinstance(i.get("key"), str)} \
-        if isinstance(inputs, list) else {}
+    inputs = _inputs_by_key(definition)
     for i, plot in enumerate(plots):
         if not isinstance(plot, Mapping):
             continue
@@ -432,7 +499,7 @@ def presentation_errors(definition: Mapping[str, Any]) -> list:
                  + ("SCHEMA-RESERVED for a later phase" if reserved else "unknown")
                  + f" -- buildable styles are {', '.join(PLOT_STYLES)}", fp)
         _check_marker(plot, path, fp, out)
-        _check_width(plot, inputs, path, fp, out)
+        _check_width(plot, inputs, path, out)
         _check_plot_colour_fields(plot, path, fp, out)
         _check_color_mode(plot, path, fp, columns, out)
     _check_paints(definition.get("paints"), columns, out)

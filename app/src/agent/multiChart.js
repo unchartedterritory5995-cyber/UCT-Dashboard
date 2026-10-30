@@ -88,7 +88,7 @@ function linkedTogether(refs, charts) {
 }
 const setSymbol = (ref, symbol) => ({ action: 'chart.setSymbol', target: ref, args: { symbol } })
 const setTf = (ref, timeframe) => ({ action: 'chart.setTimeframe', target: ref, args: { timeframe } })
-const chartGrid = (symbols, timeframe, layout, newCharts) => ({ action: 'chartGrid.set', target: 'board', args: { symbols, timeframe: timeframe || null, layout: layout || null, new_charts: newCharts ? true : null } })
+const chartGrid = (symbols, timeframe, layout, newCharts, watchlist = false) => ({ action: 'chartGrid.set', target: 'board', args: { symbols, timeframe: timeframe || null, layout: layout || null, new_charts: newCharts ? true : null, watchlist: watchlist ? true : null } })
 
 // ── N charts for these tickers ──
 const COUNT_WORDS = { two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9 }
@@ -115,7 +115,18 @@ export function gridTickers(raw, host) {
   const at = (s) => String(raw).search(new RegExp(`(?:^|[^A-Za-z0-9$])\\$?${escapeRe(s)}(?![A-Za-z0-9])`, 'i'))
   return [...new Set([...marked, ...lower])].sort((a, b) => at(a) - at(b))
 }
-function gridRequest(raw, lower, charts, host) {
+// ⭐ PHASE 3 (workspace composition): "make me a momentum workspace with four daily charts for NVDA, AMD, AVGO and MU, and a
+// watchlist" — the lead-in names the board ("a … workspace / board / setup with"), and "a watchlist" asks for a Watchlist
+// rail beside the charts (chartGrid.set `watchlist`). Only "a watchlist" / "a watchlist widget" — a NAMED list ("my
+// Momentum watchlist") is not this (it is the model's: open that list).
+const WORKSPACE_LEAD = /^(?:please\s+)?(?:make|build|set up|setup|create|give|lay out)\s+(?:me\s+)?(?:a|an|my)\s+(?:[a-z]+\s+){0,3}?(?:workspace|board|setup|layout)\s+(?:with|that has|of)\s+/i
+const WATCH_RAIL = /(?:,\s*|\s+)(?:and\s+|with\s+|plus\s+)?(?:a|one)\s+watch ?list(?:\s+widget)?(?:\s+(?:on the right|beside them|next to them|on the side))?(?=$|[\s,.;!?])/i
+function gridRequest(raw0, lower0, charts, host) {
+  const lead = WORKSPACE_LEAD.exec(raw0)
+  const rail = WATCH_RAIL.test(raw0)
+  const raw = raw0.replace(WORKSPACE_LEAD, 'open ').replace(WATCH_RAIL, ' ').replace(/\s+/g, ' ').trim()
+  const lower = raw.toLowerCase()
+  if ((lead || rail) && !CHARTS_FOR.test(raw) && !COUNT_RE.test(raw)) return null
   const syms = gridTickers(raw, host)
   if (syms.length < 2) return null
   const layoutHit = GRID_LAYOUT.find(([re]) => re.test(raw))
@@ -131,10 +142,11 @@ function gridRequest(raw, lower, charts, host) {
   if (rest) return null
   const fresh = wantsNew(raw, syms.length, charts.length)
   // least disruptive: NEW charts (no layout asked for) that fit in the empty space go there — nothing re-tiled
-  if (fresh && !layoutHit && fitsEmpty(host, syms.length)) {
+  if (fresh && !layoutHit && !rail && fitsEmpty(host, syms.length)) {
     return { kind: 'ops', ops: [{ action: 'widget.addCharts', target: 'workspace', args: { symbols: syms, timeframe: tf || null, chart_type: null, exact: null } }], mode: 'apply' }
   }
-  return { kind: 'ops', ops: [chartGrid(syms, tf, layoutHit ? layoutHit[1] : null, fresh)], mode: 'apply' }
+  // a workspace "with" the charts reuses the board's charts (they are its charts now); "open" / "new" adds beside them
+  return { kind: 'ops', ops: [chartGrid(syms, tf, layoutHit ? layoutHit[1] : null, lead ? false : fresh, rail)], mode: 'apply' }
 }
 // OWNER 2026-10-27 (+ live test 2026-10-28): reuse the board's charts when there are no more of them than tickers
 // ("four charts for …" on a one-chart board: that chart becomes the first of the four); NEW charts when the member
@@ -324,11 +336,67 @@ function copyLook(raw, charts, host) {
   return null
 }
 
+// ── ⭐ PHASE 3: keep one chart, re-symbol the others ──
+// "keep the NVDA chart but replace the others with aapl msft and amzn": the kept chart is named (symbol, position or
+// order); the others, in reading order, take the tickers in the member's order — exactly as many tickers as other charts
+// (fewer or more is said, never a guess). chart.setSymbol on each, ONE change and one Undo.
+const KEEP_RE = /^(?:please\s+)?(?:keep|leave)\s+(.+?)(?:\s+as is|\s+alone)?\s*,?\s+(?:but|and)\s+(?:replace|swap|change|switch|set)\s+(?:the\s+|all\s+the\s+)?(?:others|other charts|other ones|rest(?: of them| of the charts)?)\s+(?:with|to|for)\s+(.+)$/i
+function keepOthers(raw, charts, host) {
+  if (charts.length < 2) return null
+  const m = KEEP_RE.exec(raw.trim().replace(/[.!?]+$/, ''))
+  if (!m) return null
+  const keep = chartFromPhrase(m[1], charts, host)
+  if (!keep) return { kind: 'say', text: `I can't tell which chart “${m[1]}” is — name it by its ticker or position. Nothing has changed.` }
+  const others = charts.filter(c => c.ref !== keep).sort(readingOrder)
+  const syms = gridTickers(m[2], host)
+  const rest = m[2].replace(/[,;&]|\band\b/gi, ' ').split(/\s+/).filter(Boolean)
+  if (!syms.length || rest.length !== syms.length) return null                    // not only tickers → the model
+  if (syms.length !== others.length) {
+    return { kind: 'say', text: `There ${others.length === 1 ? 'is 1 other chart' : `are ${others.length} other charts`} here, and you named ${syms.length} ticker${syms.length === 1 ? '' : 's'} — name one for each. Nothing has changed.` }
+  }
+  if (linkedTogether(others.map(c => c.ref), charts)) return { kind: 'say', text: LINKED }
+  return { kind: 'ops', ops: others.map((c, i) => setSymbol(c.ref, syms[i])), mode: 'apply' }
+}
+
+// ── ⭐ PHASE 3: one timeframe across charts ──
+// "make all my charts match the top left's timeframe", "sync the timeframes to the NVDA chart", "put everything on the
+// weekly like the top left" → chart.setTimeframe on each OTHER chart, to the timeframe that chart shows now (read from the
+// live board; one change, one Undo). "make these two charts use the same timeframe" names no winner: it is asked, with
+// the charts' own timeframes, never picked.
+const TF_SYNC = [
+  /^(?:please\s+)?(?:make|set|put|switch|change|have)\s+(?:all\s+(?:of\s+)?)?(?:my\s+|the\s+)?(?:other\s+)?(?:charts?|ones|everything|them all|all of them|the rest|the others)\s+(?:to\s+)?(?:match|use|on|to|the same as)\s+(.+?)(?:'s|’s)?\s+(?:timeframe|time frame|tf)$/i,
+  /^(?:please\s+)?(?:sync|match|line up|align)\s+(?:all\s+(?:of\s+)?)?(?:my\s+|the\s+)?(?:charts?'?|chart)?\s*(?:timeframes?|time frames?|tfs?)\s+(?:to|with)\s+(.+?)$/i,
+]
+const SAME_TF = /^(?:please\s+)?(?:make|set|put|have|give)\s+(.+?)\s+(?:use\s+|on\s+|to\s+|have\s+)?the same (?:timeframe|time frame|tf)$/i
+function syncTimeframes(raw, charts, host) {
+  if (charts.length < 2) return null
+  const t = raw.trim().replace(/[.!?]+$/, '')
+  for (const re of TF_SYNC) {
+    const m = re.exec(t)
+    if (!m) continue
+    const from = chartFromPhrase(m[1].replace(/\s+(?:chart|one)$/i, '') + ' chart', charts, host) || chartFromPhrase(m[1], charts, host)
+    if (!from) return { kind: 'say', text: `I can't tell which chart “${m[1]}” is — name it by its ticker or position. Nothing has changed.` }
+    const tf = charts.find(c => c.ref === from)?.tf
+    if (!tf) return null
+    const others = charts.filter(c => c.ref !== from && c.tf !== tf)
+    if (!others.length) return { kind: 'say', text: 'Every chart is already on that timeframe.' }
+    return { kind: 'ops', ops: others.map(c => setTf(c.ref, tf)), mode: 'apply' }
+  }
+  const s = SAME_TF.exec(t)
+  if (s) {
+    const tfs = [...new Set(charts.map(c => c.tf).filter(Boolean))]
+    if (tfs.length === 1) return { kind: 'say', text: 'They are already on the same timeframe.' }
+    return { kind: 'say', text: `Which timeframe should they share — ${charts.map(c => `${c.label || c.symbol} is on ${tfName(c.tf)}`).join(', ')}? Say “make them all weekly”, or “match the top left chart's timeframe”. Nothing has changed.` }
+  }
+  return null
+}
+const tfName = (tf) => ({ D: 'Daily', W: 'Weekly', M: 'Monthly', 60: '1 hour', 1: '1 minute', 5: '5 minutes', 15: '15 minutes', 30: '30 minutes' }[tf] || tf)
+
 export function multiChartPlan(text, { host } = {}) {
   const raw = String(text || '').trim()
   if (!raw || raw.length > 200) return null
   let charts = []
   try { charts = host?.charts?.list?.() || [] } catch { charts = [] }
   const lower = raw.toLowerCase()
-  return copyLook(raw, charts, host) || sideBySide(raw, lower, charts, host) || positional(raw, charts) || gridRequest(raw, lower, charts, host)
+  return copyLook(raw, charts, host) || syncTimeframes(raw, charts, host) || keepOthers(raw, charts, host) || sideBySide(raw, lower, charts, host) || positional(raw, charts) || gridRequest(raw, lower, charts, host)
 }

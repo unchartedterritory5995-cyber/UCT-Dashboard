@@ -71,12 +71,14 @@
   "widget.move": "workspace",
   "widget.arrange": "workspace",
   "chartGrid.set": "chartGrid",
+  "board.duplicateChart": "boardEdit",
   "widget.setLink": "workspace",
   "widget.showList": "workspace",
   "watchlist.open": "lists",
   "widget.showScan": "workspace",
   "chart.applyThemeAll": "charts",
   "widget.resize": "workspace",
+  "board.swap": "boardEdit",
   "widget.selectTab": "workspace",
   "widget.renameTab": "workspace",
   "widget.closeTab": "workspace",
@@ -139,6 +141,10 @@
   {
    "id": "chartGrid",
    "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
+  },
+  {
+   "id": "boardEdit",
+   "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it)"
   },
   {
    "id": "workspace",
@@ -263,6 +269,10 @@
      {
       "id": "chartGrid",
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
+     },
+     {
+      "id": "boardEdit",
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it)"
      },
      {
       "id": "workspace",
@@ -405,6 +415,10 @@
      {
       "id": "chartGrid",
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
+     },
+     {
+      "id": "boardEdit",
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it)"
      },
      {
       "id": "workspace",
@@ -554,6 +568,10 @@
      {
       "id": "chartGrid",
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
+     },
+     {
+      "id": "boardEdit",
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it)"
      },
      {
       "id": "workspace",
@@ -714,6 +732,10 @@
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
      },
      {
+      "id": "boardEdit",
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it)"
+     },
+     {
       "id": "workspace",
       "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
      },
@@ -852,6 +874,10 @@
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
      },
      {
+      "id": "boardEdit",
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it)"
+     },
+     {
       "id": "workspace",
       "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
      },
@@ -923,6 +949,7 @@
     "charts",
     "chartSetup",
     "chartGrid",
+    "boardEdit",
     "workspace",
     "layouts",
     "indicators",
@@ -1003,12 +1030,14 @@
     "widget.move",
     "widget.arrange",
     "chartGrid.set",
+    "board.duplicateChart",
     "widget.setLink",
     "widget.showList",
     "watchlist.open",
     "widget.showScan",
     "chart.applyThemeAll",
     "widget.resize",
+    "board.swap",
     "widget.selectTab",
     "widget.renameTab",
     "widget.closeTab",
