@@ -18,7 +18,7 @@
 import { useEffect, useId, useState, useSyncExternalStore } from 'react'
 import { useSWRConfig } from 'swr'
 import usePreferences from '../../../../../hooks/usePreferences'
-import { beginPrefsOp } from '../../../../../lib/prefsSession'
+import { beginPrefsOp, onPrefsUserChange, prefsUser } from '../../../../../lib/prefsSession'
 import { STYLES_URL } from '../../../lib/journalStyles'
 import { starterPacksEnabled } from '../../../lib/starterPacksFlag'
 import { PACKS, STARTER_PACK_PREF, installStarterPack, readStarterPackState, writeStarterPackState } from '../../../lib/starterPacks'
@@ -43,6 +43,20 @@ const subscribe = (f) => { offerStore.subs.add(f); return () => offerStore.subs.
 const readMode = () => offerStore.mode
 const readOwner = () => offerStore.hosts.at(-1) ?? null
 
+// ⛔ AN INSTALL THAT LANDED FOR A MEMBER WHO IS NO LONGER SIGNED IN HERE. The install POST carried A's cookie, so
+// the pack is A's; A's answer cannot be written now, because every preferences write goes out on the CURRENT
+// cookie (B's) and setPrefMerged drops a write begun for A. So the answer is kept here, KEYED BY A'S ID, and
+// written by useStarterPackOffer the next time A is the member on this page, through an op begun for A. B's id
+// never matches, so B never reads or writes it. Memory only: a reload forgets it, and then the re-offer is
+// harmless by construction, because the offer shows only to a member with no styles of their own (A now has the
+// pack's) and the server's install is idempotent (alreadyHad, never copied twice).
+const unwrittenAnswers = new Map()
+const replaying = new Set()                 // members whose kept answer is being written now
+const owesAnswer = (member) => member != null && unwrittenAnswers.has(member)
+
+/** Tests only. */
+export function __resetStarterPackOfferForTests() { unwrittenAnswers.clear(); replaying.clear() }
+
 /** Whether the offer shows on THIS surface. `data` is the journal-styles list (or undefined while it loads);
  *  `active` is whether the surface is on screen (the manager passes `open`). `open()` is the manager's link;
  *  `close()` is "Not now"; `reset()` forgets the decision. `settled` says the decision for this surface has
@@ -50,13 +64,34 @@ const readOwner = () => offerStore.hosts.at(-1) ?? null
 export function useStarterPackOffer(data, active = true) {
   const id = useId()
   const on = starterPacksEnabled()
-  const { prefs, loading, readFailed } = usePreferences(on)
+  const { prefs, loading, readFailed, setPrefMerged } = usePreferences(on)
   const mode = useSyncExternalStore(subscribe, readMode, readMode)
   const owner = useSyncExternalStore(subscribe, readOwner, readOwner)
+  const member = useSyncExternalStore(onPrefsUserChange, prefsUser, prefsUser)
+  const owed = useSyncExternalStore(subscribe, () => owesAnswer(member), () => owesAnswer(member))
   const ready = Boolean(data) && !loading
-  const eligible = on && ready && !readFailed
+  const eligible = on && ready && !readFailed && !owed
     && readStarterPackState(prefs) === null
     && !(data.styles || []).some((s) => !s.builtin)
+  // The answer an install made for THIS member could not write (see unwrittenAnswers), written now that they are
+  // the member here again, once their own preferences have been read. An answer already there wins.
+  useEffect(() => {
+    if (!on || loading || readFailed || !owed) return
+    const op = beginPrefsOp()
+    if (op.user !== member) return
+    if (replaying.has(member)) return
+    const answer = unwrittenAnswers.get(member)
+    const settle = () => { replaying.delete(member); unwrittenAnswers.delete(member); emit() }
+    if (readStarterPackState(prefs) !== null) { settle(); return }
+    // Still OWED while the write is in flight, so the offer cannot latch open in between.
+    replaying.add(member)
+    Promise.resolve(writeStarterPackState((_key, updater) => setPrefMerged(STARTER_PACK_PREF, updater, op), answer))
+      .then((saved) => {
+        // The member changed again during the write, so it was dropped: keep it for them.
+        if (op.stale() && saved?.ok !== true) { replaying.delete(member); return }
+        settle()
+      }, () => { replaying.delete(member) })
+  }, [on, loading, readFailed, owed, member, prefs, setPrefMerged])
   useEffect(() => {
     if (!active) return undefined
     offerStore.hosts.push(id)
@@ -139,7 +174,11 @@ export default function StarterPackOffer({ onClose, offline = false }) {
     }
     const answer = { state: 'installed', pack }
     const saved = await writeAnswer(answer)            // never lands in another member's preferences (see writeAnswer)
-    if (op.stale()) { onClose?.(); return }             // and A's result is not shown to B
+    if (op.stale()) {                                   // and A's result is not shown to B
+      // The pack is A's (A's cookie installed it), so A's answer is kept for A, never written for B.
+      if (saved?.ok !== true && op.user != null) { unwrittenAnswers.set(op.user, answer); emit() }
+      onClose?.(); return
+    }
     mutate(STYLES_URL)                                    // the new styles appear in the lists behind this card
     const said = resultLines(out)
     setLines(said.length ? said : [OFFER_EMPTY])
