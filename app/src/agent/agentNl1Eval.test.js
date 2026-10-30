@@ -228,7 +228,7 @@ describe('NL-1 acceptance gates (fixed before any paid evaluation)', () => {
 })
 
 describe('NL-1 proxy-smoke regressions (2026-10-16)', () => {
-  it('the capture selects from ALL 119 actions on a member\'s board (charts that manage indicators; an admin may create them)', () => {
+  it('the capture selects from ALL 121 actions on a member\'s board (charts that manage indicators; an admin may create them)', () => {
     const golden = JSON.parse(fs.readFileSync(path.resolve(HERE, 'contract/manifest.golden.json'), 'utf8')).capabilities
     const catalogs = new Map()
     const [nl1] = captureCase(spec, { id: 'x', fx: 'one_chart', text: 'add rsi', expect: { kind: 'act' } }, 'nl1', { catalogs })

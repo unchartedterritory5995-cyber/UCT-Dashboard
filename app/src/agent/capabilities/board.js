@@ -71,6 +71,16 @@ function addedChartOpts(w) {
   const { preset, ...rest } = cs || {}                                    // eslint-disable-line no-unused-vars
   return JSON.stringify({ ...o, settings: { ...rest, indicatorInstances: (cs?.indicatorInstances || []).filter(i => i && !i.deleted) } })
 }
+// ⭐ PHASE 3: a chart the grid REUSED — its Undo writes back only the cell, the link, the ticker and the timeframe (opts.tf),
+// never the chart's settings, so a later change to its settings (an indicator added and removed — whose own Undo leaves
+// bookkeeping in the stored settings, see docs/agent/PHASE3-INDICATORS-HANDOFF.md) is no edit the grid's Undo would
+// overwrite. Everything it DOES write is still compared exactly: a newer edit of any of those still refuses.
+function reusedChartOpts(w) {
+  const o = w?.opts ?? null
+  if (!o || typeof o !== 'object' || w.type !== 'chart') return JSON.stringify(o)
+  const { settings, ...rest } = o                                       // eslint-disable-line no-unused-vars
+  return JSON.stringify(rest)
+}
 const same = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null)
 const clone = (o) => JSON.parse(JSON.stringify(o))
 const intOk = (v, lo, hi) => Number.isInteger(v) && v >= lo && v <= hi
@@ -212,7 +222,7 @@ export const boardKind = {
         let sym = null
         try { sym = host?.widgets?.configOf?.(id)?.symbol ?? null } catch { sym = null }
         const added = (g?.added || []).includes(id)
-        return w ? [id, ...FIELDS.map(f => (f === 'opts' && added ? addedChartOpts(w) : JSON.stringify(w[f] ?? null))), sym] : [id, 'gone']
+        return w ? [id, ...FIELDS.map(f => (f !== 'opts' ? JSON.stringify(w[f] ?? null) : added ? addedChartOpts(w) : reusedChartOpts(w))), sym] : [id, 'gone']
       }))
     }
     const ids = [...new Set([...(p.remove || []), ...Object.keys(p.set || {}), ...(p.restore || []).map(w => w.id), ...(p.add ? item.undoData?.added || [] : [])])]
@@ -258,13 +268,17 @@ async function commitGrid(host, g) {
     }
     for (const a of g.add || []) {
       const known = new Set(rawNow(host).map(w => String(w.id)))
-      host.widgets.add('chart', { ...a.rect }, { symbol: a.symbol, tf: a.tf || null })
+      // ⭐ PHASE 3 (board.duplicateChart): a copy is born with the source chart's own opts (its settings — look, indicators —
+      // and timeframe), through the same seed handleAddWidget gives a Watchlist widget's list
+      // (⭐ PHASE 3: a grid's watchlist rail adds a widget of another type — born with its own seed opts, keeps its colour)
+      const type = a.type || 'chart'
+      host.widgets.add(type, { ...a.rect }, a.opts ? { opts: clone(a.opts), ...(a.symbol ? { symbol: a.symbol } : {}) } : { symbol: a.symbol, tf: a.tf || null })
       let fresh = null
-      await settle(() => !!(fresh = rawNow(host).find(w => !known.has(String(w.id)) && w.type === 'chart') || null))
-      if (!fresh) { host.widgets.cancelPending?.(); throw new Error('a new chart did not appear') }
+      await settle(() => !!(fresh = rawNow(host).find(w => !known.has(String(w.id)) && w.type === type) || null))
+      if (!fresh) { host.widgets.cancelPending?.(); throw new Error(`a new ${type === 'chart' ? 'chart' : label(type)} did not appear`) }
       added.push(String(fresh.id))
-      if (!sameRect(fresh, a.rect)) throw new Error('a new chart did not land in its planned place')
-      if (fresh.color !== 'N') { host.widgets.color(fresh.id, 'N'); await afterRender() }
+      if (!sameRect(fresh, a.rect)) throw new Error(`a new ${type === 'chart' ? 'chart' : label(type)} did not land in its planned place`)
+      if (type === 'chart' && fresh.color !== 'N') { host.widgets.color(fresh.id, 'N'); await afterRender() }
     }
     for (const r of g.reuse || []) {
       const p = {}
@@ -301,7 +315,7 @@ function gridLanded(snap, g) {
   const by = new Map(snap.raw.map(w => [String(w.id), w]))
   for (const [id, r] of Object.entries(g.set || {})) if (!sameRect(by.get(id), r)) return false
   for (const id of g.unlink || []) if (by.get(id)?.color !== 'N') return false
-  return (g.add || []).every(a => snap.raw.some(w => w.type === 'chart' && sameRect(w, a.rect)))
+  return (g.add || []).every(a => snap.raw.some(w => w.type === (a.type || 'chart') && sameRect(w, a.rect)))
 }
 function gridUndone(snap, u) {
   const by = new Map(snap.raw.map(w => [String(w.id), w]))
@@ -351,6 +365,143 @@ function resizeStep(st, env, t, edge, by) {
 }
 // ── shared checks ──
 function widgetOf(st, id) { return st.board.find(w => w.id === String(id)) || null }
+// ⭐ PHASE 3 (board.swap): the board with A and B trading places, or null. Adjacent with the same rows → they trade
+// sides, each keeping its width (A's left edge becomes the pair's left edge when B was left of it); adjacent with the same
+// columns → they trade top/bottom, each keeping its height; otherwise only same-sized widgets trade cells.
+// ⭐ PHASE 3: chartGrid.set `watchlist: true` → a Watchlist rail (agent/chartGrid.js planChartGrid `rail`)
+const railOf = (watchlist) => (watchlist === true ? { type: 'watchlist', label: label('watchlist'), labelOf: label } : null)
+// ⭐ PHASE 3 (board.duplicateChart): the split — the chart keeps the left (top) half, the copy takes the other.
+function duplicatePlan(st, s, t) {
+  const { minW, minH } = s.minOf ? s.minOf(t) : { minW: 2, minH: 3 }
+  let keep = null, copy = null, split = null
+  if (t.w >= 2 * minW) { const w1 = Math.ceil(t.w / 2); keep = { x: t.x, y: t.y, w: w1, h: t.h }; copy = { x: t.x + w1, y: t.y, w: t.w - w1, h: t.h }; split = 'side' }
+  else if (t.h >= 2 * minH) { const h1 = Math.ceil(t.h / 2); keep = { x: t.x, y: t.y, w: t.w, h: h1 }; copy = { x: t.x, y: t.y + h1, w: t.w, h: t.h - h1 }; split = 'below' }
+  if (!keep) return { why: `That chart is too small to split for a copy (a chart needs at least ${minW} × ${minH} cells) — make it bigger first.` }
+  const c = s.charts?.get?.(String(t.id)) || {}
+  if (!c.symbol) return { why: "I can't read that chart's ticker right now, so I didn't copy it." }
+  const opts = { ...(t.opts?.settings != null ? { settings: clone(t.opts.settings) } : {}), ...(c.tf ? { tf: c.tf } : {}) }
+  return { set: { [t.id]: keep }, board: st.board.map(w => (w.id === t.id ? { ...w, ...keep } : w)), add: { rect: copy, symbol: String(c.symbol).toUpperCase(), tf: c.tf || null, opts }, split }
+}
+const DUP_RE = /^(?:please )?(?:duplicate|clone|copy|make (?:a |another )?(?:copy|duplicate|clone) of|give me (?:a |another )?copy of|open (?:a |another )?copy of)\s+(.+?)$/
+/** "duplicate this chart", "make a copy of the NVDA chart", "clone the left chart" → { widget, __target } | null. */
+function duplicatePhrase(lower, host) {
+  const m = DUP_RE.exec(String(lower || '').replace(/[.!]+$/, '').trim())
+  if (!m) return null
+  const words = m[1].replace(/\s+(?:please|for me)$/, '')
+  if (!/\bchart\b|\bit\b|\bthis one\b|\bthat one\b/.test(words)) return null                  // "copy my watchlist" is not this
+  const b = boardOf(host)
+  if (!b) return null
+  const chartsOn = b.all.filter(w => w.type === 'chart')
+  let id = null
+  if (/^(?:this|this chart|it|this one|that one|the chart|my chart|that chart)$/.test(words)) {
+    let sel = null
+    try { sel = host?.charts?.selected?.() || null } catch { sel = null }
+    const selId = sel ? String(sel).split('~')[0] : null
+    id = chartsOn.length === 1 ? chartsOn[0].id : (selId && chartsOn.some(w => String(w.id) === selId) ? selId : null)
+  } else {
+    const w = widgetNamed(words, b.all)
+    if (w?.type === 'chart') id = w.id
+    else {
+      // "the NVDA chart": the one chart showing that ticker
+      const sym = /^(?:the |my )?\$?([a-z][a-z0-9.]{0,9}) chart$/.exec(words)?.[1]
+      let list = []
+      try { list = host?.charts?.list?.() || [] } catch { list = [] }
+      const hits = sym ? list.filter(c => String(c.symbol || '').toLowerCase() === sym) : []
+      if (hits.length === 1) id = String(hits[0].ref).split('~')[0]
+    }
+  }
+  return id ? { widget: id, __target: 'board' } : null
+}
+
+export function swapped(board, A, B) {
+  if (!A || !B) return null
+  const put = (m) => board.map(w => (m[w.id] ? { ...w, ...m[w.id] } : w))
+  if (A.y === B.y && A.h === B.h && (A.x + A.w === B.x || B.x + B.w === A.x)) {
+    const [l, r] = A.x < B.x ? [A, B] : [B, A]
+    return put({ [r.id]: { x: l.x }, [l.id]: { x: l.x + r.w } })
+  }
+  if (A.x === B.x && A.w === B.w && (A.y + A.h === B.y || B.y + B.h === A.y)) {
+    const [t, u] = A.y < B.y ? [A, B] : [B, A]
+    return put({ [u.id]: { y: t.y }, [t.id]: { y: t.y + u.h } })
+  }
+  if (A.w === B.w && A.h === B.h) return put({ [A.id]: { x: B.x, y: B.y }, [B.id]: { x: A.x, y: A.y } })
+  return null
+}
+
+// ── ⭐ PHASE 3: the board's own words — "swap the watchlist and the chart", "move my watchlist to the right", "make the
+// watchlist wider". Read against the LIVE board (the widgets on the grid, by type and position); a phrase that names no
+// widget, or several, is not read here (→ the model, which sees the board entry, or asks). The ops are the existing
+// board.swap / widget.resize, checked and receipted like any other. Pure: reads `host`, never writes.
+const POS_WORDS = '(?:top[- ]left|top[- ]right|bottom[- ]left|bottom[- ]right|upper[- ]left|upper[- ]right|lower[- ]left|lower[- ]right|left|right|top|bottom|upper|lower|middle)'
+function boardOf(host) {
+  let s = null
+  try { s = host?.widgets?.snapshot?.() || null } catch { s = null }
+  if (!s?.raw || !s.grid) return null
+  // the widgets ON the grid (a floating or popped-out one is not), with their geometry
+  const onGrid = new Set((s.visible || s.raw).map(w => String(w.id)))
+  return { all: s.raw.filter(w => onGrid.has(String(w.id))), grid: s.grid }
+}
+/** "my watchlist", "the left chart", "the news widget" → the ONE widget on the grid those words mean, else null. */
+export function widgetNamed(words, all) {
+  let p = String(words || '').toLowerCase().trim().replace(/^(?:my|the|this|that|our)\s+/, '').replace(/\s+(?:widget|panel|window|one)$/, '').trim()
+  const pm = new RegExp(`^(${POS_WORDS})\\s+`).exec(p)
+  const pos = pm ? pm[1].replace(' ', '-').replace('upper', 'top').replace('lower', 'bottom') : null
+  if (pm) p = p.slice(pm[0].length)
+  p = p.replace(/^watch list$/, 'watchlist').replace(/s$/, '')
+  if (!p) return null
+  const types = Object.keys(LABEL).filter(t => t === p || String(LABEL[t]).toLowerCase() === p)
+  let hits = all.filter(w => types.includes(w.type))
+  if (pos) hits = hits.filter(w => (positionWord(w, all) || '').split('-').concat(positionWord(w, all) || '').includes(pos))
+  return hits.length === 1 ? hits[0] : null
+}
+const SWAP_RE = /^(?:please )?(?:swap|switch|flip|exchange|trade)(?: places of| the places of| the positions of)? (.+?) (?:and|with|for) (.+?)(?: around| over| places)?$/
+const MOVE_RE = new RegExp('^(?:please )?(?:move|put|shift|slide|drag|switch) (.+?) (?:to|on|over to|onto|to the other side,? to) the (left|right|top|bottom)(?: side| edge| of the (?:board|screen|workspace))?$')
+const SIZE_RE2 = /^(?:please )?make (.+?) (a (?:little|bit|tad) |slightly |much |a lot )?(wider|narrower|taller|shorter|bigger|larger|smaller)(?: by (\d{1,2})(?: cells?| columns?| rows?)?)?$/
+/** → { action, args } for the board, or null. */
+export function boardPhrase(lower, host) {
+  const b = boardOf(host)
+  if (!b || b.all.length < 2) return null
+  const t = String(lower || '').replace(/[.!]+$/, '').trim()
+  let m = SWAP_RE.exec(t)
+  if (m) {
+    // "swap the top left and bottom right charts": a bare position borrows the other half's noun
+    const noun = (s) => (/\b(\S+?)s?$/.exec(String(s).trim()) || [])[1] || ''
+    const onlyPos = (s) => new RegExp(`^(?:the |my )?${POS_WORDS}(?: one)?$`).test(String(s).trim())
+    const w1 = onlyPos(m[1]) ? `${m[1]} ${noun(m[2])}` : m[1]
+    const w2 = onlyPos(m[2]) ? `${m[2]} ${noun(m[1])}` : m[2]
+    const A = widgetNamed(w1, b.all), Bw = widgetNamed(w2, b.all)
+    return A && Bw && A.id !== Bw.id ? { action: 'board.swap', args: { a: A.id, b: Bw.id } } : null
+  }
+  m = MOVE_RE.exec(t)
+  if (m) {
+    const A = widgetNamed(m[1], b.all)
+    if (!A) return null
+    const side = m[2]
+    // the ONE widget beside it on that side, sharing its rows (or columns) — the two trade sides; anything else is the model's
+    const by = side === 'right' ? (w) => w.x === A.x + A.w && w.y === A.y && w.h === A.h
+      : side === 'left' ? (w) => w.x + w.w === A.x && w.y === A.y && w.h === A.h
+        : side === 'bottom' ? (w) => w.y === A.y + A.h && w.x === A.x && w.w === A.w
+          : (w) => w.y + w.h === A.y && w.x === A.x && w.w === A.w
+    const nb = b.all.filter(w => w.id !== A.id && by(w))
+    return nb.length === 1 ? { action: 'board.swap', args: { a: A.id, b: nb[0].id } } : null
+  }
+  m = SIZE_RE2.exec(t)
+  if (m) {
+    const A = widgetNamed(m[1], b.all)
+    if (!A) return null
+    const grow = /wider|taller|bigger|larger/.test(m[3])
+    const horiz = /wider|narrower/.test(m[3]) ? true : /taller|shorter/.test(m[3]) ? false
+      : b.all.some(w => w.id !== A.id && w.y < A.y + A.h && A.y < w.y + w.h)     // bigger/smaller: toward a neighbour beside it
+    const { cols, rows } = b.grid
+    // the edge that has a neighbour to give (or take) the space: right before left, bottom before top
+    const edge = horiz ? (A.x + A.w < cols ? 'right' : 'left') : (A.y + A.h < rows ? 'bottom' : 'top')
+    const dim = horiz ? A.w : A.h
+    const share = /little|bit|tad|slightly/.test(m[2] || '') ? 0.15 : /much|a lot/.test(m[2] || '') ? 0.5 : 0.25
+    const n = m[4] ? Number(m[4]) : Math.max(1, Math.round(dim * share))
+    return { action: 'widget.resize', args: { widget: A.id, edge, by: grow ? n : -n } }
+  }
+  return null
+}
 function problemSentence(st, env, board) {
   const s = env?.target
   if (!s) return 'The board is not available.'
@@ -548,18 +699,20 @@ export function registerBoardCapabilities() {
     hints: 'Use for "create/open/show N charts for A, B, C…", "put SPY, QQQ, NVDA and TSLA in a 2x2 grid", "show NVDA and AMD side by side" — whenever the member names the tickers for several charts. '
       + 'target = the ref of the board entry. symbols = the tickers in the member\'s order, uppercase. timeframe = the one timeframe they gave for all of them (1|5|15|30|60 minutes, D, W, M), else null. '
       + 'layout = "columns" for side by side, "rows" for stacked, "grid" for a grid, else null. '
-      + 'new_charts = true only when they ask for NEW charts ("in new charts", "add four new charts") — the charts already there then keep their tickers; else null. Never widget.add + chart.setSymbol for this.',
+      + 'new_charts = true only when they ask for NEW charts ("in new charts", "add four new charts") — the charts already there then keep their tickers; else null. '
+      + 'watchlist = true when they also ask for a watchlist beside the charts ("…, and a watchlist") and the board has no Watchlist widget: a column on the right is cleared of charts and a Watchlist widget is added there; else null. Never widget.add + chart.setSymbol for this.',
     args: { type: 'object', properties: {
       symbols: { type: 'array', items: { type: 'string' } },
       timeframe: { type: ['string', 'null'], enum: [...CHART_TIMEFRAMES, null] },
       layout: { type: ['string', 'null'], enum: [...GRID_PATTERNS, null] },
       new_charts: { type: ['boolean', 'null'] },
-    }, required: ['symbols', 'timeframe', 'layout', 'new_charts'], additionalProperties: false },
+      watchlist: { type: ['boolean', 'null'] },
+    }, required: ['symbols', 'timeframe', 'layout', 'new_charts', 'watchlist'], additionalProperties: false },
     async prepare(ops) {
       const syms = [...new Set(ops.flatMap(o => (Array.isArray(o.args?.symbols) ? o.args.symbols : [])).map(s => String(s || '').trim().toUpperCase()).filter(Boolean))]
       return syms.length ? { unknownSymbols: await unknownSymbols(syms) } : {}
     },
-    check(st, { symbols, timeframe, layout, new_charts: newCharts }, env) {
+    check(st, { symbols, timeframe, layout, new_charts: newCharts, watchlist }, env) {
       const s = env?.target
       if (!s) return 'The board is not available.'
       if (!Array.isArray(symbols) || !symbols.length) return 'Which tickers?'
@@ -568,12 +721,12 @@ export function registerBoardCapabilities() {
       const unknown = symbols.map(x => String(x || '').trim().toUpperCase()).filter(x => env?.unknownSymbols?.has?.(x))
       if (unknown.length) return `UCT has no symbol ${andList(unknown.map(u => `“${u}”`))}, so I didn't change the charts.`
       if (st.grid) return 'One chart grid at a time.'
-      const plan = planChartGrid({ board: st.board, charts: s.charts || new Map(), symbols, timeframe, layout, newCharts: newCharts === true, cols: s.grid.cols, rows: s.grid.rows, minOf: s.minOf, maxWidgets: s.maxWidgets ?? 16, detached: s.detached })
+      const plan = planChartGrid({ board: st.board, charts: s.charts || new Map(), symbols, timeframe, layout, newCharts: newCharts === true, cols: s.grid.cols, rows: s.grid.rows, minOf: s.minOf, maxWidgets: s.maxWidgets ?? 16, detached: s.detached, rail: railOf(watchlist) })
       return plan.ok ? null : plan.reason
     },
-    apply(st, { symbols, timeframe, layout, new_charts: newCharts }, env) {
+    apply(st, { symbols, timeframe, layout, new_charts: newCharts, watchlist }, env) {
       const s = env.target
-      const plan = planChartGrid({ board: st.board, charts: s.charts || new Map(), symbols, timeframe, layout, newCharts: newCharts === true, cols: s.grid.cols, rows: s.grid.rows, minOf: s.minOf, maxWidgets: s.maxWidgets ?? 16, detached: s.detached })
+      const plan = planChartGrid({ board: st.board, charts: s.charts || new Map(), symbols, timeframe, layout, newCharts: newCharts === true, cols: s.grid.cols, rows: s.grid.rows, minOf: s.minOf, maxWidgets: s.maxWidgets ?? 16, detached: s.detached, rail: railOf(watchlist) })
       if (!plan.ok) return st
       const board = st.board.map(w => (plan.set[String(w.id)] ? { ...w, ...plan.set[String(w.id)] } : (plan.unlink.includes(String(w.id)) ? { ...w, color: 'N' } : w)))
       return { ...st, board, grid: plan }
@@ -583,12 +736,51 @@ export function registerBoardCapabilities() {
       if (!g || g.noop) return null
       const shape = g.tiled && g.shape && g.shape.rows > 1 && g.shape.cols > 1 && g.symbols.length === g.shape.rows * g.shape.cols ? ` in a ${g.shape.rows}×${g.shape.cols} grid`
         : g.tiled && g.shape?.rows === 1 && g.symbols.length > 1 ? ' side by side' : g.tiled && g.shape?.cols === 1 && g.symbols.length > 1 ? ' stacked' : ''
-      if (g.newCharts) return `Added ${gridPhrase(g, { fresh: true })}${g.kept ? ` beside your ${g.kept === 1 ? 'chart' : `${g.kept} charts`}, re-tiled evenly` : ''}`
-      const parts = [g.reuse.length && g.add.length ? `${g.reuse.length} reused, ${g.add.length} new` : g.add.length ? `${g.add.length} new` : null,
+      const rail = g.rail ? `, with a new ${label(g.rail)} on the right` : ''
+      if (g.newCharts) return `Added ${gridPhrase(g, { fresh: true })}${g.kept ? ` beside your ${g.kept === 1 ? 'chart' : `${g.kept} charts`}, re-tiled evenly` : ''}${rail}`
+      const nNew = g.add.filter(a => !a.type || a.type === 'chart').length
+      const parts = [g.reuse.length && nNew ? `${g.reuse.length} reused, ${nNew} new` : nNew ? `${nNew} new` : null,
         g.unlink.length ? `${g.unlink.length} unlinked so ${g.unlink.length === 1 ? 'it' : 'each'} can show its own ticker` : null].filter(Boolean)
-      return `Set up ${gridPhrase(g)}${shape}${parts.length ? ` (${parts.join('; ')})` : ''}`
+      return `Set up ${gridPhrase(g)}${shape}${parts.length ? ` (${parts.join('; ')})` : ''}${rail}`
     },
     noop: () => 'Those charts already show those tickers',
+  })
+
+  // ── ⭐ PHASE 3: board.duplicateChart — "duplicate this chart", "make a copy of the NVDA chart" ──
+  // The chart's cell is split in two (side by side when it is wide enough, else stacked): the chart keeps the first half,
+  // and a NEW chart is born in the other half with the chart's own settings (look, indicators) and timeframe, on its ticker,
+  // not linked (so it can show another ticker without moving the first). Nothing else on the board moves. Written by the
+  // grid's own writer (set the cell, add into the freed half; a step that doesn't land takes everything back); ONE exact
+  // Undo closes the copy and gives the chart its whole cell back.
+  reg({
+    ...common,
+    name: 'board.duplicateChart',
+    summary: 'Duplicate one chart: its cell is split in two and a copy (same ticker, timeframe, look and indicators, not linked) appears in the other half. Nothing else moves. One change, one Undo.',
+    hints: 'target = the ref of the board entry; widget = the chart widget\'s id.',
+    args: { type: 'object', properties: { widget: widgetArg }, required: ['widget'], additionalProperties: false },
+    fastWhole: true,
+    fast: ({ lower, host }) => duplicatePhrase(lower, host),
+    check(st, { widget }, env) {
+      const t = widgetOf(st, widget)
+      if (!t) return notOnBoard(widget)
+      if (t.type !== 'chart') return `Only a chart can be duplicated this way — that's a ${label(t.type)}.`
+      if (st.grid) return 'One board change of this kind at a time.'
+      const s = env?.target
+      if (!s) return 'The board is not available.'
+      if (st.board.length + 1 > (s.maxWidgets ?? 16)) return `The board already holds ${st.board.length} widgets — the most it can hold. Close one first.`
+      const plan = duplicatePlan(st, s, t)
+      return plan.why || problemSentence(st, env, [...plan.board, { id: '__copy', type: 'chart', ...plan.add.rect }])
+    },
+    apply(st, { widget }, env) {
+      const t = widgetOf(st, widget)
+      const plan = duplicatePlan(st, env.target, t)
+      if (plan.why) return st
+      return { ...st, board: plan.board, grid: { ok: true, set: plan.set, add: [plan.add], reuse: [], unlink: [], symbols: [plan.add.symbol], dup: { of: nameOf(t, st.board), split: plan.split } } }
+    },
+    describe(b, a) {
+      const d = a.grid?.dup
+      return d ? `Duplicated the ${d.of} — the copy (${a.grid.add[0].symbol}, not linked) is ${d.split === 'side' ? 'beside' : 'below'} it, each in half of its old space` : null
+    },
   })
 
   reg({
@@ -761,6 +953,9 @@ export function registerBoardCapabilities() {
     args: { type: 'object', properties: {
       widget: widgetArg, edge: { type: 'string', enum: ['left', 'right', 'top', 'bottom'] }, by: { type: 'integer' },
     }, required: ['widget', 'edge', 'by'], additionalProperties: false },
+    // ⭐ PHASE 3: "make the watchlist wider", "make the left chart a little taller" (boardPhrase)
+    fastWhole: true,
+    fast: ({ lower, host }) => { const r = boardPhrase(lower, host); return r?.action === 'widget.resize' ? { ...r.args, __target: 'board' } : null },
     check(st, { widget, edge, by }, env) {
       const t = widgetOf(st, widget)
       if (!t) return notOnBoard(widget)
@@ -784,6 +979,41 @@ export function registerBoardCapabilities() {
       return `Resized the ${nameOf(t0, b.board)} to ${t1.w}×${t1.h} cells${others ? ` (${others} neighbour${others === 1 ? '' : 's'} gave up the space)` : ''}${short}`
     },
     noop: () => "It can't grow that way — its neighbour is already at its minimum size, or it is at the board's edge",
+  })
+
+  // ── ⭐ PHASE 3: board.swap — two widgets trade places ("swap the watchlist and the chart", "move my watchlist to the
+  // right"). Side by side with the same rows (or stacked with the same columns): each keeps its OWN size and they trade
+  // sides — the rail stays a rail. Otherwise only two widgets of the same size trade cells. Nothing else moves; the board
+  // must pass boardProblems; exact Undo (the board kind's own set patch). Its phrases: boardPhrase (below).
+  reg({
+    ...common,
+    name: 'board.swap',
+    summary: 'Swap two widgets\' places on the board. Side by side (same rows) or stacked (same columns): each keeps its own size and they trade sides. Otherwise only two widgets of the same size can trade cells. Nothing else moves.',
+    hints: 'target = the ref of the board entry; a, b = the two widgets\' ids. "move my watchlist to the right" when the chart is on the right = swap the watchlist and that chart.',
+    args: { type: 'object', properties: { a: widgetArg, b: widgetArg }, required: ['a', 'b'], additionalProperties: false },
+    fastWhole: true,
+    fast: ({ lower, host }) => { const r = boardPhrase(lower, host); return r?.action === 'board.swap' ? { ...r.args, __target: 'board' } : null },
+    check(st, { a, b }, env) {
+      const A = widgetOf(st, a), Bw = widgetOf(st, b)
+      if (!A) return notOnBoard(a)
+      if (!Bw) return notOnBoard(b)
+      if (A.id === Bw.id) return 'Those are the same widget.'
+      const det = env?.target?.detached || []
+      if (det.includes(A.id) || det.includes(Bw.id)) return 'That widget is floating or popped out — dock it back onto the board first.'
+      const next = swapped(st.board, A, Bw)
+      if (!next) return `The ${label(A.type)} and the ${label(Bw.type)} aren't side by side or stacked, and they aren't the same size — say where each should go instead.`
+      return problemSentence(st, env, next)
+    },
+    apply(st, { a, b }) {
+      const next = swapped(st.board, widgetOf(st, a), widgetOf(st, b))
+      return next ? { ...st, board: next } : st
+    },
+    describe(b, a, { a: ia, b: ib }) {
+      const A0 = b.board.find(w => w.id === String(ia)), B0 = b.board.find(w => w.id === String(ib))
+      const A1 = a.board.find(w => w.id === String(ia))
+      if (!A0 || !B0 || !A1 || GEOM.every(k => A0[k] === A1[k])) return null
+      return `Swapped the ${nameOf(A0, b.board)} and the ${nameOf(B0, b.board)}`
+    },
   })
 
   // ── widget tabs (non-chart and chart widgets alike: the tab strip in the widget header) ──
