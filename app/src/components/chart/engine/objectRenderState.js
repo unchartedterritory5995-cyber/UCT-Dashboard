@@ -372,6 +372,9 @@ export function toRenderState(live, opts = {}) {
         size: p.size,
         textalign: p.textalign,
         ...(p.tooltip ? { tooltip: String(p.tooltip) } : {}),
+        // ⭐ P2 — `text_formatting` (`bold` / `italic` / `bold_italic`), as a cell's.
+        ...(typeof p.text_formatting === 'string' && p.text_formatting !== 'none'
+          ? { text_formatting: p.text_formatting } : {}),
       })
     } else if (o.family === 'box') {
       const left = xOf(p.left, p.xloc, clock)
@@ -409,7 +412,9 @@ export function toRenderState(live, opts = {}) {
         bgcolor: p.bgcolor,
         // ⭐ UIE PHASE 2 (M5) — and where in the box the author put it
         ...(p.text ? { text: String(p.text), text_color: p.text_color, text_size: p.text_size,
-          text_halign: p.text_halign, text_valign: p.text_valign } : {}),
+          text_halign: p.text_halign, text_valign: p.text_valign,
+          ...(typeof p.text_formatting === 'string' && p.text_formatting !== 'none'
+            ? { text_formatting: p.text_formatting } : {}) } : {}),
       })
     } else if (o.family === 'table') {
       tables.push({
