@@ -1,24 +1,24 @@
 /**
  * News (Trade Exchange) — the row and its popovers, split out of the widget:
  *   Row            one headline (memoised: a quote tick re-renders only the rows
- *                  naming that symbol), its collapse, impact mark and ⋯ actions
- *   ActionsMenu    Open chart · Add to watchlist · Copy headline · Create news alert
+ *                  naming that symbol), its collapse, impact mark, one-click copy
+ *                  and ⋯ (add to watchlist)
+ *   ActionsMenu    Add a headline's symbol to a personal watchlist
  *   FilterMenu     categories (multi-select) + this widget's saved presets
  *   HealthPopover  what this browser knows about the feed (feedHealth)
+ *   Pager          numbered pages of the retained archive (useTradeExchangeNewsPages)
  *
- * Every integration is the canonical one: Open chart is the ticker click
+ * Every integration is the canonical one: a ticker in the text opens the chart
  * (setGroupSym on the widget's colour group), Add to watchlist is the watchlist
- * API TickerActions uses, Copy is the browser clipboard, Create news alert opens
- * the widget's own alert popover — and is OMITTED while the server reports news
- * alerts switched off (production: off until the owner approves).
+ * API TickerActions uses, Copy is the browser clipboard. News alerts are not
+ * offered from a headline (switched off in production until the owner approves).
  */
 import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import useSWR from 'swr'
 import UIcon from '../../../components/ui/UIcon'
 import Input from '../../../components/ui/Input'
-import { NEWS_ALERTS_URL } from './TradeExchangeNewsAlerts'
 import { CATEGORY_FILTERS, categoryTitle, cleanCategories, fmtReceived, fmtReceivedFull,
-  MAX_PRESETS, pctText, tickerTitle, tickerTone, tokenize } from './tradeExchangeNewsModel'
+  MAX_PRESETS, parsePageInput, tickerTitle, tickerTone, tokenize } from './tradeExchangeNewsModel'
 import styles from './TradeExchangeNewsWidget.module.css'
 
 const TONE_CLASS = { up: 'symUp', down: 'symDown', flat: 'symFlat', none: 'symNone' }
@@ -60,9 +60,8 @@ function useLong(ref, lines, content, expanded) {
   return long
 }
 
-function Headline({ item, linkedSym, onSym, colorMode, prices, staleSymbols, provisional, showPct, clampLines, expanded, headRef }) {
+function Headline({ item, linkedSym, onSym, colorMode, prices, staleSymbols, provisional, clampLines, expanded, headRef }) {
   const parts = tokenize(item.content, item.tickers, item.mentions)
-  const shownPct = new Set()
   const clamp = clampLines && !expanded
   return (
     <span ref={headRef} className={`${styles.headline}${clamp ? ' ' + styles.clamped : ''}`}
@@ -74,10 +73,7 @@ function Headline({ item, linkedSym, onSym, colorMode, prices, staleSymbols, pro
         const t = tickerTone(q, stale)
         const tone = colorMode === 'performance' ? styles[TONE_CLASS[t]]
           : colorMode === 'neutral' ? styles.symNeutral : ''
-        // One % per security per headline: a repeated ticker stays a plain link.
-        const pct = showPct && !shownPct.has(p.sym) ? pctText(q, stale) : null
-        if (pct) shownPct.add(p.sym)
-        const btn = (
+        return (
           <button
             key={i}
             type="button"
@@ -86,13 +82,6 @@ function Headline({ item, linkedSym, onSym, colorMode, prices, staleSymbols, pro
             title={`${tickerTitle(p.sym, q, stale, { named: p.named })}${provisional ? ' · ticker detected automatically (provisional)' : ''}`}
           >{p.text}</button>
         )
-        if (!pct) return btn
-        const pctTone = colorMode === 'performance' ? styles[TONE_CLASS[t]] : ''
-        return (
-          <span key={i} className={styles.symPct}>
-            {btn}<span className={`${styles.pct}${pctTone ? ' ' + pctTone : ''}`} aria-label={`${p.sym} ${pct} today`}>{pct}</span>
-          </span>
-        )
       })}
     </span>
   )
@@ -100,7 +89,7 @@ function Headline({ item, linkedSym, onSym, colorMode, prices, staleSymbols, pro
 
 /** Only what a row DISPLAYS from a quote: a tick that moves none of it is no render. */
 const quoteKey = (q) => (q ? `${q.price}|${q.change_pct}|${q.updated_at || q.timestamp || ''}` : '')
-const ROW_KEYS = ['item', 'linkedSym', 'colorMode', 'provisional', 'showPct', 'clampLines', 'expanded', 'flashing',
+const ROW_KEYS = ['item', 'linkedSym', 'colorMode', 'provisional', 'clampLines', 'expanded', 'flashing',
   'impact', 'showCategory', 'groupCount', 'groupOpen', 'related', 'onSym', 'onToggleExpand', 'onToggleGroup', 'onActions',
   'actionsOpen']
 function rowPropsEqual(a, b) {
@@ -113,7 +102,53 @@ function rowPropsEqual(a, b) {
   return true
 }
 
-export const Row = memo(function Row({ item, linkedSym, onSym, colorMode, prices, staleSymbols, provisional, showPct,
+/** Copy `text` exactly as given: the async clipboard, else the legacy copy command
+ *  (a browser that blocks both gets `false`, never a thrown error). */
+async function copyText(text) {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text)
+      return true
+    }
+  } catch { /* fall through to the legacy path */ }
+  try {
+    const ta = document.createElement('textarea')
+    ta.value = text
+    ta.setAttribute('readonly', '')
+    ta.style.position = 'fixed'
+    ta.style.opacity = '0'
+    document.body.appendChild(ta)
+    ta.select()
+    const ok = document.execCommand?.('copy') === true
+    ta.remove()
+    return ok
+  } catch {
+    return false
+  }
+}
+
+const COPY_FEEDBACK_MS = 1400
+
+/** One click: the WHOLE original headline (also the part behind Show more). */
+function CopyButton({ text }) {
+  const [state, setState] = useState(null)             // null | 'ok' | 'err'
+  useEffect(() => {
+    if (!state) return undefined
+    const t = setTimeout(() => setState(null), COPY_FEEDBACK_MS)
+    return () => clearTimeout(t)
+  }, [state])
+  const label = state === 'ok' ? 'Headline copied' : state === 'err' ? 'Copy failed: the browser blocked the clipboard' : 'Copy headline'
+  return (
+    <button type="button" className={`${styles.rowBtn}${state ? ' ' + styles.rowBtnOn + ' ' + (state === 'ok' ? styles.rowBtnOk : styles.rowBtnErr) : ''}`}
+      onClick={async (e) => { e.stopPropagation(); setState((await copyText(text)) ? 'ok' : 'err') }}
+      aria-label={label} title={label}>
+      <UIcon name={state === 'ok' ? 'check' : state === 'err' ? 'x' : 'copy'} size={11} />
+      {state && <span className={styles.srOnly} role="status">{label}</span>}
+    </button>
+  )
+}
+
+export const Row = memo(function Row({ item, linkedSym, onSym, colorMode, prices, staleSymbols, provisional,
   clampLines, expanded, onToggleExpand, flashing, impact, showCategory, groupCount = 0, groupOpen = false,
   onToggleGroup, related = false, onActions, actionsOpen }) {
   const headRef = useRef(null)
@@ -139,18 +174,23 @@ export const Row = memo(function Row({ item, linkedSym, onSym, colorMode, prices
             {groupOpen ? 'Hide' : '+'}{groupOpen ? ' related' : `${groupCount} related`}
           </button>
         )}
-        <button
-          type="button"
-          className={`${styles.rowMenuBtn}${actionsOpen ? ' ' + styles.rowMenuBtnOn : ''}`}
-          onClick={(e) => onActions(item, e.currentTarget)}
-          aria-label="Headline actions"
-          aria-haspopup="menu"
-          aria-expanded={!!actionsOpen}
-          title="Actions: open chart, add to watchlist, copy"
-        >{/* a glyph, not an icon: an SVG per row tripled the DOM of a 1,000-headline feed */}⋯</button>
+        <span className={styles.rowActions}>
+          <CopyButton text={item.content || ''} />
+          {(item.tickers || []).length > 0 && (
+            <button
+              type="button"
+              className={`${styles.rowBtn} ${styles.rowMenuBtn}${actionsOpen ? ' ' + styles.rowBtnOn : ''}`}
+              onClick={(e) => { e.stopPropagation(); onActions(item, e.currentTarget) }}
+              aria-label="Add a symbol to a watchlist"
+              aria-haspopup="menu"
+              aria-expanded={!!actionsOpen}
+              title="Add to watchlist"
+            >⋯</button>
+          )}
+        </span>
       </span>
       <Headline item={item} linkedSym={linkedSym} onSym={onSym} colorMode={colorMode} prices={prices}
-        staleSymbols={staleSymbols} provisional={provisional} showPct={showPct} clampLines={clampLines}
+        staleSymbols={staleSymbols} provisional={provisional} clampLines={clampLines}
         expanded={expanded} headRef={headRef} />
       <span className={styles.badges}>
         {item.repeat_count > 0 && (
@@ -210,33 +250,25 @@ function placeUnder(anchorEl, hostEl, width) {
 }
 
 const fetchJson = (url) => fetch(url, { credentials: 'include' }).then((r) => (r.ok ? r.json() : []))
-const fetchAlertsState = async (url) => {
-  const r = await fetch(url, { credentials: 'include', cache: 'no-store' })
-  return r.ok ? 'on' : 'off'                 // 404 = switched off; 403 = not this account
-}
 
-export function ActionsMenu({ item, anchorEl, hostEl, themeVars, onClose, onOpenChart, onCreateAlert }) {
+/** ⋯ on a headline: add one of its symbols to a personal watchlist. The chart is
+ *  the ticker in the text; copying is the row's own button. */
+export function ActionsMenu({ item, anchorEl, hostEl, themeVars, onClose }) {
   const boxRef = useRef(null)
   const onKey = usePopover(boxRef, anchorEl, onClose)
   const syms = [...new Set(item.tickers || [])]
   const [sym, setSym] = useState(syms[0] || null)
-  const [picking, setPicking] = useState(false)
   const [result, setResult] = useState(null)
   const [busy, setBusy] = useState(false)
-  // Lazily, and only while the menu is open: is the alert door open on this server?
-  const { data: alerts } = useSWR(NEWS_ALERTS_URL, fetchAlertsState, { revalidateOnFocus: false, shouldRetryOnError: false })
-  const { data: lists } = useSWR(picking ? '/api/watchlists?include_items=0' : null, fetchJson, { revalidateOnFocus: false })
+  const { data: lists } = useSWR(sym ? '/api/watchlists?include_items=0' : null, fetchJson, { revalidateOnFocus: false })
   const myLists = (Array.isArray(lists) ? lists : []).filter((l) => !l?.is_prebuilt)
-  useEffect(() => { boxRef.current?.querySelector('[role="menuitem"]')?.focus() }, [])
-
-  const copy = useCallback(async () => {
-    try {
-      await navigator.clipboard.writeText(item.content || '')
-      setResult({ tone: 'ok', text: 'Headline copied' })
-    } catch {
-      setResult({ tone: 'err', text: 'Copy was blocked by the browser' })
-    }
-  }, [item.content])
+  const focused = useRef(false)
+  useEffect(() => {
+    // Focus the first list once they arrive (a symbol chip or the box until then).
+    const first = boxRef.current?.querySelector('[role="menuitem"]')
+    if (first && !focused.current) { focused.current = true; first.focus() }
+    else if (!first) boxRef.current?.focus()
+  }, [lists])
 
   const addTo = useCallback(async (list) => {
     if (busy || !sym) return
@@ -251,7 +283,6 @@ export function ActionsMenu({ item, anchorEl, hostEl, themeVars, onClose, onOpen
       setResult(!r.ok ? { tone: 'err', text: body.detail || `Could not add ${sym} (HTTP ${r.status})` }
         : body.duplicate ? { tone: 'ok', text: `${sym} is already on ${list.name}` }
           : { tone: 'ok', text: `Added ${sym} to ${list.name}` })
-      setPicking(false)
     } catch {
       setResult({ tone: 'err', text: 'Could not reach UCT — try again' })
     } finally {
@@ -261,8 +292,9 @@ export function ActionsMenu({ item, anchorEl, hostEl, themeVars, onClose, onOpen
 
   const width = 210
   return (
-    <div ref={boxRef} className={styles.menuPop} style={{ ...(themeVars || {}), ...placeUnder(anchorEl, hostEl, width), width }}
-      role="menu" aria-label="Headline actions" onKeyDown={(e) => { onKey(e); menuKeys(e) }}>
+    <div ref={boxRef} tabIndex={-1} className={styles.menuPop} style={{ ...(themeVars || {}), ...placeUnder(anchorEl, hostEl, width), width }}
+      role="menu" aria-label="Add to watchlist" onKeyDown={(e) => { onKey(e); menuKeys(e) }}>
+      <div className={styles.menuHead}>{sym ? `Add ${sym} to watchlist` : 'Add to watchlist'}</div>
       {syms.length > 1 && (
         <div className={styles.menuSyms} role="group" aria-label="Security">
           {syms.map((s) => (
@@ -272,32 +304,15 @@ export function ActionsMenu({ item, anchorEl, hostEl, themeVars, onClose, onOpen
         </div>
       )}
       {sym && (
-        <button type="button" role="menuitem" className={styles.menuItem} onClick={() => { onOpenChart(sym); onClose() }}>
-          <UIcon name="chart" size={12} /> Open {sym} chart
-        </button>
-      )}
-      {sym && (
-        <button type="button" role="menuitem" className={styles.menuItem} aria-expanded={picking}
-          onClick={() => { setPicking((p) => !p); setResult(null) }}>
-          <UIcon name="plus" size={12} /> Add {sym} to watchlist
-        </button>
-      )}
-      {picking && (
         <div className={styles.menuLists}>
           {!lists && <div className={styles.menuNote}>Loading lists…</div>}
           {lists && !myLists.length && <div className={styles.menuNote}>No personal watchlists yet.</div>}
           {myLists.map((l) => (
-            <button key={l.id} type="button" role="menuitem" className={styles.menuSub} disabled={busy} onClick={() => addTo(l)}>{l.name}</button>
+            <button key={l.id} type="button" role="menuitem" className={styles.menuItem} disabled={busy} onClick={() => addTo(l)}>
+              <UIcon name="plus" size={12} /> {l.name}
+            </button>
           ))}
         </div>
-      )}
-      <button type="button" role="menuitem" className={styles.menuItem} onClick={copy}>
-        <UIcon name="copy" size={12} /> Copy headline
-      </button>
-      {sym && alerts === 'on' && (
-        <button type="button" role="menuitem" className={styles.menuItem} onClick={() => { onCreateAlert(syms); onClose() }}>
-          <UIcon name="bell" size={12} /> Create news alert
-        </button>
       )}
       {!sym && <div className={styles.menuNote}>No ticker identified in this headline.</div>}
       {result && <div className={result.tone === 'err' ? styles.alertsErr : styles.alertsOk} role="status">{result.text}</div>}
@@ -383,3 +398,60 @@ export function HealthPopover({ lines, anchorEl, hostEl, themeVars, onClose }) {
   )
 }
 
+/** The typed page number. Keyed by the page it shows, so a page change starts a
+ *  fresh draft (no state synced in an effect). */
+function PageInput({ page, pages, onPage }) {
+  const [draft, setDraft] = useState(String(page))
+  const [bad, setBad] = useState(false)
+  const known = typeof pages === 'number'
+  const commit = () => {
+    const n = parsePageInput(draft, pages)
+    if (n == null) { setBad(true); setDraft(String(page)); return }
+    setBad(false)
+    if (n !== page) onPage(n)
+  }
+  return (
+    <input
+      className={`${styles.pageInput}${bad ? ' ' + styles.pageInputBad : ''}`}
+      value={draft}
+      inputMode="numeric"
+      aria-label={known ? `Page number, 1 to ${pages}` : 'Page number'}
+      aria-invalid={bad || undefined}
+      title={known ? `Type a page from 1 to ${pages} and press Enter` : 'Type a page and press Enter'}
+      onChange={(e) => { setDraft(e.target.value.replace(/[^\d]/g, '').slice(0, 6)); setBad(false) }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') { e.preventDefault(); commit() }
+        if (e.key === 'Escape') { setDraft(String(page)); setBad(false); e.currentTarget.blur() }
+      }}
+      onBlur={() => { if (draft !== String(page)) commit() }}
+    />
+  )
+}
+
+/** First · Previous · [page] / pages · Next · Last, and Latest off page 1.
+ *  Page 1 is the newest; higher numbers go back in time. `pages` null = not
+ *  known yet (Next and Last stay disabled rather than guessing). */
+export function Pager({ page, pages, loading, onPage, onLatest }) {
+  const known = typeof pages === 'number'
+  const nav = (n, label, icon, disabled, cls = '') => (
+    <button type="button" className={`${styles.pageBtn}${cls ? ' ' + cls : ''}`} onClick={() => onPage(n)} disabled={disabled}
+      aria-label={label} title={label}>
+      <UIcon name={icon} size={10} />
+    </button>
+  )
+  return (
+    <nav className={styles.pager} aria-label="Headline pages" aria-busy={!!loading}>
+      {nav(1, 'First page (newest)', 'skipBack', page <= 1, styles.pageEdge)}
+      {nav(page - 1, 'Previous page (newer)', 'chevronLeft', page <= 1)}
+      <span className={styles.pageBox}>
+        <PageInput key={page} page={page} pages={pages} onPage={onPage} />
+        <span className={styles.pageOf}>/ {known ? pages : '…'}</span>
+      </span>
+      {nav(page + 1, 'Next page (older)', 'chevronRight', !known || page >= pages)}
+      {nav(pages || 1, 'Last page (oldest)', 'skipForward', !known || page >= pages, styles.pageEdge)}
+      {page > 1 && (
+        <button type="button" className={styles.pageLatest} onClick={onLatest} title="Back to the newest headlines and the live feed">Latest</button>
+      )}
+    </nav>
+  )
+}

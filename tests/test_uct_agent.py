@@ -670,7 +670,7 @@ def test_a_schema_refusal_is_retried_once_compact_and_args_are_still_checked_str
     assert out["envelope"]["ops"] == [{"action": "example.set1", "target": "c1", "args": {"level": "high", "note": None}}]
     assert out["usage"]["schema_fallback"] is True and out["usage"]["model_calls"] == 1
     bad = {"action": "example.set1", "target": "c1", "args_json": json.dumps({"level": "max", "note": None})}
-    with pytest.raises(turn.TurnError, match="unreadable"):
+    with pytest.raises(turn.TurnError, match="couldn.t fill in the details of one of the steps, so nothing was changed"):
         turn.run_turn(message="set it", context=CTX, history=[], capabilities=few, caller=_refusing_then(_resp(env("apply", ops=[bad]))))
 
 

@@ -402,7 +402,7 @@ const CAPABILITIES = [
       // An explicit "symbol/ticker to X" may be lowercase: the noun removes the
       // ambiguity that keeps "show volume" from ever reading as a ticker.
       const m = /^\$([A-Za-z][A-Za-z0-9.]{0,9})$/.exec(raw)
-        || /^(?:chart|open|show|load|pull up|put|switch to|go to)\s+\$?([A-Z][A-Z0-9.]{0,9})$/.exec(raw)
+        || /^(?:chart|open|show|load|pull up|put|switch to|go to|(?:change|flip|switch)(?: it| this| that)? to)\s+\$?([A-Z][A-Z0-9.]{0,9})$/.exec(raw)
         || /^(?:change|switch|set)\s+(?:the\s+)?(?:symbol|ticker)\s+to\s+\$?([A-Za-z][A-Za-z0-9.]{0,9})$/i.exec(raw)
       // ⛔ "change the ticker to it" / "$" aside, a pronoun is never a ticker (nl/tickers.js)
       const typed = m && raw.includes(`$${m[1]}`) ? `$${m[1]}` : m?.[1]   // "$IT" is explicitly a ticker
@@ -410,7 +410,9 @@ const CAPABILITIES = [
       // NL N4: a LOWERCASE ticker after a chart verb ("pull up nvda", "chart amd") — only a word UCT
       // does not know (nor a typo of one) and never a pronoun; prepare then asks the ticker search
       // whether it exists (or is an exact company name). "switch to weekly" stays a timeframe.
-      const low = /^(?:chart|pull up|bring up|load|switch to|put up)\s+([a-z][a-z0-9.]{0,9})$/.exec(raw)
+      // ⭐ PHASE 3: "change the bottom right to amd" — the position is lifted off first (fastPath.extractTarget), leaving
+      // "change to amd"; the same N4 rule decides the word ("change to weekly" stays a timeframe)
+      const low = /^(?:chart|pull up|bring up|load|switch to|put up|(?:change|flip|switch)(?: it| this| that)? to)\s+([a-z][a-z0-9.]{0,9})$/.exec(raw)
       return low && plainSymbolWord(low[1], host, said) ? { symbol: low[1].toUpperCase() } : null
     },
     // Async lookup BEFORE planning: an unknown ticker is refused, never charted blank. NL N4: a symbol

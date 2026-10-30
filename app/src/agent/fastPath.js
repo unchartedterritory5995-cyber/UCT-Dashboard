@@ -129,6 +129,7 @@ const POS_RE = new RegExp(`\\b(?:(?:on|for|in|to)\\s+)?the\\s+${POS}${NOUN}?\\b|
 // board by the orchestrator (a mismatch asks; it never changes a different set of charts than they counted)
 // ⭐ acceptance 2026-10-29: "each", "each of them", "every one of them", "each one" too ("…, with a 50 sma on each")
 const ALL_RE = /\b(?:(?:on|for|in|to)\s+)?(both|all|every|each)(?:\s+one)?(?:\s+(?:the|of the))?(?:\s+(two|three|four|five|six|seven|eight|nine|ten|\d{1,2}))?(?:\s+(?:charts?|of them|ones))?\b/i
+const PLURAL_RE = /(?:\b(?:on|for|in|to)\s+)?(?:\b(?:them|those|these)\b|(?:^|\s)'?em\b)/i
 const COUNT_WORD = { two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 }
 const NORM_POS = { upper: 'top', lower: 'bottom' }
 
@@ -145,6 +146,10 @@ export function extractTarget(text, host = null) {
   // ⭐ Charts operator P1: "the second chart", "chart 3", "the last one", "the middle chart" — the board's
   // reading order (deixis.ordinalChart). Resolved against the LIVE charts: one chart → `{chart}`; a word
   // that names none (the 5th of 3) or an unclear "middle" → `{ask}` (the orchestrator asks, nothing runs).
+  // ⭐ PHASE 3: "switch em to weekly", "make them hourly" — a plural pronoun as the TARGET (after "them all" / "them both"
+  // above). Only a hint: the panel resolves it against the conversation (references.pluralTarget), never the board alone.
+  const pl = PLURAL_RE.exec(s)
+  if (pl) return { text: cut(s, pl), target: { plural: true } }
   const ord = host ? ordinalChart(s, host.charts?.list?.() || []) : null
   if (ord) return { text: cut(s, ord.match), target: ord.ref ? { chart: ord.ref, word: ord.word } : { ask: ord.ask } }
   const m = POS_RE.exec(s)
@@ -211,7 +216,7 @@ export function fastParse(text, opts = {}) {
 // the fast path's own phrase words, registered with the lexicon (it cannot import this module)
 // (every function holding phrase words is listed — the control words must stay known words, or a typo
 // of "cancel" could be read as the only other word near it)
-const LEXICON_SOURCES = () => [LEAD.source, TAIL.source, ...CANON.map(([re]) => re.source), POS_RE.source, ALL_RE.source, ORD_RE.source,
+const LEXICON_SOURCES = () => [LEAD.source, TAIL.source, ...CANON.map(([re]) => re.source), POS_RE.source, ALL_RE.source, PLURAL_RE.source, ORD_RE.source,
   fastParseExact.toString(), controlWord.toString(), capabilityPhrases.toString()]
 setBaseSources(LEXICON_SOURCES)
 
@@ -239,6 +244,10 @@ function controlWord(t) {
   const named = /^(?:undo|revert|reverse) (?:that|the|my)(?: last)?(?: (indicator|chart|widget|drawing|layout))? (?:removal|remove|deletion|delete|change|edit|addition|add|hide|show)$/.exec(u)
     || /^(?:undo|revert|reverse) (?:removing|deleting|hiding|showing|adding) (?:that|it|(?:the|that) (indicator))$/.exec(u)
   if (named) return named[1] ? { kind: 'undo', about: named[1] } : { kind: 'undo' }
+  // ⭐ PHASE 3: "undo just the color change", "undo the timeframe change", "revert only the symbol switch" — the newest
+  // change, when it IS that change (useAgent doUndo `about`); never an older one picked out of the stack
+  const what = /^(?:undo|revert|reverse) (?:just |only )?(?:that|the|my)(?: last)? (colou?r|style|timeframe|time frame|symbol|ticker|pane|layout|theme|resize|size|move|rename|link) (?:change|edit|switch|swap)$/.exec(u)
+  if (what) return { kind: 'undo', about: what[1].replace(/^colou?r$/, 'colour').replace('time frame', 'timeframe').replace('ticker', 'symbol') }
   if (/^(do it|yes|yes please|yep|go ahead|apply( it| that| them)?|ok(ay)?(,)? do it|confirm|sounds good,? do it)$/.test(t)) return { kind: 'confirm' }
   if (/^(no|nope|cancel|never ?mind|don'?t|skip it|forget it)$/.test(t)) return { kind: 'dismiss' }
   const sub = /^(just |only )?(apply|do) (just |only )?the first (\d|one|two|three|four|five|six)( ones?| changes?| items?)?$/.exec(t)
@@ -249,11 +258,17 @@ function controlWord(t) {
   return null
 }
 
+// ⭐ PHASE 3: "slap the 9/20 on all four", "add the 9/20 ema" — two lengths written with a slash, only in a sentence that
+// starts with an add verb (so a date — "go to 10/29" — is never read as two lengths)
+const ADD_LEAD = /^\s*(?:please\s+)?(?:add|put|throw|stick|slap|pop|plop|plot|load up|put up)\b/i
+export const slashPairs = (s) => (ADD_LEAD.test(s) ? s.replace(/\b(\d{1,3})\/(\d{1,3})\b(?!\/)/g, '$1 and $2') : s)
+
 /** Capability phrases: whole-sentence ones first, then clause by clause (all or nothing). */
 function capabilityPhrases(text, host) {
   const whole = matchWhole(text, host)
   if (whole) return { kind: 'ops', ops: [whole], target: null }
-  const { text: rest, target } = extractTarget(text, host)
+  const { text: rest0, target } = extractTarget(text, host)
+  const rest = slashPairs(rest0)
   const clauses = rest.split(/,|;|\band\b|\bthen\b|&/i).map(s => s.trim()).filter(Boolean)
   if (!clauses.length || clauses.length > 6) return null
   const ops = []
