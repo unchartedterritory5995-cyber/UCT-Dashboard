@@ -17,7 +17,9 @@ const setPrefMerged = vi.fn(async (key, updater, op = null) => {
   if (op && op.stale()) return false
   if (holdWrite) { await new Promise((resolve) => { holdWrite(resolve) }); holdWrite = null }
   if (op && op.stale()) return false                     // the real hook re-checks after every await
-  writes.push({ key, value: typeof updater === 'function' ? updater(undefined) : updater })
+  const value = typeof updater === 'function' ? updater(undefined) : updater
+  writes.push({ key, value })
+  prefsNow = { ...prefsNow, [key]: value }               // the real hook's optimistic cache: the next render reads it
   return { ok: true }
 })
 let prefsNow = {}
@@ -25,7 +27,7 @@ vi.mock('../../../../../hooks/usePreferences', () => ({
   default: () => ({ prefs: prefsNow, setPref: vi.fn(), setPrefMerged, loading: false, readFailed: false }),
 }))
 
-import StarterPackOffer from './StarterPackOffer'
+import StarterPackOffer, { useStarterPackOffer, __resetStarterPackOfferForTests } from './StarterPackOffer'
 
 const INSTALLED = contractBody('journal-styles.starter-pack.install')
 const TITLE = 'How do you trade?'
@@ -65,6 +67,7 @@ beforeEach(() => {
   writes.length = 0
   holdWrite = null
   setPrefMerged.mockClear()
+  __resetStarterPackOfferForTests()
 })
 afterEach(() => { __resetNotebookFlags(); __resetPrefsSessionForTests() })
 
@@ -150,5 +153,88 @@ describe('the starter pack offer never acts for the next member', () => {
     expect(writes).toHaveLength(1)
     expect(writes[0].value).toMatchObject({ state: 'dismissed' })
     expect(onClose).toHaveBeenCalledTimes(1)
+  })
+})
+
+// A's install landed (A's cookie) after B signed in, so A's answer could not be written then. It is kept for A
+// ALONE and written the next time A is the member on this page; B never receives it.
+function Host() {
+  const offer = useStarterPackOffer({ styles: [] })
+  return <p data-testid="offer">{offer.show ? 'shown' : 'hidden'}</p>
+}
+const host = () => render(<Host />)
+async function installForAThenSwitchToB() {
+  installFetch({ hold: true })
+  const card = show(vi.fn())
+  fireEvent.click(within(screen.getByRole('region', { name: TITLE })).getByRole('button', { name: 'Swing' }))
+  await flush()
+  act(() => { publishPrefsUser('B') })
+  await act(async () => { releaseInstall() })
+  await flush()
+  card.unmount()
+  expect(installPosts()).toHaveLength(1)
+  expect(writes).toEqual([])                           // nothing written while B is the member
+}
+
+describe("an install that landed for A after B signed in keeps A's answer for A", () => {
+  it("B is never written A's answer, and B's own offer is unaffected", async () => {
+    await installForAThenSwitchToB()
+    const b = host()
+    await flush()
+    expect(writes).toEqual([])
+    expect(screen.getByTestId('offer').textContent).toBe('shown')   // B has answered nothing: B is still offered
+    b.unmount()
+  })
+
+  it("A back on the page: A's installed answer is written once, for A, and the offer does not re-show", async () => {
+    await installForAThenSwitchToB()
+    act(() => { publishPrefsUser('A') })
+    host()
+    await flush()
+    expect(writes).toHaveLength(1)
+    expect(writes[0]).toMatchObject({ key: 'notebook_starter_pack', value: { state: 'installed', pack: 'swing' } })
+    expect(setPrefMerged.mock.calls.at(-1)[2].user).toBe('A')
+    expect(screen.getByTestId('offer').textContent).toBe('hidden')
+  })
+
+  it('B, then A: written only once A is the member, never during B', async () => {
+    await installForAThenSwitchToB()
+    const b = host()
+    await flush()
+    expect(writes).toEqual([])
+    b.unmount()
+    act(() => { publishPrefsUser('A') })
+    host()
+    await flush()
+    expect(writes).toHaveLength(1)
+    expect(setPrefMerged.mock.calls.every((c) => c[2]?.user === 'A')).toBe(true)
+  })
+
+  it('A already answered elsewhere: the kept answer is dropped, nothing is overwritten', async () => {
+    await installForAThenSwitchToB()
+    act(() => { publishPrefsUser('A') })
+    prefsNow = { notebook_starter_pack: JSON.stringify({ v: 1, state: 'dismissed', at: '2026-10-30T00:00:00Z' }) }
+    host()
+    await flush()
+    expect(writes).toEqual([])
+    // and it is not kept for later either
+    prefsNow = {}
+    host()
+    await flush()
+    expect(writes).toEqual([])
+  })
+
+  it('control: an install that wrote its answer for A keeps nothing to replay', async () => {
+    installFetch({ hold: true })
+    const card = show(vi.fn())
+    fireEvent.click(within(screen.getByRole('region', { name: TITLE })).getByRole('button', { name: 'Swing' }))
+    await flush()
+    await act(async () => { releaseInstall() })
+    await flush()
+    card.unmount()
+    expect(writes).toHaveLength(1)
+    host()
+    await flush()
+    expect(writes).toHaveLength(1)
   })
 })
