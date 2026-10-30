@@ -174,7 +174,7 @@ rail went red, the bytes were restored and the file's SHA-256 checked against th
 |---|---|---|
 | Pasted source is never stored, except an opt-in report | no A1/A2 path carries source; A2 body is `gapLogPayload` only | `importGapNotice.door.test.jsx` "posts the real built-in and a COUNT…" |
 | A logged name is always a real Pine built-in | client `isPineBuiltin` + server `clean_gaps` against the same `pineBuiltins.json` | `test_indicator_support.py::TestGapAllowlist::test_only_allowlisted_names_reach_the_table`; `importGaps.test.js` A2 cases |
-| A member identifier is never shown as a TradingView function | `importGaps` names only allowlisted tokens | `importGaps.test.js` "a member identifier is NEVER named" |
+| A member identifier is never shown as a TradingView function | `importGaps` names only allowlisted tokens (and `gapLogPayload` re-filters, so the log has two guards; each was mutated separately) | `importGaps.test.js` "a member identifier is NEVER named"; `importGapNotice.door.test.jsx` "…without naming a member identifier" |
 | The notice appears exactly when a gap exists | `ImportGapNotice` renders the note iff `gapNoticeText` is non-null | `importGapNotice.door.test.jsx` A1 cases; `importGapNotice.sheet.test.jsx` (through `BuilderSheet`) |
 | No source without `consent: true` | `create_report` checks `consent is True` before reading source; table `CHECK (consent = 1)`; Send disabled until ticked | `TestConsent` (7 values incl. `1`, `"true"`); `test_the_table_itself_refuses_consent_zero`; door test "sends ONLY after consent" |
 | Flag off stores nothing | `create_report` refuses first when `reports_enabled()` is false | `TestFlagOff::test_flag_off_refuses_and_stores_nothing` |
