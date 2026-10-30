@@ -10,21 +10,22 @@ const feed = vi.hoisted(() => {
   const claimed = new Set()
   let state = { status: 'idle', items: [], epoch: 'e', lastSeq: 0, firstSeq: 0, coverage: null, provisional: true }
   return {
-    archive: null, pageCalls: [],
+    archive: null, dayCalls: [], dayOpts: null, daysOpts: null,
     listeners, claimed,
     get: () => state,
     set(next) { state = { ...state, ...next }; for (const fn of [...listeners]) fn(state) },
-    reset() { this.archive = null; this.pageCalls = []; listeners.clear(); claimed.clear(); state = { status: 'idle', items: [], epoch: 'e', lastSeq: 0, firstSeq: 0, coverage: null, provisional: true } },
+    reset() { this.archive = null; this.dayCalls = []; this.dayOpts = null; this.daysOpts = null; listeners.clear(); claimed.clear(); state = { status: 'idle', items: [], epoch: 'e', lastSeq: 0, firstSeq: 0, coverage: null, provisional: true } },
   }
 })
 vi.mock('../../../lib/tradeExchangeNewsStreamManager', async () => {
-  const { fakeNewsPage } = await import('../../../testing/tradeExchangeNews/fakeNewsPages')
+  const { fakeNewsDay, fakeNewsDays } = await import('../../../testing/tradeExchangeNews/fakeNewsDay')
   return {
   subscribe: (fn) => { feed.listeners.add(fn); return () => feed.listeners.delete(fn) },
   getSnapshot: () => feed.get(),
   retry: vi.fn(),
-  // The server's pages over the synthetic archive (the pool's rows unless a test sets one).
-  fetchPage: async (body) => { feed.pageCalls.push(body); return fakeNewsPage(feed.archive || feed.get().items, body) },
+  // The server's days over the synthetic archive (the pool's rows unless a test sets one).
+  fetchDay: async (body) => { feed.dayCalls.push(body); return fakeNewsDay(feed.archive || feed.get().items, body, feed.dayOpts || {}) },
+  fetchDays: async () => fakeNewsDays(feed.archive || feed.get().items, feed.daysOpts || {}),
   claimAnnouncement: (seq) => (feed.claimed.has(seq) ? false : (feed.claimed.add(seq), true)),
 }
 })
@@ -173,12 +174,12 @@ describe('TradeExchangeNewsWidget', () => {
     expect(container.querySelector('[class*="flash"]')).toBeNull()
   })
 
-  it('a graphic-only placeholder is hidden and counted, and can be shown', () => {
+  it('a graphic-only placeholder is hidden and counted, and can be shown', async () => {
     const items = [...HISTORY, H(4, 'CRYPTO', [], { placeholder: 'graphic' })]
     const { unmount } = render(<TradeExchangeNewsWidget color="A" opts={{}} onOptsChange={vi.fn()} />)
     act(() => feed.set({ status: 'live', items, lastSeq: 4, lastHeadlineAt: NOW }))
     expect(document.querySelector('[data-seq="4"]')).toBeNull()
-    expect(screen.getByText(/1 graphic-only hidden/)).toBeInTheDocument()
+    expect(await screen.findByText(/1 graphic-only hidden/)).toBeInTheDocument()
     unmount()
     render(<TradeExchangeNewsWidget color="A" opts={{ settings: { graphicPlaceholders: 'show' } }} onOptsChange={vi.fn()} />)
     act(() => feed.set({ status: 'live', items, lastSeq: 4, lastHeadlineAt: NOW }))

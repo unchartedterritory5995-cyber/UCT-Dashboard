@@ -15,8 +15,9 @@
 //      browser's own reconnect sends Last-Event-ID; a reopen built here passes
 //      `?after=<seq>&epoch=<epoch>` (a new EventSource cannot set the header).
 //   ⭐ BOUNDED. The pool holds at most MAX_ITEMS headlines (newest kept): the live
-//      edge. History is browsed by numbered pages the SERVER filters and cuts
-//      (`fetchPage` -> POST /pages, api/services/trade_exchange_news/pages.py) --
+//      edge. History is browsed one America/New_York calendar day at a time, which
+//      the SERVER filters and serves in cursor steps (`fetchDay` -> POST /day,
+//      `fetchDays` -> GET /days; api/services/trade_exchange_news/archive.py) --
 //      the archive is never downloaded to the browser.
 //   The last unsubscribe closes the stream and forgets the state.
 //
@@ -31,7 +32,8 @@
 
 export const RECENT_URL = '/api/trade-exchange-news/recent'
 export const STREAM_URL = '/api/trade-exchange-news/stream'
-export const PAGES_URL = '/api/trade-exchange-news/pages'
+export const DAY_URL = '/api/trade-exchange-news/day'
+export const DAYS_URL = '/api/trade-exchange-news/days'
 export const MAX_ITEMS = 1000
 export const PAGE = 200
 const RETRY_MIN = 1000
@@ -255,6 +257,7 @@ function openStream() {
       return
     }
     conn.replayUntil = typeof d.last_seq === 'number' ? d.last_seq : 0   // backlog, not live news
+    conn.timing = d.timing === true          // the latency audit: only the browsers the server asks
     publish((s) => ({ ...s, status: 'live', reason: null, coverage: d.coverage || s.coverage,
       truncated: !!d.truncated, lastEventAt: Date.now(), replayUntil: conn.replayUntil }))
   })
@@ -274,7 +277,7 @@ function openStream() {
     const heardPerf = performance.now()
     publish((st) => ({ ...st, status: 'live', items: mergeItems(st.items, [ev]), lastSeq: ev.seq,
       lastEventAt: Date.now(), lastHeadlineAt: Date.now() }))
-    if (ev.seq > (conn.replayUntil || 0)) reportTiming(ev, heardAt, heardPerf)
+    if (conn.timing && ev.seq > (conn.replayUntil || 0)) reportTiming(ev, heardAt, heardPerf)
   })
   es.addEventListener('repeat', (e) => {
     if (!live()) return
@@ -330,11 +333,12 @@ export function retry() {
   if (_listeners.size) { _retry = RETRY_MIN; start() }
 }
 
-/** One numbered page of the retained archive, filtered and cut by the SERVER from
- *  the snapshot `seq <= top` (null top = the newest). Rows on it are history:
- *  never announced. Rejects with `err.status` on a refusal. */
-export async function fetchPage(body) {
-  const r = await fetch(PAGES_URL, {
+/** A slice of one ET calendar day, filtered by the SERVER over the whole day:
+ *  the newest, a time of day (`at`), or a keyset step from `cursor` (`direction`
+ *  older | newer). Rows on it are history: never announced. Rejects with
+ *  `err.status` on a refusal. */
+export async function fetchDay(body) {
+  const r = await fetch(DAY_URL, {
     method: 'POST', credentials: 'include', cache: 'no-store',
     headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}),
   })
@@ -346,6 +350,11 @@ export async function fetchPage(body) {
   const out = await r.json()
   for (const it of out.items || []) _sounded.add(it.seq)
   return out
+}
+
+/** Retained headline counts per ET date and where retention begins (the calendar). */
+export function fetchDays() {
+  return fetchJson(DAYS_URL)
 }
 
 /** True exactly once per headline across every widget in this browser — the
