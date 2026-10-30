@@ -19,9 +19,10 @@ import { describe, it, expect } from 'vitest'
 
 import { translatePine } from './pine'
 import { SETTER_PROPS, CREATE_POSITIONAL, POINT_OVERLOADS, pointOverloadArgs, pointFieldsOf } from './pineObjects'
-import { FAMILY_PROPS, bindObjectProgram } from './objectProgram'
+import { FAMILY_PROPS, bindObjectProgram, withBarIndexHeld } from './objectProgram'
 import { evaluateObjects } from '../objectRuntime'
 import { fontStyleOf } from '../objectCanvas'
+import { toRenderState } from '../objectRenderState'
 
 const head = (overlay = true) => `//@version=6\nindicator("t", overlay = ${overlay})\n`
 const T = (src) => translatePine(head() + src, { strict: true, objects: true })
@@ -257,6 +258,17 @@ describe('⭐ 3. *.set_xloc, box text placement, text_formatting, every position
     expect(fontStyleOf('bold_italic')).toBe('italic bold ')
     expect(fontStyleOf(undefined)).toBe('')
   })
+  it('the render state hands text_formatting to the painter (label and box), and omits `none`', () => {
+    const bars = [{ t: 1_700_000_000, o: 1, h: 2, l: 0, c: 1 }, { t: 1_700_086_400, o: 1, h: 2, l: 0, c: 1 }]
+    const live = [
+      { id: 1, family: 'label', props: { x: 1, y: 2, xloc: 'bar_index', yloc: 'price', text: 'b', text_formatting: 'bold' } },
+      { id: 2, family: 'box', props: { left: 0, right: 1, top: 2, bottom: 1, xloc: 'bar_index', text: 'z', text_formatting: 'italic' } },
+      { id: 3, family: 'label', props: { x: 1, y: 2, xloc: 'bar_index', yloc: 'price', text: 'n', text_formatting: 'none' } },
+    ]
+    const rs = toRenderState(live, { bars, tf: 'D' })
+    expect(rs.labels.map((l) => l.text_formatting)).toEqual(['bold', undefined])
+    expect(rs.boxes.map((b) => b.text_formatting)).toEqual(['italic'])
+  })
   it('line.set_xloc moves the line onto TIMES, and the runtime draws it where the time says', () => {
     const t = T('var line l = line.new(bar_index - 1, high, bar_index, high)\n'
       + 'if barstate.islast\n    line.set_xloc(l, time[1], time, xloc.bar_time)\n')
@@ -285,6 +297,17 @@ describe('⭐ 3. *.set_xloc, box text placement, text_formatting, every position
     expect(r.live.length).toBe(1)
     expect(r.live[0].props.xloc).toBe('bar_time')
     expect([r.live[0].props.x1, r.live[0].props.x2]).toEqual([timeOf(bars - 2), timeOf(bars - 1)])
+  })
+  it('⭐ an update that moves onto bar_time reads its x as a TIME (withBarIndexHeld)', () => {
+    // A bar index written into a bar_time coordinate is a value like any other:
+    // off the listing it is D away from TradingView's, so the op is held. On a
+    // bar_index drawing the same index names a bar and is served.
+    const op = (props) => ({ k: 'update', target: { r: 'reg', id: 'r0' }, when: null, props })
+    const prog = (o) => ({ programVersion: 1, regs: [{ id: 'r0', family: 'line' }], colls: [], ops: [o] })
+    const timed = withBarIndexHeld(prog(op({ x1: { v: 'bar' }, xloc: { v: 'const', value: 'bar_time' } })), () => 'any')
+    expect(timed.program.ops[0].indexHeld).toBe('value')
+    const indexed = withBarIndexHeld(prog(op({ x1: { v: 'bar' } })), () => 'any')
+    expect(indexed.program.ops[0].indexHeld).toBeUndefined()
   })
   it('label.set_xloc and box.set_xloc write their x-coordinates and xloc together', () => {
     const a = T('var label l = label.new(bar_index, high, "a")\nlabel.set_xloc(l, time, xloc.bar_time)\n')
