@@ -49,12 +49,14 @@ def _tickers_for(content: str, source: str = "") -> list[str]:
 
 
 def _display_for(source: str, content: str) -> dict:
-    """Company-name links and the graphic-placeholder mark, derived like the category."""
+    """Company-name links, the graphic-placeholder mark and the market-impact kind,
+    derived like the category."""
     try:
-        from api.services.trade_exchange_news.categories import mentions_for, placeholder_for
-        return {"mentions": mentions_for(source, content), "placeholder": placeholder_for(content)}
+        from api.services.trade_exchange_news.categories import impact_for, mentions_for, placeholder_for
+        return {"mentions": mentions_for(source, content), "placeholder": placeholder_for(content),
+                "impact": impact_for(source, content)}
     except Exception:  # noqa: BLE001 -- never cost a headline
-        return {"mentions": [], "placeholder": None}
+        return {"mentions": [], "placeholder": None, "impact": None}
 
 
 def _category_for(source: str, content: str) -> str:

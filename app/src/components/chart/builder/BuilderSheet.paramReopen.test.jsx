@@ -258,3 +258,26 @@ describe('reopening a saved Pine-parameterized definition through the real "Your
     expect(screen.getByTestId('param-input-__uct_param_1001')).toHaveValue(30)
   })
 })
+
+describe('a Pine import\'s linewidth reaches the Builder\'s saved document (set F)', () => {
+  // ⚰️ The Builder clamped an imported `linewidth` to 1..4 after the member door had
+  // stopped (TradingView paints 1..10 as N px, `f3-linewidth-v6`); both now go through
+  // `builderInputs.pineLineWidth`, which carries it up to the sanity ceiling of 50.
+  for (const [lw, want] of [[6, 6], [10000, 50]]) {
+    it(`linewidth = ${lw} saves as width ${want}`, async () => {
+      mountFresh()
+      await flush()
+      await paste(`//@version=5\nindicator("W")\nplot(ta.sma(close, 5), "W", linewidth = ${lw})\n`)
+      fireEvent.click(screen.getByTestId('pine-use'))
+      await settleFormula()
+      fireEvent.change(screen.getByLabelText(/name/i), { target: { value: `Width ${lw}` } })
+      await settleFormula()
+      fireEvent.click(screen.getByRole('button', { name: /^save$/i }))
+      await flush()
+      const [, row] = [...H.store.entries()][0]
+      const spec = row.definition.inputs.find((i) => i.key === 'lineWidth')
+      expect(spec.default).toBe(want)
+      expect(spec.max).toBeGreaterThanOrEqual(want)
+    })
+  }
+})

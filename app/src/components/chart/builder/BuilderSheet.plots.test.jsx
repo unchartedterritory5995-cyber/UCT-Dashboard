@@ -490,9 +490,9 @@ describe('the chrome keys are DERIVED once and read by both sides', () => {
     ]
     expect(chromeInputsFor(rows)).toEqual([
       { ...BUILDER_INPUTS[0], default: '#111111' },
-      { ...BUILDER_INPUTS[1], default: 2 },
+      { ...BUILDER_INPUTS[1], default: 2, max: 10 },
       { key: 'signalColor', type: 'color', label: 'Signal colour', default: '#222222' },
-      { key: 'signalWidth', type: 'int', label: 'Signal width', default: 4, min: 1, max: 4, step: 1 },
+      { key: 'signalWidth', type: 'int', label: 'Signal width', default: 4, min: 1, max: 10, step: 1 },
     ])
     // ⛔ AND WITH NOTHING TO GO ON IT IS STILL THE SHIPPED PAIR — a document
     // always declares its chrome.

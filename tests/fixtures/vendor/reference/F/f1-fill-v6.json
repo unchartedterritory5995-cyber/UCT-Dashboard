@@ -1,0 +1,374 @@
+{
+ "capturedAt": "2026-10-30T01:45:12.105Z",
+ "symbol": "AMEX:SPY",
+ "resolution": "1D",
+ "layout": {
+  "url": "https://www.tradingview.com/chart/gMYHQ1jg/",
+  "title": "SPY 769.36 \u25bc \u22120.38% UCT CLOUDS SETTINGS CAPTURE (disposable)"
+ },
+ "devicePixelRatio": 1,
+ "canvas": {
+  "index": 4,
+  "width": 798,
+  "height": 259,
+  "cssWidth": 798,
+  "cssHeight": 259
+ },
+ "chartBackground": "rgba(255, 255, 255, 1)",
+ "backgroundType": "solid",
+ "horzGrid": "rgba(46, 46, 46, 0.06)",
+ "vertGrid": "rgba(46, 46, 46, 0.06)",
+ "levelY": {
+  "0": 232.1,
+  "20": 198.63,
+  "40": 165.16,
+  "60": 131.69,
+  "80": 98.22,
+  "100": 64.75
+ },
+ "columnRuns": {
+  "format": "startY:runLength@r,g,b,a (canvas device pixels, top=0)",
+  "cols": {
+   "150": [
+    "0:31@255,255,255,255",
+    "31:1@243,243,243,255",
+    "32:32@255,255,255,255",
+    "64:1@153,143,152,255",
+    "65:1@211,71,85,255",
+    "66:31@242,54,69,255",
+    "97:1@208,74,88,255",
+    "98:1@155,145,154,255",
+    "99:32@255,255,255,255",
+    "131:1@133,139,157,255",
+    "132:1@56,103,232,255",
+    "133:31@41,98,255,255",
+    "164:1@68,107,214,255",
+    "165:1@151,156,172,255",
+    "166:32@255,255,255,255",
+    "198:1@138,135,146,255",
+    "199:1@226,145,153,255",
+    "200:31@248,154,162,255",
+    "231:1@197,141,150,255",
+    "232:1@169,168,175,255",
+    "233:26@255,255,255,255"
+   ],
+   "300": [
+    "0:31@255,255,255,255",
+    "31:1@243,243,243,255",
+    "32:32@255,255,255,255",
+    "64:1@153,143,152,255",
+    "65:1@211,71,85,255",
+    "66:31@242,54,69,255",
+    "97:1@208,74,88,255",
+    "98:1@155,145,154,255",
+    "99:32@255,255,255,255",
+    "131:1@133,139,157,255",
+    "132:1@56,103,232,255",
+    "133:31@41,98,255,255",
+    "164:1@68,107,214,255",
+    "165:1@151,156,172,255",
+    "166:32@255,255,255,255",
+    "198:1@138,135,146,255",
+    "199:1@226,145,153,255",
+    "200:31@248,154,162,255",
+    "231:1@197,141,150,255",
+    "232:1@169,168,175,255",
+    "233:26@255,255,255,255"
+   ],
+   "450": [
+    "0:31@255,255,255,255",
+    "31:1@243,243,243,255",
+    "32:32@255,255,255,255",
+    "64:1@153,143,152,255",
+    "65:1@211,71,85,255",
+    "66:31@242,54,69,255",
+    "97:1@208,74,88,255",
+    "98:1@155,145,154,255",
+    "99:32@255,255,255,255",
+    "131:1@133,139,157,255",
+    "132:1@56,103,232,255",
+    "133:31@41,98,255,255",
+    "164:1@68,107,214,255",
+    "165:1@151,156,172,255",
+    "166:32@255,255,255,255",
+    "198:1@138,135,146,255",
+    "199:1@226,145,153,255",
+    "200:31@248,154,162,255",
+    "231:1@197,141,150,255",
+    "232:1@169,168,175,255",
+    "233:26@255,255,255,255"
+   ],
+   "600": [
+    "0:31@255,255,255,255",
+    "31:1@243,243,243,255",
+    "32:32@255,255,255,255",
+    "64:1@153,143,152,255",
+    "65:1@211,71,85,255",
+    "66:31@242,54,69,255",
+    "97:1@208,74,88,255",
+    "98:1@155,145,154,255",
+    "99:32@255,255,255,255",
+    "131:1@133,139,157,255",
+    "132:1@56,103,232,255",
+    "133:31@41,98,255,255",
+    "164:1@68,107,214,255",
+    "165:1@151,156,172,255",
+    "166:32@255,255,255,255",
+    "198:1@138,135,146,255",
+    "199:1@226,145,153,255",
+    "200:31@248,154,162,255",
+    "231:1@197,141,150,255",
+    "232:1@169,168,175,255",
+    "233:26@255,255,255,255"
+   ]
+  }
+ },
+ "meta": {
+  "description": "UCT F1 fill v6",
+  "id": "Script$USER;6a17cb6595e6407f8b76c162ed6bb027@tv-scripting",
+  "plots": [
+   {
+    "id": "plot_0",
+    "type": "line"
+   },
+   {
+    "id": "plot_1",
+    "type": "line"
+   },
+   {
+    "id": "plot_2",
+    "type": "line"
+   },
+   {
+    "id": "plot_3",
+    "type": "line"
+   },
+   {
+    "id": "plot_4",
+    "type": "line"
+   },
+   {
+    "id": "plot_5",
+    "type": "line"
+   }
+  ],
+  "styles": {
+   "plot_0": {
+    "histogramBase": 0,
+    "isHidden": false,
+    "joinPoints": false,
+    "title": "p1"
+   },
+   "plot_1": {
+    "histogramBase": 0,
+    "isHidden": false,
+    "joinPoints": false,
+    "title": "p2"
+   },
+   "plot_2": {
+    "histogramBase": 0,
+    "isHidden": false,
+    "joinPoints": false,
+    "title": "p3"
+   },
+   "plot_3": {
+    "histogramBase": 0,
+    "isHidden": false,
+    "joinPoints": false,
+    "title": "p4"
+   },
+   "plot_4": {
+    "histogramBase": 0,
+    "isHidden": false,
+    "joinPoints": false,
+    "title": "p5"
+   },
+   "plot_5": {
+    "histogramBase": 0,
+    "isHidden": false,
+    "joinPoints": false,
+    "title": "p6"
+   }
+  },
+  "filledAreas": [
+   {
+    "fillgaps": false,
+    "id": "fill_0",
+    "isHidden": false,
+    "objAId": "plot_0",
+    "objBId": "plot_1",
+    "title": "Plots Background",
+    "type": "plot_plot"
+   },
+   {
+    "fillgaps": false,
+    "id": "fill_1",
+    "isHidden": false,
+    "objAId": "plot_2",
+    "objBId": "plot_3",
+    "title": "Plots Background",
+    "type": "plot_plot"
+   },
+   {
+    "fillgaps": false,
+    "id": "fill_2",
+    "isHidden": false,
+    "objAId": "plot_4",
+    "objBId": "plot_5",
+    "title": "Plots Background",
+    "type": "plot_plot"
+   }
+  ],
+  "filledAreasStyleMeta": {
+   "fill_0": {
+    "color": "#F23645",
+    "visible": true
+   },
+   "fill_1": {
+    "color": "#2962FF",
+    "visible": true
+   },
+   "fill_2": {
+    "color": "rgba(242,54,69,0.5)",
+    "visible": true
+   }
+  },
+  "defaultsStyles": {
+   "plot_0": {
+    "color": "#787B86",
+    "display": 4294967295,
+    "linestyle": 0,
+    "linewidth": 1,
+    "plottype": 0,
+    "trackPrice": false
+   },
+   "plot_1": {
+    "color": "#787B86",
+    "display": 4294967295,
+    "linestyle": 0,
+    "linewidth": 1,
+    "plottype": 0,
+    "trackPrice": false
+   },
+   "plot_2": {
+    "color": "#787B86",
+    "display": 4294967295,
+    "linestyle": 0,
+    "linewidth": 1,
+    "plottype": 0,
+    "trackPrice": false
+   },
+   "plot_3": {
+    "color": "#787B86",
+    "display": 4294967295,
+    "linestyle": 0,
+    "linewidth": 1,
+    "plottype": 0,
+    "trackPrice": false
+   },
+   "plot_4": {
+    "color": "#787B86",
+    "display": 4294967295,
+    "linestyle": 0,
+    "linewidth": 1,
+    "plottype": 0,
+    "trackPrice": false
+   },
+   "plot_5": {
+    "color": "#787B86",
+    "display": 4294967295,
+    "linestyle": 0,
+    "linewidth": 1,
+    "plottype": 0,
+    "trackPrice": false
+   }
+  },
+  "palettes": {},
+  "propStyles": {
+   "plot_0": {
+    "color": "#787B86",
+    "display": 4294967295,
+    "linestyle": 0,
+    "linewidth": 1,
+    "plottype": 0,
+    "trackPrice": false,
+    "title": "plot_0"
+   },
+   "plot_1": {
+    "color": "#787B86",
+    "display": 4294967295,
+    "linestyle": 0,
+    "linewidth": 1,
+    "plottype": 0,
+    "trackPrice": false,
+    "title": "plot_1"
+   },
+   "plot_2": {
+    "color": "#787B86",
+    "display": 4294967295,
+    "linestyle": 0,
+    "linewidth": 1,
+    "plottype": 0,
+    "trackPrice": false,
+    "title": "plot_2"
+   },
+   "plot_3": {
+    "color": "#787B86",
+    "display": 4294967295,
+    "linestyle": 0,
+    "linewidth": 1,
+    "plottype": 0,
+    "trackPrice": false,
+    "title": "plot_3"
+   },
+   "plot_4": {
+    "color": "#787B86",
+    "display": 4294967295,
+    "linestyle": 0,
+    "linewidth": 1,
+    "plottype": 0,
+    "trackPrice": false,
+    "title": "plot_4"
+   },
+   "plot_5": {
+    "color": "#787B86",
+    "display": 4294967295,
+    "linestyle": 0,
+    "linewidth": 1,
+    "plottype": 0,
+    "trackPrice": false,
+    "title": "plot_5"
+   }
+  },
+  "propFilled": {
+   "fill_0": {
+    "color": "#F23645",
+    "visible": true
+   },
+   "fill_1": {
+    "color": "#2962FF",
+    "visible": true
+   },
+   "fill_2": {
+    "color": "rgba(242,54,69,0.5)",
+    "visible": true
+   }
+  },
+  "lastRow": [
+   1793280600,
+   100,
+   80,
+   60,
+   40,
+   20,
+   0
+  ],
+  "rows": 400
+ },
+ "source": {
+  "file": "f1-fill-v6.pine",
+  "sha256": "77dc9c0eebf10f7316b85c10a52ddae8bff2594c2007d2822cd71ed37a1f54c7",
+  "bufferVerified": "sha256 of the Monaco buffer equalled this file before Add to chart"
+ },
+ "transport": "injected button -> navigator.clipboard.writeText on a real click; chars+FNV-1a verified on the shell side"
+}

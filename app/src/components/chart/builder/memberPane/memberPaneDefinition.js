@@ -38,7 +38,7 @@ import { runtimeInputSpecsOf, plotColourInputAt } from '../../engine/runtime/run
 import { runtimeKillOf, runtimeNotGradedOf, runtimeSourceHash } from '../../engine/runtimeKill'
 import { objectLossNote } from '../../engine/ast/objectLoss'
 import { objectsOnlyPaneEnabled } from '../../engine/objectsOnlyPaneGate'
-import { memberInputTranslation } from '../builderInputs'
+import { memberInputTranslation, pineLineWidth } from '../builderInputs'
 import { manifestFromPlacements, paramLocatorsIn } from '../pineParamManifest'
 import {
   alertNoteForOutput, foldNotesForOutput, REQUIREMENT_NOTES,
@@ -407,8 +407,10 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
       // this projection never named it, so every member-pane plot drew at the
       // input's fallback of 1. Uncharted Clouds asks `linewidth = 2` for both MAs
       // and TradingView draws 2 (capture A's own `styles.plot_0.linewidth`).
+      // ⭐ UNCLAMPED (TradingView set F, `f3-linewidth-v6`: linewidth 1..10 paints
+      // N device px and `styles.linewidth` reads back N) — ⚰️ this was clamped to 1-4.
       // Clamped to the width input's own [1, 4], the Builder's Pine-import rule.
-      ...(Number.isFinite(p.width) ? { width: Math.max(1, Math.min(4, Math.round(p.width))) } : {}),
+      ...(Number.isFinite(p.width) ? { width: pineLineWidth(p.width) } : {}),
       ...(p.marker && p.marker.shape ? { marker: p.marker } : {}),
       ...(condKey ? { colorMode: `column:${condKey}`, colorUp: p.colorUp, colorDown: p.colorDown } : {}),
       ...(paletteKey ? { colorMode: `column:${paletteKey}`, colorPalette: p.colorPalette.slice() } : {}),
@@ -1234,7 +1236,7 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
       ...rowColour(p),
       hidden: false,
       // `linewidth`, as the host lane's rows carry it (see that projection).
-      ...(Number.isFinite(p.width) ? { width: Math.max(1, Math.min(4, Math.round(p.width))) } : {}),
+      ...(Number.isFinite(p.width) ? { width: pineLineWidth(p.width) } : {}),
       ...(p.marker && p.marker.shape ? { marker: p.marker } : {}),
       // The host output this row draws — the vendor harness and the pane's
       // disclosures read it; nothing computes from it.
