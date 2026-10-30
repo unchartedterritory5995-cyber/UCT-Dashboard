@@ -575,7 +575,11 @@ export function createFillLayerGroup({ onEmpty = null } = {}) {
     },
     members: () => list.slice(),
     leader: () => list.find((m) => m.isLive()) || null,
-    touch() { key = null; const l = list.find((m) => m.isLive()); const u = l ? updates.get(l) : null; if (u) u() },
+    // ⭐ R4: touch asks for a repaint and does NOT drop the cached layer — whether the
+    // layer must be re-rendered is decided by comparing FRAMES (each member's geometry
+    // groups, which the geometry cache hands back unchanged while nothing moved, and
+    // its style), the one authority over "did anything this layer paints change".
+    touch() { const l = list.find((m) => m.isLive()); const u = l ? updates.get(l) : null; if (u) u() },
     hasLayer: () => !!canvas,
     /** Paint the live members into the layer and composite it onto `context`
      *  (bitmap space). False when no layer can be made — the caller then paints
@@ -609,10 +613,15 @@ export function createFillLayerGroup({ onEmpty = null } = {}) {
         && key.frames.every((f, i) => f.groups === frames[i].groups && f.style === frames[i].style)
       if (!same) {
         if (!canvas || canvas.width < w || canvas.height < h || canvas.width * canvas.height > 4 * w * h) {
+          // ⭐ ALLOCATED WITH HEADROOM (1.25×, capped at the pane): a zoom-out grows the
+          // bands' box a little every frame, and an exact-size canvas reallocated on
+          // nearly every one. The 4× rule still shrinks a canvas the bands left behind.
+          const cw = Math.min(W, Math.ceil(w * 1.25))
+          const ch = Math.min(H, Math.ceil(h * 1.25))
           try {
-            canvas = typeof OffscreenCanvas === 'function' ? new OffscreenCanvas(w, h) : document.createElement('canvas')
-            canvas.width = w
-            canvas.height = h
+            canvas = typeof OffscreenCanvas === 'function' ? new OffscreenCanvas(cw, ch) : document.createElement('canvas')
+            canvas.width = cw
+            canvas.height = ch
             ctx2d = canvas.getContext('2d')
             stats.allocations += 1
           } catch { canvas = null; ctx2d = null }
@@ -825,8 +834,11 @@ export function createFillPrimitive(initial) {
           if (painted) return
           // ⛔ NO LAYER COULD BE MADE: the leader paints EVERY live member directly —
           // the others returned above, so painting only its own would drop them.
+          // ⭐ R3: and WITHOUT the erase — on the chart's canvas `destination-out` cuts
+          // the chart's own background and the page shows through. Overlapping sibling
+          // bands compound in this edge case instead; that is the lesser wrong.
           target.useMediaCoordinateSpace(({ context: ctx }) => {
-            for (const m of layerGroup.members()) if (m.isLive()) m.paintOwn(ctx)
+            for (const m of layerGroup.members()) if (m.isLive()) m.paintOwn(ctx, false)
           })
           return
         }
@@ -850,6 +862,12 @@ export function createFillPrimitive(initial) {
 
   return {
     primitive,
-    setOptions(patch) { opts = { ...opts, ...patch }; if (requestUpdate) requestUpdate(); layerGroup.touch() },
+    setOptions(patch) {
+      // ⭐ R4: a binder sync re-sends every option; an unchanged patch asks for nothing
+      if (patch && typeof patch === 'object' && Object.keys(patch).every((k) => opts[k] === patch[k])) return
+      opts = { ...opts, ...patch }
+      if (requestUpdate) requestUpdate()
+      layerGroup.touch()
+    },
   }
 }

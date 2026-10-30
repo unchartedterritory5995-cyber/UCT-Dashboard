@@ -81,14 +81,14 @@ afterEach(() => vi.unstubAllGlobals())
  *  needs it. */
 const withWidth = (chart) => ({ ...chart, timeScale: () => ({ ...chart.timeScale(), width: () => 1200 }) })
 
-function pair(group) {
+function pair(group, requestUpdate = () => {}) {
   const { fake, series } = host()
   const a = createFillPrimitive({ group, upper: UPPER, lower: MID, times: TIMES, color: '#111111', opacity: 0.5 })
   const b = createFillPrimitive({ group, upper: MID, lower: LOWER, times: TIMES, color: '#222222', opacity: 0.5 })
   const chart = withWidth(fake.chart)
   // …and a real price scale reports its mode (0 = normal), which the cache also needs
   const host2 = { ...series, priceScale: () => ({ ...series.priceScale(), options: () => ({ mode: 0 }) }) }
-  for (const p of [a, b]) p.primitive.attached({ chart, series: host2, requestUpdate: () => {} })
+  for (const p of [a, b]) p.primitive.attached({ chart, series: host2, requestUpdate })
   return { fake, series: host2, a, b }
 }
 const drawOf = (p, t) => p.primitive.paneViews()[0].renderer().draw(t)
@@ -117,8 +117,9 @@ describe('the shared fill layer', () => {
     const { a } = pair(createFillLayerGroup())
     const t = chartTarget()
     drawOf(a, t)
-    // media x 10..50, y 488..495 → bitmap ×2 → 20..100 × 976..990, padded by 2
-    expect([made[0].width, made[0].height]).toEqual([84, 18])
+    // media x 10..50, y 488..495 → bitmap ×2 → 20..100 × 976..990, padded by 2:
+    // an 84×18 box, in a canvas allocated with 1.25× headroom (105×23)
+    expect([made[0].width, made[0].height]).toEqual([105, 23])
     const [, , sx, sy, sw, sh, dx, dy, dw, dh] = draws(t)[0]
     expect([sx, sy, sw, sh, dx, dy, dw, dh]).toEqual([0, 0, 84, 18, 18, 974, 84, 18])
     expect(made[0].width * made[0].height).toBeLessThan((PANE.width * PANE.height) / 100)
@@ -199,6 +200,87 @@ describe('the shared fill layer', () => {
     expect(draws(tA)).toHaveLength(0)
     expect(tA.media.fillStyles()).toEqual(['#11111180', '#22222280'])
     expect(tB.media.ops).toEqual([])
+    // ⭐ R3: and NO erase on the chart's canvas
+    expect(tA.media.ops.filter((o) => o.op === 'fill' && o.compositeOp === 'destination-out')).toEqual([])
+  })
+
+  it('⛔ R3 — the no-layer fallback keeps the CHART\'s background: a magenta page never shows through', () => {
+    // A one-pixel compositor standing in for the chart canvas: it starts as the chart's
+    // opaque background, every `fill` covers the pixel, and what the member SEES is that
+    // pixel over a magenta page. An erase (`destination-out`) would hand the pixel to
+    // the page; source-over keeps the background under the band.
+    const BG = [23, 24, 26]
+    const PAGE = [255, 0, 255]
+    const px = { rgb: [...BG], a: 1 }
+    let gco = 'source-over'
+    let style = '#000000'
+    const parse = (s) => [1, 3, 5].map((i) => parseInt(s.slice(i, i + 2), 16)).concat([s.length === 9 ? parseInt(s.slice(7, 9), 16) / 255 : 1])
+    const ctx = new Proxy({}, {
+      get: (o, k) => {
+        if (k === 'fill') {
+          return () => {
+            const [r, g, b, sa] = parse(style)
+            if (gco === 'destination-out') { px.a *= 1 - sa; return }
+            const oa = sa + px.a * (1 - sa)
+            px.rgb = [r, g, b].map((c, i) => (c * sa + px.rgb[i] * px.a * (1 - sa)) / oa)
+            px.a = oa
+          }
+        }
+        return () => {}
+      },
+      set: (o, k, v) => { if (k === 'globalCompositeOperation') gco = v; if (k === 'fillStyle') style = v; return true },
+    })
+    stubOffscreen({ fail: true })
+    const { a } = pair(createFillLayerGroup())
+    drawOf(a, { useBitmapCoordinateSpace: (fn) => fn({ context: {}, bitmapSize: PANE, horizontalPixelRatio: 2, verticalPixelRatio: 2 }), useMediaCoordinateSpace: (fn) => fn({ context: ctx }) })
+    const seen = px.rgb.map((c, i) => Math.round(c * px.a + PAGE[i] * (1 - px.a)))
+    // two bands at 50% over the chart background, never over the page
+    const want = [0x22, 0x22, 0x22].map((c, i) => Math.round(c * 0.5 + (0x11 * 0.5 + BG[i] * 0.5) * 0.5))
+    expect(px.a).toBe(1)
+    seen.forEach((c, i) => expect(Math.abs(c - want[i])).toBeLessThanOrEqual(1))
+  })
+
+  it('⭐ canvas reuse — a zoom-out (a box growing every frame) does not reallocate every frame', () => {
+    const made = stubOffscreen()
+    const group = createFillLayerGroup()
+    const { a, b } = pair(group)
+    const t = chartTarget()
+    // grow the bands' box a little every frame, 30 frames
+    for (let k = 0; k < 30; k += 1) {
+      const up = UPPER.map((v) => v + k * 0.4)
+      a.setOptions({ upper: up })
+      b.setOptions({ lower: LOWER.map((v) => v - k * 0.4) })
+      drawOf(a, t)
+    }
+    expect(renders(made)).toBe(30)
+    expect(group.stats.allocations).toBeLessThanOrEqual(6)
+    expect(group.stats.allocations).toBeGreaterThan(1)
+  })
+
+  it('⭐ R4 — a sync that re-sends the same options re-renders nothing', () => {
+    const made = stubOffscreen()
+    const asked = vi.fn()
+    const { a, b } = pair(createFillLayerGroup(), asked)
+    const t = chartTarget()
+    drawOf(a, t)
+    for (let k = 0; k < 10; k += 1) {
+      // exactly what a binder sync does: every option, unchanged
+      a.setOptions({ upper: UPPER, lower: MID, times: TIMES, color: '#111111', opacity: 0.5 })
+      b.setOptions({ upper: MID, lower: LOWER, times: TIMES, color: '#222222', opacity: 0.5 })
+      drawOf(a, t)
+    }
+    expect(renders(made)).toBe(1)
+    expect(draws(t)).toHaveLength(11)
+    // …and it does not even ask the chart for a repaint
+    expect(asked).not.toHaveBeenCalled()
+    // equal CONTENT in new arrays (a recomputed column) is still not a change
+    a.setOptions({ upper: [...UPPER] })
+    drawOf(a, t)
+    expect(renders(made)).toBe(1)
+    // a real change is
+    a.setOptions({ opacity: 0.25 })
+    drawOf(a, t)
+    expect(renders(made)).toBe(2)
   })
 
   it('⛔ CONTROL — with no bitmap space at all, each band paints itself directly, as before', () => {
