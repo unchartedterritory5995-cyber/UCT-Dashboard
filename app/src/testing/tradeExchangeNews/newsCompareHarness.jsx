@@ -22,8 +22,8 @@
 //   ?wire=terminal        the terminal-upgrade fixture (long headline, impact marks,
 //                         a re-sent story, several tickers)
 //   ?rows=<n>             <n> synthetic headlines (performance checks; max 5000, the
-//                         archive's count bound). POST /pages is answered by
-//                         fakeNewsPages over them (a READ: the only non-GET let through)
+//                         archive's count bound). POST /day and GET /days are answered by
+//                         fakeNewsDay over them (/day is a READ: the only non-GET let through)
 //   ?opts=<json>          initial News widget opts (e.g. {"settings":{"groupRelated":"on"}})
 //   ?live=1               LIVE MODE for tools/txn_local_e2e.py: /api/trade-exchange-news/*
 //                         goes to the real (local, synthetic) web process through
@@ -40,7 +40,9 @@ import { PlacedThemeContext } from '../../hooks/usePlacedTheme'
 import WatchlistWidget from '../../pages/charts/widgets/WatchlistWidget'
 import ThemesWidget from '../../pages/charts/widgets/ThemesWidget'
 import TradeExchangeNewsWidget from '../../pages/charts/widgets/TradeExchangeNewsWidget'
-import { fakeNewsPage } from './fakeNewsPages'
+import { fakeNewsDay, fakeNewsDays } from './fakeNewsDay'
+import { formatTimeEt } from '../../lib/presentation/presentationPrimitives'
+import { timeLabel } from '../../pages/charts/widgets/tradeExchangeNewsModel'
 import { CHART_THEME_BY_ID, patchWidgetOptsWithTheme, mapThemeToWidgetSettings, themeWithAppSurface } from '../../components/chart/chartThemes'
 import wsStyles from '../../pages/charts/ChartsWorkspace.module.css'
 
@@ -154,6 +156,14 @@ const NEWS = ROWS.map(({ ageMs, fresh, ...r }, i) => ({
 }))
 
 const LIVE_ADDED = new Set()
+// 'HH:MM' on an ET date -> the last instant of that minute (EDT -4 or EST -5: the
+// one the shared ET formatter reads back as that time).
+function harnessAtMs(date, hhmm) {
+  const [y, mo, d] = date.split('-').map(Number)
+  const [h, mi] = hhmm.split(':').map(Number)
+  const edt = Date.UTC(y, mo - 1, d, h + 4, mi)
+  return (formatTimeEt(edt) === timeLabel(hhmm) ? edt : edt + 3_600_000) + 59_999
+}
 const BLOCKED = []
 window.__newsHarnessBlocked = BLOCKED
 const realFetch = window.fetch.bind(window)
@@ -163,9 +173,10 @@ window.fetch = (input, init) => {
   if (!url.startsWith('/') && !url.startsWith(location.origin)) return realFetch(input, init)
   const path = url.replace(location.origin, '')
   if (LIVE && path.startsWith('/api/trade-exchange-news')) return realFetch(input, init)
-  if (method === 'POST' && path === '/api/trade-exchange-news/pages') {
-    return json(fakeNewsPage(NEWS, JSON.parse((init && init.body) || '{}'), { epoch: 'harness0harness0' }))
+  if (method === 'POST' && path === '/api/trade-exchange-news/day') {
+    return json(fakeNewsDay(NEWS, JSON.parse((init && init.body) || '{}'), { epoch: 'harness0harness0', atMs: harnessAtMs }))
   }
+  if (path.startsWith('/api/trade-exchange-news/days')) return json(fakeNewsDays(NEWS))
   if (method !== 'GET') { BLOCKED.push(`${method} ${path}`); return json({}) }
   if (path.startsWith('/api/auth/me')) {
     return json({ user: { id: 'harness', email: 'harness@local', role: 'admin', display_name: 'Harness' },
