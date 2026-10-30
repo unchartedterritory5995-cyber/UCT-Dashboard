@@ -8,14 +8,16 @@
  */
 import { hveAnnotations, isHveItem } from './hveOverlay'
 import { gapAnnotations, isGapSupportItem } from './gapSupportOverlay'
+import { goSignalAnnotations, isGoSignalHourlyItem } from './goSignalOverlay'
 
 export function studyAnnotations(item, bars) {
   if (!item) return null
   if (isHveItem(item)) return hveAnnotations(item, bars)
   if (isGapSupportItem(item)) return gapAnnotations(item, bars)
+  if (isGoSignalHourlyItem(item)) return goSignalAnnotations(item, bars)
   return null
 }
 
 export function hasStudyOverlay(item) {
-  return isHveItem(item) || isGapSupportItem(item)
+  return isHveItem(item) || isGapSupportItem(item) || isGoSignalHourlyItem(item)
 }
