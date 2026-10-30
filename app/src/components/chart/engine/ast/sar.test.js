@@ -20,6 +20,8 @@ import { astReach } from './lint.js'
 import { computeParabolicSAR } from '../../indicators.js'
 import { nameOfTree } from '../../builder/authoring/derivedName.js'
 import { describeTree } from '../../builder/authoring/expansionWords.js'
+import { evaluateFormula } from '../../builder/FormulaField'
+import { BUILDER_INPUT_SCOPE } from '../../builder/builderInputs'
 import {
   sarTrees, SAR_WARMUP, SAR_MIN_STEP, SAR_MIN_MAX_STEP, SAR_NOTE, expandCall, expansionProblem,
   recogniseExpansion, collapseExpansions,
@@ -167,6 +169,14 @@ describe('the domain is the MEASURED one, and everything outside it is refused b
     const r = parseFormula('sar(0.005, 0.05)')
     expect(r.ok).toBe(false)
     expect(r.error).toContain(String(SAR_MIN_STEP))
+    expect(r.error).toContain('Parabolic SAR indicator')
+    // ⭐ and the builder's formula field — the door a member actually types into —
+    // refuses with the same recommendation rather than drawing anything.
+    for (const src of ['sar(0.01, 0.2)', 'sarDirection(0.02, 0.1)', 'close > sar(0.3, 0.2)']) {
+      const ev = evaluateFormula(src, BUILDER_INPUT_SCOPE)
+      expect(ev.ok, src).toBe(false)
+      expect(ev.error, src).toContain('Parabolic SAR indicator')
+    }
   })
 })
 
