@@ -72,9 +72,11 @@ const CASES = [
   // length, at the right price and the wrong place) while the sentence said only
   // that `line.set_xloc` is not drawn. An object one of whose moves was lost is
   // withheld now and counted in the one count; the reader name is still named.
-  { cls: 'partial objects-only (the owner\'s example)', script: 'poor-man039s-volume-profile__ZnFTCYyvGJ',
-    objectsOnly: true, kind: 'partial', text: /^2 of 246 drawing elements in this script aren't supported yet, so what it draws is incomplete\./,
-    also: '`line.set_xloc`' },
+  // ⭐ P2 (2026-10-30): `line.set_xloc` is carried (`SETTER_PROPS.line.set_xloc`), so
+  // the two block lines move onto the times the script gives them and nothing is
+  // lost: 0 of 248, CLEAN. The reader-name class keeps a fixture row below.
+  { cls: 'clean objects-only, completed by `line.set_xloc`', script: 'poor-man039s-volume-profile__ZnFTCYyvGJ',
+    objectsOnly: true, kind: 'clean' },
   // 138 of 152 since the call-site inliner: `chart_pivot`'s drawing now runs at
   // each call site, and most of it sits behind guards this chart cannot read
   // (7 of 21 when the helper's body was walked once as top-level code). Its lost
@@ -215,19 +217,19 @@ const CASES = [
   // reader-name class keeps a fixture — no committed script shows it any more.
   { cls: 'clean plots + objects, completed by `table.merge_cells`', script: 'momentum-volatility-scanner__4d1deaa855',
     objectsOnly: false, kind: 'clean' },
-  { cls: 'plots + partial the reader never carried', script: '(fixture: `line.set_xloc`)',
+  // ⚰️ P2 (2026-10-30): this fixture was `line.set_xloc`, which is carried now. The
+  // class keeps a setter the reader still does not carry: `box.set_text_wrap` (the
+  // painter does not wrap box text, so it is named, never approximated).
+  { cls: 'plots + partial the reader never carried', script: '(fixture: `box.set_text_wrap`)',
     source: [
       '//@version=5',
       'indicator("reader partial", overlay = true)',
       'plot(close)',
-      'var line l = line.new(bar_index, close, bar_index + 1, close)',
-      'line.set_xloc(l, time, time + 1, xloc.bar_time)',
+      'var box b = box.new(bar_index, high, bar_index + 1, low, text = "z")',
+      'box.set_text_wrap(b, text.wrap_auto)',
     ].join(String.fromCharCode(10)),
-    // ⭐ C45: the line this fixture creates is the one `line.set_xloc` moves, so
-    // it is withheld (1 of 1) rather than drawn where it was made.
     objectsOnly: false, kind: 'partial',
-    text: /^1 of 1 drawing elements in this script aren't supported yet, so what it draws is incomplete\./,
-    also: '`line.set_xloc`' },
+    text: /^This script uses `box\.set_text_wrap`, which this chart doesn't draw yet, so what it draws is incomplete\.$/ },
   // ── plots + a removal lost: plots drawn, drawings withheld, said so ───────
   // ⚰️ 2026-09-30 (C34) — this row was trend-lines-supports-and-resistances, and
   // its "removal lost in a refused helper" was two readings the helper refusal

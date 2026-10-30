@@ -101,10 +101,14 @@ export const OBJECT_FAMILIES = Object.freeze(['line', 'label', 'box', 'table', '
  */
 export const FAMILY_PROPS = Object.freeze({
   line: Object.freeze(['x1', 'y1', 'x2', 'y2', 'xloc', 'extend', 'color', 'style', 'width']),
+  // ⭐ P2 — `text_formatting` (label, box) and `text_halign` / `text_valign` (box):
+  // the painter already draws them (`objectCanvas.js`); the vocabulary was the gap,
+  // so `box.new(…, text_halign = text.align_left)` was named unsupported and drawn centred.
   label: Object.freeze(['x', 'y', 'text', 'xloc', 'yloc', 'color', 'style', 'textcolor',
-    'size', 'textalign', 'tooltip']),
+    'size', 'textalign', 'tooltip', 'text_formatting']),
   box: Object.freeze(['left', 'top', 'right', 'bottom', 'xloc', 'extend',
-    'border_color', 'border_width', 'border_style', 'bgcolor', 'text', 'text_color', 'text_size']),
+    'border_color', 'border_width', 'border_style', 'bgcolor', 'text', 'text_color', 'text_size',
+    'text_halign', 'text_valign', 'text_formatting']),
   table: Object.freeze(['position', 'columns', 'rows', 'bgcolor',
     'border_color', 'border_width', 'frame_color', 'frame_width']),
   linefill: Object.freeze(['line1', 'line2', 'color']),
@@ -761,7 +765,8 @@ export function withBarIndexHeld(program, classOfNode) {
     if (op.k === 'setnum' && isObj(op.value) && !op.value.r && cls(op.value) === 'dep') return 'value'
     const props = op.props || {}
     const xloc = props.xloc
-    const timed = op.k === 'create' && isObj(xloc) && xloc.v === 'const' && xloc.value === 'bar_time'
+    // ⭐ P2 — `*.set_xloc(id, …, xloc.bar_time)` is an UPDATE that writes times too.
+    const timed = (op.k === 'create' || op.k === 'update') && isObj(xloc) && xloc.v === 'const' && xloc.value === 'bar_time'
     for (const [k, v] of Object.entries(props)) {
       if (isObj(v) && v.r) {
         if (v.r === 'coll' && moves(cls(v.index))) return 'guard'

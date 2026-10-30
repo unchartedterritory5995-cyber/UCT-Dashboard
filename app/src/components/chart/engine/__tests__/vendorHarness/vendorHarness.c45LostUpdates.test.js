@@ -145,23 +145,23 @@ describe('C45 — atr-support-and-resistance: zones the lost loop extends are wi
   })
 })
 
-describe('C45 — poor-man\'s-volume-profile: the two lines `line.set_xloc` moves are withheld', () => {
+describe('C45 → P2 — poor-man\'s-volume-profile: the two lines `line.set_xloc` moves', () => {
   const ID = 'poor-man039s-volume-profile-rddt-1d-2026-09-28'
 
-  it('a setter the reader never carried is a lost move of every line it could reach', () => {
+  // ⚰️ C45 (2026-10-01): `line.set_xloc` was a setter the reader never carried, so
+  // the two lines were withheld (`geometry:lost` 2, "2 of 246"). ⭐ P2 (2026-10-30)
+  // carries it (`SETTER_PROPS.line.set_xloc`), and the lines are drawn where the
+  // vendor holds them — graded id for id in `vendorHarness.p2SetXloc`.
+  it('the setter is carried now: nothing lost, both lines drawn, no sentence', () => {
     const cap = parent(ID)
     // TradingView's two block lines span bars; the script makes them zero-length
     expect(cap.objects.records.lines.map((l) => l.x2 > l.x1)).toEqual([true, true])
     expect(cap.source.text).toMatch(/var line block_high_line = line\.new\(bar_index, high, bar_index, high/)
     const r = ofCapture(ID)
-    expect(r.d.unaddressedUpdates).toEqual([
-      'reader:unsupported@? line.set_xloc → every line moved',
-      'reader:unsupported@? line.set_xloc → every line moved',
-    ])
-    expect(r.d.dropReasons).toEqual({ 'geometry:lost': 2 })
-    expect(r.count('line')).toBe(0)
-    expect(r.note.note).toMatch(/^2 of 246 drawing elements/)
-    expect(r.note.note).toContain('It also uses `line.set_xloc`, which this chart doesn\'t draw yet.')
+    expect(r.d.unaddressedUpdates).toBeUndefined()
+    expect(r.d.dropReasons).toEqual({})
+    expect(r.count('line')).toBe(2)
+    expect(r.note).toBe(null)
   })
 })
 
@@ -284,13 +284,15 @@ describe('C45 — the rule\'s edges', () => {
     expect(r.d.dropReasons).toEqual({ 'update:target': 1, 'content:lost': 2 })
   })
 
-  it('a setter the reader does not carry (`line.set_xloc`) withholds the lines, not the label beside them', () => {
+  // ⚰️ P2: this fixture was `line.set_xloc`, carried now; `line.set_first_point`
+  // (a point SETTER, whose x depends on the line's xloc at run time) is not.
+  it('a setter the reader does not carry (`line.set_first_point`) withholds the lines, not the label beside them', () => {
     const r = through(L(...HEAD,
       'var line l = line.new(bar_index, close, bar_index + 1, close)',
       'var label m = label.new(bar_index, high, "kept")',
-      'line.set_xloc(l, time, time + 1, xloc.bar_time)',
+      'line.set_first_point(l, chart.point.now(close))',
       'plot(close)'), bars())
-    expect(r.d.unaddressedUpdates).toEqual(['reader:unsupported@? line.set_xloc → every line moved'])
+    expect(r.d.unaddressedUpdates).toEqual(['reader:unsupported@? line.set_first_point → every line moved'])
     expect(r.count('line')).toBe(0)
     expect(r.count('label')).toBe(1)
   })
@@ -412,6 +414,8 @@ describe('C45 — across the committed corpus', () => {
         if (door.def) registry.uninstallUserDefinition(HARNESS_DEF_ID)
       }
     }
+    // ⭐ P2 (2026-10-30): 16 — poor-man's-volume-profile left the list when
+    // `line.set_xloc` became a carried setter.
     // ⭐ MEASURED 2026-10-01, objects pane on: 17 of 266. FOUR attach today —
     // and of those, ict-killzones' three lost captions and sector-rotation's six
     // lost steps reach lists whose objects their drawings do not show (the
@@ -429,7 +433,6 @@ describe('C45 — across the committed corpus', () => {
       'ict-institutional-order-flow-fadi: 28 (not attached)',
       'ict-killzones-pivots-tfo: 3',
       'market-structure-break-order-block: 4 (not attached)',
-      'poor-man039s-volume-profile: 2',
       'previous-day-high-and-low-separators-dailyweekly: 3 (not attached)',
       'sector-rotation: 6',
       'session-tpo-profile: 1 (not attached)',
