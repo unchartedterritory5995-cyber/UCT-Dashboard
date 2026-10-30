@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import { vi } from 'vitest'
 import WidgetHeader from './WidgetHeader'
 
@@ -55,4 +55,20 @@ test('no pop-out button when the surface does not support it', () => {
   // itself the "move this to another monitor" unit.
   render(<WidgetHeader label="W" color="A" onColorChange={() => {}} onRemove={() => {}} />)
   expect(screen.queryByRole('button', { name: /pop out/i })).toBeNull()
+})
+
+// ⛔ REGRESSION (2026-10-30): UCT News is released to every member, so the add-tab menu
+// offers it -- from the MEMBER list (WIDGET_TAB_PICKER_TYPES), never UCT Agent's
+// widget.addTab list, which stays without it. News & Catalysts is still offered too.
+test('the add-tab menu offers UCT News and News & Catalysts, and adds UCT News as a tab', () => {
+  localStorage.removeItem('uct.nb.capture.enabled')
+  const onAddTab = vi.fn()
+  render(<WidgetHeader label="W" color="A" onColorChange={() => {}} onRemove={() => {}} onAddTab={onAddTab} />)
+  fireEvent.click(screen.getByRole('button', { name: /add a tab to this widget/i }))
+  const menu = document.querySelector('[data-wtab-add-menu]')
+  const items = [...menu.querySelectorAll('button')].map(b => b.textContent)
+  expect(items).toContain('News & Catalysts')
+  expect(items).toContain('News')
+  fireEvent.click([...menu.querySelectorAll('button')].find(b => b.textContent === 'News'))
+  expect(onAddTab).toHaveBeenCalledWith('tradeExchangeNews')
 })
