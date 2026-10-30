@@ -166,10 +166,15 @@ def _migrate_gap_table(conn) -> None:
         conn.commit()
 
 
-def _conn():
-    conn = auth_db.get_connection()
+def ensure_schema(conn) -> None:
+    """Create (and migrate) this module's two tables on ``conn``. Idempotent."""
     _migrate_gap_table(conn)
     conn.executescript(_SCHEMA)
+
+
+def _conn():
+    conn = auth_db.get_connection()
+    ensure_schema(conn)
     return conn
 
 
