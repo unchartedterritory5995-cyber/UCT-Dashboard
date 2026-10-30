@@ -1,0 +1,244 @@
+{
+  "_about": "tests/fixtures/door_stamps/v4-fills.pine as the member door (memberPaneDefinition) wrote it at DOOR_VERSION 1, with its door stamps (meta.pineVersion, meta.doorVersion, plots[].fillTransparency). Generated once, NOT regenerated: doorStamps.test.js holds today's door to these bytes.",
+  "definition": {
+    "schemaVersion": 1,
+    "id": "u_door-stamp-v4",
+    "version": 1,
+    "compute": {
+      "kind": "ast",
+      "fn": "sha256:b0998ffe47e25eef2cd2b3b5f1dd96c603590626dbff100e75e3c5d424931267",
+      "rev": 1,
+      "ast": {
+        "type": "call",
+        "name": "sma",
+        "args": [
+          {
+            "type": "series",
+            "name": "close"
+          },
+          {
+            "type": "num",
+            "value": 10
+          }
+        ]
+      },
+      "source": "sma(close, 10)",
+      "trees": {
+        "value": {
+          "type": "call",
+          "name": "sma",
+          "args": [
+            {
+              "type": "series",
+              "name": "close"
+            },
+            {
+              "type": "num",
+              "value": 10
+            }
+          ]
+        },
+        "out2": {
+          "type": "call",
+          "name": "sma",
+          "args": [
+            {
+              "type": "series",
+              "name": "close"
+            },
+            {
+              "type": "num",
+              "value": 20
+            }
+          ]
+        },
+        "out3": {
+          "type": "call",
+          "name": "sma",
+          "args": [
+            {
+              "type": "series",
+              "name": "close"
+            },
+            {
+              "type": "num",
+              "value": 30
+            }
+          ]
+        },
+        "out4": {
+          "type": "call",
+          "name": "sma",
+          "args": [
+            {
+              "type": "series",
+              "name": "close"
+            },
+            {
+              "type": "num",
+              "value": 40
+            }
+          ]
+        }
+      },
+      "treesHash": "sha256:8bcad80297c0970777372f3a0c6d54309b06a7aef37a1ff4cce0b90680ca1188",
+      "scanPlot": "value",
+      "sources": {
+        "value": "sma(close, 10)",
+        "out2": "sma(close, 20)",
+        "out3": "sma(close, 30)",
+        "out4": "sma(close, 40)"
+      }
+    },
+    "meta": {
+      "name": "Door stamp v4",
+      "shortName": "Door stamp",
+      "category": "Custom",
+      "description": "the 10-bar average of close",
+      "tags": [
+        "custom"
+      ],
+      "tier": "premium",
+      "repaint": "non-repainting",
+      "freshness": "live",
+      "disclosures": [],
+      "requirementTags": [],
+      "recurrenceOrigin": "pine",
+      "pineVersion": 4,
+      "doorVersion": 1,
+      "naConditionFalse": true
+    },
+    "placement": {
+      "target": "pane",
+      "pane": {
+        "height": 0.25
+      }
+    },
+    "inputs": [
+      {
+        "key": "color",
+        "type": "color",
+        "label": "Color",
+        "default": "#787B86"
+      },
+      {
+        "key": "lineWidth",
+        "type": "int",
+        "label": "Line width",
+        "default": 1,
+        "min": 1,
+        "max": 10,
+        "step": 1
+      },
+      {
+        "key": "out2Color",
+        "type": "color",
+        "label": "p2 colour",
+        "default": "#787B86"
+      },
+      {
+        "key": "out2Width",
+        "type": "int",
+        "label": "p2 width",
+        "default": 1,
+        "min": 1,
+        "max": 10,
+        "step": 1
+      },
+      {
+        "key": "out3Color",
+        "type": "color",
+        "label": "p3 colour",
+        "default": "#787B86"
+      },
+      {
+        "key": "out3Width",
+        "type": "int",
+        "label": "p3 width",
+        "default": 1,
+        "min": 1,
+        "max": 10,
+        "step": 1
+      },
+      {
+        "key": "out4Color",
+        "type": "color",
+        "label": "p4 colour",
+        "default": "#787B86"
+      },
+      {
+        "key": "out4Width",
+        "type": "int",
+        "label": "p4 width",
+        "default": 1,
+        "min": 1,
+        "max": 10,
+        "step": 1
+      }
+    ],
+    "plots": [
+      {
+        "key": "value",
+        "label": "p1",
+        "style": "line",
+        "color": "$color",
+        "width": "$lineWidth",
+        "role": "primary",
+        "legend": {
+          "decimals": 2
+        },
+        "fill": {
+          "with": "out2"
+        },
+        "fillColor": "#FF5252",
+        "fillOpacity": 0.1,
+        "fillTransparency": {
+          "value": null,
+          "via": "none"
+        }
+      },
+      {
+        "key": "out2",
+        "label": "p2",
+        "style": "line",
+        "color": "$out2Color",
+        "width": "$out2Width",
+        "role": "secondary",
+        "legend": {
+          "decimals": 2
+        }
+      },
+      {
+        "key": "out3",
+        "label": "p3",
+        "style": "line",
+        "color": "$out3Color",
+        "width": "$out3Width",
+        "role": "secondary",
+        "legend": {
+          "decimals": 2
+        },
+        "fill": {
+          "with": "out4"
+        },
+        "fillColor": "#FF5252",
+        "fillOpacity": 0.3,
+        "fillTransparency": {
+          "value": 70,
+          "via": "transp"
+        }
+      },
+      {
+        "key": "out4",
+        "label": "p4",
+        "style": "line",
+        "color": "$out4Color",
+        "width": "$out4Width",
+        "role": "secondary",
+        "legend": {
+          "decimals": 2
+        }
+      }
+    ]
+  }
+}

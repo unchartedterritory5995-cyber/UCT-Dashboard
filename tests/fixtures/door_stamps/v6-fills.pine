@@ -1,0 +1,8 @@
+//@version=6
+indicator("Door stamp v6", overlay=false)
+p1 = plot(ta.sma(close, 10), "p1", color=color.gray)
+p2 = plot(ta.sma(close, 20), "p2", color=color.gray)
+fill(p1, p2, color=color.red)
+p3 = plot(ta.sma(close, 30), "p3", color=color.gray)
+p4 = plot(ta.sma(close, 40), "p4", color=color.gray)
+fill(p3, p4, color=color.new(color.blue, 87.5))

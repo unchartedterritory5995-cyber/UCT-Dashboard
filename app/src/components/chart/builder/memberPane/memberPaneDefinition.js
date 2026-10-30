@@ -45,6 +45,7 @@ import {
 } from '../../engine/ast/parse'
 import { applyParamEdit } from '../paramEdit'
 import { buildDefinition } from '../BuilderSheet'
+import { DOOR_VERSION } from '../../engine/memberDocumentMigration'
 import { evaluateFormula } from '../FormulaField'
 import { BUILDER_INPUT_SCOPE, seriesNamesOf, memberInputKey } from '../builderInputs'
 
@@ -465,6 +466,11 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
         if (!fillColourSpecs.has(k)) fillColourSpecs.set(k, { key: k, type: 'color', label: f.colorInput.title || k, default: f.colorInput.hex })
       }
       if (Number.isFinite(f.opacity)) row.fillOpacity = f.opacity
+      // ⭐⭐ THE RAW STAMP beside it: what the script wrote for this static band's
+      // transparency (`pine.js::resolveFillHandles`), so a later correction to the
+      // opacity rule reaches this SAVED document with certainty
+      // (`memberDocumentMigration.upgradeFromDoorStamps`).
+      if (f.transparency && typeof f.transparency.via === 'string') row.fillTransparency = { ...f.transparency }
       // ⭐⭐ (j) j.3b(b) / R34 — A CONDITIONAL FILL NAMES A CONDITION COLUMN.
       //
       // j.3b(a) carries `colorUp`/`colorDown`/`colorCondition` on the fill;
@@ -857,6 +863,13 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
     // and it rides OUTSIDE the trees, so no tree hash moves. A document without
     // it (saved before this, or from another translator) keeps the bounded window.
     recurrenceOrigin: PINE_RECURRENCE_ORIGIN,
+    // ⭐⭐ THE DOOR STAMPS (`memberDocumentMigration.DOOR_VERSION`): the script's own
+    // `//@version` (null for a script with none — TradingView compiles it as v1)
+    // and the version of the door that wrote this document, so the next
+    // correction to what the door writes can be applied to it on load instead of
+    // guessed. Outside the trees: no tree hash, `def_hash` or `compute.fn` moves.
+    pineVersion: Number.isInteger(t.version) ? t.version : null,
+    doorVersion: DOOR_VERSION,
     // ⭐⭐ F1 — THIS SCRIPT'S VERSION READS AN `na` `?:` TEST AS FALSE (v4+,
     // `interpret.js::naConditionIsFalse`, witnessed by CAP's `rt1-na-test` for v4,
     // v5 and v6). Applied only from the listing, beside `recurrenceOrigin`

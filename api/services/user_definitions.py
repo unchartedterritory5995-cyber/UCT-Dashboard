@@ -997,6 +997,106 @@ def refresh_width_control_max(definition: Any) -> Any:
     return out
 
 
+#: ⭐⭐ THE PINE DOORS' OUTPUT VERSION, `memberDocumentMigration.DOOR_VERSION` in the
+#: browser, stamped as `meta.doorVersion` with `meta.pineVersion` and each static
+#: band's raw `fillTransparency`. Held to the browser's by
+#: `tests/fixtures/door_stamp_cases.json`, which both suites read.
+DOOR_VERSION = 1
+_FILL_VIAS = ("none", "color", "transp")
+_LEGACY_FILL_DEFAULT_TRANSP = 90
+
+
+def _js_number(v: Any) -> bool:
+    return isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)
+
+
+def _js_integer(v: Any) -> bool:
+    return _js_number(v) and float(v).is_integer()
+
+
+def fill_transparency_stamp(plot: Any) -> Optional[dict]:
+    """`memberDocumentMigration.fillTransparencyStamp`: a well-formed band stamp, or None."""
+    s = plot.get("fillTransparency") if isinstance(plot, dict) else None
+    if not isinstance(s, dict) or s.get("via") not in _FILL_VIAS:
+        return None
+    if s["via"] == "none":
+        return s if ("value" in s and s["value"] is None) else None
+    return s if _js_number(s.get("value")) else None
+
+
+_UNSTATED = object()
+
+
+def stamped_pine_version(definition: Any) -> Any:
+    """`stampedPineVersion`: an int, None for an unversioned script, `_UNSTATED` otherwise."""
+    meta = definition.get("meta") if isinstance(definition, dict) else None
+    if not isinstance(meta, dict) or "pineVersion" not in meta:
+        return _UNSTATED
+    v = meta["pineVersion"]
+    if v is None:
+        return None
+    return int(v) if (_js_integer(v) and v >= 1) else _UNSTATED
+
+
+def stamped_fill_opacity(stamp: dict, pine_version: Any) -> float:
+    """`memberDocumentMigration.stampedFillOpacity`, exactly (the same float ops)."""
+    if stamp["via"] == "none":
+        legacy = not isinstance(pine_version, int) or pine_version <= 4
+        return (100 - _LEGACY_FILL_DEFAULT_TRANSP) / 100 if legacy else 1
+    if stamp["via"] == "transp":
+        return (100 - max(0, min(100, stamp["value"]))) / 100
+    return max(0, min(1, 1 - stamp["value"] / 100))
+
+
+#: What each door version wrote as a static band's `fillOpacity` (`DOOR_FILL_RULES`).
+DOOR_FILL_RULES = {1: stamped_fill_opacity}
+
+
+def refresh_from_door_stamps(definition: Any, rules: Optional[Mapping] = None) -> Any:
+    """⭐⭐ `memberDocumentMigration.upgradeFromDoorStamps`, mirrored EXACTLY: a STAMPED
+    static band (`meta.doorVersion` known, `meta.pineVersion` stated, a well-formed
+    `fillTransparency`) with NO `fillOpacity` gets the door's rule from the script's
+    own facts; one whose `fillOpacity` is exactly what an OLDER door derived from the
+    stamp gets today's. Anything else -- an unstamped document, a conditional band, a
+    value somebody else set -- is left as given. Pure; the SAME object otherwise."""
+    rules = DOOR_FILL_RULES if rules is None else rules
+    if not isinstance(definition, dict):
+        return definition
+    meta = definition.get("meta")
+    if not isinstance(meta, dict) or not _js_integer(meta.get("doorVersion")) or int(meta["doorVersion"]) not in rules:
+        return definition
+    door = int(meta["doorVersion"])
+    pv = stamped_pine_version(definition)
+    plots = definition.get("plots")
+    if pv is _UNSTATED or not isinstance(plots, list):
+        return definition
+    current = max(rules)
+    out_plots = None
+    for i, p in enumerate(plots):
+        if not isinstance(p, dict) or not isinstance(p.get("fill"), dict) or "colorMode" in p["fill"]:
+            continue
+        stamp = fill_transparency_stamp(p)
+        if stamp is None:
+            continue
+        now = rules[current](stamp, pv)
+        if "fillOpacity" not in p:
+            nxt = now
+        elif door < current and _js_number(p["fillOpacity"]) and p["fillOpacity"] == rules[door](stamp, pv):
+            nxt = now
+        else:
+            continue
+        if "fillOpacity" in p and _js_number(p["fillOpacity"]) and p["fillOpacity"] == nxt:
+            continue
+        if out_plots is None:
+            out_plots = list(plots)
+        out_plots[i] = {**p, "fillOpacity": nxt}
+    if out_plots is None:
+        return definition
+    out = dict(definition)
+    out["plots"] = out_plots
+    return out
+
+
 def validate_v2(definition: dict) -> None:
     """The rules `defSchema.validateAstCompute` / `validateTrees` /
     `validateTreesAgainstPlots` apply in the browser, applied again at the LAST
@@ -1894,6 +1994,9 @@ def save(user_id: Any, def_id: str, definition: dict,
     # ⭐ …and a width control saved under the old 1..4 constant reaches today's max,
     # so the stored bytes converge on what the chart already installs on load.
     definition = refresh_width_control_max(definition)
+    # ⭐ …and a stamped band the door left without an opacity is resolved from the
+    # script's own stamp, as the chart does on load.
+    definition = refresh_from_door_stamps(definition)
     # ⭐ A COPY (share install, fork) SKIPS the presentation gate below -- it holds a
     # row the store already admitted -- so a plot width above the ceiling would ride
     # it to a second member. The copier did not author that width, so the copy is
