@@ -946,17 +946,37 @@ function ChartsWorkspaceBoard() {
   // The linked ticker updates INSTANTLY (state), but persisting it is debounced —
   // otherwise fast arrow-scanning fires a POST /api/auth/preferences per keypress
   // (+ an optimistic SWR mutate that re-renders every prefs consumer). 400ms trailing.
+  // ⛔ The pending write carries the member it was made for (`beginPrefsOp`, captured when the
+  // timer is scheduled): a ticker change in the last 400 ms before another tab signs in as B is
+  // dropped, never written into B's account. Leaving the board flushes it, for that member only.
   const groupsSaveTimerRef = useRef(null)
+  const groupsPendingRef = useRef(null)
+  const writeGroups = useCallback((pending) => {
+    if (!pending || pending.op.stale()) return
+    setPref('charts_workspace_groups', JSON.stringify(pending.next))
+  }, [setPref])
   const setGroupSym = useCallback((color, sym) => {
     setGroupSymsState(prev => {
       const next = { ...prev, [color]: sym }
       if (groupsSaveTimerRef.current) clearTimeout(groupsSaveTimerRef.current)
+      const pending = { next, op: beginPrefsOp() }
+      groupsPendingRef.current = pending
       groupsSaveTimerRef.current = setTimeout(() => {
-        setPref('charts_workspace_groups', JSON.stringify(next))
+        groupsSaveTimerRef.current = null
+        groupsPendingRef.current = null
+        writeGroups(pending)
       }, 400)
       return next
     })
-  }, [setPref])
+  }, [writeGroups])
+  useEffect(() => () => {
+    if (!groupsSaveTimerRef.current) return
+    clearTimeout(groupsSaveTimerRef.current)
+    groupsSaveTimerRef.current = null
+    const pending = groupsPendingRef.current
+    groupsPendingRef.current = null
+    writeGroups(pending)
+  }, [writeGroups])
 
   // Which timeframe each color group's chart is showing right now. Broadcast by
   // ChartWidget, read by list widgets (Theme Tracker) so their bar warming lands
