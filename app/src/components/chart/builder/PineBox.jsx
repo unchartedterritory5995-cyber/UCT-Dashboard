@@ -39,6 +39,7 @@ import { importOutcome, classifyNote, SEVERITY, controlledErrorReport } from '..
 import { foreignLanguage, foreignRefusal } from '../engine/ast/foreignLanguage'
 import { TS_CALL_SHAPES, TS_DOC_BLOCKED } from '../engine/ast/thinkscript'
 import { TABLE } from '../engine/ast/parse'
+import ImportGapNotice from '../supportLoop/ImportGapNotice'
 import styles from './PineBox.module.css'
 
 /** The same 250 ms `FormulaField` settles on, and for the same reason: a paste is
@@ -590,7 +591,7 @@ function loadEditor() {
  *  (already mounted and already the value carrier) stays the box. Never a reload. */
 const TEXTAREA_FALLBACK = null
 
-function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSourceChange, onImportTelemetry }) {
+function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSourceChange, onImportTelemetry, sym = null, tf = null }) {
   const inspect = useCallback(
     (s, opts) => (dialect === undefined ? inspectPine(s, opts) : inspectSource(s, dialect, opts)),
     [dialect],
@@ -1133,6 +1134,12 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
                 ? ` — ${outcome.reason}` : ''}
             </p>
           )}
+          {/* ⭐ SUPPORT LOOP A1/A2/A3 (`docs/pine/support-loop/PHASE-A.md`): which
+              TradingView built-ins this paste lost, said plainly, logged by name
+              only from the closed list, and the opt-in "Doesn't match TradingView?"
+              report. Renders nothing for a script that lost nothing unless the
+              report door is switched on. */}
+          <ImportGapNotice report={report} source={text} sym={sym} tf={tf} />
           {semanticShown.length > 0 && (
             <ul className={styles.notes} data-testid="import-semantic-notes">
               {/* ⛔ A DIFFERENCE THAT CAN CHANGE A VALUE IS NEVER BEHIND A TOGGLE. */}
@@ -1544,7 +1551,7 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
  */
 export function ImportBox({
   onPick, disabled = false, initialSource = '', dialect = 'auto', onSourceChange = null,
-  onImportTelemetry = null,
+  onImportTelemetry = null, sym = null, tf = null,
 }) {
   return (
     <PasteBox
@@ -1554,6 +1561,8 @@ export function ImportBox({
       dialect={dialect}
       onSourceChange={onSourceChange}
       onImportTelemetry={onImportTelemetry}
+      sym={sym}
+      tf={tf}
     />
   )
 }

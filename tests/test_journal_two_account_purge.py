@@ -89,6 +89,8 @@ def _manifest_tables(ap) -> list[str]:
 # ── enum/CHECK-constrained columns the generic filler can't guess safely ──────
 _ENUM_OVERRIDES: dict[str, dict[str, str]] = {
     "j2_positions": {"side": "Long"},
+    # Pine support loop: a report exists only with consent (CHECK consent = 1).
+    "indicator_support_reports": {"consent": 1, "status": "new"},
     "j2_trades": {"side": "Long", "result": "Win"},
     "j2_playbook_entries": {"status": "watching"},
     "j2_option_strategies": {"direction": "neutral", "status": "open"},
@@ -232,6 +234,10 @@ def _seed_full_manifest(conn, user_id: str, tag: str) -> dict[str, str]:
     # list / save (FT-072, lane/o-options-remainders).
     from api.services.options_analytics import spread_book as sbk
     sbk.ensure_schema(conn)
+    # indicator_support_reports (Pine support loop, Phase A), likewise: indicator_support.py
+    # self-ensures it on the first report or gap count.
+    from api.services import indicator_support as isup
+    isup.ensure_schema(conn)
 
     for table in _manifest_tables(ap):
         _insert_minimal_row(conn, table, user_id, tag)

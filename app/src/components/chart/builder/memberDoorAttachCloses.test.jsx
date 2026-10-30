@@ -118,7 +118,10 @@ async function paste(script) {
 }
 
 const attachBox = () => screen.getByTestId('pine-member-pane-attach')
-const posts = () => H.requests.filter((r) => r.method !== 'GET')
+// ⚠️ The support loop's A2 gap count (`/api/indicator-support/gaps`) fires on any
+// paste that loses a part; it is a count of built-in NAMES, not a definition write,
+// so it is not one of the writes this file is about (docs/pine/support-loop/PHASE-A.md).
+const posts = () => H.requests.filter((r) => r.method !== 'GET' && !String(r.url).includes('/api/indicator-support/gaps'))
 const postedDefinition = () => {
   const p = posts()
   const body = JSON.parse(p[p.length - 1].body)

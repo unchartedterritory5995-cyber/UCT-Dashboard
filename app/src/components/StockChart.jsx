@@ -162,6 +162,11 @@ import { resolveInfoValues, infoValueOutputExists } from './chart/engine/infoVal
 // than stored and how it relates to the definition's own `meta.repaint`.
 import { plotRepaintNotice, repaintNotices } from './chart/engine/repaintVerdict'
 import ContextPopover from './mobile/ContextPopover'
+// ⭐ SUPPORT LOOP A3 (`docs/pine/support-loop/PHASE-A.md`) — the chip menu's
+// "Doesn't match TradingView?" row. The dialog itself is lazy (`reportDoor.jsx`).
+import useReportsConfig from './chart/supportLoop/useReportsConfig'
+import { LazyReportMismatchDialog } from './chart/supportLoop/reportDoor'
+import { isPineOriginDoc } from './chart/engine/otherSymbols'
 import IndicatorSettingsDialog from './chart/IndicatorSettingsDialog'
 import { usePatternDetections } from '../hooks/usePatternDetections'
 import { useAutoStructuresScope, useSetupsPanelReleased } from './chart/autoStructuresGate'
@@ -3532,6 +3537,10 @@ export default function StockChart({
   // row). A second PAGE of one popover rather than a second popover: the text is
   // `def.meta.description`, which every definition already declares.
   const [chipAbout, setChipAbout] = useState(null)
+  // ⭐ SUPPORT LOOP A3 — the imported Pine definition a member is reporting, and
+  // the server's report flag, asked for only once a chip menu has opened.
+  const [reportFor, setReportFor] = useState(null)
+  const reportCfg = useReportsConfig(!!chipMenu)
 
   // ── Journal 2.0 markers + entry/stop price lines for this symbol ──
   // Returns empty arrays for unauth'd users. Merged with prop-supplied
@@ -18937,7 +18946,9 @@ export default function StockChart({
           // closes with the thing it was about.
           onRemove: (id) => { close(); handleChipRemove(id) },
           onInfoValue: (id, pk, on) => { close(); handleChipInfoValue(id, pk, on) },
+          onReportMismatch: () => { close(); setReportFor({ defId: c.defId }) },
         }, {
+          reportMismatch: !!(reportCfg && reportCfg.reportsEnabled && isPineOriginDoc(def)),
           infoValueOn: hasInfoValue(cs, c.instanceId, c.plotKey),
           infoValueRefusal: infoValueAddRefusal(cs, { instanceId: c.instanceId, plotKey: c.plotKey },
             _infoDefOf, infoValueOutputExists) || undefined,
@@ -19015,6 +19026,25 @@ export default function StockChart({
           and its consumers (the library dialog's row badge; `validateAstLane`'s
           both-directions refusal on the one lane where it is checkable) — it is
           the definition's CLAIM, and this is the maths. */}
+      {reportFor && (() => {
+        // ⭐ A RUNTIME-LANE document carries the member's Pine as its compute; a
+        // formula document keeps only its compiled tree, so the dialog asks the
+        // member to paste the script (`ReportMismatchDialog`'s `source` prop).
+        const rdef = engineRegistry.getDefinition(reportFor.defId)
+        const compute = (rdef && rdef.compute) || {}
+        return (
+          <LazyReportMismatchDialog
+            open
+            onClose={() => setReportFor(null)}
+            source={compute.kind === 'runtime' && typeof compute.source === 'string' ? compute.source : null}
+            sym={sym}
+            tf={resolvedTf}
+            name={(rdef && rdef.meta && rdef.meta.name) || null}
+            maxSourceBytes={reportCfg ? reportCfg.maxSourceBytes : undefined}
+            maxNoteChars={reportCfg ? reportCfg.maxNoteChars : undefined}
+          />
+        )
+      })()}
       {chipAbout && (() => {
         const def = engineRegistry.getDefinition(chipAbout.chip.defId)
         const meta = (def && def.meta) || {}

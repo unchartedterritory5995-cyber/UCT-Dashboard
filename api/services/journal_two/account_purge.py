@@ -233,6 +233,13 @@ _DIRECT_USER_TABLES = (
     "j2_gallery_use_days",
     "j2_gallery_credits",
     "j2_gallery_helpful_prompts",
+    # Pine support loop, Phase A (docs/pine/support-loop/PHASE-A.md; owner-approved
+    # 2026-10-30) -- the member's opt-in "Doesn't match TradingView?" reports, which hold
+    # the script code they chose to send. auth.db; self-ensured by
+    # api/services/indicator_support.py (never db.py), so on a pod where no report was
+    # ever filed this is a "no such table" no-op. Their GAP COUNTS are keyed by a hash,
+    # not user_id, and go in the hashed pass below.
+    "indicator_support_reports",
 )
 
 # j2_broker_digest_dedup is deliberately excluded: it is a single global row
@@ -452,6 +459,22 @@ def purge_user_rows(user_id: str, conn: sqlite3.Connection, *,
         "DELETE FROM daily_usage_counters WHERE subject = ?",
         (user_id,),
     )
+
+    # Pine support loop, Phase A -- the member's gap counts. `indicator_gap_hits` holds no
+    # user_id: its member column is HMAC(PUSH_SECRET, user_id), and the ONE function that
+    # computes it is `indicator_support.member_key` -- called here, never re-implemented, so
+    # the purge cannot drift from the key the writes used. A key that could not be computed
+    # is an error in the report, never a silent skip.
+    try:
+        from api.services.indicator_support import member_key as _gap_member_key
+    except Exception as e:  # noqa: BLE001 -- one table can never abort the rest
+        _gap_member_key = None
+        errors.append(f"indicator_gap_hits: member key: {e}")
+    deleted["indicator_gap_hits"] = _run(
+        "indicator_gap_hits",
+        "DELETE FROM indicator_gap_hits WHERE member_key = ?",
+        (_gap_member_key(user_id),),
+    ) if _gap_member_key is not None else 0
 
     conn.commit()
 

@@ -49,7 +49,7 @@ the wave-6 close and 20 short by wave 7 (wave 7 lane J, J4).
 
 <!-- BEGIN GENERATED: python tools/account_deletion_manifest.py --write (derived from api/services/journal_two/account_purge.py) -- never hand-edit -->
 
-**118 tables** (109 direct by `user_id`, 3 direct by another member key, 6 indirect).
+**120 tables** (110 direct by `user_id`, 3 direct by another member key, 1 direct by a key derived from the member's id, 6 indirect).
 
 | Table | Owner key | Ownership | How the purge deletes it |
 |---|---|---|---|
@@ -168,9 +168,11 @@ the wave-6 close and 20 short by wave 7 (wave 7 lane J, J4).
 | `j2_gallery_use_days` | `user_id` | Direct | `DELETE FROM j2_gallery_use_days WHERE user_id = ?` |
 | `j2_gallery_credits` | `user_id` | Direct | `DELETE FROM j2_gallery_credits WHERE user_id = ?` |
 | `j2_gallery_helpful_prompts` | `user_id` | Direct | `DELETE FROM j2_gallery_helpful_prompts WHERE user_id = ?` |
+| `indicator_support_reports` | `user_id` | Direct | `DELETE FROM indicator_support_reports WHERE user_id = ?` |
 | `daily_usage_counters` | `subject` (the member's id) | Direct | `DELETE FROM daily_usage_counters WHERE subject = ?` |
 | `j2_gallery_follows` | `follower_id` (the member's id) | Direct | `DELETE FROM j2_gallery_follows WHERE follower_id = ?` |
 | `j2_gallery_follows` | `author_id` (the member's id) | Direct | `DELETE FROM j2_gallery_follows WHERE author_id = ?` |
+| `indicator_gap_hits` | `member_key` (`_gap_member_key(user_id)`, a keyed hash of the member's id) | Direct | `DELETE FROM indicator_gap_hits WHERE member_key = ?` with `_gap_member_key(user_id)` |
 
 <!-- END GENERATED -->
 
