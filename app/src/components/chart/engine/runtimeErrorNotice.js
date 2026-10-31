@@ -15,30 +15,50 @@
 //
 // ⛔ SESSION STATE, NEVER PERSISTED: another symbol, another timeframe or another
 // setting may not reach the error at all.
+//
+// ⭐⭐ SCOPED BY BINDER, THEN BY INSTANCE. One instance id can be drawn by several
+// binders at once — a multi-chart grid cell, a seeded workspace widget, a popup —
+// on different symbols and timeframes, so an instance-only key let chart A's note
+// show in chart B's strip, and B's prune clear A's note. Every entry now lives
+// under its binder's `scope` (`createBinder({scope})`, which `StockChart` gives a
+// stable per-chart id and `ChartPane` hands the same id to its strip), and every
+// read names the scope it reads. An absent scope is `''`, its own scope, so a
+// binder and a strip that name none still meet, and nothing else.
 
+/** scope → instanceId → sentence. */
 const notices = new Map()
+const scoped = (scope) => notices.get(scope || '') || null
 const listeners = new Set()
 
 const emit = () => { for (const fn of [...listeners]) { try { fn() } catch { /* a bad listener is not the store's problem */ } } }
 
 /** Record (or clear, with a falsy sentence) THIS instance's stop. */
-export function setRuntimeErrorNotice(instanceId, sentence) {
+export function setRuntimeErrorNotice(instanceId, sentence, scope = '') {
   if (!instanceId) return
   const next = typeof sentence === 'string' && sentence ? sentence : null
-  const had = notices.has(instanceId) ? notices.get(instanceId) : null
+  const own = scoped(scope)
+  const had = own && own.has(instanceId) ? own.get(instanceId) : null
   if (had === next) return
-  if (next === null) notices.delete(instanceId)
-  else notices.set(instanceId, next)
+  if (next === null) {
+    own.delete(instanceId)
+    if (!own.size) notices.delete(scope || '')
+  } else if (own) own.set(instanceId, next)
+  else notices.set(scope || '', new Map([[instanceId, next]]))
   emit()
 }
 
-/** The sentence for one instance, or null. */
-export function runtimeErrorNoticeFor(instanceId) {
-  return notices.has(instanceId) ? notices.get(instanceId) : null
+/** The sentence for one instance in one binder's scope, or null. */
+export function runtimeErrorNoticeFor(instanceId, scope = '') {
+  const own = scoped(scope)
+  return own && own.has(instanceId) ? own.get(instanceId) : null
 }
 
-/** Every instance currently stopped: `[instanceId, sentence]` pairs, a copy. */
-export function runtimeErrorNotices() { return [...notices.entries()] }
+/** Every instance currently stopped in one binder's scope: `[instanceId, sentence]`
+ *  pairs, a copy. */
+export function runtimeErrorNotices(scope = '') {
+  const own = scoped(scope)
+  return own ? [...own.entries()] : []
+}
 
 /** ⭐ Subscribe; returns the unsubscribe. */
 export function onRuntimeErrorNoticeChange(fn) {

@@ -105,6 +105,11 @@ STORES: tuple[Store, ...] = (
     # TERM-073: the nightly analyst pass's `analyst_timeline` lives in this db. The whole file is
     # backed up (its `analyst_rows` / `analyst_runs` ride along); the timeline is why it is here.
     Store("screener_analyst", CLASS_RETAINED, "api.services.screener.analyst_pass", "get_db_path"),
+    # Trade Exchange News (owner, 2026-10-31: permanent retention). The ORIGINALS are permanent
+    # in the News R2 journal; this nightly snapshot is the fast restore of the queryable database
+    # (ledger, seq order, repeat counts). trade_exchange_news/integrity.py alerts when the newest
+    # snapshot is stale. Restore: docs/runbooks/trade-exchange-news-retention.md.
+    Store("trade_exchange_news", CLASS_RETAINED, "api.services.trade_exchange_news.config", "db_path"),
 )
 
 #: Stores another rail already backs up. Never registered above.

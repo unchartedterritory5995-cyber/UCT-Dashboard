@@ -210,10 +210,11 @@ async def test_days_reports_counts_retention_and_today(monkeypatch):
     out = arc.days(p.store, now_ms=now)
     assert out["today"] == "2026-10-30" and out["first_day"] == "2026-10-28"
     assert out["days"] == [{"date": "2026-10-28", "count": 20}, {"date": "2026-10-30", "count": 7}]
-    assert out["first_day_partial"] is False
-    assert out["retention"]["max_items"] == 5000
-    monkeypatch.setenv("TXN_HISTORY_MAX_AGE_HOURS", "54")                 # the age cut falls inside Oct 28
-    assert arc.days(p.store, now_ms=now)["first_day_partial"] is True
+    assert out["first_day_partial"] is True                             # the archive began during it
+    assert out["retention"] == {"permanent": True}
+    monkeypatch.setenv("TXN_HISTORY_MAX_AGE_HOURS", "1")                  # a retired bound: changes nothing
+    monkeypatch.setenv("TXN_HISTORY_MAX_ITEMS", "3")
+    assert arc.days(p.store, now_ms=now)["days"] == out["days"]
     r = (await _call(ADMIN, "GET", route.DAYS_PATH)).json()
     assert r["epoch"] == p.store.epoch and sum(x["count"] for x in r["days"]) == 27
 
@@ -330,26 +331,29 @@ async def test_arrivals_while_scrolling_never_shift_duplicate_or_skip():
     assert [x["seq"] for x in up["items"]] == [65, 64, 63, 62, 61]      # scrolling up finds them
 
 
-async def test_a_recovered_headline_pruned_from_the_middle_leaves_the_index():
+async def test_a_recovered_headline_joins_its_old_day_even_when_that_day_is_cached():
     await _fill_day(n=30)
     p = pl.get()
+    await p.submit(rec("SYNTHETIC EARLIER", et_ms(date(2026, 10, 20), 8)), "push")
+    assert (await _day({"date": "2026-10-20", "hide_placeholders": False}))["total"] == 1   # now cached
     await p.submit(rec("SYNTHETIC LATE RECOVERED", et_ms(date(2026, 10, 20), 9)), "reconcile")   # new seq, old time
     late = p.store.last_seq()
-    assert (await _day({"date": "2026-10-20", "hide_placeholders": False}))["total"] == 1
-    gone = p.store.prune(max_age_ms=et_ms(DAY, 23) - et_ms(DAY, 0), max_items=10_000, now_ms=et_ms(DAY, 23))
-    assert gone["by_age"] == 1
-    assert (await _day({"date": "2026-10-20", "hide_placeholders": False}))["total"] == 0
-    d = await _day({"date": DAY.isoformat(), "limit": 200, "hide_placeholders": False})
-    assert late not in [x["seq"] for x in d["items"]] and d["total"] == 30
-    assert arc.cache_stats()["index_rows"] == 30
+    d = await _day({"date": "2026-10-20", "hide_placeholders": False})
+    assert d["total"] == 2 and d["items"][0]["seq"] == late
+    assert (await _day({"date": DAY.isoformat(), "limit": 200, "hide_placeholders": False}))["total"] == 30
 
 
-async def test_the_count_bound_drops_the_oldest_from_the_index():
+async def test_retired_bounds_remove_nothing_from_the_archive(monkeypatch):
+    """⛔⛔ PERMANENT RETENTION: the old age/count settings are read by nothing."""
+    monkeypatch.setenv("TXN_HISTORY_MAX_ITEMS", "25")
+    monkeypatch.setenv("TXN_HISTORY_MAX_AGE_HOURS", "1")
     p = await _fill_day(n=40)
     await _day({"date": DAY.isoformat()})
-    p.store.prune(max_age_ms=10**15, max_items=25)
+    for _ in range(250):                                                # past the old 200-ingest prune tick
+        await p.submit(rec(f"SYNTHETIC tick {_}", et_ms(date(2026, 10, 29), 9) + _), "push")
     d = await _day({"date": DAY.isoformat(), "limit": 200, "hide_placeholders": False})
-    assert d["day_total"] == 25 and min(x["seq"] for x in d["items"]) == 16
+    assert d["day_total"] == 40 and min(x["seq"] for x in d["items"]) == 1
+    assert p.store.stats()["headlines"] == 290 and p.store.stats()["deliveries"] == 290
 
 
 async def test_a_restart_or_another_process_rebuilds_the_same_answer():
@@ -361,7 +365,7 @@ async def test_a_restart_or_another_process_rebuilds_the_same_answer():
     cold = await _day(body)
     for k in ("total", "day_total", "items", "older_cursor", "has_older"):
         assert cold[k] == warm[k]
-    assert arc.cache_stats()["index_rows"] == 40
+    assert arc.cache_stats()["days_cached"] == 1 and arc.cache_stats()["day_rows"] == 40
 
 
 async def test_a_new_epoch_discards_the_index(tmp_path, monkeypatch):
@@ -440,7 +444,8 @@ async def test_cache_sizes_are_bounded_and_reported(monkeypatch):
         arc._light_of("TXNews1", f"SYNTHETIC unique {i}")
     assert arc.cache_stats()["derived_light"] == 5
     status = (await _call(ADMIN, "GET", route.STATUS_PATH)).json()
-    assert set(status["archive_cache"]) == {"index_rows", "derived_light", "derived_full", "rebuilds"}
+    assert set(status["archive_cache"]) == {"tail_rows", "days_cached", "day_rows", "hours", "rebuilds",
+                                            "day_loads", "derived_light", "derived_full"}
 
 
 async def test_recent_events_equal_a_fresh_build():

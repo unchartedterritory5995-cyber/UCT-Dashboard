@@ -28,6 +28,8 @@
 // naming a plot, the member has since removed is DROPPED and REPORTED in
 // `dropped` — removing the column is the member's explicit change.
 
+import { FILL_STAMP_FIELD, fillStampSurvivesEdit } from '../engine/memberDocumentMigration'
+
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
 const clone = (v) => (v === undefined ? v : JSON.parse(JSON.stringify(v)))
 
@@ -150,6 +152,12 @@ export function preservePresentation(next, prior, { ownedPaints = new Set() } = 
         p.opacity = clone(value)
         carried.push(`plots.${p.key}.opacity`)
         continue
+      }
+      if (field === FILL_STAMP_FIELD && !(field in p)) {
+        // ⛔ a band whose opacity this edit changed (or removed) loses its door
+        // stamp, so no later door upgrade can replace the member's chosen opacity
+        // (`memberDocumentMigration.fillStampSurvivesEdit`).
+        if (!fillStampSurvivesEdit(q, p)) { dropped.push(`plots.${p.key}.${field}`); continue }
       }
       if (BUILDER_PLOT_VOCAB.has(field) || field in p) continue
       if (field === 'edges' && isObj(value)

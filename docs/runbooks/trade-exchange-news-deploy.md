@@ -15,7 +15,7 @@ pasted from that file into the Cloudflare / Railway dashboards by the owner.
 
 | Item | Name (proposed) | Notes |
 |---|---|---|
-| R2 bucket | `uct-trade-exchange-news` | journal only; lifecycle 8 days |
+| R2 bucket | `uct-trade-exchange-news` | the PERMANENT delivery archive; no expiry on `events/` (2026-10-31) |
 | R2 token A | `txn-receiver` | Object Read & Write, **this bucket only** |
 | R2 token B | `txn-web` | Object Read & Write, **this bucket only** (recovery + repair pass) |
 | Railway service | `trade-exchange-news-receiver` | Dockerfile, **no volume**, public Railway domain |
@@ -23,7 +23,8 @@ pasted from that file into the Cloudflare / Railway dashboards by the owner.
 | Web variables | `TXN_*` (see `services/trade_exchange_news_receiver/env.web.example`) | dark until W3 |
 
 Cost: R2 ≈ one Class A LIST per 30 s per web (~86k/month) + one PUT per headline +
-storage of 8 days of small JSON objects — cents/month. Receiver: one small container.
+storage of every delivery ever received (~1–2 KB each; ~0.25 GB/year at 350/day) —
+cents/month. Receiver: one small container.
 
 ## 1. Secrets (owner, local machine)
 
@@ -41,14 +42,16 @@ both are stored.
 ## 2. R2 (owner, Cloudflare dashboard)
 
 1. **R2 → Create bucket** `uct-trade-exchange-news` (default location, Standard class).
-2. **Lifecycle**: bucket → Settings → Object lifecycle rules → add
-   - prefix `trade-exchange-news/v1/events/` → delete after **8 days**
-   - prefix `trade-exchange-news/v1/preflight/` → delete after **1 day**
+2. **Lifecycle**: bucket → Settings → Object lifecycle rules → add ONLY
+   - prefix `trade-exchange-news/v1/preflight/` → delete after **1 day** (preflight canaries)
 
    (Equivalent machine-readable form: `services/trade_exchange_news_receiver/r2-lifecycle.json`,
    applicable with the S3 API `PutBucketLifecycleConfiguration`.)
-   ⛔ 8 days ≥ web's 7-day history + 1: shorter breaks the recovery floor
-   (`TXN_JOURNAL_RETENTION_HOURS=192` must match).
+   ⛔⛔ PERMANENT RETENTION (owner, 2026-10-31): NO rule may expire or transition
+   `trade-exchange-news/v1/events/` (or the whole bucket). The journal is the permanent
+   archive of every delivery; `tools/txn_preflight.py` fails if such a rule is enabled.
+   Production's former `events-8d` rule is DISABLED (owner, 2026-10-31) — never re-enable it.
+   Recovery, backups and the integrity check: `docs/runbooks/trade-exchange-news-retention.md`.
 3. **R2 → Manage API tokens → Create** twice: `txn-receiver`, `txn-web`; permission
    **Object Read & Write**; **Specify bucket(s): `uct-trade-exchange-news` only**; no TTL
    (rotate manually, §8). Record Access Key ID + Secret + the S3 endpoint
