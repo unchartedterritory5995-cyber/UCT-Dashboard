@@ -478,7 +478,7 @@ export function CalendarPopover({ selected, meta, anchorEl, hostEl, themeVars, o
   )
 }
 
-const TIME_PRESETS = [['09:30', 'Open'], ['12:00', 'Midday'], ['16:00', 'Close']]
+const TIME_PRESETS = [['04:00', 'Pre-market open'], ['09:30', 'Regular-session open'], ['16:00', 'Regular-session close']]
 
 /** Jump to a time of the selected day (ET): presets or any hour and minute. */
 export function TimePopover({ at, anchorEl, hostEl, themeVars, onPick, onClose }) {
@@ -488,7 +488,7 @@ export function TimePopover({ at, anchorEl, hostEl, themeVars, onPick, onClose }
   const [bad, setBad] = useState(false)
   useEffect(() => { boxRef.current?.querySelector('button')?.focus() }, [])
   const go = (t) => { onPick(t); onClose() }
-  const width = 210
+  const width = 236                    // the three shortcuts on one line
   return (
     <div ref={boxRef} className={styles.menuPop} style={{ ...(themeVars || {}), ...placeAbove(anchorEl, hostEl, width), top: 'auto', width }}
       role="dialog" aria-label="Jump to a time" onKeyDown={onKey}>
@@ -496,7 +496,7 @@ export function TimePopover({ at, anchorEl, hostEl, themeVars, onPick, onClose }
       <div className={styles.timePresets}>
         {TIME_PRESETS.map(([t, name]) => (
           <button key={t} type="button" className={`${styles.menuSym}${at === t ? ' ' + styles.menuSymOn : ''}`}
-            aria-pressed={at === t} onClick={() => go(t)} title={name}>{timeLabel(t)}</button>
+            aria-pressed={at === t} onClick={() => go(t)} title={name}>{timeLabel(t)} ET</button>
         ))}
       </div>
       <form className={styles.presetForm} onSubmit={(e) => {
