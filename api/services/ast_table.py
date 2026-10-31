@@ -359,10 +359,30 @@ def recurrences(manifest: Optional[Mapping[str, Any]] = None) -> Mapping[str, An
     return out
 
 
+def multi_states(manifest: Optional[Mapping[str, Any]] = None) -> Mapping[str, Any]:
+    """Every function entry that declares a ``multiState``, by name --
+    ``closedTable.json``'s ``_functions_multi_state``. The port of
+    ``parse.js::MULTI_STATES``; same idiom as ``recurrences``."""
+    m = manifest if manifest is not None else TABLE
+    out = {}
+    for name, spec in (m.get(FUNCTIONS_SECTION) or {}).items():
+        ms = spec.get("multiState") if isinstance(spec, Mapping) else None
+        if isinstance(ms, Mapping):
+            out[name] = ms
+    return out
+
+
+def multi_state_bindings(manifest: Optional[Mapping[str, Any]] = None) -> tuple:
+    """The names multi-state updates bind, derived from the entries."""
+    return tuple(sorted({b for ms in multi_states(manifest).values() for b in ms.get("binds", ())}))
+
+
 def recurrence_bindings(manifest: Optional[Mapping[str, Any]] = None) -> tuple:
     """The reserved names the bodies bind — the set a scope must refuse to let an
-    input shadow. Derived from the entries above, never listed."""
-    return tuple(sorted({r["binds"] for r in recurrences(manifest).values()}))
+    input shadow. Derived from the entries above, never listed. ⭐ It holds the
+    multi-state binds too, as ``parse.js::RECURRENCE_BINDINGS`` does."""
+    return tuple(sorted({r["binds"] for r in recurrences(manifest).values()}
+                        | set(multi_state_bindings(manifest))))
 
 
 #: The declaration that says an entry is computed over the BAR ARRAY rather than

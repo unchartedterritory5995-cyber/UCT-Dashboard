@@ -23,7 +23,7 @@
 
 import { describe, it, expect } from 'vitest'
 
-import { TABLE, parseFormula } from './parse'
+import { TABLE, parseFormula, MULTI_STATES } from './parse'
 import { translatePine, hostAdmissible, PINE_CALL_SHAPES } from './pine'
 import { TS_CALL_SHAPES } from './thinkscript'
 import { PCF_FUSED, PCF_CALLS } from './pcf'
@@ -160,7 +160,20 @@ plot(${src})
       expect(out.ok, `${src} must translate for ${target} to be excused`).toBe(true)
       expect(out.outputs[out.selected].formula).toContain(`${target}(`)
     }
-    const gaps = adapterGaps(ROWS).filter((g) => !redirected.has(g.name) && !operatorForms.has(g.name))
+    // ⭐⭐ 2026-10-30 — A MULTI-STATE PRIMITIVE IS NOT A FOREIGN FUNCTION EITHER.
+    // `accum2`…`accum4` (`_functions_multi_state`) are this engine's own state
+    // machinery: no Pine, thinkScript or TC2000 script spells them, exactly as no
+    // Pine script spells `accum`. Excused BY DERIVATION from the manifest's own
+    // `multiState` declaration — never listed — and paid for the same way: each
+    // must really be reachable from the NATIVE door, or it counts again.
+    const nativeOnly = new Set(Object.keys(MULTI_STATES))
+    expect(nativeOnly.size, 'the multi-state excuse must name something or it excused nothing').toBeGreaterThan(0)
+    for (const name of nativeOnly) {
+      const row = ROWS.find((r) => r.name === name)
+      expect(row && row.native.status, `${name} must be reachable natively to be excused`).toBe('reachable')
+    }
+    const gaps = adapterGaps(ROWS).filter((g) => !redirected.has(g.name) && !operatorForms.has(g.name)
+      && !nativeOnly.has(g.name))
     // Measured 2026-09-28: 21 rows, of which `atrPine` and `mfiPine` are the two
     // redirect targets — 19 real gaps, so the ceiling FALLS from 20 to 19.
     expect(gaps.length).toBeLessThanOrEqual(19)
@@ -229,6 +242,12 @@ plot(${n}(volume))
       // on the host lane. No Pine script writes `barsAgo(...)`; the adapter-gap
       // case above proves the operator really lands on it.
       'barsAgo',
+      // ⭐⭐ `accum2` / `accum3` / `accum4` (2026-10-30, `_functions_multi_state`) —
+      // the engine's own multi-state recurrence, reachable from the NATIVE formula
+      // language and through call expansions that compose it, never from a foreign
+      // dialect: no platform spells it, exactly as none spells `accum`. Named here
+      // rather than excused silently, so a door that ever learns one is a closure.
+      'accum2', 'accum3', 'accum4',
     ]
     // A SUPERSET check, so closing any one is green while a NEW name falling out
     // of every door is a named regression.
