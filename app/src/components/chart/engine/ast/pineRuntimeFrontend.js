@@ -57,7 +57,10 @@ import {
   record as irRecord, field as irField, fieldSet as irFieldSet,
 } from '../runtime/ir.js'
 import { CLOCK_FIELDS } from '../runtime/program.js'
-import { RUNTIME_SOURCES as MEMBER_SOURCES } from '../runtime/runtimeInputs.js'
+import {
+  RUNTIME_SOURCES as MEMBER_SOURCES, textInputKindOf, textInputIsMemberSet, isTimeInputCall,
+  timeInputDefaultOf, isSessionString, constantVarsOf, foldConstantVarsIntoInputs,
+} from '../runtime/runtimeInputs.js'
 import { TEXT_FNS, producesText } from '../runtime/text.js'
 import { ARRAY_FNS, producesArray, isVoid, argKind } from '../runtime/collections.js'
 // ⭐ Pine's method form, and it decides no legality — see `ufcs.js`. The rewrite
@@ -542,14 +545,19 @@ export function collectUdtTypes(stmts, out) {
  *
  *  ⭐ EXPORTED FOR THAT RAIL. Nothing else reads it. */
 export const COLLECTION_VALUE_ARG = Object.freeze({ 'array.push': 1, 'array.unshift': 1, 'array.set': 2 })
-/** The input kinds whose VALUE IS TEXT.
+/** The input kinds whose VALUE IS TEXT: `runtimeInputs.js::textInputKindOf` (one reader,
+ *  shared with the settings path).
  *
  *  ⛔⛔ `pine.js` REFUSES THESE AND IS RIGHT TO. That lane's value model is
  *  numbers, and it states at length that a string has no carrier in its
  *  grammar. This lane has one, so it takes them here — the same shape as
  *  every other text capability in this wave, and the columnar rule is left
- *  exactly where it is rather than widened. */
-const TEXT_INPUTS = new Set(['input.text_area', 'input.string'])
+ *  exactly where it is rather than widened.
+ *
+ *  ⭐ PHASE 3 WS-D — `input.session`, `input.timeframe`, `input.symbol` and v4's text
+ *  `input(…)` (a quoted default, or `type = input.string/resolution/session/symbol`) joined
+ *  `input.string`/`input.text_area`: each returns a string in Pine. */
+const isTextInputCall = (node) => textInputKindOf(node) !== null
 
 /** Is this NAME Pine's input family?
  *
@@ -1074,6 +1082,34 @@ function buildRuntimeIrLinked(source, opts, holder) {
     if (slot < 0) throw new RuntimeRefusal('runtime:statement', '`' + name + '` states no default to replace', at)
     call.args = args.map((a, i) => (i === slot ? { ...a, value: node } : a))
   }
+  // ⭐⭐ PHASE 3 WS-D — A TIME INPUT IS A NUMBER: UNIX milliseconds, what Pine's `input.time`
+  // (and v4's `input(…, type = input.time)`) returns. At the binding, the call is REPLACED by
+  // that number — the member's when they set one, else the author's default read EXACTLY by
+  // `runtimeInputs.js::timeInputDefaultOf` (the reader the settings use too) — so every reader
+  // in this lane, the columnar resolver included, sees the literal the author could have typed.
+  // ⛔ A default that cannot be read exactly (`timestamp(year, …)`, which reads the exchange's
+  // zone) and a member value that is not whole milliseconds are refused BY NAME, never guessed.
+  // `env`/`mut`/`inputConsts` are read when a binding is reached, after all three exist.
+  const bindTimeInput = (call, name, at) => {
+    if (!isTimeInputCall(call)) return call
+    if (inputs && typeof inputs === 'object' && Object.prototype.hasOwnProperty.call(inputs, name)) {
+      const given = inputs[name]
+      if (!Number.isInteger(given)) {
+        throw new RuntimeRefusal('runtime:statement', '`' + name + '` was given a value that is not a time '
+          + '(whole milliseconds since 1970)', at)
+      }
+      return { type: 'number', value: given, tok: call.tok }
+    }
+    const lookup = (n) => {
+      if (inputConsts.has(n)) return inputConsts.get(n)
+      if (mut.mutated.has(n)) return null
+      const b = env.get(n)
+      return b && b.kind === 'expr' && !b.frame ? b.node : null
+    }
+    const r = timeInputDefaultOf(call, lookup)
+    if (r.skip) throw new RuntimeRefusal('runtime:statement', '`' + name + '` is a time input, and ' + r.skip, at)
+    return { type: 'number', value: r.ms, tok: call.tok }
+  }
   const diagnostics = { statements: 0, columns: 0, slots: 0, families: {} }
 
   // ⭐⭐ THE OBJECT PASS OWNS THE DRAWING when the caller supplies its trees.
@@ -1201,6 +1237,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
   // The resolver's environment holds ONLY pure bindings. A mutable name never
   // enters it — that is what keeps the two lanes from disagreeing about a name.
   const env = new Map()
+  // ⭐ PHASE 3 WS-D — `var NAME = <literal>` nothing reassigns, folded into input arguments
+  // (`runtimeInputs.js::constantVarsOf`): an input default that reads one reads a constant.
+  const inputConsts = constantVarsOf(stmts)
   /** name → { call, index, at } for `p = plot(…)`.
    *
    *  ⛔⛔ ITS OWN MAP, NEVER `env`. `env` holds PURE EXPRESSION macros and the
@@ -1740,6 +1779,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // author's own bounds are all exactly where they were — only the LANE that
     // reads the call changes.
     if (isInputCall(node)) {
+      foldConstantVarsIntoInputs(node, inputConsts)
       for (const v of inputValueArgs(node)) {
         if (needsRuntime(v, scope)) return true
       }
@@ -1819,7 +1859,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // would route `n + 1` to `CONCAT` and refuse a correct script.
     if (node.type === 'call' && producesText(node.name)) return true
     if (objectsInRun && isRunTostring(node)) return true
-    if (node.type === 'call' && TEXT_INPUTS.has(node.name)) return true
+    if (node.type === 'call' && isTextInputCall(node)) return true
     // ⭐⭐ AN ELEMENT OF A TEXT ARRAY IS TEXT. Without this, `array.get(syms, r)`
     // — a watchlist row, the single commonest per-row value in the corpus — reads
     // as numeric, and a buffer allocated to hold it throws on the first symbol.
@@ -2769,6 +2809,13 @@ function buildRuntimeIrLinked(source, opts, holder) {
         + 'written, and this one is not', at)
     }
     const fallback = loweredDefault.value
+    // ⭐ PHASE 3 WS-D — a SESSION is text in one grammar (`HHMM-HHMM[:days]`); a default or a
+    // member value outside it is refused by name, never handed to a reader of sessions.
+    const textKind = textInputKindOf(node)
+    if (textKind === 'session' && !isSessionString(fallback)) {
+      throw new RuntimeRefusal('runtime:statement',
+        `\`${node.name}\` has the default "${fallback}", which is not a session (HHMM-HHMM)`, at)
+    }
 
     // `options = [...]` — the author's own list, read as written.
     let options = null
@@ -2798,6 +2845,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
         throw new RuntimeRefusal('runtime:statement',
           `\`${boundName}\` was given "${given}", and the script's own author `
           + `offers ${options.map((o) => `"${o}"`).join(', ')}`, at)
+      }
+      if (textKind === 'session' && !isSessionString(given)) {
+        throw new RuntimeRefusal('runtime:statement',
+          `\`${boundName}\` was given "${given}", which is not a session (HHMM-HHMM)`, at)
       }
       value = given
     }
@@ -2838,7 +2889,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // reason than text: that lane refuses `request.security` outright — it
     // evaluates ONE symbol on ONE timeframe, which is exactly what a request
     // is not. There is nothing there for it to fall back to.
-    if (node.type === 'call') return TEXT_INPUTS.has(node.name) || node.name === 'request.security'
+    if (node.type === 'call') {
+      return textInputIsMemberSet(textInputKindOf(node)) || node.name === 'request.security'
+    }
     if (node.type === 'name') {
       if (scope.lookup(node.name) !== null) return false
       const guard = seen || new Set()
@@ -5139,7 +5192,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
           return colourCall(node.name, given.map((x) => lowerExpr(x, scope)))
         }
         if (node.name === 'request.security') return admitRequest(node, scope, opts)
-        if (TEXT_INPUTS.has(node.name)) return admitTextInput(node, scope)
+        if (isTextInputCall(node)) return admitTextInput(node, scope)
         if (Object.prototype.hasOwnProperty.call(ARRAY_FNS, node.name)) {
           return admitArrayCall(node, scope, false)
         }
@@ -7201,15 +7254,17 @@ function buildRuntimeIrLinked(source, opts, holder) {
             `\`var ${nameTok.value} = ${varBlk.value} …\` initialises ONCE, and this `
             + 'lane has no once-only guard around a block yet', locate(first))
         }
-        const value = parseWholeExpression(toks.slice(eq + 1))
+        let value = parseWholeExpression(toks.slice(eq + 1))
         // ⭐ THE BOUND NAME IS STAMPED ONTO AN INPUT CALL, exactly as `pine.js`
         // does, because it is the KEY a member's saved value is stored under.
         // Without it a text input can only ever serve the author's default, and
         // the member's paste would be silently ignored.
+        foldConstantVarsIntoInputs(value, inputConsts)
         if (value && value.type === 'call' && typeof value.name === 'string'
             && (value.name === 'input' || value.name.startsWith('input.'))) {
           value.boundName = nameTok.value
           applyMemberDefault(value, nameTok.value, locate(first))
+          value = bindTimeInput(value, nameTok.value, locate(first))
         }
         // ⭐⭐ `var t = table.new(…)` BINDS A HANDLE, AND A HANDLE IS NOT A
         // NUMBER. The object program owns that table; this lane has no
@@ -7371,7 +7426,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
       if (eq > 0) {
         const nameTok = boundName(toks, eq)
         if (!nameTok) throw new RuntimeRefusal('runtime:statement', 'a binding needs a name', locate(first))
-        const value = parseWholeExpression(toks.slice(eq + 1))
+        let value = parseWholeExpression(toks.slice(eq + 1))
         // ⭐⭐ THE HYBRID DECISION, MADE ONCE PER BINDING. A name this script
         // never mutates, bound to a pure expression, stays a PURE BINDING in the
         // resolver's environment — so `ta.sma(close, len)` is still one column at
@@ -7381,10 +7436,12 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // does, because it is the KEY a member's saved value is stored under.
         // Without it a text input can only ever serve the author's default, and
         // the member's paste would be silently ignored.
+        foldConstantVarsIntoInputs(value, inputConsts)
         if (value && value.type === 'call' && typeof value.name === 'string'
             && (value.name === 'input' || value.name.startsWith('input.'))) {
           value.boundName = nameTok.value
           applyMemberDefault(value, nameTok.value, locate(first))
+          value = bindTimeInput(value, nameTok.value, locate(first))
         }
         const mutable = mut.mutated.has(nameTok.value)
         // ⛔⛔ A COLLECTION BINDING IS ALWAYS A SLOT, NEVER AN `env` MACRO. A
@@ -8266,7 +8323,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
   const fixedTextOf = (node, scope, depth = 0) => {
     if (!node || typeof node !== 'object' || depth > 24) return null
     if (node.type === 'string') return typeof node.value === 'string' ? node.value : null
-    if (node.type === 'call' && TEXT_INPUTS.has(node.name)) {
+    if (node.type === 'call' && isTextInputCall(node)) {
       const lowered = admitTextInput(node, scope || root)
       return lowered && lowered.kind === EXPR.STR ? lowered.value : null
     }

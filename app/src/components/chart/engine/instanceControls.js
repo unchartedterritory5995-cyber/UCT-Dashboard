@@ -244,6 +244,9 @@ function coerce(declared, value) {
     }
     case 'bool':
       return typeof value === 'boolean' ? value : undefined
+    // ⭐ PHASE 3 WS-D — a time input holds whole milliseconds (`defSchema` bounds them).
+    case 'time':
+      return typeof value === 'number' && Number.isInteger(value) ? value : undefined
     default:
       return typeof value === 'string' ? value : undefined
   }

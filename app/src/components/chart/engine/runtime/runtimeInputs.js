@@ -48,6 +48,7 @@
 import { lexPine, blockStatements, parseWholeExpression, findTop, isPunct, boundName } from '../ast/pine.js'
 import { KEY_RE } from '../ast/parse.js'
 import { pineColourHex } from '../pinePalette.js'
+import { isSessionString } from '../defSchema.js'
 
 /** The bar series a member may pick for a source input. */
 export const RUNTIME_SOURCES = Object.freeze(new Set(['open', 'high', 'low', 'close', 'volume', 'hl2', 'hlc3',
@@ -56,11 +57,20 @@ const SOURCE_MENU = Object.freeze(['open', 'high', 'low', 'close', 'hl2', 'hlc3'
 
 const TYPE_OF_CALL = Object.freeze({
   'input.int': 'int', 'input.float': 'float', 'input.bool': 'bool', 'input.string': 'string',
+  // ⭐ PHASE 3 WS-D — `input.price` is a float setting (TradingView: "input float"); the
+  // resolver already folds it as a number, member value included (`pine.js::resolveInput`).
+  'input.price': 'float',
 })
-const UNSERVED = new Set(['input.session', 'input.symbol',
-  'input.time', 'input.price', 'input.text_area', 'input.enum'])
+// ⭐ PHASE 3 WS-D — `input.time`, `input.session` and `input.price` are served now (below).
+// ⛔ `input.enum` still is not: its default is a field of an `enum` DECLARATION, and this
+// lane has no `enum` statement yet (WS-A's statement grammar), so there is no value to key.
+const UNSERVED = new Set(['input.symbol', 'input.text_area', 'input.enum'])
 const TIMEFRAME_SKIP = 'a timeframe setting changes which bars the script reads, and this pane is handed only '
   + "the chart's own — another timeframe's bars are not made up; its default stays"
+// ⭐ PHASE 3 WS-D — the same ruling, for the same reason, read for a symbol: a symbol setting
+// changes WHICH INSTRUMENT the script reads, and this pane is handed only the chart's own.
+const SYMBOL_SKIP = 'a symbol setting changes which instrument the script reads, and this pane is handed only '
+  + "the chart's own — another symbol's bars are not made up; its default stays"
 
 /** The author's colour default as `#RRGGBB`, or `{ skip }`. */
 function colourDefaultOf(def, version) {
@@ -112,15 +122,264 @@ function firstArgWord(toks) {
   return t && t.kind === 'ident' && (t.value === 'true' || t.value === 'false') ? t.value : null
 }
 
-function specOf(name, node, rhsToks, version) {
+// ─── ⭐⭐ PHASE 3 WS-D — INPUT KINDS AS RUNTIME VALUES ───────────────────────────
+//
+// One reader per question, shared by the front end (`pineRuntimeFrontend.js`, which RUNS the
+// value) and `runtimeInputSpecsOf` below (which OFFERS it as a setting), so the value a member
+// sees in the dialog and the value the run computes with cannot be two answers.
+
+/** v4's `input(…, type = input.X)` (named, or the THIRD positional argument), or null. */
+export function legacyInputType(node) {
+  if (!node || node.type !== 'call' || node.name !== 'input') return null
+  const t = argOf(node, 'type', 2)
+  return t && t.type === 'name' && typeof t.name === 'string' ? t.name : null
+}
+
+const TEXT_KIND_OF_CALL = Object.freeze({
+  'input.string': 'string', 'input.text_area': 'text_area', 'input.session': 'session',
+  'input.timeframe': 'timeframe', 'input.symbol': 'symbol',
+})
+const TEXT_KIND_OF_LEGACY_TYPE = Object.freeze({
+  'input.string': 'string', 'input.resolution': 'timeframe', 'input.timeframe': 'timeframe',
+  'input.session': 'session', 'input.symbol': 'symbol',
+})
+
+/** Which TEXT input this call is (`string`, `text_area`, `session`, `timeframe`, `symbol`),
+ *  or null. A v4 `input(…)` is text when its `type` says so, or — with no type — when its
+ *  default is a quoted string (Pine infers the input's type from `defval`). */
+export function textInputKindOf(node) {
+  if (!node || node.type !== 'call' || typeof node.name !== 'string') return null
+  if (Object.prototype.hasOwnProperty.call(TEXT_KIND_OF_CALL, node.name)) return TEXT_KIND_OF_CALL[node.name]
+  if (node.name !== 'input') return null
+  const legacy = legacyInputType(node)
+  if (legacy) return TEXT_KIND_OF_LEGACY_TYPE[legacy] || null
+  const d = argOf(node, 'defval', 0)
+  return d && d.type === 'string' ? 'string' : null
+}
+
+/** ⛔ WHICH TEXT INPUTS MUST NEVER BE FOLDED BY THE COLUMNAR LANE: the ones a member can SET.
+ *  That lane folds a text comparison from the AUTHOR'S default, so a member's value would be
+ *  ignored with nothing on screen (measured 2026-10-31 on a v4 `input("EMA", options=[…])`:
+ *  the member's "SMA" drew the EMA column). A timeframe and a symbol are not member settings
+ *  in this pane (`TIMEFRAME_SKIP`, `SYMBOL_SKIP`), and in a timeframe POSITION the columnar
+ *  lane folds a timeframe default correctly (`timeframeLiteralOf`) — so those two take the
+ *  text path only where that lane says it has no text for them. */
+export function textInputIsMemberSet(kind) {
+  return kind === 'string' || kind === 'text_area' || kind === 'session'
+}
+
+/** Is this a time input: `input.time(…)`, or v4's `input(…, type = input.time)`? */
+export function isTimeInputCall(node) {
+  if (!node || node.type !== 'call') return false
+  return node.name === 'input.time' || legacyInputType(node) === 'input.time'
+}
+
+/** ⭐ A session string (`defSchema.isSessionString`, the ONE reader — the settings dialog's
+ *  validator, the run and this module answer one question). */
+export { isSessionString }
+
+const MONTHS = Object.freeze(['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct',
+  'nov', 'dec'])
+
+/** A zone written after a date: `Z`/`UTC`/`GMT`/`UT`, `±hhmm`, `±hh:mm`, `±h`, optionally
+ *  prefixed `GMT`/`UTC` (`GMT+10`, `UTC-5`). Minutes EAST of UTC, or null. */
+function zoneMinutes(z) {
+  if (z === undefined || z === null || z === '') return 0
+  const t = String(z).trim()
+  if (/^(?:Z|UTC|GMT|UT)$/i.test(t)) return 0
+  const m = /^(?:(?:GMT|UTC)\s*)?([+-])(\d{1,2})(?::?(\d{2}))?$/i.exec(t)
+  if (!m) return null
+  const h = Number(m[2])
+  const mi = m[3] ? Number(m[3]) : 0
+  if (h > 14 || mi > 59) return null
+  return (m[1] === '-' ? -1 : 1) * (h * 60 + mi)
+}
+
+function utcMs(y, mo, d, h, mi, sec, zone) {
+  if (zone === null) return null
+  if (mo < 1 || mo > 12 || d < 1 || d > 31 || h > 23 || mi > 59 || sec > 59) return null
+  const ms = Date.UTC(y, mo - 1, d, h, mi, sec)
+  const back = new Date(ms)
+  if (back.getUTCFullYear() !== y || back.getUTCMonth() !== mo - 1 || back.getUTCDate() !== d) return null
+  return ms - zone * 60000
+}
+
+/** ⭐ `timestamp(dateString)` — UNIX milliseconds, or null for a string this cannot read
+ *  EXACTLY. The reference (v6): the string is IETF RFC 2822 or ISO 8601 ("DD MMM YYYY
+ *  hh:mm:ss ±hhmm" or "YYYY-MM-DDThh:mm:ss±hh:mm"); no time means 00:00; **no zone means
+ *  GMT+0** — unlike every other `timestamp` form, which reads the exchange's zone.
+ *  ⚠️ `GMT+10` / `UTC-5` after the date is not RFC 2822 grammar; TradingView compiles it
+ *  (the corpus writes it) and it is read here as an offset EAST of UTC — NEEDS CAPTURE. */
+export function timestampOfDateString(str) {
+  if (typeof str !== 'string') return null
+  const s = str.trim()
+  let m = /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2}))?)?\s*(Z|[+-]\d{2}(?::?\d{2})?)?$/i.exec(s)
+  if (m) {
+    return utcMs(+m[1], +m[2], +m[3], m[4] ? +m[4] : 0, m[5] ? +m[5] : 0, m[6] ? +m[6] : 0, zoneMinutes(m[7]))
+  }
+  m = /^(?:[A-Za-z]{3},\s*)?(\d{1,2})\s+([A-Za-z]{3})\s+(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?(?:\s+(.+))?$/.exec(s)
+  if (m) {
+    const mo = MONTHS.indexOf(m[2].toLowerCase())
+    if (mo < 0) return null
+    return utcMs(+m[3], mo + 1, +m[1], m[4] ? +m[4] : 0, m[5] ? +m[5] : 0, m[6] ? +m[6] : 0, zoneMinutes(m[7]))
+  }
+  return null
+}
+
+/** ⭐ A time input's DEFAULT as UNIX milliseconds (`{ ms }`), or `{ skip }` saying why not.
+ *  Pine requires a `const int`: a literal, a `timestamp("…")` over a const date string, or a
+ *  name bound to one of those (`lookup(name)` hands back that binding's node, or null).
+ *  ⛔ `timestamp(year, month, …)` is REFUSED BY NAME: it reads the exchange's time zone
+ *  (`syminfo.timezone`), which this pane is not handed — a guess would move every bar's
+ *  window by hours. */
+export function timeInputDefaultOf(node, lookup) {
+  return constTimeOf(argOf(node, 'defval', 0), lookup, 0)
+}
+
+function constTimeOf(v, lookup, depth) {
+  if (!v || depth > 8) return { skip: 'its default is not a fixed date and time' }
+  const n = literalNumber(v)
+  if (n !== null) return Number.isInteger(n) ? { ms: n } : { skip: 'its default is not a whole number of milliseconds' }
+  if (v.type === 'call' && v.name === 'timestamp') {
+    const args = (v.args || []).filter((a) => a && !a.name)
+    if (args.length === 1 && args[0].value && args[0].value.type === 'string') {
+      const ms = timestampOfDateString(args[0].value.value)
+      return ms === null
+        ? { skip: `\`timestamp("${args[0].value.value}")\` is not a date this pane reads exactly` }
+        : { ms }
+    }
+    return { skip: "its default is `timestamp(year, month, …)`, which reads the exchange's time zone — "
+      + 'not handed to this pane' }
+  }
+  if (v.type === 'name' && typeof lookup === 'function') {
+    const bound = lookup(v.name)
+    if (bound) return constTimeOf(bound, lookup, depth + 1)
+  }
+  return { skip: 'its default is not a fixed date and time' }
+}
+
+const isLiteralNode = (v) => !!v && (v.type === 'string' || v.type === 'colour' || literalNumber(v) !== null)
+
+/** Every name a `:=` or a compound assignment (`+=` …) writes, anywhere in the script. */
+function scanReassigned(stmts) {
+  const out = new Set()
+  const visit = (list) => {
+    for (const st of list || []) {
+      const toks = st.header || []
+      const walrus = findTop(toks, (t) => isPunct(t, ':='))
+      if (walrus > 0 && toks[walrus - 1] && toks[walrus - 1].kind === 'ident') out.add(toks[walrus - 1].value)
+      const compound = findTop(toks, (t) => t.kind === 'punct' && t.value.length === 2 && t.value.endsWith('=')
+        && '+-*/%'.includes(t.value[0]))
+      if (compound > 0 && toks[compound - 1] && toks[compound - 1].kind === 'ident') out.add(toks[compound - 1].value)
+      if (st.sub && st.sub.length) visit(st.sub)
+    }
+  }
+  visit(stmts)
+  return out
+}
+
+/** ⭐⭐ `var NAME = <literal>` that NOTHING reassigns — a constant spelled with `var`.
+ *
+ *  The v4 idiom `var string MD1 = "Columns"` … `input(MD1, options = [MD1, MD2])`: the input's
+ *  default READS A `var`, which this lane holds as a mutable slot, so the input was refused
+ *  (`runtime:input-state`). A `var` whose only write is its literal initialiser holds that
+ *  literal on every bar — it IS the literal. Exactly: declared ONCE (top level), never the
+ *  target of `:=` or a compound assignment anywhere, never bound a second time.
+ *  `Map<name, literal node>`. */
+export function constantVarsOf(stmts) {
+  const decl = new Map()
+  const count = new Map()
+  const reassigned = scanReassigned(stmts)
+  const visit = (list, top) => {
+    for (const st of list || []) {
+      const toks = st.header || []
+      const eq = findTop(toks, (t) => isPunct(t, '='))
+      const nameTok = eq > 0 ? boundName(toks, eq) : null
+      if (nameTok) {
+        count.set(nameTok.value, (count.get(nameTok.value) || 0) + 1)
+        if (top && toks[0] && toks[0].kind === 'ident' && toks[0].value === 'var') {
+          let node = null
+          try { node = parseWholeExpression(toks.slice(eq + 1)) } catch { node = null }
+          if (isLiteralNode(node)) decl.set(nameTok.value, node)
+        }
+      }
+      if (st.sub && st.sub.length) visit(st.sub, false)
+    }
+  }
+  visit(stmts, true)
+  const out = new Map()
+  for (const [k, node] of decl) if (count.get(k) === 1 && !reassigned.has(k)) out.set(k, node)
+  return out
+}
+
+/** ⭐ Replace, IN PLACE, every argument of an input call that names a constant `var`
+ *  (`constantVarsOf`) — its default and the elements of its `options` list — by that literal,
+ *  so every reader of the call (the resolver, `admitTextInput`, the settings) reads the value
+ *  the author wrote. Input calls nested anywhere in `node` are visited. Idempotent. */
+export function foldConstantVarsIntoInputs(node, consts) {
+  if (!consts || !consts.size || !node || typeof node !== 'object') return node
+  const swap = (v) => (v && v.type === 'name' && consts.has(v.name)
+    ? { ...consts.get(v.name), tok: v.tok || consts.get(v.name).tok } : v)
+  const walk = (n, depth) => {
+    if (!n || typeof n !== 'object' || depth > 64) return
+    if (n.type === 'call' && typeof n.name === 'string' && (n.name === 'input' || n.name.startsWith('input.'))
+        && Array.isArray(n.args)) {
+      n.args = n.args.map((a) => {
+        if (!a) return a
+        const v = a.value !== undefined ? a.value : a
+        if (v && v.type === 'collection' && Array.isArray(v.elements)) {
+          if (!v.elements.some((x) => swap(x) !== x)) return a
+          const els = v.elements.map(swap)
+          return a.value !== undefined ? { ...a, value: { ...v, elements: els } } : { ...v, elements: els }
+        }
+        const sv = swap(v)
+        if (sv === v) return a
+        return a.value !== undefined ? { ...a, value: sv } : sv
+      })
+    }
+    for (const k of ['left', 'right', 'test', 'yes', 'no', 'arg', 'value']) walk(n[k], depth + 1)
+    if (Array.isArray(n.args)) for (const a of n.args) walk(a && a.value !== undefined ? a.value : a, depth + 1)
+  }
+  walk(node, 0)
+  return node
+}
+
+function specOf(name, node, rhsToks, version, lookup) {
   const call = node.name
+  const legacyType = call === 'input' ? argOf(node, 'type', 2) : undefined
+  const legacy = legacyType && legacyType.type === 'name' ? legacyType.name : null
+  // ⭐ PHASE 3 WS-D — a symbol setting is skipped for the timeframe ruling's reason, by name.
+  if (call === 'input.symbol' || legacy === 'input.symbol') return { skip: SYMBOL_SKIP }
   if (UNSERVED.has(call)) return { skip: `\`${call}\` is not a setting this pane can carry yet` }
   let type = TYPE_OF_CALL[call]
   const def = argOf(node, 'defval', 0)
-  const legacyType = call === 'input' ? argOf(node, 'type', 2) : undefined
-  const legacy = legacyType && legacyType.type === 'name' ? legacyType.name : null
   if (call === 'input.timeframe' || legacy === 'input.resolution' || legacy === 'input.timeframe') {
     return { skip: TIMEFRAME_SKIP }
+  }
+  const titleOf = () => {
+    const t = argOf(node, 'title', 1)
+    return t && t.type === 'string' && t.value ? t.value : name
+  }
+  // ⭐⭐ PHASE 3 WS-D — A TIME INPUT: UNIX milliseconds, the value Pine's `input.time` returns,
+  // read by the SAME reader the run uses (`timeInputDefaultOf`), so the dialog's default is the
+  // run's default. A default this cannot read exactly is skipped by name (and the run refuses it).
+  if (isTimeInputCall(node)) {
+    const r = timeInputDefaultOf(node, lookup)
+    return r.skip ? { skip: r.skip } : { spec: { key: name, type: 'time', default: r.ms, label: titleOf() } }
+  }
+  // ⭐⭐ PHASE 3 WS-D — A SESSION INPUT: the author's session string; with `options`, a menu of
+  // them. A default that is not a session string TradingView writes is skipped by name.
+  if (call === 'input.session' || legacy === 'input.session') {
+    if (!def || def.type !== 'string') return { skip: 'its default is not literal text' }
+    if (!isSessionString(def.value)) return { skip: `its default "${def.value}" is not a session (HHMM-HHMM)` }
+    const opts = argOf(node, 'options', null)
+    if (opts && opts.type === 'collection' && Array.isArray(opts.elements)) {
+      const strs = opts.elements.filter((x) => x && x.type === 'string').map((x) => x.value)
+      if (strs.length !== opts.elements.length || !strs.length) return { skip: 'its options are not literal text' }
+      if (!strs.includes(def.value)) return { skip: "its default is not one of its author's options" }
+      return { spec: { key: name, type: 'enum', default: def.value, label: titleOf(), options: strs } }
+    }
+    return { spec: { key: name, type: 'session', default: def.value, label: titleOf() } }
   }
   if (call === 'input.color' || legacy === 'input.color' || call === 'input.source' || legacy === 'input.source') {
     const titleArg = argOf(node, 'title', 1)
@@ -202,6 +461,25 @@ export function runtimeInputSpecsOf(source) {
     return { specs, skipped }
   }
   const seen = new Set()
+  // ⭐ PHASE 3 WS-D — the same two readers the run uses: a constant `var` folded into an
+  // input's arguments (`foldConstantVarsIntoInputs`), and a time default followed through a
+  // top-level binding bound once (`timeInputDefaultOf`'s `lookup`).
+  const consts = constantVarsOf(stmts)
+  const topBindings = new Map()
+  const bindCount = new Map()
+  for (const st of stmts || []) {
+    const toks = st.header || []
+    const eq = findTop(toks, (t) => isPunct(t, '='))
+    const nameTok = eq > 0 ? boundName(toks, eq) : null
+    if (!nameTok) continue
+    bindCount.set(nameTok.value, (bindCount.get(nameTok.value) || 0) + 1)
+    if (toks[0] && toks[0].kind === 'ident' && (toks[0].value === 'var' || toks[0].value === 'varip')) continue
+    try { topBindings.set(nameTok.value, parseWholeExpression(toks.slice(eq + 1))) } catch { /* unreadable */ }
+  }
+  const written = scanReassigned(stmts)
+  const reassigned = (n) => written.has(n)
+  const lookup = (n) => (consts.has(n) ? consts.get(n)
+    : bindCount.get(n) === 1 && !reassigned(n) && topBindings.has(n) ? topBindings.get(n) : null)
   const visit = (list) => {
     for (const st of list || []) {
       const toks = st.header || []
@@ -211,6 +489,7 @@ export function runtimeInputSpecsOf(source) {
         const rhs = toks.slice(eq + 1)
         let node = null
         try { node = parseWholeExpression(rhs) } catch { node = null }
+        if (node) foldConstantVarsIntoInputs(node, consts)
         if (node && node.type === 'call' && typeof node.name === 'string'
           && (node.name === 'input' || node.name.startsWith('input.'))) {
           const name = nameTok.value
@@ -218,7 +497,7 @@ export function runtimeInputSpecsOf(source) {
           else if (!KEY_RE.test(name)) skipped.push({ key: name, reason: 'its name cannot key a setting' })
           else {
             seen.add(name)
-            const r = specOf(name, node, rhs, version)
+            const r = specOf(name, node, rhs, version, lookup)
             if (r.spec) specs.push(r.spec)
             else skipped.push({ key: name, call: node.name, reason: r.skip })
           }
