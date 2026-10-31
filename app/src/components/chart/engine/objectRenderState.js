@@ -365,6 +365,17 @@ export function toRenderState(live, opts = {}) {
   const tables = []
   const fills = []
   const dropped = { line: 0, label: 0, box: 0, table: 0, linefill: 0 }
+  // ⭐⭐ P2b — THE DROPS THAT ARE OURS, NOT THE SCRIPT'S. `dropped` also counts an
+  // object whose coordinate is `na` — TradingView holds those and draws nothing
+  // either (zero-lag's warming boxes, multi-tf S&D's 504 `box.new(na, …)`). What
+  // TradingView DOES draw and this chart does not is a finite coordinate no bar
+  // here can place, or a text the run withheld: those, and only those, are counted
+  // here, and they are what the member's drawing note discloses
+  // (`objectRenderNotice.js`).
+  const unplaced = { line: 0, label: 0, box: 0, cell: 0, linefill: 0 }
+  const unplacedIds = new Set()
+  /** A finite coordinate the clock could not place (an `na` one is the script's). */
+  const lost = (value, x) => x === null && num(value) !== null
   const byId = new Map()
 
   const defaults = objectDefaultsFor(opts.pineVersion)
@@ -377,7 +388,12 @@ export function toRenderState(live, opts = {}) {
       const x2 = xOf(p.x2, p.xloc, clock)
       const y1 = num(p.y1)
       const y2 = num(p.y2)
-      if (x1 === null || x2 === null || y1 === null || y2 === null) { dropped.line += 1; continue }
+      if (x1 === null || x2 === null || y1 === null || y2 === null) {
+        dropped.line += 1
+        if (y1 !== null && y2 !== null && (lost(p.x1, x1) || lost(p.x2, x2))
+            && num(p.x1) !== null && num(p.x2) !== null) { unplaced.line += 1; unplacedIds.add(o.id) }
+        continue
+      }
       const row = {
         id: o.id, x1, y1, x2, y2, extend: p.extend, color: p.color, style: p.style, width: p.width,
         bx1: barOf(p.x1, p.xloc), bx2: barOf(p.x2, p.xloc),
@@ -387,12 +403,12 @@ export function toRenderState(live, opts = {}) {
     } else if (o.family === 'label') {
       const x = xOf(p.x, p.xloc, clock)
       const y = num(p.y)
-      if (x === null) { dropped.label += 1; continue }
+      if (x === null) { dropped.label += 1; if (lost(p.x, x)) unplaced.label += 1; continue }
       // ⛔ A WITHHELD TEXT (`null`, the object runtime's answer when no capture
       // pins what the vendor draws — `pineTextFormat.js`) IS NOT DRAWN, and nor
       // is the label it belongs to: an empty bubble where the vendor shows a
       // number is a wrong picture, not a partial one.
-      if (p.text === null) { dropped.label += 1; continue }
+      if (p.text === null) { dropped.label += 1; unplaced.label += 1; continue }
       labels.push({
         id: o.id,
         x,
@@ -417,8 +433,13 @@ export function toRenderState(live, opts = {}) {
       const right = xOf(p.right, p.xloc, clock)
       const top = num(p.top)
       const bottom = num(p.bottom)
-      if (left === null || right === null || top === null || bottom === null) { dropped.box += 1; continue }
-      if (p.text === null) { dropped.box += 1; continue }   // a withheld text — see the label arm
+      if (left === null || right === null || top === null || bottom === null) {
+        dropped.box += 1
+        if (top !== null && bottom !== null && (lost(p.left, left) || lost(p.right, right))
+            && num(p.left) !== null && num(p.right) !== null) unplaced.box += 1
+        continue
+      }
+      if (p.text === null) { dropped.box += 1; unplaced.box += 1; continue }   // a withheld text — see the label arm
       // ⛔⛔ `Math.min` ON A TIME IS ARITHMETIC, AND A DAILY TIME IS A STRING.
       // ⚰️ `Math.min("2026-09-04", "2026-08-01")` is `NaN`, so every box on a
       // daily chart came out with `left = right = NaN` and painted 59,000 px off
@@ -471,6 +492,7 @@ export function toRenderState(live, opts = {}) {
         cells: [...(o.cells || [])].filter((c) => {
           if (c.props.text !== null) return true
           dropped.cell = (dropped.cell || 0) + 1
+          unplaced.cell += 1
           return false
         }).sort((x, y) => (x.row - y.row) || (x.col - y.col)).map((c) => ({
           col: c.col,
@@ -499,7 +521,12 @@ export function toRenderState(live, opts = {}) {
       // a one-edged band is a shape the author never drew.
       const a = p.line1 && p.line1.__ref ? byId.get(p.line1.__ref) : null
       const b = p.line2 && p.line2.__ref ? byId.get(p.line2.__ref) : null
-      if (!a || !b) { dropped.linefill += 1; continue }
+      if (!a || !b) {
+        dropped.linefill += 1
+        const refs = [p.line1, p.line2].map((r) => (r && r.__ref) || null)
+        if (refs.some((id) => id !== null && unplacedIds.has(id))) unplaced.linefill += 1
+        continue
+      }
       fills.push({ id: o.id, a: a.id, b: b.id, color: p.color })
     }
   }
@@ -518,6 +545,7 @@ export function toRenderState(live, opts = {}) {
     fills,
     frame,
     dropped,
+    unplaced,
     counts: {
       line: lines.length,
       label: labels.length,

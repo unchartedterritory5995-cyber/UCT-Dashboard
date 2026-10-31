@@ -101,6 +101,17 @@ describe('⭐⭐ 2. every render-stage drop counts into the member\'s drawing no
     expect(renderHeldCount(rs)).toBe(2)
   })
 
+  it('⛔ an `na` coordinate is the SCRIPT\'s (TradingView draws nothing there either): dropped, never disclosed', () => {
+    const bars = toProductBars(RDDT)
+    const rs = toRenderState([
+      { id: 1, family: 'box', props: { left: 3, right: 9, top: NaN, bottom: 1, xloc: 'bar_index' } },
+      { id: 2, family: 'line', props: { x1: NaN, y1: 1, x2: 5, y2: 2, xloc: 'bar_index' } },
+      { id: 3, family: 'label', props: { x: 4, y: 2, xloc: 'bar_index', text: null } },   // a withheld text IS ours
+    ], { bars, tf: 'D' })
+    expect(rs.dropped).toMatchObject({ box: 1, line: 1, label: 1 })
+    expect(renderDroppedCount(rs)).toBe(1)
+  })
+
   it('withRenderDrops: a clean document gets a note of its own; a partial one, the count added', () => {
     expect(withRenderDrops(null, null)).toBe(null)
     expect(withRenderDrops(null, { dropped: 0, held: 3 })).toBe(null)

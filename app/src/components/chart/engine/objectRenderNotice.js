@@ -53,9 +53,12 @@ export function onObjectRenderDropsChange(fn) {
   return () => listeners.delete(fn)
 }
 
-/** The total a render state dropped, over every family it counts. */
+/** What a render state dropped that TradingView draws (`state.unplaced`: a finite
+ *  coordinate no bar here can place, or a text the run withheld), over every family.
+ *  ⛔ NOT `state.dropped`, which also counts an object whose coordinate is `na` —
+ *  TradingView draws nothing there either, so saying "not drawn" would be untrue. */
 export function renderDroppedCount(state) {
-  const d = (state && state.dropped) || {}
+  const d = (state && state.unplaced) || {}
   return Object.values(d).reduce((a, b) => a + (Number.isFinite(b) ? b : 0), 0)
 }
 
