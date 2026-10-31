@@ -192,6 +192,30 @@ describe('⭐ ta.nvi / ta.pvi — VENDOR (vw-nvi-pvi-spy-1d-full-2026-09-27, ful
       { rel: 1e-9, abs: 1e-12 })).toBe(8218)
     agree(ours.P07_corpus_pvi_minus_ema255, vendorColumn(cap, 'P07_corpus_pvi_minus_ema255'), { rel: 1e-9, abs: 1e-12 })
   })
+  it('a negative-price instrument: the index goes negative as TradingView\'s running product does, never na', () => {
+    // TradingView's published rule, written as the product it is
+    const ref = (bars, fell) => {
+      let v = 1
+      return bars.map((b, i) => {
+        if (i > 0 && b.c !== 0 && bars[i - 1].c !== 0 && (fell ? b.v < bars[i - 1].v : b.v > bars[i - 1].v)) {
+          v = v + ((b.c - bars[i - 1].c) / bars[i - 1].c) * v
+        }
+        return v
+      })
+    }
+    const closes = [5, 2, -1, -3, 1.5, -0.5, 2, 4]
+    const vols = [100, 90, 80, 85, 70, 60, 65, 50]
+    const bars = closes.map((c, i) => ({ t: i + 1, o: c, h: c, l: c, c, v: vols[i] }))
+    for (const [name, fell] of [['ta.nvi', true], ['ta.pvi', false]]) {
+      const ours = interpret(treeOf(V6(`plot(${name})`), { strict: true }).tree, bars)
+      const want = ref(bars, fell)
+      ours.forEach((x, i) => {
+        expect(Number.isFinite(x), `${name} bar ${i} is na`).toBe(true)
+        expect(Math.abs(x - want[i]), `${name} bar ${i}: ${x} vs ${want[i]}`).toBeLessThan(1e-12 * Math.max(1, Math.abs(want[i])))
+      })
+      expect(want.some((x) => x < 0), 'the fixture reaches a negative index').toBe(true)
+    }
+  })
   it('volume UNCHANGED is neither fell nor rose: both indexes hold (the strict < and > of the published rule)', () => {
     const bars = [
       { t: 1, o: 10, h: 10, l: 10, c: 10, v: 500 },

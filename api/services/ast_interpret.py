@@ -1104,8 +1104,9 @@ def _window_percentile_nearest(series: Sequence[float], lo: int, hi: int,
     """``ta.percentile_nearest_rank(source, length, percentage)`` (Phase 1,
     2026-10-30): the value at ordinal rank ``ceil(percentage / 100 * n)``,
     clamped into ``1..n``. ``na`` propagates (the linear sibling's published
-    rule; this one's is not captured yet). JS twin:
-    ``interpret.js::windowPercentileNearest``."""
+    rule). ⚠️ UNCONFIRMED UNTIL CAPTURED: TradingView publishes no ``na`` rule
+    for THIS function -- a window with an ``na`` in it may be skipped there, not
+    propagated. JS twin: ``interpret.js::windowPercentileNearest``."""
     vals = []
     for i in range(lo, hi + 1):
         v = series[i]
@@ -1122,7 +1123,10 @@ def _window_rci(series: Sequence[float], lo: int, hi: int) -> float:
     """``ta.rci(source, length)`` (Phase 1, 2026-10-30): Spearman's rank
     correlation between time order (newest = 1) and price order (highest = 1),
     ``(1 - 6 * sum(d^2) / (n * (n^2 - 1))) * 100``; ties share their average
-    rank, ``na`` propagates. JS twin: ``interpret.js::windowRci``."""
+    rank, ``na`` propagates. ⚠️ UNCONFIRMED UNTIL CAPTURED: TradingView publishes
+    no formula for ``ta.rci``, so the TIE rule (average rank) and the ``na`` rule
+    are this engine's reading, not a measurement. JS twin:
+    ``interpret.js::windowRci``."""
     n = hi - lo + 1
     if n < 2:
         return NAN
@@ -2092,6 +2096,35 @@ def probe_values_of(tree: Any) -> List[float]:
             stack.extend(args)
     return out
 RECURRENCE_BINDINGS: tuple = recurrence_bindings()
+
+#: The table functions declared after members could save documents -- an input
+#: of one of these names is the document's own and wins over the function
+#: (``closedTable.json``'s ``_functions_added_after_saved_documents``, read by
+#: both lanes). JS twin: ``interpret.js::SHADOWABLE_BY_INPUT``.
+SHADOWABLE_BY_INPUT: frozenset = frozenset(
+    (TABLE.get("_functions_added_after_saved_documents") or {}).get("names") or ())
+
+
+def _refuse_calls_shadowed_by_inputs(ast: Any, inputs: Optional[Mapping[str, Any]]) -> None:
+    """Inside a document whose input took a name from ``SHADOWABLE_BY_INPUT``,
+    the table function of that name is unreachable: a call to it refuses BY
+    NAME. JS twin: ``interpret.js::refuseCallsShadowedByInputs``."""
+    taken = [n for n in (inputs or {}) if n in SHADOWABLE_BY_INPUT]
+    if not taken:
+        return
+    stack = [ast]
+    while stack:
+        n = stack.pop()
+        if not isinstance(n, dict):
+            continue
+        if n.get("type") == "call" and n.get("name") in taken:
+            _refuse("resolve:function",
+                    f"{n.get('name')!r} -- this definition has an input of that name, "
+                    "saved before the table declared the function, so inside it the "
+                    "name is the input")
+        args = n.get("args")
+        if isinstance(args, list):
+            stack.extend(args)
 
 
 # --------------------------------------------------------------------------- #
@@ -5564,7 +5597,12 @@ def _interpret_column(ast: Any, bars: List[dict],
         # the name and every body in the definition would silently read the KNOB
         # instead of the running value — a formula that still computes, and
         # computes the wrong thing. The list is derived from the manifest.
-        if name in scope or name in TABLE[FUNCTIONS_SECTION] or name in RECURRENCE_BINDINGS:
+        # ⭐ A function declared after documents could be saved is not a shadow
+        # (``SHADOWABLE_BY_INPUT``): the input wins, and a call to it is refused
+        # below. Every older table name keeps the strict check.
+        if (name in scope
+                or (name in TABLE[FUNCTIONS_SECTION] and name not in SHADOWABLE_BY_INPUT)
+                or name in RECURRENCE_BINDINGS):
             # A plain ValueError again: a definition whose input shadows `close`
             # is a WIRING defect, and silently letting it win would change what
             # every formula on that definition means.
@@ -5580,6 +5618,7 @@ def _interpret_column(ast: Any, bars: List[dict],
         # of None.
         if _is_number(value) and math.isfinite(float(value)):
             scope[name] = float(value)
+    _refuse_calls_shadowed_by_inputs(ast, inputs)
 
     def lookup(name: Any) -> Any:
         # ⛔ `in`, NEVER `getattr`. See the module header.

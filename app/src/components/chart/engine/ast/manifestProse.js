@@ -99,6 +99,13 @@ export const KEEP = Object.freeze([
   // fail-CLOSED, which is the direction that ships silently: no wrong number, no
   // crash, just a capability absent in production while every test stays green.
   '_input_windows',
+  // ⛔⛔ READ BY `interpret.js::SHADOWABLE_BY_INPUT` AND `ast_interpret.SHADOWABLE_BY_INPUT`,
+  // WHICH DECIDE WHETHER A MEMBER'S SAVED DOCUMENT STILL COMPUTES. Its `names` are the
+  // table functions declared after documents could be saved; an input keyed one of
+  // them is the document's own. Stripping it makes the set EMPTY, so every such
+  // document throws "the input … shadows a table name" on the chart in production
+  // while every test here — which reads the file on disk — stays green.
+  '_functions_added_after_saved_documents',
 ])
 
 /**

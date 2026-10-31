@@ -1699,7 +1699,8 @@ function windowPercentileLinear(series, lo, hi, percentage) {
  *  `ceil(percentage / 100 × n)`, clamped into `1..n` (so the 0th percentile is
  *  the smallest — the boundary the linear sibling measured for itself).
  *  ⚠️ `na` PROPAGATES, the convention TradingView publishes for the LINEAR
- *  sibling; this function's own `na` rule has no capture yet. Python twin:
+ *  sibling. UNCONFIRMED UNTIL CAPTURED: this function's own `na` rule is not
+ *  published, and a window holding an `na` may be skipped there. Python twin:
  *  `ast_interpret._window_percentile_nearest`. */
 function windowPercentileNearest(series, lo, hi, percentage) {
   const vals = []
@@ -1718,9 +1719,10 @@ function windowPercentileNearest(series, lo, hi, percentage) {
  *  Index, Spearman's rank correlation between the bars' TIME order (newest = 1)
  *  and their PRICE order (highest = 1), scaled to −100..100 —
  *  `(1 − 6·Σd² / (n·(n² − 1))) × 100`. A rising window reads +100. Tied prices
- *  share the average of the ranks they span. ⚠️ TradingView publishes no
- *  formula and no capture holds `ta.rci` yet: the tie rule and the `na` rule
- *  (propagates here) are the two readings a capture must settle. Python twin:
+ *  share the average of the ranks they span. ⚠️ UNCONFIRMED UNTIL CAPTURED:
+ *  TradingView publishes no formula and no capture holds `ta.rci` yet, so the
+ *  tie rule and the `na` rule (propagates here) are the two readings a capture
+ *  must settle. Python twin:
  *  `ast_interpret._window_rci`. */
 function windowRci(series, lo, hi) {
   const n = hi - lo + 1
@@ -3665,6 +3667,30 @@ export function sessionAnchoredIn(ast) {
     if (Array.isArray(n.args)) stack.push(...n.args)
   }
   return [...found].sort()
+}
+
+/** ⭐ The table functions declared after members could save documents — an input
+ *  of one of these names is the document's own and wins over the function
+ *  (`closedTable.json::_functions_added_after_saved_documents`, read by both lanes). */
+export const SHADOWABLE_BY_INPUT = Object.freeze(new Set(
+  ((TABLE._functions_added_after_saved_documents || {}).names || [])))
+
+/** Inside a document whose input took a name from `SHADOWABLE_BY_INPUT`, the table
+ *  function of that name is unreachable: a call to it refuses BY NAME rather than
+ *  computing beside a knob that answers to the same word. Iterative. */
+function refuseCallsShadowedByInputs(ast, inputs) {
+  const taken = Object.keys(inputs || {}).filter((n) => SHADOWABLE_BY_INPUT.has(n))
+  if (!taken.length) return
+  const stack = [ast]
+  while (stack.length) {
+    const n = stack.pop()
+    if (!n || typeof n !== 'object') continue
+    if (n.type === 'call' && taken.includes(n.name)) {
+      refuse('resolve:function', `${JSON.stringify(n.name)} — this definition has an input of that `
+        + 'name, saved before the table declared the function, so inside it the name is the input')
+    }
+    if (Array.isArray(n.args)) for (const a of n.args) stack.push(a)
+  }
 }
 
 /** The declared spec for a called name, or `resolve:function`. */
@@ -5793,7 +5819,12 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
     // every body in the definition would silently read the KNOB instead of the
     // running value — a formula that still computes, and computes the wrong
     // thing. The list is derived from the manifest, never typed.
-    if (own(scope, name) || own(TABLE.functions, name) || RECURRENCE_BINDINGS.includes(name)) {
+    // ⭐ A FUNCTION THE TABLE DECLARED AFTER DOCUMENTS COULD BE SAVED IS NOT A
+    // SHADOW — `closedTable.json::_functions_added_after_saved_documents`. The
+    // member's input of that name wins inside the document (the call is refused
+    // below); every older table name keeps the strict check.
+    if (own(scope, name) || (own(TABLE.functions, name) && !SHADOWABLE_BY_INPUT.has(name))
+        || RECURRENCE_BINDINGS.includes(name)) {
       // A plain Error again: a definition whose input shadows `close` is a
       // WIRING defect, and silently letting it win would change what every
       // formula on that definition means.
@@ -5808,6 +5839,7 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
     // `undefined` — which is what a scope that accepted anything would produce.
     if (typeof value === 'number' && Number.isFinite(value)) scope[name] = value
   }
+  refuseCallsShadowedByInputs(ast, inputs)
 
   const lookup = (name) => {
     // ⛔ `hasOwnProperty.call`, NEVER `scope[name]`. See the header.

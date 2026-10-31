@@ -1471,15 +1471,28 @@ const PINE_WINDOW_DEPENDENT_SERIES = Object.freeze(new Set(['accdist', 'nvi', 'p
 /** `exp(cum(cond ? ln(1 + (close - close[1]) / close[1]) : 0))` — see `nvi`/`pvi`
  *  above. `cmp` is how this bar's volume must compare with `nz(volume[1], 0)`. */
 function volumeIndexTree(cmp) {
-  const prevClose = { type: 'offset', value: 1, args: [cSeries('close')] }
-  const prevVolume = { type: 'offset', value: 1, args: [cSeries('volume')] }
+  const prevClose = () => ({ type: 'offset', value: 1, args: [cSeries('close')] })
+  const prevVolume = () => ({ type: 'offset', value: 1, args: [cSeries('volume')] })
   const known = (x) => cOp('!=', [cCall('nz', [x, cNum(0)]), cNum(0)])
-  const qualifies = cOp('&&', [
-    cOp('&&', [known(cSeries('close')), known(prevClose)]),
-    cOp(cmp, [cSeries('volume'), cCall('nz', [prevVolume, cNum(0)])]),
+  const qualifies = () => cOp('&&', [
+    cOp('&&', [known(cSeries('close')), known(prevClose())]),
+    cOp(cmp, [cSeries('volume'), cCall('nz', [prevVolume(), cNum(0)])]),
   ])
-  const step = cCall('ln', [cOp('+', [cNum(1), cOp('/', [cOp('-', [cSeries('close'), prevClose]), prevClose])])])
-  return cCall('exp', [cCall('cum', [cOp('?:', [qualifies, step, cNum(0)])])])
+  const factor = () => cOp('+', [cNum(1), cOp('/', [cOp('-', [cSeries('close'), prevClose()]), prevClose()])])
+  // ⭐ THE SIGN IS CARRIED APART FROM THE MAGNITUDE. TradingView's running product
+  // goes negative when a factor `1 + change` is negative (an instrument that
+  // trades below zero), and a log cannot hold a sign — `ln` of a negative is `na`,
+  // and `cum` would then hold `na` forever. So the magnitude is
+  // `exp(cum(ln|factor|))` and the sign is the parity of the negative factors so
+  // far, `1 − 2·mod(count, 2)`. For every positive-price bar the multiplier is
+  // exactly 1, so the column is the same number it was. ⚠️ A factor of exactly 0
+  // cannot occur (a zero close is held, the published rule), so TradingView's
+  // reset of a zero index to 1 is not reached here.
+  const magnitude = cCall('exp', [cCall('cum', [
+    cOp('?:', [qualifies(), cCall('ln', [cCall('abs', [factor()])]), cNum(0)])])])
+  const negatives = cCall('cum', [cOp('?:', [cOp('&&', [qualifies(), cOp('<', [factor(), cNum(0)])]), cNum(1), cNum(0)])])
+  const sign = cOp('-', [cNum(1), cOp('*', [cNum(2), cCall('mod', [negatives, cNum(2)])])])
+  return cOp('*', [sign, magnitude])
 }
 
 /** ⭐⭐ PINE BUILT-INS THIS ENGINE'S EVALUATION MODEL ALREADY ANSWERS.
