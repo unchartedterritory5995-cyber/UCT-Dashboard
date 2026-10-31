@@ -1618,6 +1618,10 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
     ...(t.outputs || [])
       .filter((o) => o && !o.hidden && Object.hasOwn(RUNTIME_UNDRAWN_KINDS, o.kind))
       .map((o) => o.kind),
+    // ⭐ WS-E — a `fill` is the RUN's output, not the host's (`t.outputs` lists no
+    // fill), so a run's fills were dropped from this note: the band was not drawn
+    // and nothing said so. Every fill the run lowered — solid or gradient — is named.
+    ...(probe.outputs || []).filter((ro) => ro && ro.call === 'fill').map(() => 'fill'),
   ])]
   if (undrawn.length) {
     notes.push({

@@ -80,7 +80,7 @@ const ORDER_ENUM = Object.freeze({
 
 const ARRAY_READS_ELEMENT = new Set(['array.get', 'array.pop', 'array.shift',
   'array.first', 'array.last', 'array.remove'])
-import { COLOUR_FNS, producesColour, hexToPacked, objectHexToPacked } from '../runtime/colours.js'
+import { COLOUR_FNS, producesColour, hexToPacked, objectHexToPacked, colourTypedNamesOf } from '../runtime/colours.js'
 
 /** ⭐ THE REFUSAL VOCABULARY IS ITS OWN, AND DELIBERATELY GRANULAR (§19).
  *  Collapsing these into `pine:state` would hide the next dependency, which is
@@ -1159,6 +1159,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
   }
   const plainFnNames = new Set()
   scanDefs(stmts)
+  /** ⭐ WS-E — names the script declares `color` at every declaration
+   *  (`runtime/colours.js::colourTypedNamesOf`): `holdsColour` reads them as
+   *  colours whatever their initialiser (`var color trend = na`). */
+  const colourTypedNames = colourTypedNamesOf(stmts, findTop)
   /** A method this lane can bind: declared exactly once, and not also a plain
    *  function of the same name (which Pine would resolve by argument types). */
   const bindableMethod = (name) => methodDecls.get(name) === 1 && !plainFnNames.has(name)
@@ -1926,7 +1930,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
     if (node.type === 'name') {
       if (colourHexByName(node.name, pineVersion) !== null) return true
       const slot = lookupReadable(node.name, scope)
-      if (slot !== null) return !!(slots[slot] && slots[slot].colour)
+      // ⭐ WS-E — a name TYPED `color` is one, even when it was declared `na`.
+      if (slot !== null) return !!(slots[slot] && (slots[slot].colour || colourTypedNames.has(node.name)))
       const bound = env.get(node.name)
       return !!(bound && bound.kind === 'expr' && holdsColour(bound.node, scope))
     }
@@ -6123,19 +6128,38 @@ function buildRuntimeIrLinked(source, opts, holder) {
     const upper = sideOf(0)
     const lower = sideOf(1)
 
+    // ⭐⭐ WS-E — THE GRADIENT FORM IS LOWERED AS AN UNDRAWN FILL, not refused.
+    // `fill(p1, p2, top_value, bottom_value, top_color, bottom_color)` shades
+    // between two values, and NO fill is drawn from the run yet — the solid form
+    // emits a colour column that nothing reads either (`memberPaneDefinition.js`
+    // names every run fill in the document's "Not drawn by this pane" note). So a
+    // gradient refusal took the whole script off the lane for a band the solid
+    // form would not have drawn either: the builtin RSI's two zone gradients
+    // declined its RSI line. Its sides are still checked above (a fill must span
+    // two plots); its values and colours are not lowered, because nothing reads
+    // them — the column is `na`, and the descriptor says `gradient`.
+    // ⛔ Recognised by what Pine's signature makes unambiguous: a gradient-only
+    // named argument, six positionals, or a third AND fourth positional that are
+    // neither a colour nor text (the solid form's third is its colour, its fourth
+    // its title).
+    const GRADIENT_ARGS = ['top_value', 'bottom_value', 'top_color', 'bottom_color']
+    const p3 = positional.length > 2 ? argOf(positional[2]) : null
+    const p4 = positional.length > 3 ? argOf(positional[3]) : null
+    const gradient = GRADIENT_ARGS.some((k) => named.has(k)) || positional.length >= 6
+      || (!named.has('color') && p3 && p4 && !holdsColour(p3, scope) && !holdsText(p3, scope)
+        && !holdsText(p4, scope))
+    if (gradient) {
+      outputs.push({ call: 'fill', upper, lower, gradient: true })
+      out.push(emit(outputs.length - 1, naValue()))
+      return
+    }
+
     const colourNode = named.has('color') ? named.get('color')
       : (positional.length > 2 ? argOf(positional[2]) : null)
     if (!colourNode || !holdsColour(colourNode, scope)) {
-      // ⛔⛔ THE GRADIENT FORM IS REFUSED BY ITS OWN NAME, not as "missing a
-      // colour". `fill(p1, p2, top_value, bottom_value, top_colour, bottom_colour)`
-      // is a DIFFERENT call that shades vertically between two values, and the
-      // fill primitive this engine has paints one colour across a span. Telling
-      // a member their colour is missing, when they passed two, would send them
-      // to fix a line that is correct.
-      if (positional.length >= 6) {
-        note('runtime:fill-gradient')
-        throw new RuntimeRefusal('runtime:fill-gradient', null, at)
-      }
+      // ⚰️ WS-E — the gradient form was refused here by its own name
+      // (`runtime:fill-gradient`); it is recognised above and lowered as an
+      // undrawn fill, so only a solid fill whose colour is not one reaches this.
       note('runtime:colour')
       throw new RuntimeRefusal('runtime:colour',
         '`fill()` paints with a colour, and this is not one', at)

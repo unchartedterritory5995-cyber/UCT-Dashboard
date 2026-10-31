@@ -371,3 +371,91 @@ describe('WS-E 5 — `calc_bars_count = 100` on a 260-bar chart', () => {
     expect(rs.labels.map((l) => l.x)).toEqual([BARS[160].t, BARS[210].t])
   })
 })
+
+// ─── 6. a name TYPED `color` holds a colour, whatever its initialiser ────────
+
+describe('WS-E 6 — a per-bar barcolor through a name declared `color`', () => {
+  const SUM = 'float s = 0.0\nfor i = 0 to 4\n    s += close[i]\n'
+  const paintedBy = (d) => {
+    const cols = runDoc(d)
+    const instanceId = 'inst:x'
+    const columns = new Map(Object.entries(cols).map(([k, v]) => [bindingKey(instanceId, k), v]))
+    return paintColoursFor(d.definition.paints[0], instanceId, columns, N)
+  }
+  const sum = (i) => [0, 1, 2, 3, 4].reduce((a, k) => a + (i - k >= 0 ? BARS[i - k].c : NaN), 0)
+
+  it('⭐⭐ `var color trend = na` carried bar to bar: the bar colours are the run\'s, green and red where Pine paints them', () => {
+    flags()
+    const d = door(`${H}${SUM}var color trend = na\nif s > s[1]\n    trend := color.green\nelse if s < s[1]\n    trend := color.red\nbarcolor(trend)\n`)
+    expect(d.ok, d.reason || (d.runtimeDeclined && d.runtimeDeclined.why)).toBe(true)
+    expect(d.lane).toBe('runtime')
+    expect(d.definition.paints).toHaveLength(1)
+    const colours = paintedBy(d)
+    let want = null
+    let green = 0
+    let red = 0
+    for (let i = 6; i < N; i += 1) {
+      if (sum(i) > sum(i - 1)) want = 'g'
+      else if (sum(i) < sum(i - 1)) want = 'r'
+      if (want === 'g') { expect(colours[i], `bar ${i}`).toMatch(/^#4CAF50/i); green += 1 }
+      if (want === 'r') { expect(colours[i], `bar ${i}`).toMatch(/^#F23645|^#FF5252/i); red += 1 }
+    }
+    expect(green).toBeGreaterThan(10)
+    expect(red).toBeGreaterThan(10)
+  })
+
+  it('⭐ `color c = na` assigned in an `if` and read in a `?:` arm against `na`', () => {
+    flags()
+    const d = door(`${H}${SUM}color c = na\nif s > s[1]\n    c := color.green\nbarcolor(s > 0 ? c : na)\n`)
+    expect(d.ok, d.reason || (d.runtimeDeclined && d.runtimeDeclined.why)).toBe(true)
+    const colours = paintedBy(d)
+    for (let i = 6; i < N; i += 1) {
+      if (sum(i) > sum(i - 1)) expect(colours[i], `bar ${i}`).toMatch(/^#4CAF50/i)
+      else expect(colours[i] === null || /^rgba\(0, 0, 0, 0\)|#00000000/.test(String(colours[i])), `bar ${i}: ${colours[i]}`).toBe(true)
+    }
+  })
+
+  it('⛔ CONTROL — the same script typed `float` still refuses: a number is not a colour', () => {
+    flags()
+    const d = door(`${H}${SUM}var float trend = na\nif s > s[1]\n    trend := 1.0\nbarcolor(trend)\n`)
+    expect(d.ok).toBe(false)
+    expect(d.runtimeDeclined.code).toBe('runtime:colour')
+  })
+
+  it('⛔ CONTROL — a name typed `color` in one place and declared untyped in another is not trusted', () => {
+    flags()
+    const d = door(`${H}${SUM}f() =>\n    color trend = color.red\n    trend\nvar trend = 0.0\nif s > s[1]\n    trend := 1.0\nbarcolor(trend)\nplot(f() == color.red ? 1 : 0)\n`)
+    expect(d.ok).toBe(false)
+    expect(d.runtimeDeclined.code).toBe('runtime:colour')
+  })
+})
+
+// ─── 7. a fill from the run is named, never silently dropped ─────────────────
+
+describe('WS-E 7 — a run\'s fills are named in the document\'s "Not drawn" note', () => {
+  const ACC = 'var float acc = 0.0\nacc += close\np1 = plot(acc, "A")\np2 = plot(acc * 0.9, "B")\n'
+  const notDrawn = (d) => (d.notes || []).find((n) => n.name === 'Not drawn by this pane')
+
+  it('⭐⭐ a GRADIENT fill no longer declines the script: its lines draw, and the fill is named', () => {
+    flags()
+    const d = door(`${H}${ACC}fill(p1, p2, acc, acc * 0.9, color.new(color.green, 50), color.new(color.red, 50))\n`)
+    expect(d.ok, d.runtimeDeclined && d.runtimeDeclined.why).toBe(true)
+    expect(d.lane).toBe('runtime')
+    expect(d.definition.plots.filter((p) => !p.hidden).map((p) => p.label)).toEqual(['A', 'B'])
+    expect(notDrawn(d) && notDrawn(d).note).toMatch(/a fill between two plots/)
+  })
+
+  it('⭐ a SOLID fill from the run is named too (it was dropped with nothing said)', () => {
+    flags()
+    const d = door(`${H}${ACC}fill(p1, p2, color = color.new(color.green, 80))\n`)
+    expect(d.ok).toBe(true)
+    expect(notDrawn(d) && notDrawn(d).note).toMatch(/a fill between two plots/)
+  })
+
+  it('⛔ CONTROL — the same lines with no fill carry no "Not drawn" note', () => {
+    flags()
+    const d = door(`${H}${ACC}`)
+    expect(d.ok).toBe(true)
+    expect(notDrawn(d)).toBeUndefined()
+  })
+})
