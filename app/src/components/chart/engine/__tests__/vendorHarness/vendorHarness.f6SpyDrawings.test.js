@@ -389,6 +389,10 @@ describe('F6 — what is not drawn on the SPY captures, why, and whose it is', (
       expect(d.dropReasons).toEqual({})
       const v = graded(id)
       expect([family(v, 'lines').ours, family(v, 'labels').ours]).toEqual([2, 0])
+      // ⭐ P2b — and the RENDER state draws them (the grade counts what the script holds)
+      const o = ours(id)
+      expect(o.objects.drawn.lines, id).toBe(2)
+      expect(o.objects.dropped.line, id).toBe(0)
     }
   }, T)
 

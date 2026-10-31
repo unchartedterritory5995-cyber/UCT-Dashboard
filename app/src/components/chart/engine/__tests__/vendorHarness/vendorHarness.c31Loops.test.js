@@ -289,6 +289,8 @@ describe('C31 — poor-man\'s volume profile: its row texts stay withheld', () =
     // are drawn where TradingView holds them (`vendorHarness.p2SetXloc`, id for id)
     // and nothing is dropped. The labels are unchanged: still withheld.
     expect(live.filter((o) => o.family === 'line')).toHaveLength(2)
+    // ⭐ P2b — drawn at the render state too (`time_close` lands on the last bar)
+    expect(run(cap(POOR)).state.lines).toHaveLength(2)
     expect(d.translation.objectDiagnostics.dropReasons).toEqual({})
     // CONTROL — the run is not empty for want of a program: the 40 row labels'
     // steps are all in it (248 carried of 248 attempted)

@@ -196,6 +196,33 @@ export function makeBarClock(bars, tf) {
     const ms = Date.parse(String(t).length <= 10 ? `${t}T00:00:00Z` : String(t))
     return Number.isFinite(ms) ? Math.floor(ms / 1000) : NaN
   }
+  // ⭐⭐ P2b — EACH LOADED BAR'S OPENING INSTANT (unix seconds), ascending, for
+  // `timeAtInstant`: an instant INSIDE a loaded bar's span [its open, the next bar's
+  // open) is that bar, as TradingView places an `xloc.bar_time` coordinate. A
+  // date-keyed series opens where `barOpenInstant` says (the clock columns' rule); an
+  // instant-keyed one at its own time. `null` where a bar's open is unknown.
+  const opens = new Array(n)
+  for (let i = 0; i < n; i += 1) {
+    const o = stringly ? barOpenInstant(raw[i], tf) : epoch[i]
+    opens[i] = Number.isFinite(o) ? o : null
+  }
+  /** The loaded bar whose span holds `sec`, or -1. The LAST bar's span is one
+   *  measured step (`step`: the median gap, a day on a daily series, a week on a
+   *  weekly one) — `time_close` of the last daily bar is 16:00 on its own date. */
+  const barHolding = (sec) => {
+    let lo = 0
+    let hi = n - 1
+    let at = -1
+    while (lo <= hi) {
+      const mid = (lo + hi) >> 1
+      const o = opens[mid]
+      if (o === null) return -1   // ⛔ an unknown open: no span is knowable, so no snap
+      if (o <= sec) { at = mid; lo = mid + 1 } else hi = mid - 1
+    }
+    if (at < 0) return -1
+    const end = at + 1 < n ? opens[at + 1] : opens[at] + step
+    return end !== null && sec < end ? at : -1
+  }
   return {
     count: n,
     step,
@@ -225,6 +252,14 @@ export function makeBarClock(bars, tf) {
     /** an INSTANT (unix seconds) → a time IN THE SERIES' OWN SHAPE, or null */
     timeAtInstant(sec) {
       if (!Number.isFinite(sec)) return null
+      // ⭐⭐ P2b — AN INSTANT INSIDE A LOADED BAR IS THAT BAR, on every series:
+      // TradingView places an `xloc.bar_time` coordinate on the bar whose span
+      // [open, next open) holds it. ⚰️ Only the EXACT opening instant was placed,
+      // so `line.set_xloc(l, …, time_close, xloc.bar_time)` (16:00 on a daily
+      // chart) was dropped by the render state while the program held the line —
+      // a drawing reported clean and drawn as nothing (poor-man's volume profile).
+      const k = barHolding(sec)
+      if (k >= 0) return raw[k]
       // ⭐ A SERIES KEYED BY INSTANTS IS ALREADY IN THIS UNIT: the instant IS the
       // time, in range or not, and the chart decides whether it holds a slot there.
       if (!stringly) return sec
@@ -246,9 +281,10 @@ export function makeBarClock(bars, tf) {
       const p = etClockAt(sec)
       if (!p) return null
       const iso = `${p.y}-${String(p.m).padStart(2, '0')}-${String(p.d).padStart(2, '0')}`
-      // ⛔ NOT THE OPENING INSTANT OF ITS DATE ⇒ NO BAR. Where a daily chart puts
-      // 12:00 or 08:30 on a date was never measured, and snapping it to that
-      // date's bar would be a guess wearing a coordinate. Dropped and counted.
+      // ⛔ OUTSIDE THE LOADED BARS, NOT THE OPENING INSTANT OF ITS DATE ⇒ NO BAR.
+      // A projection has no loaded span to fall inside, and the chart's future
+      // slots are keyed by date: only a session open can name one. Dropped and
+      // counted (and disclosed — `objectRenderNotice.js`).
       return barOpenInstant(iso, tf) === sec ? iso : null
     },
   }

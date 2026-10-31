@@ -33,6 +33,7 @@ import { enterMemberDoor, toProductBars, HARNESS_DEF_ID } from './ourSide'
 import * as registry from '../../nativeRegistry'
 import { objectReaderFor } from '../../objectColumns'
 import { evaluateObjects } from '../../objectRuntime'
+import { toRenderState } from '../../objectRenderState'
 import { assessObjectLoss, objectLossNote } from '../../ast/objectLoss'
 
 beforeAll(() => { vi.stubEnv('VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', '1') })
@@ -162,6 +163,11 @@ describe('C45 → P2 — poor-man\'s-volume-profile: the two lines `line.set_xlo
     expect(r.d.dropReasons).toEqual({})
     expect(r.count('line')).toBe(2)
     expect(r.note).toBe(null)
+    // ⭐ P2b — AND AT THE RENDER STATE, where the member looks: both drawn, none
+    // dropped (x2 is `time_close`, an instant inside the last bar)
+    const state = toRenderState(r.live, { bars: toProductBars(r.cap), tf: 'D' })
+    expect(state.lines).toHaveLength(2)
+    expect(state.dropped.line).toBe(0)
   })
 })
 
