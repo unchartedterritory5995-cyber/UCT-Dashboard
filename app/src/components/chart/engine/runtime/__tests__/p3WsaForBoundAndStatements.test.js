@@ -90,6 +90,19 @@ describe('F1 — a Pine 6 `for` whose body can move its `to` bound', () => {
     expect(r.message).toMatch(/changes an array \(`array\.push`\)/)
   })
 
+  it('⭐ v6: a size-only bound with a body that SETS elements (the length never moves) — served', () => {
+    const src = `${v6}f(array<float> w) =>\n    for i = 0 to array.size(w) - 1\n        array.set(w, i, array.get(w, i) * 2)\n    array.sum(w)\n`
+      + 'plot(f(array.from(1.0, 2.0, 3.0)))\n'
+    expect(run(src)).toEqual(Array(N).fill(12))
+  })
+
+  it('⛔⛔ v6: an element bound (`array.get(a, 0)`) with a body that sets that element — refused', () => {
+    const src = `${v6}a = array.from(3.0)\nfloat s = 0.0\nfor i = 0 to array.get(a, 0)\n    s += 1\n    array.set(a, 0, 5.0)\nplot(s)\n`
+    const r = refusalOf(src)
+    expect(r.guard).toBe('runtime:loop')
+    expect(r.message).toMatch(/changes an array \(`array\.set`\)/)
+  })
+
   it('⛔ CONTROL — v5: a body that grows the array its bound reads walks the entry size once', () => {
     const src = `${v5}a = array.from(1.0, 2.0)\nfloat s = 0.0\nfor i = 0 to array.size(a) - 1\n`
       + '    s := s + array.get(a, i)\n    array.push(a, 9.0)\nplot(s)\n'

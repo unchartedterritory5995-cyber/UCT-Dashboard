@@ -6871,6 +6871,12 @@ function buildRuntimeIrLinked(source, opts, holder) {
     'array.set', 'array.push', 'array.clear', 'array.shift', 'array.pop',
     'array.unshift', 'array.remove', 'array.concat',
   ])
+  // ⭐ the writes among them that change an array's SIZE: a bound that reads only
+  // `array.size(…)` cannot be moved by `array.set` (an element, not a length)
+  const SIZE_CHANGING_ARRAY_FNS = new Set([
+    'array.push', 'array.clear', 'array.shift', 'array.pop',
+    'array.unshift', 'array.remove', 'array.concat',
+  ])
   /** ⭐ A NAME THAT HOLDS AN ARRAY NOTHING ELSE CAN REACH. Two names can hold ONE
    *  array (`b = a`, `b = f(a)`, a parameter, a tuple, a field, an array of arrays,
    *  `slice`, which shares its source's storage), and a write through either moves
@@ -6940,7 +6946,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
       if (n.kind === EXPR.HIST && typeof n.back === 'number' && n.back >= 1) return
       if (n.kind === EXPR.READ && Number.isInteger(n.slot)) reads.add(n.slot)
       else if (n.kind === EXPR.ARRAY) {
-        heap.add('array')
+        heap.add(n.fn === 'array.size' ? 'array-size' : 'array')
         const a0 = Array.isArray(n.args) ? n.args[0] : null
         const nm = a0 && a0.kind === EXPR.READ && slots[a0.slot] ? slots[a0.slot].name : null
         if (boundArrayNames && isPrivateArrayName(nm)) boundArrayNames.add(nm)
@@ -6958,8 +6964,12 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // (`isPrivateArrayName`): the written array is reachable only by its own
     // name, or every array the bound reads is
     const changesBoundArray = (n) => {
-      if (n.kind !== EXPR.ARRAY || !touches('array')) return false
-      if (!MUTATING_ARRAY_FNS.has(n.fn) && Object.prototype.hasOwnProperty.call(ARRAY_FNS, n.fn)) return false
+      if (n.kind !== EXPR.ARRAY) return false
+      const elements = touches('array')
+      if (!elements && !heap.has('array-size')) return false
+      const known = Object.prototype.hasOwnProperty.call(ARRAY_FNS, n.fn)
+      if (known && !MUTATING_ARRAY_FNS.has(n.fn)) return false
+      if (!elements && known && !SIZE_CHANGING_ARRAY_FNS.has(n.fn)) return false
       if (heap.has('*') || heap.has('field')) return true
       const a0 = Array.isArray(n.args) ? n.args[0] : null
       const nm = a0 && a0.kind === EXPR.READ && slots[a0.slot] ? slots[a0.slot].name : null
