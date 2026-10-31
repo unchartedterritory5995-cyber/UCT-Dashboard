@@ -473,9 +473,19 @@ def test_WSI_R2_the_save_question_is_the_same_at_cohort(cohort_store, monkeypatc
     assert rt.save_permission("admin") is None
     refused = rt.save_permission("member", UNTAGGED_ID)
     assert refused and "admins and a test group only right now (PINE_RUNTIME_STAGE=cohort)" in refused
-    # ⚠️ The store's save door passes the role only (WS-I hand-off), so a member
-    # saving without an id is refused at `cohort`: fail closed, never open.
+    # A caller that passes no id is refused at `cohort`: fail closed, never open.
     assert rt.save_permission("member") is not None
+
+
+def test_WSI_R2_a_TAGGED_member_SAVES_at_cohort_through_the_store(store, cohort_store, monkeypatch):
+    """End to end through `svc.save`: the save door passes the saver's id, so the
+    member the pane draws for can store it, and an untagged member cannot."""
+    monkeypatch.setenv(rt.SAVE_ENV, "1")
+    monkeypatch.setenv(rt.STAGE_ENV, "cohort")
+    with pytest.raises(ValueError, match=r"admins and a test group only"):
+        svc.save(UNTAGGED_ID, ADX["id"], copy.deepcopy(ADX), role="member")
+    assert svc.get(UNTAGGED_ID, ADX["id"]) is None
+    assert svc.save(TAGGED_ID, ADX["id"], copy.deepcopy(ADX), role="member")["appended"] is True
 
 
 def test_WSI_R2_the_payload_passes_the_members_id():

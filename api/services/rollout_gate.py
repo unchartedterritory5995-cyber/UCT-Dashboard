@@ -432,9 +432,9 @@ require_terminal_next = require_cohort(TERMINAL_NEXT_COHORT,
 # `PINE_RUNTIME_STAGE` (api/services/runtime_definitions.py) is the ladder
 # off -> admins -> cohort -> all. At `cohort` the per-bar runtime pane is for
 # admins AND for members tagged into the `pine-runtime-pane` cohort, and for
-# nobody else. The cohort is an admin-written `user_tags` row
-# (`rollout:pine-runtime-pane`, written by `tools/rollout_cohort.py add
-# --cohort pine-runtime-pane --user <id> --apply`), exactly like Terminal-Next.
+# nobody else. Membership is an admin-written cohort tag (`rollout.py`, written
+# by `tools/rollout_cohort.py add --cohort pine-runtime-pane --user <id>
+# --apply`), exactly like Terminal-Next.
 #
 # ⛔ THE KILL SWITCH IS THE STAGE ITSELF, read FIRST and per call: the cohort
 # counts only while the stage is `cohort`. Any other stage — `off`, `admins`,
