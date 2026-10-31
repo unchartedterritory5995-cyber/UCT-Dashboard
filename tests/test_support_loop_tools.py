@@ -197,6 +197,20 @@ class TestSecretNeverLogged:
         out = capsys.readouterr()
         assert rc == 2 and SECRET not in out.out + out.err
 
+    @pytest.mark.parametrize("url", ["http://uctintelligence.com", "http://example.com:8000",
+                                     "http://10.0.0.5:8000", "http://127.0.0.1.evil.com", "ftp://127.0.0.1",
+                                     "uctintelligence.com", "https://", "http://localhost.evil.com"])
+    def test_bearer_only_over_https_or_loopback(self, url):
+        sent = []
+        with pytest.raises(client_mod.ClientError):
+            client_mod.SupportLoopClient(url, opener=lambda req, timeout=60: sent.append(req))
+        assert sent == []
+
+    @pytest.mark.parametrize("url", ["https://uctintelligence.com", "http://127.0.0.1:8000",
+                                     "http://localhost:8077", "http://[::1]:8000", "http://127.0.0.2"])
+    def test_https_and_loopback_are_allowed(self, url):
+        assert client_mod.SupportLoopClient(url).base == url
+
     def test_redact(self):
         assert client_mod.redact(f"x Bearer {SECRET} y", SECRET) == "x Bearer [redacted] y"
         assert "abc" not in client_mod.redact("authorization: Bearer abc")

@@ -26,8 +26,10 @@ answer for every allowlisted built-in, generated through the translator and
 pinned to the build by ``doorNameCoverage.test.js`` (it reds when stale). The
 rule, mirrored by ``doorNameCoverage.js::fixedOnMaster`` and railed on both sides:
 
-* ``name-unknown`` gap: fixed when the door now KNOWS the name
-  (``reachable`` or ``call-unmapped``);
+* ``name-unknown`` gap: fixed ONLY when the door now serves the name (``reachable``).
+  When the door knows the name but cannot map the call (``call-unmapped``), the gap
+  stays OPEN, reclassified as ``call-unmapped`` (``effective_kind``), and its members
+  and hits merge into that row (distinct members, recounted exactly);
 * ``call-unmapped`` gap: fixed ONLY through a ``fixes`` entry (``fixedGaps.json``)
   whose minimal repro translates in this build;
 * anything else, including ``_unlisted``, an unknown name, ``unprobed`` or an
@@ -66,7 +68,6 @@ DIGEST_WINDOW_DAYS = 30
 DIGEST_TOP = 25
 DIGEST_RETAIN_DAYS = 60
 OPEN_REPORT_STATUSES = ("new", "triaged")
-KNOWN_NAME_STATUSES = frozenset({"reachable", "call-unmapped"})
 _ET = ZoneInfo("America/New_York")
 
 _SCHEMA = """
@@ -123,7 +124,35 @@ def fixed_on_master(manifest: Optional[dict], name: str, kind: str) -> bool:
             return True
     if kind != "name-unknown":
         return False
-    return door_status(manifest, name) in KNOWN_NAME_STATUSES
+    # ⛔ ONLY `reachable`. A door that now KNOWS the name but cannot map the call
+    # (`call-unmapped`) still loses the built-in from the member's paste: that gap is
+    # OPEN, reclassified by ``effective_kind``.
+    return door_status(manifest, name) == "reachable"
+
+
+def effective_kind(manifest: Optional[dict], name: str, kind: str) -> str:
+    """The kind a gap has ON THIS BUILD. A ``name-unknown`` gap whose name the door
+    now knows but cannot map is a ``call-unmapped`` gap; its demand moves with it."""
+    if kind == "name-unknown" and door_status(manifest, name) == "call-unmapped":
+        return "call-unmapped"
+    return kind
+
+
+def _merged_counts(name: str, kinds: list[str], days: int) -> dict:
+    """Exact demand for one name across several logged kinds: DISTINCT members (a
+    member who hit both kinds counts once), summed hits, the window's first/last day."""
+    days = max(1, min(int(days or DIGEST_WINDOW_DAYS), 365))
+    since = (svc._now() - _dt.timedelta(days=days - 1)).strftime("%Y-%m-%d")
+    conn = svc._conn()
+    try:
+        q = ",".join("?" * len(kinds))
+        r = conn.execute(
+            "SELECT COUNT(DISTINCT member_key), SUM(hits), MIN(day), MAX(day), COUNT(DISTINCT day)"
+            f" FROM indicator_gap_hits WHERE name = ? AND kind IN ({q}) AND day >= ?",
+            (name, *kinds, since)).fetchone()
+    finally:
+        conn.close()
+    return {"members": r[0], "hits": r[1], "first_day": r[2], "last_day": r[3], "days_seen": r[4]}
 
 
 # ─── report views without member content ────────────────────────────────────
@@ -178,13 +207,24 @@ def build_digest(*, days: int = DIGEST_WINDOW_DAYS, top: int = DIGEST_TOP,
     manifest, sha = load_door_manifest(manifest_path)
     ranking = svc.gap_ranking(days, 1000)
     open_gaps, fixed, unlisted = [], [], None
+    groups: dict[tuple[str, str], list[dict]] = {}
     for g in ranking:
         if g["name"] == svc.UNLISTED:
             unlisted = {k: g[k] for k in ("members", "hits", "first_day", "last_day")}
             continue
-        row = {**g, "door_status": door_status(manifest, g["name"]),
-               "fixed_on_master": fixed_on_master(manifest, g["name"], g["kind"])}
+        groups.setdefault((g["name"], effective_kind(manifest, g["name"], g["kind"])), []).append(g)
+    for (name, kind), rows in groups.items():
+        logged = sorted({r["kind"] for r in rows})
+        if len(rows) == 1:
+            base = {k: rows[0][k] for k in ("members", "hits", "first_day", "last_day", "days_seen")}
+        else:
+            base = _merged_counts(name, logged, days)     # exact distinct members, not a sum
+        row = {"name": name, "kind": kind, **base, "door_status": door_status(manifest, name),
+               "fixed_on_master": fixed_on_master(manifest, name, kind)}
+        if logged != [kind]:
+            row["reclassified_from"] = [k for k in logged if k != kind]
         (fixed if row["fixed_on_master"] else open_gaps).append(row)
+    open_gaps.sort(key=lambda g: (-g["members"], -g["hits"], g["name"], g["kind"]))
     for i, g in enumerate(open_gaps, 1):
         g["rank"] = i
     reports = open_reports(manifest)

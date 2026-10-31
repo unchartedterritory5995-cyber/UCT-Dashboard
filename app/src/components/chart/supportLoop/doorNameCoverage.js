@@ -26,9 +26,10 @@
 //                       translated: the probe could not ask. NEVER read as fixed.
 //
 // ⛔⛔ WHAT "FIXED" MAY MEAN, AND WHAT IT MAY NOT (`fixedOnMaster`):
-//   • a `name-unknown` gap is fixed when the door now KNOWS the name
-//     (`reachable` or `call-unmapped`). That wall is gone; a member who now hits
-//     a call-shape wall logs a NEW `call-unmapped` gap, which is what it is.
+//   • a `name-unknown` gap is fixed ONLY when the door now serves the name
+//     (`reachable`). When the door knows the name but cannot map the call
+//     (`call-unmapped`), the member's paste still loses the built-in: the gap stays
+//     OPEN, and the server reclassifies it as `call-unmapped`, merging its demand.
 //   • a `call-unmapped` gap is NOT decided by a name probe. The door knew the name
 //     when the member hit it; whether THEIR call shape now maps is a fact about a
 //     call, not a name. It is fixed only by an entry in `fixedGaps.json` whose
@@ -147,5 +148,8 @@ export function fixedOnMaster(manifest, name, kind) {
   if ((manifest.fixes || []).some((f) => f.name === name && f.kind === kind && f.status === 'fixed')) return true
   if (kind !== 'name-unknown') return false
   const row = (manifest.names || {})[name]
-  return !!row && (row.status === 'reachable' || row.status === 'call-unmapped')
+  // ⛔ ONLY `reachable`: a door that knows the name but cannot map the call still
+  // loses the built-in from the member's paste (the server reclassifies that gap as
+  // call-unmapped and keeps it open).
+  return !!row && row.status === 'reachable'
 }

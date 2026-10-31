@@ -39,10 +39,30 @@ def redact(text: Any, secret: str = "") -> str:
     return re.sub(r"(?i)(authorization:?\s*bearer\s+)\S+", r"\1[redacted]", s)
 
 
+def check_url(url: str) -> str:
+    """⛔ The bearer goes only to ``https`` or to this machine. Plain ``http`` to any
+    other host would put the production secret on the wire in clear text."""
+    import ipaddress
+    from urllib.parse import urlsplit
+    u = urlsplit(url)
+    host = (u.hostname or "").lower()
+    if u.scheme == "https" and host:
+        return url
+    loopback = host == "localhost"
+    try:
+        loopback = loopback or ipaddress.ip_address(host).is_loopback
+    except ValueError:
+        pass
+    if u.scheme == "http" and loopback:
+        return url
+    raise ClientError(f"refusing to send the bearer to {u.scheme}://{host or '?'}: "
+                      "use https, or http only to localhost/127.0.0.1/::1")
+
+
 class SupportLoopClient:
     def __init__(self, base_url: Optional[str] = None, secret: Optional[str] = None,
                  opener: Optional[Callable[..., Any]] = None):
-        self.base = (base_url or os.environ.get(URL_ENV) or DEFAULT_URL).rstrip("/")
+        self.base = check_url((base_url or os.environ.get(URL_ENV) or DEFAULT_URL).rstrip("/"))
         self._secret = (secret if secret is not None else os.environ.get("PUSH_SECRET", "")).strip()
         if not self._secret:
             raise ClientError("PUSH_SECRET is not set in this shell (it is never read from a file "

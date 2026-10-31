@@ -64,8 +64,9 @@ describe('fixedOnMaster — every uncertainty resolves to OPEN', () => {
     fixes: [{ name: 'a.known', kind: 'call-unmapped', status: 'fixed' },
       { name: 'a.served', kind: 'call-unmapped', status: 'open' }],
   }
-  it('name-unknown gaps drop off once the door knows the name', () => {
-    expect(fixedOnMaster(manifest, 'a.known', 'name-unknown')).toBe(true)
+  it('name-unknown gaps drop off ONLY when the door serves the name', () => {
+    // the door knows the name but cannot map the call: the paste still loses it
+    expect(fixedOnMaster(manifest, 'a.known', 'name-unknown')).toBe(false)
     expect(fixedOnMaster(manifest, 'a.served', 'name-unknown')).toBe(true)
     expect(fixedOnMaster(manifest, 'a.unknown', 'name-unknown')).toBe(false)
     expect(fixedOnMaster(manifest, 'a.unprobed', 'name-unknown')).toBe(false)

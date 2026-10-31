@@ -89,6 +89,30 @@ class TestDigest:
         assert d["gaps"]["unlisted"]["members"] == 1
         assert d["gaps"]["open_total"] == 3
 
+    def test_a_known_but_unmapped_name_unknown_gap_stays_open_and_carries_its_counts(self):
+        # request.security: door status call-unmapped. Members who logged it as
+        # name-unknown (an older build) must stay on the open list, as call-unmapped,
+        # with their demand merged into that row: distinct members recounted exactly.
+        svc.record_gaps("u-a", [{"name": "request.security", "kind": "call-unmapped"}])   # 1 hit
+        for u in ("a", "b", "c"):                                                         # u-a in both
+            svc.record_gaps(f"u-{u}", [{"name": "request.security", "kind": "name-unknown"}])
+            svc.record_gaps(f"u-{u}", [{"name": "request.security", "kind": "name-unknown"}])
+        d = loop.build_digest()
+        rows = [g for g in d["gaps"]["open"] if g["name"] == "request.security"]
+        assert len(rows) == 1, rows                                   # merged into ONE row
+        r = rows[0]
+        assert r["kind"] == "call-unmapped" and r["fixed_on_master"] is False
+        assert r["members"] == 3                                      # distinct, not 1 + 3
+        assert r["hits"] == 1 + 6
+        assert r["reclassified_from"] == ["name-unknown"]
+        assert "request.security" not in {g["name"] for g in d["gaps"]["fixed_on_master"]}
+
+    def test_a_reclassified_gap_alone_keeps_its_counts(self):
+        for u in ("a", "b"):
+            svc.record_gaps(f"u-{u}", [{"name": "request.security", "kind": "name-unknown"}])
+        r = [g for g in loop.build_digest()["gaps"]["open"] if g["name"] == "request.security"]
+        assert len(r) == 1 and r[0]["kind"] == "call-unmapped" and r[0]["members"] == 2 and r[0]["hits"] == 2
+
     def test_an_unreadable_manifest_fixes_nothing(self, db, monkeypatch):
         _seed()
         monkeypatch.setattr(loop, "DOOR_MANIFEST_PATH", db / "missing.json")
@@ -127,7 +151,7 @@ class TestDigest:
 
 class TestFixedRule:
     @pytest.mark.parametrize("name,kind,want", [
-        ("ta.supertrend", "name-unknown", True), ("request.security", "name-unknown", True),
+        ("ta.supertrend", "name-unknown", True), ("request.security", "name-unknown", False),
         ("ta.alma", "name-unknown", False), ("ta.kc", "name-unknown", False),
         ("ta.unheard", "name-unknown", False), (svc.UNLISTED, "call-unmapped", False),
         ("array.get", "call-unmapped", True), ("request.security", "call-unmapped", False),

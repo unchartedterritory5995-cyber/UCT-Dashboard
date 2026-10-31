@@ -89,7 +89,8 @@ The rule (`fixed_on_master`, mirrored by `doorNameCoverage.js::fixedOnMaster`, r
 
 | gap kind | fixed on master when | why |
 |---|---|---|
-| `name-unknown` | the door now **knows** the name (`reachable` or `call-unmapped`) | that wall is gone; a member who now hits a call-shape wall logs a new `call-unmapped` gap |
+| `name-unknown` | the door now **serves** the name (`reachable`) ONLY | anything less and the member's paste still loses the built-in |
+| `name-unknown`, door status `call-unmapped` | never as such: the gap stays **open**, reclassified as `call-unmapped` (`effective_kind`), and its members and hits merge into that row (`reclassified_from: ["name-unknown"]`; distinct members recounted exactly, so a member logged under both kinds counts once) | the door learned the name but still cannot map the call, so demand must not be lost |
 | `call-unmapped` | a `fixedGaps.json` entry for (name, kind) whose **minimal repro** translates in this build | the door already knew the name; whether a member's call shape maps is a fact about a call, which a name probe cannot see |
 | anything else (`_unlisted`, unknown name, `unprobed`, unreadable manifest) | never | every uncertainty resolves to OPEN |
 
@@ -229,6 +230,8 @@ reads it from the shell's `PUSH_SECRET` the same way).
 
 * fails **closed**: an unset or blank `PUSH_SECRET` refuses everyone (401);
 * constant-time comparison on UTF-8 bytes, so a non-ASCII header is a 401, never a 500;
+* the client refuses to send the bearer to any non-loopback host unless the URL is
+  `https` (`client.check_url`; loopback = `localhost`, `127.0.0.0/8`, `::1`);
 * read-only plus the status PATCH: no create, no delete, no other field (railed by route table);
 * the auth-surface boot audit already recognises `require_push_secret` as a gate.
 
@@ -274,5 +277,7 @@ passes through `redact`.
 | close purges | `test_mark_fixed_closes_and_purges`, `test_purge_closed…` |
 | work root must be git-ignored | `test_a_work_root_inside_git_must_be_ignored`, `test_the_repo_default_root_is_gitignored` |
 | secret never in repr, errors or CLI output | `TestSecretNeverLogged` |
+| bearer never sent over plain http to a non-loopback host | `TestSecretNeverLogged::test_bearer_only_over_https_or_loopback` |
+| a known-but-unmapped `name-unknown` gap stays open as `call-unmapped`, counts carried | `TestDigest::test_a_known_but_unmapped_name_unknown_gap_stays_open_and_carries_its_counts` |
 | packets from a fixture gap and a fixture report | `TestPackets` |
 | dated history, gains and regressions; the predicate is the map's | `TestRemeasure` |
