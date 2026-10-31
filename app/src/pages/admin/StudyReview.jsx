@@ -66,6 +66,8 @@ const DEFAULT_WINDOW_BARS = 120
 const DEFAULT_FORWARD = 20
 const HOURLY_BARS_PER_SESSION = 7   // 9:30 .. 15:00 buckets of a regular session
 const DEFAULT_HOURLY_FORWARD = 5    // gen_go_signal_hourly.py FWD_SESSIONS
+const CLOSE_UP_DAYS_BACK = 6        // calendar days: three or four sessions before the ruled one
+const CLOSE_UP_DAYS_FORWARD = 4     // calendar days: the session or two after it
 
 const fetcher = (url) => fetch(url, { credentials: 'include' }).then((r) => {
   if (!r.ok) throw new Error(`HTTP ${r.status}`)
@@ -223,12 +225,26 @@ function shiftDate(iso, days) {
 }
 
 /** [entryDate, exitDate, forwardSessions] framing the member's window plus the forward strip. */
-export function chartFrameOf(item) {
+export function isHourlyItem(item) {
+  return String(item?.bars_embed?.tf || item?.prompt_json?.chart?.tf || item?.prompt_json?.tf || 'D') === '60'
+}
+
+/** [entryDate, exitDate, forwardSessions] framing the member's window plus the forward strip. For an HOURLY item
+ *  `closeUp` frames only the ruled session's open: the three sessions before it, the session itself and the one
+ *  after (owner 2026-10-31: "I need to see the mkt open of the days we are looking at"). */
+export function chartFrameOf(item, { closeUp = false } = {}) {
   const asof = item?.asof
   if (!asof) return null
   const r = item?.reveal_json || NO_OBJ
-  const tf = String(item?.bars_embed?.tf || item?.prompt_json?.chart?.tf || item?.prompt_json?.tf || 'D')
-  const hourly = tf === '60'
+  const hourly = isHourlyItem(item)
+  if (hourly && closeUp) {
+    return {
+      entryDate: shiftDate(asof, -CLOSE_UP_DAYS_BACK),
+      exitDate: shiftDate(asof, CLOSE_UP_DAYS_FORWARD),
+      forward: Number(r.facts?.fwd_sessions_available ?? DEFAULT_HOURLY_FORWARD),
+      closeUp: true,
+    }
+  }
   // An hourly item's window_bars counts HOURLY bars (about seven a session); the frame is in calendar days, so
   // convert to sessions first or a 112-bar hourly window frames 112 sessions and the bars sit in the right half.
   const rawBack = Number(item?.prompt_json?.chart?.window_bars || r.window_bars || DEFAULT_WINDOW_BARS)
@@ -321,6 +337,7 @@ export default function StudyReview() {
   }, [counts])
 
   const [selId, setSelId] = useState(null)
+  const [closeUp, setCloseUp] = useState(false)   // hourly items: frame the ruled session's open (O key)
   const sel = useMemo(
     () => drafts.find((d) => d.id === selId) || drafts.find((d) => !localStatus[d.id]) || drafts[0] || null,
     [drafts, selId, localStatus],
@@ -517,6 +534,7 @@ export default function StudyReview() {
       else if (k === 'r') { claim(); setMode('reject'); setStatus(null) }
       else if (k === 'n') { claim(); go(1) }
       else if (k === 'p') { claim(); go(-1) }
+      else if (k === 'o') { claim(); setCloseUp((v) => !v) }
     }
     return registerShortcuts({ 'studyReview.card': onKey })
   }, [mode, approve, saveFix, confirmReject, go, panelOpen])
@@ -524,7 +542,7 @@ export default function StudyReview() {
   const trust = sel ? trustFor(sel.type) : null
   const askTrust = !!(trust && sel && trust.state === 'manual' && (trust.ask_to_switch || trust.ask) && !dismissed.has(sel.type))
 
-  const frame = useMemo(() => chartFrameOf(sel), [sel])
+  const frame = useMemo(() => chartFrameOf(sel, { closeUp }), [sel, closeUp])
   // The stored snapshot (visible window + forward strip) for the selected
   // chart item. `null` key = no request for text items.
   const barsKey = sel && itemHasChartView(sel) ? `/api/study/admin/items/${encodeURIComponent(sel.id)}/bars` : null
@@ -714,6 +732,13 @@ export default function StudyReview() {
                   {frame ? ` · forward ${frame.forward} sessions` : ''}
                 </span>
               )}
+              {isHourlyItem(sel) && (
+                <button type="button" className={styles.closeUpBtn} data-testid="study-closeup"
+                  aria-pressed={closeUp} onClick={() => setCloseUp((v) => !v)}
+                  title="O: toggle between the full hourly window and the ruled session's open">
+                  {closeUp ? 'Full window' : 'Open close-up'}
+                </button>
+              )}
               <span className={styles.position}>{selIdx + 1} / {drafts.length}</span>
             </div>
 
@@ -748,6 +773,7 @@ export default function StudyReview() {
                 <p className={styles.strip}>
                   Member sees bars through {sel.asof}. The {frame?.forward} sessions after it are the forward
                   strip, printed on the same chart at reveal.
+                  {frame?.closeUp ? ' Close-up: the sessions around the ruled open only.' : ''}
                   {storedBarsError ? ' No stored bars for this item: the import left it unresolved.' : ''}
                 </p>
               </>

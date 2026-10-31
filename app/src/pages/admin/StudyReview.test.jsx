@@ -720,6 +720,17 @@ describe('chartFrameOf', () => {
     expect(f.forward).toBe(5)
     expect(f.exitDate).toBe('2026-10-29')
   })
+  it('close-up frames only the sessions around the ruled open of an hourly item (owner 2026-10-31)', () => {
+    const item = { asof: '2026-10-16', bars_embed: { tf: '60' }, prompt_json: { chart: { window_bars: 112, tf: '60' } }, reveal_json: {} }
+    const f = chartFrameOf(item, { closeUp: true })
+    expect(f.entryDate).toBe('2026-10-10')
+    expect(f.exitDate).toBe('2026-10-20')
+    expect(f.closeUp).toBe(true)
+    // a daily item has no close-up: the flag is ignored
+    const d = chartFrameOf({ asof: '2026-10-16', prompt_json: { chart: { window_bars: 120, tf: 'D' } }, reveal_json: {} }, { closeUp: true })
+    expect(d.closeUp).toBeUndefined()
+    expect(d.entryDate).toBe('2026-04-12')
+  })
   it('reads the available forward sessions when an hourly item records fewer than five', () => {
     const f = chartFrameOf({
       asof: '2026-10-27', bars_embed: { tf: '60' },
