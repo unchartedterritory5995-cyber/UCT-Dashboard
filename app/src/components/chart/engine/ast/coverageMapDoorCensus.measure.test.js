@@ -237,7 +237,6 @@ describe.skipIf(!RUN)('coverage-map door census (driven by run_census.py)', () =
     const ev = { gateOpen: false, gateClosed: false, reachedRuntime: 0, hostRefused: 0, gated: 0 }
     for (const it of items) {
       if (done.has(it.key)) continue
-      fs.writeFileSync(cur, it.key)
       vi.stubEnv(OBJECTS_ONLY_FLAG, '1')   // production: ARMED
       vi.stubEnv(RUNTIME_FLAG, RT_ON ? '1' : '')   // production: DARK; runtime-on: ON
       if (RT_ON) {
@@ -252,6 +251,9 @@ describe.skipIf(!RUN)('coverage-map door census (driven by run_census.py)', () =
       // ⛔ PER SCRIPT, BEFORE ITS ROW IS WRITTEN: the gate must be the lane's
       assertLaneMeasured({ requested: LANE, gateOpen: open, reachedRuntime: open ? 1 : 0, hostRefused: 0,
         what: `coverage census (${it.key})` })
+      // ⛔ named AFTER the gate check: a wrong lane is the run's fault, never a
+      // script's, so the driver must not record it as the script that killed it
+      fs.writeFileSync(cur, it.key)
       const source = fs.readFileSync(it.path, 'utf8')
       const t0 = Date.now()
       let row
