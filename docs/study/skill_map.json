@@ -773,7 +773,8 @@
               "id": "SET.22",
               "title": "Gap Support",
               "skills": [
-                "setup.family3.gap_support"
+                "setup.family3.gap_support",
+                "setup.family3.bear_gap"
               ],
               "lessons": [
                 "uct-method:the-level-the-tape-remembers-high-volume-edge-gap-support"
