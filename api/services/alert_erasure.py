@@ -31,9 +31,9 @@ that can still MOVE DATA while the rest of the purge runs: their inbound Trading
 token (auth.db `inbound_alert_tokens` -- the URL is the password) and their outbound webhook
 endpoints (`alert_webhooks`, which the drain job posts to). `purge_user_data` calls this
 straight after the tombstone, before any other delete, and each half commits on its own.
-(The inbound receiver ALSO refuses a tombstoned member from the instant the tombstone is
-written -- `inbound_alerts.verify` -- so even the broker purge that runs before
-`purge_user_data` cannot be raced by a webhook.)
+(The inbound receiver refuses a member whose ACCOUNT ROW is gone -- `inbound_alerts.verify`
+joins `users`. A tombstone alone is deliberately NOT a refusal: the delete doors write it
+before the first DELETE, and a deletion that then fails leaves a live member.)
 
 `purge_store_rows(store, user_id, conn)` is the DATABASE half and touches nothing else: it is
 what a restore replays on a restored copy (`replay_on_store`, registered in

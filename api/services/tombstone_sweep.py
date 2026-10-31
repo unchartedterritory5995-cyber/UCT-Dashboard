@@ -62,8 +62,8 @@ BOOT_DELAY_MINUTES = 10
 AUTH_SWEEP = (
     # ⛔ The inbound TradingView receiver token FIRST (owner-approved 2026-10-30): a live
     # credential -- the URL is the password -- so one that outlived the purge, or was minted
-    # after it, goes before anything else. (`inbound_alerts.verify` already refuses a
-    # tombstoned member; this removes the row itself.)
+    # after it, goes before anything else. (`inbound_alerts.verify` already refuses a member
+    # whose account row is gone; this removes the row itself.)
     ("inbound_alert_tokens", "DELETE FROM inbound_alert_tokens WHERE user_id = ?"),
     # A fire the receiver accepted, and a bell row / push subscription a late delivery wrote,
     # after the member's purge.

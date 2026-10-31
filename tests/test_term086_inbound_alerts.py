@@ -657,16 +657,52 @@ def test_a_DELETED_members_receiver_url_is_refused_and_their_rows_are_gone(env):
     assert [d["user_id"] for d in env["delivered"]] == [U_A, U_B]
 
 
-def test_the_receiver_refuses_from_the_TOMBSTONE_before_any_row_is_deleted(env):
-    """The tombstone is written before the deletion's first DELETE; the broker purge runs
-    between it and `purge_user_data`. A webhook in that window is refused like an unknown URL."""
+def test_a_TOMBSTONED_member_whose_account_still_EXISTS_keeps_a_working_receiver(env):
+    """Review fix (NO-GO on a7f095c339). The delete doors write the tombstone BEFORE the first
+    DELETE; when the cascade then fails, the member is still a member. A tombstone alone must not
+    kill their receiver URL -- the rule is a tombstone AND no `users` row (the sweep's rule)."""
     _on(env)
     token = _mint(env, U_A)
-    _delete_account(env, U_A, purge=False)
-    assert _rows(env, "inbound_alert_tokens") == [(U_A,)]    # the row is still there...
+    _delete_account(env, U_A, purge=False)                   # tombstone written, deletion failed
     r = _fire(env, token)
-    assert r.status_code == 401                              # ...and it no longer works
-    assert env["delivered"] == [] and _receipts(env) == []
+    assert r.status_code == 202, r.text                      # VALID
+    assert [d["user_id"] for d in env["delivered"]] == [U_A]  # ...and delivered
+    assert _receipts(env) == [(U_A, "NVDA", "delivered")]
+
+
+def test_an_accepted_fire_for_a_tombstoned_but_LIVE_member_is_delivered(env):
+    _on(env)
+    _mint(env, U_A)
+    receipt_id, payload = _claim(env, U_A)
+    _delete_account(env, U_A, purge=False)
+    report = ia.deliver(receipt_id, U_A, payload)
+    assert report["channels_ok"] == 1 and [d["user_id"] for d in env["delivered"]] == [U_A]
+
+
+def test_an_accepted_fire_is_NOT_delivered_once_the_account_row_is_gone_even_if_its_receipt_survived(env):
+    """The other half of the rule: a tombstone AND no `users` row is a deleted member, whatever
+    rows a failed purge left behind."""
+    _on(env)
+    _mint(env, U_A)
+    receipt_id, payload = _claim(env, U_A)
+    _delete_account(env, U_A, purge=False)
+    c = sqlite3.connect(env["db"])
+    c.execute("DELETE FROM users WHERE id = ?", (U_A,))     # the account row went; the receipt did not
+    c.commit()
+    c.close()
+    report = ia.deliver(receipt_id, U_A, payload)
+    assert env["delivered"] == [] and report["channels_ok"] == 0
+
+
+def _claim(env, uid):
+    c = sqlite3.connect(env["db"])
+    token_hash = c.execute("SELECT token_hash FROM inbound_alert_tokens WHERE user_id = ?",
+                           (uid,)).fetchone()[0]
+    c.close()
+    payload = ia.parse_payload(json.dumps(GOOD).encode())
+    receipt_id = ia.claim_receipt(uid, payload, token_hash)
+    assert receipt_id is not None
+    return receipt_id, payload
 
 
 def test_a_fire_ACCEPTED_before_the_deletion_is_NOT_delivered_after_it(env):
