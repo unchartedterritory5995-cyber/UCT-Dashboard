@@ -40,11 +40,17 @@ CASES = [
     ("kcMiddle", [CLOSE, n(20)]), ("kcUpper", [CLOSE, n(20), n(2)]), ("kcLower", [CLOSE, n(20), n(1.5)]),
     ("supertrend", [n(3), n(10)]), ("supertrend", [n(2.5), n(7)]), ("supertrend", [n(3.0), n(14)]),
     ("supertrendDirection", [n(3), n(10)]), ("supertrendDirection", [n(1.5), n(20)]),
+    # (2026-10-30) Parabolic SAR over accum4, inside its measured domain
+    ("sar", [n(0.02), n(0.2)]), ("sar", [n(0.03), n(0.3)]), ("sar", [n(0.02), n(1)]),
+    ("sarDirection", [n(0.02), n(0.2)]), ("sarDirection", [n(0.1), n(0.5)]),
     # declined (null) in both lanes
     ("linreg", [CLOSE, n(1)]), ("linreg", [CLOSE, {"type": "series", "name": "len"}]),
     ("vwma", [CLOSE, n(2.5)]), ("correlation", [CLOSE, SPY, n(1)]), ("roc", [CLOSE, n(0)]),
     ("supertrend", [n(0), n(10)]), ("supertrend", [n(3), {"type": "series", "name": "len"}]),
     ("supertrendDirection", [{"type": "series", "name": "f"}, n(10)]), ("supertrend", [n(3), n(2.5)]),
+    # SAR outside the measured domain: a slow step, a low maximum, max < step, max > 1, a computed step
+    ("sar", [n(0.01), n(0.2)]), ("sar", [n(0.02), n(0.1)]), ("sar", [n(0.3), n(0.2)]),
+    ("sar", [n(0.02), n(1.5)]), ("sarDirection", [{"type": "series", "name": "s"}, n(0.2)]),
 ]
 
 
@@ -58,7 +64,8 @@ def test_the_two_lanes_build_byte_identical_trees():
     browser = json.loads(res.stdout)
     server = [ce.expand_call({"type": "call", "name": name, "args": args}) for name, args in CASES]
     assert json.dumps(server, sort_keys=True) == json.dumps(browser, sort_keys=True)
-    assert sum(1 for t in server if t is None) == 9     # the declined cases are declined in both
+    # 9 -> 14 (2026-10-30): five SAR settings outside the measured domain.
+    assert sum(1 for t in server if t is None) == 14    # the declined cases are declined in both
 
 
 @pytest.mark.skipif(shutil.which("node") is None, reason="node not on PATH")
@@ -142,6 +149,8 @@ def test_browser_and_server_compute_the_same_values_for_every_expansion():
         ("kc_lower", "kcLower", [CLOSE, n(20), n(1.5)]),
         ("supertrend_3_10", "supertrend", [n(3), n(10)]),
         ("supertrend_dir_2_7", "supertrendDirection", [n(2), n(7)]),
+        ("sar_02_2", "sar", [n(0.02), n(0.2)]),
+        ("sar_dir_02_2", "sarDirection", [n(0.02), n(0.2)]),
     ]
     cases = [{"id": cid, "ast": ce.expand_call({"type": "call", "name": name, "args": args})}
              for cid, name, args in calls]
@@ -152,7 +161,7 @@ def test_browser_and_server_compute_the_same_values_for_every_expansion():
     for cid, _, _ in calls:     # non-vacuity: real numbers, in both lanes
         # supertrend withholds its first ~2 x 200 bars (the bounded warm-up), so it is
         # held to a smaller floor than the rolling windows
-        floor = 100 if cid.startswith("supertrend") else len(bars) // 2
+        floor = 100 if cid.startswith(("supertrend", "sar")) else len(bars) // 2
         assert sum(1 for v in py[cid] if v is not None) > floor, cid
 
 

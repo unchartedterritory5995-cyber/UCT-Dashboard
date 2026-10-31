@@ -34,6 +34,49 @@ const HASH_RE = /^[0-9a-f]{12,64}$/
 
 let _entries = Object.freeze([])
 
+// ─── ⭐⭐ WS-I (2026-10-31, gap S6) — THE LISTS REACH AN OPEN TAB ─────────────
+//
+// `MemberPane` reads `RUNTIME_KILL_PATH` once per mount, so a kill added (or an
+// allowlist line removed) after the mount never reached a tab that stayed open.
+// Now a tab that HAS read the lists re-reads them by itself: a consult
+// (`runtimeKillOf` / `runtimeNotGradedOf`) that finds them older than
+// `RUNTIME_LISTS_RECHECK_MS` fires ONE background GET of the same path and
+// latches the answer; this consult answers from the lists as they stand.
+// ⛔ No timer, no new endpoint, never in a worker (no session there), never
+// under the test grant (`__allowEveryRuntimeScriptForTests`), never throws: a
+// failed read keeps the lists as they were and waits another interval.
+
+/** How stale the latched lists may grow before the next consult re-reads them. */
+export const RUNTIME_LISTS_RECHECK_MS = 60000
+let _listsReadAt = 0
+let _listsInFlight = false
+
+function maybeRefreshRuntimeLists() {
+  if (!_listsReadAt || _listsInFlight || _allow === ALLOW_ANY) return
+  if (Date.now() - _listsReadAt < RUNTIME_LISTS_RECHECK_MS) return
+  if (typeof window === 'undefined' || typeof fetch !== 'function') return
+  _listsInFlight = true
+  _listsReadAt = Date.now()            // a failure waits a full interval too
+  try {
+    Promise.resolve(fetch(RUNTIME_KILL_PATH, { credentials: 'include', cache: 'no-store' }))
+      .then((r) => (r && r.ok ? r.json() : null))
+      .then((d) => {
+        if (!d) return
+        setRuntimeKillList(d.kill)
+        setRuntimeAllowList(d.allow)
+      })
+      .catch(() => { /* the lists stay as they were */ })
+      .finally(() => { _listsInFlight = false })
+  } catch {
+    _listsInFlight = false
+  }
+}
+
+/** Diagnostics and rails. */
+export const runtimeListsDebug = () => ({ readAt: _listsReadAt, inFlight: _listsInFlight })
+/** Rails only. */
+export function __resetRuntimeListsRecheck() { _listsReadAt = 0; _listsInFlight = false }
+
 /** Normalise the server's list: lowercase, trimmed, only well-formed entries. */
 export function normaliseKillList(list) {
   const raw = Array.isArray(list) ? list : (typeof list === 'string' ? list.split(/[\s,]+/) : [])
@@ -48,6 +91,7 @@ export function normaliseKillList(list) {
 /** Latch the server's list (auth payload). An absent key means an empty list. */
 export function setRuntimeKillList(list) {
   _entries = normaliseKillList(list)
+  _listsReadAt = Date.now()
 }
 
 /** The list currently latched (tests, diagnostics). */
@@ -104,6 +148,7 @@ export function __resetRuntimeAllowList() { _allow = Object.freeze([]) }
  *  @param {{source?: string, hash?: string}} arg */
 export function runtimeNotGradedOf({ source, hash } = {}) {
   if (_allow === ALLOW_ANY) return null
+  maybeRefreshRuntimeLists()
   const h = typeof hash === 'string' && hash ? hash.toLowerCase()
     : (typeof source === 'string' ? runtimeSourceHash(source) : '')
   if (h && _allow.some((e) => h.startsWith(e))) return null
@@ -120,6 +165,7 @@ export function runtimeSourceHash(source) {
  *  @param {{source?: string, defId?: string, hash?: string}} arg
  *  @returns {string|null} */
 export function runtimeKillOf({ source, defId, hash } = {}) {
+  maybeRefreshRuntimeLists()
   if (!_entries.length) return null
   const id = typeof defId === 'string' ? defId.toLowerCase() : ''
   if (id && _entries.includes(id)) {

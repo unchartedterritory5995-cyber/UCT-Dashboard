@@ -39,9 +39,6 @@
     "pvt": {
       "instead": "pvtN(50)",
       "why": "bounded to the last n bars, for the same reason as OBV"
-    },
-    "sar": {
-      "not": "Parabolic SAR carries a trend, an extreme point and an acceleration factor forward from the first bar, so it is not available as a formula yet; the Supertrend is — `supertrend(3, 10)`"
     }
   },
   "spellings": {
@@ -82,6 +79,7 @@
   },
   "alsoSuggested": [
     "supertrend(3, 10)",
+    "sar(0.02, 0.2)",
     "close - close[5]",
     "mom(close, 5)",
     "macd(close, 12, 26)",
