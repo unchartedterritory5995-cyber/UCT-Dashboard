@@ -348,7 +348,10 @@ describe('WS-E — which drawing calls may stand in an arm of `?:` (`isArmSafeOb
 describe('WS-E 5 — `calc_bars_count = 100` on a 260-bar chart', () => {
   const SRC = '//@version=6\nindicator("t", overlay = true, calc_bars_count = 100)\n'
     + 'var float acc = 0\nacc += close\nplot(acc, "acc")\n'
-    + 'if bar_index % 50 == 0 and acc > 0\n    label.new(bar_index, close, "w")\n'
+    // ⭐ WS-E review H1 — the condition is on PRICE (a turn up), not `bar_index % 50`:
+    // which bars a phase of `bar_index` picks in the window is uncaptured (Q-WSE1) and
+    // refused by name (`wseReviewFixes.test.js`).
+    + 'if close > close[1] and close[1] <= close[2] and acc > 0\n    label.new(bar_index, close, "w")\n'
 
   it('⭐⭐ nothing is drawn before the window; the state starts on its first bar; drawings sit on chart bars', () => {
     flags()
@@ -367,8 +370,11 @@ describe('WS-E 5 — `calc_bars_count = 100` on a 260-bar chart', () => {
     expect(v.slice(0, 160).every((x) => x === null)).toBe(true)
     const payload = runtimeObjectsOf(cols)
     const rs = toRenderState(payload.live, { bars: BARS, tf: 'D', pineVersion: payload.pineVersion })
-    expect(rs.labels.map((l) => l.bx)).toEqual([160, 210])
-    expect(rs.labels.map((l) => l.x)).toEqual([BARS[160].t, BARS[210].t])
+    const turns = []
+    for (let i = 162; i < N; i += 1) if (BARS[i].c > BARS[i - 1].c && BARS[i - 1].c <= BARS[i - 2].c) turns.push(i)
+    expect(turns.length).toBeGreaterThan(0)
+    expect(rs.labels.map((l) => l.bx)).toEqual(turns)
+    expect(rs.labels.map((l) => l.x)).toEqual(turns.map((i) => BARS[i].t))
   })
 })
 
