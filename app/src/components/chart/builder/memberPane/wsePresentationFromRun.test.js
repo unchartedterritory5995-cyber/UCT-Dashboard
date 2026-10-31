@@ -342,3 +342,32 @@ describe('WS-E — which drawing calls may stand in an arm of `?:` (`isArmSafeOb
     }
   })
 })
+
+// ─── 5. `calc_bars_count`: the run takes the chart's last N bars ─────────────
+
+describe('WS-E 5 — `calc_bars_count = 100` on a 260-bar chart', () => {
+  const SRC = '//@version=6\nindicator("t", overlay = true, calc_bars_count = 100)\n'
+    + 'var float acc = 0\nacc += close\nplot(acc, "acc")\n'
+    + 'if bar_index % 50 == 0 and acc > 0\n    label.new(bar_index, close, "w")\n'
+
+  it('⭐⭐ nothing is drawn before the window; the state starts on its first bar; drawings sit on chart bars', () => {
+    flags()
+    const d = door(SRC)
+    expect(d.ok, d.reason).toBe(true)
+    expect(d.definition.compute.objects).toBe(true)
+    const cols = runDoc(d)
+    const key = d.definition.plots.find((p) => p.label === 'acc').key
+    expect(cols[key]).toHaveLength(N)
+    expect(cols[key].slice(0, 160).every(Number.isNaN)).toBe(true)
+    let a = 0
+    const want = BARS.slice(160).map((b) => (a += b.c))
+    expect(cols[key][160]).toBeCloseTo(want[0], 9)
+    expect(cols[key][N - 1]).toBeCloseTo(want[99], 9)
+    const v = valuesAt(bind(d.definition, cols).setData.find((s) => s.length === N))
+    expect(v.slice(0, 160).every((x) => x === null)).toBe(true)
+    const payload = runtimeObjectsOf(cols)
+    const rs = toRenderState(payload.live, { bars: BARS, tf: 'D', pineVersion: payload.pineVersion })
+    expect(rs.labels.map((l) => l.bx)).toEqual([160, 210])
+    expect(rs.labels.map((l) => l.x)).toEqual([BARS[160].t, BARS[210].t])
+  })
+})

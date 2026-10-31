@@ -35,6 +35,7 @@ import { runtimeInputValues, runtimeBuildInputs } from './runtimeInputs.js'
 import { makeWarmupProbe, sameProgram } from './warmupProbe.js'
 export { RUNTIME_WARMUP_KEY, runtimeWarmupOf }
 import { declaredCalcBarsOf } from './objectStore.js'
+import { calcBarsWindowOf, widenToChart } from './calcBarsWindow.js'
 import { strippedForScan } from '../ast/pine.js'
 
 /** ⭐⭐ C23 — THE RUNTIME LANE SERVES A CHART PANE, NEVER A SCREEN, from every
@@ -367,6 +368,18 @@ function refusal(guard, message) {
  * drawings', and stay as they are.
  */
 export function computeRuntimeColumns(def, rows, ctx, opts = {}) {
+  // ⭐ WS-E — `calc_bars_count = N`: the run takes the chart's last N bars, as
+  // TradingView does, and its answer is widened back (`calcBarsWindow.js`).
+  const win = calcBarsWindowOf(def, rows, (src) => declaredCalcBarsOf(strippedForScan(src)))
+  if (win) {
+    try {
+      return widenToChart(computeRuntimeColumns(def, win.rows, { ...(ctx || {}), historyFromListing: true }, opts),
+        win.cut, RUNTIME_OBJECTS_KEY)
+    } catch (err) {
+      if (err && Number.isInteger(err.bar)) err.bar += win.cut
+      throw err
+    }
+  }
   const compute = (def && def.compute) || {}
   if (compute.objects !== true) return computeRuntimeColumnsOnce(def, rows, ctx, opts)
   try {
