@@ -636,6 +636,20 @@ Method) drilled on real charts, with no AI at runtime, every item reviewed by th
   list is left except the imports that wait on deploys: `import_go_hourly_run.ps1` after #478's web SUCCESS (watched),
   then after #538: the same again (adds WING) + `import_bear_gaps_run.ps1`.
 
+- **2026-10-31 ~14:15Z: #538 MERGED (47bab8eab0) after #478 (27976a08f6, web SUCCESS 04:52Z); hourly review STARTED.**
+  Hourly import ran on the #478 pod: 40 inserted, all flagged "question over 22 words" (cosmetic; shortening the
+  question changes the item ids, so it stays). Branch now `feat/study-hourly-review-1031` (same worktree). The 40
+  full-window hourly charts are captured at `C:/Users/pgosz/projects/study-review-sheets/2026-10-31/img/goh_NN_SYM_DATE.png`
+  (review-queue positions 41-80 = hourly 1-40; `hourly_ids.json` maps ids; `file_caps.py` files captures by id).
+  FIRST FOUR SENT: owner on #1 VST 2026-10-16: "Wait stop I need to see the mkt open of the days we are looking at";
+  #2 VGZ 10-16 okay, #3 VGZ 09-28 good, #4 MSFT 07-14 okay (all logged, marked re-confirm on the close-up).
+  FIX SHIPPED IN #538: StudyReview frames hourly items by sessions (was 112 bars read as 112 sessions, bars in the
+  right half) and has an "Open close-up" toggle (O key: 6 calendar days back, 4 forward) for hourly items.
+  NEXT (after #538 web SUCCESS): re-run `import_go_hourly_run.ps1` (adds WING, 41), run `import_bear_gaps_run.ps1`
+  (39 bear gaps), reload the review screen, capture every hourly item in close-up (O) and send full+close-up pairs
+  four at a time starting again from #1; then the bear-gap review; then calibrate `find_go_signal_hourly.py` and
+  retire the 40 daily Go Signal drafts (positions 1-40) as superseded.
+
 ## Owner review packet (Phase 0 — read in this order, one session)
 1. `docs/study/VOICE.md` — the voice rules derived from your Substack/Scans prose; §8 open items.
 2. `docs/study/UNITS-foundations.md` — 129 units; read "Gaps for the owner" (8 content gaps +
