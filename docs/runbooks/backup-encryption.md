@@ -93,6 +93,42 @@ For a hand-downloaded `.enc` file (flow.db, an attachments tarball) with no tool
 python -c "from api.services import backup_crypto as b; b.decrypt_file('flow-2026-10-22.db.gz.enc', 'flow-2026-10-22.db.gz', open(r'D:\offline\uct-backup-private.pem','rb').read())"
 ```
 
+### Member stores that hold deleted members' data: the tombstone replay
+
+`store_restore.py --restore` of a store named in `account_tombstones.STORE_REPLAYS` (today
+`user_definitions`, the saved indicators) **replays every account-deletion tombstone on the
+restored copy before it is renamed in**, then checkpoints the copy's WAL so the deletes travel
+with the main file. The tombstones come from the off-site store (the backups' bucket, while
+`AUTHDB_BACKUP_ENABLED=1` and `DATA_SYNC_*` are set). If that list cannot be read, the restore
+is **refused** and the live store is left exactly as it was.
+
+**Disaster overrides (deliberate, loud, and recorded).** Use only when the bucket itself is gone
+or unreachable and the store must come back now:
+
+```
+# 1. a LOCAL copy of the tombstone list: a directory copy of authdb/tombstones/ from the bucket,
+#    or a JSON file of ids (["<id>", ...] or {"<id>": "<deleted_at>"})
+python tools/store_restore.py --restore <obj> --to <path> --replace --tombstones-file D:\offline\tombstones
+# 2. the live auth.db's own tombstone table (read-only), alone or with 1.
+python tools/store_restore.py --restore <obj> --to <path> --replace --auth-db /data/auth.db
+# 3. nothing can be read at all: restore UNREPLAYED
+python tools/store_restore.py --restore <obj> --to <path> --replace --allow-unreplayed
+```
+
+In every override case the off-site list was not read, so the tool prints a `!!` banner, the
+member ids in the restored copy as **UNVERIFIED**, and writes
+`<store>.tombstone-replay-pending.json` beside the store. **Do not delete that marker.** The live
+tombstone sweep (`api/services/tombstone_sweep.py`, on the web pod every 6 h and 10 min after
+boot; kill switch `TOMBSTONE_SWEEP_ENABLED=0`) sees it, reads the off-site list once the bucket
+answers, replays it on the live store, and renames the marker to
+`...pending.retired-<stamp>.json`. Until then the sweep reports the marker as pending. With
+`--allow-unreplayed` a deleted member's saved indicators ARE live again until that sweep runs,
+which is why it is a disaster-only flag. The sweep also replays every tombstone in the live
+auth.db on each run, whether or not a marker exists.
+
+⛔ Stop every writer of the store first (the web process holds it open). On Windows an open
+handle also makes the move-aside of the old file fail.
+
 What the restore tools report:
 
 | Situation | Verdict |

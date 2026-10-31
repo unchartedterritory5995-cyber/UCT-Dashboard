@@ -1,11 +1,13 @@
-"""Gap Support pass 1 (read-only on the pod): the firm's detector uct_gap_support.evaluate is the gate (a true up-gap
+"""Gap Support finder (read-only on the pod): the firm's detector uct_gap_support.evaluate is the gate (a true up-gap
 of >= 4% on 2x volume within 60 sessions that held, an unfilled pullback of >= 1 ATR, a touch of a gap level with
 the close above it and above the gap top), then the universal rules the owner set on 2026-10-24 (liquid and
-sizable names only, a clean window, MUST WORK on the forward strip) and a gallery score that prefers what reads
-best on a chart: a first test, the gap TOP tested (not only the open), a strong close off the level, volume on
-the gap day well over 2x, confluence with a rising average, the test 10-40 sessions after the gap. Owner ruling
-on the Gap Support definition is PENDING: this pass shows the detector's own definition on varied real charts so
-he can rule on it one chart at a time. Prints a ranked candidate list with facts.
+sizable names only, a clean window, MUST WORK on the forward strip), then the OWNER'S GAP SUPPORT RULINGS of
+2026-10-26/27 (42 charts, one at a time): the level is the GAP-UP DAY LOW, which should HOLD (an open gap, best)
+or be only SLIGHTLY BREACHED with a close back above it; a fill to the gap-fill spot that reclaims the gap-up
+low is a lesser example; a breach that does not reclaim is a failed gap and is out. Gaps UP only, in a stock
+that is not in a downtrend (the gap day closes above a rising-or-flat 50-day). The gap bar itself is a PEG, not
+gap support; a gap never revisited is nothing. Facts carry gap_low and test_kind for the chart overlay and the
+lesson line. Prints a ranked candidate list with facts.
 
   railway ssh ... /opt/venv/bin/python  (via scratchpad run_pod_py.ps1)
 """
@@ -51,7 +53,19 @@ def facts(bars, S, i, det):
     rng = b["h"] - b["l"]; atr = S["atr"][j] or rng or 1e-9
     g = det["gap_idx"]; gb = bars[g]
     post_high = max(x["h"] for x in bars[g:i])
+    gap_low = gb["l"]; gap_top = det["gap_top"]
+    # owner ruling 2026-10-26: the test is judged against the GAP-UP DAY LOW
+    if b["l"] >= gap_low * 0.995: test_kind = "held"
+    elif b["l"] >= gap_low * 0.95 and b["c"] >= gap_low: test_kind = "slight_breach"
+    elif b["l"] <= gap_top * 1.02 and b["c"] >= gap_low: test_kind = "fill_reclaim"
+    elif b["c"] >= gap_low: test_kind = "breach_reclaim"
+    else: test_kind = "failed"
+    s50g = S["s50"][g] if S["s50"][g] else None
+    not_downtrend = bool(s50g) and gb["c"] > s50g and (not S["s50"][g - 10] or S["s50"][g] >= S["s50"][g - 10] * 0.99)
     f = {"gap_pct": det["gap_pct"], "bars_since_gap": det["bars_since_gap"], "true_gap": det["true_gap"],
+         "gap_low": round(gap_low, 2), "test_kind": test_kind, "test_low_vs_gap_low_pct": round(pct(b["l"], gap_low), 1),
+         "close_vs_gap_low_pct": round(pct(b["c"], gap_low), 1), "gap_day_above_50": bool(s50g) and gb["c"] > s50g,
+         "not_downtrend": not_downtrend,
          "gap_vol_2x": det["gap_vol_2x"], "gap_rvol": round(S["v"][g] / S["v50"][g - 1], 2) if S["v50"][g - 1] else None,
          "gap_day_pct": round(pct(gb["c"], bars[g - 1]["c"]), 2), "gap_day_dcr": round(dcr(gb), 2),
          "levels_touched": det["levels_touched"], "first_test": det["first_test"], "confluence": det["confluence"],
@@ -68,7 +82,8 @@ def facts(bars, S, i, det):
     sc += 2 if (f["gap_rvol"] or 0) >= 3.0 else (1 if f["gap_vol_2x"] else 0)
     sc += 2 if f["gap_pct"] >= 8 else (1 if f["gap_pct"] >= 5 else 0)
     sc += 2 if f["gap_day_dcr"] >= 0.7 else (1 if f["gap_day_dcr"] >= 0.5 else 0)
-    sc += 2 if "top" in f["levels_touched"] else (1 if "mid" in f["levels_touched"] or "glow" in f["levels_touched"] else 0)
+    # owner ranking 2026-10-27: held (open gap) > slight breach > fill and reclaim
+    sc += {"held": 3, "slight_breach": 2, "fill_reclaim": 1}.get(f["test_kind"], 0)
     sc += 2 if f["first_test"] else 0
     sc += 1 if f["confluence"] else 0
     sc += 2 if 10 <= f["bars_since_gap"] <= 40 else (1 if f["bars_since_gap"] >= 5 else 0)
@@ -79,7 +94,9 @@ def facts(bars, S, i, det):
     sc += 1 if (f["s50_slope10_pct"] or 0) > 0 else 0
     sc += 1 if 5 <= f["post_gap_run_pct"] <= 40 else 0
     cand = (f["true_gap"] and f["gap_vol_2x"] and f["dcr"] >= 0.5 and f["range_atr"] <= 3.0 and "gopen" != (f["levels_touched"] or ["x"])[0]
-            and f["bars_since_gap"] >= 5)
+            and f["bars_since_gap"] >= 5
+            and f["test_kind"] in ("held", "slight_breach", "fill_reclaim")   # a breach that does not reclaim is a failed gap
+            and f["not_downtrend"])                                           # gaps up in a downtrend are out
     f["setup_score"] = sc
     return cand and sc >= 13, sc, f
 

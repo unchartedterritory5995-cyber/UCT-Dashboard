@@ -1241,8 +1241,10 @@ describe('schema v2 — many trees, one hash', () => {
         + '`binder.js` is the ONE reader — it resolves `fill.with` to a sibling column and '
         + 'hands the two COLUMNS to `fillPrimitive.js`, which never sees the schema field. '
         + 'A NEW name here is a second authority over one field; a MISSING one means the '
-        + 'band stopped being drawn and every "fills are supported" claim went stale with it.',
-      ).toEqual(['binder.js'])
+        + 'band stopped being drawn and every "fills are supported" claim went stale with it. '
+        + '`memberDocumentMigration.js` reads it only to tell a STATIC band from a conditional '
+        + 'one before resolving a door-stamped opacity (`upgradeFromDoorStamps`); it draws nothing.',
+      ).toEqual(['binder.js', 'memberDocumentMigration.js'])
       // ⛔ AND THE PROBE IS NOT VACUOUS, in both directions. `defSchema.js` — the
       // one legitimate reader, excluded above — must MATCH, or the pattern has
       // rotted into one that reports every deletion as done; and the Array

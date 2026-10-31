@@ -125,8 +125,13 @@ describe('⭐⭐ the deepest recurrence any real script declares', () => {
     // ⭐ C22 (2026-09-30): THREE — `16-ict-smc-guide`'s session highs / lows,
     // switched recurrences whose reset reads another `var`, translate now
     // (`forgetsOnReset` scopes `self` to the nearest recurrence); at 250 too.
+    // ⭐ PINE COVERAGE PHASE 1 (2026-10-30): FIVE — `long_tail__02-relative-volume-
+    // candles-narrow-ranges` and `long_tail__05-master-line-plus` translate now (their
+    // `pine:function` walls were `ta.percentile_nearest_rank` and `ta.alma`), and each carries a
+    // recurrence that was always there behind the wall; at 250 too, so the deepest
+    // warm-up does not move.
     expect(maxWarmup).toBe(250)
-    expect(perScript.size).toBe(3)
+    expect(perScript.size).toBe(5)
     expect(v2Warmups).toContain(250)
     // ⛔ AND THE CAP IS A REAL BOUND ON IT, not an accident of this corpus:
     // `warmup` is an `int` window like any other, so `budget:lookback` already

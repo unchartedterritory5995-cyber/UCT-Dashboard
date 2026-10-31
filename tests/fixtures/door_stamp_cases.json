@@ -1,0 +1,330 @@
+{
+  "_about": "ONE door-stamp upgrade, client and server: memberDocumentMigration.upgradeFromDoorStamps (app/src/components/chart/engine/__tests__/doorStamps.test.js) and user_definitions.refresh_from_door_stamps (tests/test_door_stamps.py). Each case loads `base` (a document the member door wrote at DOOR_VERSION 1), applies `ops`, and runs the upgrade with today's rules, or with rules = 'future': {1: today's rule, 2: a HYPOTHETICAL next door that paints a v5/v6 band with no stated transparency at 0.5} -- both suites define that same hypothetical, to exercise the 'older door' half of the seam before any older door exists. `expect` maps plot key -> the fillOpacity it must get; every other byte must be as given, and an empty `expect` means the SAME object. `validates` documents must pass defSchema.validateDefinition AND the server's validate_v2 + presentation_errors, stamped or not. A second run is always the identity.",
+  "doorVersion": 1,
+  "future": {
+    "modernNoneOpacity": 0.5
+  },
+  "cases": [
+    {
+      "name": "v6 as the door wrote it: every band already stated",
+      "base": "tests/fixtures/door_stamps/v6-fills.json",
+      "ops": [],
+      "expect": {},
+      "validates": true
+    },
+    {
+      "name": "v6 unstamped (an old save): never guessed",
+      "base": "tests/fixtures/door_stamps/v6-fills.json",
+      "ops": [
+        {
+          "op": "deleteMeta",
+          "key": "pineVersion"
+        },
+        {
+          "op": "deleteMeta",
+          "key": "doorVersion"
+        },
+        {
+          "op": "deletePlotField",
+          "plot": "value",
+          "field": "fillTransparency"
+        },
+        {
+          "op": "deletePlotField",
+          "plot": "out3",
+          "field": "fillTransparency"
+        },
+        {
+          "op": "deletePlotField",
+          "plot": "value",
+          "field": "fillOpacity"
+        },
+        {
+          "op": "deletePlotField",
+          "plot": "out3",
+          "field": "fillOpacity"
+        }
+      ],
+      "expect": {},
+      "validates": true
+    },
+    {
+      "name": "v6 stamped band, nothing stated, no opacity -> opaque",
+      "base": "tests/fixtures/door_stamps/v6-fills.json",
+      "ops": [
+        {
+          "op": "deletePlotField",
+          "plot": "value",
+          "field": "fillOpacity"
+        }
+      ],
+      "expect": {
+        "value": 1
+      },
+      "validates": true
+    },
+    {
+      "name": "v6 stamped color.new 87.5, no opacity -> the exact float",
+      "base": "tests/fixtures/door_stamps/v6-fills.json",
+      "ops": [
+        {
+          "op": "deletePlotField",
+          "plot": "out3",
+          "field": "fillOpacity"
+        }
+      ],
+      "expect": {
+        "out3": 0.125
+      },
+      "validates": true
+    },
+    {
+      "name": "a member's own opacity on a stamped band survives",
+      "base": "tests/fixtures/door_stamps/v6-fills.json",
+      "ops": [
+        {
+          "op": "setPlotField",
+          "plot": "value",
+          "field": "fillOpacity",
+          "value": 0.3
+        }
+      ],
+      "expect": {}
+    },
+    {
+      "name": "doorVersion without pineVersion: never guessed",
+      "base": "tests/fixtures/door_stamps/v6-fills.json",
+      "ops": [
+        {
+          "op": "deleteMeta",
+          "key": "pineVersion"
+        },
+        {
+          "op": "deletePlotField",
+          "plot": "value",
+          "field": "fillOpacity"
+        }
+      ],
+      "expect": {}
+    },
+    {
+      "name": "pineVersion without doorVersion: never guessed",
+      "base": "tests/fixtures/door_stamps/v6-fills.json",
+      "ops": [
+        {
+          "op": "deleteMeta",
+          "key": "doorVersion"
+        },
+        {
+          "op": "deletePlotField",
+          "plot": "value",
+          "field": "fillOpacity"
+        }
+      ],
+      "expect": {}
+    },
+    {
+      "name": "an unknown (future) doorVersion: never guessed",
+      "base": "tests/fixtures/door_stamps/v6-fills.json",
+      "ops": [
+        {
+          "op": "setMeta",
+          "key": "doorVersion",
+          "value": 99
+        },
+        {
+          "op": "deletePlotField",
+          "plot": "value",
+          "field": "fillOpacity"
+        }
+      ],
+      "expect": {}
+    },
+    {
+      "name": "a doorVersion that is not an integer: never guessed",
+      "base": "tests/fixtures/door_stamps/v6-fills.json",
+      "ops": [
+        {
+          "op": "setMeta",
+          "key": "doorVersion",
+          "value": "1"
+        },
+        {
+          "op": "deletePlotField",
+          "plot": "value",
+          "field": "fillOpacity"
+        }
+      ],
+      "expect": {}
+    },
+    {
+      "name": "a pineVersion of 0: never guessed",
+      "base": "tests/fixtures/door_stamps/v6-fills.json",
+      "ops": [
+        {
+          "op": "setMeta",
+          "key": "pineVersion",
+          "value": 0
+        },
+        {
+          "op": "deletePlotField",
+          "plot": "value",
+          "field": "fillOpacity"
+        }
+      ],
+      "expect": {}
+    },
+    {
+      "name": "a malformed stamp (none with a value): never guessed",
+      "base": "tests/fixtures/door_stamps/v6-fills.json",
+      "ops": [
+        {
+          "op": "setPlotField",
+          "plot": "value",
+          "field": "fillTransparency",
+          "value": {
+            "value": 90,
+            "via": "none"
+          }
+        },
+        {
+          "op": "deletePlotField",
+          "plot": "value",
+          "field": "fillOpacity"
+        }
+      ],
+      "expect": {}
+    },
+    {
+      "name": "an unknown via: never guessed",
+      "base": "tests/fixtures/door_stamps/v6-fills.json",
+      "ops": [
+        {
+          "op": "setPlotField",
+          "plot": "value",
+          "field": "fillTransparency",
+          "value": {
+            "value": 50,
+            "via": "alpha"
+          }
+        },
+        {
+          "op": "deletePlotField",
+          "plot": "value",
+          "field": "fillOpacity"
+        }
+      ],
+      "expect": {}
+    },
+    {
+      "name": "a conditional band is not a static band",
+      "base": "tests/fixtures/door_stamps/v6-fills.json",
+      "ops": [
+        {
+          "op": "setFill",
+          "plot": "value",
+          "set": {
+            "colorMode": "column:out2",
+            "colorUp": "#00FF00",
+            "colorDown": "#FF0000"
+          }
+        },
+        {
+          "op": "deletePlotField",
+          "plot": "value",
+          "field": "fillOpacity"
+        }
+      ],
+      "expect": {}
+    },
+    {
+      "name": "v4 stamped band, nothing stated, no opacity -> transparency 90",
+      "base": "tests/fixtures/door_stamps/v4-fills.json",
+      "ops": [
+        {
+          "op": "deletePlotField",
+          "plot": "value",
+          "field": "fillOpacity"
+        }
+      ],
+      "expect": {
+        "value": 0.1
+      },
+      "validates": true
+    },
+    {
+      "name": "v4 stamped transp 70, no opacity -> (100 - 70) / 100",
+      "base": "tests/fixtures/door_stamps/v4-fills.json",
+      "ops": [
+        {
+          "op": "deletePlotField",
+          "plot": "out3",
+          "field": "fillOpacity"
+        }
+      ],
+      "expect": {
+        "out3": 0.3
+      },
+      "validates": true
+    },
+    {
+      "name": "v4 as the door wrote it",
+      "base": "tests/fixtures/door_stamps/v4-fills.json",
+      "ops": [],
+      "expect": {},
+      "validates": true
+    },
+    {
+      "name": "unversioned (pineVersion null) is legacy -> transparency 90",
+      "base": "tests/fixtures/door_stamps/unversioned-fills.json",
+      "ops": [
+        {
+          "op": "deletePlotField",
+          "plot": "value",
+          "field": "fillOpacity"
+        }
+      ],
+      "expect": {
+        "value": 0.1
+      },
+      "validates": true
+    },
+    {
+      "name": "unversioned as the door wrote it",
+      "base": "tests/fixtures/door_stamps/unversioned-fills.json",
+      "ops": [],
+      "expect": {},
+      "validates": true
+    },
+    {
+      "name": "SEAM: an older door's own value moves to the newer door's rule",
+      "base": "tests/fixtures/door_stamps/v6-fills.json",
+      "ops": [],
+      "rules": "future",
+      "expect": {
+        "value": 0.5
+      }
+    },
+    {
+      "name": "SEAM: a value the older door did not write is never moved",
+      "base": "tests/fixtures/door_stamps/v6-fills.json",
+      "ops": [
+        {
+          "op": "setPlotField",
+          "plot": "value",
+          "field": "fillOpacity",
+          "value": 0.3
+        }
+      ],
+      "rules": "future",
+      "expect": {}
+    },
+    {
+      "name": "SEAM: a band the newer rule states the same way is left as given",
+      "base": "tests/fixtures/door_stamps/v4-fills.json",
+      "ops": [],
+      "rules": "future",
+      "expect": {}
+    }
+  ]
+}

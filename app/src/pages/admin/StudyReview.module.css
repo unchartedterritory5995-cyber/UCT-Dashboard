@@ -100,6 +100,8 @@
 }
 .dates { font-size: 12px; color: var(--text-muted, #cfcac0); font-variant-numeric: tabular-nums; }
 .position { margin-left: auto; font-size: 12px; color: var(--text-muted, #cfcac0); }
+.closeUpBtn { font-size: 11px; padding: 2px 8px; border-radius: 10px; border: 1px solid var(--ut-gold, #dcbb5e); background: transparent; color: var(--ut-gold, #dcbb5e); cursor: pointer; }
+.closeUpBtn[aria-pressed='true'] { background: var(--ut-gold, #dcbb5e); color: #111; }
 
 .chartWrap {
   height: 420px; border: 1px solid var(--border, #2a2c31); border-radius: var(--radius-md, 6px);

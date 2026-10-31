@@ -208,6 +208,9 @@ const ACKNOWLEDGED_CHART = [
   'src/components/chart/legend',
   'src/components/chart/pane',
   'src/components/chart/patternShapes',
+  // The Pine support loop, Phase A (2026-10-30, docs/pine/support-loop/PHASE-A.md).
+  // Run green (4 files / 22 tests) BEFORE this line was added; `test:chart` covers it.
+  'src/components/chart/supportLoop',
 ]
 
 /** Every `src/`-ish path that any `test*` script hands to vitest. */

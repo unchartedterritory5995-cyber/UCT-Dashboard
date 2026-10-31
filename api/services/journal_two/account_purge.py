@@ -233,6 +233,70 @@ _DIRECT_USER_TABLES = (
     "j2_gallery_use_days",
     "j2_gallery_credits",
     "j2_gallery_helpful_prompts",
+    # Pine support loop, Phase A (docs/pine/support-loop/PHASE-A.md; owner-approved
+    # 2026-10-30) -- the member's opt-in "Doesn't match TradingView?" reports, which hold
+    # the script code they chose to send. auth.db; self-ensured by
+    # api/services/indicator_support.py (never db.py), so on a pod where no report was
+    # ever filed this is a "no such table" no-op. Their GAP COUNTS are keyed by a hash,
+    # not user_id, and go in the hashed pass below.
+    "indicator_support_reports",
+    # Saved-indicator alerts (owner-approved 2026-10-30): the member's indicator alerts and
+    # every fire of each. auth.db, no foreign key to users(id), so `_cascade_delete_user`'s
+    # PRAGMA walk never reached them; an alert on a `u_...` plot points at a definition the
+    # purge of user_definitions.db (below) removes. Created by
+    # indicator_alert_service.init_schema / alert_fired_log.init_schema (never db.py), so on
+    # a pod where no alert was ever armed each is a "no such table" no-op. Their rev side
+    # table carries no user_id and goes in the join pass below.
+    "indicator_alerts",
+    "indicator_alert_fires",
+    # Alerts, the rest of them (owner-approved 2026-10-30). auth.db, no foreign key to
+    # users(id), so `_cascade_delete_user`'s PRAGMA walk never reached any of them. Each is
+    # self-ensured by its own module (never db.py), so on a pod where the feature never ran
+    # it is a "no such table" no-op. The alert stores in OTHER databases are
+    # `alert_erasure.purge_user` (below), not rows here.
+    #   * the inbound TradingView receiver: the member's token(s) -- a live credential; the
+    #     URL is the password -- and every fire it accepted (inbound_alerts.py). The token is
+    #     also deleted, and committed, BEFORE this loop by `alert_erasure.revoke_credentials`.
+    "inbound_alert_tokens",
+    "inbound_alert_receipts",
+    #   * the durable bell: every private alert delivered to the member (alert_durability.py).
+    "user_alerts",
+    #   * where alerts are PUSHED to: the member's browser push subscriptions (web_push.py).
+    "web_push_subscriptions",
+    # Other member tables in auth.db the account-deletion census found with a member id and
+    # no foreign key (owner-approved 2026-10-30, the census in tests/test_alert_erasure.py):
+    # each is the member's own saved state, keyed by their user_id, self-ensured by its module.
+    "screener_saved_screens",          # screener/saved_screens.py -- their saved screens
+    "ics_export_token_state",          # ics_export_token.py -- their calendar-feed token state
+    "calendar_seen",                   # calendar_seen.py -- which calendar items they have seen
+    "terminal_aliases",                # terminal_grammar.py -- their command aliases
+    "terminal_command_counts",         # terminal_grammar.py -- their command usage
+    "terminal_visits",                 # terminal_grammar.py -- their terminal visits
+    "watchlist_origins",               # watchlist_origin.py -- where their watchlist names came from
+    "what_else_open_occasions",        # what_else_open.py -- their "what else is open" history
+    "hub_planned_trades",              # journal_two/db.py -- their planned trades (not a j2_ name)
+    "j2_earnings_followup_log",        # journal_two/earnings_followup.py -- their follow-up log
+    "upb_sections",                    # user_playbook/db.py -- their personal playbook
+    "upb_entries",
+    "upb_charts",
+    "upb_note_links",
+    "user_preferences",                # auth_db.py -- every preference they saved
+    "import_sessions",                 # auth_db.py -- their trade-import history
+)
+# ⛔ NOT here, ON PURPOSE (review of the alerts purge, 2026-10-31):
+#   * user_totp / user_backup_codes -- the member's 2FA goes IF AND ONLY IF the account row goes,
+#     so it is deleted inside `auth._cascade_delete_user`'s transaction
+#     (`auth.DELETED_WITH_THE_ACCOUNT_ROW`), never here, before it;
+#   * page_views / feedback -- ANONYMISED, not deleted (`_ANONYMISED`, below).
+
+#: Tables whose rows OUTLIVE the member with every identifying column cleared (owner's call,
+#: 2026-10-31): traffic history and the text of feedback are kept; who they were is not.
+#: (table, the identifying columns). A NOT NULL column is set to '' (SQLite cannot drop the
+#: constraint in place), a nullable one to NULL. `tools/account_deletion_manifest.py` reads this
+#: tuple by AST and lists these tables as ANONYMISED, never as deleted.
+_ANONYMISED = (
+    ("page_views", ("user_id",)),          # auth_db.py -- the pages they viewed
+    ("feedback", ("user_id", "email")),    # auth_db.py -- feedback they sent; the message stays
 )
 
 # j2_broker_digest_dedup is deliberately excluded: it is a single global row
@@ -243,11 +307,32 @@ _DIRECT_USER_TABLES = (
 # (day, ran_at, members, delivered) recording that the reminder pass closed
 # that day — counts only, no user_id, nothing that names a member.
 #
+# definition_evaluations is deliberately excluded too: keyed by the AST HASH of a formula, with
+# no member id -- the measured history of a tree, shared by every member who runs it.
+#
 # account_tombstones is deliberately excluded as well (wave 10, lane 10C, ruling
 # R-9): it is the record THIS purge writes -- the deleted member's id and the time,
 # nothing else -- so that every restore of an older backup deletes them again
 # (api/services/account_tombstones.py). Purging it would undo the erasure it exists
 # to keep.
+
+
+def _anonymise(conn: sqlite3.Connection, user_id: str, errors: list[str]) -> dict[str, int]:
+    """Clear the identifying columns of every `_ANONYMISED` row the member owns. Best effort
+    per table, like the deletes; a table that does not exist is a counted no-op."""
+    out: dict[str, int] = {}
+    for table, cols in _ANONYMISED:
+        out[table] = 0
+        try:
+            notnull = {c[1] for c in conn.execute(f'PRAGMA table_info("{table}")') if c[3]}
+            sets = ", ".join(f"{c} = {chr(39) * 2 if c in notnull else 'NULL'}" for c in cols)
+            cur = conn.execute(f"UPDATE {table} SET {sets} WHERE user_id = ?", (user_id,))
+            out[table] = cur.rowcount if cur.rowcount and cur.rowcount > 0 else 0
+        except sqlite3.OperationalError as e:
+            if "no such table" not in str(e).lower():
+                errors.append(f"{table} (anonymise): {e}")
+                log.warning("journal_two account purge could not anonymise %s: %s", table, e)
+    return out
 
 
 def purge_user_data(user_id: str, conn: sqlite3.Connection, *,
@@ -283,9 +368,22 @@ def purge_user_data(user_id: str, conn: sqlite3.Connection, *,
     # outside the per-member tree below, so their ids are needed after the rows are gone. P3b-F-R3 (final review
     # M-2): they are read INSIDE the deletes' own write transaction, so an example committed between a separate
     # read and the deletes can no longer lose its row while its directory stays behind, orphaned.
+    # Alert CREDENTIALS before anything else (owner-approved 2026-10-30): the inbound
+    # TradingView receiver token and the outbound webhook endpoints are the two things that can
+    # still move data while the rest of this runs. Each half commits on its own.
+    credentials: dict[str, Any] = {}
+    pre_errors: list[str] = []
+    try:
+        from api.services import alert_erasure
+        credentials = alert_erasure.revoke_credentials(user_id, conn)
+        pre_errors.extend(f"alert credentials: {e}" for e in credentials.get("errors", []))
+    except Exception as e:  # noqa: BLE001 -- the deletes below still run; reported, not skipped
+        pre_errors.append(f"alert credentials: {type(e).__name__}: {e}")
+        log.warning("alert credential revoke failed for %s: %s", user_id, e)
+
     example_ids: list[str] = []
     report = purge_user_rows(user_id, conn, example_ids=example_ids)
-    errors = report["errors"]
+    errors = pre_errors + report["errors"]
 
     # On-disk attachments: notebook inline/hero images AND trade screenshots
     # both nest under one per-user directory (attachment_root()/user_id) by
@@ -328,6 +426,33 @@ def purge_user_data(user_id: str, conn: sqlite3.Connection, *,
         errors.append(f"voice notes: {e}")
         log.warning("journal_two voice-note purge failed for %s: %s", user_id, e)
 
+    # Saved indicators (owner-approved 2026-10-30) live in a SECOND database,
+    # user_definitions.db, which no statement on `conn` can reach. Its own module opens it:
+    # the member's definitions (every version), share links, library listings and re-lint
+    # rows go; the copies other members installed stay theirs, with the author's id scrubbed.
+    # A restore of that store replays this through account_tombstones.replay_on_user_definitions_db.
+    user_definitions_report: dict[str, Any] = {}
+    try:
+        from api.services import user_definitions
+        user_definitions_report = user_definitions.purge_user(user_id)
+        errors.extend(f"user_definitions.db: {e}" for e in user_definitions_report.get("errors", []))
+    except Exception as e:  # noqa: BLE001 -- one store can never abort the rest; reported, not skipped
+        errors.append(f"user_definitions.db: {type(e).__name__}: {e}")
+        log.warning("user_definitions purge failed for %s: %s", user_id, e)
+
+    # Alerts in the databases outside auth.db (owner-approved 2026-10-30): alert_taxonomy.db,
+    # screener.db, calendar_alerts.db, transcript_alerts.db and catalysts.db, each through its
+    # own module's connection and lock (`alert_erasure.STORES`). A restore of any of them
+    # replays this through `account_tombstones.STORE_REPLAYS`.
+    alert_stores_report: dict[str, Any] = {}
+    try:
+        from api.services import alert_erasure
+        alert_stores_report = alert_erasure.purge_user(user_id)
+        errors.extend(f"alert stores: {e}" for e in alert_stores_report.get("errors", []))
+    except Exception as e:  # noqa: BLE001 -- one store can never abort the rest; reported, not skipped
+        errors.append(f"alert stores: {type(e).__name__}: {e}")
+        log.warning("alert store purge failed for %s: %s", user_id, e)
+
     # The tombstone (R-9) was recorded before the first delete above: the live purge is
     # immediate, the BACKUPS still hold this member, and the tombstone -- a row here and
     # an object beside the backups -- is what makes every restore delete them again.
@@ -337,6 +462,9 @@ def purge_user_data(user_id: str, conn: sqlite3.Connection, *,
         "attachment_dirs_removed": freed_dirs,
         "example_image_dirs_removed": example_dirs,
         "voice_jobs_removed": voice_jobs,
+        "user_definitions": user_definitions_report,
+        "alert_credentials": credentials,
+        "alert_stores": alert_stores_report,
         "errors": errors,
         "tombstone": tomb,
     }
@@ -383,6 +511,14 @@ def purge_user_rows(user_id: str, conn: sqlite3.Connection, *,
         "j2_option_legs",
         "DELETE FROM j2_option_legs WHERE strategy_id IN "
         "(SELECT id FROM j2_option_strategies WHERE user_id = ?)",
+        (user_id,),
+    )
+    # Saved-indicator alerts -- each alert's rev-migration side row (alert_rev_migration.py,
+    # auth.db) carries only the alert's id. Run before the direct delete of indicator_alerts.
+    deleted["indicator_alert_rev"] = _run(
+        "indicator_alert_rev",
+        "DELETE FROM indicator_alert_rev WHERE alert_id IN "
+        "(SELECT id FROM indicator_alerts WHERE user_id = ?)",
         (user_id,),
     )
     deleted["j2_broker_member_stale_notify"] = _run(
@@ -453,6 +589,24 @@ def purge_user_rows(user_id: str, conn: sqlite3.Connection, *,
         (user_id,),
     )
 
+    # Pine support loop, Phase A -- the member's gap counts. `indicator_gap_hits` holds no
+    # user_id: its member column is HMAC(PUSH_SECRET, user_id), and the ONE function that
+    # computes it is `indicator_support.member_key` -- called here, never re-implemented, so
+    # the purge cannot drift from the key the writes used. A key that could not be computed
+    # is an error in the report, never a silent skip.
+    try:
+        from api.services.indicator_support import member_key as _gap_member_key
+    except Exception as e:  # noqa: BLE001 -- one table can never abort the rest
+        _gap_member_key = None
+        errors.append(f"indicator_gap_hits: member key: {e}")
+    deleted["indicator_gap_hits"] = _run(
+        "indicator_gap_hits",
+        "DELETE FROM indicator_gap_hits WHERE member_key = ?",
+        (_gap_member_key(user_id),),
+    ) if _gap_member_key is not None else 0
+
+    anonymised = _anonymise(conn, user_id, errors)
+
     conn.commit()
 
     return {
@@ -460,6 +614,7 @@ def purge_user_rows(user_id: str, conn: sqlite3.Connection, *,
         "user_id": user_id,
         "rows_deleted": deleted,
         "total_rows_deleted": sum(deleted.values()),
+        "rows_anonymised": anonymised,
         "attachment_dirs_removed": 0,
         "errors": errors,
     }

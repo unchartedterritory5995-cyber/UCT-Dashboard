@@ -1,0 +1,19 @@
+{
+  "_": "Saved documents whose INPUT key is a table function declared after members could save documents (closedTable.json::_functions_added_after_saved_documents). Read by BOTH lanes: app/src/components/chart/engine/ast/interpret.inputCompat.test.js and tests/test_ast_input_compat.py. Each `saved` document must compute exactly what the same document computes with its input under a key no table holds (`control_key`), i.e. what it computed before the table declared the name. `old_names` must still raise: an input shadowing a name the table held before saved documents existed is a wiring defect. `call_refused` is a document whose input took the name AND whose tree calls the function of that name: the call is refused resolve:function, by name.",
+  "control_key": "k_compat_control",
+  "bars": [
+    {"t": 1700000000, "o": 10.0, "h": 11.0, "l": 9.5, "c": 10.5, "v": 1000},
+    {"t": 1700000300, "o": 10.5, "h": 11.5, "l": 10.0, "c": 11.0, "v": 1200},
+    {"t": 1700000600, "o": 11.0, "h": 11.2, "l": 10.4, "c": 10.6, "v": 900},
+    {"t": 1700000900, "o": 10.6, "h": 10.9, "l": 10.1, "c": 10.8, "v": 1100},
+    {"t": 1700001200, "o": 10.8, "h": 11.6, "l": 10.7, "c": 11.4, "v": 1500}
+  ],
+  "saved": [
+    {"input": "alma", "value": 2.5, "ast": {"type": "op", "name": "+", "args": [{"type": "op", "name": "*", "args": [{"type": "series", "name": "close"}, {"type": "series", "name": "alma"}]}, {"type": "series", "name": "open"}]}},
+    {"input": "rci", "value": 0.25, "ast": {"type": "op", "name": "-", "args": [{"type": "series", "name": "high"}, {"type": "op", "name": "*", "args": [{"type": "series", "name": "rci"}, {"type": "series", "name": "low"}]}]}},
+    {"input": "acos", "value": 3, "ast": {"type": "call", "name": "sma", "args": [{"type": "op", "name": "*", "args": [{"type": "series", "name": "close"}, {"type": "series", "name": "acos"}]}, {"type": "num", "value": 2}]}},
+    {"input": "percentileNearestRank", "value": 1.5, "ast": {"type": "op", "name": ">", "args": [{"type": "op", "name": "*", "args": [{"type": "series", "name": "volume"}, {"type": "series", "name": "percentileNearestRank"}]}, {"type": "num", "value": 1600}]}}
+  ],
+  "old_names": ["sma", "atan", "percentileLinearInterpolation", "valuewhenOccurrence"],
+  "call_refused": {"input": "alma", "value": 9, "ast": {"type": "call", "name": "alma", "args": [{"type": "series", "name": "close"}, {"type": "num", "value": 3}, {"type": "num", "value": 0.85}, {"type": "num", "value": 6}]}}
+}

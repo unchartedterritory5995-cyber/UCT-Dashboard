@@ -1,0 +1,4 @@
+study("Door stamp unversioned", overlay=false)
+p1 = plot(sma(close, 10), "p1", color=color.gray)
+p2 = plot(sma(close, 20), "p2", color=color.gray)
+fill(p1, p2, color=color.red)

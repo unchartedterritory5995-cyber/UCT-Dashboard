@@ -1,0 +1,26 @@
+//@version=6
+indicator("UCTPROBE_VW_P2_BAR_TIME_SPAN", overlay = true)
+
+// ─── 2026-10-30 — PINE COVERAGE PHASE 2b: WHERE AN `xloc.bar_time` INSTANT THAT IS NOT
+// A BAR'S OPEN IS DRAWN. Ours places an instant inside a loaded bar's span
+// [its open, the next bar's open) on that bar (`objectRenderState.js::makeBarClock`).
+// Each row pairs a bar_time label with a bar_index ANCHOR label on the bar we expect;
+// the capture's x is a dense rank, so a pair that shares a rank shares a bar.
+//   A0/B0  anchor bar_index - 5        vs  time[5]            (the open: the control)
+//   A1/B1  anchor bar_index - 5        vs  time[5] + 3h       (mid-session)
+//   A2/B2  anchor bar_index - 5        vs  time_close[5]      (16:00 on a daily chart)
+//   A3/B3  anchor bar_index - 6        vs  time[5] - 1h       (before the open: the bar before)
+//   A4/B4  anchor bar_index            vs  time_close         (the last bar's close)
+//   B5     time + 3 days + 2h          (past the last bar, not a session open: drawn at all?)
+if barstate.islast
+    label.new(bar_index - 5, high, "A0", style = label.style_label_down)
+    label.new(time[5], low, "B0", xloc = xloc.bar_time, style = label.style_label_up)
+    label.new(bar_index - 5, high * 1.01, "A1", style = label.style_label_down)
+    label.new(time[5] + 3 * 3600000, low * 0.99, "B1", xloc = xloc.bar_time, style = label.style_label_up)
+    label.new(bar_index - 5, high * 1.02, "A2", style = label.style_label_down)
+    label.new(time_close[5], low * 0.98, "B2", xloc = xloc.bar_time, style = label.style_label_up)
+    label.new(bar_index - 6, high * 1.03, "A3", style = label.style_label_down)
+    label.new(time[5] - 3600000, low * 0.97, "B3", xloc = xloc.bar_time, style = label.style_label_up)
+    label.new(bar_index, high * 1.04, "A4", style = label.style_label_down)
+    label.new(time_close, low * 0.96, "B4", xloc = xloc.bar_time, style = label.style_label_up)
+    label.new(time + 3 * 86400000 + 7200000, close, "B5", xloc = xloc.bar_time)
