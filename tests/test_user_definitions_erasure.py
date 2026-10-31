@@ -82,15 +82,17 @@ def store(tmp_path, monkeypatch):
 
 
 def _rows(where: str = "1=1", args: tuple = ()) -> dict:
-    """Every row of every member table in the store, keyed (table, rowid) -> the full row."""
+    """Every row of every table in the store that has a `user_id` column, keyed (table, rowid)
+    -> the full row. ⛔ The tables are read off the FILE, never off `ude.MEMBER_TABLES`: a rail
+    that iterated the list under test would pass with a table dropped from it (mutation M2)."""
     out = {}
     with sqlite3.connect(svc._DB_PATH) as c:
-        for table in ude.MEMBER_TABLES:
-            try:
-                for r in c.execute(f"SELECT rowid, * FROM {table} WHERE {where}", args):
-                    out[(table, r[0])] = r[1:]
-            except sqlite3.OperationalError:
+        tables = [r[0] for r in c.execute("SELECT name FROM sqlite_master WHERE type='table'")]
+        for table in tables:
+            if not any(col[1] == "user_id" for col in c.execute(f'PRAGMA table_info("{table}")')):
                 continue
+            for r in c.execute(f'SELECT rowid, * FROM "{table}" WHERE {where}', args):
+                out[(table, r[0])] = r[1:]
     return out
 
 
@@ -122,7 +124,9 @@ def test_the_purge_removes_the_members_definitions_shares_listings_and_relint_ro
     kept = _seed_member(CONTROL, "Control Average")
     mine_before = _rows("user_id = ?", (LEAVER,))
     tables_seeded = {t for t, _ in mine_before}
-    assert tables_seeded == set(ude.MEMBER_TABLES), f"seed did not reach: {set(ude.MEMBER_TABLES) - tables_seeded}"
+    # Typed here on purpose, NOT read from ude.MEMBER_TABLES: the four tables this rail proves.
+    expected = {"user_definitions", "definition_shares", "definition_listings", "user_definition_relint_log"}
+    assert tables_seeded == expected, f"seed did not reach: {expected - tables_seeded}"
     assert len([k for k in mine_before if k[0] == "user_definitions"]) == 2, "two versions are two rows"
     others_before = _rows("user_id <> ?", (LEAVER,))
 
@@ -223,6 +227,28 @@ def test_other_members_copies_survive_with_the_author_scrubbed_and_still_install
     third = svc.install_share(THIRD, token)
     assert third["origin"]["author_id"] == FRIEND
     assert svc.get(THIRD, third["def_id"])["ast_hash"] == svc.get(FRIEND, copy_id)["ast_hash"]
+
+
+def test_the_scrub_matches_the_AUTHOR_not_any_mention_of_the_id():
+    """The SQL pre-filter finds every row whose text contains the leaver's id; only a copy whose
+    `origin.author_id` IS that id is rewritten. A copy authored by someone else that merely
+    mentions the id (here, in its name) keeps its author and its bytes (mutation M4)."""
+    # Named EXACTLY the leaver's id, so the stored text holds the same JSON string the
+    # pre-filter searches for ('"<id>"') -- a looser mention would never reach the guard.
+    control = _seed_member(CONTROL, LEAVER)
+    _seed_member(LEAVER, "Leaver Average")
+    copy_id = svc.install_share(FRIEND, control["token"])["def_id"]
+    with sqlite3.connect(svc._DB_PATH) as c:
+        before = c.execute("SELECT definition FROM user_definitions WHERE user_id = ? AND def_id = ?",
+                           (FRIEND, copy_id)).fetchone()[0]
+    assert LEAVER in before, "non-vacuity: the copy must mention the leaver's id"
+    report = svc.purge_user(LEAVER)
+    assert report["ok"] is True and report["authors_scrubbed"] == 0
+    with sqlite3.connect(svc._DB_PATH) as c:
+        after = c.execute("SELECT definition FROM user_definitions WHERE user_id = ? AND def_id = ?",
+                          (FRIEND, copy_id)).fetchone()[0]
+    assert after == before
+    assert json.loads(after)["origin"]["author_id"] == CONTROL
 
 
 # ═══ 5. failures surface ════════════════════════════════════════════════════
