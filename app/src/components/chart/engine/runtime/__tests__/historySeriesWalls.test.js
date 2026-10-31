@@ -84,6 +84,15 @@ describe('2 — an infinity is not history: `x[1]` agrees with the columnar lane
     expect(rt).toEqual(col)
     expect(rt.slice(1).every((v) => v === 0)).toBe(true)
   })
+  it('a slot that holds an infinity reads `na` back, at a constant and at a runtime offset', () => {
+    // `k` is runtime state, so `x` is a slot and `x[…]` reads its committed ring
+    const pre = '//@version=5\nindicator("t")\nvar float k = 0.0\nk := k + 1\nfloat x = close / (k - k)\n'
+    const [c1] = run(pre + 'plot(x[1] > 1 ? 1 : 0)\n')
+    // a loop counter is a runtime offset the lane can bound (`boundedSlotOffset`)
+    const [dn] = run(pre + 'float s = 0.0\nfor i = 1 to 2\n    s := s + (x[i] > 1 ? 1 : 0)\nplot(s)\n')
+    expect(c1.slice(1).every((v) => v === 0)).toBe(true)
+    expect(dn.every((v) => v === 0)).toBe(true)
+  })
   it('the live value is unchanged (laundered at EMIT, as before)', () => {
     const [y] = run('//@version=5\nindicator("t")\nvar float x = 0.0\nx := close / (close - close)\nplot(x)\n')
     expect(y.every(Number.isNaN)).toBe(true)

@@ -106,6 +106,16 @@ describe('1 — a `ta.*` in one arm of `?:` keeps that arm\'s runs: refused by n
     const sym = { ...runtimeClockOpts(false), symbol: { ticker: 'SPY', exchange: 'NYSE Arca' } }
     expect(refusalOf(v6('r = str.contains(syminfo.ticker, "/")\nplot(r ? close : ta.sma(close, 5))\n'), sym)).toBeNull()
   })
+  it('SERVED: a value `switch` on an `input.string` with quoted inline arms (volume-supertrend-ai\'s `switch maSrc`)', () => {
+    const body = 'maSrc = input.string("WMA", "m", options = ["SMA", "WMA"])\n'
+      + 'v = switch maSrc\n    \'SMA\' => ta.sma(close, 5)\n    \'WMA\' => ta.wma(close, 5)\nplot(v)\n'
+    const [y] = run(v6(body))
+    const [every] = run(v6('plot(ta.wma(close, 5))\n'))
+    y.forEach((v, i) => expect(same(v, every[i]), `bar ${i}`).toBe(true))
+    // ⛔ the same switch on a PER-BAR text stays refused
+    const r = refusalOf(v6('m = close > open ? "WMA" : "SMA"\nv = switch m\n    \'SMA\' => ta.sma(close, 5)\n    \'WMA\' => ta.wma(close, 5)\nplot(v)\n'))
+    expect(r && r.guard).toBe(R4)
+  })
   it('SERVED: a NAME in an arm is its own line\'s value, and chart history in an arm is the chart\'s', () => {
     expect(refusalOf(v6('ma = ta.sma(close, 5)\nplot(close > open ? ma : close)\n'))).toBeNull()
     expect(refusalOf(v6('plot(close > open ? close[1] : nz(close[2]))\n'))).toBeNull()

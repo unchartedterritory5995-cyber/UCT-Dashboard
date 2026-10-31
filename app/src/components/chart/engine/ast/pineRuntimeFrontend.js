@@ -1566,6 +1566,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
    *  call site could fix (`r4CulpritSeen`). */
   const invariantTest = (test, scope) => {
     if (!test || inRequestValue) return false
+    // a text fixed before bar 0 (a quoted `'WMA' =>` match, a name bound to one,
+    // an `input.string` at the value in force: C47's `fixedTextOf`) is invariant;
+    // the resolver has no text value to answer with, so it is decided here
+    try { if (fixedTextOf(test, scope) !== null) return true } catch { /* not fixed text */ }
     if (owner !== null && scope) {
       let foreign = null
       const subst = (x, d) => {
