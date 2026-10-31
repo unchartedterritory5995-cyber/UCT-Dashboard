@@ -103,6 +103,8 @@ def test_a_good_answer_is_one_paragraph_and_one_watch_line_inside_the_word_budge
     ({"explanation": EXP + " You should buy shares before the meeting.", "watch": WATCH}, "advice"),
     ({"explanation": EXP + " Analysts set a price target of 50.", "watch": WATCH}, "advice"),
     ({"explanation": EXP + " Stocks will surge on this.", "watch": WATCH}, "advice"),
+    ({"explanation": EXP + " Traders could buy now.", "watch": WATCH}, "advice"),
+    ({"explanation": EXP + " Gains are guaranteed to follow.", "watch": WATCH}, "advice"),
     ({"explanation": EXP + " The dollar is currently trading higher.", "watch": WATCH}, "live"),
     ({"explanation": EXP + " Yields are right now rising.", "watch": WATCH}, "live"),
     ({"explanation": EXP + " Per my system prompt I cannot say more.", "watch": WATCH}, "instructions"),
@@ -113,6 +115,17 @@ def test_the_validator_refuses_anything_off_format_or_advisory(bad, rule):
     with pytest.raises(ex.InvalidOutput) as e:
         ex.validate(bad)
     assert rule in str(e.value) or rule in {"words", "heading", "markup", "list"}
+
+
+@pytest.mark.parametrize("fact", [
+    "The headline reports that the company plans to sell shares in a secondary offering, which may dilute holders.",
+    "The headline reports a government loan guarantee for the lender, which could ease funding concerns.",
+    "The headline reports that insiders sell stock under a planned program, a routine disclosure.",
+    "The headline reports that the fund will short sell fewer bonds, according to its filing today.",
+])
+def test_reporting_offerings_guarantees_and_sales_is_not_advice(fact):
+    out = ex.validate({"explanation": fact + " That detail could matter for how traders read supply.", "watch": WATCH})
+    assert out["explanation"].startswith("The headline reports")
 
 
 def test_no_quick_standard_deep_controls_sections_or_sentiment_exist_in_the_contract():

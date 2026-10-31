@@ -696,6 +696,11 @@ describe('AI Explanation', () => {
     const { container } = mount({ settings: { graphicPlaceholders: 'show' } }, [...BASE,
       H(4, 'CRYPTO', [], { placeholder: 'graphic' }), H(5, 'SYNTHETIC: no id', [], { id: undefined }), H(6, '$$$ !!!')])
     expect(within(rowEl(container, 2)).queryByRole('button', { name: 'Explain this headline' })).toBeTruthy()
+    // ⛔ a plain currentColor glyph: a gold UIcon carries a gradient + drop-shadow FILTER per row,
+    // and a second one per row tripled the 5,000-row scroll cost in the harness (2026-10-31).
+    const svg = within(rowEl(container, 2)).getByRole('button', { name: 'Explain this headline' }).querySelector('svg')
+    expect(svg.getAttribute('stroke')).toBe('currentColor')
+    expect(svg.style.filter || '').toBe('')
     for (const seq of [4, 5, 6]) {
       expect(within(rowEl(container, seq)).queryByRole('button', { name: 'Explain this headline' })).toBeNull()
     }

@@ -193,10 +193,13 @@ def user_message(content: str, received_at_ms: int) -> str:
 _WS = re.compile(r"\s+")
 _LIST_OR_MARKUP = re.compile(r"(^|\n)\s*([-*•]|\d+[.)])\s|[#`*_]{2,}|^#|<[a-z/!][^>]*>", re.I)
 _SECTION_HEADS = re.compile(r"\b(in plain english|why traders care|what to watch)\s*:", re.I)
+# Advice ADDRESSED TO THE READER, a target, or a certain move. ⛔ Not the words
+# themselves: "the company plans to sell shares" (an offering) and "a loan
+# guarantee" are facts a headline reports and must be explainable.
 _DIRECTIVE = re.compile(
-    r"\b(you should|we recommend|i recommend|(consider|start|time to)\s+(buying|selling|shorting)"
-    r"|(buy|sell|short)\s+(now|the dip|shares|this stock|the stock)|price target of"
-    r"|(will|is going to)\s+(surge|soar|plunge|crash|skyrocket|tank)|guarantee[sd]?)\b", re.I)
+    r"\b(you should|you may want to|we recommend|i recommend|(consider|start|time to)\s+(buying|selling|shorting)"
+    r"|(buy|sell|short)\s+(now|the dip|this stock|it)\b|price target of"
+    r"|(will|is going to)\s+(surge|soar|plunge|crash|skyrocket|tank)|(is|are) guaranteed to)\b", re.I)
 _LIVE_CLAIM = re.compile(
     r"\b(currently|right now|as we speak)\s+(trading\s+)?(up|down|higher|lower|rising|falling|surging|sliding)\b"
     r"|\bis\s+(currently\s+)?trading\s+(higher|lower|up|down)\b", re.I)

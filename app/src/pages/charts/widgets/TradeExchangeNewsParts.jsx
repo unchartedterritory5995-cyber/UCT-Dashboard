@@ -189,7 +189,7 @@ export const Row = memo(function Row({ item, linkedSym, onSym, colorMode, prices
               aria-label="Explain this headline"
               aria-expanded={!!explainOpen}
               title="Explain (AI)"
-            ><UIcon name="sparkle" size={11} /></button>
+            ><UIcon name="sparkle" size={11} gold={false} /></button>
           )}
           <CopyButton text={item.content || ''} />
           {(item.tickers || []).length > 0 && (
