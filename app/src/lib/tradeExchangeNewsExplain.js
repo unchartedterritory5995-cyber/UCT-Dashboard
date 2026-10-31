@@ -33,7 +33,8 @@ export function requestExplanation(id) {
     } catch {
       return { error: explainError(0, null) }
     }
-    const body = await r.json().catch(() => null)
+    let body = null
+    try { body = await r.json() } catch { /* a non-JSON answer: explainError names it from the status */ }
     if (!r.ok || !body?.explanation) return { error: explainError(r.status, body) }
     _done.set(id, body)
     while (_done.size > MAX_KEPT) _done.delete(_done.keys().next().value)
