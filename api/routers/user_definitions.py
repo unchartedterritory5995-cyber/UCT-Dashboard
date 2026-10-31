@@ -793,9 +793,16 @@ def resolve_shared(token: str, user: dict = Depends(require_paid)):
     still COMPUTE SOMETHING ELSE if the closed table moved under it, because the
     numbers live in the table and not in the document. A mismatch refuses by
     name, with both versions in the message.
+
+    ⭐ P3 WS-H (S4) — a RUNTIME-LANE document is served with its kill and
+    allowlist state stamped on it (`runtime_definitions.stamp_served`), exactly
+    as `GET /{def_id}` and the listing serve it, keyed on the ORIGIN definition's
+    id: a killed or ungraded script's link must not preview unstamped.
     """
     try:
-        return svc.resolve_share(token)
+        shared = svc.resolve_share(token)
+        return {**shared, "definition": runtime_definitions.stamp_served(
+            {"def_id": shared.get("origin_def_id"), "definition": shared.get("definition")})["definition"]}
     except svc.ShareRefused as exc:
         raise _share_http(exc) from exc
 
