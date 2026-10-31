@@ -322,3 +322,104 @@ def test_allow_unreplayed_restores_reports_the_unverified_ids_and_the_sweep_late
     assert svc.get(FRIEND, copy_id)["definition"]["origin"]["author_id"] is None
     assert not marker.exists()
     assert list(Path(svc._DB_PATH).parent.glob("*.tombstone-replay-pending.retired-*.json"))
+
+
+# ═══ B1: the sweep parses only the rows that name a deleted author ══════════
+
+class _CountingJson:
+    """Stands in for `json` inside user_definitions_erasure: counts every parse."""
+
+    def __init__(self, real):
+        self.real, self.loads_calls = real, 0
+
+    def loads(self, s, *a, **k):
+        self.loads_calls += 1
+        return self.real.loads(s, *a, **k)
+
+    def __getattr__(self, name):
+        return getattr(self.real, name)
+
+
+class _RecordingLock:
+    """Wraps the store's write lock: how often it was taken, and how many parses ran under it."""
+
+    def __init__(self, real, counter):
+        self.real, self.counter, self.taken, self.parses_held, self._at = real, counter, 0, 0, 0
+
+    def __enter__(self):
+        self.real.__enter__()
+        self.taken += 1
+        self._at = self.counter.loads_calls
+        return self
+
+    def __exit__(self, *exc):
+        self.parses_held += self.counter.loads_calls - self._at
+        return self.real.__exit__(*exc)
+
+
+@pytest.mark.parametrize("json1", [True, False], ids=["json1", "instr-fallback"])
+def test_the_live_sweep_never_fetches_or_parses_a_row_that_does_not_name_a_deleted_author(
+        env, monkeypatch, json1):
+    monkeypatch.setattr(ude, "_has_json1", lambda conn: json1)
+    auth = env["auth"]
+    leaver = _seed(LEAVER, "Leaver")
+    control = _seed(CONTROL, "Control")
+    mine = svc.install_share(FRIEND, leaver["token"])["def_id"]
+    for _ in range(12):                                   # copies of ANOTHER author: never parsed
+        svc.install_share(FRIEND, control["token"])
+    with sqlite3.connect(svc._DB_PATH) as c:              # a malformed row must not sink the query
+        c.execute("INSERT INTO user_definitions (user_id, def_id, version, rev, ast_hash, definition,"
+                  " repaint, created_at) VALUES (?, 'u_000000000bad', 1, 1, 'x', ?, '{}', 0)",
+                  (FRIEND, '{"origin": {"author_id": "' + LEAVER + '"'))
+    with sqlite3.connect(str(auth)) as c:
+        at.record_tombstone(LEAVER, c)
+    counter = _CountingJson(ude.json)
+    monkeypatch.setattr(ude, "json", counter)
+    lock = _RecordingLock(svc._WRITE_LOCK, counter)
+    monkeypatch.setattr(svc, "_WRITE_LOCK", lock)
+    checks = []
+    real_remaining = ude.authors_remaining
+    monkeypatch.setattr(ude, "authors_remaining", lambda *a, **k: checks.append(1) or real_remaining(*a, **k))
+
+    with sqlite3.connect(str(auth)) as c:
+        out = ts.sweep(auth_conn=c)
+
+    assert out["ok"] is True, out["errors"]
+    assert out["stores"]["user_definitions"]["authors_scrubbed"] == 1
+    assert svc.get(FRIEND, mine)["definition"]["origin"]["author_id"] is None
+    # One matching copy -> at most two parses (the fallback also fetches the malformed row,
+    # which names the id but cannot be parsed). Never the twelve other-author copies.
+    assert counter.loads_calls == (1 if json1 else 2), f"parsed {counter.loads_calls} rows"
+    assert lock.taken == 1 and lock.parses_held == counter.loads_calls
+    assert checks == [], "the live sweep ran the restore's second author pass under the lock"
+
+
+def test_the_RESTORE_still_refuses_when_a_copy_still_names_a_deleted_author(env, monkeypatch):
+    from tools import store_restore as sr
+    leaver = _seed(LEAVER, "Leaver")
+    svc.install_share(FRIEND, leaver["token"])
+    snap = env["tmp"] / "snap.db"
+    src, dst = sqlite3.connect(svc._DB_PATH), sqlite3.connect(str(snap))
+    src.backup(dst)
+    src.close()
+    dst.close()
+    monkeypatch.setattr(ude, "scrub_authors", lambda ids, conn: 0)       # a scrub that did nothing
+    with pytest.raises(sr.RestoreRefused) as exc:
+        sr.replay_preparer("user_definitions", {LEAVER: ""})(snap)
+    assert "authors_remaining=['" + LEAVER in str(exc.value)
+
+
+def test_a_pending_marker_that_cannot_be_written_refuses_the_restore_and_the_store_is_untouched(env, monkeypatch):
+    from tools import store_restore as sr
+    art, _ = _backup_then_delete(env)
+    monkeypatch.setattr(at, "default_store", lambda: None)
+
+    def boom(*a, **k):
+        raise OSError("disk full")
+    monkeypatch.setattr(sr, "write_pending_marker", boom)
+    live = Path(svc._DB_PATH)
+    before = live.read_bytes()
+    code, out = _restore_over_live(art, "--allow-unreplayed")
+    assert code != 0 and "NOT RESTORED" in out, out
+    assert live.read_bytes() == before, "the store was replaced although nothing is pending"
+    assert not list(live.parent.glob("*.pre-restore-*")), "the live store was moved aside"

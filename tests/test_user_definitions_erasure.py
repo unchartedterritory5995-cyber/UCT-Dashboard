@@ -229,10 +229,13 @@ def test_other_members_copies_survive_with_the_author_scrubbed_and_still_install
     assert svc.get(THIRD, third["def_id"])["ast_hash"] == svc.get(FRIEND, copy_id)["ast_hash"]
 
 
-def test_the_scrub_matches_the_AUTHOR_not_any_mention_of_the_id():
-    """The SQL pre-filter finds every row whose text contains the leaver's id; only a copy whose
-    `origin.author_id` IS that id is rewritten. A copy authored by someone else that merely
-    mentions the id (here, in its name) keeps its author and its bytes (mutation M4)."""
+@pytest.mark.parametrize("json1", [True, False], ids=["json1", "instr-fallback"])
+def test_the_scrub_matches_the_AUTHOR_not_any_mention_of_the_id(json1, monkeypatch):
+    """Only a copy whose `origin.author_id` IS the leaver is rewritten. A copy authored by someone
+    else that merely mentions the id (here, as its whole name) keeps its author and its bytes.
+    ⛔ Run in BOTH selection modes: with JSON1 SQLite never returns that row, so only the
+    instr fallback -- which does fetch it -- proves the exact check in Python (mutation M4)."""
+    monkeypatch.setattr(ude, "_has_json1", lambda conn: json1)
     # Named EXACTLY the leaver's id, so the stored text holds the same JSON string the
     # pre-filter searches for ('"<id>"') -- a looser mention would never reach the guard.
     control = _seed_member(CONTROL, LEAVER)

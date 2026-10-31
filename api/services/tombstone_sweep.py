@@ -165,7 +165,9 @@ def _sweep(auth_conn, store, now, report) -> dict[str, Any]:
         targets = sorted(set(ids) | set(offsite_ids))
         try:
             with opener() as conn:
-                rep = replay(conn, targets)
+                # The scrub inside the replay is the author check; the restore gate's second
+                # pass is skipped so the write lock is held only for the selected rows.
+                rep = replay(conn, targets, verify_authors=False)
         except Exception as e:  # noqa: BLE001
             report["errors"].append(f"{name}: {type(e).__name__}: {e}")
             continue

@@ -323,7 +323,8 @@ def replay_on_db(conn: sqlite3.Connection, user_ids: Iterable[str]) -> dict[str,
     return {"replayed": replayed, "errors": errors, "still_present": present_in(conn, ids)}
 
 
-def replay_on_user_definitions_db(conn: sqlite3.Connection, user_ids: Iterable[str]) -> dict[str, Any]:
+def replay_on_user_definitions_db(conn: sqlite3.Connection, user_ids: Iterable[str], *,
+                                  verify_authors: bool = True) -> dict[str, Any]:
     """Re-run the saved-indicator half of every tombstoned deletion on a RESTORED copy of
     `user_definitions.db` -- the second database `purge_user_data` reaches, which no
     statement on auth.db can (`user_definitions_erasure.purge_users_rows`, the SAME code the
@@ -358,22 +359,18 @@ def replay_on_user_definitions_db(conn: sqlite3.Connection, user_ids: Iterable[s
                     break
             except sqlite3.Error:
                 continue                                  # a table this copy never had
-    # ...and nobody's copy still names one of them as its author.
-    authors_left = set()
-    try:
-        for (blob,) in conn.execute(
-                "SELECT definition FROM user_definitions WHERE instr(definition, '\"author_id\"') > 0"):
-            try:
-                origin = json.loads(blob).get("origin")
-            except (ValueError, AttributeError):
-                continue
-            if isinstance(origin, dict) and origin.get("author_id") is not None                     and str(origin["author_id"]) in ids:
-                authors_left.add(str(origin["author_id"]))
-    except sqlite3.Error:
-        pass
+    # ...and nobody's copy still names one of them as its author. The RESTORE gate; the live
+    # sweep passes verify_authors=False, because the scrub it just ran IS that check, and a
+    # second pass would only hold the store's write lock longer.
+    authors_left: list[str] = []
+    if verify_authors:
+        try:
+            authors_left = ude.authors_remaining(ids, conn)
+        except sqlite3.Error as e:
+            errors.append(f"authors check: {e}")
     return {"replayed": [] if errors else ids, "errors": errors, "rows_deleted": deleted,
             "authors_scrubbed": scrubbed, "still_present": sorted(set(still)),
-            "authors_remaining": sorted(authors_left)}
+            "authors_remaining": authors_left}
 
 
 #: The member stores outside auth.db whose restore must replay the tombstones, by the name
