@@ -559,6 +559,8 @@ function readLeaf(s) {
   // prefix match would let "the running value so far plus 1" read as a leaf and
   // swallow its own operator.
   if (own(RECURRENCE_PHRASE, s)) return { type: 'series', name: RECURRENCE_PHRASE[s] }
+  // ⭐ 2026-10-30 — "no value" is the literal `0 / 0` (this engine's `na`), matched WHOLE.
+  if (s === 'no value') return { type: 'op', name: '/', args: [{ type: 'num', value: 0 }, { type: 'num', value: 0 }] }
   // ⭐ A CLOCK VALUE IS A LEAF THAT IS SAID RATHER THAN NAMED. `hour` reads back
   // as the manifest's own sentence — a member cannot check `dayofweek` against
   // the maths without being told Sunday is 1 — so the inverse is a whole-phrase
@@ -802,6 +804,8 @@ const hasConditionsForm = (name) => own(OPERATOR_SENTENCE_CONDITIONS, name)
 /** The rule sequence a correct walker MUST emit for a tree — re-derived here from
  *  the tree and the manifest, never read back out of `explainSentence`. */
 function predictTrace(node, at = '$') {
+  // ⭐ 2026-10-30 — the literal `0 / 0` is said as "no value" in one step, children unsaid.
+  if (node.type === 'op' && node.name === '/' && Array.isArray(node.args) && node.args.length === 2 && node.args.every((a) => a && a.type === 'num' && a.value === 0)) return [{ path: at, rule: 'op:no-value' }]
   if (node.type === 'num') return [{ path: at, rule: 'num' }]
   if (node.type === 'series') {
     // ⭐ THREE ORIGINS FOR ONE NODE TYPE, AND THE THIRD IS NOT IN ANY SECTION OF
@@ -875,7 +879,10 @@ function predictTrace(node, at = '$') {
 }
 
 const leavesOf = (node, acc = []) => {
-  if (node.type === 'num') acc.push(String(node.value))
+  // ⭐ 2026-10-30 — the literal `0 / 0` is ONE value, said as "no value"; typed here,
+  // never read from `sentence.js`, so a walker that dropped it still fails.
+  if (node.type === 'op' && node.name === '/' && Array.isArray(node.args) && node.args.length === 2 && node.args.every((a) => a && a.type === 'num' && a.value === 0)) acc.push('no value')
+  else if (node.type === 'num') acc.push(String(node.value))
   else if (node.type === 'series') acc.push(node.name)
   else for (const a of node.args) leavesOf(a, acc)
   return acc
