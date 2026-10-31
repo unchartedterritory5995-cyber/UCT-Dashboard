@@ -26,15 +26,21 @@ describe('gapSupportOverlay', () => {
     expect(gapBars(GAP, ints).gap.t).toBe(20250304)
     expect(gapBars({ ...GAP, reveal_json: { facts: {} } }, bars(8))).toBeNull()
   })
-  it('draws a ray at the stored gap top and a fainter ray at the gap-day low, both from the gap day', () => {
+  it('draws the gap-fill spot faint and the gap-up low gold with the price label, both from the gap day (owner ruling 2026-10-26)', () => {
     const out = gapAnnotations(GAP, bars(8))
     expect(out.map((a) => `${a.id}:${a.type}@${a.points[0].time}=${a.points[0].price}`))
       .toEqual(['study-gap-top:hray@2025-03-04=13', 'study-gap-low:hray@2025-03-04=12'])
-    expect(out[0].showPriceLabel).toBe(true)
+    expect(out[0].showPriceLabel).toBeUndefined()
+    expect(out[0].lineWidth).toBe(1)
+    expect(out[1].showPriceLabel).toBe(true)
+    expect(out[1].lineWidth).toBe(2)
   })
-  it('falls back to the prior bar high when no gap top is stored, and is null without a gap day', () => {
+  it('honours a stored gap_low, falls back to the gap bar low and the prior bar high, and is null without a gap day', () => {
     const noTop = { ...GAP, reveal_json: { facts: { gap_asof: '2025-03-04' } } }
     expect(gapAnnotations(noTop, bars(8))[0].points[0].price).toBe(13)   // the 2025-03-03 bar's high
+    expect(gapAnnotations(noTop, bars(8))[1].points[0].price).toBe(12)   // the 2025-03-04 bar's low
+    const stored = { ...GAP, reveal_json: { facts: { gap_asof: '2025-03-04', gap_top: 13, gap_low: 12.4 } } }
+    expect(gapAnnotations(stored, bars(8))[1].points[0].price).toBe(12.4)
     expect(gapAnnotations({ skill_id: GAP_SUPPORT_SKILL_ID }, bars(8))).toBeNull()
   })
   it('studyOverlays dispatches: HVE, Gap Support, nothing else', () => {

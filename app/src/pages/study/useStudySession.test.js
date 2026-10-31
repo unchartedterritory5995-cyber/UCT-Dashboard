@@ -26,6 +26,21 @@ function fetcherFor(p, { failPost = 0 } = {}) {
 
 beforeEach(() => { window.localStorage.clear() })
 
+describe('normalizeBars keeps an HOURLY bar\'s unix-seconds key numeric (Go Signal hourly items, 2026-10-30)', () => {
+  it('rewrites only an eight-digit YYYYMMDD key to ISO and passes an epoch through as a number', () => {
+    const hourly = normalizeBars([{ t: 1668695400, o: 1, h: 2, l: 0.5, c: 1.5, v: 3 }])[0]
+    expect(hourly.t).toBe(1668695400)
+    expect(typeof hourly.t).toBe('number')
+    expect(normalizeBars([{ t: 20221117, o: 1, h: 2, l: 0.5, c: 1.5, v: 3 }])[0].t).toBe('2022-11-17')
+    // the defect this rail exists for: the old `t > 19000000` test sliced an epoch as if it were a date
+    expect(hourly.t).not.toBe('1668-69-54')
+  })
+  it('appends hourly forward bars deduped by the numeric key', () => {
+    const out = appendForwardBars([{ t: 1668695400, o: 1, h: 1, l: 1, c: 1, v: 1 }], [{ t: 1668695400, o: 2, h: 2, l: 2, c: 2, v: 2 }, { t: 1668699000, o: 3, h: 3, l: 3, c: 3, v: 3 }])
+    expect(out.map((b) => b.t)).toEqual([1668695400, 1668699000])
+  })
+})
+
 describe('normalizeBars / appendForwardBars', () => {
   it('turns YYYYMMDD integers into ISO dates and accepts both payload shapes', () => {
     expect(normalizeBars([{ t: 20250102, o: 1, h: 2, l: 0.5, c: 1.5, v: 3 }])[0]).toEqual({ t: '2025-01-02', o: 1, h: 2, l: 0.5, c: 1.5, v: 3 })

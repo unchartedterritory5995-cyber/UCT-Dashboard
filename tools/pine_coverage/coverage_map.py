@@ -319,6 +319,18 @@ UNGRADED_PREFIXES = ("strategy", "alert", "alertcondition", "log.", "runtime.")
 DRAWING_CTORS = {"line.new", "label.new", "box.new", "table.new", "polyline.new", "linefill.new"}
 
 
+def declaration_of(u):
+    return "strategy" if "strategy-decl" in u["features"] else "library" if "library-decl" in u["features"] else "indicator"
+
+
+def transfers_fully(census_row, u):
+    """⭐ THE HEADLINE PREDICATE, in one place: the census's door verdict (`isClean`)
+    AND not a strategy that places orders. Read by main() below and by
+    tools/support_loop/remeasure.py, so the daily number and the map cannot disagree."""
+    return bool((census_row or {}).get("clean")) and not (
+        declaration_of(u) == "strategy" and u["items"] & STRATEGY_ORDERS)
+
+
 def walls_of(row, inv, version, items=frozenset(), decl="indicator"):
     """The capability keys one census row names as walls (all peel steps)."""
     keys = set()
@@ -466,7 +478,7 @@ def main():
             # draws its plots: its trades, markers and tester report are its output, and
             # nothing here simulates the broker. The door's own ruling (C50) draws the
             # plots; the coverage map does not count that as the whole script.
-            "clean": bool(c.get("clean")) and not (decl == "strategy" and u["items"] & STRATEGY_ORDERS),
+            "clean": transfers_fully(c, u),
             "doorClean": bool(c.get("clean")),
             "runtimeAttached": bool((c.get("runtime") or {}).get("attached")),
             # ⚠️ COUNTERFACTUAL, AN UPPER BOUND: with the dark runtime pane on, the door
