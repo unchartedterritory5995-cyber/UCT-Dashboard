@@ -1698,7 +1698,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
     if (n.type === 'call') return !fnByName.has(n.name) && !callHeadStateful(n)
     return false
   }
-  const SERVED_COND = {}
+  const SERVED_COND = { sma: 'window', ema: 'carried' }
   const servedCondCall = (node, scope) => {
     if (objectsInRun || owner !== null || loopDepth > 0 || condDepth <= 0) return null
     if (!node || node.type !== 'call' || fnByName.has(node.name)) return null
