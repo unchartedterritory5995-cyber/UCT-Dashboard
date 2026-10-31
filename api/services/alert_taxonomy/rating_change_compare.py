@@ -88,7 +88,9 @@ CREATE TABLE IF NOT EXISTS rating_change_comparison_spans (
     legacy_only     INTEGER NOT NULL DEFAULT 0,
     not_comparable  INTEGER NOT NULL DEFAULT 0
 );
-CREATE INDEX IF NOT EXISTS idx_rc_spans_pred
+-- Was idx_rc_spans_pred in BOTH rating_change_compare and regime_change_compare: one
+-- database, one index namespace, so whichever module ran second got no index (2026-10-31).
+CREATE INDEX IF NOT EXISTS idx_ratc_spans_pred
     ON rating_change_comparison_spans(predicate_id);
 
 CREATE TABLE IF NOT EXISTS rating_change_shadow_state (

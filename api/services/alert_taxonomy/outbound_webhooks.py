@@ -45,6 +45,7 @@ import json
 import os
 import secrets
 import socket
+import threading
 import time
 import uuid
 from typing import Any, Callable, Optional
@@ -342,12 +343,27 @@ def _post(url: str, body: bytes, headers: dict) -> int:
         return client.post(url, content=body, headers=headers).status_code
 
 
+#: One drain per process at a time. The scheduler job is `max_instances=1, coalesce=True`
+#: (api/main.py, `alert_webhooks_drain`); this also covers a call that bypasses it.
+_DRAIN_LOCK = threading.Lock()
+
+
 def drain(*, limit: int = 50, db_path: str | None = None, poster=None, resolver=None,
           now: float | None = None) -> dict:
     """Send every due delivery once. Returns counts. Safe to call when dark
-    (sends nothing)."""
+    (sends nothing). A second concurrent call returns at once with `skipped: "busy"`:
+    two drains would read the same `due` rows and post each delivery twice."""
     if not is_enabled():
         return {"sent": 0, "delivered": 0, "retry": 0, "failed": 0, "skipped": "dark"}
+    if not _DRAIN_LOCK.acquire(blocking=False):
+        return {"sent": 0, "delivered": 0, "retry": 0, "failed": 0, "skipped": "busy"}
+    try:
+        return _drain(limit=limit, db_path=db_path, poster=poster, resolver=resolver, now=now)
+    finally:
+        _DRAIN_LOCK.release()
+
+
+def _drain(*, limit, db_path, poster, resolver, now) -> dict:
     from api.services import crypto_box
     poster = poster or _post
     now = time.time() if now is None else now

@@ -596,8 +596,14 @@ def _auth_db_cascaded(table: str, info: dict) -> bool:
     return info["fk_users_in_auth_db"]
 
 
+def _accounted_by_the_deletion() -> set[str]:
+    """Deleted by the purge, ANONYMISED by it, or deleted beside the account row by the cascade
+    (`auth.DELETED_WITH_THE_ACCOUNT_ROW`) -- each a class the manifest lists on its own."""
+    return gen.purged_tables() | gen.anonymised_tables() | gen.with_account_row_tables()
+
+
 def unaccounted(found: dict) -> list[str]:
-    purged = gen.purged_tables()
+    purged = _accounted_by_the_deletion()
     out = []
     for table, info in sorted(found.items()):
         if table in purged or table in TRIGGER_EMPTIED or table in KNOWN_UNPURGED:
@@ -627,7 +633,7 @@ def test_THE_CENSUS_every_member_keyed_table_is_purged_cascaded_or_named_with_it
 def test_the_census_ledger_has_no_stale_entries():
     """An entry that names a table the purge now deletes, or one no module creates any more,
     is a ledger that has stopped describing the code."""
-    found, purged = census(), gen.purged_tables()
+    found, purged = census(), _accounted_by_the_deletion()
     stale = sorted(t for t in KNOWN_UNPURGED if t in purged)
     assert not stale, f"KNOWN_UNPURGED names tables the purge deletes: {stale}"
     gone = sorted(t for t in KNOWN_UNPURGED if t not in found)
@@ -715,3 +721,176 @@ def test_the_live_sweep_skips_an_alert_store_this_pod_never_created(tmp_path, mo
     assert rep["stores"]["transcript_alerts"] == {"absent": True}
     assert not missing.exists() and not missing.parent.exists()
     assert not [e for e in rep["errors"] if "transcript_alerts" in e], rep["errors"]
+
+
+# ── 7. review fixes: 2FA goes only with the account row; page_views/feedback are anonymised ──
+
+def _auth_db(tmp_path):
+    """An auth.db with the real `users`, `page_views` and `feedback` DDL (auth_db._SCHEMA) and the
+    2FA tables (totp_service._SCHEMA); two members, each with a page view, a feedback, 2FA."""
+    from api.services import auth_db, totp_service
+    conn = sqlite3.connect(tmp_path / "auth.db")
+    conn.row_factory = sqlite3.Row
+    conn.executescript(auth_db._SCHEMA)
+    conn.executescript(totp_service._SCHEMA)
+    for uid in (GONE, STAYS):
+        conn.execute("INSERT INTO users (id, email, password_hash, display_name, role) "
+                     "VALUES (?, ?, 'x', 'n', 'member')", (uid, f"{uid}@example.test"))
+        conn.execute("INSERT INTO page_views (id, user_id, page) VALUES (?, ?, '/charts')", (f"pv-{uid}", uid))
+        conn.execute("INSERT INTO feedback (id, user_id, email, page, message) VALUES (?, ?, ?, '/x', ?)",
+                     (f"fb-{uid}", uid, f"{uid}@example.test", f"message from {uid}"))
+        conn.execute("INSERT INTO user_totp (user_id, secret_encrypted, enabled, created_at) "
+                     "VALUES (?, 's', 1, 't')", (uid,))
+        conn.execute("INSERT INTO user_backup_codes (user_id, code_hash, created_at) VALUES (?, 'h', 't')", (uid,))
+    conn.commit()
+    return conn
+
+
+def _row(conn, sql, *a):
+    r = conn.execute(sql, a).fetchone()
+    return tuple(r) if r is not None else None
+
+
+def test_page_views_and_feedback_are_ANONYMISED_kept_and_unidentifiable_and_others_untouched(tmp_path, monkeypatch):
+    from api.services import account_tombstones as at
+    from api.services.journal_two import account_purge
+    monkeypatch.setenv(at.LOCAL_STORE_ENV, str(tmp_path / "tombs"))
+    conn = _auth_db(tmp_path)
+    try:
+        stays_before = (_row(conn, "SELECT * FROM page_views WHERE id = ?", f"pv-{STAYS}"),
+                        _row(conn, "SELECT * FROM feedback WHERE id = ?", f"fb-{STAYS}"))
+        rep = account_purge.purge_user_data(GONE, conn)
+        assert rep["rows_anonymised"] == {"page_views": 1, "feedback": 1}, rep["rows_anonymised"]
+        pv = _row(conn, "SELECT user_id, page FROM page_views WHERE id = ?", f"pv-{GONE}")
+        fb = _row(conn, "SELECT user_id, email, message FROM feedback WHERE id = ?", f"fb-{GONE}")
+        stays_after = (_row(conn, "SELECT * FROM page_views WHERE id = ?", f"pv-{STAYS}"),
+                       _row(conn, "SELECT * FROM feedback WHERE id = ?", f"fb-{STAYS}"))
+        named = [t for t in ("page_views", "feedback")
+                 if conn.execute(f"SELECT COUNT(*) FROM {t} WHERE user_id = ?", (GONE,)).fetchone()[0]]
+        mailed = conn.execute("SELECT COUNT(*) FROM feedback WHERE email = ?",
+                              (f"{GONE}@example.test",)).fetchone()[0]
+    finally:
+        conn.close()
+    assert pv == ("", "/charts"), pv                         # kept; NOT NULL id column cleared to ''
+    assert fb == (None, None, f"message from {GONE}"), fb    # kept; id and email cleared, text kept
+    assert named == [] and mailed == 0
+    assert stays_after == stays_before
+
+
+def test_2FA_goes_IF_AND_ONLY_IF_the_account_row_goes(tmp_path, monkeypatch):
+    """Review fix: the purge runs BEFORE the cascade. If 2FA were deleted there and the cascade then
+    failed, a LIVE account would be left password-only. So: a failed cascade leaves the account AND
+    its 2FA intact; a successful one takes both, and never the other member's."""
+    from api.routers.auth import _cascade_delete_user
+    from api.services import account_tombstones as at
+    from api.services.journal_two import account_purge
+    monkeypatch.setenv(at.LOCAL_STORE_ENV, str(tmp_path / "tombs"))
+    conn = _auth_db(tmp_path)
+
+    def twofa(uid):
+        return (conn.execute("SELECT COUNT(*) FROM user_totp WHERE user_id = ?", (uid,)).fetchone()[0],
+                conn.execute("SELECT COUNT(*) FROM user_backup_codes WHERE user_id = ?", (uid,)).fetchone()[0])
+
+    try:
+        account_purge.purge_user_data(GONE, conn)
+        assert twofa(GONE) == (1, 1), "the purge (before the cascade) deleted the member's 2FA"
+        conn.execute("CREATE TRIGGER refuse BEFORE DELETE ON users BEGIN SELECT RAISE(ABORT, 'refused'); END")
+        conn.commit()
+        with pytest.raises(sqlite3.Error):
+            _cascade_delete_user(conn, GONE)                  # the cascade FAILS
+        assert _row(conn, "SELECT id FROM users WHERE id = ?", GONE) == (GONE,)
+        assert twofa(GONE) == (1, 1), "a failed deletion left a live account without its 2FA"
+        conn.execute("DROP TRIGGER refuse")
+        conn.commit()
+        _cascade_delete_user(conn, GONE)                      # the cascade SUCCEEDS
+        assert _row(conn, "SELECT id FROM users WHERE id = ?", GONE) is None
+        assert twofa(GONE) == (0, 0) and twofa(STAYS) == (1, 1)
+    finally:
+        conn.close()
+
+
+# ── 8. every delete the sweep runs by member is an INDEXED lookup ──────────────────────────
+
+def _plan(conn, sql, *args) -> str:
+    return " | ".join(r[-1] for r in conn.execute("EXPLAIN QUERY PLAN " + sql, args))
+
+
+def _scans(plan: str, table: str) -> bool:
+    """Does the plan read `table` without an index? (`SCAN <table>` with no `USING`.)"""
+    return any(step.strip().startswith(f"SCAN {table}") and "USING" not in step
+               for step in plan.split("|"))
+
+
+def test_every_member_delete_in_every_alert_store_uses_an_index(stores):
+    """The live sweep replays every tombstoned id against every store, every 6 hours, under the
+    store's write lock: a full-table SCAN per id per table is the cost that grows with both."""
+    scans = []
+    for store in ae.STORES:
+        conn = sqlite3.connect(stores[store.name])
+        for table in store.tables:
+            plan = _plan(conn, f"DELETE FROM {table} WHERE user_id = ?", "x")
+            if _scans(plan, table):
+                scans.append(f"{store.db}:{table}: {plan}")
+        for table, fk, parent in store.joins:
+            plan = _plan(conn, f"DELETE FROM {table} WHERE {fk} IN (SELECT id FROM {parent} WHERE user_id = ?)", "x")
+            if _scans(plan, table) or _scans(plan, parent):
+                scans.append(f"{store.db}:{table}: {plan}")
+        conn.close()
+    assert not scans, "member deletes that scan the whole table:\n  " + "\n  ".join(scans)
+
+
+def test_every_auth_db_delete_the_sweep_runs_uses_an_index(tmp_path):
+    from api.services import tombstone_sweep, inbound_alerts, alert_durability, web_push
+    from api.services import indicator_alert_service as ias, alert_fired_log as afl, alert_rev_migration as arm
+    conn = sqlite3.connect(tmp_path / "auth.db")
+    for ddl in (inbound_alerts._SCHEMA, alert_durability._SCHEMA, web_push._SCHEMA,
+                ias._SCHEMA, afl._SCHEMA, arm._SCHEMA):
+        conn.executescript(ddl)
+    scans = []
+    for table, sql in tombstone_sweep.AUTH_SWEEP:
+        plan = _plan(conn, sql, "x")
+        if _scans(plan, table) or _scans(plan, "indicator_alerts"):
+            scans.append(f"{table}: {plan}")
+    conn.close()
+    assert not scans, "sweep deletes that scan the whole table:\n  " + "\n  ".join(scans)
+
+
+def test_every_member_delete_in_the_saved_indicator_store_uses_an_index(tmp_path, monkeypatch):
+    """The sixth store the sweep replays (`user_definitions.db`)."""
+    from api.services import user_definitions as ud, user_definitions_erasure as ude
+    from api.services import user_definition_relint as relint
+    monkeypatch.setattr(ud, "_DB_PATH", str(tmp_path / "user_definitions.db"))
+    ud._init_db()
+    conn = sqlite3.connect(ud._DB_PATH)
+    conn.executescript(relint._LOG_SCHEMA)
+    scans = [f"{t}: {plan}" for t in ude.MEMBER_TABLES
+             if _scans(plan := _plan(conn, f"DELETE FROM {t} WHERE user_id = ?", "x"), t)]
+    conn.close()
+    assert not scans, scans
+
+
+# ── 9. the outbound drain runs ONE at a time ────────────────────────────────────────────────
+
+def test_a_second_concurrent_drain_returns_busy_and_posts_nothing(stores, monkeypatch):
+    from api.services.alert_taxonomy import outbound_webhooks as ow
+    monkeypatch.setenv(ow.FLAG, "1")
+    posted = []
+    assert ow._DRAIN_LOCK.acquire(blocking=False)             # a drain is in flight
+    try:
+        out = ow.drain(poster=lambda *a: posted.append(a) or 200, now=1.0)
+    finally:
+        ow._DRAIN_LOCK.release()
+    assert out["skipped"] == "busy" and posted == []
+    assert ow.drain(poster=lambda *a: 200, now=1.0).get("skipped") is None   # free again: it runs
+
+
+def test_the_drain_job_is_registered_single_instance_and_coalesced():
+    """Read from api/main.py's AST: the `alert_webhooks_drain` add_job call."""
+    tree = ast.parse((REPO / "api" / "main.py").read_text(encoding="utf-8"))
+    calls = [n for n in ast.walk(tree) if isinstance(n, ast.Call)
+             and getattr(n.func, "attr", None) == "add_job"
+             and any(k.arg == "id" and isinstance(k.value, ast.Constant)
+                     and k.value.value == "alert_webhooks_drain" for k in n.keywords)]
+    assert len(calls) == 1, f"found {len(calls)} registrations of alert_webhooks_drain"
+    kw = {k.arg: k.value.value for k in calls[0].keywords if isinstance(k.value, ast.Constant)}
+    assert kw.get("max_instances") == 1 and kw.get("coalesce") is True, kw
