@@ -151,7 +151,9 @@ export function extractTarget(text, host = null) {
   const pl = PLURAL_RE.exec(s)
   if (pl) return { text: cut(s, pl), target: { plural: true } }
   const ord = host ? ordinalChart(s, host.charts?.list?.() || []) : null
-  if (ord) return { text: cut(s, ord.match), target: ord.ref ? { chart: ord.ref, word: ord.word } : { ask: ord.ask } }
+  // ⭐ PHASE 3: "add rsi to the first chart" — the preposition before the ordinal goes with it (as a position's does), so
+  // the clause left is "add rsi", not "add rsi to"
+  if (ord) return { text: cut(s, ord.match).replace(/\s+(?:on|to|onto|for|in|into)$/i, ''), target: ord.ref ? { chart: ord.ref, word: ord.word } : { ask: ord.ask } }
   const m = POS_RE.exec(s)
   if (m) {
     // ⭐ PHASE 2: "top left" / "upper right" (no hyphen) are the same position as "top-left"
