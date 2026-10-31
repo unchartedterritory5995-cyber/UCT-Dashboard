@@ -64,6 +64,8 @@ const NO_OBJ = Object.freeze({})
 const GOLD = '#dcbb5e'
 const DEFAULT_WINDOW_BARS = 120
 const DEFAULT_FORWARD = 20
+const HOURLY_BARS_PER_SESSION = 7   // 9:30 .. 15:00 buckets of a regular session
+const DEFAULT_HOURLY_FORWARD = 5    // gen_go_signal_hourly.py FWD_SESSIONS
 
 const fetcher = (url) => fetch(url, { credentials: 'include' }).then((r) => {
   if (!r.ok) throw new Error(`HTTP ${r.status}`)
@@ -225,8 +227,15 @@ export function chartFrameOf(item) {
   const asof = item?.asof
   if (!asof) return null
   const r = item?.reveal_json || NO_OBJ
-  const back = Number(item?.prompt_json?.chart?.window_bars || r.window_bars || DEFAULT_WINDOW_BARS)
-  const fwd = Number(r.facts?.window || r.window || DEFAULT_FORWARD)
+  const tf = String(item?.bars_embed?.tf || item?.prompt_json?.chart?.tf || item?.prompt_json?.tf || 'D')
+  const hourly = tf === '60'
+  // An hourly item's window_bars counts HOURLY bars (about seven a session); the frame is in calendar days, so
+  // convert to sessions first or a 112-bar hourly window frames 112 sessions and the bars sit in the right half.
+  const rawBack = Number(item?.prompt_json?.chart?.window_bars || r.window_bars || DEFAULT_WINDOW_BARS)
+  const back = hourly ? Math.ceil(rawBack / HOURLY_BARS_PER_SESSION) : rawBack
+  const fwd = hourly
+    ? Number(r.facts?.fwd_sessions_available ?? DEFAULT_HOURLY_FORWARD)
+    : Number(r.facts?.window || r.window || DEFAULT_FORWARD)
   return {
     entryDate: shiftDate(asof, -Math.ceil(back * 1.5) - 7),
     exitDate: shiftDate(asof, Math.ceil(fwd * 1.5) + 5),
