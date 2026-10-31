@@ -107,8 +107,9 @@ describe('⭐⭐ 2. every render-stage drop counts into the member\'s drawing no
       { id: 1, family: 'box', props: { left: 3, right: 9, top: NaN, bottom: 1, xloc: 'bar_index' } },
       { id: 2, family: 'line', props: { x1: NaN, y1: 1, x2: 5, y2: 2, xloc: 'bar_index' } },
       { id: 3, family: 'label', props: { x: 4, y: 2, xloc: 'bar_index', text: null } },   // a withheld text IS ours
+      { id: 4, family: 'label', props: { x: NaN, y: 2, xloc: 'bar_time', text: 'na x' } },
     ], { bars, tf: 'D' })
-    expect(rs.dropped).toMatchObject({ box: 1, line: 1, label: 1 })
+    expect(rs.dropped).toMatchObject({ box: 1, line: 1, label: 2 })
     expect(renderDroppedCount(rs)).toBe(1)
   })
 
