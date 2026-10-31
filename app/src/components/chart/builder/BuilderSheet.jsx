@@ -2609,6 +2609,9 @@ export default function BuilderSheet({
               // for its own state on every keystroke.
               initialSource={pineText}
               onSourceChange={setPineText}
+              // ⭐ SUPPORT LOOP A3 — what the member is viewing rides an opt-in report.
+              sym={sym}
+              tf={tf}
               onPick={(picked) => {
                 // ⛔ THE SOURCE AND NOTHING ELSE — verbatim the StarterLibrary
                 // contract three lines down. Not the tree the translator built

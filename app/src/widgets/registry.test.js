@@ -19,6 +19,9 @@ import {
   WIDGET_REGISTRY,
   WIDGET_IDS,
   WORKSPACE_MENU_TYPES,
+  WORKSPACE_PICKER_TYPES,
+  TAB_PICKER_TYPES,
+  PICKER_ONLY_WIDGETS,
   WORKSPACE_MENU_TYPES_ALL,
   TAB_MENU_TYPES_ALL,
   TAB_MENU_TYPES,
@@ -293,11 +296,14 @@ describe('widget registry — metadata pins', () => {
     // ./captureRelease.test.js. This is the pin that the registry's own exported
     // menus are the GATED ones — i.e. that the gate is actually applied here,
     // rather than being a helper nobody calls.
-    expect(WORKSPACE_MENU_TYPES).toEqual(
+    expect(WORKSPACE_PICKER_TYPES).toEqual(
       WORKSPACE_MENU_TYPES_ALL.filter(id => !UNRELEASED_CAPTURE_WIDGETS.includes(id)),
     )
+    expect(TAB_PICKER_TYPES).toEqual(WORKSPACE_PICKER_TYPES)
+    expect(WORKSPACE_PICKER_TYPES.length).toBeLessThan(WORKSPACE_MENU_TYPES_ALL.length)
+    // UCT Agent's lists are the member lists minus PICKER_ONLY_WIDGETS (UCT News).
+    expect(WORKSPACE_MENU_TYPES).toEqual(WORKSPACE_PICKER_TYPES.filter(id => !PICKER_ONLY_WIDGETS.includes(id)))
     expect(TAB_MENU_TYPES).toEqual(WORKSPACE_MENU_TYPES)
-    expect(WORKSPACE_MENU_TYPES.length).toBeLessThan(WORKSPACE_MENU_TYPES_ALL.length)
   })
 
   it('mobile offers exactly the 5 phone-usable types', () => {
@@ -336,7 +342,7 @@ describe('widget registry — metadata pins', () => {
     expect([...new Set(catItems)].sort()).toEqual([...WORKSPACE_MENU_TYPES_ALL].sort())
     // menuGroups filters to a surface + drops empty groups, preserving coverage.
     const flat = menuGroups('workspace').flatMap(g => g.items)
-    expect(new Set(flat)).toEqual(new Set(WORKSPACE_MENU_TYPES))
+    expect(new Set(flat)).toEqual(new Set(WORKSPACE_PICKER_TYPES))
     expect(menuGroups('workspace').every(g => g.items.length > 0)).toBe(true)
   })
 })

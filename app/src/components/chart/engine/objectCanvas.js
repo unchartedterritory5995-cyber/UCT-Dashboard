@@ -75,6 +75,12 @@ export const TEXT_SIZE_PX = Object.freeze({
   tiny: 8, small: 10, normal: 12, large: 16, huge: 22, auto: 12,
 })
 const LABEL_FONT_PX = TEXT_SIZE_PX
+/** ⭐ P2 — a label's or a box's `text_formatting` → the canvas font's style/weight
+ *  prefix (two independent axes, as `objectTableDom.js` reads a cell's). */
+export const fontStyleOf = (fmt) => {
+  const f = typeof fmt === 'string' ? fmt : ''
+  return `${f.includes('italic') ? 'italic ' : ''}${f.includes('bold') ? 'bold ' : ''}`
+}
 
 const DASH = Object.freeze({
   solid: [], dashed: [6, 4], dotted: [2, 3], arrow_left: [], arrow_right: [], arrow_both: [],
@@ -296,7 +302,7 @@ export function paintObjects(ctx, state, m) {
       const top = Math.min(a.y, c.y)
       const bottom = Math.max(a.y, c.y)
       ctx.setLineDash([])
-      ctx.font = `${px}px -apple-system, Segoe UI, sans-serif`
+      ctx.font = `${fontStyleOf(b.text_formatting)}${px}px -apple-system, Segoe UI, sans-serif`
       ctx.fillStyle = b.text_color || '#000000'
       ctx.textAlign = b.text_halign === 'left' ? 'left' : b.text_halign === 'right' ? 'right' : 'center'
       ctx.textBaseline = 'middle'
@@ -377,7 +383,7 @@ export function paintObjects(ctx, state, m) {
       : (lb.yloc === 'abovebar' ? height * 0.12 : height * 0.88)
     const px = LABEL_FONT_PX[lb.size] || 12
     ctx.save()
-    ctx.font = `${px}px -apple-system, Segoe UI, sans-serif`
+    ctx.font = `${fontStyleOf(lb.text_formatting)}${px}px -apple-system, Segoe UI, sans-serif`
     ctx.textBaseline = 'middle'
     ctx.textAlign = lb.textalign === 'left' ? 'left' : lb.textalign === 'right' ? 'right' : 'center'
     const text = lb.text || ''

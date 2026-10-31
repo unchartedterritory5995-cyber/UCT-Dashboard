@@ -2396,6 +2396,39 @@ def _save_runtime(user_id: Any, def_id: str, definition: dict, limits: Any,
         raise ValueError(f"{ungraded} — so it is not saved. Nothing else of yours was touched.")
     runtime_definitions.validate(definition)
 
+    # ⭐ PRESENTATION PARITY WITH THE FORMULA LANE (`save`). A runtime document draws
+    # through the SAME top-level `plots`/`inputs`/`paints` the browser validates with
+    # the same `defSchema.validatePlot`/`validatePaints` (only `compute` differs), so
+    # the same two rules hold here: a COPY (share install, fork) is CLAMPED to the
+    # width ceiling before the blob, and any other save is MEASURED here and ENFORCED
+    # in the lock against the stored predecessor (an unchanged legacy entry is kept,
+    # not enforced). ⚰️ Before this a hand-built runtime document could store a width
+    # of 10000, and a copy of it carried that width to a second member.
+    from api.services import presentation_schema
+    if copy_of_stored:
+        definition, clamped_widths = presentation_schema.clamp_plot_widths(definition)
+        if clamped_widths:
+            _log.warning("[user-definitions] %s: copy clamps plot width to the ceiling: %s",
+                         def_id, "; ".join(clamped_widths))
+    presentation_found = (presentation_schema.presentation_errors(definition)
+                          if not copy_of_stored else [])
+    # ⛔ …AND THE FORMULA LANE'S COLOUR RULES, on the same fields. A runtime document's
+    # plot / input / paint colours reach the same inline CSS (legend rows, chips), so a
+    # stored `url(...)` is a beacon for every member who installs a shared copy. The
+    # drawing-program colours are refused on EVERY save, a copy included; presentation
+    # colours are measured here and enforced in the lock against the stored predecessor
+    # (a copy has none of its own, so every unsafe colour in it is refused).
+    colour_found = presentation_schema.definition_colour_errors(definition)
+    unsafe_colours = presentation_schema.object_colour_errors(definition)
+    if unsafe_colours:
+        raise SaveRefused(
+            "presentation",
+            "a drawing colour that is not a colour: "
+            + "; ".join(e["message"] for e in unsafe_colours[:3])
+            + ". Nothing was saved.",
+            guard="presentation:object-colour",
+            errors=[{k: e[k] for k in ("path", "code", "message")} for e in unsafe_colours[:20]])
+
     new_hash = runtime_definitions.handle(definition)
     blob = json.dumps(definition, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
     size = len(blob.encode("utf-8"))
@@ -2427,6 +2460,42 @@ def _save_runtime(user_id: Any, def_id: str, definition: dict, limits: Any,
                 "formula is unchanged.")
         if prev is None or prev["deleted_at"] is not None:
             entitlements.check_definition_count(_live_def_count(c, user_id), limits)
+        prev_doc = json.loads(prev["definition"]) if prev is not None else None
+        if colour_found:
+            kept_c = set() if copy_of_stored or prev_doc is None else {
+                (e["path"], e["value"])
+                for e in presentation_schema.definition_colour_errors(prev_doc)}
+            refused_c = [e for e in colour_found if (e["path"], e["value"]) not in kept_c]
+            if len(refused_c) < len(colour_found):
+                _log.warning(
+                    "[user-definitions] %s keeps stored colours today's rule refuses "
+                    "(unchanged, not enforced): %s", def_id,
+                    "; ".join(e["path"] for e in colour_found if e not in refused_c))
+            if refused_c:
+                raise SaveRefused(
+                    "presentation",
+                    "a colour that is not a colour: "
+                    + "; ".join(e["message"] for e in refused_c[:3])
+                    + ". Nothing was saved.",
+                    guard="presentation:colour",
+                    errors=[{k: e[k] for k in ("path", "code", "message")} for e in refused_c[:20]])
+        if presentation_found:
+            refused_p, kept_p = presentation_schema.new_presentation_errors(
+                definition, prev_doc)
+            if kept_p:
+                _log.warning(
+                    "[user-definitions] %s keeps stored presentation today's rule "
+                    "refuses (unchanged, not enforced): %s", def_id,
+                    "; ".join(f"{e['path']} [{e['code']}]" for e in kept_p))
+            if refused_p:
+                raise SaveRefused(
+                    "presentation",
+                    "presentation the chart cannot draw as written: "
+                    + "; ".join(e["message"] for e in refused_p)
+                    + ". Nothing was saved.",
+                    guard=f"presentation:{refused_p[0]['code']}",
+                    errors=[{k: e[k] for k in ("path", "code", "message")}
+                            for e in refused_p])
         if prev is None:
             version, rev, rev_bumped = 1, FIRST_REV, False
         else:
@@ -3109,3 +3178,20 @@ def stats(user_id: Any = None) -> dict:
             "max_definition_bytes": MAX_DEFINITION_BYTES,
             "max_definitions_per_user": MAX_DEFINITIONS_PER_USER,
             "versions_are_pruned": False}
+
+
+# ═══ account deletion ═════════════════════════════════════════════════════
+#
+# ⛔ THE ONE DOOR THROUGH WHICH A MEMBER'S ROWS LEAVE THIS STORE. The statements
+# are in `user_definitions_erasure.py`, not here, so this module's append-only
+# claim stays true of everything it does on a member's behalf
+# (`test_the_MODULE_ISSUES_NO_UPDATE_STATEMENT_and_the_scan_can_see_one`).
+
+
+def purge_user(user_id: Any) -> dict:
+    """Account deletion: the member's definitions (every version), share links,
+    library listings and re-lint audit rows deleted; their id scrubbed from the
+    copies other members installed from them, which those members keep.
+    Called by `journal_two.account_purge.purge_user_data`. Never raises."""
+    from api.services import user_definitions_erasure  # noqa: PLC0415
+    return user_definitions_erasure.purge_user(str(user_id) if user_id is not None else "")

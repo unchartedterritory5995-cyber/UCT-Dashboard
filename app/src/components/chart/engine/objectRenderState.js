@@ -196,6 +196,33 @@ export function makeBarClock(bars, tf) {
     const ms = Date.parse(String(t).length <= 10 ? `${t}T00:00:00Z` : String(t))
     return Number.isFinite(ms) ? Math.floor(ms / 1000) : NaN
   }
+  // ⭐⭐ P2b — EACH LOADED BAR'S OPENING INSTANT (unix seconds), ascending, for
+  // `timeAtInstant`: an instant INSIDE a loaded bar's span [its open, the next bar's
+  // open) is that bar, as TradingView places an `xloc.bar_time` coordinate. A
+  // date-keyed series opens where `barOpenInstant` says (the clock columns' rule); an
+  // instant-keyed one at its own time. `null` where a bar's open is unknown.
+  const opens = new Array(n)
+  for (let i = 0; i < n; i += 1) {
+    const o = stringly ? barOpenInstant(raw[i], tf) : epoch[i]
+    opens[i] = Number.isFinite(o) ? o : null
+  }
+  /** The loaded bar whose span holds `sec`, or -1. The LAST bar's span is one
+   *  measured step (`step`: the median gap, a day on a daily series, a week on a
+   *  weekly one) — `time_close` of the last daily bar is 16:00 on its own date. */
+  const barHolding = (sec) => {
+    let lo = 0
+    let hi = n - 1
+    let at = -1
+    while (lo <= hi) {
+      const mid = (lo + hi) >> 1
+      const o = opens[mid]
+      if (o === null) return -1   // ⛔ an unknown open: no span is knowable, so no snap
+      if (o <= sec) { at = mid; lo = mid + 1 } else hi = mid - 1
+    }
+    if (at < 0) return -1
+    const end = at + 1 < n ? opens[at + 1] : opens[at] + step
+    return end !== null && sec < end ? at : -1
+  }
   return {
     count: n,
     step,
@@ -225,6 +252,14 @@ export function makeBarClock(bars, tf) {
     /** an INSTANT (unix seconds) → a time IN THE SERIES' OWN SHAPE, or null */
     timeAtInstant(sec) {
       if (!Number.isFinite(sec)) return null
+      // ⭐⭐ P2b — AN INSTANT INSIDE A LOADED BAR IS THAT BAR, on every series:
+      // TradingView places an `xloc.bar_time` coordinate on the bar whose span
+      // [open, next open) holds it. ⚰️ Only the EXACT opening instant was placed,
+      // so `line.set_xloc(l, …, time_close, xloc.bar_time)` (16:00 on a daily
+      // chart) was dropped by the render state while the program held the line —
+      // a drawing reported clean and drawn as nothing (poor-man's volume profile).
+      const k = barHolding(sec)
+      if (k >= 0) return raw[k]
       // ⭐ A SERIES KEYED BY INSTANTS IS ALREADY IN THIS UNIT: the instant IS the
       // time, in range or not, and the chart decides whether it holds a slot there.
       if (!stringly) return sec
@@ -246,9 +281,10 @@ export function makeBarClock(bars, tf) {
       const p = etClockAt(sec)
       if (!p) return null
       const iso = `${p.y}-${String(p.m).padStart(2, '0')}-${String(p.d).padStart(2, '0')}`
-      // ⛔ NOT THE OPENING INSTANT OF ITS DATE ⇒ NO BAR. Where a daily chart puts
-      // 12:00 or 08:30 on a date was never measured, and snapping it to that
-      // date's bar would be a guess wearing a coordinate. Dropped and counted.
+      // ⛔ OUTSIDE THE LOADED BARS, NOT THE OPENING INSTANT OF ITS DATE ⇒ NO BAR.
+      // A projection has no loaded span to fall inside, and the chart's future
+      // slots are keyed by date: only a session open can name one. Dropped and
+      // counted (and disclosed — `objectRenderNotice.js`).
       return barOpenInstant(iso, tf) === sec ? iso : null
     },
   }
@@ -329,6 +365,17 @@ export function toRenderState(live, opts = {}) {
   const tables = []
   const fills = []
   const dropped = { line: 0, label: 0, box: 0, table: 0, linefill: 0 }
+  // ⭐⭐ P2b — THE DROPS THAT ARE OURS, NOT THE SCRIPT'S. `dropped` also counts an
+  // object whose coordinate is `na` — TradingView holds those and draws nothing
+  // either (zero-lag's warming boxes, multi-tf S&D's 504 `box.new(na, …)`). What
+  // TradingView DOES draw and this chart does not is a finite coordinate no bar
+  // here can place, or a text the run withheld: those, and only those, are counted
+  // here, and they are what the member's drawing note discloses
+  // (`objectRenderNotice.js`).
+  const unplaced = { line: 0, label: 0, box: 0, cell: 0, linefill: 0 }
+  const unplacedIds = new Set()
+  /** A finite coordinate the clock could not place (an `na` one is the script's). */
+  const lost = (value, x) => x === null && num(value) !== null
   const byId = new Map()
 
   const defaults = objectDefaultsFor(opts.pineVersion)
@@ -341,7 +388,12 @@ export function toRenderState(live, opts = {}) {
       const x2 = xOf(p.x2, p.xloc, clock)
       const y1 = num(p.y1)
       const y2 = num(p.y2)
-      if (x1 === null || x2 === null || y1 === null || y2 === null) { dropped.line += 1; continue }
+      if (x1 === null || x2 === null || y1 === null || y2 === null) {
+        dropped.line += 1
+        if (y1 !== null && y2 !== null && (lost(p.x1, x1) || lost(p.x2, x2))
+            && num(p.x1) !== null && num(p.x2) !== null) { unplaced.line += 1; unplacedIds.add(o.id) }
+        continue
+      }
       const row = {
         id: o.id, x1, y1, x2, y2, extend: p.extend, color: p.color, style: p.style, width: p.width,
         bx1: barOf(p.x1, p.xloc), bx2: barOf(p.x2, p.xloc),
@@ -351,12 +403,12 @@ export function toRenderState(live, opts = {}) {
     } else if (o.family === 'label') {
       const x = xOf(p.x, p.xloc, clock)
       const y = num(p.y)
-      if (x === null) { dropped.label += 1; continue }
+      if (x === null) { dropped.label += 1; if (lost(p.x, x)) unplaced.label += 1; continue }
       // ⛔ A WITHHELD TEXT (`null`, the object runtime's answer when no capture
       // pins what the vendor draws — `pineTextFormat.js`) IS NOT DRAWN, and nor
       // is the label it belongs to: an empty bubble where the vendor shows a
       // number is a wrong picture, not a partial one.
-      if (p.text === null) { dropped.label += 1; continue }
+      if (p.text === null) { dropped.label += 1; unplaced.label += 1; continue }
       labels.push({
         id: o.id,
         x,
@@ -372,14 +424,22 @@ export function toRenderState(live, opts = {}) {
         size: p.size,
         textalign: p.textalign,
         ...(p.tooltip ? { tooltip: String(p.tooltip) } : {}),
+        // ⭐ P2 — `text_formatting` (`bold` / `italic` / `bold_italic`), as a cell's.
+        ...(typeof p.text_formatting === 'string' && p.text_formatting !== 'none'
+          ? { text_formatting: p.text_formatting } : {}),
       })
     } else if (o.family === 'box') {
       const left = xOf(p.left, p.xloc, clock)
       const right = xOf(p.right, p.xloc, clock)
       const top = num(p.top)
       const bottom = num(p.bottom)
-      if (left === null || right === null || top === null || bottom === null) { dropped.box += 1; continue }
-      if (p.text === null) { dropped.box += 1; continue }   // a withheld text — see the label arm
+      if (left === null || right === null || top === null || bottom === null) {
+        dropped.box += 1
+        if (top !== null && bottom !== null && (lost(p.left, left) || lost(p.right, right))
+            && num(p.left) !== null && num(p.right) !== null) unplaced.box += 1
+        continue
+      }
+      if (p.text === null) { dropped.box += 1; unplaced.box += 1; continue }   // a withheld text — see the label arm
       // ⛔⛔ `Math.min` ON A TIME IS ARITHMETIC, AND A DAILY TIME IS A STRING.
       // ⚰️ `Math.min("2026-09-04", "2026-08-01")` is `NaN`, so every box on a
       // daily chart came out with `left = right = NaN` and painted 59,000 px off
@@ -409,7 +469,9 @@ export function toRenderState(live, opts = {}) {
         bgcolor: p.bgcolor,
         // ⭐ UIE PHASE 2 (M5) — and where in the box the author put it
         ...(p.text ? { text: String(p.text), text_color: p.text_color, text_size: p.text_size,
-          text_halign: p.text_halign, text_valign: p.text_valign } : {}),
+          text_halign: p.text_halign, text_valign: p.text_valign,
+          ...(typeof p.text_formatting === 'string' && p.text_formatting !== 'none'
+            ? { text_formatting: p.text_formatting } : {}) } : {}),
       })
     } else if (o.family === 'table') {
       tables.push({
@@ -430,6 +492,7 @@ export function toRenderState(live, opts = {}) {
         cells: [...(o.cells || [])].filter((c) => {
           if (c.props.text !== null) return true
           dropped.cell = (dropped.cell || 0) + 1
+          unplaced.cell += 1
           return false
         }).sort((x, y) => (x.row - y.row) || (x.col - y.col)).map((c) => ({
           col: c.col,
@@ -458,7 +521,12 @@ export function toRenderState(live, opts = {}) {
       // a one-edged band is a shape the author never drew.
       const a = p.line1 && p.line1.__ref ? byId.get(p.line1.__ref) : null
       const b = p.line2 && p.line2.__ref ? byId.get(p.line2.__ref) : null
-      if (!a || !b) { dropped.linefill += 1; continue }
+      if (!a || !b) {
+        dropped.linefill += 1
+        const refs = [p.line1, p.line2].map((r) => (r && r.__ref) || null)
+        if (refs.some((id) => id !== null && unplacedIds.has(id))) unplaced.linefill += 1
+        continue
+      }
       fills.push({ id: o.id, a: a.id, b: b.id, color: p.color })
     }
   }
@@ -477,6 +545,7 @@ export function toRenderState(live, opts = {}) {
     fills,
     frame,
     dropped,
+    unplaced,
     counts: {
       line: lines.length,
       label: labels.length,

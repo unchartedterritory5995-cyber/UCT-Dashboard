@@ -9252,6 +9252,19 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             print(f"[startup] research depth job registration failed (non-fatal): {e}")
 
+        # Pine support loop, Phase B — the daily digest (docs/pine/support-loop/PHASE-B.md).
+        # Light: two indexed SELECTs + one JSON read, cached per ET day; posts one admin
+        # Discord line only when there is work (PINE_SUPPORT_DIGEST_POST=off silences it).
+        try:
+            from api.services import indicator_support_loop as _isl
+            _scheduler.add_job(
+                _isl.run_daily_digest,
+                trigger=CronTrigger(hour=8, minute=20, timezone=_ET),
+                id="indicator_support_digest", max_instances=1, replace_existing=True, coalesce=True,
+            )
+        except Exception as e:
+            print(f"[startup] indicator support digest job registration failed (non-fatal): {e}")
+
         _scheduler.start()
         print("[startup] COT scheduler running -- Fridays at 3:50 PM ET (retries 4:15, 4:45); daily catchup at 6 PM ET")
         print("[startup] Session cleanup scheduled -- daily at 3:00 AM ET")
@@ -9394,6 +9407,17 @@ async def lifespan(app: FastAPI):
                 print("[startup] j2 trash purge registered (03:20 ET daily)")
         except Exception as e:
             print(f"[startup] j2 trash purge registration failed (non-fatal): {e}")
+        # Account deletion: the LIVE tombstone sweep (owner-approved 2026-10-30). Every 6 h,
+        # first run 10 min after boot: re-purges every tombstoned account from the stores the
+        # main purge reaches only once (user_definitions.db; the saved-indicator alert tables in
+        # auth.db) and finishes a restore's pending tombstone replay. Cheap (indexed deletes, one
+        # scrub pass) -- not a heavy job. ON by default; kill switch TOMBSTONE_SWEEP_ENABLED=0.
+        try:
+            from api.services import tombstone_sweep
+            if tombstone_sweep.register_jobs(_scheduler):
+                print("[startup] account tombstone sweep registered (every 6h, first in 10 min)")
+        except Exception as e:
+            print(f"[startup] account tombstone sweep registration failed (non-fatal): {e}")
         # Wave 6 (controller wiring, lane F) — Notebook task reminders: one
         # in-app bell per member per ET day for tasks due today/overdue. The
         # registrar wires all three jobs itself (07:00 ET, a 09:00 ET second
@@ -10297,6 +10321,9 @@ from api.routers import indicator_vision as indicator_vision_router  # noqa: E40
 app.include_router(indicator_vision_router.router)  # /api/indicator-vision/* — a screenshot in, ranked candidate indicators out
 from api.routers import indicator_telemetry as indicator_telemetry_router  # noqa: E402
 app.include_router(indicator_telemetry_router.router)  # /api/indicator-telemetry/event — Phase One Track C, client half (import_submitted/compile_finished only)
+from api.routers import indicator_support as indicator_support_router  # noqa: E402
+app.include_router(indicator_support_router.router)  # /api/indicator-support/* — Pine support loop Phase A: gap counts + opt-in mismatch reports (docs/pine/support-loop/PHASE-A.md)
+app.include_router(indicator_support_router.internal_router)  # /api/internal/indicator-support/* — Phase B digest + triage door, PUSH_SECRET bearer (docs/pine/support-loop/PHASE-B.md)
 from api.routers import pine_libraries as pine_libraries_router  # noqa: E402
 app.include_router(pine_libraries_router.router)  # /api/pine/libraries/* — L1: an imported Pine library's source + licence, from a data-dir store (never git)
 app.include_router(theme_index_router.router)
