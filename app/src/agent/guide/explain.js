@@ -7,6 +7,11 @@
 //   2. a few UCT CONCEPTS that are not an indicator (below) — each worded from the product's own behaviour,
 //      with the file that behaviour lives in named beside it.
 //   3. a guide FEATURE's own `explain` (registry.js) — "what is a layout?"
+//   4. ⭐ PHASE 3: a CHART SETTING's own row in the product's descriptor table (components/chart/chartSettingsDescriptors —
+//      its label, where it is in Chart Settings, its values, the prerequisite the dialog enforces, and whether the Agent
+//      may change it) — "what does the bar-close countdown setting do?". And, with Chart Settings OPEN, "explain these
+//      settings" lists the open tab's own rows (read from the dialog: its selected tab). Nothing is added to what the
+//      table says — a setting it does not describe is not explained here.
 // Anything else returns null: the model answers it (general trading knowledge), as before. Nothing here is ever a
 // change to the workspace — the guide.explain capability is a query.
 //
@@ -19,6 +24,7 @@
 import { catalogRows } from '../../components/chart/indicatorCatalog'
 import * as nativeRegistry from '../../components/chart/engine/nativeRegistry'
 import { GUIDE_FEATURES } from './registry'
+import { CHART_SETTING_DESCRIPTORS } from '../../components/chart/chartSettingsDescriptors'
 
 // UCT concepts — each sentence states what the product does (source in the trailing comment)
 export const CONCEPTS = [
@@ -67,6 +73,54 @@ function indicatorRow(words) {
   return tagged.length === 1 ? { row: tagged[0], option: optionOf(tagged[0], w) } : null
 }
 
+// ── ⭐ PHASE 3: chart settings, from the product's descriptor table ──
+const described = () => CHART_SETTING_DESCRIPTORS.filter(d => d.agent !== 'internal' && d.label && d.ui)
+const optLabel = (d, v) => (Array.isArray(v) ? String(v[1] ?? v[0]) : typeof v === 'object' && v ? String(v.label ?? v.val) : String(v))
+function valuesOf(d) {
+  if (d.type === 'bool') return 'It is on or off.'
+  if (d.type === 'color') return 'It takes a colour.'
+  if (d.type === 'enum' && Array.isArray(d.options) && d.options.length) return `Options: ${d.options.map(v => optLabel(d, v)).join(', ')}.`
+  return ''
+}
+function canChange(d) {
+  if (d.agent === 'eligible' || String(d.agent || '').startsWith('specialized:')) return 'I can change it for you — just say the new value.'
+  if (String(d.agent || '').startsWith('owned:')) return 'It belongs to the indicator settings — change it there, or ask me about the indicator.'
+  return 'I can tell you where it is, but I can’t change this one for you yet.'
+}
+// the ONE setting the words name: its label, or one of its own `words` — never a guess between several
+export function settingRow(words) {
+  const w = core(words).replace(/\s+(?:settings?|options?|toggle|switch|control)$/, '').replace(/^(?:the\s+)/, '')
+  if (!w || w.length > 60) return null
+  const rows = described()
+  const hits = rows.filter(d => norm(d.label) === w || (d.words || []).some(x => norm(x) === w))
+  return hits.length === 1 ? hits[0] : null
+}
+const settingText = (d) => [`${d.label} — ${d.ui}.`, valuesOf(d), d.requires?.why || '', canChange(d)].filter(Boolean).join(' ')
+
+/** The Chart Settings tab open on screen right now (its label, "Canvas"), or null. Reads the dialog's own tabs. */
+export function openSettingsTab() {
+  if (typeof document === 'undefined') return null
+  const dlg = document.querySelector('[data-guide="chartSettings"]')
+  if (!dlg) return null
+  const tab = dlg.querySelector('[role="tab"][aria-selected="true"]')
+  return tab ? String(tab.textContent || '').trim() || null : null
+}
+const THESE = /^(?:these|this|those|the|all the|all these|all of these)\s+(?:chart\s+)?(?:settings?|options?|controls?|tab|toggles?)(?:\s+(?:here|on this tab|in this tab|do|mean))?$/
+function settingsOfTab(tab) {
+  if (/^indicators$/i.test(tab)) return { say: 'The Indicators tab lists the indicators on this chart — click one to see its own settings, or ask me “what is RSI?” about any of them.' }
+  const rows = described().filter(d => new RegExp(`^Chart Settings → ${tab.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(d.ui))
+  if (!rows.length) return null
+  // grouped by where they sit in the tab (the descriptor's own path), each with its values
+  const groups = new Map()
+  for (const d of rows) {
+    const where = d.ui.split(' → ')[2] || tab
+    if (!groups.has(where)) groups.set(where, [])
+    groups.get(where).push(d)
+  }
+  const lines = [...groups].slice(0, 12).map(([where, ds]) => `${where}: ${ds.slice(0, 6).map(d => d.label).join(', ')}${ds.length > 6 ? `, and ${ds.length - 6} more` : ''}.`)
+  return { title: `Chart Settings → ${tab}`, text: `The ${tab} tab: ${lines.join(' ')} Ask me about any one of them (“what is ${rows[0].label.toLowerCase()}?”), or tell me what to change.` }
+}
+
 /** An explanation of what the words name, from UCT's own sources → { id, kind, title, text } | null. */
 export function explainTopic(words) {
   const w = norm(words)
@@ -94,6 +148,17 @@ export function explainTopic(words) {
   const c = core(w)
   const f = GUIDE_FEATURES.find(x => norm(x.title) === w || (x.terms || []).includes(c))
   if (f) return { id: `feature:${f.id}`, kind: 'feature', title: f.title, text: f.explain, local: true }
+  // ⭐ PHASE 3: "these settings" — the Chart Settings tab open on screen; with none open, where to look (one sentence)
+  if (THESE.test(w) || /^(?:settings?|options?|controls?|tab)(?: here)?$/.test(c)) {
+    const tab = openSettingsTab()
+    if (!tab) return { id: 'settings:none-open', kind: 'setting', title: 'Which settings?', local: true,
+      text: 'Open the chart’s settings (the gear on its header) and ask me again on the tab you’re looking at — I’ll go through its settings. Or ask about one by name, like “what is the bar-close countdown?”.' }
+    const t = settingsOfTab(tab)
+    if (t?.say) return { id: `settings-tab:${tab}`, kind: 'setting', title: `Chart Settings → ${tab}`, text: t.say, local: true }
+    if (t) return { id: `settings-tab:${tab}`, kind: 'setting', ...t, local: true }
+  }
+  const s = settingRow(w)
+  if (s) return { id: `setting:${s.id}`, kind: 'setting', title: s.label, text: settingText(s), local: true }
   return null
 }
 

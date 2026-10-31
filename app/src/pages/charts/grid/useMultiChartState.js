@@ -10,6 +10,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import usePreferences from '../../../hooks/usePreferences'
+import { beginPrefsOp } from '../../../lib/prefsSession'
 import {
   sanitizeState, makeDefaultState, parseLayoutId, reconcileCells, makeLayout,
 } from './gridLayouts'
@@ -68,12 +69,20 @@ export default function useMultiChartState(deviceClass = 'desktop') {
     if (!prefsLoading) { hydratedRef.current = true; setHydrated(true) }
   }, [prefsLoading])
 
+  // ⛔ A pending save carries the member it was made for (`beginPrefsOp`, captured when it is
+  // scheduled). The Charts board remounts on a change of member (ChartsWorkspace keys it by the
+  // session generation), so this hook unmounts exactly at the switch: an unguarded flush wrote A's
+  // grid into B's account. A stale save is dropped; the same member's save still lands.
   const saveTimerRef = useRef(null)
+  const saveOpRef = useRef(null)
   const scheduleSave = useCallback(() => {
     if (!hydratedRef.current) return
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+    const op = beginPrefsOp()
+    saveOpRef.current = op
     saveTimerRef.current = setTimeout(() => {
       saveTimerRef.current = null
+      if (op.stale()) return
       setPref('multichart_state', JSON.stringify(stateRef.current))
     }, 500)
   }, [setPref])
@@ -84,6 +93,7 @@ export default function useMultiChartState(deviceClass = 'desktop') {
       if (saveTimerRef.current && hydratedRef.current) {
         clearTimeout(saveTimerRef.current)
         saveTimerRef.current = null
+        if (saveOpRef.current?.stale()) return
         setPref('multichart_state', JSON.stringify(stateRef.current))
       }
     }

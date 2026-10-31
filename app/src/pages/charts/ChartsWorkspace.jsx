@@ -1,9 +1,9 @@
-import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { dropAverages } from '../../components/chart/maAdoption'
 import { Responsive, WidthProvider } from 'react-grid-layout'
 import 'react-grid-layout/css/styles.css'
 import usePreferences, { parsePref, refreshPreferences } from '../../hooks/usePreferences'
-import { beginPrefsOp } from '../../lib/prefsSession'
+import { beginPrefsOp, onPrefsUserChange } from '../../lib/prefsSession'
 import { onWorkspaceConflict, hasWorkspaceConflict } from '../../lib/workspaceConflict'
 import { whenWritesSettle } from '../../hooks/usePreferences'
 import useMediaQuery from '../../hooks/useMediaQuery'
@@ -69,7 +69,7 @@ import { isWorkspaceDocArmed } from '../../lib/workspaceDoc'
 import { addWidgetTab } from './widgetTabs'
 import { createEmptyNamedLayout } from './dockCreate'
 import { computeRowHeight as rowHeightFor, FIXED_ROWS as _FIXED_ROWS, MARGIN_Y as _MARGIN_Y, BODY_PAD as _BODY_PAD } from './rowHeight'
-import { WIDGET_REGISTRY, WORKSPACE_MENU_TYPES, labelMap, menuGroups, catalogMeta } from '../../widgets/registry'
+import { WIDGET_REGISTRY, WORKSPACE_PICKER_TYPES, labelMap, menuGroups, catalogMeta } from '../../widgets/registry'
 import useTracingsSync from '../../components/chart/useTracingsSync'
 import styles from './ChartsWorkspace.module.css'
 import { boardWidgetCount, boardCanGrow, boardMayBecome, boardRefusalSentence, boardLayoutRefusalSentence, boardOverBoundSentence } from './boardBound'
@@ -366,7 +366,7 @@ function splitToSide(widgets, defaults, candidate) {
 // only from Tools → Custom-Period Sort (dock / add-as-tab). Membership + labels
 // derive from the widget registry (menus.workspace: false keeps it out of the
 // menu; it stays registered so docked instances render).
-const WIDGET_TYPES = WORKSPACE_MENU_TYPES
+const WIDGET_TYPES = WORKSPACE_PICKER_TYPES
 const WIDGET_LABELS = labelMap('menu')
 const WIDGET_MENU_GROUPS = menuGroups('workspace')   // add-menu, grouped by category
 const HEADER_LABELS = labelMap('header')   // shown on the smart-placement ghost
@@ -751,7 +751,21 @@ function DeleteConfirm({ onYes, onCancel }) {
   )
 }
 
+// ⛔⛔ ONE BOARD PER MEMBER. Another tab signing in as B (AuthContext's cross-tab re-check), or a
+// sign-out and sign-in without a reload, moves the preferences member under an open workspace. The
+// board below is LOCAL STATE seeded from A's preferences and latched (`loadedFromPrefsRef`), so it
+// kept showing A's board, and the next drag or edit saved A's board into B's ACCOUNT (setPref begins
+// its op at call time, under B). The workspace is keyed by the preferences session generation
+// (lib/prefsSession), so a change of member mounts a fresh board that loads the new member's own
+// preferences through the boot path (the hydration gate and all). The first answer of /me is not a
+// change of member and does not remount. The unmounting board's pending save is dropped by its op.
+const prefsGeneration = () => beginPrefsOp().gen
 export default function ChartsWorkspace() {
+  const generation = useSyncExternalStore(onPrefsUserChange, prefsGeneration, prefsGeneration)
+  return <ChartsWorkspaceBoard key={generation} />
+}
+
+function ChartsWorkspaceBoard() {
   const isPhonePortrait = useMediaQuery('(max-width: 640px)')
   // A rotated phone (coarse pointer, short landscape viewport) also gets the
   // chart-first shell — TradingView's rotate-to-fullscreen. Without this the
@@ -932,17 +946,37 @@ export default function ChartsWorkspace() {
   // The linked ticker updates INSTANTLY (state), but persisting it is debounced —
   // otherwise fast arrow-scanning fires a POST /api/auth/preferences per keypress
   // (+ an optimistic SWR mutate that re-renders every prefs consumer). 400ms trailing.
+  // ⛔ The pending write carries the member it was made for (`beginPrefsOp`, captured when the
+  // timer is scheduled): a ticker change in the last 400 ms before another tab signs in as B is
+  // dropped, never written into B's account. Leaving the board flushes it, for that member only.
   const groupsSaveTimerRef = useRef(null)
+  const groupsPendingRef = useRef(null)
+  const writeGroups = useCallback((pending) => {
+    if (!pending || pending.op.stale()) return
+    setPref('charts_workspace_groups', JSON.stringify(pending.next))
+  }, [setPref])
   const setGroupSym = useCallback((color, sym) => {
     setGroupSymsState(prev => {
       const next = { ...prev, [color]: sym }
       if (groupsSaveTimerRef.current) clearTimeout(groupsSaveTimerRef.current)
+      const pending = { next, op: beginPrefsOp() }
+      groupsPendingRef.current = pending
       groupsSaveTimerRef.current = setTimeout(() => {
-        setPref('charts_workspace_groups', JSON.stringify(next))
+        groupsSaveTimerRef.current = null
+        groupsPendingRef.current = null
+        writeGroups(pending)
       }, 400)
       return next
     })
-  }, [setPref])
+  }, [writeGroups])
+  useEffect(() => () => {
+    if (!groupsSaveTimerRef.current) return
+    clearTimeout(groupsSaveTimerRef.current)
+    groupsSaveTimerRef.current = null
+    const pending = groupsPendingRef.current
+    groupsPendingRef.current = null
+    writeGroups(pending)
+  }, [writeGroups])
 
   // Which timeframe each color group's chart is showing right now. Broadcast by
   // ChartWidget, read by list widgets (Theme Tracker) so their bar warming lands
@@ -1205,7 +1239,11 @@ export default function ChartsWorkspace() {
   const saveTimerRef = useRef(null)
   // The ONE automatic writer of the board. Both the debounce below and the
   // unmount flush go through it, so the STATE-2 guard has a single place to hold.
-  const autosaveLayout = useCallback((nextLayout) => {
+  // `op` is the member the change was made for (captured by scheduleSave): a save that outlived a
+  // change of member is dropped, never written into the next member's account.
+  const saveOpRef = useRef(null)
+  const autosaveLayout = useCallback((nextLayout, op = null) => {
+    if (op && op.stale()) return false
     if (storedLayoutUnreadableRef.current) return false
     if (boardCommitInFlightRef.current) return false
     setPref('charts_workspace_layout', serializeLayout(nextLayout))
@@ -1214,8 +1252,10 @@ export default function ChartsWorkspace() {
   }, [setPref, foldWatchlistColumns])
   const scheduleSave = useCallback((nextLayout) => {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+    const op = beginPrefsOp()
+    saveOpRef.current = op
     saveTimerRef.current = setTimeout(() => {
-      autosaveLayout(nextLayout)
+      autosaveLayout(nextLayout, op)
     }, 500)
   }, [autosaveLayout])
 
@@ -1227,7 +1267,7 @@ export default function ChartsWorkspace() {
       if (saveTimerRef.current && hydratedRef.current) {
         clearTimeout(saveTimerRef.current)
         saveTimerRef.current = null
-        autosaveLayout(layoutRef.current)
+        autosaveLayout(layoutRef.current, saveOpRef.current)
       }
     }
   }, [autosaveLayout])

@@ -44,7 +44,7 @@ function guideChart(host) {
   try { sel = host?.charts?.selected?.() || null } catch { sel = null }
   return charts.find(c => c.ref === sel) || charts[0]
 }
-const needsChart = (f) => f.steps.some(s => typeof s.target === 'string' && s.target.startsWith('chart.'))
+const needsChart = (f) => f.steps.some(s => typeof s.target === 'string' && (s.target.startsWith('chart.') || s.target.startsWith('widget.')))
 
 /** Start the walkthrough for one feature → the sentence the member reads (never claims what is not on screen). */
 export function showFeature(f, host) {
@@ -92,9 +92,11 @@ export function doItForMe(text, host) {
   const chart = charts.find(c => c.ref === last.chartRef) || (charts.length === 1 ? charts[0] : null)
   if (!chart) return { say: `The chart I showed you isn’t on the board any more — tell me which chart, and what to change.` }
   const kind = getTargetKind(d.kind || 'chart')
-  const snap = kind ? (kind.list(host) || []).find(s => (s.chartRef || s.ref) === chart.ref) : null
+  // ⭐ PHASE 3: a BOARD action about the chart shown (its link colour): the board entry, with the chart's widget id
+  const snap = !kind ? null : d.widgetArg ? (kind.list(host) || [])[0] || null : (kind.list(host) || []).find(s => (s.chartRef || s.ref) === chart.ref)
   if (!snap) return { say: 'I can’t change that on this chart.' }
-  const ops = [{ action: d.action, target: snap.ref, args: { [d.arg]: null, ...(d.extra || {}) } }]
+  const widget = d.widgetArg ? { [d.widgetArg]: String(chart.ref).split('~')[0] } : {}
+  const ops = [{ action: d.action, target: snap.ref, args: { ...widget, [d.arg]: null, ...(d.extra || {}) } }]
   const choices = d.choicesFrom === 'quickIndicators' ? quickIndicators() : d.choices
   if (!choices?.length) return { say: 'Tell me which one and I’ll do it.' }
   return { ask: { text: `${d.ask} (on ${chart.label})`, choices: choices.map(([ref, label]) => ({ ref, label })), ops, pickArg: { action: d.action, arg: d.arg } } }

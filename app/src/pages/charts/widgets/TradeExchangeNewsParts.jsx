@@ -1,24 +1,29 @@
 /**
  * News (Trade Exchange) — the row and its popovers, split out of the widget:
  *   Row            one headline (memoised: a quote tick re-renders only the rows
- *                  naming that symbol), its collapse, impact mark and ⋯ actions
- *   ActionsMenu    Open chart · Add to watchlist · Copy headline · Create news alert
+ *                  naming that symbol), its collapse, one-click copy
+ *                  and ⋯ (add to watchlist)
+ *   ActionsMenu    Add a headline's symbol to a personal watchlist
  *   FilterMenu     categories (multi-select) + this widget's saved presets
  *   HealthPopover  what this browser knows about the feed (feedHealth)
+ *   DayBar         the day being read: ‹ date › · calendar · jump to time · Latest
+ *                  (useTradeExchangeNewsDay); CalendarPopover, TimePopover
+ *   DayList        one day's rows, rendered by time block; blocks far off screen
+ *                  are replaced by spacers of their measured height
  *
- * Every integration is the canonical one: Open chart is the ticker click
+ * Every integration is the canonical one: a ticker in the text opens the chart
  * (setGroupSym on the widget's colour group), Add to watchlist is the watchlist
- * API TickerActions uses, Copy is the browser clipboard, Create news alert opens
- * the widget's own alert popover — and is OMITTED while the server reports news
- * alerts switched off (production: off until the owner approves).
+ * API TickerActions uses, Copy is the browser clipboard. News alerts are not
+ * offered from a headline (switched off in production until the owner approves).
  */
 import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import useSWR from 'swr'
 import UIcon from '../../../components/ui/UIcon'
+import { formatNumber } from '../../../lib/presentation/presentationPrimitives'
 import Input from '../../../components/ui/Input'
-import { NEWS_ALERTS_URL } from './TradeExchangeNewsAlerts'
 import { CATEGORY_FILTERS, categoryTitle, cleanCategories, fmtReceived, fmtReceivedFull,
-  MAX_PRESETS, pctText, tickerTitle, tickerTone, tokenize } from './tradeExchangeNewsModel'
+  dayLabel, dayStatus, cleanTime, MAX_PRESETS, monthGrid, MONTHS, tickerTitle, tickerTone, timeLabel, tokenize,
+  WEEKDAYS } from './tradeExchangeNewsModel'
 import styles from './TradeExchangeNewsWidget.module.css'
 
 const TONE_CLASS = { up: 'symUp', down: 'symDown', flat: 'symFlat', none: 'symNone' }
@@ -60,9 +65,8 @@ function useLong(ref, lines, content, expanded) {
   return long
 }
 
-function Headline({ item, linkedSym, onSym, colorMode, prices, staleSymbols, provisional, showPct, clampLines, expanded, headRef }) {
+function Headline({ item, linkedSym, onSym, colorMode, prices, staleSymbols, provisional, clampLines, expanded, headRef }) {
   const parts = tokenize(item.content, item.tickers, item.mentions)
-  const shownPct = new Set()
   const clamp = clampLines && !expanded
   return (
     <span ref={headRef} className={`${styles.headline}${clamp ? ' ' + styles.clamped : ''}`}
@@ -74,10 +78,7 @@ function Headline({ item, linkedSym, onSym, colorMode, prices, staleSymbols, pro
         const t = tickerTone(q, stale)
         const tone = colorMode === 'performance' ? styles[TONE_CLASS[t]]
           : colorMode === 'neutral' ? styles.symNeutral : ''
-        // One % per security per headline: a repeated ticker stays a plain link.
-        const pct = showPct && !shownPct.has(p.sym) ? pctText(q, stale) : null
-        if (pct) shownPct.add(p.sym)
-        const btn = (
+        return (
           <button
             key={i}
             type="button"
@@ -86,13 +87,6 @@ function Headline({ item, linkedSym, onSym, colorMode, prices, staleSymbols, pro
             title={`${tickerTitle(p.sym, q, stale, { named: p.named })}${provisional ? ' · ticker detected automatically (provisional)' : ''}`}
           >{p.text}</button>
         )
-        if (!pct) return btn
-        const pctTone = colorMode === 'performance' ? styles[TONE_CLASS[t]] : ''
-        return (
-          <span key={i} className={styles.symPct}>
-            {btn}<span className={`${styles.pct}${pctTone ? ' ' + pctTone : ''}`} aria-label={`${p.sym} ${pct} today`}>{pct}</span>
-          </span>
-        )
       })}
     </span>
   )
@@ -100,8 +94,8 @@ function Headline({ item, linkedSym, onSym, colorMode, prices, staleSymbols, pro
 
 /** Only what a row DISPLAYS from a quote: a tick that moves none of it is no render. */
 const quoteKey = (q) => (q ? `${q.price}|${q.change_pct}|${q.updated_at || q.timestamp || ''}` : '')
-const ROW_KEYS = ['item', 'linkedSym', 'colorMode', 'provisional', 'showPct', 'clampLines', 'expanded', 'flashing',
-  'impact', 'showCategory', 'groupCount', 'groupOpen', 'related', 'onSym', 'onToggleExpand', 'onToggleGroup', 'onActions',
+const ROW_KEYS = ['item', 'linkedSym', 'colorMode', 'provisional', 'clampLines', 'expanded', 'flashing',
+  'showCategory', 'timeOnly', 'groupCount', 'groupOpen', 'related', 'onSym', 'onToggleExpand', 'onToggleGroup', 'onActions',
   'actionsOpen']
 function rowPropsEqual(a, b) {
   for (const k of ROW_KEYS) if (a[k] !== b[k]) return false
@@ -113,8 +107,54 @@ function rowPropsEqual(a, b) {
   return true
 }
 
-export const Row = memo(function Row({ item, linkedSym, onSym, colorMode, prices, staleSymbols, provisional, showPct,
-  clampLines, expanded, onToggleExpand, flashing, impact, showCategory, groupCount = 0, groupOpen = false,
+/** Copy `text` exactly as given: the async clipboard, else the legacy copy command
+ *  (a browser that blocks both gets `false`, never a thrown error). */
+async function copyText(text) {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text)
+      return true
+    }
+  } catch { /* fall through to the legacy path */ }
+  try {
+    const ta = document.createElement('textarea')
+    ta.value = text
+    ta.setAttribute('readonly', '')
+    ta.style.position = 'fixed'
+    ta.style.opacity = '0'
+    document.body.appendChild(ta)
+    ta.select()
+    const ok = document.execCommand?.('copy') === true
+    ta.remove()
+    return ok
+  } catch {
+    return false
+  }
+}
+
+const COPY_FEEDBACK_MS = 1400
+
+/** One click: the WHOLE original headline (also the part behind Show more). */
+function CopyButton({ text }) {
+  const [state, setState] = useState(null)             // null | 'ok' | 'err'
+  useEffect(() => {
+    if (!state) return undefined
+    const t = setTimeout(() => setState(null), COPY_FEEDBACK_MS)
+    return () => clearTimeout(t)
+  }, [state])
+  const label = state === 'ok' ? 'Headline copied' : state === 'err' ? 'Copy failed: the browser blocked the clipboard' : 'Copy headline'
+  return (
+    <button type="button" className={`${styles.rowBtn}${state ? ' ' + styles.rowBtnOn + ' ' + (state === 'ok' ? styles.rowBtnOk : styles.rowBtnErr) : ''}`}
+      onClick={async (e) => { e.stopPropagation(); setState((await copyText(text)) ? 'ok' : 'err') }}
+      aria-label={label} title={label}>
+      <UIcon name={state === 'ok' ? 'check' : state === 'err' ? 'x' : 'copy'} size={11} />
+      {state && <span className={styles.srOnly} role="status">{label}</span>}
+    </button>
+  )
+}
+
+export const Row = memo(function Row({ item, linkedSym, onSym, colorMode, prices, staleSymbols, provisional,
+  clampLines, expanded, onToggleExpand, flashing, showCategory, timeOnly = false, groupCount = 0, groupOpen = false,
   onToggleGroup, related = false, onActions, actionsOpen }) {
   const headRef = useRef(null)
   const long = useLong(headRef, clampLines, item.content, expanded)
@@ -125,13 +165,11 @@ export const Row = memo(function Row({ item, linkedSym, onSym, colorMode, prices
       {flashing && <span className={styles.flash} aria-hidden="true" />}
       <span className={styles.when}>
         <span className={styles.time} title={`Received by UCT ${fmtReceivedFull(item.received_at_ms)} · Trade Exchange does not send a publication time`}>
-          {fmtReceived(item.received_at_ms)}
+          {/* a day view names its date once (the date bar); each row says the time */}
+          {fmtReceived(item.received_at_ms, timeOnly ? item.received_at_ms : undefined)}
         </span>
         {showCategory && item.category && (
           <span className={styles.category} title={categoryTitle(item)}>{item.category}</span>
-        )}
-        {impact && (
-          <span className={`${styles.impact}${impact.breaking ? ' ' + styles.impactBreaking : ''}`} title={impact.title}>{impact.label}</span>
         )}
         {groupCount > 0 && (
           <button type="button" className={styles.groupBtn} onClick={() => onToggleGroup(item)} aria-expanded={groupOpen}
@@ -139,18 +177,23 @@ export const Row = memo(function Row({ item, linkedSym, onSym, colorMode, prices
             {groupOpen ? 'Hide' : '+'}{groupOpen ? ' related' : `${groupCount} related`}
           </button>
         )}
-        <button
-          type="button"
-          className={`${styles.rowMenuBtn}${actionsOpen ? ' ' + styles.rowMenuBtnOn : ''}`}
-          onClick={(e) => onActions(item, e.currentTarget)}
-          aria-label="Headline actions"
-          aria-haspopup="menu"
-          aria-expanded={!!actionsOpen}
-          title="Actions: open chart, add to watchlist, copy"
-        >{/* a glyph, not an icon: an SVG per row tripled the DOM of a 1,000-headline feed */}⋯</button>
+        <span className={styles.rowActions}>
+          <CopyButton text={item.content || ''} />
+          {(item.tickers || []).length > 0 && (
+            <button
+              type="button"
+              className={`${styles.rowBtn} ${styles.rowMenuBtn}${actionsOpen ? ' ' + styles.rowBtnOn : ''}`}
+              onClick={(e) => { e.stopPropagation(); onActions(item, e.currentTarget) }}
+              aria-label="Add a symbol to a watchlist"
+              aria-haspopup="menu"
+              aria-expanded={!!actionsOpen}
+              title="Add to watchlist"
+            >⋯</button>
+          )}
+        </span>
       </span>
       <Headline item={item} linkedSym={linkedSym} onSym={onSym} colorMode={colorMode} prices={prices}
-        staleSymbols={staleSymbols} provisional={provisional} showPct={showPct} clampLines={clampLines}
+        staleSymbols={staleSymbols} provisional={provisional} clampLines={clampLines}
         expanded={expanded} headRef={headRef} />
       <span className={styles.badges}>
         {item.repeat_count > 0 && (
@@ -210,33 +253,25 @@ function placeUnder(anchorEl, hostEl, width) {
 }
 
 const fetchJson = (url) => fetch(url, { credentials: 'include' }).then((r) => (r.ok ? r.json() : []))
-const fetchAlertsState = async (url) => {
-  const r = await fetch(url, { credentials: 'include', cache: 'no-store' })
-  return r.ok ? 'on' : 'off'                 // 404 = switched off; 403 = not this account
-}
 
-export function ActionsMenu({ item, anchorEl, hostEl, themeVars, onClose, onOpenChart, onCreateAlert }) {
+/** ⋯ on a headline: add one of its symbols to a personal watchlist. The chart is
+ *  the ticker in the text; copying is the row's own button. */
+export function ActionsMenu({ item, anchorEl, hostEl, themeVars, onClose }) {
   const boxRef = useRef(null)
   const onKey = usePopover(boxRef, anchorEl, onClose)
   const syms = [...new Set(item.tickers || [])]
   const [sym, setSym] = useState(syms[0] || null)
-  const [picking, setPicking] = useState(false)
   const [result, setResult] = useState(null)
   const [busy, setBusy] = useState(false)
-  // Lazily, and only while the menu is open: is the alert door open on this server?
-  const { data: alerts } = useSWR(NEWS_ALERTS_URL, fetchAlertsState, { revalidateOnFocus: false, shouldRetryOnError: false })
-  const { data: lists } = useSWR(picking ? '/api/watchlists?include_items=0' : null, fetchJson, { revalidateOnFocus: false })
+  const { data: lists } = useSWR(sym ? '/api/watchlists?include_items=0' : null, fetchJson, { revalidateOnFocus: false })
   const myLists = (Array.isArray(lists) ? lists : []).filter((l) => !l?.is_prebuilt)
-  useEffect(() => { boxRef.current?.querySelector('[role="menuitem"]')?.focus() }, [])
-
-  const copy = useCallback(async () => {
-    try {
-      await navigator.clipboard.writeText(item.content || '')
-      setResult({ tone: 'ok', text: 'Headline copied' })
-    } catch {
-      setResult({ tone: 'err', text: 'Copy was blocked by the browser' })
-    }
-  }, [item.content])
+  const focused = useRef(false)
+  useEffect(() => {
+    // Focus the first list once they arrive (a symbol chip or the box until then).
+    const first = boxRef.current?.querySelector('[role="menuitem"]')
+    if (first && !focused.current) { focused.current = true; first.focus() }
+    else if (!first) boxRef.current?.focus()
+  }, [lists])
 
   const addTo = useCallback(async (list) => {
     if (busy || !sym) return
@@ -251,7 +286,6 @@ export function ActionsMenu({ item, anchorEl, hostEl, themeVars, onClose, onOpen
       setResult(!r.ok ? { tone: 'err', text: body.detail || `Could not add ${sym} (HTTP ${r.status})` }
         : body.duplicate ? { tone: 'ok', text: `${sym} is already on ${list.name}` }
           : { tone: 'ok', text: `Added ${sym} to ${list.name}` })
-      setPicking(false)
     } catch {
       setResult({ tone: 'err', text: 'Could not reach UCT — try again' })
     } finally {
@@ -261,8 +295,9 @@ export function ActionsMenu({ item, anchorEl, hostEl, themeVars, onClose, onOpen
 
   const width = 210
   return (
-    <div ref={boxRef} className={styles.menuPop} style={{ ...(themeVars || {}), ...placeUnder(anchorEl, hostEl, width), width }}
-      role="menu" aria-label="Headline actions" onKeyDown={(e) => { onKey(e); menuKeys(e) }}>
+    <div ref={boxRef} tabIndex={-1} className={styles.menuPop} style={{ ...(themeVars || {}), ...placeUnder(anchorEl, hostEl, width), width }}
+      role="menu" aria-label="Add to watchlist" onKeyDown={(e) => { onKey(e); menuKeys(e) }}>
+      <div className={styles.menuHead}>{sym ? `Add ${sym} to watchlist` : 'Add to watchlist'}</div>
       {syms.length > 1 && (
         <div className={styles.menuSyms} role="group" aria-label="Security">
           {syms.map((s) => (
@@ -272,32 +307,15 @@ export function ActionsMenu({ item, anchorEl, hostEl, themeVars, onClose, onOpen
         </div>
       )}
       {sym && (
-        <button type="button" role="menuitem" className={styles.menuItem} onClick={() => { onOpenChart(sym); onClose() }}>
-          <UIcon name="chart" size={12} /> Open {sym} chart
-        </button>
-      )}
-      {sym && (
-        <button type="button" role="menuitem" className={styles.menuItem} aria-expanded={picking}
-          onClick={() => { setPicking((p) => !p); setResult(null) }}>
-          <UIcon name="plus" size={12} /> Add {sym} to watchlist
-        </button>
-      )}
-      {picking && (
         <div className={styles.menuLists}>
           {!lists && <div className={styles.menuNote}>Loading lists…</div>}
           {lists && !myLists.length && <div className={styles.menuNote}>No personal watchlists yet.</div>}
           {myLists.map((l) => (
-            <button key={l.id} type="button" role="menuitem" className={styles.menuSub} disabled={busy} onClick={() => addTo(l)}>{l.name}</button>
+            <button key={l.id} type="button" role="menuitem" className={styles.menuItem} disabled={busy} onClick={() => addTo(l)}>
+              <UIcon name="plus" size={12} /> {l.name}
+            </button>
           ))}
         </div>
-      )}
-      <button type="button" role="menuitem" className={styles.menuItem} onClick={copy}>
-        <UIcon name="copy" size={12} /> Copy headline
-      </button>
-      {sym && alerts === 'on' && (
-        <button type="button" role="menuitem" className={styles.menuItem} onClick={() => { onCreateAlert(syms); onClose() }}>
-          <UIcon name="bell" size={12} /> Create news alert
-        </button>
       )}
       {!sym && <div className={styles.menuNote}>No ticker identified in this headline.</div>}
       {result && <div className={result.tone === 'err' ? styles.alertsErr : styles.alertsOk} role="status">{result.text}</div>}
@@ -383,3 +401,198 @@ export function HealthPopover({ lines, anchorEl, hostEl, themeVars, onClose }) {
   )
 }
 
+/** Where a popover opens from the bottom bar: ABOVE its anchor, kept inside. */
+function placeAbove(anchorEl, hostEl, width) {
+  if (!anchorEl || !hostEl) return { bottom: 32, left: 6 }
+  const a = anchorEl.getBoundingClientRect()
+  const h = hostEl.getBoundingClientRect()
+  const left = Math.max(4, Math.min(a.left - h.left, h.width - width - 4))
+  return { bottom: Math.max(4, h.bottom - a.top + 4), left }
+}
+
+/** A month of days. Future dates and dates before retention are disabled and say
+ *  why; a dot marks a retained date with headlines (only what the server reports). */
+export function CalendarPopover({ selected, meta, anchorEl, hostEl, themeVars, onPick, onClose }) {
+  const boxRef = useRef(null)
+  const onKey = usePopover(boxRef, anchorEl, onClose)
+  const [ym, setYm] = useState(() => [Number(selected.slice(0, 4)), Number(selected.slice(5, 7)) - 1])
+  const [focus, setFocus] = useState(selected)
+  const [year, month] = ym
+  const grid = monthGrid(year, month)
+  const move = (dy, dm) => {
+    const t = new Date(Date.UTC(year + dy, month + dm, 1))
+    setYm([t.getUTCFullYear(), t.getUTCMonth()])
+  }
+  useEffect(() => { boxRef.current?.querySelector(`[data-day="${focus}"]`)?.focus() }, [focus, ym])
+  const keys = (e) => {
+    const step = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7 }[e.key]
+    if (!step || !e.target.dataset?.day) return
+    e.preventDefault()
+    const t = new Date(Date.parse(`${e.target.dataset.day}T00:00:00Z`) + step * 86_400_000)
+    const k = t.toISOString().slice(0, 10)
+    if (t.getUTCMonth() !== month || t.getUTCFullYear() !== year) setYm([t.getUTCFullYear(), t.getUTCMonth()])
+    setFocus(k)
+  }
+  const width = 232
+  const nav = (label, glyph, onClick) => (
+    <button type="button" className={styles.calNav} onClick={onClick} aria-label={label} title={label}>{glyph}</button>
+  )
+  return (
+    <div ref={boxRef} className={styles.menuPop} style={{ ...(themeVars || {}), ...placeAbove(anchorEl, hostEl, width), top: 'auto', width }}
+      role="dialog" aria-label="Choose a date" onKeyDown={(e) => { onKey(e); keys(e) }}>
+      <div className={styles.calHead}>
+        {nav('Previous year', '«', () => move(-1, 0))}
+        {nav('Previous month', '‹', () => move(0, -1))}
+        <span className={styles.calTitle} aria-live="polite">{MONTHS[month]} {year}</span>
+        {nav('Next month', '›', () => move(0, 1))}
+        {nav('Next year', '»', () => move(1, 0))}
+      </div>
+      <div className={styles.calGrid} role="grid" aria-label={`${MONTHS[month]} ${year}`}>
+        {WEEKDAYS.map((w) => <span key={w} className={styles.calDow} role="columnheader" aria-label={w}>{w[0]}</span>)}
+        {grid.map(({ key, inMonth }) => {
+          const st = dayStatus(key, meta)
+          const off = st.kind === 'future' || st.kind === 'unretained'
+          const title = st.kind === 'future' ? 'In the future'
+            : st.kind === 'unretained' ? 'Not retained: UCT keeps about 7 days of headlines'
+              : st.kind === 'news' ? `${formatNumber(st.count, { decimals: 0 })} headline${st.count === 1 ? '' : 's'}`
+                : st.kind === 'empty' ? 'No headlines retained for this date' : ''
+          return (
+            <button key={key} type="button" data-day={key} role="gridcell" disabled={off}
+              tabIndex={key === focus ? 0 : -1} aria-selected={key === selected} aria-label={`${dayLabel(key, meta?.today)}${title ? `. ${title}` : ''}`}
+              title={title}
+              className={[styles.calDay, inMonth ? '' : styles.calOut, key === selected ? styles.calSel : '',
+                key === meta?.today ? styles.calToday : '', st.kind === 'news' ? styles.calNews : '',
+                st.kind === 'empty' ? styles.calEmpty : ''].filter(Boolean).join(' ')}
+              onClick={() => { onPick(key); onClose() }}>
+              {Number(key.slice(8))}
+            </button>
+          )
+        })}
+      </div>
+      {meta?.first_day && (
+        <div className={styles.menuNote}>
+          History from {dayLabel(meta.first_day, meta.today)}{meta.first_day_partial ? ' (partial day)' : ''} · about 7 days are kept
+        </div>
+      )}
+    </div>
+  )
+}
+
+const TIME_PRESETS = [['09:30', 'Open'], ['12:00', 'Midday'], ['16:00', 'Close']]
+
+/** Jump to a time of the selected day (ET): presets or any hour and minute. */
+export function TimePopover({ at, anchorEl, hostEl, themeVars, onPick, onClose }) {
+  const boxRef = useRef(null)
+  const onKey = usePopover(boxRef, anchorEl, onClose)
+  const [draft, setDraft] = useState(at || '')
+  const [bad, setBad] = useState(false)
+  useEffect(() => { boxRef.current?.querySelector('button')?.focus() }, [])
+  const go = (t) => { onPick(t); onClose() }
+  const width = 210
+  return (
+    <div ref={boxRef} className={styles.menuPop} style={{ ...(themeVars || {}), ...placeAbove(anchorEl, hostEl, width), top: 'auto', width }}
+      role="dialog" aria-label="Jump to a time" onKeyDown={onKey}>
+      <div className={styles.menuHead}>Jump to time (ET)</div>
+      <div className={styles.timePresets}>
+        {TIME_PRESETS.map(([t, name]) => (
+          <button key={t} type="button" className={`${styles.menuSym}${at === t ? ' ' + styles.menuSymOn : ''}`}
+            aria-pressed={at === t} onClick={() => go(t)} title={name}>{timeLabel(t)}</button>
+        ))}
+      </div>
+      <form className={styles.presetForm} onSubmit={(e) => {
+        e.preventDefault()
+        const t = cleanTime(draft)
+        if (!t) { setBad(true); return }
+        go(t)
+      }}>
+        <input type="time" step={60} className={`${styles.alertsInput}${bad ? ' ' + styles.pageInputBad : ''}`} value={draft}
+          aria-label="Time, hour and minute (ET)" aria-invalid={bad || undefined}
+          onChange={(e) => { setDraft(e.target.value); setBad(false) }} />
+        <button type="submit" className={styles.alertsAdd}>Go</button>
+      </form>
+      <div className={styles.menuNote}>Starts at the closest headline at or before this time; scroll up for later ones.</div>
+      {at && <button type="button" className={styles.menuItem} onClick={() => go(null)}>Clear — show the whole day from the top</button>}
+    </div>
+  )
+}
+
+/** ‹ date › · calendar · time · Latest. Every control says what it does. */
+export function DayBar({ day, onCalendar, onTime, calendarOpen, timeOpen, calRef, timeRef }) {
+  const first = day.meta?.first_day
+  const prevOff = !!first && day.dateKey <= first
+  const label = day.isToday ? `Today · ${dayLabel(day.dateKey, day.todayKey)}` : dayLabel(day.dateKey, day.todayKey)
+  const short = day.isToday ? 'Today' : dayLabel(day.dateKey, day.todayKey).replace(/^\w+, /, '')
+  return (
+    <nav className={styles.dayBar} aria-label="Date">
+      <button type="button" className={styles.pageBtn} onClick={day.prevDay} disabled={prevOff}
+        aria-label="Previous day" title={prevOff ? 'Earlier dates are not retained' : 'Previous day'}>
+        <UIcon name="chevronLeft" size={10} />
+      </button>
+      <button ref={calRef} type="button" className={`${styles.dayBtn}${calendarOpen ? ' ' + styles.dayBtnOn : ''}`} onClick={onCalendar}
+        aria-haspopup="dialog" aria-expanded={calendarOpen} aria-label={`Date: ${label}. Choose a date`} title="Choose a date">
+        <span className={styles.dayIcon}><UIcon name="calendar" size={11} /></span>
+        <span className={`${styles.dayText} ${styles.dayLong}`}>{label}</span>
+        <span className={`${styles.dayText} ${styles.dayShort}`}>{short}</span>
+      </button>
+      <button type="button" className={styles.pageBtn} onClick={day.nextDay} disabled={day.isToday}
+        aria-label="Next day" title={day.isToday ? 'Today is the latest date' : 'Next day'}>
+        <UIcon name="chevronRight" size={10} />
+      </button>
+      <button ref={timeRef} type="button" className={`${styles.dayBtn}${day.at ? ' ' + styles.dayBtnOn : ''}`} onClick={onTime}
+        aria-haspopup="dialog" aria-expanded={timeOpen}
+        aria-label={day.at ? `From ${timeLabel(day.at)} ET. Change the time` : 'Jump to a time'}
+        title={day.at ? (day.atMatch === 'after'
+          ? `Nothing at or before ${timeLabel(day.at)} ET: showing from the day's first headline`
+          : `Showing from the closest headline at or before ${timeLabel(day.at)} ET`) : 'Jump to a time (ET)'}>
+        <UIcon name="clock" size={11} />
+        {day.at && <span className={`${styles.dayText} ${styles.dayTime}`}>{day.atMatch === 'after' ? 'after' : '≤'} {timeLabel(day.at)}</span>}
+      </button>
+      {(!day.live) && (
+        <button type="button" className={styles.pageLatest} onClick={day.toLatest} title="Today's newest headlines and the live feed">Latest</button>
+      )}
+    </nav>
+  )
+}
+
+//: Rows render by 15-minute receipt block: a block's membership never changes when
+//: news arrives elsewhere, so a block measured off screen keeps its true height.
+const BLOCK_MS = 15 * 60_000
+
+function Block({ id, rootRef, children }) {
+  const ref = useRef(null)
+  // null = rendered; a number = off screen, held at the height it last measured
+  const [spacer, setSpacer] = useState(null)
+  useEffect(() => {
+    const el = ref.current
+    if (typeof IntersectionObserver === 'undefined' || !el) return undefined
+    const io = new IntersectionObserver(([e]) => {
+      if (e.isIntersecting) setSpacer(null)
+      else setSpacer(el.offsetHeight)                 // measured as it leaves: the true height
+    }, { root: rootRef.current || null, rootMargin: '1500px 0px' })
+    io.observe(el)
+    return () => io.disconnect()
+  }, [rootRef])
+  return (
+    <div ref={ref} data-block={id} style={spacer == null ? undefined : { height: spacer }}>
+      {spacer == null ? children : null}
+    </div>
+  )
+}
+
+/** One day's groups (newest first), in time blocks; far-off blocks are spacers.
+ *  `viewKey` (date | time | filters): a new view starts with fresh blocks -- a block
+ *  kept from the previous view would hold a spacer measured for other rows. */
+export function DayList({ groups, rootRef, renderGroup, viewKey = '' }) {
+  const blocks = []
+  for (const g of groups) {
+    const id = Math.floor((g.lead.received_at_ms || 0) / BLOCK_MS)
+    const last = blocks[blocks.length - 1]
+    if (last && last.id === id) last.groups.push(g)
+    else blocks.push({ id, groups: [g] })
+  }
+  return blocks.map((b) => (
+    <Block key={`${viewKey}|${b.id}`} id={b.id} rootRef={rootRef}>
+      {b.groups.map(renderGroup)}
+    </Block>
+  ))
+}

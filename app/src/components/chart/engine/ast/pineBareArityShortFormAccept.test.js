@@ -173,12 +173,15 @@ describe('⭐⭐ the real corpus: both blockers move, neither fully unlocks (sam
     expect((t.outputs || []).some((o) => /vwapOf\(close\)/.test(String(o.formula || '')))).toBe(true)
   })
 
-  it('⛔ CONTROL — a genuinely unimplemented function (ta.nvi) still refuses pine:function', () => {
-    const src = fs.readFileSync(
-      path.join(CORPUS, 'smart-money-volume-index-algoalpha__6663950b80.pine'), 'utf8')
+  it('⛔ CONTROL — a genuinely unimplemented function (ta.wad) still refuses pine:function', () => {
+    // ⚰️ (2026-10-30) this read `smart-money-volume-index-algoalpha`, whose first
+    // wall was `ta.nvi` — served on a pane since Pine coverage Phase 1 (`exp(cum(…))`,
+    // matched to TradingView in `pinePhase1Builtins.test.js`). `ta.wad` is still
+    // genuinely undeclared and unruled, so it is the control now.
+    const src = ['//@version=5', 'indicator("t")', 'plot(ta.wad)', ''].join(String.fromCharCode(10))
     const t = translatePine(src, { strict: true })
     expect(t.ok).toBe(false)
     expect(t.refusal.guard).toBe('pine:function')
-    expect(t.refusal.message).toMatch(/ta\.nvi/)
+    expect(t.refusal.message).toMatch(/ta\.wad/)
   })
 })

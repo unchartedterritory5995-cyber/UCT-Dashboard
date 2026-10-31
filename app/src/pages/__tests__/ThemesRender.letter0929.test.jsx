@@ -53,7 +53,7 @@ describe('ThemesRender', () => {
     renderAt()
     await screen.findByText('Nuclear & Uranium')
     const head = screen.getByText(/^THEMES/)
-    expect(head.textContent).toBe('THEMES · 1W LEADERS & LAGGARDS')
+    expect(head.textContent).toBe('THEMES · 1 WEEK LEADERS & LAGGARDS')   // owner 10/21: never "1W"
     expect(screen.getByText('UCT INTELLIGENCE')).toBeInTheDocument()
   })
 

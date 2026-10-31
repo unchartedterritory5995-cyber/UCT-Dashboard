@@ -236,6 +236,8 @@
    "disclosures": [],
    "requirementTags": [],
    "recurrenceOrigin": "pine",
+   "pineVersion": 5,
+   "doorVersion": 1,
    "naConditionFalse": true
   },
   "placement": {
@@ -650,6 +652,8 @@
    "disclosures": [],
    "requirementTags": [],
    "recurrenceOrigin": "pine",
+   "pineVersion": 5,
+   "doorVersion": 1,
    "naConditionFalse": true
   },
   "placement": {

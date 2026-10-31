@@ -26,8 +26,6 @@ export const TXN_WIDGET_DEFAULTS = {
   tickerColorMode: 'performance',                   // 'performance' (theme up/down candles) | 'accent' | 'neutral'
   graphicPlaceholders: 'hide',                      // 'hide' | 'show' — label-only posts whose graphic we never receive
   longHeadlines: '3',                               // '3' | '5' | 'all' — lines before "Show more"
-  showPct: 'auto',                                  // 'auto' (on in Comfortable, off in Compact) | 'on' | 'off'
-  impactMarks: 'on',                                // 'on' | 'off' — Breaking / High impact labels
   groupRelated: 'off',                              // 'off' | 'on' — the same story re-sent, grouped
   sound: 'off',                                     // ⛔ muted by default (owner rule)
   soundKey: 'ding',                                 // one of utils/alertSound ALERT_SOUNDS
@@ -53,8 +51,6 @@ const ENUMS = {
   tickerColorMode: ['performance', 'accent', 'neutral'],
   graphicPlaceholders: ['hide', 'show'],
   longHeadlines: ['3', '5', 'all'],
-  showPct: ['auto', 'on', 'off'],
-  impactMarks: ['on', 'off'],
   groupRelated: ['off', 'on'],
   sound: ['off', 'on'],
   bgMode: ['solid', 'gradient'],
@@ -70,6 +66,8 @@ export function mergeTxnWidgetSettings(saved) {
   }
   for (const [k, vals] of Object.entries(ENUMS)) if (!vals.includes(out[k])) out[k] = TXN_WIDGET_DEFAULTS[k]
   if (!TXN_SOUND_OPTIONS.some((o) => o.key === out.soundKey)) out.soundKey = TXN_WIDGET_DEFAULTS.soundKey
+  delete out.showPct                     // retired: the inline % beside tickers was removed
+  delete out.impactMarks                 // retired: no Breaking / High impact labels
   return out
 }
 
@@ -79,8 +77,6 @@ export const txnSettingsFor = (saved, theme) => mergeTxnWidgetSettings(saved ?? 
 /** Lines a long headline shows before "Show more" (0 = always expanded). */
 export const txnClampLines = (s) => (s.longHeadlines === 'all' ? 0 : s.longHeadlines === '5' ? 5 : 3)
 
-/** The inline ticker % change: Auto follows the density (on in Comfortable). */
-export const txnShowPct = (s) => (s.showPct === 'auto' ? s.density !== 'compact' : s.showPct === 'on')
 
 export function isCustomCanvas(s) {
   return s.bgMode === 'gradient'

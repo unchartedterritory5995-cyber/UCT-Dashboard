@@ -84,7 +84,7 @@ async def take(resp, n, timeout=2.0, skip_heartbeats=True):
 async def open_stream(admin=ADMIN, headers=None, **q):
     req = FakeRequest(headers)
     resp = await route.stream(req, after=q.get("after"), epoch=q.get("epoch", ""),
-                              last_event_id=q.get("last_event_id", ""), admin=admin)
+                              last_event_id=q.get("last_event_id", ""), user=admin)
     return req, resp
 
 
@@ -104,13 +104,60 @@ async def _get(user, path):
 
 # ── authorization ────────────────────────────────────────────────────────────
 
-@pytest.mark.parametrize("path", [route.RECENT_PATH, route.STREAM_PATH])
-async def test_signed_out_and_non_admin_members_get_nothing(path):
+@pytest.mark.parametrize("path", [route.RECENT_PATH, route.STREAM_PATH, route.CLOCK_PATH])
+async def test_signed_out_visitors_get_nothing(path):
     pl.start(asyncio.get_running_loop())
     anon = await _get(None, path)
-    member = await _get(MEMBER, path)
-    assert anon.status_code == 401 and member.status_code == 403
-    assert "SYNTHETIC" not in anon.text + member.text
+    assert anon.status_code == 401 and "SYNTHETIC" not in anon.text
+
+
+async def test_every_signed_in_member_reads_the_feed():
+    """Owner release 2026-10-30: UCT News for all authenticated users (Trade
+    Exchange redistribution confirmed); anonymous stays 401 (above)."""
+    p = pl.start(asyncio.get_running_loop())
+    await p.submit(rec("SYNTHETIC member-visible", 0), "push")
+    r = await _get(MEMBER, route.RECENT_PATH)
+    assert r.status_code == 200 and [x["seq"] for x in r.json()["items"]] == [1]
+    req, resp = await open_stream(MEMBER)
+    (hello,), it = await take(resp, 1)
+    assert hello[1] == "hello" and hello[2]["timing"] is False        # a member is never asked to report latency
+    req.gone = True
+    await it.aclose()
+    req, resp = await open_stream(ADMIN)
+    (hello,), it = await take(resp, 1)
+    assert hello[2]["timing"] is True
+    req.gone = True
+    await it.aclose()
+
+
+async def test_many_members_share_one_ingest_and_one_fan_out():
+    """Several signed-in users at once: ONE ingest per headline (one store row, one
+    pipeline count), fanned out by the one hub -- each stream gets it exactly once."""
+    p = pl.start(asyncio.get_running_loop())
+    users = [{"id": f"member-{i}", "role": "user", "email": f"m{i}@test"} for i in range(5)]
+    streams = []
+    for u in users:
+        req, resp = await open_stream(u)
+        (hello,), it = await take(resp, 1)
+        streams.append((req, it))
+    await p.submit(rec("SYNTHETIC for everyone", 0), "push")
+    for req, it in streams:
+        nxt = await asyncio.wait_for(it.__anext__(), 2)
+        while parse(nxt)[1] == "heartbeat":
+            nxt = await asyncio.wait_for(it.__anext__(), 2)
+        eid, ev, data = parse(nxt)
+        assert ev == "headline" and data["seq"] == 1
+    assert p.counts["new"] == 1 and p.store.last_seq() == 1             # one ingest, not five
+    assert p.hub.subscribers == 5                                       # one hub, five listeners
+    for req, it in streams:
+        req.gone = True
+        await it.aclose()
+
+
+async def test_admin_surfaces_stay_admin_only():
+    pl.start(asyncio.get_running_loop())
+    assert (await _get(MEMBER, route.STATUS_PATH)).status_code == 403
+    assert (await _get(None, route.STATUS_PATH)).status_code == 401
 
 
 async def test_routes_are_dark_when_the_flag_is_off(monkeypatch):
@@ -292,11 +339,11 @@ async def test_client_timing_is_admin_only_and_validated(caplog):
     assert "sse_ms=41.0" in line and "render_ms=None" in line and "SYNTHETIC" not in line
 
 
-async def test_clock_is_admin_only_and_loop_lag_is_measured():
+async def test_clock_needs_a_session_and_loop_lag_is_measured():
     from api.services.trade_exchange_news.loop_lag import LoopLag
     pl.start(asyncio.get_running_loop())
     assert (await _get(None, route.CLOCK_PATH)).status_code == 401
-    assert (await _get(MEMBER, route.CLOCK_PATH)).status_code == 403
+    assert (await _get(MEMBER, route.CLOCK_PATH)).status_code == 200
     r = await _get(ADMIN, route.CLOCK_PATH)
     assert r.status_code == 200 and isinstance(r.json()["server_ms"], int)
     lag = LoopLag()

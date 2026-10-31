@@ -67,7 +67,12 @@ log = logging.getLogger(__name__)
 
 
 class TurnError(Exception):
-    """A sentence for the member; the caller gives the charge back."""
+    """A sentence for the member; the caller gives the charge back. `reason` (optional) is a fixed code for the
+    server log and telemetry — never shown to the member, never the member's words."""
+
+    def __init__(self, message: str, reason: str | None = None):
+        super().__init__(message)
+        self.reason = reason
 
 
 def model() -> str:
@@ -1122,11 +1127,38 @@ def _honest_question(text: str) -> str:
     return f"{NOTHING_YET} What would you like me to do?"
 
 
+# ⭐ PHASE 3 (model fallback reliability): the member hears WHAT went wrong in plain words — the plan was too long to
+# finish, a step's details didn't fit the action, or the reply had no plan at all — always with "nothing was changed"
+# (an unreadable plan is refused before anything reaches the browser). Fixed sentences: never the model's text, never
+# an action name or argument. The live acceptance failure of 2026-10-29 answered only "returned something unreadable".
+UNREADABLE = "UCT Agent returned something unreadable, so nothing was changed. Try rephrasing."
+_UNREADABLE_SAYS = {
+    "too_long": "That request needed a longer plan than I can write in one go, so nothing was changed. "
+                "Try it as two or three smaller requests.",
+    "args": "I couldn't fill in the details of one of the steps, so nothing was changed. "
+            "Try naming the values directly — the ticker, timeframe, indicator or setting you want.",
+    "json": "My plan for that came back incomplete, so nothing was changed. Try again, or say it more simply.",
+}
+
+
+def unreadable_sentence(reason: str, stop_reason: str | None = None) -> str:
+    """The member's sentence for an unreadable reply (see _UNREADABLE_SAYS)."""
+    if reason == "json" and stop_reason == "max_tokens":
+        return _UNREADABLE_SAYS["too_long"]
+    if reason in ("args_json", "args_schema"):
+        return _UNREADABLE_SAYS["args"]
+    if reason == "json":
+        return _UNREADABLE_SAYS["json"]
+    return UNREADABLE
+
+
 def _unreadable(reason: str, **shape) -> None:
     """Every "unreadable" refusal says WHY in the server log: its shape only (reason code,
     action names, argument KEYS, sizes, stop reason), never the member's words or values."""
     log.warning("uct_agent unreadable: %s %s", reason, shape)
-    raise TurnError("UCT Agent returned something unreadable. Try rephrasing.")
+    stop = shape.get("stop_reason")
+    raise TurnError(unreadable_sentence(reason, stop if isinstance(stop, str) else None),
+                    reason=f"unreadable:{reason}" + (":max_tokens" if stop == "max_tokens" else ""))
 
 
 TITLE_MAX = 60

@@ -1,0 +1,22 @@
+//@version=6
+indicator("UCTPROBE_VW_P2_BOX_TEXT", overlay = true)
+
+// ─── 2026-10-30 — PINE COVERAGE PHASE 2: box text placement and text formatting.
+// Ours now carries box `text_halign` / `text_valign`, label and box `text_formatting`,
+// and every positional slot of the v6 `box.new` signature (text, text_size, text_color,
+// text_halign, text_valign are positions 11-15). The capture reads each box's text, its
+// alignment, and each label's formatting; the screenshot is the witness for the paint.
+if barstate.islast
+    box.new(bar_index - 20, high, bar_index - 12, low, color.red, 1, line.style_solid, extend.none, xloc.bar_index, color.new(color.red, 85), "TL", size.normal, color.white, text.align_left, text.align_top)
+    box.new(bar_index - 10, high, bar_index - 2, low, text = "BR", text_halign = text.align_right, text_valign = text.align_bottom, text_color = color.white, bgcolor = color.new(color.blue, 85))
+    box.new(bar_index - 30, high, bar_index - 22, low, text = "BOLD", text_formatting = text.format_bold, text_color = color.white)
+    box.new(bar_index - 40, high, bar_index - 32, low, text = "PLAIN", text_color = color.white)
+    var box sb = box.new(bar_index - 50, high, bar_index - 42, low, text = "SET")
+    box.set_text_halign(sb, text.align_left)
+    box.set_text_valign(sb, text.align_bottom)
+    box.set_text_formatting(sb, text.format_italic)
+    label.new(bar_index, high, "bold", text_formatting = text.format_bold)
+    label.new(bar_index - 5, high, "italic", text_formatting = text.format_italic)
+    label.new(bar_index - 10, high, "both", text_formatting = text.format_bold + text.format_italic)
+    var label sl = label.new(bar_index - 15, high, "set")
+    label.set_text_formatting(sl, text.format_bold)

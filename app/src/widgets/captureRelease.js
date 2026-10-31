@@ -53,7 +53,12 @@ export const CAPTURE_FLAG_KEY = 'uct.nb.capture.enabled'
  * see the whole blast radius at once — the registry describes what EXISTS, this
  * describes what is RELEASED.
  */
-export const UNRELEASED_CAPTURE_WIDGETS = Object.freeze(['indexes', 'marketcontext', 'tradeExchangeNews'])
+//
+// ⛔ NOT a place to hold a non-capture widget dark: this list filters EVERY add menu
+// for every member, whatever their role. UCT News (`tradeExchangeNews`) sat here
+// after its release to all signed-in users (#532) and so stayed invisible to every
+// browser without the capture opt-in -- members never saw it (fixed 2026-10-30).
+export const UNRELEASED_CAPTURE_WIDGETS = Object.freeze(['indexes', 'marketcontext'])
 
 export function captureEnabled(storage = globalThis.localStorage) {
   try {

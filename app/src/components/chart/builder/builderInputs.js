@@ -30,7 +30,12 @@ import { LINE_WIDTH_HARD_MAX } from '../engine/defSchema'
  *  `f3-linewidth-v6`); ⚰️ this control stopped at 4, below a value scripts ask for.
  *  Native indicators declare their own width inputs and keep theirs. */
 export const LINE_WIDTH_MAX = 10
-const widthMax = (width) => Math.min(LINE_WIDTH_HARD_MAX, Math.max(LINE_WIDTH_MAX, Number.isFinite(width) ? Math.ceil(width) : 0))
+/** The `max` a plot's width control is minted with, for a row whose width is
+ *  `width`. ONE rule, read by `chromeInputsFor` AND by the load-time upgrade of a
+ *  document saved under the old 1..4 control (`memberDocumentMigration.js`), so a
+ *  saved document and a re-saved one cannot disagree. */
+export const widthControlMax = (width) => Math.min(LINE_WIDTH_HARD_MAX, Math.max(LINE_WIDTH_MAX, Number.isFinite(width) ? Math.ceil(width) : 0))
+const widthMax = widthControlMax
 
 /** ⭐⭐ A PINE `linewidth` → the width a row carries: the script's own, unclamped
  *  between 1 and the sanity ceiling (`defSchema.LINE_WIDTH_HARD_MAX`). ONE helper
