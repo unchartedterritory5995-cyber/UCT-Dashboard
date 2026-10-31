@@ -61,9 +61,12 @@ SETUPS = {
                   "trigger, and the 200-day is not required (owner rulings 2026-10-24/25).",
                   "uct_slingshot"),
     "Gap Support": ("setup.family3.gap_support",
-                    "Gap Support (detector definition, owner ruling pending): a stock gaps up at least 4% on twice its normal "
-                    "volume and holds the gap; weeks later it pulls back into the gap area and buyers defend it, closing above "
-                    "the gap top.", "uct_gap_support"),
+                    "Gap Support: a stock that is not in a downtrend gaps up at least 4% on twice its normal volume and holds "
+                    "the gap; days or weeks later it pulls back to the GAP-UP DAY'S LOW and buyers defend it. The best examples "
+                    "hold that low and keep the gap open; a slight breach that closes back above it is still good; a fill down "
+                    "to the gap-fill spot (the prior day's high) that reclaims the low is a lesser example, and a breach that "
+                    "does not reclaim is a failed gap. The gap day itself is a PEG, not gap support, and a gap never revisited "
+                    "is nothing (owner rulings 2026-10-26/27).", "uct_gap_support"),
     "Go Signal": ("setup.intraday.go_signal",
                   "Go Signal, daily footprint (detector definition, owner ruling pending): in a stock that has already shown it "
                   "can move, the session opens weak, sweeps a nearby support, and buyers turn it to a strong close. The real "
@@ -117,11 +120,19 @@ def fact_line(setup: str, ex: dict) -> str:
                     f"{f.get('day_pct')}% at {f.get('close_pos_pct')}% of its range, gapping {f.get('trigger_gap_pct')}%.")
         return f"Here the drive was {drive}; the trigger day gapped only {f.get('trigger_gap_pct')}%."
     if setup == "Gap Support":
-        words = {"top": "the gap top (the prior day's high)", "glow": "the gap day's low", "mid": "the middle of the gap",
-                 "gopen": "the gap day's open"}
-        levels = [words.get(x, x) for x in (f.get("levels_touched") or [])]
-        line = (f"Here the gap was {f.get('gap_pct')}% {f.get('bars_since_gap')} sessions earlier; the test touched "
-                f"{', '.join(levels) or 'a gap level'} and closed {f.get('close_vs_gap_top_pct')}% above the gap top")
+        kinds = {"held": "held the gap-up day's low and kept the gap open",
+                 "slight_breach": "slightly breached the gap-up day's low and closed back above it",
+                 "fill_reclaim": "filled down to the gap-fill spot (the prior day's high) and reclaimed the gap-up low"}
+        line = f"Here the gap was {f.get('gap_pct')}% {f.get('bars_since_gap')} sessions earlier; the test "
+        if f.get("test_kind") in kinds:
+            line += kinds[f["test_kind"]]
+            if f.get("close_vs_gap_low_pct") is not None:
+                line += f", closing {f.get('close_vs_gap_low_pct')}% above that low"
+        else:
+            words = {"top": "the gap top (the prior day's high)", "glow": "the gap day's low", "mid": "the middle of the gap",
+                     "gopen": "the gap day's open"}
+            levels = [words.get(x, x) for x in (f.get("levels_touched") or [])]
+            line += f"touched {', '.join(levels) or 'a gap level'} and closed {f.get('close_vs_gap_top_pct')}% above the gap top"
         if f.get("first_test") is not None:
             line += ", the first test of the gap" if f.get("first_test") else ", not the first test of the gap"
         line += f"; the day closed at {f.get('dcr_pct')}% of its range." if f.get("dcr_pct") is not None else "."

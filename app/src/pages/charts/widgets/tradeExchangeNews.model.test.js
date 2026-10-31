@@ -1,7 +1,7 @@
 // Trade Exchange News — pure model + settings + canonical theme integration.
 // Synthetic headlines only.
 import { describe, expect, it } from 'vitest'
-import { coverageNotice, fmtReceived, liveStatus, matchesQuery, tokenize, visibleItems } from './tradeExchangeNewsModel'
+import { coverageNotice, fmtReceived, liveStatus, matchesQuery, tokenize, viewHealth, visibleItems } from './tradeExchangeNewsModel'
 import {
   TXN_WIDGET_DEFAULTS, mergeTxnWidgetSettings, txnSettingsFor, txnWidgetStyleVars,
 } from './tradeExchangeNewsSettings'
@@ -165,5 +165,18 @@ describe('daily-performance tones, tooltips and the bounded quote set', () => {
     expect(parts.filter((p) => p.sym).map((p) => [p.text, p.sym])).toEqual(
       [['Microsoft', 'MSFT'], ['NVDA', 'NVDA'], ['Rocket Lab', 'RKLB']])
     expect(parts.map((p) => p.text).join('')).toBe('Microsoft and NVDA rally; Rocket Lab too')
+  })
+})
+
+describe('viewHealth (the LIVE popover lines that left the footer)', () => {
+  it('says the count, the ET receipt times, provisional tickers and what is hidden as graphic-only', () => {
+    const l = Object.fromEntries(viewHealth({ dateLabel: 'Fri, Oct 30', count: '12 headlines', provisional: true, hidden: 3 })
+      .map((x) => [x.key, x.value]))
+    expect(l.view).toBe('12 headlines · Fri, Oct 30 (ET)')
+    expect(l.times).toMatch(/received each headline, in ET/)
+    expect(l.tickers).toMatch(/provisional/)
+    expect(l.graphic).toMatch(/^3 hidden/)
+    expect(Object.fromEntries(viewHealth({ hidden: 0 }).map((x) => [x.key, x.value])).graphic).toBe('None hidden in this view')
+    expect(Object.fromEntries(viewHealth({ hidden: 5, showing: true }).map((x) => [x.key, x.value])).graphic).toMatch(/^Shown/)
   })
 })

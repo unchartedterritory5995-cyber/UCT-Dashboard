@@ -171,19 +171,23 @@ describe('tradeExchangeNewsStreamManager', () => {
     off()
   })
 
-  it('history is bounded and "load older" prepends without dropping the newest rows', async () => {
-    const many = Array.from({ length: pool.PAGE }, (_, i) => H(1001 + i))
-    recent = (url) => (url.includes('before=')
-      ? { status: 200, body: { epoch: EPOCH, first_seq: 1, last_seq: 1200, items: Array.from({ length: pool.PAGE }, (_, i) => H(801 + i)) } }
-      : { status: 200, body: { epoch: EPOCH, first_seq: 1, last_seq: 1200, items: many } })
+  it('fetchDay asks the server for one filtered day slice and never announces its rows', async () => {
     const off = pool.subscribe(() => {})
     await flush()
-    expect(pool.getSnapshot().hasOlder).toBe(true)
-    await pool.loadOlder()
-    const seqs = pool.getSnapshot().items.map((i) => i.seq)
-    expect(seqs[0]).toBe(801)
-    expect(seqs[seqs.length - 1]).toBe(1200)               // newest kept
-    expect(fetchMock.mock.calls.at(-1)[0]).toBe('/api/trade-exchange-news/recent?limit=200&before=1001')
+    recent = (url) => (url === pool.DAY_URL
+      ? { status: 200, body: { epoch: EPOCH, date: '2026-10-28', total: 80, items: [H(900)] } }
+      : url === pool.DAYS_URL ? { status: 200, body: { today: '2026-10-30', days: [] } }
+        : { status: 200, body: { epoch: EPOCH, first_seq: 1, last_seq: 3, items: [] } })
+    const out = await pool.fetchDay({ date: '2026-10-28', cursor: [1, 2], direction: 'older', categories: ['Macro'] })
+    expect(out.total).toBe(80)
+    const [url, init] = fetchMock.mock.calls.at(-1)
+    expect(url).toBe(pool.DAY_URL)
+    expect(init.method).toBe('POST')
+    expect(JSON.parse(init.body)).toEqual({ date: '2026-10-28', cursor: [1, 2], direction: 'older', categories: ['Macro'] })
+    expect(pool.claimAnnouncement(900)).toBe(false)        // history, not news
+    expect((await pool.fetchDays()).today).toBe('2026-10-30')
+    recent = () => ({ status: 503, body: {} })
+    await expect(pool.fetchDay({})).rejects.toMatchObject({ status: 503 })
     off()
   })
 
@@ -209,7 +213,7 @@ describe('tradeExchangeNewsStreamManager', () => {
       withClock()
       const off = pool.subscribe(() => {})
       await settle()
-      lastES().emit('hello', { epoch: EPOCH, reset: false, last_seq: 3 })
+      lastES().emit('hello', { epoch: EPOCH, reset: false, last_seq: 3, timing: true })
       await settle()
       expect(fetchMock.mock.calls.filter(([u]) => u === pool.CLOCK_URL)).toHaveLength(0)   // lazy: no news, no traffic
       lastES().emit('headline', H(4, { server_ms: Date.now() - 40, received_at_ms: Date.now() - 120 }))
@@ -223,12 +227,25 @@ describe('tradeExchangeNewsStreamManager', () => {
       off()
     })
 
+    it('a member\'s browser (no timing flag from the server) never measures or reports', async () => {
+      withClock()
+      const off = pool.subscribe(() => {})
+      await settle()
+      lastES().emit('hello', { epoch: EPOCH, reset: false, last_seq: 3 })
+      await settle()
+      lastES().emit('headline', H(4, { server_ms: Date.now() - 40, received_at_ms: Date.now() - 120 }))
+      await settle()
+      expect(fetchMock.mock.calls.filter(([u]) => u === pool.CLOCK_URL)).toHaveLength(0)
+      expect(timingCalls()).toHaveLength(0)
+      off()
+    })
+
     it('a replayed backlog headline after a reconnect is not a sample', async () => {
       withClock()
       let st = null
       const off = pool.subscribe((s) => { st = s })
       await settle()
-      lastES().emit('hello', { epoch: EPOCH, reset: false, last_seq: 5 })   // 4 and 5 are backlog
+      lastES().emit('hello', { epoch: EPOCH, reset: false, last_seq: 5, timing: true })   // 4 and 5 are backlog
       lastES().emit('headline', H(4, { server_ms: Date.now() - 60_000 }))
       await settle()
       expect(timingCalls()).toHaveLength(0)
@@ -244,7 +261,7 @@ describe('tradeExchangeNewsStreamManager', () => {
       let st = null
       const off = pool.subscribe((s) => { st = s })
       await settle()
-      lastES().emit('hello', { epoch: EPOCH, reset: false, last_seq: 3 })
+      lastES().emit('hello', { epoch: EPOCH, reset: false, last_seq: 3, timing: true })
       lastES().emit('headline', H(4, { server_ms: Date.now() - 40, received_at_ms: Date.now() - 120 }))
       await settle()
       const body = JSON.parse(timingCalls()[0][1].body)
@@ -258,7 +275,7 @@ describe('tradeExchangeNewsStreamManager', () => {
       const vis = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden')
       const off = pool.subscribe(() => {})
       await settle()
-      lastES().emit('hello', { epoch: EPOCH, reset: false, last_seq: 3 })
+      lastES().emit('hello', { epoch: EPOCH, reset: false, last_seq: 3, timing: true })
       lastES().emit('headline', H(4, { server_ms: Date.now() }))
       await settle()
       expect(timingCalls()).toHaveLength(0)

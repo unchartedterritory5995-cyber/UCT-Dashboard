@@ -30,6 +30,33 @@
 import { manifestFor } from '../capabilities'
 
 export const GUIDE_FEATURES = [
+  // ⭐ PHASE 3 — more specific features sit BEFORE the general ones whose words they share (matchFeature takes the first)
+  {
+    id: 'canvas', terms: ['canvas settings', 'chart background', 'grid lines', 'crosshair settings'], control: 'the chart’s settings gear', title: 'Chart background, grid, crosshair and watermark', topic: 'chartSettings',
+    words: [/\b(background|grid ?lines?|crosshair|watermark|canvas|scale text)\b/],
+    caps: ['chart.setBackground'],
+    // the Canvas tab's own rows: components/chart/chartSettingsDescriptors.js (ui: 'Chart Settings → Canvas → …')
+    explain: 'Chart Settings → Canvas holds the chart’s background, grid, crosshair, scale text and watermark. Open it from the gear on the chart’s header.',
+    steps: [
+      { target: 'chart.settings', text: 'Open this chart’s settings with the gear.', waitFor: 'chartSettings' },
+      { target: 'chartSettings.tab.canvas', text: 'Open Canvas — the background, grid, crosshair, scale text and watermark are here.' },
+    ],
+    doIt: { say: 'Tell me the change — for example “make the background black”, “hide the grid lines” or “make the crosshair dashed”.' },
+  },
+  {
+    id: 'link', terms: ['link colour', 'link colours', 'link color', 'link colors', 'linking charts', 'linked charts'], control: 'the colour dot on the chart’s header', title: 'Linking charts and widgets', topic: 'arrange',
+    words: [/\b(link|unlink|linking|linked)\b.*\b(charts?|widgets?|watch ?lists?)\b/, /\b(charts?|widgets?)\b.*\b(link|unlink|linked|in sync|sync)\b/, /\bcolou?r (dot|group|link)s?\b/],
+    caps: ['widget.setLink'],
+    // pages/charts/WidgetHeader.jsx — the dot cycles through the groups on click (nextGroup); grey = not linked
+    explain: 'The coloured dot at the left of each widget’s header is its link colour. Widgets with the same colour show the same symbol — pick a ticker in a linked watchlist and every chart in that colour follows. Click the dot to cycle through the colours; grey means not linked.',
+    steps: [
+      { target: 'widget.link', text: 'This dot is the chart’s link colour — click it to cycle through the colours. Widgets of the same colour show the same symbol; grey means not linked.' },
+    ],
+    doIt: {
+      action: 'widget.setLink', arg: 'color', ask: 'Which link colour?', kind: 'board', widgetArg: 'widget',
+      choices: [['A', 'Gold'], ['B', 'Blue'], ['C', 'Green'], ['D', 'Purple'], ['N', 'Not linked']],
+    },
+  },
   {
     id: 'symbol', terms: ['chart symbol', 'symbol search'], control: 'the symbol search', title: 'Changing a chart’s symbol', topic: 'charts',
     words: [/\b(symbol|ticker|stock)\b/, /\bsearch (for )?(a )?(stock|ticker|symbol)\b/],
@@ -100,9 +127,23 @@ export const GUIDE_FEATURES = [
     explain: 'A layout is a saved board — its widgets, charts and their settings. Your layouts sit in the bar at the top: click one to switch. The + opens the library, where you create, save, rename and copy them.',
     steps: [
       { target: 'workspace.layouts', text: 'Your saved layouts — click one to switch to it.' },
-      { target: 'workspace.layoutLibrary', text: 'Open the library to create, save, rename or copy a layout.' },
+      { target: 'workspace.layoutLibrary', text: 'Open the library.', waitFor: 'workspace.layoutLibraryMenu' },
+      // ⭐ PHASE 3: the library itself (pages/charts/LayoutDock.jsx): ＋ New layout and every saved layout; save / rename /
+      // duplicate are on each layout's own menu on the bar
+      { target: 'workspace.layoutLibraryMenu', text: 'Start a ＋ New layout here, or open any saved one. To save, rename or duplicate a layout, open its own menu on the bar.' },
     ],
     doIt: { say: 'Tell me what to do — for example “open my Swing layout” or “save this as Earnings Week”.' },
+  },
+  {
+    id: 'hideDrawings', terms: ['hide drawings', 'hide all drawings', 'show drawings'], control: 'the drawing toolbar', title: 'Hiding and showing drawings', topic: 'drawings',
+    words: [/\b(hide|show|unhide|toggle)\b.*\bdrawings?\b/, /\bdrawings?\b.*\b(hide|hidden|show|disappear)\b/],
+    caps: ['drawing.setAllVisible'],
+    // components/chart/ChartToolbar.jsx — the eye toggles hideDrawings for this chart; greyed out with no drawings
+    explain: 'The eye on the chart’s drawing toolbar hides every drawing on that chart without deleting any of them; click it again to show them. It is greyed out while the chart has no drawings.',
+    steps: [
+      { target: 'chart.drawingsHide', text: 'This eye hides all the drawings on this chart — nothing is deleted. Click it again to show them.' },
+    ],
+    doIt: { say: 'I can hide every drawing on this symbol for you — say “hide all my drawings” (nothing is deleted, and Undo shows them again).' },
   },
   {
     id: 'drawing', terms: ['drawing tools', 'drawing tool', 'drawing toolbar'], control: 'the drawing tools', title: 'Basic drawing tools', topic: 'drawings',

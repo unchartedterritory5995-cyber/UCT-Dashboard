@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useLayoutEffect } from 'react'
 import { createPortal } from 'react-dom'
 import UIcon from '../../components/ui/UIcon'
-import { WIDGET_TAB_TYPES, WIDGET_TAB_MENU_LABEL } from './widgetTabs'
+import { WIDGET_TAB_PICKER_TYPES, WIDGET_TAB_MENU_LABEL } from './widgetTabs'
 import { catalogMeta } from '../../widgets/registry'
 import styles from './ChartsWorkspace.module.css'
 import Input from '../../components/ui/Input'
@@ -256,7 +256,7 @@ export default function WidgetHeader({
           className={styles.wtabAddMenu}
           style={{ top: addPos.top, left: addPos.left, ...(addMenuTheme || {}) }}
         >
-          {WIDGET_TAB_TYPES.map(t => (
+          {WIDGET_TAB_PICKER_TYPES.map(t => (
             <button
               key={t}
               type="button"
@@ -300,6 +300,7 @@ export default function WidgetHeader({
         className={`${styles.colorDot} ${styles[`colorDot${suspended ? 'N' : color}`]} charts-no-drag`}
         onClick={() => onColorChange(nextGroup(color, extraGroupsOn))}
         data-group-suspended={suspended ? color : undefined}
+        data-guide="widget.link"
         aria-label={suspended
           ? `Group ${color} is switched off: not linked — click to pick a color group`
           : isNone ? 'Not linked (grey) — click to link to a color group' : `Color group ${color} (click to cycle)`}

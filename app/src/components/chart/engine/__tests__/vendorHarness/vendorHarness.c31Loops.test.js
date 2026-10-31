@@ -285,11 +285,16 @@ describe('C31 — poor-man\'s volume profile: its row texts stay withheld', () =
     // moved every bar by `line.set_xloc`, a setter this chart does not carry — so
     // they were drawn at bar 0, zero length. An object one of whose moves was lost
     // is withheld (`vendorHarness.c45LostUpdates`).
-    expect(live.filter((o) => o.family === 'line')).toHaveLength(0)
-    expect(d.translation.objectDiagnostics.dropReasons).toEqual({ 'geometry:lost': 2 })
+    // ⭐ P2 RE-PIN (2026-10-30): `line.set_xloc` is carried now, so the two lines
+    // are drawn where TradingView holds them (`vendorHarness.p2SetXloc`, id for id)
+    // and nothing is dropped. The labels are unchanged: still withheld.
+    expect(live.filter((o) => o.family === 'line')).toHaveLength(2)
+    // ⭐ P2b — drawn at the render state too (`time_close` lands on the last bar)
+    expect(run(cap(POOR)).state.lines).toHaveLength(2)
+    expect(d.translation.objectDiagnostics.dropReasons).toEqual({})
     // CONTROL — the run is not empty for want of a program: the 40 row labels'
-    // steps are all in it (244 carried of 246 attempted)
-    expect(d.translation.objectDiagnostics.attemptedOps).toBe(246)
+    // steps are all in it (248 carried of 248 attempted)
+    expect(d.translation.objectDiagnostics.attemptedOps).toBe(248)
     expect(d.definition.objects.ops.length).toBeGreaterThan(200)
   })
 })

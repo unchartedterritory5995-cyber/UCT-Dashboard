@@ -191,8 +191,15 @@ describe('C24 — the comparison probe is replayed, not resolved twice', () => {
       // script still refused — no member-visible change). 2 fewer Resolvers, ~1,146
       // more steps. Pre-wave-16: plain [38, 20104, '1c4c4d2d8bb41941'] / manifest
       // [38, 20110, '751365c865ed51f9'].
+      // ⭐ PINE COVERAGE PHASE 1 (2026-10-30) moved adaptive-trend again: its
+      // `ta.cci(close, …)` was a `pine:role-order` wall and is TradingView's CCI
+      // written out now (`(src - sma) / (0.015 * dev)`), so the walk resolves the
+      // CCI branch's sources before it meets `pine:block` as before — 4 fewer
+      // Resolvers, ~74,750 more steps (2% of the 5,000,000 cap). Still refused,
+      // as before. Pre-phase-1: plain [36, 21250, '3c20665225e9541d'] / manifest
+      // [36, 21256, '88d23acb3dae910a'].
       'adaptive-trend-following-suite-alpha-extract__d615e5a027': {
-        plain: [36, 21250, '3c20665225e9541d'], manifest: [36, 21256, '88d23acb3dae910a'] },
+        plain: [32, 95998, '93c5816875eff5c2'], manifest: [32, 96004, 'b7609f093d01161c'] },
       // ⭐ C43 moved 72s-strategy: `label.set_x(pvtLabel, label.get_x(pvtLabel) +
       // ((time-time[1]) * 21))` — a getter in `+` arithmetic as a bar coordinate —
       // is read now (`pine.js::stateArith`), so one more Resolver is built for the

@@ -247,3 +247,7 @@ tools/scan_handoff_out.json
 
 # Chrome Web Store upload built by tools/package_extension.py
 /.extension-build/
+
+# Pine support loop working directory (member script source while a report is open; purged on close).
+# docs/pine/support-loop/PHASE-B.md
+/.support-loop-work/

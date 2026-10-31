@@ -16,7 +16,8 @@
 // Returns null | { kind: 'ops', ops, target, ref } | { kind: 'say', text }
 
 import { getCapability, getTargetKind } from './capabilities'
-import { canon, matchPosition } from './fastPath'
+import { canon, matchPosition, extractTarget } from './fastPath'
+import { chartRefOf } from './deixis'
 import { updateOfSubject } from './capabilities/indicatorEdits'
 
 const ORD = { first: 1, top: 1, second: 2, third: 3, fourth: 4, fifth: 5, sixth: 6, seventh: 7, eighth: 8, ninth: 9, tenth: 10, last: -1, bottom: -1 }
@@ -125,6 +126,79 @@ export function resolveReference(text, { host, memory, epoch = null } = {}) {
     return { kind: 'ops', ops: last.ops.map(o => ({ action: o.action, args: o.args, target: hits[0].ref })), target: null, ref: { repeat: last.ops.map(o => o.action) } }
   }
   return null
+}
+
+// ── ⭐ PHASE 3: RE-TARGET CORRECTIONS ──────────────────────────────────────────────────────────────────────────────
+// "change the first chart to amd" → "actually, change the second chart instead" / "no, the bottom right one" / "I meant
+// the NVDA chart": the Agent's LAST change, moved to the chart the member now names. The words must say nothing but the
+// correction and ONE chart (anything else is a new instruction, read as before). Executed by the caller as: the existing
+// Undo of that change FIRST (refused when protected, on another board or changed since — then nothing moves), then the
+// same ops on the new chart. Only plain, reversible, chart-backed changes that name no indicator instance move.
+const RETARGET_CUE = /^(?:(?:actually|no|nope|nah|wait|sorry|oops|whoops|hmm|i meant|i mean|i said|make that|not that one|wrong chart)\b[,.!]?\s*)+/
+const RETARGET_VERB = /^(?:(?:(?:change|do|make|put|apply|switch|set|move|use)(?: it| that| this)?|it'?s)\s+)?(?:(?:on|to|for|onto|in)\s+)?/
+export function retargetCorrection(text, { host, memory, epoch = null, undoStack = [] } = {}) {
+  const lower = String(text || '').toLowerCase().replace(/[.!?]+$/, '').replace(/\s+/g, ' ').trim()
+  const cue = RETARGET_CUE.exec(lower)
+  const instead = /\s*\binstead(?: of (?:that|it|the (?:other|first) one))?$/.test(lower)
+  if (!cue && !instead) return null
+  let rest = lower.replace(RETARGET_CUE, '').replace(/\s*\binstead(?: of (?:that|it|the (?:other|first) one))?$/, '').replace(RETARGET_VERB, '').trim()
+  if (!rest) return null
+  const t = extractTarget(rest, host)
+  if (!t.target || t.target.all || t.target.plural || t.target.ask) return null
+  if (t.text.replace(/\b(?:the|one|chart|please)\b/g, '').trim()) return null       // more than a chart: a new instruction
+  const kind = getTargetKind('chart')
+  const charts = kind ? kind.list(host) : []
+  const hits = t.target.chart ? charts.filter(c => c.ref === t.target.chart)
+    : t.target.position ? matchPosition(charts, t.target.position)
+      : t.target.qualifier ? charts.filter(c => String(c.symbol || '').toUpperCase() === String(t.target.qualifier).toUpperCase()) : []
+  if (hits.length !== 1) return { say: 'Which chart should it be on instead? Name one (“the bottom left chart”). Nothing has changed.' }
+  const to = hits[0].ref
+  const last = memory?.lastChange?.(epoch)
+  if (!last) return { say: "I don't have a recent change of mine to move — tell me what you'd like changed." }
+  const entry = undoStack[undoStack.length - 1] || null
+  const from = [...new Set(last.ops.map(o => o.target))]
+  const movable = from.length === 1 && last.ops.every(o => {
+    const c = getCapability(o.action)
+    const k = c && getTargetKind(c.target)
+    return c && k && (c.risk || 'local') === 'local' && c.reversible !== false && !c.query
+      && (k.name === 'chart' || typeof k.groupOf === 'function') && !['instance', 'pane', 'id'].some(a => a in (o.args || {}))
+  })
+  if (!movable) return { say: "I can't move my last change to another chart by itself — undo it and ask again for that chart. Nothing has changed." }
+  if (!entry || !last.undoId || entry.id !== last.undoId) return { say: "My last change can't be undone, so I didn't move it. Nothing has changed." }
+  if (from[0] === to) return { say: `That change is already on ${hits[0].label || 'that chart'}.` }
+  const ops = []
+  for (const o of last.ops) {
+    const k = getTargetKind(getCapability(o.action).target)
+    const snap = (k.list(host) || []).find(s => chartRefOf(k, s) === to)
+    if (!snap) return { say: `That change can't go on ${hits[0].label || 'that chart'}. Nothing has changed.` }
+    ops.push({ action: o.action, args: o.args, target: snap.ref })
+  }
+  return { undoId: entry.id, ops, label: hits[0].label || null }
+}
+
+/** ⭐ PHASE 3: "switch em to weekly" / "make them hourly" — `them` as the TARGET of chart-backed ops (fastPath.extractTarget
+ *  `{plural}`) means the charts the conversation's last turn changed, while they are on this board (several of them →
+ *  one change on each, as "all" is). Nothing in the conversation to point at, on a board of several charts → asked,
+ *  never every chart by guess. Not chart-backed ops ("hide them" — indicators) → null: the model reads it, as before. */
+export function pluralTarget(fast, { host, memory, epoch = null } = {}) {
+  if (fast?.kind !== 'ops' || !fast.target?.plural) return fast
+  if (fast.ops.some(o => o.target)) return null
+  const kinds = [...new Set(fast.ops.map(o => getCapability(o.action)?.target).filter(Boolean))]
+  const kind = kinds.length === 1 ? getTargetKind(kinds[0]) : null
+  if (!kind || kinds[0] !== 'chart') return null
+  const list = kind.list(host)
+  if (list.length < 2) return { ...fast, target: null }
+  const refOf = (x) => x.chartRef || x.chart || x.ref
+  const last = memory?.lastTurn?.(epoch)
+  const touched = new Set(last?.charts || [])
+  // a board change that NAMED its charts by ticker ("open daily charts for aapl msft nvda" → chartGrid.set / widget.addCharts):
+  // them = the charts now showing those tickers
+  const named = new Set((last?.ops || []).filter(o => Array.isArray(o.args?.symbols) && ['chartGrid.set', 'widget.addCharts'].includes(o.action))
+    .flatMap(o => o.args.symbols.map(s => String(s).toUpperCase())))
+  const hits = list.filter(x => touched.has(x.ref) || touched.has(refOf(x)) || named.has(String(x.symbol || '').toUpperCase()))
+  if (hits.length >= 2) return { ...fast, target: { all: true, refs: hits.map(x => x.ref) } }
+  if (hits.length === 1) return { ...fast, target: null, ops: fast.ops.map(o => ({ ...o, target: hits[0].ref })) }
+  return { kind: 'say', text: `Which charts do you mean by “them”? Say “all charts”, or name them (“the top two”). Nothing has changed.` }
 }
 
 /** "put a 20 EMA on it" with several charts and no click: `it` / `that chart` → the conversation's subject

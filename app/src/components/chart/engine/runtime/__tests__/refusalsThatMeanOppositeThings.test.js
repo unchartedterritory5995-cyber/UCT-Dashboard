@@ -138,7 +138,11 @@ describe('⭐⭐ two identical refusals that mean opposite things', () => {
     // identifier and may well compile at the vendor. It refuses here too, and
     // that refusal is recorded as UNADJUDICATED rather than endorsed.
     expect(String(ALMA._whatItDoesNOTSettle)).toMatch(/ta\.alma/)
-    expect(runtimeGuard('plot(ta.alma(close, 9, 0.85, 6))')).toBe('pine:function')
+    // ⚰️ IT REFUSED HERE UNTIL 2026-10-30, AND A LATER CAPTURE ADJUDICATED IT:
+    // `vw-alma-spy-1d-2026-09-27` compiled `ta.alma` at the vendor, and Pine
+    // coverage Phase 1 serves it, matched bar for bar over 8,472 bars
+    // (`pinePhase1Builtins.test.js`). The BARE spelling above still refuses.
+    expect(runtimeGuard('plot(ta.alma(close, 9, 0.85, 6))')).toBe('ok')
   })
 
   it('⭐⭐ `ta.correlation` — a REAL gap, with its window rule measured', () => {

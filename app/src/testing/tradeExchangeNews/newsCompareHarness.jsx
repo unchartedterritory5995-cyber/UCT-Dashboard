@@ -20,8 +20,10 @@
 //   ?width=<px>           pane width (responsive checks; default 320)
 //   ?only=news&count=<n>  render only <n> News widgets (multi-widget checks)
 //   ?wire=terminal        the terminal-upgrade fixture (long headline, impact marks,
-//                         a re-sent story, several tickers, % change)
-//   ?rows=<n>             <n> synthetic headlines (performance checks; max 2000)
+//                         a re-sent story, several tickers)
+//   ?rows=<n>             <n> synthetic headlines (performance checks; max 5000, the
+//                         archive's count bound). POST /day and GET /days are answered by
+//                         fakeNewsDay over them (/day is a READ: the only non-GET let through)
 //   ?opts=<json>          initial News widget opts (e.g. {"settings":{"groupRelated":"on"}})
 //   ?live=1               LIVE MODE for tools/txn_local_e2e.py: /api/trade-exchange-news/*
 //                         goes to the real (local, synthetic) web process through
@@ -38,6 +40,9 @@ import { PlacedThemeContext } from '../../hooks/usePlacedTheme'
 import WatchlistWidget from '../../pages/charts/widgets/WatchlistWidget'
 import ThemesWidget from '../../pages/charts/widgets/ThemesWidget'
 import TradeExchangeNewsWidget from '../../pages/charts/widgets/TradeExchangeNewsWidget'
+import { fakeNewsDay, fakeNewsDays } from './fakeNewsDay'
+import { formatTimeEt } from '../../lib/presentation/presentationPrimitives'
+import { timeLabel } from '../../pages/charts/widgets/tradeExchangeNewsModel'
 import { CHART_THEME_BY_ID, patchWidgetOptsWithTheme, mapThemeToWidgetSettings, themeWithAppSurface } from '../../components/chart/chartThemes'
 import wsStyles from '../../pages/charts/ChartsWorkspace.module.css'
 
@@ -127,7 +132,7 @@ const TERMINAL = [
   ['TX-News', 'FED HOLDS RATES STEADY AT 4.25%-4.50%', 'Macro', [], { impact: 'central_bank', fresh: true }],
 ]
 const WIRE_MODE = params.get('wire')
-const ROWS_N = Math.max(0, Math.min(2000, Number(params.get('rows')) || 0))
+const ROWS_N = Math.max(0, Math.min(5000, Number(params.get('rows')) || 0))
 let OPTS_PARAM = {}
 try { OPTS_PARAM = JSON.parse(params.get('opts') || '{}') || {} } catch { OPTS_PARAM = {} }
 const REVIEW_PHASE = params.get('phase') === 'before' ? 3 : 4
@@ -150,6 +155,15 @@ const NEWS = ROWS.map(({ ageMs, fresh, ...r }, i) => ({
   repeat_count: !WIRE_MODE && i === 4 ? 1 : 0, via: !WIRE_MODE && i === 2 ? 'reconcile' : 'push', delayed: !WIRE_MODE && i === 2,
 }))
 
+const LIVE_ADDED = new Set()
+// 'HH:MM' on an ET date -> the last instant of that minute (EDT -4 or EST -5: the
+// one the shared ET formatter reads back as that time).
+function harnessAtMs(date, hhmm) {
+  const [y, mo, d] = date.split('-').map(Number)
+  const [h, mi] = hhmm.split(':').map(Number)
+  const edt = Date.UTC(y, mo - 1, d, h + 4, mi)
+  return (formatTimeEt(edt) === timeLabel(hhmm) ? edt : edt + 3_600_000) + 59_999
+}
 const BLOCKED = []
 window.__newsHarnessBlocked = BLOCKED
 const realFetch = window.fetch.bind(window)
@@ -159,6 +173,10 @@ window.fetch = (input, init) => {
   if (!url.startsWith('/') && !url.startsWith(location.origin)) return realFetch(input, init)
   const path = url.replace(location.origin, '')
   if (LIVE && path.startsWith('/api/trade-exchange-news')) return realFetch(input, init)
+  if (method === 'POST' && path === '/api/trade-exchange-news/day') {
+    return json(fakeNewsDay(NEWS, JSON.parse((init && init.body) || '{}'), { epoch: 'harness0harness0', atMs: harnessAtMs }))
+  }
+  if (path.startsWith('/api/trade-exchange-news/days')) return json(fakeNewsDays(NEWS))
   if (method !== 'GET') { BLOCKED.push(`${method} ${path}`); return json({}) }
   if (path.startsWith('/api/auth/me')) {
     return json({ user: { id: 'harness', email: 'harness@local', role: 'admin', display_name: 'Harness' },
@@ -168,7 +186,8 @@ window.fetch = (input, init) => {
     return json({ theme: THEME, ...(themeTrackerPref ? { theme_tracker_settings: themeTrackerPref } : {}) })
   }
   if (path.startsWith('/api/trade-exchange-news/recent')) {
-    return json({ epoch: 'harness0harness0', first_seq: 1, last_seq: NEWS.length, items: NEWS,
+    const limit = Number(new URL(path, location.origin).searchParams.get('limit')) || 200
+    return json({ epoch: 'harness0harness0', first_seq: 1, last_seq: NEWS.length, items: NEWS.slice(-limit),
       coverage: { complete: true, gaps: [] }, tickers_provisional: true })
   }
   if (path.startsWith('/api/watchlists/prebuilt')) return json([{ id: 'pre1', name: 'Harness Index', item_count: 4, is_prebuilt: true }])
@@ -210,9 +229,13 @@ class HarnessES {
     this.readyState = 1
     this.l = {}
     setTimeout(() => this.emit('hello', { epoch: 'harness0harness0', reset: false, coverage: { complete: true, gaps: [] } }), 50)
-    setTimeout(() => this.emit('headline', { ...NEWS[0], seq: NEWS.length + 1, id: 'HARNESSLIVE0000000000000000'.slice(0, 26),
-      content: 'SYNTHETIC: live headline arriving to show the new-row highlight', tickers: [],
-      ...(WIRE_MODE === 'new' ? { category: 'News', source: 'TX-News' } : {}), received_at_ms: Date.now(), via: 'push', delayed: false }), 1500)
+    setTimeout(() => {
+      const ev = { ...NEWS[0], seq: NEWS.length + 1, id: 'HARNESSLIVE0000000000000000'.slice(0, 26),
+        content: 'SYNTHETIC: live headline arriving to show the new-row highlight', tickers: [],
+        ...(WIRE_MODE === 'new' ? { category: 'News', source: 'TX-News' } : {}), received_at_ms: Date.now(), via: 'push', delayed: false }
+      if (!LIVE_ADDED.size) { LIVE_ADDED.add(ev.seq); NEWS.push(ev) }     // the archive has it too, as the server would
+      this.emit('headline', ev)
+    }, 1500)
   }
   addEventListener(n, fn) { (this.l[n] ||= []).push(fn) }
   emit(n, d) { if (this.readyState !== 2) for (const fn of this.l[n] || []) fn({ data: JSON.stringify(d) }) }

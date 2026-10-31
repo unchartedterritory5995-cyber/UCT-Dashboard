@@ -135,6 +135,12 @@ const WINDOW_COMPOSITE = {
   // rather than a `windowFn('...')` entry. See `interpret.js`'s comment right
   // above the `percentileLinearInterpolation` entry in `FN`.
   percentileLinearInterpolation: 'windowPercentileLinear — a window, plus percentage',
+  // ⭐ PHASE 1 (2026-10-30) — the same single-window shape, each a bespoke closure:
+  // a percentage (`percentileNearestRank`), a rank of every bar against every
+  // other (`rci`), and weights read off two more columns (`alma`).
+  percentileNearestRank: 'windowPercentileNearest — a window, plus percentage',
+  rci: 'windowRci — a rank correlation within the window',
+  alma: 'almaCol — a weighted window, weights from offset and sigma',
   donchianUpper: 'computeDonchian — highest/lowest',
   donchianMiddle: 'computeDonchian — highest/lowest',
   donchianLower: 'computeDonchian — highest/lowest',

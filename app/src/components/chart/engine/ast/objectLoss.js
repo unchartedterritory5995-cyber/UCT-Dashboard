@@ -404,6 +404,31 @@ export function objectRemovalRefusal(loss) {
 export const DRAWING_NOTE_NAME = 'Drawings'
 
 /**
+ * ⭐⭐ P2b — THE DRAWING NOTE WITH WHAT THIS CHART COULD NOT PLACE COUNTED IN IT.
+ *
+ * `objectLossNote` counts what the translation lost; the render state can drop an
+ * object the program holds (a coordinate naming no bar on this chart, a text the run
+ * withheld — `objectRenderNotice.js`). Both are drawing the member does not see, so
+ * both are in ONE note: the translation's sentence, with this chart's count added,
+ * or — where the translation lost nothing — a sentence of its own, so a drawing is
+ * never "clean" while the chart draws less than the program holds.
+ *
+ * @param {{name: string, note: string}|null} note the document's drawing note, if any
+ * @param {{dropped: number, held: number}|null} drops this chart's render drops
+ * @returns {{name: string, note: string}|null}
+ */
+export function withRenderDrops(note, drops) {
+  const n = drops && Number.isInteger(drops.dropped) ? drops.dropped : 0
+  if (n <= 0) return note || null
+  const of = drops.held >= n ? drops.held : n
+  const sentence = `${n} of the ${of} drawings this script holds on this chart could not be placed `
+    + '(a coordinate with no bar on this chart, or a text this chart could not compute), so '
+    + (note ? 'they are not drawn either.' : 'what it draws is incomplete.')
+  if (!note) return { name: DRAWING_NOTE_NAME, note: sentence }
+  return { name: note.name || DRAWING_NOTE_NAME, note: `${note.note} On this chart, ${sentence}` }
+}
+
+/**
  * The disclosure a member sees in the pane, or `null` for a clean program.
  *
  * @param {ReturnType<typeof assessObjectLoss>} loss
