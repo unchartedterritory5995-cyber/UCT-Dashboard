@@ -18149,6 +18149,9 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     // ⭐ C40 — a `for … in` over a list this lane holds that it still refused, why.
     ...((collected.diagnostics.forInRefused || []).length
       ? { forInRefused: [...new Set(collected.diagnostics.forInRefused)].sort() } : {}),
+    // ⭐ P2 — a `chart.point` constructor call the reader could not read, why.
+    ...((collected.diagnostics.pointRefused || []).length
+      ? { pointRefused: [...new Set(collected.diagnostics.pointRefused)].sort() } : {}),
     unresolvedValues: 0,
     loopValuesUnresolved: 0,
     droppedOps: 0,
@@ -22167,8 +22170,16 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       let badCell = false
       for (const [k, node] of Object.entries(raw)) {
         if (!OBJECT_CELL_PROPS.includes(k)) { unsupportedProp('cell', k, node); continue }
+        const cellRefusalBefore = lastCanonRefusal
         const v = valueRef(node, k)
         if (!v) {
+          // ⭐ P2 — the sentence behind a `cell:text` count, as `createDropWhy`
+          // gives a create's (diagnostics only; nothing reads it to decide).
+          if (k === 'text') {
+            const r = lastCanonRefusal !== cellRefusalBefore ? lastCanonRefusal : null
+            noteWhy('cellTextWhy', `cell@${op.line === undefined ? '?' : op.line}: `
+              + (r ? `${r.guard || 'refused'} ${String(r.message || '').slice(0, 200)}` : 'no refusal recorded'))
+          }
           // ⛔⛔ THE TEXT *IS* THE CELL. A cell whose text this door cannot read
           // is dropped, never emitted blank: an empty cell in a dashboard reads
           // as "the value is empty", which is a different and worse claim than

@@ -54,6 +54,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { anyPaneScaled, onPaneScaleChange } from '../engine/paneFitNotice'
 import { runtimeErrorNoticeFor, onRuntimeErrorNoticeChange } from '../engine/runtimeErrorNotice'
 import { chartClockNotesFor, onChartClockChange } from '../engine/chartClockNotice'
+import { objectRenderDropsFor, onObjectRenderDropsChange } from '../engine/objectRenderNotice'
+import { DRAWING_NOTE_NAME, withRenderDrops } from '../engine/ast/objectLoss'
 import { TABLES_FIT } from '../engine/objectTableDom'
 import * as defaultRegistry from '../engine/nativeRegistry'
 import { requirementNote } from '../engine/ast/parse'
@@ -151,7 +153,8 @@ export function attachedNeedsBarCount(settings, registry = defaultRegistry) {
  * @param {number|null} barsLoaded what the chart actually drew
  * @returns {{name: string, note: string}[]}
  */
-export function attachedDisclosures(settings, registry = defaultRegistry, barsLoaded = null) {
+export function attachedDisclosures(settings, registry = defaultRegistry, barsLoaded = null,
+  dropsFor = objectRenderDropsFor) {
   const out = []
   const seen = new Set()
   const push = (n) => {
@@ -161,8 +164,25 @@ export function attachedDisclosures(settings, registry = defaultRegistry, barsLo
     seen.add(key)
     out.push(n)
   }
-  for (const meta of drawnMeta(settings, registry)) {
-    for (const n of (Array.isArray(meta.disclosures) ? meta.disclosures : [])) push(n)
+  // ⭐⭐ P2b — each drawn instance's render drops (`objectRenderNotice.js`) count
+  // INTO its drawing note (`objectLoss.js::withRenderDrops`): the document's note
+  // with this chart's count added, or a note of its own where the translation lost
+  // nothing — so a drawing is never shown as complete while the chart draws less.
+  const instances = (settings && Array.isArray(settings.indicatorInstances))
+    ? settings.indicatorInstances : []
+  for (const inst of instances) {
+    if (!inst || typeof inst !== 'object' || inst.hidden) continue
+    const def = typeof registry.getDefinition === 'function' ? registry.getDefinition(inst.defId) : null
+    const meta = def && def.meta
+    if (!meta) continue
+    const drops = typeof dropsFor === 'function' && typeof inst.instanceId === 'string'
+      ? dropsFor(inst.instanceId) : null
+    let merged = false
+    for (const n of (Array.isArray(meta.disclosures) ? meta.disclosures : [])) {
+      if (drops && !merged && n && n.name === DRAWING_NOTE_NAME) { push(withRenderDrops(n, drops)); merged = true; continue }
+      push(n)
+    }
+    if (drops && !merged) push(withRenderDrops(null, drops))
     for (const tag of (Array.isArray(meta.requirementTags) ? meta.requirementTags : [])) {
       push(requirementNote(tag, barsLoaded))
     }
@@ -186,10 +206,13 @@ export default function AttachedPineDisclosures({
   // reason `paneLayout` reads it.
   const generation = typeof registry.registryGeneration === 'function'
     ? registry.registryGeneration() : 0
+  // ⭐ P2b — the render drops arrive from the binder after a sync: re-read on change.
+  const [dropTick, setDropTick] = useState(0)
+  useEffect(() => onObjectRenderDropsChange(() => setDropTick((n) => n + 1)), [])
   const rows = useMemo(
     () => attachedDisclosures(settings, registry, barsLoaded),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [settings, registry, barsLoaded, generation],
+    [settings, registry, barsLoaded, generation, dropTick],
   )
   // ⭐⭐ R-R — THE ONE DISCLOSURE THAT IS NOT A PROPERTY OF THE DOCUMENT.
   // Whether a table had to be scaled depends on the VIEWPORT, so it cannot ride

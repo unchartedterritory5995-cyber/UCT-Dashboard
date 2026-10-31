@@ -20,6 +20,13 @@ table is a literal. Such a call is one of two shapes, and anything else RAISES:
 `tests/test_account_deletion_manifest.py` parses the doc's table and this derivation and fails
 BY NAME on a difference in either direction.
 
+⭐ A SECOND DATABASE. Some member data does not live in auth.db at all, so no statement in the
+purge above can reach it (saved indicators: `user_definitions.db`). Each such store has its own
+erasure module with a literal tuple of its member tables, and the purge reaches it through ONE
+named call. `SECOND_DATABASES` lists them; a store's tables are listed only when the purge's
+source actually makes that call (an AST read of the call, not of a comment), so the manifest
+can never claim a database the purge does not reach.
+
 Pure text in, text out: this touches no database and no path outside the repo.
 """
 from __future__ import annotations
@@ -37,6 +44,13 @@ BEGIN = ("<!-- BEGIN GENERATED: python tools/account_deletion_manifest.py --writ
          "(derived from api/services/journal_two/account_purge.py) -- never hand-edit -->")
 END = "<!-- END GENERATED -->"
 
+#: (database file, its erasure module, the module's literal member-table tuple,
+#:  the `<module>.<function>` call account_purge.py makes to reach it)
+SECOND_DATABASES = (
+    ("user_definitions.db", REPO / "api" / "services" / "user_definitions_erasure.py",
+     "MEMBER_TABLES", ("user_definitions", "purge_user")),
+)
+
 _JOIN = re.compile(
     r"DELETE FROM (?P<table>\w+) WHERE (?P<fk>\w+) IN\s*"
     r"\(SELECT id FROM (?P<parent>\w+) WHERE user_id = \?\)",
@@ -53,13 +67,55 @@ def _params_are_the_user_id(node: ast.Call) -> bool:
     return len(elts) == 1 and isinstance(elts[0], ast.Name) and elts[0].id == "user_id"
 
 
+def _params_are_a_key_of_the_user_id(node: ast.Call) -> str | None:
+    """`_run(table, sql, (some_key(user_id),))` -- a key DERIVED from the member's id by one
+    named function and nothing else (the support loop's HMAC'd gap counts). Returns the
+    function's name, or None."""
+    if len(node.args) < 3 or not isinstance(node.args[2], ast.Tuple):
+        return None
+    elts = node.args[2].elts
+    if len(elts) != 1 or not isinstance(elts[0], ast.Call):
+        return None
+    call = elts[0]
+    if not (isinstance(call.func, ast.Name) and len(call.args) == 1 and not call.keywords
+            and isinstance(call.args[0], ast.Name) and call.args[0].id == "user_id"):
+        return None
+    return call.func.id
+
+
 class DerivationError(RuntimeError):
     """The purge code no longer has the shape this derivation reads. Never a silent empty list."""
 
 
+def _literal_tuple(path: Path, name: str) -> list[str]:
+    """The literal tuple of strings assigned to `name` at module level in `path`."""
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    for node in tree.body:
+        if isinstance(node, ast.Assign) and any(isinstance(t, ast.Name) and t.id == name for t in node.targets):
+            if not isinstance(node.value, (ast.Tuple, ast.List)) or not node.value.elts:
+                raise DerivationError(f"{path.name}: {name} is not a non-empty literal tuple")
+            out = []
+            for elt in node.value.elts:
+                if not (isinstance(elt, ast.Constant) and isinstance(elt.value, str)):
+                    raise DerivationError(f"{path.name}: {name} holds a non-literal at line {elt.lineno}")
+                out.append(elt.value)
+            return out
+    raise DerivationError(f"{path.name}: no {name} assignment found")
+
+
+def _calls(tree: ast.AST, module: str, function: str) -> bool:
+    """Does the purge's source call `<module>.<function>(...)`?"""
+    for node in ast.walk(tree):
+        if (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+                and node.func.attr == function and isinstance(node.func.value, ast.Name)
+                and node.func.value.id == module):
+            return True
+    return False
+
+
 def derive(source: str | None = None) -> dict:
     """`{"direct": [names in code order], "indirect": [(table, fk, parent)],
-    "keyed": [(table, column)]}`."""
+    "keyed": [(table, column)], "hashed": [(table, column, function)]}`."""
     src = PURGE.read_text(encoding="utf-8") if source is None else source
     tree = ast.parse(src)
     direct = None
@@ -75,7 +131,7 @@ def derive(source: str | None = None) -> dict:
                 direct.append(elt.value)
     if not direct:
         raise DerivationError("no _DIRECT_USER_TABLES assignment found in account_purge.py")
-    indirect, keyed = [], []
+    indirect, keyed, hashed = [], [], []
     for node in ast.walk(tree):
         if not (isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "_run"):
             continue
@@ -92,18 +148,31 @@ def derive(source: str | None = None) -> dict:
                 and _params_are_the_user_id(node):
             keyed.append((table, k.group("col")))
             continue
+        via = _params_are_a_key_of_the_user_id(node) if k and k.group("table") == table             and k.group("col").lower() != "user_id" else None
+        if via:
+            hashed.append((table, k.group("col"), via))
+            continue
         why = ("a `user_id` delete belongs in _DIRECT_USER_TABLES" if k and k.group("col").lower() == "user_id"
                else "its SQL is neither a join delete nor a keyed delete on the member's user_id")
         raise DerivationError(f"_run({table!r}, ...) at line {node.lineno}: {why}")
     dupes = sorted({t for t in direct if direct.count(t) > 1})
     if dupes:
         raise DerivationError(f"listed twice in _DIRECT_USER_TABLES: {dupes}")
-    return {"direct": direct, "indirect": indirect, "keyed": keyed}
+    databases = {}
+    for db, module_path, tuple_name, (mod, fn) in SECOND_DATABASES:
+        if _calls(tree, mod, fn):
+            databases[db] = {"tables": _literal_tuple(module_path, tuple_name),
+                             "module": module_path.relative_to(REPO).as_posix(),
+                             "call": f"{mod}.{fn}"}
+    return {"direct": direct, "indirect": indirect, "keyed": keyed, "hashed": hashed,
+            "databases": databases}
 
 
 def purged_tables(source: str | None = None) -> set[str]:
     d = derive(source)
-    return set(d["direct"]) | {t for t, _fk, _p in d["indirect"]} | {t for t, _c in d["keyed"]}
+    return (set(d["direct"]) | {t for t, _fk, _p in d["indirect"]} | {t for t, _c in d["keyed"]}
+            | {t for t, _c, _f in d["hashed"]}
+            | {t for info in d["databases"].values() for t in info["tables"]})
 
 
 def render(source: str | None = None) -> str:
@@ -111,8 +180,9 @@ def render(source: str | None = None) -> str:
     rows = [
         BEGIN,
         "",
-        f"**{len(d['direct']) + len(d['keyed']) + len(d['indirect'])} tables** "
+        f"**{len(d['direct']) + len(d['keyed']) + len(d['hashed']) + len(d['indirect'])} tables in auth.db** "
         f"({len(d['direct'])} direct by `user_id`, {len(d['keyed'])} direct by another member key, "
+        f"{len(d['hashed'])} direct by a key derived from the member's id, "
         f"{len(d['indirect'])} indirect).",
         "",
         "| Table | Owner key | Ownership | How the purge deletes it |",
@@ -126,6 +196,21 @@ def render(source: str | None = None) -> str:
     for table, col in d["keyed"]:
         rows.append(f"| `{table}` | `{col}` (the member's id) | Direct | "
                     f"`DELETE FROM {table} WHERE {col} = ?` |")
+    for table, col, via in d["hashed"]:
+        rows.append(f"| `{table}` | `{col}` (`{via}(user_id)`, a keyed hash of the member's id) | Direct | "
+                    f"`DELETE FROM {table} WHERE {col} = ?` with `{via}(user_id)` |")
+    for db, info in d["databases"].items():
+        rows += [
+            "",
+            f"**{db}** -- a second database, which no statement on auth.db reaches: "
+            f"**{len(info['tables'])} tables**, deleted by `{info['module']}` through "
+            f"`{info['call']}`.",
+            "",
+            "| Table | Owner key | Ownership | How the purge deletes it |",
+            "|---|---|---|---|",
+        ]
+        for table in info["tables"]:
+            rows.append(f"| `{table}` | `user_id` | Direct ({db}) | `DELETE FROM {table} WHERE user_id = ?` |")
     rows += ["", END]
     return "\n".join(rows)
 

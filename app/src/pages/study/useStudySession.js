@@ -51,11 +51,14 @@ export function normalizeBars(payload) {
   const list = Array.isArray(payload) ? payload : Array.isArray(payload?.bars) ? payload.bars : []
   return list.map((b) => {
     let t = b.t ?? b.time ?? b.date
-    if (typeof t === 'number' && t > 19000000) {
+    // a daily bar's integer key is YYYYMMDD (eight digits, 19000101..29991231); an hourly bar's
+    // key is unix SECONDS (ten digits), which StockChart needs as a NUMBER, so only the first
+    // form is rewritten to ISO and the second is passed through untouched
+    if (typeof t === 'number' && t > 19000000 && t < 30000000) {
       const s = String(t)
       t = `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}`
     }
-    return { t: String(t), o: Number(b.o ?? b.open), h: Number(b.h ?? b.high), l: Number(b.l ?? b.low), c: Number(b.c ?? b.close), v: Number(b.v ?? b.volume ?? 0) }
+    return { t: typeof t === 'number' ? t : String(t), o: Number(b.o ?? b.open), h: Number(b.h ?? b.high), l: Number(b.l ?? b.low), c: Number(b.c ?? b.close), v: Number(b.v ?? b.volume ?? 0) }
   })
 }
 

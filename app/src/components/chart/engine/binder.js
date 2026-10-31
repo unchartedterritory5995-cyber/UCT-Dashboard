@@ -103,6 +103,8 @@ import { SOURCE_STATUS } from './secondaryBars'
 import { otherSymbolsSignature } from './otherSymbols'
 import { lowerTfSignature } from './lowerTf'
 import { setChartClockNotes } from './chartClockNotice'
+// ⭐ P2b — what a render state dropped, for the member's drawing note.
+import { setObjectRenderDrops, renderDroppedCount, renderHeldCount } from './objectRenderNotice'
 import { ThinVolumeSeries } from '../thinVolumeSeries'
 
 /** RTH filter for an intraday FRAME on a chart that hides extended hours — the same
@@ -1025,6 +1027,22 @@ export function createBinder({ chart, LWC }) {
     for (const id of [...clockPublished[lane]]) if (!keep || !keep.has(id)) publishClock(id, lane, [])
   }
 
+  /** ⭐⭐ P2b — the instances THIS binder has published render drops for
+   *  (`objectRenderNotice.js`): every object a program holds that the render
+   *  state could not place is counted into the member's drawing note, never only
+   *  into a DOM attribute. A state of `null` (nothing drawn) clears. */
+  const dropsPublished = new Set()
+  const publishDrops = (instanceId, state) => {
+    const n = state ? renderDroppedCount(state) : 0
+    if (!n && !dropsPublished.has(instanceId)) return
+    attempt(() => setObjectRenderDrops(instanceId, n, state ? renderHeldCount(state) : 0))
+    if (n) dropsPublished.add(instanceId)
+    else dropsPublished.delete(instanceId)
+  }
+  const pruneDrops = (keep) => {
+    for (const id of [...dropsPublished]) if (!keep || !keep.has(id)) publishDrops(id, null)
+  }
+
   /** ⭐⭐ C3B — EVERY INSTANCE'S OBJECT PROGRAM, EVALUATED AND DRAWN.
    *
    *  ⛔ ONE INSTANCE, ONE LAYER. Two copies of the same indicator on one chart
@@ -1061,10 +1079,11 @@ export function createBinder({ chart, LWC }) {
         }
         const memo = computeMemo.get(inst.instanceId)
         const payload = runtimeObjectsOf(memo && memo.cols)
-        if (!payload) { attempt(() => rlayer.set(null, '')); continue }
+        if (!payload) { publishDrops(inst.instanceId, null); attempt(() => rlayer.set(null, '')); continue }
         const rstate = attempt(() => toRenderState(payload.live,
           { bars, tf: ctx.tf, theme, pineVersion: payload.pineVersion })).value
-        if (!rstate) { attempt(() => rlayer.set(null, '')); continue }
+        if (!rstate) { publishDrops(inst.instanceId, null); attempt(() => rlayer.set(null, '')); continue }
+        publishDrops(inst.instanceId, rstate)
         const rsig = `rt:${bars.length}:${bars.length ? bars[bars.length - 1].t : 0}:${(payload.stats || {}).nextId}:${theme.fg || ''}/${theme.bg || ''}`
         attempt(() => rlayer.set(rstate, rsig, {
           liveIds: payload.live.map((o) => o.id),
@@ -1090,6 +1109,7 @@ export function createBinder({ chart, LWC }) {
       // computed for this instance on THIS chart decides (`runtimeObjectsWithheld`).
       if (runtimeObjectsWithheld(def, runCols ? runCols.get(inst.instanceId) : undefined)) {
         publishClock(inst.instanceId, 'objects', [])
+        publishDrops(inst.instanceId, null)
         attempt(() => layer.set(null, ''))
         continue
       }
@@ -1180,7 +1200,7 @@ export function createBinder({ chart, LWC }) {
         }
       })
       publishClock(inst.instanceId, 'objects', built.ok && built.value ? built.value.chartClock : [])
-      if (!built.ok || !built.value) { attempt(() => layer.set(null, '')); continue }
+      if (!built.ok || !built.value) { publishDrops(inst.instanceId, null); attempt(() => layer.set(null, '')); continue }
       // ⭐ THE SIGNATURE IS THE BARS PLUS THE PROGRAM. Same script over the same
       // series is the same picture, so a poll that changed nothing repaints
       // nothing — the memo discipline the column path above already keeps.
@@ -1213,6 +1233,7 @@ export function createBinder({ chart, LWC }) {
           dropped: built.value.state.dropped,
         },
       }
+      publishDrops(inst.instanceId, built.value.state)
       attempt(() => layer.set(built.value.state, sig, meta))
     }
     for (const [id, layer] of objectLayers) {
@@ -1221,6 +1242,7 @@ export function createBinder({ chart, LWC }) {
       objectLayers.delete(id)
     }
     pruneClock('objects', alive)
+    pruneDrops(alive)
   }
 
   /** instanceId → `{registry, def, bars, sig, cols}`. */
@@ -1363,6 +1385,7 @@ export function createBinder({ chart, LWC }) {
     clearPaints()
     pruneClock('plots', null)
     pruneClock('objects', null)
+    pruneDrops(null)
     held = []
     lastColumnErrors = new Map()
     for (const id of stoppedIds) setRuntimeErrorNotice(id, null)
@@ -1473,6 +1496,7 @@ export function createBinder({ chart, LWC }) {
       // when there is a sentence to take down. Zero calls when none was published.
       pruneClock('plots', null)
       pruneClock('objects', null)
+      pruneDrops(null)
       // ⭐ RF — and a stopped run's sentence, for the same reason: a runtime pane
       // that drew nothing binds NO series, so `held` is empty exactly when there
       // is a "not drawn because …" sentence to take down. Zero calls when none.

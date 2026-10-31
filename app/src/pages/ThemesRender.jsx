@@ -78,6 +78,13 @@ function Section({ up, rows, max, holds }) {
   )
 }
 
+const PERIOD_WORDS = { '1D': '1 day', '1W': '1 week', '1M': '1 month', '3M': '3 month', '6M': '6 month', '1Y': '1 year', YTD: 'year to date' }
+
+export function periodWords(p) {
+  const k = String(p || '').toUpperCase()
+  return PERIOD_WORDS[k] || k
+}
+
 export default function ThemesRender() {
   const [sp] = useSearchParams()
   const token = sp.get('token') || ''
@@ -113,14 +120,15 @@ export default function ThemesRender() {
   const laggards = (data.laggards || []).slice(0, n)
   // Bars scale to the largest move SHOWN, so the longest bar is always full.
   const max = Math.max(0, ...[...leaders, ...laggards].map((r) => Math.abs(Number(r.ret)) || 0))
-  const label = String(data.period || period).toUpperCase()
+  // Owner 2026-10-21: spell the period out ("1 week", never "1W").
+  const words = periodWords(data.period || period)
 
   return (
     <div style={{ background: '#0a0a0a', minHeight: '100vh', fontFamily: "'Instrument Sans',-apple-system,'Segoe UI',sans-serif" }}>
       <div id="panel-export" style={{ width: w, background: '#0a0a0a', color: '#fff' }}>
         <div style={{ height: 44, background: '#161616', display: 'flex', alignItems: 'center', padding: '0 18px', position: 'relative' }}>
           <span style={{ color: '#e8e8e8', fontWeight: 800, fontSize: 15, letterSpacing: '0.6px' }}>
-            THEMES <span style={{ color: '#8b8f84', fontWeight: 700 }}>· {label} LEADERS &amp; LAGGARDS</span>
+            THEMES <span style={{ color: '#8b8f84', fontWeight: 700 }}>· {words.toUpperCase()} LEADERS &amp; LAGGARDS</span>
           </span>
           <span style={{ position: 'absolute', right: 18, display: 'flex', alignItems: 'center', gap: 8 }}>
             <img src={uctLogo} alt="" style={{ height: 18, opacity: 0.95 }} />
@@ -135,7 +143,7 @@ export default function ThemesRender() {
           <Section up={false} rows={laggards} max={max} holds={holds} />
         </div>
         <div style={{ height: 22, background: '#161616', display: 'flex', alignItems: 'center', padding: '0 18px', color: '#666', fontSize: 10 }}>
-          <span>{label} return by theme · top holdings under each name · UCT theme taxonomy</span>
+          <span>{words.charAt(0).toUpperCase() + words.slice(1)} return by theme · top holdings under each name · UCT theme taxonomy</span>
           <span style={{ marginLeft: 'auto', color: '#c9a84c' }}>uctintelligence.com</span>
         </div>
       </div>
