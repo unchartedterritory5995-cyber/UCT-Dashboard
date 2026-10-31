@@ -49,9 +49,9 @@ import { translatePine } from './pine'
 import { functionReachability } from './doorCoverage'
 import { probeRuntimeProgram } from '../runtime/runtimeColumns'
 import { runtimePaneEnabled, __permitRuntimePaneForTests, __resetRuntimePanePermission } from '../runtimePaneGate'
-import { __allowEveryRuntimeScriptForTests } from '../runtimeKill'
+import { __allowEveryRuntimeScriptForTests, __resetRuntimeAllowList } from '../runtimeKill'
 import {
-  CENSUS_RUNTIME_ENV, LANE_PRODUCTION, LANE_RUNTIME_ON, requestedLane, assertLaneMeasured,
+  CENSUS_RUNTIME_ENV, LANE_PRODUCTION, LANE_RUNTIME_ON, requestedLane, assertLaneMeasured, isGateDecline,
 } from '../../../../../../tools/pine_coverage/runtime_lane.mjs'
 
 const INPUT = process.env.COVERAGE_INPUT
@@ -102,8 +102,10 @@ function runtimeProbeOf(source, declined) {
   }
 }
 
-/** Did the door's answer come from the runtime lane (drawn by it, or declined by it)? */
-const reachedRuntime = (r) => !!r && (r.lane === 'runtime' || !!r.runtimeDeclined)
+/** Did the door's answer come from the runtime lane (drawn by it, or declined by it)?
+ *  ⛔ A decline by the allowlist / kill list is the GATE answering, never the lane. */
+const gatedRuntime = (r) => !!r && !!r.runtimeDeclined && isGateDecline(r.runtimeDeclined.code)
+const reachedRuntime = (r) => !!r && (r.lane === 'runtime' || (!!r.runtimeDeclined && !gatedRuntime(r)))
 
 function oneDoor(source, { runtimeDetail = RT_ON } = {}) {
   let d
@@ -232,7 +234,7 @@ describe.skipIf(!RUN)('coverage-map door census (driven by run_census.py)', () =
     const cur = path.join(path.dirname(OUT), 'current.txt')
     let n = 0
     // ⭐ what the door actually did, over every step of every new row
-    const ev = { gateOpen: false, gateClosed: false, reachedRuntime: 0, hostRefused: 0 }
+    const ev = { gateOpen: false, gateClosed: false, reachedRuntime: 0, hostRefused: 0, gated: 0 }
     for (const it of items) {
       if (done.has(it.key)) continue
       fs.writeFileSync(cur, it.key)
@@ -261,6 +263,7 @@ describe.skipIf(!RUN)('coverage-map door census (driven by run_census.py)', () =
       vi.unstubAllEnvs()
       for (const st of row.steps || []) {
         if (reachedRuntime(st)) ev.reachedRuntime += 1
+        if (gatedRuntime(st)) ev.gated += 1
         if (!st.threw && !st.attached) ev.hostRefused += 1
       }
       // ⭐ THE COUNTERFACTUAL, NOT PRODUCTION: the same door with the DARK runtime
@@ -289,7 +292,7 @@ describe.skipIf(!RUN)('coverage-map door census (driven by run_census.py)', () =
       let error = null
       try {
         line = assertLaneMeasured({ requested: LANE, gateOpen: ev.gateOpen && !ev.gateClosed,
-          reachedRuntime: ev.reachedRuntime, hostRefused: ev.hostRefused, what: 'coverage census' })
+          reachedRuntime: ev.reachedRuntime, hostRefused: ev.hostRefused, gated: ev.gated, what: 'coverage census' })
       } catch (err) {
         error = err
         line = String(err.message)
@@ -324,6 +327,7 @@ function laneEvidence(source) {
   return {
     gateOpen: runtimePaneEnabled(),
     reachedRuntime: reachedRuntime(r) ? 1 : 0,
+    gated: gatedRuntime(r) ? 1 : 0,
     hostRefused: r.attached && r.lane !== 'runtime' ? 0 : 1,
     r,
   }
@@ -353,6 +357,17 @@ describe('⛔ runtime-on lane rail: it can fail', () => {
     expect(ev.gateOpen).toBe(false)
     expect(ev.reachedRuntime, JSON.stringify(r).slice(0, 400)).toBe(0)
     expect(() => assertLaneMeasured({ requested: LANE_RUNTIME_ON, ...ev, what: 'self-check' })).toThrow(/RUNTIME PANE IS DARK/)
+  })
+
+  it('RED: pane on, permitted, but the starter allowlist not overridden -> runtime-on refused', () => {
+    vi.stubEnv(objectsFlag(), '1')
+    vi.stubEnv(runtimeFlag(), '1')
+    __resetRuntimeAllowList()
+    const { r, ...ev } = laneEvidence(SELF_CHECK_SOURCE)
+    expect(ev.gateOpen).toBe(true)
+    expect(ev.gated, JSON.stringify(r).slice(0, 400)).toBe(1)
+    expect(ev.reachedRuntime).toBe(0)
+    expect(() => assertLaneMeasured({ requested: LANE_RUNTIME_ON, ...ev, what: 'self-check' })).toThrow(/ALLOWLIST OR KILL LIST/)
   })
 
   it('RED: gate reported open but the lane never answered -> runtime-on refused', () => {

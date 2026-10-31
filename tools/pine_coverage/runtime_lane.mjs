@@ -47,6 +47,14 @@ export function runtimeDeclineCodeIn(text) {
   return m ? m[1] : null
 }
 
+/** ⛔ Declines that are the runtime lane's GATE, not the lane: the per-script kill
+ *  list and the starter allowlist (`runtimeKill.js`) answer before anything runs. A
+ *  runtime-on run grades EVERY script, so one of these means the allowlist override
+ *  did not hold where the door was asked (WS-0 mutation M1b: without this, a run
+ *  that measured the server's one-script allowlist still read "reached"). */
+export const RUNTIME_GATE_DECLINES = Object.freeze(['runtime:not-yet-graded', 'runtime:killed'])
+export const isGateDecline = (code) => RUNTIME_GATE_DECLINES.includes(code)
+
 /** Read a mode variable. @returns {'production'|'runtime-on'|null} null = unset. */
 export function requestedLane(value, name = 'mode variable') {
   if (value === undefined || value === null || value === '') return null
@@ -71,12 +79,19 @@ export function laneShown({ gateOpen, reachedRuntime }) {
  *                                      it, or declined by it
  * @param {number}  ev.hostRefused      door answers the HOST lane refused (each one
  *                                      is offered to the runtime lane when it is on)
+ * @param {number}  [ev.gated]          runtime declines by the GATE (`isGateDecline`),
+ *                                      never counted in `reachedRuntime`
  * @param {string}  [ev.what]           names the run in the message
  * @returns {string} the lane line to print
  */
-export function assertLaneMeasured({ requested, gateOpen, reachedRuntime, hostRefused, what = 'this run' }) {
+export function assertLaneMeasured({ requested, gateOpen, reachedRuntime, hostRefused, gated = 0, what = 'this run' }) {
   const facts = `gate ${gateOpen ? 'OPEN' : 'CLOSED'}, runtime lane reached ${reachedRuntime}, host refusals ${hostRefused}`
+    + (gated ? `, declined by the allowlist/kill list ${gated}` : '')
   if (requested === LANE_RUNTIME_ON) {
+    if (gated > 0) {
+      throw new Error(`⛔ ${what}: RUNTIME-ON WAS REQUESTED BUT THE ALLOWLIST OR KILL LIST DECLINED SCRIPTS (${facts}). `
+        + 'The runtime-on lane grades every script; the allow-every-script override did not hold.')
+    }
     if (!gateOpen) {
       throw new Error(`⛔ ${what}: RUNTIME-ON WAS REQUESTED BUT THE RUNTIME PANE IS DARK (${facts}). `
         + 'The build flag, the per-member permission and the allowlist override must all hold where the door is asked.')

@@ -52,7 +52,7 @@ import process from 'node:process'
 import { VERDICTS } from '../../../../../../../tools/vendor_harness/compare.mjs'
 import {
   HARNESS_RUNTIME_ENV, LANE_PRODUCTION, LANE_RUNTIME_ON, requestedLane, laneShown, assertLaneMeasured,
-  runtimeDeclineCodeIn, runtimeDeclinedTag,
+  runtimeDeclineCodeIn, runtimeDeclinedTag, isGateDecline,
 } from '../../../../../../../tools/pine_coverage/runtime_lane.mjs'
 import { runHarness, loadCapture, VENDOR_DIR, REPO } from './harness'
 import { runtimePaneEnabled, __permitRuntimePaneForTests } from '../../runtimePaneGate'
@@ -85,14 +85,17 @@ if (REQUESTED) {
 export function laneEvidenceOf(run, { gateOpen, laneOf = null }) {
   const declines = {}
   let declined = 0
+  let gated = 0
   let runtimeDrawn = 0
   let hostRefused = 0
   for (const r of run.results) {
     const code = runtimeDeclineCodeIn(r.reason)
     const refused = /refused on our side: member door refused/.test(r.reason || '')
     if (code) {
-      declined += 1
       declines[code] = (declines[code] || 0) + 1
+      // a decline by the allowlist / kill list is the gate answering, not the lane
+      if (isGateDecline(code)) gated += 1
+      else declined += 1
     }
     if (refused) hostRefused += 1
     else if (gateOpen && laneOf && laneOf(r.file) === 'runtime') {
@@ -101,7 +104,7 @@ export function laneEvidenceOf(run, { gateOpen, laneOf = null }) {
     }
   }
   return {
-    gateOpen, declined, runtimeDrawn, hostRefused, reachedRuntime: declined + runtimeDrawn,
+    gateOpen, declined, gated, runtimeDrawn, hostRefused, reachedRuntime: declined + runtimeDrawn,
     declines: Object.fromEntries(Object.entries(declines).sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))),
   }
 }
@@ -248,6 +251,14 @@ describe('⛔ vendor harness lane rail: it can fail', () => {
     const ev2 = laneEvidenceOf({ results: [refusedDark, matched] }, { gateOpen: true, laneOf: (f) => (f === 'c.json' ? 'runtime' : 'host') })
     expect(ev2.runtimeDrawn).toBe(1)
     expect(assertLaneMeasured({ requested: LANE_RUNTIME_ON, ...ev2 })).toMatch(/^LANE MEASURED: runtime-on/)
+  })
+
+  it('RED: runtime-on requested, but the allowlist answered (override missing) -> refused', () => {
+    const notGraded = { reason: `refused on our side: member door refused (pine:block) ${runtimeDeclinedTag('runtime:not-yet-graded')}: x`, file: 'd.json' }
+    const ev = laneEvidenceOf({ results: [notGraded, refusedLit] }, { gateOpen: true, laneOf: () => 'host' })
+    expect(ev.gated).toBe(1)
+    expect(ev.reachedRuntime).toBe(1)
+    expect(() => assertLaneMeasured({ requested: LANE_RUNTIME_ON, ...ev })).toThrow(/ALLOWLIST OR KILL LIST/)
   })
 
   it('RED: production requested but the runtime lane answered -> refused', () => {
