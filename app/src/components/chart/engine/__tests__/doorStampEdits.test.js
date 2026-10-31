@@ -15,6 +15,7 @@ import { fileURLToPath } from 'node:url'
 import { stampedFillOpacity, upgradeFromDoorStamps, fillStampSurvivesEdit } from '../memberDocumentMigration'
 import { preservePresentation } from '../../builder/presentationPreserve'
 import { applyPatch } from '../../builder/authoring/applyPatch'
+import { modelOf, buildFromModel } from '../../builder/authoring/model'
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../../../..')
 const docOf = () => JSON.parse(fs.readFileSync(path.join(REPO, 'tests/fixtures/door_stamps/v6-fills.json'), 'utf8')).definition
@@ -89,12 +90,50 @@ describe('the manual Builder (preservePresentation)', () => {
   })
 })
 
+describe('the manual Builder through the REAL buildDefinition (L4)', () => {
+  it('an unedited reopen-and-save keeps every band stamp and every band opacity', () => {
+    // `buildFromModel` IS `buildDefinition` over the stored rows (it writes no stamp);
+    // `preservePresentation` is the Builder's save-time carry.
+    const prior = docOf()
+    const built = buildFromModel(modelOf(prior))
+    expect(plot(built, 'out3')).not.toHaveProperty('fillTransparency')   // the rebuild drops it…
+    const { doc } = preservePresentation(built, prior)                   // …the carry restores it
+    for (const k of ['value', 'out3']) {
+      expect(plot(doc, k).fillTransparency).toEqual(plot(prior, k).fillTransparency)
+      expect(plot(doc, k).fillOpacity).toBe(plot(prior, k).fillOpacity)
+    }
+  })
+})
+
 describe('the conversational model (applyPatch → graftCarried)', () => {
   it('a turn that does not touch the band keeps both stamps', () => {
     const r = applyPatch(docOf(), env([{ op: 'rename_output', output: 'out2', label: 'Lower' }]))
     expect(r.status, JSON.stringify(r.errors)).toBe('applied')
     expect(plot(r.definition, 'value').fillTransparency).toEqual({ value: null, via: 'none' })
     expect(plot(r.definition, 'out3').fillTransparency).toEqual({ value: 87.5, via: 'color' })
+  })
+
+  it('⭐ H1 — a COLOUR-only turn ("make the cloud red") keeps the band\'s drawn opacity AND its stamp', () => {
+    const r = applyPatch(docOf(), env([{ op: 'set_fill', output: 'out3', with: 'out4', color: '#FF0000' }]))
+    expect(r.status, JSON.stringify(r.errors)).toBe('applied')
+    expect(plot(r.definition, 'out3').fillColor).toBe('#FF0000')
+    expect(plot(r.definition, 'out3').fillOpacity).toBe(0.125)
+    expect(plot(r.definition, 'out3').fillTransparency).toEqual({ value: 87.5, via: 'color' })
+  })
+
+  it('⭐ H1 — the same on an OPAQUE band: it stays at 1, never the 0.15 default, and keeps its stamp', () => {
+    const r = applyPatch(docOf(), env([{ op: 'set_fill', output: 'value', with: 'out2', color: '#FF0000' }]))
+    expect(r.status, JSON.stringify(r.errors)).toBe('applied')
+    expect(plot(r.definition, 'value').fillOpacity).toBe(1)
+    expect(plot(r.definition, 'value').fillTransparency).toEqual({ value: null, via: 'none' })
+  })
+
+  it('⛔ an opacity the member NAMES drops the stamp even when it restates the stored value', () => {
+    const r = applyPatch(docOf(), env([{ op: 'set_fill', output: 'out3', with: 'out4', opacity: 0.125 }]))
+    expect(r.status, JSON.stringify(r.errors)).toBe('applied')
+    expect(plot(r.definition, 'out3').fillOpacity).toBe(0.125)
+    expect(plot(r.definition, 'out3')).not.toHaveProperty('fillTransparency')
+    expect(plot(r.definition, 'value').fillTransparency).toEqual({ value: null, via: 'none' })
   })
 
   it('⛔ a turn that sets a band\'s opacity drops THAT band\'s stamp and keeps the other', () => {

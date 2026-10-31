@@ -761,11 +761,23 @@ const OPS = {
     const from = row.fill ? { with: row.fill.with, color: row.fillColor || null, opacity: Number.isFinite(row.fillOpacity) ? row.fillOpacity : null,
       ...(rule && (rule.rule === 'above' || rule.rule === 'condition') ? { colorAbove: rule.colorAbove, colorBelow: rule.colorBelow, ...(rule.when ? { when: rule.when } : {}) } : {}) } : null
     const oldHelper = row.fill && row.fill.colorMode ? row.fill.colorMode.slice('column:'.length) : null
+    // ⛔⛔ A COLOUR CHANGE DOES NOT TOUCH THE OPACITY. "Make the cloud red" used to
+    // delete an existing band's `fillOpacity` (P3's replace-the-band semantics), so a
+    // Pine-imported band at 0.125 — or an opaque one at 1 — fell to the 0.15 default
+    // and visibly changed. A band that already exists keeps its opacity unless the op
+    // NAMES one. (Not a colour-alpha rule: `fillPaint` multiplies a colour's own alpha
+    // by `fillOpacity`, so the two compose and the delete never made an alpha colour
+    // authoritative.) A NEW band still starts with none, as before.
+    const keptOpacity = row.fill && Number.isFinite(row.fillOpacity) ? row.fillOpacity : undefined
     row.fill = { with: other.key }
     delete row.fillColor
     delete row.fillOpacity
     if (op.color !== undefined) row.fillColor = op.color
     if (op.opacity !== undefined) row.fillOpacity = op.opacity
+    else if (keptOpacity !== undefined) row.fillOpacity = keptOpacity
+    // ⭐ the record a band's door stamp is judged by (`graftCarried`): an opacity the
+    // member NAMED drops the stamp even when it equals the stored one.
+    if (op.opacity !== undefined) st.fillOpacityNamed.add(row.key)
     if (conditional) {
       let key = op.when
       if (key === undefined) {
@@ -778,7 +790,7 @@ const OPS = {
     st.touched.add(row.key)
     st.fills.add(row.key)
     st.changes.push({ op: i, kind: 'fill-set', output: row.key, from,
-      to: { with: other.key, color: op.color || null, opacity: op.opacity !== undefined ? op.opacity : null,
+      to: { with: other.key, color: op.color || null, opacity: Number.isFinite(row.fillOpacity) ? row.fillOpacity : null,
         ...(conditional ? { colorAbove: op.colorAbove, colorBelow: op.colorBelow, ...(op.when ? { when: op.when } : {}) } : {}) } })
   },
 
@@ -1037,7 +1049,7 @@ function finalChecks(st, input, gateCtx) {
   // ⭐⭐ PHASE 4 — the CARRIED residual (fields outside the conversation's vocabulary)
   // goes back on verbatim; a patch that moved the same group of settings is refused.
   if (st.carry && st.carry.length) {
-    const g = graftCarried(def, input, st.baseModel, st.model, st.carry)
+    const g = graftCarried(def, input, st.baseModel, st.model, st.carry, { fillOpacityNamed: st.fillOpacityNamed })
     if (g.conflicts.length) {
       const c = g.conflicts[0]
       const what = c.output ? `"${c.output}"` : 'This indicator'
@@ -1195,6 +1207,7 @@ function runOps(input, ops, ctx) {
     model: null, ctx, changes: [], touched: new Set(), removed: new Set(), requested: new Set(),
     intent: ctx.intent ? { ...ctx.intent } : null, requests: normRequests(ctx.requests),
     engineAssumptions: [], replacedForeign: {}, created: false, intentTouched: false, fills: new Set(),
+    fillOpacityNamed: new Set(),
     renamedDefinition: false, renamedOutputs: new Set(), memberNames: memberNamePhrases(ctx.memberWords),
     newPaints: new Set(), hiddenSet: new Set(), calcTouched: false,
   }

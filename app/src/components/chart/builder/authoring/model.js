@@ -389,7 +389,7 @@ const TOP_MODEL_FIELD = Object.freeze({ placement: 'placement', paints: 'paints'
  * movement the member never asked for.
  * @returns {{doc, conflicts: {path, output, fields}[], dropped: string[]}}
  */
-export function graftCarried(next, stored, before, after, carry) {
+export function graftCarried(next, stored, before, after, carry, { fillOpacityNamed = null } = {}) {
   const doc = clone(next)
   const conflicts = []
   const dropped = []
@@ -406,7 +406,8 @@ export function graftCarried(next, stored, before, after, carry) {
       // changed (or removed) that band's opacity the stamp is simply dropped, so no
       // later door upgrade can replace the member's chosen opacity
       // (`memberDocumentMigration.fillStampSurvivesEdit`).
-      if (parsePath(p)[2].k === FILL_STAMP_FIELD && !fillStampSurvivesEdit(b, a)) { dropped.push(p); continue }
+      if (parsePath(p)[2].k === FILL_STAMP_FIELD
+        && ((fillOpacityNamed && fillOpacityNamed.has(g.plotKey)) || !fillStampSurvivesEdit(b, a))) { dropped.push(p); continue }
       const moved = g.fields.some((f) => stableJson(b ? b[f] : undefined) !== stableJson(a[f]))
       if (moved) { conflicts.push({ path: p, output: g.plotKey, fields: g.fields }); continue }
     } else {
