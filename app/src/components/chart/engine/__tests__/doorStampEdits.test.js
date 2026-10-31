@@ -128,6 +128,40 @@ describe('the conversational model (applyPatch → graftCarried)', () => {
     expect(plot(r.definition, 'value').fillTransparency).toEqual({ value: null, via: 'none' })
   })
 
+  it('⭐ an OPACITY-only turn ("make the cloud more transparent") keeps the band\'s custom colour', () => {
+    const r = applyPatch(docOf(), env([{ op: 'set_fill', output: 'out3', with: 'out4', opacity: 0.4 }]))
+    expect(r.status, JSON.stringify(r.errors)).toBe('applied')
+    expect(plot(r.definition, 'out3').fillColor).toBe('#2962FF')
+    expect(plot(r.definition, 'out3').fillOpacity).toBe(0.4)
+    const set = r.changes.find((c) => c.kind === 'fill-set')
+    expect(set.to).toMatchObject({ color: '#2962FF', opacity: 0.4 })
+  })
+
+  it('⭐ symmetric: a colour-only turn then an opacity-only turn ends with BOTH the member\'s picks', () => {
+    const r1 = applyPatch(docOf(), env([{ op: 'set_fill', output: 'out3', with: 'out4', color: '#FF0000' }]))
+    expect(r1.status, JSON.stringify(r1.errors)).toBe('applied')
+    const r2 = applyPatch(r1.definition, env([{ op: 'set_fill', output: 'out3', with: 'out4', opacity: 0.4 }]))
+    expect(r2.status, JSON.stringify(r2.errors)).toBe('applied')
+    expect(plot(r2.definition, 'out3').fillColor).toBe('#FF0000')
+    expect(plot(r2.definition, 'out3').fillOpacity).toBe(0.4)
+  })
+
+  it('⛔ a band turned into a CONDITIONAL cloud does not keep the old static colour', () => {
+    const r = applyPatch(docOf(), env([{ op: 'set_fill', output: 'out3', with: 'out4', colorAbove: '#00FF00', colorBelow: '#FF0000' }]))
+    expect(r.status, JSON.stringify(r.errors)).toBe('applied')
+    expect(plot(r.definition, 'out3').fill).toMatchObject({ colorUp: '#00FF00', colorDown: '#FF0000' })
+    expect(plot(r.definition, 'out3')).not.toHaveProperty('fillColor')
+  })
+
+  it('CONTROL — a NEW band (no fill before) still starts with no colour and no opacity of its own', () => {
+    const doc = docOf()
+    const r = applyPatch(doc, env([{ op: 'set_fill', output: 'out2', with: 'out4' }]))
+    expect(r.status, JSON.stringify(r.errors)).toBe('applied')
+    expect(plot(r.definition, 'out2').fill).toEqual({ with: 'out4' })
+    expect(plot(r.definition, 'out2')).not.toHaveProperty('fillColor')
+    expect(plot(r.definition, 'out2')).not.toHaveProperty('fillOpacity')
+  })
+
   it('⛔ an opacity the member NAMES drops the stamp even when it restates the stored value', () => {
     const r = applyPatch(docOf(), env([{ op: 'set_fill', output: 'out3', with: 'out4', opacity: 0.125 }]))
     expect(r.status, JSON.stringify(r.errors)).toBe('applied')

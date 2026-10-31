@@ -769,10 +769,18 @@ const OPS = {
     // by `fillOpacity`, so the two compose and the delete never made an alpha colour
     // authoritative.) A NEW band still starts with none, as before.
     const keptOpacity = row.fill && Number.isFinite(row.fillOpacity) ? row.fillOpacity : undefined
+    // ⛔⛔ AND THE SYMMETRIC CASE: AN OPACITY CHANGE DOES NOT TOUCH THE COLOUR. "Make the
+    // cloud more transparent" used to delete an existing band's custom `fillColor`, so it
+    // fell back to the output's own colour. A band that already exists keeps its colour
+    // unless the op NAMES one. ⛔ Not into a CONDITIONAL cloud: that op names its colours
+    // as colorAbove / colorBelow (and may not name `color`), so a static colour left
+    // behind would be a stale second answer. A NEW band still starts with none.
+    const keptColor = row.fill && typeof row.fillColor === 'string' && !conditional ? row.fillColor : undefined
     row.fill = { with: other.key }
     delete row.fillColor
     delete row.fillOpacity
     if (op.color !== undefined) row.fillColor = op.color
+    else if (keptColor !== undefined) row.fillColor = keptColor
     if (op.opacity !== undefined) row.fillOpacity = op.opacity
     else if (keptOpacity !== undefined) row.fillOpacity = keptOpacity
     // ⭐ the record a band's door stamp is judged by (`graftCarried`): an opacity the
@@ -790,7 +798,7 @@ const OPS = {
     st.touched.add(row.key)
     st.fills.add(row.key)
     st.changes.push({ op: i, kind: 'fill-set', output: row.key, from,
-      to: { with: other.key, color: op.color || null, opacity: Number.isFinite(row.fillOpacity) ? row.fillOpacity : null,
+      to: { with: other.key, color: typeof row.fillColor === 'string' ? row.fillColor : null, opacity: Number.isFinite(row.fillOpacity) ? row.fillOpacity : null,
         ...(conditional ? { colorAbove: op.colorAbove, colorBelow: op.colorBelow, ...(op.when ? { when: op.when } : {}) } : {}) } })
   },
 
