@@ -46,6 +46,7 @@ rx, jr = M["txn_receiver"], M["txn_journal"]
 REPO = pathlib.Path(__file__).resolve().parents[1]
 NOW_MS = int(time.time() * 1000)
 DAY_MS = 86_400_000
+REAL_POST = ops_alerts._post                          # captured before the fixture stubs it
 
 
 @pytest.fixture(autouse=True)
@@ -536,3 +537,154 @@ def test_ingest_replay_and_integrity_cost_do_not_grow_with_the_archive(big_db, t
     assert large < small * 3 + 3
     assert replay_ms < 50
     assert rep["journal"]["missing_in_sqlite"] == 0 and rep["journal"]["lost_from_r2"] == 0
+
+
+# ── 7. review evidence (owner, 2026-10-31): the real nightly job, end to end ──
+
+class _FakeR2:
+    """The four boto3 calls store_backup / store_restore make."""
+
+    def __init__(self):
+        self.objects: dict[str, bytes] = {}
+
+    def upload_file(self, path, bucket, key, ExtraArgs=None):
+        self.objects[key] = pathlib.Path(path).read_bytes()
+
+    def download_file(self, bucket, key, dest):
+        pathlib.Path(dest).write_bytes(self.objects[key])
+
+    def list_objects_v2(self, Bucket=None, Prefix="", ContinuationToken=None, **_kw):
+        keys = sorted(k for k in self.objects if k.startswith(Prefix))
+        return {"Contents": [{"Key": k} for k in keys], "IsTruncated": False}
+
+    def delete_object(self, Bucket=None, Key=None):
+        self.objects.pop(Key, None)
+
+
+def _write(path, data: bytes) -> str:
+    pathlib.Path(path).write_bytes(data)
+    return str(path)
+
+
+async def _nightly(tmp_path, monkeypatch, n):
+    p = pl.start(asyncio.get_running_loop())
+    sent = await _archive(p, jr.FileJournal(str(tmp_path / "j")), n=n)
+    monkeypatch.setenv(sb.ENABLED_ENV, "1")
+    _backup_keys.arm(monkeypatch)
+    r2 = _FakeR2()
+    now = dt.datetime.now(dt.timezone.utc)
+    out = await asyncio.to_thread(sb.run_backup, now=now, client=r2, bucket="b", stores=["trade_exchange_news"])
+    return sent, r2, now, out["trade_exchange_news"]
+
+
+async def test_the_nightly_job_ships_an_encrypted_snapshot_that_restores_into_an_empty_volume(tmp_path, monkeypatch):
+    """1 + 2: run_backup (the scheduler's entry point) -> encrypted object in the bucket ->
+    the restore REHEARSAL from the bucket (decrypt: AES-256-GCM tag per chunk; integrity_check;
+    schema digest + every table count = manifest) -> the REAL restore into an EMPTY volume ->
+    a working News database whose every delivery matches the R2 journal."""
+    sent, r2, now, res = await _nightly(tmp_path, monkeypatch, 60)
+    assert res["status"] == "ok"
+    key = res["key"]
+    assert key.startswith("store_backups/trade_exchange_news/") and key.endswith(".db.gz.enc")
+    assert r2.objects[key][:6] == b"UCTBK1"                         # encrypted, never plaintext
+    monkeypatch.setattr(sb, "_r2", lambda: (r2, "b"))
+    assert integrity.newest_backup(now)["status"] == "ok"           # the daily check sees it
+
+    private = _backup_keys.keypair()[0]
+    reh = store_restore.rehearse_stores(r2, "b", now=now, work=tmp_path / "reh", stores=["trade_exchange_news"],
+                                        private_key=private)
+    assert reh["stores"]["trade_exchange_news"]["verdict"] == "PASS", reh
+
+    empty = tmp_path / "empty-volume"
+    empty.mkdir()
+    gz = tmp_path / "plain.db.gz"
+    backup_crypto.decrypt_file(_write(tmp_path / "obj.enc", r2.objects[key]), str(gz), private)
+    dest = empty / "trade_exchange_news.db"
+    store_restore.restore_file(gz, dest, now=now)
+    s = Store(str(dest))
+    rep = integrity.check(s, FileJournalReader(str(tmp_path / "j")), backup_probe=None)
+    assert rep["ok"], rep["problems"]
+    assert rep["ledger"]["deliveries"] == len(sent) == rep["journal"]["journal_objects"]
+
+
+async def test_one_flipped_byte_in_the_encrypted_snapshot_is_refused(tmp_path, monkeypatch):
+    _sent, r2, now, res = await _nightly(tmp_path, monkeypatch, 10)
+    blob = bytearray(r2.objects[res["key"]])
+    blob[len(blob) // 2] ^= 0x01
+    r2.objects[res["key"]] = bytes(blob)
+    reh = store_restore.rehearse_stores(r2, "b", now=now, work=tmp_path / "reh", stores=["trade_exchange_news"],
+                                        private_key=_backup_keys.keypair()[0])
+    assert reh["stores"]["trade_exchange_news"]["verdict"] == "FAIL"
+
+
+async def test_the_rebuild_recovers_records_older_than_eight_days(tmp_path):
+    """3: the old 8-day journal expiry is gone; a rebuild returns deliveries of any age."""
+    p = pl.start(asyncio.get_running_loop())
+    sent = await _archive(p, jr.FileJournal(str(tmp_path / "j")), n=60, start_ms=NOW_MS - 400 * DAY_MS)
+    assert all(r["received_at_ms"] < NOW_MS - 8 * DAY_MS for r in sent)
+    pl.stop()
+    out = tmp_path / "rebuilt.db"
+    assert await asyncio.to_thread(rebuild_tool.main, ["--to", str(out), "--journal-dir", str(tmp_path / "j")]) == 0
+    c = sqlite3.connect(str(out))
+    try:
+        got = {r[0] for r in c.execute("SELECT event_id FROM deliveries")}
+    finally:
+        c.close()
+    assert got == {r["id"] for r in sent}
+
+
+def test_alerts_reach_the_existing_ops_webhook_over_http(monkeypatch):
+    """5: the REAL _post, resolved through alert_destination.ops_webhook (with the ops
+    variable unset it falls back to DISCORD_WEBHOOK_URL -- production's configuration)."""
+    import http.server
+    import threading
+    got = []
+
+    class H(http.server.BaseHTTPRequestHandler):
+        def do_POST(self):  # noqa: N802
+            got.append(json.loads(self.rfile.read(int(self.headers["Content-Length"]))))
+            self.send_response(204)
+            self.end_headers()
+
+        def log_message(self, *a):
+            pass
+    srv = http.server.HTTPServer(("127.0.0.1", 0), H)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    try:
+        monkeypatch.delenv("DISCORD_OPS_WEBHOOK_URL", raising=False)
+        monkeypatch.setenv("DISCORD_WEBHOOK_URL", f"http://127.0.0.1:{srv.server_port}/hook")
+        monkeypatch.setattr(ops_alerts, "_post", REAL_POST)
+        ops_alerts.alert("integrity", "daily integrity check FAILED: test")
+        for _ in range(150):
+            if got and ops_alerts.recent()[-1]["delivered"] is not None:
+                break
+            time.sleep(0.02)
+        assert got and got[0]["content"].startswith("UCT News archive [alert] daily integrity check FAILED")
+        assert ops_alerts.recent()[-1]["delivered"] is True
+    finally:
+        srv.shutdown()
+
+
+async def test_the_admin_routes_enforce_admin_authorization():
+    """10: status and integrity are require_admin: anonymous 401, member 403, admin 200."""
+    import httpx
+    from fastapi import FastAPI
+    from api.middleware import auth_middleware
+    from api.routers import trade_exchange_news as route
+    pl.start(asyncio.get_running_loop())
+
+    async def call(user, method, path):
+        app = FastAPI()
+        app.include_router(route.router)
+        if user is not None:
+            app.dependency_overrides[auth_middleware.get_current_user] = lambda: user
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://web.test") as c:
+            return await (c.get(path) if method == "GET" else c.post(path))
+    member = {"id": "m1", "role": "member"}
+    admin = {"id": "a1", "role": "admin"}
+    for method, path in (("POST", route.INTEGRITY_PATH), ("GET", route.STATUS_PATH)):
+        assert (await call(None, method, path)).status_code == 401
+        assert (await call(member, method, path)).status_code == 403
+    r = await call(admin, "POST", route.INTEGRITY_PATH)
+    assert r.status_code == 200 and "ledger" in r.json()
+    assert (await call(admin, "GET", route.STATUS_PATH)).json()["retention"]["permanent"] is True
