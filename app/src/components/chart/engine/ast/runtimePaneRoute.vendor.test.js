@@ -130,7 +130,8 @@ describe('⭐⭐ a script the columnar lane refuses for a structural reason rout
     // route is declined because the runtime lane refuses `varip` by name.
     // (⚰️ RT2: this appended an unused weekly read, declined as an unstated
     // repaint class; the class is now stated and an unused read stops nothing.)
-    const src = `${SOURCE}\nvarip int rt2Ticks = 0\n`
+    // ⭐ P3 WS-F — a top-level `varip` lowers now; inside a function it still refuses by name.
+    const src = `${SOURCE}\nrt2f() =>\n    varip int rt2Ticks = 0\n    rt2Ticks += 1\n    rt2Ticks\nrt2v = rt2f()\n`
     const built = memberPaneDefinition({ source: src, id: DEF_ID })
     expect(built.ok).toBe(false)
     expect(built.reason).toMatch(/declined/)

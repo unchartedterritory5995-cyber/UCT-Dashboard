@@ -172,6 +172,9 @@ export function execute(program, ctx, limits, opts) {
   const requestCache = (opts && opts.requestCache) || new Map()
   // ⭐⭐ THE PER-BAR HOOK — SEE THE END OF THE BAR LOOP FOR WHY IT EXISTS.
   const onBar = (opts && typeof opts.onBar === 'function') ? opts.onBar : null
+  // ⭐⭐ P3 WS-F — THE REALTIME HOOKS (`runtimeColumns.js`, `varip` and `barstate.isnew`):
+  // `barStart(bar, persist, initialised)` before a bar runs, `barEnd(...)` after its
+  // commit. Top-level runs only (a request's sub-run is another symbol's bars).
   budget.peak('IR_SIZE', program.instructions)
   budget.peak('HISTORY', ctx.bars)
   // ⭐⭐ P1 HARDENING — REQUEST NESTING (`REQUEST_FANOUT`) and the shared WALL_TIME
@@ -572,7 +575,9 @@ export function execute(program, ctx, limits, opts) {
     pkDepth = bc.CALL_DEPTH
     pkNest = bc.LOOP_NESTING
   }
+  const realtime = opts && opts.realtime && entryPc === 0 ? opts.realtime : null
   for (let bar = startBar; bar < ctx.bars; bar += 1) {
+    if (realtime) realtime.barStart(bar, persist, initialised)
     // ⛔ ONLY THE MAIN FRAME IS CLEARED PER BAR. A function's locals are cleared
     // per INVOCATION (see CALL) — which is stronger, and is what stops one bar's
     // call from seeing the previous bar's leftovers.
@@ -1342,6 +1347,7 @@ export function execute(program, ctx, limits, opts) {
       const elapsed = now() - budget.startedAt
       if (elapsed > wallCap) throw new RuntimeLimitError('WALL_TIME', wallCap, Math.round(elapsed))
     }
+    if (realtime) realtime.barEnd(bar, persist, initialised)
     if (onBar) onBar(bar, iters, outputs)
     if (bar === probeAt) {
       // the rings LOGICALLY: offset k back is the same bar in two runs that have
