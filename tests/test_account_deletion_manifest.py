@@ -46,9 +46,41 @@ def _doc_purged() -> set[str]:
     names = set()
     for line in gen.doc_block(_doc_text()).splitlines():
         m = _ROW.match(line)
-        if m:
+        if m and not any(k in line for k in _NOT_A_DELETE):
             names.add(m.group(1))
     return names
+
+
+#: Rows of the generated block that are NOT deletes by `purge_user_data`: anonymised tables, and
+#: the tables `_cascade_delete_user` deletes beside the account row. Each has its own rail below.
+_NOT_A_DELETE = ("| **Anonymised** |", "| **With the account row** |")
+
+
+def _doc_rows_marked(marker: str) -> set[str]:
+    return {m.group(1) for line in gen.doc_block(_doc_text()).splitlines()
+            if marker in line and (m := _ROW.match(line))}
+
+
+def test_the_doc_lists_as_ANONYMISED_exactly_what_the_purge_anonymises():
+    from api.services.journal_two import account_purge
+    conn = sqlite3.connect(":memory:")
+    try:
+        report = account_purge.purge_user_data("j4-manifest-probe-no-such-user", conn)
+    finally:
+        conn.close()
+    runtime = set(report["rows_anonymised"])
+    doc = _doc_rows_marked("| **Anonymised** |")
+    assert {"page_views", "feedback"} <= runtime, runtime          # non-vacuity, by name
+    assert doc == runtime, _diff("the purge (rows_anonymised)", runtime, "the doc", doc)
+    assert not (doc & _runtime_purged()), "a table is listed as anonymised AND deleted"
+
+
+def test_the_doc_lists_WITH_THE_ACCOUNT_ROW_exactly_what_the_cascade_deletes_beside_it():
+    from api.routers import auth
+    doc = _doc_rows_marked("| **With the account row** |")
+    assert {"user_totp", "user_backup_codes"} <= set(auth.DELETED_WITH_THE_ACCOUNT_ROW)
+    assert doc == set(auth.DELETED_WITH_THE_ACCOUNT_ROW), doc
+    assert not (doc & _runtime_purged()), "a 2FA table is deleted by the purge, BEFORE the cascade"
 
 
 def _doc_not_purged() -> set[str]:
@@ -77,7 +109,10 @@ def _runtime_purged() -> set[str]:
     # A second database's tables (saved indicators, user_definitions.db) are reported under
     # their own key -- no statement on `conn` reaches them.
     second = set((report.get("user_definitions") or {}).get("rows_deleted") or {})
-    return set(report["rows_deleted"]) | second
+    # ...and the alert stores (alert_taxonomy.db, screener.db, calendar_alerts.db,
+    # transcript_alerts.db, catalysts.db), flat under theirs.
+    alerts = set((report.get("alert_stores") or {}).get("rows_deleted") or {})
+    return set(report["rows_deleted"]) | second | alerts
 
 
 def _diff(label_a: str, a: set[str], label_b: str, b: set[str]) -> str:
@@ -92,7 +127,9 @@ def _diff(label_a: str, a: set[str], label_b: str, b: set[str]) -> str:
 def test_the_manifest_names_exactly_the_tables_the_purge_deletes():
     doc, runtime = _doc_purged(), _runtime_purged()
     # Non-vacuity, by name, on BOTH sides.
-    for name in ("j2_notes", "j2_option_legs", "user_definitions", "definition_shares"):
+    for name in ("j2_notes", "j2_option_legs", "user_definitions", "definition_shares",
+                 "inbound_alert_tokens", "alert_predicates", "alert_fire_channel_reads",
+                 "spec_alerts_fired", "keyword_subs"):
         assert name in runtime, f"the purge's own report does not name {name}: {sorted(runtime)}"
         assert name in doc, f"the doc's table does not name {name}"
     problem = _diff("the purge (runtime)", runtime, "docs/account-deletion-manifest.md", doc)

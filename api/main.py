@@ -8224,7 +8224,10 @@ async def lifespan(app: FastAPI):
             _alert_webhook_drain_job,
             trigger=CronTrigger(minute="*", timezone=_ET),
             id="alert_webhooks_drain",
-            max_instances=1, replace_existing=True,
+            # ⛔ ONE drain at a time (and a missed minute folds into the next run): two drains
+            # would read the same `due` rows and POST each twice. `drain()` also holds a
+            # non-blocking process lock for a call that bypasses the scheduler.
+            max_instances=1, coalesce=True, replace_existing=True,
         )
 
         # FT-035 -- per-alert expiry: past it a predicate is SUSPENDED, never

@@ -17,10 +17,13 @@ purge itself:
 
 So every `SWEEP_EVERY_HOURS` (and once shortly after boot) this replays, for every id in
 auth.db's `account_tombstones`:
-  * `account_tombstones.STORE_REPLAYS` on each LIVE store (today `user_definitions`), under
-    that store's own write lock -- the same code a restore runs;
-  * the saved-indicator alert tables in auth.db (`indicator_alert_rev`, `indicator_alert_fires`,
-    `indicator_alerts`);
+  * `account_tombstones.STORE_REPLAYS` on each LIVE store (`user_definitions`, and the five
+    alert stores of `alert_erasure.STORES` -- alert_taxonomy, whose replay deletes the OUTBOUND
+    webhook endpoints, screener, calendar_alerts, transcript_alerts, catalysts), under that
+    store's own write lock -- the same code a restore runs;
+  * the alert tables in auth.db a late writer can recreate (`AUTH_SWEEP`: the inbound receiver
+    token FIRST, then receipts, the bell, push subscriptions, and the saved-indicator alerts
+    `indicator_alert_rev`, `indicator_alert_fires`, `indicator_alerts`);
   * and, while a pending marker exists, the OFF-SITE tombstone list too, retiring the marker
     once that list has been read and replayed.
 
@@ -57,6 +60,16 @@ BOOT_DELAY_MINUTES = 10
 #: auth.db tables keyed to the member that a late writer can recreate after the purge.
 #: (table, the DELETE) -- the side table first, while its parent rows still exist.
 AUTH_SWEEP = (
+    # ⛔ The inbound TradingView receiver token FIRST (owner-approved 2026-10-30): a live
+    # credential -- the URL is the password -- so one that outlived the purge, or was minted
+    # after it, goes before anything else. (`inbound_alerts.verify` already refuses a member
+    # whose account row is gone; this removes the row itself.)
+    ("inbound_alert_tokens", "DELETE FROM inbound_alert_tokens WHERE user_id = ?"),
+    # A fire the receiver accepted, and a bell row / push subscription a late delivery wrote,
+    # after the member's purge.
+    ("inbound_alert_receipts", "DELETE FROM inbound_alert_receipts WHERE user_id = ?"),
+    ("user_alerts", "DELETE FROM user_alerts WHERE user_id = ?"),
+    ("web_push_subscriptions", "DELETE FROM web_push_subscriptions WHERE user_id = ?"),
     ("indicator_alert_rev",
      "DELETE FROM indicator_alert_rev WHERE alert_id IN (SELECT id FROM indicator_alerts WHERE user_id = ?)"),
     ("indicator_alert_fires", "DELETE FROM indicator_alert_fires WHERE user_id = ?"),
@@ -69,9 +82,19 @@ def is_enabled() -> bool:
 
 
 def _live_stores() -> dict:
-    """{store name: (a context manager yielding the live connection, the live path)}."""
+    """{store name: (a context manager yielding the live connection, the live path)}. The
+    alert stores (`alert_erasure.STORES`, owner-approved 2026-10-30) yield None for a file that
+    does not exist on this pod -- it holds nobody, and opening it would create it.
+    ⭐ alert_taxonomy's replay deletes `alert_webhooks` -- the OUTBOUND endpoints -- so an
+    endpoint that outlived the purge stops receiving on the next sweep."""
+    import functools
+    from api.services import alert_erasure as ae
     from api.services import user_definitions_erasure as ude
-    return {"user_definitions": (ude.live_connection, ude.live_path)}
+    stores = {"user_definitions": (ude.live_connection, ude.live_path)}
+    for s in ae.STORES:
+        stores[s.name] = (functools.partial(ae.live_connection, s.name),
+                          functools.partial(ae.live_path, s.name))
+    return stores
 
 
 def _sweep_auth(conn: sqlite3.Connection, ids: list[str]) -> tuple[dict, list[str]]:
@@ -166,10 +189,14 @@ def _sweep(auth_conn, store, now, report) -> dict[str, Any]:
         try:
             with opener() as conn:
                 # The scrub inside the replay is the author check; the restore gate's second
-                # pass is skipped so the write lock is held only for the selected rows.
-                rep = replay(conn, targets, verify_authors=False)
+                # pass is skipped so the write lock is held only for the selected rows. An
+                # alert store this pod never created yields None (it holds nobody).
+                rep = replay(conn, targets, verify_authors=False) if conn is not None else None
         except Exception as e:  # noqa: BLE001
             report["errors"].append(f"{name}: {type(e).__name__}: {e}")
+            continue
+        if rep is None:                        # an alert store never created on this pod
+            report["stores"][name] = {"absent": True}
             continue
         report["stores"][name] = {k: rep.get(k) for k in
                                   ("rows_deleted", "authors_scrubbed", "still_present", "authors_remaining")}

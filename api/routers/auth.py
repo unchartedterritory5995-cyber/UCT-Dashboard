@@ -1966,6 +1966,17 @@ def _record_deletion_tombstone_or_refuse(conn, user_id: str) -> dict:
     return tomb
 
 
+#: Member tables with no foreign key to users(id) that must go IF AND ONLY IF the account row
+#: goes: the member's 2FA. Deleted inside `_cascade_delete_user`'s one transaction, beside
+#: `DELETE FROM users`. ⛔ Never in `account_purge`, which runs BEFORE this: a cascade that
+#: then failed would leave a LIVE account, password-only, with its second factor gone.
+#: `tools/account_deletion_manifest.py` reads this tuple by AST.
+DELETED_WITH_THE_ACCOUNT_ROW = (
+    "user_totp",           # totp_service.py -- the member's 2FA secret
+    "user_backup_codes",   # totp_service.py -- their 2FA backup codes
+)
+
+
 def _cascade_delete_user(conn, user_id: str) -> None:
     """Delete a user and EVERY row referencing them, across all tables that
     declare an actual foreign key to users(id).
@@ -2019,8 +2030,19 @@ def _cascade_delete_user(conn, user_id: str) -> None:
                 conn.execute(orphan_sql)
             except Exception:
                 pass  # table may not exist in older schemas
+        for table in DELETED_WITH_THE_ACCOUNT_ROW:
+            try:
+                conn.execute(f'DELETE FROM "{table}" WHERE user_id = ?', (user_id,))
+            except sqlite3.OperationalError as e:
+                if "no such table" not in str(e).lower():
+                    raise
         conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
         conn.commit()
+    except BaseException:
+        # ⛔ All or nothing: a cascade that fails part-way must not leave its earlier deletes
+        # (the 2FA above among them) pending on a connection someone later commits.
+        conn.rollback()
+        raise
     finally:
         conn.execute("PRAGMA foreign_keys=ON")
 

@@ -394,6 +394,37 @@ def test_the_live_sweep_never_fetches_or_parses_a_row_that_does_not_name_a_delet
     assert checks == [], "the live sweep ran the restore's second author pass under the lock"
 
 
+@pytest.mark.parametrize("json1", [True, False], ids=["json1", "instr-fallback"])
+def test_a_NUMERIC_author_id_naming_a_deleted_member_is_selected_and_scrubbed(env, monkeypatch, json1):
+    """Review fix: `origin.author_id` stored as a JSON NUMBER. `json_extract` returns an INTEGER,
+    which never equals the TEXT id the selector binds, and the fallback's `"<id>"` needle cannot
+    see an unquoted number -- so the copy was never selected and kept naming the deleted member.
+    A second copy whose numeric author merely STARTS with the same digits is a control: the
+    selector may fetch it (a superset), the exact check must leave it alone."""
+    monkeypatch.setattr(ude, "_has_json1", lambda conn: json1)
+    leaver, near = "424242", 4242420
+    with sqlite3.connect(svc._DB_PATH) as c:
+        for def_id, author in (("u_00000000num1", int(leaver)), ("u_00000000num2", near)):
+            doc = {"id": def_id, "meta": {"name": "Copy"}, "origin": {"author_id": author}}
+            c.execute("INSERT INTO user_definitions (user_id, def_id, version, rev, ast_hash, definition,"
+                      " repaint, created_at) VALUES (?, ?, 1, 1, 'x', ?, '{}', 0)",
+                      (FRIEND, def_id, ude._canonical(doc)))
+        # Non-vacuity: the row really stores a NUMBER, the shape this rail is about.
+        stored = c.execute("SELECT definition FROM user_definitions WHERE def_id = 'u_00000000num1'").fetchone()[0]
+        assert '"author_id":424242' in stored
+        assert [r[0] for r in ude.authored_rows([leaver], c)], "the selector missed a numeric author"
+    with sqlite3.connect(str(env["auth"])) as c:
+        at.record_tombstone(leaver, c)
+    with sqlite3.connect(str(env["auth"])) as c:
+        out = ts.sweep(auth_conn=c)
+    assert out["ok"] is True, out["errors"]
+    assert out["stores"]["user_definitions"]["authors_scrubbed"] == 1
+    with sqlite3.connect(svc._DB_PATH) as c:
+        authors = {d: json.loads(b)["origin"]["author_id"] for d, b in c.execute(
+            "SELECT def_id, definition FROM user_definitions WHERE def_id LIKE 'u_00000000num%'")}
+    assert authors == {"u_00000000num1": None, "u_00000000num2": near}, authors
+
+
 def test_the_RESTORE_still_refuses_when_a_copy_still_names_a_deleted_author(env, monkeypatch):
     from tools import store_restore as sr
     leaver = _seed(LEAVER, "Leaver")
