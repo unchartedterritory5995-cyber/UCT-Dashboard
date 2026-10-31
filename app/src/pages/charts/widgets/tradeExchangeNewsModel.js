@@ -308,6 +308,23 @@ export function feedHealth(state, nowMs = Date.now()) {
   ]
 }
 
+/** The selected day's view, for the feed-health popover (the footer keeps only
+ *  the date and time controls): how many headlines, what the times are, and what
+ *  is hidden as graphic-only. */
+export function viewHealth({ dateLabel = '', count = null, provisional = false, hidden = 0, showing = false } = {}) {
+  return [
+    { key: 'view', label: 'This view', tone: 'none', value: count ? `${count} · ${dateLabel} (ET)` : dateLabel || '—' },
+    { key: 'times', label: 'Times', tone: 'none',
+      value: 'When UCT received each headline, in ET (Trade Exchange sends no publication time)' },
+    { key: 'tickers', label: 'Tickers', tone: 'none',
+      value: provisional ? 'Detected automatically · provisional' : 'Detected automatically' },
+    { key: 'graphic', label: 'Graphic-only', tone: 'none',
+      value: showing ? 'Shown (⚙ → Graphic-only posts)'
+        : hidden > 0 ? `${hidden} hidden: chart captions or labels whose picture the webhook does not carry. Stored, not lost · ⚙ → Graphic-only posts → Show`
+          : 'None hidden in this view' },
+  ]
+}
+
 // ── saved presets (per widget, in opts.presets) ──────────────────────────────
 
 export const PRESET_SETTING_KEYS = ['longHeadlines', 'groupRelated']

@@ -2,7 +2,7 @@
 // auto-follow / Jump to live, highlight, sound (muted by default, once per headline
 // across widgets), settings persistence, error states. The shared pool is mocked
 // so the test drives the feed directly. Synthetic headlines only.
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const feed = vi.hoisted(() => {
@@ -174,17 +174,37 @@ describe('TradeExchangeNewsWidget', () => {
     expect(container.querySelector('[class*="flash"]')).toBeNull()
   })
 
-  it('a graphic-only placeholder is hidden and counted, and can be shown', async () => {
-    const items = [...HISTORY, H(4, 'CRYPTO', [], { placeholder: 'graphic' })]
+  it('graphic-only posts (CRYPTO, "SPY Daily Weekly") are hidden, counted in the LIVE popover, and can be shown', async () => {
+    const items = [...HISTORY, H(4, 'CRYPTO', [], { placeholder: 'graphic' }),
+      H(5, 'SPY Daily Weekly', [], { placeholder: 'graphic' })]
     const { unmount } = render(<TradeExchangeNewsWidget color="A" opts={{}} onOptsChange={vi.fn()} />)
-    act(() => feed.set({ status: 'live', items, lastSeq: 4, lastHeadlineAt: NOW }))
+    act(() => feed.set({ status: 'live', items, lastSeq: 5, lastHeadlineAt: NOW }))
     expect(document.querySelector('[data-seq="4"]')).toBeNull()
-    expect(await screen.findByText(/1 graphic-only hidden/)).toBeInTheDocument()
+    expect(document.querySelector('[data-seq="5"]')).toBeNull()
+    expect(screen.queryByText(/graphic-only hidden/)).toBeNull()                 // never in the footer
+    fireEvent.click(screen.getByTitle(/Click for feed health/))
+    const health = await screen.findByRole('dialog', { name: 'Feed health' })
+    expect(health.querySelector('[data-key="graphic"]').textContent).toMatch(/2 hidden/)
     unmount()
     render(<TradeExchangeNewsWidget color="A" opts={{ settings: { graphicPlaceholders: 'show' } }} onOptsChange={vi.fn()} />)
-    act(() => feed.set({ status: 'live', items, lastSeq: 4, lastHeadlineAt: NOW }))
+    act(() => feed.set({ status: 'live', items, lastSeq: 5, lastHeadlineAt: NOW }))
     expect(document.querySelector('[data-seq="4"]')).not.toBeNull()
-    expect(screen.queryByText(/graphic-only hidden/)).toBeNull()
+    expect(document.querySelector('[data-seq="5"]')).not.toBeNull()
+  })
+
+  it('the footer holds only the date and time controls; the count and notes are in the LIVE popover', async () => {
+    const { container } = mount()
+    const footer = container.querySelector('[class*="footer"]')
+    expect(footer.querySelector('nav[aria-label="Date"]')).not.toBeNull()
+    expect(within(footer).getByRole('button', { name: 'Previous day' })).toBeInTheDocument()
+    expect(within(footer).getByRole('button', { name: /Choose a date/ })).toBeInTheDocument()
+    expect(within(footer).getByRole('button', { name: 'Next day' })).toBeInTheDocument()
+    expect(within(footer).getByRole('button', { name: 'Jump to a time' })).toBeInTheDocument()
+    expect(footer.textContent).not.toMatch(/headline|received times|provisional|graphic-only/)
+    fireEvent.click(screen.getByTitle(/Click for feed health/))
+    const health = await screen.findByRole('dialog', { name: 'Feed health' })
+    expect(health.querySelector('[data-key="view"]').textContent).toMatch(/headline/)
+    expect(health.querySelector('[data-key="times"]').textContent).toMatch(/received each headline, in ET/)
   })
 
   it('the new-headline highlight lasts 2.1 s (1.5 s hold + fade) and never fires for history pages or old replays', () => {
