@@ -133,6 +133,10 @@ CONVERTED = {
     # content), so `_post_owner_alert` resolves through `ops_webhook()` lazily at call time,
     # and an unset destination posts nothing rather than breaking a sign-in.
     "api/services/session_guard.py",
+    # 2026-10-31 -- the permanent News archive's alarms (backup stale, integrity check failed,
+    # R2 recovery failing, headlines unconfirmed in R2). New (never a literal reader), an ops
+    # message (counts only, never headline content), resolved lazily inside `_post`.
+    "api/services/trade_exchange_news/ops_alerts.py",
 }
 
 # ══════════════════════════════════════════════════════════════════════════════

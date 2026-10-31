@@ -133,19 +133,19 @@ async def test_invalid_records_are_refused_and_counted(mutate):
 
 # ── retention ────────────────────────────────────────────────────────────────
 
-def test_prune_bounds_by_age_and_count_and_never_reuses_seq(tmp_path):
+def test_the_store_has_no_prune_and_keeps_everything(tmp_path, monkeypatch):
+    """⛔⛔ PERMANENT RETENTION (owner, 2026-10-31): no age bound, no count bound."""
+    monkeypatch.setenv("TXN_HISTORY_MAX_AGE_HOURS", "1")
+    monkeypatch.setenv("TXN_HISTORY_MAX_ITEMS", "3")
     s = Store(str(tmp_path / "p.db"))
+    assert not hasattr(s, "prune")
     for i in range(10):
         r = records.validate(rec(f"SYNTHETIC {i}", BASE_MS + i * 1000))
         s.ingest(r, via="push", dedupe_key=str(i), window_ms=0, tickers=[])
-    out = s.prune(max_age_ms=5_500, max_items=3, now_ms=BASE_MS + 9_000)
-    assert out["by_age"] == 4 and out["by_count"] == 3
-    assert [h["seq"] for h in s.recent()] == [8, 9, 10]
+    assert [h["seq"] for h in s.recent()] == list(range(1, 11))
     r = records.validate(rec("SYNTHETIC new", BASE_MS + 10_000))
     assert s.ingest(r, via="push", dedupe_key="n", window_ms=0, tickers=[])["seq"] == 11
-    # The ledger is pruned by AGE only: count-pruned deliveries stay known, so
-    # recovery can never resurrect a headline the count bound removed.
-    assert s.stats()["deliveries"] == 7
+    assert s.stats()["deliveries"] == 11 and s.stats()["headlines"] == 11
 
 
 # ── one ordered stream for every subscriber ──────────────────────────────────
@@ -449,20 +449,19 @@ async def test_first_boot_records_no_gap(tmp_path):
     assert r.coverage()["complete"] is True
 
 
-async def test_an_outage_longer_than_retention_is_reported_as_a_gap(monkeypatch, tmp_path):
-    monkeypatch.setenv("TXN_HISTORY_MAX_AGE_HOURS", "168")
-    monkeypatch.setenv("TXN_JOURNAL_RETENTION_HOURS", "192")
+async def test_an_outage_of_any_length_is_recoverable_from_the_permanent_journal(monkeypatch, tmp_path):
+    """The journal expires nothing, so a 30-day outage leaves no gap: a store that
+    holds anything recovers from its own cursor, however old."""
+    monkeypatch.setenv("TXN_JOURNAL_RETENTION_HOURS", "192")          # retired: read by nothing
     import time as _t
     now = int(_t.time() * 1000)
     p = new_pipeline()
-    p.store.set_state("alive_ms", str(now - 9 * 24 * 3600 * 1000))     # down 9 days
+    await p.submit(rec("SYNTHETIC before the outage", now - 31 * 86_400_000), "push")
+    p.store.set_state("alive_ms", str(now - 30 * 86_400_000))          # down 30 days
     r = _rc_with(p, FileJournalReader(str(tmp_path)))
     r.boot_assess(now)
-    cov = r.coverage(now)
-    assert cov["complete"] is False
-    (g,) = cov["gaps"]
-    assert g["reason"] == "outage_exceeded_retention"
-    assert g["to_ms"] == now - 168 * 3600 * 1000          # recoverable floor = min(history, journal)
+    assert r.coverage(now)["complete"] is True and r.recoverable_floor_ms(now) == 0
+    assert r._start_ms(now) < now - 30 * 86_400_000
 
 
 async def test_a_short_outage_inside_retention_is_complete(tmp_path):

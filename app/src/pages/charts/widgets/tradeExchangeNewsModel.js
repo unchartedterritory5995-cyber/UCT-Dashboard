@@ -179,7 +179,7 @@ function unavailableTitle(reason) {
 }
 
 const GAP_REASON = {
-  outage_exceeded_retention: 'UCT was offline longer than the recovery window',
+  outage_exceeded_retention: 'UCT was offline longer than the recovery window (before permanent archiving)',
   no_journal: 'recovery storage was not configured while UCT was offline',
   journal_unreachable: 'recovery storage could not be reached',
 }
@@ -484,8 +484,8 @@ export function mergeDay(serverRows, poolMatches, { dateKey, hasNewer = false, h
   return [...bySeq.values()].sort(dayCmp)
 }
 
-/** The footer's archive note: how far back the retained history actually reaches. */
+/** The footer's archive note: how far back the archive reaches. It is permanent. */
 export function archiveTitle(oldestMs, nowMs = Date.now()) {
   const back = oldestMs ? `back to ${fmtReceived(oldestMs, nowMs)}${_etDay(oldestMs) === _etDay(nowMs) ? ' ET' : ''}` : 'empty so far'
-  return `The retained archive reaches ${back}. UCT keeps about 7 days of headlines, up to 5,000; nothing older is available.`
+  return `The UCT News archive reaches ${back}. Every Trade Exchange headline since then is kept permanently.`
 }

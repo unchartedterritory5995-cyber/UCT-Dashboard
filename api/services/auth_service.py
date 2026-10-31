@@ -1085,12 +1085,18 @@ def log_page_view(user_id: str, page: str):
 
 
 def get_page_analytics(days: int = 7) -> list[dict]:
-    """Return top pages by view count with unique user counts."""
+    """Return top pages by view count with unique user counts.
+
+    ``unique_users`` skips anonymised rows: account deletion keeps a member's page views but
+    sets ``user_id`` to '' (the column is NOT NULL), and ``COUNT(DISTINCT user_id)`` would count
+    that '' as one extra visitor. ``NULLIF`` makes it NULL, which COUNT ignores. The views
+    themselves still count -- the traffic happened.
+    """
     conn = get_connection()
     try:
         cutoff = _page_views_cutoff(timedelta(days=days))
         rows = conn.execute(
-            "SELECT page, COUNT(*) as views, COUNT(DISTINCT user_id) as unique_users "
+            "SELECT page, COUNT(*) as views, COUNT(DISTINCT NULLIF(user_id, '')) as unique_users "
             "FROM page_views WHERE created_at > ? "
             "GROUP BY page ORDER BY views DESC LIMIT 20",
             (cutoff,),
