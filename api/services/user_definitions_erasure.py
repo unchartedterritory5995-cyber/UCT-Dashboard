@@ -76,26 +76,83 @@ def _canonical(doc: Any) -> str:
     return json.dumps(doc, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
 
 
+#: How many ids one `IN (...)` carries (well under SQLite's bound-parameter limit).
+_ID_CHUNK = 400
+
+_JSON1: list[bool] = []                                # probed once: a property of the linked SQLite
+
+
+def _has_json1(conn: sqlite3.Connection) -> bool:
+    """Is SQLite's JSON1 (`json_extract`) compiled into this build? JSON1 is built in from
+    SQLite 3.38, but a build without it must still purge, so this asks rather than assumes."""
+    if not _JSON1:
+        try:
+            conn.execute("SELECT json_extract('{\"a\":1}', '$.a')").fetchone()
+            _JSON1.append(True)
+        except sqlite3.Error:
+            _JSON1.append(False)
+    return _JSON1[0]
+
+
+def authored_rows(user_ids, conn: sqlite3.Connection) -> list[tuple[int, str]]:
+    """`(row id, definition)` for the rows whose `origin.author_id` IS one of `user_ids` --
+    selected IN SQLite, so a row naming another author is never fetched or parsed in Python.
+
+    With JSON1: `json_extract(definition, '$.origin.author_id') IN (...)`, behind a CASE so a
+    malformed row (which makes `json_extract` raise) is skipped rather than failing the whole
+    query -- CASE is the one SQL construct whose evaluation order is guaranteed. Without JSON1:
+    one `instr` needle per id, the id as its stored JSON string (`'"<id>"'`). Either way this
+    is a SUPERSET filter; the caller still checks the author exactly in Python."""
+    ids = sorted({str(u) for u in user_ids if u})
+    out: dict[int, str] = {}
+    if not ids:
+        return []
+    if _has_json1(conn):
+        for i in range(0, len(ids), _ID_CHUNK):
+            chunk = ids[i:i + _ID_CHUNK]
+            marks = ",".join("?" * len(chunk))
+            for row_id, blob in conn.execute(
+                    "SELECT id, definition FROM user_definitions WHERE "
+                    "CASE WHEN instr(definition, '\"author_id\"') > 0 AND json_valid(definition) "
+                    "THEN json_extract(definition, '$.origin.author_id') END "
+                    f"IN ({marks})", chunk):
+                out[row_id] = blob
+    else:
+        for uid in ids:
+            needle = json.dumps(uid, ensure_ascii=False)
+            for row_id, blob in conn.execute(
+                    "SELECT id, definition FROM user_definitions WHERE instr(definition, ?) > 0",
+                    (needle,)):
+                out[row_id] = blob
+    return sorted(out.items())
+
+
+def _author_of(blob: str):
+    """`(doc, origin)` when `blob` is a document with an `origin` naming an author, else None."""
+    try:
+        doc = json.loads(blob)
+    except ValueError:
+        return None                                        # unreadable: nothing we can place
+    origin = doc.get("origin") if isinstance(doc, dict) else None
+    if not isinstance(origin, dict) or origin.get("author_id") is None:
+        return None
+    return doc, origin
+
+
 def scrub_authors(user_ids, conn: sqlite3.Connection) -> int:
     """Set `origin.author_id` to `AUTHOR_SCRUBBED` on every row whose author is one of
-    `user_ids`. ONE pass over the rows that carry an `author_id` at all (installed copies), so a
-    sweep over every tombstone costs one scan, not one per id. Returns how many rows were
-    rewritten. Raises on a database error (the caller reports it)."""
+    `user_ids`. Only the rows `authored_rows` selects in SQLite are parsed, and each is still
+    checked EXACTLY here. Returns how many rows were rewritten. Raises on a database error
+    (the caller reports it)."""
     ids = {str(u) for u in user_ids if u}
     if not ids:
         return 0
-    rows = conn.execute(
-        "SELECT id, definition FROM user_definitions WHERE instr(definition, '\"author_id\"') > 0"
-    ).fetchall()
     scrubbed = 0
-    for row_id, blob in rows:
-        try:
-            doc = json.loads(blob)
-        except ValueError:
-            continue                                       # unreadable: nothing we can place
-        origin = doc.get("origin") if isinstance(doc, dict) else None
-        if not isinstance(origin, dict) or origin.get("author_id") is None:
+    for row_id, blob in authored_rows(ids, conn):
+        found = _author_of(blob)
+        if found is None:
             continue
+        doc, origin = found
         if str(origin["author_id"]) not in ids:
             continue                                       # another author, or a mere mention
         origin["author_id"] = AUTHOR_SCRUBBED
@@ -103,6 +160,17 @@ def scrub_authors(user_ids, conn: sqlite3.Connection) -> int:
                      (_canonical(doc), row_id))
         scrubbed += 1
     return scrubbed
+
+
+def authors_remaining(user_ids, conn: sqlite3.Connection) -> list[str]:
+    """Which of `user_ids` a copy still names as its author (a restore's gate)."""
+    ids = {str(u) for u in user_ids if u}
+    left = set()
+    for _row_id, blob in authored_rows(ids, conn):
+        found = _author_of(blob)
+        if found is not None and str(found[1]["author_id"]) in ids:
+            left.add(str(found[1]["author_id"]))
+    return sorted(left)
 
 
 def scrub_author(user_id: str, conn: sqlite3.Connection) -> int:

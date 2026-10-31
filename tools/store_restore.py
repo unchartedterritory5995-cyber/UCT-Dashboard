@@ -259,6 +259,17 @@ def replay_preparer(name: str, ids: dict[str, str]):
     return prepare
 
 
+def _with_pending_marker(prepare, dest: Path, *, name: str, now: dt.datetime, sources: dict):
+    """`prepare`, then the pending marker -- both before `restore_file` moves or renames."""
+    def wrapped(path: Path) -> dict:
+        rep = prepare(path)
+        rep["marker"] = str(write_pending_marker(dest, name=name, now=now, sources=sources,
+                                                 replayed=list(sources["ids"]),
+                                                 unverified=rep.get("members") or []))
+        return rep
+    return wrapped
+
+
 def write_pending_marker(dest: Path, *, name: str, now: dt.datetime, sources: dict,
                          replayed: list, unverified: list) -> Path:
     """The record a restore leaves when it could not verify against the off-site tombstones.
@@ -555,6 +566,12 @@ def main(argv=None) -> int:
                         print("!" * 72)
                         unverified_after = src
                     prepare = replay_preparer(name, src["ids"])
+                    if unverified_after is not None:
+                        # The marker is written INSIDE prepare -- before anything is moved aside
+                        # or renamed in -- so a marker that cannot be written refuses the
+                        # restore instead of leaving a restored store with nothing pending.
+                        prepare = _with_pending_marker(prepare, Path(args.to), name=name, now=now,
+                                                       sources=unverified_after)
                 done = restore_file(gz, Path(args.to), now=now, replace=args.replace, prepare=prepare)
             except RestoreRefused as exc:
                 print(f"NOT RESTORED: {exc}")
@@ -565,11 +582,9 @@ def main(argv=None) -> int:
                       f"{rep['authors_scrubbed']} copies' author scrubbed")
             if unverified_after is not None:
                 members = (done.get("prepared") or {}).get("members") or []
-                marker = write_pending_marker(Path(args.to), name=name, now=now, sources=unverified_after,
-                                              replayed=list(unverified_after["ids"]), unverified=members)
                 print(f"UNVERIFIED against the off-site tombstones: {len(members)} member id(s): "
                       f"{', '.join(members) or '(none)'}")
-                print(f"pending marker -> {marker}")
+                print(f"pending marker -> {(done.get('prepared') or {}).get('marker') or 'NOT WRITTEN'}")
             print(f"restored -> {done['restored_to']}; moved aside: {done['moved_aside'] or 'nothing'}")
             return PASS
         if args.round_trip:

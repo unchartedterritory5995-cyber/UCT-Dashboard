@@ -285,7 +285,10 @@ def replay_on_store(name: str) -> Callable[[sqlite3.Connection, Iterable[str]], 
     outlive their account row. Idempotent. A restore refuses on `errors` or `still_present`."""
     store = BY_NAME[name]
 
-    def replay(conn: sqlite3.Connection, user_ids: Iterable[str]) -> dict[str, Any]:
+    def replay(conn: sqlite3.Connection, user_ids: Iterable[str], *,
+               verify_authors: bool = True) -> dict[str, Any]:
+        # `verify_authors` is the saved-indicator store's (author scrub check); alert rows have
+        # no author to scrub, so it is accepted and has nothing to do here.
         ids = sorted({str(u) for u in user_ids if u})
         replayed, errors, deleted = [], [], 0
         for uid in ids:

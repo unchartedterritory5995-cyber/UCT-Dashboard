@@ -188,7 +188,10 @@ def _sweep(auth_conn, store, now, report) -> dict[str, Any]:
         targets = sorted(set(ids) | set(offsite_ids))
         try:
             with opener() as conn:
-                rep = replay(conn, targets) if conn is not None else None
+                # The scrub inside the replay is the author check; the restore gate's second
+                # pass is skipped so the write lock is held only for the selected rows. An
+                # alert store this pod never created yields None (it holds nobody).
+                rep = replay(conn, targets, verify_authors=False) if conn is not None else None
         except Exception as e:  # noqa: BLE001
             report["errors"].append(f"{name}: {type(e).__name__}: {e}")
             continue
