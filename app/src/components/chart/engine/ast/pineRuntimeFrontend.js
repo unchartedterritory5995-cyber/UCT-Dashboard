@@ -180,7 +180,9 @@ export const RUNTIME_FRONTEND_VERSION = 1
 // what is built. Each now names the PART that is refused. ⛔ Map a refusal BY ITS
 // GUARD, never by this prose (PHASE3-RUNTIME-PLAN.md 3.6 item 6).
 export const RUNTIME_REFUSALS = Object.freeze({
-  'runtime:loop': 'a loop in a form this lane does not iterate — `for … in` over the elements of a collection',
+  // ⭐ P3 WS-A — the detail names the form: `for … in` over a collection, or a
+  // Pine 6 `for` whose body can move its own `to` bound (`forBoundMovedBy`).
+  'runtime:loop': 'a loop in a form this lane does not iterate',
   'runtime:function': 'a user-defined function in a shape this lane does not compile, or whose result it cannot read here',
   'runtime:tuple': 'a multiple-value form in a position this lane does not read — a tuple is unpacked by `[a, b] = …` or returned by a function',
   'runtime:array': 'a collection operation this lane does not implement — `matrix.*`, `map.*` or an `array.*` member it lacks',
@@ -203,7 +205,9 @@ export const RUNTIME_REFUSALS = Object.freeze({
   'runtime:fill-gradient': 'the gradient form of `fill` — `fill(plot1, plot2, top_value, bottom_value, top_color, bottom_color)` shades vertically between two values, and this engine’s fill paints one colour across a span',
   'runtime:colour': 'a colour was expected here — a colour is a packed integer in this lane, and a price packed into a colour slot would draw a plausible shade computed from the wrong thing',
   'runtime:plot-id': 'a plot id used as a number — `p = plot(…)` names a plot so that `fill()` can refer to it, and it is not a value the script can compute with',
-  'runtime:history-variable': 'history over a mutable variable — that needs per-slot history committed at end of bar',
+  // ⭐ P3 WS-A — no longer raised (2F-2 built per-slot rings); the key stays so
+  // a stored refusal still names itself.
+  'runtime:history-variable': 'history over a mutable variable, in a form this lane does not commit',
   'runtime:history-expression':
     'history over an EXPRESSION containing a mutable value — `(a + b)[1]` needs its own '
     + 'committed series, and distributing the offset over the operands is only right when '
@@ -218,10 +222,10 @@ export const RUNTIME_REFUSALS = Object.freeze({
     'a ring width that is only known while the bar is running — the depth it may reach '
     + 'cannot be bounded before execution, and reading past the ring would answer '
     + '`na` where Pine answers a number',
+  // ⭐ P3 WS-A — no longer raised (P7.2 built per-call-site rings, and the
+  // skipped-site rule is vendor-pinned); the key stays for stored refusals.
   'runtime:history-function-local':
-    'history over a FUNCTION-LOCAL value — the ring needs a per-call-site base the way '
-    + 'persistent state already has one, and Pine\'s semantics for a call site that is '
-    + 'skipped on a bar are not yet vendor-pinned',
+    'history over a FUNCTION-LOCAL value, in a form this lane does not commit',
   'runtime:expression-statement': 'an expression evaluated for its effect that this lane does not run as a statement',
   // ⭐⭐ SPLIT IN 2E, BECAUSE THE MEASUREMENT SAID IT WAS THREE THINGS (§29).
   // `runtime:call-with-state` was the top blocker at 15 and named `na`, `nz`,
@@ -280,8 +284,8 @@ export const RUNTIME_REFUSALS = Object.freeze({
     'a field this type does not declare — the head of the path is a record this lane '
     + 'holds, so the name is a field, not a variable',
   'runtime:udt-method':
-    'a Pine 6 `method` declared on a user type — a method is a user FUNCTION whose '
-    + 'receiver is argument 0, and this lane does not yet bind one',
+    'a Pine 6 `method` in a form this lane does not bind — a method binds as a user '
+    + 'FUNCTION whose receiver is argument 0',
   // ⭐ RULING 3.3 (owner, 2026-09-12) — THIS LANE REFUSES RATHER THAN BLANKS.
   // The four realtime barstate columns are decided by `opts.newestBarIsForming`, a
   // tri-state produced on the Python side. Nothing in `app/src` supplies it to this
@@ -6636,6 +6640,14 @@ function buildRuntimeIrLinked(source, opts, holder) {
         throw new RuntimeRefusal('runtime:block-value',
           `an arm of \`${label ? `${label} ` : ''}switch …\` has no \`=>\``, locate(arm.header[0]))
       }
+      // ⛔ P3 WS-A — THE DEFAULT IS THE LAST ARM. An arm after it (a second
+      // default included) has no reading this lane may pick: run in order, the
+      // default would shadow it; hoisted, the order changes. No capture says
+      // which, and the host lane refuses the same shape (`pine:block`).
+      if (fallback) {
+        throw new RuntimeRefusal('runtime:switch',
+          `an arm after the default \`=>\` of \`${label ? `${label} ` : ''}switch …\``, locate(arm.header[0]))
+      }
       const armRhs = arm.header.slice(at + 1)
       // ⭐ AN INLINE `=>` ARM IS A ONE-LINE BLOCK, so it takes the shared rule
       // too — `mkArm` registers its own scope, so this site must not push again.
@@ -6830,6 +6842,183 @@ function buildRuntimeIrLinked(source, opts, holder) {
       } else if (out) out.push(st)
     }
     return out || list || []
+  }
+
+  /** ⭐⭐ P3 WS-A — CAN A PASS OF THIS `for` BODY MOVE ITS `to` BOUND?
+   *
+   *  Pine v6 re-evaluates a `for` loop's `to` bound before EVERY pass (v6
+   *  migration guide, "Dynamic `for` loop boundaries"; March 2025 release notes;
+   *  `docs/pine/pine-version-evolution.md` row 60). Up to v5 it is read once, at
+   *  entry, and so is it here (`lowerIr.js`, STMT.FOR: `toSlot`). The two agree
+   *  exactly when no pass can change what the bound reads, so that case is served
+   *  for every version; a v6 loop whose body CAN move its bound is refused by
+   *  name until a capture pins the per-pass rule (standing ruling 2;
+   *  `docs/pine/capture-queue-2026-10-31-wsa-for-bound.md`).
+   *
+   *  Answered over the LOWERED IR, so a name resolves to the slot the bound
+   *  really reads and not to a spelling. Returns the reason, or null.
+   *  - a slot the bound reads that the body assigns (`:=`, compound, `[a, b] :=`);
+   *  - a heap the bound reads that the body may write: an `array.*` read beside
+   *    a write to any array that can be the same one (`isPrivateArrayName`); a
+   *    field read beside any field write; a drawing getter beside any drawing
+   *    operation; a user call in the bound beside any of these;
+   *  - a user function called in the body whose body makes one of these writes
+   *    (`fnMayMoveBound`).
+   *  ⛔ Conservative by construction: an unknown array function, or a user
+   *  function not compiled yet, counts as a write.
+   *  ⛔ History (`x[1]`) is committed at a past bar's close and no pass moves it. */
+  const MUTATING_ARRAY_FNS = new Set([
+    'array.set', 'array.push', 'array.clear', 'array.shift', 'array.pop',
+    'array.unshift', 'array.remove', 'array.concat',
+  ])
+  /** ⭐ A NAME THAT HOLDS AN ARRAY NOTHING ELSE CAN REACH. Two names can hold ONE
+   *  array (`b = a`, `b = f(a)`, a parameter, a tuple, a field, an array of arrays,
+   *  `slice`, which shares its source's storage), and a write through either moves
+   *  a size read through the other. A name is told apart only when, everywhere in
+   *  the script, (1) every binding of it is a fresh constructor (`array.new*`,
+   *  `array.from`, `array.copy`, `str.split`), and (2) it never ESCAPES: it appears
+   *  only as its own binding's target, as the FIRST argument of an `array.*` call
+   *  (`from`/`slice` excepted), or as the receiver of a method (`slice` excepted).
+   *  Read off the parsed statements by spelling, so a shadowed name counts every
+   *  binding and every use; ⛔ anything else counts as shared. */
+  const FRESH_ARRAY_CTOR = /^(array\.(new(_[a-z]+)?|from|copy)|str\.split)$/
+  const ARRAY_ALIASING_FNS = new Set(['array.from', 'array.slice'])
+  let sharedArrayNames = null
+  const isPrivateArrayName = (name) => {
+    if (sharedArrayNames === null) {
+      const bad = new Set()
+      const visit = (list) => {
+        for (const st of list || []) {
+          const headers = statementCommaParts(st) || [st.header || []]
+          for (const t of headers) {
+            const arrowAt = findTop(t, (x) => isPunct(x, '=>'))
+            const eqAt = arrowAt >= 0 ? -1 : findTop(t, (x) => isPunct(x, '=') || isPunct(x, ':='))
+            let target = -1
+            if (eqAt > 0 && t[eqAt - 1] && t[eqAt - 1].kind === 'ident') {
+              target = eqAt - 1
+              const rhs = t.slice(eqAt + 1)
+              const fresh = rhs.length >= 3 && rhs[0].kind === 'ident' && FRESH_ARRAY_CTOR.test(String(rhs[0].value))
+                && isPunct(rhs[1], '(') && isPunct(rhs[rhs.length - 1], ')')
+                && findTop(rhs.slice(2, -1), (x) => isPunct(x, ')')) < 0
+              if (!fresh) bad.add(String(t[target].value))
+            }
+            // (2) every other appearance of a bare name is an escape, but two —
+            // which also covers a function's parameters (`f(arr) =>`), a tuple's
+            // names and a function's returned name
+            for (let k = 0; k < t.length; k += 1) {
+              const x = t[k]
+              if (x.kind !== 'ident' || k === target) continue
+              const v = String(x.value)
+              const dot = v.indexOf('.')
+              if (dot > 0) {
+                if (v.slice(dot + 1) === 'slice') bad.add(v.slice(0, dot))
+                continue
+              }
+              const callee = k >= 2 && isPunct(t[k - 1], '(') && t[k - 2].kind === 'ident' ? String(t[k - 2].value) : ''
+              if (callee.startsWith('array.') && !ARRAY_ALIASING_FNS.has(callee)) continue
+              bad.add(v)
+            }
+          }
+          visit(st.sub)
+        }
+      }
+      visit(stmts)
+      sharedArrayNames = bad
+    }
+    return typeof name === 'string' && /^[A-Za-z_]\w*$/.test(name) && !sharedArrayNames.has(name)
+  }
+  const forBoundMovedBy = (toIr, body) => {
+    const reads = new Set()
+    const heap = new Set()
+    // the names of the arrays the bound reads; `null` once one is not private
+    let boundArrayNames = new Set()
+    const scanBound = (n, d) => {
+      if (!n || typeof n !== 'object' || d > 256) return
+      if (Array.isArray(n)) { for (const x of n) scanBound(x, d + 1); return }
+      // a committed past value (`x[1]`, a literal offset ≥ 1) no pass can move;
+      // ⛔ a dynamic offset may be 0, which is the current value, so it is read
+      if (n.kind === EXPR.HIST && typeof n.back === 'number' && n.back >= 1) return
+      if (n.kind === EXPR.READ && Number.isInteger(n.slot)) reads.add(n.slot)
+      else if (n.kind === EXPR.ARRAY) {
+        heap.add('array')
+        const a0 = Array.isArray(n.args) ? n.args[0] : null
+        const nm = a0 && a0.kind === EXPR.READ && slots[a0.slot] ? slots[a0.slot].name : null
+        if (boundArrayNames && isPrivateArrayName(nm)) boundArrayNames.add(nm)
+        else boundArrayNames = null
+      } else if (n.kind === EXPR.FIELD) heap.add('field')
+      else if (n.kind === EXPR.OBJECT_OP) heap.add('object')
+      else if (n.kind === EXPR.CALL) heap.add('*')
+      for (const v of Object.values(n)) if (v && typeof v === 'object') scanBound(v, d + 1)
+    }
+    scanBound(toIr, 0)
+    if (!reads.size && !heap.size) return null
+    const touches = (what) => heap.has('*') || heap.has(what)
+    // an array change that can reach what the bound reads: any, except a write
+    // through a name other than the bound's arrays' where one side is PRIVATE
+    // (`isPrivateArrayName`): the written array is reachable only by its own
+    // name, or every array the bound reads is
+    const changesBoundArray = (n) => {
+      if (n.kind !== EXPR.ARRAY || !touches('array')) return false
+      if (!MUTATING_ARRAY_FNS.has(n.fn) && Object.prototype.hasOwnProperty.call(ARRAY_FNS, n.fn)) return false
+      if (heap.has('*') || heap.has('field')) return true
+      const a0 = Array.isArray(n.args) ? n.args[0] : null
+      const nm = a0 && a0.kind === EXPR.READ && slots[a0.slot] ? slots[a0.slot].name : null
+      if (!nm || reads.has(a0.slot) || (boundArrayNames && boundArrayNames.has(nm))) return true
+      return !(isPrivateArrayName(nm) || (boundArrayNames && boundArrayNames.size > 0))
+    }
+    // ⭐ A user function moves the bound only by what its body (and every body it
+    // calls) WRITES: an array change, a field write, a drawing operation, or a
+    // write to a slot the bound reads. A function that only computes (a lookup,
+    // a `var` of its own call site, a drawing value) cannot. ⛔ Unknown — not
+    // compiled yet, deferred, recursive, too deep — counts as moving it.
+    const fnMoves = new Map()
+    const fnMayMoveBound = (fnIndex, seen = new Set()) => {
+      if (fnMoves.has(fnIndex)) return fnMoves.get(fnIndex)
+      const f = functions[fnIndex]
+      if (!f || f.compiling || !f.body || seen.has(fnIndex)) return true
+      seen.add(fnIndex)
+      let moves = false
+      const walk = (n, depth) => {
+        if (moves || !n || typeof n !== 'object') return
+        if (depth > 256) { moves = true; return }
+        if (Array.isArray(n)) { for (const x of n) walk(x, depth + 1); return }
+        if ((n.kind === STMT.ASSIGN && reads.has(n.slot))
+          || (n.kind === STMT.DESTRUCTURE && (n.slots || []).some((s) => reads.has(s)))
+          || (n.kind === STMT.FIELD_SET && touches('field'))
+          || changesBoundArray(n)
+          || (n.kind === EXPR.OBJECT_OP && touches('object'))
+          || (n.kind === EXPR.CALL && fnMayMoveBound(n.fn, seen))) { moves = true; return }
+        for (const v of Object.values(n)) if (v && typeof v === 'object') walk(v, depth + 1)
+      }
+      walk(f.body, 0)
+      walk(f.result, 0)
+      seen.delete(fnIndex)
+      fnMoves.set(fnIndex, moves)
+      return moves
+    }
+    let why = null
+    const scanBody = (n, d) => {
+      if (why || !n || typeof n !== 'object') return
+      if (d > 256) { why = 'a body too deep to read'; return }
+      if (Array.isArray(n)) { for (const x of n) scanBody(x, d + 1); return }
+      if (n.kind === STMT.ASSIGN && reads.has(n.slot)) {
+        why = `the body writes \`${(slots[n.slot] && slots[n.slot].name) || 'a name the bound reads'}\``
+      } else if (n.kind === STMT.DESTRUCTURE && (n.slots || []).some((s) => reads.has(s))) {
+        why = 'the body writes a name the bound reads'
+      } else if (n.kind === STMT.FIELD_SET && touches('field')) {
+        why = 'the body writes a field and the bound reads one'
+      } else if (changesBoundArray(n)) {
+        why = `the body changes an array (\`${n.fn}\`) and the bound reads one`
+      } else if (n.kind === EXPR.OBJECT_OP && touches('object')) {
+        why = 'the body runs a drawing operation and the bound reads a drawing'
+      } else if (n.kind === EXPR.CALL && (heap.size || reads.size) && fnMayMoveBound(n.fn)) {
+        why = 'the body calls a function that may change what the bound reads'
+      }
+      if (why) return
+      for (const v of Object.values(n)) if (v && typeof v === 'object') scanBody(v, d + 1)
+    }
+    scanBody(body, 0)
+    return why
   }
 
   const lowerStmts = (list0, scope, rootHoist = false) => {
@@ -7038,6 +7227,17 @@ function buildRuntimeIrLinked(source, opts, holder) {
         loopDepth += 1
         let body
         try { body = lowerStmts(st.sub || [], inner) } finally { loopDepth -= 1; loopRanges.delete(slot) }
+        // ⭐⭐ P3 WS-A — v6 re-reads the `to` bound before every pass; this lane
+        // reads it once. Served where the two cannot differ (`forBoundMovedBy`).
+        if (pineVersion !== null && pineVersion >= 6) {
+          const moved = forBoundMovedBy(toIr, body)
+          if (moved) {
+            note('runtime:loop')
+            throw new RuntimeRefusal('runtime:loop',
+              `Pine 6 re-reads a \`for\` loop's \`to\` bound before every pass, and ${moved}, `
+              + 'so the pass count can change while it runs — not yet captured', locate(first))
+          }
+        }
         // ⭐⭐ THE PER-ITERATION VALUES RIDE THE MEMBER'S OWN LOOP.
         //
         // They used to be emitted as a PARALLEL loop at the end of the program,
