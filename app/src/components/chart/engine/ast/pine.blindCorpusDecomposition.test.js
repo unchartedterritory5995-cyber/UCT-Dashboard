@@ -66,7 +66,9 @@ describe('⛔⛔ RISK-004 — the assisted-edit mechanism has exactly ONE offer'
       // ⭐ `ta.supertrend` left this list on 2026-10-29 — its tuple TRANSLATES now (see
       // the multifactor case below). `ta.sar` takes its place: ruled, stateful, no offer.
       ['ta.sar ruled stateful', 'x = ta.sar(0.02, 0.02, 0.2)\nplot(close > x ? 1 : 0)'],
-      ['ta.cci role-order', 'x = ta.cci(close, 20)\nplot(x < -100 ? 1 : 0)'],
+      // ⭐ `ta.cci(close, …)` left this list 2026-10-30 (Pine coverage Phase 1 expands
+      // any source to TradingView's own CCI); `ta.mfi` keeps the role-order refusal.
+      ['ta.mfi role-order', 'x = ta.mfi(close, 14)\nplot(x < 20 ? 1 : 0)'],
       ['undefined name', 'plot(neverDefined ? 1 : 0)'],
     ]
     for (const [label, body] of probes) {
@@ -592,7 +594,11 @@ describe('✅ RISK-004 REMEDIATION — ta.barssince bounding-heuristic gaps (nz-
     // expansion), and `multifactor-gap-up-continuation-hold` — held by it — leaves the
     // miss set: new capability, read rather than argued.
     expect(misses).not.toContain('multifactor-gap-up-continuation-hold')
-    expect(misses.length).toBe(18)
+    // ⭐ 18 → 17 ON 2026-10-30 (Pine coverage Phase 1): `ta.cci(close, 20)` is
+    // TradingView's own CCI written out, and `meanrev-zscore-multi-oscillator-washout`
+    // — held by its role order — leaves the miss set.
+    expect(misses).not.toContain('meanrev-zscore-multi-oscillator-washout')
+    expect(misses.length).toBe(17)
   })
 })
 

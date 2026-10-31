@@ -4,7 +4,7 @@ import PatternReview from './PatternReview'
 import { registerShortcuts } from '../command/shortcutRegistry'
 import KeyboardHelpOverlay from '../../components/chart/KeyboardHelpOverlay'
 import ChartContextMenu from '../../components/chart/ChartContextMenu'
-import StudyReview, { REVIEW_URL, TRUST_URL, EXPORT_URL, reviewKey, checksOf, provenanceOf, supportLineOf, forwardSummaryOf } from './StudyReview'
+import StudyReview, { REVIEW_URL, TRUST_URL, EXPORT_URL, reviewKey, checksOf, provenanceOf, supportLineOf, forwardSummaryOf, chartFrameOf } from './StudyReview'
 
 // The chart stand-in prints the props the review card is responsible for as
 // TEXT: the REVEALED ticker, the frame around the cutoff, and the cutoff marker.
@@ -702,5 +702,40 @@ describe('Escape over the card goes to an open chart popup', () => {
     fireEvent.keyDown(document.body, { key: 'Escape' })
     expect(onClose).toHaveBeenCalledTimes(1)
     expect(screen.getByTestId('fix-editor')).toBeInTheDocument()
+  })
+})
+
+describe('chartFrameOf', () => {
+  it('frames a daily item by its window_bars as sessions', () => {
+    const f = chartFrameOf({ asof: '2024-03-19', prompt_json: { chart: { window_bars: 120, tf: 'D' } }, reveal_json: {} })
+    expect(f.entryDate).toBe('2023-09-14')   // 180 + 7 days back
+    expect(f.forward).toBe(20)
+  })
+  it('frames an HOURLY item by sessions, not hourly bars (112 bars = 16 sessions, forward 5)', () => {
+    const f = chartFrameOf({
+      asof: '2026-10-16', bars_embed: { tf: '60' },
+      prompt_json: { chart: { window_bars: 112, tf: '60' } }, reveal_json: { window_bars: 112, facts: {} },
+    })
+    expect(f.entryDate).toBe('2026-09-15')   // ceil(16*1.5)+7 = 31 days back, not 175
+    expect(f.forward).toBe(5)
+    expect(f.exitDate).toBe('2026-10-29')
+  })
+  it('close-up frames only the sessions around the ruled open of an hourly item (owner 2026-10-31)', () => {
+    const item = { asof: '2026-10-16', bars_embed: { tf: '60' }, prompt_json: { chart: { window_bars: 112, tf: '60' } }, reveal_json: {} }
+    const f = chartFrameOf(item, { closeUp: true })
+    expect(f.entryDate).toBe('2026-10-10')
+    expect(f.exitDate).toBe('2026-10-20')
+    expect(f.closeUp).toBe(true)
+    // a daily item has no close-up: the flag is ignored
+    const d = chartFrameOf({ asof: '2026-10-16', prompt_json: { chart: { window_bars: 120, tf: 'D' } }, reveal_json: {} }, { closeUp: true })
+    expect(d.closeUp).toBeUndefined()
+    expect(d.entryDate).toBe('2026-04-12')
+  })
+  it('reads the available forward sessions when an hourly item records fewer than five', () => {
+    const f = chartFrameOf({
+      asof: '2026-10-27', bars_embed: { tf: '60' },
+      prompt_json: { chart: { window_bars: 112, tf: '60' } }, reveal_json: { facts: { fwd_sessions_available: 3 } },
+    })
+    expect(f.forward).toBe(3)
   })
 })

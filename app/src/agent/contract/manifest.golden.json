@@ -2251,7 +2251,7 @@
    "domain": "chartGrid",
    "target": "board",
    "summary": "Show these tickers as that many charts, in equal cells: the charts already on the board are reused (top-left first), any still needed are ADDED, and the charts' area is re-tiled as an even grid. Other widgets stay where they are; nothing is removed. One change, one Undo.",
-   "hints": "Use for \"create/open/show N charts for A, B, C…\", \"put SPY, QQQ, NVDA and TSLA in a 2x2 grid\", \"show NVDA and AMD side by side\" — whenever the member names the tickers for several charts. target = the ref of the board entry. symbols = the tickers in the member's order, uppercase. timeframe = the one timeframe they gave for all of them (1|5|15|30|60 minutes, D, W, M), else null. layout = \"columns\" for side by side, \"rows\" for stacked, \"grid\" for a grid, else null. new_charts = true only when they ask for NEW charts (\"in new charts\", \"add four new charts\") — the charts already there then keep their tickers; else null. Never widget.add + chart.setSymbol for this.",
+   "hints": "Use for \"create/open/show N charts for A, B, C…\", \"put SPY, QQQ, NVDA and TSLA in a 2x2 grid\", \"show NVDA and AMD side by side\" — whenever the member names the tickers for several charts. target = the ref of the board entry. symbols = the tickers in the member's order, uppercase. timeframe = the one timeframe they gave for all of them (1|5|15|30|60 minutes, D, W, M), else null. layout = \"columns\" for side by side, \"rows\" for stacked, \"grid\" for a grid, else null. new_charts = true only when they ask for NEW charts (\"in new charts\", \"add four new charts\") — the charts already there then keep their tickers; else null. watchlist = true when they also ask for a watchlist beside the charts (\"…, and a watchlist\") and the board has no Watchlist widget: a column on the right is cleared of charts and a Watchlist widget is added there; else null. Never widget.add + chart.setSymbol for this.",
    "args": {
     "type": "object",
     "properties": {
@@ -2295,13 +2295,43 @@
        "boolean",
        "null"
       ]
+     },
+     "watchlist": {
+      "type": [
+       "boolean",
+       "null"
+      ]
      }
     },
     "required": [
      "symbols",
      "timeframe",
      "layout",
-     "new_charts"
+     "new_charts",
+     "watchlist"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false
+  },
+  {
+   "name": "board.duplicateChart",
+   "domain": "board",
+   "target": "board",
+   "summary": "Duplicate one chart: its cell is split in two and a copy (same ticker, timeframe, look and indicators, not linked) appears in the other half. Nothing else moves. One change, one Undo.",
+   "hints": "target = the ref of the board entry; widget = the chart widget's id.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "widget": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "widget"
     ],
     "additionalProperties": false
    },
@@ -2542,6 +2572,33 @@
      "widget",
      "edge",
      "by"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false
+  },
+  {
+   "name": "board.swap",
+   "domain": "board",
+   "target": "board",
+   "summary": "Swap two widgets' places on the board. Side by side (same rows) or stacked (same columns): each keeps its own size and they trade sides. Otherwise only two widgets of the same size can trade cells. Nothing else moves.",
+   "hints": "target = the ref of the board entry; a, b = the two widgets' ids. \"move my watchlist to the right\" when the chart is on the right = swap the watchlist and that chart.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "a": {
+      "type": "string"
+     },
+     "b": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "a",
+     "b"
     ],
     "additionalProperties": false
    },
@@ -4033,19 +4090,22 @@
    "domain": "guide",
    "target": "guide",
    "summary": "SHOW the member where a Charts control is: highlight the real control on their board with a short step-by-step card (Next / Back / Exit). Changes nothing — use it for \"where do I…\", \"show me how to…\", \"how do I…\" questions, never to do the thing.",
-   "hints": "target = the guide entry. feature = one of: symbol (changing a chart’s symbol); timeframe (changing the timeframe); indicators (adding and configuring an indicator); charts (creating and arranging several charts); watchlists (using watchlists); layouts (saving and switching layouts); drawing (basic drawing tools); settings (finding chart settings). A request to DO it (\"change my chart to weekly\") is a command, not this.",
+   "hints": "target = the guide entry. feature = one of: canvas (chart background, grid, crosshair and watermark); link (linking charts and widgets); symbol (changing a chart’s symbol); timeframe (changing the timeframe); indicators (adding and configuring an indicator); charts (creating and arranging several charts); watchlists (using watchlists); layouts (saving and switching layouts); hideDrawings (hiding and showing drawings); drawing (basic drawing tools); settings (finding chart settings). A request to DO it (\"change my chart to weekly\") is a command, not this.",
    "args": {
     "type": "object",
     "properties": {
      "feature": {
       "type": "string",
       "enum": [
+       "canvas",
+       "link",
        "symbol",
        "timeframe",
        "indicators",
        "charts",
        "watchlists",
        "layouts",
+       "hideDrawings",
        "drawing",
        "settings"
       ]

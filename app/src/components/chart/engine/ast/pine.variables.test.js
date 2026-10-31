@@ -827,7 +827,9 @@ plot(show ? ta.sma(close, 5) : na)
     // forward across bars with no bound a member could state.
     // Without this the case above would pass for a translator that simply never
     // looks at the `no` arm of a ternary.
-    expect(refusalOf(`${HEAD}plot(close > open ? ta.sma(close, 5) : fixnan(close))\n`).guard).toBe('pine:na')
+    // ⚰️ …and `fixnan` translates since 2026-10-30 (Pine coverage Phase 1), so the
+    // refusing arm is `ta.wad` now: undeclared, unruled, and not served anywhere.
+    expect(refusalOf(`${HEAD}plot(close > open ? ta.sma(close, 5) : ta.wad)\n`).guard).toBe('pine:function')
   })
 
   it('⛔ CONTROL — a string that is NOT part of a constant comparison still refuses', () => {

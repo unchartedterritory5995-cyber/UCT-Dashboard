@@ -48,11 +48,17 @@ import {
  *  REACHABLE 27 — a positional call is common in the corpus and a named-only
  *  reader would silently drop every coordinate in `line.new(x1, y1, x2, y2)`. */
 export const CREATE_POSITIONAL = Object.freeze({
-  line: Object.freeze(['x1', 'y1', 'x2', 'y2', 'xloc', 'extend', 'color', 'style', 'width']),
+  // ⭐ P2 — EVERY positional slot of the v6 signature. A slot past the end of this
+  // list was not read at all — `box.new(l, t, r, b, …, bgcolor, "text")` drew a box
+  // with no text and named nothing. A slot whose property is not carried now reaches
+  // the converter by name and is listed `unsupportedProps`, never silently lost.
+  line: Object.freeze(['x1', 'y1', 'x2', 'y2', 'xloc', 'extend', 'color', 'style', 'width',
+    'force_overlay']),
   label: Object.freeze(['x', 'y', 'text', 'xloc', 'yloc', 'color', 'style', 'textcolor',
-    'size', 'textalign', 'tooltip']),
+    'size', 'textalign', 'tooltip', 'text_font_family', 'force_overlay', 'text_formatting']),
   box: Object.freeze(['left', 'top', 'right', 'bottom', 'border_color', 'border_width',
-    'border_style', 'extend', 'xloc', 'bgcolor']),
+    'border_style', 'extend', 'xloc', 'bgcolor', 'text', 'text_size', 'text_color', 'text_halign',
+    'text_valign', 'text_wrap', 'text_font_family', 'force_overlay', 'text_formatting']),
   table: Object.freeze(['position', 'columns', 'rows', 'bgcolor', 'frame_color', 'frame_width',
     'border_color', 'border_width']),
   linefill: Object.freeze(['line1', 'line2', 'color']),
@@ -123,12 +129,16 @@ export const SETTER_PROPS = Object.freeze({
     set_x1: ['x1'], set_y1: ['y1'], set_x2: ['x2'], set_y2: ['y2'],
     set_xy1: ['x1', 'y1'], set_xy2: ['x2', 'y2'],
     set_color: ['color'], set_width: ['width'], set_style: ['style'], set_extend: ['extend'],
+    // ⭐ P2 — `line.set_xloc(id, x1, x2, xloc)`: both x-coordinates and what they mean.
+    set_xloc: ['x1', 'x2', 'xloc'],
   }),
   label: Object.freeze({
     set_x: ['x'], set_y: ['y'], set_xy: ['x', 'y'], set_text: ['text'],
     set_color: ['color'], set_textcolor: ['textcolor'], set_style: ['style'],
     set_size: ['size'], set_textalign: ['textalign'], set_tooltip: ['tooltip'],
     set_yloc: ['yloc'],
+    // ⭐ P2 — `label.set_xloc(id, x, xloc)` and `label.set_text_formatting(id, f)`.
+    set_xloc: ['x', 'xloc'], set_text_formatting: ['text_formatting'],
   }),
   box: Object.freeze({
     set_left: ['left'], set_top: ['top'], set_right: ['right'], set_bottom: ['bottom'],
@@ -137,6 +147,10 @@ export const SETTER_PROPS = Object.freeze({
     set_border_width: ['border_width'], set_border_style: ['border_style'],
     set_extend: ['extend'], set_text: ['text'], set_text_color: ['text_color'],
     set_text_size: ['text_size'],
+    // ⭐ P2 — `box.set_xloc(id, left, right, xloc)`, and the text placement setters.
+    set_xloc: ['left', 'right', 'xloc'],
+    set_text_halign: ['text_halign'], set_text_valign: ['text_valign'],
+    set_text_formatting: ['text_formatting'],
   }),
   table: Object.freeze({
     set_position: ['position'], set_bgcolor: ['bgcolor'],
@@ -145,6 +159,134 @@ export const SETTER_PROPS = Object.freeze({
   }),
   linefill: Object.freeze({ set_color: ['color'] }),
 })
+
+/**
+ * ⭐⭐ P2 — PINE'S `chart.point` OVERLOADS OF THE THREE CONSTRUCTORS, READ AS
+ * THE COORDINATE FORM THEY MEAN (Pine v6 reference, `line.new` / `label.new` /
+ * `box.new` second signatures):
+ *
+ *   line.new(first_point, second_point, xloc, extend, color, style, width, force_overlay)
+ *   label.new(point, text, xloc, yloc, color, style, textcolor, size, textalign, tooltip, …)
+ *   box.new(top_left, bottom_right, border_color, border_width, border_style, extend, xloc, …)
+ *
+ * A point carries BOTH an index and a time; which one becomes the x-coordinate is
+ * the drawing's `xloc` (`xloc.bar_index`, the default, reads `index`; `xloc.bar_time`
+ * reads `time`). So the point form is exactly the coordinate form with each x taken
+ * from the field `xloc` names and each y from `price` — no new op, no new property.
+ *
+ * ⛔ ONLY A POINT WRITTEN WHERE IT IS USED (`chart.point.from_index(…)`,
+ * `.from_time`, `.new`, `.now`, `.copy` of one of those). A point held in a NAME
+ * (`p = chart.point.from_index(…)`, `line.new(p, q)`) is a value of a type the
+ * value lane does not hold, and it is left exactly as before: the name reaches the
+ * converter as a coordinate, the value lane refuses it by name, and the create is
+ * a counted drop. ⛔ An `xloc` that is not a literal cannot say which field a point
+ * gives, so that call is refused by name (`point:xloc`) rather than guessed.
+ * ⛔ A point whose field the `xloc` asks for is `na` (`from_time` on a bar-index
+ * drawing) gives `na`, as Pine's does: the coordinate is `na`, never the other field.
+ */
+export const POINT_OVERLOADS = Object.freeze({
+  line: Object.freeze({
+    points: Object.freeze([['first_point', 'x1', 'y1'], ['second_point', 'x2', 'y2']]),
+    rest: Object.freeze(['xloc', 'extend', 'color', 'style', 'width', 'force_overlay']),
+  }),
+  label: Object.freeze({
+    points: Object.freeze([['point', 'x', 'y']]),
+    rest: Object.freeze(['text', 'xloc', 'yloc', 'color', 'style', 'textcolor', 'size', 'textalign',
+      'tooltip', 'text_font_family', 'force_overlay', 'text_formatting']),
+  }),
+  box: Object.freeze({
+    points: Object.freeze([['top_left', 'left', 'top'], ['bottom_right', 'right', 'bottom']]),
+    rest: Object.freeze(['border_color', 'border_width', 'border_style', 'extend', 'xloc', 'bgcolor',
+      'text', 'text_size', 'text_color', 'text_halign', 'text_valign', 'text_wrap',
+      'text_font_family', 'force_overlay', 'text_formatting']),
+  }),
+})
+
+/** `chart.point.*` constructor → its parameters, in Pine's order. */
+const POINT_CTORS = Object.freeze({
+  'chart.point.from_index': Object.freeze(['index', 'price']),
+  'chart.point.from_time': Object.freeze(['time', 'price']),
+  'chart.point.new': Object.freeze(['time', 'index', 'price']),
+  'chart.point.now': Object.freeze(['price']),
+  'chart.point.copy': Object.freeze(['id']),
+})
+
+const isPointCall = (n) => !!n && n.type === 'call' && Object.prototype.hasOwnProperty.call(POINT_CTORS, String(n.name))
+
+/** A point constructor node → `{time, index, price}` parse nodes, or null. */
+export function pointFieldsOf(node, depth = 0) {
+  if (!isPointCall(node) || depth > 8) return null
+  const params = POINT_CTORS[node.name]
+  const got = {}
+  let pos = 0
+  for (const a of node.args || []) {
+    const k = a.name || params[pos++]
+    if (!k || !params.includes(k) || k in got) return null
+    got[k] = a.value
+  }
+  const tok = node.tok
+  const na = { type: 'name', name: 'na', tok }
+  if (node.name === 'chart.point.copy') return got.id ? pointFieldsOf(got.id, depth + 1) : null
+  if (node.name === 'chart.point.now') {
+    return { time: { type: 'name', name: 'time', tok }, index: { type: 'name', name: 'bar_index', tok },
+      price: got.price || { type: 'name', name: 'close', tok } }
+  }
+  if (!got.price) return null
+  if (node.name === 'chart.point.from_index') return got.index ? { time: na, index: got.index, price: got.price } : null
+  if (node.name === 'chart.point.from_time') return got.time ? { time: got.time, index: na, price: got.price } : null
+  return got.time && got.index ? { time: got.time, index: got.index, price: got.price } : null
+}
+
+/**
+ * A constructor's arguments in the `chart.point` overload → the same call in the
+ * coordinate form (named arguments), `null` when it is not the point overload, or
+ * `{refused}` when it is and cannot be read (see `POINT_OVERLOADS`).
+ *
+ * ⭐ The overload is recognised only by a point CONSTRUCTOR in a point position (or
+ * a point parameter named as such) — so every coordinate-form call, including one
+ * whose argument is a name, is returned untouched (`null`).
+ */
+export function pointOverloadArgs(family, args) {
+  const spec = POINT_OVERLOADS[family]
+  if (!spec || !Array.isArray(args)) return null
+  const pointNames = spec.points.map((p) => p[0])
+  const positional = args.filter((a) => !a.name)
+  const named = args.filter((a) => a.name)
+  const usesPoint = named.some((a) => pointNames.includes(a.name))
+    || positional.slice(0, pointNames.length).some((a) => isPointCall(a.value))
+  if (!usesPoint) return null
+  const order = [...pointNames, ...spec.rest]
+  const byName = new Map()
+  for (let i = 0; i < positional.length; i += 1) {
+    if (!order[i]) return { refused: 'point:arity' }
+    byName.set(order[i], positional[i])
+  }
+  for (const a of named) {
+    if (!order.includes(a.name) || byName.has(a.name)) return { refused: 'point:argument' }
+    byName.set(a.name, a)
+  }
+  const xloc = byName.get('xloc')
+  let field = 'index'
+  if (xloc) {
+    const v = xloc.value
+    const nm = v && v.type === 'name' ? String(v.name) : ''
+    if (nm === 'xloc.bar_time') field = 'time'
+    else if (nm !== 'xloc.bar_index') return { refused: 'point:xloc' }
+  }
+  const out = []
+  for (const [param, xProp, yProp] of spec.points) {
+    const a = byName.get(param)
+    if (!a) return { refused: 'point:missing' }
+    const f = pointFieldsOf(a.value)
+    if (!f) return { refused: 'point:value' }
+    out.push({ name: xProp, value: f[field], tok: a.tok }, { name: yProp, value: f.price, tok: a.tok })
+  }
+  for (const k of spec.rest) {
+    const a = byName.get(k)
+    if (a) out.push({ name: k, value: a.value, tok: a.tok })
+  }
+  return { args: out }
+}
 
 export const OBJECT_NAMESPACES = Object.freeze(['line', 'label', 'box', 'table', 'linefill'])
 /** Named but NOT built — reported with its count rather than half-implemented. */
@@ -190,6 +332,8 @@ export function collectObjectOps(stmts, h) {
     // ⭐ C40 — every `for … in` this pass could have walked and did not, with
     // why (`<what>@<line>`): the loop then keeps the legacy refusal (`loopBlocked`).
     forInRefused: [],
+    // ⭐ P2 — every `chart.point` constructor call this pass could not read, why.
+    pointRefused: [],
   }
   const loseColl = (name, why, tok) => {
     diagnostics.lostColls.push(name)
@@ -1777,6 +1921,17 @@ export function collectObjectOps(stmts, h) {
     return -1
   }
 
+  /** ⭐ P2 — a constructor's arguments with the `chart.point` overload read as
+   *  the coordinate form (`pointOverloadArgs`); `null` (refused, and the caller
+   *  names the call `unsupported`) when it is the point form and cannot be read. */
+  const pointed = (ns, args) => {
+    if (!args) return null
+    const p = pointOverloadArgs(ns, args)
+    if (!p) return args
+    if (p.refused) { diagnostics.pointRefused.push(`${ns}.new:${p.refused}`); return null }
+    return p.args
+  }
+
   const argsOf = (toks) => {
     const open = toks.findIndex((x) => h.isPunct(x, '('))
     if (open < 0) return null
@@ -1995,7 +2150,7 @@ export function collectObjectOps(stmts, h) {
     const rtCarried = inLoop && !!rtLoop && loopNest === rtLoop.nest && !intoName && !once
       && inlineDepth === 0
     if (inLoop && !rtCarried) { diagnostics.loopBlocked.push(`${ns}.new`); return false }
-    const args = argsOf(rhs)
+    const args = pointed(ns, argsOf(rhs))
     if (!args) { diagnostics.unsupported.push(`${ns}.new`); return false }
     siteSeq += 1
     ops.push({
@@ -2162,6 +2317,9 @@ export function collectObjectOps(stmts, h) {
     const name = String(v.name || '')
     const ns = nsOf(name)
     if (!ns || !OBJECT_NAMESPACES.includes(ns) || methodOf(name) !== 'new') return null
+    // ⭐ P2 — the `chart.point` overload, read as its coordinate form (`pointed`).
+    const createArgs = pointed(ns, v.args || [])
+    if (!createArgs) { diagnostics.unsupported.push(`${ns}.new`); return null }
     siteSeq += 1
     const site = `s${siteSeq}`
     ops.push({
@@ -2173,7 +2331,7 @@ export function collectObjectOps(stmts, h) {
       guards,
       locals: scope,
       loopIds: [...loopIds],
-      args: v.args || [],
+      args: createArgs,
       at: v.tok || toks[0],
       line: st.header[0].line,
     })

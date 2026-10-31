@@ -717,6 +717,17 @@ export function coverageGaps(table = TABLE, operatorPhrases = OPERATOR_SENTENCE,
 
 const isLeaf = (n) => !!n && typeof n === 'object' && (n.type === 'num' || n.type === 'series')
 
+/** ⭐ 2026-10-30 — the literal `0 / 0`, which this engine writes for "no value" (`na`:
+ *  the formula word, `ta.na`, every Pine `na` and every withheld bar of an
+ *  expansion). It reads back as the words a member means — "no value" — never as
+ *  arithmetic, and it is bracketed like a leaf because it IS one value. Derived
+ *  names (`derivedName.js`) already said "no value"; this makes the read-back agree.
+ *  ⚠️ ONLY the literal: `(high - low) / (high - low)` is a real division that can be
+ *  a hole on some bars, and is described as the division it is. */
+const isNoValue = (n) => !!n && typeof n === 'object' && n.type === 'op' && n.name === '/'
+  && Array.isArray(n.args) && n.args.length === 2
+  && n.args.every((a) => a && a.type === 'num' && a.value === 0)
+
 /** ⚠️ `String(n)`, NEVER `toLocaleString` AND NEVER `Intl`. ECMAScript pins
  *  Number-to-String exactly; a locale format would put a comma in a thousands
  *  separator on one machine and a period on another, and the sentence is
@@ -795,7 +806,7 @@ function refuseGap(gap, kind, name, path) {
  *  claim: exactly one form parses each of the sentences it generates. */
 function renderArg(node, rules, inputs, depth, path, trace) {
   const inner = renderNode(node, rules, inputs, depth + 1, path, trace)
-  return isLeaf(node) ? inner : `(${inner})`
+  return isLeaf(node) || isNoValue(node) ? inner : `(${inner})`
 }
 
 function renderName(node, rules, inputs, path, trace) {
@@ -894,6 +905,10 @@ function renderOp(node, rules, inputs, depth, path, trace) {
   }
   if (node.args.length !== rule.arity) {
     refuse('sentence:arity', `at ${path}: ${name} takes ${rule.arity}, got ${node.args.length}`)
+  }
+  if (isNoValue(node)) {
+    trace.push({ path, rule: 'op:no-value' })
+    return 'no value'
   }
   // ⭐ THE ONE PLACE THE CHROME CONSULTS `yields`. Every operand already being a
   // condition is what makes the `!= 0` scaffolding vacuous; one `num` operand

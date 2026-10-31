@@ -271,7 +271,10 @@ describe('the fold computes what the ENGINE computes, derived', () => {
     const accepted = []
     for (const name of Object.keys(TABLE.functions)) {
       const spec = TABLE.functions[name]
-      const args = (spec.args || []).map(() => cNumNode(2))
+      // ⚠️ 0.5, NOT 2 (2026-10-30): `acos` joined the pointwise set and has no real
+      // answer at 2 — a probe argument outside one member's domain would read as
+      // "not foldable" for a reason about the ARGUMENT. 0.5 is inside every domain.
+      const args = (spec.args || []).map(() => cNumNode(0.5))
       const v = constantValueOf(cCallNode(name, args))
       if (v !== null) accepted.push(name)
     }

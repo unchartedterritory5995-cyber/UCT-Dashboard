@@ -2,7 +2,7 @@
 // auto-follow / Jump to live, highlight, sound (muted by default, once per headline
 // across widgets), settings persistence, error states. The shared pool is mocked
 // so the test drives the feed directly. Synthetic headlines only.
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const feed = vi.hoisted(() => {
@@ -10,19 +10,25 @@ const feed = vi.hoisted(() => {
   const claimed = new Set()
   let state = { status: 'idle', items: [], epoch: 'e', lastSeq: 0, firstSeq: 0, coverage: null, provisional: true }
   return {
+    archive: null, dayCalls: [], dayOpts: null, daysOpts: null,
     listeners, claimed,
     get: () => state,
     set(next) { state = { ...state, ...next }; for (const fn of [...listeners]) fn(state) },
-    reset() { listeners.clear(); claimed.clear(); state = { status: 'idle', items: [], epoch: 'e', lastSeq: 0, firstSeq: 0, coverage: null, provisional: true } },
+    reset() { this.archive = null; this.dayCalls = []; this.dayOpts = null; this.daysOpts = null; listeners.clear(); claimed.clear(); state = { status: 'idle', items: [], epoch: 'e', lastSeq: 0, firstSeq: 0, coverage: null, provisional: true } },
   }
 })
-vi.mock('../../../lib/tradeExchangeNewsStreamManager', () => ({
+vi.mock('../../../lib/tradeExchangeNewsStreamManager', async () => {
+  const { fakeNewsDay, fakeNewsDays } = await import('../../../testing/tradeExchangeNews/fakeNewsDay')
+  return {
   subscribe: (fn) => { feed.listeners.add(fn); return () => feed.listeners.delete(fn) },
   getSnapshot: () => feed.get(),
   retry: vi.fn(),
-  loadOlder: vi.fn(),
+  // The server's days over the synthetic archive (the pool's rows unless a test sets one).
+  fetchDay: async (body) => { feed.dayCalls.push(body); return fakeNewsDay(feed.archive || feed.get().items, body, feed.dayOpts || {}) },
+  fetchDays: async () => fakeNewsDays(feed.archive || feed.get().items, feed.daysOpts || {}),
   claimAnnouncement: (seq) => (feed.claimed.has(seq) ? false : (feed.claimed.add(seq), true)),
-}))
+}
+})
 const setGroupSym = vi.fn()
 let groupSyms = { A: 'NVDA' }
 vi.mock('../WorkspaceContext', () => ({
@@ -168,17 +174,37 @@ describe('TradeExchangeNewsWidget', () => {
     expect(container.querySelector('[class*="flash"]')).toBeNull()
   })
 
-  it('a graphic-only placeholder is hidden and counted, and can be shown', () => {
-    const items = [...HISTORY, H(4, 'CRYPTO', [], { placeholder: 'graphic' })]
+  it('graphic-only posts (CRYPTO, "SPY Daily Weekly") are hidden, counted in the LIVE popover, and can be shown', async () => {
+    const items = [...HISTORY, H(4, 'CRYPTO', [], { placeholder: 'graphic' }),
+      H(5, 'SPY Daily Weekly', [], { placeholder: 'graphic' })]
     const { unmount } = render(<TradeExchangeNewsWidget color="A" opts={{}} onOptsChange={vi.fn()} />)
-    act(() => feed.set({ status: 'live', items, lastSeq: 4, lastHeadlineAt: NOW }))
+    act(() => feed.set({ status: 'live', items, lastSeq: 5, lastHeadlineAt: NOW }))
     expect(document.querySelector('[data-seq="4"]')).toBeNull()
-    expect(screen.getByText(/1 graphic-only hidden/)).toBeInTheDocument()
+    expect(document.querySelector('[data-seq="5"]')).toBeNull()
+    expect(screen.queryByText(/graphic-only hidden/)).toBeNull()                 // never in the footer
+    fireEvent.click(screen.getByTitle(/Click for feed health/))
+    const health = await screen.findByRole('dialog', { name: 'Feed health' })
+    expect(health.querySelector('[data-key="graphic"]').textContent).toMatch(/2 hidden/)
     unmount()
     render(<TradeExchangeNewsWidget color="A" opts={{ settings: { graphicPlaceholders: 'show' } }} onOptsChange={vi.fn()} />)
-    act(() => feed.set({ status: 'live', items, lastSeq: 4, lastHeadlineAt: NOW }))
+    act(() => feed.set({ status: 'live', items, lastSeq: 5, lastHeadlineAt: NOW }))
     expect(document.querySelector('[data-seq="4"]')).not.toBeNull()
-    expect(screen.queryByText(/graphic-only hidden/)).toBeNull()
+    expect(document.querySelector('[data-seq="5"]')).not.toBeNull()
+  })
+
+  it('the footer holds only the date and time controls; the count and notes are in the LIVE popover', async () => {
+    const { container } = mount()
+    const footer = container.querySelector('[class*="footer"]')
+    expect(footer.querySelector('nav[aria-label="Date"]')).not.toBeNull()
+    expect(within(footer).getByRole('button', { name: 'Previous day' })).toBeInTheDocument()
+    expect(within(footer).getByRole('button', { name: /Choose a date/ })).toBeInTheDocument()
+    expect(within(footer).getByRole('button', { name: 'Next day' })).toBeInTheDocument()
+    expect(within(footer).getByRole('button', { name: 'Jump to a time' })).toBeInTheDocument()
+    expect(footer.textContent).not.toMatch(/headline|received times|provisional|graphic-only/)
+    fireEvent.click(screen.getByTitle(/Click for feed health/))
+    const health = await screen.findByRole('dialog', { name: 'Feed health' })
+    expect(health.querySelector('[data-key="view"]').textContent).toMatch(/headline/)
+    expect(health.querySelector('[data-key="times"]').textContent).toMatch(/received each headline, in ET/)
   })
 
   it('the new-headline highlight lasts 2.1 s (1.5 s hold + fade) and never fires for history pages or old replays', () => {

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import usePreferences from '../hooks/usePreferences'
+import { beginPrefsOp } from '../lib/prefsSession'
 import TileCard from '../components/TileCard'
 import JoystickSettingsCard from './settings/JoystickSettingsCard'
 // TERM-078: member-visible AI meters (read-only; GET /api/ai-search/meters).
@@ -1431,8 +1432,9 @@ function SaveToast({ msg }) {
 
 const BACKUP_ENVELOPE_TYPE = 'uct-intelligence-preferences'
 const BACKUP_ENVELOPE_VERSION = 1
+export const RESTORE_STOPPED_SWITCH = 'Restore stopped: the signed-in account changed. Nothing more was written.'
 
-function PreferencesBackupCard() {
+export function PreferencesBackupCard() {
   const [exportBusy, setExportBusy] = useState(false)
   const [importBusy, setImportBusy] = useState(false)
   const [confirmData, setConfirmData] = useState(null)
@@ -1492,6 +1494,16 @@ function PreferencesBackupCard() {
   const doImport = async () => {
     if (!confirmData) return
     setImportBusy(true); setErr('')
+    // ⛔ THE RESTORE BELONGS TO THE MEMBER WHO STARTED IT. It is a sequence of awaits (the head
+    // read, then one POST per key), and the session is one cookie per browser: another tab signing
+    // in as B mid-restore made every remaining POST land in B's ACCOUNT. The op (lib/prefsSession,
+    // the same generation every preference write checks) is re-checked before each request, and a
+    // change of member stops the restore with nothing further written.
+    const op = beginPrefsOp()
+    const stopForSwitch = () => {
+      setConfirmData(null)
+      flash(setErr, RESTORE_STOPPED_SWITCH, 6000)
+    }
     try {
       // Sequential to keep it easy to reason about — each set_user_preference
       // is a fast write and the total volume is tiny (~20-30 keys). If a key
@@ -1507,6 +1519,7 @@ function PreferencesBackupCard() {
         base = m ? Number(m[1]) : (/reason=absent/.test(head.headers.get('X-Workspace-Doc') || '') ? 0 : null)
       } catch { base = null }
       for (const [key, value] of Object.entries(confirmData.prefs)) {
+        if (op.stale()) { stopForSwitch(); return }
         try {
           const r = await fetch('/api/auth/preferences', {
             method: 'POST',
@@ -1517,6 +1530,7 @@ function PreferencesBackupCard() {
           else fail++
         } catch { fail++ }
       }
+      if (op.stale()) { stopForSwitch(); return }   // the last answer arrived after a switch: no reload, no "Imported"
       setConfirmData(null)
       flash(setMsg, `Imported ${ok} preference${ok === 1 ? '' : 's'}${fail ? ` · ${fail} failed` : ''}`)
       // Nudge the app to re-read prefs by reloading. This is the same pattern

@@ -83,7 +83,10 @@ async function type(text) {
   fireEvent.change(pineArea(), { target: { value: text } })
   await flush()
 }
-const writes = () => calls.filter((c) => c.method !== 'GET')
+// ⚠️ The support loop's A2 gap count (`/api/indicator-support/gaps`) fires on any
+// paste that loses a part; it is a count of built-in NAMES, not a definition write,
+// so it is not one of the writes this file is about (docs/pine/support-loop/PHASE-A.md).
+const writes = () => calls.filter((c) => c.method !== 'GET' && !String(c.url).includes('/api/indicator-support/gaps'))
 
 beforeEach(() => {
   vi.useFakeTimers()

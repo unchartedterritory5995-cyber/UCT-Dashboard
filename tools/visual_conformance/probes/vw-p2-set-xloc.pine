@@ -1,0 +1,19 @@
+//@version=6
+indicator("UCTPROBE_VW_P2_SET_XLOC", overlay = true)
+
+// ─── 2026-10-30 — PINE COVERAGE PHASE 2: `*.set_xloc` (line, label, box). Ours carries
+// each as ONE update writing the x-coordinates and the xloc together. Every object is
+// created on bar indices and, from the bar the condition first holds, moved onto times
+// every bar; a control of each family is never moved. Read back by id: x on the bar the
+// time names (the capture's x rank), and the object NOT left where it was created.
+var line l1 = line.new(bar_index, high, bar_index, high, color = color.red, width = 2)
+var label b1 = label.new(bar_index, high, "moved")
+var box x1 = box.new(bar_index, high, bar_index, low, border_color = color.blue)
+var line l0 = line.new(bar_index, low, bar_index + 1, low, color = color.gray)
+var label b0 = label.new(bar_index, low, "control")
+if bar_index > 50
+    line.set_xloc(l1, time[20], time[5], xloc.bar_time)
+    label.set_xloc(b1, time[10], xloc.bar_time)
+    box.set_xloc(x1, time[30], time[12], xloc.bar_time)
+    line.set_y1(l1, high[20])
+    line.set_y2(l1, high[5])

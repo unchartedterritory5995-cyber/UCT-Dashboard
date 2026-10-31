@@ -30,6 +30,7 @@ import { AuthContext } from '../../../context/AuthContext'
 import { parseFormula, astHash } from '../engine/ast/parse'
 import { translatePine } from '../engine/ast/pine'
 import { USER_DEFINITIONS_KEY } from '../../../hooks/useUserDefinitions'
+import { DOOR_VERSION } from '../engine/memberDocumentMigration'
 
 const H = vi.hoisted(() => ({ requests: [] }))
 
@@ -250,7 +251,12 @@ describe('paste a real screener script and get a working scan', () => {
     // edits. Everything else in `meta` is still byte-identical to the typed document.
     expect(sent.meta.importedFrom).toMatchObject({ dialect: 'pine', via: 'apply' })
     expect(JSON.stringify(sent.meta.importedFrom)).not.toMatch(/indicator\(|ta\./)
-    const { importedFrom: _prov, ...sentMeta } = sent.meta
+    // ⭐ …AND THE DOOR STAMPS (`memberDocumentMigration.DOOR_VERSION`): the script's own
+    // `//@version` and the door's version, so a later correction to what this door
+    // wrote can be applied to the saved document with certainty. Outside every hash.
+    expect(sent.meta.pineVersion).toBe(5)
+    expect(sent.meta.doorVersion).toBe(DOOR_VERSION)
+    const { importedFrom: _prov, pineVersion: _pv, doorVersion: _dv, ...sentMeta } = sent.meta
     expect(sentMeta).toEqual(typed.meta)
     for (const k of Object.keys(typed)) {
       if (k === 'compute' || k === 'inputs' || k === 'plots' || k === 'meta') continue   // pinned below / above, additions and all
@@ -286,7 +292,9 @@ describe('paste a real screener script and get a working scan', () => {
     // ⭐ PHASE 4 (owner decision: Pine Apply provenance) — the ONE place that does is the
     // provenance stamp `meta.importedFrom`, which the store reads to keep Pine semantics
     // through later edits. It carries the dialect and a fingerprint, never the script.
-    const { importedFrom: _stamp, ...metaWithout } = sent.meta
+    // The door stamps (`pineVersion`, `doorVersion`) are the other named exception: the
+    // script's version and the door's, never its text.
+    const { importedFrom: _stamp, pineVersion: _pv2, doorVersion: _dv2, ...metaWithout } = sent.meta
     expect(JSON.stringify({ ...sent, meta: metaWithout }).toLowerCase()).not.toContain('pine')
   })
 })

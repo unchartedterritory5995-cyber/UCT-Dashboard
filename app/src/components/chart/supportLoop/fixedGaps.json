@@ -1,0 +1,5 @@
+{
+ "_comment": "The fix ledger of the indicator support loop (docs/pine/support-loop/PHASE-B.md). One entry per CALL-UNMAPPED gap a fix closed: {name, kind, probe, pr}. `probe` is a MINIMAL Pine repro the implementer writes (never member source) that the door refused before the fix and accepts after it. doorNameCoverage.test.js re-asks every probe through the Pine door on every regeneration and records fixed/open in doorNameCoverage.json, which the digest reads; a regression flips the gap back to open. Name-unknown gaps need no entry: the door-name probe decides them.",
+ "version": 1,
+ "fixes": []
+}

@@ -825,7 +825,9 @@ def test_the_scalar_floor_is_ITS_OWN_and_folding_it_in_ABORTS_the_recorder():
     # The scalar half is untouched at 137 -- it names no per-symbol column.
     # ⭐ 130 -> 131 (2026-10-02, H3): `vwapOf`, Pine's `ta.vwap(source)` for a bar price.
     # ⭐ scalar half 137 -> 138 (2026-10-11): `dollar_vol_1d` (see the partition pin)
-    assert len(parts["bar"]) == 131 and len(parts["scalar"]) == 138
+    # (2026-10-30, Pine coverage Phase 1) 131 -> 135: `acos`, `alma`,
+    # `percentileNearestRank`, `rci`, each with its own bar-corpus case.
+    assert len(parts["bar"]) == 135 and len(parts["scalar"]) == 138
     # +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
     # +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
     assert not (parts["bar"] & parts["scalar"])

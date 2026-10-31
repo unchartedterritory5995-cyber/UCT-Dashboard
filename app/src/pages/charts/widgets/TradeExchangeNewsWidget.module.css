@@ -123,8 +123,8 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 10px;
-  min-height: 32px;
+  padding: 0 10px;
+  min-height: 32px;            /* the shared second-header-row height (WatchlistPicker, Breadth) */
   box-sizing: border-box;
   border-bottom: 1px solid var(--txn-divider, var(--widget-divider, var(--border)));
   flex: 0 0 auto;
@@ -336,30 +336,7 @@
 .symFlat, .symNone, .symNeutral { color: var(--txn-text, var(--text-bright)); }
 .sym:hover, .symLinked { text-decoration-style: solid; text-decoration-color: currentColor; }
 .sym:focus-visible { outline: 1px solid currentColor; outline-offset: 1px; border-radius: 2px; }
-/* "NVDA +2.4%": the ticker and its day change never wrap apart. */
-.symPct { white-space: nowrap; }
-.pct {
-  margin-left: 3px;
-  font-size: 10px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  color: color-mix(in srgb, var(--txn-text, var(--text-bright)) 72%, transparent);
-}
-/* In Daily mode the % carries the ticker's own (contrast-safe) up/down colour. */
-.pct.symUp { color: var(--txn-sym-up, var(--txn-up, var(--ut-green-bright))); }
-.pct.symDown { color: var(--txn-sym-down, var(--txn-down, var(--ut-red-bright))); }
 
-/* Market-impact mark: a word in the metadata line, no fill. */
-.impact {
-  font-size: 9px;
-  font-weight: 600;
-  letter-spacing: 0.6px;
-  text-transform: uppercase;
-  line-height: 1.25;
-  color: var(--txn-accent, var(--ut-gold));
-  white-space: nowrap;
-}
-.impactBreaking { color: var(--txn-sym-down, var(--txn-down, var(--ut-red-bright))); }
 .groupBtn {
   background: none;
   border: none;
@@ -384,10 +361,9 @@
 .compact .related { padding-left: 16px; }
 .compact .related::before { left: 8px; }
 
-/* ⋯ row actions: revealed on hover / keyboard focus; always there on touch. */
-.rowMenuBtn {
-  margin-left: auto;
-  align-self: center;
+/* Row actions (copy, then ⋯): revealed on hover / keyboard focus; always there on touch. */
+.rowActions { margin-left: auto; align-self: center; display: inline-flex; gap: 2px; }
+.rowBtn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -404,13 +380,19 @@
   cursor: pointer;
   opacity: 0;
 }
-/* ⛔ No `.row:focus-within` here: on a 1,000-row feed it multiplied style recalculation
-   ~100x (harness: 0.05 s -> 5.8 s). Keyboard focus reveals the button itself. */
-.row:hover .rowMenuBtn, .rowMenuBtnOn { opacity: 1; }
-.rowMenuBtn:hover, .rowMenuBtnOn { color: var(--txn-chrome-strong, var(--text)); background: var(--txn-divider, var(--bg-hover)); }
-.rowMenuBtn:focus-visible { opacity: 1; outline: 1px solid currentColor; }
+/* ⛔ No `.row:focus-within` here: it multiplied style recalculation on a long feed
+   (harness, 1,000 rows: 0.05 s -> 5.8 s). Keyboard focus reveals each button itself. */
+.row:hover .rowBtn, .rowBtnOn { opacity: 1; }
+.rowBtn:hover, .rowBtnOn { color: var(--txn-chrome-strong, var(--text)); background: var(--txn-divider, var(--bg-hover)); }
+.rowBtn:focus-visible { opacity: 1; outline: 1px solid currentColor; }
+.rowBtnOk { color: var(--ut-green-bright); }
+.rowBtnErr { color: var(--ut-red-bright); }
 @media (hover: none) {
-  .rowMenuBtn { opacity: 0.7; width: 24px; height: 18px; }
+  .rowBtn { opacity: 0.7; width: 24px; height: 18px; }
+}
+.srOnly {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap;
 }
 .badges { display: inline-flex; gap: 4px; align-self: center; }
 .badge {
@@ -461,18 +443,7 @@
   cursor: pointer;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
 }
-.more {
-  display: block;
-  width: 100%;
-  padding: 8px 10px;
-  background: none;
-  border: none;
-  color: var(--txn-chrome, var(--text-muted));
-  font-family: var(--font-sans);
-  font-size: 10.5px;
-  cursor: pointer;
-}
-.more:hover { color: var(--ut-gold); }
+.listBusy { opacity: 0.55; transition: opacity 0.12s; }
 .empty {
   padding: 16px 12px;
   font-size: 11.5px;
@@ -494,7 +465,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 5px 16px;
+  padding: 4px 10px;
   font-family: var(--font-sans);
   font-size: 10px;
   color: var(--txn-chrome, var(--text-muted));
@@ -503,8 +474,42 @@
   white-space: nowrap;
   overflow: hidden;
 }
-.footerCount { font-weight: 600; color: var(--txn-sym, var(--text-bright)); flex: 0 0 auto; }
-.footerNote { overflow: hidden; text-overflow: ellipsis; }
+
+/* ── the date bar: one compact line at the foot of the list ── */
+.dayBar { display: inline-flex; align-items: center; gap: 2px; flex: 0 0 auto; margin-right: 4px; }
+.pageBtn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; padding: 0;
+  background: none; border: none; border-radius: 3px;
+  color: var(--txn-chrome, var(--text-muted));
+  cursor: pointer;
+}
+.pageBtn:hover:not(:disabled) { color: var(--txn-chrome-strong, var(--text)); background: var(--txn-divider, var(--bg-hover)); }
+.pageBtn:focus-visible, .pageLatest:focus-visible { outline: 1px solid currentColor; }
+.pageBtn:disabled { opacity: 0.35; cursor: default; }
+.pageInputBad { border-color: var(--ut-red-bright); }
+.dayBtn {
+  display: inline-flex; align-items: center; gap: 4px; min-width: 0; height: 18px; padding: 0 5px;
+  background: none; border: 1px solid transparent; border-radius: 3px;
+  color: var(--txn-sym, var(--text-bright)); font: inherit; font-weight: 600; cursor: pointer;
+}
+.dayBtn:hover, .dayBtnOn { border-color: var(--txn-divider, var(--widget-divider, var(--border))); }
+.dayBtnOn { color: var(--ut-gold); }
+.dayBtn:focus-visible { outline: 1px solid currentColor; }
+.dayText { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.dayShort { display: none; }
+.dayIcon { display: inline-flex; }
+/* "Loading earlier headlines…" / "Start of Thu, Oct 30" at the ends of a day. */
+.dayEdge {
+  padding: 8px 12px; text-align: center;
+  font-family: var(--font-sans); font-size: 10px;
+  color: var(--txn-chrome, var(--text-muted));
+}
+.pageLatest {
+  margin-left: 4px; padding: 1px 6px;
+  background: none; border: 1px solid color-mix(in srgb, var(--ut-gold) 45%, transparent); border-radius: 9px;
+  color: var(--ut-gold); font: inherit; font-weight: 600; cursor: pointer;
+}
 
 /* ── alerts popover ────────────────────────────────────────────────────── */
 .alertsPop {
@@ -593,6 +598,51 @@
 @container (max-width: 250px) {
   .filterLabel { display: none; }
 }
+/* The date bar keeps every control at any width; labels shorten first. */
+@container (max-width: 330px) {
+  .footer { padding: 4px 8px; }
+}
+@container (max-width: 420px) {
+  .dayLong { display: none; }                  /* "Wed, Oct 28" -> "Oct 28", "Today · Fri, Oct 30" -> "Today" */
+  .dayShort { display: inline; }
+}
+@container (max-width: 300px) {
+  .dayTime { display: none; }                  /* the jump time stays in the clock's tooltip and label */
+}
+@container (max-width: 200px) {
+  .footer { gap: 3px; padding: 4px 4px; }
+  .dayBtn { padding: 0 3px; }
+  .dayIcon { display: none; }                  /* the date itself is the calendar button */
+  .pageLatest { margin-left: 2px; padding: 1px 4px; }
+}
+
+/* ── the calendar and the time picker (inside .menuPop) ── */
+.calHead { display: flex; align-items: center; gap: 2px; padding: 4px 6px 2px; }
+.calTitle { flex: 1; text-align: center; font-size: 11px; font-weight: 600; }
+.calNav {
+  width: 20px; height: 20px; padding: 0; background: none; border: none; border-radius: 3px;
+  color: var(--menu-muted, var(--text-muted)); font-size: 13px; line-height: 1; cursor: pointer;
+}
+.calNav:hover, .calNav:focus-visible { color: var(--menu-text, var(--text)); background: var(--menu-hover, var(--bg-hover)); outline: none; }
+.calGrid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; padding: 2px 6px 4px; }
+.calDow { text-align: center; font-size: 9.5px; color: var(--menu-muted, var(--text-muted)); padding: 2px 0; }
+.calDay {
+  position: relative; height: 24px; padding: 0; background: none; border: 1px solid transparent; border-radius: 3px;
+  color: var(--menu-text, var(--text)); font: inherit; font-size: 10.5px; font-variant-numeric: tabular-nums; cursor: pointer;
+}
+.calDay:hover:not(:disabled), .calDay:focus-visible { background: var(--menu-hover, var(--bg-hover)); outline: none; }
+.calDay:disabled { opacity: 0.3; cursor: default; }
+.calOut { opacity: 0.55; }
+.calEmpty { color: var(--menu-muted, var(--text-muted)); }
+/* a retained date with headlines: a small dot, nothing louder */
+.calNews::after {
+  content: ''; position: absolute; left: 50%; bottom: 2px; width: 3px; height: 3px; margin-left: -1.5px;
+  border-radius: 50%; background: var(--ut-gold);
+}
+.calToday { border-color: color-mix(in srgb, var(--ut-gold) 45%, transparent); }
+.calSel { background: var(--ut-gold); color: #111; font-weight: 700; }
+.calSel.calNews::after { background: #111; }
+.timePresets { display: flex; flex-wrap: wrap; gap: 4px; padding: 4px 10px; }
 
 /* ── row actions, filters + presets, feed health: one popover look (alertsPop's) ── */
 .menuPop {
