@@ -36,6 +36,7 @@ from __future__ import annotations
 
 import contextlib
 import json
+import re
 import logging
 import sqlite3
 from typing import Any
@@ -94,12 +95,14 @@ def _has_json1(conn: sqlite3.Connection) -> bool:
     return _JSON1[0]
 
 
+#: A JSON number, as RFC 8259 spells one. A regex, never `json.loads`: this runs once per id on
+#: the sweep's path, and parsing is what the sweep counts and keeps off its lock.
+_JSON_NUMBER = re.compile(r"-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?")
+
+
 def _reads_as_json_number(uid: str) -> bool:
     """Could `uid` be stored unquoted, as a JSON number? (`"123"` -> yes; `"u-abc"` -> no.)"""
-    try:
-        return isinstance(json.loads(uid), (int, float)) and not isinstance(json.loads(uid), bool)
-    except ValueError:
-        return False
+    return _JSON_NUMBER.fullmatch(uid) is not None
 
 
 def authored_rows(user_ids, conn: sqlite3.Connection) -> list[tuple[int, str]]:
