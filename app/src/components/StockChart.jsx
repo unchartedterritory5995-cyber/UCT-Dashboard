@@ -2739,7 +2739,15 @@ export default function StockChart({
   // MOBILE editor sheet. Absent (every desktop surface), chip bodies stay
   // inert and only the Task-4 controls respond.
   onLegendStudyTap = null,
+  // ⭐⭐ The scope this chart's indicator binder publishes its bind-time notes under
+  // (`createBinder({scope})`: `time(<tf>)` withholdings, render drops, a script's
+  // `runtime.error`). `ChartPane` passes the id it also hands its disclosure strip,
+  // so the strip reads only THIS chart's notes; absent (a grid cell, a harness), the
+  // chart takes its own stable id, which no other strip reads.
+  noticeScope = null,
 }) {
+  const ownNoticeScope = useId()
+  const binderNoticeScope = typeof noticeScope === 'string' && noticeScope ? noticeScope : ownNoticeScope
   const { prefs, setPref, loading: prefsLoading } = usePreferences()
   // ═══ ECONOMIC PRIMARY CHART ═════════════════════════════════════════════
   // ⭐ `ECON:<SYMBOL>` is not an instrument: no bars, no OHLC, no quote, no feed.
@@ -13286,7 +13294,7 @@ export default function StockChart({
     const engineNeeded = engineInstances.length > 0
     if (engineRef.current && engineRef.current.chart !== chart) engineRef.current = null
     if (engineNeeded && !engineRef.current) {
-      engineRef.current = { chart, binder: createBinder({ chart, LWC: engineLwc() }) }
+      engineRef.current = { chart, binder: createBinder({ chart, LWC: engineLwc(), scope: binderNoticeScope }) }
     }
     if (engineRef.current) {
       engineRef.current.binder.sync({
@@ -18213,6 +18221,13 @@ export default function StockChart({
       // than erasing its successor's registration.
       try { unregisterManifestRef.current?.() } catch {}
       unregisterManifestRef.current = null
+      // ⭐ The indicator binder lets go BEFORE its chart is removed: `teardown()`
+      // releases its series and clears every bind-time note it published under this
+      // chart's notice scope (`chartClockNotice` / `objectRenderNotice` /
+      // `runtimeErrorNotice`), so an unmounted chart leaves no orphaned scope behind.
+      // Safe unconditionally (zero calls when it holds nothing); no render follows.
+      try { engineRef.current?.binder?.teardown?.() } catch { /* disposed */ }
+      engineRef.current = null
       if (chartRef.current) {
         try { delete window.__uctChartDebug?.[chartId || 'main'] } catch { /* SSR/teardown */ }
         chartRef.current.remove()
