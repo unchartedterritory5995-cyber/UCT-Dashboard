@@ -240,6 +240,15 @@ _DIRECT_USER_TABLES = (
     # ever filed this is a "no such table" no-op. Their GAP COUNTS are keyed by a hash,
     # not user_id, and go in the hashed pass below.
     "indicator_support_reports",
+    # Saved-indicator alerts (owner-approved 2026-10-30): the member's indicator alerts and
+    # every fire of each. auth.db, no foreign key to users(id), so `_cascade_delete_user`'s
+    # PRAGMA walk never reached them; an alert on a `u_...` plot points at a definition the
+    # purge of user_definitions.db (below) removes. Created by
+    # indicator_alert_service.init_schema / alert_fired_log.init_schema (never db.py), so on
+    # a pod where no alert was ever armed each is a "no such table" no-op. Their rev side
+    # table carries no user_id and goes in the join pass below.
+    "indicator_alerts",
+    "indicator_alert_fires",
 )
 
 # j2_broker_digest_dedup is deliberately excluded: it is a single global row
@@ -249,6 +258,9 @@ _DIRECT_USER_TABLES = (
 # j2_task_reminder_runs is deliberately excluded too: one row per ET DAY
 # (day, ran_at, members, delivered) recording that the reminder pass closed
 # that day — counts only, no user_id, nothing that names a member.
+#
+# definition_evaluations is deliberately excluded too: keyed by the AST HASH of a formula, with
+# no member id -- the measured history of a tree, shared by every member who runs it.
 #
 # account_tombstones is deliberately excluded as well (wave 10, lane 10C, ruling
 # R-9): it is the record THIS purge writes -- the deleted member's id and the time,
@@ -335,6 +347,20 @@ def purge_user_data(user_id: str, conn: sqlite3.Connection, *,
         errors.append(f"voice notes: {e}")
         log.warning("journal_two voice-note purge failed for %s: %s", user_id, e)
 
+    # Saved indicators (owner-approved 2026-10-30) live in a SECOND database,
+    # user_definitions.db, which no statement on `conn` can reach. Its own module opens it:
+    # the member's definitions (every version), share links, library listings and re-lint
+    # rows go; the copies other members installed stay theirs, with the author's id scrubbed.
+    # A restore of that store replays this through account_tombstones.replay_on_user_definitions_db.
+    user_definitions_report: dict[str, Any] = {}
+    try:
+        from api.services import user_definitions
+        user_definitions_report = user_definitions.purge_user(user_id)
+        errors.extend(f"user_definitions.db: {e}" for e in user_definitions_report.get("errors", []))
+    except Exception as e:  # noqa: BLE001 -- one store can never abort the rest; reported, not skipped
+        errors.append(f"user_definitions.db: {type(e).__name__}: {e}")
+        log.warning("user_definitions purge failed for %s: %s", user_id, e)
+
     # The tombstone (R-9) was recorded before the first delete above: the live purge is
     # immediate, the BACKUPS still hold this member, and the tombstone -- a row here and
     # an object beside the backups -- is what makes every restore delete them again.
@@ -344,6 +370,7 @@ def purge_user_data(user_id: str, conn: sqlite3.Connection, *,
         "attachment_dirs_removed": freed_dirs,
         "example_image_dirs_removed": example_dirs,
         "voice_jobs_removed": voice_jobs,
+        "user_definitions": user_definitions_report,
         "errors": errors,
         "tombstone": tomb,
     }
@@ -390,6 +417,14 @@ def purge_user_rows(user_id: str, conn: sqlite3.Connection, *,
         "j2_option_legs",
         "DELETE FROM j2_option_legs WHERE strategy_id IN "
         "(SELECT id FROM j2_option_strategies WHERE user_id = ?)",
+        (user_id,),
+    )
+    # Saved-indicator alerts -- each alert's rev-migration side row (alert_rev_migration.py,
+    # auth.db) carries only the alert's id. Run before the direct delete of indicator_alerts.
+    deleted["indicator_alert_rev"] = _run(
+        "indicator_alert_rev",
+        "DELETE FROM indicator_alert_rev WHERE alert_id IN "
+        "(SELECT id FROM indicator_alerts WHERE user_id = ?)",
         (user_id,),
     )
     deleted["j2_broker_member_stale_notify"] = _run(

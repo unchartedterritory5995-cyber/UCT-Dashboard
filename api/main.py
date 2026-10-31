@@ -9407,6 +9407,17 @@ async def lifespan(app: FastAPI):
                 print("[startup] j2 trash purge registered (03:20 ET daily)")
         except Exception as e:
             print(f"[startup] j2 trash purge registration failed (non-fatal): {e}")
+        # Account deletion: the LIVE tombstone sweep (owner-approved 2026-10-30). Every 6 h,
+        # first run 10 min after boot: re-purges every tombstoned account from the stores the
+        # main purge reaches only once (user_definitions.db; the saved-indicator alert tables in
+        # auth.db) and finishes a restore's pending tombstone replay. Cheap (indexed deletes, one
+        # scrub pass) -- not a heavy job. ON by default; kill switch TOMBSTONE_SWEEP_ENABLED=0.
+        try:
+            from api.services import tombstone_sweep
+            if tombstone_sweep.register_jobs(_scheduler):
+                print("[startup] account tombstone sweep registered (every 6h, first in 10 min)")
+        except Exception as e:
+            print(f"[startup] account tombstone sweep registration failed (non-fatal): {e}")
         # Wave 6 (controller wiring, lane F) — Notebook task reminders: one
         # in-app bell per member per ET day for tasks due today/overdue. The
         # registrar wires all three jobs itself (07:00 ET, a 09:00 ET second
