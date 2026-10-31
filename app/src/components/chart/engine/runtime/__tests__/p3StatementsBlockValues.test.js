@@ -224,7 +224,9 @@ describe('A8 — the comma statement separator', () => {
     expect(b).toEqual([0, 0, 0, 0, 2, 4, 6, 8])
   })
 
-  it('⛔ a generic type list `<string, float>` is NOT a separator', () => {
+  it('⛔ CONTROL — a generic type list `<string, float>` is not a separator', () => {
+    // The lexer folds a type list into its head token (`typeArgs`), so this comma
+    // never reaches the splitter at all; the case keeps that true from the outside.
     const r = refusalOf(`${head}m = map.new<string, float>()\nplot(close)\n`)
     expect(r.guard).toBe('runtime:array')
     expect(r.message).toMatch(/map\.new/)

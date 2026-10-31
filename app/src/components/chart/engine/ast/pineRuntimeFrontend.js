@@ -6784,30 +6784,28 @@ function buildRuntimeIrLinked(source, opts, holder) {
    *  line belongs to its LAST statement.
    *
    *  ⛔ ONLY A TOP-LEVEL COMMA: never inside `( )` or `[ ]` (arguments, tuples,
-   *  destructurings) and never inside a generic's `< >` (`map.new<string, float>()`,
-   *  `array<int>`), which this reader tracks only where a type list can open — so
-   *  a comparison `a < b` is never mistaken for one. ⛔ A line holding a `=>` is a
+   *  destructurings). A generic's type list (`map.new<string, float>()`) never
+   *  reaches here as tokens: the lexer folds it into its head token's `typeArgs`
+   *  (`pine.js`), so its comma is not on the line. ⚰️ An angle-bracket tracker
+   *  was written here and REMOVED: mutation M4 deleted it and every rail stayed
+   *  green, because the fold already did its job. ⛔ A line holding a `=>` is a
    *  definition or a `switch` arm and is left whole, as is a line with an empty
    *  segment (`a, , b`, a trailing comma): not a statement list this reader can
    *  name, so it keeps whatever refusal it had. */
-  const GENERIC_OPENER = /(^|\.)new(_\w+)?$|^(array|map|matrix)$/
   const SEGMENT_OPENERS = new Set(['if', 'else', 'switch', 'for', 'while'])
   const statementCommaParts = (st) => {
     const t = st && st.header
     if (!t || !t.length) return null
     const parts = []
     let depth = 0
-    let angle = 0
     let start = 0
     for (let k = 0; k < t.length; k += 1) {
       const x = t[k]
       if (x.kind !== 'punct') continue
       if (x.value === '(' || x.value === '[') depth += 1
       else if (x.value === ')' || x.value === ']') depth -= 1
-      else if (x.value === '<' && k > 0 && t[k - 1].kind === 'ident' && GENERIC_OPENER.test(String(t[k - 1].value))) angle += 1
-      else if (x.value === '>' && angle > 0) angle -= 1
       else if (depth === 0 && x.value === '=>') return null
-      else if (depth === 0 && angle === 0 && x.value === ',') { parts.push(t.slice(start, k)); start = k + 1 }
+      else if (depth === 0 && x.value === ',') { parts.push(t.slice(start, k)); start = k + 1 }
     }
     if (!parts.length) return null
     parts.push(t.slice(start))
