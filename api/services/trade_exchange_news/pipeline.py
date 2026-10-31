@@ -33,7 +33,6 @@ from api.services.trade_exchange_news.store import KNOWN, NEW, REPEAT, Store
 
 logger = logging.getLogger(__name__)
 
-PRUNE_EVERY = 200          # ingests between bound checks (plus the reconciler's timer)
 REPLAY_PAGE = 500
 
 
@@ -120,7 +119,6 @@ class Pipeline:
     def __init__(self, store: Store, hub: Hub, loop: asyncio.AbstractEventLoop) -> None:
         self.store, self.hub, self.loop = store, hub, loop
         self._writer = ThreadPoolExecutor(max_workers=1, thread_name_prefix="txn-writer")
-        self._since_prune = 0
         self.ready = asyncio.Event()
         self.counts = {NEW: 0, REPEAT: 0, KNOWN: 0, "invalid": 0, "push": 0, "reconcile": 0,
                        "boot_wait_timeouts": 0}
@@ -150,9 +148,6 @@ class Pipeline:
                                            repeat_event(out["headline"], self.store.epoch))
         self.counts[out["kind"]] += 1
         self.counts[via] += 1
-        self._since_prune += 1
-        if self._since_prune >= PRUNE_EVERY:
-            self._prune_now()
         self.last_ingest_latency_ms = (time.perf_counter() - t0) * 1000
         return out
 
@@ -167,14 +162,6 @@ class Pipeline:
                     timing["arrive_lag_ms"], None if timing["queue_ms"] is None else round(timing["queue_ms"], 1),
                     timing["tickers_ms"], timing["store_ms"], (time.perf_counter() - timing["t2"]) * 1000,
                     self.hub.subscribers)
-
-    def _prune_now(self) -> dict[str, int]:
-        self._since_prune = 0
-        return self.store.prune(max_age_ms=config.history_max_age_ms(),
-                                max_items=config.history_max_items())
-
-    async def prune(self) -> dict[str, int]:
-        return await self.loop.run_in_executor(self._writer, self._prune_now)
 
     async def submit(self, raw: Any, via: str) -> dict[str, Any]:
         """Validate and ingest one journal record. Raises ``RecordError``."""

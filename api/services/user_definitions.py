@@ -2486,7 +2486,9 @@ def _save_runtime(user_id: Any, def_id: str, definition: dict, limits: Any,
             f"lane's save door is switched off ({runtime_definitions.SAVE_ENV}). The "
             "preview still draws it; nothing was saved.")
     # ⭐ GT (D1) — THE SAME PER-MEMBER QUESTION THE PANE ASKS, asked of the SAVER.
-    refused = runtime_definitions.save_permission(role)
+    # ⭐ WS-I (R2) — and the saver's id, so a `cohort`-stage member tagged into
+    # the runtime pane's cohort can store what their pane draws.
+    refused = runtime_definitions.save_permission(role, user_id)
     if refused:
         raise ValueError(f"{refused}. Nothing else of yours was touched.")
     source = (definition.get("compute") or {}).get("source")
