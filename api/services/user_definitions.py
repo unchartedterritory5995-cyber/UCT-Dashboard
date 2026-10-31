@@ -1097,6 +1097,65 @@ def refresh_from_door_stamps(definition: Any, rules: Optional[Mapping] = None) -
     return out
 
 
+# ⭐⭐ PHASE 3 WS-D — THE TWO INPUT TYPES ONLY A RUNTIME DOCUMENT MAY DECLARE, mirrored from
+# `defSchema.js` (`RUNTIME_INPUT_TYPES`, `isSessionString`, `TIME_INPUT_MAX_ABS_MS`): a pasted
+# Pine script's `input.time` (whole UNIX milliseconds) and `input.session` (`HHMM-HHMM`, ranges
+# joined by `,`, an optional `:days` suffix of 1..7 each at most once, or `24x7`).
+# ⛔ The browser refuses both on any document that is not `compute.kind == "runtime"` and checks
+# their values; this is the same rule at the door every member shares. Every OTHER input type is
+# left exactly as this store has always treated it (nothing here reads one), so no stored
+# document's shape is judged differently: no client ever minted these two types before WS-D.
+RUNTIME_INPUT_TYPES = ("time", "session")
+TIME_INPUT_MAX_ABS_MS = 8_640_000_000_000_000
+_SESSION_RE = re.compile(r"^(\d{4}-\d{4}(?:,\d{4}-\d{4})*)(?::([1-7]{1,7}))?$")
+
+
+def is_session_string(value: Any) -> bool:
+    """`defSchema.js::isSessionString`, the same cases (`tests/test_runtime_input_kinds.py`)."""
+    if not isinstance(value, str):
+        return False
+    if value == "24x7":
+        return True
+    m = _SESSION_RE.match(value)
+    if not m or m.end() != len(value):
+        return False
+    days = m.group(2)
+    if days and len(set(days)) != len(days):
+        return False
+    for rng in m.group(1).split(","):
+        for hm in rng.split("-"):
+            h, mi = int(hm[:2]), int(hm[2:])
+            if h > 24 or mi > 59 or (h == 24 and mi != 0):
+                return False
+    return True
+
+
+def validate_input_specs(definition: dict) -> None:
+    """⭐ PHASE 3 WS-D — a `time` or `session` input is legal only on a runtime document, and
+    its default must be one. Raises ``ValueError`` whose first token is the field path."""
+    inputs = definition.get("inputs")
+    if not isinstance(inputs, list):
+        return
+    compute = definition.get("compute") if isinstance(definition.get("compute"), dict) else {}
+    runtime_doc = compute.get("kind") == "runtime"
+    for i, spec in enumerate(inputs):
+        if not isinstance(spec, dict) or spec.get("type") not in RUNTIME_INPUT_TYPES:
+            continue
+        kind = spec["type"]
+        if not runtime_doc:
+            raise ValueError(
+                f"inputs[{i}].type: {kind!r} is declared only by a pasted Pine script run bar by bar "
+                "(a runtime document) — nothing else reads it")
+        d = spec.get("default")
+        if kind == "time" and (isinstance(d, bool) or not isinstance(d, int)
+                               or abs(d) > TIME_INPUT_MAX_ABS_MS):
+            raise ValueError(
+                f"inputs[{i}].default: type 'time' requires whole milliseconds since 1970 (UTC), got {d!r}")
+        if kind == "session" and not is_session_string(d):
+            raise ValueError(
+                f"inputs[{i}].default: type 'session' requires a session such as '0930-1600', got {d!r}")
+
+
 def validate_v2(definition: dict) -> None:
     """The rules `defSchema.validateAstCompute` / `validateTrees` /
     `validateTreesAgainstPlots` apply in the browser, applied again at the LAST
@@ -1113,6 +1172,8 @@ def validate_v2(definition: dict) -> None:
     that only asserts something raised is green on a refusal that names the wrong
     cause, and naming the wrong cause is worse than being vague.
     """
+    # ⭐ PHASE 3 WS-D — a formula document may not declare a runtime-only input type.
+    validate_input_specs(definition)
     compute = definition.get("compute") or {}
     own_hash = ast_hash(compute.get("ast"))
 
@@ -2498,6 +2559,8 @@ def _save_runtime(user_id: Any, def_id: str, definition: dict, limits: Any,
     if ungraded:
         raise ValueError(f"{ungraded} — so it is not saved. Nothing else of yours was touched.")
     runtime_definitions.validate(definition)
+    # ⭐ PHASE 3 WS-D — a runtime document's `time` / `session` inputs, checked as the browser does.
+    validate_input_specs(definition)
 
     # ⭐ PRESENTATION PARITY WITH THE FORMULA LANE (`save`). A runtime document draws
     # through the SAME top-level `plots`/`inputs`/`paints` the browser validates with
