@@ -49,7 +49,7 @@ the wave-6 close and 20 short by wave 7 (wave 7 lane J, J4).
 
 <!-- BEGIN GENERATED: python tools/account_deletion_manifest.py --write (derived from api/services/journal_two/account_purge.py) -- never hand-edit -->
 
-**123 tables in auth.db** (112 direct by `user_id`, 3 direct by another member key, 1 direct by a key derived from the member's id, 7 indirect).
+**147 tables in auth.db** (136 direct by `user_id`, 3 direct by another member key, 1 direct by a key derived from the member's id, 7 indirect).
 
 | Table | Owner key | Ownership | How the purge deletes it |
 |---|---|---|---|
@@ -172,6 +172,30 @@ the wave-6 close and 20 short by wave 7 (wave 7 lane J, J4).
 | `indicator_support_reports` | `user_id` | Direct | `DELETE FROM indicator_support_reports WHERE user_id = ?` |
 | `indicator_alerts` | `user_id` | Direct | `DELETE FROM indicator_alerts WHERE user_id = ?` |
 | `indicator_alert_fires` | `user_id` | Direct | `DELETE FROM indicator_alert_fires WHERE user_id = ?` |
+| `inbound_alert_tokens` | `user_id` | Direct | `DELETE FROM inbound_alert_tokens WHERE user_id = ?` |
+| `inbound_alert_receipts` | `user_id` | Direct | `DELETE FROM inbound_alert_receipts WHERE user_id = ?` |
+| `user_alerts` | `user_id` | Direct | `DELETE FROM user_alerts WHERE user_id = ?` |
+| `web_push_subscriptions` | `user_id` | Direct | `DELETE FROM web_push_subscriptions WHERE user_id = ?` |
+| `screener_saved_screens` | `user_id` | Direct | `DELETE FROM screener_saved_screens WHERE user_id = ?` |
+| `user_totp` | `user_id` | Direct | `DELETE FROM user_totp WHERE user_id = ?` |
+| `user_backup_codes` | `user_id` | Direct | `DELETE FROM user_backup_codes WHERE user_id = ?` |
+| `ics_export_token_state` | `user_id` | Direct | `DELETE FROM ics_export_token_state WHERE user_id = ?` |
+| `calendar_seen` | `user_id` | Direct | `DELETE FROM calendar_seen WHERE user_id = ?` |
+| `terminal_aliases` | `user_id` | Direct | `DELETE FROM terminal_aliases WHERE user_id = ?` |
+| `terminal_command_counts` | `user_id` | Direct | `DELETE FROM terminal_command_counts WHERE user_id = ?` |
+| `terminal_visits` | `user_id` | Direct | `DELETE FROM terminal_visits WHERE user_id = ?` |
+| `watchlist_origins` | `user_id` | Direct | `DELETE FROM watchlist_origins WHERE user_id = ?` |
+| `what_else_open_occasions` | `user_id` | Direct | `DELETE FROM what_else_open_occasions WHERE user_id = ?` |
+| `hub_planned_trades` | `user_id` | Direct | `DELETE FROM hub_planned_trades WHERE user_id = ?` |
+| `j2_earnings_followup_log` | `user_id` | Direct | `DELETE FROM j2_earnings_followup_log WHERE user_id = ?` |
+| `upb_sections` | `user_id` | Direct | `DELETE FROM upb_sections WHERE user_id = ?` |
+| `upb_entries` | `user_id` | Direct | `DELETE FROM upb_entries WHERE user_id = ?` |
+| `upb_charts` | `user_id` | Direct | `DELETE FROM upb_charts WHERE user_id = ?` |
+| `upb_note_links` | `user_id` | Direct | `DELETE FROM upb_note_links WHERE user_id = ?` |
+| `user_preferences` | `user_id` | Direct | `DELETE FROM user_preferences WHERE user_id = ?` |
+| `import_sessions` | `user_id` | Direct | `DELETE FROM import_sessions WHERE user_id = ?` |
+| `page_views` | `user_id` | Direct | `DELETE FROM page_views WHERE user_id = ?` |
+| `feedback` | `user_id` | Direct | `DELETE FROM feedback WHERE user_id = ?` |
 | `daily_usage_counters` | `subject` (the member's id) | Direct | `DELETE FROM daily_usage_counters WHERE subject = ?` |
 | `j2_gallery_follows` | `follower_id` (the member's id) | Direct | `DELETE FROM j2_gallery_follows WHERE follower_id = ?` |
 | `j2_gallery_follows` | `author_id` (the member's id) | Direct | `DELETE FROM j2_gallery_follows WHERE author_id = ?` |
@@ -185,6 +209,57 @@ the wave-6 close and 20 short by wave 7 (wave 7 lane J, J4).
 | `definition_shares` | `user_id` | Direct (user_definitions.db) | `DELETE FROM definition_shares WHERE user_id = ?` |
 | `definition_listings` | `user_id` | Direct (user_definitions.db) | `DELETE FROM definition_listings WHERE user_id = ?` |
 | `user_definition_relint_log` | `user_id` | Direct (user_definitions.db) | `DELETE FROM user_definition_relint_log WHERE user_id = ?` |
+
+**alert_taxonomy.db** -- a second database, which no statement on auth.db reaches: **16 tables**, deleted by `api/services/alert_erasure.py` through `alert_erasure.purge_user`.
+
+| Table | Owner key | Ownership | How the purge deletes it |
+|---|---|---|---|
+| `alert_fire_channel_reads` | `fire_id` → `alert_fires.user_id` | **Indirect** (alert_taxonomy.db) | join delete through `alert_fires`, run before the direct deletes |
+| `alert_fire_reminders` | `fire_id` → `alert_fires.user_id` | **Indirect** (alert_taxonomy.db) | join delete through `alert_fires`, run before the direct deletes |
+| `rating_change_shadow_state` | `predicate_id` → `alert_predicates.user_id` | **Indirect** (alert_taxonomy.db) | join delete through `alert_predicates`, run before the direct deletes |
+| `catalyst_match_comparison_spans` | `predicate_id` → `alert_predicates.user_id` | **Indirect** (alert_taxonomy.db) | join delete through `alert_predicates`, run before the direct deletes |
+| `event_proximity_comparison_spans` | `predicate_id` → `alert_predicates.user_id` | **Indirect** (alert_taxonomy.db) | join delete through `alert_predicates`, run before the direct deletes |
+| `indicator_condition_comparison_spans` | `predicate_id` → `alert_predicates.user_id` | **Indirect** (alert_taxonomy.db) | join delete through `alert_predicates`, run before the direct deletes |
+| `position_risk_comparison_spans` | `predicate_id` → `alert_predicates.user_id` | **Indirect** (alert_taxonomy.db) | join delete through `alert_predicates`, run before the direct deletes |
+| `price_level_comparison_spans` | `predicate_id` → `alert_predicates.user_id` | **Indirect** (alert_taxonomy.db) | join delete through `alert_predicates`, run before the direct deletes |
+| `rating_change_comparison_spans` | `predicate_id` → `alert_predicates.user_id` | **Indirect** (alert_taxonomy.db) | join delete through `alert_predicates`, run before the direct deletes |
+| `regime_change_comparison_spans` | `predicate_id` → `alert_predicates.user_id` | **Indirect** (alert_taxonomy.db) | join delete through `alert_predicates`, run before the direct deletes |
+| `scan_membership_comparison_spans` | `predicate_id` → `alert_predicates.user_id` | **Indirect** (alert_taxonomy.db) | join delete through `alert_predicates`, run before the direct deletes |
+| `alert_webhooks` | `user_id` | Direct (alert_taxonomy.db) | `DELETE FROM alert_webhooks WHERE user_id = ?` |
+| `alert_webhook_deliveries` | `user_id` | Direct (alert_taxonomy.db) | `DELETE FROM alert_webhook_deliveries WHERE user_id = ?` |
+| `alert_routing_rule` | `user_id` | Direct (alert_taxonomy.db) | `DELETE FROM alert_routing_rule WHERE user_id = ?` |
+| `alert_fires` | `user_id` | Direct (alert_taxonomy.db) | `DELETE FROM alert_fires WHERE user_id = ?` |
+| `alert_predicates` | `user_id` | Direct (alert_taxonomy.db) | `DELETE FROM alert_predicates WHERE user_id = ?` |
+
+**screener.db** -- a second database, which no statement on auth.db reaches: **5 tables**, deleted by `api/services/alert_erasure.py` through `alert_erasure.purge_user`.
+
+| Table | Owner key | Ownership | How the purge deletes it |
+|---|---|---|---|
+| `spec_alert_snapshots` | `sub_id` → `spec_alert_subs.user_id` | **Indirect** (screener.db) | join delete through `spec_alert_subs`, run before the direct deletes |
+| `spec_alerts_fired` | `sub_id` → `spec_alert_subs.user_id` | **Indirect** (screener.db) | join delete through `spec_alert_subs`, run before the direct deletes |
+| `screen_alert_subs` | `user_id` | Direct (screener.db) | `DELETE FROM screen_alert_subs WHERE user_id = ?` |
+| `screen_alerts_fired` | `user_id` | Direct (screener.db) | `DELETE FROM screen_alerts_fired WHERE user_id = ?` |
+| `spec_alert_subs` | `user_id` | Direct (screener.db) | `DELETE FROM spec_alert_subs WHERE user_id = ?` |
+
+**calendar_alerts.db** -- a second database, which no statement on auth.db reaches: **1 tables**, deleted by `api/services/alert_erasure.py` through `alert_erasure.purge_user`.
+
+| Table | Owner key | Ownership | How the purge deletes it |
+|---|---|---|---|
+| `calendar_alerts_fired` | `user_id` | Direct (calendar_alerts.db) | `DELETE FROM calendar_alerts_fired WHERE user_id = ?` |
+
+**transcript_alerts.db** -- a second database, which no statement on auth.db reaches: **2 tables**, deleted by `api/services/alert_erasure.py` through `alert_erasure.purge_user`.
+
+| Table | Owner key | Ownership | How the purge deletes it |
+|---|---|---|---|
+| `keyword_subs` | `user_id` | Direct (transcript_alerts.db) | `DELETE FROM keyword_subs WHERE user_id = ?` |
+| `keyword_fired` | `user_id` | Direct (transcript_alerts.db) | `DELETE FROM keyword_fired WHERE user_id = ?` |
+
+**catalysts.db** -- a second database, which no statement on auth.db reaches: **2 tables**, deleted by `api/services/alert_erasure.py` through `alert_erasure.purge_user`.
+
+| Table | Owner key | Ownership | How the purge deletes it |
+|---|---|---|---|
+| `catalyst_alerts_fired` | `user_id` | Direct (catalysts.db) | `DELETE FROM catalyst_alerts_fired WHERE user_id = ?` |
+| `catalyst_feedback` | `user_id` | Direct (catalysts.db) | `DELETE FROM catalyst_feedback WHERE user_id = ?` |
 
 <!-- END GENERATED -->
 
@@ -220,6 +295,25 @@ the wave-6 close and 20 short by wave 7 (wave 7 lane J, J4).
 - The alert lane's compiled series — `alert_user_series.USER_FUNCS` holds closures over the
   member's trees in process memory; `user_definitions_erasure.purge_user` drops the member's
   entries (`alert_user_series.forget`).
+- Alert credentials FIRST (owner-approved 2026-10-30) — straight after the tombstone,
+  `alert_erasure.revoke_credentials` deletes the member's inbound TradingView receiver token
+  (`inbound_alert_tokens`, auth.db) and their outbound webhook endpoints (`alert_webhooks`,
+  alert_taxonomy.db), each committed on its own, before any other delete. `inbound_alerts.verify`
+  also refuses a tombstoned member from the moment the tombstone is written, so a webhook cannot
+  race even the broker purge that runs before `purge_user_data`; `inbound_alerts.deliver` skips a
+  fire whose receipt the purge removed. Rails: `tests/test_term086_inbound_alerts.py` (account
+  deletion section) and `tests/test_alert_erasure.py`.
+- Alerts in five OTHER databases — alert_taxonomy.db, screener.db, calendar_alerts.db,
+  transcript_alerts.db and catalysts.db, through `alert_erasure.purge_user` (each store's own
+  connection and write lock; tables listed above, generated). The in-process alert feed cache
+  for the member is dropped too. Restores of any of the five replay it
+  (`account_tombstones.STORE_REPLAYS`). Evaluators that read an alert once and act on it later
+  (the outbound drain, the reminder sweep, the standing-screen nightly run) re-check that it
+  still exists before sending.
+- ⛔ NOT purged, by name: `tests/test_alert_erasure.py::KNOWN_UNPURGED` is the census ledger of
+  every member-keyed table any module creates that this purge does not delete (community,
+  study, agent, AI-search, workspace docs, chart layouts, ...), each with its reason; the census
+  rail fails by name on any table that is neither purged, cascaded, trigger-emptied nor listed.
 - External-party data — SnapTrade's own revoke is unaffected; it runs via the existing broker
   purge (`journal_two/broker/service.py::purge_on_account_deletion`), which this purge overlaps
   on the 5 broker tables it covers and extends to the other 9.

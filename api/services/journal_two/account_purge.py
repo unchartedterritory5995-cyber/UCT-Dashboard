@@ -249,6 +249,44 @@ _DIRECT_USER_TABLES = (
     # table carries no user_id and goes in the join pass below.
     "indicator_alerts",
     "indicator_alert_fires",
+    # Alerts, the rest of them (owner-approved 2026-10-30). auth.db, no foreign key to
+    # users(id), so `_cascade_delete_user`'s PRAGMA walk never reached any of them. Each is
+    # self-ensured by its own module (never db.py), so on a pod where the feature never ran
+    # it is a "no such table" no-op. The alert stores in OTHER databases are
+    # `alert_erasure.purge_user` (below), not rows here.
+    #   * the inbound TradingView receiver: the member's token(s) -- a live credential; the
+    #     URL is the password -- and every fire it accepted (inbound_alerts.py). The token is
+    #     also deleted, and committed, BEFORE this loop by `alert_erasure.revoke_credentials`,
+    #     and `inbound_alerts.verify` refuses a tombstoned member from the tombstone on.
+    "inbound_alert_tokens",
+    "inbound_alert_receipts",
+    #   * the durable bell: every private alert delivered to the member (alert_durability.py).
+    "user_alerts",
+    #   * where alerts are PUSHED to: the member's browser push subscriptions (web_push.py).
+    "web_push_subscriptions",
+    # Other member tables in auth.db the account-deletion census found with a member id and
+    # no foreign key (owner-approved 2026-10-30, the census in tests/test_alert_erasure.py):
+    # each is the member's own saved state, keyed by their user_id, self-ensured by its module.
+    "screener_saved_screens",          # screener/saved_screens.py -- their saved screens
+    "user_totp",                       # totp_service.py -- their 2FA secret
+    "user_backup_codes",               # totp_service.py -- their 2FA backup codes
+    "ics_export_token_state",          # ics_export_token.py -- their calendar-feed token state
+    "calendar_seen",                   # calendar_seen.py -- which calendar items they have seen
+    "terminal_aliases",                # terminal_grammar.py -- their command aliases
+    "terminal_command_counts",         # terminal_grammar.py -- their command usage
+    "terminal_visits",                 # terminal_grammar.py -- their terminal visits
+    "watchlist_origins",               # watchlist_origin.py -- where their watchlist names came from
+    "what_else_open_occasions",        # what_else_open.py -- their "what else is open" history
+    "hub_planned_trades",              # journal_two/db.py -- their planned trades (not a j2_ name)
+    "j2_earnings_followup_log",        # journal_two/earnings_followup.py -- their follow-up log
+    "upb_sections",                    # user_playbook/db.py -- their personal playbook
+    "upb_entries",
+    "upb_charts",
+    "upb_note_links",
+    "user_preferences",                # auth_db.py -- every preference they saved
+    "import_sessions",                 # auth_db.py -- their trade-import history
+    "page_views",                      # auth_db.py -- the pages they viewed
+    "feedback",                        # auth_db.py -- feedback they sent (user_id + email)
 )
 
 # j2_broker_digest_dedup is deliberately excluded: it is a single global row
@@ -302,9 +340,22 @@ def purge_user_data(user_id: str, conn: sqlite3.Connection, *,
     # outside the per-member tree below, so their ids are needed after the rows are gone. P3b-F-R3 (final review
     # M-2): they are read INSIDE the deletes' own write transaction, so an example committed between a separate
     # read and the deletes can no longer lose its row while its directory stays behind, orphaned.
+    # Alert CREDENTIALS before anything else (owner-approved 2026-10-30): the inbound
+    # TradingView receiver token and the outbound webhook endpoints are the two things that can
+    # still move data while the rest of this runs. Each half commits on its own.
+    credentials: dict[str, Any] = {}
+    pre_errors: list[str] = []
+    try:
+        from api.services import alert_erasure
+        credentials = alert_erasure.revoke_credentials(user_id, conn)
+        pre_errors.extend(f"alert credentials: {e}" for e in credentials.get("errors", []))
+    except Exception as e:  # noqa: BLE001 -- the deletes below still run; reported, not skipped
+        pre_errors.append(f"alert credentials: {type(e).__name__}: {e}")
+        log.warning("alert credential revoke failed for %s: %s", user_id, e)
+
     example_ids: list[str] = []
     report = purge_user_rows(user_id, conn, example_ids=example_ids)
-    errors = report["errors"]
+    errors = pre_errors + report["errors"]
 
     # On-disk attachments: notebook inline/hero images AND trade screenshots
     # both nest under one per-user directory (attachment_root()/user_id) by
@@ -361,6 +412,19 @@ def purge_user_data(user_id: str, conn: sqlite3.Connection, *,
         errors.append(f"user_definitions.db: {type(e).__name__}: {e}")
         log.warning("user_definitions purge failed for %s: %s", user_id, e)
 
+    # Alerts in the databases outside auth.db (owner-approved 2026-10-30): alert_taxonomy.db,
+    # screener.db, calendar_alerts.db, transcript_alerts.db and catalysts.db, each through its
+    # own module's connection and lock (`alert_erasure.STORES`). A restore of any of them
+    # replays this through `account_tombstones.STORE_REPLAYS`.
+    alert_stores_report: dict[str, Any] = {}
+    try:
+        from api.services import alert_erasure
+        alert_stores_report = alert_erasure.purge_user(user_id)
+        errors.extend(f"alert stores: {e}" for e in alert_stores_report.get("errors", []))
+    except Exception as e:  # noqa: BLE001 -- one store can never abort the rest; reported, not skipped
+        errors.append(f"alert stores: {type(e).__name__}: {e}")
+        log.warning("alert store purge failed for %s: %s", user_id, e)
+
     # The tombstone (R-9) was recorded before the first delete above: the live purge is
     # immediate, the BACKUPS still hold this member, and the tombstone -- a row here and
     # an object beside the backups -- is what makes every restore delete them again.
@@ -371,6 +435,8 @@ def purge_user_data(user_id: str, conn: sqlite3.Connection, *,
         "example_image_dirs_removed": example_dirs,
         "voice_jobs_removed": voice_jobs,
         "user_definitions": user_definitions_report,
+        "alert_credentials": credentials,
+        "alert_stores": alert_stores_report,
         "errors": errors,
         "tombstone": tomb,
     }

@@ -25,7 +25,9 @@ purge above can reach it (saved indicators: `user_definitions.db`). Each such st
 erasure module with a literal tuple of its member tables, and the purge reaches it through ONE
 named call. `SECOND_DATABASES` lists them; a store's tables are listed only when the purge's
 source actually makes that call (an AST read of the call, not of a comment), so the manifest
-can never claim a database the purge does not reach.
+can never claim a database the purge does not reach. A store may also name a literal JOIN tuple
+of `(table, key column, parent member table)` for its rows that carry no member id (the alert
+stores: `alert_erasure.py`, one call reaching five databases).
 
 Pure text in, text out: this touches no database and no path outside the repo.
 """
@@ -45,10 +47,18 @@ BEGIN = ("<!-- BEGIN GENERATED: python tools/account_deletion_manifest.py --writ
 END = "<!-- END GENERATED -->"
 
 #: (database file, its erasure module, the module's literal member-table tuple,
-#:  the `<module>.<function>` call account_purge.py makes to reach it)
+#:  the `<module>.<function>` call account_purge.py makes to reach it,
+#:  the module's literal JOIN tuple of `(table, key column, parent member table)`, or None)
+_ALERTS = REPO / "api" / "services" / "alert_erasure.py"
 SECOND_DATABASES = (
     ("user_definitions.db", REPO / "api" / "services" / "user_definitions_erasure.py",
-     "MEMBER_TABLES", ("user_definitions", "purge_user")),
+     "MEMBER_TABLES", ("user_definitions", "purge_user"), None),
+    ("alert_taxonomy.db", _ALERTS, "ALERT_TAXONOMY_TABLES", ("alert_erasure", "purge_user"),
+     "ALERT_TAXONOMY_JOINS"),
+    ("screener.db", _ALERTS, "SCREENER_TABLES", ("alert_erasure", "purge_user"), "SCREENER_JOINS"),
+    ("calendar_alerts.db", _ALERTS, "CALENDAR_ALERTS_TABLES", ("alert_erasure", "purge_user"), None),
+    ("transcript_alerts.db", _ALERTS, "TRANSCRIPT_ALERTS_TABLES", ("alert_erasure", "purge_user"), None),
+    ("catalysts.db", _ALERTS, "CATALYSTS_TABLES", ("alert_erasure", "purge_user"), None),
 )
 
 _JOIN = re.compile(
@@ -99,6 +109,24 @@ def _literal_tuple(path: Path, name: str) -> list[str]:
                 if not (isinstance(elt, ast.Constant) and isinstance(elt.value, str)):
                     raise DerivationError(f"{path.name}: {name} holds a non-literal at line {elt.lineno}")
                 out.append(elt.value)
+            return out
+    raise DerivationError(f"{path.name}: no {name} assignment found")
+
+
+def _literal_joins(path: Path, name: str) -> list[tuple[str, str, str]]:
+    """The literal tuple of `(table, key column, parent table)` string triples assigned to
+    `name` at module level in `path`."""
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    for node in tree.body:
+        if isinstance(node, ast.Assign) and any(isinstance(t, ast.Name) and t.id == name for t in node.targets):
+            if not isinstance(node.value, (ast.Tuple, ast.List)) or not node.value.elts:
+                raise DerivationError(f"{path.name}: {name} is not a non-empty literal tuple")
+            out = []
+            for elt in node.value.elts:
+                if not (isinstance(elt, ast.Tuple) and len(elt.elts) == 3 and all(
+                        isinstance(x, ast.Constant) and isinstance(x.value, str) for x in elt.elts)):
+                    raise DerivationError(f"{path.name}: {name} holds a non-literal triple at line {elt.lineno}")
+                out.append(tuple(x.value for x in elt.elts))
             return out
     raise DerivationError(f"{path.name}: no {name} assignment found")
 
@@ -159,9 +187,10 @@ def derive(source: str | None = None) -> dict:
     if dupes:
         raise DerivationError(f"listed twice in _DIRECT_USER_TABLES: {dupes}")
     databases = {}
-    for db, module_path, tuple_name, (mod, fn) in SECOND_DATABASES:
+    for db, module_path, tuple_name, (mod, fn), joins_name in SECOND_DATABASES:
         if _calls(tree, mod, fn):
             databases[db] = {"tables": _literal_tuple(module_path, tuple_name),
+                             "joins": _literal_joins(module_path, joins_name) if joins_name else [],
                              "module": module_path.relative_to(REPO).as_posix(),
                              "call": f"{mod}.{fn}"}
     return {"direct": direct, "indirect": indirect, "keyed": keyed, "hashed": hashed,
@@ -172,7 +201,8 @@ def purged_tables(source: str | None = None) -> set[str]:
     d = derive(source)
     return (set(d["direct"]) | {t for t, _fk, _p in d["indirect"]} | {t for t, _c in d["keyed"]}
             | {t for t, _c, _f in d["hashed"]}
-            | {t for info in d["databases"].values() for t in info["tables"]})
+            | {t for info in d["databases"].values() for t in info["tables"]}
+            | {t for info in d["databases"].values() for t, _fk, _p in info["joins"]})
 
 
 def render(source: str | None = None) -> str:
@@ -203,12 +233,15 @@ def render(source: str | None = None) -> str:
         rows += [
             "",
             f"**{db}** -- a second database, which no statement on auth.db reaches: "
-            f"**{len(info['tables'])} tables**, deleted by `{info['module']}` through "
+            f"**{len(info['tables']) + len(info['joins'])} tables**, deleted by `{info['module']}` through "
             f"`{info['call']}`.",
             "",
             "| Table | Owner key | Ownership | How the purge deletes it |",
             "|---|---|---|---|",
         ]
+        for table, fk, parent in info["joins"]:
+            rows.append(f"| `{table}` | `{fk}` → `{parent}.user_id` | **Indirect** ({db}) | "
+                        f"join delete through `{parent}`, run before the direct deletes |")
         for table in info["tables"]:
             rows.append(f"| `{table}` | `user_id` | Direct ({db}) | `DELETE FROM {table} WHERE user_id = ?` |")
     rows += ["", END]

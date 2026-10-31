@@ -77,7 +77,10 @@ def _runtime_purged() -> set[str]:
     # A second database's tables (saved indicators, user_definitions.db) are reported under
     # their own key -- no statement on `conn` reaches them.
     second = set((report.get("user_definitions") or {}).get("rows_deleted") or {})
-    return set(report["rows_deleted"]) | second
+    # ...and the alert stores (alert_taxonomy.db, screener.db, calendar_alerts.db,
+    # transcript_alerts.db, catalysts.db), flat under theirs.
+    alerts = set((report.get("alert_stores") or {}).get("rows_deleted") or {})
+    return set(report["rows_deleted"]) | second | alerts
 
 
 def _diff(label_a: str, a: set[str], label_b: str, b: set[str]) -> str:
@@ -92,7 +95,9 @@ def _diff(label_a: str, a: set[str], label_b: str, b: set[str]) -> str:
 def test_the_manifest_names_exactly_the_tables_the_purge_deletes():
     doc, runtime = _doc_purged(), _runtime_purged()
     # Non-vacuity, by name, on BOTH sides.
-    for name in ("j2_notes", "j2_option_legs", "user_definitions", "definition_shares"):
+    for name in ("j2_notes", "j2_option_legs", "user_definitions", "definition_shares",
+                 "inbound_alert_tokens", "alert_predicates", "alert_fire_channel_reads",
+                 "spec_alerts_fired", "keyword_subs"):
         assert name in runtime, f"the purge's own report does not name {name}: {sorted(runtime)}"
         assert name in doc, f"the doc's table does not name {name}"
     problem = _diff("the purge (runtime)", runtime, "docs/account-deletion-manifest.md", doc)

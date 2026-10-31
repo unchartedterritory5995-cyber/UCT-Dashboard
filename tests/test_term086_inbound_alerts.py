@@ -613,3 +613,75 @@ def test_INBOUND_ONLY_no_order_position_or_broker_write_vocabulary():
     assert "deliver_alert_payload" in _names(files[0])
     probe = REPO / "api" / "services" / "journal_two" / "broker" / "sync.py"
     assert any("broker" in n for n in _names(probe))
+
+
+# ── account deletion (owner-approved 2026-10-30) ────────────────────────────
+
+def _delete_account(env, uid=U_A, *, purge=True):
+    """What both admin delete doors do to this store: the tombstone first, then the purge
+    (`account_purge.purge_user_data`), then the account row. `purge=False` stops after the
+    tombstone -- the window in which the broker purge is still running."""
+    from api.services import account_tombstones as at
+    from api.services.journal_two import account_purge
+    env["monkeypatch"].setenv(at.LOCAL_STORE_ENV, str(Path(env["db"]).parent / "tombstones"))
+    conn = sqlite3.connect(env["db"])
+    try:
+        assert at.record_tombstone(uid, conn)["recorded"]
+        if purge:
+            rep = account_purge.purge_user_data(uid, conn, tombstone={"recorded": True})
+            assert rep["alert_credentials"]["inbound_alert_tokens"] == 1, rep["alert_credentials"]
+            conn.execute("DELETE FROM users WHERE id = ?", (uid,))
+            conn.commit()
+    finally:
+        conn.close()
+
+
+def _rows(env, table):
+    c = sqlite3.connect(env["db"])
+    try:
+        return c.execute(f"SELECT user_id FROM {table} ORDER BY user_id").fetchall()
+    finally:
+        c.close()
+
+
+def test_a_DELETED_members_receiver_url_is_refused_and_their_rows_are_gone(env):
+    _on(env)
+    token_a, token_b = _mint(env, U_A), _mint(env, U_B)
+    assert _fire(env, token_a).status_code == 202            # control: it worked before
+    _delete_account(env, U_A)
+    r = _fire(env, token_a, payload={**GOOD, "id": "after-deletion"})
+    assert r.status_code == 401 and r.json()["detail"] == iar.UNKNOWN_SENTENCE
+    assert _rows(env, "inbound_alert_tokens") == [(U_B,)]
+    assert _rows(env, "inbound_alert_receipts") == []        # A's earlier fire went with them
+    assert _fire(env, token_b).status_code == 202            # the other member is untouched
+    assert [d["user_id"] for d in env["delivered"]] == [U_A, U_B]
+
+
+def test_the_receiver_refuses_from_the_TOMBSTONE_before_any_row_is_deleted(env):
+    """The tombstone is written before the deletion's first DELETE; the broker purge runs
+    between it and `purge_user_data`. A webhook in that window is refused like an unknown URL."""
+    _on(env)
+    token = _mint(env, U_A)
+    _delete_account(env, U_A, purge=False)
+    assert _rows(env, "inbound_alert_tokens") == [(U_A,)]    # the row is still there...
+    r = _fire(env, token)
+    assert r.status_code == 401                              # ...and it no longer works
+    assert env["delivered"] == [] and _receipts(env) == []
+
+
+def test_a_fire_ACCEPTED_before_the_deletion_is_NOT_delivered_after_it(env):
+    """Delivery runs after the answer, on a pool: a fire accepted a moment before the purge
+    reaches `deliver` after it, and must not write a fresh alert for a member who is gone."""
+    _on(env)
+    _mint(env, U_A)
+    c = sqlite3.connect(env["db"])
+    token_hash = c.execute("SELECT token_hash FROM inbound_alert_tokens WHERE user_id = ?",
+                           (U_A,)).fetchone()[0]
+    c.close()
+    payload = ia.parse_payload(json.dumps(GOOD).encode())
+    receipt_id = ia.claim_receipt(U_A, payload, token_hash)
+    assert receipt_id is not None
+    _delete_account(env, U_A)
+    report = ia.deliver(receipt_id, U_A, payload)
+    assert env["delivered"] == [] and report["channels_ok"] == 0
+    assert report["errors"] == {"deliver": "receipt_gone"}

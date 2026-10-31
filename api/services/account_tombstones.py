@@ -397,6 +397,20 @@ STORE_MEMBERS = {
 }
 
 
+def _register_alert_store_replays() -> None:
+    """The member-alert stores outside auth.db (owner-approved 2026-10-30): alert_taxonomy,
+    screener, calendar_alerts, transcript_alerts, catalysts -- each replays
+    `alert_erasure.purge_store_rows`, the SAME function the live deletion runs. Keyed by the
+    name a restore knows the file by (its stem: `store_restore.py --to <path>`)."""
+    from api.services import alert_erasure
+    for store in alert_erasure.STORES:
+        STORE_REPLAYS[store.name] = alert_erasure.replay_on_store(store.name)
+        STORE_MEMBERS[store.name] = alert_erasure.members_on_store(store.name)
+
+
+_register_alert_store_replays()
+
+
 def replay_on_attachment_tree(root: str | os.PathLike, user_ids: Iterable[str]) -> list[str]:
     """Remove every tombstoned member's directory from a RESTORED attachment tree
     (`attachment_root()/<user_id>` is where every attachment of theirs lives — the

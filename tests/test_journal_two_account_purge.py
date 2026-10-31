@@ -103,6 +103,8 @@ _ENUM_OVERRIDES: dict[str, dict[str, str]] = {
     "j2_broker_dup_flags": {"status": "pending"},
     "j2_note_publications": {"kind": "note"},
     "j2_entry_context": {"capture_kind": "at_entry"},
+    "watchlist_origins": {"mode": "copy"},
+    "hub_planned_trades": {"status": "planned"},
 }
 
 
@@ -184,6 +186,45 @@ def _self_ensure(conn, module: str) -> None:
     importlib.import_module(f"api.services.journal_two.{module}").ensure_schema(conn)
 
 
+#: Alert + census tables (owner-approved 2026-10-30) that their own modules create in auth.db
+#: on first use, never `auth_db.init_db`: table -> the module file whose DDL creates it.
+_SELF_ENSURED_ELSEWHERE = {
+    "inbound_alert_tokens": "api/services/inbound_alerts.py",
+    "inbound_alert_receipts": "api/services/inbound_alerts.py",
+    "user_alerts": "api/services/alert_durability.py",
+    "web_push_subscriptions": "api/services/web_push.py",
+    "screener_saved_screens": "api/services/screener/saved_screens.py",
+    "user_totp": "api/services/totp_service.py",
+    "user_backup_codes": "api/services/totp_service.py",
+    "ics_export_token_state": "api/services/ics_export_token.py",
+    "calendar_seen": "api/services/calendar_seen.py",
+    "terminal_aliases": "api/services/terminal_grammar.py",
+    "terminal_command_counts": "api/services/terminal_grammar.py",
+    "terminal_visits": "api/services/terminal_grammar.py",
+    "watchlist_origins": "api/services/watchlist_origin.py",
+    "what_else_open_occasions": "api/services/what_else_open.py",
+    "j2_earnings_followup_log": "api/services/journal_two/earnings_followup.py",
+}
+
+
+def _owning_ddl(table: str, module_file: str) -> str:
+    """The module's OWN `CREATE TABLE IF NOT EXISTS <table> (...)`, read from its source (the
+    modules ensure their schema on their own connection at first use, so there is no function
+    that takes this test's connection). Balanced on parentheses, never a regex to `)`."""
+    import re as _re
+    src = (Path(__file__).resolve().parents[1] / module_file).read_text(encoding="utf-8")
+    m = _re.search(rf"CREATE TABLE IF NOT EXISTS {table}\s*\(", src)
+    assert m, f"{module_file} no longer creates {table}"
+    depth, i = 0, m.end() - 1
+    while True:
+        ch = src[i]
+        depth += ch == "("
+        depth -= ch == ")"
+        i += 1
+        if depth == 0:
+            return src[m.start():i]
+
+
 def _seed_full_manifest(conn, user_id: str, tag: str) -> dict[str, str]:
     """Populate one row per direct table, plus the two indirect-ownership
     tables wired to a real parent row. Returns the ids needed to assert
@@ -246,9 +287,18 @@ def _seed_full_manifest(conn, user_id: str, tag: str) -> dict[str, str]:
     from api.services import indicator_alert_service as ias
     for ddl in (ias._SCHEMA, afl._SCHEMA, arm._SCHEMA):
         conn.executescript(ddl)
+    # The alert and census tables (owner-approved 2026-10-30), from each owning module's DDL.
+    for table, module_file in _SELF_ENSURED_ELSEWHERE.items():
+        conn.execute(_owning_ddl(table, module_file))
 
+    # ⚠️ Foreign keys OFF for the one-row-per-table filler only: the personal playbook's
+    # children reference their parent row (`upb_entries.section_id`, ...) and
+    # `watchlist_origins.wl_id` references `watchlists(id)`, and a placeholder points at
+    # nothing. Every row still carries the member's user_id, which is what the purge keys on.
+    conn.execute("PRAGMA foreign_keys=OFF")
     for table in _manifest_tables(ap):
         _insert_minimal_row(conn, table, user_id, tag)
+    conn.execute("PRAGMA foreign_keys=ON")
 
     strategy_id = conn.execute(
         "SELECT id FROM j2_option_strategies WHERE user_id = ?", (user_id,)

@@ -360,7 +360,20 @@ def drain(*, limit: int = 50, db_path: str | None = None, poster=None, resolver=
             " WHERE d.status = 'pending' AND d.next_attempt_at <= ? ORDER BY d.next_attempt_at LIMIT ?",
             (now, int(limit))).fetchall()
         for d in due:
+            # The previous row's bookkeeping is committed BEFORE the next (possibly slow) send,
+            # so this loop never holds the store's write lock across a network call -- an
+            # account deletion's endpoint revoke would otherwise wait out every send in the batch.
+            c.commit()
             if d["revoked_at"] is not None:
+                c.execute("UPDATE alert_webhook_deliveries SET status='dropped_revoked' WHERE id=?", (d["id"],))
+                continue
+            # ⛔ RE-READ AT SEND TIME. `due` was read once; one send can take TIMEOUT_S, and a
+            # member who revokes the endpoint -- or deletes their account, which deletes it
+            # (alert_erasure.revoke_credentials) -- while this loop runs must not be posted to
+            # from the stale row. A vanished or revoked endpoint is dropped, never sent.
+            live = c.execute("SELECT revoked_at FROM alert_webhooks WHERE id = ?",
+                             (d["webhook_id"],)).fetchone()
+            if live is None or live["revoked_at"] is not None:
                 c.execute("UPDATE alert_webhook_deliveries SET status='dropped_revoked' WHERE id=?", (d["id"],))
                 continue
             attempts = d["attempts"] + 1

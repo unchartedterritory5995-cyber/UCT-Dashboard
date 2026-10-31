@@ -360,6 +360,18 @@ def status(user_id: str) -> dict:
             "old_url_refusals": int(refused)}
 
 
+def _tombstoned(conn: sqlite3.Connection, user_id: str) -> bool:
+    """Is this member's account being deleted, or deleted? A store with no tombstone table
+    has deleted nobody (the table is created by the first deletion)."""
+    try:
+        return conn.execute("SELECT 1 FROM account_tombstones WHERE user_id = ?",
+                            (user_id,)).fetchone() is not None
+    except sqlite3.OperationalError as e:
+        if "no such table" in str(e).lower():
+            return False
+        raise
+
+
 def verify(token: Any) -> tuple[str, str | None, str | None]:
     """``(verdict, user_id, token_hash)`` for a presented token.
 
@@ -389,6 +401,13 @@ def verify(token: Any) -> tuple[str, str | None, str | None]:
                 _logger.info("[inbound-alerts] refused user=%s verdict=%s",
                              row["user_id"], verdict)
                 return verdict, row["user_id"], None
+            # ⛔ ACCOUNT DELETION: the tombstone is written BEFORE the deletion's first DELETE
+            # (account_tombstones, ruling R-9), so from that instant the member's URL answers
+            # exactly as an unknown one -- the broker purge and everything else that runs
+            # before the token row itself is deleted cannot be raced by a webhook.
+            if _tombstoned(conn, row["user_id"]):
+                _logger.info("[inbound-alerts] refused user=%s verdict=deleted", row["user_id"])
+                return UNKNOWN, None, None
             return VALID, row["user_id"], h
         finally:
             conn.close()
@@ -511,6 +530,21 @@ def claim_receipt(user_id: str, payload: dict, token_hash: str) -> int | None:
         conn.close()
 
 
+def _receipt_exists(receipt_id: int) -> bool:
+    """Does the receipt still exist? A store that cannot be read answers True: the check
+    exists for account deletion, and must never cost a live member their alert."""
+    try:
+        conn = _connect()
+        try:
+            return conn.execute("SELECT 1 FROM inbound_alert_receipts WHERE id = ?",
+                                (receipt_id,)).fetchone() is not None
+        finally:
+            conn.close()
+    except Exception as e:  # noqa: BLE001
+        _logger.warning("[inbound-alerts] receipt %s unreadable: %s", receipt_id, type(e).__name__)
+        return True
+
+
 def _set_receipt(receipt_id: int, status_word: str, channels_ok: int | None) -> None:
     try:
         conn = _connect()
@@ -546,6 +580,16 @@ def deliver(receipt_id: int, user_id: str, payload: dict) -> dict:
     admin channel with a member's own alert.
     """
     from api.services.watchlist_alert_service import deliver_alert_payload
+
+    # ⛔ ACCOUNT DELETION: delivery runs AFTER the answer, on a pool. A fire accepted a moment
+    # before the member's deletion arrives here after the purge removed its receipt -- and
+    # delivering it would write a fresh bell row for a member who no longer exists. The
+    # receipt is the fire's own record; gone means do not deliver.
+    if not _receipt_exists(receipt_id):
+        _logger.info("[inbound-alerts] receipt %s gone before delivery; not delivered", receipt_id)
+        count(DELIVERY_FAILED)
+        return {"claimed": False, "channels": {}, "channels_ok": 0,
+                "channels_failed": 0, "errors": {"deliver": "receipt_gone"}}
 
     title, message = _compose(payload)
     extra = {"origin": "tradingview", "receipt_id": receipt_id}
