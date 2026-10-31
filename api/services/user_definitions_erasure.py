@@ -94,6 +94,14 @@ def _has_json1(conn: sqlite3.Connection) -> bool:
     return _JSON1[0]
 
 
+def _reads_as_json_number(uid: str) -> bool:
+    """Could `uid` be stored unquoted, as a JSON number? (`"123"` -> yes; `"u-abc"` -> no.)"""
+    try:
+        return isinstance(json.loads(uid), (int, float)) and not isinstance(json.loads(uid), bool)
+    except ValueError:
+        return False
+
+
 def authored_rows(user_ids, conn: sqlite3.Connection) -> list[tuple[int, str]]:
     """`(row id, definition)` for the rows whose `origin.author_id` IS one of `user_ids` --
     selected IN SQLite, so a row naming another author is never fetched or parsed in Python.
@@ -102,7 +110,13 @@ def authored_rows(user_ids, conn: sqlite3.Connection) -> list[tuple[int, str]]:
     malformed row (which makes `json_extract` raise) is skipped rather than failing the whole
     query -- CASE is the one SQL construct whose evaluation order is guaranteed. Without JSON1:
     one `instr` needle per id, the id as its stored JSON string (`'"<id>"'`). Either way this
-    is a SUPERSET filter; the caller still checks the author exactly in Python."""
+    is a SUPERSET filter; the caller still checks the author exactly in Python.
+
+    ⛔ A NUMERIC author id. `origin.author_id` may be stored as a JSON NUMBER (`123`, not
+    `"123"`); `json_extract` then returns an INTEGER, which never equals the TEXT id bound
+    here, so the extract is CAST to TEXT -- and the fallback, whose `"<id>"` needle cannot see
+    an unquoted number, also searches `:<id>` / `: <id>` for an id that reads as a JSON number.
+    The exact check after either is `str(author_id) in ids`, which already matched a number."""
     ids = sorted({str(u) for u in user_ids if u})
     out: dict[int, str] = {}
     if not ids:
@@ -114,16 +128,19 @@ def authored_rows(user_ids, conn: sqlite3.Connection) -> list[tuple[int, str]]:
             for row_id, blob in conn.execute(
                     "SELECT id, definition FROM user_definitions WHERE "
                     "CASE WHEN instr(definition, '\"author_id\"') > 0 AND json_valid(definition) "
-                    "THEN json_extract(definition, '$.origin.author_id') END "
+                    "THEN CAST(json_extract(definition, '$.origin.author_id') AS TEXT) END "
                     f"IN ({marks})", chunk):
                 out[row_id] = blob
     else:
         for uid in ids:
-            needle = json.dumps(uid, ensure_ascii=False)
-            for row_id, blob in conn.execute(
-                    "SELECT id, definition FROM user_definitions WHERE instr(definition, ?) > 0",
-                    (needle,)):
-                out[row_id] = blob
+            needles = [json.dumps(uid, ensure_ascii=False)]
+            if _reads_as_json_number(uid):
+                needles += [f":{uid}", f": {uid}"]
+            for needle in needles:
+                for row_id, blob in conn.execute(
+                        "SELECT id, definition FROM user_definitions WHERE instr(definition, ?) > 0",
+                        (needle,)):
+                    out[row_id] = blob
     return sorted(out.items())
 
 
