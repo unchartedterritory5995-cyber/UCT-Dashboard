@@ -244,8 +244,11 @@ plot(a)
     // table has had to move a row off a shipped capability. What remains is a
     // WINDOW COMPOSITE (`hma`, assembled from FINITE_WINDOW members) and a
     // carried-SHAPED builtin that binds a shipped implementation (`rsi`).
-    ['a WINDOW-COMPOSITE builtin fed by state', `${head}var x = 0.0\nx := close\nplot(ta.hma(x, 5))\n`, 'runtime:call-windowed-state'],
-    ['a SHIPPED-IMPL stateful builtin fed by state', `${head}var x = 0.0\nx := close\nplot(ta.rsi(x, 5))\n`, 'runtime:call-windowed-state'],
+    // ⚰️ P3 WS-B executes `ta.hma` and `ta.rsi` over state (and serves
+    // `str.tostring` in every run): the specimens are `ta.bbw`, `ta.cci` and
+    // `str.format`, still refused under the same three guards.
+    ['a WINDOW-COMPOSITE builtin fed by state', `${head}var x = 0.0\nx := close\nplot(ta.bbw(x, 5, 2))\n`, 'runtime:call-windowed-state'],
+    ['a SHIPPED-IMPL stateful builtin fed by state', `${head}var x = 0.0\nx := close\nplot(ta.cci(x, 5))\n`, 'runtime:call-windowed-state'],
     // ⚰️⚰️ `math.max` OVER STATE REFUSED HERE UNTIL 2F-1, WHICH EXECUTES IT, and
     // the replacement case is worth reading because the first attempt was WRONG.
     // It moved to `ta.cum` and asserted `call-windowed-state` — "cumulative needs
@@ -277,7 +280,7 @@ plot(a)
     // undeclared name today, verified by driving it — and it will need the same
     // treatment the day it lands (⚰️ RT3: it was `ta.vwma` until RT3 served `vwma` through the host lane's closed form).
     ['an UNDECLARED builtin fed by state', `${head}var x = 0.0\nx := close\nplot(ta.cog(x, 3))\n`, 'runtime:call-undeclared-builtin-state'],
-    ['a TEXT builtin fed by state', `${head}var x = 0.0\nx := close\nplot(str.length(str.tostring(x)))\n`, 'runtime:call-text-state'],
+    ['a TEXT builtin fed by state', `${head}var x = 0.0\nx := close\nplot(str.length(str.format("{0}", x)))\n`, 'runtime:call-text-state'],
     // ⚰️ C18 — `int(x)` and `float(x)` over state now LOWER (truncation, and the
     // identity — Pine's documented casts); `bool(x)` is the conversion still refused.
     ['a CONVERSION fed by state', `${head}var x = 0.0\nx := close / 3\nplot(bool(x) ? 1 : 0)\n`, 'runtime:call-conversion-state'],
