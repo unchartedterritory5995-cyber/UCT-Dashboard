@@ -123,8 +123,8 @@ describe('⭐⭐ `var` rolls back on every tick; `varip` keeps each update', () 
       const out = run(d, rows)
       expect(out.a[29]).toBe(s28 + rows[29].c)
     }
-    const out = run(d, rows)          // the same bars again: one more update
-    const total = closes.reduce((m, c) => m + c, base.b[28] + mk(30)[29].c) + rows[29].c
+    const out = run(d, rows)          // the same bars again: the same update, nothing advances (review H1)
+    const total = closes.reduce((m, c) => m + c, base.b[28] + mk(30)[29].c)
     expect(out.b[29]).toBeCloseTo(total, 9)
   })
 
@@ -137,16 +137,17 @@ describe('⭐⭐ `var` rolls back on every tick; `varip` keeps each update', () 
     const out = run(d, rows)
     expect(out.a[19]).toBe(22)
     const same = run(d, rows.map((b) => ({ ...b })))
-    expect(same.a[19], 'one more update, from the ledger\'s own copy').toBe(23)
+    expect(same.a[19], 'the same prices again: the same update, from the ledger\'s own copy (review H1)').toBe(22)
+    rows = tick(rows, 1)
+    expect(run(d, rows).a[19], 'the next real update: one more element').toBe(23)
   })
 
-  it('⛔ a run with no session (`incremental: false`) is TradingView\'s reload: `varip` is `var` everywhere', () => {
-    let rows = mk(50)
-    run(COUNTERS, rows)
-    rows = tick(rows, 0.5); run(COUNTERS, rows)
-    const reload = run(COUNTERS, rows, LIVE, { incremental: false })
-    expect(reload.b[49]).toBe(50)
-    expect(runtimeRealtimeOf(reload)).toBeNull()
+  it('⛔ a run with no session (`incremental: false`) has no ledger, so a `varip` refuses there by name (review M3)', () => {
+    let err = null
+    try { run(COUNTERS, mk(50), LIVE, { incremental: false }) } catch (e) { err = e }
+    expect(err && err.guard).toBe('runtime:varip')
+    expect(String(err.message)).toMatch(/no realtime ledger/)
+    expect(run(COUNTERS, mk(50)).b[49], 'control: the same script with its session runs').toBe(50)
   })
 
   it('⛔ a script with no `varip` and no `barstate.isnew` keeps no ledger', () => {
@@ -159,6 +160,7 @@ describe('⭐⭐ `var` rolls back on every tick; `varip` keeps each update', () 
     run(COUNTERS, rows)
     rows = tick(rows, 0.5); run(COUNTERS, rows)
     expect(run(COUNTERS, rows, { ...LIVE, symbol: { ticker: 'MSFT', exchange: 'NASDAQ' } }).b[29]).toBe(30)
+    rows = tick(rows, 0.5)
     expect(run(COUNTERS, rows).b[29], 'the original identity keeps counting').toBe(32)
   })
 })
@@ -195,13 +197,13 @@ describe('⛔ `varip` the ledger cannot carry is refused by name', () => {
   })
   it('holding a drawing', () => {
     const src = '//@version=5\nindicator("t")\nvarip line l = na\nif na(l)\n    l := line.new(bar_index, close, bar_index + 1, close)\nplot(close)\n'
-    const built = buildRuntimeIr(src, { bars: mk(10), objectsInRun: true, pane: true })
+    const built = buildRuntimeIr(src, { bars: mk(10), objectsInRun: true, pane: true, realtimeLedger: true })
     expect(built.ok).toBe(false)
     expect(built.refusal.guard).toBe('runtime:varip')
     expect(String(built.refusal.message)).toMatch(/holding a drawing/)
   })
   it('a plain `varip` builds, and its slot is marked on the IR (the ledger finds it there)', () => {
-    const built = buildRuntimeIr('//@version=5\nindicator("t")\nvarip float x = 0.0\nx += close\nplot(x)\n', { bars: mk(10), pane: true })
+    const built = buildRuntimeIr('//@version=5\nindicator("t")\nvarip float x = 0.0\nx += close\nplot(x)\n', { bars: mk(10), pane: true, realtimeLedger: true })
     expect(built.ok).toBe(true)
     expect(built.ir.slots.filter((sl) => sl.varip === true).map((sl) => sl.name)).toEqual(['x'])
   })

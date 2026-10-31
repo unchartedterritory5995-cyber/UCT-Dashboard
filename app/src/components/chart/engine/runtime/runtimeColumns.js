@@ -82,6 +82,8 @@ export function probeRuntimeProgram(source, { objectsInRun = false } = {}) {
     built = buildRuntimeIr(String(source || ''), {
       bars: [], inputs: {}, ...(objectsInRun ? { objectsInRun: true } : { objectTrees: [] }),
       ...COMPILE_ON_A_PANE, ...runtimeClockOpts(false),
+      // ⭐ P3 WS-F (review M3) — the PANE's compile check: the pane runs with its ledger
+      realtimeLedger: true,
       // ⭐ RT6 — the pane's own build: each plot's `color =` is an output too.
       plotColours: true,
     })
@@ -144,6 +146,7 @@ export function colourInputsTheRunReads(source, keys, { objectsInRun = false, ou
     try {
       const built = buildRuntimeIr(String(source || ''), {
         bars: [], inputs: {}, inputDefaults, ...objects, ...COMPILE_ON_A_PANE, ...runtimeClockOpts(false),
+        realtimeLedger: true,   // the pane's program, measured on closed history (`varip` is `var` there)
       })
       if (!built.ok) return null
       const p = lowerIrProgram(built.ir, { historyFromListing: true })
@@ -156,6 +159,7 @@ export function colourInputsTheRunReads(source, keys, { objectsInRun = false, ou
       const built = buildRuntimeIr(String(source || ''), {
         bars: rows, inputs: {}, inputDefaults, ...objects,
         pane: true, plotColours: true, tf: 'D', basePeriod: 'D', ...runtimeClockOpts(false, { tf: 'D' }),
+        realtimeLedger: true,
       })
       if (!built.ok || (built.ir.requests || []).length) return null
       const program = lowerIrProgram(built.ir, { historyFromListing: true })
@@ -577,6 +581,29 @@ function sessionBytes(s) {
     for (const it of cp.iters || []) bytes += 16 * lenOf(it)
     if (cp.store) bytes += 256 * lenOf(cp.store.live)
   }
+  // ⭐ P3 WS-F (review L3) — the kept build (its IR and column trees) counts against the cap too
+  if (s.build) bytes += buildBytes(s.build)
+  return bytes
+}
+/** ⭐ P3 WS-F (review L3) — an ESTIMATE of a kept build's bytes, walked once and cached on it:
+ *  64 an object, 16 an array element, 8 a typed-array element, 2 a string character. Each
+ *  shared node counted once; iterative (deep trees). */
+function buildBytes(build) {
+  if (Number.isFinite(build.bytes)) return build.bytes
+  let bytes = 0
+  const seen = new Set()
+  const stack = [build.ir, build.trees]
+  while (stack.length) {
+    const x = stack.pop()
+    if (typeof x === 'string') { bytes += 2 * x.length; continue }
+    if (!x || typeof x !== 'object' || seen.has(x)) continue
+    seen.add(x)
+    if (ArrayBuffer.isView(x)) { bytes += 8 * x.length; continue }
+    if (Array.isArray(x)) { bytes += 16 * x.length; for (const v of x) stack.push(v); continue }
+    bytes += 64
+    for (const k of Object.keys(x)) { bytes += 2 * k.length; stack.push(x[k]) }
+  }
+  build.bytes = bytes
   return bytes
 }
 /** Drop every session (tests; a host that wants a cold start). */
@@ -738,18 +765,16 @@ let _lastReused = 0
 //   * `varip` keeps what the previous update of the bar left;
 //   * `barstate.isnew` is true only on a bar's first execution (`isNewByBar`).
 // So a session's runs keep a LEDGER: for each bar time that has run as a FORMING bar, its
-// `varip` slots as the bar's latest execution began (`start`) and ended (`end`), and whether
-// that execution was its closing one (`confirmed`). When a run reaches such a bar:
-//   * not yet closed → this run is the bar's NEXT update: its `varip` slots start where the
-//     last update ended (`end`);
-//   * closed → this run REPLAYS the closing update (the history re-run when a resume could
-//     not cross an append): its `varip` slots start where that update began (`start`).
+// `varip` slots as the bar's latest execution began (`start`) and ended (`end`), whether
+// that execution was its closing one (`confirmed`), the bar's prices it ran over (`sig`) and
+// whether it was the bar's first (`first`). What a run is to such a bar — its next update,
+// the same update again, the close, a replay, a reopening — is `realtimeDecision`.
 // A bar no run has seen forming is history: `varip` is `var` there, exactly as on
 // TradingView. ⭐ Keyed by bar TIME and by the run's identity WITHOUT the forming flag, so
 // a bar that closes when the fetch stops calling it forming keeps its updates.
 // ⛔ A run that refuses or stops records nothing (`commit` after success only). A run with
-// no session (`incremental: false`, a measurement) has no ledger: it is the reload
-// TradingView itself does, after which `varip` history is recomputed as `var`.
+// no session (`incremental: false`, a measurement, `opts.limits`) has no ledger, so a script
+// with a `varip` REFUSES there by name (`realtimeLedger`, review M3), as on every other door.
 // ⛔ BOUNDED: `LEDGER_CAP` ledgers, `LEDGER_BAR_CAP` bars each (the oldest go; a replay of
 // an evicted bar is then history, as after a reload).
 // ⛔ ONLY A SCRIPT THAT DECLARES `varip` OR READS `barstate.isnew` keeps one; every other
@@ -775,14 +800,66 @@ function readsIsNew(source) {
   }
   return hit
 }
+/** The forming bar's prices as one update saw them: a re-run over the same prices is the
+ *  same update, not a new one (review H1). */
+const barSig = (b) => [+b.t, +b.o, +b.h, +b.l, +b.c, +b.v]
+const sameSig = (a, b) => !!a && !!b && a.length === b.length && a.every((x, i) => Object.is(x, b[i]))
+/** ⭐⭐ (review H1, M2) WHAT ONE RUN IS TO A BAR THE LEDGER HAS SEEN, decided from the bars and
+ *  the ledger alone, before the run:
+ *    `from`   the `varip` state the bar is entered with (`'snap'` = what the run reaches it with)
+ *    `record` the entry to write after a finished run, or null (the run changes nothing)
+ *    `isNew`  this run is the bar's first execution (`barstate.isnew`)
+ *  The rules (Pine counts EXECUTIONS, one per real update of the bar):
+ *    * no entry, the forming bar          → its first update: recorded, new;
+ *    * no entry, any other bar            → history: `varip` is `var`, nothing recorded;
+ *    * unclosed entry, the bar now closed → the closing update: one more execution;
+ *    * unclosed entry, still forming, the SAME prices → the same update run again (a second
+ *      pane, a refetch, a remount, older history prepended): entered from where that update
+ *      began, nothing advances;
+ *    * unclosed entry, new prices         → the next update: entered from where the last ended;
+ *    * closed entry, run closed again, or forming again at the SAME prices → a replay of the
+ *      closing update: entered from where it began, nothing advances;
+ *    * closed entry, forming again at NEW prices (the feed called it closed too early) → a
+ *      new update of a bar that reopened: entered from where the close ended, recorded open,
+ *      so its later updates keep counting (it used to freeze there). */
+function realtimeDecision(e, bar, rows, forming, lastConfirmed) {
+  const n = rows.length
+  const confirmedNow = bar <= lastConfirmed
+  const sig = barSig(rows[bar])
+  if (!e) {
+    return forming === true && bar === n - 1
+      ? { from: 'snap', record: { confirmed: false, first: true, sig }, isNew: true } : null
+  }
+  const same = sameSig(e.sig, sig)
+  if (e.confirmed ? (confirmedNow || same) : (!confirmedNow && same)) return { from: e.start, record: null, isNew: e.first === true }
+  return { from: e.end, record: { confirmed: confirmedNow, first: false, sig }, isNew: false }
+}
 function realtimeRun(def, ctx, role, ir, source, rows, forming, lastConfirmed) {
   const varip = (ir.slots || []).filter((sl) => sl && sl.varip === true && sl.owner === null && sl.kind === SLOT.PERSIST)
     .map((sl) => sl.index)
   if (!varip.length && !readsIsNew(source)) return null
-  const key = `${runKey(def, { ...ctx, newestBarIsForming: null, newest_bar_is_forming: null, interpretOpts: undefined })}|${role}`
-  const ledger = _ledgers.get(key) || null
+  // ⭐ (review H1) SHARED BY IDENTICAL PANES, ON PURPOSE: two panes of one script on one symbol
+  // and timeframe see one feed, so they must show one `varip`. Sharing cannot double-count once
+  // a run over the same prices is the same update (`realtimeDecision`): the second pane's run
+  // re-enters from where the first pane's update began and records nothing.
+  // ⭐ (review H1) AND BY WHERE THE HISTORY STARTS (`rows[0].t`): a ledger's states are of the
+  // bars it ran over, so a chart with more (or fewer) bars before is another history, run as
+  // TradingView runs a reload: `varip` is `var` on its history, its forming bar starts fresh.
   const n = rows.length
-  const isNew = isNewByBar(rows, ledger ? ledger.bars : null)
+  const key = `${runKey(def, { ...ctx, newestBarIsForming: null, newest_bar_is_forming: null, interpretOpts: undefined })}|${role}|${n ? +rows[0].t : '-'}`
+  const ledger = _ledgers.get(key) || null
+  const decisions = new Map()
+  if (ledger) for (let i = 0; i < n; i += 1) {
+    const e = ledger.bars.get(rows[i].t)
+    if (e) decisions.set(i, realtimeDecision(e, i, rows, forming, lastConfirmed))
+  }
+  if (n && !decisions.has(n - 1)) {
+    const d = realtimeDecision(null, n - 1, rows, forming, lastConfirmed)
+    if (d) decisions.set(n - 1, d)
+  }
+  const notNew = new Set()
+  for (const [i, d] of decisions) if (!d.isNew) notNew.add(rows[i].t)
+  const isNew = isNewByBar(rows, notNew)
   const pending = new Map()
   const snap = (persist, initialised) => (varip.length
     ? { v: cloneValues([varip.map((i) => persist[i])])[0], init: varip.map((i) => initialised[i]) } : null)
@@ -793,14 +870,11 @@ function realtimeRun(def, ctx, role, ir, source, rows, forming, lastConfirmed) {
   }
   const hooks = {
     barStart(bar, persist, initialised) {
-      const e = ledger ? ledger.bars.get(rows[bar].t) : undefined
-      if (e) {
-        const from = e.confirmed ? e.start : e.end
-        put(from, persist, initialised)
-        pending.set(bar, { start: from, prior: e })
-      } else if (forming === true && bar === n - 1) {
-        pending.set(bar, { start: snap(persist, initialised), prior: null })
-      }
+      const d = decisions.get(bar)
+      if (!d) return
+      if (d.from === 'snap') { pending.set(bar, { d, start: snap(persist, initialised) }); return }
+      put(d.from, persist, initialised)
+      pending.set(bar, { d, start: d.from })
     },
     barEnd(bar, persist, initialised) {
       const p = pending.get(bar)
@@ -814,15 +888,13 @@ function realtimeRun(def, ctx, role, ir, source, rows, forming, lastConfirmed) {
     commit() {
       const add = []
       for (const [bar, p] of pending) {
-        // ⚠️ Neither line below is mutation-provable, and both say why. A replay of a closed bar
-        // would re-write the same `start` (it began FROM it) and an `end` no run reads (a closed
-        // bar is entered from `start`): skipping it only keeps the entry's eviction age. And
-        // `barEnd` follows every `barStart` that did not throw (a throw never commits), so an
-        // entry with no `end` cannot reach here today; if a VM change ever lets one, it is
-        // dropped rather than recorded as `end: undefined` (which would silently roll a `varip` back).
-        if (p.prior && p.prior.confirmed) continue
+        if (!p.d.record) continue
+        // ⚠️ Not mutation-provable: `barEnd` follows every `barStart` that did not throw (a throw
+        // never commits), so an entry with no `end` cannot reach here today; if a VM change ever
+        // lets one, it is dropped rather than recorded as `end: undefined` (which would silently
+        // roll a `varip` back).
         if (!('end' in p)) continue
-        add.push([rows[bar].t, { start: p.start, end: p.end, confirmed: bar <= lastConfirmed }])
+        add.push([rows[bar].t, { start: p.start, end: p.end, ...p.d.record }])
       }
       if (!add.length) return
       const into = ledger || { bars: new Map() }
@@ -894,6 +966,8 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
   const recorder = !reused && sessionKey && rows.length ? buildRecorder() : null
   const built = reused ? { ok: true, ir: { ...prevSession.build.ir, columns: reused } } : buildRuntimeIr(String(compute.source || ''), {
     ...(recorder ? { columnInterpret: recorder.interpret } : {}),
+    // ⭐ P3 WS-F (review M3) — a `varip` builds only where its ledger runs: a run with a session
+    ...(sessionKey ? { realtimeLedger: true } : {}),
     bars: rows,
     // ⭐ UIE PHASE 2 (M4) — the member's own settings (`runtimeInputs.js`): only the
     // values that differ from the author's defaults, refused by name outside the
