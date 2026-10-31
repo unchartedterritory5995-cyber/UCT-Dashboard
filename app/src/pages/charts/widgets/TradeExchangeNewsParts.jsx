@@ -410,8 +410,9 @@ function placeAbove(anchorEl, hostEl, width) {
   return { bottom: Math.max(4, h.bottom - a.top + 4), left }
 }
 
-/** A month of days. Future dates and dates before retention are disabled and say
- *  why; a dot marks a retained date with headlines (only what the server reports). */
+/** A month of days. Future dates and dates before the archive began are disabled and
+ *  say why; a dot marks an archived date with headlines (only what the server reports).
+ *  The archive is permanent: nothing in it ever ages out. */
 export function CalendarPopover({ selected, meta, anchorEl, hostEl, themeVars, onPick, onClose }) {
   const boxRef = useRef(null)
   const onKey = usePopover(boxRef, anchorEl, onClose)
@@ -453,9 +454,9 @@ export function CalendarPopover({ selected, meta, anchorEl, hostEl, themeVars, o
           const st = dayStatus(key, meta)
           const off = st.kind === 'future' || st.kind === 'unretained'
           const title = st.kind === 'future' ? 'In the future'
-            : st.kind === 'unretained' ? 'Not retained: UCT keeps about 7 days of headlines'
+            : st.kind === 'unretained' ? 'Before the UCT News archive began'
               : st.kind === 'news' ? `${formatNumber(st.count, { decimals: 0 })} headline${st.count === 1 ? '' : 's'}`
-                : st.kind === 'empty' ? 'No headlines retained for this date' : ''
+                : st.kind === 'empty' ? 'No headlines on this date' : ''
           return (
             <button key={key} type="button" data-day={key} role="gridcell" disabled={off}
               tabIndex={key === focus ? 0 : -1} aria-selected={key === selected} aria-label={`${dayLabel(key, meta?.today)}${title ? `. ${title}` : ''}`}
@@ -471,7 +472,7 @@ export function CalendarPopover({ selected, meta, anchorEl, hostEl, themeVars, o
       </div>
       {meta?.first_day && (
         <div className={styles.menuNote}>
-          History from {dayLabel(meta.first_day, meta.today)}{meta.first_day_partial ? ' (partial day)' : ''} · about 7 days are kept
+          Archive from {dayLabel(meta.first_day, meta.today)}{meta.first_day_partial ? ' (began mid-day)' : ''} · every headline is kept
         </div>
       )}
     </div>

@@ -142,6 +142,20 @@ export function fillTransparencyStamp(plot) {
   return (typeof s.value === 'number' && Number.isFinite(s.value)) ? s : null
 }
 
+/** ⛔⛔ AN EDITED BAND LOSES ITS STAMP. The stamp is what lets a later door upgrade a
+ *  band's `fillOpacity` — so once a member has chosen an opacity (the Builder, the
+ *  conversational model, any editor), the stamp must not survive the save, or a future
+ *  door could recognise the member's value as "the old door's own" and replace it.
+ *  Every editor that carries `plots[].fillTransparency` from the stored document onto
+ *  the one it rebuilt asks THIS, with the band before and after the edit (a stored plot
+ *  or a row — both name the band `fill` and its opacity `fillOpacity`): the stamp rides
+ *  on only while the band still exists and its opacity is exactly what it was. */
+export const FILL_STAMP_FIELD = 'fillTransparency'
+export function fillStampSurvivesEdit(before, after) {
+  if (!isObj(before) || !isObj(after) || !isObj(after.fill)) return false
+  return Object.is(before.fillOpacity, after.fillOpacity)
+}
+
 /** The script's version as the document states it: an integer, or null for an
  *  unversioned script. `undefined` when the document does not state it at all. */
 export function stampedPineVersion(def) {
