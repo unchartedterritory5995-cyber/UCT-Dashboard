@@ -14,7 +14,7 @@ import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 import { translatePine, REFUSALS, PER_ROW_PROMISE_GUARDS } from './pine.js'
-import { buildRuntimeIr, RUNTIME_LANE_REFUSALS } from './pineRuntimeFrontend.js'
+import { buildRuntimeIr, RUNTIME_LANE_REFUSALS, RUNTIME_REFUSALS } from './pineRuntimeFrontend.js'
 import { paneGate, paneCanRender, PANE_LANE } from './paneGate.js'
 import { runtimeClockOpts } from './pineRuntimeClock.js'
 
@@ -172,7 +172,9 @@ plot(ta.sma("ab", 5))
     expect(r.ok).toBe(false)
     expect(r.refusal.guard).toBe('runtime:loop')
     expect(RUNTIME_LANE_REFUSALS['runtime:loop']).toBeUndefined()
-    expect(r.refusal.message).toContain('the runtime has no iteration yet')
+    // ⭐ P3 WS-A — DERIVED FROM THE TABLE, not retyped: the sentence was stale
+    // ("no iteration yet") and was rewritten; the property is "its OWN sentence".
+    expect(r.refusal.message).toContain(RUNTIME_REFUSALS['runtime:loop'])
   })
 })
 

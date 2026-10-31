@@ -172,11 +172,18 @@ const MUTATOR_OPS = Object.freeze(new Set(['+', '-', '*', '/', '%']))
 export const RUNTIME_FRONTEND_LANGUAGE = 'pine'
 export const RUNTIME_FRONTEND_VERSION = 1
 
+// ⭐⭐ P3 WS-A — FIVE SENTENCES HERE WERE STALE, each saying a capability did not
+// exist that this lane has had for months (`for`/`while`, call frames, tuples,
+// arrays, effect statements). A member reads them only through the host's
+// sentence, but diagnostics and the census do, and *"the runtime has no call
+// frames yet"* about a lane with per-call-site frames sends a reader to build
+// what is built. Each now names the PART that is refused. ⛔ Map a refusal BY ITS
+// GUARD, never by this prose (PHASE3-RUNTIME-PLAN.md 3.6 item 6).
 export const RUNTIME_REFUSALS = Object.freeze({
-  'runtime:loop': 'a loop — the runtime has no iteration yet',
-  'runtime:function': 'a user-defined function — the runtime has no call frames yet',
-  'runtime:tuple': 'a tuple — the runtime has no multiple-value form yet',
-  'runtime:array': 'an array or collection operation — the runtime has no collections yet',
+  'runtime:loop': 'a loop in a form this lane does not iterate — `for … in` over the elements of a collection',
+  'runtime:function': 'a user-defined function in a shape this lane does not compile, or whose result it cannot read here',
+  'runtime:tuple': 'a multiple-value form in a position this lane does not read — a tuple is unpacked by `[a, b] = …` or returned by a function',
+  'runtime:array': 'a collection operation this lane does not implement — `matrix.*`, `map.*` or an `array.*` member it lacks',
   'runtime:object-op': 'a graphical-object operation — these belong to the object program, not the value runtime',
   // ⭐ C18 — a drawing value asked for AT a statement (`objectTreesAt`) that has
   // no single value a bar there, or that the walk never reaches.
@@ -215,7 +222,7 @@ export const RUNTIME_REFUSALS = Object.freeze({
     'history over a FUNCTION-LOCAL value — the ring needs a per-call-site base the way '
     + 'persistent state already has one, and Pine\'s semantics for a call site that is '
     + 'skipped on a bar are not yet vendor-pinned',
-  'runtime:expression-statement': 'an expression evaluated for effect — nothing in this runtime has an effect yet',
+  'runtime:expression-statement': 'an expression evaluated for its effect that this lane does not run as a statement',
   // ⭐⭐ SPLIT IN 2E, BECAUSE THE MEASUREMENT SAID IT WAS THREE THINGS (§29).
   // `runtime:call-with-state` was the top blocker at 15 and named `na`, `nz`,
   // `math.max`, `int` and `str.upper` in the same breath as `ema` and
@@ -257,7 +264,9 @@ export const RUNTIME_REFUSALS = Object.freeze({
     'an input whose DEFAULT or BOUNDS read a mutable variable — an input is settled '
     + 'once, before bar 0, so both have to be fixed when the script is written',
   'runtime:operator': 'an operator the runtime has no instruction for',
-  'runtime:switch': 'a switch — the runtime has no multi-way branch yet',
+  // ⭐ P3 WS-A — a `switch` lowers in every position now (value, `:=`, `var`,
+  // tuple, statement); the guard is kept so a stored refusal still names itself.
+  'runtime:switch': 'a `switch` in a shape this lane does not lower',
   'runtime:varip': 'varip — intrabar persistence, which a closed-bar runtime cannot reproduce',
   // ⭐⭐ THE FAMILY SURVIVES THE CAPABILITY, exactly as `runtime:fill-target`
   // does above. A `type Foo` declaration, `Foo.new(…)`, a field read and a
@@ -6232,79 +6241,264 @@ function buildRuntimeIrLinked(source, opts, holder) {
    *  second-authority defect this engine has paid for repeatedly — RC-F is the
    *  standing example, where a mutation SURVIVED because one rule had been
    *  written twice (`lesson_a_guard_repeated_is_a_guard_unproved`). */
-  /** ⭐ C18 — `var`/`varip` open state, never an arm-local binding. */
-  const STATE_WORDS_ARM = new Set(['var', 'varip'])
-  const armAssignerFor = (slot, label, parentScope) => (sub, atTok) => {
-    const lines = sub || []
-    if (!lines.length) {
+  /** ⭐⭐ P3 WS-A — AN ARM IS A WHOLE BLOCK, AND ITS VALUE IS ITS LAST STATEMENT'S.
+   *
+   *  Pine's rule for an `if` or `switch` used as a value (Pine v5/v6 reference,
+   *  "if": the value of the last expression of the local block): the arm's
+   *  statements RUN, in order, in the arm's own scope, and the arm yields the
+   *  value of the last one. ⚰️ This lane used to serve only an arm made of
+   *  arm-local declarations followed by one expression, and refused the rest as
+   *  `runtime:block-value` "must be one expression" — a write to an OUTER name
+   *  (`y := 1`), a call made for its effect, a `var`, or a nested block in front
+   *  of the value. Those are ordinary statements this lane already lowers in
+   *  every other list, and they run here exactly as there: in order, before the
+   *  value. The columnar `foldIfChain` question the old limit deferred to does
+   *  not arise — the host refuses every multi-statement arm (`pine:block`), so
+   *  nothing is answered by both lanes.
+   *
+   *  The LAST statement (an `if … else …` chain is one statement):
+   *   · an expression → its value (a bracket list `[a, b]` is a tuple);
+   *   · an `if` chain or a `switch` block → its value, through this same rule;
+   *   · a binding, a `:=`, a compound assignment or a destructuring → the value
+   *     it bound (the function-body rule, §16, so the two positions agree);
+   *   · a loop, a void call (`array.push`, `runtime.error`), a drawing, or a call
+   *     to a function that is itself valueless → NO value. In a function body
+   *     that makes the function valueless (C18: a call that READS it refuses by
+   *     name at the call site, a call on a line of its own is served); anywhere
+   *     a value is read it refuses by name.
+   *
+   *  A SINK is where the value goes: one slot, or one slot per tuple element. */
+  const valueSinkOf = (target) => (target && Array.isArray(target.slots)
+    ? target : { slots: Array.isArray(target) ? target : [target] })
+  const seedSink = (sink) => sink.slots.map((s) => assign(s, naValue()))
+  /** where the LAST statement of a list starts — an `if … else …` chain (or a
+   *  binding whose value is one) occupies several entries. */
+  const lastStatementAt = (lines) => {
+    let k = lines.length - 1
+    while (k > 0 && blockKeywordOf(lines[k]) === 'else') k -= 1
+    return k
+  }
+  const arityOfLowered = (e) => {
+    if (!e) return 1
+    if (e.kind === EXPR.TUPLE) return e.elements.length
+    if (e.kind === EXPR.REQUEST) return e.results
+    if (e.kind === EXPR.CALL) return (functions[e.fn] && functions[e.fn].returns) || 1
+    return 1
+  }
+  const isCompoundTok = (x) => x.kind === 'punct' && x.value.length === 2 && x.value.endsWith('=')
+    && MUTATOR_OPS.has(x.value[0])
+  /** a header that BINDS: `x = e`, `var x = e`, `x := e`, `x += e`, `[a, b] = e`. */
+  const isBindingHeader = (t) => {
+    if (!t || !t.length) return false
+    if (isPunct(t[0], '[')) {
+      const close = t.findIndex((x) => isPunct(x, ']'))
+      return close > 0 && isPunct(t[close + 1], '=')
+    }
+    if (findTop(t, (x) => isPunct(x, ':=')) > 0) return true
+    if (findTop(t, isCompoundTok) > 0) return true
+    const eq = findTop(t, (x) => isPunct(x, '='))
+    return eq > 0 && !!boundName(t, eq)
+  }
+  /** the value(s) a binding header bound, read AFTER it was lowered in `scope`;
+   *  null when it bound nothing this lane can read back (a field write). */
+  const boundValuesOf = (t, scope) => {
+    const nameNode = (nt) => ({ type: 'name', name: nt.value, tok: nt })
+    if (isPunct(t[0], '[')) {
+      const close = t.findIndex((x) => isPunct(x, ']'))
+      return t.slice(1, close).filter((x) => x.kind === 'ident')
+        .map((nt) => lowerExpr(nameNode(nt), scope))
+    }
+    let nameTok = null
+    const walrus = findTop(t, (x) => isPunct(x, ':='))
+    const compound = findTop(t, isCompoundTok)
+    if (walrus > 0) nameTok = t[walrus - 1]
+    else if (compound > 0) nameTok = t[compound - 1]
+    else {
+      const eq = findTop(t, (x) => isPunct(x, '='))
+      nameTok = eq > 0 ? boundName(t, eq) : null
+    }
+    if (!nameTok || nameTok.kind !== 'ident' || String(nameTok.value).indexOf('.') >= 0) return null
+    return [lowerExpr(nameNode(nameTok), scope)]
+  }
+  /** a statement that ends a block with NO value: its name, or null. */
+  const valuelessEndOf = (ln) => {
+    const w = blockKeywordOf(ln)
+    if (w === 'for' || w === 'while') return 'loop'
+    const h = (ln && ln.header) || []
+    if (w !== null && Object.prototype.hasOwnProperty.call(ARRAY_FNS, w) && isVoid(w)
+        && isPunct(h[1], '(')) return w
+    // ⛔ A DRAWING IS NOT HERE ON PURPOSE: `label.new(…)` HAS a value (an id),
+    // and a function whose arms ALL end in a drawing the object pass owns is
+    // made valueless by `endsInOwnedDrawing` before this rule is asked. One arm
+    // that ends in a drawing beside one that yields a number is lowered as a
+    // value, and the drawing refuses by its own name (`runtime:object-op`).
+    return null
+  }
+  const valuelessWords = (end) => (end === 'loop' ? 'a loop'
+    : end === 'drawing' ? 'a drawing' : `\`${end}(…)\``)
+  /** `vstate.allow` — a function body: a valueless end makes the FUNCTION
+   *  valueless. Anywhere else the value is read, so it refuses by name. */
+  const noteValueless = (vstate, end, label, at) => {
+    if (!vstate || !vstate.allow) {
+      note('runtime:block-value')
+      throw new RuntimeRefusal('runtime:block-value',
+        `a branch of \`${label}\` ends in ${valuelessWords(end)}, which has no value to yield`, at)
+    }
+    vstate.valueless = true
+    if (!vstate.end) vstate.end = end
+  }
+  const lowerBlockValue = (lines0, scope, sink, label, atTok, vstate) => {
+    const lines = splitStatementCommas(lines0)
+    if (!lines || !lines.length) {
       throw new RuntimeRefusal('runtime:block-value',
         `\`${label}\` has a branch with no value`, locate(atTok))
     }
-    const armScope = new Scope(parentScope)
-    // ⭐⭐ C18 — AN ARM IS A BLOCK, AND ITS VALUE IS ITS LAST STATEMENT'S (Pine
-    // §16): the statements before it run in order in the ARM's own scope (a
-    // `d1 = …` there is local to the arm, as Pine scopes it), and the last is
-    // either a bare expression or a NESTED `if` chain, whose value — through this
-    // same assigner — is the arm's. A nested chain with no `else` that matches
-    // nothing is `na` (it is seeded so, explicitly, rather than inheriting
-    // whatever the slot held). max-pain's `round_strike` and `bs_gamma_simple`
-    // are both written this way.
-    // ⛔ A LAST STATEMENT THAT IS A BINDING, OR ANY OTHER BLOCK, still refuses by
-    // name: what Pine answers as the value of a declaration line is not a shape
-    // any script here needs, and it is not guessed.
-    // ⛔ AND THE STATEMENTS BEFORE IT MAY ONLY DECLARE ARM-LOCAL NAMES (`d1 = …`).
-    // A write to an OUTER name mid-arm (`y := 1`), a call made for its effect or a
-    // block keeps the stated limit — what the value walk's `foldIfChain` does
-    // with such a write is its own measurement, and this lane does not answer it
-    // differently from that one.
-    const armLocalDecl = (ln) => {
-      const t = (ln && ln.header) || []
-      if (!t.length || (ln.sub && ln.sub.length)) return false
-      if (findTop(t, (x) => isPunct(x, ':=')) >= 0) return false
-      if (findTop(t, (x) => x.kind === 'punct' && x.value.length === 2 && x.value.endsWith('=')
-        && MUTATOR_OPS.has(x.value[0])) >= 0) return false
-      const eq = findTop(t, (x) => isPunct(x, '='))
-      return eq > 0 && !!boundName(t, eq) && !(t[0].kind === 'ident' && STATE_WORDS_ARM.has(t[0].value))
+    const h = lastStatementAt(lines)
+    const head = lines[h]
+    const ht = head.header || []
+    const hw = blockKeywordOf(head)
+    const at = locate(ht[0] || atTok)
+    // ⭐ THE STATEMENTS IN FRONT RUN FIRST, in this scope, as any statement list.
+    const body = lowerStmts(lines.slice(0, h), scope)
+    const nested = armAssignerFor(sink, label, scope, vstate)
+    if (hw === 'if') {
+      // ⛔ `na` FIRST: a nested chain with no `else` that matches nothing is `na`.
+      body.push(...seedSink(sink))
+      body.push(lowerIfChainInto(lines, h, ht.slice(1), scope, nested).stmt)
+      return body
     }
-    let chainAt = -1
-    {
-      let k = lines.length - 1
-      if (blockKeywordOf(lines[k]) === 'if') chainAt = k
-      else if (blockKeywordOf(lines[k]) === 'else') {
-        while (k >= 0 && blockKeywordOf(lines[k]) === 'else') k -= 1
-        if (k >= 0 && blockKeywordOf(lines[k]) === 'if') chainAt = k
+    if (hw === 'switch' && h === lines.length - 1) {
+      body.push(...seedSink(sink))
+      for (const s of lowerSwitchInto(head.sub, ht.slice(1), scope, nested, label, ht[0])) body.push(s)
+      return body
+    }
+    const end = h === lines.length - 1 ? valuelessEndOf(head) : null
+    if (end) {
+      noteValueless(vstate, end, label, at)
+      for (const s of lowerStmts(lines.slice(h), scope)) body.push(s)
+      return body
+    }
+    if (isBindingHeader(ht)) {
+      for (const s of lowerStmts(lines.slice(h), scope)) body.push(s)
+      const vals = boundValuesOf(ht, scope)
+      if (!vals || vals.length !== sink.slots.length) {
+        throw new RuntimeRefusal('runtime:block-value',
+          vals ? `a branch of \`${label}\` ends in a line that binds ${vals.length} `
+            + `value${vals.length === 1 ? '' : 's'} where ${sink.slots.length} `
+            + `${sink.slots.length === 1 ? 'is' : 'are'} read`
+            : `a branch of \`${label}\` ends in a write this lane cannot read back as the branch's value`, at)
+      }
+      body.push(vals.length === 1 ? assign(sink.slots[0], vals[0]) : destructure(sink.slots, tuple(vals)))
+      return body
+    }
+    if (h !== lines.length - 1 || (head.sub && head.sub.length)) {
+      throw new RuntimeRefusal('runtime:block-value',
+        `a branch of \`${label}\` ends in a block this lane reads no value from`, at)
+    }
+    // ⭐ A CALL TO A USER FUNCTION may be valueless itself (it ends in a loop or a
+    // void call): then the branch is too, by the same rule.
+    const w = ht[0] && ht[0].kind === 'ident' ? String(ht[0].value) : null
+    if (w && isPunct(ht[1], '(') && isUserFn(w)) {
+      const callNode = parseWholeExpression(ht)
+      if (callNode && callNode.type === 'call') {
+        const lowered = lowerExpr(callNode, scope, { multi: true, effect: true })
+        const idx = fnByName.get(w)
+        const rec = idx === undefined ? null : functions[idx]
+        if (rec && rec.valueless) {
+          noteValueless(vstate, rec.valuelessEnd || 'loop', label, at)
+          body.push(exprStmt(lowered, rec.returns || 1))
+          return body
+        }
+        const gives = arityOfLowered(lowered)
+        const tupleShaped = !!(rec && rec.tupleResult)
+        if (gives !== sink.slots.length || (tupleShaped && sink.slots.length === 1)) {
+          throw new RuntimeRefusal('runtime:block-value',
+            `a branch of \`${label}\` yields ${gives} value${gives === 1 ? '' : 's'} where `
+            + `${sink.slots.length} ${sink.slots.length === 1 ? 'is' : 'are'} read`, at)
+        }
+        body.push(sink.slots.length === 1 ? assign(sink.slots[0], lowered) : destructure(sink.slots, lowered))
+        return body
       }
     }
-    const prefixOk = (upTo) => lines.slice(0, upTo).every(armLocalDecl)
-    if (chainAt >= 0 && !prefixOk(chainAt)) {
-      throw new RuntimeRefusal('runtime:block-value',
-        `a branch of \`${label}\` must be one expression, or arm-local declarations followed by `
-        + `one; this one spans ${lines.length} statements`, locate(atTok))
+    const node = parseWholeExpression(ht)
+    if (sink.slots.length === 1) {
+      body.push(assign(sink.slots[0], lowerExpr(node, scope)))
+      return body
     }
-    if (chainAt >= 0) {
-      const body = lowerStmts(lines.slice(0, chainAt), armScope)
-      body.push(assign(slot, naValue()))
-      body.push(lowerIfChainInto(lines, chainAt, lines[chainAt].header.slice(1), armScope,
-        armAssignerFor(slot, label, armScope)).stmt)
+    const lowered = node && node.type === 'collection' ? lowerResult(node, scope)
+      : lowerExpr(node, scope, { multi: true })
+    const gives = arityOfLowered(lowered)
+    if (gives !== sink.slots.length) {
+      throw new RuntimeRefusal('runtime:block-value',
+        `a branch of \`${label}\` yields ${gives} value${gives === 1 ? '' : 's'} where `
+        + `${sink.slots.length} are read`, at)
+    }
+    body.push(destructure(sink.slots, lowered))
+    return body
+  }
+  /** How many values a value-position block yields: a bracket list or a
+   *  destructuring at any leaf says so; otherwise one. */
+  const blockArityOf = (lines) => {
+    let n = 1
+    const leaf = (t) => {
+      if (!t || !t.length || !isPunct(t[0], '[')) return
+      let depth = 0
+      let count = 1
+      let close = -1
+      for (let k = 0; k < t.length && close < 0; k += 1) {
+        const x = t[k]
+        if (x.kind !== 'punct') continue
+        if (x.value === '(' || x.value === '[') depth += 1
+        else if (x.value === ')' || x.value === ']') { depth -= 1; if (depth === 0) close = k }
+        else if (x.value === ',' && depth === 1) count += 1
+      }
+      if (close < 0) return
+      if (close === t.length - 1 || isPunct(t[close + 1], '=')) n = Math.max(n, count)
+    }
+    const walk = (list) => {
+      if (!list || !list.length) return
+      const h = lastStatementAt(list)
+      const w = blockKeywordOf(list[h])
+      if (w === 'if') { for (let j = h; j < list.length; j += 1) walk(list[j].sub); return }
+      if (w === 'switch') {
+        for (const arm of list[h].sub || []) {
+          const ah = arm.header || []
+          const a = findTop(ah, (x) => isPunct(x, '=>'))
+          if (a >= 0 && ah.length > a + 1) leaf(ah.slice(a + 1))
+          else walk(arm.sub)
+        }
+        return
+      }
+      leaf(list[h].header)
+    }
+    walk(lines)
+    return n
+  }
+  /** a function body whose last statement the plain result path cannot read:
+   *  a binding whose value is a block, a destructuring, a compound assignment. */
+  const bodyNeedsBlockValue = (lines) => {
+    if (!lines || !lines.length) return false
+    const h = lastStatementAt(lines)
+    if (h < lines.length - 1) return true
+    const t = lines[h].header || []
+    if (isPunct(t[0], '[') && isBindingHeader(t)) return true
+    return findTop(t, isCompoundTok) > 0
+  }
+  const armAssignerFor = (target, label, parentScope, vstate = null) => {
+    const sink = valueSinkOf(target)
+    return (sub, atTok) => {
+      const lines = sub || []
+      if (!lines.length) {
+        throw new RuntimeRefusal('runtime:block-value',
+          `\`${label}\` has a branch with no value`, locate(atTok))
+      }
+      const armScope = new Scope(parentScope)
+      const body = lowerBlockValue(lines, armScope, sink, label, atTok, vstate)
+      // ⭐ REGISTERED so the object pass sees a value-position block exactly as it
+      // sees a statement one.
       objectBlocks.push({ scope: armScope, body })
       return body
     }
-    const last = lines[lines.length - 1]
-    const lt = last.header || []
-    const binds = findTop(lt, (t) => isPunct(t, '=') || isPunct(t, ':=')) >= 0
-      || findTop(lt, (t) => t.kind === 'punct' && t.value.length === 2 && t.value.endsWith('=')
-        && MUTATOR_OPS.has(t.value[0])) >= 0
-    if ((last.sub && last.sub.length) || binds || !lt.length || !prefixOk(lines.length - 1)) {
-      throw new RuntimeRefusal('runtime:block-value',
-        `a branch of \`${label}\` must be one expression, or arm-local declarations followed by `
-        + `one; this one spans ${lines.length} statements`, locate(atTok))
-    }
-    const body = lowerStmts(lines.slice(0, -1), armScope)
-    body.push(assign(slot, lowerExpr(parseWholeExpression(lt), armScope)))
-    // ⭐ REGISTERED so the object pass sees a value-position block exactly as it
-    // sees a statement one.
-    objectBlocks.push({ scope: armScope, body })
-    return body
   }
 
   /** ⭐⭐ AN `if` / `else if` / `else` CHAIN, COLLECTED AND NESTED — also once.
@@ -6390,7 +6584,30 @@ function buildRuntimeIrLinked(source, opts, holder) {
       `\`${nameTok.value}\` is reassigned before it is declared`, locate(nameTok))
   }
 
-  const lowerSwitchInto = (armLines, subjToks, scope, slot, mkArm, label, atTok) => {
+  /** ⭐⭐ P3 WS-A — ONE SWITCH LOWERING FOR EVERY POSITION. `mkArm(lines, atTok)`
+   *  lowers ONE arm and returns its statements: in a value position it is
+   *  `armAssignerFor` (the arm's value into the sink), in a statement position it
+   *  is a plain statement list. An inline arm (`"a" => x`) is a one-line block,
+   *  so it goes through the same `mkArm` as a block arm and the two cannot
+   *  answer differently.
+   *
+   *  ⭐ PINE EVALUATES THE SUBJECT ONCE. Each case compares against it, and a
+   *  subject holding a CALL re-lowered per case is a new call site per case —
+   *  a user function's `var` state, a carried `ta.*` over a mutable value or a
+   *  collection call would then run once per case tried, each site counting on
+   *  its own. So a subject with any call is evaluated once into a hidden slot
+   *  first; a subject made only of names, literals and operators is the same
+   *  program either way and is left as it was. */
+  const subjectCalls = (n, depth = 0) => {
+    if (!n || typeof n !== 'object' || depth > 64) return depth > 64
+    if (n.type === 'call' || n.type === 'method') return true
+    for (const v of Object.values(n)) {
+      if (Array.isArray(v)) { if (v.some((x) => subjectCalls(x && x.value !== undefined ? x.value : x, depth + 1))) return true }
+      else if (v && typeof v === 'object' && v !== n.tok && subjectCalls(v, depth + 1)) return true
+    }
+    return false
+  }
+  const lowerSwitchInto = (armLines, subjToks, scope, mkArm, label, atTok) => {
     // ── `name = switch …` ──
     //
     // ⭐ THE ARM GRAMMAR IS THE COLUMNAR LANE'S, not a second reading of it:
@@ -6401,34 +6618,36 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // which is how a switch expresses a condition ladder — and it is the
     // case that separates a real lowering from a constant fold, because a
     // subject that moves bar to bar cannot be folded at all.
-    const subject = subjToks.length ? parseWholeExpression(subjToks) : null
+    let subject = subjToks.length ? parseWholeExpression(subjToks) : null
+    const pre = []
+    if (subject && subjectCalls(subject)) {
+      const tmpName = `switch subject@${atTok && atTok.line}:${atTok && atTok.column}`
+      const tslot = scope.declare(tmpName, newSlot(tmpName, false))
+      if (holdsText(subject, scope)) slots[tslot].text = true
+      if (holdsColour(subject, scope)) slots[tslot].colour = true
+      pre.push(declare(tslot, lowerExpr(subject, scope)))
+      subject = { type: 'name', name: tmpName, tok: subjToks[0] }
+    }
     const cases = []
     let fallback = null
     for (const arm of (armLines || [])) {
       const at = findTop(arm.header, (t) => isPunct(t, '=>'))
       if (at < 0) {
         throw new RuntimeRefusal('runtime:block-value',
-          `an arm of \`${label} switch …\` has no \`=>\``, locate(arm.header[0]))
+          `an arm of \`${label ? `${label} ` : ''}switch …\` has no \`=>\``, locate(arm.header[0]))
       }
       const armRhs = arm.header.slice(at + 1)
-      // ⭐ AN INLINE `=>` VALUE IS ITS OWN SHAPE; A BLOCK ARM IS THE SHARED
-      // RULE. Routing the block case through `mkArm` is what keeps a
-      // `switch` arm and an `if` arm answering the same question the same
-      // way — it registers its own scope, so this site must not push again.
-      let body
-      if (armRhs.length) {
-        const armScope = new Scope(scope)
-        body = [assign(slot, lowerExpr(parseWholeExpression(armRhs), armScope))]
-        objectBlocks.push({ scope: armScope, body })
-      } else {
-        body = mkArm(arm.sub, arm.header[0])
-      }
+      // ⭐ AN INLINE `=>` ARM IS A ONE-LINE BLOCK, so it takes the shared rule
+      // too — `mkArm` registers its own scope, so this site must not push again.
+      const body = armRhs.length
+        ? mkArm([{ header: armRhs, body: [], sub: arm.sub || [] }], arm.header[at])
+        : mkArm(arm.sub, arm.header[0])
       if (at === 0) fallback = body
       else cases.push({ matchToks: arm.header.slice(0, at), body })
     }
     if (!cases.length && !fallback) {
       throw new RuntimeRefusal('runtime:block-value',
-        `\`${label} switch …\` has no arms`, locate(atTok))
+        `\`${label ? `${label} ` : ''}switch …\` has no arms`, locate(atTok))
     }
     let chain = fallback || []
     for (let k = cases.length - 1; k >= 0; k -= 1) {
@@ -6453,7 +6672,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
         : lowerExpr(match, scope)
       chain = [ifStmt(test, cases[k].body, chain)]
     }
-    return chain
+    return pre.concat(chain)
   }
 
   /** ⭐⭐ C18 — A VALUE READ WHERE A DRAWING STANDS (`opts.objectTreesAt`).
@@ -6558,10 +6777,67 @@ function buildRuntimeIrLinked(source, opts, holder) {
     }
   }
 
+  /** ⭐⭐ P3 WS-A — PINE'S COMMA STATEMENT SEPARATOR. One line may carry several
+   *  statements separated by `,` (`a := 1, b := 2`, `updateBox(s), updateBox(r)`,
+   *  `int d = na, d := switch …` with the `switch` arms beneath). They run left to
+   *  right, exactly as if written on separate lines; a block written beneath the
+   *  line belongs to its LAST statement.
+   *
+   *  ⛔ ONLY A TOP-LEVEL COMMA: never inside `( )` or `[ ]` (arguments, tuples,
+   *  destructurings) and never inside a generic's `< >` (`map.new<string, float>()`,
+   *  `array<int>`), which this reader tracks only where a type list can open — so
+   *  a comparison `a < b` is never mistaken for one. ⛔ A line holding a `=>` is a
+   *  definition or a `switch` arm and is left whole, as is a line with an empty
+   *  segment (`a, , b`, a trailing comma): not a statement list this reader can
+   *  name, so it keeps whatever refusal it had. */
+  const GENERIC_OPENER = /(^|\.)new(_\w+)?$|^(array|map|matrix)$/
+  const SEGMENT_OPENERS = new Set(['if', 'else', 'switch', 'for', 'while'])
+  const statementCommaParts = (st) => {
+    const t = st && st.header
+    if (!t || !t.length) return null
+    const parts = []
+    let depth = 0
+    let angle = 0
+    let start = 0
+    for (let k = 0; k < t.length; k += 1) {
+      const x = t[k]
+      if (x.kind !== 'punct') continue
+      if (x.value === '(' || x.value === '[') depth += 1
+      else if (x.value === ')' || x.value === ']') depth -= 1
+      else if (x.value === '<' && k > 0 && t[k - 1].kind === 'ident' && GENERIC_OPENER.test(String(t[k - 1].value))) angle += 1
+      else if (x.value === '>' && angle > 0) angle -= 1
+      else if (depth === 0 && x.value === '=>') return null
+      else if (depth === 0 && angle === 0 && x.value === ',') { parts.push(t.slice(start, k)); start = k + 1 }
+    }
+    if (!parts.length) return null
+    parts.push(t.slice(start))
+    if (!parts.every((p) => p.length)) return null
+    // ⛔ A BLOCK OPENS ONLY IN THE LAST SEGMENT (`pine.js::commaStatementSplit`'s
+    // rule): a block beneath `d := switch , e = 1` has no honest owner, so the
+    // line is left whole and keeps its own refusal.
+    const opens = (p) => p.some((x) => x.kind === 'ident' && SEGMENT_OPENERS.has(x.value))
+    return parts.slice(0, -1).some(opens) ? null : parts
+  }
+  const splitStatementCommas = (list) => {
+    let out = null
+    for (let k = 0; k < (list || []).length; k += 1) {
+      const st = list[k]
+      const parts = statementCommaParts(st)
+      if (parts && !out) out = list.slice(0, k)
+      if (parts) {
+        parts.forEach((header, j) => {
+          const lastPart = j === parts.length - 1
+          out.push({ header, body: lastPart ? (st.body || []) : [], sub: lastPart ? (st.sub || []) : [] })
+        })
+      } else if (out) out.push(st)
+    }
+    return out || list || []
+  }
+
   const lowerStmts = (list0, scope, rootHoist = false) => {
     // RT5: `label.delete(a[1]), line.delete(b[1])` is a line of STATEMENTS
     // (the host object lane's own split, `objectFnInline.splitCommaStatements`).
-    const list = objectsInRun ? splitDrawingCommas(list0) : list0
+    const list = splitStatementCommas(objectsInRun ? splitDrawingCommas(list0) : list0)
     const out = []
     const outerStmtSink = stmtHoistSink
     stmtHoistSink = null
@@ -6848,7 +7124,23 @@ function buildRuntimeIrLinked(source, opts, holder) {
       if (word === 'break') { out.push(breakStmt()); continue }
       if (word === 'continue') { out.push(continueStmt()); continue }
       if (BLOCK_WORDS.has(word)) { note('runtime:loop'); throw new RuntimeRefusal('runtime:loop', `\`${word}\``, locate(first)) }
-      if (word === 'switch') { note('runtime:switch'); throw new RuntimeRefusal('runtime:switch', null, locate(first)) }
+      // ⭐⭐ P3 WS-A — `switch` AS A STATEMENT. Pine runs the FIRST arm whose case
+      // matches (or the default) and no other; its value, if any, is discarded.
+      // Lowered by the value form's own `lowerSwitchInto`, with each arm a plain
+      // statement list in its own scope, so the two positions read one grammar.
+      if (word === 'switch') {
+        const stmtArm = (lines, atTok) => {
+          if (!lines || !lines.length) {
+            throw new RuntimeRefusal('runtime:statement', 'a `switch` arm with nothing to run', locate(atTok))
+          }
+          const armScope = new Scope(scope)
+          const body = lowerStmts(lines, armScope)
+          objectBlocks.push({ scope: armScope, body })
+          return body
+        }
+        for (const s of lowerSwitchInto(st.sub, toks.slice(1), scope, stmtArm, '', first)) out.push(s)
+        continue
+      }
 
       // ── a user function definition: `f(a, b) => …` ──
       {
@@ -6927,6 +7219,27 @@ function buildRuntimeIrLinked(source, opts, holder) {
         if (nameToks.length < 1) {
           throw new RuntimeRefusal('runtime:statement',
             'a destructuring binds at least one name', locate(first))
+        }
+        // ⭐⭐ P3 WS-A — `[a, b] = if …` / `[a, b] = switch …`: a TUPLE-valued
+        // block. Each arm yields as many values as the line unpacks (a bracket
+        // list, a call returning that many, a request of that many), through the
+        // one arm rule, into one slot per name; every name is `na` on a bar where
+        // no arm runs. ⛔ A count that differs refuses by name in the arm.
+        const tupBlk = toks[eqAt + 1]
+        if (tupBlk && tupBlk.kind === 'ident' && (tupBlk.value === 'if' || tupBlk.value === 'switch')) {
+          const tslots = nameToks.map((nt) => scope.declare(nt.value, newSlot(nt.value, false)))
+          for (const ts of tslots) out.push(declare(ts, naValue()))
+          const label = `[${nameToks.map((nt) => nt.value).join(', ')}] = ${tupBlk.value} …`
+          const mkArm = armAssignerFor({ slots: tslots }, label, scope)
+          if (tupBlk.value === 'if') {
+            const chain = lowerIfChainInto(list, i, toks.slice(eqAt + 2), scope, mkArm)
+            i = chain.next
+            out.push(chain.stmt)
+          } else {
+            for (const s of lowerSwitchInto(st.sub, toks.slice(eqAt + 2), scope, mkArm,
+              `[${nameToks.map((nt) => nt.value).join(', ')}] =`, tupBlk)) out.push(s)
+          }
+          continue
         }
         const rhs = parseWholeExpression(toks.slice(eqAt + 1))
         // ⛔ THE COUNT IS CHECKED WHERE IT IS KNOWN. A UDF's result count is
@@ -7100,7 +7413,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
             out.push(chain.stmt)
             continue
           }
-          const sw = lowerSwitchInto(st.sub, toks.slice(walrus + 2), scope, blkSlot, mkArm,
+          const sw = lowerSwitchInto(st.sub, toks.slice(walrus + 2), scope, mkArm,
             `${nameTok.value} :=`, blkHead)
           for (const st2 of sw) out.push(st2)
           continue
@@ -7178,29 +7491,20 @@ function buildRuntimeIrLinked(source, opts, holder) {
       }
 
       // ── `var name = expr` ──
-      if (word === 'var') {
+      // ⭐ P3 WS-A — `var x = if …` / `var x = switch …` is a BLOCK-VALUED
+      // binding with a once-only guard, and is lowered by that path below (it
+      // was refused here as `runtime:block-value` "no once-only guard yet").
+      // ⛔ CHECKED BEFORE `parseWholeExpression`, which would read the block as a
+      // single expression and refuse `pine:block`.
+      const varBlockValued = word === 'var' && (() => {
+        const e = findTop(toks, (t) => isPunct(t, '='))
+        const v = e > 0 ? toks[e + 1] : null
+        return !!(v && v.kind === 'ident' && (v.value === 'if' || v.value === 'switch'))
+      })()
+      if (word === 'var' && !varBlockValued) {
         const eq = findTop(toks, (t) => isPunct(t, '='))
         const nameTok = eq > 0 ? boundName(toks, eq) : null
         if (!nameTok) throw new RuntimeRefusal('runtime:statement', 'a `var` declaration needs a name and an initialiser', locate(first))
-        // ⚠️ `var x = if …` INITIALISES ONCE, AND THAT IS NOT A SLOT SEED.
-        // Pine evaluates a `var` initialiser on the first bar and KEEPS the
-        // value. Lowering the block like a plain binding would re-evaluate it
-        // every bar and silently make `var` mean nothing — worse than refusing,
-        // because nothing would look wrong. Serving it needs the once-only
-        // guard (`JUMP_IF_INIT`) around the whole chain, not a different seed.
-        //
-        // ⛔ CHECKED BEFORE `parseWholeExpression`, which is what produced the
-        // old sentence: `pine:block`, *"this engine stores a single
-        // expression"* — false about a lane that lowers the same block for a
-        // plain binding three lines down.
-        const varBlk = toks[eq + 1]
-        if (varBlk && varBlk.kind === 'ident'
-            && (varBlk.value === 'if' || varBlk.value === 'switch')) {
-          note('runtime:block-value')
-          throw new RuntimeRefusal('runtime:block-value',
-            `\`var ${nameTok.value} = ${varBlk.value} …\` initialises ONCE, and this `
-            + 'lane has no once-only guard around a block yet', locate(first))
-        }
         const value = parseWholeExpression(toks.slice(eq + 1))
         // ⭐ THE BOUND NAME IS STAMPED ONTO AN INPUT CALL, exactly as `pine.js`
         // does, because it is the KEY a member's saved value is stored under.
@@ -7328,12 +7632,15 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // ⛔ AND IT NO LONGER SAYS `pine:block`. That sentence — "this engine
         // stores a single expression" — is false about a lane that lowers the
         // same block one line above.
-        if (first.kind === 'ident' && (first.value === 'var' || first.value === 'varip')) {
-          note('runtime:block-value')
-          throw new RuntimeRefusal('runtime:block-value',
-            `\`${first.value} ${nameTok.value} = ${rhsHead.value} …\` initialises ONCE, `
-            + 'and this lane has no once-only guard around a block yet', locate(first))
-        }
+        // ⭐⭐ P3 WS-A — `var x = if …` / `var x = switch …` INITIALISES ONCE.
+        // Pine evaluates a `var` initialiser on the FIRST bar the declaration is
+        // reached and keeps the value; a block initialiser is no different. So
+        // the block is lowered exactly as the plain binding's, and wrapped in a
+        // once-only guard: a hidden persistent flag, itself a `var` (so its own
+        // `0` is stored once, by `JUMP_IF_INIT`), set on the pass that runs the
+        // block. Re-evaluating the block every bar would silently make `var`
+        // mean nothing. ⛔ `varip` never reaches here — refused at its own word.
+        const once = first.kind === 'ident' && first.value === 'var'
         const slot = scope.declare(nameTok.value, newSlot(nameTok.value, declarationPersists(toks)))
         // ⛔ `na` IS THE INITIAL VALUE AND IT IS LOAD-BEARING. It is what an
         // unmatched `if` with no else, and a `switch` with no default, must
@@ -7347,22 +7654,29 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // body cannot drift about what an arm yields or what a multi-statement
         // arm refuses. Its mutation proof breaks the shared helper and watches
         // every position go red at once.
-        const mkArm = armAssignerFor(slot, `${nameTok.value} = ${rhsHead.value} …`, scope)
+        const mkArm = armAssignerFor(slot, `${once ? 'var ' : ''}${nameTok.value} = ${rhsHead.value} …`, scope)
 
+        let blk
         if (rhsHead.value === 'if') {
           // ⭐ THE CHAIN IS `lowerIfChainInto`'S — collection, source-ordered
           // lowering and the nested-never-flattened shape all live there, shared
           // with the function-body form. This site owns only the loop index.
           const chain = lowerIfChainInto(list, i, toks.slice(eqBlk + 2), scope, mkArm)
           i = chain.next
-          out.push(chain.stmt)
+          blk = [chain.stmt]
+        } else {
+          // ⭐ THE SWITCH IS `lowerSwitchInto`'S — shared with the `:=` form.
+          blk = lowerSwitchInto(st.sub, toks.slice(eqBlk + 2), scope, mkArm,
+            `${nameTok.value} =`, rhsHead)
+        }
+        if (!once) {
+          for (const s of blk) out.push(s)
           continue
         }
-
-        // ⭐ THE SWITCH IS `lowerSwitchInto`'S — shared with the `:=` form.
-        const sw = lowerSwitchInto(st.sub, toks.slice(eqBlk + 2), scope, slot, mkArm,
-          `${nameTok.value} =`, rhsHead)
-        for (const s of sw) out.push(s)
+        const flagName = `var ${nameTok.value} initialised@${first.line}:${first.column}`
+        const flag = newSlot(flagName, true)
+        out.push(declare(flag, num(0)))
+        out.push(ifStmt(binary('==', read(flag), num(0)), [assign(flag, num(1)), ...blk], []))
         continue
       }
 
@@ -7914,20 +8228,37 @@ function buildRuntimeIrLinked(source, opts, holder) {
           record.valuelessEnd = endsInLoop(lines) ? null
             : (endsInOwnedDrawing(lines) ? 'drawing' : lastWord)
           result = naValue()
-        } else if (chainAt >= 0) {
-          body = lowerStmts(lines.slice(0, chainAt), fnScope)
+        } else if (chainAt >= 0 || (lastWord === 'switch' && !sw) || bodyNeedsBlockValue(lines, fnScope)) {
+          // ⭐⭐ P3 WS-A — THE BODY'S LAST STATEMENT IS A BLOCK (an `if` chain, a
+          // `switch`, a binding whose value is one) or a binding the plain path
+          // below cannot read back (a pure binding the resolver holds as an
+          // expression, a compound assignment, a destructuring): its value is
+          // `lowerBlockValue`'s — the rule every value position shares, one
+          // implementation. A TUPLE-valued block (`[a, b]` arms, a trailing
+          // `[x, y] = …`) yields one hidden slot per element.
           // ⛔ `na` IS THE SEED AND IT IS LOAD-BEARING. An `if` with no `else`
           // that does not match has NO value; seeding with 0, or with the
           // matched arm, hands a member a confident number for a branch their
-          // script never took. This is the binding form's rule because it is
-          // `armAssignerFor`'s rule — one implementation, three positions.
-          const vName = `__ifval_${fnIndex}`
-          const vSlot = fnScope.declare(vName, newSlot(vName, false))
-          body.push(declare(vSlot, naValue()))
-          const chain = lowerIfChainInto(lines, chainAt, lines[chainAt].header.slice(1),
-            fnScope, armAssignerFor(vSlot, `${nameTok.value}(…) => if …`, fnScope))
-          body.push(chain.stmt)
-          result = read(vSlot)
+          // script never took.
+          // ⭐ AN ARM THAT ENDS WITH NO VALUE (a loop, a void call, a drawing, a
+          // valueless helper) makes the function VALUELESS, the C18 rule: every
+          // statement runs, and a call that READS the result refuses by name.
+          const n = blockArityOf(lines)
+          const vSlots = []
+          for (let j = 0; j < n; j += 1) {
+            const vName = n === 1 ? `__ifval_${fnIndex}` : `__ifval_${fnIndex}_${j}`
+            vSlots.push(fnScope.declare(vName, newSlot(vName, false)))
+          }
+          const vstate = { allow: true, valueless: false, end: null }
+          const label = chainAt >= 0 ? `${nameTok.value}(…) => if …` : `${nameTok.value}(…) =>`
+          body = lowerBlockValue(lines, fnScope, { slots: vSlots }, label, nameTok, vstate)
+          if (vstate.valueless) {
+            record.valueless = true
+            record.valuelessEnd = vstate.end === 'loop' ? null : vstate.end
+            result = naValue()
+          } else {
+            result = n === 1 ? read(vSlots[0]) : tuple(vSlots.map((s) => read(s)))
+          }
         } else {
           body = lowerStmts(lines.slice(0, -1), fnScope)
           // ⭐ PINE RETURNS THE VALUE OF THE LAST STATEMENT (§16) — not an explicit
@@ -7941,11 +8272,18 @@ function buildRuntimeIrLinked(source, opts, holder) {
             body = body.concat(lowerStmts([last], fnScope))
             const bound = walrus > 0 ? lt[walrus - 1] : boundName(lt, eq)
             const slot = bound ? fnScope.lookup(bound.value) : null
-            if (slot === null) {
+            // ⭐ P3 WS-A — A PURE BINDING IS HELD AS AN EXPRESSION, not a slot (the
+            // hybrid decision in the binding path), and it is still the value the
+            // line bound: read it back by its name, as any later line would.
+            if (slot === null && bound && bound.kind === 'ident' && env.has(bound.value)
+                && String(bound.value).indexOf('.') < 0) {
+              result = lowerExpr({ type: 'name', name: bound.value, tok: bound }, fnScope)
+            } else if (slot === null) {
               throw new RuntimeRefusal('runtime:function',
                 'a body whose last statement binds nothing this front end can return', locate(nameTok))
+            } else {
+              result = read(slot)
             }
-            result = read(slot)
           } else {
             try {
               result = lowerResult(parseWholeExpression(lt), fnScope)
