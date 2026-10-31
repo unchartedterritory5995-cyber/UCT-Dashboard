@@ -10,6 +10,23 @@ gate, **Create new ▸ Indicator**, "Add to chart" binding gate, `__uctVH.captur
 `verify_capture.mjs --assemble`). No probe file exists yet for any row; each row names the probe it
 needs.
 
+## Already witnessed by an existing capture
+
+`tools/visual_conformance/probes/vw-time-tf.pine` row **T16** (`input.time(timestamp("18 May 2022
+00:00 +0000"))` at its default, as days) **MATCHes on all 9 captures the runtime lane now reaches**
+(SPY 1D full ×2, 1W ×2, 1M ×2, RDDT 1D, BITSTAMP:BTCUSD 1D, EURUSD 1D), measured by the runtime-on
+vendor harness on 2026-10-31. That settles an explicit `+0000` date string at its default. The rows
+below are what that capture does not cover.
+
+⚠️ The same probe's T01–T04 and T07–T09 now read **DIVERGE** on the runtime lane (they were
+INCONCLUSIVE, because the door refused the probe on `input.time`). They are not input kinds: the
+runtime lane draws `na` for `ta.change(time(tf)) != 0 ? 1 : 0` on the first bar(s) where
+TradingView draws 0 (reproduced on master with no `input.time` in the script), and draws `na` for
+`time("W"/"M"/"3M"/"12M")` on weekend-bar symbols where the host lane withholds
+(`time-anchor:weekend-bars`). Handed to WS-B (per-bar clock calls) and the `na`-logic owner.
+
+## Owed
+
 | id | probe (owed) | chart | what it settles | where the rule lives |
 |---|---|---|---|---|
 | Q-D1 | `vw-input-time-default.pine`: `t = input.time(timestamp("20 Feb 2020"))`, `plot(time >= t ? 1 : 0)` plus the same with `"20 Feb 2020 15:30"` and `"2020-02-20"` | SPY 1D and SPY 15 | a date string with **no zone** is read as GMT+0 (the reference's sentence), not the exchange's zone: the first bar plotting 1 | `runtimeInputs.js::timestampOfDateString`, `zoneMinutes` |
