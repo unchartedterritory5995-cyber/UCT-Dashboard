@@ -336,7 +336,8 @@ export function lowerIrProgram(ir, opts = {}) {
         // opcode needs the live value beside the ring; it pops both.
         expr(e.of)
         expr(e.back)
-        emit(OP.READ_HIST_SLOT_DYN, e.slot)
+        // WS-C: a DECLARED `max_bars_back` rides as the second operand (0 = Pine's ceiling).
+        emit(OP.READ_HIST_SLOT_DYN, e.slot, e.limit || 0)
         return
       }
       case EXPR.HIST_DYN: {
@@ -347,10 +348,10 @@ export function lowerIrProgram(ir, opts = {}) {
         if (e.of.kind === EXPR.SERIES) {
           const si = SERIES_NAMES.indexOf(e.of.name)
           if (si < 0) throw new LoweringGap('series', `\`${e.of.name}\``)
-          emit(OP.READ_SERIES_HIST_DYN, si)
+          emit(OP.READ_SERIES_HIST_DYN, si, e.limit || 0)
           return
         }
-        emit(OP.READ_HIST_DYN, e.of.index)
+        emit(OP.READ_HIST_DYN, e.of.index, e.limit || 0)
         return
       }
       case EXPR.BINARY: {

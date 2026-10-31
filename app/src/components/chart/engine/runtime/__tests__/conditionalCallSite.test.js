@@ -204,6 +204,37 @@ describe('✅ what was always right stays served', () => {
     const [e] = run('//@version=6\nindicator("t")\nplot(ta.sma(close, 3))\n', RDDT)
     expect(y).toEqual(e)
   })
+  // ⭐ A block whose test reads nothing per-bar (an input, a literal) runs on
+  // EVERY bar or on NONE, so its history IS the bar's: it is not conditional.
+  // The owner's own uncharted-volume picks its range smoother this way.
+  const E = () => run('//@version=6\nindicator("t")\nplot(ta.sma(close, 3))\n', RDDT)[0]
+  it('an `if` on an INPUT (bool, text) keeps the every-bar column', () => {
+    const [b] = run(head + 'on = input.bool(true, "on")\nif on\n    y := ta.sma(close, 3)\nplot(y)\n', RDDT)
+    expect(b).toEqual(E())
+    const [t] = run(head + 'm = input.string("SMA", "m", options = ["SMA", "EMA"])\n'
+      + 'if m == "EMA"\n    y := ta.ema(close, 3)\nelse if m == "SMA"\n    y := ta.sma(close, 3)\nplot(y)\n', RDDT)
+    expect(t).toEqual(E())
+  })
+  it('a `switch` on an input, with block arms, keeps the every-bar column', () => {
+    const [s] = run('//@version=6\nindicator("t")\nm = input.string("SMA", "m", options = ["SMA", "EMA"])\n'
+      + 'y = switch m\n    "EMA" =>\n        ta.ema(close, 3)\n    =>\n        ta.sma(close, 3)\nplot(y)\n', RDDT)
+    expect(s).toEqual(E())
+  })
+  it('… and a `switch` on a PER-BAR subject is a conditional region (served for `ta.sma`)', () => {
+    const [s] = run('//@version=6\nindicator("t")\n'
+      + 'y = switch close > open\n    true => ta.sma(close, 3)\n    => na\nplot(y)\n', RDDT)
+    expect(grade(RDDT, s, rowOf(RDDT, 2)).mismatched).toEqual([])
+  })
+  it('a function-body `if` on a text input is the call site\'s every call (uncharted-volume\'s f_getDailyData)', () => {
+    const src = '//@version=6\nindicator("t")\nm = input.string("RMA", "m")\n'
+      + 'f() =>\n    float r = na\n    if m == "RMA"\n        r := ta.rma(high - low, 3)\n    else\n        r := ta.sma(high - low, 3)\n    r\n'
+      + 'plot(f())\n'
+    expect(refusalOf(src)).toBeNull()
+  })
+  it('a binding made in one branch and read in a deeper one is refused, never re-stepped there', () => {
+    const r = refusalOf(head + 'if close > open\n    m = ta.sma(close, 3)\n    if volume > 0\n        y := m\nplot(y)\n')
+    expect(r && r.guard).toBe('runtime:conditional-history')
+  })
   it('a function with only body-local `[k]` called conditionally (held per site, vendor-pinned) still builds', () => {
     expect(refusalOf(head + 'h(s) =>\n    s[1]\nif close > open\n    y := h(close)\nplot(y)\n')).toBeNull()
   })

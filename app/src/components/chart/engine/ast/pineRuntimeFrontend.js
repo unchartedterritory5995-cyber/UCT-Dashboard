@@ -1526,6 +1526,44 @@ function buildRuntimeIrLinked(source, opts, holder) {
   // and its own measurements. Refused by name, never approximated.
   let condDepth = 0
   const slotDepth = []
+  // ⭐⭐ WS-C / R4 — HOW MANY ENCLOSING REGIONS RUN ON SOME BARS ONLY. Separate
+  // from `condDepth` (which RT5 and the slot ledger read unchanged): an arm
+  // whose test reads no per-bar value (an input, a literal) runs on EVERY bar or
+  // on NONE, so its history is the bar's and it does not count here. A loop
+  // always counts (`loopDepth`). `r4Region` names the region, so a binding made
+  // in one arm is never expanded in another.
+  let r4Cond = 0
+  let r4Region = 0
+  let r4RegionSeq = 0
+  const r4Level = () => r4Cond + loopDepth
+  /** Lower `fn()` inside a region that runs only when `invariant` is false. */
+  const inR4Region = (invariant, fn) => {
+    if (invariant) return fn()
+    const prev = r4Region
+    r4Cond += 1
+    r4Region = (r4RegionSeq += 1)
+    try { return fn() } finally { r4Cond -= 1; r4Region = prev }
+  }
+  /** Does this test read nothing that changes from bar to bar? Inputs, literals
+   *  and pointwise arithmetic over them, by the columnar resolver's own tree.
+   *  Anything it cannot resolve is NOT invariant (fails closed). */
+  const invariantTest = (test, scope) => {
+    if (!test || inRequestValue || readsSlot(test, scope)) return false
+    let c
+    try { c = makeResolver().resolve(test) } catch { return false }
+    const walk = (n, d = 0) => {
+      if (!n || typeof n !== 'object' || d > 64) return d <= 64
+      if (n.type === 'num') return true
+      if (n.type === 'series') return typeof n.inputName === 'string'
+      if (n.type === 'tf' || n.type === 'sym' || n.type === 'tf_live' || n.type === 'offset') return false
+      if (n.type === 'call') {
+        const spec = TABLE.functions[n.name]
+        if (!spec || !isPointwise(spec)) return false
+      }
+      return (n.args || []).every((a) => walk(a, d + 1))
+    }
+    return walk(c)
+  }
   // The chart's own series keep the chart's history everywhere (S01-S07, B02,
   // B03); `bar_index[k]` is the chart's in a global block (A13, C06) but the
   // CALL SITE's inside a function body (S02, B01, H05).
@@ -1622,7 +1660,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
   const r4Guard = (what, at) => {
     // ⛔ NOT inside a request's value: that expression is evaluated over the
     // REQUESTED symbol's own bars, as a series, wherever the call stands.
-    if (objectsInRun || condDepth <= 0 || inRequestValue) return
+    if (objectsInRun || r4Level() <= 0 || inRequestValue) return
     note('runtime:conditional-history')
     throw new RuntimeRefusal('runtime:conditional-history',
       `${what} inside a block, loop or function branch that does not run on every bar — `
@@ -1649,13 +1687,30 @@ function buildRuntimeIrLinked(source, opts, holder) {
   const fnAnyHistory = (fn) => !!(fn && (fn.rt5Lex || fn.rt5History || fn.anyHistoryCalls
     || (fn.historyLocals || []).length || (fn.windowLocals || []).length
     || (fn.carriedLocals || []).length || (fn.carried2Locals || []).length))
-  const bindingIsLocal = (b) => !!(b && b.kind === 'expr' && (b.depth > 0 || (b.owner !== null && b.owner !== undefined)))
+  // A binding made inside a conditional region (`r4 > 0`) belongs to that
+  // region: it is evaluated when the region runs, not on every bar.
+  // ⛔ A region-local binding READ in a DIFFERENT region (deeper, or a sibling)
+  // cannot be served by expanding it there: its history would step on the
+  // reader's runs instead of its own. Recorded here, refused by the caller.
+  let lexForeign = false
   const lexCondHistory = (n, depth = 0) => {
     if (!n || typeof n !== 'object' || depth > 48) return false
     if (Array.isArray(n)) return n.some((x) => lexCondHistory(x, depth + 1))
     if (n.type === 'name') {
       const b = env.get(n.name)
-      return bindingIsLocal(b) && lexCondHistory(b.node, depth + 1)
+      if (!b || b.kind !== 'expr') return false
+      if (b.r4 > 0) {
+        if (!lexCondHistory(b.node, depth + 1)) return false
+        if (b.r4 !== r4Level() || b.region !== r4Region) lexForeign = true
+        return true
+      }
+      // a function body's own top-level binding: the body's series, judged at
+      // its CALL SITES (`rt5Lex`) wherever in the body it is read
+      if (b.owner !== null && b.owner !== undefined && lexCondHistory(b.node, depth + 1)) {
+        if (r4Level() === 0) return true
+        if (!objectsInRun && owner !== null) functions[owner].rt5Lex = true
+      }
+      return false
     }
     if (n.type === 'call') {
       if (fnByName.has(n.name)) {
@@ -1666,7 +1721,14 @@ function buildRuntimeIrLinked(source, opts, holder) {
     if (n.type === 'offset') {
       const a = n.arg
       // a block's (or a body's) own expression one run back
-      if (a && a.type === 'name' && bindingIsLocal(env.get(a.name))) return true
+      const ab = a && a.type === 'name' ? env.get(a.name) : null
+      if (ab && ab.kind === 'expr') {
+        if (ab.r4 > 0) return true
+        if (ab.owner !== null && ab.owner !== undefined) {
+          if (r4Level() === 0) return true
+          if (!objectsInRun && owner !== null) functions[owner].rt5Lex = true
+        }
+      }
       // a call-owned `bar_index[k]` (C48 H05: the previous RUN's index)
       if (owner !== null && a && a.type === 'name' && a.name === 'bar_index') return true
     }
@@ -1700,7 +1762,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
   }
   const SERVED_COND = { sma: 'window', ema: 'carried' }
   const servedCondCall = (node, scope) => {
-    if (objectsInRun || owner !== null || loopDepth > 0 || condDepth <= 0) return null
+    if (objectsInRun || owner !== null || loopDepth > 0 || r4Level() <= 0) return null
     if (!node || node.type !== 'call' || fnByName.has(node.name)) return null
     const name = String(node.name || '')
     const bare = name.startsWith('ta.') ? name.slice(3) : (pineVersion < 5 ? name : null)
@@ -1747,6 +1809,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
       if (owner !== null) functions[owner].rt5History = true
       conditionalHistoryGuard('a series with history', at)
     }
+    // WS-C — a constant offset past Pine's history buffer, anywhere in the tree.
+    mbbCanonicalCheck(canonical, at)
     const key = JSON.stringify(canonical)
     if (columnByKey.has(key)) return columnByKey.get(key)
     let value
@@ -3963,7 +4027,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
     const h = owner !== null
       ? fnHistorySlotFor(owner, varSlot, depth, at)
       : historySlotFor(varSlot, depth, at)
-    return histSlotDyn(varSlot, h, lowerExpr(e, scope), depth)
+    return mbbDyn(histSlotDyn(varSlot, h, lowerExpr(e, scope), depth))
   }
 
   /** ⭐ Fold ONE parsed expression to a compile-time whole number, or refuse.
@@ -4471,9 +4535,11 @@ function buildRuntimeIrLinked(source, opts, holder) {
       // lowered per call site; a composite around one is lowered piece by piece
       // (each piece asks this question again); anything else is refused by name.
       // A function body's own history is recorded for its CALL SITES to judge.
-      const condHistory = !objectsInRun && (condDepth > 0 || owner !== null) && lexCondHistory(node)
+      lexForeign = false
+      const condHistory = !objectsInRun && (r4Level() > 0 || owner !== null) && lexCondHistory(node)
       if (condHistory && owner !== null) functions[owner].rt5Lex = true
-      if (condHistory && condDepth > 0) {
+      if (condHistory && r4Level() > 0) {
+        if (lexForeign) r4Guard('a series with history bound in another branch', locate(node.tok))
         const served = servedCondCall(node, scope)
         if (served) return served
         if (!condTransparent(node)) {
@@ -4891,6 +4957,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
             // ⭐ `e[0]` IS `e`. Routing it through the ring would answer with
             // the PREVIOUS bar — one bar wrong in the one case nobody checks.
             if (hb === 0) return read(hoisted.slot)
+            mbbStaticCheck(hb, at, 'an expression')
             slotHistoryGuard(hoisted.slot, at)
             return histSlot(hoisted.slot, historySlotFor(hoisted.slot, hb, at), hb)
           }
@@ -4911,6 +4978,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
           // answer with the PREVIOUS bar — one bar wrong in the one case nobody
           // would think to check.
           if (back === 0) return read(varSlot)
+          mbbStaticCheck(back, at, `\`${node.arg.name}\``)
           slotHistoryGuard(varSlot, at)
           // ⭐⭐⭐ P7.2 — FUNCTION-LOCAL HISTORY IS ALLOCATED PER FUNCTION HERE AND
           // MATERIALISED PER CALL SITE BELOW. The index carried on the node is
@@ -4938,13 +5006,17 @@ function buildRuntimeIrLinked(source, opts, holder) {
           // only `bar_index` changes meaning inside a function body (S02, B01).
           if (owner !== null && node.arg && node.arg.type === 'name' && node.arg.name === 'bar_index') {
             functions[owner].rt5History = true
+            // WS-C / R4: a call-owned `bar_index[k]` is the call site's (C48 H05).
+            if (!objectsInRun) functions[owner].rt5Lex = true
+            r4Guard('a call-owned `bar_index[…]`', offAt)
           }
-          return histDyn(column(columnOf(node.arg, offAt)), lowerExpr(offExpr, scope))
+          return mbbDyn(histDyn(column(columnOf(node.arg, offAt)), lowerExpr(offExpr, scope)))
         }
         const back = Number(node.n)
         if (!Number.isInteger(back) || back < 0) {
           throw new RuntimeRefusal('runtime:statement', 'a bar offset counts backwards in whole bars', locate(node.tok))
         }
+        mbbStaticCheck(back, locate(node.tok), node.arg && node.arg.type === 'name' ? `\`${node.arg.name}\`` : 'a series')
         return hist(column(columnOf(node.arg, locate(node.tok))), back)
       }
       case 'call': {
@@ -6073,6 +6145,125 @@ function buildRuntimeIrLinked(source, opts, holder) {
       && !!bound && bound.type === 'number' && Number(bound.value) === MAX_BARS_BACK_CEILING
   }
 
+  // ─── ⭐⭐ WS-C — PINE'S HISTORY BUFFER: A READ PAST IT IS AN ERROR, NOT `na` ──
+  //
+  // Pine keeps at most `max_bars_back` bars of history for a series: 5,000 at
+  // most, or the `max_bars_back = N` the declaration names (`indicator`,
+  // `study`, `strategy`), which sizes the buffer of every series. A read past
+  // the buffer STOPS the script on TradingView ("the requested historical offset
+  // is beyond the historical buffer's limit"); this lane used to answer it — a
+  // value from its own longer chart, or `na`. Now:
+  //   · a CONSTANT offset past the buffer refuses the build by name;
+  //   · an offset only known while the bar runs carries the buffer into the read
+  //     (`limit`, the opcode's second operand), and the VM stops the run there.
+  // ⚠️ A read before bar 0 that lies WITHIN the buffer is still `na`, as before.
+  // ⚠️ Pine's AUTOMATIC sizing (no declaration, a dynamic offset that grows after
+  // the first bars) can stop a script earlier than 5,000; not witnessed, so not
+  // modelled (capture queue `capture-queue-2026-10-31-wsc-history.md`).
+  // ⛔ `max_bars_back(x, n)` with n below 5,000 stays refused (`runtime:directive`):
+  // a per-series buffer would bound built-in windows over `x` too, unwitnessed.
+  const MBB_DECLARED = (() => {
+    let m = null
+    try { m = /\bmax_bars_back\s*=\s*(\d+)/.exec(strippedForScan(source)) } catch { m = null }
+    const n = m ? Number(m[1]) : NaN
+    return Number.isInteger(n) && n >= 1 && n < MAX_BARS_BACK_CEILING ? n : null
+  })()
+  const MBB_LIMIT = MBB_DECLARED || MAX_BARS_BACK_CEILING
+  const mbbRefusal = (back, at, what) => {
+    note('runtime:directive')
+    return new RuntimeRefusal('runtime:directive',
+      `${what}[${back}] reads past Pine's history buffer of ${MBB_LIMIT} bars `
+      + `(${MBB_DECLARED ? 'the declared `max_bars_back`' : 'its ceiling'}) — TradingView stops the script there`, at)
+  }
+  const mbbStaticCheck = (back, at, what) => {
+    if (Number.isInteger(back) && back > MBB_LIMIT) throw mbbRefusal(back, at, what)
+  }
+  const mbbCanonicalCheck = (n, at, depth = 0) => {
+    if (!n || typeof n !== 'object' || depth > 96) return
+    if (n.type === 'offset' && Number.isInteger(n.value) && n.value > MBB_LIMIT) throw mbbRefusal(n.value, at, 'a series')
+    for (const a of (n.args || [])) mbbCanonicalCheck(a, at, depth + 1)
+  }
+  // Only a DECLARED buffer rides the node; the ceiling is the VM's own constant.
+  const mbbDyn = (h) => (MBB_DECLARED ? { ...h, limit: MBB_DECLARED } : h)
+
+  // ─── ⭐⭐ WS-C — A v6 `for` RE-READS ITS `to` BOUND BEFORE EVERY PASS ─────────
+  //
+  // Pine v6 (migration guide, "dynamic `for` loop boundaries"): the `to` bound is
+  // evaluated before EACH iteration, where v5 fixed it on entry. This lane
+  // evaluates it once on entry (`forStmt`'s `toSlot`), which is exactly right
+  // whenever the body cannot change what the bound reads — and wrong when it
+  // can (`for i = 0 to array.size(a) - 1` over a body that removes from `a`).
+  // ⛔ SO A v6 BOUND THAT READS A NAME THE BODY WRITES IS REFUSED BY NAME. A
+  // name is WRITTEN when the body reassigns it (`:=`, `+=` …), changes it as a
+  // collection (`array.push(a, …)`, `a.remove(…)`), or hands it to a function of
+  // the script's own (which may do either). ⚠️ No capture witnesses the re-read
+  // yet (`capture-queue-2026-10-31-wsc-history.md`); refusing it can only move
+  // a script from a wrong answer to a named one.
+  const SIZE_WRITES = new Set(['push', 'pop', 'shift', 'unshift', 'insert', 'remove', 'clear', 'concat', 'splice'])
+  const VALUE_WRITES = new Set(['set', 'fill', 'sort', 'reverse'])
+  const v6ForBoundGuard = (toToks, sub, at) => {
+    if (!(pineVersion >= 6)) return
+    const reads = new Set()
+    // a name the bound reads ONLY as a collection's size (`a.size()`,
+    // `array.size(a)`) is unaffected by a write that keeps the size (`set`)
+    const sizeOnly = new Map()
+    for (let k = 0; k < toToks.length; k += 1) {
+      const t = toToks[k]
+      if (t.kind !== 'ident') continue
+      const v = String(t.value)
+      if (v === 'array.size' && isPunct(toToks[k + 1], '(') && toToks[k + 2] && toToks[k + 2].kind === 'ident') {
+        const r = String(toToks[k + 2].value).split('.')[0]
+        reads.add(r)
+        if (!sizeOnly.has(r)) sizeOnly.set(r, true)
+        k += 2
+        continue
+      }
+      const r = v.split('.')[0]
+      reads.add(r)
+      sizeOnly.set(r, v === `${r}.size` && sizeOnly.get(r) !== false)
+    }
+    if (!reads.size) return
+    const written = new Set()
+    const valueWritten = new Set()
+    const walk = (list) => {
+      for (const st of list || []) {
+        const h = st.header || []
+        for (let k = 0; k < h.length; k += 1) {
+          const t = h[k]
+          if (t.kind !== 'ident') continue
+          const v = String(t.value)
+          const nx = h[k + 1]
+          if (nx && nx.kind === 'punct' && (nx.value === ':=' || (nx.value.length === 2
+            && nx.value.endsWith('=') && MUTATOR_OPS.has(nx.value[0])))) written.add(v.split('.')[0])
+          const parts = v.split('.')
+          const isCall = nx && isPunct(nx, '(')
+          if (isCall && parts.length === 2 && (SIZE_WRITES.has(parts[1]) || VALUE_WRITES.has(parts[1]))) {
+            // `a.push(x)` (method form) and `array.push(a, x)` (namespace form)
+            const into = SIZE_WRITES.has(parts[1]) ? written : valueWritten
+            if (['array', 'matrix', 'map'].includes(parts[0])) {
+              const arg = h[k + 2]
+              if (arg && arg.kind === 'ident') into.add(String(arg.value).split('.')[0])
+            } else into.add(parts[0])
+          }
+          if (isCall && fnByName.has(v)) {
+            for (let j = k + 2; j < h.length && !isPunct(h[j], ')'); j += 1) {
+              if (h[j].kind === 'ident') written.add(String(h[j].value).split('.')[0])
+            }
+          }
+        }
+        walk(st.sub)
+      }
+    }
+    walk(sub)
+    const hit = [...reads].find((r) => written.has(r) || (valueWritten.has(r) && !sizeOnly.get(r)))
+    if (hit) {
+      note('runtime:loop')
+      throw new RuntimeRefusal('runtime:loop',
+        `a v6 \`for\` re-reads its \`to\` bound before every pass, and this bound reads \`${hit}\`, `
+        + 'which the loop body changes — this lane fixes the bound on entry', at)
+    }
+  }
+
   // ─── ⭐⭐ RT6 — A ROW'S PER-BAR COLOUR, COMPUTED BY THE SAME RUN ─────────────
   //
   // A runtime document computes each row's VALUE bar by bar; until RT6 it could
@@ -6392,17 +6583,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
    *  written twice (`lesson_a_guard_repeated_is_a_guard_unproved`). */
   /** ⭐ C18 — `var`/`varip` open state, never an arm-local binding. */
   const STATE_WORDS_ARM = new Set(['var', 'varip'])
-  // WS-C / R4: an arm runs only on the bars its test selects, and so does the
-  // expression that yields its value — which `lowerStmts` alone does not count
-  // (it lowers only the statements BEFORE that expression).
-  const armAssignerFor = (slot, label, parentScope) => {
-    const inner = armAssignerInner(slot, label, parentScope)
-    return (sub, atTok) => {
-      condDepth += 1
-      try { return inner(sub, atTok) } finally { condDepth -= 1 }
-    }
-  }
-  const armAssignerInner = (slot, label, parentScope) => (sub, atTok) => {
+  const armAssignerFor = (slot, label, parentScope) => (sub, atTok) => {
     const lines = sub || []
     if (!lines.length) {
       throw new RuntimeRefusal('runtime:block-value',
@@ -6507,11 +6688,16 @@ function buildRuntimeIrLinked(source, opts, holder) {
       finalElse = nxt
       break
     }
-    const lowered = arms.map((a) => ({
-      test: lowerExpr(parseWholeExpression(a.testToks), scope),
-      body: mkArm(a.from.sub, a.from.header[0]),
-    }))
-    let chain = finalElse ? mkArm(finalElse.sub, finalElse.header[0]) : []
+    // WS-C / R4: an arm counts as a conditional region unless every test up to
+    // and including its own reads nothing per-bar (`invariantTest`).
+    let allInv = true
+    const lowered = arms.map((a) => {
+      const t = parseWholeExpression(a.testToks)
+      const test = lowerExpr(t, scope)
+      allInv = allInv && invariantTest(t, scope)
+      return { test, body: inR4Region(allInv, () => mkArm(a.from.sub, a.from.header[0])) }
+    })
+    let chain = finalElse ? inR4Region(allInv, () => mkArm(finalElse.sub, finalElse.header[0])) : []
     for (let j = lowered.length - 1; j >= 0; j -= 1) {
       chain = [ifStmt(lowered[j].test, lowered[j].body, chain)]
     }
@@ -6572,12 +6758,26 @@ function buildRuntimeIrLinked(source, opts, holder) {
     const subject = subjToks.length ? parseWholeExpression(subjToks) : null
     const cases = []
     let fallback = null
+    // WS-C / R4: an arm is a conditional region unless the subject and every
+    // match up to its own read nothing per-bar (the fallback: every match).
+    const matchInv = (arm) => {
+      const at = findTop(arm.header, (t) => isPunct(t, '=>'))
+      if (at <= 0) return true
+      let m = null
+      try { m = parseWholeExpression(arm.header.slice(0, at)) } catch { m = null }
+      return !!m && invariantTest(m, scope)
+    }
+    const subjInv = !subject || invariantTest(subject, scope)
+    const allInv = subjInv && (armLines || []).every(matchInv)
+    let armInv = subjInv
     for (const arm of (armLines || [])) {
       const at = findTop(arm.header, (t) => isPunct(t, '=>'))
       if (at < 0) {
         throw new RuntimeRefusal('runtime:block-value',
           `an arm of \`${label} switch …\` has no \`=>\``, locate(arm.header[0]))
       }
+      if (at > 0) armInv = armInv && matchInv(arm)
+      const inv = at === 0 ? allInv : armInv
       const armRhs = arm.header.slice(at + 1)
       // ⭐ AN INLINE `=>` VALUE IS ITS OWN SHAPE; A BLOCK ARM IS THE SHARED
       // RULE. Routing the block case through `mkArm` is what keeps a
@@ -6586,10 +6786,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
       let body
       if (armRhs.length) {
         const armScope = new Scope(scope)
-        body = [assign(slot, lowerExpr(parseWholeExpression(armRhs), armScope))]
+        body = [assign(slot, inR4Region(inv, () => lowerExpr(parseWholeExpression(armRhs), armScope)))]
         objectBlocks.push({ scope: armScope, body })
       } else {
-        body = mkArm(arm.sub, arm.header[0])
+        body = inR4Region(inv, () => mkArm(arm.sub, arm.header[0]))
       }
       if (at === 0) fallback = body
       else cases.push({ matchToks: arm.header.slice(0, at), body })
@@ -6919,6 +7119,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // is not a Pine program), and must not outlive the loop.
         const fromIr = lowerExpr(parseWholeExpression(fromToks), scope)
         const toIr = lowerExpr(parseWholeExpression(toToks), scope)
+        v6ForBoundGuard(toToks, st.sub, locate(first))   // WS-C
         const stepIr = byToks ? lowerExpr(parseWholeExpression(byToks), scope) : num(1)
         const inner = new Scope(scope)
         const slot = inner.declare(nameTok.value, newSlot(nameTok.value, false))
@@ -7191,17 +7392,19 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // symbol nobody supplied walked straight past the guard that says so —
         // and the "with symbol / without symbol" pair read identically, which
         // is exactly the control `irSymbolFold` exists to be.
+        let allInv = true   // WS-C / R4 — see `invariantTest`
         const lowered = arms.map((a) => {
           const test = lowerExpr(a.test, scope)
+          allInv = allInv && invariantTest(a.test, scope)
           const armScope = new Scope(scope)
-          const body = lowerStmts(a.from.sub || [], armScope)
+          const body = inR4Region(allInv, () => lowerStmts(a.from.sub || [], armScope))
           objectBlocks.push({ scope: armScope, body })
           return { test, body }
         })
         let tail = []
         if (finalElse) {
           const elseScope = new Scope(scope)
-          tail = lowerStmts(finalElse.sub || [], elseScope)
+          tail = inR4Region(allInv, () => lowerStmts(finalElse.sub || [], elseScope))
           objectBlocks.push({ scope: elseScope, body: tail })
         }
         // ⛔ NESTED IFs, NEVER A FLATTENED CONDITION. `else if b` is not `if not a
@@ -7589,7 +7792,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // block would expand (and so evaluate) only on the bars the block runs.
         if (!mutable && !isCollection && !readsSlot(value, scope) && !holdsRunObject(value)
           && !topLevelHistory(value)) {
-          env.set(nameTok.value, { kind: 'expr', node: value, env: new Map(env), at: locate(nameTok), depth: condDepth, owner })
+          env.set(nameTok.value, { kind: 'expr', node: value, env: new Map(env), at: locate(nameTok), depth: condDepth, owner, r4: r4Level(), region: r4Region })
           continue
         }
         const slot = scope.declare(nameTok.value, newSlot(nameTok.value, declarationPersists(toks)))
@@ -7911,6 +8114,11 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // RT5: a body is judged at its CALL SITE; its own list starts at depth 0.
     const prevCondDepth = condDepth
     condDepth = -1
+    // WS-C: a body is judged at its CALL SITE, so its own regions start at 0.
+    const prevR4 = r4Cond
+    const prevRegion = r4Region
+    r4Cond = 0
+    r4Region = 0
     owner = fnIndex
     // ⛔ NO PARENT SCOPE. A Pine function cannot assign to a global, and reading
     // a global mutable slot from inside a frame would need a cross-frame address
@@ -8159,6 +8367,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
       guardOuter = prevGuard
       frameConsts = prevFrameConsts
       condDepth = prevCondDepth
+      r4Cond = prevR4
+      r4Region = prevRegion
     }
   }
 

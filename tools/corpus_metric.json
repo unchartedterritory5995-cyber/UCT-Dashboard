@@ -1,7 +1,7 @@
 {
   "measured_at": "2026-10-31",
   "scripts": 266,
-  "host_ok": 82,
+  "host_ok": 81,
   "screener_ok": 68,
   "threw": [],
   "rows": [
@@ -1240,9 +1240,11 @@
     },
     {
       "file": "macd-shortlong-strategy-for-tradingview-input-optimizer__59bb295a99.pine",
-      "host": true,
+      "host": false,
       "screener": false,
-      "hostGuards": [],
+      "hostGuards": [
+        "pine:timeout"
+      ],
       "screenerGuards": [
         "pine:declaration-strategy"
       ]
@@ -1323,7 +1325,7 @@
         "pine:reassign"
       ],
       "screenerGuards": [
-        "pine:reassign"
+        "pine:timeout"
       ]
     },
     {
