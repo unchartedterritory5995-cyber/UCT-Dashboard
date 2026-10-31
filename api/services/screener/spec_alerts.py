@@ -263,6 +263,17 @@ def run_nightly(*, deliver=None, snapshotter=None, routing=None) -> dict:
             snap = take_snapshot(sub_id, user_id, json.loads(spec_json),
                                  snapshotter=snapshotter)
             receipt["snapshots"] += 1
+            # ⛔ ACCOUNT DELETION mid-run: `subs` was read once, at the top. A subscription
+            # its member deleted since -- or whose member's account was deleted
+            # (alert_erasure) -- is neither diffed nor delivered, and the snapshot just
+            # written for it goes too (it would otherwise outlive its subscription,
+            # keyed by nothing a later purge can find).
+            with snapshot_db.connect() as conn:
+                if conn.execute("SELECT 1 FROM spec_alert_subs WHERE id=?",
+                                (sub_id,)).fetchone() is None:
+                    conn.execute("DELETE FROM spec_alert_snapshots WHERE sub_id=?", (sub_id,))
+                    receipt["vanished"] = receipt.get("vanished", 0) + 1
+                    continue
             if not snap["new"]:
                 receipt["same_session"] += 1
                 continue

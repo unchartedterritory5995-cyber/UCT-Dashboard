@@ -4870,6 +4870,130 @@
       }
     },
     {
+      "id": "pine_acos_of_the_body_share_of_the_range",
+      "source": "acos((close - open) / (high - low))",
+      "why": "(2026-10-30, Pine coverage Phase 1) Pine's `math.acos`. The argument is the candle body as a signed share of its range, which stays inside [-1, 1] and so exercises the real domain on every bar; a bar whose high equals its low divides by zero and is not computable in both lanes. Outside [-1, 1] TradingView answers `na`, which Python's `math.acos` would RAISE on rather than return -- `_guarded_acos` spells the domain, and `tests/test_ast_math_parity.py` drives both lanes over it.",
+      "ast": {
+        "type": "call",
+        "name": "acos",
+        "args": [
+          {
+            "type": "op",
+            "name": "/",
+            "args": [
+              {
+                "type": "op",
+                "name": "-",
+                "args": [
+                  {
+                    "type": "series",
+                    "name": "close"
+                  },
+                  {
+                    "type": "series",
+                    "name": "open"
+                  }
+                ]
+              },
+              {
+                "type": "op",
+                "name": "-",
+                "args": [
+                  {
+                    "type": "series",
+                    "name": "high"
+                  },
+                  {
+                    "type": "series",
+                    "name": "low"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "pine_alma_9_085_6",
+      "source": "alma(close, 9, 0.85, 6)",
+      "why": "(2026-10-30, Pine coverage Phase 1) Pine's `ta.alma` at its published defaults: TradingView's own `pine_alma` -- Gaussian weights centred at offset * (length - 1) with spread length / sigma, the OLDEST bar at weight index 0 -- written once per lane (`interpret.js::almaCol`, `ast_interpret._alma_col`). Pinned to the vendor separately by `pinePhase1Builtins.test.js` against `vw-alma-spy-1d-2026-09-27`.",
+      "ast": {
+        "type": "call",
+        "name": "alma",
+        "args": [
+          {
+            "type": "series",
+            "name": "close"
+          },
+          {
+            "type": "num",
+            "value": 9
+          },
+          {
+            "type": "num",
+            "value": 0.85
+          },
+          {
+            "type": "num",
+            "value": 6
+          }
+        ]
+      }
+    },
+    {
+      "id": "pine_percentile_nearest_rank_of_the_range",
+      "source": "percentileNearestRank(high - low, 20, 33)",
+      "why": "(2026-10-30, Pine coverage Phase 1) Pine's `ta.percentile_nearest_rank`: the value at ordinal rank ceil(percentage / 100 * n), so the answer is always one of the window's own values -- beside its linear sibling on the same tree, so the two rows differ exactly where interpolation lands between ranks. ⚠️ 33, not a round percentage: at 90% of 20 bars the ordinal rank is exactly 18, where ceil and floor agree and a lane that rounded the wrong way would keep this digest. `na` propagates (the sibling's published rule; this one's is not yet captured).",
+      "ast": {
+        "type": "call",
+        "name": "percentileNearestRank",
+        "args": [
+          {
+            "type": "op",
+            "name": "-",
+            "args": [
+              {
+                "type": "series",
+                "name": "high"
+              },
+              {
+                "type": "series",
+                "name": "low"
+              }
+            ]
+          },
+          {
+            "type": "num",
+            "value": 20
+          },
+          {
+            "type": "num",
+            "value": 33
+          }
+        ]
+      }
+    },
+    {
+      "id": "pine_rci_close_10",
+      "source": "rci(close, 10)",
+      "why": "(2026-10-30, Pine coverage Phase 1) Pine's `ta.rci`: Spearman's rank correlation between the bars' time order (newest = 1) and price order (highest = 1), x100. These 5-minute closes repeat prices often enough that the TIE rule (average rank) is exercised on many windows, so a lane that broke ties differently moves this digest.",
+      "ast": {
+        "type": "call",
+        "name": "rci",
+        "args": [
+          {
+            "type": "series",
+            "name": "close"
+          },
+          {
+            "type": "num",
+            "value": 10
+          }
+        ]
+      }
+    },
+    {
       "id": "pine_timenow_is_today_year_month_dayofmonth",
       "source": "year == lastbaryear && month == lastbarmonth && dayofmonth == lastbardayofmonth",
       "why": "TradingView's own live-wall-clock \"is_today\" idiom, measured verbatim across four real corpus scripts (chart-champions-part-1-npoc-levels-vwaps, initial-balance-ib-and-previous-day-week-high-low-close, mtf-key-levels-support-and-resistance, swing-points-and-liquidity-by-leviathan): `year == year(timenow) and month == month(timenow) and dayofmonth == dayofmonth(timenow)`. This engine's answer for `timenow` -- a live wall clock a static translator over an already-fetched bar array has no instant for -- is `lastbartime` and its calendar fields: the newest fetched bar's own values, broadcast to every bar, exactly `lastbarindex`'s own ruling applied to a calendar instead of a bar position. The divergence from genuine wall-clock semantics is real (a stale fetch reads `true` for its newest bar where live `timenow` would read `false`) and is disclosed at the binding (`indicators.js::CLOCK_LASTBAR_TIME`), not here.",

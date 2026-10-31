@@ -172,8 +172,12 @@ describe('⭐ ta.valuewhen is a declared, occurrence-indexed, namespace-routed f
       // earlier line is what the script reports first. The `pine:window` on
       // `ta.highest` (line 76) is still there behind it.
       ['smarter-snr__ac98ab25d5.pine', 'pine:builtin', /str\.length/],
-      ['support-and-resistance__1505.pine', 'pine:na', /fixnan/],
+      // ⚰️ `support-and-resistance__1505` sat here on `pine:na` (`fixnan`) until
+      // 2026-10-30: Pine coverage Phase 1 writes `fixnan(x)` as this very
+      // function, `valuewhenOccurrence(!na(x), x, 0)`, and it translates whole now.
     ]
+    expect(translatePine(fs.readFileSync(path.join(CORPUS, 'support-and-resistance__1505.pine'), 'utf8'),
+      { strict: true }).ok).toBe(true)
     for (const [file, guard, messagePattern] of stillBlocked) {
       const s = fs.readFileSync(path.join(CORPUS, file), 'utf8')
       const r = translatePine(s, { strict: true })
@@ -184,12 +188,15 @@ describe('⭐ ta.valuewhen is a declared, occurrence-indexed, namespace-routed f
     }
   })
 
-  it('⛔ CONTROL — a genuinely unimplemented function (ta.nvi) still refuses pine:function', () => {
-    const src = fs.readFileSync(
-      path.join(CORPUS, 'smart-money-volume-index-algoalpha__6663950b80.pine'), 'utf8')
+  it('⛔ CONTROL — a genuinely unimplemented function (ta.wad) still refuses pine:function', () => {
+    // ⚰️ (2026-10-30) this read `smart-money-volume-index-algoalpha`, whose first
+    // wall was `ta.nvi` — served on a pane since Pine coverage Phase 1 (`exp(cum(…))`,
+    // matched to TradingView in `pinePhase1Builtins.test.js`). `ta.wad` is still
+    // genuinely undeclared and unruled, so it is the control now.
+    const src = ['//@version=5', 'indicator("t")', 'plot(ta.wad)', ''].join(String.fromCharCode(10))
     const t = translatePine(src, { strict: true })
     expect(t.ok).toBe(false)
     expect(t.refusal.guard).toBe('pine:function')
-    expect(t.refusal.message).toMatch(/ta\.nvi/)
+    expect(t.refusal.message).toMatch(/ta\.wad/)
   })
 })

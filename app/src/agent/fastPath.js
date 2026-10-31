@@ -151,7 +151,9 @@ export function extractTarget(text, host = null) {
   const pl = PLURAL_RE.exec(s)
   if (pl) return { text: cut(s, pl), target: { plural: true } }
   const ord = host ? ordinalChart(s, host.charts?.list?.() || []) : null
-  if (ord) return { text: cut(s, ord.match), target: ord.ref ? { chart: ord.ref, word: ord.word } : { ask: ord.ask } }
+  // ⭐ PHASE 3: "add rsi to the first chart" — the preposition before the ordinal goes with it (as a position's does), so
+  // the clause left is "add rsi", not "add rsi to"
+  if (ord) return { text: cut(s, ord.match).replace(/\s+(?:on|to|onto|for|in|into)$/i, ''), target: ord.ref ? { chart: ord.ref, word: ord.word } : { ask: ord.ask } }
   const m = POS_RE.exec(s)
   if (m) {
     // ⭐ PHASE 2: "top left" / "upper right" (no hyphen) are the same position as "top-left"
@@ -236,6 +238,9 @@ function fastParseExact(text, { host = null, controlWords = true } = {}) {
 function controlWord(t) {
   // M3: "Actually, undo that last change." — a leading filler word never changes what Undo means
   const u = t.replace(/^(?:(?:actually|ok|okay|oops|wait|sorry|hmm|hm|ah|no),?\s+)+(?=(?:undo|revert|reverse|go back|put it back|take (?:that|it) back)\b)/, '')
+  // ⭐ PHASE 3: "undo all of that", "undo everything you just did", "take it all back" — EVERY change of the last request
+  // (useAgent undoTurn: newest first, each through the same Undo; it stops at the first one that can't be undone)
+  if (/^(?:undo|revert|reverse) (?:all (?:of )?(?:that|it|this|those|them|those changes|of those changes)|everything(?: (?:you|i) just (?:did|made|changed|asked for))?|that whole (?:thing|request|change|lot)|the whole (?:thing|request|lot)|all (?:the|those|your|my) (?:last )?changes)$|^take (?:it|that|them|everything) all back$|^take (?:everything|all of (?:that|it|them)) back$/.test(u)) return { kind: 'undo', all: true }
   if (/^(undo|undo (that|it|this|the last (one|change|action|thing))|(revert|reverse)( that| it| this)?|(undo|revert|reverse) (the |my )?last (one|change|action|thing)|go back|put it back|take (that|it) back)$/.test(u)) return { kind: 'undo' }
   // "undo that indicator removal", "undo the last hide", "undo removing that" — the same Undo (the
   // newest change); the noun only describes it, it never picks a different entry. ⛔ F14: a NAMED

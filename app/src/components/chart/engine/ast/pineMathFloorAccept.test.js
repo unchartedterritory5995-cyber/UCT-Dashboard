@@ -74,18 +74,21 @@ plot(math.floor(close / 3))
     expect(t.refusal.message).toMatch(/`rclose` is written at line \d+ by a statement this lane does not model/)
   })
 
-  it('⛔ CONTROL — a genuinely unimplemented function (ta.nvi) still refuses pine:function', () => {
+  it('⛔ CONTROL — a genuinely unimplemented function (ta.wad) still refuses pine:function', () => {
     // ⚰️ This used to name `heat-map-seasons__53acdf3223.pine` (`ta.correlation`)
     // — the CORRECT control at the time, and no longer one: `ta.correlation`
     // joined `BUILTIN_CALL_TREE` (2026-09-20, `pine.expansions.test.js`) as an
     // exact covariance/stdev identity, and that script now fully translates
-    // (`ok: true`, 35/266 host — see corpusMetric). `ta.nvi` remains genuinely
+    // (`ok: true`, 35/266 host — see corpusMetric). `ta.nvi` then remained genuinely
     // undeclared, so it is the control now.
-    const src = fs.readFileSync(
-      path.join(CORPUS, 'smart-money-volume-index-algoalpha__6663950b80.pine'), 'utf8')
+    // ⚰️ (2026-10-30) this read `smart-money-volume-index-algoalpha`, whose first
+    // wall was `ta.nvi` — served on a pane since Pine coverage Phase 1 (`exp(cum(…))`,
+    // matched to TradingView in `pinePhase1Builtins.test.js`). `ta.wad` is still
+    // genuinely undeclared and unruled, so it is the control now.
+    const src = ['//@version=5', 'indicator("t")', 'plot(ta.wad)', ''].join(String.fromCharCode(10))
     const t = translatePine(src, { strict: true })
     expect(t.ok).toBe(false)
     expect(t.refusal.guard).toBe('pine:function')
-    expect(t.refusal.message).toMatch(/ta\.nvi/)
+    expect(t.refusal.message).toMatch(/ta\.wad/)
   })
 })

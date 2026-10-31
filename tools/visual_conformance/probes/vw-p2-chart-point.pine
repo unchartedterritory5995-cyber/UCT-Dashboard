@@ -1,0 +1,36 @@
+//@version=6
+indicator("UCTPROBE_VW_P2_CHART_POINT", overlay = true, max_lines_count = 50, max_labels_count = 50, max_boxes_count = 50)
+
+// ─── 2026-10-30 — PINE COVERAGE PHASE 2: `chart.point` CONSTRUCTORS IN THE OBJECT
+// CONSTRUCTORS (`docs/pine/COVERAGE-MAP.md` § Phase 2). Ours reads each point form as
+// the coordinate form it means: x = the point's `index` on an xloc.bar_index drawing,
+// its `time` on an xloc.bar_time one; y = `price`. Every object below is drawn ONCE, on
+// the last bar, beside the same object written in the coordinate form, so the capture's
+// records pair them by id (odd = point form, even = coordinate form, in creation order).
+//
+//   P1/C1  line, from_index × 2                         (default xloc)
+//   P2/C2  line, from_time × 2, xloc.bar_time
+//   P3/C3  line, chart.point.new × 2, default xloc      (index chosen, time ignored)
+//   P4/C4  line, chart.point.new × 2, xloc.bar_time     (time chosen, index ignored)
+//   P5/C5  label, chart.point.now(high)                 (bar_index, high)
+//   P6/C6  label, chart.point.now() , xloc.bar_time     (price defaults to close)
+//   P7/C7  box, top_left / bottom_right from_index, positional border colour + width
+//   P8     line, from_time on a bar_index line          (x = na: is ANY line drawn?)
+//   P9     label, chart.point.copy(from_index(...))
+if barstate.islast
+    line.new(chart.point.from_index(bar_index - 10, high[10]), chart.point.from_index(bar_index, low), color = color.red)
+    line.new(bar_index - 10, high[10], bar_index, low, color = color.red)
+    line.new(chart.point.from_time(time[20], high[20]), chart.point.from_time(time[5], low[5]), xloc.bar_time, color = color.blue)
+    line.new(time[20], high[20], time[5], low[5], xloc.bar_time, color = color.blue)
+    line.new(chart.point.new(time[30], bar_index - 30, close[30]), chart.point.new(time[15], bar_index - 15, close[15]), color = color.green)
+    line.new(bar_index - 30, close[30], bar_index - 15, close[15], color = color.green)
+    line.new(chart.point.new(time[40], bar_index - 40, open[40]), chart.point.new(time[25], bar_index - 25, open[25]), xloc = xloc.bar_time, color = color.orange)
+    line.new(time[40], open[40], time[25], open[25], xloc = xloc.bar_time, color = color.orange)
+    label.new(chart.point.now(high), "P5", style = label.style_label_down)
+    label.new(bar_index, high, "C5", style = label.style_label_down)
+    label.new(chart.point.now(), "P6", xloc.bar_time, style = label.style_label_up)
+    label.new(time, close, "C6", xloc.bar_time, style = label.style_label_up)
+    box.new(chart.point.from_index(bar_index - 8, high[8]), chart.point.from_index(bar_index - 2, low[2]), color.purple, 2)
+    box.new(bar_index - 8, high[8], bar_index - 2, low[2], color.purple, 2)
+    line.new(chart.point.from_time(time[3], high), chart.point.from_time(time, high), color = color.yellow)
+    label.new(chart.point.copy(chart.point.from_index(bar_index - 6, low[6])), "P9")

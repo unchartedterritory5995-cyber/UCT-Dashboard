@@ -157,6 +157,7 @@ import contextlib
 import hashlib
 import json
 import logging
+import math
 import os
 import re
 import secrets
@@ -920,6 +921,179 @@ def refresh_stale_handle(definition: Any) -> Any:
             return definition
     out = dict(definition)
     out["compute"] = {**c, "fn": now}
+    return out
+
+
+#: ⚰️ The width control every door minted before #526 -- the Builder's own constant
+#: (`builderInputs.chromeInputsFor`), never an author's or a member's choice.
+OLD_WIDTH_CONTROL = {"type": "int", "min": 1, "max": 4, "step": 1}
+#: Today's control reaches 10, or the row's own width when larger
+#: (`builderInputs.LINE_WIDTH_MAX` / `widthControlMax`), never past the ceiling.
+LINE_WIDTH_CONTROL_MAX = 10
+
+
+def width_control_max(default: Any) -> int:
+    """`builderInputs.widthControlMax`, exactly: max(10, ceil(default)) capped at the
+    sanity ceiling; a non-number default reads as no width (10)."""
+    from api.services import presentation_schema
+    w = 0
+    if isinstance(default, (int, float)) and not isinstance(default, bool) and math.isfinite(default):
+        w = math.ceil(default)
+    return min(presentation_schema.LINE_WIDTH_HARD_MAX, max(LINE_WIDTH_CONTROL_MAX, w))
+
+
+def _is_old_width_control(spec: Any) -> bool:
+    # ⛔ A bool is not a number here (`True == 1` in Python, `true !== 1` in the
+    # browser); `4.0` IS 4, as it is to the browser's `===`.
+    return isinstance(spec, dict) and spec.get("type") == "int" and all(
+        isinstance(spec.get(k), (int, float)) and not isinstance(spec.get(k), bool) and spec.get(k) == v
+        for k, v in OLD_WIDTH_CONTROL.items() if k != "type")
+
+
+def refresh_width_control_max(definition: Any) -> Any:
+    """⭐⭐ THE SECOND PROVABLE UPGRADE OF A SAVED DOCUMENT, mirrored EXACTLY from the
+    browser's `memberDocumentMigration.migrateWidthControlMax`, pinned by one fixture
+    both suites read (`tests/fixtures/saved_document_upgrade_cases.json`).
+
+    A plot's width control saved before #526 stops at 4 (`OLD_WIDTH_CONTROL`), so the
+    settings dialog refused a member every width TradingView draws above it. Its `max`
+    becomes `width_control_max(default)` ONLY on an input that a plot's `width` names
+    (`$key`) with that plot's chrome key (`lineWidth` / `<plotKey>Width`) and whose
+    spec is exactly the old constant. The default and every other field are untouched;
+    no other input is touched (a member's own `maxval = 4` keeps its 4).
+
+    ⛔ PURE AND IN MEMORY: a new dict when upgraded, the SAME object otherwise.
+    """
+    if not isinstance(definition, dict):
+        return definition
+    plots = definition.get("plots")
+    inputs = definition.get("inputs")
+    if not isinstance(plots, list) or not isinstance(inputs, list):
+        return definition
+    keys = set()
+    for p in plots:
+        if not isinstance(p, dict):
+            continue
+        w = p.get("width")
+        if not isinstance(w, str) or not w.startswith("$"):
+            continue
+        key = w[1:]
+        pk = p.get("key")
+        if key == "lineWidth" or (isinstance(pk, str) and pk and key == f"{pk}Width"):
+            keys.add(key)
+    if not keys:
+        return definition
+    out_inputs = None
+    for i, spec in enumerate(inputs):
+        if not isinstance(spec, dict) or spec.get("key") not in keys or not _is_old_width_control(spec):
+            continue
+        if out_inputs is None:
+            out_inputs = list(inputs)
+        out_inputs[i] = {**spec, "max": width_control_max(spec.get("default"))}
+    if out_inputs is None:
+        return definition
+    out = dict(definition)
+    out["inputs"] = out_inputs
+    return out
+
+
+#: ⭐⭐ THE PINE DOORS' OUTPUT VERSION, `memberDocumentMigration.DOOR_VERSION` in the
+#: browser, stamped as `meta.doorVersion` with `meta.pineVersion` and each static
+#: band's raw `fillTransparency`. Held to the browser's by
+#: `tests/fixtures/door_stamp_cases.json`, which both suites read.
+DOOR_VERSION = 1
+_FILL_VIAS = ("none", "color", "transp")
+_LEGACY_FILL_DEFAULT_TRANSP = 90
+
+
+def _js_number(v: Any) -> bool:
+    return isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)
+
+
+def _js_integer(v: Any) -> bool:
+    return _js_number(v) and float(v).is_integer()
+
+
+def fill_transparency_stamp(plot: Any) -> Optional[dict]:
+    """`memberDocumentMigration.fillTransparencyStamp`: a well-formed band stamp, or None."""
+    s = plot.get("fillTransparency") if isinstance(plot, dict) else None
+    if not isinstance(s, dict) or s.get("via") not in _FILL_VIAS:
+        return None
+    if s["via"] == "none":
+        return s if ("value" in s and s["value"] is None) else None
+    return s if _js_number(s.get("value")) else None
+
+
+_UNSTATED = object()
+
+
+def stamped_pine_version(definition: Any) -> Any:
+    """`stampedPineVersion`: an int, None for an unversioned script, `_UNSTATED` otherwise."""
+    meta = definition.get("meta") if isinstance(definition, dict) else None
+    if not isinstance(meta, dict) or "pineVersion" not in meta:
+        return _UNSTATED
+    v = meta["pineVersion"]
+    if v is None:
+        return None
+    return int(v) if (_js_integer(v) and v >= 1) else _UNSTATED
+
+
+def stamped_fill_opacity(stamp: dict, pine_version: Any) -> float:
+    """`memberDocumentMigration.stampedFillOpacity`, exactly (the same float ops)."""
+    if stamp["via"] == "none":
+        legacy = not isinstance(pine_version, int) or pine_version <= 4
+        return (100 - _LEGACY_FILL_DEFAULT_TRANSP) / 100 if legacy else 1
+    if stamp["via"] == "transp":
+        return (100 - max(0, min(100, stamp["value"]))) / 100
+    return max(0, min(1, 1 - stamp["value"] / 100))
+
+
+#: What each door version wrote as a static band's `fillOpacity` (`DOOR_FILL_RULES`).
+DOOR_FILL_RULES = {1: stamped_fill_opacity}
+
+
+def refresh_from_door_stamps(definition: Any, rules: Optional[Mapping] = None) -> Any:
+    """⭐⭐ `memberDocumentMigration.upgradeFromDoorStamps`, mirrored EXACTLY: a STAMPED
+    static band (`meta.doorVersion` known, `meta.pineVersion` stated, a well-formed
+    `fillTransparency`) with NO `fillOpacity` gets the door's rule from the script's
+    own facts; one whose `fillOpacity` is exactly what an OLDER door derived from the
+    stamp gets today's. Anything else -- an unstamped document, a conditional band, a
+    value somebody else set -- is left as given. Pure; the SAME object otherwise."""
+    rules = DOOR_FILL_RULES if rules is None else rules
+    if not isinstance(definition, dict):
+        return definition
+    meta = definition.get("meta")
+    if not isinstance(meta, dict) or not _js_integer(meta.get("doorVersion")) or int(meta["doorVersion"]) not in rules:
+        return definition
+    door = int(meta["doorVersion"])
+    pv = stamped_pine_version(definition)
+    plots = definition.get("plots")
+    if pv is _UNSTATED or not isinstance(plots, list):
+        return definition
+    current = max(rules)
+    out_plots = None
+    for i, p in enumerate(plots):
+        if not isinstance(p, dict) or not isinstance(p.get("fill"), dict) or "colorMode" in p["fill"]:
+            continue
+        stamp = fill_transparency_stamp(p)
+        if stamp is None:
+            continue
+        now = rules[current](stamp, pv)
+        if "fillOpacity" not in p:
+            nxt = now
+        elif door < current and _js_number(p["fillOpacity"]) and p["fillOpacity"] == rules[door](stamp, pv):
+            nxt = now
+        else:
+            continue
+        if "fillOpacity" in p and _js_number(p["fillOpacity"]) and p["fillOpacity"] == nxt:
+            continue
+        if out_plots is None:
+            out_plots = list(plots)
+        out_plots[i] = {**p, "fillOpacity": nxt}
+    if out_plots is None:
+        return definition
+    out = dict(definition)
+    out["plots"] = out_plots
     return out
 
 
@@ -1817,6 +1991,12 @@ def save(user_id: Any, def_id: str, definition: dict,
     # ⭐ R2 — the browser's one provable load-time repair, applied here too, so an old
     # param-edited document with a stale handle saves under its tree's own name.
     definition = refresh_stale_handle(definition)
+    # ⭐ …and a width control saved under the old 1..4 constant reaches today's max,
+    # so the stored bytes converge on what the chart already installs on load.
+    definition = refresh_width_control_max(definition)
+    # ⭐ …and a stamped band the door left without an opacity is resolved from the
+    # script's own stamp, as the chart does on load.
+    definition = refresh_from_door_stamps(definition)
     # ⭐ A COPY (share install, fork) SKIPS the presentation gate below -- it holds a
     # row the store already admitted -- so a plot width above the ceiling would ride
     # it to a second member. The copier did not author that width, so the copy is
@@ -2319,6 +2499,39 @@ def _save_runtime(user_id: Any, def_id: str, definition: dict, limits: Any,
         raise ValueError(f"{ungraded} — so it is not saved. Nothing else of yours was touched.")
     runtime_definitions.validate(definition)
 
+    # ⭐ PRESENTATION PARITY WITH THE FORMULA LANE (`save`). A runtime document draws
+    # through the SAME top-level `plots`/`inputs`/`paints` the browser validates with
+    # the same `defSchema.validatePlot`/`validatePaints` (only `compute` differs), so
+    # the same two rules hold here: a COPY (share install, fork) is CLAMPED to the
+    # width ceiling before the blob, and any other save is MEASURED here and ENFORCED
+    # in the lock against the stored predecessor (an unchanged legacy entry is kept,
+    # not enforced). ⚰️ Before this a hand-built runtime document could store a width
+    # of 10000, and a copy of it carried that width to a second member.
+    from api.services import presentation_schema
+    if copy_of_stored:
+        definition, clamped_widths = presentation_schema.clamp_plot_widths(definition)
+        if clamped_widths:
+            _log.warning("[user-definitions] %s: copy clamps plot width to the ceiling: %s",
+                         def_id, "; ".join(clamped_widths))
+    presentation_found = (presentation_schema.presentation_errors(definition)
+                          if not copy_of_stored else [])
+    # ⛔ …AND THE FORMULA LANE'S COLOUR RULES, on the same fields. A runtime document's
+    # plot / input / paint colours reach the same inline CSS (legend rows, chips), so a
+    # stored `url(...)` is a beacon for every member who installs a shared copy. The
+    # drawing-program colours are refused on EVERY save, a copy included; presentation
+    # colours are measured here and enforced in the lock against the stored predecessor
+    # (a copy has none of its own, so every unsafe colour in it is refused).
+    colour_found = presentation_schema.definition_colour_errors(definition)
+    unsafe_colours = presentation_schema.object_colour_errors(definition)
+    if unsafe_colours:
+        raise SaveRefused(
+            "presentation",
+            "a drawing colour that is not a colour: "
+            + "; ".join(e["message"] for e in unsafe_colours[:3])
+            + ". Nothing was saved.",
+            guard="presentation:object-colour",
+            errors=[{k: e[k] for k in ("path", "code", "message")} for e in unsafe_colours[:20]])
+
     new_hash = runtime_definitions.handle(definition)
     blob = json.dumps(definition, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
     size = len(blob.encode("utf-8"))
@@ -2350,6 +2563,42 @@ def _save_runtime(user_id: Any, def_id: str, definition: dict, limits: Any,
                 "formula is unchanged.")
         if prev is None or prev["deleted_at"] is not None:
             entitlements.check_definition_count(_live_def_count(c, user_id), limits)
+        prev_doc = json.loads(prev["definition"]) if prev is not None else None
+        if colour_found:
+            kept_c = set() if copy_of_stored or prev_doc is None else {
+                (e["path"], e["value"])
+                for e in presentation_schema.definition_colour_errors(prev_doc)}
+            refused_c = [e for e in colour_found if (e["path"], e["value"]) not in kept_c]
+            if len(refused_c) < len(colour_found):
+                _log.warning(
+                    "[user-definitions] %s keeps stored colours today's rule refuses "
+                    "(unchanged, not enforced): %s", def_id,
+                    "; ".join(e["path"] for e in colour_found if e not in refused_c))
+            if refused_c:
+                raise SaveRefused(
+                    "presentation",
+                    "a colour that is not a colour: "
+                    + "; ".join(e["message"] for e in refused_c[:3])
+                    + ". Nothing was saved.",
+                    guard="presentation:colour",
+                    errors=[{k: e[k] for k in ("path", "code", "message")} for e in refused_c[:20]])
+        if presentation_found:
+            refused_p, kept_p = presentation_schema.new_presentation_errors(
+                definition, prev_doc)
+            if kept_p:
+                _log.warning(
+                    "[user-definitions] %s keeps stored presentation today's rule "
+                    "refuses (unchanged, not enforced): %s", def_id,
+                    "; ".join(f"{e['path']} [{e['code']}]" for e in kept_p))
+            if refused_p:
+                raise SaveRefused(
+                    "presentation",
+                    "presentation the chart cannot draw as written: "
+                    + "; ".join(e["message"] for e in refused_p)
+                    + ". Nothing was saved.",
+                    guard=f"presentation:{refused_p[0]['code']}",
+                    errors=[{k: e[k] for k in ("path", "code", "message")}
+                            for e in refused_p])
         if prev is None:
             version, rev, rev_bumped = 1, FIRST_REV, False
         else:
@@ -3032,3 +3281,20 @@ def stats(user_id: Any = None) -> dict:
             "max_definition_bytes": MAX_DEFINITION_BYTES,
             "max_definitions_per_user": MAX_DEFINITIONS_PER_USER,
             "versions_are_pruned": False}
+
+
+# ═══ account deletion ═════════════════════════════════════════════════════
+#
+# ⛔ THE ONE DOOR THROUGH WHICH A MEMBER'S ROWS LEAVE THIS STORE. The statements
+# are in `user_definitions_erasure.py`, not here, so this module's append-only
+# claim stays true of everything it does on a member's behalf
+# (`test_the_MODULE_ISSUES_NO_UPDATE_STATEMENT_and_the_scan_can_see_one`).
+
+
+def purge_user(user_id: Any) -> dict:
+    """Account deletion: the member's definitions (every version), share links,
+    library listings and re-lint audit rows deleted; their id scrubbed from the
+    copies other members installed from them, which those members keep.
+    Called by `journal_two.account_purge.purge_user_data`. Never raises."""
+    from api.services import user_definitions_erasure  # noqa: PLC0415
+    return user_definitions_erasure.purge_user(str(user_id) if user_id is not None else "")

@@ -327,7 +327,11 @@ def test_ast_table_SPELLS_NO_TABLE_NAME_so_it_cannot_be_a_hand_copy():
     # No new node type, argument kind or lookback form. The scalar half is untouched.
     # (2026-10-02, H3) 130 -> 131: `vwapOf(source)`, Pine's `ta.vwap(source)` for a
     # bar price -- the same session accumulator as `vwap()`.
-    assert len(ast_table.bar_names()) == 131, len(ast_table.bar_names())
+    # (2026-10-30, Pine coverage Phase 1) 131 -> 135: `acos`, `alma`,
+    # `percentileNearestRank`, `rci` -- Pine's `math.acos`, `ta.alma`,
+    # `ta.percentile_nearest_rank`, `ta.rci`. No new node type, argument kind or
+    # lookback form. The scalar half is untouched.
+    assert len(ast_table.bar_names()) == 135, len(ast_table.bar_names())
     # +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
     # +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
     # ⭐ 111 -> 137 (2026-09-02): the TWENTY-SIX Wave-1 screener columns promoted
@@ -383,7 +387,8 @@ def test_ast_table_SPELLS_NO_TABLE_NAME_so_it_cannot_be_a_hand_copy():
     # 267 -> 268 (2026-10-02, H3): `vwapOf`. The bar half moved 130 -> 131,
     # the scalar half is untouched at 137; this is their sum.
     # 268 -> 269 (2026-10-11): `dollar_vol_1d` (the scalar half above)
-    assert len(declared) == 269, f"the table declares {len(declared)} names, not 269"
+    # 269 -> 273 (2026-10-30): Phase 1's four. The bar half moved 131 -> 135.
+    assert len(declared) == 273, f"the table declares {len(declared)} names, not 273"
     # +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
     # +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
     leaked = sorted(_string_constants(pathlib.Path(ast_table.__file__)) & declared)

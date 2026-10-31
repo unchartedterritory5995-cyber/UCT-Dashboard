@@ -1,0 +1,8 @@
+{
+ "why": "Go Signal daily-footprint sitting 2026-10-27/28 (owner_verdicts.jsonl): the owner CUT these six daily Go Signal drafts (META 2022-08-09, MSFT 2022-10-11, AAPL 2022-10-11, GOOGL 2022-11-16: downtrend bounces; GIC 2026-10-21: 'not a stock I would trade'; QQQ 2021-12-15: 'maybe a downside go signal but who cares'). The Go Signal is an HOURLY signal (owner ruling 2026-10-27); the other daily drafts stay in draft until their hourly charts are ruled, then are retired as superseded.",
+ "ids": {
+  "fixture_cuts": ["si_591e29e20208", "si_6cd2d17f7f63", "si_7aa1895c67b2", "si_a7166080e283"],
+  "scanner_cut": ["si_4c0a74e0de6f"],
+  "pass1_cut": ["si_4c8b6554a5f7"]
+ }
+}

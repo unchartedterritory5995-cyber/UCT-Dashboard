@@ -1,0 +1,3737 @@
+[
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2024-02-07",
+  "bars": {
+   "asof": "2024-02-07",
+   "forward": 20,
+   "sym": "SNAP",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_d3f049ca0245",
+  "lesson_origin": "session",
+  "lesson_text": "Bear Gap off the Highs (owner ruling pending; owner 2026-10-27: \"Don't want to do downtrend gaps but will do bear gaps off the highs\"): the FIRST true gap down since a recent top, marked on the gap day itself. It is not Gap Support (a gap UP that is later tested) and not a gap inside a downtrend (cut). What this lesson teaches is the owner's to rule on the charts. Here the stock set its top 1 sessions earlier and closed 0.0% from it the day before, above its 50 and 200-day; it gapped -31.06% at the open on 7.17x volume and closed down -34.61% at 25% of its range, under the 50-day on its earnings report. Over the next 20 sessions the stock never traded back into the gap; twenty sessions on it was 3.9% from the gap-day close.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Is the last bar a bear gap off the highs: the first true gap down from a top?"
+  },
+  "reveal_json": {
+   "detector": "find_bear_gap_examples",
+   "example": {
+    "asof": "2024-02-07",
+    "found_by": "find_bear_gap_examples.py (read-only pod scan)",
+    "sym": "SNAP"
+   },
+   "facts": {
+    "after_kind": "gap_held",
+    "at_highs": true,
+    "avg_dollar_volume_m": 320.0,
+    "close_below_200": true,
+    "close_below_21": true,
+    "close_below_50": true,
+    "day_pct": -34.61,
+    "dcr": 0.25,
+    "dcr_pct": 25,
+    "earnings_dates_near": [
+     "2024-02-06"
+    ],
+    "earnings_day": true,
+    "first_gap_since_top": true,
+    "fwd_10d_pct": -6.0,
+    "fwd_20d_pct": 3.9,
+    "fwd_5d_pct": -0.1,
+    "fwd_max_close_vs_gap_fill_pct": -29.3,
+    "fwd_max_high_vs_gap_fill_pct": -28.0,
+    "fwd_min_low_vs_gap_close_pct": -8.1,
+    "gap_day_high": 12.39,
+    "gap_day_low": 11.08,
+    "gap_fill_level": 16.77,
+    "gap_pct": -31.06,
+    "gap_vol_2x": true,
+    "known_name": true,
+    "ma_periods": [
+     9,
+     20,
+     50,
+     200
+    ],
+    "prior_above_200": true,
+    "prior_above_50": true,
+    "prior_close": 17.45,
+    "prior_close_vs_250d_high_pct": 0.0,
+    "range_atr": 1.91,
+    "rvol": 7.17,
+    "s50_slope10_pct": 6.2,
+    "sessions_since_top": 1,
+    "setup": "Bear Gap off the Highs",
+    "setup_score": 17,
+    "top_asof": "2024-02-06",
+    "true_gap": true
+   },
+   "fires": true,
+   "quote": "Bear Gap off the Highs (owner ruling pending; owner 2026-10-27: \"Don't want to do downtrend gaps but will do bear gaps off the highs\"): the FIRST true gap down since a recent top, marked on the gap day itself. It is not Gap Support (a gap UP that is later tested) and not a gap inside a downtrend (cut). What this lesson teaches is the owner's to rule on the charts.",
+   "setup": "Bear Gap off the Highs",
+   "source": "docs/study/setups/bear_gap_examples.json#Bear Gap off the Highs#SNAP#2024-02-07",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.bear_gap",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/bear_gap_examples.json#Bear Gap off the Highs#SNAP#2024-02-07",
+  "sym": "SNAP",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2025-05-28",
+  "bars": {
+   "asof": "2025-05-28",
+   "forward": 20,
+   "sym": "OKTA",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_4559c92eaf1b",
+  "lesson_origin": "session",
+  "lesson_text": "Bear Gap off the Highs (owner ruling pending; owner 2026-10-27: \"Don't want to do downtrend gaps but will do bear gaps off the highs\"): the FIRST true gap down since a recent top, marked on the gap day itself. It is not Gap Support (a gap UP that is later tested) and not a gap inside a downtrend (cut). What this lesson teaches is the owner's to rule on the charts. Here the stock set its top 7 sessions earlier and closed -1.4% from it the day before, above its 50 and 200-day; it gapped -13.03% at the open on 8.15x volume and closed down -16.16% at 0% of its range, under the 50-day on its earnings report. Over the next 20 sessions the stock never traded back into the gap; twenty sessions on it was -6.7% from the gap-day close.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Is the last bar a bear gap off the highs: the first true gap down from a top?"
+  },
+  "reveal_json": {
+   "detector": "find_bear_gap_examples",
+   "example": {
+    "asof": "2025-05-28",
+    "found_by": "find_bear_gap_examples.py (read-only pod scan)",
+    "sym": "OKTA"
+   },
+   "facts": {
+    "after_kind": "gap_held",
+    "at_highs": true,
+    "avg_dollar_volume_m": 383.9,
+    "close_below_200": false,
+    "close_below_21": true,
+    "close_below_50": true,
+    "day_pct": -16.16,
+    "dcr": 0.0,
+    "dcr_pct": 0,
+    "earnings_dates_near": [
+     "2025-05-27"
+    ],
+    "earnings_day": true,
+    "first_gap_since_top": true,
+    "fwd_10d_pct": -4.5,
+    "fwd_20d_pct": -6.7,
+    "fwd_5d_pct": 0.4,
+    "fwd_max_close_vs_gap_fill_pct": -14.2,
+    "fwd_max_high_vs_gap_fill_pct": -13.2,
+    "fwd_min_low_vs_gap_close_pct": -9.3,
+    "gap_day_high": 112.08,
+    "gap_day_low": 105.22,
+    "gap_fill_level": 124.21,
+    "gap_pct": -13.03,
+    "gap_vol_2x": true,
+    "known_name": true,
+    "ma_periods": [
+     9,
+     20,
+     50,
+     200
+    ],
+    "prior_above_200": true,
+    "prior_above_50": true,
+    "prior_close": 125.5,
+    "prior_close_vs_250d_high_pct": -1.4,
+    "range_atr": 2.02,
+    "rvol": 8.15,
+    "s50_slope10_pct": 3.2,
+    "sessions_since_top": 7,
+    "setup": "Bear Gap off the Highs",
+    "setup_score": 17,
+    "top_asof": "2025-05-16",
+    "true_gap": true
+   },
+   "fires": true,
+   "quote": "Bear Gap off the Highs (owner ruling pending; owner 2026-10-27: \"Don't want to do downtrend gaps but will do bear gaps off the highs\"): the FIRST true gap down since a recent top, marked on the gap day itself. It is not Gap Support (a gap UP that is later tested) and not a gap inside a downtrend (cut). What this lesson teaches is the owner's to rule on the charts.",
+   "setup": "Bear Gap off the Highs",
+   "source": "docs/study/setups/bear_gap_examples.json#Bear Gap off the Highs#OKTA#2025-05-28",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.bear_gap",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/bear_gap_examples.json#Bear Gap off the Highs#OKTA#2025-05-28",
+  "sym": "OKTA",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2025-01-31",
+  "bars": {
+   "asof": "2025-01-31",
+   "forward": 20,
+   "sym": "DECK",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_42b01ef8c3ce",
+  "lesson_origin": "session",
+  "lesson_text": "Bear Gap off the Highs (owner ruling pending; owner 2026-10-27: \"Don't want to do downtrend gaps but will do bear gaps off the highs\"): the FIRST true gap down since a recent top, marked on the gap day itself. It is not Gap Support (a gap UP that is later tested) and not a gap inside a downtrend (cut). What this lesson teaches is the owner's to rule on the charts. Here the stock set its top 1 sessions earlier and closed 0.0% from it the day before, above its 50 and 200-day; it gapped -12.11% at the open on 8.56x volume and closed down -20.51% at 0% of its range, under the 50-day on its earnings report. Over the next 20 sessions the stock never traded back into the gap; twenty sessions on it was -22.6% from the gap-day close.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Is the last bar a bear gap off the highs: the first true gap down from a top?"
+  },
+  "reveal_json": {
+   "detector": "find_bear_gap_examples",
+   "example": {
+    "asof": "2025-01-31",
+    "found_by": "find_bear_gap_examples.py (read-only pod scan)",
+    "sym": "DECK"
+   },
+   "facts": {
+    "after_kind": "gap_held",
+    "at_highs": true,
+    "avg_dollar_volume_m": 344.2,
+    "close_below_200": false,
+    "close_below_21": true,
+    "close_below_50": true,
+    "day_pct": -20.51,
+    "dcr": 0.0,
+    "dcr_pct": 0,
+    "earnings_dates_near": [
+     "2025-01-30"
+    ],
+    "earnings_day": true,
+    "first_gap_since_top": true,
+    "fwd_10d_pct": -12.6,
+    "fwd_20d_pct": -22.6,
+    "fwd_5d_pct": -5.1,
+    "fwd_max_close_vs_gap_fill_pct": -21.4,
+    "fwd_max_high_vs_gap_fill_pct": -19.1,
+    "fwd_min_low_vs_gap_close_pct": -23.4,
+    "gap_day_high": 198.65,
+    "gap_day_low": 177.31,
+    "gap_fill_level": 219.54,
+    "gap_pct": -12.11,
+    "gap_vol_2x": true,
+    "known_name": true,
+    "ma_periods": [
+     9,
+     20,
+     50,
+     200
+    ],
+    "prior_above_200": true,
+    "prior_above_50": true,
+    "prior_close": 223.11,
+    "prior_close_vs_250d_high_pct": 0.0,
+    "range_atr": 3.4,
+    "rvol": 8.56,
+    "s50_slope10_pct": 4.6,
+    "sessions_since_top": 1,
+    "setup": "Bear Gap off the Highs",
+    "setup_score": 17,
+    "top_asof": "2025-01-30",
+    "true_gap": true
+   },
+   "fires": true,
+   "quote": "Bear Gap off the Highs (owner ruling pending; owner 2026-10-27: \"Don't want to do downtrend gaps but will do bear gaps off the highs\"): the FIRST true gap down since a recent top, marked on the gap day itself. It is not Gap Support (a gap UP that is later tested) and not a gap inside a downtrend (cut). What this lesson teaches is the owner's to rule on the charts.",
+   "setup": "Bear Gap off the Highs",
+   "source": "docs/study/setups/bear_gap_examples.json#Bear Gap off the Highs#DECK#2025-01-31",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.bear_gap",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/bear_gap_examples.json#Bear Gap off the Highs#DECK#2025-01-31",
+  "sym": "DECK",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2025-02-07",
+  "bars": {
+   "asof": "2025-02-07",
+   "forward": 20,
+   "sym": "BILL",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_4e7707b681c9",
+  "lesson_origin": "session",
+  "lesson_text": "Bear Gap off the Highs (owner ruling pending; owner 2026-10-27: \"Don't want to do downtrend gaps but will do bear gaps off the highs\"): the FIRST true gap down since a recent top, marked on the gap day itself. It is not Gap Support (a gap UP that is later tested) and not a gap inside a downtrend (cut). What this lesson teaches is the owner's to rule on the charts. Here the stock set its top 41 sessions earlier and closed -1.1% from it the day before, above its 50 and 200-day; it gapped -32.66% at the open on 10.82x volume and closed down -35.52% at 1% of its range, under the 50-day on its earnings report. Over the next 20 sessions the stock never traded back into the gap; twenty sessions on it was -29.8% from the gap-day close.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Is the last bar a bear gap off the highs: the first true gap down from a top?"
+  },
+  "reveal_json": {
+   "detector": "find_bear_gap_examples",
+   "example": {
+    "asof": "2025-02-07",
+    "found_by": "find_bear_gap_examples.py (read-only pod scan)",
+    "sym": "BILL"
+   },
+   "facts": {
+    "after_kind": "gap_held",
+    "at_highs": true,
+    "avg_dollar_volume_m": 179.5,
+    "close_below_200": true,
+    "close_below_21": true,
+    "close_below_50": true,
+    "day_pct": -35.52,
+    "dcr": 0.01,
+    "dcr_pct": 1,
+    "earnings_dates_near": [
+     "2025-02-06"
+    ],
+    "earnings_day": true,
+    "first_gap_since_top": true,
+    "fwd_10d_pct": -14.3,
+    "fwd_20d_pct": -29.8,
+    "fwd_5d_pct": -3.7,
+    "fwd_max_close_vs_gap_fill_pct": -31.6,
+    "fwd_max_high_vs_gap_fill_pct": -30.8,
+    "fwd_min_low_vs_gap_close_pct": -30.4,
+    "gap_day_high": 67.54,
+    "gap_day_low": 62.06,
+    "gap_fill_level": 95.05,
+    "gap_pct": -32.66,
+    "gap_vol_2x": true,
+    "known_name": false,
+    "ma_periods": [
+     9,
+     20,
+     50,
+     200
+    ],
+    "prior_above_200": true,
+    "prior_above_50": true,
+    "prior_close": 96.35,
+    "prior_close_vs_250d_high_pct": -1.1,
+    "range_atr": 1.66,
+    "rvol": 10.82,
+    "s50_slope10_pct": 2.2,
+    "sessions_since_top": 41,
+    "setup": "Bear Gap off the Highs",
+    "setup_score": 17,
+    "top_asof": "2024-12-06",
+    "true_gap": true
+   },
+   "fires": true,
+   "quote": "Bear Gap off the Highs (owner ruling pending; owner 2026-10-27: \"Don't want to do downtrend gaps but will do bear gaps off the highs\"): the FIRST true gap down since a recent top, marked on the gap day itself. It is not Gap Support (a gap UP that is later tested) and not a gap inside a downtrend (cut). What this lesson teaches is the owner's to rule on the charts.",
+   "setup": "Bear Gap off the Highs",
+   "source": "docs/study/setups/bear_gap_examples.json#Bear Gap off the Highs#BILL#2025-02-07",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.bear_gap",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/bear_gap_examples.json#Bear Gap off the Highs#BILL#2025-02-07",
+  "sym": "BILL",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2025-01-08",
+  "bars": {
+   "asof": "2025-01-08",
+   "forward": 20,
+   "sym": "IONQ",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_9bff8aebb1cd",
+  "lesson_origin": "session",
+  "lesson_text": "Bear Gap off the Highs (owner ruling pending; owner 2026-10-27: \"Don't want to do downtrend gaps but will do bear gaps off the highs\"): the FIRST true gap down since a recent top, marked on the gap day itself. It is not Gap Support (a gap UP that is later tested) and not a gap inside a downtrend (cut). What this lesson teaches is the owner's to rule on the charts. Here the stock set its top 2 sessions earlier and closed -2.9% from it the day before, above its 50 and 200-day; it gapped -21.86% at the open on 4.41x volume and closed down -39.0% at 33% of its range, under the 50-day. Over the next 20 sessions the stock never traded back into the gap; twenty sessions on it was 34.1% from the gap-day close.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Is the last bar a bear gap off the highs: the first true gap down from a top?"
+  },
+  "reveal_json": {
+   "detector": "find_bear_gap_examples",
+   "example": {
+    "asof": "2025-01-08",
+    "found_by": "find_bear_gap_examples.py (read-only pod scan)",
+    "sym": "IONQ"
+   },
+   "facts": {
+    "after_kind": "gap_held",
+    "at_highs": true,
+    "avg_dollar_volume_m": 461.1,
+    "close_below_200": false,
+    "close_below_21": true,
+    "close_below_50": true,
+    "day_pct": -39.0,
+    "dcr": 0.33,
+    "dcr_pct": 33,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "first_gap_since_top": true,
+    "fwd_10d_pct": 34.7,
+    "fwd_20d_pct": 34.1,
+    "fwd_5d_pct": 37.4,
+    "fwd_max_close_vs_gap_fill_pct": -7.0,
+    "fwd_max_high_vs_gap_fill_pct": -6.5,
+    "fwd_min_low_vs_gap_close_pct": -12.0,
+    "gap_day_high": 39.0,
+    "gap_day_low": 25.92,
+    "gap_fill_level": 48.73,
+    "gap_pct": -21.86,
+    "gap_vol_2x": true,
+    "known_name": true,
+    "ma_periods": [
+     9,
+     20,
+     50,
+     200
+    ],
+    "prior_above_200": true,
+    "prior_above_50": true,
+    "prior_close": 49.59,
+    "prior_close_vs_250d_high_pct": -2.9,
+    "range_atr": 2.35,
+    "rvol": 4.41,
+    "s50_slope10_pct": 25.8,
+    "sessions_since_top": 2,
+    "setup": "Bear Gap off the Highs",
+    "setup_score": 16,
+    "top_asof": "2025-01-06",
+    "true_gap": true
+   },
+   "fires": true,
+   "quote": "Bear Gap off the Highs (owner ruling pending; owner 2026-10-27: \"Don't want to do downtrend gaps but will do bear gaps off the highs\"): the FIRST true gap down since a recent top, marked on the gap day itself. It is not Gap Support (a gap UP that is later tested) and not a gap inside a downtrend (cut). What this lesson teaches is the owner's to rule on the charts.",
+   "setup": "Bear Gap off the Highs",
+   "source": "docs/study/setups/bear_gap_examples.json#Bear Gap off the Highs#IONQ#2025-01-08",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.bear_gap",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/bear_gap_examples.json#Bear Gap off the Highs#IONQ#2025-01-08",
+  "sym": "IONQ",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2024-02-29",
+  "bars": {
+   "asof": "2024-02-29",
+   "forward": 20,
+   "sym": "SNOW",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_8d53bd8d3912",
+  "lesson_origin": "session",
+  "lesson_text": "Bear Gap off the Highs (owner ruling pending; owner 2026-10-27: \"Don't want to do downtrend gaps but will do bear gaps off the highs\"): the FIRST true gap down since a recent top, marked on the gap day itself. It is not Gap Support (a gap UP that is later tested) and not a gap inside a downtrend (cut). What this lesson teaches is the owner's to rule on the charts. Here the stock set its top 10 sessions earlier and closed -2.5% from it the day before, above its 50 and 200-day; it gapped -21.23% at the open on 8.14x volume and closed down -18.14% at 78% of its range, under the 50-day on its earnings report. Over the next 20 sessions the stock never traded back into the gap; twenty sessions on it was -14.2% from the gap-day close.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Is the last bar a bear gap off the highs: the first true gap down from a top?"
+  },
+  "reveal_json": {
+   "detector": "find_bear_gap_examples",
+   "example": {
+    "asof": "2024-02-29",
+    "found_by": "find_bear_gap_examples.py (read-only pod scan)",
+    "sym": "SNOW"
+   },
+   "facts": {
+    "after_kind": "gap_held",
+    "at_highs": true,
+    "avg_dollar_volume_m": 962.9,
+    "close_below_200": false,
+    "close_below_21": true,
+    "close_below_50": true,
+    "day_pct": -18.14,
+    "dcr": 0.78,
+    "dcr_pct": 78,
+    "earnings_dates_near": [
+     "2024-02-28"
+    ],
+    "earnings_day": true,
+    "first_gap_since_top": true,
+    "fwd_10d_pct": -15.6,
+    "fwd_20d_pct": -14.2,
+    "fwd_5d_pct": -10.5,
+    "fwd_max_close_vs_gap_fill_pct": -17.6,
+    "fwd_max_high_vs_gap_fill_pct": -14.3,
+    "fwd_min_low_vs_gap_close_pct": -19.5,
+    "gap_day_high": 190.45,
+    "gap_day_low": 180.68,
+    "gap_fill_level": 226.56,
+    "gap_pct": -21.23,
+    "gap_vol_2x": true,
+    "known_name": true,
+    "ma_periods": [
+     9,
+     20,
+     50,
+     200
+    ],
+    "prior_above_200": true,
+    "prior_above_50": true,
+    "prior_close": 230.0,
+    "prior_close_vs_250d_high_pct": -2.5,
+    "range_atr": 1.09,
+    "rvol": 8.14,
+    "s50_slope10_pct": 3.8,
+    "sessions_since_top": 10,
+    "setup": "Bear Gap off the Highs",
+    "setup_score": 16,
+    "top_asof": "2024-02-14",
+    "true_gap": true
+   },
+   "fires": true,
+   "quote": "Bear Gap off the Highs (owner ruling pending; owner 2026-10-27: \"Don't want to do downtrend gaps but will do bear gaps off the highs\"): the FIRST true gap down since a recent top, marked on the gap day itself. It is not Gap Support (a gap UP that is later tested) and not a gap inside a downtrend (cut). What this lesson teaches is the owner's to rule on the charts.",
+   "setup": "Bear Gap off the Highs",
+   "source": "docs/study/setups/bear_gap_examples.json#Bear Gap off the Highs#SNOW#2024-02-29",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.bear_gap",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/bear_gap_examples.json#Bear Gap off the Highs#SNOW#2024-02-29",
+  "sym": "SNOW",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2025-04-30",
+  "bars": {
+   "asof": "2025-04-30",
+   "forward": 20,
+   "sym": "WGS",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_62b89c51e6cc",
+  "lesson_origin": "session",
+  "lesson_text": "Bear Gap off the Highs (owner ruling pending; owner 2026-10-27: \"Don't want to do downtrend gaps but will do bear gaps off the highs\"): the FIRST true gap down since a recent top, marked on the gap day itself. It is not Gap Support (a gap UP that is later tested) and not a gap inside a downtrend (cut). What this lesson teaches is the owner's to rule on the charts. Here the stock set its top 1 sessions earlier and closed 0.0% from it the day before, above its 50 and 200-day; it gapped -29.92% at the open on 7.93x volume and closed down -42.85% at 16% of its range, under the 50-day on its earnings report. Over the next 20 sessions the stock never traded back into the gap; twenty sessions on it was 4.7% from the gap-day close.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Is the last bar a bear gap off the highs: the first true gap down from a top?"
+  },
+  "reveal_json": {
+   "detector": "find_bear_gap_examples",
+   "example": {
+    "asof": "2025-04-30",
+    "found_by": "find_bear_gap_examples.py (read-only pod scan)",
+    "sym": "WGS"
+   },
+   "facts": {
+    "after_kind": "gap_held",
+    "at_highs": true,
+    "avg_dollar_volume_m": 77.9,
+    "close_below_200": true,
+    "close_below_21": true,
+    "close_below_50": true,
+    "day_pct": -42.85,
+    "dcr": 0.16,
+    "dcr_pct": 16,
+    "earnings_dates_near": [
+     "2025-04-30"
+    ],
+    "earnings_day": true,
+    "first_gap_since_top": true,
+    "fwd_10d_pct": -11.1,
+    "fwd_20d_pct": 4.7,
+    "fwd_5d_pct": -14.2,
+    "fwd_max_close_vs_gap_fill_pct": -34.9,
+    "fwd_max_high_vs_gap_fill_pct": -33.4,
+    "fwd_min_low_vs_gap_close_pct": -17.5,
+    "gap_day_high": 83.41,
+    "gap_day_low": 63.71,
+    "gap_fill_level": 110.74,
+    "gap_pct": -29.92,
+    "gap_vol_2x": true,
+    "known_name": false,
+    "ma_periods": [
+     9,
+     20,
+     50,
+     200
+    ],
+    "prior_above_200": true,
+    "prior_above_50": true,
+    "prior_close": 116.97,
+    "prior_close_vs_250d_high_pct": 0.0,
+    "range_atr": 2.59,
+    "rvol": 7.93,
+    "s50_slope10_pct": 7.7,
+    "sessions_since_top": 1,
+    "setup": "Bear Gap off the Highs",
+    "setup_score": 17,
+    "top_asof": "2025-04-29",
+    "true_gap": true
+   },
+   "fires": true,
+   "quote": "Bear Gap off the Highs (owner ruling pending; owner 2026-10-27: \"Don't want to do downtrend gaps but will do bear gaps off the highs\"): the FIRST true gap down since a recent top, marked on the gap day itself. It is not Gap Support (a gap UP that is later tested) and not a gap inside a downtrend (cut). What this lesson teaches is the owner's to rule on the charts.",
+   "setup": "Bear Gap off the Highs",
+   "source": "docs/study/setups/bear_gap_examples.json#Bear Gap off the Highs#WGS#2025-04-30",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.bear_gap",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/bear_gap_examples.json#Bear Gap off the Highs#WGS#2025-04-30",
+  "sym": "WGS",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2025-01-27",
+  "bars": {
+   "asof": "2025-01-27",
+   "forward": 20,
+   "sym": "VRT",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_a27b2632140c",
+  "lesson_origin": "session",
+  "lesson_text": "Bear Gap off the Highs (owner ruling pending; owner 2026-10-27: \"Don't want to do downtrend gaps but will do bear gaps off the highs\"): the FIRST true gap down since a recent top, marked on the gap day itself. It is not Gap Support (a gap UP that is later tested) and not a gap inside a downtrend (cut). What this lesson teaches is the owner's to rule on the charts. Here the stock set its top 2 sessions earlier and closed -4.7% from it the day before, above its 50 and 200-day; it gapped -20.0% at the open on 7.26x volume and closed down -29.88% at 16% of its range, under the 50-day. Over the next 20 sessions the stock never traded back into the gap; twenty sessions on it was -10.4% from the gap-day close.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Is the last bar a bear gap off the highs: the first true gap down from a top?"
+  },
+  "reveal_json": {
+   "detector": "find_bear_gap_examples",
+   "example": {
+    "asof": "2025-01-27",
+    "found_by": "find_bear_gap_examples.py (read-only pod scan)",
+    "sym": "VRT"
+   },
+   "facts": {
+    "after_kind": "gap_held",
+    "at_highs": true,
+    "avg_dollar_volume_m": 768.1,
+    "close_below_200": false,
+    "close_below_21": true,
+    "close_below_50": true,
+    "day_pct": -29.88,
+    "dcr": 0.16,
+    "dcr_pct": 16,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "first_gap_since_top": true,
+    "fwd_10d_pct": 22.6,
+    "fwd_20d_pct": -10.4,
+    "fwd_5d_pct": 9.7,
+    "fwd_max_close_vs_gap_fill_pct": -13.5,
+    "fwd_max_high_vs_gap_fill_pct": -13.0,
+    "fwd_min_low_vs_gap_close_pct": -17.5,
+    "gap_day_high": 121.48,
+    "gap_day_low": 99.11,
+    "gap_fill_level": 145.41,
+    "gap_pct": -20.0,
+    "gap_vol_2x": true,
+    "known_name": true,
+    "ma_periods": [
+     9,
+     20,
+     50,
+     200
+    ],
+    "prior_above_200": true,
+    "prior_above_50": true,
+    "prior_close": 146.32,
+    "prior_close_vs_250d_high_pct": -4.7,
+    "range_atr": 2.88,
+    "rvol": 7.26,
+    "s50_slope10_pct": 3.7,
+    "sessions_since_top": 2,
+    "setup": "Bear Gap off the Highs",
+    "setup_score": 16,
+    "top_asof": "2025-01-23",
+    "true_gap": true
+   },
+   "fires": true,
+   "quote": "Bear Gap off the Highs (owner ruling pending; owner 2026-10-27: \"Don't want to do downtrend gaps but will do bear gaps off the highs\"): the FIRST true gap down since a recent top, marked on the gap day itself. It is not Gap Support (a gap UP that is later tested) and not a gap inside a downtrend (cut). What this lesson teaches is the owner's to rule on the charts.",
+   "setup": "Bear Gap off the Highs",
+   "source": "docs/study/setups/bear_gap_examples.json#Bear Gap off the Highs#VRT#2025-01-27",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.bear_gap",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/bear_gap_examples.json#Bear Gap off the Highs#VRT#2025-01-27",
+  "sym": "VRT",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2026-08-06",
+  "bars": {
+   "asof": "2026-08-06",
+   "forward": 20,
+   "sym": "DDOG",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_f58180fd0707",
+  "lesson_origin": "session",
+  "lesson_text": "Bear Gap off the Highs (owner ruling pending; owner 2026-10-27: \"Don't want to do downtrend gaps but will do bear gaps off the highs\"): the FIRST true gap down since a recent top, marked on the gap day itself. It is not Gap Support (a gap UP that is later tested) and not a gap inside a downtrend (cut). What this lesson teaches is the owner's to rule on the charts. Here the stock set its top 2 sessions earlier and closed -1.7% from it the day before, above its 50 and 200-day; it gapped -19.68% at the open on 2.99x volume and closed down -19.03% at 23% of its range, under the 50-day on its earnings report. Over the next 20 sessions the stock never traded back into the gap; twenty sessions on it was -6.3% from the gap-day close.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Is the last bar a bear gap off the highs: the first true gap down from a top?"
+  },
+  "reveal_json": {
+   "detector": "find_bear_gap_examples",
+   "example": {
+    "asof": "2026-08-06",
+    "found_by": "find_bear_gap_examples.py (read-only pod scan)",
+    "sym": "DDOG"
+   },
+   "facts": {
+    "after_kind": "gap_held",
+    "at_highs": true,
+    "avg_dollar_volume_m": 1002.6,
+    "close_below_200": false,
+    "close_below_21": true,
+    "close_below_50": true,
+    "day_pct": -19.03,
+    "dcr": 0.23,
+    "dcr_pct": 23,
+    "earnings_dates_near": [
+     "2026-08-06"
+    ],
+    "earnings_day": true,
+    "first_gap_since_top": true,
+    "fwd_10d_pct": 1.4,
+    "fwd_20d_pct": -6.3,
+    "fwd_5d_pct": 10.0,
+    "fwd_max_close_vs_gap_fill_pct": -7.9,
+    "fwd_max_high_vs_gap_fill_pct": -7.1,
+    "fwd_min_low_vs_gap_close_pct": -9.2,
+    "gap_day_high": 243.0,
+    "gap_day_low": 225.26,
+    "gap_fill_level": 283.0,
+    "gap_pct": -19.68,
+    "gap_vol_2x": true,
+    "known_name": true,
+    "ma_periods": [
+     9,
+     20,
+     50,
+     200
+    ],
+    "prior_above_200": true,
+    "prior_above_50": true,
+    "prior_close": 283.17,
+    "prior_close_vs_250d_high_pct": -1.7,
+    "range_atr": 1.39,
+    "rvol": 2.99,
+    "s50_slope10_pct": 4.6,
+    "sessions_since_top": 2,
+    "setup": "Bear Gap off the Highs",
+    "setup_score": 16,
+    "top_asof": "2026-08-04",
+    "true_gap": true
+   },
+   "fires": true,
+   "quote": "Bear Gap off the Highs (owner ruling pending; owner 2026-10-27: \"Don't want to do downtrend gaps but will do bear gaps off the highs\"): the FIRST true gap down since a recent top, marked on the gap day itself. It is not Gap Support (a gap UP that is later tested) and not a gap inside a downtrend (cut). What this lesson teaches is the owner's to rule on the charts.",
+   "setup": "Bear Gap off the Highs",
+   "source": "docs/study/setups/bear_gap_examples.json#Bear Gap off the Highs#DDOG#2026-08-06",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.bear_gap",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/bear_gap_examples.json#Bear Gap off the Highs#DDOG#2026-08-06",
+  "sym": "DDOG",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2025-01-27",
+  "bars": {
+   "asof": "2025-01-27",
+   "forward": 20,
+   "sym": "VST",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_825fadf14a25",
+  "lesson_origin": "session",
+  "lesson_text": "Bear Gap off the Highs (owner ruling pending; owner 2026-10-27: \"Don't want to do downtrend gaps but will do bear gaps off the highs\"): the FIRST true gap down since a recent top, marked on the gap day itself. It is not Gap Support (a gap UP that is later tested) and not a gap inside a downtrend (cut). What this lesson teaches is the owner's to rule on the charts. Here the stock set its top 2 sessions earlier and closed -0.4% from it the day before, above its 50 and 200-day; it gapped -19.37% at the open on 5.59x volume and closed down -28.27% at 18% of its range, under the 50-day. Over the next 20 sessions the stock never traded back into the gap; twenty sessions on it was 0.6% from the gap-day close.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Is the last bar a bear gap off the highs: the first true gap down from a top?"
+  },
+  "reveal_json": {
+   "detector": "find_bear_gap_examples",
+   "example": {
+    "asof": "2025-01-27",
+    "found_by": "find_bear_gap_examples.py (read-only pod scan)",
+    "sym": "VST"
+   },
+   "facts": {
+    "after_kind": "gap_held",
+    "at_highs": true,
+    "avg_dollar_volume_m": 877.4,
+    "close_below_200": false,
+    "close_below_21": true,
+    "close_below_50": true,
+    "day_pct": -28.27,
+    "dcr": 0.18,
+    "dcr_pct": 18,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "first_gap_since_top": true,
+    "fwd_10d_pct": 22.8,
+    "fwd_20d_pct": 0.6,
+    "fwd_5d_pct": 22.9,
+    "fwd_max_close_vs_gap_fill_pct": -6.8,
+    "fwd_max_high_vs_gap_fill_pct": -6.7,
+    "fwd_min_low_vs_gap_close_pct": -6.9,
+    "gap_day_high": 156.93,
+    "gap_day_low": 132.59,
+    "gap_fill_level": 189.11,
+    "gap_pct": -19.37,
+    "gap_vol_2x": true,
+    "known_name": false,
+    "ma_periods": [
+     9,
+     20,
+     50,
+     200
+    ],
+    "prior_above_200": true,
+    "prior_above_50": true,
+    "prior_close": 191.11,
+    "prior_close_vs_250d_high_pct": -0.4,
+    "range_atr": 2.23,
+    "rvol": 5.59,
+    "s50_slope10_pct": 7.0,
+    "sessions_since_top": 2,
+    "setup": "Bear Gap off the Highs",
+    "setup_score": 17,
+    "top_asof": "2025-01-23",
+    "true_gap": true
+   },
+   "fires": true,
+   "quote": "Bear Gap off the Highs (owner ruling pending; owner 2026-10-27: \"Don't want to do downtrend gaps but will do bear gaps off the highs\"): the FIRST true gap down since a recent top, marked on the gap day itself. It is not Gap Support (a gap UP that is later tested) and not a gap inside a downtrend (cut). What this lesson teaches is the owner's to rule on the charts.",
+   "setup": "Bear Gap off the Highs",
+   "source": "docs/study/setups/bear_gap_examples.json#Bear Gap off the Highs#VST#2025-01-27",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.bear_gap",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/bear_gap_examples.json#Bear Gap off the Highs#VST#2025-01-27",
+  "sym": "VST",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2025-09-09",
+  "bars": {
+   "asof": "2025-09-09",
+   "forward": 20,
+   "sym": "CNM",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_5940f3bd5577",
+  "lesson_origin": "session",
+  "lesson_text": "Bear Gap off the Highs (owner ruling pending; owner 2026-10-27: \"Don't want to do downtrend gaps but will do bear gaps off the highs\"): the FIRST true gap down since a recent top, marked on the gap day itself. It is not Gap Support (a gap UP that is later tested) and not a gap inside a downtrend (cut). What this lesson teaches is the owner's to rule on the charts. Here the stock set its top 2 sessions earlier and closed -0.6% from it the day before, above its 50 and 200-day; it gapped -23.23% at the open on 11.97x volume and closed down -25.36% at 25% of its range, under the 50-day on its earnings report. Over the next 20 sessions the stock never traded back into the gap; twenty sessions on it was 2.3% from the gap-day close.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Is the last bar a bear gap off the highs: the first true gap down from a top?"
+  },
+  "reveal_json": {
+   "detector": "find_bear_gap_examples",
+   "example": {
+    "asof": "2025-09-09",
+    "found_by": "find_bear_gap_examples.py (read-only pod scan)",
+    "sym": "CNM"
+   },
+   "facts": {
+    "after_kind": "gap_held",
+    "at_highs": true,
+    "avg_dollar_volume_m": 124.5,
+    "close_below_200": true,
+    "close_below_21": true,
+    "close_below_50": true,
+    "day_pct": -25.36,
+    "dcr": 0.25,
+    "dcr_pct": 25,
+    "earnings_dates_near": [
+     "2025-09-09"
+    ],
+    "earnings_day": true,
+    "first_gap_since_top": true,
+    "fwd_10d_pct": 3.1,
+    "fwd_20d_pct": 2.3,
+    "fwd_5d_pct": -0.4,
+    "fwd_max_close_vs_gap_fill_pct": -18.5,
+    "fwd_max_high_vs_gap_fill_pct": -17.6,
+    "fwd_min_low_vs_gap_close_pct": -3.8,
+    "gap_day_high": 52.87,
+    "gap_day_low": 48.63,
+    "gap_fill_level": 66.08,
+    "gap_pct": -23.23,
+    "gap_vol_2x": true,
+    "known_name": false,
+    "ma_periods": [
+     9,
+     20,
+     50,
+     200
+    ],
+    "prior_above_200": true,
+    "prior_above_50": true,
+    "prior_close": 66.59,
+    "prior_close_vs_250d_high_pct": -0.6,
+    "range_atr": 3.28,
+    "rvol": 11.97,
+    "s50_slope10_pct": 2.6,
+    "sessions_since_top": 2,
+    "setup": "Bear Gap off the Highs",
+    "setup_score": 17,
+    "top_asof": "2025-09-05",
+    "true_gap": true
+   },
+   "fires": true,
+   "quote": "Bear Gap off the Highs (owner ruling pending; owner 2026-10-27: \"Don't want to do downtrend gaps but will do bear gaps off the highs\"): the FIRST true gap down since a recent top, marked on the gap day itself. It is not Gap Support (a gap UP that is later tested) and not a gap inside a downtrend (cut). What this lesson teaches is the owner's to rule on the charts.",
+   "setup": "Bear Gap off the Highs",
+   "source": "docs/study/setups/bear_gap_examples.json#Bear Gap off the Highs#CNM#2025-09-09",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.bear_gap",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/bear_gap_examples.json#Bear Gap off the Highs#CNM#2025-09-09",
+  "sym": "CNM",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2023-02-15",
+  "bars": {
+   "asof": "2023-02-15",
+   "forward": 20,
+   "sym": "CRDO",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_301fdd3fa364",
+  "lesson_origin": "session",
+  "lesson_text": "Bear Gap off the Highs (owner ruling pending; owner 2026-10-27: \"Don't want to do downtrend gaps but will do bear gaps off the highs\"): the FIRST true gap down since a recent top, marked on the gap day itself. It is not Gap Support (a gap UP that is later tested) and not a gap inside a downtrend (cut). What this lesson teaches is the owner's to rule on the charts. Here the stock set its top 1 sessions earlier and closed 0.0% from it the day before, above its 50 and 200-day; it gapped -44.89% at the open on 16.4x volume and closed down -46.8% at 15% of its range, under the 50-day. Over the next 20 sessions the stock never traded back into the gap; twenty sessions on it was -20.1% from the gap-day close.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Is the last bar a bear gap off the highs: the first true gap down from a top?"
+  },
+  "reveal_json": {
+   "detector": "find_bear_gap_examples",
+   "example": {
+    "asof": "2023-02-15",
+    "found_by": "find_bear_gap_examples.py (read-only pod scan)",
+    "sym": "CRDO"
+   },
+   "facts": {
+    "after_kind": "gap_held",
+    "at_highs": true,
+    "avg_dollar_volume_m": 23.3,
+    "close_below_200": true,
+    "close_below_21": true,
+    "close_below_50": true,
+    "day_pct": -46.8,
+    "dcr": 0.15,
+    "dcr_pct": 15,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "first_gap_since_top": true,
+    "fwd_10d_pct": -0.4,
+    "fwd_20d_pct": -20.1,
+    "fwd_5d_pct": -1.7,
+    "fwd_max_close_vs_gap_fill_pct": -41.8,
+    "fwd_max_high_vs_gap_fill_pct": -40.1,
+    "fwd_min_low_vs_gap_close_pct": -20.9,
+    "gap_day_high": 11.89,
+    "gap_day_low": 10.01,
+    "gap_fill_level": 18.22,
+    "gap_pct": -44.89,
+    "gap_vol_2x": true,
+    "known_name": false,
+    "ma_periods": [
+     9,
+     20,
+     50,
+     200
+    ],
+    "prior_above_200": true,
+    "prior_above_50": true,
+    "prior_close": 19.36,
+    "prior_close_vs_250d_high_pct": 0.0,
+    "range_atr": 2.01,
+    "rvol": 16.4,
+    "s50_slope10_pct": 6.0,
+    "sessions_since_top": 1,
+    "setup": "Bear Gap off the Highs",
+    "setup_score": 17,
+    "top_asof": "2023-02-14",
+    "true_gap": true
+   },
+   "fires": true,
+   "quote": "Bear Gap off the Highs (owner ruling pending; owner 2026-10-27: \"Don't want to do downtrend gaps but will do bear gaps off the highs\"): the FIRST true gap down since a recent top, marked on the gap day itself. It is not Gap Support (a gap UP that is later tested) and not a gap inside a downtrend (cut). What this lesson teaches is the owner's to rule on the charts.",
+   "setup": "Bear Gap off the Highs",
+   "source": "docs/study/setups/bear_gap_examples.json#Bear Gap off the Highs#CRDO#2023-02-15",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.bear_gap",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/bear_gap_examples.json#Bear Gap off the Highs#CRDO#2023-02-15",
+  "sym": "CRDO",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2023-11-02",
+  "bars": {
+   "asof": "2023-11-02",
+   "forward": 20,
+   "sym": "RELY",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_40759c74d163",
+  "lesson_origin": "session",
+  "lesson_text": "Bear Gap off the Highs (owner ruling pending; owner 2026-10-27: \"Don't want to do downtrend gaps but will do bear gaps off the highs\"): the FIRST true gap down since a recent top, marked on the gap day itself. It is not Gap Support (a gap UP that is later tested) and not a gap inside a downtrend (cut). What this lesson teaches is the owner's to rule on the charts. Here the stock set its top 1 sessions earlier and closed 0.0% from it the day before, above its 50 and 200-day; it gapped -28.96% at the open on 6.8x volume and closed down -31.86% at 28% of its range, under the 50-day on its earnings report. Over the next 20 sessions the stock never traded back into the gap; twenty sessions on it was 11.3% from the gap-day close.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Is the last bar a bear gap off the highs: the first true gap down from a top?"
+  },
+  "reveal_json": {
+   "detector": "find_bear_gap_examples",
+   "example": {
+    "asof": "2023-11-02",
+    "found_by": "find_bear_gap_examples.py (read-only pod scan)",
+    "sym": "RELY"
+   },
+   "facts": {
+    "after_kind": "gap_held",
+    "at_highs": true,
+    "avg_dollar_volume_m": 30.9,
+    "close_below_200": true,
+    "close_below_21": true,
+    "close_below_50": true,
+    "day_pct": -31.86,
+    "dcr": 0.28,
+    "dcr_pct": 28,
+    "earnings_dates_near": [
+     "2023-11-01"
+    ],
+    "earnings_day": true,
+    "first_gap_since_top": true,
+    "fwd_10d_pct": 15.9,
+    "fwd_20d_pct": 11.3,
+    "fwd_5d_pct": 8.4,
+    "fwd_max_close_vs_gap_fill_pct": -17.0,
+    "fwd_max_high_vs_gap_fill_pct": -14.4,
+    "fwd_min_low_vs_gap_close_pct": 0.6,
+    "gap_day_high": 21.3,
+    "gap_day_low": 17.83,
+    "gap_fill_level": 26.89,
+    "gap_pct": -28.96,
+    "gap_vol_2x": true,
+    "known_name": false,
+    "ma_periods": [
+     9,
+     20,
+     50,
+     200
+    ],
+    "prior_above_200": true,
+    "prior_above_50": true,
+    "prior_close": 27.59,
+    "prior_close_vs_250d_high_pct": 0.0,
+    "range_atr": 3.59,
+    "rvol": 6.8,
+    "s50_slope10_pct": 2.5,
+    "sessions_since_top": 1,
+    "setup": "Bear Gap off the Highs",
+    "setup_score": 17,
+    "top_asof": "2023-11-01",
+    "true_gap": true
+   },
+   "fires": true,
+   "quote": "Bear Gap off the Highs (owner ruling pending; owner 2026-10-27: \"Don't want to do downtrend gaps but will do bear gaps off the highs\"): the FIRST true gap down since a recent top, marked on the gap day itself. It is not Gap Support (a gap UP that is later tested) and not a gap inside a downtrend (cut). What this lesson teaches is the owner's to rule on the charts.",
+   "setup": "Bear Gap off the Highs",
+   "source": "docs/study/setups/bear_gap_examples.json#Bear Gap off the Highs#RELY#2023-11-02",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.bear_gap",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/bear_gap_examples.json#Bear Gap off the Highs#RELY#2023-11-02",
+  "sym": "RELY",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2023-12-07",
+  "bars": {
+   "asof": "2023-12-07",
+   "forward": 20,
+   "sym": "CXM",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_0afdd21b5e4f",
+  "lesson_origin": "session",
+  "lesson_text": "Bear Gap off the Highs (owner ruling pending; owner 2026-10-27: \"Don't want to do downtrend gaps but will do bear gaps off the highs\"): the FIRST true gap down since a recent top, marked on the gap day itself. It is not Gap Support (a gap UP that is later tested) and not a gap inside a downtrend (cut). What this lesson teaches is the owner's to rule on the charts. Here the stock set its top 2 sessions earlier and closed -0.2% from it the day before, above its 50 and 200-day; it gapped -28.2% at the open on 20.84x volume and closed down -33.47% at 13% of its range, under the 50-day on its earnings report. Over the next 20 sessions the stock never traded back into the gap; twenty sessions on it was 9.7% from the gap-day close.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Is the last bar a bear gap off the highs: the first true gap down from a top?"
+  },
+  "reveal_json": {
+   "detector": "find_bear_gap_examples",
+   "example": {
+    "asof": "2023-12-07",
+    "found_by": "find_bear_gap_examples.py (read-only pod scan)",
+    "sym": "CXM"
+   },
+   "facts": {
+    "after_kind": "gap_held",
+    "at_highs": true,
+    "avg_dollar_volume_m": 23.1,
+    "close_below_200": true,
+    "close_below_21": true,
+    "close_below_50": true,
+    "day_pct": -33.47,
+    "dcr": 0.13,
+    "dcr_pct": 13,
+    "earnings_dates_near": [
+     "2023-12-06"
+    ],
+    "earnings_day": true,
+    "first_gap_since_top": true,
+    "fwd_10d_pct": 7.7,
+    "fwd_20d_pct": 9.7,
+    "fwd_5d_pct": 2.4,
+    "fwd_max_close_vs_gap_fill_pct": -26.8,
+    "fwd_max_high_vs_gap_fill_pct": -26.2,
+    "fwd_min_low_vs_gap_close_pct": -1.6,
+    "gap_day_high": 12.11,
+    "gap_day_low": 10.96,
+    "gap_fill_level": 16.7,
+    "gap_pct": -28.2,
+    "gap_vol_2x": true,
+    "known_name": false,
+    "ma_periods": [
+     9,
+     20,
+     50,
+     200
+    ],
+    "prior_above_200": true,
+    "prior_above_50": true,
+    "prior_close": 16.7,
+    "prior_close_vs_250d_high_pct": -0.2,
+    "range_atr": 2.66,
+    "rvol": 20.84,
+    "s50_slope10_pct": 1.8,
+    "sessions_since_top": 2,
+    "setup": "Bear Gap off the Highs",
+    "setup_score": 17,
+    "top_asof": "2023-12-05",
+    "true_gap": true
+   },
+   "fires": true,
+   "quote": "Bear Gap off the Highs (owner ruling pending; owner 2026-10-27: \"Don't want to do downtrend gaps but will do bear gaps off the highs\"): the FIRST true gap down since a recent top, marked on the gap day itself. It is not Gap Support (a gap UP that is later tested) and not a gap inside a downtrend (cut). What this lesson teaches is the owner's to rule on the charts.",
+   "setup": "Bear Gap off the Highs",
+   "source": "docs/study/setups/bear_gap_examples.json#Bear Gap off the Highs#CXM#2023-12-07",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.bear_gap",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/bear_gap_examples.json#Bear Gap off the Highs#CXM#2023-12-07",
+  "sym": "CXM",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2023-08-09",
+  "bars": {
+   "asof": "2023-08-09",
+   "forward": 20,
+   "sym": "SMCI",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_d656eedf0867",
+  "lesson_origin": "session",
+  "lesson_text": "Bear Gap off the Highs (owner ruling pending; owner 2026-10-27: \"Don't want to do downtrend gaps but will do bear gaps off the highs\"): the FIRST true gap down since a recent top, marked on the gap day itself. It is not Gap Support (a gap UP that is later tested) and not a gap inside a downtrend (cut). What this lesson teaches is the owner's to rule on the charts. Here the stock set its top 2 sessions earlier and closed -1.7% from it the day before, above its 50 and 200-day; it gapped -14.47% at the open on 3.77x volume and closed down -23.39% at 16% of its range, under the 50-day on its earnings report. Over the next 20 sessions the stock never traded back into the gap; twenty sessions on it was 0.5% from the gap-day close.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Is the last bar a bear gap off the highs: the first true gap down from a top?"
+  },
+  "reveal_json": {
+   "detector": "find_bear_gap_examples",
+   "example": {
+    "asof": "2023-08-09",
+    "found_by": "find_bear_gap_examples.py (read-only pod scan)",
+    "sym": "SMCI"
+   },
+   "facts": {
+    "after_kind": "gap_held",
+    "at_highs": true,
+    "avg_dollar_volume_m": 491.2,
+    "close_below_200": false,
+    "close_below_21": true,
+    "close_below_50": true,
+    "day_pct": -23.39,
+    "dcr": 0.16,
+    "dcr_pct": 16,
+    "earnings_dates_near": [
+     "2023-08-08"
+    ],
+    "earnings_day": true,
+    "first_gap_since_top": true,
+    "fwd_10d_pct": 4.3,
+    "fwd_20d_pct": 0.5,
+    "fwd_5d_pct": -4.7,
+    "fwd_max_close_vs_gap_fill_pct": -17.3,
+    "fwd_max_high_vs_gap_fill_pct": -12.5,
+    "fwd_min_low_vs_gap_close_pct": -11.6,
+    "gap_day_high": 29.8,
+    "gap_day_low": 26.02,
+    "gap_fill_level": 34.1,
+    "gap_pct": -14.47,
+    "gap_vol_2x": true,
+    "known_name": true,
+    "ma_periods": [
+     9,
+     20,
+     50,
+     200
+    ],
+    "prior_above_200": true,
+    "prior_above_50": true,
+    "prior_close": 34.74,
+    "prior_close_vs_250d_high_pct": -1.7,
+    "range_atr": 2.06,
+    "rvol": 3.77,
+    "s50_slope10_pct": 14.6,
+    "sessions_since_top": 2,
+    "setup": "Bear Gap off the Highs",
+    "setup_score": 16,
+    "top_asof": "2023-08-07",
+    "true_gap": true
+   },
+   "fires": true,
+   "quote": "Bear Gap off the Highs (owner ruling pending; owner 2026-10-27: \"Don't want to do downtrend gaps but will do bear gaps off the highs\"): the FIRST true gap down since a recent top, marked on the gap day itself. It is not Gap Support (a gap UP that is later tested) and not a gap inside a downtrend (cut). What this lesson teaches is the owner's to rule on the charts.",
+   "setup": "Bear Gap off the Highs",
+   "source": "docs/study/setups/bear_gap_examples.json#Bear Gap off the Highs#SMCI#2023-08-09",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.bear_gap",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/bear_gap_examples.json#Bear Gap off the Highs#SMCI#2023-08-09",
+  "sym": "SMCI",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2024-05-09",
+  "bars": {
+   "asof": "2024-05-09",
+   "forward": 20,
+   "sym": "DUOL",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_ac740eaa0a28",
+  "lesson_origin": "session",
+  "lesson_text": "Bear Gap off the Highs (owner ruling pending; owner 2026-10-27: \"Don't want to do downtrend gaps but will do bear gaps off the highs\"): the FIRST true gap down since a recent top, marked on the gap day itself. It is not Gap Support (a gap UP that is later tested) and not a gap inside a downtrend (cut). What this lesson teaches is the owner's to rule on the charts. Here the stock set its top 2 sessions earlier and closed -1.7% from it the day before, above its 50 and 200-day; it gapped -17.84% at the open on 4.17x volume and closed down -18.01% at 50% of its range, under the 50-day on its earnings report. Over the next 20 sessions the stock never traded back into the gap; twenty sessions on it was -5.8% from the gap-day close.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Is the last bar a bear gap off the highs: the first true gap down from a top?"
+  },
+  "reveal_json": {
+   "detector": "find_bear_gap_examples",
+   "example": {
+    "asof": "2024-05-09",
+    "found_by": "find_bear_gap_examples.py (read-only pod scan)",
+    "sym": "DUOL"
+   },
+   "facts": {
+    "after_kind": "gap_held",
+    "at_highs": true,
+    "avg_dollar_volume_m": 153.9,
+    "close_below_200": false,
+    "close_below_21": true,
+    "close_below_50": true,
+    "day_pct": -18.01,
+    "dcr": 0.5,
+    "dcr_pct": 50,
+    "earnings_dates_near": [
+     "2024-05-08"
+    ],
+    "earnings_day": true,
+    "first_gap_since_top": true,
+    "fwd_10d_pct": -12.4,
+    "fwd_20d_pct": -5.8,
+    "fwd_5d_pct": -12.2,
+    "fwd_max_close_vs_gap_fill_pct": -17.2,
+    "fwd_max_high_vs_gap_fill_pct": -15.3,
+    "fwd_min_low_vs_gap_close_pct": -14.3,
+    "gap_day_high": 208.98,
+    "gap_day_low": 192.22,
+    "gap_fill_level": 242.3,
+    "gap_pct": -17.84,
+    "gap_vol_2x": true,
+    "known_name": true,
+    "ma_periods": [
+     9,
+     20,
+     50,
+     200
+    ],
+    "prior_above_200": true,
+    "prior_above_50": true,
+    "prior_close": 244.64,
+    "prior_close_vs_250d_high_pct": -1.7,
+    "range_atr": 1.45,
+    "rvol": 4.17,
+    "s50_slope10_pct": 4.7,
+    "sessions_since_top": 2,
+    "setup": "Bear Gap off the Highs",
+    "setup_score": 16,
+    "top_asof": "2024-05-07",
+    "true_gap": true
+   },
+   "fires": true,
+   "quote": "Bear Gap off the Highs (owner ruling pending; owner 2026-10-27: \"Don't want to do downtrend gaps but will do bear gaps off the highs\"): the FIRST true gap down since a recent top, marked on the gap day itself. It is not Gap Support (a gap UP that is later tested) and not a gap inside a downtrend (cut). What this lesson teaches is the owner's to rule on the charts.",
+   "setup": "Bear Gap off the Highs",
+   "source": "docs/study/setups/bear_gap_examples.json#Bear Gap off the Highs#DUOL#2024-05-09",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.bear_gap",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/bear_gap_examples.json#Bear Gap off the Highs#DUOL#2024-05-09",
+  "sym": "DUOL",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2024-07-25",
+  "bars": {
+   "asof": "2024-07-25",
+   "forward": 20,
+   "sym": "F",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_80b3ede1ea1b",
+  "lesson_origin": "session",
+  "lesson_text": "Bear Gap off the Highs (owner ruling pending; owner 2026-10-27: \"Don't want to do downtrend gaps but will do bear gaps off the highs\"): the FIRST true gap down since a recent top, marked on the gap day itself. It is not Gap Support (a gap UP that is later tested) and not a gap inside a downtrend (cut). What this lesson teaches is the owner's to rule on the charts. Here the stock set its top 5 sessions earlier and closed -6.0% from it the day before, above its 50 and 200-day; it gapped -13.68% at the open on 5.32x volume and closed down -18.36% at 1% of its range, under the 50-day on its earnings report. Over the next 20 sessions the stock never traded back into the gap; twenty sessions on it was -2.2% from the gap-day close.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Is the last bar a bear gap off the highs: the first true gap down from a top?"
+  },
+  "reveal_json": {
+   "detector": "find_bear_gap_examples",
+   "example": {
+    "asof": "2024-07-25",
+    "found_by": "find_bear_gap_examples.py (read-only pod scan)",
+    "sym": "F"
+   },
+   "facts": {
+    "after_kind": "gap_held",
+    "at_highs": true,
+    "avg_dollar_volume_m": 666.6,
+    "close_below_200": true,
+    "close_below_21": true,
+    "close_below_50": true,
+    "day_pct": -18.36,
+    "dcr": 0.01,
+    "dcr_pct": 1,
+    "earnings_dates_near": [
+     "2024-07-24"
+    ],
+    "earnings_day": true,
+    "first_gap_since_top": true,
+    "fwd_10d_pct": -9.2,
+    "fwd_20d_pct": -2.2,
+    "fwd_5d_pct": -4.2,
+    "fwd_max_close_vs_gap_fill_pct": -17.7,
+    "fwd_max_high_vs_gap_fill_pct": -16.4,
+    "fwd_min_low_vs_gap_close_pct": -15.0,
+    "gap_day_high": 11.98,
+    "gap_day_low": 11.15,
+    "gap_fill_level": 13.59,
+    "gap_pct": -13.68,
+    "gap_vol_2x": true,
+    "known_name": true,
+    "ma_periods": [
+     9,
+     20,
+     50,
+     200
+    ],
+    "prior_above_200": true,
+    "prior_above_50": true,
+    "prior_close": 13.67,
+    "prior_close_vs_250d_high_pct": -6.0,
+    "range_atr": 2.14,
+    "rvol": 5.32,
+    "s50_slope10_pct": 2.9,
+    "sessions_since_top": 5,
+    "setup": "Bear Gap off the Highs",
+    "setup_score": 16,
+    "top_asof": "2024-07-18",
+    "true_gap": true
+   },
+   "fires": true,
+   "quote": "Bear Gap off the Highs (owner ruling pending; owner 2026-10-27: \"Don't want to do downtrend gaps but will do bear gaps off the highs\"): the FIRST true gap down since a recent top, marked on the gap day itself. It is not Gap Support (a gap UP that is later tested) and not a gap inside a downtrend (cut). What this lesson teaches is the owner's to rule on the charts.",
+   "setup": "Bear Gap off the Highs",
+   "source": "docs/study/setups/bear_gap_examples.json#Bear Gap off the Highs#F#2024-07-25",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.bear_gap",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/bear_gap_examples.json#Bear Gap off the Highs#F#2024-07-25",
+  "sym": "F",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2026-03-02",
+  "bars": {
+   "asof": "2026-03-02",
+   "forward": 20,
+   "sym": "AES",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_7ef87b39de97",
+  "lesson_origin": "session",
+  "lesson_text": "Bear Gap off the Highs (owner ruling pending; owner 2026-10-27: \"Don't want to do downtrend gaps but will do bear gaps off the highs\"): the FIRST true gap down since a recent top, marked on the gap day itself. It is not Gap Support (a gap UP that is later tested) and not a gap inside a downtrend (cut). What this lesson teaches is the owner's to rule on the charts. Here the stock set its top 1 sessions earlier and closed 0.0% from it the day before, above its 50 and 200-day; it gapped -16.98% at the open on 8.85x volume and closed down -17.77% at 13% of its range, under the 50-day on its earnings report. Over the next 20 sessions the stock never traded back into the gap; twenty sessions on it was -1.3% from the gap-day close.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Is the last bar a bear gap off the highs: the first true gap down from a top?"
+  },
+  "reveal_json": {
+   "detector": "find_bear_gap_examples",
+   "example": {
+    "asof": "2026-03-02",
+    "found_by": "find_bear_gap_examples.py (read-only pod scan)",
+    "sym": "AES"
+   },
+   "facts": {
+    "after_kind": "gap_held",
+    "at_highs": true,
+    "avg_dollar_volume_m": 145.1,
+    "close_below_200": false,
+    "close_below_21": true,
+    "close_below_50": true,
+    "day_pct": -17.77,
+    "dcr": 0.13,
+    "dcr_pct": 13,
+    "earnings_dates_near": [
+     "2026-03-02"
+    ],
+    "earnings_day": true,
+    "first_gap_since_top": true,
+    "fwd_10d_pct": -0.1,
+    "fwd_20d_pct": -1.3,
+    "fwd_5d_pct": -0.1,
+    "fwd_max_close_vs_gap_fill_pct": -15.4,
+    "fwd_max_high_vs_gap_fill_pct": -15.3,
+    "fwd_min_low_vs_gap_close_pct": -1.5,
+    "gap_day_high": 14.35,
+    "gap_day_low": 14.19,
+    "gap_fill_level": 16.9,
+    "gap_pct": -16.98,
+    "gap_vol_2x": true,
+    "known_name": false,
+    "ma_periods": [
+     9,
+     20,
+     50,
+     200
+    ],
+    "prior_above_200": true,
+    "prior_above_50": true,
+    "prior_close": 17.28,
+    "prior_close_vs_250d_high_pct": 0.0,
+    "range_atr": 0.33,
+    "rvol": 8.85,
+    "s50_slope10_pct": 3.5,
+    "sessions_since_top": 1,
+    "setup": "Bear Gap off the Highs",
+    "setup_score": 17,
+    "top_asof": "2026-02-27",
+    "true_gap": true
+   },
+   "fires": true,
+   "quote": "Bear Gap off the Highs (owner ruling pending; owner 2026-10-27: \"Don't want to do downtrend gaps but will do bear gaps off the highs\"): the FIRST true gap down since a recent top, marked on the gap day itself. It is not Gap Support (a gap UP that is later tested) and not a gap inside a downtrend (cut). What this lesson teaches is the owner's to rule on the charts.",
+   "setup": "Bear Gap off the Highs",
+   "source": "docs/study/setups/bear_gap_examples.json#Bear Gap off the Highs#AES#2026-03-02",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.bear_gap",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/bear_gap_examples.json#Bear Gap off the Highs#AES#2026-03-02",
+  "sym": "AES",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2023-02-16",
+  "bars": {
+   "asof": "2023-02-16",
+   "forward": 20,
+   "sym": "TOST",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_9d981e1dd789",
+  "lesson_origin": "session",
+  "lesson_text": "Bear Gap off the Highs (owner ruling pending; owner 2026-10-27: \"Don't want to do downtrend gaps but will do bear gaps off the highs\"): the FIRST true gap down since a recent top, marked on the gap day itself. It is not Gap Support (a gap UP that is later tested) and not a gap inside a downtrend (cut). What this lesson teaches is the owner's to rule on the charts. Here the stock set its top 1 sessions earlier and closed 0.0% from it the day before, above its 50 and 200-day; it gapped -18.95% at the open on 7.48x volume and closed down -22.84% at 22% of its range, under the 50-day on its earnings report. Over the next 20 sessions the stock never traded back into the gap; twenty sessions on it was -14.6% from the gap-day close.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Is the last bar a bear gap off the highs: the first true gap down from a top?"
+  },
+  "reveal_json": {
+   "detector": "find_bear_gap_examples",
+   "example": {
+    "asof": "2023-02-16",
+    "found_by": "find_bear_gap_examples.py (read-only pod scan)",
+    "sym": "TOST"
+   },
+   "facts": {
+    "after_kind": "gap_held",
+    "at_highs": true,
+    "avg_dollar_volume_m": 113.5,
+    "close_below_200": false,
+    "close_below_21": true,
+    "close_below_50": true,
+    "day_pct": -22.84,
+    "dcr": 0.22,
+    "dcr_pct": 22,
+    "earnings_dates_near": [
+     "2023-02-16"
+    ],
+    "earnings_day": true,
+    "first_gap_since_top": true,
+    "fwd_10d_pct": -6.1,
+    "fwd_20d_pct": -14.6,
+    "fwd_5d_pct": -2.8,
+    "fwd_max_close_vs_gap_fill_pct": -17.6,
+    "fwd_max_high_vs_gap_fill_pct": -17.0,
+    "fwd_min_low_vs_gap_close_pct": -17.6,
+    "gap_day_high": 21.83,
+    "gap_day_low": 19.52,
+    "gap_fill_level": 24.89,
+    "gap_pct": -18.95,
+    "gap_vol_2x": true,
+    "known_name": false,
+    "ma_periods": [
+     9,
+     20,
+     50,
+     200
+    ],
+    "prior_above_200": true,
+    "prior_above_50": true,
+    "prior_close": 25.96,
+    "prior_close_vs_250d_high_pct": 0.0,
+    "range_atr": 1.9,
+    "rvol": 7.48,
+    "s50_slope10_pct": 6.1,
+    "sessions_since_top": 1,
+    "setup": "Bear Gap off the Highs",
+    "setup_score": 17,
+    "top_asof": "2023-02-15",
+    "true_gap": true
+   },
+   "fires": true,
+   "quote": "Bear Gap off the Highs (owner ruling pending; owner 2026-10-27: \"Don't want to do downtrend gaps but will do bear gaps off the highs\"): the FIRST true gap down since a recent top, marked on the gap day itself. It is not Gap Support (a gap UP that is later tested) and not a gap inside a downtrend (cut). What this lesson teaches is the owner's to rule on the charts.",
+   "setup": "Bear Gap off the Highs",
+   "source": "docs/study/setups/bear_gap_examples.json#Bear Gap off the Highs#TOST#2023-02-16",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.bear_gap",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/bear_gap_examples.json#Bear Gap off the Highs#TOST#2023-02-16",
+  "sym": "TOST",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2024-02-13",
+  "bars": {
+   "asof": "2024-02-13",
+   "forward": 20,
+   "sym": "SHOP",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_3342e0be11b9",
+  "lesson_origin": "session",
+  "lesson_text": "Bear Gap off the Highs (owner ruling pending; owner 2026-10-27: \"Don't want to do downtrend gaps but will do bear gaps off the highs\"): the FIRST true gap down since a recent top, marked on the gap day itself. It is not Gap Support (a gap UP that is later tested) and not a gap inside a downtrend (cut). What this lesson teaches is the owner's to rule on the charts. Here the stock set its top 2 sessions earlier and closed -1.8% from it the day before, above its 50 and 200-day; it gapped -12.7% at the open on 4.03x volume and closed down -13.4% at 3% of its range, under the 50-day on its earnings report. Over the next 20 sessions the stock never traded back into the gap; twenty sessions on it was 1.9% from the gap-day close.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Is the last bar a bear gap off the highs: the first true gap down from a top?"
+  },
+  "reveal_json": {
+   "detector": "find_bear_gap_examples",
+   "example": {
+    "asof": "2024-02-13",
+    "found_by": "find_bear_gap_examples.py (read-only pod scan)",
+    "sym": "SHOP"
+   },
+   "facts": {
+    "after_kind": "gap_held",
+    "at_highs": true,
+    "avg_dollar_volume_m": 745.3,
+    "close_below_200": false,
+    "close_below_21": true,
+    "close_below_50": true,
+    "day_pct": -13.4,
+    "dcr": 0.03,
+    "dcr_pct": 3,
+    "earnings_dates_near": [
+     "2024-02-13"
+    ],
+    "earnings_day": true,
+    "first_gap_since_top": true,
+    "fwd_10d_pct": -2.1,
+    "fwd_20d_pct": 1.9,
+    "fwd_5d_pct": -2.1,
+    "fwd_max_close_vs_gap_fill_pct": -5.6,
+    "fwd_max_high_vs_gap_fill_pct": -5.5,
+    "fwd_min_low_vs_gap_close_pct": -5.9,
+    "gap_day_high": 83.49,
+    "gap_day_low": 77.01,
+    "gap_fill_level": 88.98,
+    "gap_pct": -12.7,
+    "gap_vol_2x": true,
+    "known_name": true,
+    "ma_periods": [
+     9,
+     20,
+     50,
+     200
+    ],
+    "prior_above_200": true,
+    "prior_above_50": true,
+    "prior_close": 89.12,
+    "prior_close_vs_250d_high_pct": -1.8,
+    "range_atr": 1.97,
+    "rvol": 4.03,
+    "s50_slope10_pct": 3.5,
+    "sessions_since_top": 2,
+    "setup": "Bear Gap off the Highs",
+    "setup_score": 16,
+    "top_asof": "2024-02-09",
+    "true_gap": true
+   },
+   "fires": true,
+   "quote": "Bear Gap off the Highs (owner ruling pending; owner 2026-10-27: \"Don't want to do downtrend gaps but will do bear gaps off the highs\"): the FIRST true gap down since a recent top, marked on the gap day itself. It is not Gap Support (a gap UP that is later tested) and not a gap inside a downtrend (cut). What this lesson teaches is the owner's to rule on the charts.",
+   "setup": "Bear Gap off the Highs",
+   "source": "docs/study/setups/bear_gap_examples.json#Bear Gap off the Highs#SHOP#2024-02-13",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.bear_gap",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/bear_gap_examples.json#Bear Gap off the Highs#SHOP#2024-02-13",
+  "sym": "SHOP",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2023-12-20",
+  "bars": {
+   "asof": "2023-12-20",
+   "forward": 20,
+   "sym": "FDX",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_c4bafaf1f0c5",
+  "lesson_origin": "session",
+  "lesson_text": "Bear Gap off the Highs (owner ruling pending; owner 2026-10-27: \"Don't want to do downtrend gaps but will do bear gaps off the highs\"): the FIRST true gap down since a recent top, marked on the gap day itself. It is not Gap Support (a gap UP that is later tested) and not a gap inside a downtrend (cut). What this lesson teaches is the owner's to rule on the charts. Here the stock set its top 2 sessions earlier and closed -0.7% from it the day before, above its 50 and 200-day; it gapped -11.96% at the open on 10.85x volume and closed down -12.05% at 5% of its range, under the 50-day on its earnings report. Over the next 20 sessions the stock never traded back into the gap; twenty sessions on it was 1.8% from the gap-day close.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Is the last bar a bear gap off the highs: the first true gap down from a top?"
+  },
+  "reveal_json": {
+   "detector": "find_bear_gap_examples",
+   "example": {
+    "asof": "2023-12-20",
+    "found_by": "find_bear_gap_examples.py (read-only pod scan)",
+    "sym": "FDX"
+   },
+   "facts": {
+    "after_kind": "gap_held",
+    "at_highs": true,
+    "avg_dollar_volume_m": 501.2,
+    "close_below_200": false,
+    "close_below_21": true,
+    "close_below_50": true,
+    "day_pct": -12.05,
+    "dcr": 0.05,
+    "dcr_pct": 5,
+    "earnings_dates_near": [
+     "2023-12-19"
+    ],
+    "earnings_day": true,
+    "first_gap_since_top": true,
+    "fwd_10d_pct": 0.2,
+    "fwd_20d_pct": 1.8,
+    "fwd_5d_pct": 3.0,
+    "fwd_max_close_vs_gap_fill_pct": -8.9,
+    "fwd_max_high_vs_gap_fill_pct": -8.2,
+    "fwd_min_low_vs_gap_close_pct": -1.9,
+    "gap_day_high": 252.68,
+    "gap_day_low": 245.93,
+    "gap_fill_level": 278.5,
+    "gap_pct": -11.96,
+    "gap_vol_2x": true,
+    "known_name": true,
+    "ma_periods": [
+     9,
+     20,
+     50,
+     200
+    ],
+    "prior_above_200": true,
+    "prior_above_50": true,
+    "prior_close": 280.0,
+    "prior_close_vs_250d_high_pct": -0.7,
+    "range_atr": 1.22,
+    "rvol": 10.85,
+    "s50_slope10_pct": 1.1,
+    "sessions_since_top": 2,
+    "setup": "Bear Gap off the Highs",
+    "setup_score": 16,
+    "top_asof": "2023-12-18",
+    "true_gap": true
+   },
+   "fires": true,
+   "quote": "Bear Gap off the Highs (owner ruling pending; owner 2026-10-27: \"Don't want to do downtrend gaps but will do bear gaps off the highs\"): the FIRST true gap down since a recent top, marked on the gap day itself. It is not Gap Support (a gap UP that is later tested) and not a gap inside a downtrend (cut). What this lesson teaches is the owner's to rule on the charts.",
+   "setup": "Bear Gap off the Highs",
+   "source": "docs/study/setups/bear_gap_examples.json#Bear Gap off the Highs#FDX#2023-12-20",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.bear_gap",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/bear_gap_examples.json#Bear Gap off the Highs#FDX#2023-12-20",
+  "sym": "FDX",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2024-05-30",
+  "bars": {
+   "asof": "2024-05-30",
+   "forward": 20,
+   "sym": "NTNX",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_fed57f50f94b",
+  "lesson_origin": "session",
+  "lesson_text": "Bear Gap off the Highs (owner ruling pending; owner 2026-10-27: \"Don't want to do downtrend gaps but will do bear gaps off the highs\"): the FIRST true gap down since a recent top, marked on the gap day itself. It is not Gap Support (a gap UP that is later tested) and not a gap inside a downtrend (cut). What this lesson teaches is the owner's to rule on the charts. Here the stock set its top 6 sessions earlier and closed -0.1% from it the day before, above its 50 and 200-day; it gapped -14.67% at the open on 7.14x volume and closed down -23.1% at 4% of its range, under the 50-day on its earnings report. Over the next 20 sessions the stock never traded back into the gap; twenty sessions on it was 0.9% from the gap-day close.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Is the last bar a bear gap off the highs: the first true gap down from a top?"
+  },
+  "reveal_json": {
+   "detector": "find_bear_gap_examples",
+   "example": {
+    "asof": "2024-05-30",
+    "found_by": "find_bear_gap_examples.py (read-only pod scan)",
+    "sym": "NTNX"
+   },
+   "facts": {
+    "after_kind": "gap_held",
+    "at_highs": true,
+    "avg_dollar_volume_m": 151.1,
+    "close_below_200": false,
+    "close_below_21": true,
+    "close_below_50": true,
+    "day_pct": -23.1,
+    "dcr": 0.04,
+    "dcr_pct": 4,
+    "earnings_dates_near": [
+     "2024-05-29"
+    ],
+    "earnings_day": true,
+    "first_gap_since_top": true,
+    "fwd_10d_pct": -5.7,
+    "fwd_20d_pct": 0.9,
+    "fwd_5d_pct": -7.1,
+    "fwd_max_close_vs_gap_fill_pct": -19.7,
+    "fwd_max_high_vs_gap_fill_pct": -18.5,
+    "fwd_min_low_vs_gap_close_pct": -8.0,
+    "gap_day_high": 63.25,
+    "gap_day_low": 56.07,
+    "gap_fill_level": 70.81,
+    "gap_pct": -14.67,
+    "gap_vol_2x": true,
+    "known_name": false,
+    "ma_periods": [
+     9,
+     20,
+     50,
+     200
+    ],
+    "prior_above_200": true,
+    "prior_above_50": true,
+    "prior_close": 73.29,
+    "prior_close_vs_250d_high_pct": -0.1,
+    "range_atr": 3.33,
+    "rvol": 7.14,
+    "s50_slope10_pct": 2.3,
+    "sessions_since_top": 6,
+    "setup": "Bear Gap off the Highs",
+    "setup_score": 17,
+    "top_asof": "2024-05-21",
+    "true_gap": true
+   },
+   "fires": true,
+   "quote": "Bear Gap off the Highs (owner ruling pending; owner 2026-10-27: \"Don't want to do downtrend gaps but will do bear gaps off the highs\"): the FIRST true gap down since a recent top, marked on the gap day itself. It is not Gap Support (a gap UP that is later tested) and not a gap inside a downtrend (cut). What this lesson teaches is the owner's to rule on the charts.",
+   "setup": "Bear Gap off the Highs",
+   "source": "docs/study/setups/bear_gap_examples.json#Bear Gap off the Highs#NTNX#2024-05-30",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.bear_gap",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/bear_gap_examples.json#Bear Gap off the Highs#NTNX#2024-05-30",
+  "sym": "NTNX",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2025-02-07",
+  "bars": {
+   "asof": "2025-02-07",
+   "forward": 20,
+   "sym": "NBIX",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_21b5157b9cb9",
+  "lesson_origin": "session",
+  "lesson_text": "Bear Gap off the Highs (owner ruling pending; owner 2026-10-27: \"Don't want to do downtrend gaps but will do bear gaps off the highs\"): the FIRST true gap down since a recent top, marked on the gap day itself. It is not Gap Support (a gap UP that is later tested) and not a gap inside a downtrend (cut). What this lesson teaches is the owner's to rule on the charts. Here the stock set its top 6 sessions earlier and closed -1.8% from it the day before, above its 50 and 200-day; it gapped -16.28% at the open on 6.73x volume and closed down -18.53% at 23% of its range, under the 50-day on its earnings report. Over the next 20 sessions the stock never traded back into the gap; twenty sessions on it was -9.6% from the gap-day close.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Is the last bar a bear gap off the highs: the first true gap down from a top?"
+  },
+  "reveal_json": {
+   "detector": "find_bear_gap_examples",
+   "example": {
+    "asof": "2025-02-07",
+    "found_by": "find_bear_gap_examples.py (read-only pod scan)",
+    "sym": "NBIX"
+   },
+   "facts": {
+    "after_kind": "gap_held",
+    "at_highs": true,
+    "avg_dollar_volume_m": 132.6,
+    "close_below_200": true,
+    "close_below_21": true,
+    "close_below_50": true,
+    "day_pct": -18.53,
+    "dcr": 0.23,
+    "dcr_pct": 23,
+    "earnings_dates_near": [
+     "2025-02-06"
+    ],
+    "earnings_day": true,
+    "first_gap_since_top": true,
+    "fwd_10d_pct": -2.9,
+    "fwd_20d_pct": -9.6,
+    "fwd_5d_pct": -6.2,
+    "fwd_max_close_vs_gap_fill_pct": -19.5,
+    "fwd_max_high_vs_gap_fill_pct": -16.0,
+    "fwd_min_low_vs_gap_close_pct": -10.1,
+    "gap_day_high": 132.0,
+    "gap_day_low": 119.76,
+    "gap_fill_level": 150.0,
+    "gap_pct": -16.28,
+    "gap_vol_2x": true,
+    "known_name": false,
+    "ma_periods": [
+     9,
+     20,
+     50,
+     200
+    ],
+    "prior_above_200": true,
+    "prior_above_50": true,
+    "prior_close": 150.51,
+    "prior_close_vs_250d_high_pct": -1.8,
+    "range_atr": 3.67,
+    "rvol": 6.73,
+    "s50_slope10_pct": 4.2,
+    "sessions_since_top": 6,
+    "setup": "Bear Gap off the Highs",
+    "setup_score": 17,
+    "top_asof": "2025-01-30",
+    "true_gap": true
+   },
+   "fires": true,
+   "quote": "Bear Gap off the Highs (owner ruling pending; owner 2026-10-27: \"Don't want to do downtrend gaps but will do bear gaps off the highs\"): the FIRST true gap down since a recent top, marked on the gap day itself. It is not Gap Support (a gap UP that is later tested) and not a gap inside a downtrend (cut). What this lesson teaches is the owner's to rule on the charts.",
+   "setup": "Bear Gap off the Highs",
+   "source": "docs/study/setups/bear_gap_examples.json#Bear Gap off the Highs#NBIX#2025-02-07",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.bear_gap",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/bear_gap_examples.json#Bear Gap off the Highs#NBIX#2025-02-07",
+  "sym": "NBIX",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2024-10-31",
+  "bars": {
+   "asof": "2024-10-31",
+   "forward": 20,
+   "sym": "MPWR",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_05b63e2b6a6f",
+  "lesson_origin": "session",
+  "lesson_text": "Bear Gap off the Highs (owner ruling pending; owner 2026-10-27: \"Don't want to do downtrend gaps but will do bear gaps off the highs\"): the FIRST true gap down since a recent top, marked on the gap day itself. It is not Gap Support (a gap UP that is later tested) and not a gap inside a downtrend (cut). What this lesson teaches is the owner's to rule on the charts. Here the stock set its top 50 sessions earlier and closed -2.9% from it the day before, above its 50 and 200-day; it gapped -10.16% at the open on 5.92x volume and closed down -17.45% at 27% of its range, under the 50-day on its earnings report. Over the next 20 sessions the stock never traded back into the gap; twenty sessions on it was -25.2% from the gap-day close.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Is the last bar a bear gap off the highs: the first true gap down from a top?"
+  },
+  "reveal_json": {
+   "detector": "find_bear_gap_examples",
+   "example": {
+    "asof": "2024-10-31",
+    "found_by": "find_bear_gap_examples.py (read-only pod scan)",
+    "sym": "MPWR"
+   },
+   "facts": {
+    "after_kind": "gap_held",
+    "at_highs": true,
+    "avg_dollar_volume_m": 459.2,
+    "close_below_200": true,
+    "close_below_21": true,
+    "close_below_50": true,
+    "day_pct": -17.45,
+    "dcr": 0.27,
+    "dcr_pct": 27,
+    "earnings_dates_near": [
+     "2024-10-30"
+    ],
+    "earnings_day": true,
+    "first_gap_since_top": true,
+    "fwd_10d_pct": -24.0,
+    "fwd_20d_pct": -25.2,
+    "fwd_5d_pct": 2.1,
+    "fwd_max_close_vs_gap_fill_pct": -13.7,
+    "fwd_max_high_vs_gap_fill_pct": -12.4,
+    "fwd_min_low_vs_gap_close_pct": -28.0,
+    "gap_day_high": 829.5,
+    "gap_day_low": 733.88,
+    "gap_fill_level": 909.56,
+    "gap_pct": -10.16,
+    "gap_vol_2x": true,
+    "known_name": false,
+    "ma_periods": [
+     9,
+     20,
+     50,
+     200
+    ],
+    "prior_above_200": true,
+    "prior_above_50": true,
+    "prior_close": 919.81,
+    "prior_close_vs_250d_high_pct": -2.9,
+    "range_atr": 3.06,
+    "rvol": 5.92,
+    "s50_slope10_pct": 0.9,
+    "sessions_since_top": 50,
+    "setup": "Bear Gap off the Highs",
+    "setup_score": 17,
+    "top_asof": "2024-08-21",
+    "true_gap": true
+   },
+   "fires": true,
+   "quote": "Bear Gap off the Highs (owner ruling pending; owner 2026-10-27: \"Don't want to do downtrend gaps but will do bear gaps off the highs\"): the FIRST true gap down since a recent top, marked on the gap day itself. It is not Gap Support (a gap UP that is later tested) and not a gap inside a downtrend (cut). What this lesson teaches is the owner's to rule on the charts.",
+   "setup": "Bear Gap off the Highs",
+   "source": "docs/study/setups/bear_gap_examples.json#Bear Gap off the Highs#MPWR#2024-10-31",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.bear_gap",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/bear_gap_examples.json#Bear Gap off the Highs#MPWR#2024-10-31",
+  "sym": "MPWR",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2026-01-27",
+  "bars": {
+   "asof": "2026-01-27",
+   "forward": 20,
+   "sym": "SANM",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_5ccb672177e9",
+  "lesson_origin": "session",
+  "lesson_text": "Bear Gap off the Highs (owner ruling pending; owner 2026-10-27: \"Don't want to do downtrend gaps but will do bear gaps off the highs\"): the FIRST true gap down since a recent top, marked on the gap day itself. It is not Gap Support (a gap UP that is later tested) and not a gap inside a downtrend (cut). What this lesson teaches is the owner's to rule on the charts. Here the stock set its top 1 sessions earlier and closed 0.0% from it the day before, above its 50 and 200-day; it gapped -14.01% at the open on 5.64x volume and closed down -21.56% at 7% of its range, under the 50-day on its earnings report. Over the next 20 sessions the stock never traded back into the gap; twenty sessions on it was 12.7% from the gap-day close.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Is the last bar a bear gap off the highs: the first true gap down from a top?"
+  },
+  "reveal_json": {
+   "detector": "find_bear_gap_examples",
+   "example": {
+    "asof": "2026-01-27",
+    "found_by": "find_bear_gap_examples.py (read-only pod scan)",
+    "sym": "SANM"
+   },
+   "facts": {
+    "after_kind": "gap_held",
+    "at_highs": true,
+    "avg_dollar_volume_m": 104.3,
+    "close_below_200": false,
+    "close_below_21": true,
+    "close_below_50": true,
+    "day_pct": -21.56,
+    "dcr": 0.07,
+    "dcr_pct": 7,
+    "earnings_dates_near": [
+     "2026-01-26"
+    ],
+    "earnings_day": true,
+    "first_gap_since_top": true,
+    "fwd_10d_pct": 4.5,
+    "fwd_20d_pct": 12.7,
+    "fwd_5d_pct": 8.0,
+    "fwd_max_close_vs_gap_fill_pct": -7.9,
+    "fwd_max_high_vs_gap_fill_pct": -5.3,
+    "fwd_min_low_vs_gap_close_pct": -4.3,
+    "gap_day_high": 159.7,
+    "gap_day_low": 142.0,
+    "gap_fill_level": 175.16,
+    "gap_pct": -14.01,
+    "gap_vol_2x": true,
+    "known_name": false,
+    "ma_periods": [
+     9,
+     20,
+     50,
+     200
+    ],
+    "prior_above_200": true,
+    "prior_above_50": true,
+    "prior_close": 182.54,
+    "prior_close_vs_250d_high_pct": 0.0,
+    "range_atr": 1.96,
+    "rvol": 5.64,
+    "s50_slope10_pct": 2.1,
+    "sessions_since_top": 1,
+    "setup": "Bear Gap off the Highs",
+    "setup_score": 17,
+    "top_asof": "2026-01-26",
+    "true_gap": true
+   },
+   "fires": true,
+   "quote": "Bear Gap off the Highs (owner ruling pending; owner 2026-10-27: \"Don't want to do downtrend gaps but will do bear gaps off the highs\"): the FIRST true gap down since a recent top, marked on the gap day itself. It is not Gap Support (a gap UP that is later tested) and not a gap inside a downtrend (cut). What this lesson teaches is the owner's to rule on the charts.",
+   "setup": "Bear Gap off the Highs",
+   "source": "docs/study/setups/bear_gap_examples.json#Bear Gap off the Highs#SANM#2026-01-27",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.bear_gap",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/bear_gap_examples.json#Bear Gap off the Highs#SANM#2026-01-27",
+  "sym": "SANM",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2024-07-30",
+  "bars": {
+   "asof": "2024-07-30",
+   "forward": 20,
+   "sym": "WWD",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_843d22c22ab8",
+  "lesson_origin": "session",
+  "lesson_text": "Bear Gap off the Highs (owner ruling pending; owner 2026-10-27: \"Don't want to do downtrend gaps but will do bear gaps off the highs\"): the FIRST true gap down since a recent top, marked on the gap day itself. It is not Gap Support (a gap UP that is later tested) and not a gap inside a downtrend (cut). What this lesson teaches is the owner's to rule on the charts. Here the stock set its top 10 sessions earlier and closed -2.2% from it the day before, above its 50 and 200-day; it gapped -16.42% at the open on 8.02x volume and closed down -17.17% at 27% of its range, under the 50-day on its earnings report. Over the next 20 sessions the stock never traded back into the gap; twenty sessions on it was 9.5% from the gap-day close.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Is the last bar a bear gap off the highs: the first true gap down from a top?"
+  },
+  "reveal_json": {
+   "detector": "find_bear_gap_examples",
+   "example": {
+    "asof": "2024-07-30",
+    "found_by": "find_bear_gap_examples.py (read-only pod scan)",
+    "sym": "WWD"
+   },
+   "facts": {
+    "after_kind": "gap_held",
+    "at_highs": true,
+    "avg_dollar_volume_m": 70.5,
+    "close_below_200": false,
+    "close_below_21": true,
+    "close_below_50": true,
+    "day_pct": -17.17,
+    "dcr": 0.27,
+    "dcr_pct": 27,
+    "earnings_dates_near": [
+     "2024-07-29"
+    ],
+    "earnings_day": true,
+    "first_gap_since_top": true,
+    "fwd_10d_pct": 2.8,
+    "fwd_20d_pct": 9.5,
+    "fwd_5d_pct": 1.5,
+    "fwd_max_close_vs_gap_fill_pct": -8.5,
+    "fwd_max_high_vs_gap_fill_pct": -8.3,
+    "fwd_min_low_vs_gap_close_pct": -3.8,
+    "gap_day_high": 159.83,
+    "gap_day_low": 148.66,
+    "gap_fill_level": 181.67,
+    "gap_pct": -16.42,
+    "gap_vol_2x": true,
+    "known_name": false,
+    "ma_periods": [
+     9,
+     20,
+     50,
+     200
+    ],
+    "prior_above_200": true,
+    "prior_above_50": true,
+    "prior_close": 183.19,
+    "prior_close_vs_250d_high_pct": -2.2,
+    "range_atr": 2.19,
+    "rvol": 8.02,
+    "s50_slope10_pct": 0.6,
+    "sessions_since_top": 10,
+    "setup": "Bear Gap off the Highs",
+    "setup_score": 17,
+    "top_asof": "2024-07-16",
+    "true_gap": true
+   },
+   "fires": true,
+   "quote": "Bear Gap off the Highs (owner ruling pending; owner 2026-10-27: \"Don't want to do downtrend gaps but will do bear gaps off the highs\"): the FIRST true gap down since a recent top, marked on the gap day itself. It is not Gap Support (a gap UP that is later tested) and not a gap inside a downtrend (cut). What this lesson teaches is the owner's to rule on the charts.",
+   "setup": "Bear Gap off the Highs",
+   "source": "docs/study/setups/bear_gap_examples.json#Bear Gap off the Highs#WWD#2024-07-30",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.bear_gap",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/bear_gap_examples.json#Bear Gap off the Highs#WWD#2024-07-30",
+  "sym": "WWD",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2024-03-06",
+  "bars": {
+   "asof": "2024-03-06",
+   "forward": 20,
+   "sym": "THO",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_b83121468244",
+  "lesson_origin": "session",
+  "lesson_text": "Bear Gap off the Highs (owner ruling pending; owner 2026-10-27: \"Don't want to do downtrend gaps but will do bear gaps off the highs\"): the FIRST true gap down since a recent top, marked on the gap day itself. It is not Gap Support (a gap UP that is later tested) and not a gap inside a downtrend (cut). What this lesson teaches is the owner's to rule on the charts. Here the stock set its top 3 sessions earlier and closed -1.9% from it the day before, above its 50 and 200-day; it gapped -16.31% at the open on 9.43x volume and closed down -15.44% at 17% of its range, under the 50-day on its earnings report. Over the next 20 sessions the stock never traded back into the gap; twenty sessions on it was 3.8% from the gap-day close.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Is the last bar a bear gap off the highs: the first true gap down from a top?"
+  },
+  "reveal_json": {
+   "detector": "find_bear_gap_examples",
+   "example": {
+    "asof": "2024-03-06",
+    "found_by": "find_bear_gap_examples.py (read-only pod scan)",
+    "sym": "THO"
+   },
+   "facts": {
+    "after_kind": "gap_held",
+    "at_highs": true,
+    "avg_dollar_volume_m": 54.0,
+    "close_below_200": false,
+    "close_below_21": true,
+    "close_below_50": true,
+    "day_pct": -15.44,
+    "dcr": 0.17,
+    "dcr_pct": 17,
+    "earnings_dates_near": [
+     "2024-03-06"
+    ],
+    "earnings_day": true,
+    "first_gap_since_top": true,
+    "fwd_10d_pct": 0.5,
+    "fwd_20d_pct": 3.8,
+    "fwd_5d_pct": -4.0,
+    "fwd_max_close_vs_gap_fill_pct": -6.6,
+    "fwd_max_high_vs_gap_fill_pct": -6.3,
+    "fwd_min_low_vs_gap_close_pct": -8.1,
+    "gap_day_high": 114.52,
+    "gap_day_low": 105.51,
+    "gap_fill_level": 125.69,
+    "gap_pct": -16.31,
+    "gap_vol_2x": true,
+    "known_name": false,
+    "ma_periods": [
+     9,
+     20,
+     50,
+     200
+    ],
+    "prior_above_200": true,
+    "prior_above_50": true,
+    "prior_close": 126.59,
+    "prior_close_vs_250d_high_pct": -1.9,
+    "range_atr": 3.64,
+    "rvol": 9.43,
+    "s50_slope10_pct": 2.3,
+    "sessions_since_top": 3,
+    "setup": "Bear Gap off the Highs",
+    "setup_score": 17,
+    "top_asof": "2024-03-01",
+    "true_gap": true
+   },
+   "fires": true,
+   "quote": "Bear Gap off the Highs (owner ruling pending; owner 2026-10-27: \"Don't want to do downtrend gaps but will do bear gaps off the highs\"): the FIRST true gap down since a recent top, marked on the gap day itself. It is not Gap Support (a gap UP that is later tested) and not a gap inside a downtrend (cut). What this lesson teaches is the owner's to rule on the charts.",
+   "setup": "Bear Gap off the Highs",
+   "source": "docs/study/setups/bear_gap_examples.json#Bear Gap off the Highs#THO#2024-03-06",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.bear_gap",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/bear_gap_examples.json#Bear Gap off the Highs#THO#2024-03-06",
+  "sym": "THO",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2026-03-03",
+  "bars": {
+   "asof": "2026-03-03",
+   "forward": 20,
+   "sym": "HROW",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_7b6befa2c1a1",
+  "lesson_origin": "session",
+  "lesson_text": "Bear Gap off the Highs (owner ruling pending; owner 2026-10-27: \"Don't want to do downtrend gaps but will do bear gaps off the highs\"): the FIRST true gap down since a recent top, marked on the gap day itself. It is not Gap Support (a gap UP that is later tested) and not a gap inside a downtrend (cut). What this lesson teaches is the owner's to rule on the charts. Here the stock set its top 39 sessions earlier and closed -2.2% from it the day before, above its 50 and 200-day; it gapped -16.68% at the open on 7.14x volume and closed down -27.96% at 1% of its range, under the 50-day on its earnings report. Over the next 20 sessions the stock never traded back into the gap; twenty sessions on it was -8.7% from the gap-day close.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Is the last bar a bear gap off the highs: the first true gap down from a top?"
+  },
+  "reveal_json": {
+   "detector": "find_bear_gap_examples",
+   "example": {
+    "asof": "2026-03-03",
+    "found_by": "find_bear_gap_examples.py (read-only pod scan)",
+    "sym": "HROW"
+   },
+   "facts": {
+    "after_kind": "gap_held",
+    "at_highs": true,
+    "avg_dollar_volume_m": 30.1,
+    "close_below_200": true,
+    "close_below_21": true,
+    "close_below_50": true,
+    "day_pct": -27.96,
+    "dcr": 0.01,
+    "dcr_pct": 1,
+    "earnings_dates_near": [
+     "2026-03-02"
+    ],
+    "earnings_day": true,
+    "first_gap_since_top": true,
+    "fwd_10d_pct": -8.7,
+    "fwd_20d_pct": -8.7,
+    "fwd_5d_pct": -6.5,
+    "fwd_max_close_vs_gap_fill_pct": -24.4,
+    "fwd_max_high_vs_gap_fill_pct": -21.9,
+    "fwd_min_low_vs_gap_close_pct": -14.5,
+    "gap_day_high": 44.68,
+    "gap_day_low": 38.52,
+    "gap_fill_level": 51.86,
+    "gap_pct": -16.68,
+    "gap_vol_2x": true,
+    "known_name": false,
+    "ma_periods": [
+     9,
+     20,
+     50,
+     200
+    ],
+    "prior_above_200": true,
+    "prior_above_50": true,
+    "prior_close": 53.59,
+    "prior_close_vs_250d_high_pct": -2.2,
+    "range_atr": 2.38,
+    "rvol": 7.14,
+    "s50_slope10_pct": 2.2,
+    "sessions_since_top": 39,
+    "setup": "Bear Gap off the Highs",
+    "setup_score": 17,
+    "top_asof": "2026-01-05",
+    "true_gap": true
+   },
+   "fires": true,
+   "quote": "Bear Gap off the Highs (owner ruling pending; owner 2026-10-27: \"Don't want to do downtrend gaps but will do bear gaps off the highs\"): the FIRST true gap down since a recent top, marked on the gap day itself. It is not Gap Support (a gap UP that is later tested) and not a gap inside a downtrend (cut). What this lesson teaches is the owner's to rule on the charts.",
+   "setup": "Bear Gap off the Highs",
+   "source": "docs/study/setups/bear_gap_examples.json#Bear Gap off the Highs#HROW#2026-03-03",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.bear_gap",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/bear_gap_examples.json#Bear Gap off the Highs#HROW#2026-03-03",
+  "sym": "HROW",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2023-08-04",
+  "bars": {
+   "asof": "2023-08-04",
+   "forward": 20,
+   "sym": "MTZ",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_0d6e3bc6199e",
+  "lesson_origin": "session",
+  "lesson_text": "Bear Gap off the Highs (owner ruling pending; owner 2026-10-27: \"Don't want to do downtrend gaps but will do bear gaps off the highs\"): the FIRST true gap down since a recent top, marked on the gap day itself. It is not Gap Support (a gap UP that is later tested) and not a gap inside a downtrend (cut). What this lesson teaches is the owner's to rule on the charts. Here the stock set its top 2 sessions earlier and closed -0.9% from it the day before, above its 50 and 200-day; it gapped -13.28% at the open on 5.58x volume and closed down -17.69% at 25% of its range, under the 50-day on its earnings report. Over the next 20 sessions the stock never traded back into the gap; twenty sessions on it was -0.1% from the gap-day close.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Is the last bar a bear gap off the highs: the first true gap down from a top?"
+  },
+  "reveal_json": {
+   "detector": "find_bear_gap_examples",
+   "example": {
+    "asof": "2023-08-04",
+    "found_by": "find_bear_gap_examples.py (read-only pod scan)",
+    "sym": "MTZ"
+   },
+   "facts": {
+    "after_kind": "gap_held",
+    "at_highs": true,
+    "avg_dollar_volume_m": 69.2,
+    "close_below_200": false,
+    "close_below_21": true,
+    "close_below_50": true,
+    "day_pct": -17.69,
+    "dcr": 0.25,
+    "dcr_pct": 25,
+    "earnings_dates_near": [
+     "2023-08-03"
+    ],
+    "earnings_day": true,
+    "first_gap_since_top": true,
+    "fwd_10d_pct": -5.4,
+    "fwd_20d_pct": -0.1,
+    "fwd_5d_pct": -5.5,
+    "fwd_max_close_vs_gap_fill_pct": -15.8,
+    "fwd_max_high_vs_gap_fill_pct": -15.1,
+    "fwd_min_low_vs_gap_close_pct": -8.1,
+    "gap_day_high": 107.0,
+    "gap_day_low": 97.03,
+    "gap_fill_level": 119.67,
+    "gap_pct": -13.28,
+    "gap_vol_2x": true,
+    "known_name": false,
+    "ma_periods": [
+     9,
+     20,
+     50,
+     200
+    ],
+    "prior_above_200": true,
+    "prior_above_50": true,
+    "prior_close": 120.96,
+    "prior_close_vs_250d_high_pct": -0.9,
+    "range_atr": 3.72,
+    "rvol": 5.58,
+    "s50_slope10_pct": 4.3,
+    "sessions_since_top": 2,
+    "setup": "Bear Gap off the Highs",
+    "setup_score": 17,
+    "top_asof": "2023-08-02",
+    "true_gap": true
+   },
+   "fires": true,
+   "quote": "Bear Gap off the Highs (owner ruling pending; owner 2026-10-27: \"Don't want to do downtrend gaps but will do bear gaps off the highs\"): the FIRST true gap down since a recent top, marked on the gap day itself. It is not Gap Support (a gap UP that is later tested) and not a gap inside a downtrend (cut). What this lesson teaches is the owner's to rule on the charts.",
+   "setup": "Bear Gap off the Highs",
+   "source": "docs/study/setups/bear_gap_examples.json#Bear Gap off the Highs#MTZ#2023-08-04",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.bear_gap",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/bear_gap_examples.json#Bear Gap off the Highs#MTZ#2023-08-04",
+  "sym": "MTZ",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2025-02-21",
+  "bars": {
+   "asof": "2025-02-21",
+   "forward": 20,
+   "sym": "GKOS",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_4f6665790950",
+  "lesson_origin": "session",
+  "lesson_text": "Bear Gap off the Highs (owner ruling pending; owner 2026-10-27: \"Don't want to do downtrend gaps but will do bear gaps off the highs\"): the FIRST true gap down since a recent top, marked on the gap day itself. It is not Gap Support (a gap UP that is later tested) and not a gap inside a downtrend (cut). What this lesson teaches is the owner's to rule on the charts. Here the stock set its top 20 sessions earlier and closed -2.4% from it the day before, above its 50 and 200-day; it gapped -10.17% at the open on 6.95x volume and closed down -20.01% at 5% of its range, under the 50-day on its earnings report. Over the next 20 sessions the stock never traded back into the gap; twenty sessions on it was -18.8% from the gap-day close.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Is the last bar a bear gap off the highs: the first true gap down from a top?"
+  },
+  "reveal_json": {
+   "detector": "find_bear_gap_examples",
+   "example": {
+    "asof": "2025-02-21",
+    "found_by": "find_bear_gap_examples.py (read-only pod scan)",
+    "sym": "GKOS"
+   },
+   "facts": {
+    "after_kind": "gap_held",
+    "at_highs": true,
+    "avg_dollar_volume_m": 82.1,
+    "close_below_200": true,
+    "close_below_21": true,
+    "close_below_50": true,
+    "day_pct": -20.01,
+    "dcr": 0.05,
+    "dcr_pct": 5,
+    "earnings_dates_near": [
+     "2025-02-20"
+    ],
+    "earnings_day": true,
+    "first_gap_since_top": true,
+    "fwd_10d_pct": -17.2,
+    "fwd_20d_pct": -18.8,
+    "fwd_5d_pct": -4.7,
+    "fwd_max_close_vs_gap_fill_pct": -20.8,
+    "fwd_max_high_vs_gap_fill_pct": -16.7,
+    "fwd_min_low_vs_gap_close_pct": -27.1,
+    "gap_day_high": 142.95,
+    "gap_day_low": 124.95,
+    "gap_fill_level": 156.85,
+    "gap_pct": -10.17,
+    "gap_vol_2x": true,
+    "known_name": false,
+    "ma_periods": [
+     9,
+     20,
+     50,
+     200
+    ],
+    "prior_above_200": true,
+    "prior_above_50": true,
+    "prior_close": 157.36,
+    "prior_close_vs_250d_high_pct": -2.4,
+    "range_atr": 3.55,
+    "rvol": 6.95,
+    "s50_slope10_pct": 1.5,
+    "sessions_since_top": 20,
+    "setup": "Bear Gap off the Highs",
+    "setup_score": 17,
+    "top_asof": "2025-01-23",
+    "true_gap": true
+   },
+   "fires": true,
+   "quote": "Bear Gap off the Highs (owner ruling pending; owner 2026-10-27: \"Don't want to do downtrend gaps but will do bear gaps off the highs\"): the FIRST true gap down since a recent top, marked on the gap day itself. It is not Gap Support (a gap UP that is later tested) and not a gap inside a downtrend (cut). What this lesson teaches is the owner's to rule on the charts.",
+   "setup": "Bear Gap off the Highs",
+   "source": "docs/study/setups/bear_gap_examples.json#Bear Gap off the Highs#GKOS#2025-02-21",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.bear_gap",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/bear_gap_examples.json#Bear Gap off the Highs#GKOS#2025-02-21",
+  "sym": "GKOS",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2022-02-02",
+  "bars": {
+   "asof": "2022-02-02",
+   "forward": 20,
+   "sym": "EXC",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_5f0c0768dd89",
+  "lesson_origin": "session",
+  "lesson_text": "Bear Gap off the Highs (owner ruling pending; owner 2026-10-27: \"Don't want to do downtrend gaps but will do bear gaps off the highs\"): the FIRST true gap down since a recent top, marked on the gap day itself. It is not Gap Support (a gap UP that is later tested) and not a gap inside a downtrend (cut). What this lesson teaches is the owner's to rule on the charts. Here the stock set its top 2 sessions earlier and closed -0.2% from it the day before, above its 50 and 200-day; it gapped -29.0% at the open on 4.29x volume and closed down -25.89% at 90% of its range, under the 50-day. Over the next 20 sessions the stock never traded back into the gap; twenty sessions on it was 0.6% from the gap-day close.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Is the last bar a bear gap off the highs: the first true gap down from a top?"
+  },
+  "reveal_json": {
+   "detector": "find_bear_gap_examples",
+   "example": {
+    "asof": "2022-02-02",
+    "found_by": "find_bear_gap_examples.py (read-only pod scan)",
+    "sym": "EXC"
+   },
+   "facts": {
+    "after_kind": "gap_held",
+    "at_highs": true,
+    "avg_dollar_volume_m": 315.5,
+    "close_below_200": true,
+    "close_below_21": true,
+    "close_below_50": true,
+    "day_pct": -25.89,
+    "dcr": 0.9,
+    "dcr_pct": 90,
+    "earnings_dates_near": [],
+    "earnings_day": false,
+    "first_gap_since_top": true,
+    "fwd_10d_pct": -2.0,
+    "fwd_20d_pct": 0.6,
+    "fwd_5d_pct": -0.6,
+    "fwd_max_close_vs_gap_fill_pct": -23.1,
+    "fwd_max_high_vs_gap_fill_pct": -22.7,
+    "fwd_min_low_vs_gap_close_pct": -6.4,
+    "gap_day_high": 43.09,
+    "gap_day_low": 40.8,
+    "gap_fill_level": 56.92,
+    "gap_pct": -29.0,
+    "gap_vol_2x": true,
+    "known_name": false,
+    "ma_periods": [
+     9,
+     20,
+     50,
+     200
+    ],
+    "prior_above_200": true,
+    "prior_above_50": true,
+    "prior_close": 57.83,
+    "prior_close_vs_250d_high_pct": -0.2,
+    "range_atr": 1.86,
+    "rvol": 4.29,
+    "s50_slope10_pct": 0.9,
+    "sessions_since_top": 2,
+    "setup": "Bear Gap off the Highs",
+    "setup_score": 16,
+    "top_asof": "2022-01-31",
+    "true_gap": true
+   },
+   "fires": true,
+   "quote": "Bear Gap off the Highs (owner ruling pending; owner 2026-10-27: \"Don't want to do downtrend gaps but will do bear gaps off the highs\"): the FIRST true gap down since a recent top, marked on the gap day itself. It is not Gap Support (a gap UP that is later tested) and not a gap inside a downtrend (cut). What this lesson teaches is the owner's to rule on the charts.",
+   "setup": "Bear Gap off the Highs",
+   "source": "docs/study/setups/bear_gap_examples.json#Bear Gap off the Highs#EXC#2022-02-02",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.bear_gap",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/bear_gap_examples.json#Bear Gap off the Highs#EXC#2022-02-02",
+  "sym": "EXC",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2025-09-10",
+  "bars": {
+   "asof": "2025-09-10",
+   "forward": 20,
+   "sym": "SNPS",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_20acbed23f27",
+  "lesson_origin": "session",
+  "lesson_text": "Bear Gap off the Highs (owner ruling pending; owner 2026-10-27: \"Don't want to do downtrend gaps but will do bear gaps off the highs\"): the FIRST true gap down since a recent top, marked on the gap day itself. It is not Gap Support (a gap UP that is later tested) and not a gap inside a downtrend (cut). What this lesson teaches is the owner's to rule on the charts. Here the stock set its top 29 sessions earlier and closed -6.4% from it the day before, above its 50 and 200-day; it gapped -29.22% at the open on 12.37x volume and closed down -35.84% at 14% of its range, under the 50-day on its earnings report. Over the next 20 sessions the stock never traded back into the gap; twenty sessions on it was 26.2% from the gap-day close.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Is the last bar a bear gap off the highs: the first true gap down from a top?"
+  },
+  "reveal_json": {
+   "detector": "find_bear_gap_examples",
+   "example": {
+    "asof": "2025-09-10",
+    "found_by": "find_bear_gap_examples.py (read-only pod scan)",
+    "sym": "SNPS"
+   },
+   "facts": {
+    "after_kind": "gap_held",
+    "at_highs": true,
+    "avg_dollar_volume_m": 838.3,
+    "close_below_200": true,
+    "close_below_21": true,
+    "close_below_50": true,
+    "day_pct": -35.84,
+    "dcr": 0.14,
+    "dcr_pct": 14,
+    "earnings_dates_near": [
+     "2025-09-09"
+    ],
+    "earnings_day": true,
+    "first_gap_since_top": true,
+    "fwd_10d_pct": 20.7,
+    "fwd_20d_pct": 26.2,
+    "fwd_5d_pct": 9.7,
+    "fwd_max_close_vs_gap_fill_pct": -14.6,
+    "fwd_max_high_vs_gap_fill_pct": -14.4,
+    "fwd_min_low_vs_gap_close_pct": 4.6,
+    "gap_day_high": 429.64,
+    "gap_day_low": 380.84,
+    "gap_fill_level": 602.5,
+    "gap_pct": -29.22,
+    "gap_vol_2x": true,
+    "known_name": false,
+    "ma_periods": [
+     9,
+     20,
+     50,
+     200
+    ],
+    "prior_above_200": true,
+    "prior_above_50": true,
+    "prior_close": 604.37,
+    "prior_close_vs_250d_high_pct": -6.4,
+    "range_atr": 3.57,
+    "rvol": 12.37,
+    "s50_slope10_pct": 4.2,
+    "sessions_since_top": 29,
+    "setup": "Bear Gap off the Highs",
+    "setup_score": 16,
+    "top_asof": "2025-07-30",
+    "true_gap": true
+   },
+   "fires": true,
+   "quote": "Bear Gap off the Highs (owner ruling pending; owner 2026-10-27: \"Don't want to do downtrend gaps but will do bear gaps off the highs\"): the FIRST true gap down since a recent top, marked on the gap day itself. It is not Gap Support (a gap UP that is later tested) and not a gap inside a downtrend (cut). What this lesson teaches is the owner's to rule on the charts.",
+   "setup": "Bear Gap off the Highs",
+   "source": "docs/study/setups/bear_gap_examples.json#Bear Gap off the Highs#SNPS#2025-09-10",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.bear_gap",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/bear_gap_examples.json#Bear Gap off the Highs#SNPS#2025-09-10",
+  "sym": "SNPS",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2026-05-06",
+  "bars": {
+   "asof": "2026-05-06",
+   "forward": 20,
+   "sym": "PRIM",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_07d304c9b757",
+  "lesson_origin": "session",
+  "lesson_text": "Bear Gap off the Highs (owner ruling pending; owner 2026-10-27: \"Don't want to do downtrend gaps but will do bear gaps off the highs\"): the FIRST true gap down since a recent top, marked on the gap day itself. It is not Gap Support (a gap UP that is later tested) and not a gap inside a downtrend (cut). What this lesson teaches is the owner's to rule on the charts. Here the stock set its top 1 sessions earlier and closed 0.0% from it the day before, above its 50 and 200-day; it gapped -36.73% at the open on 15.2x volume and closed down -50.11% at 9% of its range, under the 50-day on its earnings report. Over the next 20 sessions the stock never traded back into the gap; twenty sessions on it was 26.1% from the gap-day close.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Is the last bar a bear gap off the highs: the first true gap down from a top?"
+  },
+  "reveal_json": {
+   "detector": "find_bear_gap_examples",
+   "example": {
+    "asof": "2026-05-06",
+    "found_by": "find_bear_gap_examples.py (read-only pod scan)",
+    "sym": "PRIM"
+   },
+   "facts": {
+    "after_kind": "gap_held",
+    "at_highs": true,
+    "avg_dollar_volume_m": 138.8,
+    "close_below_200": true,
+    "close_below_21": true,
+    "close_below_50": true,
+    "day_pct": -50.11,
+    "dcr": 0.09,
+    "dcr_pct": 9,
+    "earnings_dates_near": [
+     "2026-05-05"
+    ],
+    "earnings_day": true,
+    "first_gap_since_top": true,
+    "fwd_10d_pct": 5.4,
+    "fwd_20d_pct": 26.1,
+    "fwd_5d_pct": 11.6,
+    "fwd_max_close_vs_gap_fill_pct": -32.4,
+    "fwd_max_high_vs_gap_fill_pct": -29.8,
+    "fwd_min_low_vs_gap_close_pct": 0.3,
+    "gap_day_high": 133.85,
+    "gap_day_low": 98.09,
+    "gap_fill_level": 193.24,
+    "gap_pct": -36.73,
+    "gap_vol_2x": true,
+    "known_name": false,
+    "ma_periods": [
+     9,
+     20,
+     50,
+     200
+    ],
+    "prior_above_200": true,
+    "prior_above_50": true,
+    "prior_close": 202.92,
+    "prior_close_vs_250d_high_pct": 0.0,
+    "range_atr": 4.23,
+    "rvol": 15.2,
+    "s50_slope10_pct": 1.7,
+    "sessions_since_top": 1,
+    "setup": "Bear Gap off the Highs",
+    "setup_score": 16,
+    "top_asof": "2026-05-05",
+    "true_gap": true
+   },
+   "fires": true,
+   "quote": "Bear Gap off the Highs (owner ruling pending; owner 2026-10-27: \"Don't want to do downtrend gaps but will do bear gaps off the highs\"): the FIRST true gap down since a recent top, marked on the gap day itself. It is not Gap Support (a gap UP that is later tested) and not a gap inside a downtrend (cut). What this lesson teaches is the owner's to rule on the charts.",
+   "setup": "Bear Gap off the Highs",
+   "source": "docs/study/setups/bear_gap_examples.json#Bear Gap off the Highs#PRIM#2026-05-06",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.bear_gap",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/bear_gap_examples.json#Bear Gap off the Highs#PRIM#2026-05-06",
+  "sym": "PRIM",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2025-10-29",
+  "bars": {
+   "asof": "2025-10-29",
+   "forward": 20,
+   "sym": "VRNS",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_bce5bc83e561",
+  "lesson_origin": "session",
+  "lesson_text": "Bear Gap off the Highs (owner ruling pending; owner 2026-10-27: \"Don't want to do downtrend gaps but will do bear gaps off the highs\"): the FIRST true gap down since a recent top, marked on the gap day itself. It is not Gap Support (a gap UP that is later tested) and not a gap inside a downtrend (cut). What this lesson teaches is the owner's to rule on the charts. Here the stock set its top 15 sessions earlier and closed -0.5% from it the day before, above its 50 and 200-day; it gapped -37.08% at the open on 21.58x volume and closed down -48.67% at 4% of its range, under the 50-day on its earnings report. Over the next 20 sessions the stock never traded back into the gap; twenty sessions on it was 0.0% from the gap-day close.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Is the last bar a bear gap off the highs: the first true gap down from a top?"
+  },
+  "reveal_json": {
+   "detector": "find_bear_gap_examples",
+   "example": {
+    "asof": "2025-10-29",
+    "found_by": "find_bear_gap_examples.py (read-only pod scan)",
+    "sym": "VRNS"
+   },
+   "facts": {
+    "after_kind": "gap_held",
+    "at_highs": true,
+    "avg_dollar_volume_m": 84.5,
+    "close_below_200": true,
+    "close_below_21": true,
+    "close_below_50": true,
+    "day_pct": -48.67,
+    "dcr": 0.04,
+    "dcr_pct": 4,
+    "earnings_dates_near": [
+     "2025-10-28"
+    ],
+    "earnings_day": true,
+    "first_gap_since_top": true,
+    "fwd_10d_pct": 9.9,
+    "fwd_20d_pct": 0.0,
+    "fwd_5d_pct": 8.2,
+    "fwd_max_close_vs_gap_fill_pct": -42.0,
+    "fwd_max_high_vs_gap_fill_pct": -41.4,
+    "fwd_min_low_vs_gap_close_pct": -6.2,
+    "gap_day_high": 40.41,
+    "gap_day_low": 32.02,
+    "gap_fill_level": 62.2,
+    "gap_pct": -37.08,
+    "gap_vol_2x": true,
+    "known_name": false,
+    "ma_periods": [
+     9,
+     20,
+     50,
+     200
+    ],
+    "prior_above_200": true,
+    "prior_above_50": true,
+    "prior_close": 63.0,
+    "prior_close_vs_250d_high_pct": -0.5,
+    "range_atr": 4.47,
+    "rvol": 21.58,
+    "s50_slope10_pct": 1.9,
+    "sessions_since_top": 15,
+    "setup": "Bear Gap off the Highs",
+    "setup_score": 16,
+    "top_asof": "2025-10-08",
+    "true_gap": true
+   },
+   "fires": true,
+   "quote": "Bear Gap off the Highs (owner ruling pending; owner 2026-10-27: \"Don't want to do downtrend gaps but will do bear gaps off the highs\"): the FIRST true gap down since a recent top, marked on the gap day itself. It is not Gap Support (a gap UP that is later tested) and not a gap inside a downtrend (cut). What this lesson teaches is the owner's to rule on the charts.",
+   "setup": "Bear Gap off the Highs",
+   "source": "docs/study/setups/bear_gap_examples.json#Bear Gap off the Highs#VRNS#2025-10-29",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.bear_gap",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/bear_gap_examples.json#Bear Gap off the Highs#VRNS#2025-10-29",
+  "sym": "VRNS",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2025-11-06",
+  "bars": {
+   "asof": "2025-11-06",
+   "forward": 20,
+   "sym": "CELH",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_a97f16835c14",
+  "lesson_origin": "session",
+  "lesson_text": "Bear Gap off the Highs (owner ruling pending; owner 2026-10-27: \"Don't want to do downtrend gaps but will do bear gaps off the highs\"): the FIRST true gap down since a recent top, marked on the gap day itself. It is not Gap Support (a gap UP that is later tested) and not a gap inside a downtrend (cut). What this lesson teaches is the owner's to rule on the charts. Here the stock set its top 14 sessions earlier and closed -7.6% from it the day before, above its 50 and 200-day; it gapped -20.56% at the open on 7.94x volume and closed down -24.8% at 35% of its range, under the 50-day on its earnings report. Over the next 20 sessions the stock never traded back into the gap; twenty sessions on it was -6.7% from the gap-day close.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Is the last bar a bear gap off the highs: the first true gap down from a top?"
+  },
+  "reveal_json": {
+   "detector": "find_bear_gap_examples",
+   "example": {
+    "asof": "2025-11-06",
+    "found_by": "find_bear_gap_examples.py (read-only pod scan)",
+    "sym": "CELH"
+   },
+   "facts": {
+    "after_kind": "gap_held",
+    "at_highs": true,
+    "avg_dollar_volume_m": 312.6,
+    "close_below_200": false,
+    "close_below_21": true,
+    "close_below_50": true,
+    "day_pct": -24.8,
+    "dcr": 0.35,
+    "dcr_pct": 35,
+    "earnings_dates_near": [
+     "2025-11-06"
+    ],
+    "earnings_day": true,
+    "first_gap_since_top": true,
+    "fwd_10d_pct": -13.0,
+    "fwd_20d_pct": -6.7,
+    "fwd_5d_pct": -2.3,
+    "fwd_max_close_vs_gap_fill_pct": -23.6,
+    "fwd_max_high_vs_gap_fill_pct": -20.9,
+    "fwd_min_low_vs_gap_close_pct": -16.9,
+    "gap_day_high": 49.13,
+    "gap_day_low": 42.88,
+    "gap_fill_level": 58.79,
+    "gap_pct": -20.56,
+    "gap_vol_2x": true,
+    "known_name": true,
+    "ma_periods": [
+     9,
+     20,
+     50,
+     200
+    ],
+    "prior_above_200": true,
+    "prior_above_50": true,
+    "prior_close": 59.92,
+    "prior_close_vs_250d_high_pct": -7.6,
+    "range_atr": 2.82,
+    "rvol": 7.94,
+    "s50_slope10_pct": 0.4,
+    "sessions_since_top": 14,
+    "setup": "Bear Gap off the Highs",
+    "setup_score": 15,
+    "top_asof": "2025-10-17",
+    "true_gap": true
+   },
+   "fires": true,
+   "quote": "Bear Gap off the Highs (owner ruling pending; owner 2026-10-27: \"Don't want to do downtrend gaps but will do bear gaps off the highs\"): the FIRST true gap down since a recent top, marked on the gap day itself. It is not Gap Support (a gap UP that is later tested) and not a gap inside a downtrend (cut). What this lesson teaches is the owner's to rule on the charts.",
+   "setup": "Bear Gap off the Highs",
+   "source": "docs/study/setups/bear_gap_examples.json#Bear Gap off the Highs#CELH#2025-11-06",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.bear_gap",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/bear_gap_examples.json#Bear Gap off the Highs#CELH#2025-11-06",
+  "sym": "CELH",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2023-08-04",
+  "bars": {
+   "asof": "2023-08-04",
+   "forward": 20,
+   "sym": "FTNT",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_958c45e3ffda",
+  "lesson_origin": "session",
+  "lesson_text": "Bear Gap off the Highs (owner ruling pending; owner 2026-10-27: \"Don't want to do downtrend gaps but will do bear gaps off the highs\"): the FIRST true gap down since a recent top, marked on the gap day itself. It is not Gap Support (a gap UP that is later tested) and not a gap inside a downtrend (cut). What this lesson teaches is the owner's to rule on the charts. Here the stock set its top 14 sessions earlier and closed -5.6% from it the day before, above its 50 and 200-day; it gapped -20.25% at the open on 6.04x volume and closed down -25.07% at 13% of its range, under the 50-day on its earnings report. Over the next 20 sessions the stock never traded back into the gap; twenty sessions on it was 7.2% from the gap-day close.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Is the last bar a bear gap off the highs: the first true gap down from a top?"
+  },
+  "reveal_json": {
+   "detector": "find_bear_gap_examples",
+   "example": {
+    "asof": "2023-08-04",
+    "found_by": "find_bear_gap_examples.py (read-only pod scan)",
+    "sym": "FTNT"
+   },
+   "facts": {
+    "after_kind": "gap_held",
+    "at_highs": true,
+    "avg_dollar_volume_m": 339.8,
+    "close_below_200": true,
+    "close_below_21": true,
+    "close_below_50": true,
+    "day_pct": -25.07,
+    "dcr": 0.13,
+    "dcr_pct": 13,
+    "earnings_dates_near": [
+     "2023-08-03"
+    ],
+    "earnings_day": true,
+    "first_gap_since_top": true,
+    "fwd_10d_pct": 0.7,
+    "fwd_20d_pct": 7.2,
+    "fwd_5d_pct": 5.1,
+    "fwd_max_close_vs_gap_fill_pct": -17.4,
+    "fwd_max_high_vs_gap_fill_pct": -16.1,
+    "fwd_min_low_vs_gap_close_pct": -0.4,
+    "gap_day_high": 61.36,
+    "gap_day_low": 56.1,
+    "gap_fill_level": 74.15,
+    "gap_pct": -20.25,
+    "gap_vol_2x": true,
+    "known_name": false,
+    "ma_periods": [
+     9,
+     20,
+     50,
+     200
+    ],
+    "prior_above_200": true,
+    "prior_above_50": true,
+    "prior_close": 75.76,
+    "prior_close_vs_250d_high_pct": -5.6,
+    "range_atr": 2.68,
+    "rvol": 6.04,
+    "s50_slope10_pct": 2.5,
+    "sessions_since_top": 14,
+    "setup": "Bear Gap off the Highs",
+    "setup_score": 16,
+    "top_asof": "2023-07-17",
+    "true_gap": true
+   },
+   "fires": true,
+   "quote": "Bear Gap off the Highs (owner ruling pending; owner 2026-10-27: \"Don't want to do downtrend gaps but will do bear gaps off the highs\"): the FIRST true gap down since a recent top, marked on the gap day itself. It is not Gap Support (a gap UP that is later tested) and not a gap inside a downtrend (cut). What this lesson teaches is the owner's to rule on the charts.",
+   "setup": "Bear Gap off the Highs",
+   "source": "docs/study/setups/bear_gap_examples.json#Bear Gap off the Highs#FTNT#2023-08-04",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.bear_gap",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/bear_gap_examples.json#Bear Gap off the Highs#FTNT#2023-08-04",
+  "sym": "FTNT",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2026-05-08",
+  "bars": {
+   "asof": "2026-05-08",
+   "forward": 20,
+   "sym": "NET",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_3a806937c644",
+  "lesson_origin": "session",
+  "lesson_text": "Bear Gap off the Highs (owner ruling pending; owner 2026-10-27: \"Don't want to do downtrend gaps but will do bear gaps off the highs\"): the FIRST true gap down since a recent top, marked on the gap day itself. It is not Gap Support (a gap UP that is later tested) and not a gap inside a downtrend (cut). What this lesson teaches is the owner's to rule on the charts. Here the stock set its top 1 sessions earlier and closed 0.0% from it the day before, above its 50 and 200-day; it gapped -15.41% at the open on 4.63x volume and closed down -23.62% at 14% of its range, under the 50-day on its earnings report. Over the next 20 sessions the stock closed back above the gap-fill level (the gap filled); twenty sessions on it was 26.3% from the gap-day close.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Is the last bar a bear gap off the highs: the first true gap down from a top?"
+  },
+  "reveal_json": {
+   "detector": "find_bear_gap_examples",
+   "example": {
+    "asof": "2026-05-08",
+    "found_by": "find_bear_gap_examples.py (read-only pod scan)",
+    "sym": "NET"
+   },
+   "facts": {
+    "after_kind": "gap_filled",
+    "at_highs": true,
+    "avg_dollar_volume_m": 810.9,
+    "close_below_200": true,
+    "close_below_21": true,
+    "close_below_50": true,
+    "day_pct": -23.62,
+    "dcr": 0.14,
+    "dcr_pct": 14,
+    "earnings_dates_near": [
+     "2026-05-07"
+    ],
+    "earnings_day": true,
+    "first_gap_since_top": true,
+    "fwd_10d_pct": 10.2,
+    "fwd_20d_pct": 26.3,
+    "fwd_5d_pct": 0.7,
+    "fwd_max_close_vs_gap_fill_pct": 9.7,
+    "fwd_max_high_vs_gap_fill_pct": 11.3,
+    "fwd_min_low_vs_gap_close_pct": -5.3,
+    "gap_day_high": 219.0,
+    "gap_day_low": 192.27,
+    "gap_fill_level": 248.62,
+    "gap_pct": -15.41,
+    "gap_vol_2x": true,
+    "known_name": true,
+    "ma_periods": [
+     9,
+     20,
+     50,
+     200
+    ],
+    "prior_above_200": true,
+    "prior_above_50": true,
+    "prior_close": 256.79,
+    "prior_close_vs_250d_high_pct": 0.0,
+    "range_atr": 2.45,
+    "rvol": 4.63,
+    "s50_slope10_pct": 4.2,
+    "sessions_since_top": 1,
+    "setup": "Bear Gap off the Highs",
+    "setup_score": 14,
+    "top_asof": "2026-05-07",
+    "true_gap": true
+   },
+   "fires": true,
+   "quote": "Bear Gap off the Highs (owner ruling pending; owner 2026-10-27: \"Don't want to do downtrend gaps but will do bear gaps off the highs\"): the FIRST true gap down since a recent top, marked on the gap day itself. It is not Gap Support (a gap UP that is later tested) and not a gap inside a downtrend (cut). What this lesson teaches is the owner's to rule on the charts.",
+   "setup": "Bear Gap off the Highs",
+   "source": "docs/study/setups/bear_gap_examples.json#Bear Gap off the Highs#NET#2026-05-08",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.bear_gap",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/bear_gap_examples.json#Bear Gap off the Highs#NET#2026-05-08",
+  "sym": "NET",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2026-08-04",
+  "bars": {
+   "asof": "2026-08-04",
+   "forward": 20,
+   "sym": "BRKR",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_9efe327f1b0b",
+  "lesson_origin": "session",
+  "lesson_text": "Bear Gap off the Highs (owner ruling pending; owner 2026-10-27: \"Don't want to do downtrend gaps but will do bear gaps off the highs\"): the FIRST true gap down since a recent top, marked on the gap day itself. It is not Gap Support (a gap UP that is later tested) and not a gap inside a downtrend (cut). What this lesson teaches is the owner's to rule on the charts. Here the stock set its top 3 sessions earlier and closed -0.0% from it the day before, above its 50 and 200-day; it gapped -15.92% at the open on 3.66x volume and closed down -21.79% at 3% of its range, under the 50-day on its earnings report. Over the next 20 sessions the stock traded back into the gap but never closed above the gap-fill level; twenty sessions on it was 11.4% from the gap-day close.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Is the last bar a bear gap off the highs: the first true gap down from a top?"
+  },
+  "reveal_json": {
+   "detector": "find_bear_gap_examples",
+   "example": {
+    "asof": "2026-08-04",
+    "found_by": "find_bear_gap_examples.py (read-only pod scan)",
+    "sym": "BRKR"
+   },
+   "facts": {
+    "after_kind": "gap_entered",
+    "at_highs": true,
+    "avg_dollar_volume_m": 113.2,
+    "close_below_200": false,
+    "close_below_21": true,
+    "close_below_50": true,
+    "day_pct": -21.79,
+    "dcr": 0.03,
+    "dcr_pct": 3,
+    "earnings_dates_near": [
+     "2026-08-04"
+    ],
+    "earnings_day": true,
+    "first_gap_since_top": true,
+    "fwd_10d_pct": 13.0,
+    "fwd_20d_pct": 11.4,
+    "fwd_5d_pct": 13.4,
+    "fwd_max_close_vs_gap_fill_pct": -2.3,
+    "fwd_max_high_vs_gap_fill_pct": 0.8,
+    "fwd_min_low_vs_gap_close_pct": -3.3,
+    "gap_day_high": 56.37,
+    "gap_day_low": 50.12,
+    "gap_fill_level": 61.35,
+    "gap_pct": -15.92,
+    "gap_vol_2x": true,
+    "known_name": false,
+    "ma_periods": [
+     9,
+     20,
+     50,
+     200
+    ],
+    "prior_above_200": true,
+    "prior_above_50": true,
+    "prior_close": 64.31,
+    "prior_close_vs_250d_high_pct": -0.0,
+    "range_atr": 1.97,
+    "rvol": 3.66,
+    "s50_slope10_pct": 6.7,
+    "sessions_since_top": 3,
+    "setup": "Bear Gap off the Highs",
+    "setup_score": 15,
+    "top_asof": "2026-07-30",
+    "true_gap": true
+   },
+   "fires": true,
+   "quote": "Bear Gap off the Highs (owner ruling pending; owner 2026-10-27: \"Don't want to do downtrend gaps but will do bear gaps off the highs\"): the FIRST true gap down since a recent top, marked on the gap day itself. It is not Gap Support (a gap UP that is later tested) and not a gap inside a downtrend (cut). What this lesson teaches is the owner's to rule on the charts.",
+   "setup": "Bear Gap off the Highs",
+   "source": "docs/study/setups/bear_gap_examples.json#Bear Gap off the Highs#BRKR#2026-08-04",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.bear_gap",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/bear_gap_examples.json#Bear Gap off the Highs#BRKR#2026-08-04",
+  "sym": "BRKR",
+  "type": "spot",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "yes"
+  },
+  "asof": "2022-01-21",
+  "bars": {
+   "asof": "2022-01-21",
+   "forward": 20,
+   "sym": "NFLX",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_d068c2ccb0c1",
+  "lesson_origin": "session",
+  "lesson_text": "Bear Gap off the Highs (owner ruling pending; owner 2026-10-27: \"Don't want to do downtrend gaps but will do bear gaps off the highs\"): the FIRST true gap down since a recent top, marked on the gap day itself. It is not Gap Support (a gap UP that is later tested) and not a gap inside a downtrend (cut). What this lesson teaches is the owner's to rule on the charts. Here the stock set its top 44 sessions earlier and closed -26.5% from it the day before, under its 50 and 200-day; it gapped -21.21% at the open on 17.48x volume and closed down -21.79% at 60% of its range, under the 50-day on its earnings report. Over the next 20 sessions the stock never traded back into the gap; twenty sessions on it was -1.6% from the gap-day close.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Yes",
+    "No"
+   ],
+   "q": "Is the last bar a bear gap off the highs: the first true gap down from a top?"
+  },
+  "reveal_json": {
+   "detector": "find_bear_gap_examples",
+   "example": {
+    "asof": "2022-01-21",
+    "found_by": "find_bear_gap_examples.py (read-only pod scan)",
+    "sym": "NFLX"
+   },
+   "facts": {
+    "after_kind": "gap_held",
+    "at_highs": true,
+    "avg_dollar_volume_m": 2321.0,
+    "close_below_200": true,
+    "close_below_21": true,
+    "close_below_50": true,
+    "day_pct": -21.79,
+    "dcr": 0.6,
+    "dcr_pct": 60,
+    "earnings_dates_near": [
+     "2022-01-20"
+    ],
+    "earnings_day": true,
+    "first_gap_since_top": true,
+    "fwd_10d_pct": 3.2,
+    "fwd_20d_pct": -1.6,
+    "fwd_5d_pct": -3.3,
+    "fwd_max_close_vs_gap_fill_pct": -9.8,
+    "fwd_max_high_vs_gap_fill_pct": -9.6,
+    "fwd_min_low_vs_gap_close_pct": -11.6,
+    "gap_day_high": 40.91,
+    "gap_day_low": 38.0,
+    "gap_fill_level": 50.69,
+    "gap_pct": -21.21,
+    "gap_vol_2x": true,
+    "known_name": true,
+    "ma_periods": [
+     9,
+     20,
+     50,
+     200
+    ],
+    "owner_seed": true,
+    "prior_above_200": false,
+    "prior_above_50": false,
+    "prior_close": 50.83,
+    "prior_close_vs_250d_high_pct": -26.5,
+    "range_atr": 1.58,
+    "rvol": 17.48,
+    "s50_slope10_pct": -4.4,
+    "sessions_since_top": 44,
+    "setup": "Bear Gap off the Highs",
+    "setup_score": 12,
+    "top_asof": "2021-11-17",
+    "true_gap": true
+   },
+   "fires": true,
+   "quote": "Bear Gap off the Highs (owner ruling pending; owner 2026-10-27: \"Don't want to do downtrend gaps but will do bear gaps off the highs\"): the FIRST true gap down since a recent top, marked on the gap day itself. It is not Gap Support (a gap UP that is later tested) and not a gap inside a downtrend (cut). What this lesson teaches is the owner's to rule on the charts.",
+   "setup": "Bear Gap off the Highs",
+   "source": "docs/study/setups/bear_gap_examples.json#Bear Gap off the Highs#NFLX#2022-01-21",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.family3.bear_gap",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/bear_gap_examples.json#Bear Gap off the Highs#NFLX#2022-01-21",
+  "sym": "NFLX",
+  "type": "spot",
+  "version": 1
+ }
+]

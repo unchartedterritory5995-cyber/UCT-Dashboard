@@ -195,8 +195,16 @@ async function cached(fileName, url) {
   };
   const cache = {};
   const missing = new Set();
+  // The i18n helper's module id is NOT stable across TradingView builds (982245 in 2026-09,
+  // 93738 in 2026-10). Read it off the data module itself: its body opens with
+  // `var a=n(<id>)` and every string goes through `a.t(...)`.
+  const dataSrc = String(modules[dataModuleId] || '');
+  const i18nM = dataSrc.match(/var\s+([\w$]+)\s*=\s*[\w$]+\((\d+)\)[\s\S]{0,400}?\1\.t\(/);
+  const I18N_IDS = new Set([982245]);
+  if (i18nM) I18N_IDS.add(Number(i18nM[2]));
+  log('STEP 6  i18n helper module id(s):', [...I18N_IDS].join(','));
   function req(id) {
-    if (id === 982245) return { t: (ctx_, opts, val) => applyReplace(val, opts), i18n: {} };
+    if (I18N_IDS.has(id)) return { t: (ctx_, opts, val) => applyReplace(val, opts), i18n: {} };
     if (cache[id] !== undefined) return cache[id];
     if (!modules[id]) { missing.add(id); cache[id] = [`<<MISSING_STRING_${id}>>`]; return cache[id]; }
     const m = { exports: {} };

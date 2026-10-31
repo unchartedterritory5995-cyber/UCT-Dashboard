@@ -106,7 +106,7 @@ export async function commitPlan(host, plan, { env = {}, ctx = null } = {}) {
       // is taken back too, and whether it left a write it could not undo (`e.unreverted`)
       // — the receipt never claims "nothing was left changed" when that is not so.
       if (e?.created && Object.keys(e.created).length) {
-        landed.push({ ref: p.ref, kind: p.kind, label: p.snap.label, lines: [], before: p.snap, after: kind.read(host, p.ref), patch: p.patch, partial: e.created })
+        landed.push({ ref: p.ref, kind: p.kind, label: p.snap.label, siblings: p.siblings, lines: [], before: p.snap, after: kind.read(host, p.ref), patch: p.patch, partial: e.created })
       }
       return fail(p.snap.label, `failed (${e?.message || 'error'})`, { dirty: !!e?.unreverted, note: e?.keptNote || null,
         say: e?.complete && e?.message ? e.message : null, gate: e?.gate || null })
@@ -119,13 +119,13 @@ export async function commitPlan(host, plan, { env = {}, ctx = null } = {}) {
       // A creator may have made some of its resources before failing; its result
       // says which, so compensation closes exactly those.
       if (res && res.created && Object.keys(res.created).length) {
-        landed.push({ ref: p.ref, kind: p.kind, label: p.snap.label, lines: [], before: p.snap, after: snap, patch: p.patch, partial: res.created })
+        landed.push({ ref: p.ref, kind: p.kind, label: p.snap.label, siblings: p.siblings, lines: [], before: p.snap, after: snap, patch: p.patch, partial: res.created })
       }
       return fail(p.snap.label, 'did not take effect')
     }
     // A kind whose commit reports what ACTUALLY happened (`res.lines` — e.g. the Create Indicator
     // opener: prefilled, or a draft restored instead) is receipted from that, not from the plan.
-    landed.push({ ref: p.ref, kind: p.kind, label: p.snap.label, lines: Array.isArray(res?.lines) && res.lines.length ? res.lines : p.lines, before: p.snap, after: snap, patch: p.patch, created: res?.created || null, ...(res && res.undoData ? { undoData: res.undoData } : {}), ...(res && Array.isArray(res.followUps) ? { followUps: res.followUps } : {}) })
+    landed.push({ ref: p.ref, kind: p.kind, label: p.snap.label, siblings: p.siblings, lines: Array.isArray(res?.lines) && res.lines.length ? res.lines : p.lines, before: p.snap, after: snap, patch: p.patch, created: res?.created || null, ...(res && res.undoData ? { undoData: res.undoData } : {}), ...(res && Array.isArray(res.followUps) ? { followUps: res.followUps } : {}) })
   }
 
   // 2 — created targets: resolve the alias, re-plan on the REAL target, commit
@@ -163,7 +163,7 @@ export async function commitPlan(host, plan, { env = {}, ctx = null } = {}) {
   }
 
   // One logical receipt from what actually landed.
-  const lines = summarize([...landed.map(it => ({ virtual: false, kind: it.kind, lines: it.lines, snap: { label: it.label } })), ...vlanded])
+  const lines = summarize([...landed.map(it => ({ virtual: false, kind: it.kind, lines: it.lines, siblings: it.siblings, snap: { label: it.label } })), ...vlanded])
 
   // Stale-undo fingerprints are taken at the END of the whole transaction, so the
   // Agent's own configuration of a new target never reads as a later edit.

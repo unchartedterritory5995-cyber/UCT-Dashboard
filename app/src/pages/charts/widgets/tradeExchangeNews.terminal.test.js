@@ -1,11 +1,11 @@
 // News terminal upgrade — the pure model: category filters (AND with the others),
-// impact marks, related-headline grouping, feed health, presets and the numbered
-// pages helpers. Synthetic headlines only.
+// related-headline grouping, feed health, presets and the calendar-day helpers.
+// Synthetic headlines only.
 import { describe, expect, it } from 'vitest'
 import {
-  archiveTitle, BREAKING_MS, CATEGORY_FILTERS, categoriesLabel, cleanCategories, cleanPresets, feedHealth, groupRelated,
-  GROUP_WINDOW_MS, impactMark, livePage, MAX_PRESETS, newerThan, PAGE_SIZE, pageCount, pageRequest, parsePageInput,
-  presetPatch, presetSnapshot, relatedHeadlines, visibleItems,
+  addDays, archiveTitle, CATEGORY_FILTERS, categoriesLabel, cleanCategories, cleanPresets, cleanTime, dayCmp, dayLabel,
+  dayRequest, dayStatus, etDateKey, feedHealth, groupRelated, GROUP_WINDOW_MS, MAX_PRESETS, mergeDay, monthGrid,
+  presetPatch, presetSnapshot, relatedHeadlines, timeLabel, visibleItems,
 } from './tradeExchangeNewsModel'
 import * as model from './tradeExchangeNewsModel'
 import { mergeTxnWidgetSettings, txnClampLines } from './tradeExchangeNewsSettings'
@@ -60,18 +60,12 @@ describe('settings', () => {
   })
 })
 
-describe('impact marks', () => {
-  it('words the server kind; Breaking only while fresh and live', () => {
-    const fresh = H(1, 'x', { impact: 'central_bank', received_at_ms: NOW - 60_000 })
-    expect(impactMark(fresh, NOW)).toMatchObject({ label: 'Breaking', breaking: true })
-    expect(impactMark(fresh, NOW).title).toMatch(/^Central-bank rate decision\. Marked only when/)
-    expect(impactMark({ ...fresh, received_at_ms: NOW - BREAKING_MS - 1 }, NOW)).toMatchObject({ label: 'High impact', breaking: false })
-    expect(impactMark({ ...fresh, delayed: true }, NOW).label).toBe('High impact')
-  })
-
-  it('no kind, or one the widget does not know, is no mark', () => {
-    expect(impactMark(H(1, 'x'), NOW)).toBeNull()
-    expect(impactMark(H(1, 'x', { impact: 'vibes' }), NOW)).toBeNull()
+describe('impact marks are retired', () => {
+  it('no helper, no setting, no preset key', () => {
+    expect(model.impactMark).toBeUndefined()
+    expect(model.IMPACT_CRITERIA).toBeUndefined()
+    expect(mergeTxnWidgetSettings({ impactMarks: 'on' })).not.toHaveProperty('impactMarks')
+    expect(model.PRESET_SETTING_KEYS).not.toContain('impactMarks')
   })
 })
 
@@ -165,7 +159,7 @@ describe('presets', () => {
   it('snapshots filters and display preferences only', () => {
     const snap = presetSnapshot({ categories: ['Macro'], linked: true, watchlistId: 'wl1' }, settings, 'fed')
     expect(snap).toEqual({ categories: ['Macro'], linked: true, watchlistId: 'wl1', query: 'fed',
-      settings: { longHeadlines: '5', groupRelated: 'on', impactMarks: 'on' } })
+      settings: { longHeadlines: '5', groupRelated: 'on' } })
   })
 
   it('applying never touches colours, chart symbols or other settings', () => {
@@ -188,37 +182,66 @@ describe('presets', () => {
   })
 })
 
-describe('numbered pages', () => {
-  it('a page request carries every filter, 25 to a page', () => {
-    expect(PAGE_SIZE).toBe(25)
-    expect(pageRequest({ query: '  fed ', linkedSym: 'NVDA', watchSet: new Set(['MSFT', 'AMD']), categories: ['Macro', 'bogus'], hidePlaceholders: true }))
-      .toEqual({ query: 'fed', categories: ['Macro'], symbol: 'NVDA', symbols: ['AMD', 'MSFT'], hide_placeholders: true, size: 25 })
-    expect(pageRequest({})).toEqual({ query: '', categories: [], symbol: null, symbols: null, hide_placeholders: false, size: 25 })
+describe('calendar days', () => {
+  // Late October 2026 is EDT (UTC-4); Nov 1 2026 falls back to EST (UTC-5).
+  const ET = (m, d, h, min = 0, off = 4) => Date.UTC(2026, m - 1, d, h + off, min)
+
+  it('a request carries every filter', () => {
+    expect(dayRequest({ query: '  fed ', linkedSym: 'NVDA', watchSet: new Set(['MSFT', 'AMD']), categories: ['Macro', 'bogus'], hidePlaceholders: true }))
+      .toEqual({ query: 'fed', categories: ['Macro'], symbol: 'NVDA', symbols: ['AMD', 'MSFT'], hide_placeholders: true })
+    expect(dayRequest({})).toEqual({ query: '', categories: [], symbol: null, symbols: null, hide_placeholders: false })
   })
 
-  it('page 1 merges the server page and the live pool: newest first, no duplicates, pool row wins', () => {
-    const server = [H(9, 'a'), H(8, 'b'), H(5, 'c')]
-    const pool = [H(11, 'x'), H(10, 'y'), H(9, 'a', { repeat_count: 2 })]
-    const out = livePage(server, pool, 4)
-    expect(out.map((i) => i.seq)).toEqual([11, 10, 9, 8])
-    expect(out[2].repeat_count).toBe(2)
-    expect(livePage(undefined, pool).map((i) => i.seq)).toEqual([11, 10, 9])
+  it('dates are New York calendar dates, across midnight and DST', () => {
+    expect(etDateKey(ET(10, 30, 0, 0))).toBe('2026-10-30')
+    expect(etDateKey(ET(10, 30, 0, 0) - 1)).toBe('2026-10-29')                   // 11:59:59.999 PM the day before
+    expect(etDateKey(ET(10, 30, 23, 59))).toBe('2026-10-30')
+    expect(etDateKey(ET(11, 1, 23, 30, 5))).toBe('2026-11-01')                     // EST after fall-back
+    expect(etDateKey(ET(11, 2, 0, 0, 5))).toBe('2026-11-02')
+    expect(etDateKey(Date.UTC(2026, 9, 31, 2, 0))).toBe('2026-10-30')             // 02:00 UTC = 10 PM ET
   })
 
-  it('counts arrivals after a snapshot', () => {
-    expect(newerThan([H(12, 'a'), H(11, 'b'), H(9, 'c'), H(8, 'd')], 10)).toBe(2)
-    expect(newerThan([], 10)).toBe(0)
+  it('date arithmetic, labels and times', () => {
+    expect(addDays('2026-10-31', 1)).toBe('2026-11-01')
+    expect(addDays('2026-03-01', -1)).toBe('2026-02-28')
+    expect(addDays('2026-11-01', 1)).toBe('2026-11-02')                           // a 25-hour day is still one date
+    expect(dayLabel('2026-10-30', '2026-10-30')).toBe('Fri, Oct 30')
+    expect(dayLabel('2025-12-31', '2026-01-02')).toBe('Wed, Dec 31, 2025')
+    expect(timeLabel('09:30')).toBe('9:30 AM')
+    expect(timeLabel('00:05')).toBe('12:05 AM')
+    expect(timeLabel('16:00')).toBe('4:00 PM')
+    expect(cleanTime('9:30')).toBe('09:30')
+    for (const bad of ['24:00', '9:60', '930', '', 'noon']) expect(cleanTime(bad)).toBeNull()
   })
 
-  it('page counts and typed page numbers are validated, never guessed', () => {
-    expect(pageCount(0)).toBe(1)
-    expect(pageCount(25)).toBe(1)
-    expect(pageCount(26)).toBe(2)
-    expect(pageCount(null)).toBeNull()
-    expect(parsePageInput('7', 10)).toBe(7)
-    expect(parsePageInput(' 10 ', 10)).toBe(10)
-    for (const bad of ['0', '11', '-1', '2.5', 'abc', '', '1e2']) expect(parsePageInput(bad, 10)).toBeNull()
-    expect(parsePageInput('400', null)).toBe(400)                       // total unknown: the server clamps
+  it('a month grid is six Sunday-first weeks', () => {
+    const g = monthGrid(2026, 9)                                                   // October 2026
+    expect(g).toHaveLength(42)
+    expect(g[0]).toEqual({ key: '2026-09-27', inMonth: false })
+    expect(g.find((c) => c.key === '2026-10-01').inMonth).toBe(true)
+    expect(g.filter((c) => c.inMonth)).toHaveLength(31)
+  })
+
+  it('availability is only what the server reports', () => {
+    const meta = { today: '2026-10-30', first_day: '2026-10-24', days: [{ date: '2026-10-26', count: 200 }] }
+    expect(dayStatus('2026-10-31', meta).kind).toBe('future')
+    expect(dayStatus('2026-10-23', meta).kind).toBe('unretained')
+    expect(dayStatus('2026-10-26', meta)).toEqual({ kind: 'news', count: 200 })
+    expect(dayStatus('2026-10-27', meta)).toEqual({ kind: 'empty', count: 0 })
+    expect(dayStatus('2026-10-27', null).kind).toBe('unknown')
+  })
+
+  it('the day order is (received, seq) newest first; live rows merge only beside what is loaded', () => {
+    const at = (h) => ET(10, 30, h)
+    const srv = [H(10, 'a', { received_at_ms: at(12) }), H(9, 'b', { received_at_ms: at(11) })]
+    const pool = [H(12, 'live', { received_at_ms: at(13) }), H(11, 'tie', { received_at_ms: at(12) }),
+      H(9, 'b', { received_at_ms: at(11), repeat_count: 2 }), H(8, 'old', { received_at_ms: at(9) }),
+      H(13, 'yesterday', { received_at_ms: ET(10, 29, 22) })]
+    expect([...srv, ...pool].sort(dayCmp).map((i) => i.seq)).toEqual([12, 11, 10, 9, 9, 8, 13])
+    expect(mergeDay(srv, pool, { dateKey: '2026-10-30' }).map((i) => i.seq)).toEqual([12, 11, 10, 9, 8])
+    expect(mergeDay(srv, pool, { dateKey: '2026-10-30' }).find((i) => i.seq === 9).repeat_count).toBe(2)
+    expect(mergeDay(srv, pool, { dateKey: '2026-10-30', hasNewer: true, hasOlder: true }).map((i) => i.seq)).toEqual([10, 9])
+    expect(mergeDay(srv, pool, { dateKey: '2026-10-29' }).map((i) => i.seq)).toEqual([10, 9, 13])
   })
 
   it('the archive note states the real reach and the retention bound', () => {

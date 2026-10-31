@@ -96,11 +96,7 @@
   },
   "long_tail__02-relative-volume-candles-narrow-ranges.pine": {
     "outputs": 7,
-    "refusals": [
-      "pine:function",
-      "pine:function",
-      "pine:function"
-    ],
+    "refusals": [],
     "flat": 0,
     "pair": 0,
     "fillFlat": 0,
@@ -132,17 +128,8 @@
   },
   "long_tail__05-master-line-plus.pine": {
     "outputs": 8,
-    "refusals": [
-      "pine:function",
-      "pine:function",
-      "pine:function",
-      "pine:function",
-      "pine:function",
-      "pine:function",
-      "pine:function",
-      "pine:function"
-    ],
-    "flat": 0,
+    "refusals": [],
+    "flat": 5,
     "pair": 0,
     "fillFlat": 0,
     "fillPair": 0

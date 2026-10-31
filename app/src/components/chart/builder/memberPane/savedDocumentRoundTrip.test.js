@@ -21,6 +21,7 @@ import { memberPaneDefinition } from './memberPaneDefinition.js'
 import { applyParamEdit, reconcileParams } from '../paramEdit.js'
 import { treesHash } from '../../engine/ast/trees.js'
 import { validateDefinition } from '../../engine/defSchema.js'
+import { installUserDefinitions, uninstallUserDefinition } from '../../engine/nativeRegistry.js'
 
 const REPO = path.resolve(__dirname, '../../../../../..')
 const DIR = path.join(REPO, 'tests/fixtures/pine_param_ids')
@@ -147,7 +148,36 @@ const asSaved = (definition, staleFn, unedited) => {
   return staleFn ? { ...c, fn: staleFn } : c
 }
 
-const scripts = Object.keys(SAVED).filter((k) => k !== '_about' && fs.existsSync(path.join(REPO, k)))
+/** ⛔ A DOCUMENT THAT NEVER INSTALLED IS NOT A DOCUMENT A MEMBER HOLDS. Each entry
+ *  names the script, why its saved computation could not be drawn, and the change that
+ *  made it drawable — the one kind of move this rail lets through, and only by name.
+ *  The rail below proves each one installs TODAY, so the exemption cannot outlive it. */
+const NEVER_INSTALLED = Object.freeze({
+  // Pine coverage Phase 1 (2026-10-30): `highestbars(mb)` / `lowestbars(mb)` carried
+  // the length as an unfolded `lb + rb + 1`, which the install door refused
+  // (`resolve:window`, measured in the coverage census at base `0935116352`). The
+  // namespaced door now folds that length as the table path folds a window, so `rb`
+  // — read ONLY inside it — is no longer a knob, and the computation changes.
+  'corpus/committed/pivot-high-low-points__hoTsDQRY3L.pine': 'the length of ta.highestbars was unfolded (resolve:window at install)',
+})
+
+const scripts = Object.keys(SAVED).filter((k) => k !== '_about' && fs.existsSync(path.join(REPO, k))
+  && !Object.prototype.hasOwnProperty.call(NEVER_INSTALLED, k))
+
+describe('C46 — the documents that never installed are exempt only while they install now', () => {
+  it.each(Object.keys(NEVER_INSTALLED))('%s builds AND installs today', (script) => {
+    expect(SAVED[script], `${script} is not in the saved fixture — drop it from NEVER_INSTALLED`).toBeTruthy()
+    const built = build(script)
+    expect(built.ok, built.reason).toBe(true)
+    const { installed, errors } = installUserDefinitions([built.definition])
+    try {
+      expect(errors, 'the install door still refuses it').toEqual([])
+      expect(installed.length).toBe(1)
+    } finally {
+      for (const d of installed) uninstallUserDefinition(d.id)
+    }
+  })
+})
 
 describe('C46 — documents saved under the walk-order ids', () => {
   it('NON-VACUITY — the saved documents are here, and they hold the OLD small-number ids', () => {

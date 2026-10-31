@@ -1,0 +1,439 @@
+{
+  "_about": "ONE saved-document width-control upgrade, read by BOTH app/src/components/chart/engine/__tests__/savedDocumentUpgradeParity.test.js (memberDocumentMigration.migrateMemberDocument) and tests/test_saved_document_upgrade_parity.py (user_definitions.refresh_width_control_max). Each case starts from `base` (Uncharted Clouds as origin/master's door saved it before #513/#526: every plot width control {type:int,min:1,max:4,step:1}) and applies `ops` in order; `upgraded` lists the inputs whose `max` must become 10 (or `max[key]`); EVERY other byte of the document must be exactly as given (compute aside: the JS composite also repairs the stale handle, which stale_handle_cases.json pins). An empty `upgraded` means the width rule returns the SAME object. WHAT A SAVED DOCUMENT CANNOT PROVE, so no upgrade claims it: (1) #513 truncated fillOpacity (color.new(c, 87.5) stored as 1-87/100) is the same float as an author's color.new(c, 87); (2) #526 static band default alpha: a band with no fillOpacity drew 0.15, today 1 (v5/v6) or 0.1 (v1-v4) -- the Pine version is not stored (meta.naConditionFalse only says >=4, and only since 2026-10-02) and an authoring set_fill with no opacity writes the identical shape; (3) row linewidth: absent before #513, clamped to 4 between #513 and #526 -- the author's value is not stored; (4) #526 positional fill colour (v4 fill(p1, p2, color.red)): the colour was never stored; (5) #513 condition-column lengths: see memberPaneDefinition.noGuess.test.js; (6) style transp (100-t)/100 vs 1-t/100: transp=90 stored 0.09999999999999998 is the same float as color.new(c, 90), which TradingView paints at byte 25, not 26.",
+  "base": "tests/fixtures/pine_param_ids/clouds-saved-master-e3-edit.json",
+  "widthControlKeys": [
+    "lineWidth",
+    "out2Width",
+    "out3Width",
+    "out4Width",
+    "out5Width",
+    "out6Width",
+    "out7Width",
+    "out8Width",
+    "out9Width",
+    "out10Width",
+    "out11Width",
+    "out12Width",
+    "out13Width",
+    "out14Width",
+    "out15Width",
+    "out16Width",
+    "out17Width",
+    "out18Width",
+    "out19Width",
+    "out20Width",
+    "out21Width",
+    "out22Width",
+    "out23Width",
+    "out24Width"
+  ],
+  "defaultMax": 10,
+  "cases": [
+    {
+      "name": "as the old door saved it: every width control stops at 4",
+      "ops": [],
+      "upgraded": [
+        "lineWidth",
+        "out2Width",
+        "out3Width",
+        "out4Width",
+        "out5Width",
+        "out6Width",
+        "out7Width",
+        "out8Width",
+        "out9Width",
+        "out10Width",
+        "out11Width",
+        "out12Width",
+        "out13Width",
+        "out14Width",
+        "out15Width",
+        "out16Width",
+        "out17Width",
+        "out18Width",
+        "out19Width",
+        "out20Width",
+        "out21Width",
+        "out22Width",
+        "out23Width",
+        "out24Width"
+      ]
+    },
+    {
+      "name": "already today's control: nothing to do",
+      "ops": [
+        {
+          "op": "allWidthControls",
+          "set": {
+            "max": 10
+          }
+        }
+      ],
+      "upgraded": []
+    },
+    {
+      "name": "a member's own int input with maxval 4 keeps its 4",
+      "ops": [
+        {
+          "op": "allWidthControls",
+          "set": {
+            "max": 10
+          }
+        },
+        {
+          "op": "addInput",
+          "spec": {
+            "key": "smooth",
+            "type": "int",
+            "label": "Smoothing",
+            "default": 2,
+            "min": 1,
+            "max": 4,
+            "step": 1
+          }
+        }
+      ],
+      "upgraded": []
+    },
+    {
+      "name": "a plot width naming a non-chrome input is not a width control",
+      "ops": [
+        {
+          "op": "allWidthControls",
+          "set": {
+            "max": 10
+          }
+        },
+        {
+          "op": "addInput",
+          "spec": {
+            "key": "smooth",
+            "type": "int",
+            "label": "Smoothing",
+            "default": 2,
+            "min": 1,
+            "max": 4,
+            "step": 1
+          }
+        },
+        {
+          "op": "plotWidth",
+          "plot": "out2",
+          "value": "$smooth"
+        }
+      ],
+      "upgraded": []
+    },
+    {
+      "name": "the width itself (the default) is never touched",
+      "ops": [
+        {
+          "op": "input",
+          "key": "out2Width",
+          "set": {
+            "default": 3
+          }
+        }
+      ],
+      "upgraded": [
+        "lineWidth",
+        "out2Width",
+        "out3Width",
+        "out4Width",
+        "out5Width",
+        "out6Width",
+        "out7Width",
+        "out8Width",
+        "out9Width",
+        "out10Width",
+        "out11Width",
+        "out12Width",
+        "out13Width",
+        "out14Width",
+        "out15Width",
+        "out16Width",
+        "out17Width",
+        "out18Width",
+        "out19Width",
+        "out20Width",
+        "out21Width",
+        "out22Width",
+        "out23Width",
+        "out24Width"
+      ]
+    },
+    {
+      "name": "a default above 10 reaches its own width",
+      "ops": [
+        {
+          "op": "input",
+          "key": "out2Width",
+          "set": {
+            "default": 12
+          }
+        }
+      ],
+      "upgraded": [
+        "lineWidth",
+        "out2Width",
+        "out3Width",
+        "out4Width",
+        "out5Width",
+        "out6Width",
+        "out7Width",
+        "out8Width",
+        "out9Width",
+        "out10Width",
+        "out11Width",
+        "out12Width",
+        "out13Width",
+        "out14Width",
+        "out15Width",
+        "out16Width",
+        "out17Width",
+        "out18Width",
+        "out19Width",
+        "out20Width",
+        "out21Width",
+        "out22Width",
+        "out23Width",
+        "out24Width"
+      ],
+      "max": {
+        "out2Width": 12
+      }
+    },
+    {
+      "name": "a default above the ceiling stops at the ceiling",
+      "ops": [
+        {
+          "op": "input",
+          "key": "out2Width",
+          "set": {
+            "default": 60
+          }
+        }
+      ],
+      "upgraded": [
+        "lineWidth",
+        "out2Width",
+        "out3Width",
+        "out4Width",
+        "out5Width",
+        "out6Width",
+        "out7Width",
+        "out8Width",
+        "out9Width",
+        "out10Width",
+        "out11Width",
+        "out12Width",
+        "out13Width",
+        "out14Width",
+        "out15Width",
+        "out16Width",
+        "out17Width",
+        "out18Width",
+        "out19Width",
+        "out20Width",
+        "out21Width",
+        "out22Width",
+        "out23Width",
+        "out24Width"
+      ],
+      "max": {
+        "out2Width": 50
+      }
+    },
+    {
+      "name": "not the old constant (min 2): left as given",
+      "ops": [
+        {
+          "op": "input",
+          "key": "out2Width",
+          "set": {
+            "min": 2
+          }
+        }
+      ],
+      "upgraded": [
+        "lineWidth",
+        "out3Width",
+        "out4Width",
+        "out5Width",
+        "out6Width",
+        "out7Width",
+        "out8Width",
+        "out9Width",
+        "out10Width",
+        "out11Width",
+        "out12Width",
+        "out13Width",
+        "out14Width",
+        "out15Width",
+        "out16Width",
+        "out17Width",
+        "out18Width",
+        "out19Width",
+        "out20Width",
+        "out21Width",
+        "out22Width",
+        "out23Width",
+        "out24Width"
+      ]
+    },
+    {
+      "name": "a max written 4.0 is the constant (the browser's === reads 4)",
+      "ops": [
+        {
+          "op": "input",
+          "key": "out2Width",
+          "set": {
+            "max": 4.0
+          }
+        }
+      ],
+      "upgraded": [
+        "lineWidth",
+        "out2Width",
+        "out3Width",
+        "out4Width",
+        "out5Width",
+        "out6Width",
+        "out7Width",
+        "out8Width",
+        "out9Width",
+        "out10Width",
+        "out11Width",
+        "out12Width",
+        "out13Width",
+        "out14Width",
+        "out15Width",
+        "out16Width",
+        "out17Width",
+        "out18Width",
+        "out19Width",
+        "out20Width",
+        "out21Width",
+        "out22Width",
+        "out23Width",
+        "out24Width"
+      ]
+    },
+    {
+      "name": "a boolean step is not the constant",
+      "ops": [
+        {
+          "op": "input",
+          "key": "out2Width",
+          "set": {
+            "step": true
+          }
+        }
+      ],
+      "upgraded": [
+        "lineWidth",
+        "out3Width",
+        "out4Width",
+        "out5Width",
+        "out6Width",
+        "out7Width",
+        "out8Width",
+        "out9Width",
+        "out10Width",
+        "out11Width",
+        "out12Width",
+        "out13Width",
+        "out14Width",
+        "out15Width",
+        "out16Width",
+        "out17Width",
+        "out18Width",
+        "out19Width",
+        "out20Width",
+        "out21Width",
+        "out22Width",
+        "out23Width",
+        "out24Width"
+      ]
+    },
+    {
+      "name": "a literal plot width names no control",
+      "ops": [
+        {
+          "op": "plotWidth",
+          "plot": "out2",
+          "value": 2
+        }
+      ],
+      "upgraded": [
+        "lineWidth",
+        "out3Width",
+        "out4Width",
+        "out5Width",
+        "out6Width",
+        "out7Width",
+        "out8Width",
+        "out9Width",
+        "out10Width",
+        "out11Width",
+        "out12Width",
+        "out13Width",
+        "out14Width",
+        "out15Width",
+        "out16Width",
+        "out17Width",
+        "out18Width",
+        "out19Width",
+        "out20Width",
+        "out21Width",
+        "out22Width",
+        "out23Width",
+        "out24Width"
+      ]
+    },
+    {
+      "name": "a width named through another plot's key is not this plot's control",
+      "ops": [
+        {
+          "op": "plotWidth",
+          "plot": "out2",
+          "value": "$out3Width"
+        }
+      ],
+      "upgraded": [
+        "lineWidth",
+        "out3Width",
+        "out4Width",
+        "out5Width",
+        "out6Width",
+        "out7Width",
+        "out8Width",
+        "out9Width",
+        "out10Width",
+        "out11Width",
+        "out12Width",
+        "out13Width",
+        "out14Width",
+        "out15Width",
+        "out16Width",
+        "out17Width",
+        "out18Width",
+        "out19Width",
+        "out20Width",
+        "out21Width",
+        "out22Width",
+        "out23Width",
+        "out24Width"
+      ]
+    },
+    {
+      "name": "no plots: nothing names a control",
+      "ops": [
+        {
+          "op": "dropPlots"
+        }
+      ],
+      "upgraded": []
+    }
+  ]
+}

@@ -151,7 +151,12 @@ describe('⭐ strict mode does NOT punish a script for being correct', () => {
     // `barssince(condition, n)` is a different, bounded function, and no lane
     // serves the Pine meaning — so BOTH contracts refuse it, which is what
     // "the failures every mode shares" actually means.
-    const script = '//@version=6\nindicator(\"t\")\nplot(ta.barssince(close > open) ? 1 : 0)\n'
+    // ⚰️ AND IT WAS `ta.barssince` UNTIL 2026-10-30, FOR THE SAME REASON IT WAS
+    // `ta.cum` BEFORE: Pine coverage Phase 1 serves the unbounded count on a PANE
+    // (`cum(1) − valuewhenOccurrence(cond, cum(1), 0)`, exact, never capped) and a
+    // screen still refuses it — another `cum`-shaped exception. `ta.wad` is
+    // undeclared everywhere, so both contracts refuse it.
+    const script = '//@version=6\nindicator(\"t\")\nplot(ta.wad)\n'
     const r = translatePine(script, { strict: true })
     expect(r.ok).toBe(false)
     expect(r.refusal.guard).toBeTruthy()

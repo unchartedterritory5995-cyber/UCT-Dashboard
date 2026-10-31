@@ -181,8 +181,13 @@ def remind_due(*, now: float | None = None, deliver=None, routing=None,
         receipt["due"] += 1
         c = _conn(db_path)
         try:
+            # ⛔ Claimed only while the fire still EXISTS: `rows` was read once, and a fire
+            # whose member's account was deleted since (alert_erasure) must neither be
+            # reminded about nor leave a claim row behind keyed to nothing.
             claimed = c.execute("INSERT OR IGNORE INTO alert_fire_reminders (fire_id, reminded_at,"
-                                " outcome) VALUES (?,?,?)", (r["id"], now, "claimed")).rowcount == 1
+                                " outcome) SELECT ?, ?, ? WHERE EXISTS"
+                                " (SELECT 1 FROM alert_fires WHERE id = ?)",
+                                (r["id"], now, "claimed", r["id"])).rowcount == 1
             c.commit()
         finally:
             c.close()

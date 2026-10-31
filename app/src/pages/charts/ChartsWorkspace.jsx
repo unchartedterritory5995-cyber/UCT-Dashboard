@@ -69,7 +69,7 @@ import { isWorkspaceDocArmed } from '../../lib/workspaceDoc'
 import { addWidgetTab } from './widgetTabs'
 import { createEmptyNamedLayout } from './dockCreate'
 import { computeRowHeight as rowHeightFor, FIXED_ROWS as _FIXED_ROWS, MARGIN_Y as _MARGIN_Y, BODY_PAD as _BODY_PAD } from './rowHeight'
-import { WIDGET_REGISTRY, WORKSPACE_MENU_TYPES, labelMap, menuGroups, catalogMeta } from '../../widgets/registry'
+import { WIDGET_REGISTRY, WORKSPACE_PICKER_TYPES, labelMap, menuGroups, catalogMeta } from '../../widgets/registry'
 import useTracingsSync from '../../components/chart/useTracingsSync'
 import styles from './ChartsWorkspace.module.css'
 import { boardWidgetCount, boardCanGrow, boardMayBecome, boardRefusalSentence, boardLayoutRefusalSentence, boardOverBoundSentence } from './boardBound'
@@ -366,7 +366,7 @@ function splitToSide(widgets, defaults, candidate) {
 // only from Tools → Custom-Period Sort (dock / add-as-tab). Membership + labels
 // derive from the widget registry (menus.workspace: false keeps it out of the
 // menu; it stays registered so docked instances render).
-const WIDGET_TYPES = WORKSPACE_MENU_TYPES
+const WIDGET_TYPES = WORKSPACE_PICKER_TYPES
 const WIDGET_LABELS = labelMap('menu')
 const WIDGET_MENU_GROUPS = menuGroups('workspace')   // add-menu, grouped by category
 const HEADER_LABELS = labelMap('header')   // shown on the smart-placement ghost

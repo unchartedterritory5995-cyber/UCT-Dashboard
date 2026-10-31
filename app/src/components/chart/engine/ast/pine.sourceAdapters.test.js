@@ -42,13 +42,20 @@ describe('the typical-price adapters', () => {
   })
 
   it('⛔⛔ ANY OTHER SOURCE REFUSES, and the refusal says what to write', () => {
-    const out = screen('ta.cci(close, 20) < -100')
+    // ⚰️ (2026-10-30) this read `ta.cci(close, 20)`: Pine coverage Phase 1 writes
+    // `ta.cci` of any other source out as TradingView's own CCI (`(src - sma) /
+    // (0.015 * dev)`, matched to the vendor in `warmupParity.test.js`), so `ta.cci`
+    // no longer refuses. `ta.mfi` has no such expansion and keeps the adapter's rule.
+    const out = screen('ta.mfi(close, 14) < 20')
     expect(out.ok).toBe(false)
     expect(out.refusal.guard).toBe('pine:role-order')
     expect(out.refusal.message).toMatch(/typical/)
     expect(out.refusal.message).toMatch(/DIFFERENT indicator/)
     expect(out.refusal.message).toMatch(/TO UNBLOCK/)
-    expect(out.refusal.message).toContain('ta.cci(hlc3')
+    expect(out.refusal.message).toContain('ta.mfi(hlc3')
+    // …and `ta.cci` of that same source is the CCI definition, not the typical-price column
+    expect(formulaOf(screen('ta.cci(close, 20) < -100')))
+      .toBe('(close - sma(close, 20)) / (0.015 * dev(close, 20)) < -100 ? 1 : 0')
   })
 
   it('⭐⭐ the check RESOLVES the source — a binding that holds `hlc3` works', () => {
@@ -64,7 +71,7 @@ describe('the typical-price adapters', () => {
   it('⛔ a binding that holds something ELSE still refuses', () => {
     // ⚠️ THE OTHER HALF OF THE CASE ABOVE. Resolving through a binding must not
     // mean accepting whatever the binding holds.
-    const out = screen('ta.cci(src, 20) < -100', 'src = close\n')
+    const out = screen('ta.mfi(src, 14) < 20', 'src = close\n')
     expect(out.ok).toBe(false)
     expect(out.refusal.guard).toBe('pine:role-order')
   })

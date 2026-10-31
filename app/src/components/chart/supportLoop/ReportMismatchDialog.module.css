@@ -1,0 +1,48 @@
+.root { display: flex; flex-direction: column; gap: 10px; font-size: 13px; color: var(--text-bright); }
+.lead, .privacy, .done { margin: 0; line-height: 1.5; }
+.privacy { color: var(--text-muted); font-size: 12px; }
+.field { display: flex; flex-direction: column; gap: 4px; }
+.field label { font-size: 12px; color: var(--text-muted); }
+.field textarea, .field input {
+  font: inherit;
+  color: inherit;
+  background: var(--bg-input, rgba(255, 255, 255, 0.04));
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.12));
+  border-radius: var(--radius-md, 6px);
+  padding: 6px 8px;
+  min-height: var(--tap-min, 44px);
+}
+.code { font-family: var(--font-mono, ui-monospace, monospace); font-size: 12px; }
+.opt { color: var(--text-muted); font-weight: 400; }
+.meta { margin: 0; font-size: 11px; color: var(--text-muted); }
+.ack { display: flex; align-items: flex-start; gap: 8px; min-height: var(--tap-min, 44px); cursor: pointer; }
+.ack input { min-width: 18px; min-height: 18px; margin-top: 3px; }
+.err { margin: 0; color: var(--color-danger); font-size: 12px; }
+.actions { display: flex; justify-content: flex-end; gap: 8px; }
+.btn {
+  min-height: var(--tap-min, 44px);
+  padding: 0 14px;
+  border-radius: var(--radius-md, 6px);
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.12));
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.primary { background: var(--gold, #c9a84c); color: #111; border-color: transparent; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.mine { border-top: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08)); padding-top: 8px; }
+.mine ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.mineHead { margin: 0 0 4px; font-size: 12px; font-weight: 600; color: var(--text-muted); }
+.mineRow { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+.status { margin-left: auto; color: var(--text-muted); }
+.linkBtn {
+  background: none;
+  border: none;
+  color: var(--gold, #c9a84c);
+  font: inherit;
+  cursor: pointer;
+  min-height: var(--tap-min, 44px);
+  padding: 0 4px;
+  text-decoration: underline;
+}
