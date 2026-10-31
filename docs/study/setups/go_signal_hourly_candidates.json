@@ -3191,6 +3191,41 @@
     }
    ],
    "sessions_in_window": 53
+  },
+  "WING|2026-10-27": {
+   "sym": "WING",
+   "asof": "2026-10-27",
+   "owner_day": {
+    "session": "2026-10-27",
+    "first_hour_t": 1793107800,
+    "flag_sessions": 2,
+    "flag_start_t": 1792762200,
+    "flag_high": 125.54,
+    "flag_low": 116.58,
+    "flag_range_pct": 7.7,
+    "advance_pct": 21.1,
+    "advance_low": 103.65,
+    "swing_low": 117.39,
+    "higher_low": false,
+    "prev_close": 122.81,
+    "first_open": 120.05,
+    "first_low": 116.1,
+    "first_close": 116.99,
+    "undercut": true,
+    "undercut_pct": 0.41,
+    "red_to_green": false,
+    "dipped_below_prev_close": true,
+    "reclaim_pct": 0.35,
+    "first_hour_vol_x": 3.27,
+    "day_close_vs_first_close_pct": 5.91,
+    "fwd_5s_pct": null,
+    "fwd_5s_high_pct": 28.16,
+    "fwd_sessions_available": 3,
+    "fires": false,
+    "score": 3
+   },
+   "firing_sessions": [],
+   "sessions_in_window": 45
   }
  }
 }
