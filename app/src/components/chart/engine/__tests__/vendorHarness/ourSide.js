@@ -36,6 +36,7 @@ import { evaluateObjects } from '../../objectRuntime'
 import { toRenderState } from '../../objectRenderState'
 // ⭐ RT5 — a runtime document's own drawings.
 import { runtimeObjectsOf, runtimeObjectsWithheldOf, drawsRuntimeObjects, runtimeWarmupOf } from '../../runtime/runtimeObjects'
+import { runtimeDeclinedTag } from '../../../../../../../tools/pine_coverage/runtime_lane.mjs'
 import { maxLookback } from '../../ast/interpret'
 import { paneObjectsGate } from '../../ast/paneGate'
 import { otherSymbolRequestsOf, storeTickerOf } from '../../otherSymbols'
@@ -783,7 +784,9 @@ function objectsOf(def, bars, ctx, cols, built = null) {
 export function enterMemberDoor(source) {
   const built = memberPaneDefinition({ source, id: HARNESS_DEF_ID, name: 'vendor harness' })
   if (!built.ok) {
-    return { built, def: null, stage: 'builder', refusal: `member door refused${built.guard ? ` (${built.guard})` : ''}: ${built.reason}` }
+    // ⭐ WS-0: a refusal the RUNTIME lane declined (pane on) says so, by code, so a
+    // runtime-on harness run can count its walls; with the pane dark it never appears.
+    return { built, def: null, stage: 'builder', refusal: `member door refused${built.guard ? ` (${built.guard})` : ''}${built.runtimeDeclined ? ` ${runtimeDeclinedTag(built.runtimeDeclined.code)}` : ''}: ${built.reason}` }
   }
   const { installed, errors } = registry.installUserDefinitions([built.definition])
   if (!installed.length) {
