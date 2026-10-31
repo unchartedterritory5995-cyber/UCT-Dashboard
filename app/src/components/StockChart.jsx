@@ -18221,6 +18221,13 @@ export default function StockChart({
       // than erasing its successor's registration.
       try { unregisterManifestRef.current?.() } catch {}
       unregisterManifestRef.current = null
+      // ⭐ The indicator binder lets go BEFORE its chart is removed: `teardown()`
+      // releases its series and clears every bind-time note it published under this
+      // chart's notice scope (`chartClockNotice` / `objectRenderNotice` /
+      // `runtimeErrorNotice`), so an unmounted chart leaves no orphaned scope behind.
+      // Safe unconditionally (zero calls when it holds nothing); no render follows.
+      try { engineRef.current?.binder?.teardown?.() } catch { /* disposed */ }
+      engineRef.current = null
       if (chartRef.current) {
         try { delete window.__uctChartDebug?.[chartId || 'main'] } catch { /* SSR/teardown */ }
         chartRef.current.remove()
