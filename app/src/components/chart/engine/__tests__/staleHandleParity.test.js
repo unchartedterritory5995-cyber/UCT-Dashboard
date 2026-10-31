@@ -46,7 +46,10 @@ describe('one stale-handle rule, by one fixture', () => {
         expect(out.compute.fn).toBe(FIXTURE.expectFn)
         expect({ ...out.compute, fn: null }).toEqual({ ...doc.compute, fn: null })
       } else {
-        expect(out).toBe(doc)
+        // ⭐ the HANDLE is left as given: the same compute object. (The document itself
+        // may still be upgraded by the width-control rule, which this base needs —
+        // `savedDocumentUpgradeParity.test.js` pins that one.)
+        expect(out.compute).toBe(doc.compute)
       }
     })
   }

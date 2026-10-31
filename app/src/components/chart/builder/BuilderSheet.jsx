@@ -81,6 +81,8 @@ import UIcon from '../../ui/UIcon'
 import { PORTAL_POPUP_ATTR } from '../ColorPicker'
 import { SCHEMA_VERSION, MARKER_SHAPES, MARKER_POSITIONS, PLOT_LINE_STYLES } from '../engine/defSchema'
 import { astHash } from '../engine/ast/parse'
+import { lexPine } from '../engine/ast/pine'
+import { DOOR_VERSION } from '../engine/memberDocumentMigration'
 // ⛔ THE SECOND MACHINE-ASSIGNED BADGE, AND IT IS MEASURED HERE FOR THE SAME
 // REASON `repaint` IS: `validateUserDefinitions` REQUIRES `meta.freshness` on
 // the `ast` lane and refuses a disagreement in both directions, so a document
@@ -465,6 +467,24 @@ export function withApplyProvenance(doc, provenance) {
   return { ...doc, meta: { ...(doc.meta || {}), importedFrom: provenance } }
 }
 
+/** ⭐⭐ THE DOOR STAMPS for a PINE import this sheet applied: the script's own
+ *  `//@version` (the LEXED pragma — null for a script with none) and the door's
+ *  version (`memberDocumentMigration.DOOR_VERSION`), the same two the member door
+ *  writes, so a later correction to what this door wrote reaches the saved
+ *  document with certainty. Null for any other dialect, or a text that does not lex. */
+export function pineDoorStampFor(dialect, sourceText) {
+  if (String(dialect || '').toLowerCase() !== 'pine') return null
+  let version
+  try { version = lexPine(String(sourceText || '')).version } catch { return null }
+  return { pineVersion: Number.isInteger(version) ? version : null, doorVersion: DOOR_VERSION }
+}
+
+/** Write the door stamps onto a document (a copy; identity when none). */
+export function withPineDoorStamp(doc, stamp) {
+  if (!doc || !stamp) return doc
+  return { ...doc, meta: { ...(doc.meta || {}), pineVersion: stamp.pineVersion, doorVersion: stamp.doorVersion } }
+}
+
 function semanticsContext(editing, telemetry) {
   return {
     prior: (editing && editing.prior) || null,
@@ -639,6 +659,11 @@ export function buildDefinition({ defId, name, source, ast, mode, rev = 1, versi
             && declared.some((s) => s.key === r.fillColorInput && s.type === 'color')
             ? { fillColorInput: r.fillColorInput } : {}),
           ...(Number.isFinite(r.fillOpacity) ? { fillOpacity: r.fillOpacity } : {}),
+          // ⭐ the band's raw transparency stamp, when the Pine door read one
+          // (`memberDocumentMigration.upgradeFromDoorStamps`). A row that does not
+          // carry it (every manual and conversational edit) writes none.
+          ...(r.fillTransparency && typeof r.fillTransparency.via === 'string'
+            ? { fillTransparency: { ...r.fillTransparency } } : {}),
         }
         : {}),
       // ⭐ P3 — A ROW'S LINE STYLE (`defSchema.PLOT_LINE_STYLES`, drawn by
@@ -1282,6 +1307,8 @@ export default function BuilderSheet({
   // say it was imported. ⛔ The script text itself is NOT stored (the ast lane never
   // has — a 34 KB script against a 64 KB cap); its length and a fingerprint are.
   const applyProvenanceRef = useRef(null)
+  /** The Pine door stamps (`pineDoorStampFor`) for the script the Apply wrote. */
+  const pineDoorStampRef = useRef(null)
   const [savedRow, setSavedRow] = useState(null)
   /** Escape / Cancel asked to close while there was unsaved work. See `dirty`. */
   const [confirmDiscard, setConfirmDiscard] = useState(false)
@@ -1352,7 +1379,7 @@ export default function BuilderSheet({
     // fresh `newPlotRow` (acknowledged: false) into `plot0`, which is the row
     // that flag now lives on. A second reset of a value `resetPlots` already
     // resets is the shape that drifts the day one of the two is edited alone.
-    setStoreError(null); setSavedRow(null); setCopied(false); setPineText(''); applyProvenanceRef.current = null
+    setStoreError(null); setSavedRow(null); setCopied(false); setPineText(''); applyProvenanceRef.current = null; pineDoorStampRef.current = null
     // ⛔ W4a — THE OPENING MODE COMES FROM `openingMode` AND NOWHERE ELSE. It
     // used to be the literal `'library'`, and the screener's door was written as
     // a SECOND effect setting it again afterwards. That is a second writer over
@@ -1396,7 +1423,7 @@ export default function BuilderSheet({
     const src = compute.source
     // ⛔ NO `setAcknowledged` HERE — the restored rows below each carry their
     // own fresh `acknowledged: false`, which is where that flag lives now.
-    setStoreError(null); setSavedRow(null); setCopied(false); setPineText(''); applyProvenanceRef.current = null
+    setStoreError(null); setSavedRow(null); setCopied(false); setPineText(''); applyProvenanceRef.current = null; pineDoorStampRef.current = null
     // ⛔⛔ P1 HARDENING (2026-10-11) — THE FORMULA BOX EDITS FORMULAS, AND ONLY FORMULAS.
     // A `runtime` document's `compute.source` is a whole PINE SCRIPT, and the restore
     // below would drop it into the formula box as formula text — a document of one
@@ -2025,7 +2052,7 @@ export default function BuilderSheet({
       name,
       look: lookToApply,
     }
-    let doc = withApplyProvenance(documentFor(rows, docArgs), applyProvenanceRef.current)
+    let doc = withPineDoorStamp(withApplyProvenance(documentFor(rows, docArgs), applyProvenanceRef.current), pineDoorStampRef.current)
     // ⭐⭐ P2X (owner decision 3) — A SAVE NEVER SILENTLY DESTROYS THE STORED
     // OBJECT PROGRAM. Kept → it rides byte-identically. Lossy → NOTHING is sent
     // until the member confirms a save that names what it removes; Cancel leaves
@@ -2038,7 +2065,7 @@ export default function BuilderSheet({
         setSaving(false)
         return
       }
-      doc = withApplyProvenance(documentFor(rows, { ...docArgs, dropObjects: true }), applyProvenanceRef.current)
+      doc = withPineDoorStamp(withApplyProvenance(documentFor(rows, { ...docArgs, dropObjects: true }), applyProvenanceRef.current), pineDoorStampRef.current)
     }
     setObjectLoss(null)
     const valueKey = intent === INTENTS.VALUE && intentRead ? intentRead.selectedKey : null
@@ -2094,7 +2121,7 @@ export default function BuilderSheet({
     // manual tweak with no new paste) must not carry a stale `import_id`
     // forward and misattribute itself to an import that already landed.
     importTelemetryRef.current = null
-    applyProvenanceRef.current = null
+    applyProvenanceRef.current = null; pineDoorStampRef.current = null
     const row = res.row || { def_id: doc.id, version: doc.version, rev: 1 }
     setSavedRow(row)
 
@@ -2900,6 +2927,8 @@ export default function BuilderSheet({
                       fill: { with: to },
                       ...(typeof f.color === 'string' ? { fillColor: f.color } : {}),
                       ...(Number.isFinite(f.opacity) ? { fillOpacity: f.opacity } : {}),
+                      ...(f.transparency && typeof f.transparency.via === 'string'
+                        ? { fillTransparency: { ...f.transparency } } : {}),
                     })
                   }
                   const withFills = visible.map(
@@ -3034,6 +3063,7 @@ export default function BuilderSheet({
                 importTelemetryRef.current = { importId, dialect }
                 // ⭐ PHASE 4 — the Apply door's provenance for the saved document.
                 applyProvenanceRef.current = applyProvenanceFor(dialect, pineText)
+                pineDoorStampRef.current = pineDoorStampFor(dialect, pineText)
                 logIndicatorTelemetry('import_submitted', { importId, dialect })
                 logIndicatorTelemetry('compile_finished', { importId, dialect, props: { success: true } })
               }}
