@@ -1556,6 +1556,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
     return (n.args || []).some((a) => statefulTree(a, frame))
   }
   const conditionalHistoryGuard = (what, at) => {
+    // WS-C / R4 on the plot lane: a built-in's own state (`OP.CARRIED`, a `skip`
+    // window's run ring) steps only when its call runs, which is the call
+    // site's history — except in a LOOP, where it would step once per pass.
+    if (!objectsInRun && what === 'a stateful built-in' && loopDepth > 0) r4Guard(what, at)
     if (!(objectsInRun && condDepth > 0)) return
     note('runtime:conditional-history')
     throw new RuntimeRefusal('runtime:conditional-history',
@@ -1587,7 +1591,139 @@ function buildRuntimeIrLinked(source, opts, holder) {
     if (slot !== null && slot !== undefined
       && (slots[slot].owner !== null || slotDepth[slot] > 0)) {
       conditionalHistoryGuard(`\`${slots[slot].name}[…]\``, at)
+      // WS-C / R4: the plot lane reads that history from EVERY bar (a block
+      // local is reset to `na` on a bar the block skips; a body local in a
+      // branch of the body is the body's), where Pine reads the previous RUN.
+      if (slotDepth[slot] > 0) r4Guard(`\`${slots[slot].name}[…]\`, the history of a local of the block,`, at)
     }
+  }
+
+  // ─── ⭐⭐⭐ WS-C (Phase 3) — CONDITIONAL HISTORY ON THE PLOT LANE (R4, P3) ───
+  //
+  // The RT5 guard above runs only under `objectsInRun`. On the PLOT lane a pure
+  // `ta.*` inside an `if`, a loop or a function body became an every-bar column,
+  // so a call that runs on SOME bars answered from EVERY bar. Pine keeps that
+  // history PER CALL SITE: a window counts the RUNS of its call, the EMA is
+  // seeded by the mean of its first n RUNS, a block local's `[1]` is the
+  // previous RUN's value (C48, `vw-call-site-history-rddt/spy-1d-2026-10-01`,
+  // C03-C05 / H01-H05 / D01-D03).
+  //
+  // Owner ruling R4 (2026-10-31): refuse it BY NAME on this lane until it is
+  // served exactly. What is served exactly is `servedCondCall` below; every
+  // other shape keeps this refusal.
+  //
+  // ⛔⛔ THE TEST IS LEXICAL, NOT THE RESOLVED TREE. `ma = ta.sma(close, 9)`
+  // written at the ROOT and read inside a block is an every-bar series: its
+  // column is exactly right there. The resolver expands that macro, so asking
+  // the canonical tree (as `statefulTree` does for RT5, where a top-level
+  // history binding is a slot) would refuse a correct script. Only history
+  // WRITTEN in the block or the function body (or in a binding made there)
+  // belongs to the call site.
+  const r4Guard = (what, at) => {
+    // ⛔ NOT inside a request's value: that expression is evaluated over the
+    // REQUESTED symbol's own bars, as a series, wherever the call stands.
+    if (objectsInRun || condDepth <= 0 || inRequestValue) return
+    note('runtime:conditional-history')
+    throw new RuntimeRefusal('runtime:conditional-history',
+      `${what} inside a block, loop or function branch that does not run on every bar — `
+      + 'Pine keeps that history per call site, and this lane serves only the shapes witnessed so far', at)
+  }
+  // Does this call's own head carry history? The arguments are replaced by a
+  // literal so a top-level macro among them cannot make a pointwise call look
+  // stateful; the closed table's own verdict (`statefulTree`) decides.
+  const callHeadStateful = (n) => {
+    const two = { type: 'number', value: 2, tok: n.tok }
+    const args = (n.args || []).map((a) => (a && a.value !== undefined ? { ...a, value: two } : two))
+    try { return statefulTree(makeResolver().resolve({ ...n, args })) } catch { return /^ta\./.test(String(n.name || '')) }
+  }
+  // A UDF whose body keeps history that a CONDITIONAL call would read wrongly:
+  // column history written in its body (`rt5Lex`), a window that reads its
+  // committed ring (every policy but `skip`, which keeps its own run ring), or
+  // a call to such a function. Body-local `[k]` (held per site, vendor-pinned
+  // `skipped-callsite-history-spy-1d-2026-09-08`) and carried state (stepped
+  // per invocation) are the call site's already.
+  const fnCondUnsafe = (fn) => !!(fn && (fn.rt5Lex || fn.condUnsafeCalls
+    || (fn.windowLocals || []).some((w) => FINITE_WINDOW[w.fn] && FINITE_WINDOW[w.fn].na !== 'skip')))
+  // Any per-site state at all: in a LOOP every one of them runs several times a
+  // bar, which no capture has witnessed.
+  const fnAnyHistory = (fn) => !!(fn && (fn.rt5Lex || fn.rt5History || fn.anyHistoryCalls
+    || (fn.historyLocals || []).length || (fn.windowLocals || []).length
+    || (fn.carriedLocals || []).length || (fn.carried2Locals || []).length))
+  const bindingIsLocal = (b) => !!(b && b.kind === 'expr' && (b.depth > 0 || (b.owner !== null && b.owner !== undefined)))
+  const lexCondHistory = (n, depth = 0) => {
+    if (!n || typeof n !== 'object' || depth > 48) return false
+    if (Array.isArray(n)) return n.some((x) => lexCondHistory(x, depth + 1))
+    if (n.type === 'name') {
+      const b = env.get(n.name)
+      return bindingIsLocal(b) && lexCondHistory(b.node, depth + 1)
+    }
+    if (n.type === 'call') {
+      if (fnByName.has(n.name)) {
+        const fn = functions[fnByName.get(n.name)]
+        if (loopDepth > 0 ? fnAnyHistory(fn) : fnCondUnsafe(fn)) return true
+      } else if (callHeadStateful(n)) return true
+    }
+    if (n.type === 'offset') {
+      const a = n.arg
+      // a block's (or a body's) own expression one run back
+      if (a && a.type === 'name' && bindingIsLocal(env.get(a.name))) return true
+      // a call-owned `bar_index[k]` (C48 H05: the previous RUN's index)
+      if (owner !== null && a && a.type === 'name' && a.name === 'bar_index') return true
+    }
+    for (const k of Object.keys(n)) {
+      if (k === 'tok') continue
+      const v = n[k]
+      if (v && typeof v === 'object' && lexCondHistory(v, depth + 1)) return true
+    }
+    return false
+  }
+  /** ⭐⭐ THE SHAPES SERVED EXACTLY: `ta.sma(src, n)` and `ta.ema(src, n)` (v4:
+   *  `sma`, `ema`) written in a ROOT-level `if`/`switch` block that is not in a
+   *  loop, `src` a pure series, `n` known before bar 0. Both become per-site
+   *  state stepped only when the call runs — the run window `FINITE_WINDOW.sma`
+   *  keeps (`skip`: its own ring of the last n finite RUNS, never the bar ring)
+   *  and the `CARRIED.ema` recurrence (seeded by the mean of its first n runs,
+   *  `smoothStep`). That is the witnessed rule (C48: RDDT C03/C04, D02). Every
+   *  other conditional `ta.*` returns null and keeps the R4 refusal. */
+  /** A node around conditional history that runs exactly when its statement
+   *  runs, so its pieces can be lowered one by one: a name bound in the block,
+   *  arithmetic, a comparison, a pointwise call. ⛔ NOT an arm that may not run
+   *  (`?:`'s arms, the right of v6's short-circuit `and` / `or`): whether a
+   *  call there runs per bar or per branch is not witnessed. */
+  const condTransparent = (n) => {
+    if (!n || typeof n !== 'object') return false
+    if (n.type === 'name' || n.type === 'unary' || n.type === 'op') return true
+    if (n.type === 'binary') return !(['and', 'or', '&&', '||'].includes(n.op) && lexCondHistory(n.right))
+    if (n.type === 'ternary') return !lexCondHistory(n.yes) && !lexCondHistory(n.no)
+    if (n.type === 'call') return !fnByName.has(n.name) && !callHeadStateful(n)
+    return false
+  }
+  const SERVED_COND = {}
+  const servedCondCall = (node, scope) => {
+    if (objectsInRun || owner !== null || loopDepth > 0 || condDepth <= 0) return null
+    if (!node || node.type !== 'call' || fnByName.has(node.name)) return null
+    const name = String(node.name || '')
+    const bare = name.startsWith('ta.') ? name.slice(3) : (pineVersion < 5 ? name : null)
+    const kind = bare ? SERVED_COND[bare] : undefined
+    if (!kind || (node.args || []).some((a) => a && a.name)) return null
+    const given = (node.args || []).map((a) => (a && a.value !== undefined ? a.value : a))
+    if (given.length !== 2 || lexCondHistory(given[0])) return null
+    const at = locate(node.tok)
+    const n = foldConstNode(given[1], at,
+      `the length of \`${name}\` is only known while the bar is running, `
+      + 'so the state it needs cannot be sized before bar 0', scope)
+    if (!Number.isInteger(n) || n < 1) return null
+    const src = lowerExpr(given[0], scope)
+    if (kind === 'window') {
+      // ⭐ `historySlot` is never read: a `skip` window answers from its own
+      // ring of observations (vm.js `OP.WINDOW`), appended only when it RUNS.
+      const widx = windowsMain.length
+      windowsMain.push({ fn: 'sma', name: `${name}(…,${n}) per call site`, historySlot: 0, span: n })
+      return windowCall(widx, src)
+    }
+    const cidx = carriedMain.length
+    carriedMain.push({ fn: 'ema', n, name: `${name}(…,${n}) per call site` })
+    return carriedCall(cidx, src)
   }
 
   /** Frame-relative counts for the owner currently being compiled. */
@@ -4330,9 +4466,20 @@ function buildRuntimeIrLinked(source, opts, holder) {
       // them. Asking the lane, and taking over only where it says `text`, can
       // by construction never remove a script that works today.
       //
-      // ⛔ `columnOf` pushes its column as its LAST act, so a throw leaves no
-      // half-registered column behind and this catch cannot corrupt the pool.
-      try {
+      // ⭐⭐ WS-C / R4 — history WRITTEN in a block that does not run every bar
+      // is not an every-bar column (see `lexCondHistory`). A served shape is
+      // lowered per call site; a composite around one is lowered piece by piece
+      // (each piece asks this question again); anything else is refused by name.
+      // A function body's own history is recorded for its CALL SITES to judge.
+      const condHistory = !objectsInRun && (condDepth > 0 || owner !== null) && lexCondHistory(node)
+      if (condHistory && owner !== null) functions[owner].rt5Lex = true
+      if (condHistory && condDepth > 0) {
+        const served = servedCondCall(node, scope)
+        if (served) return served
+        if (!condTransparent(node)) {
+          r4Guard(node.type === 'call' ? `\`${node.name}\`` : 'a series with history', locate(node.tok))
+        }
+      } else try {
         return column(columnOf(node, locate(node.tok)))
       } catch (e) {
         // ⛔ ONLY over a subtree that really does carry text, and only for the
@@ -5045,6 +5192,11 @@ function buildRuntimeIrLinked(source, opts, holder) {
             || (fn.carriedLocals || []).length || (fn.carried2Locals || []).length) {
             conditionalHistoryGuard(`\`${node.name}\`, a function whose body keeps history,`, locate(node.tok))
           }
+          // WS-C / R4 on the plot lane: only the history a conditional call
+          // would read WRONGLY (see `fnCondUnsafe`); in a loop, any at all.
+          if (loopDepth > 0 ? fnAnyHistory(fn) : fnCondUnsafe(fn)) {
+            r4Guard(`\`${node.name}\`, a function whose body keeps history,`, locate(node.tok))
+          }
           const site = callSites.length
           callSites.push({ fn: fnIndex, at: locate(node.tok) })
           // ⭐ ARGUMENTS ARE LOWERED IN THE CALLER'S SCOPE, so a state-derived
@@ -5266,6 +5418,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
               throw frameBoundRefusal(len.frameName, at, `sizes the window of \`${node.name}\``)
             }
             if (len && Number.isInteger(len.value) && len.value >= 1) {
+              // WS-C / R4: an every-bar column, so it is the call site's history.
+              if (!objectsInRun && owner !== null) functions[owner].rt5Lex = true
+              r4Guard(`\`${node.name}\``, at)
               return column(columnOf({
                 ...node,
                 args: [{ name: null, value: given[0], tok: node.tok },
@@ -5363,6 +5518,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
             windowsMain.push(entry)
           }
           conditionalHistoryGuard('a stateful built-in', null)
+          // WS-C / R4: every policy but `skip` reads the COMMITTED bar ring, so
+          // in a block it would count bars where Pine counts the call's runs.
+          if (FINITE_WINDOW[win.table].na !== 'skip') r4Guard(`\`${node.name}\``, at)
           const call = windowCall(widx, read(varSlot))
           // ⛔ THE SIGN IS APPLIED HERE, ON THE WAY OUT, because that is where
           // `pine.js` applies it — `u-` wrapping the bare call, not a second
@@ -6234,7 +6392,17 @@ function buildRuntimeIrLinked(source, opts, holder) {
    *  written twice (`lesson_a_guard_repeated_is_a_guard_unproved`). */
   /** ⭐ C18 — `var`/`varip` open state, never an arm-local binding. */
   const STATE_WORDS_ARM = new Set(['var', 'varip'])
-  const armAssignerFor = (slot, label, parentScope) => (sub, atTok) => {
+  // WS-C / R4: an arm runs only on the bars its test selects, and so does the
+  // expression that yields its value — which `lowerStmts` alone does not count
+  // (it lowers only the statements BEFORE that expression).
+  const armAssignerFor = (slot, label, parentScope) => {
+    const inner = armAssignerInner(slot, label, parentScope)
+    return (sub, atTok) => {
+      condDepth += 1
+      try { return inner(sub, atTok) } finally { condDepth -= 1 }
+    }
+  }
+  const armAssignerInner = (slot, label, parentScope) => (sub, atTok) => {
     const lines = sub || []
     if (!lines.length) {
       throw new RuntimeRefusal('runtime:block-value',
@@ -7421,7 +7589,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // block would expand (and so evaluate) only on the bars the block runs.
         if (!mutable && !isCollection && !readsSlot(value, scope) && !holdsRunObject(value)
           && !topLevelHistory(value)) {
-          env.set(nameTok.value, { kind: 'expr', node: value, env: new Map(env), at: locate(nameTok), depth: condDepth })
+          env.set(nameTok.value, { kind: 'expr', node: value, env: new Map(env), at: locate(nameTok), depth: condDepth, owner })
           continue
         }
         const slot = scope.declare(nameTok.value, newSlot(nameTok.value, declarationPersists(toks)))
@@ -7980,6 +8148,11 @@ function buildRuntimeIrLinked(source, opts, holder) {
       const callsImpure = callSites.slice(sitesBefore)
         .some((cs) => !(functions[cs.fn].effects && functions[cs.fn].effects.pure))
       record.effects = { pure: record.persistCount === 0 && !callsImpure }
+      // WS-C / R4: what a conditional (or looped) call of THIS function reads
+      // through the functions it calls, propagated the same way.
+      const called = callSites.slice(sitesBefore).map((cs) => functions[cs.fn])
+      record.condUnsafeCalls = called.some(fnCondUnsafe)
+      record.anyHistoryCalls = called.some(fnAnyHistory)
     } finally {
       record.compiling = false
       owner = prevOwner
