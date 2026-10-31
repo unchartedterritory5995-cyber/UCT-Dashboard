@@ -61,6 +61,9 @@ GRACE_MS = 15 * 60_000
 BACKLOG_ALERT_MS = 60 * 60_000
 #: Missing deliveries re-ingested per run (the rest on the next run, and reported).
 MAX_RECOVER = 5_000
+#: Deliveries lost from R2 re-armed for the repair pass per run (bounds memory if a
+#: whole prefix vanished; the rest on the next run, and every one is counted).
+MAX_RELINK = 50_000
 #: Ids named in the result, per category -- a sample for an operator, not the list.
 SAMPLE = 20
 #: The nightly snapshot runs 03:05 ET; this allows one missed night.
@@ -158,9 +161,9 @@ def journal_compare(store, reader, now_ms: int) -> dict[str, Any]:
                 if journaled:
                     out["lost_from_r2"] += 1
                     note("lost_from_r2", eid)
-                    if has_bytes:
+                    if has_bytes and len(out["relink_ids"]) < MAX_RELINK:
                         out["relink_ids"].append(eid)
-                    else:
+                    elif not has_bytes:
                         out["lost_unrepairable"] += 1
                 else:
                     ms = id_ms(eid)
