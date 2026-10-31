@@ -26539,11 +26539,13 @@ function fillColourInputsOf(args, env, colorUp, colorDown, ctx = null) {
  *  `Scale Padding` plot drew as a solid white line because its `opacity = 0` was
  *  dropped (`memberPaneDefinition.js:139`).
  */
-function colourHelperAlpha(node, env, ctx, depth = 0) {
+/** The transparency a colour helper WRITES (`color.new(c, t)`, `color.rgb(r, g, b, t)`),
+ *  as the author wrote it — the raw float, never truncated — or null. */
+function colourHelperTransparency(node, env, ctx, depth = 0) {
   if (!node || depth > 8) return null
   if (node.type === 'bound') {
     const arm = openBoundArm(node, env)
-    return arm ? colourHelperAlpha(arm.node, arm.env, ctx, depth + 1) : null
+    return arm ? colourHelperTransparency(arm.node, arm.env, ctx, depth + 1) : null
   }
   // ⭐⭐ A NAME AND AN `input.color` DEFAULT ARE OPENED, exactly as
   // `staticColourOf` opens them — otherwise the two readers disagree about the
@@ -26557,30 +26559,30 @@ function colourHelperAlpha(node, env, ctx, depth = 0) {
     if (bound && bound.kind === 'param' && ctx && ctx.inline) {
       const a = (ctx.inline.args || [])[bound.index]
       const v = a && a.value !== undefined ? a.value : a
-      return colourHelperAlpha(v, ctx.inline.callerEnv || env, { ...ctx, inline: null }, depth + 1)
+      return colourHelperTransparency(v, ctx.inline.callerEnv || env, { ...ctx, inline: null }, depth + 1)
     }
     return bound && bound.kind === 'expr'
-      ? colourHelperAlpha(bound.node, bound.env || env, ctx, depth + 1) : null
+      ? colourHelperTransparency(bound.node, bound.env || env, ctx, depth + 1) : null
   }
   // ⭐ 2026-09-28 (ruling 1) — the same door `staticColourOf` opens, so a
   // constant-selected branch keeps its own transparency.
   if (node.type === 'ternary') {
     const taken = constantColourSelector(node, env, ctx)
-    return taken !== node ? colourHelperAlpha(taken, env, ctx, depth + 1) : null
+    return taken !== node ? colourHelperTransparency(taken, env, ctx, depth + 1) : null
   }
   if (node.type !== 'call') return null
   if (node.name === 'input.color') {
-    return colourHelperAlpha(inputColourDefaultNode(node), env, ctx, depth + 1)
+    return colourHelperTransparency(inputColourDefaultNode(node), env, ctx, depth + 1)
   }
   // The v4 generic `input(<colour>)` — the same door `staticColourOf` opens.
   if (node.name === 'input') {
-    return colourHelperAlpha(inputDefaultNode(node), env, ctx, depth + 1)
+    return colourHelperTransparency(inputDefaultNode(node), env, ctx, depth + 1)
   }
   // ⭐ R35c — THE SAME DOOR THE COLOUR WENT THROUGH. A helper whose colour folds
   // but whose transparency does not would render Clouds' twenty bands at one flat
   // alpha, which is the feature inverted rather than merely missing.
   const helper = openColourHelper(node, env, ctx)
-  if (helper) return colourHelperAlpha(helper.node, helper.env, { ...ctx, inline: helper.inline }, depth + 1)
+  if (helper) return colourHelperTransparency(helper.node, helper.env, { ...ctx, inline: helper.inline }, depth + 1)
   const arity = node.name === 'color.new' ? 1 : (node.name === 'color.rgb' ? 3 : null)
   if (arity === null) return null
   const raw = alphaNumberOf(((node.args || [])[arity] || {}).value, env, ctx)
@@ -26594,8 +26596,28 @@ function colourHelperAlpha(node, env, ctx, depth = 0) {
   // off; captures A and D, `tests/fixtures/vendor/reference/`). ⚰️ This read
   // `wholeTransparency(raw)` here "in the plot lane too", an extrapolation from
   // the read-back to the paint that no capture had measured.
-  if (raw === null || !Number.isFinite(raw)) return null
-  return Math.max(0, Math.min(1, 1 - raw / 100))
+  return (raw === null || !Number.isFinite(raw)) ? null : raw
+}
+
+/** Record the transparency an opacity was derived from, beside it. NON-ENUMERABLE:
+ *  a plot's presentation object (and every digest of it) is unchanged; only
+ *  `resolveFillHandles` reads it, for a band's raw stamp. */
+function stampTransparency(pres, value, via) {
+  Object.defineProperty(pres, 'transparency', { value: { value, via }, writable: true, configurable: true, enumerable: false })
+}
+
+/** A colour helper's paint opacity in [0, 1], or null: the EXACT float
+ *  `1 − t/100` over the transparency `colourHelperTransparency` reads (see there
+ *  for why it is not truncated). ⭐ ONE reader of `t`: the door also stamps that
+ *  raw `t` on a band (`fillTransparency`), and the two cannot disagree. */
+function colourHelperAlpha(node, env, ctx, depth = 0) {
+  const raw = colourHelperTransparency(node, env, ctx, depth)
+  return raw === null ? null : opacityOfTransparency(raw)
+}
+
+/** `t` (0–100, the exact float) → the opacity it paints. */
+function opacityOfTransparency(t) {
+  return Math.max(0, Math.min(1, 1 - t / 100))
 }
 
 /** ⭐⭐ R35d — THE TRANSPARENCY OF A COLOUR THAT FOLDS, 0-100, or null.
@@ -27603,15 +27625,26 @@ function resolveFillHandles(fills, outputs, resolved, ctx) {
     // A colour with its own alpha (`color.new(c, 50)`) or an explicit `transp`
     // keeps exactly what it says. ⚠️ A CONDITIONAL fill keeps today's rule (its
     // colours are the paint): set F measured static colours only.
-    const staticOpacity = (!pair && pres.color && !Number.isFinite(pres.opacity))
+    const stated = !pair && pres.color && !Number.isFinite(pres.opacity)
+    const staticOpacity = stated
       ? (isLegacyPineVersion(ctx && ctx.version) ? styleTransparencyOpacity(V4_FILL_DEFAULT_TRANSP) : 1)
       : pres.opacity
+    // ⭐⭐ THE RAW STAMP (`memberDocumentMigration.stampedFillOpacity`): what the
+    // script WROTE for a STATIC band's transparency — a `color.new` / `color.rgb`
+    // float, a `transp =`, or nothing at all — so the next correction to the rule
+    // above can be applied to a SAVED document with certainty instead of guessed.
+    // Only for a static band whose opacity came from exactly one of those three.
+    const transparency = (!pair && pres.color && !pres.colorIndex)
+      ? (stated ? { value: null, via: 'none' }
+        : (pres.transparency && Number.isFinite(pres.opacity) ? { ...pres.transparency } : null))
+      : null
     out.push({
       a: ai,
       b: bi,
       ...(pres.color ? { color: pres.color } : {}),
       ...(staticInput ? { colorInput: { ...staticInput } } : {}),
       ...(Number.isFinite(staticOpacity) ? { opacity: staticOpacity } : {}),
+      ...(transparency ? { transparency } : {}),
       ...(pair ? {
         colorUp: pair.colorUp,
         colorDown: pair.colorDown,
@@ -27811,8 +27844,11 @@ function outputPresentation(args, ctx) {
       pres.opacity = 0
     } else if (flat) {
       pres.color = flat
-      const a = colourHelperAlpha(c.value, ctx && ctx.env, ctx)
-      if (a !== null) pres.opacity = a
+      const t = colourHelperTransparency(c.value, ctx && ctx.env, ctx)
+      if (t !== null) {
+        pres.opacity = opacityOfTransparency(t)
+        stampTransparency(pres, t, 'color')
+      }
     } else {
       // ⭐⭐ C1-A: A CONDITIONAL BETWEEN TWO STATIC COLOURS IS NOW CARRIED.
       // The condition is resolved into an ordinary canonical tree and travels as
@@ -27879,8 +27915,11 @@ function outputPresentation(args, ctx) {
         const foldedFlat = staticColourOf(c.value, ctx.env, 0, foldCtx)
         if (foldedFlat) {
           pres.color = foldedFlat
-          const a = colourHelperAlpha(c.value, ctx.env, foldCtx)
-          if (a !== null) pres.opacity = a
+          const t = colourHelperTransparency(c.value, ctx.env, foldCtx)
+          if (t !== null) {
+            pres.opacity = opacityOfTransparency(t)
+            stampTransparency(pres, t, 'color')
+          }
           carried = true
         } else if (isNaColourLeaf(settledColourNode(c.value, ctx.env, foldCtx))) {
           // (b) the default's branch is `na` — the ABSENT colour, as `color = na` is.
@@ -28006,7 +28045,10 @@ function outputPresentation(args, ctx) {
   const tr = numberValue((arg('transp') || {}).value)
   // ⛔ A `transp=` never makes an absent colour visible: `color = na` stays at
   // opacity 0 whatever transparency the author also wrote.
-  if (tr !== null && !(c && isNaColourLeaf(c.value)) && !settledNa) pres.opacity = styleTransparencyOpacity(tr)
+  if (tr !== null && !(c && isNaColourLeaf(c.value)) && !settledNa) {
+    pres.opacity = styleTransparencyOpacity(tr)
+    stampTransparency(pres, tr, 'transp')
+  }
   return pres
 }
 
