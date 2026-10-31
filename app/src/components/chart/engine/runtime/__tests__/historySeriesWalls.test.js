@@ -8,9 +8,8 @@
 //      5,000 bars, or the `max_bars_back = N` the declaration names.
 //   2. Infinity: `x[1]` of a slot that held `1/0` reads `na`, as the columnar
 //      lane's shifted column does — the two lanes now agree on `x[1] > y`.
-//   3. A v6 `for` re-reads its `to` bound before every pass: a bound the body
-//      changes is refused by name; an invariant one (or any v5 one) is served.
-//   4. `int()`: the plan recorded the host lane REFUSING a non-whole `int()`. It
+//   (The v6 `for` bound re-read is WS-A's: plan section 5, handed off.)
+//   3. `int()`: the plan recorded the host lane REFUSING a non-whole `int()`. It
 //      no longer does — both lanes truncate toward zero through the one resolver
 //      (`idiv(x, 1)`, vendor-measured I01–I09), and the runtime lane's `int()`
 //      over mutable state is the same truncation. Pinned here so the claim
@@ -91,25 +90,7 @@ describe('2 — an infinity is not history: `x[1]` agrees with the columnar lane
   })
 })
 
-describe('3 — a v6 `for` re-reads its bound: a bound the body changes is refused by name', () => {
-  const v6 = (body) => `//@version=6\nindicator("t")\nvar a = array.new_float(0)\nfloat s = 0.0\n${body}plot(s)\n`
-  it('array.size(a) over a body that removes from `a`', () => {
-    const r = refusal(v6('if array.size(a) < 3\n    array.push(a, close)\nfor i = 0 to array.size(a) - 1\n    s += array.get(a, 0)\n    array.remove(a, 0)\n'))
-    expect(r && r.guard).toBe('runtime:loop')
-    expect(r.message).toMatch(/re-reads its `to` bound/)
-  })
-  it('a variable bound the body reassigns', () => {
-    const r = refusal('//@version=6\nindicator("t")\nfloat s = 0.0\nint n = 3\nfor i = 0 to n\n    s += i\n    n := 1\nplot(s)\n')
-    expect(r && r.guard).toBe('runtime:loop')
-  })
-  it('SERVED: an invariant bound, a size bound over a body that only `set`s, and any v5 loop', () => {
-    expect(refusal(v6('for i = 0 to 3\n    s += i\n'))).toBeNull()
-    expect(refusal(v6('if array.size(a) < 3\n    array.push(a, close)\nfor i = 0 to array.size(a) - 1\n    array.set(a, i, close)\n    s += i\n'))).toBeNull()
-    expect(refusal('//@version=5\nindicator("t")\nfloat s = 0.0\nint n = 3\nfor i = 0 to n\n    s += i\n    n := 1\nplot(s)\n')).toBeNull()
-  })
-})
-
-describe('4 — `int()` of a non-whole value: the two lanes cannot disagree', () => {
+describe('3 — `int()` of a non-whole value: the two lanes cannot disagree', () => {
   it('the runtime lane truncates toward zero, negatives included (the host lane\'s `idiv(x, 1)`)', () => {
     const [p, n] = run('//@version=5\nindicator("t")\nplot(int(close / 7))\nplot(int(-close / 7))\n')
     BARS.forEach((b, i) => {

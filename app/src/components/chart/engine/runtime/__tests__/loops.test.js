@@ -27,8 +27,8 @@ const BARS = Array.from({ length: N }, (_, i) => (
 const SERIES = ['o', 'h', 'l', 'c', 'v'].map((k) => Float64Array.from(BARS.map((b) => b[k])))
 const head = '//@version=6\nindicator("t", overlay = true)\n'
 
-function runPine(src, limits, h = head) {
-  const built = buildRuntimeIr(h + src, { bars: BARS, inputs: {} })
+function runPine(src, limits) {
+  const built = buildRuntimeIr(head + src, { bars: BARS, inputs: {} })
   if (!built.ok) throw new Error(`refused: ${built.refusal.message}`)
   const program = lowerIrProgram(built.ir)
   const { outputs } = execute(program, {
@@ -177,17 +177,13 @@ describe('the for loop', () => {
     // The array starts with 2 elements; the body pushes one per iteration. A
     // loop that re-read `array.size(a)` every pass would never terminate (and
     // would be caught only by the iteration ceiling, thousands of passes later).
-    // ⭐ WS-C (2026-10-31): that is the v5 rule, so it is pinned on v5. Pine v6
-    // re-reads the bound before every pass, and a v6 bound the body changes is
-    // refused by name (`historySeriesWalls.test.js`, section 3).
-    const src = 'a = array.from(1.0, 2.0)\n'
+    expect(runPine(
+      'a = array.from(1.0, 2.0)\n'
       + 'float s = 0.0\n'
       + 'for i = 0 to array.size(a) - 1\n'
       + '    s := s + array.get(a, i)\n'
       + '    array.push(a, 9.0)\n'
-      + 'plot(s)\n'
-    expect(runPine(src, undefined, '//@version=5\nindicator("t", overlay = true)\n')).toEqual(all(3))
-    expect(() => runPine(src)).toThrow(/re-reads its `to` bound/)
+      + 'plot(s)\n')).toEqual(all(3))
   })
 
   it('walks an array — the shape a watchlist parse is made of', () => {
