@@ -33,7 +33,8 @@ shared data root (``C:\\data`` / ``/data``) and deletes its temp directory unles
      beside an absent target: a stale WAL left beside a restored main file is replayed onto it.
   3. With ``--replace`` it MOVES the existing file and its ``-wal``/``-shm`` aside to
      ``<name>.pre-restore-<UTC stamp>`` — never a delete — then renames the restored copy in.
-  4. ⛔ A MEMBER STORE `account_tombstones.STORE_REPLAYS` names (today: ``user_definitions``)
+  4. ⛔ A MEMBER STORE `account_tombstones.STORE_REPLAYS` names (``user_definitions`` and the five alert stores of
+     ``alert_erasure.STORES``)
      is put back only after every account-deletion tombstone is replayed on the restored copy
      (the off-site tombstones; ``--auth-db PATH`` adds the live table's pending ones). An
      unreadable tombstone list, a replay error, or a deleted member still present refuses the

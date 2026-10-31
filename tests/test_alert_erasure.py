@@ -289,6 +289,7 @@ def test_the_restore_tool_refuses_a_copy_the_replay_could_not_clear(stores, tmp_
     assert prepare is not None
     rep = prepare(copy)
     assert rep["still_present"] == []
+    assert rep["members"] == [STAYS]          # who the restored copy still holds (STORE_MEMBERS)
     k = sqlite3.connect(copy)
     assert [r[0] for r in k.execute("SELECT user_id FROM calendar_alerts_fired")] == [STAYS]
     k.close()
@@ -644,3 +645,73 @@ def test_the_census_fails_by_name_on_an_unlisted_member_table(tmp_path):
     found = census(tmp_path / "api")
     assert set(found) == {"fresh_member_notes"}
     assert unaccounted(found) == ["fresh_member_notes (api/services/fresh_feature.py: user_id)"]
+
+
+# ── 6. the LIVE tombstone sweep catches a late write in every alert store ─────────────────
+
+def _auth_with_late_alert_rows(tmp_path):
+    """An auth.db where GONE is tombstoned (no users row) and STAYS is a member, and BOTH hold
+    an inbound receiver token, a receipt, a bell row and a push subscription -- GONE's written
+    AFTER their purge (a late delivery, a token minted on a stale session)."""
+    from api.services import account_tombstones as at
+    from api.services import inbound_alerts as ia
+    path = tmp_path / "auth.db"
+    conn = sqlite3.connect(path)
+    conn.execute("CREATE TABLE users (id TEXT PRIMARY KEY, email TEXT)")
+    conn.execute("INSERT INTO users VALUES (?, 'stays@example.test')", (STAYS,))
+    at.ensure_table(conn)
+    conn.execute(f"INSERT INTO {at.TABLE} (user_id, deleted_at) VALUES (?, '2026-10-30')", (GONE,))
+    conn.executescript(ia._SCHEMA)
+    from api.services import alert_durability, web_push
+    conn.executescript(alert_durability._SCHEMA)
+    conn.executescript(web_push._SCHEMA)
+    for uid in (GONE, STAYS):
+        _insert(conn, "inbound_alert_tokens", {"user_id": uid, "token_hash": f"h-{uid}"})
+        _insert(conn, "inbound_alert_receipts", {"user_id": uid})
+        _insert(conn, "user_alerts", {"user_id": uid, "id": f"a-{uid}"})
+        _insert(conn, "web_push_subscriptions", {"user_id": uid})
+    conn.commit()
+    return conn
+
+
+_SWEPT_AUTH = ("inbound_alert_tokens", "inbound_alert_receipts", "user_alerts", "web_push_subscriptions")
+
+
+def test_the_live_sweep_deletes_late_alert_rows_in_every_store_and_auth_db(stores, tmp_path, monkeypatch):
+    from api.services import tombstone_sweep
+    from api.services import user_definitions as ud
+    monkeypatch.setattr(ud, "_DB_PATH", str(tmp_path / "user_definitions.db"))
+    keys = _seed(stores)                      # GONE's rows: "late", the purge already ran
+    auth = _auth_with_late_alert_rows(tmp_path)
+    try:
+        rep = tombstone_sweep.sweep(auth_conn=auth)
+        left = {t: [r[0] for r in auth.execute(f"SELECT user_id FROM {t} ORDER BY user_id")]
+                for t in _SWEPT_AUTH}
+    finally:
+        auth.close()
+    assert rep["errors"] == [], rep["errors"]
+    assert left == {t: [STAYS] for t in _SWEPT_AUTH}, left
+    # The inbound receiver token is the sweep's FIRST auth.db delete.
+    assert tombstone_sweep.AUTH_SWEEP[0][0] == "inbound_alert_tokens"
+    for store in ae.STORES:
+        assert store.name in rep["stores"], f"the sweep did not reach {store.name}"
+    after = _counts(stores, keys)
+    wrong = {k: v for k, v in after.items() if v != (0, 1)}
+    assert not wrong, f"rows the sweep left (want (0, 1)): {wrong}"
+
+
+def test_the_live_sweep_skips_an_alert_store_this_pod_never_created(tmp_path, monkeypatch):
+    from api.services import tombstone_sweep
+    from api.services import transcript_keyword_alerts as tka
+    from api.services import user_definitions as ud
+    monkeypatch.setattr(ud, "_DB_PATH", str(tmp_path / "user_definitions.db"))
+    missing = tmp_path / "nope" / "transcript_alerts.db"
+    monkeypatch.setattr(tka, "DB_PATH", str(missing))
+    auth = _auth_with_late_alert_rows(tmp_path)
+    try:
+        rep = tombstone_sweep.sweep(auth_conn=auth)
+    finally:
+        auth.close()
+    assert rep["stores"]["transcript_alerts"] == {"absent": True}
+    assert not missing.exists() and not missing.parent.exists()
+    assert not [e for e in rep["errors"] if "transcript_alerts" in e], rep["errors"]
