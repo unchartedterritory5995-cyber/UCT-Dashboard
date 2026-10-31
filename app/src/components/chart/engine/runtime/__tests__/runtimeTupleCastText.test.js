@@ -119,6 +119,11 @@ describe('⭐⭐ `int(x)` over ANY value the run computes reads `x` once', () =>
   })
   it('⛔ not over text — that is no number to cast', () => {
     expect(build(`${HEAD5}var string s = "a"\ns := close > 0 ? "b" : "c"\nplot(int(s))\n`).ok).toBe(false)
+    // ⭐ A text with a CALL inside: the older read-twice rewrite declines it (it
+    // holds a call), so only this arm's own text check can keep the refusal.
+    const r = build(`${HEAD5}${STATE}f(v) => v * 2\nplot(int(str.tostring(f(x))))\n`)
+    expect(r.ok).toBe(false)
+    expect(r.refusal.guard).toBe('runtime:call-conversion-state')
   })
 })
 

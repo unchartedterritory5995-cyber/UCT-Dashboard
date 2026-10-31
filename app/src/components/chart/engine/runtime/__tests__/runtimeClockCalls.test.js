@@ -142,6 +142,17 @@ describe('⭐⭐ a calendar field of an instant the run computes, or in a zone',
     expect(built.ok).toBe(true)
     expect(JSON.stringify(built.ir)).not.toMatch(/hour\/instant/)
   })
+  it('`hour(time, syminfo.timezone)` is the bar\'s clock column too, not a refusal', () => {
+    // The exchange's zone named by `syminfo.timezone` reaches the clock lowering
+    // (two arguments), which answers it with the clock column; handed back to the
+    // older arm it refused "a timezone only known while the bar runs".
+    const src = `${HEAD5}${STATE}plot(hour(time, syminfo.timezone) + x * 0)\nplot(hour(time) + x * 0)\n`
+    const built = build(src)
+    expect(built.ok, built.ok ? '' : `${built.refusal.guard}: ${built.refusal.message}`).toBe(true)
+    expect(JSON.stringify(built.ir)).not.toMatch(/hour\/instant/)
+    const [a, b] = runAll(src)
+    expect(a).toEqual(b)
+  })
 })
 
 describe('⭐⭐ the session clock, through the columnar lane\'s own reading', () => {
@@ -165,6 +176,11 @@ describe('⭐⭐ the session clock, through the columnar lane\'s own reading', (
     expect(inSession(b)).toEqual([0, 0, 0, 1, 1, 1, 0, 0])
   })
   it('⛔ a session only known while the bar runs keeps a refusal', () => {
-    expect(build(`${HEAD5}var string s = "0930-1000"\ns := close > 0 ? "0930-1000" : "1000-1100"\nplot(not na(time(timeframe.period, s)) ? 1 : 0)\n`).ok).toBe(false)
+    const b = build(`${HEAD5}var string s = "0930-1000"\ns := close > 0 ? "0930-1000" : "1000-1100"\nplot(not na(time(timeframe.period, s)) ? 1 : 0)\n`)
+    expect(b.ok).toBe(false)
+    // the session arm's own sentence: the clock lowering hands the call back
+    // rather than rebuilding it with a session it cannot read
+    expect(b.refusal.guard).toBe('runtime:statement')
+    expect(b.refusal.message).toMatch(/a session has to reach the engine as a literal/)
   })
 })

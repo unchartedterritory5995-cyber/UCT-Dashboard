@@ -4240,7 +4240,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
    *  arms below then answer or refuse it as before). */
   const runtimeClockLowering = (node, scope) => {
     const name = String(node.name || '')
-    if (definedNames.has(name) || isUserFn(name)) return null
+    // ⛔ No own-name check here: a script's own `timestamp`/`hour` is a user
+    // function, and the call arm's user-function path runs before this one is
+    // reached (mutation-proved: a copy of that check here could not fail).
     const args = node.args || []
     if (args.some((a) => a && a.name)) return null
     const given = args.map((a) => (a && a.value !== undefined ? a.value : a))
@@ -4273,9 +4275,13 @@ function buildRuntimeIrLinked(source, opts, holder) {
     }
     if (INSTANT_FIELD_NAMES.has(name) && (given.length === 1 || given.length === 2)) {
       const zone = clockZoneOf(given[1], scope, at, name)
-      // the bar's own instant in the exchange's zone is the bar's clock column,
-      // which the arm below already serves (`clock`) — that path stays the answer
-      if (isBarTimeNode(given[0], scope) && zone === 'exchange' && CLOCK_FIELDS.includes(name)) return null
+      // the bar's own instant in the exchange's zone is the bar's clock column
+      // (`clock`, `OP.READ_CLOCK`), the answer the arm below gives for `hour(time)`.
+      // ⭐ Answered HERE, not handed back: that arm reads only a literal
+      // "America/New_York" as the exchange's zone and refuses `syminfo.timezone`
+      // as "only known while the bar runs", though `clockZoneOf` has already
+      // read it as the exchange's (`hour(time, syminfo.timezone)`).
+      if (isBarTimeNode(given[0], scope) && zone === 'exchange' && CLOCK_FIELDS.includes(name)) return clock(name)
       return textCall(`${name}/instant`, [lowerExpr(given[0], scope), str(zone)])
     }
     if (name === 'time' && given.length >= 1 && given.length <= 3 && !inRequestValue) {
@@ -6020,8 +6026,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // running total from the first bar … names no anchor"), and serving it
         // here over a mutable value would make that refusal false about its
         // neighbour. It stays `runtime:call-windowed-state` until that ruling moves.
-        if ((node.name === 'ta.rsi' || node.name === 'rsi')
-          && !definedNames.has(node.name) && !isUserFn(node.name)) {
+        // ⛔ No own-name check: the script's own `rsi` is a user function, which
+        // the user-function path above has already called (a copy of that check
+        // here could not fail — mutation-proved).
+        if (node.name === 'ta.rsi' || node.name === 'rsi') {
           const at = locate(node.tok)
           if (node.args.some((a) => a && a.name)) {
             throw new RuntimeRefusal('runtime:statement', `a named argument on \`${node.name}\``, at)

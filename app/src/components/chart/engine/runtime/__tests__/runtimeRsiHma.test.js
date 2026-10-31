@@ -126,6 +126,13 @@ describe('⭐⭐ `ta.hma` over a mutable value equals the columnar lane over the
   it('`hullWindows` is the columnar `hma`\'s own sizing (one place)', () => {
     expect(hullWindows(9)).toEqual({ half: 4, root: 3 })
     expect(hullWindows(1)).toEqual({ half: 1, root: 1 })
+    // ⭐ Values where ROUND and FLOOR of the square root differ: Pine's reference
+    // Hull is `wma(…, math.round(math.sqrt(length)))`. Both lanes read this one
+    // function, so the differentials below cannot see a wrong rounding here;
+    // these literals can (sqrt 7 = 2.65 → 3, sqrt 21 = 4.58 → 5, sqrt 12 = 3.46 → 3).
+    expect(hullWindows(7)).toEqual({ half: 3, root: 3 })
+    expect(hullWindows(21)).toEqual({ half: 10, root: 5 })
+    expect(hullWindows(12)).toEqual({ half: 6, root: 3 })
   })
   for (const n of [9, 16, 21]) {
     it(`v5 \`ta.hma(x, ${n})\``, () => { same(run(5, `plot(ta.hma(x, ${n}))`).out, pureLane(5, `ta.hma(${PURE}, ${n})`), `hma ${n}`) })
