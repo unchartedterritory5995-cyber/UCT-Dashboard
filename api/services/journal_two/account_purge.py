@@ -256,8 +256,7 @@ _DIRECT_USER_TABLES = (
     # `alert_erasure.purge_user` (below), not rows here.
     #   * the inbound TradingView receiver: the member's token(s) -- a live credential; the
     #     URL is the password -- and every fire it accepted (inbound_alerts.py). The token is
-    #     also deleted, and committed, BEFORE this loop by `alert_erasure.revoke_credentials`,
-    #     and `inbound_alerts.verify` refuses a tombstoned member from the tombstone on.
+    #     also deleted, and committed, BEFORE this loop by `alert_erasure.revoke_credentials`.
     "inbound_alert_tokens",
     "inbound_alert_receipts",
     #   * the durable bell: every private alert delivered to the member (alert_durability.py).
@@ -268,8 +267,6 @@ _DIRECT_USER_TABLES = (
     # no foreign key (owner-approved 2026-10-30, the census in tests/test_alert_erasure.py):
     # each is the member's own saved state, keyed by their user_id, self-ensured by its module.
     "screener_saved_screens",          # screener/saved_screens.py -- their saved screens
-    "user_totp",                       # totp_service.py -- their 2FA secret
-    "user_backup_codes",               # totp_service.py -- their 2FA backup codes
     "ics_export_token_state",          # ics_export_token.py -- their calendar-feed token state
     "calendar_seen",                   # calendar_seen.py -- which calendar items they have seen
     "terminal_aliases",                # terminal_grammar.py -- their command aliases
@@ -285,8 +282,21 @@ _DIRECT_USER_TABLES = (
     "upb_note_links",
     "user_preferences",                # auth_db.py -- every preference they saved
     "import_sessions",                 # auth_db.py -- their trade-import history
-    "page_views",                      # auth_db.py -- the pages they viewed
-    "feedback",                        # auth_db.py -- feedback they sent (user_id + email)
+)
+# ⛔ NOT here, ON PURPOSE (review of the alerts purge, 2026-10-31):
+#   * user_totp / user_backup_codes -- the member's 2FA goes IF AND ONLY IF the account row goes,
+#     so it is deleted inside `auth._cascade_delete_user`'s transaction
+#     (`auth.DELETED_WITH_THE_ACCOUNT_ROW`), never here, before it;
+#   * page_views / feedback -- ANONYMISED, not deleted (`_ANONYMISED`, below).
+
+#: Tables whose rows OUTLIVE the member with every identifying column cleared (owner's call,
+#: 2026-10-31): traffic history and the text of feedback are kept; who they were is not.
+#: (table, the identifying columns). A NOT NULL column is set to '' (SQLite cannot drop the
+#: constraint in place), a nullable one to NULL. `tools/account_deletion_manifest.py` reads this
+#: tuple by AST and lists these tables as ANONYMISED, never as deleted.
+_ANONYMISED = (
+    ("page_views", ("user_id",)),          # auth_db.py -- the pages they viewed
+    ("feedback", ("user_id", "email")),    # auth_db.py -- feedback they sent; the message stays
 )
 
 # j2_broker_digest_dedup is deliberately excluded: it is a single global row
@@ -305,6 +315,24 @@ _DIRECT_USER_TABLES = (
 # nothing else -- so that every restore of an older backup deletes them again
 # (api/services/account_tombstones.py). Purging it would undo the erasure it exists
 # to keep.
+
+
+def _anonymise(conn: sqlite3.Connection, user_id: str, errors: list[str]) -> dict[str, int]:
+    """Clear the identifying columns of every `_ANONYMISED` row the member owns. Best effort
+    per table, like the deletes; a table that does not exist is a counted no-op."""
+    out: dict[str, int] = {}
+    for table, cols in _ANONYMISED:
+        out[table] = 0
+        try:
+            notnull = {c[1] for c in conn.execute(f'PRAGMA table_info("{table}")') if c[3]}
+            sets = ", ".join(f"{c} = {chr(39) * 2 if c in notnull else 'NULL'}" for c in cols)
+            cur = conn.execute(f"UPDATE {table} SET {sets} WHERE user_id = ?", (user_id,))
+            out[table] = cur.rowcount if cur.rowcount and cur.rowcount > 0 else 0
+        except sqlite3.OperationalError as e:
+            if "no such table" not in str(e).lower():
+                errors.append(f"{table} (anonymise): {e}")
+                log.warning("journal_two account purge could not anonymise %s: %s", table, e)
+    return out
 
 
 def purge_user_data(user_id: str, conn: sqlite3.Connection, *,
@@ -577,6 +605,8 @@ def purge_user_rows(user_id: str, conn: sqlite3.Connection, *,
         (_gap_member_key(user_id),),
     ) if _gap_member_key is not None else 0
 
+    anonymised = _anonymise(conn, user_id, errors)
+
     conn.commit()
 
     return {
@@ -584,6 +614,7 @@ def purge_user_rows(user_id: str, conn: sqlite3.Connection, *,
         "user_id": user_id,
         "rows_deleted": deleted,
         "total_rows_deleted": sum(deleted.values()),
+        "rows_anonymised": anonymised,
         "attachment_dirs_removed": 0,
         "errors": errors,
     }

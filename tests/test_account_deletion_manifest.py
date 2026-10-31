@@ -46,9 +46,41 @@ def _doc_purged() -> set[str]:
     names = set()
     for line in gen.doc_block(_doc_text()).splitlines():
         m = _ROW.match(line)
-        if m:
+        if m and not any(k in line for k in _NOT_A_DELETE):
             names.add(m.group(1))
     return names
+
+
+#: Rows of the generated block that are NOT deletes by `purge_user_data`: anonymised tables, and
+#: the tables `_cascade_delete_user` deletes beside the account row. Each has its own rail below.
+_NOT_A_DELETE = ("| **Anonymised** |", "| **With the account row** |")
+
+
+def _doc_rows_marked(marker: str) -> set[str]:
+    return {m.group(1) for line in gen.doc_block(_doc_text()).splitlines()
+            if marker in line and (m := _ROW.match(line))}
+
+
+def test_the_doc_lists_as_ANONYMISED_exactly_what_the_purge_anonymises():
+    from api.services.journal_two import account_purge
+    conn = sqlite3.connect(":memory:")
+    try:
+        report = account_purge.purge_user_data("j4-manifest-probe-no-such-user", conn)
+    finally:
+        conn.close()
+    runtime = set(report["rows_anonymised"])
+    doc = _doc_rows_marked("| **Anonymised** |")
+    assert {"page_views", "feedback"} <= runtime, runtime          # non-vacuity, by name
+    assert doc == runtime, _diff("the purge (rows_anonymised)", runtime, "the doc", doc)
+    assert not (doc & _runtime_purged()), "a table is listed as anonymised AND deleted"
+
+
+def test_the_doc_lists_WITH_THE_ACCOUNT_ROW_exactly_what_the_cascade_deletes_beside_it():
+    from api.routers import auth
+    doc = _doc_rows_marked("| **With the account row** |")
+    assert {"user_totp", "user_backup_codes"} <= set(auth.DELETED_WITH_THE_ACCOUNT_ROW)
+    assert doc == set(auth.DELETED_WITH_THE_ACCOUNT_ROW), doc
+    assert not (doc & _runtime_purged()), "a 2FA table is deleted by the purge, BEFORE the cascade"
 
 
 def _doc_not_purged() -> set[str]:

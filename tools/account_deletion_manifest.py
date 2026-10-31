@@ -194,7 +194,38 @@ def derive(source: str | None = None) -> dict:
                              "module": module_path.relative_to(REPO).as_posix(),
                              "call": f"{mod}.{fn}"}
     return {"direct": direct, "indirect": indirect, "keyed": keyed, "hashed": hashed,
-            "databases": databases}
+            "databases": databases, "anonymised": _anonymised(tree),
+            "with_account_row": _literal_tuple(AUTH_ROUTER, "DELETED_WITH_THE_ACCOUNT_ROW")}
+
+
+#: `auth._cascade_delete_user`'s own tuple of member tables deleted beside the account row.
+AUTH_ROUTER = REPO / "api" / "routers" / "auth.py"
+
+
+def _anonymised(tree: ast.AST) -> list[tuple[str, list[str]]]:
+    """`_ANONYMISED` in account_purge.py: a literal tuple of `(table, (column, ...))`."""
+    for node in getattr(tree, "body", []):
+        if isinstance(node, ast.Assign) and any(isinstance(t, ast.Name) and t.id == "_ANONYMISED"
+                                                for t in node.targets):
+            out = []
+            for elt in node.value.elts:
+                ok = (isinstance(elt, ast.Tuple) and len(elt.elts) == 2
+                      and isinstance(elt.elts[0], ast.Constant) and isinstance(elt.elts[0].value, str)
+                      and isinstance(elt.elts[1], ast.Tuple) and elt.elts[1].elts
+                      and all(isinstance(c, ast.Constant) and isinstance(c.value, str) for c in elt.elts[1].elts))
+                if not ok:
+                    raise DerivationError(f"_ANONYMISED holds a non-literal entry at line {elt.lineno}")
+                out.append((elt.elts[0].value, [c.value for c in elt.elts[1].elts]))
+            return out
+    return []
+
+
+def anonymised_tables(source: str | None = None) -> set[str]:
+    return {t for t, _cols in derive(source)["anonymised"]}
+
+
+def with_account_row_tables(source: str | None = None) -> set[str]:
+    return set(derive(source)["with_account_row"])
 
 
 def purged_tables(source: str | None = None) -> set[str]:
@@ -244,6 +275,32 @@ def render(source: str | None = None) -> str:
                         f"join delete through `{parent}`, run before the direct deletes |")
         for table in info["tables"]:
             rows.append(f"| `{table}` | `user_id` | Direct ({db}) | `DELETE FROM {table} WHERE user_id = ?` |")
+    if d["with_account_row"]:
+        rows += [
+            "",
+            f"**Deleted WITH the account row** -- {len(d['with_account_row'])} tables in auth.db, deleted by "
+            "`auth._cascade_delete_user` in the same transaction as `DELETE FROM users` "
+            "(`DELETED_WITH_THE_ACCOUNT_ROW`), so they go if and only if the account goes.",
+            "",
+            "| Table | Owner key | Ownership | How the purge deletes it |",
+            "|---|---|---|---|",
+        ]
+        for table in d["with_account_row"]:
+            rows.append(f"| `{table}` | `user_id` | **With the account row** | "
+                        f"`DELETE FROM {table} WHERE user_id = ?` beside `DELETE FROM users` |")
+    if d["anonymised"]:
+        rows += [
+            "",
+            f"**ANONYMISED, not deleted** -- {len(d['anonymised'])} tables in auth.db (`_ANONYMISED`): the rows "
+            "stay, every identifying column is cleared (NULL, or '' where the column is NOT NULL).",
+            "",
+            "| Table | Owner key | Ownership | What the purge does |",
+            "|---|---|---|---|",
+        ]
+        for table, cols in d["anonymised"]:
+            sets = ", ".join(f"`{c}`" for c in cols)
+            rows.append(f"| `{table}` | `user_id` | **Anonymised** | clears {sets} on the member's rows; "
+                        f"the rest of each row is kept |")
     rows += ["", END]
     return "\n".join(rows)
 

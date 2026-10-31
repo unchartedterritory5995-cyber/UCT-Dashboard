@@ -49,7 +49,7 @@ the wave-6 close and 20 short by wave 7 (wave 7 lane J, J4).
 
 <!-- BEGIN GENERATED: python tools/account_deletion_manifest.py --write (derived from api/services/journal_two/account_purge.py) -- never hand-edit -->
 
-**147 tables in auth.db** (136 direct by `user_id`, 3 direct by another member key, 1 direct by a key derived from the member's id, 7 indirect).
+**143 tables in auth.db** (132 direct by `user_id`, 3 direct by another member key, 1 direct by a key derived from the member's id, 7 indirect).
 
 | Table | Owner key | Ownership | How the purge deletes it |
 |---|---|---|---|
@@ -177,8 +177,6 @@ the wave-6 close and 20 short by wave 7 (wave 7 lane J, J4).
 | `user_alerts` | `user_id` | Direct | `DELETE FROM user_alerts WHERE user_id = ?` |
 | `web_push_subscriptions` | `user_id` | Direct | `DELETE FROM web_push_subscriptions WHERE user_id = ?` |
 | `screener_saved_screens` | `user_id` | Direct | `DELETE FROM screener_saved_screens WHERE user_id = ?` |
-| `user_totp` | `user_id` | Direct | `DELETE FROM user_totp WHERE user_id = ?` |
-| `user_backup_codes` | `user_id` | Direct | `DELETE FROM user_backup_codes WHERE user_id = ?` |
 | `ics_export_token_state` | `user_id` | Direct | `DELETE FROM ics_export_token_state WHERE user_id = ?` |
 | `calendar_seen` | `user_id` | Direct | `DELETE FROM calendar_seen WHERE user_id = ?` |
 | `terminal_aliases` | `user_id` | Direct | `DELETE FROM terminal_aliases WHERE user_id = ?` |
@@ -194,8 +192,6 @@ the wave-6 close and 20 short by wave 7 (wave 7 lane J, J4).
 | `upb_note_links` | `user_id` | Direct | `DELETE FROM upb_note_links WHERE user_id = ?` |
 | `user_preferences` | `user_id` | Direct | `DELETE FROM user_preferences WHERE user_id = ?` |
 | `import_sessions` | `user_id` | Direct | `DELETE FROM import_sessions WHERE user_id = ?` |
-| `page_views` | `user_id` | Direct | `DELETE FROM page_views WHERE user_id = ?` |
-| `feedback` | `user_id` | Direct | `DELETE FROM feedback WHERE user_id = ?` |
 | `daily_usage_counters` | `subject` (the member's id) | Direct | `DELETE FROM daily_usage_counters WHERE subject = ?` |
 | `j2_gallery_follows` | `follower_id` (the member's id) | Direct | `DELETE FROM j2_gallery_follows WHERE follower_id = ?` |
 | `j2_gallery_follows` | `author_id` (the member's id) | Direct | `DELETE FROM j2_gallery_follows WHERE author_id = ?` |
@@ -261,6 +257,20 @@ the wave-6 close and 20 short by wave 7 (wave 7 lane J, J4).
 | `catalyst_alerts_fired` | `user_id` | Direct (catalysts.db) | `DELETE FROM catalyst_alerts_fired WHERE user_id = ?` |
 | `catalyst_feedback` | `user_id` | Direct (catalysts.db) | `DELETE FROM catalyst_feedback WHERE user_id = ?` |
 
+**Deleted WITH the account row** -- 2 tables in auth.db, deleted by `auth._cascade_delete_user` in the same transaction as `DELETE FROM users` (`DELETED_WITH_THE_ACCOUNT_ROW`), so they go if and only if the account goes.
+
+| Table | Owner key | Ownership | How the purge deletes it |
+|---|---|---|---|
+| `user_totp` | `user_id` | **With the account row** | `DELETE FROM user_totp WHERE user_id = ?` beside `DELETE FROM users` |
+| `user_backup_codes` | `user_id` | **With the account row** | `DELETE FROM user_backup_codes WHERE user_id = ?` beside `DELETE FROM users` |
+
+**ANONYMISED, not deleted** -- 2 tables in auth.db (`_ANONYMISED`): the rows stay, every identifying column is cleared (NULL, or '' where the column is NOT NULL).
+
+| Table | Owner key | Ownership | What the purge does |
+|---|---|---|---|
+| `page_views` | `user_id` | **Anonymised** | clears `user_id` on the member's rows; the rest of each row is kept |
+| `feedback` | `user_id` | **Anonymised** | clears `user_id`, `email` on the member's rows; the rest of each row is kept |
+
 <!-- END GENERATED -->
 
 ### Removed without a table DELETE
@@ -299,9 +309,17 @@ the wave-6 close and 20 short by wave 7 (wave 7 lane J, J4).
   `alert_erasure.revoke_credentials` deletes the member's inbound TradingView receiver token
   (`inbound_alert_tokens`, auth.db) and their outbound webhook endpoints (`alert_webhooks`,
   alert_taxonomy.db), each committed on its own, before any other delete. `inbound_alerts.verify`
-  also refuses a tombstoned member from the moment the tombstone is written, so a webhook cannot
-  race even the broker purge that runs before `purge_user_data`; `inbound_alerts.deliver` skips a
-  fire whose receipt the purge removed. Rails: `tests/test_term086_inbound_alerts.py` (account
+  refuses a member whose `users` row is gone; `inbound_alerts.deliver` skips a fire whose receipt
+  the purge removed, or whose member is DELETED (a tombstone AND no `users` row -- the sweep's
+  rule). ⛔ A tombstone alone is never a refusal: the delete doors write it before the first
+  DELETE, and a deletion that then fails leaves a live member whose URL must keep working.
+- 2FA (`user_totp`, `user_backup_codes`) is deleted inside `auth._cascade_delete_user`, in the
+  same transaction as `DELETE FROM users` (`DELETED_WITH_THE_ACCOUNT_ROW`), never by the purge
+  that runs before it: a failed cascade leaves the account AND its 2FA; the cascade rolls back
+  on any failure.
+- `page_views` and `feedback` are ANONYMISED, not deleted (owner's call, 2026-10-31): the rows
+  stay, `user_id` (and feedback's `email`) are cleared; feedback's text is kept. `page_views.user_id`
+  is NOT NULL, so it is cleared to `''`. Rails: `tests/test_term086_inbound_alerts.py` (account
   deletion section) and `tests/test_alert_erasure.py`.
 - Alerts in five OTHER databases — alert_taxonomy.db, screener.db, calendar_alerts.db,
   transcript_alerts.db and catalysts.db, through `alert_erasure.purge_user` (each store's own
