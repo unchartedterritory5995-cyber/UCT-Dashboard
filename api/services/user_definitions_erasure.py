@@ -76,15 +76,16 @@ def _canonical(doc: Any) -> str:
     return json.dumps(doc, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
 
 
-def scrub_author(user_id: str, conn: sqlite3.Connection) -> int:
-    """Set `origin.author_id` to `AUTHOR_SCRUBBED` on every OTHER member's row that names
-    `user_id` as its author. Returns how many rows were rewritten. Raises on a database error
-    (the caller reports it)."""
-    uid = str(user_id)
-    needle = json.dumps(uid, ensure_ascii=False)          # '"<id>"', the stored spelling
+def scrub_authors(user_ids, conn: sqlite3.Connection) -> int:
+    """Set `origin.author_id` to `AUTHOR_SCRUBBED` on every row whose author is one of
+    `user_ids`. ONE pass over the rows that carry an `author_id` at all (installed copies), so a
+    sweep over every tombstone costs one scan, not one per id. Returns how many rows were
+    rewritten. Raises on a database error (the caller reports it)."""
+    ids = {str(u) for u in user_ids if u}
+    if not ids:
+        return 0
     rows = conn.execute(
-        "SELECT id, definition FROM user_definitions WHERE user_id <> ? AND instr(definition, ?) > 0",
-        (uid, needle),
+        "SELECT id, definition FROM user_definitions WHERE instr(definition, '\"author_id\"') > 0"
     ).fetchall()
     scrubbed = 0
     for row_id, blob in rows:
@@ -95,8 +96,8 @@ def scrub_author(user_id: str, conn: sqlite3.Connection) -> int:
         origin = doc.get("origin") if isinstance(doc, dict) else None
         if not isinstance(origin, dict) or origin.get("author_id") is None:
             continue
-        if str(origin["author_id"]) != uid:
-            continue                                       # the id appeared somewhere else
+        if str(origin["author_id"]) not in ids:
+            continue                                       # another author, or a mere mention
         origin["author_id"] = AUTHOR_SCRUBBED
         conn.execute("UPDATE user_definitions SET definition = ? WHERE id = ?",
                      (_canonical(doc), row_id))
@@ -104,36 +105,67 @@ def scrub_author(user_id: str, conn: sqlite3.Connection) -> int:
     return scrubbed
 
 
-def purge_user_rows(user_id: str, conn: sqlite3.Connection) -> dict[str, Any]:
-    """The DATABASE half: delete the member's rows in `MEMBER_TABLES` and scrub their id out of
-    other members' copies, on `conn`, and commit. Nothing on disk, nothing in memory. Best
-    effort per table -- one bad table never aborts the rest -- and every failure is in
-    `errors`, never skipped silently. A table that does not exist is a counted no-op."""
-    uid = str(user_id)
+def scrub_author(user_id: str, conn: sqlite3.Connection) -> int:
+    """`scrub_authors` for one member."""
+    return scrub_authors([user_id], conn)
+
+
+def purge_users_rows(user_ids, conn: sqlite3.Connection) -> dict[str, Any]:
+    """The DATABASE half for one or many members: delete their rows in `MEMBER_TABLES` and scrub
+    their ids out of other members' copies, on `conn`, and commit. Nothing on disk, nothing in
+    memory. Best effort per table -- one bad table never aborts the rest -- and every failure
+    is in `errors`, never skipped silently. A table that does not exist is a counted no-op.
+    Idempotent: what is already gone deletes nothing."""
+    ids = sorted({str(u) for u in user_ids if u})
     errors: list[str] = []
-    deleted: dict[str, int] = {}
+    deleted: dict[str, int] = {t: 0 for t in MEMBER_TABLES}
     scrubbed = 0
     try:
-        scrubbed = scrub_author(uid, conn)
+        scrubbed = scrub_authors(ids, conn)
     except sqlite3.Error as e:
         if "no such table" not in str(e).lower():
             errors.append(f"user_definitions (author scrub): {e}")
-            log.warning("user_definitions author scrub failed for %s: %s", uid, e)
+            log.warning("user_definitions author scrub failed for %s: %s", ids, e)
     for table in MEMBER_TABLES:
-        try:
-            cur = conn.execute(f"DELETE FROM {table} WHERE user_id = ?", (uid,))
-            deleted[table] = cur.rowcount if cur.rowcount and cur.rowcount > 0 else 0
-        except sqlite3.Error as e:
-            deleted[table] = 0
-            if "no such table" in str(e).lower():
-                continue
-            errors.append(f"{table}: {e}")
-            log.warning("user_definitions purge failed on %s for %s: %s", table, uid, e)
+        for uid in ids:
+            try:
+                cur = conn.execute(f"DELETE FROM {table} WHERE user_id = ?", (uid,))
+                deleted[table] += cur.rowcount if cur.rowcount and cur.rowcount > 0 else 0
+            except sqlite3.Error as e:
+                if "no such table" in str(e).lower():
+                    break
+                errors.append(f"{table}: {e}")
+                log.warning("user_definitions purge failed on %s for %s: %s", table, uid, e)
+                break
     try:
         conn.commit()
     except sqlite3.Error as e:
         errors.append(f"commit: {e}")
     return {"ok": not errors, "rows_deleted": deleted, "authors_scrubbed": scrubbed, "errors": errors}
+
+
+def purge_user_rows(user_id: str, conn: sqlite3.Connection) -> dict[str, Any]:
+    """`purge_users_rows` for one member (what the live account deletion runs)."""
+    return purge_users_rows([user_id], conn)
+
+
+def members_in(conn: sqlite3.Connection) -> list[str]:
+    """Every member id that owns a row in `MEMBER_TABLES` on `conn` (a restored copy's
+    population, for a restore that could not verify it against the tombstones)."""
+    out: set[str] = set()
+    for table in MEMBER_TABLES:
+        try:
+            out.update(r[0] for r in conn.execute(f"SELECT DISTINCT user_id FROM {table}"))
+        except sqlite3.Error:
+            continue
+    return sorted(str(u) for u in out)
+
+
+#: Written beside a store that was put back WITHOUT a verified tombstone replay
+#: (`tools/store_restore.py --restore ... --allow-unreplayed`, or a restore whose only tombstone
+#: source was a local file or auth.db). `tombstone_sweep` reads it, replays the OFF-SITE
+#: tombstones once they can be read, and retires it. Never deleted by hand.
+PENDING_MARKER_SUFFIX = ".tombstone-replay-pending.json"
 
 
 def purge_user(user_id: str) -> dict[str, Any]:
@@ -164,3 +196,19 @@ def purge_user(user_id: str) -> dict[str, Any]:
     report["user_funcs_dropped"] = dropped
     report["ok"] = not report["errors"]
     return report
+
+
+def live_path() -> str:
+    """The live store's path, as the store itself resolves it right now."""
+    from api.services import user_definitions as ud
+    return str(ud._DB_PATH)
+
+
+@contextlib.contextmanager
+def live_connection():
+    """The LIVE store, through its own connection settings and under its own write lock (the
+    tombstone sweep). The lock is held for the whole block: keep the block short."""
+    from api.services import user_definitions as ud
+    with ud._WRITE_LOCK, contextlib.closing(ud._connect()) as c:
+        ud._ensure(c)
+        yield c

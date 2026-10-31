@@ -377,7 +377,7 @@ def test_a_replay_that_leaves_the_member_present_refuses(tmp_path, monkeypatch):
     _seed_member(LEAVER, "Leaver Average")
     snap = tmp_path / "snap.db"
     _snapshot(snap)
-    monkeypatch.setattr(ude, "purge_user_rows", lambda uid, conn: {"rows_deleted": {}, "errors": []})
+    monkeypatch.setattr(ude, "purge_users_rows", lambda ids, conn: {"rows_deleted": {}, "errors": []})
     with pytest.raises(sr.RestoreRefused):
         sr.replay_preparer("user_definitions", {LEAVER: "t"})(snap)
 

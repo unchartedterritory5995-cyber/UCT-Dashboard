@@ -298,7 +298,17 @@ tarballs (never fewer than the newest 3). Rewriting snapshots on every deletion 
    the live table's pending ones, runs `account_tombstones.replay_on_user_definitions_db` (the
    same `user_definitions_erasure.purge_user_rows` the live deletion runs) on the restored copy
    BEFORE it is renamed in, and refuses on any replay error or any deleted member still
-   present. Rail: `tests/test_user_definitions_erasure.py`.
+   present. The replay checkpoints the copy's WAL before it is renamed in. Disaster overrides
+   (`--tombstones-file`, `--auth-db` alone, `--allow-unreplayed`) are documented in
+   `docs/runbooks/backup-encryption.md`; each prints the unverified ids and leaves a pending
+   marker. Rails: `tests/test_user_definitions_erasure.py`, `tests/test_tombstone_sweep.py`.
+2c. **A live tombstone sweep re-purges on a schedule** (`api/services/tombstone_sweep.py`, web
+   pod, every 6 h and 10 min after boot, ON unless `TOMBSTONE_SWEEP_ENABLED=0`). For every
+   tombstone in auth.db it replays the `user_definitions.db` half on the live store (catching a
+   failed purge half and a copy re-saved with the deleted author's id by an editor tab left open)
+   and deletes the member's `indicator_alerts` / `indicator_alert_fires` / `indicator_alert_rev`
+   (catching an evaluator fire written just after the purge). It finishes a pending restore
+   marker from the off-site list. An id that still has a `users` row is skipped and reported.
 3. **Snapshots expire** by `RETAIN` (auth.db) and `J2_ATTACHMENT_BACKUP_RETAIN_DAYS` (14,
    attachments).
 

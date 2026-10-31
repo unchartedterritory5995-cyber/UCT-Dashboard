@@ -35,9 +35,13 @@ shared data root (``C:\\data`` / ``/data``) and deletes its temp directory unles
      ``<name>.pre-restore-<UTC stamp>`` — never a delete — then renames the restored copy in.
   4. ⛔ A MEMBER STORE `account_tombstones.STORE_REPLAYS` names (today: ``user_definitions``)
      is put back only after every account-deletion tombstone is replayed on the restored copy
-     (the off-site tombstones are REQUIRED; ``--auth-db PATH`` adds the live table's pending
-     ones). An unreadable tombstone list, a replay error, or a deleted member still present
-     refuses the restore and leaves the target untouched.
+     (the off-site tombstones; ``--auth-db PATH`` adds the live table's pending ones). An
+     unreadable tombstone list, a replay error, or a deleted member still present refuses the
+     restore and leaves the target untouched. DISASTER OVERRIDES, documented in
+     docs/runbooks/backup-encryption.md: ``--tombstones-file PATH`` / ``--auth-db PATH`` as the
+     only source, or ``--allow-unreplayed`` with none; either way the off-site list was not
+     read, so the unverified member ids are printed and a pending marker is written beside the
+     store for ``api/services/tombstone_sweep.py`` to finish.
   5. ⛔ Every writer of that store must be stopped first. The web process holds these stores
      open; a restore under a live writer is not a restore.
 
@@ -157,45 +161,118 @@ def restore_file(gz: Path, dest: Path, *, now: dt.datetime, replace: bool = Fals
 
 
 # ── account deletion: no restore brings a deleted member's rows back (ruling R-9) ──
-def tombstoned_ids(store, auth_db: Path | None = None) -> dict[str, str]:
-    """{user_id: deleted_at}: the off-site tombstones (REQUIRED -- a store that cannot be read
-    raises, and so refuses the restore) plus, when given, the live auth.db's own table, which
-    also holds a tombstone whose off-site write is still pending. Read-only."""
+def _ids_from_file(path: Path) -> dict[str, str]:
+    """A LOCAL tombstone list: a directory holding a copy of the bucket's tombstone objects
+    (``authdb/tombstones/<id>.json``, the layout `account_tombstones.LocalObjectStore` reads), or
+    a JSON file -- ``{"<id>": "<deleted_at>", ...}``, ``["<id>", ...]`` or
+    ``[{"user_id": "<id>", "deleted_at": ...}, ...]``. Raises on anything else."""
     from api.services import account_tombstones as at
+    path = Path(path)
+    if path.is_dir():
+        return dict(at.offsite_tombstones(at.LocalObjectStore(path)))
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if isinstance(data, dict):
+        return {str(k): str(v or "") for k, v in data.items() if k}
+    if isinstance(data, list):
+        out = {}
+        for item in data:
+            if isinstance(item, str) and item:
+                out[item] = ""
+            elif isinstance(item, dict) and item.get("user_id"):
+                out[str(item["user_id"])] = str(item.get("deleted_at") or "")
+            else:
+                raise ValueError(f"not a tombstone entry: {item!r}")
+        return out
+    raise ValueError("a tombstone file is a JSON object or list")
+
+
+def tombstone_sources(store, *, auth_db: Path | None = None, tombstones_file: Path | None = None) -> dict:
+    """Every tombstone this restore can read, and from where. Read-only.
+
+    ``offsite_read`` is True only when the off-site store (the backups' own bucket, or the
+    ``ACCOUNT_TOMBSTONE_LOCAL_STORE`` fake) was listed and read in full: that is the one source
+    that holds EVERY deletion, including those taken after any local copy. The other two are
+    the documented disaster overrides -- ``tombstones_file`` (a local copy/export of the store)
+    and ``auth_db`` (the live table, which also holds a tombstone whose off-site write is still
+    pending) -- and a restore that relied on them alone writes the pending marker."""
+    from api.services import account_tombstones as at
+    out = {"ids": {}, "sources": [], "offsite_read": False, "offsite_error": None}
     if store is None:
-        raise RestoreRefused("no tombstone store (AUTHDB_BACKUP_ENABLED + DATA_SYNC_*, or "
-                             f"{at.LOCAL_STORE_ENV}); a member store is never restored without "
-                             "replaying the account deletions")
-    ids = dict(at.offsite_tombstones(store))
+        out["offsite_error"] = ("no tombstone store (AUTHDB_BACKUP_ENABLED + DATA_SYNC_*, or "
+                                f"{at.LOCAL_STORE_ENV})")
+    else:
+        try:
+            out["ids"].update(at.offsite_tombstones(store))
+            out["sources"].append("off-site store")
+            out["offsite_read"] = True
+        except Exception as exc:  # noqa: BLE001 -- reported; the caller decides
+            out["offsite_error"] = f"{type(exc).__name__}: {exc}"
+    if tombstones_file is not None:
+        out["ids"].update(_ids_from_file(Path(tombstones_file)))
+        out["sources"].append(f"tombstones file {tombstones_file}")
     if auth_db is not None:
+        if not Path(auth_db).is_file():
+            raise FileNotFoundError(str(auth_db))
         conn = sqlite3.connect(f"file:{Path(auth_db).as_posix()}?mode=ro", uri=True)
         try:
-            ids.update(at.tombstones_in(conn))
+            conn.execute("SELECT 1 FROM sqlite_master").fetchone()     # an unreadable file raises here
+            out["ids"].update(at.tombstones_in(conn))
         finally:
             conn.close()
-    return ids
+        out["sources"].append(f"auth.db {auth_db}")
+    return out
 
 
 def replay_preparer(name: str, ids: dict[str, str]):
     """The ``prepare`` hook for a store `account_tombstones.STORE_REPLAYS` names, else None.
-    It replays every tombstone on the restored copy and RAISES on any error or any deleted
-    member still present, so `restore_file` refuses rather than putting them back."""
+
+    It replays every tombstone on the restored copy, records who owns rows in it afterwards,
+    and then CHECKPOINTS: the restored copy is a WAL store, and `restore_file` renames only
+    the MAIN file in -- a replay whose deletes were still in ``-wal`` would be renamed in
+    without them. So the WAL is checkpointed with TRUNCATE before close, and a busy checkpoint
+    or a ``-wal`` with content left beside the copy refuses. It RAISES on any replay error,
+    any deleted member still present, or any copy still naming one as its author."""
     from api.services import account_tombstones as at
     replay = at.STORE_REPLAYS.get(name)
     if replay is None:
         return None
+    members = at.STORE_MEMBERS.get(name)
 
     def prepare(path: Path) -> dict:
         conn = sqlite3.connect(str(path))
         try:
             rep = replay(conn, list(ids))
+            rep["members"] = members(conn) if members else []
+            busy = conn.execute("PRAGMA wal_checkpoint(TRUNCATE)").fetchone()
         finally:
             conn.close()
-        if rep["errors"] or rep["still_present"]:
+        if rep["errors"] or rep["still_present"] or rep.get("authors_remaining"):
             raise RestoreRefused(f"tombstone replay on {name}: errors={rep['errors']} "
-                                 f"still_present={rep['still_present']}")
+                                 f"still_present={rep['still_present']} "
+                                 f"authors_remaining={rep.get('authors_remaining')}")
+        wal = Path(f"{path}-wal")
+        if (busy and busy[0]) or (wal.exists() and wal.stat().st_size > 0):
+            raise RestoreRefused(f"the replayed copy of {name} could not be checkpointed "
+                                 f"(busy={busy}); its deletes would not travel with the main file")
         return rep
     return prepare
+
+
+def write_pending_marker(dest: Path, *, name: str, now: dt.datetime, sources: dict,
+                         replayed: list, unverified: list) -> Path:
+    """The record a restore leaves when it could not verify against the off-site tombstones.
+    `api/services/tombstone_sweep.py` replays the off-site list on the live store once it can
+    be read, then retires this file."""
+    from api.services import user_definitions_erasure as ude
+    marker = Path(f"{dest}{ude.PENDING_MARKER_SUFFIX}")
+    body = {"store": name, "restored_to": str(dest),
+            "restored_at": now.astimezone(dt.timezone.utc).isoformat(timespec="seconds"),
+            "sources": sources["sources"], "offsite_error": sources["offsite_error"],
+            "replayed_ids": sorted(replayed), "unverified_user_ids": sorted(unverified)}
+    tmp = marker.with_name(marker.name + ".part")
+    tmp.write_text(json.dumps(body, indent=1, sort_keys=True), encoding="utf-8")
+    os.replace(tmp, marker)
+    return marker
 
 
 # ── the rehearsal ────────────────────────────────────────────────────────────
@@ -372,6 +449,13 @@ def main(argv=None) -> int:
     ap.add_argument("--restore", help="REAL restore: an object key under store_backups/ or a local .db.gz[.enc]")
     ap.add_argument("--to", help="the store path to restore into (with --restore)")
     ap.add_argument("--replace", action="store_true", help="move an existing target aside (never deletes)")
+    ap.add_argument("--tombstones-file", dest="tombstones_file",
+                    help="with --restore of a member store: a LOCAL tombstone list (a directory copy of "
+                         "authdb/tombstones/, or a JSON file of ids) when the off-site store cannot be read")
+    ap.add_argument("--allow-unreplayed", dest="allow_unreplayed", action="store_true",
+                    help="DISASTER ONLY: restore a member store even when NO tombstone source can be "
+                         "read; prints the unverified member ids and writes a pending marker the live "
+                         "tombstone sweep clears")
     ap.add_argument("--auth-db", dest="auth_db",
                     help="with --restore of a member store: also read this auth.db's own tombstone "
                          "table (read-only), which holds any tombstone whose off-site write is pending")
@@ -438,18 +522,38 @@ def main(argv=None) -> int:
             if check["verdict"] != "PASS":
                 print("NOT RESTORED: the object must rehearse PASS first")
                 return _CODE[check["verdict"]]
+            unverified_after = None
             try:
                 prepare = None
                 from api.services import account_tombstones as at
                 if name in at.STORE_REPLAYS:
+                    store_err = None
                     try:
-                        ids = tombstoned_ids(at.default_store(),
-                                             Path(args.auth_db) if args.auth_db else None)
-                    except RestoreRefused:
-                        raise                       # already says why
-                    except Exception as exc:  # noqa: BLE001 -- an unread tombstone list refuses
-                        raise RestoreRefused(f"could not read the tombstones: {type(exc).__name__}: {exc}") from exc
-                    prepare = replay_preparer(name, ids)
+                        store = at.default_store()
+                    except Exception as exc:  # noqa: BLE001 -- an unreachable store is "not read"
+                        store, store_err = None, f"{type(exc).__name__}: {exc}"
+                    try:
+                        src = tombstone_sources(
+                            store, auth_db=Path(args.auth_db) if args.auth_db else None,
+                            tombstones_file=Path(args.tombstones_file) if args.tombstones_file else None)
+                    except Exception as exc:  # noqa: BLE001 -- a named source that cannot be read refuses
+                        raise RestoreRefused(f"could not read a tombstone source: {type(exc).__name__}: {exc}") from exc
+                    if store_err:
+                        src["offsite_error"] = store_err
+                    if not src["offsite_read"]:
+                        if not src["sources"] and not args.allow_unreplayed:
+                            raise RestoreRefused(
+                                f"{src['offsite_error']}; a member store is never restored without "
+                                "replaying the account deletions -- give --tombstones-file PATH or "
+                                "--auth-db PATH, or (disaster only) --allow-unreplayed")
+                        print("!" * 72)
+                        print(f"!! OFF-SITE TOMBSTONES NOT READ: {src['offsite_error']}")
+                        print(f"!! replaying from: {', '.join(src['sources']) or 'NOTHING (--allow-unreplayed)'}")
+                        print("!! a pending marker is written beside the store; the live tombstone")
+                        print("!! sweep replays the off-site list once it can be read")
+                        print("!" * 72)
+                        unverified_after = src
+                    prepare = replay_preparer(name, src["ids"])
                 done = restore_file(gz, Path(args.to), now=now, replace=args.replace, prepare=prepare)
             except RestoreRefused as exc:
                 print(f"NOT RESTORED: {exc}")
@@ -458,6 +562,13 @@ def main(argv=None) -> int:
                 rep = done["prepared"]
                 print(f"tombstones replayed: {len(rep['replayed'])} ids, {rep['rows_deleted']} rows deleted, "
                       f"{rep['authors_scrubbed']} copies' author scrubbed")
+            if unverified_after is not None:
+                members = (done.get("prepared") or {}).get("members") or []
+                marker = write_pending_marker(Path(args.to), name=name, now=now, sources=unverified_after,
+                                              replayed=list(unverified_after["ids"]), unverified=members)
+                print(f"UNVERIFIED against the off-site tombstones: {len(members)} member id(s): "
+                      f"{', '.join(members) or '(none)'}")
+                print(f"pending marker -> {marker}")
             print(f"restored -> {done['restored_to']}; moved aside: {done['moved_aside'] or 'nothing'}")
             return PASS
         if args.round_trip:
