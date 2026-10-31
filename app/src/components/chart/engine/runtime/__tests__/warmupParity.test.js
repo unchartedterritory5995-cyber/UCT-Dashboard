@@ -56,6 +56,9 @@ const SERVED = [
   ['W07_roc5', 'ta.roc(close, 5)'],
   ['W08_dev5', 'ta.dev(close, 5)'],
   ['W09_linreg5_offset0', 'ta.linreg(close, 5, 0)'],
+  // ⭐ PROMOTED 2026-10-30 (Pine coverage Phase 1): `ta.cci` of a non-`hlc3`
+  // source is TradingView's CCI script written out, `(src - sma) / (0.015 * dev)`.
+  ['W10_cci5', 'ta.cci(close, 5)'],
   ['W11_stoch5', 'ta.stoch(close, high, low, 5)'],
   ['W12_tr_BARE_na_on_bar0', 'ta.tr'],
   ['W14_sma1_DEGENERATE_WINDOW', 'ta.sma(close, 1)'],
@@ -111,7 +114,6 @@ describe('⭐ what the vendor answers that this engine does not serve yet', () =
   // number to aim at instead of a definition to interpret. Both compiled at
   // TradingView in the same capture.
   const UNSERVED = [
-    ['W10_cci5', 'ta.cci(close, 5)', 'pine:role-order'],
     ['W13_cum_close_FROM_BAR0', 'ta.cum(close)', 'pine:function'],
   ]
 

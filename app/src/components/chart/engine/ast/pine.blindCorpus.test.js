@@ -199,7 +199,6 @@ const UNSERVED_PROBES = Object.freeze({
   'ta.cmf': 'plot(ta.cmf(21) > 0.1 ? 1 : 0)',
   'ta.obv': 'plot(ta.obv > 1000 ? 1 : 0)',
   'ta.accdist': 'plot(ta.accdist > 1000 ? 1 : 0)',
-  'ta.cci': 'plot(ta.cci(close, 20) > 100 ? 1 : 0)',
   // ➕ ADDENDUM 2026-09-12 (ruling 3.5, `29d64a2ef`): this probe asked for "D" and
   // "D" now TRANSLATES — a literal naming the engine's own base folds to the identity.
   // ⛔ So `request.security` is no longer WHOLLY unserved: it serves the base period,
@@ -221,6 +220,10 @@ const SERVED_CONTROLS = Object.freeze({
   'ta.linreg': 'plot(ta.linreg(close, 20, 0) > ta.linreg(close, 20, 1) ? 1 : 0)',
   'ta.mfi': 'plot(ta.mfi(hlc3, 14) > 50 ? 1 : 0)',
   'ta.dev': 'plot(ta.dev(close, 20) > 1 ? 1 : 0)',
+  // ⭐ (2026-10-30, Pine coverage Phase 1) moved from UNSERVED_PROBES: `ta.cci` of
+  // any source is `(src - sma) / (0.015 * dev)`, TradingView's own CCI script, and
+  // matches the vendor's warm-up capture (`warmupParity.test.js`, W10).
+  'ta.cci': 'plot(ta.cci(close, 20) > 100 ? 1 : 0)',
   // ⭐⭐ VENDOR PARITY TRANCHE 2, LANE B (2026-09-06) — moved from
   // UNSERVED_PROBES above now that each resolves via a real vendor capture.
   'ta.rising': 'plot(ta.rising(close, 3) ? 1 : 0)',
@@ -493,7 +496,10 @@ plot(${body} ? 1 : 0)
     // ⭐ THERE ARE TWO WAYS A NAME STOPS BEING UNRULED — somebody RULES on it,
     // or somebody SERVES it — and a check that asks about one of them is a
     // check with a hole the size of the other. Both are asked now.
-    const CONTROL = 'timeframe.isdwm'
+    // ⚰️ …AND A FOURTH TIME, 2026-10-30: `timeframe.isdwm` was SERVED (Pine
+    // coverage Phase 1, a scalar beside `isminutes`) and the roster check below
+    // caught it by name, exactly as written. `timeframe.isticks` is unruled.
+    const CONTROL = 'timeframe.isticks'
     for (const [which, roster] of Object.entries({
       syminfo: BUILTIN_SYMBOL_UNSERVED,
       barstate: BUILTIN_BARSTATE_REFUSED,

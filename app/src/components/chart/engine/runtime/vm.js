@@ -735,6 +735,16 @@ export function execute(program, ctx, limits, opts) {
               `pc ${pc - 1}: concat needs two strings, got ${typeof x} and ${typeof y} — `
               + "Pine's `+` across a string and a number is a type error, not a conversion")
           }
+          // ⭐⭐ P3 WS-H (S2) — A STRING IS HELD STATE, SO `MEMORY` COUNTS IT. The
+          // result's size (2 B per UTF-16 unit) is peaked on top of the run's other
+          // held state BEFORE the concatenation happens, so a doubling loop stops by
+          // NAME at the 64 MiB estimate instead of reaching the engine's own string
+          // ceiling (`RangeError: Invalid string length`, an unnamed failure) or the
+          // worker's heap. ⚠️ It charges the string being built, the largest one live
+          // at this instruction: many separate strings held at once are counted
+          // one at a time, an under-estimate that is stated here.
+          budget.peak('MEMORY', staticBytes + requestBytes + 16 * budget.counts.ARRAY_ELEMENTS
+            + (store ? LIVE_OBJECT_BYTES * store.liveCount() : 0) + 2 * (x.length + y.length))
           stack[sp - 1] = x + y
           break
         }

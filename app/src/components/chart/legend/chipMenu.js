@@ -214,6 +214,18 @@ export function chipMenuItems(chip, def, h, caps = {}) {
       onClick: caps.copyRefusal ? undefined : () => h.onCustomCopy(chip.instanceId),
     })
   }
+  // ⭐ SUPPORT LOOP A3 (`docs/pine/support-loop/PHASE-A.md`) — "Doesn't match
+  // TradingView?" for an imported Pine script that translated fully and still looks
+  // different. The CALLER decides (`caps.reportMismatch`: the document is a Pine
+  // translation AND the server's report flag is on); this file only places the row.
+  if (caps.reportMismatch === true && typeof h.onReportMismatch === 'function') {
+    rows.push({
+      key: 'report-mismatch',
+      label: 'Doesn’t match TradingView?',
+      icon: 'flag',
+      onClick: () => h.onReportMismatch(chip.instanceId),
+    })
+  }
   rows.push(
     {
       key: 'alerts',

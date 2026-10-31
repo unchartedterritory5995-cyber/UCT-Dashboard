@@ -42,6 +42,10 @@ export const GROUPS = [
   { id: 'chartGrid', title: 'Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells', domains: ['chartGrid'], fillLast: true,
     words: [/\b(two|three|four|five|six|seven|eight|nine|[2-9]) (new |separate |more )?(\w+ )?charts? (for|of|with|showing|on)\b/, /\bcharts? (for|of|with|showing)\b/, /\b(as|into) (\w+ )?(\w+ )?charts\b/,
       /\b(grid|2 ?x ?2|2 by 2|side[\s-]by[\s-]side|next to each other|stacked|split (the )?screen)\b/] },
+  // ⭐ PHASE 3: two widgets trading places, a chart duplicated into half its cell — their OWN small group (as chartGrid), so
+  // neither the NL-1 core nor the workspace group grows past the per-request budget
+  { id: 'boardEdit', title: 'Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it)', domains: ['board'], fillLast: true,
+    words: [/\b(swap|switch places|trade places|exchange)\b/, /\b(duplicate|clone)\b/, /\b(a |another )?(copy|duplicate) of\b/, /\bmove\b.*\bto the (left|right|top|bottom)\b/, /\bother side\b/] },
   { id: 'workspace', title: 'Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)', domains: ['widget'],
     words: [/\bwidgets?\b/, /\bworkspaces?\b/, /\bboard\b/, /\b(another|new|one more|second|extra) chart\b/, /\b(add|open|close|remove|delete)\b.*\bcharts?\b/, /\b(move|resize|arrange|rearrange|swap|wider|narrower|taller|shorter|bigger|smaller|fill|side by side|grid of|left|right|top|bottom)\b/,
       /\b(link|unlink|colou?r group)\b/, /\btabs?\b/] },

@@ -1519,13 +1519,14 @@ function validatePlot(plot, index, seenKeys, inputsByKey, errors) {
           `${path}.width: expected a finite number > 0` +
           `${plot.width !== width ? ` after substituting ${fmt(plot.width)}` : ''}, got ${fmt(width)}`,
         )
-      } else if (width > LINE_WIDTH_HARD_MAX) {
-        errors.push(
-          `${path}.width: at most ${LINE_WIDTH_HARD_MAX} px` +
-          `${plot.width !== width ? ` after substituting ${fmt(plot.width)}` : ''}, got ${fmt(width)}`,
-        )
       }
-      plot.width = width
+      // ⭐ ABOVE THE CEILING IS DRAWN AT THE CEILING, NEVER REFUSED. No UCT door
+      // produces one (`builderInputs.pineLineWidth` clamps; the server refuses a save
+      // that introduces one and clamps a copy), so only a stored row predating the
+      // ceiling, or a hand-crafted one, reaches here — and refusing it would stop a
+      // member's indicator drawing at all. Same width the server's copy clamp stores
+      // (`presentation_schema.clamp_plot_widths`), held by `line_width_cap.json`.
+      plot.width = isFiniteNumber(width) && width > LINE_WIDTH_HARD_MAX ? LINE_WIDTH_HARD_MAX : width
     }
   }
 

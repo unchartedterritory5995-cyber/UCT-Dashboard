@@ -187,6 +187,8 @@ const FORMS = [
   { kind: 'call', name: 'cos', parts: ['the cosine of ', 0] },
   { kind: 'call', name: 'tan', parts: ['the tangent of ', 0] },
   { kind: 'call', name: 'atan', parts: ['the arctangent of ', 0] },
+  // ⭐ PHASE 1 (2026-10-30) -- `acos`, hand-typed from the manifest's sentence.
+  { kind: 'call', name: 'acos', parts: ['the arccosine of ', 0] },
   { kind: 'call', name: 'sinh', parts: ['the hyperbolic sine of ', 0] },
   { kind: 'call', name: 'abs', parts: ['the absolute value of ', 0] },
   { kind: 'call', name: 'min', parts: ['the smaller of ', 0, ' and ', 1] },
@@ -424,6 +426,16 @@ const FORMS = [
     name: 'percentileLinearInterpolation',
     parts: ['the ', 2, 'th percentile of ', 0, ' over the last ', 1,
       ' bars, linearly interpolated between the two nearest ranks'] },
+  // ⭐ PHASE 1 (2026-10-30) -- three window functions, hand-typed from the
+  // manifest's sentences. ⚠️ `percentileNearestRank` OPENS 'the nearest-rank ',
+  // so it is not read by the linear row ('the ' then a leaf) nor the other way.
+  { kind: 'call',
+    name: 'percentileNearestRank',
+    parts: ['the nearest-rank ', 2, 'th percentile of ', 0, ' over the last ', 1, ' bars'] },
+  { kind: 'call', name: 'rci', parts: ['the ', 1, '-bar rank correlation index of ', 0] },
+  { kind: 'call',
+    name: 'alma',
+    parts: ['the ', 1, '-bar Arnaud Legoux average of ', 0, ' at offset ', 2, ' and sigma ', 3] },
   { kind: 'call', name: 'na', parts: [0, ' being unknown'] },
   { kind: 'call', name: 'nz', parts: [0, ' where it is known, and ', 1, ' where it is not'] },
 
@@ -557,6 +569,8 @@ function readLeaf(s) {
   // prefix match would let "the running value so far plus 1" read as a leaf and
   // swallow its own operator.
   if (own(RECURRENCE_PHRASE, s)) return { type: 'series', name: RECURRENCE_PHRASE[s] }
+  // ⭐ 2026-10-30 — "no value" is the literal `0 / 0` (this engine's `na`), matched WHOLE.
+  if (s === 'no value') return { type: 'op', name: '/', args: [{ type: 'num', value: 0 }, { type: 'num', value: 0 }] }
   // ⭐ A CLOCK VALUE IS A LEAF THAT IS SAID RATHER THAN NAMED. `hour` reads back
   // as the manifest's own sentence — a member cannot check `dayofweek` against
   // the maths without being told Sunday is 1 — so the inverse is a whole-phrase
@@ -800,6 +814,8 @@ const hasConditionsForm = (name) => own(OPERATOR_SENTENCE_CONDITIONS, name)
 /** The rule sequence a correct walker MUST emit for a tree — re-derived here from
  *  the tree and the manifest, never read back out of `explainSentence`. */
 function predictTrace(node, at = '$') {
+  // ⭐ 2026-10-30 — the literal `0 / 0` is said as "no value" in one step, children unsaid.
+  if (node.type === 'op' && node.name === '/' && Array.isArray(node.args) && node.args.length === 2 && node.args.every((a) => a && a.type === 'num' && a.value === 0)) return [{ path: at, rule: 'op:no-value' }]
   if (node.type === 'num') return [{ path: at, rule: 'num' }]
   if (node.type === 'series') {
     // ⭐ THREE ORIGINS FOR ONE NODE TYPE, AND THE THIRD IS NOT IN ANY SECTION OF
@@ -873,7 +889,10 @@ function predictTrace(node, at = '$') {
 }
 
 const leavesOf = (node, acc = []) => {
-  if (node.type === 'num') acc.push(String(node.value))
+  // ⭐ 2026-10-30 — the literal `0 / 0` is ONE value, said as "no value"; typed here,
+  // never read from `sentence.js`, so a walker that dropped it still fails.
+  if (node.type === 'op' && node.name === '/' && Array.isArray(node.args) && node.args.length === 2 && node.args.every((a) => a && a.type === 'num' && a.value === 0)) acc.push('no value')
+  else if (node.type === 'num') acc.push(String(node.value))
   else if (node.type === 'series') acc.push(node.name)
   else for (const a of node.args) leavesOf(a, acc)
   return acc
@@ -1116,7 +1135,11 @@ describe('totality over the closed table — derived from the manifest, never ha
       'function:accum2',
       'function:accum3',
       'function:accum4',
+      // ⭐ PHASE 1 (2026-10-30) -- Pine's `math.acos`.
+      'function:acos',
       'function:adx',
+      // ⭐ PHASE 1 (2026-10-30) -- Pine's `ta.alma`.
+      'function:alma',
       'function:aroonDown',
       'function:aroonUp',
       'function:atan',
@@ -1197,12 +1220,16 @@ describe('totality over the closed table — derived from the manifest, never ha
       // `ta.percentile_linear_interpolation`, routed via `PINE_CALL_SHAPES`.
       // One named entry, not a bumped count.
       'function:percentileLinearInterpolation',
+      // ⭐ PHASE 1 (2026-10-30) -- Pine's `ta.percentile_nearest_rank`.
+      'function:percentileNearestRank',
       'function:percentrank',
       'function:pivothigh',
       'function:pivotlow',
       'function:plusDI',
       'function:pow',
       'function:pvtN',
+      // ⭐ PHASE 1 (2026-10-30) -- Pine's `ta.rci`.
+      'function:rci',
       'function:rising',
       'function:rma',
       'function:round',
@@ -1241,8 +1268,9 @@ describe('totality over the closed table — derived from the manifest, never ha
     // ⭐ 123 -> 129 (2026-09-28): `timeclose`, `dayclosetime`, `weekfirst`, `monthfirst`.
     // ⭐ 129 -> 130 (2026-09-30, C38): `barsAgo`, Pine's `x[e]` with a per-bar index.
     // ⭐ 130 -> 131 (2026-10-02, H3): `vwapOf`, Pine's `ta.vwap(source)` for a bar price.
-    // ⭐ 131 -> 134 (2026-10-30): `accum2`, `accum3`, `accum4` — the multi-state recurrence (`_functions_multi_state`).
-    expect(entries.length).toBe(134)
+    // ⭐ 131 -> 138 (2026-10-30): Pine coverage Phase 1's `acos`, `alma`,
+    // `percentileNearestRank`, `rci`, plus `accum2`, `accum3`, `accum4` (`_functions_multi_state`).
+    expect(entries.length).toBe(138)
     // ⭐ +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
     // +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
   })
@@ -1264,8 +1292,8 @@ describe('totality over the closed table — derived from the manifest, never ha
     // ⭐ 123 -> 129 (2026-09-28): `timeclose`, `dayclosetime`, `weekfirst`, `monthfirst`.
     // ⭐ 129 -> 130 (2026-09-30, C38): `barsAgo`, Pine's `x[e]` with a per-bar index.
     // ⭐ 130 -> 131 (2026-10-02, H3): `vwapOf`.
-    // ⭐ 131 -> 134 (2026-10-30): `accum2`, `accum3`, `accum4` — the multi-state recurrence (`_functions_multi_state`).
-    expect(subjects.length).toBe(134)
+    // ⭐ 131 -> 138 (2026-10-30): Phase 1's four plus `accum2`, `accum3`, `accum4`.
+    expect(subjects.length).toBe(138)
     // ⭐ +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
     // +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
     for (const { entry, ast: tree } of subjects) {
@@ -2618,6 +2646,11 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
       // SKIP), and the percentage=50 identity with `median` is measured
       // separately in `pinePercentileLinearAccept.test.js`.
       'pine_percentile_linear_interpolation_between_two_ranks',
+      // ⭐ PHASE 1 (2026-10-30) -- one corpus case per new function.
+      'pine_acos_of_the_body_share_of_the_range',
+      'pine_alma_9_085_6',
+      'pine_percentile_nearest_rank_of_the_range',
+      'pine_rci_close_10',
       // ⭐⭐ `timenow` + its five calendar fields (2026-09-20) — the real
       // "is_today" idiom measured across six corpus scripts, split into TWO
       // cases (not one) because a single compound formula naming all six new
@@ -2709,8 +2742,8 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
     // ⭐ 123 -> 129 (2026-09-28): `timeclose`, `dayclosetime`, `weekfirst`, `monthfirst`.
     // ⭐ 129 -> 130 (2026-09-30, C38): `barsAgo`, Pine's `x[e]` with a per-bar index.
     // ⭐ 130 -> 131 (2026-10-02, H3): `vwapOf`.
-    // ⭐ 131 -> 134 (2026-10-30): `accum2`, `accum3`, `accum4` — the multi-state recurrence (`_functions_multi_state`).
-    expect(sentences.length).toBe(CORPUS.cases.length + 134)
+    // ⭐ 131 -> 138 (2026-10-30): Phase 1's four plus `accum2`, `accum3`, `accum4`.
+    expect(sentences.length).toBe(CORPUS.cases.length + 138)
     // ⭐ +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
     // +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
     for (const s of sentences) {

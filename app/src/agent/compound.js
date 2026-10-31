@@ -50,10 +50,15 @@ export function eachWith(text) {
   return m ? `add ${m[1]} to all of them` : text
 }
 
-// ── "put RSI under price", "put the 20 ema in its own pane", "add MACD in a separate pane" ──
-const NEW_PANE = /^(?:put|add|place|stick|throw|slap|give me|load|plot) (.+?) (?:in (?:its own|a separate|a seperate|a new|a different|their own) (?:pane|window)|in (?:a )?(?:separate|seperate|own) panes?|(?:under|below|beneath|underneath) (?:the )?(?:price|price chart|chart|candles|main chart))$/
+// ── "put RSI under price", "put the 20 ema in its own pane", "add MACD in a separate pane" (⭐ PHASE 3: "put rsi underneath") ──
+const NEW_PANE = /^(?:put|add|place|stick|throw|slap|give me|load|plot) (.+?) (?:in (?:its own|a separate|a seperate|a new|a different|their own) (?:pane|window)|in (?:a )?(?:separate|seperate|own) panes?|(?:under|below|beneath|underneath)(?: (?:the )?(?:price|price chart|chart|candles|main chart)| it)?)$/
 /** The indicator to add and where, from words → { defId, inputs, pane: bool } | null. */
-function newPaneIndicator(t) {
+// ⭐ PHASE 3: "…, and RSI beneath each chart" (a multi-step request's last part, no verb of its own) — the indicator below
+// price on each of the request's charts: read exactly as "put RSI below price" on the working set
+const EACH_PANE = /^(?:and\s+|with\s+|plus\s+)?(?:an?\s+|the\s+)?(.+?)\s+(?:beneath|below|under|underneath)\s+(?:each|every|all(?: of)?(?: the)?|both(?: of)?(?: the)?)\s+(?:one|charts?|of them)$/
+const eachPane = (t) => { const m = EACH_PANE.exec(t); return m ? `put ${m[1]} below price` : t }
+function newPaneIndicator(t0) {
+  const t = eachPane(t0)
   const m = NEW_PANE.exec(t)
   if (!m) return null
   const words = m[1].replace(/^(?:an? |the |my )/, '')

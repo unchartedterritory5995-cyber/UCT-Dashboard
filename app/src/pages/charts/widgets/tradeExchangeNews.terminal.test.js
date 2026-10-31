@@ -1,12 +1,14 @@
 // News terminal upgrade — the pure model: category filters (AND with the others),
-// the inline % change, impact marks, related-headline grouping, feed health and
-// presets. Synthetic headlines only.
+// related-headline grouping, feed health, presets and the calendar-day helpers.
+// Synthetic headlines only.
 import { describe, expect, it } from 'vitest'
 import {
-  BREAKING_MS, CATEGORY_FILTERS, categoriesLabel, cleanCategories, cleanPresets, feedHealth, groupRelated,
-  GROUP_WINDOW_MS, impactMark, MAX_PRESETS, pctText, presetPatch, presetSnapshot, relatedHeadlines, visibleItems,
+  addDays, archiveTitle, CATEGORY_FILTERS, categoriesLabel, cleanCategories, cleanPresets, cleanTime, dayCmp, dayLabel,
+  dayRequest, dayStatus, etDateKey, feedHealth, groupRelated, GROUP_WINDOW_MS, MAX_PRESETS, mergeDay, monthGrid,
+  presetPatch, presetSnapshot, relatedHeadlines, timeLabel, visibleItems,
 } from './tradeExchangeNewsModel'
-import { mergeTxnWidgetSettings, txnClampLines, txnShowPct } from './tradeExchangeNewsSettings'
+import * as model from './tradeExchangeNewsModel'
+import { mergeTxnWidgetSettings, txnClampLines } from './tradeExchangeNewsSettings'
 
 const NOW = 1_800_000_000_000
 const H = (seq, content, extra = {}) => ({ seq, content, tickers: [], category: 'News', source: 'TX-News',
@@ -43,27 +45,11 @@ describe('category filters', () => {
   })
 })
 
-describe('inline % change', () => {
-  it('shows the regular-session change, one decimal, signed', () => {
-    expect(pctText({ change_pct: 2.43 })).toBe('+2.4%')
-    expect(pctText({ change_pct: -0.06 })).toBe('-0.1%')
-    expect(pctText({ change_pct: 0.04 })).toBe('0.0%')
-    expect(pctText({ change_pct: -0.04 })).toBe('0.0%')
-  })
-
-  it('missing or stale data shows nothing, never a guess', () => {
-    expect(pctText(undefined)).toBeNull()
-    expect(pctText({ price: 10 })).toBeNull()
-    expect(pctText({ change_pct: NaN })).toBeNull()
-    expect(pctText({ change_pct: 3 }, true)).toBeNull()
-  })
-
-  it('defaults: on in Comfortable, off in Compact; an explicit choice wins', () => {
-    expect(txnShowPct(mergeTxnWidgetSettings({}))).toBe(true)
-    expect(txnShowPct(mergeTxnWidgetSettings({ density: 'compact' }))).toBe(false)
-    expect(txnShowPct(mergeTxnWidgetSettings({ density: 'compact', showPct: 'on' }))).toBe(true)
-    expect(txnShowPct(mergeTxnWidgetSettings({ showPct: 'off' }))).toBe(false)
-    expect(mergeTxnWidgetSettings({ showPct: 'loud' }).showPct).toBe('auto')
+describe('settings', () => {
+  it('the inline % change is retired: no helper, no setting, a saved value is dropped', () => {
+    expect(model.pctText).toBeUndefined()
+    expect(mergeTxnWidgetSettings({ showPct: 'on' })).not.toHaveProperty('showPct')
+    expect(mergeTxnWidgetSettings({})).not.toHaveProperty('showPct')
   })
 
   it('long-headline setting: 3 lines by default, 5, or always expanded', () => {
@@ -74,18 +60,12 @@ describe('inline % change', () => {
   })
 })
 
-describe('impact marks', () => {
-  it('words the server kind; Breaking only while fresh and live', () => {
-    const fresh = H(1, 'x', { impact: 'central_bank', received_at_ms: NOW - 60_000 })
-    expect(impactMark(fresh, NOW)).toMatchObject({ label: 'Breaking', breaking: true })
-    expect(impactMark(fresh, NOW).title).toMatch(/^Central-bank rate decision\. Marked only when/)
-    expect(impactMark({ ...fresh, received_at_ms: NOW - BREAKING_MS - 1 }, NOW)).toMatchObject({ label: 'High impact', breaking: false })
-    expect(impactMark({ ...fresh, delayed: true }, NOW).label).toBe('High impact')
-  })
-
-  it('no kind, or one the widget does not know, is no mark', () => {
-    expect(impactMark(H(1, 'x'), NOW)).toBeNull()
-    expect(impactMark(H(1, 'x', { impact: 'vibes' }), NOW)).toBeNull()
+describe('impact marks are retired', () => {
+  it('no helper, no setting, no preset key', () => {
+    expect(model.impactMark).toBeUndefined()
+    expect(model.IMPACT_CRITERIA).toBeUndefined()
+    expect(mergeTxnWidgetSettings({ impactMarks: 'on' })).not.toHaveProperty('impactMarks')
+    expect(model.PRESET_SETTING_KEYS).not.toContain('impactMarks')
   })
 })
 
@@ -179,18 +159,19 @@ describe('presets', () => {
   it('snapshots filters and display preferences only', () => {
     const snap = presetSnapshot({ categories: ['Macro'], linked: true, watchlistId: 'wl1' }, settings, 'fed')
     expect(snap).toEqual({ categories: ['Macro'], linked: true, watchlistId: 'wl1', query: 'fed',
-      settings: { longHeadlines: '5', groupRelated: 'on', impactMarks: 'on', showPct: 'auto' } })
+      settings: { longHeadlines: '5', groupRelated: 'on' } })
   })
 
   it('applying never touches colours, chart symbols or other settings', () => {
     const patch = presetPatch(settings, { id: 'p1', categories: ['Earnings'], linked: false, watchlistId: '',
-      settings: { longHeadlines: 'all', bg: '#ff0000', symbol: 'TSLA' } })
+      settings: { longHeadlines: 'all', bg: '#ff0000', symbol: 'TSLA', showPct: 'on' } })
     expect(patch.categories).toEqual(['Earnings'])
     expect(patch.presetId).toBe('p1')
     expect(patch.watchlistId).toBeNull()
     expect(patch.settings.longHeadlines).toBe('all')
     expect(patch.settings.bg).toBe('#123456')
     expect(patch.settings.symbol).toBeUndefined()
+    expect(patch.settings.showPct).toBeUndefined()                // an old preset's retired setting
     expect(Object.keys(patch).sort()).toEqual(['categories', 'linked', 'presetId', 'settings', 'watchlistId'])
   })
 
@@ -198,5 +179,73 @@ describe('presets', () => {
     expect(cleanPresets(null)).toEqual([])
     expect(cleanPresets([{ id: 'a', name: ' ' }, { id: 1, name: 'x' }, { id: 'b', name: 'Macro' }])).toEqual([{ id: 'b', name: 'Macro' }])
     expect(cleanPresets(Array.from({ length: 30 }, (_, i) => ({ id: `p${i}`, name: `P${i}` })))).toHaveLength(MAX_PRESETS)
+  })
+})
+
+describe('calendar days', () => {
+  // Late October 2026 is EDT (UTC-4); Nov 1 2026 falls back to EST (UTC-5).
+  const ET = (m, d, h, min = 0, off = 4) => Date.UTC(2026, m - 1, d, h + off, min)
+
+  it('a request carries every filter', () => {
+    expect(dayRequest({ query: '  fed ', linkedSym: 'NVDA', watchSet: new Set(['MSFT', 'AMD']), categories: ['Macro', 'bogus'], hidePlaceholders: true }))
+      .toEqual({ query: 'fed', categories: ['Macro'], symbol: 'NVDA', symbols: ['AMD', 'MSFT'], hide_placeholders: true })
+    expect(dayRequest({})).toEqual({ query: '', categories: [], symbol: null, symbols: null, hide_placeholders: false })
+  })
+
+  it('dates are New York calendar dates, across midnight and DST', () => {
+    expect(etDateKey(ET(10, 30, 0, 0))).toBe('2026-10-30')
+    expect(etDateKey(ET(10, 30, 0, 0) - 1)).toBe('2026-10-29')                   // 11:59:59.999 PM the day before
+    expect(etDateKey(ET(10, 30, 23, 59))).toBe('2026-10-30')
+    expect(etDateKey(ET(11, 1, 23, 30, 5))).toBe('2026-11-01')                     // EST after fall-back
+    expect(etDateKey(ET(11, 2, 0, 0, 5))).toBe('2026-11-02')
+    expect(etDateKey(Date.UTC(2026, 9, 31, 2, 0))).toBe('2026-10-30')             // 02:00 UTC = 10 PM ET
+  })
+
+  it('date arithmetic, labels and times', () => {
+    expect(addDays('2026-10-31', 1)).toBe('2026-11-01')
+    expect(addDays('2026-03-01', -1)).toBe('2026-02-28')
+    expect(addDays('2026-11-01', 1)).toBe('2026-11-02')                           // a 25-hour day is still one date
+    expect(dayLabel('2026-10-30', '2026-10-30')).toBe('Fri, Oct 30')
+    expect(dayLabel('2025-12-31', '2026-01-02')).toBe('Wed, Dec 31, 2025')
+    expect(timeLabel('09:30')).toBe('9:30 AM')
+    expect(timeLabel('00:05')).toBe('12:05 AM')
+    expect(timeLabel('16:00')).toBe('4:00 PM')
+    expect(cleanTime('9:30')).toBe('09:30')
+    for (const bad of ['24:00', '9:60', '930', '', 'noon']) expect(cleanTime(bad)).toBeNull()
+  })
+
+  it('a month grid is six Sunday-first weeks', () => {
+    const g = monthGrid(2026, 9)                                                   // October 2026
+    expect(g).toHaveLength(42)
+    expect(g[0]).toEqual({ key: '2026-09-27', inMonth: false })
+    expect(g.find((c) => c.key === '2026-10-01').inMonth).toBe(true)
+    expect(g.filter((c) => c.inMonth)).toHaveLength(31)
+  })
+
+  it('availability is only what the server reports', () => {
+    const meta = { today: '2026-10-30', first_day: '2026-10-24', days: [{ date: '2026-10-26', count: 200 }] }
+    expect(dayStatus('2026-10-31', meta).kind).toBe('future')
+    expect(dayStatus('2026-10-23', meta).kind).toBe('unretained')
+    expect(dayStatus('2026-10-26', meta)).toEqual({ kind: 'news', count: 200 })
+    expect(dayStatus('2026-10-27', meta)).toEqual({ kind: 'empty', count: 0 })
+    expect(dayStatus('2026-10-27', null).kind).toBe('unknown')
+  })
+
+  it('the day order is (received, seq) newest first; live rows merge only beside what is loaded', () => {
+    const at = (h) => ET(10, 30, h)
+    const srv = [H(10, 'a', { received_at_ms: at(12) }), H(9, 'b', { received_at_ms: at(11) })]
+    const pool = [H(12, 'live', { received_at_ms: at(13) }), H(11, 'tie', { received_at_ms: at(12) }),
+      H(9, 'b', { received_at_ms: at(11), repeat_count: 2 }), H(8, 'old', { received_at_ms: at(9) }),
+      H(13, 'yesterday', { received_at_ms: ET(10, 29, 22) })]
+    expect([...srv, ...pool].sort(dayCmp).map((i) => i.seq)).toEqual([12, 11, 10, 9, 9, 8, 13])
+    expect(mergeDay(srv, pool, { dateKey: '2026-10-30' }).map((i) => i.seq)).toEqual([12, 11, 10, 9, 8])
+    expect(mergeDay(srv, pool, { dateKey: '2026-10-30' }).find((i) => i.seq === 9).repeat_count).toBe(2)
+    expect(mergeDay(srv, pool, { dateKey: '2026-10-30', hasNewer: true, hasOlder: true }).map((i) => i.seq)).toEqual([10, 9])
+    expect(mergeDay(srv, pool, { dateKey: '2026-10-29' }).map((i) => i.seq)).toEqual([10, 9, 13])
+  })
+
+  it('the archive note states the real reach and the retention bound', () => {
+    expect(archiveTitle(NOW - 3 * 86_400_000, NOW)).toMatch(/^The retained archive reaches back to .+\. UCT keeps about 7 days of headlines, up to 5,000; nothing older is available\.$/)
+    expect(archiveTitle(null, NOW)).toMatch(/empty so far/)
   })
 })

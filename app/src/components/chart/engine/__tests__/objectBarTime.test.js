@@ -117,13 +117,21 @@ describe('⭐⭐ a daily series keyed by DATES', () => {
     expect(Number.isFinite(timeToX(rs.labels[0].x))).toBe(true)
   })
 
-  it('⛔ an instant that is not its date\'s session open, or a series with no timeframe, is DROPPED and counted', () => {
+  // ⚰️ P2b (2026-10-30): this case was "an instant that is not its date's session
+  // open is DROPPED". That dropped `time_close` (16:00) on every daily chart, so a
+  // drawing the program held vanished at the render state while its translation read
+  // clean (poor-man's volume profile). An instant INSIDE a loaded bar's span [open,
+  // next open) is that bar now — 10:30 on bar 5, and 08:30 (before bar 5 opens) on
+  // bar 4 — the rule TradingView's time scale keeps (`vendorHarness.p2SetXloc`; the
+  // span edges are queued for capture in `vw-p2-bar-time-span.pine`).
+  it('⭐ P2b — an instant INSIDE a loaded bar\'s span lands on that bar; no timeframe still drops and counts', () => {
     const open = barOpenInstant(DAILY[5].t, 'D')
-    for (const [x, tf] of [[(open + 3600) * 1000, 'D'], [(open - 3600) * 1000, 'D'], [open * 1000, undefined]]) {
-      const rs = toRenderState([label(x)], { bars: DAILY, tf })
-      expect(rs.labels, `x=${x} tf=${tf}`).toHaveLength(0)
-      expect(rs.dropped.label).toBe(1)
-    }
+    expect(toRenderState([label((open + 3600) * 1000)], { bars: DAILY, tf: 'D' }).labels[0].x).toBe(DAILY[5].t)
+    expect(toRenderState([label((open + 6.5 * 3600) * 1000)], { bars: DAILY, tf: 'D' }).labels[0].x).toBe(DAILY[5].t)
+    expect(toRenderState([label((open - 3600) * 1000)], { bars: DAILY, tf: 'D' }).labels[0].x).toBe(DAILY[4].t)
+    const rs = toRenderState([label(open * 1000)], { bars: DAILY, tf: undefined })
+    expect(rs.labels).toHaveLength(0)
+    expect(rs.dropped.label).toBe(1)
     // ⚰️ "a weekly series keyed the same way has no measured opening instant"
     // until 2026-09-28 — see the weekly case below.
   })
@@ -134,8 +142,8 @@ describe('⭐⭐ a daily series keyed by DATES', () => {
     expect(etClockAt(wopen).dow).toBe(2)
     const rs = toRenderState([label(wopen * 1000)], { bars: WEEKLY, tf: 'W' })
     expect(rs.labels[0].x).toBe('2026-08-14')
-    // not its week's opening instant ⇒ no bar
-    expect(toRenderState([label((wopen + 86400) * 1000)], { bars: WEEKLY, tf: 'W' }).dropped.label).toBe(1)
+    // ⭐ P2b — inside that week's span (Tuesday) ⇒ that week bar (was: dropped)
+    expect(toRenderState([label((wopen + 86400) * 1000)], { bars: WEEKLY, tf: 'W' }).labels[0].x).toBe('2026-08-14')
     // a projection past the last loaded week is dropped rather than keyed by a
     // guess at the product's future-week key
     const next = barOpenInstant('2026-08-28', 'W')

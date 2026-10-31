@@ -49,6 +49,7 @@ export function createMemory({ now = () => Date.now() } = {}) {
   let turn = null               // ⭐ PHASE 2: { id, steps: [{ ops, undoId }], at, epoch }
   let turnId = 0                // the member message now being answered (`beginTurn`)
   let indSet = null             // ⭐ PHASE 2: { turn, list: [{ chart, instanceId, defId, label }], at, epoch }
+  let priorInd = null           // ⭐ PHASE 3: the set before it ("add the 9 and 20" → "make the 9 green" → "the other one")
   let pick = null               // ⭐ PHASE 2: the referents the last follow-up acted on ("the other one")
   let ment = null               // ⭐ PHASE 2: { turn, list, at, epoch } — every indicator the latest turn acted on
   let seq = 0
@@ -56,7 +57,7 @@ export function createMemory({ now = () => Date.now() } = {}) {
 
   const fresh = (x) => !!x && now() - x.at <= MEMORY_TTL_MS
   const sameBoard = (x, epoch) => !!x && (x.epoch == null || epoch == null || x.epoch === epoch)
-  const dropBoard = () => { subjects = { chart: null, indicator: null }; last = null; turn = null; indSet = null; pick = null; ment = null }
+  const dropBoard = () => { subjects = { chart: null, indicator: null }; last = null; turn = null; indSet = null; priorInd = null; pick = null; ment = null }
 
   return {
     /** Rows UCT showed, in display order. `symbols` must come from UCT (a table's ticker column). */
@@ -103,7 +104,7 @@ export function createMemory({ now = () => Date.now() } = {}) {
       if (!chart || !instanceId) return
       subjects.indicator = { chart, instanceId: String(instanceId), defId, label, at: now(), epoch }
       // …and, in order, as one of the indicators THIS turn added or edited (a new turn starts a new set)
-      if (!indSet || indSet.turn !== turnId) { indSet = { turn: turnId, list: [], at: now(), epoch }; pick = null }
+      if (!indSet || indSet.turn !== turnId) { priorInd = fresh(indSet) ? indSet : null; indSet = { turn: turnId, list: [], at: now(), epoch }; pick = null }
       if (indSet.list.length < MAX_TURN_STEPS && !indSet.list.some(i => i.chart === chart && i.instanceId === String(instanceId))) {
         indSet.list.push({ chart, instanceId: String(instanceId), defId, label })
       }
@@ -111,6 +112,8 @@ export function createMemory({ now = () => Date.now() } = {}) {
     },
     /** ⭐ PHASE 2: the indicators the latest adding / editing turn touched, in order (fresh, same board) | null. */
     indicatorSet(epoch = null) { return fresh(indSet) && sameBoard(indSet, epoch) && indSet.list.length ? indSet.list : null },
+    /** ⭐ PHASE 3: the set the turn BEFORE the latest one touched (fresh, same board) | null. */
+    priorIndicatorSet(epoch = null) { return fresh(priorInd) && sameBoard(priorInd, epoch) && priorInd.list.length ? priorInd.list : null },
     /** ⭐ PHASE 2: an indicator the CURRENT turn acted on in any way (a colour, a pane, an add) — "those" in a copy. */
     noteMention({ chart, instanceId, epoch = null }) {
       if (!chart || !instanceId) return
@@ -158,7 +161,7 @@ export function createMemory({ now = () => Date.now() } = {}) {
       visit = n
     },
     forgetIndicator() { subjects.indicator = null },
-    clear() { sets = []; subjects = { chart: null, indicator: null }; last = null; corrections = []; turn = null; indSet = null; pick = null; ment = null },
+    clear() { sets = []; subjects = { chart: null, indicator: null }; last = null; corrections = []; turn = null; indSet = null; priorInd = null; pick = null; ment = null },
 
     /** What the MODEL may see: result sets (first MODEL_ITEMS tickers, in order), the last change's
      *  action names, and corrections. No values, no chart settings. */

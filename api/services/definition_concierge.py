@@ -1428,6 +1428,16 @@ def _is_leaf(n: Any) -> bool:
     return isinstance(n, dict) and n.get("type") in ("num", "series")
 
 
+def _is_no_value(n: Any) -> bool:
+    """The literal ``0 / 0`` -- this engine's "no value" -- read back as those words
+    and bracketed like a leaf. The port of ``sentence.js::isNoValue``; only the
+    literal, never a real division that is a hole on some bars."""
+    return (isinstance(n, dict) and n.get("type") == "op" and n.get("name") == "/"
+            and isinstance(n.get("args"), list) and len(n["args"]) == 2
+            and all(isinstance(a, dict) and a.get("type") == "num" and a.get("value") == 0
+                    and not isinstance(a.get("value"), bool) for a in n["args"]))
+
+
 def _is_condition(node: Any, rules: Dict[str, Any]) -> bool:
     """Does this operand ALREADY produce 0/1? The shipped classifier's answer.
 
@@ -1535,7 +1545,7 @@ def _render_node(node: Any, rules: Dict[str, Any], inputs: Mapping[str, Any],
 def _render_arg(node: Any, rules: Dict[str, Any], inputs: Mapping[str, Any],
                 path: str, trace: List[Dict[str, str]]) -> str:
     inner = _render_node(node, rules, inputs, path, trace)
-    return inner if _is_leaf(node) else f"({inner})"
+    return inner if (_is_leaf(node) or _is_no_value(node)) else f"({inner})"
 
 
 def _render_name(node: Any, rules: Dict[str, Any], inputs: Mapping[str, Any],
@@ -1610,6 +1620,9 @@ def _render_op(node: Any, rules: Dict[str, Any], inputs: Mapping[str, Any],
         raise _SentenceRefused(
             "sentence:arity",
             f"at {path}: {name} takes {rule['arity']}, got {len(node['args'])}")
+    if _is_no_value(node):
+        trace.append({"path": path, "rule": "op:no-value"})
+        return "no value"
     # ⭐ THE ONE PLACE THE CHROME CONSULTS `yields`, and it asks the OPERAND
     # TREES rather than a list of names — so a fifty-fifth scalar is covered the
     # day it declares one. Every operand already being a condition is what makes

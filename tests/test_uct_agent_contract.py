@@ -24,7 +24,7 @@ _GROUP_OF = {"chart": "charts", "volume": "charts", "widget": "workspace", "layo
              "news": "data", "settings": "settings", "app": "settings", "agent": "agent",
              "drawing": "drawings", "indicator": "indicators", "breadth": "breadth",
              "chartSetup": "chartSetup", "indicatorStyle": "indicatorSetup", "indicatorCopy": "indicatorSetup",
-             "pane": "indicatorSetup", "definition": "definitions", "chartGrid": "chartGrid",
+             "pane": "indicatorSetup", "definition": "definitions", "chartGrid": "chartGrid", "board": "boardEdit",
              "guide": "guide"}
 
 

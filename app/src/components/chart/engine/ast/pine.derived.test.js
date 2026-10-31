@@ -314,6 +314,17 @@ describe('🔴 the two that CANNOT be expressed, and say so by name', () => {
     percentileLinearInterpolation: 'no Pine name collides — the real Pine spelling is'
       + ' snake_case (ta.percentile_linear_interpolation) and reaches this entry'
       + ' through PINE_CALL_SHAPES, a separate, vetted route',
+    // ⭐ PHASE 1 (2026-10-30) — four manifest entries, each vetted against the
+    // definition Pine publishes, and each held numerically in
+    // `pinePhase1Builtins.test.js`.
+    acos: 'math.acos',
+    alma: 'ta.alma — TradingView\'s published pine_alma (source, length, offset, sigma),'
+      + ' shape-mapped in that order; matched to the capture vw-alma-spy-1d-2026-09-27',
+    rci: 'ta.rci — Spearman rank correlation of time (newest = 1) against price'
+      + ' (highest = 1), x100, so a rising window reads +100; (source, length) order',
+    percentileNearestRank: 'no Pine name collides — the real Pine spelling is'
+      + ' snake_case (ta.percentile_nearest_rank) and reaches this entry by the same'
+      + ' identity route as its linear sibling',
   })
 
   it('⛔⛔ EVERY declared name, offered under `ta.` — a door that OPENS lands RED', () => {

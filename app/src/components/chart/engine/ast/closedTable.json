@@ -456,6 +456,17 @@
       "yields": "num",
       "sentence": "running value number {0} of four that start at {2}, {3}, {4}, {5} and together become {6}, {7}, {8}, {9} on each of the last {1} bars"
     },
+    "acos": {
+      "args": [
+        "series"
+      ],
+      "argRoles": [
+        "source"
+      ],
+      "lookback": 0,
+      "yields": "num",
+      "sentence": "the arccosine of {0}"
+    },
     "adx": {
       "args": [
         "series",
@@ -472,6 +483,23 @@
       "lookback": "2*arg3",
       "yields": "num",
       "sentence": "the {3}-bar ADX of {0}, {1} and {2}"
+    },
+    "alma": {
+      "args": [
+        "series",
+        "int",
+        "series",
+        "series"
+      ],
+      "argRoles": [
+        "source",
+        "period",
+        "weightCentre",
+        "weightSpread"
+      ],
+      "lookback": "arg1",
+      "yields": "num",
+      "sentence": "the {1}-bar Arnaud Legoux average of {0} at offset {2} and sigma {3}"
     },
     "aroonDown": {
       "args": [
@@ -1187,6 +1215,21 @@
       "yields": "num",
       "sentence": "the {2}th percentile of {0} over the last {1} bars, linearly interpolated between the two nearest ranks"
     },
+    "percentileNearestRank": {
+      "args": [
+        "series",
+        "int",
+        "int"
+      ],
+      "argRoles": [
+        "source",
+        "period",
+        "percentage"
+      ],
+      "lookback": "arg1",
+      "yields": "num",
+      "sentence": "the nearest-rank {2}th percentile of {0} over the last {1} bars"
+    },
     "percentrank": {
       "args": [
         "series",
@@ -1286,6 +1329,19 @@
       "lookback": "arg1",
       "yields": "bool",
       "sentence": "{0} rising for {1} bars"
+    },
+    "rci": {
+      "args": [
+        "series",
+        "int"
+      ],
+      "argRoles": [
+        "source",
+        "period"
+      ],
+      "lookback": "arg1",
+      "yields": "num",
+      "sentence": "the {1}-bar rank correlation index of {0}"
     },
     "rma": {
       "args": [
@@ -3328,6 +3384,18 @@
   "_functions_arg_role_kinds": {
     "_": "⭐ THE ROLES THAT ARE REQUIREMENTS, AND THE KIND EACH ONE DEMANDS. `args` gives a slot its NODE kind -- a `series` or an `int` -- and `argRoles` names what the maths expects there; almost every role is documentation for a translator, and `_functions_arg_roles` says so in as many words. These are the exceptions. A key here is a ROLE NAME, its value is the `yields` kind (`_yields`) the argument's own tree must settle to, and both walkers refuse a call whose argument does not settle there: `interpret.js::assertArgRoles` and `ast_interpret._assert_arg_roles`, each asking its OWN lane's single resolver -- `sentence.js::yieldsOf` and `scan_definition.is_boolean_tree` -- rather than growing a third copy of the rule. ⛔ EVERY KEY WITHOUT A LEADING UNDERSCORE IS A ROLE THE WALKERS ENFORCE, and a key WITH one is a note about the section: the same split `_functions_excluded` carries, and load-bearing for the same reason. ⚠️ THE ONLY KIND DECLARED TODAY IS THE BOOLEAN ONE, and the guard's sentence names it in plain words, so a role declared here as `num` would be refused by a sentence describing the wrong kind. That is a roster with a reason rather than a count: `tests/test_ast_arg_roles.py` asserts every declared kind is the boolean one, so a `num` role lands RED and re-derives the sentence before it ships.",
     "condition": "bool"
+  },
+  "_functions_added_after_saved_documents": {
+    "_": "THE TABLE NAMES DECLARED AFTER MEMBERS COULD ALREADY SAVE DEFINITIONS, AND THE ONE RULE THAT SETS THEM APART. Both interpreters refuse an input whose key equals a table name (`interpret.js` / `ast_interpret.py`: the input shadows a table name), because a knob silently outranking `close` changes what a formula means. That is right for every name the table declared before a member could save a document, and WRONG for a name declared afterwards: a document saved with an input keyed `alma` computed yesterday and would stop computing, on the chart and in its alerts, the day `alma` joined the table. So for the names listed here the member's own binding wins, the same rule the translator applies to a script's own names: the input keeps its value, and inside that document the table function of the same name is unreachable (a call to it refuses `resolve:function`, by name). Every other name keeps the strict check. ⛔ EVERY FUNCTION ADDED FROM NOW ON IS LISTED HERE, or the rail that diffs the table against its frozen roster (`tests/fixtures/ast/table_functions_before_saved_documents.json`) fails by name, in both lanes: a new table entry is checked against this compatibility set rather than remembered.",
+    "names": [
+      "accum2",
+      "accum3",
+      "accum4",
+      "acos",
+      "alma",
+      "percentileNearestRank",
+      "rci"
+    ]
   },
   "_functions_excluded": {
     "_supertrend_was_here": "⭐ SUPERTREND LEFT THIS LIST ON 2026-10-29, AND THE RULING ABOVE IT WAS RIGHT WHEN IT WAS WRITTEN. It refused the name because the grammar had no self-reference; `accum` (`_functions_recurrence`) is that self-reference, and `ta.supertrend(factor, atrPeriod)` is exactly three of them composed — the upper band's ratchet, the lower band's, and the direction flip — over `atrPine` (Pine's own ATR seed) and `hl2`. So it ships as an EXPANSION (`callExpansions.js::supertrendTrees`, mirrored by `call_expansions.py`), never as an entry here: no interpreter, alert lane, budget or linter learns a new name, and the ratchet and the flip are KEPT rather than dropped, which is the look-alike this ruling forbade. ⛔ It is bounded like every `accum`: each recurrence re-seeds 200 bars back, and the value is WITHHELD until both bands were known 200 bars earlier, so a published bar never reads a band that did not exist. ⭐ Measured against an independent full-history implementation of Pine's published source: 0 of 77,820 published bars differ (30 series × 3 settings, `supertrend.test.js`, re-measured every run).",

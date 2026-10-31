@@ -29,14 +29,14 @@ import { kickSnapshotWarm } from '../../journal-2-0/lib/embedArchive'
 import { sendCaptureToJournal } from '../../journal-2-0/lib/sendToJournal'
 import { chartJournalCapture } from './chartJournalCapture'
 import CaptureMenu from '../../journal-2-0/components/CaptureMenu'
-import { WORKSPACE_MENU_TYPES, labelMap, catalogMeta } from '../../../widgets/registry'
+import { WORKSPACE_PICKER_TYPES, labelMap, catalogMeta } from '../../../widgets/registry'
 import { nextGroup, isSuspendedGroup } from '../colorGroups'
 import { resolveThemeColor } from '../../../lib/theme'
 import useExtraGroupsEnabled from '../useExtraGroupsEnabled'
 
 // Same widget roster + labels the workspace "Widgets ▾ → Add" menu uses, so the
 // chart's right-click "Add widget" submenu never drifts from it.
-const ADD_WIDGET_TYPES = WORKSPACE_MENU_TYPES
+const ADD_WIDGET_TYPES = WORKSPACE_PICKER_TYPES
 const ADD_WIDGET_LABELS = labelMap('menu')
 
 // The chart capture (symbol, tf, visible range, merged settings) is built by ONE

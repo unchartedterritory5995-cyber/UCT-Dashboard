@@ -1,0 +1,32 @@
+.notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  margin: 0;
+  padding: 6px 8px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-bright);
+  border-left: 2px solid var(--gold, #c9a84c);
+  border-radius: 0 5px 5px 0;
+  background: rgba(201, 168, 76, 0.06);
+}
+
+.quiet { display: flex; justify-content: flex-end; }
+
+.link {
+  background: none;
+  border: none;
+  padding: 0 2px;
+  min-height: var(--tap-min, 44px);
+  color: var(--gold, #c9a84c);
+  font: inherit;
+  font-size: 12px;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+@media (min-width: 1025px) {
+  .link { min-height: 24px; }
+}

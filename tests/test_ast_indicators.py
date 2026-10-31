@@ -518,7 +518,16 @@ def test_every_function_PINS_ITS_ARGUMENT_ORDER_for_the_translators():
     # takes a slot the maths reads as a COUNT OF BARS, never a price -- a translator
     # that filled it with `close` because it looked like a second source would read
     # hundreds of bars back and be refused by the buffer on every bar.
-    generic = {"source", "left", "right", "seed", "update", "condition", "offset"}
+    # (2026-10-30, Pine coverage Phase 1) `weightCentre` and `weightSpread`
+    # JOINED, AND THEY ARE PINNED LIKE `offset`. Pine's `ta.alma(series, length,
+    # offset, sigma)` takes two FLOAT parameters that shape its weights, and this
+    # table has no float-literal kind -- so they ride `series` slots, as `pow`'s
+    # exponent does. Named for what the maths does with them (where the Gaussian
+    # is centred, how wide it spreads) and NOT `offset`/`sigma`: `offset` already
+    # means a count of bars here, and a translator matching by role must never
+    # mistake ALMA's 0.85 for one. Pinned below to `alma` alone.
+    generic = {"source", "left", "right", "seed", "update", "condition", "offset",
+               "weightCentre", "weightSpread"}
     # ⭐ (2026-10-30) A MULTI-STATE ENTRY'S SEEDS AND UPDATES ARE NUMBERED, because a
     # role may not repeat within one entry. DERIVED from the manifest's own
     # `multiState` declarations and PINNED to them: `seed<k>` / `update<k>` sit
@@ -533,6 +542,14 @@ def test_every_function_PINS_ITS_ARGUMENT_ORDER_for_the_translators():
         if other not in ast_table.multi_states():
             assert not (set(spec.get("argRoles") or ()) & numbered), other
     allowed = set(ast_table.TABLE["series"]) | generic | numbered
+
+    for name, spec in functions.items():
+        roles = list(spec.get("argRoles") or ())
+        if "weightCentre" in roles or "weightSpread" in roles:
+            assert name == "alma", (name, roles)
+            assert roles == ["source", "period", "weightCentre", "weightSpread"], roles
+            assert list(spec["args"]) == ["series", "int", "series", "series"], spec["args"]
+    assert "alma" in functions, "the weight roles have no subject"
 
     # AND `offset` IS ONLY LEGAL WHERE THE ENTRY BOUNDS IT. The slot must be a
     # `series`, the NEXT slot must be the `int` window, that window must be what the

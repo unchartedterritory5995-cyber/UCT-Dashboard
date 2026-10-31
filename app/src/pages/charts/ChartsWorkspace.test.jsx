@@ -1252,3 +1252,50 @@ test('TERM-001: a saved layout over the bound does not replace a smaller board, 
   expect(setPref.mock.calls.some(([k, v]) => k === 'charts_workspace_layout'
     && JSON.parse(v).widgets.length > MAX_BOARD_WIDGETS)).toBe(false)
 })
+
+// ⛔ REGRESSION (2026-10-30): UCT News was released to every signed-in user, but a
+// member's WIDGETS menu never offered it -- the widget still sat in the Wave R capture
+// gate, which empties the menus of every browser that has not opted into capture
+// (the owner's browser had). Rendered with a MEMBER account and a clean browser.
+describe('UCT News in the WIDGETS menu, for every signed-in role', () => {
+  const chip = (type) => document.querySelector(`[data-guide="workspace.widgets.${type}"]`)
+  const openWidgets = () => {
+    const trigger = [...document.querySelector('header').querySelectorAll('button')].find(b => /widgets/i.test(b.textContent))
+    act(() => { trigger.click() })
+  }
+
+  for (const role of ['user', 'admin']) {
+    test(`a ${role} sees UCT News next to News & Catalysts under Research, and can add it`, () => {
+      localStorage.removeItem('uct.nb.capture.enabled')
+      mockUser = { id: role === 'admin' ? 1 : 42, role }
+      mockPrefs = { charts_workspace_layout: JSON.stringify({ widgets: [], cols: 24 }) }
+      renderWS()
+      openWidgets()
+      const news = chip('tradeExchangeNews')
+      expect(news, `a ${role} is not offered UCT News`).toBeTruthy()
+      expect(news.textContent).toBe('News')
+      expect(news.disabled).toBe(false)
+      // The legacy per-stock widget is still offered, unchanged, beside it.
+      expect(chip('news')?.textContent).toBe('News & Catalysts')
+      const group = news.closest('[class*="wAddGroup"]')
+      expect(group.contains(chip('news')), 'both live in the same (Research) group').toBe(true)
+
+      act(() => { news.click() })
+      expect(screen.getByTestId('body-tradeExchangeNews')).toBeInTheDocument()
+      act(() => { vi.advanceTimersByTime(5000) })
+      const saved = setPref.mock.calls.filter(([k]) => k === 'charts_workspace_layout').map(([, v]) => String(v))
+      expect(saved.some(v => v.includes('"type":"tradeExchangeNews"')), 'the member\'s board was not saved with UCT News').toBe(true)
+    })
+  }
+
+  test('a member still gets no UCT Agent, even with the per-browser flag on', () => {
+    localStorage.setItem('uct.feature.agent', '1')
+    try {
+      mockUser = { id: 42, role: 'user' }
+      renderWS()
+      expect(screen.queryByTestId('agent-launch')).toBeNull()
+    } finally {
+      localStorage.removeItem('uct.feature.agent')
+    }
+  })
+})

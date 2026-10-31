@@ -38,7 +38,7 @@ import { registerBuiltins } from './builtins'
 import { routeManifest, routingEnabled, routingNames } from './routing'
 import { doItForMe } from './capabilities/guide'
 import { createMemory, tickersOfAnswer } from './memory'
-import { resolveReference, subjectTarget } from './references'
+import { resolveReference, subjectTarget, pluralTarget, retargetCorrection } from './references'
 import { resolveFollowUp, resolvePicked } from './conversation'
 import { planCompound, resolveStep, chartsShowing, MAX_STEP_OPS } from './compound'
 import { screenDuplicateAdds, wantsCopy } from './duplicates'
@@ -117,6 +117,11 @@ export function translateRefs(ops, refMap) {
 }
 // "undo that <noun> …" — the target kinds each noun names (F14)
 const UNDO_ABOUT = { indicator: ['indicatorEdits', 'indicatorDrafts'], chart: ['chart'], widget: ['board', 'workspace'], drawing: ['drawing'], layout: ['layouts'] }
+// ⭐ PHASE 3: "undo just the colour change" — a DESCRIPTION of the newest change, checked against what its receipt says
+const UNDO_SAYS = { colour: /\bcolou?r|\bcolou?red\b/i, style: /\bstyle|dashed|dotted|solid|thick|thin|width/i, timeframe: /\btimeframe\b/i, symbol: /\bsymbol\b|\bticker\b/i,
+  pane: /\bpane\b/i, layout: /\blayout\b/i, theme: /\btheme\b/i, resize: /\bresiz|\bsize\b|taller|shorter|wider|narrower/i, size: /\bresiz|\bsize\b|taller|shorter|wider|narrower/i, move: /\bmov(?:e|ed)\b/i, rename: /\brenam/i, link: /\blink/i }
+const undoMatches = (about, entry) => (UNDO_ABOUT[about] ? entry.items.some(it => UNDO_ABOUT[about].includes(it.kind))
+  : UNDO_SAYS[about] ? UNDO_SAYS[about].test((entry.lines || []).join(' ')) : true)
 const kindsOf = (ops) => [...new Set(ops.map(o => getCapability(o?.action)?.target).filter(Boolean))]
 // GATE C: a committed plan → session memory, every target as its CHART ref (a kind's `groupOf`), with
 // the chart's symbol after the change. Never throws (memory is a convenience, not a gate).
@@ -983,8 +988,8 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     }
     // ⛔ F14: "undo that indicator removal" when my newest change was not an indicator change → nothing
     // is undone; the member hears what the newest change WAS (Undo never reaches past it to an older one)
-    if (about && !entry.items.some(it => (UNDO_ABOUT[about] || []).includes(it.kind))) {
-      const text = `My last change wasn't ${about === 'indicator' ? 'an' : 'a'} ${about} change — it was: ${entry.lines.join(' · ') || 'something else'}. Nothing was undone; say “undo” to take that back.`
+    if (about && !undoMatches(about, entry)) {
+      const text = `My last change wasn't ${/^[aeiou]/.test(about) ? 'an' : 'a'} ${about} change — it was: ${entry.lines.join(' · ').replace(/[.]+$/, '') || 'something else'}. Nothing was undone; say “undo” to take that back.`
       push({ role: 'refusal', text })
       record({ member, outcome: text, outcomeData: { kind: 'undo-refused-mismatch' }, telemetry: { path: 'fast', undo: true, refused: true, voice } })
       return false
@@ -1031,6 +1036,24 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     rerender()
     return false
   }, [host, push, record, withdrawPending])
+
+  // ⭐ PHASE 3: "undo all of that" — every change the LAST request committed (memory.lastTurn's Undo entries), newest first,
+  // each through doUndo (its own refusals: protected, another board, changed since). The first that can't be undone
+  // stops it there, and the member is told exactly how many were taken back — never a partial Undo said as a whole one.
+  const undoTurn = useCallback(async ({ member, voice } = {}) => {
+    const ids = (memoryRef.current?.lastTurn?.(epochOf(host))?.undoIds || []).filter(id => undoRef.current.some(e => e.id === id))
+    if (ids.length <= 1) return await doUndo(ids[0] || null, { member, voice })
+    let done = 0
+    for (const id of [...ids].reverse()) {
+      const ok = await doUndo(id, { member: done ? null : member, voice })
+      if (!ok) break
+      done += 1
+    }
+    const text = done === ids.length ? `Took back all ${done} changes from your last request.`
+      : `Took back ${done} of the ${ids.length} changes from your last request, then stopped (above) — the other ${ids.length - done} ${ids.length - done === 1 ? 'is' : 'are'} still in place.`
+    push({ role: 'agent', text })
+    record({ member: null, outcome: text, outcomeData: { kind: 'undo-turn', done, of: ids.length }, telemetry: { path: 'fast', undo: true, voice } })
+  }, [host, doUndo, push, record])
 
   const approve = useCallback(async (count = null, { member, voice } = {}) => {
     const p = pendingRef.current
@@ -1161,8 +1184,8 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       done += 1
       if (r.grid) working = chartsShowing(host, r.grid)
     }
-    const text = `All ${steps.length} steps done.`
-    push({ role: 'agent', text })
+    // one step ("put rsi underneath"): its own receipt says it all
+    if (steps.length > 1) push({ role: 'agent', text: `All ${steps.length} steps done.` })
   }, [host, execute, push, record])
 
   const send = useCallback(async (raw, { voice = false, answering = false } = {}) => {
@@ -1240,6 +1263,22 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         record({ member: text, outcome: a.text, outcomeData: { kind: 'clarify-arg', actions: a.ops.map(o => o.action) }, telemetry: { path: 'fast', clarified: true, voice } })
         return
       }
+      // ⭐ PHASE 3: "actually, change the second chart instead" — my last change, moved: the existing Undo FIRST (it refuses
+      // when the change is protected, on another board or changed since — then nothing else runs), then the same change
+      // on the chart now named (references.retargetCorrection)
+      const moveTo = answering || memRef || pendingRef.current ? null
+        : retargetCorrection(text, { host, memory: memoryRef.current, epoch: epochNow, undoStack: undoRef.current })
+      if (moveTo?.say) {
+        push({ role: 'agent', text: moveTo.say })
+        record({ member: text, outcome: moveTo.say, outcomeData: { kind: 'retarget-refused' }, telemetry: { path: 'fast', refused: true, voice } })
+        return
+      }
+      if (moveTo?.ops) {
+        const reversed = await doUndo(moveTo.undoId, { member: text, voice })
+        if (!reversed) return
+        lastActionsRef.current = moveTo.ops.map(o => o.action)
+        return await execute(moveTo.ops, { path: 'fast', mode: 'apply', member: null, voice })
+      }
       // ⭐ Charts operator P1: whole sentences that name SEVERAL charts — "NVDA on the left and AMD on the right",
       // "show NVDA and AMD side by side", "make the left chart look like the right one" (agent/multiChart.js). The
       // same registry ops through the same execute; anything it can't read with certainty goes on as before.
@@ -1269,7 +1308,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       const followable = !answering && !memRef && !pendingRef.current && !peekAuthoringIntent()
       const followFirst = followable && FOLLOW_CUES.test(text) ? resolveFollowUp(text, { host, memory: memoryRef.current, epoch: epochNow }) : null
       // "put a 20 EMA on it" with several charts and no click: `it` = the chart this conversation last changed
-      const fast0 = answering || followFirst ? null : subjectTarget(memRef || fastParse(text, { host }), text, { host, memory: memoryRef.current, epoch: epochNow })
+      const fast0 = answering || followFirst ? null : pluralTarget(subjectTarget(memRef || fastParse(text, { host }), text, { host, memory: memoryRef.current, epoch: epochNow }), { host, memory: memoryRef.current, epoch: epochNow })
       const follow = followFirst || (followable && !fast0 && !FOLLOW_CUES.test(text) ? resolveFollowUp(text, { host, memory: memoryRef.current, epoch: epochNow }) : null)
       if (follow?.kind === 'say') {
         push({ role: 'agent', text: follow.text })
@@ -1288,6 +1327,12 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         return await execute(follow.ops, { path: 'fast', mode: 'apply', member: text, voice })
       }
       const fast = fast0
+      if (fast?.kind === 'say') {
+        push({ role: 'agent', text: fast.text })
+        record({ member: text, outcome: fast.text, outcomeData: { kind: 'clarify-referent' }, telemetry: { path: 'fast', disposition: 'clarify', voice } })
+        return
+      }
+      if (fast?.kind === 'undo' && fast.all) return await undoTurn({ member: text, voice })
       if (fast?.kind === 'undo') return await doUndo(null, { member: text, voice, about: fast.about || null })
       if (fast?.kind === 'confirm' && pendingRef.current?.kind === 'proposal') return await approve(null, { member: text, voice })
       if (fast?.kind === 'subset' && pendingRef.current?.kind === 'proposal') return await approve(fast.count, { member: text, voice })
@@ -1363,6 +1408,11 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         // "both / all" → one op set per target, applied as ONE change with one Undo
         // (policy.js, owner 2026-10-12). A position hint narrows by the positions the kind
         // publishes; anything still ambiguous asks. A lone target needs no hint.
+        // ⭐ PHASE 3: "switch em to weekly" — `them` resolved to the charts the conversation last changed (pluralTarget)
+        const allOf = fast.target?.refs ? charts.filter(c => fast.target.refs.includes(c.ref)) : charts
+        if (fast.target?.all && allOf.length > 1 && fast.target?.refs) {
+          return await execute(allOf.flatMap(c => fast.ops.map(o => ({ ...o, target: c.ref }))), { path: 'fast', mode: 'apply', member: text, voice })
+        }
         if (fast.target?.all && charts.length > 1) {
           // ⛔ P2-B: "all four charts" with three on the board (or "both" with four) — the member counted a
           // different set than UCT can reach: asked, never a silent partial (or wider) change
@@ -1734,7 +1784,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       setActivity(null)
       turnEnd()
     }
-  }, [push, gridMode, host, record, doUndo, approve, dismiss, execute, runCompound, setConversationId, patchItem, capCtx, streamLine])
+  }, [push, gridMode, host, record, doUndo, undoTurn, approve, dismiss, execute, runCompound, setConversationId, patchItem, capCtx, streamLine])
 
   // ⭐ INDICATORS ⇄ AGENT — the chart's Create Indicator / Modify door opened the Agent on a chart:
   // ask the question and hold ONE intent (indicatorEntry.js). No model call; the member's answer is
