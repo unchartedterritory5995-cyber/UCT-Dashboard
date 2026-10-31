@@ -397,7 +397,12 @@ export function screenModelOps(host, ops, text, capCtx = {}) {
   // F5 — "add it to both / all charts": the charts must be unambiguous before anything is proposed
   const adds = out.filter(o => o?.action === 'indicator.add')
   const many = /\b(both|all|every|each)\b[^.;!?]*\bcharts?\b/i.test(words)
-  if (adds.length && many) {
+  // ⭐ PHASE 3 acceptance (live 2026-10-31): "…four charts for …, and RSI beneath each chart" — adds aimed at the charts THIS
+  // plan creates (their aliases) are the charts "each chart" means; asking "Which charts?" about them was the production
+  // failure. The plan's grid screen (multiChart.screenChartGrid) runs them on those charts once they exist.
+  const made = new Set(out.filter(o => o?.action === 'widget.add' && o.args?.type === 'chart' && o.args?.as).map(o => String(o.args.as)))
+  const onNewCharts = adds.length > 0 && adds.every(o => made.has(String(asChartRef(o.target))))
+  if (adds.length && many && !onNewCharts) {
     const why = multiChartAmbiguity(host, adds, words)
     if (why) return { ops: [], notes, ask: { text: why, choices: [] } }
   }

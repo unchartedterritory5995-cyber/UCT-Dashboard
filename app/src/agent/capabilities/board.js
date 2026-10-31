@@ -216,7 +216,7 @@ export const boardKind = {
     if (p.grid) {
       // the charts this change touched — their cell, link and settings, and the ticker they show
       const g = item.undoData?.grid
-      const gids = [...new Set([...(p.grid.reuse || []).map(r => r.id), ...(g?.added || [])])]
+      const gids = [...new Set([...(p.grid.reuse || []).map(r => r.id), ...(g?.added || []), ...(p.grid.railMoved ? [p.grid.railMoved] : [])])]
       return JSON.stringify(gids.map(id => {
         const w = s.raw.find(x => String(x.id) === id)
         let sym = null
@@ -254,8 +254,17 @@ async function commitGrid(host, g) {
   const colors = {}
   const added = []
   const charts = []
-  const undo = () => ({ added: [...added], geom: Object.fromEntries(Object.keys(geom).filter(id => Object.keys(g.set || {}).includes(id)).map(id => [id, geom[id]])), colors: { ...colors }, charts: [...charts] })
+  // ⭐ PHASE 3 acceptance (replace): the widgets this change removes, whole as they were — Undo restores them
+  let removed = []
+  const undo = () => ({ added: [...added], geom: Object.fromEntries(Object.keys(geom).filter(id => Object.keys(g.set || {}).includes(id)).map(id => [id, geom[id]])), colors: { ...colors }, charts: [...charts], removed: clone(removed) })
   try {
+    if ((g.remove || []).length) {
+      const gone = raw0.filter(w => g.remove.includes(String(w.id)))
+      if (gone.length !== g.remove.length) throw new Error('the board changed before it could be replaced')
+      host.widgets.applyBoard({ remove: [...g.remove] })
+      removed = gone
+      if (!(await settle(() => !rawNow(host).some(w => g.remove.includes(String(w.id)))))) throw new Error('the board did not remove the widgets it was replacing')
+    }
     for (const id of g.unlink || []) {
       const w = raw0.find(x => String(x.id) === id)
       colors[id] = w?.color || 'A'
@@ -309,16 +318,23 @@ async function undoGrid(host, u) {
     await settle(() => (u.added || []).every(id => !rawNow(host).some(w => String(w.id) === id)))
     host.widgets.applyBoard({ set: clone(u.geom) })
   }
+  // a replaced board: every widget it removed comes back whole, into the space the grid has just given back
+  if ((u.removed || []).length) {
+    await settle(() => Object.entries(u.geom || {}).every(([id, r]) => sameRect(rawNow(host).find(x => String(x.id) === id), r)))
+    host.widgets.applyBoard({ restore: clone(u.removed) })
+  }
   return true
 }
 function gridLanded(snap, g) {
   const by = new Map(snap.raw.map(w => [String(w.id), w]))
+  if ((g.remove || []).some(id => by.has(id))) return false
   for (const [id, r] of Object.entries(g.set || {})) if (!sameRect(by.get(id), r)) return false
   for (const id of g.unlink || []) if (by.get(id)?.color !== 'N') return false
   return (g.add || []).every(a => snap.raw.some(w => w.type === (a.type || 'chart') && sameRect(w, a.rect)))
 }
 function gridUndone(snap, u) {
   const by = new Map(snap.raw.map(w => [String(w.id), w]))
+  if ((u.removed || []).some(w => !by.has(String(w.id)))) return false
   if ((u.added || []).some(id => by.has(id))) return false
   for (const [id, r] of Object.entries(u.geom || {})) if (!sameRect(by.get(id), r)) return false
   for (const [id, c] of Object.entries(u.colors || {})) if ((by.get(id)?.color || 'A') !== c) return false
@@ -700,19 +716,24 @@ export function registerBoardCapabilities() {
       + 'target = the ref of the board entry. symbols = the tickers in the member\'s order, uppercase. timeframe = the one timeframe they gave for all of them (1|5|15|30|60 minutes, D, W, M), else null. '
       + 'layout = "columns" for side by side, "rows" for stacked, "grid" for a grid, else null. '
       + 'new_charts = true only when they ask for NEW charts ("in new charts", "add four new charts") — the charts already there then keep their tickers; else null. '
-      + 'watchlist = true when they also ask for a watchlist beside the charts ("…, and a watchlist") and the board has no Watchlist widget: a column on the right is cleared of charts and a Watchlist widget is added there; else null. Never widget.add + chart.setSymbol for this.',
+      + 'watchlist = true when they also ask for a watchlist beside the charts ("…, and a watchlist") and the board has no Watchlist widget: a column on the right is cleared of charts and a Watchlist widget is added there; else null. '
+      + 'replace = true only when the member chose to replace the current board with this workspace; else null. Never widget.add + chart.setSymbol for this.',
     args: { type: 'object', properties: {
       symbols: { type: 'array', items: { type: 'string' } },
       timeframe: { type: ['string', 'null'], enum: [...CHART_TIMEFRAMES, null] },
       layout: { type: ['string', 'null'], enum: [...GRID_PATTERNS, null] },
       new_charts: { type: ['boolean', 'null'] },
       watchlist: { type: ['boolean', 'null'] },
-    }, required: ['symbols', 'timeframe', 'layout', 'new_charts', 'watchlist'], additionalProperties: false },
+      replace: { type: ['boolean', 'null'] },
+    }, required: ['symbols', 'timeframe', 'layout', 'new_charts', 'watchlist', 'replace'], additionalProperties: false },
+    // ⭐ PHASE 3 acceptance: replacing the board removes widgets the member did not name one by one — always shown as a
+    // proposal first (the same rule as removing two or more widgets), never applied on a pick alone
+    confirmIf: (st, args) => args?.replace === true,
     async prepare(ops) {
       const syms = [...new Set(ops.flatMap(o => (Array.isArray(o.args?.symbols) ? o.args.symbols : [])).map(s => String(s || '').trim().toUpperCase()).filter(Boolean))]
       return syms.length ? { unknownSymbols: await unknownSymbols(syms) } : {}
     },
-    check(st, { symbols, timeframe, layout, new_charts: newCharts, watchlist }, env) {
+    check(st, { symbols, timeframe, layout, new_charts: newCharts, watchlist, replace }, env) {
       const s = env?.target
       if (!s) return 'The board is not available.'
       if (!Array.isArray(symbols) || !symbols.length) return 'Which tickers?'
@@ -721,14 +742,15 @@ export function registerBoardCapabilities() {
       const unknown = symbols.map(x => String(x || '').trim().toUpperCase()).filter(x => env?.unknownSymbols?.has?.(x))
       if (unknown.length) return `UCT has no symbol ${andList(unknown.map(u => `“${u}”`))}, so I didn't change the charts.`
       if (st.grid) return 'One chart grid at a time.'
-      const plan = planChartGrid({ board: st.board, charts: s.charts || new Map(), symbols, timeframe, layout, newCharts: newCharts === true, cols: s.grid.cols, rows: s.grid.rows, minOf: s.minOf, maxWidgets: s.maxWidgets ?? 16, detached: s.detached, rail: railOf(watchlist) })
+      const plan = planChartGrid({ board: st.board, charts: s.charts || new Map(), symbols, timeframe, layout, newCharts: newCharts === true, cols: s.grid.cols, rows: s.grid.rows, minOf: s.minOf, maxWidgets: s.maxWidgets ?? 16, detached: s.detached, rail: railOf(watchlist), replace: replace === true })
       return plan.ok ? null : plan.reason
     },
-    apply(st, { symbols, timeframe, layout, new_charts: newCharts, watchlist }, env) {
+    apply(st, { symbols, timeframe, layout, new_charts: newCharts, watchlist, replace }, env) {
       const s = env.target
-      const plan = planChartGrid({ board: st.board, charts: s.charts || new Map(), symbols, timeframe, layout, newCharts: newCharts === true, cols: s.grid.cols, rows: s.grid.rows, minOf: s.minOf, maxWidgets: s.maxWidgets ?? 16, detached: s.detached, rail: railOf(watchlist) })
+      const plan = planChartGrid({ board: st.board, charts: s.charts || new Map(), symbols, timeframe, layout, newCharts: newCharts === true, cols: s.grid.cols, rows: s.grid.rows, minOf: s.minOf, maxWidgets: s.maxWidgets ?? 16, detached: s.detached, rail: railOf(watchlist), replace: replace === true })
       if (!plan.ok) return st
-      const board = st.board.map(w => (plan.set[String(w.id)] ? { ...w, ...plan.set[String(w.id)] } : (plan.unlink.includes(String(w.id)) ? { ...w, color: 'N' } : w)))
+      if (plan.remove.length) plan.removedNames = st.board.filter(w => plan.remove.includes(String(w.id))).map(w => nameOf(w, st.board))
+      const board = st.board.filter(w => !plan.remove.includes(String(w.id))).map(w => (plan.set[String(w.id)] ? { ...w, ...plan.set[String(w.id)] } : (plan.unlink.includes(String(w.id)) ? { ...w, color: 'N' } : w)))
       return { ...st, board, grid: plan }
     },
     describe(b, a) {
@@ -736,12 +758,14 @@ export function registerBoardCapabilities() {
       if (!g || g.noop) return null
       const shape = g.tiled && g.shape && g.shape.rows > 1 && g.shape.cols > 1 && g.symbols.length === g.shape.rows * g.shape.cols ? ` in a ${g.shape.rows}×${g.shape.cols} grid`
         : g.tiled && g.shape?.rows === 1 && g.symbols.length > 1 ? ' side by side' : g.tiled && g.shape?.cols === 1 && g.symbols.length > 1 ? ' stacked' : ''
-      const rail = g.rail ? `, with a new ${label(g.rail)} on the right` : ''
+      const rail = g.rail ? `, with a new ${label(g.rail)} on the right` : g.railMoved ? ', with your Watchlist on the right' : ''
+      // ⭐ PHASE 3 acceptance: a replaced board says exactly what went (and that Undo brings it back)
+      const gone = g.remove?.length ? ` — replacing your board: removed ${andList((g.removedNames || []).map(x => `the ${x}`))} (Undo puts ${g.remove.length === 1 ? 'it' : 'them'} back)` : ''
       if (g.newCharts) return `Added ${gridPhrase(g, { fresh: true })}${g.kept ? ` beside your ${g.kept === 1 ? 'chart' : `${g.kept} charts`}, re-tiled evenly` : ''}${rail}`
       const nNew = g.add.filter(a => !a.type || a.type === 'chart').length
       const parts = [g.reuse.length && nNew ? `${g.reuse.length} reused, ${nNew} new` : nNew ? `${nNew} new` : null,
         g.unlink.length ? `${g.unlink.length} unlinked so ${g.unlink.length === 1 ? 'it' : 'each'} can show its own ticker` : null].filter(Boolean)
-      return `Set up ${gridPhrase(g)}${shape}${parts.length ? ` (${parts.join('; ')})` : ''}${rail}`
+      return `Set up ${gridPhrase(g)}${shape}${parts.length ? ` (${parts.join('; ')})` : ''}${rail}${gone}`
     },
     noop: () => 'Those charts already show those tickers',
   })
