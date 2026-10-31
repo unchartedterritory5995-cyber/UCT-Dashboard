@@ -62,7 +62,7 @@
 // manifest that describes it (obligation 1 of the record's §5).
 
 import {
-  TABLE, NODE_TYPES, RECURRENCES, RECURRENCE_BINDINGS, LOOKBACK_RE,
+  TABLE, NODE_TYPES, RECURRENCES, RECURRENCE_BINDINGS, MULTI_STATES, LOOKBACK_RE,
   SESSION_LOOKBACK, SESSION_MAX_BARS, SERIES_LOOKBACK,
   // ⭐⭐ THE SHARED WINDOW PREDICATE, AND IT IS IN `parse.js` PRECISELY SO THIS
   // IMPORT CAN EXIST. The natural home is beside the fold in `bind.js` — but that
@@ -492,9 +492,12 @@ export function astReach(ast, opts = {}) {
   for (const node of order) {
     if (!node || typeof node !== 'object' || node.type !== 'call') continue
     const rec = own(RECURRENCES, node.name) ? RECURRENCES[node.name] : null
-    if (!rec) continue
-    const body = Array.isArray(node.args) ? node.args[rec.body] : undefined
-    const descend = [body]
+    // ⭐ 2026-10-30 — an `accumK`'s UPDATES are bodies too (`multiState.updates`).
+    const ms = !rec && own(MULTI_STATES, node.name) ? MULTI_STATES[node.name] : null
+    if (!rec && !ms) continue
+    const descend = rec
+      ? [Array.isArray(node.args) ? node.args[rec.body] : undefined]
+      : ms.updates.map((at) => (Array.isArray(node.args) ? node.args[at] : undefined))
     while (descend.length) {
       const x = descend.pop()
       if (!x || typeof x !== 'object' || inRecurrenceBody.has(x)) continue

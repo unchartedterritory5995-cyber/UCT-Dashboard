@@ -14,40 +14,45 @@ tie-breaker -- and every fetch is a KEYSET step from a cursor on that key, in
 either direction. Headlines arriving meanwhile can therefore never shift,
 duplicate or skip a row already loaded or about to load.
 
-⭐ BOUNDED, AND CHEAP WHERE IT MATTERS. The archive is itself bounded
-(``TXN_HISTORY_MAX_AGE_HOURS`` 168 / ``TXN_HISTORY_MAX_ITEMS`` 5,000). Derived
-fields are a pure function of ``(source, content)`` and are cached in two tiers:
+⛔⛔ THE ARCHIVE IS PERMANENT; ONLY CACHES ARE BOUNDED (owner, 2026-10-31). Every
+headline is kept forever (store.py), so nothing here may hold, scan or sort "the
+whole archive" -- at hundreds of thousands or millions of rows that is the cliff
+the old design walked into (one in-memory copy of every row, SCAN_MAX 20,000, a
+full rebuild on every request once the archive outgrew it). Instead:
+  * TAIL -- the newest ``TAIL_MAX`` rows by seq, for /recent and the warmer;
+  * DAYS -- an LRU of whole calendar days (``DAY_CACHE_DAYS`` / ``DAY_CACHE_ROWS``),
+    each read once by a RANGE query on ``ix_txn_headlines_received`` -- its cost is
+    that day's size, never the archive's;
+  * HOURS -- headline counts per UTC hour (the calendar's availability), one
+    aggregate per process, then extended by new seqs;
+  * derivations (category / placeholder / tickers ...) -- fixed-size LRUs.
+Evicting any of them never deletes a row; the next request reads it back.
+
+⭐ CHEAP WHERE IT MATTERS. Derived fields are a pure function of ``(source,
+content)`` and are cached in two tiers:
   * LIGHT -- category, graphic-placeholder, lower-cased text: regexes only. A
     whole-day filter needs only these, unless it names a symbol;
   * FULL  -- what ``pipeline.derived_for`` puts on an event (resolver tickers,
     company names, impact). Made only for rows a response returns, rows a
-    symbol filter must test, and -- at low priority -- by a background warmer.
+    symbol filter must test, and -- at low priority -- by a background warmer
+    over the TAIL.
 ⛔ MEASURED IN PRODUCTION (2026-10-30, ~950 headlines): re-deriving per request
-cost 2-3.5 s; re-READING the archive per request still cost ~2.1 s (in a busy
-process each fetched row hands the GIL back and waits to get it again). Hence the
-derivation caches AND a copy of the archive's index held in memory.
+cost 2-3.5 s; re-READING rows per request still cost ~2.1 s (in a busy process
+each fetched row hands the GIL back and waits to get it again). Hence the
+derivation caches, and rows served from the cached tail/day (``rows_for``) with
+only the current repeat counts read per response.
 
-⛔ THE DATABASE IS THE TRUTH; THE INDEX IS A REBUILDABLE CACHE. It is never
-written anywhere, starts empty in every process (a restart rebuilds it from the
-database), and every request re-checks it against the database:
-  * new headlines -- live or recovered from R2 -- get a NEW seq (AUTOINCREMENT,
-    never reused), so they are exactly the rows after the last one held;
-  * a row never changes once written except its repeat count, so the index holds
-    every other column and a response reads only the current repeat counts
-    (``store.repeats``: the few rows received more than once). ⛔ MEASURED IN
-    PRODUCTION after #532: re-fetching a response's 60 rows from SQLite cost
-    1.5-3.5 s in a busy process (each row hands the GIL back) -- so rows are built
-    from the index (``rows_for``), for /day and /recent alike;
-  * pruning deletes the lowest seqs (count bound) AND any row past the age
-    cutoff -- which may be a recovered headline in the MIDDLE (old receipt time,
-    new seq). So every request compares ``COUNT(*) WHERE seq <= last held`` with
-    the rows held; on a difference it drops the held rows near the age cutoff
-    that are gone, and if anything still disagrees it rebuilds from scratch;
-  * a recreated database (new epoch) discards it.
+⛔ THE DATABASE IS THE TRUTH; EVERY CACHE IS REBUILDABLE. Nothing here is written
+anywhere; every process starts empty. Each request first reads the rows committed
+since the last one (new seqs: AUTOINCREMENT, never reused -- live or recovered
+from R2, whatever their receipt time) and files them into the tail, any cached
+day they belong to and the hour counts. A cached day is ALSO re-counted against
+the database (one indexed COUNT) on every use and re-read on any difference, and
+a new epoch (a recreated or restored database) discards everything.
 
-⭐ HONEST AVAILABILITY. ``days()`` reports only dates that hold retained rows,
-where retention begins, and whether that first day is partial. Nothing older
-than the archive is ever promised.
+⭐ HONEST AVAILABILITY. ``days()`` reports only dates that hold archived rows and
+where the archive begins (the day UCT started receiving Trade Exchange: partial
+by definition, since nothing before it was ever delivered).
 
 Runs on worker threads (``asyncio.to_thread``), never on the single writer: a
 reader connection of its own (WAL), so it cannot delay ingestion; the router
@@ -69,9 +74,12 @@ DEFAULT_LIMIT = 60
 MAX_LIMIT = 200
 MAX_SYMBOLS = 3000
 MAX_QUERY = 80
-#: Rows held: the archive's own bound with headroom (an env override of the count
-#: bound above this would see its oldest rows unindexed, never a crash).
-SCAN_MAX = 20_000
+#: ⭐ The cache bounds -- fixed, never derived from the archive's size. Measured in
+#: tests/test_trade_exchange_news_retention.py (memory and latency at scale).
+TAIL_MAX = 5_000
+DAY_CACHE_DAYS = 64
+DAY_CACHE_ROWS = 60_000
+DERIVED_MAX = 20_000
 CONCURRENT = 2
 #: categories.CATEGORIES, restated so this module imports nothing heavy (the tests
 #: assert the two never drift).
@@ -80,10 +88,9 @@ _SYMBOLISH = re.compile(r"^[A-Z][A-Z0-9.\-]{0,9}$")
 
 
 def _cache_max() -> int:
-    """Derivations kept per tier (LRU): the archive's count bound plus headroom, so
-    a full day never evicts what it is about to need."""
-    from api.services.trade_exchange_news import config
-    return max(6000, config.history_max_items() + 1000)
+    """Derivations kept per tier (LRU): far above any one day, so a full day never
+    evicts what it is about to need; FIXED, so the archive's growth never grows it."""
+    return DERIVED_MAX
 
 
 # ── derivations: LIGHT (regexes) and FULL (the resolver), both LRU-cached ────
@@ -155,70 +162,140 @@ def clear_cache() -> None:
         stats["misses"] = 0
 
 
-# ── the archive's index, in memory, extended incrementally ───────────────────
+# ── the bounded caches over the permanent archive ─────────────────────────
 _idx_lock = threading.Lock()
-#: rows: (seq, source, content, received_at_ms, event_id, via, ingested_at_ms), seq
-#: ascending -- every column that never changes once written. `rebuilds` counts
-#: full reads (a process's first request, a new epoch, or an inconsistency).
-_idx: dict[str, Any] = {"epoch": None, "rows": [], "rebuilds": 0}
-#: Rows received this close to the age cutoff are re-checked when counts differ.
-AGE_SLACK_MS = 15 * 60_000
+#: Index tuples are (seq, source, content, received_at_ms, event_id, via,
+#: ingested_at_ms) -- every column that never changes once written.
+#:   top        -- the highest seq filed into the caches below
+#:   tail       -- the newest TAIL_MAX rows, seq ascending
+#:   days       -- ISO date -> that ET day's rows, seq ascending (LRU, least recent first)
+#:   hours      -- UTC hour -> count, complete up to hours_top (None until first asked)
+#:   rebuilds   -- caches discarded (a process's first request, a new epoch)
+#:   day_loads  -- days read from the database (a miss, or a re-count difference)
+_idx: dict[str, Any] = {}
 
 
-def _read_after(store, rows: list) -> None:
+def _reset(epoch: str | None) -> None:
+    _idx.update(epoch=epoch, top=0, tail=[], days=OrderedDict(), day_rows=0, hours=None, hours_top=0,
+                first_seq=0)
+
+
+_reset(None)
+_idx.update(rebuilds=0, day_loads=0)
+
+
+def _day_key(ms: int, memo: dict[int, str]) -> str:
+    hour = ms // 3_600_000                               # ET offsets are whole hours
+    key = memo.get(hour)
+    if key is None:
+        key = memo[hour] = day_of(ms).isoformat()
+    return key
+
+
+def _sync(store) -> None:
+    """File every row committed since the last call into the caches. Caller holds
+    ``_idx_lock``. A cold cache starts at the newest TAIL_MAX rows -- never a read
+    of the whole archive."""
+    if _idx["epoch"] != store.epoch:
+        _reset(store.epoch)
+        _idx["rebuilds"] += 1
+        last = store.last_seq()
+        _idx["tail"] = list(store.index_before(last + 1, TAIL_MAX)) if last else []
+        _idx["top"] = last
+        _idx["first_seq"] = store.first_seq()
+        return
+    memo: dict[int, str] = {}
     while True:
-        more = store.index_after(rows[-1][0] if rows else 0, 5000)
-        rows.extend(more)
+        more = store.index_after(_idx["top"], 5000)
+        if not more:
+            break
+        tail, days, hours = _idx["tail"], _idx["days"], _idx["hours"]
+        for r in more:
+            tail.append(r)
+            lst = days.get(_day_key(r[3], memo))
+            if lst is not None and (not lst or lst[-1][0] < r[0]):   # a day read meanwhile may hold it
+                lst.append(r)
+                _idx["day_rows"] += 1
+            if hours is not None and r[0] > _idx["hours_top"]:
+                h = r[3] // 3_600_000
+                hours[h] = hours.get(h, 0) + 1
+                _idx["hours_top"] = r[0]
+        if len(tail) > TAIL_MAX:
+            del tail[:len(tail) - TAIL_MAX]
+        _idx["top"] = more[-1][0]
+        if not _idx["first_seq"]:
+            _idx["first_seq"] = store.first_seq()
         if len(more) < 5000:
-            return
+            break
+    _evict_days()
 
 
-def _index(store) -> list[tuple]:
-    """Every retained row, seq ascending -- verified against the database on every
-    call (see the module note). Normally reads a few new rows plus one COUNT.
-    Returns a snapshot list (the caller iterates it without the lock)."""
-    from api.services.trade_exchange_news import config
+def _evict_days() -> None:
+    days = _idx["days"]
+    while days and (len(days) > DAY_CACHE_DAYS or _idx["day_rows"] > DAY_CACHE_ROWS):
+        _, gone = days.popitem(last=False)
+        _idx["day_rows"] -= len(gone)
+
+
+def _day_rows(store, d: _date) -> tuple[list[tuple], int]:
+    """(that ET day's rows seq ascending -- a snapshot, iterate without the lock,
+    the highest seq filed). Served from the day LRU when its count still matches the
+    database (one indexed COUNT), else read by one range query."""
+    start, end = day_bounds(d)
+    key = d.isoformat()
     with _idx_lock:
-        if _idx["epoch"] != store.epoch:
-            _idx.update(epoch=store.epoch, rows=[])
-            _idx["rebuilds"] += 1
-        rows = _idx["rows"]
-        _read_after(store, rows)
-        first = store.first_seq()
-        if not first:
-            rows.clear()
-        elif rows and rows[0][0] < first:                         # the count bound: lowest seqs
-            del rows[:bisect.bisect_left(rows, (first,))]
-        if rows and store.count_upto(rows[-1][0]) != len(rows):
-            # The age bound removed rows anywhere (a recovered headline keeps its
-            # old receipt time under a new seq): re-check those near the cutoff.
-            cutoff = int(time.time() * 1000) - config.history_max_age_ms() + AGE_SLACK_MS
-            near = [r[0] for r in rows if r[3] < cutoff]
-            if near:
-                alive = store.present(near)
-                rows[:] = [r for r in rows if r[3] >= cutoff or r[0] in alive]
-            if store.count_upto(rows[-1][0] if rows else 0) != len(rows):
-                rows.clear()                                     # anything else: start again
-                _idx["rebuilds"] += 1
-                _read_after(store, rows)
-        if len(rows) > SCAN_MAX:
-            del rows[:len(rows) - SCAN_MAX]
-        snapshot = list(rows)
-    _warm_soon(snapshot)
-    return snapshot
+        _sync(store)
+        days = _idx["days"]
+        rows = days.get(key)
+        if rows is not None and store.count_between(start, end) != len(rows):
+            _idx["day_rows"] -= len(rows)
+            del days[key]
+            rows = None
+        if rows is None:
+            rows = list(store.index_between(start, end))
+            _idx["day_loads"] += 1
+            days[key] = rows
+            _idx["day_rows"] += len(rows)
+        days.move_to_end(key)
+        snap = list(rows)
+        top = _idx["top"]
+        _evict_days()
+    _warm_soon(snap)
+    return snap, top
+
+
+def _tail(store) -> tuple[list[tuple], int, int]:
+    """(the newest rows seq ascending -- a snapshot, first seq, last seq)."""
+    with _idx_lock:
+        _sync(store)
+        snap = list(_idx["tail"])
+        first, top = _idx["first_seq"], _idx["top"]
+    _warm_soon(snap)
+    return snap, first, top
+
+
+def _hours(store) -> dict[int, int]:
+    with _idx_lock:
+        _sync(store)
+        if _idx["hours"] is None:
+            _idx["hours"], _idx["hours_top"] = store.hour_counts(0)
+        return dict(_idx["hours"])
 
 
 def clear_index() -> None:
     with _idx_lock:
-        _idx.update(epoch=None, rows=[], rebuilds=0)
+        _reset(None)
+        _idx.update(rebuilds=0, day_loads=0)
 
 
 def cache_stats() -> dict[str, int]:
-    """Sizes only (admin status): rows indexed, derivations cached, full rebuilds."""
+    """Sizes only (admin status): rows held per cache, derivations cached, reloads."""
     with _idx_lock:
-        n, rebuilds = len(_idx["rows"]), _idx["rebuilds"]
+        out = {"tail_rows": len(_idx["tail"]), "days_cached": len(_idx["days"]),
+               "day_rows": _idx["day_rows"], "hours": len(_idx["hours"] or {}),
+               "rebuilds": _idx["rebuilds"], "day_loads": _idx["day_loads"]}
     with _lock:
-        return {"index_rows": n, "derived_light": len(_light), "derived_full": len(_full), "rebuilds": rebuilds}
+        return {**out, "derived_light": len(_light), "derived_full": len(_full)}
 
 
 # ── the background warmer: FULL derivations, newest first, at low priority ───
@@ -312,34 +389,23 @@ def at_ms(d: _date, hhmm: Any) -> int | None:
 
 
 def days(store, now_ms: int | None = None) -> dict[str, Any]:
-    """Retained headline counts per ET date (unfiltered), plus where retention
-    begins. ``first_day_partial`` marks the first retained day when retention may
-    have cut it (the age bound falls inside it, or the count bound is full)."""
-    from api.services.trade_exchange_news import config
-    rows = _index(store)
+    """Archived headline counts per ET date (unfiltered), plus where the archive
+    begins. ``first_day_partial`` is true whenever there is a first day: the archive
+    began during it (nothing before that was ever delivered to UCT)."""
+    hours = _hours(store)
     counts: dict[str, int] = {}
-    by_hour: dict[int, str] = {}                      # ET offsets are whole hours: one lookup per UTC hour
-    for r in rows:
-        at = r[3]
-        hour = at // 3_600_000
-        key = by_hour.get(hour)
-        if key is None:
-            key = by_hour[hour] = day_of(at).isoformat()
-        counts[key] = counts.get(key, 0) + 1
+    memo: dict[int, str] = {}
+    for h, n in hours.items():
+        key = _day_key(h * 3_600_000, memo)
+        counts[key] = counts.get(key, 0) + n
     now = int(time.time() * 1000) if now_ms is None else now_ms
-    oldest = min((r[3] for r in rows), default=None)
-    newest = max((r[3] for r in rows), default=None)
+    oldest, newest = store.received_range()
     first_day = day_of(oldest) if oldest is not None else None
-    partial = False
-    if first_day is not None:
-        start, end = day_bounds(first_day)
-        age_cut = now - config.history_max_age_ms()
-        partial = start < age_cut < end or len(rows) >= config.history_max_items()
     return {"today": today(now).isoformat(), "oldest_ms": oldest, "newest_ms": newest,
-            "first_day": first_day.isoformat() if first_day else None, "first_day_partial": partial,
-            "days": [{"date": k, "count": v} for k, v in sorted(counts.items())],
-            "retention": {"max_age_hours": config.history_max_age_ms() // 3_600_000,
-                          "max_items": config.history_max_items()}}
+            "first_day": first_day.isoformat() if first_day else None,
+            "first_day_partial": first_day is not None,
+            "days": [{"date": k, "count": v} for k, v in sorted(counts.items()) if v],
+            "retention": {"permanent": True}}
 
 
 # ── one day's slice ───────────────────────────────────────────────────────────
@@ -347,20 +413,23 @@ def days(store, now_ms: int | None = None) -> dict[str, Any]:
 def rows_for(store, picked: list[tuple]) -> list[dict[str, Any]]:
     """Index tuples -> the row dicts ``pipeline.headline_event`` reads, with the
     CURRENT repeat counts. No per-row database read."""
-    reps = store.repeats() if picked else {}
+    reps = store.repeats_for([t[0] for t in picked]) if picked else {}
     return [{"seq": t[0], "source": t[1], "content": t[2], "received_at_ms": t[3], "event_id": t[4],
              "via": t[5], "ingested_at_ms": t[6], "repeat_count": reps.get(t[0], 0)} for t in picked]
 
 
 def recent_rows(store, limit: int, before: int | None = None) -> tuple[list[dict[str, Any]], int, int]:
-    """/recent from the index: the newest ``limit`` (seq order), or those before
-    ``before``. Returns (rows seq ascending, first_seq, last_seq)."""
-    rows = _index(store)
+    """/recent: the newest ``limit`` (seq order), or those before ``before`` -- from
+    the cached tail, or one keyset read below it. Returns (rows seq ascending,
+    first_seq, last_seq)."""
+    rows, first, top = _tail(store)
+    limit = int(limit)
     if before:
         rows = rows[:bisect.bisect_left(rows, (int(before),))]
-    picked = rows[-int(limit):] if limit else []
-    full = _idx["rows"]
-    return rows_for(store, picked), (full[0][0] if full else 0), (full[-1][0] if full else 0)
+        if len(rows) < limit and not (rows and rows[0][0] <= first):
+            rows = store.index_before(int(before), limit)        # older than the tail
+    picked = rows[-limit:] if limit else []
+    return rows_for(store, picked), first, top
 
 
 def _clean_syms(raw: Iterable[Any] | None) -> frozenset[str] | None:
@@ -410,9 +479,7 @@ def day_slice(store, *, day: _date, limit: int = DEFAULT_LIMIT, cursor: Any = No
     sym = str(symbol).strip().upper() if symbol else None
     syms = _clean_syms(symbols)
 
-    rows = _index(store)
-    top = rows[-1][0] if rows else 0
-    day_rows = [r for r in rows if start <= r[3] < end]
+    day_rows, top = _day_rows(store, day)
     day_rows.sort(key=lambda r: (r[3], r[0]), reverse=True)
     match: list[tuple[int, int]] = []                 # (received_at_ms, seq), newest first
     by_seq: dict[int, tuple] = {}

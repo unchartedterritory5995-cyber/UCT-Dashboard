@@ -14,6 +14,18 @@ Reads (nothing here asks the engine anything; it joins what the door answered):
 Writes coverage-map.json: deterministic (sorted keys, no wall-clock stamp unless
 --measured-on is passed), so a daily job can recompute and DIFF it.
 
+⭐⭐ THE RUNTIME-ON LANE (Phase 3, WS-0), optional:
+  --runtime-cache     a SECOND census cache, run with `run_census.py --runtime-on`
+  --runtime-verdicts  a vendor-harness verdicts.json run with VENDOR_HARNESS_RUNTIME_ON=1
+adds a `runtimeOn` section: the transfer count with the runtime pane on at every peel
+step (same predicate as `runtimeClean`: a runtime-lane attach counts, an order-placing
+strategy never does), what it adds and loses against production, the runtime lane's
+own walls per script, and the parity verdicts with the pane on, capture by capture
+against the production run.
+⛔ Every input names its lane, and this refuses to mix them: --cache and --verdicts
+must be PRODUCTION, the two runtime inputs RUNTIME-ON (a census row or verdicts file
+written before WS-0 carries no lane and reads as production).
+
 THE HEADLINE PREDICATE lives in the census (`isClean`): a script TRANSFERS FULLY when
 the member door (memberPaneDefinition -> installUserDefinitions, production flag
 state) attaches it with zero refusals, nothing dropped or withheld from its object
@@ -402,6 +414,139 @@ def walls_of(row, inv, version, items=frozenset(), decl="indicator"):
     return keys, detail
 
 
+LANE_PRODUCTION = "production"
+LANE_RUNTIME_ON = "runtime-on"
+
+
+def read_census(cache, lane, what):
+    """census.jsonl as {key: row}, refusing rows of another lane."""
+    census = {}
+    lanes = collections.Counter()
+    for l in open(os.path.join(cache, "census.jsonl"), encoding="utf-8"):
+        if l.strip():
+            d = json.loads(l)
+            census[d["key"]] = d
+            lanes[d.get("lane") or LANE_PRODUCTION] += 1
+    if set(lanes) - {lane}:
+        sys.exit("%s: census rows of lane %s, expected only %s" % (what, dict(lanes), lane))
+    return census
+
+
+def read_verdicts(path, lane, what):
+    vd = json.load(open(path, encoding="utf-8"))
+    got = vd.get("lane") or LANE_PRODUCTION
+    if got != lane:
+        sys.exit("%s: verdicts of lane %s, expected %s (%s)" % (what, got, lane, path))
+    return vd
+
+
+def runtime_walls_of(row):
+    """The runtime lane's walls over every peel step of a runtime-on census row:
+    its probe's guard where it declined with a position, else its decline code, else
+    the host's guards (a refusal the runtime lane was never offered)."""
+    walls = []
+    for si, st in enumerate(row.get("steps") or []):
+        if st.get("attached"):
+            break
+        if st.get("threw"):
+            walls.append("threw")
+            continue
+        pr = st.get("rtProbe") or {}
+        rd = st.get("runtimeDeclined") or {}
+        # ⛔ peel artifacts: a refusal on the peel's own `x = 0.0`, or a name the peel
+        # blanked (most often a tuple binding)
+        if si > 0 and re.match(r"^[A-Za-z_]\w*\s*=\s*0\.0$", (pr.get("text") or "").strip()):
+            continue
+        g = pr.get("guard") or rd.get("code")
+        if not g:
+            gs = sorted({r.get("guard") for r in st.get("refusals") or []} - {None}) or [st.get("guard") or "unnamed"]
+            g = "host:" + ",".join(gs)
+        if si > 0 and g == "pine:undefined":
+            continue
+        walls.append(g)
+    return walls
+
+
+def runtime_on_section(rt_cache, rt_verdicts, prod_verdicts, scripts, decl_of, orders_of, norm_src, inputs, N):
+    """⭐ The runtime-on lane, measured: see the module docstring."""
+    rows = read_census(rt_cache, LANE_RUNTIME_ON, "--runtime-cache")
+    missing = [s["key"] for s in scripts if s["key"] not in rows]
+    if missing:
+        sys.exit("--runtime-cache has no row for %d sample scripts (first %s) - re-run run_census.py --runtime-on"
+                 % (len(missing), missing[0]))
+
+    def transfers(key):
+        r = rows[key]
+        st0 = (r.get("steps") or [{}])[0]
+        return not orders_of(key) and (bool(r.get("clean")) or (bool(r.get("attached")) and st0.get("lane") == "runtime"))
+
+    by_key = {s["key"]: s for s in scripts}
+    on = {s["key"] for s in scripts if transfers(s["key"])}
+    prod = {s["key"] for s in scripts if s["clean"]}
+    walls = {}
+    touches, first, stuck = collections.Counter(), collections.Counter(), collections.Counter()
+    enumerated = 0
+    for s in scripts:
+        k = s["key"]
+        if k in on:
+            continue
+        r = rows[k]
+        ws = runtime_walls_of(r)
+        walls[k] = ws
+        for w in set(ws):
+            touches[w] += 1
+        first[ws[0] if ws else "attached-dirty"] += 1
+        stuck[r.get("stuck") or ("reached" if r.get("reachedAfterPeel") else "cap")] += 1
+        if r.get("reachedAfterPeel"):
+            enumerated += 1
+    by_pop = {}
+    for pop in ("committed", "reference", "builtin"):
+        ks = [s["key"] for s in scripts if s["population"] == pop]
+        by_pop[pop] = {"scripts": len(ks), "transfer": sum(1 for k in ks if k in on)}
+    attached_rt = sorted(s["key"] for s in scripts if (rows[s["key"]].get("steps") or [{}])[0].get("lane") == "runtime"
+                         and rows[s["key"]].get("attached"))
+    out = {
+        "lane": LANE_RUNTIME_ON,
+        "definition": ("The member door with the runtime pane ON at every peel step, as a permitted member with "
+                       "every script graded (the server's starter allowlist is NOT applied: an upper bound). A script "
+                       "transfers when it transfers fully on the host lane or attaches on the runtime lane, and is "
+                       "not a strategy that places orders. Door acceptance, not numeric parity."),
+        "sample": N, "transfer": len(on), "transferPct": round(100.0 * len(on) / N, 1) if N else None,
+        "productionTransfer": len(prod),
+        "added": sorted(on - prod), "lost": sorted(prod - on),
+        "byPopulation": by_pop,
+        "runtimeAttached": len(attached_rt),
+        "runtimeAttachedOrderStrategies": sorted(k for k in attached_rt if orders_of(k)),
+        "walls": {
+            "notTransferring": len(walls), "fullyEnumerated": enumerated,
+            "touches": dict(sorted(touches.items(), key=lambda kv: (-kv[1], kv[0]))),
+            "first": dict(sorted(first.items(), key=lambda kv: (-kv[1], kv[0]))),
+            "stuck": dict(sorted(stuck.items(), key=lambda kv: (-kv[1], kv[0]))),
+            "byScript": {k: walls[k] for k in sorted(walls)},
+        },
+        "parity": None,
+    }
+    if rt_verdicts:
+        rv = read_verdicts(rt_verdicts, LANE_RUNTIME_ON, "--runtime-verdicts")
+        pv = {r["file"]: r.get("verdict") for r in (prod_verdicts or {}).get("results", [])}
+        changed = collections.Counter()
+        changes = []
+        for r in rv.get("results", []):
+            before = pv.get(r["file"])
+            if before is not None and before != r.get("verdict"):
+                changed["%s->%s" % (before, r.get("verdict"))] += 1
+                changes.append({"file": r["file"], "from": before, "to": r.get("verdict")})
+        out["parity"] = {
+            "captures": len(rv.get("results", [])),
+            "verdicts": dict(sorted(collections.Counter(r.get("verdict") for r in rv.get("results", [])).items())),
+            "productionVerdicts": dict(sorted(collections.Counter(pv.values()).items())),
+            "changed": dict(sorted(changed.items())), "changes": sorted(changes, key=lambda c: c["file"]),
+            "runtimeDeclines": (rv.get("laneEvidence") or {}).get("declines"),
+            "laneEvidence": {k: v for k, v in (rv.get("laneEvidence") or {}).items() if k != "declines"},
+        }
+    return out
+
+
 def key_label(k):
     kind, v = k
     if kind == "item":
@@ -439,6 +584,8 @@ def main():
     ap.add_argument("--tables")
     ap.add_argument("--measured-on", default=None)
     ap.add_argument("--master-sha", default=None)
+    ap.add_argument("--runtime-cache", default=None, help="a census cache run with run_census.py --runtime-on")
+    ap.add_argument("--runtime-verdicts", default=None, help="verdicts.json from VENDOR_HARNESS_RUNTIME_ON=1")
     a = ap.parse_args()
     try:
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -449,11 +596,7 @@ def main():
     inv = Inventory(ref)
     cache = os.path.abspath(a.cache)
     manifest = {r["key"]: r for r in json.load(open(os.path.join(cache, "sample_manifest.json"), encoding="utf-8"))["rows"]}
-    census = {}
-    for l in open(os.path.join(cache, "census.jsonl"), encoding="utf-8"):
-        if l.strip():
-            d = json.loads(l)
-            census[d["key"]] = d
+    census = read_census(cache, LANE_PRODUCTION, "--cache")
     inputs = {i["key"]: i for i in json.load(open(os.path.join(cache, "census_input.json"), encoding="utf-8"))}
 
     # ── the sample: one row per script
@@ -495,13 +638,15 @@ def main():
         })
     N = len(scripts)
     clean = [s for s in scripts if s["clean"]]
+    decl_by_key = {s["key"]: s["declaration"] for s in scripts}
+    items_by_key = {s["key"]: s["_items"] for s in scripts}
 
     # ── vendor parity evidence
     # a capture is joined to a sample script by its source, whitespace-insensitive
     def norm_src(t):
         return hashlib.sha1(re.sub(r"\s+", "", t).encode("utf-8")).hexdigest()
     by_norm = {norm_src(open(inputs[s["key"]]["path"], encoding="utf-8").read()): s for s in scripts}
-    vd = json.load(open(a.verdicts, encoding="utf-8"))
+    vd = read_verdicts(a.verdicts, LANE_PRODUCTION, "--verdicts")
     verified_items, diverge_items = collections.Counter(), collections.Counter()
     cap_rows = []
     for r in vd.get("results", []):
@@ -744,6 +889,10 @@ def main():
             "notClean": len(notclean), "wallsFullyEnumerated": len(enumerated),
         },
         "crossSymbolPrefixes": dict(sym_prefix.most_common()),
+        "runtimeOn": runtime_on_section(
+            os.path.abspath(a.runtime_cache), a.runtime_verdicts, vd, scripts,
+            None, lambda k: decl_by_key[k] == "strategy" and bool(items_by_key[k] & STRATEGY_ORDERS),
+            norm_src, inputs, N) if a.runtime_cache else None,
         "engineTableThroughPineDoor": engine_door,
         "scripts": [{k: v for k, v in s.items() if not k.startswith("_")} for s in scripts],
     }
@@ -758,6 +907,13 @@ def main():
         h["transfer"], N, h["transferPct"], h["attachedAnyForm"], h["attachedPct"],
         h["runtimeCounterfactualTransfer"], h["runtimeCounterfactualPct"]))
     print("by population", json.dumps(by_pop))
+    ro = out.get("runtimeOn")
+    if ro:
+        print("RUNTIME-ON %d/%d = %s%% (production %d; +%d added, -%d lost; runtime-attached %d)" % (
+            ro["transfer"], N, ro["transferPct"], ro["productionTransfer"], len(ro["added"]), len(ro["lost"]),
+            ro["runtimeAttached"]))
+        if ro["parity"]:
+            print("RUNTIME-ON parity", json.dumps(ro["parity"]["verdicts"]), "changed", json.dumps(ro["parity"]["changed"]))
     print("parity", json.dumps(out["parity"]["verdicts"]), "examples", examples_clean, "/", examples_total)
     print("status", json.dumps(dict(status_counts)))
     print("weighted", json.dumps(dict(weighted)))
