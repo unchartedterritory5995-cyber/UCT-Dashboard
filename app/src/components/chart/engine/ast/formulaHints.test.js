@@ -41,8 +41,13 @@ describe('the mistakes members make get the fix', () => {
     expect(hint.length).toBeLessThan(240)
   })
 
-  it('sar says why, and names what IS available', () => {
-    expect(hintFor('sar(0.02, 0.02, 0.2)')).toMatch(/not available as a formula yet.*supertrend\(3, 10\)/)
+  it('sar is a formula now (2026-10-30), and the TradingView three-argument form is told how to write it', () => {
+    // ⚰️ This said SAR was "not available as a formula yet". `sar(step, maxStep)` ships
+    // over `accum4`; the refusal of the 3-argument form is the expansion's own sentence.
+    const r = parseFormula('sar(0.02, 0.02, 0.2)')
+    expect(r.ok).toBe(false)
+    expect(r.error).toMatch(/sar\(step, maxStep\).*ta\.sar\(start, increment, maximum\).*sar\(0\.02, 0\.2\)/)
+    expect(parseFormula('sar(0.02, 0.2)').ok).toBe(true)
   })
 
   it('stays silent when it has nothing honest to say', () => {
