@@ -3,10 +3,11 @@
 ⛔ DARK BY DEFAULT. ``TXN_ENABLED`` must be exactly ``"1"``: the ingest route
 does not match, the pipeline never starts and nothing touches /data.
 
-⚠️ History bounds are the OWNER-APPROVED TARGET (7 days / 5,000 headlines,
-whichever comes first) and are "subject to confirmed Trade Exchange retention
-and redistribution permissions". Until that confirmation exists the flag stays
-off; the numbers are here so the bound is enforced the moment it is on.
+⛔⛔ PERMANENT RETENTION (owner, 2026-10-31; Trade Exchange authorized indefinite
+storage). There is NO history bound any more: no age, no count. The former
+``TXN_HISTORY_MAX_AGE_HOURS`` / ``TXN_HISTORY_MAX_ITEMS`` /
+``TXN_JOURNAL_RETENTION_HOURS`` are read by nothing -- setting them changes
+nothing, so a typo or a negative value can never shorten retention again.
 """
 from __future__ import annotations
 
@@ -59,18 +60,22 @@ def dedupe_window_ms() -> int:
     return int(_float("TXN_DEDUPE_WINDOW_S", 60.0) * 1000)
 
 
-def history_max_age_ms() -> int:
-    return _int("TXN_HISTORY_MAX_AGE_HOURS", 168, lo=1) * 3600 * 1000
+#: Settings retired by permanent retention. Nothing reads them; the admin status
+#: names any still set so they can be removed from the environment.
+RETIRED_ENV = ("TXN_HISTORY_MAX_AGE_HOURS", "TXN_HISTORY_MAX_ITEMS", "TXN_JOURNAL_RETENTION_HOURS")
 
 
-def history_max_items() -> int:
-    return _int("TXN_HISTORY_MAX_ITEMS", 5000, lo=1)
+def retired_env_set() -> list[str]:
+    return [k for k in RETIRED_ENV if os.environ.get(k) is not None]
 
 
-def journal_retention_ms() -> int:
-    """How long the R2 journal keeps a record (its bucket lifecycle rule; the
-    runbook sets 8 days). Recovery never reaches further back than this."""
-    return _int("TXN_JOURNAL_RETENTION_HOURS", 192, lo=1) * 3600 * 1000
+def boot_recovery_window_ms() -> int:
+    """How far back recovery reaches when the database is EMPTY (a fresh or lost
+    volume): the recent days, so live News is whole again within minutes. Older
+    history comes back from a snapshot or ``tools/txn_rebuild_from_r2.py``
+    (docs/runbooks/trade-exchange-news-retention.md), never from this loop.
+    A database that holds anything recovers from its own cursor, however old."""
+    return _int("TXN_BOOT_RECOVERY_WINDOW_HOURS", 192, lo=1) * 3600 * 1000
 
 
 def storage_permitted() -> bool:
