@@ -130,6 +130,11 @@ CREATE TABLE IF NOT EXISTS regime_change_comparison_spans (
 -- database, one index namespace, so whichever module ran second got no index (2026-10-31).
 CREATE INDEX IF NOT EXISTS idx_regc_spans_pred
     ON regime_change_comparison_spans(predicate_id);
+-- The old shared name is left behind on a DB that predates the rename, duplicating
+-- whichever new index now covers its table. Dropped only AFTER this module's own index
+-- exists, so the table is never without one; IF EXISTS makes it a no-op on a fresh DB
+-- and on every later run. rating_change_compare carries the same line.
+DROP INDEX IF EXISTS idx_rc_spans_pred;
 
 CREATE TABLE IF NOT EXISTS regime_change_heartbeat (
     key         TEXT PRIMARY KEY,
