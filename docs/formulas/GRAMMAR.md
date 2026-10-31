@@ -89,7 +89,7 @@ declare — how many operands they take and what they answer.
 | `!` | 1 | true or false |
 | `?:` | 3 | passthrough |
 
-## Functions (79)
+## Functions (83)
 
 `Needs` is how far back the function reads — the number the engine adds up to
 decide whether a formula can run at all.
@@ -98,7 +98,9 @@ decide whether a formula can run at all.
 |---|---|---|---|
 | `abs(source)` | a number | 0 bars | the absolute value of `source` |
 | `accum(seed, update, warmupPeriod)` | a number | whatever `warmupPeriod` asks for | the running value that starts at `seed` and becomes `update` on each of the last `warmupPeriod` bars |
+| `acos(source)` | a number | 0 bars | the arccosine of `source` |
 | `adx(high, low, close, period)` | a number | 2*arg3 | the `period`-bar ADX of `high`, `low` and `close` |
+| `alma(source, period, weightCentre, weightSpread)` | a number | whatever `period` asks for | the `period`-bar Arnaud Legoux average of `source` at offset `weightCentre` and sigma `weightSpread` |
 | `aroonDown(period)` | a number | whatever `period` asks for | the Aroon down over this bar and the `period` before it, 100 when this bar set the low and 0 when it was `period` bars ago |
 | `aroonUp(period)` | a number | whatever `period` asks for | the Aroon up over this bar and the `period` before it, 100 when this bar set the high and 0 when it was `period` bars ago |
 | `atan(source)` | a number | 0 bars | the arctangent of `source` |
@@ -150,12 +152,14 @@ decide whether a formula can run at all.
 | `nz(left, right)` | a number | 0 bars | `left` where it is known, and `right` where it is not |
 | `obvN(period)` | a number | whatever `period` asks for | the signed volume of the last `period` bars, which is on-balance volume's change across that window |
 | `percentileLinearInterpolation(source, period, percentage)` | a number | whatever `period` asks for | the `percentage`th percentile of `source` over the last `period` bars, linearly interpolated between the two nearest ranks |
+| `percentileNearestRank(source, period, percentage)` | a number | whatever `period` asks for | the nearest-rank `percentage`th percentile of `source` over the last `period` bars |
 | `percentrank(source, period)` | a number | whatever `period` asks for | the `period`-bar percent rank of `source` |
 | `pivothigh(source, leftPeriod, rightPeriod)` | a number | whatever `leftPeriod` asks for | the `source` of a bar that is the highest in the `leftPeriod` bars before it and the `rightPeriod` bars after it |
 | `pivotlow(source, leftPeriod, rightPeriod)` | a number | whatever `leftPeriod` asks for | the `source` of a bar that is the lowest in the `leftPeriod` bars before it and the `rightPeriod` bars after it |
 | `plusDI(high, low, close, period)` | a number | whatever `period` asks for | the `period`-bar +DI of `high`, `low` and `close` |
 | `pow(left, right)` | a number | 0 bars | `left` raised to the power `right` |
 | `pvtN(period)` | a number | whatever `period` asks for | the change in price-volume trend across the last `period` bars |
+| `rci(source, period)` | a number | whatever `period` asks for | the `period`-bar rank correlation index of `source` |
 | `rising(source, period)` | true or false | whatever `period` asks for | `source` rising for `period` bars |
 | `rma(source, period)` | a number | whatever `period` asks for | the `period`-bar Wilder average of `source` |
 | `round(source)` | a number | 0 bars | `source` rounded to a whole number |

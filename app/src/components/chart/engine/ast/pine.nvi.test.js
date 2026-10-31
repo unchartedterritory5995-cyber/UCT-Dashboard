@@ -16,15 +16,17 @@
 // seed. The probe's `N02_bar_index_SEED_IS_AT_ZERO` channel is what caught that;
 // the full history was then loaded through the chart's own `All` button.
 //
-// This file does not test the engine — `ta.nvi` is NOT pinned yet. It tests that
-// the CAPTURE is internally consistent, so the reading cannot rot into a number
-// nobody can re-derive.
+// This file tests that the CAPTURE is internally consistent, so the reading cannot
+// rot into a number nobody can re-derive — and (since 2026-10-30) that the engine's
+// `ta.nvi` starts at that seed.
 
 import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 import url from 'node:url'
 import { translatePine } from './pine.js'
+import { parseFormula } from './parse.js'
+import { interpret } from './interpret.js'
 
 const HERE = path.dirname(url.fileURLToPath(import.meta.url))
 const REPO = path.resolve(HERE, '..', '..', '..', '..', '..', '..')
@@ -87,14 +89,26 @@ describe('⭐⭐ the seed, and the rule that rides on it', () => {
   })
 })
 
-describe('⛔ `ta.nvi` is NOT pinned yet, and the door still says so', () => {
-  it('it refuses at pine:function', () => {
+describe('⭐ `ta.nvi` IS PINNED NOW (Pine coverage Phase 1, 2026-10-30), to the seed above', () => {
+  // ⚰️ This block asserted a `pine:function` refusal and said: "When it IS pinned,
+  // this flips and the seed above is what it must be pinned TO — 1." It is pinned:
+  // a pane gets `exp(cum(...))` over TradingView's published update rule, and the
+  // full-history capture (`vw-nvi-pvi-spy-1d-full-2026-09-27`) is matched bar for
+  // bar in `pinePhase1Builtins.test.js`. What stays here is the seed.
+  it('a pane translates it, and the first bar reads exactly 1', () => {
     const out = translatePine(
-      '//@version=6\nindicator("p", overlay=false)\nplot(ta.nvi)\n', { strict: true })
-    const r = out.refusals || []
-    expect(r.length).toBe(1)
-    expect(r[0].guard).toBe('pine:function')
-    // ⭐ When it IS pinned, this flips and the seed above is what it must be
-    // pinned TO — 1, not 100, not 1000.
+      ['//@version=6', 'indicator("p", overlay=false)', 'plot(ta.nvi)', ''].join(String.fromCharCode(10)),
+      { strict: true })
+    expect(out.refusals || []).toEqual([])
+    const row = out.outputs.find((o) => o.formula)
+    const bars = [
+      { t: 1, o: 10, h: 10, l: 10, c: 10, v: 500 },
+      { t: 2, o: 11, h: 11, l: 11, c: 11, v: 400 },   // volume FELL: moves by +10%
+      { t: 3, o: 12, h: 12, l: 12, c: 12, v: 400 },   // volume UNCHANGED: held
+    ]
+    const col = interpret(parseFormula(row.formula).ast, bars)
+    expect(col[0]).toBe(1)
+    expect(col[1]).toBeCloseTo(1.1, 12)
+    expect(col[2]).toBe(col[1])
   })
 })
