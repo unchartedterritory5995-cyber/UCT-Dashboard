@@ -162,7 +162,7 @@ import {
 } from '../indicators'
 import { serverColumnsFor, notifyColumnsLanded } from './serverCompute'
 import { runtimeKillOf } from './runtimeKill'
-import { runtimePaneEnabled } from './runtimePaneGate'
+import { runtimePaneEnabled, runtimePanePermitted } from './runtimePaneGate'
 import { runtimeWarmupOf } from './runtime/runtimeObjects'
 
 // ─── shared fragments ────────────────────────────────────────────────────────
@@ -3005,10 +3005,37 @@ function loadRuntimeLane() {
  *  lane at all. */
 export const RUNTIME_LOAD_FAILED_GUARD = 'runtime:load-failed'
 
+/** ⭐ WS-I (S6) — the guards a LOADED lane answers with when, since the pane was
+ *  installed, the runtime pane was switched off for this member or the script was
+ *  put on the kill list. */
+export const RUNTIME_SWITCHED_OFF_GUARD = 'runtime:switched-off'
+export const RUNTIME_KILLED_GUARD = 'runtime:killed'
+
 function runtimeColumnsOrReasons(def, bars, inputs, ctx) {
   const keys = Object.keys((def.compute && def.compute.outputs) || {})
   const reasonFor = (guard, message) => withColumnErrors({},
     Object.fromEntries(keys.map((k) => [k, { guard, message }])))
+  // ⭐⭐ WS-I (S6) — EVERY RUN RE-ASKS THE PER-MEMBER PERMISSION AND THE KILL LIST.
+  // Once the lane is loaded nothing below consulted either again, so a switch-off
+  // (or a kill) that reached this tab — the latch's one-way revocation, the lists'
+  // re-read — never stopped a pane already drawing. Now the pane's NEXT run draws
+  // nothing and says why; the saved definition is untouched, and a permission that
+  // comes back draws again. Both reads are local (no network on the paint path).
+  // ⛔ The PERMISSION, not `runtimePaneEnabled()`: the build flag is baked into the
+  // bundle and cannot change under an open tab, and the lane is loaded only after
+  // it was on (`loadRuntimeLane`); re-reading it here adds nothing a tab can reach.
+  if (_runtimeLane && !runtimePanePermitted()) {
+    return reasonFor(RUNTIME_SWITCHED_OFF_GUARD, 'scripts drawn bar by bar are switched off for '
+      + 'you right now, so this one is not drawn. The chart is unaffected and the saved '
+      + 'definition is kept.')
+  }
+  if (_runtimeLane) {
+    const killed = runtimeKillOf({ defId: def.id, source: def.compute && def.compute.source })
+    if (killed) {
+      return reasonFor(RUNTIME_KILLED_GUARD, `${killed}. The saved definition is kept; it comes `
+        + 'back when it is taken off the list.')
+    }
+  }
   if (!_runtimeLane) {
     if (_runtimeLoadFailed !== null && runtimePaneEnabled()) {
       return reasonFor(RUNTIME_LOAD_FAILED_GUARD, 'the part of the app that draws a script bar by bar could not '
