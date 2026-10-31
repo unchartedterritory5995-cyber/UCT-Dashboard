@@ -171,3 +171,36 @@ def test_the_admin_read_aggregates_by_guard_and_by_script(db):
 
 def test_the_read_is_admin_only(db):
     assert _client("member").get("/api/pine-runtime-telemetry/stops").status_code == 403
+
+
+# ─── mounted: the production app serves it (not the SPA catch-all) ──────────
+
+@pytest.fixture(scope="module")
+def real_app():
+    from api.main import app
+    return app
+
+
+def _owners(app, method: str, path: str) -> list:
+    out = []
+    for r in getattr(app, "routes", []):
+        if getattr(r, "path", None) == path and method in (getattr(r, "methods", None) or set()):
+            ep = getattr(r, "endpoint", None)
+            out.append(f"{getattr(ep, '__module__', '?')}.{getattr(ep, '__name__', '?')}")
+    return out
+
+
+@pytest.mark.parametrize("method,path", [("POST", URL), ("GET", "/api/pine-runtime-telemetry/stops")])
+def test_the_routes_are_mounted_on_api_main_exactly_once(real_app, method, path):
+    owners = _owners(real_app, method, path)
+    assert owners, f"{method} {path} is not mounted on api.main:app"
+    assert len(owners) == 1, owners
+    assert owners[0].startswith("api.routers.pine_runtime_telemetry."), owners
+
+
+def test_the_mounted_route_ANSWERS_and_refuses_a_signed_out_beacon(real_app, db):
+    """A route the SPA catch-all swallowed would answer 405 or HTML; this one
+    answers its own 401, and stores nothing."""
+    got = TestClient(real_app).post(URL, json=GOOD)
+    assert got.status_code == 401, (got.status_code, got.text[:200])
+    assert _rows() == []
