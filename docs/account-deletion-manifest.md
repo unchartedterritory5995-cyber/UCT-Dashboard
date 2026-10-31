@@ -49,11 +49,12 @@ the wave-6 close and 20 short by wave 7 (wave 7 lane J, J4).
 
 <!-- BEGIN GENERATED: python tools/account_deletion_manifest.py --write (derived from api/services/journal_two/account_purge.py) -- never hand-edit -->
 
-**120 tables** (110 direct by `user_id`, 3 direct by another member key, 1 direct by a key derived from the member's id, 6 indirect).
+**123 tables in auth.db** (112 direct by `user_id`, 3 direct by another member key, 1 direct by a key derived from the member's id, 7 indirect).
 
 | Table | Owner key | Ownership | How the purge deletes it |
 |---|---|---|---|
 | `j2_option_legs` | `strategy_id` → `j2_option_strategies.user_id` | **Indirect** | join delete through `j2_option_strategies`, run before the direct deletes |
+| `indicator_alert_rev` | `alert_id` → `indicator_alerts.user_id` | **Indirect** | join delete through `indicator_alerts`, run before the direct deletes |
 | `j2_broker_member_stale_notify` | `broker_account_id` → `j2_broker_accounts.user_id` | **Indirect** | join delete through `j2_broker_accounts`, run before the direct deletes |
 | `j2_template_gallery_reports` | `gallery_id` → `j2_template_gallery.user_id` | **Indirect** | join delete through `j2_template_gallery`, run before the direct deletes |
 | `j2_template_gallery_uses` | `gallery_id` → `j2_template_gallery.user_id` | **Indirect** | join delete through `j2_template_gallery`, run before the direct deletes |
@@ -169,10 +170,21 @@ the wave-6 close and 20 short by wave 7 (wave 7 lane J, J4).
 | `j2_gallery_credits` | `user_id` | Direct | `DELETE FROM j2_gallery_credits WHERE user_id = ?` |
 | `j2_gallery_helpful_prompts` | `user_id` | Direct | `DELETE FROM j2_gallery_helpful_prompts WHERE user_id = ?` |
 | `indicator_support_reports` | `user_id` | Direct | `DELETE FROM indicator_support_reports WHERE user_id = ?` |
+| `indicator_alerts` | `user_id` | Direct | `DELETE FROM indicator_alerts WHERE user_id = ?` |
+| `indicator_alert_fires` | `user_id` | Direct | `DELETE FROM indicator_alert_fires WHERE user_id = ?` |
 | `daily_usage_counters` | `subject` (the member's id) | Direct | `DELETE FROM daily_usage_counters WHERE subject = ?` |
 | `j2_gallery_follows` | `follower_id` (the member's id) | Direct | `DELETE FROM j2_gallery_follows WHERE follower_id = ?` |
 | `j2_gallery_follows` | `author_id` (the member's id) | Direct | `DELETE FROM j2_gallery_follows WHERE author_id = ?` |
 | `indicator_gap_hits` | `member_key` (`_gap_member_key(user_id)`, a keyed hash of the member's id) | Direct | `DELETE FROM indicator_gap_hits WHERE member_key = ?` with `_gap_member_key(user_id)` |
+
+**user_definitions.db** -- a second database, which no statement on auth.db reaches: **4 tables**, deleted by `api/services/user_definitions_erasure.py` through `user_definitions.purge_user`.
+
+| Table | Owner key | Ownership | How the purge deletes it |
+|---|---|---|---|
+| `user_definitions` | `user_id` | Direct (user_definitions.db) | `DELETE FROM user_definitions WHERE user_id = ?` |
+| `definition_shares` | `user_id` | Direct (user_definitions.db) | `DELETE FROM definition_shares WHERE user_id = ?` |
+| `definition_listings` | `user_id` | Direct (user_definitions.db) | `DELETE FROM definition_listings WHERE user_id = ?` |
+| `user_definition_relint_log` | `user_id` | Direct (user_definitions.db) | `DELETE FROM user_definition_relint_log WHERE user_id = ?` |
 
 <!-- END GENERATED -->
 
@@ -195,6 +207,19 @@ the wave-6 close and 20 short by wave 7 (wave 7 lane J, J4).
   (`template_gallery.remove_example_images`). Rails:
   `tests/test_example_note_images.py::test_purge_removes_rows_and_files_for_that_member_only` and
   `::test_purge_reads_the_example_ids_in_the_same_transaction_as_the_deletes`.
+- Saved indicators in OTHER members' hands — a copy another member installed from the deleted
+  member's share link (`user_definitions.install_share`) is a separate row under the
+  INSTALLER's `user_id` and belongs to them, so it is kept. Its `definition` JSON carried
+  `origin.author_id` = the deleted member's id; the purge rewrites that one value to `null`
+  (`user_definitions_erasure.scrub_author`, every version row of every copy). Nothing that
+  computes reads `origin`: `ast_hash`, `def_hash`, `result_identity` and the runtime handle
+  are functions of `compute` alone, so the copy keeps drawing, evaluating and alerting and
+  every key it is filed under is unmoved. No product surface reads `origin.author_id` (the
+  install response returns it once; the library never shows an author), so `null` needs no
+  reader change. Rail: `tests/test_user_definitions_erasure.py`.
+- The alert lane's compiled series — `alert_user_series.USER_FUNCS` holds closures over the
+  member's trees in process memory; `user_definitions_erasure.purge_user` drops the member's
+  entries (`alert_user_series.forget`).
 - External-party data — SnapTrade's own revoke is unaffected; it runs via the existing broker
   purge (`journal_two/broker/service.py::purge_on_account_deletion`), which this purge overlaps
   on the 5 broker tables it covers and extends to the other 9.
@@ -208,6 +233,7 @@ delete them and that the code names them.
 |---|---|
 | `j2_broker_digest_dedup` | one global row (`id='fleet_digest'`) for the owner's own fleet-check digest — not member data |
 | `j2_task_reminder_runs` | one row per ET `day` (`ran_at`, `members`, `delivered` counts) — counts only, no `user_id` |
+| `definition_evaluations` | keyed by a formula's AST hash with no member id — the measured history of a tree, shared by every member who runs the identical one |
 | `account_tombstones` | the record the purge itself WRITES (wave 10, ruling R-9): the deleted member's id and the time, nothing else, so every restore of an older backup deletes them again — purging it would undo the erasure it keeps (see "Backups" below) |
 
 ### History
@@ -224,6 +250,16 @@ delete them and that the code names them.
   durable daily caps), keyed by `subject` — the member's id for the per-member counts. The
   shared dollar cap's row (subject `*`) is nobody's and stays; so does every other member's
   row. Rail: `test_daily_usage_counters_member_rows_are_purged_and_the_global_row_is_not`.
+- 2026-10-30 (owner-approved): saved indicators. They live in a SECOND database,
+  `user_definitions.db`, which the purge's auth.db connection never reached, so a deleted
+  member kept every saved indicator (every version), share link and library listing, and a
+  store restore would have brought them back. `user_definitions.purge_user` (statements in
+  `user_definitions_erasure.py`) now deletes them, scrubs the member's id out of other members'
+  installed copies, and drops their compiled alert series; a `user_definitions.db` restore
+  replays the tombstones. In auth.db, `indicator_alerts`, `indicator_alert_fires` and the
+  indirect `indicator_alert_rev` joined the purge (no foreign key, so the cascade never saw
+  them). The generator now lists a second database's tables in their own block. Rail:
+  `tests/test_user_definitions_erasure.py`.
 
 ## Backups — no restore brings a deleted account back (wave 10, ruling R-9)
 
@@ -255,6 +291,14 @@ tarballs (never fewer than the newest 3). Rewriting snapshots on every deletion 
    off-site tombstones were read. A restored attachment tree has the tombstoned members'
    directories removed with `account_tombstones.replay_on_attachment_tree` before it is put in
    place.
+2b. **A restore of `user_definitions.db` replays them too** (saved indicators live in that
+   second database, backed up by `store_backup` and put back by `tools/store_restore.py
+   --restore`). `account_tombstones.STORE_REPLAYS` names the store; the restore reads the
+   off-site tombstones (required — unreadable means NOT RESTORED) plus, with `--auth-db PATH`,
+   the live table's pending ones, runs `account_tombstones.replay_on_user_definitions_db` (the
+   same `user_definitions_erasure.purge_user_rows` the live deletion runs) on the restored copy
+   BEFORE it is renamed in, and refuses on any replay error or any deleted member still
+   present. Rail: `tests/test_user_definitions_erasure.py`.
 3. **Snapshots expire** by `RETAIN` (auth.db) and `J2_ATTACHMENT_BACKUP_RETAIN_DAYS` (14,
    attachments).
 

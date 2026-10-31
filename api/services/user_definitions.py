@@ -3101,3 +3101,20 @@ def stats(user_id: Any = None) -> dict:
             "max_definition_bytes": MAX_DEFINITION_BYTES,
             "max_definitions_per_user": MAX_DEFINITIONS_PER_USER,
             "versions_are_pruned": False}
+
+
+# ═══ account deletion ═════════════════════════════════════════════════════
+#
+# ⛔ THE ONE DOOR THROUGH WHICH A MEMBER'S ROWS LEAVE THIS STORE. The statements
+# are in `user_definitions_erasure.py`, not here, so this module's append-only
+# claim stays true of everything it does on a member's behalf
+# (`test_the_MODULE_ISSUES_NO_UPDATE_STATEMENT_and_the_scan_can_see_one`).
+
+
+def purge_user(user_id: Any) -> dict:
+    """Account deletion: the member's definitions (every version), share links,
+    library listings and re-lint audit rows deleted; their id scrubbed from the
+    copies other members installed from them, which those members keep.
+    Called by `journal_two.account_purge.purge_user_data`. Never raises."""
+    from api.services import user_definitions_erasure  # noqa: PLC0415
+    return user_definitions_erasure.purge_user(str(user_id) if user_id is not None else "")

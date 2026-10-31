@@ -238,6 +238,14 @@ def _seed_full_manifest(conn, user_id: str, tag: str) -> dict[str, str]:
     # self-ensures it on the first report or gap count.
     from api.services import indicator_support as isup
     isup.ensure_schema(conn)
+    # Saved-indicator alerts (indicator_alerts, indicator_alert_fires and the indirect
+    # indicator_alert_rev), likewise: each owning module's init creates them in auth.db; their
+    # own DDL is applied to this connection.
+    from api.services import alert_fired_log as afl
+    from api.services import alert_rev_migration as arm
+    from api.services import indicator_alert_service as ias
+    for ddl in (ias._SCHEMA, afl._SCHEMA, arm._SCHEMA):
+        conn.executescript(ddl)
 
     for table in _manifest_tables(ap):
         _insert_minimal_row(conn, table, user_id, tag)
@@ -260,6 +268,14 @@ def _seed_full_manifest(conn, user_id: str, tag: str) -> dict[str, str]:
         "VALUES (?, '2026-01-01T00:00:00')",
         (broker_account_id,),
     )
+    alert_id = conn.execute(
+        "SELECT id FROM indicator_alerts WHERE user_id = ?", (user_id,)
+    ).fetchone()[0]
+    conn.execute(
+        "INSERT INTO indicator_alert_rev (alert_id, address, def_rev, rev_migrated_at) "
+        "VALUES (?, 'u_aaaaaaaaaaaa.value', 1, 0)",
+        (alert_id,),
+    )
     conn.commit()
     return {"strategy_id": strategy_id, "broker_account_id": broker_account_id}
 
@@ -280,6 +296,11 @@ def _row_counts(conn, user_id: str) -> dict[str, int]:
     counts["j2_broker_member_stale_notify"] = conn.execute(
         "SELECT COUNT(*) FROM j2_broker_member_stale_notify WHERE broker_account_id IN "
         "(SELECT id FROM j2_broker_accounts WHERE user_id = ?)",
+        (user_id,),
+    ).fetchone()[0]
+    counts["indicator_alert_rev"] = conn.execute(
+        "SELECT COUNT(*) FROM indicator_alert_rev WHERE alert_id IN "
+        "(SELECT id FROM indicator_alerts WHERE user_id = ?)",
         (user_id,),
     ).fetchone()[0]
     return counts

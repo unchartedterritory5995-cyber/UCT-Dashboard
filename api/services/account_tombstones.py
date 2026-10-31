@@ -323,6 +323,51 @@ def replay_on_db(conn: sqlite3.Connection, user_ids: Iterable[str]) -> dict[str,
     return {"replayed": replayed, "errors": errors, "still_present": present_in(conn, ids)}
 
 
+def replay_on_user_definitions_db(conn: sqlite3.Connection, user_ids: Iterable[str]) -> dict[str, Any]:
+    """Re-run the saved-indicator half of every tombstoned deletion on a RESTORED copy of
+    `user_definitions.db` -- the second database `purge_user_data` reaches, which no
+    statement on auth.db can (`user_definitions_erasure.purge_user_rows`, the SAME function
+    the live deletion runs, never a second copy of it).
+
+    ⛔ EVERY tombstoned id, not only the ones a `users` table still holds: this file has no
+    `users` table, and a member's rows here outlive their account row. The delete and the
+    author scrub are both idempotent, so replaying an id with nothing left is a no-op.
+    `still_present` names any id that still owns a row afterwards; a restore must refuse on
+    a non-empty `errors` or `still_present`."""
+    from api.services import user_definitions_erasure as ude
+    ids = sorted({str(u) for u in user_ids if u})
+    replayed, errors, deleted, scrubbed = [], [], 0, 0
+    for uid in ids:
+        try:
+            rep = ude.purge_user_rows(uid, conn)
+        except Exception as e:  # noqa: BLE001 -- reported; still_present says what it means
+            errors.append(f"{uid}: {type(e).__name__}: {e}")
+            continue
+        errors.extend(f"{uid}: {e}" for e in rep.get("errors", []))
+        deleted += sum(rep.get("rows_deleted", {}).values())
+        scrubbed += rep.get("authors_scrubbed", 0)
+        replayed.append(uid)
+    still = []
+    for uid in ids:
+        for table in ude.MEMBER_TABLES:
+            try:
+                if conn.execute(f"SELECT 1 FROM {table} WHERE user_id = ? LIMIT 1", (uid,)).fetchone():
+                    still.append(uid)
+                    break
+            except sqlite3.Error:
+                continue                                  # a table this copy never had
+    return {"replayed": replayed, "errors": errors, "rows_deleted": deleted,
+            "authors_scrubbed": scrubbed, "still_present": sorted(set(still))}
+
+
+#: The member stores outside auth.db whose restore must replay the tombstones, by the name
+#: `store_backup.STORES` registers them under. `tools/store_restore.py --restore` refuses to put
+#: such a store back unless the replay below ran clean on the restored copy.
+STORE_REPLAYS = {
+    "user_definitions": replay_on_user_definitions_db,
+}
+
+
 def replay_on_attachment_tree(root: str | os.PathLike, user_ids: Iterable[str]) -> list[str]:
     """Remove every tombstoned member's directory from a RESTORED attachment tree
     (`attachment_root()/<user_id>` is where every attachment of theirs lives — the
