@@ -3,7 +3,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 
 import {
-  parseFormula, TABLE, NODE_TYPES, REFUSALS as PARSE_REFUSALS, RECURRENCES, BAR_READERS,
+  parseFormula, TABLE, NODE_TYPES, REFUSALS as PARSE_REFUSALS, RECURRENCES, MULTI_STATES, BAR_READERS,
   SESSION_MAX_BARS, ARG_DOMAINS, LOOKBACK_RE,
 } from './parse.js'
 import {
@@ -464,7 +464,9 @@ describe('the implementation and the manifest are the same list', () => {
     // and not in `FN` — the split is what lets `vwap()` read a real instant
     // where `bindShipped` can only offer a bar index. Same rule as above: the
     // roster is the MANIFEST's, so a third such entry needs no edit here.
-    const byWalker = [...Object.keys(RECURRENCES), ...BAR_READERS].sort()
+    // ⭐ AND A THIRD (2026-10-30): `multiState` entries (`accum2`…) are stepped by the
+    // walker exactly as `accum` is — read off the manifest the same way.
+    const byWalker = [...Object.keys(RECURRENCES), ...Object.keys(MULTI_STATES), ...BAR_READERS].sort()
     expect(byWalker.length, 'the exception must be non-empty or this rail widened for nothing')
       .toBeGreaterThan(0)
     expect(BAR_READERS.length, 'the bar-reading exception must be non-empty too')

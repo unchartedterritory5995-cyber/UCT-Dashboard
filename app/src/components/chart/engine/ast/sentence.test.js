@@ -93,6 +93,11 @@ const SERIES_WORDS = new Set(Object.keys(TABLE.series))
  *  value this file was handed rather than a phrasing it is here to check. */
 const RECURRENCE_PHRASE = Object.freeze({
   'the running value so far': RECURRENCES.accum.binds,
+  // ⭐ 2026-10-30 — the multi-state binds, each named by its number.
+  'the running value 1 so far': 'state1',
+  'the running value 2 so far': 'state2',
+  'the running value 3 so far': 'state3',
+  'the running value 4 so far': 'state4',
 })
 
 /** binding -> the phrase the walker says for it. The INVERSE of the map above,
@@ -383,6 +388,11 @@ const FORMS = [
   // The unambiguity rail below is what actually proves it, over every generated
   // sentence rather than over this argument.
   { kind: 'call', name: 'accum', parts: ['the running value that starts at ', 0, ' and becomes ', 1, ' on each of the last ', 2, ' bars'] },
+  // ⭐ 2026-10-30 — the multi-state recurrence (`_functions_multi_state`), typed from
+  // the manifest's words for the same reason as `accum`'s row above.
+  { kind: 'call', name: 'accum2', parts: ['running value number ', 0, ' of two that start at ', 2, ', ', 3, ' and together become ', 4, ', ', 5, ' on each of the last ', 1, ' bars'] },
+  { kind: 'call', name: 'accum3', parts: ['running value number ', 0, ' of three that start at ', 2, ', ', 3, ', ', 4, ' and together become ', 5, ', ', 6, ', ', 7, ' on each of the last ', 1, ' bars'] },
+  { kind: 'call', name: 'accum4', parts: ['running value number ', 0, ' of four that start at ', 2, ', ', 3, ', ', 4, ', ', 5, ' and together become ', 6, ', ', 7, ', ', 8, ', ', 9, ' on each of the last ', 1, ' bars'] },
 
   // ⭐ THE PINE PARITY SIX. Hand-typed from the manifest, like every row above.
   // ⚠️ `wma` AND `rma` ARE NOT AMBIGUOUS WITH `sma` even though all three open
@@ -1122,6 +1132,9 @@ describe('totality over the closed table — derived from the manifest, never ha
       'operator:||',
       'function:abs',
       'function:accum',
+      'function:accum2',
+      'function:accum3',
+      'function:accum4',
       // ⭐ PHASE 1 (2026-10-30) -- Pine's `math.acos`.
       'function:acos',
       'function:adx',
@@ -1255,9 +1268,9 @@ describe('totality over the closed table — derived from the manifest, never ha
     // ⭐ 123 -> 129 (2026-09-28): `timeclose`, `dayclosetime`, `weekfirst`, `monthfirst`.
     // ⭐ 129 -> 130 (2026-09-30, C38): `barsAgo`, Pine's `x[e]` with a per-bar index.
     // ⭐ 130 -> 131 (2026-10-02, H3): `vwapOf`, Pine's `ta.vwap(source)` for a bar price.
-    // ⭐ 131 -> 135 (2026-10-30, Pine coverage Phase 1): `acos`, `alma`,
-    // `percentileNearestRank`, `rci`.
-    expect(entries.length).toBe(135)
+    // ⭐ 131 -> 138 (2026-10-30): Pine coverage Phase 1's `acos`, `alma`,
+    // `percentileNearestRank`, `rci`, plus `accum2`, `accum3`, `accum4` (`_functions_multi_state`).
+    expect(entries.length).toBe(138)
     // ⭐ +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
     // +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
   })
@@ -1279,8 +1292,8 @@ describe('totality over the closed table — derived from the manifest, never ha
     // ⭐ 123 -> 129 (2026-09-28): `timeclose`, `dayclosetime`, `weekfirst`, `monthfirst`.
     // ⭐ 129 -> 130 (2026-09-30, C38): `barsAgo`, Pine's `x[e]` with a per-bar index.
     // ⭐ 130 -> 131 (2026-10-02, H3): `vwapOf`.
-    // ⭐ 131 -> 135 (2026-10-30, Pine coverage Phase 1): four more.
-    expect(subjects.length).toBe(135)
+    // ⭐ 131 -> 138 (2026-10-30): Phase 1's four plus `accum2`, `accum3`, `accum4`.
+    expect(subjects.length).toBe(138)
     // ⭐ +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
     // +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
     for (const { entry, ast: tree } of subjects) {
@@ -1747,7 +1760,9 @@ describe('the coverage rail is the WALKER\'s answer in EVERY section', () => {
     expect(declared.length).toBeGreaterThanOrEqual(11)
     for (const name of declared) {
       const table = clone(TABLE)
-      table.functions[name].sentence = `${TABLE.functions[name].sentence} over {9}`
+      // ⭐ ONE PAST THE REAL ARITY, never a fixed `{9}`: `accum4` (2026-10-30) takes ten
+      // arguments, so `{9}` was a real placeholder there and the control proved nothing.
+      table.functions[name].sentence = `${TABLE.functions[name].sentence} over {${TABLE.functions[name].args.length}}`
       const gaps = coverageGaps(table, OPERATOR_SENTENCE)
       expect(gaps.functions, `${name} invents an argument and the rail said nothing`)
         .toEqual([name])
@@ -2499,6 +2514,8 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
       // is declarable: with no argument columns to pack there is no fabricated
       // bar-index `t`, so the binding reads the real instant.
       'vwap_session',
+      // ⭐ 2026-10-30: the multi-state recurrence (`_functions_multi_state`).
+      'accum2_fibonacci_steps_together', 'accum3_band_from_its_own_extremes', 'accum4_conditional_trend_machine',
       // ⭐ H3 (2026-10-02): `vwapOf(close)`, the same accumulator weighting a bar price.
       'vwap_of_close_session',
       'avwap_from_a_mid_series_instant',
@@ -2725,8 +2742,8 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
     // ⭐ 123 -> 129 (2026-09-28): `timeclose`, `dayclosetime`, `weekfirst`, `monthfirst`.
     // ⭐ 129 -> 130 (2026-09-30, C38): `barsAgo`, Pine's `x[e]` with a per-bar index.
     // ⭐ 130 -> 131 (2026-10-02, H3): `vwapOf`.
-    // ⭐ 131 -> 135 (2026-10-30, Pine coverage Phase 1): four more.
-    expect(sentences.length).toBe(CORPUS.cases.length + 135)
+    // ⭐ 131 -> 138 (2026-10-30): Phase 1's four plus `accum2`, `accum3`, `accum4`.
+    expect(sentences.length).toBe(CORPUS.cases.length + 138)
     // ⭐ +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
     // +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
     for (const s of sentences) {

@@ -500,6 +500,14 @@ def assert_corpus_covers_the_table(manifest: dict, corpus: dict) -> set:
         if isinstance(spec, dict) and isinstance(spec.get("recurrence"), dict)
         for rec in (spec["recurrence"],)
     }
+    # ⭐ 2026-10-30 -- and the names a ``multiState`` entry binds in its updates,
+    # read off the same manifest for the same reason.
+    bound_names |= {
+        b
+        for spec in (manifest.get("functions") or {}).values()
+        if isinstance(spec, dict) and isinstance(spec.get("multiState"), dict)
+        for b in (spec["multiState"].get("binds") or ())
+    }
     stray = sorted(used - declared - case_input_names - bound_names)
     assert not stray, (
         f"{len(stray)} corpus names are NOT in the table: {stray}. A corpus case "
