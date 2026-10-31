@@ -1779,10 +1779,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:no-output"
+        "pine:objects-only"
       ],
       "screenerGuards": [
-        "pine:no-output"
+        "pine:objects-only"
       ]
     },
     {
