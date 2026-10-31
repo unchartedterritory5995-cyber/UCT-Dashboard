@@ -14,6 +14,17 @@ only maps who may call what.
   GET    /reports                ADMIN   — list (no source)
   GET    /reports/{id}           ADMIN   — one report, with source
   PATCH  /reports/{id}           ADMIN   — status new/triaged/fixed/wontfix
+  GET    /digest                 ADMIN   — Phase B's daily digest (no member content)
+
+Phase B's MACHINE door, for the local triage tool (``tools/support_loop``), is
+``internal_router`` (``/api/internal/indicator-support``), gated by the
+``PUSH_SECRET`` bearer exactly like the other ``/api/internal/*`` routers
+(``require_push_secret``: fail closed on an unset secret, constant-time compare):
+
+  GET    /digest                 BEARER  — the same digest
+  GET    /reports                BEARER  — open reports, no source, no note, no reporter
+  GET    /reports/{id}           BEARER  — one report WITH source and note, no reporter
+  PATCH  /reports/{id}           BEARER  — status new/triaged/fixed/wontfix (nothing else)
 
 ⛔ A member asking for, or withdrawing, a report that is not theirs gets the SAME
 404 as one that does not exist, so the door is not an oracle for other ids.
@@ -21,15 +32,31 @@ only maps who may call what.
 """
 from __future__ import annotations
 
+import hmac
+import os
 from typing import Any, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from api.middleware.auth_middleware import get_current_user, require_admin
 from api.services import indicator_support as svc
+from api.services import indicator_support_loop as loop
 
 router = APIRouter(prefix="/api/indicator-support", tags=["indicator-support"])
+internal_router = APIRouter(prefix="/api/internal/indicator-support", tags=["indicator-support"])
+
+
+def require_push_secret(request: Request) -> None:
+    """The machine credential: the ``PUSH_SECRET`` bearer (the idiom of
+    ``api/routers/wisdom_publish.py``). ⛔ Fails CLOSED: an unset or blank secret
+    refuses everybody. compare_digest on UTF-8 BYTES, so a non-ASCII header is a
+    401, never a 500. The secret is never logged or echoed."""
+    expected = (os.environ.get("PUSH_SECRET") or "").strip()
+    auth = request.headers.get("authorization", "")
+    if not expected or not hmac.compare_digest(
+            auth.encode("utf-8"), f"Bearer {expected}".encode("utf-8")):
+        raise HTTPException(status_code=401, detail="worker credential required")
 
 
 class GapItem(BaseModel):
@@ -130,6 +157,41 @@ def admin_report(report_id: str, user: dict = Depends(require_admin)) -> dict[st
 
 @router.patch("/reports/{report_id}")
 def admin_status(report_id: str, body: StatusBody, user: dict = Depends(require_admin)) -> dict[str, Any]:
+    if body.status not in svc.STATUSES:
+        raise HTTPException(status_code=422, detail="Unknown status")
+    if not svc.admin_set_status(report_id, body.status):
+        raise HTTPException(status_code=404, detail="Not found")
+    return {"ok": True, "status": body.status}
+
+
+@router.get("/digest")
+def admin_digest(refresh: bool = False, user: dict = Depends(require_admin)) -> dict[str, Any]:
+    return loop.daily_digest(refresh=refresh)
+
+
+# ─── Phase B: the machine door (PUSH_SECRET bearer) ─────────────────────────
+
+@internal_router.get("/digest")
+def internal_digest(refresh: bool = False, _: None = Depends(require_push_secret)) -> dict[str, Any]:
+    return loop.daily_digest(refresh=refresh)
+
+
+@internal_router.get("/reports")
+def internal_reports(_: None = Depends(require_push_secret)) -> dict[str, Any]:
+    return {"reports": loop.open_reports()}
+
+
+@internal_router.get("/reports/{report_id}")
+def internal_report(report_id: str, _: None = Depends(require_push_secret)) -> dict[str, Any]:
+    r = loop.internal_report(report_id)
+    if r is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    return r
+
+
+@internal_router.patch("/reports/{report_id}")
+def internal_status(report_id: str, body: StatusBody,
+                    _: None = Depends(require_push_secret)) -> dict[str, Any]:
     if body.status not in svc.STATUSES:
         raise HTTPException(status_code=422, detail="Unknown status")
     if not svc.admin_set_status(report_id, body.status):

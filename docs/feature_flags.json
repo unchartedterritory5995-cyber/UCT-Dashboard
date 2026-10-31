@@ -2614,6 +2614,13 @@
       ],
       "note": "Part of the edge-deep-history / instant-charts initiative (specs 2026-08-31 onward); recorded 2026-09-02 after a live read. Arms the after-close daily sweep so the web pod's newer-wins merge cold-populates every empty daily and advances every stale one, and a first view of ANY symbol serves from SQLite instead of shedding a warming 503."
     },
+    "PINE_SUPPORT_REPORTS_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "owner": "pine support loop",
+      "owner_decision": "turning it on in production is an owner decision (docs/pine/support-loop/PHASE-A.md, Flag); not yet taken",
+      "note": "Phase A (PR #539): the opt-in \"Doesn't match TradingView?\" report, the ONE place a member's pasted source is stored (api/services/indicator_support.py::reports_enabled, read per call; 1/true/on/yes). Unset refuses every create with 404, stores nothing, and the client hides every report button. Declared by Phase B (docs/pine/support-loop/PHASE-B.md): the gate shipped with Phase A without a ledger entry, which kept tests/test_feature_flag_ledger.py red. Rollback: unset (verify a NEW boot)."
+    },
     "PINE_RUNTIME_SAVE_ENABLED": {
       "status": "dark",
       "where": [],
