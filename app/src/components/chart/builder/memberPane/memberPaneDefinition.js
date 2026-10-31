@@ -1215,6 +1215,9 @@ function runtimeShiftContext(source, version, specs) {
     if (node) binds.set(nameTok.value, node)
   }
   for (const k of [...reassigned, ...twice]) binds.delete(k)
+  // ⛔ review L2 — a SETTING reassigned anywhere (`len := len + 1`) is not its default
+  // on the bar the offset reads it: not read here either, so the row is withheld.
+  for (const k of reassigned) ints.delete(k)
   for (const k of ints.keys()) binds.delete(k)
   return { stmts, version: Number.isInteger(version) ? version : null, ints, binds }
 }
@@ -1478,7 +1481,10 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
       : 'the script declares nothing a chart row draws')
   }
   const objectsGate = paneObjectsGate(t)
-  const drawsObjects = !ownObjects && objectsGate.draw && !!(t.objects && (t.objects.ops || []).length)
+  const hostWouldDraw = objectsGate.draw && !!(t.objects && (t.objects.ops || []).length)
+  // ⭐ WS-E review M1 — a `calc_bars_count` document never carries the host program
+  // (it would draw over every bar beside plots drawn over the window); named below.
+  const drawsObjects = !ownObjects && !own.hostWithheld && hostWouldDraw
   // ⭐ RT5 — a document whose only output is its drawings carries the hidden
   // anchor row an objects-only document carries (never offered, never drawn).
   if (!rows.length) {
@@ -1621,7 +1627,7 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
     // ⭐ WS-E — a `fill` is the RUN's output, not the host's (`t.outputs` lists no
     // fill), so a run's fills were dropped from this note: the band was not drawn
     // and nothing said so. Every fill the run lowered — solid or gradient — is named.
-    ...(probe.outputs || []).filter((ro) => ro && ro.call === 'fill').map(() => 'fill'),
+    ...(probe.outputs || []).filter((ro) => ro && ro.call === 'fill' && ro.hidden !== true).map(() => 'fill'),
   ])]
   if (undrawn.length) {
     notes.push({
@@ -1630,13 +1636,29 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
         + 'which a script drawn bar by bar does not draw here yet. Its lines are drawn; those are not.',
     })
   }
-  const drawingNote = ownObjects ? null : objectLossNote(objectsGate.loss, { withheld: !objectsGate.draw })
+  const drawingNote = ownObjects || own.hostWithheld ? null : objectLossNote(objectsGate.loss, { withheld: !objectsGate.draw })
   if (drawingNote) notes.unshift(drawingNote)
+  if (!ownObjects && own.hostWithheld && hostWouldDraw) {
+    notes.push({
+      name: 'Drawings',
+      note: 'Its lines, labels, boxes and tables are not drawn: it runs on its last bars only '
+        + '(`calc_bars_count`), its plots are drawn over those bars, and its drawings could only be made over '
+        + 'every bar of the chart, which would be a different picture from TradingView’s.',
+    })
+  }
   if (ownObjects) {
+    // ⭐ WS-E review M2 (owner trade-off, disclosed): when the run's drawings REPLACE a
+    // drawing program that lost some of its calls, say so, so a member who saw that
+    // program's drawings before knows where they went.
+    const rep = own.replacedPartialHost
     notes.push({
       name: 'Drawings',
       note: 'Its lines, labels, boxes and tables are made by the same bar-by-bar run, the way '
-        + 'TradingView makes them. A kind of drawing whose result is not known exactly is not drawn.',
+        + 'TradingView makes them. A kind of drawing whose result is not known exactly is not drawn.'
+        + (rep ? ` These replace the drawing program this pane would otherwise use, which could not make `
+          + `${Number.isInteger(rep.dropped) && Number.isInteger(rep.attempted) ? `${rep.dropped} of its ${rep.attempted}` : 'some of its'} `
+          + 'drawing calls; a kind of drawing the run holds back is named on the chart, not drawn from that '
+          + 'program instead.' : ''),
     })
   }
   definition.meta = {

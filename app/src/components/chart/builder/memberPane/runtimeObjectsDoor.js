@@ -44,6 +44,8 @@
 // script draws, and the vendor harness grades it.
 import { paneObjectsGate } from '../../engine/ast/paneGate'
 import { probeRuntimeProgram } from '../../engine/runtime/runtimeColumns'
+import { declaredCalcBarsOf } from '../../engine/runtime/objectStore'
+import { strippedForScan } from '../../engine/ast/pine'
 
 /** The value build's refusal that only the drawing build can answer. */
 export const VALUE_BUILD_DRAWING_GUARD = 'runtime:object-op'
@@ -59,14 +61,23 @@ export function runtimeOwnObjectsOf({ source, t }) {
   const hostDraws = gate.draw && !!(t && t.objects && (t.objects.ops || []).length)
   let valueProbe = null
   let refusedForDrawing = true
+  let windowed = false
+  let replaced = null
   if (hostDraws) {
     valueProbe = probeRuntimeProgram(source)
     refusedForDrawing = !valueProbe.ok && (valueProbe.refusal || {}).guard === VALUE_BUILD_DRAWING_GUARD
     const hostPartial = !!(gate.loss && gate.loss.verdict !== 'clean')
-    if (!refusedForDrawing && !hostPartial) return { probe: null, why: null, valueProbe }
+    // ⭐ WS-E review M1 — `calc_bars_count`: the run takes the chart's last N bars and
+    // nothing on the host side does, so a host program would draw over the WHOLE chart
+    // beside plots drawn over the window. The run's own drawings (the same window) are
+    // asked for, and a host program is never carried for such a document.
+    windowed = declaredCalcBarsOf(strippedForScan(String(source || ''))) !== null
+    if (!refusedForDrawing && !hostPartial && !windowed) return { probe: null, why: null, valueProbe }
+    if (hostPartial && gate.loss) replaced = { dropped: gate.loss.dropped, attempted: gate.loss.attempted }
   }
   const probe = probeRuntimeProgram(source, { objectsInRun: true })
-  const keepHost = { probe: null, why: null, ...(valueProbe ? { valueProbe } : {}) }
+  // `hostWithheld`: the caller must not carry the host program (a windowed document)
+  const keepHost = { probe: null, why: null, ...(valueProbe ? { valueProbe } : {}), ...(windowed ? { hostWithheld: true } : {}) }
   if (!probe.ok) {
     // ⛔ A partial host picture whose value build stands keeps that picture: the
     // run that would replace it cannot be built, and a decline would take away a
@@ -81,5 +92,5 @@ export function runtimeOwnObjectsOf({ source, t }) {
     }
   }
   if (!(probe.objectOps > 0)) return keepHost
-  return { probe }
+  return { probe, ...(replaced ? { replacedPartialHost: replaced } : {}) }
 }

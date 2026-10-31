@@ -1015,6 +1015,18 @@ export function paramDefaultsOf(toks, arrow) {
   return any ? { names, defaults } : null
 }
 
+/** ⭐ WS-E — a resolved tree with every `barindex` / `lastbarindex` leaf read `k`
+ *  bars further on (`barindex + k`). Pure: a new tree, the input untouched. */
+function shiftBarIndexLeaves(tree, k) {
+  if (!tree || typeof tree !== 'object') return tree
+  if (Array.isArray(tree)) return tree.map((x) => shiftBarIndexLeaves(x, k))
+  if (tree.type === 'series' && (tree.name === 'barindex' || tree.name === 'lastbarindex')) {
+    return { type: 'op', name: '+', args: [tree, { type: 'num', value: k }] }
+  }
+  if (!Array.isArray(tree.args)) return tree
+  return { ...tree, args: tree.args.map((x) => shiftBarIndexLeaves(x, k)) }
+}
+
 export function buildRuntimeIr(source, opts = {}) {
   const holder = { link: null }
   const built = buildRuntimeIrLinked(source, opts, holder)
@@ -1610,6 +1622,12 @@ function buildRuntimeIrLinked(source, opts, holder) {
       // `pine:builtin` as a runtime gap would send an engineer to the wrong
       // subsystem and lose the real next dependency.
       throw e
+    }
+    // ⭐ WS-E — a MEASUREMENT build (`runtimeColumns.js::calcBarsIndexDependence`):
+    // every `bar_index` / `last_bar_index` leaf reads `barIndexShift` more, so the
+    // caller can ask whether the run's answer depends on the count's base.
+    if (Number.isInteger(opts.barIndexShift) && opts.barIndexShift !== 0) {
+      canonical = shiftBarIndexLeaves(canonical, opts.barIndexShift)
     }
     if (statefulTree(canonical)) {
       if (owner !== null) functions[owner].rt5History = true
@@ -6145,17 +6163,29 @@ function buildRuntimeIrLinked(source, opts, holder) {
     const GRADIENT_ARGS = ['top_value', 'bottom_value', 'top_color', 'bottom_color']
     const p3 = positional.length > 2 ? argOf(positional[2]) : null
     const p4 = positional.length > 3 ? argOf(positional[3]) : null
-    const gradient = GRADIENT_ARGS.some((k) => named.has(k)) || positional.length >= 6
+    // ⛔ review L1 — six positionals alone is not the gradient form: the solid
+    // form's own signature is `fill(p1, p2, color, title, editable, fillgaps)`.
+    const gradient = GRADIENT_ARGS.some((k) => named.has(k))
+      || (positional.length >= 6 && !holdsColour(p3, scope))
       || (!named.has('color') && p3 && p4 && !holdsColour(p3, scope) && !holdsText(p3, scope)
         && !holdsText(p4, scope))
+    // ⭐ review L3 — a fill TradingView does not draw either (`display = display.none`,
+    // or a `color = na`) is `hidden`, so the document does not name it as undrawn.
+    const displayNode = named.get('display')
+    const hiddenByDisplay = !!displayNode && displayNode.type === 'name' && displayNode.name === 'display.none'
     if (gradient) {
-      outputs.push({ call: 'fill', upper, lower, gradient: true })
+      outputs.push({ call: 'fill', upper, lower, gradient: true, ...(hiddenByDisplay ? { hidden: true } : {}) })
       out.push(emit(outputs.length - 1, naValue()))
       return
     }
 
     const colourNode = named.has('color') ? named.get('color')
       : (positional.length > 2 ? argOf(positional[2]) : null)
+    if (colourNode && isBuiltinNa(colourNode, scope)) {
+      outputs.push({ call: 'fill', upper, lower, hidden: true })
+      out.push(emit(outputs.length - 1, naValue()))
+      return
+    }
     if (!colourNode || !holdsColour(colourNode, scope)) {
       // ⚰️ WS-E — the gradient form was refused here by its own name
       // (`runtime:fill-gradient`); it is recognised above and lowered as an
@@ -6164,7 +6194,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
       throw new RuntimeRefusal('runtime:colour',
         '`fill()` paints with a colour, and this is not one', at)
     }
-    outputs.push({ call: 'fill', upper, lower })
+    outputs.push({ call: 'fill', upper, lower, ...(hiddenByDisplay ? { hidden: true } : {}) })
     out.push(emit(outputs.length - 1, lowerExpr(colourNode, scope)))
   }
 

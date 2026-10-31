@@ -99,3 +99,84 @@ export function widenToChart(cols, cut, objectsKey) {
   }
   return out
 }
+
+// ─── ⭐⭐ WS-E (review H1) — THE WINDOW'S `bar_index` IS UNCAPTURED ─────────────
+//
+// TradingView's state starts on the window's first bar (its documented rule), but
+// what `bar_index` READS there — 0, or that bar's index in the loaded history — has
+// no capture (`docs/pine/capture-queue-2026-10-31-wse.md` Q-WSE1). A run that plots
+// `bar_index`, tests `bar_index % n`, prints it, or computes a drawing coordinate
+// that is not a plain shift of it, would draw an answer standing ruling 2 refuses.
+//
+// ⭐ SO THE QUESTION IS MEASURED, NOT GUESSED: the window is run a second time with
+// every `bar_index` / `last_bar_index` read `CALC_BARS_INDEX_PROBE` bars further on
+// (`pineRuntimeFrontend.js::shiftBarIndexLeaves`). A run whose answer does not move —
+// every column equal bar for bar, every drawing equal once its bar-index
+// coordinates are moved back by the probe — reads `bar_index` only in ways
+// TradingView's base cannot change (a difference, a comparison of two indices, a
+// drawing placed AT an index), and is drawn. Anything else is refused by name
+// (`CALC_BARS_INDEX_GUARD`) until Q-WSE1 is captured. Wyckoff (differences and
+// coordinates only) is drawn; `plot(bar_index)` is not.
+
+/** The refusal a windowed run gets when its answer depends on `bar_index`'s base. */
+export const CALC_BARS_INDEX_GUARD = 'runtime:calc-bars-bar-index'
+/** How far the probe moves `bar_index`: ONE bar. One is a multiple of no period
+ *  (`bar_index % n` moves for every n >= 2), moves every plotted value and every
+ *  threshold's crossing bar, and keeps a drawing at `bar_index` inside the store's
+ *  reach of the bar that made it. ⚰️ It was 1,000,003: a label at `bar_index` then
+ *  sat a million bars into the future of the bar that made it, the store treated it
+ *  as such, and a script that only PLACES a drawing at an index was refused. */
+export const CALC_BARS_INDEX_PROBE = 1
+
+/** Does the source read `bar_index` or `last_bar_index` at all (comments and strings stripped)? */
+export function readsBarIndex(strippedSource) {
+  return /\b(bar_index|last_bar_index)\b/.test(String(strippedSource || ''))
+}
+
+function sameNum(x, y) {
+  if (x === y) return true
+  const xn = typeof x !== 'number' || Number.isNaN(x)
+  const yn = typeof y !== 'number' || Number.isNaN(y)
+  if (xn || yn) return xn && yn
+  return Math.abs(x - y) <= 1e-9 * Math.max(Math.abs(x), Math.abs(y), 1)
+}
+
+function sameProp(x, y) {
+  if (typeof x === 'number' || typeof y === 'number') return sameNum(x, y)
+  return JSON.stringify(x) === JSON.stringify(y)
+}
+
+/**
+ * Where two windowed runs disagree — `a` with the window's own `bar_index`, `b` with
+ * it moved `k` bars on — or null when they agree everywhere. Pure.
+ * @returns {string|null} what moved, in a member's words
+ */
+export function barIndexDependenceOf(a, b, k, objectsKey) {
+  for (const key of Object.keys(a || {})) {
+    const ca = a[key]
+    const cb = b && b[key]
+    if (!cb || cb.length !== ca.length) return 'an output it draws'
+    for (let i = 0; i < ca.length; i += 1) if (!sameNum(ca[i], cb[i])) return `an output it draws (from bar ${i + 1} of the window)`
+  }
+  const pa = a ? a[objectsKey] : undefined
+  const pb = b ? b[objectsKey] : undefined
+  if (!pa && !pb) return null
+  if (!pa || !pb || pa.status !== pb.status) return 'its drawings'
+  const la = Array.isArray(pa.live) ? pa.live : []
+  const lb = Array.isArray(pb.live) ? pb.live : []
+  if (la.length !== lb.length) return 'how many drawings it makes'
+  for (let j = 0; j < la.length; j += 1) {
+    const oa = la[j] || {}
+    const ob = lb[j] || {}
+    if (oa.family !== ob.family) return 'its drawings'
+    const pra = oa.props || {}
+    const prb = ob.props || {}
+    const byIndex = pra.xloc === undefined || pra.xloc === 'bar_index'
+    for (const p of new Set([...Object.keys(pra), ...Object.keys(prb)])) {
+      let vb = prb[p]
+      if (byIndex && X_PROPS.includes(p) && typeof vb === 'number') vb -= k
+      if (!sameProp(pra[p], vb)) return `a ${oa.family || 'drawing'}'s \`${p}\``
+    }
+  }
+  return null
+}
