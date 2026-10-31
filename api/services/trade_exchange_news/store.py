@@ -279,6 +279,13 @@ class Store:
             (int(limit),)).fetchall()
         return [_row(r) for r in reversed(rows)]
 
+    def by_event_id(self, event_id: str) -> dict[str, Any] | None:
+        """The stored headline with this ``event_id`` (the receiver's ULID: stable
+        across epochs and recovery), or None. A read; explain.py's source."""
+        r = self._conn().execute(f"SELECT {','.join(_COLS)} FROM headlines WHERE event_id = ?",
+                                 (str(event_id),)).fetchone()
+        return _row(r) if r else None
+
     def known(self, event_id: str) -> bool:
         return self._conn().execute("SELECT 1 FROM deliveries WHERE event_id=?",
                                     (event_id,)).fetchone() is not None
