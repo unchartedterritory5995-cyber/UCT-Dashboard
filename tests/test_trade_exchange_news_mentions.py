@@ -102,6 +102,38 @@ def test_only_confirmed_graphic_placeholders_are_marked(text, want):
     assert cat.placeholder_for(text) == want
 
 
+#: Owner-reported 2026-10-31: chart captions posted without their chart pair.
+DAILY_WEEKLY_CAPTIONS = ["HYG Daily Weekly", "DIA Daily Weekly", "SMH Daily Weekly",
+                         "TLT Daily Weekly", "IWM Daily Weekly", "SPY Daily Weekly"]
+
+
+@pytest.mark.parametrize("text", DAILY_WEEKLY_CAPTIONS + [
+    "SPY DAILY WEEKLY", " $QQQ Daily/Weekly ", "BRK.B Daily & Weekly", "SPY​ Daily Weekly",
+    "XLF Daily - Weekly", "GLD Daily and Weekly",
+])
+def test_a_symbol_daily_weekly_caption_is_graphic_only(text):
+    assert cat.placeholder_for(text) == "graphic"
+
+
+@pytest.mark.parametrize("text", [
+    "SPY Daily Weekly gains", "Retailer weekly sales rise 4%", "Costco weekly sales beat estimates",
+    "SPY daily price move is the largest since April", "NVDA DAILY WEEKLY CHART UPDATE",
+    "spy daily weekly", "Costco Daily Weekly", "Daily Weekly", "SPY Weekly", "SPY Daily",
+    "Weekly jobless claims fall to 210K", "TOOLONGX Daily Weekly", "SPY Weekly Daily",
+    "Technical outlook: SPY daily chart holds support", "SPY, QQQ Daily Weekly",
+])
+def test_ordinary_daily_or_weekly_headlines_are_never_hidden(text):
+    assert cat.placeholder_for(text) is None
+
+
+def test_a_caption_event_is_marked_and_keeps_its_content():
+    row = {"seq": 4, "event_id": "01JABCDEFGHJKMNPQRSTVWXYZ1", "source": "TX-News1",
+           "content": "SPY Daily Weekly", "received_at_ms": 1_800_000_000_000,
+           "ingested_at_ms": 1_800_000_000_010, "tickers": [], "repeat_count": 0, "via": "push"}
+    ev = pl.headline_event(row, "e")
+    assert ev["placeholder"] == "graphic" and ev["content"] == "SPY Daily Weekly"
+
+
 @pytest.mark.parametrize("text", ["VIX 16.40", "CRWV green", "GOOGL lows", "ADT Open"])
 def test_short_price_lines_are_price(text):
     assert cat.category_for("TX-News1", text) == cat.PRICE

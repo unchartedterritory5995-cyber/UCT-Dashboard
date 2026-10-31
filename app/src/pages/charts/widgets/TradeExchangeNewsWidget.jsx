@@ -44,7 +44,7 @@ import { formatNumber } from '../../../lib/presentation/presentationPrimitives'
 import { ActionsMenu, CalendarPopover, DayBar, DayList, FilterMenu, HealthPopover, Row, TimePopover } from './TradeExchangeNewsParts'
 import { TXN_SOUND_OPTIONS, txnClampLines, txnSettingsFor, txnWidgetStyleVars } from './tradeExchangeNewsSettings'
 import { categoriesLabel, cleanCategories, cleanPresets, coverageNotice, dayLabel, dayRequest, feedHealth, groupRelated,
-  liveStatus, presetPatch, presetSnapshot, quoteSymbols, visibleItems } from './tradeExchangeNewsModel'
+  liveStatus, presetPatch, presetSnapshot, quoteSymbols, viewHealth, visibleItems } from './tradeExchangeNewsModel'
 import useTradeExchangeNewsDay from './useTradeExchangeNewsDay'
 import styles from './TradeExchangeNewsWidget.module.css'
 
@@ -374,7 +374,7 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange }) {
                 { key: 'on', label: 'On' }, { key: 'off', label: 'Off' }] },
               { key: 'tickerColorMode', label: 'Ticker color mode', type: 'segmented', options: [
                 { key: 'performance', label: 'Daily' }, { key: 'accent', label: 'Accent' }, { key: 'neutral', label: 'Neutral' }] },
-              { key: 'graphicPlaceholders', label: 'Graphic-only posts', hint: 'e.g. CRYPTO with no picture', type: 'segmented', options: [
+              { key: 'graphicPlaceholders', label: 'Graphic-only posts', hint: 'e.g. CRYPTO or "SPY Daily Weekly" with no chart', type: 'segmented', options: [
                 { key: 'hide', label: 'Hide' }, { key: 'show', label: 'Show' }] },
               { key: 'longHeadlines', label: 'Long headlines', hint: 'lines before Show more', type: 'segmented', options: [
                 { key: '3', label: '3 lines' }, { key: '5', label: '5 lines' }, { key: 'all', label: 'Expanded' }] },
@@ -418,7 +418,9 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange }) {
           onPick={day.jumpTo} onClose={closeTime} />
       )}
       {healthOpen && (
-        <HealthPopover lines={feedHealth(feed, now)} anchorEl={statusRef.current} hostEl={rootRef.current}
+        <HealthPopover lines={[...feedHealth(feed, now), ...viewHealth({ dateLabel: dayLabel(day.dateKey, day.todayKey),
+          count: day.total != null ? footerCount(filtered, day.total, day.dayTotal ?? day.total) : null,
+          provisional: feed.provisional, hidden: hiddenPlaceholders, showing: settings.graphicPlaceholders === 'show' })]} anchorEl={statusRef.current} hostEl={rootRef.current}
           themeVars={menuVars} onClose={closeHealth} />
       )}
 
@@ -558,27 +560,14 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange }) {
           </div>
         )}
       </div>
-      <div className={styles.footer}>
-        {!unavailable && (
+      {/* Date and time controls only: the count and the notes live in the LIVE popover. */}
+      {!unavailable && (
+        <div className={styles.footer}>
           <DayBar day={day} calRef={calRef} timeRef={timeRef} calendarOpen={calendarOpen} timeOpen={timeOpen}
             onCalendar={() => { setTimeOpen(false); setCalendarOpen((o) => !o) }}
             onTime={() => { setCalendarOpen(false); setTimeOpen((o) => !o) }} />
-        )}
-        {day.total != null && (
-          <span className={styles.footerCount} title={`Headlines UCT received on ${dayLabel(day.dateKey, day.todayKey)} (ET)${filtered ? ' that match these filters' : ''}. UCT keeps about 7 days, up to 5,000 headlines.`}>
-            {footerCount(filtered, day.total, day.dayTotal ?? day.total)}
-          </span>
-        )}
-        <span className={styles.footerNote} title="Times are when UCT received each headline (Trade Exchange sends no publication time). Tickers are detected automatically.">
-          · received times ET{feed.provisional ? ' · tickers provisional' : ''}
-        </span>
-        {hiddenPlaceholders > 0 && (
-          <span className={styles.footerNote}
-            title="Trade Exchange posted these as a label with a picture (e.g. CRYPTO). The webhook delivers only the label, so they are hidden here; they are stored and counted, not lost. ⚙ → Graphic-only posts → Show.">
-            · {hiddenPlaceholders} graphic-only hidden
-          </span>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -404,6 +404,14 @@ describe('one calendar day at a time', () => {
     const [h, m] = hhmm.split(':').map(Number)
     return Date.UTC(Number(date.slice(0, 4)), Number(date.slice(5, 7)) - 1, Number(date.slice(8, 10)), h + 4, m) + 59_999
   }
+  /** The selected day's count, read where it now lives: the LIVE feed-health popover. */
+  const viewCount = async () => {
+    if (!screen.queryByRole('dialog', { name: 'Feed health' })) fireEvent.click(screen.getAllByTitle(/Click for feed health/)[0])
+    const dlg = await screen.findByRole('dialog', { name: 'Feed health' })
+    const text = dlg.querySelector('[data-key="view"]').textContent
+    fireEvent.click(screen.getAllByTitle(/Click for feed health/)[0])
+    return text
+  }
   const mountDays = (opts = {}) => {
     feed.archive = [...D25, ...D26, ...BASE]
     feed.dayOpts = { atMs }
@@ -457,7 +465,7 @@ describe('one calendar day at a time', () => {
     const got = rows(container)
     expect(got).toEqual(Array.from({ length: 200 }, (_, i) => 1199 - i))
     expect(await within(container).findByText(/^Start of Mon, Oct 26/)).toBeTruthy()
-    expect(container.textContent).toMatch(/200 headlines/)
+    expect(await viewCount()).toMatch(/200 headlines/)                               // in the LIVE popover, not the footer
     expect(feed.dayCalls.filter((b) => b.date === key(26)).every((b) => b.limit <= 60)).toBe(true)
   })
 
@@ -468,7 +476,7 @@ describe('one calendar day at a time', () => {
     await pickDate(key(26))
     await waitFor(() => expect(rows(container)[0]).toBe(1199))
     rerender(<TradeExchangeNewsWidget color="A" opts={{ categories: ['Macro'] }} onOptsChange={vi.fn()} />)
-    await waitFor(() => expect(container.textContent).toMatch(/50 of 200 headlines/))
+    await waitFor(async () => expect(await viewCount()).toMatch(/50 of 200 headlines/))
     expect(within(bar()).getByRole('button', { name: /Date: Mon, Oct 26/ })).toBeTruthy()  // same date
     expect(feed.dayCalls.at(-1)).toMatchObject({ date: key(26), categories: ['Macro'] })
     for (let i = 0; i < 3; i++) scrollToEnd(container)
@@ -587,11 +595,33 @@ describe('one calendar day at a time', () => {
     await waitFor(() => expect(rows(container)[0]).toBe(1199))
     fireEvent.click(within(bar()).getByRole('button', { name: 'Jump to a time' }))
     const dlg = await screen.findByRole('dialog', { name: 'Jump to a time' })
-    expect(within(dlg).getAllByRole('button').map((b) => b.textContent).slice(0, 3)).toEqual(['9:30 AM', '12:00 PM', '4:00 PM'])
+    expect(within(dlg).getAllByRole('button').map((b) => b.textContent).slice(0, 3)).toEqual(['4:00 AM ET', '9:30 AM ET', '4:00 PM ET'])
     fireEvent.change(within(dlg).getByLabelText('Time, hour and minute (ET)'), { target: { value: '06:00' } })
     fireEvent.submit(within(dlg).getByLabelText('Time, hour and minute (ET)'))
     await waitFor(() => expect(rows(container).at(-1)).toBe(1000))
     expect(within(bar()).getByRole('button', { name: /From 6:00 AM ET/ }).title).toMatch(/Nothing at or before 6:00 AM ET/)
+  })
+
+  it('the three shortcuts: 4:00 AM, 9:30 AM and 4:00 PM ET, each on the selected date only', async () => {
+    const { container } = mountDays()
+    await pickDate(key(26))                                       // rows 8:00 .. 11:19 ET
+    await waitFor(() => expect(rows(container)[0]).toBe(1199))
+    const pick = async (label) => {
+      fireEvent.click(within(bar()).getByRole('button', { name: /Jump to a time|Change the time/ }))
+      fireEvent.click(within(await screen.findByRole('dialog', { name: 'Jump to a time' })).getByText(label))
+    }
+    await pick('4:00 AM ET')                                      // nothing that early: the day's first, never Oct 25
+    await waitFor(() => expect(feed.dayCalls.at(-1)).toMatchObject({ date: key(26), at: '04:00' }))
+    await waitFor(() => expect(rows(container).at(-1)).toBe(1000))
+    expect(rows(container)).not.toContain(902)
+    expect(within(bar()).getByRole('button', { name: /From 4:00 AM ET/ }).title).toMatch(/Nothing at or before 4:00 AM ET/)
+    await pick('9:30 AM ET')
+    await waitFor(() => expect(feed.dayCalls.at(-1)).toMatchObject({ date: key(26), at: '09:30' }))
+    await waitFor(() => expect(rows(container)).toContain(1090))
+    await pick('4:00 PM ET')                                      // after the last row: the day's newest
+    await waitFor(() => expect(feed.dayCalls.at(-1)).toMatchObject({ date: key(26), at: '16:00' }))
+    await waitFor(() => expect(rows(container)[0]).toBe(1199))
+    expect(within(bar()).getByRole('button', { name: /From 4:00 PM ET/ })).toBeTruthy()
   })
 
   it('a filter change returns to the top of the same date and clears the time jump', async () => {
@@ -601,7 +631,7 @@ describe('one calendar day at a time', () => {
     act(() => feed.set({ status: 'live', items: BASE, lastSeq: 3, lastHeadlineAt: NOW }))
     await pickDate(key(26))
     fireEvent.click(within(bar()).getByRole('button', { name: 'Jump to a time' }))
-    fireEvent.click(within(await screen.findByRole('dialog', { name: 'Jump to a time' })).getByText('9:30 AM'))
+    fireEvent.click(within(await screen.findByRole('dialog', { name: 'Jump to a time' })).getByText('9:30 AM ET'))
     await waitFor(() => expect(rows(container)).toContain(1090))
     rerender(<TradeExchangeNewsWidget color="A" opts={{ categories: ['News'] }} onOptsChange={vi.fn()} />)
     await waitFor(() => expect(rows(container)[0]).toBe(1199))

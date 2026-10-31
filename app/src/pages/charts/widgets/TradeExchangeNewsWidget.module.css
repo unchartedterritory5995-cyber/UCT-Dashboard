@@ -123,8 +123,8 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 10px;
-  min-height: 32px;
+  padding: 0 10px;
+  min-height: 32px;            /* the shared second-header-row height (WatchlistPicker, Breadth) */
   box-sizing: border-box;
   border-bottom: 1px solid var(--txn-divider, var(--widget-divider, var(--border)));
   flex: 0 0 auto;
@@ -465,7 +465,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 5px 16px;
+  padding: 4px 10px;
   font-family: var(--font-sans);
   font-size: 10px;
   color: var(--txn-chrome, var(--text-muted));
@@ -474,9 +474,6 @@
   white-space: nowrap;
   overflow: hidden;
 }
-.footerCount { font-weight: 600; color: var(--txn-sym, var(--text-bright)); flex: 0 0 auto; }
-.footerNote { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
-.footerCount { flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; min-width: 0; white-space: nowrap; }
 
 /* ── the date bar: one compact line at the foot of the list ── */
 .dayBar { display: inline-flex; align-items: center; gap: 2px; flex: 0 0 auto; margin-right: 4px; }
@@ -601,17 +598,15 @@
 @container (max-width: 250px) {
   .filterLabel { display: none; }
 }
-/* The date bar keeps every control at any width; the notes and counts give way first. */
+/* The date bar keeps every control at any width; labels shorten first. */
 @container (max-width: 330px) {
-  .footer { padding: 5px 8px; }
-  .footerNote { display: none; }
+  .footer { padding: 4px 8px; }
 }
 @container (max-width: 420px) {
   .dayLong { display: none; }                  /* "Wed, Oct 28" -> "Oct 28", "Today · Fri, Oct 30" -> "Today" */
   .dayShort { display: inline; }
 }
 @container (max-width: 300px) {
-  .footerCount { display: none; }
   .dayTime { display: none; }                  /* the jump time stays in the clock's tooltip and label */
 }
 @container (max-width: 200px) {
