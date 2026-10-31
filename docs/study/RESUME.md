@@ -617,6 +617,16 @@ Method) drilled on real charts, with no AI at runtime, every item reviewed by th
   web SUCCESS -> `import_bear_gaps_run.ps1` -> the bear-gap review. Still his: `apply_verdicts_gap_run.ps1`,
   `import_contrasts_run.ps1`, `retire_xom_sling_run.ps1`, `retire_go_daily_cuts_run.ps1`.
 
+- **2026-10-30 (night, PR #538 grows; #478 still unmerged, another session merged #539/#540 on master):** owner:
+  "you do it all". Done without him: WING 2026-10-27 HOURLY Go Signal draft (si_0429495b0cdf; 41 hourly drafts now;
+  finder: undercut yes, red-to-green no, not a higher low; 3 forward sessions) via the same read-only vendor fetch,
+  `gen_go_signal_hourly.py` tags names the owner never saw; bars report for the bars owner
+  `docs/study/analysis/2026-10-30-bars-report.md` (SPY: 2004-03-16, 2004-08-18, 2004-12-21, 2005-05-27, 2006-01-26,
+  2008-09-29 impossible + 2008-11-07 wrong low; NVDA/QQQ clean; NVDA 2026-09-09 fixture is complete at 130 bars,
+  pod snapshot identical, so it is a RE-SHOW with a 250-bar window + 20 forward, not a store gap). NEXT: owner merges
+  #478 -> web SUCCESS -> `import_go_hourly_run.ps1`; merges #538 -> web SUCCESS -> run `import_go_hourly_run.ps1`
+  AGAIN (adds WING) and `import_bear_gaps_run.ps1`; then the hourly review (41 charts) and the bear-gap review.
+
 ## Owner review packet (Phase 0 — read in this order, one session)
 1. `docs/study/VOICE.md` — the voice rules derived from your Substack/Scans prose; §8 open items.
 2. `docs/study/UNITS-foundations.md` — 129 units; read "Gaps for the owner" (8 content gaps +
