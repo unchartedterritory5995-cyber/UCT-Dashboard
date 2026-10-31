@@ -26612,7 +26612,12 @@ function stampTransparency(pres, value, via) {
  *  raw `t` on a band (`fillTransparency`), and the two cannot disagree. */
 function colourHelperAlpha(node, env, ctx, depth = 0) {
   const raw = colourHelperTransparency(node, env, ctx, depth)
-  return raw === null ? null : Math.max(0, Math.min(1, 1 - raw / 100))
+  return raw === null ? null : opacityOfTransparency(raw)
+}
+
+/** `t` (0–100, the exact float) → the opacity it paints. */
+function opacityOfTransparency(t) {
+  return Math.max(0, Math.min(1, 1 - t / 100))
 }
 
 /** ⭐⭐ R35d — THE TRANSPARENCY OF A COLOUR THAT FOLDS, 0-100, or null.
@@ -27839,10 +27844,10 @@ function outputPresentation(args, ctx) {
       pres.opacity = 0
     } else if (flat) {
       pres.color = flat
-      const a = colourHelperAlpha(c.value, ctx && ctx.env, ctx)
-      if (a !== null) {
-        pres.opacity = a
-        stampTransparency(pres, colourHelperTransparency(c.value, ctx && ctx.env, ctx), 'color')
+      const t = colourHelperTransparency(c.value, ctx && ctx.env, ctx)
+      if (t !== null) {
+        pres.opacity = opacityOfTransparency(t)
+        stampTransparency(pres, t, 'color')
       }
     } else {
       // ⭐⭐ C1-A: A CONDITIONAL BETWEEN TWO STATIC COLOURS IS NOW CARRIED.
@@ -27910,10 +27915,10 @@ function outputPresentation(args, ctx) {
         const foldedFlat = staticColourOf(c.value, ctx.env, 0, foldCtx)
         if (foldedFlat) {
           pres.color = foldedFlat
-          const a = colourHelperAlpha(c.value, ctx.env, foldCtx)
-          if (a !== null) {
-            pres.opacity = a
-            stampTransparency(pres, colourHelperTransparency(c.value, ctx.env, foldCtx), 'color')
+          const t = colourHelperTransparency(c.value, ctx.env, foldCtx)
+          if (t !== null) {
+            pres.opacity = opacityOfTransparency(t)
+            stampTransparency(pres, t, 'color')
           }
           carried = true
         } else if (isNaColourLeaf(settledColourNode(c.value, ctx.env, foldCtx))) {
