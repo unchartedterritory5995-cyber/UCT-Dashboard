@@ -48,7 +48,7 @@
 //     asserts that structurally so the relabelling cannot be introduced quietly.
 
 import {
-  TABLE, NODE_TYPES, RECURRENCES, RECURRENCE_BINDINGS, BAR_READERS, ARG_DOMAINS,
+  TABLE, NODE_TYPES, RECURRENCES, RECURRENCE_BINDINGS, MULTI_STATES, BAR_READERS, ARG_DOMAINS,
   ARG_DOMAIN, isPointwise, LOOKBACK_RE, SESSION_LOOKBACK, SESSION_MAX_BARS,
   SERIES_LOOKBACK, usableWindowBound, RUNTIME_AT_CALL,
 } from './parse.js'
@@ -1167,6 +1167,24 @@ function listingPass({ seed, ambiguousSeed, warmup, length, maxSelfLag, out, win
 const own = (obj, name) => Object.prototype.hasOwnProperty.call(obj, name)
 
 const declared = (obj) => Object.keys(obj).join(', ')
+
+/** ⭐ 2026-10-30 — the argument positions of a call that are PER-BAR BODIES rather
+ *  than columns: `accum`'s `body`, an `accumK`'s `updates`. Read off the manifest
+ *  (`recurrence` / `multiState`), so every walker that exempts a body from
+ *  "reads a bind" asks this one question. An empty set for any other node. */
+const NO_BODIES = Object.freeze(new Set())
+function bodyArgsOf(n) {
+  if (!n || typeof n !== 'object' || n.type !== 'call' || typeof n.name !== 'string') return NO_BODIES
+  if (own(RECURRENCES, n.name)) {
+    const b = RECURRENCES[n.name].body
+    return Number.isInteger(b) ? new Set([b]) : NO_BODIES
+  }
+  if (own(MULTI_STATES, n.name)) return new Set(MULTI_STATES[n.name].updates)
+  return NO_BODIES
+}
+/** Is this call bar-to-bar state of either kind (`accum`, `accumK`)? */
+const isStatefulCall = (n) => !!n && typeof n === 'object' && n.type === 'call'
+  && typeof n.name === 'string' && (own(RECURRENCES, n.name) || own(MULTI_STATES, n.name))
 
 // --------------------------------------------------------------------------- //
 // columns
@@ -4130,11 +4148,13 @@ export function maxLookback(ast) {
 let _bindNames = null
 function bindNames() {
   if (_bindNames) return _bindNames
-  _bindNames = new Set(
-    Object.keys(RECURRENCES)
+  _bindNames = new Set([
+    ...Object.keys(RECURRENCES)
       .map((k) => RECURRENCES[k] && RECURRENCES[k].binds)
       .filter((b) => typeof b === 'string'),
-  )
+    // ⭐ 2026-10-30 — an `accumK` update's `state1`… are binds exactly as `self` is.
+    ...Object.values(MULTI_STATES).flatMap((m) => (Array.isArray(m.binds) ? m.binds : [])),
+  ])
   return _bindNames
 }
 
@@ -4196,9 +4216,8 @@ export function structuralMaps(root) {
     // (47.2M steps, 56 s), because each of 99 references re-ran its fold.
     // `nodeCount` already counted them once (`distinct`), so the budget and the
     // work had drifted apart — the direction the note above forbids.
-    const rec = n.type === 'call' && typeof n.name === 'string' && Object.prototype.hasOwnProperty.call(RECURRENCES, n.name)
-      ? RECURRENCES[n.name] : null
-    const bodyAt = rec && Number.isInteger(rec.body) ? rec.body : -1
+    // ⭐ 2026-10-30 — and an `accumK` binds `state1`… in its updates the same way.
+    const bodies = bodyArgsOf(n)
     for (let ai = 0; ai < args.length; ai += 1) {
       const a = args[ai]
       // ⛔⛔ THROW, NEVER INVENT A KEY. The first version of this walk pushed a
@@ -4210,7 +4229,7 @@ export function structuralMaps(root) {
         throw new Error('structuralMaps: a child was keyed after its parent — the post-order is broken')
       }
       childIds.push(idOf.get(a))
-      if (ai !== bodyAt && !freeOf.get(a)) free = false
+      if (!bodies.has(ai) && !freeOf.get(a)) free = false
     }
     // ⚠️ DELIMITED. Without separators `op` + `u-` + `''` and `op` + `u` + `-`
     // produce the same shape, and a collision under-counts exactly like the
@@ -4324,11 +4343,9 @@ export function evaluationUnits(root, held) {
     if (scope === '' && free && heldShape.get(sid) === true) continue
     const args = Array.isArray(n.args) ? n.args : []
     const childScope = SCOPE_TYPES.has(n.type) ? `${scope}>${sid}` : scope
-    const spec = n.type === 'call' && typeof n.name === 'string' && own(RECURRENCES, n.name)
-      ? RECURRENCES[n.name] : null
-    const bodyAt = spec && Number.isInteger(spec.body) ? spec.body : -1
+    const bodies = bodyArgsOf(n)
     for (let ai = 0; ai < args.length; ai += 1) {
-      stack.push([args[ai], childScope, ai === bodyAt ? `${scope}|${sid}` : rec])
+      stack.push([args[ai], childScope, bodies.has(ai) ? `${scope}|${sid}` : rec])
     }
   }
   return { count: units.size }
@@ -4357,7 +4374,7 @@ function readsNoRecurrence(root, cache) {
       for (const a of args) stack.push([a, false])
       continue
     }
-    let answer = !(n.type === 'call' && typeof n.name === 'string' && own(RECURRENCES, n.name))
+    let answer = !isStatefulCall(n)
     for (const a of args) {
       if (answer && a && typeof a === 'object' && cache.get(a) === false) answer = false
     }
@@ -5310,7 +5327,7 @@ export function historyReadMask(tree, bars, inputs, budget, scalars, opts) {
     if (node.type === 'call' && node.name === 'barsAgo') reads.push({ node, nested, unbounded })
     const into = nested || node.type === 'sym' || node.type === 'tf' || node.type === 'tf_live'
     const spec = node.type === 'call' && own(TABLE.functions, node.name) ? TABLE.functions[node.name] : null
-    const open = unbounded || !!(spec && (spec.lookback === SERIES_LOOKBACK || own(RECURRENCES, node.name)))
+    const open = unbounded || !!(spec && (spec.lookback === SERIES_LOOKBACK || isStatefulCall(node)))
     if (Array.isArray(node.args)) for (const a of node.args) stack.push([a, into, open])
   }
   if (!reads.length) return null
@@ -5852,7 +5869,7 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
       // reader looking for a typo in a name that is spelled correctly.
       if (RECURRENCE_BINDINGS.includes(name)) {
         refuse('interpret:recurrence',
-          `— \`${name}\` was read outside the update of a ${declared(RECURRENCES)} call`)
+          `— \`${name}\` was read outside the update of a ${[...Object.keys(RECURRENCES), ...Object.keys(MULTI_STATES)].join(', ')} call`)
       }
       refuse('resolve:name',
         `${JSON.stringify(name)} — this table declares ${Object.keys(scope).join(', ')}`)
@@ -6068,6 +6085,8 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
         // declares a `recurrence` carries a per-bar BODY, not a column. See
         // `runRecurrence`.
         if (own(RECURRENCES, n.name)) return runRecurrence(n, spec)
+        // ⭐ 2026-10-30 — and an `accumK` carries K per-bar UPDATES (`runMultiState`).
+        if (own(MULTI_STATES, n.name)) return runMultiState(n, spec)
         const args = []
         for (let i = 0; i < n.args.length; i++) {
           args.push(spec.args[i] === 'int'
@@ -6970,6 +6989,246 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
     for (let i = warmup; i < length; i++) out[i] = windowAt(i)
     return out
   }
+
+  /** ⭐⭐ 2026-10-30 — A DECLARED MULTI-STATE RECURRENCE (`accum2`…`accum4`),
+   *  `closedTable.json::_functions_multi_state`.
+   *
+   *  The bounded window `runRecurrence` makes, over a TUPLE: at bar `i` every
+   *  state is seeded fresh from its seed at bar `i - warmup`, then on each bar of
+   *  `(i - warmup, i]` ALL K updates are evaluated against the previous bar's K
+   *  values and replace them TOGETHER. The value is state number `output`.
+   *
+   *  ⭐ SIMULTANEOUS UPDATE IS THE CYCLE GUARD. An update reads `state1`… only as
+   *  last bar's values, so a same-bar circular dependency cannot be written, and
+   *  nothing here has to detect one.
+   *
+   *  ⭐ THE SAME PARTITION, THE SAME ARITHMETIC. Every maximal subtree of an update
+   *  that reads no bind is an ordinary column, evaluated once by `evalNode`; only
+   *  the spine is stepped, through `applyOpStep` / `POINTWISE` — the very entries
+   *  `applyOp` lifts — so a stepped body and a column agree by construction.
+   *
+   *  ⛔ WHAT IS REFUSED, BY NAME (`interpret:recurrence`): a bind in a seed; a bind
+   *  under an offset (one previous tuple is carried, not a history); a bind under
+   *  a windowed call; a bind inside a nested recurrence. `output` outside 1…K is
+   *  `resolve:window`. `bars × warmup × K` past `MAX_RECURRENCE_STEPS` is
+   *  `interpret:steps`.
+   *
+   *  ⚠️ THE K OUTPUTS SHARE ONE RUN. Two calls that differ only in `output` (a
+   *  SAR line and its direction) are the same recurrence, so the tuple column is
+   *  computed once per pass and read by both (`multiStateRuns`, keyed
+   *  structurally on everything but `output`). */
+  const runMultiState = (node, spec) => {
+    const ms = spec.multiState
+    const binds = ms.binds
+    const K = binds.length
+    if (!Array.isArray(ms.seeds) || !Array.isArray(ms.updates) || ms.seeds.length !== K || ms.updates.length !== K) {
+      refuse('interpret:recurrence', `— ${node.name}'s declaration names ${K} states but not ${K} seeds and ${K} updates`)
+    }
+    const output = windowLiteral(node, ms.output)
+    if (output > K) {
+      refuse('resolve:window',
+        `— ${node.name} argument ${ms.output} names state ${output}, and it carries ${K} (1 to ${K})`)
+    }
+    const warmup = windowLiteral(node, ms.warmup)
+    const bindAt = new Map(binds.map((b, m) => [b, m]))
+    const isBind = (x) => !!x && typeof x === 'object' && x.type === 'series' && bindAt.has(x.name)
+
+    // ⭐ ONE RUN PER RECURRENCE PER PASS — everything but `output` is the key. Read
+    // BEFORE the step record, so a second output of one run reports no work it
+    // did not do; the run that was held already passed the ceiling below.
+    const runKey = `${node.name}|${node.args.map((a, ai) => (ai === ms.output ? '*' : String(idOf.get(a) ?? '?'))).join(',')}`
+    const prior = multiStateRuns.get(runKey)
+    if (prior) return prior[output - 1]
+
+    // ⭐ THE CEILING COUNTS THE WORK ACTUALLY DONE — K update evaluations per step —
+    // because the merged windows below make the naive `bars × warmup × K` a worst case
+    // that real indicators rarely reach (Parabolic SAR: ~15× less). Counted as the run
+    // goes and checked once per window, so the same bars refuse at the same point
+    // every time, and the refusal still names the cost instead of hanging a chart.
+    let stepRecord = null
+    if (opts && Array.isArray(opts.stepSink)) {
+      stepRecord = { name: node.name, warmup, bars: length, steps: 0, worst: length * warmup * K, exceeded: false }
+      opts.stepSink.push(stepRecord)
+    }
+    let work = 0
+    const overCeiling = (at) => {
+      if (stepRecord) { stepRecord.steps = work; stepRecord.exceeded = true }
+      refuse('interpret:steps',
+        `— ${node.name} over ${length} bars with a ${warmup}-bar warm-up and ${K} states had done `
+        + `${work} steps by bar ${at} and the ceiling is ${MAX_RECURRENCE_STEPS}`)
+    }
+
+    // Which nodes read a bind. A NESTED stateful call binds its own names, so the
+    // walk stops there — `state1` inside it is not this recurrence's `state1`.
+    const readsBind = new Map()
+    const reads = (x) => {
+      if (readsBind.has(x)) return readsBind.get(x)
+      let answer = isBind(x)
+      if (!answer && !isStatefulCall(x) && x && typeof x === 'object' && Array.isArray(x.args)) {
+        for (const child of x.args) if (reads(child)) { answer = true; break }
+      }
+      readsBind.set(x, answer)
+      return answer
+    }
+    for (const at of ms.seeds) {
+      if (reads(node.args[at])) {
+        refuse('interpret:recurrence',
+          `— a seed of ${node.name}(…) reads ${binds.join('/')}; a seed is the value the window STARTS from, `
+          + 'so it cannot read the running values')
+      }
+    }
+
+    const columns = new Map()
+    const planned = new Set()
+    const refs = new Map()
+    const sk = (x) => { const id = idOf.get(x); return id === undefined ? x : id }
+    const plan = (x) => {
+      const k = sk(x)
+      refs.set(k, (refs.get(k) || 0) + 1)
+      if (planned.has(k)) return
+      planned.add(k)
+      if (!reads(x)) { columns.set(k, evalNode(x)); return }
+      if (isBind(x)) return
+      if (x.type === 'offset') {
+        refuse('interpret:recurrence',
+          `— a running value of ${node.name}(…) sits under a bar offset. One previous set of `
+          + 'states is carried per step, not a history, so last bar\'s value is the only past it holds '
+          + `— written \`${binds[0]}\`, never \`${binds[0]}[1]\`.`)
+      }
+      if (x.type === 'call') {
+        if (isStatefulCall(x)) {
+          refuse('interpret:recurrence',
+            `— a running value of ${node.name}(…) sits inside a nested ${x.name}(…), so which value it `
+            + 'names would depend on where a reader started counting.')
+        }
+        const inner = fnSpec(x.name)
+        if (!isPointwise(inner)) {
+          refuse('interpret:recurrence',
+            `— a running value of ${node.name}(…) sits inside ${x.name}(…), which reads a window of bars `
+            + 'rather than one. Write the windowed part outside the update, or spell it with '
+            + `${declared(TABLE.operators)}.`)
+        }
+        assertArity(x, inner)
+      }
+      for (const child of (Array.isArray(x.args) ? x.args : [])) plan(child)
+    }
+    for (const at of ms.updates) plan(node.args[at])
+
+    let stepNo = 0
+    const compiled = new Map()
+    const compile = (x) => {
+      const k = sk(x)
+      if (compiled.has(k)) return compiled.get(k)
+      let fn
+      if (columns.has(k)) {
+        const v = columns.get(k)
+        fn = isColumn(v) ? (j) => v[j] : () => v
+      } else if (isBind(x)) {
+        const m = bindAt.get(x.name)
+        fn = (j, state) => state[m]
+      } else {
+        const kids = x.args.map(compile)
+        const n = kids.length
+        const isOp = x.type === 'op'
+        const pointwise = isOp ? null : POINTWISE[x.name]
+        const raw = (j, state) => {
+          const values = new Array(n)
+          for (let a = 0; a < n; a += 1) values[a] = kids[a](j, state)
+          return isOp ? applyOpStep(x, values) : pointwise(...values)
+        }
+        if (refs.get(k) > 1) {
+          let at = -1
+          let heldValue
+          fn = (j, state) => {
+            if (at !== stepNo) { heldValue = raw(j, state); at = stepNo }
+            return heldValue
+          }
+        } else {
+          fn = raw
+        }
+      }
+      compiled.set(k, fn)
+      return fn
+    }
+    const updates = ms.updates.map((at) => compile(node.args[at]))
+    const seeds = ms.seeds.map((at) => toColumn(evalNode(node.args[at]), length))
+
+    const outs = binds.map(() => nan(length))
+    if (opts && typeof opts.prefixProbe === 'number') {
+      for (const o of outs) o.fill(opts.prefixProbe, 0, Math.min(warmup, length))
+    }
+    // ⭐⭐ THE WINDOWS ARE RUN BY MERGING, AND THE ANSWER IS THE NAIVE ONE EXACTLY.
+    // Window `i` is the trajectory seeded at `i - W`, stepped to `i`. Consecutive
+    // windows apply the SAME deterministic step to the same bars from different
+    // seeds, so the moment window `i`'s K states EQUAL (`Object.is`, so -0 and NaN
+    // are never confused) the previous window's states at some bar `j`, the two are
+    // the same trajectory from `j` on — and the previous one is already held. So a
+    // window steps only until it merges, then reads the held trajectory and steps
+    // the one new bar. A window that never merges is stepped in full, exactly as
+    // before; the result is bit-identical either way, and the step ceiling above
+    // still prices the worst case. (Measured on Parabolic SAR: the trajectories of
+    // a stop that clamps to the prior lows merge within a few dozen bars.)
+    // `held[m][t]` is the reference trajectory's state m at bar t, valid on
+    // [heldFrom, heldTo].
+    let held = binds.map(() => new Float64Array(length))
+    // The window being tried records its own states as it goes, so a window that
+    // never merges becomes the reference by a swap — no second pass, and the worst
+    // case stays exactly the naive cost the ceiling prices.
+    let cand = binds.map(() => new Float64Array(length))
+    let heldFrom = -1
+    let heldTo = -2
+    let state = new Array(K)
+    let next = new Array(K)
+    const sameAsHeld = (st, t) => {
+      for (let m = 0; m < K; m++) if (!Object.is(st[m], held[m][t])) return false
+      return true
+    }
+    for (let i = warmup; i < length; i++) {
+      for (let m = 0; m < K; m++) state[m] = seeds[m][i - warmup]
+      let merged = false
+      for (let j = i - warmup + 1; j <= i; j++) {
+        stepNo += 1
+        work += K
+        for (let m = 0; m < K; m++) next[m] = updates[m](j, state)
+        const t = state
+        state = next
+        next = t
+        for (let m = 0; m < K; m++) cand[m][j] = state[m]
+        if (j >= heldFrom && j <= heldTo && sameAsHeld(state, j)) {
+          // From `j` this window IS the held trajectory: read it to `heldTo`, then
+          // step the bars past it (only `i` itself, in the steady case).
+          for (let m = 0; m < K; m++) state[m] = held[m][heldTo]
+          for (let jj = heldTo + 1; jj <= i; jj++) {
+            stepNo += 1
+            work += K
+            for (let m = 0; m < K; m++) next[m] = updates[m](jj, state)
+            const u = state
+            state = next
+            next = u
+            for (let m = 0; m < K; m++) held[m][jj] = state[m]
+          }
+          heldTo = i
+          merged = true
+          break
+        }
+      }
+      if (!merged) {
+        // No merge: this window becomes the reference trajectory.
+        const swap = held
+        held = cand
+        cand = swap
+        heldFrom = i - warmup + 1
+        heldTo = i
+      }
+      for (let m = 0; m < K; m++) outs[m][i] = state[m]
+      if (work > MAX_RECURRENCE_STEPS) overCeiling(i)
+    }
+    if (stepRecord) stepRecord.steps = work
+    multiStateRuns.set(runKey, outs)
+    return outs[output - 1]
+  }
+  /** Per-pass memo for `runMultiState` — one tuple run per recurrence. */
+  const multiStateRuns = new Map()
 
   return toColumn(evalNode(ast), length)
 }

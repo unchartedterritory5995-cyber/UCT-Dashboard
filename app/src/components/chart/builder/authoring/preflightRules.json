@@ -238,7 +238,8 @@
       ["rate of change", "roc"], ["roc", "roc"],
       ["vwma", "vwma"], ["volume weighted moving average", "vwma"],
       ["keltner channel", "kcUpper"], ["keltner channels", "kcUpper"], ["keltner", "kcUpper"],
-      ["supertrend", "supertrend"], ["super trend", "supertrend"]
+      ["supertrend", "supertrend"], ["super trend", "supertrend"],
+      ["parabolic sar", "sar"], ["parabolic stop and reverse", "sar"], ["psar", "sar"]
     ]
   },
   "questionShape": {
