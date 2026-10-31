@@ -1433,6 +1433,22 @@ const BUILTIN_SERIES_TREE = Object.freeze({
   pvi: () => volumeIndexTree('>'),
 })
 
+/** Does a canonical tree call any of `names`? Iterative, like every walk here. */
+function treeCallsAny(tree, names) {
+  const stack = [tree]
+  while (stack.length) {
+    const n = stack.pop()
+    if (!n || typeof n !== 'object') continue
+    if (n.type === 'call' && names.has(n.name)) return true
+    if (Array.isArray(n.args)) for (const a of n.args) stack.push(a)
+  }
+  return false
+}
+
+/** The calls whose value the RANGE window withholds while it warms — see the
+ *  unbounded `ta.barssince` in `resolveTableCall`. */
+const RECURRENCE_CALLS = Object.freeze(new Set(['accum']))
+
 /** The names Phase 1 (2026-10-30) taught the Pine door, each with the ONLY
  *  spelling a v5/v6 script may use for it — see `Resolver.refuseBareModernSpelling`. */
 const PHASE1_MODERN_SPELLING = Object.freeze({
@@ -13012,10 +13028,21 @@ export class Resolver {
       // Unfolded, the `length + 1` tree translated and was then refused AT THE
       // INSTALL DOOR (`resolve:window`): a member was told the paste worked and
       // the pane never drew — `aroon__Aroon`, `pivot-high-low-points__hoTsDQRY3L`.
+      // ⛔ AND IT RECORDS WHAT IT FOLDED, exactly as the table path's `int` slot
+      // does (`windowBoundInputs`): an input that reaches a window is not a member
+      // knob, or an edit would move the input's other uses and leave the window on
+      // the folded default.
+      // A length that is already a plain number (a written literal, or one input's
+      // own value) is left exactly as this path always left it.
+      const foldLength = (a) => {
+        if (!a || a.type === 'num') return a
+        for (const n of declaredInputNames(a)) this.windowBoundInputs.add(n)
+        return foldWindow(a)
+      }
       const resolved = (namespacedName === 'ta.pivothigh' || namespacedName === 'ta.pivotlow')
         ? this.foldPivotBars(resolvedRaw)
         : ((namespacedName === 'ta.highestbars' || namespacedName === 'ta.lowestbars')
-          ? resolvedRaw.map((a, k) => (k === resolvedRaw.length - 1 ? foldWindow(a) : a))
+          ? resolvedRaw.map((a, k) => (k === resolvedRaw.length - 1 ? foldLength(a) : a))
           : resolvedRaw)
       const shifted = PINE_NAMESPACED_TREE[namespacedName](resolved)
       // ⛔⛔ A BUILDER MAY REFUSE IN ITS OWN WORDS, and one that does not gets a
@@ -13100,19 +13127,27 @@ export class Resolver {
       // `barssince(cond, n)` SATURATES at a window, and "add a number" would buy a
       // capped count under an uncapped name. Nothing here caps: the count since the
       // most recent bar where `cond` held is the bar counter's difference,
-      //     cum(1) − valuewhenOccurrence(cond, cum(1), 0)
+      //     barindex − valuewhenOccurrence(cond, barindex, 0)
       // — `valuewhenOccurrence` is unbounded (C45), so a condition true 3,000 bars
-      // ago reads 3,000, and one never true reads `na`, as TradingView's does. The
-      // counter's own level is fetch-dependent and CANCELS in the difference (the
-      // invariance `_functions_cumulative` states for `C - C[n]`); it still carries
-      // `cum`'s tag, so a screen keeps the refusal, and only the pane (`strict`)
-      // takes this. Namespaced only: the bare `barssince` is this table's own.
+      // ago reads 3,000, and one never true in the loaded bars reads `na`. The
+      // counter's origin cancels in the difference (`barIndexShift.js` reads it as
+      // shift-invariant). A screen keeps the refusal. Namespaced only: the bare
+      // `barssince` is this table's own.
+      // ⛔⛔ NOT OVER A RECURRENCE. A condition that reads `accum` is `na` on the bars
+      // the RANGE window cannot yet decide, `valuewhenOccurrence` forgets every
+      // occurrence at an `na` condition, and the count it then reports is not the
+      // listing run's — and a comparison turns that `na` into a confident `false`.
+      // MEASURED: `atr-trailing-stop-by-ceyhun`'s `barssince(Green) < barssince(Red)`
+      // published 0 at AGEN bar 420 where the listing run reads 1
+      // (`ratchetServedScripts.test.js`). Such a condition keeps the refusal.
       if (bare === 'barssince' && this.strict && pineName !== base
           && Array.isArray(args) && args.length === 1 && args[0] && !args[0].name) {
         const cond = this.condition(this.resolve(args[0].value !== undefined ? args[0].value : args[0]),
           'arg:condition', tok)
-        const counter = () => cCall('cum', [cNum(1)])
-        return cOp('-', [counter(), cCall('valuewhenOccurrence', [cond, counter(), cNum(0)])])
+        if (!treeCallsAny(cond, RECURRENCE_CALLS)) {
+          const counter = () => cSeries('barindex')
+          return cOp('-', [counter(), cCall('valuewhenOccurrence', [cond, counter(), cNum(0)])])
+        }
       }
       // ⭐⭐ (2026-09-28) THE SESSION FORM IS SERVED ON THE CHART PANE, as the
       // vendor was measured answering it — `sessionClockOf` carries the readings

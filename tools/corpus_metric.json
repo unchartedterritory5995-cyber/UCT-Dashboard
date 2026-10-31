@@ -1,8 +1,8 @@
 {
-  "measured_at": "2026-10-29",
+  "measured_at": "2026-10-31",
   "scripts": 266,
-  "host_ok": 77,
-  "screener_ok": 67,
+  "host_ok": 82,
+  "screener_ok": 68,
   "threw": [],
   "rows": [
     {
@@ -59,13 +59,11 @@
       "hostGuards": [
         "pine:module",
         "pine:block",
-        "pine:role-order",
         "pine:hidden-only"
       ],
       "screenerGuards": [
         "pine:module",
         "pine:block",
-        "pine:role-order",
         "pine:hidden-only"
       ]
     },
@@ -323,12 +321,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:function-def",
-        "pine:na"
+        "pine:function-def"
       ],
       "screenerGuards": [
-        "pine:function-def",
-        "pine:na"
+        "pine:function-def"
       ]
     },
     {
@@ -367,14 +363,12 @@
     {
       "file": "breaks-and-retests-hg__ddba061af8.pine",
       "host": false,
-      "screener": false,
+      "screener": true,
       "hostGuards": [
-        "pine:na",
-        "pine:tuple",
-        "pine:function"
+        "pine:reassign",
+        "pine:tuple"
       ],
       "screenerGuards": [
-        "pine:na",
         "pine:tuple",
         "pine:function"
       ]
@@ -635,13 +629,11 @@
       "hostGuards": [
         "pine:module",
         "pine:tuple",
-        "pine:function",
         "pine:builtin"
       ],
       "screenerGuards": [
         "pine:module",
         "pine:tuple",
-        "pine:function",
         "pine:builtin"
       ]
     },
@@ -928,14 +920,11 @@
     },
     {
       "file": "highlow-channel-swing__e3692e253c.pine",
-      "host": false,
+      "host": true,
       "screener": false,
-      "hostGuards": [
-        "pine:function"
-      ],
+      "hostGuards": [],
       "screenerGuards": [
-        "pine:declaration-strategy",
-        "pine:function"
+        "pine:declaration-strategy"
       ]
     },
     {
@@ -1457,7 +1446,7 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:function"
+        "pine:timeout"
       ],
       "screenerGuards": [
         "pine:function"
@@ -1929,14 +1918,10 @@
     },
     {
       "file": "relative-volume__LnFmPEoFXQ.pine",
-      "host": false,
+      "host": true,
       "screener": true,
-      "hostGuards": [
-        "pine:function"
-      ],
-      "screenerGuards": [
-        "pine:function"
-      ]
+      "hostGuards": [],
+      "screenerGuards": []
     },
     {
       "file": "renderingnature-smc-reversal-engine-v71__f8734584d9.pine",
@@ -2119,7 +2104,7 @@
       "screener": false,
       "hostGuards": [
         "pine:module",
-        "pine:function",
+        "pine:block",
         "pine:reassign",
         "pine:type"
       ],
@@ -2135,10 +2120,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:na"
+        "pine:reassign"
       ],
       "screenerGuards": [
-        "pine:na"
+        "pine:reassign"
       ]
     },
     {
@@ -2179,12 +2164,9 @@
     },
     {
       "file": "smart-money-interest-index-algoalpha__effdd7852c.pine",
-      "host": false,
+      "host": true,
       "screener": false,
-      "hostGuards": [
-        "pine:function",
-        "pine:hidden-only"
-      ],
+      "hostGuards": [],
       "screenerGuards": [
         "pine:function",
         "pine:hidden-only"
@@ -2203,11 +2185,9 @@
     },
     {
       "file": "smart-money-volume-index-algoalpha__6663950b80.pine",
-      "host": false,
+      "host": true,
       "screener": true,
-      "hostGuards": [
-        "pine:function"
-      ],
+      "hostGuards": [],
       "screenerGuards": [
         "pine:function"
       ]
@@ -2416,14 +2396,10 @@
     },
     {
       "file": "support-and-resistance__1505.pine",
-      "host": false,
+      "host": true,
       "screener": true,
-      "hostGuards": [
-        "pine:na"
-      ],
-      "screenerGuards": [
-        "pine:na"
-      ]
+      "hostGuards": [],
+      "screenerGuards": []
     },
     {
       "file": "support-and-resistance__UgNPprOr8h.pine",

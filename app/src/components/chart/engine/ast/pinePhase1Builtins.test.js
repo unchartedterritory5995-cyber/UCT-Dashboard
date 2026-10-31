@@ -474,10 +474,19 @@ describe('ta.barssince(cond), unbounded, on a pane — REFERENCE: bars since con
     const cond = BARS.map((_, i) => i > 3 && i < 500 && i % 13 === 0)
     const bars = BARS.map((b, i) => ({ ...b, o: cond[i] ? b.c - 1 : b.c + 1 }))
     const { tree, formula } = treeOf(V6('plot(ta.barssince(close > open))'), { strict: true })
-    expect(formula).toBe('cum(1) - valuewhenOccurrence(close > open, cum(1), 0)')
-    const ours = interpret(tree, bars)
+    expect(formula).toBe('barindex - valuewhenOccurrence(close > open, barindex, 0)')
+    // the count reads `bar_index`, so it is served only on bars proved to start at the
+    // listing (C45) — these 1,500 do, by construction
+    const ours = interpret(tree, bars, undefined, undefined, undefined, { barIndexFromFirstBar: true })
     expect(same(ours, refSince(cond), 0)).toBe(1500 - 13)
     expect(ours[1499]).toBe(1499 - 494)
+  })
+  it('NOT over a recurrence: a condition the RANGE window withholds keeps the refusal', () => {
+    // `valuewhenOccurrence` forgets at an `na` condition, so over a curtain the count is
+    // not the listing run's (`ratchetServedScripts`: ceyhun's barssince(Green) < barssince(Red))
+    const src = V6(['[st, dir] = ta.supertrend(3, 10)', 'plot(ta.barssince(dir < 0))'].join(String.fromCharCode(10)))
+    expect(refusalOf(src, { strict: true }).guard).toBe('pine:function')
+    expect(treeOf(V6('plot(ta.barssince(close > open))'), { strict: true }).formula).toMatch(/valuewhenOccurrence/)
   })
   it('a screen keeps the refusal — the count reads a running total, which a screen cannot hold', () => {
     expect(refusalOf(V6('plot(ta.barssince(close > open))')).guard).toBe('pine:function')

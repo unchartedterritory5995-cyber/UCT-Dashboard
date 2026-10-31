@@ -86,20 +86,18 @@ describe('CAP2 coverage audit — MATCH', () => {
 // ─── DIVERGE — each is a fix to make; the control names what diverges ──────────
 describe('CAP2 coverage audit — DIVERGE (known; the fix flips each it.fails)', () => {
   // atr-trailing-stop-by-ceyhun ------------------------------------------------
-  // ⭐ FLIPPED 2026-10-30 (Pine coverage Phase 1): the info label's text reads
-  // `ta.barssince(Buy)` / `ta.barssince(Sell)`, unbounded, and a pane now serves
-  // that count exactly (`cum(1) - valuewhenOccurrence(cond, cum(1), 0)`), so the
-  // label is drawn instead of withheld by name — and RDDT MATCHes whole.
-  it('atr-trailing-stop-by-ceyhun RDDT: MATCH', () => {
-    const { v } = grade('atr-trailing-stop-by-ceyhun-rddt-1d-2026-10-02')
-    expect(v.verdict, v.reason).toBe('MATCH')
+  it.fails('atr-trailing-stop-by-ceyhun RDDT: MATCH', () => {
+    expect(grade('atr-trailing-stop-by-ceyhun-rddt-1d-2026-10-02').v.verdict).toBe('MATCH')
   }, T)
-  it('control: RDDT plots, the barcolor AND the one drawing agree — it is no longer withheld', () => {
+  it('control: RDDT plots and the barcolor agree; TradingView holds 1 drawing and ours is WITHHELD BY NAME (its text reads an unbounded ta.barssince)', () => {
     const { v } = grade('atr-trailing-stop-by-ceyhun-rddt-1d-2026-10-02')
     expect(v.plots.every((p) => p.verdict === 'MATCH')).toBe(true)
     expect(v.paints.verdict).toBe('MATCH')
-    expect(v.objects.withheld).toBeFalsy()
-    expect(v.objects.verdict).toBe('MATCH')
+    // ⭐ F3 — was "our script has no drawing program": the script DRAWS (one info
+    // label), and the door refused both of its creates by name (`create:label`,
+    // `pine:function` — `ta.barssince` is unbounded; its `x` is `timenow`).
+    expect(v.objects.withheld).toBe('pine:object-ops-refused')
+    expect(v.objects.reason).toMatch(/holds 1 drawing object.*withheld by name \(pine:object-ops-refused\).*create:label ×2; pine:function/)
   }, T)
   it.fails('atr-trailing-stop-by-ceyhun SPY: MATCH', () => {
     expect(grade('atr-trailing-stop-by-ceyhun-spy-1d-2026-10-02').v.verdict).toBe('MATCH')
