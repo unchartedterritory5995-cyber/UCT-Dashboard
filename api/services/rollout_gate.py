@@ -424,3 +424,107 @@ def cohort_gated_routes(app, cohort: str) -> list[tuple[str, str]]:
 #: every request.
 require_terminal_next = require_cohort(TERMINAL_NEXT_COHORT,
                                        kill_switch=terminal_next_enabled)
+
+
+# --------------------------------------------------------------------------- #
+# ⭐⭐ WS-I (2026-10-31, owner ruling R2) — THE PINE RUNTIME PANE'S COHORT STAGE.
+#
+# `PINE_RUNTIME_STAGE` (api/services/runtime_definitions.py) is the ladder
+# off -> admins -> cohort -> all. At `cohort` the per-bar runtime pane is for
+# admins AND for members tagged into the `pine-runtime-pane` cohort, and for
+# nobody else. The cohort is an admin-written `user_tags` row
+# (`rollout:pine-runtime-pane`, written by `tools/rollout_cohort.py add
+# --cohort pine-runtime-pane --user <id> --apply`), exactly like Terminal-Next.
+#
+# ⛔ THE KILL SWITCH IS THE STAGE ITSELF, read FIRST and per call: the cohort
+# counts only while the stage is `cohort`. Any other stage — `off`, `admins`,
+# `all`, unset, a typo — answers without opening `auth.db` or reading a tag, so
+# moving the stage back to `admins` or `off` withdraws every tagged member and
+# touches no tag (cohorts are tags, never deletes). There is deliberately NO
+# second variable: a cohort switch beside the stage would be a second
+# authority over who sees the lane.
+#
+# ⛔ NOT REGISTERED IN `COHORT_KILL_SWITCHES`. The client already receives the
+# resolved answer as `pine_runtime_pane_enabled` (auth payload); listing the
+# cohort in `cohorts` too would be a second client channel for one decision.
+# --------------------------------------------------------------------------- #
+
+#: The BARE cohort name (`rollout.tag_for` adds the prefix).
+PINE_RUNTIME_COHORT = "pine-runtime-pane"
+
+
+def pine_runtime_cohort_switch() -> bool:
+    """Is `PINE_RUNTIME_STAGE` at `cohort` RIGHT NOW? ⛔ Never cached, never raises
+    (an unreadable stage is not the cohort stage)."""
+    try:
+        from api.services import runtime_definitions
+
+        return runtime_definitions.stage() == runtime_definitions.STAGE_COHORT
+    except Exception:
+        log.exception("[rollout_gate] pine runtime stage unreadable; the cohort is off")
+        return False
+
+
+def pine_runtime_cohort_enabled_for(user_id: Optional[str]) -> bool:
+    """Is THIS member in the runtime pane's cohort while the stage is `cohort`?
+    The stage first, then the id, then one tag read; fail closed."""
+    return cohort_enabled_for(user_id, PINE_RUNTIME_COHORT,
+                              kill_switch=pine_runtime_cohort_switch)
+
+
+# --------------------------------------------------------------------------- #
+# ⭐⭐ WS-I (2026-10-31, owner ruling R1) — THE GRADING POLICY FOR WHAT THE
+# RUNTIME LANE MAY SERVE. Two rules, in this order, both required:
+#
+#   1. PER-CAPABILITY CONFORMANCE IS THE PRIMARY GATE. A script names every
+#      census capability it uses; each must be `conformant` in the registry,
+#      with evidence named. One `divergent`, `ungraded` or unknown capability
+#      withholds the script, by name. (R4's `conditional-ta` is a `divergent`
+#      row until WS-C lands per-call-site history.)
+#   2. EVERY SCRIPT ON THE ALLOWLIST HAS AT LEAST ONE MATCH CAPTURE, graded
+#      with the runtime pane ON (a dark-pane grade measured the host lane).
+#
+# The data is `api/data/pine_runtime_allowlist.json` (`scripts[]` +
+# `capabilities{}`); `runtime_definitions.allow_list` serves only what this
+# admits. Pure: no env, no I/O, never raises.
+# --------------------------------------------------------------------------- #
+
+PINE_CAPABILITY_CONFORMANT = "conformant"
+PINE_CAPTURE_MATCH = "MATCH"
+PINE_CAPTURE_PANE_ON = "on"
+
+
+def pine_runtime_admission(script, registry) -> list[str]:
+    """Why this allowlist record is NOT served (R1), or ``[]`` when it is.
+
+    ⛔ FAIL CLOSED on every malformed shape: a record that cannot answer a
+    question is withheld with the reason, never admitted."""
+    if not isinstance(script, dict):
+        return ["not a script record"]
+    if not isinstance(registry, dict):
+        registry = {}
+    reasons: list[str] = []
+    caps = script.get("capabilities")
+    if not isinstance(caps, list) or not caps or not all(isinstance(c, str) and c for c in caps):
+        reasons.append("names no capabilities, so its conformance cannot be asked (R1)")
+    else:
+        for cap in caps:
+            row = registry.get(cap)
+            if not isinstance(row, dict):
+                reasons.append(f"capability `{cap}` is not in the conformance registry (R1)")
+                continue
+            status = row.get("status")
+            if status != PINE_CAPABILITY_CONFORMANT:
+                reasons.append(f"capability `{cap}` is {status or 'ungraded'}, not conformant (R1)")
+                continue
+            evidence = row.get("evidence")
+            if not isinstance(evidence, list) or not evidence:
+                reasons.append(f"capability `{cap}` is marked conformant but names no evidence (R1)")
+    captures = script.get("captures")
+    matched = [c for c in (captures if isinstance(captures, list) else [])
+               if isinstance(c, dict) and isinstance(c.get("id"), str) and c.get("id")
+               and c.get("verdict") == PINE_CAPTURE_MATCH
+               and c.get("runtimePane") == PINE_CAPTURE_PANE_ON]
+    if not matched:
+        reasons.append("has no TradingView capture graded MATCH with the runtime pane on (R1)")
+    return reasons

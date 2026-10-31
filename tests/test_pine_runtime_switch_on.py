@@ -16,6 +16,10 @@ Owner rulings implemented here (`docs/pine/runtime-pane-switch-on-plan.md`, GT):
   stored label is never flipped.
 
 The client half is `app/src/components/chart/engine/__tests__/runtimeSwitchOn.test.js`.
+
+WS-I (2026-10-31, Phase 3 plan workstream I) adds, at the bottom: the cohort
+stage (R2), the R1 grading gate over the committed allowlist, the stage reaching
+a served row (S6) and the ledger rows for the kill list and allowlist (S7).
 """
 from __future__ import annotations
 
@@ -97,20 +101,21 @@ def test_D1_the_default_is_pinned_in_SOURCE_not_only_in_behaviour():
     """The literal, not just the effect: changing the default and "fixing" the
     behaviour test would leave every member on a variable nobody set."""
     assert rt.STAGE_OFF == "off"
-    assert rt.PINE_RUNTIME_MODE_FLAGS == {"PINE_RUNTIME_STAGE": ("off", ("off", "admins", "all"))}
+    assert rt.PINE_RUNTIME_MODE_FLAGS == {"PINE_RUNTIME_STAGE": ("off", ("off", "admins", "cohort", "all"))}
     src = (ROOT / "api" / "services" / "runtime_definitions.py").read_text(encoding="utf-8")
     assert "os.environ.get(STAGE_ENV, STAGE_OFF)" in src
     # and the mode-flag index derives it, so the ledger can hold it to a decision
     from api.services import feature_flag_index as ffi
     found = ffi.mode_flags([ROOT / "api"], ROOT)
     assert found["PINE_RUNTIME_STAGE"]["default"] == "off"
-    assert set(found["PINE_RUNTIME_STAGE"]["allowed"]) == {"off", "admins", "all"}
+    assert set(found["PINE_RUNTIME_STAGE"]["allowed"]) == {"off", "admins", "cohort", "all"}
 
 
 @pytest.mark.parametrize("value", ["admin", "everyone", "1", "true", "on", "ALL ", " Admins"])
 def test_D1_an_unrecognised_value_is_OFF_never_the_opposite(monkeypatch, value):
     monkeypatch.setenv(rt.STAGE_ENV, value)
-    expected = {"all": rt.STAGE_ALL, "admins": rt.STAGE_ADMINS}.get(value.strip().lower(), rt.STAGE_OFF)
+    expected = {"all": rt.STAGE_ALL, "admins": rt.STAGE_ADMINS,
+                "cohort": rt.STAGE_COHORT}.get(value.strip().lower(), rt.STAGE_OFF)
     assert rt.stage() == expected
     if expected == rt.STAGE_OFF:
         assert _payload_flag("admin") is False and _payload_flag("member") is False
@@ -362,3 +367,257 @@ def test_RT4_the_notice_never_raises_on_an_unreadable_row():
     assert rl.member_notice({"user_id": "u", "def_id": "u_x", "version": 1,
                              "definition": {"compute": {"kind": "ast", "ast": {"type": "nope"}}},
                              "repaint": "not-a-dict"}) is None
+
+
+# ═══ WS-I (2026-10-31) — rollout and grading machinery ═══════════════════════
+#
+# R2 — the cohort stage (off -> admins -> cohort -> all), its tag, and the stage
+#      as the cohort's kill switch, read FIRST.
+# R1 — per-capability conformance is the primary gate, and every allowlisted
+#      script has at least one MATCH capture with the runtime pane on.
+# S6 — a switch-off reaches a served row (the client half is
+#      app/src/lib/runtimePaneRevocation.test.js).
+# S7 — ledger rows for the kill list and the allowlist.
+
+from api.services import auth_db, rollout  # noqa: E402
+from api.services import rollout_gate as rg  # noqa: E402
+
+TAGGED_ID = "wsi-tagged-1"
+UNTAGGED_ID = "wsi-untagged-1"
+LEDGER = ROOT / "docs" / "feature_flags.json"
+HARNESS = ROOT / "tests" / "fixtures" / "vendor" / "harness"
+
+
+@pytest.fixture
+def cohort_store(tmp_path, monkeypatch):
+    """A per-test `auth.db` from the PRODUCT'S `init_db()`, one member tagged
+    into the runtime pane's cohort by the PRODUCT'S writer, one not."""
+    path = tmp_path / "auth.db"
+    monkeypatch.setenv("AUTH_DB_PATH", str(path))
+    monkeypatch.setattr(auth_db, "_DB_PATH", str(path))
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    auth_db.init_db()
+    conn = auth_db.get_connection()
+    try:
+        for uid in (TAGGED_ID, UNTAGGED_ID):
+            conn.execute("INSERT OR IGNORE INTO users (id, email, password_hash) VALUES (?,?,?)",
+                         (uid, uid + "@example.test", "x"))
+        conn.commit()
+    finally:
+        conn.close()
+    rollout.assign_cohort(rg.PINE_RUNTIME_COHORT, [TAGGED_ID])
+    assert rollout.includes(TAGGED_ID, rg.PINE_RUNTIME_COHORT) is True
+    return path
+
+
+def _member_flag(user_id, role="member"):
+    auth = importlib.import_module("api.routers.auth")
+    return auth._access_payload({"id": user_id, "email": "m@example.com", "role": role},
+                                "free")["pine_runtime_pane_enabled"]
+
+
+def test_WSI_R2_the_ladder_is_off_admins_cohort_all_and_the_default_stays_off():
+    assert rt.STAGES == ("off", "admins", "cohort", "all")
+    assert rt.PINE_RUNTIME_MODE_FLAGS["PINE_RUNTIME_STAGE"][0] == "off"
+    assert rg.PINE_RUNTIME_COHORT == "pine-runtime-pane"
+    assert rollout.tag_for(rg.PINE_RUNTIME_COHORT) == "rollout:pine-runtime-pane"
+
+
+def test_WSI_R2_cohort_means_admins_and_TAGGED_members_only(cohort_store, monkeypatch):
+    monkeypatch.setenv(rt.STAGE_ENV, "cohort")
+    assert rt.stage() == rt.STAGE_COHORT
+    assert _member_flag(TAGGED_ID) is True
+    assert _member_flag(UNTAGGED_ID) is False
+    assert _member_flag(UNTAGGED_ID, role="admin") is True
+    assert rt.pane_permitted("member", None) is False            # no id = outside
+    assert rt.pane_permitted("member") is False
+
+
+@pytest.mark.parametrize("stage", ["off", "admins", "all", "cohorts", "Cohort-ish", ""])
+def test_WSI_R2_the_STAGE_is_the_cohort_kill_switch_and_is_read_FIRST(cohort_store, monkeypatch, stage):
+    """At any stage but `cohort`, no tag is read at all (a spy, because a
+    fail-closed answer cannot prove the order)."""
+    monkeypatch.setenv(rt.STAGE_ENV, stage)
+    calls = []
+    real = rollout.includes
+    monkeypatch.setattr(rollout, "includes", lambda *a, **k: calls.append(a) or real(*a, **k))
+    flag = _member_flag(TAGGED_ID)
+    assert calls == []
+    assert flag is (stage == "all")
+    assert rg.pine_runtime_cohort_enabled_for(TAGGED_ID) is False
+
+
+def test_WSI_R2_the_cohort_tag_IS_read_at_cohort(cohort_store, monkeypatch):
+    """Control for the spy above: at `cohort` the same spy sees the read."""
+    monkeypatch.setenv(rt.STAGE_ENV, "cohort")
+    calls = []
+    real = rollout.includes
+    monkeypatch.setattr(rollout, "includes", lambda *a, **k: calls.append(a) or real(*a, **k))
+    assert _member_flag(TAGGED_ID) is True
+    assert calls == [(TAGGED_ID, rg.PINE_RUNTIME_COHORT)]
+
+
+def test_WSI_R2_stepping_back_WITHDRAWS_without_touching_a_tag(cohort_store, monkeypatch):
+    monkeypatch.setenv(rt.STAGE_ENV, "cohort")
+    assert _member_flag(TAGGED_ID) is True
+    monkeypatch.setenv(rt.STAGE_ENV, "admins")
+    assert _member_flag(TAGGED_ID) is False
+    assert rollout.includes(TAGGED_ID, rg.PINE_RUNTIME_COHORT) is True   # the tag is still there
+    monkeypatch.setenv(rt.STAGE_ENV, "cohort")
+    assert _member_flag(TAGGED_ID) is True                                # and comes back
+
+
+def test_WSI_R2_the_save_question_is_the_same_at_cohort(cohort_store, monkeypatch):
+    monkeypatch.setenv(rt.STAGE_ENV, "cohort")
+    assert rt.save_permission("member", TAGGED_ID) is None
+    assert rt.save_permission("admin") is None
+    refused = rt.save_permission("member", UNTAGGED_ID)
+    assert refused and "admins and a test group only right now (PINE_RUNTIME_STAGE=cohort)" in refused
+    # ⚠️ The store's save door passes the role only (WS-I hand-off), so a member
+    # saving without an id is refused at `cohort`: fail closed, never open.
+    assert rt.save_permission("member") is not None
+
+
+def test_WSI_R2_the_payload_passes_the_members_id():
+    src = (ROOT / "api" / "routers" / "auth.py").read_text(encoding="utf-8")
+    assert '**_pine_runtime_pane_flag(user.get("role"), user.get("id")),' in src
+
+
+def test_WSI_R2_the_ledger_values_are_the_code_vocabulary_both_ways():
+    led = json.loads(LEDGER.read_text(encoding="utf-8"))["flags"]["PINE_RUNTIME_STAGE"]
+    assert tuple(led["values"]) == rt.PINE_RUNTIME_MODE_FLAGS["PINE_RUNTIME_STAGE"][1]
+    assert led["default"] == rt.PINE_RUNTIME_MODE_FLAGS["PINE_RUNTIME_STAGE"][0]
+
+
+# ─── R1 — the grading policy ─────────────────────────────────────────────────
+
+REG = {"a": {"status": "conformant", "evidence": ["cap-1"]},
+       "b": {"status": "conformant", "evidence": ["cap-2"]},
+       "d": {"status": "divergent", "evidence": []},
+       "e": {"status": "conformant", "evidence": []}}
+MATCH_ON = {"id": "cap-1", "verdict": "MATCH", "runtimePane": "on"}
+
+
+def test_WSI_R1_a_conformant_script_with_a_MATCH_capture_is_admitted():
+    assert rg.pine_runtime_admission({"capabilities": ["a", "b"], "captures": [MATCH_ON]}, REG) == []
+
+
+@pytest.mark.parametrize("script,needle", [
+    ({"captures": [MATCH_ON]}, "names no capabilities"),
+    ({"capabilities": [], "captures": [MATCH_ON]}, "names no capabilities"),
+    ({"capabilities": ["a", "zz"], "captures": [MATCH_ON]}, "`zz` is not in the conformance registry"),
+    ({"capabilities": ["a", "d"], "captures": [MATCH_ON]}, "`d` is divergent, not conformant"),
+    ({"capabilities": ["e"], "captures": [MATCH_ON]}, "`e` is marked conformant but names no evidence"),
+    ({"capabilities": ["a"]}, "no TradingView capture graded MATCH"),
+    ({"capabilities": ["a"], "captures": [dict(MATCH_ON, verdict="DIVERGE")]}, "no TradingView capture graded MATCH"),
+    ({"capabilities": ["a"], "captures": [dict(MATCH_ON, runtimePane="off")]}, "with the runtime pane on"),
+    ({"capabilities": ["a"], "captures": [{"verdict": "MATCH", "runtimePane": "on"}]}, "no TradingView capture"),
+    ("junk", "not a script record"),
+])
+def test_WSI_R1_each_rule_withholds_BY_NAME(script, needle):
+    reasons = rg.pine_runtime_admission(script, REG)
+    assert reasons and any(needle in r for r in reasons), reasons
+
+
+def test_WSI_R1_capabilities_are_asked_BEFORE_captures_and_both_must_hold():
+    reasons = rg.pine_runtime_admission({"capabilities": ["d"]}, REG)
+    assert len(reasons) == 2 and "divergent" in reasons[0] and "MATCH" in reasons[1]
+
+
+def test_WSI_R4_conditional_ta_is_a_DIVERGENT_row_that_withholds_its_users():
+    doc = json.loads(Path(rt.ALLOWLIST_PATH).read_text(encoding="utf-8"))
+    assert doc["capabilities"]["conditional-ta"]["status"] == "divergent"
+    s = dict(doc["scripts"][0], capabilities=doc["scripts"][0]["capabilities"] + ["conditional-ta"])
+    assert any("conditional-ta" in r for r in rg.pine_runtime_admission(s, doc["capabilities"]))
+
+
+def test_WSI_R1_every_COMMITTED_script_passes_R1_and_its_evidence_is_real():
+    """Red BY NAME if anyone commits an ungraded line: a withheld committed
+    script is a script somebody believed was served."""
+    rep = rt.allow_report()
+    assert rep["withheld"] == [], rep["withheld"]
+    assert [r["slug"] for r in rep["served"]] == ["adx-and-di-for-v4"]
+    doc = json.loads(Path(rt.ALLOWLIST_PATH).read_text(encoding="utf-8"))
+    for s in doc["scripts"]:
+        for c in s["captures"]:
+            cap = json.loads((HARNESS / f"{c['id']}.json").read_text(encoding="utf-8"))
+            assert cap["id"] == c["id"]
+            assert rt.source_hash(cap["source"]["text"]) == s["sha256"], c["id"]
+        assert rt.source_hash((ROOT / s["source"]).read_text(encoding="utf-8")) == s["sha256"]
+    for name, row in doc["capabilities"].items():
+        for cid in row["evidence"]:
+            assert (HARNESS / f"{cid}.json").is_file(), (name, cid)
+
+
+def test_WSI_R1_a_script_can_never_UNDER_declare_its_census_capabilities():
+    """The census detector is the one authority over a script's capabilities;
+    the committed list must name at least what it finds."""
+    import re
+    from tools.pine_coverage import coverage_map as cm
+    doc = json.loads(Path(rt.ALLOWLIST_PATH).read_text(encoding="utf-8"))
+    for s in doc["scripts"]:
+        code, _ = cm.strip_code((ROOT / s["source"]).read_text(encoding="utf-8"))
+        found = {fid for fid, _l, rx, fl in cm.FEATURES if re.search(rx, code, fl)}
+        assert found, s["slug"]
+        assert found <= set(s["capabilities"]), (s["slug"], sorted(found - set(s["capabilities"])))
+
+
+def test_WSI_R1_a_committed_script_that_fails_R1_is_WITHHELD_not_deleted(monkeypatch, tmp_path):
+    doc = json.loads(Path(rt.ALLOWLIST_PATH).read_text(encoding="utf-8"))
+    doc["capabilities"]["ternary"]["status"] = "ungraded"
+    f = tmp_path / "allow.json"
+    f.write_text(json.dumps(doc), encoding="utf-8")
+    monkeypatch.setattr(rt, "ALLOWLIST_PATH", str(f))
+    assert rt.allow_list() == []
+    assert rt.not_graded(ADX["compute"]["source"])
+    rep = rt.allow_report()
+    assert rep["withheld"][0]["slug"] == "adx-and-di-for-v4"
+    assert "`ternary` is ungraded" in rep["withheld"][0]["reasons"][0]
+    assert json.loads(f.read_text(encoding="utf-8"))["scripts"][0]["slug"] == "adx-and-di-for-v4"
+
+
+def test_WSI_R1_the_variable_stays_an_additive_override_and_is_REPORTED(monkeypatch):
+    monkeypatch.setenv(rt.ALLOW_ENV, DELTA["meta"]["runtimeSourceHash"])
+    assert DELTA["meta"]["runtimeSourceHash"] in rt.allow_list()
+    assert rt.allow_report()["env_overrides"] == [DELTA["meta"]["runtimeSourceHash"]]
+
+
+# ─── S6 — the stage reaches a SERVED row ─────────────────────────────────────
+
+def test_WSI_S6_stage_OFF_stamps_every_served_runtime_row_and_never_rewrites_it(store, monkeypatch):
+    monkeypatch.setenv(rt.SAVE_ENV, "1")
+    monkeypatch.setenv(rt.STAGE_ENV, "all")
+    svc.save(USER, ADX["id"], copy.deepcopy(ADX))
+    stored = svc.get(USER, ADX["id"])["definition"]
+    client = _client("admin")
+    served = client.get(f"/api/user-definitions/{ADX['id']}").json()["definition"]
+    assert "runtimeKilled" not in served["meta"]                   # control: on, graded
+    monkeypatch.setenv(rt.STAGE_ENV, "off")
+    served = client.get(f"/api/user-definitions/{ADX['id']}").json()["definition"]
+    assert "(PINE_RUNTIME_STAGE=off)" in served["meta"]["runtimeKilled"]
+    listed = client.get("/api/user-definitions").json()["definitions"]
+    assert "(PINE_RUNTIME_STAGE=off)" in listed[0]["definition"]["meta"]["runtimeKilled"]
+    assert svc.get(USER, ADX["id"])["definition"] == stored        # nothing rewritten
+    monkeypatch.setenv(rt.STAGE_ENV, "admins")
+    back = client.get(f"/api/user-definitions/{ADX['id']}").json()["definition"]
+    assert back == stored                                          # and it comes back
+
+
+def test_WSI_S6_a_kill_still_names_ITSELF_when_the_stage_is_off(monkeypatch):
+    monkeypatch.setenv(rt.KILL_ENV, ADX["id"])
+    row = {"def_id": ADX["id"], "definition": copy.deepcopy(ADX)}
+    assert "kill list" in rt.stamp_served(row)["definition"]["meta"]["runtimeKilled"]
+
+
+# ─── S7 — the ledger rows ────────────────────────────────────────────────────
+
+@pytest.mark.parametrize("name,env", [("PINE_RUNTIME_KILL_LIST", rt.KILL_ENV),
+                                      ("PINE_RUNTIME_ALLOWLIST", rt.ALLOW_ENV)])
+def test_WSI_S7_the_kill_list_and_allowlist_have_ledger_rows(name, env):
+    assert name == env
+    row = json.loads(LEDGER.read_text(encoding="utf-8"))["knobs"][name]
+    assert row["repo"] == "uct-dashboard"
+    assert row["status"] == "dark" and row["where"] == []
+    assert "runtime_definitions.py" in row["read_at"]
+    assert row["owner_decision"] and len(row["note"]) > 200
+    assert "unset" in row["default"]

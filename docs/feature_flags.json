@@ -2634,14 +2634,15 @@
       "status": "dark",
       "where": [],
       "owner": "pine parity programme",
-      "owner_decision": "2026-10-02 ruling D1 (admins first, then everyone, kill list as the safety net); the flip itself is not yet taken",
+      "owner_decision": "2026-10-02 ruling D1 (admins first, then everyone, kill list as the safety net); 2026-10-31 ruling R2 (Phase 3 plan section 4.6): a cohort stage between admins and all. The flip itself is not yet taken",
       "default": "off",
       "values": [
         "off",
         "admins",
+        "cohort",
         "all"
       ],
-      "note": "GT (2026-10-02): WHO the per-bar runtime pane is for. A MODE, not a gate: off (default; unset, empty or unrecognised all read off) | admins (role == 'admin' only) | all. Read PER REQUEST in api/services/runtime_definitions.py::stage / pane_permitted, declared as PINE_RUNTIME_MODE_FLAGS so feature_flag_index.mode_flags() derives it. Rides the auth payload resolved for THIS member as pine_runtime_pane_enabled (api/routers/auth.py::_access_payload, no new endpoint); the client latches it per tab (engine/runtimePaneGate.js) and runtimePaneEnabled() needs BOTH it and the build flag VITE_PINE_RUNTIME_PANE_ENABLED. The save door asks the same question of the saving member. While admins or all, the lane serves only the starter allowlist (adx-and-di-for-v4 today). Rollback: set off (a variable, NO deploy; reaches a member on their next authenticated request or reload, an open tab keeps its latched answer). Rails: tests/test_pine_runtime_switch_on.py, app/src/components/chart/engine/__tests__/runtimeSwitchOn.test.js."
+      "note": "GT (2026-10-02): WHO the per-bar runtime pane is for. A MODE, not a gate: off (default; unset, empty or unrecognised all read off) | admins (role == 'admin' only) | all. Read PER REQUEST in api/services/runtime_definitions.py::stage / pane_permitted, declared as PINE_RUNTIME_MODE_FLAGS so feature_flag_index.mode_flags() derives it. Rides the auth payload resolved for THIS member as pine_runtime_pane_enabled (api/routers/auth.py::_access_payload, no new endpoint); the client latches it per tab (engine/runtimePaneGate.js) and runtimePaneEnabled() needs BOTH it and the build flag VITE_PINE_RUNTIME_PANE_ENABLED. The save door asks the same question of the saving member. While admins or all, the lane serves only the starter allowlist (adx-and-di-for-v4 today). WS-I (2026-10-31, R2): cohort = admins plus members tagged into the pine-runtime-pane cohort (a user_tags row rollout:pine-runtime-pane, written only by tools/rollout_cohort.py add --cohort pine-runtime-pane --user <id> --apply; api/services/rollout_gate.py::pine_runtime_cohort_enabled_for). The stage itself is the cohort's kill switch, read FIRST: at any other stage no tag is read, so stepping back to admins or off withdraws every tagged member without touching a tag. Rollback: set a lower stage, never delete a tag (a variable, NO deploy; reaches a member on their next authenticated request; since WS-I (S6) an OPEN tab that holds a yes re-asks /api/auth/me once its answer is 60 s old and APPLIES a no (app/src/lib/runtimePanePermission.js), and with off every served runtime row is stamped meta.runtimeKilled so the install door refuses it on the next read; a run already loaded keeps drawing until its next consult of runtimePaneEnabled(), see the WS-I hand-off for the per-run check in nativeRegistry.js). Rails: tests/test_pine_runtime_switch_on.py, app/src/components/chart/engine/__tests__/runtimeSwitchOn.test.js, app/src/lib/runtimePaneRevocation.test.js."
     },
     "PROVIDER_COVERAGE_MONITOR_ENABLED": {
       "status": "armed",
@@ -3624,6 +3625,28 @@
       "where": ["web"],
       "default": "unset (any well-formed chromiumapp.org id may complete the Browser Capture handshake)",
       "note": "ARMED on web 2026-10-09 18:20Z (=kpogeikeoejgkefdcjdpeoonmbiflnlk), owner's go: the Chrome Web Store item UCT Browser Capture has been Published - unlisted since 2026-09-26 under that id, so the handshake is pinned to it. One bare --set, web SUCCESS 18:20Z; probed as the smoke account after the boot: a foreign id answers 400 'That extension is not authorized', a non-extension target 400 'That redirect target is not a browser extension'. Existing connections are unaffected (checked at handshake only). The same id is CAPTURE_EXTENSION_ID in app/src/pages/journal-2-0/components/BrowserCaptureCard.jsx (the install link); a re-published item needs both changed. Rollback: set it to \"\" (Railway ignores null) and verify a new boot."
+    },
+    "PINE_RUNTIME_KILL_LIST": {
+      "repo": "uct-dashboard",
+      "read_at": "api/services/runtime_definitions.py::kill_list (read per call; comma- or whitespace-separated: a definition id u_ + 12 hex, or a Pine source sha256 / a prefix of >= 12 hex). Served to the member door by GET /api/user-definitions/runtime-kill and stamped on every served runtime row (stamp_served -> meta.runtimeKilled).",
+      "kind": "config",
+      "status": "dark",
+      "where": [],
+      "default": "unset (empty list: no script killed)",
+      "owner": "pine parity programme",
+      "owner_decision": "2026-10-02 ruling D1 (the kill list is the safety net under the staged rollout); 2026-10-31 WS-I: ledgered (Phase 3 plan gap S7). Set on no service: nothing is served by the runtime lane while PINE_RUNTIME_STAGE is off, so there is nothing to kill yet",
+      "note": "RT1 (2026-10-02): the PER-SCRIPT kill switch for the per-bar runtime lane. A listed script falls back to the host lane's answer: its save is refused, a stored copy is SERVED stamped meta.runtimeKilled (never rewritten, never deleted) so every install door refuses it, and unlisting brings it back on the next read. Kill wins over the allowlist. Lever: ADD an entry (railway variable set PINE_RUNTIME_KILL_LIST=<entries> --service web); undo by removing the entry or setting it to \"\" (Railway ignores null; verify a NEW boot after any delete, a delete does not restart). Reach: the next definitions read, the next MemberPane mount, and since WS-I (S6) an open tab that has read the list re-reads it once it is 60 s old (app/src/components/chart/engine/runtimeKill.js). Rails: tests/test_pine_runtime_switch_on.py, app/src/components/chart/engine/__tests__/runtimeKillSwitch.test.js."
+    },
+    "PINE_RUNTIME_ALLOWLIST": {
+      "repo": "uct-dashboard",
+      "read_at": "api/services/runtime_definitions.py::allow_list (read per call; comma- or whitespace-separated Pine source sha256 values or >= 12-hex prefixes; a definition id is never accepted). The committed half is api/data/pine_runtime_allowlist.json; the server serves the union on GET /api/user-definitions/runtime-kill (allow).",
+      "kind": "config",
+      "status": "dark",
+      "where": [],
+      "default": "unset (only the committed api/data/pine_runtime_allowlist.json counts: adx-and-di-for-v4 today)",
+      "owner": "pine parity programme",
+      "owner_decision": "2026-10-02 ruling D6 (only a script graded MATCH on a TradingView capture is served); 2026-10-31 ruling R1: per-capability conformance is the primary gate AND every allowlisted script has at least one MATCH capture with the runtime pane on (api/services/rollout_gate.py::pine_runtime_admission over the committed JSON). Keep this variable UNSET in production: its entries carry no evidence, so a set value serves a script outside R1",
+      "note": "GT (2026-10-02): the operator half of the starter allowlist. WS-I (2026-10-31, R1): the COMMITTED list is graded: a script there is served only when every census capability it names is conformant in the file's capabilities registry and it names a MATCH capture with the pane on; one that fails is withheld (served as not graded, never deleted) and allow_report() names why, and the rail goes red by name. This variable stays additive and ungraded (an operator override, used by tests to admit synthetic sources); allow_report() reports its entries as env_overrides so a set value is never invisible. The way to admit a script is a commit to the JSON with its evidence. Lever to WITHDRAW one: remove its line (commit + deploy) or, faster, add it to PINE_RUNTIME_KILL_LIST (a variable, no deploy). Rails: tests/test_pine_runtime_switch_on.py, app/src/components/chart/engine/__tests__/runtimeSwitchOn.test.js."
     }
   }
 }
