@@ -111,6 +111,11 @@ REGISTRY: tuple[Retention, ...] = (
               "retained series (TERM-073): the analyst timeline is kept because the vendor cannot "
               "re-serve it",
               path="api.services.screener.analyst_pass:get_db_path"),
+    Retention("trade_exchange_news", "trade_exchange_news.db", NOT_MEMBER,
+              "PERMANENT (owner, 2026-10-31; Trade Exchange authorized indefinite storage): every "
+              "headline and every delivery record is kept forever; no delete statement in the module. "
+              "Originals are also permanent in the News R2 journal; nightly snapshot via store_backup",
+              path="api.services.trade_exchange_news.config:db_path"),
     # ── operational series ──────────────────────────────────────────────────────
     Retention("tweets", "tweets.db", NOT_MEMBER,
               "rolling TWEET_RETENTION_DAYS (default 7) by created_at",

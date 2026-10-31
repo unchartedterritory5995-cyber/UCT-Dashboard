@@ -58,5 +58,5 @@ export function fakeNewsDays(archive, { today = null, firstDayPartial = false } 
   }
   const days = [...counts.entries()].sort(([a], [b]) => (a < b ? -1 : 1)).map(([date, count]) => ({ date, count }))
   return { today: today || etDateKey(Date.now()), first_day: days[0]?.date || null, first_day_partial: firstDayPartial,
-    days, oldest_ms: Math.min(...archive.map((it) => it.received_at_ms)), retention: { max_age_hours: 168, max_items: 5000 } }
+    days, oldest_ms: Math.min(...archive.map((it) => it.received_at_ms)), retention: { permanent: true } }
 }

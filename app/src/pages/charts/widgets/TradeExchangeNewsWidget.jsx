@@ -512,7 +512,7 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange }) {
       )}
       {feed.truncated && (
         <div className={`${styles.notice} ${styles.noticeInfo}`}>
-          Some older headlines have aged out of the history window.
+          Some earlier headlines could not be replayed here; reopen the day to see them all.
         </div>
       )}
 
@@ -556,7 +556,7 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange }) {
         {rows.length > 0 && (
           <div className={styles.dayEdge} aria-live="polite">
             {day.hasOlder ? 'Loading earlier headlines…'
-              : `Start of ${dayLabel(day.dateKey, day.todayKey)}${day.meta?.first_day === day.dateKey && day.meta?.first_day_partial ? ' retained (earlier headlines aged out)' : ''}`}
+              : `Start of ${dayLabel(day.dateKey, day.todayKey)}${day.meta?.first_day === day.dateKey && day.meta?.first_day_partial ? ' (the UCT News archive began here)' : ''}`}
           </div>
         )}
       </div>

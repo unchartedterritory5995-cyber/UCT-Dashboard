@@ -239,7 +239,7 @@
       }
     },
     "op_set_fill": {
-      "description": "P3 — shade the area between two SERIES outputs (plots[output].fill.with). color / opacity are the band's own; omitted, the band is drawn in the output's colour at a low alpha. PHASE 5 — a CONDITIONAL cloud: colorAbove where `output` is above `with` and colorBelow where it is below (both together); with `when` (a yes/no output), colorAbove where it is true and colorBelow where false. An unknown bar is left unshaded.",
+      "description": "P3 — shade the area between two SERIES outputs (plots[output].fill.with). color / opacity are the band's own. On a band that already exists, an omitted color or opacity KEEPS the band's current one (\"make the cloud red\" names only color; \"more transparent\" names only opacity); on a NEW band, omitted, the band is drawn in the output's colour at a low alpha. A conditional cloud names its colours as colorAbove / colorBelow, never color. PHASE 5 — a CONDITIONAL cloud: colorAbove where `output` is above `with` and colorBelow where it is below (both together); with `when` (a yes/no output), colorAbove where it is true and colorBelow where false. An unknown bar is left unshaded.",
       "type": "object", "additionalProperties": false, "required": ["op", "output", "with"],
       "properties": {
         "op": { "const": "set_fill" }, "output": { "$ref": "#/$defs/outputKey" },

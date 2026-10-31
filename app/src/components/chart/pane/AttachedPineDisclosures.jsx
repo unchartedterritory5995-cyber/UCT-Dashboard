@@ -110,13 +110,13 @@ export function attachedInstanceIds(settings) {
  *
  * @returns {{name: string, note: string}[]}
  */
-export function attachedRuntimeErrors(settings, registry = defaultRegistry) {
+export function attachedRuntimeErrors(settings, registry = defaultRegistry, scope = '') {
   const instances = (settings && Array.isArray(settings.indicatorInstances))
     ? settings.indicatorInstances : []
   const out = []
   for (const inst of instances) {
     if (!inst || typeof inst !== 'object' || inst.hidden || typeof inst.instanceId !== 'string') continue
-    const sentence = runtimeErrorNoticeFor(inst.instanceId)
+    const sentence = runtimeErrorNoticeFor(inst.instanceId, scope)
     if (!sentence) continue
     const def = typeof registry.getDefinition === 'function' ? registry.getDefinition(inst.defId) : null
     const name = (def && def.meta && def.meta.name) || 'This script'
@@ -195,9 +195,14 @@ export function attachedDisclosures(settings, registry = defaultRegistry, barsLo
  * @param {object|null} props.settings   the pane's resolved chart settings
  * @param {number|null} props.barsLoaded the count the chart reported drawing
  * @param {object} [props.registry]
+ * @param {string} [props.noticeScope] the scope THIS pane's binder publishes its
+ *   bind-time notes under (`createBinder({scope})`, given by `StockChart`'s
+ *   `noticeScope`). ⛔ One instance id can be drawn by several binders (a grid
+ *   cell, a seeded widget) on other symbols and timeframes; reading by instance
+ *   alone put chart A's notes in chart B's strip. `''` is the unscoped binder.
  */
 export default function AttachedPineDisclosures({
-  settings = null, barsLoaded = null, registry = defaultRegistry,
+  settings = null, barsLoaded = null, registry = defaultRegistry, noticeScope = '',
 }) {
   // ⭐ THE GENERATION IS IN THE DEPENDENCY LIST BECAUSE THE ROWS ARRIVE LATE.
   // `useInstalledUserDefinitions` installs from SWR, after the first paint, so
@@ -210,9 +215,10 @@ export default function AttachedPineDisclosures({
   const [dropTick, setDropTick] = useState(0)
   useEffect(() => onObjectRenderDropsChange(() => setDropTick((n) => n + 1)), [])
   const rows = useMemo(
-    () => attachedDisclosures(settings, registry, barsLoaded),
+    () => attachedDisclosures(settings, registry, barsLoaded,
+      (id) => objectRenderDropsFor(id, noticeScope)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [settings, registry, barsLoaded, generation, dropTick],
+    [settings, registry, barsLoaded, generation, dropTick, noticeScope],
   )
   // ⭐⭐ R-R — THE ONE DISCLOSURE THAT IS NOT A PROPERTY OF THE DOCUMENT.
   // Whether a table had to be scaled depends on the VIEWPORT, so it cannot ride
@@ -231,9 +237,9 @@ export default function AttachedPineDisclosures({
   const [stopTick, setStopTick] = useState(0)
   useEffect(() => onRuntimeErrorNoticeChange(() => setStopTick((n) => n + 1)), [])
   const stopped = useMemo(
-    () => attachedRuntimeErrors(settings, registry),
+    () => attachedRuntimeErrors(settings, registry, noticeScope),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [settings, registry, generation, stopTick],
+    [settings, registry, generation, stopTick, noticeScope],
   )
 
   // ⭐⭐ C36 — THE OTHER DISCLOSURE THAT IS NOT A PROPERTY OF THE DOCUMENT: an
@@ -243,16 +249,16 @@ export default function AttachedPineDisclosures({
   // decided; the sentence is `CHART_CLOCK_WITHHELD`'s, never written here.
   // ⛔ ONLY THIS PANE'S INSTANCES, and only the ones it draws (`hidden` is off).
   const drawnIds = useMemo(() => attachedInstanceIds(settings), [settings])
-  const [clockNotes, setClockNotes] = useState(() => chartClockNotesFor(drawnIds))
+  const [clockNotes, setClockNotes] = useState(() => chartClockNotesFor(drawnIds, noticeScope))
   useEffect(() => {
     const read = () => setClockNotes((prev) => {
-      const next = chartClockNotesFor(drawnIds)
+      const next = chartClockNotesFor(drawnIds, noticeScope)
       return prev.length === next.length && prev.every((p, i) => p.code === next[i].code && p.reason === next[i].reason)
         ? prev : next
     })
     read()
     return onChartClockChange(read)
-  }, [drawnIds])
+  }, [drawnIds, noticeScope])
 
   // ⛔ ONCE, however many panes scaled. Two attached documents on one phone are
   // one fact about the screen, not two sentences.
