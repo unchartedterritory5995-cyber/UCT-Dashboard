@@ -683,7 +683,8 @@ const sameTimes = (snap, rows) => {
   for (let i = 0; i < rows.length; i += 1) if (!Object.is(snap.t[i], +rows[i].t)) return false
   return true
 }
-function buildRecorder() {
+/** Exported for its rails (`runtimeRealtimeGuards.test.js`); no product caller outside this file. */
+export function buildRecorder() {
   const trees = []
   let clean = true
   return {
@@ -703,7 +704,7 @@ function buildRecorder() {
 }
 /** The columns of a kept build over `rows`, made exactly as `columnOf` makes them, or null.
  *  `prev` is the session whose last run computed `prev.program.columns` with this build. */
-function columnsOver(build, rows, prev) {
+export function columnsOver(build, rows, prev) {   // exported for its rails, as `buildRecorder`
   const n = rows.length
   const out = new Array(build.trees.length)
   let reusedCount = 0
@@ -716,6 +717,9 @@ function columnsOver(build, rows, prev) {
     try { value = interpret(tree, rows, inputs, undefined, undefined, interpretOpts) } catch { return null }
     const arr = typeof value === 'number' ? new Float64Array(n).fill(value)
       : value instanceof Float64Array ? value : Float64Array.from(value)
+    // ⚠️ FAIL-CLOSED, NOT MUTATION-PROVABLE: `interpret` over `rows` answers `n` values today
+    // (deleting this line left every rail green). It stands because `columnOf` refuses the same
+    // mismatch by name, and a cached column of the wrong length would be read past its end.
     if (arr.length !== n) return null
     out[k] = arr
   }
@@ -810,8 +814,14 @@ function realtimeRun(def, ctx, role, ir, source, rows, forming, lastConfirmed) {
     commit() {
       const add = []
       for (const [bar, p] of pending) {
-        if (p.prior && p.prior.confirmed) continue   // a replay of a closed bar changes nothing
-        if (!('end' in p)) continue                  // a run stopped early (a probe) never ended it
+        // ⚠️ Neither line below is mutation-provable, and both say why. A replay of a closed bar
+        // would re-write the same `start` (it began FROM it) and an `end` no run reads (a closed
+        // bar is entered from `start`): skipping it only keeps the entry's eviction age. And
+        // `barEnd` follows every `barStart` that did not throw (a throw never commits), so an
+        // entry with no `end` cannot reach here today; if a VM change ever lets one, it is
+        // dropped rather than recorded as `end: undefined` (which would silently roll a `varip` back).
+        if (p.prior && p.prior.confirmed) continue
+        if (!('end' in p)) continue
         add.push([rows[bar].t, { start: p.start, end: p.end, confirmed: bar <= lastConfirmed }])
       }
       if (!add.length) return
@@ -927,6 +937,9 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
   if (versionWhy) throw refusal(RUNTIME_VERSION_GUARD, versionWhy)
   const build = reused ? prevSession.build : (recorder ? recorder.done(built.ir) : null)
   const resumable = prevSession && !opts.probe ? resumableFrom(prevSession, rows, program) : { why: sessionKey ? 'cold' : 'off' }
+  // ⚠️ Fresh constants for a run from bar 0 — conservative, NOT mutation-provable: running the
+  // session's program instead drew the same columns and drawings on every rail and probe tried
+  // (`runtimeRealtimeGuards.test.js`, a drawing script re-run after an old bar moved).
   if (reused && !resumable.checkpoint) program = lowerIrProgram(built.ir, lowerOpts)
   // a probe that rides only a run from scratch (the curtain's A, `computeOffListing`)
   const runProbe = opts.probe || (resumable.checkpoint ? null : (opts.probeIfCold || null))

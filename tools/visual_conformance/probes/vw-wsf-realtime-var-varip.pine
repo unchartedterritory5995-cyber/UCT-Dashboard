@@ -1,0 +1,34 @@
+//@version=5
+indicator("UCTPROBE_VW_WSF_REALTIME_VAR_VARIP", overlay = false)
+
+// ─── 2026-10-31 — P3 WS-F: the realtime model on a FORMING bar (Q-WSF1..Q-WSF4) ─
+//
+// The runtime lane replays Pine's realtime rules from deterministic bars
+// (`runtime/__tests__/runtimeRealtimeTicks.test.js`), and those rules are pinned by
+// READING the Pine manual, not by a capture. This probe is that capture. Rows:
+//   R00  bar_index                                   control
+//   R01  var counter, += 1 per execution             rolls back each tick: == bar_index + 1
+//   R02  varip counter, += 1 per execution           keeps each update: grows by one per tick
+//   R03  barstate.isnew ? 1 : 0                      1 on history and a bar's first tick only
+//   R04  barstate.isconfirmed ? 1 : 0                1 on the closing update only
+//   R05  varip counter [1]                           the closed bar's LAST value (its close included?)
+//   R06  var sum of close                            a tick never accumulates into the next
+// ⛔ CAPTURE: a liquid symbol on the 1-minute chart, DURING MARKET HOURS, with the probe
+// left running for at least 3 closed realtime bars. Read the data window for the last
+// 4 bars after the bar closes, and again mid-bar (forming). A history reload resets
+// varip history to var: record whether the captured window crossed one.
+
+var int vCount = 0
+vCount += 1
+varip int vipCount = 0
+vipCount += 1
+var float vSum = 0.0
+vSum += close
+
+plot(bar_index, "R00_bar_index_CONTROL")
+plot(vCount, "R01_var_count")
+plot(vipCount, "R02_varip_count")
+plot(barstate.isnew ? 1 : 0, "R03_isnew")
+plot(barstate.isconfirmed ? 1 : 0, "R04_isconfirmed")
+plot(vipCount[1], "R05_varip_prev")
+plot(vSum, "R06_var_sum_close")

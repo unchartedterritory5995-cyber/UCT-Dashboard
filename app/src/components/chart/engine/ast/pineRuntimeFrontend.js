@@ -1622,7 +1622,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
       // ⭐ P3 WS-F (B5) — `opts.columnInterpret`, when given, is called INSTEAD with the
       // same arguments and must answer what `interpret` answers: the realtime session
       // records each column's folded tree so a tick re-evaluates the columns without
-      // rebuilding the script (`runtimeColumns.js::buildCached`).
+      // rebuilding the script (`runtimeColumns.js::buildRecorder`).
       const folded = foldBound(canonical, bindConsts)
       value = typeof opts.columnInterpret === 'function'
         ? opts.columnInterpret(folded, bars, inputs, opts.interpretOpts)

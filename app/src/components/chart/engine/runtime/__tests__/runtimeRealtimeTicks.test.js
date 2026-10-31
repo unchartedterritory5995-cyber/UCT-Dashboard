@@ -11,7 +11,7 @@
 //     previous bar's close;
 //   * `varip` does NOT: each tick starts where the previous update of the bar left it;
 //   * `barstate.isnew` is 1 on a bar's first execution only (history included).
-// ⚠️ WHAT IS PINNED BY READING, NOT BY A CAPTURE (`docs/pine/capture-queue-wsf-realtime.md`):
+// ⚠️ WHAT IS PINNED BY READING, NOT BY A CAPTURE (`docs/pine/capture-queue-2026-10-31-wsf-realtime.md`):
 // the bar CLOSE is one more execution of the closed bar (this lane learns the bar closed
 // from the next fetch and runs it confirmed); `varip`'s `[1]` is the closed bar's last value.
 import { describe, it, expect, beforeEach } from 'vitest'
