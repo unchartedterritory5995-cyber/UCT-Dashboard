@@ -540,12 +540,12 @@ describe('one calendar day at a time', () => {
     }
     const cell = (d) => dlg.querySelector(`[data-day="${key(d)}"]`)
     expect(cell(24)).toBeDisabled()                                                      // before retention
-    expect(cell(24).title).toMatch(/Not retained/)
+    expect(cell(24).title).toMatch(/Before the UCT News archive began/)
     expect(cell(26).className).toMatch(/calNews/)
     expect(cell(26).title).toBe('200 headlines')
     expect(cell(27).className).toMatch(/calEmpty/)
     expect(cell(27)).not.toBeDisabled()
-    expect(within(dlg).getByText(/History from Sun, Oct 25/)).toBeTruthy()
+    expect(within(dlg).getByText(/Archive from Sun, Oct 25/)).toBeTruthy()
   })
 
   it('the calendar is keyboard-operable: arrows move by day and week, Enter picks, Escape closes', async () => {
