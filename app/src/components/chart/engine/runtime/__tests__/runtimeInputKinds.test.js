@@ -175,6 +175,11 @@ ${RT}plot(acc * (seen == "0930-1600" ? close : seen == "0800-1200" ? open : 0))
     const { installed } = registry.installUserDefinitions([built.definition])
     expect(refusalOf(installed[0], { sess: '9:30 to 4' })).toMatch(/sess.*not a session/)
   })
+  it('⛔ an AUTHOR default that is not a session is refused by name (the setting is skipped, the run refuses)', () => {
+    const built = mint(SRC.replace('input.session("0930-1600"', 'input.session("9:30 to 4"'))
+    expect(built.ok).toBe(false)
+    expect(built.runtimeDeclined.why).toMatch(/"9:30 to 4", which is not a session/)
+  })
   it('with `options`, it is a menu of the author\'s sessions', () => {
     const { specs } = runtimeInputSpecsOf(`//@version=5
 indicator("s2")
@@ -306,6 +311,12 @@ ${RT}plot(acc * (time >= startDate and seen == "0930-1600" ? close : 0))
     cs = setInstanceInput(cs, inst, 'sess', '0800-1200', registry)
     const refused = setInstanceInput(cs, inst, 'sess', 'not a session', registry)
     expect(refused).toBe(cs)
+    // ⛔ a time that is not whole ms, or not a number, is refused with the TIME sentence
+    expect(setInstanceInput(cs, inst, 'startDate', 1.5, registry)).toBe(cs)
+    expect(setInstanceInput(cs, inst, 'startDate', '2021-06-01', registry)).toBe(cs)
+    const { checkInstanceInput } = await import('../../instanceControls')
+    expect(checkInstanceInput(registry.getDefinition(ID), 'startDate', 1.5).why).toMatch(/whole milliseconds/)
+    expect(checkInstanceInput(registry.getDefinition(ID), 'startDate', '2021-06-01').why).toMatch(/takes a time/)
     expect(findInstance(cs, inst).inputs).toMatchObject({ startDate: Date.UTC(2021, 5, 1), sess: '0800-1200' })
     const reread = JSON.parse(JSON.stringify(cs))
     const col = registry.computeFor(registry.getDefinition(ID), bars,
