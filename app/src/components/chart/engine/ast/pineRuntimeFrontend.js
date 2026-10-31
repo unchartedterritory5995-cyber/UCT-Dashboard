@@ -67,7 +67,7 @@ import { ARRAY_FNS, producesArray, isVoid, argKind } from '../runtime/collection
 import { methodFormCall, splitMethodName } from './ufcs.js'
 // ⭐⭐ RT5 — the run's own drawings: the store's op table is the one authority
 // over which drawing calls exist, what they take and what they return.
-import { OBJECT_OPS, ANY_METHODS, paramsOfAny, declaredCapsOf } from '../runtime/objectStore.js'
+import { OBJECT_OPS, ANY_METHODS, paramsOfAny, declaredCapsOf, isArmSafeObjectOp } from '../runtime/objectStore.js'
 
 /** Array calls whose RESULT is one element of the array. ⭐ Used only to carry
  *  a collection's element KIND to the value that reads it out. */
@@ -2159,7 +2159,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
   const lowerObjectCall = (fn, argList, tok, scope, recvNode = null) => {
     // RT5: this lane evaluates BOTH arms of `?:` every bar; Pine runs only the
     // taken arm. A drawing made in an arm would be made on every bar.
-    if (armDepth > 0) refuseObject(fn, 'a drawing call inside one arm of `?:` — Pine makes it only when that arm is taken, this lane evaluates both', tok)
+    // ⭐ WS-E — a GETTER makes nothing, so it may stand in an arm (`objectStore.isArmSafeObjectOp`).
+    if (armDepth > 0 && !isArmSafeObjectOp(fn)) refuseObject(fn, 'a drawing call inside one arm of `?:` — Pine makes it only when that arm is taken, this lane evaluates both', tok)
     if (/^polyline\./.test(fn) || /^chart\.point/.test(fn)) {
       refuseObject(fn, 'the chart this lane draws on has no polyline, so a polyline is not drawn rather '
         + 'than drawn as something else', tok)
