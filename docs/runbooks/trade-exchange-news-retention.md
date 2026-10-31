@@ -83,3 +83,29 @@ re-ingests up to 5,000 per run (daily). For a large archive run B instead of wai
 `TXN_HISTORY_MAX_AGE_HOURS`, `TXN_HISTORY_MAX_ITEMS`, `TXN_JOURNAL_RETENTION_HOURS` are read
 by nothing since permanent retention shipped. The admin status names any still set; remove
 them from the web service at a convenient deploy.
+
+## 6. Future improvement — automated, resumable full-history recovery (not built yet)
+
+Today an EMPTY database gets the last 8 days at boot, then the integrity check restores
+older history at most 5,000 deliveries per run (once ~15 min after boot, then daily), or an
+operator runs procedure A/B. Proposed design so no case needs many days or a person:
+
+1. **A background backfill task**, started when the integrity check (or boot) finds the
+   ledger far behind the journal. It walks the journal OLDEST→NEWEST in pages of ~1,000 ids
+   and ingests missing deliveries through the normal pipeline at a throttled rate (e.g.
+   200/s, yielding to live ingest — the single writer keeps live headlines first).
+2. **Resumable cursor** in `state.backfill_cursor` (the last event id fully processed),
+   written after each page. A restart resumes from it; ids already in the ledger are skipped
+   by the existing idempotency check, so a repeated page is harmless.
+3. **Snapshot first when available**: if a nightly snapshot exists, restore it automatically
+   into a side file, verify it (integrity_check + manifest), and swap it in at boot before
+   the pipeline opens — then the backfill only covers the snapshot→now tail. (Needs the
+   decryption key on the server, which today is deliberately owner-only; until that policy
+   changes, backfill from the journal is the automatic path.)
+4. **Progress and alerts**: admin status shows `{cursor, done, remaining, rate, eta}`; an
+   OPS alert on start, on stall (no progress 15 min), and on completion.
+5. **Order honesty**: backfilled rows keep receipt time; ingest time set to receipt time (as
+   the rebuild tool does) so history is not flagged "delayed"; browsers see no epoch change.
+
+Estimated cost: one LIST per 1,000 deliveries + one GET each; ~350k objects (1 year) ≈ 30 min
+at 200/s.
