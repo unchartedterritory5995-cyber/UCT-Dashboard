@@ -42,11 +42,11 @@ def db(tmp_path, monkeypatch):
     return tmp_path
 
 
-def _client(role: str = "member", signed_in: bool = True) -> TestClient:
+def _client(role: str = "member", signed_in: bool = True, member: str = MEMBER_ID) -> TestClient:
     app = FastAPI()
     app.include_router(tel.router)
     if signed_in:
-        app.dependency_overrides[get_current_user] = lambda: {"id": MEMBER_ID, "role": role}
+        app.dependency_overrides[get_current_user] = lambda: {"id": member, "role": role}
     return TestClient(app)
 
 
@@ -151,6 +151,34 @@ def test_the_global_daily_cap_bounds_storage(db, monkeypatch):
     c = _client()
     assert [c.post(URL, json=GOOD).json()["logged"] for _ in range(4)] == [True, True, False, False]
     assert len(_rows()) == 2
+
+
+def test_one_member_cannot_fill_the_day_a_per_member_cap(db, monkeypatch):
+    monkeypatch.setattr(tel, "MEMBER_DAILY_CAP", 3)
+    a = _client()
+    assert [a.post(URL, json=GOOD).json()["logged"] for _ in range(5)] == [True, True, True, False, False]
+    other = _client(member="u-other-member-91")
+    assert other.post(URL, json=GOOD).json()["logged"] is True     # the global day is not spent
+    assert len(_rows()) == 4
+
+
+def test_the_member_cap_is_keyed_by_a_KEYED_HASH_never_the_member_id(db, monkeypatch):
+    monkeypatch.setenv("PUSH_SECRET", "s1")
+    _client().post(URL, json=GOOD)
+    conn = auth_db.get_connection()
+    try:
+        subjects = [r[0] for r in conn.execute(
+            "SELECT subject FROM daily_usage_counters WHERE scope = ?", (tel.SCOPE,)).fetchall()]
+    finally:
+        conn.close()
+    assert sorted(subjects) == sorted(["*", tel.member_subject(MEMBER_ID)])
+    assert all(MEMBER_ID not in s for s in subjects)
+    assert tel.member_subject(MEMBER_ID).startswith("m:")
+    # keyed: another secret, another subject; the same secret, the same one
+    monkeypatch.setenv("PUSH_SECRET", "s2")
+    assert tel.member_subject(MEMBER_ID) not in subjects
+    for row in _rows():
+        assert MEMBER_ID not in json.dumps(row, default=str)
 
 
 # ─── the operator's read ────────────────────────────────────────────────────

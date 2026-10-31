@@ -68,7 +68,7 @@ function errorOf(e) {
 // prefix the kill list prints), and a stop's message, which can quote the script,
 // is read only for the NAME of a limit, kept only when it is a declared one.
 // ⛔ Main thread only: the VM and the worker reach no network; this file is the
-// transport, and the beacon is fire-and-forget (it never throws, never waits, and
+// transport (a keepalive `fetch`, `sendStopBeacon`), and the beacon is fire-and-forget (it never throws, never waits, and
 // a failure costs nothing). Once per (script, stop) per tab, at most
 // `RUNTIME_STOP_BEACONS_PER_TAB` per tab: a live chart reruns a stopping script on
 // every update, and one count is the signal.
@@ -112,10 +112,21 @@ export function runtimeStopBeaconOf(def, rows, err, ms, lane) {
   return body
 }
 
+/** ⛔ `fetch` with `keepalive`, NOT `navigator.sendBeacon`: a sendBeacon of an
+ *  `application/json` Blob is a non-CORS-safelisted type that some Chrome and
+ *  Safari versions refuse (it returns false, or throws), and nothing here could
+ *  prove which. A keepalive POST outlives the page the same way, carries the
+ *  session cookie, and its failure (offline, a 4xx, a refused request) is
+ *  swallowed: a telemetry miss costs nothing. */
 function sendStopBeacon(body) {
-  const nav = typeof navigator !== 'undefined' ? navigator : null
-  if (!nav || typeof nav.sendBeacon !== 'function' || typeof Blob !== 'function') return
-  nav.sendBeacon(RUNTIME_STOP_BEACON_URL, new Blob([JSON.stringify(body)], { type: 'application/json' }))
+  if (typeof fetch !== 'function') return
+  try {
+    const sent = fetch(RUNTIME_STOP_BEACON_URL, {
+      method: 'POST', keepalive: true, credentials: 'include',
+      headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+    })
+    if (sent && typeof sent.catch === 'function') sent.catch(() => {})
+  } catch { /* a refused request is a lost count, never an error */ }
 }
 
 function reportStop(def, rows, err, ms, lane) {
@@ -130,7 +141,7 @@ function reportStop(def, rows, err, ms, lane) {
   } catch { /* a telemetry failure never reaches the chart */ }
 }
 
-/** Test seam: where a stop's beacon goes (null: `navigator.sendBeacon`). */
+/** Test seam: where a stop's beacon goes (null: a keepalive `fetch`). */
 export function setRuntimeStopReporter(fn) { _stopReporter = typeof fn === 'function' ? fn : null }
 
 const clock = () => (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now())

@@ -140,22 +140,48 @@ describe('S8 — the stop beacon', () => {
     expect(RUNTIME_STOP_BEACON_GUARDS).not.toContain('runtime:killed')
   })
 
-  it('the default sender is navigator.sendBeacon to the telemetry route, and never throws', async () => {
+  it('the default sender is a keepalive, credentialed JSON fetch to the telemetry route, never sendBeacon, and never throws', async () => {
     const calls = []
+    const beacons = []
     const nav = globalThis.navigator
     const had = 'sendBeacon' in nav
     const prev = nav.sendBeacon
-    nav.sendBeacon = (url, blob) => { calls.push([url, blob]); return true }
+    nav.sendBeacon = (...a) => { beacons.push(a); return true }
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation((url, init) => {
+      calls.push([url, init])
+      return Promise.resolve(new Response(null, { status: 200 }))
+    })
     try {
       await runOnce(workerRunner(realWorkerFactory()), docOf(DOUBLING, 'z'), bars())
       expect(calls).toHaveLength(1)
-      expect(calls[0][0]).toBe(RUNTIME_STOP_BEACON_URL)
-      expect(JSON.parse(await calls[0][1].text())).toMatchObject({ guard: 'runtime:limit', limit: 'MEMORY' })
+      const [url, init] = calls[0]
+      expect(url).toBe(RUNTIME_STOP_BEACON_URL)
+      expect(init).toMatchObject({ method: 'POST', keepalive: true, credentials: 'include',
+        headers: { 'Content-Type': 'application/json' } })
+      expect(JSON.parse(init.body)).toMatchObject({ guard: 'runtime:limit', limit: 'MEMORY' })
+      expect(beacons).toEqual([])
+      // a REJECTED request and a THROWING fetch both cost nothing
       resetRuntimeAsync()
-      nav.sendBeacon = () => { throw new Error('quota') }
-      const got = await runOnce(workerRunner(realWorkerFactory()), docOf(DOUBLING, 'y'), bars())
-      expect(got.err.guard).toBe('runtime:limit')        // the run's answer is untouched
+      // ⛔ a REJECTED request must be HANDLED by the sender (an unhandled one is a
+      // console error on every offline stop): the sender attaches a rejection handler
+      const handled = []
+      fetchSpy.mockImplementation(() => {
+        const p = Promise.reject(new TypeError('offline'))
+        p.catch(() => {})                                     // keep the RAIL itself quiet
+        const out = {
+          then: (ok, bad) => { if (typeof bad === 'function') handled.push('then'); return p.then(ok, bad) },
+          catch: (bad) => { if (typeof bad === 'function') handled.push('catch'); return p.catch(bad) },
+        }
+        return out
+      })
+      expect((await runOnce(workerRunner(realWorkerFactory()), docOf(DOUBLING, 'y'), bars())).err.guard).toBe('runtime:limit')
+      expect(handled.length).toBeGreaterThan(0)
+      resetRuntimeAsync()
+      fetchSpy.mockImplementation(() => { throw new TypeError('refused') })
+      expect((await runOnce(workerRunner(realWorkerFactory()), docOf(DOUBLING, 'x'), bars())).err.guard).toBe('runtime:limit')
+      await new Promise((r) => setTimeout(r, 0))            // an unhandled rejection would surface here
     } finally {
+      fetchSpy.mockRestore()
       if (had) nav.sendBeacon = prev
       else delete nav.sendBeacon
     }

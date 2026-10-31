@@ -30,14 +30,27 @@ guard constants in the client rather than restating them, so a new limit or stop
 guard on the client cannot be silently refused here.
 
 Storage is `landing_events` (the table `indicator_telemetry` already writes),
-bounded by ONE durable global daily cap (`daily_counters`, subject GLOBAL, so it
-names no member either). Over the cap a beacon is answered and not stored.
+bounded by TWO durable daily caps in `daily_counters`, taken together or not at
+all: a global one (subject GLOBAL) and a per-member one, so one member posting
+directly cannot fill the day for everyone. ⛔ The per-member counter's subject is
+a KEYED HASH of the member id (`member_subject`: HMAC-SHA256 under `PUSH_SECRET`,
+this module's own domain, the `indicator_support.member_key` pattern), never the
+id itself, and it is pruned within two ET days like every counter row; the
+`landing_events` row carries no member identity at all. Over either cap a beacon
+is answered and not stored.
+
+⚠️ PSEUDONYMOUS, NOT ANONYMOUS: the hash prefix names a SCRIPT, and an operator
+holding the stored runtime definitions can join it to them (and so to their
+owners). It carries no member id, but it is not unlinkable.
 Never raises into the caller: a telemetry failure must never break anything.
 """
 from __future__ import annotations
 
+import hashlib
+import hmac
 import json
 import logging
+import os
 from datetime import datetime, timedelta, timezone
 from typing import Any, Literal, Optional
 from zoneinfo import ZoneInfo
@@ -57,6 +70,17 @@ EVENT = "pine_runtime_stop"
 VISITOR = "pine-runtime"          # ⛔ never a member id
 SCOPE = "pine_runtime_stop"
 DAILY_CAP = 5000                  # global, per ET day
+MEMBER_DAILY_CAP = 200            # per member, per ET day
+_MEMBER_DOMAIN = b"pine-runtime-stop:v1|"
+_DEV_FALLBACK_SECRET = b"uct-pine-runtime-stop-dev-salt"
+
+
+def member_subject(user_id: Any) -> str:
+    """The per-member counter's subject: a keyed hash, never the id. `PUSH_SECRET`
+    (the server secret `indicator_support.member_key` keys with), or a fixed dev
+    salt where it is unset (a local box)."""
+    secret = (os.environ.get("PUSH_SECRET") or "").strip().encode("utf-8") or _DEV_FALLBACK_SECRET
+    return "m:" + hmac.new(secret, _MEMBER_DOMAIN + str(user_id).encode("utf-8"), hashlib.sha256).hexdigest()[:32]
 
 #: The stops arming item S3 names (`PHASE3-RUNTIME-PLAN.md` 4.1). A refusal
 #: (killed, not yet graded, a construct the lane cannot mean) is not a stop.
@@ -102,13 +126,15 @@ def _et_day() -> str:
     return datetime.now(ZoneInfo("America/New_York")).date().isoformat()
 
 
-def record_stop(body: StopBody) -> bool:
+def record_stop(body: StopBody, user_id: Any = None) -> bool:
     """Store one stop. True when a row was written. Never raises."""
     if body.violation() is not None:
         return False
     try:
-        refused = daily_counters.take(
-            _et_day(), [daily_counters.Charge(SCOPE, daily_counters.GLOBAL, 1, DAILY_CAP)])
+        charges = [daily_counters.Charge(SCOPE, daily_counters.GLOBAL, 1, DAILY_CAP)]
+        if user_id is not None:
+            charges.insert(0, daily_counters.Charge(SCOPE, member_subject(user_id), 1, MEMBER_DAILY_CAP))
+        refused = daily_counters.take(_et_day(), charges)
     except Exception:  # noqa: BLE001
         refused = None
     if refused is not None:
@@ -135,12 +161,13 @@ def record_stop(body: StopBody) -> bool:
 
 @router.post("/stop")
 def stop(body: StopBody, user: dict = Depends(get_current_user)) -> dict[str, Any]:
-    """⛔ Signed in (an open write door would let anybody fill the day's cap),
-    but the member's id is read for nothing and stored nowhere."""
+    """⛔ Signed in (an open write door would let anybody fill the day's cap).
+    The member's id is read only to key the per-member cap, as a keyed hash; it
+    is stored nowhere."""
     reason = body.violation()
     if reason is not None:
         return {"ok": False, "logged": False, "reason": reason}
-    return {"ok": True, "logged": record_stop(body)}
+    return {"ok": True, "logged": record_stop(body, user.get("id"))}
 
 
 def _pct(values: list, q: float):
