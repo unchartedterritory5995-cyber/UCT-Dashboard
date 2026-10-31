@@ -47,6 +47,8 @@ OWNER_DAILY = {
     "CSCO|2023-03-16": "need the hourly (could be great)", "RKLB|2023-01-10": "need the hourly", "HOOD|2024-11-15": "need the hourly",
     "DUOL|2023-11-16": "need the hourly", "VGZ|2026-10-16": "replace with an earlier day",
 }
+# daily drafts the finder put on the pod that the owner never saw (no verdict line): drafted on the hourly straight away
+NOT_YET_SHOWN = {"WING|2026-10-27": "pod daily draft never shown to the owner; hourly added 2026-10-30 (3 forward sessions only)"}
 # extra sessions to draft from the same bars record: (bars key, session, why)
 EXTRAS = [("RKLB|2026-01-05", "2026-01-02", "owner: 'plus the day before too'"),
           ("VGZ|2026-10-16", "2026-09-28", "owner: 'prob a few days earlier'; finder fires here"),
@@ -93,7 +95,8 @@ def build_item(sym, session, sess, k, facts, note):
 def main():
     doc = json.load(open(BARS, encoding="utf-8"))
     items, skipped = [], []
-    todo = [(key, key.split("|")[1], "owner-ruled day") for key in doc["names"]] + list(EXTRAS)
+    todo = [(key, key.split("|")[1], "owner-ruled day" if key in OWNER_DAILY else NOT_YET_SHOWN.get(key, "pod draft"))
+            for key in doc["names"]] + list(EXTRAS)
     for key, session, note in todo:
         rec = doc["names"].get(key)
         if not rec or "bars" not in rec:
