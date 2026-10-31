@@ -30,10 +30,10 @@ max(open, close), and |low or high vs prior close| under some cap) on every dail
 
 The owner, 2026-10-24: "Don't have enough price data in that pic" (verdict pending). The pod's NVDA daily store
 has no gap: 420 rows to 2026-10-30 with no hole over five calendar days, 383 rows on or before 2026-09-09. The
-bank fixture embeds 130 full daily bars 2026-03-05 to 2026-09-09. So the empty chart the owner saw is Study's
-own problem (the chart snapshot stored on the pod for that item, or the review screen's window), not the bars
-store. Study will re-check the pod snapshot `sb_si_6763b7b65c3f` (the SSH read timed out mid-deploy today) and
-re-import or re-show the item; the bars owner needs to do nothing here.
+bank fixture embeds 130 full daily bars 2026-03-05 to 2026-09-09. The pod's stored chart snapshot for the item (`sb_si_6763b7b65c3f`, read today) holds the same 130 bars,
+2026-03-05 to 2026-09-09, with no forward strip. So the picture the owner saw was complete for its window; what
+it lacked was a longer history and the sessions after the test. Study will re-show the item with a 250-bar
+window and a 20-session forward strip; the bars owner needs to do nothing here.
 
 ## 3. Hourly history
 
