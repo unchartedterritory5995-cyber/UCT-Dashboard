@@ -184,6 +184,29 @@ function buildOps() {
 }
 export const OBJECT_OPS = buildOps()
 
+/**
+ * ⭐⭐ PHASE 3 WS-E — A DRAWING READ THAT MAY STAND IN ONE ARM OF `?:`.
+ *
+ * The runtime lane evaluates BOTH arms of a `?:` on every bar, so a drawing call
+ * in an arm is refused (`pineRuntimeFrontend.js::lowerObjectCall`): a `label.new`
+ * there would be MADE on bars where Pine never takes that arm. A GETTER makes
+ * nothing. `get` reads one property of the object it is handed and answers `na`
+ * (or `''`) for an `na` or dead receiver; `all` lists the live set. Neither writes
+ * the store, stops the run, or throws on a receiver of the right family, so
+ * evaluating one in the arm Pine does not take changes nothing but a value the
+ * select then discards — `na(l) ? na : line.get_y1(l)`, the idiom that reads a
+ * line only once it exists, is exactly Pine's answer.
+ *
+ * ⛔ ONLY A NAMED FAMILY'S OP. `any.<getter>` (a receiver this lane could not type)
+ * is dispatched at run time and THROWS on a receiver that is not a drawing
+ * (`call`), which the untaken arm must never do. `line.get_price` STOPS the run on
+ * a vertical line (`price` → `stop`), so it is not a read either.
+ */
+export function isArmSafeObjectOp(name) {
+  const spec = Object.hasOwn(OBJECT_OPS, name) ? OBJECT_OPS[name] : null
+  return !!spec && (spec.kind === 'get' || spec.kind === 'all')
+}
+
 /** The method names a receiver of an UNKNOWN family may call, with the families
  *  that define each — the run-time dispatch table for `any.<method>`. */
 export const ANY_METHODS = Object.freeze((() => {

@@ -22,7 +22,7 @@
 // where the product can call it. That test is the reason this is a productised
 // path rather than a first attempt: the rows, the manifest placements and the
 // `buildDefinition` call are the shapes it already proved land a valid document.
-import { translatePine } from '../../engine/ast/pine'
+import { translatePine, lexPine, blockStatements, parseWholeExpression, findTop, isPunct, boundName } from '../../engine/ast/pine'
 import { withAlphaByte } from '../../designTokens'
 import { DEFAULT_SERIES_COLOUR, V3_DEFAULT_SERIES_OPACITY } from '../../engine/pinePalette'
 import { paneGate, paneObjectsGate, runtimeRouteOf, runtimeFallbackOf } from '../../engine/ast/paneGate'
@@ -1064,6 +1064,164 @@ function runtimeRowOffset(o) {
   return o._offsetWritten === true
 }
 
+/** Pine v5/v6's positional place of `offset` in each row call (the reference
+ *  signatures: `plot(series, title, color, linewidth, style, trackprice, histbase,
+ *  offset, …)`, `plotshape(series, title, style, location, color, offset, …)`,
+ *  `plotchar(series, title, char, location, color, offset, …)`). ⛔ v4 and below
+ *  carry `transp` before it, one place later; a POSITIONAL offset there is withheld
+ *  rather than read at a place this door has not checked. */
+const RUNTIME_OFFSET_POSITION_V5 = Object.freeze({ plot: 7, plotshape: 5, plotchar: 5 })
+
+const OFFSET_WITHHELD = 'it is drawn away from its own bar (`offset`), and this lane draws each value on the bar that computed it'
+
+/** The call statement a row was written on (`line`), parsed, or null. */
+function rowCallAt(stmts, line, kind) {
+  const find = (list) => {
+    for (const st of list || []) {
+      const toks = st.header || []
+      if (toks.length && toks[0].line === line) return toks
+      const sub = find(st.sub)
+      if (sub) return sub
+    }
+    return null
+  }
+  const toks = find(stmts)
+  if (!toks) return null
+  const eq = findTop(toks, (t) => isPunct(t, '='))
+  let node = null
+  try { node = parseWholeExpression(eq > 0 && boundName(toks, eq) ? toks.slice(eq + 1) : toks) } catch { return null }
+  return node && node.type === 'call' && node.name === kind ? node : null
+}
+
+/** A displacement expression's whole-number value, over integer literals, the
+ *  script's own literal `input.int` settings (`ctx.ints`: key → default) and a
+ *  top-level name bound ONCE to such an expression (`ctx.binds`, e.g. wyckoff's
+ *  `offsetVal = -pivotLen`), with the setting keys it read; or null when it reads
+ *  anything else (a variable that is reassigned, `na`, a call). */
+function shiftValueOf(node, ctx, keys, depth = 0) {
+  if (!node || depth > 16) return null
+  if (node.type === 'number') return Number.isInteger(node.value) ? node.value : null
+  if (node.type === 'name') {
+    if (ctx.ints.has(node.name)) {
+      keys.add(node.name)
+      return ctx.ints.get(node.name)
+    }
+    return ctx.binds.has(node.name) ? shiftValueOf(ctx.binds.get(node.name), ctx, keys, depth + 1) : null
+  }
+  if (node.type === 'unary' && (node.op === '-' || node.op === '+')) {
+    const v = shiftValueOf(node.arg, ctx, keys, depth + 1)
+    return v === null ? null : (node.op === '-' ? -v : v) + 0
+  }
+  if (node.type === 'binary' && (node.op === '+' || node.op === '-' || node.op === '*')) {
+    const a = shiftValueOf(node.left, ctx, keys, depth + 1)
+    const b = shiftValueOf(node.right, ctx, keys, depth + 1)
+    if (a === null || b === null) return null
+    return node.op === '+' ? a + b : node.op === '-' ? a - b : a * b
+  }
+  return null
+}
+
+/**
+ * ⭐⭐ PHASE 3 WS-E — WHERE A RUNTIME ROW IS DRAWN, when its call says `offset`.
+ *
+ * ⚰️ `runtimeRowOffset` withheld EVERY row written with an `offset`, which on the
+ * runtime-on census (WS-0 baseline) was the whole of `runtime:withheld-all` for 9
+ * sample scripts — Williams fractal (`offset = -n`), TWAP (`offset = offset`, an
+ * input at 0), and the swing-pivot family, each drawing a correct value on the
+ * wrong bar or nothing at all.
+ *
+ * ⭐ A LEFTWARD displacement is now CARRIED, as `plots[].displace` — the field a
+ * host row already carries (2026-09-26) and the binder already draws
+ * (`binder.drawShiftOf` → `displacedColumn`: bar i's value at bar i + d, Pine's
+ * rule), so ONE renderer draws both lanes' shifts. Zero is no displacement.
+ *
+ * ⛔ WHAT STAYS WITHHELD, BY NAME:
+ *   · a RIGHTWARD displacement — the binder draws only leftward ones (a host row
+ *     puts a rightward one in its tree as `x[N]`, and a runtime row has no tree);
+ *   · an `offset` that reads anything but integer literals and the script's own
+ *     literal `input.int` settings (a variable, `na`, a call) — its value per run
+ *     is not known here;
+ *   · a positional `offset` below v5 (`transp` moves it one place).
+ *
+ * ⛔⛔ AN OFFSET THAT READS A SETTING PINS THAT SETTING. The document's displacement
+ * is fixed at mint, and a member's edit of the setting would re-run the script with
+ * the new value while the drawing stayed where the old one put it — the
+ * half-applied trap `memberPaneDefinition` refuses on the host lane. So the keys it
+ * read are returned (`keys`) and the caller keeps them at the author's default, by
+ * name. TradingView at defaults is what this draws.
+ *
+ * @returns {{ok: true, displace: number, keys: string[]} | {ok: false, why: string}}
+ */
+function runtimeRowShift(o, ctx) {
+  const node = ctx.stmts && Number.isInteger(o.line) ? rowCallAt(ctx.stmts, o.line, o.kind) : null
+  if (!node) return runtimeRowOffset(o) ? { ok: false, why: OFFSET_WITHHELD } : { ok: true, displace: 0, keys: [] }
+  const args = node.args || []
+  let arg = args.find((a) => a && a.name === 'offset')
+  if (!arg) {
+    const at = RUNTIME_OFFSET_POSITION_V5[o.kind]
+    const positional = args.filter((a) => a && !a.name)
+    if (Number.isInteger(at) && positional.length > at) {
+      if (!(Number.isInteger(ctx.version) && ctx.version >= 5)) {
+        return { ok: false, why: `${OFFSET_WITHHELD}; its \`offset\` is passed by position in a v${ctx.version ?? '1'} script, where this door has not checked its place` }
+      }
+      arg = positional[at]
+    }
+  }
+  if (!arg) return { ok: true, displace: 0, keys: [] }
+  const keys = new Set()
+  const v = shiftValueOf(arg.value !== undefined ? arg.value : arg, ctx, keys)
+  if (v === null) {
+    return { ok: false, why: `${OFFSET_WITHHELD}; its \`offset\` is not a whole number this door can read before the run` }
+  }
+  if (v > 0) {
+    return { ok: false, why: `it is drawn ${v} bar${v === 1 ? '' : 's'} to the RIGHT of the bar that computed it (\`offset\`), which this pane does not draw yet` }
+  }
+  return { ok: true, displace: v, keys: [...keys] }
+}
+
+/** The script's statements and literal whole-number settings, read once per document
+ *  for `runtimeRowShift`. Never throws: a source this cannot read has no statements,
+ *  and every row then falls back to the old rule. */
+function runtimeShiftContext(source, version, specs) {
+  let stmts = null
+  let tokens = []
+  try {
+    const lexed = lexPine(String(source || ''))
+    tokens = lexed.tokens || []
+    stmts = blockStatements(tokens, lexed.indents, 0)
+  } catch { stmts = null }
+  const ints = new Map()
+  for (const s of specs || []) if (s && s.type === 'int' && Number.isInteger(s.default)) ints.set(s.key, s.default)
+  // ⭐ A TOP-LEVEL NAME BOUND ONCE (`name = expr`, no `var`, never reassigned with
+  // `:=` or a compound operator anywhere in the source) holds that expression on
+  // every bar. ⛔ A name bound twice, or ever reassigned, is not resolved.
+  const binds = new Map()
+  const reassigned = new Set()
+  for (let i = 0; i + 1 < tokens.length; i += 1) {
+    const t = tokens[i]
+    const n = tokens[i + 1]
+    if (t && t.kind === 'ident' && n && n.kind === 'punct' && /^(:=|\+=|-=|\*=|\/=|%=)$/.test(n.value)) reassigned.add(t.value)
+  }
+  const twice = new Set()
+  for (const st of stmts || []) {
+    const toks = st.header || []
+    if (toks.length && toks[0].kind === 'ident' && (toks[0].value === 'var' || toks[0].value === 'varip')) continue
+    const eq = findTop(toks, (t) => isPunct(t, '='))
+    const nameTok = eq > 0 ? boundName(toks, eq) : null
+    if (!nameTok) continue
+    let node = null
+    try { node = parseWholeExpression(toks.slice(eq + 1)) } catch { node = null }
+    if (binds.has(nameTok.value)) twice.add(nameTok.value)
+    if (node) binds.set(nameTok.value, node)
+  }
+  for (const k of [...reassigned, ...twice]) binds.delete(k)
+  // ⛔ review L2 — a SETTING reassigned anywhere (`len := len + 1`) is not its default
+  // on the bar the offset reads it: not read here either, so the row is withheld.
+  for (const k of reassigned) ints.delete(k)
+  for (const k of ints.keys()) binds.delete(k)
+  return { stmts, version: Number.isInteger(version) ? version : null, ints, binds }
+}
+
 /**
  * ⭐⭐ THE RUNTIME-LANE DOCUMENT — a member's script drawn by the per-bar lane.
  *
@@ -1121,7 +1279,7 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
   // builds WITH its drawings, the document's objects come from its own run.
   const own = runtimeOwnObjectsOf({ source, t })
   const ownObjects = !!own.probe
-  const probe = own.probe || probeRuntimeProgram(source)
+  const probe = own.probe || own.valueProbe || probeRuntimeProgram(source)
   if (!probe.ok) {
     const r = probe.refusal || {}
     // RT5: a drawing the value build cannot hold is the drawing build's to explain.
@@ -1177,6 +1335,10 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
   const seen = new Map()
   const carried = []
   const withheld = []
+  // ⭐ WS-E — read once: the statements and literal settings `runtimeRowShift` reads,
+  // and the settings a carried displacement pins at the author's default.
+  const shiftCtx = runtimeShiftContext(source, t && t.version, runtimeInputSpecsOf(source).specs)
+  const shiftPinned = new Set()
   for (const { o, index } of ofKind) {
     const ord = seen.get(o.kind) || 0
     seen.set(o.kind, ord + 1)
@@ -1184,20 +1346,17 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
     // translated row ever carried `hidden` (`pine.js`, `_authorHidden`).
     if (o.hidden || o._authorHidden === true) continue
     const label = o.title || `${o.kind} ${ord + 1}`
-    if (runtimeRowOffset(o)) {
-      withheld.push({ label, why: 'it is drawn away from its own bar (`offset`), and this lane draws each value on the bar that computed it' })
-      continue
-    }
+    // ⭐ WS-E — a leftward `offset` is carried (`runtimeRowShift`), the rest withheld.
+    const shift = runtimeRowShift(o, shiftCtx)
+    if (!shift.ok) { withheld.push({ label, why: shift.why }); continue }
     const out = runtimeByKind.get(o.kind)[ord]
     const pres = runtimeRowPresentation(o, t && t.version, probe.outputs[out])
     if (!pres.ok) { withheld.push({ label, why: pres.why }); continue }
-    carried.push({ o, index, p: pres.p, out, colourOutput: pres.colourOutput })
+    for (const k of shift.keys) shiftPinned.add(k)
+    carried.push({ o, index, p: pres.p, out, colourOutput: pres.colourOutput, displace: shift.displace })
   }
-  if (!carried.length && !ownObjects) {
-    return decline(withheld.length ? 'runtime:withheld-all' : 'runtime:nothing-drawn', withheld.length
-      ? `every output it draws is withheld (${withheld.map((w) => `\`${w.label}\`: ${w.why}`).join('; ')})`
-      : 'the script declares nothing a chart row draws')
-  }
+  // ⭐ WS-E — the "draws nothing" decline moved BELOW the paints: a script whose
+  // only output is a `barcolor` / `bgcolor` the run computes is a document too.
   const outputs = {}
   const drawnRows = carried.slice(0, CARRY_MAX)
   // ⭐⭐ RT6 — THE COLOUR COLUMNS, minted AFTER the drawn rows (a derived column
@@ -1230,7 +1389,7 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
     return key
   }
   const packedOf = new Map()
-  const rows = drawnRows.map(({ o, index, p, out, colourOutput }, i) => {
+  const rows = drawnRows.map(({ o, index, p, out, colourOutput, displace }, i) => {
     const key = keyAt(i)
     outputs[key] = out
     if (Number.isInteger(colourOutput)) packedOf.set(key, { colorMode: `column:${colourKeyOf(colourOutput)}`, colorPacked: p.colorPacked })
@@ -1251,6 +1410,8 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
       // `linewidth`, as the host lane's rows carry it (see that projection).
       ...(Number.isFinite(p.width) ? { width: pineLineWidth(p.width) } : {}),
       ...(p.marker && p.marker.shape ? { marker: p.marker } : {}),
+      // ⭐ WS-E — a leftward `offset`, drawn by the binder as a host row's is.
+      ...(Number.isInteger(displace) && displace < 0 ? { displace } : {}),
       // The host output this row draws — the vendor harness and the pane's
       // disclosures read it; nothing computes from it.
       output: index,
@@ -1305,8 +1466,25 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
       })
     }
   }
+  // ⭐⭐ WS-E — A DOCUMENT THAT DRAWS NOTHING DECLINES, NOW COUNTING ITS PAINTS.
+  // ⚰️ This stood above the paints and asked only for a ROW or the run's own
+  // drawings, so a script that only paints its bars (`barcolor(cond ? c : na)`,
+  // the whole of visualizing-displacement) was declined `runtime:nothing-drawn`
+  // while the run computed exactly the colour TradingView paints. A carried paint
+  // is drawn by the renderer the host lane's paints use (`binder.paintRenderColours`),
+  // under the hidden anchor row an objects-only document already carries (below).
+  if (!carried.length && !ownObjects && !docPaints.length) {
+    const why = [...withheld.map((w) => `\`${w.label}\`: ${w.why}`),
+      ...paintWithheld.map(({ p, why: w }) => `\`${p.kind}\`: ${w}`)]
+    return decline(why.length ? 'runtime:withheld-all' : 'runtime:nothing-drawn', why.length
+      ? `every output it draws is withheld (${why.join('; ')})`
+      : 'the script declares nothing a chart row draws')
+  }
   const objectsGate = paneObjectsGate(t)
-  const drawsObjects = !ownObjects && objectsGate.draw && !!(t.objects && (t.objects.ops || []).length)
+  const hostWouldDraw = objectsGate.draw && !!(t.objects && (t.objects.ops || []).length)
+  // ⭐ WS-E review M1 — a `calc_bars_count` document never carries the host program
+  // (it would draw over every bar beside plots drawn over the window); named below.
+  const drawsObjects = !ownObjects && !own.hostWithheld && hostWouldDraw
   // ⭐ RT5 — a document whose only output is its drawings carries the hidden
   // anchor row an objects-only document carries (never offered, never drawn).
   if (!rows.length) {
@@ -1320,6 +1498,14 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
   // rebuilds the program with them. One that cannot be read exactly keeps the author's
   // default, and says so.
   const runtimeInputs = runtimeInputSpecsOf(source)
+  // ⭐ WS-E — a setting a carried `offset` reads stays at the author's default: the
+  // displacement was fixed at mint, and an edit would move the values, not the drawing.
+  for (const k of shiftPinned) {
+    if (!runtimeInputs.specs.some((sp) => sp.key === k)) continue
+    runtimeInputs.specs = runtimeInputs.specs.filter((sp) => sp.key !== k)
+    runtimeInputs.skipped.push({ key: k, call: 'input.int',
+      reason: "it sets where a plot is drawn (`offset`), which this pane draws at the author's default" })
+  }
   // ⭐⭐ UIE PHASE 3 (M4) — A COLOUR INPUT IS A SETTING ONLY WHERE THE RUN COLOURS WITH IT:
   // a per-bar colour, the run's own drawings, a table (`colourInputsTheRunReads`,
   // measured). ⛔ One that only sets a plot's FIXED colour is not offered twice: every
@@ -1438,6 +1624,10 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
     ...(t.outputs || [])
       .filter((o) => o && !o.hidden && Object.hasOwn(RUNTIME_UNDRAWN_KINDS, o.kind))
       .map((o) => o.kind),
+    // ⭐ WS-E — a `fill` is the RUN's output, not the host's (`t.outputs` lists no
+    // fill), so a run's fills were dropped from this note: the band was not drawn
+    // and nothing said so. Every fill the run lowered — solid or gradient — is named.
+    ...(probe.outputs || []).filter((ro) => ro && ro.call === 'fill' && ro.hidden !== true).map(() => 'fill'),
   ])]
   if (undrawn.length) {
     notes.push({
@@ -1446,13 +1636,29 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
         + 'which a script drawn bar by bar does not draw here yet. Its lines are drawn; those are not.',
     })
   }
-  const drawingNote = ownObjects ? null : objectLossNote(objectsGate.loss, { withheld: !objectsGate.draw })
+  const drawingNote = ownObjects || own.hostWithheld ? null : objectLossNote(objectsGate.loss, { withheld: !objectsGate.draw })
   if (drawingNote) notes.unshift(drawingNote)
+  if (!ownObjects && own.hostWithheld && hostWouldDraw) {
+    notes.push({
+      name: 'Drawings',
+      note: 'Its lines, labels, boxes and tables are not drawn: it runs on its last bars only '
+        + '(`calc_bars_count`), its plots are drawn over those bars, and its drawings could only be made over '
+        + 'every bar of the chart, which would be a different picture from TradingView’s.',
+    })
+  }
   if (ownObjects) {
+    // ⭐ WS-E review M2 (owner trade-off, disclosed): when the run's drawings REPLACE a
+    // drawing program that lost some of its calls, say so, so a member who saw that
+    // program's drawings before knows where they went.
+    const rep = own.replacedPartialHost
     notes.push({
       name: 'Drawings',
       note: 'Its lines, labels, boxes and tables are made by the same bar-by-bar run, the way '
-        + 'TradingView makes them. A kind of drawing whose result is not known exactly is not drawn.',
+        + 'TradingView makes them. A kind of drawing whose result is not known exactly is not drawn.'
+        + (rep ? ` These replace the drawing program this pane would otherwise use, which could not make `
+          + `${Number.isInteger(rep.dropped) && Number.isInteger(rep.attempted) ? `${rep.dropped} of its ${rep.attempted}` : 'some of its'} `
+          + 'drawing calls; a kind of drawing the run holds back is named on the chart, not drawn from that '
+          + 'program instead.' : ''),
     })
   }
   definition.meta = {
