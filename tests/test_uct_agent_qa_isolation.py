@@ -70,8 +70,40 @@ def test_the_owners_isolated_kinds_are_registered_AND_isolated():
     assert MUST_BE_ISOLATED <= set(isolated_kinds()), "an owner-isolated kind lost model_isolated"
 
 
+def _spy_kind(name, k, calls):
+    def fn(params, ctx):
+        calls["fn"] += 1
+        return env.make_envelope(name, params, status="ok", freshness="periodic", as_of="2026-10-30T20:00:00Z",
+                                 source="x", data={"v": 987.654})
+
+    def validate(params):
+        calls["validate"] += 1
+        return None
+    r = gw.Registry()
+    r.register(gw.Kind(name=name, fn=fn, freshness=k.freshness, category=k.category, owner=k.owner,
+                       max_symbols=k.max_symbols, validate=validate, model_isolated=True))
+    return r
+
+
+@pytest.mark.parametrize("purpose", ["answer", "research", "scan"])
+def test_DORMANT_by_default_every_purpose_is_refused_before_admission(monkeypatch, purpose):
+    """#599 (owner): isolated kinds are refused for EVERY purpose, `answer` included, unless UCT_AGENT_ISOLATED=1."""
+    monkeypatch.delenv(gw.ISOLATED_ENV, raising=False)
+    assert gw.isolated_enabled() is False
+    r = gw.registry()
+    for name in isolated_kinds():
+        calls = {"fn": 0, "validate": 0}
+        gw._reset_for_test(_spy_kind(name, r.get(name), calls))
+        params = {"symbol": "NVDA"} if r.get(name).max_symbols else {}
+        out = gw.read(name, params, user_id=1, turn_id=f"dormant-{purpose}", purpose=purpose)
+        assert out["status"] == "refused" and out["data"] is None and env.validate_envelope(out) == [], name
+        assert calls == {"fn": 0, "validate": 0} and not gw._turns, f"{name}: ran or spent budget while dormant"
+        gw._reset_for_test(None)
+
+
 @pytest.mark.parametrize("purpose", ["research", "scan"])
-def test_an_isolated_kind_is_refused_before_admission_for_any_purpose_but_answer(purpose):
+def test_an_isolated_kind_is_refused_before_admission_for_any_purpose_but_answer(monkeypatch, purpose):
+    monkeypatch.setenv(gw.ISOLATED_ENV, "1")                       # activated (a separate owner decision)
     r = gw.registry()
     for name in isolated_kinds():
         k = r.get(name)
