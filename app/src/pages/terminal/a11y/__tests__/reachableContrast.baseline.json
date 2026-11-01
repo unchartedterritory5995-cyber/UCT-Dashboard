@@ -526,7 +526,7 @@
       "why": "menu/sheet inks (--menu-text, -dim, -faint, -accent) read under AA on catalog themes' raised surfaces - a TOKEN fix (tokens.css / appThemes.js), not per-file | these 5 rules apply only inside UCT News's role=dialog menus (collections), which menuThemeVars paints at runtime; measured rendered in dark, light, graphite and vibrant: 6.5:1 to 9.2:1 (the rail reads the menu tokens against the page surface)"
     },
     "pages/charts/widgets/TradeExchangeNewsWidget.module.css": {
-      "count": 11,
+      "count": 13,
       "inks": [
         "--menu-accent",
         "--menu-text",
@@ -536,7 +536,7 @@
         "--txn-text",
         "--ut-red-bright"
       ],
-      "why": "widget chart-theme inks (--dock-*, --wl-*, --fw-*, ...) are painted at runtime from components/chart/chartThemes.js (owner-blocked lane); the rail can only read the CSS fallback | menu/sheet inks (--menu-text, -dim, -faint, -accent) read under AA on catalog themes' raised surfaces - a TOKEN fix (tokens.css / appThemes.js), not per-file | the News widget's inks are --txn-* painted per theme at runtime (txnWidgetStyleVars) and its popovers/toast take menuThemeVars; UCT News V2 removed the floating explanation's two rules and added the ⋯ menu's Back (.menuBack, a menu ink); .toastBtn is menu gold on the toast's dark menu surface, 8.4:1 rendered"
+      "why": "widget chart-theme inks (--dock-*, --wl-*, --fw-*, ...) are painted at runtime from components/chart/chartThemes.js (owner-blocked lane); the rail can only read the CSS fallback | menu/sheet inks (--menu-text, -dim, -faint, -accent) read under AA on catalog themes' raised surfaces - a TOKEN fix (tokens.css / appThemes.js), not per-file | the News widget's inks are --txn-* painted per theme at runtime (txnWidgetStyleVars) and its popovers/toast take menuThemeVars; UCT News V2 removed the floating explanation's two rules and added the ⋯ menu's Back (.menuBack, a menu ink); .toastBtn is menu gold on the toast's dark menu surface, 8.4:1 rendered | +2 (UCT News refinement): .menuItemOn (the date picker's active 'All history', menu gold on the dark menu, 8.4:1 rendered) and .hit (search highlight: the UCT Agent's gold wash with a gold/text colour-mix the rail cannot evaluate; 5.2-8.1:1 rendered in dark, light, graphite, vibrant)"
     },
     "pages/charts/widgets/VolumeScanWidget.module.css": {
       "count": 9,

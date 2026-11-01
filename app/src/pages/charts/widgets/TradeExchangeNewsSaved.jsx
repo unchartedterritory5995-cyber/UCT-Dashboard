@@ -15,14 +15,14 @@
  * Requests: the list is read when the view is first shown, and again only when the
  * member's library or a filter changes -- switching back and forth asks for nothing.
  */
-import { memo, useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import UIcon from '../../../components/ui/UIcon'
 import Input from '../../../components/ui/Input'
 import Select from '../../../components/ui/Select'
 import * as library from '../../../lib/tradeExchangeNewsLibrary'
-import { InlineExplanation } from './TradeExchangeNewsParts'
+import { Hl, InlineExplanation, withOffsets } from './TradeExchangeNewsParts'
 import { ManageCollections, NoteEditor } from './TradeExchangeNewsCollections'
-import { explainable, fmtReceivedFull, tickerTitle, tokenize } from './tradeExchangeNewsModel'
+import { explainable, fmtReceivedFull, hitRanges, searchNeedles, tickerTitle, tokenize } from './tradeExchangeNewsModel'
 import news from './TradeExchangeNewsWidget.module.css'
 import styles from './TradeExchangeNewsSaved.module.css'
 
@@ -43,21 +43,22 @@ async function copy(text) {
 const LONG_CHARS = 200
 
 /** The headline's text with its tickers as canonical chart links. */
-function Headline({ item, onSym, linkedSym, clamped }) {
-  const parts = tokenize(item.content, item.tickers, item.mentions)
+function Headline({ item, onSym, linkedSym, clamped, needles }) {
+  const parts = withOffsets(tokenize(item.content, item.tickers, item.mentions))
+  const ranges = needles ? hitRanges(item.content, needles) : null
   return (
     <span className={`${news.headline} ${styles.headline}${clamped ? ' ' + styles.clamp : ''}`}
       style={clamped ? { WebkitLineClamp: 3 } : undefined}>
       {parts.map((p, i) => (p.sym ? (
         <button key={i} type="button" className={`${news.sym}${p.sym === linkedSym ? ' ' + news.symLinked : ''}`}
-          onClick={() => onSym(p.sym)} title={tickerTitle(p.sym, null, false, { named: p.named })}>{p.text}</button>
-      ) : <span key={i}>{p.text}</span>))}
+          onClick={() => onSym(p.sym)} title={tickerTitle(p.sym, null, false, { named: p.named })}><Hl text={p.text} ranges={ranges} offset={p.offset} /></button>
+      ) : <span key={i}><Hl text={p.text} ranges={ranges} offset={p.offset} /></span>))}
     </span>
   )
 }
 
 const SavedRow = memo(function SavedRow({ item, collections, linkedSym, onSym, onExplain, explainOpen, onCloseExplain,
-  onRemove, noteOpen, onNote, onActions, actionsOpen }) {
+  onRemove, noteOpen, onNote, onActions, actionsOpen, needles }) {
   const [copied, setCopied] = useState(false)
   const [open, setOpen] = useState(false)
   const explainRef = useRef(null)
@@ -103,7 +104,7 @@ const SavedRow = memo(function SavedRow({ item, collections, linkedSym, onSym, o
             aria-haspopup="menu" aria-expanded={!!actionsOpen} title="More: watchlist, Notebook, collections, copy">⋯</button>
         </span>
       </span>
-      <Headline item={item} onSym={onSym} linkedSym={linkedSym} clamped={long && !open} />
+      <Headline item={item} onSym={onSym} linkedSym={linkedSym} clamped={long && !open} needles={needles} />
       {long && (
         <button type="button" className={news.moreText} onClick={() => setOpen((o) => !o)} aria-expanded={open}>
           {open ? 'Show less' : 'Show more'}
@@ -114,7 +115,7 @@ const SavedRow = memo(function SavedRow({ item, collections, linkedSym, onSym, o
           {names.map((n) => <span key={n} className={styles.chip}>{n}</span>)}
           {note && (
             <span className={styles.note} title={note}>
-              <UIcon name="edit" size={9} gold={false} /> {note}
+              <UIcon name="edit" size={9} gold={false} /> <Hl text={note} needles={needles} />
             </span>
           )}
         </div>
@@ -168,6 +169,7 @@ export default function SavedHeadlines({ active, opts, patchOpts, linkedSym, onS
   const [manageOpen, setManageOpen] = useState(false)
   const manageRef = useRef(null)
 
+  const needles = useMemo(() => { const n = searchNeedles(query); return n.length ? n : null }, [query])
   const filtered = !!(query || ticker || activeCollection)
   const clearFilters = () => { setQueryRaw(''); patchOpts({ collection: null, ticker: null }) }
   const colOptions = [{ value: '', label: `All saved (${lib.ids.size.toLocaleString()})` },
@@ -217,7 +219,8 @@ export default function SavedHeadlines({ active, opts, patchOpts, linkedSym, onS
         {page.items.map((it) => (
           <SavedRow key={it.id} item={it} collections={lib.collections} linkedSym={linkedSym} onSym={onSym}
             onExplain={onExplain} explainOpen={explainId === it.id} onCloseExplain={onCloseExplain} onRemove={onRemove}
-            noteOpen={noteFor === it.id} onNote={onNote} onActions={onActions} actionsOpen={actionsId === it.id} />
+            noteOpen={noteFor === it.id} onNote={onNote} onActions={onActions} actionsOpen={actionsId === it.id}
+            needles={needles} />
         ))}
         {page.total > page.items.length && (
           <button type="button" className={`${news.emptyBtn} ${styles.more}`} disabled={page.loading}
