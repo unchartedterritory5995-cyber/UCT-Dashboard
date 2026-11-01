@@ -19,7 +19,7 @@ from api.services.uct_agent.marketdata import gateway as gw
 from api.services.uct_agent.marketdata import quotes as q
 
 _ROOT = pathlib.Path(__file__).resolve().parents[1]
-NOW = time.time()
+NOW = 1793000000.0   # fixed: the adapter clock is frozen to this (see _env), so no wall clock is needed
 
 
 def _tick(sym, price=100.0, observed=NOW - 5, **extra):
@@ -293,6 +293,6 @@ def test_the_adapter_clock_is_frozen_so_age_is_independent_of_suite_runtime():
 def test_the_contract_doc_states_the_same_notes_the_code_emits():
     """MD-1 v1.1 §4.1 quotes each note verbatim; QA pins fixtures to the doc, so the two must not drift."""
     doc = (_ROOT / "docs/agent/program/contracts/MD-1-market-data.md").read_text(encoding="utf-8")
-    assert "(v1.1)" in doc.splitlines()[0]
+    assert "### 4.1 `quote` / `quotes` freshness (v1.1)" in doc   # the section, not the header: later bumps add
     for note in (q.NOTE_EXTENDED, q.NOTE_CLOSED, q.NOTE_NO_TRADES, q.NOTE_SET_AS_OF, q.NOTE_SET_AS_OF_LIVE):
         assert note in doc, note

@@ -102,6 +102,48 @@ Only agent-qa edits this file. Update it in every PR.
   Planned: ORACLE (control, must be 100%) and GRAMMAR-DIRECT (deterministic baseline) interpreters, per-category
   and nl tallies, perturbation controls, and a recorded baseline.
 
+- **F-9 (agent-lead), `tools/agent_ownership_check.py`: false FOREIGN after a criss-cross merge.**
+  Repro: merge agent/int into a branch whose earlier head was merged meanwhile, which leaves two merge bases.
+  Actual: 6 FOREIGN files from #583. Expected: 1 file, my status doc, which is the true two-dot diff.
+  Cause: the three-dot diff picks one merge base.
+  Fix: judge `git diff --name-only origin/agent/int HEAD`, or fall back to it when `git merge-base --all` returns >1.
+- **agent-qa's own slip (recorded honestly):** one push was chained after `ownership_check | head -1 && git push`, so
+  it went out on the pipe's exit code. The tree pushed added only this file's 2 lines, so no harm, but the check was
+  not a gate. Since then the check runs in its own call and is read before any push.
+- **F-6 entry: SUPERSEDED by agent-lead's plan, #589.** The removal PR is #585 + agent/int + the one-line removal,
+  merged back to back with #585. The pending-removal marker below was dropped: #586 leaves the clock file identical
+  to agent/int.
+- (superseded) **F-6 entry: marked PENDING_REMOVAL for exactly one window.** Its fix (NOW literal) is in #585. The rail tolerates
+  the absence of that entry alone, so agent/int stays green when #585 merges. The follow-up QA PR deletes both the
+  entry and the marker.
+  Verified: the rail passes 16/16 on agent/int and 16/16 with #585's two test files substituted.
+
+- **F-7 — VERIFIED FIXED** on #584 @ 7cd053d123: `currentTurnId()` is called directly, the null check comes before
+  readData at both sites, and the rail plus scan tests pass 44/44 (the rail now sees 1 real importer).
+- **F-8 — VERIFIED FIXED** on #585 @ 3aa3693e9d. A plugin shifts the process wall clock: pr3 + quote tests pass 73/73
+  at the real time, 2030-01-01 and 23:59:59.9 UTC. Control: the pre-fix file fails 5 under the same shift.
+  **Owed (owner's #585 directive):** the exact news-ingest boundary (STALE_AFTER_S vs +1) and an explicit UTC-midnight
+  test for fundamentals ages. Requested from agent-md.
+- **Corpus scorer LANDED in #586** (`tests/test_uct_agent_qa_scan_corpus.py`, baseline pinned in
+  `__fixtures__/program/scores/discovery-baseline.json`). It is measured on agent/int d98ef2dcd6, where #582 is
+  integrated, and gives the same numbers as the pre-merge measurement below.
+- **F-8 boundaries — VERIFIED** on #585 @ 476fc07a77, the owner's directive:
+  - news ingest: exactly STALE_AFTER_S is fresh, +1 s is stale;
+  - fundamentals: the UTC-midnight flip (day 135 at 23:59:59 is fresh, day 136 at 00:00:00 is stale);
+  - shifted-wall probe 77/77 at the real time, 2030-01-01 and 23:59:59.9;
+  - agent-qa's own `>`→`>=` mutation in each adapter turns the boundary tests red (news 1, statements 2).
+- **Corpus scored (measured on a local merge of #584+#582):**
+  ORACLE 31/31 (control).
+  GRAMMAR-DIRECT 5/31 = **answerable 0/26**; the refusals 5/5 are trivial, because it refuses all English.
+  Spotlight questions d08/d19/d22/d26 are all refused, each with the grammar's own sentence.
+  Mutation checks: every derived wrong answer fails, and near-misses inside tolerance pass.
+
+- **themes `as_of` null while prices move (#591, MD-1 v1.3 §4.3) — raised by agent-qa, ACCEPTED as documented.**
+  `live_applied_at` is UCT's apply time (a computation time, forbidden as `as_of` by §3). The vendor observation
+  time is not carried, and the values mix live prices with completed-session reference closes. §4.3 lines 131–132
+  state this. The fixtures will add a predicate: a null `as_of` always comes with `data.live_applied_at` +
+  NOTE_LIVE_APPLIED, and `as_of` never equals `live_applied_at`. RVOL notes are pinned against SC-1 §2c.
+
 ## Blockers
 - (none)
 
@@ -116,6 +158,9 @@ Only agent-qa edits this file. Update it in every PR.
   (`quote_semantics_errors`) with controls showing it can fail. Other MD-1 kinds keep provisional `data` shapes.
 
 ## Verdicts on `agent/int`
+- **42d962963d — GREEN** (#572 integrated). The locked run's tree differed from this tip only by 2 lines of this file
+  (two-dot `git diff`). Agent pytest under the lock: 1049 passed. Agent vitest: 115 files passed, 5 skipped;
+  1988 passed, 6 skipped.
 - **d837b6a96f — GREEN** (#579 quote freshness v1.1, #580 ADR-002 docs, #581 currentTurnId).
   No non-QA diff. Agent pytest under the lock: 1037 passed (agent-lead's 809 + agent-qa's 228).
   Agent vitest: 114 files passed, 5 skipped; 1967 passed, 6 skipped.

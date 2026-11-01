@@ -7,10 +7,11 @@ once on first use; nobody edits gateway.py to add a kind. Every kind's pure para
 
 Sprint 1, PR 1: `quote`, `quotes` (services/massive.py snapshot, read-only — see quotes.py).
 Sprint 1, PR 2: `bars.daily` (the canonical bars store via bars_fetch, read-only — see bars_daily.py).
+Sprint 1, PR 3: `fundamentals` (financial_statements), `earnings` (earnings_table), `news.company` (news store).
 """
 from __future__ import annotations
 
-from api.services.uct_agent.marketdata import bars_daily, quotes
+from api.services.uct_agent.marketdata import bars_daily, earnings, news_company, quotes, statements
 
 
 def register(registry) -> None:
@@ -35,4 +36,25 @@ def register(registry) -> None:
         description="Completed daily sessions for one ticker from UCT's bars store (never today's "
                     "developing bar); as_of is the newest bar's session close. Point-in-time with `to`. "
                     f"Params: {{symbol, bars (1-{bars_daily.MAX_BARS}, default {bars_daily.DEFAULT_BARS}), to?}}.",
+    ))
+    registry.register(Kind(
+        name="fundamentals", fn=statements.read_fundamentals, validate=statements.validate, freshness="periodic",
+        owner="agent-md", max_symbols=1,
+        description="Periodic financial disclosures (income, balance, cash flow) from Yahoo Finance via "
+                    "financial_statements; as_of is the newest period end, stale after "
+                    f"{statements.STALE_AFTER_DAYS} days. Params: {{symbol, period: quarterly|annual, periods}}.",
+    ))
+    registry.register(Kind(
+        name="earnings", fn=earnings.read_earnings, validate=earnings.validate, freshness="periodic",
+        owner="agent-md", max_symbols=1,
+        description="Reported quarters (actual vs estimate) and the next scheduled report, from earnings_table. "
+                    "Reported rows carry no date, so as_of is null; stale when "
+                    f"{earnings.STALE_QUARTERS}+ quarters behind. Params: {{symbol}}.",
+    ))
+    registry.register(Kind(
+        name="news.company", fn=news_company.read_news_company, validate=news_company.validate,
+        freshness="periodic", owner="agent-md", max_symbols=1,
+        description="Published company news from UCT's news store (no provider call, no body text); as_of is the "
+                    "newest item; stale when news ingest has not succeeded for an hour. "
+                    f"Params: {{symbol, limit (1-{news_company.MAX_LIMIT})}}.",
     ))
