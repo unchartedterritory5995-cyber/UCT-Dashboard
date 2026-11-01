@@ -37,6 +37,20 @@ The screener has no single `as_of` or `stale` field, so v1.1 pins the mapping:
 - **Extra `data` fields** (additive): `screen.run` adds `fields` (the columns returned), `excluded` (at most 10 dropped or not-computable names with a reason) and `rank` (the service's rank receipt, for a ranked spec). `screen.count` adds `excluded` and `top_n`.
 - **Row limit:** `params.limit` (or `spec.limit` / `spec.page_size`) is clamped to 1–50. Paging is never passed through.
 
+## 2b. Spec sources and `screen.saved` (v1.1, additive — PR 2)
+
+- **`screen.run` / `screen.count` take exactly one of:**
+  - `spec`: the screener's JSON spec;
+  - `saved_id`: one of **the member's own** saved screens. The service's member-scoped `saved_screens.get(id, user_id)` is used, so another member's id answers "no saved screen";
+  - `text`: the screener's criteria language, through the same deterministic path as `/grammar/parse`: `grammar.compile_text` → `logic.validate` → `grammar.resolve_scopes`, with scopes resolved for this member. It follows the screener's own gates (`SCREENER_LOGIC_ENABLED`; `SCREENER_ALERT_GRAMMAR_ENABLED` for `$`/`#` scopes).
+- **Every source** then passes the same field-catalog validation. `data.origin` says which source was used: `{source:"spec"}`, `{source:"saved", id, name}` or `{source:"text", text, explanation}`.
+- **`/api/screener/compile`** (English → criteria via a paid model call) is **not** used. The Agent's planner writes criteria text and the screener parses it, so the Agent's model-call count and budgets are unchanged.
+- **`screen.saved`** returns `data.screens: [{id, name, spec, runnable, reason?}]`, the member's own screens only, read-only and never `init()`.
+  - A screen the Agent cannot run (e.g. an indicator condition) is listed with `runnable: false` and its reason, never hidden.
+  - `coverage` counts screens: `answered` = runnable, `not_computable` = not runnable.
+  - `as_of` is the newest screen's `updated_at`.
+  - It is a `scan`-category kind, so it uses the turn's one scan; to run a known screen, use `screen.run` with `saved_id`.
+
 ## 3. Specs
 
 - **The spec is the screener's own JSON spec,** validated against its field catalog (`/api/screener/fields`). There's no Agent filter language.
