@@ -108,13 +108,9 @@ def clock_at_import(source: str, filename: str = "<src>") -> list[str]:
 
 #: Known offenders on agent/int, each with its finding and owner. STRICT both ways: a new offender fails the rail,
 #: and so does an entry here that no longer matches (fixed lines must be removed, not left as a silent excuse).
-KNOWN: dict[str, str] = {
-    "tests/test_uct_agent_data_quotes.py:22  time.time()":
-        "F-6 (agent-md) MITIGATED by #579: NOW is still read at import, but an autouse fixture freezes the "
-        "adapter's clock (quotes.time) to the same NOW, so ages no longer depend on suite runtime. Verified by "
-        "agent-qa with a 65 s delay between import and run: the pre-fix file fails its two timing tests, the "
-        "fixed file passes them. Remove this entry when NOW becomes a fixed literal (agent-md offered).",
-}
+#: Empty since #585: F-6 (the quote tests' import-time NOW) closed when NOW became a fixed literal, and F-8 (#585's
+#: import-time TODAY) was fixed before merge. Add an entry only with its finding, owner and a fix plan.
+KNOWN: dict[str, str] = {}
 
 
 def _agent_test_files() -> list[Path]:
