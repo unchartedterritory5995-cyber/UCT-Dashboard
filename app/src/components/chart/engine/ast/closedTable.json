@@ -3676,6 +3676,13 @@
       "memberLabel": "Higher-timeframe timing differs from TradingView",
       "memberNote": "This script reads a higher timeframe with request.security (lookahead off). UCT shows a weekly or monthly value only from the first bar AFTER that period has closed. TradingView shows it already on the bar that completes the period (for example, the week's close appears on Friday's daily bar) and, on a forming bar, shows the still-forming period. So on a daily chart this line is one bar later than TradingView on the last bar of every week (about 1 bar in 5) or month (about 1 in 21). UCT never shows a period's value before it has closed.",
       "_ruling": "P0 truth hardening (2026-10-05, slices inv + imp): `request.security(sym, 'W'|'M', expr, lookahead_off)` is emitted as `tf`, which reads the last CLOSED period on every bar (`interpret.js` tf). TradingView's documented historical rule shows the period's value on the bar that completes it, so the two differ on the last bar of every period (124/600 SPY daily bars, audit D §5). The evaluator is NOT changed in P0; the difference is disclosed as a SEMANTIC DIFFERENCE (`importOutcome.js`), never EXACT. Recorded on the output row by `pine.js::securityAsNode`."
+    },
+    "thinkscriptSecondaryAggregation": {
+      "kind": "fold",
+      "name": "thinkscriptSecondaryAggregation",
+      "memberLabel": "Weekly or monthly values computed on weekly or monthly bars",
+      "memberNote": "This study reads a weekly or monthly value. UCT computes it on weekly or monthly bars, which is intended to match thinkorswim but has not yet been confirmed against thinkorswim. During the current week or month the value moves until that period closes, so a recent signal or alert on it can change (marked 'may repaint'); on past bars each day shows that period's final value. A [n] back on a weekly or monthly read is the confirmed value of the period n back and never changes.",
+      "_ruling": "I2 WS1, owner decision 2026-11-01 (basis F): thinkScript marks only the leaf `X(period = WEEK|MONTH)`, and the function around it runs in that aggregation. `periodLift.js` moves the read out to the largest subexpression that reads only that period: unshifted -> `tf_live(X', P)`, under `[k>=1]` -> `tf(X'[k-1], P)`. Not exact: no thinkorswim capture is compared yet (docs/indicators/i2/THINKORSWIM-VALIDATION.md). Emitted by `thinkscript.js` as the row property `thinkscriptSecondaryAggregation`."
     }
   },
   "_tables_fit": {
