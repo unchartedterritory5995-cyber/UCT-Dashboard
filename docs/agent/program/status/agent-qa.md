@@ -27,6 +27,13 @@ Only agent-qa edits this file. Update it in every PR.
   `tests/test_uct_agent_program_gateway.py::test_dark_by_default_and_nothing_registered` asserts that no kinds
   are registered, so it fails as soon as MD-1 kinds land. It needs agent-lead to update it.
 
+- **F-4 (agent-sc), on #570 @ 77f9ff6087: a zero-match scan is undated and marked stale.**
+  Repro: seed 80 rows with `bars_asof` 20261030, then run `screen.run`/`screen.count` with
+  `{"filters":[{"key":"rs_rank","op":"gte","min":1000}]}`.
+  Expected: ok, `rows: []`/`count: 0`, coverage present, `as_of` 2026-10-30T20:00:00Z, `stale: false`.
+  Actual: `as_of: null`, `stale: true`, note "could not say which session".
+  Cause: the provenance read describes the matched rows only, so it has no date when nothing matches.
+
 ## Blockers
 - (none)
 
@@ -38,4 +45,13 @@ Only agent-qa edits this file. Update it in every PR.
 - PR 1 (fixtures), once opened.
 
 ## Verdicts on `agent/int`
-- (none yet)
+- (none yet; nothing merged since Sprint 0)
+
+## Verdicts on open PRs
+- **#569 (agent-md, quote/quotes):** ownership check clean (4 files). Conformance review is pending agent-md's
+  documented `data` fields.
+- **#570 (agent-sc, screen.run/count) @ 77f9ff6087:** ownership check clean (6 files). An independent probe passes
+  69 of 73 checks; the 4 failures are all **F-4** (zero matches). Passing: stale (>1 session behind) with its note,
+  mixed sessions naming the oldest, stopped-bar drops (dropped/partial/excluded/absent from rows), dark with
+  nothing executed, the 50-row cap, one scan per turn, and closing coverage. **Not ready** until F-4 is fixed or
+  agent-lead rules on it. #570 also bumps SC-1 to v1.1, which needs agent-lead's acknowledgement.
