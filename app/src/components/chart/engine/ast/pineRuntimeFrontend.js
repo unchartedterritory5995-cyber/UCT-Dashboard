@@ -4084,7 +4084,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
    *  through to a runtime that has no better answer for it and would report a
    *  worse-named refusal. Text inside a call is the columnar lane's business
    *  until the plan that gives this lane `str.*` says otherwise. */
-  const touchesText = (node, scope, depth = 0) => {
+  const touchesText = (node, scope, depth = 0, textOnly = false) => {
     if (!node || typeof node !== 'object' || depth > 24) return false
     if (holdsText(node, scope)) return true
     // ⭐ P3 WS-B — A NAME BOUND TO A TEXT COMPARISON touches text too: the route
@@ -4093,9 +4093,23 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // == "1"`) and refuses the text it finds there, and the comparison itself is
     // one this lane answers. Only a script's own immutable binding (`env`), never
     // a slot (which `holdsText` already answers) or a call site's frame name.
+    // ⛔ TEXT ONLY through a binding (`textOnly`): a name bound to a COLLECTION
+    // stays the columnar lane's to refuse (`n = array.size(array.from(…))` keeps
+    // `pine:collection`, vendorHarness.h4Loops), as it did before this clause.
     if (node.type === 'name' && scope && scope.lookup(node.name) === null) {
       const bound = env.get(node.name)
-      if (bound && bound.kind === 'expr' && !bound.frame) return touchesText(bound.node, scope, depth + 1)
+      if (bound && bound.kind === 'expr' && !bound.frame) return touchesText(bound.node, scope, depth + 1, true)
+    }
+    if (textOnly) {
+      if (node.type === 'binary') {
+        return touchesText(node.left, scope, depth + 1, true) || touchesText(node.right, scope, depth + 1, true)
+      }
+      if (node.type === 'unary') return touchesText(node.arg, scope, depth + 1, true)
+      if (node.type === 'ternary') {
+        return touchesText(node.test, scope, depth + 1, true)
+          || touchesText(node.yes, scope, depth + 1, true) || touchesText(node.no, scope, depth + 1, true)
+      }
+      return false
     }
     // ⭐ A COLLECTION ROUTES FOR THE SAME REASON TEXT DOES — the columnar lane
     // holds neither, and refuses one at `pine:collection`.
