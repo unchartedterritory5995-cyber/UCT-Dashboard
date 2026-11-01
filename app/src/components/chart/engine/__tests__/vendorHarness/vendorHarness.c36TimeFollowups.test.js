@@ -292,12 +292,20 @@ describe('C36 · 1 — one weekend day but not the other is neither capture\'s s
     expect(label.objects.chartClock).toEqual([])
   })
 
-  it('CONTROL — on those series a tree that reads NO anchor is untouched', () => {
-    const ours = on(SUNDAYS, pine(['plot(close, "c")', 'plot(time, "t")', 'plot(time(timeframe.period), "own")']))
+  // ⚰️ This CONTROL said `plot(time)` and `plot(time(timeframe.period))` are "untouched" here,
+  // and pinned them DRAWN: a 09:30 New York stamp on a one-weekend-day chart, which the FX capture
+  // (`vw-time-tf-fx-eurusd-1d-2026-10-01`) shows is never TradingView's 17:00-the-evening-before —
+  // 0 of 14,329 bars agree. 2026-10-31 (`fix/fx-clock-blank`): a time-of-day read is withheld
+  // whole there and NAMED (`time-clock:weekend-session`); a tree reading no clock, and one reading
+  // only the date, are still untouched.
+  it('CONTROL — on those series a tree that reads no clock, or only the date, is untouched; a time-of-day read is withheld by name', () => {
+    const ours = on(SUNDAYS, pine(['plot(close, "c")', 'plot(dayofweek, "d")']))
     expect(column(ours, 0).some(Number.isNaN)).toBe(false)
     expect(column(ours, 1).some(Number.isNaN)).toBe(false)
-    expect(column(ours, 2)).toEqual(column(ours, 1))
     expect(noteCodes(ours)).toEqual([])
+    const clock = on(SUNDAYS, pine(['plot(time, "t")', 'plot(time(timeframe.period), "own")']))
+    expect(allNaN(column(clock, 0)) && allNaN(column(clock, 1))).toBe(true)
+    expect(noteCodes(clock)).toEqual(['time-clock:weekend-session'])
   })
 })
 

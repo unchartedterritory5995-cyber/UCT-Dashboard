@@ -4944,9 +4944,19 @@ export const CHART_CLOCK_WITHHELD = Object.freeze({
     + 'rather than assumed. What would settle it here: the `vw-time-tf` probe measured on this timeframe.',
   'time-clock:unreadable': () => `${ANCHOR_SPELLED}, ${CLOSE_SPELLED}, \`time(timeframe.period)\` and `
     + '`time("60")` are placed by each bar\'s own date and time. These bars carry no clock this engine can read '
-    + '(they are keyed by a date number, not a date, or reach back before 1990), so the day of the week a bar '
+    + '(they are keyed by a date number, not a date, or reach back before 1883), so the day of the week a bar '
     + 'falls on — and whether the symbol trades weekends — cannot be told, and everything this indicator draws '
     + 'from them is withheld. What would settle it: nothing to capture — the bars\' own keys.',
+  // ⭐⭐ 2026-10-31 (`fix/fx-clock-blank`) — the bar's own clock on an FX-shaped day.
+  'time-clock:weekend-session': () => 'This chart\'s daily bars include a Saturday or a Sunday but not '
+    + 'both — the shape of an FX pair, whose day TradingView opens at 17:00 New York the evening before '
+    + '(FX:EURUSD 1D, capture `vw-time-tf-fx-eurusd-1d-2026-10-01`: every one of 14,329 bars). This chart '
+    + 'stamps a daily bar at 09:30 New York on its own date, so a bar\'s `time`, `time_close`, `hour`, '
+    + '`minute`, `time(timeframe.period)`, a session test such as `time(timeframe.period, "0930-1600")` '
+    + 'and `timeframe.change("W" / "M")` would all be read off a different clock: everything this '
+    + 'indicator draws from them is withheld on this chart rather than drawn wrong. The bar\'s date — '
+    + '`dayofweek`, `dayofmonth`, `month`, `year` — matches TradingView on every bar and is drawn. What '
+    + 'would settle it: this chart reading such a symbol\'s daily bar at the session\'s own open.',
   'time-clock:outside-session': (tf) => `${ANCHOR_SPELLED} and \`time("60")\` are measured below a daily chart `
     + 'on regular-session bars only — 09:30 to 16:00 New York, Monday to Friday (AMEX:SPY 5, 15 and 60 minutes). '
     + `This ${tfSpelled(tf)} chart holds at least one pre-market, after-hours or weekend bar, where which open `
@@ -5002,7 +5012,21 @@ export const CHART_CLOCK_WITHHELD = Object.freeze({
 })
 export const CHART_CLOCK_WHOLE = Object.freeze(['time-anchor:other-bars', 'time-clock:unreadable',
   'time-anchor:not-daily', 'time-anchor:weekend-bars', 'time-own:chart-unwitnessed', 'time-close:not-daily',
-  'time-close:weekend-bars', 'time-clock:outside-session', 'request:other-timeframe', 'bar-index:window'])
+  'time-close:weekend-bars', 'time-clock:outside-session', 'request:other-timeframe', 'bar-index:window',
+  'time-clock:weekend-session'])
+
+/** ⭐⭐ 2026-10-31 — THE CLOCK LEAVES THAT READ THE TIME OF DAY, not the date:
+ *  the ones a 09:30 New York stamp answers differently from a 17:00 one. On a
+ *  daily chart of the FX shape (`chartClockRegime` kind `one-weekend-day`) a tree
+ *  reading any of them is withheld whole and named (`time-clock:weekend-session`).
+ *  ⛔ The DATE leaves (`year`, `month`, `dayofmonth`, `dayofweek`, `lastbaryear` …)
+ *  are NOT here: on FX:EURUSD 1D `dayofweek` matches TradingView on 14,329 / 14,329
+ *  bars, because the date is the one thing both stamps share.
+ *  ⛔ `weekfirst` / `monthfirst` (`timeframe.change("W" / "M")`) ARE: TradingView
+ *  opens an FX week on its Sunday 17:00 bar and a month by the trading day, where
+ *  this engine's ISO week and calendar date put both a bar later or earlier. */
+export const SESSION_CLOCK_LEAVES = Object.freeze(['time', 'hour', 'minute', 'timeclose',
+  'dayopentime', 'dayclosetime', 'weekfirst', 'monthfirst', 'lastbartime', 'lastbarhour', 'lastbarminute'])
 
 /** Every chart-clock node of a tree: the anchors, the period closes, the own-time
  *  nodes (`time(timeframe.period)`) and the `time("60")` nodes, whether any sits
@@ -5015,6 +5039,7 @@ function scanChartClock(tree) {
   const owns = []
   const sixties = []
   const folds = []
+  const leaves = []
   let nested = false
   const stack = [[tree, false]]
   const seen = new Set()
@@ -5022,6 +5047,11 @@ function scanChartClock(tree) {
     const [node, under] = stack.pop()
     if (!node || typeof node !== 'object' || seen.has(node)) continue
     seen.add(node)
+    // a time-of-day leaf (`SESSION_CLOCK_LEAVES`) — read, never descended into
+    if (node.type === 'series' && SESSION_CLOCK_LEAVES.includes(node.name)) {
+      leaves.push(node)
+      continue
+    }
     if (isPeriodAnchor(node)) {
       if (under) nested = true
       anchors.push(node)
@@ -5049,7 +5079,7 @@ function scanChartClock(tree) {
     const into = under || node.type === 'sym' || node.type === 'tf' || node.type === 'tf_live' || node.type === LTF
     if (Array.isArray(node.args)) for (const a of node.args) stack.push([a, into])
   }
-  return { anchors, closes, owns, sixties, folds, nested }
+  return { anchors, closes, owns, sixties, folds, nested, leaves }
 }
 
 /** One clock leaf (or small clock tree) over the chart's own bars, as a column. */
@@ -5143,8 +5173,17 @@ function chartClockRegimeOf(bars, inputs, budget, scalars, opts) {
 function chartClockWhole(tree, bars, inputs, budget, scalars, opts) {
   const scan = scanChartClock(tree)
   const clocked = scan.anchors.length || scan.closes.length || scan.owns.length || scan.sixties.length
-  if (!clocked && !scan.folds.length) return null
   const tf = opts ? opts.tf : undefined
+  // ⭐ 2026-10-31 — a time-of-day leaf is asked about on a DAILY chart of DATE-KEYED
+  // bars only. Daily is the one timeframe `chartClockRegime` can call FX-shaped
+  // (`one-weekend-day`), and a date key is the one shape this engine STAMPS (09:30 New
+  // York, `barOpenInstant`) — the stamp a 17:00 FX open disagrees with. A bar keyed by
+  // an INSTANT carries its own time, which `time` / `hour` read as given: no stamp of
+  // ours to disagree with, and its New York weekday can be a Sunday for a reason that
+  // is not FX (a Monday stamped 00:00 UTC is Sunday 20:00 New York — measured on
+  // `objectDoorDraws.test.js`'s SPY bars), so it is never asked.
+  const dayLeaves = scan.leaves.length > 0 && tf === 'D' && dateKeyed(bars)
+  if (!clocked && !scan.folds.length && !dayLeaves) return null
   const why = []
   const add = (code) => { if (!why.includes(code)) why.push(code) }
   // ⭐ C49 — a request translated for one base period, on a chart that STATES
@@ -5152,12 +5191,20 @@ function chartClockWhole(tree, bars, inputs, budget, scalars, opts) {
   // unstated timeframe is the server's daily consumers, and is served as it always was.
   if (typeof tf === 'string' && tf && scan.folds.some((base) => base !== tf)) add('request:other-timeframe')
   if (!clocked) {
+    // a tree reading only plain clock leaves: withheld on an FX-shaped daily chart,
+    // and nothing else changes for it (it reported no regime before, and still does)
+    if (dayLeaves && chartClockRegimeOf(bars, inputs, budget, scalars, opts).kind === 'one-weekend-day') {
+      add('time-clock:weekend-session')
+    }
     nameChartClock(opts, why, tf)
     return { scan, why, regime: chartClockRegime(undefined), everyDay: false }
   }
   if (scan.nested) add('time-anchor:other-bars')
   const regime = chartClockRegimeOf(bars, inputs, budget, scalars, opts)
   if (regime.kind === 'unreadable') add('time-clock:unreadable')
+  if (regime.kind === 'one-weekend-day' && dateKeyed(bars) && (scan.leaves.length || scan.owns.length || scan.sixties.length)) {
+    add('time-clock:weekend-session')
+  }
   if (scan.anchors.length) {
     if (regime.kind === 'unwitnessed') add('time-anchor:not-daily')
     else if (regime.kind === 'one-weekend-day') add('time-anchor:weekend-bars')
@@ -5175,6 +5222,12 @@ function chartClockWhole(tree, bars, inputs, budget, scalars, opts) {
   }
   nameChartClock(opts, why, tf)
   return { scan, why, regime, everyDay: regime.kind === 'every-day' }
+}
+/** Does any bar carry a DATE key (`'YYYY-MM-DD'`) rather than an instant? */
+function dateKeyed(bars) {
+  if (!Array.isArray(bars)) return false
+  for (let i = 0; i < bars.length; i++) if (bars[i] && typeof bars[i].t === 'string') return true
+  return false
 }
 function nameChartClock(opts, codes, tf) {
   const sink = opts && opts.chartClockSink
