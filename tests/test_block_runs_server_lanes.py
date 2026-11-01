@@ -258,3 +258,369 @@ def test_the_guard_is_evaluated_under_the_trees_own_opts():
                      if isinstance(n, pyast.Call) and getattr(n.func, "id", None) == "_block_runs_withheld")
     assert [getattr(a, "id", None) for a in call_site.args] == [
         "definition", "scan_key", "bars", "scalars", "tf_code", "symbol_series", "_eval_now"]
+
+
+# ═══ 3. an alert the member's chart withholds is TOLD, never silent (M2) ═════
+#
+# The column of a withheld plot is no number on every bar, so the alert goes quiet
+# -- and since this deploy that includes every C48 stamp ALREADY SAVED, which the
+# server lanes now honour. The member's surface for "this alert is quiet for a
+# reason" is the silent-alert sweep: `state = needs_attention` with the reason in
+# `state_detail`, rendered verbatim by every alert surface (`alertState.jsx`).
+
+def _store_bars(bars):
+    """The parity bars in the store's daily shape (`t` a YYYYMMDD int) -- what the
+    evaluator's own fetcher hands the closed-bar lane."""
+    return [dict(b, t=int(str(b["t"]).replace("-", ""))) for b in bars]
+
+
+#: bars on which the T03 / v6-and code runs on EVERY bar (each closes up)
+UP_ONLY = [b for b in RDDT if b["c"] > b["o"]][:60]
+ADDRESS = "u_b1b1b1b1b1b1.value"
+
+
+@pytest.fixture
+def alerts(tmp_path, monkeypatch):
+    from api.services import indicator_alert_service as ias
+    db_path = tmp_path / "auth.db"
+    monkeypatch.setenv("AUTH_DB_PATH", str(db_path))
+    monkeypatch.setattr(ias, "_DB_PATH", str(db_path))
+    ias.init_schema()
+    aus.forget()
+    yield ias
+    aus.forget()
+
+
+def _armed(monkeypatch, ias, definition, *, arm_bars, params_json=None):
+    """An alert row armed on `arm_bars` through the REAL create path, and the
+    evaluator's fetcher pointed at a feed the test then moves."""
+    from api.services import indicator_alert_evaluator as ev
+    _admit_patched(monkeypatch, definition)
+    feed = {"bars": _store_bars(arm_bars)}
+    monkeypatch.setattr(ev, "_fetch_bars_for_alert",
+                        lambda sym, tf, count=200: [dict(b) for b in feed["bars"]])
+    aid = ias.create(user_id="user-b1", sym="RDDT", indicator=ADDRESS,
+                     condition="below", threshold=-1e12, tf="D", params_json=params_json)
+    return aid, feed
+
+
+def _detail_names_the_gate(detail, case):
+    assert detail.startswith(f"{ADDRESS} {aus.REFUSAL_FRAGMENTS['withheld']} ({block_runs.BLOCK_RUNS_GUARD}): ")
+    # `state_detail` is capped at 500 characters; the gate's own sentence leads
+    assert CASES[case]["expected"][:120] in detail
+
+
+def test_a_withheld_alert_is_put_in_needs_attention_by_the_gates_own_sentence(alerts, monkeypatch):
+    import time as _time
+    from api.services import indicator_alert_evaluator as ev
+    ias = alerts
+    aid, feed = _armed(monkeypatch, ias, doc(T03, stamp("?: true arm (T03)")), arm_bars=UP_ONLY)
+    feed["bars"] = _store_bars(RDDT)            # the bars arrive on which the arm runs after a skip
+    t0 = _time.time()
+    summary = ev._run_one_cycle()
+    assert summary["errors"] == 0
+    row = ias.get(aid)
+    # the silence itself: the column was no number on every bar, and nothing was written
+    assert row["last_evaluated_at"] is None and row["state"] == "armed"
+    out = ias.sweep_silent_alerts(now=t0 + 400)
+    assert out["flagged"] == 1
+    row = ias.get(aid)
+    assert row["state"] == "needs_attention"
+    _detail_names_the_gate(row["state_detail"], "?: true arm (T03)")
+
+
+def test_a_re_armed_alert_the_gates_withhold_is_told_the_same_way(alerts, monkeypatch):
+    """The registry-miss path (a restart, or the author saved): the re-arm raises the
+    arm-time refusal inside the cycle, and the diagnosis reads the same door."""
+    import time as _time
+    from api.services import indicator_alert_evaluator as ev
+    ias = alerts
+    aid, feed = _armed(monkeypatch, ias, doc(V6_AND, stamp("v6 and")), arm_bars=UP_ONLY)
+    aus.forget()
+    feed["bars"] = _store_bars(RDDT)
+    t0 = _time.time()
+    assert ev._run_one_cycle()["errors"] == 1
+    assert ias.get(aid)["last_evaluated_at"] is None
+    ias.sweep_silent_alerts(now=t0 + 400)
+    row = ias.get(aid)
+    assert row["state"] == "needs_attention"
+    _detail_names_the_gate(row["state_detail"], "v6 and")
+
+
+BROKEN_GUARD = {"type": "call", "name": "no_such_function_here", "args": []}
+
+
+def _broken_stamp():
+    meta = stamp("?: true arm (T03)")
+    meta["blockRuns"]["keys"][0]["gates"][0]["guard"] = BROKEN_GUARD
+    return meta
+
+
+def test_a_guard_that_THROWS_withholds_the_plot_and_surfaces_the_same_way(alerts, monkeypatch):
+    """⛔ An unread guard is not code that ran on every bar: the column is withheld,
+    and the member is told so -- in the cycle (re-arm) and in the diagnosis."""
+    import time as _time
+    from api.services import indicator_alert_evaluator as ev
+    ias = alerts
+    fn = aus._make_value_fn("u_b1b1b1b1b1b1", "value", doc(T03, _broken_stamp()))
+    why = fn.withheld(RDDT, {}, "D")
+    assert why.startswith(CASES["?: true arm (T03)"]["expected"].split(" — on this chart")[0])
+    assert "could not be computed" in why
+    assert fn.column(RDDT, {}) == [None] * len(RDDT)
+    # end to end: armed while the document was unstamped, then the stamp lands
+    aid, feed = _armed(monkeypatch, ias, doc(T03), arm_bars=RDDT)
+    _admit_patched(monkeypatch, doc(T03, _broken_stamp()))
+    aus.forget()
+    t0 = _time.time()
+    assert ev._run_one_cycle()["errors"] == 1
+    ias.sweep_silent_alerts(now=t0 + 400)
+    row = ias.get(aid)
+    assert row["state"] == "needs_attention"
+    assert f"({block_runs.BLOCK_RUNS_GUARD})" in row["state_detail"]
+    assert "could not be computed" in row["state_detail"]
+
+
+def test_CONTROL_the_same_alert_unstamped_evaluates_and_is_never_flagged(alerts, monkeypatch):
+    import time as _time
+    from api.services import indicator_alert_evaluator as ev
+    ias = alerts
+    aid, feed = _armed(monkeypatch, ias, doc(T03), arm_bars=UP_ONLY)
+    feed["bars"] = _store_bars(RDDT)
+    t0 = _time.time()
+    ev._run_one_cycle()
+    assert ias.get(aid)["last_evaluated_at"] is not None
+    assert ias.sweep_silent_alerts(now=t0 + 400)["flagged"] == 0
+    assert ias.get(aid)["state"] == "armed"
+
+
+def test_the_diagnosis_reads_a_member_formula_by_its_OWN_lane(monkeypatch):
+    """⚰️ `diagnose` called every user formula "not an indicator this chart can
+    evaluate" (`value_function` walks the GLOBAL partitions only). A user formula is
+    now diagnosed by the user lane: withheld is a fault naming the gate, a raising
+    compute is a fault with its message, and a column with no number YET is not."""
+    from api.services import indicator_alert_evaluator as ev
+    from api.services import indicator_alert_service as ias
+    alert = {"indicator": ADDRESS, "sym": "RDDT", "tf": "D", "params_json": "{}", "user_id": "user-b1"}
+    bars = _store_bars(RDDT)
+    fns = {"fn": aus._make_value_fn("u_b1b1b1b1b1b1", "value", doc(T03, stamp("?: true arm (T03)")))}
+    monkeypatch.setattr(ev, "_user_value_function", lambda a, b=None: fns["fn"])
+    fault, detail = ias.diagnose(alert, bars)
+    assert fault is True
+    _detail_names_the_gate(detail, "?: true arm (T03)")
+    # a guard that throws
+    fns["fn"] = aus._make_value_fn("u_b1b1b1b1b1b1", "value", doc(T03, _broken_stamp()))
+    fault, detail = ias.diagnose(alert, bars)
+    assert fault is True and "could not be computed" in detail
+    # warming: a 300-bar mean on 60 bars has no number yet -- not a fault
+    fns["fn"] = aus._make_value_fn("u_b1b1b1b1b1b1", "value", doc(call("sma", CLOSE, num(300))))
+    fault, detail = ias.diagnose(alert, _store_bars(RDDT[:60]))
+    assert fault is False and "not enough history" in detail
+    # ⛔ the CLOSED lane judges the newest closed bar, never the newest number: `up ? close : na`
+    # on bars that end on a down bar has no value there, so the alert is quiet this cycle
+    monkeypatch.setattr(ev, "eval_mode", lambda: "closed")
+    assert RDDT[-1]["c"] < RDDT[-1]["o"] and any(b["c"] > b["o"] for b in RDDT)
+    fns["fn"] = aus._make_value_fn("u_b1b1b1b1b1b1", "value", doc(op("?:", UP, CLOSE, op("/", num(0), num(0)))))
+    fault, detail = ias.diagnose(alert, bars)
+    assert fault is False and "not enough history" in detail
+    # healthy: no fault, nothing to say
+    fns["fn"] = aus._make_value_fn("u_b1b1b1b1b1b1", "value", doc(T03))
+    assert ias.diagnose(alert, bars) == (False, None)
+    # no bars at all is a fault (nothing can be computed), and a compute that RAISES says so
+    assert ias.diagnose(alert, []) == (True, "no bars are stored for this symbol and timeframe yet, "
+                                              "so nothing can be computed")
+
+    class _Raising:
+        reads_symbols = ()
+
+        def withheld(self, *a, **k):
+            return None
+
+        def column(self, *a, **k):
+            raise RuntimeError("boom")
+    fns["fn"] = _Raising()
+    assert ias.diagnose(alert, bars) == (True, "RuntimeError: boom")
+    # the arm-time door, re-run on a registry miss, is quoted verbatim
+    def _refuse(a, b=None):
+        raise aus.AdmissionRefused("withheld", "W")
+    monkeypatch.setattr(ev, "_user_value_function", _refuse)
+    assert ias.diagnose(alert, bars) == (True, "W [gate:withheld]")
+    # 🔴 CONTROL — a builtin address never reaches the user lane
+    assert ias._diagnose_user({"indicator": "rsi"}, bars) is None
+
+
+# ═══ 4. arming asks the gates as the alert WILL evaluate (L1) ════════════════
+
+KNOB = stamp("input knob in the guard")
+KNOB_TREE = op("?:", KNOB["blockRuns"]["keys"][0]["gates"][0]["guard"], call("ema", CLOSE, num(5)), CLOSE)
+
+
+def knob_doc(default):
+    d = doc(KNOB_TREE, KNOB)
+    d["inputs"] = [{"key": "k", "type": "float", "label": "Cut", "default": default}]
+    return d
+
+
+def test_arming_asks_the_gates_with_the_alerts_OWN_params(monkeypatch):
+    """⚰️ `arm_for_alert` asked with `{}`: a gate reading a member's input was proven
+    at the author's default, in both directions."""
+    try:
+        # the author's default (-1e9) holds on every bar; the member's k = 0 does not
+        _admit_patched(monkeypatch, knob_doc(-1e9))
+        aus.forget()
+        assert aus.arm_for_alert("user-b1", ADDRESS, "RDDT", "D", bars=RDDT)["addresses"] == [ADDRESS]
+        aus.forget()
+        with pytest.raises(aus.AdmissionRefused) as exc:
+            aus.arm_for_alert("user-b1", ADDRESS, "RDDT", "D", bars=RDDT, params={"k": 0})
+        assert exc.value.gate == "withheld"
+        assert CASES["?: true arm (T03)"]["expected"].split("(line")[0] not in str(exc.value)   # the knob's own arm
+        assert "that arm skips bar 1 and runs again on bar 2" in str(exc.value)
+        # …and the reverse: the default varies, the member's value holds on every bar
+        _admit_patched(monkeypatch, knob_doc(0))
+        aus.forget()
+        assert aus.arm_for_alert("user-b1", ADDRESS, "RDDT", "D", bars=RDDT, params={"k": -1e9})["addresses"] == [ADDRESS]
+    finally:
+        aus.forget()
+
+
+def test_the_create_path_hands_the_rows_params_to_the_arm(alerts, monkeypatch):
+    ias = alerts
+    from api.services import indicator_alert_evaluator as ev
+    _admit_patched(monkeypatch, knob_doc(-1e9))
+    monkeypatch.setattr(ev, "_fetch_bars_for_alert", lambda sym, tf, count=200: _store_bars(RDDT))
+    with pytest.raises(aus.AdmissionRefused) as exc:
+        ias.create(user_id="user-b1", sym="RDDT", indicator=ADDRESS, condition="below",
+                   threshold=-1e12, tf="D", params_json={"k": 0})
+    assert exc.value.gate == "withheld"
+    assert ias.list_active() == []
+    # 🔴 CONTROL — at the default the same create is admitted
+    aus.forget()
+    assert ias.create(user_id="user-b1", sym="RDDT", indicator=ADDRESS, condition="below",
+                      threshold=-1e12, tf="D", params_json={})
+
+
+def test_the_re_arm_asks_with_the_rows_params_too(alerts, monkeypatch):
+    """A registry miss (a restart, or the author saved) re-arms through `arm_for_alert`
+    -- with the row's own params, as the arm was."""
+    from api.services import indicator_alert_evaluator as ev
+    ias = alerts
+    _admit_patched(monkeypatch, knob_doc(0))                 # the author's default VARIES on these bars
+    monkeypatch.setattr(ev, "_fetch_bars_for_alert", lambda sym, tf, count=200: _store_bars(RDDT))
+    aid = ias.create(user_id="user-b1", sym="RDDT", indicator=ADDRESS, condition="below",
+                     threshold=-1e12, tf="D", params_json={"k": -1e9})   # the member's holds on every bar
+    aus.forget()
+    assert aus.value_function_for_alert(ias.get(aid), _store_bars(RDDT)) is not None
+
+
+# ═══ 5. the screener backtest and the rule record honour the gates (M3) ══════
+
+BT_WINDOW = ("2024-04-01", "2024-12-31")
+
+
+def _bt_withheld_for(definition):
+    from api.routers import screener_backtest as bt
+    gates = block_runs.block_runs_for(definition, "value")
+    return bt._withheld_for({"definition": definition, "key": "value", "gates": gates}, None)
+
+
+def test_the_backtest_engine_withholds_a_symbol_by_name_and_counts_it():
+    from api.services.screener import backtest as engine
+    up_only = [b for b in RDDT if b["c"] > b["o"]]
+    data = {"MIXD": RDDT, "UPUP": up_only}
+    stamped = doc(V6_AND, stamp("v6 and"))
+    run = lambda syms, wf: engine.run_backtest(V6_AND, syms, *BT_WINDOW, bars_for=data.get, horizons=[1],
+                                               min_signals=1, **({"withheld_for": wf} if wf else {})).to_dict()
+    both = run(["MIXD", "UPUP"], _bt_withheld_for(stamped))
+    assert both["coverage"]["symbols_withheld"] == 1
+    assert both["coverage"]["symbols_tested"] == 1
+    assert both["method"]["withheld"] == {"guard": block_runs.BLOCK_RUNS_GUARD, "symbols": 1,
+                                          "reason": CASES["v6 and"]["expected"]}
+    # every symbol withheld: the named refusal, with the gate's own sentence
+    only = run(["MIXD"], _bt_withheld_for(stamped))
+    assert only["backtestable"] is False and only["refused"] == "block_runs"
+    assert CASES["v6 and"]["expected"] in only["detail"]
+    assert only["coverage"]["symbols_withheld"] == 1
+    # 🔴 CONTROL — no gates asked: not a key of the receipt, both symbols tested
+    bare = run(["MIXD", "UPUP"], None)
+    assert "symbols_withheld" not in bare["coverage"] and "withheld" not in bare["method"]
+    assert bare["coverage"]["symbols_tested"] == 2
+
+
+@pytest.fixture
+def bt_route(monkeypatch):
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from api.middleware.auth_middleware import get_current_user, get_current_user_with_plan
+    from api.routers import screener_backtest as bt
+    from api.services import bars_sqlite
+    from api.services.cache import cache
+    from api.services.screener import snapshot_builder
+    paid = {"id": "paid-b1", "role": "member", "plan": "pro"}
+    cache.delete_prefix("screen_backtest::")
+    with bt._INFLIGHT_GUARD:
+        bt._INFLIGHT.clear()
+    state = {}
+
+    def build(definition, rows_by_sym):
+        stored = {"def_id": "u_b1b1b1b1b1b3", "version": 1, "rev": 1,
+                  "ast_hash": user_definitions.ast_hash(definition["compute"]["ast"]), "definition": definition}
+        monkeypatch.setattr(user_definitions, "get",
+                            lambda user_id, def_id, version=None: dict(stored) if def_id == stored["def_id"] else None)
+        monkeypatch.setattr(snapshot_builder, "_load_universe", lambda: list(rows_by_sym))
+        monkeypatch.setattr(bars_sqlite, "get_bars_before",
+                            lambda sym, tf, want, to_key: list(rows_by_sym.get(sym, []))[:want])
+        app = FastAPI()
+        app.include_router(bt.router)
+        app.dependency_overrides[get_current_user] = lambda: dict(paid)
+        app.dependency_overrides[get_current_user_with_plan] = lambda: dict(paid)
+        state["client"] = TestClient(app)
+        return state["client"]
+    yield build
+    cache.delete_prefix("screen_backtest::")
+    with bt._INFLIGHT_GUARD:
+        bt._INFLIGHT.clear()
+
+
+def _store_rows(bars):
+    return [(int(str(b["t"]).replace("-", "")), b["o"], b["h"], b["l"], b["c"], b["v"]) for b in bars]
+
+
+def test_the_backtest_route_replays_a_stored_definition_WITH_its_gates(bt_route):
+    stamped = {"meta": stamp("v6 and"), "compute": {"kind": "ast", "ast": V6_AND, "rev": 1},
+               "plots": [{"key": "value"}], "inputs": []}
+    window = {"from": BT_WINDOW[0], "to": BT_WINDOW[1]}
+    client = bt_route(stamped, {"MIXD": _store_rows(RDDT)})
+    r = client.post("/api/screener/backtest", json={"def_id": "u_b1b1b1b1b1b3", **window})
+    assert r.status_code == 200, r.text[:300]
+    body = r.json()
+    assert body["backtestable"] is False and body["refused"] == "block_runs"
+    assert "on this chart that right side skips bar" in body["detail"]
+    assert body["coverage"]["symbols_withheld"] == 1
+    assert "_block_runs" not in json.dumps(body)              # the private key never reaches an echo
+    # ⛔ the SAME tree posted bare is another job: the two receipts are never served for each other
+    bare = client.post("/api/screener/backtest", json={"ast": V6_AND, **window}).json()
+    assert bare["job"] != body["job"]
+    assert bare.get("refused") != "block_runs" and "symbols_withheld" not in bare["coverage"]
+
+
+def test_the_rule_record_honours_the_definitions_gates(tmp_path, monkeypatch):
+    from api.services import definition_record as dr
+    from api.services.signature import ledger
+    p = tmp_path / "signal_ledger.db"
+    monkeypatch.setenv("SIGNAL_LEDGER_DB_PATH", str(p))
+    monkeypatch.setattr(ledger, "_DB_PATH", str(p))
+    monkeypatch.setattr(ledger, "_INITED", False)
+    monkeypatch.setattr(dr, "_INITED", set())
+    bars = _store_bars(RDDT)
+    stamped = doc(V6_AND, stamp("v6 and"))
+    out = dr.record_pass(1, "1D", "MIXD", ast=V6_AND, bars=bars, definition=stamped)
+    assert out["recorded"] is False and out["evaluated"] == 0
+    assert out["skipped"] == f"{block_runs.BLOCK_RUNS_GUARD}: {CASES['v6 and']['expected']}"
+    h = user_definitions.ast_hash(V6_AND)
+    assert dr.latest_evaluation(h, 1, "1D", "MIXD") is None
+    # ⛔ a definition whose gates describe ANOTHER tree is refused, never asked
+    with pytest.raises(ValueError, match="not the one this tree is the scan plot of"):
+        dr.record_pass(1, "1D", "MIXD", ast=T03, bars=bars, definition=stamped)
+    # 🔴 CONTROL — the same pass on bars where the code runs every bar, and with no definition
+    assert dr.record_pass(1, "1D", "UPUP", ast=V6_AND, bars=_store_bars(UP_ONLY), definition=stamped)["recorded"] is True
+    # (another revision: the record's origin is per revision, and UPUP's pass above set rev 1's)
+    assert dr.record_pass(2, "1D", "MIXD", ast=V6_AND, bars=bars)["recorded"] is True

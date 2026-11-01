@@ -26,6 +26,9 @@ same stamp (`api/services/block_runs.py`).
 | v5 `and` / `or` | drawn as before (both sides every bar) | to-v6 guide: v5 evaluates `and` / `or` strictly. Q-PT1 rows S01 / S02 pin it |
 | v1-v4 `?:` | drawn as before, UNWITNESSED | none. The v4 manual says `iff` "acts identically to the `?:` operator"; the to-v5 guide says `iff` "always evaluated both values". Q-PT3 / Q-PT4 settle it |
 | `iff(c, a, b)` (v1-v4) | drawn as before (a function call: both arguments every bar) | to-v5 guide, as above. Q-PT3 rows F* pin it |
+| `y = if up` / `ta.sma(…)` / `else` / `x` — an `if` used as an EXPRESSION (review round 2, H2), every version | withheld where `up` varies (the branch's value; an `else if` condition too) | C48's own rule: an `if` branch is a block, run only when taken, captured for the STATEMENT form by `vw-call-site-history` (C48). The expression form is the same block and is not separately captured: Q-PT5 witnesses it. ⚠️ v1-v4 bare built-ins (`sma(…)`) are not read as history calls by either lane (gap G-b) |
+| `var x = up ? ta.x(…) : y` — an arm in a `var` INITIALISER (review round 2, M1) | drawn: the initialiser runs once, on bar 0, where no call has history to diverge (`armRunGates` skips a recurrence's seed slot) | Pine's `var` rule (the initialiser executes on the first bar only). The same `?:` without `var` runs on every bar and stays withheld (`vendorHarness.c45ArmRuns` M1 rails) |
+| an arm in a COLOUR — a plot's, a fill's, a `bgcolor` / `barcolor`'s (review round 2, H1) | the COLOUR is withheld where its arm runs after a skip; the value it colours is drawn. The rule's gates ride its hidden condition column (`pine.js::colourBlockRunsOf` → `memberPaneDefinition`'s `colourBlockRunKeys`); refused, a plot draws in its series colour, a fill or a paint draws nothing (`binder.pointColour` / `fillColours`) | the same rule as the value's; witnessed through the member door and the binder in `vendorHarness.c45ArmRuns` (H1 block) |
 
 ## Probes
 
@@ -35,6 +38,7 @@ same stamp (`api/services/block_runs.py`).
 | Q-PT2 | `tools/visual_conformance/probes/vw-andor-history.pine` | NYSE:RDDT 1D from the listing; AMEX:SPY 1D second | is the right side of a v6 `and` / `or` evaluated only where the left has not decided, with a history of those runs (B01-B05)? | per-run: witnessed, nothing moves. Every-bar: remove `stampLogicRight` (v6 `and` / `or` would then be TradingView's every-bar number) |
 | Q-PT3 | `tools/visual_conformance/probes/vw-arm-history-v4.pine` | NYSE:RDDT 1D from the listing; AMEX:SPY 1D second | is a v4 `?:` arm lazy (T*, K*, U*)? does v4 `iff` evaluate both arguments (F*)? | per-run T rows: extend the stamp to v4. ⚠️ v4 spells the calls bare (`sma`, not `ta.sma`), so `armHistoryCallOf` needs the v4 bare roster (the one `PINE_NAMESPACED_TREE`'s legacy route resolves), not only a lower version floor; C48's block mark (`taCallIn`) has the same gap for v4 `if` blocks today. Every-bar T rows: v4 stays drawn, and the rule is written down |
 | Q-PT4 | `tools/visual_conformance/probes/vw-arm-history-v3.pine` | NYSE:RDDT 1D from the listing | the same for v3 (and, if `bar_index` does not compile there, with `n`) | as Q-PT3 |
+| Q-PT5 | not written yet: three rows of `vw-arm-history.pine`'s shapes spelled as `y = if up` / `ta.sma(close, 5)` / `else` / `close`, its `else` branch, and an `if` with no `else` | NYSE:RDDT 1D from the listing | does an `if` EXPRESSION's branch keep the history of only the bars it runs, as the statement form does (C48)? | per-run: witnessed, nothing moves. Every-bar: stamp the expression form no more (`ifArm` / `ifExpr` out of `foldIfChain`) |
 
 ## Shapes this branch does NOT stamp, each a question a capture would settle
 
@@ -45,7 +49,50 @@ same stamp (`api/services/block_runs.py`).
 | `up ? ta.tr(true) : 0` | WITHHELD where `up` varies (every `ta.*` call is read as holding history, as C48's mark reads it) | one row: if `ta.tr` reads the chart's own previous close on its first run after a skip, it is pure, and the stamp over-withholds it |
 | `not na(x) and ta.crossover(close, x)`, `x` `na` until some bar and never again | WITHHELD wherever the left side is false and then true (`blockRuns` refuses a run after a skip), though per run and every bar may agree there: the first run's `x[1]` is `na` on both readings | rows over such an `x` for `ta.crossover`, `ta.change`, `ta.sma`: where they agree on the first run, `blockRuns` could admit a false-then-true guard for those functions |
 | a stamped `?:` inside a multi-state recurrence (`accum2`-`accum4`) whose test reads a state bind | drawn as before (no standalone guard can be written for it; `armRunGates` carries no gate rather than refuse) | not a capture question: a guard over the multi-state tuple one bar back, as `previousBarOf` builds for `accum` |
-| a `?:` arm in a COLOUR | a plot COLOUR condition (`colorCondition` / `colorIndex` / `colorGradient`) that reads a stamped arm withholds the plot, as C48 withholds one whose colour reads a block's call; a colour BETWEEN two arms that call `ta.*` is not carried by the plot lane at all (`colorDynamic`), and the object lane holds such a colour by name (`fn:conditional-history`, C45) | covered by `vw-arm-history` G01-G03 for the gauge shape |
+| a `?:` arm in a COLOUR | ⚰️ this row said such a colour withheld the PLOT (review round 2, H1: it did, and drew no line for a value that was every bar's close). Now the colour alone is withheld (see the table above); a colour BETWEEN two arms that call `ta.*` is not carried by the plot lane at all (`colorDynamic`), and the object lane holds such a colour by name (`fn:conditional-history`, C45) | covered by `vw-arm-history` G01-G03 for the gauge shape |
+
+## Known gaps (review round 2), each named where it lives
+
+Not fixed on this branch: none is a one-line change, and each moves either the guard's meaning, the
+parity fixture both lanes read, or a cache. Each says the direction it errs in, and what would close it.
+
+| id | gap | errs | where | what would close it |
+|---|---|---|---|---|
+| L2 | a stamped `?:` INSIDE a `request.security(…)` expression is stamped like any other, but its guard is evaluated on the CHART's bars by the bind, while the arm runs in the REQUESTED context | either way | `Resolver.stampTernaryArms` (no request-context test); `engine/blockRuns.js` evaluates every guard on the chart's bars | evaluate the guard inside the same request (`request.security(sym, tf, <guard>)`, as `securityColourRule` moves a colour's deciding tree), or decline to stamp inside a request until a capture says what TradingView keeps there |
+| L3 | a NESTED arm's guard is its own test alone: in `a ? (b ? ta.sma(…) : x) : y` the inner arm runs where `a and b`, and its gate reads `b` (the outer stamp reads `a`) | over-withholds (a `b` that varies only where `a` is false still refuses) | `armRunGates` (no enclosing-arm conjunction) | AND the enclosing stamped arms' tests (negated for a false arm) into a nested stamp's guard during the walk |
+| L4 | a guard that is `na` on a bar is "neither a run nor a skip" (`blockRuns.firstRunAfterSkip`), but Pine v4+ takes the FALSE arm of a `?:` whose test is `na` (`naConditionFalse`): the true arm SKIPPED that bar and the false arm RAN | under-withholds (a test `na` on early bars, then true, is a run after skips the gate does not see) | `engine/blockRuns.js` / `api/services/block_runs.py` (one rule, held by the parity fixture) | read an `na` test as false for a `?:` gate from a document that declares `meta.naConditionFalse` (both lanes, a new parity column), keeping C48's statement-form rule as it is |
+| L5 | `bgcolor` / `barcolor` colours | — | — | CLOSED by H1: a paint's colour rule is gated like a plot's (its condition column), and a withheld paint draws nothing |
+| L6 | the arm walk re-reads a nested chain once per level: `armHistoryCallOf` walks each `?:`'s arms, so an N-deep `else if` / colour chain costs O(N²) node visits at translation | slow, never wrong | `Resolver.stampTernaryArms` → `armHistoryCallOf` | a per-translation memo keyed by parse node (`WeakMap`), recording only answers reached without the depth cap |
+| G-a | (pre-existing, C48) a plot whose COLOUR reads a name an `if` STATEMENT binds is withheld WHOLE: C48's gates are collected per output (`resolver.blockRuns`), not per tree, so H1's colour-only rule does not reach them | over-withholds | `pine.js` output loop (`resolver.blockRuns` is filled while value and colour resolve alike) | attribute each C48 mark to the tree that read it (value or colour rule) and route a colour's to its condition column, as `colourBlockRunsOf` does for arms |
+| G-b | Pine v1-v4 BARE built-ins (`sma(…)`, `highest(…)`) are not read as history calls by either lane: C48's mark reads `ta.*` tokens (`taCallIn`), the arm walk reads `ta.*` names and history helpers | under-withholds (a v4 `if` block or `if` expression calling `sma` is drawn off every bar) | `objectFnInline.taCallIn`, `pine.js::armHistoryCallOf` | one v4 roster of history-keeping bare names for both (the names `PINE_NAMESPACED_TREE`'s legacy route resolves), witnessed by Q-PT3 |
+| G-c | the run-length counter fold copies its condition through `JSON.parse(JSON.stringify(…))`, which drops a stamp inside the condition (`n := up and ta.rising(close, 2) ? n + 1 : 0`) | under-withholds | `pine.js`, the counter fold's `copy()` (search `RESOLVED ONCE AND COPIED`) | a structural copy that carries `_armRuns` (`carryArmRuns`), keeping the JSON copy's NaN behaviour measured first |
+| G-d | a withheld COLOUR is not disclosed on the chart: its refusal sits in `columnErrors` under the hidden condition column's key, which no surface reads, and the plot draws in its series colour (the pane's gold for a conditional colour, this repo's "colour not carried" marker) | silent fallback (the colour, never the value) | `binder.columnErrorsOf`, `infoValueResolve` | surface a condition column's refusal on the plot it colours (the info row's `title`), by the gate's own sentence |
+| G-e | (by design, M1) off the listing a recurrence's bounded window reads its SEED W bars back, where an arm in it holds the every-bar history; not gated, because the window's own convergence rule already answers for the seed | — | `interpret.js` bounded window | not a gap of this rule |
+
+## Alerts the server lanes now withhold (review round 2, M2)
+
+This deploy switches on server enforcement of every C48 stamp already saved (the alert lane and the
+scan sweep read `meta.blockRuns`; before it, only the chart did). An armed alert on such a plot now
+evaluates to no number on bars where the chart withholds it, and goes quiet. It is not left silent:
+the silent-alert sweep (`indicator_alert_service.sweep_silent_alerts`, every 5 minutes) now diagnoses a
+member's own formula through the user lane (`_diagnose_user`) and writes `state = needs_attention` with
+the gate's own sentence in `state_detail`, which every alert surface renders verbatim
+(`app/src/components/chart/alertState.jsx`). Railed in `tests/test_block_runs_server_lanes.py` §3.
+
+How many saved documents and live alerts this touches was counted READ-ONLY (`mode=ro` URIs) on the
+local data copies only: `C:\data\user_definitions.db` (2026-09-13) and `C:\data\auth.db`
+(2026-10-02) hold 7 live documents, 0 with `meta.blockRuns`, and 0 active indicator alerts. Both
+copies predate C48, so they say nothing about production. The production count is two read-only
+queries against the volume's two files, NOT run from this branch:
+
+1. `user_definitions.db`: per `(user_id, def_id)`, the newest version with `deleted_at IS NULL`; parse
+   `definition` and keep the plot keys whose `meta.blockRuns.keys[].gates` is non-empty;
+2. `auth.db`: `SELECT id, user_id, indicator FROM indicator_alerts WHERE active = 1 AND indicator LIKE
+   'u\_%' ESCAPE '\'`, kept where `indicator` is `u_<def_id>.<plot>` for one of step 1's keys of the
+   same `user_id`.
+
+Opened with `sqlite3.connect('file:<path>?mode=ro', uri=True)`, which can neither write nor
+checkpoint. The script that ran the local count is in the branch report.
 
 ## The vendor-harness split of `vw-arm-history` (queued, not done)
 

@@ -709,6 +709,35 @@ def _make_value_fn(def_id: str, plot_key: str,
             lambda guard: ast_interpret.interpret(guard, bars, inputs=_inputs_for(definition, params),
                                                   budget=budget, opts=dict(opts) if opts else lane_opts))
 
+    def run_opts_for(bars: list, tf: Optional[str]) -> Optional[dict]:
+        """The opts this plot's tree evaluates with on ``bars`` -- ``None`` where it
+        cannot evaluate at all: it reads another symbol and no timeframe says at which
+        resolution (no number on any bar, never the alert's own symbol in its place).
+        ⛔ ONE reader, for the column AND for every check of its gates, so a gate is
+        never asked under opts the plot itself was not computed with."""
+        if not supplied_syms:
+            return lane_opts
+        if not tf:
+            return None
+        want = min(_SYMBOL_MAX_BARS, len(bars) + int(getattr(fn, "lookback", 0) or 0))
+        return dict(lane_opts, symbols={t: _symbol_bars(t, tf, want) for t in supplied_syms})
+
+    def withheld(bars: list, params: Optional[Mapping] = None, tf: Optional[str] = None) -> Optional[str]:
+        """⭐⭐ C48 / C45 (review round 2, L1 + M2) -- why this plot is withheld on
+        ``bars`` under THE ALERT'S OWN params and timeframe, or None: the gate's own
+        sentence. The one check behind three callers -- ``column`` per evaluation (it
+        shares the opts it computed), ``arm_for_alert`` before the row is inserted,
+        and ``indicator_alert_service.diagnose`` when an armed alert has gone quiet --
+        so all three answer one question the same way. ⚰️ The arm path asked with
+        ``params = {}`` and the lane's bare opts, so an alert armed with a member's
+        own inputs was proven on a plot it would never evaluate."""
+        if not gates:
+            return None
+        run_opts = run_opts_for(bars, tf)
+        if run_opts is None:
+            return None
+        return block_runs_refusal(bars, dict(params or {}), run_opts)
+
     def column(bars: list, params: dict, tf: Optional[str] = None) -> list:
         from api.services import ast_interpret
         # 🔴 NOT COMPUTABLE IS NOT ZERO, AND THE COMPARISON IS WHERE IT STOPS
@@ -722,15 +751,12 @@ def _make_value_fn(def_id: str, plot_key: str,
         short = ast_interpret.unresolved_lookback(tree, bars)
         if short:
             return [None] * len(bars)
-        run_opts = lane_opts
-        if supplied_syms:
-            # ⛔ NO TIMEFRAME, NO OTHER SYMBOL: its bars cannot be read at the
-            # alert's resolution, so every bar is UNKNOWN -- never the alert's own
-            # symbol in its place.
-            if not tf:
-                return [None] * len(bars)
-            want = min(_SYMBOL_MAX_BARS, len(bars) + int(getattr(fn, "lookback", 0) or 0))
-            run_opts = dict(lane_opts, symbols={t: _symbol_bars(t, tf, want) for t in supplied_syms})
+        # ⛔ NO TIMEFRAME, NO OTHER SYMBOL: its bars cannot be read at the alert's
+        # resolution, so every bar is UNKNOWN -- never the alert's own symbol in its
+        # place (`run_opts_for`).
+        run_opts = run_opts_for(bars, tf)
+        if run_opts is None:
+            return [None] * len(bars)
         out = ast_interpret.interpret(tree, bars,
                                       inputs=_inputs_for(definition, params),
                                       budget=budget, opts=run_opts)
@@ -759,8 +785,11 @@ def _make_value_fn(def_id: str, plot_key: str,
     column.__name__ = f"_user_column_{def_id}_{plot_key}"
     fn.__name__ = f"_user_value_{def_id}_{plot_key}"
     fn.column = column                                  # type: ignore[attr-defined]
-    # ⭐ C48 / C45 — the arm path asks the plot's gates on the alert's own bars
+    # ⭐ C48 / C45 — the plot's gates: `withheld` under an alert's own params and tf
+    # (the arm path and the silent-alert diagnosis), `block_runs_refusal` under opts
+    # a caller states
     fn.block_runs_refusal = block_runs_refusal          # type: ignore[attr-defined]
+    fn.withheld = withheld                              # type: ignore[attr-defined]
     # ⭐ PHASE 5 -- the other symbols this plot reads: the evaluator passes the
     # alert's timeframe (``tf=``) to a function that names any.
     fn.reads_symbols = supplied_syms                    # type: ignore[attr-defined]
@@ -1265,8 +1294,11 @@ def value_function_for_alert(alert: Mapping[str, Any], bars: Optional[list] = No
     fn = USER_FUNCS.get(scoped_key(user_id, address))
     if fn is not None:
         return fn
+    # ⭐ L1 — the re-arm is asked with the row's own params, as the arm was
+    from api.services import indicator_alert_evaluator as ev
     arm_for_alert(user_id, address, str(alert.get("sym") or ""),
-                  str(alert.get("tf") or ""), bars=bars or None)
+                  str(alert.get("tf") or ""), bars=bars or None,
+                  params=ev._parse_params(dict(alert)))
     # Re-read rather than trusting the admission's own list: a definition that
     # no longer declares THIS plot admits its other plots fine, and the refusal
     # that names the missing plot is `user_value_function`'s to raise.
@@ -1490,8 +1522,23 @@ def user_catalog(user_id: Any) -> list[dict]:
     return entries
 
 
+def block_runs_withheld(address: str, sym: str, why: str) -> AdmissionRefused:
+    """⭐ C48 / C45 — THE refusal for a plot the member's chart withholds on this
+    symbol's bars (``meta.blockRuns``): the gate's own sentence, wrapped once. Raised
+    by ``arm_for_alert`` before a row is inserted, and RETURNED to
+    ``indicator_alert_service.diagnose`` for an armed alert that has gone quiet —
+    one spelling, so the member reads the same sentence at both doors."""
+    from api.services import block_runs as _block_runs
+    return AdmissionRefused(
+        "withheld",
+        f"{address} {REFUSAL_FRAGMENTS['withheld']} ({_block_runs.BLOCK_RUNS_GUARD}): {why}. "
+        f"An alert on it would fire off the every-bar value on {sym}, which is not the "
+        "script's. It still draws on a chart where that code runs on every bar.")
+
+
 def arm_for_alert(user_id: Any, indicator: str, sym: str, tf: str,
-                  *, bars: Optional[list] = None) -> Optional[dict]:
+                  *, bars: Optional[list] = None,
+                  params: Optional[Mapping] = None) -> Optional[dict]:
     """⭐ THE ARM-TIME CALL SITE. Returns `None` for a builtin address.
 
     ⛔ THIS IS WHY THE EQUALITY IS NOT A FUNCTION NOBODY CALLS. It is invoked from
@@ -1550,14 +1597,13 @@ def arm_for_alert(user_id: Any, indicator: str, sym: str, tf: str,
     # TradingView's. Refused here, BEFORE the row is inserted, with the chart's
     # own sentence (`block_runs.block_runs_refusal`). The per-evaluation check in
     # `column` covers bars that arrive later.
+    # ⭐ L1 (review round 2) — ASKED AS THE ALERT WILL EVALUATE: its own `params`
+    # (the snapshot `params_json` the row stores) and its timeframe, through the one
+    # check `column` makes (`withheld`). ⚰️ It asked with `{}` and the lane's bare
+    # opts — a guard reading a member's input was proven at the author's default.
     fn = USER_FUNCS.get(scoped_key(user_id, f"{def_id}.{_plot}"))
-    check = getattr(fn, "block_runs_refusal", None) if fn is not None else None
-    why = check(bars, {}) if check is not None else None
+    check = getattr(fn, "withheld", None) if fn is not None else None
+    why = check(bars, params or {}, tf) if check is not None else None
     if why:
-        from api.services import block_runs as _block_runs
-        raise AdmissionRefused(
-            "withheld",
-            f"{def_id}.{_plot} {REFUSAL_FRAGMENTS['withheld']} ({_block_runs.BLOCK_RUNS_GUARD}): {why}. "
-            f"An alert on it would fire off the every-bar value on {sym}, which is not the "
-            "script's. It still draws on a chart where that code runs on every bar.")
+        raise block_runs_withheld(f"{def_id}.{_plot}", sym, why)
     return admitted
