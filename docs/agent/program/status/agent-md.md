@@ -33,8 +33,9 @@ Only agent-md edits this file. Update it in every PR.
   synchronous build else 0), `earnings_table.get_earnings_table` (as_of null + note — reported rows carry no
   date; stale when `stale_quarters` ≥ 2; `next_report` = scheduled event from the same payload, never as_of;
   1 call per read), `news/store.feed` (≤ 25, no body text; stale on INGEST health, never company quietness;
-  0 calls). All `periodic`. MD-1 **v1.2** (§4 rows + §4.2, constants quoted from the modules). Tests 32,
-  mutation-checked; clock-clean (fixed NOW_TS literal, adapters' clocks frozen — agent-qa F-8).
+  0 calls). All `periodic`. MD-1 **v1.2** (§4 rows + §4.2, constants quoted from the modules). Tests 36,
+  mutation-checked; clock-clean (fixed NOW_TS literal, adapters' clocks frozen — agent-qa F-8); exact news-ingest
+  boundary (exclusive) and UTC-midnight flip for fundamentals pinned.
 - Next: PR 4 breadth.current / nhnl / themes / volume.surge / ratings; ADR-003 flow/darkpool spike (draft);
   freshness eval corpus with agent-qa.
 

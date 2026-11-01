@@ -89,6 +89,23 @@ def test_fundamentals_older_than_the_budget_is_stale(monkeypatch):
     assert _read("fundamentals", {"symbol": "AAPL"}, turn="t2")["stale"] is False   # boundary
 
 
+@pytest.mark.parametrize("clock,stale", [
+    ("23:59:59", False),    # still day 135 after the period end (UTC calendar date)
+    ("00:00:00+1", True),   # one second later the UTC date rolls to day 136
+])
+def test_fundamentals_staleness_flips_at_utc_midnight_not_at_a_rolling_24h(monkeypatch, clock, stale):
+    """statements.py ages on UTC calendar DATES: the flip is exactly UTC midnight between day 135 and 136."""
+    pe = date(2026, 6, 1)
+    day135 = pe + timedelta(days=stm.STALE_AFTER_DAYS)
+    if clock == "23:59:59":
+        t = datetime(day135.year, day135.month, day135.day, 23, 59, 59, tzinfo=timezone.utc)
+    else:
+        t = datetime(day135.year, day135.month, day135.day, tzinfo=timezone.utc) + timedelta(days=1)
+    monkeypatch.setattr(stm, "time", SimpleNamespace(time=lambda: t.timestamp()))
+    monkeypatch.setattr(financial_statements, "get_statements", lambda s: _stmts(pe))
+    assert _read("fundamentals", {"symbol": "AAPL"})["stale"] is stale
+
+
 def test_fundamentals_missing_statement_is_partial_and_refreshing_copy_is_noted(monkeypatch):
     monkeypatch.setattr(financial_statements, "get_statements",
                         lambda s: _stmts(TODAY - timedelta(days=30), drop=("cashflow",), stale_flag=True))
@@ -211,6 +228,13 @@ def test_stale_ingest_marks_the_read_stale(monkeypatch):
     _news(monkeypatch, [_item(1)], last_ok_age=nc.STALE_AFTER_S + 60)
     out = _read("news.company", {"symbol": "AAPL"})
     assert out["stale"] is True and nc.NOTE_INGEST_STALE in out["notes"]
+
+
+@pytest.mark.parametrize("age,stale", [(nc.STALE_AFTER_S, False), (nc.STALE_AFTER_S + 1, True)])
+def test_news_ingest_boundary_is_exclusive(monkeypatch, age, stale):
+    """`stale` means OLDER than STALE_AFTER_S: exactly the budget is still fresh, one second over is stale."""
+    _news(monkeypatch, [_item(1)], last_ok_age=age)
+    assert _read("news.company", {"symbol": "AAPL"})["stale"] is stale
 
 
 def test_unknown_ingest_health_is_stale_with_its_own_note(monkeypatch):
