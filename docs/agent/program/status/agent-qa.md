@@ -115,6 +115,18 @@ Only agent-qa edits this file. Update it in every PR.
   entry and the marker.
   Verified: the rail passes 16/16 on agent/int and 16/16 with #585's two test files substituted.
 
+- **F-7 — VERIFIED FIXED** on #584 @ 7cd053d123: `currentTurnId()` is called directly, the null check comes before
+  readData at both sites, and the rail plus scan tests pass 44/44 (the rail now sees 1 real importer).
+- **F-8 — VERIFIED FIXED** on #585 @ 3aa3693e9d. A plugin shifts the process wall clock: pr3 + quote tests pass 73/73
+  at the real time, 2030-01-01 and 23:59:59.9 UTC. Control: the pre-fix file fails 5 under the same shift.
+  **Owed (owner's #585 directive):** the exact news-ingest boundary (STALE_AFTER_S vs +1) and an explicit UTC-midnight
+  test for fundamentals ages. Requested from agent-md.
+- **Corpus scored (measured on a local merge of #584+#582; the scorer lands after merge):**
+  ORACLE 31/31 (control).
+  GRAMMAR-DIRECT 5/31 = **answerable 0/26**; the refusals 5/5 are trivial, because it refuses all English.
+  Spotlight questions d08/d19/d22/d26 are all refused, each with the grammar's own sentence.
+  Mutation checks: every derived wrong answer fails, and near-misses inside tolerance pass.
+
 ## Blockers
 - (none)
 
