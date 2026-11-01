@@ -102,6 +102,19 @@ Only agent-qa edits this file. Update it in every PR.
   Planned: ORACLE (control, must be 100%) and GRAMMAR-DIRECT (deterministic baseline) interpreters, per-category
   and nl tallies, perturbation controls, and a recorded baseline.
 
+- **F-9 (agent-lead), `tools/agent_ownership_check.py`: false FOREIGN after a criss-cross merge.**
+  Repro: merge agent/int into a branch whose earlier head was merged meanwhile, which leaves two merge bases.
+  Actual: 6 FOREIGN files from #583. Expected: 1 file, my status doc, which is the true two-dot diff.
+  Cause: the three-dot diff picks one merge base.
+  Fix: judge `git diff --name-only origin/agent/int HEAD`, or fall back to it when `git merge-base --all` returns >1.
+- **agent-qa's own slip (recorded honestly):** one push was chained after `ownership_check | head -1 && git push`, so
+  it went out on the pipe's exit code. The tree pushed added only this file's 2 lines, so no harm, but the check was
+  not a gate. Since then the check runs in its own call and is read before any push.
+- **F-6 entry: marked PENDING_REMOVAL for exactly one window.** Its fix (NOW literal) is in #585. The rail tolerates
+  the absence of that entry alone, so agent/int stays green when #585 merges. The follow-up QA PR deletes both the
+  entry and the marker.
+  Verified: the rail passes 16/16 on agent/int and 16/16 with #585's two test files substituted.
+
 ## Blockers
 - (none)
 
@@ -116,6 +129,9 @@ Only agent-qa edits this file. Update it in every PR.
   (`quote_semantics_errors`) with controls showing it can fail. Other MD-1 kinds keep provisional `data` shapes.
 
 ## Verdicts on `agent/int`
+- **42d962963d — GREEN** (#572 integrated). The locked run's tree differed from this tip only by 2 lines of this file
+  (two-dot `git diff`). Agent pytest under the lock: 1049 passed. Agent vitest: 115 files passed, 5 skipped;
+  1988 passed, 6 skipped.
 - **d837b6a96f — GREEN** (#579 quote freshness v1.1, #580 ADR-002 docs, #581 currentTurnId).
   No non-QA diff. Agent pytest under the lock: 1037 passed (agent-lead's 809 + agent-qa's 228).
   Agent vitest: 114 files passed, 5 skipped; 1967 passed, 6 skipped.
