@@ -8,11 +8,13 @@
 // lowerings drawing on that path (`var bool b = if …` → a label at y=2 where master drew
 // nothing). Shared contract with WS-D: those two builds pass `objectDoor: true`; under it
 // every lowering added after master 685b5e91d7 refuses `runtime:object-door`, and every
-// shape master served is built as master built it — including the ones WS-A's guards
-// refuse on the runtime pane, since no capture has proven master's value wrong there:
-//   readSelf  `t := if close > t / t + 1`  master: na (it writes na into t first)
-//   v6for     a v6 `for` whose body grows n master: 4 (bound read once)
-//   v6bool    a v6 unmatched bool           master: 2 (na == false is false)
+// shape master served is built as master built it — EXCEPT where the Pine docs say
+// master's value is wrong and no capture has settled it (house rule: refuse what is not
+// proven exact). Those four refuse `runtime:object-door` by name (REFUSED below):
+//   readSelf    `t := if close > t / t + 1`  master drew na,  docs: 12        (Q-A2)
+//   readSelfSw  `st := switch st` cycle      master drew 0,   docs: cycles    (Q-A2)
+//   v6for       a v6 `for` the body grows    master drew 4,   docs: 6         (Q-A1)
+//   v6bool      a v6 unmatched bool          master drew 2,   docs: 1         (Q-A3)
 //
 // Every expectation below is master's OWN output, measured on master 685b5e91d7 with this
 // same harness (objects-only pane on, 12 daily bars, closes 101..112).
@@ -41,13 +43,16 @@ const CASES = {
   varIf: ['var float v = if close > 0\n    close\nelse\n    0.0\n' + L('v'), { reader: null }],
   fnSwitch: ['f(x) =>\n    switch\n        x > 105 => x * 2\n        => x\nv = f(close)\n' + L('v'), { reader: null }],
   plainIf: ['v = if close > 105\n    close * 2\nelse\n    close\n' + L('v'), { labels: [224], rt: null }],
-  readSelf: ['var float t = 0.0\nt := if close > t\n    t + 1\nelse\n    t\n' + L('t'), { labels: [null], rt: true }],
-  v6for: ['n = 3\nfloat s = 0.0\nfor i = 0 to n\n    s += 1\n    if i == 1\n        n := 5\n' + L('s'), { labels: [4], rt: true }],
-  v6bool: ['b = if close > 200\n    close > open\n' + L('b == false ? 1.0 : 2.0'), { labels: [2], rt: true }],
-  // master's value here is documented-wrong too (no capture): kept on the door
-  readSelfSw: ['var int st = 0\nst := switch st\n    0 => 1\n    1 => 2\n    => 0\n' + L('st'), { labels: [0], rt: true }],
   defaultLast: ['v = switch\n    => close\n    close > 105 => close * 2\n' + L('v'), { labels: [224], rt: true }],
   fnComma: ['g(v) => v * 3\nf(x) =>\n    a = x, g(a)\nv = f(close)\n' + L('v'), { reader: null }],
+}
+
+// master drew a documented-wrong value; the drawing door refuses by name now
+const REFUSED = {
+  readSelf: ['var float t = 0.0\nt := if close > t\n    t + 1\nelse\n    t\n' + L('t'), /reads `t` inside its own block.*Q-A2/],
+  readSelfSw: ['var int st = 0\nst := switch st\n    0 => 1\n    1 => 2\n    => 0\n' + L('st'), /reads `st` inside its own block.*Q-A2/],
+  v6for: ['n = 3\nfloat s = 0.0\nfor i = 0 to n\n    s += 1\n    if i == 1\n        n := 5\n' + L('s'), /re-reads a `for` loop's `to` bound.*Q-A1/],
+  v6bool: ['b = if close > 200\n    close > open\n' + L('b == false ? 1.0 : 2.0'), /v6 bool is never `na`.*Q-A3/],
 }
 
 function c18(src) {
@@ -72,7 +77,21 @@ describe('⛔⛔ the C18 door (objects-only pane, production path) draws exactly
       expect(c18(src)).toEqual(master)
     })
   }
+  for (const [name, [src, why]] of Object.entries(REFUSED)) {
+    it(`${name}: master drew a documented-wrong value; the door refuses by name, the runtime draws nothing`, () => {
+      vi.stubEnv('VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', '1')
+      const r = c18(src)
+      expect(r.rt === true).toBe(false)
+      const door = buildRuntimeIr(HEAD + src, {
+        bars: DOOR_BARS, inputs: {}, objectTrees: [], objectTreesAt: [], objectDoor: true,
+      })
+      expect(door.ok).toBe(false)
+      expect(door.refusal.guard).toBe('runtime:object-door')
+      expect(door.refusal.message).toMatch(why)
+    })
+  }
 })
+const DOOR_BARS = Array.from({ length: 8 }, (_, i) => ({ t: 1700000000 + i * 86400, o: 100, h: 102 + i, l: 98, c: 100 + i, v: 1000 }))
 
 describe('⛔⛔ the contract: under `objectDoor: true` the WS-A grammar refuses `runtime:object-door`', () => {
   const B = Array.from({ length: 8 }, (_, i) => ({ t: 1700000000 + i * 86400, o: 100, h: 102 + i, l: 98, c: 100 + i, v: 1000 }))

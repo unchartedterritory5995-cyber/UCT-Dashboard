@@ -2682,10 +2682,12 @@ function buildRuntimeIrLinked(source, opts, holder) {
   // never does. Under it the WS-A grammar (multi-statement arms, `switch` statements,
   // `var x = if/switch`, comma statements, tuple and switch-ending function bodies,
   // the subject hoist) refuses `runtime:object-door`, and every shape master SERVED is
-  // built exactly as master built it — including the ones WS-A's new guards refuse on
-  // the pane (a v6 `for` bound, a v6 unmatched bool, an arm after a default, a read of
-  // `x` inside `x := if`, a function ending in a comma line), because no capture has
-  // proven master's value wrong there. Rails: `p3WsaDarkGate.test.js`.
+  // built exactly as master built it — EXCEPT where the Pine docs say master's value is
+  // wrong and no capture has settled it (house rule: refuse what is not proven exact):
+  // a read of `x` inside `x := if/switch` (Q-A2), a v6 `for` bound a pass can move
+  // (Q-A1), a v6 unmatched bool (Q-A3) refuse `runtime:object-door` by name. An arm
+  // after a default (valid Pine never has one) and a function ending in a comma line
+  // (master refused it) stay as master had them. Rails: `p3WsaDarkGate.test.js`.
   const p3 = opts.objectDoor !== true
   const refuseP3 = (what, at) => {
     note('runtime:object-door')
@@ -7387,12 +7389,16 @@ function buildRuntimeIrLinked(source, opts, holder) {
     return eq > 0 ? t.slice(eq + 1) : t
   }
   const refuseV6UnmatchedBool = (mkArm, valueToksList, at, what) => {
-    if (!p3 || !(mkArm && mkArm.valued) || pineVersion === null || pineVersion < 6) return
+    if (!(mkArm && mkArm.valued) || pineVersion === null || pineVersion < 6) return
     typeTables()
     if (mkArm.declaredType === 'float') return
     // ⚰️ a separate "declared `bool` refuses" check lived here; in valid Pine a bool
     // target's arms are bools, which are never PROVABLY non-bool, so it could not fire
     if (valueToksList.every((t) => provablyNonBoolToks(t))) return
+    if (!p3) {
+      refuseP3(`${what} can match no arm, and its value is not provably a number, a string or a colour `
+        + '(a v6 bool is never `na`) — not lowered on the drawing door until captured (Q-A3)', at)
+    }
     throw new RuntimeRefusal('runtime:block-value',
       `${what} can match no arm, and its value is not provably a number, a string or a colour — `
       + 'Pine 6 yields `false` for an unmatched `bool` (a v6 bool is never `na`), which this lane does not type yet', at)
@@ -7991,6 +7997,20 @@ function buildRuntimeIrLinked(source, opts, holder) {
     return why
   }
 
+  /** does lowered IR read `slot` at the current bar (a committed `x[n]` excepted) */
+  const irReadsSlot = (ir, slot) => {
+    let hit = false
+    const walk = (x, d) => {
+      if (hit || !x || typeof x !== 'object' || d > 512) return
+      if (Array.isArray(x)) { for (const y of x) walk(y, d + 1); return }
+      if (x.kind === EXPR.READ && x.slot === slot) { hit = true; return }
+      if (x.kind === EXPR.HIST && x.of && x.of.kind === EXPR.READ && x.of.slot === slot) return
+      for (const v of Object.values(x)) if (v && typeof v === 'object') walk(v, d + 1)
+    }
+    walk(ir, 0)
+    return hit
+  }
+
   const lowerStmts = (list0, scope, rootHoist = false) => {
     // RT5: `label.delete(a[1]), line.delete(b[1])` is a line of STATEMENTS
     // (the host object lane's own split, `objectFnInline.splitCommaStatements`).
@@ -8227,10 +8247,14 @@ function buildRuntimeIrLinked(source, opts, holder) {
         try { body = lowerStmts(st.sub || [], inner) } finally { loopDepth -= 1; loopRanges.delete(slot) }
         // ⭐⭐ P3 WS-A — v6 re-reads the `to` bound before every pass; this lane
         // reads it once. Served where the two cannot differ (`forBoundMovedBy`).
-        if (p3 && pineVersion !== null && pineVersion >= 6) {
+        if (pineVersion !== null && pineVersion >= 6) {
           // ⭐ (review H2a) the `by` step rides along: whether v6 re-reads it is
           // as uncaptured as the bound (Q-A1), so a body that moves it refuses too.
           const moved = forBoundMovedBy([toIr, stepIr], body)
+          if (moved && !p3) {
+            refuseP3(`Pine 6 re-reads a \`for\` loop's \`to\` bound before every pass, and ${moved} — `
+              + 'not lowered on the drawing door until captured (Q-A1)', locate(first))
+          }
           if (moved) {
             note('runtime:loop')
             throw new RuntimeRefusal('runtime:loop',
@@ -8614,21 +8638,19 @@ function buildRuntimeIrLinked(source, opts, holder) {
           // a trailing stop `na` — served with nothing red. The temp carries the
           // target's kind flags (text, colour, collection …) so the arms lower
           // against the same kind, and x is assigned from it after the chain.
-          // ⛔ ON THE OBJECT DOOR (`!p3`): master's own lowering, `na` into x first
-          // (shared contract — no capture has proven its value wrong there).
-          const c1Temp = p3
-          const tmpSlot = c1Temp ? (() => {
-            const tmpName = `${nameTok.value} := block@${first.line}:${first.column}`
-            const t = scope.declare(tmpName, newSlot(tmpName, false))
-            for (const [k, v] of Object.entries(slots[blkSlot] || {})) {
-              if (!['name', 'kind', 'owner', 'index'].includes(k)) slots[t][k] = v
-            }
-            return t
-          })() : blkSlot
-          out.push(c1Temp ? declare(tmpSlot, naValue()) : assign(blkSlot, naValue()))
+          // ⛔ On the drawing door this is master's value exactly wherever the chain
+          // does not read x (the temp and master's na-first lowering agree there);
+          // where it does, the door refuses by name below.
+          const tmpName = `${nameTok.value} := block@${first.line}:${first.column}`
+          const tmpSlot = scope.declare(tmpName, newSlot(tmpName, false))
+          for (const [k, v] of Object.entries(slots[blkSlot] || {})) {
+            if (!['name', 'kind', 'owner', 'index'].includes(k)) slots[tmpSlot][k] = v
+          }
+          out.push(declare(tmpSlot, naValue()))
           const mkArm = armAssignerFor(tmpSlot,
             `${nameTok.value} := ${blkHead.value} …`, scope)
           mkArm.declaredType = declaredTypeOfName(nameTok.value)
+          const chainFrom = out.length
           if (blkHead.value === 'if') {
             const chain = lowerIfChainInto(list, i, toks.slice(walrus + 2), scope, mkArm)
             i = chain.next
@@ -8638,7 +8660,15 @@ function buildRuntimeIrLinked(source, opts, holder) {
               `${nameTok.value} :=`, blkHead)
             for (const st2 of sw) out.push(st2)
           }
-          if (c1Temp) out.push(assign(blkSlot, read(tmpSlot)))
+          // ⛔ ON THE DRAWING DOOR, a chain that READS x is refused by name: master's
+          // na-first lowering serves `na` (or a stuck state) where the Pine docs give
+          // x's prior value, and no capture has settled it (house rule: refuse what
+          // is not proven exact). A chain that never reads x is master's value exactly.
+          if (!p3 && irReadsSlot(out.slice(chainFrom), blkSlot)) {
+            refuseP3(`\`${nameTok.value} := ${blkHead.value} …\` reads \`${nameTok.value}\` inside its own block, `
+              + 'which Pine reads as its prior value — not lowered on the drawing door until captured (Q-A2)', locate(first))
+          }
+          out.push(assign(blkSlot, read(tmpSlot)))
           continue
         }
 
