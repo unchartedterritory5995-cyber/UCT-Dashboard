@@ -2007,6 +2007,42 @@ function barsSincePineStep(st, o, cond) {
   return st[o]
 }
 
+/** ⭐⭐ P3 WS-B — PINE'S `ta.rsi(x, n)` AS ONE CARRIED STEP, the SAME arithmetic
+ *  as the shipped `indicators.js::computeRSI` that the columnar `rsi` binds to:
+ *  the change from the previous RAW value (an `na` on either side is a hole), a
+ *  HOLD on a hole (state unchanged, `na` emitted — the vendor rule `smoothStep`
+ *  pins for ema/rma/rsi/macd), a seed of the plain mean of the first `n` changes,
+ *  Wilder's step after that, and Pine's zero branches in Pine's order
+ *  (`down == 0 → 100` first, then `up == 0 → 0`). `runtimeRsi.test.js` holds it
+ *  to `computeRSI` over gappy and flat series rather than to a copy of this loop.
+ *
+ *  ⚠️ IT DOES NOT TRIM. The columnar lane hands `computeRSI` only the finite TAIL
+ *  of its source (`bindShipped`), so over a source with a hole in the middle the
+ *  column restarts after the last hole where this HOLDS — the vendor rule. Over a
+ *  source with no hole after its warm-up the two are bit-identical (railed). */
+const RSI_PINE_CELLS = 6            // [prev x, changes seen, sum up, sum down, avg up, avg down]
+function rsiPineInit(st, o) {
+  st[o] = NaN; st[o + 1] = 0; st[o + 2] = 0; st[o + 3] = 0; st[o + 4] = NaN; st[o + 5] = NaN
+}
+function rsiPineStep(st, o, v, n) {
+  const diff = v - st[o]
+  st[o] = v
+  if (!Number.isFinite(diff)) return NaN
+  const gain = diff > 0 ? diff : 0
+  const loss = diff < 0 ? -diff : 0
+  if (Number.isNaN(st[o + 4])) {
+    st[o + 2] += gain; st[o + 3] += loss; st[o + 1] += 1
+    if (st[o + 1] < n) return NaN
+    st[o + 4] = st[o + 2] / n; st[o + 5] = st[o + 3] / n
+  } else {
+    st[o + 4] = (st[o + 4] * (n - 1) + gain) / n
+    st[o + 5] = (st[o + 5] * (n - 1) + loss) / n
+  }
+  if (st[o + 5] === 0) return 100
+  if (st[o + 4] === 0) return 0
+  return 100 - 100 / (1 + st[o + 4] / st[o + 5])
+}
+
 // ⚰️ `emaCol` AND `rmaCol` LIVED HERE AND ARE GONE. They were one-line alpha
 // wrappers over `smoothCol`, and 2F-2C moved the alpha into `CARRIED` so the
 // runtime and this lane read the SAME constant from the SAME place. Keeping them
@@ -2373,6 +2409,16 @@ export const POINTWISE_FOR_PARITY = POINTWISE
  *  request and every value shifts by one constant. `_requirement_tags.
  *  window_dependent` is the containment; this function is only the arithmetic.
  */
+/** ⭐ P3 WS-B — the two DERIVED windows of a Hull average of length `n`, ONE
+ *  place: the columnar `hma` below and the runtime lane's `ta.hma` over a
+ *  mutable value (`pineRuntimeFrontend.js`, a respelling into three `wma`
+ *  windows) both read them, so the two lanes cannot size them differently.
+ *  `floor(n / 2)` and `round(sqrt(n))`, each floored at 1 (`_functions_hull`). */
+export const hullWindows = (n) => ({
+  half: Math.max(1, Math.floor(n / 2)),
+  root: Math.max(1, Math.round(Math.sqrt(n))),
+})
+
 function cumCol(series) {
   const out = nan(series.length)
   let total = 0
@@ -2518,6 +2564,13 @@ export const CARRIED = Object.freeze({
     step: fixnanPineStep,
     runtimeOnly: true,
   },
+  // ⭐⭐ P3 WS-B — `ta.rsi` over a value the RUN computes. `runtimeOnly` for the
+  // reason `barssincePine` is: the table's `rsi` is a bound shipped function, not
+  // a member of this table, so the derived `ta.<key>(source, n)` differential has
+  // no column of this key to compare with, and the key is not a table name so a
+  // bare-name lookup can never reach it from the columnar lane. It is held to the
+  // shipped `computeRSI` in `runtimeRsiHma.test.js` instead.
+  rsiPine: { cells: RSI_PINE_CELLS, init: rsiPineInit, step: rsiPineStep, runtimeOnly: true },
 })
 
 /** ─── ⭐⭐ TWO-INPUT CARRIED STATE — PINE'S `ta.valuewhen` ──────────────────
@@ -2790,8 +2843,7 @@ export const FN = Object.freeze({
   // `_functions_hull`. A window of 0 is not a window, and `hma(close, 1)` is the
   // case that finds a missing floor.
   hma: (series, n) => {
-    const half = Math.max(1, Math.floor(n / 2))
-    const root = Math.max(1, Math.round(Math.sqrt(n)))
+    const { half, root } = hullWindows(n)
     const near = rolling(series, half, windowWeightedMean)
     const full = rolling(series, n, windowWeightedMean)
     const raw = near.map((v, i) => 2 * v - full[i])
