@@ -119,3 +119,31 @@ async def test_the_route_serves_history_to_members_and_refuses_anonymous():
     nxt = await _day({**body, "cursor": out["older_cursor"]})
     assert nxt["items"][0]["seq"] not in {it["seq"] for it in out["items"]}
     assert (await _call(None, "POST", route.DAY_PATH, body)).status_code == 401
+
+
+async def test_linked_history_uses_the_canonical_tickers_never_ordinary_words():
+    """CAN, ALL, NOW, LOW in ordinary prose never link; a named listing or a cashtag does.
+    History reads the same derivation every live event does (pipeline.derived_for)."""
+    p = pl.start(asyncio.get_running_loop())
+    texts = [
+        "SYNTHETIC: STOCKS CAN RALLY NOW THAT RATES ARE LOW",
+        "SYNTHETIC: ALL EYES ON CPI AS YIELDS HIT NEW LOW",
+        "SYNTHETIC: FED SAYS IT CAN WAIT FOR NOW",
+        "SYNTHETIC: Markets now at a low; all sectors can recover",
+        "SYNTHETIC: ServiceNow (NYSE: NOW) raises full-year guidance",
+        "SYNTHETIC: $NOW shares rise after earnings",
+        "SYNTHETIC: Lowe's (NYSE: LOW) beats estimates",
+        "SYNTHETIC: Allstate (NYSE: ALL) reports catastrophe losses",
+    ]
+    for k, t in enumerate(texts):
+        await p.submit(rec(t, et_ms(DAYS[k % 3], 8, k)), "push")
+
+    def linked(sym):
+        keys, _ = _walk(p.store, symbol=sym, limit=50)
+        rows = {r[0]: r[1] for r in p.store._conn().execute("SELECT seq, content FROM headlines").fetchall()}
+        return sorted(rows[s] for _, s in keys)
+
+    assert linked("NOW") == sorted([texts[4], texts[5]])
+    assert linked("LOW") == [texts[6]]
+    assert linked("ALL") == [texts[7]]
+    assert linked("CAN") == []
