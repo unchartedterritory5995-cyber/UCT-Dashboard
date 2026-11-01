@@ -165,6 +165,18 @@ def test_special_scope_keys_pass_to_the_screener():
     assert s["filters"][0]["key"] == "tickers"
 
 
+@pytest.mark.parametrize("where", ["filters", "logic"])
+def test_an_indicator_condition_is_refused_never_approximated(on, snap, monkeypatch, where):
+    from api.services.screener import query
+    ran = []
+    monkeypatch.setattr(query, "run_scan", lambda *a, **k: ran.append(a) or {})
+    leaf = {"key": "scan", "op": "in", "value": ["abc123"]}
+    spec = {"filters": [leaf]} if where == "filters" else {"logic": {"all": [leaf]}}
+    out = _read("screen.run", {"spec": spec})
+    assert out["status"] == "refused" and "indicator-condition scans" in out["notes"][0]
+    assert ran == [] and env.validate_envelope(out) == []
+
+
 # ── staleness + provenance ──────────────────────────────────────────────────────────────────────
 
 def test_a_snapshot_several_sessions_behind_is_stale_and_says_so():

@@ -21,8 +21,14 @@ MAX_LOGIC_LEAVES = 40
 MAX_COLUMNS = 20
 MAX_SPEC_BYTES = 8000
 
-#: Filter keys that are scopes / joins, not catalog fields (query.py `_SCOPE_KEYS`, `_SCAN_KEY`, `_ARITH_KEY`).
-SPECIAL_KEYS = frozenset({"list", "universe", "tickers", "scan", "arith"})
+#: Filter keys that are scopes / joins, not catalog fields (query.py `_SCOPE_KEYS`, `_ARITH_KEY`).
+SPECIAL_KEYS = frozenset({"list", "universe", "tickers", "arith"})
+#: Indicator-condition keys: `scan` joins nightly definition results by def_hash (query.py `_scan_clauses`).
+#: Out of scope for SC-1 in Sprint 1 (agent-lead ruling 2026-11-01): refused, never approximated. A later
+#: SC-1 version adds one kind that delegates to Indicators' IC-1 exactly as IC-1 specifies.
+INDICATOR_KEYS = frozenset({"scan"})
+INDICATOR_REFUSAL = ("indicator-condition scans (crosses, custom or saved indicators) aren't available to the "
+                     "Agent yet; only Screener field filters can be scanned")
 #: Spec keys the screener's own ScanSpec model accepts (api/routers/screener.py `ScanSpec`), minus paging.
 SPEC_KEYS = frozenset({"filters", "sort", "view", "columns", "rank", "logic"})
 
@@ -93,6 +99,8 @@ def validate(spec: Any, *, catalog: frozenset | None = None, columns: frozenset 
         key = f.get("key")
         if not isinstance(key, str) or not key:
             raise SpecError("every filter names a screener field (`key`)")
+        if key in INDICATOR_KEYS:
+            raise SpecError(INDICATOR_REFUSAL)
         if key in SPECIAL_KEYS:
             continue
         if key not in catalog:
