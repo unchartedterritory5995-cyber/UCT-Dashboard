@@ -46,7 +46,12 @@ Only agent-qa edits this file. Update it in every PR.
   universe (the 10-30 close), stale false, with a note beginning "No names matched". `as_of` moves with the data:
   a 10-28 universe gives the 10-28 close. An empty universe gives `as_of: null` with a note and stale false.
   The 69 earlier checks still pass.
-- **F-6 (agent-md): `tests/test_uct_agent_data_quotes.py:22` sets `NOW = time.time()` at IMPORT (since #569, on
+- **F-6 — MITIGATED by #579, entry kept and reclassified.** The line still reads the clock at import
+  (`NOW = time.time()`, verified on agent/int), so the syntactic rail still sees it. But an autouse fixture now
+  freezes `quotes.time` to that same NOW. Verified with a 65 s delay injected between import and run: the pre-fix
+  file (0db96c8e7e) fails its 2 timing tests, while the fixed file (872b5cf762) passes them. Remove the entry when
+  NOW becomes a fixed literal.
+- (original F-6 text) **F-6 (agent-md): `tests/test_uct_agent_data_quotes.py:22` sets `NOW = time.time()` at IMPORT (since #569, on
   agent/int).** Tests compare vendor stamps against it under the 60 s budget (e.g. `observed=NOW - 40` must not
   be stale), so they flip once the suite has run ~20 s past the import. This is the same defect that holds #579
   (its line 22 too).
@@ -85,6 +90,12 @@ Only agent-qa edits this file. Update it in every PR.
   (`quote_semantics_errors`) with controls showing it can fail. Other MD-1 kinds keep provisional `data` shapes.
 
 ## Verdicts on `agent/int`
+- **d837b6a96f — GREEN** (#579 quote freshness v1.1, #580 ADR-002 docs, #581 currentTurnId).
+  No non-QA diff. Agent pytest under the lock: 1037 passed (agent-lead's 809 + agent-qa's 228).
+  Agent vitest: 114 files passed, 5 skipped; 1967 passed, 6 skipped.
+  The quote fixtures are regenerated to v1.1 (`regular|extended|closed`, `NOTE_SET_AS_OF_LIVE`, the adapter's note
+  order). On 14 of 14 readable quote cases they are IDENTICAL to the merged adapter fed the same stamps on the same
+  pinned clock (status, freshness, as_of, stale, notes, coverage, session, row keys).
 - **c3a090e26f — GREEN** (#570 screen.run/count with the F-4 fix + precheck, #578 screen.saved + saved_id/text).
   No non-QA diff. Agent pytest under the lock: 1002 passed (agent-lead's 790 + agent-qa's 212).
   Agent vitest: 113 files passed, 5 skipped; 1966 passed, 6 skipped.

@@ -115,7 +115,7 @@
           "as_of": "2026-10-30T23:59:52Z",
           "last_source": "trade"
         },
-        "session": "post_market"
+        "session": "closed"
       },
       "notes": [
         "the regular session is not open — these are the last prints from the most recent session, not live prices"
@@ -196,10 +196,10 @@
           "as_of": "2026-10-30T12:26:07Z",
           "last_source": "trade"
         },
-        "session": "pre_market"
+        "session": "extended"
       },
       "notes": [
-        "extended-hours prints may be included in `last`"
+        "extended-hours (pre-/post-market) prices — thin trading; the regular-session close is in day_close/prev_close"
       ],
       "provider_calls": 1
     },
@@ -237,7 +237,7 @@
           "as_of": "2026-10-30T21:50:02Z",
           "last_source": "trade"
         },
-        "session": "post_market"
+        "session": "extended"
       },
       "notes": [
         "the regular session is not open — these are the last prints from the most recent session, not live prices"
@@ -278,7 +278,7 @@
           "as_of": "2026-11-25T23:59:52Z",
           "last_source": "trade"
         },
-        "session": "regular"
+        "session": "closed"
       },
       "notes": [
         "the regular session is not open — these are the last prints from the most recent session, not live prices"

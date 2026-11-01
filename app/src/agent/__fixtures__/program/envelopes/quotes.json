@@ -74,7 +74,7 @@
         "session": "regular"
       },
       "notes": [
-        "as_of is the oldest quote in this set"
+        "as_of is the oldest current trade in this set"
       ],
       "provider_calls": 1
     },
@@ -149,7 +149,7 @@
         "session": "regular"
       },
       "notes": [
-        "as_of is the oldest quote in this set"
+        "as_of is the oldest current trade in this set"
       ],
       "provider_calls": 1
     },
@@ -221,7 +221,7 @@
             "last_source": "trade"
           }
         ],
-        "session": "post_market"
+        "session": "closed"
       },
       "notes": [
         "the regular session is not open — these are the last prints from the most recent session, not live prices",
@@ -334,7 +334,7 @@
         "session": "regular"
       },
       "notes": [
-        "as_of is the oldest quote in this set",
+        "as_of is the oldest current trade in this set",
         "no quote for: AVGO"
       ],
       "provider_calls": 1
@@ -407,11 +407,11 @@
             "last_source": "trade"
           }
         ],
-        "session": "pre_market"
+        "session": "extended"
       },
       "notes": [
-        "extended-hours prints may be included in `last`",
-        "as_of is the oldest quote in this set"
+        "extended-hours (pre-/post-market) prices — thin trading; the regular-session close is in day_close/prev_close",
+        "as_of is the oldest current trade in this set"
       ],
       "provider_calls": 1
     },
@@ -483,7 +483,7 @@
             "last_source": "trade"
           }
         ],
-        "session": "post_market"
+        "session": "extended"
       },
       "notes": [
         "the regular session is not open — these are the last prints from the most recent session, not live prices",
@@ -559,7 +559,7 @@
             "last_source": "trade"
           }
         ],
-        "session": "regular"
+        "session": "closed"
       },
       "notes": [
         "the regular session is not open — these are the last prints from the most recent session, not live prices",
@@ -638,8 +638,8 @@
         "session": "regular"
       },
       "notes": [
-        "as_of is the oldest quote in this set",
-        "no current trade for AVGO — showing prev_close"
+        "no current trade for AVGO — showing prev_close",
+        "as_of is the oldest current trade in this set"
       ],
       "provider_calls": 1
     }

@@ -110,8 +110,10 @@ def clock_at_import(source: str, filename: str = "<src>") -> list[str]:
 #: and so does an entry here that no longer matches (fixed lines must be removed, not left as a silent excuse).
 KNOWN: dict[str, str] = {
     "tests/test_uct_agent_data_quotes.py:22  time.time()":
-        "F-6 (agent-md): NOW captured at import since #569; tests compare vendor stamps against it under the 60 s "
-        "quote budget, so they flip once the suite has run for ~20 s before them",
+        "F-6 (agent-md) MITIGATED by #579: NOW is still read at import, but an autouse fixture freezes the "
+        "adapter's clock (quotes.time) to the same NOW, so ages no longer depend on suite runtime. Verified by "
+        "agent-qa with a 65 s delay between import and run: the pre-fix file fails its two timing tests, the "
+        "fixed file passes them. Remove this entry when NOW becomes a fixed literal (agent-md offered).",
 }
 
 

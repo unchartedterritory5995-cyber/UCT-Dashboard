@@ -50,8 +50,8 @@ from api.services.uct_agent.marketdata import gateway as gw
 # the producer's own note strings (#569) — imported, never retyped, so a wording change regenerates here
 from api.services.uct_agent.marketdata import quotes as _quotes
 from api.services.uct_agent.marketdata.quotes import FRESHNESS_BUDGET_S, NOTE_CLOSED, NOTE_EXTENDED, NOTE_SET_AS_OF
-#: MD-1 v1.1 (#579): a regular-session read with no current trade at all; absent before PR 1b lands
-NOTE_NO_TRADES = getattr(_quotes, "NOTE_NO_TRADES", None)
+#: MD-1 v1.1 (#579): a regular-session read with no current trade, and the live read's set-as_of wording
+from api.services.uct_agent.marketdata.quotes import EXTENDED_LIVE_S as _EXTENDED_LIVE_S, NOTE_NO_TRADES, NOTE_SET_AS_OF_LIVE
 
 REPO = Path(__file__).resolve().parents[1]
 FIXTURE_DIR = REPO / "app" / "src" / "agent" / "__fixtures__" / "program"
@@ -63,10 +63,12 @@ CASES = ("live", "delayed", "periodic", "historical", "stale", "market-closed", 
 
 # ── quote semantics, MD-1 v1.1 as agreed by agent-lead + agent-md for PR 1b (2026-11-01) ───────────
 #: the quote kinds' extended-hours window: live only while the OLDEST vendor stamp is at most this old
-EXTENDED_LIVE_S = 15 * 60
+EXTENDED_LIVE_S = _EXTENDED_LIVE_S
+assert EXTENDED_LIVE_S == 15 * 60, "MD-1 v1.1 §4.1 says 15 minutes"
 LAST_SOURCES = ("trade", "minute", "day_close", "prev_close")
 _CURRENT_SOURCES = ("trade", "minute")
-#: pending agent-md's pinned wording in PR 1b; the rail below matches on the "no current trade for <SYM>" stem
+#: pinned by MD-1 v1.1 §4.1 (#579); the adapter builds it as an f-string, so it is restated here and the
+#: real-adapter conformance check (PR 2) is what keeps the two identical
 NOTE_NO_TRADE = "no current trade for {sym} — showing {source}"
 
 # ── the fixed clock ──────────────────────────────────────────────────────────────────────────────
@@ -215,10 +217,10 @@ _QUOTE_CLOCK = {
     "stale":           (FETCH_SESSION,          "regular",     "2026-10-30T19:57:10Z"),   # oldest 155 s old
     "partial":         (FETCH_SESSION,          "regular",     "2026-10-30T19:59:38Z"),
     "no-current-trade": (FETCH_SESSION,         "regular",     "2026-10-30T19:59:38Z"),
-    "extended-live":   ("2026-10-30T12:30:00Z", "pre_market",  "2026-10-30T12:26:05Z"),   # 08:30 ET, ≤15 min
-    "extended-closed": ("2026-10-30T22:30:00Z", "post_market", "2026-10-30T21:50:00Z"),   # 18:30 ET, 40 min old
-    "market-closed":   (FETCH_CLOSED,           "post_market", "2026-10-30T23:59:50Z"),   # Sat: massive says post_market
-    "holiday":         ("2026-11-26T16:00:00Z", "regular",     "2026-11-25T23:59:50Z"),   # Thanksgiving 11:00 ET
+    "extended-live":   ("2026-10-30T12:30:00Z", "extended",    "2026-10-30T12:26:05Z"),   # 08:30 ET, ≤15 min
+    "extended-closed": ("2026-10-30T22:30:00Z", "extended",    "2026-10-30T21:50:00Z"),   # 18:30 ET, 40 min old
+    "market-closed":   (FETCH_CLOSED,           "closed",      "2026-10-30T23:59:50Z"),   # Saturday
+    "holiday":         ("2026-11-26T16:00:00Z", "closed",      "2026-11-25T23:59:50Z"),   # Thanksgiving 11:00 ET
 }
 _QUOTE_ROWS = (("NVDA", 207.04, 2.61, 1.28, 162_480_115, 204.43, 2),
                ("AMD", 256.12, -2.17, -0.84, 48_210_330, 258.29, 0),
@@ -258,13 +260,13 @@ def _build_quote(kind: str, case: str) -> dict:
         notes.append(NOTE_CLOSED)
     if case == "extended-live":
         notes.append(NOTE_EXTENDED)
-    if kind == "quotes" and len(rows) > 1:
-        notes.append(NOTE_SET_AS_OF)
-    if missing:
-        notes.append("no quote for: " + ", ".join(missing))
-    for r in rows:
+    for r in rows:                                     # the adapter's order: per-row notes, then the set note
         if freshness == "live" and r["last_source"] not in _CURRENT_SOURCES:
             notes.append(NOTE_NO_TRADE.format(sym=r["symbol"], source=r["last_source"]))
+    if kind == "quotes" and len(rows) > 1:
+        notes.append(NOTE_SET_AS_OF_LIVE if freshness == "live" else NOTE_SET_AS_OF)
+    if missing:
+        notes.append("no quote for: " + ", ".join(missing))
     n = len(specs)
     coverage = {"evaluated": n, "answered": len(rows), "dropped": len(missing), "not_computable": 0}
     data = ({"quote": rows[0]} if kind == "quote" else {"quotes": rows})
@@ -662,7 +664,7 @@ def test_quote_fixtures_obey_the_v1_1_quote_rules(kind, case):
     if case in ("extended-live", "extended-closed", "market-closed", "holiday"):
         assert (NOTE_CLOSED in e["notes"]) != (NOTE_EXTENDED in e["notes"]), "exactly one session note"
     if case == "extended-live":
-        assert e["freshness"] == "live" and e["data"]["session"] == "pre_market"
+        assert e["freshness"] == "live" and e["data"]["session"] == "extended"
     if case in ("extended-closed", "market-closed", "holiday"):
         assert e["freshness"] == "historical"
 
