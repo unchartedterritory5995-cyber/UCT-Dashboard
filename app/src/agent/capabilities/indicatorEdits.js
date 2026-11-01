@@ -305,10 +305,24 @@ export function planFor(st, req) {
 }
 export function _resetProposedPlans() { proposed.clear() }
 
+// ⭐ The chart's commit is a React state update: the board (ChartsWorkspace's layoutRef, which host.persist()
+// writes) holds it only once React has re-rendered. Persisting before that wrote the PREVIOUS board and cancelled
+// the autosave of the new one — the server stayed a change behind and a reload lost it (production, 2026-11-01).
+// So: wait, frame by frame and bounded (board.js settle, runtime waitForTarget), until the chart's committed
+// settings show this change — or anything newer the member did meanwhile, which the save then carries too.
+// A write that never shows (lost) is still saved and read back: the read-back then says it did not land.
+async function untilCommitted(host, chartRef, before, written, ms = 5000) {
+  const now = () => { const c = host.charts.read(chartRef); return c ? JSON.stringify(c.stored ?? null) : null }
+  const done = () => { const s = now(); return s === null || s === written || s !== before }
+  const t0 = Date.now()
+  while (!done() && Date.now() - t0 < ms) await afterRender()
+}
+
 // ⛔ §14.9 limit 3 — success needs an AUTHORITATIVE read-back. A host with no persist path has
 // no ACK, and the rendered settings are not what was saved: neither may ever confirm a change.
-async function persistAndReadBack(host, chartRef) {
+async function persistAndReadBack(host, chartRef, before, written) {
   if (typeof host?.persist !== 'function') return { ok: false, reason: 'not-saved' }
+  await untilCommitted(host, chartRef, before, written)
   let r
   try { r = await host.persist() } catch { r = { ok: false, reason: 'not-saved' } }
   if (!r || !r.ok) return { ok: false, reason: (r && r.reason) || 'not-saved' }
@@ -352,8 +366,9 @@ export const indicatorEditsKind = {
     // on the state before ("make the 20 red AND dashed": the second step), so it is planned afresh. A change made
     // ELSEWHERE leaves the cache alone, so an approval still meets the pins the member saw.
     for (const k of [...proposed.keys()]) if (k.startsWith(`${chartRef}|`)) proposed.delete(k)
+    const before = JSON.stringify(cur.stored ?? null)
     if (!host.charts.commit(chartRef, { settings: step.cs })) throw fail('the chart did not accept the change')
-    const saved = await persistAndReadBack(host, chartRef)
+    const saved = await persistAndReadBack(host, chartRef, before, JSON.stringify(step.cs ?? null))
     if (!saved.ok) throw fail(`the save was not confirmed (${saved.reason}), so it is not done`, { unreverted: true })
     const done = confirmIndicatorMutation(saved.readBack, step.pending, ctx)
     if (done.status !== 'confirmed') throw fail(refusalSentence({ reason: done.reason || done.status }, { chart: label }), { unreverted: true })

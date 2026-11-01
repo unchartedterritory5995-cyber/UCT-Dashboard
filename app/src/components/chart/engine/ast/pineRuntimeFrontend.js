@@ -35,14 +35,14 @@ import {
   OWN_TF_NAMES, basePeriodOf, periodTextOf, notePeriodRead, BUILTIN_CALL_TREE, BUILTIN_CALL_TREE_MIN_ARGS, inputColourDefaultNode,
   constantTestValue, STRATEGY_ORDER_CALLS, PINE_SHORT_FORM, positionaliseSecurityArgs, strippedForScan,
   OUTPUT_CALLS as PINE_OUTPUT_CALLS, BAR_SERIES_DEFAULTS, paramDefaultShapeOk,
-  declarationWordsOf, pineConstIntValue, constIntWritesOf,
+  declarationWordsOf, pineConstIntValue, constIntWritesOf, pineTupleBuiltinCallParts,
 } from './pine.js'
 import { CLOCK_REALTIME } from '../../indicators.js'
 // ⭐⭐ L1 — an imported library's exports are linked in as the script's own.
 import { linkLibraries, remapLibraryLocation } from './pineLibraries.js'
 import { TABLE, isPointwise, BIND_TIME_CLOCK } from './parse.js'
 import { splitCommaStatements } from './objectFnInline.js'
-import { interpret, POINTWISE_FOR_PARITY, FINITE_WINDOW, CARRIED, TableRefusal } from './interpret.js'
+import { interpret, POINTWISE_FOR_PARITY, FINITE_WINDOW, CARRIED, TableRefusal, hullWindows, naConditionIsFalse } from './interpret.js'
 import { bindConstsFor, foldBound, foldScalar, NotFoldable } from './bind.js'
 import { LOWER_TF_REFUSAL } from '../lowerTf.js'
 import {
@@ -57,8 +57,12 @@ import {
   record as irRecord, field as irField, fieldSet as irFieldSet,
 } from '../runtime/ir.js'
 import { CLOCK_FIELDS } from '../runtime/program.js'
-import { RUNTIME_SOURCES as MEMBER_SOURCES } from '../runtime/runtimeInputs.js'
+import {
+  RUNTIME_SOURCES as MEMBER_SOURCES, textInputKindOf, textInputIsMemberSet, isTimeInputCall,
+  timeInputDefaultOf, isTimeValue, isSessionString, constantVarsOf, foldConstantVarsIntoInputs,
+} from '../runtime/runtimeInputs.js'
 import { TEXT_FNS, producesText } from '../runtime/text.js'
+import { canonicalZone, dateStringMs, INSTANT_FIELDS } from '../runtime/clockFns.js'
 import { ARRAY_FNS, producesArray, isVoid, argKind } from '../runtime/collections.js'
 // ⭐ Pine's method form, and it decides no legality — see `ufcs.js`. The rewrite
 // hands `array.push` / `table.cell` to the rosters this file already consults,
@@ -299,6 +303,11 @@ export const RUNTIME_REFUSALS = Object.freeze({
   'runtime:no-output': 'a script with nothing to plot',
   'runtime:recursion': 'a function that calls itself — Pine forbids it',
   'runtime:function-global-state': 'a function body reading a mutable GLOBAL — a frame has no address for one yet',
+  // ⭐ P3 WS-B — three guards of this workstream's own, named for what they decline.
+  'runtime:chart-clock': 'a clock the columnar lane withholds on this chart — the run does not draw it either',
+  'runtime:clock-zone': 'a clock read in a zone this lane cannot answer for on this chart',
+  'runtime:builtin-args': 'a built-in called with arguments this lane cannot read before the first bar',
+  'runtime:object-door': 'a capability the dark runtime pane has and the object door of a drawing script does not, until a TradingView capture proves it exact',
 })
 
 export class RuntimeRefusal extends Error {
@@ -542,14 +551,22 @@ export function collectUdtTypes(stmts, out) {
  *
  *  ⭐ EXPORTED FOR THAT RAIL. Nothing else reads it. */
 export const COLLECTION_VALUE_ARG = Object.freeze({ 'array.push': 1, 'array.unshift': 1, 'array.set': 2 })
-/** The input kinds whose VALUE IS TEXT.
+/** The input kinds whose VALUE IS TEXT: `runtimeInputs.js::textInputKindOf` (one reader,
+ *  shared with the settings path).
  *
  *  ⛔⛔ `pine.js` REFUSES THESE AND IS RIGHT TO. That lane's value model is
  *  numbers, and it states at length that a string has no carrier in its
  *  grammar. This lane has one, so it takes them here — the same shape as
  *  every other text capability in this wave, and the columnar rule is left
- *  exactly where it is rather than widened. */
-const TEXT_INPUTS = new Set(['input.text_area', 'input.string'])
+ *  exactly where it is rather than widened.
+ *
+ *  ⭐ PHASE 3 WS-D — `input.session`, `input.timeframe`, `input.symbol` and v4's text
+ *  `input(…)` (a quoted default, or `type = input.string/resolution/session/symbol`) joined
+ *  `input.string`/`input.text_area`: each returns a string in Pine. */
+const isTextInputCall = (node) => textInputKindOf(node) !== null
+/** ⛔ MASTER'S TEXT INPUTS (685b5e91d7), kept for the object door (`atObjectDoor`): the
+ *  door answers as master did until a capture proves the WS-D kinds there. */
+const MASTER_TEXT_INPUTS = new Set(['input.text_area', 'input.string'])
 
 /** Is this NAME Pine's input family?
  *
@@ -1045,6 +1062,24 @@ export function buildRuntimeIr(source, opts = {}) {
 function buildRuntimeIrLinked(source, opts, holder) {
   const bars = opts.bars || []
   const inputs = opts.inputs || {}
+  // ⭐⭐⭐ THE OBJECT DOOR GATE (Phase 3 audit, 2026-11-01). The C18 object runtime
+  // (`runtimeColumns.js::probeObjectRuntime` / `runtimeObjectValues`) is LIVE for members
+  // with no runtime flag, and it builds through this front end. It passes
+  // `opts.objectDoor = true`; the dark runtime pane never does. Every capability added to
+  // this lane after master 685b5e91d7 (Phase 3 WS-B and WS-D) asks `objectDoorRefuses`
+  // first: a new lowering refuses BY NAME (`runtime:object-door`), and a widened predicate
+  // keeps master's answer (`atObjectDoor`), so the door builds exactly what master built
+  // until a capture proves each one exact. ONE flag, ONE refusal: the rail is
+  // `runtime/__tests__/objectDoorGate.test.js`.
+  const atObjectDoor = opts.objectDoor === true
+  const objectDoorRefuses = (what, at) => {
+    if (!atObjectDoor) return
+    throw new RuntimeRefusal('runtime:object-door', `${what} is served on the runtime pane only, not to a drawing `
+      + 'script (the object door), until a TradingView capture proves it exact', at)
+  }
+  /** WS-D's text-input kinds; master's two at the object door. */
+  const textInputHere = (node) => (atObjectDoor
+    ? !!(node && node.type === 'call' && MASTER_TEXT_INPUTS.has(node.name)) : isTextInputCall(node))
   // ⭐⭐ UIE PHASE 3 (M4) — A MEMBER'S COLOUR OR SOURCE, AS THE DEFAULT THE AUTHOR WOULD HAVE
   // TYPED. `opts.inputDefaults` = `{ name: value }` for an `input.color` / `input.source`
   // binding (`runtimeInputs.js::runtimeBuildInputs`). At the binding, the input's DEFAULT
@@ -1085,6 +1120,36 @@ function buildRuntimeIrLinked(source, opts, holder) {
     const slot = named >= 0 ? named : (args[0] && !args[0].name ? 0 : -1)
     if (slot < 0) throw new RuntimeRefusal('runtime:statement', '`' + name + '` states no default to replace', at)
     call.args = args.map((a, i) => (i === slot ? { ...a, value: node } : a))
+  }
+  // ⭐⭐ PHASE 3 WS-D — A TIME INPUT IS A NUMBER: UNIX milliseconds, what Pine's `input.time`
+  // (and v4's `input(…, type = input.time)`) returns. At the binding, the call is REPLACED by
+  // that number — the member's when they set one, else the author's default read EXACTLY by
+  // `runtimeInputs.js::timeInputDefaultOf` (the reader the settings use too) — so every reader
+  // in this lane, the columnar resolver included, sees the literal the author could have typed.
+  // ⛔ A default that cannot be read exactly (`timestamp(year, …)`, which reads the exchange's
+  // zone) and a member value that is not whole milliseconds are refused BY NAME, never guessed.
+  // `env`/`mut`/`inputConsts` are read when a binding is reached, after all three exist.
+  const bindTimeInput = (call, name, at) => {
+    // At the object door the call stays exactly as master's lane saw it (a transform of an
+    // existing call, not a new lowering): master's own input path answers or refuses it.
+    if (atObjectDoor || !isTimeInputCall(call)) return call
+    if (inputs && typeof inputs === 'object' && Object.prototype.hasOwnProperty.call(inputs, name)) {
+      const given = inputs[name]
+      if (!isTimeValue(given)) {
+        throw new RuntimeRefusal('runtime:statement', '`' + name + '` was given a value that is not a time '
+          + '(whole milliseconds since 1970, within ±8.64e15)', at)
+      }
+      return { type: 'number', value: given, tok: call.tok }
+    }
+    const lookup = (n) => {
+      if (inputConsts.has(n)) return inputConsts.get(n)
+      if (mut.mutated.has(n)) return null
+      const b = env.get(n)
+      return b && b.kind === 'expr' && !b.frame ? b.node : null
+    }
+    const r = timeInputDefaultOf(call, lookup)
+    if (r.skip) throw new RuntimeRefusal('runtime:statement', '`' + name + '` is a time input, and ' + r.skip, at)
+    return { type: 'number', value: r.ms, tok: call.tok }
   }
   const diagnostics = { statements: 0, columns: 0, slots: 0, families: {} }
 
@@ -1217,6 +1282,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
   // The resolver's environment holds ONLY pure bindings. A mutable name never
   // enters it — that is what keeps the two lanes from disagreeing about a name.
   const env = new Map()
+  // ⭐ PHASE 3 WS-D — `var NAME = <literal>` nothing reassigns, folded into input arguments
+  // (`runtimeInputs.js::constantVarsOf`): an input default that reads one reads a constant.
+  const inputConsts = atObjectDoor ? new Map() : constantVarsOf(stmts)
   /** name → { call, index, at } for `p = plot(…)`.
    *
    *  ⛔⛔ ITS OWN MAP, NEVER `env`. `env` holds PURE EXPRESSION macros and the
@@ -1270,6 +1338,21 @@ function buildRuntimeIrLinked(source, opts, holder) {
   // authority over one value and would drift the first time the pragma grammar
   // moved.
   const pineVersion = Number.isFinite(lexed && lexed.version) ? lexed.version : null
+  /** ⭐⭐ P3 WS-B — THE OPTIONS EVERY PURE COLUMN OF THIS RUN IS EVALUATED WITH.
+   *  The caller's `interpretOpts`, plus Pine's `na`-condition rule when the caller
+   *  states the run starts at the listing (`opts.historyFromListing`, the fact
+   *  `lowerIrProgram` reads for the VM's own `?:`/`if`/`and`/`or`/`not`). Without
+   *  it a `?:` folded into a column kept the columnar `{0,1,NaN}` answer, so
+   *  `ta.change(time("W")) != 0 ? 1 : 0` drew `na` on bar 0 where TradingView
+   *  draws 0 (vw-clock-close-tfchange, UCTPROBE_VW_TIME_TF T07-T09) while the same
+   *  `?:` lowered to the VM read it as false. ONE rule, asked of its one authority
+   *  (`interpret.js::naConditionIsFalse` / `pineTernaryFor`), the same two keys the
+   *  host lane passes (`nativeRegistry.js::listingOptsFor`). Off the listing, or
+   *  below v4, nothing changes. */
+  const columnInterpretOpts = (opts && opts.historyFromListing === true && !atObjectDoor)
+    ? { ...((opts && opts.interpretOpts) || {}), historyFromListing: true,
+      ...(naConditionIsFalse(pineVersion) ? { naConditionFalse: true } : {}) }
+    : ((opts && opts.interpretOpts) || undefined)
   /** ⭐⭐ C23 — WHICH CONTRACT THIS BUILD SERVES, decided by the CALLER, never
    *  guessed here: `opts.pane === true` says the run draws ONE symbol's chart
    *  pane, and the columnar resolver it asks for pure subtrees then answers as the
@@ -2121,6 +2204,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
     const key = JSON.stringify(canonical)
     if (columnByKey.has(key)) return columnByKey.get(key)
     let value
+    // ⭐ P3 WS-B — what the columnar lane withheld whole on this chart, by name
+    // (`interpret.js::chartClockWhole` writes each code's sentence here).
+    const clockSink = new Map()
     try {
       // ⛔ FOLD, THEN INTERPRET — the order the definition lane has used since R-K.
       // The fold returns a NEW tree and mutates nothing, so the parse this lane
@@ -2130,10 +2216,14 @@ function buildRuntimeIrLinked(source, opts, holder) {
       // same arguments and must answer what `interpret` answers: the realtime session
       // records each column's folded tree so a tick re-evaluates the columns without
       // rebuilding the script (`runtimeColumns.js::buildRecorder`).
+      // ⭐ P3 WS-B — and with THIS run's column options (`columnInterpretOpts`: the
+      // listing keys) plus the clock sink, so a tick re-evaluates under the same
+      // `na` rule and re-reports what the columnar lane withholds.
       const folded = foldBound(canonical, bindConsts)
+      const columnOpts = atObjectDoor ? columnInterpretOpts : { ...columnInterpretOpts, chartClockSink: clockSink }
       value = typeof opts.columnInterpret === 'function'
-        ? opts.columnInterpret(folded, bars, inputs, opts.interpretOpts)
-        : interpret(folded, bars, inputs, undefined, undefined, opts.interpretOpts)
+        ? opts.columnInterpret(folded, bars, inputs, columnOpts)
+        : interpret(folded, bars, inputs, undefined, undefined, columnOpts)
     } catch (e) {
       // ⭐⭐ C23 — A COMPILE-ONLY BUILD LEAVES THE SYMBOL TO THE BINDING. The
       // member door's checks (`probeObjectRuntime`, `probeRuntimeProgram`) build
@@ -2147,6 +2237,28 @@ function buildRuntimeIrLinked(source, opts, holder) {
       if (!(opts.symbolAtBind === true && bars.length === 0
         && e && e.guard === 'interpret:bind-time-text')) throw e
       value = new Float64Array(0)
+    }
+    // ⭐⭐ P3 WS-B — A CLOCK THE COLUMNAR LANE WITHHOLDS IS WITHHELD HERE TOO.
+    // On the host lane a `time("W")` read on weekend bars (`time-anchor:weekend-
+    // bars`), or a period close it has no witness for, is withheld by name and
+    // nothing is drawn for it. Read here as a column it would come back `na` on
+    // every bar and the run would DRAW that `na`, which reads as "no value"
+    // rather than "not answered" (UCTPROBE_VW_TIME_TF on BTCUSD / EURUSD). So
+    // the run declines by the columnar lane's own code and sentence. A NAMED
+    // per-bar withholding declines the run too (BITSTAMP:BTCUSD's `time("W")`): the
+    // host lane leaves those bars undrawn and grades them "not compared", and this
+    // lane has no per-bar withholding, so it would draw `na` on them.
+    // ⚠️ AN UNNAMED ONE STILL DRAWS `na`: an every-day anchor's first partial
+    // period, the off-listing early bars, `bar-index:early-bars` write no `time-*`
+    // code here, so nothing declines for them. ⛔ Only the `time-*` codes, and only
+    // over bars: a compile-only build (no bars) cannot
+    // read a regime and must not refuse for it.
+    if (bars.length > 0) {
+      for (const [code, sentence] of clockSink) {
+        if (String(code).startsWith('time-')) {
+          throw new RuntimeRefusal('runtime:chart-clock', `${code}: ${sentence}`, at)
+        }
+      }
     }
     let arr
     if (typeof value === 'number') arr = new Float64Array(bars.length).fill(value)
@@ -2253,6 +2365,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // author's own bounds are all exactly where they were — only the LANE that
     // reads the call changes.
     if (isInputCall(node)) {
+      foldConstantVarsIntoInputs(node, inputConsts)
       for (const v of inputValueArgs(node)) {
         if (needsRuntime(v, scope)) return true
       }
@@ -2331,8 +2444,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // a slot as text — `int n = str.length(s)` is an int, and calling it text
     // would route `n + 1` to `CONCAT` and refuse a correct script.
     if (node.type === 'call' && producesText(node.name)) return true
-    if (objectsInRun && isRunTostring(node)) return true
-    if (node.type === 'call' && TEXT_INPUTS.has(node.name)) return true
+    // ⭐ P3 WS-B — `str.tostring` is text in EVERY run, not only one that draws
+    // (`text.js::RUN_TEXT_FNS`; see the call arm).
+    if ((objectsInRun || !atObjectDoor) && isRunTostring(node)) return true
+    if (node.type === 'call' && textInputHere(node)) return true
     // ⭐⭐ AN ELEMENT OF A TEXT ARRAY IS TEXT. Without this, `array.get(syms, r)`
     // — a watchlist row, the single commonest per-row value in the corpus — reads
     // as numeric, and a buffer allocated to hold it throws on the first symbol.
@@ -3352,6 +3467,13 @@ function buildRuntimeIrLinked(source, opts, holder) {
         + 'written, and this one is not', at)
     }
     const fallback = loweredDefault.value
+    // ⭐ PHASE 3 WS-D — a SESSION is text in one grammar (`HHMM-HHMM[:days]`); a default or a
+    // member value outside it is refused by name, never handed to a reader of sessions.
+    const textKind = textInputKindOf(node)
+    if (textKind === 'session' && !isSessionString(fallback)) {
+      throw new RuntimeRefusal('runtime:statement',
+        `\`${node.name}\` has the default "${fallback}", which is not a session (HHMM-HHMM)`, at)
+    }
 
     // `options = [...]` — the author's own list, read as written.
     let options = null
@@ -3381,6 +3503,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
         throw new RuntimeRefusal('runtime:statement',
           `\`${boundName}\` was given "${given}", and the script's own author `
           + `offers ${options.map((o) => `"${o}"`).join(', ')}`, at)
+      }
+      if (textKind === 'session' && !isSessionString(given)) {
+        throw new RuntimeRefusal('runtime:statement',
+          `\`${boundName}\` was given "${given}", which is not a session (HHMM-HHMM)`, at)
       }
       value = given
     }
@@ -3421,7 +3547,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // reason than text: that lane refuses `request.security` outright — it
     // evaluates ONE symbol on ONE timeframe, which is exactly what a request
     // is not. There is nothing there for it to fall back to.
-    if (node.type === 'call') return TEXT_INPUTS.has(node.name) || node.name === 'request.security'
+    if (node.type === 'call') {
+      return (atObjectDoor ? MASTER_TEXT_INPUTS.has(node.name) : textInputIsMemberSet(textInputKindOf(node)))
+        || node.name === 'request.security'
+    }
     if (node.type === 'name') {
       if (scope.lookup(node.name) !== null) return false
       const guard = seen || new Set()
@@ -3689,6 +3818,30 @@ function buildRuntimeIrLinked(source, opts, holder) {
         return null
       }
       return built ? toParse(built) : null
+    }
+    // ⭐⭐ P3 WS-B — `hma(src, n)`: Alan Hull's average, `wma` THREE TIMES —
+    // `wma(2 * wma(src, half) - wma(src, n), root)` — with `half`/`root` read
+    // from `interpret.js::hullWindows`, the one place the columnar `hma` sizes
+    // them too (`_functions_hull`). Over a mutable source the two inner windows
+    // are ordinary runtime windows and the outer one windows a derived series,
+    // which the root statement list gives its own committed slot
+    // (`hoistCommittedSeries`); a pure source with a length a call site fixes
+    // folds back to one column. ⛔ The script's own `wma` (v1–v4 spelling) is
+    // never called in Pine's place: the respelling declines and the call keeps
+    // its refusal.
+    if (bare === 'hma' && given.length === 2) {
+      objectDoorRefuses('`' + name + '` over a value the run computes', locate(tok))
+      const n = folded(1)
+      if (n === null || !Number.isInteger(n) || n < 1) return null
+      const W = v5 ? 'ta.wma' : 'wma'
+      if (definedNames.has(W) || isUserFn(W)) return null
+      const { half, root } = hullWindows(n)
+      const lit = (value) => ({ type: 'number', value, tok })
+      const wma = (src, len) => ({ type: 'call', name: W, args: [arg(src), arg(lit(len))], tok })
+      const raw = { type: 'binary', op: '-', tok,
+        left: { type: 'binary', op: '*', tok, left: lit(2), right: wma(given[0], half) },
+        right: wma(given[0], n) }
+      return wma(raw, root)
     }
     if (bare === 'alma' && (given.length === 4 || given.length === 5)) {
       const n = folded(1)
@@ -4183,9 +4336,33 @@ function buildRuntimeIrLinked(source, opts, holder) {
    *  through to a runtime that has no better answer for it and would report a
    *  worse-named refusal. Text inside a call is the columnar lane's business
    *  until the plan that gives this lane `str.*` says otherwise. */
-  const touchesText = (node, scope) => {
-    if (!node || typeof node !== 'object') return false
+  const touchesText = (node, scope, depth = 0, textOnly = false) => {
+    if (!node || typeof node !== 'object' || depth > 24) return false
     if (holdsText(node, scope)) return true
+    // ⭐ P3 WS-B — A NAME BOUND TO A TEXT COMPARISON touches text too: the route
+    // reaches `isOne` in `plot(isOne ? 1 : x)` as a bare name, the columnar lane
+    // resolves it through its binding (`isOne = str.tostring(timeframe.period)
+    // == "1"`) and refuses the text it finds there, and the comparison itself is
+    // one this lane answers. Only a script's own immutable binding (`env`), never
+    // a slot (which `holdsText` already answers) or a call site's frame name.
+    // ⛔ TEXT ONLY through a binding (`textOnly`): a name bound to a COLLECTION
+    // stays the columnar lane's to refuse (`n = array.size(array.from(…))` keeps
+    // `pine:collection`, vendorHarness.h4Loops), as it did before this clause.
+    if (!atObjectDoor && node.type === 'name' && scope && scope.lookup(node.name) === null) {
+      const bound = env.get(node.name)
+      if (bound && bound.kind === 'expr' && !bound.frame) return touchesText(bound.node, scope, depth + 1, true)
+    }
+    if (textOnly) {
+      if (node.type === 'binary') {
+        return touchesText(node.left, scope, depth + 1, true) || touchesText(node.right, scope, depth + 1, true)
+      }
+      if (node.type === 'unary') return touchesText(node.arg, scope, depth + 1, true)
+      if (node.type === 'ternary') {
+        return touchesText(node.test, scope, depth + 1, true)
+          || touchesText(node.yes, scope, depth + 1, true) || touchesText(node.no, scope, depth + 1, true)
+      }
+      return false
+    }
     // ⭐ A COLLECTION ROUTES FOR THE SAME REASON TEXT DOES — the columnar lane
     // holds neither, and refuses one at `pine:collection`.
     if (holdsArray(node, scope)) return true
@@ -4204,11 +4381,13 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // itself and never reaches this fallback at all. Two guards over one value
     // is the shape this repo records as "a guard repeated is a guard unproved":
     // neither could be shown to matter while the other stood.
-    if (node.type === 'binary') return touchesText(node.left, scope) || touchesText(node.right, scope)
-    if (node.type === 'unary') return touchesText(node.arg, scope)
+    if (node.type === 'binary') {
+      return touchesText(node.left, scope, depth + 1) || touchesText(node.right, scope, depth + 1)
+    }
+    if (node.type === 'unary') return touchesText(node.arg, scope, depth + 1)
     if (node.type === 'ternary') {
-      return touchesText(node.test, scope)
-        || touchesText(node.yes, scope) || touchesText(node.no, scope)
+      return touchesText(node.test, scope, depth + 1)
+        || touchesText(node.yes, scope, depth + 1) || touchesText(node.no, scope, depth + 1)
     }
     return false
   }
@@ -4699,6 +4878,181 @@ function buildRuntimeIrLinked(source, opts, holder) {
     return 'runtime:call-windowed-state'
   }
 
+  /** ⭐⭐ P3 WS-B — the part trees of a TUPLE built-in on the right of a
+   *  destructuring (`[m, s, h] = ta.macd(src, 12, 26, 9)`, `ta.bb`, `ta.kc`,
+   *  `ta.supertrend`), built by the host lane's own `PINE_TUPLE_BUILTINS` through
+   *  `pine.js::pineTupleBuiltinCallParts`, or `null`. ⛔ Only `ta.`-spelled or bare
+   *  names, never a name the script defines itself. */
+  const tupleBuiltinParts = (node) => {
+    if (!node || node.type !== 'call') return null
+    if (atObjectDoor) return null
+    const name = String(node.name || '')
+    if (!/^(ta\.)?[A-Za-z_]+$/.test(name) || definedNames.has(name) || isUserFn(name)) return null
+    try { return pineTupleBuiltinCallParts(node, null, node.tok) } catch { return null }
+  }
+
+  /** ⭐⭐ P3 WS-B — PINE'S CLOCK, WHERE THE COLUMNAR LANE STOPS.
+   *
+   *  Three call shapes this lane answers and the columnar one refuses by name:
+   *    · `timestamp(…)` — UNIX milliseconds of a calendar date and time, in the
+   *      exchange's zone by default (the reference: "The default is
+   *      syminfo.timezone"), or a zone named first; and `timestamp(dateString)`,
+   *      folded before bar 0 (no zone in the text is GMT+0, per the reference);
+   *    · `<field>(t[, zone])` for the seven calendar fields over an instant that
+   *      is NOT the bar's own `time`, or in a zone that is not the exchange's;
+   *    · `time(tf, session[, zone])` / `time(tf)` whose arguments are texts fixed
+   *      before bar 0 (a parameter a call site fixes, an input at its value, `""`
+   *      — "the script's main timeframe", the reference) — rebuilt with literal
+   *      arguments and answered by the COLUMNAR lane's own session clock
+   *      (`pine.js::sessionClockOf`, vendor-measured), so the two lanes cannot
+   *      disagree about a session.
+   *  The zone set is `clockFns.js::canonicalZone`'s: the exchange's, its IANA
+   *  name, or a fixed UTC/GMT offset; anything else refuses by name. */
+  const INSTANT_FIELD_NAMES = new Set(INSTANT_FIELDS)
+  const isUnboundBuiltinName = (n, nm, scope) => !!(n && n.type === 'name' && n.name === nm
+    && (!scope || scope.lookup(nm) === null) && !env.has(nm))
+  const isBarTimeNode = (n, scope) => isUnboundBuiltinName(n, 'time', scope)
+  const isExchangeZoneNode = (n, scope) => isUnboundBuiltinName(n, 'syminfo.timezone', scope)
+  /** ⭐⭐ P3 WS-B review M2 — THE EXCHANGE'S ZONE IS NEW YORK ONLY WHERE THAT IS
+   *  WITNESSED. `clockFns.js` answers "the exchange's zone" in America/New_York,
+   *  which is TradingView's answer for NYSE, NASDAQ and NYSE Arca
+   *  (`symbolScope.json::listing_fields`, read here as `syminfo.timezone` through
+   *  the binding) and a wrong one for a crypto or FX symbol (BITSTAMP:BTCUSD is
+   *  Etc/UTC there: `time >= timestamp(2024, 1, 1, 0, 0)` would flip 5 h late).
+   *  So an implicit or `syminfo.timezone` read declines by name on any other
+   *  symbol, and on a run told no symbol at all. ⛔ A compile-only build (no bars)
+   *  is the member door's check and settles nothing: the run re-asks. A literal
+   *  "America/New_York" names its own zone and is answered on every symbol. */
+  const requireNewYorkExchange = (at, what) => {
+    if (bars.length === 0) return
+    if (bindConsts['syminfo.timezone'] === 'America/New_York') return
+    throw new RuntimeRefusal('runtime:clock-zone',
+      `\`${what}\` reads the clock in the exchange's zone, and this chart's symbol is not one whose zone is `
+      + 'known here to be America/New_York (witnessed for NYSE, NASDAQ and NYSE Arca). A crypto or FX symbol '
+      + 'keeps another zone on TradingView, so the answer would be hours off. TO UNBLOCK: name the zone '
+      + '("America/New_York", or a fixed "UTC±H")', at)
+  }
+  const clockZoneOf = (zn, scope, at, what) => {
+    if (zn === undefined || isExchangeZoneNode(zn, scope)) {
+      requireNewYorkExchange(at, what)
+      return 'exchange'
+    }
+    const c = constantArgOf(zn, scope)
+    if (c.frameName) throw frameBoundRefusal(c.frameName, at, `names the zone \`${what}\` reads the clock in`)
+    if (typeof c.text !== 'string') {
+      throw new RuntimeRefusal('runtime:clock-zone',
+        `\`${what}\` reads the clock in a zone, and this zone is not text fixed before the first bar`, at)
+    }
+    const z = canonicalZone(c.text)
+    if (z === null) {
+      throw new RuntimeRefusal('runtime:clock-zone',
+        `\`${what}\` reads the clock in \`${c.text}\`, a zone this engine does not answer for — it takes `
+        + 'the exchange\'s (`syminfo.timezone`, "America/New_York") or a fixed "UTC±H" / "GMT±H"', at)
+    }
+    return z
+  }
+  /** Is this one of the clock calls `runtimeClockLowering` serves? (A shape test
+   *  only — the lowering may still refuse it by name.) */
+  const isRuntimeClockCall = (node) => {
+    if (!node || node.type !== 'call') return false
+    const name = String(node.name || '')
+    if (definedNames.has(name) || isUserFn(name)) return false
+    const given = (node.args || []).map((a) => (a && a.value !== undefined ? a.value : a))
+    if (name === 'timestamp') return given.length >= 1
+    if (INSTANT_FIELD_NAMES.has(name)) {
+      return given.length === 2
+        || (given.length === 1 && (!isBarTimeNode(given[0], null) || !CLOCK_FIELDS.includes(name)))
+    }
+    if (name === 'time') return given.length >= 1 && given[0] && given[0].type === 'string' && given[0].value === ''
+    return false
+  }
+  /** Does this subtree — or a binding it reads — hold one? */
+  const runtimeClockCallIn = (node, scope, depth = 0) => {
+    if (!node || typeof node !== 'object' || depth > 32) return false
+    if (isRuntimeClockCall(node)) return true
+    if (node.type === 'name') {
+      const bound = scope && scope.lookup(node.name) === null ? env.get(node.name) : null
+      return !!(bound && bound.kind === 'expr' && runtimeClockCallIn(bound.node, scope, depth + 1))
+    }
+    for (const k of ['left', 'right', 'test', 'yes', 'no', 'arg', 'value']) {
+      if (runtimeClockCallIn(node[k], scope, depth + 1)) return true
+    }
+    for (const a of node.args || []) {
+      if (runtimeClockCallIn(a && a.value !== undefined ? a.value : a, scope, depth + 1)) return true
+    }
+    return false
+  }
+  /** The lowering, or `null` when the call is not one of these shapes (the
+   *  arms below then answer or refuse it as before). */
+  const runtimeClockLowering = (node, scope) => {
+    if (atObjectDoor) return null
+    const name = String(node.name || '')
+    // ⛔ No own-name check here: a script's own `timestamp`/`hour` is a user
+    // function, and the call arm's user-function path runs before this one is
+    // reached (mutation-proved: a copy of that check here could not fail).
+    const args = node.args || []
+    if (args.some((a) => a && a.name)) return null
+    const given = args.map((a) => (a && a.value !== undefined ? a.value : a))
+    const at = locate(node.tok)
+    const lit = (value) => ({ type: 'number', value, tok: node.tok })
+    if (name === 'timestamp') {
+      if (given.length === 1) {
+        const c = constantArgOf(given[0], scope)
+        if (c.frameName) throw frameBoundRefusal(c.frameName, at, 'is the date `timestamp` reads the clock at')
+        const ms = typeof c.text === 'string' ? dateStringMs(c.text) : null
+        if (ms === null) {
+          throw new RuntimeRefusal('runtime:builtin-args',
+            '`timestamp(dateString)` reads the clock at a date written as text fixed before the first bar, '
+            + 'as "2020-02-20", "2020-02-20T15:30:00+02:00" or "20 Feb 2020 15:30 +0200"', at)
+        }
+        return num(ms)
+      }
+      const first = given[0]
+      const zoned = !!first && (first.type === 'string' || isExchangeZoneNode(first, scope)
+        || holdsText(first, scope) || typeof constantArgOf(first, scope).text === 'string')
+      const zone = zoned ? clockZoneOf(first, scope, at, 'timestamp') : clockZoneOf(undefined, scope, at, 'timestamp')
+      const parts = zoned ? given.slice(1) : given.slice()
+      if (parts.length < 3 || parts.length > 6) {
+        throw new RuntimeRefusal('runtime:builtin-args',
+          '`timestamp` reads the clock at a year, a month and a day, then an optional hour, minute and '
+          + `second, given ${parts.length}`, at)
+      }
+      while (parts.length < 6) parts.push(lit(0))
+      return textCall('timestamp/zone', [str(zone), ...parts.map((p) => lowerExpr(p, scope))])
+    }
+    if (INSTANT_FIELD_NAMES.has(name) && (given.length === 1 || given.length === 2)) {
+      const zone = clockZoneOf(given[1], scope, at, name)
+      // the bar's own instant in the exchange's zone is the bar's clock column
+      // (`clock`, `OP.READ_CLOCK`), the answer the arm below gives for `hour(time)`.
+      // ⭐ Answered HERE, not handed back: that arm reads only a literal
+      // "America/New_York" as the exchange's zone and refuses `syminfo.timezone`
+      // as "only known while the bar runs", though `clockZoneOf` has already
+      // read it as the exchange's (`hour(time, syminfo.timezone)`).
+      if (isBarTimeNode(given[0], scope) && zone === 'exchange' && CLOCK_FIELDS.includes(name)) return clock(name)
+      return textCall(`${name}/instant`, [lowerExpr(given[0], scope), str(zone)])
+    }
+    if (name === 'time' && given.length >= 1 && given.length <= 3 && !inRequestValue) {
+      const rebuilt = []
+      for (let k = 0; k < given.length; k += 1) {
+        const g = given[k]
+        if (k === 0 && g && g.type === 'name' && OWN_TF_NAMES.has(g.name) && scope.lookup(g.name) === null
+          && !env.has(g.name)) { rebuilt.push(g); continue }
+        if (k === 2 && isExchangeZoneNode(g, scope)) { rebuilt.push(g); continue }
+        const c = constantArgOf(g, scope)
+        if (c.frameName) {
+          throw frameBoundRefusal(c.frameName, at,
+            `is the ${['timeframe', 'session', 'zone'][k]} \`time\` reads the clock on`)
+        }
+        if (typeof c.text !== 'string') return null
+        rebuilt.push(k === 0 && c.text === ''
+          ? { type: 'name', name: 'timeframe.period', tok: node.tok }
+          : { type: 'string', value: c.text, tok: node.tok })
+      }
+      return column(columnOf({ ...node, args: rebuilt.map((value) => ({ name: null, value, tok: node.tok })) }, at))
+    }
+    return null
+  }
+
   /** The family a call belongs to, so a refusal names the right matrix row. */
   const callFamily = (name) => {
     const n = String(name || '')
@@ -4877,7 +5231,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // ⭐ RT5 — nor is a drawing family's live list (`label.all`), nor text
         // this run prints (`str.tostring`), which the columnar lane refuses.
         && !objectAllName(node)
-        && !(objectsInRun && containsRunTostring(node))
+        && !((objectsInRun || !atObjectDoor) && containsRunTostring(node))
         && !(objectsInRun && containsObjectEnum(node))
         // ⭐ AND A SORT DIRECTION IS A STRING, NOT A COLUMN — same reason as the
         // drawing enums one line up. Handling `order.*` in the name branch is
@@ -4896,7 +5250,11 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // before the branches that serve them, exactly as with `size.*`.
         // ⛔ `RUNTIME_PINE_TWINS` declares the arity each name is owned at, so
         // the house `barssince(cond, n)` still routes to the columnar lane.
-        && !holdsPineTwin(node)) {
+        && !holdsPineTwin(node)
+        // ⭐ P3 WS-B — a TUPLE built-in asked for its parts is taken apart in the
+        // call arm below; the columnar lane reads it only through its own
+        // destructure, so handed whole it refuses `pine:function`/`pine:arity`.
+        && !(opts && opts.multi && tupleBuiltinParts(node))) {
       // ⚰️ A `timeframe.period` CLAUSE STOOD IN THIS CONDITION AND COULD NOT BE
       // PROVED. It looked necessary — the comment above says in as many words
       // that *"the ROUTE decision runs FIRST"*, and handling the name in the
@@ -4957,7 +5315,14 @@ function buildRuntimeIrLinked(source, opts, holder) {
         const laneHasNoText = e && (e.guard === 'pine:text-value'
           || e.guard === 'pine:collection' || e.guard === 'pine:builtin'
           || e.guard === 'pine:input-kind')
-        if (!(laneHasNoText && touchesText(node, scope))) throw e
+        // ⭐ P3 WS-B — and a subtree holding one of Pine's clock calls this lane
+        // answers (`runtimeClockCallIn`): the columnar lane refuses `timestamp`,
+        // `dayofweek(time + offset)` and `time("", sess)` by name, and the call
+        // arm below serves each over the instant or session it names.
+        const clockHere = !atObjectDoor && e && (e.guard === 'pine:function' || e.guard === 'pine:builtin'
+          || e.guard === 'pine:text-value')
+          && runtimeClockCallIn(node, scope)
+        if (!(laneHasNoText && touchesText(node, scope)) && !clockHere) throw e
       }
     }
 
@@ -5498,6 +5863,32 @@ function buildRuntimeIrLinked(source, opts, holder) {
             no: { type: 'binary', op: '+', left: call('math.ceil'), right: { type: 'number', value: 0, tok }, tok },
           }, scope, opts)
         }
+        // ⭐⭐ P3 WS-B — A TUPLE BUILT-IN ON THE RIGHT OF A DESTRUCTURING: its parts,
+        // each lowered as an ordinary expression (a pure part becomes one column, a
+        // part over a mutable value one of this lane's windows or recurrences). The
+        // destructure checks the part count against its names.
+        if (opts && opts.multi) {
+          const parts = tupleBuiltinParts(node)
+          if (parts) return tuple(parts.map((p) => lowerExpr(p, scope)))
+        }
+        // ⭐⭐ P3 WS-B — `int(x)` / `float(x)` OVER ANY VALUE THE RUN COMPUTES. The
+        // C18 rewrite above reads `x` TWICE, so it is held to an argument with no
+        // call in it but `math.*`; `int(math.max(1, nz(f(pl))))` (a user function
+        // inside) refused `runtime:call-conversion-state`. This form reads `x`
+        // ONCE: `idiv(x, 1)` is the closed table's own truncation toward zero
+        // (`POINTWISE.idiv`, `na` in and `na` out, `na` on a non-finite quotient),
+        // and `+ 0` turns IEEE's -0 into Pine's sign-less 0, as the rewrite above
+        // does. `float(x)` is `x`. ⛔ Never over text, a colour, an array or a
+        // drawing: those are not numbers to cast, and they keep their refusal.
+        if ((node.name === 'int' || node.name === 'float') && !definedNames.has(node.name)
+            && (node.args || []).length === 1 && !node.args[0].name
+            && !holdsText(node.args[0].value, scope) && !holdsArray(node.args[0].value, scope)
+            && !holdsColour(node.args[0].value, scope) && !holdsRunObject(node.args[0].value)) {
+          objectDoorRefuses('`' + node.name + '(…)` over a value the run computes', locate(node.tok))
+          const x = lowerExpr(node.args[0].value, scope, opts)
+          if (node.name === 'float') return x
+          return binary('+', irBuiltin('idiv', [x, num(1)]), num(0))
+        }
         // ⭐⭐ A USER FUNCTION CALL — the 2E path. Each call gets its OWN call
         // site, and the site is what will own the invocation's persistent
         // locals: `f(1)` and `f(10)` on two lines are two sites, so a `var`
@@ -5673,7 +6064,14 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // (`text.js::RUN_TEXT_FNS`): a number by the host lane's one formatter,
         // a text as itself. ⛔ Only a literal `#`/`0` format; a condition (whose
         // text is `true`/`false`, not a number) is refused by name.
-        if (objectsInRun && isRunTostring(node)) {
+        // ⭐⭐ P3 WS-B — AND IN A RUN THAT DOES NOT DRAW, TOO. The text it makes is
+        // consumed there by `==`/`!=`, `str.length`, `str.contains`, `+` and the
+        // other `str.*` this lane serves (`str.tostring(timeframe.period) == "1"`,
+        // `str.length(str.tostring(syminfo.mintick)) - 2`), all of which take a
+        // text value; the formatter and the format rule are unchanged. A text
+        // that only a drawing reads is never lowered where the host's object
+        // program draws (that statement is skipped), so nothing it draws moves.
+        if ((objectsInRun || !atObjectDoor) && isRunTostring(node)) {
           const given = (node.args || []).map((x) => (x && x.value !== undefined ? x.value : x))
           if ((node.args || []).some((a) => a && a.name && a.name !== 'value' && a.name !== 'format')
               || given.length < 1 || given.length > 2) {
@@ -5750,7 +6148,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
           return colourCall(node.name, given.map((x) => lowerExpr(x, scope)))
         }
         if (node.name === 'request.security') return admitRequest(node, scope, opts)
-        if (TEXT_INPUTS.has(node.name)) return admitTextInput(node, scope)
+        if (textInputHere(node)) return admitTextInput(node, scope)
         if (Object.prototype.hasOwnProperty.call(ARRAY_FNS, node.name)) {
           return admitArrayCall(node, scope, false)
         }
@@ -6094,6 +6492,12 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // the bar being evaluated, so a computed instant (`time + 3600`, a
         // stored timestamp) is refused rather than silently answered for the
         // wrong moment.
+        // ⭐⭐ P3 WS-B — the clock over an instant or a zone, `timestamp`, and a
+        // session clock whose arguments fold (`runtimeClockLowering`).
+        {
+          const clk = runtimeClockLowering(node, scope)
+          if (clk) return clk
+        }
         if (CLOCK_FIELDS.includes(node.name) && node.args && node.args.length) {
           const at = locate(node.tok)
           const given = node.args.map((a) => (a && a.value !== undefined ? a.value : a))
@@ -6392,6 +6796,51 @@ function buildRuntimeIrLinked(source, opts, holder) {
           }
           conditionalHistoryGuard('a stateful built-in', null)
           return carriedCall(fidx, lowerExpr(given[0], scope))
+        }
+        // ⭐⭐ P3 WS-B — PINE'S `ta.rsi(x, n)` OVER A VALUE THE RUN COMPUTES, ONE
+        // carried step (`interpret.js::CARRIED.rsiPine`, the shipped `computeRSI`'s
+        // arithmetic, railed against it in `runtimeRsiHma.test.js`), frame-relative
+        // like every carried member so two call sites of one function keep two
+        // states. A pure source never arrives here: the columnar lane answers it
+        // whole. Both spellings (v1–v4 bare, v5+ `ta.`); the script's own
+        // definition of the name wins.
+        // ⛔ NOT `ta.cum`: the columnar lane refuses it BY RULING (`pine.js`, "a
+        // running total from the first bar … names no anchor"), and serving it
+        // here over a mutable value would make that refusal false about its
+        // neighbour. It stays `runtime:call-windowed-state` until that ruling moves.
+        // ⛔ No own-name check: the script's own `rsi` is a user function, which
+        // the user-function path above has already called (a copy of that check
+        // here could not fail — mutation-proved).
+        if (node.name === 'ta.rsi' || node.name === 'rsi') {
+          const at = locate(node.tok)
+          objectDoorRefuses('`' + node.name + '` over a value the run computes', at)
+          if (node.args.some((a) => a && a.name)) {
+            throw new RuntimeRefusal('runtime:builtin-args', `a named argument on \`${node.name}\``, at)
+          }
+          const given = node.args.map((a) => (a && a.value !== undefined ? a.value : a))
+          if (given.length !== 2) {
+            throw new RuntimeRefusal('runtime:builtin-args',
+              `\`${node.name}\` takes a source and a length, given ${given.length}`, at)
+          }
+          const n = foldConstNode(given[1], at,
+            `the length of \`${node.name}\` is only known while the bar is running, `
+            + 'so the state it needs cannot be sized before bar 0', scope)
+          if (!Number.isInteger(n) || n < 1) {
+            throw new RuntimeRefusal('runtime:builtin-args',
+              `\`${node.name}\` needs a whole length of at least 1, got ${n}`, at)
+          }
+          const entry = { fn: 'rsiPine', n, name: `${node.name}(…,${n})` }
+          let cidx
+          if (owner !== null) {
+            const list = functions[owner].carriedLocals || (functions[owner].carriedLocals = [])
+            cidx = list.length
+            list.push(entry)
+          } else {
+            cidx = carriedMain.length
+            carriedMain.push(entry)
+          }
+          conditionalHistoryGuard('a stateful built-in', null)
+          return carriedCall(cidx, lowerExpr(given[0], scope))
         }
         const car = carriedTarget(node.name)
         if (car) {
@@ -7972,15 +8421,17 @@ function buildRuntimeIrLinked(source, opts, holder) {
             `\`var ${nameTok.value} = ${varBlk.value} …\` initialises ONCE, and this `
             + 'lane has no once-only guard around a block yet', locate(first))
         }
-        const value = parseWholeExpression(toks.slice(eq + 1))
+        let value = parseWholeExpression(toks.slice(eq + 1))
         // ⭐ THE BOUND NAME IS STAMPED ONTO AN INPUT CALL, exactly as `pine.js`
         // does, because it is the KEY a member's saved value is stored under.
         // Without it a text input can only ever serve the author's default, and
         // the member's paste would be silently ignored.
+        foldConstantVarsIntoInputs(value, inputConsts)
         if (value && value.type === 'call' && typeof value.name === 'string'
             && (value.name === 'input' || value.name.startsWith('input.'))) {
           value.boundName = nameTok.value
           applyMemberDefault(value, nameTok.value, locate(first))
+          value = bindTimeInput(value, nameTok.value, locate(first))
         }
         // ⭐⭐ `var t = table.new(…)` BINDS A HANDLE, AND A HANDLE IS NOT A
         // NUMBER. The object program owns that table; this lane has no
@@ -8143,7 +8594,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
       if (eq > 0) {
         const nameTok = boundName(toks, eq)
         if (!nameTok) throw new RuntimeRefusal('runtime:statement', 'a binding needs a name', locate(first))
-        const value = parseWholeExpression(toks.slice(eq + 1))
+        let value = parseWholeExpression(toks.slice(eq + 1))
         // ⭐⭐ THE HYBRID DECISION, MADE ONCE PER BINDING. A name this script
         // never mutates, bound to a pure expression, stays a PURE BINDING in the
         // resolver's environment — so `ta.sma(close, len)` is still one column at
@@ -8153,10 +8604,12 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // does, because it is the KEY a member's saved value is stored under.
         // Without it a text input can only ever serve the author's default, and
         // the member's paste would be silently ignored.
+        foldConstantVarsIntoInputs(value, inputConsts)
         if (value && value.type === 'call' && typeof value.name === 'string'
             && (value.name === 'input' || value.name.startsWith('input.'))) {
           value.boundName = nameTok.value
           applyMemberDefault(value, nameTok.value, locate(first))
+          value = bindTimeInput(value, nameTok.value, locate(first))
         }
         const mutable = mut.mutated.has(nameTok.value)
         // ⛔⛔ A COLLECTION BINDING IS ALWAYS A SLOT, NEVER AN `env` MACRO. A
@@ -9064,7 +9517,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
   const fixedTextOf = (node, scope, depth = 0) => {
     if (!node || typeof node !== 'object' || depth > 24) return null
     if (node.type === 'string') return typeof node.value === 'string' ? node.value : null
-    if (node.type === 'call' && TEXT_INPUTS.has(node.name)) {
+    if (node.type === 'call' && textInputHere(node)) {
       const lowered = admitTextInput(node, scope || root)
       return lowered && lowered.kind === EXPR.STR ? lowered.value : null
     }

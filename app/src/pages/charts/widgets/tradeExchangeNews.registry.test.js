@@ -38,11 +38,12 @@ describe('tradeExchangeNews registration', () => {
   // for widget.add, and News in it broke the Agent's 1000-character cap and golden
   // manifest. Releasing News to members must leave the Agent's list exactly as it was.
   it("leaves UCT Agent's widget list exactly the pre-release baseline", () => {
-    expect(PICKER_ONLY_WIDGETS).toEqual(['tradeExchangeNews'])
-    const baseline = WORKSPACE_MENU_TYPES_ALL.filter((id) => !['indexes', 'marketcontext', 'tradeExchangeNews'].includes(id))
+    // The Research Library (2026-11-01) is picker-only for the same reason.
+    expect(PICKER_ONLY_WIDGETS).toEqual(['tradeExchangeNews', 'researchLibrary'])
+    const baseline = WORKSPACE_MENU_TYPES_ALL.filter((id) => !['indexes', 'marketcontext', 'tradeExchangeNews', 'researchLibrary'].includes(id))
     expect(WORKSPACE_MENU_TYPES).toEqual(baseline)                       // default browser, as in production
     expect(WORKSPACE_MENU_TYPES).not.toContain('tradeExchangeNews')
-    expect(WORKSPACE_PICKER_TYPES.filter((id) => id !== 'tradeExchangeNews')).toEqual(WORKSPACE_MENU_TYPES)
+    expect(WORKSPACE_PICKER_TYPES.filter((id) => !PICKER_ONLY_WIDGETS.includes(id))).toEqual(WORKSPACE_MENU_TYPES)
   })
 
   it('leaves News & Catalysts registered, offered and bound exactly as before', () => {
