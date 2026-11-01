@@ -11,7 +11,7 @@ Paste this into a new Claude Code session:
 - Plan A: worktree creation was killed; see above.
 - Plan C: the plugin lives in the STANDALONE repo (`uct-worktrees/obsidian-uct-notebook-sync`, tag 0.1.4). The monorepo's `obsidian-plugin/` is a stale copy.
 - Plan A Task 7 adds deps (`pi-heif`, `linkify-it-py`, Pillow>=11.3) ⇒ owner `UCT_FLOW_OVERRIDE` step, outside 9:30–16:00 ET.
-- Evernote: Dynamic client registration works without an account and accepts the production callback; refresh tokens are supported. The probe was a throwaway script in the old session scratchpad (stdlib: DCR → PKCE authorize on 127.0.0.1:8765 → token → MCP initialize + tools/list + search_notes + refresh check). Rewrite it if the scratchpad is gone. It needs the owner on a PAID Evernote plan.
+- Evernote: Dynamic client registration works without an account and accepts the production callback; refresh tokens are supported. Probe script saved at `docs/notebook-connectors/evernote_mcp_probe.py` (stdlib only: `python evernote_mcp_probe.py run` → DCR → PKCE sign-in in the browser on 127.0.0.1:8765, read scope only → token → MCP initialize + tools/list + search_notes probes + refresh-token check; outputs in `./out/`, delete `out/tokens.json` after). Results go in `docs/notebook-connectors/evernote-mcp-probe.md`, then apply the Go/No-go rule in spec §6. It needs the owner on a PAID Evernote plan.
 
 ## PC slowness (2026-11-01)
 - RAM hit 0.8 GB free (a broad pytest run + 4 planner agents), later fine (21 GB free).
@@ -52,3 +52,48 @@ C:/Users/Patrick/uct-worktrees/saved-upgrade	feat/saved-script-auto-upgrade
 C:/Users/Patrick/uct-worktrees/screener-focus-layout	fix/master-green-integration
 C:/Users/Patrick/uct-worktrees/themes-1week	fix/themes-period-words
 ```
+
+
+## What the owner asked for (scope, verbatim intent, 2026-11-01)
+- Fix links, clickable website URLs and images not transferring correctly from Obsidian, Evernote and Notion (owner does not remember specifics; the investigation findings are spec §5).
+- A LIVE Evernote connector (owner will pay for a plan and do the clicks/sign-ins).
+- Sync now picks up notes deleted in the source app (§7).
+- The 5 small connector leftovers (§8).
+- "Anything else that can be improved and perfected": repair of already-imported notes (§9), rails with messy real-world corpora (§10), and the polish items (§5.6).
+- OUT of scope: Dropbox / OneNote / OneDrive app registration.
+- The owner wants it FAST and fully done. Standing GO: deploy autonomously when ready, report member impact after. The classifier blocks `gh pr merge`, `railway` var sets/redeploys and killing other sessions' processes ⇒ hand those to the owner with the exact command/click.
+
+## Work that is agreed but NOT yet planned (write these plans after A-D are underway)
+- **Plan E, Evernote live sync** (spec §6 + §15 Q3 adoption of earlier .enex notes): only after the probe; Go/No-go rule in §6. If No-go: record why, keep the tile honest, and the .enex fixes in Plan B are the Evernote product.
+- **Plan F, repair of already-imported notes** (spec §9 + §15 Q1): dry run with counts → owner reviews the numbers → production run. It never touches a note edited since import. It depends on A and B being live. Includes the one-time member notice for past imports with detectable losses.
+- **Live gates + certification addendum** (spec §10 last bullet, §13 step 8): Notion (the owner's workspace, add messy pages), Obsidian (real vault + plugin 0.2.0 against production), Evernote (live, or a real .enex from the paid account). Then append the results to `docs/notebook-connectors/60-user-reliability-certification.md` (append, never rewrite earlier sections).
+
+## Cross-plan reconciliation (check BEFORE executing the affected tasks)
+- Plan A was edited by string replace on an overloaded box and its final grep for stale names TIMED OUT. Grep plan A for the agreed names before Task 1: `normalize_media`, `MediaRejected`, `member_media_bytes`, `MEMBER_IMPORT_MEDIA_CAP_BYTES`, `importNotice`, `linkify_doc`, `POST /api/j2/notes/media/fetch`, `POST /api/j2/notes/import/heal-links`, `evernote-title:`, `failures_json`.
+- Plans A and B both edit `notes.py::import_confirm`. A changes the pending computation; B adds `guard_edits`, `mode="recover"` and the buckets `recovered`/`keptEdited`. Whichever lands second rebases, and both say they only add.
+- Plan A's `evernote-title:` heal assumes `import_source = 'evernote'`: verify against Plan B's `commit.js` before Plan A Task 4.
+- Shared linkify vectors: Plan A Task 10 creates `linkify_vectors.json` if Plan B has not; both sides must read the same fixture (http(s), www., email only; `NVDA.US` never links).
+- Plan B's `obsidianParity.contract.test.js` goes red on `%20` fixtures until Plan A Task 3 regenerates the server parity fixtures. Expected: land A Task 3 first, or mark it a known gap.
+- Plan D owns the `failures_json` DDL; Plan A only writes it.
+- Plan A ordering: Task 1 (remote-revision conflict gate) before ANY converter change. Task 5 (`importNotice` node) deploys before or with Task 6. Task 10 needs Task 7 (deps) deployed.
+- Plan C Task 3 waits for Plan A's `normalize_media` and `importNotice`.
+
+## Owner click points
+- Merge PR #614, and later PRs, when the classifier blocks the merge.
+- Plan A Task 7: the `UCT_FLOW_OVERRIDE` step for the `requirements.txt` change, outside 9:30-16:00 ET.
+- Evernote: buy or enable a paid personal plan, then approve one sign-in page (read access) when the probe opens it.
+- Plan C Task 11: close Obsidian on the desktop during the E2E. After the 0.2.0 GitHub release: community.obsidian.md → sign in → developer dashboard → UCT Notebook Sync → "Check for new releases" → report the review result (a flag ⇒ 0.2.1 + the same click).
+- Plan F: approve the dry-run numbers before the production repair run.
+- PC: the Defender exclusion (admin PowerShell, above), and approve deleting merged worktrees after the next session lists them with their status.
+
+## Rulings already made for the owner (spec §12 + §15; the owner may override)
+- Edited + remote unchanged ⇒ skip (PR #614).
+- Convert HEIC/TIFF/BMP/AVIF; keep only HEIC originals; SVG is never inline.
+- Copy hotlinked images in.
+- 2 GB per-member import media cap; over the cap = a visible marker, never a failed import.
+- Re-import-to-recover for past file imports.
+- .enex → live adoption by title + created time.
+- A Sync now manual full pass is a real strike, and strike 2 counts only if ≥10 min later. Rate limit 600 s per source.
+- .enex note links resolve across imports.
+- Plan D branched off PR #614's branch (not master).
+- The Obsidian plugin authority is the standalone repo.
