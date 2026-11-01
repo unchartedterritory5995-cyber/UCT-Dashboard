@@ -262,6 +262,8 @@ function messageOf(id, def, rows, ctx) {
       ? { runtimeInputs: { ...ctx.runtimeInputs } } : {}),
     ...(ctx && ctx.symbol && typeof ctx.symbol === 'object'
       ? { symbol: { ticker: ctx.symbol.ticker, exchange: ctx.symbol.exchange } } : {}),
+    // ⭐ P3 WS-F — a framed instance's window slides, so the run refuses a `varip` there
+    ...(ctx && ctx.framed === true ? { framed: true } : {}),
   }
   const plainRows = rows.map((b) => ({ t: b.t, o: b.o, h: b.h, l: b.l, c: b.c, v: b.v }))
   return { id, def: plainDef, rows: plainRows, ctx: plainCtx }

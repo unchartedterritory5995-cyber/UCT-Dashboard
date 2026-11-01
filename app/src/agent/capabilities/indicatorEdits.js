@@ -341,9 +341,11 @@ export const indicatorEditsKind = {
     if (!cur) throw fail('that chart is no longer on the board')
     const label = cur.label
     const ctx = mutationCtx(host, chartRef)
+    // ⭐ the chart's STORED pref (null when it stores nothing) is the change's restore point, so an Undo with nothing
+    // changed since puts back exactly what was stored, not the effective settings (docs/indicators/AGENT-HANDOFF-EXACT-UNDO-2026-10-30.md)
     const step = patch.undo
       ? undoIndicatorMutation(cur.cs, patch.undo, ctx)
-      : applyIndicatorMutation(cur.cs, patch.change.plan, ctx)
+      : applyIndicatorMutation(cur.cs, patch.change.plan, { ...ctx, storedSettings: cur.stored ?? null })
     if (!step.ok) throw fail(refusalSentence(step, { chart: label, op: patch.change?.plan?.op }))
     if (!patch.undo) proposed.delete(planKey(chartRef, patch.change.request))
     // ⭐ P2: the Agent itself is about to change this chart's indicators — every other plan cached for it was made

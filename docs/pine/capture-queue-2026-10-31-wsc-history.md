@@ -53,6 +53,8 @@ call site that fixes it. Everything below stays refused by name (`runtime:condit
 | H6 | a `ta.*` in a `?:` arm with a per-bar test, `ta.sma` / `ta.ema` / `ta.change` | witnessed per run (vw-arm-history T03 / T05 / K02 / K03). The lane refuses it because it evaluates both arms (`SELECT`); serving it needs the arm lowered as a jump, not a capture. |
 | H7 | v6 `cond and ta.rising(close, 2)`, `cond or ta.crossover(...)` | is the right operand's history per run under v6 short-circuit evaluation? Refused now, not witnessed. |
 | H8 | a `ta.*` in a `for` / `while` body | several steps a bar: not witnessed, refused |
+| H9 | `(close + open)[1]` and `(close * 2)[2]` inside `if close > open`, plotted where the block runs | is an expression's history in a block the previous RUN's value (like a block local, C05) or the chart's previous bar? Refused by name in a block and in a `?:` arm (review M1). |
+| H10 | v4 `iff(close > open, sma(close, 3), 0)` beside `close > open ? sma(close, 3) : 0` | does `iff` evaluate its untaken argument (every-bar `sma`) or not (per run, as `?:` does, vw-arm-history T03)? Refused by name (review M3). |
 
 ## Q4. The v6 `for` bound (handed to WS-A)
 
