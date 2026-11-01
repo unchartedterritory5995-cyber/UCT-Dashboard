@@ -108,14 +108,16 @@ describe('⭐ an objects run falling back to its plain run is named by the plain
   const OBJ = {
     id: 'rt-obj', meta: { runtimeHistory: 'listing' },
     compute: { kind: 'runtime', fn: 'runtime:rt-obj', outputs: { v: 0 }, objects: true,
-      source: '//@version=6\nindicator("w", overlay = true, calc_bars_count = 50)\nplot(ta.ema(close, 10))\nlabel.new(bar_index, high, "x")\n' },
+      // ⭐ a drawing wall the objects run names (`polyline.all` as a value). It was
+      // `calc_bars_count = 50` until WS-E (#556) started serving that by a window.
+      source: '//@version=6\nindicator("w", overlay = true)\nplot(ta.ema(close, 10))\nb = box.new(bar_index, high, bar_index, low)\nbox.set_text(b, polyline.all)\n' },
   }
   const CLOSED = { tf: 'D', newestBarIsForming: false, historyFromListing: true }
   it('control: with time to spare, the drawings are withheld by their own name and the plots draw', async () => {
     const { runtimeObjectsWithheldOf } = await import('../runtimeObjects.js')
     const out = computeRuntimeColumns(OBJ, mk(300), CLOSED, { incremental: false })
     expect(out.v.length).toBe(300)
-    expect(runtimeObjectsWithheldOf(out).guard).toBe('runtime:calc-bars-count')
+    expect(runtimeObjectsWithheldOf(out).guard).toBe('pine:drawing')
   })
   it('out of time: the answer is the time budget, not the drawings\' refusal', () => {
     let k = 0

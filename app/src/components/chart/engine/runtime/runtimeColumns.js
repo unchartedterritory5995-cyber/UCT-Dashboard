@@ -990,7 +990,11 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
   const tooBig = sourceSizeRefusal(compute.source)
   if (tooBig) throw refusal(RUNTIME_LIMIT_GUARD, tooBig)
   // ⭐ UIE PHASE 5 (M2) — the session, and whether this run resumes from it
-  const sessionKey = opts.incremental === false || opts.limits ? null
+  // ⭐ P3 WS-F x WS-E — a `bar_index`-shifted build (the calc_bars window's probe) is a
+  // MEASUREMENT: it never keeps or resumes a session, so its build, checkpoint and realtime
+  // ledger can never stand in for the real run's (the key does not carry the shift).
+  const shiftedProbe = Number.isInteger(opts.barIndexShift) && opts.barIndexShift !== 0
+  const sessionKey = opts.incremental === false || opts.limits || shiftedProbe ? null
     : `${runKey(def, ctx)}|${opts.sessionRole || 'run'}`
   const prevSession = sessionKey ? _sessions.get(sessionKey) : null
   // ⭐⭐ P3 WS-F (B5) — THE SESSION'S BUILD, REUSED: the front end is not run again, only
