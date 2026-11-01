@@ -44,6 +44,7 @@ export function fakeLibraryServer(headlines) {
     }
     if ((m = path.match(/^\/bookmarks\/([^/]+)$/))) {
       const id = decodeURIComponent(m[1])
+      if (method === 'GET') return ok({ bookmark: marks.has(id) ? mark(id) : null })
       if (method === 'PUT') {
         if (!byId.has(id)) return err(404, 'not_found', 'That headline could not be found.')
         const created = !marks.has(id)
@@ -65,6 +66,7 @@ export function fakeLibraryServer(headlines) {
       const id = decodeURIComponent(m[1])
       if (!marks.has(id)) return err(404, 'not_saved', 'Save the headline before adding a note.')
       marks.get(id).note = (body.note || '').trim()
+      marks.get(id).note_updated_at_ms = marks.get(id).note ? ++clock : null
       return ok({ bookmark: mark(id) })
     }
     if (path === '/collections' && method === 'POST') {

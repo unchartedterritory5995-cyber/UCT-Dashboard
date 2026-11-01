@@ -323,6 +323,17 @@ def save(uid: str, store, event_id: Any, *, note: Any = None, collection_ids: It
     return {"bookmark": mark, "created": not existing}
 
 
+def get_bookmark(uid: str, event_id: Any, store=None) -> dict[str, Any]:
+    """The member's bookmark of this headline (by ANY delivery id of its story), or
+    `{"bookmark": None}`. A read: News's "Add to collection" menu shows its ticks."""
+    eid = _event_id(event_id)
+    story = _story(store, eid)
+    with _db() as c:
+        key = _stored_id(c, uid, story)
+        mark = next((m for m in _bookmarks(c, uid) if m["event_id"] == key), None) if key else None
+    return {"bookmark": mark}
+
+
 def remove(uid: str, event_id: Any, store=None) -> dict[str, Any]:
     """Remove the member's bookmark (and its place in their collections and its note), in
     one transaction. Answers what was removed, so the client can offer Undo. The headline
