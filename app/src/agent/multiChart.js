@@ -88,7 +88,7 @@ function linkedTogether(refs, charts) {
 }
 const setSymbol = (ref, symbol) => ({ action: 'chart.setSymbol', target: ref, args: { symbol } })
 const setTf = (ref, timeframe) => ({ action: 'chart.setTimeframe', target: ref, args: { timeframe } })
-const chartGrid = (symbols, timeframe, layout, newCharts, watchlist = false) => ({ action: 'chartGrid.set', target: 'board', args: { symbols, timeframe: timeframe || null, layout: layout || null, new_charts: newCharts ? true : null, watchlist: watchlist ? true : null } })
+const chartGrid = (symbols, timeframe, layout, newCharts, watchlist = false) => ({ action: 'chartGrid.set', target: 'board', args: { symbols, timeframe: timeframe || null, layout: layout || null, new_charts: newCharts ? true : null, watchlist: watchlist ? true : null, replace: null } })
 
 // ── N charts for these tickers ──
 const COUNT_WORDS = { two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9 }
@@ -121,6 +121,9 @@ export function gridTickers(raw, host) {
 // Momentum watchlist") is not this (it is the model's: open that list).
 const WORKSPACE_LEAD = /^(?:please\s+)?(?:make|build|set up|setup|create|give|lay out)\s+(?:me\s+)?(?:a|an|my)\s+(?:[a-z]+\s+){0,3}?(?:workspace|board|setup|layout)\s+(?:with|that has|of)\s+/i
 const WATCH_RAIL = /(?:,\s*|\s+)(?:and\s+|with\s+|plus\s+)?(?:a|one)\s+watch ?list(?:\s+widget)?(?:\s+(?:on the right|beside them|next to them|on the side))?(?=$|[\s,.;!?])/i
+/** ⭐ PHASE 3 acceptance: "make me a workspace with …" — the member describes a WHOLE board, not charts to add to this one. */
+export const isWorkspaceRequest = (text) => WORKSPACE_LEAD.test(String(text || '').trim())
+export const asksForWatchlistRail = (text) => WATCH_RAIL.test(String(text || ''))
 function gridRequest(raw0, lower0, charts, host) {
   const lead = WORKSPACE_LEAD.exec(raw0)
   const rail = WATCH_RAIL.test(raw0)
@@ -171,6 +174,8 @@ const readingOrder = (a, b) => ((a.cell?.y ?? 0) - (b.cell?.y ?? 0)) || ((a.cell
  * space as they are (then nothing needs re-tiling and it runs as planned). Anything else is left exactly as planned.
  */
 const GRID_SHAPE = new Set(['widget.add', 'widget.addCharts', 'chart.setSymbol', 'chart.setTimeframe', 'widget.arrange'])
+// ⭐ PHASE 3 acceptance: "…, a watchlist" — ONE plain Watchlist add in such a plan is the grid's Watchlist rail
+const isRailAdd = (o) => o?.action === 'widget.add' && o.args?.type === 'watchlist' && !o.args?.as
 // ⭐ acceptance 2026-10-29 ("open daily charts for AAPL MSFT NVDA, each with a 50sma"): the plan may also change the NEW
 // charts (an op aimed at an `as`) — those ride along as `then`, each with the ticker its chart was given, to run once the
 // grid has made the charts (useAgent: one more step, the same execute)
@@ -187,7 +192,14 @@ export function screenChartGrid(input, text, host) {
   const then = extra.map(o => ({ symbol: symbolOf.get(String(o.target)), op: o }))
   return then.every(t => t.symbol) ? { ...r, then } : { ops: input, corrected: false }
 }
-function screenGridShape(ops, text, host) {
+function screenGridShape(ops0, text, host) {
+  const rails = ops0.filter(isRailAdd)
+  if (rails.length > 1) return { ops: ops0, corrected: false }
+  const ops = rails.length ? ops0.filter(o => !isRailAdd(o)) : ops0
+  const r = screenGridOnly(ops, text, host, rails.length === 1)
+  return r.corrected ? r : { ops: ops0, corrected: false }
+}
+function screenGridOnly(ops, text, host, rail) {
   const adds = ops.filter(o => o.action === 'widget.add')
   if (adds.some(o => o.args?.type !== 'chart' || !o.args?.as)) return { ops, corrected: false }
   const lists = ops.filter(o => o.action === 'widget.addCharts')
@@ -220,7 +232,7 @@ function screenGridShape(ops, text, host) {
   const fresh = !existing.length && wantsNew(text, symbols.length, charts.length)
   const layout = ops.find(o => o.action === 'widget.arrange')?.args?.pattern
   const target = ops.find(o => o.action === 'widget.arrange')?.target || 'board'
-  return { ops: [{ ...chartGrid(symbols, [...tfs][0] || null, ['grid', 'columns', 'rows'].includes(layout) ? layout : null, fresh), target }], corrected: true }
+  return { ops: [{ ...chartGrid(symbols, [...tfs][0] || null, ['grid', 'columns', 'rows'].includes(layout) ? layout : null, fresh, rail), target }], corrected: true }
 }
 
 // ── side by side ──

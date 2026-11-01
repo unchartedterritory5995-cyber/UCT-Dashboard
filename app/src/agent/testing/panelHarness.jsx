@@ -68,8 +68,8 @@ export function setupPanel() {
   const proposals = () => screen.queryAllByTestId('agent-proposal')
   const summaries = () => screen.queryAllByTestId('agent-receipt-summary').map(e => e.textContent)
 
-  function mount(widgets, groupSyms, { decorate = label, admin = true } = {}) {
-    const board = makeBoard(widgets, groupSyms)
+  function mount(widgets, groupSyms, { decorate = label, admin = true, layouts = null } = {}) {
+    const board = makeBoard(widgets, groupSyms, layouts ? { layouts } : undefined)
     const base = board.host.charts
     const d = decorate || ((s) => s)
     const h = {
