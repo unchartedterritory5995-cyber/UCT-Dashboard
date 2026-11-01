@@ -189,7 +189,7 @@ export default function SavedHeadlines({ active, opts, patchOpts, linkedSym, onS
       <div className={news.searchBar}>
         <span className={news.searchWrap}>
           <Input className={news.searchInput} value={queryRaw} onChange={(e) => setQueryRaw(e.target.value)}
-            placeholder="Search saved" aria-label="Search saved headlines and notes" maxLength={120} />
+            placeholder="Search..." aria-label="Search saved headlines and notes" maxLength={120} />
           {queryRaw && <button type="button" className={news.searchClear} onClick={() => setQueryRaw('')} aria-label="Clear search" title="Clear">×</button>}
         </span>
         <Input className={`${news.searchInput} ${styles.tickerInput}`} value={ticker} maxLength={12} placeholder="Ticker" aria-label="Filter by ticker"

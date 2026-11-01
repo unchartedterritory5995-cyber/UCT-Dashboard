@@ -156,8 +156,8 @@ describe('long headlines', () => {
 describe('category filter', () => {
   it('filters instantly, persists per widget, and combines with the linked filter', async () => {
     const { container, onOptsChange } = mount()
-    fireEvent.click(screen.getByRole('button', { name: /Categories: All/ }))
-    fireEvent.click(within(screen.getByRole('dialog', { name: 'Filters and presets' })).getByRole('button', { name: 'Earnings' }))
+    fireEvent.click(screen.getByRole('button', { name: /^News filters/ }))
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'News filters' })).getByRole('button', { name: 'Earnings' }))
     expect(onOptsChange).toHaveBeenLastCalledWith(expect.objectContaining({ categories: ['Earnings'] }))
     const r2 = mount({ categories: ['Earnings', 'News'] })
     expect(rows(r2.container)).toEqual([3, 1])
@@ -362,8 +362,8 @@ describe('presets', () => {
     const onOptsChange = vi.fn()
     const opts = { categories: ['Macro'], settings: { longHeadlines: '5' } }
     mount(opts, BASE, onOptsChange)
-    fireEvent.click(screen.getByRole('button', { name: /Categories: Macro/ }))
-    const dlg = screen.getByRole('dialog', { name: 'Filters and presets' })
+    fireEvent.click(screen.getByRole('button', { name: /^News filters.*categories Macro/ }))
+    const dlg = screen.getByRole('dialog', { name: 'News filters' })
     fireEvent.change(within(dlg).getByLabelText('New preset name'), { target: { value: 'Macro only' } })
     fireEvent.click(within(dlg).getByRole('button', { name: 'Save' }))
     const saved = onOptsChange.mock.lastCall[0]
@@ -375,8 +375,8 @@ describe('presets', () => {
     onOptsChange.mockClear()
     const p = { ...saved.presets[0] }
     const r2 = mount({ presets: [p], categories: [] }, BASE, onOptsChange)
-    fireEvent.click(within(r2.container).getByRole('button', { name: /Categories: All/ }))
-    const d2 = screen.getAllByRole('dialog', { name: 'Filters and presets' }).at(-1)
+    fireEvent.click(within(r2.container).getByRole('button', { name: /^News filters/ }))
+    const d2 = screen.getAllByRole('dialog', { name: 'News filters' }).at(-1)
     fireEvent.click(within(d2).getByRole('button', { name: 'Macro only' }))
     expect(onOptsChange.mock.lastCall[0]).toMatchObject({ categories: ['Macro'], presetId: p.id })
     fireEvent.click(within(d2).getByRole('button', { name: 'Rename preset Macro only' }))
@@ -468,12 +468,20 @@ describe('one calendar day at a time', () => {
     fireEvent.scroll(el)
   }
 
+  // Latest (back to today's live feed) is the first item of the clock's menu on a past day or time.
+  const toLatest = async () => {
+    fireEvent.click(within(bar()).getByRole('button', { name: /^Jump to Time/ }))
+    fireEvent.click(within(await screen.findByRole('dialog', { name: 'Jump to a time' })).getByRole('button', { name: /^Latest/ }))
+  }
+
   it('Today is the live default: newest first, and a live headline appears on top', async () => {
     const { container } = mountDays()
     await waitFor(() => expect(rows(container)).toEqual([3, 2, 1]))
     expect(within(bar()).getByRole('button', { name: /Date: Today/ })).toBeTruthy()
     expect(within(bar()).getByRole('button', { name: 'Next day' })).toBeDisabled()
-    expect(within(bar()).queryByRole('button', { name: 'Latest' })).toBeNull()
+    fireEvent.click(within(bar()).getByRole('button', { name: 'Jump to Time' }))
+    expect(within(await screen.findByRole('dialog', { name: 'Jump to a time' })).queryByRole('button', { name: /Latest/ })).toBeNull()
+    fireEvent.keyDown(screen.getByRole('dialog', { name: 'Jump to a time' }), { key: 'Escape' })
     act(() => feed.set({ items: [...BASE, H(4, 'SYNTHETIC: just in', [], { received_at_ms: Date.now() })], lastSeq: 4 }))
     expect(rows(container)[0]).toBe(4)
     expect(container.querySelector('nav [aria-label*="Page number"]')).toBeNull()       // no page numbers
@@ -530,7 +538,7 @@ describe('one calendar day at a time', () => {
     await waitFor(() => expect(rows(container)[0]).toBe(1199))
     fireEvent.click(within(bar()).getByRole('button', { name: 'Next day' }))           // Oct 27: retained, empty
     expect(await within(container).findByText('No headlines retained for Tue, Oct 27.')).toBeTruthy()
-    fireEvent.click(within(bar()).getByRole('button', { name: 'Latest' }))
+    await toLatest()
     await waitFor(() => expect(rows(container)).toEqual([3, 2, 1]))
   })
 
@@ -542,7 +550,7 @@ describe('one calendar day at a time', () => {
     expect(rows(container)).not.toContain(4)
     expect(within(bar()).getByRole('button', { name: /Date: Mon, Oct 26/ })).toBeTruthy()
     expect(screen.getByRole('button', { name: /Live/ })).toBeTruthy()                 // LIVE stays honest
-    fireEvent.click(within(bar()).getByRole('button', { name: 'Latest' }))
+    await toLatest()
     await waitFor(() => expect(rows(container)[0]).toBe(4))
   })
 
@@ -594,7 +602,7 @@ describe('one calendar day at a time', () => {
     const { container } = mountDays()
     await pickDate(key(26))
     await waitFor(() => expect(rows(container)[0]).toBe(1199))
-    fireEvent.click(within(bar()).getByRole('button', { name: 'Jump to a time' }))
+    fireEvent.click(within(bar()).getByRole('button', { name: 'Jump to Time' }))
     const dlg = await screen.findByRole('dialog', { name: 'Jump to a time' })
     fireEvent.change(within(dlg).getByLabelText('Time, hour and minute (ET)'), { target: { value: '09:30' } })
     fireEvent.submit(within(dlg).getByLabelText('Time, hour and minute (ET)'))
@@ -606,7 +614,7 @@ describe('one calendar day at a time', () => {
     expect(jump.cursor).toBeUndefined()
     await waitFor(() => expect(rows(container)).toContain(1090))                     // 09:30 ET = row 90
     expect(rows(container)).not.toContain(1091 + 120)                                // the day's top is not loaded up front
-    expect(within(bar()).getByRole('button', { name: /From 9:30 AM ET/ }).textContent).toMatch(/≤ 9:30 AM/)
+    expect(within(bar()).getByRole('button', { name: /showing from 9:30 AM ET/ }).title).toMatch(/closest headline at or before 9:30 AM ET/)
     // at the top of the list, the later rows load (newer steps), each held in place
     for (let i = 0; i < 4 && rows(container)[0] !== 1199; i++) {
       scrollToTop(container)
@@ -620,13 +628,15 @@ describe('one calendar day at a time', () => {
     const { container } = mountDays()
     await pickDate(key(26))
     await waitFor(() => expect(rows(container)[0]).toBe(1199))
-    fireEvent.click(within(bar()).getByRole('button', { name: 'Jump to a time' }))
+    fireEvent.click(within(bar()).getByRole('button', { name: 'Jump to Time' }))
     const dlg = await screen.findByRole('dialog', { name: 'Jump to a time' })
-    expect(within(dlg).getAllByRole('button').map((b) => b.textContent).slice(0, 3)).toEqual(['4:00 AM ET', '9:30 AM ET', '4:00 PM ET'])
+    const labels = within(dlg).getAllByRole('button').map((b) => b.textContent)
+    expect(labels[0]).toMatch(/^Latest/)                                 // a past day: back to live first
+    expect(labels.slice(1, 4)).toEqual(['4:00 AM ET', '9:30 AM ET', '4:00 PM ET'])
     fireEvent.change(within(dlg).getByLabelText('Time, hour and minute (ET)'), { target: { value: '06:00' } })
     fireEvent.submit(within(dlg).getByLabelText('Time, hour and minute (ET)'))
     await waitFor(() => expect(rows(container).at(-1)).toBe(1000))
-    expect(within(bar()).getByRole('button', { name: /From 6:00 AM ET/ }).title).toMatch(/Nothing at or before 6:00 AM ET/)
+    expect(within(bar()).getByRole('button', { name: /showing after 6:00 AM ET/ }).title).toMatch(/nothing at or before 6:00 AM ET/)
   })
 
   it('the three shortcuts: 4:00 AM, 9:30 AM and 4:00 PM ET, each on the selected date only', async () => {
@@ -634,21 +644,21 @@ describe('one calendar day at a time', () => {
     await pickDate(key(26))                                       // rows 8:00 .. 11:19 ET
     await waitFor(() => expect(rows(container)[0]).toBe(1199))
     const pick = async (label) => {
-      fireEvent.click(within(bar()).getByRole('button', { name: /Jump to a time|Change the time/ }))
+      fireEvent.click(within(bar()).getByRole('button', { name: /^Jump to Time/ }))
       fireEvent.click(within(await screen.findByRole('dialog', { name: 'Jump to a time' })).getByText(label))
     }
     await pick('4:00 AM ET')                                      // nothing that early: the day's first, never Oct 25
     await waitFor(() => expect(feed.dayCalls.at(-1)).toMatchObject({ date: key(26), at: '04:00' }))
     await waitFor(() => expect(rows(container).at(-1)).toBe(1000))
     expect(rows(container)).not.toContain(902)
-    expect(within(bar()).getByRole('button', { name: /From 4:00 AM ET/ }).title).toMatch(/Nothing at or before 4:00 AM ET/)
+    expect(within(bar()).getByRole('button', { name: /showing after 4:00 AM ET/ }).title).toMatch(/nothing at or before 4:00 AM ET/)
     await pick('9:30 AM ET')
     await waitFor(() => expect(feed.dayCalls.at(-1)).toMatchObject({ date: key(26), at: '09:30' }))
     await waitFor(() => expect(rows(container)).toContain(1090))
     await pick('4:00 PM ET')                                      // after the last row: the day's newest
     await waitFor(() => expect(feed.dayCalls.at(-1)).toMatchObject({ date: key(26), at: '16:00' }))
     await waitFor(() => expect(rows(container)[0]).toBe(1199))
-    expect(within(bar()).getByRole('button', { name: /From 4:00 PM ET/ })).toBeTruthy()
+    expect(within(bar()).getByRole('button', { name: /showing from 4:00 PM ET/ })).toBeTruthy()
   })
 
   it('a filter change returns to the top of the same date and clears the time jump', async () => {
@@ -657,7 +667,7 @@ describe('one calendar day at a time', () => {
     const { container, rerender } = render(<TradeExchangeNewsWidget color="A" opts={{}} onOptsChange={vi.fn()} />)
     act(() => feed.set({ status: 'live', items: BASE, lastSeq: 3, lastHeadlineAt: NOW }))
     await pickDate(key(26))
-    fireEvent.click(within(bar()).getByRole('button', { name: 'Jump to a time' }))
+    fireEvent.click(within(bar()).getByRole('button', { name: 'Jump to Time' }))
     fireEvent.click(within(await screen.findByRole('dialog', { name: 'Jump to a time' })).getByText('9:30 AM ET'))
     await waitFor(() => expect(rows(container)).toContain(1090))
     rerender(<TradeExchangeNewsWidget color="A" opts={{ categories: ['News'] }} onOptsChange={vi.fn()} />)
