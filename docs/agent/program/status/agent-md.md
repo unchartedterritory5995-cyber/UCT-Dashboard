@@ -49,7 +49,8 @@ Only agent-md edits this file. Update it in every PR.
   as_of = vendor `observed_at`, never `computed_at`; stale = not current; label always a note; `stale_reason`
   logged, not returned; NH/NL measures included). `ratings` = `research/ratings.get_ratings` (UCT-derived 1–99;
   as_of = price session close; undated legs noted; incomplete → partial; 3 calls). MD-1 **v1.4** §4.4.
-  Tests 31, mutation-checked (dropping isolation reds 4; as_of from computed_at reds 3).
+  Tests 39, mutation-checked (dropping isolation reds 4; as_of from computed_at reds 3). Refreshed for #599:
+  DORMANT unless `UCT_AGENT_ISOLATED=1` — refused for every purpose, `answer` included; active-behaviour tests set the flag.
 - **Open measurement:** `news.company`'s `store.health_snapshot()` runs COUNT(*) over news_items/news_tickers per
   read — cost on the production DB size must be measured and recorded here before any flag goes on (agent-lead).
 - Next: PR 4b after the gateway PR; ADR-003 flow/darkpool spike (draft);
