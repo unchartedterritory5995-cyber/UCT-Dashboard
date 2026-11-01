@@ -1,0 +1,1276 @@
+{
+  "version": "1.0",
+  "contract": "MD-1.4",
+  "now": "2026-11-02T16:55:00Z",
+  "live_words": [
+    "live",
+    "real-time",
+    "real time",
+    "right now",
+    "currently trading",
+    "this second"
+  ],
+  "stale_words": [
+    "stale",
+    "not current",
+    "older",
+    "out of date",
+    "behind",
+    "missing",
+    "may be outdated"
+  ],
+  "unavailable_words": [
+    "unavailable",
+    "not available",
+    "couldn't",
+    "could not",
+    "no data",
+    "warming"
+  ],
+  "questions": [
+    {
+      "id": "q-live",
+      "category": "live",
+      "kind": "quote",
+      "purpose": "answer",
+      "question": "What is AAPL trading at right now?",
+      "envelope": {
+        "contract": "MD-1.0",
+        "kind": "quote",
+        "params_echo": {},
+        "status": "ok",
+        "freshness": "live",
+        "as_of": "2026-11-02T16:54:58Z",
+        "fetched_at": "2026-11-02T16:55:00Z",
+        "delay_s": null,
+        "stale": false,
+        "source": "massive",
+        "coverage": null,
+        "data": {
+          "quote": {
+            "symbol": "AAPL",
+            "last": 187.12,
+            "last_source": "trade",
+            "change": 1.2,
+            "change_pct": 0.65,
+            "open": 185.0,
+            "high": 188.0,
+            "low": 184.1,
+            "day_close": 187.12,
+            "volume": 41000000,
+            "prev_close": 185.9,
+            "as_of": "2026-11-02T16:54:58Z"
+          },
+          "session": "regular"
+        },
+        "notes": [],
+        "provider_calls": 1
+      },
+      "expect": {
+        "freshness_class": "live",
+        "as_of_renderings": [
+          "2026-11-02",
+          "Nov 2",
+          "November 2",
+          "11:54"
+        ],
+        "may_claim_live": true,
+        "must_disclose_stale": false,
+        "must_say_unavailable": false,
+        "must_not_state_a_value": false,
+        "must_disclose": [],
+        "as_of_null_reason_required": false
+      },
+      "expect_refusal": false
+    },
+    {
+      "id": "q-live-stale",
+      "category": "live-stale",
+      "kind": "quote",
+      "purpose": "answer",
+      "question": "What's NVDA's price now?",
+      "envelope": {
+        "contract": "MD-1.0",
+        "kind": "quote",
+        "params_echo": {},
+        "status": "ok",
+        "freshness": "live",
+        "as_of": "2026-11-02T16:51:40Z",
+        "fetched_at": "2026-11-02T16:55:00Z",
+        "delay_s": null,
+        "stale": true,
+        "source": "massive",
+        "coverage": null,
+        "data": {
+          "quote": {
+            "symbol": "NVDA",
+            "last": 141.3,
+            "last_source": "trade",
+            "change": 1.2,
+            "change_pct": 0.65,
+            "open": 185.0,
+            "high": 188.0,
+            "low": 184.1,
+            "day_close": 141.3,
+            "volume": 41000000,
+            "prev_close": 185.9,
+            "as_of": "2026-11-02T16:51:40Z"
+          },
+          "session": "regular"
+        },
+        "notes": [],
+        "provider_calls": 1
+      },
+      "expect": {
+        "freshness_class": "live",
+        "as_of_renderings": [
+          "2026-11-02",
+          "Nov 2",
+          "November 2",
+          "11:51"
+        ],
+        "may_claim_live": false,
+        "must_disclose_stale": true,
+        "must_say_unavailable": false,
+        "must_not_state_a_value": false,
+        "must_disclose": [],
+        "as_of_null_reason_required": false
+      },
+      "expect_refusal": false
+    },
+    {
+      "id": "q-closed",
+      "category": "closed",
+      "kind": "quote",
+      "purpose": "answer",
+      "question": "What is TSLA at right now?",
+      "envelope": {
+        "contract": "MD-1.0",
+        "kind": "quote",
+        "params_echo": {},
+        "status": "ok",
+        "freshness": "historical",
+        "as_of": "2026-10-31T00:59:12Z",
+        "fetched_at": "2026-11-02T16:55:00Z",
+        "delay_s": null,
+        "stale": false,
+        "source": "massive",
+        "coverage": null,
+        "data": {
+          "quote": {
+            "symbol": "TSLA",
+            "last": 251.0,
+            "last_source": "trade",
+            "change": 1.2,
+            "change_pct": 0.65,
+            "open": 185.0,
+            "high": 188.0,
+            "low": 184.1,
+            "day_close": 251.0,
+            "volume": 41000000,
+            "prev_close": 185.9,
+            "as_of": "2026-10-31T00:59:12Z"
+          },
+          "session": "closed"
+        },
+        "notes": [
+          "the regular session is not open — these are the last prints from the most recent session, not live prices"
+        ],
+        "provider_calls": 1
+      },
+      "expect": {
+        "freshness_class": "historical",
+        "as_of_renderings": [
+          "2026-10-30",
+          "Oct 30",
+          "October 30",
+          "8:59"
+        ],
+        "may_claim_live": false,
+        "must_disclose_stale": false,
+        "must_say_unavailable": false,
+        "must_not_state_a_value": false,
+        "must_disclose": [
+          "not live"
+        ],
+        "as_of_null_reason_required": false
+      },
+      "expect_refusal": false
+    },
+    {
+      "id": "q-extended",
+      "category": "extended",
+      "kind": "quote",
+      "purpose": "answer",
+      "question": "Where is SHOP trading premarket?",
+      "envelope": {
+        "contract": "MD-1.0",
+        "kind": "quote",
+        "params_echo": {},
+        "status": "ok",
+        "freshness": "live",
+        "as_of": "2026-11-02T13:01:00Z",
+        "fetched_at": "2026-11-02T16:55:00Z",
+        "delay_s": null,
+        "stale": false,
+        "source": "massive",
+        "coverage": null,
+        "data": {
+          "quote": {
+            "symbol": "SHOP",
+            "last": 101.2,
+            "last_source": "trade",
+            "change": 1.2,
+            "change_pct": 0.65,
+            "open": 185.0,
+            "high": 188.0,
+            "low": 184.1,
+            "day_close": 101.2,
+            "volume": 41000000,
+            "prev_close": 185.9,
+            "as_of": "2026-11-02T13:01:00Z"
+          },
+          "session": "extended"
+        },
+        "notes": [
+          "extended-hours (pre-/post-market) prices — thin trading; the regular-session close is in day_close/prev_close"
+        ],
+        "provider_calls": 1
+      },
+      "expect": {
+        "freshness_class": "live",
+        "as_of_renderings": [
+          "2026-11-02",
+          "Nov 2",
+          "November 2",
+          "8:01"
+        ],
+        "may_claim_live": true,
+        "must_disclose_stale": false,
+        "must_say_unavailable": false,
+        "must_not_state_a_value": false,
+        "must_disclose": [
+          "extended-hours"
+        ],
+        "as_of_null_reason_required": false
+      },
+      "expect_refusal": false
+    },
+    {
+      "id": "q-partial-close-row",
+      "category": "partial",
+      "kind": "quotes",
+      "purpose": "answer",
+      "question": "Give me current prices for AAPL and HALT.",
+      "envelope": {
+        "contract": "MD-1.0",
+        "kind": "quotes",
+        "params_echo": {},
+        "status": "partial",
+        "freshness": "live",
+        "as_of": "2026-11-02T16:54:58Z",
+        "fetched_at": "2026-11-02T16:55:00Z",
+        "delay_s": null,
+        "stale": false,
+        "source": "massive",
+        "coverage": {
+          "evaluated": 2,
+          "answered": 2,
+          "dropped": 0,
+          "not_computable": 0
+        },
+        "data": {
+          "quotes": [
+            {
+              "symbol": "AAPL",
+              "last": 187.12,
+              "last_source": "trade",
+              "change": 1.2,
+              "change_pct": 0.65,
+              "open": 185.0,
+              "high": 188.0,
+              "low": 184.1,
+              "day_close": 187.12,
+              "volume": 41000000,
+              "prev_close": 185.9,
+              "as_of": "2026-11-02T16:54:58Z"
+            },
+            {
+              "symbol": "HALT",
+              "last": 9.1,
+              "last_source": "day_close",
+              "change": 1.2,
+              "change_pct": 0.65,
+              "open": 185.0,
+              "high": 188.0,
+              "low": 184.1,
+              "day_close": 9.1,
+              "volume": 41000000,
+              "prev_close": 185.9,
+              "as_of": "2026-11-02T14:00:00Z"
+            }
+          ],
+          "session": "regular"
+        },
+        "notes": [
+          "no current trade for HALT — showing day_close",
+          "as_of is the oldest current trade in this set"
+        ],
+        "provider_calls": 1
+      },
+      "expect": {
+        "freshness_class": "live",
+        "as_of_renderings": [
+          "2026-11-02",
+          "Nov 2",
+          "November 2",
+          "11:54"
+        ],
+        "may_claim_live": true,
+        "must_disclose_stale": false,
+        "must_say_unavailable": false,
+        "must_not_state_a_value": false,
+        "must_disclose": [
+          "HALT"
+        ],
+        "as_of_null_reason_required": false
+      },
+      "expect_refusal": false
+    },
+    {
+      "id": "q-unavailable",
+      "category": "unavailable",
+      "kind": "quote",
+      "purpose": "answer",
+      "question": "What's ZZZZ at now?",
+      "envelope": {
+        "contract": "MD-1.0",
+        "kind": "quote",
+        "params_echo": {},
+        "status": "unavailable",
+        "freshness": "unavailable",
+        "as_of": null,
+        "fetched_at": "2026-11-02T16:55:00Z",
+        "delay_s": null,
+        "stale": false,
+        "source": "fixture",
+        "coverage": null,
+        "data": null,
+        "notes": [
+          "the quote provider returned no price for ZZZZ"
+        ],
+        "provider_calls": 0
+      },
+      "expect": {
+        "freshness_class": "unavailable",
+        "as_of_renderings": [],
+        "may_claim_live": false,
+        "must_disclose_stale": false,
+        "must_say_unavailable": true,
+        "must_not_state_a_value": true,
+        "must_disclose": [],
+        "as_of_null_reason_required": false
+      },
+      "expect_refusal": false
+    },
+    {
+      "id": "b-today",
+      "category": "historical",
+      "kind": "bars.daily",
+      "purpose": "answer",
+      "question": "How did AAPL close today?",
+      "envelope": {
+        "contract": "MD-1.0",
+        "kind": "bars.daily",
+        "params_echo": {},
+        "status": "ok",
+        "freshness": "historical",
+        "as_of": "2026-10-30T20:00:00Z",
+        "fetched_at": "2026-11-02T16:55:00Z",
+        "delay_s": null,
+        "stale": false,
+        "source": "uct-bars",
+        "coverage": null,
+        "data": {
+          "symbol": "AAPL",
+          "bars": [
+            {
+              "date": "2026-10-30",
+              "open": 1,
+              "high": 2,
+              "low": 0.5,
+              "close": 1.5,
+              "volume": 10
+            }
+          ],
+          "through": "2026-10-30",
+          "latest_completed_session": "2026-10-30"
+        },
+        "notes": [
+          "completed sessions only — the current session's developing bar is never included"
+        ],
+        "provider_calls": 0
+      },
+      "expect": {
+        "freshness_class": "historical",
+        "as_of_renderings": [
+          "2026-10-30",
+          "Oct 30",
+          "October 30"
+        ],
+        "may_claim_live": false,
+        "must_disclose_stale": false,
+        "must_say_unavailable": false,
+        "must_not_state_a_value": false,
+        "must_disclose": [
+          "completed"
+        ],
+        "as_of_null_reason_required": false
+      },
+      "expect_refusal": false
+    },
+    {
+      "id": "b-stale",
+      "category": "historical-stale",
+      "kind": "bars.daily",
+      "purpose": "answer",
+      "question": "What was MSFT's last daily close?",
+      "envelope": {
+        "contract": "MD-1.0",
+        "kind": "bars.daily",
+        "params_echo": {},
+        "status": "ok",
+        "freshness": "historical",
+        "as_of": "2026-10-28T20:00:00Z",
+        "fetched_at": "2026-11-02T16:55:00Z",
+        "delay_s": null,
+        "stale": true,
+        "source": "uct-bars",
+        "coverage": null,
+        "data": {
+          "symbol": "AAPL",
+          "bars": [
+            {
+              "date": "2026-10-30",
+              "open": 1,
+              "high": 2,
+              "low": 0.5,
+              "close": 1.5,
+              "volume": 10
+            }
+          ],
+          "through": "2026-10-28",
+          "latest_completed_session": "2026-10-30"
+        },
+        "notes": [
+          "the newest bar held is 2026-10-28; the newest completed session is 2026-10-30"
+        ],
+        "provider_calls": 0
+      },
+      "expect": {
+        "freshness_class": "historical",
+        "as_of_renderings": [
+          "2026-10-28",
+          "Oct 28",
+          "October 28"
+        ],
+        "may_claim_live": false,
+        "must_disclose_stale": true,
+        "must_say_unavailable": false,
+        "must_not_state_a_value": false,
+        "must_disclose": [],
+        "as_of_null_reason_required": false
+      },
+      "expect_refusal": false
+    },
+    {
+      "id": "f-current",
+      "category": "periodic",
+      "kind": "fundamentals",
+      "purpose": "answer",
+      "question": "What's AAPL's revenue now?",
+      "envelope": {
+        "contract": "MD-1.0",
+        "kind": "fundamentals",
+        "params_echo": {},
+        "status": "ok",
+        "freshness": "periodic",
+        "as_of": "2026-09-27T00:00:00Z",
+        "fetched_at": "2026-11-02T16:55:00Z",
+        "delay_s": null,
+        "stale": false,
+        "source": "yahoo-finance",
+        "coverage": null,
+        "data": {
+          "symbol": "AAPL",
+          "period": "quarterly",
+          "statements": {}
+        },
+        "notes": [
+          "periodic financial disclosures — figures describe the reporting period in as_of, not today",
+          "the source gives no filing date; as_of is the period end"
+        ],
+        "provider_calls": 0
+      },
+      "expect": {
+        "freshness_class": "periodic",
+        "as_of_renderings": [
+          "2026-09-26",
+          "Sep 26",
+          "September 26",
+          "8:00"
+        ],
+        "may_claim_live": false,
+        "must_disclose_stale": false,
+        "must_say_unavailable": false,
+        "must_not_state_a_value": false,
+        "must_disclose": [
+          "period"
+        ],
+        "as_of_null_reason_required": false
+      },
+      "expect_refusal": false
+    },
+    {
+      "id": "f-stale",
+      "category": "periodic-stale",
+      "kind": "fundamentals",
+      "purpose": "answer",
+      "question": "What is XYZ's current debt?",
+      "envelope": {
+        "contract": "MD-1.0",
+        "kind": "fundamentals",
+        "params_echo": {},
+        "status": "ok",
+        "freshness": "periodic",
+        "as_of": "2026-03-31T00:00:00Z",
+        "fetched_at": "2026-11-02T16:55:00Z",
+        "delay_s": null,
+        "stale": true,
+        "source": "yahoo-finance",
+        "coverage": null,
+        "data": {
+          "symbol": "XYZ",
+          "period": "quarterly",
+          "statements": {}
+        },
+        "notes": [
+          "periodic financial disclosures — figures describe the reporting period in as_of, not today",
+          "the newest quarterly statement is for the period ending 2026-03-31 (216 days ago)"
+        ],
+        "provider_calls": 0
+      },
+      "expect": {
+        "freshness_class": "periodic",
+        "as_of_renderings": [
+          "2026-03-30",
+          "Mar 30",
+          "March 30",
+          "8:00"
+        ],
+        "may_claim_live": false,
+        "must_disclose_stale": true,
+        "must_say_unavailable": false,
+        "must_not_state_a_value": false,
+        "must_disclose": [],
+        "as_of_null_reason_required": false
+      },
+      "expect_refusal": false
+    },
+    {
+      "id": "e-latest",
+      "category": "as_of-null",
+      "kind": "earnings",
+      "purpose": "answer",
+      "question": "Did AAPL beat earnings this quarter?",
+      "envelope": {
+        "contract": "MD-1.0",
+        "kind": "earnings",
+        "params_echo": {},
+        "status": "ok",
+        "freshness": "periodic",
+        "as_of": null,
+        "fetched_at": "2026-11-02T16:55:00Z",
+        "delay_s": null,
+        "stale": false,
+        "source": "uct-earnings",
+        "coverage": null,
+        "data": {
+          "symbol": "AAPL",
+          "reported": [],
+          "reported_through": "2026 Q3",
+          "quarters_behind": 0,
+          "next_report": {
+            "report_date": "2027-01-29",
+            "quarter": "2026 Q4",
+            "kind": "scheduled"
+          }
+        },
+        "notes": [
+          "reported quarters carry no report date — as_of is not given; reported through 2026 Q3",
+          "next_report is a scheduled event, not a result"
+        ],
+        "provider_calls": 0
+      },
+      "expect": {
+        "freshness_class": "periodic",
+        "as_of_renderings": [],
+        "may_claim_live": false,
+        "must_disclose_stale": false,
+        "must_say_unavailable": false,
+        "must_not_state_a_value": false,
+        "must_disclose": [
+          "2026 Q3"
+        ],
+        "as_of_null_reason_required": true
+      },
+      "expect_refusal": false
+    },
+    {
+      "id": "e-next",
+      "category": "scheduled-event",
+      "kind": "earnings",
+      "purpose": "answer",
+      "question": "When is AAPL's next earnings report?",
+      "envelope": {
+        "contract": "MD-1.0",
+        "kind": "earnings",
+        "params_echo": {},
+        "status": "ok",
+        "freshness": "periodic",
+        "as_of": null,
+        "fetched_at": "2026-11-02T16:55:00Z",
+        "delay_s": null,
+        "stale": false,
+        "source": "uct-earnings",
+        "coverage": null,
+        "data": {
+          "symbol": "AAPL",
+          "reported": [],
+          "reported_through": "2026 Q3",
+          "quarters_behind": 0,
+          "next_report": {
+            "report_date": "2027-01-29",
+            "quarter": "2026 Q4",
+            "kind": "scheduled"
+          }
+        },
+        "notes": [
+          "reported quarters carry no report date — as_of is not given; reported through 2026 Q3",
+          "next_report is a scheduled event, not a result"
+        ],
+        "provider_calls": 0
+      },
+      "expect": {
+        "freshness_class": "periodic",
+        "as_of_renderings": [],
+        "may_claim_live": false,
+        "must_disclose_stale": false,
+        "must_say_unavailable": false,
+        "must_not_state_a_value": false,
+        "must_disclose": [
+          "2027-01-29",
+          "scheduled"
+        ],
+        "as_of_null_reason_required": true
+      },
+      "expect_refusal": false
+    },
+    {
+      "id": "n-latest",
+      "category": "periodic",
+      "kind": "news.company",
+      "purpose": "answer",
+      "question": "What's the latest news on NVDA?",
+      "envelope": {
+        "contract": "MD-1.0",
+        "kind": "news.company",
+        "params_echo": {},
+        "status": "ok",
+        "freshness": "periodic",
+        "as_of": "2026-11-02T15:40:00Z",
+        "fetched_at": "2026-11-02T16:55:00Z",
+        "delay_s": null,
+        "stale": false,
+        "source": "uct-news",
+        "coverage": null,
+        "data": {
+          "symbol": "NVDA",
+          "items": [
+            {
+              "headline": "h",
+              "as_of": "2026-11-02T15:40:00Z"
+            }
+          ],
+          "has_more": false
+        },
+        "notes": [
+          "each item's as_of is when it was published; the envelope as_of is the newest item"
+        ],
+        "provider_calls": 0
+      },
+      "expect": {
+        "freshness_class": "periodic",
+        "as_of_renderings": [
+          "2026-11-02",
+          "Nov 2",
+          "November 2",
+          "10:40"
+        ],
+        "may_claim_live": false,
+        "must_disclose_stale": false,
+        "must_say_unavailable": false,
+        "must_not_state_a_value": false,
+        "must_disclose": [
+          "published"
+        ],
+        "as_of_null_reason_required": false
+      },
+      "expect_refusal": false
+    },
+    {
+      "id": "n-quiet",
+      "category": "empty-not-stale",
+      "kind": "news.company",
+      "purpose": "answer",
+      "question": "Any news on QUIET today?",
+      "envelope": {
+        "contract": "MD-1.0",
+        "kind": "news.company",
+        "params_echo": {},
+        "status": "ok",
+        "freshness": "periodic",
+        "as_of": null,
+        "fetched_at": "2026-11-02T16:55:00Z",
+        "delay_s": null,
+        "stale": false,
+        "source": "uct-news",
+        "coverage": null,
+        "data": {
+          "symbol": "QUIET",
+          "items": [],
+          "has_more": false
+        },
+        "notes": [
+          "no news items are stored for QUIET — that is not a sign of stale data"
+        ],
+        "provider_calls": 0
+      },
+      "expect": {
+        "freshness_class": "periodic",
+        "as_of_renderings": [],
+        "may_claim_live": false,
+        "must_disclose_stale": false,
+        "must_say_unavailable": false,
+        "must_not_state_a_value": false,
+        "must_disclose": [
+          "no news"
+        ],
+        "as_of_null_reason_required": true
+      },
+      "expect_refusal": false
+    },
+    {
+      "id": "n-stale-ingest",
+      "category": "periodic-stale",
+      "kind": "news.company",
+      "purpose": "answer",
+      "question": "What's new on AMD right now?",
+      "envelope": {
+        "contract": "MD-1.0",
+        "kind": "news.company",
+        "params_echo": {},
+        "status": "ok",
+        "freshness": "periodic",
+        "as_of": "2026-11-02T13:10:00Z",
+        "fetched_at": "2026-11-02T16:55:00Z",
+        "delay_s": null,
+        "stale": true,
+        "source": "uct-news",
+        "coverage": null,
+        "data": {
+          "symbol": "AMD",
+          "items": [
+            {
+              "headline": "h",
+              "as_of": "2026-11-02T13:10:00Z"
+            }
+          ]
+        },
+        "notes": [
+          "news ingest has not succeeded for over an hour; recent stories may be missing",
+          "each item's as_of is when it was published; the envelope as_of is the newest item"
+        ],
+        "provider_calls": 0
+      },
+      "expect": {
+        "freshness_class": "periodic",
+        "as_of_renderings": [
+          "2026-11-02",
+          "Nov 2",
+          "November 2",
+          "8:10"
+        ],
+        "may_claim_live": false,
+        "must_disclose_stale": true,
+        "must_say_unavailable": false,
+        "must_not_state_a_value": false,
+        "must_disclose": [
+          "missing"
+        ],
+        "as_of_null_reason_required": false
+      },
+      "expect_refusal": false
+    },
+    {
+      "id": "t-moving",
+      "category": "as_of-null",
+      "kind": "themes",
+      "purpose": "answer",
+      "question": "Which themes are leading right now?",
+      "envelope": {
+        "contract": "MD-1.0",
+        "kind": "themes",
+        "params_echo": {},
+        "status": "ok",
+        "freshness": "periodic",
+        "as_of": null,
+        "fetched_at": "2026-11-02T16:55:00Z",
+        "delay_s": null,
+        "stale": false,
+        "source": "uct-themes",
+        "coverage": {
+          "evaluated": 1,
+          "answered": 1,
+          "dropped": 0,
+          "not_computable": 0
+        },
+        "data": {
+          "period": "1d",
+          "order": "leaders",
+          "themes": [
+            {
+              "name": "Semis",
+              "return_pct": 2.4
+            }
+          ],
+          "live_applied_at": "2026-11-02T16:50:00Z"
+        },
+        "notes": [
+          "theme returns are equal-weight means of the curated holdings",
+          "returns include intraday prices applied by UCT at 2026-11-02T16:50:00Z (UCT's apply time; the vendor's observation time is not carried) — not a live feed"
+        ],
+        "provider_calls": 0
+      },
+      "expect": {
+        "freshness_class": "periodic",
+        "as_of_renderings": [],
+        "may_claim_live": false,
+        "must_disclose_stale": false,
+        "must_say_unavailable": false,
+        "must_not_state_a_value": false,
+        "must_disclose": [
+          "applied",
+          "not a live feed"
+        ],
+        "as_of_null_reason_required": true
+      },
+      "expect_refusal": false
+    },
+    {
+      "id": "t-closed",
+      "category": "periodic",
+      "kind": "themes",
+      "purpose": "answer",
+      "question": "What were the best themes this week?",
+      "envelope": {
+        "contract": "MD-1.0",
+        "kind": "themes",
+        "params_echo": {},
+        "status": "ok",
+        "freshness": "periodic",
+        "as_of": "2026-10-30T20:00:00Z",
+        "fetched_at": "2026-11-02T16:55:00Z",
+        "delay_s": null,
+        "stale": false,
+        "source": "uct-themes",
+        "coverage": {
+          "evaluated": 1,
+          "answered": 1,
+          "dropped": 0,
+          "not_computable": 0
+        },
+        "data": {
+          "period": "1w",
+          "order": "leaders",
+          "themes": [
+            {
+              "name": "Semis",
+              "return_pct": 5.1
+            }
+          ],
+          "live_applied_at": null
+        },
+        "notes": [
+          "theme returns are equal-weight means of the curated holdings",
+          "returns are as of the last completed session's close"
+        ],
+        "provider_calls": 0
+      },
+      "expect": {
+        "freshness_class": "periodic",
+        "as_of_renderings": [
+          "2026-10-30",
+          "Oct 30",
+          "October 30"
+        ],
+        "may_claim_live": false,
+        "must_disclose_stale": false,
+        "must_say_unavailable": false,
+        "must_not_state_a_value": false,
+        "must_disclose": [
+          "last completed session"
+        ],
+        "as_of_null_reason_required": false
+      },
+      "expect_refusal": false
+    },
+    {
+      "id": "t-warming",
+      "category": "unavailable",
+      "kind": "themes",
+      "purpose": "answer",
+      "question": "What themes are hot now?",
+      "envelope": {
+        "contract": "MD-1.0",
+        "kind": "themes",
+        "params_echo": {},
+        "status": "unavailable",
+        "freshness": "unavailable",
+        "as_of": null,
+        "fetched_at": "2026-11-02T16:55:00Z",
+        "delay_s": null,
+        "stale": false,
+        "source": "fixture",
+        "coverage": null,
+        "data": null,
+        "notes": [
+          "theme data is warming — no complete theme overlay is available yet"
+        ],
+        "provider_calls": 0
+      },
+      "expect": {
+        "freshness_class": "unavailable",
+        "as_of_renderings": [],
+        "may_claim_live": false,
+        "must_disclose_stale": false,
+        "must_say_unavailable": true,
+        "must_not_state_a_value": true,
+        "must_disclose": [],
+        "as_of_null_reason_required": false
+      },
+      "expect_refusal": false
+    },
+    {
+      "id": "br-intraday",
+      "category": "periodic",
+      "kind": "breadth.current",
+      "purpose": "answer",
+      "question": "What percent of stocks are above their 50-day right now?",
+      "envelope": {
+        "contract": "MD-1.0",
+        "kind": "breadth.current",
+        "params_echo": {},
+        "status": "ok",
+        "freshness": "periodic",
+        "as_of": "2026-11-02T16:52:03Z",
+        "fetched_at": "2026-11-02T16:55:00Z",
+        "delay_s": null,
+        "stale": false,
+        "source": "uct-breadth",
+        "coverage": null,
+        "data": {
+          "universe": "us",
+          "metric": "pct_above_50sma",
+          "value": 61.4,
+          "status": "intraday",
+          "session": "2026-11-02",
+          "label": "Intraday · 11:52 AM ET",
+          "accuracy_tier": "validated",
+          "current": true,
+          "finalized_session": "2026-10-29",
+          "market_open": true,
+          "population_drift": 0.01
+        },
+        "notes": [
+          "Intraday · 11:52 AM ET"
+        ],
+        "provider_calls": 0
+      },
+      "expect": {
+        "freshness_class": "periodic",
+        "as_of_renderings": [
+          "2026-11-02",
+          "Nov 2",
+          "November 2",
+          "11:52"
+        ],
+        "may_claim_live": false,
+        "must_disclose_stale": false,
+        "must_say_unavailable": false,
+        "must_not_state_a_value": false,
+        "must_disclose": [
+          "Intraday"
+        ],
+        "as_of_null_reason_required": false
+      },
+      "expect_refusal": false
+    },
+    {
+      "id": "br-not-current",
+      "category": "historical-stale",
+      "kind": "breadth.current",
+      "purpose": "answer",
+      "question": "What's market breadth today?",
+      "envelope": {
+        "contract": "MD-1.0",
+        "kind": "breadth.current",
+        "params_echo": {},
+        "status": "ok",
+        "freshness": "historical",
+        "as_of": "2026-10-29T20:00:00Z",
+        "fetched_at": "2026-11-02T16:55:00Z",
+        "delay_s": null,
+        "stale": true,
+        "source": "uct-breadth",
+        "coverage": null,
+        "data": {
+          "universe": "us",
+          "metric": "pct_above_50sma",
+          "value": 61.4,
+          "status": "finalized",
+          "session": "2026-11-02",
+          "label": "Finalized close · Oct 29",
+          "accuracy_tier": "validated",
+          "current": false,
+          "finalized_session": "2026-10-29",
+          "market_open": true,
+          "population_drift": 0.01
+        },
+        "notes": [
+          "Finalized close · Oct 29",
+          "not a current reading — this is Finalized close · Oct 29; a current reading is unavailable"
+        ],
+        "provider_calls": 0
+      },
+      "expect": {
+        "freshness_class": "historical",
+        "as_of_renderings": [
+          "2026-10-29",
+          "Oct 29",
+          "October 29"
+        ],
+        "may_claim_live": false,
+        "must_disclose_stale": true,
+        "must_say_unavailable": false,
+        "must_not_state_a_value": false,
+        "must_disclose": [
+          "Finalized close"
+        ],
+        "as_of_null_reason_required": false
+      },
+      "expect_refusal": false
+    },
+    {
+      "id": "br-nhnl",
+      "category": "historical-stale",
+      "kind": "breadth.current",
+      "purpose": "answer",
+      "question": "How many new 52-week highs are there today?",
+      "envelope": {
+        "contract": "MD-1.0",
+        "kind": "breadth.current",
+        "params_echo": {},
+        "status": "ok",
+        "freshness": "historical",
+        "as_of": "2026-10-29T20:00:00Z",
+        "fetched_at": "2026-11-02T16:55:00Z",
+        "delay_s": null,
+        "stale": true,
+        "source": "uct-breadth",
+        "coverage": null,
+        "data": {
+          "universe": "us",
+          "metric": "new_52w_highs",
+          "value": 212,
+          "status": "finalized",
+          "session": "2026-11-02",
+          "label": "Finalized close · Oct 29",
+          "accuracy_tier": "finalized_only",
+          "current": false,
+          "finalized_session": "2026-10-29",
+          "market_open": true,
+          "population_drift": 0.01
+        },
+        "notes": [
+          "Finalized close · Oct 29",
+          "not a current reading — this is Finalized close · Oct 29; a current reading is unavailable",
+          "this measure has no validated live reading — the value is the newest finalized session's"
+        ],
+        "provider_calls": 0
+      },
+      "expect": {
+        "freshness_class": "historical",
+        "as_of_renderings": [
+          "2026-10-29",
+          "Oct 29",
+          "October 29"
+        ],
+        "may_claim_live": false,
+        "must_disclose_stale": true,
+        "must_say_unavailable": false,
+        "must_not_state_a_value": false,
+        "must_disclose": [
+          "Finalized close"
+        ],
+        "as_of_null_reason_required": false
+      },
+      "expect_refusal": false
+    },
+    {
+      "id": "rt-current",
+      "category": "periodic",
+      "kind": "ratings",
+      "purpose": "answer",
+      "question": "What's AAPL's UCT rating now?",
+      "envelope": {
+        "contract": "MD-1.0",
+        "kind": "ratings",
+        "params_echo": {},
+        "status": "ok",
+        "freshness": "periodic",
+        "as_of": "2026-10-30T20:00:00Z",
+        "fetched_at": "2026-11-02T16:55:00Z",
+        "delay_s": null,
+        "stale": false,
+        "source": "uct-ratings",
+        "coverage": null,
+        "data": {
+          "symbol": "AAPL",
+          "composite": 82,
+          "price_as_of": "2026-10-30",
+          "complete": true
+        },
+        "notes": [
+          "UCT Ratings are UCT's own computed scores (1–99), not a third-party analyst rating",
+          "the fundamental and ownership inputs carry no date; as_of is the price data's last session"
+        ],
+        "provider_calls": 3
+      },
+      "expect": {
+        "freshness_class": "periodic",
+        "as_of_renderings": [
+          "2026-10-30",
+          "Oct 30",
+          "October 30"
+        ],
+        "may_claim_live": false,
+        "must_disclose_stale": false,
+        "must_say_unavailable": false,
+        "must_not_state_a_value": false,
+        "must_disclose": [
+          "UCT"
+        ],
+        "as_of_null_reason_required": false
+      },
+      "expect_refusal": false
+    },
+    {
+      "id": "rt-partial",
+      "category": "partial",
+      "kind": "ratings",
+      "purpose": "answer",
+      "question": "What's JAZZ's composite rating?",
+      "envelope": {
+        "contract": "MD-1.0",
+        "kind": "ratings",
+        "params_echo": {},
+        "status": "partial",
+        "freshness": "periodic",
+        "as_of": "2026-10-30T20:00:00Z",
+        "fetched_at": "2026-11-02T16:55:00Z",
+        "delay_s": null,
+        "stale": false,
+        "source": "uct-ratings",
+        "coverage": null,
+        "data": {
+          "symbol": "JAZZ",
+          "composite": 70,
+          "price_as_of": "2026-10-30",
+          "complete": false
+        },
+        "notes": [
+          "UCT Ratings are UCT's own computed scores (1–99), not a third-party analyst rating",
+          "the fundamental and ownership inputs carry no date; as_of is the price data's last session",
+          "one or more inputs could not be read; the scores are built on what was available"
+        ],
+        "provider_calls": 3
+      },
+      "expect": {
+        "freshness_class": "periodic",
+        "as_of_renderings": [
+          "2026-10-30",
+          "Oct 30",
+          "October 30"
+        ],
+        "may_claim_live": false,
+        "must_disclose_stale": false,
+        "must_say_unavailable": false,
+        "must_not_state_a_value": false,
+        "must_disclose": [
+          "could not be read"
+        ],
+        "as_of_null_reason_required": false
+      },
+      "expect_refusal": false
+    },
+    {
+      "id": "br-research-refused",
+      "category": "isolation",
+      "kind": "breadth.current",
+      "purpose": "research",
+      "question": "(research) Use current breadth to plan a scan.",
+      "envelope": {
+        "contract": "MD-1.0",
+        "kind": "breadth.current",
+        "params_echo": {
+          "metric": "pct_above_50sma"
+        },
+        "status": "refused",
+        "freshness": "unavailable",
+        "as_of": null,
+        "fetched_at": "2026-11-02T16:55:00Z",
+        "delay_s": null,
+        "stale": false,
+        "source": "uct-agent-gateway",
+        "coverage": null,
+        "data": null,
+        "notes": [
+          "this data is shown to the member only and is never used for research"
+        ],
+        "provider_calls": 0
+      },
+      "expect": {
+        "freshness_class": "unavailable",
+        "as_of_renderings": [],
+        "may_claim_live": false,
+        "must_disclose_stale": false,
+        "must_say_unavailable": true,
+        "must_not_state_a_value": true,
+        "must_disclose": [],
+        "as_of_null_reason_required": false
+      },
+      "expect_refusal": true
+    }
+  ]
+}
