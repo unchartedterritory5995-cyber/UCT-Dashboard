@@ -8,10 +8,11 @@ once on first use; nobody edits gateway.py to add a kind. Every kind's pure para
 Sprint 1, PR 1: `quote`, `quotes` (services/massive.py snapshot, read-only — see quotes.py).
 Sprint 1, PR 2: `bars.daily` (the canonical bars store via bars_fetch, read-only — see bars_daily.py).
 Sprint 1, PR 3: `fundamentals` (financial_statements), `earnings` (earnings_table), `news.company` (news store).
+Sprint 1, PR 4a: `themes` (theme_performance overlay, read without building).
 """
 from __future__ import annotations
 
-from api.services.uct_agent.marketdata import bars_daily, earnings, news_company, quotes, statements
+from api.services.uct_agent.marketdata import bars_daily, earnings, news_company, quotes, statements, themes
 
 
 def register(registry) -> None:
@@ -57,4 +58,11 @@ def register(registry) -> None:
         description="Published company news from UCT's news store (no provider call, no body text); as_of is the "
                     "newest item; stale when news ingest has not succeeded for an hour. "
                     f"Params: {{symbol, limit (1-{news_company.MAX_LIMIT})}}.",
+    ))
+    registry.register(Kind(
+        name="themes", fn=themes.read_themes, validate=themes.validate, freshness="periodic", owner="agent-md",
+        max_symbols=0,
+        description="Equal-weight returns of UCT's curated themes (the Theme Tracker payload), read without "
+                    "building it — 'theme data is warming' when no complete overlay exists. "
+                    f"Params: {{period: {'|'.join(themes.PERIODS)}, order: leaders|laggards, limit (1-{themes.MAX_LIMIT})}}.",
     ))

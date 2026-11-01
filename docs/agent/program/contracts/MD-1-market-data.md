@@ -1,8 +1,8 @@
-# MD-1 — UCT market-data contract (v1.2)
+# MD-1 — UCT market-data contract (v1.3)
 
 - **Owner:** agent-md implements the kinds. agent-lead owns `gateway.py` and `envelope.py`, the framework every consumer relies on.
 - **Consumers:** agent-sc, agent-rs, agent-qa, and later the D and G workstreams.
-- **Status:** v1.2 (additive over v1.1; v1.1 over v1.0; both acked by agent-lead 2026-11-01). See §9 for what changed. The envelope's wire field `contract` stays `"MD-1.0"`: v1.1 adds no envelope field.
+- **Status:** v1.3 (v1.1–v1.3 each additive or a scope reduction, all acked by agent-lead 2026-11-01). See §9 for what changed. The envelope's wire field `contract` stays `"MD-1.0"`: v1.1 adds no envelope field.
 - **Changes:** see §8.
 
 ## 1. Purpose
@@ -67,9 +67,8 @@ Each kind wraps the canonical service listed. **No new upstream connection, WebS
 | `earnings` | `services/earnings_table.py` `get_earnings_table` (the layer over `earnings_estimates`) | periodic | `stale_quarters` ≥ 2 (its own `reported_staleness`) | Event-driven results stay class `periodic`. Reported rows carry only a fiscal label, so `as_of` is null with a note; `next_report` is a scheduled event, never `as_of`. See §4.2. |
 | `news.company` | `services/news/store.py` `feed` (UCT's own store; no provider call) | periodic | news **ingest** has not succeeded for 1 hour | Item `as_of` = `published_at`; the envelope `as_of` is the newest item. A quiet company is not stale. No body text. See §4.2. |
 | `breadth.current` | `services/breadth_current.py` (MI-owned) | periodic | its own `stale` flag | Delegate; never copy breadth data. The V2 runner is the only producer. |
-| `nhnl` | `services/nhnl_live.py` | periodic | 30 min in session | `asof` → `as_of` |
-| `themes` | `services/theme_performance.py` | periodic | 1 day | `generated_at` → `as_of` |
-| `volume.surge` | `services/volume_live.py` | periodic | 30 min in session | `asof` → `as_of` |
+| `nhnl` | — **not a separate kind** (v1.3) | — | — | 52-week / 20-day new highs and lows are METRICS of `breadth.current` (`new_52w_highs`, `new_52w_lows`, `net_new_high_low`, `new_20d_highs`, `new_20d_lows`), tier `finalized_only`. `services/nhnl_live.py` is an intraday high-of-day / low-of-day EVENT COUNTER, a different metric with no vendor time, and is **not exposed**. |
+| `themes` | `services/theme_performance.py` overlay, read **without building** (§4.3) | periodic | the base predates the last completed session | Never spends provider calls: no complete overlay ⇒ `unavailable` (“theme data is warming”). See §4.3. |
 | `ratings` | `services/research/ratings.py` | periodic | 1 day | |
 
 ### 4.1 `quote` / `quotes` freshness (v1.1)
@@ -120,6 +119,25 @@ All three are class `periodic`; none is ever worded as live or "now". The stale 
 - Item fields: `headline, url, source, source_class, category, sentiment, as_of`.
 
 The canonical services' own stale-while-revalidate refresh and the news store's first-use schema init are each service's own behaviour (agent-lead, 2026-11-01). The adapters add no job, connection or write.
+
+### 4.3 `themes` (v1.3) and relative volume
+
+**`themes`**
+- Source, in order:
+  1. the shared overlaid cache (`theme_performance._OVERLAID_KEY`);
+  2. the member route's last complete overlay (`api/routers/theme_performance._THEME_STALE.peek`, within the route's age bound);
+  3. otherwise `unavailable` with the note `theme data is warming — no complete theme overlay is available yet` and `provider_calls` 0. A cold rebuild is about 22 Massive calls, more than a turn's budget.
+- **`as_of`:**
+  - while a US session can print (`prices_moving()`), the overlay re-prices every period and carries only UCT's apply time. So `as_of` is null, `data.live_applied_at` gives that time, and the note `returns include intraday prices applied by UCT at {at} (UCT's apply time; the vendor's observation time is not carried) — not a live feed` is added. It is never worded as live;
+  - otherwise `as_of` is the last completed session's close (note `returns are as of the last completed session's close`).
+- `stale` when the base's `generated_at` predates the last completed session.
+- A theme with no value for the requested period counts as `not_computable`, and makes the read `partial`.
+- Row fields: `name, ticker, sector, return_pct, holdings`. Params: `period` ∈ 1d, 1w, 1m, 3m, 1y, ytd, `order` ∈ leaders · laggards, `limit` ≤ 30.
+
+**Relative volume is not an MD-1 kind (v1.3).**
+- The canonical relative volume is the **screener's**: `rvol_live` (today's volume ÷ (30-day average × the ticker's own intraday curve, else the market's): time-of-day adjusted) and `vol_ratio` (full-day: today's volume over a mean of prior volumes, **not** time-of-day adjusted).
+- Both are read through SC-1's `screen.run`. A "volume surge" answer is `screen.run` sorted by `rvol_live`, labelled "vs 30-day average at this time of day".
+- `services/volume_live.py`, which uses a previous-day baseline × one market curve, is not exposed. No Agent code computes relative volume itself.
 
 **Deferred until a verifying spike is done (agent-md, ADR-003):**
 - **`flow.summary`:** only through the existing flow proxy (`api/flow_proxy.py`), after verifying from `web` that the data is really available. Never by importing `flow_router` in-process: `flow.db` lives on flow-worker. Never a second Massive connection.
@@ -174,6 +192,7 @@ QA's suite runs `validate_envelope` against every registered kind using its fixt
 
 ## 9. Changelog
 
+- **v1.3 (2026-11-01, agent-md, rulings by agent-lead):** `themes` source and time semantics (§4.3); `volume.surge` REMOVED (relative volume is the screener's, via SC-1); `nhnl` folded into `breadth.current` metrics, `nhnl_live` not exposed. No envelope change.
 - **v1.2 (2026-11-01, agent-md):** additive. `fundamentals`, `earnings` and `news.company` sources are named in §4 (`financial_statements`, `earnings_table`, the news store), and their stale budgets are restated to measure the data (§4.2). Every class stays `periodic`; the wire `contract` stays `"MD-1.0"` (§8.4).
 - **v1.1 (2026-11-01, agent-md, acked by agent-lead):** additive. `quote`/`quotes` classify extended hours by vendor timestamp; each row gains `last_source`; a close-priced row in a live read makes it `partial` and is excluded from `as_of`; `data.session` becomes `regular` · `extended` · `closed`. The pre-market note contradiction is removed (§4.1). No envelope field changed.
 - **v1.0 (2026-11-01):** first accepted version.

@@ -36,7 +36,17 @@ Only agent-md edits this file. Update it in every PR.
   0 calls). All `periodic`. MD-1 **v1.2** (§4 rows + §4.2, constants quoted from the modules). Tests 36,
   mutation-checked; clock-clean (fixed NOW_TS literal, adapters' clocks frozen — agent-qa F-8); exact news-ingest
   boundary (exclusive) and UTC-midnight flip for fundamentals pinned.
-- Next: PR 4 breadth.current / nhnl / themes / volume.surge / ratings; ADR-003 flow/darkpool spike (draft);
+- **PR 4a — `themes`** (branch `agent/md/pr4a-themes`, **stacked on #585** — both edit `kinds.py`). Reads
+  the theme overlay WITHOUT building it (shared cache, then the route's last complete overlay, else
+  "theme data is warming", 0 calls — a cold build is ~22 Massive calls). While prices move `as_of` is null and
+  `live_applied_at` is UCT's apply time (never live); otherwise the last session close. MD-1 **v1.3**:
+  `volume.surge` removed (relative volume = screener `rvol_live`/`vol_ratio` via SC-1), `nhnl` folded into
+  `breadth.current` metrics, `nhnl_live` not exposed. Tests 15, mutation-checked.
+- **PR 4b — `breadth.current` (+ NH/NL metrics) and `ratings`**: rulings received; both MODEL-ISOLATED
+  (purpose "answer" only). Waiting on agent-lead's `model_isolated=True` Kind attribute in gateway.py.
+- **Open measurement:** `news.company`'s `store.health_snapshot()` runs COUNT(*) over news_items/news_tickers per
+  read — cost on the production DB size must be measured and recorded here before any flag goes on (agent-lead).
+- Next: PR 4b after the gateway PR; ADR-003 flow/darkpool spike (draft);
   freshness eval corpus with agent-qa.
 
 ## Blockers

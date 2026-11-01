@@ -285,7 +285,7 @@ def test_bad_params_are_refused_before_admission(monkeypatch, kind, params):
 
 def test_the_contract_doc_states_the_budgets_and_notes():
     doc = (_ROOT / "docs/agent/program/contracts/MD-1-market-data.md").read_text(encoding="utf-8")
-    assert "(v1.2)" in doc.splitlines()[0]
+    assert "### 4.2 `fundamentals` / `earnings` / `news.company` (v1.2)" in doc   # the section, not the header
     for s in (f"{stm.STALE_AFTER_DAYS} days", f"`stale_quarters` ≥ {ern.STALE_QUARTERS}", "financial_statements",
               "earnings_table", stm.NOTE_PERIODIC, ern.NOTE_EVENT, nc.NOTE_INGEST_STALE):
         assert s in doc, s
