@@ -3526,6 +3526,19 @@
       "baked_measured_on": "e6ca532c6 — same commit, same reason",
       "last_changed": "2026-09-13 (row added; the flag itself has never been on)",
       "note": "PLACEMENT, not a feature gate, and NOT the member-pane flag despite the word 'volume' in both names — read by app/src/components/chart/engine/placement.js::volumeNumericPaneEnabled, it decides whether a definition already overlaid on the volume pane gets its OWN pane and right axis instead of the shared left one. Turning it on does nothing for uncharted-volume.pine. The collision cost a full re-read of resolvePlacement to rule out, which is why both flags now say in writing what the other one is not. Same Dockerfile ARG gap, fixed in the same commit."
+    },
+    "VITE_SAVED_SCRIPT_UPGRADE": {
+      "status": "armed",
+      "where": [
+        "web"
+      ],
+      "owner": "pine parity programme",
+      "owner_decision": "owner ruling 2026-11-01: saved scripts pick up engine accuracy fixes automatically (PR #610); default ON",
+      "railway_value": "UNSET on every service (unset = ON; only the literal '0' disables)",
+      "baked_value": "undefined, which the read treats as ON",
+      "baked_measured_on": "2026-11-01, from Dockerfile.web's ARG list (declared in this commit; #610 shipped the read without it and the master deploy gate held production)",
+      "last_changed": "2026-11-01T00:00:00Z",
+      "note": "Kill switch for saved-script auto-upgrade, read in ONE place: app/src/components/chart/builder/memberPane/savedScriptUpgrade.js::savedScriptUpgradeEnabled as `(env.VITE_SAVED_SCRIPT_UPGRADE ?? '1') !== '0'`. ON (unset): a saved Pine doc whose meta.engineVersion is older than SCRIPT_ENGINE_VERSION and that carries its stored source is re-translated after first paint and written back once. Rollback: set the variable to 0 on web and redeploy (build constant). Declared as a build ARG in Dockerfile.web because Railway drops undeclared build args silently."
     }
   },
   "knobs": {

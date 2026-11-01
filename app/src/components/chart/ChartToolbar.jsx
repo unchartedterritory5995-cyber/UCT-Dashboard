@@ -1355,6 +1355,21 @@ function ChartToolbar({
       setBuilderOpen(true)
       return true
     },
+    // ⭐⭐ SAVED-SCRIPT AUTO-UPGRADE — the legend row "Updated accuracy available":
+    // the builder opened on the script document's Pine tab, for its one-time
+    // re-save from source (`BuilderSheet.openForEdit`, `row.upgradeScript`).
+    openScriptUpgrade: (opts = null) => {
+      if (!canManageIndicators) return false
+      const row = rowFor(opts)
+      if (!row) return false
+      setLibraryOpen(false)
+      setCreateOpen(false)
+      setBuilderEditRow({ ...row, upgradeScript: true })
+      setBuilderMode(null)
+      setBuilderEverOpened(true)
+      setBuilderOpen(true)
+      return true
+    },
     // ⭐ PHASE 4 — "Create custom copy": a NEW, independent definition (`definitionActions`),
     // added to this chart, then opened for editing — in the studio when the member has
     // UCT Intelligence, else in the formula editor.
