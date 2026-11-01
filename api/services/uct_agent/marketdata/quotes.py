@@ -204,12 +204,34 @@ def _read(kind: str, params: dict, symbols_raw: Any) -> dict:
                              data=data, stale=stale, coverage=coverage, notes=notes, provider_calls=calls)
 
 
+def validate_quote(params: dict) -> Optional[str]:
+    """Pure pre-admission check (Kind.validate): a malformed request is refused and spends no budget."""
+    valid, rejected = _norm_symbols(params.get("symbol"))
+    if not valid:
+        return "a valid ticker symbol is required" + (f" (got {rejected[0]!r})" if rejected else "")
+    return None
+
+
+def validate_quotes(params: dict) -> Optional[str]:
+    """Pure pre-admission check. Refuses a request with NO valid symbol; a list with SOME invalid entries
+    is admitted and answered `partial`, naming them (the valid ones are still worth one provider call)."""
+    syms = params.get("symbols")
+    if not isinstance(syms, list):
+        return "`symbols` must be a list of tickers"
+    if not _norm_symbols(syms)[0]:
+        return "no valid ticker symbol was given"
+    return None
+
+
 def read_quote(params: dict, ctx: dict) -> dict:  # noqa: ARG001 — ctx is unused: no per-user state
+    why = validate_quote(params)
+    if why:
+        return env.unavailable("quote", params, SOURCE, why)
     return _read("quote", params, params.get("symbol"))
 
 
 def read_quotes(params: dict, ctx: dict) -> dict:  # noqa: ARG001
-    syms = params.get("symbols")
-    if not isinstance(syms, list):
-        return env.unavailable("quotes", params, SOURCE, "`symbols` must be a list of tickers")
-    return _read("quotes", params, syms)
+    why = validate_quotes(params)
+    if why:
+        return env.unavailable("quotes", params, SOURCE, why)
+    return _read("quotes", params, params["symbols"])
