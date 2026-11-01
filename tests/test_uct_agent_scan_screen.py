@@ -55,13 +55,19 @@ def test_both_kinds_register_as_scan_kinds_owned_by_agent_sc(on):
 
 
 @pytest.mark.parametrize("data,scan", [("", ""), ("1", ""), ("", "1")])
-def test_refused_unless_both_flags_are_on(monkeypatch, snap, data, scan):
+def test_refused_unless_both_flags_are_on_and_nothing_executes(monkeypatch, snap, data, scan):
+    from api.services.screener import query
+    ran = []
+    for fn in ("run_scan", "preview_count", "coverage_for", "build_scan_sql"):
+        monkeypatch.setattr(query, fn, lambda *a, _fn=fn, **k: ran.append(_fn))
     monkeypatch.setenv("UCT_AGENT_DATA", data)
     monkeypatch.setenv("UCT_AGENT_SCAN", scan)
     gateway._reset_for_test()
-    out = _read("screen.run", {"spec": RS_SPEC})
-    assert out["status"] == "refused" and out["data"] is None
-    assert env.validate_envelope(out) == []
+    for kind in ("screen.run", "screen.count"):
+        out = _read(kind, {"spec": RS_SPEC}, turn=f"off-{kind}")
+        assert out["status"] == "refused" and out["data"] is None
+        assert env.validate_envelope(out) == []
+    assert ran == []                       # no screener function ran while dark
 
 
 # ── screen.run ──────────────────────────────────────────────────────────────────────────────────
