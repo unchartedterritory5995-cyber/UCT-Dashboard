@@ -19,7 +19,7 @@ from api.services.uct_agent.marketdata import gateway as gw
 from api.services.uct_agent.marketdata import quotes as q
 
 _ROOT = pathlib.Path(__file__).resolve().parents[1]
-NOW = time.time()
+NOW = 1793000000.0   # fixed: the adapter clock is frozen to this (see _env), so no wall clock is needed
 
 
 def _tick(sym, price=100.0, observed=NOW - 5, **extra):
