@@ -26,7 +26,7 @@ import { setAuthoringSources, draftAmbiguity, selectDraft, isDraftAction, lastSa
 import { fastParse, matchPosition } from './fastPath'
 import { screenNewChart } from './capabilities/workspace'
 import { resolveDeictic, screenDeicticOps, screenUnnamedTargets, pickedChoice, chartRefOf } from './deixis'
-import { multiChartPlan, screenChartGrid } from './multiChart'
+import { multiChartPlan, screenChartGrid, isWorkspaceRequest } from './multiChart'
 import { planOps, prepareOps, collectTargets, undoNotesFor, approvalBinding, bindingDrift } from './executor'
 import { decideMode } from './policy'
 import { commitPlan, undoEntry, undoEntryFor } from './runtime'
@@ -40,7 +40,7 @@ import { doItForMe } from './capabilities/guide'
 import { createMemory, tickersOfAnswer } from './memory'
 import { resolveReference, subjectTarget, pluralTarget, retargetCorrection } from './references'
 import { resolveFollowUp, resolvePicked } from './conversation'
-import { planCompound, resolveStep, chartsShowing, MAX_STEP_OPS } from './compound'
+import { planCompound, resolveStep, chartsShowing, MAX_STEP_OPS, workspaceConflict, workspaceQuestion, workspaceSteps, WORKSPACE_CHOICES } from './compound'
 import { screenDuplicateAdds, wantsCopy } from './duplicates'
 import { nl1Enabled, exactLane, buildNl1Request, correctionPlan, preflightRefusals, repairedDisposition, withoutWordingApprovals } from './nl1/interpreter'
 import { NL1_MAX_NEED } from './nl1/selection'
@@ -356,6 +356,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
   const saidRef = useRef('')                // the member's words this turn (how much an answer shows)
   const memoryRef = useRef(null)            // GATE C session memory (agent/memory.js) — this chat only
   const tapRef = useRef(null)               // ⭐ PHASE 2: outcome kinds recorded while one step of a multi-step request runs
+  const runCompoundRef = useRef(null)       // ⭐ PHASE 3 acceptance: approve() resumes a whole workspace (defined after it)
   // NL-1 (flag off by default): the question UCT is waiting on, sent to the model with the next message
   // (pending_question) so a TYPED answer is read with the question in front of it
   const lastQuestionRef = useRef(null)      // the newest question shown (local or the model's)
@@ -1096,7 +1097,22 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     }
     patchItem(p.id, { status: 'approved' })
     const ops = count ? p.ops.slice(0, count) : p.ops
-    await execute(ops, { path: 'approved', mode: 'approved', member, voice, approval: p.seals || null, card: p.card || null, binding: p.binding, subset: !!count && count < p.ops.length })
+    // ⭐ PHASE 3 acceptance: the card was one step of a whole workspace the member chose ("Replace current board" / "New
+    // layout") — once it has landed in full, the rest of that request runs, each step through the same execute
+    const kinds = p.then ? [] : null
+    if (kinds) tapRef.current = kinds
+    try {
+      await execute(ops, { path: 'approved', mode: 'approved', member, voice, approval: p.seals || null, card: p.card || null, binding: p.binding, subset: !!count && count < p.ops.length })
+    } finally { if (kinds) tapRef.current = null }
+    if (!p.then) return
+    const t = p.then
+    if (!count && kinds.includes('applied') && kinds.every(k => k === 'applied' || k === 'noop')) {
+      await runCompoundRef.current?.(t.steps, { member: t.member, voice: t.voice, working: t.grid ? chartsShowing(host, t.grid) : t.working })
+    } else {
+      const text = `I stopped there, so nothing after it was started: ${t.steps.map(x => `“${x.text}”`).join(', ')}.`
+      push({ role: 'agent', text })
+      record({ member, outcome: text, outcomeData: { kind: 'compound-stopped' }, telemetry: { path: 'approved', refused: true, voice } })
+    }
   }, [execute, patchItem, push, record, host])
 
   const dismiss = useCallback(({ member } = {}) => {
@@ -1117,6 +1133,15 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     if (!p.draft && p.epoch !== epochOf(host)) {
       push({ role: 'refusal', text: "A different layout is open now, so I didn't change anything. Ask again." })
       return
+    }
+    if (p.workspace) {
+      // ⭐ PHASE 3 acceptance: replace the board, or build the whole workspace in a new layout — then the WHOLE request runs
+      if (ref === 'workspace:new' && !host?.layouts) {
+        push({ role: 'refusal', text: 'Layouts aren’t available here, so I can’t build it in a new layout. Nothing changed.' })
+        return
+      }
+      const entries = (() => { try { return host?.layouts?.snapshot?.()?.entries || [] } catch { return [] } })()
+      return await runCompoundRef.current?.(workspaceSteps(p.workspace.steps, ref, host, entries), { member: `${p.member || ''} → ${label}`, voice: p.voice })
     }
     if (p.follow) {
       // ⭐ PHASE 2: "which one?" about the conversation's indicators — the same words, on the one picked
@@ -1149,8 +1174,8 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
   // live board, each step through the ordinary execute (own plan, policy, receipt, Undo). A step that does not fully
   // land — refused, failed, asking, or waiting for approval — STOPS the request: what was done and what was not is
   // said plainly, never reported as the whole request.
-  const runCompound = useCallback(async (steps, { member, voice }) => {
-    let working = null
+  const runCompound = useCallback(async (steps, { member, voice, working: working0 = null }) => {
+    let working = working0
     let done = 0
     const stop = (i, why) => {
       const rest = steps.slice(i).map(s => `“${s.text}”`)
@@ -1175,6 +1200,16 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       const landed = kinds.includes('applied') || kinds.includes('noop')
       const off = kinds.filter(k => k !== 'applied' && k !== 'noop')
       if (!landed || off.length) {
+        // ⭐ PHASE 3 acceptance: a step of the whole workspace the member chose that needs their approval (replacing the
+        // board, creating the layout) — the rest waits on THAT card and runs when they approve it (approve())
+        if (step.resume && off.length && off.every(k => k === 'proposed') && pendingRef.current?.kind === 'proposal') {
+          const rest = steps.slice(i + 1)
+          if (rest.length) {
+            pendingRef.current = { ...pendingRef.current, then: { steps: rest, grid: r.grid || null, working, member, voice } }
+            push({ role: 'outcome', text: `When you approve the card above, I'll carry on with the rest: ${rest.map(x => `“${x.text}”`).join(', ')}.` })
+          }
+          return
+        }
         const why = off.includes('proposed') ? 'that step needs your approval first — the card above'
           : off.some(k => k.startsWith('clarify')) ? 'that step needs your answer first'
             : 'that step didn’t fully go through (see above)'
@@ -1187,6 +1222,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     // one step ("put rsi underneath"): its own receipt says it all
     if (steps.length > 1) push({ role: 'agent', text: `All ${steps.length} steps done.` })
   }, [host, execute, push, record])
+  runCompoundRef.current = runCompound
 
   const send = useCallback(async (raw, { voice = false, answering = false } = {}) => {
     const text = String(raw || '').trim()
@@ -1471,13 +1507,35 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       }
       // ⭐ PHASE 2: one message, several steps ("create four daily charts for …, put the 9 and 20 on all of them, make the
       // 9 green …") — only when EVERY clause reads as a step; otherwise the model reads the whole request, as before
-      const compound = followable && !fast ? planCompound(text, { host }) : null
+      // ⭐ PHASE 3 acceptance (live 2026-10-31): a WHOLE workspace typed while an earlier card is still waiting is a new
+      // request, not an answer to that card — it is read here (the card is set aside, nothing from it applied) instead of
+      // going to the model with the card as context. Anything else typed over a card goes on exactly as before.
+      const overCard = !followable && !fast && !answering && !memRef && !peekAuthoringIntent() && pendingRef.current?.kind === 'proposal'
+      const compound0 = (followable || overCard) && !fast ? planCompound(text, { host }) : null
+      const compound = overCard && !(compound0?.steps?.[0]?.kind === 'grid' && isWorkspaceRequest(compound0.steps[0].text)) ? null : compound0
       if (compound?.say) {
         push({ role: 'agent', text: compound.say })
         record({ member: text, outcome: compound.say, outcomeData: { kind: 'compound-too-long' }, telemetry: { path: 'fast', refused: true, voice } })
         return
       }
-      if (compound?.steps) return await runCompound(compound.steps, { member: text, voice })
+      if (compound?.steps) {
+        if (overCard) {
+          const old = pendingRef.current
+          pendingRef.current = null
+          patchItem(old.id, { status: 'dismissed' })
+          push({ role: 'outcome', text: 'I set the earlier proposal aside — nothing from it was applied.' })
+        }
+        // ⭐ PHASE 3 acceptance: a whole workspace on a board holding widgets it does not include — asked ONCE, locally
+        const conflict = workspaceConflict(host, compound.steps)
+        if (conflict) {
+          const q = workspaceQuestion(conflict)
+          pendingRef.current = { kind: 'target', ops: [], path: 'fast', member: text, voice, epoch: epochOf(host), workspace: { steps: compound.steps } }
+          push({ role: 'question', text: q, choices: [...WORKSPACE_CHOICES, { label: 'Cancel', cancel: true }], local: true })
+          record({ member: text, outcome: q, outcomeData: { kind: 'clarify-workspace' }, telemetry: { path: 'fast', disposition: 'clarify', voice } })
+          return
+        }
+        return await runCompound(compound.steps, { member: text, voice })
+      }
       } // ── end of the legacy instant path ──
       // ── model path ──
       // Context from every registered provider; actions from every AVAILABLE
