@@ -153,6 +153,33 @@ LEGACY = {  # v1-v4 bare name -> v6 name (only applied when the script's version
 LEGACY_COLOURS = {"aqua", "black", "blue", "fuchsia", "gray", "green", "lime", "maroon", "navy", "olive",
                   "orange", "purple", "red", "silver", "teal", "white", "yellow"}
 
+# ⭐⭐ WS-C (2026-10-31) — `conditional-ta`: a `ta.*` CALL WRITTEN INSIDE a block
+# that does not run on every bar (an `if` / `else` / `switch` arm, a `for` /
+# `while` body) or inside a user function's body. Pine keeps such a call's
+# history PER CALL SITE (C48, `vw-call-site-history`), which the runtime lane
+# serves for `ta.sma` / `ta.ema` in a root-level block and refuses by name
+# (`runtime:conditional-history`, R4) everywhere else.
+#
+# ⛔ BLOCK-AWARE, NOT "the script has an `if` and a `ta.`". The header line's own
+# condition (`if ta.crossover(a, b)`) runs every bar and does NOT count; only a
+# DEEPER-indented line in the header's contiguous block does (blank lines may sit
+# inside it). Each alternative is deterministic (`[ \t]+\S` cannot split two
+# ways), so the scan is linear per header, never exponential.
+# ⛔ v1-v4 spell the same calls bare (`sma(`, `rsi(`), so the bare names Pine had
+# before namespaces are matched too; a v5+ user function that reuses one of
+# those names is over-reported, which is the safe direction for a grading gate.
+_COND_TA_BARE = ("sma|ema|rma|wma|vwma|swma|hma|alma|linreg|rsi|atr|tr|stdev|dev|variance|"
+                 "highest|lowest|highestbars|lowestbars|change|mom|roc|cum|sum|crossover|crossunder|"
+                 "cross|valuewhen|barssince|pivothigh|pivotlow|rising|falling|correlation|percentrank|"
+                 "percentile_linear_interpolation|percentile_nearest_rank|median|mode|range|stoch|cci|"
+                 "mfi|cmo|tsi|bb|bbw|kc|kcw|macd|dmi|sar|supertrend|vwap|wpr|cog")
+_COND_TA_CALL = r"(?<![\w.])(?:ta\.\w+|(?:%s))\s*\(" % _COND_TA_BARE
+_COND_TA_HEADER = (r"(?:(?:[\w\[\], ]+=\s*)?(?:if|for|while|switch)\b|else\b"
+                   r"|(?:export\s+)?(?:method\s+)?\w+\s*\([^()\n]*\)\s*=>[ \t]*$)")
+COND_TA_RX = (r"^(?P<ci>[ \t]*)%s[^\n]*\n(?:[ \t]*\n|(?P=ci)[ \t]+\S[^\n]*\n)*?(?P=ci)[ \t]+(?=\S)[^\n]*?%s"
+              r"|^[ \t]*(?:export\s+)?(?:method\s+)?\w+\s*\([^()\n]*\)\s*=>[^\n]*?%s"
+              % (_COND_TA_HEADER, _COND_TA_CALL, _COND_TA_CALL))
+
 FEATURES = [  # (id, label, regex over comment/string-stripped code, flags)
     ("var", "var declarations (state that persists across bars)", r"^\s*var\s+", re.M),
     ("varip", "varip (intrabar-persistent state, realtime only)", r"\bvarip\b", 0),
@@ -179,6 +206,8 @@ FEATURES = [  # (id, label, regex over comment/string-stripped code, flags)
     ("method-call", "method-call syntax  x.f(...) on a value", r"(?!)", 0),
     ("max_bars_back", "max_bars_back", r"\bmax_bars_back\b", 0),
     ("ternary", "?: ternary", r"\?[^?:\n]+:", 0),
+    ("conditional-ta", "ta.* called inside an if / loop / switch arm or a function body (per-call-site history)",
+     COND_TA_RX, re.M),
 ]
 
 
