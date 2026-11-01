@@ -211,9 +211,9 @@ window.fetch = (input, init) => {
       watch: 'Company follow-up details, sector peers, analyst estimate revisions', generated_at_ms: NOW,
       cached: false, version: 'v1' })
   }
-  // Send to Notebook: the Notebook's inbox, in page memory (the capture door posts here when
-  // there is no current note).
-  if (method === 'POST' && path === '/api/j2/inbox') {
+  // Send to Notebook: any Notebook write (the capture door's current note or its inbox),
+  // recorded in page memory -- never the network.
+  if (method === 'POST' && path.startsWith('/api/j2/')) {
     NOTEBOOK.push(JSON.parse((init && init.body) || '{}'))
     return json({ id: `inbox${NOTEBOOK.length}` })
   }
