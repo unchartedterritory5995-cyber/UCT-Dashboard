@@ -5231,6 +5231,13 @@ def _scan_chart_clock(tree: Any):
     return anchors, closes, owns, sixties, folds, nested, leaves
 
 
+def _date_keyed(bars) -> bool:
+    """Does any bar carry a DATE key rather than an instant? Mirrors
+    ``interpret.js::dateKeyed``: only a date-keyed daily bar is stamped 09:30 New
+    York by this engine, so only it can be read off the wrong clock on FX."""
+    return any(isinstance(b, dict) and isinstance(b.get("t"), str) for b in (bars or []))
+
+
 def _name_chart_clock(opts, codes) -> None:
     sink = (opts or {}).get("chartClockSink")
     if isinstance(sink, dict):
@@ -5246,7 +5253,7 @@ def _chart_clock_whole(tree: Any, bars: List[dict], inputs, budget, scalars, opt
     tf = (opts or {}).get("tf")
     # 2026-10-31 -- a time-of-day leaf is asked about on a DAILY chart only, the one
     # timeframe ``chart_clock_regime`` can call FX-shaped (``one-weekend-day``)
-    day_leaves = bool(leaves) and tf == "D"
+    day_leaves = bool(leaves) and tf == "D" and _date_keyed(bars)
     if not clocked and not folds and not day_leaves:
         return None
     why: List[str] = []
@@ -5272,7 +5279,7 @@ def _chart_clock_whole(tree: Any, bars: List[dict], inputs, budget, scalars, opt
     kind = regime["kind"]
     if kind == "unreadable":
         add("time-clock:unreadable")
-    if kind == "one-weekend-day" and (leaves or owns or sixties):
+    if kind == "one-weekend-day" and _date_keyed(bars) and (leaves or owns or sixties):
         add("time-clock:weekend-session")
     if anchors:
         if kind == "unwitnessed":

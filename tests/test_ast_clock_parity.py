@@ -29,7 +29,6 @@ import pytest
 
 from api.services import ast_interpret as ai
 from api.services import ast_table
-from api.services import indicator_compute as ic
 from api.services.indicator_compute import compute_clock
 
 FIXTURE = pathlib.Path(__file__).parent / "fixtures" / "ast" / "clock_parity.json"
@@ -304,21 +303,9 @@ def test_TIME_CLOSE_and_TIMEFRAME_CHANGE_match_the_other_lane_on_every_close_cas
     cases = doc["close_cases"]
     assert set(cases) == set(doc["close_expected"])
     for case_name, case in sorted(cases.items()):
-        # ⭐ 2026-10-31 (``fix/fx-clock-blank``): the CLOCK COLUMN, as the JS side
-        # reads it (``clockParity.test.js`` calls ``computeClock``). Through
-        # ``interpret`` a time-of-day leaf on a daily series with one weekend day
-        # but not the other is now withheld whole by the chart-clock decision
-        # (``time-clock:weekend-session``) -- ``daily_instants`` holds one Saturday
-        # bar on purpose -- which is a property of the tree, not of the clock.
-        cols = ic.compute_clock(case["bars"], case["tf"], False)
         for name, want in sorted(doc["close_expected"][case_name].items()):
-            _same(cols[name], want, f"{case_name}.{name}")
-    sink: dict = {}
-    withheld = ai.interpret(_leaf("timeclose"), cases["daily_instants"]["bars"],
-                            opts={"tf": "D", "newest_bar_is_forming": False, "chartClockSink": sink})
-    assert all(v is None for v in withheld) and list(sink) == ["time-clock:weekend-session"]
-    # ...and with no weekend bar the same leaf through ``interpret`` IS the column
-    assert _column("timeclose", cases["daily_half_days"]["bars"], cases["daily_half_days"]["tf"])         == ic.compute_clock(cases["daily_half_days"]["bars"], cases["daily_half_days"]["tf"], False)["timeclose"]
+            _same(_column(name, case["bars"], case["tf"], False), want,
+                  f"{case_name}.{name}")
 
 
 def test_the_close_cases_are_not_vacuous():

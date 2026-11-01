@@ -63,6 +63,10 @@ const BARSETS = {
   // Sunday bar in 1971, FX:EURUSD's own first year
   sessions1985: () => dailyBars([1985, 0, 2], 40),
   sundays1971: () => dailyBars([1971, 0, 3], 40, 'sun'),
+  // ⛔ session days keyed by an INSTANT at 00:00 UTC (`objectDoorDraws.test.js`'s SPY
+  // bars): every Monday is a Sunday in New York, yet this is no FX chart and no stamp
+  // of ours — the instant is its own time
+  utcMidnight: () => dailyBars([2025, 0, 8], 60).map((b) => ({ ...b, t: Date.parse(`${b.t}T00:00:00Z`) / 1000 })),
 }
 
 const PINE = {
@@ -86,6 +90,7 @@ const CASES = [
     .map((set) => [`${k} · ${set} · D`, k, set, { tf: 'D' }])),
   ...['time', 'dow', 'timeClose', 'session'].map((k) => [`${k} · 1985 sessions · D`, k, 'sessions1985', { tf: 'D' }]),
   ...['time', 'dow', 'ymd'].map((k) => [`${k} · 1971 sundays · D`, k, 'sundays1971', { tf: 'D' }]),
+  ...['time', 'hour', 'session', 'dow'].map((k) => [`${k} · utc-midnight instants · D`, k, 'utcMidnight', { tf: 'D' }]),
   // no timeframe stated: a date key is not read at all, and nothing is named (unchanged)
   ['time · sundays · no tf', 'time', 'sundays', null],
 ]
@@ -191,6 +196,15 @@ describe('⭐⭐ the bar\'s own clock on an FX-shaped day: time of day withheld 
         if (!(set === 'everyDay' && k === 'timeClose')) expect(nulls(`${k} · ${set} · D`), `${k} · ${set}`).toBe(0)
       }
     }
+  })
+  it('⛔ bars keyed by an INSTANT are never asked: a Sunday in New York there is not an FX day', () => {
+    for (const k of ['time', 'hour', 'session', 'dow']) {
+      const c = byName.get(`${k} · utc-midnight instants · D`)
+      expect(c.codes, k).toEqual([])
+      expect(nulls(`${k} · utc-midnight instants · D`), k).toBe(0)
+    }
+    // non-vacuity: those bars DO read a Sunday in New York
+    expect(byName.get('dow · utc-midnight instants · D').expected).toContain(1)
   })
   it('the code is a WHOLE one with a sentence that names its capture, and the leaf list holds no date leaf', () => {
     expect(CHART_CLOCK_WHOLE).toContain(CODE)

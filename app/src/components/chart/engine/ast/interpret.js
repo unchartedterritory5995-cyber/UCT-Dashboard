@@ -4957,7 +4957,7 @@ export const CHART_CLOCK_WITHHELD = Object.freeze({
     + 'indicator draws from them is withheld on this chart rather than drawn wrong. The bar\'s date — '
     + '`dayofweek`, `dayofmonth`, `month`, `year` — matches TradingView on every bar and is drawn. What '
     + 'would settle it: this chart reading such a symbol\'s daily bar at the session\'s own open.',
-  'time-clock:outside-session': (tf) =>`${ANCHOR_SPELLED} and \`time("60")\` are measured below a daily chart `
+  'time-clock:outside-session': (tf) => `${ANCHOR_SPELLED} and \`time("60")\` are measured below a daily chart `
     + 'on regular-session bars only — 09:30 to 16:00 New York, Monday to Friday (AMEX:SPY 5, 15 and 60 minutes). '
     + `This ${tfSpelled(tf)} chart holds at least one pre-market, after-hours or weekend bar, where which open `
     + 'TradingView answers — the regular session\'s or the extended one\'s — has not been measured, so '
@@ -5165,23 +5165,6 @@ function chartClockRegimeOf(bars, inputs, budget, scalars, opts) {
   return chartClockRegime(tf, dow, hour, minute)
 }
 
-/** `chartClockRegimeOf`, memoised per bar series — for the plain-leaf trees only
- *  (2026-10-31). Every tree reading `time` or `hour` on a daily chart now asks the
- *  regime, where before only the period anchors did; one series answers once.
- *  Keyed on the timeframe, the length and the newest bar's key, so a series that
- *  grew a bar in place is asked again. */
-const SESSION_REGIME_MEMO = new WeakMap()
-function sessionRegimeOf(bars, inputs, budget, scalars, opts) {
-  if (!Array.isArray(bars)) return chartClockRegimeOf(bars, inputs, budget, scalars, opts)
-  const last = bars.length ? bars[bars.length - 1] : null
-  const key = `${opts ? opts.tf : ''}|${bars.length}|${last ? last.t : ''}`
-  const hit = SESSION_REGIME_MEMO.get(bars)
-  if (hit && hit.key === key) return hit.regime
-  const regime = chartClockRegimeOf(bars, inputs, budget, scalars, opts)
-  SESSION_REGIME_MEMO.set(bars, { key, regime })
-  return regime
-}
-
 /** ⭐⭐ C36 — THE WHOLE-SERIES DECISION, made before anything is evaluated: null
  *  when the tree holds no chart-clock node, else `{scan, why, regime}` where
  *  `why` lists the `CHART_CLOCK_WHOLE` codes (empty = nothing withheld whole) and
@@ -5191,9 +5174,15 @@ function chartClockWhole(tree, bars, inputs, budget, scalars, opts) {
   const scan = scanChartClock(tree)
   const clocked = scan.anchors.length || scan.closes.length || scan.owns.length || scan.sixties.length
   const tf = opts ? opts.tf : undefined
-  // ⭐ 2026-10-31 — a time-of-day leaf is asked about on a DAILY chart only: that
-  // is the one timeframe `chartClockRegime` can call FX-shaped (`one-weekend-day`).
-  const dayLeaves = scan.leaves.length > 0 && tf === 'D'
+  // ⭐ 2026-10-31 — a time-of-day leaf is asked about on a DAILY chart of DATE-KEYED
+  // bars only. Daily is the one timeframe `chartClockRegime` can call FX-shaped
+  // (`one-weekend-day`), and a date key is the one shape this engine STAMPS (09:30 New
+  // York, `barOpenInstant`) — the stamp a 17:00 FX open disagrees with. A bar keyed by
+  // an INSTANT carries its own time, which `time` / `hour` read as given: no stamp of
+  // ours to disagree with, and its New York weekday can be a Sunday for a reason that
+  // is not FX (a Monday stamped 00:00 UTC is Sunday 20:00 New York — measured on
+  // `objectDoorDraws.test.js`'s SPY bars), so it is never asked.
+  const dayLeaves = scan.leaves.length > 0 && tf === 'D' && dateKeyed(bars)
   if (!clocked && !scan.folds.length && !dayLeaves) return null
   const why = []
   const add = (code) => { if (!why.includes(code)) why.push(code) }
@@ -5204,7 +5193,7 @@ function chartClockWhole(tree, bars, inputs, budget, scalars, opts) {
   if (!clocked) {
     // a tree reading only plain clock leaves: withheld on an FX-shaped daily chart,
     // and nothing else changes for it (it reported no regime before, and still does)
-    if (dayLeaves && sessionRegimeOf(bars, inputs, budget, scalars, opts).kind === 'one-weekend-day') {
+    if (dayLeaves && chartClockRegimeOf(bars, inputs, budget, scalars, opts).kind === 'one-weekend-day') {
       add('time-clock:weekend-session')
     }
     nameChartClock(opts, why, tf)
@@ -5213,7 +5202,7 @@ function chartClockWhole(tree, bars, inputs, budget, scalars, opts) {
   if (scan.nested) add('time-anchor:other-bars')
   const regime = chartClockRegimeOf(bars, inputs, budget, scalars, opts)
   if (regime.kind === 'unreadable') add('time-clock:unreadable')
-  if (regime.kind === 'one-weekend-day' && (scan.leaves.length || scan.owns.length || scan.sixties.length)) {
+  if (regime.kind === 'one-weekend-day' && dateKeyed(bars) && (scan.leaves.length || scan.owns.length || scan.sixties.length)) {
     add('time-clock:weekend-session')
   }
   if (scan.anchors.length) {
@@ -5233,6 +5222,12 @@ function chartClockWhole(tree, bars, inputs, budget, scalars, opts) {
   }
   nameChartClock(opts, why, tf)
   return { scan, why, regime, everyDay: regime.kind === 'every-day' }
+}
+/** Does any bar carry a DATE key (`'YYYY-MM-DD'`) rather than an instant? */
+function dateKeyed(bars) {
+  if (!Array.isArray(bars)) return false
+  for (let i = 0; i < bars.length; i++) if (bars[i] && typeof bars[i].t === 'string') return true
+  return false
 }
 function nameChartClock(opts, codes, tf) {
   const sink = opts && opts.chartClockSink
