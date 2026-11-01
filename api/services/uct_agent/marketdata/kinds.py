@@ -17,8 +17,9 @@ def register(registry) -> None:
     registry.register(Kind(
         name="quote", fn=quotes.read_quote, freshness="live", owner="agent-md", max_symbols=1,
         description="One ticker's latest price from the Massive snapshot. Live in the regular session "
-                    f"(stale after {quotes.FRESHNESS_BUDGET_S}s); historical with a note otherwise. "
-                    "Params: {symbol}.",
+                    f"(stale after {quotes.FRESHNESS_BUDGET_S}s) and in extended hours when the vendor stamp is "
+                    f"at most {quotes.EXTENDED_LIVE_S // 60} min old; historical with a note otherwise "
+                    "(MD-1 v1.1 §4.1). Params: {symbol}.",
     ))
     registry.register(Kind(
         name="quotes", fn=quotes.read_quotes, freshness="live", owner="agent-md",
