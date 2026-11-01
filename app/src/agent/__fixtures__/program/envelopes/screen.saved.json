@@ -1,0 +1,179 @@
+{
+  "kind": "screen.saved",
+  "declared_freshness": "periodic",
+  "category": "scan",
+  "cases": {
+    "periodic": {
+      "contract": "MD-1.0",
+      "kind": "screen.saved",
+      "params_echo": {},
+      "status": "ok",
+      "freshness": "periodic",
+      "as_of": "2026-10-30T19:45:00Z",
+      "fetched_at": "2026-10-30T19:59:45Z",
+      "delay_s": null,
+      "stale": false,
+      "source": "uct-screener",
+      "coverage": {
+        "evaluated": 1,
+        "answered": 1,
+        "dropped": 0,
+        "not_computable": 0
+      },
+      "data": {
+        "screens": [
+          {
+            "id": "fx_saved_1",
+            "name": "Fixture leaders",
+            "spec": {
+              "filters": [
+                {
+                  "key": "rs_rank",
+                  "op": ">=",
+                  "value": 90
+                },
+                {
+                  "key": "adr_pct",
+                  "op": ">=",
+                  "value": 4
+                }
+              ],
+              "sort": "rs_rank",
+              "limit": 50
+            }
+          }
+        ]
+      },
+      "notes": [],
+      "provider_calls": 0
+    },
+    "stale": {
+      "contract": "MD-1.0",
+      "kind": "screen.saved",
+      "params_echo": {},
+      "status": "ok",
+      "freshness": "periodic",
+      "as_of": "2026-10-28T20:00:00Z",
+      "fetched_at": "2026-10-30T19:59:45Z",
+      "delay_s": null,
+      "stale": true,
+      "source": "uct-screener",
+      "coverage": {
+        "evaluated": 1,
+        "answered": 1,
+        "dropped": 0,
+        "not_computable": 0
+      },
+      "data": {
+        "screens": [
+          {
+            "id": "fx_saved_1",
+            "name": "Fixture leaders",
+            "spec": {
+              "filters": [
+                {
+                  "key": "rs_rank",
+                  "op": ">=",
+                  "value": 90
+                },
+                {
+                  "key": "adr_pct",
+                  "op": ">=",
+                  "value": 4
+                }
+              ],
+              "sort": "rs_rank",
+              "limit": 50
+            }
+          }
+        ]
+      },
+      "notes": [
+        "older than this kind's freshness budget; say how old"
+      ],
+      "provider_calls": 0
+    },
+    "market-closed": {
+      "contract": "MD-1.0",
+      "kind": "screen.saved",
+      "params_echo": {},
+      "status": "ok",
+      "freshness": "periodic",
+      "as_of": "2026-10-30T20:00:00Z",
+      "fetched_at": "2026-10-31T14:00:00Z",
+      "delay_s": null,
+      "stale": false,
+      "source": "uct-screener",
+      "coverage": {
+        "evaluated": 1,
+        "answered": 1,
+        "dropped": 0,
+        "not_computable": 0
+      },
+      "data": {
+        "screens": [
+          {
+            "id": "fx_saved_1",
+            "name": "Fixture leaders",
+            "spec": {
+              "filters": [
+                {
+                  "key": "rs_rank",
+                  "op": ">=",
+                  "value": 90
+                },
+                {
+                  "key": "adr_pct",
+                  "op": ">=",
+                  "value": 4
+                }
+              ],
+              "sort": "rs_rank",
+              "limit": 50
+            }
+          }
+        ]
+      },
+      "notes": [
+        "market closed — last session's close"
+      ],
+      "provider_calls": 0
+    },
+    "unavailable": {
+      "contract": "MD-1.0",
+      "kind": "screen.saved",
+      "params_echo": {},
+      "status": "unavailable",
+      "freshness": "unavailable",
+      "as_of": null,
+      "fetched_at": "2026-10-30T19:59:45Z",
+      "delay_s": null,
+      "stale": false,
+      "source": "uct-screener",
+      "coverage": null,
+      "data": null,
+      "notes": [
+        "the data source could not answer"
+      ],
+      "provider_calls": 0
+    },
+    "refused": {
+      "contract": "MD-1.0",
+      "kind": "screen.saved",
+      "params_echo": {},
+      "status": "refused",
+      "freshness": "unavailable",
+      "as_of": null,
+      "fetched_at": "2026-10-30T19:59:45Z",
+      "delay_s": null,
+      "stale": false,
+      "source": "uct-agent-gateway",
+      "coverage": null,
+      "data": null,
+      "notes": [
+        "this turn already made 8 data reads"
+      ],
+      "provider_calls": 0
+    }
+  }
+}

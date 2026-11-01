@@ -1,0 +1,240 @@
+{
+  "version": 1,
+  "contracts": {
+    "md": "MD-1.0",
+    "sc": "SC-1.0"
+  },
+  "cases": [
+    "live",
+    "delayed",
+    "periodic",
+    "historical",
+    "stale",
+    "market-closed",
+    "unavailable",
+    "refused",
+    "partial",
+    "no-source-time"
+  ],
+  "kinds": {
+    "quote": {
+      "declared_freshness": "live",
+      "category": "market",
+      "owner": "agent-md",
+      "default_case": "live",
+      "cases": [
+        "live",
+        "delayed",
+        "stale",
+        "market-closed",
+        "unavailable",
+        "refused"
+      ],
+      "file": "envelopes/quote.json"
+    },
+    "quotes": {
+      "declared_freshness": "live",
+      "category": "market",
+      "owner": "agent-md",
+      "default_case": "live",
+      "cases": [
+        "live",
+        "delayed",
+        "stale",
+        "market-closed",
+        "unavailable",
+        "refused",
+        "partial"
+      ],
+      "file": "envelopes/quotes.json"
+    },
+    "bars.daily": {
+      "declared_freshness": "historical",
+      "category": "market",
+      "owner": "agent-md",
+      "default_case": "historical",
+      "cases": [
+        "historical",
+        "stale",
+        "market-closed",
+        "unavailable",
+        "refused"
+      ],
+      "file": "envelopes/bars.daily.json"
+    },
+    "bars.intraday": {
+      "declared_freshness": "live",
+      "category": "market",
+      "owner": "agent-md",
+      "default_case": "live",
+      "cases": [
+        "live",
+        "delayed",
+        "stale",
+        "market-closed",
+        "unavailable",
+        "refused"
+      ],
+      "file": "envelopes/bars.intraday.json"
+    },
+    "fundamentals": {
+      "declared_freshness": "periodic",
+      "category": "market",
+      "owner": "agent-md",
+      "default_case": "periodic",
+      "cases": [
+        "periodic",
+        "stale",
+        "market-closed",
+        "unavailable",
+        "refused"
+      ],
+      "file": "envelopes/fundamentals.json"
+    },
+    "earnings": {
+      "declared_freshness": "periodic",
+      "category": "market",
+      "owner": "agent-md",
+      "default_case": "periodic",
+      "cases": [
+        "periodic",
+        "stale",
+        "market-closed",
+        "unavailable",
+        "refused"
+      ],
+      "file": "envelopes/earnings.json"
+    },
+    "news.company": {
+      "declared_freshness": "periodic",
+      "category": "market",
+      "owner": "agent-md",
+      "default_case": "periodic",
+      "cases": [
+        "periodic",
+        "stale",
+        "market-closed",
+        "unavailable",
+        "refused",
+        "partial",
+        "no-source-time"
+      ],
+      "file": "envelopes/news.company.json"
+    },
+    "breadth.current": {
+      "declared_freshness": "periodic",
+      "category": "market",
+      "owner": "agent-md",
+      "default_case": "periodic",
+      "cases": [
+        "periodic",
+        "stale",
+        "market-closed",
+        "unavailable",
+        "refused"
+      ],
+      "file": "envelopes/breadth.current.json"
+    },
+    "nhnl": {
+      "declared_freshness": "periodic",
+      "category": "market",
+      "owner": "agent-md",
+      "default_case": "periodic",
+      "cases": [
+        "periodic",
+        "stale",
+        "market-closed",
+        "unavailable",
+        "refused"
+      ],
+      "file": "envelopes/nhnl.json"
+    },
+    "themes": {
+      "declared_freshness": "periodic",
+      "category": "market",
+      "owner": "agent-md",
+      "default_case": "periodic",
+      "cases": [
+        "periodic",
+        "stale",
+        "market-closed",
+        "unavailable",
+        "refused"
+      ],
+      "file": "envelopes/themes.json"
+    },
+    "volume.surge": {
+      "declared_freshness": "periodic",
+      "category": "market",
+      "owner": "agent-md",
+      "default_case": "periodic",
+      "cases": [
+        "periodic",
+        "stale",
+        "market-closed",
+        "unavailable",
+        "refused"
+      ],
+      "file": "envelopes/volume.surge.json"
+    },
+    "ratings": {
+      "declared_freshness": "periodic",
+      "category": "market",
+      "owner": "agent-md",
+      "default_case": "periodic",
+      "cases": [
+        "periodic",
+        "stale",
+        "market-closed",
+        "unavailable",
+        "refused",
+        "partial"
+      ],
+      "file": "envelopes/ratings.json"
+    },
+    "screen.run": {
+      "declared_freshness": "periodic",
+      "category": "scan",
+      "owner": "agent-sc",
+      "default_case": "periodic",
+      "cases": [
+        "periodic",
+        "stale",
+        "market-closed",
+        "unavailable",
+        "refused",
+        "partial"
+      ],
+      "file": "envelopes/screen.run.json"
+    },
+    "screen.count": {
+      "declared_freshness": "periodic",
+      "category": "scan",
+      "owner": "agent-sc",
+      "default_case": "periodic",
+      "cases": [
+        "periodic",
+        "stale",
+        "market-closed",
+        "unavailable",
+        "refused",
+        "partial"
+      ],
+      "file": "envelopes/screen.count.json"
+    },
+    "screen.saved": {
+      "declared_freshness": "periodic",
+      "category": "scan",
+      "owner": "agent-sc",
+      "default_case": "periodic",
+      "cases": [
+        "periodic",
+        "stale",
+        "market-closed",
+        "unavailable",
+        "refused"
+      ],
+      "file": "envelopes/screen.saved.json"
+    }
+  }
+}

@@ -1,0 +1,194 @@
+{
+  "kind": "bars.daily",
+  "declared_freshness": "historical",
+  "category": "market",
+  "cases": {
+    "historical": {
+      "contract": "MD-1.0",
+      "kind": "bars.daily",
+      "params_echo": {
+        "symbol": "NVDA"
+      },
+      "status": "ok",
+      "freshness": "historical",
+      "as_of": "2026-10-29T20:00:00Z",
+      "fetched_at": "2026-10-30T19:59:45Z",
+      "delay_s": null,
+      "stale": false,
+      "source": "massive",
+      "coverage": null,
+      "data": {
+        "symbol": "NVDA",
+        "tf": "D",
+        "bars": [
+          {
+            "t": "2026-10-27",
+            "o": 200.0,
+            "h": 204.0,
+            "l": 198.5,
+            "c": 202.5,
+            "v": 150000000
+          },
+          {
+            "t": "2026-10-28",
+            "o": 201.0,
+            "h": 205.0,
+            "l": 199.5,
+            "c": 203.5,
+            "v": 151000000
+          },
+          {
+            "t": "2026-10-29",
+            "o": 202.0,
+            "h": 206.0,
+            "l": 200.5,
+            "c": 204.5,
+            "v": 152000000
+          }
+        ]
+      },
+      "notes": [
+        "last completed session; today's partial bar is not included"
+      ],
+      "provider_calls": 1
+    },
+    "stale": {
+      "contract": "MD-1.0",
+      "kind": "bars.daily",
+      "params_echo": {
+        "symbol": "NVDA"
+      },
+      "status": "ok",
+      "freshness": "historical",
+      "as_of": "2026-10-28T20:00:00Z",
+      "fetched_at": "2026-10-30T19:59:45Z",
+      "delay_s": null,
+      "stale": true,
+      "source": "massive",
+      "coverage": null,
+      "data": {
+        "symbol": "NVDA",
+        "tf": "D",
+        "bars": [
+          {
+            "t": "2026-10-27",
+            "o": 200.0,
+            "h": 204.0,
+            "l": 198.5,
+            "c": 202.5,
+            "v": 150000000
+          },
+          {
+            "t": "2026-10-28",
+            "o": 201.0,
+            "h": 205.0,
+            "l": 199.5,
+            "c": 203.5,
+            "v": 151000000
+          },
+          {
+            "t": "2026-10-29",
+            "o": 202.0,
+            "h": 206.0,
+            "l": 200.5,
+            "c": 204.5,
+            "v": 152000000
+          }
+        ]
+      },
+      "notes": [
+        "older than this kind's freshness budget; say how old"
+      ],
+      "provider_calls": 0
+    },
+    "market-closed": {
+      "contract": "MD-1.0",
+      "kind": "bars.daily",
+      "params_echo": {
+        "symbol": "NVDA"
+      },
+      "status": "ok",
+      "freshness": "historical",
+      "as_of": "2026-10-30T20:00:00Z",
+      "fetched_at": "2026-10-31T14:00:00Z",
+      "delay_s": null,
+      "stale": false,
+      "source": "massive",
+      "coverage": null,
+      "data": {
+        "symbol": "NVDA",
+        "tf": "D",
+        "bars": [
+          {
+            "t": "2026-10-28",
+            "o": 200.0,
+            "h": 204.0,
+            "l": 198.5,
+            "c": 202.5,
+            "v": 150000000
+          },
+          {
+            "t": "2026-10-29",
+            "o": 201.0,
+            "h": 205.0,
+            "l": 199.5,
+            "c": 203.5,
+            "v": 151000000
+          },
+          {
+            "t": "2026-10-30",
+            "o": 202.0,
+            "h": 206.0,
+            "l": 200.5,
+            "c": 204.5,
+            "v": 152000000
+          }
+        ]
+      },
+      "notes": [
+        "market closed — last session's close"
+      ],
+      "provider_calls": 1
+    },
+    "unavailable": {
+      "contract": "MD-1.0",
+      "kind": "bars.daily",
+      "params_echo": {
+        "symbol": "NVDA"
+      },
+      "status": "unavailable",
+      "freshness": "unavailable",
+      "as_of": null,
+      "fetched_at": "2026-10-30T19:59:45Z",
+      "delay_s": null,
+      "stale": false,
+      "source": "massive",
+      "coverage": null,
+      "data": null,
+      "notes": [
+        "the data source could not answer"
+      ],
+      "provider_calls": 1
+    },
+    "refused": {
+      "contract": "MD-1.0",
+      "kind": "bars.daily",
+      "params_echo": {
+        "symbol": "NVDA"
+      },
+      "status": "refused",
+      "freshness": "unavailable",
+      "as_of": null,
+      "fetched_at": "2026-10-30T19:59:45Z",
+      "delay_s": null,
+      "stale": false,
+      "source": "uct-agent-gateway",
+      "coverage": null,
+      "data": null,
+      "notes": [
+        "this turn already made 8 data reads"
+      ],
+      "provider_calls": 0
+    }
+  }
+}
