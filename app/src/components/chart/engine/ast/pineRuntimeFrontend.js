@@ -4339,9 +4339,6 @@ function buildRuntimeIrLinked(source, opts, holder) {
       return textCall('timestamp/zone', [str(zone), ...parts.map((p) => lowerExpr(p, scope))])
     }
     if (INSTANT_FIELD_NAMES.has(name) && (given.length === 1 || given.length === 2)) {
-      // `hour(time)` with no zone is the arm below's (the bar's own clock column, as
-      // the host lane reads it): not this lowering's, and not re-asked here
-      if (given.length === 1 && isBarTimeNode(given[0], scope) && CLOCK_FIELDS.includes(name)) return null
       const zone = clockZoneOf(given[1], scope, at, name)
       // the bar's own instant in the exchange's zone is the bar's clock column
       // (`clock`, `OP.READ_CLOCK`), the answer the arm below gives for `hour(time)`.
