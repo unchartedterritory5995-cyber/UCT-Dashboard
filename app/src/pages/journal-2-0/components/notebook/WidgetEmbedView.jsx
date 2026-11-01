@@ -66,6 +66,8 @@ const EMBED_COMPONENTS = {
   screener: lazyLeaf(() => import('./ScreenerEmbed')),
   cot: lazyLeaf(() => import('./CotEmbed')),
   modelbook: lazyLeaf(() => import('./ModelBookEmbed')),
+  // UCT News V2: a Trade Exchange headline sent from UCT News (capture-only, frozen).
+  tradeExchangeHeadline: lazyLeaf(() => import('./NewsHeadlineEmbed')),
   // Notebook widgets (Task 7): the snapshot kinds, each rendered from its frozen params. ONE lazy
   // import serves them all (Task 16D, as R41 did for the captures): a kind costs a row, not a chunk
   // and its preload list, on the first open. Keyed by widget id in widgets/snapshotEmbeds.js.

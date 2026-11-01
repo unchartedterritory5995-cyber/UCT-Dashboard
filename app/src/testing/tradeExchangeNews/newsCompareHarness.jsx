@@ -26,10 +26,11 @@
 //                         fakeNewsDay over them (/day is a READ: the only non-GET let through,
 //                         with POST /explain, answered by an INVENTED explanation -- no model)
 //   ?opts=<json>          initial News widget opts (e.g. {"settings":{"groupRelated":"on"}})
-//   ?library=1            add a Research Library widget beside News. Its /library/* API is the
-//                         in-memory fakeLibraryServer over the synthetic headlines (pre-seeded
-//                         with three saves, a collection and a note) -- page memory only, never
-//                         the network.
+//   ?library=1            add a second UCT News widget opened on its Saved Headlines view.
+//                         The /library/* API is the in-memory fakeLibraryServer over the
+//                         synthetic headlines (pre-seeded with three saves, a collection and a
+//                         note); "Send to Notebook" lands in an in-memory inbox
+//                         (window.__newsHarnessNotebook) -- page memory only, never the network.
 //   ?live=1               LIVE MODE for tools/txn_local_e2e.py: /api/trade-exchange-news/*
 //                         goes to the real (local, synthetic) web process through
 //                         vite.txn-e2e.config.mjs, and the News pool opens its own
@@ -47,7 +48,6 @@ import ThemesWidget from '../../pages/charts/widgets/ThemesWidget'
 import TradeExchangeNewsWidget from '../../pages/charts/widgets/TradeExchangeNewsWidget'
 import { fakeNewsDay, fakeNewsDays } from './fakeNewsDay'
 import { fakeLibraryServer } from './fakeLibraryServer'
-import ResearchLibraryWidget from '../../pages/charts/widgets/ResearchLibraryWidget'
 import { formatTimeEt } from '../../lib/presentation/presentationPrimitives'
 import { timeLabel } from '../../pages/charts/widgets/tradeExchangeNewsModel'
 import { CHART_THEME_BY_ID, patchWidgetOptsWithTheme, mapThemeToWidgetSettings, themeWithAppSurface } from '../../components/chart/chartThemes'
@@ -186,6 +186,8 @@ function libraryServer() {
   return _lib
 }
 const BLOCKED = []
+const NOTEBOOK = []
+window.__newsHarnessNotebook = NOTEBOOK
 window.__newsHarnessBlocked = BLOCKED
 const realFetch = window.fetch.bind(window)
 window.fetch = (input, init) => {
@@ -208,6 +210,12 @@ window.fetch = (input, init) => {
         + 'so traders may read it against expectations, though the headline gives no detail on margins or guidance.',
       watch: 'Company follow-up details, sector peers, analyst estimate revisions', generated_at_ms: NOW,
       cached: false, version: 'v1' })
+  }
+  // Send to Notebook: any Notebook write (the capture door's current note or its inbox),
+  // recorded in page memory -- never the network.
+  if (method === 'POST' && path.startsWith('/api/j2/')) {
+    NOTEBOOK.push(JSON.parse((init && init.body) || '{}'))
+    return json({ id: `inbox${NOTEBOOK.length}` })
   }
   if (method !== 'GET') { BLOCKED.push(`${method} ${path}`); return json({}) }
   if (path.startsWith('/api/auth/me')) {
@@ -316,7 +324,8 @@ function Harness() {
           <div className="row">
             {!ONLY_NEWS && <Pane label="Watchlist" type="watchlist" Component={WatchlistWidget} initial={{ watchKey: 'user:wl1', watchName: 'Harness List' }} />}
             {!ONLY_NEWS && <Pane label="Theme Tracker" type="themes" Component={ThemesWidget} initial={{}} />}
-            {LIBRARY && <Pane label="Research Library" type="researchLibrary" Component={ResearchLibraryWidget} initial={newsOpts} />}
+            {LIBRARY && <Pane label="UCT News · Saved" type="tradeExchangeNews" index={9}
+              Component={TradeExchangeNewsWidget} initial={{ ...newsOpts, view: 'saved' }} />}
             {Array.from({ length: ONLY_NEWS ? COUNT : 1 }, (_, i) => (
               <Pane key={i} index={i} label={`News (Trade Exchange)${i ? ` #${i + 1}` : ''}`} type="tradeExchangeNews"
                 Component={TradeExchangeNewsWidget} initial={newsOpts} />
