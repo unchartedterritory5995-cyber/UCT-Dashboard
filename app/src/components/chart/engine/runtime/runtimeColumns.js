@@ -815,7 +815,31 @@ let _lastReused = 0
 // run is exactly what it was.
 const LEDGER_CAP = 24
 const LEDGER_BAR_CAP = 2000
-const _ledgers = new Map()
+const _ledgers = new Map()   // key → Map(origin → ledger)
+const LEDGER_ORIGINS_CAP = 4
+/** The ledger for `key` at history start `origin`: its own, else (a fixed-depth window that slid
+ *  forward) the one with the nearest EARLIER start AND THE SAME BAR COUNT, moved to `origin`;
+ *  never one with a later start (older history loaded = a reload), and never one of another
+ *  depth (a second pane over a shorter span is another history, with its own ledger). */
+function ledgerFor(key, origin, n) {
+  const byOrigin = _ledgers.get(key)
+  if (!byOrigin || !Number.isFinite(origin)) return null
+  if (byOrigin.has(origin)) return byOrigin.get(origin)
+  let best = null
+  let bestAt = -Infinity
+  for (const [at, l] of byOrigin) if (at < origin && at > bestAt && l.n === n) { best = l; bestAt = at }
+  if (best) { byOrigin.delete(bestAt); byOrigin.set(origin, best) }
+  return best
+}
+function keepLedger(key, origin, ledger) {
+  const byOrigin = _ledgers.get(key) || new Map()
+  _ledgers.delete(key)
+  _ledgers.set(key, byOrigin)
+  byOrigin.delete(origin)
+  byOrigin.set(origin, ledger)
+  while (byOrigin.size > LEDGER_ORIGINS_CAP) byOrigin.delete(byOrigin.keys().next().value)
+  while (_ledgers.size > LEDGER_CAP) _ledgers.delete(_ledgers.keys().next().value)
+}
 /** ⭐ Where a run's realtime facts ride (non-enumerable): `{isNew, varip, ledgerBars}`. */
 export const RUNTIME_REALTIME_KEY = '__runtimeRealtime'
 export const runtimeRealtimeOf = (cols) => (cols && typeof cols === 'object' ? cols[RUNTIME_REALTIME_KEY] || null : null)
@@ -838,6 +862,10 @@ function readsIsNew(source) {
  *  same update, not a new one (review H1). */
 const barSig = (b) => [+b.t, +b.o, +b.h, +b.l, +b.c, +b.v]
 const sameSig = (a, b) => !!a && !!b && a.length === b.length && a.every((x, i) => Object.is(x, b[i]))
+const sigKey = (sig) => sig.join(',')
+/** ⭐ (step 2, A) how many distinct prices one forming bar remembers. Past it the oldest go, and
+ *  a price that comes back after that is counted again (an over-count only past 1,024 updates). */
+const SEEN_CAP = 1024
 /** ⭐⭐ (review H1, M2) WHAT ONE RUN IS TO A BAR THE LEDGER HAS SEEN, decided from the bars and
  *  the ledger alone, before the run:
  *    `from`   the `varip` state the bar is entered with (`'snap'` = what the run reaches it with)
@@ -855,7 +883,14 @@ const sameSig = (a, b) => !!a && !!b && a.length === b.length && a.every((x, i) 
  *      closing update: entered from where it began, nothing advances;
  *    * closed entry, forming again at NEW prices (the feed called it closed too early) → a
  *      new update of a bar that reopened: entered from where the close ended, recorded open,
- *      so its later updates keep counting (it used to freeze there). */
+ *      so its later updates keep counting (it used to freeze there).
+ *  ⭐⭐ (step 2, A) "THE SAME PRICES" MEANS ANY PRICES THIS BAR HAS ALREADY RUN AT, not only the
+ *  latest: a pane whose feed lags (or a stale refetch) runs an OLDER update after a newer one was
+ *  recorded, and that is a replay of that update (entered from where IT began, shown as IT
+ *  ended), never a new one; otherwise the shared ledger would spread the lagging pane's count to
+ *  every pane. A price that genuinely returns to an earlier value is under-counted: the safe
+ *  direction. The closing update stays as before: a closed entry at its own closing prices is
+ *  the close replayed, checked first. */
 function realtimeDecision(e, bar, rows, forming, lastConfirmed) {
   const n = rows.length
   const confirmedNow = bar <= lastConfirmed
@@ -865,7 +900,10 @@ function realtimeDecision(e, bar, rows, forming, lastConfirmed) {
       ? { from: 'snap', record: { confirmed: false, first: true, sig }, isNew: true } : null
   }
   const same = sameSig(e.sig, sig)
-  if (e.confirmed ? (confirmedNow || same) : (!confirmedNow && same)) return { from: e.start, record: null, isNew: e.first === true }
+  // a closed entry is its closing update, never the bar's first execution: `isNew` is 0
+  if (e.confirmed && (confirmedNow || same)) return { from: e.start, record: null, isNew: false }
+  const seen = !confirmedNow && e.seen ? e.seen.get(sigKey(sig)) : undefined
+  if (seen) return { from: seen.start, record: null, isNew: seen.first === true }
   return { from: e.end, record: { confirmed: confirmedNow, first: false, sig }, isNew: false }
 }
 function realtimeRun(def, ctx, role, ir, source, rows, forming, lastConfirmed) {
@@ -877,11 +915,19 @@ function realtimeRun(def, ctx, role, ir, source, rows, forming, lastConfirmed) {
   // a run over the same prices is the same update (`realtimeDecision`): the second pane's run
   // re-enters from where the first pane's update began and records nothing.
   // ⭐ (review H1) AND BY WHERE THE HISTORY STARTS (`rows[0].t`): a ledger's states are of the
-  // bars it ran over, so a chart with more (or fewer) bars before is another history, run as
-  // TradingView runs a reload: `varip` is `var` on its history, its forming bar starts fresh.
+  // bars it ran over, so a chart with MORE bars before (older history loaded) is another
+  // history, run as TradingView runs a reload: `varip` is `var` on its history, its forming bar
+  // starts fresh. Two panes over different spans keep a ledger each.
+  // ⭐⭐ (step 2, L1) BUT A WINDOW THAT SLIDES FORWARD KEEPS ITS LEDGER. A fixed-depth bars
+  // window (a framed instance's `secondaryBars` frame is refetched whole at its depth, so on
+  // each new frame bar its oldest bar drops off) moves `rows[0].t` LATER while every realtime
+  // bar it recorded is still in it. Such a run (the same bar count, a later start) adopts the
+  // ledger of the nearest earlier start (`ledgerFor`), so its `varip` keeps counting across the
+  // new bar instead of resetting.
   const n = rows.length
-  const key = `${runKey(def, { ...ctx, newestBarIsForming: null, newest_bar_is_forming: null, interpretOpts: undefined })}|${role}|${n ? +rows[0].t : '-'}`
-  const ledger = _ledgers.get(key) || null
+  const key = `${runKey(def, { ...ctx, newestBarIsForming: null, newest_bar_is_forming: null, interpretOpts: undefined })}|${role}`
+  const origin = n ? +rows[0].t : NaN
+  const ledger = ledgerFor(key, origin, n)
   const decisions = new Map()
   if (ledger) for (let i = 0; i < n; i += 1) {
     const e = ledger.bars.get(rows[i].t)
@@ -932,11 +978,22 @@ function realtimeRun(def, ctx, role, ir, source, rows, forming, lastConfirmed) {
       }
       if (!add.length) return
       const into = ledger || { bars: new Map() }
-      _ledgers.delete(key)
-      _ledgers.set(key, into)
-      for (const [time, e] of add) { into.bars.delete(time); into.bars.set(time, e) }
+      into.n = n
+      keepLedger(key, origin, into)
+      for (const [time, e] of add) {
+        // ⭐ (step 2, A) the bar's seen prices, one Map carried from entry to entry
+        const prior = into.bars.get(time)
+        const seen = prior && prior.seen ? prior.seen : new Map()
+        if (!e.confirmed) {
+          const k = sigKey(e.sig)
+          seen.delete(k)
+          seen.set(k, { start: e.start, end: e.end, first: e.first === true })
+          while (seen.size > SEEN_CAP) seen.delete(seen.keys().next().value)
+        }
+        into.bars.delete(time)
+        into.bars.set(time, { ...e, seen })
+      }
       while (into.bars.size > LEDGER_BAR_CAP) into.bars.delete(into.bars.keys().next().value)
-      while (_ledgers.size > LEDGER_CAP) _ledgers.delete(_ledgers.keys().next().value)
     },
   }
 }
