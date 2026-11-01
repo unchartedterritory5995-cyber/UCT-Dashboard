@@ -1591,8 +1591,14 @@ export const BARSTATE_MODES = Object.freeze([BARSTATE_MODE_CALENDAR, BARSTATE_MO
  *  month and is labelled as such, never as a vendor reading.
  *  ⛔ AN ISO DATE ONLY. The screen's stored `YYYYMMDD` ints stay behind the unit
  *  gate unchanged; widening them is the screen's own ruling, not this one.
- *  ⛔ An impossible date (`2025-02-30`) or one before the unit floor is `null`,
- *  and one `null` blanks the whole series, exactly as the gate always has.
+ *  ⛔ An impossible date (`2025-02-30`) is `null`, and one `null` blanks the
+ *  whole series, exactly as the gate always has.
+ *  ⭐ A DATE BEFORE 1990 IS NOT (2026-10-31). The 1990 floor guards the NUMBER
+ *  branch — a `YYYYMMDD` int read as seconds — and an ISO date cannot be that.
+ *  It used to reach this branch through `etWallInstant` → `etClockAt`, so one
+ *  pre-1990 bar (FX:EURUSD 1D from 1971; AAPL / KO deep daily history) blanked
+ *  the whole series. A date before 1883-11-19 (New York local mean time) is
+ *  still `null` (`CLOCK_FIRST_STANDARD_DAY`): local mean time, no whole-hour 09:30.
  *
  *  @param {*} t  a bar's `t`
  *  @param {string} [tf] the chart's timeframe code
@@ -1616,9 +1622,18 @@ export function barOpenInstant(t, tf) {
   } else if (tf === 'M') {
     day = firstVendorSession(y * 10000 + mo * 100 + 1, new Date(Date.UTC(y, mo, 0)).getUTCDate())
   }
-  if (day === null) return null
+  if (day === null || day < CLOCK_FIRST_STANDARD_DAY) return null
   return etWallInstant(day, DAILY_SESSION_OPEN_ET_MINUTE)
 }
+
+/** ⛔ The first New York date whose 09:30 is on standard time: 1883-11-19.
+ *  Railway time began at 12:03:58 local on Sunday 1883-11-18, so 09:30 that day
+ *  and every day before is local mean time (UTC−4:56:02). Measured, not assumed:
+ *  ICU formats 14:30 UTC on 1883-11-17 as 09:33:58, and `etClockRead` derives the
+ *  MINUTE from whole UTC hours, so without this line it would read 09:30 there —
+ *  an instant four minutes off, wearing a valid answer. The Python twin refuses
+ *  the same dates by their offset (`bar_open_instant`). */
+const CLOCK_FIRST_STANDARD_DAY = 18831119
 
 /** The first `YYYYMMDD` from `start` on, within `span` calendar days, that the
  *  vendor's session trades (`tradingViewCloseMinute` not null), or null. */
@@ -1715,7 +1730,8 @@ export function computePeriodCalendar(bars, tf) {
   }
   for (let i = 0; i < length; i++) {
     const t = barOpenInstant(bars[i] ? bars[i].t : undefined, tf)
-    const p = t === null ? null : etClockAt(t)
+    // `barOpenInstant` is the gate; what passed it is read without the floor
+    const p = t === null ? null : etClockRead(t)
     if (!p) return null
     out.day[i] = p.y * 10000 + p.m * 100 + p.d
     const monday = ymdPlusDays(p.y, p.m, p.d, -((p.wd + 6) % 7))
@@ -1748,7 +1764,8 @@ function etWallInstant(ymd, minuteOfDay) {
   const midnightUtc = Date.UTC(y, mo - 1, d) / 1000
   for (const offsetHours of [4, 5]) {
     const instant = midnightUtc + minuteOfDay * 60 + offsetHours * 3600
-    const p = etClockAt(instant)
+    // the unfloored read: the instant is built from a date, not handed in
+    const p = etClockRead(instant)
     if (p && p.y === y && p.m === mo && p.d === d
         && p.h * 60 + p.min === minuteOfDay) return instant
   }
@@ -1922,7 +1939,7 @@ export function computeClock(bars, tf, newestBarIsForming = null, opts = {}) {
     let onHour = false
     let onHalf = false
     for (let i = 0; i < length; i++) {
-      const q = etClockAt(opens[i])
+      const q = etClockRead(opens[i])
       if (!q || q.dow === 1 || q.dow === 7 || q.h < 10 || q.h > 15) continue
       if (q.min === 0) onHour = true
       else if (q.min === 30) onHalf = true
@@ -1933,7 +1950,8 @@ export function computeClock(bars, tf, newestBarIsForming = null, opts = {}) {
   let prevMonth = -1
   for (let i = 0; i < length; i++) {
     const t = opens[i]
-    const p = etClockAt(t)
+    // ⭐ unfloored: every `opens[i]` already passed `barOpenInstant`, the gate
+    const p = etClockRead(t)
     cols.time[i] = t
     cols.year[i] = p.y
     cols.month[i] = p.m
@@ -2084,6 +2102,32 @@ const ET_PARTS_BY_HOUR = new Map()
 const ET_PARTS_CAP = 200000
 export function etClockAt(t) {
   if (!Number.isFinite(t) || t < VWAP_MIN_INSTANT) return null
+  return etClockRead(t)
+}
+
+/** ⭐⭐ THE SAME CLOCK WITHOUT THE UNIT FLOOR — for an instant this engine MADE,
+ *  never one it was handed (2026-10-31, `fix/fx-clock-blank`).
+ *
+ *  `etClockAt`'s 1990 floor exists to refuse a NUMBER that is not unix seconds
+ *  (a `YYYYMMDD` int read as seconds lands in August 1970). An instant
+ *  `barOpenInstant` built from an ISO DATE is not such a number: the date is
+ *  unambiguous whatever its year. ⚰️ Read through the floor, every daily / weekly
+ *  / monthly series holding ONE bar before 1990-01-01 blanked EVERY clock column
+ *  on EVERY bar — bare `time`, `dayofweek`, `hour`, `time_close`, the session
+ *  test — with nothing said: FX:EURUSD 1D (TradingView's history opens
+ *  1971-01-03) and, in production, any equity whose deep daily history reaches
+ *  before 1990 (the product store holds AAPL from 1980-12-12, KO from
+ *  1976-12-17). The numeric door (`barOpenInstant`'s number branch) keeps the
+ *  floor, so a `YYYYMMDD` int is refused exactly as before.
+ *
+ *  ⛔ VALID FROM 1883-11-19 ON, AND `barOpenInstant` IS WHAT ENFORCES IT
+ *  (`CLOCK_FIRST_STANDARD_DAY`). Before standard time New York kept local mean
+ *  time (UTC−4:56:02), which breaks the whole-hour-offset rule the memo below
+ *  stands on: the minute it derives would be four minutes off. Such a date is
+ *  unreadable and the series blanks as one — never a time read off a fractional
+ *  offset. */
+export function etClockRead(t) {
+  if (!Number.isFinite(t)) return null
   const utcHour = Math.floor(t / 3600)
   let p = ET_PARTS_BY_HOUR.get(utcHour)
   if (p === undefined) {

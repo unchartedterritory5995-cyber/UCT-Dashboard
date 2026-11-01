@@ -172,6 +172,9 @@ export function execute(program, ctx, limits, opts) {
   const requestCache = (opts && opts.requestCache) || new Map()
   // ⭐⭐ THE PER-BAR HOOK — SEE THE END OF THE BAR LOOP FOR WHY IT EXISTS.
   const onBar = (opts && typeof opts.onBar === 'function') ? opts.onBar : null
+  // ⭐⭐ P3 WS-F — THE REALTIME HOOKS (`runtimeColumns.js`, `varip` and `barstate.isnew`):
+  // `barStart(bar, persist, initialised)` before a bar runs, `barEnd(...)` after its
+  // commit. Top-level runs only (a request's sub-run is another symbol's bars).
   budget.peak('IR_SIZE', program.instructions)
   budget.peak('HISTORY', ctx.bars)
   // ⭐⭐ P1 HARDENING — REQUEST NESTING (`REQUEST_FANOUT`) and the shared WALL_TIME
@@ -572,7 +575,9 @@ export function execute(program, ctx, limits, opts) {
     pkDepth = bc.CALL_DEPTH
     pkNest = bc.LOOP_NESTING
   }
+  const realtime = opts && opts.realtime && entryPc === 0 ? opts.realtime : null
   for (let bar = startBar; bar < ctx.bars; bar += 1) {
+    if (realtime) realtime.barStart(bar, persist, initialised)
     // ⛔ ONLY THE MAIN FRAME IS CLEARED PER BAR. A function's locals are cleared
     // per INVOCATION (see CALL) — which is stronger, and is what stops one bar's
     // call from seeing the previous bar's leftovers.
@@ -678,6 +683,14 @@ export function execute(program, ctx, limits, opts) {
           // (`close[na]` is `close` on all 100 na-offset bars, no error).
           const raw = stack[--sp]
           const n = Number.isNaN(raw) ? 0 : raw
+          // ⭐⭐ WS-C — PAST PINE'S HISTORY BUFFER IS AN ERROR, NEVER AN ANSWER.
+          // `b` is a DECLARED `max_bars_back` (0 = Pine's 5,000 ceiling). The
+          // chart here may hold 32,768 bars, so without this a read 6,000 back
+          // answered a real number where TradingView stops the script.
+          if (Number.isInteger(n) && n > (b > 0 ? b : 5000)) {
+            throw new VmError(`pc ${pc - 1}: a history offset of ${n} reaches past Pine's history buffer `
+              + `of ${b > 0 ? b : 5000} bars (max_bars_back) — TradingView stops the script on this read`)
+          }
           const idx = Number.isInteger(n) && n >= 0 ? bar - n : -1
           if (idx >= 0 && idx < dynLowCol) dynLowCol = idx
           stack[sp++] = idx >= 0 ? columns[a][idx] : NaN
@@ -694,6 +707,11 @@ export function execute(program, ctx, limits, opts) {
           const n = Number.isNaN(raw) ? 0 : raw
           if (!Number.isInteger(n) || n < 0) { stack[sp++] = NaN; break }
           if (n === 0) { stack[sp++] = live; break }
+          // WS-C — past Pine's history buffer stops the run (see READ_HIST_DYN).
+          if (n > (b > 0 ? b : 5000)) {
+            throw new VmError(`pc ${pc - 1}: \`${histPlan[historyBase + a].name}\`[${n}] reaches past Pine's history `
+              + `buffer of ${b > 0 ? b : 5000} bars (max_bars_back) — TradingView stops the script on this read`)
+          }
           if (n > committed) { stack[sp++] = NaN; break }
           const hi = historyBase + a
           const plan = histPlan[hi]
@@ -705,12 +723,19 @@ export function execute(program, ctx, limits, opts) {
             throw new VmError(`pc ${pc - 1}: \`${plan.name}\`[${n}] reaches past its ring of depth ${plan.depth} `
               + '— the offset left the bound it was compiled under (a setting changed it?)')
           }
-          stack[sp++] = hist[histOffset[hi] + ((committed - n) % plan.depth)]
+          // WS-C — a committed infinity reads as `na`, as a column offset does
+          // (`interpret.js::toColumn` launders every value it shifts).
+          const hv = hist[histOffset[hi] + ((committed - n) % plan.depth)]
+          stack[sp++] = hv === Infinity || hv === -Infinity ? NaN : hv
           break
         }
         case 57 /* OP.READ_SERIES_HIST_DYN */: {
           const raw = stack[--sp]
           const n = Number.isNaN(raw) ? 0 : raw
+          if (Number.isInteger(n) && n > (b > 0 ? b : 5000)) {
+            throw new VmError(`pc ${pc - 1}: a history offset of ${n} reaches past Pine's history buffer `
+              + `of ${b > 0 ? b : 5000} bars (max_bars_back) — TradingView stops the script on this read`)
+          }
           const idx = Number.isInteger(n) && n >= 0 ? bar - n : -1
           if (idx >= 0 && idx < dynLowSeries) dynLowSeries = idx
           stack[sp++] = idx >= 0 ? series[a][idx] : NaN
@@ -780,7 +805,14 @@ export function execute(program, ctx, limits, opts) {
           const hi = historyBase + a
           const plan = histPlan[hi]
           const cell = histOffset[hi] + ((committed - b) % plan.depth)
-          stack[sp++] = hist[cell]
+          // ⭐ WS-C — AN INFINITY IS NOT HISTORY. The columnar lane launders every
+          // value it shifts (`toColumn`), so `x[1]` of a slot that held `1/0` must
+          // read `na` here too, or `x[1] > y` is true on one lane and false on the
+          // other. ⚠️ What Pine itself answers for `1/0` INSIDE a bar is not
+          // witnessed (capture queue `capture-queue-2026-10-31-wsc-history.md`), so
+          // the live value is left to EMIT's laundering, unchanged.
+          const hv = hist[cell]
+          stack[sp++] = hv === Infinity || hv === -Infinity ? NaN : hv
           break
         }
         case 50 /* OP.LOAD_LOCAL */: stack[sp++] = locals[localsBase + a]; break
@@ -1342,6 +1374,7 @@ export function execute(program, ctx, limits, opts) {
       const elapsed = now() - budget.startedAt
       if (elapsed > wallCap) throw new RuntimeLimitError('WALL_TIME', wallCap, Math.round(elapsed))
     }
+    if (realtime) realtime.barEnd(bar, persist, initialised)
     if (onBar) onBar(bar, iters, outputs)
     if (bar === probeAt) {
       // the rings LOGICALLY: offset k back is the same bar in two runs that have
