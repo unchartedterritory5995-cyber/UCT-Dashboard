@@ -63,6 +63,8 @@ vi.mock('./tradeExchangeNewsModel', async (orig) => {
 
 import TradeExchangeNewsWidget from './TradeExchangeNewsWidget'
 import { _resetExplainCacheForTests } from '../../../lib/tradeExchangeNewsExplain'
+import { _resetLibraryForTests } from '../../../lib/tradeExchangeNewsLibrary'
+import { fakeLibraryServer } from '../../../testing/tradeExchangeNews/fakeLibraryServer'
 
 // The setup's ResizeObserver is inert; the clamp check needs one that reports each
 // element once when observed (as a browser does after its next layout).
@@ -219,9 +221,9 @@ describe('one-click copy', () => {
   it('sits to the left of ⋯ and is there on rows without a ticker too', () => {
     const { container } = mount()
     const btns = [...rowEl(container, 3).querySelectorAll('[class*="rowActions"] button')].map((b) => b.getAttribute('aria-label'))
-    expect(btns).toEqual(['Explain this headline', 'Copy headline', 'Add a symbol to a watchlist'])
+    expect(btns).toEqual(['Explain this headline', 'Save to Research Library', 'Copy headline', 'Add a symbol to a watchlist'])
     expect([...rowEl(container, 2).querySelectorAll('[class*="rowActions"] button')].map((b) => b.getAttribute('aria-label')))
-      .toEqual(['Explain this headline', 'Copy headline'])                // no ticker: no ⋯
+      .toEqual(['Explain this headline', 'Save to Research Library', 'Copy headline'])   // no ticker: no ⋯
   })
 
   it('a blocked clipboard says so instead of failing silently', async () => {
@@ -822,5 +824,57 @@ describe('AI Explanation', () => {
     await waitFor(() => expect(screen.getAllByRole('dialog', { name: 'AI Explanation' })).toHaveLength(2))
     for (const d of screen.getAllByRole('dialog')) await within(d).findByText(EXPL.explanation)
     expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('Save to Research Library', () => {
+  let lib
+  beforeEach(() => {
+    _resetLibraryForTests()
+    lib = fakeLibraryServer(BASE)
+    vi.stubGlobal('fetch', vi.fn((url, init) => lib.fetch(url, init)))
+  })
+  const saveBtn = (root, seq) => within(root.querySelector(`[data-seq="${seq}"]`))
+    .getByRole('button', { name: /Research Library/ })
+
+  it('one click saves without touching the feed; a second click removes, with Undo', async () => {
+    const { container } = mount()
+    await waitFor(() => expect(lib.calls).toContain('GET /state'))
+    const before = rows(container)
+    fireEvent.click(saveBtn(container, 1))
+    await waitFor(() => expect(saveBtn(container, 1)).toHaveAttribute('aria-pressed', 'true'))
+    expect(lib.marks.has('id1')).toBe(true)
+    expect(rows(container)).toEqual(before)                                // the live feed is untouched
+    expect(feed.dayCalls.length).toBeLessThanOrEqual(1)                    // and nothing reloaded
+    fireEvent.click(saveBtn(container, 1))
+    await waitFor(() => expect(saveBtn(container, 1)).toHaveAttribute('aria-pressed', 'false'))
+    expect(lib.marks.has('id1')).toBe(false)
+    fireEvent.click(await screen.findByRole('button', { name: 'Undo' }))
+    await waitFor(() => expect(saveBtn(container, 1)).toHaveAttribute('aria-pressed', 'true'))
+    expect(lib.marks.has('id1')).toBe(true)
+  })
+
+  it('the saved mark is consistent across several News widgets', async () => {
+    render(<>
+      <TradeExchangeNewsWidget color="A" opts={{}} onOptsChange={vi.fn()} />
+      <TradeExchangeNewsWidget color="B" opts={{ settings: { density: 'compact' } }} onOptsChange={vi.fn()} />
+    </>)
+    act(() => feed.set({ status: 'live', items: BASE, lastSeq: 3, lastHeadlineAt: NOW }))
+    const lists = () => [...document.querySelectorAll('[class*="_list_"]')]
+    await waitFor(() => expect(lists()[1].querySelector('[data-seq="2"]')).toBeTruthy())
+    fireEvent.click(saveBtn(lists()[0], 2))
+    await waitFor(() => expect(saveBtn(lists()[1], 2)).toHaveAttribute('aria-pressed', 'true'))
+    expect(lib.calls.filter((c) => c === 'GET /state')).toHaveLength(1)      // one shared store per page
+  })
+
+  it('a refused save is rolled back and says why', async () => {
+    vi.stubGlobal('fetch', vi.fn((url, init) => ((init?.method === 'PUT')
+      ? Promise.resolve({ ok: false, status: 409, json: async () => ({ reason: 'full', detail: 'Your library holds 5,000 headlines. Remove some to save more.' }) })
+      : lib.fetch(url, init))))
+    const { container } = mount()
+    await waitFor(() => expect(lib.calls).toContain('GET /state'))
+    fireEvent.click(saveBtn(container, 3))
+    expect(await screen.findByText(/Your library holds 5,000 headlines/)).toBeTruthy()
+    expect(saveBtn(container, 3)).toHaveAttribute('aria-pressed', 'false')
   })
 })
