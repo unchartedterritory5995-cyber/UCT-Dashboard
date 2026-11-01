@@ -236,6 +236,7 @@ def test_zero_matches_is_dated_by_the_universe_and_not_stale(on, snap, kind):
     assert out["status"] in ("ok", "partial") and out["coverage"] is not None
     assert out["as_of"] == "2026-10-30T20:00:00Z" and out["stale"] is False
     assert any(n.startswith("No names matched") for n in out["notes"])
+    assert not any("had no stocks to check" in n for n in out["notes"])       # a real universe was checked
     if kind == "screen.run":
         assert out["data"]["rows"] == [] and out["data"]["total_matches"] == 0
     else:
