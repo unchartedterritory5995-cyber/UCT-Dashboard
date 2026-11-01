@@ -336,12 +336,19 @@ describe('⭐⭐ what each shape is worth on the corpus', () => {
     }
     // ⭐⭐ THE RESULT THAT MATTERS, ASSERTED so it cannot quietly stop being true:
     // every script still held by `call-windowed-state` reaches the CARRIED shape.
+    // ⭐ PHASE 3 WS-D (2026-11-01) — ONE NAMED EXCEPTION, and it is a finding, not a
+    // loosening. Once `input.symbol` became a runtime value, this script stopped refusing at
+    // its inputs and now stops at `ta.percentrank` fed by a mutable variable: a
+    // `windowComposite` member, not a carried one. It is pinned BY NAME so the claim stays
+    // exact: a second script that does not reach `carried` turns this red, and so does this
+    // one reaching `carried` or ceasing to be blocked.
+    const KNOWN_WINDOW_COMPOSITE_ONLY = { 'oos1/long_tail__08-vix-term-structure.pine': 'windowComposite' }
     const notCarried = Object.entries(report.members)
       .filter(([k]) => !k.split('+').includes('carried'))
-      .flatMap(([, v]) => v)
-    expect(notCarried,
-      `blocked on call-windowed-state WITHOUT reaching a carried builtin: ${notCarried.join(', ')}`)
-      .toEqual([])
+      .flatMap(([k, v]) => v.map((f) => [f, k]))
+    expect(Object.fromEntries(notCarried),
+      `blocked on call-windowed-state WITHOUT reaching a carried builtin: ${notCarried.map(([f, k]) => `${f} (${k})`).join(', ')}`)
+      .toEqual(KNOWN_WINDOW_COMPOSITE_ONLY)
   })
 
   it('⭐ scripts reaching ONLY already-shipped shapes still refuse for other reasons', () => {
