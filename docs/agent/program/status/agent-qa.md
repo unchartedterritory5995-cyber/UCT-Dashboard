@@ -76,6 +76,16 @@ Only agent-qa edits this file. Update it in every PR.
   excluded; all prev_close in session → historical with NOTE_NO_TRADES. Its only defect is the F-6 pattern in
   its test file. When it merges, #572's fixtures regenerate to its wording and session labels.
 
+- **Rail (agent-lead's request): `app/src/agent/qa/readDataTurnId.test.js`.**
+  - Every call to the MD-1 client's `readData` (by name, alias or namespace import) must pass
+    `turnId: currentTurnId()` imported from agent/trace, called at the read.
+  - It refuses a literal id, a self-minted id (uuid, Date.now), no options, a spread, a stored variable, a
+    `currentTurnId` defined elsewhere, `readData` used as a value, and a re-export.
+  - Unrelated local `readData` helpers in app/src/lib are ignored, because names are resolved through imports
+    (acorn AST).
+  - 0 non-test importers today (F-1). It stays non-vacuous through a real-file case (`agentData.test.js`) and 14
+    controls.
+
 ## Blockers
 - (none)
 
