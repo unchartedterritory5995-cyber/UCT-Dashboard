@@ -49,7 +49,7 @@ the wave-6 close and 20 short by wave 7 (wave 7 lane J, J4).
 
 <!-- BEGIN GENERATED: python tools/account_deletion_manifest.py --write (derived from api/services/journal_two/account_purge.py) -- never hand-edit -->
 
-**143 tables in auth.db** (132 direct by `user_id`, 3 direct by another member key, 1 direct by a key derived from the member's id, 7 indirect).
+**146 tables in auth.db** (135 direct by `user_id`, 3 direct by another member key, 1 direct by a key derived from the member's id, 7 indirect).
 
 | Table | Owner key | Ownership | How the purge deletes it |
 |---|---|---|---|
@@ -61,6 +61,9 @@ the wave-6 close and 20 short by wave 7 (wave 7 lane J, J4).
 | `j2_gallery_watches` | `gallery_id` → `j2_template_gallery.user_id` | **Indirect** | join delete through `j2_template_gallery`, run before the direct deletes |
 | `j2_gallery_helpful` | `item_id` → `j2_template_gallery.user_id` | **Indirect** | join delete through `j2_template_gallery`, run before the direct deletes |
 | `j2_settings` | `user_id` | Direct | `DELETE FROM j2_settings WHERE user_id = ?` |
+| `txn_bookmarks` | `user_id` | Direct | `DELETE FROM txn_bookmarks WHERE user_id = ?` |
+| `txn_collections` | `user_id` | Direct | `DELETE FROM txn_collections WHERE user_id = ?` |
+| `txn_collection_items` | `user_id` | Direct | `DELETE FROM txn_collection_items WHERE user_id = ?` |
 | `j2_positions` | `user_id` | Direct | `DELETE FROM j2_positions WHERE user_id = ?` |
 | `j2_trades` | `user_id` | Direct | `DELETE FROM j2_trades WHERE user_id = ?` |
 | `j2_day_notes` | `user_id` | Direct | `DELETE FROM j2_day_notes WHERE user_id = ?` |

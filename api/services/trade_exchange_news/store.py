@@ -310,11 +310,54 @@ class Store:
         return [_row(r) for r in reversed(rows)]
 
     def by_event_id(self, event_id: str) -> dict[str, Any] | None:
-        """The stored headline with this ``event_id`` (the receiver's ULID: stable
-        across epochs and recovery), or None. A read; explain.py's source."""
-        r = self._conn().execute(f"SELECT {','.join(_COLS)} FROM headlines WHERE event_id = ?",
-                                 (str(event_id),)).fetchone()
-        return _row(r) if r else None
+        """The stored headline for this ``event_id`` (the receiver's ULID: stable
+        across epochs and recovery), or None. A read; explain.py's source. Any
+        delivery's id finds its headline (``resolve_events``)."""
+        return self.resolve_events([str(event_id)]).get(str(event_id))
+
+    def resolve_events(self, event_ids: list[str]) -> dict[str, dict[str, Any]]:
+        """{event_id: its headline row} for every id the store knows. Resolved through
+        ``deliveries`` (one row per delivery, each naming its headline), so a reference
+        kept outside this database -- a member's bookmark -- still finds its story after
+        an R2 rebuild, even if a DIFFERENT delivery of that story became the headline's
+        first. ⛔ Never by ``seq``: a rebuild renumbers it. A read."""
+        ids = [str(i) for i in dict.fromkeys(event_ids or [])]
+        out: dict[str, dict[str, Any]] = {}
+        cols = ",".join("h." + c for c in _COLS)
+        for i in range(0, len(ids), 500):
+            chunk = ids[i:i + 500]
+            marks = ",".join("?" * len(chunk))
+            for r in self._conn().execute(
+                    f"SELECT d.event_id, {cols} FROM deliveries d JOIN headlines h ON h.seq = d.headline_seq"
+                    f" WHERE d.event_id IN ({marks})", chunk).fetchall():
+                out[r[0]] = _row(r[1:])
+            # A headline row with no delivery row (a pre-ledger store) still answers for its own id.
+            missing = [e for e in chunk if e not in out]
+            if missing:
+                marks = ",".join("?" * len(missing))
+                for r in self._conn().execute(f"SELECT {','.join(_COLS)} FROM headlines WHERE event_id IN ({marks})",
+                                              missing).fetchall():
+                    row = _row(r)
+                    out[row["event_id"]] = row
+        return out
+
+    def story_ids(self, event_id: str) -> list[str]:
+        """Every delivery id of the headline ``event_id`` belongs to, the headline's own id
+        first -- [] when the store does not know it. Which delivery is a story's FIRST can
+        change in a rebuild (recovery ingests late deliveries; a rebuild replays in event-id
+        order), so a reference kept outside this database is matched against all of them.
+        A read."""
+        c = self._conn()
+        hit = c.execute("SELECT headline_seq FROM deliveries WHERE event_id=?", (str(event_id),)).fetchone()
+        if not hit:
+            hit = c.execute("SELECT seq FROM headlines WHERE event_id=?", (str(event_id),)).fetchone()
+        if not hit:
+            return []
+        head = c.execute("SELECT event_id FROM headlines WHERE seq=?", (hit[0],)).fetchone()
+        ids = [head[0]] if head else []
+        ids += [r[0] for r in c.execute("SELECT event_id FROM deliveries WHERE headline_seq=? ORDER BY event_id",
+                                        (hit[0],)).fetchall()]
+        return list(dict.fromkeys(ids))
 
     def known(self, event_id: str) -> bool:
         return self._conn().execute("SELECT 1 FROM deliveries WHERE event_id=?",

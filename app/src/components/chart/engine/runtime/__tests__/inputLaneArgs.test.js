@@ -116,7 +116,9 @@ describe("an input's label cannot decide its lane", () => {
     // stopped reading the default at all. Two refusals are not one refusal, and
     // only the guard says which lane made the decision.
     const literalDefault = verdict('LEN = 10\nn = input.int(LEN, "Len")\nplot(close * n)')
-    const slottedDefault = build('var int LEN = 10\nn = input.int(LEN, "Len")\nplot(close * n)')
+    // ⭐ PHASE 3 WS-D — a `var` NOTHING reassigns is a constant (`constantVarsOf`) and is
+    // now folded, so the state here is made real: the `var` is reassigned.
+    const slottedDefault = build('var int LEN = 10\nLEN := 10\nn = input.int(LEN, "Len")\nplot(close * n)')
     expect(literalDefault.ok).toBe(true)
     expect(slottedDefault.ok).toBe(false)
     expect(slottedDefault.refusal.guard).toBe('runtime:input-state')
@@ -159,7 +161,8 @@ describe("an input's label cannot decide its lane", () => {
       // VALUE. `minval`/`maxval` decide whether a MEMBER'S number is admitted
       // at all, so skipping them would silently accept a value the script's own
       // author bounded out — the one thing that door exists to prevent.
-      const r = build('var int lo = 2\nn = input.int(10, "Len", minval = lo)\nplot(close * n)')
+      // ⭐ PHASE 3 WS-D — a `var` nothing reassigns is folded now; this one is reassigned.
+      const r = build('var int lo = 2\nlo := 2\nn = input.int(10, "Len", minval = lo)\nplot(close * n)')
       expect(r.ok).toBe(false)
       expect(r.refusal.guard).toBe('runtime:input-state')
     })
@@ -185,7 +188,8 @@ describe("an input's label cannot decide its lane", () => {
       // name that is not a table function in either lane. That is the same
       // misdirection `builtinStateFamily` already records twice in its own
       // comment; this is the third.
-      const r = build('var string MD1 = "Mode A"\nm = input(MD1, "Mode")\nplot(m == "Mode A" ? close : open)')
+      // ⭐ PHASE 3 WS-D — a `var` nothing reassigns is folded now; this one is reassigned.
+      const r = build('var string MD1 = "Mode A"\nMD1 := "Mode A"\nm = input(MD1, "Mode")\nplot(m == "Mode A" ? close : open)')
       expect(r.ok).toBe(false)
       expect(r.refusal.guard).toBe('runtime:input-state')
       expect(r.refusal.message).not.toMatch(/CLOSED TABLE/)

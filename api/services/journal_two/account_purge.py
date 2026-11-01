@@ -32,6 +32,11 @@ log = logging.getLogger("journal_two.account_purge")
 _DIRECT_USER_TABLES = (
     # Core journal (accounts/positions/trades/day-notes)
     "j2_settings",
+    # UCT News Research Library (auth.db; library.py): the member's bookmarks, collections,
+    # collection membership and notes. The headlines themselves are shared and permanent.
+    "txn_bookmarks",
+    "txn_collections",
+    "txn_collection_items",
     "j2_positions",
     "j2_trades",
     "j2_day_notes",

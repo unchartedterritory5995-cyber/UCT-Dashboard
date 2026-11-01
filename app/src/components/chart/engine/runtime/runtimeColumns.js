@@ -839,7 +839,12 @@ export function columnsOver(build, rows, prev) {   // exported for its rails, as
     const { tree, inputs, interpretOpts, invariant } = build.trees[k]
     if (prevCols && invariant && prevCols[k] && prevCols[k].length === n) { out[k] = prevCols[k]; reusedCount += 1; continue }
     let value
-    try { value = interpret(tree, rows, inputs, undefined, undefined, interpretOpts) } catch { return null }
+    // ⭐ P3 WS-B — a fresh clock sink per re-evaluation: what the columnar lane withholds
+    // by name over THESE bars declines the run at the build (`columnOf`), so here it
+    // hands back to a rebuild, which says so by name (`runtime:chart-clock`).
+    const sink = new Map()
+    try { value = interpret(tree, rows, inputs, undefined, undefined, { ...(interpretOpts || {}), chartClockSink: sink }) } catch { return null }
+    for (const code of sink.keys()) if (String(code).startsWith('time-')) return null
     const arr = typeof value === 'number' ? new Float64Array(n).fill(value)
       : value instanceof Float64Array ? value : Float64Array.from(value)
     // ⚠️ FAIL-CLOSED, NOT MUTATION-PROVABLE: `interpret` over `rows` answers `n` values today
@@ -1218,6 +1223,10 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
     ...(symbol ? { symbol } : {}),
     ...(tf ? { basePeriod: tf, tf } : {}),
     ...clock,
+    // ⭐ P3 WS-B — the listing fact `lowerIrProgram` reads below, handed to the
+    // front end too, so a `?:` folded into a pure column reads an `na` test as
+    // the VM does (`pineRuntimeFrontend.js::columnInterpretOpts`).
+    ...(ctx && ctx.historyFromListing === true ? { historyFromListing: true } : {}),
     // ⭐ WS-E — the calc_bars window's `bar_index` probe (measurement only)
     ...(Number.isInteger(opts.barIndexShift) && opts.barIndexShift !== 0 ? { barIndexShift: opts.barIndexShift } : {}),
   })
@@ -1474,6 +1483,9 @@ export function probeObjectRuntime(source, specs) {
   try {
     built = buildRuntimeIr(String(source || ''), {
       bars: [], inputs: {}, objectTrees: [], objectTreesAt: specs, ...COMPILE_ON_A_PANE, ...runtimeClockOpts(false),
+      // ⭐⭐ THE OBJECT DOOR (Phase 3 audit): this build serves members' drawings with no runtime
+      // flag, so it gets master's lane only (`pineRuntimeFrontend.js::objectDoorRefuses`).
+      objectDoor: true,
     })
   } catch (err) {
     return { ok: false, refusal: { guard: 'runtime:build', message: String((err && err.message) || err) } }
@@ -1567,6 +1579,7 @@ export function runtimeObjectValues(rt, bars, ctx = {}) {
         objectTrees: [],
         objectTreesAt: at,
         pane: true,
+        objectDoor: true, // ⭐⭐ the object door: master's lane only (see `probeObjectRuntime`)
         ...(symbol ? { symbol } : {}),
         ...(tf ? { basePeriod: tf, tf } : {}),
         ...runtimeClockOpts(forming, tf ? { tf } : {}),

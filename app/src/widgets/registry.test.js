@@ -50,10 +50,12 @@ const IDS = [
   'chart', 'watchlist', 'themes', 'scanner', 'fundamentals', 'breadth',
   'indexes', 'marketcontext',
   'aisearch', 'news', 'notebook', 'profile', 'alerts', 'calendar', 'optionsflow',
-  'periodsort', 'nhnl', 'nhnlPulse', 'volumescan', 'scatter', 'tradeExchangeNews',
+  'periodsort', 'nhnl', 'nhnlPulse', 'volumescan', 'scatter', 'tradeExchangeNews', 'researchLibrary',
   // G-040 (wave 10, lane CX): the three CAPTURE-ONLY Notebook kinds. Registered so
   // a capture can store `widgetId` + `params`; bound by the journal host alone.
   'screener', 'cot', 'modelbook',
+  // UCT News V2: a Trade Exchange headline sent to Notebook (capture-only, the G-040 shape).
+  'tradeExchangeHeadline',
   // Notebook widgets (Task 6): five capture-only snapshot kinds, frozen by a fetch at insert.
   'myWatchlistToday', 'myNamesReporting', 'tickerCard', 'myPnlStats', 'myPositionsRisk',
   'myRulesCheck', 'myMistakes', 'marketOnMyNames', 'tickerFlow',
@@ -77,7 +79,7 @@ const IDS = [
   // Wave 9 (Task 9.14): the tracker block, the routine's twin.
   'tracker',
 ]
-const G040_KINDS = ['screener', 'cot', 'modelbook']
+const G040_KINDS = ['screener', 'cot', 'modelbook', 'tradeExchangeHeadline']
 // Wave 10 (Task 10.14): the ready-made dedicated kinds (WIDGET_KINDS rows with `dedicated: 1`).
 const DEDICATED_KINDS = ['myTiltCheck', 'myRevengeClean', 'myPlanVsActual', 'myRiskLeftToday', 'myPropFirm', 'myGamePlan', 'myAlertsFired']
 // Notebook widgets (Task 6): capture-only snapshot kinds with their own fetch-and-freeze slash items.
@@ -108,8 +110,8 @@ describe('widget registry — metadata pins', () => {
       aisearch: 'AI Search', news: 'News', notebook: 'Notebook', profile: 'Profile',
       alerts: 'Alerts', calendar: 'UCT Terminal', optionsflow: 'Options Flow',
       periodsort: 'Period Sort', nhnl: 'New Highs / Lows', nhnlPulse: 'H/L Pulse',
-      volumescan: 'Volume Surge', scatter: 'Market Map', tradeExchangeNews: 'News',
-      screener: 'Screener', cot: 'COT Positioning', modelbook: 'Model Book',
+      volumescan: 'Volume Surge', scatter: 'Market Map', tradeExchangeNews: 'News', researchLibrary: 'UCT News',
+      screener: 'Screener', cot: 'COT Positioning', modelbook: 'Model Book', tradeExchangeHeadline: 'UCT News headline',
       myWatchlistToday: 'My watchlist today', myNamesReporting: 'My names reporting',
       tickerCard: 'Ticker card', myPnlStats: 'My P&L and stats', myPositionsRisk: 'My open positions and risk',
       myRulesCheck: 'My rules check', myMistakes: 'My recurring mistakes',
@@ -142,8 +144,8 @@ describe('widget registry — metadata pins', () => {
       aisearch: 'AI Search', news: 'News & Catalysts', notebook: 'Notebook', profile: 'Stock Profile',
       alerts: 'Alerts', calendar: 'UCT Terminal', optionsflow: 'Options Flow',
       periodsort: 'Period Sort', nhnl: 'New Highs / Lows', nhnlPulse: 'H/L Pulse',
-      volumescan: 'Volume Surge', scatter: 'Market Map', tradeExchangeNews: 'News',
-      screener: 'Screener', cot: 'COT Positioning', modelbook: 'Model Book',
+      volumescan: 'Volume Surge', scatter: 'Market Map', tradeExchangeNews: 'News', researchLibrary: 'Research Library',
+      screener: 'Screener', cot: 'COT Positioning', modelbook: 'Model Book', tradeExchangeHeadline: 'UCT News headline',
       myWatchlistToday: 'My watchlist today', myNamesReporting: 'My names reporting',
       tickerCard: 'Ticker card', myPnlStats: 'My P&L and stats', myPositionsRisk: 'My open positions and risk',
       myRulesCheck: 'My rules check', myMistakes: 'My recurring mistakes',
@@ -176,8 +178,8 @@ describe('widget registry — metadata pins', () => {
       aisearch: 'AI Search', news: 'News', notebook: 'Notebook', profile: 'Profile',
       alerts: 'Alerts', calendar: 'Terminal', optionsflow: 'Flow',
       periodsort: 'Period Sort', nhnl: 'NH / NL', nhnlPulse: 'H/L Pulse',
-      volumescan: 'Volume', scatter: 'Map', tradeExchangeNews: 'News',
-      screener: 'Screener', cot: 'COT', modelbook: 'Model Book',
+      volumescan: 'Volume', scatter: 'Map', tradeExchangeNews: 'News', researchLibrary: 'News',
+      screener: 'Screener', cot: 'COT', modelbook: 'Model Book', tradeExchangeHeadline: 'Headline',
       myWatchlistToday: 'My watchlist today', myNamesReporting: 'My names reporting',
       tickerCard: 'Ticker card', myPnlStats: 'My P&L and stats', myPositionsRisk: 'My open positions and risk',
       myRulesCheck: 'My rules check', myMistakes: 'My recurring mistakes',
@@ -226,9 +228,11 @@ describe('widget registry — metadata pins', () => {
       volumescan:   { w: 6,  h: 12, minW: 2, minH: 5 },
       scatter:      { w: 10, h: 12, minW: 5, minH: 6 },
       tradeExchangeNews: { w: 4, h: 10, minW: 2, minH: 4 },
+      researchLibrary: { w: 4, h: 10, minW: 2, minH: 4 },
       screener:     { w: 6,  h: 10, minW: 3, minH: 4 },
       cot:          { w: 5,  h: 8,  minW: 3, minH: 4 },
       modelbook:    { w: 6,  h: 8,  minW: 3, minH: 4 },
+      tradeExchangeHeadline: { w: 4, h: 3, minW: 2, minH: 2 },
       myWatchlistToday: { w: 6, h: 8, minW: 3, minH: 4 },
       myNamesReporting: { w: 6, h: 8, minW: 3, minH: 4 },
       tickerCard: { w: 6, h: 8, minW: 3, minH: 4 },
@@ -393,6 +397,8 @@ describe('widget registry — workspace host bindings', () => {
       // options today (the aisearch idiom — a widget receives what it uses).
       marketcontext: [],
       aisearch: ['color'],
+      // RETIRED to UCT News (V2): opens News on its Saved Headlines view.
+      researchLibrary: ['color', 'defaultView', 'onOptsChange', 'opts'],
     }
     const DEFAULT_SHAPE = ['color', 'onOptsChange', 'opts']
     const fn = () => {}
@@ -477,6 +483,10 @@ const CAPTURE_FIXTURES = {
     year: 2023, symbol: 'nvda', setupId: 7, setupType: 'High Tight Flag (Powerplay)',
     setupDate: '2023-05-25', title: 'NVDA 2023 — High Tight Flag (Powerplay) 2023-05-25',
     annotation: 'the gap that started it',
+  },
+  tradeExchangeHeadline: {
+    eventId: '01JSYNTHETIC0000000000000A', content: 'SYNTHETIC: ALFA Corp raises full-year guidance',
+    receivedAtMs: 1793000000000, source: 'Trade Exchange', tickers: ['ALFA'],
   },
   // Notebook widgets (Task 6): each fixture carries the server's frozen payload keys
   // (api/services/journal_two/notebook_widgets.py), account figures included, so the
@@ -913,8 +923,11 @@ describe('widget registry — params layer', () => {
     expect(isReconstructable('screener', normalizeParams('screener', CAPTURE_FIXTURES.screener))).toBe(true)
     expect(isReconstructable('cot', normalizeParams('cot', CAPTURE_FIXTURES.cot))).toBe(true)
     expect(isReconstructable('modelbook', normalizeParams('modelbook', CAPTURE_FIXTURES.modelbook))).toBe(true)
+    // UCT News V2: a frozen headline reference renders from its params alone.
+    expect(isReconstructable('tradeExchangeHeadline', normalizeParams('tradeExchangeHeadline', CAPTURE_FIXTURES.tradeExchangeHeadline))).toBe(true)
+    expect(isReconstructable('tradeExchangeHeadline', { content: 'x', receivedAtMs: 1 })).toBe(false)
     // Every OTHER non-chart type stays image-only.
-    for (const id of WIDGET_IDS.filter(x => !['chart', 'calendar', 'aisearch', 'fundamentals', 'news', 'breadth', 'alerts', 'scanner', 'watchlist', 'themes', 'indexes', 'marketcontext', 'screener', 'cot', 'modelbook', ...NOTEBOOK_WIDGET_KINDS].includes(x))) {
+    for (const id of WIDGET_IDS.filter(x => !['chart', 'calendar', 'aisearch', 'fundamentals', 'news', 'breadth', 'alerts', 'scanner', 'watchlist', 'themes', 'indexes', 'marketcontext', 'screener', 'cot', 'modelbook', 'tradeExchangeHeadline', ...NOTEBOOK_WIDGET_KINDS].includes(x))) {
       expect(isReconstructable(id, normalizeParams(id, CAPTURE_FIXTURES[id])), id).toBe(false)
     }
     // Unknown/removed widget type: image, never a re-render attempt.

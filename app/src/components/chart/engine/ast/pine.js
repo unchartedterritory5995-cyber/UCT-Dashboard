@@ -3561,6 +3561,27 @@ function builtinTupleParts(toks, close, names, env, first) {
   return built.map((node) => exprBinding(node, new Map(env), at))
 }
 
+/** ⭐ P3 WS-B — THE SAME TUPLE BUILT-INS, FOR THE RUNTIME LANE. That lane's
+ *  destructure lowers its right-hand side as an expression asked for several
+ *  values; this hands it the part trees `PINE_TUPLE_BUILTINS` builds, through the
+ *  SAME checks `builtinTupleParts` makes (positional arguments, a declared arity,
+ *  the declared part count, a builder that may decline), so the two lanes cannot
+ *  take `ta.bb`/`ta.macd`/`ta.kc`/`ta.supertrend` apart differently. Returns the
+ *  parse-shaped part nodes, or `null` — the caller keeps its own refusal.
+ *  Additive: nothing in this file calls it. */
+export function pineTupleBuiltinCallParts(call, names, tok) {
+  if (!call || call.type !== 'call') return null
+  const bare = normaliseName(String(call.name).split('.').pop())
+  if (!own(PINE_TUPLE_BUILTINS, bare)) return null
+  const spec = PINE_TUPLE_BUILTINS[bare]
+  const raw = call.args || []
+  if (raw.some((a) => a && a.name != null)) return null
+  const arities = Array.isArray(spec.arity) ? spec.arity : [spec.arity]
+  if (!arities.includes(raw.length) || (names != null && names !== spec.parts)) return null
+  const built = spec.build(raw.map((a) => a.value), tok)
+  return built || null
+}
+
 /** Does this UNRESOLVED right-hand side read `name`'s own previous bar?
  *
  *  ⚠️ THE PARSED TREE, NOT THE CANONICAL ONE — this runs before resolution, which
