@@ -390,12 +390,11 @@ async function runSpec(spec, { show = SHOW_DEFAULT, name = null, savedId = null,
 // with latest-session measure conditions (they page up to CANDIDATES_MAX candidates). Both stay on the
 // Screener's own routes.
 const usesGateway = (spec) => serverServesScan() && !(spec?.post || []).length
-// The member's open turn (trace.js opens ONE per message or panel action) — the server's budget key. Never minted here.
-const scanTurn = () => currentTurnId()
 
 /** One `screen.run` through the gateway → the answer text/table, or a refusal sentence. */
-async function runViaGateway(spec, { show = SHOW_DEFAULT, name = null, savedId = null, notes: extra = [], ctx = null } = {}) {
-  const turnId = scanTurn(ctx)
+async function runViaGateway(spec, { show = SHOW_DEFAULT, name = null, savedId = null, notes: extra = [] } = {}) {
+  // the member's open turn (trace.js: ONE per message / panel action) — the server's budget key; never minted
+  const turnId = currentTurnId()
   if (!turnId) return "I didn't run it: this screen needs the Agent's turn, which wasn't available."
   const keys = [...new Set([...(spec.filters || []).map(f => f.key), spec.sort?.key].filter(k => k && fieldOf(k) && !fieldOf(k).provider && fieldOf(k).type !== 'list'))]
   const shown = Math.min(SHOW_MAX, Math.max(1, show))
@@ -444,8 +443,9 @@ async function runViaGateway(spec, { show = SHOW_DEFAULT, name = null, savedId =
 }
 
 /** The member's own saved screens through `screen.saved` (read-only) → the answer text. */
-async function listSavedViaGateway(ctx) {
-  const turnId = scanTurn(ctx)
+async function listSavedViaGateway() {
+  // the member's open turn (trace.js: ONE per message / panel action) — the server's budget key; never minted
+  const turnId = currentTurnId()
   if (!turnId) return "I couldn't read your screens: this needs the Agent's turn, which wasn't available."
   const env = await readData('screen.saved', {}, { purpose: 'answer', turnId })
   if (!env || (env.status !== 'ok' && env.status !== 'partial')) return `I couldn't read your screens: ${((env?.notes || [])[0] || 'the Screener could not answer').replace(/\.$/, '')}.`
@@ -652,11 +652,11 @@ export function registerScreenerCapabilities() {
       }
       return null
     },
-    async answer(_snap, args, host, ctx) {
+    async answer(_snap, args, host) {
       let b
       try { b = await specFor(args, host) } catch (e) { return `I didn't run it: ${e?.message || 'the Screener could not be read'}.` }
       if (b.error) return `I didn't run it: ${b.error}.`
-      if (usesGateway(b.spec)) return runViaGateway(b.spec, { show: args.show || SHOW_DEFAULT, notes: b.notes, ctx })
+      if (usesGateway(b.spec)) return runViaGateway(b.spec, { show: args.show || SHOW_DEFAULT, notes: b.notes })
       return runSpec(b.spec, { show: args.show || SHOW_DEFAULT, notes: b.notes })
     },
   })
@@ -693,14 +693,14 @@ export function registerScreenerCapabilities() {
       const one = f.kind === 'fuzzy' ? all.filter(s => s.name === f.name) : []
       return one.length === 1 ? { screen: one[0].id, show: null, as: null } : null
     },
-    async answer(_snap, { screen, show }, _host, ctx) {
+    async answer(_snap, { screen, show }) {
       await loadMeta()
       const lib = await loadSaved()
       const s = [...lib.saved, ...lib.starters].find(x => x.id === String(screen))
       if (!s) return "I couldn't find that saved screen."
       const sspec = { filters: s.spec?.filters || [], sort: s.spec?.sort || null, rank: s.spec?.rank || null, logic: s.spec?.logic || null }
       // the member's OWN screen is run by id (the server resolves it among THEIR screens only); a starter by its spec
-      if (usesGateway(sspec)) return runViaGateway(sspec, { show: show || SHOW_DEFAULT, name: s.name, savedId: s.kind === 'yours' ? s.id : null, ctx })
+      if (usesGateway(sspec)) return runViaGateway(sspec, { show: show || SHOW_DEFAULT, name: s.name, savedId: s.kind === 'yours' ? s.id : null })
       return runSpec({ filters: s.spec?.filters || [], sort: s.spec?.sort || null, rank: s.spec?.rank || null, logic: s.spec?.logic || null }, { show: show || SHOW_DEFAULT, name: s.name, savedId: s.kind === 'yours' ? s.id : null })
     },
   })
@@ -728,8 +728,8 @@ export function registerScreenerCapabilities() {
     hints: 'target = the ref of the screener entry.',
     args: { type: 'object', properties: {}, required: [], additionalProperties: false },
     fast: ({ lower }) => (/^((what|which) (saved )?(screens|scans) (do i have|have i saved)|(show|list)( me)?( my)? (saved )?screens|my (saved )?screens)$/.test(lower) ? {} : null),
-    async answer(_snap, _args, _host, ctx) {
-      if (serverServesScan()) return listSavedViaGateway(ctx)
+    async answer() {
+      if (serverServesScan()) return listSavedViaGateway()
       const lib = await loadSaved()
       const mine = lib.saved.map(s => s.name)
       const starters = lib.starters.map(s => s.name)
