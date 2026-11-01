@@ -7,14 +7,19 @@ called directly and read-only.
 route runs `watchlist_alert_service.run_alert_check()`, and an Agent price read must never trigger an
 alert. This module imports nothing from that router or from the alert service, and a test pins both.
 
-Freshness (MD-1 §3/§4):
-  * in the regular session on a trading day -> `live`, `stale` once the oldest quote in the set is older
-    than FRESHNESS_BUDGET_S;
-  * otherwise (pre-market, post-market, overnight, weekend, holiday) -> `historical`, with a note, because
-    what the snapshot carries then is the last session's prints, not a live market.
-`as_of` is the DATA's own time: each symbol's vendor observation stamp (`_observed_at`, epoch seconds,
-stamped by get_batch_quotes), and for the envelope the OLDEST of them, so a set is never described as
-fresher than its stalest member.
+Freshness (MD-1 v1.1 §4) — classified from the ET clock, the product's trading-day helper and the
+VENDOR's own timestamps, never from fetch time (and not from `massive._detect_session`, which labels
+20:00–04:00 and weekends `post_market`):
+  * regular session (09:30 to the session's close, early closes honoured) on a trading day -> `live`;
+    `stale` once the oldest live stamp is older than FRESHNESS_BUDGET_S (60 s);
+  * extended hours on a trading day (04:00–09:30, close–20:00) -> `live` with NOTE_EXTENDED when the oldest
+    live stamp is at most EXTENDED_LIVE_S (15 min) old, otherwise `historical` with NOTE_CLOSED;
+  * overnight (20:00–04:00), weekends and holidays -> `historical` with NOTE_CLOSED, stale false.
+Each row says where its `last` came from (`last_source`: trade | minute | day_close | prev_close). In a
+`live` read, a row priced from day_close/prev_close is NOT live: the read is `partial`, a note names it,
+and its stamp is EXCLUDED from the envelope `as_of` (the oldest stamp among the rows that ARE live), so a
+set is never described as fresher than its stalest live member. If no row has a current trade, the read
+is `historical`.
 
 No cache, connection, job, write or side effect is added here. `provider_calls` is 1 per batch request
 made (0 when nothing reached the network: no symbols, or Massive's cached-forbidden short-circuit).
@@ -30,24 +35,40 @@ from api.services.uct_agent.marketdata import envelope as env
 
 SOURCE = "massive"
 FRESHNESS_BUDGET_S = 60
+EXTENDED_LIVE_S = 15 * 60
+_LIVE_SOURCES = ("trade", "minute")
 _SYMBOL_RE = re.compile(r"^[A-Z][A-Z0-9.\-]{0,9}$")
 
 NOTE_CLOSED = ("the regular session is not open — these are the last prints from the most recent session, "
                "not live prices")
-NOTE_EXTENDED = "extended-hours prints may be included in `last`"
+NOTE_EXTENDED = ("extended-hours (pre-/post-market) prices — thin trading; the regular-session close is in "
+                 "day_close/prev_close")
+NOTE_NO_TRADES = ("no current trade in the snapshot — these are the latest closes, not live prices")
 NOTE_SET_AS_OF = "as_of is the oldest quote in this set"
+NOTE_SET_AS_OF_LIVE = "as_of is the oldest current trade in this set"
 
 
-def _session() -> tuple[bool, str]:
-    """(in the regular session on a trading day?, massive's session label). Uses massive's own helpers so
-    the Agent and the product agree on what 'open' means."""
-    from api.services import massive
-    label = massive._detect_session()
+def _session(now: Optional[datetime] = None) -> str:
+    """`regular` | `extended` | `closed`, from the ET clock and the product's own calendar helpers."""
+    from api.services import bars_fetch, massive
+    from zoneinfo import ZoneInfo
     try:
         trading_day = massive._today_et_is_a_trading_day()
     except Exception:  # noqa: BLE001 — unknown calendar: never claim the market is open
-        trading_day = False
-    return (trading_day and label == "regular"), label
+        return "closed"
+    if not trading_day:
+        return "closed"
+    et = (now or datetime.now(timezone.utc)).astimezone(ZoneInfo("America/New_York"))
+    mins = et.hour * 60 + et.minute
+    try:
+        close = bars_fetch._session_close_minutes(int(et.strftime("%Y%m%d")))
+    except Exception:  # noqa: BLE001
+        close = 16 * 60
+    if 9 * 60 + 30 <= mins < close:
+        return "regular"
+    if 4 * 60 <= mins < 9 * 60 + 30 or close <= mins < 20 * 60:
+        return "extended"
+    return "closed"
 
 
 def _norm_symbols(raw: Any) -> tuple[list[str], list[str]]:
@@ -77,13 +98,19 @@ def _row(sym: str, t: dict) -> dict:
     prev = t.get("prevDay") if isinstance(t.get("prevDay"), dict) else {}
     last_trade = t.get("lastTrade") if isinstance(t.get("lastTrade"), dict) else {}
     minute = t.get("min") if isinstance(t.get("min"), dict) else {}
-    last = _num(last_trade.get("p")) or _num(minute.get("c")) or _num(day.get("c")) or _num(prev.get("c"))
+    last, last_source = None, None
+    for src, v in (("trade", last_trade.get("p")), ("minute", minute.get("c")),
+                   ("day_close", day.get("c")), ("prev_close", prev.get("c"))):
+        if _num(v):
+            last, last_source = _num(v), src
+            break
     observed = t.get("_observed_at")
     observed = observed if isinstance(observed, (int, float)) and observed > 0 else None
     vol = _num(day.get("v"))
     return {
         "symbol": sym,
         "last": last,
+        "last_source": last_source,
         "change": _num(t.get("todaysChange")),
         "change_pct": _num(t.get("todaysChangePerc")),
         "open": _num(day.get("o")),
@@ -119,7 +146,7 @@ def _read(kind: str, params: dict, symbols_raw: Any) -> dict:
     symbols, rejected = _norm_symbols(symbols_raw)
     if not symbols:
         return env.unavailable(kind, params, SOURCE, "no valid ticker symbol was given")
-    in_session, label = _session()
+    label = _session()
     raw, calls, failure = _fetch(symbols)
     if raw is None:
         return env.unavailable(kind, params, SOURCE, failure or "the quote provider could not answer", calls)
@@ -133,23 +160,31 @@ def _read(kind: str, params: dict, symbols_raw: Any) -> dict:
         return env.unavailable(kind, params, SOURCE, "the quote provider returned no price for "
                                + ", ".join(symbols), calls)
 
-    stamps = [r["_observed"] for r in rows if r["_observed"]]
+    now = time.time()
+    live_rows = [r for r in rows if r["last_source"] in _LIVE_SOURCES]
+    live_stamps = [r["_observed"] for r in live_rows if r["_observed"]]
+    all_stamps = [r["_observed"] for r in rows if r["_observed"]]
+    oldest_live = min(live_stamps) if live_stamps else None
+    notes: list[str] = []
+    freshness, stale = "historical", False
+    if label == "regular" and live_rows:
+        freshness = "live"
+        stale = oldest_live is None or (now - oldest_live) > FRESHNESS_BUDGET_S
+    elif label == "extended" and oldest_live is not None and (now - oldest_live) <= EXTENDED_LIVE_S:
+        freshness = "live"
+        notes.append(NOTE_EXTENDED)
+    else:
+        notes.append(NOTE_NO_TRADES if label == "regular" else NOTE_CLOSED)
+    not_live = [r for r in rows if r["last_source"] not in _LIVE_SOURCES] if freshness == "live" else []
+    for r in not_live:
+        notes.append(f"no current trade for {r['symbol']} — showing {r['last_source']}")
+    stamps = live_stamps if freshness == "live" else all_stamps
     oldest = min(stamps) if stamps else None
     as_of = env.utc_iso(datetime.fromtimestamp(oldest, timezone.utc)) if oldest else None
-    notes: list[str] = []
-    if in_session:
-        freshness = "live"
-        stale = oldest is None or (time.time() - oldest) > FRESHNESS_BUDGET_S
-    else:
-        freshness = "historical"
-        stale = False
-        notes.append(NOTE_CLOSED)
-        if label in ("pre_market", "post_market"):
-            notes.append(NOTE_EXTENDED)
     if as_of is None:
         notes.append("the provider gave no observation time for these quotes")
     elif kind == "quotes" and len(rows) > 1:
-        notes.append(NOTE_SET_AS_OF)
+        notes.append(NOTE_SET_AS_OF_LIVE if freshness == "live" else NOTE_SET_AS_OF)
     if missing:
         notes.append("no quote for: " + ", ".join(missing))
     if no_price:
@@ -162,7 +197,7 @@ def _read(kind: str, params: dict, symbols_raw: Any) -> dict:
     dropped = len(missing) + len(rejected)
     coverage = {"evaluated": len(symbols) + len(rejected), "answered": len(rows),
                 "dropped": dropped, "not_computable": len(no_price)}
-    status = "ok" if (not missing and not no_price and not rejected) else "partial"
+    status = "ok" if (not missing and not no_price and not rejected and not not_live) else "partial"
     data = {"quote": rows[0]} if kind == "quote" else {"quotes": rows}
     data["session"] = label
     return env.make_envelope(kind, params, status=status, freshness=freshness, as_of=as_of, source=SOURCE,
