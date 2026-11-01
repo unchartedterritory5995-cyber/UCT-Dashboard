@@ -86,6 +86,22 @@ Only agent-qa edits this file. Update it in every PR.
   - 0 non-test importers today (F-1). It stays non-vacuous through a real-file case (`agentData.test.js`) and 14
     controls.
 
+- **F-7 (agent-sc), #584 @ 3092a36832: the readData turn-id rail fails at `capabilities/screener.js:407` and
+  `:450`.** turnId comes through a `scanTurn(ctx)` wrapper rather than `const turnId = currentTurnId()`.
+  Repro: merge #584 with #572, then run `npx vitest run src/agent/qa/readDataTurnId.test.js`.
+  Fix, tested on a throwaway local merge: call currentTurnId() directly at both sites (40/40 pass).
+  Otherwise #584 passes:
+  - flag-off output is BYTE-IDENTICAL to agent/int (every answer and the full fetch sequence, 0 `/api/agent/data`);
+  - no turn → refused, nothing sent;
+  - one scan per turn is enforced server-side (#570 probe).
+- **F-8 (agent-md), #585 @ 4b974ccf59: `tests/test_uct_agent_data_pr3.py:25` sets
+  `TODAY = datetime.now(timezone.utc).date()` at import.** The adapter ages statements on its own real clock, so
+  the exact-boundary stale test flips if a run crosses UTC midnight. #585's quote tests are clean (NOW =
+  1793000000.0), so F-6's KNOWN entry is removed in #585's integration window.
+- **#582 (corpus, 31 questions):** the scorer `tests/test_uct_agent_qa_scan_corpus.py` lands after it merges.
+  Planned: ORACLE (control, must be 100%) and GRAMMAR-DIRECT (deterministic baseline) interpreters, per-category
+  and nl tallies, perturbation controls, and a recorded baseline.
+
 ## Blockers
 - (none)
 
