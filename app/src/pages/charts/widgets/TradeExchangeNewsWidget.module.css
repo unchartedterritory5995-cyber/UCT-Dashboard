@@ -813,3 +813,23 @@
 /* Only the body scrolls: the head, the clamped source line and the foot keep their height. */
 .explainHead, .explainSource, .explainFoot { flex: 0 0 auto; }
 .explainBody { flex: 1 1 auto; }
+
+/* ── Research Library: the saved mark and the save / Undo toast ── */
+.rowBtnSaved, .row:hover .rowBtnSaved { opacity: 1; color: var(--txn-sym, var(--ut-gold, #c9a84c)); }
+.toast {
+  position: absolute; z-index: 7; left: 50%; bottom: 10px; transform: translateX(-50%);
+  max-width: calc(100% - 16px);
+  display: inline-flex; align-items: center; gap: 10px;
+  padding: 5px 10px;
+  background: var(--menu-bg, var(--bg-elevated)); color: var(--menu-text, var(--text));
+  border: 1px solid var(--menu-border, var(--border)); border-radius: 6px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+  font-size: 11px; white-space: nowrap;
+}
+.toastErr { color: var(--ut-red-bright); }
+.toastBtn {
+  padding: 1px 7px; background: none; cursor: pointer;
+  border: 1px solid var(--menu-border, var(--border)); border-radius: 3px;
+  color: var(--menu-accent, var(--ut-gold, #c9a84c)); font-family: var(--font-sans); font-size: 10.5px; font-weight: 600;
+}
+.toastBtn:focus-visible { outline: 1px solid currentColor; }

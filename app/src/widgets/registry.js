@@ -851,6 +851,28 @@ const PANEL_MANIFESTS = {
     reconstructable: false,                     // a live feed at a past instant is not replayable here
     liveCapable: false,
   },
+  researchLibrary: {
+    // The member's Research Library: headlines saved from UCT News (`tradeExchangeNews`),
+    // personal collections and notes (api/services/trade_exchange_news/library.py). Released
+    // with News to every SIGNED-IN member; picker-only (PICKER_ONLY_WIDGETS) so UCT Agent's
+    // widget list and golden manifest stay exactly as they were. No Notebook capture.
+    labels: { header: 'Research Library', menu: 'Research Library', tab: 'Library' },
+    defaults: { w: 4, h: 10, minW: 2, minH: 4 },
+    placement: { family: 'panel', fill: 'narrow' },
+    menus: { workspace: true, tab: true, mobile: false, journal: false },
+    themeFollow: true,
+    paramsSchema: [
+      { key: 'settings', type: 'json' },
+      { key: 'collection', type: 'string' },
+      { key: 'ticker', type: 'string' },
+      { key: 'from', type: 'string' },
+      { key: 'to', type: 'string' },
+      { key: 'sort', type: 'string' },
+    ],
+    plainText: () => '[library: saved UCT News headlines]',
+    reconstructable: false,                     // personal, server-side state
+    liveCapable: false,
+  },
 
   // ── G-040 (wave 10, lane CX): the three trader-specific capture doors ───────
   // Rulings: docs/notebook/future-internal-capture-expansion.md (controller,
@@ -1152,7 +1174,7 @@ export const JOURNAL_MENU_TYPES_ALL = WIDGET_IDS.filter(id => WIDGET_REGISTRY[id
 // the Agent's list pushed widget.add's description past the 1000-character cap and
 // broke the golden manifest. Releasing a widget to members is not releasing it to
 // the Agent -- that is a separate, reviewed Agent change.
-export const PICKER_ONLY_WIDGETS = Object.freeze(['tradeExchangeNews'])
+export const PICKER_ONLY_WIDGETS = Object.freeze(['tradeExchangeNews', 'researchLibrary'])
 const agentList = (picker) => (captureEnabled() ? picker : picker.filter(id => !PICKER_ONLY_WIDGETS.includes(id)))
 export const WORKSPACE_PICKER_TYPES = releasedTypes(WORKSPACE_MENU_TYPES_ALL)
 export const TAB_PICKER_TYPES = releasedTypes(TAB_MENU_TYPES_ALL)
@@ -1175,7 +1197,7 @@ export const WIDGET_CATEGORIES = [
   // "Market Internals" is the home for the real-time, market-wide tools — the growing
   // NH/NL-style family. Renamed from "Breadth & Momentum" as that family expands.
   { key: 'internals', label: 'Market Internals',       items: ['indexes', 'breadth', 'marketcontext', 'nhnl', 'nhnlPulse', 'volumescan'] },
-  { key: 'research',  label: 'Research',               items: ['fundamentals', 'profile', 'news', 'tradeExchangeNews', 'aisearch', 'calendar', 'notebook'] },
+  { key: 'research',  label: 'Research',               items: ['fundamentals', 'profile', 'news', 'tradeExchangeNews', 'researchLibrary', 'aisearch', 'calendar', 'notebook'] },
   { key: 'flow',      label: 'Flow & Alerts',          items: ['optionsflow', 'alerts'] },
 ]
 
@@ -1198,6 +1220,7 @@ export const WIDGET_CATALOG = {
   aisearch:     { icon: 'sparkle',  blurb: 'Ask AI about any stock or the market.' },
   news:         { icon: 'wire',     blurb: 'High-impact news & catalysts per stock.' },
   tradeExchangeNews: { icon: 'wire', blurb: 'Breaking market headlines from Trade Exchange, live.', live: true },
+  researchLibrary: { icon: 'library', blurb: 'Your saved UCT News headlines, collections and notes.' },
   profile:      { icon: 'book',     blurb: 'Company profile, description & stats.' },
   alerts:       { icon: 'bell',     blurb: 'Your price alerts, updating live.' },
   calendar:     { icon: 'calendar', blurb: 'Earnings & market events for any day.' },

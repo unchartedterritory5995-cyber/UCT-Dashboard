@@ -113,10 +113,10 @@ export function widgetOwnChrome(widget, chartsTheme) {
     if (own.canvasBottom && own.canvasBottom !== own.canvas) entry.bottom = canvasEntry(own.canvasBottom)
     return entry
   }
-  if (surrogate.type === 'news' || surrogate.type === 'notebook' || surrogate.type === 'profile' || surrogate.type === 'alerts' || surrogate.type === 'calendar' || surrogate.type === 'optionsflow' || surrogate.type === 'nhnl' || surrogate.type === 'nhnlPulse' || surrogate.type === 'volumescan' || surrogate.type === 'scatter' || surrogate.type === 'tradeExchangeNews') {
+  if (surrogate.type === 'news' || surrogate.type === 'notebook' || surrogate.type === 'profile' || surrogate.type === 'alerts' || surrogate.type === 'calendar' || surrogate.type === 'optionsflow' || surrogate.type === 'nhnl' || surrogate.type === 'nhnlPulse' || surrogate.type === 'volumescan' || surrogate.type === 'scatter' || surrogate.type === 'tradeExchangeNews' || surrogate.type === 'researchLibrary') {
     const mergeFn = surrogate.type === 'news'
       ? mergeNewsWidgetSettings
-      : surrogate.type === 'tradeExchangeNews' ? mergeTxnWidgetSettings
+      : (surrogate.type === 'tradeExchangeNews' || surrogate.type === 'researchLibrary') ? mergeTxnWidgetSettings
       : surrogate.type === 'notebook' ? mergeNotebookWidgetSettings
         : surrogate.type === 'alerts' ? mergeAlertsWidgetSettings
           : surrogate.type === 'calendar' ? mergeCalendarWidgetSettings

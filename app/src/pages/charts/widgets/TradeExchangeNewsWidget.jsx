@@ -46,6 +46,7 @@ import { TXN_SOUND_OPTIONS, txnClampLines, txnSettingsFor, txnWidgetStyleVars } 
 import { categoriesLabel, cleanCategories, cleanPresets, coverageNotice, dayLabel, dayRequest, feedHealth, groupRelated,
   liveStatus, presetPatch, presetSnapshot, quoteSymbols, viewHealth, visibleItems } from './tradeExchangeNewsModel'
 import useTradeExchangeNewsDay from './useTradeExchangeNewsDay'
+import * as library from '../../../lib/tradeExchangeNewsLibrary'
 import styles from './TradeExchangeNewsWidget.module.css'
 
 //: New-headline highlight: held for 1.5 s, then a 0.6 s fade (CSS .flash), then removed.
@@ -283,6 +284,26 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange }) {
   const [explain, setExplain] = useState(null)              // { item, anchor }
   const onExplain = useCallback((item, anchor) => setExplain((x) => (x?.item.seq === item.seq ? null : { item, anchor })), [])
   const closeExplain = useCallback(() => setExplain(null), [])
+  // ── Research Library: save / remove (Undo), shared with every News + Library widget ──
+  const lib = useSyncExternalStore(library.subscribe, library.getSnapshot)
+  const [toast, setToast] = useState(null)                  // { text, undo?, tone }
+  useEffect(() => {
+    if (!toast) return undefined
+    const t = setTimeout(() => setToast(null), toast.undo ? 6000 : 3500)
+    return () => clearTimeout(t)
+  }, [toast])
+  const onSave = useCallback(async (item) => {
+    const r = await library.toggle(item.id)
+    if (!r.ok) setToast({ text: r.error, tone: 'err' })
+    else if (!r.saved) setToast({ text: 'Removed from your library', undo: r.removed })
+    else setToast({ text: 'Saved to your Research Library' })
+  }, [])
+  const undo = useCallback(async () => {
+    const removed = toast?.undo
+    setToast(null)
+    const r = await library.undoRemove(removed)
+    if (!r.ok) setToast({ text: r.error || 'Could not restore it. Save it again.', tone: 'err' })
+  }, [toast])
 
   // ── filters + presets (this widget's opts only) ──
   const [filterOpen, setFilterOpen] = useState(false)
@@ -341,10 +362,11 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange }) {
   const now = Date.now()
   const rowProps = { linkedSym, onSym, colorMode: settings.tickerColorMode, prices, staleSymbols, quotesUsed,
     provisional: feed.provisional, clampLines, onToggleExpand, showCategory: settings.showCategory !== 'off', timeOnly: true,
-    onToggleGroup, onActions, onExplain }
+    onToggleGroup, onActions, onExplain, onSave }
   const renderRow = (it, extra) => (
     <Row key={it.seq} item={it} {...rowProps} expanded={expanded.has(it.seq)} flashing={flashing.has(it.seq)}
-      actionsOpen={actions?.item.seq === it.seq} explainOpen={explain?.item.seq === it.seq} {...extra} />
+      actionsOpen={actions?.item.seq === it.seq} explainOpen={explain?.item.seq === it.seq}
+      saved={lib.ids.has(it.id)} {...extra} />
   )
   const renderGroup = (g) => {
     if (!g.rest.length) return renderRow(g.lead)
@@ -407,6 +429,12 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange }) {
       {actions && (
         <ActionsMenu key={actions.item.seq} item={actions.item} anchorEl={actions.anchor} hostEl={rootRef.current}
           themeVars={menuVars} onClose={closeActions} />
+      )}
+      {toast && (
+        <div className={`${styles.toast}${toast.tone === 'err' ? ' ' + styles.toastErr : ''}`} role="status" style={menuVars}>
+          <span>{toast.text}</span>
+          {toast.undo && <button type="button" className={styles.toastBtn} onClick={undo}>Undo</button>}
+        </div>
       )}
       {explain && (
         <ExplainPanel key={explain.item.id} item={explain.item} anchorEl={explain.anchor} themeVars={menuVars}
