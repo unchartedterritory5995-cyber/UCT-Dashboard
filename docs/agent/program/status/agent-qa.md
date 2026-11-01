@@ -144,6 +144,23 @@ Only agent-qa edits this file. Update it in every PR.
   state this. The fixtures will add a predicate: a null `as_of` always comes with `data.live_applied_at` +
   NOTE_LIVE_APPLIED, and `as_of` never equals `live_applied_at`. RVOL notes are pinned against SC-1 §2c.
 
+- **#596 model isolation — PASS** (ADR-005 §1: nil exposure today + forward rails, in #603):
+  (a) gateway, dormant by default since #599 and activated-only `answer`;
+  (b) the turn body carries no answer objects;
+  (c) planner context, end to end with a leaking control;
+  (d) history/titles;
+  (e) traces/telemetry;
+  (f) F-10 closed by the L3 rail.
+  Mutation proofs: the memory skip, the record `local` flag, and `is_local_row`.
+- **Rulings (agent-lead):**
+  - **F-13**: ADR-005 L7 means traces and telemetry carry no values. The member's stored transcript may hold them,
+    railed never-replayed.
+  - **F-11**: accepted; a fail-closed fix comes in a lead hardening PR after the RC, and the strict pin stays until then.
+  - **F-12**: stock.compare's composite rating is a KNOWN LIMITATION for this RC. It's pre-program behaviour,
+    railed never-replayed; making it local-only is an owner decision.
+- **Verdicts:** 64b522a433 GREEN (exact: pytest 1181, vitest 2007). 80229cba14 + #596 + #603: QA rails green, and
+  #596's own tests need its #599 refresh (27 fail without UCT_AGENT_ISOLATED, and all 32 pass with it).
+
 ## Blockers
 - (none)
 

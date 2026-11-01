@@ -22,8 +22,8 @@ Every non-empty scenario also has 5 names with no RS Rank (not computable) and 1
 * a Railway variable is set (it never runs on a deployed service);
 * the data dir is missing, a drive root, or the shared data root (`/data`, `C:\\data`), or does not exist;
 * the sandbox's screener.db path is not inside the data dir.
-It pins SCREENER_DB_PATH and AUTH_DB_PATH into the data dir BEFORE importing any screener module, because
-those paths are captured at import.
+It pins EVERY census data path into the data dir (`pin`, the same census + mapping as the hub launcher) BEFORE
+importing any screener module, because those paths are captured at import — and arms conftest's tripwire.
 """
 from __future__ import annotations
 
@@ -62,9 +62,28 @@ def check_data_dir(path: str) -> str:
     return p
 
 
-def pin(data_dir: str) -> None:
-    os.environ["SCREENER_DB_PATH"] = os.path.join(data_dir, "screener.db")
-    os.environ["AUTH_DB_PATH"] = os.path.join(data_dir, "auth.db")
+def pin(data_dir: str) -> dict:
+    """Pin EVERY data path the app reads into the sandbox — the census, never a hand-picked list.
+
+    ⛔ The 2026-09-08 sandbox incident: two hand-typed pins left 70 other paths on the shared root.
+    `conftest.shared_data_root_census()` derives every `(env var -> /data literal)` pair from `api/**` by AST
+    (the list the hub launcher and the pytest suite already use), and `scripts/hub_sandbox_boot._sandbox_for`
+    maps each literal into the sandbox (one mapping, reused — not a second copy). Importing conftest also ARMS
+    its write tripwire: a write to the shared root raises instead of landing. Returns {env: path} pinned."""
+    repo = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(
+        os.path.abspath(__file__)))))))
+    for extra in (repo, os.path.join(repo, "scripts")):
+        if extra not in sys.path:
+            sys.path.insert(0, extra)
+    import conftest                      # noqa: E402 — arms the shared-root tripwire on import
+    import hub_sandbox_boot as hsb       # noqa: E402 — for `_sandbox_for` only (main() is not run)
+    _census, pins, _unpinnable = conftest.shared_data_root_census()
+    done = {}
+    for env, literal in pins.items():
+        os.environ[env] = done[env] = hsb._sandbox_for(data_dir, literal)
+    if os.environ.get("SCREENER_DB_PATH") != os.path.join(data_dir, "screener.db")             or os.environ.get("AUTH_DB_PATH") != os.path.join(data_dir, "auth.db"):
+        _refuse("the census did not pin screener.db and auth.db into the data dir")
+    return done
 
 
 def _sessions_back(n: int, now: dt.datetime | None = None) -> int:
