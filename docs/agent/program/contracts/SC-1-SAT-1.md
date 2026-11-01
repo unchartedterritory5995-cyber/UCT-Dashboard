@@ -1,7 +1,7 @@
 # SC-1 SAT-1 — the first interactive Scanner acceptance test
 
 - **Owner:** agent-sc.
-- **Tests:** SC-1 v1.1 on `agent/int` once #582 and #584 are integrated.
+- **Tests:** SC-1 v1.3 at **`agent/int` `8f9e65eda0`** (#584 and #592 integrated) plus this kit. Results are recorded against that SHA.
 - **Where:** a **local sandbox only** (`scripts/hub_sandbox_boot.py`). It never runs against production. These features are dark in production and stay that way.
 - **Data:** a **synthetic** screener universe seeded by `api/services/uct_agent/scan/sat/seed.py`. Tickers are `SY001…` and companies are "SAT synthetic …". It is not market data, so no answer in SAT-1 says anything about real stocks.
 - **Expected values are measured, not typed.** The seeding tool runs the real SC-1 kinds against the seeded data and prints their answers. Compare the panel against that printout.
@@ -11,6 +11,7 @@
 | | |
 |---|---|
 | Machine | This box has **no `C:\data`**, so the sandbox cannot touch live data. The launcher still pins every data path into the sandbox and arms its write tripwire. |
+| Isolation | Add `--block-outbound` to the boot command. The first run (2026-11-01) showed the chart widget pulling public bars over the network; SAT-1 needs none, and the scanner reads only the synthetic universe. |
 | Port | **8095**. 8077 belongs to the hub sandbox. The launcher refuses a busy port; it never kills anything. |
 | Model key | Steps **B2–B4** use the Agent's own planner, which makes real model calls billed to the existing **$5/ET-day Agent cap** (no new budget, no screener compiler). Set `ANTHROPIC_API_KEY` in this PowerShell window and boot with `--allow-model-keys`. **Without a key, run section A only.** Its requests take the no-model fast path. |
 | Paid compiler | Leave `SCREENER_NL_COMPILE_ENABLED` **unset**. `/api/screener/compile` must never be called (step E2 checks). |
@@ -28,7 +29,7 @@ $env:UCT_AGENT_SCAN = "1"
 $env:SCREENER_LOGIC_ENABLED = "1"
 Remove-Item Env:SCREENER_NL_COMPILE_ENABLED -ErrorAction SilentlyContinue
 # only for section B (planner):  $env:ANTHROPIC_API_KEY = "<your key>"
-C:\UCT\agent\.venv\Scripts\python.exe scripts\hub_sandbox_boot.py --data-dir 'C:\data-sat1' --port 8095 --test-email sat1@local.dev
+C:\UCT\agent\.venv\Scripts\python.exe scripts\hub_sandbox_boot.py --data-dir 'C:\data-sat1' --port 8095 --test-email sat1@local.dev --block-outbound
 # add --allow-model-keys for section B
 ```
 
