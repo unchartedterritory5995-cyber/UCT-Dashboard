@@ -49,6 +49,16 @@ const SHAPES = {
   bb: ['x = close + k * 0\n[mid, v, lo] = ta.bb(x, 20, 2)\n', false],
   clock: ['t = time + k * 0\nv = dayofweek(t)\n', false],
   cast: ['x = close * 2 + k * 0\nv = int(math.max(1, nz(x)))\n', true],
+  // ⭐ WS-D constant-var folding (gate review MEDIUM): an input default read from a `var`
+  // nothing reassigns. Master refuses it (`runtime:input-state`); without the door gate on
+  // `inputConsts` the door drew "146.05" / "299.06" here (reviewer's probes, RDDT 1D).
+  cv_int: ['', false, 'var int LEN = 5\nlen = input.int(LEN, "L")\n', 'v = ta.sma(close, len) + k * 0\n'],
+  cv_float: ['', false, 'var float M = 2.0\nm = input.float(M, "M")\n', 'v = close * m + k * 0\n'],
+}
+// [body, named] or ['', named, prelude (before the state loop), body]
+const sourceOf = (shape, tail) => {
+  const [body, , prelude = '', after = ''] = shape
+  return H + prelude + STATE + body + after + tail
 }
 
 const doorRun = (src, bars = BARS, symbol = SYMBOL) => {
@@ -71,18 +81,19 @@ const paneBuild = (src, extra = {}) => buildRuntimeIr(src, {
 })
 
 describe('⭐⭐⭐ the object door builds what master 685b5e91d7 builds; the runtime pane keeps Phase 3', () => {
-  for (const [name, [body, named]] of Object.entries(SHAPES)) {
+  for (const [name, shape] of Object.entries(SHAPES)) {
+    const named = shape[1]
     it(`${name}: the door draws nothing new (master: refused, no label)`, () => {
-      expect(doorRun(H + STATE + body + label('v'))).toEqual({ ok: false, labels: null })
+      expect(doorRun(sourceOf(shape, label('v')))).toEqual({ ok: false, labels: null })
     })
 
     it(`${name}: the runtime pane builds it`, () => {
-      const b = paneBuild(H + STATE + body + 'plot(v)\n')
+      const b = paneBuild(sourceOf(shape, 'plot(v)\n'))
       expect(b.ok, b.refusal && `${b.refusal.guard}: ${b.refusal.message}`).toBe(true)
     })
 
     it(`${name}: the same build at the object door ${named ? 'refuses BY NAME' : 'falls back to master'}`, () => {
-      const b = paneBuild(H + STATE + body + 'plot(v)\n', { objectDoor: true })
+      const b = paneBuild(sourceOf(shape, 'plot(v)\n'), { objectDoor: true })
       expect(b.ok).toBe(false)
       if (named) {
         expect(b.refusal.guard).toBe('runtime:object-door')
