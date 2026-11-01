@@ -268,6 +268,9 @@ export const RUNTIME_REFUSALS = Object.freeze({
     'an input whose DEFAULT or BOUNDS read a mutable variable — an input is settled '
     + 'once, before bar 0, so both have to be fixed when the script is written',
   'runtime:operator': 'an operator the runtime has no instruction for',
+  // ⭐ P3 (shared contract with WS-D) — the host object pass's build (`objectDoor`)
+  // builds what master built; a lowering added since refuses by this name.
+  'runtime:object-door': 'a shape the host object pass does not build — it is lowered on the runtime pane only',
   // ⭐ P3 WS-A — a `switch` lowers in every position now (value, `:=`, `var`,
   // tuple, statement); the guard is kept so a stored refusal still names itself.
   'runtime:switch': 'a `switch` in a shape this lane does not lower',
@@ -2670,23 +2673,23 @@ function buildRuntimeIrLinked(source, opts, holder) {
   // `color` that silently fell off would draw the default blue where the author
   // painted red.
   const objectsInRun = opts.objectsInRun === true && !objectPassOwnsDrawing
-  // ⛔⛔ P3 WS-A — THE STATEMENT AND BLOCK-VALUE GRAMMAR IS THE RUNTIME PANE'S, AND
-  // ONLY ITS. `buildRuntimeIr` is ALSO asked by the host object pass (C18:
-  // `probeObjectRuntime` / `runtimeObjectValues`, `objectTreesAt`) on every
-  // translation, in production, with no runtime permission involved — so a
-  // lowering added here would draw on members' charts with the lane dark. The
-  // WS-A grammar (multi-statement arms, `switch` statements, `var x = if/switch`,
-  // comma statements, tuple and switch-ending function bodies, the subject hoist)
-  // is therefore built ONLY when the caller says `p3Statements: true`, which the
-  // runtime pane's own builds do (`runtimeColumns.js`). Every other caller —
-  // including any new one — gets the grammar master shipped (fail closed). Where
-  // master's served value was NOT exact (a read of `x` inside `x := if`, a
-  // function ending in a comma statement), the master-grammar build refuses by
-  // name instead of serving it. Rails: `p3WsaDarkGate.test.js`.
-  const p3 = opts.p3Statements === true
-  const refuseP3 = (what, at, guard = 'runtime:block-value') => {
-    note(guard)
-    throw new RuntimeRefusal(guard, `${what} — built only on the runtime pane`, at)
+  // ⛔⛔ P3 WS-A — THE OBJECT DOOR BUILDS WHAT MASTER BUILT (shared contract,
+  // `opts.objectDoor`, reason `runtime:object-door`, with WS-D). `buildRuntimeIr` is
+  // ALSO asked by the host object pass (C18: `probeObjectRuntime` /
+  // `runtimeObjectValues`) on every translation, in production, with no runtime
+  // permission — so a lowering added after master 685b5e91d7 would draw on members'
+  // charts with the lane dark. Those builds pass `objectDoor: true`; the runtime pane
+  // never does. Under it the WS-A grammar (multi-statement arms, `switch` statements,
+  // `var x = if/switch`, comma statements, tuple and switch-ending function bodies,
+  // the subject hoist) refuses `runtime:object-door`, and every shape master SERVED is
+  // built exactly as master built it — including the ones WS-A's new guards refuse on
+  // the pane (a v6 `for` bound, a v6 unmatched bool, an arm after a default, a read of
+  // `x` inside `x := if`, a function ending in a comma line), because no capture has
+  // proven master's value wrong there. Rails: `p3WsaDarkGate.test.js`.
+  const p3 = opts.objectDoor !== true
+  const refuseP3 = (what, at) => {
+    note('runtime:object-door')
+    throw new RuntimeRefusal('runtime:object-door', what, at)
   }
   let objectOpsLowered = 0
   const RUN_DRAW_CALL = /^(line|label|box|table|linefill)\.([a-z_0-9]+)$/
@@ -7384,7 +7387,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
     return eq > 0 ? t.slice(eq + 1) : t
   }
   const refuseV6UnmatchedBool = (mkArm, valueToksList, at, what) => {
-    if (!(mkArm && mkArm.valued) || pineVersion === null || pineVersion < 6) return
+    if (!p3 || !(mkArm && mkArm.valued) || pineVersion === null || pineVersion < 6) return
     typeTables()
     if (mkArm.declaredType === 'float') return
     // ⚰️ a separate "declared `bool` refuses" check lived here; in valid Pine a bool
@@ -7558,7 +7561,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
       // default included) has no reading this lane may pick: run in order, the
       // default would shadow it; hoisted, the order changes. No capture says
       // which, and the host lane refuses the same shape (`pine:block`).
-      if (fallback) {
+      if (fallback && p3) {
         throw new RuntimeRefusal('runtime:switch',
           `an arm after the default \`=>\` of \`${label ? `${label} ` : ''}switch …\``, locate(arm.header[0]))
       }
@@ -7988,20 +7991,6 @@ function buildRuntimeIrLinked(source, opts, holder) {
     return why
   }
 
-  /** does lowered IR read `slot` anywhere (calls included as written, not followed) */
-  const irReadsSlot = (ir, slot) => {
-    let hit = false
-    const walk = (x, d) => {
-      if (hit || !x || typeof x !== 'object' || d > 512) return
-      if (Array.isArray(x)) { for (const y of x) walk(y, d + 1); return }
-      if (x.kind === EXPR.READ && x.slot === slot) { hit = true; return }
-      if ((x.kind === EXPR.HIST || x.kind === EXPR.HIST_SLOT_DYN) && x.of && x.of.kind === EXPR.READ && x.of.slot === slot) return
-      for (const v of Object.values(x)) if (v && typeof v === 'object') walk(v, d + 1)
-    }
-    walk(ir, 0)
-    return hit
-  }
-
   const lowerStmts = (list0, scope, rootHoist = false) => {
     // RT5: `label.delete(a[1]), line.delete(b[1])` is a line of STATEMENTS
     // (the host object lane's own split, `objectFnInline.splitCommaStatements`).
@@ -8238,7 +8227,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
         try { body = lowerStmts(st.sub || [], inner) } finally { loopDepth -= 1; loopRanges.delete(slot) }
         // ⭐⭐ P3 WS-A — v6 re-reads the `to` bound before every pass; this lane
         // reads it once. Served where the two cannot differ (`forBoundMovedBy`).
-        if (pineVersion !== null && pineVersion >= 6) {
+        if (p3 && pineVersion !== null && pineVersion >= 6) {
           // ⭐ (review H2a) the `by` step rides along: whether v6 re-reads it is
           // as uncaptured as the bound (Q-A1), so a body that moves it refuses too.
           const moved = forBoundMovedBy([toIr, stepIr], body)
@@ -8338,7 +8327,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
       // matches (or the default) and no other; its value, if any, is discarded.
       // Lowered by the value form's own `lowerSwitchInto`, with each arm a plain
       // statement list in its own scope, so the two positions read one grammar.
-      if (word === 'switch' && !p3) refuseP3('a `switch` as a statement', locate(first), 'runtime:switch')
+      if (word === 'switch' && !p3) refuseP3('a `switch` as a statement', locate(first))
       if (word === 'switch') {
         const stmtArm = (lines, atTok) => {
           if (!lines || !lines.length) {
@@ -8625,16 +8614,21 @@ function buildRuntimeIrLinked(source, opts, holder) {
           // a trailing stop `na` — served with nothing red. The temp carries the
           // target's kind flags (text, colour, collection …) so the arms lower
           // against the same kind, and x is assigned from it after the chain.
-          const tmpName = `${nameTok.value} := block@${first.line}:${first.column}`
-          const tmpSlot = scope.declare(tmpName, newSlot(tmpName, false))
-          for (const [k, v] of Object.entries(slots[blkSlot] || {})) {
-            if (!['name', 'kind', 'owner', 'index'].includes(k)) slots[tmpSlot][k] = v
-          }
-          out.push(declare(tmpSlot, naValue()))
+          // ⛔ ON THE OBJECT DOOR (`!p3`): master's own lowering, `na` into x first
+          // (shared contract — no capture has proven its value wrong there).
+          const c1Temp = p3
+          const tmpSlot = c1Temp ? (() => {
+            const tmpName = `${nameTok.value} := block@${first.line}:${first.column}`
+            const t = scope.declare(tmpName, newSlot(tmpName, false))
+            for (const [k, v] of Object.entries(slots[blkSlot] || {})) {
+              if (!['name', 'kind', 'owner', 'index'].includes(k)) slots[t][k] = v
+            }
+            return t
+          })() : blkSlot
+          out.push(c1Temp ? declare(tmpSlot, naValue()) : assign(blkSlot, naValue()))
           const mkArm = armAssignerFor(tmpSlot,
             `${nameTok.value} := ${blkHead.value} …`, scope)
           mkArm.declaredType = declaredTypeOfName(nameTok.value)
-          const chainFrom = out.length
           if (blkHead.value === 'if') {
             const chain = lowerIfChainInto(list, i, toks.slice(walrus + 2), scope, mkArm)
             i = chain.next
@@ -8644,15 +8638,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
               `${nameTok.value} :=`, blkHead)
             for (const st2 of sw) out.push(st2)
           }
-          // ⛔ OFF THE RUNTIME PANE (`p3`), master's build wrote `na` into x before
-          // the chain. The temp is the same IR wherever the chain does not read x;
-          // where it does, master's value was wrong (`na`) and this door refuses by
-          // name rather than change a drawing it never drew correctly.
-          if (!p3 && irReadsSlot(out.slice(chainFrom), blkSlot)) {
-            refuseP3(`\`${nameTok.value} := ${blkHead.value} …\` reads \`${nameTok.value}\` inside its own block`,
-              locate(first))
-          }
-          out.push(assign(blkSlot, read(tmpSlot)))
+          if (c1Temp) out.push(assign(blkSlot, read(tmpSlot)))
           continue
         }
 
@@ -9524,12 +9510,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
           // ⛔ P3 WS-A (review H1) — THE LAST STATEMENT IS THE LAST COMMA SEGMENT.
           // `a = x, g(a)` on the final line is two statements; reading the line
           // whole took its FIRST `=` and returned `a`, where Pine returns `g(a)`.
-          // ⛔ off the runtime pane master read the last LINE, whose value for a comma
-          // line was wrong (its first segment): refused by name there instead.
-          if (!p3 && statementCommaParts(lines[lines.length - 1])) {
-            refuseP3(`\`${nameTok.value}(…)\` ending in a comma statement`, locate(nameTok), 'runtime:function')
-          }
-          const flat = splitStatementCommas(lines)
+          // ⛔ on the object door (`!p3`) master read the last LINE whole
+          const flat = p3 ? splitStatementCommas(lines) : lines
           body = lowerStmts(flat.slice(0, -1), fnScope)
           // ⭐ PINE RETURNS THE VALUE OF THE LAST STATEMENT (§16) — not an explicit
           // `return`. A final binding yields the value it bound; a final bare

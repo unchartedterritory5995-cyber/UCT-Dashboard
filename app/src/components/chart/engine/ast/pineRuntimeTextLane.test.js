@@ -26,7 +26,7 @@ const BARS = [
   { t: 1761570600, o: 1, h: 2, l: 1, c: 2, v: 10 },
   { t: 1761657000, o: 2, h: 3, l: 2, c: 3, v: 11 },
 ]
-const told = (src) => buildRuntimeIr(src, { bars: BARS, inputs: {}, p3Statements: true, ...runtimeClockOpts(false) })
+const told = (src) => buildRuntimeIr(src, { bars: BARS, inputs: {}, ...runtimeClockOpts(false) })
 
 describe('⛔⛔ the text refusal no longer promises what this lane cannot deliver', () => {
   it('⭐⭐ SESSION 3 ARRIVED — the text refusal no longer stops either script', () => {
@@ -168,7 +168,7 @@ plot(ta.sma("ab", 5))
     // the SAME guard, so the control keeps asking exactly what it asked: does a
     // guard with no per-row promise reach the member with its own sentence and
     // its own detail?
-    const r = buildRuntimeIr('//@version=6\nindicator("x")\nfor v in a\n    b = 1\nplot(close)\n', { bars: BARS, inputs: {}, p3Statements: true })
+    const r = buildRuntimeIr('//@version=6\nindicator("x")\nfor v in a\n    b = 1\nplot(close)\n', { bars: BARS, inputs: {} })
     expect(r.ok).toBe(false)
     expect(r.refusal.guard).toBe('runtime:loop')
     expect(RUNTIME_LANE_REFUSALS['runtime:loop']).toBeUndefined()

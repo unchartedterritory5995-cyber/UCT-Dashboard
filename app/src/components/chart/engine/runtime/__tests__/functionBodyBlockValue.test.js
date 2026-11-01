@@ -63,7 +63,7 @@ const CORPUS = path.resolve(__dirname, '../../../../../../../corpus/committed')
 const head = '//@version=5\nindicator("t")\n'
 
 function run(src) {
-  const built = buildRuntimeIr(src, { bars: BARS, inputs: {}, p3Statements: true })
+  const built = buildRuntimeIr(src, { bars: BARS, inputs: {} })
   expect(built.ok, built.ok ? '' : `${built.refusal.guard}: ${built.refusal.message}`).toBe(true)
   const program = lowerIrProgram(built.ir)
   const r = execute(program, {
@@ -73,7 +73,7 @@ function run(src) {
   return Array.from(r.outputs[0])
 }
 const refusalOf = (src) => {
-  const b = buildRuntimeIr(src, { bars: BARS, inputs: {}, p3Statements: true })
+  const b = buildRuntimeIr(src, { bars: BARS, inputs: {} })
   expect(b.ok, 'expected a refusal').toBe(false)
   return b.refusal
 }
@@ -189,7 +189,7 @@ describe('⭐⭐ a user function whose body is an `if`', () => {
     // `runtime:object-op`, its real next wall.
     const file = path.join(CORPUS, 'rsi-swing-indicator__CVZdVmg7ib.pine')
     expect(fs.existsSync(file), 'the committed corpus script is missing').toBe(true)
-    const b = buildRuntimeIr(fs.readFileSync(file, 'utf8'), { bars: BARS, inputs: {}, p3Statements: true })
+    const b = buildRuntimeIr(fs.readFileSync(file, 'utf8'), { bars: BARS, inputs: {} })
     // ⛔ IT NEED NOT BUILD, and claiming otherwise would be the build-count
     // overreach this programme keeps correcting. What must be true is that
     // `else` is no longer read as an undefined NAME.

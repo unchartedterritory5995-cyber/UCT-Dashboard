@@ -32,7 +32,7 @@ const C = BARS.map((b) => b.c)
 const v5 = '//@version=5\nindicator("t")\n'
 const v6 = '//@version=6\nindicator("t")\n'
 
-const build = (src, opts = {}) => buildRuntimeIr(src, { bars: BARS, inputs: {}, p3Statements: true, ...opts })
+const build = (src, opts = {}) => buildRuntimeIr(src, { bars: BARS, inputs: {}, ...opts })
 function run(src, opts) {
   const built = build(src, opts)
   expect(built.ok, built.ok ? '' : `${built.refusal.guard}: ${built.refusal.message}`).toBe(true)

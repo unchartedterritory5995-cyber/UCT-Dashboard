@@ -28,7 +28,7 @@ const SERIES = ['o', 'h', 'l', 'c', 'v'].map((k) => Float64Array.from(BARS.map((
 const v5 = '//@version=5\nindicator("t")\n'
 const v6 = '//@version=6\nindicator("t")\n'
 
-const build = (src) => buildRuntimeIr(src, { bars: BARS, inputs: {}, p3Statements: true })
+const build = (src) => buildRuntimeIr(src, { bars: BARS, inputs: {} })
 function runOrThrow(src) {
   const built = build(src)
   expect(built.ok, built.ok ? '' : `${built.refusal.guard}: ${built.refusal.message}`).toBe(true)
