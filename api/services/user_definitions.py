@@ -253,6 +253,25 @@ CREATE INDEX IF NOT EXISTS idx_definition_shares_token
 CREATE INDEX IF NOT EXISTS idx_definition_shares_owner
   ON definition_shares(user_id, def_id, id DESC);
 
+-- ⭐ SAVED-SCRIPT AUTO-UPGRADE: what a browser running a NEWER script engine learned
+-- about one stored version. APPEND-ONLY, like everything here; the document itself
+-- is never touched. `status`: 'refused' (today's translation refuses the script — every
+-- server lane withholds the definition by name) or 'write-failed' (the upgrade could
+-- not be written back, e.g. it needs the member's repaint acknowledgement — every
+-- browser stops re-translating it and offers the member the Builder instead).
+CREATE TABLE IF NOT EXISTS definition_engine_status (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id    TEXT    NOT NULL,
+  def_id     TEXT    NOT NULL,
+  version    INTEGER NOT NULL,
+  engine     INTEGER NOT NULL,
+  status     TEXT    NOT NULL,
+  reason     TEXT    NOT NULL,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_definition_engine_status_owner
+  ON definition_engine_status(user_id, def_id, version, id DESC);
+
 CREATE TABLE IF NOT EXISTS definition_listings (
   id         INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id    TEXT    NOT NULL,
@@ -1882,6 +1901,11 @@ def _with_source_if_stale(row: sqlite3.Row, out: dict, source_below: Optional[in
     stamp = engine_stamp_of(out.get("definition"))
     if stamp is not None and stamp >= source_below:
         return out
+    # ⭐ An engine at least this new already answered for this version (refused, or
+    # its write-back failed): nothing to re-translate, so nothing to send.
+    st = out.get("engine_status")
+    if isinstance(st, Mapping) and isinstance(st.get("engine"), int) and st["engine"] >= source_below:
+        return out
     out["pine_source"] = _pine_source_of(row)
     return out
 
@@ -2031,12 +2055,144 @@ def _pine_source_of(row: Any) -> Optional[str]:
     return v if isinstance(v, str) and v else None
 
 
+#: ⭐ The one save reason this store accepts (`save(reason=…)`), sent only by the
+#: browser's load-time write-back (`savedScriptUpgrade.writeBackOnce`).
+ENGINE_UPGRADE_REASON = "engine-upgrade"
+
+#: The engine-status values a browser may record (`record_engine_status`).
+ENGINE_STATUSES = ("refused", "write-failed")
+
+#: A recorded reason is the translator's / store's own sentence, capped.
+MAX_ENGINE_REASON_CHARS = 500
+
+#: The one notice an engine upgrade sends, per indicator (`_engine_upgrade_notice`).
+ENGINE_UPGRADE_NOTICE = "{name}: accuracy update applied — its alerts now use the corrected calculation"
+
+
+def _check_engine_upgrade(prev: Any, definition: Mapping, pine_source: Optional[str],
+                          expected_version: Optional[int]) -> None:
+    """An engine-upgrade save must BE one, or it is refused (nothing written).
+
+    ⛔ The reason changes how a member is told about a maths move, so it cannot be a
+    flag any client sets on any edit: it is admitted only for a revision-guarded
+    edit of a live row, carrying the script that row already holds, stamped with a
+    newer engine than the row's."""
+    if prev is None or prev["deleted_at"] is not None:
+        raise ValueError("an engine upgrade must revise a live definition")
+    if expected_version is None:
+        raise ValueError("an engine upgrade must name the version it upgrades (base_version)")
+    if pine_source is None or pine_source != _pine_source_of(prev):
+        raise ValueError("an engine upgrade must carry the very script the stored "
+                         "version holds — a different script is an edit, not an upgrade")
+    new_stamp = engine_stamp_of(definition)
+    old_stamp = engine_stamp_of(json.loads(prev["definition"])) or 0
+    if new_stamp is None or new_stamp <= old_stamp:
+        raise ValueError(f"an engine upgrade must be stamped with a newer engine "
+                         f"than the stored version ({new_stamp!r} vs {old_stamp})")
+
+
+def _engine_upgrade_notice(user_id: Any, def_id: str, definition: Mapping,
+                           collected: list) -> int:
+    """ONE in-app notice for an engine upgrade that migrated ``collected`` bindings
+    (none when nothing was bound). Worded as what it is — an accuracy fix — never
+    as "the maths changed (revision a → b)". Returns the number sent (0 or 1); a
+    failed delivery is logged and counted as 0, never raised (the migration has
+    already happened and the alert state UI still shows each alert's state)."""
+    if not collected:
+        return 0
+    from api.services import watchlist_alert_service as wls
+    meta = definition.get("meta") if isinstance(definition.get("meta"), Mapping) else {}
+    name = str(meta.get("name") or "").strip() or def_id
+    text = ENGINE_UPGRADE_NOTICE.format(name=name)
+    try:
+        wls.deliver_alert_payload(
+            user_id=str(user_id), sym="", title=text, message=text,
+            source="indicator_engine_upgrade", severity="info",
+            channels_allowed=frozenset({"in_app"}),
+            extra_data={"indicator": def_id, "alert_ids": [p.get("alert_id") for p in collected],
+                        "alerts": len(collected)})
+    except Exception:  # noqa: BLE001
+        _log.exception("[user-definitions] engine-upgrade notice failed for %s", def_id)
+        return 0
+    return 1
+
+
+def record_engine_status(user_id: Any, def_id: str, *, version: int, engine: int,
+                         status: str, reason: str) -> dict:
+    """Record what a newer engine learned about one stored version. APPEND-ONLY.
+
+    ⛔ Only about the version that is LIVE now (a stale tab's news about an older
+    version is refused — `StaleEngineStatus`), only one of `ENGINE_STATUSES`. A
+    `refused` record makes every server lane withhold the definition by name
+    (`engine_withheld_reason`), so the registry of admitted alert functions is
+    dropped for this member and the next cycle re-asks."""
+    _check_def_id(def_id)
+    if status not in ENGINE_STATUSES:
+        raise ValueError(f"status: expected one of {ENGINE_STATUSES}, got {status!r}")
+    for name, v in (("version", version), ("engine", engine)):
+        if isinstance(v, bool) or not isinstance(v, int) or v < 1:
+            raise ValueError(f"{name}: expected an integer >= 1, got {v!r}")
+    text = str(reason or "").strip()[:MAX_ENGINE_REASON_CHARS]
+    if not text:
+        raise ValueError("reason: a recorded status names its reason")
+    now = int(time.time())
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        _ensure(c)
+        prev = _newest(c, user_id, def_id)
+        if prev is None or prev["deleted_at"] is not None:
+            raise ForkRefused("Not found")
+        if prev["version"] != version:
+            raise SaveConflict(def_id, version, prev["version"])
+        c.execute(
+            "INSERT INTO definition_engine_status "
+            "(user_id, def_id, version, engine, status, reason, created_at) "
+            "VALUES (?,?,?,?,?,?,?)",
+            (str(user_id), def_id, version, engine, status, text, now))
+        c.commit()
+    if status == "refused":
+        from api.services import alert_user_series
+        alert_user_series.forget(user_id)
+    return {"def_id": def_id, "version": version, "engine": engine,
+            "status": status, "reason": text}
+
+
+def _engine_status_of(c: sqlite3.Connection, user_id: Any, def_id: str,
+                      version: int) -> Optional[dict]:
+    row = c.execute(
+        "SELECT engine, status, reason FROM definition_engine_status "
+        "WHERE user_id=? AND def_id=? AND version=? ORDER BY id DESC LIMIT 1",
+        (str(user_id), def_id, int(version))).fetchone()
+    return None if row is None else {"engine": row["engine"], "status": row["status"],
+                                     "reason": row["reason"]}
+
+
+def _with_engine_status(c: sqlite3.Connection, out: dict) -> dict:
+    """Attach the newest engine status recorded for THIS version (or nothing)."""
+    st = _engine_status_of(c, out.get("user_id"), out.get("def_id"), out.get("version"))
+    if st is not None:
+        out["engine_status"] = st
+    return out
+
+
+def engine_withheld_reason(row: Any) -> Optional[str]:
+    """⭐ THE ONE QUESTION EVERY SERVER LANE ASKS (alerts, the sweep, on-demand runs,
+    backtests, the scannable stamp): is this stored version known to be refused by
+    today's script engine? The sentence to show, or None."""
+    st = row.get("engine_status") if isinstance(row, Mapping) else None
+    if not isinstance(st, Mapping) or st.get("status") != "refused":
+        return None
+    return (f"engine-refused: today's script engine (version {st.get('engine')}) "
+            f"refuses this script — {st.get('reason')}. It is withheld until it is "
+            "saved again from its script.")
+
+
 def save(user_id: Any, def_id: str, definition: dict,
          limits: Any = None, *, role: Any = None,
          repaint_acknowledged: Any = None,
          source_dialect: Any = None,
          expected_version: Optional[int] = None,
          pine_source: Any = None,
+         reason: Optional[str] = None,
          _copy_of_stored: bool = False) -> dict:
     """Append a version. Bump `rev` iff the maths moved, and MIGRATE if it did.
 
@@ -2048,6 +2204,15 @@ def save(user_id: Any, def_id: str, definition: dict,
     away from what the script says, and re-translating that script later would
     silently undo the member's edit. ⛔ The one carry is the byte-identical
     re-save below: nothing is appended, so the stored row (and its source) stays.
+
+    ⭐ ``reason="engine-upgrade"`` — the browser's load-time write-back of a
+    re-translation (`ENGINE_UPGRADE_REASON`). Admitted ONLY when it is exactly
+    that: an edit of a live script document, carrying the SAME script the row
+    holds, stamped with a NEWER engine than the row (`_check_engine_upgrade`). It
+    changes one thing — how a member is TOLD: bindings still migrate (alerts must
+    run the corrected maths, first cycle still suppressed), but instead of one
+    "the maths changed (revision a → b)" notice per alert, ONE in-app notice per
+    indicator says an accuracy fix was applied (`_engine_upgrade_notice`).
 
     ⭐ PHASE 4 — ``expected_version``: the version the editor OPENED. When given,
     the save is refused with `SaveConflict` (nothing written) unless it is still
@@ -2126,7 +2291,12 @@ def save(user_id: Any, def_id: str, definition: dict,
     # the migration — applies to it.
     from api.services import runtime_definitions
     pine_source, pine_source_dropped = normalize_pine_source(pine_source)
+    if reason is not None and reason != ENGINE_UPGRADE_REASON:
+        raise ValueError(f"reason: {reason!r} is not a save reason this store accepts")
     if runtime_definitions.is_runtime(definition):
+        if reason is not None:
+            raise ValueError("an engine upgrade is a formula-lane write; a runtime "
+                             "document re-runs its own script on every draw")
         # ⭐ GT — `role` is the SAVING member's (the router's `user["role"]`).
         # Only the runtime door reads it (`PINE_RUNTIME_STAGE`); a caller that
         # does not pass it is treated as a member, never as an admin.
@@ -2292,6 +2462,8 @@ def save(user_id: Any, def_id: str, definition: dict,
             current = prev["version"] if prev is not None else None
             if current != expected_version:
                 raise SaveConflict(def_id, expected_version, current)
+        if reason == ENGINE_UPGRADE_REASON:
+            _check_engine_upgrade(prev, definition, pine_source, expected_version)
 
         # ⚠️ THE CAP IS CHECKED WHENEVER A SAVE WOULD MAKE A DEFINITION LIVE THAT
         # IS NOT LIVE NOW — a create OR a RESURRECT. Checking only `prev is None`
@@ -2459,14 +2631,22 @@ def save(user_id: Any, def_id: str, definition: dict,
     # so an unrecorded binding can only have been created since the last bump.
     migrated = notified = 0
     if rev_bumped:
+        # ⭐ AN ENGINE UPGRADE COLLECTS the per-binding notices instead of sending
+        # them, and sends ONE below. The migration itself is unchanged: same reset,
+        # same stamp, same first-cycle suppression (an accuracy fix moves the value
+        # under a level alert exactly as an edit does, so the skip is kept).
+        upgrade_notices: list = []
         result = alert_rev_migration.migrate_bindings_to_rev(
             def_id, rev,
-            notify=alert_rev_migration.deliver_migration_notice,
+            notify=(upgrade_notices.append if reason == ENGINE_UPGRADE_REASON
+                    else alert_rev_migration.deliver_migration_notice),
             def_hash=new_hash,
             prior_rev=prior_rev,
         )
         migrated = result["migrated"]
         notified = result["notified"]
+        if reason == ENGINE_UPGRADE_REASON:
+            notified = _engine_upgrade_notice(user_id, def_id, definition, upgrade_notices)
 
     # ── phase 3: append. Short, locked, no network. ──────────────────────────
     with _WRITE_LOCK, contextlib.closing(_connect()) as c:
@@ -2569,6 +2749,7 @@ def save(user_id: Any, def_id: str, definition: dict,
         # (false when none was sent, or it was over `MAX_PINE_SOURCE_BYTES`).
         "pine_source_stored": pine_source is not None,
         **({"pine_source_dropped": True} if pine_source_dropped else {}),
+        **({"reason": reason} if reason is not None else {}),
     }
 
 
@@ -2859,7 +3040,7 @@ def get(user_id: Any, def_id: str, version: Optional[int] = None, *,
             ).fetchone()
             if row is None:
                 return None
-    out = _row_to_dict(row)
+        out = _with_engine_status(c, _row_to_dict(row))
     if with_source and out.get("has_pine_source"):
         out["pine_source"] = _pine_source_of(row)
     return out
@@ -2881,8 +3062,8 @@ def list_for_user(user_id: Any, *, source_below: Optional[int] = None) -> list[d
             " ORDER BY u.id",
             (str(user_id),),
         ).fetchall()
-    return [_with_source_if_stale(r, _row_to_dict(r), source_below)
-            for r in rows if r["deleted_at"] is None]
+        return [_with_source_if_stale(r, _with_engine_status(c, _row_to_dict(r)), source_below)
+                for r in rows if r["deleted_at"] is None]
 
 
 def live_definitions() -> list[dict]:
@@ -2907,7 +3088,7 @@ def live_definitions() -> list[dict]:
             "   WHERE v.user_id=u.user_id AND v.def_id=u.def_id)"
             " ORDER BY u.id",
         ).fetchall()
-    return [_row_to_dict(r) for r in rows if r["deleted_at"] is None]
+        return [_with_engine_status(c, _row_to_dict(r)) for r in rows if r["deleted_at"] is None]
 
 
 def history(user_id: Any, def_id: str) -> list[dict]:

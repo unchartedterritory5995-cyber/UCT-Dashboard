@@ -73,3 +73,14 @@ export function withoutEngineStamp(def) {
   delete meta[ENGINE_STAMP_KEY]
   return { ...def, meta }
 }
+
+/** ⛔ L6 — the store's cap on a stored script (`api/services/user_definitions.py
+ *  ::MAX_PINE_SOURCE_BYTES`, pinned equal by `tests/test_saved_script_prebump.py`).
+ *  A script over it is never sent: the store would refuse the whole request. */
+export const PINE_SOURCE_MAX_BYTES = 256 * 1024
+
+/** Does this script fit the store's cap, measured in UTF-8 bytes as the store does? */
+export function withinPineSourceCap(source) {
+  if (typeof source !== 'string') return false
+  try { return new TextEncoder().encode(source).length <= PINE_SOURCE_MAX_BYTES } catch { return source.length * 4 <= PINE_SOURCE_MAX_BYTES }
+}

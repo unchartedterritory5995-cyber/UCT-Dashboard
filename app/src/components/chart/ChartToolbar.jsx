@@ -53,7 +53,7 @@ const CreateIndicatorPanel = lazy(() => import('./builder/studio/CreateIndicator
 const SaveReceipt = lazy(() => import('./builder/studio/SaveReceipt'))
 import { mintScope, chartScope, createKey, editKey, draftWillRestore } from './builder/authoring/conversationSessions'
 import { seedFrom } from './builder/agentSeams'
-import { useUserDefinitions } from '../../hooks/useUserDefinitions'
+import { useUserDefinitions, readUserDefinition } from '../../hooks/useUserDefinitions'
 import { createCustomCopy } from './builder/definitionActions'
 import { useCreateIndicatorAccess } from './builder/studio/createIndicatorFlag'
 import PatternToolbarButton from './PatternToolbarButton'
@@ -1362,12 +1362,25 @@ function ChartToolbar({
       if (!canManageIndicators) return false
       const row = rowFor(opts)
       if (!row) return false
-      setLibraryOpen(false)
-      setCreateOpen(false)
-      setBuilderEditRow({ ...row, upgradeScript: true })
-      setBuilderMode(null)
-      setBuilderEverOpened(true)
-      setBuilderOpen(true)
+      const open = (r) => {
+        setLibraryOpen(false)
+        setCreateOpen(false)
+        setBuilderEditRow({ ...r, upgradeScript: true })
+        setBuilderMode(null)
+        setBuilderEverOpened(true)
+        setBuilderOpen(true)
+      }
+      // ⭐ A script whose upgrade could not be saved automatically HAS its script
+      // stored: it is read (owner-only `?source=1`) and opened in the box. A read that
+      // fails opens the empty box, which is still a working door.
+      if (row.has_pine_source === true && typeof row.pine_source !== 'string') {
+        readUserDefinition(row.def_id, { withSource: true })
+          .then((res) => open(res && res.ok && typeof res.row.pine_source === 'string'
+            ? { ...row, pine_source: res.row.pine_source } : row))
+          .catch(() => open(row))
+        return true
+      }
+      open(row)
       return true
     },
     // ⭐ PHASE 4 — "Create custom copy": a NEW, independent definition (`definitionActions`),

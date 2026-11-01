@@ -47,10 +47,12 @@ describe('the row is wired on the chart', () => {
   it('StockChart passes the caller’s verdict and routes the click to `openScriptUpgrade`', () => {
     const sc = read('../../StockChart.jsx')
     expect(sc).toContain('scriptUpgrade: needsScriptForUpgrade(c.defId)')
+    // ⛔ L2 — gated on the same predicate the toolbar door checks
+    expect(sc).toMatch(/scriptUpgrade: needsScriptForUpgrade\(c\.defId\)\s*&& \(\(\) => \{ try \{ return !!toolbarRef\.current\?\.canManageIndicators\?\.\(\) \}/)
     expect(sc).toContain("onScriptUpgrade: () => { close(); try { toolbarRef.current?.openScriptUpgrade?.({ defId: c.defId }) }")
   })
   it('the toolbar door opens the builder on the row with `upgradeScript: true`', () => {
     const tb = read('../ChartToolbar.jsx')
-    expect(tb).toMatch(/openScriptUpgrade: \(opts = null\) => \{[\s\S]{0,300}setBuilderEditRow\(\{ \.\.\.row, upgradeScript: true \}\)/)
+    expect(tb).toMatch(/openScriptUpgrade: \(opts = null\) => \{[\s\S]{0,400}setBuilderEditRow\(\{ \.\.\.r, upgradeScript: true \}\)/)
   })
 })
