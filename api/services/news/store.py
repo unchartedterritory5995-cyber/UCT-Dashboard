@@ -507,6 +507,24 @@ def bump(source: str, metric: str, n: int = 1, detail: str = "") -> None:
         c.commit()
 
 
+def latest_source_ok() -> str | None:
+    """When ANY source last ingested successfully: MAX(news_source_health.last_ok), an O(1) read of the
+    ~8-row health table (health_snapshot also COUNTs every item, which is slow on a large store).
+
+    This is INGESTION health — UCT's own clock at the last successful poll (record_health(ok=True)) — and
+    says nothing about when any article was PUBLISHED (that is newest_published). A failed poll never
+    moves it. Returns the ISO-8601 UTC string, or None when no source has ever succeeded (empty table,
+    all last_ok blank) or the health table cannot be read. Read-only: no write, no schema change."""
+    try:
+        _ensure_init()
+        with contextlib.closing(_connect()) as c:
+            r = c.execute("SELECT MAX(last_ok) m FROM news_source_health WHERE last_ok <> ''").fetchone()
+    except sqlite3.Error as e:
+        _log.warning("company news health unavailable: %s", type(e).__name__)
+        return None
+    return (r["m"] if r and r["m"] else None)
+
+
 def health_snapshot(days: int = 3) -> dict[str, Any]:
     _ensure_init()
     since = (datetime.now(timezone.utc).date() - timedelta(days=days)).isoformat()
