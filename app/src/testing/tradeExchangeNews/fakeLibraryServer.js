@@ -29,16 +29,17 @@ export function fakeLibraryServer(headlines) {
       return ok({ ids: [...marks.keys()].reverse(), collections: colRows(), limits: { bookmarks: 5000, collections: 100, name: 60, note: 4000 } })
     }
     if (method === 'GET' && path === '/items') {
-      const q = (u.searchParams.get('q') || '').toLowerCase()
-      const t = (u.searchParams.get('ticker') || '').toUpperCase()
-      const c = u.searchParams.get('collection')
+      const qs = Object.fromEntries(u.searchParams)        // the request's filters, read as one object
+      const q = (qs.q || '').toLowerCase()
+      const t = (qs.ticker || '').toUpperCase()
+      const c = qs.collection
       if (c && !cols.has(c)) return err(404, 'not_found', 'That collection could not be found.')
       let out = [...marks.keys()].map((id) => ({ ...byId.get(id), id, bookmark: mark(id) }))
       if (q) out = out.filter((i) => i.content.toLowerCase().includes(q) || i.bookmark.note.toLowerCase().includes(q))
       if (t) out = out.filter((i) => (i.tickers || []).includes(t))
       if (c) out = out.filter((i) => items.get(c).has(i.id))
       out.sort((a, b) => b.bookmark.saved_at_ms - a.bookmark.saved_at_ms)
-      const limit = Number(u.searchParams.get('limit')) || 60
+      const limit = Number(qs.limit) || 60
       return ok({ items: out.slice(0, limit), total: out.length, offset: 0, limit })
     }
     if ((m = path.match(/^\/bookmarks\/([^/]+)$/))) {
