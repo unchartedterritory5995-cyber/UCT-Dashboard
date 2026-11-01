@@ -25,6 +25,7 @@ from typing import Any, Optional
 from zoneinfo import ZoneInfo
 
 from api.services.uct_agent.marketdata import envelope as env
+from api.services.uct_agent.scan import sources
 from api.services.uct_agent.scan import spec as scan_spec
 
 SOURCE = "uct-screener"
@@ -183,7 +184,7 @@ def run(params: dict, ctx: dict) -> dict:
     """`screen.run` — `{spec, rows: [≤50: symbol + requested fields], total_matches}`."""
     kind = "screen.run"
     try:
-        spec = scan_spec.validate(params.get("spec"))
+        spec, origin = sources.resolve(params, ctx.get("user_id"))
     except scan_spec.SpecError as e:
         return _refused(kind, params, str(e))
     limit = scan_spec.row_limit({"limit": params["limit"]} if params.get("limit") is not None
@@ -206,7 +207,7 @@ def run(params: dict, ctx: dict) -> dict:
     if total > len(rows):
         notes.append(f"Showing {len(rows)} of {total} matches.")
     data = {"spec": spec, "rows": rows, "total_matches": total, "fields": [f for f in fields if f != "ticker"],
-            "excluded": listed}
+            "excluded": listed, "origin": origin}
     if out.get("rank"):
         data["rank"] = out["rank"]
     return env.make_envelope(kind, params, status=_status(cov), freshness="periodic", as_of=as_of, source=SOURCE,
@@ -217,7 +218,7 @@ def count(params: dict, ctx: dict) -> dict:
     """`screen.count` — `{spec, count}`."""
     kind = "screen.count"
     try:
-        spec = scan_spec.validate(params.get("spec"))
+        spec, origin = sources.resolve(params, ctx.get("user_id"))
     except scan_spec.SpecError as e:
         return _refused(kind, params, str(e))
     user_id = ctx.get("user_id")
@@ -230,8 +231,48 @@ def count(params: dict, ctx: dict) -> dict:
     cov, listed = _coverage(spec, user_id)
     as_of, stale, notes = _provenance_fields(prov)
     notes += _coverage_notes(cov)
-    data = {"spec": spec, "count": int(res.get("count") or 0), "excluded": listed}
+    data = {"spec": spec, "count": int(res.get("count") or 0), "excluded": listed, "origin": origin}
     if res.get("top_n"):
         data["top_n"] = res["top_n"]
     return env.make_envelope(kind, params, status=_status(cov), freshness="periodic", as_of=as_of, source=SOURCE,
                              data=data, stale=stale, coverage=cov, notes=notes, provider_calls=0)
+
+
+def saved(params: dict, ctx: dict) -> dict:
+    """`screen.saved` — `{screens: [{id, name, spec, runnable, reason?}]}`: THE MEMBER'S OWN saved screens,
+    read-only (`saved_screens.list_for(user_id)`, the service's member-scoped read). Starters and other
+    members' public screens are not listed.
+
+    Envelope: `as_of` is the newest screen's `updated_at` (when these definitions were last written —
+    the data's own time). `coverage` counts the screens: `answered` = runnable by the Agent (its spec
+    passes the field catalog), `not_computable` = listed but not runnable (e.g. an indicator-condition
+    screen, unavailable to the Agent in Sprint 1), so the member is never told a screen is missing."""
+    kind = "screen.saved"
+    recs = sources.read_saved(ctx.get("user_id")) or []
+    screens, runnable, newest = [], 0, None
+    for r in recs[:100]:
+        entry = {"id": r.get("id"), "name": r.get("name"), "spec": r.get("spec")}
+        try:
+            scan_spec.validate(r.get("spec"))
+            entry["runnable"] = True
+            runnable += 1
+        except scan_spec.SpecError as e:
+            entry["runnable"] = False
+            entry["reason"] = str(e)
+        screens.append(entry)
+        ts = r.get("updated_at") or r.get("created_at")
+        if isinstance(ts, (int, float)) and ts > 0 and (newest is None or ts > newest):
+            newest = ts
+    n = len(screens)
+    cov = {"evaluated": n, "answered": runnable, "dropped": 0, "not_computable": n - runnable}
+    notes = []
+    if newest is None:
+        notes.append("You have no saved screens." if not n else "The saved screens carry no save time.")
+    as_of = env.utc_iso(dt.datetime.fromtimestamp(newest, dt.timezone.utc)) if newest else None
+    if len(recs) > 100:
+        notes.append(f"Showing your 100 most recently saved of {len(recs)} screens.")
+    if n - runnable:
+        notes.append(f"{n - runnable} of your screens can't be run by the Agent yet; each says why.")
+    return env.make_envelope(kind, params, status="partial" if n - runnable else "ok", freshness="periodic",
+                             as_of=as_of, source=SOURCE, data={"screens": screens}, coverage=cov, notes=notes,
+                             provider_calls=0)
