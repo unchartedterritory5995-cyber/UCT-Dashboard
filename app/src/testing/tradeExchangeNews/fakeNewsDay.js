@@ -12,8 +12,9 @@ const after = (it, cur) => dayCmp(it, { received_at_ms: cur[0], seq: cur[1] }) <
 /** `archive` any order; `body` the widget's day request. `atMs(date, 'HH:MM')` maps a
  *  time jump to an instant (tests pass one; default: the archive's own ET reading). */
 export function fakeNewsDay(archive, body = {}, { epoch = 'e', today = null, atMs = null } = {}) {
-  const date = body.date || today || etDateKey(Date.now())
-  const day = archive.filter((it) => etDateKey(it.received_at_ms) === date)
+  const date = body.history ? null : (body.date || today || etDateKey(Date.now()))
+  // All history (Linked to chart): every archived date, one keyset order, no total.
+  const day = body.history ? archive.slice() : archive.filter((it) => etDateKey(it.received_at_ms) === date)
   const shownRule = { query: body.query || '', linkedSym: body.symbol || null,
     watchSet: Array.isArray(body.symbols) ? new Set(body.symbols) : null,
     categories: body.categories || null, hidePlaceholders: !!body.hide_placeholders }
@@ -39,6 +40,16 @@ export function fakeNewsDay(archive, body = {}, { epoch = 'e', today = null, atM
     hi = Math.min(match.length, lo + limit)
   }
   const items = match.slice(lo, hi)
+  if (body.history) {
+    return {
+      history: true, date: null, epoch, total: null, day_total: null, at_match: null, hidden_placeholders: null,
+      has_newer: false, has_older: hi < match.length, reached_start: hi >= match.length,
+      searched_to: hi >= match.length ? (fakeNewsDays(archive).first_day || null) : etDateKey(items.at(-1)?.received_at_ms),
+      newer_cursor: items.length ? keyOf(items[0]) : null, older_cursor: items.length ? keyOf(items.at(-1)) : null,
+      top: archive.reduce((m, it) => Math.max(m, it.seq), 0), items,
+      coverage: { complete: true, gaps: [] }, tickers_provisional: true,
+    }
+  }
   return {
     date, epoch, total: match.length, day_total: day.length, at_match: atMatch,
     hidden_placeholders: body.hide_placeholders ? day.filter((it) => it.placeholder === 'graphic').length : 0,
