@@ -32,7 +32,7 @@ const C = BARS.map((b) => b.c)
 const v5 = '//@version=5\nindicator("t")\n'
 const v6 = '//@version=6\nindicator("t")\n'
 
-const build = (src, opts = {}) => buildRuntimeIr(src, { bars: BARS, inputs: {}, ...opts })
+const build = (src, opts = {}) => buildRuntimeIr(src, { bars: BARS, inputs: {}, p3Statements: true, ...opts })
 function run(src, opts) {
   const built = build(src, opts)
   expect(built.ok, built.ok ? '' : `${built.refusal.guard}: ${built.refusal.message}`).toBe(true)
@@ -213,6 +213,44 @@ describe('M3 — Pine 6 `bool` is never `na`', () => {
   })
   it('⛔ CONTROL — v6: a bool WITH an else is served', () => {
     expect(run(`${v6}b = if close > 103\n    true\nelse\n    false\nplot(b ? 1 : 0)\n`)).toEqual([0, 0, 0, 0, 1, 1, 1, 1])
+  })
+  // ⭐⭐ review H-2 — the guard FAILS CLOSED: unmatched (bars 0-5, close > 105 is
+  // false) must never serve `na` where Pine 6 draws `false` ([5,5,5,5,5,5,7,7]).
+  const unmatchedBoolIsRefused = (src) => {
+    const b = build(src)
+    if (b.ok) {
+      const program = lowerIrProgram(b.ir)
+      const r = execute(program, { bars: N, series: SERIES, columns: program.columns, confirmed: true, barTimes: BARS.map((x) => x.t) })
+      expect(Array.from(r.outputs[0])).toEqual([5, 5, 5, 5, 5, 5, 7, 7])
+      return
+    }
+    expect(b.refusal.guard).toBe('runtime:block-value')
+    expect(b.refusal.message).toMatch(/v6 bool is never `na`/)
+  }
+  it('⛔⛔ H-2: a user function returning bool', () => {
+    unmatchedBoolIsRefused(`${v6}isUp(x) => x > 105\nb = if close > 105\n    isUp(close)\nplot(b == false ? 5 : 7)\n`)
+  })
+  it('⛔⛔ H-2: a `timeframe.isdaily` arm', () => {
+    unmatchedBoolIsRefused(`${v6}b = if close > 105\n    timeframe.isdaily\nplot(b == false ? 5 : 7)\n`)
+  })
+  it('⛔⛔ H-2: `array.get` of a bool array', () => {
+    unmatchedBoolIsRefused(`${v6}var ba = array.new_bool(1, true)\nb = if close > 105\n    array.get(ba, 0)\nplot(b == false ? 5 : 7)\n`)
+  })
+  it('⛔⛔ H-2: a switch arm ending in a user bool function', () => {
+    unmatchedBoolIsRefused(`${v6}isUp(x) => x > 105\nb = switch\n    close > 105 => isUp(close)\nplot(b == false ? 5 : 7)\n`)
+  })
+  it('⛔⛔ H-2: a target declared `bool b = false`, then `b := if …`', () => {
+    unmatchedBoolIsRefused(`${v6}isUp(x) => x > 105\nbool b = false\nb := if close > 105\n    isUp(close)\nplot(b == false ? 5 : 7)\n`)
+  })
+  it('⛔ CONTROL — H-2: a target declared `float` is served (na) whatever the arm', () => {
+    const out = run(`${v6}g(x) => x * 2\nfloat f = na\nf := if close > 105\n    g(close)\nplot(f)\n`)
+    expect(out.slice(0, 6).every(Number.isNaN)).toBe(true)
+    expect(out.slice(6)).toEqual([212, 214])
+  })
+  it('⛔ CONTROL — H-2: a name bound to arithmetic is provably a number: served', () => {
+    const out = run(`${v6}m = close * 2\nx = if close > 105\n    m\nplot(x)\n`)
+    expect(out.slice(0, 6).every(Number.isNaN)).toBe(true)
+    expect(out.slice(6)).toEqual([212, 214])
   })
   it('⛔ CONTROL — v5: an unmatched block-valued bool is na', () => {
     expect(run(`${v5}b = if close > 103\n    true\nplot(b == false ? 5 : 7)\n`)).toEqual(Array(N).fill(7))

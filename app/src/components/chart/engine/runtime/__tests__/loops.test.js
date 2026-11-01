@@ -28,7 +28,7 @@ const SERIES = ['o', 'h', 'l', 'c', 'v'].map((k) => Float64Array.from(BARS.map((
 const head = '//@version=6\nindicator("t", overlay = true)\n'
 
 function runPine(src, limits) {
-  const built = buildRuntimeIr(head + src, { bars: BARS, inputs: {} })
+  const built = buildRuntimeIr(head + src, { bars: BARS, inputs: {}, p3Statements: true })
   if (!built.ok) throw new Error(`refused: ${built.refusal.message}`)
   const program = lowerIrProgram(built.ir)
   const { outputs } = execute(program, {
@@ -114,7 +114,7 @@ describe('the for loop', () => {
     // ENCLOSING scope, so `i` here is an unbound name and refuses — rather
     // than silently resolving to the counter slot and reading `na`.
     const r = buildRuntimeIr(`${head}float s = 0.0\nfor i = i to 3\n    s := s + 1.0\nplot(s)\n`,
-      { bars: BARS, inputs: {} })
+      { bars: BARS, inputs: {}, p3Statements: true })
     expect(r.ok).toBe(false)
   })
 
@@ -159,7 +159,7 @@ describe('the for loop', () => {
 
   it('the counter is visible in the body and gone after it', () => {
     const r = buildRuntimeIr(`${head}float s = 0.0\nfor i = 1 to 2\n    s := s + i\nplot(s + i)\n`,
-      { bars: BARS, inputs: {} })
+      { bars: BARS, inputs: {}, p3Statements: true })
     expect(r.ok).toBe(false)
   })
 

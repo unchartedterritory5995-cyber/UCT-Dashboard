@@ -673,22 +673,13 @@ export function declarationPersists(headerToks) {
  *  lazily — as each statement is reached — would classify its first read as pure
  *  and fold it, which is the silent-wrong-result shape this whole program exists
  *  to prevent. */
-/** The statements one header holds, for `scanMutability`: the part after a
- *  top-level `=>` (an inline arm) is its own statement, and a top-level comma
- *  separates statements. Brackets and parentheses nest; a comma inside them is
- *  an argument or element separator. */
-function mutationSegments(toks) {
+/** The statement after a top-level `=>` (an inline arm), for `scanMutability`.
+ *  ⚰️ P3 WS-A (review L-1) — a comma split lived here too; a mutation removing
+ *  it kept every rail green (the walk already resolves a later segment's write),
+ *  so it was a second, unproved guard and is gone. */
+function inlineArmStatement(toks) {
   const arrow = findTop(toks, (t) => isPunct(t, '=>'))
-  const body = arrow >= 0 ? toks.slice(arrow + 1) : toks
-  const out = [[]]
-  let depth = 0
-  for (const t of body) {
-    if (t.kind === 'punct' && (t.value === '(' || t.value === '[')) depth += 1
-    else if (t.kind === 'punct' && (t.value === ')' || t.value === ']')) depth -= 1
-    if (depth === 0 && isPunct(t, ',')) { out.push([]); continue }
-    out[out.length - 1].push(t)
-  }
-  return out
+  return arrow >= 0 ? toks.slice(arrow + 1) : null
 }
 
 export function scanMutability(stmts, out) {
@@ -707,11 +698,11 @@ export function scanMutability(stmts, out) {
     // `count = 0 … count += 1` declared `count` as a pure binding and the rewritten
     // `:=` then refused as a reassignment of a name never declared. Every `while`
     // in the corpus advances its counter this way (`i += 1`).
-    // ⭐ P3 WS-A (review M2) — EVERY STATEMENT A HEADER HOLDS, not only its
-    // first: each comma segment (`a := 1, b += 2`) and the statement after an
-    // inline `=>` arm (`close > 103 => c += 1`). Reading only the first left a
-    // plain `c = 0` refused `runtime:unbound` when an arm wrote it.
-    for (const seg of mutationSegments(toks)) {
+    // ⭐ P3 WS-A (review M2) — AND THE STATEMENT AFTER AN INLINE `=>` ARM
+    // (`close > 103 => c += 1`). Reading only the header's first statement left
+    // a plain `c = 0` refused `runtime:unbound` when an arm wrote it.
+    for (const seg of [toks, inlineArmStatement(toks)]) {
+      if (!seg) continue
       const op = seg[1]
       if (seg[0] && seg[0].kind === 'ident' && op && op.kind === 'punct'
           && (op.value === ':=' || (op.value.length === 2 && op.value.endsWith('=')
@@ -2679,6 +2670,24 @@ function buildRuntimeIrLinked(source, opts, holder) {
   // `color` that silently fell off would draw the default blue where the author
   // painted red.
   const objectsInRun = opts.objectsInRun === true && !objectPassOwnsDrawing
+  // ⛔⛔ P3 WS-A — THE STATEMENT AND BLOCK-VALUE GRAMMAR IS THE RUNTIME PANE'S, AND
+  // ONLY ITS. `buildRuntimeIr` is ALSO asked by the host object pass (C18:
+  // `probeObjectRuntime` / `runtimeObjectValues`, `objectTreesAt`) on every
+  // translation, in production, with no runtime permission involved — so a
+  // lowering added here would draw on members' charts with the lane dark. The
+  // WS-A grammar (multi-statement arms, `switch` statements, `var x = if/switch`,
+  // comma statements, tuple and switch-ending function bodies, the subject hoist)
+  // is therefore built ONLY when the caller says `p3Statements: true`, which the
+  // runtime pane's own builds do (`runtimeColumns.js`). Every other caller —
+  // including any new one — gets the grammar master shipped (fail closed). Where
+  // master's served value was NOT exact (a read of `x` inside `x := if`, a
+  // function ending in a comma statement), the master-grammar build refuses by
+  // name instead of serving it. Rails: `p3WsaDarkGate.test.js`.
+  const p3 = opts.p3Statements === true
+  const refuseP3 = (what, at, guard = 'runtime:block-value') => {
+    note(guard)
+    throw new RuntimeRefusal(guard, `${what} — built only on the runtime pane`, at)
+  }
   let objectOpsLowered = 0
   const RUN_DRAW_CALL = /^(line|label|box|table|linefill)\.([a-z_0-9]+)$/
   const refuseObject = (what, why, tok) => {
@@ -7234,6 +7243,40 @@ function buildRuntimeIrLinked(source, opts, holder) {
     if (isPunct(t[0], '[') && isBindingHeader(t)) return true
     return findTop(t, isCompoundTok) > 0
   }
+  /** ⛔ THE ARM GRAMMAR MASTER SHIPPED, for every build that is not the runtime
+   *  pane's (`p3`): one value, from ONE expression or a nested `if` chain, after
+   *  any number of arm-local declarations (`y = …`, never `var`, never `:=` or a
+   *  compound write); no comma statement, no tuple, no binding as the value. */
+  const STATE_WORDS_ARM = new Set(['var', 'varip'])
+  const masterArmLocalDecl = (ln) => {
+    const t = (ln && ln.header) || []
+    if (!t.length || (ln.sub && ln.sub.length)) return false
+    if (findTop(t, (x) => isPunct(x, ':=')) >= 0 || findTop(t, isCompoundTok) >= 0) return false
+    const eq = findTop(t, (x) => isPunct(x, '='))
+    return eq > 0 && !!boundName(t, eq) && !(t[0].kind === 'ident' && STATE_WORDS_ARM.has(t[0].value))
+  }
+  const masterArmCheck = (lines, label, atTok, sink) => {
+    const why = (() => {
+      if (sink.slots.length !== 1) return 'a block yielding several values'
+      if (lines.some((ln) => statementCommaParts(ln))) return 'a comma statement in a value arm'
+      let chainAt = -1
+      let k = lines.length - 1
+      if (blockKeywordOf(lines[k]) === 'if') chainAt = k
+      else if (blockKeywordOf(lines[k]) === 'else') {
+        while (k >= 0 && blockKeywordOf(lines[k]) === 'else') k -= 1
+        if (k >= 0 && blockKeywordOf(lines[k]) === 'if') chainAt = k
+      }
+      const prefixOk = (upTo) => lines.slice(0, upTo).every(masterArmLocalDecl)
+      if (chainAt >= 0) return prefixOk(chainAt) ? null : 'statements in front of a nested `if` that are not arm-local declarations'
+      const last = lines[lines.length - 1]
+      const lt = (last && last.header) || []
+      const w = blockKeywordOf(last)
+      if ((last.sub && last.sub.length) || !lt.length || w === 'switch' || w === 'for' || w === 'while') return 'a value arm that ends in a block'
+      if (isBindingHeader(lt) || findTop(lt, (x) => isPunct(x, ':=')) > 0) return 'a value arm that ends in a write'
+      return prefixOk(lines.length - 1) ? null : 'a value arm with statements that are not arm-local declarations'
+    })()
+    if (why) refuseP3(`\`${label}\`: ${why}`, locate((lines[0] && lines[0].header && lines[0].header[0]) || atTok))
+  }
   const armAssignerFor = (target, label, parentScope, vstate = null) => {
     const sink = valueSinkOf(target)
     const mk = (sub, atTok) => {
@@ -7242,8 +7285,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
         throw new RuntimeRefusal('runtime:block-value',
           `\`${label}\` has a branch with no value`, locate(atTok))
       }
+      // ⛔ off the runtime pane, an arm is what master lowered (`masterArmCheck`)
+      if (!p3) masterArmCheck(lines, label, atTok, sink)
       const armScope = new Scope(parentScope)
-      const body = lowerBlockValue(lines, armScope, sink, label, atTok, vstate)
+      const body = lowerBlockValue(lines, armScope, sink, label, atTok, p3 ? vstate : null)
       // ⭐ REGISTERED so the object pass sees a value-position block exactly as it
       // sees a statement one.
       objectBlocks.push({ scope: armScope, body })
@@ -7253,51 +7298,79 @@ function buildRuntimeIrLinked(source, opts, holder) {
     return mk
   }
 
-  /** ⛔⛔ P3 WS-A (review M3) — A PINE 6 `bool` IS NEVER `na`. A block that
-   *  yields a value but can match no arm (an `if` with no final `else`, a
-   *  `switch` with no default) yields `na` here; Pine 6 yields `false` for a
-   *  bool. This lane does not type a value, so where an arm's value LOOKS bool —
-   *  a `true`/`false` literal, a comparison, `and`/`or`/`not`, a bool builtin, a
-   *  name declared or bound as one — the block is refused by name rather than
-   *  served `na` where Pine draws `false`. v5 and below keep `na` (Pine's rule). */
-  const BOOL_CALLS = new Set(['na', 'ta.crossover', 'ta.crossunder', 'ta.cross', 'ta.rising', 'ta.falling',
-    'str.contains', 'str.startswith', 'str.endswith', 'array.includes', 'bool'])
-  const BOOL_OPS = new Set(['>', '<', '>=', '<=', '==', '!=', 'and', 'or'])
-  let boolNamesCache = null
-  const boolNames = () => {
-    if (boolNamesCache) return boolNamesCache
-    const names = new Set()
-    const pass = (list) => {
+  /** ⛔⛔ P3 WS-A (reviews M3, H-2) — A PINE 6 `bool` IS NEVER `na`, SO AN
+   *  UNMATCHED VALUE BLOCK IS SERVED ONLY WHEN ITS VALUE IS PROVABLY NOT A BOOL.
+   *  A block that yields a value but can match no arm (an `if` with no final
+   *  `else`, a `switch` with no default) yields `na` here; Pine 6 yields `false`
+   *  for a bool. This lane does not type values, so it FAILS CLOSED: the block is
+   *  served only when the target is declared `float`/`int`/`string`/`color`, or
+   *  every arm's value is provably one of those (a number, arithmetic, a string,
+   *  a price series, a numeric builtin, a name declared or bound as one).
+   *  Anything else — a bool literal, a comparison, a user function, an array
+   *  element, an unknown builtin or name — refuses by name. v5 and below keep
+   *  `na` (Pine's rule). The first cut guessed bool from tokens and missed user
+   *  functions, `timeframe.isdaily`, `array.get`, and a target declared `bool`. */
+  const NON_BOOL_TYPES = new Set(['float', 'int', 'string', 'color'])
+  const TYPE_WORDS = new Set(['float', 'int', 'string', 'color', 'bool'])
+  const NUMERIC_SERIES = new Set(['open', 'high', 'low', 'close', 'volume', 'hl2', 'hlc3', 'ohlc4', 'hlcc4',
+    'bar_index', 'time', 'time_close', 'last_bar_index', 'timenow'])
+  const NUMERIC_CALL = /^(ta\.(sma|ema|rma|wma|hma|vwma|swma|alma|linreg|atr|tr|rsi|cci|mfi|stdev|variance|dev|highest|lowest|highestbars|lowestbars|change|mom|roc|cum|percentrank|median|mode|range|valuewhen|barssince|correlation|vwap|wpr|cmo|tsi|obv|pvt|accdist|iii|wvad|nvi|pvi|sar|supertrend|bb|bbw|kc|kcw|dmi|macd|stoch|pivothigh|pivotlow)|math\.[a-z_]+|str\.(tostring|format|length|replace|replace_all|lower|upper|substring|trim|repeat|tonumber|pos)|color\.[a-z_]+|nz|int|float|string)$/
+  let typeInfo = null
+  const typeTables = () => {
+    if (typeInfo) return typeInfo
+    const declared = new Map()   // name -> Set of declared type words
+    const numeric = new Set()    // names every binding of which is provably non-bool
+    const boundAny = new Map()   // name -> [rhs token lists]
+    const visit = (list) => {
       for (const st of list || []) {
         for (const t of statementCommaParts(st) || [st.header || []]) {
           const eq = findTop(t, (x) => isPunct(x, '=') || isPunct(x, ':='))
           if (eq <= 0 || !t[eq - 1] || t[eq - 1].kind !== 'ident') continue
           const nm = String(t[eq - 1].value)
-          if (t.slice(0, eq - 1).some((x) => x.kind === 'ident' && x.value === 'bool')) { names.add(nm); continue }
-          if (boolShapedToks(t.slice(eq + 1), names)) names.add(nm)
+          const ty = t.slice(0, eq - 1).find((x) => x.kind === 'ident' && TYPE_WORDS.has(x.value))
+          if (ty) { if (!declared.has(nm)) declared.set(nm, new Set()); declared.get(nm).add(ty.value) }
+          if (!boundAny.has(nm)) boundAny.set(nm, [])
+          boundAny.get(nm).push(t.slice(eq + 1))
         }
-        pass(st.sub)
+        visit(st.sub)
       }
     }
-    pass(stmts); pass(stmts)
-    boolNamesCache = names
-    return names
+    visit(stmts)
+    typeInfo = { declared, numeric }
+    for (let pass = 0; pass < 3; pass += 1) {
+      for (const [nm, rhss] of boundAny) {
+        const d = declared.get(nm)
+        if (d && [...d].every((w) => NON_BOOL_TYPES.has(w))) { numeric.add(nm); continue }
+        if (d && d.has('bool')) continue
+        if (rhss.every((r) => provablyNonBoolToks(r))) numeric.add(nm)
+      }
+    }
+    return typeInfo
   }
-  const boolShapedNode = (n, names, d = 0) => {
+  const declaredTypeOfName = (nm) => {
+    const d = typeTables().declared.get(String(nm))
+    if (!d) return null
+    if (d.has('bool')) return 'bool'
+    return [...d].every((w) => NON_BOOL_TYPES.has(w)) ? 'float' : null
+  }
+  const provablyNonBoolNode = (n, d = 0) => {
     if (!n || typeof n !== 'object' || d > 64) return false
-    if (n.type === 'binary') return BOOL_OPS.has(n.op)
-    if (n.type === 'unary') return n.op === 'not'
-    if (n.type === 'ternary') return boolShapedNode(n.yes, names, d + 1) || boolShapedNode(n.no, names, d + 1)
-    if (n.type === 'call') return BOOL_CALLS.has(String(n.name))
-    if (n.type === 'name') return /^(barstate|session)\./.test(String(n.name)) || names.has(String(n.name))
+    if (n.type === 'number' || n.type === 'string' || n.type === 'colour' || n.type === 'color') return true
+    if (n.type === 'binary') return ['+', '-', '*', '/', '%'].includes(n.op)
+    if (n.type === 'unary') return n.op === '-' || n.op === '+'
+    if (n.type === 'ternary') return provablyNonBoolNode(n.yes, d + 1) && provablyNonBoolNode(n.no, d + 1)
+    if (n.type === 'offset') return provablyNonBoolNode(n.of || n.expr || n.target, d + 1)
+    if (n.type === 'call') return NUMERIC_CALL.test(String(n.name))
+    if (n.type === 'name') return NUMERIC_SERIES.has(String(n.name)) || (typeInfo !== null && typeInfo.numeric.has(String(n.name)))
     return false
   }
-  const boolShapedToks = (toks, names) => {
+  const provablyNonBoolToks = (toks) => {
     if (!toks || !toks.length) return false
-    if (toks.some((x) => x.kind === 'ident' && (x.value === 'true' || x.value === 'false'))) return true
+    if (toks.some((x) => x.kind === 'ident' && (x.value === 'true' || x.value === 'false'))) return false
+    if (toks.length === 1 && toks[0].kind === 'string') return true
     let node = null
     try { node = parseWholeExpression(toks) } catch { return false }
-    return boolShapedNode(node, names)
+    return provablyNonBoolNode(node)
   }
   /** the value an arm's lines yield, as tokens, when it is one expression line */
   const armValueToks = (lines) => {
@@ -7312,10 +7385,14 @@ function buildRuntimeIrLinked(source, opts, holder) {
   }
   const refuseV6UnmatchedBool = (mkArm, valueToksList, at, what) => {
     if (!(mkArm && mkArm.valued) || pineVersion === null || pineVersion < 6) return
-    if (!valueToksList.some((t) => boolShapedToks(t, boolNames()))) return
+    typeTables()
+    if (mkArm.declaredType === 'float') return
+    // ⚰️ a separate "declared `bool` refuses" check lived here; in valid Pine a bool
+    // target's arms are bools, which are never PROVABLY non-bool, so it could not fire
+    if (valueToksList.every((t) => provablyNonBoolToks(t))) return
     throw new RuntimeRefusal('runtime:block-value',
-      `${what} can match no arm, and its value is a \`bool\` — Pine 6 yields \`false\` there `
-      + '(a v6 bool is never `na`), which this lane does not type yet', at)
+      `${what} can match no arm, and its value is not provably a number, a string or a colour — `
+      + 'Pine 6 yields `false` for an unmatched `bool` (a v6 bool is never `na`), which this lane does not type yet', at)
   }
 
   /** ⭐⭐ AN `if` / `else if` / `else` CHAIN, COLLECTED AND NESTED — also once.
@@ -7450,7 +7527,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // made every arm of `switch input.string(…)` a conditional region.
     const subjInv = !subject || invariantTest(subject, scope)
     const pre = []
-    if (subject && subjectCalls(subject)) {
+    if (p3 && subject && subjectCalls(subject)) {
       const tmpName = `switch subject@${atTok && atTok.line}:${atTok && atTok.column}`
       const tslot = scope.declare(tmpName, newSlot(tmpName, false))
       if (holdsText(subject, scope)) slots[tslot].text = true
@@ -7911,10 +7988,25 @@ function buildRuntimeIrLinked(source, opts, holder) {
     return why
   }
 
+  /** does lowered IR read `slot` anywhere (calls included as written, not followed) */
+  const irReadsSlot = (ir, slot) => {
+    let hit = false
+    const walk = (x, d) => {
+      if (hit || !x || typeof x !== 'object' || d > 512) return
+      if (Array.isArray(x)) { for (const y of x) walk(y, d + 1); return }
+      if (x.kind === EXPR.READ && x.slot === slot) { hit = true; return }
+      if ((x.kind === EXPR.HIST || x.kind === EXPR.HIST_SLOT_DYN) && x.of && x.of.kind === EXPR.READ && x.of.slot === slot) return
+      for (const v of Object.values(x)) if (v && typeof v === 'object') walk(v, d + 1)
+    }
+    walk(ir, 0)
+    return hit
+  }
+
   const lowerStmts = (list0, scope, rootHoist = false) => {
     // RT5: `label.delete(a[1]), line.delete(b[1])` is a line of STATEMENTS
     // (the host object lane's own split, `objectFnInline.splitCommaStatements`).
-    const list = splitStatementCommas(objectsInRun ? splitDrawingCommas(list0) : list0)
+    const list0b = objectsInRun ? splitDrawingCommas(list0) : list0
+    const list = p3 ? splitStatementCommas(list0b) : list0b
     const out = []
     const outerStmtSink = stmtHoistSink
     stmtHoistSink = null
@@ -8246,6 +8338,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
       // matches (or the default) and no other; its value, if any, is discarded.
       // Lowered by the value form's own `lowerSwitchInto`, with each arm a plain
       // statement list in its own scope, so the two positions read one grammar.
+      if (word === 'switch' && !p3) refuseP3('a `switch` as a statement', locate(first), 'runtime:switch')
       if (word === 'switch') {
         const stmtArm = (lines, atTok) => {
           if (!lines || !lines.length) {
@@ -8540,6 +8633,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
           out.push(declare(tmpSlot, naValue()))
           const mkArm = armAssignerFor(tmpSlot,
             `${nameTok.value} := ${blkHead.value} …`, scope)
+          mkArm.declaredType = declaredTypeOfName(nameTok.value)
+          const chainFrom = out.length
           if (blkHead.value === 'if') {
             const chain = lowerIfChainInto(list, i, toks.slice(walrus + 2), scope, mkArm)
             i = chain.next
@@ -8548,6 +8643,14 @@ function buildRuntimeIrLinked(source, opts, holder) {
             const sw = lowerSwitchInto(st.sub, toks.slice(walrus + 2), scope, mkArm,
               `${nameTok.value} :=`, blkHead)
             for (const st2 of sw) out.push(st2)
+          }
+          // ⛔ OFF THE RUNTIME PANE (`p3`), master's build wrote `na` into x before
+          // the chain. The temp is the same IR wherever the chain does not read x;
+          // where it does, master's value was wrong (`na`) and this door refuses by
+          // name rather than change a drawing it never drew correctly.
+          if (!p3 && irReadsSlot(out.slice(chainFrom), blkSlot)) {
+            refuseP3(`\`${nameTok.value} := ${blkHead.value} …\` reads \`${nameTok.value}\` inside its own block`,
+              locate(first))
           }
           out.push(assign(blkSlot, read(tmpSlot)))
           continue
@@ -8786,6 +8889,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
             '`varip x = if/switch …` — a block-valued `varip` is not carried from tick to tick here',
             locate(first))
         }
+        if (!p3 && first.kind === 'ident' && first.value === 'var') {
+          refuseP3(`\`var ${nameTok.value} = ${rhsHead.value} …\` (a block initialised once)`, locate(first))
+        }
         const once = first.kind === 'ident' && first.value === 'var'
         const slot = scope.declare(nameTok.value, newSlot(nameTok.value, declarationPersists(toks)))
         // ⛔ `na` IS THE INITIAL VALUE AND IT IS LOAD-BEARING. It is what an
@@ -8801,6 +8907,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // arm refuses. Its mutation proof breaks the shared helper and watches
         // every position go red at once.
         const mkArm = armAssignerFor(slot, `${once ? 'var ' : ''}${nameTok.value} = ${rhsHead.value} …`, scope)
+        {
+          const ty = toks.slice(0, eqBlk).find((x) => x.kind === 'ident' && TYPE_WORDS.has(x.value))
+          mkArm.declaredType = ty ? (ty.value === 'bool' ? 'bool' : 'float') : declaredTypeOfName(nameTok.value)
+        }
 
         let blk
         if (rhsHead.value === 'if') {
@@ -9379,7 +9489,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
           record.valuelessEnd = endsInLoop(lines) ? null
             : (endsInOwnedDrawing(lines) ? 'drawing' : lastWord)
           result = naValue()
-        } else if (chainAt >= 0 || (lastWord === 'switch' && !sw) || bodyNeedsBlockValue(lines, fnScope)) {
+        } else if (chainAt >= 0 || (p3 && ((lastWord === 'switch' && !sw) || bodyNeedsBlockValue(lines, fnScope)))) {
           // ⭐⭐ P3 WS-A — THE BODY'S LAST STATEMENT IS A BLOCK (an `if` chain, a
           // `switch`, a binding whose value is one) or a binding the plain path
           // below cannot read back (a pure binding the resolver holds as an
@@ -9400,7 +9510,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
             const vName = n === 1 ? `__ifval_${fnIndex}` : `__ifval_${fnIndex}_${j}`
             vSlots.push(fnScope.declare(vName, newSlot(vName, false)))
           }
-          const vstate = { allow: true, valueless: false, end: null }
+          const vstate = { allow: p3, valueless: false, end: null }
           const label = chainAt >= 0 ? `${nameTok.value}(…) => if …` : `${nameTok.value}(…) =>`
           body = lowerBlockValue(lines, fnScope, { slots: vSlots }, label, nameTok, vstate)
           if (vstate.valueless) {
@@ -9414,6 +9524,11 @@ function buildRuntimeIrLinked(source, opts, holder) {
           // ⛔ P3 WS-A (review H1) — THE LAST STATEMENT IS THE LAST COMMA SEGMENT.
           // `a = x, g(a)` on the final line is two statements; reading the line
           // whole took its FIRST `=` and returned `a`, where Pine returns `g(a)`.
+          // ⛔ off the runtime pane master read the last LINE, whose value for a comma
+          // line was wrong (its first segment): refused by name there instead.
+          if (!p3 && statementCommaParts(lines[lines.length - 1])) {
+            refuseP3(`\`${nameTok.value}(…)\` ending in a comma statement`, locate(nameTok), 'runtime:function')
+          }
           const flat = splitStatementCommas(lines)
           body = lowerStmts(flat.slice(0, -1), fnScope)
           // ⭐ PINE RETURNS THE VALUE OF THE LAST STATEMENT (§16) — not an explicit
@@ -9430,7 +9545,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
             // ⭐ P3 WS-A — A PURE BINDING IS HELD AS AN EXPRESSION, not a slot (the
             // hybrid decision in the binding path), and it is still the value the
             // line bound: read it back by its name, as any later line would.
-            if (slot === null && bound && bound.kind === 'ident' && env.has(bound.value)
+            if (p3 && slot === null && bound && bound.kind === 'ident' && env.has(bound.value)
                 && String(bound.value).indexOf('.') < 0) {
               result = lowerExpr({ type: 'name', name: bound.value, tok: bound }, fnScope)
             } else if (slot === null) {

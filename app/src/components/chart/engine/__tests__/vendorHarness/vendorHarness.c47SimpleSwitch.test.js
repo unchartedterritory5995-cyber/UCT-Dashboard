@@ -88,7 +88,8 @@ function spanOf(source, from, to) {
   return lines.slice(a, b + 1)
 }
 
-const OPTS = { inputs: {}, pane: true, basePeriod: 'D', tf: 'D', ...runtimeClockOpts(false, { tf: 'D' }) }
+// P3 WS-A — the runtime pane's statement grammar (a C18 build never sets it)
+const OPTS = { inputs: {}, pane: true, basePeriod: 'D', tf: 'D', p3Statements: true, ...runtimeClockOpts(false, { tf: 'D' }) }
 const build = (src, rows, opts = {}) => buildRuntimeIr(src, { bars: rows, ...OPTS, ...opts })
 function exec(built, rows, budget) {
   const program = lowerIrProgram(built.ir)

@@ -98,6 +98,8 @@ export function probeRuntimeProgram(source, { objectsInRun = false } = {}) {
       ...COMPILE_ON_A_PANE, ...runtimeClockOpts(false),
       // ⭐ P3 WS-F (review M3) — the PANE's compile check: the pane runs with its ledger
       realtimeLedger: true,
+      // ⭐ P3 WS-A — the runtime pane's statement grammar (the C18 probes never set it)
+      p3Statements: true,
       // ⭐ RT6 — the pane's own build: each plot's `color =` is an output too.
       plotColours: true,
     })
@@ -161,6 +163,7 @@ export function colourInputsTheRunReads(source, keys, { objectsInRun = false, ou
       const built = buildRuntimeIr(String(source || ''), {
         bars: [], inputs: {}, inputDefaults, ...objects, ...COMPILE_ON_A_PANE, ...runtimeClockOpts(false),
         realtimeLedger: true,   // the pane's program, measured on closed history (`varip` is `var` there)
+        p3Statements: true,   // P3 WS-A — the pane's statement grammar
       })
       if (!built.ok) return null
       const p = lowerIrProgram(built.ir, { historyFromListing: true })
@@ -174,6 +177,7 @@ export function colourInputsTheRunReads(source, keys, { objectsInRun = false, ou
         bars: rows, inputs: {}, inputDefaults, ...objects,
         pane: true, plotColours: true, tf: 'D', basePeriod: 'D', ...runtimeClockOpts(false, { tf: 'D' }),
         realtimeLedger: true,
+        p3Statements: true,   // P3 WS-A — the pane's statement grammar
       })
       if (!built.ok || (built.ir.requests || []).length) return null
       const program = lowerIrProgram(built.ir, { historyFromListing: true })
@@ -1211,6 +1215,8 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
     // refused. The document's object program (the host lane's) draws them.
     ...(ownObjects ? { objectsInRun: true } : { objectTrees: [] }),
     pane: true,
+    // ⭐ P3 WS-A — the runtime pane's statement grammar (`pineRuntimeFrontend.js`, `p3`)
+    p3Statements: true,
     // ⭐ RT6 — the same build the door probed: each plot's `color =` is an
     // output too, appended after every other, so `compute.outputs` indices a
     // document minted before RT6 still name the same columns.

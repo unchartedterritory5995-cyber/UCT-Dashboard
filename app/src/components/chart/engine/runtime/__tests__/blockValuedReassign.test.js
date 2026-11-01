@@ -49,7 +49,7 @@ const SERIES = ['o', 'h', 'l', 'c', 'v'].map((k) => Float64Array.from(BARS.map((
 const head = '//@version=5\nindicator("t")\n'
 
 function run(src) {
-  const built = buildRuntimeIr(src, { bars: BARS, inputs: {} })
+  const built = buildRuntimeIr(src, { bars: BARS, inputs: {}, p3Statements: true })
   expect(built.ok, built.ok ? '' : `${built.refusal.guard}: ${built.refusal.message}`).toBe(true)
   const program = lowerIrProgram(built.ir)
   const r = execute(program, {
@@ -59,7 +59,7 @@ function run(src) {
   return Array.from(r.outputs[0])
 }
 const refusalOf = (src) => {
-  const b = buildRuntimeIr(src, { bars: BARS, inputs: {} })
+  const b = buildRuntimeIr(src, { bars: BARS, inputs: {}, p3Statements: true })
   expect(b.ok, 'expected a refusal').toBe(false)
   return b.refusal
 }

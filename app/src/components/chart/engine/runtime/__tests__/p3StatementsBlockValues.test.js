@@ -39,7 +39,7 @@ const head = '//@version=5\nindicator("t")\n'
 const C = BARS.map((b) => b.c)
 
 function runAll(src) {
-  const built = buildRuntimeIr(src, { bars: BARS, inputs: {} })
+  const built = buildRuntimeIr(src, { bars: BARS, inputs: {}, p3Statements: true })
   expect(built.ok, built.ok ? '' : `${built.refusal.guard}: ${built.refusal.message}`).toBe(true)
   const program = lowerIrProgram(built.ir)
   const r = execute(program, {
@@ -50,7 +50,7 @@ function runAll(src) {
 }
 const run = (src) => runAll(src)[0]
 const refusalOf = (src) => {
-  const b = buildRuntimeIr(src, { bars: BARS, inputs: {} })
+  const b = buildRuntimeIr(src, { bars: BARS, inputs: {}, p3Statements: true })
   expect(b.ok, 'expected a refusal').toBe(false)
   return b.refusal
 }

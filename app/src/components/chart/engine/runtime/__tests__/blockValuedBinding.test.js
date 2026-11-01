@@ -42,7 +42,7 @@ const SERIES = ['o', 'h', 'l', 'c', 'v'].map((k) => Float64Array.from(BARS.map((
 const head = '//@version=5\nindicator("t")\n'
 
 function build(src) {
-  const built = buildRuntimeIr(src, { bars: BARS, inputs: {} })
+  const built = buildRuntimeIr(src, { bars: BARS, inputs: {}, p3Statements: true })
   if (!built.ok) throw new Error(`refused ${built.refusal.guard}: ${built.refusal.message}`)
   return built
 }
@@ -52,7 +52,7 @@ function runPine(src) {
   return Array.from(r.outputs[0])
 }
 const refusalOf = (src) => {
-  const b = buildRuntimeIr(src, { bars: BARS, inputs: {} })
+  const b = buildRuntimeIr(src, { bars: BARS, inputs: {}, p3Statements: true })
   expect(b.ok, 'expected a refusal').toBe(false)
   return b.refusal
 }
