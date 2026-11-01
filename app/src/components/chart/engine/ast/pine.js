@@ -117,7 +117,7 @@ import {
 } from './pineObjects.js'
 import {
   INLINE_SUFFIX, definitionHeader, barInvariantNames, guardIsBarInvariant,
-  guardIsLastBarOnly, oneExecutionTokens, taCallIn, historyCallIn, callHistoryFunctions,
+  guardIsLastBarOnly, oneExecutionTokens, taCallIn, historyCallIn, callHistoryFunctions, isHistoryCallName,
   readFunctionDefs, objectCollections, drawingFunctions, callOwnedSeriesFor, chartSeriesFor,
 } from './objectFnInline.js'
 // ⭐ Pine's method form. Only the SPLITTER is needed here: `mutatorTargets`
@@ -163,6 +163,10 @@ import { TEXT_PREDICATE_FN, foldScalar } from './bind.js'
 // door, the bind stage and the repaint LINTER can all see. See L2 in
 // `bindFoldableAgreement.test.js` for why it cannot live beside the fold.
 import { isBindFoldableLength, SERIES_LOOKBACK } from './parse.js'
+// ⭐⭐ C45 (plot lane) — what a `?:` test or a v6 `and` / `or` left side may read
+// and still be decided before bar 0 (`bindTimeConstantTree`), and the recurrence
+// binds a stamped guard must not read free (`armRunGates`). Read off the manifest.
+import { BIND_TIME_CLOCK, RECURRENCE_BINDINGS, MULTI_STATES } from './parse.js'
 // ⭐⭐ C46 — A PARAMETER ID IS READ OFF THE SCRIPT'S SOURCE, never off the order
 // the walk reached its inputs in (`paramIdSource.js`); the ids the old counter
 // gave the corpus are frozen in `paramIdLegacy.js`. Objects triage § C46.
@@ -3712,7 +3716,8 @@ function nzSeedAndUpdate(body, table) {
     if (seen.has(n)) return n.args[0]
     if (!Array.isArray(n.args)) return n
     const next = n.args.map(substitute)
-    return next.every((v, i) => v === n.args[i]) ? n : { ...n, args: next }
+    // ⭐ C45 — a copied `?:` keeps its arm stamp (`carryArmRuns`)
+    return next.every((v, i) => v === n.args[i]) ? n : carryArmRuns(n, { ...n, args: next })
   }
   return { seed, update: substitute(body) }
 }
@@ -3835,7 +3840,8 @@ function previousBarOf(tree, column, table) {
     const inner = n.type === 'call' && table.functions[n.name]
       && table.functions[n.name].recurrence
     const args = n.args.map((a, i) => (inner && i === inner.body ? a : walk(a)))
-    return args.every((a, i) => a === n.args[i]) ? n : { ...n, args }
+    // ⭐ C45 — a copied `?:` keeps its arm stamp (`carryArmRuns`)
+    return args.every((a, i) => a === n.args[i]) ? n : carryArmRuns(n, { ...n, args })
   }
   return walk(tree)
 }
@@ -6251,6 +6257,205 @@ function foldLogicalIdentity(op, left, right, table) {
   return cOp(op, [left, right])
 }
 
+/* ─── ⭐⭐ C45 (PLOT LANE, 2026-10-31) — A CALL WRITTEN IN ONE ARM OF A `?:`, OR ON
+ *  THE RIGHT OF A PINE v6 `and` / `or`, RUNS ONLY ON THE BARS THAT ARM RUNS ────────
+ *
+ *  Pine keeps a call's history per EXECUTION (C48's rule for blocks), and an arm of
+ *  `?:` executes only where it is taken: capture `vw-arm-history-{rddt,spy}-1d-
+ *  2026-10-02` (probe `tools/visual_conformance/probes/vw-arm-history.pine`) —
+ *  `up ? ta.sma(close, 5) : close` (T03), `ta.ema` (T04), `ta.change` (T05) and
+ *  `even ? ta.sma(close, 3) : na` (K02 / K03) equal the reading over the ARM'S RUNS
+ *  on every one of RDDT's 636 bars. This lane built `cOp('?:', …)` over both arms
+ *  and served the every-bar number with no note: wrong on 291 / 306 / 163 / 317 of
+ *  those bars (`vendorHarness.c45ArmRuns`). The object lane already held such a
+ *  colour by name (`armHistoryCall`, `fn:conditional-history`).
+ *
+ *  ⭐ NO NEW SEMANTICS — C48's machinery, by name. The `?:` (and the `&&` / `||`) a
+ *  resolver builds is STAMPED (`_armRuns`, non-enumerable) with the arm whose
+ *  SOURCE holds a history call; the output loop reads the stamps off the row's own
+ *  trees (`armRunGates`) and carries each arm's test — the test itself for the
+ *  true arm, its negation for the false one, the left side (negated for `or`) for a
+ *  v6 right side — as a `meta.blockRuns` gate. The bind evaluates it over the
+ *  chart's bars and withholds the plot, by name, only where the arm runs after a
+ *  bar it skipped (`engine/blockRuns.js`); an arm taken on every bar, on none, or
+ *  first and then never again is exact, and stays drawn.
+ *
+ *  ⛔ WHO GETS A STAMP:
+ *    · only a call WRITTEN in the arm (the parse node, before any name is
+ *      inlined): `s = ta.sma(close, 5)` / `up ? s : close` runs the call on every
+ *      bar where it is written, and a fold of `s` into the arm is not that call;
+ *    · a `ta.*` call (`taCallIn`'s reading, the same one C48's block mark makes) or
+ *      a call to a script function that reads its own history
+ *      (`callHistoryFunctions`, `isHistoryCallName`); never inside `request.*`,
+ *      whose expression runs in the requested context;
+ *    · a test NOT decided before bar 0: a literal never reaches here (the resolver
+ *      takes the live arm), and a constant expression, `na`, a declared input, a
+ *      `timeframe.is*` flag and operators over them (`bindTimeConstantTree`) run
+ *      one arm on every bar of a binding;
+ *    · `?:` from Pine v5 — witnessed lazy in v6 by the capture above, and stated
+ *      for v5 by TradingView's own guides ("the ternary operator is evaluated
+ *      lazily; only the required value is calculated", to-v5; "Pine v5 evaluates
+ *      all bool expressions except for the `?:` strictly", to-v6). v4 and below are
+ *      NOT stamped: no capture, and the v4 manual calls `iff` — which the v5 guide
+ *      says evaluated both values — "identical to the `?:` operator". Queued:
+ *      `docs/pine/capture-queue-2026-10-31-prod-ternary.md`;
+ *    · `and` / `or` from Pine v6 only — v6 made them lazy (to-v6 guide, whose own
+ *      example is `close > open and ta.rsi(close, 14) > 50`); v5 evaluates both.
+ *  ⛔ What is NOT this: an `if` fold's arms (bound nodes — C48 marks those), `iff`
+ *  (a function call: both arguments evaluated), the object pass (`objectPass`
+ *  builds no stamped node; its own rule holds colours), the screener lane (no bind,
+ *  so nothing reads a stamp — and its trees are byte-identical either way). */
+const ARM_RUNS = '_armRuns'
+
+/** Stamp a built node with the arms that run only on some bars. Non-enumerable,
+ *  like `__uctParamId`: `astHash`, the round-trip and every persisted copy see an
+ *  ordinary node. */
+export function stampArmRuns(node, runs) {
+  Object.defineProperty(node, ARM_RUNS, { value: { runs }, enumerable: false, configurable: true })
+  return node
+}
+
+/** A rewrite that COPIES a stamped node keeps the stamp (`previousBarOf`,
+ *  `nzSeedAndUpdate`): the copy is the same `?:` with its `self` reads moved. */
+function carryArmRuns(from, to) {
+  if (to && to !== from && from && from[ARM_RUNS] && typeof to === 'object') {
+    Object.defineProperty(to, ARM_RUNS, { value: from[ARM_RUNS], enumerable: false, configurable: true })
+  }
+  return to
+}
+
+/** ⭐ C45 — is this canonical tree the same number on every bar of ONE BINDING?
+ *  Literals, the chart's `timeframe.is*` flags (`BIND_TIME_CLOCK`, the manifest's
+ *  own roster), a DECLARED input leaf (`inputDefault`, which `declareInputs` puts
+ *  on it — an input is fixed per definition by construction), and operators over
+ *  them. Anything else — a bar value, a call, an offset, a clock that moves — is
+ *  not, and the bind decides from the chart's bars instead. */
+export function bindTimeConstantTree(tree) {
+  const stack = [tree]
+  while (stack.length) {
+    const n = stack.pop()
+    if (!n || typeof n !== 'object') return false
+    if (n.type === 'num') continue
+    if (n.type === 'series') {
+      if (BIND_TIME_CLOCK.includes(n.name)) continue
+      if (typeof n.inputDefault === 'number' && Number.isFinite(n.inputDefault)) continue
+      return false
+    }
+    if (n.type === 'op' && Array.isArray(n.args)) { for (const a of n.args) stack.push(a); continue }
+    return false
+  }
+  return true
+}
+
+/** ⭐ C45 — the first call WRITTEN in this parse node that keeps a history of its
+ *  own — `{name, udf}` — or null. Walks the source as parsed: a `name` (bound
+ *  elsewhere, so it runs where it is written) and a `bound` node (an `if` fold's
+ *  arm binding, C48's) are not entered, and neither is a `request.*` call. */
+export function armHistoryCallOf(node, historyFns, depth = 0) {
+  if (!node || typeof node !== 'object' || depth > 64) return null
+  const walk = (n) => armHistoryCallOf(n, historyFns, depth + 1)
+  const argsOf = (n) => (n.args || []).map((a) => (a && a.value !== undefined ? a.value : a))
+  switch (node.type) {
+    case 'call': {
+      const name = typeof node.name === 'string' ? node.name : ''
+      if (name.startsWith('ta.')) return { name, udf: false }
+      if (isHistoryCallName(name, historyFns)) return { name, udf: true }
+      if (name.startsWith('request.')) return null
+      for (const a of argsOf(node)) { const c = walk(a); if (c) return c }
+      return null
+    }
+    case 'method': {
+      if (historyFns && historyFns.has(node.name)) return { name: node.name, udf: true }
+      for (const a of [node.recv, ...argsOf(node)]) { const c = walk(a); if (c) return c }
+      return null
+    }
+    case 'member': return walk(node.recv)
+    case 'unary': return walk(node.arg)
+    case 'offset': return walk(node.arg)
+    case 'binary': return walk(node.left) || walk(node.right)
+    case 'ternary': return walk(node.test) || walk(node.yes) || walk(node.no)
+    default: return null
+  }
+}
+
+/** The member's sentence for a stamped arm (the bind adds where it skipped). */
+function armRunsWhy(call, tok, op) {
+  const at = locate(tok)
+  const what = call.udf ? `\`${call.name}\`, a function that reads its own history,` : `\`${call.name}\``
+  const line = at && at.line ? ` (line ${at.line})` : ''
+  if (op) {
+    return `${what} is called on the right of a Pine v6 \`${op}\`${line}, which runs only on the bars where `
+      + `its left side is ${op === 'and' ? 'true' : 'false'}: its history holds only those bars, while this chart `
+      + 'computes it on every bar'
+  }
+  return `${what} is called in one arm of a \`?:\` whose test can change from bar to bar${line}: Pine runs that `
+    + 'call only on the bars the arm is taken, so its history holds only those bars, while this chart computes it '
+    + 'on every bar'
+}
+
+/** Does this guard read a recurrence's bind (`self`, `state1`…) that no
+ *  recurrence inside it binds? Such a tree has no column of its own. */
+function readsFreeRecurrenceBind(tree, table) {
+  const walk = (n, d) => {
+    if (!n || typeof n !== 'object' || d > 256) return d > 256
+    if (n.type === 'series' && RECURRENCE_BINDINGS.includes(n.name)) return true
+    if (!Array.isArray(n.args)) return false
+    if (n.type === 'call' && Object.hasOwn(MULTI_STATES, n.name)) return false
+    const spec = n.type === 'call' && table.functions[n.name] && table.functions[n.name].recurrence
+    return n.args.some((a, i) => !(spec && i === spec.body) && walk(a, d + 1))
+  }
+  return walk(tree, 0)
+}
+
+/** ⭐⭐ C45 — THE GATES A ROW'S TREES CARRY FOR THEIR STAMPED ARMS, as
+ *  `{why, guard, what}` (`engine/blockRuns.js`). The guard is the stamped node's
+ *  own test AS IT STANDS IN THE TREE (negated for a false arm and for `or`), so a
+ *  memoised subtree, an inlined function and a test the resolver cast all carry the
+ *  number the arm is actually chosen by.
+ *  ⭐ A test that reads its recurrence's own previous value (`na(smma[1])`, `self`
+ *  inside the update) is read as that recurrence one bar back (`previousBarOf`):
+ *  the smoothed MA's seed arm, true on bars 0..len-1 and never again, keeps its
+ *  plot because the bind finds no run after a skip. ⛔ One the walk cannot make
+ *  standalone (a free bind of a multi-state recurrence) carries no gate and is
+ *  drawn as it always was — never refused here, never guessed. */
+export function armRunGates(trees, table) {
+  const out = []
+  const seen = new Set()
+  const keys = new Set()
+  const visit = (n, accum, d) => {
+    if (!n || typeof n !== 'object' || seen.has(n) || d > 4096) return
+    seen.add(n)
+    const stamp = n[ARM_RUNS]
+    if (stamp && Array.isArray(n.args) && n.args.length) {
+      let guard = n.args[0]
+      if (containsFreeSelfSeries(guard, table)) guard = accum ? previousBarOf(guard, accum, table) : null
+      if (guard && !readsFreeRecurrenceBind(guard, table)) {
+        const text = printFormula(guard)
+        for (const r of stamp.runs) {
+          const key = `${r.negate ? '!' : ''}(${text})|${r.why}`
+          if (keys.has(key)) continue
+          keys.add(key)
+          out.push({ why: r.why, guard: r.negate ? cOp('!', [guard]) : guard, what: r.what })
+        }
+      }
+    }
+    if (!Array.isArray(n.args)) return
+    const spec = n.type === 'call' && table.functions[n.name] && table.functions[n.name].recurrence
+    n.args.forEach((a, i) => visit(a, spec && i === spec.body ? n : accum, d + 1))
+  }
+  for (const t of trees) visit(t, null, 0)
+  return out
+}
+
+/** The trees a row draws from: its value, and the colour columns its
+ *  presentation carries (a plot whose colour reads such an arm is withheld too,
+ *  as C48 withholds one whose colour reads a block's call). */
+function armRunTreesOf(row) {
+  const p = (row && row.presentation) || {}
+  return [row && row.ast, p.colorCondition && p.colorCondition.ast, p.colorIndex && p.colorIndex.ast,
+    p.colorGradient && p.colorGradient.ast].filter(Boolean)
+}
+
 /** ⛔ THE RECURSION CEILING FOR USER FUNCTIONS. A Pine function that calls
  *  itself is illegal Pine, but nothing here parses Pine's legality — so the
  *  depth is what stops a self-call from being a stack overflow instead of a
@@ -6629,6 +6834,12 @@ export class Resolver {
     this.condGate = false
     this.blockRuns = []
     this.condRefusal = null
+    /** ⭐⭐ C45 — the script's functions that read their own history
+     *  (`callHistoryFunctions`, read on first use), for the arm reader that stamps
+     *  a `?:` / v6 `and` / `or` (`stampTernaryArms`). `null` when the caller built
+     *  this Resolver without one: a call to a script function is then not read as
+     *  a history call, and only `ta.*` stamps. */
+    this.historyFnsOf = typeof opts.historyFns === 'function' ? opts.historyFns : null
     /** ⭐ 2026-09-28 (owner ruling 1) — A RECORDER, `null` for every walk but one.
      *  `constantColourSelector` sets a Set here while it asks whether a colour
      *  conditional's selector is a translation-time constant, and `resolveInput`
@@ -9585,8 +9796,11 @@ export class Resolver {
           // addresses); only a right side that REFUSES is skipped, because the
           // left has already decided the answer on every bar.
           if (!this.objectPass) {
-            return foldLogicalIdentity(mapped, decidedBy,
+            const out = foldLogicalIdentity(mapped, decidedBy,
               this.condition(this.resolve(node.right), node.op, node.tok), this.table)
+            // ⭐⭐ C45 — a v6 right side that runs only where the left has not decided
+            this.stampLogicRight(out, node, decidedBy, mapped)
+            return out
           }
           let right
           try {
@@ -9650,7 +9864,12 @@ export class Resolver {
         // tree that translated keeps its exact shape and parameter addresses
         // (`paramIds.test.js`); only a DEAD arm that refuses is skipped. A live
         // arm's refusal is still the answer.
-        if (!this.objectPass) return cOp('?:', [test, this.resolve(node.yes), this.resolve(node.no)])
+        if (!this.objectPass) {
+          const out = cOp('?:', [test, this.resolve(node.yes), this.resolve(node.no)])
+          // ⭐⭐ C45 — an arm whose own call runs only on the bars it is taken
+          this.stampTernaryArms(out, node, test)
+          return out
+        }
         let yes
         try {
           yes = this.resolve(node.yes)
@@ -9997,6 +10216,41 @@ export class Resolver {
     const chain = Array.isArray(bound.execGuard) && bound.execGuard.length ? bound.execGuard : null
     if (!chain) { this.condRefusal = this.condRefusal || err; return }
     if (!this.blockRuns.some((g) => g.chain === chain)) this.blockRuns.push({ chain, why, err })
+  }
+
+  /** ⭐⭐ C45 — STAMP A `?:` THIS RESOLVER JUST BUILT whose arm's SOURCE calls a
+   *  function with a history of its own, under a test not decided before bar 0
+   *  (see `ARM_RUNS` for the rule and the capture). The stamp rides the node, not
+   *  this resolver, so a memoised subtree another output reuses still carries it;
+   *  the output loop turns it into the plot's gate (`armRunGates`). Nothing is
+   *  refused here and nothing extra is resolved: the tree, its formula and the
+   *  parameters it mints are what they always were. */
+  stampTernaryArms(out, node, test) {
+    if (this.mintOnly > 0 || !(Number(this.pineVersion) >= 5)) return
+    if (!out || out.type !== 'op' || out.name !== '?:') return
+    // ⛔ ONE question, not two: a literal or a constant expression is a tree of
+    // `num`s, which `bindTimeConstantTree` admits (an `na` test included — it takes
+    // the false arm on every bar), and so is what an input or the chart's own
+    // timeframe decides before bar 0.
+    if (bindTimeConstantTree(test)) return
+    const fns = this.historyFnsOf ? this.historyFnsOf() : null
+    const runs = []
+    for (const [arm, negate] of [[node.yes, false], [node.no, true]]) {
+      const call = armHistoryCallOf(arm, fns)
+      if (call) runs.push({ negate, what: 'that arm', why: armRunsWhy(call, node.tok, null) })
+    }
+    if (runs.length) stampArmRuns(out, runs)
+  }
+
+  /** ⭐⭐ C45 — …and a Pine v6 `and` / `or` whose RIGHT side does: v6 evaluates it
+   *  only where the left side has not already decided the answer. */
+  stampLogicRight(out, node, left, mapped) {
+    if (this.mintOnly > 0 || !(Number(this.pineVersion) >= 6)) return
+    if (!out || out.type !== 'op' || out.name !== mapped || out.args[0] !== left) return
+    if (bindTimeConstantTree(left)) return
+    const call = armHistoryCallOf(node.right, this.historyFnsOf ? this.historyFnsOf() : null)
+    if (!call) return
+    stampArmRuns(out, [{ negate: mapped === '||', what: 'that right side', why: armRunsWhy(call, node.tok, node.op) }])
   }
 
   /** ⭐⭐ C48 — RUN A READ THE WAY IT ALWAYS RAN, FOR ITS PARAMETER MINT ALONE.
@@ -24732,6 +24986,8 @@ function translatePineResult(source, opts = {}) {
     const r = new Resolver(scopeEnv, table, declaredTypes,
       { finalBindings, finalLocals, mutated: reassigned, source, rawOffsetMap, paramMint,
         partialReadCache,
+        // ⭐⭐ C45 — the arm reader asks which script functions read their own history
+        historyFns: historyFnsOf,
         strict: opts.strict === true, screen: !isHostLane(opts), pineVersion: version,
         noteSink: (code, message, tok) => notes.push(noteOf(code, message, tok)),
         // ⭐ THE BUDGET REACHES EVERY RESOLVER OR IT PROTECTS NONE. The object
@@ -25151,8 +25407,8 @@ function translatePineResult(source, opts = {}) {
       // none, refuses the row here — after the whole output, value and
       // presentation, minted what it always minted.
       if (resolver.condRefusal) throw resolver.condRefusal
+      const gates = []
       if (resolver.blockRuns.length) {
-        const gates = []
         const minted = resolver.paramMint
         const observer = resolver.onCondition
         resolver.paramMint = null
@@ -25174,8 +25430,13 @@ function translatePineResult(source, opts = {}) {
           resolver.paramMint = minted
           resolver.onCondition = observer
         }
-        Object.defineProperty(row, '_blockRuns', { value: gates, enumerable: false })
       }
+      // ⭐⭐ C45 — …AND EACH `?:` ARM / v6 `and` / `or` RIGHT SIDE THE ROW'S TREES
+      // STAMPED (`armRunGates`): the same gate, the arm's own test as the guard.
+      // Read off the finished trees, so nothing is resolved again and nothing is
+      // minted. ⛔ The host lane only, as above: a screener column binds no chart.
+      if (resolver.condGate) for (const g of armRunGates(armRunTreesOf(row), table)) gates.push(g)
+      if (gates.length) Object.defineProperty(row, '_blockRuns', { value: gates, enumerable: false })
     } catch (err) {
       row = {
         kind: out.kind,
