@@ -27,3 +27,10 @@ name that can share an array (`b = a`, a parameter, a tuple, a field) still coun
 | # | capture | settles | what it would move |
 |---|---|---|---|
 | Q-A1 | `vw-v6-for-bound` on AMEX:SPY 1D | L02 (name bound grows: 4 read-once / 6 re-read), L03 (array bound grows: 2 / 6), L04 (bound shrinks below the counter: 4 / 1), L05 (counting down: 6 / 3), L06 (is `by` re-read: 10 / 4) | a per-pass bound in `lowerIr.js` STMT.FOR for v6 (re-lower `to` inside the loop test), after which the `forBoundMovedBy` refusal is lifted |
+
+## Also uncaptured, served on the documented reading (Q-A2, review L3)
+
+| # | shape | what the lane serves | what no capture shows |
+|---|---|---|---|
+| Q-A2 | a value arm (or a function body) whose LAST line is a `:=`, a compound assignment (`n += 1`) or a declaration (`y = x * 2`) | the value that line bound (the function-body rule, PHASE3 §16, applied in every value position) | that TradingView yields the bound value in a value ARM too, not only as a function's last line |
+| Q-A3 | Pine 6 `if` / `switch` in value position with no matching arm whose value is a `bool` | refused by name (`runtime:block-value`, "a v6 bool is never `na`") | the v6 value (documented: `false`); serving it needs a bool type on the value |

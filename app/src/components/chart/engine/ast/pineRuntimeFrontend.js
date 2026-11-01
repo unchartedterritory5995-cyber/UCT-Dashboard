@@ -673,6 +673,24 @@ export function declarationPersists(headerToks) {
  *  lazily — as each statement is reached — would classify its first read as pure
  *  and fold it, which is the silent-wrong-result shape this whole program exists
  *  to prevent. */
+/** The statements one header holds, for `scanMutability`: the part after a
+ *  top-level `=>` (an inline arm) is its own statement, and a top-level comma
+ *  separates statements. Brackets and parentheses nest; a comma inside them is
+ *  an argument or element separator. */
+function mutationSegments(toks) {
+  const arrow = findTop(toks, (t) => isPunct(t, '=>'))
+  const body = arrow >= 0 ? toks.slice(arrow + 1) : toks
+  const out = [[]]
+  let depth = 0
+  for (const t of body) {
+    if (t.kind === 'punct' && (t.value === '(' || t.value === '[')) depth += 1
+    else if (t.kind === 'punct' && (t.value === ')' || t.value === ']')) depth -= 1
+    if (depth === 0 && isPunct(t, ',')) { out.push([]); continue }
+    out[out.length - 1].push(t)
+  }
+  return out
+}
+
 export function scanMutability(stmts, out) {
   const acc = out || { mutated: new Set(), persistent: new Set() }
   for (const st of stmts) {
@@ -683,20 +701,25 @@ export function scanMutability(stmts, out) {
       const nameTok = eq > 0 ? boundName(toks, eq) : null
       if (nameTok) { acc.mutated.add(nameTok.value); acc.persistent.add(nameTok.value) }
     }
-    const walrus = findTop(toks, (t) => isPunct(t, ':='))
-    if (walrus > 0 && toks[walrus - 1] && toks[walrus - 1].kind === 'ident') {
-      acc.mutated.add(toks[walrus - 1].value)
-    }
     // ⭐⭐ C18 — `x += e` MUTATES `x` EXACTLY AS `x := x + e` DOES. The walk
     // desugars the compound form into `:=` (see the compound-assignment arm), but
     // this scan runs BEFORE the walk and read only the `:=` spelling — so a plain
     // `count = 0 … count += 1` declared `count` as a pure binding and the rewritten
     // `:=` then refused as a reassignment of a name never declared. Every `while`
     // in the corpus advances its counter this way (`i += 1`).
-    const compound = findTop(toks, (t) => t.kind === 'punct'
-      && t.value.length === 2 && t.value.endsWith('=') && MUTATOR_OPS.has(t.value[0]))
-    if (compound === 1 && toks[0] && toks[0].kind === 'ident') {
-      acc.mutated.add(toks[0].value)
+    // ⭐ P3 WS-A (review M2) — EVERY STATEMENT A HEADER HOLDS, not only its
+    // first: each comma segment (`a := 1, b += 2`) and the statement after an
+    // inline `=>` arm (`close > 103 => c += 1`). Reading only the first left a
+    // plain `c = 0` refused `runtime:unbound` when an arm wrote it.
+    for (const seg of mutationSegments(toks)) {
+      const op = seg[1]
+      if (seg[0] && seg[0].kind === 'ident' && op && op.kind === 'punct'
+          && (op.value === ':=' || (op.value.length === 2 && op.value.endsWith('=')
+            && MUTATOR_OPS.has(op.value[0])))) acc.mutated.add(seg[0].value)
+    }
+    const walrus = findTop(toks, (t) => isPunct(t, ':='))
+    if (walrus > 0 && toks[walrus - 1] && toks[walrus - 1].kind === 'ident') {
+      acc.mutated.add(toks[walrus - 1].value)
     }
     if (st.sub && st.sub.length) scanMutability(st.sub, acc)
   }
@@ -7000,7 +7023,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
     if (!vstate || !vstate.allow) {
       note('runtime:block-value')
       throw new RuntimeRefusal('runtime:block-value',
-        `a branch of \`${label}\` ends in ${valuelessWords(end)}, which has no value to yield`, at)
+        `a branch of \`${label}\` ends in ${valuelessWords(end)}, ${end === 'loop' ? 'whose value this lane does not read (in Pine a loop yields the value of its last pass, which is not lowered here)' : 'which has no value to yield'}`, at)
     }
     vstate.valueless = true
     if (!vstate.end) vstate.end = end
@@ -7144,7 +7167,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
   }
   const armAssignerFor = (target, label, parentScope, vstate = null) => {
     const sink = valueSinkOf(target)
-    return (sub, atTok) => {
+    const mk = (sub, atTok) => {
       const lines = sub || []
       if (!lines.length) {
         throw new RuntimeRefusal('runtime:block-value',
@@ -7157,6 +7180,73 @@ function buildRuntimeIrLinked(source, opts, holder) {
       objectBlocks.push({ scope: armScope, body })
       return body
     }
+    mk.valued = true
+    return mk
+  }
+
+  /** ⛔⛔ P3 WS-A (review M3) — A PINE 6 `bool` IS NEVER `na`. A block that
+   *  yields a value but can match no arm (an `if` with no final `else`, a
+   *  `switch` with no default) yields `na` here; Pine 6 yields `false` for a
+   *  bool. This lane does not type a value, so where an arm's value LOOKS bool —
+   *  a `true`/`false` literal, a comparison, `and`/`or`/`not`, a bool builtin, a
+   *  name declared or bound as one — the block is refused by name rather than
+   *  served `na` where Pine draws `false`. v5 and below keep `na` (Pine's rule). */
+  const BOOL_CALLS = new Set(['na', 'ta.crossover', 'ta.crossunder', 'ta.cross', 'ta.rising', 'ta.falling',
+    'str.contains', 'str.startswith', 'str.endswith', 'array.includes', 'bool'])
+  const BOOL_OPS = new Set(['>', '<', '>=', '<=', '==', '!=', 'and', 'or'])
+  let boolNamesCache = null
+  const boolNames = () => {
+    if (boolNamesCache) return boolNamesCache
+    const names = new Set()
+    const pass = (list) => {
+      for (const st of list || []) {
+        for (const t of statementCommaParts(st) || [st.header || []]) {
+          const eq = findTop(t, (x) => isPunct(x, '=') || isPunct(x, ':='))
+          if (eq <= 0 || !t[eq - 1] || t[eq - 1].kind !== 'ident') continue
+          const nm = String(t[eq - 1].value)
+          if (t.slice(0, eq - 1).some((x) => x.kind === 'ident' && x.value === 'bool')) { names.add(nm); continue }
+          if (boolShapedToks(t.slice(eq + 1), names)) names.add(nm)
+        }
+        pass(st.sub)
+      }
+    }
+    pass(stmts); pass(stmts)
+    boolNamesCache = names
+    return names
+  }
+  const boolShapedNode = (n, names, d = 0) => {
+    if (!n || typeof n !== 'object' || d > 64) return false
+    if (n.type === 'binary') return BOOL_OPS.has(n.op)
+    if (n.type === 'unary') return n.op === 'not'
+    if (n.type === 'ternary') return boolShapedNode(n.yes, names, d + 1) || boolShapedNode(n.no, names, d + 1)
+    if (n.type === 'call') return BOOL_CALLS.has(String(n.name))
+    if (n.type === 'name') return /^(barstate|session)\./.test(String(n.name)) || names.has(String(n.name))
+    return false
+  }
+  const boolShapedToks = (toks, names) => {
+    if (!toks || !toks.length) return false
+    if (toks.some((x) => x.kind === 'ident' && (x.value === 'true' || x.value === 'false'))) return true
+    let node = null
+    try { node = parseWholeExpression(toks) } catch { return false }
+    return boolShapedNode(node, names)
+  }
+  /** the value an arm's lines yield, as tokens, when it is one expression line */
+  const armValueToks = (lines) => {
+    const flat = splitStatementCommas(lines || [])
+    const last = flat[flat.length - 1]
+    if (!last || (last.sub && last.sub.length)) return null
+    const t = last.header || []
+    const w = t[0] && t[0].kind === 'ident' ? t[0].value : null
+    if (w === 'if' || w === 'switch' || w === 'for' || w === 'while') return null
+    const eq = findTop(t, (x) => isPunct(x, '=') || isPunct(x, ':='))
+    return eq > 0 ? t.slice(eq + 1) : t
+  }
+  const refuseV6UnmatchedBool = (mkArm, valueToksList, at, what) => {
+    if (!(mkArm && mkArm.valued) || pineVersion === null || pineVersion < 6) return
+    if (!valueToksList.some((t) => boolShapedToks(t, boolNames()))) return
+    throw new RuntimeRefusal('runtime:block-value',
+      `${what} can match no arm, and its value is a \`bool\` — Pine 6 yields \`false\` there `
+      + '(a v6 bool is never `na`), which this lane does not type yet', at)
   }
 
   /** ⭐⭐ AN `if` / `else if` / `else` CHAIN, COLLECTED AND NESTED — also once.
@@ -7200,6 +7290,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
       allInv = allInv && invariantTest(t, scope)
       return { test, body: inR4Region(allInv, () => mkArm(a.from.sub, a.from.header[0])) }
     })
+    if (!finalElse) {
+      refuseV6UnmatchedBool(mkArm, arms.map((a) => armValueToks(a.from.sub)), locate(list[at].header[0]),
+        'an `if` with no `else`')
+    }
     let chain = finalElse ? inR4Region(allInv, () => mkArm(finalElse.sub, finalElse.header[0])) : []
     for (let j = lowered.length - 1; j >= 0; j -= 1) {
       chain = [ifStmt(lowered[j].test, lowered[j].body, chain)]
@@ -7282,6 +7376,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // case that separates a real lowering from a constant fold, because a
     // subject that moves bar to bar cannot be folded at all.
     let subject = subjToks.length ? parseWholeExpression(subjToks) : null
+    // ⛔ (review M1) WS-C's invariance is a property of what the member WROTE.
+    // Asked after the hoist below, it saw the hidden slot (a per-bar value) and
+    // made every arm of `switch input.string(…)` a conditional region.
+    const subjInv = !subject || invariantTest(subject, scope)
     const pre = []
     if (subject && subjectCalls(subject)) {
       const tmpName = `switch subject@${atTok && atTok.line}:${atTok && atTok.column}`
@@ -7302,7 +7400,6 @@ function buildRuntimeIrLinked(source, opts, holder) {
       try { m = parseWholeExpression(arm.header.slice(0, at)) } catch { m = null }
       return !!m && invariantTest(m, scope)
     }
-    const subjInv = !subject || invariantTest(subject, scope)
     const allInv = subjInv && (armLines || []).every(matchInv)
     let armInv = subjInv
     for (const arm of (armLines || [])) {
@@ -7334,6 +7431,13 @@ function buildRuntimeIrLinked(source, opts, holder) {
     if (!cases.length && !fallback) {
       throw new RuntimeRefusal('runtime:block-value',
         `\`${label ? `${label} ` : ''}switch …\` has no arms`, locate(atTok))
+    }
+    if (!fallback) {
+      refuseV6UnmatchedBool(mkArm, (armLines || []).map((arm) => {
+        const at2 = findTop(arm.header, (t) => isPunct(t, '=>'))
+        const rhs = arm.header.slice(at2 + 1)
+        return rhs.length ? rhs : armValueToks(arm.sub)
+      }), locate(atTok), 'a `switch` with no default')
     }
     let chain = fallback || []
     for (let k = cases.length - 1; k >= 0; k -= 1) {
@@ -7541,16 +7645,13 @@ function buildRuntimeIrLinked(source, opts, holder) {
    *  ⛔ Conservative by construction: an unknown array function, or a user
    *  function not compiled yet, counts as a write.
    *  ⛔ History (`x[1]`) is committed at a past bar's close and no pass moves it. */
-  const MUTATING_ARRAY_FNS = new Set([
-    'array.set', 'array.push', 'array.clear', 'array.shift', 'array.pop',
-    'array.unshift', 'array.remove', 'array.concat',
-  ])
-  // ⭐ the writes among them that change an array's SIZE: a bound that reads only
-  // `array.size(…)` cannot be moved by `array.set` (an element, not a length)
-  const SIZE_CHANGING_ARRAY_FNS = new Set([
-    'array.push', 'array.clear', 'array.shift', 'array.pop',
-    'array.unshift', 'array.remove', 'array.concat',
-  ])
+  // ⭐ (review L1) what an array call writes is DECLARED in collections.js
+  // (`writes`: none / elements / size); a member with no declaration, or a name
+  // the table does not hold, counts as changing the size (fail closed).
+  const arrayWrites = (fn) => {
+    const d = Object.prototype.hasOwnProperty.call(ARRAY_FNS, fn) ? ARRAY_FNS[fn] : null
+    return d && (d.writes === 'none' || d.writes === 'elements' || d.writes === 'size') ? d.writes : 'size'
+  }
   /** ⭐ A NAME THAT HOLDS AN ARRAY NOTHING ELSE CAN REACH. Two names can hold ONE
    *  array (`b = a`, `b = f(a)`, a parameter, a tuple, a field, an array of arrays,
    *  `slice`, which shares its source's storage), and a write through either moves
@@ -7591,7 +7692,12 @@ function buildRuntimeIrLinked(source, opts, holder) {
               const v = String(x.value)
               const dot = v.indexOf('.')
               if (dot > 0) {
-                if (v.slice(dot + 1) === 'slice') bad.add(v.slice(0, dot))
+                // a method on the name: `a.push(…)` is the table's own member and
+                // keeps `a` private, except `slice` (shared storage); ANY other
+                // method — a user `method grow(arr)` — receives the array as an
+                // argument, which is an escape (review H2b)
+                const m = v.slice(dot + 1)
+                if (m === 'slice' || !Object.prototype.hasOwnProperty.call(ARRAY_FNS, `array.${m}`)) bad.add(v.slice(0, dot))
                 continue
               }
               const callee = k >= 2 && isPunct(t[k - 1], '(') && t[k - 2].kind === 'ident' ? String(t[k - 2].value) : ''
@@ -7612,6 +7718,26 @@ function buildRuntimeIrLinked(source, opts, holder) {
     const heap = new Set()
     // the names of the arrays the bound reads; `null` once one is not private
     let boundArrayNames = new Set()
+    // ⭐ (review H2d) a bound with an effect of its own runs before EVERY pass in
+    // v6 and once here: that is a difference whatever the body does
+    let effect = null
+    // ⭐ (review H2c) the globals a user function in the bound reads, through
+    // every function it calls: a body that writes one moves the bound
+    const fnGlobalReads = (fnIndex, seen) => {
+      const f = functions[fnIndex]
+      if (!f || seen.has(fnIndex)) return
+      seen.add(fnIndex)
+      const walk = (x, d) => {
+        if (!x || typeof x !== 'object' || d > 256) return
+        if (Array.isArray(x)) { for (const y of x) walk(y, d + 1); return }
+        if (x.kind === EXPR.READ && Number.isInteger(x.slot)
+            && (x.global || (slots[x.slot] && slots[x.slot].owner === null))) reads.add(x.slot)
+        if (x.kind === EXPR.CALL) fnGlobalReads(x.fn, seen)
+        for (const v of Object.values(x)) if (v && typeof v === 'object') walk(v, d + 1)
+      }
+      walk(f.body, 0)
+      walk(f.result, 0)
+    }
     const scanBound = (n, d) => {
       if (!n || typeof n !== 'object' || d > 256) return
       if (Array.isArray(n)) { for (const x of n) scanBound(x, d + 1); return }
@@ -7625,12 +7751,23 @@ function buildRuntimeIrLinked(source, opts, holder) {
         const nm = a0 && a0.kind === EXPR.READ && slots[a0.slot] ? slots[a0.slot].name : null
         if (boundArrayNames && isPrivateArrayName(nm)) boundArrayNames.add(nm)
         else boundArrayNames = null
+        if (!effect && arrayWrites(n.fn) !== 'none') effect = `the bound itself changes an array (\`${n.fn}\`)`
       } else if (n.kind === EXPR.FIELD) heap.add('field')
-      else if (n.kind === EXPR.OBJECT_OP) heap.add('object')
-      else if (n.kind === EXPR.CALL) heap.add('*')
+      else if (n.kind === EXPR.OBJECT_OP) {
+        heap.add('object')
+        if (!effect && !/\.get_|^any\.get_/.test(String(n.fn))) effect = `the bound itself runs a drawing operation (\`${n.fn}\`)`
+      } else if (n.kind === EXPR.CALL) {
+        heap.add('*')
+        const f = functions[n.fn]
+        if (!effect && (!f || !fnIsEffectFree(n.fn) || !(f.effects && f.effects.pure))) {
+          effect = 'the bound calls a function with an effect or a state of its own'
+        }
+        fnGlobalReads(n.fn, new Set())
+      }
       for (const v of Object.values(n)) if (v && typeof v === 'object') scanBound(v, d + 1)
     }
     scanBound(toIr, 0)
+    if (effect) return effect
     if (!reads.size && !heap.size) return null
     const touches = (what) => heap.has('*') || heap.has(what)
     // an array change that can reach what the bound reads: any, except a write
@@ -7641,9 +7778,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
       if (n.kind !== EXPR.ARRAY) return false
       const elements = touches('array')
       if (!elements && !heap.has('array-size')) return false
-      const known = Object.prototype.hasOwnProperty.call(ARRAY_FNS, n.fn)
-      if (known && !MUTATING_ARRAY_FNS.has(n.fn)) return false
-      if (!elements && known && !SIZE_CHANGING_ARRAY_FNS.has(n.fn)) return false
+      const w = arrayWrites(n.fn)
+      if (w === 'none') return false
+      if (!elements && w !== 'size') return false
       if (heap.has('*') || heap.has('field')) return true
       const a0 = Array.isArray(n.args) ? n.args[0] : null
       const nm = a0 && a0.kind === EXPR.READ && slots[a0.slot] ? slots[a0.slot].name : null
@@ -7941,12 +8078,15 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // ⭐⭐ P3 WS-A — v6 re-reads the `to` bound before every pass; this lane
         // reads it once. Served where the two cannot differ (`forBoundMovedBy`).
         if (pineVersion !== null && pineVersion >= 6) {
-          const moved = forBoundMovedBy(toIr, body)
+          // ⭐ (review H2a) the `by` step rides along: whether v6 re-reads it is
+          // as uncaptured as the bound (Q-A1), so a body that moves it refuses too.
+          const moved = forBoundMovedBy([toIr, stepIr], body)
           if (moved) {
             note('runtime:loop')
             throw new RuntimeRefusal('runtime:loop',
-              `Pine 6 re-reads a \`for\` loop's \`to\` bound before every pass, and ${moved}, `
-              + 'so the pass count can change while it runs — not yet captured', locate(first))
+              `Pine 6 re-reads a \`for\` loop's \`to\` bound (and, uncaptured, its \`by\` step) `
+              + `before every pass, and ${moved}, so the pass count can change while it runs — not yet captured`,
+              locate(first))
           }
         }
         // ⭐⭐ THE PER-ITERATION VALUES RIDE THE MEMBER'S OWN LOOP.
@@ -8315,18 +8455,32 @@ function buildRuntimeIrLinked(source, opts, holder) {
           // ⛔ `na` FIRST, AND IT IS LOAD-BEARING. An `if` with no else that does
           // not match has NO value, so the reassignment writes `na` — it does
           // not leave the previous bar's value standing.
-          out.push(assign(blkSlot, naValue()))
-          const mkArm = armAssignerFor(blkSlot,
+          // ⛔⛔ P3 WS-A (review C1) — BUT INTO A HIDDEN TEMP, NEVER INTO `x`.
+          // Pine evaluates the whole right-hand side, THEN assigns: every read of
+          // `x` inside the chain (its tests, its arms, `x + 1`, `cnt + 1`,
+          // `close > tr`) sees x's PRIOR value. Writing `na` to x first made all
+          // of them read `na` — a counter stuck at `na`, a state machine stuck,
+          // a trailing stop `na` — served with nothing red. The temp carries the
+          // target's kind flags (text, colour, collection …) so the arms lower
+          // against the same kind, and x is assigned from it after the chain.
+          const tmpName = `${nameTok.value} := block@${first.line}:${first.column}`
+          const tmpSlot = scope.declare(tmpName, newSlot(tmpName, false))
+          for (const [k, v] of Object.entries(slots[blkSlot] || {})) {
+            if (!['name', 'kind', 'owner', 'index'].includes(k)) slots[tmpSlot][k] = v
+          }
+          out.push(declare(tmpSlot, naValue()))
+          const mkArm = armAssignerFor(tmpSlot,
             `${nameTok.value} := ${blkHead.value} …`, scope)
           if (blkHead.value === 'if') {
             const chain = lowerIfChainInto(list, i, toks.slice(walrus + 2), scope, mkArm)
             i = chain.next
             out.push(chain.stmt)
-            continue
+          } else {
+            const sw = lowerSwitchInto(st.sub, toks.slice(walrus + 2), scope, mkArm,
+              `${nameTok.value} :=`, blkHead)
+            for (const st2 of sw) out.push(st2)
           }
-          const sw = lowerSwitchInto(st.sub, toks.slice(walrus + 2), scope, mkArm,
-            `${nameTok.value} :=`, blkHead)
-          for (const st2 of sw) out.push(st2)
+          out.push(assign(blkSlot, read(tmpSlot)))
           continue
         }
 
@@ -9188,11 +9342,15 @@ function buildRuntimeIrLinked(source, opts, holder) {
             result = n === 1 ? read(vSlots[0]) : tuple(vSlots.map((s) => read(s)))
           }
         } else {
-          body = lowerStmts(lines.slice(0, -1), fnScope)
+          // ⛔ P3 WS-A (review H1) — THE LAST STATEMENT IS THE LAST COMMA SEGMENT.
+          // `a = x, g(a)` on the final line is two statements; reading the line
+          // whole took its FIRST `=` and returned `a`, where Pine returns `g(a)`.
+          const flat = splitStatementCommas(lines)
+          body = lowerStmts(flat.slice(0, -1), fnScope)
           // ⭐ PINE RETURNS THE VALUE OF THE LAST STATEMENT (§16) — not an explicit
           // `return`. A final binding yields the value it bound; a final bare
           // expression yields itself.
-          const last = lines[lines.length - 1]
+          const last = flat[flat.length - 1]
           const lt = last.header || []
           const eq = findTop(lt, (t) => isPunct(t, '='))
           const walrus = findTop(lt, (t) => isPunct(t, ':='))
