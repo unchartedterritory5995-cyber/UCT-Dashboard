@@ -687,6 +687,27 @@ def _make_value_fn(def_id: str, plot_key: str,
             + _withheld_reason(withheld)
             + " An alert on it would arm and never fire. It still draws on a "
             "chart that can answer it.")
+    # ⭐⭐ C48 / C45 — THE GATES THE MEMBER DOOR STAMPED ON THIS PLOT
+    # (`meta.blockRuns`): a call written in an `if` block, in one arm of a `?:` or
+    # on the right of a v6 `and` / `or` keeps a history of only the bars that code
+    # runs, and this lane computes it on every bar. The member's chart refuses such
+    # a plot, by name, wherever the code runs after a bar it skipped
+    # (`engine/blockRuns.js`); this lane asks the same question of the same guards
+    # on ITS bars (`block_runs.block_runs_refusal`) — at arm time
+    # (`arm_for_alert`) and on every evaluation (`column`), so a verdict the newest
+    # bars change is honoured the moment they arrive. Captured with the tree.
+    from api.services import block_runs as _block_runs
+    gates = _block_runs.block_runs_for(definition, plot_key)
+
+    def block_runs_refusal(bars: list, params: dict, opts: Optional[Mapping] = None) -> Optional[str]:
+        """Why this plot is withheld on ``bars`` (the gate's own sentence), or None."""
+        if not gates:
+            return None
+        from api.services import ast_interpret
+        return _block_runs.block_runs_refusal(
+            definition, plot_key,
+            lambda guard: ast_interpret.interpret(guard, bars, inputs=_inputs_for(definition, params),
+                                                  budget=budget, opts=dict(opts) if opts else lane_opts))
 
     def column(bars: list, params: dict, tf: Optional[str] = None) -> list:
         from api.services import ast_interpret
@@ -718,6 +739,11 @@ def _make_value_fn(def_id: str, plot_key: str,
                 f"{address}: series is {len(out)} long for {len(bars)} bars. "
                 "A shorter column shifts every bar index silently and the "
                 "closed-bar lane would read the wrong bar forever.")
+        # ⭐⭐ C48 / C45 — withheld on THESE bars, as the member's chart withholds
+        # it: no number on any bar (`None`), never the every-bar value. Asked AFTER
+        # the plot's own tree, with its own inputs and opts (the chart's order).
+        if gates and block_runs_refusal(bars, params, run_opts):
+            return [None] * len(bars)
         # ⚠️ NaN -> None AT THE BOUNDARY. `interpret` pads a warmup window with
         # NaN; `_evaluate_one_closed` reads `series[i] is None` as "no number
         # yet" and hands anything else to `check_condition`, where every
@@ -733,6 +759,8 @@ def _make_value_fn(def_id: str, plot_key: str,
     column.__name__ = f"_user_column_{def_id}_{plot_key}"
     fn.__name__ = f"_user_value_{def_id}_{plot_key}"
     fn.column = column                                  # type: ignore[attr-defined]
+    # ⭐ C48 / C45 — the arm path asks the plot's gates on the alert's own bars
+    fn.block_runs_refusal = block_runs_refusal          # type: ignore[attr-defined]
     # ⭐ PHASE 5 -- the other symbols this plot reads: the evaluator passes the
     # alert's timeframe (``tf=``) to a function that names any.
     fn.reads_symbols = supplied_syms                    # type: ignore[attr-defined]
@@ -1515,4 +1543,21 @@ def arm_for_alert(user_id: Any, indicator: str, sym: str, tf: str,
     refused = (admitted.get("withheld") or {}).get(f"{def_id}.{_plot}")
     if refused is not None:
         raise refused
+    # ⭐⭐ C48 / C45 — AND ONE THE MEMBER'S CHART WITHHOLDS ON THESE BARS. The plot
+    # reads a call whose code runs only on some bars (`meta.blockRuns`), and on
+    # this symbol's bars that code runs after a bar it skipped: the chart draws
+    # nothing for it, so an alert on it would fire off a number that is not
+    # TradingView's. Refused here, BEFORE the row is inserted, with the chart's
+    # own sentence (`block_runs.block_runs_refusal`). The per-evaluation check in
+    # `column` covers bars that arrive later.
+    fn = USER_FUNCS.get(scoped_key(user_id, f"{def_id}.{_plot}"))
+    check = getattr(fn, "block_runs_refusal", None) if fn is not None else None
+    why = check(bars, {}) if check is not None else None
+    if why:
+        from api.services import block_runs as _block_runs
+        raise AdmissionRefused(
+            "withheld",
+            f"{def_id}.{_plot} {REFUSAL_FRAGMENTS['withheld']} ({_block_runs.BLOCK_RUNS_GUARD}): {why}. "
+            f"An alert on it would fire off the every-bar value on {sym}, which is not the "
+            "script's. It still draws on a chart where that code runs on every bar.")
     return admitted
