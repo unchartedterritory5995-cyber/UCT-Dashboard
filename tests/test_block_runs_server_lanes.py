@@ -304,10 +304,17 @@ def _armed(monkeypatch, ias, definition, *, arm_bars, params_json=None):
     return aid, feed
 
 
+RESUMES = "This alert resumes when the value is computable."
+
+
 def _detail_names_the_gate(detail, case):
-    assert detail.startswith(f"{ADDRESS} {aus.REFUSAL_FRAGMENTS['withheld']} ({block_runs.BLOCK_RUNS_GUARD}): ")
-    # `state_detail` is capped at 500 characters; the gate's own sentence leads
-    assert CASES[case]["expected"][:120] in detail
+    """⭐ L1 (review round 2) — the ARMED alert's sentence, WHOLE: the gate's head (the
+    call, the shape, the line) and where on these bars its code skipped."""
+    assert detail == aus.withheld_alert_detail(CASES[case]["expected"])
+    assert detail.startswith("Withheld: ") and detail.endswith(RESUMES)
+    assert len(detail) <= aus.ALERT_DETAIL_MAX
+    assert CASES[case]["expected"].split(": ", 1)[0].split(" — ", 1)[0] in detail
+    assert "skips bar" in detail
 
 
 def test_a_withheld_alert_is_put_in_needs_attention_by_the_gates_own_sentence(alerts, monkeypatch):
@@ -376,8 +383,9 @@ def test_a_guard_that_THROWS_withholds_the_plot_and_surfaces_the_same_way(alerts
     ias.sweep_silent_alerts(now=t0 + 400)
     row = ias.get(aid)
     assert row["state"] == "needs_attention"
-    assert f"({block_runs.BLOCK_RUNS_GUARD})" in row["state_detail"]
-    assert "could not be computed" in row["state_detail"]
+    detail = row["state_detail"]
+    assert detail.startswith("Withheld: ") and detail.endswith(RESUMES) and len(detail) <= aus.ALERT_DETAIL_MAX
+    assert "could not be computed" in detail
 
 
 def test_CONTROL_the_same_alert_unstamped_evaluates_and_is_never_flagged(alerts, monkeypatch):
@@ -439,13 +447,66 @@ def test_the_diagnosis_reads_a_member_formula_by_its_OWN_lane(monkeypatch):
             raise RuntimeError("boom")
     fns["fn"] = _Raising()
     assert ias.diagnose(alert, bars) == (True, "RuntimeError: boom")
-    # the arm-time door, re-run on a registry miss, is quoted verbatim
+    # ⭐ L1 — the re-arm refusal of a plot the gates withhold is told in the ARMED words…
+    def _refuse_gated(a, b=None):
+        raise aus.block_runs_withheld(ADDRESS, "RDDT", CASES["v6 and"]["expected"])
+    monkeypatch.setattr(ev, "_user_value_function", _refuse_gated)
+    assert ias.diagnose(alert, bars) == (True, aus.withheld_alert_detail(CASES["v6 and"]["expected"]))
+    # …and any other arm-time door, re-run on a registry miss, is quoted verbatim
     def _refuse(a, b=None):
         raise aus.AdmissionRefused("withheld", "W")
     monkeypatch.setattr(ev, "_user_value_function", _refuse)
     assert ias.diagnose(alert, bars) == (True, "W [gate:withheld]")
     # 🔴 CONTROL — a builtin address never reaches the user lane
     assert ias._diagnose_user({"indicator": "rsi"}, bars) is None
+
+
+def test_the_armed_sentence_is_stored_WHOLE_for_the_longest_fixture(alerts):
+    """⭐ L1 (review round 2) — `mark_needs_attention` keeps 500 characters. The arm-time
+    refusal ran 468-587 on these fixtures and was cut mid-sentence; the armed sentence
+    is whole for every one, and the longest is stored exactly as written."""
+    ias = alerts
+    details = {c["name"]: aus.withheld_alert_detail(c["expected"]) for c in PARITY["cases"] if c["expected"]}
+    assert len(details) >= 6
+    for name, detail in details.items():
+        assert detail.startswith("Withheld: ") and detail.endswith(RESUMES), name
+        assert len(detail) <= aus.ALERT_DETAIL_MAX, name
+        assert "An alert on it would fire" not in detail, name          # never the arm-time phrasing
+    # the shape, pinned once: the gate's head, where it skipped, and the resume clause
+    assert details["v6 and"] == (
+        "Withheld: `ta.crossover` is called on the right of a Pine v6 `and` (line 4), which runs only on the bars "
+        "where its left side is true — on this chart that right side skips bar 1 and runs again on bar 2, so its "
+        "calls have not run on every bar. This alert resumes when the value is computable.")
+    longest_name = max(details, key=lambda k: len(details[k]))
+    longest = details[longest_name]
+    aid = ias.create(user_id="user-b1", sym="RDDT", indicator="rsi", condition="above", threshold=70.0, tf="D")
+    ias.mark_needs_attention(aid, longest)
+    assert ias.get(aid)["state_detail"] == longest
+    # 🔴 CONTROL — the arm-time sentence for the same gate does NOT survive the cap
+    arm_time = str(aus.block_runs_withheld(ADDRESS, "RDDT", CASES[longest_name]["expected"]))
+    assert len(arm_time) > 500
+    ias.mark_needs_attention(aid, arm_time)
+    assert ias.get(aid)["state_detail"] != arm_time
+
+
+def test_a_sentence_too_long_for_the_state_is_shortened_at_a_word_and_still_ends_whole():
+    why = "`ta.sma` is called in one arm of a `?:` whose test can change from bar to bar (line 4): x" \
+          " — and whether the block runs on every bar of this chart could not be computed (" + "word " * 120 + ")"
+    detail = aus.withheld_alert_detail(why)
+    assert len(detail) <= aus.ALERT_DETAIL_MAX
+    assert detail.startswith("Withheld: `ta.sma` is called in one arm of a `?:` whose test can change from bar to bar (line 4) — ")
+    assert detail.endswith("… " + RESUMES)
+
+
+def test_L3_a_fetch_that_handed_back_None_does_not_break_the_gate_check(monkeypatch):
+    """⭐ L3 (review round 2) — `run_opts_for` sized the other symbol's read with
+    `len(bars)`, and the evaluator's fetch can hand back None."""
+    other = op("-", CLOSE, {"type": "sym", "value": "SPY", "args": [CLOSE]})
+    fn = aus._make_value_fn("u_b1b1b1b1b1b1", "value", doc(other, stamp("?: true arm (T03)")))
+    assert fn.reads_symbols == ("SPY",)
+    monkeypatch.setattr(aus, "_symbol_bars", lambda ticker, tf, want: [])
+    why = fn.withheld(None, {}, "D")                 # no TypeError: no bars to read is a gate that cannot be read
+    assert why is None or isinstance(why, str)
 
 
 # ═══ 4. arming asks the gates as the alert WILL evaluate (L1) ════════════════

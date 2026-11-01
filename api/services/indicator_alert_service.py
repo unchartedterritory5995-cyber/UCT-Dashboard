@@ -1029,7 +1029,10 @@ def _diagnose_user(alert: dict, bars: Optional[list]) -> Optional[tuple[bool, Op
     member's to guess at: the silent-alert sweep (`sweep_silent_alerts`) puts this
     answer in `state_detail` under `needs_attention`, which every alert surface renders
     verbatim (`app/src/components/chart/alertState.jsx`). The sentence is the gate's own,
-    through the one refusal both doors share (`alert_user_series.block_runs_withheld`).
+    in an ARMED alert's words (`alert_user_series.withheld_alert_detail`: "Withheld: … .
+    This alert resumes when the value is computable."), whole under the 500 the state
+    holds — on both paths: the column withheld, and the re-arm refusal, which carries the
+    gate's sentence (`block_runs_why`).
 
     ⛔ EVERY ANSWER COMES FROM THE LANE'S OWN CODE, never a copy of it — the
     resolver the evaluator calls (`_user_value_function`, whose re-arm raises the
@@ -1050,14 +1053,13 @@ def _diagnose_user(alert: dict, bars: Optional[list]) -> Optional[tuple[bool, Op
         return True, ("no bars are stored for this symbol and timeframe yet, "
                       "so nothing can be computed")
     params = ev._parse_params(alert)
-    sym = str(alert.get("sym") or "")
     tf = alert.get("tf")
     closed = ev.eval_mode() == "closed"
     try:
         fn = ev._user_value_function(alert, bars)
         why = fn.withheld(bars, params, tf)
         if why:
-            return True, str(aus.block_runs_withheld(raw, sym, why))
+            return True, aus.withheld_alert_detail(why)
         index = len(bars) - 1
         if closed:
             index = ev.closed_bar_index(bars, str(tf or ""), time.time())
@@ -1068,8 +1070,10 @@ def _diagnose_user(alert: dict, bars: Optional[list]) -> Optional[tuple[bool, Op
         column = (fn.column(bars, params, tf=tf) if getattr(fn, "reads_symbols", None)
                   else fn.column(bars, params))
     except aus.AdmissionRefused as exc:
-        # the door's own sentence, verbatim (it carries its `[gate:…]` attribution)
-        return True, str(exc)
+        # ⭐ L1 — the gates withholding the plot read in an armed alert's words; any other
+        # door's sentence is quoted verbatim (it carries its `[gate:…]` attribution)
+        why = getattr(exc, "block_runs_why", None)
+        return True, (aus.withheld_alert_detail(why) if why else str(exc))
     except Exception as exc:  # noqa: BLE001 - the message IS the diagnosis
         return True, f"{type(exc).__name__}: {exc}"
     # the bar each lane judges: the closed bar, or (forming) the newest number

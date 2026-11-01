@@ -719,7 +719,8 @@ def _make_value_fn(def_id: str, plot_key: str,
             return lane_opts
         if not tf:
             return None
-        want = min(_SYMBOL_MAX_BARS, len(bars) + int(getattr(fn, "lookback", 0) or 0))
+        # ⭐ L3 (review round 2) — `bars or []`: the evaluator's fetch may hand back None
+        want = min(_SYMBOL_MAX_BARS, len(bars or []) + int(getattr(fn, "lookback", 0) or 0))
         return dict(lane_opts, symbols={t: _symbol_bars(t, tf, want) for t in supplied_syms})
 
     def withheld(bars: list, params: Optional[Mapping] = None, tf: Optional[str] = None) -> Optional[str]:
@@ -1523,17 +1524,45 @@ def user_catalog(user_id: Any) -> list[dict]:
 
 
 def block_runs_withheld(address: str, sym: str, why: str) -> AdmissionRefused:
-    """⭐ C48 / C45 — THE refusal for a plot the member's chart withholds on this
-    symbol's bars (``meta.blockRuns``): the gate's own sentence, wrapped once. Raised
-    by ``arm_for_alert`` before a row is inserted, and RETURNED to
-    ``indicator_alert_service.diagnose`` for an armed alert that has gone quiet —
-    one spelling, so the member reads the same sentence at both doors."""
+    """⭐ C48 / C45 — THE ARM-TIME refusal for a plot the member's chart withholds on
+    this symbol's bars (``meta.blockRuns``): the gate's own sentence, wrapped once,
+    raised by ``arm_for_alert`` before a row is inserted. The gate's sentence rides on
+    the refusal (``block_runs_why``) so a quiet ARMED alert is told in its own words
+    (``withheld_alert_detail``), never this arm-time phrasing."""
     from api.services import block_runs as _block_runs
-    return AdmissionRefused(
+    exc = AdmissionRefused(
         "withheld",
         f"{address} {REFUSAL_FRAGMENTS['withheld']} ({_block_runs.BLOCK_RUNS_GUARD}): {why}. "
         f"An alert on it would fire off the every-bar value on {sym}, which is not the "
         "script's. It still draws on a chart where that code runs on every bar.")
+    exc.block_runs_why = why
+    return exc
+
+
+#: ⭐ The most an alert's `state_detail` holds (`indicator_alert_service.mark_needs_attention`
+#: caps it at 500); the armed sentence below is built to fit WHOLE under it.
+ALERT_DETAIL_MAX = 499
+_RESUMES = " This alert resumes when the value is computable."
+
+
+def withheld_alert_detail(why: str) -> str:
+    """⭐⭐ C48 / C45 (review round 2, L1) — what an ARMED alert says while the gates
+    withhold its plot: ``Withheld: <the gate> — <where it skipped>. This alert resumes
+    when the value is computable.`` — one whole sentence under ``ALERT_DETAIL_MAX``.
+
+    ⚰️ It carried the arm-time refusal (551-583 characters on the parity fixtures), and
+    ``mark_needs_attention`` cut it at 500, mid-sentence. The gate's sentence is kept to
+    its head (the call, the shape and the line — the clause before its ``: `` explanation)
+    and its tail (where on this chart the code skipped, or why that could not be read);
+    a tail still too long is shortened at a word, so the sentence always ends whole."""
+    head, sep, tail = str(why).partition(" — ")
+    gate = head.split(": ", 1)[0]
+    body = f"{gate} — {tail}" if sep else gate
+    room = ALERT_DETAIL_MAX - len("Withheld: ") - len(".") - len(_RESUMES)
+    if len(body) > room:
+        cut = body[:room - 1]
+        body = (cut.rsplit(" ", 1)[0] if " " in cut else cut).rstrip(" ,;:(") + "…"
+    return f"Withheld: {body}{'' if body.endswith('…') else '.'}{_RESUMES}"
 
 
 def arm_for_alert(user_id: Any, indicator: str, sym: str, tf: str,
