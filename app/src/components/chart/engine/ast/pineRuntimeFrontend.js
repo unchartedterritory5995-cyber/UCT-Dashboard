@@ -2739,6 +2739,30 @@ function buildRuntimeIrLinked(source, opts, holder) {
       if (ctor && udtTypes.has(ctor[1]) && typeHoldsHandle(ctor[1])) return `\`varip\` holding a \`${ctor[1]}\`, a type with a drawing field`
       if (udtTypes.has(v) && typeHoldsHandle(v)) return `\`varip\` holding a \`${v}\`, a type with a drawing field`
       if (definedNames.has(v) && isPunct(toks[i + 1], '(')) return `\`varip\` holding the result of \`${v}()\`, whose type this lane does not check for drawings`
+      // ⭐⭐ (step 2, B) A DOTTED READ: `q.mk()` (a method, whose name is after the dot) and
+      // `f.l` (a field, whose type is the field's DECLARED type, walked through a chain). A
+      // dotted read off a slot that is not a record, a missing field, or a call on a record
+      // that is not the script's own method: unsure, so refused.
+      const dot = v.indexOf('.')
+      if (dot > 0) {
+        const head = v.slice(0, dot)
+        const rest = v.slice(dot + 1).split('.')
+        const last = rest[rest.length - 1]
+        const calls = isPunct(toks[i + 1], '(')
+        if (calls && definedNames.has(last)) return `\`varip\` holding the result of \`${v}()\`, whose type this lane does not check for drawings`
+        const hAt = scope && typeof scope.lookup === 'function' ? scope.lookup(head) : null
+        const hs = hAt !== null && hAt !== undefined ? slots[hAt] : null
+        if (hs) {
+          let type = hs.udt
+          for (let k = 0; k < rest.length; k += 1) {
+            const fld = udtTypes.has(type) ? (udtTypes.get(type).fields || []).find((f) => f.name === rest[k]) : null
+            // (a slot that is not a record has no fields: the same answer)
+            if (!fld) return `\`varip\` holding \`${v}\`, read off \`${head}\`, which is not a field this lane can type`
+            if (typeHoldsHandle(fld.type, fld.typeArgs)) return `\`varip\` holding \`${v}\`, a field of a drawing type (\`${fld.type}\`)`
+            type = fld.type
+          }
+        }
+      }
       const at = scope && typeof scope.lookup === 'function' ? scope.lookup(v) : null
       const sl = at !== null && at !== undefined ? slots[at] : null
       if (sl && (sl.drawing || sl.collection || (sl.udt && typeHoldsHandle(sl.udt)) || (sl.elemUdt && typeHoldsHandle(sl.elemUdt)))) {
@@ -7654,7 +7678,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
       // function's result. When the type cannot be told, it refuses (`varipHoldsDrawing`).
       if (word === 'varip') {
         const why = owner !== null ? '`varip` inside a function body'
-          : opts.realtimeLedger !== true ? '`varip` on a door with no realtime ledger (only the runtime pane carries a `varip` from tick to tick)'
+          // ⭐ (re-review M2) a caller may say WHY it has no ledger (`runtimeColumns.js::SLIDING_VARIP_WHY`)
+          : opts.realtimeLedger !== true ? (typeof opts.varipRefusal === 'string' && opts.varipRefusal ? opts.varipRefusal
+            : '`varip` on a door with no realtime ledger (only the runtime pane carries a `varip` from tick to tick)')
             : varipHoldsDrawing(toks.slice(1), scope)
         if (why) {
           note('runtime:varip')

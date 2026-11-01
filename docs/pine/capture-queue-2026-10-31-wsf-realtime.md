@@ -47,3 +47,17 @@ ticks; it must be the live chart). A reload inside the window (Q-WSF4) is itself
 - The lane's tick cadence is whatever the bars feed delivers (one update per fetch): a capture
   with more ticks per bar than this app's feed delivers will show a larger R02 on TradingView.
   That is a feed difference, not a lane defect, and is stated rather than graded.
+
+## Known limits to review before arming (not capture-dependent)
+
+- The realtime ledger is bounded at 32 MB across all scripts (`runtimeColumns.js`,
+  `LEDGER_BYTE_CAP`). A script whose ledger is evicted resets SILENTLY: its pane shows the
+  `var` value again on the next run, with no notice to the member.
+- A forming bar remembers at most 1,024 prices or 4 MB of `varip` snapshots (`SEEN_CAP`,
+  `SEEN_BYTE_CAP`). With very large `varip` values (a big array) only a few prices fit, so the
+  protection against a lagging pane or a stale refetch shrinks to those few.
+- A price that truly returns to an earlier value on the same bar is read as a replay of that
+  earlier update (shows its old value, not counted); past the caps a forgotten price counts once
+  more than Pine would.
+- `varip` is refused by name on a sliding window: a `calc_bars_count` window and an indicator
+  computed on another timeframe's bars (a framed instance).

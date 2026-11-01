@@ -5,10 +5,12 @@
 // `opts.barIndexShift`. Neither may touch the realtime session's state wrongly:
 //   * a shifted build is a measurement: it never keeps a session (build, checkpoint,
 //     ledger), so it can never be reused as the real run's build;
-//   * a `varip` inside the window counts the window's updates once each, like anywhere.
+//   * a `varip` inside the window is REFUSED by name before any probe runs: the window slides
+//     one bar on every new bar (re-review M2).
 import { describe, it, expect, beforeEach } from 'vitest'
 import {
   computeRuntimeColumns, resetRuntimeSessions, resetRuntimeLedgers, runtimeIncrementalOf, runtimeSessionStats,
+  SLIDING_VARIP_WHY,
 } from '../runtimeColumns.js'
 
 const doc = (body, outputs = { a: 0, b: 1 }, head = 'indicator("w")') => ({
@@ -42,23 +44,32 @@ describe('⛔ a bar_index-shifted build is never kept as the real run\'s build',
   })
 })
 
-describe('⭐ a `varip` inside a calc_bars_count window', () => {
+describe('⛔ a `varip` inside a calc_bars_count window is refused by name (the window slides)', () => {
   const CB = 'indicator("w", calc_bars_count = 20)'
-  it('counts the window\'s bars once each, and each real update of the forming bar once', () => {
+  it('a plain `varip` counter', () => {
     const d = doc('varip int b = 0\nb += 1\nplot(b)\nplot(close)\n', { a: 0, b: 1 }, CB)
-    let rows = mk(50)
-    const first = computeRuntimeColumns(d, rows, LIVE)
-    expect(first.a.length).toBe(50)
-    expect(Number.isNaN(first.a[0]), 'outside the window: nothing').toBe(true)
-    expect(first.a[49]).toBe(20)
-    expect(computeRuntimeColumns(d, rows.map((b) => ({ ...b })), LIVE).a[49], 'the same update again').toBe(20)
-    rows = tick(rows, 0.2)
-    expect(computeRuntimeColumns(d, rows, LIVE).a[49], 'one real update').toBe(21)
+    let err = null
+    try { computeRuntimeColumns(d, mk(50), LIVE) } catch (e) { err = e }
+    expect(err && err.guard).toBe('runtime:varip')
+    expect(String(err.message)).toContain(SLIDING_VARIP_WHY)
   })
-  it('a `varip` script that reads bar_index in the window is refused by name, never served a guess', () => {
+  it('one that also reads bar_index: still `runtime:varip`, before the bar_index probe runs', () => {
     const d = doc('varip int b = 0\nb += bar_index > 1000000 ? 1 : 1\nplot(b + bar_index)\nplot(close)\n', { a: 0, b: 1 }, CB)
     let err = null
     try { computeRuntimeColumns(d, mk(50), LIVE) } catch (e) { err = e }
-    expect(err && err.guard).toBe('runtime:calc-bars-bar-index')
+    expect(err && err.guard).toBe('runtime:varip')
+  })
+  it('a chart that grows past the window: the build made before it (with a ledger) is never reused by the window', () => {
+    const d = doc('varip int b = 0\nb += 1\nplot(b)\nplot(close)\n', { a: 0, b: 1 }, CB)
+    expect(computeRuntimeColumns(d, mk(20), LIVE).a[19], '20 bars: no window, a plain chart').toBe(20)
+    let err = null
+    try { computeRuntimeColumns(d, mk(50), LIVE) } catch (e) { err = e }
+    expect(err && err.guard, '50 bars: the window slides').toBe('runtime:varip')
+  })
+  it('CONTROL — the same counter with `var` runs in the window', () => {
+    const d = doc('var int b = 0\nb += 1\nplot(b)\nplot(close)\n', { a: 0, b: 1 }, CB)
+    const out = computeRuntimeColumns(d, mk(50), LIVE)
+    expect(Number.isNaN(out.a[0])).toBe(true)
+    expect(out.a[49]).toBe(20)
   })
 })
