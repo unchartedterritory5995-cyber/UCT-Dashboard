@@ -1731,6 +1731,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
     if (owner !== null && loopDepth === 0 && typeof r4RegionCulprit === 'string') {
       err.frameName = r4RegionCulprit
       err.condParam = true
+      err.condWhat = what
     }
     throw err
   }
@@ -1800,6 +1801,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
     }
     if (n.type === 'offset') {
       const a = n.arg
+      // ⭐ review M1 — `(expr)[k]` written in a block or body is that site's
+      // expression history; the `?:` route refuses it (`lexArmHistory`), and so
+      // does this one, by name, until a capture says which bars it holds.
+      if (a && a.type !== 'name') return true
       // a block's (or a body's) own expression one run back
       const ab = a && a.type === 'name' ? env.get(a.name) : null
       if (ab && ab.kind === 'expr') {
@@ -1856,6 +1861,108 @@ function buildRuntimeIrLinked(source, opts, holder) {
   // (or a v4 bare name / `fixnan` whose head keeps state), a script function
   // whose body keeps any per-site state, a `(expr)[k]`. A NAME is never counted:
   // a binding is evaluated on its own line, wherever it is read.
+  // ⭐ WS-C (review H1 / H2) — A SCRIPT FUNCTION IN AN ARM, asked two ways:
+  //  · a COMPILED body: any per-site state (`fnAnyHistory`) or any `var` /
+  //    effect anywhere in its call graph (`effects.pure`, which counts
+  //    `persistCount` and every callee's) — a `var` counter in an arm stepped
+  //    on every bar;
+  //  · a HELD body (deferred, compiled per call site by C35 / `condParam`) has
+  //    no compiled flags at all, so its source is read instead, failing closed:
+  //    any `ta.*` / `var` / `varip` / `[` / `fixnan` (v4: a bare window or
+  //    carried name), or a call to a script function that answers yes here.
+  const STATE_HEAD = new Set(['var', 'varip', 'fixnan'])
+  // ⭐⭐ WS-C review (wsc-2 H1) — THE SCAN IS AN ALLOWLIST, NOT A DENYLIST. A list
+  // of stateful names failed OPEN on every one it did not name (`math.sum`, v4
+  // `change` / `atr` / `rsi` / `mom` / `roc` / `cci`, the v4 `tr` variable were
+  // all served every bar). Now a call counts as history unless the columnar
+  // resolver, asked with literal arguments of the call's own arity, answers a
+  // tree that keeps no state and holds no offset (`heldCallPure`). Anything the
+  // resolver cannot answer counts as history (fail closed). A `[` that is not a
+  // tuple destructure, `var` / `varip` / `fixnan`, and a script function that
+  // answers yes here count too.
+  const HELD_WORDS = new Set(['if', 'else', 'for', 'to', 'by', 'while', 'switch', 'and', 'or', 'not', 'true', 'false',
+    'na', 'int', 'float', 'bool', 'string', 'color', 'series', 'simple', 'const', 'in', 'continue', 'break', 'method'])
+  const heldResolvesPure = (node) => {
+    try {
+      const t = makeResolver().resolve(node)
+      return !!t && !statefulTree(t) && !treeHasOffset(t)
+    } catch { return false }
+  }
+  const heldCallPure = (v, toks, k) => {
+    // arity: the call's own top-level arguments, each a literal 2 (named kept)
+    let depth = 0
+    const args = []
+    let cur = { name: null, empty: true }
+    for (let j = k + 2; j < toks.length; j += 1) {
+      const t = toks[j]
+      if (isPunct(t, '(') || isPunct(t, '[')) depth += 1
+      else if (isPunct(t, ')') || isPunct(t, ']')) {
+        if (depth === 0) break
+        depth -= 1
+      } else if (depth === 0 && isPunct(t, ',')) { args.push(cur); cur = { name: null, empty: true }; continue }
+      if (depth === 0 && cur.empty && t && t.kind === 'ident' && isPunct(toks[j + 1], '=')) { cur.name = String(t.value); continue }
+      if (depth === 0 && cur.name && isPunct(t, '=')) continue
+      cur.empty = false
+    }
+    if (!cur.empty || cur.name) args.push(cur)
+    const two = { type: 'number', value: 2, tok: toks[k] }
+    return heldResolvesPure({ type: 'call', name: v, tok: toks[k],
+      args: args.map((a) => ({ name: a.name || null, value: two, tok: toks[k] })) })
+  }
+  const heldBodyHistory = (name, seen) => {
+    if (seen.has(name)) return true
+    seen.add(name)
+    const def = deferredFnDefs.get(name)
+    if (!def) return true                       // held with no source: fail closed
+    const head = (def.toks || []).slice(0, (def.arrow || 0) + 1)
+    const toks = [...(def.toks || []).slice((def.arrow || 0) + 1)]
+    const collect = (list) => { for (const st of list || []) { toks.push(...(st.header || [])); collect(st.sub) } }
+    collect(def.st && def.st.sub)
+    // names the body itself declares (parameters, locals, loop counters, tuple parts)
+    const declared = new Set()
+    for (const t of head) if (t && t.kind === 'ident') declared.add(String(t.value))
+    for (let k = 0; k < toks.length; k += 1) {
+      const t = toks[k]
+      const nx = toks[k + 1]
+      if (t && t.kind === 'ident' && nx && nx.kind === 'punct' && (nx.value === '=' || nx.value === ':='
+        || (nx.value.length === 2 && nx.value.endsWith('=') && MUTATOR_OPS.has(nx.value[0])))) declared.add(String(t.value))
+    }
+    for (let k = 0; k < toks.length; k += 1) {
+      const t = toks[k]
+      if (isPunct(t, '[')) {
+        // a tuple destructure `[a, b] = …` is not an offset; anything else is history
+        const prev = toks[k - 1]
+        if (!prev || (prev.kind === 'punct' && !isPunct(prev, ')') && !isPunct(prev, ']'))) {
+          for (let j = k + 1; j < toks.length && !isPunct(toks[j], ']'); j += 1) {
+            if (toks[j] && toks[j].kind === 'ident') declared.add(String(toks[j].value))
+          }
+          continue
+        }
+        return true
+      }
+      if (!t || t.kind !== 'ident') continue
+      const v = String(t.value)
+      if (STATE_HEAD.has(v)) return true
+      if (HELD_WORDS.has(v) || declared.has(v)) continue
+      // a named argument's name (`length = 3`) is not a read
+      if (isPunct(toks[k + 1], '=')) continue
+      if (isPunct(toks[k + 1], '(')) {
+        if (isUserFn(v)) { if (fnArmHistory(v, seen)) return true; continue }
+        if (!heldCallPure(v, toks, k)) return true
+        continue
+      }
+      // a bare NAME is not counted: a script binding is evaluated on its own line,
+      // and a built-in variable (`close`, `ta.tr`, `ta.obv`) is the chart's series,
+      // the same on every bar whoever reads it
+    }
+    return false
+  }
+  const fnArmHistory = (name, seen = new Set()) => {
+    if (deferredFnRefusals.has(name)) return heldBodyHistory(name, seen)
+    const fn = functions[fnByName.get(name)]
+    if (!fn) return true
+    return fnAnyHistory(fn) || !(fn.effects && fn.effects.pure === true)
+  }
   const lexArmHistory = (n, d = 0) => {
     if (!n || typeof n !== 'object' || d > 64) return false
     if (Array.isArray(n)) return n.some((x) => lexArmHistory(x, d + 1))
@@ -1863,7 +1970,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
       const name = String(n.name || '')
       if (/^request\./.test(name)) return false     // the requested symbol's own series
       if (fnByName.has(name)) {
-        if (fnAnyHistory(functions[fnByName.get(name)])) return true
+        if (fnArmHistory(name)) return true
       } else if (name.startsWith('ta.') || name === 'fixnan' || callHeadStateful(n)) return true
     }
     if (n.type === 'offset' && n.arg && n.arg.type !== 'name') return true
@@ -1892,6 +1999,14 @@ function buildRuntimeIrLinked(source, opts, holder) {
       let arms = null
       let test = null
       if (node.type === 'ternary') { arms = [node.yes, node.no]; test = node.test }
+      // ⭐ review M3 — v4 `iff(c, a, b)` is the same choice (`runtimeRespelling`);
+      // whether Pine evaluates its untaken argument is NOT witnessed, so history
+      // in either argument is refused by name, exactly as for `?:`.
+      else if (node.type === 'call' && node.name === 'iff' && pineVersion !== null && pineVersion < 5
+        && (node.args || []).length === 3 && !(node.args || []).some((a) => a && a.name)) {
+        const g = node.args.map((a) => (a && a.value !== undefined ? a.value : a))
+        arms = [g[1], g[2]]; test = g[0]
+      }
       else if (node.type === 'binary' && SHORT_CIRCUIT.has(node.op) && pineVersion >= 6) { arms = [node.right]; test = node.left }
       if (!arms || !arms.some((a) => lexArmHistory(a))) return
       let inv = false
@@ -1905,7 +2020,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
       if (inv) return
       note('runtime:conditional-history')
       const err = new RuntimeRefusal('runtime:conditional-history',
-        `history (a \`ta.*\` call, or a function that keeps it) ${node.type === 'ternary' ? 'in one arm of `?:`' : `on the right of v6's \`${node.op}\``} `
+        `history (a \`ta.*\` call, or a function that keeps it) ${node.type === 'ternary' ? 'in one arm of `?:`' : node.type === 'call' ? 'in an argument of `iff` (whether Pine evaluates the one not chosen is not witnessed)' : `on the right of v6's \`${node.op}\``} `
         + '— Pine runs it only on the bars that operand is reached, so it keeps the history of those bars; '
         + 'this lane evaluates it on every bar', locate(node.tok))
       // ⭐ A TEST ON A PARAMETER IS THE CALL SITE'S (as for an `if`, `r4Guard`).
@@ -1916,6 +2031,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
       if (owner !== null && loopDepth === 0 && typeof culprit === 'string') {
         err.frameName = culprit
         err.condParam = true
+        err.condWhat = 'history in one operand of a choice'
       }
       throw err
     }
@@ -1935,9 +2051,26 @@ function buildRuntimeIrLinked(source, opts, holder) {
     const name = String(node.name || '')
     const bare = name.startsWith('ta.') ? name.slice(3) : (pineVersion < 5 ? name : null)
     const kind = bare ? SERVED_COND[bare] : undefined
-    if (!kind || (node.args || []).some((a) => a && a.name)) return null
-    const given = (node.args || []).map((a) => (a && a.value !== undefined ? a.value : a))
-    if (given.length !== 2 || lexCondHistory(given[0])) return null
+    if (!kind) return null
+    // ⭐ review L3 — `ta.sma(source = close, length = 3)` is the positional call:
+    // named arguments take their declared positions (`source`, `length`); any
+    // other name, a duplicate, or a positional after a named one keeps the refusal.
+    const POS = ['source', 'length']
+    const given = []
+    let named = false
+    for (const a of (node.args || [])) {
+      const v = a && a.value !== undefined ? a.value : a
+      if (a && a.name) {
+        named = true
+        const i = POS.indexOf(String(a.name))
+        if (i < 0 || given[i] !== undefined) return null
+        given[i] = v
+      } else {
+        if (named) return null
+        given.push(v)
+      }
+    }
+    if (given.length !== 2 || given.some((g) => g === undefined) || lexCondHistory(given[0])) return null
     const at = locate(node.tok)
     const n = foldConstNode(given[1], at,
       `the length of \`${name}\` is only known while the bar is running, `
@@ -4799,7 +4932,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
         if (!condTransparent(node)) {
           r4Guard(node.type === 'call' ? `\`${node.name}\`` : 'a series with history', locate(node.tok))
         }
-      } else try {
+      } else if (!mbbDynamicColumn(node, scope)) try {
         return column(columnOf(node, locate(node.tok)))
       } catch (e) {
         // ⛔ ONLY over a subtree that really does carry text, and only for the
@@ -5255,7 +5388,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // resolver's rule that a saved definition bakes the AUTHOR'S default.
         const offAt = locate(node.tok)
         const offExpr = node.n && typeof node.n === 'object' ? node.n.expr : null
-        if (offExpr && needsRuntime(offExpr, scope)) {
+        if (offExpr && (needsRuntime(offExpr, scope) || mbbDynamicColumn(node, scope))) {
           // RT5: a run-time offset into a COLUMN reads that column's own history;
           // only `bar_index` changes meaning inside a function body (S02, B01).
           if (owner !== null && node.arg && node.arg.type === 'name' && node.arg.name === 'bar_index') {
@@ -6436,6 +6569,35 @@ function buildRuntimeIrLinked(source, opts, holder) {
     if (!n || typeof n !== 'object' || depth > 96) return
     if (n.type === 'offset' && Number.isInteger(n.value) && n.value > MBB_LIMIT) throw mbbRefusal(n.value, at, 'a series')
     for (const a of (n.args || [])) mbbCanonicalCheck(a, at, depth + 1)
+  }
+  // ⭐ review M2 — A DYNAMIC OFFSET IN A PURE SUBTREE NEVER BECOMES ONE COLUMN
+  // when a read could pass the buffer: a declared `max_bars_back`, or a chart
+  // longer than the ceiling. As a column it was answered (`close[bar_index %
+  // 30]` past a declared 20) or answered `na` (`close[bar_index]` past 5,000)
+  // and the VM's stop never ran; lowered piecewise, the offset reaches the
+  // `offset` case (`histDyn` + `mbbDyn`), whose read stops the run there.
+  const mbbDynamicColumn = (node, scope) => {
+    if (!MBB_DECLARED && !(Array.isArray(bars) && bars.length > MBB_LIMIT)) return false
+    const walk = (n, d = 0) => {
+      if (!n || typeof n !== 'object' || d > 64) return false
+      if (Array.isArray(n)) return n.some((x) => walk(x, d + 1))
+      if (n.type === 'offset' && n.n && typeof n.n === 'object' && n.n.expr) {
+        let c = null
+        try { c = constValueOf(n.n.expr, scope) } catch { c = null }
+        if (!(c && Number.isFinite(c.value))) return true
+      }
+      if (n.type === 'name') {
+        const b = env.get(n.name)
+        if (b && b.kind === 'expr' && walk(b.node, d + 1)) return true
+      }
+      for (const k of Object.keys(n)) {
+        if (k === 'tok') continue
+        const v = n[k]
+        if (v && typeof v === 'object' && walk(v, d + 1)) return true
+      }
+      return false
+    }
+    return walk(node)
   }
   // Only a DECLARED buffer rides the node; the ceiling is the VM's own constant.
   const mbbDyn = (h) => (MBB_DECLARED ? { ...h, limit: MBB_DECLARED } : h)
@@ -8685,7 +8847,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
       if (err.condParam === true) {
         note('runtime:conditional-history')
         const cr = new RuntimeRefusal('runtime:conditional-history',
-          `\`${p}\` decides a branch of \`${node.name}\` that keeps history (a \`ta.*\` call), and this call passes `
+          `\`${p}\` decides a branch of \`${node.name}\` that reads ${err.condWhat || 'history'} (kept per call site), and this call passes `
           + 'a value that is not fixed before bar 0, so that branch does not run on every call — '
           + 'Pine keeps its history per call site, and this lane does not serve that shape yet', at)
         cr.condParam = true
