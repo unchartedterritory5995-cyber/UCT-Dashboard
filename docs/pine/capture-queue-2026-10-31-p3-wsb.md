@@ -80,6 +80,27 @@ plot(str.tostring(2.50) == "2.5" ? 1 : 0, "S03 trailing zero dropped")
 Settles: the host formatter (`objectRuntime.js::formatNumber`) is what the runtime now uses in every
 run, not only in a drawing run.
 
+## B-CLK-CRYPTO — the exchange zone on a symbol that is not New York (review M2)
+
+The runtime lane answers "the exchange's zone" (no zone argument, or `syminfo.timezone`) only on
+a symbol whose zone is witnessed as America/New_York (`symbolScope.json::listing_fields`: NYSE,
+NASDAQ, NYSE Arca). Everywhere else it declines by name (`runtime:clock-zone`). This probe is what
+would let it answer crypto and FX:
+
+```pine
+//@version=6
+indicator("b-clk-crypto")
+plot(timestamp(2024, 1, 2, 0, 0), "Z01 no zone = syminfo.timezone")
+plot(timestamp(syminfo.timezone, 2024, 1, 2, 0, 0), "Z02 syminfo.timezone named")
+plot(hour(time + 3600000), "Z03 field of a computed instant, no zone")
+plot(hour(time), "Z04 the bar's own hour")
+plot(str.length(syminfo.timezone), "Z05 length of the zone name")
+```
+
+On BITSTAMP:BTCUSD 1D and 60, FX:EURUSD 1D, and AMEX:SPY 1D as the control. It settles each
+exchange's zone (expected Etc/UTC for BITSTAMP), and whether the bar's own `hour(time)` is read in it
+too. Today both lanes read `hour(time)` in New York on every symbol.
+
 ## Deferred, owed before serving (not built on this branch)
 
 - **`weekofyear(t)`** over a computed instant (`previous-day-high-and-low-separators`,

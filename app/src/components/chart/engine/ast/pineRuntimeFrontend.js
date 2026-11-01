@@ -300,6 +300,10 @@ export const RUNTIME_REFUSALS = Object.freeze({
   'runtime:no-output': 'a script with nothing to plot',
   'runtime:recursion': 'a function that calls itself — Pine forbids it',
   'runtime:function-global-state': 'a function body reading a mutable GLOBAL — a frame has no address for one yet',
+  // ⭐ P3 WS-B — three guards of this workstream's own, named for what they decline.
+  'runtime:chart-clock': 'a clock the columnar lane withholds on this chart — the run does not draw it either',
+  'runtime:clock-zone': 'a clock read in a zone this lane cannot answer for on this chart',
+  'runtime:builtin-args': 'a built-in called with arguments this lane cannot read before the first bar',
 })
 
 export class RuntimeRefusal extends Error {
@@ -1660,11 +1664,14 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // nothing is drawn for it. Read here as a column it would come back `na` on
     // every bar and the run would DRAW that `na`, which reads as "no value"
     // rather than "not answered" (UCTPROBE_VW_TIME_TF on BTCUSD / EURUSD). So
-    // the run declines by the columnar lane's own code and sentence. A PER-BAR
-    // withholding declines the run too (BITSTAMP:BTCUSD's `time("W")`): the host
-    // lane leaves those bars undrawn and grades them "not compared", and this
-    // lane has no per-bar withholding, so it would draw `na` on them. ⛔ Only the
-    // `time-*` codes, and only over bars: a compile-only build (no bars) cannot
+    // the run declines by the columnar lane's own code and sentence. A NAMED
+    // per-bar withholding declines the run too (BITSTAMP:BTCUSD's `time("W")`): the
+    // host lane leaves those bars undrawn and grades them "not compared", and this
+    // lane has no per-bar withholding, so it would draw `na` on them.
+    // ⚠️ AN UNNAMED ONE STILL DRAWS `na`: an every-day anchor's first partial
+    // period, the off-listing early bars, `bar-index:early-bars` write no `time-*`
+    // code here, so nothing declines for them. ⛔ Only the `time-*` codes, and only
+    // over bars: a compile-only build (no bars) cannot
     // read a regime and must not refuse for it.
     if (bars.length > 0) {
       for (const [code, sentence] of clockSink) {
@@ -4225,18 +4232,39 @@ function buildRuntimeIrLinked(source, opts, holder) {
     && (!scope || scope.lookup(nm) === null) && !env.has(nm))
   const isBarTimeNode = (n, scope) => isUnboundBuiltinName(n, 'time', scope)
   const isExchangeZoneNode = (n, scope) => isUnboundBuiltinName(n, 'syminfo.timezone', scope)
+  /** ⭐⭐ P3 WS-B review M2 — THE EXCHANGE'S ZONE IS NEW YORK ONLY WHERE THAT IS
+   *  WITNESSED. `clockFns.js` answers "the exchange's zone" in America/New_York,
+   *  which is TradingView's answer for NYSE, NASDAQ and NYSE Arca
+   *  (`symbolScope.json::listing_fields`, read here as `syminfo.timezone` through
+   *  the binding) and a wrong one for a crypto or FX symbol (BITSTAMP:BTCUSD is
+   *  Etc/UTC there: `time >= timestamp(2024, 1, 1, 0, 0)` would flip 5 h late).
+   *  So an implicit or `syminfo.timezone` read declines by name on any other
+   *  symbol, and on a run told no symbol at all. ⛔ A compile-only build (no bars)
+   *  is the member door's check and settles nothing: the run re-asks. A literal
+   *  "America/New_York" names its own zone and is answered on every symbol. */
+  const requireNewYorkExchange = (at, what) => {
+    if (bars.length === 0) return
+    if (bindConsts['syminfo.timezone'] === 'America/New_York') return
+    throw new RuntimeRefusal('runtime:clock-zone',
+      `\`${what}\` reads the clock in the exchange's zone, and this chart's symbol is not one whose zone is `
+      + 'known here to be America/New_York (witnessed for NYSE, NASDAQ and NYSE Arca). A crypto or FX symbol '
+      + 'keeps another zone on TradingView, so the answer would be hours off. TO UNBLOCK: name the zone '
+      + '("America/New_York", or a fixed "UTC±H")', at)
+  }
   const clockZoneOf = (zn, scope, at, what) => {
-    if (zn === undefined) return 'exchange'
-    if (isExchangeZoneNode(zn, scope)) return 'exchange'
+    if (zn === undefined || isExchangeZoneNode(zn, scope)) {
+      requireNewYorkExchange(at, what)
+      return 'exchange'
+    }
     const c = constantArgOf(zn, scope)
     if (c.frameName) throw frameBoundRefusal(c.frameName, at, `names the zone \`${what}\` reads the clock in`)
     if (typeof c.text !== 'string') {
-      throw new RuntimeRefusal('runtime:statement',
+      throw new RuntimeRefusal('runtime:clock-zone',
         `\`${what}\` reads the clock in a zone, and this zone is not text fixed before the first bar`, at)
     }
     const z = canonicalZone(c.text)
     if (z === null) {
-      throw new RuntimeRefusal('runtime:statement',
+      throw new RuntimeRefusal('runtime:clock-zone',
         `\`${what}\` reads the clock in \`${c.text}\`, a zone this engine does not answer for — it takes `
         + 'the exchange\'s (`syminfo.timezone`, "America/New_York") or a fixed "UTC±H" / "GMT±H"', at)
     }
@@ -4291,7 +4319,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
         if (c.frameName) throw frameBoundRefusal(c.frameName, at, 'is the date `timestamp` reads the clock at')
         const ms = typeof c.text === 'string' ? dateStringMs(c.text) : null
         if (ms === null) {
-          throw new RuntimeRefusal('runtime:statement',
+          throw new RuntimeRefusal('runtime:builtin-args',
             '`timestamp(dateString)` reads the clock at a date written as text fixed before the first bar, '
             + 'as "2020-02-20", "2020-02-20T15:30:00+02:00" or "20 Feb 2020 15:30 +0200"', at)
         }
@@ -4300,10 +4328,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
       const first = given[0]
       const zoned = !!first && (first.type === 'string' || isExchangeZoneNode(first, scope)
         || holdsText(first, scope) || typeof constantArgOf(first, scope).text === 'string')
-      const zone = zoned ? clockZoneOf(first, scope, at, 'timestamp') : 'exchange'
+      const zone = zoned ? clockZoneOf(first, scope, at, 'timestamp') : clockZoneOf(undefined, scope, at, 'timestamp')
       const parts = zoned ? given.slice(1) : given.slice()
       if (parts.length < 3 || parts.length > 6) {
-        throw new RuntimeRefusal('runtime:statement',
+        throw new RuntimeRefusal('runtime:builtin-args',
           '`timestamp` reads the clock at a year, a month and a day, then an optional hour, minute and '
           + `second, given ${parts.length}`, at)
       }
@@ -4311,6 +4339,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
       return textCall('timestamp/zone', [str(zone), ...parts.map((p) => lowerExpr(p, scope))])
     }
     if (INSTANT_FIELD_NAMES.has(name) && (given.length === 1 || given.length === 2)) {
+      // `hour(time)` with no zone is the arm below's (the bar's own clock column, as
+      // the host lane reads it): not this lowering's, and not re-asked here
+      if (given.length === 1 && isBarTimeNode(given[0], scope) && CLOCK_FIELDS.includes(name)) return null
       const zone = clockZoneOf(given[1], scope, at, name)
       // the bar's own instant in the exchange's zone is the bar's clock column
       // (`clock`, `OP.READ_CLOCK`), the answer the arm below gives for `hour(time)`.
@@ -6069,18 +6100,18 @@ function buildRuntimeIrLinked(source, opts, holder) {
         if (node.name === 'ta.rsi' || node.name === 'rsi') {
           const at = locate(node.tok)
           if (node.args.some((a) => a && a.name)) {
-            throw new RuntimeRefusal('runtime:statement', `a named argument on \`${node.name}\``, at)
+            throw new RuntimeRefusal('runtime:builtin-args', `a named argument on \`${node.name}\``, at)
           }
           const given = node.args.map((a) => (a && a.value !== undefined ? a.value : a))
           if (given.length !== 2) {
-            throw new RuntimeRefusal('runtime:statement',
+            throw new RuntimeRefusal('runtime:builtin-args',
               `\`${node.name}\` takes a source and a length, given ${given.length}`, at)
           }
           const n = foldConstNode(given[1], at,
             `the length of \`${node.name}\` is only known while the bar is running, `
             + 'so the state it needs cannot be sized before bar 0', scope)
           if (!Number.isInteger(n) || n < 1) {
-            throw new RuntimeRefusal('runtime:statement',
+            throw new RuntimeRefusal('runtime:builtin-args',
               `\`${node.name}\` needs a whole length of at least 1, got ${n}`, at)
           }
           const entry = { fn: 'rsiPine', n, name: `${node.name}(…,${n})` }

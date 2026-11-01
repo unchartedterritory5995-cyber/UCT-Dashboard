@@ -31,7 +31,10 @@ const BARS = Array.from({ length: N }, (_, i) => ({
 const SERIES = ['o', 'h', 'l', 'c', 'v'].map((k) => Float64Array.from(BARS.map((b) => b[k])))
 const HEAD5 = '//@version=5\nindicator("t")\n'
 const STATE = 'var float x = 0.0\nx := close\n'
-const OPTS = { bars: BARS, inputs: {}, pane: true, basePeriod: '5', tf: '5', ...runtimeClockOpts(false, { tf: '5' }) }
+// ⭐ A symbol whose exchange zone is WITNESSED as America/New_York (symbolScope.json
+// listing_fields): the exchange-zone reads below are answered only on such a symbol.
+const NY_SYMBOL = { ticker: 'SPY', exchange: 'NYSE Arca' }
+const OPTS = { bars: BARS, inputs: {}, pane: true, basePeriod: '5', tf: '5', symbol: NY_SYMBOL, ...runtimeClockOpts(false, { tf: '5' }) }
 
 const build = (src) => buildRuntimeIr(src, OPTS)
 function runAll(src) {
@@ -123,6 +126,42 @@ describe('⭐⭐ `timestamp` in the run', () => {
   it('⛔ the script\'s own `timestamp` is never replaced', () => {
     const [o] = runAll(`//@version=4\nstudy("t")\n${STATE}timestamp(a, b, c) => a + b + c\nplot(timestamp(1, 2, 3) + x * 0)\n`)
     expect(o[0]).toBe(6)
+  })
+})
+
+describe('⭐⭐ M2 — the exchange zone is New York only where that is witnessed', () => {
+  const on = (symbol) => buildRuntimeIr(`${HEAD5}${STATE}plot(timestamp(2024, 1, 2, 10, 0) + x * 0)
+`, { ...OPTS, symbol })
+  it('⛔ a crypto symbol: an implicit exchange-zone `timestamp` declines by name', () => {
+    const b = on({ ticker: 'BTCUSD', exchange: 'BITSTAMP' })
+    expect(b.ok).toBe(false)
+    expect(b.refusal.guard).toBe('runtime:clock-zone')
+    expect(b.refusal.message).toMatch(/America\/New_York/)
+  })
+  it('⛔ no symbol told: declines too (not known is not New York)', () => {
+    expect(on(undefined).refusal.guard).toBe('runtime:clock-zone')
+  })
+  it('⛔ `syminfo.timezone` named, and a field of a computed instant, decline the same way', () => {
+    const btc = { ticker: 'BTCUSD', exchange: 'BITSTAMP' }
+    expect(buildRuntimeIr(`${HEAD5}${STATE}plot(timestamp(syminfo.timezone, 2024, 1, 2, 10, 0) + x * 0)
+`, { ...OPTS, symbol: btc }).refusal.guard).toBe('runtime:clock-zone')
+    expect(buildRuntimeIr(`${HEAD5}${STATE}plot(dayofweek(time + 3600000) + x * 0)
+`, { ...OPTS, symbol: btc }).refusal.guard).toBe('runtime:clock-zone')
+  })
+  it('a named zone is answered on any symbol', () => {
+    const b = buildRuntimeIr(`${HEAD5}${STATE}plot(timestamp("America/New_York", 2024, 1, 2, 10, 0) + timestamp("UTC", 2024, 1, 2, 10, 0) + x * 0)
+`, { ...OPTS, symbol: { ticker: 'BTCUSD', exchange: 'BITSTAMP' } })
+    expect(b.ok, b.ok ? '' : `${b.refusal.guard}: ${b.refusal.message}`).toBe(true)
+  })
+  it('⛔ CONTROL — a compile-only build (no bars) settles nothing and builds', () => {
+    const b = buildRuntimeIr(`${HEAD5}${STATE}plot(timestamp(2024, 1, 2, 10, 0) + x * 0)
+`, { ...OPTS, bars: [], symbol: undefined })
+    expect(b.ok, b.ok ? '' : `${b.refusal.guard}: ${b.refusal.message}`).toBe(true)
+  })
+  it('⛔ CONTROL — `hour(time)` with no zone stays the bar clock column on any symbol (the host lane reading)', () => {
+    const b = buildRuntimeIr(`${HEAD5}${STATE}plot(hour(time) + x * 0)
+`, { ...OPTS, symbol: { ticker: 'BTCUSD', exchange: 'BITSTAMP' } })
+    expect(b.ok, b.ok ? '' : `${b.refusal.guard}: ${b.refusal.message}`).toBe(true)
   })
 })
 
