@@ -57,6 +57,8 @@ const PAGE = 500                  // the engine's own page cap (services/screene
 export const FILL_MAX = 1000
 const CANDIDATES_MAX = 10000      // a screen with measure conditions reads at most this many candidates
 const DEFAULT_SORT = { key: 'uct_composite', dir: 'desc' }
+// A saved screen named in the member's words before the saved list had loaded (SAT-1 F-SAT-3) — never an id.
+const BY_NAME = 'name:'
 
 // ── the engine (the Screener's own routes) ──
 const req = (u, o) => fetch(u, { credentials: 'include', ...o })
@@ -83,6 +85,18 @@ export function loadMeta() {
     }).finally(() => { cache.metaP = null })
   }
   return cache.metaP
+}
+// ⭐ SAT-1 F-SAT-3 (agent-lead spec): a message the fast path claimed while the catalog was still loading
+// waits for it here, BOUNDED, then runs normally. A load that fails or takes longer is a local answer:
+// no model call, no receipt, nothing applied. (fast() itself is synchronous by contract — fastPath.js —
+// so the wait lives in the answer, which is where the catalog is first needed.)
+export const META_WAIT_MS = 3000
+export const META_UNAVAILABLE = "The screener's field list couldn't load, so I didn't run that — try again."
+export function metaWithin(ms = META_WAIT_MS) {
+  if (cache.meta && Date.now() - cache.metaAt < META_TTL_MS) return Promise.resolve(cache.meta)
+  let timer
+  const timeout = new Promise((_resolve, reject) => { timer = setTimeout(() => reject(new Error('timeout')), ms) })
+  return Promise.race([loadMeta(), timeout]).finally(() => clearTimeout(timer))
 }
 /** Each list field's real values + how much of the universe it classifies (`/fields?options=1`). */
 export function loadOptions() {
@@ -640,11 +654,15 @@ export function registerScreenerCapabilities() {
     //       which goes to the model)
     //   "now only the ones above $50" (a screen already ran here) → that screen REFINED with price
     // Anything else — a named list, a second condition, a bare number — goes to the model.
+    // ⭐ SAT-1 F-SAT-3: a message typed while the field catalog is still loading must not fall through to
+    // the (paid) planner. The strongest phrase is fixed wording, so it is claimed WITHOUT the catalog; answer()
+    // awaits the catalog and checks `rs_rank` exists then (a failed load is a refusal sentence, never a model
+    // call). With the catalog loaded and no `rs_rank`, it is the planner's, exactly as before.
     fast: ({ lower }) => {
-      if (!cache.meta) return null
       if (/^(?:please )?(?:(?:show(?: me)?|find(?: me)?|list|give me|get(?: me)?|what are|which are) )?(?:my |the )?(?:strongest|rs leaders|relative strength leaders|highest rs(?: rank(?:ed)?)?)(?: stocks| names)?(?: right now| today)?$/.test(lower)) {
-        return fieldOf('rs_rank') ? { filters: [], sort_field: 'rs_rank', sort_dir: 'desc', mode: 'new', show: null, as: null, within: null } : null
+        return !cache.meta || fieldOf('rs_rank') ? { filters: [], sort_field: 'rs_rank', sort_dir: 'desc', mode: 'new', show: null, as: null, within: null } : null
       }
+      if (!cache.meta) return null
       const m = /^(?:(?:now|and|ok|okay) )?(?:show me )?(?:only|just) (?:the ones|those|them|the stocks|the names|stocks|names)? ?(above|over|under|below) \$(\d+(?:\.\d+)?)$/.exec(lower)
       if (m && cache.last && fieldOf('price')) {
         const op = m[1] === 'above' || m[1] === 'over' ? 'gt' : 'lt'
@@ -653,6 +671,7 @@ export function registerScreenerCapabilities() {
       return null
     },
     async answer(_snap, args, host) {
+      try { await metaWithin() } catch { return META_UNAVAILABLE }
       let b
       try { b = await specFor(args, host) } catch (e) { return `I didn't run it: ${e?.message || 'the Screener could not be read'}.` }
       if (b.error) return `I didn't run it: ${b.error}.`
@@ -662,6 +681,21 @@ export function registerScreenerCapabilities() {
   })
 
   // ── screener.runSaved ──
+  // `screen` is a saved-screen id, or (F-SAT-3, before the list had loaded) `BY_NAME + <the member's words>`,
+  // resolved here with the same rules the fast path uses: an exact name, else ONE clear fuzzy match.
+  const resolveSaved = (lib, screen) => {
+    const all = [...lib.saved, ...lib.starters]
+    const key = String(screen)
+    if (!key.startsWith(BY_NAME)) return { s: all.find(x => x.id === key) || null }
+    const words = key.slice(BY_NAME.length)
+    const exact = all.filter(x => norm(x.name) === norm(words) || norm(x.name) === norm(`${words} screen`))
+    if (exact.length === 1) return { s: exact[0] }
+    const f = exact.length ? { kind: 'none' } : matchName(words, all.map(x => x.name))
+    const one = f.kind === 'fuzzy' ? all.filter(x => x.name === f.name) : []
+    if (one.length === 1) return { s: one[0] }
+    const names = all.map(x => x.name)
+    return { s: null, why: `I couldn't find one saved screen called “${words}”${names.length ? ` (your screens: ${names.slice(0, 12).join(', ')})` : ''}` }
+  }
   registerCapability({
     name: 'screener.runSaved',
     target: 'screener', query: true, surfaces: ['charts'],
@@ -671,19 +705,24 @@ export function registerScreenerCapabilities() {
     args: { type: 'object', properties: { screen: { type: 'string' }, show: { type: ['integer', 'null'] }, as: { type: ['string', 'null'] }, }, required: ['screen', 'show', 'as'], additionalProperties: false },
     produces: SYMBOLS,
     describeProduce({ screen }) {
-      const s = cache.saved && [...cache.saved.saved, ...cache.saved.starters].find(x => x.id === String(screen))
-      return `Run your screen ${s ? `“${s.name}”` : String(screen)} — fresh when you apply`
+      const s = cache.saved && resolveSaved(cache.saved, screen).s
+      const label = s ? `“${s.name}”` : String(screen).startsWith(BY_NAME) ? `“${String(screen).slice(BY_NAME.length)}”` : String(screen)
+      return `Run your screen ${label} — fresh when you apply`
     },
     async produce({ screen }) {
       await loadMeta()
       const lib = await loadSaved()
-      const s = [...lib.saved, ...lib.starters].find(x => x.id === String(screen))
-      if (!s) throw new Error("that saved screen isn't there any more")
+      const { s, why } = resolveSaved(lib, screen)
+      if (!s) throw new Error(why || "that saved screen isn't there any more")
       return produceSymbols({ filters: s.spec?.filters || [], sort: s.spec?.sort || null, rank: s.spec?.rank || null, logic: s.spec?.logic || null }, { name: s.name, savedId: s.kind === 'yours' ? s.id : null })
     },
     fast: ({ raw }) => {
       const m = /^(?:run|open|show(?: me)?|load) (?:my |the )?(.+?)(?: screen| scan)?[.!]?$/i.exec(String(raw).trim())
-      if (!m || !cache.saved) return null
+      if (!m) return null
+      // ⭐ SAT-1 F-SAT-3: the saved list is still loading. Only an EXPLICIT "… screen"/"… scan" is claimed
+      // (so "show me AAPL" is never mistaken for a screen), carried by NAME and resolved in answer()/produce()
+      // against the member's own list exactly as below; no match or a tie is a sentence, never a model call.
+      if (!cache.saved) return /\s(?:screen|scan)[.!]?$/i.test(String(raw).trim()) ? { screen: `${BY_NAME}${m[1]}`, show: null, as: null } : null
       const all = [...cache.saved.saved, ...cache.saved.starters]
       const hits = all.filter(s => norm(s.name) === norm(m[1]) || norm(s.name) === norm(`${m[1]} screen`))
       if (hits.length) return hits.length === 1 ? { screen: hits[0].id, show: null, as: null } : null
@@ -694,10 +733,11 @@ export function registerScreenerCapabilities() {
       return one.length === 1 ? { screen: one[0].id, show: null, as: null } : null
     },
     async answer(_snap, { screen, show }) {
-      await loadMeta()
-      const lib = await loadSaved()
-      const s = [...lib.saved, ...lib.starters].find(x => x.id === String(screen))
-      if (!s) return "I couldn't find that saved screen."
+      try { await metaWithin() } catch { return META_UNAVAILABLE }
+      let lib
+      try { lib = await loadSaved() } catch (e) { return `I couldn't run it: ${e?.message || 'your screens could not be read'}.` }
+      const { s, why } = resolveSaved(lib, screen)
+      if (!s) return why ? `${why}.` : "I couldn't find that saved screen."
       const sspec = { filters: s.spec?.filters || [], sort: s.spec?.sort || null, rank: s.spec?.rank || null, logic: s.spec?.logic || null }
       // the member's OWN screen is run by id (the server resolves it among THEIR screens only); a starter by its spec
       if (usesGateway(sspec)) return runViaGateway(sspec, { show: show || SHOW_DEFAULT, name: s.name, savedId: s.kind === 'yours' ? s.id : null })
