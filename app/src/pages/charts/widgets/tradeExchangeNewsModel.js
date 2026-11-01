@@ -86,6 +86,61 @@ export function matchesQuery(item, query) {
   return (item.tickers || []).some((t) => String(t).toLowerCase() === q.replace(/^\$/, ''))
 }
 
+/** What a search highlights, by the SAME rule as matchesQuery: the whole query as one
+ *  phrase (News search is a phrase, not separate words), case-insensitive; a `$SYM`
+ *  query highlights the symbol's letters. -> lower-cased needles ([] when no search). */
+export function searchNeedles(query) {
+  const q = String(query || '').trim().toLowerCase().slice(0, 80)
+  if (!q) return []
+  const bare = q.startsWith('$') ? q.slice(1) : q
+  return [...new Set([q, bare].filter(Boolean))]
+}
+
+/** `text` cut into runs, `hit` on EVERY occurrence of any needle (overlaps merged),
+ *  original capitals kept -- the UCT Agent's highlightRuns (agent/chatSearch.js), over
+ *  News's own needles. Pure text in, pure text out: nothing is parsed as markup. */
+export function highlightRuns(text, needles) {
+  return runsIn(String(text ?? ''), hitRanges(text, needles), 0)
+}
+
+/** Every hit of the needles in `text` as merged [start, end) ranges (case-insensitive). */
+export function hitRanges(text, needles) {
+  const s = String(text ?? '')
+  if (!needles?.length || !s) return []
+  const low = s.toLowerCase()
+  const ranges = []
+  for (const t of needles) {
+    if (!t) continue
+    for (let i = low.indexOf(t); i !== -1; i = low.indexOf(t, i + t.length)) ranges.push([i, i + t.length])
+  }
+  ranges.sort((a, b) => a[0] - b[0])
+  const merged = []
+  for (const r of ranges) {
+    const last = merged[merged.length - 1]
+    if (last && r[0] <= last[1]) last[1] = Math.max(last[1], r[1])
+    else merged.push([...r])
+  }
+  return merged
+}
+
+/** One piece of a headline (`text`, starting at `offset` in the whole) cut by the whole
+ *  headline's hit ranges -- so a phrase that runs across a ticker link is marked in both. */
+export function runsIn(text, ranges, offset = 0) {
+  const s = String(text ?? '')
+  const runs = []
+  let at = 0
+  for (const [a0, b0] of ranges || []) {
+    const a = Math.max(a0 - offset, 0)
+    const b = Math.min(b0 - offset, s.length)
+    if (b <= 0 || a >= s.length || b <= a) continue
+    if (a > at) runs.push({ text: s.slice(at, a), hit: false })
+    runs.push({ text: s.slice(a, b), hit: true })
+    at = b
+  }
+  if (at < s.length || !runs.length) runs.push({ text: s.slice(at), hit: false })
+  return runs
+}
+
 /** The server classifier's categories (api/services/trade_exchange_news/categories.py
  *  CATEGORIES), in toolbar order. The widget filters on `item.category`; it never
  *  classifies anything itself. */
@@ -476,7 +531,7 @@ export function mergeDay(serverRows, poolMatches, { dateKey, hasNewer = false, h
   const top = rows[0]
   const bottom = rows[rows.length - 1]
   for (const it of poolMatches || []) {
-    if (etDateKey(it.received_at_ms) !== dateKey) continue
+    if (dateKey && etDateKey(it.received_at_ms) !== dateKey) continue     // no dateKey: All history
     if (hasNewer && top && dayCmp(it, top) < 0) continue             // newer than what is loaded, with a gap between
     if (hasOlder && bottom && dayCmp(it, bottom) > 0) continue       // older than what is loaded, with a gap between
     bySeq.set(it.seq, it)
