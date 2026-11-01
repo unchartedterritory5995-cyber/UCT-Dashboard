@@ -9,7 +9,7 @@
       "params_echo": {},
       "status": "ok",
       "freshness": "periodic",
-      "as_of": "2026-10-30T19:45:00Z",
+      "as_of": "2026-10-28T14:12:09Z",
       "fetched_at": "2026-10-30T19:59:45Z",
       "delay_s": null,
       "stale": false,
@@ -23,7 +23,7 @@
       "data": {
         "screens": [
           {
-            "id": "fx_saved_1",
+            "id": 101,
             "name": "Fixture leaders",
             "spec": {
               "filters": [
@@ -40,57 +40,12 @@
               ],
               "sort": "rs_rank",
               "limit": 50
-            }
+            },
+            "runnable": true
           }
         ]
       },
       "notes": [],
-      "provider_calls": 0
-    },
-    "stale": {
-      "contract": "MD-1.0",
-      "kind": "screen.saved",
-      "params_echo": {},
-      "status": "ok",
-      "freshness": "periodic",
-      "as_of": "2026-10-28T20:00:00Z",
-      "fetched_at": "2026-10-30T19:59:45Z",
-      "delay_s": null,
-      "stale": true,
-      "source": "uct-screener",
-      "coverage": {
-        "evaluated": 1,
-        "answered": 1,
-        "dropped": 0,
-        "not_computable": 0
-      },
-      "data": {
-        "screens": [
-          {
-            "id": "fx_saved_1",
-            "name": "Fixture leaders",
-            "spec": {
-              "filters": [
-                {
-                  "key": "rs_rank",
-                  "op": ">=",
-                  "value": 90
-                },
-                {
-                  "key": "adr_pct",
-                  "op": ">=",
-                  "value": 4
-                }
-              ],
-              "sort": "rs_rank",
-              "limit": 50
-            }
-          }
-        ]
-      },
-      "notes": [
-        "older than this kind's freshness budget; say how old"
-      ],
       "provider_calls": 0
     },
     "market-closed": {
@@ -99,7 +54,7 @@
       "params_echo": {},
       "status": "ok",
       "freshness": "periodic",
-      "as_of": "2026-10-30T20:00:00Z",
+      "as_of": "2026-10-28T14:12:09Z",
       "fetched_at": "2026-10-31T14:00:00Z",
       "delay_s": null,
       "stale": false,
@@ -113,7 +68,7 @@
       "data": {
         "screens": [
           {
-            "id": "fx_saved_1",
+            "id": 101,
             "name": "Fixture leaders",
             "spec": {
               "filters": [
@@ -130,13 +85,12 @@
               ],
               "sort": "rs_rank",
               "limit": 50
-            }
+            },
+            "runnable": true
           }
         ]
       },
-      "notes": [
-        "market closed — last session's close"
-      ],
+      "notes": [],
       "provider_calls": 0
     },
     "unavailable": {
@@ -172,6 +126,62 @@
       "data": null,
       "notes": [
         "this turn already made 8 data reads"
+      ],
+      "provider_calls": 0
+    },
+    "partial": {
+      "contract": "MD-1.0",
+      "kind": "screen.saved",
+      "params_echo": {},
+      "status": "partial",
+      "freshness": "periodic",
+      "as_of": "2026-10-28T14:12:09Z",
+      "fetched_at": "2026-10-30T19:59:45Z",
+      "delay_s": null,
+      "stale": false,
+      "source": "uct-screener",
+      "coverage": {
+        "evaluated": 2,
+        "answered": 1,
+        "dropped": 0,
+        "not_computable": 1
+      },
+      "data": {
+        "screens": [
+          {
+            "id": 101,
+            "name": "Fixture leaders",
+            "spec": {
+              "filters": [
+                {
+                  "key": "rs_rank",
+                  "op": ">=",
+                  "value": 90
+                },
+                {
+                  "key": "adr_pct",
+                  "op": ">=",
+                  "value": 4
+                }
+              ],
+              "sort": "rs_rank",
+              "limit": 50
+            },
+            "runnable": true
+          },
+          {
+            "id": 102,
+            "name": "Fixture indicator screen",
+            "spec": {
+              "filters": []
+            },
+            "runnable": false,
+            "reason": "this screen uses an indicator condition the Agent cannot run yet"
+          }
+        ]
+      },
+      "notes": [
+        "1 of your screens can't be run by the Agent yet; each says why."
       ],
       "provider_calls": 0
     }

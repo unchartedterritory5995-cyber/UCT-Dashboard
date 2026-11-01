@@ -42,6 +42,35 @@ Only agent-qa edits this file. Update it in every PR.
   holiday (`regular` label, non-trading day) → historical with only the closed note, which is correct.
   Rows carry no `last_source` yet (v1.1 rule d).
 
+- **F-4 — CLOSED** on agent/int c3a090e26f; the probe passes 79/79. Zero matches are ok, dated by the screen's
+  universe (the 10-30 close), stale false, with a note beginning "No names matched". `as_of` moves with the data:
+  a 10-28 universe gives the 10-28 close. An empty universe gives `as_of: null` with a note and stale false.
+  The 69 earlier checks still pass.
+- **F-6 (agent-md): `tests/test_uct_agent_data_quotes.py:22` sets `NOW = time.time()` at IMPORT (since #569, on
+  agent/int).** Tests compare vendor stamps against it under the 60 s budget (e.g. `observed=NOW - 40` must not
+  be stale), so they flip once the suite has run ~20 s past the import. This is the same defect that holds #579
+  (its line 22 too).
+  Fix: take the clock in a fixture, or pin `quotes.time`.
+  Railed by `tests/test_uct_agent_qa_clock.py`: an AST scan of every `tests/test_uct_agent*.py`, with a STRICT
+  KNOWN entry for this line. A new offender reds the rail, and so does fixing this line without removing the entry.
+- **#578 probe (post-merge) — 19/19 pass.**
+  - Own screens only; never another member's, even a public one.
+  - Unrunnable screens are listed `runnable:false` with a reason, and the read is partial.
+  - Coverage counts screens.
+  - Another member's `saved_id` is refused with the SAME note as a nonexistent id (no existence oracle), with no
+    name or spec leaked, and spends the turn's scan.
+  - `text` with the criteria language off is refused with the screener's sentence.
+  - A two-source precheck refusal spends nothing; `screen.saved` spends the scan.
+  - Dark under all three flag combinations.
+  - Low: when a member has >100 screens, coverage counts the 100 listed. The note says so; consider
+    `evaluated` = all screens.
+- **#579 probe (held; agent-md, MD-1 v1.1 quotes) — 12/12 scenarios pass** against agent-qa's v1.1 predicate on a
+  pinned clock with the product's real calendar: regular fresh/stale; pre-market at 10 min → live with the
+  extended note; post-market at 40 min → historical with the closed note; the 900 s/901 s boundary; overnight;
+  Saturday; Thanksgiving; the 11-27 half-day after 13:00 → extended; one prev_close row → partial with its stamp
+  excluded; all prev_close in session → historical with NOTE_NO_TRADES. Its only defect is the F-6 pattern in
+  its test file. When it merges, #572's fixtures regenerate to its wording and session labels.
+
 ## Blockers
 - (none)
 
@@ -56,6 +85,10 @@ Only agent-qa edits this file. Update it in every PR.
   (`quote_semantics_errors`) with controls showing it can fail. Other MD-1 kinds keep provisional `data` shapes.
 
 ## Verdicts on `agent/int`
+- **c3a090e26f — GREEN** (#570 screen.run/count with the F-4 fix + precheck, #578 screen.saved + saved_id/text).
+  No non-QA diff. Agent pytest under the lock: 1002 passed (agent-lead's 790 + agent-qa's 212).
+  Agent vitest: 113 files passed, 5 skipped; 1966 passed, 6 skipped.
+  The new clock rail (`test_uct_agent_qa_clock.py`, 16) lands in #572 on top of these counts.
 - **862b0fa5ed — GREEN** (#569 quote/quotes, #571 gateway test, #575 pre-admission validate, #576 bars.daily).
   The tree was agent/int plus QA-only files: no non-QA diff, checked with `git diff --name-only`.
   Agent pytest under the lock: 938 passed (agent-lead's 730 + agent-qa's 208).

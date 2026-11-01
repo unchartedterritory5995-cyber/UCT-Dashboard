@@ -26,7 +26,7 @@
       },
       "status": "ok",
       "freshness": "periodic",
-      "as_of": "2026-10-30T19:45:00Z",
+      "as_of": "2026-10-29T20:00:00Z",
       "fetched_at": "2026-10-30T19:59:45Z",
       "delay_s": null,
       "stale": false,
@@ -66,9 +66,19 @@
             "adr_pct": 4.1
           }
         ],
-        "total_matches": 2
+        "total_matches": 2,
+        "fields": [
+          "rs_rank",
+          "adr_pct"
+        ],
+        "excluded": [],
+        "origin": {
+          "source": "spec"
+        }
       },
-      "notes": [],
+      "notes": [
+        "Screener snapshot — values as of the 2026-10-29 close (nightly), not live."
+      ],
       "provider_calls": 0
     },
     "stale": {
@@ -94,7 +104,7 @@
       },
       "status": "ok",
       "freshness": "periodic",
-      "as_of": "2026-10-28T20:00:00Z",
+      "as_of": "2026-10-27T20:00:00Z",
       "fetched_at": "2026-10-30T19:59:45Z",
       "delay_s": null,
       "stale": true,
@@ -134,10 +144,19 @@
             "adr_pct": 4.1
           }
         ],
-        "total_matches": 2
+        "total_matches": 2,
+        "fields": [
+          "rs_rank",
+          "adr_pct"
+        ],
+        "excluded": [],
+        "origin": {
+          "source": "spec"
+        }
       },
       "notes": [
-        "older than this kind's freshness budget; say how old"
+        "Screener snapshot — values as of the 2026-10-27 close (nightly), not live.",
+        "This snapshot is 2 sessions behind the last close."
       ],
       "provider_calls": 0
     },
@@ -204,10 +223,18 @@
             "adr_pct": 4.1
           }
         ],
-        "total_matches": 2
+        "total_matches": 2,
+        "fields": [
+          "rs_rank",
+          "adr_pct"
+        ],
+        "excluded": [],
+        "origin": {
+          "source": "spec"
+        }
       },
       "notes": [
-        "market closed — last session's close"
+        "Screener snapshot — values as of the 2026-10-30 close (nightly), not live."
       ],
       "provider_calls": 0
     },
@@ -304,7 +331,7 @@
       },
       "status": "partial",
       "freshness": "periodic",
-      "as_of": "2026-10-30T19:45:00Z",
+      "as_of": "2026-10-29T20:00:00Z",
       "fetched_at": "2026-10-30T19:59:45Z",
       "delay_s": null,
       "stale": false,
@@ -344,10 +371,93 @@
             "adr_pct": 4.1
           }
         ],
-        "total_matches": 2
+        "total_matches": 2,
+        "fields": [
+          "rs_rank",
+          "adr_pct"
+        ],
+        "excluded": [
+          {
+            "symbol": "ZZZQ",
+            "reason": "stopped_bars",
+            "detail": "price history ends 2026-09-01"
+          }
+        ],
+        "origin": {
+          "source": "spec"
+        }
       },
       "notes": [
-        "40 symbols dropped and 120 not computable; see coverage"
+        "Screener snapshot — values as of the 2026-10-29 close (nightly), not live.",
+        "40 names were excluded because their own price history stopped.",
+        "120 names could not be decided: a value this screen needs is missing."
+      ],
+      "provider_calls": 0
+    },
+    "no-matches": {
+      "contract": "MD-1.0",
+      "kind": "screen.run",
+      "params_echo": {
+        "spec": {
+          "filters": [
+            {
+              "key": "rs_rank",
+              "op": ">=",
+              "value": 90
+            },
+            {
+              "key": "adr_pct",
+              "op": ">=",
+              "value": 4
+            }
+          ],
+          "sort": "rs_rank",
+          "limit": 50
+        }
+      },
+      "status": "ok",
+      "freshness": "periodic",
+      "as_of": "2026-10-29T20:00:00Z",
+      "fetched_at": "2026-10-30T19:59:45Z",
+      "delay_s": null,
+      "stale": false,
+      "source": "uct-screener",
+      "coverage": {
+        "evaluated": 3700,
+        "answered": 3700,
+        "dropped": 0,
+        "not_computable": 0
+      },
+      "data": {
+        "spec": {
+          "filters": [
+            {
+              "key": "rs_rank",
+              "op": ">=",
+              "value": 90
+            },
+            {
+              "key": "adr_pct",
+              "op": ">=",
+              "value": 4
+            }
+          ],
+          "sort": "rs_rank",
+          "limit": 50
+        },
+        "rows": [],
+        "total_matches": 0,
+        "fields": [
+          "rs_rank",
+          "adr_pct"
+        ],
+        "excluded": [],
+        "origin": {
+          "source": "spec"
+        }
+      },
+      "notes": [
+        "No names matched. Screener snapshot as of the 2026-10-29 close (nightly), not live."
       ],
       "provider_calls": 0
     }

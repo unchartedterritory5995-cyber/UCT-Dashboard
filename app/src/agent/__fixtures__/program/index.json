@@ -18,7 +18,8 @@
     "extended-live",
     "extended-closed",
     "holiday",
-    "no-current-trade"
+    "no-current-trade",
+    "no-matches"
   ],
   "kinds": {
     "quote": {
@@ -213,7 +214,8 @@
         "market-closed",
         "unavailable",
         "refused",
-        "partial"
+        "partial",
+        "no-matches"
       ],
       "file": "envelopes/screen.run.json"
     },
@@ -228,7 +230,8 @@
         "market-closed",
         "unavailable",
         "refused",
-        "partial"
+        "partial",
+        "no-matches"
       ],
       "file": "envelopes/screen.count.json"
     },
@@ -239,10 +242,10 @@
       "default_case": "periodic",
       "cases": [
         "periodic",
-        "stale",
         "market-closed",
         "unavailable",
-        "refused"
+        "refused",
+        "partial"
       ],
       "file": "envelopes/screen.saved.json"
     }

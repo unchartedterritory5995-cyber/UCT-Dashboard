@@ -59,7 +59,7 @@ ENVELOPE_DIR = FIXTURE_DIR / "envelopes"
 FIXTURE_VERSION = 1
 
 CASES = ("live", "delayed", "periodic", "historical", "stale", "market-closed", "unavailable", "refused", "partial",
-         "no-source-time", "extended-live", "extended-closed", "holiday", "no-current-trade")
+         "no-source-time", "extended-live", "extended-closed", "holiday", "no-current-trade", "no-matches")
 
 # ── quote semantics, MD-1 v1.1 as agreed by agent-lead + agent-md for PR 1b (2026-11-01) ───────────
 #: the quote kinds' extended-hours window: live only while the OLDEST vendor stamp is at most this old
@@ -175,7 +175,7 @@ def _scan_coverage(kind: str, case: str) -> Optional[dict]:
 
 
 #: kinds whose fixtures mirror a merged producer on agent/int (field names, notes, coverage), not a guess
-DOCUMENTED = ("quote", "quotes", "bars.daily")
+DOCUMENTED = ("quote", "quotes", "bars.daily", "screen.run", "screen.count", "screen.saved")
 
 
 def cases_for(kind: str) -> tuple[str, ...]:
@@ -186,6 +186,10 @@ def cases_for(kind: str) -> tuple[str, ...]:
         return tuple(c for c in CASES if c in out)
     if kind == "bars.daily":
         return ("historical", "stale", "market-closed", "unavailable", "refused", "partial")
+    if kind in ("screen.run", "screen.count"):
+        return ("periodic", "stale", "market-closed", "unavailable", "refused", "partial", "no-matches")
+    if kind == "screen.saved":
+        return ("periodic", "market-closed", "unavailable", "refused", "partial")
     out = ["stale", "market-closed", "unavailable", "refused"]
     if declared == "live":
         out[:0] = ["live", "delayed"]
@@ -297,8 +301,56 @@ def _build_bars_daily(case: str) -> dict:
     return e
 
 
+def _build_scan(kind: str, case: str) -> dict:
+    """screen.run / screen.count / screen.saved, mirroring the merged #570/#578 adapters (SC-1 §2a/§2b)."""
+    fetched = FETCH_CLOSED if case == "market-closed" else FETCH_SESSION
+    if kind == "screen.saved":
+        spec = copy.deepcopy(_SPEC)
+        screens = [{"id": 101, "name": "Fixture leaders", "spec": spec, "runnable": True}]
+        notes = []
+        if case == "partial":
+            screens.append({"id": 102, "name": "Fixture indicator screen", "spec": {"filters": []}, "runnable": False,
+                            "reason": "this screen uses an indicator condition the Agent cannot run yet"})
+            notes.append("1 of your screens can't be run by the Agent yet; each says why.")
+        n, ok = len(screens), sum(1 for x in screens if x["runnable"])
+        e = env.make_envelope(kind, {}, status="ok" if n == ok else "partial", freshness="periodic",
+                              as_of="2026-10-28T14:12:09Z", source="uct-screener", data={"screens": screens},
+                              coverage=_coverage(n, ok, not_computable=n - ok), notes=notes, provider_calls=0)
+        e["fetched_at"] = fetched
+        return e
+    params = {"spec": copy.deepcopy(_SPEC)}
+    day = {"stale": "2026-10-27", "market-closed": "2026-10-30"}.get(case, "2026-10-29")
+    stale = case == "stale"
+    notes = [("No names matched. Screener snapshot as of the " if case == "no-matches" else
+              "Screener snapshot — values as of the ") + f"{day} close (nightly), not live."]
+    if stale:
+        notes.append("This snapshot is 2 sessions behind the last close.")
+    rows = [{"symbol": "NVDA", "rs_rank": 97, "adr_pct": 4.6}, {"symbol": "AVGO", "rs_rank": 93, "adr_pct": 4.1}]
+    excluded, cov = [], _coverage(3700, 3700)
+    if case == "no-matches":
+        rows = []
+    if case == "partial":
+        cov = _coverage(3700, 3540, dropped=40, not_computable=120)
+        excluded = [{"symbol": "ZZZQ", "reason": "stopped_bars", "detail": "price history ends 2026-09-01"}]
+        notes += ["40 names were excluded because their own price history stopped.",
+                  "120 names could not be decided: a value this screen needs is missing."]
+    origin = {"source": "spec"}
+    if kind == "screen.run":
+        data = {"spec": params["spec"], "rows": rows, "total_matches": len(rows), "fields": ["rs_rank", "adr_pct"],
+                "excluded": excluded, "origin": origin}
+    else:
+        data = {"spec": params["spec"], "count": len(rows), "excluded": excluded, "origin": origin}
+    e = env.make_envelope(kind, params, status="partial" if case == "partial" else "ok", freshness="periodic",
+                          as_of=f"{day}T20:00:00Z", source="uct-screener", data=data, stale=stale, coverage=cov,
+                          notes=notes, provider_calls=0)
+    e["fetched_at"] = fetched
+    return e
+
+
 def _build(kind: str, case: str) -> dict:
     meta = KINDS[kind]
+    if KINDS[kind]["category"] == "scan" and case not in ("refused", "unavailable"):
+        return _build_scan(kind, case)
     params = _params(kind)
     if kind in ("quote", "quotes") and case not in ("refused", "unavailable"):
         return _build_quote(kind, case)
@@ -469,7 +521,9 @@ def test_every_contract_kind_has_fixtures_and_the_cases_the_brief_requires():
     covered = {c for _, c in _ALL}
     assert covered == set(CASES), f"no kind exercises {set(CASES) - covered}"
     for k in KINDS:
-        assert {"stale", "market-closed", "unavailable", "refused"} <= set(cases_for(k)), k
+        # screen.saved lists the member's own definitions: it has no freshness budget, so no stale case
+        need = {"market-closed", "unavailable", "refused"} | (set() if k == "screen.saved" else {"stale"})
+        assert need <= set(cases_for(k)), k
 
 
 @pytest.mark.parametrize("kind,case", _ALL)
@@ -494,7 +548,8 @@ def test_case_semantics():
         if case == "stale":
             assert e["stale"] is True
         if case in ("market-closed", "holiday"):
-            assert e["freshness"] != "live" and e["notes"], (kind, case)
+            assert e["freshness"] != "live", (kind, case)
+            assert e["notes"] or kind == "screen.saved", (kind, case)   # a definition list needs no session note
         if case in ("unavailable", "refused"):
             assert e["status"] == case and e["data"] is None and e["freshness"] == "unavailable"
         if case == "partial":
@@ -515,9 +570,12 @@ def test_scan_fixtures_carry_closing_coverage_and_sc1_data():
             assert set(c) == {"evaluated", "answered", "dropped", "not_computable"}, (kind, case)
             assert c["evaluated"] == c["answered"] + c["dropped"] + c["not_computable"], (kind, case)
     run = load_fixture("screen.run")["data"]
-    assert set(run) == {"spec", "rows", "total_matches"} and len(run["rows"]) <= 50
-    assert set(load_fixture("screen.count")["data"]) == {"spec", "count"}
-    assert set(load_fixture("screen.saved")["data"]["screens"][0]) == {"id", "name", "spec"}
+    assert set(run) == {"spec", "rows", "total_matches", "fields", "excluded", "origin"} and len(run["rows"]) <= 50
+    assert set(load_fixture("screen.count")["data"]) == {"spec", "count", "excluded", "origin"}
+    assert set(load_fixture("screen.saved")["data"]["screens"][0]) == {"id", "name", "spec", "runnable"}
+    for kind in ("screen.run", "screen.count"):                 # F-4 regression: zero matches stay dated, not stale
+        z = load_fixture(kind, "no-matches")
+        assert z["status"] == "ok" and z["as_of"] and z["stale"] is False and z["notes"][0].startswith("No names matched")
 
 
 def test_a_fixture_never_carries_a_secret_a_url_or_a_raw_payload():
