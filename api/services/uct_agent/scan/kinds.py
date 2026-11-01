@@ -10,13 +10,13 @@ from __future__ import annotations
 def register(registry) -> None:
     from api.services.uct_agent.marketdata.gateway import Kind
     from api.services.uct_agent.scan import screen
-    from api.services.uct_agent.scan import spec
+    from api.services.uct_agent.scan import sources
 
     registry.register(Kind(
-        name="screen.run", fn=screen.run, freshness="periodic", category="scan", owner="agent-sc", validate=spec.precheck,
+        name="screen.run", fn=screen.run, freshness="periodic", category="scan", owner="agent-sc", validate=sources.precheck,
         description="Run a screener spec: up to 50 rows (symbol + requested fields), total matches, coverage."))
     registry.register(Kind(
-        name="screen.count", fn=screen.count, freshness="periodic", category="scan", owner="agent-sc", validate=spec.precheck,
+        name="screen.count", fn=screen.count, freshness="periodic", category="scan", owner="agent-sc", validate=sources.precheck,
         description="How many rows a screener spec matches, with its coverage receipt."))
     registry.register(Kind(
         name="screen.saved", fn=screen.saved, freshness="periodic", category="scan", owner="agent-sc",

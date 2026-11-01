@@ -165,3 +165,17 @@ def test_no_model_compile_path_is_reachable():
     tree = ast.parse(inspect.getsource(sources))
     called = {n.func.attr for n in ast.walk(tree) if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)}
     assert "compile_english" not in called and "nl_compile" not in inspect.getsource(sources).split('"""')[-1]
+
+
+# ── the pre-admission hook ──────────────────────────────────────────────────────────────────────
+
+@pytest.mark.parametrize("bad", [{}, {"saved_id": "abc"}, {"text": ""}, {"text": "x" * 601},
+                                 {"spec": {"filters": [{"key": "nope"}]}}, {"spec": RS, "text": "price > 1"}])
+def test_structural_refusals_spend_nothing(world, bad):
+    assert _read("screen.run", bad, "pre")["status"] == "refused"
+    assert _read("screen.run", {"saved_id": world["mine"]}, "pre")["status"] in ("ok", "partial")
+
+
+def test_another_members_id_is_an_attempt_and_spends_the_scan(world):
+    assert _read("screen.run", {"saved_id": world["theirs"]}, "att")["status"] == "refused"
+    assert _read("screen.run", {"saved_id": world["mine"]}, "att")["status"] == "refused"

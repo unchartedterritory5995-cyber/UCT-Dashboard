@@ -44,14 +44,44 @@ def read_saved(user_id: Any, screen_id: Optional[int] = None):
         raise
 
 
+def _which(params: dict) -> str:
+    given = [k for k in _SOURCES if params.get(k) not in (None, "")]
+    if len(given) != 1:
+        raise scan_spec.SpecError("give exactly one of a screener spec, a saved screen id, or criteria text")
+    return given[0]
+
+
+def precheck(params: Any) -> Optional[str]:
+    """The gateway's pre-admission hook (`Kind.validate`), so a refusal here spends nothing. It checks
+    only what needs no member data: one source, a hand-written spec against the field catalog, a numeric
+    id, and the text bounds. Whether a saved id is THIS member's, and whether the text parses, are known
+    only after admission, so those attempts spend the scan."""
+    p = params if isinstance(params, dict) else {}
+    try:
+        src = _which(p)
+        if src == "spec":
+            scan_spec.validate(p["spec"])
+        elif src == "saved_id":
+            try:
+                int(p["saved_id"])
+            except (TypeError, ValueError):
+                raise scan_spec.SpecError("a saved screen id is a number") from None
+        else:
+            t = p["text"]
+            if not isinstance(t, str) or not t.strip():
+                raise scan_spec.SpecError("criteria text is required")
+            if len(t) > MAX_TEXT:
+                raise scan_spec.SpecError(f"criteria text is at most {MAX_TEXT} characters")
+    except scan_spec.SpecError as e:
+        return str(e)
+    return None
+
+
 def resolve(params: dict, user_id: Any) -> tuple[dict, dict]:
     """(validated spec, provenance) or SpecError. Provenance says where the spec came from, so the member
     sees it: `{"source": "spec"}`, `{"source": "saved", "id", "name"}` or `{"source": "text", "text",
     "explanation"}`."""
-    given = [k for k in _SOURCES if params.get(k) not in (None, "")]
-    if len(given) != 1:
-        raise scan_spec.SpecError("give exactly one of a screener spec, a saved screen id, or criteria text")
-    src = given[0]
+    src = _which(params)
     if src == "spec":
         return scan_spec.validate(params["spec"]), {"source": "spec"}
 
