@@ -145,13 +145,29 @@ def test_a_symbol_the_store_does_not_hold_is_unavailable_and_never_fetched(monke
     assert out["status"] == "unavailable" and out["provider_calls"] == 0 and "ZZZZ" in out["notes"][0]
 
 
-@pytest.mark.parametrize("params", [{}, {"symbol": "bad sym"}, {"symbol": "AAPL", "bars": 0},
-                                    {"symbol": "AAPL", "bars": "10"}, {"symbol": "AAPL", "to": "11/27/2025"},
-                                    {"symbol": "AAPL", "to": "2025-02-30"}])
-def test_bad_params_are_unavailable_without_a_store_read(monkeypatch, params):
+BAD = [{}, {"symbol": "bad sym"}, {"symbol": "AAPL", "bars": 0}, {"symbol": "AAPL", "bars": "10"},
+       {"symbol": "AAPL", "bars": True}, {"symbol": "AAPL", "to": "11/27/2025"}, {"symbol": "AAPL", "to": "2025-02-30"}]
+
+
+@pytest.mark.parametrize("params", BAD)
+def test_bad_params_are_refused_before_admission_without_a_store_read(monkeypatch, params):
     store = _setup(monkeypatch)
     out = _read(params)
+    assert env.validate_envelope(out) == [] and out["status"] == "refused" and store.calls == []
+
+
+@pytest.mark.parametrize("params", BAD)
+def test_a_direct_adapter_call_cannot_bypass_the_check(monkeypatch, params):
+    store = _setup(monkeypatch)
+    out = bd.read_bars_daily(params, {})
     assert env.validate_envelope(out) == [] and out["status"] == "unavailable" and store.calls == []
+
+
+def test_malformed_requests_spend_no_turn_budget(monkeypatch):
+    _setup(monkeypatch)
+    for _ in range(gw.MAX_READS_PER_TURN + 2):
+        assert _read({"symbol": "AAPL", "bars": -1}, turn="same")["status"] == "refused"
+    assert _read({"symbol": "AAPL", "bars": 3}, turn="same")["status"] == "ok"
 
 
 def test_dark_when_the_flag_is_off(monkeypatch):

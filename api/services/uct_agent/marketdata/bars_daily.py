@@ -74,25 +74,36 @@ def _num(v: Any) -> Optional[float]:
     return float(v) if isinstance(v, (int, float)) and not isinstance(v, bool) else None
 
 
-def read_bars_daily(params: dict, ctx: dict) -> dict:  # noqa: ARG001 — no per-user state
-    kind = "bars.daily"
+def validate(params: dict) -> Optional[str]:
+    """Pure parameter check, run by the gateway BEFORE admission (Kind.validate), so a malformed request
+    is refused and spends no read or provider budget. Returns the reason, or None when the request is
+    well-formed. The adapter asks it again, so a direct call cannot bypass it."""
     sym = str(params.get("symbol") or "").strip().upper()
     if not _SYMBOL_RE.match(sym):
-        return env.unavailable(kind, params, SOURCE, "a valid ticker symbol is required")
+        return "a valid ticker symbol is required"
     n = params.get("bars", DEFAULT_BARS)
     if not isinstance(n, int) or isinstance(n, bool) or n < 1:
-        return env.unavailable(kind, params, SOURCE, "`bars` must be a positive whole number")
-    n = min(n, MAX_BARS)
+        return "`bars` must be a positive whole number"
     to = params.get("to")
-    cutoff: Optional[int] = None
     if to is not None:
         if not isinstance(to, str) or not _DATE_RE.match(to):
-            return env.unavailable(kind, params, SOURCE, "`to` must be a date like 2026-10-30")
+            return "`to` must be a date like 2026-10-30"
         try:
             datetime.strptime(to, "%Y-%m-%d")
         except ValueError:
-            return env.unavailable(kind, params, SOURCE, "`to` is not a real calendar date")
-        cutoff = _ymd(to)
+            return "`to` is not a real calendar date"
+    return None
+
+
+def read_bars_daily(params: dict, ctx: dict) -> dict:  # noqa: ARG001 — no per-user state
+    kind = "bars.daily"
+    why = validate(params)
+    if why:
+        return env.unavailable(kind, params, SOURCE, why)
+    sym = str(params["symbol"]).strip().upper()
+    n = min(params.get("bars", DEFAULT_BARS), MAX_BARS)
+    to = params.get("to")
+    cutoff: Optional[int] = _ymd(to) if to is not None else None
 
     from api.services import bars_fetch, bars_sanitize, bars_sqlite
     expected = _last_completed_at_or_before(cutoff)
