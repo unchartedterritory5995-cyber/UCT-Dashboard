@@ -153,8 +153,9 @@ describe('⭐⭐ v2:249 clears when the IR lane is told the symbol', () => {
     // ⭐ The skip list moves with the capabilities too, so this asserts the
     // PROPERTY the case is about — every skipped definition named, with its line
     // and its guard — rather than a frozen string.
-    expect(withSym.diagnostics.skippedFunctions.length).toBeGreaterThan(0)
-    for (const entry of withSym.diagnostics.skippedFunctions) {
+    // ⚰️ P3 WS-A — the list can reach EMPTY as capabilities land (tuple-valued `if`
+    // arms compiled its last entry, `f_getVolumeUnit`); only a non-empty list is set.
+    for (const entry of withSym.diagnostics.skippedFunctions || []) {
       expect(entry).toMatch(/^\w+@\d+ [a-z]+:[a-z-]+$/)
     }
   })

@@ -85,14 +85,16 @@ describe('⛔⛔ the text refusal no longer promises what this lane cannot deliv
     // case is really about is that every skipped definition is REPORTED, with
     // its line and the guard it hit, rather than silently dropped; so that is
     // what it asserts, plus a ceiling so the list cannot quietly grow.
-    const named = a.diagnostics.skippedFunctions
-    expect(named.length).toBeGreaterThan(0)
+    // ⚰️ P3 WS-A — the list reached EMPTY: `f_getVolumeUnit@161`, the last entry,
+    // compiles once an `if` chain can yield a tuple (`['B', 1e9]` arms). An empty
+    // list is absent from the diagnostics (only a non-empty one is set).
+    const named = a.diagnostics.skippedFunctions || []
     expect(named.length).toBeLessThanOrEqual(4)
     for (const entry of named) {
       expect(entry, 'every skipped function names its line and its guard')
         .toMatch(/^\w+@\d+ [a-z]+:[a-z-]+$/)
     }
-    expect(b.diagnostics.skippedFunctions.length).toBe(named.length)
+    expect((b.diagnostics.skippedFunctions || []).length).toBe(named.length)
   })
 
   it('⭐ and where BOTH now stop is the same line, named — the R-K symbol seam', () => {
