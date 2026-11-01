@@ -203,7 +203,7 @@ def test_mixed_sessions_are_stale_and_no_session_is_a_null_as_of_with_a_note():
                                                  "oldest_snapshot_date": 20260901})
     assert stale is True and any("oldest 2026-09-01" in n for n in notes)
     as_of, stale, notes = screen._provenance_fields({"snapshot_date": None})
-    assert as_of is None and stale is True and notes
+    assert as_of is None and stale is False and notes     # absent date is said, never read as old
 
 
 def test_rows_the_screener_excludes_for_stopped_bars_are_dropped_in_coverage(on, snap):
@@ -213,6 +213,20 @@ def test_rows_the_screener_excludes_for_stopped_bars_are_dropped_in_coverage(on,
     assert "DEAD" not in [r["symbol"] for r in out["data"]["rows"]]
     assert "DEAD" in [e["symbol"] for e in out["data"]["excluded"]]
     assert any("price history stopped" in n for n in out["notes"])
+
+
+@pytest.mark.parametrize("kind", ["screen.run", "screen.count"])
+def test_zero_matches_is_dated_by_the_universe_and_not_stale(on, snap, kind):
+    # agent-qa F-4: a fresh snapshot with no matches must read "none as of the close", never undated/stale
+    out = _read(kind, {"spec": {"filters": [{"key": "rs_rank", "op": "gte", "min": 1000}]}}, turn=f"z-{kind}")
+    assert env.validate_envelope(out) == []
+    assert out["status"] in ("ok", "partial") and out["coverage"] is not None
+    assert out["as_of"] == "2026-10-30T20:00:00Z" and out["stale"] is False
+    assert any(n.startswith("No names matched") for n in out["notes"])
+    if kind == "screen.run":
+        assert out["data"]["rows"] == [] and out["data"]["total_matches"] == 0
+    else:
+        assert out["data"]["count"] == 0
 
 
 # ── wrap, don't fork ────────────────────────────────────────────────────────────────────────────

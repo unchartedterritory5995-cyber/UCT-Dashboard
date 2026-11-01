@@ -89,11 +89,20 @@ def _bars_provenance(spec: dict, user_id: Any) -> dict:
     """The bars session the matched rows run through: the service's `describe_rows` over the scan's own
     plan, with `bars_asof` as the date column. Read-only, one local connection."""
     from api.services.screener import query, snapshot_db
-    with snapshot_db.connect() as conn:
-        plan = query.build_scan_sql(spec, query._overlay(conn, None), user_id=user_id, conn=conn)
+
+    def _describe(conn, s):
+        plan = query.build_scan_sql(s, query._overlay(conn, None), user_id=user_id, conn=conn)
         return snapshot_db.describe_rows(conn, plan["where"], plan["describe_params"],
                                          from_sql=plan["from_sql"],
                                          date_expr=f'{query._ROWS}."bars_asof"')
+    with snapshot_db.connect() as conn:
+        prov = _describe(conn, spec)
+        if not prov.get("rows"):
+            # Nothing matched: date the screen's UNIVERSE instead (its scope filters only — the same universe
+            # `coverage_for` evaluates), so zero matches reads "none as of the <date> close", not "undated".
+            scope = [f for f in (spec.get("filters") or []) if f.get("key") in query._SCOPE_KEYS]
+            prov = {**_describe(conn, {"filters": scope}), "described": "universe"}
+        return prov
 
 
 def _coverage(spec: dict, user_id: Any) -> tuple[dict, list]:
@@ -116,11 +125,15 @@ def _provenance_fields(prov: dict, now: Optional[dt.datetime] = None) -> tuple[O
     notes: list[str] = []
     day = _ymd(prov.get("snapshot_date"))
     if day is None:
+        # an absent date is reported, never inferred to be old
         notes.append("The screener could not say which session these values run through, so no time is given.")
-        return None, True, notes
+        return None, False, notes
     behind = sessions_behind(day, now)
     stale = behind > 1 or bool(prov.get("mixed"))
-    notes.append(f"Screener snapshot — values as of the {day.isoformat()} close (nightly), not live.")
+    if prov.get("described") == "universe":
+        notes.append(f"No names matched. Screener snapshot as of the {day.isoformat()} close (nightly), not live.")
+    else:
+        notes.append(f"Screener snapshot — values as of the {day.isoformat()} close (nightly), not live.")
     if behind > 1:
         notes.append(f"This snapshot is {behind} sessions behind the last close.")
     if prov.get("mixed"):
