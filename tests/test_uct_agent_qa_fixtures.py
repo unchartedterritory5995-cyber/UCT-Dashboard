@@ -48,7 +48,10 @@ import pytest
 from api.services.uct_agent.marketdata import envelope as env
 from api.services.uct_agent.marketdata import gateway as gw
 # the producer's own note strings (#569) — imported, never retyped, so a wording change regenerates here
+from api.services.uct_agent.marketdata import quotes as _quotes
 from api.services.uct_agent.marketdata.quotes import FRESHNESS_BUDGET_S, NOTE_CLOSED, NOTE_EXTENDED, NOTE_SET_AS_OF
+#: MD-1 v1.1 (#579): a regular-session read with no current trade at all; absent before PR 1b lands
+NOTE_NO_TRADES = getattr(_quotes, "NOTE_NO_TRADES", None)
 
 REPO = Path(__file__).resolve().parents[1]
 FIXTURE_DIR = REPO / "app" / "src" / "agent" / "__fixtures__" / "program"
@@ -543,9 +546,10 @@ def quote_semantics_errors(e: dict) -> list[str]:
     errs: list[str] = []
     d = e["data"] or {}
     rows = [d["quote"]] if "quote" in d else list(d.get("quotes") or [])
-    label = d.get("session")
+    label = {"pre_market": "extended", "post_market": "extended"}.get(d.get("session"), d.get("session"))
     notes = e["notes"]
     closed, extended = NOTE_CLOSED in notes, NOTE_EXTENDED in notes
+    no_trades = NOTE_NO_TRADES is not None and NOTE_NO_TRADES in notes
     if closed and extended:
         errs.append("both the closed and the extended-hours notes (rule b)")
     for r in rows:                                                       # (d)
@@ -571,14 +575,16 @@ def quote_semantics_errors(e: dict) -> list[str]:
                     errs.append("a regular-session read carries the extended-hours note")
                 if e["stale"] != (age > FRESHNESS_BUDGET_S):
                     errs.append(f"stale={e['stale']} but the oldest vendor stamp is {age:.0f}s old (rule a)")
-            elif label in ("pre_market", "post_market"):                 # (b)
+            elif label == "extended":                                    # (b)
                 if age > EXTENDED_LIVE_S:
                     errs.append(f"live in extended hours with a {age:.0f}s-old stamp (rule b: at most {EXTENDED_LIVE_S}s)")
                 if not extended:
                     errs.append("a live extended-hours read without the extended-hours note (rule b)")
     elif e["freshness"] == "historical":                                 # (b) late extended, (c) closed
-        if not closed:
+        if not (closed or (no_trades and label == "regular")):
             errs.append("a historical quote read without the closed note (rule c)")
+        if closed and no_trades:
+            errs.append("both the closed and the no-trades notes")
         if extended:
             errs.append("a historical quote read carries the extended-hours note")
         if e["as_of"] is None:
