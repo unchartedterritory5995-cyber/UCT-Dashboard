@@ -11,7 +11,7 @@ Owner: agent-sc.
 from __future__ import annotations
 
 import json
-from typing import Any
+from typing import Any, Optional
 
 #: SC-1 §2 / MD-1 §5 — a scan returns at most 50 rows.
 ROW_CAP = 50
@@ -139,6 +139,18 @@ def validate(spec: Any, *, catalog: frozenset | None = None, columns: frozenset 
     out.setdefault("filters", [])
     out["view"] = view
     return out
+
+
+def precheck(params: Any) -> Optional[str]:
+    """The gateway's pre-admission hook (`Kind.validate`): None, or the sentence refusing the request.
+    A refusal here spends none of the turn's budget. The adapter re-validates after admission
+    (defence in depth); an admitted request that the screener then refuses has spent its scan."""
+    p = params if isinstance(params, dict) else {}
+    try:
+        validate(p.get("spec"))
+    except SpecError as e:
+        return str(e)
+    return None
 
 
 def row_limit(spec: Any) -> int:

@@ -158,6 +158,19 @@ def test_a_spec_the_catalog_does_not_know_is_refused_with_a_sentence(on, snap, b
     assert env.validate_envelope(out) == []
 
 
+def test_a_spec_refused_before_admission_spends_nothing(on, snap):
+    bad = _read("screen.run", {"spec": {"filters": [{"key": "nope", "op": "gte", "min": 1}]}}, turn="pre")
+    assert bad["status"] == "refused" and "no field 'nope'" in bad["notes"][0]
+    good = _read("screen.run", {"spec": RS_SPEC}, turn="pre")      # same turn: the scan is still unspent
+    assert good["status"] in ("ok", "partial")
+
+
+def test_an_admitted_spec_the_screener_refuses_spends_the_scan(on, snap):
+    first = _read("screen.run", {"spec": {"filters": [{"key": "price", "op": "between_nope", "min": 1}]}}, turn="adm")
+    assert first["notes"][0].startswith("the Screener refused this spec")
+    assert _read("screen.run", {"spec": RS_SPEC}, turn="adm")["status"] == "refused"
+
+
 def test_the_screeners_own_refusal_reaches_the_member_unchanged(on, snap):
     out = _read("screen.run", {"spec": {"filters": [{"key": "price", "op": "between_nope", "min": 1}]}})
     assert out["status"] == "refused"
