@@ -33,7 +33,8 @@ def test_shape_and_size():
     ids = [q["id"] for q in QS]
     assert len(ids) == len(set(ids))
     for q in QS:
-        assert {"id", "category", "kind", "purpose", "question", "envelope", "expect", "expect_refusal"} <= set(q)
+        assert {"id", "category", "kind", "purpose", "question", "envelope", "expect", "expect_refusal",
+                "flags"} <= set(q)
         assert set(q["expect"]) == {"freshness_class", "as_of_renderings", "may_claim_live", "must_disclose_stale",
                                     "must_say_unavailable", "must_not_state_a_value", "must_disclose",
                                     "as_of_null_reason_required"}
@@ -75,6 +76,9 @@ def test_expectations_are_derived_from_the_envelope(q):
 @pytest.mark.parametrize("q", [q for q in QS if q["expect_refusal"]], ids=_ids)
 def test_refusal_questions_are_what_the_gateway_actually_refuses(q, monkeypatch):
     monkeypatch.setenv(gw.DATA_ENV, "1")
+    monkeypatch.delenv(gw.ISOLATED_ENV, raising=False)
+    for k, v in q["flags"].items():
+        monkeypatch.setenv(k, v)
     gw._reset_for_test(None)
     out = gw.read(q["kind"], q["envelope"]["params_echo"], user_id=1, turn_id="corpus", purpose=q["purpose"])
     assert out["status"] == "refused" and out["notes"] == q["envelope"]["notes"]
@@ -85,7 +89,14 @@ def test_model_isolated_kinds_appear_only_as_answer_or_as_refusals():
     for q in QS:
         k = gw.registry().get(q["kind"])
         if k.model_isolated and not q["expect_refusal"]:
+            # a served isolated answer only exists with the isolation flag on (ADR-005: dormant by default)
             assert q["purpose"] == "answer", q["id"]
+
+
+def test_the_dormant_default_and_the_purpose_gate_are_both_covered():
+    iso = [q for q in QS if q["expect_refusal"] and gw.registry().get(q["kind"]).model_isolated]
+    assert any(not q["flags"] for q in iso)                                  # dormant: no isolation flag
+    assert any(q["flags"].get(gw.ISOLATED_ENV) == "1" and q["purpose"] != "answer" for q in iso)
 
 
 def test_coverage_of_classes_and_failure_shapes():
@@ -94,7 +105,7 @@ def test_coverage_of_classes_and_failure_shapes():
     shapes = {q["category"] for q in QS}
     assert {"live", "live-stale", "closed", "extended", "partial", "unavailable", "historical",
             "historical-stale", "periodic", "periodic-stale", "as_of-null", "scheduled-event",
-            "empty-not-stale", "isolation"} <= shapes
+            "empty-not-stale", "isolation", "isolation-dormant"} <= shapes
     # every registered agent-md kind is exercised at least once
     mine = {d["kind"] for d in gw.describe() if d["owner"] == "agent-md"}
     assert mine <= {q["kind"] for q in QS}, mine - {q["kind"] for q in QS}

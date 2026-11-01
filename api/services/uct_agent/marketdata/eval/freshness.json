@@ -81,7 +81,8 @@
         "must_disclose": [],
         "as_of_null_reason_required": false
       },
-      "expect_refusal": false
+      "expect_refusal": false,
+      "flags": {}
     },
     {
       "id": "q-live-stale",
@@ -136,7 +137,8 @@
         "must_disclose": [],
         "as_of_null_reason_required": false
       },
-      "expect_refusal": false
+      "expect_refusal": false,
+      "flags": {}
     },
     {
       "id": "q-closed",
@@ -195,7 +197,8 @@
         ],
         "as_of_null_reason_required": false
       },
-      "expect_refusal": false
+      "expect_refusal": false,
+      "flags": {}
     },
     {
       "id": "q-extended",
@@ -254,7 +257,8 @@
         ],
         "as_of_null_reason_required": false
       },
-      "expect_refusal": false
+      "expect_refusal": false,
+      "flags": {}
     },
     {
       "id": "q-partial-close-row",
@@ -335,7 +339,8 @@
         ],
         "as_of_null_reason_required": false
       },
-      "expect_refusal": false
+      "expect_refusal": false,
+      "flags": {}
     },
     {
       "id": "q-unavailable",
@@ -371,7 +376,8 @@
         "must_disclose": [],
         "as_of_null_reason_required": false
       },
-      "expect_refusal": false
+      "expect_refusal": false,
+      "flags": {}
     },
     {
       "id": "b-today",
@@ -427,7 +433,8 @@
         ],
         "as_of_null_reason_required": false
       },
-      "expect_refusal": false
+      "expect_refusal": false,
+      "flags": {}
     },
     {
       "id": "b-stale",
@@ -481,7 +488,8 @@
         "must_disclose": [],
         "as_of_null_reason_required": false
       },
-      "expect_refusal": false
+      "expect_refusal": false,
+      "flags": {}
     },
     {
       "id": "f-current",
@@ -529,7 +537,8 @@
         ],
         "as_of_null_reason_required": false
       },
-      "expect_refusal": false
+      "expect_refusal": false,
+      "flags": {}
     },
     {
       "id": "f-stale",
@@ -575,7 +584,8 @@
         "must_disclose": [],
         "as_of_null_reason_required": false
       },
-      "expect_refusal": false
+      "expect_refusal": false,
+      "flags": {}
     },
     {
       "id": "e-latest",
@@ -624,7 +634,8 @@
         ],
         "as_of_null_reason_required": true
       },
-      "expect_refusal": false
+      "expect_refusal": false,
+      "flags": {}
     },
     {
       "id": "e-next",
@@ -674,7 +685,8 @@
         ],
         "as_of_null_reason_required": true
       },
-      "expect_refusal": false
+      "expect_refusal": false,
+      "flags": {}
     },
     {
       "id": "n-latest",
@@ -726,7 +738,8 @@
         ],
         "as_of_null_reason_required": false
       },
-      "expect_refusal": false
+      "expect_refusal": false,
+      "flags": {}
     },
     {
       "id": "n-quiet",
@@ -768,7 +781,8 @@
         ],
         "as_of_null_reason_required": true
       },
-      "expect_refusal": false
+      "expect_refusal": false,
+      "flags": {}
     },
     {
       "id": "n-stale-ingest",
@@ -820,7 +834,8 @@
         ],
         "as_of_null_reason_required": false
       },
-      "expect_refusal": false
+      "expect_refusal": false,
+      "flags": {}
     },
     {
       "id": "t-moving",
@@ -875,7 +890,8 @@
         ],
         "as_of_null_reason_required": true
       },
-      "expect_refusal": false
+      "expect_refusal": false,
+      "flags": {}
     },
     {
       "id": "t-closed",
@@ -933,7 +949,8 @@
         ],
         "as_of_null_reason_required": false
       },
-      "expect_refusal": false
+      "expect_refusal": false,
+      "flags": {}
     },
     {
       "id": "t-warming",
@@ -969,7 +986,8 @@
         "must_disclose": [],
         "as_of_null_reason_required": false
       },
-      "expect_refusal": false
+      "expect_refusal": false,
+      "flags": {}
     },
     {
       "id": "br-intraday",
@@ -1024,7 +1042,8 @@
         ],
         "as_of_null_reason_required": false
       },
-      "expect_refusal": false
+      "expect_refusal": false,
+      "flags": {}
     },
     {
       "id": "br-not-current",
@@ -1079,7 +1098,8 @@
         ],
         "as_of_null_reason_required": false
       },
-      "expect_refusal": false
+      "expect_refusal": false,
+      "flags": {}
     },
     {
       "id": "br-nhnl",
@@ -1135,7 +1155,8 @@
         ],
         "as_of_null_reason_required": false
       },
-      "expect_refusal": false
+      "expect_refusal": false,
+      "flags": {}
     },
     {
       "id": "rt-current",
@@ -1183,7 +1204,8 @@
         ],
         "as_of_null_reason_required": false
       },
-      "expect_refusal": false
+      "expect_refusal": false,
+      "flags": {}
     },
     {
       "id": "rt-partial",
@@ -1232,7 +1254,8 @@
         ],
         "as_of_null_reason_required": false
       },
-      "expect_refusal": false
+      "expect_refusal": false,
+      "flags": {}
     },
     {
       "id": "br-research-refused",
@@ -1270,7 +1293,49 @@
         "must_disclose": [],
         "as_of_null_reason_required": false
       },
-      "expect_refusal": true
+      "expect_refusal": true,
+      "flags": {
+        "UCT_AGENT_ISOLATED": "1"
+      }
+    },
+    {
+      "id": "br-dormant-refused",
+      "category": "isolation-dormant",
+      "kind": "breadth.current",
+      "purpose": "answer",
+      "question": "What percent of stocks are above their 50-day right now?",
+      "envelope": {
+        "contract": "MD-1.0",
+        "kind": "breadth.current",
+        "params_echo": {
+          "metric": "pct_above_50sma"
+        },
+        "status": "refused",
+        "freshness": "unavailable",
+        "as_of": null,
+        "fetched_at": "2026-11-02T16:55:00Z",
+        "delay_s": null,
+        "stale": false,
+        "source": "uct-agent-gateway",
+        "coverage": null,
+        "data": null,
+        "notes": [
+          "this data is not available to UCT Agent yet"
+        ],
+        "provider_calls": 0
+      },
+      "expect": {
+        "freshness_class": "unavailable",
+        "as_of_renderings": [],
+        "may_claim_live": false,
+        "must_disclose_stale": false,
+        "must_say_unavailable": true,
+        "must_not_state_a_value": true,
+        "must_disclose": [],
+        "as_of_null_reason_required": false
+      },
+      "expect_refusal": true,
+      "flags": {}
     }
   ]
 }

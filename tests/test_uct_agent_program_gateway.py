@@ -153,6 +153,12 @@ def test_model_isolated_kinds_answer_the_member_only(monkeypatch):
                                  as_of="2026-11-01T15:59:00Z", source="uct-breadth-v2", data={"v": 1})
 
     _with(gw.Kind(name="breadth.current", fn=fn, freshness="periodic", model_isolated=True))
+    # DORMANT by default: refused server-side for EVERY purpose, "answer" included — never the browser's word
+    for purpose in ("answer", "research", "scan"):
+        out = gw.read("breadth.current", {}, user_id=1, turn_id="t0", purpose=purpose)
+        assert out["status"] == "refused" and "not available to UCT Agent yet" in out["notes"][0]
+    assert ran == []
+    monkeypatch.setenv(gw.ISOLATED_ENV, "1")
     for purpose in ("research", "scan"):
         out = gw.read("breadth.current", {}, user_id=1, turn_id="t", purpose=purpose)
         assert out["status"] == "refused" and "never used for research" in out["notes"][0]

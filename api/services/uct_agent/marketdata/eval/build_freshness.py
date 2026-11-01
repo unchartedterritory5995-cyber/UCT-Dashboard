@@ -48,7 +48,7 @@ def U(kind, note, params=None):
 Q = []
 
 
-def add(id_, question, envelope, *, category, disclose=(), purpose="answer", refused=False):
+def add(id_, question, envelope, *, category, disclose=(), purpose="answer", refused=False, flags=None):
     st, fr = envelope["status"], envelope["freshness"]
     expect = {
         "freshness_class": fr,
@@ -64,8 +64,11 @@ def add(id_, question, envelope, *, category, disclose=(), purpose="answer", ref
         "must_disclose": list(disclose),
         "as_of_null_reason_required": envelope["as_of"] is None and st in ("ok", "partial"),
     }
+    # `flags`: the gateway flags (beyond UCT_AGENT_DATA) under which this question is asked. Model-isolated
+    # kinds are DORMANT unless UCT_AGENT_ISOLATED=1 (ADR-005), so their questions say which state they test.
     Q.append({"id": id_, "category": category, "kind": envelope["kind"], "purpose": purpose,
-              "question": question, "envelope": envelope, "expect": expect, "expect_refusal": refused})
+              "question": question, "envelope": envelope, "expect": expect, "expect_refusal": refused,
+              "flags": dict(flags or {})})
 
 
 # ── quotes ────────────────────────────────────────────────────────────────────────────────────────────
@@ -201,7 +204,11 @@ r = env.refused("breadth.current", {"metric": "pct_above_50sma"},
                 "this data is shown to the member only and is never used for research")
 r["fetched_at"] = FETCHED
 add("br-research-refused", "(research) Use current breadth to plan a scan.", r, category="isolation",
-    purpose="research", refused=True)
+    purpose="research", refused=True, flags={"UCT_AGENT_ISOLATED": "1"})
+d = env.refused("breadth.current", {"metric": "pct_above_50sma"}, "this data is not available to UCT Agent yet")
+d["fetched_at"] = FETCHED
+add("br-dormant-refused", "What percent of stocks are above their 50-day right now?", d, category="isolation-dormant",
+    refused=True)
 
 
 def _corpus() -> dict:

@@ -139,7 +139,7 @@ The canonical services' own stale-while-revalidate refresh and the news store's 
 
 ### 4.4 Model-isolated kinds: `breadth.current`, `ratings` (v1.4)
 
-**Isolation.** Both kinds carry UCT-derived values, which the owner has not cleared for the model (breadth contract rule 8; agent-lead ruling 2026-11-01). They are registered `model_isolated=True`, so the gateway serves them **only for purpose `answer`**, rendered to the member through the local-result boundary. Every other purpose is refused before admission and spends no budget. Whether these values may ever reach the model is an owner decision, together with the breadth owner.
+**Isolation.** Both kinds carry UCT-derived values, which the owner has not cleared for the model (breadth contract rule 8; agent-lead ruling 2026-11-01). They are registered `model_isolated=True`, so the gateway serves them **only for purpose `answer`**, rendered to the member through the local-result boundary. Every other purpose is refused before admission and spends no budget. **Dormant by default (ADR-005, #599):** unless `UCT_AGENT_ISOLATED=1` (default off, and only with `UCT_AGENT_DATA` on), both kinds are refused for **every** purpose, `answer` included, with the note "this data is not available to UCT Agent yet". The browser-supplied purpose is never the only gate. Whether these values may ever reach the model is an owner decision, together with the breadth owner.
 
 **`breadth.current`** (`docs/breadth/current-reading-contract.md` is the source contract)
 - Params: `universe` ∈ us · nyse · nasdaq and `metric`, a breadth measure name. The NH/NL measures are `new_52w_highs, new_52w_lows, net_new_high_low, new_20d_highs, new_20d_lows`.
