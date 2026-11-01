@@ -430,11 +430,19 @@ export function computeRuntimeColumns(def, rows, ctx, opts = {}) {
           })
           moved = barIndexDependenceOf(cols, shifted, CALC_BARS_INDEX_PROBE, RUNTIME_OBJECTS_KEY)
         } catch (err) {
-          // ⛔ re-review M-B — a stop with its OWN name keeps it (the budget, a VM limit,
-          // `runtime:varip` or any other named guard, the script's `runtime.error`).
-          // Only a run that FAILS outright when `bar_index` reads another number
-          // (`runtime:failed`, or an unnamed throw) is the count's doing.
-          if (err && (err.name === 'runtime.error' || (err.guard && err.guard !== RUNTIME_FAILED_GUARD))) {
+          // ⛔ review M-C — THE MAIN RUN ALREADY PASSED under the same limits, so what
+          // the probe ALONE reaches — a VM limit, a collection failure (`runtime:failed`),
+          // the script's own `runtime.error`, an unnamed throw — is evidence that the run
+          // depends on the count (`for i = 0 to bar_index`, `array.new_float(bar_index +
+          // 1)`, `if bar_index > 5000` then `runtime.error`), and is named as such.
+          // Rethrown under its OWN name is only a stop that cannot depend on `bar_index`:
+          // the time budget (the probe spends the main run's leftover), and every other
+          // guard (`runtime:varip`, a build / version / compile refusal).
+          // ⚰️ re-review M-B rethrew limits and `runtime.error` too, so a member read
+          // "boom" from a script that never raises it on this chart.
+          const countsAsDependence = !err || err.name === 'runtime.error' || !err.guard
+            || err.guard === RUNTIME_LIMIT_GUARD || err.guard === RUNTIME_FAILED_GUARD
+          if (!countsAsDependence) {
             if (Number.isInteger(err.bar)) err.bar += win.cut
             throw err
           }

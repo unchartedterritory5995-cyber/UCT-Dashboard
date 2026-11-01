@@ -99,17 +99,41 @@ describe('WS-E re-review M-B — the probe\'s budget, its errors, and ticks', ()
     expect(r.err && r.err.guard).toBe(RUNTIME_TIME_BUDGET_GUARD)
   })
 
-  it('⛔ a limit stop in the probe keeps its own name, never calc-bars-bar-index', () => {
+  // ⭐ review M-C — the main run already passed under the same limits, so a limit, a
+  // collection failure or a `runtime.error` reached ONLY by the probe (its `bar_index`
+  // a million further on) is evidence the run depends on the count: named as such,
+  // never as a stop this chart's script does not make.
+  it('⛔ M-C — a limit only the probe reaches (lowered loop limit) is calc-bars-bar-index, not runtime:limit', () => {
     flags()
-    // the main run loops at most 100 times a bar (its `bar_index` < 100); the probe's
-    // `bar_index` is a million further on, so it loops 3001 times a bar and passes a
-    // lowered loop limit the main run never reaches. The values agree (`s` is 0).
     const d = door(`${CB}${ACC}s = 0.0\nfor i = 0 to math.min(bar_index, 3000)\n    s += 0\nplot(s, "s")\n`)
     const limits = { LOOP_ITERATIONS: 50000 }
     const main = (() => { try { computeRuntimeColumns(install(d), BARS.slice(N - 100), { ...CTX, historyFromListing: true }, { limits }); return 'ok' } catch (e) { return e.guard } })()
     expect(main, 'the main run alone fits the limit').toBe('ok')
-    const r = run(d, BARS, CTX, { limits })
-    expect(r.err && r.err.guard).toBe('runtime:limit')
+    expect(run(d, BARS, CTX, { limits }).err.guard).toBe(CALC_BARS_INDEX_GUARD)
+  })
+
+  for (const [name, tail] of [
+    ['`for i = 0 to bar_index` (INSTRUCTIONS_PER_BAR in the probe)', 's = 0.0\nfor i = 0 to bar_index\n    s += 0\nplot(s, "s")\n'],
+    ['`runtime.error` behind `bar_index > 5000`', 'if bar_index > 5000\n    runtime.error("boom")\n'],
+    ['`array.new_float(bar_index + 1)` (ARRAY_ELEMENTS in the probe)', 'a = array.new_float(bar_index + 1)\nplot(array.size(a), "n")\n'],
+  ]) {
+    it(`⛔ M-C — ${name}: draws unwindowed, refused as calc-bars-bar-index windowed`, () => {
+      flags()
+      const plain = door(`//@version=6\nindicator("t", overlay = true)\n${ACC}${tail}`)
+      expect(plain.ok, plain.reason || (plain.runtimeDeclined && plain.runtimeDeclined.why)).toBe(true)
+      expect(run(plain, BARS.slice(0, 100), { ...CTX, historyFromListing: true }).err).toBeUndefined()
+      registry.uninstallUserDefinition(ID)
+      const d = door(`${CB}${ACC}${tail}`)
+      const r = run(d)
+      expect(r.err && r.err.guard).toBe(CALC_BARS_INDEX_GUARD)
+      expect(String(r.err.message)).not.toMatch(/boom/)
+    })
+  }
+
+  it('⭐ M-C CONTROL — a limit the MAIN run reaches is still runtime:limit', () => {
+    flags()
+    const d = door(`${CB}${ACC}s = 0.0\nfor i = 0 to bar_index\n    s += 0\nplot(s, "s")\n`)
+    expect(run(d, BARS, CTX, { limits: { LOOP_ITERATIONS: 200 } }).err.guard).toBe('runtime:limit')
   })
 
   it('⭐ a tick that changes only the forming bar does not re-probe; a new closed bar does', () => {
