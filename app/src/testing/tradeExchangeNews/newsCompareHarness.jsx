@@ -23,7 +23,8 @@
 //                         a re-sent story, several tickers)
 //   ?rows=<n>             <n> synthetic headlines (performance checks; max 5000, the
 //                         archive's count bound). POST /day and GET /days are answered by
-//                         fakeNewsDay over them (/day is a READ: the only non-GET let through)
+//                         fakeNewsDay over them (/day is a READ: the only non-GET let through,
+//                         with POST /explain, answered by an INVENTED explanation -- no model)
 //   ?opts=<json>          initial News widget opts (e.g. {"settings":{"groupRelated":"on"}})
 //   ?live=1               LIVE MODE for tools/txn_local_e2e.py: /api/trade-exchange-news/*
 //                         goes to the real (local, synthetic) web process through
@@ -177,6 +178,16 @@ window.fetch = (input, init) => {
     return json(fakeNewsDay(NEWS, JSON.parse((init && init.body) || '{}'), { epoch: 'harness0harness0', atMs: harnessAtMs }))
   }
   if (path.startsWith('/api/trade-exchange-news/days')) return json(fakeNewsDays(NEWS))
+  // AI Explanation: an INVENTED answer (no model is called; nothing is written).
+  if (method === 'POST' && path === '/api/trade-exchange-news/explain') {
+    const id = JSON.parse((init && init.body) || '{}').id
+    const row = NEWS.find((n) => n.id === id)
+    return json({ id, headline: row?.content || '', received_at_ms: row?.received_at_ms || NOW,
+      explanation: 'SYNTHETIC: The headline reports a company update. Adjusted figures exclude one-time items, '
+        + 'so traders may read it against expectations, though the headline gives no detail on margins or guidance.',
+      watch: 'Company follow-up details, sector peers, analyst estimate revisions', generated_at_ms: NOW,
+      cached: false, version: 'v1' })
+  }
   if (method !== 'GET') { BLOCKED.push(`${method} ${path}`); return json({}) }
   if (path.startsWith('/api/auth/me')) {
     return json({ user: { id: 'harness', email: 'harness@local', role: 'admin', display_name: 'Harness' },

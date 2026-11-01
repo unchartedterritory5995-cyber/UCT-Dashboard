@@ -1915,13 +1915,29 @@ function buildRuntimeIrLinked(source, opts, holder) {
       else if (node.type === 'binary' && SHORT_CIRCUIT.has(node.op) && pineVersion >= 6) { arms = [node.right]; test = node.left }
       if (!arms || !arms.some((a) => lexArmHistory(a))) return
       let inv = false
+      // the parameter this test is blocked on, if any (`invariantTest`), read
+      // here and nowhere else: the region bookkeeping keeps its own value
+      const prevSeen = r4CulpritSeen
+      r4CulpritSeen = null
       try { inv = invariantTest(test, scope) } catch { inv = false }
+      const culprit = r4CulpritSeen
+      r4CulpritSeen = prevSeen
       if (inv) return
       note('runtime:conditional-history')
-      throw new RuntimeRefusal('runtime:conditional-history',
+      const err = new RuntimeRefusal('runtime:conditional-history',
         `history (a \`ta.*\` call, or a function that keeps it) ${node.type === 'ternary' ? 'in one arm of `?:`' : `on the right of v6's \`${node.op}\``} `
         + '— Pine runs it only on the bars that operand is reached, so it keeps the history of those bars; '
         + 'this lane evaluates it on every bar', locate(node.tok))
+      // ⭐ A TEST ON A PARAMETER IS THE CALL SITE'S (as for an `if`, `r4Guard`).
+      // MLExtensions' `filter_volatility(…, bool useVolatilityFilter) =>
+      // useVolatilityFilter ? ta.atr(…) - ta.atr(…) : 0.0`, called with `true`,
+      // takes that arm on every bar: the call site compiles its own copy with the
+      // parameter as its constant (C35, `condParam`), where the test is invariant.
+      if (owner !== null && loopDepth === 0 && typeof culprit === 'string') {
+        err.frameName = culprit
+        err.condParam = true
+      }
+      throw err
     }
     own()
     if (!deep) return
