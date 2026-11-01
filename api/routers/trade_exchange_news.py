@@ -55,6 +55,7 @@ from api.middleware.auth_middleware import get_current_user, require_admin
 from api.services.trade_exchange_news import config, pipeline as txn_pipeline, records
 from api.services.trade_exchange_news import archive as txn_archive
 from api.services.trade_exchange_news import explain as txn_explain
+from api.services.trade_exchange_news import library as txn_library
 from api.services.trade_exchange_news import integrity as txn_integrity
 from api.services.trade_exchange_news import ops_alerts as txn_ops_alerts
 from api.services.trade_exchange_news import reconcile as txn_reconcile
@@ -278,6 +279,114 @@ async def explain(request: Request, user: dict = Depends(get_current_user)) -> J
                             status_code=txn_explain.STATUS.get(r.reason, 503))
 
 
+# ── Research Library (library.py): the member's own bookmarks, collections, notes ──
+# ⛔ Every route takes the user from the SESSION; no body or path ever names a member.
+
+LIB = "/api/trade-exchange-news/library"
+
+
+def _lib(fn, *a, **kw) -> JSONResponse:
+    if not txn_library.enabled():
+        return JSONResponse({"reason": "disabled", "detail": "The Research Library is switched off right now."},
+                            status_code=404)
+    try:
+        return JSONResponse(fn(*a, **kw))
+    except txn_library.LibraryError as e:
+        return JSONResponse({"reason": e.reason, "detail": e.detail}, status_code=e.status)
+
+
+def _uid(user: dict) -> str:
+    return str(user["id"])
+
+
+def _store():
+    pipe = txn_pipeline.get()
+    return pipe.store if pipe else None
+
+
+def _event_for(store):
+    return lambda r: txn_pipeline.headline_event(r, store.epoch, txn_archive.event_fields(r["source"], r["content"]))
+
+
+@router.get(LIB + "/state")
+def library_state(user: dict = Depends(get_current_user)) -> JSONResponse:
+    return _lib(txn_library.state, _uid(user), _store())
+
+
+@router.get(LIB + "/items")
+def library_items(q: str = Query("", max_length=200), ticker: str = Query("", max_length=12),
+                  collection: str = Query("", max_length=40), date_from: str = Query("", alias="from", max_length=10),
+                  date_to: str = Query("", alias="to", max_length=10), sort: str = Query("saved", pattern="^(saved|received)$"),
+                  offset: int = Query(0, ge=0, le=txn_library.MAX_BOOKMARKS),
+                  limit: int = Query(txn_library.DEFAULT_PAGE, ge=1, le=txn_library.PAGE_MAX),
+                  user: dict = Depends(get_current_user)) -> JSONResponse:
+    store = _store()
+    if store is None:
+        return JSONResponse({"reason": "not_started"}, status_code=503)
+    return _lib(txn_library.items, _uid(user), store, query=q, ticker=ticker, collection=collection,
+                date_from=date_from, date_to=date_to, sort=sort, offset=offset, limit=limit,
+                event_for=_event_for(store))
+
+
+@router.get(LIB + "/bookmarks/{event_id}")
+def library_bookmark(event_id: str, user: dict = Depends(get_current_user)) -> JSONResponse:
+    return _lib(txn_library.get_bookmark, _uid(user), event_id, _store())
+
+
+@router.put(LIB + "/bookmarks/{event_id}")
+async def library_save(event_id: str, request: Request, user: dict = Depends(get_current_user)) -> JSONResponse:
+    d = await _read_body(request)
+    if isinstance(d, JSONResponse):
+        return d
+    return await asyncio.to_thread(_lib, txn_library.save, _uid(user), _store(), event_id, note=d.get("note"),
+                                   collection_ids=d.get("collection_ids") or (), saved_at_ms=d.get("saved_at_ms"),
+                                   note_updated_at_ms=d.get("note_updated_at_ms"))
+
+
+@router.delete(LIB + "/bookmarks/{event_id}")
+def library_remove(event_id: str, user: dict = Depends(get_current_user)) -> JSONResponse:
+    return _lib(txn_library.remove, _uid(user), event_id, _store())
+
+
+@router.put(LIB + "/bookmarks/{event_id}/note")
+async def library_note(event_id: str, request: Request, user: dict = Depends(get_current_user)) -> JSONResponse:
+    d = await _read_body(request)
+    if isinstance(d, JSONResponse):
+        return d
+    return await asyncio.to_thread(_lib, txn_library.set_note, _uid(user), event_id, d.get("note"), _store())
+
+
+@router.post(LIB + "/collections")
+async def library_create_collection(request: Request, user: dict = Depends(get_current_user)) -> JSONResponse:
+    d = await _read_body(request)
+    if isinstance(d, JSONResponse):
+        return d
+    return await asyncio.to_thread(_lib, txn_library.create_collection, _uid(user), d.get("name"))
+
+
+@router.patch(LIB + "/collections/{cid}")
+async def library_rename_collection(cid: str, request: Request, user: dict = Depends(get_current_user)) -> JSONResponse:
+    d = await _read_body(request)
+    if isinstance(d, JSONResponse):
+        return d
+    return await asyncio.to_thread(_lib, txn_library.rename_collection, _uid(user), cid, d.get("name"))
+
+
+@router.delete(LIB + "/collections/{cid}")
+def library_delete_collection(cid: str, user: dict = Depends(get_current_user)) -> JSONResponse:
+    return _lib(txn_library.delete_collection, _uid(user), cid)
+
+
+@router.put(LIB + "/collections/{cid}/items/{event_id}")
+def library_add_to_collection(cid: str, event_id: str, user: dict = Depends(get_current_user)) -> JSONResponse:
+    return _lib(txn_library.set_membership, _uid(user), cid, event_id, True, _store())
+
+
+@router.delete(LIB + "/collections/{cid}/items/{event_id}")
+def library_remove_from_collection(cid: str, event_id: str, user: dict = Depends(get_current_user)) -> JSONResponse:
+    return _lib(txn_library.set_membership, _uid(user), cid, event_id, False, _store())
+
+
 @router.get(DAYS_PATH)
 async def days(_user: dict = Depends(get_current_user)) -> JSONResponse:
     pipe = txn_pipeline.get()
@@ -413,6 +522,7 @@ def status(_admin: dict = Depends(require_admin)) -> dict[str, Any]:
         "streams": dict(_streams),
         "loop_lag": _loop_lag.snapshot(),
         "explain": txn_explain.snapshot(),
+        "library": txn_library.snapshot(pipe.store if pipe else None),
     }
 
 

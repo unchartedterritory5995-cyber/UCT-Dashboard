@@ -110,8 +110,10 @@ describe('⭐⭐⭐ graph-vs-runtime differential — every declared member (§4
     expect(MIRRORED.length, 'nothing left to differentiate').toBeGreaterThan(0)
     // ⭐ RT7 — two runtime-only members now: `barssincePine` and `fixnanPine`
     // (`rt7Fixnan.test.js` holds the second to a hand replay).
+    // ⭐ P3 WS-B — and a third, `rsiPine` (`runtimeRsiHma.test.js` holds it to
+    // the shipped `computeRSI`).
     expect(MEMBERS.length - MIRRORED.length, 'no member is runtime-only any more —'
-      + ' if that is deliberate, delete MIRRORED rather than leaving it inert').toBe(2)
+      + ' if that is deliberate, delete MIRRORED rather than leaving it inert').toBe(3)
   })
 
   for (const fn of MIRRORED) {
@@ -385,9 +387,13 @@ describe('⭐ length, resources and what is NOT admitted', () => {
   })
 
   it('⛔ still refused: a window COMPOSITE, a shipped-impl builtin, an undeclared one', () => {
-    expect(refusalOf(`${head}var x = 0.0\nx := close\nplot(ta.hma(x, 5))\n`).guard)
+    // ⚰️ P3 WS-B executes `ta.hma` (a respelling into three `wma` windows) and
+    // `ta.rsi` (`CARRIED.rsiPine`) over runtime state, so the specimens moved to
+    // the nearest still-refused calls of the same two kinds: `ta.bbw` (a window
+    // COMPOSITE) and `ta.cci` (a SHIPPED-IMPL builtin).
+    expect(refusalOf(`${head}var x = 0.0\nx := close\nplot(ta.bbw(x, 5, 2))\n`).guard)
       .toBe('runtime:call-windowed-state')
-    expect(refusalOf(`${head}var x = 0.0\nx := close\nplot(ta.rsi(x, 5))\n`).guard)
+    expect(refusalOf(`${head}var x = 0.0\nx := close\nplot(ta.cci(x, 5))\n`).guard)
       .toBe('runtime:call-windowed-state')
     // ⚰️ THE UNDECLARED SPECIMEN WAS `ta.cum` AND STOPPED BEING UNDECLARED.
     // `cum` is a table entry now, so this line was asserting the opposite of the

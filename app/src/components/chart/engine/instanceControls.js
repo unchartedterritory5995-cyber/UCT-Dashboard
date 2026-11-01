@@ -186,7 +186,7 @@ export function checkInstanceInput(def, key, value) {
   if (!declared) return { ok: false, why: `${(def.meta && def.meta.name) || def.id} has no setting "${key}"`, spec: null }
   const coerced = coerce(declared, value)
   if (coerced === undefined) {
-    return { ok: false, why: `"${key}" takes ${declared.type === 'int' ? 'a whole number' : declared.type === 'float' ? 'a number' : declared.type === 'bool' ? 'true or false' : 'text'}, not ${JSON.stringify(value)}`, spec: declared }
+    return { ok: false, why: `"${key}" takes ${declared.type === 'int' ? 'a whole number' : declared.type === 'float' ? 'a number' : declared.type === 'bool' ? 'true or false' : declared.type === 'time' ? 'a time (milliseconds since 1970)' : 'text'}, not ${JSON.stringify(value)}`, spec: declared }
   }
   const errors = []
   validateInputValue(declared, coerced, `inputs.${key}`, errors)
@@ -244,6 +244,12 @@ function coerce(declared, value) {
     }
     case 'bool':
       return typeof value === 'boolean' ? value : undefined
+    // ⭐ PHASE 3 WS-D — a time input holds a NUMBER (UNIX ms). Whether it is whole
+    // milliseconds inside Date's range is `defSchema.validateInputValue`'s one answer, run
+    // right after this; checking it here too was a second copy that could never fire alone
+    // (mutation-proved) and refused with "takes text" instead of the time sentence.
+    case 'time':
+      return typeof value === 'number' ? value : undefined
     default:
       return typeof value === 'string' ? value : undefined
   }

@@ -211,8 +211,22 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
 }
-.num:disabled, .sel:disabled { opacity: 0.4; cursor: not-allowed; }
-.num:focus-visible, .sel:focus-visible { outline: none; border-color: var(--border-accent); }
+/* ⭐ PHASE 3 WS-D — a Pine time / session input: the select's width, the number's chrome. */
+.when {
+  width: var(--fld-sel-w);
+  box-sizing: border-box;
+  min-height: 30px;
+  padding: 0 6px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--text-bright);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.unit { margin-left: 6px; font-size: 11px; color: var(--text-muted); }
+.num:disabled, .sel:disabled, .when:disabled { opacity: 0.4; cursor: not-allowed; }
+.num:focus-visible, .sel:focus-visible, .when:focus-visible { outline: none; border-color: var(--border-accent); }
 
 .toggle {
   appearance: none;

@@ -79,6 +79,10 @@ export const WORKSPACE_WIDGETS = {
   volumescan: { component: VolumeScanWidget, props: standardProps },
   scatter: { component: ScatterWidget, props: standardProps },
   tradeExchangeNews: { component: TradeExchangeNewsWidget, props: standardProps },
+  // RETIRED (UCT News V2): a Research Library already in a saved layout opens as UCT News
+  // on its Saved Headlines view, with the same filters (collection / ticker / sort opts).
+  // The layout is never rewritten and the instance is never dropped.
+  researchLibrary: { component: TradeExchangeNewsWidget, props: (p) => ({ ...standardProps(p), defaultView: 'saved' }) },
 }
 
 // TD-02 (S1 CP3, gate fc609961a): a widget that throws during render used to take

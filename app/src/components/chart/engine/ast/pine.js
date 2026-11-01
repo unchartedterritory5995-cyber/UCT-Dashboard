@@ -3565,6 +3565,27 @@ function builtinTupleParts(toks, close, names, env, first) {
   return built.map((node) => exprBinding(node, new Map(env), at))
 }
 
+/** ⭐ P3 WS-B — THE SAME TUPLE BUILT-INS, FOR THE RUNTIME LANE. That lane's
+ *  destructure lowers its right-hand side as an expression asked for several
+ *  values; this hands it the part trees `PINE_TUPLE_BUILTINS` builds, through the
+ *  SAME checks `builtinTupleParts` makes (positional arguments, a declared arity,
+ *  the declared part count, a builder that may decline), so the two lanes cannot
+ *  take `ta.bb`/`ta.macd`/`ta.kc`/`ta.supertrend` apart differently. Returns the
+ *  parse-shaped part nodes, or `null` — the caller keeps its own refusal.
+ *  Additive: nothing in this file calls it. */
+export function pineTupleBuiltinCallParts(call, names, tok) {
+  if (!call || call.type !== 'call') return null
+  const bare = normaliseName(String(call.name).split('.').pop())
+  if (!own(PINE_TUPLE_BUILTINS, bare)) return null
+  const spec = PINE_TUPLE_BUILTINS[bare]
+  const raw = call.args || []
+  if (raw.some((a) => a && a.name != null)) return null
+  const arities = Array.isArray(spec.arity) ? spec.arity : [spec.arity]
+  if (!arities.includes(raw.length) || (names != null && names !== spec.parts)) return null
+  const built = spec.build(raw.map((a) => a.value), tok)
+  return built || null
+}
+
 /** Does this UNRESOLVED right-hand side read `name`'s own previous bar?
  *
  *  ⚠️ THE PARSED TREE, NOT THE CANONICAL ONE — this runs before resolution, which
@@ -7356,7 +7377,16 @@ export class Resolver {
     }
     this.depth += 1
     if (this.depth > this.peakDepth) this.peakDepth = this.depth
-    try { return this.resolveBindingInner(bound, tok, name) } catch (err) {
+    try {
+      const res = this.resolveBindingInner(bound, tok, name)
+      // ⭐ C48 (object lane) — a `var` holding a call its block runs on only some
+      // bars: the tree this read answers is noted with that block's guard, for the
+      // object pass to carry beside the drawing (`buildObjectProgram`'s `stateRunSink`).
+      if (this.stateRunSink && bound && bound.stateRuns && res && typeof res === 'object') {
+        this.stateRunSink.note(res, bound.stateRuns, this.env)
+      }
+      return res
+    } catch (err) {
       // ⛔⛔ THE HOST STACK CAN RUN OUT BEFORE THE BOUND DOES, AND THEN IT IS THE
       // BOUND. ⚰️ MEASURED 2026-10-17: on Node 20.19.0 (the CI image) a cold JIT's
       // frames are large enough that `cc-yata` overflows at 321-339 levels, never
@@ -14974,6 +15004,21 @@ const selfNode = (tok) => ({ type: 'selfref', tok })
  *  its left operand at the state binding would make `x += 1` mean
  *  `accum(...) + 1` — a whole column plus one, evaluated inside its own update.
  *  That is a cycle, and the one it would produce reads plausibly. */
+/** ⭐ C48 (object lane) — does this parse node read `name` anywhere (a bare
+ *  name, `name[k]`, inside a call)? */
+function parseReadsName(node, name) {
+  const stack = [node]
+  const seen = new Set()
+  while (stack.length) {
+    const n = stack.pop()
+    if (!n || typeof n !== 'object' || seen.has(n)) continue
+    seen.add(n)
+    if (n.type === 'name' && n.name === name) return true
+    for (const [k, v] of Object.entries(n)) if (k !== 'tok' && v && typeof v === 'object') stack.push(v)
+  }
+  return false
+}
+
 const reassignState = (prior, env, toks, mut, nameTok) => {
   const rhs = parseWholeExpression(toks.slice(mut + 1))
   const op = toks[mut].value
@@ -14989,7 +15034,17 @@ const reassignState = (prior, env, toks, mut, nameTok) => {
       right: rhs,
       tok: toks[mut],
     }
-  return stateBinding(prior.seed, prior.seedEnv, update, innerEnv, prior.at)
+  const next = stateBinding(prior.seed, prior.seedEnv, update, innerEnv, prior.at)
+  // ⭐ C48 (object lane) — a later write that READS the name (`s := nz(s)`,
+  // `s += 1`) keeps the block-run guards of the writes before it (`stateRuns`):
+  // their value is still in the running state. One that does not (`s := close`)
+  // replaces it, and the guards go with it — where that write is itself in a
+  // block, the fold of that block keeps the guards of the bars it skips
+  // (`foldIfChain`, from the state before it).
+  if (Array.isArray(prior.stateRuns) && prior.stateRuns.length && (op !== ':=' || parseReadsName(rhs, nameTok.value))) {
+    next.stateRuns = prior.stateRuns
+  }
+  return next
 }
 
 const stateBinding = (seed, seedEnv, update, updateEnv, at) => ({
@@ -15478,6 +15533,21 @@ function recordReassign(ctx, stmt, name, env) {
  *  reads on the block's one execution (only under `ctx.oneExecution`, and only
  *  when every `ta.*` in it is one the capture shows) — or `{refuse}`, C31's
  *  sentence. null when the block runs on every bar or calls no `ta.*`. */
+/** ⭐⭐ C48 — A BLOCK'S GUARD, AS ONE CONDITION: the parts of its `execGuard`
+ *  chain (`foldIfChain`: each enclosing arm's test, and the negation of every arm
+ *  above it) joined by `and` — the block runs exactly where ALL of them hold. The
+ *  ONE builder both lanes read: the plot lane's output loop (`meta.blockRuns`) and
+ *  the object pass (`objectBlockRunsOf`). → a parse node, or null for no chain. */
+export function blockGuardNode(chain) {
+  if (!Array.isArray(chain) || !chain.length) return null
+  let node = null
+  for (const part of chain) {
+    const one = part.negate ? { type: 'unary', op: 'not', arg: part.node, tok: part.node.tok } : part.node
+    node = node ? { type: 'binary', op: 'and', left: node, right: one, tok: part.node.tok } : one
+  }
+  return node
+}
+
 function condCallMark(ctx, rhsToks, name) {
   if (!ctx || !ctx.conditional) return null
   const taCall = taCallIn(rhsToks)
@@ -15638,6 +15708,11 @@ function foldIfChain(stmts, i, ctx, env) {
       // ⭐ C42 — the chain's fold is a NEW binding: it keeps an arm's mark.
       const marked = [...arms.map((a) => a.env.get(name)), wasState].find((b) => b && b.condCall)
       if (marked) { env.get(name).condCall = marked.condCall; env.get(name).execGuard = marked.execGuard }
+      // ⭐ C48 (object lane) — and every arm's block-run guards (`stateRuns`).
+      const stateRuns = [...arms.map((a) => a.env.get(name)), wasState]
+        .flatMap((b) => (b && Array.isArray(b.stateRuns) ? b.stateRuns : []))
+        .filter((r, k, all) => all.indexOf(r) === k)
+      if (stateRuns.length) env.get(name).stateRuns = stateRuns
       if (wasState.blockLocal) { env.get(name).blockLocal = wasState.blockLocal; env.get(name).execGuard = wasState.execGuard }
       recordReassign(ctx, stmts[i], name, env)
       continue
@@ -17681,6 +17756,22 @@ function foldStatements(stmts, ctx, env, trace = null, { declarationIsValue = fa
           env.get(nameTok.value).blockLocal = prior.blockLocal
           if (!env.get(nameTok.value).execGuard) env.get(nameTok.value).execGuard = prior.execGuard
         }
+        // ⭐⭐ C48 (OBJECT LANE) — under any OTHER varying guard the write is still
+        // read as it always was (above), but the var now holds the call's value at
+        // the block's last RUN, over a window of its RUNS — `vw-call-site-history`
+        // C01-C04 / D01-D02. So the block's own guard rides on the binding
+        // (`stateRuns`, read ONLY by the object pass's Resolver, `resolveBinding`),
+        // and the object reader withholds the drawing, by name, on a chart where
+        // the block runs after a bar it skipped (`objectColumns.js`,
+        // `engine/blockRuns.js`) — the welotrades EQH / EQL blocks, which run on
+        // every bar, keep drawing. A later write keeps it: the value is still there.
+        if (env.get(nameTok.value) !== prior) {
+          const manyMark = ctx && ctx.conditional
+            ? condCallMark(ctx, toks.slice(mut + 1), nameTok.value) : null
+          const runs = [...(env.get(nameTok.value).stateRuns || []),
+            ...(manyMark && manyMark.refuse ? [{ why: manyMark.refuse, chain: ctx.execGuard || null }] : [])]
+          if (runs.length) env.get(nameTok.value).stateRuns = runs
+        }
         ctx.consumed.add(toks[mut].index)
         // ⭐ C11b — the state path records too; the expression path below always did.
         record(st, nameTok.value)
@@ -18110,6 +18201,65 @@ function windowReadAbove(m, stmts) {
 const HELPER_LOCAL_CLAUSE = 'a function\'s own variable that changes while the function runs cannot be read '
   + 'as one expression from outside that run'
 
+/** ⭐⭐ C48 (OBJECT LANE) — WHICH OBJECT TREES READ A `var` HOLDING A CALL ITS
+ *  BLOCK RUNS ON ONLY SOME BARS, AND THOSE BLOCKS' GUARDS.
+ *
+ *  `hits` maps each tree a Resolver of the object pass answered for such a `var`
+ *  (`Resolver.resolveBinding` → `stateRunSink`) to `{runs, env}`; a final tree
+ *  reads one when the answered tree is inside it (by identity: the tree is built
+ *  around it). Each guard is the block's condition chain (`execGuard`) resolved
+ *  the way the plot lane resolves its own (`translatePineResult`'s output loop:
+ *  minting off, the conditional-call rules standing aside). ⛔ A chain that is
+ *  missing or cannot be resolved is carried as `guard: null`, which the reader
+ *  refuses — an unread guard is not a block that ran on every bar.
+ *  → `[{tree, gates: [{why, guard}]}]`, by tree index. */
+function objectBlockRunsOf(trees, hits, makeResolverRaw) {
+  const guards = new Map()
+  const guardOf = (run, env) => {
+    const node = blockGuardNode(run.chain)
+    if (!node) return null
+    const memo = guards.get(run.chain)
+    if (memo !== undefined) return memo
+    let guard = null
+    try {
+      const r = makeResolverRaw(env)
+      r.paramMint = null
+      r.mintOnly = 1
+      guard = r.condition(r.resolve(node), 'ternary', node.tok)
+    } catch { guard = null }
+    guards.set(run.chain, guard)
+    return guard
+  }
+  const out = []
+  trees.forEach((tree, i) => {
+    const found = []
+    const seen = new Set()
+    const stack = [tree]
+    while (stack.length) {
+      const n = stack.pop()
+      if (!n || typeof n !== 'object' || seen.has(n)) continue
+      seen.add(n)
+      if (hits.has(n)) found.push(hits.get(n))
+      for (const v of Array.isArray(n) ? n : Object.values(n)) if (v && typeof v === 'object') stack.push(v)
+    }
+    if (!found.length) return
+    const gates = []
+    const keys = new Set()
+    for (const { runs, env } of found) {
+      for (const run of runs) {
+        const guard = guardOf(run, env)
+        let key
+        try { key = `${run.why}\u0000${guard ? printFormula(guard) : 'null'}` } catch { key = `${run.why}\u0000${gates.length}` }
+        if (keys.has(key)) continue
+        keys.add(key)
+        gates.push({ why: run.why, guard })
+      }
+    }
+    out.push({ tree: i, gates })
+  })
+  return out
+}
+
 function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatement,
   objectOpts = {}) {
   // ⭐ C22 — every Resolver this pass builds knows the op `convertList` is
@@ -18121,11 +18271,20 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
   /** ⭐⭐ C22 — `var` arrays declared inside an inlined drawing function, one per
    *  call site (filled below, once `collectObjectOps` has inlined them). */
   const inlineWindows = new Map()
+  /** ⭐ C48 (object lane) — every tree a Resolver of this pass answered for a
+   *  `var` that holds a call its block runs on only some bars (`stateRuns`, set
+   *  by the fold's state path), with those blocks' guards; read once the trees
+   *  are final (`objectBlockRunsOf`). */
+  const stateRunSink = {
+    hits: new Map(),
+    note(res, runs, env) { if (!this.hits.has(res)) this.hits.set(res, { runs, env }) },
+  }
   const makeResolver = (scope) => {
     const r = makeResolverRaw(scope)
     // ⭐ C31 — a block local bound to a call its block does not run on every bar
     // (`condCall`, marked by the fold) is refused here, in the object lane only.
     r.refuseCondCalls = true
+    r.stateRunSink = stateRunSink
     r.windowReadSite = windowReadSite
     r.inlineWindows = inlineWindows
     r.textEqOff = textEqGate.off
@@ -23373,6 +23532,12 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     if (VERSIONS_WITH_OBJECT_DEFAULTS.includes(pv)) defaultsVersion = pv
   } catch { defaultsVersion = null }
 
+  // ⭐⭐ C48 (object lane) — the trees that read such a `var`, each with its
+  // blocks' guards as trees (`objectBlockRunsOf`). Present only when one does, so
+  // every other program keeps its bytes.
+  const blockRuns = !rawTrees && stateRunSink.hits.size
+    ? objectBlockRunsOf(trees, stateRunSink.hits, makeResolverRaw) : []
+
   return {
     program: {
       programVersion: OBJECT_PROGRAM_VERSION,
@@ -23386,6 +23551,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       ...(Object.keys(limits).length ? { limits } : {}),
       ...(lostCreates.length ? { lostCreates } : {}),
       ...(rtSpecs.length ? { runtime: { v: RUNTIME_PROGRAM_VERSION, source: String(source), at: rtSpecs } } : {}),
+      ...(blockRuns.length ? { blockRuns } : {}),
     },
     diagnostics,
     ...(rtSpecs.length ? { runtimeSpecs: rtSpecs, runtimeKeys: rtKeys } : {}),
@@ -25528,11 +25694,7 @@ function translatePineResult(source, opts = {}) {
         resolver.mintOnly += 1
         try {
           for (const g of resolver.blockRuns) {
-            let node = null
-            for (const part of g.chain) {
-              const one = part.negate ? { type: 'unary', op: 'not', arg: part.node, tok: part.node.tok } : part.node
-              node = node ? { type: 'binary', op: 'and', left: node, right: one, tok: part.node.tok } : one
-            }
+            const node = blockGuardNode(g.chain)
             let guard
             try { guard = resolver.condition(resolver.resolve(node), 'ternary', node.tok) } catch { throw g.err }
             gates.push({ why: g.why, guard })
