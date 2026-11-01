@@ -116,6 +116,8 @@ Only agent-qa edits this file. Update it in every PR.
   (`quote_semantics_errors`) with controls showing it can fail. Other MD-1 kinds keep provisional `data` shapes.
 
 ## Verdicts on `agent/int`
+- **7ca746dd5f — GREEN** (#583 pre-admission validate). The tree is #572 merged onto it, with no non-QA diff.
+  Agent pytest under the lock: 1049 passed. Agent vitest: 115 files passed, 5 skipped; 1988 passed, 6 skipped.
 - **d837b6a96f — GREEN** (#579 quote freshness v1.1, #580 ADR-002 docs, #581 currentTurnId).
   No non-QA diff. Agent pytest under the lock: 1037 passed (agent-lead's 809 + agent-qa's 228).
   Agent vitest: 114 files passed, 5 skipped; 1967 passed, 6 skipped.
