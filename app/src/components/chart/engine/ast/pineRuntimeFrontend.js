@@ -1731,6 +1731,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
     if (owner !== null && loopDepth === 0 && typeof r4RegionCulprit === 'string') {
       err.frameName = r4RegionCulprit
       err.condParam = true
+      err.condWhat = what
     }
     throw err
   }
@@ -1870,22 +1871,89 @@ function buildRuntimeIrLinked(source, opts, holder) {
   //    any `ta.*` / `var` / `varip` / `[` / `fixnan` (v4: a bare window or
   //    carried name), or a call to a script function that answers yes here.
   const STATE_HEAD = new Set(['var', 'varip', 'fixnan'])
+  // ⭐⭐ WS-C review (wsc-2 H1) — THE SCAN IS AN ALLOWLIST, NOT A DENYLIST. A list
+  // of stateful names failed OPEN on every one it did not name (`math.sum`, v4
+  // `change` / `atr` / `rsi` / `mom` / `roc` / `cci`, the v4 `tr` variable were
+  // all served every bar). Now a call counts as history unless the columnar
+  // resolver, asked with literal arguments of the call's own arity, answers a
+  // tree that keeps no state and holds no offset (`heldCallPure`). Anything the
+  // resolver cannot answer counts as history (fail closed). A `[` that is not a
+  // tuple destructure, `var` / `varip` / `fixnan`, and a script function that
+  // answers yes here count too.
+  const HELD_WORDS = new Set(['if', 'else', 'for', 'to', 'by', 'while', 'switch', 'and', 'or', 'not', 'true', 'false',
+    'na', 'int', 'float', 'bool', 'string', 'color', 'series', 'simple', 'const', 'in', 'continue', 'break', 'method'])
+  const heldResolvesPure = (node) => {
+    try {
+      const t = makeResolver().resolve(node)
+      return !!t && !statefulTree(t) && !treeHasOffset(t)
+    } catch { return false }
+  }
+  const heldCallPure = (v, toks, k) => {
+    // arity: the call's own top-level arguments, each a literal 2 (named kept)
+    let depth = 0
+    const args = []
+    let cur = { name: null, empty: true }
+    for (let j = k + 2; j < toks.length; j += 1) {
+      const t = toks[j]
+      if (isPunct(t, '(') || isPunct(t, '[')) depth += 1
+      else if (isPunct(t, ')') || isPunct(t, ']')) {
+        if (depth === 0) break
+        depth -= 1
+      } else if (depth === 0 && isPunct(t, ',')) { args.push(cur); cur = { name: null, empty: true }; continue }
+      if (depth === 0 && cur.empty && t && t.kind === 'ident' && isPunct(toks[j + 1], '=')) { cur.name = String(t.value); continue }
+      if (depth === 0 && cur.name && isPunct(t, '=')) continue
+      cur.empty = false
+    }
+    if (!cur.empty || cur.name) args.push(cur)
+    const two = { type: 'number', value: 2, tok: toks[k] }
+    return heldResolvesPure({ type: 'call', name: v, tok: toks[k],
+      args: args.map((a) => ({ name: a.name || null, value: two, tok: toks[k] })) })
+  }
   const heldBodyHistory = (name, seen) => {
     if (seen.has(name)) return true
     seen.add(name)
     const def = deferredFnDefs.get(name)
     if (!def) return true                       // held with no source: fail closed
+    const head = (def.toks || []).slice(0, (def.arrow || 0) + 1)
     const toks = [...(def.toks || []).slice((def.arrow || 0) + 1)]
     const collect = (list) => { for (const st of list || []) { toks.push(...(st.header || [])); collect(st.sub) } }
     collect(def.st && def.st.sub)
+    // names the body itself declares (parameters, locals, loop counters, tuple parts)
+    const declared = new Set()
+    for (const t of head) if (t && t.kind === 'ident') declared.add(String(t.value))
     for (let k = 0; k < toks.length; k += 1) {
       const t = toks[k]
-      if (isPunct(t, '[')) return true
+      const nx = toks[k + 1]
+      if (t && t.kind === 'ident' && nx && nx.kind === 'punct' && (nx.value === '=' || nx.value === ':='
+        || (nx.value.length === 2 && nx.value.endsWith('=') && MUTATOR_OPS.has(nx.value[0])))) declared.add(String(t.value))
+    }
+    for (let k = 0; k < toks.length; k += 1) {
+      const t = toks[k]
+      if (isPunct(t, '[')) {
+        // a tuple destructure `[a, b] = …` is not an offset; anything else is history
+        const prev = toks[k - 1]
+        if (!prev || (prev.kind === 'punct' && !isPunct(prev, ')') && !isPunct(prev, ']'))) {
+          for (let j = k + 1; j < toks.length && !isPunct(toks[j], ']'); j += 1) {
+            if (toks[j] && toks[j].kind === 'ident') declared.add(String(toks[j].value))
+          }
+          continue
+        }
+        return true
+      }
       if (!t || t.kind !== 'ident') continue
       const v = String(t.value)
-      if (v.startsWith('ta.') || STATE_HEAD.has(v)) return true
-      if (pineVersion !== null && pineVersion < 5 && (FINITE_WINDOW[v] || CARRIED[v])) return true
-      if (isPunct(toks[k + 1], '(') && isUserFn(v) && fnArmHistory(v, seen)) return true
+      if (STATE_HEAD.has(v)) return true
+      if (HELD_WORDS.has(v) || declared.has(v)) continue
+      // a named argument's name (`length = 3`) is not a read
+      if (isPunct(toks[k + 1], '=')) continue
+      if (isPunct(toks[k + 1], '(')) {
+        if (isUserFn(v)) { if (fnArmHistory(v, seen)) return true; continue }
+        if (!heldCallPure(v, toks, k)) return true
+        continue
+      }
+      // a bare NAME is not counted: a script binding is evaluated on its own line,
+      // and a built-in variable (`close`, `ta.tr`, `ta.obv`) is the chart's series,
+      // the same on every bar whoever reads it
     }
     return false
   }
@@ -1963,6 +2031,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
       if (owner !== null && loopDepth === 0 && typeof culprit === 'string') {
         err.frameName = culprit
         err.condParam = true
+        err.condWhat = 'history in one operand of a choice'
       }
       throw err
     }
@@ -8676,7 +8745,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
       if (err.condParam === true) {
         note('runtime:conditional-history')
         const cr = new RuntimeRefusal('runtime:conditional-history',
-          `\`${p}\` decides a branch of \`${node.name}\` that keeps history (a \`ta.*\` call), and this call passes `
+          `\`${p}\` decides a branch of \`${node.name}\` that reads ${err.condWhat || 'history'} (kept per call site), and this call passes `
           + 'a value that is not fixed before bar 0, so that branch does not run on every call — '
           + 'Pine keeps its history per call site, and this lane does not serve that shape yet', at)
         cr.condParam = true
