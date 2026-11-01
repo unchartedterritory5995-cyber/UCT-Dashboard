@@ -152,12 +152,23 @@ Only agent-qa edits this file. Update it in every PR.
 - From agent-md: PR #569 (quote, quotes) is ready. An ownership check and conformance review are queued.
 
 ## Ready for integration
+- (nothing open from agent-qa; #572, #586 and #589 are integrated)
+
+## Ready for integration (history)
 - **#572 (fixtures).** quote, quotes and bars.daily are re-cut to their merged producers: `data` fields, note
   constants imported from the adapters, coverage on quote reads, no `delayed` quote path. New v1.1 quote cases:
   extended-live, extended-closed, holiday, no-current-trade. Rules (a)–(e) are a reusable predicate
   (`quote_semantics_errors`) with controls showing it can fail. Other MD-1 kinds keep provisional `data` shapes.
 
 ## Verdicts on `agent/int`
+- **8f9e65eda0 — GREEN — the SAT-1 integration point** (#586 corpus scorer, #592 SC-1 v1.3 §2c docs).
+  The tree was checked out EXACTLY at 8f9e65eda0 (`git diff --quiet` vs origin/agent/int), with nothing added.
+  - Agent pytest under the lock: 1152 passed. Agent vitest: 117 files passed, 5 skipped; 2007 passed, 6 skipped.
+  - QA suites (fixtures, clock, scan corpus): 233 passed. The clock rail's KNOWN list is empty; the turn-id rail
+    sees 1 real importer (screener.js), clean.
+  - Corpus: ORACLE 31/31; GRAMMAR-DIRECT 5/31 = answerable 0/26 (refusals 5/5 trivially).
+- **b65f1a4035 — GREEN** (#584 screener via gateway, #585 MD-1 v1.2, #587 F-9 fix + ADR-004, #588 model_isolated,
+  #589 F-6 removal). Exact tree, nothing added: pytest 1147, vitest 117 files / 2007 passed.
 - **42d962963d — GREEN** (#572 integrated). The locked run's tree differed from this tip only by 2 lines of this file
   (two-dot `git diff`). Agent pytest under the lock: 1049 passed. Agent vitest: 115 files passed, 5 skipped;
   1988 passed, 6 skipped.
