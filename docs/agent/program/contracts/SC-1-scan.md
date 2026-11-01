@@ -1,9 +1,9 @@
-# SC-1 — Agent scan contract (v1.1)
+# SC-1 — Agent scan contract (v1.3)
 
 - **Owner:** agent-sc.
 - **Consumers:** agent-rs, agent-qa, and later the G workstream.
 - **Depends on:** MD-1 (envelope, gateway and budgets).
-- **Status:** v1.0 accepted for Sprint 1; v1.1 (additive, 2026-11-01) pins the `as_of`/`stale` mapping in §2a.
+- **Status:** v1.0 accepted for Sprint 1; v1.1 (additive, 2026-11-01) pins the `as_of`/`stale` mapping in §2a; v1.3 (additive) adds §2c, relative volume. **v1.2 is reserved** for the IC-1 delegating kind (ADR-004), which is not scheduled.
 
 ## 1. Purpose
 
@@ -50,6 +50,26 @@ The screener has no single `as_of` or `stale` field, so v1.1 pins the mapping:
   - `coverage` counts screens: `answered` = runnable, `not_computable` = not runnable.
   - `as_of` is the newest screen's `updated_at`.
   - It is a `scan`-category kind, so it uses the turn's one scan; to run a known screen, use `screen.run` with `saved_id`.
+
+## 2c. Relative volume (v1.3, additive)
+
+**Why this lives here and not in MD-1:** see MD-1 §4.3. Relative volume is not an MD-1 kind. This section is the **single authority** for the Agent's relative-volume definitions and wording. `services/volume_live.py` is not exposed, and nothing in the Agent computes relative volume itself.
+
+Two screener fields carry it. Both are read through `screen.run` / `screen.count` like any other catalog field.
+
+| Field | Definition (owned by the screener, quoted from its code) | Say it as | Freshness |
+|---|---|---|---|
+| `vol_ratio` | `technicals.volume_ratio`: a session's volume over the mean of the **prior** 30 sessions (today excluded) | "volume vs its 30-day average (full day)" | periodic. Dated by the envelope's `as_of` (§2a), the last completed session. |
+| `rvol_live` | the screener live tier: today's volume / (`avg_volume_30d` × the share of a session's volume usually done by now: the ticker's own curve, else the market's) | "**vs 30-day average at this time of day**" | periodic (an intraday sweep). Its time is the overlay's own, named in the envelope's live-overlay note (§2a), never the envelope's `as_of`. |
+
+**Rules**
+- A "volume surge / unusual volume right now" question is `screen.run` sorted by `rvol_live` (descending), labelled "vs 30-day average at this time of day".
+- **No overlay, no surge reading.** `rvol_live` is NULL before 09:45 ET, outside the session, or when the live tier does not serve a row. Those names count in `coverage.not_computable`, never as low volume.
+  - When no returned row carries a live value, the answer says so and offers `vol_ratio` (full day) instead.
+  - It **never** substitutes one field for the other silently, and never words `vol_ratio` as "today so far".
+- Neither field is ever called "live" or "now" without its time: the overlay's time for `rvol_live`, the session for `vol_ratio`.
+
+*Implementation status:* both fields and their envelope disclosures already work through `screen.run` (§2, §2a). The discovery planning that applies these rules to a member's question is SC-1 PR 3.
 
 ## 3. Specs
 
