@@ -22,12 +22,14 @@ const CLIENT = path.join(SRC, 'agent', 'marketdata', 'client.js')
 const TRACE = path.join(SRC, 'agent', 'trace.js')
 const parse = (src) => Parser.extend(jsx()).parse(src, { ecmaVersion: 'latest', sourceType: 'module', locations: true })
 
-function walk(node, visit, parent = null) {
+function walk(node, visit, anc = []) {
   if (!node || typeof node !== 'object') return
-  if (Array.isArray(node)) { node.forEach((n) => walk(n, visit, parent)); return }
-  if (typeof node.type === 'string') visit(node, parent)
-  for (const [k, v] of Object.entries(node)) if (k !== 'loc' && v && typeof v === 'object') walk(v, visit, node)
+  if (Array.isArray(node)) { node.forEach((n) => walk(n, visit, anc)); return }
+  if (typeof node.type === 'string') visit(node, anc[anc.length - 1] || null, anc)
+  const next = typeof node.type === 'string' ? [...anc, node] : anc
+  for (const [k, v] of Object.entries(node)) if (k !== 'loc' && v && typeof v === 'object') walk(v, visit, next)
 }
+const FN = new Set(['FunctionDeclaration', 'FunctionExpression', 'ArrowFunctionExpression'])
 
 function resolves(fromFile, spec, target) {
   if (!spec.startsWith('.')) return false
@@ -64,7 +66,21 @@ export function readDataTurnIdViolations(src, file) {
     || (v.callee.type === 'MemberExpression' && !v.callee.computed && v.callee.object.type === 'Identifier'
         && ctNs.has(v.callee.object.name) && v.callee.property.name === 'currentTurnId'))
   const calls = new Set()
-  walk(ast, (n) => {
+  // `const id = currentTurnId()` in the SAME function as the read, never reassigned (const), is the id itself: it lets
+  // the caller say something kinder than the client's own refusal when no turn is open. A wrapper is NOT accepted.
+  const isTurnConst = (v, anc) => {
+    if (!v || v.type !== 'Identifier') return false
+    const fn = [...anc].reverse().find(a => FN.has(a.type))
+    if (!fn) return false            // a module-level const is read ONCE, at import: never the current turn
+    let ok = false
+    walk(fn.body, (d) => {
+      if (d.type === 'VariableDeclaration' && d.kind === 'const') {
+        for (const x of d.declarations) if (x.id.type === 'Identifier' && x.id.name === v.name && isCurrentTurnIdCall(x.init)) ok = true
+      }
+    })
+    return ok
+  }
+  walk(ast, (n, _parent, anc) => {
     if (n.type !== 'CallExpression' || !isRd(n.callee)) return
     calls.add(n.callee)
     const opt = n.arguments[2]
@@ -73,7 +89,7 @@ export function readDataTurnIdViolations(src, file) {
     if (opt.properties.some(p => p.type === 'SpreadElement')) return at(n, 'readData options spread another object: turnId cannot be checked')
     const t = opt.properties.find(p => !p.computed && (p.key.name === 'turnId' || p.key.value === 'turnId'))
     if (!t) return at(n, 'readData called without turnId')
-    if (!isCurrentTurnIdCall(t.value)) at(n, `turnId is not currentTurnId() from agent/trace (${src.slice(t.value.start, t.value.end)})`)
+    if (!isCurrentTurnIdCall(t.value) && !isTurnConst(t.value, anc)) at(n, `turnId is not currentTurnId() from agent/trace (${src.slice(t.value.start, t.value.end)})`)
   })
   walk(ast, (n, parent) => {                                    // any other use of the binding is a value use
     if (!isRd(n) || calls.has(n)) return
@@ -129,6 +145,7 @@ describe('agent-qa: every Agent readData call passes currentTurnId()', () => {
   it.each([
     ['the canonical form', `${head}export const f = () => readData('quote', { symbol: 'SPY' }, { purpose: 'answer', turnId: currentTurnId() })`],
     ['aliases', "import { readData as rd } from '../marketdata/client.js'\nimport { currentTurnId as tid } from '../trace.js'\nrd('quote', {}, { turnId: tid() })"],
+    ['a const from currentTurnId() in the same function (null-checked)', `${head}export async function f() { const turnId = currentTurnId(); if (!turnId) return null; return readData('quote', {}, { purpose: 'answer', turnId }) }`],
     ['namespaces', "import * as md from '../marketdata/client'\nimport * as tr from '../trace'\nmd.readData('quote', {}, { turnId: tr.currentTurnId() })"],
     ['an unrelated local readData', "const readData = (e) => JSON.parse(e.data)\nreadData({ data: '{}' })"],
   ])('ACCEPTS %s', (_, src) => {
@@ -140,7 +157,12 @@ describe('agent-qa: every Agent readData call passes currentTurnId()', () => {
     ['Date.now()', `${head}readData('quote', {}, { turnId: String(Date.now()) })`],
     ['no options', `${head}readData('quote', {})`],
     ['options without turnId', `${head}readData('quote', {}, { purpose: 'scan' })`],
-    ['a variable holding the id', `${head}const id = currentTurnId()\nreadData('quote', {}, { turnId: id })`],
+    ['a let holding the id', `${head}export async function f() { let id = currentTurnId(); id = 'x'; return readData('quote', {}, { turnId: id }) }`],
+    ['a const from a WRAPPER', `${head}const t = () => currentTurnId()\nexport async function f() { const id = t(); return readData('quote', {}, { turnId: id }) }`],
+    ['a const in ANOTHER function', `${head}const id = 'x'\nfunction g() { const id = currentTurnId(); return id }\nexport async function f() { return readData('quote', {}, { turnId: id }) }`],
+    ['a MODULE-level const (read once at import)', `${head}const id = currentTurnId()
+readData('quote', {}, { turnId: id })`],
+    ['shorthand with a minted id', `${head}export async function f() { const turnId = Math.random(); return readData('quote', {}, { turnId }) }`],
     ['a spread', `${head}const o = { turnId: currentTurnId() }\nreadData('quote', {}, { ...o })`],
     ['a currentTurnId from elsewhere', "import { readData } from '../marketdata/client'\nconst currentTurnId = () => 'x'\nreadData('quote', {}, { turnId: currentTurnId() })"],
     ['readData passed as a value', `${head}const run = (fn) => fn('quote', {}, {})\nrun(readData)`],
