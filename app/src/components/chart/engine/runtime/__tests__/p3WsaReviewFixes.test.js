@@ -82,6 +82,13 @@ describe('C1 — `x := if/switch`: a read of x inside the block is x\'s PRIOR va
     const src = `${v5}x = close\nx := if close > 103\n    x * 2\nelse\n    x + 1\nplot(x)\n`
     expect(run(src)).toEqual(C.map((c) => (c > 103 ? c * 2 : c + 1)))
   })
+  // ⛔ review 3 L-2 — the temp carries the target's kind (text here)
+  it('⛔ a TEXT target: `s := if … "b" else "c"` keeps its text kind through the temp', () => {
+    expect(run(`${v5}var string s = "a"\ns := if close > 103\n    "b"\nelse\n    "c"\nplot(s == "b" ? 1 : 0)\n`)).toEqual([0, 0, 0, 0, 1, 1, 1, 1])
+  })
+  it('⛔ a COLOUR target keeps its colour kind through the temp', () => {
+    expect(run(`${v5}var color c = color.red\nc := if close > 103\n    color.green\nelse\n    color.blue\nplot(c == color.green ? 1 : 0)\n`)).toEqual([0, 0, 0, 0, 1, 1, 1, 1])
+  })
   it('⛔ CONTROL — an unmatched `x := if` with no else still yields na (Pine)', () => {
     const out = run(`${v5}var float x = 1.0\nx := if close > 103\n    x + 1\nplot(x)\n`)
     expect(out.slice(0, 4).every(Number.isNaN)).toBe(true)
@@ -251,6 +258,30 @@ describe('M3 — Pine 6 `bool` is never `na`', () => {
     const out = run(`${v6}m = close * 2\nx = if close > 105\n    m\nplot(x)\n`)
     expect(out.slice(0, 6).every(Number.isNaN)).toBe(true)
     expect(out.slice(6)).toEqual([212, 214])
+  })
+  // ⛔⛔ review 3 M-1a — `ta.valuewhen` / `ta.change` / `nz` return their SOURCE's type
+  it('⛔⛔ M-1a: `ta.valuewhen` of a bool source is not a number', () => {
+    const r = refusalOf(`${v6}b = if close > 105\n    ta.valuewhen(high > low + 6, close > open, 0)\nplot(b ? 1 : 0)\n`)
+    expect(r.message).toMatch(/v6 bool is never `na`/)
+  })
+  it('⛔⛔ M-1a: `nz` of a bool name is not a number', () => {
+    const r = refusalOf(`${v6}up = close > open\nb = if close > 105\n    nz(up)\nplot(b ? 1 : 0)\n`)
+    expect(r.message).toMatch(/v6 bool is never `na`/)
+  })
+  // ⛔⛔ review 3 M-1b — a global `float x` must not type a function-local bool `x`
+  it('⛔⛔ M-1b: `x := if` on a local bool x shadowing a global float x', () => {
+    const r = refusalOf(`${v6}float x = 0.0\nf(v) =>\n    x = v > 100\n    x := if v > 102\n        true\n    x ? 1 : 0\nplot(f(close))\n`)
+    expect(r.message).toMatch(/v6 bool is never `na`/)
+  })
+  it('⛔⛔ M-1b: an arm reading the local bool x (a global float x elsewhere)', () => {
+    const r = refusalOf(`${v6}float x = 0.0\nf(v) =>\n    x = v > 100\n    y = if v > 102\n        x\n    y ? 1 : 0\nplot(f(close))\n`)
+    expect(r.message).toMatch(/v6 bool is never `na`/)
+  })
+  // ⛔ review 3 L-3 — a ternary whose both branches are numbers is a number
+  it('⛔ CONTROL — L-3: a numeric ternary arm is served (na where unmatched)', () => {
+    const out = run(`${v6}x = if close > 103\n    close > open ? 1.0 : 2.0\nplot(x)\n`)
+    expect(out.slice(0, 4).every(Number.isNaN)).toBe(true)
+    expect(out.slice(4)).toEqual([1, 1, 1, 1])
   })
   it('⛔ CONTROL — v5: an unmatched block-valued bool is na', () => {
     expect(run(`${v5}b = if close > 103\n    true\nplot(b == false ? 5 : 7)\n`)).toEqual(Array(N).fill(7))

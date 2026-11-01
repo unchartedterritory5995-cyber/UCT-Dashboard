@@ -24,6 +24,8 @@ import { objectReaderFor } from '../objectColumns'
 import { evaluateObjects } from '../objectRuntime'
 import { buildRuntimeIr } from '../ast/pineRuntimeFrontend.js'
 import { probeRuntimeProgram, computeRuntimeColumns } from '../runtime/runtimeColumns.js'
+import { lowerIrProgram } from '../runtime/lowerIr.js'
+import { execute } from '../runtime/vm.js'
 
 const N = 12
 const BARS = Array.from({ length: N }, (_, i) => ({
@@ -92,6 +94,46 @@ describe('⛔⛔ the C18 door (objects-only pane, production path) draws exactly
   }
 })
 const DOOR_BARS = Array.from({ length: 8 }, (_, i) => ({ t: 1700000000 + i * 86400, o: 100, h: 102 + i, l: 98, c: 100 + i, v: 1000 }))
+
+// ⛔⛔ review 3 H-1 — A READ OF x THROUGH A USER FUNCTION is a self-read too. The walk
+// missed `functions[fn].body`, so on the door the chain lowered through the temp and
+// drew a different value from master's (54 vs 84 on the reviewer's 40 bars).
+describe('⛔⛔ the door refuses a read of x THROUGH a user function inside `x := if/switch`', () => {
+  afterEach(() => { vi.unstubAllEnvs() })
+  const PRE = 'k = 0\nfor i = 0 to 1\n    k += 1\n'
+  const POST = 'var int nn = 0\nnn += na(x) ? 1 : 0\nvar float sm = 0.0\nsm += nz(x)\n' + L('nn*1000+sm')
+  const ARM = (val) => `x := if close > open\n    ${val}\nelse\n    0.0\n`
+  const RS = {
+    rs_fn: `${PRE}var float x = 0.0\ng() => x\n${ARM('nz(g()) + 1 + k')}${POST}`,
+    rs_fn_multiline: `${PRE}var float x = 0.0\ng() =>\n    y = x * 1\n    y\n${ARM('nz(g()) + 1 + k')}${POST}`,
+    rs_fn_chain: `${PRE}var float x = 0.0\ng() => x\nh() => g() + 0\n${ARM('nz(h()) + 1 + k')}${POST}`,
+    rs_fn_nonvar: `${PRE}float x = 3.0\ng() => x\n${ARM('nz(g()) + 1 + k')}${POST}`,
+    rs_fn_param_global: `${PRE}var float x = 0.0\ng(v) => v + nz(x)\n${ARM('g(1) + k')}${POST}`,
+    rs_fn_switch_subject: `${PRE}var float x = 0.0\ng() => nz(x) > 3 ? 1 : 0\nx := switch g()\n    1 => 0.0\n    => 2.0 + k\n${POST}`,
+  }
+  for (const [name, src] of Object.entries(RS)) {
+    it(`${name}: refused by name on the door, no runtime drawing; built on the pane`, () => {
+      vi.stubEnv('VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', '1')
+      expect(c18(src).rt === true).toBe(false)
+      const door = buildRuntimeIr(HEAD + src, { bars: DOOR_BARS, inputs: {}, objectTrees: [], objectTreesAt: [], objectDoor: true })
+      expect(door.ok).toBe(false)
+      expect(door.refusal.guard).toBe('runtime:object-door')
+      expect(door.refusal.message).toMatch(/reads `x` inside its own block.*Q-A2/)
+      expect(buildRuntimeIr(HEAD + src, { bars: DOOR_BARS, inputs: {}, objectTrees: [], objectTreesAt: [] }).ok).toBe(true)
+    })
+  }
+  // ⛔ review 3 L-1 — a COMMITTED `x[1]` is not a read of x now: the door draws it, and
+  // the value is master's (the temp and master's na-first lowering agree there).
+  it('⛔ CONTROL — `x := if c / nz(x[1]) + 1` is built on the door, master\'s value [0,0,0,0,1,2,3,4]', () => {
+    const src = '//@version=6\nindicator("t")\nvar float x = 0.0\nx := if close > 103\n    nz(x[1]) + 1\nelse\n    0.0\nplot(x)\n'
+    const door = buildRuntimeIr(src, { bars: DOOR_BARS, inputs: {}, objectTrees: [], objectTreesAt: [], objectDoor: true })
+    expect(door.ok, door.ok ? '' : door.refusal.message).toBe(true)
+    const program = lowerIrProgram(door.ir)
+    const series = ['o', 'h', 'l', 'c', 'v'].map((f) => Float64Array.from(DOOR_BARS.map((b) => b[f])))
+    const out = execute(program, { bars: 8, series, columns: program.columns, confirmed: true, barTimes: DOOR_BARS.map((b) => b.t) })
+    expect(Array.from(out.outputs[0])).toEqual([0, 0, 0, 0, 1, 2, 3, 4])
+  })
+})
 
 describe('⛔⛔ the contract: under `objectDoor: true` the WS-A grammar refuses `runtime:object-door`', () => {
   const B = Array.from({ length: 8 }, (_, i) => ({ t: 1700000000 + i * 86400, o: 100, h: 102 + i, l: 98, c: 100 + i, v: 1000 }))

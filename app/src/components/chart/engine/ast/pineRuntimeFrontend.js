@@ -7319,44 +7319,47 @@ function buildRuntimeIrLinked(source, opts, holder) {
   const TYPE_WORDS = new Set(['float', 'int', 'string', 'color', 'bool'])
   const NUMERIC_SERIES = new Set(['open', 'high', 'low', 'close', 'volume', 'hl2', 'hlc3', 'ohlc4', 'hlcc4',
     'bar_index', 'time', 'time_close', 'last_bar_index', 'timenow'])
-  const NUMERIC_CALL = /^(ta\.(sma|ema|rma|wma|hma|vwma|swma|alma|linreg|atr|tr|rsi|cci|mfi|stdev|variance|dev|highest|lowest|highestbars|lowestbars|change|mom|roc|cum|percentrank|median|mode|range|valuewhen|barssince|correlation|vwap|wpr|cmo|tsi|obv|pvt|accdist|iii|wvad|nvi|pvi|sar|supertrend|bb|bbw|kc|kcw|dmi|macd|stoch|pivothigh|pivotlow)|math\.[a-z_]+|str\.(tostring|format|length|replace|replace_all|lower|upper|substring|trim|repeat|tonumber|pos)|color\.[a-z_]+|nz|int|float|string)$/
+  const NUMERIC_CALL = /^(ta\.(sma|ema|rma|wma|hma|vwma|swma|alma|linreg|atr|tr|rsi|cci|mfi|stdev|variance|dev|highest|lowest|highestbars|lowestbars|mom|roc|cum|percentrank|median|mode|range|barssince|correlation|vwap|wpr|cmo|tsi|obv|pvt|accdist|iii|wvad|nvi|pvi|sar|supertrend|bb|bbw|kc|kcw|dmi|macd|stoch|pivothigh|pivotlow)|math\.[a-z_]+|str\.(tostring|format|length|replace|replace_all|lower|upper|substring|trim|repeat|tonumber|pos)|color\.[a-z_]+|int|float|string)$/
+  // ⛔ (review 3 M-1a) `ta.valuewhen`, `ta.change` and `nz` return their SOURCE's
+  // type, so they are not on the numeric list: a bool source makes them bool.
+  // ⛔ (review 3 M-1b) NAMES ARE TYPED BY SPELLING ACROSS EVERY SCOPE, SO EACH BINDING
+  // MUST QUALIFY ON ITS OWN. A global `float x` once let a function-local `x = v > 100`
+  // pass as a number. Now a spelling is numeric only when EVERY binding of it, in any
+  // scope, is either declared float/int/string/color or binds a provably non-bool
+  // value; and a declared type counts only when every declaration of the spelling
+  // carries one. Conservative by construction (a shadowing bool anywhere refuses).
   let typeInfo = null
   const typeTables = () => {
     if (typeInfo) return typeInfo
-    const declared = new Map()   // name -> Set of declared type words
-    const numeric = new Set()    // names every binding of which is provably non-bool
-    const boundAny = new Map()   // name -> [rhs token lists]
+    const bindings = new Map()   // name -> [{ ty, rhs, decl }]
     const visit = (list) => {
       for (const st of list || []) {
         for (const t of statementCommaParts(st) || [st.header || []]) {
           const eq = findTop(t, (x) => isPunct(x, '=') || isPunct(x, ':='))
           if (eq <= 0 || !t[eq - 1] || t[eq - 1].kind !== 'ident') continue
           const nm = String(t[eq - 1].value)
-          const ty = t.slice(0, eq - 1).find((x) => x.kind === 'ident' && TYPE_WORDS.has(x.value))
-          if (ty) { if (!declared.has(nm)) declared.set(nm, new Set()); declared.get(nm).add(ty.value) }
-          if (!boundAny.has(nm)) boundAny.set(nm, [])
-          boundAny.get(nm).push(t.slice(eq + 1))
+          const tyTok = t.slice(0, eq - 1).find((x) => x.kind === 'ident' && TYPE_WORDS.has(x.value))
+          if (!bindings.has(nm)) bindings.set(nm, [])
+          bindings.get(nm).push({ ty: tyTok ? tyTok.value : null, rhs: t.slice(eq + 1), decl: isPunct(t[eq], '=') })
         }
         visit(st.sub)
       }
     }
     visit(stmts)
-    typeInfo = { declared, numeric }
+    const numeric = new Set()
+    typeInfo = { bindings, numeric }
     for (let pass = 0; pass < 3; pass += 1) {
-      for (const [nm, rhss] of boundAny) {
-        const d = declared.get(nm)
-        if (d && [...d].every((w) => NON_BOOL_TYPES.has(w))) { numeric.add(nm); continue }
-        if (d && d.has('bool')) continue
-        if (rhss.every((r) => provablyNonBoolToks(r))) numeric.add(nm)
+      for (const [nm, bs] of bindings) {
+        if (bs.every((b) => (b.ty ? NON_BOOL_TYPES.has(b.ty) : provablyNonBoolToks(b.rhs)))) numeric.add(nm)
       }
     }
     return typeInfo
   }
   const declaredTypeOfName = (nm) => {
-    const d = typeTables().declared.get(String(nm))
-    if (!d) return null
-    if (d.has('bool')) return 'bool'
-    return [...d].every((w) => NON_BOOL_TYPES.has(w)) ? 'float' : null
+    const bs = typeTables().bindings.get(String(nm))
+    const decls = (bs || []).filter((b) => b.decl)
+    if (!decls.length || !decls.every((b) => b.ty && NON_BOOL_TYPES.has(b.ty))) return null
+    return 'float'
   }
   const provablyNonBoolNode = (n, d = 0) => {
     if (!n || typeof n !== 'object' || d > 64) return false
@@ -7868,6 +7871,31 @@ function buildRuntimeIrLinked(source, opts, holder) {
     }
     return typeof name === 'string' && /^[A-Za-z_]\w*$/.test(name) && !sharedArrayNames.has(name)
   }
+  /** ⭐ ONE WALK FOR "WHAT DOES THIS USER FUNCTION READ OF THE MAIN FRAME?" — the
+   *  slots it reads at the current bar (a global read or a main-frame slot), through
+   *  EVERY function it calls, added to `into`. A committed `x[n]` is not a read of x
+   *  now. Returns false when a function on the way is not compiled yet (unknown:
+   *  callers fail closed). Shared by the v6 `for` bound guard (reviews H2c) and the
+   *  drawing door's `x := if` self-read refusal (review 3 H-1). */
+  const collectFnGlobalReads = (fnIndex, into, seen = new Set()) => {
+    if (seen.has(fnIndex)) return true
+    seen.add(fnIndex)
+    const f = functions[fnIndex]
+    if (!f || f.compiling || !f.body) return false
+    let complete = true
+    const walk = (x, d) => {
+      if (!x || typeof x !== 'object' || d > 256) return
+      if (Array.isArray(x)) { for (const y of x) walk(y, d + 1); return }
+      if (x.kind === EXPR.HIST && x.of && x.of.kind === EXPR.READ) return
+      if (x.kind === EXPR.READ && Number.isInteger(x.slot)
+          && (x.global || (slots[x.slot] && slots[x.slot].owner === null))) into.add(x.slot)
+      if (x.kind === EXPR.CALL && !collectFnGlobalReads(x.fn, into, seen)) complete = false
+      for (const v of Object.values(x)) if (v && typeof v === 'object') walk(v, d + 1)
+    }
+    walk(f.body, 0)
+    walk(f.result, 0)
+    return complete
+  }
   const forBoundMovedBy = (toIr, body) => {
     const reads = new Set()
     const heap = new Set()
@@ -7876,23 +7904,6 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // ⭐ (review H2d) a bound with an effect of its own runs before EVERY pass in
     // v6 and once here: that is a difference whatever the body does
     let effect = null
-    // ⭐ (review H2c) the globals a user function in the bound reads, through
-    // every function it calls: a body that writes one moves the bound
-    const fnGlobalReads = (fnIndex, seen) => {
-      const f = functions[fnIndex]
-      if (!f || seen.has(fnIndex)) return
-      seen.add(fnIndex)
-      const walk = (x, d) => {
-        if (!x || typeof x !== 'object' || d > 256) return
-        if (Array.isArray(x)) { for (const y of x) walk(y, d + 1); return }
-        if (x.kind === EXPR.READ && Number.isInteger(x.slot)
-            && (x.global || (slots[x.slot] && slots[x.slot].owner === null))) reads.add(x.slot)
-        if (x.kind === EXPR.CALL) fnGlobalReads(x.fn, seen)
-        for (const v of Object.values(x)) if (v && typeof v === 'object') walk(v, d + 1)
-      }
-      walk(f.body, 0)
-      walk(f.result, 0)
-    }
     const scanBound = (n, d) => {
       if (!n || typeof n !== 'object' || d > 256) return
       if (Array.isArray(n)) { for (const x of n) scanBound(x, d + 1); return }
@@ -7917,7 +7928,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
         if (!effect && (!f || !fnIsEffectFree(n.fn) || !(f.effects && f.effects.pure))) {
           effect = 'the bound calls a function with an effect or a state of its own'
         }
-        fnGlobalReads(n.fn, new Set())
+        // ⭐ (review H2c) the globals it reads, through every callee
+        if (!collectFnGlobalReads(n.fn, reads)) effect = effect || 'the bound calls a function this lane has not compiled yet'
       }
       for (const v of Object.values(n)) if (v && typeof v === 'object') scanBound(v, d + 1)
     }
@@ -7997,7 +8009,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
     return why
   }
 
-  /** does lowered IR read `slot` at the current bar (a committed `x[n]` excepted) */
+  /** does lowered IR read `slot` at the current bar (a committed `x[n]` excepted),
+   *  directly or through any user function it calls (unknown counts as a read) */
   const irReadsSlot = (ir, slot) => {
     let hit = false
     const walk = (x, d) => {
@@ -8005,6 +8018,11 @@ function buildRuntimeIrLinked(source, opts, holder) {
       if (Array.isArray(x)) { for (const y of x) walk(y, d + 1); return }
       if (x.kind === EXPR.READ && x.slot === slot) { hit = true; return }
       if (x.kind === EXPR.HIST && x.of && x.of.kind === EXPR.READ && x.of.slot === slot) return
+      // ⛔ (review 3 H-1) a read THROUGH a user function counts: `g() => x`
+      if (x.kind === EXPR.CALL) {
+        const via = new Set()
+        if (!collectFnGlobalReads(x.fn, via) || via.has(slot)) { hit = true; return }
+      }
       for (const v of Object.values(x)) if (v && typeof v === 'object') walk(v, d + 1)
     }
     walk(ir, 0)
@@ -8635,17 +8653,15 @@ function buildRuntimeIrLinked(source, opts, holder) {
           // `x` inside the chain (its tests, its arms, `x + 1`, `cnt + 1`,
           // `close > tr`) sees x's PRIOR value. Writing `na` to x first made all
           // of them read `na` — a counter stuck at `na`, a state machine stuck,
-          // a trailing stop `na` — served with nothing red. The temp carries the
-          // target's kind flags (text, colour, collection …) so the arms lower
-          // against the same kind, and x is assigned from it after the chain.
+          // a trailing stop `na` — served with nothing red. x is assigned from the
+          // temp after the chain. (⚰️ review 3 L-2: a copy of x's kind flags onto
+          // the temp lived here; removing it changed no text, colour or number
+          // result — the arms set the temp's kind themselves — so it is gone.)
           // ⛔ On the drawing door this is master's value exactly wherever the chain
           // does not read x (the temp and master's na-first lowering agree there);
           // where it does, the door refuses by name below.
           const tmpName = `${nameTok.value} := block@${first.line}:${first.column}`
           const tmpSlot = scope.declare(tmpName, newSlot(tmpName, false))
-          for (const [k, v] of Object.entries(slots[blkSlot] || {})) {
-            if (!['name', 'kind', 'owner', 'index'].includes(k)) slots[tmpSlot][k] = v
-          }
           out.push(declare(tmpSlot, naValue()))
           const mkArm = armAssignerFor(tmpSlot,
             `${nameTok.value} := ${blkHead.value} …`, scope)
