@@ -1895,13 +1895,29 @@ function buildRuntimeIrLinked(source, opts, holder) {
       else if (node.type === 'binary' && SHORT_CIRCUIT.has(node.op) && pineVersion >= 6) { arms = [node.right]; test = node.left }
       if (!arms || !arms.some((a) => lexArmHistory(a))) return
       let inv = false
+      // the parameter this test is blocked on, if any (`invariantTest`), read
+      // here and nowhere else: the region bookkeeping keeps its own value
+      const prevSeen = r4CulpritSeen
+      r4CulpritSeen = null
       try { inv = invariantTest(test, scope) } catch { inv = false }
+      const culprit = r4CulpritSeen
+      r4CulpritSeen = prevSeen
       if (inv) return
       note('runtime:conditional-history')
-      throw new RuntimeRefusal('runtime:conditional-history',
+      const err = new RuntimeRefusal('runtime:conditional-history',
         `history (a \`ta.*\` call, or a function that keeps it) ${node.type === 'ternary' ? 'in one arm of `?:`' : `on the right of v6's \`${node.op}\``} `
         + '— Pine runs it only on the bars that operand is reached, so it keeps the history of those bars; '
         + 'this lane evaluates it on every bar', locate(node.tok))
+      // ⭐ A TEST ON A PARAMETER IS THE CALL SITE'S (as for an `if`, `r4Guard`).
+      // MLExtensions' `filter_volatility(…, bool useVolatilityFilter) =>
+      // useVolatilityFilter ? ta.atr(…) - ta.atr(…) : 0.0`, called with `true`,
+      // takes that arm on every bar: the call site compiles its own copy with the
+      // parameter as its constant (C35, `condParam`), where the test is invariant.
+      if (owner !== null && loopDepth === 0 && typeof culprit === 'string') {
+        err.frameName = culprit
+        err.condParam = true
+      }
+      throw err
     }
     own()
     if (!deep) return
@@ -6650,10 +6666,15 @@ function buildRuntimeIrLinked(source, opts, holder) {
     const p4 = positional.length > 3 ? argOf(positional[3]) : null
     // ⛔ review L1 — six positionals alone is not the gradient form: the solid
     // form's own signature is `fill(p1, p2, color, title, editable, fillgaps)`.
-    const gradient = GRADIENT_ARGS.some((k) => named.has(k))
+    // ⭐ re-review low — a third positional that is `na` is the solid form's colour
+    // (a hidden fill), unless a fifth positional colour makes it the gradient form.
+    const p5 = positional.length > 4 ? argOf(positional[4]) : null
+    const naColourFill = !GRADIENT_ARGS.some((k) => named.has(k)) && !named.has('color')
+      && !!p3 && isBuiltinNa(p3, scope) && !(p5 && holdsColour(p5, scope))
+    const gradient = !naColourFill && (GRADIENT_ARGS.some((k) => named.has(k))
       || (positional.length >= 6 && !holdsColour(p3, scope))
       || (!named.has('color') && p3 && p4 && !holdsColour(p3, scope) && !holdsText(p3, scope)
-        && !holdsText(p4, scope))
+        && !holdsText(p4, scope)))
     // ⭐ review L3 — a fill TradingView does not draw either (`display = display.none`,
     // or a `color = na`) is `hidden`, so the document does not name it as undrawn.
     const displayNode = named.get('display')
