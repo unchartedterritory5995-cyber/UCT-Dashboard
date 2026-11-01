@@ -679,6 +679,10 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
     ...(symbol ? { symbol } : {}),
     ...(tf ? { basePeriod: tf, tf } : {}),
     ...clock,
+    // ⭐ P3 WS-B — the listing fact `lowerIrProgram` reads below, handed to the
+    // front end too, so a `?:` folded into a pure column reads an `na` test as
+    // the VM does (`pineRuntimeFrontend.js::columnInterpretOpts`).
+    ...(ctx && ctx.historyFromListing === true ? { historyFromListing: true } : {}),
   })
   if (!built.ok) {
     const r = built.refusal || {}

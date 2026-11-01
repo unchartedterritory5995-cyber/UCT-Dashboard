@@ -42,7 +42,7 @@ import { CLOCK_REALTIME } from '../../indicators.js'
 import { linkLibraries, remapLibraryLocation } from './pineLibraries.js'
 import { TABLE, isPointwise } from './parse.js'
 import { splitCommaStatements } from './objectFnInline.js'
-import { interpret, POINTWISE_FOR_PARITY, FINITE_WINDOW, CARRIED, TableRefusal, hullWindows } from './interpret.js'
+import { interpret, POINTWISE_FOR_PARITY, FINITE_WINDOW, CARRIED, TableRefusal, hullWindows, naConditionIsFalse } from './interpret.js'
 import { bindConstsFor, foldBound, foldScalar, NotFoldable } from './bind.js'
 import { LOWER_TF_REFUSAL } from '../lowerTf.js'
 import {
@@ -1255,6 +1255,21 @@ function buildRuntimeIrLinked(source, opts, holder) {
   // authority over one value and would drift the first time the pragma grammar
   // moved.
   const pineVersion = Number.isFinite(lexed && lexed.version) ? lexed.version : null
+  /** ⭐⭐ P3 WS-B — THE OPTIONS EVERY PURE COLUMN OF THIS RUN IS EVALUATED WITH.
+   *  The caller's `interpretOpts`, plus Pine's `na`-condition rule when the caller
+   *  states the run starts at the listing (`opts.historyFromListing`, the fact
+   *  `lowerIrProgram` reads for the VM's own `?:`/`if`/`and`/`or`/`not`). Without
+   *  it a `?:` folded into a column kept the columnar `{0,1,NaN}` answer, so
+   *  `ta.change(time("W")) != 0 ? 1 : 0` drew `na` on bar 0 where TradingView
+   *  draws 0 (vw-clock-close-tfchange, UCTPROBE_VW_TIME_TF T07-T09) while the same
+   *  `?:` lowered to the VM read it as false. ONE rule, asked of its one authority
+   *  (`interpret.js::naConditionIsFalse` / `pineTernaryFor`), the same two keys the
+   *  host lane passes (`nativeRegistry.js::listingOptsFor`). Off the listing, or
+   *  below v4, nothing changes. */
+  const columnInterpretOpts = (opts && opts.historyFromListing === true)
+    ? { ...((opts && opts.interpretOpts) || {}), historyFromListing: true,
+      ...(naConditionIsFalse(pineVersion) ? { naConditionFalse: true } : {}) }
+    : ((opts && opts.interpretOpts) || undefined)
   /** ⭐⭐ C23 — WHICH CONTRACT THIS BUILD SERVES, decided by the CALLER, never
    *  guessed here: `opts.pane === true` says the run draws ONE symbol's chart
    *  pane, and the columnar resolver it asks for pure subtrees then answers as the
@@ -1615,13 +1630,16 @@ function buildRuntimeIrLinked(source, opts, holder) {
     const key = JSON.stringify(canonical)
     if (columnByKey.has(key)) return columnByKey.get(key)
     let value
+    // ⭐ P3 WS-B — what the columnar lane withheld whole on this chart, by name
+    // (`interpret.js::chartClockWhole` writes each code's sentence here).
+    const clockSink = new Map()
     try {
       // ⛔ FOLD, THEN INTERPRET — the order the definition lane has used since R-K.
       // The fold returns a NEW tree and mutates nothing, so the parse this lane
       // lowers from stays symbolic and a second binding is free to fold it
       // differently.
       value = interpret(foldBound(canonical, bindConsts), bars, inputs,
-        undefined, undefined, opts.interpretOpts)
+        undefined, undefined, { ...columnInterpretOpts, chartClockSink: clockSink })
     } catch (e) {
       // ⭐⭐ C23 — A COMPILE-ONLY BUILD LEAVES THE SYMBOL TO THE BINDING. The
       // member door's checks (`probeObjectRuntime`, `probeRuntimeProgram`) build
@@ -1635,6 +1653,25 @@ function buildRuntimeIrLinked(source, opts, holder) {
       if (!(opts.symbolAtBind === true && bars.length === 0
         && e && e.guard === 'interpret:bind-time-text')) throw e
       value = new Float64Array(0)
+    }
+    // ⭐⭐ P3 WS-B — A CLOCK THE COLUMNAR LANE WITHHOLDS IS WITHHELD HERE TOO.
+    // On the host lane a `time("W")` read on weekend bars (`time-anchor:weekend-
+    // bars`), or a period close it has no witness for, is withheld by name and
+    // nothing is drawn for it. Read here as a column it would come back `na` on
+    // every bar and the run would DRAW that `na`, which reads as "no value"
+    // rather than "not answered" (UCTPROBE_VW_TIME_TF on BTCUSD / EURUSD). So
+    // the run declines by the columnar lane's own code and sentence. A PER-BAR
+    // withholding declines the run too (BITSTAMP:BTCUSD's `time("W")`): the host
+    // lane leaves those bars undrawn and grades them "not compared", and this
+    // lane has no per-bar withholding, so it would draw `na` on them. ⛔ Only the
+    // `time-*` codes, and only over bars: a compile-only build (no bars) cannot
+    // read a regime and must not refuse for it.
+    if (bars.length > 0) {
+      for (const [code, sentence] of clockSink) {
+        if (String(code).startsWith('time-')) {
+          throw new RuntimeRefusal('runtime:chart-clock', `${code}: ${sentence}`, at)
+        }
+      }
     }
     let arr
     if (typeof value === 'number') arr = new Float64Array(bars.length).fill(value)
