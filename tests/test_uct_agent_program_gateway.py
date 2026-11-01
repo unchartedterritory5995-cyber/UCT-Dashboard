@@ -39,13 +39,32 @@ def _read(kind="quote", turn="t1", **params):
     return gw.read(kind, params or {"symbol": "SPY"}, user_id=1, turn_id=turn)
 
 
-def test_dark_by_default_and_nothing_registered():
+def test_dark_by_default_every_registered_kind_is_refused_and_never_runs(monkeypatch):
+    """However many kinds the owners register (the REAL registrars), none is reachable while UCT_AGENT_DATA
+    is off — the refusal comes before the registry, so no adapter runs and nothing reaches a provider."""
     gw._reset_for_test(None)
     assert gw.data_enabled() is False and gw.scan_enabled() is False
-    assert gw.registry().names() == []          # Sprint 0 registers no kinds
-    out = _read()
-    assert out["status"] == "refused" and "UCT_AGENT_DATA" in out["notes"][0]
-    assert env.validate_envelope(out) == []
+    real = gw.registry()
+    ran = []
+    for name in real.names():
+        k = real.get(name)
+        monkeypatch.setattr(real, "_kinds", {**real._kinds, name: gw.Kind(
+            name=k.name, fn=lambda p, c, n=name: ran.append(n), freshness=k.freshness, category=k.category,
+            owner=k.owner, max_symbols=k.max_symbols)})
+    for name in real.names() + ["quote", "screen.run", "not-a-kind"]:
+        out = gw.read(name, {"symbol": "SPY"}, user_id=1, turn_id="t1")
+        assert out["status"] == "refused" and "UCT_AGENT_DATA" in out["notes"][0], name
+        assert env.validate_envelope(out) == [] and out["data"] is None and out["provider_calls"] == 0, name
+    assert ran == []                             # no adapter ran
+
+
+def test_scan_kinds_stay_refused_with_only_the_data_flag(monkeypatch):
+    monkeypatch.setenv(gw.DATA_ENV, "1")
+    gw._reset_for_test(None)
+    real = gw.registry()
+    for name in [n for n in real.names() if real.get(n).category == "scan"]:
+        out = gw.read(name, {}, user_id=1, turn_id="t-scan")
+        assert out["status"] == "refused" and "UCT_AGENT_SCAN" in out["notes"][0], name
 
 
 def test_enabled_read_returns_a_valid_envelope(monkeypatch):
