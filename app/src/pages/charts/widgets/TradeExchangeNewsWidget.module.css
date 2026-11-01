@@ -14,6 +14,8 @@
  * (--widget-*, set by WidgetHost from the canvas) → the app theme tokens.
  */
 .root {
+  --txn-ctl-h: 32px;           /* the toolbar's three controls: Search, Filters, All Lists */
+  --txn-foot-h: 28px;          /* the footer's controls */
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -28,7 +30,7 @@
 .bar {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   padding: 0 10px;
   min-height: 34px;
   box-sizing: border-box;
@@ -117,29 +119,37 @@
   border-color: var(--ut-gold-glow, color-mix(in srgb, var(--ut-gold) 40%, transparent));
 }
 
-/* ── search + filters row (32px, the shared second-header-row height) ──── */
+/* ── the toolbar: Search... | Filters | All Lists, one row, one height ──────
+   The three controls share --txn-ctl-h, one border, one radius and one fill, so
+   they read as one set; the search box takes whatever width is left. */
 .searchBar {
   position: relative;
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 0 10px;
-  min-height: 32px;            /* the shared second-header-row height (WatchlistPicker, Breadth) */
+  padding: 6px 8px;
   box-sizing: border-box;
   border-bottom: 1px solid var(--txn-divider, var(--widget-divider, var(--border)));
   flex: 0 0 auto;
 }
+.compact { --txn-ctl-h: 28px; }
+.compact .searchBar { padding: 5px 8px; }
 .searchWrap { position: relative; flex: 1 1 auto; min-width: 0; display: flex; }
+.searchInput, .filterBtn, .listSelect {
+  height: var(--txn-ctl-h);
+  box-sizing: border-box;
+  background: color-mix(in srgb, var(--text-heading) 5%, transparent);
+  border: 1px solid var(--txn-divider, var(--widget-divider, var(--border)));
+  border-radius: 4px;
+  font-family: var(--font-sans);
+  color: var(--txn-text, var(--text));
+}
 .searchInput {
   flex: 1;
   min-width: 0;
-  background: color-mix(in srgb, var(--text-heading) 5%, transparent);
-  border: 1px solid var(--txn-divider, var(--widget-divider, var(--border)));
-  border-radius: 3px;
-  padding: 5px 26px 5px 10px;
-  font-family: var(--font-sans);
+  width: 100%;
+  padding: 0 24px 0 9px;
   font-size: 11px;
-  color: var(--txn-text, var(--text));
   outline: none;
   transition: border-color 0.15s;
 }
@@ -161,38 +171,29 @@
 .filterBtn {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  background: none;
-  border: 1px solid var(--txn-divider, var(--widget-divider, var(--border)));
-  border-radius: 3px;
-  padding: 3px 7px;
-  font-family: var(--font-sans);
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.5px;
+  justify-content: center;
+  width: var(--txn-ctl-h);
+  padding: 0;
   color: var(--txn-chrome, var(--text-muted));
   cursor: pointer;
-  white-space: nowrap;
   flex: 0 0 auto;
 }
-.filterBtn:hover { background: var(--txn-row-hover, var(--widget-row-hover, var(--bg-hover))); }
+.filterBtn:hover { color: var(--txn-text, var(--text)); background: var(--txn-row-hover, var(--widget-row-hover, var(--bg-hover))); }
+.filterBtn:focus-visible { outline: 1px solid var(--txn-accent, var(--ut-gold)); outline-offset: 1px; }
 .filterBtnOn {
   color: var(--txn-accent, var(--widget-accent, var(--ut-gold)));
   border-color: var(--ut-gold-glow, color-mix(in srgb, var(--ut-gold) 40%, transparent));
   background: var(--ut-gold-dim);
 }
 .listSelect {
-  max-width: 132px;
+  flex: 0 0 auto;
+  width: 104px;                /* "All Lists" and its chevron, never clipped */
   min-width: 0;
-  background: color-mix(in srgb, var(--text-heading) 5%, transparent);
-  border: 1px solid var(--txn-divider, var(--widget-divider, var(--border)));
-  border-radius: 3px;
-  padding: 3px 4px;
-  font-family: var(--font-sans);
-  font-size: 10.5px;
-  color: var(--txn-text, var(--text));
-  flex: 0 1 auto;
+  padding: 0 4px 0 8px;
+  font-size: 11px;
+  cursor: pointer;
 }
+.listSelect:focus-visible { outline: 1px solid var(--txn-accent, var(--ut-gold)); outline-offset: 1px; }
 
 /* ── notices ───────────────────────────────────────────────────────────── */
 .notice {
@@ -459,46 +460,57 @@
   cursor: pointer;
 }
 
-/* ── footer: "N headlines · times are UCT receipt (ET)" — ThemeTrackerPage .ttFooter ── */
+/* ── footer: ‹ [calendar · date] ›  ………  [clock] — fixed under the scrolling list ──
+   One hairline above it, no other separators; every control --txn-foot-h tall with
+   its icon centred. Gold only marks a state: the open picker or a past day/time. */
 .footer {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
+  padding: 6px 8px;
   font-family: var(--font-sans);
-  font-size: 10px;
+  font-size: 11px;
   color: var(--txn-chrome, var(--text-muted));
-  border-top: 1px solid var(--widget-divider-strong, var(--txn-row-divider, color-mix(in srgb, var(--text-heading) 11%, transparent)));
+  border-top: 1px solid var(--txn-divider, var(--widget-divider, var(--border)));
   background: var(--txn-bg, var(--widget-canvas, var(--bg)));
   white-space: nowrap;
-  overflow: hidden;
+  min-width: 0;
 }
-
-/* ── the date bar: one compact line at the foot of the list ── */
-.dayBar { display: inline-flex; align-items: center; gap: 2px; flex: 0 0 auto; margin-right: 4px; }
-.pageBtn {
+.compact .footer { padding: 5px 8px; }
+.dayBar { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex: 1 1 auto; min-width: 0; }
+.dayNav { display: inline-flex; align-items: center; gap: 4px; min-width: 0; }
+.pageBtn, .dayBtn, .timeBtn {
   display: inline-flex; align-items: center; justify-content: center;
-  width: 18px; height: 18px; padding: 0;
-  background: none; border: none; border-radius: 3px;
+  height: var(--txn-foot-h); box-sizing: border-box;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 4px;
   color: var(--txn-chrome, var(--text-muted));
+  font: inherit;
   cursor: pointer;
 }
-.pageBtn:hover:not(:disabled) { color: var(--txn-chrome-strong, var(--text)); background: var(--txn-divider, var(--bg-hover)); }
-.pageBtn:focus-visible, .pageLatest:focus-visible { outline: 1px solid currentColor; }
+.pageBtn { width: 24px; padding: 0; }
+.pageBtn:hover:not(:disabled), .timeBtn:hover, .dayBtn:hover {
+  color: var(--txn-text, var(--text));
+  background: var(--txn-row-hover, var(--widget-row-hover, var(--bg-hover)));
+}
+.pageBtn:focus-visible, .dayBtn:focus-visible, .timeBtn:focus-visible { outline: 1px solid var(--txn-accent, var(--ut-gold)); outline-offset: 1px; }
 .pageBtn:disabled { opacity: 0.35; cursor: default; }
 .pageInputBad { border-color: var(--ut-red-bright); }
+/* The date and the clock are the two bordered controls. */
+.dayBtn, .timeBtn { border-color: var(--txn-divider, var(--widget-divider, var(--border))); }
 .dayBtn {
-  display: inline-flex; align-items: center; gap: 4px; min-width: 0; height: 18px; padding: 0 5px;
-  background: none; border: 1px solid transparent; border-radius: 3px;
-  color: var(--txn-sym, var(--text-bright)); font: inherit; font-weight: 600; cursor: pointer;
+  gap: 6px; min-width: 0; padding: 0 9px;
+  color: var(--txn-text, var(--text-bright)); font-weight: 600;
 }
-.dayBtn:hover, .dayBtnOn { border-color: var(--txn-divider, var(--widget-divider, var(--border))); }
-.dayBtnOn { color: var(--ut-gold); }
-.dayBtn:focus-visible { outline: 1px solid currentColor; }
-.dayText { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.timeBtn { width: var(--txn-foot-h); padding: 0; flex: 0 0 auto; }
+.dayBtnOn, .dayBtnOn:hover {
+  color: var(--txn-accent, var(--widget-accent, var(--ut-gold)));
+  border-color: color-mix(in srgb, var(--txn-accent, var(--ut-gold)) 45%, transparent);
+}
+.dayIcon { display: inline-flex; color: var(--txn-accent, var(--widget-accent, var(--ut-gold))); }
+.dayText { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
 .dayShort { display: none; }
-.dayIcon { display: inline-flex; }
 /* "Loading earlier headlines…" / "Start of Thu, Oct 30" at the ends of a day. */
 .dayEdge {
   padding: 8px 12px; text-align: center;
@@ -583,8 +595,8 @@
 .alertsOk { color: var(--ut-green-bright); font-size: 10.5px; padding: 0 2px; }
 
 /* ── responsive (the widget, not the viewport: .widgetBody is the container) ── */
-@container (max-width: 330px) {
-  .listSelect { max-width: 92px; }
+@container (max-width: 300px) {
+  .listSelect { width: 88px; }
 }
 @container (max-width: 290px) {
   .statusText { display: none; }
@@ -595,25 +607,17 @@
 @container (max-width: 220px) {
   .bar { gap: 4px; padding: 0 6px; }
 }
-@container (max-width: 250px) {
-  .filterLabel { display: none; }
-}
-/* The date bar keeps every control at any width; labels shorten first. */
-@container (max-width: 330px) {
-  .footer { padding: 4px 8px; }
-}
-@container (max-width: 420px) {
-  .dayLong { display: none; }                  /* "Wed, Oct 28" -> "Oct 28", "Today · Fri, Oct 30" -> "Today" */
+/* The footer keeps every control at any width; the date label shortens first. */
+@container (max-width: 260px) {
+  .dayLong { display: none; }                  /* "Wed, Oct 28" -> "Oct 28"; "Today" stays */
   .dayShort { display: inline; }
-}
-@container (max-width: 300px) {
-  .dayTime { display: none; }                  /* the jump time stays in the clock's tooltip and label */
+  .listSelect { width: 80px; padding-left: 6px; }
+  .searchBar, .footer { padding-left: 6px; padding-right: 6px; }
+  .searchBar { gap: 4px; }
 }
 @container (max-width: 200px) {
-  .footer { gap: 3px; padding: 4px 4px; }
-  .dayBtn { padding: 0 3px; }
   .dayIcon { display: none; }                  /* the date itself is the calendar button */
-  .pageLatest { margin-left: 2px; padding: 1px 4px; }
+  .dayBtn { padding: 0 6px; }
 }
 
 /* ── the calendar and the time picker (inside .menuPop) ── */
@@ -732,13 +736,6 @@
 .healthLine dd { margin: 0; font-size: 10.5px; line-height: 1.35; overflow-wrap: anywhere; }
 .healthWarn { color: var(--ut-gold); }
 .healthOff { color: var(--ut-red-bright); }
-/* Very narrow: the search box takes its own line and the three filters share the
-   next, instead of every control shrinking past use. */
-@container (max-width: 230px) {
-  .searchBar { flex-wrap: wrap; row-gap: 5px; padding: 5px 8px; }
-  .searchWrap { flex: 1 1 100%; }
-  .listSelect { flex: 1 1 auto; max-width: none; }
-}
 
 /* ── AI Explanation: expands INSIDE the headline's row ──────────────────────
    The row grows downward (its own bottom border moves), the rows below move down

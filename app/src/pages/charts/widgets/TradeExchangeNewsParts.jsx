@@ -486,7 +486,7 @@ function WatchlistPicker({ item, back }) {
 }
 
 export function FilterMenu({ anchorEl, hostEl, themeVars, onClose, categories, onCategories, presets, activeId,
-  onApply, onSave, onRename, onDelete }) {
+  onApply, onSave, onRename, onDelete, linked = false, linkedSym = null, onLinked }) {
   const boxRef = useRef(null)
   const onKey = usePopover(boxRef, anchorEl, onClose)
   const selected = new Set(cleanCategories(categories))
@@ -502,7 +502,19 @@ export function FilterMenu({ anchorEl, hostEl, themeVars, onClose, categories, o
   const width = 220
   return (
     <div ref={boxRef} className={styles.menuPop} style={{ ...(themeVars || {}), ...placeUnder(anchorEl, hostEl, width), width }}
-      role="dialog" aria-label="Filters and presets" onKeyDown={onKey}>
+      role="dialog" aria-label="News filters" onKeyDown={onKey}>
+      {onLinked && (
+        <>
+          <div className={styles.menuHead}>Headlines</div>
+          <div className={styles.menuCats} role="group" aria-label="Headlines">
+            <button type="button" className={`${styles.menuSym}${!linked ? ' ' + styles.menuSymOn : ''}`} aria-pressed={!linked}
+              onClick={() => onLinked(false)}>All headlines</button>
+            <button type="button" className={`${styles.menuSym}${linked ? ' ' + styles.menuSymOn : ''}`} aria-pressed={linked}
+              onClick={() => onLinked(true)} title="Only headlines naming this widget's linked chart symbol">
+              Linked to chart{linkedSym ? ` · ${linkedSym}` : ''}</button>
+          </div>
+        </>
+      )}
       <div className={styles.menuHead}>Categories</div>
       <div className={styles.menuCats} role="group" aria-label="Categories">
         <button type="button" className={`${styles.menuSym}${all ? ' ' + styles.menuSymOn : ''}`} aria-pressed={all}
@@ -644,7 +656,7 @@ export function CalendarPopover({ selected, meta, anchorEl, hostEl, themeVars, o
 const TIME_PRESETS = [['04:00', 'Pre-market open'], ['09:30', 'Regular-session open'], ['16:00', 'Regular-session close']]
 
 /** Jump to a time of the selected day (ET): presets or any hour and minute. */
-export function TimePopover({ at, anchorEl, hostEl, themeVars, onPick, onClose }) {
+export function TimePopover({ at, anchorEl, hostEl, themeVars, onPick, onClose, live = true, onLatest }) {
   const boxRef = useRef(null)
   const onKey = usePopover(boxRef, anchorEl, onClose)
   const [draft, setDraft] = useState(at || '')
@@ -655,6 +667,10 @@ export function TimePopover({ at, anchorEl, hostEl, themeVars, onPick, onClose }
   return (
     <div ref={boxRef} className={styles.menuPop} style={{ ...(themeVars || {}), ...placeAbove(anchorEl, hostEl, width), top: 'auto', width }}
       role="dialog" aria-label="Jump to a time" onKeyDown={onKey}>
+      {!live && onLatest && (
+        <button type="button" className={styles.menuItem} onClick={() => { onLatest(); onClose() }}
+          title="Today's newest headlines and the live feed">Latest — today&apos;s live headlines</button>
+      )}
       <div className={styles.menuHead}>Jump to time (ET)</div>
       <div className={styles.timePresets}>
         {TIME_PRESETS.map(([t, name]) => (
@@ -679,40 +695,43 @@ export function TimePopover({ at, anchorEl, hostEl, themeVars, onPick, onClose }
   )
 }
 
-/** ‹ date › · calendar · time · Latest. Every control says what it does. */
+/** The footer: ‹ [calendar · date] › on the left, the clock (Jump to Time) on the right.
+ *  "Today" for the current ET day; a compact date otherwise. Latest (back to today's live
+ *  feed) is the first item of the clock's menu whenever a past day or time is shown. */
 export function DayBar({ day, onCalendar, onTime, calendarOpen, timeOpen, calRef, timeRef }) {
   const first = day.meta?.first_day
   const prevOff = !!first && day.dateKey <= first
-  const label = day.isToday ? `Today · ${dayLabel(day.dateKey, day.todayKey)}` : dayLabel(day.dateKey, day.todayKey)
-  const short = day.isToday ? 'Today' : dayLabel(day.dateKey, day.todayKey).replace(/^\w+, /, '')
+  const full = dayLabel(day.dateKey, day.todayKey)
+  const label = day.isToday ? 'Today' : full
+  const short = day.isToday ? 'Today' : full.replace(/^\w+, /, '')
+  const atText = day.at ? `${day.atMatch === 'after' ? 'after' : 'from'} ${timeLabel(day.at)} ET` : null
   return (
     <nav className={styles.dayBar} aria-label="Date">
-      <button type="button" className={styles.pageBtn} onClick={day.prevDay} disabled={prevOff}
-        aria-label="Previous day" title={prevOff ? 'Earlier dates are not retained' : 'Previous day'}>
-        <UIcon name="chevronLeft" size={10} />
-      </button>
-      <button ref={calRef} type="button" className={`${styles.dayBtn}${calendarOpen ? ' ' + styles.dayBtnOn : ''}`} onClick={onCalendar}
-        aria-haspopup="dialog" aria-expanded={calendarOpen} aria-label={`Date: ${label}. Choose a date`} title="Choose a date">
-        <span className={styles.dayIcon}><UIcon name="calendar" size={11} /></span>
-        <span className={`${styles.dayText} ${styles.dayLong}`}>{label}</span>
-        <span className={`${styles.dayText} ${styles.dayShort}`}>{short}</span>
-      </button>
-      <button type="button" className={styles.pageBtn} onClick={day.nextDay} disabled={day.isToday}
-        aria-label="Next day" title={day.isToday ? 'Today is the latest date' : 'Next day'}>
-        <UIcon name="chevronRight" size={10} />
-      </button>
-      <button ref={timeRef} type="button" className={`${styles.dayBtn}${day.at ? ' ' + styles.dayBtnOn : ''}`} onClick={onTime}
+      <span className={styles.dayNav}>
+        <button type="button" className={styles.pageBtn} onClick={day.prevDay} disabled={prevOff}
+          aria-label="Previous day" title={prevOff ? 'Earlier dates are not retained' : 'Previous day'}>
+          <UIcon name="chevronLeft" size={12} gold={false} />
+        </button>
+        <button ref={calRef} type="button" className={`${styles.dayBtn}${calendarOpen ? ' ' + styles.dayBtnOn : ''}`} onClick={onCalendar}
+          aria-haspopup="dialog" aria-expanded={calendarOpen} aria-label={`Date: ${day.isToday ? `Today, ${full}` : full}. Choose a date`}
+          title={day.isToday ? `Today, ${full} (ET). Choose a date` : `${full} (ET). Choose a date`}>
+          <span className={styles.dayIcon}><UIcon name="calendar" size={12} gold={false} /></span>
+          <span className={`${styles.dayText} ${styles.dayLong}`}>{label}</span>
+          <span className={`${styles.dayText} ${styles.dayShort}`}>{short}</span>
+        </button>
+        <button type="button" className={styles.pageBtn} onClick={day.nextDay} disabled={day.isToday}
+          aria-label="Next day" title={day.isToday ? 'Today is the latest date' : 'Next day'}>
+          <UIcon name="chevronRight" size={12} gold={false} />
+        </button>
+      </span>
+      <button ref={timeRef} type="button" className={`${styles.timeBtn}${day.at || !day.live ? ' ' + styles.dayBtnOn : ''}`} onClick={onTime}
         aria-haspopup="dialog" aria-expanded={timeOpen}
-        aria-label={day.at ? `From ${timeLabel(day.at)} ET. Change the time` : 'Jump to a time'}
+        aria-label={atText ? `Jump to Time: showing ${atText}. Change the time` : 'Jump to Time'}
         title={day.at ? (day.atMatch === 'after'
-          ? `Nothing at or before ${timeLabel(day.at)} ET: showing from the day's first headline`
-          : `Showing from the closest headline at or before ${timeLabel(day.at)} ET`) : 'Jump to a time (ET)'}>
-        <UIcon name="clock" size={11} />
-        {day.at && <span className={`${styles.dayText} ${styles.dayTime}`}>{day.atMatch === 'after' ? 'after' : '≤'} {timeLabel(day.at)}</span>}
+          ? `Jump to Time · nothing at or before ${timeLabel(day.at)} ET: showing from the day's first headline`
+          : `Jump to Time · showing from the closest headline at or before ${timeLabel(day.at)} ET`) : 'Jump to Time'}>
+        <UIcon name="clock" size={13} gold={false} />
       </button>
-      {(!day.live) && (
-        <button type="button" className={styles.pageLatest} onClick={day.toLatest} title="Today's newest headlines and the live feed">Latest</button>
-      )}
     </nav>
   )
 }
