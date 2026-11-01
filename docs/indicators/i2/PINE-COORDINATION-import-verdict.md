@@ -56,3 +56,16 @@ so the owner decides whether to authorize Indicators to make edit 1 itself.
   branches sequence cleanly.
 - **(c)** Whether Pine wants `importVerdict`'s classes for its own door later. This is optional and
   not needed for I2.
+
+## Decision (2026-11-01)
+
+- **The Pine integrator was not reachable.** No Pine session was open. Pine works from another
+  machine, and the program has no cross-workstream inbox.
+- **The owner explicitly authorized Indicators to make edit 1.** It is commit `7a503b07f3` on PR #577,
+  as written above: additive, non-Pine only, with `importOutcome.js` untouched.
+- **Pine is unchanged, and this is pinned:**
+  - `pineBoxImportVerdict.test.jsx` renders 6 Pine scripts and compares their `innerHTML` with a
+    fixture captured on untouched `origin/master` `f4fb9cab45`;
+  - a spy proves the verdict module is never called for a Pine import.
+- **For the Pine integrator on resume:** please review `7a503b07f3`. If Pine wants it shaped
+  differently, Indicators will follow. Questions (b) and (c) above stay open.
