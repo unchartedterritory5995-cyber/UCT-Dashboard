@@ -6165,10 +6165,15 @@ function buildRuntimeIrLinked(source, opts, holder) {
     const p4 = positional.length > 3 ? argOf(positional[3]) : null
     // ⛔ review L1 — six positionals alone is not the gradient form: the solid
     // form's own signature is `fill(p1, p2, color, title, editable, fillgaps)`.
-    const gradient = GRADIENT_ARGS.some((k) => named.has(k))
+    // ⭐ re-review low — a third positional that is `na` is the solid form's colour
+    // (a hidden fill), unless a fifth positional colour makes it the gradient form.
+    const p5 = positional.length > 4 ? argOf(positional[4]) : null
+    const naColourFill = !GRADIENT_ARGS.some((k) => named.has(k)) && !named.has('color')
+      && !!p3 && isBuiltinNa(p3, scope) && !(p5 && holdsColour(p5, scope))
+    const gradient = !naColourFill && (GRADIENT_ARGS.some((k) => named.has(k))
       || (positional.length >= 6 && !holdsColour(p3, scope))
       || (!named.has('color') && p3 && p4 && !holdsColour(p3, scope) && !holdsText(p3, scope)
-        && !holdsText(p4, scope))
+        && !holdsText(p4, scope)))
     // ⭐ review L3 — a fill TradingView does not draw either (`display = display.none`,
     // or a `color = na`) is `hidden`, so the document does not name it as undrawn.
     const displayNode = named.get('display')

@@ -36,7 +36,19 @@ import { makeWarmupProbe, sameProgram } from './warmupProbe.js'
 export { RUNTIME_WARMUP_KEY, runtimeWarmupOf }
 import { declaredCalcBarsOf } from './objectStore.js'
 import { calcBarsWindowOf, widenToChart, readsBarIndex, barIndexDependenceOf, CALC_BARS_INDEX_GUARD,
-  CALC_BARS_INDEX_PROBE } from './calcBarsWindow.js'
+  CALC_BARS_INDEX_PROBE, placesByBarIndex, probeVerdictKey } from './calcBarsWindow.js'
+
+/** ⭐ WS-E re-review M-B — the window's `bar_index` probe verdicts, by
+ *  `probeVerdictKey`: `null` = no dependence, a string = what moved. Bounded. */
+const probeVerdictCache = new Map()
+const PROBE_VERDICT_CAP = 64
+function rememberProbeVerdict(key, v) {
+  probeVerdictCache.delete(key)
+  probeVerdictCache.set(key, v)
+  while (probeVerdictCache.size > PROBE_VERDICT_CAP) probeVerdictCache.delete(probeVerdictCache.keys().next().value)
+}
+/** Test seam: forget every cached verdict. */
+export function __resetBarIndexProbeCacheForTests() { probeVerdictCache.clear() }
 import { strippedForScan } from '../ast/pine.js'
 
 /** ⭐⭐ C23 — THE RUNTIME LANE SERVES A CHART PANE, NEVER A SCREEN, from every
@@ -374,6 +386,9 @@ export function computeRuntimeColumns(def, rows, ctx, opts = {}) {
   const win = calcBarsWindowOf(def, rows, (src) => declaredCalcBarsOf(strippedForScan(src)))
   if (win) {
     const wctx = { ...(ctx || {}), historyFromListing: true }
+    const clock = typeof opts.now === 'function' ? opts.now
+      : () => (typeof performance !== 'undefined' ? performance.now() : Date.now())
+    const t0 = Number.isFinite(opts.budgetMs) ? clock() : 0
     let cols
     try {
       cols = computeRuntimeColumns(def, win.rows, wctx, opts)
@@ -383,14 +398,49 @@ export function computeRuntimeColumns(def, rows, ctx, opts = {}) {
     }
     // ⛔ review H1 — the window's `bar_index` is uncaptured: a run whose answer moves
     // with its base is refused by name (`calcBarsWindow.js`, `CALC_BARS_INDEX_GUARD`).
-    if (readsBarIndex(strippedForScan(String(((def && def.compute) || {}).source || '')))) {
-      let moved
-      try {
-        const shifted = computeRuntimeColumns(def, win.rows, wctx,
-          { ...opts, barIndexShift: CALC_BARS_INDEX_PROBE, incremental: false, probe: undefined, probeIfCold: undefined })
-        moved = barIndexDependenceOf(cols, shifted, CALC_BARS_INDEX_PROBE, RUNTIME_OBJECTS_KEY)
-      } catch {
-        moved = 'whether it runs at all'
+    // ⭐ re-review M-A — a run that places a drawing BY bar index is probed too, even
+    // when its source never names `bar_index` (`label.new(10, …)`).
+    if (readsBarIndex(strippedForScan(String(((def && def.compute) || {}).source || '')))
+      || placesByBarIndex(cols[RUNTIME_OBJECTS_KEY])) {
+      // ⭐ re-review M-B — THE VERDICT IS CACHED per (document, settings, the window's
+      // bar times, its CLOSED bars' values) (`calcBarsWindow.js::probeVerdictKey`), so a
+      // tick that changes only the forming bar does not pay a second N-bar run. The probe
+      // keeps NO session (`incremental: false`): it never resumes, so nothing about it
+      // depends on what an earlier run left behind.
+      // ⚠️ SAID PLAINLY: on a cached tick the forming bar's own values are not re-probed;
+      // the bar is probed when it closes (its values join the key). A script whose
+      // dependence on `bar_index` shows ONLY on a forming bar's price would draw that bar
+      // until it closes, then be refused.
+      const key = probeVerdictKey(def, ctx, win.rows)
+      let moved = probeVerdictCache.get(key)
+      if (moved === undefined) {
+        // the probe spends only what the main run LEFT of the budget
+        const left = Number.isFinite(opts.budgetMs) ? opts.budgetMs - (clock() - t0) : null
+        if (left !== null && left <= 0) {
+          throw refusal(RUNTIME_TIME_BUDGET_GUARD, `this script took more than ${opts.budgetMs} ms to draw bar by bar `
+            + 'and to check that it does not depend on what `bar_index` reads, which is this pane’s budget for '
+            + 'one indicator, so it is stopped and nothing is drawn rather than part of it.')
+        }
+        try {
+          if (typeof opts.onBarIndexProbe === 'function') opts.onBarIndexProbe()
+          const shifted = computeRuntimeColumns(def, win.rows, wctx, {
+            ...opts, barIndexShift: CALC_BARS_INDEX_PROBE, incremental: false, sessionRole: undefined,
+            probe: undefined, probeIfCold: undefined, onBudget: undefined, onBarIndexProbe: undefined,
+            ...(left !== null ? { budgetMs: left } : {}),
+          })
+          moved = barIndexDependenceOf(cols, shifted, CALC_BARS_INDEX_PROBE, RUNTIME_OBJECTS_KEY)
+        } catch (err) {
+          // ⛔ re-review M-B — a stop with its OWN name keeps it (the budget, a VM limit,
+          // `runtime:varip` or any other named guard, the script's `runtime.error`).
+          // Only a run that FAILS outright when `bar_index` reads another number
+          // (`runtime:failed`, or an unnamed throw) is the count's doing.
+          if (err && (err.name === 'runtime.error' || (err.guard && err.guard !== RUNTIME_FAILED_GUARD))) {
+            if (Number.isInteger(err.bar)) err.bar += win.cut
+            throw err
+          }
+          moved = 'whether it runs at all'
+        }
+        rememberProbeVerdict(key, moved || null)
       }
       if (moved) {
         throw refusal(CALC_BARS_INDEX_GUARD, `this script runs on its last ${win.rows.length} bars only `
