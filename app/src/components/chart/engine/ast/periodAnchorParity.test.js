@@ -135,6 +135,9 @@ const BARSETS = {
   // 60-minute regular-session bars on the vendor's own grid (09:30, 10:30 … 15:30)
   rth60: () => sessionBars([2025, 0, 2], 16, 60),
   // weekly bars keyed by the Friday of the ISO week; monthly bars keyed by the 1st
+  // ⭐ 2026-10-31 — 40 vendor sessions from Wed 1985-01-02: a date-keyed series before
+  // the 1990 unit floor, which blanked the whole clock until `etClockRead`
+  sessions1985: () => dailyBars([1985, 0, 2], 40),
   weekly: () => periodBars([2024, 9, 11], 60, 'W'),
   monthly: () => periodBars([2023, 0, 1], 30, 'M'),
 }
@@ -236,6 +239,13 @@ const CASES = [
   // ⭐ H5 — a series FROM THE LISTING (ruling R-W): no bar before it to be unknown,
   // so nothing is withheld for one (`vendorHarness.h5ListingAnchor` grades it)
   ...['change(W)', 'change(M)'].map((k) => [`${k} · weekdays · D · from the listing`, k, 'weekdays', { tf: 'D', historyFromListing: true }]),
+  // ⭐⭐ 2026-10-31 — `time(timeframe.period)` ON AN FX-SHAPED DAY (`time-clock:weekend-session`):
+  // one weekend day but not the other, withheld whole and named. The plain clock leaves
+  // (`time`, `hour`, a session test, `dayofweek`) have their own fixture, both lanes
+  // (`session_clock_parity.json`): `tests/test_c45_*` read every tree HERE as a chart-clock one.
+  ...['sundays', 'saturdays'].map((set) => [`own · ${set} · D`, 'own', set, { tf: 'D' }]),
+  // ⭐ a date-keyed series reaching before 1990 is READ, not blanked
+  ...['W', 'closeW', 'own'].map((k) => [`${k} · 1985 sessions · D`, k, 'sessions1985', { tf: 'D' }]),
 ]
 
 function evaluate(ast, bars, opts) {
