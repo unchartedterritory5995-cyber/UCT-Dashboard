@@ -193,3 +193,33 @@ change to the Railway project (Railway HTTP logs show request paths).
 | Storage | unset `TXN_STORAGE_PERMISSION_CONFIRMED` | receiver 503s (sender retries), web pipeline won't start |
 | Code | revert the merge on `master` | web redeploy; receiver service can be paused/removed in Railway |
 | Widget | it is in `UNRELEASED_CAPTURE_WIDGETS`; server routes are admin-only | members never see it |
+
+## 10. AI Explanations (V1)
+
+A member clicks the sparkle on a headline; `POST /api/trade-exchange-news/explain`
+(`get_current_user`: every signed-in member, anonymous 401) explains the STORED
+headline named by its permanent `id`. Code: `api/services/trade_exchange_news/explain.py`.
+
+| Setting (web) | Default | What it does |
+|---|---|---|
+| `TXN_EXPLAIN_ENABLED` | on | Kill switch: `0` refuses every request (404 `disabled`; the panel says "Explanations are switched off right now.") and drops the member meter. |
+| `TXN_EXPLAIN_MODEL` | `claude-sonnet-5-5` | Model id (low effort, one JSON-schema call, at most one repair call, no tools). |
+| `TXN_EXPLAIN_DAILY_CAP` | 40 | Explanations generated per member per ET day (`daily_counters` scope `txn_explain`). A cache hit is free. |
+| `TXN_EXPLAIN_CONCURRENCY` | 4 | Generations at once, site-wide; over it a member is told "busy". |
+| `TXN_EXPLAIN_COST_CAP_DAILY` | $5 | `narrative_cost_guard` surface `txn_explain`; over it new generations pause until midnight ET, cached answers still serve. |
+
+Also: 6 per member per minute, one in flight per member, the shared AI population
+cap (door `txn_explain`), a 20 s call / 45 s total timeout. A failed generation gives
+the member's charge back and is not cached.
+
+- **Cache**: `auth.db` table `txn_explanations` keyed `(event_id, version)`; holds no
+  member data, so one answer serves every member. Bump `explain.VERSION` whenever the
+  prompt, schema or validator changes what an explanation says.
+- **Never on the hot path**: only the explain route imports `explain.py` (a test pins
+  it): the receiver, ingest, SSE, recovery, history and rendering make no model call.
+- **Data handling**: the headline text and its receipt time go to Anthropic (the
+  existing provider and key). No market data, no member data.
+- **Observability**: admin `GET /api/admin/trade-exchange-news` → `explain` (counts,
+  refusals by reason, p50/max latency; no content). Spend: `narrative_cost_guard`
+  surface `txn_explain`.
+- **Rollback**: `TXN_EXPLAIN_ENABLED=0` (no deploy needed beyond the variable's restart).

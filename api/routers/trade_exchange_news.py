@@ -54,6 +54,7 @@ from starlette.routing import Match
 from api.middleware.auth_middleware import get_current_user, require_admin
 from api.services.trade_exchange_news import config, pipeline as txn_pipeline, records
 from api.services.trade_exchange_news import archive as txn_archive
+from api.services.trade_exchange_news import explain as txn_explain
 from api.services.trade_exchange_news import integrity as txn_integrity
 from api.services.trade_exchange_news import ops_alerts as txn_ops_alerts
 from api.services.trade_exchange_news import reconcile as txn_reconcile
@@ -69,6 +70,7 @@ RECENT_PATH = "/api/trade-exchange-news/recent"
 STREAM_PATH = "/api/trade-exchange-news/stream"
 DAY_PATH = "/api/trade-exchange-news/day"
 DAYS_PATH = "/api/trade-exchange-news/days"
+EXPLAIN_PATH = "/api/trade-exchange-news/explain"
 MAX_DAY_BODY = 96 * 1024
 _archive_slots: asyncio.Semaphore | None = None
 HEARTBEAT_S = 10.0
@@ -259,6 +261,23 @@ async def day(request: Request, _user: dict = Depends(get_current_user)) -> JSON
     return JSONResponse(out)
 
 
+@router.post(EXPLAIN_PATH)
+async def explain(request: Request, user: dict = Depends(get_current_user)) -> JSONResponse:
+    """One member's Explain click. The body names a headline by ``id`` only: the
+    text explained is the stored row (explain.py), never anything the client sends."""
+    pipe = txn_pipeline.get()
+    if pipe is None:
+        return JSONResponse({"reason": "not_started"}, status_code=503)
+    d = await _read_body(request)
+    if isinstance(d, JSONResponse):
+        return d
+    try:
+        return JSONResponse(await txn_explain.explain(pipe.store, d.get("id"), user))
+    except txn_explain.Refused as r:
+        return JSONResponse({"reason": r.reason, "detail": r.detail},
+                            status_code=txn_explain.STATUS.get(r.reason, 503))
+
+
 @router.get(DAYS_PATH)
 async def days(_user: dict = Depends(get_current_user)) -> JSONResponse:
     pipe = txn_pipeline.get()
@@ -393,6 +412,7 @@ def status(_admin: dict = Depends(require_admin)) -> dict[str, Any]:
         "synthetic_only": config.synthetic_only(),
         "streams": dict(_streams),
         "loop_lag": _loop_lag.snapshot(),
+        "explain": txn_explain.snapshot(),
     }
 
 
