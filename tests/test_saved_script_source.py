@@ -11,7 +11,8 @@ None of that works unless the store:
     edit must never be re-translated away);
   * serves the script ONLY to a browser whose engine is newer than the stamp
     (`GET ?engine=N`) or to the owner who asks for it (`GET /{id}?source=1`);
-  * keeps the script through a fork, a share install and a tombstone;
+  * keeps the script through a fork and a tombstone, and NEVER copies it to a
+    share recipient (privacy-safe default);
   * and makes the written-back document THE document every server lane reads.
 """
 
@@ -191,14 +192,26 @@ def test_a_TOMBSTONE_and_a_FORK_keep_the_script(store):
     assert [r["pine_source"] for r in _raw_rows(store, "u_000000000001")] == [SCRIPT, SCRIPT]
 
 
-def test_a_SHARE_INSTALL_copies_the_script_of_the_shared_version(store):
+def test_a_SHARE_INSTALL_never_hands_the_recipient_the_authors_script(store):
+    """Privacy-safe default: a share has always handed over the translated document
+    and nothing else. The recipient's copy holds NO script — not in its column, not
+    on any read, not to a newer engine — and still installs and draws."""
     svc.save("u1", "u_000000000001", defn(20, engine=1), pine_source=SCRIPT)
     token = svc.share("u1", "u_000000000001")["token"]
-    # the author moves on: a later version with a different script
-    svc.save("u1", "u_000000000001", defn(30, engine=1), pine_source=SCRIPT + "// v2\n")
     out = svc.install_share("u2", token)
+    assert out["appended"] is True
+    assert out["pine_source_stored"] is False
+    assert [r["pine_source"] for r in _raw_rows(store, out["def_id"])] == [None]
     got = svc.get("u2", out["def_id"], with_source=True)
-    assert got["pine_source"] == SCRIPT, "the copy carries the script of the version shared"
+    assert got["has_pine_source"] is False and "pine_source" not in got
+    listed = svc.list_for_user("u2", source_below=99)
+    assert len(listed) == 1 and "pine_source" not in listed[0]
+    assert listed[0]["definition"]["origin"]["def_id"] == "u_000000000001",         "the copy carries `origin`, the marker the browser reads to suppress the legend row"
+    # a fork of the recipient's copy cannot launder the script back in
+    forked = svc.fork("u2", out["def_id"])
+    assert forked["pine_source_stored"] is False
+    # the author's own row is untouched
+    assert svc.get("u1", "u_000000000001", with_source=True)["pine_source"] == SCRIPT
 
 
 def test_the_WRITTEN_BACK_document_is_what_every_server_lane_reads(store):

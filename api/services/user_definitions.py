@@ -3149,13 +3149,15 @@ def install_share(user_id: Any, token: str, limits: Any = None, *, role: Any = N
     }
     # ⭐ P0/0P — a COPY of a stored row: its maths was admitted (or predates the
     # admission gate) where it was saved, so the gate does not re-run here.
-    # ⭐ SAVED-SCRIPT AUTO-UPGRADE — the copy carries the script of the version
-    # that was shared, so the recipient's copy picks up engine fixes too. (A share
-    # already discloses the whole translated computation; the script is its text.)
-    src_row = get(resolved["author_id"], resolved["origin_def_id"],
-                  version=resolved["origin_version"], with_source=True) or {}
-    out = save(user_id, def_id, doc, limits=limits, role=role, _copy_of_stored=True,
-               pine_source=src_row.get("pine_source"))
+    # ⛔⛔ SAVED-SCRIPT AUTO-UPGRADE — THE AUTHOR'S PINE NEVER TRAVELS WITH A SHARE.
+    # A share link has always handed over the translated document and nothing else;
+    # an author does not expect it to hand over their script, comments and all. So
+    # the copy is saved with NO `pine_source` (owner ruling, privacy-safe default),
+    # and the browser does not offer the recipient the "open and save from your
+    # script" row either (`savedScriptUpgrade.upgradeKindOf`: a copy carrying
+    # `origin` has no script to paste). Follow-up, not built: a recipient's copy
+    # following the author's re-saves server-side.
+    out = save(user_id, def_id, doc, limits=limits, role=role, _copy_of_stored=True)
     out["origin"] = doc["origin"]
     return out
 

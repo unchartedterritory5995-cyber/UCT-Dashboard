@@ -95,6 +95,10 @@ export function upgradeKindOf(row, current = SCRIPT_ENGINE_VERSION) {
   // only to a browser that asked with a newer engine) is not legacy — it is a
   // browser older than the document. Nothing to offer it.
   if (row.has_pine_source === true) return 'none'
+  // ⛔ A COPY INSTALLED FROM SOMEBODY ELSE'S SHARE (`origin`, written by the store's
+  // `install_share`) never carries the author's script, and its holder has none to
+  // paste — so it is NOT offered the "open in Builder and save" row.
+  if (isObj(def.origin)) return 'none'
   return 'legacy'
 }
 

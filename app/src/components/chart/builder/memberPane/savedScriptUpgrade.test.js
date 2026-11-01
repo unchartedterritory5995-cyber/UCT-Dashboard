@@ -63,6 +63,18 @@ describe('which rows need work', () => {
     expect(upgradeKindOf(rowOf(d, { has_pine_source: true }))).toBe('none')
   })
 
+  it('a copy installed from a SHARE (`origin`) is never offered the legacy row — its holder has no script', () => {
+    const d = { ...staleDoc(), origin: { author_id: 'a', def_id: 'u_111111111111', version: 2 } }
+    expect(upgradeKindOf(rowOf(d))).toBe('none')
+    resolveRow(rowOf(d))
+    expect(needsScriptForUpgrade(ID)).toBe(false)
+    // control: the same document without `origin` IS offered it
+    const own = staleDoc()
+    expect(upgradeKindOf(rowOf(own))).toBe('legacy')
+    // and an own FORK (`meta.forkedFrom`, no `origin`) of one's own script still is
+    expect(upgradeKindOf(rowOf({ ...own, meta: { ...own.meta, forkedFrom: { def_id: 'u_333333333333' } } }))).toBe('legacy')
+  })
+
   it('a formula (not a script document) is never touched', () => {
     const d = staleDoc()
     const formula = { ...d, meta: { ...d.meta, recurrenceOrigin: undefined } }
