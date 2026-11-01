@@ -3346,10 +3346,10 @@
       "status": "dark",
       "where": [],
       "owner": "pine programme",
-      "railway_value": "UNSET",
-      "baked_value": "'' (empty - the ENV mirror in Dockerfile.web)",
+      "railway_value": "0 — set 2026-11-01 by the owner on the web service, before #612 merged (owner decision: ship #610 with the upgrade OFF)",
+      "baked_value": "'0' expected from the first web image built on #612's merge (the first image that carries #610); verified on the live bundle after promotion",
       "baked_measured_on": "fa1aac7a2f (#610; this row and the ARG are the gate repair on top of it)",
-      "last_changed": "never set",
+      "last_changed": "2026-11-01 (set to 0)",
       "note": "Whether a saved Pine script stores its source and is re-translated on load to pick up engine accuracy fixes (#610). Read in ONE place, app/src/components/chart/builder/memberPane/savedScriptUpgrade.js::savedScriptUpgradeEnabled, as `(VITE_SAVED_SCRIPT_UPGRADE ?? '1') !== '0'`. Unset or empty, the read defaults ON (the same default-ON kill-switch convention as VITE_CATALYST_UI_ENABLED); only the literal '0' turns it off, and then every saved document is drawn exactly as stored. Setting '0' is a Railway variable plus a rebuild (a build constant). #610 merged without this row or a Dockerfile.web ARG, so until this repair a '0' kill switch would have been dropped by Railway in silence."
     },
     "VITE_REALTIME_BARS": {
