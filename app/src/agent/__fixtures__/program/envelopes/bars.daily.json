@@ -1,0 +1,247 @@
+{
+  "kind": "bars.daily",
+  "declared_freshness": "historical",
+  "category": "market",
+  "cases": {
+    "historical": {
+      "contract": "MD-1.0",
+      "kind": "bars.daily",
+      "params_echo": {
+        "symbol": "NVDA",
+        "bars": 3
+      },
+      "status": "ok",
+      "freshness": "historical",
+      "as_of": "2026-10-29T20:00:00Z",
+      "fetched_at": "2026-10-30T19:59:45Z",
+      "delay_s": null,
+      "stale": false,
+      "source": "uct-bars",
+      "coverage": null,
+      "data": {
+        "symbol": "NVDA",
+        "bars": [
+          {
+            "date": "2026-10-27",
+            "open": 200.0,
+            "high": 204.0,
+            "low": 198.5,
+            "close": 202.5,
+            "volume": 150000000
+          },
+          {
+            "date": "2026-10-28",
+            "open": 201.0,
+            "high": 205.0,
+            "low": 199.5,
+            "close": 203.5,
+            "volume": 151000000
+          },
+          {
+            "date": "2026-10-29",
+            "open": 202.0,
+            "high": 206.0,
+            "low": 200.5,
+            "close": 204.5,
+            "volume": 152000000
+          }
+        ],
+        "through": "2026-10-29",
+        "latest_completed_session": "2026-10-29"
+      },
+      "notes": [
+        "completed sessions only — the current session's developing bar is never included"
+      ],
+      "provider_calls": 0
+    },
+    "stale": {
+      "contract": "MD-1.0",
+      "kind": "bars.daily",
+      "params_echo": {
+        "symbol": "NVDA",
+        "bars": 3
+      },
+      "status": "ok",
+      "freshness": "historical",
+      "as_of": "2026-10-27T20:00:00Z",
+      "fetched_at": "2026-10-30T19:59:45Z",
+      "delay_s": null,
+      "stale": true,
+      "source": "uct-bars",
+      "coverage": null,
+      "data": {
+        "symbol": "NVDA",
+        "bars": [
+          {
+            "date": "2026-10-23",
+            "open": 200.0,
+            "high": 204.0,
+            "low": 198.5,
+            "close": 202.5,
+            "volume": 150000000
+          },
+          {
+            "date": "2026-10-26",
+            "open": 201.0,
+            "high": 205.0,
+            "low": 199.5,
+            "close": 203.5,
+            "volume": 151000000
+          },
+          {
+            "date": "2026-10-27",
+            "open": 202.0,
+            "high": 206.0,
+            "low": 200.5,
+            "close": 204.5,
+            "volume": 152000000
+          }
+        ],
+        "through": "2026-10-27",
+        "latest_completed_session": "2026-10-29"
+      },
+      "notes": [
+        "completed sessions only — the current session's developing bar is never included",
+        "the newest bar held is 2026-10-27; the newest completed session is 2026-10-29"
+      ],
+      "provider_calls": 0
+    },
+    "market-closed": {
+      "contract": "MD-1.0",
+      "kind": "bars.daily",
+      "params_echo": {
+        "symbol": "NVDA",
+        "bars": 3
+      },
+      "status": "ok",
+      "freshness": "historical",
+      "as_of": "2026-10-30T20:00:00Z",
+      "fetched_at": "2026-10-31T14:00:00Z",
+      "delay_s": null,
+      "stale": false,
+      "source": "uct-bars",
+      "coverage": null,
+      "data": {
+        "symbol": "NVDA",
+        "bars": [
+          {
+            "date": "2026-10-28",
+            "open": 200.0,
+            "high": 204.0,
+            "low": 198.5,
+            "close": 202.5,
+            "volume": 150000000
+          },
+          {
+            "date": "2026-10-29",
+            "open": 201.0,
+            "high": 205.0,
+            "low": 199.5,
+            "close": 203.5,
+            "volume": 151000000
+          },
+          {
+            "date": "2026-10-30",
+            "open": 202.0,
+            "high": 206.0,
+            "low": 200.5,
+            "close": 204.5,
+            "volume": 152000000
+          }
+        ],
+        "through": "2026-10-30",
+        "latest_completed_session": "2026-10-30"
+      },
+      "notes": [
+        "completed sessions only — the current session's developing bar is never included"
+      ],
+      "provider_calls": 0
+    },
+    "unavailable": {
+      "contract": "MD-1.0",
+      "kind": "bars.daily",
+      "params_echo": {
+        "symbol": "NVDA",
+        "bars": 3
+      },
+      "status": "unavailable",
+      "freshness": "unavailable",
+      "as_of": null,
+      "fetched_at": "2026-10-30T19:59:45Z",
+      "delay_s": null,
+      "stale": false,
+      "source": "uct-bars",
+      "coverage": null,
+      "data": null,
+      "notes": [
+        "no completed daily bars are held for NVDA"
+      ],
+      "provider_calls": 0
+    },
+    "refused": {
+      "contract": "MD-1.0",
+      "kind": "bars.daily",
+      "params_echo": {
+        "symbol": "NVDA",
+        "bars": 3
+      },
+      "status": "refused",
+      "freshness": "unavailable",
+      "as_of": null,
+      "fetched_at": "2026-10-30T19:59:45Z",
+      "delay_s": null,
+      "stale": false,
+      "source": "uct-agent-gateway",
+      "coverage": null,
+      "data": null,
+      "notes": [
+        "this turn already made 8 data reads"
+      ],
+      "provider_calls": 0
+    },
+    "partial": {
+      "contract": "MD-1.0",
+      "kind": "bars.daily",
+      "params_echo": {
+        "symbol": "NVDA",
+        "bars": 3
+      },
+      "status": "partial",
+      "freshness": "historical",
+      "as_of": "2026-10-29T20:00:00Z",
+      "fetched_at": "2026-10-30T19:59:45Z",
+      "delay_s": null,
+      "stale": false,
+      "source": "uct-bars",
+      "coverage": null,
+      "data": {
+        "symbol": "NVDA",
+        "bars": [
+          {
+            "date": "2026-10-28",
+            "open": 200.0,
+            "high": 204.0,
+            "low": 198.5,
+            "close": 202.5,
+            "volume": 150000000
+          },
+          {
+            "date": "2026-10-29",
+            "open": 201.0,
+            "high": 205.0,
+            "low": 199.5,
+            "close": 203.5,
+            "volume": 151000000
+          }
+        ],
+        "through": "2026-10-29",
+        "latest_completed_session": "2026-10-29"
+      },
+      "notes": [
+        "completed sessions only — the current session's developing bar is never included",
+        "2 of 3 requested bars are held"
+      ],
+      "provider_calls": 0
+    }
+  }
+}

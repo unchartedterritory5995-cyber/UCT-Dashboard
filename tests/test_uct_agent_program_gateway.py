@@ -143,6 +143,24 @@ def test_validate_runs_before_admission_and_spends_nothing(monkeypatch):
     assert again["status"] == "refused" and "already ran" in again["notes"][0] and len(ran) == 1
 
 
+def test_model_isolated_kinds_answer_the_member_only(monkeypatch):
+    monkeypatch.setenv(gw.DATA_ENV, "1")
+    ran = []
+
+    def fn(params, ctx):
+        ran.append(ctx["purpose"])
+        return env.make_envelope("breadth.current", params, status="ok", freshness="periodic",
+                                 as_of="2026-11-01T15:59:00Z", source="uct-breadth-v2", data={"v": 1})
+
+    _with(gw.Kind(name="breadth.current", fn=fn, freshness="periodic", model_isolated=True))
+    for purpose in ("research", "scan"):
+        out = gw.read("breadth.current", {}, user_id=1, turn_id="t", purpose=purpose)
+        assert out["status"] == "refused" and "never used for research" in out["notes"][0]
+    assert ran == []                                   # refused before admission: nothing ran, nothing spent
+    assert gw.read("breadth.current", {}, user_id=1, turn_id="t", purpose="answer")["status"] == "ok"
+    assert ran == ["answer"]
+
+
 def test_symbol_cap(monkeypatch):
     monkeypatch.setenv(gw.DATA_ENV, "1")
     _with(_kind("quotes"))
