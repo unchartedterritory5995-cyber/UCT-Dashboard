@@ -59,6 +59,13 @@ describe('⛔ a `varip` inside a calc_bars_count window is refused by name (the 
     try { computeRuntimeColumns(d, mk(50), LIVE) } catch (e) { err = e }
     expect(err && err.guard).toBe('runtime:varip')
   })
+  it('a chart that grows past the window: the build made before it (with a ledger) is never reused by the window', () => {
+    const d = doc('varip int b = 0\nb += 1\nplot(b)\nplot(close)\n', { a: 0, b: 1 }, CB)
+    expect(computeRuntimeColumns(d, mk(20), LIVE).a[19], '20 bars: no window, a plain chart').toBe(20)
+    let err = null
+    try { computeRuntimeColumns(d, mk(50), LIVE) } catch (e) { err = e }
+    expect(err && err.guard, '50 bars: the window slides').toBe('runtime:varip')
+  })
   it('CONTROL — the same counter with `var` runs in the window', () => {
     const d = doc('var int b = 0\nb += 1\nplot(b)\nplot(close)\n', { a: 0, b: 1 }, CB)
     const out = computeRuntimeColumns(d, mk(50), LIVE)

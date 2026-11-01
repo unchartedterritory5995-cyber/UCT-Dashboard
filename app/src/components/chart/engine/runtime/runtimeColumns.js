@@ -262,7 +262,12 @@ function runKey(def, ctx) {
   // ⭐ UIE PHASE 2 (M4) — the member's settings are part of what a run computed
   const given = ctx && ctx.runtimeInputs && typeof ctx.runtimeInputs === 'object' ? ctx.runtimeInputs : null
   const settings = given && Object.keys(given).length ? JSON.stringify(given) : ''
-  return `${def && def.id}|${compute.fn}|${runtimeContentKey(def)}|${tf}|${forming}|${symbolKey(symbolOf(ctx))}|${listing}|${settings}`
+  // ⭐ P3 WS-F (re-review L1) — a FRAMED instance refuses a `varip` (its window slides) where a
+  // plain chart runs it, so the two are different answers and never share a memo entry or a
+  // session. (`opts.slidingWindow` never reaches this key: it is set only inside the calc_bars
+  // window's own run, which keys its session apart, `|slides`.)
+  const framed = ctx && ctx.framed === true ? '|framed' : ''
+  return `${def && def.id}|${compute.fn}|${runtimeContentKey(def)}|${tf}|${forming}|${symbolKey(symbolOf(ctx))}|${listing}|${settings}${framed}`
 }
 
 /** ⭐⭐ P1 HARDENING — `PROGRAM_SIZE` (`limits.js`): the source's UTF-8 bytes, asked
@@ -830,7 +835,11 @@ function ledgerFor(key, origin) {
   return byOrigin && Number.isFinite(origin) ? byOrigin.get(origin) || null : null
 }
 /** ⭐ (re-review L3) LEDGERS ARE BOUNDED BY BYTES, an ESTIMATE kept on each (`ledgerBytes`):
- *  past `LEDGER_BYTE_CAP` across all of them the least recently written go. */
+ *  past `LEDGER_BYTE_CAP` across all of them the least recently written go.
+ *  ⚠️ KNOWN LIMITS, to review before arming (`docs/pine/capture-queue-2026-10-31-wsf-realtime.md`):
+ *  an evicted script's ledger resets SILENTLY (its pane drops back to the `var` value on the next
+ *  run, with no notice), and with very large `varip` values `SEEN_BYTE_CAP` leaves room for only a
+ *  few remembered prices per bar, so the protection against a lagging pane shrinks to those. */
 const LEDGER_BYTE_CAP = 32 * 1024 * 1024
 let _ledgerBytes = 0
 const ledgerBytes = (l) => (l && Number.isFinite(l.bytes) ? l.bytes : 0)
@@ -901,7 +910,9 @@ const sigKey = (sig) => sig.join(',')
 /** ⭐ (step 2, A) how many distinct prices one forming bar remembers. Past it the oldest go, and
  *  a price that comes back after that is counted again (an over-count only past 1,024 updates). */
 const SEEN_CAP = 1024
-/** ⭐ (re-review L3) …and how many bytes of `varip` snapshots (an estimate, `snapBytes`). */
+/** ⭐ (re-review L3) …and how many bytes of `varip` snapshots (an estimate, `snapBytes`).
+ *  ⚠️ With big `varip` values (a large array) this holds only a few prices: see the known limits
+ *  at `LEDGER_BYTE_CAP`. */
 const SEEN_BYTE_CAP = 4 * 1024 * 1024
 /** ⭐⭐ (review H1, M2) WHAT ONE RUN IS TO A BAR THE LEDGER HAS SEEN, decided from the bars and
  *  the ledger alone, before the run:

@@ -10,7 +10,7 @@
 //       The adoption tried first was itself refused at re-review (M1, M2): sliding windows now
 //       refuse a `varip` by name and ledgers are never adopted across history starts.
 import { describe, it, expect, beforeEach } from 'vitest'
-import { computeRuntimeColumns, resetRuntimeSessions, resetRuntimeLedgers, runtimeLedgerStats, SLIDING_VARIP_WHY } from '../runtimeColumns.js'
+import { computeRuntimeColumns, resetRuntimeSessions, resetRuntimeLedgers, runtimeLedgerStats, SLIDING_VARIP_WHY, runtimeColumnsFor, setRuntimeRunner } from '../runtimeColumns.js'
 import { workerRunner, resetRuntimeAsync } from '../runtimeAsync.js'
 import { buildRuntimeIr } from '../../ast/pineRuntimeFrontend.js'
 
@@ -119,6 +119,22 @@ describe('M2 (re-review) — a window that slides is refused a `varip` by name',
     try { computeRuntimeColumns(COUNTERS, mk(30), { ...LIVE, framed: true }) } catch (e) { err = e }
     expect(err && err.guard).toBe('runtime:varip')
   })
+  // ⭐ (re-review L1) the product door's memo (`runtimeColumnsFor`) is keyed per rows array: a
+  // framed and an unframed request over the SAME array must not answer each other
+  for (const order of [['plain', 'framed'], ['framed', 'plain']]) {
+    it(`the memo keeps a framed and a plain request apart over one rows array (${order.join(' then ')})`, () => {
+      setRuntimeRunner(null)
+      const rows = mk(30)
+      const ask = (which) => {
+        try { return { cols: runtimeColumnsFor(COUNTERS, rows, {}, which === 'framed' ? { ...LIVE, framed: true } : LIVE) } } catch (e) { return { err: e } }
+      }
+      const got = {}
+      for (const which of order) got[which] = ask(which)
+      expect(got.plain.err, 'the plain chart is served').toBeUndefined()
+      expect(got.plain.cols.b[29]).toBe(30)
+      expect(got.framed.err && got.framed.err.guard, 'the framed instance is refused').toBe('runtime:varip')
+    })
+  }
   it('CONTROL — a framed instance of a script with no `varip` runs', () => {
     const d = doc('var int a = 0\na += 1\nplot(a)\nplot(close)\n')
     expect(computeRuntimeColumns(d, mk(30), { ...LIVE, framed: true }).a[29]).toBe(30)
