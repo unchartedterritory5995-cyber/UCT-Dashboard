@@ -33,6 +33,13 @@ describe('C45 — bindTimeConstantTree: decided before bar 0, per binding', () =
     expect(bindTimeConstantTree(op('>', num(5), num(3)))).toBe(true)
     expect(bindTimeConstantTree(series('isdaily'))).toBe(true)
     expect(bindTimeConstantTree(op('&&', series('isintraday'), op('==', declared('ma', 0), num(1))))).toBe(true)
+    // a `var` nobody reassigns, seeded from an input (the built-in CCI's `var isBB`)
+    expect(bindTimeConstantTree(call('accum', op('!=', declared('maType', 1), num(0)), series('self'), num(250)))).toBe(true)
+  })
+
+  it('⛔ a `var` seeded from a bar, or one its own update moves, is not decided before bar 0', () => {
+    expect(bindTimeConstantTree(call('accum', series('close'), series('self'), num(250)))).toBe(false)
+    expect(bindTimeConstantTree(call('accum', num(0), op('+', series('self'), num(1)), num(250)))).toBe(false)
   })
 
   it('⛔ a bar value, a call, an offset, an undeclared name, a moving clock', () => {

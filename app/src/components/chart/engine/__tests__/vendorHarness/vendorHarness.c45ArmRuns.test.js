@@ -376,6 +376,9 @@ describe('C45 — ⛔ what stays drawn, TradingView\'s number where a capture ho
     drawn(v6('y = 2 > 1 ? ta.sma(close, 5) : close', 'plot(y, "Y")'), (i) => e03[i])
     drawn(v6('y = timeframe.isdaily ? ta.sma(close, 5) : close', 'plot(y, "Y")'), (i) => e03[i])
     drawn(v6('show = input.bool(true, "Show")', 'x = show and ta.crossover(close, ta.sma(close, 5))', 'plot(x ? 1 : 0, "X")'), null)
+    // …and a `var` holding an input's answer, the built-in CCI / RCI / RVI spelling
+    drawn(v6('maType = input.string("SMA", "Type", options = ["None", "SMA"])', 'var on = maType != "None"',
+      'y = on ? ta.sma(close, 5) : na', 'plot(y, "Y")'), (i) => e03[i])
   })
 
   it('a test that holds on EVERY bar of this chart — stamped, and the bind keeps it', () => {

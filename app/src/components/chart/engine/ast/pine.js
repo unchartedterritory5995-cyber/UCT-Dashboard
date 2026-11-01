@@ -6327,9 +6327,12 @@ function carryArmRuns(from, to) {
 /** ⭐ C45 — is this canonical tree the same number on every bar of ONE BINDING?
  *  Literals, the chart's `timeframe.is*` flags (`BIND_TIME_CLOCK`, the manifest's
  *  own roster), a DECLARED input leaf (`inputDefault`, which `declareInputs` puts
- *  on it — an input is fixed per definition by construction), and operators over
- *  them. Anything else — a bar value, a call, an offset, a clock that moves — is
- *  not, and the bind decides from the chart's bars instead. */
+ *  on it — an input is fixed per definition by construction), operators over
+ *  them, and a `var` nobody reassigns whose seed is one of those (a recurrence
+ *  whose update is its own value — `var isBB = maTypeInput == "SMA + BB"` in the
+ *  built-in CCI: Pine evaluates the seed once and the name holds it). Anything
+ *  else — a bar value, a call, an offset, a clock that moves, a `var` seeded from a
+ *  bar — is not, and the bind decides from the chart's bars instead. */
 export function bindTimeConstantTree(tree) {
   const stack = [tree]
   while (stack.length) {
@@ -6342,6 +6345,12 @@ export function bindTimeConstantTree(tree) {
       return false
     }
     if (n.type === 'op' && Array.isArray(n.args)) { for (const a of n.args) stack.push(a); continue }
+    if (n.type === 'call' && Object.hasOwn(RECURRENCES, n.name) && Array.isArray(n.args)) {
+      const rec = RECURRENCES[n.name]
+      const body = n.args[rec.body]
+      if (body && body.type === 'series' && body.name === rec.binds) { stack.push(n.args[rec.seed]); continue }
+      return false
+    }
     return false
   }
   return true
