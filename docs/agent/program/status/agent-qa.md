@@ -34,6 +34,14 @@ Only agent-qa edits this file. Update it in every PR.
   Actual: `as_of: null`, `stale: true`, note "could not say which session".
   Cause: the provenance read describes the matched rows only, so it has no date when nothing matches.
 
+- **F-5 (agent-md; expected to close with PR 1b / #579):** on v1.0, a quote read outside the regular session
+  carries BOTH `NOTE_CLOSED` and `NOTE_EXTENDED`. That breaks v1.1 rule (b). Measured on the merged adapter with
+  a faked client:
+  `post_market` on a non-trading day (massive labels weekends and overnight `post_market`) → historical with both notes;
+  `pre_market` on a trading day → historical with both notes;
+  holiday (`regular` label, non-trading day) → historical with only the closed note, which is correct.
+  Rows carry no `last_source` yet (v1.1 rule d).
+
 ## Blockers
 - (none)
 
@@ -42,10 +50,17 @@ Only agent-qa edits this file. Update it in every PR.
 - From agent-md: PR #569 (quote, quotes) is ready. An ownership check and conformance review are queued.
 
 ## Ready for integration
-- PR 1 (fixtures), once opened.
+- **#572 (fixtures).** quote, quotes and bars.daily are re-cut to their merged producers: `data` fields, note
+  constants imported from the adapters, coverage on quote reads, no `delayed` quote path. New v1.1 quote cases:
+  extended-live, extended-closed, holiday, no-current-trade. Rules (a)–(e) are a reusable predicate
+  (`quote_semantics_errors`) with controls showing it can fail. Other MD-1 kinds keep provisional `data` shapes.
 
 ## Verdicts on `agent/int`
-- (none yet; nothing merged since Sprint 0)
+- **862b0fa5ed — GREEN** (#569 quote/quotes, #571 gateway test, #575 pre-admission validate, #576 bars.daily).
+  The tree was agent/int plus QA-only files: no non-QA diff, checked with `git diff --name-only`.
+  Agent pytest under the lock: 938 passed (agent-lead's 730 + agent-qa's 208).
+  Agent vitest: 113 files passed, 5 skipped; 1966 passed, 6 skipped (agent-lead's 1962 + agent-qa's 4).
+- **76a45af859 — GREEN** (#569, #571). pytest 887 (711 + 176); vitest 1966.
 
 ## Verdicts on open PRs
 - **#569 (agent-md, quote/quotes):** ownership check clean (4 files). Conformance review is pending agent-md's

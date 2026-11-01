@@ -47,6 +47,8 @@ import pytest
 
 from api.services.uct_agent.marketdata import envelope as env
 from api.services.uct_agent.marketdata import gateway as gw
+# the producer's own note strings (#569) — imported, never retyped, so a wording change regenerates here
+from api.services.uct_agent.marketdata.quotes import FRESHNESS_BUDGET_S, NOTE_CLOSED, NOTE_EXTENDED, NOTE_SET_AS_OF
 
 REPO = Path(__file__).resolve().parents[1]
 FIXTURE_DIR = REPO / "app" / "src" / "agent" / "__fixtures__" / "program"
@@ -54,7 +56,15 @@ ENVELOPE_DIR = FIXTURE_DIR / "envelopes"
 FIXTURE_VERSION = 1
 
 CASES = ("live", "delayed", "periodic", "historical", "stale", "market-closed", "unavailable", "refused", "partial",
-         "no-source-time")
+         "no-source-time", "extended-live", "extended-closed", "holiday", "no-current-trade")
+
+# ── quote semantics, MD-1 v1.1 as agreed by agent-lead + agent-md for PR 1b (2026-11-01) ───────────
+#: the quote kinds' extended-hours window: live only while the OLDEST vendor stamp is at most this old
+EXTENDED_LIVE_S = 15 * 60
+LAST_SOURCES = ("trade", "minute", "day_close", "prev_close")
+_CURRENT_SOURCES = ("trade", "minute")
+#: pending agent-md's pinned wording in PR 1b; the rail below matches on the "no current trade for <SYM>" stem
+NOTE_NO_TRADE = "no current trade for {sym} — showing {source}"
 
 # ── the fixed clock ──────────────────────────────────────────────────────────────────────────────
 FETCH_SESSION = "2026-10-30T19:59:45Z"     # Fri 15:59:45 ET
@@ -71,7 +81,7 @@ AS_OF_STALE = "2026-10-28T20:00:00Z"       # well past every budget
 KINDS: dict[str, dict] = {
     "quote":           {"freshness": "live",       "category": "market", "owner": "agent-md", "source": "massive",        "calls": 1},
     "quotes":          {"freshness": "live",       "category": "market", "owner": "agent-md", "source": "massive",        "calls": 1},
-    "bars.daily":      {"freshness": "historical", "category": "market", "owner": "agent-md", "source": "massive",        "calls": 1},
+    "bars.daily":      {"freshness": "historical", "category": "market", "owner": "agent-md", "source": "uct-bars",       "calls": 0},
     "bars.intraday":   {"freshness": "live",       "category": "market", "owner": "agent-md", "source": "massive",        "calls": 1},
     "fundamentals":    {"freshness": "periodic",   "category": "market", "owner": "agent-md", "source": "fmp",            "calls": 1},
     "earnings":        {"freshness": "periodic",   "category": "market", "owner": "agent-md", "source": "fmp",            "calls": 1},
@@ -113,19 +123,6 @@ def _coverage(evaluated: int, answered: int, dropped: int = 0, not_computable: i
 def _data(kind: str, case: str) -> Optional[dict]:
     """The kind's `data` for a readable case. Provisional for MD-1 kinds; SC-1 §2 for scan kinds."""
     partial = case == "partial"
-    if kind == "quote":
-        return {"symbol": "NVDA", "price": 207.04, "change": 2.61, "change_pct": 1.28, "volume": 162_480_115}
-    if kind == "quotes":
-        rows = [{"symbol": "NVDA", "price": 207.04, "change_pct": 1.28},
-                {"symbol": "AMD", "price": 256.12, "change_pct": -0.84},
-                {"symbol": "AVGO", "price": 361.50, "change_pct": 0.42}]
-        return {"quotes": rows[:2] if partial else rows, "missing": ["AVGO"] if partial else []}
-    if kind == "bars.daily":
-        last = "2026-10-30" if case == "market-closed" else "2026-10-29"
-        days = ["2026-10-27", "2026-10-28", "2026-10-29"] if last == "2026-10-29" else ["2026-10-28", "2026-10-29", "2026-10-30"]
-        return {"symbol": "NVDA", "tf": "D", "bars": [
-            {"t": d, "o": 200.0 + i, "h": 204.0 + i, "l": 198.5 + i, "c": 202.5 + i, "v": 150_000_000 + i * 1_000_000}
-            for i, d in enumerate(days)]}
     if kind == "bars.intraday":
         end = {"delayed": "2026-10-30T19:40:00Z", "market-closed": "2026-10-30T19:55:00Z"}.get(case, "2026-10-30T19:55:00Z")
         return {"symbol": "NVDA", "tf": "5", "bars": [{"t": end, "o": 206.6, "h": 207.2, "l": 206.4, "c": 207.0, "v": 1_840_000}]}
@@ -174,8 +171,18 @@ def _scan_coverage(kind: str, case: str) -> Optional[dict]:
     return _coverage(3700, 3700)
 
 
+#: kinds whose fixtures mirror a merged producer on agent/int (field names, notes, coverage), not a guess
+DOCUMENTED = ("quote", "quotes", "bars.daily")
+
+
 def cases_for(kind: str) -> tuple[str, ...]:
     declared = KINDS[kind]["freshness"]
+    if kind in ("quote", "quotes"):
+        out = ["live", "stale", "extended-live", "extended-closed", "market-closed", "holiday", "unavailable",
+               "refused"] + (["partial", "no-current-trade"] if kind == "quotes" else [])
+        return tuple(c for c in CASES if c in out)
+    if kind == "bars.daily":
+        return ("historical", "stale", "market-closed", "unavailable", "refused", "partial")
     out = ["stale", "market-closed", "unavailable", "refused"]
     if declared == "live":
         out[:0] = ["live", "delayed"]
@@ -195,16 +202,116 @@ def default_case(kind: str) -> str:
     return KINDS[kind]["freshness"]
 
 
+#: (fetched_at, massive session label, base vendor stamp) per quote case
+_QUOTE_CLOCK = {
+    "live":            (FETCH_SESSION,          "regular",     "2026-10-30T19:59:38Z"),
+    "stale":           (FETCH_SESSION,          "regular",     "2026-10-30T19:57:10Z"),   # oldest 155 s old
+    "partial":         (FETCH_SESSION,          "regular",     "2026-10-30T19:59:38Z"),
+    "no-current-trade": (FETCH_SESSION,         "regular",     "2026-10-30T19:59:38Z"),
+    "extended-live":   ("2026-10-30T12:30:00Z", "pre_market",  "2026-10-30T12:26:05Z"),   # 08:30 ET, ≤15 min
+    "extended-closed": ("2026-10-30T22:30:00Z", "post_market", "2026-10-30T21:50:00Z"),   # 18:30 ET, 40 min old
+    "market-closed":   (FETCH_CLOSED,           "post_market", "2026-10-30T23:59:50Z"),   # Sat: massive says post_market
+    "holiday":         ("2026-11-26T16:00:00Z", "regular",     "2026-11-25T23:59:50Z"),   # Thanksgiving 11:00 ET
+}
+_QUOTE_ROWS = (("NVDA", 207.04, 2.61, 1.28, 162_480_115, 204.43, 2),
+               ("AMD", 256.12, -2.17, -0.84, 48_210_330, 258.29, 0),
+               ("AVGO", 361.50, 1.51, 0.42, 21_905_442, 359.99, 4))
+
+
+def _shift(iso: str, seconds: int) -> str:
+    from datetime import datetime, timedelta
+    return env.utc_iso(datetime.fromisoformat(iso.replace("Z", "+00:00")) + timedelta(seconds=seconds))
+
+
+def _quote_row(spec: tuple, stamp: str, source: str = "trade") -> dict:
+    sym, last, chg, pct, vol, prev, _ = spec
+    return {"symbol": sym, "last": last if source != "prev_close" else prev, "change": chg, "change_pct": pct,
+            "open": round(prev + 0.6, 2), "high": round(last + 1.1, 2), "low": round(prev - 0.9, 2),
+            "day_close": last, "volume": vol, "prev_close": prev, "as_of": stamp, "last_source": source}
+
+
+def _build_quote(kind: str, case: str) -> dict:
+    """quote / quotes, mirroring #569's adapter and the MD-1 v1.1 quote rules (a)–(e)."""
+    params = _params(kind) if kind == "quotes" else {"symbol": "NVDA"}
+    fetched, label, base = _QUOTE_CLOCK[case]
+    specs = _QUOTE_ROWS if kind == "quotes" else _QUOTE_ROWS[:1]
+    rows = [_quote_row(s, _shift(base, s[6])) for s in specs]
+    notes: list[str] = []
+    status, missing = "ok", []
+    if case == "partial":
+        rows, missing, status = rows[:2], ["AVGO"], "partial"
+    if case == "no-current-trade":
+        # AVGO has no current print: the row shows the previous close and its stamp leaves the as_of min
+        rows[2] = _quote_row(_QUOTE_ROWS[2], "2026-10-29T20:00:00Z", "prev_close")
+        status = "partial"
+    current = [r["as_of"] for r in rows if r["last_source"] in _CURRENT_SOURCES]
+    freshness = "live" if case in ("live", "stale", "partial", "no-current-trade", "extended-live") else "historical"
+    as_of = min(current) if (freshness == "live" and current) else min(r["as_of"] for r in rows)
+    if freshness == "historical":
+        notes.append(NOTE_CLOSED)
+    if case == "extended-live":
+        notes.append(NOTE_EXTENDED)
+    if kind == "quotes" and len(rows) > 1:
+        notes.append(NOTE_SET_AS_OF)
+    if missing:
+        notes.append("no quote for: " + ", ".join(missing))
+    for r in rows:
+        if freshness == "live" and r["last_source"] not in _CURRENT_SOURCES:
+            notes.append(NOTE_NO_TRADE.format(sym=r["symbol"], source=r["last_source"]))
+    n = len(specs)
+    coverage = {"evaluated": n, "answered": len(rows), "dropped": len(missing), "not_computable": 0}
+    data = ({"quote": rows[0]} if kind == "quote" else {"quotes": rows})
+    data["session"] = label
+    e = env.make_envelope(kind, params, status=status, freshness=freshness, as_of=as_of, source="massive", data=data,
+                          stale=(case == "stale"), coverage=coverage, notes=notes, provider_calls=1)
+    e["fetched_at"] = fetched
+    return e
+
+
+def _build_bars_daily(case: str) -> dict:
+    """bars.daily, mirroring #576's adapter: completed sessions only, provider_calls 0, as_of = the newest bar's close."""
+    from api.services.uct_agent.marketdata.bars_daily import NOTE_COMPLETED
+    asked = 3
+    params = {"symbol": "NVDA", "bars": asked}
+    fetched, latest = {"market-closed": (FETCH_CLOSED, "2026-10-30")}.get(case, (FETCH_SESSION, "2026-10-29"))
+    days = {"historical": ["2026-10-27", "2026-10-28", "2026-10-29"],
+            "market-closed": ["2026-10-28", "2026-10-29", "2026-10-30"],
+            "stale": ["2026-10-23", "2026-10-26", "2026-10-27"],
+            "partial": ["2026-10-28", "2026-10-29"]}[case]
+    bars = [{"date": d, "open": 200.0 + i, "high": 204.0 + i, "low": 198.5 + i, "close": 202.5 + i,
+             "volume": 150_000_000 + i * 1_000_000} for i, d in enumerate(days)]
+    notes = [NOTE_COMPLETED]
+    stale = days[-1] < latest
+    if stale:
+        notes.append(f"the newest bar held is {days[-1]}; the newest completed session is {latest}")
+    if len(bars) < asked:
+        notes.append(f"{len(bars)} of {asked} requested bars are held")
+    e = env.make_envelope("bars.daily", params, status="ok" if len(bars) >= asked else "partial",
+                          freshness="historical", as_of=f"{days[-1]}T20:00:00Z", source="uct-bars",
+                          data={"symbol": "NVDA", "bars": bars, "through": days[-1], "latest_completed_session": latest},
+                          stale=stale, notes=notes, provider_calls=0)
+    e["fetched_at"] = fetched
+    return e
+
+
 def _build(kind: str, case: str) -> dict:
     meta = KINDS[kind]
     params = _params(kind)
+    if kind in ("quote", "quotes") and case not in ("refused", "unavailable"):
+        return _build_quote(kind, case)
+    if kind == "bars.daily" and case not in ("refused", "unavailable"):
+        return _build_bars_daily(case)
+    if kind == "bars.daily":
+        params = {"symbol": "NVDA", "bars": 3}
     source, calls, declared = meta["source"], meta["calls"], meta["freshness"]
     if case == "refused":
         e = env.refused(kind, params, f"this turn already made {gw.MAX_READS_PER_TURN} data reads")
         e["fetched_at"] = FETCH_SESSION
         return e
     if case == "unavailable":
-        e = env.unavailable(kind, params, source, "the data source could not answer", provider_calls=calls)
+        why = {"quote": "the quote provider could not answer", "quotes": "the quote provider could not answer",
+               "bars.daily": "no completed daily bars are held for NVDA"}.get(kind, "the data source could not answer")
+        e = env.unavailable(kind, params, source, why, provider_calls=calls)
         e["fetched_at"] = FETCH_SESSION
         return e
     kw: dict = {"status": "ok", "source": source, "data": _data(kind, case), "coverage": _scan_coverage(kind, case),
@@ -382,10 +489,9 @@ def test_case_semantics():
         if case == "delayed":
             assert e["freshness"] == "delayed" and e["delay_s"] == DELAY_S
         if case == "stale":
-            assert e["stale"] is True and e["notes"]
-        if case == "market-closed":
-            assert e["freshness"] != "live" and any("market closed" in n for n in e["notes"])
-            assert e["fetched_at"] == FETCH_CLOSED
+            assert e["stale"] is True
+        if case in ("market-closed", "holiday"):
+            assert e["freshness"] != "live" and e["notes"], (kind, case)
         if case in ("unavailable", "refused"):
             assert e["status"] == case and e["data"] is None and e["freshness"] == "unavailable"
         if case == "partial":
@@ -419,8 +525,111 @@ def test_a_fixture_never_carries_a_secret_a_url_or_a_raw_payload():
 
 def test_load_fixture_returns_a_copy():
     a = load_fixture("quote")
-    a["data"]["price"] = -1
-    assert load_fixture("quote")["data"]["price"] == 207.04
+    a["data"]["quote"]["last"] = -1
+    assert load_fixture("quote")["data"]["quote"]["last"] == 207.04
+
+
+# ── quote semantics, MD-1 v1.1 (a)–(e): a predicate QA's conformance suite also runs against the real adapter ──
+def _t(iso: str) -> float:
+    from datetime import datetime
+    return datetime.fromisoformat(iso.replace("Z", "+00:00")).timestamp()
+
+
+def quote_semantics_errors(e: dict) -> list[str]:
+    """Violations of the agreed quote rules (empty = conforms). Reads only the envelope: the vendor stamps,
+    massive's session label and `fetched_at` — never the producer's code."""
+    if e.get("kind") not in ("quote", "quotes") or e.get("status") not in ("ok", "partial"):
+        return []
+    errs: list[str] = []
+    d = e["data"] or {}
+    rows = [d["quote"]] if "quote" in d else list(d.get("quotes") or [])
+    label = d.get("session")
+    notes = e["notes"]
+    closed, extended = NOTE_CLOSED in notes, NOTE_EXTENDED in notes
+    if closed and extended:
+        errs.append("both the closed and the extended-hours notes (rule b)")
+    for r in rows:                                                       # (d)
+        if r.get("last_source") not in LAST_SOURCES:
+            errs.append(f"{r.get('symbol')}: last_source {r.get('last_source')!r}")
+    current = [r for r in rows if r.get("last_source") in _CURRENT_SOURCES]
+    if e["freshness"] == "live":
+        if closed:
+            errs.append("a live read carries the closed note")
+        for r in rows:
+            if r.get("last_source") in ("day_close", "prev_close"):
+                if e["status"] != "partial":
+                    errs.append(f"{r['symbol']} shows {r['last_source']} in a live read that is not partial (rule d)")
+                if not any(n.startswith(f"no current trade for {r['symbol']}") for n in notes):
+                    errs.append(f"no 'no current trade for {r['symbol']}' note (rule d)")
+        stamps = [r["as_of"] for r in current if r.get("as_of")]
+        if stamps and e["as_of"] != min(stamps):                         # (e), current rows only
+            errs.append(f"as_of {e['as_of']} is not the oldest current stamp {min(stamps)} (rule e)")
+        if stamps:
+            age = _t(e["fetched_at"]) - _t(min(stamps))
+            if label == "regular":                                       # (a)
+                if extended:
+                    errs.append("a regular-session read carries the extended-hours note")
+                if e["stale"] != (age > FRESHNESS_BUDGET_S):
+                    errs.append(f"stale={e['stale']} but the oldest vendor stamp is {age:.0f}s old (rule a)")
+            elif label in ("pre_market", "post_market"):                 # (b)
+                if age > EXTENDED_LIVE_S:
+                    errs.append(f"live in extended hours with a {age:.0f}s-old stamp (rule b: at most {EXTENDED_LIVE_S}s)")
+                if not extended:
+                    errs.append("a live extended-hours read without the extended-hours note (rule b)")
+    elif e["freshness"] == "historical":                                 # (b) late extended, (c) closed
+        if not closed:
+            errs.append("a historical quote read without the closed note (rule c)")
+        if extended:
+            errs.append("a historical quote read carries the extended-hours note")
+        if e["as_of"] is None:
+            errs.append("a closed read gives no real as_of (rule c)")
+        stamps = [r["as_of"] for r in rows if r.get("as_of")]
+        if stamps and e["as_of"] != min(stamps):
+            errs.append(f"as_of {e['as_of']} is not the oldest stamp {min(stamps)} (rule e)")
+    else:
+        errs.append(f"a quote read classed {e['freshness']!r}")
+    return errs
+
+
+@pytest.mark.parametrize("kind,case", [(k, c) for k, c in _ALL if k in ("quote", "quotes")])
+def test_quote_fixtures_obey_the_v1_1_quote_rules(kind, case):
+    e = load_fixture(kind, case)
+    assert quote_semantics_errors(e) == []
+    if case in ("extended-live", "extended-closed", "market-closed", "holiday"):
+        assert (NOTE_CLOSED in e["notes"]) != (NOTE_EXTENDED in e["notes"]), "exactly one session note"
+    if case == "extended-live":
+        assert e["freshness"] == "live" and e["data"]["session"] == "pre_market"
+    if case in ("extended-closed", "market-closed", "holiday"):
+        assert e["freshness"] == "historical"
+
+
+def test_the_quote_predicate_can_fail():
+    """Controls: each rule's violation is SEEN (a predicate that answers [] to everything is not a rail)."""
+    live = load_fixture("quotes", "live")
+    stale_but_claims_fresh = load_fixture("quotes", "stale"); stale_but_claims_fresh["stale"] = False
+    both_notes = load_fixture("quote", "market-closed"); both_notes["notes"].append(NOTE_EXTENDED)
+    old_ext = load_fixture("quote", "extended-live"); old_ext["fetched_at"] = _shift(old_ext["fetched_at"], 3600)
+    no_trade_ok = load_fixture("quotes", "no-current-trade"); no_trade_ok["status"] = "ok"
+    bad_min = load_fixture("quotes", "no-current-trade"); bad_min["as_of"] = "2026-10-29T20:00:00Z"
+    bad_src = copy.deepcopy(live); bad_src["data"]["quotes"][0]["last_source"] = "guess"
+    for name, e in [("a", stale_but_claims_fresh), ("b-both", both_notes), ("b-age", old_ext), ("d", no_trade_ok),
+                    ("e", bad_min), ("d-src", bad_src)]:
+        assert quote_semantics_errors(e), name
+    assert quote_semantics_errors(live) == []
+
+
+def test_bars_daily_fixtures_mirror_the_merged_adapter():
+    from api.services.uct_agent.marketdata.bars_daily import NOTE_COMPLETED
+    for case in cases_for("bars.daily"):
+        e = load_fixture("bars.daily", case)
+        if e["status"] not in ("ok", "partial"):
+            continue
+        d = e["data"]
+        assert set(d) == {"symbol", "bars", "through", "latest_completed_session"}
+        assert set(d["bars"][0]) == {"date", "open", "high", "low", "close", "volume"}
+        assert e["freshness"] == "historical" and e["provider_calls"] == 0 and NOTE_COMPLETED in e["notes"]
+        assert e["as_of"] == f"{d['through']}T20:00:00Z" and d["through"] == d["bars"][-1]["date"]
+        assert e["stale"] == (d["through"] < d["latest_completed_session"])
 
 
 def test_the_fake_registry_round_trips_through_the_real_gateway(monkeypatch):

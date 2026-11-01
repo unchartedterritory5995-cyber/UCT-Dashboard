@@ -15,75 +15,66 @@
       },
       "status": "ok",
       "freshness": "live",
-      "as_of": "2026-10-30T19:59:40Z",
+      "as_of": "2026-10-30T19:59:38Z",
       "fetched_at": "2026-10-30T19:59:45Z",
       "delay_s": null,
       "stale": false,
       "source": "massive",
-      "coverage": null,
+      "coverage": {
+        "evaluated": 3,
+        "answered": 3,
+        "dropped": 0,
+        "not_computable": 0
+      },
       "data": {
         "quotes": [
           {
             "symbol": "NVDA",
-            "price": 207.04,
-            "change_pct": 1.28
+            "last": 207.04,
+            "change": 2.61,
+            "change_pct": 1.28,
+            "open": 205.03,
+            "high": 208.14,
+            "low": 203.53,
+            "day_close": 207.04,
+            "volume": 162480115,
+            "prev_close": 204.43,
+            "as_of": "2026-10-30T19:59:40Z",
+            "last_source": "trade"
           },
           {
             "symbol": "AMD",
-            "price": 256.12,
-            "change_pct": -0.84
+            "last": 256.12,
+            "change": -2.17,
+            "change_pct": -0.84,
+            "open": 258.89,
+            "high": 257.22,
+            "low": 257.39,
+            "day_close": 256.12,
+            "volume": 48210330,
+            "prev_close": 258.29,
+            "as_of": "2026-10-30T19:59:38Z",
+            "last_source": "trade"
           },
           {
             "symbol": "AVGO",
-            "price": 361.5,
-            "change_pct": 0.42
+            "last": 361.5,
+            "change": 1.51,
+            "change_pct": 0.42,
+            "open": 360.59,
+            "high": 362.6,
+            "low": 359.09,
+            "day_close": 361.5,
+            "volume": 21905442,
+            "prev_close": 359.99,
+            "as_of": "2026-10-30T19:59:42Z",
+            "last_source": "trade"
           }
         ],
-        "missing": []
-      },
-      "notes": [],
-      "provider_calls": 1
-    },
-    "delayed": {
-      "contract": "MD-1.0",
-      "kind": "quotes",
-      "params_echo": {
-        "symbols": [
-          "NVDA",
-          "AMD",
-          "AVGO"
-        ]
-      },
-      "status": "ok",
-      "freshness": "delayed",
-      "as_of": "2026-10-30T19:44:40Z",
-      "fetched_at": "2026-10-30T19:59:45Z",
-      "delay_s": 900,
-      "stale": false,
-      "source": "massive",
-      "coverage": null,
-      "data": {
-        "quotes": [
-          {
-            "symbol": "NVDA",
-            "price": 207.04,
-            "change_pct": 1.28
-          },
-          {
-            "symbol": "AMD",
-            "price": 256.12,
-            "change_pct": -0.84
-          },
-          {
-            "symbol": "AVGO",
-            "price": 361.5,
-            "change_pct": 0.42
-          }
-        ],
-        "missing": []
+        "session": "regular"
       },
       "notes": [
-        "delayed about 15 minutes; not live"
+        "as_of is the oldest quote in this set"
       ],
       "provider_calls": 1
     },
@@ -99,36 +90,68 @@
       },
       "status": "ok",
       "freshness": "live",
-      "as_of": "2026-10-28T20:00:00Z",
+      "as_of": "2026-10-30T19:57:10Z",
       "fetched_at": "2026-10-30T19:59:45Z",
       "delay_s": null,
       "stale": true,
       "source": "massive",
-      "coverage": null,
+      "coverage": {
+        "evaluated": 3,
+        "answered": 3,
+        "dropped": 0,
+        "not_computable": 0
+      },
       "data": {
         "quotes": [
           {
             "symbol": "NVDA",
-            "price": 207.04,
-            "change_pct": 1.28
+            "last": 207.04,
+            "change": 2.61,
+            "change_pct": 1.28,
+            "open": 205.03,
+            "high": 208.14,
+            "low": 203.53,
+            "day_close": 207.04,
+            "volume": 162480115,
+            "prev_close": 204.43,
+            "as_of": "2026-10-30T19:57:12Z",
+            "last_source": "trade"
           },
           {
             "symbol": "AMD",
-            "price": 256.12,
-            "change_pct": -0.84
+            "last": 256.12,
+            "change": -2.17,
+            "change_pct": -0.84,
+            "open": 258.89,
+            "high": 257.22,
+            "low": 257.39,
+            "day_close": 256.12,
+            "volume": 48210330,
+            "prev_close": 258.29,
+            "as_of": "2026-10-30T19:57:10Z",
+            "last_source": "trade"
           },
           {
             "symbol": "AVGO",
-            "price": 361.5,
-            "change_pct": 0.42
+            "last": 361.5,
+            "change": 1.51,
+            "change_pct": 0.42,
+            "open": 360.59,
+            "high": 362.6,
+            "low": 359.09,
+            "day_close": 361.5,
+            "volume": 21905442,
+            "prev_close": 359.99,
+            "as_of": "2026-10-30T19:57:14Z",
+            "last_source": "trade"
           }
         ],
-        "missing": []
+        "session": "regular"
       },
       "notes": [
-        "older than this kind's freshness budget; say how old"
+        "as_of is the oldest quote in this set"
       ],
-      "provider_calls": 0
+      "provider_calls": 1
     },
     "market-closed": {
       "contract": "MD-1.0",
@@ -142,34 +165,67 @@
       },
       "status": "ok",
       "freshness": "historical",
-      "as_of": "2026-10-30T20:00:00Z",
+      "as_of": "2026-10-30T23:59:50Z",
       "fetched_at": "2026-10-31T14:00:00Z",
       "delay_s": null,
       "stale": false,
       "source": "massive",
-      "coverage": null,
+      "coverage": {
+        "evaluated": 3,
+        "answered": 3,
+        "dropped": 0,
+        "not_computable": 0
+      },
       "data": {
         "quotes": [
           {
             "symbol": "NVDA",
-            "price": 207.04,
-            "change_pct": 1.28
+            "last": 207.04,
+            "change": 2.61,
+            "change_pct": 1.28,
+            "open": 205.03,
+            "high": 208.14,
+            "low": 203.53,
+            "day_close": 207.04,
+            "volume": 162480115,
+            "prev_close": 204.43,
+            "as_of": "2026-10-30T23:59:52Z",
+            "last_source": "trade"
           },
           {
             "symbol": "AMD",
-            "price": 256.12,
-            "change_pct": -0.84
+            "last": 256.12,
+            "change": -2.17,
+            "change_pct": -0.84,
+            "open": 258.89,
+            "high": 257.22,
+            "low": 257.39,
+            "day_close": 256.12,
+            "volume": 48210330,
+            "prev_close": 258.29,
+            "as_of": "2026-10-30T23:59:50Z",
+            "last_source": "trade"
           },
           {
             "symbol": "AVGO",
-            "price": 361.5,
-            "change_pct": 0.42
+            "last": 361.5,
+            "change": 1.51,
+            "change_pct": 0.42,
+            "open": 360.59,
+            "high": 362.6,
+            "low": 359.09,
+            "day_close": 361.5,
+            "volume": 21905442,
+            "prev_close": 359.99,
+            "as_of": "2026-10-30T23:59:54Z",
+            "last_source": "trade"
           }
         ],
-        "missing": []
+        "session": "post_market"
       },
       "notes": [
-        "market closed — last session's close"
+        "the regular session is not open — these are the last prints from the most recent session, not live prices",
+        "as_of is the oldest quote in this set"
       ],
       "provider_calls": 1
     },
@@ -193,7 +249,7 @@
       "coverage": null,
       "data": null,
       "notes": [
-        "the data source could not answer"
+        "the quote provider could not answer"
       ],
       "provider_calls": 1
     },
@@ -233,31 +289,357 @@
       },
       "status": "partial",
       "freshness": "live",
-      "as_of": "2026-10-30T19:59:40Z",
+      "as_of": "2026-10-30T19:59:38Z",
       "fetched_at": "2026-10-30T19:59:45Z",
       "delay_s": null,
       "stale": false,
       "source": "massive",
-      "coverage": null,
+      "coverage": {
+        "evaluated": 3,
+        "answered": 2,
+        "dropped": 1,
+        "not_computable": 0
+      },
       "data": {
         "quotes": [
           {
             "symbol": "NVDA",
-            "price": 207.04,
-            "change_pct": 1.28
+            "last": 207.04,
+            "change": 2.61,
+            "change_pct": 1.28,
+            "open": 205.03,
+            "high": 208.14,
+            "low": 203.53,
+            "day_close": 207.04,
+            "volume": 162480115,
+            "prev_close": 204.43,
+            "as_of": "2026-10-30T19:59:40Z",
+            "last_source": "trade"
           },
           {
             "symbol": "AMD",
-            "price": 256.12,
-            "change_pct": -0.84
+            "last": 256.12,
+            "change": -2.17,
+            "change_pct": -0.84,
+            "open": 258.89,
+            "high": 257.22,
+            "low": 257.39,
+            "day_close": 256.12,
+            "volume": 48210330,
+            "prev_close": 258.29,
+            "as_of": "2026-10-30T19:59:38Z",
+            "last_source": "trade"
           }
         ],
-        "missing": [
+        "session": "regular"
+      },
+      "notes": [
+        "as_of is the oldest quote in this set",
+        "no quote for: AVGO"
+      ],
+      "provider_calls": 1
+    },
+    "extended-live": {
+      "contract": "MD-1.0",
+      "kind": "quotes",
+      "params_echo": {
+        "symbols": [
+          "NVDA",
+          "AMD",
           "AVGO"
         ]
       },
+      "status": "ok",
+      "freshness": "live",
+      "as_of": "2026-10-30T12:26:05Z",
+      "fetched_at": "2026-10-30T12:30:00Z",
+      "delay_s": null,
+      "stale": false,
+      "source": "massive",
+      "coverage": {
+        "evaluated": 3,
+        "answered": 3,
+        "dropped": 0,
+        "not_computable": 0
+      },
+      "data": {
+        "quotes": [
+          {
+            "symbol": "NVDA",
+            "last": 207.04,
+            "change": 2.61,
+            "change_pct": 1.28,
+            "open": 205.03,
+            "high": 208.14,
+            "low": 203.53,
+            "day_close": 207.04,
+            "volume": 162480115,
+            "prev_close": 204.43,
+            "as_of": "2026-10-30T12:26:07Z",
+            "last_source": "trade"
+          },
+          {
+            "symbol": "AMD",
+            "last": 256.12,
+            "change": -2.17,
+            "change_pct": -0.84,
+            "open": 258.89,
+            "high": 257.22,
+            "low": 257.39,
+            "day_close": 256.12,
+            "volume": 48210330,
+            "prev_close": 258.29,
+            "as_of": "2026-10-30T12:26:05Z",
+            "last_source": "trade"
+          },
+          {
+            "symbol": "AVGO",
+            "last": 361.5,
+            "change": 1.51,
+            "change_pct": 0.42,
+            "open": 360.59,
+            "high": 362.6,
+            "low": 359.09,
+            "day_close": 361.5,
+            "volume": 21905442,
+            "prev_close": 359.99,
+            "as_of": "2026-10-30T12:26:09Z",
+            "last_source": "trade"
+          }
+        ],
+        "session": "pre_market"
+      },
       "notes": [
-        "no data for AVGO"
+        "extended-hours prints may be included in `last`",
+        "as_of is the oldest quote in this set"
+      ],
+      "provider_calls": 1
+    },
+    "extended-closed": {
+      "contract": "MD-1.0",
+      "kind": "quotes",
+      "params_echo": {
+        "symbols": [
+          "NVDA",
+          "AMD",
+          "AVGO"
+        ]
+      },
+      "status": "ok",
+      "freshness": "historical",
+      "as_of": "2026-10-30T21:50:00Z",
+      "fetched_at": "2026-10-30T22:30:00Z",
+      "delay_s": null,
+      "stale": false,
+      "source": "massive",
+      "coverage": {
+        "evaluated": 3,
+        "answered": 3,
+        "dropped": 0,
+        "not_computable": 0
+      },
+      "data": {
+        "quotes": [
+          {
+            "symbol": "NVDA",
+            "last": 207.04,
+            "change": 2.61,
+            "change_pct": 1.28,
+            "open": 205.03,
+            "high": 208.14,
+            "low": 203.53,
+            "day_close": 207.04,
+            "volume": 162480115,
+            "prev_close": 204.43,
+            "as_of": "2026-10-30T21:50:02Z",
+            "last_source": "trade"
+          },
+          {
+            "symbol": "AMD",
+            "last": 256.12,
+            "change": -2.17,
+            "change_pct": -0.84,
+            "open": 258.89,
+            "high": 257.22,
+            "low": 257.39,
+            "day_close": 256.12,
+            "volume": 48210330,
+            "prev_close": 258.29,
+            "as_of": "2026-10-30T21:50:00Z",
+            "last_source": "trade"
+          },
+          {
+            "symbol": "AVGO",
+            "last": 361.5,
+            "change": 1.51,
+            "change_pct": 0.42,
+            "open": 360.59,
+            "high": 362.6,
+            "low": 359.09,
+            "day_close": 361.5,
+            "volume": 21905442,
+            "prev_close": 359.99,
+            "as_of": "2026-10-30T21:50:04Z",
+            "last_source": "trade"
+          }
+        ],
+        "session": "post_market"
+      },
+      "notes": [
+        "the regular session is not open — these are the last prints from the most recent session, not live prices",
+        "as_of is the oldest quote in this set"
+      ],
+      "provider_calls": 1
+    },
+    "holiday": {
+      "contract": "MD-1.0",
+      "kind": "quotes",
+      "params_echo": {
+        "symbols": [
+          "NVDA",
+          "AMD",
+          "AVGO"
+        ]
+      },
+      "status": "ok",
+      "freshness": "historical",
+      "as_of": "2026-11-25T23:59:50Z",
+      "fetched_at": "2026-11-26T16:00:00Z",
+      "delay_s": null,
+      "stale": false,
+      "source": "massive",
+      "coverage": {
+        "evaluated": 3,
+        "answered": 3,
+        "dropped": 0,
+        "not_computable": 0
+      },
+      "data": {
+        "quotes": [
+          {
+            "symbol": "NVDA",
+            "last": 207.04,
+            "change": 2.61,
+            "change_pct": 1.28,
+            "open": 205.03,
+            "high": 208.14,
+            "low": 203.53,
+            "day_close": 207.04,
+            "volume": 162480115,
+            "prev_close": 204.43,
+            "as_of": "2026-11-25T23:59:52Z",
+            "last_source": "trade"
+          },
+          {
+            "symbol": "AMD",
+            "last": 256.12,
+            "change": -2.17,
+            "change_pct": -0.84,
+            "open": 258.89,
+            "high": 257.22,
+            "low": 257.39,
+            "day_close": 256.12,
+            "volume": 48210330,
+            "prev_close": 258.29,
+            "as_of": "2026-11-25T23:59:50Z",
+            "last_source": "trade"
+          },
+          {
+            "symbol": "AVGO",
+            "last": 361.5,
+            "change": 1.51,
+            "change_pct": 0.42,
+            "open": 360.59,
+            "high": 362.6,
+            "low": 359.09,
+            "day_close": 361.5,
+            "volume": 21905442,
+            "prev_close": 359.99,
+            "as_of": "2026-11-25T23:59:54Z",
+            "last_source": "trade"
+          }
+        ],
+        "session": "regular"
+      },
+      "notes": [
+        "the regular session is not open — these are the last prints from the most recent session, not live prices",
+        "as_of is the oldest quote in this set"
+      ],
+      "provider_calls": 1
+    },
+    "no-current-trade": {
+      "contract": "MD-1.0",
+      "kind": "quotes",
+      "params_echo": {
+        "symbols": [
+          "NVDA",
+          "AMD",
+          "AVGO"
+        ]
+      },
+      "status": "partial",
+      "freshness": "live",
+      "as_of": "2026-10-30T19:59:38Z",
+      "fetched_at": "2026-10-30T19:59:45Z",
+      "delay_s": null,
+      "stale": false,
+      "source": "massive",
+      "coverage": {
+        "evaluated": 3,
+        "answered": 3,
+        "dropped": 0,
+        "not_computable": 0
+      },
+      "data": {
+        "quotes": [
+          {
+            "symbol": "NVDA",
+            "last": 207.04,
+            "change": 2.61,
+            "change_pct": 1.28,
+            "open": 205.03,
+            "high": 208.14,
+            "low": 203.53,
+            "day_close": 207.04,
+            "volume": 162480115,
+            "prev_close": 204.43,
+            "as_of": "2026-10-30T19:59:40Z",
+            "last_source": "trade"
+          },
+          {
+            "symbol": "AMD",
+            "last": 256.12,
+            "change": -2.17,
+            "change_pct": -0.84,
+            "open": 258.89,
+            "high": 257.22,
+            "low": 257.39,
+            "day_close": 256.12,
+            "volume": 48210330,
+            "prev_close": 258.29,
+            "as_of": "2026-10-30T19:59:38Z",
+            "last_source": "trade"
+          },
+          {
+            "symbol": "AVGO",
+            "last": 359.99,
+            "change": 1.51,
+            "change_pct": 0.42,
+            "open": 360.59,
+            "high": 362.6,
+            "low": 359.09,
+            "day_close": 361.5,
+            "volume": 21905442,
+            "prev_close": 359.99,
+            "as_of": "2026-10-29T20:00:00Z",
+            "last_source": "prev_close"
+          }
+        ],
+        "session": "regular"
+      },
+      "notes": [
+        "as_of is the oldest quote in this set",
+        "no current trade for AVGO — showing prev_close"
       ],
       "provider_calls": 1
     }

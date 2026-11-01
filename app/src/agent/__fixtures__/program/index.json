@@ -14,7 +14,11 @@
     "unavailable",
     "refused",
     "partial",
-    "no-source-time"
+    "no-source-time",
+    "extended-live",
+    "extended-closed",
+    "holiday",
+    "no-current-trade"
   ],
   "kinds": {
     "quote": {
@@ -24,11 +28,13 @@
       "default_case": "live",
       "cases": [
         "live",
-        "delayed",
         "stale",
         "market-closed",
         "unavailable",
-        "refused"
+        "refused",
+        "extended-live",
+        "extended-closed",
+        "holiday"
       ],
       "file": "envelopes/quote.json"
     },
@@ -39,12 +45,15 @@
       "default_case": "live",
       "cases": [
         "live",
-        "delayed",
         "stale",
         "market-closed",
         "unavailable",
         "refused",
-        "partial"
+        "partial",
+        "extended-live",
+        "extended-closed",
+        "holiday",
+        "no-current-trade"
       ],
       "file": "envelopes/quotes.json"
     },
@@ -58,7 +67,8 @@
         "stale",
         "market-closed",
         "unavailable",
-        "refused"
+        "refused",
+        "partial"
       ],
       "file": "envelopes/bars.daily.json"
     },

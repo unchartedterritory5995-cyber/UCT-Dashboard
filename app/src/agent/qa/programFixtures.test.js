@@ -39,12 +39,13 @@ describe('agent-qa program fixtures (browser loader)', () => {
   it('a market-closed quote is historical, never live', () => {
     const e = loadFixture('quote', 'market-closed')
     expect(e.freshness).toBe('historical')
-    expect(e.notes.join(' ')).toMatch(/market closed/)
+    expect(e.notes.join(' ')).toMatch(/regular session is not open/)
+    expect(e.notes.join(' ')).not.toMatch(/extended-hours/)
   })
 
   it('returns copies and refuses an unknown case', () => {
-    const a = loadFixture('quote'); a.data.price = -1
-    expect(loadFixture('quote').data.price).toBe(207.04)
+    const a = loadFixture('quote'); a.data.quote.last = -1
+    expect(loadFixture('quote').data.quote.last).toBe(207.04)
     expect(() => loadFixture('quote', 'periodic')).toThrow()
     expect(casesFor('screen.run')).toContain('partial')
   })
