@@ -1,5 +1,5 @@
 // News terminal upgrade — the widget: long-headline collapse, category filter,
-// plain tickers (no inline %), one-click copy, ⋯ = add to watchlist only, no
+// plain tickers (no inline %), one-click copy, ⋯ = Watchlist / Notebook / Collection / Copy, no
 // impact labels, related groups, feed health, presets, one ET calendar day at a time
 // (continuous scrolling, calendar, previous/next day, jump to time, live Today),
 // several widgets at once, and re-render economy on a quote tick. The shared pool
@@ -156,8 +156,8 @@ describe('long headlines', () => {
 describe('category filter', () => {
   it('filters instantly, persists per widget, and combines with the linked filter', async () => {
     const { container, onOptsChange } = mount()
-    fireEvent.click(screen.getByRole('button', { name: /Categories: All/ }))
-    fireEvent.click(within(screen.getByRole('dialog', { name: 'Filters and presets' })).getByRole('button', { name: 'Earnings' }))
+    fireEvent.click(screen.getByRole('button', { name: /^News filters/ }))
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'News filters' })).getByRole('button', { name: 'Earnings' }))
     expect(onOptsChange).toHaveBeenLastCalledWith(expect.objectContaining({ categories: ['Earnings'] }))
     const r2 = mount({ categories: ['Earnings', 'News'] })
     expect(rows(r2.container)).toEqual([3, 1])
@@ -221,9 +221,9 @@ describe('one-click copy', () => {
   it('sits to the left of ⋯ and is there on rows without a ticker too', () => {
     const { container } = mount()
     const btns = [...rowEl(container, 3).querySelectorAll('[class*="rowActions"] button')].map((b) => b.getAttribute('aria-label'))
-    expect(btns).toEqual(['Explain this headline', 'Save to Research Library', 'Copy headline', 'Add a symbol to a watchlist'])
+    expect(btns).toEqual(['Explain this headline', 'Save headline', 'Copy headline', 'More actions for this headline'])
     expect([...rowEl(container, 2).querySelectorAll('[class*="rowActions"] button')].map((b) => b.getAttribute('aria-label')))
-      .toEqual(['Explain this headline', 'Save to Research Library', 'Copy headline'])   // no ticker: no ⋯
+      .toEqual(['Explain this headline', 'Save headline', 'Copy headline', 'More actions for this headline'])   // ⋯ holds more than the watchlist
   })
 
   it('a blocked clipboard says so instead of failing silently', async () => {
@@ -244,21 +244,45 @@ describe('one-click copy', () => {
   })
 })
 
-describe('⋯ = add to watchlist', () => {
+describe('⋯ = the secondary actions', () => {
   const openMenu = (container, seq) => {
-    fireEvent.click(within(rowEl(container, seq)).getByRole('button', { name: 'Add a symbol to a watchlist' }))
-    return screen.getByRole('menu', { name: 'Add to watchlist' })
+    fireEvent.click(within(rowEl(container, seq)).getByRole('button', { name: 'More actions for this headline' }))
+    return screen.getByRole('menu', { name: 'Headline actions' })
+  }
+  const openWatchlist = (container, seq) => {
+    const menu = openMenu(container, seq)
+    fireEvent.click(within(menu).getByRole('menuitem', { name: 'Add to Watchlist' }))
+    return menu
   }
 
-  it('holds only the watchlist action: no Open chart, Copy or news alert, even with alerts on', () => {
+  it('holds Watchlist, Notebook, Collection and Copy: no Open chart or news alert, even with alerts on', () => {
     server.alerts = 'on'
     const { container } = mount()
     const menu = openMenu(container, 3)
-    expect(within(menu).getAllByRole('menuitem').map((b) => b.textContent.trim())).toEqual(['Mine'])
+    expect(within(menu).getAllByRole('menuitem').map((b) => b.textContent.trim()))
+      .toEqual(['Add to Watchlist', 'Send to Notebook', 'Add to Collection…', 'Copy Headline'])
     expect(within(menu).queryByText(/Open .* chart/)).toBeNull()
-    expect(within(menu).queryByText(/Copy/)).toBeNull()
     expect(within(menu).queryByText(/alert/i)).toBeNull()
+    fireEvent.click(within(menu).getByRole('menuitem', { name: 'Add to Watchlist' }))
+    expect(within(menu).getAllByRole('menuitem').map((b) => b.textContent.trim())).toEqual(['Back', 'Mine'])
     expect(within(menu).queryByText('UCT List')).toBeNull()               // personal lists only
+  })
+
+  it('a headline with no ticker still has Notebook, Collection and Copy; Watchlist is off', () => {
+    const { container } = mount()
+    const menu = openMenu(container, 2)
+    expect(within(menu).getByRole('menuitem', { name: 'Add to Watchlist' })).toBeDisabled()
+    expect(within(menu).getByRole('menuitem', { name: 'Send to Notebook' })).not.toBeDisabled()
+  })
+
+  it('Copy Headline copies the whole original text and closes the menu', async () => {
+    const writeText = vi.fn().mockResolvedValue()
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
+    const { container } = mount()
+    fireEvent.click(within(openMenu(container, 1)).getByRole('menuitem', { name: 'Copy Headline' }))
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith('SYNTHETIC: AMD guidance raised'))
+    await waitFor(() => expect(screen.queryByRole('menu')).toBeNull())
+    expect(await screen.findByText('Headline copied')).toBeTruthy()
   })
 
   it('several securities let you choose, and the server answer is the result', async () => {
@@ -267,7 +291,7 @@ describe('⋯ = add to watchlist', () => {
       .mockResolvedValueOnce({ ok: false, status: 404, json: async () => ({ detail: 'Watchlist not found' }) })
     vi.stubGlobal('fetch', fetchMock)
     const { container } = mount()
-    const menu = openMenu(container, 3)
+    const menu = openWatchlist(container, 3)
     expect(within(menu).getByText('Add NVDA to watchlist')).toBeTruthy()
     fireEvent.click(within(menu).getByRole('button', { name: 'AMD', pressed: false }))
     expect(within(menu).getByText('Add AMD to watchlist')).toBeTruthy()
@@ -281,9 +305,9 @@ describe('⋯ = add to watchlist', () => {
     expect(setGroupSym).not.toHaveBeenCalled()
   })
 
-  it('is keyboard reachable: focus lands on a list, Escape returns focus to ⋯', () => {
+  it('is keyboard reachable: focus lands on the first action, Escape returns focus to ⋯', () => {
     const { container } = mount()
-    const btn = within(rowEl(container, 1)).getByRole('button', { name: 'Add a symbol to a watchlist' })
+    const btn = within(rowEl(container, 1)).getByRole('button', { name: 'More actions for this headline' })
     btn.focus()
     fireEvent.click(btn)
     const menu = screen.getByRole('menu')
@@ -338,8 +362,8 @@ describe('presets', () => {
     const onOptsChange = vi.fn()
     const opts = { categories: ['Macro'], settings: { longHeadlines: '5' } }
     mount(opts, BASE, onOptsChange)
-    fireEvent.click(screen.getByRole('button', { name: /Categories: Macro/ }))
-    const dlg = screen.getByRole('dialog', { name: 'Filters and presets' })
+    fireEvent.click(screen.getByRole('button', { name: /^News filters.*categories Macro/ }))
+    const dlg = screen.getByRole('dialog', { name: 'News filters' })
     fireEvent.change(within(dlg).getByLabelText('New preset name'), { target: { value: 'Macro only' } })
     fireEvent.click(within(dlg).getByRole('button', { name: 'Save' }))
     const saved = onOptsChange.mock.lastCall[0]
@@ -351,8 +375,8 @@ describe('presets', () => {
     onOptsChange.mockClear()
     const p = { ...saved.presets[0] }
     const r2 = mount({ presets: [p], categories: [] }, BASE, onOptsChange)
-    fireEvent.click(within(r2.container).getByRole('button', { name: /Categories: All/ }))
-    const d2 = screen.getAllByRole('dialog', { name: 'Filters and presets' }).at(-1)
+    fireEvent.click(within(r2.container).getByRole('button', { name: /^News filters/ }))
+    const d2 = screen.getAllByRole('dialog', { name: 'News filters' }).at(-1)
     fireEvent.click(within(d2).getByRole('button', { name: 'Macro only' }))
     expect(onOptsChange.mock.lastCall[0]).toMatchObject({ categories: ['Macro'], presetId: p.id })
     fireEvent.click(within(d2).getByRole('button', { name: 'Rename preset Macro only' }))
@@ -444,12 +468,20 @@ describe('one calendar day at a time', () => {
     fireEvent.scroll(el)
   }
 
+  // Latest (back to today's live feed) is the first item of the clock's menu on a past day or time.
+  const toLatest = async () => {
+    fireEvent.click(within(bar()).getByRole('button', { name: /^Jump to Time/ }))
+    fireEvent.click(within(await screen.findByRole('dialog', { name: 'Jump to a time' })).getByRole('button', { name: /^Latest/ }))
+  }
+
   it('Today is the live default: newest first, and a live headline appears on top', async () => {
     const { container } = mountDays()
     await waitFor(() => expect(rows(container)).toEqual([3, 2, 1]))
     expect(within(bar()).getByRole('button', { name: /Date: Today/ })).toBeTruthy()
     expect(within(bar()).getByRole('button', { name: 'Next day' })).toBeDisabled()
-    expect(within(bar()).queryByRole('button', { name: 'Latest' })).toBeNull()
+    fireEvent.click(within(bar()).getByRole('button', { name: 'Jump to Time' }))
+    expect(within(await screen.findByRole('dialog', { name: 'Jump to a time' })).queryByRole('button', { name: /Latest/ })).toBeNull()
+    fireEvent.keyDown(screen.getByRole('dialog', { name: 'Jump to a time' }), { key: 'Escape' })
     act(() => feed.set({ items: [...BASE, H(4, 'SYNTHETIC: just in', [], { received_at_ms: Date.now() })], lastSeq: 4 }))
     expect(rows(container)[0]).toBe(4)
     expect(container.querySelector('nav [aria-label*="Page number"]')).toBeNull()       // no page numbers
@@ -506,7 +538,7 @@ describe('one calendar day at a time', () => {
     await waitFor(() => expect(rows(container)[0]).toBe(1199))
     fireEvent.click(within(bar()).getByRole('button', { name: 'Next day' }))           // Oct 27: retained, empty
     expect(await within(container).findByText('No headlines retained for Tue, Oct 27.')).toBeTruthy()
-    fireEvent.click(within(bar()).getByRole('button', { name: 'Latest' }))
+    await toLatest()
     await waitFor(() => expect(rows(container)).toEqual([3, 2, 1]))
   })
 
@@ -518,7 +550,7 @@ describe('one calendar day at a time', () => {
     expect(rows(container)).not.toContain(4)
     expect(within(bar()).getByRole('button', { name: /Date: Mon, Oct 26/ })).toBeTruthy()
     expect(screen.getByRole('button', { name: /Live/ })).toBeTruthy()                 // LIVE stays honest
-    fireEvent.click(within(bar()).getByRole('button', { name: 'Latest' }))
+    await toLatest()
     await waitFor(() => expect(rows(container)[0]).toBe(4))
   })
 
@@ -570,7 +602,7 @@ describe('one calendar day at a time', () => {
     const { container } = mountDays()
     await pickDate(key(26))
     await waitFor(() => expect(rows(container)[0]).toBe(1199))
-    fireEvent.click(within(bar()).getByRole('button', { name: 'Jump to a time' }))
+    fireEvent.click(within(bar()).getByRole('button', { name: 'Jump to Time' }))
     const dlg = await screen.findByRole('dialog', { name: 'Jump to a time' })
     fireEvent.change(within(dlg).getByLabelText('Time, hour and minute (ET)'), { target: { value: '09:30' } })
     fireEvent.submit(within(dlg).getByLabelText('Time, hour and minute (ET)'))
@@ -582,7 +614,7 @@ describe('one calendar day at a time', () => {
     expect(jump.cursor).toBeUndefined()
     await waitFor(() => expect(rows(container)).toContain(1090))                     // 09:30 ET = row 90
     expect(rows(container)).not.toContain(1091 + 120)                                // the day's top is not loaded up front
-    expect(within(bar()).getByRole('button', { name: /From 9:30 AM ET/ }).textContent).toMatch(/≤ 9:30 AM/)
+    expect(within(bar()).getByRole('button', { name: /showing from 9:30 AM ET/ }).title).toMatch(/closest headline at or before 9:30 AM ET/)
     // at the top of the list, the later rows load (newer steps), each held in place
     for (let i = 0; i < 4 && rows(container)[0] !== 1199; i++) {
       scrollToTop(container)
@@ -596,13 +628,15 @@ describe('one calendar day at a time', () => {
     const { container } = mountDays()
     await pickDate(key(26))
     await waitFor(() => expect(rows(container)[0]).toBe(1199))
-    fireEvent.click(within(bar()).getByRole('button', { name: 'Jump to a time' }))
+    fireEvent.click(within(bar()).getByRole('button', { name: 'Jump to Time' }))
     const dlg = await screen.findByRole('dialog', { name: 'Jump to a time' })
-    expect(within(dlg).getAllByRole('button').map((b) => b.textContent).slice(0, 3)).toEqual(['4:00 AM ET', '9:30 AM ET', '4:00 PM ET'])
+    const labels = within(dlg).getAllByRole('button').map((b) => b.textContent)
+    expect(labels[0]).toMatch(/^Latest/)                                 // a past day: back to live first
+    expect(labels.slice(1, 4)).toEqual(['4:00 AM ET', '9:30 AM ET', '4:00 PM ET'])
     fireEvent.change(within(dlg).getByLabelText('Time, hour and minute (ET)'), { target: { value: '06:00' } })
     fireEvent.submit(within(dlg).getByLabelText('Time, hour and minute (ET)'))
     await waitFor(() => expect(rows(container).at(-1)).toBe(1000))
-    expect(within(bar()).getByRole('button', { name: /From 6:00 AM ET/ }).title).toMatch(/Nothing at or before 6:00 AM ET/)
+    expect(within(bar()).getByRole('button', { name: /showing after 6:00 AM ET/ }).title).toMatch(/nothing at or before 6:00 AM ET/)
   })
 
   it('the three shortcuts: 4:00 AM, 9:30 AM and 4:00 PM ET, each on the selected date only', async () => {
@@ -610,21 +644,21 @@ describe('one calendar day at a time', () => {
     await pickDate(key(26))                                       // rows 8:00 .. 11:19 ET
     await waitFor(() => expect(rows(container)[0]).toBe(1199))
     const pick = async (label) => {
-      fireEvent.click(within(bar()).getByRole('button', { name: /Jump to a time|Change the time/ }))
+      fireEvent.click(within(bar()).getByRole('button', { name: /^Jump to Time/ }))
       fireEvent.click(within(await screen.findByRole('dialog', { name: 'Jump to a time' })).getByText(label))
     }
     await pick('4:00 AM ET')                                      // nothing that early: the day's first, never Oct 25
     await waitFor(() => expect(feed.dayCalls.at(-1)).toMatchObject({ date: key(26), at: '04:00' }))
     await waitFor(() => expect(rows(container).at(-1)).toBe(1000))
     expect(rows(container)).not.toContain(902)
-    expect(within(bar()).getByRole('button', { name: /From 4:00 AM ET/ }).title).toMatch(/Nothing at or before 4:00 AM ET/)
+    expect(within(bar()).getByRole('button', { name: /showing after 4:00 AM ET/ }).title).toMatch(/nothing at or before 4:00 AM ET/)
     await pick('9:30 AM ET')
     await waitFor(() => expect(feed.dayCalls.at(-1)).toMatchObject({ date: key(26), at: '09:30' }))
     await waitFor(() => expect(rows(container)).toContain(1090))
     await pick('4:00 PM ET')                                      // after the last row: the day's newest
     await waitFor(() => expect(feed.dayCalls.at(-1)).toMatchObject({ date: key(26), at: '16:00' }))
     await waitFor(() => expect(rows(container)[0]).toBe(1199))
-    expect(within(bar()).getByRole('button', { name: /From 4:00 PM ET/ })).toBeTruthy()
+    expect(within(bar()).getByRole('button', { name: /showing from 4:00 PM ET/ })).toBeTruthy()
   })
 
   it('a filter change returns to the top of the same date and clears the time jump', async () => {
@@ -633,7 +667,7 @@ describe('one calendar day at a time', () => {
     const { container, rerender } = render(<TradeExchangeNewsWidget color="A" opts={{}} onOptsChange={vi.fn()} />)
     act(() => feed.set({ status: 'live', items: BASE, lastSeq: 3, lastHeadlineAt: NOW }))
     await pickDate(key(26))
-    fireEvent.click(within(bar()).getByRole('button', { name: 'Jump to a time' }))
+    fireEvent.click(within(bar()).getByRole('button', { name: 'Jump to Time' }))
     fireEvent.click(within(await screen.findByRole('dialog', { name: 'Jump to a time' })).getByText('9:30 AM ET'))
     await waitFor(() => expect(rows(container)).toContain(1090))
     rerender(<TradeExchangeNewsWidget color="A" opts={{ categories: ['News'] }} onOptsChange={vi.fn()} />)
@@ -708,14 +742,14 @@ describe('AI Explanation', () => {
     }
   })
 
-  it('asks only when clicked, by id alone, and shows one paragraph and a bold Watch line in a panel outside the feed', async () => {
+  it('asks only when clicked, by id alone, and expands one paragraph and a bold Watch line INSIDE that row', async () => {
     const fetchMock = vi.fn().mockResolvedValue(ok())
     vi.stubGlobal('fetch', fetchMock)
     const { container } = mount()
     expect(fetchMock).not.toHaveBeenCalled()                               // nothing on render
     const before = rows(container)
     fireEvent.click(explainBtn(container, 2))
-    const panel = await screen.findByRole('dialog', { name: 'AI Explanation' })
+    const panel = await screen.findByRole('region', { name: 'AI Explanation' })
     await within(panel).findByText(EXPL.explanation)
     expect(fetchMock).toHaveBeenCalledTimes(1)
     const [url, init] = fetchMock.mock.calls[0]
@@ -723,8 +757,11 @@ describe('AI Explanation', () => {
     expect(JSON.parse(init.body)).toEqual({ id: 'id2' })                    // the server explains its own text
     expect(within(panel).getByText('Watch:').tagName).toBe('STRONG')
     expect(panel.textContent).toContain(EXPL.watch)
-    expect(panel.closest('[class*="_list_"]')).toBeNull()                  // not a card in the feed
-    expect(rows(container)).toEqual(before)
+    expect(panel.closest('[data-seq]')).toBe(rowEl(container, 2))         // under ITS headline, in the row
+    expect(rowEl(container, 2).className).toMatch(/rowExplaining/)
+    expect(rowEl(container, 2).textContent.indexOf('Fed minutes due'))
+      .toBeLessThan(rowEl(container, 2).textContent.indexOf(EXPL.explanation)) // the headline stays on top
+    expect(rows(container)).toEqual(before)                               // no row moved, none covered
     expect(setGroupSym).not.toHaveBeenCalled()
   })
 
@@ -732,7 +769,7 @@ describe('AI Explanation', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(ok({ ...EXPL, explanation: 'SYNTHETIC <b>bold</b> <img src=x onerror=alert(1)> text here' })))
     const { container } = mount()
     fireEvent.click(explainBtn(container, 2))
-    const panel = await screen.findByRole('dialog', { name: 'AI Explanation' })
+    const panel = await screen.findByRole('region', { name: 'AI Explanation' })
     await within(panel).findByText(/SYNTHETIC <b>bold<\/b>/)
     expect(panel.querySelector('b, img')).toBeNull()
   })
@@ -743,10 +780,10 @@ describe('AI Explanation', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(ok()))
     const { container } = mount()
     fireEvent.click(explainBtn(container, 2))
-    const panel = await screen.findByRole('dialog', { name: 'AI Explanation' })
+    const panel = await screen.findByRole('region', { name: 'AI Explanation' })
     fireEvent.click(await within(panel).findByRole('button', { name: /Copy explanation/ }))
     await waitFor(() => expect(writeText).toHaveBeenCalledWith(`AI Explanation\n\n${EXPL.explanation}\n\nWatch: ${EXPL.watch}`))
-    expect(await within(panel).findByRole('button', { name: /Copied/ })).toBeTruthy()
+    expect(await within(panel).findByRole('button', { name: 'Explanation copied' })).toBeTruthy()
   })
 
   it('a temporary failure offers Retry, which asks again', async () => {
@@ -756,7 +793,7 @@ describe('AI Explanation', () => {
     vi.stubGlobal('fetch', fetchMock)
     const { container } = mount()
     fireEvent.click(explainBtn(container, 2))
-    const panel = await screen.findByRole('dialog', { name: 'AI Explanation' })
+    const panel = await screen.findByRole('region', { name: 'AI Explanation' })
     await within(panel).findByText('Explanations are busy right now. Try again in a moment.')
     fireEvent.click(within(panel).getByRole('button', { name: 'Retry' }))
     await within(panel).findByText(EXPL.explanation)
@@ -767,13 +804,13 @@ describe('AI Explanation', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(refused(429, 'daily_limit', "You've used today's headline explanations. They reset at midnight ET.")))
     const { container } = mount()
     fireEvent.click(explainBtn(container, 2))
-    let panel = await screen.findByRole('dialog', { name: 'AI Explanation' })
+    let panel = await screen.findByRole('region', { name: 'AI Explanation' })
     await within(panel).findByText(/reset at midnight ET/)
     expect(within(panel).queryByRole('button', { name: 'Retry' })).toBeNull()
     fireEvent.click(within(panel).getByRole('button', { name: 'Close explanation' }))
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('offline')))
     fireEvent.click(explainBtn(container, 1))
-    panel = await screen.findByRole('dialog', { name: 'AI Explanation' })
+    panel = await screen.findByRole('region', { name: 'AI Explanation' })
     await within(panel).findByText(/Could not reach UCT/)
     expect(within(panel).getByRole('button', { name: 'Retry' })).toBeTruthy()
   })
@@ -782,31 +819,44 @@ describe('AI Explanation', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(ok()))
     const { container } = mount()
     fireEvent.click(explainBtn(container, 2))
-    let panel = await screen.findByRole('dialog', { name: 'AI Explanation' })
+    let panel = await screen.findByRole('region', { name: 'AI Explanation' })
     fireEvent.keyDown(panel, { key: 'Escape' })
-    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(screen.queryByRole('region', { name: 'AI Explanation' })).toBeNull()
     fireEvent.click(explainBtn(container, 2))
-    await screen.findByRole('dialog', { name: 'AI Explanation' })
+    await screen.findByRole('region', { name: 'AI Explanation' })
     fireEvent.click(explainBtn(container, 2))
-    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(screen.queryByRole('region', { name: 'AI Explanation' })).toBeNull()
     fireEvent.click(explainBtn(container, 2))
-    panel = await screen.findByRole('dialog', { name: 'AI Explanation' })
-    expect(panel.textContent).toContain('Fed minutes due')
-    fireEvent.click(explainBtn(container, 1))
-    panel = await screen.findByRole('dialog', { name: 'AI Explanation' })
-    expect(panel.textContent).toContain('AMD guidance raised')
+    panel = await screen.findByRole('region', { name: 'AI Explanation' })
+    expect(panel.closest('[data-seq]')).toBe(rowEl(container, 2))
+    fireEvent.click(explainBtn(container, 1))                              // the expansion moves: one at a time
+    await waitFor(() => expect(screen.getByRole('region', { name: 'AI Explanation' }).closest('[data-seq]')).toBe(rowEl(container, 1)))
+    expect(screen.getAllByRole('region', { name: 'AI Explanation' })).toHaveLength(1)
+    panel = screen.getByRole('region', { name: 'AI Explanation' })
     fireEvent.click(within(panel).getByRole('button', { name: 'Close explanation' }))
-    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(screen.queryByRole('region', { name: 'AI Explanation' })).toBeNull()
   })
 
-  it('stays open while live headlines arrive, and the feed keeps updating under it', async () => {
+  it('stays open while live headlines arrive: the feed keeps updating, the reader keeps their place', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(ok()))
     const { container } = mount()
     fireEvent.click(explainBtn(container, 2))
-    const panel = await screen.findByRole('dialog', { name: 'AI Explanation' })
+    const panel = await screen.findByRole('region', { name: 'AI Explanation' })
     act(() => feed.set({ items: [...BASE, H(4, 'SYNTHETIC: a new one')], lastSeq: 4 }))
     expect(rows(container)[0]).toBe(4)
-    expect(screen.getByRole('dialog', { name: 'AI Explanation' })).toBe(panel)
+    expect(screen.getByRole('region', { name: 'AI Explanation' })).toBe(panel)
+    expect(await screen.findByRole('button', { name: /Jump to live · 1 new/ })).toBeTruthy()   // held, not followed
+  })
+
+  it('Escape closes it and returns focus to that headline\'s Explain', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(ok()))
+    const { container } = mount()
+    fireEvent.click(explainBtn(container, 2))
+    const panel = await screen.findByRole('region', { name: 'AI Explanation' })
+    fireEvent.keyDown(panel, { key: 'Escape' })
+    expect(screen.queryByRole('region', { name: 'AI Explanation' })).toBeNull()
+    expect(rowEl(container, 2).className).not.toMatch(/rowExplaining/)
+    expect(document.activeElement).toBe(explainBtn(container, 2))
   })
 
   it('two News widgets share one answer per headline: the second asks nothing', async () => {
@@ -821,13 +871,13 @@ describe('AI Explanation', () => {
     const btn = (i) => within(lists[i].querySelector('[data-seq="2"]')).getByRole('button', { name: 'Explain this headline' })
     fireEvent.click(btn(0))
     fireEvent.click(btn(1))                                                // while the first is still in flight
-    await waitFor(() => expect(screen.getAllByRole('dialog', { name: 'AI Explanation' })).toHaveLength(2))
-    for (const d of screen.getAllByRole('dialog')) await within(d).findByText(EXPL.explanation)
+    await waitFor(() => expect(screen.getAllByRole('region', { name: 'AI Explanation' })).toHaveLength(2))
+    for (const d of screen.getAllByRole('region', { name: 'AI Explanation' })) await within(d).findByText(EXPL.explanation)
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 })
 
-describe('Save to Research Library', () => {
+describe('Bookmark a headline', () => {
   let lib
   beforeEach(() => {
     _resetLibraryForTests()
@@ -835,7 +885,7 @@ describe('Save to Research Library', () => {
     vi.stubGlobal('fetch', vi.fn((url, init) => lib.fetch(url, init)))
   })
   const saveBtn = (root, seq) => within(root.querySelector(`[data-seq="${seq}"]`))
-    .getByRole('button', { name: /Research Library/ })
+    .getByRole('button', { name: /^(Save headline|Remove bookmark)$/ })
 
   it('one click saves without touching the feed; a second click removes, with Undo', async () => {
     const { container } = mount()
