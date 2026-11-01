@@ -90,35 +90,58 @@ describe('RT5 — a drawing-only runtime document', () => {
     expect(drawsRuntimeObjects(r.definition)).toBe(false)
   })
 
-  it('calc_bars_count: a chart longer than the declared count refuses by name; one within it draws', () => {
+  // ⭐ WS-E (`calcBarsWindow.js`) — this refused by name (`runtime:calc-bars-count`)
+  // until TradingView's own rule was carried and a capture graded it MATCH.
+  it('calc_bars_count: a chart longer than the declared count runs over its LAST 100 bars, drawn at chart bars', () => {
     flags(true)
+    // ⭐ WS-E review H1 — which bars `bar_index % 50` picks inside the window depends on
+    // what `bar_index` reads on its first bar (uncaptured, Q-WSE1), so that spelling is
+    // refused by name on a windowed chart; the window itself is held with a condition
+    // on PRICE (`close % 50 == 10` here: the chart's bars 160 and 210, phase-free).
+    const ctx = { tf: 'D', newestBarIsForming: false, historyFromListing: true }
+    {
+      const r0 = build(RUNNING_TOTAL.replace('indicator("t", overlay = true)', 'indicator("t", overlay = true, calc_bars_count = 100)'))
+      const { installed } = registry.installUserDefinitions([r0.definition])
+      expect(() => computeRuntimeColumns(installed[0], BARS, ctx)).toThrow(/what `bar_index` reads/)
+      registry.uninstallUserDefinition(r0.definition.id)
+    }
     const src = RUNNING_TOTAL.replace('indicator("t", overlay = true)', 'indicator("t", overlay = true, calc_bars_count = 100)')
+      .replace('if bar_index % 50 == 0', 'if close % 50 == 10')
     const r = build(src)
     expect(r.ok).toBe(true)
     const { installed } = registry.installUserDefinitions([r.definition])
-    const ctx = { tf: 'D', newestBarIsForming: false, historyFromListing: true }
-    expect(() => computeRuntimeColumns(installed[0], BARS, ctx)).toThrow(/calc_bars_count = 100/)
-    // control: 100 bars is within the count, and draws
-    const cols = computeRuntimeColumns(installed[0], BARS.slice(0, 100), ctx)
-    expect(runtimeObjectsOf(cols).live.filter((o) => o.family === 'label')).toHaveLength(2)
+    const cols = computeRuntimeColumns(installed[0], BARS, ctx)
+    const labels = runtimeObjectsOf(cols).live.filter((o) => o.family === 'label')
+    // the window's bars 0 and 50 are the chart's 160 and 210; the total starts at 160
+    expect(labels.map((l) => l.props.x)).toEqual([160, 210])
+    let acc = 0
+    const want = []
+    BARS.slice(160).forEach((b, i) => { acc += b.c; if (i % 50 === 0) want.push(String(Math.round(acc))) })
+    expect(labels.map((l) => l.props.text)).toEqual(want)
+    // control: 100 bars is within the count, and draws from its own first bar (bars 10, 60)
+    const within = computeRuntimeColumns(installed[0], BARS.slice(0, 100), ctx)
+    expect(runtimeObjectsOf(within).live.filter((o) => o.family === 'label').map((l) => l.props.x)).toEqual([10, 60])
   })
 
   it('a run whose drawings fail keeps its plots; the drawings are withheld by name', () => {
     flags(true)
-    const src = `${H.replace('overlay = true)', 'overlay = true, calc_bars_count = 100)')}var float acc = 0\nacc += close\nplot(acc)\n`
+    const src = `${H}var float acc = 0\nacc += close\nplot(acc)\n`
       + 'if bar_index % 50 == 0\n    label.new(bar_index, close, str.tostring(acc, "#"))\n'
     const r = build(src)
     expect(r.ok).toBe(true)
     expect(r.definition.compute.objects).toBe(true)
     const { installed } = registry.installUserDefinitions([r.definition])
-    const cols = computeRuntimeColumns(installed[0], BARS, { tf: 'D', newestBarIsForming: false, historyFromListing: true })
+    // ⭐ WS-E — the drawings now fail on a live-object ceiling LOWERED through the
+    // measurement door (`opts.limits`); `calc_bars_count` no longer fails them.
+    const cols = computeRuntimeColumns(installed[0], BARS, { tf: 'D', newestBarIsForming: false, historyFromListing: true },
+      { limits: { LIVE_OBJECTS: 2 } })
     const key = Object.keys(cols)[0]
     expect(key).toBeTruthy()
     let acc = 0
     const want = BARS.map((b) => (acc += b.c))
     expect(cols[key][259]).toBeCloseTo(want[259], 6)
     expect(runtimeObjectsOf(cols)).toBeNull()
-    expect(runtimeObjectsWithheldOf(cols).guard).toBe('runtime:calc-bars-count')
+    expect(runtimeObjectsWithheldOf(cols).guard).toBe('runtime:limit')
   })
 })
 

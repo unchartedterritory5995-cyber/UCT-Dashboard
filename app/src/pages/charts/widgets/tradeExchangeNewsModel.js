@@ -179,7 +179,7 @@ function unavailableTitle(reason) {
 }
 
 const GAP_REASON = {
-  outage_exceeded_retention: 'UCT was offline longer than the recovery window',
+  outage_exceeded_retention: 'UCT was offline longer than the recovery window (before permanent archiving)',
   no_journal: 'recovery storage was not configured while UCT was offline',
   journal_unreachable: 'recovery storage could not be reached',
 }
@@ -484,8 +484,39 @@ export function mergeDay(serverRows, poolMatches, { dateKey, hasNewer = false, h
   return [...bySeq.values()].sort(dayCmp)
 }
 
-/** The footer's archive note: how far back the retained history actually reaches. */
+/** The footer's archive note: how far back the archive reaches. It is permanent. */
 export function archiveTitle(oldestMs, nowMs = Date.now()) {
   const back = oldestMs ? `back to ${fmtReceived(oldestMs, nowMs)}${_etDay(oldestMs) === _etDay(nowMs) ? ' ET' : ''}` : 'empty so far'
-  return `The retained archive reaches ${back}. UCT keeps about 7 days of headlines, up to 5,000; nothing older is available.`
+  return `The UCT News archive reaches ${back}. Every Trade Exchange headline since then is kept permanently.`
+}
+
+// ── AI Explanation (explain.py) ───────────────────────────────────────────────
+
+//: The server's own limits (explain.py MAX_HEADLINE_CHARS, `explainable`).
+export const EXPLAIN_MAX_CHARS = 4000
+
+/** Whether a headline offers Explain: a stored id, real words, not a graphic-only
+ *  placeholder. The server decides again; this only hides a button that would fail. */
+export function explainable(item) {
+  const text = String(item?.content || '').trim()
+  return !!item?.id && !item.placeholder && text.length <= EXPLAIN_MAX_CHARS && /[A-Za-z]{2}/.test(text)
+}
+
+/** What Copy explanation puts on the clipboard: the compact format, as plain text. */
+export function explanationText(body) {
+  if (!body?.explanation) return ''
+  return `AI Explanation\n\n${body.explanation}\n\nWatch: ${body.watch || ''}`.trim()
+}
+
+/** A refusal or failure -> the sentence shown, and whether Retry can help. The
+ *  server's sentence is used when it sent one (never an internal cause). */
+const EXPLAIN_FINAL = new Set(['disabled', 'bad_id', 'not_found', 'not_explainable', 'daily_limit', 'population', 'paused'])
+export function explainError(status, body) {
+  const reason = body?.reason || null
+  if (status === 401) return { text: 'Sign in to UCT to see explanations.', retry: false }
+  const text = typeof body?.detail === 'string' && body.detail
+    ? body.detail
+    : status === 0 ? 'Could not reach UCT — check your connection and try again.'
+      : 'The explanation could not be written right now. Try again shortly.'
+  return { text, retry: !EXPLAIN_FINAL.has(reason) }
 }

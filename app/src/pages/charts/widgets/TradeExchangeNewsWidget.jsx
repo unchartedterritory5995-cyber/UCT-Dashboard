@@ -41,7 +41,7 @@ import Select from '../../../components/ui/Select'
 import NewsSettingsPanel from './NewsSettingsPanel'
 import TradeExchangeNewsAlerts from './TradeExchangeNewsAlerts'
 import { formatNumber } from '../../../lib/presentation/presentationPrimitives'
-import { ActionsMenu, CalendarPopover, DayBar, DayList, FilterMenu, HealthPopover, Row, TimePopover } from './TradeExchangeNewsParts'
+import { ActionsMenu, CalendarPopover, DayBar, DayList, ExplainPanel, FilterMenu, HealthPopover, Row, TimePopover } from './TradeExchangeNewsParts'
 import { TXN_SOUND_OPTIONS, txnClampLines, txnSettingsFor, txnWidgetStyleVars } from './tradeExchangeNewsSettings'
 import { categoriesLabel, cleanCategories, cleanPresets, coverageNotice, dayLabel, dayRequest, feedHealth, groupRelated,
   liveStatus, presetPatch, presetSnapshot, quoteSymbols, viewHealth, visibleItems } from './tradeExchangeNewsModel'
@@ -279,6 +279,10 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange }) {
   const [actions, setActions] = useState(null)              // { item, anchor }
   const onActions = useCallback((item, anchor) => setActions((a) => (a?.item.seq === item.seq ? null : { item, anchor })), [])
   const closeActions = useCallback(() => setActions(null), [])
+  // ── AI Explanation (one panel per widget; the same headline again closes it) ──
+  const [explain, setExplain] = useState(null)              // { item, anchor }
+  const onExplain = useCallback((item, anchor) => setExplain((x) => (x?.item.seq === item.seq ? null : { item, anchor })), [])
+  const closeExplain = useCallback(() => setExplain(null), [])
 
   // ── filters + presets (this widget's opts only) ──
   const [filterOpen, setFilterOpen] = useState(false)
@@ -337,10 +341,10 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange }) {
   const now = Date.now()
   const rowProps = { linkedSym, onSym, colorMode: settings.tickerColorMode, prices, staleSymbols, quotesUsed,
     provisional: feed.provisional, clampLines, onToggleExpand, showCategory: settings.showCategory !== 'off', timeOnly: true,
-    onToggleGroup, onActions }
+    onToggleGroup, onActions, onExplain }
   const renderRow = (it, extra) => (
     <Row key={it.seq} item={it} {...rowProps} expanded={expanded.has(it.seq)} flashing={flashing.has(it.seq)}
-      actionsOpen={actions?.item.seq === it.seq} {...extra} />
+      actionsOpen={actions?.item.seq === it.seq} explainOpen={explain?.item.seq === it.seq} {...extra} />
   )
   const renderGroup = (g) => {
     if (!g.rest.length) return renderRow(g.lead)
@@ -403,6 +407,10 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange }) {
       {actions && (
         <ActionsMenu key={actions.item.seq} item={actions.item} anchorEl={actions.anchor} hostEl={rootRef.current}
           themeVars={menuVars} onClose={closeActions} />
+      )}
+      {explain && (
+        <ExplainPanel key={explain.item.id} item={explain.item} anchorEl={explain.anchor} themeVars={menuVars}
+          onClose={closeExplain} />
       )}
       {filterOpen && (
         <FilterMenu anchorEl={filterRef.current} hostEl={rootRef.current} themeVars={menuVars} onClose={closeFilter}
@@ -512,7 +520,7 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange }) {
       )}
       {feed.truncated && (
         <div className={`${styles.notice} ${styles.noticeInfo}`}>
-          Some older headlines have aged out of the history window.
+          Some earlier headlines could not be replayed here; reopen the day to see them all.
         </div>
       )}
 
@@ -556,7 +564,7 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange }) {
         {rows.length > 0 && (
           <div className={styles.dayEdge} aria-live="polite">
             {day.hasOlder ? 'Loading earlier headlines…'
-              : `Start of ${dayLabel(day.dateKey, day.todayKey)}${day.meta?.first_day === day.dateKey && day.meta?.first_day_partial ? ' retained (earlier headlines aged out)' : ''}`}
+              : `Start of ${dayLabel(day.dateKey, day.todayKey)}${day.meta?.first_day === day.dateKey && day.meta?.first_day_partial ? ' (the UCT News archive began here)' : ''}`}
           </div>
         )}
       </div>
