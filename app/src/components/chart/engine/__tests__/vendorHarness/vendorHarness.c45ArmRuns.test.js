@@ -49,6 +49,10 @@ import { BLOCK_RUNS_GUARD } from '../../blockRuns'
 import { translatePine } from '../../ast/pine'
 import { createBinder } from '../../binder'
 import { createFakeChart } from '../fakeChart'
+import { memberPaneDefinition } from '../../../builder/memberPane/memberPaneDefinition'
+import { objectReaderFor } from '../../objectColumns'
+import { evaluateObjects } from '../../objectRuntime'
+import { toRenderState } from '../../objectRenderState'
 
 const DIR = path.resolve(process.cwd(), '..', 'tests/fixtures/vendor/harness')
 const RDDT = 'vw-arm-history-rddt-1d-2026-10-02.json'
@@ -684,5 +688,116 @@ describe('C45 — ⛔ nothing moves at translation', () => {
     expect(screen.mode).toBe('screener')
     expect(screen.blockRuns).toBeUndefined()
     expect(screen.outputs.map((o) => o.formula)).toEqual(t.outputs.map((o) => o.formula))
+  })
+})
+
+// ── the object lane: a drawing's colour (review round 2, after merging #604) ─
+
+describe('C45 / C48 — ⛔ a DRAWING\'s colour whose `ta.*` call runs only on some bars: held by name once, never painted off the every-bar call', () => {
+  const cap = capture(RDDT)
+  const B = rowsOf(cap)
+  const bars = cap.bars.rows.map(([t, o, h, l, c, v]) => ({ t, o, h, l, c, v: v == null ? 0 : v }))
+  const H = '//@version=6\nindicator("c45 object colour", overlay = true, max_labels_count = 500)\nup = close > open\n'
+  const GREEN = '#4CAF50'
+  const RED = '#F23645'
+  /** The member door, the object reader and the object runtime over RDDT's bars
+   *  (`objectBlockRuns.test.js`'s `draw`). */
+  const draw = (src) => {
+    vi.stubEnv('VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', '1')
+    vi.stubEnv('VITE_PINE_MEMBER_PANE_ENABLED', '1')
+    vi.stubEnv('VITE_PINE_RUNTIME_PANE_ENABLED', '')
+    const built = memberPaneDefinition({ source: src, id: 'u_c45objcolour', name: 'P' })
+    expect(built.ok, built.reason).toBe(true)
+    const def = built.definition
+    const reader = objectReaderFor(def, bars, { inputs: undefined, tf: 'D', symbol: { ticker: 'RDDT', exchange: 'NYSE' },
+      newestBarIsForming: false, historyFromListing: true })
+    const run = evaluateObjects(reader.program, { barCount: bars.length, readNode: reader.readNode,
+      readTime: reader.readTime, readUnknown: reader.readUnknown, offListing: false })
+    const state = toRenderState(run.live, { bars, tf: 'D', pineVersion: reader.program.pineVersion })
+    const diag = built.translation.objectDiagnostics || {}
+    return { def, built, labels: state.labels || [], held: diag.heldColours || [] }
+  }
+  const heldOnce = (src, line) => {
+    const r = draw(src)
+    expect(r.labels, src).toEqual([])
+    // ⛔ ONE hold, by name — never a second refusal for the same colour
+    expect(r.held, src).toEqual([`fn:conditional-history \`ta.rising\`@${line}`])
+    // ⛔ and nothing spills into the other lane's gates: no plot gate, no object `var` gate
+    expect(r.def.meta.blockRuns, src).toBeUndefined()
+    expect(r.built.translation.objects.blockRuns, src).toBeUndefined()
+    return r
+  }
+
+  it('⭐ v6 `and` colour inside an `if` block — held (it was painted off the every-bar `ta.rising`)', () => {
+    heldOnce(`${H}if close > close[1]\n    label.new(bar_index, high, "x", color = up and ta.rising(close, 2) ? color.green : color.red)\n`, 5)
+  })
+
+  it('a `?:` colour whose arm calls `ta.*`, inside an `if` block — held (the arm rule, unchanged)', () => {
+    heldOnce(`${H}if close > close[1]\n    label.new(bar_index, high, "x", color = up ? (ta.rising(close, 2) ? color.green : color.red) : color.gray)\n`, 5)
+    heldOnce(`${H}if close > close[1]\n    label.new(bar_index, high, "x", color = up ? color.green : ta.rising(close, 2) ? color.red : color.gray)\n`, 5)
+  })
+
+  it('⭐ a `ta.*` call in the colour\'s TEST inside a block that varies — held: the call keeps the block\'s runs', () => {
+    heldOnce(`${H}if close > close[1]\n    label.new(bar_index, high, "x", color = ta.rising(close, 2) ? color.green : color.red)\n`, 5)
+    // …a one-run block too (`barstate.islast`: the call's first run is its whole history)
+    heldOnce(`${H}if barstate.islast\n    label.new(bar_index, high, "x", color = ta.rising(close, 2) ? color.green : color.red)\n`, 5)
+    heldOnce(`${H}if barstate.islast\n    label.new(bar_index, high, "x", color = up and ta.rising(close, 2) ? color.green : color.red)\n`, 5)
+  })
+
+  it('a `?:` NESTED in the colour\'s test, whose arm calls `ta.*` — held (the top arm rule never saw it)', () => {
+    heldOnce(`${H}label.new(bar_index, high, "x", color = (up ? ta.rising(close, 2) : false) ? color.green : color.red)\n`, 4)
+  })
+
+  it('v6 `and` colour on a drawing with NO block — held (v6 `and` is lazy)', () => {
+    heldOnce(`${H}label.new(bar_index, high, "x", color = up and ta.rising(close, 2) ? color.green : color.red)\n`, 4)
+  })
+
+  it('⛔ plot and drawing coloured by the same `and`: the plot\'s VALUE drawn, its colour column refused by the bind, the drawing held once', () => {
+    const r = draw(`${H}plot(close, "C", color = up and ta.rising(close, 2) ? color.green : color.red)\n`
+      + 'if close > close[1]\n    label.new(bar_index, high, "x", color = up and ta.rising(close, 2) ? color.green : color.red)\n')
+    expect(r.labels).toEqual([])
+    expect(r.held).toEqual(['fn:conditional-history `ta.rising`@6'])
+    const ck = r.def.plots.find((p) => p.key === 'value').colorMode.slice('column:'.length)
+    expect(r.def.meta.blockRuns.keys.map((k) => k.key)).toEqual([ck])
+    vi.stubEnv('VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', '1')
+    const { installed } = registry.installUserDefinitions([r.def])
+    try {
+      const cols = registry.computeFor(installed[0], toProductBars(cap), undefined, { tf: 'D',
+        symbol: { ticker: 'RDDT', exchange: 'NYSE' }, newestBarIsForming: false, historyFromListing: true })
+      const errors = registry.columnErrors(cols)
+      expect(Array.from(cols.value)).toEqual(B.map((b) => b.c))
+      expect(errors.value).toBeUndefined()
+      expect(errors[ck].guard).toBe(BLOCK_RUNS_GUARD)
+    } finally {
+      registry.uninstallUserDefinition(r.def.id)
+    }
+  })
+
+  it('🔴 CONTROLS — drawn as before: no call in the colour, a block decided by an input, a call with no lazy operator and no block, Pine v5 `and`', () => {
+    const every = (src) => {
+      const r = draw(src)
+      expect(r.held, src).toEqual([])
+      return r.labels
+    }
+    // a block that varies, a colour that calls nothing: every label, the script's colours
+    const fires = B.map((b, i) => i > 0 && b.c > B[i - 1].c)
+    const nocall = every(`${H}if close > close[1]\n    label.new(bar_index, high, "x", color = up ? color.green : color.red)\n`)
+    expect(nocall.length).toBe(fires.filter(Boolean).length)
+    expect(nocall.filter((l) => l.color === GREEN).length).toBe(B.filter((b, i) => fires[i] && b.c > b.o).length)
+    // a block decided before bar 0 runs on every bar: the call's every-bar history is Pine's
+    const rising = B.map((b, i) => i >= 2 && b.c > B[i - 1].c && B[i - 1].c > B[i - 2].c)
+    const input = every(`${H}show = input.bool(true, "Show")\nif show\n    label.new(bar_index, high, "x", color = ta.rising(close, 2) ? color.green : color.red)\n`)
+    expect(input.length).toBeGreaterThan(400)
+    expect(input.every((l) => l.color === (rising[l.bx] ? GREEN : RED))).toBe(true)
+    const global = every(`${H}label.new(bar_index, high, "x", color = ta.rising(close, 2) ? color.green : color.red)\n`)
+    expect(global.every((l) => l.color === (rising[l.bx] ? GREEN : RED))).toBe(true)
+    every(['//@version=5', 'indicator("v5 object colour", overlay = true, max_labels_count = 500)', 'up = close > open',
+      'label.new(bar_index, high, "x", color = up and ta.rising(close, 2) ? color.green : color.red)'].join('\n'))
+    // a v6 `and` whose LEFT side is decided before bar 0 runs its right side on every bar
+    const decided = every(`${H}show = input.bool(true, "Show")\nlabel.new(bar_index, high, "x", color = show and ta.rising(close, 2) ? color.green : color.red)\n`)
+    expect(decided.every((l) => l.color === (rising[l.bx] ? GREEN : RED))).toBe(true)
+    // …and a `?:` nested in the test, decided before bar 0, takes its arm on every bar
+    const nested = every(`${H}show = input.bool(true, "Show")\nlabel.new(bar_index, high, "x", color = (show ? ta.rising(close, 2) : false) ? color.green : color.red)\n`)
+    expect(nested.every((l) => l.color === (rising[l.bx] ? GREEN : RED))).toBe(true)
   })
 })

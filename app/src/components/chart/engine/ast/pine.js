@@ -6333,8 +6333,9 @@ function foldLogicalIdentity(op, left, right, table) {
  *  ⛔ What is NOT this: a statement-form `if` (C48 marks its names: `condCall`,
  *  `execGuard`), a `var` initialiser (M1: read on bar 0 alone — `armRunGates`
  *  skips a recurrence's seed), `iff` (a function call: both arguments evaluated),
- *  the object pass (`objectPass` builds no stamped node; its own rule holds
- *  colours), the screener lane (no bind, so nothing reads a stamp — and its trees
+ *  the object pass (`objectPass` builds no stamped node; its own rule holds a
+ *  colour whose `ta.*` call runs only on some bars by name — an arm, a v6 `and` /
+ *  `or` right side, a drawing's own varying block: `colorNodeOf`), the screener lane (no bind, so nothing reads a stamp — and its trees
  *  are byte-identical either way).
  *  ⭐ (H1) A stamp inside a COLOUR rule withholds that colour alone
  *  (`colourBlockRunsOf`), never the value it colours. */
@@ -18360,6 +18361,10 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
   const rtSpecs = []
   /** The op being converted, when it may be read from the runtime lane. */
   let rtOp = null
+  /** ⭐ C45 / C48 (object lane, review round 2) — the op being converted runs only on
+   *  some bars: a guard that is not decided before bar 0 (`guardOfIn`'s `varies`). A
+   *  colour of such an op that calls `ta.*` is held (`colorNodeOf`). */
+  let colourOpConditional = false
   /** ⭐ C42 — lines of the statements the object reader read on their block's one
    *  execution (`collectObjectOps`, set once it has run). */
   let onceLines = null
@@ -19847,6 +19852,26 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
    *  resolved before keeps its exact node. `input.int` has no knob on a colour
    *  (nothing mints one — R36), so its default is the only value it can hold. */
   const colorNodeOf = (node, scope, depth = 0) => {
+    // ⭐⭐ C45 / C48 (OBJECT LANE, review round 2) — A COLOUR WHOSE `ta.*` CALL RUNS
+    // ONLY ON SOME BARS IS HELD BY NAME, the rule `heldColour` already applies to an
+    // arm of the colour's own `?:` (C45, heat-map-seasons). Two more places such a
+    // call stands, asked once per colour slot (depth 0):
+    //   · on the right of a Pine v6 `and` / `or`, or in an arm of a `?:` nested
+    //     INSIDE the colour (the colour's own top arms keep their rule below);
+    //     ⚰️ `color = up and ta.rising(close, 2) ? green : red` was painted off the
+    //     every-bar `rising` — the plot lane gates the same shape (`stampLogicRight`);
+    //   · anywhere in the colour of a drawing whose OWN block runs only on some
+    //     bars (`colourOpConditional`): the call then keeps the history of the
+    //     block's runs (C48's capture), and the columnar colour is the every-bar one.
+    // ⛔ A colour that calls no `ta.*` is read exactly as before (no canonical read).
+    if (depth === 0 && node) {
+      const lazy = node.type === 'ternary' ? lazyHistoryCall(node.test) : lazyHistoryCall(node)
+      if (lazy) return heldColour(node, lazy)
+      if (colourOpConditional) {
+        const call = armHistoryCall(node)
+        if (call) return heldColour(node, call)
+      }
+    }
     const known = colorNodeOfBase(node, scope, depth)
     if (known || !node || depth > 12) return known
     // ⛔ R36 — THIS READ RESOLVES NOTHING AND MINTS NOTHING. The transparency is
@@ -20026,6 +20051,45 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     diagnostics.heldColours = diagnostics.heldColours || []
     if (!diagnostics.heldColours.includes(entry)) diagnostics.heldColours.push(entry)
     return { c: 'held', why: 'fn:conditional-history' }
+  }
+  /** ⭐⭐ C45 (object lane, review round 2) — the first `ta.*` call in this colour
+   *  expression that runs only on some bars: in an arm of a `?:` whose test is not
+   *  decided before bar 0, or on the right of a Pine v6 `and` / `or` whose left side
+   *  is not (v6 made them lazy; v5 evaluates both). → the call, or null.
+   *  ⛔ The test / left side is read (`canonicalOf`) ONLY where a call was found, so
+   *  a colour with none costs nothing and moves nothing. */
+  let objectPineVersion
+  const pineVersionOfObjects = () => {
+    if (objectPineVersion === undefined) {
+      try { objectPineVersion = Number(makeResolver(scopeEnv).pineVersion) } catch { objectPineVersion = null }
+    }
+    return objectPineVersion
+  }
+  const undecidedTest = (n) => {
+    let tree = null
+    try { tree = canonicalOf(n) } catch { tree = null }
+    return decidedTest(tree) === null
+  }
+  const lazyHistoryCall = (n, depth = 0) => {
+    if (!n || typeof n !== 'object' || depth > 48) return null
+    if (Array.isArray(n)) {
+      for (const x of n) { const c = lazyHistoryCall(x, depth + 1); if (c) return c }
+      return null
+    }
+    if (n.type === 'ternary') {
+      const call = armHistoryCall(n.yes) || armHistoryCall(n.no)
+      if (call && undecidedTest(n.test)) return call
+    }
+    if (n.type === 'binary' && (n.op === 'and' || n.op === 'or') && pineVersionOfObjects() >= 6) {
+      const call = armHistoryCall(n.right)
+      if (call && undecidedTest(n.left)) return call
+    }
+    for (const [k, v] of Object.entries(n)) {
+      if (k === 'tok' || k === 'endTok' || !v || typeof v !== 'object') continue
+      const c = lazyHistoryCall(v, depth + 1)
+      if (c) return c
+    }
+    return null
   }
 
   /** ⭐ C37 — a per-pass condition a COLOUR may carry: comparisons and boolean
@@ -21831,6 +21895,9 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     let needReached = false
     /** ⭐ C33 — the guard carries a term nothing here could read (`partialAndGuard`). */
     let unknownGuard = false
+    /** ⭐ C45 / C48 (review round 2) — a guard term NOT decided before bar 0: the op
+     *  runs only on some bars (read by `colorNodeOf` through `varies`, below). */
+    let canonicalVaries = false
     // ⭐ C20 — a drawing inside a runtime `while` runs where the run ARRIVES at
     // its statement, pass by pass — whatever the guards say, and even with none
     // (a `continue` above it skips it on some passes, which no guard shows).
@@ -21936,6 +22003,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       }
       if (inRtLoop) continue
       let ast = canonicalOf(node)
+      if (ast && !bindTimeConstantTree(ast) && decidedTest(ast) === null) canonicalVaries = true
       if (!ast) {
         if (rtOp && rtAdmits(lastCanonRefusal)) { needReached = true; continue }
         // ⭐⭐ C33 — AN `and` WITH A TERM THIS READER CANNOT READ, GATED BY AN INPUT.
@@ -22029,6 +22097,12 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       ...(requiresEmpty ? { requiresEmpty } : {}),
       ...(unknownGuard ? { unknownGuard: true } : {}),
     }
+    // ⭐ C45 / C48 (review round 2) — does this op run only on some bars? A one-run
+    // block, object state, an unread term, a runtime arrival, or a value condition
+    // not decided before bar 0. Beside `extra`, never in it: the op's shape is
+    // unchanged.
+    const varies = !!(lastBarOnly || requiresLive || requiresEmpty || unknownGuard || needReached
+      || liveParts.length || canonicalVaries)
     if (needReached) {
       if (unknownGuard) return undefined
       // ⛔ Only a guard made of VALUES: object state (a liveness test, a getter,
@@ -22036,14 +22110,14 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       if (liveParts.length || requiresLive || requiresEmpty) return undefined
       const reached = rtPlaceholder(null)
       if (!reached) return undefined
-      return { when: internTree(reached), extra }
+      return { when: internTree(reached), extra, varies }
     }
     const ref = acc === null ? null : internTree(acc)
     if (acc !== null && ref === null) return undefined
-    if (!liveParts.length) return { when: ref, extra }
+    if (!liveParts.length) return { when: ref, extra, varies }
     // ⭐ The pure conjunction stays ONE tree; the live parts AND onto it.
     const parts = ref ? [ref, ...liveParts] : liveParts
-    return { when: parts.length === 1 ? parts[0] : { v: 'bool', op: 'and', args: parts }, extra }
+    return { when: parts.length === 1 ? parts[0] : { v: 'bool', op: 'and', args: parts }, extra, varies }
   }
 
   const namedOrPositional = (args, order) => {
@@ -22426,6 +22500,8 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     rtMarkSpecs = rtSpecs.length
     rtMarkDropped = diagnostics.droppedProps || 0
     const g = guardOf(op.guards, op)
+    // ⭐ C45 / C48 — set for EVERY op before any of its values is read (no reset needed)
+    colourOpConditional = !!(g && g.varies)
     if (g === undefined) {
       noteGuardRefusal(op, lastCanonRefusal)
       if (op.k === 'loop') unconverted(op.body, 'guard:loop')
