@@ -50,7 +50,7 @@ const IDS = [
   'chart', 'watchlist', 'themes', 'scanner', 'fundamentals', 'breadth',
   'indexes', 'marketcontext',
   'aisearch', 'news', 'notebook', 'profile', 'alerts', 'calendar', 'optionsflow',
-  'periodsort', 'nhnl', 'nhnlPulse', 'volumescan', 'scatter', 'tradeExchangeNews',
+  'periodsort', 'nhnl', 'nhnlPulse', 'volumescan', 'scatter', 'tradeExchangeNews', 'researchLibrary',
   // G-040 (wave 10, lane CX): the three CAPTURE-ONLY Notebook kinds. Registered so
   // a capture can store `widgetId` + `params`; bound by the journal host alone.
   'screener', 'cot', 'modelbook',
@@ -108,7 +108,7 @@ describe('widget registry — metadata pins', () => {
       aisearch: 'AI Search', news: 'News', notebook: 'Notebook', profile: 'Profile',
       alerts: 'Alerts', calendar: 'UCT Terminal', optionsflow: 'Options Flow',
       periodsort: 'Period Sort', nhnl: 'New Highs / Lows', nhnlPulse: 'H/L Pulse',
-      volumescan: 'Volume Surge', scatter: 'Market Map', tradeExchangeNews: 'News',
+      volumescan: 'Volume Surge', scatter: 'Market Map', tradeExchangeNews: 'News', researchLibrary: 'Research Library',
       screener: 'Screener', cot: 'COT Positioning', modelbook: 'Model Book',
       myWatchlistToday: 'My watchlist today', myNamesReporting: 'My names reporting',
       tickerCard: 'Ticker card', myPnlStats: 'My P&L and stats', myPositionsRisk: 'My open positions and risk',
@@ -142,7 +142,7 @@ describe('widget registry — metadata pins', () => {
       aisearch: 'AI Search', news: 'News & Catalysts', notebook: 'Notebook', profile: 'Stock Profile',
       alerts: 'Alerts', calendar: 'UCT Terminal', optionsflow: 'Options Flow',
       periodsort: 'Period Sort', nhnl: 'New Highs / Lows', nhnlPulse: 'H/L Pulse',
-      volumescan: 'Volume Surge', scatter: 'Market Map', tradeExchangeNews: 'News',
+      volumescan: 'Volume Surge', scatter: 'Market Map', tradeExchangeNews: 'News', researchLibrary: 'Research Library',
       screener: 'Screener', cot: 'COT Positioning', modelbook: 'Model Book',
       myWatchlistToday: 'My watchlist today', myNamesReporting: 'My names reporting',
       tickerCard: 'Ticker card', myPnlStats: 'My P&L and stats', myPositionsRisk: 'My open positions and risk',
@@ -176,7 +176,7 @@ describe('widget registry — metadata pins', () => {
       aisearch: 'AI Search', news: 'News', notebook: 'Notebook', profile: 'Profile',
       alerts: 'Alerts', calendar: 'Terminal', optionsflow: 'Flow',
       periodsort: 'Period Sort', nhnl: 'NH / NL', nhnlPulse: 'H/L Pulse',
-      volumescan: 'Volume', scatter: 'Map', tradeExchangeNews: 'News',
+      volumescan: 'Volume', scatter: 'Map', tradeExchangeNews: 'News', researchLibrary: 'Library',
       screener: 'Screener', cot: 'COT', modelbook: 'Model Book',
       myWatchlistToday: 'My watchlist today', myNamesReporting: 'My names reporting',
       tickerCard: 'Ticker card', myPnlStats: 'My P&L and stats', myPositionsRisk: 'My open positions and risk',
@@ -226,6 +226,7 @@ describe('widget registry — metadata pins', () => {
       volumescan:   { w: 6,  h: 12, minW: 2, minH: 5 },
       scatter:      { w: 10, h: 12, minW: 5, minH: 6 },
       tradeExchangeNews: { w: 4, h: 10, minW: 2, minH: 4 },
+      researchLibrary: { w: 4, h: 10, minW: 2, minH: 4 },
       screener:     { w: 6,  h: 10, minW: 3, minH: 4 },
       cot:          { w: 5,  h: 8,  minW: 3, minH: 4 },
       modelbook:    { w: 6,  h: 8,  minW: 3, minH: 4 },
@@ -286,7 +287,7 @@ describe('widget registry — metadata pins', () => {
     expect(WORKSPACE_MENU_TYPES_ALL).toEqual([
       'chart', 'watchlist', 'themes', 'scanner', 'fundamentals', 'breadth',
       'indexes', 'marketcontext',
-      'aisearch', 'news', 'notebook', 'profile', 'alerts', 'calendar', 'optionsflow', 'nhnl', 'nhnlPulse', 'volumescan', 'scatter', 'tradeExchangeNews',
+      'aisearch', 'news', 'notebook', 'profile', 'alerts', 'calendar', 'optionsflow', 'nhnl', 'nhnlPulse', 'volumescan', 'scatter', 'tradeExchangeNews', 'researchLibrary',
     ])
     expect(TAB_MENU_TYPES_ALL).toEqual(WORKSPACE_MENU_TYPES_ALL)
   })

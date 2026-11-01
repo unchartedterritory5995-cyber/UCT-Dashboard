@@ -2,7 +2,7 @@
  * News (Trade Exchange) — the row and its popovers, split out of the widget:
  *   Row            one headline (memoised: a quote tick re-renders only the rows
  *                  naming that symbol), its collapse, one-click copy
- *                  , Explain (AI) and ⋯ (add to watchlist)
+ *                  , Explain (AI), Save (Research Library) and ⋯ (add to watchlist)
  *   ExplainPanel   the AI Explanation of one headline: a dismissible panel over
  *                  the widget's foot, never a card in the feed
  *   ActionsMenu    Add a headline's symbol to a personal watchlist
@@ -99,7 +99,7 @@ function Headline({ item, linkedSym, onSym, colorMode, prices, staleSymbols, pro
 const quoteKey = (q) => (q ? `${q.price}|${q.change_pct}|${q.updated_at || q.timestamp || ''}` : '')
 const ROW_KEYS = ['item', 'linkedSym', 'colorMode', 'provisional', 'clampLines', 'expanded', 'flashing',
   'showCategory', 'timeOnly', 'groupCount', 'groupOpen', 'related', 'onSym', 'onToggleExpand', 'onToggleGroup', 'onActions',
-  'actionsOpen', 'onExplain', 'explainOpen']
+  'actionsOpen', 'onExplain', 'explainOpen', 'onSave', 'saved']
 function rowPropsEqual(a, b) {
   for (const k of ROW_KEYS) if (a[k] !== b[k]) return false
   if (!a.quotesUsed && !b.quotesUsed) return true
@@ -158,7 +158,7 @@ function CopyButton({ text }) {
 
 export const Row = memo(function Row({ item, linkedSym, onSym, colorMode, prices, staleSymbols, provisional,
   clampLines, expanded, onToggleExpand, flashing, showCategory, timeOnly = false, groupCount = 0, groupOpen = false,
-  onToggleGroup, related = false, onActions, actionsOpen, onExplain, explainOpen }) {
+  onToggleGroup, related = false, onActions, actionsOpen, onExplain, explainOpen, onSave, saved = false }) {
   const headRef = useRef(null)
   const long = useLong(headRef, clampLines, item.content, expanded)
   return (
@@ -190,6 +190,17 @@ export const Row = memo(function Row({ item, linkedSym, onSym, colorMode, prices
               aria-expanded={!!explainOpen}
               title="Explain (AI)"
             ><UIcon name="sparkle" size={11} gold={false} /></button>
+          )}
+          {onSave && item.id && (
+            // ⛔ a plain currentColor glyph (gold={false}): see the Explain button above.
+            <button
+              type="button"
+              className={`${styles.rowBtn}${saved ? ' ' + styles.rowBtnOn + ' ' + styles.rowBtnSaved : ''}`}
+              onClick={(e) => { e.stopPropagation(); onSave(item) }}
+              aria-label={saved ? 'Remove from Research Library' : 'Save to Research Library'}
+              aria-pressed={!!saved}
+              title={saved ? 'Saved — click to remove from your library' : 'Save to your Research Library'}
+            ><UIcon name={saved ? 'star-fill' : 'star'} size={11} gold={false} /></button>
           )}
           <CopyButton text={item.content || ''} />
           {(item.tickers || []).length > 0 && (
