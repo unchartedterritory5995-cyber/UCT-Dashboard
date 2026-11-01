@@ -64,4 +64,26 @@ describe('exact stored-state Undo — the Agent hands Indicators the stored sett
     expect(stored(board)).toBe(before)
     expect(p.turns()).toBe(0)
   }, 40000)
+
+  it('4 · changed since (the member switched the chart to log scale): Undo takes off ONLY the RSI — never the old blob back', async () => {
+    const [widgets, syms] = ONE('BRCB')
+    const { say, board } = p.mount([{ ...widgets[0], opts: { settings: reordered() } }], syms)
+    const before = stored(board)
+    await say('add rsi')
+    expect(p.instancesOn(board, 'c').filter(i => i.defId === 'rsi')).toHaveLength(1)
+    // the member's own edit, outside the Agent, between the change and its Undo
+    board.host.charts.commit('c', { settings: { ...board.state.widgets[0].opts.settings, logScale: true } })
+    const out = await say('undo')
+    expect(out).not.toMatch(/not confirmed|did not land|not done/i)
+    expect(p.instancesOn(board, 'c').filter(i => i.defId === 'rsi')).toEqual([])   // the Agent's change is gone
+    expect(board.state.widgets[0].opts.settings.logScale).toBe(true)               // the member's is kept
+    expect(stored(board)).not.toBe(before)                                         // the restore point did not write over it
+    // otherwise as it was — but for the preset stamp: with the chart changed since, Indicators (settlePreset) leaves it
+    // 'custom' rather than claim the old preset back
+    const { preset, ...rest } = board.state.widgets[0].opts.settings
+    const { preset: was, ...restBefore } = JSON.parse(before)
+    expect(rest).toEqual({ ...restBefore, logScale: true })
+    expect([was, preset]).toEqual(['classic', 'custom'])
+    expect(p.turns()).toBe(0)
+  }, 40000)
 })
