@@ -113,7 +113,7 @@ def read_fundamentals(params: dict, ctx: dict) -> dict:  # noqa: ARG001 — no p
     if newest is None:
         return env.unavailable(kind, params, SOURCE, f"no dated {period} statements for {sym}", calls)
 
-    age_days = (datetime.now(timezone.utc).date() - newest).days
+    age_days = (datetime.fromtimestamp(time.time(), timezone.utc).date() - newest).days  # one clock: time.time
     stale = age_days > STALE_AFTER_DAYS
     notes = [NOTE_PERIODIC, NOTE_NO_FILING_DATE]
     if stale:

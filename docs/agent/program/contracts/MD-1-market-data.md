@@ -107,6 +107,7 @@ All three are class `periodic`; none is ever worded as live or "now". The stale 
 
 **`earnings`**
 - `as_of` is null. The note is `reported quarters carry no report date — as_of is not given; reported through {label}`.
+  - Why null, and not a gap: the **reported** rows (the results) carry only a fiscal label, with no report date and no period end. The forward rows do carry `period_end` and `report_date`, but those describe **future** quarters and the next scheduled event, not the time of the reported data. Using them as `as_of` would date past results with a future date. So the source has no time for this data (MD-1 §3), and the note names `reported_through` instead.
 - `stale` when `stale_quarters` ≥ 2, with the note `reported results are {n} quarters behind what a typical filer has reported by now`.
 - `next_report` = `{report_date, quarter, eps_estimate, rev_estimate, kind}`, taken from the same payload's nearest forward row (no second read), with the note `next_report is a scheduled event, not a result` or `no scheduled next report date is known`.
 - No reported quarters is `unavailable`. `provider_calls` is 1 per read (the payload cannot say whether it was built).

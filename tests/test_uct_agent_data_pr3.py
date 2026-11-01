@@ -10,6 +10,7 @@ from __future__ import annotations
 import pathlib
 import time
 from datetime import date, datetime, timedelta, timezone
+from types import SimpleNamespace
 
 import pytest
 
@@ -22,12 +23,19 @@ from api.services.uct_agent.marketdata import news_company as nc
 from api.services.uct_agent.marketdata import statements as stm
 
 _ROOT = pathlib.Path(__file__).resolve().parents[1]
-TODAY = datetime.now(timezone.utc).date()
+# Fixed clock. The autouse fixture freezes the adapters' own clocks (`time.time`) to NOW_TS, so ages are
+# independent of when the suite runs, including across UTC midnight (agent-qa F-8).
+NOW_TS = 1793000000.0                                  # 2026-10-26T09:33:20Z
+NOW_DT = datetime.fromtimestamp(NOW_TS, timezone.utc)
+TODAY = NOW_DT.date()
 
 
 @pytest.fixture(autouse=True)
 def _env(monkeypatch):
     monkeypatch.setenv(gw.DATA_ENV, "1")
+    frozen = SimpleNamespace(time=lambda: NOW_TS)
+    monkeypatch.setattr(stm, "time", frozen)
+    monkeypatch.setattr(nc, "time", frozen)
     gw._reset_for_test(None)
     yield
     gw._reset_for_test(None)
@@ -67,7 +75,7 @@ def test_fundamentals_is_periodic_with_period_end_as_of_and_no_provider_call_whe
 
 def test_fundamentals_counts_six_calls_when_this_read_built_it(monkeypatch):
     monkeypatch.setattr(financial_statements, "get_statements",
-                        lambda s: _stmts(TODAY - timedelta(days=10), retrieved_at=time.time()))
+                        lambda s: _stmts(TODAY - timedelta(days=10), retrieved_at=NOW_TS))
     assert _read("fundamentals", {"symbol": "AAPL"})["provider_calls"] == stm.BUILD_PROVIDER_CALLS
 
 
@@ -157,7 +165,7 @@ def _news(monkeypatch, items, last_ok_age=60, boom=False):
         if boom:
             raise RuntimeError("db locked")
         return {"items": items[:limit], "has_more": len(items) > limit}
-    last_ok = (datetime.now(timezone.utc) - timedelta(seconds=last_ok_age)).isoformat() if last_ok_age else ""
+    last_ok = (NOW_DT - timedelta(seconds=last_ok_age)).isoformat() if last_ok_age else ""
     monkeypatch.setattr(news_store, "feed", feed)
     monkeypatch.setattr(news_store, "health_snapshot",
                         lambda days=3: {"sources": [{"source": "fmp", "last_ok": last_ok},
@@ -165,7 +173,7 @@ def _news(monkeypatch, items, last_ok_age=60, boom=False):
 
 
 def _item(hours_ago, **kw):
-    pub = (datetime.now(timezone.utc) - timedelta(hours=hours_ago)).isoformat()
+    pub = (NOW_DT - timedelta(hours=hours_ago)).isoformat()
     it = {"headline": f"h{hours_ago}", "url": "https://x", "source_display": "Reuters", "source_class": "wire",
           "category": "earnings", "sentiment": "bullish", "published_at": pub,
           "description": "FULL BODY TEXT", "raw_ref": "secret-ref"}
@@ -227,6 +235,11 @@ def test_news_limit_is_capped(monkeypatch):
 
 
 # ── shared ────────────────────────────────────────────────────────────────────────────────────────────
+
+def test_the_adapter_clocks_are_frozen():
+    """Control on the fixture: both adapters that read a clock see NOW_TS."""
+    assert stm.time.time() == NOW_TS and nc.time.time() == NOW_TS
+
 
 def test_all_three_register_as_periodic_never_live():
     d = {x["kind"]: x for x in gw.describe()}
