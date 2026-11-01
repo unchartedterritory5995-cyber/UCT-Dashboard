@@ -152,6 +152,7 @@ import IndicatorChip from './chart/legend/IndicatorChip'
 import LegendRow from './chart/legend/LegendRow'
 import chipStyles from './chart/legend/IndicatorChip.module.css'
 import { chipMenuItems } from './chart/legend/chipMenu'
+import { needsScriptForUpgrade, UPGRADE_NOTICE_LABEL } from './chart/builder/memberPane/savedScriptUpgrade'
 import { kindOf as definitionKindOf, copyVerdict } from './chart/builder/definitionActions'
 // ⭐ P1 — INFO VALUES: a header reference `{instanceId, plotKey, format}` to an
 // installed output, read from the binder's own latest value (`infoValueResolve`).
@@ -18949,6 +18950,7 @@ export default function StockChart({
         const items = chipMenuItems(c, def, {
           onModify: () => { close(); try { toolbarRef.current?.openCreateIndicator?.({ defId: c.defId }) } catch { /* noop */ } },
           onEditFormula: () => { close(); try { toolbarRef.current?.openFormulaEditor?.({ defId: c.defId }) } catch { /* noop */ } },
+          onScriptUpgrade: () => { close(); try { toolbarRef.current?.openScriptUpgrade?.({ defId: c.defId }) } catch { /* noop */ } },
           onCustomCopy: () => { close(); try { toolbarRef.current?.createCustomCopy?.({ def, inputs: (inst && inst.inputs) || {} }) } catch { /* noop */ } },
           onSettings: (id) => { close(); handleChipSettings(id) },
           onToggleHidden: (id) => { close(); handleChipHidden(id) },
@@ -18973,6 +18975,9 @@ export default function StockChart({
           definitionKind: defKind,
           canModify: (() => { try { return !!toolbarRef.current?.canModifyWithIntelligence?.() } catch { return false } })(),
           copyRefusal: copyCheck && !copyCheck.ok ? copyCheck.reason : undefined,
+          // ⭐⭐ SAVED-SCRIPT AUTO-UPGRADE — a script saved before its source was kept.
+          scriptUpgrade: needsScriptForUpgrade(c.defId),
+          scriptUpgradeLabel: UPGRADE_NOTICE_LABEL,
         })
         const move = items.find((i) => i.key === 'move')
         const page = (chipPage === 'move' && move && !move.disabled)

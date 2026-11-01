@@ -191,6 +191,15 @@ export function chipMenuItems(chip, def, h, caps = {}) {
     rows.push({ key: 'edit-formula', label: 'Edit formula', icon: 'edit',
       onClick: () => h.onEditFormula(chip.instanceId) })
   }
+  // ⭐⭐ SAVED-SCRIPT AUTO-UPGRADE — ONE quiet row, only for the member's own Pine
+  // script saved before its source was kept (`savedScriptUpgrade.needsScriptForUpgrade`):
+  // engine fixes cannot reach it until it is saved once from its script. A menu row,
+  // never a toast or a modal — it is there when the member opens this menu, and
+  // nowhere else. The CALLER decides (`caps.scriptUpgrade`); this file places it.
+  if (userDef && caps.scriptUpgrade === true && typeof h.onScriptUpgrade === 'function') {
+    rows.push({ key: 'script-upgrade', label: caps.scriptUpgradeLabel || 'Updated accuracy available',
+      icon: 'info', onClick: () => h.onScriptUpgrade(chip.instanceId) })
+  }
   if (caps.canDuplicate !== false) {
     rows.push({
       key: 'duplicate',
