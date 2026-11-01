@@ -174,7 +174,30 @@ Only agent-qa edits this file. Update it in every PR.
   extended-live, extended-closed, holiday, no-current-trade. Rules (a)–(e) are a reusable predicate
   (`quote_semantics_errors`) with controls showing it can fail. Other MD-1 kinds keep provisional `data` shapes.
 
-## Verdicts on `agent/int`
+## ⭐ FINAL VERDICT — Sprint 1 release candidate `c6895db012f97cede60d998fd300ca608f730531` (`agent/rc/sprint1`): GREEN
+Checked out EXACTLY at the RC SHA (detached, `git diff --quiet`), nothing added, every Agent flag unset in the shell.
+- **Full Agent suites (suite lock):** pytest **1251 passed**; vitest **120 files passed (5 skipped), 2058 passed (6 skipped)**.
+  Both match agent-lead's gate.
+- **QA suites:** pytest **253** (isolation, clock, fixtures, scan corpus); vitest **69** (turn-id 21, isolation 12,
+  fast-path corpus 32, fixtures 4). Corpus: oracle 31/31 · grammar-direct answerable 0/26 · browser fast path 0/31.
+- **Flags-off regression (UCT_AGENT_DATA, UCT_AGENT_SCAN, UCT_AGENT_ISOLATED, UCT_AGENT_NL1 all unset):**
+  - The real router on a bare app: **50/50**.
+    - `/api/agent/config` reports data, scan and nl1 false; the gateway reports isolated dormant.
+    - `/api/agent/data` refuses EVERY registered kind for answer/research/scan with the UCT_AGENT_DATA sentence and
+      valid envelopes. **No adapter or validator ran, and no budget was opened** (spy registry).
+    - With DATA on alone: scan kinds are refused (UCT_AGENT_SCAN) and isolated kinds stay dormant.
+    - A member is denied both routes.
+  - Route table vs the pre-program base 51b9af9794, by AST: **exactly one Agent route added, POST /api/agent/data,
+    admin-dark**. None were removed, and all 15 RC Agent routes are admin-dark.
+  - Browser, flags off: the screener capability (run, runSaved own/starter, listSaved, no-turn run), every answer AND
+    the full request sequence are **byte-identical between the pre-program base and the RC**, with no /api/agent/data call.
+- **Open findings, all ruled:**
+  - F-11: latent, with a lead hardening PR after the RC.
+  - F-12: stock.compare composite rating, a known limitation; the owner decides.
+  - F-13: wording, fixed.
+  - F-14: read-only, fixed in #606.
+  - Nothing blocks.
+
 - **42d962963d — GREEN** (#572 integrated). The locked run's tree differed from this tip only by 2 lines of this file
   (two-dot `git diff`). Agent pytest under the lock: 1049 passed. Agent vitest: 115 files passed, 5 skipped;
   1988 passed, 6 skipped.
