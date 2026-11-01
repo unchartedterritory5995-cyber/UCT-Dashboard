@@ -55,14 +55,18 @@ export function streamingEnabled() {
 }
 // Whether THIS server streams turns (GET /api/agent/config, read once when the Agent opens). Until it
 // has answered yes, every turn is asked the old way — a server with streaming off sees no change at all.
-let serverStream = { on: false, nl1: false, inflight: null, at: 0 }
+let serverStream = { on: false, nl1: false, data: false, scan: false, inflight: null, at: 0 }
 const CONFIG_TTL_MS = 5 * 60 * 1000
 export function loadAgentConfig() {
   if (serverStream.inflight) return serverStream.inflight
   if (serverStream.at && Date.now() - serverStream.at < CONFIG_TTL_MS) return Promise.resolve(serverStream.on)
   serverStream.inflight = fetch('/api/agent/config', { credentials: 'include', cache: 'no-store' })
     .then(r => (r.ok ? r.json() : null))
-    .then((c) => { serverStream.on = !!(c && c.stream === true); serverStream.nl1 = !!(c && c.nl1 === true); serverStream.at = Date.now(); return serverStream.on })
+    .then((c) => {
+      serverStream.on = !!(c && c.stream === true); serverStream.nl1 = !!(c && c.nl1 === true)
+      serverStream.data = !!(c && c.data === true); serverStream.scan = !!(c && c.scan === true)
+      serverStream.at = Date.now(); return serverStream.on
+    })
     .catch(() => serverStream.on)
     .finally(() => { serverStream.inflight = null })
   return serverStream.inflight
@@ -70,7 +74,14 @@ export function loadAgentConfig() {
 export const serverStreams = () => serverStream.on && streamingEnabled()
 // NL-1: whether THIS server serves it (UCT_AGENT_NL1). False until the config has answered yes, and on any error.
 export const serverServesNl1 = () => serverStream.nl1 === true
-export const _resetAgentConfig = () => { serverStream = { on: false, nl1: false, inflight: null, at: 0 } }
+// PROGRAM MD-1 / SC-1: whether THIS server serves the data gateway (UCT_AGENT_DATA) and its scan kinds (UCT_AGENT_SCAN).
+// False until the config has answered yes, and on any error — so nothing reads the gateway while it is dark.
+export const serverServesData = () => serverStream.data === true
+export const serverServesScan = () => serverStream.data === true && serverStream.scan === true
+export const _resetAgentConfig = () => { serverStream = { on: false, nl1: false, data: false, scan: false, inflight: null, at: 0 } }
+// One MD-1 gateway read (POST /api/agent/data) -> { ok, data: DataEnvelope } | { ok: false, error }.
+// Only app/src/agent/data/client.js calls this.
+export const agentDataRead = (body) => post('/api/agent/data', body)
 export async function agentTurnStream(body, onEvent = () => {}) {
   if (!streamingEnabled()) return agentTurn(body)
   let r
