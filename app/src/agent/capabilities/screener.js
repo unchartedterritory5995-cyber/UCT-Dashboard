@@ -41,6 +41,7 @@ import { encodeSpec } from '../../pages/screener/shell/specUrl'
 import { matchName } from '../nl/match'
 import { serverServesScan } from '../agentClient'
 import { readData } from '../marketdata/client'
+import { currentTurnId } from '../trace'
 
 const META_TTL_MS = 6 * 3600 * 1000      // the registry changes only on deploy
 const SAVED_TTL_MS = 60 * 1000
@@ -382,14 +383,15 @@ async function runSpec(spec, { show = SHOW_DEFAULT, name = null, savedId = null,
 // ── SC-1 GATEWAY PATH (dark: only while the server serves Agent scans — GET /api/agent/config → scan) ──
 // With the gateway on, a conversational screen ANSWER is one MD-1 read: `screen.run` (≤50 rows, the
 // coverage receipt, the data's own `as_of`, stale) — never the /api/screener/* routes, never a second
-// scan engine. The server spends the turn's ONE scan on it; `ctx.turnId` (the member's turn) is what
+// scan engine. The server spends the turn's ONE scan on it; `trace.currentTurnId()` (the member's turn) is what
 // that budget is keyed by, so a missing turn id REFUSES rather than minting one (a per-call id would
 // void the one-scan-per-turn limit).
 // ⚠️ NOT on this path, by SC-1's 50-row cap: `produce()` (up to FILL_MAX symbols for a list) and screens
 // with latest-session measure conditions (they page up to CANDIDATES_MAX candidates). Both stay on the
 // Screener's own routes.
 const usesGateway = (spec) => serverServesScan() && !(spec?.post || []).length
-const scanTurn = (ctx) => (typeof ctx?.turnId === 'string' && ctx.turnId ? ctx.turnId : (ctx?.turnId != null ? String(ctx.turnId) : null))
+// The member's open turn (trace.js opens ONE per message or panel action) — the server's budget key. Never minted here.
+const scanTurn = () => currentTurnId()
 
 /** One `screen.run` through the gateway → the answer text/table, or a refusal sentence. */
 async function runViaGateway(spec, { show = SHOW_DEFAULT, name = null, savedId = null, notes: extra = [], ctx = null } = {}) {
