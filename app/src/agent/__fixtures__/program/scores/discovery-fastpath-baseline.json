@@ -1,0 +1,96 @@
+{
+  "corpus_version": "1.0",
+  "interpreter": "browser-fast-path",
+  "total": 31,
+  "passed": 0,
+  "answerable": {
+    "passed": 0,
+    "of": 26
+  },
+  "refusals": {
+    "passed": 0,
+    "of": 5
+  },
+  "by_category": {
+    "earnings": {
+      "passed": 0,
+      "of": 1
+    },
+    "fundamental": {
+      "passed": 0,
+      "of": 3
+    },
+    "momentum": {
+      "passed": 0,
+      "of": 3
+    },
+    "refusal": {
+      "passed": 0,
+      "of": 5
+    },
+    "sector": {
+      "passed": 0,
+      "of": 3
+    },
+    "setup": {
+      "passed": 0,
+      "of": 5
+    },
+    "strength": {
+      "passed": 0,
+      "of": 5
+    },
+    "volatility": {
+      "passed": 0,
+      "of": 2
+    },
+    "volume": {
+      "passed": 0,
+      "of": 4
+    }
+  },
+  "nl": {
+    "nl": {
+      "passed": 0,
+      "of": 13
+    },
+    "plain": {
+      "passed": 0,
+      "of": 18
+    }
+  },
+  "passing": [],
+  "planner_handoffs": [
+    "d01",
+    "d02",
+    "d03",
+    "d04",
+    "d05",
+    "d06",
+    "d07",
+    "d08",
+    "d09",
+    "d10",
+    "d11",
+    "d12",
+    "d13",
+    "d14",
+    "d15",
+    "d16",
+    "d17",
+    "d18",
+    "d19",
+    "d20",
+    "d21",
+    "d22",
+    "d23",
+    "d24",
+    "d25",
+    "d26",
+    "r01",
+    "r02",
+    "r03",
+    "r04",
+    "r05"
+  ]
+}
