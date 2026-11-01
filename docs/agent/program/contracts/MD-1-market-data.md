@@ -1,8 +1,8 @@
-# MD-1 — UCT market-data contract (v1.0)
+# MD-1 — UCT market-data contract (v1.1)
 
 - **Owner:** agent-md implements the kinds. agent-lead owns `gateway.py` and `envelope.py`, the framework every consumer relies on.
 - **Consumers:** agent-sc, agent-rs, agent-qa, and later the D and G workstreams.
-- **Status:** v1.0, accepted for Sprint 1.
+- **Status:** v1.1 (additive over v1.0, acked by agent-lead 2026-11-01). See §9 for what changed. The envelope's wire field `contract` stays `"MD-1.0"`: v1.1 adds no envelope field.
 - **Changes:** see §8.
 
 ## 1. Purpose
@@ -60,7 +60,7 @@ Each kind wraps the canonical service listed. **No new upstream connection, WebS
 
 | Kind | Canonical service | Declared freshness | Freshness budget (`stale` after) | Notes |
 |---|---|---|---|---|
-| `quote`, `quotes` | `services/massive.py` snapshot (read-only call) | live | 60 s in session | **Not** the `/api/live-prices` route: its cache miss runs `watchlist_alert_service.run_alert_check()`. **Price reads must never trigger alerts.** Outside market hours, answer `historical` with a note. |
+| `quote`, `quotes` | `services/massive.py` snapshot (read-only call) | live | 60 s in the regular session | **Not** the `/api/live-prices` route: its cache miss runs `watchlist_alert_service.run_alert_check()`. **Price reads must never trigger alerts.** Session and freshness are classified **by vendor timestamp** (§4.1). |
 | `bars.daily` | `services/bars_fetch.py` | historical (completed sessions) | 1 session | Today's partial bar is not a completed daily bar |
 | `bars.intraday` | `services/bars_fetch.py` | delayed or live, as the source reports | per source | Sprint 1 only if `bars_fetch` exposes a source time |
 | `fundamentals` | `services/fmp_client.py` | periodic | 7 days | Use the service's `as_of` |
@@ -71,6 +71,29 @@ Each kind wraps the canonical service listed. **No new upstream connection, WebS
 | `themes` | `services/theme_performance.py` | periodic | 1 day | `generated_at` → `as_of` |
 | `volume.surge` | `services/volume_live.py` | periodic | 30 min in session | `asof` → `as_of` |
 | `ratings` | `services/research/ratings.py` | periodic | 1 day | |
+
+### 4.1 `quote` / `quotes` freshness (v1.1)
+
+The session is classified from the ET clock and the product's trading-day helper (`massive._today_et_is_a_trading_day`, `bars_fetch._session_close_minutes` for early closes). It does **not** use `massive._detect_session`, which labels 20:00–04:00 and weekends `post_market`. Staleness is always judged from the vendor's own observation stamps (`_observed_at`), never from fetch time.
+
+| Session (ET) | Freshness | `stale` | Note |
+|---|---|---|---|
+| Regular, 09:30 to the session close, on a trading day | `live` | oldest live stamp > 60 s | — |
+| Extended (04:00–09:30, close–20:00, trading day), oldest live stamp ≤ 15 min old | `live` | false | `extended-hours (pre-/post-market) prices — thin trading; the regular-session close is in day_close/prev_close` |
+| Extended, oldest live stamp > 15 min old | `historical` | false | the closed note |
+| Overnight 20:00–04:00, weekends, holidays | `historical` | false | `the regular session is not open — these are the last prints from the most recent session, not live prices` |
+| Regular, but no row has a current trade | `historical` | false | `no current trade in the snapshot — these are the latest closes, not live prices` |
+
+The extended and closed notes never appear together.
+
+**Per row:** `last_source` ∈ `trade` · `minute` · `day_close` · `prev_close` says where `last` came from.
+- In a `live` read, a row priced from `day_close` or `prev_close` is **not live**. The read is `partial`, with the note `no current trade for X — showing <source>`.
+- That row's stamp is **excluded** from the envelope `as_of`. In a live read, `as_of` is the oldest stamp among the rows priced from `trade`/`minute`, and a multi-row read notes `as_of is the oldest current trade in this set`.
+- In a `historical` read, `as_of` is the oldest stamp of all rows, with the note `as_of is the oldest quote in this set`.
+
+**Row fields:** `symbol, last, last_source, change, change_pct, open, high, low, day_close, volume, prev_close, as_of`.
+
+**`data.session`** is `regular` · `extended` · `closed`.
 
 **Deferred until a verifying spike is done (agent-md, ADR-003):**
 - **`flow.summary`:** only through the existing flow proxy (`api/flow_proxy.py`), after verifying from `web` that the data is really available. Never by importing `flow_router` in-process: `flow.db` lives on flow-worker. Never a second Massive connection.
@@ -121,3 +144,9 @@ QA's suite runs `validate_envelope` against every registered kind using its fixt
 1. Open a PR that edits this file, with a version bump (v1.1 adds; v2.0 breaks). Message agent-lead.
 2. Breaking changes need an ADR and every consumer's acknowledgement in their status file.
 3. Consumers code against the contract and QA's fixtures, never against an unmerged producer branch.
+4. The envelope's wire field `contract` tracks the envelope **shape** only. A version that changes semantics or documentation but no envelope field (v1.1) keeps `"MD-1.0"`.
+
+## 9. Changelog
+
+- **v1.1 (2026-11-01, agent-md, acked by agent-lead):** additive. `quote`/`quotes` classify extended hours by vendor timestamp; each row gains `last_source`; a close-priced row in a live read makes it `partial` and is excluded from `as_of`; `data.session` becomes `regular` · `extended` · `closed`. The pre-market note contradiction is removed (§4.1). No envelope field changed.
+- **v1.0 (2026-11-01):** first accepted version.
