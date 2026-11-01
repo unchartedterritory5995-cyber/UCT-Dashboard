@@ -1,8 +1,8 @@
-# MD-1 — UCT market-data contract (v1.1)
+# MD-1 — UCT market-data contract (v1.2)
 
 - **Owner:** agent-md implements the kinds. agent-lead owns `gateway.py` and `envelope.py`, the framework every consumer relies on.
 - **Consumers:** agent-sc, agent-rs, agent-qa, and later the D and G workstreams.
-- **Status:** v1.1 (additive over v1.0, acked by agent-lead 2026-11-01). See §9 for what changed. The envelope's wire field `contract` stays `"MD-1.0"`: v1.1 adds no envelope field.
+- **Status:** v1.2 (additive over v1.1; v1.1 over v1.0; both acked by agent-lead 2026-11-01). See §9 for what changed. The envelope's wire field `contract` stays `"MD-1.0"`: v1.1 adds no envelope field.
 - **Changes:** see §8.
 
 ## 1. Purpose
@@ -63,9 +63,9 @@ Each kind wraps the canonical service listed. **No new upstream connection, WebS
 | `quote`, `quotes` | `services/massive.py` snapshot (read-only call) | live | 60 s in the regular session | **Not** the `/api/live-prices` route: its cache miss runs `watchlist_alert_service.run_alert_check()`. **Price reads must never trigger alerts.** Session and freshness are classified **by vendor timestamp** (§4.1). |
 | `bars.daily` | `services/bars_fetch.py` | historical (completed sessions) | 1 session | Today's partial bar is not a completed daily bar |
 | `bars.intraday` | `services/bars_fetch.py` | delayed or live, as the source reports | per source | Sprint 1 only if `bars_fetch` exposes a source time |
-| `fundamentals` | `services/fmp_client.py` | periodic | 7 days | Use the service's `as_of` |
-| `earnings` | `services/earnings_estimates.py` / engine | periodic | 1 day | |
-| `news.company` | `services/news/` store | periodic | 1 hour | Item times as `as_of` per item; the envelope `as_of` is the newest item |
+| `fundamentals` | `services/financial_statements.py` `get_statements` (Yahoo Finance, the product's statements cache) | periodic | the newest period end is more than 135 days old | Periodic financial **disclosures**, never live. `as_of` = the newest statement period end; the source has no filing date. See §4.2. |
+| `earnings` | `services/earnings_table.py` `get_earnings_table` (the layer over `earnings_estimates`) | periodic | `stale_quarters` ≥ 2 (its own `reported_staleness`) | Event-driven results stay class `periodic`. Reported rows carry only a fiscal label, so `as_of` is null with a note; `next_report` is a scheduled event, never `as_of`. See §4.2. |
+| `news.company` | `services/news/store.py` `feed` (UCT's own store; no provider call) | periodic | news **ingest** has not succeeded for 1 hour | Item `as_of` = `published_at`; the envelope `as_of` is the newest item. A quiet company is not stale. No body text. See §4.2. |
 | `breadth.current` | `services/breadth_current.py` (MI-owned) | periodic | its own `stale` flag | Delegate; never copy breadth data. The V2 runner is the only producer. |
 | `nhnl` | `services/nhnl_live.py` | periodic | 30 min in session | `asof` → `as_of` |
 | `themes` | `services/theme_performance.py` | periodic | 1 day | `generated_at` → `as_of` |
@@ -94,6 +94,31 @@ The extended and closed notes never appear together.
 **Row fields:** `symbol, last, last_source, change, change_pct, open, high, low, day_close, volume, prev_close, as_of`.
 
 **`data.session`** is `regular` · `extended` · `closed`.
+
+### 4.2 `fundamentals` / `earnings` / `news.company` (v1.2)
+
+All three are class `periodic`; none is ever worded as live or "now". The stale budgets measure the **data**, not a refresh cadence: they replace v1.0's "7 days", "1 day" and "1 hour" wording.
+
+**`fundamentals`**
+- `stale` when the newest reported period end is more than 135 days old, about two quarters plus a filing lag.
+- `provider_calls` is 6 when this read caused the service's synchronous build, else 0.
+- Notes: `periodic financial disclosures — figures describe the reporting period in as_of, not today`; `the source gives no filing date; as_of is the period end`; `served from the last stored copy while the source refreshes` (a stored copy being refreshed). A statement type with no rows makes the read `partial`.
+- Row fields: `period_end, values`.
+
+**`earnings`**
+- `as_of` is null. The note is `reported quarters carry no report date — as_of is not given; reported through {label}`.
+- `stale` when `stale_quarters` ≥ 2, with the note `reported results are {n} quarters behind what a typical filer has reported by now`.
+- `next_report` = `{report_date, quarter, eps_estimate, rev_estimate, kind}`, taken from the same payload's nearest forward row (no second read), with the note `next_report is a scheduled event, not a result` or `no scheduled next report date is known`.
+- No reported quarters is `unavailable`. `provider_calls` is 1 per read (the payload cannot say whether it was built).
+- Row fields: `quarter, eps_actual, eps_estimate, eps_surprise_pct, rev_actual, rev_estimate, rev_surprise_pct`.
+
+**`news.company`**
+- `stale` from ingest health: the newest successful ingest across all news sources (`health_snapshot().sources[].last_ok`) is older than 60 minutes, with the note `news ingest has not succeeded for over an hour; recent stories may be missing`. Unknown health is stale, with the note `news ingest health is unknown; recent stories may be missing`.
+- Zero items is `ok`, with an empty list and the note `no news items are stored for {sym} — that is not a sign of stale data`. Otherwise the note is `each item's as_of is when it was published; the envelope as_of is the newest item`.
+- At most 25 items. `provider_calls` is 0.
+- Item fields: `headline, url, source, source_class, category, sentiment, as_of`.
+
+The canonical services' own stale-while-revalidate refresh and the news store's first-use schema init are each service's own behaviour (agent-lead, 2026-11-01). The adapters add no job, connection or write.
 
 **Deferred until a verifying spike is done (agent-md, ADR-003):**
 - **`flow.summary`:** only through the existing flow proxy (`api/flow_proxy.py`), after verifying from `web` that the data is really available. Never by importing `flow_router` in-process: `flow.db` lives on flow-worker. Never a second Massive connection.
@@ -148,5 +173,6 @@ QA's suite runs `validate_envelope` against every registered kind using its fixt
 
 ## 9. Changelog
 
+- **v1.2 (2026-11-01, agent-md):** additive. `fundamentals`, `earnings` and `news.company` sources are named in §4 (`financial_statements`, `earnings_table`, the news store), and their stale budgets are restated to measure the data (§4.2). Every class stays `periodic`; the wire `contract` stays `"MD-1.0"` (§8.4).
 - **v1.1 (2026-11-01, agent-md, acked by agent-lead):** additive. `quote`/`quotes` classify extended hours by vendor timestamp; each row gains `last_source`; a close-priced row in a live read makes it `partial` and is excluded from `as_of`; `data.session` becomes `regular` · `extended` · `closed`. The pre-market note contradiction is removed (§4.1). No envelope field changed.
 - **v1.0 (2026-11-01):** first accepted version.
