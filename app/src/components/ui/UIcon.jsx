@@ -142,6 +142,9 @@ const ICONS = {
       stroke="none"
     />
   ),
+  // A saved headline (UCT News): the ribbon outline, and the same ribbon filled.
+  bookmark: <path d="M6.5 4.5h11v15.2L12 15.6l-5.5 4.1z" />,
+  'bookmark-fill': <path d="M6.5 4.5h11v15.2L12 15.6l-5.5 4.1z" fill="currentColor" />,
   breadth: <path d="M5 13.5v5.5M10 9.5v9.5M15 6v13M20 11v8" strokeWidth="2.1" />,
   markets: (
     <>

@@ -200,6 +200,22 @@ async def test_search_by_text_note_ticker_collection_and_date_newest_first():
 
 # ── isolation between members ────────────────────────────────────────────────
 
+async def test_one_bookmark_is_read_by_any_delivery_id_and_only_by_its_member():
+    """News V2: the ⋯ menu's "Add to collection" reads one headline's bookmark (its ticks)."""
+    p, sent = await _news(HEADS[:1])
+    again = rec(HEADS[0], sent[0]["received_at_ms"] + 20_000)
+    await p.submit(again, "push")
+    col = lib.create_collection(A, "Fed")
+    lib.save(A, p.store, sent[0]["id"], note="mine")
+    lib.set_membership(A, col["id"], sent[0]["id"], True, p.store)
+    got = lib.get_bookmark(A, again["id"], p.store)["bookmark"]          # the story's other delivery
+    assert got["event_id"] == sent[0]["id"] and got["collection_ids"] == [col["id"]] and got["note"] == "mine"
+    assert lib.get_bookmark(B, sent[0]["id"], p.store) == {"bookmark": None}   # another member sees nothing
+    assert lib.get_bookmark(A, "01UNKNOWN", p.store) == {"bookmark": None}
+    with pytest.raises(lib.LibraryError):
+        lib.get_bookmark(A, "../etc", p.store)
+
+
 async def test_a_member_never_reads_or_changes_another_members_library():
     p, sent = await _news(HEADS)
     eid = sent[0]["id"]
@@ -532,7 +548,8 @@ async def test_the_routes_refuse_anonymous_requests():
     p, sent = await _news(HEADS[:1])
     L = "/api/trade-exchange-news/library"
     async with await _client(None) as c:
-        for method, path in (("GET", f"{L}/state"), ("GET", f"{L}/items"), ("PUT", f"{L}/bookmarks/{sent[0]['id']}"),
+        for method, path in (("GET", f"{L}/state"), ("GET", f"{L}/items"), ("GET", f"{L}/bookmarks/{sent[0]['id']}"),
+                             ("PUT", f"{L}/bookmarks/{sent[0]['id']}"),
                              ("DELETE", f"{L}/bookmarks/{sent[0]['id']}"), ("POST", f"{L}/collections")):
             r = await c.request(method, path, json={})
             assert r.status_code == 401, (method, path)

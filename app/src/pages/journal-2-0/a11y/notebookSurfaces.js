@@ -208,6 +208,8 @@ export const SURFACES = Object.freeze({
   'components/notebook/ScreenerEmbed.jsx': { recipe: 'embed-screener' },
   'components/notebook/CotEmbed.jsx': { recipe: 'embed-cot' },
   'components/notebook/ModelBookEmbed.jsx': { recipe: 'embed-model-book' },
+  // UCT News V2: a Trade Exchange headline sent from UCT News (capture-only, frozen).
+  'components/notebook/NewsHeadlineEmbed.jsx': { recipe: 'embed-news-headline' },
 
   // ── Notebook P2a trader blocks (blocks/; rail a11y/traderBlocks.a11y.test.jsx). Each body task
   // swaps its own line for its own recipe when it replaces the stub.

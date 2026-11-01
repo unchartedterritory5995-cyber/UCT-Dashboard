@@ -668,6 +668,52 @@ def test_every_registered_widget_has_a_vendor_row(widget_id):
         f"widget `{widget_id}` has no vendor row -- a stranger's view of its archived image is undecided")
 
 
+# ── UCT News: a headline sent to a note, and the retired Research Library ──────────────────
+# Both reduce EXACTLY as an undeclared widget did before their rows existed (the neutral market-data
+# line), and nothing of the headline, its archive id or a member's library ever reaches a stranger.
+
+_HEADLINE = "SYNTHETIC: ALFA Corp raises full-year guidance"
+_EVENT_ID = "01JSYNTHETICEVENT000000000A"
+
+
+def _news_embed(widget_id: str, params: dict) -> dict:
+    return {"type": "widgetEmbed", "attrs": {
+        "v": 1, "widgetId": widget_id, "mode": "snapshot", "capturedAt": "2026-11-01T12:00:00Z",
+        "params": params, "searchText": f"[UCT News: {_HEADLINE} · ALFA — Trade Exchange]",
+        "caption": "SYNTHETIC private research note", "embedId": "e-news"}}
+
+
+_NEWS_CASES = {
+    "tradeExchangeHeadline": {"eventId": _EVENT_ID, "content": _HEADLINE, "receivedAtMs": 1793000000000,
+                              "source": "Trade Exchange", "tickers": ["ALFA"]},
+    "researchLibrary": {"collection": "c-private-collection", "ticker": "ALFA", "view": "saved"},
+}
+
+
+@pytest.mark.parametrize("widget_id", sorted(_NEWS_CASES))
+def test_uct_news_embeds_are_declared_and_neutral(widget_id):
+    assert pnp.MARKET_DATA_VENDORS[("widgetEmbed", widget_id)] == {
+        "tradeExchangeHeadline": "tradexchange", "researchLibrary": "tradexchange"}[widget_id]
+    assert pnp.market_data_verdict("widgetEmbed", widget_id) == pnp.NEUTRAL
+    # the same verdict an undeclared widget gets: declaring the row changed no behaviour
+    assert pnp.market_data_verdict("widgetEmbed", widget_id) == pnp.market_data_verdict("widgetEmbed", "zz-undeclared")
+
+
+@pytest.mark.parametrize("mode", ["share", "publish", "example"])
+@pytest.mark.parametrize("widget_id", sorted(_NEWS_CASES))
+def test_uct_news_embeds_show_the_neutral_line_and_leak_nothing(widget_id, mode):
+    body = doc(p(t("before")), _news_embed(widget_id, _NEWS_CASES[widget_id]), p(t("after")))
+    out = reduce(body, mode)
+    # exactly what an undeclared widget in the same place reduces to (the pre-existing behaviour)
+    assert out == reduce(doc(p(t("before")), _news_embed("zz-undeclared", _NEWS_CASES[widget_id]), p(t("after"))), mode)
+    assert "widgetEmbed" not in types_in(out)
+    text = json.dumps(out)
+    for secret in (_HEADLINE, _EVENT_ID, "ALFA", "SYNTHETIC private research note", "c-private-collection", "Trade Exchange"):
+        assert secret not in text, (widget_id, mode, secret)
+    if mode != "example":
+        assert pnp.NEUTRAL_LINE in text and pnp.ACCOUNT_NEUTRAL_LINE not in text
+
+
 def test_every_fact_source_has_a_vendor_row():
     from api.services.journal_two import fact_registry
     sources = set(typing.get_args(fact_registry.Source)) | {d.source for d in fact_registry.FACT_TYPES.values()}
