@@ -13,6 +13,9 @@
                      — reported by each adapter in `provider_calls`; cache hits are 0
   A logical read is admitted (and counted) before it runs; provider calls are counted from its
   envelope. Once any limit is reached, further reads in that turn are refused, never partially run.
+  A kind's optional `validate(params)` runs BEFORE admission: a request it refuses (a bad spec, a bad
+  symbol) spends nothing. A read that is admitted spends its allowance even if the source then refuses
+  or fails — an attempted execution is an execution.
   These limits sit UNDER the existing caps: they add no model call and change no $ budget
   (budget.py's $5/day Agent cap and the shared $15 ledger are untouched).
 * Every envelope is validated (envelope.validate_envelope) before it leaves; an adapter that breaks the
@@ -63,6 +66,9 @@ class Kind:
     owner: str = "agent-md"
     max_symbols: int = MAX_SYMBOLS_PER_READ
     description: str = ""
+    # (params) -> None when the request is well formed, else the member-facing reason it is refused.
+    # Pure and cheap: no provider call, no I/O beyond what the kind's own validation already needs.
+    validate: Optional[Callable[[dict], Optional[str]]] = None
 
 
 @dataclass
@@ -149,6 +155,14 @@ def read(kind: str, params: Any = None, *, user_id: Any, turn_id: str, purpose: 
         return env.refused(kind, params, "Agent scans are off (UCT_AGENT_SCAN)")
     if _symbols_in(params) > k.max_symbols:
         return env.refused(kind, params, f"at most {k.max_symbols} symbols per read")
+    if k.validate is not None:
+        try:
+            why = k.validate(params)
+        except Exception as e:  # noqa: BLE001 — a validator that breaks refuses; it never admits by accident
+            log.warning("uct_agent.data kind=%s validate failed: %s", kind, type(e).__name__)
+            why = "the request could not be checked"
+        if why:
+            return env.refused(kind, params, str(why)[:300])
     with _lock:
         t = _turn(user_id, turn_id)
         if t.reads >= MAX_READS_PER_TURN:
