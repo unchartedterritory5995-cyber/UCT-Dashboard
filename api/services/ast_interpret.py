@@ -4863,7 +4863,17 @@ CHART_CLOCK_WHOLE = (
     "time-close:weekend-bars", "time-clock:outside-session", "request:other-timeframe",
     # C45 -- a value that depends on where the series starts (``bar_index_mask``)
     "bar-index:window",
+    # 2026-10-31 -- a time-of-day read on an FX-shaped daily chart
+    "time-clock:weekend-session",
 )
+
+#: The clock leaves that read the TIME OF DAY rather than the date. Mirrors
+#: ``interpret.js::SESSION_CLOCK_LEAVES``, which owns the reasoning: on a daily
+#: chart of the FX shape (``chart_clock_regime`` kind ``one-weekend-day``) a tree
+#: reading one is withheld whole (``time-clock:weekend-session``).
+SESSION_CLOCK_LEAVES = ("time", "hour", "minute", "timeclose", "dayopentime",
+                        "dayclosetime", "weekfirst", "monthfirst", "lastbartime",
+                        "lastbarhour", "lastbarminute")
 CHART_CLOCK_WITHHELD_CODES = CHART_CLOCK_WHOLE + (
     "time-anchor:period-open-missing", "time-anchor:utc-day-clock",
     "bar-index:early-bars",
@@ -5179,6 +5189,7 @@ def _scan_chart_clock(tree: Any):
     owns: List[dict] = []
     sixties: List[dict] = []
     folds: List[str] = []
+    leaves: List[dict] = []
     nested = False
     stack = [(tree, False)]
     seen = set()
@@ -5187,6 +5198,10 @@ def _scan_chart_clock(tree: Any):
         if not isinstance(node, dict) or id(node) in seen:
             continue
         seen.add(id(node))
+        # a time-of-day leaf (``SESSION_CLOCK_LEAVES``) -- read, never descended into
+        if node.get("type") == "series" and node.get("name") in SESSION_CLOCK_LEAVES:
+            leaves.append(node)
+            continue
         if is_period_anchor(node):
             nested = nested or under
             anchors.append(node)
@@ -5213,7 +5228,7 @@ def _scan_chart_clock(tree: Any):
         if isinstance(args, list):
             for a in args:
                 stack.append((a, into))
-    return anchors, closes, owns, sixties, folds, nested
+    return anchors, closes, owns, sixties, folds, nested, leaves
 
 
 def _name_chart_clock(opts, codes) -> None:
@@ -5226,11 +5241,14 @@ def _name_chart_clock(opts, codes) -> None:
 def _chart_clock_whole(tree: Any, bars: List[dict], inputs, budget, scalars, opts) -> Optional[dict]:
     """``interpret.js::chartClockWhole`` -- the whole-series decision, made before
     anything is evaluated: ``None`` when the tree holds no chart-clock node."""
-    anchors, closes, owns, sixties, folds, nested = _scan_chart_clock(tree)
+    anchors, closes, owns, sixties, folds, nested, leaves = _scan_chart_clock(tree)
     clocked = bool(anchors or closes or owns or sixties)
-    if not clocked and not folds:
-        return None
     tf = (opts or {}).get("tf")
+    # 2026-10-31 -- a time-of-day leaf is asked about on a DAILY chart only, the one
+    # timeframe ``chart_clock_regime`` can call FX-shaped (``one-weekend-day``)
+    day_leaves = bool(leaves) and tf == "D"
+    if not clocked and not folds and not day_leaves:
+        return None
     why: List[str] = []
 
     def add(code: str) -> None:
@@ -5242,6 +5260,9 @@ def _chart_clock_whole(tree: Any, bars: List[dict], inputs, budget, scalars, opt
     if isinstance(tf, str) and tf and any(base != tf for base in folds):
         add("request:other-timeframe")
     if not clocked:
+        if day_leaves and _chart_clock_regime_of(
+                bars, inputs, budget, scalars, opts)["kind"] == "one-weekend-day":
+            add("time-clock:weekend-session")
         _name_chart_clock(opts, why)
         return {"anchors": [], "closes": [], "why": why, "regime": chart_clock_regime(None),
                 "every_day": False}
@@ -5251,6 +5272,8 @@ def _chart_clock_whole(tree: Any, bars: List[dict], inputs, budget, scalars, opt
     kind = regime["kind"]
     if kind == "unreadable":
         add("time-clock:unreadable")
+    if kind == "one-weekend-day" and (leaves or owns or sixties):
+        add("time-clock:weekend-session")
     if anchors:
         if kind == "unwitnessed":
             add("time-anchor:not-daily")
