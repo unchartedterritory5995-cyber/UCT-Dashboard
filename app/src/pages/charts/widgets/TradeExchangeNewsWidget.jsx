@@ -8,7 +8,7 @@
  * (useTradeExchangeNewsDay -> archive.py). Newest on top. Per-widget, persisted
  * in `opts`:
  *   settings    appearance + density / highlight / sound (⚙, tradeExchangeNewsSettings.js)
- *   follow      auto-follow the live edge (default on)
+ *   follow      auto-follow the live edge (default on; Jump to live turns it back on)
  *   linked      only headlines naming this widget's colour-group symbol
  *   watchlistId only headlines naming a symbol on this list (personal or prebuilt)
  *   categories  only these server categories ([] = all); every filter is AND
@@ -47,7 +47,6 @@ import UIcon from '../../../components/ui/UIcon'
 import Input from '../../../components/ui/Input'
 import Select from '../../../components/ui/Select'
 import NewsSettingsPanel from './NewsSettingsPanel'
-import TradeExchangeNewsAlerts from './TradeExchangeNewsAlerts'
 import { formatNumber } from '../../../lib/presentation/presentationPrimitives'
 import { ActionsMenu, CalendarPopover, DayBar, DayList, FilterMenu, HealthPopover, Row, TimePopover } from './TradeExchangeNewsParts'
 import SavedHeadlines from './TradeExchangeNewsSaved'
@@ -131,7 +130,7 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange, def
     const mine = (Array.isArray(myLists) ? myLists : []).map((l) => ({ value: l.id, label: l.name }))
     const pre = (Array.isArray(prebuilt) ? prebuilt : []).map((l) => ({ value: l.id, label: `UCT · ${l.name}` }))
     const seen = new Set()                      // a list may appear in both sources
-    return [{ value: '', label: 'All lists' }, ...mine, ...pre]
+    return [{ value: '', label: 'All Lists' }, ...mine, ...pre]
       .filter((o) => !seen.has(o.value) && seen.add(o.value))
   }, [myLists, prebuilt])
 
@@ -165,7 +164,6 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange, def
   const newestRef = useRef(0)
   const [flashing, setFlashing] = useState(() => new Set())
   const lastSoundRef = useRef(0)
-  const [alertsOpen, setAlertsOpen] = useState(false)
   useEffect(() => {
     if (feed.status === 'idle' || feed.status === 'connecting') return
     const seen = seenRef.current
@@ -380,7 +378,6 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange, def
   // ── chrome ──
   const [settingsOpen, setSettingsOpen] = useState(false)
   const gearRef = useRef(null)
-  const bellRef = useRef(null)
   const rootRef = useRef(null)
   const [, tick] = useState(0)
   useEffect(() => {                         // keep "last headline 2m ago" honest
@@ -459,9 +456,6 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange, def
           themeVars={menuVars}
         />
       )}
-      {alertsOpen && (
-        <TradeExchangeNewsAlerts onClose={() => setAlertsOpen(false)} anchorEl={bellRef.current} themeVars={menuVars} />
-      )}
       {actions && (
         <ActionsMenu key={`${actions.view}|${actions.item.id}`} item={actions.item} anchorEl={actions.anchor} hostEl={rootRef.current}
           themeVars={menuVars} onClose={closeActions} onNotebook={sendHeadlineToNotebook} onCopied={onCopied}
@@ -475,6 +469,7 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange, def
       )}
       {filterOpen && (
         <FilterMenu anchorEl={filterRef.current} hostEl={rootRef.current} themeVars={menuVars} onClose={closeFilter}
+          linked={linked} linkedSym={linkedSym} onLinked={(on) => patchOpts({ linked: on, presetId: null })}
           categories={categories} onCategories={setCategories} presets={presets} activeId={opts?.presetId || null}
           onApply={applyPreset} onSave={savePreset} onRename={renamePreset} onDelete={deletePreset} />
       )}
@@ -484,7 +479,7 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange, def
       )}
       {timeOpen && (
         <TimePopover at={day.at} anchorEl={timeRef.current} hostEl={rootRef.current} themeVars={menuVars}
-          onPick={day.jumpTo} onClose={closeTime} />
+          onPick={day.jumpTo} onClose={closeTime} live={day.live} onLatest={day.toLatest} />
       )}
       {healthOpen && (
         <HealthPopover lines={[...feedHealth(feed, now), ...viewHealth({ dateLabel: dayLabel(day.dateKey, day.todayKey),
@@ -499,14 +494,7 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange, def
           <span className={styles.brandSub}>Powered by Trade Exchange</span>
         </span>
         <span className={styles.spacer} />
-        <button
-          type="button"
-          className={`${styles.iconBtn}${view === 'saved' ? ' ' + styles.iconBtnOn : ''}`}
-          onClick={() => setView(view === 'saved' ? 'feed' : 'saved')}
-          title={view === 'saved' ? 'Back to the News feed' : 'Saved headlines'}
-          aria-label={view === 'saved' ? 'Back to the News feed' : 'Show saved headlines'}
-          aria-pressed={view === 'saved'}
-        ><UIcon name={view === 'saved' ? 'bookmark-fill' : 'bookmark'} size={13} gold={false} /></button>
+        {/* Right, in this order: LIVE -> Saved Headlines -> Settings. */}
         <button ref={statusRef} type="button" className={`${styles.status} ${toneCls}`} title={`${status.title} Click for feed health.`}
           aria-live="polite" aria-haspopup="dialog" aria-expanded={healthOpen} onClick={() => setHealthOpen((o) => !o)}>
           <span className={styles.dot} aria-hidden="true" />
@@ -514,19 +502,12 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange, def
         </button>
         <button
           type="button"
-          className={`${styles.iconBtn}${follow ? ' ' + styles.iconBtnOn : ''}`}
-          onClick={() => patchOpts({ follow: !follow })}
-          title={follow ? 'Auto-follow is on: new headlines appear at the top. Click to hold your place.' : 'Auto-follow is off: your place is held. Click to follow the live edge.'}
-          aria-label={follow ? 'Turn auto-follow off' : 'Turn auto-follow on'}
-        ><UIcon name={follow ? 'pause' : 'play'} size={13} /></button>
-        <button
-          ref={bellRef}
-          type="button"
-          className={`${styles.iconBtn}${alertsOpen ? ' ' + styles.iconBtnOn : ''}`}
-          onClick={() => setAlertsOpen((o) => !o)}
-          title="News alerts"
-          aria-label="News alerts"
-        ><UIcon name="bell" size={14} /></button>
+          className={`${styles.iconBtn}${view === 'saved' ? ' ' + styles.iconBtnOn : ''}`}
+          onClick={() => setView(view === 'saved' ? 'feed' : 'saved')}
+          title={view === 'saved' ? 'Back to the News feed' : 'Saved headlines'}
+          aria-label={view === 'saved' ? 'Back to the News feed' : 'Show saved headlines'}
+          aria-pressed={view === 'saved'}
+        ><UIcon name={view === 'saved' ? 'bookmark-fill' : 'bookmark'} size={14} gold={false} /></button>
         <button
           ref={gearRef}
           type="button"
@@ -556,7 +537,7 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange, def
             className={styles.searchInput}
             value={queryRaw}
             onChange={(e) => setQueryRaw(e.target.value)}
-            placeholder="Search"
+            placeholder="Search..."
             aria-label="Search headlines"
             maxLength={80}
           />
@@ -564,28 +545,18 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange, def
             <button type="button" className={styles.searchClear} onClick={() => setQueryRaw('')} aria-label="Clear search" title="Clear">×</button>
           )}
         </span>
-        <button
-          type="button"
-          className={`${styles.filterBtn}${linked ? ' ' + styles.filterBtnOn : ''}`}
-          onClick={() => patchOpts({ linked: !linked })}
-          title={linked ? `Showing only headlines naming ${linkedSym || "this widget's linked symbol"}` : "Show only headlines naming this widget's linked symbol"}
-          aria-label={linked ? 'Show all tickers' : 'Show only the linked symbol'}
-        >
-          <UIcon name="link" size={11} />
-          <span className={styles.filterLabel}>{linked && linkedSym ? linkedSym : 'Linked'}</span>
-        </button>
+        {/* One Filters button: All / Linked to chart, categories and presets (FilterMenu). */}
         <button
           ref={filterRef}
           type="button"
-          className={`${styles.filterBtn}${categories.length ? ' ' + styles.filterBtnOn : ''}`}
+          className={`${styles.filterBtn}${linked || categories.length ? ' ' + styles.filterBtnOn : ''}`}
           onClick={() => setFilterOpen((o) => !o)}
-          title="Categories and saved presets"
-          aria-label={`Categories: ${categoriesLabel(categories)}. Open filters and presets`}
+          title={`News filters: ${linked ? `linked to ${linkedSym || 'the chart'}` : 'all headlines'} · ${categoriesLabel(categories)}`}
+          aria-label={`News filters: ${linked ? `linked to ${linkedSym || 'the chart'}` : 'all headlines'}, categories ${categoriesLabel(categories)}`}
           aria-haspopup="dialog"
           aria-expanded={filterOpen}
         >
-          <UIcon name="sliders" size={11} />
-          <span className={styles.filterLabel}>{categoriesLabel(categories)}</span>
+          <UIcon name="sliders" size={14} gold={false} />
         </button>
         <Select
           className={styles.listSelect}

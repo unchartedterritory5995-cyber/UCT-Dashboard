@@ -95,11 +95,12 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals())
 
 describe('the toolbar bookmark switches views inside the same widget', () => {
-  it('sits left of LIVE, shows when Saved is open, and returns to the feed', async () => {
+  it('sits between LIVE and Settings, shows when Saved is open, and returns to the feed', async () => {
     const { container } = mount()
     const bar = container.querySelector('[class*="_bar_"]')
     const labels = [...bar.querySelectorAll('button')].map((b) => b.getAttribute('aria-label') || b.textContent)
-    expect(labels.indexOf('Show saved headlines')).toBe(labels.findIndex((l) => /LIVE|Connecting|Live/i.test(l)) - 1)
+    const live = labels.findIndex((l) => /LIVE|Connecting|Live/i.test(l))
+    expect(labels.slice(live)).toEqual([labels[live], 'Show saved headlines', 'News widget settings'])
     fireEvent.click(toggle())
     expect(toggle()).toHaveAttribute('aria-pressed', 'true')
     expect(await screen.findByText(/Nothing saved yet/)).toBeTruthy()
