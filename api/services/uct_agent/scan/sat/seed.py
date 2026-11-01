@@ -133,6 +133,7 @@ def measured(member_id: str | None) -> list[tuple[str, dict]]:
     gateway._reset_for_test()
     uid = member_id or "sat1-measure"
     asks = [
+        ("A1 strongest (sort by RS, no filter)", "screen.run", {"spec": {"filters": [], "sort": {"key": "rs_rank", "dir": "desc"}}, "limit": 10}),
         ("RS rank >= 90", "screen.count", {"spec": {"filters": [{"key": "rs_rank", "op": "gte", "min": 90}]}}),
         ("Semiconductors with vol_ratio >= 2", "screen.count", {"spec": {"filters": [
             {"key": "industry", "op": "in", "values": ["Semiconductors"]}, {"key": "vol_ratio", "op": "gte", "min": 2}]}}),
@@ -174,7 +175,7 @@ def main(argv=None) -> int:
     print("\nMEASURED by the real SC-1 kinds (these are SAT-1's expected answers):")
     for label, env in measured(info["member_id"] if info else None):
         d = env.get("data") or {}
-        what = d.get("count", len(d.get("screens") or []) if "screens" in d else None)
+        what = d["count"] if "count" in d else d["total_matches"] if "total_matches" in d else (len(d["screens"]) if "screens" in d else None)
         print(f"  {label:40s} status={env['status']:8s} answer={what!s:5s} as_of={env['as_of']} stale={env['stale']} "
               f"coverage={env['coverage']}")
         for note in env["notes"]:

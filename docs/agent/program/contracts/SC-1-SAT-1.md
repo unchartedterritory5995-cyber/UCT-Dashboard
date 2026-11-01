@@ -57,7 +57,7 @@ Record PASS/FAIL beside each step. "Seed: X" means the value the seed printout s
 
 | # | Type in the panel | Expect |
 |---|---|---|
-| A1 | `show me my strongest stocks` | One `POST /api/agent/data` with `kind: screen.run`, `turn_id: t-…`, and **no** `/api/screener/scan`. The reply has a count, "Showing the first 10 by RS Rank", **"values as of the 2026-10-30 close (nightly), not live"** (the seed's session), and a coverage line "Checked 121 stocks … 5 had a missing value, 1 was excluded for stopped price history". It never says "live" or "now". SYSTOP is absent. |
+| A1 | `show me my strongest stocks` | One `POST /api/agent/data` with `kind: screen.run`, `turn_id: t-…`, and **no** `/api/screener/scan`. The reply has a count, "Showing the first 10 by RS Rank", **"values as of the 2026-10-30 close (nightly), not live"** (the seed's session), and a coverage line whose numbers equal Seed: "A1 strongest" (with the fresh scenario, "Checked 121 stocks: 120 could be decided, 1 was excluded for stopped price history"; a sort is not a criterion, so no names count as missing a value), and a count equal to that line's answer. It never says "live" or "now". SYSTOP is absent. |
 | A2 | `my saved screens` | `kind: screen.saved`. "Your screens: SAT Leaders, SAT Semis volume, SAT EMA cross (indicator) (can't run here: indicator-condition scans aren't available …)". **No** "SAT other member's screen". |
 | A3 | `run my sat leaders screen` | `params: {saved_id: <id>, limit: 10}`, the **id only** and no spec. The reply begins "SAT Leaders:" and its count = Seed: "RS rank >= 90". |
 | A4 | `run my sat ema cross (indicator) screen` | Refused: "indicator-condition scans aren't available …". **No rows**, and nothing is approximated. |
