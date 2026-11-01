@@ -40,7 +40,7 @@ import {
 import { CLOCK_REALTIME } from '../../indicators.js'
 // ⭐⭐ L1 — an imported library's exports are linked in as the script's own.
 import { linkLibraries, remapLibraryLocation } from './pineLibraries.js'
-import { TABLE, isPointwise } from './parse.js'
+import { TABLE, isPointwise, BIND_TIME_CLOCK } from './parse.js'
 import { splitCommaStatements } from './objectFnInline.js'
 import { interpret, POINTWISE_FOR_PARITY, FINITE_WINDOW, CARRIED, TableRefusal } from './interpret.js'
 import { bindConstsFor, foldBound, foldScalar, NotFoldable } from './bind.js'
@@ -1542,6 +1542,90 @@ function buildRuntimeIrLinked(source, opts, holder) {
   // and its own measurements. Refused by name, never approximated.
   let condDepth = 0
   const slotDepth = []
+  // ⭐⭐ WS-C / R4 — HOW MANY ENCLOSING REGIONS RUN ON SOME BARS ONLY. Separate
+  // from `condDepth` (which RT5 and the slot ledger read unchanged): an arm
+  // whose test reads no per-bar value (an input, a literal) runs on EVERY bar or
+  // on NONE, so its history is the bar's and it does not count here. A loop
+  // always counts (`loopDepth`). `r4Region` names the region, so a binding made
+  // in one arm is never expanded in another.
+  let r4Cond = 0
+  let r4Region = 0
+  let r4RegionSeq = 0
+  const r4Level = () => r4Cond + loopDepth
+  // ⭐ WS-C — A TEST OVER A PARAMETER IS THE CALL SITE'S. In a function body,
+  // `if mode == "ATR"` reads a parameter; at a call that passes a value fixed
+  // before bar 0 (`getBaseTau(thrMode, …)`, an `input.string`) the branch runs on
+  // every call or on none, exactly as a test on the input itself. The shared body
+  // cannot know that, so the parameter is NAMED on the refusal (`frameName`,
+  // `condParam`) and the call site compiles its own copy with the parameter
+  // answered as its constant (C35 `simpleSpecialisation`, `frameConsts`), where
+  // the test is invariant. `r4CulpritSeen` is the parameter the last
+  // non-invariant test was blocked on; `r4RegionCulprit` the enclosing region's.
+  let r4CulpritSeen = null
+  let r4RegionCulprit = null
+  /** Lower `fn()` inside a region that runs only when `invariant` is false. */
+  const inR4Region = (invariant, fn) => {
+    if (invariant) return fn()
+    const prev = r4Region
+    const prevCulprit = r4RegionCulprit
+    r4RegionCulprit = r4CulpritSeen || prevCulprit
+    r4CulpritSeen = null
+    r4Cond += 1
+    r4Region = (r4RegionSeq += 1)
+    try { return fn() } finally { r4Cond -= 1; r4Region = prev; r4RegionCulprit = prevCulprit }
+  }
+  /** Does this test read nothing that changes from bar to bar? Inputs, literals
+   *  and pointwise arithmetic over them, by the columnar resolver's own tree.
+   *  Anything it cannot resolve is NOT invariant (fails closed). In a function
+   *  body a parameter the call site FIXED is its constant (`frameConsts`); any
+   *  other frame name is not invariant, and a parameter is recorded as the one a
+   *  call site could fix (`r4CulpritSeen`). */
+  const invariantTest = (test, scope) => {
+    if (!test || inRequestValue) return false
+    // a text fixed before bar 0 (a quoted `'WMA' =>` match, a name bound to one,
+    // an `input.string` at the value in force: C47's `fixedTextOf`) is invariant;
+    // the resolver has no text value to answer with, so it is decided here
+    try { if (fixedTextOf(test, scope) !== null) return true } catch { /* not fixed text */ }
+    if (owner !== null && scope) {
+      let foreign = null
+      const subst = (x, d) => {
+        if (!x || typeof x !== 'object' || d > 64) return x
+        if (Array.isArray(x)) return x.map((y) => subst(y, d + 1))
+        if (x.type === 'name' && typeof x.name === 'string') {
+          const sl = scope.lookup(x.name)
+          if (sl !== null && slots[sl] && slots[sl].owner === owner) {
+            if (frameConsts && frameConsts.has(sl)) return frameConstNode(frameConsts.get(sl), x.tok)
+            if (foreign === null) foreign = x.name
+          }
+          return x
+        }
+        const out = {}
+        for (const [k, v] of Object.entries(x)) out[k] = k === 'tok' ? v : subst(v, d + 1)
+        return out
+      }
+      const t2 = subst(test, 0)
+      if (foreign !== null) { r4CulpritSeen = foreign; return false }
+      test = t2
+    }
+    if (readsSlot(test, scope)) return false
+    let c
+    try { c = makeResolver().resolve(test) } catch { return false }
+    // ⛔ FAILS CLOSED: only the node kinds named here can be invariant. A clock
+    // name the manifest declares constant for ONE binding (`timeframe.isdaily`,
+    // `BIND_TIME_CLOCK`) is the chart's, fixed before bar 0, and so is the chart
+    // symbol's own text (`symtext`: `str.contains(syminfo.ticker, "/")`).
+    const walk = (n, d = 0) => {
+      if (!n || typeof n !== 'object' || d > 64) return false
+      if (n.type === 'num' || n.type === 'str' || n.type === 'symtext') return true
+      if (n.type === 'series') return typeof n.inputName === 'string' || BIND_TIME_CLOCK.includes(n.name)
+      if (n.type === 'call') {
+        const spec = TABLE.functions[n.name]
+        if (!spec || !isPointwise(spec)) return false
+      } else if (n.type !== 'textop' && n.type !== 'op') return false   // pure operators over invariants
+      return (n.args || []).every((a) => walk(a, d + 1))
+    }
+    return walk(c)
+  }
   // The chart's own series keep the chart's history everywhere (S01-S07, B02,
   // B03); `bar_index[k]` is the chart's in a global block (A13, C06) but the
   // CALL SITE's inside a function body (S02, B01, H05).
@@ -1572,6 +1656,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
     return (n.args || []).some((a) => statefulTree(a, frame))
   }
   const conditionalHistoryGuard = (what, at) => {
+    // WS-C / R4 on the plot lane: a built-in's own state (`OP.CARRIED`, a `skip`
+    // window's run ring) steps only when its call runs, which is the call
+    // site's history — except in a LOOP, where it would step once per pass.
+    if (!objectsInRun && what === 'a stateful built-in' && loopDepth > 0) r4Guard(what, at)
     if (!(objectsInRun && condDepth > 0)) return
     note('runtime:conditional-history')
     throw new RuntimeRefusal('runtime:conditional-history',
@@ -1603,7 +1691,269 @@ function buildRuntimeIrLinked(source, opts, holder) {
     if (slot !== null && slot !== undefined
       && (slots[slot].owner !== null || slotDepth[slot] > 0)) {
       conditionalHistoryGuard(`\`${slots[slot].name}[…]\``, at)
+      // WS-C / R4: the plot lane reads that history from EVERY bar (a block
+      // local is reset to `na` on a bar the block skips; a body local in a
+      // branch of the body is the body's), where Pine reads the previous RUN.
+      if (slotDepth[slot] > 0) r4Guard(`\`${slots[slot].name}[…]\`, the history of a local of the block,`, at)
     }
+  }
+
+  // ─── ⭐⭐⭐ WS-C (Phase 3) — CONDITIONAL HISTORY ON THE PLOT LANE (R4, P3) ───
+  //
+  // The RT5 guard above runs only under `objectsInRun`. On the PLOT lane a pure
+  // `ta.*` inside an `if`, a loop or a function body became an every-bar column,
+  // so a call that runs on SOME bars answered from EVERY bar. Pine keeps that
+  // history PER CALL SITE: a window counts the RUNS of its call, the EMA is
+  // seeded by the mean of its first n RUNS, a block local's `[1]` is the
+  // previous RUN's value (C48, `vw-call-site-history-rddt/spy-1d-2026-10-01`,
+  // C03-C05 / H01-H05 / D01-D03).
+  //
+  // Owner ruling R4 (2026-10-31): refuse it BY NAME on this lane until it is
+  // served exactly. What is served exactly is `servedCondCall` below; every
+  // other shape keeps this refusal.
+  //
+  // ⛔⛔ THE TEST IS LEXICAL, NOT THE RESOLVED TREE. `ma = ta.sma(close, 9)`
+  // written at the ROOT and read inside a block is an every-bar series: its
+  // column is exactly right there. The resolver expands that macro, so asking
+  // the canonical tree (as `statefulTree` does for RT5, where a top-level
+  // history binding is a slot) would refuse a correct script. Only history
+  // WRITTEN in the block or the function body (or in a binding made there)
+  // belongs to the call site.
+  const r4Guard = (what, at) => {
+    // ⛔ NOT inside a request's value: that expression is evaluated over the
+    // REQUESTED symbol's own bars, as a series, wherever the call stands.
+    if (objectsInRun || r4Level() <= 0 || inRequestValue) return
+    note('runtime:conditional-history')
+    const err = new RuntimeRefusal('runtime:conditional-history',
+      `${what} inside a block, loop or function branch that does not run on every bar — `
+      + 'Pine keeps that history per call site, and this lane serves only the shapes witnessed so far', at)
+    // a branch on a PARAMETER: a call site that fixes it can settle this (`invariantTest`)
+    if (owner !== null && loopDepth === 0 && typeof r4RegionCulprit === 'string') {
+      err.frameName = r4RegionCulprit
+      err.condParam = true
+    }
+    throw err
+  }
+  // Does this call's own head carry history? The arguments are replaced by a
+  // literal so a top-level macro among them cannot make a pointwise call look
+  // stateful; the closed table's own verdict (`statefulTree`) decides.
+  // ⭐ WS-C — AN OFFSET IN THE HEAD IS HISTORY TOO. `ta.mom(x, n)` / `ta.roc` /
+  // `ta.swma` rewrite to `x - x[n]`-shaped trees whose offsets sit over a CHART
+  // series, so `statefulTree` calls them pure — and the lane served them as
+  // every-bar columns in a block. Pine reads a `ta.*` call's source history
+  // per call site (its `ta.change` is the previous RUN's value: vw-arm-history
+  // T05 / K03, 308 / 308 and 318 / 318 RDDT bars), so any offset the HEAD
+  // writes (the arguments are literals here) is the call site's.
+  const treeHasOffset = (t, d = 0) => !!(t && typeof t === 'object' && d <= 96
+    && (t.type === 'offset' || (t.args || []).some((a) => treeHasOffset(a, d + 1))))
+  const callHeadStateful = (n) => {
+    const two = { type: 'number', value: 2, tok: n.tok }
+    const args = (n.args || []).map((a) => (a && a.value !== undefined ? { ...a, value: two } : two))
+    try {
+      const t = makeResolver().resolve({ ...n, args })
+      return statefulTree(t) || treeHasOffset(t)
+    } catch { return /^ta\./.test(String(n.name || '')) }
+  }
+  // A UDF whose body keeps history that a CONDITIONAL call would read wrongly:
+  // column history written in its body (`rt5Lex`), a window that reads its
+  // committed ring (every policy but `skip`, which keeps its own run ring), or
+  // a call to such a function. Body-local `[k]` (held per site, vendor-pinned
+  // `skipped-callsite-history-spy-1d-2026-09-08`) and carried state (stepped
+  // per invocation) are the call site's already.
+  const fnCondUnsafe = (fn) => !!(fn && (fn.rt5Lex || fn.condUnsafeCalls
+    || (fn.windowLocals || []).some((w) => FINITE_WINDOW[w.fn] && FINITE_WINDOW[w.fn].na !== 'skip')))
+  // Any per-site state at all: in a LOOP every one of them runs several times a
+  // bar, which no capture has witnessed.
+  const fnAnyHistory = (fn) => !!(fn && (fn.rt5Lex || fn.rt5History || fn.anyHistoryCalls
+    || (fn.historyLocals || []).length || (fn.windowLocals || []).length
+    || (fn.carriedLocals || []).length || (fn.carried2Locals || []).length))
+  // A binding made inside a conditional region (`r4 > 0`) belongs to that
+  // region: it is evaluated when the region runs, not on every bar.
+  // ⛔ A region-local binding READ in a DIFFERENT region (deeper, or a sibling)
+  // cannot be served by expanding it there: its history would step on the
+  // reader's runs instead of its own. Recorded here, refused by the caller.
+  let lexForeign = false
+  const lexCondHistory = (n, depth = 0) => {
+    if (!n || typeof n !== 'object' || depth > 48) return false
+    if (Array.isArray(n)) return n.some((x) => lexCondHistory(x, depth + 1))
+    if (n.type === 'name') {
+      const b = env.get(n.name)
+      if (!b || b.kind !== 'expr') return false
+      if (b.r4 > 0) {
+        if (!lexCondHistory(b.node, depth + 1)) return false
+        if (b.r4 !== r4Level() || b.region !== r4Region) lexForeign = true
+        return true
+      }
+      // a function body's own top-level binding: the body's series, judged at
+      // its CALL SITES (`rt5Lex`) wherever in the body it is read
+      if (b.owner !== null && b.owner !== undefined && lexCondHistory(b.node, depth + 1)) {
+        if (r4Level() === 0) return true
+        if (!objectsInRun && owner !== null) functions[owner].rt5Lex = true
+      }
+      return false
+    }
+    if (n.type === 'call') {
+      if (fnByName.has(n.name)) {
+        const fn = functions[fnByName.get(n.name)]
+        if (loopDepth > 0 ? fnAnyHistory(fn) : fnCondUnsafe(fn)) return true
+      } else if (callHeadStateful(n)) return true
+    }
+    if (n.type === 'offset') {
+      const a = n.arg
+      // a block's (or a body's) own expression one run back
+      const ab = a && a.type === 'name' ? env.get(a.name) : null
+      if (ab && ab.kind === 'expr') {
+        if (ab.r4 > 0) return true
+        if (ab.owner !== null && ab.owner !== undefined) {
+          if (r4Level() === 0) return true
+          if (!objectsInRun && owner !== null) functions[owner].rt5Lex = true
+        }
+      }
+      // a call-owned `bar_index[k]` (C48 H05: the previous RUN's index)
+      if (owner !== null && a && a.type === 'name' && a.name === 'bar_index') return true
+    }
+    for (const k of Object.keys(n)) {
+      if (k === 'tok') continue
+      const v = n[k]
+      if (v && typeof v === 'object' && lexCondHistory(v, depth + 1)) return true
+    }
+    return false
+  }
+  /** ⭐⭐ THE SHAPES SERVED EXACTLY: `ta.sma(src, n)` and `ta.ema(src, n)` (v4:
+   *  `sma`, `ema`) written in a ROOT-level `if`/`switch` block that is not in a
+   *  loop, `src` a pure series, `n` known before bar 0. Both become per-site
+   *  state stepped only when the call runs — the run window `FINITE_WINDOW.sma`
+   *  keeps (`skip`: its own ring of the last n finite RUNS, never the bar ring)
+   *  and the `CARRIED.ema` recurrence (seeded by the mean of its first n runs,
+   *  `smoothStep`). That is the witnessed rule (C48: RDDT C03/C04, D02). Every
+   *  other conditional `ta.*` returns null and keeps the R4 refusal. */
+  /** A node around conditional history that runs exactly when its statement
+   *  runs, so its pieces can be lowered one by one: a name bound in the block,
+   *  arithmetic, a comparison, a pointwise call. ⛔ NOT an arm that may not run
+   *  (`?:`'s arms, the right of v6's short-circuit `and` / `or`): whether a
+   *  call there runs per bar or per branch is not witnessed. */
+  const condTransparent = (n) => {
+    if (!n || typeof n !== 'object') return false
+    if (n.type === 'name' || n.type === 'unary' || n.type === 'op') return true
+    if (n.type === 'binary') return !(['and', 'or', '&&', '||'].includes(n.op) && lexCondHistory(n.right))
+    if (n.type === 'ternary') return !lexCondHistory(n.yes) && !lexCondHistory(n.no)
+    if (n.type === 'call') return !fnByName.has(n.name) && !callHeadStateful(n)
+    return false
+  }
+  // ─── ⭐⭐ WS-C — A `ta.*` IN ONE ARM OF `?:` (OR ON THE RIGHT OF v6's `and` / `or`) ─
+  //
+  // Pine runs only the arm a `?:` takes, so a `ta.*` written in an arm keeps the
+  // history of the bars THAT ARM ran on: `up ? ta.sma(close, 5) : close` averages
+  // the last 5 up-bar closes, `even ? ta.change(close) : na` is the change since
+  // the previous even bar (vw-arm-history-rddt/spy-1d-2026-10-02: T03 / T05 / K02 /
+  // K03 per run on every compared bar, and T03 equals the `if` block's I02). This
+  // lane evaluates both arms on every bar (`SELECT`), so that call answered from
+  // EVERY bar: a plausible, silently wrong line. Pine v6's `and` / `or` skip their
+  // right operand the same way (v6 short-circuit evaluation; not witnessed).
+  // ⛔ SO IT IS REFUSED BY NAME, on both lanes, unless the test reads nothing
+  // per-bar (`invariantTest`: an input or a literal takes one arm on every bar).
+  // What counts as history in an arm (`lexArmHistory`), lexically: a `ta.*` call
+  // (or a v4 bare name / `fixnan` whose head keeps state), a script function
+  // whose body keeps any per-site state, a `(expr)[k]`. A NAME is never counted:
+  // a binding is evaluated on its own line, wherever it is read.
+  const lexArmHistory = (n, d = 0) => {
+    if (!n || typeof n !== 'object' || d > 64) return false
+    if (Array.isArray(n)) return n.some((x) => lexArmHistory(x, d + 1))
+    if (n.type === 'call') {
+      const name = String(n.name || '')
+      if (/^request\./.test(name)) return false     // the requested symbol's own series
+      if (fnByName.has(name)) {
+        if (fnAnyHistory(functions[fnByName.get(name)])) return true
+      } else if (name.startsWith('ta.') || name === 'fixnan' || callHeadStateful(n)) return true
+    }
+    if (n.type === 'offset' && n.arg && n.arg.type !== 'name') return true
+    for (const k of Object.keys(n)) {
+      if (k === 'tok') continue
+      const v = n[k]
+      if (v && typeof v === 'object' && lexArmHistory(v, d + 1)) return true
+    }
+    return false
+  }
+  const SHORT_CIRCUIT = new Set(['and', 'or', '&&', '||'])
+  // A binding the resolver will expand (`y = up ? ta.sma(close, 5) : close`, read
+  // later as `plot(y)`) is walked once, where it is first lowered.
+  const armChecked = new WeakSet()
+  const armHistoryGuard = (node, scope, deep, d = 0) => {
+    if (inRequestValue || !node || typeof node !== 'object' || d > 96) return
+    if (deep && node.type === 'name') {
+      const b = env.get(node.name)
+      if (b && b.kind === 'expr' && b.node && !armChecked.has(b)) {
+        armChecked.add(b)
+        armHistoryGuard(b.node, scope, true, d + 1)
+      }
+      return
+    }
+    const own = () => {
+      let arms = null
+      let test = null
+      if (node.type === 'ternary') { arms = [node.yes, node.no]; test = node.test }
+      else if (node.type === 'binary' && SHORT_CIRCUIT.has(node.op) && pineVersion >= 6) { arms = [node.right]; test = node.left }
+      if (!arms || !arms.some((a) => lexArmHistory(a))) return
+      let inv = false
+      // the parameter this test is blocked on, if any (`invariantTest`), read
+      // here and nowhere else: the region bookkeeping keeps its own value
+      const prevSeen = r4CulpritSeen
+      r4CulpritSeen = null
+      try { inv = invariantTest(test, scope) } catch { inv = false }
+      const culprit = r4CulpritSeen
+      r4CulpritSeen = prevSeen
+      if (inv) return
+      note('runtime:conditional-history')
+      const err = new RuntimeRefusal('runtime:conditional-history',
+        `history (a \`ta.*\` call, or a function that keeps it) ${node.type === 'ternary' ? 'in one arm of `?:`' : `on the right of v6's \`${node.op}\``} `
+        + '— Pine runs it only on the bars that operand is reached, so it keeps the history of those bars; '
+        + 'this lane evaluates it on every bar', locate(node.tok))
+      // ⭐ A TEST ON A PARAMETER IS THE CALL SITE'S (as for an `if`, `r4Guard`).
+      // MLExtensions' `filter_volatility(…, bool useVolatilityFilter) =>
+      // useVolatilityFilter ? ta.atr(…) - ta.atr(…) : 0.0`, called with `true`,
+      // takes that arm on every bar: the call site compiles its own copy with the
+      // parameter as its constant (C35, `condParam`), where the test is invariant.
+      if (owner !== null && loopDepth === 0 && typeof culprit === 'string') {
+        err.frameName = culprit
+        err.condParam = true
+      }
+      throw err
+    }
+    own()
+    if (!deep) return
+    for (const k of Object.keys(node)) {
+      if (k === 'tok') continue
+      const v = node[k]
+      if (Array.isArray(v)) v.forEach((x) => armHistoryGuard(x, scope, true, d + 1))
+      else if (v && typeof v === 'object' && v.type) armHistoryGuard(v, scope, true, d + 1)
+    }
+  }
+  const SERVED_COND = { sma: 'window', ema: 'carried', rma: 'carried' }
+  const servedCondCall = (node, scope) => {
+    if (objectsInRun || owner !== null || loopDepth > 0 || r4Level() <= 0) return null
+    if (!node || node.type !== 'call' || fnByName.has(node.name)) return null
+    const name = String(node.name || '')
+    const bare = name.startsWith('ta.') ? name.slice(3) : (pineVersion < 5 ? name : null)
+    const kind = bare ? SERVED_COND[bare] : undefined
+    if (!kind || (node.args || []).some((a) => a && a.name)) return null
+    const given = (node.args || []).map((a) => (a && a.value !== undefined ? a.value : a))
+    if (given.length !== 2 || lexCondHistory(given[0])) return null
+    const at = locate(node.tok)
+    const n = foldConstNode(given[1], at,
+      `the length of \`${name}\` is only known while the bar is running, `
+      + 'so the state it needs cannot be sized before bar 0', scope)
+    if (!Number.isInteger(n) || n < 1) return null
+    const src = lowerExpr(given[0], scope)
+    if (kind === 'window') {
+      // ⭐ `historySlot` is never read: a `skip` window answers from its own
+      // ring of observations (vm.js `OP.WINDOW`), appended only when it RUNS.
+      const widx = windowsMain.length
+      windowsMain.push({ fn: 'sma', name: `${name}(…,${n}) per call site`, historySlot: 0, span: n })
+      return windowCall(widx, src)
+    }
+    const cidx = carriedMain.length
+    carriedMain.push({ fn: bare, n, name: `${name}(…,${n}) per call site` })
+    return carriedCall(cidx, src)
   }
 
   /** Frame-relative counts for the owner currently being compiled. */
@@ -1633,6 +1983,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
       if (owner !== null) functions[owner].rt5History = true
       conditionalHistoryGuard('a series with history', at)
     }
+    // WS-C — a constant offset past Pine's history buffer, anywhere in the tree.
+    mbbCanonicalCheck(canonical, at)
     const key = JSON.stringify(canonical)
     if (columnByKey.has(key)) return columnByKey.get(key)
     let value
@@ -3851,7 +4203,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
     const h = owner !== null
       ? fnHistorySlotFor(owner, varSlot, depth, at)
       : historySlotFor(varSlot, depth, at)
-    return histSlotDyn(varSlot, h, lowerExpr(e, scope), depth)
+    return mbbDyn(histSlotDyn(varSlot, h, lowerExpr(e, scope), depth))
   }
 
   /** ⭐ Fold ONE parsed expression to a compile-time whole number, or refuse.
@@ -4278,6 +4630,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
         node = folded
       }
     }
+    // WS-C — a `?:` / v6 `and`·`or` lowered HERE (it reads a slot, or is not a
+    // column) keeps its arms' history per arm: `armHistoryGuard`.
+    if ((node.type === 'ternary' || node.type === 'binary') && readsSlot(node, scope)) armHistoryGuard(node, scope, false)
     // ⭐ THE ROUTE DECISION, ASKED ONCE PER SUBTREE. A pure subtree becomes one
     // column no matter how large it is, which is what keeps a stateful program
     // paying runtime cost only for the parts that are actually stateful.
@@ -4354,9 +4709,23 @@ function buildRuntimeIrLinked(source, opts, holder) {
       // them. Asking the lane, and taking over only where it says `text`, can
       // by construction never remove a script that works today.
       //
-      // ⛔ `columnOf` pushes its column as its LAST act, so a throw leaves no
-      // half-registered column behind and this catch cannot corrupt the pool.
-      try {
+      // ⭐⭐ WS-C / R4 — history WRITTEN in a block that does not run every bar
+      // is not an every-bar column (see `lexCondHistory`). A served shape is
+      // lowered per call site; a composite around one is lowered piece by piece
+      // (each piece asks this question again); anything else is refused by name.
+      // A function body's own history is recorded for its CALL SITES to judge.
+      armHistoryGuard(node, scope, true)   // WS-C — every `?:` in this pure subtree
+      lexForeign = false
+      const condHistory = !objectsInRun && (r4Level() > 0 || owner !== null) && lexCondHistory(node)
+      if (condHistory && owner !== null) functions[owner].rt5Lex = true
+      if (condHistory && r4Level() > 0) {
+        if (lexForeign) r4Guard('a series with history bound in another branch', locate(node.tok))
+        const served = servedCondCall(node, scope)
+        if (served) return served
+        if (!condTransparent(node)) {
+          r4Guard(node.type === 'call' ? `\`${node.name}\`` : 'a series with history', locate(node.tok))
+        }
+      } else try {
         return column(columnOf(node, locate(node.tok)))
       } catch (e) {
         // ⛔ ONLY over a subtree that really does carry text, and only for the
@@ -4768,6 +5137,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
             // ⭐ `e[0]` IS `e`. Routing it through the ring would answer with
             // the PREVIOUS bar — one bar wrong in the one case nobody checks.
             if (hb === 0) return read(hoisted.slot)
+            mbbStaticCheck(hb, at, 'an expression')
             slotHistoryGuard(hoisted.slot, at)
             return histSlot(hoisted.slot, historySlotFor(hoisted.slot, hb, at), hb)
           }
@@ -4788,6 +5158,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
           // answer with the PREVIOUS bar — one bar wrong in the one case nobody
           // would think to check.
           if (back === 0) return read(varSlot)
+          mbbStaticCheck(back, at, `\`${node.arg.name}\``)
           slotHistoryGuard(varSlot, at)
           // ⭐⭐⭐ P7.2 — FUNCTION-LOCAL HISTORY IS ALLOCATED PER FUNCTION HERE AND
           // MATERIALISED PER CALL SITE BELOW. The index carried on the node is
@@ -4815,13 +5186,17 @@ function buildRuntimeIrLinked(source, opts, holder) {
           // only `bar_index` changes meaning inside a function body (S02, B01).
           if (owner !== null && node.arg && node.arg.type === 'name' && node.arg.name === 'bar_index') {
             functions[owner].rt5History = true
+            // WS-C / R4: a call-owned `bar_index[k]` is the call site's (C48 H05).
+            if (!objectsInRun) functions[owner].rt5Lex = true
+            r4Guard('a call-owned `bar_index[…]`', offAt)
           }
-          return histDyn(column(columnOf(node.arg, offAt)), lowerExpr(offExpr, scope))
+          return mbbDyn(histDyn(column(columnOf(node.arg, offAt)), lowerExpr(offExpr, scope)))
         }
         const back = Number(node.n)
         if (!Number.isInteger(back) || back < 0) {
           throw new RuntimeRefusal('runtime:statement', 'a bar offset counts backwards in whole bars', locate(node.tok))
         }
+        mbbStaticCheck(back, locate(node.tok), node.arg && node.arg.type === 'name' ? `\`${node.arg.name}\`` : 'a series')
         return hist(column(columnOf(node.arg, locate(node.tok))), back)
       }
       case 'call': {
@@ -5069,6 +5444,11 @@ function buildRuntimeIrLinked(source, opts, holder) {
             || (fn.carriedLocals || []).length || (fn.carried2Locals || []).length) {
             conditionalHistoryGuard(`\`${node.name}\`, a function whose body keeps history,`, locate(node.tok))
           }
+          // WS-C / R4 on the plot lane: only the history a conditional call
+          // would read WRONGLY (see `fnCondUnsafe`); in a loop, any at all.
+          if (loopDepth > 0 ? fnAnyHistory(fn) : fnCondUnsafe(fn)) {
+            r4Guard(`\`${node.name}\`, a function whose body keeps history,`, locate(node.tok))
+          }
           const site = callSites.length
           callSites.push({ fn: fnIndex, at: locate(node.tok) })
           // ⭐ ARGUMENTS ARE LOWERED IN THE CALLER'S SCOPE, so a state-derived
@@ -5290,6 +5670,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
               throw frameBoundRefusal(len.frameName, at, `sizes the window of \`${node.name}\``)
             }
             if (len && Number.isInteger(len.value) && len.value >= 1) {
+              // WS-C / R4: an every-bar column, so it is the call site's history.
+              if (!objectsInRun && owner !== null) functions[owner].rt5Lex = true
+              r4Guard(`\`${node.name}\``, at)
               return column(columnOf({
                 ...node,
                 args: [{ name: null, value: given[0], tok: node.tok },
@@ -5387,6 +5770,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
             windowsMain.push(entry)
           }
           conditionalHistoryGuard('a stateful built-in', null)
+          // WS-C / R4: every policy but `skip` reads the COMMITTED bar ring, so
+          // in a block it would count bars where Pine counts the call's runs.
+          if (FINITE_WINDOW[win.table].na !== 'skip') r4Guard(`\`${node.name}\``, at)
           const call = windowCall(widx, read(varSlot))
           // ⛔ THE SIGN IS APPLIED HERE, ON THE WAY OUT, because that is where
           // `pine.js` applies it — `u-` wrapping the bare call, not a second
@@ -5939,6 +6325,47 @@ function buildRuntimeIrLinked(source, opts, holder) {
       && !!bound && bound.type === 'number' && Number(bound.value) === MAX_BARS_BACK_CEILING
   }
 
+  // ─── ⭐⭐ WS-C — PINE'S HISTORY BUFFER: A READ PAST IT IS AN ERROR, NOT `na` ──
+  //
+  // Pine keeps at most `max_bars_back` bars of history for a series: 5,000 at
+  // most, or the `max_bars_back = N` the declaration names (`indicator`,
+  // `study`, `strategy`), which sizes the buffer of every series. A read past
+  // the buffer STOPS the script on TradingView ("the requested historical offset
+  // is beyond the historical buffer's limit"); this lane used to answer it — a
+  // value from its own longer chart, or `na`. Now:
+  //   · a CONSTANT offset past the buffer refuses the build by name;
+  //   · an offset only known while the bar runs carries the buffer into the read
+  //     (`limit`, the opcode's second operand), and the VM stops the run there.
+  // ⚠️ A read before bar 0 that lies WITHIN the buffer is still `na`, as before.
+  // ⚠️ Pine's AUTOMATIC sizing (no declaration, a dynamic offset that grows after
+  // the first bars) can stop a script earlier than 5,000; not witnessed, so not
+  // modelled (capture queue `capture-queue-2026-10-31-wsc-history.md`).
+  // ⛔ `max_bars_back(x, n)` with n below 5,000 stays refused (`runtime:directive`):
+  // a per-series buffer would bound built-in windows over `x` too, unwitnessed.
+  const MBB_DECLARED = (() => {
+    let m = null
+    try { m = /\bmax_bars_back\s*=\s*(\d+)/.exec(strippedForScan(source)) } catch { m = null }
+    const n = m ? Number(m[1]) : NaN
+    return Number.isInteger(n) && n >= 1 && n < MAX_BARS_BACK_CEILING ? n : null
+  })()
+  const MBB_LIMIT = MBB_DECLARED || MAX_BARS_BACK_CEILING
+  const mbbRefusal = (back, at, what) => {
+    note('runtime:directive')
+    return new RuntimeRefusal('runtime:directive',
+      `${what}[${back}] reads past Pine's history buffer of ${MBB_LIMIT} bars `
+      + `(${MBB_DECLARED ? 'the declared `max_bars_back`' : 'its ceiling'}) — TradingView stops the script there`, at)
+  }
+  const mbbStaticCheck = (back, at, what) => {
+    if (Number.isInteger(back) && back > MBB_LIMIT) throw mbbRefusal(back, at, what)
+  }
+  const mbbCanonicalCheck = (n, at, depth = 0) => {
+    if (!n || typeof n !== 'object' || depth > 96) return
+    if (n.type === 'offset' && Number.isInteger(n.value) && n.value > MBB_LIMIT) throw mbbRefusal(n.value, at, 'a series')
+    for (const a of (n.args || [])) mbbCanonicalCheck(a, at, depth + 1)
+  }
+  // Only a DECLARED buffer rides the node; the ceiling is the VM's own constant.
+  const mbbDyn = (h) => (MBB_DECLARED ? { ...h, limit: MBB_DECLARED } : h)
+
   // ─── ⭐⭐ RT6 — A ROW'S PER-BAR COLOUR, COMPUTED BY THE SAME RUN ─────────────
   //
   // A runtime document computes each row's VALUE bar by bar; until RT6 it could
@@ -6165,10 +6592,15 @@ function buildRuntimeIrLinked(source, opts, holder) {
     const p4 = positional.length > 3 ? argOf(positional[3]) : null
     // ⛔ review L1 — six positionals alone is not the gradient form: the solid
     // form's own signature is `fill(p1, p2, color, title, editable, fillgaps)`.
-    const gradient = GRADIENT_ARGS.some((k) => named.has(k))
+    // ⭐ re-review low — a third positional that is `na` is the solid form's colour
+    // (a hidden fill), unless a fifth positional colour makes it the gradient form.
+    const p5 = positional.length > 4 ? argOf(positional[4]) : null
+    const naColourFill = !GRADIENT_ARGS.some((k) => named.has(k)) && !named.has('color')
+      && !!p3 && isBuiltinNa(p3, scope) && !(p5 && holdsColour(p5, scope))
+    const gradient = !naColourFill && (GRADIENT_ARGS.some((k) => named.has(k))
       || (positional.length >= 6 && !holdsColour(p3, scope))
       || (!named.has('color') && p3 && p4 && !holdsColour(p3, scope) && !holdsText(p3, scope)
-        && !holdsText(p4, scope))
+        && !holdsText(p4, scope)))
     // ⭐ review L3 — a fill TradingView does not draw either (`display = display.none`,
     // or a `color = na`) is `hidden`, so the document does not name it as undrawn.
     const displayNode = named.get('display')
@@ -6394,11 +6826,16 @@ function buildRuntimeIrLinked(source, opts, holder) {
       finalElse = nxt
       break
     }
-    const lowered = arms.map((a) => ({
-      test: lowerExpr(parseWholeExpression(a.testToks), scope),
-      body: mkArm(a.from.sub, a.from.header[0]),
-    }))
-    let chain = finalElse ? mkArm(finalElse.sub, finalElse.header[0]) : []
+    // WS-C / R4: an arm counts as a conditional region unless every test up to
+    // and including its own reads nothing per-bar (`invariantTest`).
+    let allInv = true
+    const lowered = arms.map((a) => {
+      const t = parseWholeExpression(a.testToks)
+      const test = lowerExpr(t, scope)
+      allInv = allInv && invariantTest(t, scope)
+      return { test, body: inR4Region(allInv, () => mkArm(a.from.sub, a.from.header[0])) }
+    })
+    let chain = finalElse ? inR4Region(allInv, () => mkArm(finalElse.sub, finalElse.header[0])) : []
     for (let j = lowered.length - 1; j >= 0; j -= 1) {
       chain = [ifStmt(lowered[j].test, lowered[j].body, chain)]
     }
@@ -6459,12 +6896,26 @@ function buildRuntimeIrLinked(source, opts, holder) {
     const subject = subjToks.length ? parseWholeExpression(subjToks) : null
     const cases = []
     let fallback = null
+    // WS-C / R4: an arm is a conditional region unless the subject and every
+    // match up to its own read nothing per-bar (the fallback: every match).
+    const matchInv = (arm) => {
+      const at = findTop(arm.header, (t) => isPunct(t, '=>'))
+      if (at <= 0) return true
+      let m = null
+      try { m = parseWholeExpression(arm.header.slice(0, at)) } catch { m = null }
+      return !!m && invariantTest(m, scope)
+    }
+    const subjInv = !subject || invariantTest(subject, scope)
+    const allInv = subjInv && (armLines || []).every(matchInv)
+    let armInv = subjInv
     for (const arm of (armLines || [])) {
       const at = findTop(arm.header, (t) => isPunct(t, '=>'))
       if (at < 0) {
         throw new RuntimeRefusal('runtime:block-value',
           `an arm of \`${label} switch …\` has no \`=>\``, locate(arm.header[0]))
       }
+      if (at > 0) armInv = armInv && matchInv(arm)
+      const inv = at === 0 ? allInv : armInv
       const armRhs = arm.header.slice(at + 1)
       // ⭐ AN INLINE `=>` VALUE IS ITS OWN SHAPE; A BLOCK ARM IS THE SHARED
       // RULE. Routing the block case through `mkArm` is what keeps a
@@ -6473,10 +6924,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
       let body
       if (armRhs.length) {
         const armScope = new Scope(scope)
-        body = [assign(slot, lowerExpr(parseWholeExpression(armRhs), armScope))]
+        body = [assign(slot, inR4Region(inv, () => lowerExpr(parseWholeExpression(armRhs), armScope)))]
         objectBlocks.push({ scope: armScope, body })
       } else {
-        body = mkArm(arm.sub, arm.header[0])
+        body = inR4Region(inv, () => mkArm(arm.sub, arm.header[0]))
       }
       if (at === 0) fallback = body
       else cases.push({ matchToks: arm.header.slice(0, at), body })
@@ -7078,17 +7529,19 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // symbol nobody supplied walked straight past the guard that says so —
         // and the "with symbol / without symbol" pair read identically, which
         // is exactly the control `irSymbolFold` exists to be.
+        let allInv = true   // WS-C / R4 — see `invariantTest`
         const lowered = arms.map((a) => {
           const test = lowerExpr(a.test, scope)
+          allInv = allInv && invariantTest(a.test, scope)
           const armScope = new Scope(scope)
-          const body = lowerStmts(a.from.sub || [], armScope)
+          const body = inR4Region(allInv, () => lowerStmts(a.from.sub || [], armScope))
           objectBlocks.push({ scope: armScope, body })
           return { test, body }
         })
         let tail = []
         if (finalElse) {
           const elseScope = new Scope(scope)
-          tail = lowerStmts(finalElse.sub || [], elseScope)
+          tail = inR4Region(allInv, () => lowerStmts(finalElse.sub || [], elseScope))
           objectBlocks.push({ scope: elseScope, body: tail })
         }
         // ⛔ NESTED IFs, NEVER A FLATTENED CONDITION. `else if b` is not `if not a
@@ -7476,7 +7929,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // block would expand (and so evaluate) only on the bars the block runs.
         if (!mutable && !isCollection && !readsSlot(value, scope) && !holdsRunObject(value)
           && !topLevelHistory(value)) {
-          env.set(nameTok.value, { kind: 'expr', node: value, env: new Map(env), at: locate(nameTok), depth: condDepth })
+          env.set(nameTok.value, { kind: 'expr', node: value, env: new Map(env), at: locate(nameTok), depth: condDepth, owner, r4: r4Level(), region: r4Region })
           continue
         }
         const slot = scope.declare(nameTok.value, newSlot(nameTok.value, declarationPersists(toks)))
@@ -7798,6 +8251,11 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // RT5: a body is judged at its CALL SITE; its own list starts at depth 0.
     const prevCondDepth = condDepth
     condDepth = -1
+    // WS-C: a body is judged at its CALL SITE, so its own regions start at 0.
+    const prevR4 = r4Cond
+    const prevRegion = r4Region
+    r4Cond = 0
+    r4Region = 0
     owner = fnIndex
     // ⛔ NO PARENT SCOPE. A Pine function cannot assign to a global, and reading
     // a global mutable slot from inside a frame would need a cross-frame address
@@ -8035,12 +8493,19 @@ function buildRuntimeIrLinked(source, opts, holder) {
       const callsImpure = callSites.slice(sitesBefore)
         .some((cs) => !(functions[cs.fn].effects && functions[cs.fn].effects.pure))
       record.effects = { pure: record.persistCount === 0 && !callsImpure }
+      // WS-C / R4: what a conditional (or looped) call of THIS function reads
+      // through the functions it calls, propagated the same way.
+      const called = callSites.slice(sitesBefore).map((cs) => functions[cs.fn])
+      record.condUnsafeCalls = called.some(fnCondUnsafe)
+      record.anyHistoryCalls = called.some(fnAnyHistory)
     } finally {
       record.compiling = false
       owner = prevOwner
       guardOuter = prevGuard
       frameConsts = prevFrameConsts
       condDepth = prevCondDepth
+      r4Cond = prevR4
+      r4Region = prevRegion
     }
   }
 
@@ -8075,8 +8540,12 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // (`simpleSwitch`): the arm a FIXED TEXT argument selects is fixed per call
     // site, exactly as the window a fixed number sizes is.
     const heldSwitch = !!held && held.simpleSwitch === true
+    // ⭐ WS-C — and a definition held on conditional history in a branch over one
+    // of its parameters (`condParam`, see `invariantTest`): a fixed argument makes
+    // that branch run on every call or on none, for this call site.
+    const heldCond = !!held && held.condParam === true && held.guard === 'runtime:conditional-history'
     if (!held || inRequestValue) return null
-    if (!heldSwitch && held.guard !== 'runtime:history-dynamic-offset') return null
+    if (!heldSwitch && !heldCond && held.guard !== 'runtime:history-dynamic-offset') return null
     const def = deferredFnDefs.get(node.name)
     const culprit = held.frameName
     if (!def || typeof culprit !== 'string') return null
@@ -8111,6 +8580,16 @@ function buildRuntimeIrLinked(source, opts, holder) {
       const p = err && err.frameName
       if (typeof p !== 'string' || !params.includes(p) || consts.has(p)) return err
       const q = quals.get(p)
+      if (err.condParam === true) {
+        note('runtime:conditional-history')
+        const cr = new RuntimeRefusal('runtime:conditional-history',
+          `\`${p}\` decides a branch of \`${node.name}\` that keeps history (a \`ta.*\` call), and this call passes `
+          + 'a value that is not fixed before bar 0, so that branch does not run on every call — '
+          + 'Pine keeps its history per call site, and this lane does not serve that shape yet', at)
+        cr.condParam = true
+        if (blockedBy.has(p)) cr.frameName = blockedBy.get(p)
+        return cr
+      }
       if (err.simpleSwitch === true) {
         // ⭐ C47 — the same refusal for a `switch` arm: named after the parameter,
         // and carried to the CALLER's call site when the argument is the

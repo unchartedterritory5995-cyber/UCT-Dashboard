@@ -739,3 +739,77 @@
   .searchWrap { flex: 1 1 100%; }
   .listSelect { flex: 1 1 auto; max-width: none; }
 }
+
+/* ── AI Explanation: a panel over the widget's foot, never a card in the feed ── */
+.explainPanel {
+  position: absolute;
+  z-index: 5;
+  left: 6px; right: 6px; bottom: 6px;
+  max-height: min(60%, 320px);
+  display: flex;
+  flex-direction: column;
+  background: var(--menu-bg, var(--bg-elevated));
+  color: var(--menu-text, var(--text));
+  border: 1px solid var(--menu-border, var(--border));
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  font-size: 11.5px;
+  line-height: 1.45;
+}
+.explainHead { display: flex; align-items: center; gap: 6px; padding: 6px 6px 2px 10px; }
+.explainTitle {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 9.5px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase;
+  color: var(--menu-muted, var(--text-muted));
+}
+.explainClose {
+  margin-left: auto;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 20px; height: 18px; padding: 0;
+  background: none; border: none; border-radius: 3px;
+  color: var(--menu-muted, var(--text-muted)); cursor: pointer;
+}
+.explainClose:hover { color: var(--menu-text, var(--text)); background: var(--menu-hover, var(--bg-hover)); }
+.explainClose:focus-visible, .explainAction:focus-visible { outline: 1px solid currentColor; }
+.explainSource {
+  margin: 0 10px 4px;            /* a margin, not padding: padding would show the clamped line 3 */
+  color: var(--menu-muted, var(--text-muted));
+  font-size: 10.5px;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+}
+.explainWhen { font-variant-numeric: tabular-nums; opacity: 0.85; }
+.explainBody { padding: 2px 10px 6px; overflow-y: auto; min-height: 0; }
+.explainText { margin: 0 0 6px; }
+.explainText:last-child { margin-bottom: 0; }
+.explainText strong { font-weight: 700; }
+.explainLoading { display: flex; flex-direction: column; gap: 6px; padding: 4px 0; }
+.explainSkel {
+  height: 8px; border-radius: 3px;
+  background: var(--menu-border, var(--border));
+  animation: explainPulse 1.2s ease-in-out infinite;
+}
+.explainSkelShort { width: 55%; }
+@keyframes explainPulse { 50% { opacity: 0.45; } }
+@media (prefers-reduced-motion: reduce) { .explainSkel { animation: none; } }
+.explainError { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; color: var(--menu-muted, var(--text-muted)); }
+.explainFoot {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 4px 10px 6px;
+  border-top: 1px solid var(--menu-border, var(--border));
+}
+.explainNote { color: var(--menu-muted, var(--text-muted)); font-size: 9.5px; }
+.explainAction {
+  margin-left: auto;
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 7px;
+  background: none;
+  border: 1px solid var(--menu-border, var(--border));
+  border-radius: 3px;
+  font-family: var(--font-sans); font-size: 10px;
+  color: var(--menu-text, var(--text)); cursor: pointer;
+}
+.explainAction:hover { background: var(--menu-hover, var(--bg-hover)); }
+.explainError .explainAction { margin-left: 0; }
+/* Only the body scrolls: the head, the clamped source line and the foot keep their height. */
+.explainHead, .explainSource, .explainFoot { flex: 0 0 auto; }
+.explainBody { flex: 1 1 auto; }
