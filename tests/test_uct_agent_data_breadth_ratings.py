@@ -25,7 +25,10 @@ LATEST = 20261030
 
 @pytest.fixture(autouse=True)
 def _env(monkeypatch):
+    # ACTIVE behaviour: both flags on. Model-isolated kinds are DORMANT without UCT_AGENT_ISOLATED (ADR-005, #599);
+    # the dormant default is pinned separately below, with the flag deliberately removed.
     monkeypatch.setenv(gw.DATA_ENV, "1")
+    monkeypatch.setenv(gw.ISOLATED_ENV, "1")
     gw._reset_for_test(None)
     monkeypatch.setattr(bars_fetch, "_last_closed_session_yyyymmdd", lambda now=None: LATEST)
     yield
@@ -67,6 +70,29 @@ def test_model_isolated_kinds_refuse_every_non_answer_purpose_before_any_read(mo
     out = _read(kind, params, purpose=purpose)
     assert env.validate_envelope(out) == [] and out["status"] == "refused" and calls == []
     assert "never used for research" in out["notes"][0]
+
+
+@pytest.mark.parametrize("kind,params", [("breadth.current", {"metric": "pct_above_50sma"}),
+                                         ("ratings", {"symbol": "AAPL"})])
+@pytest.mark.parametrize("purpose", ["answer", "research", "scan"])
+def test_dormant_by_default_both_kinds_are_refused_for_every_purpose(monkeypatch, kind, params, purpose):
+    """ADR-005 / #599: with only UCT_AGENT_DATA on, isolated kinds are refused for EVERY purpose — `answer`
+    included — before any read. A browser-supplied purpose is never the only gate."""
+    monkeypatch.delenv(gw.ISOLATED_ENV)
+    calls = _breadth(monkeypatch)
+    monkeypatch.setattr(ratings_svc, "get_ratings", lambda s: calls.append(s))
+    out = _read(kind, params, purpose=purpose)
+    assert env.validate_envelope(out) == [] and out["status"] == "refused" and calls == []
+    assert "not available to UCT Agent yet" in out["notes"][0]
+
+
+def test_dormant_refusals_spend_no_budget(monkeypatch):
+    monkeypatch.delenv(gw.ISOLATED_ENV)
+    _breadth(monkeypatch)
+    for _ in range(gw.MAX_READS_PER_TURN + 2):
+        assert _read("breadth.current", {"metric": "pct_above_50sma"}, turn="d")["status"] == "refused"
+    monkeypatch.setenv(gw.ISOLATED_ENV, "1")
+    assert _read("breadth.current", {"metric": "pct_above_50sma"}, turn="d")["status"] == "ok"
 
 
 def test_isolated_refusals_spend_no_budget(monkeypatch):
