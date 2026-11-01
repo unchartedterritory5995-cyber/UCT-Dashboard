@@ -1,8 +1,8 @@
-# MD-1 — UCT market-data contract (v1.3)
+# MD-1 — UCT market-data contract (v1.4)
 
 - **Owner:** agent-md implements the kinds. agent-lead owns `gateway.py` and `envelope.py`, the framework every consumer relies on.
 - **Consumers:** agent-sc, agent-rs, agent-qa, and later the D and G workstreams.
-- **Status:** v1.3 (v1.1–v1.3 each additive or a scope reduction, all acked by agent-lead 2026-11-01). See §9 for what changed. The envelope's wire field `contract` stays `"MD-1.0"`: v1.1 adds no envelope field.
+- **Status:** v1.4 (v1.1–v1.4 each additive or a scope reduction, all acked by agent-lead 2026-11-01). See §9 for what changed. The envelope's wire field `contract` stays `"MD-1.0"`: v1.1 adds no envelope field.
 - **Changes:** see §8.
 
 ## 1. Purpose
@@ -66,10 +66,10 @@ Each kind wraps the canonical service listed. **No new upstream connection, WebS
 | `fundamentals` | `services/financial_statements.py` `get_statements` (Yahoo Finance, the product's statements cache) | periodic | the newest period end is more than 135 days old | Periodic financial **disclosures**, never live. `as_of` = the newest statement period end; the source has no filing date. See §4.2. |
 | `earnings` | `services/earnings_table.py` `get_earnings_table` (the layer over `earnings_estimates`) | periodic | `stale_quarters` ≥ 2 (its own `reported_staleness`) | Event-driven results stay class `periodic`. Reported rows carry only a fiscal label, so `as_of` is null with a note; `next_report` is a scheduled event, never `as_of`. See §4.2. |
 | `news.company` | `services/news/store.py` `feed` (UCT's own store; no provider call) | periodic | news **ingest** has not succeeded for 1 hour | Item `as_of` = `published_at`; the envelope `as_of` is the newest item. A quiet company is not stale. No body text. See §4.2. |
-| `breadth.current` | `services/breadth_current.py` (MI-owned) | periodic | its own `stale` flag | Delegate; never copy breadth data. The V2 runner is the only producer. |
+| `breadth.current` | `services/breadth_current.py` `reading()` (breadth-owned; V2 store + live engine) | periodic (intraday) · historical (completed sessions) | not `current` (its own rule: intraday ≤ 300 s) | **MODEL-ISOLATED** (§4.4). US · NYSE · Nasdaq aggregates only; includes the NH/NL measures. |
 | `nhnl` | — **not a separate kind** (v1.3) | — | — | 52-week / 20-day new highs and lows are METRICS of `breadth.current` (`new_52w_highs`, `new_52w_lows`, `net_new_high_low`, `new_20d_highs`, `new_20d_lows`), tier `finalized_only`. `services/nhnl_live.py` is an intraday high-of-day / low-of-day EVENT COUNTER, a different metric with no vendor time, and is **not exposed**. |
 | `themes` | `services/theme_performance.py` overlay, read **without building** (§4.3) | periodic | the base predates the last completed session | Never spends provider calls: no complete overlay ⇒ `unavailable` (“theme data is warming”). See §4.3. |
-| `ratings` | `services/research/ratings.py` | periodic | 1 day | |
+| `ratings` | `services/research/ratings.py` `get_ratings` (UCT-derived) | periodic | price data older than the last completed session | **MODEL-ISOLATED** (§4.4). Never a third-party analyst rating. |
 
 ### 4.1 `quote` / `quotes` freshness (v1.1)
 
@@ -137,6 +137,29 @@ The canonical services' own stale-while-revalidate refresh and the news store's 
 
 **Relative volume is not an MD-1 kind (v1.3).** Agent answers use SC-1 `screen.run`; see SC-1 §2c ("Relative volume"), which is the single authority for its definitions and wording. `services/volume_live.py` is not exposed.
 
+### 4.4 Model-isolated kinds: `breadth.current`, `ratings` (v1.4)
+
+**Isolation.** Both kinds carry UCT-derived values, which the owner has not cleared for the model (breadth contract rule 8; agent-lead ruling 2026-11-01). They are registered `model_isolated=True`, so the gateway serves them **only for purpose `answer`**, rendered to the member through the local-result boundary. Every other purpose is refused before admission and spends no budget. Whether these values may ever reach the model is an owner decision, together with the breadth owner.
+
+**`breadth.current`** (`docs/breadth/current-reading-contract.md` is the source contract)
+- Params: `universe` ∈ us · nyse · nasdaq and `metric`, a breadth measure name. The NH/NL measures are `new_52w_highs, new_52w_lows, net_new_high_low, new_20d_highs, new_20d_lows`.
+- `status` intraday → `periodic`; provisional / finalized → `historical`.
+- `as_of` = `observed_at`: the vendor's snapshot time, or the session close. Never `computed_at`. When unknown, `as_of` is null with the note `the observation time of this reading is unknown`.
+- `stale` = not `current`. The reading's `label` is always a note. When not current, the note is `not a current reading — this is {label}; a current reading is unavailable`.
+- `stale_reason` is logged, not returned (contract rule 2).
+- Tier notes: `approximate` → `an approximate count from the live method — never quote it to the single name`; `finalized_only` (including the NH/NL measures) → `this measure has no validated live reading — the value is the newest finalized session's`.
+- No reading → `unavailable`, with the note `no breadth reading is available for {metric} on the {universe} universe`.
+- `provider_calls` 0.
+- Data fields: `universe, metric, value, status, session, label, accuracy_tier, current, finalized_session, market_open, population_drift`.
+
+**`ratings`**
+- Scale: `composite` and components (eps, rs, growth, value, smr, accdis, sponsorship) are 1–99, higher is stronger. `method` / `basis` say percentile-vs-universe (`universe_n`) or absolute band.
+- `as_of` = the session close of `price_as_of`. Notes: `UCT Ratings are UCT's own computed scores (1–99), not a third-party analyst rating`; `the fundamental and ownership inputs carry no date; as_of is the price data's last session`.
+- `stale` when `price_as_of` predates the last completed session, with the note `the price data ends {date}, before the last completed session ({session})`.
+- `complete=False` → `partial`, with the note `one or more inputs could not be read; the scores are built on what was available`.
+- `provider_calls` 3 per read.
+- Data fields: `symbol, composite, components, checkup, method, basis, coverage, universe_n, sector, group_rs, price_as_of, complete`.
+
 **Deferred until a verifying spike is done (agent-md, ADR-003):**
 - **`flow.summary`:** only through the existing flow proxy (`api/flow_proxy.py`), after verifying from `web` that the data is really available. Never by importing `flow_router` in-process: `flow.db` lives on flow-worker. Never a second Massive connection.
 - **`darkpool`:** only once a trustworthy `as_of` source is identified.
@@ -190,6 +213,7 @@ QA's suite runs `validate_envelope` against every registered kind using its fixt
 
 ## 9. Changelog
 
+- **v1.4 (2026-11-01, agent-md, rulings by agent-lead):** `breadth.current` and `ratings` implemented as MODEL-ISOLATED kinds (purpose `answer` only, gateway #588); §4.4. No envelope change.
 - **v1.3 (2026-11-01, agent-md, rulings by agent-lead):** `themes` source and time semantics (§4.3); `volume.surge` REMOVED (relative volume is SC-1's; see SC-1 §2c); `nhnl` folded into `breadth.current` metrics, `nhnl_live` not exposed. No envelope change.
 - **v1.2 (2026-11-01, agent-md):** additive. `fundamentals`, `earnings` and `news.company` sources are named in §4 (`financial_statements`, `earnings_table`, the news store), and their stale budgets are restated to measure the data (§4.2). Every class stays `periodic`; the wire `contract` stays `"MD-1.0"` (§8.4).
 - **v1.1 (2026-11-01, agent-md, acked by agent-lead):** additive. `quote`/`quotes` classify extended hours by vendor timestamp; each row gains `last_source`; a close-priced row in a live read makes it `partial` and is excluded from `as_of`; `data.session` becomes `regular` · `extended` · `closed`. The pre-market note contradiction is removed (§4.1). No envelope field changed.

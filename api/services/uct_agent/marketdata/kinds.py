@@ -9,10 +9,13 @@ Sprint 1, PR 1: `quote`, `quotes` (services/massive.py snapshot, read-only — s
 Sprint 1, PR 2: `bars.daily` (the canonical bars store via bars_fetch, read-only — see bars_daily.py).
 Sprint 1, PR 3: `fundamentals` (financial_statements), `earnings` (earnings_table), `news.company` (news store).
 Sprint 1, PR 4a: `themes` (theme_performance overlay, read without building).
+Sprint 1, PR 4b: `breadth.current` (breadth_current.reading) and `ratings` (research/ratings) — both
+MODEL-ISOLATED: the gateway serves them for purpose "answer" only.
 """
 from __future__ import annotations
 
-from api.services.uct_agent.marketdata import bars_daily, earnings, news_company, quotes, statements, themes
+from api.services.uct_agent.marketdata import (bars_daily, breadth, earnings, news_company, quotes, ratings,
+                                              statements, themes)
 
 
 def register(registry) -> None:
@@ -65,4 +68,17 @@ def register(registry) -> None:
         description="Equal-weight returns of UCT's curated themes (the Theme Tracker payload), read without "
                     "building it — 'theme data is warming' when no complete overlay exists. "
                     f"Params: {{period: {'|'.join(themes.PERIODS)}, order: leaders|laggards, limit (1-{themes.MAX_LIMIT})}}.",
+    ))
+    registry.register(Kind(
+        name="breadth.current", fn=breadth.read_breadth_current, validate=breadth.validate, freshness="periodic",
+        owner="agent-md", max_symbols=0, model_isolated=True,
+        description="The current breadth reading for one measure on the US, NYSE or Nasdaq universe, from "
+                    "breadth_current (intraday, provisional or finalized, with its label). Includes the "
+                    "new-high/new-low measures. Shown to the member only. Params: {universe, metric}.",
+    ))
+    registry.register(Kind(
+        name="ratings", fn=ratings.read_ratings, validate=ratings.validate, freshness="periodic",
+        owner="agent-md", max_symbols=1, model_isolated=True,
+        description="UCT Ratings: UCT's own composite 0-99 and component scores (not an analyst rating); "
+                    "as_of is the price data's last session. Shown to the member only. Params: {symbol}.",
     ))
