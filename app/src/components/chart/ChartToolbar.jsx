@@ -54,6 +54,7 @@ const SaveReceipt = lazy(() => import('./builder/studio/SaveReceipt'))
 import { mintScope, chartScope, createKey, editKey, draftWillRestore } from './builder/authoring/conversationSessions'
 import { seedFrom } from './builder/agentSeams'
 import { useUserDefinitions, readUserDefinition } from '../../hooks/useUserDefinitions'
+import { scriptUpgradeHeld } from './builder/memberPane/savedScriptUpgrade'
 import { createCustomCopy } from './builder/definitionActions'
 import { useCreateIndicatorAccess } from './builder/studio/createIndicatorFlag'
 import PatternToolbarButton from './PatternToolbarButton'
@@ -1239,6 +1240,29 @@ function ChartToolbar({
       releasePreview(agentPreviewToken)
     }
   }, [agentPreviewToken])
+  // ⭐⭐ SAVED-SCRIPT AUTO-UPGRADE — THE ONE DOOR INTO A SCRIPT DOCUMENT'S UPGRADE: the
+  // builder on the Pine tab, as a revision of the same id, with the stored script in the
+  // box when it is stored (read owner-only, `?source=1`), else an empty box to paste into.
+  const openUpgradeDoor = (row) => {
+    const open = (r) => {
+      setLibraryOpen(false)
+      setCreateOpen(false)
+      setBuilderEditRow({ ...r, upgradeScript: true })
+      setBuilderMode(null)
+      setBuilderEverOpened(true)
+      setBuilderOpen(true)
+    }
+    if (row.has_pine_source === true && typeof row.pine_source !== 'string') {
+      readUserDefinition(row.def_id, { withSource: true })
+        .then((res) => open(res && res.ok && typeof res.row.pine_source === 'string'
+          ? { ...row, pine_source: res.row.pine_source } : row))
+        .catch(() => open(row))
+      return true
+    }
+    open(row)
+    return true
+  }
+
   useImperativeHandle(ref, () => ({
     openSettings: () => {
       setShowColors(false)
@@ -1347,6 +1371,11 @@ function ChartToolbar({
       if (!canManageIndicators) return false
       const row = rowFor(opts)
       if (!row) return false
+      // ⛔⛔ A SCRIPT DOCUMENT TODAY'S ENGINE REFUSED (or could not upgrade) IS NOT OPENED
+      // ON THE FORMULA TAB. Editing its stored maths there would save the known-wrong
+      // translation as the member's own; its door is the script (`openUpgradeDoor`), the
+      // same one the legend's "Updated accuracy available" row opens.
+      if (scriptUpgradeHeld(row)) return openUpgradeDoor(row)
       setLibraryOpen(false)
       setCreateOpen(false)
       setBuilderEditRow(row)
@@ -1362,26 +1391,7 @@ function ChartToolbar({
       if (!canManageIndicators) return false
       const row = rowFor(opts)
       if (!row) return false
-      const open = (r) => {
-        setLibraryOpen(false)
-        setCreateOpen(false)
-        setBuilderEditRow({ ...r, upgradeScript: true })
-        setBuilderMode(null)
-        setBuilderEverOpened(true)
-        setBuilderOpen(true)
-      }
-      // ⭐ A script whose upgrade could not be saved automatically HAS its script
-      // stored: it is read (owner-only `?source=1`) and opened in the box. A read that
-      // fails opens the empty box, which is still a working door.
-      if (row.has_pine_source === true && typeof row.pine_source !== 'string') {
-        readUserDefinition(row.def_id, { withSource: true })
-          .then((res) => open(res && res.ok && typeof res.row.pine_source === 'string'
-            ? { ...row, pine_source: res.row.pine_source } : row))
-          .catch(() => open(row))
-        return true
-      }
-      open(row)
-      return true
+      return openUpgradeDoor(row)
     },
     // ⭐ PHASE 4 — "Create custom copy": a NEW, independent definition (`definitionActions`),
     // added to this chart, then opened for editing — in the studio when the member has

@@ -293,3 +293,58 @@ def test_the_browser_cap_IS_the_store_cap():
     m = re.search(r"export const PINE_SOURCE_MAX_BYTES = (\d+) \* (\d+)", js)
     assert m, "the browser's cap is not declared where this rail reads it"
     assert int(m.group(1)) * int(m.group(2)) == svc.MAX_PINE_SOURCE_BYTES
+
+
+# ═══ review MEDIUM-1 — a refusal is not lifted by saving around it ════════════
+
+def _refused(store):
+    svc.save("u1", DEF_ID, defn(20), pine_source=SCRIPT)
+    svc.record_engine_status("u1", DEF_ID, version=1, engine=1, status="refused",
+                             reason="the pasted script offers no plot")
+
+
+def test_a_FORMULA_save_of_a_refused_definition_stays_withheld(store):
+    """Even an unchanged re-save from the Formula tab (no script, no stamp, marked
+    `scriptEdited`) must not put the refused maths back into the lanes."""
+    _refused(store)
+    edited = defn(20)
+    edited["meta"]["scriptEdited"] = True
+    out = svc.save("u1", DEF_ID, edited, expected_version=1)
+    assert out["appended"] is True and out["version"] == 2
+    row = svc.get("u1", DEF_ID)
+    assert row["engine_status"]["status"] == "refused"
+    assert svc.engine_withheld_reason(row), "a hand save lifted the withhold"
+    from api.services.screener import scan_evaluator
+    assert scan_evaluator.definitions_to_sweep() == []
+
+
+def test_a_script_save_without_a_STAMP_does_not_lift_it_either(store):
+    _refused(store)
+    svc.save("u1", DEF_ID, defn(22), pine_source=SCRIPT, expected_version=1)
+    assert svc.engine_withheld_reason(svc.get("u1", DEF_ID))
+
+
+def test_a_save_FROM_THE_SCRIPT_path_lifts_it(store):
+    """Stamped AND carrying its script: today's translation — the one door out."""
+    _refused(store)
+    svc.save("u1", DEF_ID, defn(25, engine=1), pine_source=SCRIPT, expected_version=1)
+    row = svc.get("u1", DEF_ID)
+    assert "engine_status" not in row and svc.engine_withheld_reason(row) is None
+
+
+def test_a_tombstone_and_a_resurrect_carry_the_refusal(store):
+    _refused(store)
+    assert svc.soft_delete("u1", DEF_ID) is True
+    svc.save("u1", DEF_ID, defn(20))          # resurrect over the tombstone (no script)
+    assert svc.engine_withheld_reason(svc.get("u1", DEF_ID))
+
+
+def test_a_fork_of_a_refused_definition_is_refused_too(store):
+    _refused(store)
+    out = svc.fork("u1", DEF_ID)
+    assert svc.engine_withheld_reason(svc.get("u1", out["def_id"]))
+
+
+def test_the_withhold_sentence_names_the_real_door():
+    st = {"engine_status": {"engine": 1, "status": "refused", "reason": "r"}}
+    assert "Pine tab" in svc.engine_withheld_reason(st)

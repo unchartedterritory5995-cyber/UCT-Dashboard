@@ -23,7 +23,7 @@ import * as registry from '../../engine/nativeRegistry'
 import { astHash } from '../../engine/ast/parse'
 import * as mpd from './memberPaneDefinition'
 import {
-  upgradeKindOf, resolveRow, writeBackOnce, recordOnce, needsScriptForUpgrade, TRANSLATOR_LOAD_TIMEOUT_MS,
+  upgradeKindOf, resolveRow, writeBackOnce, recordOnce, needsScriptForUpgrade, scriptUpgradeHeld, TRANSLATOR_LOAD_TIMEOUT_MS,
   __resetSavedScriptUpgrade, __setTranslatorForTests,
 } from './savedScriptUpgrade'
 import { SCRIPT_ENGINE_VERSION, engineStampOf, withEngineStamp, PINE_SOURCE_MAX_BYTES } from '../../engine/scriptEngineVersion'
@@ -243,5 +243,17 @@ describe('L6 — a script over the store’s cap is never sent', () => {
     // multi-byte: bytes, not characters
     await saveUserDefinition(d, d.id, null, { baseVersion: 4, pineSource: 'é'.repeat(PINE_SOURCE_MAX_BYTES / 2 + 1) })
     expect('pine_source' in JSON.parse(puts()[1][1].body)).toBe(false)
+  })
+})
+
+describe('review MEDIUM-1 — which documents are HELD to the script door', () => {
+  it('refused and retry rows are held; a legacy, current or unrecorded row is not', () => {
+    const d = stale('u_bbbbbbbbbb15')
+    const st = (status) => ({ engine: SCRIPT_ENGINE_VERSION, status, reason: 'r' })
+    expect(scriptUpgradeHeld(rowOf(d, { has_pine_source: true, engine_status: st('refused') }))).toBe(true)
+    expect(scriptUpgradeHeld(rowOf(d, { has_pine_source: true, engine_status: st('write-failed') }))).toBe(true)
+    expect(scriptUpgradeHeld(rowOf(d))).toBe(false)
+    expect(scriptUpgradeHeld(rowOf(withEngineStamp(d), { has_pine_source: true }))).toBe(false)
+    expect(scriptUpgradeHeld(rowOf(d, { pine_source: SCRIPT }))).toBe(false)
   })
 })

@@ -26,6 +26,21 @@
 //   ⛔ Never bump it for a change that does not move translator output: every
 //   bump costs one translation + one write per saved script per member.
 //
+// ⛔⛔ ENGINE BUMP RUNBOOK — read before AND after every bump.
+//   • A TRANSLATOR REGRESSION CAN MARK GOOD SCRIPTS 'refused' SERVER-SIDE. A browser
+//     running the bumped engine records each refusal (`definition_engine_status`), and
+//     every server lane — alerts, scans, backtests — then WITHHOLDS that definition by
+//     name, for every device, until the NEXT bump. Nothing on the member's side clears it
+//     except saving the script again.
+//   • RECOVERY IS TO SHIP ANOTHER BUMP (the fixed translator with this number + 1). A
+//     verdict only binds browsers whose engine is not newer than the one that recorded
+//     it, so the next bump re-asks every refused script and clears the ones it now accepts.
+//   • AFTER EVERY BUMP, CHECK THE REFUSED COUNT: in the web pod, against
+//     user_definitions.db, `SELECT engine, COUNT(*) FROM definition_engine_status WHERE
+//     status='refused' GROUP BY engine` — a jump on the new engine is a regression signal,
+//     not a population of bad scripts. (Read-only; never DELETE from that table — the
+//     next bump is the fix.)
+//
 // ⛔ IT IS NOT `memberDocumentMigration.DOOR_VERSION`. That number versions the
 // band-opacity RULE a door applied (its rule table must carry an entry per
 // version, railed), and a document's bytes can be repaired from it without the

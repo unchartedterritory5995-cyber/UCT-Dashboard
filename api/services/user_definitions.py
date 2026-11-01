@@ -2166,6 +2166,20 @@ def _engine_status_of(c: sqlite3.Connection, user_id: Any, def_id: str,
                                      "reason": row["reason"]}
 
 
+def _carry_refusal(c: sqlite3.Connection, user_id: Any, def_id: str,
+                   from_version: int, to_version: int, now: int,
+                   to_def_id: Optional[str] = None) -> None:
+    """Copy a `refused` verdict from one stored version onto another (same txn)."""
+    held = _engine_status_of(c, user_id, def_id, from_version)
+    if held is not None and held["status"] == "refused":
+        c.execute(
+            "INSERT INTO definition_engine_status "
+            "(user_id, def_id, version, engine, status, reason, created_at) "
+            "VALUES (?,?,?,?,?,?,?)",
+            (str(user_id), to_def_id or def_id, to_version, held["engine"], "refused",
+             held["reason"], now))
+
+
 def _with_engine_status(c: sqlite3.Connection, out: dict) -> dict:
     """Attach the newest engine status recorded for THIS version (or nothing)."""
     st = _engine_status_of(c, out.get("user_id"), out.get("def_id"), out.get("version"))
@@ -2182,8 +2196,8 @@ def engine_withheld_reason(row: Any) -> Optional[str]:
     if not isinstance(st, Mapping) or st.get("status") != "refused":
         return None
     return (f"engine-refused: today's script engine (version {st.get('engine')}) "
-            f"refuses this script — {st.get('reason')}. It is withheld until it is "
-            "saved again from its script.")
+            f"refuses this script — {st.get('reason')}. It stays withheld until it is "
+            "saved from its script (open it in the Builder's Pine tab and save).")
 
 
 def save(user_id: Any, def_id: str, definition: dict,
@@ -2668,6 +2682,14 @@ def save(user_id: Any, def_id: str, definition: dict,
             (str(user_id), def_id, version, rev, new_hash, blob, repaint,
              requirements, pine_source, now),
         )
+        # ⛔⛔ A REFUSAL IS NOT LIFTED BY SAVING AROUND IT. A version today's engine
+        # refused stays withheld on the next version UNLESS that version came from the
+        # script path (stamped AND carrying its script — today's translation of it). A
+        # Formula-tab or studio save of the refused maths, even an unchanged one, would
+        # otherwise put the known-wrong calculation back into alerts, scans and charts.
+        if prev_version is not None and not (
+                pine_source is not None and engine_stamp_of(definition) is not None):
+            _carry_refusal(c, user_id, def_id, prev_version, version, now)
         c.commit()
 
     # ── phase 4: FORGET. The registry holds a CAPTURED tree; this row replaces it.
@@ -3013,6 +3035,8 @@ def soft_delete(user_id: Any, def_id: str) -> bool:
              json.dumps(_requirements_of(prev), separators=(",", ":")),
              _pine_source_of(prev), now, now),
         )
+        # ⛔ the refusal rides the tombstone too, so a resurrect cannot launder it
+        _carry_refusal(c, user_id, def_id, prev["version"], prev["version"] + 1, now)
         c.commit()
     return True
 
@@ -3383,6 +3407,13 @@ def fork(user_id: Any, def_id: str, limits: Any = None, *, role: Any = None) -> 
     # ⭐ SAVED-SCRIPT AUTO-UPGRADE — a copy of a script document keeps its script.
     out = save(user_id, new_id, doc, limits=limits, role=role, _copy_of_stored=True,
                pine_source=src.get("pine_source"))
+    # ⛔ a copy of a refused version is refused too (it is the same known-wrong maths)
+    if out.get("appended") and src.get("version") is not None:
+        with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+            _ensure(c)
+            _carry_refusal(c, user_id, def_id, src["version"], out["version"],
+                           int(time.time()), to_def_id=new_id)
+            c.commit()
     out["forked_from"] = meta["forkedFrom"]
     return out
 

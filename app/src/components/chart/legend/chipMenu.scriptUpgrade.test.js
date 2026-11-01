@@ -51,8 +51,20 @@ describe('the row is wired on the chart', () => {
     expect(sc).toMatch(/scriptUpgrade: needsScriptForUpgrade\(c\.defId\)\s*&& \(\(\) => \{ try \{ return !!toolbarRef\.current\?\.canManageIndicators\?\.\(\) \}/)
     expect(sc).toContain("onScriptUpgrade: () => { close(); try { toolbarRef.current?.openScriptUpgrade?.({ defId: c.defId }) }")
   })
+  it('⛔ "Edit formula" / "Open in Builder" on a HELD script document opens the SCRIPT door, never the Formula tab', () => {
+    const tb = read('../ChartToolbar.jsx')
+    const body = tb.slice(tb.indexOf('openFormulaEditor: (opts = null) => {'))
+    const guard = body.indexOf('if (scriptUpgradeHeld(row)) return openUpgradeDoor(row)')
+    const formula = body.indexOf('setBuilderEditRow(row)')
+    expect(guard, 'the held guard is gone from openFormulaEditor').toBeGreaterThan(-1)
+    expect(guard, 'the guard must run BEFORE the Formula-tab open').toBeLessThan(formula)
+    // and the upgrade door prefills the stored script when one is stored
+    expect(tb).toMatch(/const openUpgradeDoor = \(row\) => \{[\s\S]{0,600}readUserDefinition\(row\.def_id, \{ withSource: true \}\)/)
+  })
+
   it('the toolbar door opens the builder on the row with `upgradeScript: true`', () => {
     const tb = read('../ChartToolbar.jsx')
-    expect(tb).toMatch(/openScriptUpgrade: \(opts = null\) => \{[\s\S]{0,400}setBuilderEditRow\(\{ \.\.\.r, upgradeScript: true \}\)/)
+    expect(tb).toMatch(/openScriptUpgrade: \(opts = null\) => \{[\s\S]{0,200}return openUpgradeDoor\(row\)/)
+    expect(tb).toMatch(/const openUpgradeDoor = \(row\) => \{[\s\S]{0,300}setBuilderEditRow\(\{ \.\.\.r, upgradeScript: true \}\)/)
   })
 })

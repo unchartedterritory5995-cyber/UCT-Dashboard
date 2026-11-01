@@ -332,6 +332,14 @@ export function resolveRow(row) {
   return out(stored)
 }
 
+/** ⭐ Is this script document HELD by a recorded engine verdict (refused, or its
+ *  upgrade could not be saved)? Then its only edit door is the script itself
+ *  (`ChartToolbar.openUpgradeDoor`), never the Formula tab on its stored maths. */
+export function scriptUpgradeHeld(row) {
+  const k = savedScriptUpgradeEnabled() ? upgradeKindOf(row) : 'none'
+  return k === 'refused' || k === 'retry'
+}
+
 /** Does this saved definition offer the "Updated accuracy available" row? */
 export function needsScriptForUpgrade(defId) {
   return typeof defId === 'string' && _legacy.has(defId)
