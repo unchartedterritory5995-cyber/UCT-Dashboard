@@ -550,7 +550,7 @@ describe('C49 · 6 — FX:EURUSD 1D: MEASURED, and left withheld — this chart\
   })
 
   it('so the door withholds it whole, and says why: one weekend day but not the other — anchors and closes, plots and labels', () => {
-    // the capture's last 3,000 bars (2015 →): the full series reaches back before 1990, where no clock is read at all
+    // the capture's last 3,000 bars (2015 →); the whole capture (from 1971) is graded below
     const recent = (cap) => ({ ...cap, bars: { ...cap.bars, rows: cap.bars.rows.slice(-3000) }, plotValues: { ...cap.plotValues, rows: cap.plotValues.rows.slice(-3000) } })
     const ours = on(recent(CAP.FX_Q), pine(['plot(time("W"), "w")', 'plot(time("M"), "m")', 'plot(time_close("W"), "c")',
       'if barstate.islast', '    label.new(bar_index, high, na(time("W")) ? "na" : "known")']))
@@ -560,10 +560,13 @@ describe('C49 · 6 — FX:EURUSD 1D: MEASURED, and left withheld — this chart\
     expect(ours.objects.counts.labels).toBe(0)
     expect(CHART_CLOCK_WITHHELD['time-anchor:weekend-bars']()).toMatch(/vw-time-tf-fx-eurusd-1d-2026-10-01/)
     expect(CHART_CLOCK_WITHHELD['time-anchor:weekend-bars']()).toMatch(/17:00 New York the evening\s+before/)
-    // the whole capture (from 1971): no readable clock, withheld whole and named — and that covers the own-time rows too
+    // the whole capture (from 1971). ⚰️ This read `time-clock:unreadable`: a date before 1990 hit the unit
+    // floor and blanked every clock column, so the shape was never asked. ⭐ 2026-10-31 (`fix/fx-clock-blank`):
+    // the dates are read, the chart is seen as FX-shaped, and both rows are withheld whole for THAT reason —
+    // the anchor as a weekend-bars chart, the own time as a time-of-day read on one (`time-clock:weekend-session`)
     const all = on(CAP.FX_T, pine(['plot(time("W"), "w")', 'plot(na(time(timeframe.period)) ? 111 : 222, "own")']))
     expect(column(all, 0).every(Number.isNaN) && column(all, 1).every(Number.isNaN)).toBe(true)
-    expect(noteCodes(all)).toEqual(['time-clock:unreadable'])
+    expect(noteCodes(all)).toEqual(['time-anchor:weekend-bars', 'time-clock:weekend-session'])
   })
 })
 
