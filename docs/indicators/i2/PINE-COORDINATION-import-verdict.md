@@ -2,7 +2,8 @@
 
 **From:** Indicators (Milestone I2 "Honest Imports", owner-approved 2026-11-01).
 **To:** the Pine integrator. The Pine program runs on another machine, so the owner relays this note.
-**Status:** PROPOSAL. No shared file has been edited.
+**Status:** PROPOSAL. No shared file has been edited. Owner, 2026-11-01: no Pine session is open now,
+so the owner decides whether to authorize Indicators to make edit 1 itself.
 
 ## What exists, on branch `feat/indicators-import-verdict`
 
@@ -19,18 +20,25 @@
 
 ## The two shared-file edits I2 needs, and wants Pine's OK for
 
-1. **`builder/PineBox.jsx`.** The verdict line (`data-testid="import-outcome"`, about line 1129)
-   would render `importVerdict(report)` instead of `report.outcome`, **for non-Pine dialects only**:
+1. **`builder/PineBox.jsx`.** This is the corrected snippet (2026-11-01). The first draft replaced
+   `outcome` wholesale, which would have broken `semanticShown`: it reads `outcome.semantic`, and
+   `importVerdict` does not return that field. The change is now additive:
 
    ```js
-   const outcome = report
-     ? (report.dialect !== 'pine' ? importVerdict(report) : (report.outcome || importOutcome(report)))
-     : null
+   // next to `const outcome = …` (about line 1032); `outcome` itself is unchanged
+   const verdict = useMemo(
+     () => (report && report.dialect !== 'pine' ? importVerdict(report) : null), [report])
+   const shown = verdict || outcome
    ```
 
-   - Pine's rendering and `data-outcome` values stay identical.
-   - Non-Pine imports can now show `data-outcome="no-known-differences"`.
-   - A new rail would render one Pine script before and after and assert the DOM is identical.
+   - The verdict line (`data-testid="import-outcome"`, about line 1129) reads `shown.verdict`,
+     `shown.label` and `shown.reason` instead of `outcome.*`. That is three expressions, plus one
+     import line.
+   - **Pine:** `verdict` is `null`, so `shown === outcome` and the DOM is byte-identical. A new rail
+     renders Pine scripts before and after and compares `innerHTML`.
+   - **Non-Pine:** the line can now read `data-outcome="no-known-differences"`.
+   - **Unchanged:** `semanticShown`, `collapsedNotes`, the support-loop gap notice, and every other
+     Pine path.
 
 2. **No edit to `importOutcome.js`.** I2 deliberately keeps it as it is so that Pine's 336-capture
    verdict grading is untouched.
