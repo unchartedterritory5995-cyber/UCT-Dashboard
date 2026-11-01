@@ -341,6 +341,11 @@ DEFAULT_THRESHOLDS = {
     # per-exchange NBBO inversions (COIN sold-put->Bear, META sold-call->Bull).
     "side_confirm_enabled": True,
     "side_confirm_max_age_ms": 2000,    # consolidated quote must be this fresh
+    # ── Flow bar (2026-10-31) — card DISPLAY only ──────────────────────────
+    # Render the directional one-sidedness as a colored ANSI bar (green bull /
+    # red bear fill, amber opposing side) on CONFIRMED directional cards. False
+    # reverts to the plain "📐 Flow: N% one-sided" text line. No push effect.
+    "flow_bar_enabled": True,
     # Global deep-ITM filter (added 6/30 morning).
     #
     # Trades deeper than this threshold are "synthetic stock substitute"
@@ -5385,6 +5390,43 @@ def _exp_us(exp: str) -> str:
     return s
 
 
+_FLOW_BAR_CELLS = 20  # width of the directional one-sidedness bar
+
+
+def _flow_bar_block(alert: dict) -> str:
+    """Render the contract's directional one-sidedness as a COLORED Discord ANSI
+    bar: a solid fill whose colored length = the one-sidedness %. Green = bullish
+    ask-side, red = bearish, amber = the opposing side's share. Full green bar at
+    100% ask; the green/red shrinks and amber grows as flow gets less one-sided.
+
+    Discord renders the ```ansi code block in color on desktop + modern mobile and
+    degrades to a clean monochrome bar on the few clients without ANSI — readable
+    either way. Returns '' when no flow split was stamped (non-directional / neutral
+    'Unverified' cards never reach here)."""
+    pct = alert.get("_flowPct")
+    if pct is None:
+        return ""
+    try:
+        pct = max(0, min(100, int(round(float(pct)))))
+    except (TypeError, ValueError):
+        return ""
+    n = _FLOW_BAR_CELLS
+    dom_cells = int(round(pct / 100.0 * n))
+    if 0 < pct < 100:                     # keep both sides visible off the extremes
+        dom_cells = max(1, min(n - 1, dom_cells))
+    dom_cells = max(0, min(n, dom_cells))
+    oth_cells = n - dom_cells
+    dom_color = "31" if alert.get("_direction") == "Bear" else "32"   # red bear / green bull
+    esc = "\u001b"
+    bar = f"{esc}[0;{dom_color}m" + "█" * dom_cells
+    if oth_cells:
+        bar += f"{esc}[0;33m" + "█" * oth_cells   # amber = opposing flow
+    bar += f"{esc}[0m"
+    side = alert.get("_flowSide")
+    label = f" {pct}%" + (f" {side}" if side else "")
+    return "```ansi\n" + bar + label + "\n```"
+
+
 def _build_massive_embed(alert: dict, *, mode: str = "single") -> dict:
     """Discord embed for a Massive alert — visually identical to LiveFlow's
     (UCT logo author, green/red color bar, badges, 3-per-row fields).
@@ -5518,13 +5560,20 @@ def _build_massive_embed(alert: dict, *, mode: str = "single") -> dict:
             lines.append("📊 " + "\n".join(vol_group))
         # 📐 Directional one-sidedness (stamped on CONFIRMED directional pushes):
         # the contract's net-flow lean. For a call, "(ask)" == ask-side buying.
+        # Default: a colored ANSI bar (green bull / red bear fill, amber opposing
+        # side). flow_bar_enabled=false reverts to the plain one-line text.
         fpct = alert.get("_flowPct")
         if fpct is not None:
             _fside = alert.get("_flowSide")
-            _ftag = f" ({_fside})" if _fside else ""
-            lines.append(f"📐 Flow: {int(fpct)}% one-sided{_ftag}  ·  "
-                         f"{_fmt_money_m(alert.get('_flowDom') or 0)} vs "
-                         f"{_fmt_money_m(alert.get('_flowOther') or 0)}")
+            _dom = _fmt_money_m(alert.get("_flowDom") or 0)
+            _oth = _fmt_money_m(alert.get("_flowOther") or 0)
+            if _load_thresholds().get("flow_bar_enabled", True):
+                lines.append("📐 Flow conviction\n"
+                             + _flow_bar_block(alert)
+                             + f"\n{_dom} vs {_oth}")
+            else:
+                _ftag = f" ({_fside})" if _fside else ""
+                lines.append(f"📐 Flow: {int(fpct)}% one-sided{_ftag}  ·  {_dom} vs {_oth}")
         default_name = alert.get("alertName") or "UCT Massive"
 
     # Premium-collecting side, surfaced explicitly so the card isn't confusing:
@@ -7034,6 +7083,7 @@ async def save_thresholds(request: Request, _auth: dict = Depends(require_flow_a
         # Push-quality gates (2026-10-29): ex-dividend exclusion + side fresh-confirm.
         "dividend_excl_enabled", "dividend_excl_days", "dividend_extrinsic_buffer",
         "side_confirm_enabled", "side_confirm_max_age_ms",
+        "flow_bar_enabled",          # colored ANSI flow bar on directional cards (display only)
     }
     bad_keys = set(body.keys()) - allowed_top
     if bad_keys:
