@@ -7320,65 +7320,108 @@ function buildRuntimeIrLinked(source, opts, holder) {
   const NUMERIC_SERIES = new Set(['open', 'high', 'low', 'close', 'volume', 'hl2', 'hlc3', 'ohlc4', 'hlcc4',
     'bar_index', 'time', 'time_close', 'last_bar_index', 'timenow'])
   const NUMERIC_CALL = /^(ta\.(sma|ema|rma|wma|hma|vwma|swma|alma|linreg|atr|tr|rsi|cci|mfi|stdev|variance|dev|highest|lowest|highestbars|lowestbars|mom|roc|cum|percentrank|median|mode|range|barssince|correlation|vwap|wpr|cmo|tsi|obv|pvt|accdist|iii|wvad|nvi|pvi|sar|supertrend|bb|bbw|kc|kcw|dmi|macd|stoch|pivothigh|pivotlow)|math\.[a-z_]+|str\.(tostring|format|length|replace|replace_all|lower|upper|substring|trim|repeat|tonumber|pos)|color\.[a-z_]+|int|float|string)$/
-  // ⛔ (review 3 M-1a) `ta.valuewhen`, `ta.change` and `nz` return their SOURCE's
-  // type, so they are not on the numeric list: a bool source makes them bool.
-  // ⛔ (review 3 M-1b) NAMES ARE TYPED BY SPELLING ACROSS EVERY SCOPE, SO EACH BINDING
-  // MUST QUALIFY ON ITS OWN. A global `float x` once let a function-local `x = v > 100`
-  // pass as a number. Now a spelling is numeric only when EVERY binding of it, in any
-  // scope, is either declared float/int/string/color or binds a provably non-bool
-  // value; and a declared type counts only when every declaration of the spelling
-  // carries one. Conservative by construction (a shadowing bool anywhere refuses).
+  // ⛔ (review 3 M-1a, re-review H-2) `ta.valuewhen`, `ta.change` and `nz` return their
+  // SOURCE's type: provably non-bool exactly when that source argument is.
+  const SOURCE_TYPED_CALL = Object.freeze({ nz: 0, 'ta.change': 0, 'ta.valuewhen': 1 })
+  // ⛔ (review 3 M-1b, re-review H-2) NAMES ARE TYPED PER SCOPE: the main program, or one
+  // user function (its parameters and every binding in its body). A spelling is numeric
+  // in a scope when every DECLARATION of it there (`=`; a parameter counts, untyped =
+  // unknown) is typed float/int/string/color or binds a provably non-bool value. A `:=`
+  // never re-types a name (Pine forbids changing type on `:=`), so it is not consulted.
+  // A function reads the main program's binding when it declares none of its own.
   let typeInfo = null
+  const fnDefName = (t) => {
+    const k0 = t[0] && t[0].kind === 'ident' && t[0].value === 'method' ? 1 : 0
+    return t[k0] && t[k0].kind === 'ident' && isPunct(t[k0 + 1], '(') && findTop(t, (x) => isPunct(x, '=>')) > k0
+      ? String(t[k0].value) : null
+  }
   const typeTables = () => {
     if (typeInfo) return typeInfo
-    const bindings = new Map()   // name -> [{ ty, rhs, decl }]
-    const visit = (list) => {
+    const decls = new Map()   // `${scope}\u0000${name}` -> [{ ty, rhs }]  (rhs null = unknown)
+    const add = (sc, nm, rec) => {
+      const key = `${sc}\u0000${nm}`
+      if (!decls.has(key)) decls.set(key, [])
+      decls.get(key).push(rec)
+    }
+    const visit = (list, sc) => {
       for (const st of list || []) {
-        for (const t of statementCommaParts(st) || [st.header || []]) {
-          const eq = findTop(t, (x) => isPunct(x, '=') || isPunct(x, ':='))
-          if (eq <= 0 || !t[eq - 1] || t[eq - 1].kind !== 'ident') continue
-          const nm = String(t[eq - 1].value)
-          const tyTok = t.slice(0, eq - 1).find((x) => x.kind === 'ident' && TYPE_WORDS.has(x.value))
-          if (!bindings.has(nm)) bindings.set(nm, [])
-          bindings.get(nm).push({ ty: tyTok ? tyTok.value : null, rhs: t.slice(eq + 1), decl: isPunct(t[eq], '=') })
+        const h = st.header || []
+        const fn = fnDefName(h)
+        if (fn) {
+          // parameters: `f(float v, w) =>` — typed when written, unknown otherwise
+          const open = h.findIndex((x) => isPunct(x, '('))
+          const arrow = findTop(h, (x) => isPunct(x, '=>'))
+          let tyw = null
+          for (const x of h.slice(open + 1, arrow)) {
+            if (x.kind === 'ident' && TYPE_WORDS.has(x.value)) { tyw = x.value; continue }
+            if (x.kind === 'ident' && !['simple', 'series', 'const'].includes(x.value)) { add(fn, String(x.value), { ty: tyw, rhs: null }); tyw = null }
+            if (isPunct(x, ',')) tyw = null
+          }
+          const inline = h.slice(arrow + 1)
+          if (inline.length) visit([{ header: inline, sub: [] }], fn)
+          visit(st.sub, fn)
+          continue
         }
-        visit(st.sub)
+        for (const t of statementCommaParts(st) || [h]) {
+          const eq = findTop(t, (x) => isPunct(x, '='))
+          if (eq <= 0 || !t[eq - 1] || t[eq - 1].kind !== 'ident') continue
+          const tyTok = t.slice(0, eq - 1).find((x) => x.kind === 'ident' && TYPE_WORDS.has(x.value))
+          add(sc, String(t[eq - 1].value), { ty: tyTok ? tyTok.value : null, rhs: t.slice(eq + 1) })
+        }
+        visit(st.sub, sc)
       }
     }
-    visit(stmts)
-    const numeric = new Set()
-    typeInfo = { bindings, numeric }
-    for (let pass = 0; pass < 3; pass += 1) {
-      for (const [nm, bs] of bindings) {
-        if (bs.every((b) => (b.ty ? NON_BOOL_TYPES.has(b.ty) : provablyNonBoolToks(b.rhs)))) numeric.add(nm)
-      }
-    }
+    visit(stmts, '')
+    typeInfo = { decls, memo: new Map() }
     return typeInfo
   }
-  const declaredTypeOfName = (nm) => {
-    const bs = typeTables().bindings.get(String(nm))
-    const decls = (bs || []).filter((b) => b.decl)
-    if (!decls.length || !decls.every((b) => b.ty && NON_BOOL_TYPES.has(b.ty))) return null
-    return 'float'
+  const curTypeScope = () => (owner === null ? '' : String((functions[owner] && functions[owner].name) || ''))
+  const declsOf = (sc, nm) => {
+    const { decls } = typeTables()
+    return decls.get(`${sc}\u0000${nm}`) || (sc !== '' ? decls.get(`\u0000${nm}`) : null) || null
   }
-  const provablyNonBoolNode = (n, d = 0) => {
+  const nameIsNumeric = (sc, nm) => {
+    const { memo } = typeTables()
+    const key = `${sc}\u0000${nm}`
+    if (memo.has(key)) return memo.get(key)
+    memo.set(key, false)   // a cycle is not a proof
+    const ds = declsOf(sc, nm)
+    const ok = !!ds && ds.every((d) => (d.ty ? NON_BOOL_TYPES.has(d.ty) : d.rhs !== null && provablyNonBoolToks(d.rhs, sc)))
+    memo.set(key, ok)
+    return ok
+  }
+  const declaredTypeOfName = (nm) => {
+    const sc = curTypeScope()
+    const ds = declsOf(sc, String(nm))
+    if (ds && ds.every((d) => d.ty && NON_BOOL_TYPES.has(d.ty))) return 'float'
+    // ⭐ (re-review H-2) `var x = 0.0` is a float by its initialiser
+    return nameIsNumeric(sc, String(nm)) ? 'float' : null
+  }
+  const provablyNonBoolNode = (n, sc, d = 0) => {
     if (!n || typeof n !== 'object' || d > 64) return false
     if (n.type === 'number' || n.type === 'string' || n.type === 'colour' || n.type === 'color') return true
     if (n.type === 'binary') return ['+', '-', '*', '/', '%'].includes(n.op)
     if (n.type === 'unary') return n.op === '-' || n.op === '+'
-    if (n.type === 'ternary') return provablyNonBoolNode(n.yes, d + 1) && provablyNonBoolNode(n.no, d + 1)
-    if (n.type === 'offset') return provablyNonBoolNode(n.of || n.expr || n.target, d + 1)
-    if (n.type === 'call') return NUMERIC_CALL.test(String(n.name))
-    if (n.type === 'name') return NUMERIC_SERIES.has(String(n.name)) || (typeInfo !== null && typeInfo.numeric.has(String(n.name)))
+    if (n.type === 'ternary') return provablyNonBoolNode(n.yes, sc, d + 1) && provablyNonBoolNode(n.no, sc, d + 1)
+    if (n.type === 'offset') return provablyNonBoolNode(n.of || n.expr || n.target, sc, d + 1)
+    if (n.type === 'call') {
+      const nm = String(n.name)
+      if (Object.prototype.hasOwnProperty.call(SOURCE_TYPED_CALL, nm)) {
+        const a = Array.isArray(n.args) ? n.args[SOURCE_TYPED_CALL[nm]] : null
+        return !!a && provablyNonBoolNode(a.value !== undefined ? a.value : a, sc, d + 1)
+      }
+      return NUMERIC_CALL.test(nm)
+    }
+    if (n.type === 'name') return NUMERIC_SERIES.has(String(n.name)) || nameIsNumeric(sc, String(n.name))
     return false
   }
-  const provablyNonBoolToks = (toks) => {
+  const provablyNonBoolToks = (toks, sc = curTypeScope()) => {
     if (!toks || !toks.length) return false
     if (toks.some((x) => x.kind === 'ident' && (x.value === 'true' || x.value === 'false'))) return false
     if (toks.length === 1 && toks[0].kind === 'string') return true
     let node = null
     try { node = parseWholeExpression(toks) } catch { return false }
-    return provablyNonBoolNode(node)
+    return provablyNonBoolNode(node, sc)
   }
   /** the value an arm's lines yield, as tokens, when it is one expression line */
   const armValueToks = (lines) => {
@@ -7872,29 +7915,29 @@ function buildRuntimeIrLinked(source, opts, holder) {
     return typeof name === 'string' && /^[A-Za-z_]\w*$/.test(name) && !sharedArrayNames.has(name)
   }
   /** ⭐ ONE WALK FOR "WHAT DOES THIS USER FUNCTION READ OF THE MAIN FRAME?" — the
-   *  slots it reads at the current bar (a global read or a main-frame slot), through
-   *  EVERY function it calls, added to `into`. A committed `x[n]` is not a read of x
-   *  now. Returns false when a function on the way is not compiled yet (unknown:
-   *  callers fail closed). Shared by the v6 `for` bound guard (reviews H2c) and the
-   *  drawing door's `x := if` self-read refusal (review 3 H-1). */
+   *  slots it reads (a global read or a main-frame slot), through EVERY function it
+   *  calls, added to `into`. Shared by the v6 `for` bound guard (review H2c) and the
+   *  drawing door's `x := if` self-read refusal (review 3 H-1).
+   *  ⚰️ (re-review LOW-1) Two branches lived here and could not be reached: "a callee
+   *  not compiled yet counts as a read" — a CALL node exists only for a function
+   *  already compiled (Pine defines before use, recursion refuses `runtime:recursion`,
+   *  a deferred definition refuses at its call site before any IR is built); and an
+   *  `x[n]` exemption no current lowering reaches. Without it, a committed read that
+   *  ever appeared would count as a read here: the conservative direction. */
   const collectFnGlobalReads = (fnIndex, into, seen = new Set()) => {
-    if (seen.has(fnIndex)) return true
+    if (seen.has(fnIndex)) return
     seen.add(fnIndex)
     const f = functions[fnIndex]
-    if (!f || f.compiling || !f.body) return false
-    let complete = true
     const walk = (x, d) => {
       if (!x || typeof x !== 'object' || d > 256) return
       if (Array.isArray(x)) { for (const y of x) walk(y, d + 1); return }
-      if (x.kind === EXPR.HIST && x.of && x.of.kind === EXPR.READ) return
       if (x.kind === EXPR.READ && Number.isInteger(x.slot)
           && (x.global || (slots[x.slot] && slots[x.slot].owner === null))) into.add(x.slot)
-      if (x.kind === EXPR.CALL && !collectFnGlobalReads(x.fn, into, seen)) complete = false
+      if (x.kind === EXPR.CALL) collectFnGlobalReads(x.fn, into, seen)
       for (const v of Object.values(x)) if (v && typeof v === 'object') walk(v, d + 1)
     }
     walk(f.body, 0)
     walk(f.result, 0)
-    return complete
   }
   const forBoundMovedBy = (toIr, body) => {
     const reads = new Set()
@@ -7929,7 +7972,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
           effect = 'the bound calls a function with an effect or a state of its own'
         }
         // ⭐ (review H2c) the globals it reads, through every callee
-        if (!collectFnGlobalReads(n.fn, reads)) effect = effect || 'the bound calls a function this lane has not compiled yet'
+        collectFnGlobalReads(n.fn, reads)
       }
       for (const v of Object.values(n)) if (v && typeof v === 'object') scanBound(v, d + 1)
     }
@@ -8010,7 +8053,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
   }
 
   /** does lowered IR read `slot` at the current bar (a committed `x[n]` excepted),
-   *  directly or through any user function it calls (unknown counts as a read) */
+   *  directly or through any user function it calls */
   const irReadsSlot = (ir, slot) => {
     let hit = false
     const walk = (x, d) => {
@@ -8021,7 +8064,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
       // ⛔ (review 3 H-1) a read THROUGH a user function counts: `g() => x`
       if (x.kind === EXPR.CALL) {
         const via = new Set()
-        if (!collectFnGlobalReads(x.fn, via) || via.has(slot)) { hit = true; return }
+        collectFnGlobalReads(x.fn, via)
+        if (via.has(slot)) { hit = true; return }
       }
       for (const v of Object.values(x)) if (v && typeof v === 'object') walk(v, d + 1)
     }

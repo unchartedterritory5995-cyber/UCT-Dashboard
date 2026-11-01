@@ -277,6 +277,26 @@ describe('M3 — Pine 6 `bool` is never `na`', () => {
     const r = refusalOf(`${v6}float x = 0.0\nf(v) =>\n    x = v > 100\n    y = if v > 102\n        x\n    y ? 1 : 0\nplot(f(close))\n`)
     expect(r.message).toMatch(/v6 bool is never `na`/)
   })
+  // ⭐ re-review H-2 — names are typed PER SCOPE: a local bool `x` inside f() does not
+  // disqualify the main program's `float x` where the main program reads it
+  it('⭐ H-2: a top-level read of a global float x is served, a local bool x in f() notwithstanding', () => {
+    const out = run(`${v6}float x = close\nf(v) =>\n    x = v > 100\n    x ? 1 : 0\ny = if close > 105\n    x\nplot(y + f(close) * 0)\n`)
+    expect(out.slice(0, 6).every(Number.isNaN)).toBe(true)
+    expect(out.slice(6)).toEqual([106, 107])
+  })
+  it('⭐ H-2: `var x = 0.0` is a float by its initialiser — `x := if … g(close)` is served', () => {
+    const out = run(`${v6}g(v) => v * 2\nvar x = 0.0\nx := if close > 105\n    g(close)\nplot(x)\n`)
+    expect(out.slice(0, 6).every(Number.isNaN)).toBe(true)
+    expect(out.slice(6)).toEqual([212, 214])
+  })
+  it('⛔⛔ H-2: an untyped PARAMETER is unknown, even beside a global float of that name', () => {
+    const r = refusalOf(`${v6}float v = 1.0\nf(v) =>\n    y = if v > 105\n        v\n    nz(y)\nplot(f(close > 105))\n`)
+    expect(r.message).toMatch(/v6 bool is never `na`/)
+  })
+  it('⭐ H-2: a function with no binding of its own reads the main program\'s typed name', () => {
+    const out = run(`${v6}float x = close\nf() =>\n    y = if close > 105\n        x\n    nz(y)\nplot(f())\n`)
+    expect(out).toEqual([0, 0, 0, 0, 0, 0, 106, 107])
+  })
   // ⛔ review 3 L-3 — a ternary whose both branches are numbers is a number
   it('⛔ CONTROL — L-3: a numeric ternary arm is served (na where unmatched)', () => {
     const out = run(`${v6}x = if close > 103\n    close > open ? 1.0 : 2.0\nplot(x)\n`)

@@ -95,6 +95,46 @@ describe('⛔⛔ the C18 door (objects-only pane, production path) draws exactly
 })
 const DOOR_BARS = Array.from({ length: 8 }, (_, i) => ({ t: 1700000000 + i * 86400, o: 100, h: 102 + i, l: 98, c: 100 + i, v: 1000 }))
 
+// ⛔⛔ re-review H-2 — FLOAT values the v6-bool rule wrongly refused on the door (and
+// pane): `nz`/`valuewhen` of a numeric source, `var x = 0.0` typed by its initialiser, a
+// `:=` target typed by its declaration, a typed global beside an untyped local of the same
+// spelling in ANOTHER function. Master draws each (an unmatched float is na, which is
+// right); measured on master 685b5e91d7 with the reviewer's 40-bar fixture.
+describe('⛔⛔ the door draws master\'s value for an unmatched FLOAT (not refused as a bool)', () => {
+  afterEach(() => { vi.unstubAllEnvs() })
+  const B40 = Array.from({ length: 40 }, (_, i) => {
+    const o = 100 + 5 * Math.sin(i * 0.9), c = 100 + 5 * Math.sin(i * 1.7 + 1)
+    return { t: 1700000000 + i * 86400, o, h: Math.max(o, c) + 1 + (i % 3), l: Math.min(o, c) - 1, c, v: 1000 + i }
+  })
+  const H = (v) => `//@version=${v}\nindicator("P", overlay = true)\nk = 0\nfor i = 0 to 1\n    k += 1\n`
+  const T = (n) => `var int nn = 0\nnn += na(${n}) ? 1 : 0\nvar float sm = 0.0\nsm += nz(${n})\nif barstate.islast\n    label.new(bar_index, nn*1000+sm, "s")\n`
+  const FLOATS = {
+    nz_arm_k: [`${H(6)}x = if close > open\n    nz(close[1] * k)\n${T('x')}`, 25401.53],
+    nz_arm_k_v5: [`${H(5)}x = if close > open\n    nz(close[1] * k)\n${T('x')}`, 25401.53],
+    vw_arm_k: [`${H(6)}x = if close > open\n    ta.valuewhen(high > low, close * k, 1)\n${T('x')}`, 26489.66],
+    nz_xif_k: [`${H(6)}var x = 0.0\nx := if close > open\n    nz(close[1] * k)\n${T('x')}`, 25401.53],
+    nz_xif_float_k: [`${H(6)}var float x = 0.0\nx := if close > open\n    nz(close[1] * k)\n${T('x')}`, 25401.53],
+    shadow_untyped_k: [`${H(6)}f(v) =>\n    v * 2\nfloat x = 0.0\ng() =>\n    x = 1.0\n    x\nx := if close > open\n    f(close) + g() * k\n${T('x')}`, 25729.31],
+    shadow_untyped_fnarm_k: [`${H(6)}f(v) =>\n    v * 2 * k\nfloat x = 0.0\ng() =>\n    x = 1.0\n    x\nx := if close > open\n    f(close)\n${T('x')}`, 29386.61],
+    typed_reassign_namearm: [`${H(6)}float lvl = 0.0\nlvl := if high > low\n    high * k\nelse\n    low\ny = if close > open\n    lvl\n${T('y')}`, 25763.31],
+  }
+  for (const [name, [src, master]] of Object.entries(FLOATS)) {
+    it(`${name}: door draws ${master} (master), pane builds it`, () => {
+      vi.stubEnv('VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', '1')
+      const d = memberPaneDefinition({ source: src, id: 'u_wsa_h2', name: 'rt' })
+      expect(d.ok, d.reason).toBe(true)
+      const reader = objectReaderFor(d.definition, B40, { tf: 'D', newestBarIsForming: false, historyFromListing: true })
+      const run = evaluateObjects(reader.program, { barCount: 40, readNode: reader.readNode, readTime: reader.readTime, readUnknown: reader.readUnknown })
+      const ys = run.live.filter((o) => o.family === 'label').map((o) => +Number(o.props.y).toFixed(2))
+      expect(ys).toEqual([master])
+      expect(reader.runtime && reader.runtime.served).toBe(true)
+      const pane = buildRuntimeIr(`${src}plot(close)
+`, { bars: B40, inputs: {}, objectTrees: [], objectTreesAt: [] })
+      expect(pane.ok, pane.ok ? '' : pane.refusal.message).toBe(true)
+    })
+  }
+})
+
 // ⛔⛔ review 3 H-1 — A READ OF x THROUGH A USER FUNCTION is a self-read too. The walk
 // missed `functions[fn].body`, so on the door the chain lowered through the temp and
 // drew a different value from master's (54 vs 84 on the reviewer's 40 bars).
