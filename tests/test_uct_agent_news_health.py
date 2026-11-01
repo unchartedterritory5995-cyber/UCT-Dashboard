@@ -64,12 +64,33 @@ def test_it_is_ingestion_time_not_publication_time(db):
     assert store.newest_published() == ""           # publication time is a different signal
 
 
-def test_unreadable_health_is_none(db, monkeypatch):
-    def broken():
-        raise sqlite3.OperationalError("database is locked")
-    store.latest_source_ok()                         # init the schema first
-    monkeypatch.setattr(store, "_connect", broken)
+def test_unreadable_health_is_none(db):
+    with open(store.db_path(), "wb") as f:           # not a database at all
+        f.write(b"this is not sqlite" * 64)
     assert store.latest_source_ok() is None
+
+
+def test_a_missing_store_answers_none_and_creates_nothing(tmp_path):
+    """QA F-14: it must not initialise (and so create) an empty store where the real one was expected."""
+    path = tmp_path / "no-such-dir" / "news.db"
+    store.set_db_path(str(path))
+    try:
+        assert store.latest_source_ok() is None
+        assert not path.exists() and not path.parent.exists()
+    finally:
+        store.set_db_path(os.path.join(tempfile.gettempdir(), "unused_news_health.db"))
+
+
+def test_an_uninitialised_store_answers_none_and_gains_no_schema(tmp_path):
+    path = tmp_path / "news.db"
+    sqlite3.connect(str(path)).close()               # an empty file: no tables
+    store.set_db_path(str(path))
+    try:
+        assert store.latest_source_ok() is None
+        with sqlite3.connect(str(path)) as c:
+            assert c.execute("SELECT COUNT(*) FROM sqlite_master").fetchone()[0] == 0
+    finally:
+        store.set_db_path(os.path.join(tempfile.gettempdir(), "unused_news_health.db"))
 
 
 def test_read_only_no_write(db):

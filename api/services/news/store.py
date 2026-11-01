@@ -513,11 +513,14 @@ def latest_source_ok() -> str | None:
 
     This is INGESTION health — UCT's own clock at the last successful poll (record_health(ok=True)) — and
     says nothing about when any article was PUBLISHED (that is newest_published). A failed poll never
-    moves it. Returns the ISO-8601 UTC string, or None when no source has ever succeeded (empty table,
-    all last_ok blank) or the health table cannot be read. Read-only: no write, no schema change."""
+    moves it. Returns the ISO-8601 UTC string (`+00:00` form — convert before using it as an MD-1 as_of), or
+    None when no source has ever succeeded (empty table, all last_ok blank) or the health table cannot be
+    read. Truly READ-ONLY: it opens the existing file with `mode=ro` and never calls _ensure_init, so a
+    missing or uninitialised store answers None and nothing is created (no schema, no PRAGMA, no file)."""
     try:
-        _ensure_init()
-        with contextlib.closing(_connect()) as c:
+        uri = "file:" + os.path.abspath(_DB_PATH).replace("\\", "/") + "?mode=ro"
+        with contextlib.closing(sqlite3.connect(uri, uri=True, timeout=15.0)) as c:
+            c.row_factory = sqlite3.Row
             r = c.execute("SELECT MAX(last_ok) m FROM news_source_health WHERE last_ok <> ''").fetchone()
     except sqlite3.Error as e:
         _log.warning("company news health unavailable: %s", type(e).__name__)
