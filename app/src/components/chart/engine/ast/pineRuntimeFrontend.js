@@ -8308,21 +8308,31 @@ function buildRuntimeIrLinked(source, opts, holder) {
           // name it plainly defines is RC-G's defect, and one refusal per
           // condition is what keeps the two lanes from drifting apart about it.
           if (blkSlot === null) refuseUnboundReassign(nameTok, toks)
+          // ⛔⛔ C48 — THE BLOCK YIELDS INTO ITS OWN SLOT, AND THE NAME IS WRITTEN
+          // ONCE IT HAS. Its tests and arms read the name's value BEFORE this
+          // statement (`s := if close > 0` / `s + 1` / `else` / `close`, and
+          // `s := switch` / `c => s`). ⚰️ The block used to yield straight into
+          // `blkSlot` after writing `na` there first, so every arm that read the
+          // name read that `na`: the object lane drew NaN where TradingView draws
+          // the running value (`plotVarBlockRuns.test.js`).
           // ⛔ `na` FIRST, AND IT IS LOAD-BEARING. An `if` with no else that does
           // not match has NO value, so the reassignment writes `na` — it does
           // not leave the previous bar's value standing.
-          out.push(assign(blkSlot, naValue()))
-          const mkArm = armAssignerFor(blkSlot,
+          const valSlot = newSlot(`${nameTok.value}·value`, false)
+          out.push(declare(valSlot, naValue()))
+          const mkArm = armAssignerFor(valSlot,
             `${nameTok.value} := ${blkHead.value} …`, scope)
           if (blkHead.value === 'if') {
             const chain = lowerIfChainInto(list, i, toks.slice(walrus + 2), scope, mkArm)
             i = chain.next
             out.push(chain.stmt)
+            out.push(assign(blkSlot, read(valSlot)))
             continue
           }
-          const sw = lowerSwitchInto(st.sub, toks.slice(walrus + 2), scope, blkSlot, mkArm,
+          const sw = lowerSwitchInto(st.sub, toks.slice(walrus + 2), scope, valSlot, mkArm,
             `${nameTok.value} :=`, blkHead)
           for (const st2 of sw) out.push(st2)
+          out.push(assign(blkSlot, read(valSlot)))
           continue
         }
 

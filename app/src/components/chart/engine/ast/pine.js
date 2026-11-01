@@ -7077,6 +7077,24 @@ export class Resolver {
       if (this.refuseCondCalls) throw err
       this.noteBlockRun(bound, bound.condCall, err)
     }
+    // ⭐⭐ C48 (PLOT LANE, `var` form) — a `var` written from a call in a block
+    // that does not run on every bar (`stateRuns`, set by the fold's state path,
+    // the object lane's mark since #604) holds that call's value at the block's
+    // last RUN, over a window of its RUNS. The output reads it the every-bar way,
+    // as before, and records each such block's guard exactly as a conditional
+    // call's (`noteBlockRun`): the row carries it (`meta.blockRuns`) and the bind
+    // refuses the plot, by name, on a chart where the block runs after a bar it
+    // skipped. A mark with no guard to carry refuses the row (`condRefusal`).
+    // ⚰️ Measured before this: `var float s = na` / `if close > open` /
+    // `s := ta.sma(close, 3)` / `plot(s)` drew 145.7767 on RDDT 1D from the
+    // listing, where TradingView draws 149.2033.
+    if (bound && Array.isArray(bound.stateRuns) && this.condGate && !this.refuseCondCalls && this.mintOnly === 0) {
+      for (const run of bound.stateRuns) {
+        const err = new PineRefusal('pine:block', `${REFUSALS['pine:block']} — ${run.why}`, locate(tok))
+        err.noRuntime = true
+        this.noteBlockRun({ execGuard: run.chain }, run.why, err)
+      }
+    }
     // ⛔⛔ THE DEPTH BOUND. Checked BEFORE descending, so the refusal is built in a
     // frame that still has stack left to build it — a guard that overflows while
     // reporting an overflow reports nothing at all.
@@ -12611,6 +12629,7 @@ export class Resolver {
       throw new PineRefusal('pine:cycle', `${REFUSALS['pine:cycle']} — \`${name}\``, locate(node.tok))
     }
     const callerEnv = this.env
+    this.refuseStaleOuterRead(bound, callerEnv, name, node.tok)
     const frame = node.args.map((a) => ({ kind: 'expr', node: a.value, env: callerEnv }))
     if (filled) {
       for (let k = given; k < bound.params.length; k += 1) {
@@ -12657,6 +12676,19 @@ export class Resolver {
     } finally { this.frames.pop(); this.env = prevEnv }
   }
 
+  /** ⛔ C48 — A FUNCTION THAT READS A `var` WRITTEN SINCE IT WAS DECLARED is
+   *  refused by name at the call (`staleOuterStateRead`): its body was folded
+   *  with the older value, and Pine reads the one at the call. */
+  refuseStaleOuterRead(bound, callerEnv, name, tok) {
+    const stale = staleOuterStateRead(bound, callerEnv)
+    if (!stale) return
+    const fn = name ? `\`${name}\`` : 'a function'
+    throw new PineRefusal('pine:reassign',
+      `${REFUSALS['pine:reassign']} — ${fn} reads \`${stale}\`, a \`var\` written after ${fn} is declared: `
+      + 'Pine reads it where the function is called, and this engine where the function is declared',
+      tok ? locate(tok) : null)
+  }
+
   /** ⭐⭐ R2 STEP 2 — RESOLVE A NODE *INSIDE* A USER FUNCTION'S CALL FRAME.
    *
    *  ⛔⛔ THE TEXT READER USED TO HAND-ROLL THIS AND IT COULD NOT WORK. Its frame
@@ -12691,6 +12723,7 @@ export class Resolver {
     if (this.frames.length >= MAX_CALL_DEPTH) {
       throw new PineRefusal('pine:cycle', `${REFUSALS['pine:cycle']} — a text expression`, null)
     }
+    this.refuseStaleOuterRead(inline.bound, inline.callerEnv, null, node && node.tok)
     this.frames.push((inline.args || []).map((a) => ({
       kind: 'expr', node: a && a.value !== undefined ? a.value : a, env: inline.callerEnv,
     })))
@@ -14669,11 +14702,65 @@ function parseReadsName(node, name) {
   return false
 }
 
+/** ⭐⭐ C48 — THE `var`S OF THE ENCLOSING SCOPE A FUNCTION BODY READS, AS THEY
+ *  STAND WHERE IT IS DECLARED: `[{name, binding}]`.
+ *
+ *  `f() => s` folds its body once, at the declaration, so its `s` is the binding
+ *  `s` held THERE. Pine reads a global inside a function where the function is
+ *  CALLED. The two agree until the `var` is written between the declaration and
+ *  the call; after that this engine reads an older value (`partialStateRead`: the
+ *  previous bar's, or the seed's), and drew it — `s := f()` after
+ *  `if close > open` / `s := ta.sma(close, 3)` drew NaN where TradingView draws
+ *  the conditional mean, and `s := close` / `plot(f())` drew the previous bar's
+ *  close. `staleOuterStateRead` answers, at each call, whether that happened.
+ *  A name the body declares for itself is not the global (a parameter is in
+ *  `beforeFn` as a `param`, never a `state`); a function the body calls
+ *  contributes the reads it recorded. */
+function outerStateReadsOf(headToks, sub, beforeFn, fnEnv) {
+  const names = new Set()
+  const walk = (toks) => { for (const t of toks || []) if (t && t.kind === 'ident') names.add(t.value) }
+  walk(headToks)
+  const stack = [...(sub || [])]
+  while (stack.length) {
+    const st = stack.pop()
+    if (!st) continue
+    walk(st.header)
+    if (Array.isArray(st.sub)) stack.push(...st.sub)
+  }
+  const out = []
+  const add = (name, binding) => { if (!out.some((r) => r.name === name && r.binding === binding)) out.push({ name, binding }) }
+  for (const name of names) {
+    const b = beforeFn.get(name)
+    if (!b) continue
+    if (b.kind === 'state' && fnEnv.get(name) === b) add(name, b)
+    else if (b.kind === 'fn' && Array.isArray(b.outerStateReads)) for (const r of b.outerStateReads) add(r.name, r.binding)
+  }
+  return out
+}
+
+/** ⭐ C48 — the first `var` a function reads (`outerStateReads`) whose value at
+ *  this call is not the one the body was folded with, or null. The same value
+ *  is the same binding, or the value-so-far of that binding inside its own next
+ *  write (`reassignState`'s `stateOf`: `s := f() + 1` reads `self` both ways). */
+function staleOuterStateRead(bound, callerEnv) {
+  const reads = bound && Array.isArray(bound.outerStateReads) ? bound.outerStateReads : null
+  if (!reads || !(callerEnv instanceof Map)) return null
+  for (const { name, binding } of reads) {
+    const now = callerEnv.get(name)
+    if (now !== binding && !(now && now.stateOf === binding)) return name
+  }
+  return null
+}
+
 const reassignState = (prior, env, toks, mut, nameTok) => {
   const rhs = parseWholeExpression(toks.slice(mut + 1))
   const op = toks[mut].value
   const innerEnv = new Map(env)
   const inner = { kind: 'expr', node: prior.update, env: prior.updateEnv, at: prior.at }
+  // ⭐ C48 — which state this is the value-so-far OF: a function that reads the
+  // `var` at its declaration reads the same value here exactly when that is
+  // `prior` (`staleOuterStateRead`).
+  Object.defineProperty(inner, 'stateOf', { value: prior, enumerable: false })
   innerEnv.set(nameTok.value, inner)
   const update = op === ':='
     ? rhs
@@ -24295,6 +24382,10 @@ function translatePineResult(source, opts = {}) {
             + 'engine can read', locate(toks[arrow]))
         }
         self.value = value
+        // ⭐ C48 — the `var`s of the enclosing scope this body reads, as they stand
+        // here (`outerStateReadsOf`), for `staleOuterStateRead` at each call.
+        const outerReads = outerStateReadsOf(toks.slice(arrow + 1), stmt.sub, beforeFn, fnEnv)
+        if (outerReads.length) Object.defineProperty(self, 'outerStateReads', { value: outerReads, enumerable: false })
         // ⭐⭐ C47 — a body read through `name = switch …` is readable by the
         // DRAWING lane only (see the door in `foldStatements`). Everywhere else
         // the function is the refusal the legacy parse gave it — the same guard,
