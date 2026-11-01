@@ -234,3 +234,30 @@ describe('the wait for the translator is bounded', () => {
     }
   })
 })
+
+describe('translation never blocks first paint and never chains rows into one task', () => {
+  it('each held row is translated in its OWN idle callback', async () => {
+    const slots = []
+    globalThis.requestIdleCallback = (fn) => { slots.push(fn); return slots.length }
+    try {
+      const spy = vi.fn(mpd.memberPaneDefinition)
+      __setTranslatorForTests({ memberPaneDefinition: spy })
+      const a = rowOf(staleDoc(), { pine_source: SCRIPT })
+      const b = { ...rowOf(staleDoc(), { pine_source: SCRIPT }), def_id: 'u_abcdefabcde2' }
+      resolveRow(a); resolveRow(b)
+      await flush(); await flush()
+      expect(spy, 'nothing is translated before an idle slot').not.toHaveBeenCalled()
+      expect(slots).toHaveLength(1)
+      slots.shift()()
+      expect(spy).toHaveBeenCalledTimes(1)
+      expect(resolveRow(a).pending).toBe(false)
+      expect(resolveRow(b).pending, 'the second row waits for its own slot').toBe(true)
+      expect(slots).toHaveLength(1)
+      slots.shift()()
+      expect(spy).toHaveBeenCalledTimes(2)
+      expect(resolveRow(b).pending).toBe(false)
+    } finally {
+      delete globalThis.requestIdleCallback
+    }
+  })
+})

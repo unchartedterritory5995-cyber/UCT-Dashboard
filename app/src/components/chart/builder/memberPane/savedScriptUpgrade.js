@@ -199,14 +199,36 @@ function loadWithin(ms) {
   return Promise.race([loadTranslator(), timeout]).finally(() => clearTimeout(timer))
 }
 
+const notify = () => { for (const fn of [..._listeners]) { try { fn() } catch { /* a listener's own problem */ } } }
+
+/** ⭐ ONE ROW PER IDLE SLOT, AFTER PAINT. Measured on the 266-script corpus: a
+ *  translation is p50 ≈ 35 ms but p95 ≈ 0.4–0.5 s and up to ≈ 2.8 s — too long to
+ *  run inside a render or to chain several into one task. So each held row gets
+ *  its own idle callback (a timer where `requestIdleCallback` is absent), the
+ *  chart's first paint and every current indicator go first, and each row is
+ *  drawn the moment its own translation lands. */
+function idle(fn) {
+  const ric = typeof globalThis.requestIdleCallback === 'function' ? globalThis.requestIdleCallback : null
+  if (ric) ric(fn, { timeout: 1000 }); else setTimeout(fn, 0)
+}
+
+function translateEach(entries, mod) {
+  if (!entries.length) return
+  const [[k, row], ...rest] = entries
+  idle(() => {
+    if (!_memo.has(k)) {
+      _memo.set(k, retranslateRow(row, mod.memberPaneDefinition))
+      _pending.delete(k)
+      notify()
+    }
+    translateEach(rest, mod)
+  })
+}
+
 function flush(rowsByKey) {
   _scheduled = false
   loadWithin(TRANSLATOR_LOAD_TIMEOUT_MS).then((mod) => {
-    for (const [k, row] of rowsByKey) {
-      if (_memo.has(k)) continue
-      _memo.set(k, retranslateRow(row, mod.memberPaneDefinition))
-      _pending.delete(k)
-    }
+    translateEach([...rowsByKey], mod)
   }, (err) => {
     // ⛔ The translator could not even be loaded (a chunk 404 after a deploy, a
     // network blip, the timeout): inconclusive, so every held row draws as stored.
@@ -216,7 +238,8 @@ function flush(rowsByKey) {
       _memo.set(k, { status: 'inconclusive', reason: `translator unavailable: ${String((err && err.message) || err)}` })
       _pending.delete(k)
     }
-  }).then(() => { for (const fn of [..._listeners]) { try { fn() } catch { /* a listener's own problem */ } } })
+    notify()
+  })
 }
 
 const _queue = new Map()
