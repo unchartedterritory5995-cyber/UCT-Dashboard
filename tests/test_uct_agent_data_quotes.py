@@ -203,11 +203,38 @@ def test_provider_failures_are_honest_unavailable(monkeypatch, client, calls):
     assert "SECRET" not in " ".join(out["notes"])
 
 
-def test_bad_params_are_unavailable_without_a_provider_call(monkeypatch):
+def test_bad_params_are_refused_before_admission_without_a_provider_call(monkeypatch):
     c = _market(monkeypatch, client=_Client({}))
-    for kind, params in [("quote", {"symbol": ""}), ("quotes", {"symbols": "AAPL"}), ("quotes", {"symbols": []})]:
+    for kind, params in [("quote", {"symbol": ""}), ("quote", {"symbol": "bad sym!"}), ("quotes", {"symbols": "AAPL"}),
+                         ("quotes", {"symbols": []}), ("quotes", {"symbols": ["!!", ""]})]:
         out = _read(kind, params)
-        assert env.validate_envelope(out) == [] and out["status"] == "unavailable" and out["provider_calls"] == 0
+        assert env.validate_envelope(out) == [] and out["status"] == "refused" and out["provider_calls"] == 0
+    assert c.calls == []
+
+
+def test_malformed_requests_spend_no_turn_budget(monkeypatch):
+    """Pre-admission (#575): MAX_READS_PER_TURN bad reads, then a good one in the SAME turn still runs."""
+    _market(monkeypatch, client=_Client({"AAPL": _tick("AAPL")}))
+    for _ in range(gw.MAX_READS_PER_TURN + 2):
+        assert _read("quote", {"symbol": "??"}, turn="same")["status"] == "refused"
+    assert _read("quote", {"symbol": "AAPL"}, turn="same")["status"] == "ok"
+    # control: well-formed reads DO spend it
+    for _ in range(gw.MAX_READS_PER_TURN - 1):
+        _read("quote", {"symbol": "AAPL"}, turn="same")
+    assert "8 data reads" in _read("quote", {"symbol": "AAPL"}, turn="same")["notes"][0]
+
+
+def test_a_partly_invalid_symbol_list_is_still_admitted_and_answered_partial(monkeypatch):
+    _market(monkeypatch, client=_Client({"AAPL": _tick("AAPL")}))
+    out = _read("quotes", {"symbols": ["AAPL", "!!"]})
+    assert out["status"] == "partial" and any("not a ticker symbol" in n for n in out["notes"])
+
+
+def test_a_direct_adapter_call_cannot_bypass_the_check(monkeypatch):
+    c = _market(monkeypatch, client=_Client({}))
+    for fn, params in [(q.read_quote, {"symbol": ""}), (q.read_quotes, {"symbols": "AAPL"})]:
+        out = fn(params, {})
+        assert env.validate_envelope(out) == [] and out["status"] == "unavailable"
     assert c.calls == []
 
 

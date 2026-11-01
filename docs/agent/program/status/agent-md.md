@@ -23,6 +23,13 @@ Only agent-md edits this file. Update it in every PR.
   `historical`; `as_of` = the newest bar's own session close (early closes honoured); stale when the
   store is behind the newest completed session; `provider_calls` = 0. A symbol not in the store is
   `unavailable` — never fetched. Tests: `tests/test_uct_agent_data_bars_daily.py` (18), mutation-checked.
+- **Pre-admission validation** (branch `agent/md/validate-pre-admission`, **stacked on PR 1b / #579**; PR opens
+  after #579 lands). `quote`, `quotes`, `bars.daily` each register a pure `validate=` (gateway #575): a malformed
+  request is `refused` BEFORE admission and spends no read or provider budget. The adapters re-ask the same
+  check, so a direct call cannot bypass it. `quotes` with SOME invalid symbols stays admitted and `partial`.
+  No admission limit or authorization check changed. Mutation-checked.
+- **PR 3 mapping** sent to agent-lead for confirmation before implementation (fundamentals → financial_statements,
+  earnings → earnings_table, news.company → news/store.feed).
 - Next: PR 3 fundamentals/earnings/news.company, PR 4 breadth/nhnl/themes/volume.surge/ratings;
   ADR-003 flow/darkpool spike (draft); freshness eval corpus with agent-qa.
 
