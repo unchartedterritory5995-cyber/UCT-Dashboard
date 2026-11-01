@@ -156,9 +156,12 @@ describe('audit P0-2: a window over a weekly read is not thinkorswim’s value',
   it('Average(close(period = WEEK), 10) is flagged "values may differ", never no-known-differences', () => {
     const rep = inspectSource('plot x = Average(close(period = AggregationPeriod.WEEK), 10);', 'thinkscript')
     expect(rep.ok).toBe(true)
-    expect(importOutcome(rep).verdict).toBe('exact') // today's claim, for the record
+    // ⭐ ORDER-INDEPENDENT with PR #590 (the weekly/monthly lift). Before the lift the
+    // tree still has the P2 shape, so this module flags "may differ"; after it the
+    // translator's own fold note makes the values class "differs". Either way, it is
+    // never "exact", never "no known differences", never "the values are the same".
     const r = importVerdict(rep)
-    expect(r.classes.values.state).toBe(STATE.MAY_DIFFER)
+    expect([STATE.MAY_DIFFER, STATE.DIFFERS]).toContain(r.classes.values.state)
     expect(r.verdict).toBe(VERDICT.DISCLOSED)
     expect(r.reason).not.toMatch(SAME_VALUES)
   })
