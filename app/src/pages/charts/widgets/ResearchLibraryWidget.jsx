@@ -183,9 +183,9 @@ function ManageCollections({ collections, onClose, themeVars, anchorRef }) {
             <>
               <span className={styles.manageName}>{c.name}</span>
               <span className={styles.manageCount}>{c.count}</span>
-              <button type="button" className={news.rowBtn} style={{ opacity: 1 }} onClick={() => { setConfirm(null); setEditing({ id: c.id, name: c.name }) }}
+              <button type="button" className={`${news.rowBtn} ${styles.menuIcon}`} style={{ opacity: 1 }} onClick={() => { setConfirm(null); setEditing({ id: c.id, name: c.name }) }}
                 aria-label={`Rename ${c.name}`} title="Rename"><UIcon name="edit" size={11} gold={false} /></button>
-              <button type="button" className={`${news.rowBtn}${confirm === c.id ? ' ' + styles.danger : ''}`} style={{ opacity: 1 }}
+              <button type="button" className={`${news.rowBtn} ${styles.menuIcon}${confirm === c.id ? ' ' + styles.danger : ''}`} style={{ opacity: 1 }}
                 onClick={async () => { if (confirm !== c.id) { setConfirm(c.id); return } await run(library.deleteCollection(c.id)); setConfirm(null) }}
                 aria-label={confirm === c.id ? `Confirm: delete ${c.name}` : `Delete ${c.name}`}
                 title={confirm === c.id ? 'Click again to delete. Its headlines stay saved.' : 'Delete collection'}>

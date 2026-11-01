@@ -56,16 +56,22 @@
   padding: 1px 7px; cursor: pointer;
   border-radius: 3px; font-family: var(--font-sans); font-size: 10.5px;
 }
-.linkBtn { background: none; border: none; color: var(--txn-chrome, var(--menu-muted, var(--text-muted))); }
-.linkBtn:hover { color: var(--txn-text, var(--menu-text, var(--text))); }
+/* On the widget surface the buttons take the widget's own inks (--txn-*, painted per theme);
+   inside a menu (role=dialog, menuThemeVars) they take the menu's. --menu-accent is a gold
+   meant for menu surfaces: on a light widget it reads 1.9:1, so it never reaches the surface. */
+.linkBtn { background: none; border: none; color: var(--txn-chrome, var(--text-muted)); }
+.linkBtn:hover { color: var(--txn-text, var(--text)); }
 .primaryBtn {
-  background: none; color: var(--menu-accent, var(--ut-gold, #c9a84c));
-  border: 1px solid var(--menu-border, var(--txn-divider, var(--border))); font-weight: 600;
+  background: none; color: var(--txn-text, var(--text));
+  border: 1px solid var(--txn-divider, var(--border)); font-weight: 600;
 }
+[role="dialog"] .linkBtn { color: var(--menu-text-dim); }
+[role="dialog"] .linkBtn:hover { color: var(--menu-text); }
+[role="dialog"] .primaryBtn { color: var(--menu-accent); border-color: var(--menu-border); }
 .primaryBtn:disabled, .linkBtn:disabled { opacity: 0.5; cursor: default; }
 .linkBtn:focus-visible, .primaryBtn:focus-visible { outline: 1px solid currentColor; }
-.err { color: var(--ut-red-bright); }
-.danger { color: var(--ut-red-bright); width: auto; padding: 0 4px; font-size: 10px; }
+.err { color: var(--danger-ink); }
+.danger { color: var(--danger-ink); width: auto; padding: 0 4px; font-size: 10px; }
 
 .colMenu { width: 210px; }
 .colCheck { display: flex; align-items: center; gap: 6px; padding: 3px 10px; cursor: pointer; }
@@ -80,3 +86,7 @@
 .manageCount { color: var(--menu-muted, var(--text-muted)); font-variant-numeric: tabular-nums; font-size: 10px; }
 
 .more { display: block; margin: 8px auto; }
+/* the Manage menu's icon buttons are News's row buttons (size, focus ring) in the MENU's inks */
+.menuIcon { color: var(--menu-text-dim); }
+.menuIcon:hover, .menuIcon:focus-visible { color: var(--menu-text); }
+.menuIcon.danger { color: var(--danger-ink); }
