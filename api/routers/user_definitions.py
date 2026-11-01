@@ -80,6 +80,12 @@ class DefinitionIn(BaseModel):
     # store refuses (409, nothing written) when the definition has moved on since.
     # `None` (every pre-existing caller) keeps last-write-wins.
     base_version: Optional[int] = None
+    # ⭐⭐ SAVED-SCRIPT AUTO-UPGRADE — the Pine a SCRIPT door built `definition`
+    # from. Persisted in its own column beside the document (never inside it,
+    # never logged — `svc.MAX_PINE_SOURCE_BYTES`). `None` (every formula save and
+    # every pre-existing caller) stores none, and is NOT carried from the
+    # predecessor: a hand edit must never be re-translated away.
+    pine_source: Optional[str] = None
 
 
 class ProposeIn(BaseModel):
@@ -174,7 +180,8 @@ def _save_or_400(user_id, def_id: str, definition: dict,
                  source_dialect: Optional[str] = None,
                  role: Optional[str] = None,
                  repaint_acknowledged=None,
-                 expected_version: Optional[int] = None):
+                 expected_version: Optional[int] = None,
+                 pine_source: Optional[str] = None):
     """Every store refusal is a 400 that carries the store's own sentence.
 
     ⛔ THE MESSAGE IS NOT REWRITTEN HERE. The caps live in one place and their
@@ -200,7 +207,8 @@ def _save_or_400(user_id, def_id: str, definition: dict,
         row = svc.save(user_id, def_id, definition, limits=limits, role=role,
                        repaint_acknowledged=repaint_acknowledged,
                        source_dialect=source_dialect,
-                       expected_version=expected_version)
+                       expected_version=expected_version,
+                       pine_source=pine_source)
     except svc.SaveConflict as exc:
         # ⭐ PHASE 4 — a stale write: 409, the store's own sentence, nothing saved.
         return JSONResponse(status_code=409,
@@ -319,11 +327,21 @@ def _maybe_compact(rows, graph: bool):
     return [svc.compact_row(r) for r in rows] if graph else list(rows)
 
 
+#: ⭐ SAVED-SCRIPT AUTO-UPGRADE — the asking browser's script engine version
+#: (`scriptEngineVersion.SCRIPT_ENGINE_VERSION`). Rows translated by an older
+#: engine are served WITH their stored script so the browser can re-translate
+#: them; absent (an old bundle), nothing changes.
+_ENGINE_PARAM = Query(None, ge=1, description="the client's script engine version")
+
+
 @router.get("")
 def list_definitions(user: dict = Depends(require_paid),
-                     graph: bool = _GRAPH_PARAM):
-    return {"definitions": _maybe_compact(
-        [_stamped(r) for r in svc.list_for_user(user["id"])], graph)}
+                     graph: bool = _GRAPH_PARAM,
+                     engine: Optional[int] = _ENGINE_PARAM):
+    # ⛔ The keyword only when asked: an old bundle's read is the call it always was.
+    rows = (svc.list_for_user(user["id"], source_below=engine) if engine is not None
+            else svc.list_for_user(user["id"]))
+    return {"definitions": _maybe_compact([_stamped(r) for r in rows], graph)}
 
 
 @router.post("")
@@ -347,7 +365,8 @@ def create_definition(body: DefinitionIn,
     return _save_or_400(user["id"], def_id, definition, limits,
                         import_id=body.import_id, source_dialect=body.source_dialect,
                         role=user.get("role"),
-                        repaint_acknowledged=body.repaint_acknowledged)
+                        repaint_acknowledged=body.repaint_acknowledged,
+                        pine_source=body.pine_source)
 
 
 @router.post("/propose")
@@ -541,9 +560,10 @@ def runtime_kill(user: dict = Depends(require_paid)):
 def get_definition(def_id: str,
                    version: Optional[int] = Query(None, ge=1),
                    user: dict = Depends(require_paid),
-                   graph: bool = _GRAPH_PARAM):
+                   graph: bool = _GRAPH_PARAM,
+                   source: bool = Query(False, description="include the stored Pine script")):
     try:
-        row = svc.get(user["id"], def_id, version)
+        row = svc.get(user["id"], def_id, version, with_source=source)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     if row is None:
@@ -593,7 +613,8 @@ def save_definition(def_id: str, body: DefinitionIn,
                         import_id=body.import_id, source_dialect=body.source_dialect,
                         role=user.get("role"),
                         repaint_acknowledged=body.repaint_acknowledged,
-                        expected_version=body.base_version)
+                        expected_version=body.base_version,
+                        pine_source=body.pine_source)
 
 
 @router.post("/{def_id}/fork")
