@@ -58,6 +58,10 @@ MEMBER_TABLES = (
     # The re-lint pass's audit trail (`user_definition_relint.py`, self-ensured there): which of
     # the member's definitions it healed. Keyed by their user_id, so it leaves with them.
     "user_definition_relint_log",
+    # ⭐ SAVED-SCRIPT AUTO-UPGRADE — what a newer script engine recorded about the member's
+    # stored versions (`user_definitions.record_engine_status`). Keyed by their user_id and
+    # meaningless without the definitions it describes, so it leaves with them.
+    "definition_engine_status",
 )
 
 # ⚠️ NOT IN THIS DATABASE, AND CORRECTLY NOT PURGED: `definition_evaluations` and the
