@@ -133,3 +133,46 @@ describe('L3 — named arguments to a served call in a block', () => {
     expect(r).not.toBeNull()
   })
 })
+
+describe('H1b — the held-body scan is an ALLOWLIST: any non-pointwise call or stateful name counts', () => {
+  const held = (expr, v = 6) => {
+    const head = v === 6 ? '//@version=6\nindicator("t")\n' : '//@version=4\nstudy("t")\n'
+    const fl = v === 6 ? 'float base = na' : 'base = float(na)'
+    return `${head}f(mode) =>\n    ${fl}\n    if mode == "ATR"\n        base := ${expr}\n    else\n        base := high - low\n    nz(base)\n`
+      + 'y = close > open ? f("ATR") : 0.0\nplot(y)\n'
+  }
+  const v6Leaks = ['math.sum(close, 3)', 'ta.mom(close, 2)', 'ta.vwma(close, 3)', 'ta.valuewhen(close > open, close, 0)',
+    'ta.barssince(close > open)', 'nz(ta.pivothigh(2, 2))', 'ta.linreg(close, 3, 0)', 'ta.crossover(close, open) ? 1.0 : 0.0',
+    // a call the resolver has no answer for counts too (fail closed)
+    'ta.percentrank(close, 3)', 'ta.correlation(close, open, 3)', 'ta.mfi(hlc3, 3)']
+  const v4Leaks = ['change(close)', 'atr(3)', 'rsi(close, 3)', 'mom(close, 2)', 'roc(close, 2)', 'cci(close, 3)']
+  it.each(v6Leaks)('v6 `%s` in a held branch, called from an arm, is refused', (expr) => {
+    const r = refusalOf(held(expr))
+    expect(r && r.guard).toBe(R4)
+  })
+  it.each(v4Leaks)('v4 `%s` in a held branch, called from an arm, is refused', (expr) => {
+    const r = refusalOf(held(expr, 4))
+    expect(r && r.guard).toBe(R4)
+  })
+  it('CONTROL: the v4 `tr` VARIABLE is the chart series (its `close[1]` is the chart one, as C06 / H06 witness), not call-site state', () => {
+    const b = built(held('tr', 4))
+    if (!b.ok) expect(b.refusal.guard).not.toBe(R4)
+  })
+  it('CONTROL: a held body whose calls are all pointwise (math.abs, math.max, nz) is still served in an arm', () => {
+    // held for a reason that is not history (C47: a switch over a parameter)
+    const sw = 'h(mode) =>\n    switch mode\n        "A" => math.abs(close - open) + nz(close)\n        => math.max(high, low)\n'
+    const r = refusalOf(v6(`${sw}plot(close > open ? h("A") : 0.0)\n`))
+    expect(r && r.guard).not.toBe(R4)
+  })
+})
+
+describe('L3b — a parameter branch refusal names the real cause', () => {
+  it('`(close - open)[1]` in a parameter branch says an expression\'s history, not a `ta.*` call', () => {
+    const src = v6('f(mode) =>\n    float r = na\n    if mode == "A"\n        r := (close - open)[1]\n    else\n        r := 0.0\n    r\n'
+      + 'plot(f(close > open ? "A" : "B"))\n')
+    const r = refusalOf(src)
+    expect(r && r.guard).toBe(R4)
+    expect(r.message).not.toMatch(/a `ta\.\*` call/)
+    expect(r.message).toMatch(/reads a series with history/)
+  })
+})
