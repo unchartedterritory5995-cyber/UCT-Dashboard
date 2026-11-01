@@ -13,6 +13,14 @@
  *   watchlistId only headlines naming a symbol on this list (personal or prebuilt)
  *   categories  only these server categories ([] = all); every filter is AND
  *   presets     this widget's saved filter/display presets; presetId the applied one
+ *   view        'saved' = the Saved Headlines view (the toolbar's bookmark button);
+ *               collection / ticker / sort are that view's filters
+ *
+ * TWO VIEWS, ONE WIDGET. The feed stays mounted and live behind Saved Headlines (its
+ * pane is only hidden), so its scroll position, date, search, filters and follow state
+ * are exactly as left, and the stream never stops. Both views use the same row actions:
+ * Explain expands inside the row, Bookmark saves/removes (Undo), ⋯ holds Watchlist,
+ * Notebook, Collections and Copy.
  *
  * ⛔ Shows only what Trade Exchange sent: the headline text verbatim, UCT's RECEIPT
  * time (labelled), repeat counts, and a `delayed` mark on headlines recovered late.
@@ -41,12 +49,14 @@ import Select from '../../../components/ui/Select'
 import NewsSettingsPanel from './NewsSettingsPanel'
 import TradeExchangeNewsAlerts from './TradeExchangeNewsAlerts'
 import { formatNumber } from '../../../lib/presentation/presentationPrimitives'
-import { ActionsMenu, CalendarPopover, DayBar, DayList, ExplainPanel, FilterMenu, HealthPopover, Row, TimePopover } from './TradeExchangeNewsParts'
+import { ActionsMenu, CalendarPopover, DayBar, DayList, FilterMenu, HealthPopover, Row, TimePopover } from './TradeExchangeNewsParts'
+import SavedHeadlines from './TradeExchangeNewsSaved'
 import { TXN_SOUND_OPTIONS, txnClampLines, txnSettingsFor, txnWidgetStyleVars } from './tradeExchangeNewsSettings'
 import { categoriesLabel, cleanCategories, cleanPresets, coverageNotice, dayLabel, dayRequest, feedHealth, groupRelated,
   liveStatus, presetPatch, presetSnapshot, quoteSymbols, viewHealth, visibleItems } from './tradeExchangeNewsModel'
 import useTradeExchangeNewsDay from './useTradeExchangeNewsDay'
 import * as library from '../../../lib/tradeExchangeNewsLibrary'
+import { sendHeadlineToNotebook } from '../../../lib/tradeExchangeNewsNotebook'
 import styles from './TradeExchangeNewsWidget.module.css'
 
 //: New-headline highlight: held for 1.5 s, then a 0.6 s fade (CSS .flash), then removed.
@@ -65,7 +75,7 @@ const NO_REST = Object.freeze([])
 //: Fetch the next step of the day this far (px) before the reader reaches an end.
 const NEAR_END_PX = 900
 
-export default function TradeExchangeNewsWidget({ color, opts, onOptsChange }) {
+export default function TradeExchangeNewsWidget({ color, opts, onOptsChange, defaultView = 'feed' }) {
   const { groupSyms, setGroupSym } = useWorkspace()
   const linkedSym = groupSyms?.[color] || null
   const feed = useSyncExternalStore(NEED.subscribe, NEED.read)
@@ -90,6 +100,10 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange }) {
   }, [settings])
 
   const follow = opts?.follow !== false
+  // A widget placed as the retired Research Library opens on Saved (WidgetHost's defaultView).
+  const view = (opts?.view ?? defaultView) === 'saved' ? 'saved' : 'feed'
+  const [savedMounted, setSavedMounted] = useState(view === 'saved')
+  useEffect(() => { if (view === 'saved') setSavedMounted(true) }, [view])
   const linked = !!opts?.linked
   const watchlistId = typeof opts?.watchlistId === 'string' ? opts.watchlistId : ''
   const categories = useMemo(() => cleanCategories(opts?.categories), [opts?.categories])
@@ -190,11 +204,25 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange }) {
     }
   }, [feed.items, feed.status, shown, settings.highlightNew, settings.sound, settings.soundKey])
 
+  // ── row actions (one menu per widget) and the AI Explanation (one open per widget,
+  //    expanded inside its row; the same headline again, ✕ or Esc closes it) ──
+  const [actions, setActions] = useState(null)              // { item, anchor, view }
+  const onActions = useCallback((item, anchor) => setActions((a) => (a?.item.id === item.id && a.view === 'feed' ? null
+    : { item, anchor, view: 'feed' })), [])
+  const onSavedActions = useCallback((item, anchor) => setActions((a) => (a?.item.id === item.id && a.view === 'saved' ? null
+    : { item, anchor, view: 'saved' })), [])
+  const [explain, setExplain] = useState(null)              // { id, view }
+  const onExplain = useCallback((item) => setExplain((x) => (x?.id === item.id && x.view === 'feed' ? null : { id: item.id, view: 'feed' })), [])
+  const onSavedExplain = useCallback((item) => setExplain((x) => (x?.id === item.id && x.view === 'saved' ? null : { id: item.id, view: 'saved' })), [])
+  const closeExplain = useCallback(() => setExplain(null), [])
+
   // ── auto-follow + Jump to live (newest on top) ──
   const listRef = useRef(null)
   const [atTop, setAtTop] = useState(true)
   const [pending, setPending] = useState(0)
-  const following = follow && atTop
+  // While an explanation is open in the feed, arriving headlines never move it: the
+  // place is held (and counted on Jump to live) exactly as with auto-follow off.
+  const following = follow && atTop && explain?.view !== 'feed'
   const topSeq = rows[0]?.seq || 0
   // A step of NEWER rows loaded above (scrolling up after a time jump) never moves
   // what the reader is looking at; live arrivals follow the auto-follow rule.
@@ -276,15 +304,12 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange }) {
     return next
   }), [])
 
-  // ── row actions (one menu per widget) ──
-  const [actions, setActions] = useState(null)              // { item, anchor }
-  const onActions = useCallback((item, anchor) => setActions((a) => (a?.item.seq === item.seq ? null : { item, anchor })), [])
-  const closeActions = useCallback(() => setActions(null), [])
-  // ── AI Explanation (one panel per widget; the same headline again closes it) ──
-  const [explain, setExplain] = useState(null)              // { item, anchor }
-  const onExplain = useCallback((item, anchor) => setExplain((x) => (x?.item.seq === item.seq ? null : { item, anchor })), [])
-  const closeExplain = useCallback(() => setExplain(null), [])
-  // ── Research Library: save / remove (Undo), shared with every News + Library widget ──
+  // ⋯ closes on its own result: a Notebook send reports where it went.
+  const closeActions = useCallback((result) => {
+    setActions(null)
+    if (result && typeof result.text === 'string') setToast({ text: result.text, tone: result.ok ? undefined : 'err' })
+  }, [])
+  // ── bookmarks: save / remove (Undo), shared with every News widget on the page ──
   const lib = useSyncExternalStore(library.subscribe, library.getSnapshot)
   const [toast, setToast] = useState(null)                  // { text, undo?, tone }
   useEffect(() => {
@@ -295,8 +320,12 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange }) {
   const onSave = useCallback(async (item) => {
     const r = await library.toggle(item.id)
     if (!r.ok) setToast({ text: r.error, tone: 'err' })
-    else if (!r.saved) setToast({ text: 'Removed from your library', undo: r.removed })
-    else setToast({ text: 'Saved to your Research Library' })
+    else if (!r.saved) setToast({ text: 'Bookmark removed', undo: r.removed })
+    else setToast({ text: 'Headline saved' })
+  }, [])
+  const onRemove = useCallback(async (item) => {
+    const r = await library.remove(item.id)
+    setToast(r.ok ? { text: 'Bookmark removed', undo: r.removed } : { text: r.error, tone: 'err' })
   }, [])
   const undo = useCallback(async () => {
     const removed = toast?.undo
@@ -304,6 +333,12 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange }) {
     const r = await library.undoRemove(removed)
     if (!r.ok) setToast({ text: r.error || 'Could not restore it. Save it again.', tone: 'err' })
   }, [toast])
+  const onCopied = useCallback((ok) => setToast(ok ? { text: 'Headline copied' }
+    : { text: 'Copy failed: the browser blocked the clipboard', tone: 'err' }), [])
+  const setView = useCallback((v) => {
+    setActions(null)
+    patchOpts({ view: v === 'saved' ? 'saved' : (defaultView === 'saved' ? 'feed' : null) })
+  }, [patchOpts, defaultView])
 
   // ── filters + presets (this widget's opts only) ──
   const [filterOpen, setFilterOpen] = useState(false)
@@ -362,10 +397,11 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange }) {
   const now = Date.now()
   const rowProps = { linkedSym, onSym, colorMode: settings.tickerColorMode, prices, staleSymbols, quotesUsed,
     provisional: feed.provisional, clampLines, onToggleExpand, showCategory: settings.showCategory !== 'off', timeOnly: true,
-    onToggleGroup, onActions, onExplain, onSave }
+    onToggleGroup, onActions, onExplain, onCloseExplain: closeExplain, onSave }
   const renderRow = (it, extra) => (
     <Row key={it.seq} item={it} {...rowProps} expanded={expanded.has(it.seq)} flashing={flashing.has(it.seq)}
-      actionsOpen={actions?.item.seq === it.seq} explainOpen={explain?.item.seq === it.seq}
+      actionsOpen={actions?.view === 'feed' && actions.item.seq === it.seq}
+      explainOpen={explain?.view === 'feed' && explain.id === it.id}
       saved={lib.ids.has(it.id)} {...extra} />
   )
   const renderGroup = (g) => {
@@ -427,18 +463,15 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange }) {
         <TradeExchangeNewsAlerts onClose={() => setAlertsOpen(false)} anchorEl={bellRef.current} themeVars={menuVars} />
       )}
       {actions && (
-        <ActionsMenu key={actions.item.seq} item={actions.item} anchorEl={actions.anchor} hostEl={rootRef.current}
-          themeVars={menuVars} onClose={closeActions} />
+        <ActionsMenu key={`${actions.view}|${actions.item.id}`} item={actions.item} anchorEl={actions.anchor} hostEl={rootRef.current}
+          themeVars={menuVars} onClose={closeActions} onNotebook={sendHeadlineToNotebook} onCopied={onCopied}
+          saved={lib.ids.has(actions.item.id)} />
       )}
       {toast && (
         <div className={`${styles.toast}${toast.tone === 'err' ? ' ' + styles.toastErr : ''}`} role="status" style={menuVars}>
           <span>{toast.text}</span>
           {toast.undo && <button type="button" className={styles.toastBtn} onClick={undo}>Undo</button>}
         </div>
-      )}
-      {explain && (
-        <ExplainPanel key={explain.item.id} item={explain.item} anchorEl={explain.anchor} themeVars={menuVars}
-          onClose={closeExplain} />
       )}
       {filterOpen && (
         <FilterMenu anchorEl={filterRef.current} hostEl={rootRef.current} themeVars={menuVars} onClose={closeFilter}
@@ -466,6 +499,14 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange }) {
           <span className={styles.brandSub}>Powered by Trade Exchange</span>
         </span>
         <span className={styles.spacer} />
+        <button
+          type="button"
+          className={`${styles.iconBtn}${view === 'saved' ? ' ' + styles.iconBtnOn : ''}`}
+          onClick={() => setView(view === 'saved' ? 'feed' : 'saved')}
+          title={view === 'saved' ? 'Back to the News feed' : 'Saved headlines'}
+          aria-label={view === 'saved' ? 'Back to the News feed' : 'Show saved headlines'}
+          aria-pressed={view === 'saved'}
+        ><UIcon name={view === 'saved' ? 'bookmark-fill' : 'bookmark'} size={13} gold={false} /></button>
         <button ref={statusRef} type="button" className={`${styles.status} ${toneCls}`} title={`${status.title} Click for feed health.`}
           aria-live="polite" aria-haspopup="dialog" aria-expanded={healthOpen} onClick={() => setHealthOpen((o) => !o)}>
           <span className={styles.dot} aria-hidden="true" />
@@ -496,6 +537,19 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange }) {
         ><UIcon name="gear" size={14} /></button>
       </div>
 
+      {savedMounted && (
+        <div className={`${styles.pane}${view !== 'saved' ? ' ' + styles.paneHidden : ''}`} inert={view !== 'saved'}
+          aria-hidden={view !== 'saved' || undefined}>
+          <SavedHeadlines active={view === 'saved'} opts={opts} patchOpts={patchOpts} linkedSym={linkedSym} onSym={onSym}
+            menuVars={menuVars} onRemove={onRemove} onBack={() => setView('feed')}
+            explainId={explain?.view === 'saved' ? explain.id : null} onExplain={onSavedExplain} onCloseExplain={closeExplain}
+            actionsId={actions?.view === 'saved' ? actions.item.id : null} onActions={onSavedActions} />
+        </div>
+      )}
+      {/* The feed: hidden, never unmounted, while Saved is open -- its scroll, day, search,
+          filters and follow state are exactly as the reader left them. */}
+      <div className={`${styles.pane}${view === 'saved' ? ' ' + styles.paneHidden : ''}`} inert={view === 'saved'}
+        aria-hidden={view === 'saved' || undefined}>
       <div className={styles.searchBar}>
         <span className={styles.searchWrap}>
           <Input
@@ -604,6 +658,7 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange }) {
             onTime={() => { setCalendarOpen(false); setTimeOpen((o) => !o) }} />
         </div>
       )}
+      </div>
     </div>
   )
 }
