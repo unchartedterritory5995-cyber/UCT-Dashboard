@@ -23,15 +23,21 @@ Only agent-md edits this file. Update it in every PR.
   `historical`; `as_of` = the newest bar's own session close (early closes honoured); stale when the
   store is behind the newest completed session; `provider_calls` = 0. A symbol not in the store is
   `unavailable` — never fetched. Tests: `tests/test_uct_agent_data_bars_daily.py` (18), mutation-checked.
-- **Pre-admission validation** (branch `agent/md/validate-pre-admission`, **stacked on PR 1b / #579**; PR opens
-  after #579 lands). `quote`, `quotes`, `bars.daily` each register a pure `validate=` (gateway #575): a malformed
+- **Pre-admission validation** — ✅ INTEGRATED into agent/int as #583 (`7ca746dd5f`). `quote`, `quotes`, `bars.daily` each register a pure `validate=` (gateway #575): a malformed
   request is `refused` BEFORE admission and spends no read or provider budget. The adapters re-ask the same
   check, so a direct call cannot bypass it. `quotes` with SOME invalid symbols stays admitted and `partial`.
   No admission limit or authorization check changed. Mutation-checked.
-- **PR 3 mapping** sent to agent-lead for confirmation before implementation (fundamentals → financial_statements,
-  earnings → earnings_table, news.company → news/store.feed).
-- Next: PR 3 fundamentals/earnings/news.company, PR 4 breadth/nhnl/themes/volume.surge/ratings;
-  ADR-003 flow/darkpool spike (draft); freshness eval corpus with agent-qa.
+- **PR 3 — `fundamentals`, `earnings`, `news.company`** (branch `agent/md/pr3-fundamentals-earnings-news`,
+  standalone now that #583 is integrated; also carries the fixed-`NOW` quotes-test commit QA asked for). Sources ruled by agent-lead:
+  `financial_statements.get_statements` (Yahoo Finance; as_of = newest period end; stale > 135 d; 6 calls on a
+  synchronous build else 0), `earnings_table.get_earnings_table` (as_of null + note — reported rows carry no
+  date; stale when `stale_quarters` ≥ 2; `next_report` = scheduled event from the same payload, never as_of;
+  1 call per read), `news/store.feed` (≤ 25, no body text; stale on INGEST health, never company quietness;
+  0 calls). All `periodic`. MD-1 **v1.2** (§4 rows + §4.2, constants quoted from the modules). Tests 36,
+  mutation-checked; clock-clean (fixed NOW_TS literal, adapters' clocks frozen — agent-qa F-8); exact news-ingest
+  boundary (exclusive) and UTC-midnight flip for fundamentals pinned.
+- Next: PR 4 breadth.current / nhnl / themes / volume.surge / ratings; ADR-003 flow/darkpool spike (draft);
+  freshness eval corpus with agent-qa.
 
 ## Blockers
 - (none) — the Sprint-0 gateway test was updated by agent-lead in #571.
@@ -43,4 +49,4 @@ Only agent-md edits this file. Update it in every PR.
   a store one session behind (stale), and a store row for today's developing bar (must be excluded).
 
 ## Ready for integration
-- PR 1b quote freshness (MD-1 v1.1)
+- PR 3
