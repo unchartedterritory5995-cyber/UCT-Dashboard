@@ -144,6 +144,57 @@ ${RT}plot(acc * (time >= startDate ? 1 : 0))
     expect(built.runtimeDeclined.why).toMatch(/exchange's time zone/)
   })
 
+  it.each(['99999999999999999', '8640000000000001', '-8640000000000001'])(
+    '⛔ a default outside the JS Date range (%s ms) is refused by name — the document would never validate', (lit) => {
+      const src = SRC.replace('timestamp("01 Jan 2021 00:00 +0000")', lit)
+      const { specs, skipped } = runtimeInputSpecsOf(src)
+      expect(specs.find((s) => s.key === 'startDate')).toBeUndefined()
+      expect(skipped.find((s) => s.key === 'startDate').reason).toMatch(/outside the dates/)
+      const built = mint(src)
+      expect(built.ok).toBe(false)
+      expect(built.runtimeDeclined.why).toMatch(/startDate.*outside the dates/)
+    })
+
+  it('the edge of the range is still a time: ±8.64e15 ms', () => {
+    const built = runtimeOf(SRC.replace('timestamp("01 Jan 2021 00:00 +0000")', '8640000000000000'))
+    expect(specOf(built, 'startDate').default).toBe(8.64e15)
+    expect(validateDefinition(built.definition).ok).toBe(true)
+  })
+
+  it('⛔ a member value outside the JS Date range is refused by name', () => {
+    const built = runtimeOf(SRC)
+    const { installed } = registry.installUserDefinitions([built.definition])
+    expect(refusalOf(installed[0], { startDate: 8640000000000001 })).toMatch(/startDate.*not a time/)
+  })
+
+  it('⭐ `timestamp("UTC", y, m, d, h, mi)` names its zone, so it is read exactly', () => {
+    const at = (args) => runtimeInputSpecsOf(`//@version=5
+indicator("tz")
+s = input.time(timestamp(${args}), "S")
+plot(close)
+`).specs[0]
+    expect(at('"UTC", 2021, 1, 1, 0, 0').default).toBe(Date.UTC(2021, 0, 1))
+    expect(at('"GMT+10", 2021, 1, 1, 9, 30').default).toBe(Date.UTC(2020, 11, 31, 23, 30))
+    expect(at('"UTC-5", 2021, 6, 1, 0, 0, 15').default).toBe(Date.UTC(2021, 5, 1, 5, 0, 15))
+    expect(at('timezone = "UTC", year = 2021, month = 1, day = 1, hour = 0, minute = 0').default).toBe(Date.UTC(2021, 0, 1))
+  })
+
+  it.each([
+    ['"America/New_York", 2021, 1, 1, 0, 0', /named time zone/],
+    ['"UTC", 2021, 2, 30, 0, 0', /not a date/],
+    ['"UTC", 2021, 1, 1, 5, -1', /not a date/], // Date.UTC would carry it to 04:59 the same day
+    ['"UTC-14", 275760, 9, 13, 0, 0', /outside the dates/], // Date's last instant, then 14 h later
+    ['"UTC", 2021, 1, 1, h, 0', /not a fixed date/],
+  ])('⛔ timestamp(%s) is refused with its own reason', (args, why) => {
+    const { skipped } = runtimeInputSpecsOf(`//@version=5
+indicator("tz")
+h = 3
+s = input.time(timestamp(${args}), "S")
+plot(close)
+`)
+    expect(skipped.find((x) => x.key === 's').reason).toMatch(why)
+  })
+
   it('⛔ a member value that is not whole milliseconds is refused by name, never coerced', () => {
     const built = runtimeOf(SRC)
     const { installed } = registry.installUserDefinitions([built.definition])

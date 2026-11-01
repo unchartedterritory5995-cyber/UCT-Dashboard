@@ -48,7 +48,7 @@
 import { lexPine, blockStatements, parseWholeExpression, findTop, isPunct, boundName } from '../ast/pine.js'
 import { KEY_RE } from '../ast/parse.js'
 import { pineColourHex } from '../pinePalette.js'
-import { isSessionString } from '../defSchema.js'
+import { isSessionString, TIME_INPUT_MAX_ABS_MS } from '../defSchema.js'
 
 /** The bar series a member may pick for a source input. */
 export const RUNTIME_SOURCES = Object.freeze(new Set(['open', 'high', 'low', 'close', 'volume', 'hl2', 'hlc3',
@@ -168,6 +168,12 @@ export function textInputIsMemberSet(kind) {
   return kind === 'string' || kind === 'text_area' || kind === 'session'
 }
 
+/** ⭐ A time input's VALUE: whole milliseconds inside the JS Date range — the one reader the run
+ *  uses for a member's value (`defSchema.validateInputValue` asks the same of a stored one). */
+export function isTimeValue(x) {
+  return Number.isInteger(x) && Math.abs(x) <= TIME_INPUT_MAX_ABS_MS
+}
+
 /** Is this a time input: `input.time(…)`, or v4's `input(…, type = input.time)`? */
 export function isTimeInputCall(node) {
   if (!node || node.type !== 'call') return false
@@ -197,7 +203,7 @@ function zoneMinutes(z) {
 
 function utcMs(y, mo, d, h, mi, sec, zone) {
   if (zone === null) return null
-  if (mo < 1 || mo > 12 || d < 1 || d > 31 || h > 23 || mi > 59 || sec > 59) return null
+  if (mo < 1 || mo > 12 || d < 1 || d > 31 || h < 0 || h > 23 || mi < 0 || mi > 59 || sec < 0 || sec > 59) return null
   const ms = Date.UTC(y, mo - 1, d, h, mi, sec)
   const back = new Date(ms)
   if (back.getUTCFullYear() !== y || back.getUTCMonth() !== mo - 1 || back.getUTCDate() !== d) return null
@@ -236,10 +242,17 @@ export function timeInputDefaultOf(node, lookup) {
   return constTimeOf(argOf(node, 'defval', 0), lookup, 0)
 }
 
+const OUT_OF_RANGE = 'its default is outside the dates a chart can hold (±8.64e15 ms, about 271,821 years either side of 1970)'
+
 function constTimeOf(v, lookup, depth) {
   if (!v || depth > 8) return { skip: 'its default is not a fixed date and time' }
   const n = literalNumber(v)
-  if (n !== null) return Number.isInteger(n) ? { ms: n } : { skip: 'its default is not a whole number of milliseconds' }
+  if (n !== null) {
+    if (!Number.isInteger(n)) return { skip: 'its default is not a whole number of milliseconds' }
+    // ⛔ The JS Date range (`defSchema.TIME_INPUT_MAX_ABS_MS`, the server's twin bound): a
+    // default outside it would mint a document `validateDefinition` refuses, so it never installs.
+    return Math.abs(n) <= TIME_INPUT_MAX_ABS_MS ? { ms: n } : { skip: OUT_OF_RANGE }
+  }
   if (v.type === 'call' && v.name === 'timestamp') {
     const args = (v.args || []).filter((a) => a && !a.name)
     if (args.length === 1 && args[0].value && args[0].value.type === 'string') {
@@ -247,6 +260,26 @@ function constTimeOf(v, lookup, depth) {
       return ms === null
         ? { skip: `\`timestamp("${args[0].value.value}")\` is not a date this pane reads exactly` }
         : { ms }
+    }
+    // ⭐ `timestamp(timezone, year, month, day, hour, minute[, second])` NAMES its zone, so it is
+    // exact when that zone is a fixed offset (`UTC`, `GMT+10`, `UTC-5`, `+0530`, the date-string
+    // forms `zoneMinutes` reads). A named zone (`America/New_York`) moves with DST: refused by name.
+    const tz = argOf(v, 'timezone', 0)
+    if (tz && tz.type === 'string') {
+      const zone = zoneMinutes(tz.value)
+      if (zone === null) {
+        return { skip: `its default is \`timestamp("${tz.value}", …)\`, a named time zone this pane does not read` }
+      }
+      const parts = ['year', 'month', 'day', 'hour', 'minute', 'second'].map((k, i) => {
+        const a = argOf(v, k, i + 1)
+        if (!a) return i >= 3 ? 0 : null // hour/minute/second default to 0 (Pine); year/month/day are required
+        const x = literalNumber(a)
+        return x !== null && Number.isInteger(x) ? x : null
+      })
+      if (parts.some((x) => x === null)) return { skip: 'its default is not a fixed date and time' }
+      const ms = utcMs(parts[0], parts[1], parts[2], parts[3], parts[4], parts[5], zone)
+      if (ms === null) return { skip: `its default \`timestamp("${tz.value}", ${parts.join(', ')})\` is not a date` }
+      return Math.abs(ms) <= TIME_INPUT_MAX_ABS_MS ? { ms } : { skip: OUT_OF_RANGE }
     }
     return { skip: "its default is `timestamp(year, month, …)`, which reads the exchange's time zone — "
       + 'not handed to this pane' }

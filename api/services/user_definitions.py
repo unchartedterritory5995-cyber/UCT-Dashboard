@@ -1107,7 +1107,11 @@ def refresh_from_door_stamps(definition: Any, rules: Optional[Mapping] = None) -
 # document's shape is judged differently: no client ever minted these two types before WS-D.
 RUNTIME_INPUT_TYPES = ("time", "session")
 TIME_INPUT_MAX_ABS_MS = 8_640_000_000_000_000
-_SESSION_RE = re.compile(r"^(\d{4}-\d{4}(?:,\d{4}-\d{4})*)(?::([1-7]{1,7}))?$")
+# ⛔ `[0-9]` + `re.ASCII` + `fullmatch`, never a bare `\d`: Python's `\d` matches ANY Unicode
+# digit (Arabic-Indic, fullwidth, Devanagari) where JavaScript's matches 0-9 only, so a
+# direct-API save would store a session the browser refuses and the document would never
+# install. The shared fixture's non-ASCII rows pin both sides.
+_SESSION_RE = re.compile(r"([0-9]{4}-[0-9]{4}(?:,[0-9]{4}-[0-9]{4})*)(?::([1-7]{1,7}))?", re.ASCII)
 
 
 def is_session_string(value: Any) -> bool:
@@ -1116,8 +1120,8 @@ def is_session_string(value: Any) -> bool:
         return False
     if value == "24x7":
         return True
-    m = _SESSION_RE.match(value)
-    if not m or m.end() != len(value):
+    m = _SESSION_RE.fullmatch(value)
+    if not m:
         return False
     days = m.group(2)
     if days and len(set(days)) != len(days):

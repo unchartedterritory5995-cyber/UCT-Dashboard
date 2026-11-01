@@ -1,10 +1,39 @@
 {
-  "_comment": "Phase 3 WS-D. Read by BOTH app/src/components/chart/engine/runtime/__tests__/runtimeInputKinds.test.js (defSchema.isSessionString) and tests/test_runtime_input_kinds.py (user_definitions.is_session_string), so the browser and the server answer one question.",
+  "_comment": "Phase 3 WS-D. Read by BOTH app/src/components/chart/engine/runtime/__tests__/runtimeInputKinds.test.js (defSchema.isSessionString) and tests/test_runtime_input_kinds.py (user_definitions.is_session_string), so the browser and the server answer one question. The non-ASCII rows pin ASCII-only digits on both sides (Python's \\d matches any Unicode digit).",
   "sessions": {
-    "valid": ["0930-1600", "0930-1600:23456", "24x7", "0000-0000", "0000-2400", "1800-0500",
-              "0930-1200,1300-1600", "0930-1200,1300-1600:1234567", "0800-1700:7"],
-    "invalid": ["", "0930", "0930-16", "930-1600", "0960-1000", "2500-0100", "2401-0000",
-                "0930-1600:8", "0930-1600:22", "0930-1600:", "0930-1600 ", " 0930-1600",
-                "0930-1600,", "abcd-efgh", "24X7", "0930_1600"]
+    "valid": [
+      "0930-1600",
+      "0930-1600:23456",
+      "24x7",
+      "0000-0000",
+      "0000-2400",
+      "1800-0500",
+      "0930-1200,1300-1600",
+      "0930-1200,1300-1600:1234567",
+      "0800-1700:7"
+    ],
+    "invalid": [
+      "",
+      "0930",
+      "0930-16",
+      "930-1600",
+      "0960-1000",
+      "2500-0100",
+      "2401-0000",
+      "0930-1600:8",
+      "0930-1600:22",
+      "0930-1600:",
+      "0930-1600 ",
+      " 0930-1600",
+      "0930-1600,",
+      "abcd-efgh",
+      "24X7",
+      "0930_1600",
+      "\u0660\u0669\u0663\u0660-\u0661\u0666\u0660\u0660",
+      "\uff10\uff19\uff13\uff10-\uff11\uff16\uff10\uff10",
+      "0930-\u0967\u096c\u0966\u0966",
+      "0930-1600:\u0968\u0969",
+      "0930-1600\n"
+    ]
   }
 }

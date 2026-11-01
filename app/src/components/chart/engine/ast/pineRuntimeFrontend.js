@@ -59,7 +59,7 @@ import {
 import { CLOCK_FIELDS } from '../runtime/program.js'
 import {
   RUNTIME_SOURCES as MEMBER_SOURCES, textInputKindOf, textInputIsMemberSet, isTimeInputCall,
-  timeInputDefaultOf, isSessionString, constantVarsOf, foldConstantVarsIntoInputs,
+  timeInputDefaultOf, isTimeValue, isSessionString, constantVarsOf, foldConstantVarsIntoInputs,
 } from '../runtime/runtimeInputs.js'
 import { TEXT_FNS, producesText } from '../runtime/text.js'
 import { ARRAY_FNS, producesArray, isVoid, argKind } from '../runtime/collections.js'
@@ -1106,9 +1106,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
     if (!isTimeInputCall(call)) return call
     if (inputs && typeof inputs === 'object' && Object.prototype.hasOwnProperty.call(inputs, name)) {
       const given = inputs[name]
-      if (!Number.isInteger(given)) {
+      if (!isTimeValue(given)) {
         throw new RuntimeRefusal('runtime:statement', '`' + name + '` was given a value that is not a time '
-          + '(whole milliseconds since 1970)', at)
+          + '(whole milliseconds since 1970, within ±8.64e15)', at)
       }
       return { type: 'number', value: given, tok: call.tok }
     }

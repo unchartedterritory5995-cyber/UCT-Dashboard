@@ -270,7 +270,10 @@ export function fieldFromInput(input) {
 
 /** ⭐ PHASE 3 WS-D — a time input's value (UNIX ms) as the `datetime-local` text the dialog
  *  shows, IN UTC (`YYYY-MM-DDTHH:MM`), or '' for a value that is not one. The dialog labels the
- *  control "UTC", so the member reads the instant the script compares against. */
+ *  control "UTC", so the member reads the instant the script compares against.
+ *  ⚠️ Known limits, by decision: MINUTE resolution (seconds in an author default are not shown, and
+ *  a re-picked time stores a whole minute), and a year outside 0000..9999 has no four-digit text
+ *  (`toISOString` writes `+010000-…`), so the control shows empty and `timeInputMs` cannot invert it. */
 export function timeInputText(ms) {
   if (!Number.isInteger(ms)) return ''
   const d = new Date(ms)

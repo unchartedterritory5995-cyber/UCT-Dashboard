@@ -162,7 +162,9 @@ export const RUNTIME_INPUT_TYPES = Object.freeze(['time', 'session'])
 export function isSessionString(s) {
   if (typeof s !== 'string') return false
   if (s === '24x7') return true
-  const m = /^(\d{4}-\d{4}(?:,\d{4}-\d{4})*)(?::([1-7]{1,7}))?$/.exec(s)
+  // `[0-9]`, spelled out: JS `\d` is ASCII-only, Python's is not; the server's twin uses
+  // `[0-9]` + `re.ASCII` and the shared fixture's non-ASCII rows pin both.
+  const m = /^([0-9]{4}-[0-9]{4}(?:,[0-9]{4}-[0-9]{4})*)(?::([1-7]{1,7}))?$/.exec(s)
   if (!m) return false
   if (m[2] && new Set(m[2]).size !== m[2].length) return false
   return m[1].split(',').every((r) => r.split('-').every((hm) => {
