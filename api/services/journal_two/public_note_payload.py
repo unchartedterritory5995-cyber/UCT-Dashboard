@@ -261,6 +261,14 @@ MARKET_DATA_VENDORS: dict[tuple[str, str | None], str] = {
     ("widgetEmbed", "aisearch"): "mixed",         # an AI answer over several sources
     ("widgetEmbed", "news"): "mixed",             # AlphaVantage / RSS headlines
     ("widgetEmbed", "tradeExchangeNews"): "tradexchange",  # Trade Exchange breaking news (licensed feed)
+    # UCT News V2 (#574): one Trade Exchange headline sent to a note -- the same licensed feed, so the
+    # same neutral line; its frozen headline, tickers and archive id never reach a stranger.
+    ("widgetEmbed", "tradeExchangeHeadline"): "tradexchange",
+    # The retired Research Library widget (#565; opens as UCT News on Saved Headlines): a member's saved
+    # Trade Exchange headlines. "tradexchange", NOT "private": both are NEUTRAL, but a "private" embed is
+    # DROPPED in example mode where an undeclared one showed the neutral line -- this row keeps the line
+    # in every mode, exactly as before, and the member's notes, collections and headlines never show.
+    ("widgetEmbed", "researchLibrary"): "tradexchange",
     ("widgetEmbed", "notebook"): "private",       # the member's OTHER notes -- never public
     ("widgetEmbed", "profile"): "mixed",          # AI profile + price statistics
     ("widgetEmbed", "alerts"): "private",         # the member's own alert list + prices
