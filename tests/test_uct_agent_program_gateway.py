@@ -115,6 +115,34 @@ def test_one_scan_per_turn(monkeypatch):
     assert _read("screen.run")["status"] == "refused"
 
 
+def test_validate_runs_before_admission_and_spends_nothing(monkeypatch):
+    monkeypatch.setenv(gw.DATA_ENV, "1")
+    monkeypatch.setenv(gw.SCAN_ENV, "1")
+    ran = []
+
+    def fn(params, ctx):
+        ran.append(params)
+        return env.refused("screen.run", params, "the screener refused it")     # an attempted execution
+
+    def validate(params):
+        return None if params.get("spec") == "good" else "that is not a valid screen"
+
+    def boom(params):
+        raise RuntimeError("validator bug")
+
+    _with(gw.Kind(name="screen.run", fn=fn, freshness="periodic", category="scan", validate=validate),
+          gw.Kind(name="screen.count", fn=fn, freshness="periodic", category="scan", validate=boom))
+    bad = [gw.read("screen.run", {"spec": "bad"}, user_id=1, turn_id="t") for _ in range(3)]
+    assert all(o["status"] == "refused" and o["notes"] == ["that is not a valid screen"] for o in bad)
+    assert ran == []                                         # refused before the adapter, nothing spent
+    assert gw.read("screen.count", {"spec": "good"}, user_id=1, turn_id="t")["notes"] == ["the request could not be checked"]
+    # the turn still has its one scan: an admitted, attempted execution spends it even though it is refused
+    first = gw.read("screen.run", {"spec": "good"}, user_id=1, turn_id="t")
+    assert ran == [{"spec": "good"}] and first["notes"] == ["the screener refused it"]
+    again = gw.read("screen.run", {"spec": "good"}, user_id=1, turn_id="t")
+    assert again["status"] == "refused" and "already ran" in again["notes"][0] and len(ran) == 1
+
+
 def test_symbol_cap(monkeypatch):
     monkeypatch.setenv(gw.DATA_ENV, "1")
     _with(_kind("quotes"))
