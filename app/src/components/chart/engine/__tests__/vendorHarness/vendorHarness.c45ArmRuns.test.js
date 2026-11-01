@@ -33,7 +33,12 @@
 //      `na(x[1]) ? ta.sma(…) : …` seed, Pine v5 `and` / `or` (strict), v4 `?:` and
 //      `iff` (not witnessed: see `docs/pine/capture-queue-2026-10-31-prod-ternary.md`);
 //   5. nothing is refused at TRANSLATION, so the parameters a plot mints do not move,
-//      and the screener lane (which binds no chart) reads as it always has.
+//      and the screener lane (which binds no chart) reads as it always has;
+//   6. (review round 2) an `if` used as an EXPRESSION (`y = if up` / `ta.sma(…)` /
+//      `else` / `close`) is the same rule — its branches are blocks, which C48's
+//      statement-form mark never covered (H2); a `var` initialiser runs once, on
+//      bar 0, so an arm in it stays drawn (M1); and a COLOUR whose arm calls such a
+//      function withholds that colour alone — never the value it colours (H1).
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import path from 'node:path'
 
@@ -42,6 +47,8 @@ import { toProductBars, enterMemberDoor, HARNESS_DEF_ID } from './ourSide'
 import * as registry from '../../nativeRegistry'
 import { BLOCK_RUNS_GUARD } from '../../blockRuns'
 import { translatePine } from '../../ast/pine'
+import { createBinder } from '../../binder'
+import { createFakeChart } from '../fakeChart'
 
 const DIR = path.resolve(process.cwd(), '..', 'tests/fixtures/vendor/harness')
 const RDDT = 'vw-arm-history-rddt-1d-2026-10-02.json'
@@ -345,6 +352,55 @@ describe('C45 — each measured shape is withheld by name, never drawn', () => {
     refusedWith(v6('x = 0.0', 'x := nz(x[1], close) > close ? ta.sma(close, 5) : 0.5 * nz(x[1], close) + 0.5 * close', 'plot(x, "X")'),
       /^`ta\.sma` is called in one arm of a `\?:`/)
   })
+
+  // ⭐⭐ H2 — AN `if` USED AS AN EXPRESSION. Its branches are blocks: Pine runs the one
+  // taken, so a call written as a branch's value keeps the history of the bars that
+  // branch ran — C48's rule, which marked the STATEMENT form only. ⚰️ The fold
+  // (`foldIfChain`) wrote this as `up ? <branch> : close` with each branch a bound
+  // node the arm walk does not open, and it was drawn off the every-bar number.
+  const IF_BRANCH = /^`ta\.sma` is called in one branch of an `if` whose condition can change from bar to bar/
+  it('⭐ H2 — `y = if up` / `ta.sma(close, 5)` / `else` / `close`', () => {
+    refusedWith(v6('y = if up', '    ta.sma(close, 5)', 'else', '    close', 'plot(y, "Y")'), IF_BRANCH)
+    const { errors } = bind(cap, v6('y = if up', '    ta.sma(close, 5)', 'else', '    close', 'plot(y, "Y")'))
+    expect(errors.value.message).toMatch(/on this chart that branch skips bar 1 and runs again on bar 2/)
+  })
+
+  it('H2 — the `else` branch, an `else if` chain, and an `if` with no `else` (`na` where no branch runs)', () => {
+    refusedWith(v6('y = if up', '    close', 'else', '    ta.sma(close, 5)', 'plot(y, "Y")'), IF_BRANCH)
+    refusedWith(v6('y = if up', '    close', 'else if close > close[1]', '    ta.sma(close, 5)', 'else', '    low', 'plot(y, "Y")'), IF_BRANCH)
+    refusedWith(v6('y = if up', '    ta.sma(close, 5)', 'plot(y, "Y")'), IF_BRANCH)
+    // a history call in an `else if` CONDITION runs only where the branches above it did not
+    refusedWith(v6('y = if up', '    close', 'else if ta.rising(close, 2)', '    low', 'else', '    high', 'plot(y, "Y")'),
+      /^`ta\.rising` is called in one branch of an `if` whose condition can change from bar to bar/)
+  })
+
+  it('H2 — a branch\'s value that is a function holding `ta.*` history', () => {
+    refusedWith(v6('f(s) => ta.sma(s, 5)', 'y = if up', '    f(close)', 'else', '    close', 'plot(y, "Y")'),
+      /^`f`, a function that reads its own history, is called in one branch of an `if`/)
+  })
+
+  it('H2 — in Pine v4 too: an `if` block runs only its taken branch in every version (C48\'s rule; `?:` is the version question, not `if`)', () => {
+    // ⚠️ a v4 history call is spelled as a helper here: the walk reads `ta.*` and
+    // history helpers, and C48's own mark (`taCallIn`) reads the same — a bare v4
+    // built-in (`sma(…)`) is unread by BOTH lanes (queued:
+    // `docs/pine/capture-queue-2026-10-31-prod-ternary.md`, gap G-b)
+    refusedWith(['//@version=4', 'study("v4 if")', 'f(s) => s - s[1]', 'y = if close > open', '    f(close)', 'else', '    close',
+      'plot(y, "Y")'].join('\n'),
+    /^`f`, a function that reads its own history, is called in one branch of an `if` whose condition can change/)
+  })
+
+  it('H2 — a local DECLARED in the branch keeps C48\'s own sentence, never a second gate', () => {
+    const { door, errors } = bind(cap, v6('y = if up', '    s = ta.sma(close, 5)', '    s', 'else', '    close', 'plot(y, "Y")'))
+    expect(errors.value.guard).toBe(BLOCK_RUNS_GUARD)
+    expect(errors.value.message).toMatch(/inside a block that does not run on every bar/)
+    expect(door.def.meta.blockRuns.keys).toHaveLength(1)
+    expect(door.def.meta.blockRuns.keys[0].gates).toHaveLength(1)
+  })
+
+  it('🔴 M1 CONTROL — the `?:` a `var` initialiser holds, written WITHOUT `var`, runs on every bar: withheld', () => {
+    refusedWith(v6('x = up ? ta.highest(high, 1) : low', 'plot(x, "X")'), /^`ta\.highest` is called in one arm of a `\?:`/)
+    refusedWith(v6('x = up ? ta.sma(close, 5) : low', 'plot(x, "X")'), /^`ta\.sma` is called in one arm of a `\?:`/)
+  })
 })
 
 // ── what must stay drawn ────────────────────────────────────────────────────
@@ -474,6 +530,138 @@ describe('C45 — ⛔ what stays drawn, TradingView\'s number where a capture ho
 
   it('an `na` test takes the false arm on every bar — not stamped', () => {
     drawn(v6('y = na ? ta.sma(close, 5) : close', 'plot(y, "Y")'), (i) => B[i].c)
+  })
+
+  // ⭐⭐ M1 — A `var` INITIALISER RUNS ONCE, ON BAR 0. Its `?:` decides one value on one
+  // bar, and on that bar no call has history to diverge: the seed is read nowhere
+  // else (`accum`'s seed slot). ⚰️ It was walked like any arm and withheld. The
+  // same `?:` without `var` runs on every bar and stays withheld (the 🔴 control in
+  // "each measured shape").
+  it('⭐ M1 — `var float x = up ? ta.highest(high, 1) : low` holds bar 0\'s answer: drawn', () => {
+    // RDDT's bar 0 closes up, so the seed is that bar's high, held on every bar
+    expect(up[0]).toBe(true)
+    drawn(v6('var float x = up ? ta.highest(high, 1) : low', 'plot(x, "X")'), () => B[0].h)
+    // …and an SMA there has no five bars on bar 0: `na`, held
+    drawn(v6('var float x = up ? ta.sma(close, 5) : low', 'plot(x, "X")'), () => null)
+  })
+
+  it('M1 — a `var` whose initialiser holds the arm and whose update does not: drawn, Pine\'s recurrence from bar 0', () => {
+    // bar 0 runs the initialiser (bar 0's high: it closes up) and then the update
+    const ref = []
+    B.forEach((b, i) => ref.push(0.5 * (i === 0 ? B[0].h : ref[i - 1]) + 0.5 * b.c))
+    const col = drawn(v6('var float x = up ? ta.highest(high, 1) : low', 'x := 0.5 * x + 0.5 * close', 'plot(x, "X")'), null)
+    // every bar the recurrence publishes (its own convergence curtain withholds the
+    // first few, as it does for any `var` recurrence) is Pine's number
+    const published = B.map((_, i) => i).filter((i) => Number.isFinite(col[i]))
+    expect(published.length).toBeGreaterThan(B.length - 60)
+    expect(published.filter((i) => !same(col[i], ref[i]))).toEqual([])
+    // …and a 10-bar highest has no answer on bar 0: `na`, which the update carries forever
+    drawn(v6('var float x = up ? ta.highest(high, 10) : low', 'x := 0.5 * x + 0.5 * close', 'plot(x, "X")'), () => null)
+  })
+})
+
+// ── H1: a colour ────────────────────────────────────────────────────────────
+
+describe('C45 — ⛔ H1: an arm in a COLOUR withholds that colour alone, never the value it colours', () => {
+  const cap = capture(RDDT)
+  const B = rowsOf(cap)
+  /** The hidden condition column a drawn plot, fill or paint names (`colorMode`). */
+  const columnOf2 = (spec) => (spec && typeof spec.colorMode === 'string' && spec.colorMode.startsWith('column:')
+    ? spec.colorMode.slice('column:'.length) : null)
+  const plotSpec = (door, key) => door.def.plots.find((p) => p.key === key)
+  /** The value drawn exact, and the colour column refused by name with `sentence`. */
+  const colourWithheld = (source, colourKeyOf, sentence) => {
+    const { door, cols, errors } = bind(cap, source)
+    expect(door.def, door.refusal || '').toBeTruthy()
+    expect(door.built.translation.outputs.filter((o) => o.refusal)).toEqual([])
+    // ⛔ THE VALUE: drawn, unrefused, TradingView's close on every bar
+    expect(errors.value, source).toBeUndefined()
+    expect(Array.from(cols.value)).toEqual(B.map((b) => b.c))
+    // …and the colour column refused, by name, with the arm's own sentence
+    const ck = colourKeyOf(door)
+    expect(ck, source).toBeTruthy()
+    expect(plotSpec(door, ck).hidden).toBe(true)
+    expect(cols[ck], source).toBeUndefined()
+    expect(errors[ck].guard).toBe(BLOCK_RUNS_GUARD)
+    expect(errors[ck].message).toMatch(sentence)
+    // the refusal is the colour's only one: no gate rides on a drawn plot
+    expect(door.def.meta.blockRuns.keys.map((k) => k.key)).toEqual([ck])
+    return { door, cols }
+  }
+  const AND_RISING = /^`ta\.rising` is called on the right of a Pine v6 `and` .*on this chart that right side skips bar \d+ and runs again on bar \d+/
+
+  it('⭐ v6 `color = up and ta.rising(close, 2) ? color.green : color.red`', () => {
+    colourWithheld(v6('plot(close, "C", color = up and ta.rising(close, 2) ? color.green : color.red)'),
+      (door) => columnOf2(plotSpec(door, 'value')), AND_RISING)
+  })
+
+  it('a NESTED-ternary colour `up ? (ta.rising(close, 2) ? green : red) : gray` — its palette index', () => {
+    colourWithheld(v6('plot(close, "C", color = up ? (ta.rising(close, 2) ? color.green : color.red) : color.gray)'),
+      (door) => columnOf2(plotSpec(door, 'value')), /^`ta\.rising` is called in one arm of a `\?:` whose test can change/)
+  })
+
+  it('a `bgcolor` — the paint\'s colour, beside a plot that is drawn', () => {
+    const { door } = colourWithheld(v6('plot(close, "C")', 'bgcolor(up and ta.rising(close, 2) ? color.new(color.green, 80) : na)'),
+      (d) => columnOf2((d.def.paints || [])[0]), AND_RISING)
+    expect(door.def.paints).toHaveLength(1)
+  })
+
+  it('a `fill` coloured by such an arm — the band\'s colour, between two plots that are drawn', () => {
+    const { cols } = colourWithheld(v6('p1 = plot(close, "C")', 'p2 = plot(open, "O")',
+      'fill(p1, p2, color = up and ta.rising(close, 2) ? color.green : color.red)'),
+    (door) => columnOf2(plotSpec(door, 'value').fill), AND_RISING)
+    expect(Array.from(cols.out2)).toEqual(B.map((b) => b.o))
+  })
+
+  it('⭐ the BINDER draws that plot in its series colour — no per-point colour — and every value', () => {
+    const pointsOf = (source) => {
+      const { door, cols } = bind(cap, source)
+      const fake = createFakeChart()
+      const binder = createBinder({ chart: fake.chart, LWC: fake.LWC })
+      const def = door.def
+      binder.sync({
+        enabled: true,
+        instances: [{ instanceId: `inst:${def.id}:1`, defId: def.id, inputs: {} }],
+        registry: {
+          getDefinition: (id) => (id === def.id ? def : null),
+          computeFor: () => cols,
+          hasAnyFinite: (col) => !!col && Array.from(col).some(Number.isFinite),
+          columnKeys: (d) => (d.plots || []).map((p) => p.key),
+        },
+        bars: toProductBars(cap),
+        adjustTime: (t) => t,
+        plan: { fresh: true },
+        applyData: (series, data) => series.setData(data),
+        resolvePlacement: () => ({ paneIndex: 1, scaleId: def.id, scaleOptions: {} }),
+      })
+      const setDatas = fake.calls.filter((c) => c.method === 'setData')
+      expect(setDatas.length, 'only the visible plot draws').toBe(1)
+      return setDatas[0].args[0]
+    }
+    const withheld = pointsOf(v6('plot(close, "C", color = up and ta.rising(close, 2) ? color.green : color.red)'))
+    expect(withheld.map((p) => p.value)).toEqual(B.map((b) => b.c))
+    expect(withheld.filter((p) => p.color !== undefined)).toEqual([])
+    // 🔴 CONTROL — the same colour with no call in its arm is drawn per point
+    const drawnColours = pointsOf(v6('plot(close, "C", color = up and close > close[1] ? color.green : color.red)'))
+    expect(drawnColours.map((p) => p.value)).toEqual(B.map((b) => b.c))
+    expect(drawnColours.every((p) => typeof p.color === 'string')).toBe(true)
+  })
+
+  it('🔴 CONTROLS — a colour whose arm calls nothing, one under a fixed test, and a Pine v5 `and`: drawn, no gate', () => {
+    for (const source of [
+      v6('plot(close, "C", color = up ? color.green : color.red)'),
+      v6('show = input.bool(true, "Show")', 'plot(close, "C", color = show and ta.rising(close, 2) ? color.green : color.red)'),
+      ['//@version=5', 'indicator("v5 colour")', 'up = close > open',
+        'plot(close, "C", color = up and ta.rising(close, 2) ? color.green : color.red)'].join('\n'),
+    ]) {
+      const { door, cols, errors } = bind(cap, source)
+      expect(door.def, door.refusal || '').toBeTruthy()
+      expect(errors, source).toEqual({})
+      expect(door.def.meta.blockRuns, source).toBeUndefined()
+      const ck = columnOf2(plotSpec(door, 'value'))
+      expect(ck, source).toBeTruthy()
+      expect(cols[ck], source).toBeTruthy()
+    }
   })
 })
 

@@ -11,6 +11,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   printFormula, bindTimeConstantTree, armHistoryCallOf, armRunGates, stampArmRuns, seedAndUpdateOf,
+  colourBlockRunsOf, translatePine,
 } from './pine'
 import { TABLE } from './parse'
 
@@ -74,13 +75,25 @@ describe('C45 — armHistoryCallOf: a call WRITTEN in the arm, read off the sour
     expect(armHistoryCallOf({ type: 'call', name: 'g', args: [] }, fns)).toBeNull()
   })
 
-  it('⛔ a NAME (bound elsewhere, so run where it is written), a BOUND node (an `if` fold\'s), `request.*`', () => {
+  it('⛔ a NAME (bound elsewhere, so run where it is written), a BOUND node (a statement-form `if` fold\'s), `request.*`', () => {
     const sma = { type: 'call', name: 'ta.sma', args: [] }
     expect(armHistoryCallOf({ type: 'name', name: 's' }, null)).toBeNull()
     expect(armHistoryCallOf({ type: 'bound', binding: { kind: 'expr', node: sma }, name: 'v' }, null)).toBeNull()
     expect(armHistoryCallOf({ type: 'call', name: 'request.security', args: [{ name: null, value: sma }] }, null)).toBeNull()
     expect(armHistoryCallOf({ type: 'number', value: 1 }, null)).toBeNull()
     expect(armHistoryCallOf(null, null)).toBeNull()
+  })
+
+  it('⭐ H2 — the branch of an `if` EXPRESSION (`ifArm`) is opened: its value is written right there', () => {
+    const sma = { type: 'call', name: 'ta.sma', args: [] }
+    const branch = (binding) => Object.defineProperty({ type: 'bound', binding, name: null }, 'ifArm', { value: true })
+    expect(armHistoryCallOf(branch({ kind: 'expr', node: sma }), null)).toEqual({ name: 'ta.sma', udf: false })
+    // …and only its value: a name in it is still bound elsewhere, and a non-`expr` binding is not read
+    expect(armHistoryCallOf(branch({ kind: 'expr', node: { type: 'name', name: 's' } }), null)).toBeNull()
+    expect(armHistoryCallOf(branch({ kind: 'tuple', parts: [] }), null)).toBeNull()
+    // a ternary whose `yes` is a branch reaches that branch's value too (the next `else if` of a chain)
+    const chain = { type: 'ternary', test: { type: 'name', name: 'b' }, yes: branch({ kind: 'expr', node: sma }), no: { type: 'name', name: 'c' } }
+    expect(armHistoryCallOf(chain, null)).toEqual({ name: 'ta.sma', udf: false })
   })
 })
 
@@ -129,5 +142,48 @@ describe('C45 — armRunGates: the guard each stamp carries, read off the finish
   it('a stamp reached twice through a shared subtree is one gate', () => {
     const node = stampArmRuns(op('?:', op('>', series('close'), series('open')), call('ema', series('close'), num(5)), num(0)), [RUN])
     expect(armRunGates([op('+', node, node), node], TABLE)).toHaveLength(1)
+  })
+
+  it('⭐ M1 — a recurrence\'s SEED is read on one bar: a stamp there carries no gate (`accum`, and an `accumK`\'s seeds)', () => {
+    const arm = () => stampArmRuns(op('?:', op('>', series('close'), series('open')), call('highest', series('high'), num(1)), series('low')), [RUN])
+    expect(armRunGates([call('accum', arm(), series('self'), num(250))], TABLE)).toEqual([])
+    const name = Object.keys(TABLE.functions).find((k) => TABLE.functions[k] && TABLE.functions[k].multiState)
+    const ms = TABLE.functions[name].multiState
+    const args = []
+    args[ms.output] = num(0)
+    args[ms.warmup] = num(250)
+    ms.seeds.forEach((i) => { args[i] = arm() })
+    ms.updates.forEach((i, k) => { args[i] = series(ms.binds[k]) })
+    expect(armRunGates([call(name, ...args)], TABLE)).toEqual([])
+    // 🔴 CONTROL — the same arm in the UPDATE runs on every bar it is taken: gated
+    expect(armRunGates([call('accum', num(0), op('+', series('self'), arm()), num(250))], TABLE)).toHaveLength(1)
+    // …and ONE node standing in both the seed and the update is met in the update
+    const shared = arm()
+    expect(armRunGates([call('accum', shared, op('+', series('self'), shared), num(250))], TABLE)).toHaveLength(1)
+  })
+})
+
+describe('C45 — H1: colourBlockRunsOf, a colour rule\'s gates by its formula', () => {
+  const v6 = (...body) => ['//@version=6', 'indicator("colour gates")', 'up = close > open', ...body].join('\n')
+
+  it('⭐ one entry per rule FORMULA — two plots coloured by one rule share it, as they share one column', () => {
+    const t = translatePine(v6('c = up and ta.rising(close, 2)', 'plot(close, "C", color = c ? color.green : color.red)',
+      'plot(open, "O", color = c ? color.green : color.red)'), { strict: true, paramManifest: true })
+    expect(t.blockRuns.outputs).toEqual([])
+    expect(t.blockRuns.colours).toHaveLength(1)
+    expect(colourBlockRunsOf(t, TABLE)).toEqual(t.blockRuns.colours)
+    expect(t.blockRuns.colours[0].formula).toBe(t.outputs[0].presentation.colorCondition.formula)
+    expect(t.blockRuns.colours[0].gates.map((g) => g.what)).toEqual(['that right side'])
+  })
+
+  it('⛔ the screener lane carries none — nothing binds a screener column', () => {
+    const src = v6('plot(close, "C", color = up and ta.rising(close, 2) ? color.green : color.red)')
+    expect(translatePine(src, { strict: true, paramManifest: true }).blockRuns.colours).toHaveLength(1)
+    expect(translatePine(src, { paramManifest: true }).blockRuns).toBeUndefined()
+  })
+
+  it('⛔ a rule with no stamped arm, and a holder with no rule, carry nothing', () => {
+    expect(colourBlockRunsOf({ outputs: [{ presentation: { colorCondition: { ast: series('close'), formula: 'close' } } }, null, {}],
+      presentation: { fills: [{}], paints: [null] } }, TABLE)).toEqual([])
   })
 })

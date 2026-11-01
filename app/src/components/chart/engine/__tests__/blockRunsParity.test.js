@@ -45,6 +45,10 @@ const SCRIPTS = [
     'smma = 0.0', 'smma := na(smma[1]) ? ta.sma(src, len) : (smma[1] * (len - 1) + src) / len', 'plot(smma, "SMMA")'].join('\n')],
   ['if block (C48)', v6('float v = na', 'if up', '    v := ta.sma(close, 3)', 'plot(v, "V")')],
   ['input knob in the guard', v6('k = input.float(0.0, "Cut")', 'y = close - open > k ? ta.ema(close, 5) : close', 'plot(y, "Y")')],
+  // ⭐ review round 2 — an `if` used as an EXPRESSION (H2), and a COLOUR's gate, which
+  // rides the colour's hidden condition column and never the plot (H1)
+  ['if expression (H2)', v6('y = if up', '    ta.sma(close, 5)', 'else', '    close', 'plot(y, "Y")')],
+  ['colour condition column (H1)', v6('plot(close, "C", color = up and ta.rising(close, 2) ? color.green : color.red)'), { colour: true }],
 ]
 
 /** `firstRunAfterSkip` on hand-written columns (`null` = not computable). */
@@ -57,14 +61,16 @@ function buildDoc() {
   const cap = loadCapture(CAPTURE).capture
   const bars = toProductBars(cap)
   vi.stubEnv('VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', '1')
-  const cases = SCRIPTS.map(([name, source]) => {
+  const cases = SCRIPTS.map(([name, source, { colour = false } = {}]) => {
     const door = enterMemberDoor(source)
     try {
       expect(door.def, `${name}: ${door.refusal || ''}`).toBeTruthy()
       const def = door.def
       const keys = (def.plots || []).map((p) => p.key)
-      expect(keys, name).toHaveLength(1)
-      const key = keys[0]
+      // a colour case's key is its plot's hidden condition column (`colorMode`)
+      expect(keys, name).toHaveLength(colour ? 2 : 1)
+      const key = colour ? def.plots[0].colorMode.slice('column:'.length) : keys[0]
+      if (colour) expect(def.meta.blockRuns.keys.map((k) => k.key), name).toEqual([key])
       // the chart's own bind, OFF the listing (no server lane can state one)
       const cols = registry.computeFor(def, bars, undefined, { tf: 'D' })
       const err = (registry.columnErrors(cols) || {})[key]
@@ -117,6 +123,9 @@ describe('C48 / C45 — the blockRuns parity fixture', () => {
     expect(by['v6 or'].expected).toMatch(/on the right of a Pine v6 `or`.* — on this chart that right side skips bar 0/)
     expect(by['if block (C48)'].expected).toMatch(/inside a block that does not run on every bar.* — on this chart the block skips bar 1/)
     expect(by['input knob in the guard'].expected).toMatch(/one arm of a `\?:`/)
+    expect(by['if expression (H2)'].expected).toMatch(/one branch of an `if`.* — on this chart that branch skips bar 1 and runs again on bar 2/)
+    expect(by['colour condition column (H1)'].key).not.toBe('value')
+    expect(by['colour condition column (H1)'].expected).toMatch(/on the right of a Pine v6 `and`.* — on this chart that right side skips bar/)
     // drawn: stamped, but the gate does not vary on these bars
     for (const name of ['?: test true on every bar', '?: test never true', 'smoothed MA seed arm']) {
       expect(by[name].definition.meta.blockRuns, name).toBeTruthy()
