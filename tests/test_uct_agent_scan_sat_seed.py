@@ -75,6 +75,7 @@ def test_empty_scenario_is_an_empty_universe(sandbox):
     assert env["status"] == "ok" and env["data"]["count"] == 0
     assert env["as_of"] is None and env["stale"] is False and env["notes"]
     assert env["coverage"] == {"evaluated": 0, "answered": 0, "dropped": 0, "not_computable": 0}
+    assert any("had no stocks to check" in n and "not a quiet market" in n for n in env["notes"])   # F-SAT-2
 
 
 def test_a_scenario_replaces_the_previous_universe(sandbox):

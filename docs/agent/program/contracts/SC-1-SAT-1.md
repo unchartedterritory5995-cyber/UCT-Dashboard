@@ -111,3 +111,36 @@ await read('screen.run', { spec: { filters: [{ key: 'scan', op: 'in', value: ['x
 ## 3. Report
 
 Send agent-sc each step's PASS/FAIL, the seed printouts, and anything unexpected, with a screenshot where wording matters. Then stop the server. `C:\data-sat1` can be deleted afterwards: it holds only synthetic data and the one sandbox account.
+
+## 4. Results — run 1, 2026-11-01 (agent-sc, no-model sections)
+
+- **Code:** `agent/int` **`8f9e65eda0`** + this kit, built locally.
+- **Sandbox:** `C:\data-sat1`, port 8095, `--block-outbound`, model keys blanked.
+  - Identity nonces `b6e54cd8…` (flags on) and `a25b2f12…` (flags off), each verified from the browser before testing.
+  - Every launcher checkpoint was **CLEAN**: 0 shared-root db files on this machine (it has no `C:\data`).
+- **Data:** synthetic, measured by the seed. **Model calls: 0. Cost: $0.** The server logs show no `/api/agent/turn` and no `/api/screener/compile` across all runs.
+
+| Step | Result | Observed |
+|---|---|---|
+| A1 | **PASS** | One `screen.run` read, no `/api/screener/scan`, no model. "120 stocks match … Checked 121 stocks: 120 could be decided, 1 was excluded … as of the 2026-10-30 close (nightly), not live". SYSTOP absent. Matches Seed: "A1 strongest". |
+| A2 | **PASS** | `screen.saved`. All 3 of the member's screens listed; the indicator screen marked "can't run here" with the reason; the other member's screen absent. |
+| A3 | **PASS** | Params `{saved_id: 1, limit: 10}`, no spec. "SAT Leaders: 11 stocks match", equal to Seed: "RS rank >= 90" (11; 115 decided / 5 missing / 1 excluded). |
+| A4 | **PASS** | `saved_id: 3` answered `refused`: "indicator-condition scans … aren't available to the Agent yet". No rows. |
+| A5 | **PASS** | A new message gets a new turn id and its own scan (120). |
+| C1 | **PASS** | No-model refine "now only the ones above $100000": "0 stocks match … No names matched. Screener snapshot as of the 2026-10-30 close". Not stale, no table. |
+| C2 | **PASS** | Stale: "This data is stale … as of the 2026-10-27 close … 3 sessions behind the last close". |
+| C3 | **PASS** | Mixed: stale, "do not all run through the same session (oldest 2026-10-29)". |
+| C4 | **PASS (+ fix)** | Empty: 0 matches, `as_of` null with a note, not stale, coverage all zeros. See F-SAT-2. |
+| D1 | **PASS** | Another member's id is `refused`, "you have no saved screen with that id"; neither its name nor its spec appears in the response. |
+| D2 | **PASS** | Criteria text `rs_rank >= 90` gives 11, `origin: text`, explanation "RS Rank is at least 90". |
+| D3 | **PASS** | The `scan` key is `refused` (indicator conditions). |
+| D-budget (server) | **PASS** | Same turn: the 2nd scan is `refused` ("this turn already ran 1 scan"). A malformed spec is refused before admission, and the same turn can still scan (11). |
+| E1 | **PASS** | Flags off: config `data:false, scan:false`. The panel used `/api/screener/scan`, with zero gateway reads; a direct gateway read was refused ("the Agent data gateway is off"). |
+| E2 | **PASS** | Zero `/api/screener/compile` requests. |
+| **B1–B5** | **BLOCKED** | Needs an owner-approved development credential under the existing $5/$15 caps. None exists on this machine and none was requested or used. |
+
+**Findings**
+- **F-SAT-1 (fixed in this PR):** the stopped-price-history exclusion was said twice, once in the coverage line and again in the envelope's note. Fixed on the client (the coverage line is the one statement); railed and mutation-proved.
+- **F-SAT-2 (fixed in this PR):** an empty universe read "0 stocks match" without saying nothing was checked. The envelope now says "The Screener had no stocks to check for this screen, so this is not a quiet market". Railed.
+- **F-SAT-3 (existing behaviour, not SC-1; for agent-lead):** a message typed right after page load, before the screener field catalog has loaded, skips the no-model fast path and goes to the planner. Here that meant "couldn't answer" with no key, and no model was reached because keys were blanked and outbound blocked. In production it would cost a model call that the fast path should have saved.
+- **Observation:** the pre-SC-1 path (flags off) labels results with the snapshot **build** date ("Data: 2026-11-01 snapshot"). SC-1 labels the data's own session close ("as of the 2026-10-30 close").

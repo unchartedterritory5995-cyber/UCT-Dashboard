@@ -146,6 +146,10 @@ def _provenance_fields(prov: dict, now: Optional[dt.datetime] = None) -> tuple[O
 
 def _coverage_notes(cov: dict) -> list[str]:
     out = []
+    if cov["evaluated"] == 0:
+        # SAT-1 F-SAT-2: nothing was checked at all, which is a gap in the data, not a quiet market
+        out.append("The Screener had no stocks to check for this screen, so this is not a quiet market: "
+                   "there is no data behind it.")
     d, n = cov["dropped"], cov["not_computable"]
     if d:
         out.append(f"{d} {'name was' if d == 1 else 'names were'} excluded because {'its' if d == 1 else 'their'} own price history stopped.")
