@@ -26,6 +26,10 @@
 //                         fakeNewsDay over them (/day is a READ: the only non-GET let through,
 //                         with POST /explain, answered by an INVENTED explanation -- no model)
 //   ?opts=<json>          initial News widget opts (e.g. {"settings":{"groupRelated":"on"}})
+//   ?library=1            add a Research Library widget beside News. Its /library/* API is the
+//                         in-memory fakeLibraryServer over the synthetic headlines (pre-seeded
+//                         with three saves, a collection and a note) -- page memory only, never
+//                         the network.
 //   ?live=1               LIVE MODE for tools/txn_local_e2e.py: /api/trade-exchange-news/*
 //                         goes to the real (local, synthetic) web process through
 //                         vite.txn-e2e.config.mjs, and the News pool opens its own
@@ -42,6 +46,8 @@ import WatchlistWidget from '../../pages/charts/widgets/WatchlistWidget'
 import ThemesWidget from '../../pages/charts/widgets/ThemesWidget'
 import TradeExchangeNewsWidget from '../../pages/charts/widgets/TradeExchangeNewsWidget'
 import { fakeNewsDay, fakeNewsDays } from './fakeNewsDay'
+import { fakeLibraryServer } from './fakeLibraryServer'
+import ResearchLibraryWidget from '../../pages/charts/widgets/ResearchLibraryWidget'
 import { formatTimeEt } from '../../lib/presentation/presentationPrimitives'
 import { timeLabel } from '../../pages/charts/widgets/tradeExchangeNewsModel'
 import { CHART_THEME_BY_ID, patchWidgetOptsWithTheme, mapThemeToWidgetSettings, themeWithAppSurface } from '../../components/chart/chartThemes'
@@ -55,6 +61,7 @@ const WIDTH = Number(params.get('width')) || 320
 const ONLY_NEWS = params.get('only') === 'news'
 const COUNT = Math.max(1, Math.min(4, Number(params.get('count')) || 1))
 const LIVE = params.get('live') === '1'
+const LIBRARY = params.get('library') === '1'
 document.documentElement.dataset.theme = THEME
 
 const SYMS = ['ALFA', 'BRVO', 'CHRL', 'DLTX', 'ECHO', 'FXTR', 'GLFX', 'HTLX']
@@ -165,6 +172,19 @@ function harnessAtMs(date, hhmm) {
   const edt = Date.UTC(y, mo - 1, d, h + 4, mi)
   return (formatTimeEt(edt) === timeLabel(hhmm) ? edt : edt + 3_600_000) + 59_999
 }
+// The Research Library's API, in page memory (?library=1). Seeded lazily from NEWS.
+let _lib = null
+function libraryServer() {
+  if (_lib) return _lib
+  _lib = fakeLibraryServer(NEWS)
+  const L = '/api/trade-exchange-news/library'
+  const seed = [...NEWS].filter((n) => !n.placeholder).slice(-3).map((n) => n.id)
+  for (const id of seed) _lib.fetch(`${L}/bookmarks/${id}`, { method: 'PUT', body: '{}' })
+  _lib.fetch(`${L}/collections`, { method: 'POST', body: JSON.stringify({ name: 'Earnings season' }) })
+  _lib.fetch(`${L}/collections/c1/items/${seed[0]}`, { method: 'PUT' })
+  _lib.fetch(`${L}/bookmarks/${seed[0]}/note`, { method: 'PUT', body: JSON.stringify({ note: 'SYNTHETIC note: compare with last quarter' }) })
+  return _lib
+}
 const BLOCKED = []
 window.__newsHarnessBlocked = BLOCKED
 const realFetch = window.fetch.bind(window)
@@ -174,6 +194,7 @@ window.fetch = (input, init) => {
   if (!url.startsWith('/') && !url.startsWith(location.origin)) return realFetch(input, init)
   const path = url.replace(location.origin, '')
   if (LIVE && path.startsWith('/api/trade-exchange-news')) return realFetch(input, init)
+  if (path.startsWith('/api/trade-exchange-news/library')) return libraryServer().fetch(path, init || {})
   if (method === 'POST' && path === '/api/trade-exchange-news/day') {
     return json(fakeNewsDay(NEWS, JSON.parse((init && init.body) || '{}'), { epoch: 'harness0harness0', atMs: harnessAtMs }))
   }
@@ -295,6 +316,7 @@ function Harness() {
           <div className="row">
             {!ONLY_NEWS && <Pane label="Watchlist" type="watchlist" Component={WatchlistWidget} initial={{ watchKey: 'user:wl1', watchName: 'Harness List' }} />}
             {!ONLY_NEWS && <Pane label="Theme Tracker" type="themes" Component={ThemesWidget} initial={{}} />}
+            {LIBRARY && <Pane label="Research Library" type="researchLibrary" Component={ResearchLibraryWidget} initial={newsOpts} />}
             {Array.from({ length: ONLY_NEWS ? COUNT : 1 }, (_, i) => (
               <Pane key={i} index={i} label={`News (Trade Exchange)${i ? ` #${i + 1}` : ''}`} type="tradeExchangeNews"
                 Component={TradeExchangeNewsWidget} initial={newsOpts} />
