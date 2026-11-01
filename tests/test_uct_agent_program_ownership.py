@@ -76,3 +76,31 @@ def test_checker_flags_foreign_and_external():
     assert bad == 2
     assert lines[0].strip().startswith("ok") and "FOREIGN" in lines[1] and "EXTERNAL" in lines[2]
     assert oc.check(["api/services/screener/query.py"], "agent-md", TABLE, allow_external=True)[0] == 0
+
+
+def test_changed_files_ignores_work_that_arrived_by_merge_in_a_criss_cross_history(tmp_path):
+    """agent-qa F-9: the author merged `int` in while the integrator merged the branch's EARLIER head —
+    two merge bases. Only the branch's own commits count; files that came in from `int` do not."""
+    def git(*a):
+        subprocess.run(["git", *a], cwd=tmp_path, check=True, capture_output=True, text=True)
+
+    def commit(path, msg):
+        (tmp_path / path).parent.mkdir(parents=True, exist_ok=True)
+        (tmp_path / path).write_text(msg, encoding="utf-8")
+        git("add", path)
+        git("commit", "-q", "-m", msg)
+
+    git("init", "-q", "-b", "int")
+    git("config", "user.email", "t@t")
+    git("config", "user.name", "t")
+    commit("base.txt", "base")
+    git("checkout", "-q", "-b", "qa")
+    commit("tests/test_uct_agent_qa_x.py", "qa 1")
+    git("checkout", "-q", "int")
+    commit("api/services/uct_agent/marketdata/quotes.py", "md on int")
+    git("merge", "-q", "--no-ff", "-m", "int takes qa's earlier head", "qa")
+    git("checkout", "-q", "qa")
+    commit("docs/agent/program/status/agent-qa.md", "qa 2")
+    git("merge", "-q", "--no-ff", "-m", "qa merges int", "int")
+    files = oc.changed_files("int", cwd=tmp_path)
+    assert files == ["docs/agent/program/status/agent-qa.md"]
