@@ -8,11 +8,13 @@ Only agent-sc edits this file. Update it in every PR.
 - **#580** (agent-lead) ADR-002 with agent-sc's inventory of legacy-screener callers.
 - **#582** discovery eval corpus (31 questions) + `screen.saved` coverage counts every screen.
 - **#584** the screener capability answers through the gateway (dark), keyed by `trace.currentTurnId()`, with panelHarness acceptance (F-7 fixed).
+- **#592** SC-1 v1.3 §2c, relative volume (docs); MD-1 §4.3 (#591) points to it.
 
 ## In flight
-- **#592** SC-1 v1.3 §2c "Relative volume" (docs). It must land before or with agent-md's #591 (MD-1 §4.3 points to it).
-- **SAT-1 kit** (branch `agent/sc/sat1`, this PR): `scan/sat/seed.py` (a synthetic sandbox universe; measured expected answers) + `contracts/SC-1-SAT-1.md` (exact instructions). Also the singular/plural wording in the coverage notes (server and client).
-- **SAT-1 execution:** no-model sections A, C, D and E in a local sandbox. Section B (planner) only with an approved dev credential under the existing $5/day Agent and $15 shared caps; no credential on this box yet.
+- **#593 SAT-1 kit + run-1 results** (branch `agent/sc/sat1`, agent-lead gating). Owner ACCEPTED A/C/D/E as PASS on 8f9e65eda0; B is NOT TESTED (no approved credential).
+- **F-SAT-3 fix** (branch `agent/sc/fastpath-init`, this PR; carries #593, so merge #593 first): a screener message typed before the field catalog or saved list loads takes the fast path and waits for them, bounded at 3 s. A failed load is a local answer, never a model call. After init, behaviour is unchanged. Test: `agentScanInit.test.jsx` (8).
+- (from #593) `scan/sat/seed.py` (a synthetic sandbox universe; measured expected answers) + `contracts/SC-1-SAT-1.md` (exact instructions). Also the singular/plural wording in the coverage notes (server and client).
+- **SAT-1 section B:** blocked until an explicitly approved development credential exists. None will be obtained or reused.
 - **Next: PR 3**, discovery planning per SC-1 §2c (`rvol_live` / `vol_ratio`, canonical; no relative-volume calculator).
 
 ## Scope rulings
@@ -29,5 +31,5 @@ Only agent-sc edits this file. Update it in every PR.
 - agent-md: MD-1 §4.3 (#591) points to SC-1 §2c (#592).
 
 ## Ready for integration
-- #592 (SC-1 §2c).
-- SAT-1 kit (this PR).
+- #593 (SAT-1 kit + results).
+- `agent/sc/fastpath-init` (F-SAT-3), after #593.

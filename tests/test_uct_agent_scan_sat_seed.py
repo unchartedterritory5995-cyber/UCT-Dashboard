@@ -16,6 +16,10 @@ def sandbox(tmp_path, monkeypatch):
         monkeypatch.delenv(k, raising=False)
     monkeypatch.setenv("UCT_AGENT_DATA", "1")
     monkeypatch.setenv("UCT_AGENT_SCAN", "1")
+    # the real pin() sets ~116 census paths; inside pytest only the two these tests read are pinned, via
+    # monkeypatch, so nothing leaks into other tests (pin() itself is tested on an isolated environ below)
+    monkeypatch.setattr(seed, "pin", lambda d: (monkeypatch.setenv("SCREENER_DB_PATH", str(tmp_path / "screener.db")),
+                                                monkeypatch.setenv("AUTH_DB_PATH", str(tmp_path / "auth.db"))))
     gateway._reset_for_test()
     yield tmp_path
     gateway._reset_for_test()
@@ -105,3 +109,17 @@ def test_the_tool_imports_no_provider_or_model_client():
     names = {getattr(n, "module", None) or "" for n in ast.walk(ast.parse(inspect.getsource(seed)))
              if isinstance(n, ast.ImportFrom)}
     assert not {m for m in names if any(x in m for x in ("massive", "anthropic", "openai", "nl_compile", "bars_fetch"))}
+
+
+def test_pin_covers_EVERY_census_path_not_a_hand_picked_two(tmp_path, monkeypatch):
+    """QA advisory on #593: the hand-picked-pins pattern of the 2026-09-08 sandbox incident."""
+    import os
+    import conftest
+    monkeypatch.setattr(os, "environ", dict(os.environ))          # isolated: nothing leaks to other tests
+    done = seed.pin(str(tmp_path))
+    _census, pins, _unpinnable = conftest.shared_data_root_census()
+    assert set(done) == set(pins) and len(done) > 50
+    root = str(tmp_path).lower()
+    assert all(v.lower().startswith(root) for v in done.values())
+    assert os.environ["SCREENER_DB_PATH"] == str(tmp_path / "screener.db")
+    assert os.environ["AUTH_DB_PATH"] == str(tmp_path / "auth.db")
