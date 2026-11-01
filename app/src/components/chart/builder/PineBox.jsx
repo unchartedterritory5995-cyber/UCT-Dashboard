@@ -36,6 +36,7 @@ import { vendorNotesForTree, foldNotesForOutput, alertNoteForOutput, noteHeading
 import { COMPARISONS, conditionFrom, yieldsCondition, operatorLabel } from './toCondition'
 import { splitPaste, inspectLibrary } from './libraryIntake'
 import { importOutcome, classifyNote, SEVERITY, controlledErrorReport } from '../engine/ast/importOutcome'
+import { importVerdict } from '../engine/ast/importVerdict'
 import { foreignLanguage, foreignRefusal } from '../engine/ast/foreignLanguage'
 import { TS_CALL_SHAPES, TS_DOC_BLOCKED } from '../engine/ast/thinkscript'
 import { TABLE } from '../engine/ast/parse'
@@ -1030,6 +1031,14 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
   // ⭐ P0 0G/0I — the verdict and its visible semantic notes. A note the active
   // output's vendor list already shows is not repeated.
   const outcome = report ? (report.outcome || importOutcome(report)) : null
+  // ⭐ I2 (owner-authorized 2026-11-01, Pine integrator unavailable): the four-class
+  // verdict for thinkScript / TC2000 / native imports ONLY. For Pine it is `null`, so
+  // `shownVerdict === outcome` and the line below renders exactly as before. `outcome`
+  // itself is untouched: `semanticShown` and everything else still read it.
+  // Record: docs/indicators/i2/PINE-COORDINATION-import-verdict.md.
+  const verdict = useMemo(
+    () => (report && report.dialect !== 'pine' ? importVerdict(report) : null), [report])
+  const shownVerdict = verdict || outcome
   const semanticShown = useMemo(() => {
     if (!outcome) return []
     const shown = new Set(((active && active.vendorNotes) || []).map((v) => `${v.name}::${v.note}`))
@@ -1125,13 +1134,13 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
 
           {/* ⭐⭐ P0 0G/0I — THE VERDICT, ALWAYS SHOWN. One of exact / disclosed
               differences / partial / not supported / failed (`importOutcome.js`). */}
-          {outcome && (
-            <p className={styles.meta} data-testid="import-outcome" data-outcome={outcome.verdict} role="status">
-              <b>{outcome.label}</b>
+          {shownVerdict && (
+            <p className={styles.meta} data-testid="import-outcome" data-outcome={shownVerdict.verdict} role="status">
+              <b>{shownVerdict.label}</b>
               {report.foreign ? ` — this looks like ${report.foreign}` : ''}
               {report.rerouted ? ` — read as thinkScript: \`${report.rerouted.name}\` is a thinkorswim name` : ''}
-              {outcome.reason && outcome.verdict !== 'unsupported' && outcome.verdict !== 'error'
-                ? ` — ${outcome.reason}` : ''}
+              {shownVerdict.reason && shownVerdict.verdict !== 'unsupported' && shownVerdict.verdict !== 'error'
+                ? ` — ${shownVerdict.reason}` : ''}
             </p>
           )}
           {/* ⭐ SUPPORT LOOP A1/A2/A3 (`docs/pine/support-loop/PHASE-A.md`): which
