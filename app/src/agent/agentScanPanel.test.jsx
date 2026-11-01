@@ -25,7 +25,7 @@ const envelope = (kind, params, over = {}) => ({
   contract: 'MD-1.0', kind, params_echo: params, status: 'ok', freshness: 'periodic', as_of: '2026-10-30T20:00:00Z',
   fetched_at: '2026-11-01T15:00:00Z', delay_s: null, stale: false, source: 'uct-screener', provider_calls: 0,
   coverage: { evaluated: 3600, answered: 3590, dropped: 4, not_computable: 6 },
-  notes: ['Screener snapshot — values as of the 2026-10-30 close (nightly), not live.'], data: null, ...over,
+  notes: ['Screener snapshot — values as of the 2026-10-30 close (nightly), not live.', '4 names were excluded because their own price history stopped.', '6 names could not be decided: a value this screen needs is missing.'], data: null, ...over,
 })
 const refused = (kind, params, note) => envelope(kind, params, { status: 'refused', freshness: 'unavailable', as_of: null, coverage: null, notes: [note] })
 const ROWS = [{ symbol: 'AAA', price: 50, rs_rank: 99, chg_pct_1d: 1.5 }, { symbol: 'BBB', price: 20, rs_rank: 95, chg_pct_1d: -0.5 }]
@@ -82,6 +82,9 @@ describe('SC-1 acceptance: the screener capability in the real panel, through th
     expect(out).toContain('values as of the 2026-10-30 close (nightly), not live.')
     expect(out).not.toMatch(/live prices|right now/)
     expect(out).toContain('AAA')
+    // SAT-1 A1 finding: the exclusion is said ONCE (the coverage line), never again from the envelope's own note
+    expect(out).not.toContain('excluded because')
+    expect(out).not.toContain('could not be decided')
   }, 30000)
 
   it('DISABLED FLAGS: with the server not serving scans the panel uses the Screener route, and nothing reaches the gateway', async () => {

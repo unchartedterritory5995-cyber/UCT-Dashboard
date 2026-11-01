@@ -431,9 +431,10 @@ async function runViaGateway(spec, { show = SHOW_DEFAULT, name = null, savedId =
     : ` by ${sortLabel} (${spec.sort.dir === 'asc' ? 'lowest' : 'highest'} first)${ranked < rows.length ? `; only ${ranked} of these ${rows.length} have ${sortLabel} values — the other ${rows.length - ranked} have none and are not ranked by it` : ''}`
   const showing = unrankable ? ` ${unrankableText(sortLabel, spec.sort.dir)}.` : rows.length ? ` Showing the first ${rows.length}${sortWord}.` : ''
   const c = env.coverage
-  const covLine = c && (c.dropped || c.not_computable) ? `Checked ${c.evaluated.toLocaleString()} stocks: ${c.answered.toLocaleString()} could be decided${c.not_computable ? `, ${c.not_computable.toLocaleString()} had a missing value` : ''}${c.dropped ? `, ${c.dropped.toLocaleString()} were excluded for stopped price history` : ''}` : null
+  const covLine = c && (c.dropped || c.not_computable) ? `Checked ${c.evaluated.toLocaleString()} stocks: ${c.answered.toLocaleString()} could be decided${c.not_computable ? `, ${c.not_computable.toLocaleString()} had a missing value` : ''}${c.dropped ? `, ${c.dropped.toLocaleString()} ${c.dropped === 1 ? 'was' : 'were'} excluded for stopped price history` : ''}` : null
   // the envelope's own notes carry the data's time ("as of the <date> close, not live"), staleness and any overlay
-  const envNotes = (env.notes || []).filter(n => !/^Showing \d+ of \d+ matches\.?$/.test(n)).map(n => n.replace(/\.$/, ''))
+  // (the coverage line above already says what was excluded / not computable: the envelope's own coverage notes would repeat it)
+  const envNotes = (env.notes || []).filter(n => !/^Showing \d+ of \d+ matches\.?$/.test(n) && !/^\d[\d,]* names? (?:was|were) excluded because|^\d[\d,]* names? could not be decided/.test(n)).map(n => n.replace(/\.$/, ''))
   const notes = [...extra, ...coverageNotes(spec), ...(env.stale ? ['This data is stale'] : []), ...(covLine ? [covLine] : []), ...envNotes]
   return {
     text: `${head}${what}.${showing}${notes.length ? ` ${notes.map(n => `${n}.`).join(' ')}` : ''}`,

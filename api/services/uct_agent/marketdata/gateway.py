@@ -16,10 +16,11 @@
   A kind's optional `validate(params)` runs BEFORE admission: a request it refuses (a bad spec, a bad
   symbol) spends nothing. A read that is admitted spends its allowance even if the source then refuses
   or fails — an attempted execution is an execution.
-* MODEL ISOLATION: a kind marked `model_isolated` (UCT-derived values the owner has not cleared for the
-  model, e.g. breadth) is served only for purpose "answer"; any other purpose is refused before admission.
   These limits sit UNDER the existing caps: they add no model call and change no $ budget
   (budget.py's $5/day Agent cap and the shared $15 ledger are untouched).
+* MODEL ISOLATION (ADR-005): a kind marked `model_isolated` is DORMANT — refused for every purpose — unless
+  UCT_AGENT_ISOLATED=1 (default off; activation is a separate owner decision). When active, it
+  (UCT-derived values the owner has not cleared for the model, e.g. breadth) is served only for purpose "answer"; any other purpose is refused before admission.
 * Every envelope is validated (envelope.validate_envelope) before it leaves; an adapter that breaks the
   contract is answered `unavailable`, never passed through.
 """
@@ -39,6 +40,10 @@ log = logging.getLogger("uct_agent.data")
 
 DATA_ENV = "UCT_AGENT_DATA"
 SCAN_ENV = "UCT_AGENT_SCAN"
+#: Model-isolated kinds (ADR-005) are DORMANT unless this is on: refused server-side for EVERY purpose,
+#: so their security never rests on the browser-supplied `purpose` alone. Activation is a separate
+#: owner decision that also needs ADR-005 layers L2-L7 in place.
+ISOLATED_ENV = "UCT_AGENT_ISOLATED"
 
 MAX_READS_PER_TURN = 8
 MAX_SCANS_PER_TURN = 1
@@ -53,6 +58,10 @@ CATEGORIES = ("market", "scan")
 
 def data_enabled() -> bool:
     return os.environ.get(DATA_ENV, "").strip() == "1"
+
+
+def isolated_enabled() -> bool:
+    return data_enabled() and os.environ.get(ISOLATED_ENV, "").strip() == "1"
 
 
 def scan_enabled() -> bool:
@@ -157,6 +166,8 @@ def read(kind: str, params: Any = None, *, user_id: Any, turn_id: str, purpose: 
     k = registry().get(kind)
     if k is None:
         return env.refused(kind, params, f"unknown kind {kind!r}")
+    if k.model_isolated and not isolated_enabled():
+        return env.refused(kind, params, "this data is not available to UCT Agent yet")
     if k.model_isolated and purpose != "answer":
         return env.refused(kind, params, "this data is shown to the member only and is never used for research")
     if k.category == "scan" and not scan_enabled():
