@@ -1,14 +1,18 @@
-"""The bounded headline history and the delivery ledger -- ``trade_exchange_news.db``.
+"""The PERMANENT headline archive and the delivery ledger -- ``trade_exchange_news.db``.
 
 Two tables, because a DELIVERY and a HEADLINE are different things:
 
 * ``deliveries`` -- one row per journal record ever ingested (event id is the
   key). This is the idempotency ledger: a push and a recovery of the same
-  record are one delivery. Pruned by AGE only, never by count, so the
-  reconciler can never resurrect a headline the count bound removed.
-* ``headlines``  -- what members see. ``seq`` (AUTOINCREMENT: never reused, even
-  after pruning) is the ONE order every subscriber receives and every replay
-  resumes from.
+  record are one delivery, and it keeps the record exactly as received.
+* ``headlines``  -- what members see. ``seq`` (AUTOINCREMENT: never reused) is the
+  ONE order every subscriber receives and every replay resumes from.
+
+⛔⛔ PERMANENT RETENTION (owner, 2026-10-31; Trade Exchange authorized indefinite
+storage). NOTHING here deletes a headline or a delivery -- not by age, not by
+count, not ever. There is no prune, and ``tests/test_trade_exchange_news_retention.py``
+fails if a DELETE against either table appears anywhere in the News code. Only
+in-memory CACHES are bounded (archive.py), and evicting one never touches a row.
 
 ⭐ THE DUPLICATE POLICY (owner: "do not silently discard potentially legitimate
 news without an explicit policy"). Trade Exchange sends no delivery id, so a
@@ -21,8 +25,7 @@ wire. The policy is therefore lossless and visible:
     ``repeat`` event is published, so the widget can show "×2";
   * ``TXN_DEDUPE_WINDOW_S=0`` turns collapsing off (every delivery a headline).
 
-Single writer: only ``pipeline``'s one writer thread calls ``ingest`` and
-``prune``; readers use their own per-thread connections (WAL).
+Single writer: only ``pipeline``'s one writer thread calls ``ingest``; readers use their own per-thread connections (WAL).
 """
 from __future__ import annotations
 
@@ -90,6 +93,8 @@ class Store:
                 c.execute("ALTER TABLE deliveries ADD COLUMN journaled INTEGER NOT NULL DEFAULT 0")
             c.execute("CREATE INDEX IF NOT EXISTS ix_txn_deliveries_unjournaled "
                       "ON deliveries(journaled, received_at_ms)")
+            # The daily integrity check's per-headline repeat accounting (integrity.py).
+            c.execute("CREATE INDEX IF NOT EXISTS ix_txn_deliveries_headline ON deliveries(headline_seq)")
         # ⭐ THE EPOCH: a random id minted once per database file. seq is only
         # meaningful within one epoch -- if the file is ever recreated, seq
         # restarts at 1 and a client holding cursor 4,812 must not read "nothing
@@ -170,23 +175,6 @@ class Store:
             raise
         return {"kind": kind, "seq": seq, "headline": _row(row)}
 
-    def prune(self, *, max_age_ms: int, max_items: int, now_ms: int | None = None) -> dict[str, int]:
-        now = int(time.time() * 1000) if now_ms is None else now_ms
-        cutoff = now - max_age_ms
-        c = self._conn()
-        c.execute("BEGIN IMMEDIATE")
-        try:
-            by_age = c.execute("DELETE FROM headlines WHERE received_at_ms < ?", (cutoff,)).rowcount
-            by_count = c.execute(
-                "DELETE FROM headlines WHERE seq <= (SELECT seq FROM headlines "
-                "ORDER BY seq DESC LIMIT 1 OFFSET ?)", (max_items,)).rowcount
-            ledger = c.execute("DELETE FROM deliveries WHERE received_at_ms < ?", (cutoff,)).rowcount
-            c.execute("COMMIT")
-        except BaseException:
-            c.execute("ROLLBACK")
-            raise
-        return {"by_age": by_age, "by_count": by_count, "ledger": ledger}
-
     # ── small durable state (epoch, heartbeat, coverage gaps) ────────────────
 
     def get_state(self, k: str) -> str | None:
@@ -249,9 +237,51 @@ class Store:
             "SELECT seq, source, content, received_at_ms, event_id, via, ingested_at_ms FROM headlines "
             "WHERE seq > ? ORDER BY seq LIMIT ?", (int(seq), int(limit))).fetchall()
 
+    def index_between(self, start_ms: int, end_ms: int) -> list[tuple]:
+        """The same index tuples for ``start_ms <= received_at_ms < end_ms`` (one
+        calendar day): a range read on ``ix_txn_headlines_received``, so its cost is
+        the day's size, never the archive's."""
+        return self._conn().execute(
+            "SELECT seq, source, content, received_at_ms, event_id, via, ingested_at_ms FROM headlines "
+            "WHERE received_at_ms >= ? AND received_at_ms < ? ORDER BY seq", (int(start_ms), int(end_ms))).fetchall()
+
+    def index_before(self, seq: int, limit: int) -> list[tuple]:
+        """Index tuples for the ``limit`` headlines just below ``seq``, seq ascending."""
+        rows = self._conn().execute(
+            "SELECT seq, source, content, received_at_ms, event_id, via, ingested_at_ms FROM headlines "
+            "WHERE seq < ? ORDER BY seq DESC LIMIT ?", (int(seq), int(limit))).fetchall()
+        return rows[::-1]
+
+    def count_between(self, start_ms: int, end_ms: int) -> int:
+        """Headlines received in ``[start_ms, end_ms)``: one aggregate row off the
+        index -- a cached day's consistency check."""
+        return int(self._conn().execute(
+            "SELECT COUNT(*) FROM headlines WHERE received_at_ms >= ? AND received_at_ms < ?",
+            (int(start_ms), int(end_ms))).fetchone()[0])
+
+    def hour_counts(self, after_seq: int = 0) -> tuple[dict[int, int], int]:
+        """({UTC hour -> headlines received in it}, the highest seq counted) for
+        ``seq > after_seq``. The calendar's availability: built once per process
+        from the index, then extended by new seqs only."""
+        c = self._conn()
+        top = int(c.execute("SELECT COALESCE(MAX(seq), 0) FROM headlines").fetchone()[0])
+        rows = c.execute("SELECT received_at_ms / 3600000, COUNT(*) FROM headlines "
+                         "WHERE seq > ? AND seq <= ? GROUP BY 1", (int(after_seq), top)).fetchall()
+        return {int(h): int(n) for h, n in rows}, top
+
+    def repeats_for(self, seqs: list[int]) -> dict[int, int]:
+        """seq -> repeat_count for just these rows (where it is above zero)."""
+        out: dict[int, int] = {}
+        for i in range(0, len(seqs), 500):
+            chunk = [int(s) for s in seqs[i:i + 500]]
+            out.update(self._conn().execute(
+                f"SELECT seq, repeat_count FROM headlines WHERE repeat_count > 0 AND seq IN "
+                f"({','.join('?' * len(chunk))})", chunk).fetchall())
+        return out
+
     def repeats(self) -> dict[int, int]:
-        """seq -> repeat_count for the (few) headlines received more than once: the
-        one headline column that changes after it is written."""
+        """seq -> repeat_count for EVERY headline received more than once (grows
+        with the archive: readers of one page use ``repeats_for``)."""
         return dict(self._conn().execute("SELECT seq, repeat_count FROM headlines WHERE repeat_count > 0"))
 
     def count_upto(self, seq: int) -> int:
@@ -261,7 +291,7 @@ class Store:
                                         (int(seq),)).fetchone()[0])
 
     def present(self, seqs: list[int]) -> set[int]:
-        """Which of ``seqs`` still exist (pruning may delete any of them)."""
+        """Which of ``seqs`` exist."""
         out: set[int] = set()
         for i in range(0, len(seqs), 500):
             chunk = [int(s) for s in seqs[i:i + 500]]
@@ -279,6 +309,13 @@ class Store:
             (int(limit),)).fetchall()
         return [_row(r) for r in reversed(rows)]
 
+    def by_event_id(self, event_id: str) -> dict[str, Any] | None:
+        """The stored headline with this ``event_id`` (the receiver's ULID: stable
+        across epochs and recovery), or None. A read; explain.py's source."""
+        r = self._conn().execute(f"SELECT {','.join(_COLS)} FROM headlines WHERE event_id = ?",
+                                 (str(event_id),)).fetchone()
+        return _row(r) if r else None
+
     def known(self, event_id: str) -> bool:
         return self._conn().execute("SELECT 1 FROM deliveries WHERE event_id=?",
                                     (event_id,)).fetchone() is not None
@@ -286,6 +323,12 @@ class Store:
     def cursor_ms(self) -> int | None:
         r = self._conn().execute("SELECT MAX(received_at_ms) FROM deliveries").fetchone()
         return r[0] if r and r[0] is not None else None
+
+    def received_range(self) -> tuple[int | None, int | None]:
+        """(oldest, newest) receipt time in the archive: two index probes."""
+        r = self._conn().execute("SELECT (SELECT MIN(received_at_ms) FROM headlines), "
+                                 "(SELECT MAX(received_at_ms) FROM headlines)").fetchone()
+        return (r[0], r[1]) if r else (None, None)
 
     def last_seq(self) -> int:
         r = self._conn().execute("SELECT MAX(seq) FROM headlines").fetchone()

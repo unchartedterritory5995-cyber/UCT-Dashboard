@@ -26,7 +26,8 @@ change either):
 ⭐⭐ GT (2026-10-02, owner rulings D1 / D2 / D6) — THREE MORE, ALL READ PER CALL:
 
 * ``PINE_RUNTIME_STAGE`` — WHO the runtime pane is for: ``off`` (the default,
-  and what an unset or unrecognised value reads as), ``admins``, ``all``. It
+  and what an unset or unrecognised value reads as), ``admins``, ``cohort``
+  (WS-I, R2: admins plus the ``pine-runtime-pane`` cohort tag), ``all``. It
   rides the auth payload resolved for the member (``api/routers/auth.py::
   _access_payload`` -> ``pine_runtime_pane_enabled``), and the client's
   ``runtimePaneGate.runtimePaneEnabled()`` needs BOTH it and the build flag.
@@ -70,14 +71,20 @@ STAGE_ENV = "PINE_RUNTIME_STAGE"
 STAGE_OFF = "off"
 STAGE_ADMINS = "admins"
 STAGE_ALL = "all"
-STAGES = (STAGE_OFF, STAGE_ADMINS, STAGE_ALL)
+#: ⭐ WS-I (2026-10-31, owner ruling R2) — the stage between admins and all:
+#: admins PLUS members tagged into `rollout_gate.PINE_RUNTIME_COHORT`
+#: (`rollout:pine-runtime-pane`, a `user_tags` row). The ladder is
+#: off -> admins -> cohort -> all; every step back is a variable, never a delete.
+STAGE_COHORT = "cohort"
+STAGES = (STAGE_OFF, STAGE_ADMINS, STAGE_COHORT, STAGE_ALL)
 
 #: ⭐ DECLARED AS A MODE TABLE so `feature_flag_index.mode_flags()` derives it
 #: (the stage carries no ENABLED marker, so `gates()` cannot see it). The
 #: default is the literal the code falls back to, in the same expression a
 #: reader audits. ⛔ It is OFF: an unset variable never exposes the lane.
 #: ⚠️ The KEY is a string literal on purpose: the index reads a constant key.
-PINE_RUNTIME_MODE_FLAGS = {"PINE_RUNTIME_STAGE": (STAGE_OFF, (STAGE_OFF, STAGE_ADMINS, STAGE_ALL))}
+PINE_RUNTIME_MODE_FLAGS = {"PINE_RUNTIME_STAGE": (STAGE_OFF, (STAGE_OFF, STAGE_ADMINS, STAGE_COHORT,
+                                                                STAGE_ALL))}
 assert STAGE_ENV in PINE_RUNTIME_MODE_FLAGS
 
 # ─── GT: the starter allowlist (D6) ──────────────────────────────────────────
@@ -137,7 +144,7 @@ def kill_list() -> list[str]:
 
 
 def stage() -> str:
-    """`PINE_RUNTIME_STAGE`, read PER CALL: ``off`` · ``admins`` · ``all``.
+    """`PINE_RUNTIME_STAGE`, read PER CALL: ``off`` · ``admins`` · ``cohort`` · ``all``.
 
     ⛔ AN UNSET, EMPTY OR UNRECOGNISED VALUE IS ``off`` — never the opposite.
     A typo ("admin", "everyone") must not open the lane to anyone."""
@@ -145,17 +152,25 @@ def stage() -> str:
     return v if v in STAGES else STAGE_OFF
 
 
-def pane_permitted(role: Any) -> bool:
+def pane_permitted(role: Any, user_id: Any = None) -> bool:
     """May THIS member's pane draw a script through the runtime lane?
 
-    ``all`` -> everyone; ``admins`` -> ``role == "admin"`` only; ``off`` -> nobody.
-    ⛔ A missing role is a MEMBER's, never an admin's: a caller that forgets to
-    pass it fails closed."""
+    ``all`` -> everyone; ``cohort`` -> admins and members tagged into the
+    ``pine-runtime-pane`` cohort (WS-I, R2); ``admins`` -> ``role == "admin"``
+    only; ``off`` -> nobody.
+    ⛔ A missing role is a MEMBER's, never an admin's, and a missing id is
+    OUTSIDE the cohort: a caller that forgets either fails closed."""
     s = stage()
     if s == STAGE_ALL:
         return True
-    if s == STAGE_ADMINS:
-        return role == "admin"
+    if s in (STAGE_ADMINS, STAGE_COHORT) and role == "admin":
+        return True
+    if s == STAGE_COHORT:
+        # ⛔ Imported here, not at the top: `rollout_gate` imports FastAPI and the
+        # auth middleware, which the store's save path must not drag in at import.
+        from api.services import rollout_gate
+        return bool(rollout_gate.pine_runtime_cohort_enabled_for(
+            str(user_id) if user_id else None))
     return False
 
 
@@ -168,8 +183,52 @@ def _allow_entries_from(raw: Any) -> list[str]:
     return out
 
 
+def _allowlist_doc() -> Optional[dict]:
+    try:
+        with open(ALLOWLIST_PATH, encoding="utf-8") as fh:
+            doc = json.load(fh)
+    except (OSError, ValueError):
+        return None
+    return doc if isinstance(doc, dict) else None
+
+
+def allow_report() -> dict:
+    """WS-I (R1) — what the committed allowlist SERVES and what it WITHHOLDS, and
+    why, plus the variable's entries (which carry no evidence: an operator
+    override outside R1, reported so it is never invisible). Never raises on
+    the file: an unreadable one serves nothing (fail closed)."""
+    from api.services import rollout_gate
+    doc = _allowlist_doc()
+    served: list[dict] = []
+    withheld: list[dict] = []
+    scripts = doc.get("scripts") if doc else None
+    registry = doc.get("capabilities") if doc else None
+    for s in scripts if isinstance(scripts, list) else []:
+        if not isinstance(s, dict):
+            continue
+        sha = _allow_entries_from([s.get("sha256")])
+        reasons = rollout_gate.pine_runtime_admission(s, registry)
+        if not sha:
+            reasons = ["no well-formed sha256"] + reasons
+        row = {"slug": s.get("slug"), "sha256": sha[0] if sha else None}
+        if reasons:
+            withheld.append(dict(row, reasons=reasons))
+        else:
+            served.append(row)
+    overrides = _allow_entries_from(re.split(r"[\s,]+", os.environ.get(ALLOW_ENV, "")))
+    return {"served": served, "withheld": withheld, "env_overrides": overrides}
+
+
 def allow_list() -> list[str]:
     """The starter allowlist: the committed JSON ∪ `PINE_RUNTIME_ALLOWLIST`.
+
+    ⭐ WS-I (2026-10-31, owner ruling R1): a committed script is SERVED only when
+    `rollout_gate.pine_runtime_admission` admits it: every capability it uses
+    conformance-graded, and at least one MATCH capture with the pane on. One that
+    fails is left out (served as not graded, never deleted); `allow_report`
+    names why. ⚠️ The variable's entries carry no evidence and are NOT graded
+    here: it stays an additive operator override (tests, an emergency add),
+    recorded in `docs/feature_flags.json` as to be left UNSET in production.
 
     Both are read PER CALL, so an env edit needs no deploy. Each entry is a
     script's source sha256 or a prefix of at least 12 hex. ⛔ A definition id is
@@ -178,16 +237,7 @@ def allow_list() -> list[str]:
 
     ⛔ AN UNREADABLE JSON CONTRIBUTES NOTHING (fail closed): the lane serves less,
     never more."""
-    entries: list[str] = []
-    try:
-        with open(ALLOWLIST_PATH, encoding="utf-8") as fh:
-            doc = json.load(fh)
-        scripts = doc.get("scripts") if isinstance(doc, dict) else None
-        if isinstance(scripts, list):
-            entries.extend(_allow_entries_from(
-                s.get("sha256") for s in scripts if isinstance(s, dict)))
-    except (OSError, ValueError):
-        pass
+    entries: list[str] = [r["sha256"] for r in allow_report()["served"]]
     for e in _allow_entries_from(re.split(r"[\s,]+", os.environ.get(ALLOW_ENV, ""))):
         if e not in entries:
             entries.append(e)
@@ -206,17 +256,18 @@ def not_graded(source: Optional[str]) -> Optional[str]:
             "TradingView, so it is not drawn bar by bar")
 
 
-def save_permission(role: Any) -> Optional[str]:
+def save_permission(role: Any, user_id: Any = None) -> Optional[str]:
     """The save door's PER-MEMBER refusal (D1), or ``None``.
 
     ⛔ The SAME question the client's pane asks before it draws
     (`pane_permitted`), so a member who cannot see the lane cannot store into it
     either. The save switch, the kill list and the allowlist are asked by the
     caller, each with its own sentence."""
-    if pane_permitted(role):
+    if pane_permitted(role, user_id):
         return None
     s = stage()
-    who = "no member" if s == STAGE_OFF else "admins only"
+    who = {STAGE_OFF: "no member", STAGE_COHORT: "admins and a test group only"}.get(
+        s, "admins only")
     return (f"scripts drawn bar by bar are switched on for {who} right now "
             f"({STAGE_ENV}={s}), so this one is not saved")
 
@@ -337,6 +388,13 @@ def stamp_served(row: dict) -> dict:
         return row
     source = (definition.get("compute") or {}).get("source")
     why = killed(row.get("def_id"), source)
+    # ⭐ WS-I (S6) — THE STAGE REACHES A SERVED ROW. With `PINE_RUNTIME_STAGE=off`
+    # nobody may draw through the lane, so every runtime row read after the
+    # switch-off is stamped exactly as a kill is (never stored, never deleted):
+    # a tab still latched ON refuses it at its install door on its next read.
+    if not why and stage() == STAGE_OFF:
+        why = (f"scripts drawn bar by bar are switched off for every member right now "
+               f"({STAGE_ENV}={STAGE_OFF}), so this one is not drawn bar by bar")
     # ⭐ GT (D6) — a stored runtime row whose script is not on the starter
     # allowlist is SERVED stamped, never deleted and never rewritten, exactly as
     # a kill is: the install door refuses the stamp, and listing the script

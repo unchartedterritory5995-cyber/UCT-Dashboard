@@ -10324,6 +10324,8 @@ from api.routers import indicator_vision as indicator_vision_router  # noqa: E40
 app.include_router(indicator_vision_router.router)  # /api/indicator-vision/* — a screenshot in, ranked candidate indicators out
 from api.routers import indicator_telemetry as indicator_telemetry_router  # noqa: E402
 app.include_router(indicator_telemetry_router.router)  # /api/indicator-telemetry/event — Phase One Track C, client half (import_submitted/compile_finished only)
+from api.routers import pine_runtime_telemetry as pine_runtime_telemetry_router  # noqa: E402
+app.include_router(pine_runtime_telemetry_router.router)  # /api/pine-runtime-telemetry/stop — P3 WS-H S8: runtime stop beacon (shape only, no source, no member id)
 from api.routers import indicator_support as indicator_support_router  # noqa: E402
 app.include_router(indicator_support_router.router)  # /api/indicator-support/* — Pine support loop Phase A: gap counts + opt-in mismatch reports (docs/pine/support-loop/PHASE-A.md)
 app.include_router(indicator_support_router.internal_router)  # /api/internal/indicator-support/* — Phase B digest + triage door, PUSH_SECRET bearer (docs/pine/support-loop/PHASE-B.md)

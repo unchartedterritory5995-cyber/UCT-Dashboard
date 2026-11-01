@@ -2,7 +2,9 @@
  * News (Trade Exchange) — the row and its popovers, split out of the widget:
  *   Row            one headline (memoised: a quote tick re-renders only the rows
  *                  naming that symbol), its collapse, one-click copy
- *                  and ⋯ (add to watchlist)
+ *                  , Explain (AI) and ⋯ (add to watchlist)
+ *   ExplainPanel   the AI Explanation of one headline: a dismissible panel over
+ *                  the widget's foot, never a card in the feed
  *   ActionsMenu    Add a headline's symbol to a personal watchlist
  *   FilterMenu     categories (multi-select) + this widget's saved presets
  *   HealthPopover  what this browser knows about the feed (feedHealth)
@@ -21,7 +23,8 @@ import useSWR from 'swr'
 import UIcon from '../../../components/ui/UIcon'
 import { formatNumber } from '../../../lib/presentation/presentationPrimitives'
 import Input from '../../../components/ui/Input'
-import { CATEGORY_FILTERS, categoryTitle, cleanCategories, fmtReceived, fmtReceivedFull,
+import { requestExplanation, cachedExplanation } from '../../../lib/tradeExchangeNewsExplain'
+import { CATEGORY_FILTERS, categoryTitle, cleanCategories, explainable, explanationText, fmtReceived, fmtReceivedFull,
   dayLabel, dayStatus, cleanTime, MAX_PRESETS, monthGrid, MONTHS, tickerTitle, tickerTone, timeLabel, tokenize,
   WEEKDAYS } from './tradeExchangeNewsModel'
 import styles from './TradeExchangeNewsWidget.module.css'
@@ -96,7 +99,7 @@ function Headline({ item, linkedSym, onSym, colorMode, prices, staleSymbols, pro
 const quoteKey = (q) => (q ? `${q.price}|${q.change_pct}|${q.updated_at || q.timestamp || ''}` : '')
 const ROW_KEYS = ['item', 'linkedSym', 'colorMode', 'provisional', 'clampLines', 'expanded', 'flashing',
   'showCategory', 'timeOnly', 'groupCount', 'groupOpen', 'related', 'onSym', 'onToggleExpand', 'onToggleGroup', 'onActions',
-  'actionsOpen']
+  'actionsOpen', 'onExplain', 'explainOpen']
 function rowPropsEqual(a, b) {
   for (const k of ROW_KEYS) if (a[k] !== b[k]) return false
   if (!a.quotesUsed && !b.quotesUsed) return true
@@ -155,7 +158,7 @@ function CopyButton({ text }) {
 
 export const Row = memo(function Row({ item, linkedSym, onSym, colorMode, prices, staleSymbols, provisional,
   clampLines, expanded, onToggleExpand, flashing, showCategory, timeOnly = false, groupCount = 0, groupOpen = false,
-  onToggleGroup, related = false, onActions, actionsOpen }) {
+  onToggleGroup, related = false, onActions, actionsOpen, onExplain, explainOpen }) {
   const headRef = useRef(null)
   const long = useLong(headRef, clampLines, item.content, expanded)
   return (
@@ -178,6 +181,16 @@ export const Row = memo(function Row({ item, linkedSym, onSym, colorMode, prices
           </button>
         )}
         <span className={styles.rowActions}>
+          {onExplain && explainable(item) && (
+            <button
+              type="button"
+              className={`${styles.rowBtn}${explainOpen ? ' ' + styles.rowBtnOn : ''}`}
+              onClick={(e) => { e.stopPropagation(); onExplain(item, e.currentTarget) }}
+              aria-label="Explain this headline"
+              aria-expanded={!!explainOpen}
+              title="Explain (AI)"
+            ><UIcon name="sparkle" size={11} gold={false} /></button>
+          )}
           <CopyButton text={item.content || ''} />
           {(item.tickers || []).length > 0 && (
             <button
@@ -211,6 +224,83 @@ export const Row = memo(function Row({ item, linkedSym, onSym, colorMode, prices
     </div>
   )
 }, rowPropsEqual)
+
+// ── AI Explanation panel ──
+
+/** One headline's explanation, asked for when the panel opens (the member's
+ *  click), rendered as TEXT only: React escapes it, nothing is parsed as HTML or
+ *  markdown. It sits over the widget's foot and never moves a row in the feed. */
+export function ExplainPanel({ item, anchorEl, themeVars, onClose }) {
+  const [state, setState] = useState(() => {
+    const hit = cachedExplanation(item.id)
+    return hit ? { body: hit } : { loading: true }
+  })
+  const [copied, setCopied] = useState(null)            // null | 'ok' | 'err'
+  const [attempt, setAttempt] = useState(0)
+  const closeRef = useRef(null)
+  useEffect(() => { closeRef.current?.focus() }, [])
+  useEffect(() => {
+    if (state.body) return undefined
+    let live = true
+    setState({ loading: true })
+    requestExplanation(item.id).then((out) => { if (live) setState(out) })
+    return () => { live = false }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per open / Retry
+  }, [item.id, attempt])
+  useEffect(() => {
+    if (!copied) return undefined
+    const t = setTimeout(() => setCopied(null), COPY_FEEDBACK_MS)
+    return () => clearTimeout(t)
+  }, [copied])
+  const close = useCallback(() => { onClose(); anchorEl?.focus?.() }, [onClose, anchorEl])
+  const { body, error, loading } = state
+  return (
+    <div className={styles.explainPanel} style={themeVars || undefined} role="dialog" aria-label="AI Explanation"
+      onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); close() } }}>
+      <div className={styles.explainHead}>
+        <span className={styles.explainTitle}><UIcon name="sparkle" size={11} /> AI Explanation</span>
+        <button ref={closeRef} type="button" className={styles.explainClose} onClick={close}
+          aria-label="Close explanation" title="Close"><UIcon name="x" size={11} /></button>
+      </div>
+      <div className={styles.explainSource} title={item.content}>
+        <span className={styles.explainWhen}>{fmtReceivedFull(item.received_at_ms)}</span> {item.content}
+      </div>
+      <div className={styles.explainBody} aria-live="polite" aria-busy={!!loading}>
+        {loading && (
+          <div className={styles.explainLoading}>
+            <span className={styles.explainSkel} /><span className={styles.explainSkel} />
+            <span className={`${styles.explainSkel} ${styles.explainSkelShort}`} />
+            <span className={styles.srOnly}>Writing the explanation…</span>
+          </div>
+        )}
+        {body && (
+          <>
+            <p className={styles.explainText}>{body.explanation}</p>
+            <p className={styles.explainText}><strong>Watch:</strong> {body.watch}</p>
+          </>
+        )}
+        {error && (
+          <div className={styles.explainError}>
+            <span>{error.text}</span>
+            {error.retry && (
+              <button type="button" className={styles.explainAction} onClick={() => setAttempt((n) => n + 1)}>Retry</button>
+            )}
+          </div>
+        )}
+      </div>
+      {body && (
+        <div className={styles.explainFoot}>
+          <span className={styles.explainNote}>AI-generated from this headline only. Not advice.</span>
+          <button type="button" className={styles.explainAction}
+            onClick={async () => setCopied((await copyText(explanationText(body))) ? 'ok' : 'err')}>
+            <UIcon name={copied === 'ok' ? 'check' : copied === 'err' ? 'x' : 'copy'} size={10} />
+            {copied === 'ok' ? 'Copied' : copied === 'err' ? 'Copy failed' : 'Copy explanation'}
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
 
 // ── popover plumbing: click-away + Escape, focus returned to the opener ──
 function usePopover(boxRef, anchorEl, onClose) {
@@ -410,8 +500,9 @@ function placeAbove(anchorEl, hostEl, width) {
   return { bottom: Math.max(4, h.bottom - a.top + 4), left }
 }
 
-/** A month of days. Future dates and dates before retention are disabled and say
- *  why; a dot marks a retained date with headlines (only what the server reports). */
+/** A month of days. Future dates and dates before the archive began are disabled and
+ *  say why; a dot marks an archived date with headlines (only what the server reports).
+ *  The archive is permanent: nothing in it ever ages out. */
 export function CalendarPopover({ selected, meta, anchorEl, hostEl, themeVars, onPick, onClose }) {
   const boxRef = useRef(null)
   const onKey = usePopover(boxRef, anchorEl, onClose)
@@ -453,9 +544,9 @@ export function CalendarPopover({ selected, meta, anchorEl, hostEl, themeVars, o
           const st = dayStatus(key, meta)
           const off = st.kind === 'future' || st.kind === 'unretained'
           const title = st.kind === 'future' ? 'In the future'
-            : st.kind === 'unretained' ? 'Not retained: UCT keeps about 7 days of headlines'
+            : st.kind === 'unretained' ? 'Before the UCT News archive began'
               : st.kind === 'news' ? `${formatNumber(st.count, { decimals: 0 })} headline${st.count === 1 ? '' : 's'}`
-                : st.kind === 'empty' ? 'No headlines retained for this date' : ''
+                : st.kind === 'empty' ? 'No headlines on this date' : ''
           return (
             <button key={key} type="button" data-day={key} role="gridcell" disabled={off}
               tabIndex={key === focus ? 0 : -1} aria-selected={key === selected} aria-label={`${dayLabel(key, meta?.today)}${title ? `. ${title}` : ''}`}
@@ -471,7 +562,7 @@ export function CalendarPopover({ selected, meta, anchorEl, hostEl, themeVars, o
       </div>
       {meta?.first_day && (
         <div className={styles.menuNote}>
-          History from {dayLabel(meta.first_day, meta.today)}{meta.first_day_partial ? ' (partial day)' : ''} · about 7 days are kept
+          Archive from {dayLabel(meta.first_day, meta.today)}{meta.first_day_partial ? ' (began mid-day)' : ''} · every headline is kept
         </div>
       )}
     </div>

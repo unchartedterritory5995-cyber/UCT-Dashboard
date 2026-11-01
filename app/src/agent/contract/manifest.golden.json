@@ -2251,7 +2251,7 @@
    "domain": "chartGrid",
    "target": "board",
    "summary": "Show these tickers as that many charts, in equal cells: the charts already on the board are reused (top-left first), any still needed are ADDED, and the charts' area is re-tiled as an even grid. Other widgets stay where they are; nothing is removed. One change, one Undo.",
-   "hints": "Use for \"create/open/show N charts for A, B, C…\", \"put SPY, QQQ, NVDA and TSLA in a 2x2 grid\", \"show NVDA and AMD side by side\" — whenever the member names the tickers for several charts. target = the ref of the board entry. symbols = the tickers in the member's order, uppercase. timeframe = the one timeframe they gave for all of them (1|5|15|30|60 minutes, D, W, M), else null. layout = \"columns\" for side by side, \"rows\" for stacked, \"grid\" for a grid, else null. new_charts = true only when they ask for NEW charts (\"in new charts\", \"add four new charts\") — the charts already there then keep their tickers; else null. watchlist = true when they also ask for a watchlist beside the charts (\"…, and a watchlist\") and the board has no Watchlist widget: a column on the right is cleared of charts and a Watchlist widget is added there; else null. Never widget.add + chart.setSymbol for this.",
+   "hints": "Use for \"create/open/show N charts for A, B, C…\", \"put SPY, QQQ, NVDA and TSLA in a 2x2 grid\", \"show NVDA and AMD side by side\" — whenever the member names the tickers for several charts. target = the ref of the board entry. symbols = the tickers in the member's order, uppercase. timeframe = the one timeframe they gave for all of them (1|5|15|30|60 minutes, D, W, M), else null. layout = \"columns\" for side by side, \"rows\" for stacked, \"grid\" for a grid, else null. new_charts = true only when they ask for NEW charts (\"in new charts\", \"add four new charts\") — the charts already there then keep their tickers; else null. watchlist = true when they also ask for a watchlist beside the charts (\"…, and a watchlist\") and the board has no Watchlist widget: a column on the right is cleared of charts and a Watchlist widget is added there; else null. replace = true only when the member chose to replace the current board with this workspace; else null. Never widget.add + chart.setSymbol for this.",
    "args": {
     "type": "object",
     "properties": {
@@ -2301,6 +2301,12 @@
        "boolean",
        "null"
       ]
+     },
+     "replace": {
+      "type": [
+       "boolean",
+       "null"
+      ]
      }
     },
     "required": [
@@ -2308,7 +2314,8 @@
      "timeframe",
      "layout",
      "new_charts",
-     "watchlist"
+     "watchlist",
+     "replace"
     ],
     "additionalProperties": false
    },
