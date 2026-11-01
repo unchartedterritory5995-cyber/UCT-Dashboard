@@ -29,6 +29,7 @@ import { buildRuntimeIr } from '../../ast/pineRuntimeFrontend.js'
 import { lowerIrProgram } from '../../runtime/lowerIr.js'
 import { execute } from '../../runtime/vm.js'
 import { runtimeClockOpts } from '../../ast/pineRuntimeClock.js'
+import { buildRecorder, columnsOver } from '../../runtime/runtimeColumns.js'
 import { compareCapture } from '../../../../../../../tools/vendor_harness/compare.mjs'
 
 // The runtime pane on, as a permitted member (the runtime-on harness mode does the
@@ -116,5 +117,31 @@ describe('⭐⭐ a clock the columnar lane withholds is not drawn by the run', (
   it('⛔ CONTROL — a compile-only build (no bars) never declines for the clock', () => {
     const b = buildRuntimeIr(src, { bars: [], inputs: {}, pane: true, ...runtimeClockOpts(false) })
     expect(b.ok, b.ok ? '' : `${b.refusal.guard}: ${b.refusal.message}`).toBe(true)
+  })
+})
+
+describe('⭐⭐ THE TICK PATH (WS-F `buildRecorder` / `columnsOver`) keeps both answers', () => {
+  const recordOn = (id, src) => {
+    const bars = toProductBars(capture(id))
+    const rec = buildRecorder()
+    const built = buildRuntimeIr(src, { bars, inputs: {}, pane: true, basePeriod: 'D', tf: 'D', historyFromListing: true,
+      columnInterpret: rec.interpret, ...runtimeClockOpts(false, { tf: 'D' }) })
+    expect(built.ok, built.ok ? '' : `${built.refusal.guard}: ${built.refusal.message}`).toBe(true)
+    const kept = rec.done(built.ir)
+    expect(kept, 'the session keeps its build').not.toBe(null)
+    return { bars, kept }
+  }
+  it('a re-evaluated column still reads an `na` test as Pine does (bar 0 is 2, not na)', () => {
+    const { bars, kept } = recordOn(SPY, '//@version=6\nindicator("t")\nplot(close[1] ? 1 : 2)\nplot(ta.change(time("W")) != 0 ? 1 : 0)\n')
+    const cols = columnsOver(kept, bars, null)
+    expect(cols, 'the tick re-evaluation is used').not.toBe(null)
+    expect(cols.some((c) => c[0] === 2), 'the ?: column, bar 0').toBe(true)
+    expect(cols.every((c) => !Number.isNaN(c[0])), 'no column reads na on bar 0').toBe(true)
+  })
+  it('a clock the columnar lane withholds over the bars of a tick hands back to a rebuild', () => {
+    const src = '//@version=6\nindicator("t")\nplot(time("W") - time)\n'
+    const { kept } = recordOn(SPY, src)
+    const btc = toProductBars(capture('vw-time-tf-bitstamp-btcusd-1d-2026-09-30'))
+    expect(columnsOver(kept, btc, null)).toBe(null)
   })
 })

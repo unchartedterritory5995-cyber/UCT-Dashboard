@@ -192,7 +192,9 @@ describe('⛔ precise refusals — the next dependency is EXPOSED, never hidden'
     // `WHILE_ITERATIONS`, by name. The row moves to `varip`, which still refuses
     // at build — the category this table asks about is "a statement this lane
     // cannot read", and that is what `varip` is.
-    ['a varip', `${head}varip s = 0.0\ns := s + 1\nplot(s)\n`, 'runtime:varip'],
+    // ⭐ P3 WS-F — a top-level `varip` lowers now (the realtime ledger,
+    // `runtimeRealtimeTicks.test.js`); one inside a function body still refuses by name.
+    ['a varip', `${head}f() =>\n    varip s = 0.0\n    s := s + 1\n    s\nplot(f())\n`, 'runtime:varip'],
     // ⚰️ `a user function → runtime:function` LIVED HERE UNTIL 2E, which gave
     // functions real call frames. The case moved rather than being deleted: what
     // it asserts now is that a function this front end cannot READ still refuses
@@ -296,14 +298,14 @@ plot(a)
   }
 
   it('⭐ a refusal carries a source LINE, so a gap is attributable', () => {
-    const r = refusalOf(`${head}varip s = 0.0\ns := s + 1\nplot(s)\n`)
+    const r = refusalOf(`${head}f() =>\n    varip s = 0.0\n    s := s + 1\n    s\nplot(f())\n`)
     expect(r.line).toBeGreaterThan(0)
   })
 
   it('⛔ NOTHING IS SILENTLY DROPPED — an unsupported statement refuses the PROGRAM', () => {
     // A front end that skipped what it could not lower would accept this script
     // and quietly compute a different indicator.
-    const built = buildRuntimeIr(`${head}var s = 0.0\nvarip t = 0.0\ns := s + 1\nplot(s)\n`, { bars: BARS })
+    const built = buildRuntimeIr(`${head}var s = 0.0\ng() =>\n    varip t = 0.0\n    t\ns := s + 1 + 0 * g()\nplot(s)\n`, { bars: BARS })
     expect(built.ok).toBe(false)
     expect(built.ir).toBeUndefined()
   })

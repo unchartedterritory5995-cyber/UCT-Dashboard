@@ -22,7 +22,11 @@
 // .test.js` requires every live importer of the front end to reach.
 import { buildRuntimeIr, RUNTIME_FRONTEND_LANGUAGE, RUNTIME_FRONTEND_VERSION } from '../ast/pineRuntimeFrontend.js'
 import { RUNTIME_IR_VERSION } from './ir.js'
-import { runtimeClockOpts, newestBarIsFormingFrom } from '../ast/pineRuntimeClock.js'
+import { runtimeClockOpts, newestBarIsFormingFrom, isNewByBar } from '../ast/pineRuntimeClock.js'
+import { interpret } from '../ast/interpret.js'
+import { TABLE, BAR_READERS } from '../ast/parse.js'
+import { cloneValues } from './vmState.js'
+import { SLOT } from './ir.js'
 import { lowerIrProgram, naTestsOf } from './lowerIr.js'
 import { execute } from './vm.js'
 import { Budget, RuntimeLimitError, DEFAULT_LIMITS } from './limits.js'
@@ -80,6 +84,8 @@ export function probeRuntimeProgram(source, { objectsInRun = false } = {}) {
     built = buildRuntimeIr(String(source || ''), {
       bars: [], inputs: {}, ...(objectsInRun ? { objectsInRun: true } : { objectTrees: [] }),
       ...COMPILE_ON_A_PANE, ...runtimeClockOpts(false),
+      // ⭐ P3 WS-F (review M3) — the PANE's compile check: the pane runs with its ledger
+      realtimeLedger: true,
       // ⭐ RT6 — the pane's own build: each plot's `color =` is an output too.
       plotColours: true,
     })
@@ -142,6 +148,7 @@ export function colourInputsTheRunReads(source, keys, { objectsInRun = false, ou
     try {
       const built = buildRuntimeIr(String(source || ''), {
         bars: [], inputs: {}, inputDefaults, ...objects, ...COMPILE_ON_A_PANE, ...runtimeClockOpts(false),
+        realtimeLedger: true,   // the pane's program, measured on closed history (`varip` is `var` there)
       })
       if (!built.ok) return null
       const p = lowerIrProgram(built.ir, { historyFromListing: true })
@@ -154,6 +161,7 @@ export function colourInputsTheRunReads(source, keys, { objectsInRun = false, ou
       const built = buildRuntimeIr(String(source || ''), {
         bars: rows, inputs: {}, inputDefaults, ...objects,
         pane: true, plotColours: true, tf: 'D', basePeriod: 'D', ...runtimeClockOpts(false, { tf: 'D' }),
+        realtimeLedger: true,
       })
       if (!built.ok || (built.ir.requests || []).length) return null
       const program = lowerIrProgram(built.ir, { historyFromListing: true })
@@ -410,7 +418,12 @@ export function computeRuntimeColumns(def, rows, ctx, opts = {}) {
       || err.guard === RUNTIME_HISTORY_GUARD || err.guard === RUNTIME_WARMUP_GUARD)) throw err
     const plain = { ...def, compute: { ...compute, objects: undefined } }
     let out
-    try { out = computeRuntimeColumnsOnce(plain, rows, ctx, opts) } catch { throw err }
+    // ⭐ P3 WS-F — the plain run's TIME stop is the run's answer (WS-H, B2: wyckoff on a slow
+    // device was named `runtime:calc-bars-count`, the drawings' refusal, when it was the time
+    // budget that kept its plots from being drawn); any other plain-run error keeps the first.
+    try { out = computeRuntimeColumnsOnce(plain, rows, ctx, opts) } catch (plainErr) {
+      throw plainErr && plainErr.guard === RUNTIME_TIME_BUDGET_GUARD ? plainErr : err
+    }
     return withRuntimeObjects(out, { status: 'WITHHELD', live: [], guard: (err && err.guard) || 'runtime:objects',
       reason: String((err && err.message) || err) })
   }
@@ -602,6 +615,29 @@ function sessionBytes(s) {
     for (const it of cp.iters || []) bytes += 16 * lenOf(it)
     if (cp.store) bytes += 256 * lenOf(cp.store.live)
   }
+  // ⭐ P3 WS-F (review L3) — the kept build (its IR and column trees) counts against the cap too
+  if (s.build) bytes += buildBytes(s.build)
+  return bytes
+}
+/** ⭐ P3 WS-F (review L3) — an ESTIMATE of a kept build's bytes, walked once and cached on it:
+ *  64 an object, 16 an array element, 8 a typed-array element, 2 a string character. Each
+ *  shared node counted once; iterative (deep trees). */
+function buildBytes(build) {
+  if (Number.isFinite(build.bytes)) return build.bytes
+  let bytes = 0
+  const seen = new Set()
+  const stack = [build.ir, build.trees]
+  while (stack.length) {
+    const x = stack.pop()
+    if (typeof x === 'string') { bytes += 2 * x.length; continue }
+    if (!x || typeof x !== 'object' || seen.has(x)) continue
+    seen.add(x)
+    if (ArrayBuffer.isView(x)) { bytes += 8 * x.length; continue }
+    if (Array.isArray(x)) { bytes += 16 * x.length; for (const v of x) stack.push(v); continue }
+    bytes += 64
+    for (const k of Object.keys(x)) { bytes += 2 * k.length; stack.push(x[k]) }
+  }
+  build.bytes = bytes
   return bytes
 }
 /** Drop every session (tests; a host that wants a cold start). */
@@ -639,6 +675,7 @@ const sameColumnsTo = (a, b, last) => {
     const x = a[k]
     const y = b[k]
     if (!x || !y || x.length <= last || y.length <= last) return false
+    if (x === y) continue   // ⭐ P3 WS-F — a column a tick reused (`tickInvariant`) is the same array
     for (let i = 0; i <= last; i += 1) if (!Object.is(x[i], y[i])) return false
   }
   return true
@@ -656,6 +693,268 @@ export function resumableFrom(prev, rows, program) {
 /** ⭐ Where a run's incremental decision rides (non-enumerable, like the warm-up). */
 export const RUNTIME_INCREMENTAL_KEY = '__runtimeIncremental'
 export const runtimeIncrementalOf = (cols) => (cols && typeof cols === 'object' ? cols[RUNTIME_INCREMENTAL_KEY] || null : null)
+
+// ─── ⭐⭐ P3 WS-F (B5) — A SESSION KEEPS ITS BUILD: A TICK DOES NOT RE-RUN THE FRONT END ───
+//
+// A realtime tick used to rebuild the whole script — tokenise, resolve, lower to IR — and
+// recompute every precomputed column over all the bars, then resume the VM for ONE bar.
+// The build is a function of the document and the build options ALONE (all in `runKey`)
+// plus, through ONE seam, the bars: the front end reads the bars only by asking the
+// columnar lane for a pure subtree's column (`pineRuntimeFrontend.js::columnOf`), and it
+// never reads a column's VALUES back. So a session records, at its cold build, each
+// column's folded tree in order (`buildRecorder`, through `opts.columnInterpret`), and a
+// later run of the same session re-evaluates exactly those trees over its own bars
+// (`columnsOver`) instead of rebuilding — the same `interpret` call with the same
+// arguments, so the same numbers (`runtimeBuildCache.test.js` holds it bit for bit).
+// ⛔ CACHED ONLY WHEN THE BUILD'S PATH COULD NOT HAVE DEPENDED ON THE BARS: a build in
+// which any column evaluation THREW (the front end may catch it and route differently,
+// and a throw can depend on the data) is never cached. ⛔ AND A RE-EVALUATION THAT THROWS,
+// or answers a column of the wrong length, is not used: the run rebuilds from the source,
+// which reproduces exactly what a cold run says about those bars.
+// ⭐⭐ AND A TICK RE-EVALUATES ONLY THE COLUMNS IT CAN MOVE. A tick changes the forming
+// bar's prices, never a bar's time or the number of bars. A column whose tree reads NO
+// price — constants, the clock (`bar_index`, `time`, `barstate.*`: `closedTable.json::
+// clock`), operators and table functions over those, and no function that reads the bar
+// itself (`BAR_READERS`) — is a function of the bars' times and count alone
+// (`tickInvariant`), so over bars with the same times as the session's last run it is
+// that run's column, reused as it is. Every other column is evaluated again over every
+// bar: `interpret` (the columnar lane) has no incremental entry, so a column that reads a
+// price pays one pass per tick. Only the VM is resumed for the last bar alone.
+const CLOCK_SERIES = new Set(Object.keys((TABLE && TABLE.clock) || {}))
+const PRICE_FREE_CALLS = new Set(Object.keys((TABLE && TABLE.functions) || {}).filter((name) => !BAR_READERS.includes(name)))
+/** Does this folded tree read no price, so it depends on the bars' times and count only?
+ *  ⛔ An ALLOWLIST: a node of any other type (a symbol, a timeframe read, text, a lower
+ *  timeframe…) or a call the table does not hold answers no. Iterative (deep trees). */
+export function tickInvariant(tree) {
+  const stack = [tree]
+  while (stack.length) {
+    const n = stack.pop()
+    if (!n || typeof n !== 'object') return false
+    if (n.type === 'num' || n.type === 'str') continue
+    if (n.type === 'series') { if (!CLOCK_SERIES.has(n.name)) return false; continue }
+    if (n.type === 'call' && !PRICE_FREE_CALLS.has(n.name)) return false
+    if (n.type !== 'op' && n.type !== 'offset' && n.type !== 'call') return false
+    for (const a of n.args || []) stack.push(a)
+  }
+  return true
+}
+/** The bars have the same times, in the same number, as a session's snapshot. */
+const sameTimes = (snap, rows) => {
+  if (!snap || snap.n !== rows.length) return false
+  for (let i = 0; i < rows.length; i += 1) if (!Object.is(snap.t[i], +rows[i].t)) return false
+  return true
+}
+/** Exported for its rails (`runtimeRealtimeGuards.test.js`); no product caller outside this file. */
+export function buildRecorder() {
+  const trees = []
+  let clean = true
+  return {
+    interpret(tree, bars, inputs, interpretOpts) {
+      try {
+        const v = interpret(tree, bars, inputs, undefined, undefined, interpretOpts)
+        trees.push({ tree, inputs, interpretOpts, invariant: tickInvariant(tree) })
+        return v
+      } catch (e) { clean = false; throw e }
+    },
+    /** the build to keep, or null; the IR's own columns (these bars' values) are dropped */
+    done(ir) {
+      if (!clean || !ir || !Array.isArray(ir.columns) || trees.length !== ir.columns.length) return null
+      return { ir: { ...ir, columns: [] }, trees }
+    },
+  }
+}
+/** The columns of a kept build over `rows`, made exactly as `columnOf` makes them, or null.
+ *  `prev` is the session whose last run computed `prev.program.columns` with this build. */
+export function columnsOver(build, rows, prev) {   // exported for its rails, as `buildRecorder`
+  const n = rows.length
+  const out = new Array(build.trees.length)
+  let reusedCount = 0
+  const prevCols = prev && prev.program && Array.isArray(prev.program.columns)
+    && prev.program.columns.length === build.trees.length && sameTimes(prev.rows, rows) ? prev.program.columns : null
+  for (let k = 0; k < build.trees.length; k += 1) {
+    const { tree, inputs, interpretOpts, invariant } = build.trees[k]
+    if (prevCols && invariant && prevCols[k] && prevCols[k].length === n) { out[k] = prevCols[k]; reusedCount += 1; continue }
+    let value
+    // ⭐ P3 WS-B — a fresh clock sink per re-evaluation: what the columnar lane withholds
+    // by name over THESE bars declines the run at the build (`columnOf`), so here it
+    // hands back to a rebuild, which says so by name (`runtime:chart-clock`).
+    const sink = new Map()
+    try { value = interpret(tree, rows, inputs, undefined, undefined, { ...(interpretOpts || {}), chartClockSink: sink }) } catch { return null }
+    for (const code of sink.keys()) if (String(code).startsWith('time-')) return null
+    const arr = typeof value === 'number' ? new Float64Array(n).fill(value)
+      : value instanceof Float64Array ? value : Float64Array.from(value)
+    // ⚠️ FAIL-CLOSED, NOT MUTATION-PROVABLE: `interpret` over `rows` answers `n` values today
+    // (deleting this line left every rail green). It stands because `columnOf` refuses the same
+    // mismatch by name, and a cached column of the wrong length would be read past its end.
+    if (arr.length !== n) return null
+    out[k] = arr
+  }
+  _lastReused = reusedCount
+  return out
+}
+let _lastReused = 0
+
+// ─── ⭐⭐ P3 WS-F — THE REALTIME LEDGER: `varip` AND `barstate.isnew` ─────────────────────
+//
+// Pine's realtime model (`docs/pine/PHASE3-RUNTIME-PLAN.md` 3.2): on each update of the
+// forming bar the script runs the bar again, and EVERY variable — `var` included — is first
+// rolled back to the state committed at the previous bar's close. The checkpoint resume
+// below is that rollback: a tick resumes from the last confirmed bar, never from a forming
+// one. Two things escape it, and both are facts about what has ALREADY RUN:
+//   * `varip` keeps what the previous update of the bar left;
+//   * `barstate.isnew` is true only on a bar's first execution (`isNewByBar`).
+// So a session's runs keep a LEDGER: for each bar time that has run as a FORMING bar, its
+// `varip` slots as the bar's latest execution began (`start`) and ended (`end`), whether
+// that execution was its closing one (`confirmed`), the bar's prices it ran over (`sig`) and
+// whether it was the bar's first (`first`). What a run is to such a bar — its next update,
+// the same update again, the close, a replay, a reopening — is `realtimeDecision`.
+// A bar no run has seen forming is history: `varip` is `var` there, exactly as on
+// TradingView. ⭐ Keyed by bar TIME and by the run's identity WITHOUT the forming flag, so
+// a bar that closes when the fetch stops calling it forming keeps its updates.
+// ⛔ A run that refuses or stops records nothing (`commit` after success only). A run with
+// no session (`incremental: false`, a measurement, `opts.limits`) has no ledger, so a script
+// with a `varip` REFUSES there by name (`realtimeLedger`, review M3), as on every other door.
+// ⛔ BOUNDED: `LEDGER_CAP` ledgers, `LEDGER_BAR_CAP` bars each (the oldest go; a replay of
+// an evicted bar is then history, as after a reload).
+// ⛔ ONLY A SCRIPT THAT DECLARES `varip` OR READS `barstate.isnew` keeps one; every other
+// run is exactly what it was.
+const LEDGER_CAP = 24
+const LEDGER_BAR_CAP = 2000
+const _ledgers = new Map()
+/** ⭐ Where a run's realtime facts ride (non-enumerable): `{isNew, varip, ledgerBars}`. */
+export const RUNTIME_REALTIME_KEY = '__runtimeRealtime'
+export const runtimeRealtimeOf = (cols) => (cols && typeof cols === 'object' ? cols[RUNTIME_REALTIME_KEY] || null : null)
+/** Drop every ledger (tests; a host that wants a cold start). */
+export function resetRuntimeLedgers() { _ledgers.clear() }
+const READS_ISNEW = /\bbarstate\s*\.\s*isnew\b/
+const _readsIsNew = new Map()
+/** Does the source read `barstate.isnew` (comments and strings stripped)? Memoised by source. */
+function readsIsNew(source) {
+  const text = String(source || '')
+  let hit = _readsIsNew.get(text)
+  if (hit === undefined) {
+    hit = READS_ISNEW.test(strippedForScan(text))
+    if (_readsIsNew.size >= 64) _readsIsNew.delete(_readsIsNew.keys().next().value)
+    _readsIsNew.set(text, hit)
+  }
+  return hit
+}
+/** The forming bar's prices as one update saw them: a re-run over the same prices is the
+ *  same update, not a new one (review H1). */
+const barSig = (b) => [+b.t, +b.o, +b.h, +b.l, +b.c, +b.v]
+const sameSig = (a, b) => !!a && !!b && a.length === b.length && a.every((x, i) => Object.is(x, b[i]))
+/** ⭐⭐ (review H1, M2) WHAT ONE RUN IS TO A BAR THE LEDGER HAS SEEN, decided from the bars and
+ *  the ledger alone, before the run:
+ *    `from`   the `varip` state the bar is entered with (`'snap'` = what the run reaches it with)
+ *    `record` the entry to write after a finished run, or null (the run changes nothing)
+ *    `isNew`  this run is the bar's first execution (`barstate.isnew`)
+ *  The rules (Pine counts EXECUTIONS, one per real update of the bar):
+ *    * no entry, the forming bar          → its first update: recorded, new;
+ *    * no entry, any other bar            → history: `varip` is `var`, nothing recorded;
+ *    * unclosed entry, the bar now closed → the closing update: one more execution;
+ *    * unclosed entry, still forming, the SAME prices → the same update run again (a second
+ *      pane, a refetch, a remount, older history prepended): entered from where that update
+ *      began, nothing advances;
+ *    * unclosed entry, new prices         → the next update: entered from where the last ended;
+ *    * closed entry, run closed again, or forming again at the SAME prices → a replay of the
+ *      closing update: entered from where it began, nothing advances;
+ *    * closed entry, forming again at NEW prices (the feed called it closed too early) → a
+ *      new update of a bar that reopened: entered from where the close ended, recorded open,
+ *      so its later updates keep counting (it used to freeze there). */
+function realtimeDecision(e, bar, rows, forming, lastConfirmed) {
+  const n = rows.length
+  const confirmedNow = bar <= lastConfirmed
+  const sig = barSig(rows[bar])
+  if (!e) {
+    return forming === true && bar === n - 1
+      ? { from: 'snap', record: { confirmed: false, first: true, sig }, isNew: true } : null
+  }
+  const same = sameSig(e.sig, sig)
+  if (e.confirmed ? (confirmedNow || same) : (!confirmedNow && same)) return { from: e.start, record: null, isNew: e.first === true }
+  return { from: e.end, record: { confirmed: confirmedNow, first: false, sig }, isNew: false }
+}
+function realtimeRun(def, ctx, role, ir, source, rows, forming, lastConfirmed) {
+  const varip = (ir.slots || []).filter((sl) => sl && sl.varip === true && sl.owner === null && sl.kind === SLOT.PERSIST)
+    .map((sl) => sl.index)
+  if (!varip.length && !readsIsNew(source)) return null
+  // ⭐ (review H1) SHARED BY IDENTICAL PANES, ON PURPOSE: two panes of one script on one symbol
+  // and timeframe see one feed, so they must show one `varip`. Sharing cannot double-count once
+  // a run over the same prices is the same update (`realtimeDecision`): the second pane's run
+  // re-enters from where the first pane's update began and records nothing.
+  // ⭐ (review H1) AND BY WHERE THE HISTORY STARTS (`rows[0].t`): a ledger's states are of the
+  // bars it ran over, so a chart with more (or fewer) bars before is another history, run as
+  // TradingView runs a reload: `varip` is `var` on its history, its forming bar starts fresh.
+  const n = rows.length
+  const key = `${runKey(def, { ...ctx, newestBarIsForming: null, newest_bar_is_forming: null, interpretOpts: undefined })}|${role}|${n ? +rows[0].t : '-'}`
+  const ledger = _ledgers.get(key) || null
+  const decisions = new Map()
+  if (ledger) for (let i = 0; i < n; i += 1) {
+    const e = ledger.bars.get(rows[i].t)
+    if (e) decisions.set(i, realtimeDecision(e, i, rows, forming, lastConfirmed))
+  }
+  if (n && !decisions.has(n - 1)) {
+    const d = realtimeDecision(null, n - 1, rows, forming, lastConfirmed)
+    if (d) decisions.set(n - 1, d)
+  }
+  const notNew = new Set()
+  for (const [i, d] of decisions) if (!d.isNew) notNew.add(rows[i].t)
+  const isNew = isNewByBar(rows, notNew)
+  const pending = new Map()
+  const snap = (persist, initialised) => (varip.length
+    ? { v: cloneValues([varip.map((i) => persist[i])])[0], init: varip.map((i) => initialised[i]) } : null)
+  const put = (from, persist, initialised) => {
+    if (!from) return
+    const v = cloneValues([from.v])[0]
+    for (let k = 0; k < varip.length; k += 1) { persist[varip[k]] = v[k]; initialised[varip[k]] = from.init[k] }
+  }
+  const hooks = {
+    barStart(bar, persist, initialised) {
+      const d = decisions.get(bar)
+      if (!d) return
+      if (d.from === 'snap') { pending.set(bar, { d, start: snap(persist, initialised) }); return }
+      put(d.from, persist, initialised)
+      pending.set(bar, { d, start: d.from })
+    },
+    barEnd(bar, persist, initialised) {
+      const p = pending.get(bar)
+      if (p) p.end = snap(persist, initialised)
+    },
+  }
+  return {
+    hooks,
+    info: { isNew, varip: varip.slice(), ledgerBars: ledger ? ledger.bars.size : 0 },
+    /** After a run that finished: what it executed joins the ledger. */
+    commit() {
+      const add = []
+      for (const [bar, p] of pending) {
+        if (!p.d.record) continue
+        // ⚠️ Not mutation-provable: `barEnd` follows every `barStart` that did not throw (a throw
+        // never commits), so an entry with no `end` cannot reach here today; if a VM change ever
+        // lets one, it is dropped rather than recorded as `end: undefined` (which would silently
+        // roll a `varip` back).
+        if (!('end' in p)) continue
+        add.push([rows[bar].t, { start: p.start, end: p.end, ...p.d.record }])
+      }
+      if (!add.length) return
+      const into = ledger || { bars: new Map() }
+      _ledgers.delete(key)
+      _ledgers.set(key, into)
+      for (const [time, e] of add) { into.bars.delete(time); into.bars.set(time, e) }
+      while (into.bars.size > LEDGER_BAR_CAP) into.bars.delete(into.bars.keys().next().value)
+      while (_ledgers.size > LEDGER_CAP) _ledgers.delete(_ledgers.keys().next().value)
+    },
+  }
+}
+
+/** ⭐ P3 WS-F (B5) — `Array.from(col)` by index: the same plain array, element for element
+ *  (`NaN` and `-0` kept), without the iterator (`Array.from` over a typed array was 20 ms a
+ *  tick for a 54-plot script at 5,000 bars). */
+function plainCopy(col) {
+  const n = col.length
+  const out = new Array(n)
+  for (let i = 0; i < n; i += 1) out[i] = col[i]
+  return out
+}
 
 function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
   const compute = (def && def.compute) || {}
@@ -695,7 +994,23 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
   }
   const tooBig = sourceSizeRefusal(compute.source)
   if (tooBig) throw refusal(RUNTIME_LIMIT_GUARD, tooBig)
-  const built = buildRuntimeIr(String(compute.source || ''), {
+  // ⭐ UIE PHASE 5 (M2) — the session, and whether this run resumes from it
+  // ⭐ P3 WS-F x WS-E — a `bar_index`-shifted build (the calc_bars window's probe) is a
+  // MEASUREMENT: it never keeps or resumes a session, so its build, checkpoint and realtime
+  // ledger can never stand in for the real run's (the key does not carry the shift).
+  const shiftedProbe = Number.isInteger(opts.barIndexShift) && opts.barIndexShift !== 0
+  const sessionKey = opts.incremental === false || opts.limits || shiftedProbe ? null
+    : `${runKey(def, ctx)}|${opts.sessionRole || 'run'}`
+  const prevSession = sessionKey ? _sessions.get(sessionKey) : null
+  // ⭐⭐ P3 WS-F (B5) — THE SESSION'S BUILD, REUSED: the front end is not run again, only
+  // the columns are re-evaluated over THESE bars (`buildRecorder`, `columnsOver`).
+  const reused = prevSession && prevSession.build && rows.length ? columnsOver(prevSession.build, rows, prevSession) : null
+  const reusedLast = reused ? _lastReused : 0
+  const recorder = !reused && sessionKey && rows.length ? buildRecorder() : null
+  const built = reused ? { ok: true, ir: { ...prevSession.build.ir, columns: reused } } : buildRuntimeIr(String(compute.source || ''), {
+    ...(recorder ? { columnInterpret: recorder.interpret } : {}),
+    // ⭐ P3 WS-F (review M3) — a `varip` builds only where its ledger runs: a run with a session
+    ...(sessionKey ? { realtimeLedger: true } : {}),
     bars: rows,
     // ⭐ UIE PHASE 2 (M4) — the member's own settings (`runtimeInputs.js`): only the
     // values that differ from the author's defaults, refused by name outside the
@@ -734,16 +1049,21 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
   }
   // ⭐⭐ RT3 — from the listing, a `NaN` is Pine's `na` and an `na` condition reads
   // as Pine reads it; off it the shared `{0,1,NaN}` rules stand (`lowerIrProgram`).
-  const program = lowerIrProgram(built.ir, { historyFromListing: !!(ctx && ctx.historyFromListing === true) })
+  // ⭐ P3 WS-F (B5) — a reused build lowers to the session's program (one IR, one
+  // deterministic lowering), so the resume check is handed that program with THESE
+  // columns; a run that does not resume lowers afresh below (its own constants).
+  const lowerOpts = { historyFromListing: !!(ctx && ctx.historyFromListing === true) }
+  let program = reused ? { ...prevSession.program, columns: reused } : lowerIrProgram(built.ir, lowerOpts)
   // ⭐ P1 HARDENING — the document is run only by the engine it was minted for, and
   // only while each mapped index still names the output it named at mint.
   const versionWhy = runtimeVersionRefusal(def, program.outputs)
   if (versionWhy) throw refusal(RUNTIME_VERSION_GUARD, versionWhy)
-  // ⭐ UIE PHASE 5 (M2) — the session, and whether this run resumes from it
-  const sessionKey = opts.incremental === false || opts.limits ? null
-    : `${runKey(def, ctx)}|${opts.sessionRole || 'run'}`
-  const prevSession = sessionKey ? _sessions.get(sessionKey) : null
+  const build = reused ? prevSession.build : (recorder ? recorder.done(built.ir) : null)
   const resumable = prevSession && !opts.probe ? resumableFrom(prevSession, rows, program) : { why: sessionKey ? 'cold' : 'off' }
+  // ⚠️ Fresh constants for a run from bar 0 — conservative, NOT mutation-provable: running the
+  // session's program instead drew the same columns and drawings on every rail and probe tried
+  // (`runtimeRealtimeGuards.test.js`, a drawing script re-run after an old bar moved).
+  if (reused && !resumable.checkpoint) program = lowerIrProgram(built.ir, lowerOpts)
   // a probe that rides only a run from scratch (the curtain's A, `computeOffListing`)
   const runProbe = opts.probe || (resumable.checkpoint ? null : (opts.probeIfCold || null))
   const lastConfirmed = forming === false ? rows.length - 1 : rows.length - 2
@@ -751,7 +1071,20 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
   // ⭐ a resumed run runs the SESSION's program (its constants — a drawing-handle template
   // the checkpointed state already holds is that very object) over THIS build's columns
   const runProgram = resumeFrom ? { ...prevSession.program, columns: program.columns } : program
-  const series = ['o', 'h', 'l', 'c', 'v'].map((k) => Float64Array.from(rows.map((b) => b[k])))
+  // ⭐ P3 WS-F (B5) — the five series and the times in ONE pass (it was six `map`s and five
+  // `Float64Array.from`s, about 3 ms a tick at 5,000 bars); the same numbers.
+  const nRows = rows.length
+  const series = [new Float64Array(nRows), new Float64Array(nRows), new Float64Array(nRows),
+    new Float64Array(nRows), new Float64Array(nRows)]
+  const barTimes = new Array(nRows)
+  for (let i = 0; i < nRows; i += 1) {
+    const b = rows[i]
+    series[0][i] = b.o; series[1][i] = b.h; series[2][i] = b.l; series[3][i] = b.c; series[4][i] = b.v
+    barTimes[i] = b.t
+  }
+  // ⭐⭐ P3 WS-F — `varip` and `barstate.isnew`: the realtime ledger of this chart's run
+  const realtime = sessionKey ? realtimeRun(def, ctx, opts.sessionRole || 'run', built.ir, compute.source,
+    rows, forming, lastConfirmed) : null
   // ⭐⭐ RT1 — THE TIME BUDGET, checked at the end of every bar through the VM's
   // own per-bar hook (no VM change): past it the run stops by name.
   const budgetMs = Number.isFinite(opts.budgetMs) ? opts.budgetMs : null
@@ -774,13 +1107,14 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
       // Only a bar KNOWN to have finished is confirmed; unknown fails closed the
       // way `interpret` does for the four realtime clock columns.
       confirmed: forming === false,
-      barTimes: rows.map((b) => b.t),
+      barTimes,
       // ⭐ UIE PHASE 2 — `opts.limits` is a MEASUREMENT door (the limits census,
       // `runtimeLimitsBudget.measure.test.js`); no product caller passes it, so every
       // chart runs under `DEFAULT_LIMITS`.
     }, opts.limits, {
       ...(runProbe ? { probe: runProbe } : {}),
       ...(resumeFrom ? { resume: resumeFrom } : {}),
+      ...(realtime ? { realtime: realtime.hooks } : {}),
       ...(sessionKey && lastConfirmed >= 0 && !(resumeFrom && resumeFrom.bar >= lastConfirmed)
         ? { checkpointAt: lastConfirmed } : {}),
       onBar: (bar) => {
@@ -820,10 +1154,11 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
     throw err
   }
   if (typeof opts.onBudget === 'function') opts.onBudget(res.budget)   // the census reads its counts
+  if (realtime) realtime.commit()
   if (sessionKey) {
     const checkpoint = res.checkpoint || (resumeFrom && resumeFrom.bar <= lastConfirmed ? resumeFrom : null)
     _sessions.delete(sessionKey)
-    const next = { rows: rowsSnapshot(rows), program: runProgram, checkpoint }
+    const next = { rows: rowsSnapshot(rows), program: runProgram, checkpoint, ...(build ? { build } : {}) }
     next.bytes = sessionBytes(next)
     if (next.bytes <= SESSION_BYTE_CAP / 2) {
       _sessions.set(sessionKey, next)
@@ -839,11 +1174,13 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
   const out = {}
   for (const [plotKey, index] of Object.entries(outputs)) {
     const col = res.outputs[index]
-    if (col) out[plotKey] = Array.from(col)
+    if (col) out[plotKey] = plainCopy(col)
   }
   Object.defineProperty(out, RUNTIME_INCREMENTAL_KEY, { enumerable: false, configurable: true,
     value: { resumedFrom: Number.isInteger(res.resumedFrom) ? res.resumedFrom : null,
-      why: resumeFrom ? null : resumable.why, ranBars: rows.length - (resumeFrom ? resumeFrom.bar + 1 : 0) } })
+      why: resumeFrom ? null : resumable.why, ranBars: rows.length - (resumeFrom ? resumeFrom.bar + 1 : 0),
+      rebuilt: !reused, columnsReused: reused ? reusedLast : 0 } })
+  if (realtime) Object.defineProperty(out, RUNTIME_REALTIME_KEY, { enumerable: false, configurable: true, value: realtime.info })
   // ⭐⭐ RT5 — THE DRAWINGS THIS SAME RUN MADE, as plain data (structured-clone
   // safe for the worker), beside the columns.
   if (ownObjects) {

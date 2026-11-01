@@ -259,7 +259,7 @@ export const RUNTIME_REFUSALS = Object.freeze({
     + 'once, before bar 0, so both have to be fixed when the script is written',
   'runtime:operator': 'an operator the runtime has no instruction for',
   'runtime:switch': 'a switch — the runtime has no multi-way branch yet',
-  'runtime:varip': 'varip — intrabar persistence, which a closed-bar runtime cannot reproduce',
+  'runtime:varip': 'a `varip` this lane cannot carry from tick to tick (inside a function, or holding a drawing)',
   // ⭐⭐ THE FAMILY SURVIVES THE CAPABILITY, exactly as `runtime:fill-target`
   // does above. A `type Foo` declaration, `Foo.new(…)`, a field read and a
   // field write all execute now; what remains of the family is named BY ITS
@@ -2000,8 +2000,18 @@ function buildRuntimeIrLinked(source, opts, holder) {
       // The fold returns a NEW tree and mutates nothing, so the parse this lane
       // lowers from stays symbolic and a second binding is free to fold it
       // differently.
-      value = interpret(foldBound(canonical, bindConsts), bars, inputs,
-        undefined, undefined, { ...columnInterpretOpts, chartClockSink: clockSink })
+      // ⭐ P3 WS-F (B5) — `opts.columnInterpret`, when given, is called INSTEAD with the
+      // same arguments and must answer what `interpret` answers: the realtime session
+      // records each column's folded tree so a tick re-evaluates the columns without
+      // rebuilding the script (`runtimeColumns.js::buildRecorder`).
+      // ⭐ P3 WS-B — and with THIS run's column options (`columnInterpretOpts`: the
+      // listing keys) plus the clock sink, so a tick re-evaluates under the same
+      // `na` rule and re-reports what the columnar lane withholds.
+      const folded = foldBound(canonical, bindConsts)
+      const columnOpts = { ...columnInterpretOpts, chartClockSink: clockSink }
+      value = typeof opts.columnInterpret === 'function'
+        ? opts.columnInterpret(folded, bars, inputs, columnOpts)
+        : interpret(folded, bars, inputs, undefined, undefined, columnOpts)
     } catch (e) {
       // ⭐⭐ C23 — A COMPILE-ONLY BUILD LEAVES THE SYMBOL TO THE BINDING. The
       // member door's checks (`probeObjectRuntime`, `probeRuntimeProgram`) build
@@ -2676,6 +2686,50 @@ function buildRuntimeIrLinked(source, opts, holder) {
     const m = value && value.type === 'call' ? /^(line|label|box|table|linefill)\.(new|copy)$/.exec(String(value.name || '')) : null
     const fam = fromAnnot || (m ? m[1] : null)
     if (fam && slots[slot]) slots[slot].drawing = fam
+  }
+  /** ⭐⭐ P3 WS-F (review M1) — does a type hold a drawing HANDLE: a drawing family itself, a
+   *  collection whose element type does, or a UDT with such a field, transitively (a cycle
+   *  through `seen` answers no for the repeat; its other fields still answer). */
+  const HANDLE_TYPE = /^(line|label|box|table|linefill|polyline)$/
+  const typeHoldsHandle = (name, args, seen = new Set()) => {
+    for (const part of [name, ...(Array.isArray(args) ? args : [])]) {
+      for (const w of String(part == null ? '' : part).split(/[^\w.]+/)) {
+        if (!w) continue
+        if (HANDLE_TYPE.test(w)) return true
+        if (udtTypes.has(w) && !seen.has(w)) {
+          seen.add(w)
+          if ((udtTypes.get(w).fields || []).some((f) => typeHoldsHandle(f.type, f.typeArgs, seen))) return true
+        }
+      }
+    }
+    return false
+  }
+  /** ⭐⭐ P3 WS-F (review M1) — why a top-level `varip`'s value may hold a drawing handle, or
+   *  null. A handle made on a tick is rolled back with the object store while the `varip`
+   *  keeps it, so it would name an object that no longer exists. ⛔ WHEN UNSURE, IT ANSWERS
+   *  A REASON: a `matrix`/`map`, a user function's result, or a collection or record read
+   *  from another slot whose element type this lane does not track.
+   *  @param toks the declaration after the keyword (`[type] name = expr`) */
+  const varipHoldsDrawing = (toks, scope) => {
+    for (let i = 0; i < toks.length; i += 1) {
+      const t = toks[i]
+      if (!t || t.kind !== 'ident') continue
+      const v = String(t.value)
+      if (/^(line|label|box|table|linefill|polyline)(\.|$)/.test(v)) return `\`varip\` holding a drawing (\`${v}\`)`
+      if (/^array\.new_(line|label|box|table|linefill|polyline)$/.test(v)) return `\`varip\` holding an array of drawings (\`${v}\`)`
+      if (/^(matrix|map)(\.|$)/.test(v)) return `\`varip\` holding a \`${v.split('.')[0]}\`, whose element type this lane does not check for drawings`
+      if (Array.isArray(t.typeArgs) && typeHoldsHandle(null, t.typeArgs)) return `\`varip\` holding drawings (\`${v}<${t.typeArgs.join(', ')}>\`)`
+      const ctor = /^(\w+)\.(new|copy)$/.exec(v)
+      if (ctor && udtTypes.has(ctor[1]) && typeHoldsHandle(ctor[1])) return `\`varip\` holding a \`${ctor[1]}\`, a type with a drawing field`
+      if (udtTypes.has(v) && typeHoldsHandle(v)) return `\`varip\` holding a \`${v}\`, a type with a drawing field`
+      if (definedNames.has(v) && isPunct(toks[i + 1], '(')) return `\`varip\` holding the result of \`${v}()\`, whose type this lane does not check for drawings`
+      const at = scope && typeof scope.lookup === 'function' ? scope.lookup(v) : null
+      const sl = at !== null && at !== undefined ? slots[at] : null
+      if (sl && (sl.drawing || sl.collection || (sl.udt && typeHoldsHandle(sl.udt)) || (sl.elemUdt && typeHoldsHandle(sl.elemUdt)))) {
+        return `\`varip\` holding \`${v}\`, a ${sl.drawing ? 'drawing' : sl.collection ? 'collection' : 'record'} this lane does not check for drawings`
+      }
+    }
+    return null
   }
   /** ⭐ RT5 — `str.tostring` / v4 `tostring`, a SCRIPT's own function of that
    *  name excepted. */
@@ -7546,7 +7600,32 @@ function buildRuntimeIrLinked(source, opts, holder) {
         }
         toks = toks.slice(1)
       }
-      if (word === 'varip') { note('runtime:varip'); throw new RuntimeRefusal('runtime:varip', null, locate(first)) }
+      // ⭐⭐ P3 WS-F — `varip` IS `var` ON EVERY BAR THE SCRIPT RUNS ONCE, and escapes the
+      // realtime rollback on the forming bar: each tick re-runs the bar from the state
+      // committed at the previous bar's close, EXCEPT the `varip` slots, which keep what the
+      // previous tick left (`runtimeColumns.js`, the realtime ledger). So it is declared
+      // exactly as `var` (below) and its slot is MARKED; the ledger finds it on the IR.
+      // ⛔ Refused by name where the ledger cannot carry it exactly: inside a function (its
+      // slot is per call site, not one main-frame cell) and holding a drawing (a drawing
+      // made on a tick is rolled back with the object store; a handle that escaped the
+      // rollback would name an object that no longer exists).
+      // ⭐⭐ (review M3) ONLY A DOOR WITH THE LEDGER SERVES IT. Every other door that builds this
+      // IR (the host object lane's values, its compile check, the object lane, a run with no
+      // session) would run a `varip` as a plain `var` and show a different number on the forming
+      // bar from the pane, so it refuses by name unless the caller says it carries the ledger
+      // (`opts.realtimeLedger`, `runtimeColumns.js`).
+      // ⭐⭐ (review M1) A DRAWING IS REFUSED BY TYPE, not by one token: an array of lines, a UDT
+      // with a `line` field (transitively), a collection or record read from another slot, a
+      // function's result. When the type cannot be told, it refuses (`varipHoldsDrawing`).
+      if (word === 'varip') {
+        const why = owner !== null ? '`varip` inside a function body'
+          : opts.realtimeLedger !== true ? '`varip` on a door with no realtime ledger (only the runtime pane carries a `varip` from tick to tick)'
+            : varipHoldsDrawing(toks.slice(1), scope)
+        if (why) {
+          note('runtime:varip')
+          throw new RuntimeRefusal('runtime:varip', why, locate(first))
+        }
+      }
       // ⭐⭐ `for name = from to to [by step]`. `while` keeps the old refusal —
       // neither acceptance script uses one, and a loop whose bound is re-read
       // every pass is a different termination argument from this one's.
@@ -8013,7 +8092,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
       }
 
       // ── `var name = expr` ──
-      if (word === 'var') {
+      if (word === 'var' || word === 'varip') {
         const eq = findTop(toks, (t) => isPunct(t, '='))
         const nameTok = eq > 0 ? boundName(toks, eq) : null
         if (!nameTok) throw new RuntimeRefusal('runtime:statement', 'a `var` declaration needs a name and an initialiser', locate(first))
@@ -8060,6 +8139,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
         noteHandle(nameTok.value, value)
         if (objectPassOwnsDrawing && holdsObjectCall(value)) continue
         const slot = scope.declare(nameTok.value, newSlot(nameTok.value, declarationPersists(toks)))
+        if (word === 'varip') slots[slot].varip = true   // ⭐ P3 WS-F — see the `varip` site
         // ⭐ MARKED BEFORE THE INITIALISER IS LOWERED, so a later read of this
         // name answers `holdsText` correctly — and before the ASSIGNMENTS are,
         // which is what makes `s := "cd"` route out of the columnar lane too.
