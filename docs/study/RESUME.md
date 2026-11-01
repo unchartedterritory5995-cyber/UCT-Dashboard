@@ -650,6 +650,29 @@ Method) drilled on real charts, with no AI at runtime, every item reviewed by th
   four at a time starting again from #1; then the bear-gap review; then calibrate `find_go_signal_hourly.py` and
   retire the 40 daily Go Signal drafts (positions 1-40) as superseded.
 
+- **2026-11-01: hourly sitting waits on PR #559 (branch feat/study-hourly-review-1031, checks green, MERGE BLOCKED).**
+  Ruled on the full-window captures: #1 VST 2026-10-16 "Eh C average" (okay), #2 VGZ 2026-10-16 "Okay" then
+  "Wait I cant tell what the first 3 hourly candles are that Im supposed to be watching!" (pending, CHART RULE),
+  #3 VGZ 2026-09-28 "Okay", #4 MSFT 2022-07-14 "Eh so this is more of a pivot vs go signal btw" (cut; DEFINITION
+  NOTE: an undercut without the red-to-green that works higher later is a pivot, not a go signal). All in
+  owner_verdicts.jsonl (297 lines). FIX IN #559 (not deployed): `goSignalOverlay.js` OPEN_BARS=3 +
+  `goSignalOpenBarTimes`, `studyOverlays.js` `studyHighlightBars` (white #ffffff) on StudyReview AND DrillPlayer,
+  hourly marker text "the open: first 3 hours in white" at first_hour_t; vitest 23 files / 201 pass.
+  BEAR GAPS: `import_bear_gaps_run.ps1` ran (39 drafts, skill setup.family3.bear_gap); captures bg_01..39 in the
+  2026-10-31 sheet folder; SITTING PAUSED after 8 of 39 (MPWR 2024-10-31 good; 7 cut, "more of just an earnings
+  breakdown", seed NFLX 2022-01-21 "this is stupid"): the first finder draft is earnings collapses straight off a
+  top and misses the lesson. FINDER REDO only after the owner points to one or two example charts; exclude
+  earnings-day collapses; then retire the 38 unneeded drafts. 31 never shown (stay draft).
+  SITTING RULE (owner got confused when bear gaps followed go signals): one lesson per sitting, the lesson name in
+  CAPITALS in every caption and question, never switch lessons mid-sitting without saying so first.
+  The session fell back to auto mode after a plan-mode detour: `gh pr merge` is denied again ("Merge Without
+  Review"), so the owner merges #559 himself (GitHub link, green button) or switches to manual mode.
+  NEXT after #559 web SUCCESS: reload the review screen (Type spot, Skill go_signal, N x40 to the hourly items),
+  click "Open close-up", capture every hourly item with the white open bars, send GO SIGNAL pairs four at a time
+  from #1 again (re-confirm #1-#4), log every ruling, commit+push same day; then DASH 2024-11-04 nuance, calibrate
+  `find_go_signal_hourly.py`, retire the 40 daily Go Signal drafts (queue positions 1-40), source_ruling fixtures;
+  re-show NVDA 2026-09-09 Gap Support with a longer window.
+
 ## Owner review packet (Phase 0 — read in this order, one session)
 1. `docs/study/VOICE.md` — the voice rules derived from your Substack/Scans prose; §8 open items.
 2. `docs/study/UNITS-foundations.md` — 129 units; read "Gaps for the owner" (8 content gaps +
