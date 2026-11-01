@@ -7,8 +7,11 @@
 //       drawing type) were not refused;
 //   L1  a fixed-depth window that slides forward on each new bar (a framed instance's frame is
 //       refetched whole at its depth) moved `rows[0].t` and reset the `varip` every new bar.
+//       The adoption tried first was itself refused at re-review (M1, M2): sliding windows now
+//       refuse a `varip` by name and ledgers are never adopted across history starts.
 import { describe, it, expect, beforeEach } from 'vitest'
-import { computeRuntimeColumns, resetRuntimeSessions, resetRuntimeLedgers } from '../runtimeColumns.js'
+import { computeRuntimeColumns, resetRuntimeSessions, resetRuntimeLedgers, runtimeLedgerStats, SLIDING_VARIP_WHY } from '../runtimeColumns.js'
+import { workerRunner, resetRuntimeAsync } from '../runtimeAsync.js'
 import { buildRuntimeIr } from '../../ast/pineRuntimeFrontend.js'
 
 const doc = (body, outputs = { a: 0, b: 1 }) => ({
@@ -77,28 +80,78 @@ describe('B — a dotted read that can hold a drawing is refused', () => {
   })
 })
 
-describe('L1 — a fixed-depth window sliding forward keeps its ledger', () => {
-  it('ticks, then a new bar that drops the oldest: the close counts once, the new bar continues', () => {
-    let rows = mk(50)
-    expect(b49(rows)).toBe(50)
-    rows = tick(rows, 0.2); expect(b49(rows)).toBe(51)
-    rows = tick(rows, 0.3); expect(b49(rows)).toBe(52)
-    const slid = [...rows.slice(1), bar(50)]
-    const out = computeRuntimeColumns(COUNTERS, slid, LIVE)
-    expect(out.b[48], 'the bar that closed: its two updates and its close').toBe(53)
-    expect(out.b[49], 'the new forming bar starts from that close').toBe(54)
-    expect(b49(tick(slid, 0.1)), 'and keeps counting').toBe(55)
+describe('L1 (re-review M1) — a ledger is never adopted across history starts', () => {
+  it('pane B, the same depth one bar later, does not take pane A\'s ledger: A keeps counting', () => {
+    let a = mk(60)
+    const got = [b49(a)]
+    a = tick(a, 0.2); got.push(b49(a))
+    a = tick(a, 0.3); got.push(b49(a))
+    expect(got).toEqual([60, 61, 62])
+    const b = [...mk(60, 1).slice(0, -1), bar(60)]
+    expect(b49(b), 'pane B: its own history, its forming bar run once').toBe(60)
+    a = tick(a, 0.4)
+    expect(b49(a), 'pane A\'s next tick').toBe(63)
   })
-  it('a window that moved BACK (a stale refetch of the same depth) is never handed the newer ledger', () => {
+  it('a plain chart whose window moves is a reload (its own history), and moving back finds its old ledger', () => {
     const rows = mk(50)
     expect(b49(rows)).toBe(50)
     const slid = [...rows.slice(1), bar(50)]
-    expect(b49(slid), "the close counted, the new bar after it").toBe(52)
-    expect(b49(mk(50)), 'the stale window: its own history, its newest bar run once').toBe(50)
+    expect(b49(slid), 'the moved window: its own history').toBe(50)
+    expect(b49(mk(50)), 'back to the first start: that ledger, untouched').toBe(50)
   })
   it('CONTROL — a shorter pane over the same feed is still its own history', () => {
     const long = mk(60)
     expect(b49(long)).toBe(60)
-    expect(b49(mk(30, 30)), 'a span of another depth: not adopted').toBe(30)
+    expect(b49(mk(30, 30))).toBe(30)
+  })
+})
+
+describe('M2 (re-review) — a window that slides is refused a `varip` by name', () => {
+  it('a framed instance (`ctx.framed`)', () => {
+    let err = null
+    try { computeRuntimeColumns(COUNTERS, mk(30), { ...LIVE, framed: true }) } catch (e) { err = e }
+    expect(err && err.guard).toBe('runtime:varip')
+    expect(String(err.message)).toContain(SLIDING_VARIP_WHY)
+  })
+  it('even after the same script built with its ledger on a plain chart (sessions are kept apart)', () => {
+    expect(b49(mk(30))).toBe(30)
+    let err = null
+    try { computeRuntimeColumns(COUNTERS, mk(30), { ...LIVE, framed: true }) } catch (e) { err = e }
+    expect(err && err.guard).toBe('runtime:varip')
+  })
+  it('CONTROL — a framed instance of a script with no `varip` runs', () => {
+    const d = doc('var int a = 0\na += 1\nplot(a)\nplot(close)\n')
+    expect(computeRuntimeColumns(d, mk(30), { ...LIVE, framed: true }).a[29]).toBe(30)
+  })
+  it('the worker carries `framed` across, and the refusal comes back by name', async () => {
+    const posted = []
+    const factory = () => ({
+      postMessage(msg) {
+        posted.push(msg)
+        queueMicrotask(() => {
+          try { this.onmessage({ data: { id: msg.id, ok: true, columns: computeRuntimeColumns(msg.def, msg.rows, msg.ctx) } }) } catch (err) {
+            this.onmessage({ data: { id: msg.id, ok: false, error: { name: err.name, message: err.message, guard: err.guard || null } } })
+          }
+        })
+      },
+      terminate() {},
+    })
+    const run = workerRunner(factory)
+    const got = await new Promise((resolve) => run(COUNTERS, mk(30), { ...LIVE, framed: true }, (err, cols) => resolve({ err, cols })))
+    expect(posted[0].ctx.framed).toBe(true)
+    expect(got.err && got.err.guard).toBe('runtime:varip')
+    resetRuntimeAsync()
+  })
+})
+
+describe('L3 (re-review) — the ledger is bounded by bytes, and a closed bar drops its prices', () => {
+  it('ticks grow the ledger; the close gives the seen prices back', () => {
+    let rows = mk(40)
+    b49(rows)
+    for (let k = 1; k <= 20; k += 1) { rows = tick(rows, 0.01 * k); b49(rows) }
+    const open = runtimeLedgerStats().approxBytes
+    expect(open).toBeGreaterThan(0)
+    computeRuntimeColumns(COUNTERS, rows, { ...LIVE, newestBarIsForming: false })
+    expect(runtimeLedgerStats().approxBytes, 'after the close').toBeLessThan(open / 4)
   })
 })

@@ -384,7 +384,8 @@ export function computeRuntimeColumns(def, rows, ctx, opts = {}) {
     const wctx = { ...(ctx || {}), historyFromListing: true }
     let cols
     try {
-      cols = computeRuntimeColumns(def, win.rows, wctx, opts)
+      // ⛔ P3 WS-F — the window slides: a `varip` is refused by name, before any probe runs
+      cols = computeRuntimeColumns(def, win.rows, wctx, { ...opts, slidingWindow: true })
     } catch (err) {
       if (err && Number.isInteger(err.bar)) err.bar += win.cut
       throw err
@@ -817,34 +818,68 @@ const LEDGER_CAP = 24
 const LEDGER_BAR_CAP = 2000
 const _ledgers = new Map()   // key → Map(origin → ledger)
 const LEDGER_ORIGINS_CAP = 4
-/** The ledger for `key` at history start `origin`: its own, else (a fixed-depth window that slid
- *  forward) the one with the nearest EARLIER start AND THE SAME BAR COUNT, moved to `origin`;
- *  never one with a later start (older history loaded = a reload), and never one of another
- *  depth (a second pane over a shorter span is another history, with its own ledger). */
-function ledgerFor(key, origin, n) {
+/** ⛔⛔ (re-review M1, M2) why a `varip` is refused on a window that slides one bar per new bar. */
+export const SLIDING_VARIP_WHY = '`varip` on a window that drops its oldest bar on every new bar (a '
+  + '`calc_bars_count` window, or an indicator computed on another timeframe\'s bars): its realtime '
+  + 'updates cannot be carried exactly across the slide, and TradingView never slides a loaded history'
+/** The ledger for `key` at history start `origin`: its own, or none. ⛔ (re-review M1) NEVER
+ *  ADOPTED OR MOVED across starts: a window that slides is refused a `varip` instead
+ *  (`SLIDING_VARIP_WHY`), so each history start keeps exactly the ledger its own runs wrote. */
+function ledgerFor(key, origin) {
   const byOrigin = _ledgers.get(key)
-  if (!byOrigin || !Number.isFinite(origin)) return null
-  if (byOrigin.has(origin)) return byOrigin.get(origin)
-  let best = null
-  let bestAt = -Infinity
-  for (const [at, l] of byOrigin) if (at < origin && at > bestAt && l.n === n) { best = l; bestAt = at }
-  if (best) { byOrigin.delete(bestAt); byOrigin.set(origin, best) }
-  return best
+  return byOrigin && Number.isFinite(origin) ? byOrigin.get(origin) || null : null
 }
+/** ⭐ (re-review L3) LEDGERS ARE BOUNDED BY BYTES, an ESTIMATE kept on each (`ledgerBytes`):
+ *  past `LEDGER_BYTE_CAP` across all of them the least recently written go. */
+const LEDGER_BYTE_CAP = 32 * 1024 * 1024
+let _ledgerBytes = 0
+const ledgerBytes = (l) => (l && Number.isFinite(l.bytes) ? l.bytes : 0)
 function keepLedger(key, origin, ledger) {
   const byOrigin = _ledgers.get(key) || new Map()
   _ledgers.delete(key)
   _ledgers.set(key, byOrigin)
   byOrigin.delete(origin)
   byOrigin.set(origin, ledger)
-  while (byOrigin.size > LEDGER_ORIGINS_CAP) byOrigin.delete(byOrigin.keys().next().value)
-  while (_ledgers.size > LEDGER_CAP) _ledgers.delete(_ledgers.keys().next().value)
+  while (byOrigin.size > LEDGER_ORIGINS_CAP) {
+    const first = byOrigin.keys().next().value
+    _ledgerBytes -= ledgerBytes(byOrigin.get(first))
+    byOrigin.delete(first)
+  }
+  const dropOldest = () => {
+    const k = _ledgers.keys().next().value
+    for (const l of _ledgers.get(k).values()) _ledgerBytes -= ledgerBytes(l)
+    _ledgers.delete(k)
+  }
+  while (_ledgers.size > LEDGER_CAP) dropOldest()
+  while (_ledgerBytes > LEDGER_BYTE_CAP && _ledgers.size > 1) dropOldest()
+}
+/** An ESTIMATE of a `varip` snapshot's bytes: 8 a number, 2 a character, 16 an element or
+ *  field (iterative, each object once). */
+function snapBytes(snap) {
+  if (!snap) return 0
+  let bytes = 0
+  const seen = new Set()
+  const stack = [snap.v, snap.init]
+  while (stack.length) {
+    const x = stack.pop()
+    if (typeof x === 'string') { bytes += 2 * x.length; continue }
+    if (!x || typeof x !== 'object') { bytes += 8; continue }
+    if (seen.has(x)) continue
+    seen.add(x)
+    if (ArrayBuffer.isView(x)) { bytes += 8 * x.length; continue }
+    const vals = Array.isArray(x) ? x : Object.values(x)
+    bytes += 16 * vals.length
+    for (const v of vals) stack.push(v)
+  }
+  return bytes
 }
 /** ⭐ Where a run's realtime facts ride (non-enumerable): `{isNew, varip, ledgerBars}`. */
 export const RUNTIME_REALTIME_KEY = '__runtimeRealtime'
 export const runtimeRealtimeOf = (cols) => (cols && typeof cols === 'object' ? cols[RUNTIME_REALTIME_KEY] || null : null)
 /** Drop every ledger (tests; a host that wants a cold start). */
-export function resetRuntimeLedgers() { _ledgers.clear() }
+export function resetRuntimeLedgers() { _ledgers.clear(); _ledgerBytes = 0 }
+/** ⭐ (re-review L3) what the ledgers hold: how many, and an ESTIMATE of their bytes. */
+export function runtimeLedgerStats() { return { ledgers: _ledgers.size, approxBytes: _ledgerBytes, byteCap: LEDGER_BYTE_CAP } }
 const READS_ISNEW = /\bbarstate\s*\.\s*isnew\b/
 const _readsIsNew = new Map()
 /** Does the source read `barstate.isnew` (comments and strings stripped)? Memoised by source. */
@@ -866,6 +901,8 @@ const sigKey = (sig) => sig.join(',')
 /** ⭐ (step 2, A) how many distinct prices one forming bar remembers. Past it the oldest go, and
  *  a price that comes back after that is counted again (an over-count only past 1,024 updates). */
 const SEEN_CAP = 1024
+/** ⭐ (re-review L3) …and how many bytes of `varip` snapshots (an estimate, `snapBytes`). */
+const SEEN_BYTE_CAP = 4 * 1024 * 1024
 /** ⭐⭐ (review H1, M2) WHAT ONE RUN IS TO A BAR THE LEDGER HAS SEEN, decided from the bars and
  *  the ledger alone, before the run:
  *    `from`   the `varip` state the bar is entered with (`'snap'` = what the run reaches it with)
@@ -891,6 +928,13 @@ const SEEN_CAP = 1024
  *  every pane. A price that genuinely returns to an earlier value is under-counted: the safe
  *  direction. The closing update stays as before: a closed entry at its own closing prices is
  *  the close replayed, checked first. */
+//  ⚠️ (re-review L1/L2) THE TRADE-OFF, STATED: a price that truly returns to an earlier value is
+//  read as a replay of THAT earlier update, so it shows that update's OLD value and does not
+//  count; and past `SEEN_CAP` (or `SEEN_BYTE_CAP`) the oldest prices are forgotten, so a return
+//  to one of those counts once more than Pine would and then shows a lower value than the
+//  update before it. Both are rare (a bar's update count past 1,024; an exact six-field repeat
+//  of O/H/L/C/V/t, which needs the volume to stand still) and both fail toward under-counting
+//  or a single extra count, never toward spreading a pane's count to another.
 function realtimeDecision(e, bar, rows, forming, lastConfirmed) {
   const n = rows.length
   const confirmedNow = bar <= lastConfirmed
@@ -918,16 +962,15 @@ function realtimeRun(def, ctx, role, ir, source, rows, forming, lastConfirmed) {
   // bars it ran over, so a chart with MORE bars before (older history loaded) is another
   // history, run as TradingView runs a reload: `varip` is `var` on its history, its forming bar
   // starts fresh. Two panes over different spans keep a ledger each.
-  // ⭐⭐ (step 2, L1) BUT A WINDOW THAT SLIDES FORWARD KEEPS ITS LEDGER. A fixed-depth bars
-  // window (a framed instance's `secondaryBars` frame is refetched whole at its depth, so on
-  // each new frame bar its oldest bar drops off) moves `rows[0].t` LATER while every realtime
-  // bar it recorded is still in it. Such a run (the same bar count, a later start) adopts the
-  // ledger of the nearest earlier start (`ledgerFor`), so its `varip` keeps counting across the
-  // new bar instead of resetting.
+  // ⛔⛔ (re-review M1, M2) A WINDOW THAT SLIDES IS NOT SERVED A `varip` AT ALL: a calc_bars_count
+  // window and a framed instance (its `secondaryBars` frame is refetched whole at a fixed depth)
+  // drop their oldest bar on every new bar, so `rows[0].t` moves and no ledger can carry the
+  // realtime updates across exactly (`SLIDING_VARIP_WHY`). Adopting the older start's ledger was
+  // tried and reset the pane it was taken from and stepped the history/realtime boundary.
   const n = rows.length
   const key = `${runKey(def, { ...ctx, newestBarIsForming: null, newest_bar_is_forming: null, interpretOpts: undefined })}|${role}`
   const origin = n ? +rows[0].t : NaN
-  const ledger = ledgerFor(key, origin, n)
+  const ledger = ledgerFor(key, origin)
   const decisions = new Map()
   if (ledger) for (let i = 0; i < n; i += 1) {
     const e = ledger.bars.get(rows[i].t)
@@ -977,23 +1020,43 @@ function realtimeRun(def, ctx, role, ir, source, rows, forming, lastConfirmed) {
         add.push([rows[bar].t, { start: p.start, end: p.end, ...p.d.record }])
       }
       if (!add.length) return
-      const into = ledger || { bars: new Map() }
-      into.n = n
-      keepLedger(key, origin, into)
+      const into = ledger || { bars: new Map(), bytes: 0 }
+      const before = ledgerBytes(into)
+      const entryBytes = (e) => 64 + snapBytes(e.start) + snapBytes(e.end) + (e.seen ? e.seen.bytes : 0)
       for (const [time, e] of add) {
-        // ⭐ (step 2, A) the bar's seen prices, one Map carried from entry to entry
         const prior = into.bars.get(time)
-        const seen = prior && prior.seen ? prior.seen : new Map()
+        if (prior) into.bytes -= entryBytes(prior)
+        // ⭐ (step 2, A) the bar's seen prices, one Map carried from update to update.
+        // ⭐ (re-review L3) DROPPED WHEN THE BAR CLOSES: a closed entry is entered only from its
+        // close (`realtimeDecision`), so its prices are never read again.
+        let seen = null
         if (!e.confirmed) {
+          seen = prior && prior.seen ? prior.seen : Object.assign(new Map(), { bytes: 0 })
           const k = sigKey(e.sig)
-          seen.delete(k)
-          seen.set(k, { start: e.start, end: e.end, first: e.first === true })
-          while (seen.size > SEEN_CAP) seen.delete(seen.keys().next().value)
+          const old = seen.get(k)
+          if (old) { seen.bytes -= old.bytes; seen.delete(k) }
+          const rec = { start: e.start, end: e.end, first: e.first === true }
+          rec.bytes = 48 + 2 * k.length + snapBytes(rec.start) + snapBytes(rec.end)
+          seen.set(k, rec)
+          seen.bytes += rec.bytes
+          while (seen.size > SEEN_CAP || (seen.bytes > SEEN_BYTE_CAP && seen.size > 1)) {
+            const first = seen.keys().next().value
+            seen.bytes -= seen.get(first).bytes
+            seen.delete(first)
+          }
         }
+        const next = { ...e, seen }
         into.bars.delete(time)
-        into.bars.set(time, { ...e, seen })
+        into.bars.set(time, next)
+        into.bytes += entryBytes(next)
       }
-      while (into.bars.size > LEDGER_BAR_CAP) into.bars.delete(into.bars.keys().next().value)
+      while (into.bars.size > LEDGER_BAR_CAP) {
+        const first = into.bars.keys().next().value
+        into.bytes -= entryBytes(into.bars.get(first))
+        into.bars.delete(first)
+      }
+      _ledgerBytes += into.bytes - before
+      keepLedger(key, origin, into)
     },
   }
 }
@@ -1051,8 +1114,13 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
   // MEASUREMENT: it never keeps or resumes a session, so its build, checkpoint and realtime
   // ledger can never stand in for the real run's (the key does not carry the shift).
   const shiftedProbe = Number.isInteger(opts.barIndexShift) && opts.barIndexShift !== 0
+  // ⛔⛔ (re-review M1, M2) a run over a window that SLIDES: a calc_bars_count window
+  // (`opts.slidingWindow`, set by the window itself) or a framed instance (`ctx.framed`)
+  const slides = opts.slidingWindow === true || !!(ctx && ctx.framed === true)
   const sessionKey = opts.incremental === false || opts.limits || shiftedProbe ? null
-    : `${runKey(def, ctx)}|${opts.sessionRole || 'run'}`
+    // ⛔ a sliding run keeps its OWN session: a build made with a ledger (a `varip` built) must
+    // never be reused by a run that refuses one
+    : `${runKey(def, ctx)}|${opts.sessionRole || 'run'}${slides ? '|slides' : ''}`
   const prevSession = sessionKey ? _sessions.get(sessionKey) : null
   // ⭐⭐ P3 WS-F (B5) — THE SESSION'S BUILD, REUSED: the front end is not run again, only
   // the columns are re-evaluated over THESE bars (`buildRecorder`, `columnsOver`).
@@ -1062,7 +1130,8 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
   const built = reused ? { ok: true, ir: { ...prevSession.build.ir, columns: reused } } : buildRuntimeIr(String(compute.source || ''), {
     ...(recorder ? { columnInterpret: recorder.interpret } : {}),
     // ⭐ P3 WS-F (review M3) — a `varip` builds only where its ledger runs: a run with a session
-    ...(sessionKey ? { realtimeLedger: true } : {}),
+    ...(sessionKey && !slides ? { realtimeLedger: true } : {}),
+    ...(slides ? { varipRefusal: SLIDING_VARIP_WHY } : {}),
     bars: rows,
     // ⭐ UIE PHASE 2 (M4) — the member's own settings (`runtimeInputs.js`): only the
     // values that differ from the author's defaults, refused by name outside the

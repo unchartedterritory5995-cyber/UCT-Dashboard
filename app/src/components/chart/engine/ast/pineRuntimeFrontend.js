@@ -6861,7 +6861,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
       // function's result. When the type cannot be told, it refuses (`varipHoldsDrawing`).
       if (word === 'varip') {
         const why = owner !== null ? '`varip` inside a function body'
-          : opts.realtimeLedger !== true ? '`varip` on a door with no realtime ledger (only the runtime pane carries a `varip` from tick to tick)'
+          // ⭐ (re-review M2) a caller may say WHY it has no ledger (`runtimeColumns.js::SLIDING_VARIP_WHY`)
+          : opts.realtimeLedger !== true ? (typeof opts.varipRefusal === 'string' && opts.varipRefusal ? opts.varipRefusal
+            : '`varip` on a door with no realtime ledger (only the runtime pane carries a `varip` from tick to tick)')
             : varipHoldsDrawing(toks.slice(1), scope)
         if (why) {
           note('runtime:varip')
