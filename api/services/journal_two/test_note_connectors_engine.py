@@ -1985,3 +1985,41 @@ async def test_a_real_oversized_note_is_isolated_and_holds_the_cursor_back(sourc
         "content is a no-op (no new hash, no new timestamp), so nothing "
         "would ever ask for p2 again"
     )
+
+
+async def test_a_member_edit_survives_a_resync_of_a_note_with_an_unresolvable_link(source, provider):
+    """A synced note keeps `import_media_pending` set while one of its links
+    can never resolve (Notion: a mention of a page not shared with the
+    integration, a database, a trashed page). `import_confirm` deliberately
+    re-writes a pending note even when its hash is unchanged (audit B5, the
+    media-retry path) -- so a note the MEMBER edited, whose remote side did
+    not change, used to be handed to that write and lost the member's edit
+    on every later sync, with conflicts == 0 and no copy kept."""
+    provider.refs = [RemoteRef(remote_id="p1", updated_at="2026-08-01T00:00:00+00:00")]
+
+    def remote():
+        rn = _rn("p1", "Page One", links=["fake:fake-graph/UNSHARED"])
+        rn.doc["content"].append({"type": "paragraph", "content": [{
+            "type": "text", "text": "see other page",
+            "marks": [{"type": "link", "attrs": {"href": "import-link://fake:fake-graph/UNSHARED"}}]}]})
+        return rn
+
+    provider.notes_by_id = {"p1": remote()}
+    await engine.sync_source(source["id"], full=True)
+    note = notes_svc.list_notes("u1")[0]
+
+    notes_svc.update_note("u1", note["id"], {
+        "title": "My edited title",
+        "bodyJson": {"type": "doc", "content": [{"type": "paragraph", "content": [
+            {"type": "text", "text": "MEMBER WROTE THIS"}]}]},
+    })
+
+    for _ in range(2):  # the defect repeated on every pass
+        provider.notes_by_id = {"p1": remote()}  # remote UNCHANGED
+        result = await engine.sync_source(source["id"], full=True, manual=True)
+        kept = notes_svc.get_note("u1", note["id"])
+        assert kept["title"] == "My edited title"
+        assert "MEMBER WROTE THIS" in kept["bodyPlain"]
+        assert result["updated"] == 0
+        assert result["conflicts"] == 0
+        assert len(notes_svc.list_notes("u1")) == 1

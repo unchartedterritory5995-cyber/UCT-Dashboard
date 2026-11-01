@@ -1478,6 +1478,7 @@ async def _import_remote_notes(
         sibling_items: list[tuple[dict[str, Any], RemoteNote, str, str | None]] = []
         conflict_tag_updates: dict[str, list[str]] = {}  # original note id -> new tags
         pre_confirm_conflicts = 0
+        user_owned_unchanged = 0
 
         for rn, key in zip(remote_notes, import_keys):
             meta = existing.get(key)
@@ -1526,6 +1527,15 @@ async def _import_remote_notes(
                 # conflict forever instead of tracking pass-to-pass change.
                 _write_import_hash_preserving_updated_at(
                     conn, user_id, meta["id"], notes_svc._import_payload_hash(entry))
+            elif meta is not None and _is_conflict(meta):
+                # Edited by the member, remote UNCHANGED -> the note is the
+                # member's; nothing to write. It must NOT go to import_confirm:
+                # that call re-writes a note whose `import_media_pending` is
+                # still set even when the hash matches (audit B5, the media
+                # retry), and a note with a link that can never resolve stays
+                # pending forever -- so the member's edit was overwritten on
+                # every later sync, with no conflict and no copy kept.
+                user_owned_unchanged += 1
             else:
                 # Either no genuine conflict, or a conflict whose remote side
                 # is UNCHANGED -> plain pass-through. `import_confirm`'s own
@@ -1535,7 +1545,7 @@ async def _import_remote_notes(
                 normal_items.append((entry, rn, key))
 
         totals: dict[str, Any] = {
-            "created": 0, "updated": 0, "skipped": 0, "mediaUploaded": 0,
+            "created": 0, "updated": 0, "skipped": user_owned_unchanged, "mediaUploaded": 0,
             "conflicts": pre_confirm_conflicts, "failures": [], "notStoredRefs": [],
         }
         all_touched: list[tuple[RemoteNote, str, str]] = []
