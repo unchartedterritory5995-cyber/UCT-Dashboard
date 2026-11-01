@@ -35,6 +35,7 @@ import {
   runtimeErrorStopOf,
 } from './nativeRegistry'
 import { periodReadsObjectRefusal } from './periodReads'
+import { blockRunsRefusal, BLOCK_RUNS_GUARD } from './blockRuns'
 // ⭐ C43 — a cycle on purpose (that module reads `unknownMask` below): both sides
 // use each other only inside functions, and importing it here is what registers
 // the stop into the plot lane for every pane the binder draws.
@@ -377,6 +378,41 @@ function withholdFailed(unknown, node, barCount) {
   unknown.set(node, new Uint8Array(Math.max(0, barCount | 0)).fill(1))
 }
 
+/** ⭐⭐ C48 (OBJECT LANE) — A VALUE READ FROM A `var` THAT HOLDS A CALL ITS BLOCK
+ *  RUNS ON ONLY SOME BARS.
+ *
+ *  `var float s = na` / `if close > open` / `s := ta.sma(close, 3)`: TradingView's
+ *  `s` is the mean of the last 3 RUNS, held from the last run (capture
+ *  `vw-call-site-history-rddt-1d-2026-10-01`, C01-C04 / D01-D02). The columnar
+ *  tree holds the 3-BAR mean, which is that number exactly where the block has
+ *  run on every bar. The translation stamps each such tree with its blocks'
+ *  guards (`program.blockRuns`, `pine.js::objectBlockRunsOf`), and here they are
+ *  evaluated over THESE bars by the plot lane's own rule (`blockRuns.js`): where a
+ *  block runs after a bar it skipped, the tree is withheld on every bar, by name
+ *  (`pine:block`) — never drawn off the every-bar number. A guard that cannot be
+ *  read withholds it too. ⛔ AFTER the tree computed: a tree that cannot keeps
+ *  its own reason. ⚠️ A document saved before the stamp existed is drawn as it
+ *  always was, until it is translated again (the plot lane's rule too).
+ *  ⚰️ Measured before this: 145.7767 drawn where TradingView draws 149.2033. */
+function withholdBlockRuns(program, pass, evaluate) {
+  const stamps = program && Array.isArray(program.blockRuns) ? program.blockRuns : null
+  if (!stamps) return
+  for (const e of stamps) {
+    const node = e && Number.isInteger(e.node) ? e.node : null
+    if (node === null || !pass.columns.has(node) || pass.failed.includes(node)) continue
+    const gates = Array.isArray(e.gates) ? e.gates : []
+    if (!gates.length) continue
+    const why = blockRunsRefusal({ meta: { blockRuns: { keys: [{ key: 'o', gates }] } } }, 'o', (guard) => {
+      if (!guard || typeof guard !== 'object') throw new Error('the condition of the block could not be read')
+      return evaluate(guard)
+    })
+    if (!why) continue
+    pass.failed.push(node)
+    withholdFailed(pass.unknown, node, pass.barCount)
+    pass.refusals.push({ node, guard: BLOCK_RUNS_GUARD, message: why })
+  }
+}
+
 /** ⭐⭐ C45 — what the pass tells `interpret` about `bar_index`: off the listing, in
  *  a document that means Pine's (`nativeRegistry.barIndexAbsoluteFor`), a tree
  *  that IS a bar index keeps its column — a drawing's x-coordinate is exactly
@@ -476,6 +512,15 @@ export function computeObjectColumns(graph, program, bars, opts = {}) {
       })
     }
   }
+  // ⭐ C48 — a value read from a `var` its block fills on only some bars (above).
+  withholdBlockRuns(program, { columns, failed, refusals, unknown, barCount: Array.isArray(bars) ? bars.length : 0 },
+    (guard) => interpret(intern(fold(guard)), bars, opts.inputs || {}, opts.budget, undefined, {
+      tf: opts.tf, newestBarIsForming: opts.newestBarIsForming ?? null,
+      ...(opts.historyFromListing === true ? { historyFromListing: true } : {}),
+      ...(opts.historyFromListing === true && opts.naConditionFalse === true ? { naConditionFalse: true } : {}),
+      ...(bix || {}),
+      ...(opts.symbols ? { symbols: opts.symbols } : {}),
+      ...(opts.lowerTf ? { lowerTf: opts.lowerTf } : {}), crossMemo, switchedAgreement: false }))
   const readNode = (node, bar) => {
     const col = columns.get(node)
     if (!col) return NaN
@@ -722,6 +767,16 @@ export function objectReaderFor(definition, bars, opts = {}) {
       })
     }
   }
+  // ⭐ C48 — a value read from a `var` its block fills on only some bars
+  // (`withholdBlockRuns`), on the V1 form too.
+  withholdBlockRuns(bound, { columns, failed, refusals, unknown, barCount },
+    (guard) => interpret(intern(fold(guard)), bars, evalOpts.inputs, evalOpts.budget, undefined, {
+      tf: evalOpts.tf, newestBarIsForming: evalOpts.newestBarIsForming,
+      ...(evalOpts.historyFromListing === true ? { historyFromListing: true } : {}),
+      ...(evalOpts.naConditionFalse === true ? { naConditionFalse: true } : {}),
+      ...(bix || {}),
+      ...(evalOpts.symbols ? { symbols: evalOpts.symbols } : {}),
+      ...(evalOpts.lowerTf ? { lowerTf: evalOpts.lowerTf } : {}), crossMemo, switchedAgreement: false }))
   const readNode = (node, bar, loopVars) => {
     const col = columns.get(node)
     if (!col) return NaN
