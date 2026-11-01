@@ -16,6 +16,8 @@
   A kind's optional `validate(params)` runs BEFORE admission: a request it refuses (a bad spec, a bad
   symbol) spends nothing. A read that is admitted spends its allowance even if the source then refuses
   or fails — an attempted execution is an execution.
+* MODEL ISOLATION: a kind marked `model_isolated` (UCT-derived values the owner has not cleared for the
+  model, e.g. breadth) is served only for purpose "answer"; any other purpose is refused before admission.
   These limits sit UNDER the existing caps: they add no model call and change no $ budget
   (budget.py's $5/day Agent cap and the shared $15 ledger are untouched).
 * Every envelope is validated (envelope.validate_envelope) before it leaves; an adapter that breaks the
@@ -69,6 +71,10 @@ class Kind:
     # (params) -> None when the request is well formed, else the member-facing reason it is refused.
     # Pure and cheap: no provider call, no I/O beyond what the kind's own validation already needs.
     validate: Optional[Callable[[dict], Optional[str]]] = None
+    # UCT-DERIVED values that must not reach the model (e.g. breadth contract rule 8: breadth values never
+    # enter model-facing plans, history or chat naming). Readable ONLY for purpose "answer", which the
+    # browser renders to the member through the local-result boundary; "scan"/"research" are refused.
+    model_isolated: bool = False
 
 
 @dataclass
@@ -151,6 +157,8 @@ def read(kind: str, params: Any = None, *, user_id: Any, turn_id: str, purpose: 
     k = registry().get(kind)
     if k is None:
         return env.refused(kind, params, f"unknown kind {kind!r}")
+    if k.model_isolated and purpose != "answer":
+        return env.refused(kind, params, "this data is shown to the member only and is never used for research")
     if k.category == "scan" and not scan_enabled():
         return env.refused(kind, params, "Agent scans are off (UCT_AGENT_SCAN)")
     if _symbols_in(params) > k.max_symbols:

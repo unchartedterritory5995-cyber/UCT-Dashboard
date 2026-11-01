@@ -1,6 +1,6 @@
 """UCT Agent program — does this branch only touch paths its session owns?
 
-  python tools/agent_ownership_check.py --as agent-md                 # diff vs origin/agent/int
+  python tools/agent_ownership_check.py --as agent-md                 # this branch's own commits vs origin/agent/int
   python tools/agent_ownership_check.py --as agent-sc --base origin/agent/int
   python tools/agent_ownership_check.py --as agent-qa --files a.py b.js   # explicit list (tests, CI)
 
@@ -55,9 +55,15 @@ def owner_of(path: str, table: list[tuple[str, str]]) -> str:
     return found
 
 
-def changed_files(base: str) -> list[str]:
-    out = subprocess.run(["git", "diff", "--name-only", f"{base}...HEAD"], cwd=REPO, capture_output=True, text=True, check=True)
-    return [f for f in out.stdout.splitlines() if f.strip()]
+def changed_files(base: str, cwd: Path = REPO) -> list[str]:
+    """The files THIS branch's own commits touch: every non-merge commit reachable from HEAD but not from
+    `base`. Not `git diff base...HEAD` — with a criss-cross history (the author merged `base` in while the
+    integrator merged the branch's earlier head) that picks one of several merge bases and reports files
+    that arrived BY MERGE from `base` as the author's own (agent-qa F-9). Merge commits are skipped: they
+    carry other people's work in; a conflict resolution inside one is reviewed in the PR diff."""
+    out = subprocess.run(["git", "log", "--no-merges", "--format=", "--name-only", f"{base}..HEAD"],
+                         cwd=cwd, capture_output=True, text=True, check=True)
+    return sorted({f for f in out.stdout.splitlines() if f.strip()})
 
 
 def check(files: list[str], me: str, table: list[tuple[str, str]], allow_external: bool = False) -> tuple[int, list[str]]:
