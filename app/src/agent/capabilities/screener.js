@@ -29,6 +29,9 @@
 // first page only). A measure provider may SUPERSEDE a catalog field on the same clock (the
 // session's close replaces the snapshot price) so every number in one screen is one session's.
 //
+// ⭐ SC-1 GATEWAY (dark): while GET /api/agent/config says `scan`, the run / runSaved / listSaved ANSWERS
+// read through the MD-1 gateway (`screen.run`, `screen.saved`) instead — see runViaGateway below.
+//
 // ⛔ Not here: operating the Screener PAGE's own filters (it only exists inside
 // /screener), My Scans (Indicator formulas), logic groups. Saving / renaming / copying /
 // deleting SAVED screens is capabilities/savedScreens.js (the same routes the Screener's menu uses).
@@ -36,6 +39,9 @@
 import { registerCapability, registerTargetKind, registerContextProvider, registerWarmup, registerOutputSource, SYMBOLS } from '../capabilities'
 import { encodeSpec } from '../../pages/screener/shell/specUrl'
 import { matchName } from '../nl/match'
+import { serverServesScan } from '../agentClient'
+import { readData } from '../marketdata/client'
+import { currentTurnId } from '../trace'
 
 const META_TTL_MS = 6 * 3600 * 1000      // the registry changes only on deploy
 const SAVED_TTL_MS = 60 * 1000
@@ -374,6 +380,81 @@ async function runSpec(spec, { show = SHOW_DEFAULT, name = null, savedId = null,
   }
 }
 
+// ── SC-1 GATEWAY PATH (dark: only while the server serves Agent scans — GET /api/agent/config → scan) ──
+// With the gateway on, a conversational screen ANSWER is one MD-1 read: `screen.run` (≤50 rows, the
+// coverage receipt, the data's own `as_of`, stale) — never the /api/screener/* routes, never a second
+// scan engine. The server spends the turn's ONE scan on it; `trace.currentTurnId()` (the member's turn) is what
+// that budget is keyed by, so a missing turn id REFUSES rather than minting one (a per-call id would
+// void the one-scan-per-turn limit).
+// ⚠️ NOT on this path, by SC-1's 50-row cap: `produce()` (up to FILL_MAX symbols for a list) and screens
+// with latest-session measure conditions (they page up to CANDIDATES_MAX candidates). Both stay on the
+// Screener's own routes.
+const usesGateway = (spec) => serverServesScan() && !(spec?.post || []).length
+
+/** One `screen.run` through the gateway → the answer text/table, or a refusal sentence. */
+async function runViaGateway(spec, { show = SHOW_DEFAULT, name = null, savedId = null, notes: extra = [] } = {}) {
+  // the member's open turn (trace.js: ONE per message / panel action) — the server's budget key; never minted
+  const turnId = currentTurnId()
+  if (!turnId) return "I didn't run it: this screen needs the Agent's turn, which wasn't available."
+  const keys = [...new Set([...(spec.filters || []).map(f => f.key), spec.sort?.key].filter(k => k && fieldOf(k) && !fieldOf(k).provider && fieldOf(k).type !== 'list'))]
+  const shown = Math.min(SHOW_MAX, Math.max(1, show))
+  const own = savedId && /^\d+$/.test(String(savedId))
+  const params = own
+    ? { saved_id: Number(savedId), limit: shown }
+    : { spec: { filters: (spec.filters || []).map(f => wireOf(f)), sort: spec.sort || DEFAULT_SORT, ...(spec.rank ? { rank: spec.rank } : {}), ...(spec.logic ? { logic: spec.logic } : {}), columns: ['ticker', 'company', 'price', 'chg_pct_1d', ...keys] }, limit: shown }
+  const t0 = Date.now()
+  const env = await readData('screen.run', params, { purpose: 'answer', turnId })
+  const ms = Date.now() - t0
+  if (!env || (env.status !== 'ok' && env.status !== 'partial')) {
+    const why = (env?.notes || [])[0] || 'the Screener could not answer'
+    return `I didn't run it: ${why.replace(/\.$/, '')}.`
+  }
+  const d = env.data || {}
+  const rows = (d.rows || []).slice(0, shown).map(r => ({ ...r, ticker: r.symbol }))
+  const total = Number(d.total_matches) || 0
+  const extra3 = keys.filter(k => !['price', 'chg_pct_1d'].includes(k)).slice(0, 3)
+  const columns = [{ key: 'ticker', label: 'Symbol' }, { key: 'price', label: 'Price' }, ...extra3.map(k => ({ key: k, label: fieldOf(k)?.label || k })), { key: 'chg_pct_1d', label: 'Chg 1D' }]
+  const fmt = (k, v) => {
+    if (v == null || v === '') return '—'
+    if (typeof v !== 'number') return String(v)
+    const f = k === 'chg_pct_1d' ? { unit: '%' } : fieldOf(k)
+    const n = Math.abs(v) >= 1000 ? v.toLocaleString(undefined, { maximumFractionDigits: 0 }) : v.toFixed(2)
+    return f?.unit === '$' || k === 'price' ? `$${n}` : f?.unit === '%' ? `${n}%` : n
+  }
+  const asOfDay = typeof env.as_of === 'string' ? env.as_of.slice(0, 10) : null
+  cache.last = { spec, name: name || d.origin?.name || null, savedId, total, asOf: asOfDay, live: null, symbols: rows.map(x => x.ticker), ms, envelope: { as_of: env.as_of, stale: env.stale, coverage: env.coverage, freshness: env.freshness } }
+  const head = `${name ? `${name}: ` : ''}${total.toLocaleString()} stock${total === 1 ? '' : 's'} match${total === 1 ? 'es' : ''}`
+  const what = (spec.filters || []).length ? ` (${spec.filters.map(describeFilter).join(' · ')})` : ''
+  const { label: sortLabel, ranked } = sortCoverage(spec, rows, {})
+  const unrankable = !!spec.sort && rows.length > 0 && ranked === 0
+  const sortWord = !spec.sort ? ''
+    : ` by ${sortLabel} (${spec.sort.dir === 'asc' ? 'lowest' : 'highest'} first)${ranked < rows.length ? `; only ${ranked} of these ${rows.length} have ${sortLabel} values — the other ${rows.length - ranked} have none and are not ranked by it` : ''}`
+  const showing = unrankable ? ` ${unrankableText(sortLabel, spec.sort.dir)}.` : rows.length ? ` Showing the first ${rows.length}${sortWord}.` : ''
+  const c = env.coverage
+  const covLine = c && (c.dropped || c.not_computable) ? `Checked ${c.evaluated.toLocaleString()} stocks: ${c.answered.toLocaleString()} could be decided${c.not_computable ? `, ${c.not_computable.toLocaleString()} had a missing value` : ''}${c.dropped ? `, ${c.dropped.toLocaleString()} were excluded for stopped price history` : ''}` : null
+  // the envelope's own notes carry the data's time ("as of the <date> close, not live"), staleness and any overlay
+  const envNotes = (env.notes || []).filter(n => !/^Showing \d+ of \d+ matches\.?$/.test(n)).map(n => n.replace(/\.$/, ''))
+  const notes = [...extra, ...coverageNotes(spec), ...(env.stale ? ['This data is stale'] : []), ...(covLine ? [covLine] : []), ...envNotes]
+  return {
+    text: `${head}${what}.${showing}${notes.length ? ` ${notes.map(n => `${n}.`).join(' ')}` : ''}`,
+    table: rows.length && !unrankable ? { columns, rows: rows.map(x => Object.fromEntries(columns.map(col => [col.key, col.key === 'ticker' ? x.ticker : fmt(col.key, x[col.key])]))) } : null,
+    link: openLinkFor(spec, own ? String(savedId) : null),
+  }
+}
+
+/** The member's own saved screens through `screen.saved` (read-only) → the answer text. */
+async function listSavedViaGateway() {
+  // the member's open turn (trace.js: ONE per message / panel action) — the server's budget key; never minted
+  const turnId = currentTurnId()
+  if (!turnId) return "I couldn't read your screens: this needs the Agent's turn, which wasn't available."
+  const env = await readData('screen.saved', {}, { purpose: 'answer', turnId })
+  if (!env || (env.status !== 'ok' && env.status !== 'partial')) return `I couldn't read your screens: ${((env?.notes || [])[0] || 'the Screener could not answer').replace(/\.$/, '')}.`
+  const screens = env.data?.screens || []
+  if (!screens.length) return "You haven't saved any screens yet."
+  const names = screens.map(s => (s.runnable ? s.name : `${s.name} (can't run here: ${s.reason})`))
+  return `Your screens: ${names.join(', ')}`
+}
+
 /** The model's screen args → the Screener's wire spec (with "refine" building on the last screen). */
 function buildSpec({ filters, sort_field: sortField, sort_dir: sortDir, mode, within = null }, { lenient = false, host = null } = {}) {
   if ((filters || []).length > MAX_FILTERS) return { error: `that's more than ${MAX_FILTERS} conditions at once` }
@@ -575,6 +656,7 @@ export function registerScreenerCapabilities() {
       let b
       try { b = await specFor(args, host) } catch (e) { return `I didn't run it: ${e?.message || 'the Screener could not be read'}.` }
       if (b.error) return `I didn't run it: ${b.error}.`
+      if (usesGateway(b.spec)) return runViaGateway(b.spec, { show: args.show || SHOW_DEFAULT, notes: b.notes })
       return runSpec(b.spec, { show: args.show || SHOW_DEFAULT, notes: b.notes })
     },
   })
@@ -616,6 +698,9 @@ export function registerScreenerCapabilities() {
       const lib = await loadSaved()
       const s = [...lib.saved, ...lib.starters].find(x => x.id === String(screen))
       if (!s) return "I couldn't find that saved screen."
+      const sspec = { filters: s.spec?.filters || [], sort: s.spec?.sort || null, rank: s.spec?.rank || null, logic: s.spec?.logic || null }
+      // the member's OWN screen is run by id (the server resolves it among THEIR screens only); a starter by its spec
+      if (usesGateway(sspec)) return runViaGateway(sspec, { show: show || SHOW_DEFAULT, name: s.name, savedId: s.kind === 'yours' ? s.id : null })
       return runSpec({ filters: s.spec?.filters || [], sort: s.spec?.sort || null, rank: s.spec?.rank || null, logic: s.spec?.logic || null }, { show: show || SHOW_DEFAULT, name: s.name, savedId: s.kind === 'yours' ? s.id : null })
     },
   })
@@ -644,6 +729,7 @@ export function registerScreenerCapabilities() {
     args: { type: 'object', properties: {}, required: [], additionalProperties: false },
     fast: ({ lower }) => (/^((what|which) (saved )?(screens|scans) (do i have|have i saved)|(show|list)( me)?( my)? (saved )?screens|my (saved )?screens)$/.test(lower) ? {} : null),
     async answer() {
+      if (serverServesScan()) return listSavedViaGateway()
       const lib = await loadSaved()
       const mine = lib.saved.map(s => s.name)
       const starters = lib.starters.map(s => s.name)
