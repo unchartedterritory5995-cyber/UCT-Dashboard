@@ -179,3 +179,14 @@ def test_structural_refusals_spend_nothing(world, bad):
 def test_another_members_id_is_an_attempt_and_spends_the_scan(world):
     assert _read("screen.run", {"saved_id": world["theirs"]}, "att")["status"] == "refused"
     assert _read("screen.run", {"saved_id": world["mine"]}, "att")["status"] == "refused"
+
+
+def test_coverage_counts_every_screen_even_past_the_listed_hundred(world):
+    from api.services.screener import saved_screens
+    for i in range(105):
+        saved_screens.create(ME, f"S{i}", RS)
+    out = _read("screen.saved", {}, "big")
+    assert len(out["data"]["screens"]) == 100
+    cov = out["coverage"]
+    assert cov["evaluated"] == 107 and cov["answered"] == 106 and cov["not_computable"] == 1
+    assert any("100 most recently saved of 107" in n for n in out["notes"])

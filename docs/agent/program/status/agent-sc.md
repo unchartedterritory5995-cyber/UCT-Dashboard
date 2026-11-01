@@ -2,26 +2,34 @@
 
 Only agent-sc edits this file. Update it in every PR.
 
+## Integrated (agent/int)
+- **#570** `screen.run` + `screen.count`: SC-1 v1.1 §2a, the `Kind.validate` precheck, and the F-4 zero-match fix. QA 79/79 after the merge.
+- **#578** `screen.saved` + `saved_id` / `text` sources: SC-1 §2b, acked. QA 19/19 after the merge.
+- **#580** (agent-lead) ADR-002 accepted with agent-sc's inventory of legacy-screener callers.
+
 ## In flight
-- **PR 1 — `screen.run` + `screen.count`** (PR #570, branch `agent/sc/scan-v1`): scan-category kinds in `scan/kinds.py`, adapters over `screener.query.run_scan` / `preview_count` / `coverage_for`, spec validation against the field catalog (`scan/spec.py`), ≤50 rows, `provider_calls` 0. SC-1 bumped to v1.1 (additive: §2a pins the `as_of`/`stale` mapping). Tests: `tests/test_uct_agent_scan_screen.py`.
-- **PR 2: `screen.saved` + spec sources** (branch `agent/sc/screen-saved`, **depends on #570**). Adds `screen.saved` (the member's own screens, read-only, never `init()`). `screen.run`/`count` gain `saved_id` (member-scoped) and `text` (the screener's own grammar, deterministic). SC-1 §2b. Tests: `tests/test_uct_agent_scan_saved.py`.
-  - Not used: `/api/screener/compile`, because it's a paid model call. Approval needed from agent-lead/owner before any Agent use.
-- Next: client gateway path for `screener.js` + `panelHarness` scenario; PR 3 (discovery planning with `volume.surge`), PR 4 (ADR-002 inventory).
+- **Discovery corpus + `screen.saved` coverage fix** (branch `agent/sc/scan-corpus`, this PR).
+  - `api/services/uct_agent/scan/eval/discovery.json`: 31 questions in agent-qa's schema, across 8 categories plus refusals. The `nl` flag marks natural-language interpretation cases (evidence for whether a paid compiler is ever needed). No paid compiler runs.
+  - `tests/test_uct_agent_scan_corpus.py`: every expected answer parses in the screener's own grammar and names real catalog fields. agent-qa owns the scorer (`tests/test_uct_agent_qa_scan_corpus.py`).
+  - `screen.saved`: `coverage` counts every screen, while only the 100 newest are listed (agent-qa's low finding).
+- **Screener capability through the gateway** (branch `agent/sc/screener-gateway`, pushed, PR not yet opened).
+  - The run, runSaved and listSaved answers go through `readData` when `serverServesScan()`; with the flag off, the path is byte-identical.
+  - `produce()` and latest-session measure screens stay on the Screener's route, above SC-1's 50-row cap. agent-lead approved this.
+  - **Waiting on #581** (`trace.currentTurnId()`). Then: switch the turn id, add the `panelHarness` acceptance scenario, and open the PR.
+- Next: PR 3 discovery planning with agent-md's `volume.surge` once it's integrated.
 
 ## Scope rulings
-- **Indicator conditions are out of SC-1 in Sprint 1** (agent-lead, 2026-11-01). That covers crosses and custom or saved indicators. `/api/scans/definition-results` is not called. A spec carrying the screener's `scan` key (a nightly definition-results join by bare `def_hash`) is **refused** with a sentence and never approximated (`scan/spec.py` `INDICATOR_KEYS`, railed and mutation-proved).
-- After Indicators' owner approves IC-1, one kind delegates to their endpoint exactly as IC-1 says: keyed by `user_definitions.result_identity` (never a bare hash: the N11 trap), `not-run` = `unavailable`, `periodic`. It will be **SC-1 v1.2**, because v1.1 is already used by §2a in PR #570. agent-lead schedules it.
-- This also goes in the ADR-002 inventory (PR 4).
+- **Indicator conditions are out of SC-1 in Sprint 1** (agent-lead, 2026-11-01). The screener `scan` key is refused, never approximated.
+  - IC-1 draft.2 (#573) is confirmed by agent-sc: C1–C8 resolved.
+  - The delegating kind will be **SC-1 v1.2**, unscheduled. It is keyed by `result_identity`; `not-run` = `unavailable`.
+- **`/api/screener/compile` is not used** (a paid model path). This is a standing rule, recorded in ADR-002.
+- **SC-1's 50-row cap stays.** Raising it for `produce` is a later SC-1 decision for agent-lead.
 
 ## Blockers
-- (none)
-
-## Requests to agent-lead
-- Done: the gateway test was relaxed (#571); SC-1 v1.1 §2a was acked.
-- Done: the `Kind.validate` hook (#575) is wired. #570 uses `spec.precheck`; PR 2 uses `sources.precheck` (source-aware). Structural refusals spend nothing; ownership and parse failures are attempts and spend the scan.
+- `agent/sc/screener-gateway`: waiting on #581 merging into agent/int.
 
 ## Handoffs (to / from)
-- agent-qa: SC-1 §2a is the conformance target for scan envelopes. Fixture: a tmp `SCREENER_DB_PATH` with `snapshot_db.upsert_rows` (see the test file).
+- agent-qa: scorer for `discovery.json` (their path); the #572 scan fixtures mirror the merged shapes.
 
 ## Ready for integration
-- PR #570 (merged with origin/agent/int; awaiting agent-lead review)
+- `agent/sc/scan-corpus` (this PR).

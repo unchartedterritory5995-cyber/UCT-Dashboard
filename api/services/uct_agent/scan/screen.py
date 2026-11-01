@@ -249,8 +249,9 @@ def saved(params: dict, ctx: dict) -> dict:
     screen, unavailable to the Agent in Sprint 1), so the member is never told a screen is missing."""
     kind = "screen.saved"
     recs = sources.read_saved(ctx.get("user_id")) or []
+    # coverage counts EVERY screen the member has (agent-qa); only the 100 newest are listed in data
     screens, runnable, newest = [], 0, None
-    for r in recs[:100]:
+    for i, r in enumerate(recs):
         entry = {"id": r.get("id"), "name": r.get("name"), "spec": r.get("spec")}
         try:
             scan_spec.validate(r.get("spec"))
@@ -259,11 +260,12 @@ def saved(params: dict, ctx: dict) -> dict:
         except scan_spec.SpecError as e:
             entry["runnable"] = False
             entry["reason"] = str(e)
-        screens.append(entry)
+        if i < 100:
+            screens.append(entry)
         ts = r.get("updated_at") or r.get("created_at")
         if isinstance(ts, (int, float)) and ts > 0 and (newest is None or ts > newest):
             newest = ts
-    n = len(screens)
+    n = len(recs)
     cov = {"evaluated": n, "answered": runnable, "dropped": 0, "not_computable": n - runnable}
     notes = []
     if newest is None:
