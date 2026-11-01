@@ -146,10 +146,11 @@ def _provenance_fields(prov: dict, now: Optional[dt.datetime] = None) -> tuple[O
 
 def _coverage_notes(cov: dict) -> list[str]:
     out = []
-    if cov["dropped"]:
-        out.append(f"{cov['dropped']} names were excluded because their own price history stopped.")
-    if cov["not_computable"]:
-        out.append(f"{cov['not_computable']} names could not be decided: a value this screen needs is missing.")
+    d, n = cov["dropped"], cov["not_computable"]
+    if d:
+        out.append(f"{d} {'name was' if d == 1 else 'names were'} excluded because their own price history stopped.")
+    if n:
+        out.append(f"{n} {'name' if n == 1 else 'names'} could not be decided: a value this screen needs is missing.")
     return out
 
 
