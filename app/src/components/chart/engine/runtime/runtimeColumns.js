@@ -1483,6 +1483,9 @@ export function probeObjectRuntime(source, specs) {
   try {
     built = buildRuntimeIr(String(source || ''), {
       bars: [], inputs: {}, objectTrees: [], objectTreesAt: specs, ...COMPILE_ON_A_PANE, ...runtimeClockOpts(false),
+      // ⭐⭐ THE OBJECT DOOR (Phase 3 audit): this build serves members' drawings with no runtime
+      // flag, so it gets master's lane only (`pineRuntimeFrontend.js::objectDoorRefuses`).
+      objectDoor: true,
     })
   } catch (err) {
     return { ok: false, refusal: { guard: 'runtime:build', message: String((err && err.message) || err) } }
@@ -1576,6 +1579,7 @@ export function runtimeObjectValues(rt, bars, ctx = {}) {
         objectTrees: [],
         objectTreesAt: at,
         pane: true,
+        objectDoor: true, // ⭐⭐ the object door: master's lane only (see `probeObjectRuntime`)
         ...(symbol ? { symbol } : {}),
         ...(tf ? { basePeriod: tf, tf } : {}),
         ...runtimeClockOpts(forming, tf ? { tf } : {}),

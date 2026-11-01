@@ -307,6 +307,7 @@ export const RUNTIME_REFUSALS = Object.freeze({
   'runtime:chart-clock': 'a clock the columnar lane withholds on this chart — the run does not draw it either',
   'runtime:clock-zone': 'a clock read in a zone this lane cannot answer for on this chart',
   'runtime:builtin-args': 'a built-in called with arguments this lane cannot read before the first bar',
+  'runtime:object-door': 'a capability the dark runtime pane has and the object door of a drawing script does not, until a TradingView capture proves it exact',
 })
 
 export class RuntimeRefusal extends Error {
@@ -563,6 +564,9 @@ export const COLLECTION_VALUE_ARG = Object.freeze({ 'array.push': 1, 'array.unsh
  *  `input(…)` (a quoted default, or `type = input.string/resolution/session/symbol`) joined
  *  `input.string`/`input.text_area`: each returns a string in Pine. */
 const isTextInputCall = (node) => textInputKindOf(node) !== null
+/** ⛔ MASTER'S TEXT INPUTS (685b5e91d7), kept for the object door (`atObjectDoor`): the
+ *  door answers as master did until a capture proves the WS-D kinds there. */
+const MASTER_TEXT_INPUTS = new Set(['input.text_area', 'input.string'])
 
 /** Is this NAME Pine's input family?
  *
@@ -1058,6 +1062,24 @@ export function buildRuntimeIr(source, opts = {}) {
 function buildRuntimeIrLinked(source, opts, holder) {
   const bars = opts.bars || []
   const inputs = opts.inputs || {}
+  // ⭐⭐⭐ THE OBJECT DOOR GATE (Phase 3 audit, 2026-11-01). The C18 object runtime
+  // (`runtimeColumns.js::probeObjectRuntime` / `runtimeObjectValues`) is LIVE for members
+  // with no runtime flag, and it builds through this front end. It passes
+  // `opts.objectDoor = true`; the dark runtime pane never does. Every capability added to
+  // this lane after master 685b5e91d7 (Phase 3 WS-B and WS-D) asks `objectDoorRefuses`
+  // first: a new lowering refuses BY NAME (`runtime:object-door`), and a widened predicate
+  // keeps master's answer (`atObjectDoor`), so the door builds exactly what master built
+  // until a capture proves each one exact. ONE flag, ONE refusal: the rail is
+  // `runtime/__tests__/objectDoorGate.test.js`.
+  const atObjectDoor = opts.objectDoor === true
+  const objectDoorRefuses = (what, at) => {
+    if (!atObjectDoor) return
+    throw new RuntimeRefusal('runtime:object-door', `${what} is served on the runtime pane only, not to a drawing `
+      + 'script (the object door), until a TradingView capture proves it exact', at)
+  }
+  /** WS-D's text-input kinds; master's two at the object door. */
+  const textInputHere = (node) => (atObjectDoor
+    ? !!(node && node.type === 'call' && MASTER_TEXT_INPUTS.has(node.name)) : isTextInputCall(node))
   // ⭐⭐ UIE PHASE 3 (M4) — A MEMBER'S COLOUR OR SOURCE, AS THE DEFAULT THE AUTHOR WOULD HAVE
   // TYPED. `opts.inputDefaults` = `{ name: value }` for an `input.color` / `input.source`
   // binding (`runtimeInputs.js::runtimeBuildInputs`). At the binding, the input's DEFAULT
@@ -1108,7 +1130,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
   // zone) and a member value that is not whole milliseconds are refused BY NAME, never guessed.
   // `env`/`mut`/`inputConsts` are read when a binding is reached, after all three exist.
   const bindTimeInput = (call, name, at) => {
-    if (!isTimeInputCall(call)) return call
+    // At the object door the call stays exactly as master's lane saw it (a transform of an
+    // existing call, not a new lowering): master's own input path answers or refuses it.
+    if (atObjectDoor || !isTimeInputCall(call)) return call
     if (inputs && typeof inputs === 'object' && Object.prototype.hasOwnProperty.call(inputs, name)) {
       const given = inputs[name]
       if (!isTimeValue(given)) {
@@ -1260,7 +1284,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
   const env = new Map()
   // ⭐ PHASE 3 WS-D — `var NAME = <literal>` nothing reassigns, folded into input arguments
   // (`runtimeInputs.js::constantVarsOf`): an input default that reads one reads a constant.
-  const inputConsts = constantVarsOf(stmts)
+  const inputConsts = atObjectDoor ? new Map() : constantVarsOf(stmts)
   /** name → { call, index, at } for `p = plot(…)`.
    *
    *  ⛔⛔ ITS OWN MAP, NEVER `env`. `env` holds PURE EXPRESSION macros and the
@@ -1325,7 +1349,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
    *  (`interpret.js::naConditionIsFalse` / `pineTernaryFor`), the same two keys the
    *  host lane passes (`nativeRegistry.js::listingOptsFor`). Off the listing, or
    *  below v4, nothing changes. */
-  const columnInterpretOpts = (opts && opts.historyFromListing === true)
+  const columnInterpretOpts = (opts && opts.historyFromListing === true && !atObjectDoor)
     ? { ...((opts && opts.interpretOpts) || {}), historyFromListing: true,
       ...(naConditionIsFalse(pineVersion) ? { naConditionFalse: true } : {}) }
     : ((opts && opts.interpretOpts) || undefined)
@@ -2196,7 +2220,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
       // listing keys) plus the clock sink, so a tick re-evaluates under the same
       // `na` rule and re-reports what the columnar lane withholds.
       const folded = foldBound(canonical, bindConsts)
-      const columnOpts = { ...columnInterpretOpts, chartClockSink: clockSink }
+      const columnOpts = atObjectDoor ? columnInterpretOpts : { ...columnInterpretOpts, chartClockSink: clockSink }
       value = typeof opts.columnInterpret === 'function'
         ? opts.columnInterpret(folded, bars, inputs, columnOpts)
         : interpret(folded, bars, inputs, undefined, undefined, columnOpts)
@@ -2422,8 +2446,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
     if (node.type === 'call' && producesText(node.name)) return true
     // ⭐ P3 WS-B — `str.tostring` is text in EVERY run, not only one that draws
     // (`text.js::RUN_TEXT_FNS`; see the call arm).
-    if (isRunTostring(node)) return true
-    if (node.type === 'call' && isTextInputCall(node)) return true
+    if ((objectsInRun || !atObjectDoor) && isRunTostring(node)) return true
+    if (node.type === 'call' && textInputHere(node)) return true
     // ⭐⭐ AN ELEMENT OF A TEXT ARRAY IS TEXT. Without this, `array.get(syms, r)`
     // — a watchlist row, the single commonest per-row value in the corpus — reads
     // as numeric, and a buffer allocated to hold it throws on the first symbol.
@@ -3524,7 +3548,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // evaluates ONE symbol on ONE timeframe, which is exactly what a request
     // is not. There is nothing there for it to fall back to.
     if (node.type === 'call') {
-      return textInputIsMemberSet(textInputKindOf(node)) || node.name === 'request.security'
+      return (atObjectDoor ? MASTER_TEXT_INPUTS.has(node.name) : textInputIsMemberSet(textInputKindOf(node)))
+        || node.name === 'request.security'
     }
     if (node.type === 'name') {
       if (scope.lookup(node.name) !== null) return false
@@ -3805,6 +3830,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // never called in Pine's place: the respelling declines and the call keeps
     // its refusal.
     if (bare === 'hma' && given.length === 2) {
+      objectDoorRefuses('`' + name + '` over a value the run computes', locate(tok))
       const n = folded(1)
       if (n === null || !Number.isInteger(n) || n < 1) return null
       const W = v5 ? 'ta.wma' : 'wma'
@@ -4322,7 +4348,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // ⛔ TEXT ONLY through a binding (`textOnly`): a name bound to a COLLECTION
     // stays the columnar lane's to refuse (`n = array.size(array.from(…))` keeps
     // `pine:collection`, vendorHarness.h4Loops), as it did before this clause.
-    if (node.type === 'name' && scope && scope.lookup(node.name) === null) {
+    if (!atObjectDoor && node.type === 'name' && scope && scope.lookup(node.name) === null) {
       const bound = env.get(node.name)
       if (bound && bound.kind === 'expr' && !bound.frame) return touchesText(bound.node, scope, depth + 1, true)
     }
@@ -4859,6 +4885,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
    *  names, never a name the script defines itself. */
   const tupleBuiltinParts = (node) => {
     if (!node || node.type !== 'call') return null
+    if (atObjectDoor) return null
     const name = String(node.name || '')
     if (!/^(ta\.)?[A-Za-z_]+$/.test(name) || definedNames.has(name) || isUserFn(name)) return null
     try { return pineTupleBuiltinCallParts(node, null, node.tok) } catch { return null }
@@ -4958,6 +4985,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
   /** The lowering, or `null` when the call is not one of these shapes (the
    *  arms below then answer or refuse it as before). */
   const runtimeClockLowering = (node, scope) => {
+    if (atObjectDoor) return null
     const name = String(node.name || '')
     // ⛔ No own-name check here: a script's own `timestamp`/`hour` is a user
     // function, and the call arm's user-function path runs before this one is
@@ -5203,7 +5231,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // ⭐ RT5 — nor is a drawing family's live list (`label.all`), nor text
         // this run prints (`str.tostring`), which the columnar lane refuses.
         && !objectAllName(node)
-        && !containsRunTostring(node)
+        && !((objectsInRun || !atObjectDoor) && containsRunTostring(node))
         && !(objectsInRun && containsObjectEnum(node))
         // ⭐ AND A SORT DIRECTION IS A STRING, NOT A COLUMN — same reason as the
         // drawing enums one line up. Handling `order.*` in the name branch is
@@ -5291,7 +5319,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // answers (`runtimeClockCallIn`): the columnar lane refuses `timestamp`,
         // `dayofweek(time + offset)` and `time("", sess)` by name, and the call
         // arm below serves each over the instant or session it names.
-        const clockHere = e && (e.guard === 'pine:function' || e.guard === 'pine:builtin'
+        const clockHere = !atObjectDoor && e && (e.guard === 'pine:function' || e.guard === 'pine:builtin'
           || e.guard === 'pine:text-value')
           && runtimeClockCallIn(node, scope)
         if (!(laneHasNoText && touchesText(node, scope)) && !clockHere) throw e
@@ -5856,6 +5884,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
             && (node.args || []).length === 1 && !node.args[0].name
             && !holdsText(node.args[0].value, scope) && !holdsArray(node.args[0].value, scope)
             && !holdsColour(node.args[0].value, scope) && !holdsRunObject(node.args[0].value)) {
+          objectDoorRefuses('`' + node.name + '(…)` over a value the run computes', locate(node.tok))
           const x = lowerExpr(node.args[0].value, scope, opts)
           if (node.name === 'float') return x
           return binary('+', irBuiltin('idiv', [x, num(1)]), num(0))
@@ -6042,7 +6071,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // text value; the formatter and the format rule are unchanged. A text
         // that only a drawing reads is never lowered where the host's object
         // program draws (that statement is skipped), so nothing it draws moves.
-        if (isRunTostring(node)) {
+        if ((objectsInRun || !atObjectDoor) && isRunTostring(node)) {
           const given = (node.args || []).map((x) => (x && x.value !== undefined ? x.value : x))
           if ((node.args || []).some((a) => a && a.name && a.name !== 'value' && a.name !== 'format')
               || given.length < 1 || given.length > 2) {
@@ -6119,7 +6148,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
           return colourCall(node.name, given.map((x) => lowerExpr(x, scope)))
         }
         if (node.name === 'request.security') return admitRequest(node, scope, opts)
-        if (isTextInputCall(node)) return admitTextInput(node, scope)
+        if (textInputHere(node)) return admitTextInput(node, scope)
         if (Object.prototype.hasOwnProperty.call(ARRAY_FNS, node.name)) {
           return admitArrayCall(node, scope, false)
         }
@@ -6784,6 +6813,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // here could not fail — mutation-proved).
         if (node.name === 'ta.rsi' || node.name === 'rsi') {
           const at = locate(node.tok)
+          objectDoorRefuses('`' + node.name + '` over a value the run computes', at)
           if (node.args.some((a) => a && a.name)) {
             throw new RuntimeRefusal('runtime:builtin-args', `a named argument on \`${node.name}\``, at)
           }
@@ -9487,7 +9517,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
   const fixedTextOf = (node, scope, depth = 0) => {
     if (!node || typeof node !== 'object' || depth > 24) return null
     if (node.type === 'string') return typeof node.value === 'string' ? node.value : null
-    if (node.type === 'call' && isTextInputCall(node)) {
+    if (node.type === 'call' && textInputHere(node)) {
       const lowered = admitTextInput(node, scope || root)
       return lowered && lowered.kind === EXPR.STR ? lowered.value : null
     }
