@@ -138,6 +138,12 @@ Only agent-qa edits this file. Update it in every PR.
   Spotlight questions d08/d19/d22/d26 are all refused, each with the grammar's own sentence.
   Mutation checks: every derived wrong answer fails, and near-misses inside tolerance pass.
 
+- **themes `as_of` null while prices move (#591, MD-1 v1.3 §4.3) — raised by agent-qa, ACCEPTED as documented.**
+  `live_applied_at` is UCT's apply time (a computation time, forbidden as `as_of` by §3). The vendor observation
+  time is not carried, and the values mix live prices with completed-session reference closes. §4.3 lines 131–132
+  state this. The fixtures will add a predicate: a null `as_of` always comes with `data.live_applied_at` +
+  NOTE_LIVE_APPLIED, and `as_of` never equals `live_applied_at`. RVOL notes are pinned against SC-1 §2c.
+
 ## Blockers
 - (none)
 
