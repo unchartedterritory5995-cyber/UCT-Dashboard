@@ -33,6 +33,7 @@ import useStudySession from './useStudySession'
 import useHouseChart from './useHouseChart'
 import { studySettingsOverride } from './studyChartLook'
 import { slingshotInstances } from './slingshotOverlay'
+import { studyHighlightBars, STUDY_HIGHLIGHT_COLOR } from './studyOverlays'
 import { drillFor, isUnscoredDrill } from './drills'
 import { itemHasChart, questionOf } from './drills/types'
 import RevealCard from './RevealCard'
@@ -145,6 +146,9 @@ export default function DrillPlayer({
   const answerable = !!item && !locked && mod.isAnswerable(state, item)
   const reveal = result?.reveal || null
 
+  // The bars the item wants looked at (an hourly Go Signal's first three bars of the ruled session), white,
+  // on the question AND the reveal: they say where to look, never what the answer is.
+  const highlightBars = useMemo(() => (chartVisible ? studyHighlightBars(item, chartBars) : null), [chartVisible, item, chartBars])
   const annotations = useMemo(
     () => (chartVisible && mod.annotationsFor ? mod.annotationsFor(state, item, reveal, chartBars) : null),
     [chartVisible, mod, state, item, reveal, chartBars],
@@ -296,6 +300,8 @@ export default function DrillPlayer({
               settingsOverride={settingsOverride}
               annotations={annotations}
               annotationsVisible={!!annotations}
+              highlightBarTime={highlightBars}
+              highlightColor={STUDY_HIGHLIGHT_COLOR}
               onCrosshairMove={onCrosshairMove}
             />
           )}

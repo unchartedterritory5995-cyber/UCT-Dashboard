@@ -10,7 +10,7 @@
  */
 import { hveAnnotations, isHveItem } from './hveOverlay'
 import { gapAnnotations, isGapSupportItem } from './gapSupportOverlay'
-import { goSignalAnnotations, isGoSignalHourlyItem } from './goSignalOverlay'
+import { goSignalAnnotations, goSignalOpenBarTimes, isGoSignalHourlyItem } from './goSignalOverlay'
 import { bearGapAnnotations, isBearGapItem } from './bearGapOverlay'
 
 export function studyAnnotations(item, bars) {
@@ -21,6 +21,17 @@ export function studyAnnotations(item, bars) {
   if (isBearGapItem(item)) return bearGapAnnotations(item, bars)
   return null
 }
+
+/** Painted in white on both screens: the bar keys an item wants the reader to look at. Hourly Go Signal: the ruled
+ *  session's first three hourly bars (the open). Anything else: none. */
+export function studyHighlightBars(item, bars) {
+  if (!item) return null
+  if (isGoSignalHourlyItem(item)) return goSignalOpenBarTimes(item, bars)
+  return null
+}
+
+/** The colour of the highlighted bars on every Study chart: white, so it never reads as the gold setup level. */
+export const STUDY_HIGHLIGHT_COLOR = '#ffffff'
 
 export function hasStudyOverlay(item) {
   return isHveItem(item) || isGapSupportItem(item) || isGoSignalHourlyItem(item) || isBearGapItem(item)

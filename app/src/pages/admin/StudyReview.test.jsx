@@ -9,7 +9,7 @@ import StudyReview, { REVIEW_URL, TRUST_URL, EXPORT_URL, reviewKey, checksOf, pr
 // The chart stand-in prints the props the review card is responsible for as
 // TEXT: the REVEALED ticker, the frame around the cutoff, and the cutoff marker.
 vi.mock('../../components/StockChart', () => ({
-  default: ({ sym, entryDate, exitDate, markers, priceLines, barsOverride, barsOverridePending, studyMode, annotations, annotationsVisible, settingsOverride }) => (
+  default: ({ sym, entryDate, exitDate, markers, priceLines, barsOverride, barsOverridePending, studyMode, annotations, annotationsVisible, settingsOverride, highlightBarTime, highlightColor }) => (
     <div data-testid="stock-chart">
       <span>chart:{sym}</span>
       <span>bars:{Array.isArray(barsOverride) ? barsOverride.length : (barsOverridePending ? 'pending' : 'none')}</span>
@@ -21,6 +21,7 @@ vi.mock('../../components/StockChart', () => ({
       <span>lines:{(priceLines || []).length}</span>
       <span>annotations:{annotations ? annotations.map((a) => `${a.type}@${a.points[0].time}${a.points[0].price != null ? '=' + a.points[0].price : ''}`).join('|') : '-'}</span>
       <span>annotationsVisible:{annotationsVisible ? '1' : '0'}</span>
+      <span>highlight:{Array.isArray(highlightBarTime) ? highlightBarTime.join('|') : '-'}{highlightColor ? '@' + highlightColor : ''}</span>
       <span>instances:{(settingsOverride?.indicatorInstances || []).map((i) => i.instanceId).join('|') || '-'}</span>
     </div>
   ),
@@ -57,7 +58,7 @@ vi.mock('swr', () => ({
 
 // What the admin bars route returns for a chart item: the member's visible
 // window plus the forward strip, symbol = the item id (never the ticker).
-const STORED_BARS = {
+const DEFAULT_STORED_BARS = {
   symbol: 'si_a', tf: 'D',
   bars: [
     { t: 20250529, o: 100, h: 101, l: 99, c: 100.5, v: 1000 },
@@ -69,6 +70,7 @@ const STORED_BARS = {
     { t: 20250604, o: 103.5, h: 105, l: 103, c: 104.5, v: 1400 },
   ],
 }
+let STORED_BARS = DEFAULT_STORED_BARS
 
 const SPOT_A = {
   id: 'si_a', version: 1, type: 'spot', skill_id: 'setup.vcp', difficulty: 2,
@@ -106,6 +108,7 @@ function postCalls(prefix) {
 beforeEach(() => {
   KEYS = []
   DRAFTS = [SPOT_A, SPOT_C, RECALL_B]
+  STORED_BARS = DEFAULT_STORED_BARS
   TRUST = {
     spot: { item_type: 'spot', clean_count: 3, state: 'manual', ask_to_switch: false, ask_at: 20 },
     recall: { item_type: 'recall', clean_count: 20, state: 'manual', ask_to_switch: true, ask_at: 20 },
@@ -216,6 +219,18 @@ describe('StudyReview card', () => {
     expect(screen.getByTestId('study-ticker')).toHaveTextContent('NAVN')
     expect(chart).toHaveTextContent('annotations:hray@2025-06-02=102.5|avwap@2025-06-02')
     expect(chart).toHaveTextContent('annotationsVisible:1')
+  })
+
+  it('paints the first three hourly bars of the ruled session white and points the arrow at the open (owner 2026-10-31)', () => {
+    STORED_BARS = { id: 'sb_h', tf: '60', bars: [1793104200, 1793107800, 1793111400, 1793115000, 1793118600].map((t, i) => ({ t, o: 10, h: 11, l: 9, c: 10.5, v: 1 + i })), forward: [] }
+    DRAFTS = [{ ...SPOT_A, id: 'si_hourly', sym: 'WING', asof: '2026-10-27', skill_id: 'setup.intraday.go_signal',
+      prompt_json: { ...SPOT_A.prompt_json, chart: { window_bars: 112, tf: '60' } },
+      reveal_json: { facts: { flag_start_t: 1793104200, first_hour_t: 1793107800, flag_low: 9.5, flag_high: 10.8 } } }, SPOT_C, RECALL_B]
+    renderWithProviders(<StudyReview />)
+    const chart = screen.getByTestId('stock-chart')
+    expect(chart).toHaveTextContent('highlight:1793107800|1793111400|1793115000@#ffffff')
+    expect(chart).toHaveTextContent('markers:the open: first 3 hours in white')
+    expect(screen.getByTestId('study-closeup')).toHaveTextContent('Open close-up')
   })
 
   it('highlights the key among the choices', () => {

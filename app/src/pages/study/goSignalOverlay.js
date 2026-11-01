@@ -43,6 +43,24 @@ export function flagStartBar(item, bars) {
   return i < 0 ? null : list[i]
 }
 
+/** How many hourly bars of the ruled session are painted as "the open". */
+export const OPEN_BARS = 3
+
+/**
+ * The bar keys of the ruled session's OPEN: the first-hour bar (`facts.first_hour_t`, the 9:30 bucket) and the
+ * two bars after it, painted so the reader knows which candles carry the undercut and the red-to-green (owner
+ * 2026-10-31: "I can't tell what the first 3 hourly candles are that I'm supposed to be watching!"). Null when the
+ * first hour is not in the chart's bars.
+ */
+export function goSignalOpenBarTimes(item, bars) {
+  const list = Array.isArray(bars) ? bars : []
+  const key = item?.reveal_json?.facts?.first_hour_t
+  if (key == null || !list.length) return null
+  const i = list.findIndex((b) => sameKey(b.t, key))
+  if (i < 0) return null
+  return list.slice(i, i + OPEN_BARS).map((b) => b.t)
+}
+
 /**
  * The two rays for StockChart's `annotations` layer, or null without a flag.
  * Order is fixed (flag high first, flag low second); the emphasis is on the
