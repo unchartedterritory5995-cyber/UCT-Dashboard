@@ -36,7 +36,7 @@ Only agent-md edits this file. Update it in every PR.
   0 calls). All `periodic`. MD-1 **v1.2** (§4 rows + §4.2, constants quoted from the modules). Tests 36,
   mutation-checked; clock-clean (fixed NOW_TS literal, adapters' clocks frozen — agent-qa F-8); exact news-ingest
   boundary (exclusive) and UTC-midnight flip for fundamentals pinned.
-- **PR 4a — `themes`** (#591, refreshed by merging agent/int `8f9e65eda0`; ready). MD-1 §4.3's relative-volume
+- **PR 4a — `themes`** — ✅ INTEGRATED into agent/int as #591 (`d51f73b75e`). MD-1 §4.3's relative-volume
   pointer targets SC-1 §2c (#592, integrated). Reads
   the theme overlay WITHOUT building it (shared cache, then the route's last complete overlay, else
   "theme data is warming", 0 calls — a cold build is ~22 Massive calls). While prices move `as_of` is null and
@@ -44,7 +44,13 @@ Only agent-md edits this file. Update it in every PR.
   `volume.surge` removed (relative volume = screener `rvol_live`/`vol_ratio` via SC-1), `nhnl` folded into
   `breadth.current` metrics, `nhnl_live` not exposed. Tests 15, mutation-checked.
 - **PR 4b — `breadth.current` (+ NH/NL metrics) and `ratings`**: rulings received; both MODEL-ISOLATED
-  (purpose "answer" only). Unblocked: `model_isolated` landed in gateway.py (#588). In progress.
+  (purpose "answer" only, gateway #588). Branch `agent/md/pr4b-breadth-ratings`, based on agent/int `d51f73b75e`
+  (after #591). `breadth.current` = `breadth_current.reading()` (intraday → periodic, completed → historical;
+  as_of = vendor `observed_at`, never `computed_at`; stale = not current; label always a note; `stale_reason`
+  logged, not returned; NH/NL measures included). `ratings` = `research/ratings.get_ratings` (UCT-derived 1–99;
+  as_of = price session close; undated legs noted; incomplete → partial; 3 calls). MD-1 **v1.4** §4.4.
+  Tests 39, mutation-checked (dropping isolation reds 4; as_of from computed_at reds 3). Refreshed for #599:
+  DORMANT unless `UCT_AGENT_ISOLATED=1` — refused for every purpose, `answer` included; active-behaviour tests set the flag.
 - **Open measurement:** `news.company`'s `store.health_snapshot()` runs COUNT(*) over news_items/news_tickers per
   read — cost on the production DB size must be measured and recorded here before any flag goes on (agent-lead).
 - Next: PR 4b after the gateway PR; ADR-003 flow/darkpool spike (draft);
@@ -60,4 +66,4 @@ Only agent-md edits this file. Update it in every PR.
   a store one session behind (stale), and a store row for today's developing bar (must be excluded).
 
 ## Ready for integration
-- PR 4a `themes` (#591)
+- PR 4b `breadth.current` + `ratings`
