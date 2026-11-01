@@ -339,7 +339,9 @@ def list_definitions(user: dict = Depends(require_paid),
                      graph: bool = _GRAPH_PARAM,
                      engine: Optional[int] = _ENGINE_PARAM):
     # ⛔ The keyword only when asked: an old bundle's read is the call it always was.
-    rows = (svc.list_for_user(user["id"], source_below=engine) if engine is not None
+    # (`isinstance`, not `is not None`: a direct call leaves the `Query` default in place.)
+    asked = isinstance(engine, int) and not isinstance(engine, bool)
+    rows = (svc.list_for_user(user["id"], source_below=engine) if asked
             else svc.list_for_user(user["id"]))
     return {"definitions": _maybe_compact([_stamped(r) for r in rows], graph)}
 
