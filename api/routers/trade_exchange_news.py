@@ -310,7 +310,7 @@ def _event_for(store):
 
 @router.get(LIB + "/state")
 def library_state(user: dict = Depends(get_current_user)) -> JSONResponse:
-    return _lib(txn_library.state, _uid(user))
+    return _lib(txn_library.state, _uid(user), _store())
 
 
 @router.get(LIB + "/items")
@@ -334,12 +334,13 @@ async def library_save(event_id: str, request: Request, user: dict = Depends(get
     if isinstance(d, JSONResponse):
         return d
     return await asyncio.to_thread(_lib, txn_library.save, _uid(user), _store(), event_id, note=d.get("note"),
-                                   collection_ids=d.get("collection_ids") or (), saved_at_ms=d.get("saved_at_ms"))
+                                   collection_ids=d.get("collection_ids") or (), saved_at_ms=d.get("saved_at_ms"),
+                                   note_updated_at_ms=d.get("note_updated_at_ms"))
 
 
 @router.delete(LIB + "/bookmarks/{event_id}")
 def library_remove(event_id: str, user: dict = Depends(get_current_user)) -> JSONResponse:
-    return _lib(txn_library.remove, _uid(user), event_id)
+    return _lib(txn_library.remove, _uid(user), event_id, _store())
 
 
 @router.put(LIB + "/bookmarks/{event_id}/note")
@@ -347,7 +348,7 @@ async def library_note(event_id: str, request: Request, user: dict = Depends(get
     d = await _read_body(request)
     if isinstance(d, JSONResponse):
         return d
-    return await asyncio.to_thread(_lib, txn_library.set_note, _uid(user), event_id, d.get("note"))
+    return await asyncio.to_thread(_lib, txn_library.set_note, _uid(user), event_id, d.get("note"), _store())
 
 
 @router.post(LIB + "/collections")
@@ -373,12 +374,12 @@ def library_delete_collection(cid: str, user: dict = Depends(get_current_user)) 
 
 @router.put(LIB + "/collections/{cid}/items/{event_id}")
 def library_add_to_collection(cid: str, event_id: str, user: dict = Depends(get_current_user)) -> JSONResponse:
-    return _lib(txn_library.set_membership, _uid(user), cid, event_id, True)
+    return _lib(txn_library.set_membership, _uid(user), cid, event_id, True, _store())
 
 
 @router.delete(LIB + "/collections/{cid}/items/{event_id}")
 def library_remove_from_collection(cid: str, event_id: str, user: dict = Depends(get_current_user)) -> JSONResponse:
-    return _lib(txn_library.set_membership, _uid(user), cid, event_id, False)
+    return _lib(txn_library.set_membership, _uid(user), cid, event_id, False, _store())
 
 
 @router.get(DAYS_PATH)

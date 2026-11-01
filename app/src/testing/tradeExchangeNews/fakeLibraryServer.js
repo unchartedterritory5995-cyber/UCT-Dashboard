@@ -48,7 +48,7 @@ export function fakeLibraryServer(headlines) {
         if (!byId.has(id)) return err(404, 'not_found', 'That headline could not be found.')
         const created = !marks.has(id)
         if (created) {
-          marks.set(id, { event_id: id, saved_at_ms: body.saved_at_ms || ++clock, note: body.note || '', note_updated_at_ms: null })
+          marks.set(id, { event_id: id, saved_at_ms: body.saved_at_ms || ++clock, note: body.note || '', note_updated_at_ms: body.note ? (body.note_updated_at_ms || clock) : null })
           for (const c of body.collection_ids || []) if (cols.has(c)) items.get(c).add(id)
         }
         return ok({ bookmark: mark(id), created })

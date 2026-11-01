@@ -101,7 +101,9 @@ export async function save(id, restore = null) {
     if (!had) setIds((s) => s.delete(id))
     return { ok: false, error: r.body.detail }
   }
-  if (restore?.collection_ids?.length) await load({ force: true })     // the collection counts moved
+  // An Undo moves collection counts, and a story saved under another of its delivery ids
+  // (a rebuild changed its first) answers that id: re-read so every row's mark is right.
+  if (restore || r.body.bookmark?.event_id !== id) await load({ force: true })
   tellOtherTabs()
   return { ok: true, bookmark: r.body.bookmark }
 }
@@ -115,7 +117,8 @@ export async function remove(id) {
     if (had) setIds((s) => s.add(id))
     return { ok: false, error: r.body.detail }
   }
-  if (r.body.removed?.collection_ids?.length) await load({ force: true })
+  const removed = r.body.removed
+  if (removed && (removed.collection_ids?.length || removed.event_id !== id)) await load({ force: true })
   tellOtherTabs()
   return { ok: true, removed: r.body.removed }
 }
@@ -123,7 +126,10 @@ export async function remove(id) {
 /** Put back exactly what `remove` answered (its note, collections and saved time). */
 export function undoRemove(removed) {
   if (!removed?.event_id) return Promise.resolve({ ok: false })
-  return save(removed.event_id, { note: removed.note, collection_ids: removed.collection_ids, saved_at_ms: removed.saved_at_ms })
+  return save(removed.event_id, {
+    note: removed.note, note_updated_at_ms: removed.note_updated_at_ms,
+    collection_ids: removed.collection_ids, saved_at_ms: removed.saved_at_ms,
+  })
 }
 
 export async function toggle(id) {

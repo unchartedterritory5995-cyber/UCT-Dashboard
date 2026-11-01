@@ -341,6 +341,24 @@ class Store:
                     out[row["event_id"]] = row
         return out
 
+    def story_ids(self, event_id: str) -> list[str]:
+        """Every delivery id of the headline ``event_id`` belongs to, the headline's own id
+        first -- [] when the store does not know it. Which delivery is a story's FIRST can
+        change in a rebuild (recovery ingests late deliveries; a rebuild replays in event-id
+        order), so a reference kept outside this database is matched against all of them.
+        A read."""
+        c = self._conn()
+        hit = c.execute("SELECT headline_seq FROM deliveries WHERE event_id=?", (str(event_id),)).fetchone()
+        if not hit:
+            hit = c.execute("SELECT seq FROM headlines WHERE event_id=?", (str(event_id),)).fetchone()
+        if not hit:
+            return []
+        head = c.execute("SELECT event_id FROM headlines WHERE seq=?", (hit[0],)).fetchone()
+        ids = [head[0]] if head else []
+        ids += [r[0] for r in c.execute("SELECT event_id FROM deliveries WHERE headline_seq=? ORDER BY event_id",
+                                        (hit[0],)).fetchall()]
+        return list(dict.fromkeys(ids))
+
     def known(self, event_id: str) -> bool:
         return self._conn().execute("SELECT 1 FROM deliveries WHERE event_id=?",
                                     (event_id,)).fetchone() is not None

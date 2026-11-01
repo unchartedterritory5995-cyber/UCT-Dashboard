@@ -20,6 +20,20 @@ per delivery, so it still finds its headline after a rebuild even when a differe
 of the same story became that headline's first. A bookmark the store cannot resolve yet (an
 empty volume still recovering) is KEPT and listed as "restoring", never dropped.
 
+ONE BOOKMARK PER STORY. A headline's own id is its FIRST delivery's, and which delivery is
+first can change in a rebuild (a late delivery recovered from R2 is replayed in event-id
+order). So every write matches the member's bookmark against ALL of the story's delivery
+ids (`Store.story_ids`), and `state` answers the headline's CURRENT id beside the stored
+one: a News row still shows as saved, saving it again is a no-op (no duplicate), and
+removing it removes the stored bookmark. The stored id itself never changes.
+
+TRANSACTIONS. Every write is one `BEGIN IMMEDIATE` transaction (`_tx`): it commits whole
+or rolls back whole, so a failed removal never leaves a bookmark without its collection
+rows or the reverse. Removal is immediate and complete on the server; Undo is a fresh
+save that puts back exactly what removal answered (note, note time, saved time and the
+collections that still exist). A closed tab simply never sends Undo -- the database is
+already consistent, and a later save is a fresh bookmark with no note and no collections.
+
 PER-MEMBER, ALWAYS. Every statement is keyed by the session's `user_id` (the routes never
 read one from the request). A collection id that is not the caller's is "not found" -- the
 same answer as one that does not exist, so ids reveal nothing.
@@ -29,6 +43,7 @@ from __future__ import annotations
 import collections
 import contextlib
 import secrets
+import sqlite3
 import threading
 import time
 from datetime import datetime, timedelta
@@ -74,6 +89,37 @@ def _db():
         yield c
     finally:
         c.close()
+
+
+@contextlib.contextmanager
+def _tx(c):
+    """One write transaction: the write lock up front (so a check followed by a write cannot race),
+    committed whole or rolled back whole."""
+    c.execute("BEGIN IMMEDIATE")
+    try:
+        yield c
+    except BaseException:
+        c.rollback()
+        raise
+    c.commit()
+
+
+def _story(store, eid: str) -> list[str]:
+    """`eid` and every other delivery id of its story (just `eid` when the store cannot say)."""
+    try:
+        ids = store.story_ids(eid) if store is not None else []
+    except Exception:  # noqa: BLE001 -- a store mid-recovery: match the id alone
+        ids = []
+    return list(dict.fromkeys([eid, *ids]))
+
+
+def _stored_id(c, uid: str, ids: list[str]) -> str | None:
+    """The member's bookmark among a story's ids: the exact id if saved, else the newest."""
+    marks = ",".join("?" * len(ids))
+    rows = c.execute(f"SELECT event_id FROM txn_bookmarks WHERE user_id = ? AND event_id IN ({marks})"
+                     " ORDER BY saved_at_ms DESC", (uid, *ids)).fetchall()
+    have = [r[0] for r in rows]
+    return ids[0] if ids[0] in have else (have[0] if have else None)
 
 
 # ── write rate (per member, in-process) ──────────────────────────────────────
@@ -137,12 +183,21 @@ def _collection_rows(c, uid: str) -> list[dict[str, Any]]:
     return [{"id": r[0], "name": r[1], "created_at_ms": r[2], "updated_at_ms": r[3], "count": r[4]} for r in rows]
 
 
-def state(uid: str) -> dict[str, Any]:
-    """What every News widget needs to mark saved rows: the saved ids and the collections."""
+def state(uid: str, store=None) -> dict[str, Any]:
+    """What every News widget needs to mark saved rows: the saved ids and the collections.
+    With the store, each bookmark's headline's CURRENT id follows its stored id, so a row
+    whose first delivery changed in a rebuild still shows as saved."""
     with _db() as c:
-        ids = [r[0] for r in c.execute("SELECT event_id FROM txn_bookmarks WHERE user_id = ?"
-                                       " ORDER BY saved_at_ms DESC", (uid,)).fetchall()]
+        stored = [r[0] for r in c.execute("SELECT event_id FROM txn_bookmarks WHERE user_id = ?"
+                                          " ORDER BY saved_at_ms DESC", (uid,)).fetchall()]
         cols = _collection_rows(c, uid)
+    found = {}
+    if store is not None and stored:
+        try:
+            found = store.resolve_events(stored)
+        except Exception:  # noqa: BLE001 -- the stored ids alone still mark rows
+            found = {}
+    ids = list(dict.fromkeys(x for e in stored for x in (e, (found.get(e) or {}).get("event_id")) if x))
     return {"ids": ids, "collections": cols, "limits": {"bookmarks": MAX_BOOKMARKS, "collections": MAX_COLLECTIONS,
                                                        "name": NAME_MAX, "note": NOTE_MAX}}
 
@@ -234,60 +289,72 @@ def _owned_collections(c, uid: str, ids: Iterable[Any]) -> list[str]:
 
 
 def save(uid: str, store, event_id: Any, *, note: Any = None, collection_ids: Iterable[Any] = (),
-         saved_at_ms: Any = None) -> dict[str, Any]:
-    """Save (idempotent: saving a saved headline changes nothing and is not an error).
-    `note`, `collection_ids` and `saved_at_ms` restore a bookmark the member just removed
-    (Undo); collection ids that are not the member's are ignored."""
+         saved_at_ms: Any = None, note_updated_at_ms: Any = None) -> dict[str, Any]:
+    """Save (idempotent: saving a saved headline -- by ANY delivery id of its story -- changes
+    nothing and is not an error). `note`, `note_updated_at_ms`, `collection_ids` and
+    `saved_at_ms` restore a bookmark the member just removed (Undo), exactly; collection ids
+    that are not the member's (or were deleted since) are ignored."""
     eid = _event_id(event_id)
     _write_ok(uid)
     _must_resolve(store, eid)
     now = _now_ms()
-    when = saved_at_ms if (isinstance(saved_at_ms, int) and not isinstance(saved_at_ms, bool)
-                           and 0 < saved_at_ms <= now) else now
+
+    def past(v):
+        return isinstance(v, int) and not isinstance(v, bool) and 0 < v <= now
+
+    when = saved_at_ms if past(saved_at_ms) else now
     text = _note(note)
+    noted = (note_updated_at_ms if past(note_updated_at_ms) else now) if text else None
+    story = _story(store, eid)
     with _db() as c:
-        existing = c.execute("SELECT 1 FROM txn_bookmarks WHERE user_id = ? AND event_id = ?", (uid, eid)).fetchone()
-        if not existing:
-            n = c.execute("SELECT COUNT(*) FROM txn_bookmarks WHERE user_id = ?", (uid,)).fetchone()[0]
-            if n >= MAX_BOOKMARKS:
-                raise LibraryError(409, "full", f"Your library holds {MAX_BOOKMARKS:,} headlines. Remove some to save more.")
-            c.execute("INSERT INTO txn_bookmarks (user_id, event_id, saved_at_ms, note, note_updated_at_ms)"
-                      " VALUES (?,?,?,?,?)", (uid, eid, when, text, now if text else None))
-            for cid in _owned_collections(c, uid, collection_ids):
-                c.execute("INSERT OR IGNORE INTO txn_collection_items (user_id, collection_id, event_id, added_at_ms)"
-                          " VALUES (?,?,?,?)", (uid, cid, eid, now))
-            c.commit()
-        mark = next(m for m in _bookmarks(c, uid) if m["event_id"] == eid)
+        with _tx(c):
+            existing = _stored_id(c, uid, story)
+            if not existing:
+                n = c.execute("SELECT COUNT(*) FROM txn_bookmarks WHERE user_id = ?", (uid,)).fetchone()[0]
+                if n >= MAX_BOOKMARKS:
+                    raise LibraryError(409, "full", f"Your library holds {MAX_BOOKMARKS:,} headlines. Remove some to save more.")
+                c.execute("INSERT INTO txn_bookmarks (user_id, event_id, saved_at_ms, note, note_updated_at_ms)"
+                          " VALUES (?,?,?,?,?)", (uid, eid, when, text, noted))
+                for cid in _owned_collections(c, uid, collection_ids):
+                    c.execute("INSERT OR IGNORE INTO txn_collection_items (user_id, collection_id, event_id, added_at_ms)"
+                              " VALUES (?,?,?,?)", (uid, cid, eid, now))
+        key = existing or eid
+        mark = next(m for m in _bookmarks(c, uid) if m["event_id"] == key)
     return {"bookmark": mark, "created": not existing}
 
 
-def remove(uid: str, event_id: Any) -> dict[str, Any]:
-    """Remove the member's bookmark (and its place in their collections and its note).
-    Answers what was removed, so the client can offer Undo. The headline is untouched."""
+def remove(uid: str, event_id: Any, store=None) -> dict[str, Any]:
+    """Remove the member's bookmark (and its place in their collections and its note), in
+    one transaction. Answers what was removed, so the client can offer Undo. The headline
+    is untouched."""
     eid = _event_id(event_id)
     _write_ok(uid)
+    story = _story(store, eid)
     with _db() as c:
-        mark = next((m for m in _bookmarks(c, uid) if m["event_id"] == eid), None)
-        if mark is None:
-            return {"removed": None}
-        c.execute("DELETE FROM txn_collection_items WHERE user_id = ? AND event_id = ?", (uid, eid))
-        c.execute("DELETE FROM txn_bookmarks WHERE user_id = ? AND event_id = ?", (uid, eid))
-        c.commit()
+        with _tx(c):
+            key = _stored_id(c, uid, story)
+            if key is None:
+                return {"removed": None}
+            mark = next(m for m in _bookmarks(c, uid) if m["event_id"] == key)
+            c.execute("DELETE FROM txn_collection_items WHERE user_id = ? AND event_id = ?", (uid, key))
+            c.execute("DELETE FROM txn_bookmarks WHERE user_id = ? AND event_id = ?", (uid, key))
     return {"removed": mark}
 
 
-def set_note(uid: str, event_id: Any, note: Any) -> dict[str, Any]:
+def set_note(uid: str, event_id: Any, note: Any, store=None) -> dict[str, Any]:
     """Write (or, with empty text, clear) the note on a SAVED headline."""
     eid = _event_id(event_id)
     _write_ok(uid)
     text = _note(note)
+    story = _story(store, eid)
     with _db() as c:
-        cur = c.execute("UPDATE txn_bookmarks SET note = ?, note_updated_at_ms = ? WHERE user_id = ? AND event_id = ?",
-                        (text, _now_ms() if text else None, uid, eid))
-        if cur.rowcount == 0:
-            raise LibraryError(404, "not_saved", "Save the headline before adding a note.")
-        c.commit()
-        mark = next(m for m in _bookmarks(c, uid) if m["event_id"] == eid)
+        with _tx(c):
+            key = _stored_id(c, uid, story)
+            if key is None:
+                raise LibraryError(404, "not_saved", "Save the headline before adding a note.")
+            c.execute("UPDATE txn_bookmarks SET note = ?, note_updated_at_ms = ? WHERE user_id = ? AND event_id = ?",
+                      (text, _now_ms() if text else None, uid, key))
+        mark = next(m for m in _bookmarks(c, uid) if m["event_id"] == key)
     return {"bookmark": mark}
 
 
@@ -297,13 +364,13 @@ def create_collection(uid: str, name: Any) -> dict[str, Any]:
     now = _now_ms()
     cid = "c" + secrets.token_hex(8)
     with _db() as c:
-        if c.execute("SELECT COUNT(*) FROM txn_collections WHERE user_id = ?", (uid,)).fetchone()[0] >= MAX_COLLECTIONS:
-            raise LibraryError(409, "full", f"You can have up to {MAX_COLLECTIONS} collections.")
         try:
-            c.execute("INSERT INTO txn_collections (id, user_id, name, created_at_ms, updated_at_ms) VALUES (?,?,?,?,?)",
-                      (cid, uid, n, now, now))
-            c.commit()
-        except Exception as e:  # noqa: BLE001 -- the unique (user, name) index
+            with _tx(c):
+                if c.execute("SELECT COUNT(*) FROM txn_collections WHERE user_id = ?", (uid,)).fetchone()[0] >= MAX_COLLECTIONS:
+                    raise LibraryError(409, "full", f"You can have up to {MAX_COLLECTIONS} collections.")
+                c.execute("INSERT INTO txn_collections (id, user_id, name, created_at_ms, updated_at_ms) VALUES (?,?,?,?,?)",
+                          (cid, uid, n, now, now))
+        except sqlite3.IntegrityError as e:  # the unique (user, name) index
             if "UNIQUE" in str(e).upper():
                 raise LibraryError(409, "duplicate", f"You already have a collection named “{n}”.")
             raise
@@ -315,47 +382,48 @@ def rename_collection(uid: str, cid: Any, name: Any) -> dict[str, Any]:
     _write_ok(uid)
     with _db() as c:
         try:
-            cur = c.execute("UPDATE txn_collections SET name = ?, updated_at_ms = ? WHERE id = ? AND user_id = ?",
-                            (n, _now_ms(), str(cid), uid))
-        except Exception as e:  # noqa: BLE001
+            with _tx(c):
+                cur = c.execute("UPDATE txn_collections SET name = ?, updated_at_ms = ? WHERE id = ? AND user_id = ?",
+                                (n, _now_ms(), str(cid), uid))
+                if cur.rowcount == 0:
+                    raise LibraryError(404, "not_found", "That collection could not be found.")
+        except sqlite3.IntegrityError as e:
             if "UNIQUE" in str(e).upper():
                 raise LibraryError(409, "duplicate", f"You already have a collection named “{n}”.")
             raise
-        if cur.rowcount == 0:
-            raise LibraryError(404, "not_found", "That collection could not be found.")
-        c.commit()
         return next(x for x in _collection_rows(c, uid) if x["id"] == str(cid))
 
 
 def delete_collection(uid: str, cid: Any) -> dict[str, Any]:
     """Delete the member's collection. Its headlines stay saved (and stay in the archive)."""
     _write_ok(uid)
-    with _db() as c:
+    with _db() as c, _tx(c):
         cur = c.execute("DELETE FROM txn_collections WHERE id = ? AND user_id = ?", (str(cid), uid))
         if cur.rowcount == 0:
             raise LibraryError(404, "not_found", "That collection could not be found.")
         c.execute("DELETE FROM txn_collection_items WHERE collection_id = ? AND user_id = ?", (str(cid), uid))
-        c.commit()
     return {"deleted": str(cid)}
 
 
-def set_membership(uid: str, cid: Any, event_id: Any, member: bool) -> dict[str, Any]:
+def set_membership(uid: str, cid: Any, event_id: Any, member: bool, store=None) -> dict[str, Any]:
     """Put a SAVED headline in (or take it out of) one of the member's collections."""
     eid = _event_id(event_id)
     _write_ok(uid)
+    story = _story(store, eid)
     with _db() as c:
-        if not c.execute("SELECT 1 FROM txn_collections WHERE id = ? AND user_id = ?", (str(cid), uid)).fetchone():
-            raise LibraryError(404, "not_found", "That collection could not be found.")
-        if member:
-            if not c.execute("SELECT 1 FROM txn_bookmarks WHERE user_id = ? AND event_id = ?", (uid, eid)).fetchone():
-                raise LibraryError(404, "not_saved", "Save the headline before adding it to a collection.")
-            c.execute("INSERT OR IGNORE INTO txn_collection_items (user_id, collection_id, event_id, added_at_ms)"
-                      " VALUES (?,?,?,?)", (uid, str(cid), eid, _now_ms()))
-        else:
-            c.execute("DELETE FROM txn_collection_items WHERE user_id = ? AND collection_id = ? AND event_id = ?",
-                      (uid, str(cid), eid))
-        c.commit()
-        mark = next((m for m in _bookmarks(c, uid) if m["event_id"] == eid), None)
+        with _tx(c):
+            if not c.execute("SELECT 1 FROM txn_collections WHERE id = ? AND user_id = ?", (str(cid), uid)).fetchone():
+                raise LibraryError(404, "not_found", "That collection could not be found.")
+            key = _stored_id(c, uid, story)
+            if member:
+                if key is None:
+                    raise LibraryError(404, "not_saved", "Save the headline before adding it to a collection.")
+                c.execute("INSERT OR IGNORE INTO txn_collection_items (user_id, collection_id, event_id, added_at_ms)"
+                          " VALUES (?,?,?,?)", (uid, str(cid), key, _now_ms()))
+            elif key is not None:
+                c.execute("DELETE FROM txn_collection_items WHERE user_id = ? AND collection_id = ? AND event_id = ?",
+                          (uid, str(cid), key))
+        mark = next((m for m in _bookmarks(c, uid) if m["event_id"] == key), None) if key else None
     return {"bookmark": mark}
 
 

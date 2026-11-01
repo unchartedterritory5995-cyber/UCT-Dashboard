@@ -9,7 +9,10 @@ shared, permanent News store. What is proven here:
   * removing a bookmark, deleting a collection or clearing a note NEVER changes a headline
     or a delivery (counted, and pinned by a source scan);
   * references survive archive recovery: a full rebuild from the R2 journal into an empty
-    volume, and a story whose FIRST delivery differs after the rebuild;
+    volume, a story whose FIRST delivery (so its row id) changes in the rebuild -- still one
+    bookmark, shown saved, not duplicated -- and the nightly SQLite backup restored;
+  * every write is one transaction (an injected failure mid-removal changes nothing), and
+    Undo puts back the exact note, note time, saved time and collections;
   * account deletion purges every row; anonymous requests are refused; limits hold.
 Synthetic headlines only.
 """
@@ -275,6 +278,183 @@ async def test_a_bookmark_resolves_through_any_delivery_of_its_story():
     lib.save(A, p.store, again["id"])
     assert lib.items(A, p.store)["items"][0]["content"] == HEADS[0]
     assert p.store.by_event_id(again["id"])["content"] == HEADS[0]   # Explain finds it too
+
+
+def _archive_digest(store):
+    """Every headline and delivery column that matters, hashed -- an exact before/after."""
+    import hashlib
+    c = store._conn()
+    h = hashlib.sha256()
+    for q in ("SELECT seq, event_id, content, received_at_ms, dedupe_key, tickers, repeat_count, last_repeat_ms"
+              " FROM headlines ORDER BY seq",
+              "SELECT event_id, headline_seq, received_at_ms, kind, record_json, journaled FROM deliveries ORDER BY event_id"):
+        for r in c.execute(q):
+            h.update(repr(tuple(r)).encode())
+    return h.hexdigest()
+
+
+async def test_undo_puts_back_the_exact_note_and_every_collection_and_a_later_save_is_fresh():
+    p, sent = await _news(HEADS)
+    eid = sent[1]["id"]
+    lib.save(A, p.store, eid, saved_at_ms=NOW_MS - 50_000)
+    c1, c2, c3 = (lib.create_collection(A, n) for n in ("Fed", "Macro", "Unrelated"))
+    for c in (c1, c2):
+        lib.set_membership(A, c["id"], eid, True)
+    note = "Line one\n  indented line two -- with “quotes” & <tags> kept verbatim"
+    before = lib.set_note(A, eid, note)["bookmark"]
+    removed = lib.remove(A, eid, p.store)["removed"]
+    assert removed == before
+    assert lib.state(A, p.store)["ids"] == []
+    assert {c["id"]: c["count"] for c in lib.state(A)["collections"]} == {c1["id"]: 0, c2["id"]: 0, c3["id"]: 0}
+    back = lib.save(A, p.store, removed["event_id"], note=removed["note"], collection_ids=removed["collection_ids"],
+                    saved_at_ms=removed["saved_at_ms"], note_updated_at_ms=removed["note_updated_at_ms"])
+    assert back["created"] is True and back["bookmark"] == before          # exact: text, times, collections
+    assert sorted(back["bookmark"]["collection_ids"]) == sorted([c1["id"], c2["id"]])
+    # the Undo window passes without Undo: the removal stands, and saving again is a FRESH bookmark
+    lib.remove(A, eid, p.store)
+    fresh = lib.save(A, p.store, eid)["bookmark"]
+    assert fresh["note"] == "" and fresh["note_updated_at_ms"] is None and fresh["collection_ids"] == []
+    assert fresh["saved_at_ms"] > before["saved_at_ms"]
+
+
+async def test_undo_skips_a_collection_deleted_meanwhile_and_never_reaches_another_members():
+    p, sent = await _news(HEADS)
+    eid = sent[0]["id"]
+    keep, gone = lib.create_collection(A, "Keep"), lib.create_collection(A, "Gone")
+    theirs = lib.create_collection(B, "B's")
+    lib.save(A, p.store, eid)
+    for c in (keep, gone):
+        lib.set_membership(A, c["id"], eid, True)
+    removed = lib.remove(A, eid, p.store)["removed"]
+    lib.delete_collection(A, gone["id"])
+    back = lib.save(A, p.store, eid, collection_ids=[*removed["collection_ids"], theirs["id"]],
+                    saved_at_ms=removed["saved_at_ms"])["bookmark"]
+    assert back["collection_ids"] == [keep["id"]]
+    assert [c["count"] for c in lib.state(B)["collections"]] == [0]
+
+
+async def test_a_failed_write_leaves_no_partial_change(monkeypatch):
+    p, sent = await _news(HEADS)
+    eid = sent[0]["id"]
+    col = lib.create_collection(A, "Earnings")
+    lib.save(A, p.store, eid, note="keep me")
+    lib.set_membership(A, col["id"], eid, True)
+    before = lib.items(A, p.store)["items"][0]["bookmark"]
+    real = lib._db
+
+    class Boom:                                     # fails the SECOND statement of the removal
+        def __init__(self, c):
+            self.c = c
+
+        def execute(self, sql, *a):
+            if sql.startswith("DELETE FROM txn_bookmarks"):
+                raise sqlite3.OperationalError("disk I/O error (injected)")
+            return self.c.execute(sql, *a)
+
+        def __getattr__(self, k):
+            return getattr(self.c, k)
+
+    import contextlib
+
+    @contextlib.contextmanager
+    def failing():
+        with real() as c:
+            yield Boom(c)
+
+    monkeypatch.setattr(lib, "_db", failing)
+    with pytest.raises(sqlite3.OperationalError):
+        lib.remove(A, eid, p.store)                 # the collection rows were already deleted ...
+    monkeypatch.setattr(lib, "_db", real)
+    assert lib.items(A, p.store)["items"][0]["bookmark"] == before   # ... and rolled back with it
+    assert lib.state(A)["collections"][0]["count"] == 1
+
+
+async def test_a_rebuild_that_changes_a_storys_first_delivery_keeps_one_bookmark(tmp_path):
+    """Live: delivery LATE (the earlier event id) misses push and is recovered after EARLY's
+    sibling made the headline, so the live headline's id is the later one. A rebuild replays in
+    event-id order and the SAME story's id becomes the earlier one. The bookmark (made on the
+    live row) is still that row's: shown as saved, not duplicated by a second save, removable,
+    its note intact."""
+    from tools import txn_rebuild_from_r2 as rebuild_tool
+    journal = jr.FileJournal(str(tmp_path / "j"))
+    p = pl.start(asyncio.get_running_loop())
+    t = NOW_MS - 86_400_000
+    first = rec(HEADS[0], t)                        # the earlier event id ...
+    second = rec(HEADS[0], t + 20_000)              # ... and a repeat 20 s later
+    assert first["id"] < second["id"]
+    for r in (first, second):
+        journal.put(r)
+    await p.submit(second, "push")                  # push saw only the later one
+    await p.submit(first, "reconcile")              # the earlier one recovered from R2 afterwards
+    live_row = p.store.by_event_id(second["id"])["event_id"]
+    assert live_row == second["id"]
+    lib.save(A, p.store, live_row, note="from the live row")
+    pl.stop()
+    out = tmp_path / "rebuilt" / "trade_exchange_news.db"
+    out.parent.mkdir()
+    assert await asyncio.to_thread(rebuild_tool.main, ["--to", str(out), "--journal-dir", str(tmp_path / "j")]) == 0
+    rebuilt = Store(str(out))
+    new_row = rebuilt.by_event_id(second["id"])["event_id"]
+    assert new_row == first["id"] != live_row                   # the story's id DID change
+    assert set(rebuilt.story_ids(new_row)) == {first["id"], second["id"]}
+    assert new_row in lib.state(A, rebuilt)["ids"]              # the rebuilt News row shows as saved
+    again = lib.save(A, rebuilt, new_row)                       # saving that row is a no-op
+    assert again["created"] is False and again["bookmark"]["event_id"] == live_row
+    got = lib.items(A, rebuilt)["items"]
+    assert len(got) == 1 and got[0]["content"] == HEADS[0] and got[0]["bookmark"]["note"] == "from the live row"
+    lib.set_note(A, new_row, "edited via the rebuilt row", rebuilt)
+    col = lib.create_collection(A, "Fed")
+    lib.set_membership(A, col["id"], new_row, True, rebuilt)
+    removed = lib.remove(A, new_row, rebuilt)["removed"]
+    assert removed["event_id"] == live_row and removed["note"] == "edited via the rebuilt row"
+    assert removed["collection_ids"] == [col["id"]] and lib.state(A, rebuilt)["ids"] == []
+
+
+async def test_bookmarks_resolve_identically_after_a_sqlite_backup_and_restore(tmp_path):
+    """The nightly store backup's own snapshot (store_backup.build_artifacts) restored by the
+    restore tool's own procedure (store_restore.restore_file): every bookmark finds the same
+    headline, by the same id, with nothing restoring."""
+    import datetime as dt
+    from api.services import store_backup as sb
+    from tools import store_restore as sr
+    p, sent = await _news(HEADS)
+    again = rec(HEADS[2], sent[2]["received_at_ms"] + 20_000)
+    await p.submit(again, "push")
+    for r in (*sent, again):
+        lib.save(A, p.store, r["id"])
+    live = {i["id"]: (i["content"], i["received_at_ms"]) for i in lib.items(A, p.store)["items"]}
+    now = dt.datetime.now(dt.timezone.utc)
+    work = tmp_path / "bk"
+    work.mkdir()
+    art = sb.build_artifacts("trade_exchange_news", p.store.path, str(work), now)
+    dest = tmp_path / "restored" / "trade_exchange_news.db"
+    dest.parent.mkdir()
+    sr.restore_file(art["gz"], dest, now=now)
+    restored = Store(str(dest))
+    got = lib.items(A, restored)["items"]
+    assert not any(i.get("restoring") for i in got)
+    assert {i["id"]: (i["content"], i["received_at_ms"]) for i in got} == live
+    assert lib.state(A, restored)["ids"] == lib.state(A, p.store)["ids"]
+    assert _archive_digest(restored) == _archive_digest(p.store)
+
+
+async def test_no_bookmark_operation_changes_a_single_archive_byte_column():
+    p, sent = await _news(HEADS)
+    await p.submit(rec(HEADS[0], sent[0]["received_at_ms"] + 20_000), "push")
+    before = _archive_digest(p.store)
+    col = lib.create_collection(A, "All")
+    for r in sent:
+        lib.save(A, p.store, r["id"], note="n")
+        lib.set_membership(A, col["id"], r["id"], True, p.store)
+        lib.set_note(A, r["id"], "changed", p.store)
+    lib.rename_collection(A, col["id"], "Renamed")
+    for r in sent[:2]:
+        lib.set_membership(A, col["id"], r["id"], False, p.store)
+        lib.remove(A, r["id"], p.store)
+    lib.delete_collection(A, col["id"])
+    for r in sent[2:]:
+        lib.remove(A, r["id"], p.store)
+    assert _archive_digest(p.store) == before
 
 
 async def test_while_the_archive_is_restoring_a_bookmark_is_kept_and_listed_as_restoring(tmp_path):
