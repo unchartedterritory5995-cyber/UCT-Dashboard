@@ -41,7 +41,9 @@
 
 ## What Pine is asked
 
-- **(a)** OK for edit 1 as written, or a different shape.
+- **(a)** Either make edit 1 on the Pine side, or **explicitly authorize Indicators** to make exactly
+  that narrowly scoped, non-Pine-only change (owner ruling 2026-11-01: Indicators does not edit
+  `PineBox.jsx` without one of the two). The byte-for-byte Pine pass-through rail stays either way.
 - **(b)** Any Pine work in flight that touches `PineBox.jsx` around the verdict line, so the two
   branches sequence cleanly.
 - **(c)** Whether Pine wants `importVerdict`'s classes for its own door later. This is optional and

@@ -7,8 +7,8 @@ Owner approval: 2026-11-01. Base: `origin/master` `f4fb9cab45`. Nothing is merge
 | WS | Branch / PR | State |
 |---|---|---|
 | IC-1 contract | `docs/indicators-ic1`, draft PR #573 | Drafted. **ACK'd by agent-lead** 2026-11-01. ADR-004 is recorded on the Agent side once #573 merges. The delegating kind is SC-1 v1.2, scheduled after Sprint 1. |
-| WS2 verdict | `feat/indicators-import-verdict` | `importVerdict.js` + 24 tests green, 5 mutations each red. **The PineBox wiring is held for Pine coordination** (`PINE-COORDINATION-import-verdict.md`). |
-| WS1 thinkScript weekly/monthly | `feat/indicators-ts-period-lift`, worktree `C:\UCT\ind-i2-ts` | Prepared. **Launch HELD:** the repo cap is 3 agents plus the integrator, and 6 sessions are active. agent-lead has passed the request to the owner. Owner decisions are needed: basis F or C, and one thinkorswim capture. |
+| WS2 verdict | `feat/indicators-import-verdict` | `importVerdict.js` + 24 tests green, 5 mutations each red. **The PineBox wiring is held for Pine coordination** (`PINE-COORDINATION-import-verdict.md`). By owner ruling, Indicators does not edit `PineBox.jsx` until Pine either makes the change or authorizes Indicators to make it. #577 is not a finished user feature until the verdict is wired and tested in the import UI. |
+| WS1 thinkScript weekly/monthly | `feat/indicators-ts-period-lift`, worktree `C:\UCT\ind-i2-ts` | Prepared. **Launch HELD:** the repo cap is 3 agents plus the integrator, and 6 sessions are active. agent-lead has passed the request to the owner. Owner decided **basis F** (2026-11-01). Launch is still held by owner ruling (capacity). The thinkorswim capture procedure is `docs/indicators/i2/THINKORSWIM-VALIDATION.md` on that branch (`b0e969014b`). |
 
 ## Saved definitions and alerts: what I2 changes (nothing)
 
