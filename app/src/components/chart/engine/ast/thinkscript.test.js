@@ -69,7 +69,7 @@ const OTHER_DOORS = [['pine', PINE], ['pcf', PCF], ['parse', PARSE],
  *  map". They are here because the map's MECHANISM landed with the expressions;
  *  the map itself is still W3.5's. */
 const REACHABLE = [
-  'thinkscript:account', 'thinkscript:aggregation',
+  'thinkscript:account', 'thinkscript:aggregation', 'thinkscript:aggregation-mixed',
   'thinkscript:arity', 'thinkscript:block', 'thinkscript:builtin', 'thinkscript:character',
   'thinkscript:cycle', 'thinkscript:empty', 'thinkscript:enum-arm', 'thinkscript:fold',
   'thinkscript:function', 'thinkscript:future-offset', 'thinkscript:input-kind',
@@ -246,6 +246,8 @@ describe('the refusal vocabulary', () => {
       // wrong instrument is worse than refusing. A COMPUTED symbol reaches it.
       'def s = if close > open then "SPY" else "QQQ";\nplot p = close(symbol = s);',
       'plot p = high(period = AggregationPeriod.DAY);',
+      // I2 WS1 (`periodLift.js`): a window over a MIX of daily and weekly values.
+      'plot p = Average(close - close(period = AggregationPeriod.WEEK), 10);',
       // ⚰️ THIS PROBE WAS `HL2` AND IT STOPPED MEASURING ANYTHING when that
       // learned to expand: thinkorswim's Constants page defines it as
       // `(high + low) / 2`, which is an identity, and the Pine door had expanded
