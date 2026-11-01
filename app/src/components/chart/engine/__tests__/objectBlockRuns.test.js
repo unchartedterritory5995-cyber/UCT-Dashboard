@@ -24,6 +24,7 @@ import { objectReaderFor } from '../objectColumns'
 import { evaluateObjects } from '../objectRuntime'
 import { toRenderState } from '../objectRenderState'
 import { toGraphDocument } from '../ast/graphDocument'
+import { blockGuardNode } from '../ast/pine'
 
 const REPO = path.resolve(process.cwd(), '..')
 const DIR = path.join(REPO, 'tests/fixtures/vendor/harness')
@@ -165,6 +166,19 @@ describe('C48 object lane — a var written from a ta.* call in a block that ski
     expect(named[0].message).toMatch(/could not be computed/)
   })
 
+  it('a stamp on a tree no drawing reads withholds nothing and reports nothing', () => {
+    const { bars } = RDDT
+    const src = `${H}var float s = na\nif close > open\n    s := ta.sma(close, 3)\nif barstate.islast\n    label.new(bar_index, s, str.tostring(s))\n    label.new(bar_index, close, "x")\n`
+    const built = memberPaneDefinition({ source: src, id: 'u_objcond', name: 'P' })
+    const def = structuredClone(built.definition)
+    const stamped = def.objects.blockRuns[0].tree
+    // keep only the drawing that does not read `s`; the stamp stays on the program
+    def.objects.ops = def.objects.ops.filter((op) => !JSON.stringify(op.props).includes(`"tree":${stamped}`))
+    expect(def.objects.ops.length).toBe(1)
+    const reader = objectReaderFor(def, bars, { tf: 'D', symbol: SYM.RDDT[1], newestBarIsForming: false, historyFromListing: true })
+    expect(reader.refusals.filter((r) => r.guard === 'pine:block')).toEqual([])
+  })
+
   it('a block that runs then stops for good is exact too (no run after a skip)', () => {
     const { bars } = RDDT
     const n = bars.length
@@ -194,6 +208,69 @@ ${lbl('s')}`
     const { labels, reader } = draw(src, bars, SYM.RDDT[1], true)
     expect(labels).toEqual([])
     expect((reader.refusals || []).some((r) => r.guard === 'pine:block')).toBe(true)
+  })
+
+  // ── the block's guard is ONE condition: every part of its chain, joined by `and`
+  // (`pine.js::blockGuardNode`, shared with the plot lane's `meta.blockRuns`) ──
+  const withheld = (src) => {
+    const { labels, reader } = draw(src, RDDT.bars, SYM.RDDT[1], true)
+    expect(labels).toEqual([])
+    expect((reader.refusals || []).some((r) => r.guard === 'pine:block'), JSON.stringify(reader.refusals)).toBe(true)
+  }
+  it('a nested block runs where BOTH tests hold (and, not or): withheld', () => {
+    // `or` would read `close > 0`, true on every bar, and draw 145.7767
+    withheld(`${H}var float s = na\nif close > 0\n    if close > open\n        s := ta.sma(close, 3)\n${lbl('s')}`)
+  })
+  it('an else-if arm runs where its test holds AND the arm above does not: withheld', () => {
+    withheld(`${H}var float s = na\nif close < 0\n    s := close\nelse if close > open\n    s := ta.sma(close, 3)\n${lbl('s')}`)
+  })
+  it('an else arm is the NEGATION of the test above: run then stop for good is exact, and drawn', () => {
+    const { bars } = RDDT
+    const n = bars.length
+    const src = `${H}var float s = na\nif bar_index >= ${n - 5}\n    s := close\nelse\n    s := ta.sma(close, 3)\n${lbl('s')}`
+    // the else arm runs on bars 0 .. n-6 and never again; its last run held the
+    // 3-bar mean there, but the label reads `s` on the last bar, where the if arm
+    // wrote `close`
+    const { labels, reader } = draw(src, bars, SYM.RDDT[1], true)
+    expect((reader.refusals || []).filter((r) => r.guard === 'pine:block')).toEqual([])
+    expect(labels.length).toBe(1)
+    expect(close(labels[0], bars[n - 1].c)).toBe(true)
+  })
+  it('an else arm that alone writes s, run then stopped for good, draws its last run exactly', () => {
+    const { bars } = RDDT
+    const n = bars.length
+    const src = `${H}var float s = na\nif bar_index >= ${n - 5}\n    k = 0\nelse\n    s := ta.sma(close, 3)\n${lbl('s')}`
+    const { labels, reader } = draw(src, bars, SYM.RDDT[1], true)
+    expect((reader.refusals || []).filter((r) => r.guard === 'pine:block')).toEqual([])
+    const c = bars.slice(n - 8, n - 5).map((b) => b.c)
+    expect(labels.length).toBe(1)
+    expect(close(labels[0], (c[0] + c[1] + c[2]) / 3)).toBe(true)
+  })
+  it('blockGuardNode joins a chain by `and` and negates the arms above', () => {
+    const a = { type: 'name', name: 'a' }
+    const b = { type: 'name', name: 'b' }
+    expect(blockGuardNode(null)).toBe(null)
+    expect(blockGuardNode([])).toBe(null)
+    expect(blockGuardNode([{ node: a, negate: false }])).toBe(a)
+    const g = blockGuardNode([{ node: a, negate: true }, { node: b, negate: false }])
+    expect(g.type).toBe('binary')
+    expect(g.op).toBe('and')
+    expect(g.left).toEqual({ type: 'unary', op: 'not', arg: a, tok: undefined })
+    expect(g.right).toBe(b)
+  })
+
+  // ── a later write: the guards stay only while the value can still be the call's ──
+  it('a later unconditional write that replaces s drops the gate (exact, drawn)', () => {
+    const { bars } = RDDT
+    const src = `${H}var float s = na\nif close > open\n    s := ta.sma(close, 3)\ns := close\n${lbl('s')}`
+    const { labels, reader, def } = draw(src, bars, SYM.RDDT[1], true)
+    expect((reader.refusals || []).filter((r) => r.guard === 'pine:block')).toEqual([])
+    expect(def.objects.blockRuns).toBeUndefined()
+    expect(labels.length).toBe(1)
+    expect(close(labels[0], bars[bars.length - 1].c)).toBe(true)
+  })
+  it('a later unconditional write that READS s keeps the gate', () => {
+    withheld(`${H}var float s = na\nif close > open\n    s := ta.sma(close, 3)\ns := close > 0 ? s : close\n${lbl('s')}`)
   })
 
   it('a value only partly read from the gated var is withheld with it', () => {

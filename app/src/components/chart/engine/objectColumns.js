@@ -399,7 +399,7 @@ function withholdBlockRuns(program, pass, evaluate) {
   if (!stamps) return
   for (const e of stamps) {
     const node = e && Number.isInteger(e.node) ? e.node : null
-    if (node === null || !pass.columns.has(node) || pass.failed.includes(node)) continue
+    if (node === null || !pass.columns.has(node)) continue
     const gates = Array.isArray(e.gates) ? e.gates : []
     if (!gates.length) continue
     const why = blockRunsRefusal({ meta: { blockRuns: { keys: [{ key: 'o', gates }] } } }, 'o', (guard) => {

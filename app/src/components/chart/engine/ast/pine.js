@@ -7070,7 +7070,7 @@ export class Resolver {
       // ⭐ C48 (object lane) — a `var` holding a call its block runs on only some
       // bars: the tree this read answers is noted with that block's guard, for the
       // object pass to carry beside the drawing (`buildObjectProgram`'s `stateRunSink`).
-      if (this.stateRunSink && this.mintOnly === 0 && bound && bound.stateRuns && res && typeof res === 'object') {
+      if (this.stateRunSink && bound && bound.stateRuns && res && typeof res === 'object') {
         this.stateRunSink.note(res, bound.stateRuns, this.env)
       }
       return res
@@ -14633,6 +14633,21 @@ const selfNode = (tok) => ({ type: 'selfref', tok })
  *  its left operand at the state binding would make `x += 1` mean
  *  `accum(...) + 1` — a whole column plus one, evaluated inside its own update.
  *  That is a cycle, and the one it would produce reads plausibly. */
+/** ⭐ C48 (object lane) — does this parse node read `name` anywhere (a bare
+ *  name, `name[k]`, inside a call)? */
+function parseReadsName(node, name) {
+  const stack = [node]
+  const seen = new Set()
+  while (stack.length) {
+    const n = stack.pop()
+    if (!n || typeof n !== 'object' || seen.has(n)) continue
+    seen.add(n)
+    if (n.type === 'name' && n.name === name) return true
+    for (const [k, v] of Object.entries(n)) if (k !== 'tok' && v && typeof v === 'object') stack.push(v)
+  }
+  return false
+}
+
 const reassignState = (prior, env, toks, mut, nameTok) => {
   const rhs = parseWholeExpression(toks.slice(mut + 1))
   const op = toks[mut].value
@@ -14649,9 +14664,15 @@ const reassignState = (prior, env, toks, mut, nameTok) => {
       tok: toks[mut],
     }
   const next = stateBinding(prior.seed, prior.seedEnv, update, innerEnv, prior.at)
-  // ⭐ C48 (object lane) — a later write keeps the block-run guards of the ones
-  // before it (`stateRuns`): the value they wrote is still in the running state.
-  if (Array.isArray(prior.stateRuns) && prior.stateRuns.length) next.stateRuns = prior.stateRuns
+  // ⭐ C48 (object lane) — a later write that READS the name (`s := nz(s)`,
+  // `s += 1`) keeps the block-run guards of the writes before it (`stateRuns`):
+  // their value is still in the running state. One that does not (`s := close`)
+  // replaces it, and the guards go with it — where that write is itself in a
+  // block, the fold of that block keeps the guards of the bars it skips
+  // (`foldIfChain`, from the state before it).
+  if (Array.isArray(prior.stateRuns) && prior.stateRuns.length && (op !== ':=' || parseReadsName(rhs, nameTok.value))) {
+    next.stateRuns = prior.stateRuns
+  }
   return next
 }
 
@@ -15141,6 +15162,21 @@ function recordReassign(ctx, stmt, name, env) {
  *  reads on the block's one execution (only under `ctx.oneExecution`, and only
  *  when every `ta.*` in it is one the capture shows) — or `{refuse}`, C31's
  *  sentence. null when the block runs on every bar or calls no `ta.*`. */
+/** ⭐⭐ C48 — A BLOCK'S GUARD, AS ONE CONDITION: the parts of its `execGuard`
+ *  chain (`foldIfChain`: each enclosing arm's test, and the negation of every arm
+ *  above it) joined by `and` — the block runs exactly where ALL of them hold. The
+ *  ONE builder both lanes read: the plot lane's output loop (`meta.blockRuns`) and
+ *  the object pass (`objectBlockRunsOf`). → a parse node, or null for no chain. */
+export function blockGuardNode(chain) {
+  if (!Array.isArray(chain) || !chain.length) return null
+  let node = null
+  for (const part of chain) {
+    const one = part.negate ? { type: 'unary', op: 'not', arg: part.node, tok: part.node.tok } : part.node
+    node = node ? { type: 'binary', op: 'and', left: node, right: one, tok: part.node.tok } : one
+  }
+  return node
+}
+
 function condCallMark(ctx, rhsToks, name) {
   if (!ctx || !ctx.conditional) return null
   const taCall = taCallIn(rhsToks)
@@ -17347,7 +17383,7 @@ function foldStatements(stmts, ctx, env, trace = null, { declarationIsValue = fa
         // `engine/blockRuns.js`) — the welotrades EQH / EQL blocks, which run on
         // every bar, keep drawing. A later write keeps it: the value is still there.
         if (env.get(nameTok.value) !== prior) {
-          const manyMark = ctx && ctx.conditional && !ctx.oneExecution
+          const manyMark = ctx && ctx.conditional
             ? condCallMark(ctx, toks.slice(mut + 1), nameTok.value) : null
           const runs = [...(env.get(nameTok.value).stateRuns || []),
             ...(manyMark && manyMark.refuse ? [{ why: manyMark.refuse, chain: ctx.execGuard || null }] : [])]
@@ -17797,16 +17833,12 @@ const HELPER_LOCAL_CLAUSE = 'a function\'s own variable that changes while the f
 function objectBlockRunsOf(trees, hits, makeResolverRaw) {
   const guards = new Map()
   const guardOf = (run, env) => {
-    if (!Array.isArray(run.chain) || !run.chain.length) return null
+    const node = blockGuardNode(run.chain)
+    if (!node) return null
     const memo = guards.get(run.chain)
     if (memo !== undefined) return memo
     let guard = null
     try {
-      let node = null
-      for (const part of run.chain) {
-        const one = part.negate ? { type: 'unary', op: 'not', arg: part.node, tok: part.node.tok } : part.node
-        node = node ? { type: 'binary', op: 'and', left: node, right: one, tok: part.node.tok } : one
-      }
       const r = makeResolverRaw(env)
       r.paramMint = null
       r.mintOnly = 1
@@ -25273,11 +25305,7 @@ function translatePineResult(source, opts = {}) {
         resolver.mintOnly += 1
         try {
           for (const g of resolver.blockRuns) {
-            let node = null
-            for (const part of g.chain) {
-              const one = part.negate ? { type: 'unary', op: 'not', arg: part.node, tok: part.node.tok } : part.node
-              node = node ? { type: 'binary', op: 'and', left: node, right: one, tok: part.node.tok } : one
-            }
+            const node = blockGuardNode(g.chain)
             let guard
             try { guard = resolver.condition(resolver.resolve(node), 'ternary', node.tok) } catch { throw g.err }
             gates.push({ why: g.why, guard })
