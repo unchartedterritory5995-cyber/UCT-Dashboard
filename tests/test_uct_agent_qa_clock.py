@@ -117,12 +117,6 @@ KNOWN: dict[str, str] = {
 }
 
 
-#: TRANSITIONAL, one integration window only: entries whose fix is in an open PR. Absence of THESE alone is tolerated,
-#: so agent/int stays green between that PR and agent-qa's follow-up that deletes the entry AND this marker.
-#: #585 (agent-md) makes the quote tests' NOW a literal; the follow-up QA PR removes both lines below.
-PENDING_REMOVAL: set[str] = {"tests/test_uct_agent_data_quotes.py:22  time.time()"}
-
-
 def _agent_test_files() -> list[Path]:
     return sorted((REPO / "tests").glob("test_uct_agent*.py"))
 
@@ -137,8 +131,7 @@ def test_no_agent_test_reads_the_wall_clock_at_import():
     new = [h for h in found if h not in KNOWN]
     assert not new, ("these read the wall clock at IMPORT, so a long suite run ages them; read the clock inside "
                      "the test (or a fixture) instead:\n  " + "\n  ".join(new))
-    assert PENDING_REMOVAL <= set(KNOWN), "a pending-removal marker must name a KNOWN entry"
-    gone = [k for k in KNOWN if k not in found and k not in PENDING_REMOVAL]
+    gone = [k for k in KNOWN if k not in found]
     assert not gone, f"fixed — remove these KNOWN entries: {gone}"
 
 

@@ -110,7 +110,10 @@ Only agent-qa edits this file. Update it in every PR.
 - **agent-qa's own slip (recorded honestly):** one push was chained after `ownership_check | head -1 && git push`, so
   it went out on the pipe's exit code. The tree pushed added only this file's 2 lines, so no harm, but the check was
   not a gate. Since then the check runs in its own call and is read before any push.
-- **F-6 entry: marked PENDING_REMOVAL for exactly one window.** Its fix (NOW literal) is in #585. The rail tolerates
+- **F-6 entry: SUPERSEDED by agent-lead's plan, #589.** The removal PR is #585 + agent/int + the one-line removal,
+  merged back to back with #585. The pending-removal marker below was dropped: #586 leaves the clock file identical
+  to agent/int.
+- (superseded) **F-6 entry: marked PENDING_REMOVAL for exactly one window.** Its fix (NOW literal) is in #585. The rail tolerates
   the absence of that entry alone, so agent/int stays green when #585 merges. The follow-up QA PR deletes both the
   entry and the marker.
   Verified: the rail passes 16/16 on agent/int and 16/16 with #585's two test files substituted.
@@ -121,7 +124,15 @@ Only agent-qa edits this file. Update it in every PR.
   at the real time, 2030-01-01 and 23:59:59.9 UTC. Control: the pre-fix file fails 5 under the same shift.
   **Owed (owner's #585 directive):** the exact news-ingest boundary (STALE_AFTER_S vs +1) and an explicit UTC-midnight
   test for fundamentals ages. Requested from agent-md.
-- **Corpus scored (measured on a local merge of #584+#582; the scorer lands after merge):**
+- **Corpus scorer LANDED in #586** (`tests/test_uct_agent_qa_scan_corpus.py`, baseline pinned in
+  `__fixtures__/program/scores/discovery-baseline.json`). It is measured on agent/int d98ef2dcd6, where #582 is
+  integrated, and gives the same numbers as the pre-merge measurement below.
+- **F-8 boundaries — VERIFIED** on #585 @ 476fc07a77, the owner's directive:
+  - news ingest: exactly STALE_AFTER_S is fresh, +1 s is stale;
+  - fundamentals: the UTC-midnight flip (day 135 at 23:59:59 is fresh, day 136 at 00:00:00 is stale);
+  - shifted-wall probe 77/77 at the real time, 2030-01-01 and 23:59:59.9;
+  - agent-qa's own `>`→`>=` mutation in each adapter turns the boundary tests red (news 1, statements 2).
+- **Corpus scored (measured on a local merge of #584+#582):**
   ORACLE 31/31 (control).
   GRAMMAR-DIRECT 5/31 = **answerable 0/26**; the refusals 5/5 are trivial, because it refuses all English.
   Spotlight questions d08/d19/d22/d26 are all refused, each with the grammar's own sentence.
