@@ -21,7 +21,7 @@ They may only be shown to the member directly. Research, scan, and any compositi
 
 | # | Layer | Mechanism | Owner | When |
 |---|---|---|---|---|
-| L1 | Gateway | `Kind.model_isolated` → only `purpose: "answer"`; others refused before admission (#588) | agent-lead | in place |
+| L1 | Gateway | **Dormant by default:** isolated kinds are refused server-side for every purpose unless `UCT_AGENT_ISOLATED=1` (default off; activation is a separate owner decision), so their security never rests on the browser-supplied `purpose`. When active: only `purpose: "answer"` (#588). | agent-lead | in place |
 | L2 | Envelope marker | Envelopes of isolated kinds carry `isolated: true` (additive MD-1 field) | agent-lead (`gateway.py`) | before the first caller |
 | L3 | Caller allowlist | Only an allowlisted capability module may call `readData` with an isolated kind. A static rail fails on any other caller. | agent-qa (rail), agent-lead (allowlist) | before the first caller |
 | L4 | Local-result boundary (server) | Every action of an allowlisted capability is in `turn.LOCAL_ONLY_ACTIONS`, and its outcome rows are recorded `local: true`. History then replays only `LOCAL_RESULT_NOTE`, never the values (`turn.is_local_row` / `outcome_for_model`, as `breadth.show` does today). | agent-lead (`turn.py`) | with the first caller |
