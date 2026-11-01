@@ -23,13 +23,12 @@ Only agent-md edits this file. Update it in every PR.
   `historical`; `as_of` = the newest bar's own session close (early closes honoured); stale when the
   store is behind the newest completed session; `provider_calls` = 0. A symbol not in the store is
   `unavailable` — never fetched. Tests: `tests/test_uct_agent_data_bars_daily.py` (18), mutation-checked.
-- **Pre-admission validation** (branch `agent/md/validate-pre-admission`, **stacked on PR 1b / #579**; PR opens
-  after #579 lands). `quote`, `quotes`, `bars.daily` each register a pure `validate=` (gateway #575): a malformed
+- **Pre-admission validation** — ✅ INTEGRATED into agent/int as #583 (`7ca746dd5f`). `quote`, `quotes`, `bars.daily` each register a pure `validate=` (gateway #575): a malformed
   request is `refused` BEFORE admission and spends no read or provider budget. The adapters re-ask the same
   check, so a direct call cannot bypass it. `quotes` with SOME invalid symbols stays admitted and `partial`.
   No admission limit or authorization check changed. Mutation-checked.
 - **PR 3 — `fundamentals`, `earnings`, `news.company`** (branch `agent/md/pr3-fundamentals-earnings-news`,
-  **stacked on #583** — both edit `kinds.py`; mergeable after #583). Sources ruled by agent-lead:
+  standalone now that #583 is integrated; also carries the fixed-`NOW` quotes-test commit QA asked for). Sources ruled by agent-lead:
   `financial_statements.get_statements` (Yahoo Finance; as_of = newest period end; stale > 135 d; 6 calls on a
   synchronous build else 0), `earnings_table.get_earnings_table` (as_of null + note — reported rows carry no
   date; stale when `stale_quarters` ≥ 2; `next_report` = scheduled event from the same payload, never as_of;
@@ -49,5 +48,4 @@ Only agent-md edits this file. Update it in every PR.
   a store one session behind (stale), and a store row for today's developing bar (must be excluded).
 
 ## Ready for integration
-- #583 pre-admission validate=
-- PR 3 (after #583)
+- PR 3
