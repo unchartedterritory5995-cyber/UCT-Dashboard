@@ -144,6 +144,7 @@ QA's suite runs `validate_envelope` against every registered kind using its fixt
 1. Open a PR that edits this file, with a version bump (v1.1 adds; v2.0 breaks). Message agent-lead.
 2. Breaking changes need an ADR and every consumer's acknowledgement in their status file.
 3. Consumers code against the contract and QA's fixtures, never against an unmerged producer branch.
+4. The envelope's wire field `contract` tracks the envelope **shape** only. A version that changes semantics or documentation but no envelope field (v1.1) keeps `"MD-1.0"`.
 
 ## 9. Changelog
 

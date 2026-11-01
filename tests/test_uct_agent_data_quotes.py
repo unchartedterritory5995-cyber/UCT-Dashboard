@@ -44,6 +44,10 @@ class _Client:
 @pytest.fixture(autouse=True)
 def _env(monkeypatch):
     monkeypatch.setenv(gw.DATA_ENV, "1")
+    # Freeze the clock the ADAPTER reads at the same instant every stamp is built from. `NOW` is taken at
+    # import, and a full-suite run can reach these tests minutes later; without this the 60 s live budget
+    # trips on wall-clock elapsed time, not on anything the adapter did (agent-lead, #579).
+    monkeypatch.setattr(q, "time", SimpleNamespace(time=lambda: NOW))
     gw._reset_for_test(None)
     yield
     gw._reset_for_test(None)
@@ -252,6 +256,11 @@ def test_the_adapter_imports_neither_the_live_prices_route_nor_the_alert_service
             mods.update(a.name for a in node.names)
     assert "api.services.massive" in mods                     # control: the walk sees real imports
     assert not any("live_prices" in m or "watchlist_alert" in m or "alert" in m.split(".")[-1] for m in mods)
+
+
+def test_the_adapter_clock_is_frozen_so_age_is_independent_of_suite_runtime():
+    """Control on the fixture: the adapter sees NOW, however long ago this module was imported."""
+    assert q.time.time() == NOW
 
 
 def test_the_contract_doc_states_the_same_notes_the_code_emits():
