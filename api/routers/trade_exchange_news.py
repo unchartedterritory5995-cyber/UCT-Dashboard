@@ -328,6 +328,11 @@ def library_items(q: str = Query("", max_length=200), ticker: str = Query("", ma
                 event_for=_event_for(store))
 
 
+@router.get(LIB + "/bookmarks/{event_id}")
+def library_bookmark(event_id: str, user: dict = Depends(get_current_user)) -> JSONResponse:
+    return _lib(txn_library.get_bookmark, _uid(user), event_id, _store())
+
+
 @router.put(LIB + "/bookmarks/{event_id}")
 async def library_save(event_id: str, request: Request, user: dict = Depends(get_current_user)) -> JSONResponse:
     d = await _read_body(request)

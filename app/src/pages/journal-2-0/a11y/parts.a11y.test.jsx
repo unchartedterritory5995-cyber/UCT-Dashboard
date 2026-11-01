@@ -33,6 +33,7 @@ import WatchlistEmbed from '../components/notebook/WatchlistEmbed'
 import ScreenerEmbed from '../components/notebook/ScreenerEmbed'
 import CotEmbed from '../components/notebook/CotEmbed'
 import ModelBookEmbed from '../components/notebook/ModelBookEmbed'
+import NewsHeadlineEmbed from '../components/notebook/NewsHeadlineEmbed'
 import { buildWidgetEmbedAttrs } from '../lib/widgetEmbedCore'
 
 if (!Range.prototype.getClientRects) Range.prototype.getClientRects = () => []
@@ -143,6 +144,8 @@ const EMBEDS = [
     crowding: { label: 'Crowded long', tone: 'bear', index: 88 },
   })],
   ['embed-model-book', ModelBookEmbed, embed('modelbook', { year: 2023, symbol: 'NVDA', title: 'NVDA 2023', annotation: 'the gap' })],
+  ['embed-news-headline', NewsHeadlineEmbed, embed('tradeExchangeHeadline', { eventId: '01JSYNTHETIC0000000000000A',
+    content: 'SYNTHETIC: ALFA Corp raises full-year guidance', receivedAtMs: 1793000000000, source: 'Trade Exchange', tickers: ['ALFA'] })],
 ]
 
 describe('journal embed renderers', () => {

@@ -2,8 +2,8 @@
  * UCT News Research Library — the page's ONE copy of the member's bookmarks and
  * collections (/api/trade-exchange-news/library/*).
  *
- * Every News widget marks saved rows from it and every Research Library widget lists
- * from it, so a save in one is seen by all at once. It is the member's server state:
+ * Every News widget marks saved rows from it and lists its Saved Headlines view from
+ * it, so a save in one widget is seen by all at once. It is the member's server state:
  * re-read when the tab regains focus (another device may have changed it) and told to
  * the page's other tabs (BroadcastChannel), so it persists across sessions and devices.
  *
@@ -151,6 +151,22 @@ export const renameCollection = (cid, name) => mutate('PATCH', `/collections/${e
 export const deleteCollection = (cid) => mutate('DELETE', `/collections/${encodeURIComponent(cid)}`)
 export const setMembership = (cid, id, member) =>
   mutate(member ? 'PUT' : 'DELETE', `/collections/${encodeURIComponent(cid)}/items/${encodeURIComponent(id)}`)
+
+/** The member's bookmark of one headline (any delivery id of its story), or null. A read. */
+export async function fetchBookmark(id) {
+  const r = await call('GET', `/bookmarks/${encodeURIComponent(id)}`)
+  return r.ok ? { ok: true, bookmark: r.body?.bookmark || null } : { ok: false, error: r.body.detail }
+}
+
+/** "Add to collection" on a headline that is not saved yet saves it first (a collection only
+ *  ever holds saved headlines); on one that is, it only changes the membership. */
+export async function setMembershipSaving(cid, id, member) {
+  if (member && !_state.ids.has(id)) {
+    const s = await save(id)
+    if (!s.ok) return s
+  }
+  return setMembership(cid, id, member)
+}
 
 /** One page of the member's saved headlines, filtered by the server. */
 export async function fetchItems(params) {

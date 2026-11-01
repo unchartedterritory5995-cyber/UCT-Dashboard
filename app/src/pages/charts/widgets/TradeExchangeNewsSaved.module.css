@@ -9,7 +9,8 @@
   font-size: 10.5px;
   color: var(--txn-chrome, var(--text-muted));
 }
-.tickerInput { width: 74px; height: 22px; padding: 0 6px; font-size: 11px; text-transform: uppercase; }
+.tickerInput { flex: 0 0 64px; width: 64px; padding: 5px 6px; text-transform: uppercase; }
+.tickerInput::placeholder { text-transform: none; }
 .dateLabel { display: inline-flex; align-items: center; gap: 4px; }
 .dateInput {
   height: 22px; padding: 0 4px;
@@ -25,6 +26,8 @@
 /* News's row is a 2-column grid (headline | badges): everything below the headline spans it. */
 .headline { display: block; grid-column: 1 / -1; }
 .meta, .noteEdit, .restoring { grid-column: 1 / -1; }
+/* a long saved headline: 3 lines, then Show more (after .headline, which sets display) */
+.clamp { display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; }
 .meta { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px; margin-top: 3px; min-width: 0; }
 .chip {
   padding: 0 6px;
@@ -90,3 +93,26 @@
 .menuIcon { color: var(--menu-text-dim); }
 .menuIcon:hover, .menuIcon:focus-visible { color: var(--menu-text); }
 .menuIcon.danger { color: var(--danger-ink); }
+
+/* ── Saved Headlines (inside UCT News) ── */
+.savedHead {
+  display: flex; align-items: center; gap: 6px;
+  padding: 0 8px 0 4px; min-height: 26px;
+  border-bottom: 1px solid var(--txn-divider, var(--widget-divider, var(--border)));
+  flex: 0 0 auto;
+}
+.backBtn {
+  display: inline-flex; align-items: center; gap: 3px;
+  padding: 2px 6px; background: none; border: none; border-radius: 3px; cursor: pointer;
+  font-family: var(--font-sans); font-size: 10.5px;
+  color: var(--txn-chrome, var(--text-muted));
+}
+.backBtn:hover { color: var(--txn-text, var(--text)); background: var(--txn-row-hover, var(--bg-hover)); }
+.backBtn:focus-visible { outline: 1px solid currentColor; }
+.savedTitle {
+  margin-right: auto;
+  font-size: 10px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase;
+  color: var(--txn-accent, var(--widget-accent, var(--ut-gold)));
+}
+.picker { display: flex; flex-direction: column; }
+.note :global(svg) { vertical-align: -1px; }

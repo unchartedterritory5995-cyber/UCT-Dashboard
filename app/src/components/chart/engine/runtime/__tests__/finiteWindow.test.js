@@ -488,7 +488,9 @@ plot(ta.dmiplusleg(x, 105))
 
   it('⛔ a non-value namespace cannot reach a window reducer', () => {
     // `str.` is not stripped, so nothing there can collide with a table entry.
-    const r = refusalOf(`${head}var x = 0.0\nx := close\nplot(str.length(str.tostring(x)) + ta.sma(x, 2))\n`)
+    // ⚰️ P3 WS-B serves `str.tostring` in every run, so the text specimen is
+    // `str.format`, which this lane still does not serve.
+    const r = refusalOf(`${head}var x = 0.0\nx := close\nplot(str.length(str.format("{0}", x)) + ta.sma(x, 2))\n`)
     expect(r.guard).toBe('runtime:call-text-state')
   })
 })
