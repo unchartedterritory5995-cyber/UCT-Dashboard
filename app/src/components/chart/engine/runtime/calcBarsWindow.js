@@ -118,15 +118,40 @@ export function widenToChart(cols, cut, objectsKey) {
 // (`CALC_BARS_INDEX_GUARD`) until Q-WSE1 is captured. Wyckoff (differences and
 // coordinates only) is drawn; `plot(bar_index)` is not.
 
+// ⚠️ WHY NOT `ast/barIndexShift.js` (re-review M-A asked). That classifier is the host
+// lane's authority over a TREE ('inv' / 'pos' / 'dep', thresholds); in this lane a
+// `bar_index` value also flows through slots, `var` state, UDF frames and drawing
+// stores the trees never show (`b = bar_index` then `if b > 5000`), so a verdict over
+// the column trees alone would answer "invariant" for a script that is not. The probe
+// measures the whole run, the same way the warm-up curtain does for a chart's first
+// bar, and is this lane's ONE authority over the question; the host classifier stays
+// the host's. Both answer the same question for different machines, not one twice.
+
 /** The refusal a windowed run gets when its answer depends on `bar_index`'s base. */
 export const CALC_BARS_INDEX_GUARD = 'runtime:calc-bars-bar-index'
-/** How far the probe moves `bar_index`: ONE bar. One is a multiple of no period
- *  (`bar_index % n` moves for every n >= 2), moves every plotted value and every
- *  threshold's crossing bar, and keeps a drawing at `bar_index` inside the store's
- *  reach of the bar that made it. ⚰️ It was 1,000,003: a label at `bar_index` then
- *  sat a million bars into the future of the bar that made it, the store treated it
- *  as such, and a script that only PLACES a drawing at an index was refused. */
-export const CALC_BARS_INDEX_PROBE = 1
+/** How far the probe moves `bar_index`: 1,000,003, a PRIME above any count
+ *  TradingView loads. A prime moves `bar_index % n` for every n below it; a shift
+ *  past any loaded count carries every comparison with a constant (`bar_index >
+ *  5000`, `math.max(bar_index, 5000)`) across it, so the answer moves; and a
+ *  coordinate written as a plain number (`label.new(10, …)`) no longer lands where
+ *  the moved-back coordinates do.
+ *  ⚰️ It was 1 (re-review M-A): one bar crosses no constant the window never
+ *  reaches, so `bar_index > 5000` was drawn. ⚰️ And the "1,000,003 refuses plain
+ *  placements" note this replaced was a misread rail: the refused script picked its
+ *  bars with `bar_index % 50`, which SHOULD be refused; a label AT `bar_index` moves
+ *  back exactly (`wseReviewFixes.test.js` M1). */
+export const CALC_BARS_INDEX_PROBE = 1000003
+
+/** Does a run's drawing payload hold a drawing placed by bar index? Such a run is
+ *  probed even when its source never names `bar_index`: `label.new(10, …)` places at
+ *  an index whose meaning on TradingView is the uncaptured count itself. */
+export function placesByBarIndex(payload) {
+  const live = payload && Array.isArray(payload.live) ? payload.live : []
+  return live.some((o) => {
+    const p = (o && o.props) || {}
+    return (p.xloc === undefined || p.xloc === 'bar_index') && X_PROPS.some((k) => typeof p[k] === 'number')
+  })
+}
 
 /** Does the source read `bar_index` or `last_bar_index` at all (comments and strings stripped)? */
 export function readsBarIndex(strippedSource) {
@@ -179,4 +204,30 @@ export function barIndexDependenceOf(a, b, k, objectsKey) {
     }
   }
   return null
+}
+
+/** FNV-1a over a string, as 8 hex digits. */
+function fnv(str) {
+  let h = 0x811c9dc5
+  for (let i = 0; i < str.length; i += 1) { h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0 }
+  return h.toString(16).padStart(8, '0')
+}
+
+/**
+ * ⭐ WS-E re-review M-B — what a window's `bar_index` probe verdict depends on: the
+ * document (its source and the outputs it maps), the member's settings, every
+ * window bar's time, and the values of every CLOSED bar. The forming bar's values are
+ * left out ON PURPOSE (a tick does not re-probe; see the caller's note), its time is in.
+ */
+export function probeVerdictKey(def, ctx, rows) {
+  const compute = (def && def.compute) || {}
+  const forming = !!(ctx && ctx.newestBarIsForming === true)
+  const closed = forming ? rows.length - 1 : rows.length
+  const parts = [String(compute.source || ''), JSON.stringify(compute.outputs || {}),
+    JSON.stringify((ctx && ctx.runtimeInputs) || {}), String(ctx && ctx.tf), String(forming)]
+  for (let i = 0; i < rows.length; i += 1) {
+    const b = rows[i] || {}
+    parts.push(i < closed ? `${b.t},${b.o},${b.h},${b.l},${b.c},${b.v}` : `${b.t}`)
+  }
+  return fnv(parts.join('|')) + ':' + fnv(parts.reverse().join('#')) + ':' + rows.length
 }

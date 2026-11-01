@@ -179,6 +179,15 @@ describe('4 — a branch on a PARAMETER is the call site\'s', () => {
     expect(r && r.guard).toBe(R4)
     expect(r.message).toMatch(/`mode` decides a branch of `f`/)
   })
+  it('a `?:` on a parameter (MLExtensions\' filter_volatility) is the call site\'s too', () => {
+    const fv = 'fv(simple int a, bool on) =>\n    on ? ta.atr(a) : 0.0\n'
+    const [y] = run(v6(`${fv}plot(fv(3, true))\n`))
+    const [every] = run(v6('plot(ta.atr(3))\n'))
+    y.forEach((v, i) => expect(same(v, every[i]), `bar ${i}`).toBe(true))
+    const r = refusalOf(v6(`${fv}plot(fv(3, close > open))\n`))
+    expect(r && r.guard).toBe(R4)
+    expect(r.message).toMatch(/`on` decides a branch of `fv`/)
+  })
   it('a branch on a body LOCAL stays refused (no call site can fix it)', () => {
     const r = refusalOf(v6('g(x) =>\n    float y = na\n    k = x > 0\n    if k\n        y := ta.atr(3)\n    y\nplot(g(close - open))\n'))
     expect(r && r.guard).toBe(R4)
