@@ -4,7 +4,7 @@
 // exact Undo through the product's own doors — with the NETWORK doors replaced by an
 // in-memory store that behaves as the server does (soft delete = 404 on read; a PUT over
 // a tombstone resurrects it under the same id).
-import { describe, it, expect, beforeAll } from 'vitest'
+import { describe, it, expect, beforeAll, vi, afterEach } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 import * as registry from '../engine/nativeRegistry'
@@ -14,6 +14,8 @@ import {
   DEFINITIONS_CONTRACT, DEFINITION_OPS, searchDefinitions, describeDefinition, findDefinitionUsage,
   planDefinitionAction, executeDefinitionAction, undoDefinitionAction, discardDraft,
 } from './agentDefinitions'
+import { withoutEngineStamp, engineStampOf } from '../engine/scriptEngineVersion'
+import { readUserDefinition } from '../../../hooks/useUserDefinitions'
 
 const MINE = 'u_aaaaaaaaaac1'
 const THEIRS = 'u_aaaaaaaaaac2'
@@ -185,5 +187,136 @@ describe('I-13 — a colour input takes only a colour the chart can draw', () =>
     const def = { id: 'x', meta: { name: 'X' }, inputs: [{ key: 'color', type: 'color', default: 'orange' }] }
     expect(checkInstanceInput(def, 'color', 'orange')).toEqual({ ok: true, value: 'orange' })
     expect(checkInstanceInput(def, 'color', 'purple')).toMatchObject({ ok: false })
+  })
+})
+
+// ─── F-15 — a Pine import's stored script and engine stamp survive delete → Undo ──────
+//
+// The in-memory server below follows the REAL doors' rules for a Pine import:
+//   - a read sends `pine_source` only when asked (`?source=1`) and always says
+//     `has_pine_source`;
+//   - a delete's tombstone keeps the script;
+//   - a save strips `meta.engineVersion` unless it carries the script — the rule
+//     `saveUserDefinition` applies with the real `withoutEngineStamp` — and stores
+//     whatever script it was given (null when none).
+const SCRIPT = '//@version=5\nindicator("x")\nplot(ta.sma(close, 20))'
+function pineServer({ hasScript = true, stamp = true, dropScriptOnSave = false } = {}) {
+  const meta = { ...(FIX.styled_markers.meta || {}), name: 'My Breakout Dots', ...(stamp ? { engineVersion: 1 } : {}) }
+  const definition = { ...FIX.styled_markers, id: MINE, meta }
+  const rows = new Map([[MINE, { def_id: MINE, version: 2, definition, repaint: null, live: true, pine_source: hasScript ? SCRIPT : null }]])
+  const calls = []
+  const view = (r, opts) => {
+    const { pine_source: src, live: _l, ...rest } = r
+    return { ...rest, has_pine_source: src != null, ...(opts && opts.source === true && src != null ? { pine_source: src } : {}) }
+  }
+  return {
+    calls, rows, original: JSON.parse(JSON.stringify(definition)),
+    read: async (id, opts) => { calls.push(['read', id, opts || null]); const r = rows.get(id); return r && r.live ? { ok: true, row: view(r, opts) } : { ok: false, status: 404, error: 'Not found' } },
+    remove: async (id) => { calls.push(['delete', id]); const r = rows.get(id); if (!r || !r.live) return { ok: false, error: 'Not found' }; r.live = false; r.version += 1; return { ok: true } },
+    save: async (doc, id, _t, opts) => {
+      calls.push(['save', id, opts || null])
+      const script = opts && typeof opts.pineSource === 'string' && opts.pineSource.trim() ? opts.pineSource : null
+      const stored = script ? doc : withoutEngineStamp(doc)
+      const r = rows.get(id)
+      Object.assign(r, { definition: JSON.parse(JSON.stringify(stored)), live: true, version: r.version + 1, pine_source: dropScriptOnSave ? null : script })
+      return { ok: true, row: { def_id: id, version: r.version } }
+    },
+  }
+}
+const deleteThenUndo = async (srv) => {
+  const p = planDefinitionAction({ op: 'delete', defId: MINE }, ctx({ charts: [] }))
+  expect(p.ok).toBe(true)
+  const done = await executeDefinitionAction(p.plan, ctx({ charts: [] }), srv)
+  return { done, undone: done.undo ? await undoDefinitionAction(done.undo, ctx(), srv) : null }
+}
+
+describe('F-15 — deleting and undoing a saved Pine indicator is exact or refused', () => {
+  it('Undo restores the SAME document, engine stamp included, and the SAME stored script', async () => {
+    const srv = pineServer()
+    const { done, undone } = await deleteThenUndo(srv)
+    expect(done.status).toBe('confirmed')
+    expect(srv.calls[0]).toEqual(['read', MINE, { source: true }]) // read WITH the script, before deleting
+    expect(done.undo.pineSource).toBe(SCRIPT)
+    expect(undone).toMatchObject({ status: 'confirmed', receipt: { undoOf: 'delete', defId: MINE } })
+    const row = srv.rows.get(MINE)
+    expect(row.definition).toEqual(srv.original)
+    expect(engineStampOf(row.definition)).toBe(1)
+    expect(row.pine_source).toBe(SCRIPT)
+    expect(srv.calls.filter((c) => c[0] === 'save')).toEqual([['save', MINE, { pineSource: SCRIPT }]])
+  })
+
+  it('the defect, for the record: an Undo save WITHOUT the script loses the stamp and the script', async () => {
+    const srv = pineServer()
+    await srv.remove(MINE)
+    await srv.save(srv.original, MINE, null, null)
+    expect(engineStampOf(srv.rows.get(MINE).definition)).toBe(null)
+    expect(srv.rows.get(MINE).pine_source).toBe(null)
+  })
+
+  it('nothing is deleted when the stored script cannot be read back first', async () => {
+    const srv = pineServer()
+    srv.read = async (id) => {
+      srv.calls.push(['read', id, null])
+      const { pine_source: _s, live: _l, ...rest } = srv.rows.get(id)
+      return { ok: true, row: { ...rest, has_pine_source: true } }
+    }
+    const { done } = await deleteThenUndo(srv)
+    expect(done).toMatchObject({ status: 'unconfirmed' })
+    expect(done.error).toMatch(/nothing was deleted/)
+    expect(srv.calls.some((c) => c[0] === 'delete')).toBe(false)
+    expect(srv.rows.get(MINE).live).toBe(true)
+  })
+
+  it('a stamped document with no stored script is not deleted: its stamp could not be restored', async () => {
+    const srv = pineServer({ hasScript: false })
+    const { done } = await deleteThenUndo(srv)
+    expect(done).toMatchObject({ status: 'unconfirmed' })
+    expect(srv.calls.some((c) => c[0] === 'delete')).toBe(false)
+  })
+
+  it('an undo record without the script (made before F-15) is refused, and nothing is written', async () => {
+    const srv = pineServer()
+    const p = planDefinitionAction({ op: 'delete', defId: MINE }, ctx({ charts: [] }))
+    const done = await executeDefinitionAction(p.plan, ctx({ charts: [] }), srv)
+    const { pineSource: _drop, ...legacy } = done.undo
+    expect(await undoDefinitionAction(legacy, ctx(), srv)).toMatchObject({ ok: false, reason: 'restore-conflict' })
+    expect(srv.calls.some((c) => c[0] === 'save')).toBe(false)
+    expect(srv.rows.get(MINE).live).toBe(false)
+  })
+
+  it('a restore that comes back without its script is reported, never "confirmed"', async () => {
+    const srv = pineServer({ dropScriptOnSave: true })
+    const { undone } = await deleteThenUndo(srv)
+    expect(undone.status).toBe('did-not-land')
+    expect(undone.error).toMatch(/not exactly as it was/)
+  })
+
+  it('a repaint-acknowledged Pine import carries BOTH the acknowledgement and the script', async () => {
+    const srv = pineServer()
+    srv.rows.get(MINE).repaint = { acknowledged: true }
+    const { undone } = await deleteThenUndo(srv)
+    expect(undone.status).toBe('confirmed')
+    expect(srv.calls.filter((c) => c[0] === 'save')).toEqual([['save', MINE, { previewAcked: true, pineSource: SCRIPT }]])
+  })
+
+  it('an unstamped formula with no script takes the unchanged path', async () => {
+    const srv = pineServer({ hasScript: false, stamp: false })
+    const { done, undone } = await deleteThenUndo(srv)
+    expect(done.status).toBe('confirmed')
+    expect(done.undo.pineSource).toBe(undefined)
+    expect(undone.status).toBe('confirmed')
+    expect(srv.calls.filter((c) => c[0] === 'save')).toEqual([['save', MINE, null]])
+  })
+})
+
+describe('F-15 — the read door asks for the script only when told to', () => {
+  afterEach(() => { vi.unstubAllGlobals() })
+  it('readUserDefinition(id, {source: true}) requests ?source=1; the default read does not', async () => {
+    const urls = []
+    vi.stubGlobal('fetch', async (url) => { urls.push(url); return { ok: true, status: 200, json: async () => ({ def_id: MINE }) } })
+    await readUserDefinition(MINE, { source: true })
+    await readUserDefinition(MINE)
+    expect(urls[0].endsWith(`/${MINE}?source=1`)).toBe(true)
+    expect(urls[1].endsWith(`/${MINE}`)).toBe(true)
   })
 })

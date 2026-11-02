@@ -36,6 +36,7 @@ import { instancesOf } from './agentSeams'
 import { kindOf, copyVerdict, createCustomCopy } from './definitionActions'
 import { canon } from '../engine/settingsRecord'
 import { REASONS } from './agentMutations'
+import { engineStampOf } from '../engine/scriptEngineVersion'
 
 export { discardDraft } from './agentAuthoring'
 
@@ -242,8 +243,20 @@ export async function executeDefinitionAction(plan, ctx = {}, deps = {}) {
   if (usageFingerprint(usage) !== plan.pins.usage) return refuse(REASONS.CHANGED_WHILE_WORKING, { what: 'usage', usage })
   if (usage.length && plan.args.allowInUse !== true) return refuse(REASONS.DEPENDENT_EXISTS, { usage })
   // ⛔ READ FIRST: without the stored document there is no exact Undo, so nothing is deleted
-  const before = await read(plan.defId)
+  // ⭐ F-15 — and WITH its stored Pine script (`?source=1`). A Pine import is the document
+  // PLUS the script it was translated from, and its engine stamp (`meta.engineVersion`) is
+  // only kept by a save that carries that script (`saveUserDefinition`). Reading the
+  // document alone made Undo restore the maths and silently drop both.
+  const before = await read(plan.defId, { source: true })
   if (!before.ok || !before.row.definition) return { status: REASONS.UNCONFIRMED, reason: REASONS.UNCONFIRMED, receipt: receiptOf(plan, REASONS.UNCONFIRMED), error: before.error || 'Could not read the definition before deleting it; nothing was deleted.' }
+  const pineSource = scriptOf(before.row)
+  // ⛔ EXACT OR NOTHING: a row that holds a script we did not get back, or a stamped
+  // document with no script to carry the stamp, could not be restored exactly — so it is
+  // not deleted either.
+  if ((before.row.has_pine_source === true || engineStampOf(before.row.definition) !== null) && !pineSource) {
+    return { status: REASONS.UNCONFIRMED, reason: REASONS.UNCONFIRMED, receipt: receiptOf(plan, REASONS.UNCONFIRMED),
+      error: 'Could not read this indicator’s saved script, so it could not be restored exactly after a delete; nothing was deleted.' }
+  }
   const remove = deps.remove || deleteUserDefinition
   const gone = await remove(plan.defId)
   if (!gone.ok) return { status: REASONS.NOT_LANDED, reason: REASONS.NOT_LANDED, receipt: receiptOf(plan, REASONS.NOT_LANDED), error: gone.error }
@@ -253,8 +266,14 @@ export async function executeDefinitionAction(plan, ctx = {}, deps = {}) {
     status: 'confirmed',
     receipt: receiptOf(plan, 'confirmed', { usage }),
     undo: { contract: DEFINITIONS_CONTRACT, kind: 'undo', op: 'delete', defId: plan.defId, name: receiptOf(plan, '').name,
-      definition: JSON.parse(JSON.stringify(before.row.definition)), repaint: !!before.row.repaint },
+      definition: JSON.parse(JSON.stringify(before.row.definition)), repaint: !!before.row.repaint,
+      ...(pineSource ? { pineSource } : {}) },
   }
+}
+
+/** The stored Pine script on a row read with `{source: true}`, or null. */
+function scriptOf(row) {
+  return row && typeof row.pine_source === 'string' && row.pine_source.trim() ? row.pine_source : null
 }
 
 /**
@@ -272,11 +291,28 @@ export async function undoDefinitionAction(undo, ctx = {}, deps = {}) {
     const now = await read(undo.defId)
     if (now.ok) return refuse(REASONS.RESTORE_CONFLICT, { why: 'the definition is live again' })
     if (now.status !== 404) return { status: REASONS.UNCONFIRMED, reason: REASONS.UNCONFIRMED, receipt: { ...base, status: REASONS.UNCONFIRMED }, error: now.error }
+    // ⭐ F-15 — a stamped document is only restored WITH its script: the save door drops a
+    // stamp it cannot check against one. An undo record without the script (made before
+    // this fix, or edited) cannot be exact, so it is refused before anything is written.
+    const pineSource = typeof undo.pineSource === 'string' && undo.pineSource.trim() ? undo.pineSource : null
+    if (engineStampOf(undo.definition) !== null && !pineSource) {
+      return refuse(REASONS.RESTORE_CONFLICT, { why: 'the indicator’s saved script was not kept, so it cannot be restored exactly' })
+    }
     const save = deps.save || saveUserDefinition
-    const res = await save(undo.definition, undo.defId, null, undo.repaint ? { previewAcked: true } : null)
+    const options = {
+      ...(undo.repaint ? { previewAcked: true } : {}),
+      ...(pineSource ? { pineSource } : {}),
+    }
+    const res = await save(undo.definition, undo.defId, null, Object.keys(options).length ? options : null)
     if (!res.ok) return { status: REASONS.NOT_LANDED, reason: REASONS.NOT_LANDED, receipt: { ...base, status: REASONS.NOT_LANDED }, error: res.error }
-    const back = await read(undo.defId)
+    const back = await read(undo.defId, { source: true })
     if (!back.ok) return { status: REASONS.UNCONFIRMED, reason: REASONS.UNCONFIRMED, receipt: { ...base, status: REASONS.UNCONFIRMED } }
+    // ⛔ CONFIRMED MEANS EXACT. The read-back must hold the same script and the same engine
+    // stamp the deleted row held; anything else is reported, never called confirmed.
+    if (scriptOf(back.row) !== pineSource || engineStampOf(back.row.definition) !== engineStampOf(undo.definition)) {
+      return { status: REASONS.NOT_LANDED, reason: REASONS.NOT_LANDED, receipt: { ...base, status: REASONS.NOT_LANDED },
+        error: 'The indicator came back, but without its saved script or engine version, so it is not exactly as it was.' }
+    }
     return { status: 'confirmed', receipt: { ...base, status: 'confirmed', version: back.row.version ?? null }, undo: null }
   }
   // undo duplicate

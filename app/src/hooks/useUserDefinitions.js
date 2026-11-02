@@ -324,10 +324,13 @@ export async function forkUserDefinition(defId) {
  * @returns {Promise<{ok: true, row: object} | {ok: false, status: number|null, error: string}>}
  *   `status: 404` is the authoritative "not live"; `null` is a transport failure.
  */
-export async function readUserDefinition(defId) {
+export async function readUserDefinition(defId, options = null) {
+  // ⭐ F-15 — `{source: true}` asks for the stored Pine script too (`?source=1`), for a
+  // caller that must be able to put the row back EXACTLY (the Agent's delete → Undo).
+  const query = options && options.source === true ? '?source=1' : ''
   let r
   try {
-    r = await fetch(`${USER_DEFINITIONS_KEY}/${encodeURIComponent(defId)}`, { credentials: 'include' })
+    r = await fetch(`${USER_DEFINITIONS_KEY}/${encodeURIComponent(defId)}${query}`, { credentials: 'include' })
   } catch {
     return { ok: false, status: null, error: 'Could not reach the server — check your connection and try again.' }
   }
