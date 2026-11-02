@@ -246,12 +246,32 @@ describe('obsidian adapter — wikilinks to notes with a dot in the name', () =>
     expect(linkOf(src.html).map(([k]) => k)).toEqual(['obsidian:V/People/Dr.Smith.md', 'obsidian:V/People/Dr.Smith.md'])
   })
 
-  it('treats [[report.pdf]] as a file, never the note report.pdf.md', async () => {
+  it('resolves the exact note first even when the target ends in an attachment extension', async () => {
     const { docs } = await obsidianAdapter.parse([
-      vf('V/src.md', '[[report.pdf]]'), vf('V/report.pdf.md', 'x')])
+      vf('V/src.md', '[[report.pdf]] [[Files/report.pdf]] [[Brief.txt|the brief]]'),
+      vf('V/Files/report.pdf', '%PDF'), vf('V/Files/report.pdf.md', 'x'), vf('V/Brief.txt.md', 'y')])
     const src = docs.find((d) => d.importKey === 'obsidian:V/src.md')
-    expect(linkOf(src.html)).toEqual([])
-    expect(src.html).toContain('report.pdf')
+    expect(linkOf(src.html)).toEqual([
+      ['obsidian:V/Files/report.pdf.md', 'report.pdf'],
+      ['obsidian:V/Files/report.pdf.md', 'Files/report.pdf'],
+      ['obsidian:V/Brief.txt.md', 'the brief'],
+    ])
+  })
+
+  it('resolves [[report.pdf]] to the file when no report.pdf.md exists', async () => {
+    const { docs } = await obsidianAdapter.parse([
+      vf('V/src.md', '[[report.pdf]] [[Files/report.pdf]]'), vf('V/Files/report.pdf', '%PDF')])
+    const src = docs.find((d) => d.importKey === 'obsidian:V/src.md')
+    expect(linkOf(src.html).map(([k]) => k)).toEqual(['obsidian:V/Files/report.pdf', 'obsidian:V/Files/report.pdf'])
+  })
+
+  it('never strips an unknown dot suffix to open another note or file', async () => {
+    const { docs } = await obsidianAdapter.parse([
+      vf('V/src.md', '[[Dr.Smith]] [[People/Dr.Smith]] [[report.pdf]] [[chart]]'),
+      vf('V/People/Dr.md', 'x'), vf('V/report.png', ''), vf('V/Files/chart.png', '')])
+    const src = docs.find((d) => d.importKey === 'obsidian:V/src.md')
+    // Only the dot-less `[[chart]]` keeps its stem match.
+    expect(linkOf(src.html).map(([k]) => k)).toEqual(['obsidian:V/Files/chart.png'])
   })
 
   it('leaves [[Dr.Smith]] as text when no such note exists', async () => {

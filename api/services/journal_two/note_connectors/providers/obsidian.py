@@ -394,20 +394,17 @@ def _resolve_path_qualified(target: str, index: _VaultIndex) -> str | None:
     return index.exact.get(lower) or index.suffix.get(lower)
 
 
-def _note_file_of(target: str) -> str | None:
+def _note_file_of(target: str) -> str:
     """The note file a wikilink target names, lowercased: `<target>.md`, or the target itself
-    when it already ends in `.md`. None when the target ends in a known attachment extension
-    (`[[report.pdf]]` is a file, never `report.pdf.md`). ⛔ Any OTHER dot is part of the note's
-    name: `[[Dr.Smith]]`, `[[Q3.Review]]` and `[[v1.2 notes]]` name `Dr.Smith.md`,
-    `Q3.Review.md` and `v1.2 notes.md`. ⚰️ The bare-name rule used to strip `.Smith` as if it
-    were an extension and look up `Dr`, so those links stayed pending forever. Mirrors
+    when it already ends in `.md`. ⛔ Every dot is part of the note's name: `[[Dr.Smith]]`,
+    `[[Q3.Review]]`, `[[v1.2 notes]]` and even `[[Brief.txt]]` name `Dr.Smith.md`,
+    `Q3.Review.md`, `v1.2 notes.md` and `Brief.txt.md`. That note, when staged, ALWAYS wins
+    (Obsidian's own order); only when it is absent does `[[report.pdf]]` mean the file.
+    ⚰️ The bare-name rule used to strip `.Smith` as if it were an extension and look up `Dr`,
+    so those links stayed pending forever, or opened `Dr.md`. Mirrors
     `obsidian.js::noteFileOf`."""
     lower = target.lower()
-    if _NOTE_EXT_RE.search(lower):
-        return lower
-    if _ext_of(_basename(lower)) in _UNSENT_ATTACHMENT_EXTS:
-        return None
-    return f"{lower}.md"
+    return lower if _NOTE_EXT_RE.search(lower) else f"{lower}.md"
 
 
 def _pick(candidates: list[str], from_dir: str | None) -> str | None:
@@ -424,25 +421,29 @@ def _pick(candidates: list[str], from_dir: str | None) -> str | None:
 
 
 def _resolve_in(target: str, index: _VaultIndex, from_dir: str | None) -> str | None:
-    """The wikilink rule over an index; `from_dir` is the linking note's folder. First the
-    exact note `_note_file_of(target)` names, then the path / basename matching."""
+    """The wikilink rule over an index; `from_dir` is the linking note's folder.
+      1. the exact note `_note_file_of(target)` names, always first;
+      2. a file whose full name IS the target (`[[report.pdf]]` -> `report.pdf`);
+      3. a file whose name WITHOUT its extension is the target (`[[chart]]` -> `chart.png`).
+    ⛔ The target itself is never stripped of a dot suffix: `[[Dr.Smith]]` with only `Dr.md`
+    staged stays unresolved, because opening the WRONG note is worse than a visible pending
+    link. ⚰️ Step 3 used to strip the target too, so `[[Dr.Smith]]` opened `Dr.md` and
+    `[[report.pdf]]` could open `report.png`."""
     target = _strip_fragment(target)
     if not target:
         return None
     note_file = _note_file_of(target)
     if "/" in target:
-        if note_file is not None:
-            hit = index.exact.get(note_file) or index.suffix.get(note_file)
-            if hit is not None:
-                return hit
-        return _resolve_path_qualified(target, index)
-    if note_file is not None:
-        notes = [c for c in index.get(note_file[:-3]) or []
-                 if _basename(c).lower() == note_file]
-        if notes:
-            return _pick(notes, from_dir)
-    candidates = index.get(_strip_ext(target).lower()) or []
-    return _pick(candidates, from_dir)
+        hit = index.exact.get(note_file) or index.suffix.get(note_file)
+        return hit if hit is not None else _resolve_path_qualified(target, index)
+    lower = target.lower()
+    notes = [c for c in index.get(note_file[:-3]) or [] if _basename(c).lower() == note_file]
+    if notes:
+        return _pick(notes, from_dir)
+    files = [c for c in index.get(_strip_ext(lower)) or [] if _basename(c).lower() == lower]
+    if files:
+        return _pick(files, from_dir)
+    return _pick(index.get(lower) or [], from_dir)
 
 
 def _resolve_target(

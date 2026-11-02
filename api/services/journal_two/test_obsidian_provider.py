@@ -1451,11 +1451,30 @@ def test_the_note_wins_over_a_file_sharing_its_dotted_stem():
     assert _resolve_target("People/Dr.Smith", paths, bmap) == "People/Dr.Smith.md"
 
 
-def test_a_known_attachment_extension_is_a_file_never_a_note():
-    staged_note = ["report.pdf.md"]
-    assert _resolve_target("report.pdf", staged_note, _build_basename_map(staged_note)) is None
-    files = ["Files/report.pdf", "report.pdf.md"]
-    assert _resolve_target("report.pdf", files, _build_basename_map(files)) == "Files/report.pdf"
+def test_the_exact_note_wins_even_when_the_target_ends_in_an_attachment_extension():
+    # Follow-up ruling 2: `<target>.md`, when staged, always wins; only without it does an
+    # attachment extension mean the file.
+    def resolve(target, paths):
+        return _resolve_target(target, paths, _build_basename_map(paths))
+    assert resolve("report.pdf", ["report.pdf.md"]) == "report.pdf.md"
+    assert resolve("report.pdf", ["Files/report.pdf", "report.pdf.md"]) == "report.pdf.md"
+    assert resolve("Files/report.pdf", ["Files/report.pdf", "Files/report.pdf.md"]) == "Files/report.pdf.md"
+    assert resolve("report.pdf", ["Files/report.pdf"]) == "Files/report.pdf"
+    assert resolve("Files/report.pdf", ["Files/report.pdf"]) == "Files/report.pdf"
+    out = _convert("[[Brief.txt|the brief]]", ["Brief.txt.md"], refs=None)
+    assert _link_marks(out["doc"]) == [("the brief", _key("Brief.txt.md"))]
+
+
+def test_an_unknown_dot_suffix_is_never_stripped_to_open_another_note():
+    # Follow-up ruling 1: a wrong note is worse than a visible pending link.
+    def resolve(target, paths):
+        return _resolve_target(target, paths, _build_basename_map(paths))
+    assert resolve("Dr.Smith", ["People/Dr.md"]) is None
+    assert resolve("People/Dr.Smith", ["People/Dr.md"]) is None
+    assert resolve("report.pdf", ["report.png"]) is None
+    assert resolve("chart", ["Files/chart.png"]) == "Files/chart.png"   # no dot: stem match stays
+    out = _convert("[[Dr.Smith]]", ["Dr.md"])
+    assert out["links"] == [f"name:obsidian:{_V}/dr.smith|notes"]
 
 
 def test_a_missing_dotted_note_stays_pending_and_heals_when_it_arrives():

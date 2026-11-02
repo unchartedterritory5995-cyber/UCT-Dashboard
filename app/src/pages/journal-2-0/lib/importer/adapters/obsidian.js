@@ -296,51 +296,36 @@ function transformHighlights(text) {
 // target resolution
 // ---------------------------------------------------------------------------
 
-// THE extensions a wikilink target reads as a FILE, never a note. Mirrors
-// `providers/obsidian.py::_UNSENT_ATTACHMENT_EXTS` (images + documents, sheets,
-// archives, audio, video, canvas, epub) — keep the two lists equal.
-const ATTACHMENT_EXTS = new Set((
-  'png jpg jpeg gif webp bmp svg heic heif tif tiff avif ' +
-  'pdf doc docx xls xlsx ppt pptx odt ods odp rtf csv tsv txt json xml ' +
-  'zip 7z rar gz tar ' +
-  'mp3 m4a wav ogg flac aac opus ' +
-  'mp4 mov m4v webm mkv avi ' +
-  'canvas epub').split(' '))
-
-// basenameMap -> (lowercased full note file name `x.md` -> first such path).
-const NOTE_NAMES = new WeakMap()
+// basenameMap -> (lowercased FULL file name -> first such path).
+const FILE_NAMES = new WeakMap()
 
 function buildBasenameMap(vfiles) {
   const map = new Map()
-  const notes = new Map()
+  const names = new Map()
   for (const v of vfiles) {
     const name = basename(v.path)
     const key = stripExt(name).toLowerCase()
     if (!map.has(key)) map.set(key, v.path)
     const lower = name.toLowerCase()
-    if (lower.endsWith('.md') && !notes.has(lower)) notes.set(lower, v.path)
+    if (!names.has(lower)) names.set(lower, v.path)
   }
-  NOTE_NAMES.set(map, notes)
+  FILE_NAMES.set(map, names)
   return map
 }
 
 /**
  * The note file a wikilink target names, lowercased: `<target>.md`, or the
- * target itself when it already ends in `.md`; null when it ends in a known
- * attachment extension (`[[report.pdf]]` is a file, never `report.pdf.md`).
- * Any OTHER dot is part of the note's name: `[[Dr.Smith]]`, `[[Q3.Review]]`
- * and `[[v1.2 notes]]` name `Dr.Smith.md`, `Q3.Review.md`, `v1.2 notes.md`.
- * ⚰️ The basename rule used to strip `.Smith` as an extension and look up
- * `Dr`, so those links fell back to plain text. Mirrors
+ * target itself when it already ends in `.md`. Every dot is part of the
+ * note's name: `[[Dr.Smith]]`, `[[Q3.Review]]`, `[[v1.2 notes]]` and even
+ * `[[Brief.txt]]` name `Dr.Smith.md`, `Q3.Review.md`, `v1.2 notes.md` and
+ * `Brief.txt.md`; that note, when present, ALWAYS wins. ⚰️ The basename rule
+ * used to strip `.Smith` as an extension and look up `Dr`, so those links
+ * fell back to plain text or opened `Dr.md`. Mirrors
  * `providers/obsidian.py::_note_file_of`.
  */
 function noteFileOf(target) {
   const lower = target.toLowerCase()
-  if (lower.endsWith('.md')) return lower
-  const name = basename(lower)
-  const idx = name.lastIndexOf('.')
-  if (idx > 0 && ATTACHMENT_EXTS.has(name.slice(idx + 1))) return null
-  return `${lower}.md`
+  return lower.endsWith('.md') ? lower : `${lower}.md`
 }
 
 /**
@@ -359,16 +344,18 @@ function noteFileOf(target) {
 function resolveTarget(rawTarget, vfiles, basenameMap) {
   const target = stripFragment((rawTarget || '').trim())
   if (!target) return null
-  // First the exact note `noteFileOf` names, then path / basename matching.
+  // 1. the exact note `noteFileOf` names, always first; 2. a file whose full
+  // name IS the target; 3. a file whose name without its extension is the
+  // target. ⛔ The target itself is never stripped of a dot suffix:
+  // `[[Dr.Smith]]` with only `Dr.md` stays unresolved (a wrong note is worse
+  // than a visible miss). Mirrors `providers/obsidian.py::_resolve_in`.
   const noteFile = noteFileOf(target)
   if (target.includes('/')) {
-    const hit = noteFile ? resolvePathQualified(noteFile, vfiles) : null
-    return hit || resolvePathQualified(target, vfiles)
+    return resolvePathQualified(noteFile, vfiles) || resolvePathQualified(target, vfiles)
   }
-  const note = noteFile ? NOTE_NAMES.get(basenameMap)?.get(noteFile) : null
-  if (note) return note
-  const key = stripExt(target).toLowerCase()
-  return basenameMap.get(key) || null
+  const lower = target.toLowerCase()
+  const names = FILE_NAMES.get(basenameMap)
+  return names?.get(noteFile) || names?.get(lower) || basenameMap.get(lower) || null
 }
 
 function stripFragment(target) {
