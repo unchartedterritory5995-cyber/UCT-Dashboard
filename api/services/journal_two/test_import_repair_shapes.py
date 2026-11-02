@@ -61,6 +61,12 @@ PAIRS = [
      _doc({"type": "importNotice", "attrs": {"reason": "fetch_failed", "name": "a.png",
                                              "sourceUrl": None, "ref": REF_PREFIX + "a.png",
                                              "attempts": 1}})),
+    # The attachmentChip half of the same shape: a chip whose href is still a ref, and a chip
+    # whose href was resolved to stored media.
+    ("stranded_media_ref",
+     _doc({"type": "attachmentChip", "attrs": {"href": REF_PREFIX + "f.pdf", "name": "f.pdf"}}),
+     _doc({"type": "attachmentChip", "attrs": {"href": "/api/j2/notes/attachments/u/f.pdf",
+                                               "name": "f.pdf"}})),
     ("empty_image",
      _doc(_img(src="  ")),
      _doc(_img(src="/api/j2/notes/attachments/u/x.png"))),
@@ -98,6 +104,10 @@ def test_zero_counts_are_omitted_and_counts_add_up():
     assert shapes.detect_shapes(doc) == {"hotlinked_image": 2, "empty_image": 2, "stranded_media_ref": 1}
 
 
+def test_uppercase_scheme_image_is_a_hotlink():
+    assert shapes.detect_shapes(_doc(_img(src="HTTPS://cdn.example.com/a.png"))) == {"hotlinked_image": 1}
+
+
 def test_bare_filename_alone_in_a_paragraph_is_a_literal_embed():
     assert shapes.detect_shapes(_doc(_p(_t("chart.PNG")))) == {"obsidian_literal_embed": 1}
     # A linked file name is a link, not a stranded embed; its dead link is still counted.
@@ -128,6 +138,10 @@ def test_is_relative_href(href, expected):
     ("https://cdn.example.com/a.png", True), ("http://cdn.example.com/a.png", True),
     ("https://uctintelligence.com/x.png", False), ("https://www.uctintelligence.com/x.png", False),
     ("https://UCTIntelligence.com/x.png", False), ("https://uctintelligence.com.evil.io/x.png", True),
+    # The scheme is case-insensitive, as browsers treat it.
+    ("HTTPS://cdn.example.com/a.png", True), ("Http://cdn.example.com/a.png", True),
+    ("HTTPS://UCTINTELLIGENCE.COM/x.png", False), ("hTtPs://www.UctIntelligence.com/x.png", False),
+    ("HTTPS://uctintelligence.com.evil.io/x.png", True),
     ("/api/j2/notes/attachments/u/x.png", False), ("data:image/png;base64,AA", False),
     (None, False), (3, False),
 ])

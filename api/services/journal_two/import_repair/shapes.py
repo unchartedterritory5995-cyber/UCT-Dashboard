@@ -49,8 +49,9 @@ def is_relative_href(href: object) -> bool:
 
 
 def is_hotlink_src(src: object) -> bool:
-    """An image still pointing at someone else's server (http/https, host not ours)."""
-    if not isinstance(src, str) or not src.startswith(("http://", "https://")):
+    """An image still pointing at someone else's server (http/https, host not ours).
+    The scheme is case-insensitive, as a browser reads it (`HTTPS://x/a.png` loads too)."""
+    if not isinstance(src, str) or not src[:8].lower().startswith(("http://", "https://")):
         return False
     try:
         host = (urlsplit(src).hostname or "").lower()
