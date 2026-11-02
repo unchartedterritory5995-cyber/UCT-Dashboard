@@ -170,13 +170,14 @@ def _join(base_dir: str, rel: str) -> str:
     return "/".join(stack)
 
 
-def _exact_forms(path: str, from_dir: str) -> list[str]:
+def _exact_forms(path: str, from_dir: str, *, rooted: bool = True) -> list[str]:
     """The paths a relative href names exactly, in the provider's order (`_resolve_relative`):
-    beside the linking note, then from the top. One that climbs above the top is no path."""
+    beside the linking note, then (`rooted`) from the top. One that climbs above the top is
+    no path."""
     joined = posixpath.normpath(posixpath.join(from_dir, path)) if from_dir else posixpath.normpath(path)
-    rooted = posixpath.normpath(path.lstrip("/"))
+    forms = (joined, posixpath.normpath(path.lstrip("/"))) if rooted else (joined,)
     out: list[str] = []
-    for form in (joined, rooted):
+    for form in forms:
         if not obsidian_provider._escapes_root(form) and form not in out:
             out.append(form)
     return out
@@ -203,10 +204,11 @@ def _obsidian_target(path: str, full: str, index: FileKeyIndex) -> tuple[str | N
        vault: `relative_to_note`. When that path is a note the member TRASHED, the link meant
        that note: it is left as written (`relative_target_trashed`), never handed to a
        same-named note (I-1).
-    2. Fix round 1, I-4: the same EXACT paths over every Obsidian file path of the member
-       (beside the note, then from the drop top). A member who dropped the vault's contents
-       has no vault folder, so the first segment is just a folder; an exact path is what they
-       wrote, never a guess. Exact only: the name rule never runs across first folders.
+    2. Fix round 1, I-4: the EXACT path beside the note, over every Obsidian file path of the
+       member. A member who dropped the vault's contents has no vault folder, so the first
+       segment is just a folder; an exact path is what they wrote, never a guess. Exact only:
+       the name rule never runs across first folders. Fix round 2, N-1: never "from the top"
+       here; the top of the member's whole key space mixes separate imports.
     3. Fix round 1, C-1: the provider's NAME rule chooses among same-named notes (same folder,
        else shortest path). A connector vault is one vault, so that choice is safe there; the
        file importer's keys do not show where a drop's vaults are rooted (`.obsidian/` is not
@@ -224,7 +226,7 @@ def _obsidian_target(path: str, full: str, index: FileKeyIndex) -> tuple[str | N
             return prefix + found, TO_NOTE
         if form.lower() in trashed:
             return None, TRASHED
-    for form in _exact_forms(path, obsidian_provider._dir_of(full)):
+    for form in _exact_forms(path, obsidian_provider._dir_of(full), rooted=False):
         found = index.obsidian_paths.get(form.lower())
         if found is not None:
             return found, TO_NOTE

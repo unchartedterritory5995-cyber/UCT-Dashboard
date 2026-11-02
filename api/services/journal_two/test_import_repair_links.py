@@ -182,6 +182,18 @@ def test_a_drop_without_a_vault_folder_resolves_exact_paths_across_it(db, from_k
     assert actions == ["relative_to_note", "link_resolved:1"]
 
 
+def test_the_drop_wide_retry_never_roots_at_the_top_of_another_import(db):
+    """Fix round 2, N-1 (re-review R1): the drop-wide retry tries ONLY the path beside the note.
+    "From the top" over every Obsidian key the member has would mix separate imports: a bare
+    `Plan.md` in `MyVault/Notes/` must not open a loose `Plan.md` from another drop."""
+    _import("Obsidian", "obsidian:MyVault/Notes/Here.md")
+    _import("Obsidian", "obsidian:MyVault/Archive/Plan.md")
+    _import("Obsidian", "obsidian:Plan.md")  # a loose top-level file from ANOTHER import
+    doc = _doc(_para(_t("p", _link("Plan.md"))))
+    out, actions = _repair(doc, import_key="obsidian:MyVault/Notes/Here.md", import_source="Obsidian")
+    assert out == doc and actions == ["relative_unresolved"]
+
+
 def test_the_drop_wide_retry_is_exact_only(db):
     """I-4: the retry across first folders never uses the name rule (that would be C-1's
     hazard again): `Plan.md` from `Work/Here.md` does not open `Personal/Plan.md`."""
