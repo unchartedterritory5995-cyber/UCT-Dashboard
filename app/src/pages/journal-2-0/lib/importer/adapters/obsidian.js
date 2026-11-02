@@ -95,14 +95,15 @@ const CODE_RE = /```[\s\S]*?```|~~~[\s\S]*?~~~|`[^`\n]*`/g
 //     (`clearOfCode`), as it may hold a single-backtick one.
 //   - Nor across a newline whose next line starts a block (D2 fix round 5 (final), ruling
 //     A): after up to 3 spaces and optional `>` prefixes, a heading, a list item, a
-//     thematic break, an HTML block start (`<`) or a fence.
+//     thematic break, an HTML block start (`<`) or a fence; and (ruling B's corpus) a
+//     setext underline, a line of `=`.
 //   - A `>` that opens a DEEPER quote than the link's own line is a block start too; a
 //     pattern cannot know the link's own line, so that one is `deepensQuote`.
 // A single newline is still allowed. Each stop reads at most one line from a newline, so
 // the patterns stay linear. The SAME source as the server's `_WIKI_STOP`.
 const WIKI_STOP = '\\[\\[|\\n[ \\t\\r]*(?:>[ \\t\\r]*)*\\n|\\n {0,3}(?:>[ \\t]*)*(?:```|~~~|#{1,6}[ \\t]'
   + '|[-*+][ \\t]|\\d{1,9}[.)][ \\t]|(?:-[ \\t]*){3,}(?:\\r?\\n|$)|(?:\\*[ \\t]*){3,}(?:\\r?\\n|$)'
-  + '|(?:_[ \\t]*){3,}(?:\\r?\\n|$)|<)'
+  + '|(?:_[ \\t]*){3,}(?:\\r?\\n|$)|=+[ \\t]*(?:\\r?\\n|$)|<)'
 const EMBED_RE = new RegExp(`!\\[\\[((?:(?!${WIKI_STOP})[^\\]])+)\\]\\]`, 'g')
 const WIKILINK_RE = new RegExp(
   `\\[\\[((?:(?!${WIKI_STOP})[^\\]|])+)(?:\\|((?:(?!${WIKI_STOP})[^\\]])+))?\\]\\]`, 'g')
@@ -201,11 +202,9 @@ async function makeDoc(vfile, vfiles, byPath, basenameMap) {
   const raw = await readText(vfile)
   const { fields, tags, body } = extractFrontmatter(raw)
 
-  const media = []
-  const links = []
-  const ctx = { vfiles, byPath, basenameMap, media, links, fromDir: dirOf(vfile.path) }
-  const processed = splitCalloutTitles(preprocessWikiSyntax(body, ctx))
-  let html = calloutsInHtml(mdToHtml(processed))
+  const guarded = guardedPreprocess(body, { vfiles, byPath, basenameMap, fromDir: dirOf(vfile.path) })
+  const { media, links } = guarded
+  let html = guarded.html
   if (fields.hero_image) {
     // Same reasoning as generic.js's identical block: a front-matter cover
     // image is real authored content, not metadata to discard. Prepending
@@ -241,6 +240,53 @@ async function makeDoc(vfile, vfiles, byPath, basenameMap) {
 }
 
 // ---------------------------------------------------------------------------
+// The safety net (D2 fix round 5 (final), ruling B)
+// ---------------------------------------------------------------------------
+// The stops keep a wikilink out of every block shape they name; this catches any shape
+// they do not (a setext underline, an empty heading or list item, a table). Each held link
+// or image a wikilink or embed match writes is tagged with its own number; after the
+// markdown parse, each must come back as exactly ONE element. A match whose piece did not is left exactly as
+// written, keyed by pattern, matched text and occurrence (so the other links in the note
+// stay), and the note is converted again, at most NET_ROUNDS times. The server's net
+// (`providers/obsidian.py::convert_obsidian_markdown`) catches the same shapes by the key
+// its cut markdown link shows; the client writes keys only as attributes, so it checks the
+// element instead. The tags never reach the stored html.
+const NET_ATTR = 'data-uct-obsidian-net'
+const NET_ATTR_RE = / data-uct-obsidian-net="\d+"/g
+const NET_ROUNDS = 4
+
+function guardedPreprocess(body, baseCtx) {
+  let refused = new Set()
+  for (let round = 0; ; round += 1) {
+    const net = { refused, pieces: [], seen: new Map(), current: null }
+    const ctx = { ...baseCtx, media: [], links: [], net }
+    const html = calloutsInHtml(mdToHtml(splitCalloutTitles(preprocessWikiSyntax(body, ctx))))
+    const fresh = brokenPieces(html, net).filter((key) => !refused.has(key))
+    if (!fresh.length || round + 1 >= NET_ROUNDS) {
+      return { html: html.replace(NET_ATTR_RE, ''), media: ctx.media, links: ctx.links }
+    }
+    refused = new Set([...refused, ...fresh])
+  }
+}
+
+// The keys of the matches whose shown piece did not come back as exactly one element. A
+// block that cuts a held `<a>` makes the HTML parser close it and open a copy on the far
+// side (two elements); one that swallows it leaves none. One walk of the parsed html.
+function brokenPieces(html, net) {
+  if (!net.pieces.some((p) => p.shown)) return []
+  const count = new Map()
+  for (const el of new DOMParser().parseFromString(html, 'text/html').querySelectorAll(`[${NET_ATTR}]`)) {
+    const id = el.getAttribute(NET_ATTR)
+    count.set(id, (count.get(id) || 0) + 1)
+  }
+  const bad = new Set()
+  net.pieces.forEach((piece, id) => {
+    if (piece.shown && count.get(String(id)) !== 1) bad.add(piece.key)
+  })
+  return [...bad]
+}
+
+// ---------------------------------------------------------------------------
 // wiki-syntax pre-processing (outside fenced AND inline code, in fixed order)
 // ---------------------------------------------------------------------------
 
@@ -256,10 +302,16 @@ function preprocessWikiSyntax(text, ctx) {
   const lists = [] // lists[i]: what piece i adds to `media` / `links` once it is SHOWN
   const shown = new Set()
   const open = holdOpenFor(text)
+  const net = ctx.net
   const hctx = {
     ...ctx,
     hold: (html, list) => {
       lists[held.length] = list
+      // The safety net's tag: this piece's own number, on its element (see NET_ATTR).
+      if (net?.current && /^<(a|img)\b/.test(html)) {
+        html = html.replace(/^<(a|img)\b/, `<$1 ${NET_ATTR}="${net.pieces.length}"`)
+        net.pieces.push({ key: net.current, index: held.length })
+      }
       return holdMarkup(held, html, open)
     },
     // A string that is exactly one placeholder this note made (an embed already
@@ -279,6 +331,7 @@ function preprocessWikiSyntax(text, ctx) {
   // image placeholder is dropped and nothing uploads a file no node references.
   // In index order, which is the order the passes made them (embeds, then links).
   for (let i = 0; i < held.length; i += 1) if (shown.has(i)) lists[i]?.()
+  for (const piece of net?.pieces || []) piece.shown = shown.has(piece.index)
   return out
 }
 
@@ -329,9 +382,11 @@ function deepensQuote(text, start, end) {
 
 // `text.replace(re, fn)`, taking only matches `clearOfCode`; a refused match is left as
 // written and the scan resumes one character after its start. `wiki`: a wikilink-shaped
-// pattern, whose match must also not open a deeper quote (`deepensQuote`). Mirrors
+// pattern, whose match must also not open a deeper quote (`deepensQuote`). `net`: the
+// safety net's run (`guardedPreprocess`): a refused match is left as written, and the
+// pieces a taken one holds are tagged with its key. Mirrors
 // `providers/obsidian.py::_sub_clear_of_code`.
-function replaceClearOfCode(text, re, fn, wiki = false) {
+function replaceClearOfCode(text, re, fn, wiki = false, net = null) {
   const spans = codeSpans(text)
   const rx = new RegExp(re.source, re.flags.includes('g') ? re.flags : `${re.flags}g`)
   let out = ''
@@ -343,7 +398,24 @@ function replaceClearOfCode(text, re, fn, wiki = false) {
     if (!m) break
     const end = m.index + m[0].length
     if (clearOfCode(m.index, end, spans) && !(wiki && deepensQuote(text, m.index, end))) {
-      out += text.slice(last, m.index) + fn(...m)
+      let piece
+      if (!net) {
+        piece = fn(...m)
+      } else {
+        const seenKey = JSON.stringify([re.source, m[0]])
+        const nth = net.seen.get(seenKey) || 0
+        net.seen.set(seenKey, nth + 1)
+        const key = JSON.stringify([re.source, m[0], nth])
+        if (net.refused.has(key)) {
+          piece = m[0]
+        } else {
+          const outer = net.current
+          net.current = key
+          piece = fn(...m)
+          net.current = outer
+        }
+      }
+      out += text.slice(last, m.index) + piece
       last = end
       pos = end > m.index ? end : end + 1
     } else {
@@ -462,7 +534,7 @@ function transformEmbeds(text, ctx) {
     }
     return ctx.hold(`<a data-type="attachmentChip" data-import-ref="${escapeAttr(resolvedPath)}" data-name="${escapeAttr(name)}" href="import-ref://${escapeAttr(resolvedPath)}">${escapeHtml(name)}</a>`,
       () => ctx.media.push({ ref: resolvedPath, vfile, kind: 'file', name }))
-  }, true)
+  }, true, ctx.net)
 }
 
 function transformWikiLinks(text, ctx) {
@@ -502,7 +574,8 @@ function transformWikiLinks(text, ctx) {
     return ctx.hold(`<a data-import-link="${escapeAttr(targetKey)}">${escapeHtml(display)}</a>`,
       () => ctx.links.push({ targetKey }))
   }
-  return replaceClearOfCode(text, WIKILINK_RE, (_, rawTarget, rawAlias) => piece(rawTarget, rawAlias), true)
+  return replaceClearOfCode(text, WIKILINK_RE, (_, rawTarget, rawAlias) => piece(rawTarget, rawAlias),
+    true, ctx.net)
 }
 
 // ---------------------------------------------------------------------------

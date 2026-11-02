@@ -2024,6 +2024,43 @@ def test_a_wikilink_never_crosses_into_a_line_that_starts_a_block(refs):
         assert "import-link" not in _plain(out["doc"]) and "[[" not in _plain(out["doc"]), body
 
 
+@pytest.mark.parametrize("refs", [NO_ATTACHMENT_PASS, None], ids=["refs-branch", "old-plugin"])
+def test_the_safety_net_leaves_a_link_that_does_not_come_back_as_written(refs, caplog):
+    """D2 fix round 5 (final), ruling B: shapes no stop names (an empty heading or list
+    item, a table) still cut the markdown link the pass wrote. The net sees
+    the internal key in visible text, finds the one match that wrote it, and leaves that
+    match as written; every other link in the note stays. It logs one warning."""
+    import logging
+
+    for shape in ("#", "-", "| x |\n| --- |"):
+        body = f"see [[Plan]] ok\n\nsee [[Plan|a\n{shape}\nb]] end\n\nand [[Plan|c\nd]] too"
+        caplog.clear()
+        with caplog.at_level(logging.WARNING):
+            out = _convert(body, ["Plan.md"], refs=refs)
+        text = _plain(out["doc"])
+        assert "import-link" not in text, (shape, text)
+        assert "[[Plan|a" in text and "b]]" in text, (shape, text)
+        assert [t for t, _ in _link_marks(out["doc"])] == ["Plan", "c d"], shape
+        warned = [r for r in caplog.records if "safety net" in r.getMessage()]
+        assert len(warned) == 1, (shape, [r.getMessage() for r in caplog.records])
+
+
+def test_the_safety_net_never_fires_on_the_parity_fixtures(caplog):
+    """A clean note converts once, with no warning: every committed parity input."""
+    import json
+    import logging
+
+    from api.services.journal_two.note_connectors.convert import obsidian_parity_fixtures_gen as gen
+
+    with caplog.at_level(logging.WARNING):
+        for md in sorted(gen.FIXTURES_IN_DIR.glob("*.md")):
+            manifest = json.loads((gen.FIXTURES_IN_DIR / f"{md.stem}.vault.json").read_text("utf-8"))
+            paths = [p for p in manifest["vault_paths"] if p.endswith(".md")]
+            _convert(md.read_text("utf-8"), paths, self_path=manifest["self_path"],
+                     refs=manifest.get("attachments", []))
+    assert [r.getMessage() for r in caplog.records if "safety net" in r.getMessage()] == []
+
+
 def test_wikilinks_in_code_or_cut_by_code_stay_as_written():
     """D2 fix round 4, N-I4 guard: a wikilink, embed or deep link inside code, or cut by a
     code span, is never rewritten."""

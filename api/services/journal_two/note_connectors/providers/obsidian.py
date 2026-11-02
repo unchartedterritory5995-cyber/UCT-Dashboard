@@ -255,7 +255,9 @@ from __future__ import annotations
 
 import asyncio
 import bisect
+import contextvars
 import json
+import logging
 import posixpath
 import re
 from typing import Any
@@ -316,6 +318,9 @@ _CODE_RE = re.compile(_FENCE_SRC + r"|`[^`\n]*`")
 #     a list item (`-`, `*`, `+` or 1-9 digits and `.`/`)`, then a space), a thematic break
 #     (`---`, `***`, `___`, spaces allowed), an HTML block start (`<`) or a fence. ⚰️ Each one
 #     cut the markdown link the pass wrote and leaked the key, as a paragraph break did.
+#     Ruling B's corpus added a setext underline (a line of `=`): inside a quote the client
+#     read `> ===` as a lazy continuation (its held link drops the prefixes) while the
+#     server's cut link leaked, so the two lanes disagreed on link/no-link.
 #   - A `>` that opens a DEEPER quote than the link's own line is a block start too, but a
 #     pattern cannot know the link's own line: inside a quote `> b` is a continuation. So
 #     that one is `_deepens_quote`, checked on every wikilink match.
@@ -324,7 +329,7 @@ _CODE_RE = re.compile(_FENCE_SRC + r"|`[^`\n]*`")
 # mirrors this.
 _WIKI_STOP = (r"\[\[|\n[ \t\r]*(?:>[ \t\r]*)*\n|\n {0,3}(?:>[ \t]*)*(?:```|~~~|#{1,6}[ \t]"
               r"|[-*+][ \t]|\d{1,9}[.)][ \t]|(?:-[ \t]*){3,}(?:\r?\n|$)|(?:\*[ \t]*){3,}(?:\r?\n|$)"
-              r"|(?:_[ \t]*){3,}(?:\r?\n|$)|<)")
+              r"|(?:_[ \t]*){3,}(?:\r?\n|$)|=+[ \t]*(?:\r?\n|$)|<)")
 _QUOTE_PREFIX_DEPTH_RE = re.compile(r" {0,3}((?:>[ \t]*)*)")
 
 
@@ -986,11 +991,16 @@ def _sub_clear_of_code(rx: "re.Pattern[str]", fn: Any, text: str, *, wiki: bool 
     code_starts = [c[0] for c in code]
     out: list[str] = []
     last = pos = 0
+    net = _NET.get()
     while (m := rx.search(text, pos)) is not None:
         if (_clear_of_code(m.start(), m.end(), code, code_starts)
                 and not (wiki and _deepens_quote(text, m.start(), m.end()))):
             out.append(text[last:m.start()])
-            out.append(fn(m))
+            if net is None:
+                out.append(fn(m))
+            else:
+                key = net.key(rx, m.group(0))
+                out.append(m.group(0) if key in net.refused else net.mark(key, fn(m)))
             last = pos = m.end()
         else:
             pos = m.start() + 1
@@ -1370,16 +1380,123 @@ def _relative_href_resolver(
     return resolve
 
 
+# ── The safety net (D2 fix round 5 (final), ruling B) ────────────────────────
+#
+# A member must never read an internal key or scheme. The stops above keep a wikilink out
+# of every block shape they name; this catches any shape they do not (a setext underline,
+# an empty heading or list item, a table): a markdown link a pass wrote that did not come
+# back as a link, so its destination is visible text. The whole conversion is checked
+# once; only a note that leaks pays more:
+#   1. a PROBE run tags each match's written `import-link://` with its own number, so the
+#      leaked text names the match that wrote it;
+#   2. a run that leaves those matches exactly as written (keyed by pattern, matched text
+#      and occurrence, so the other links in the note stay);
+#   repeated while it finds new ones, at most `_NET_ROUNDS` times, with one warning logged.
+# `obsidian.js::guardedPreprocess` is the client's.
+_INTERNAL_MARKERS = ("import-link://", "import-ref://", ATT_SCHEME, FILE_SCHEME, NOTICE_SCHEME)
+_NET_TAG = "obsnettag"
+_NET_TAG_RE = re.compile(rf"{_NET_TAG}(\d+)x")
+_NET_ROUNDS = 4
+logger = logging.getLogger(__name__)
+
+
+class _NetRun:
+    """One guarded pre-pass run: the matches to leave as written, and, in a probe, the
+    match each tag number stands for."""
+
+    def __init__(self, refused: frozenset, probe: bool) -> None:
+        self.refused = refused
+        self.probe = probe
+        self._seen: dict[tuple[str, str], int] = {}
+        self.tags: list[tuple[str, str, int]] = []
+
+    def key(self, rx: "re.Pattern[str]", text: str) -> tuple[str, str, int]:
+        nth = self._seen.get((rx.pattern, text), 0)
+        self._seen[(rx.pattern, text)] = nth + 1
+        return (rx.pattern, text, nth)
+
+    def mark(self, key: tuple[str, str, int], written: str) -> str:
+        if not self.probe or "import-link://" not in written:
+            return written
+        self.tags.append(key)
+        return written.replace("import-link://", f"import-link://{_NET_TAG}{len(self.tags) - 1}x")
+
+
+_NET: contextvars.ContextVar[_NetRun | None] = contextvars.ContextVar("obsidian_net", default=None)
+
+
+def _visible_strings(node: Any, out: list[str] | None = None) -> list[str]:
+    """Every string a member can read in a doc: text, and the label, name, alt and title
+    attributes. `obsidianParity.contract.test.js::visibleStrings` mirrors it."""
+    out = [] if out is None else out
+    if isinstance(node, dict):
+        if node.get("type") == "text" and isinstance(node.get("text"), str):
+            out.append(node["text"])
+        attrs = node.get("attrs")
+        if isinstance(attrs, dict):
+            out.extend(v for k, v in attrs.items()
+                       if k in ("label", "name", "alt", "title") and isinstance(v, str))
+        for child in node.get("content") or []:
+            _visible_strings(child, out)
+    return out
+
+
+def _leaks(doc: Any) -> bool:
+    return any(marker in s for s in _visible_strings(doc) for marker in _INTERNAL_MARKERS)
+
+
+def _run_with(net: _NetRun, convert: Any) -> dict[str, Any]:
+    token = _NET.set(net)
+    try:
+        return convert()
+    finally:
+        _NET.reset(token)
+
+
 def convert_obsidian_markdown(
     body_md: str, *, vault_path: str, paths: list[str], basename_map: dict[str, list[str]],
     vault_id: str, import_key_fn: Any, vault_label: str | None = None,
     refs: Any = NO_ATTACHMENT_PASS, plugin_supports: bool = False,
 ) -> dict[str, Any]:
-    """THE Obsidian conversion, `{doc, media, links}`: the attachment pass (`refs`, Plan C
-    Task 3), the wiki-syntax pre-pass, the shared converter with this vault's relative-link
-    resolver, the attachment placeholders made real, then callouts. What
-    `ObsidianProvider._convert_row` runs and what the parity rail summarises -- one
-    function, so the rail can never watch a different pipeline from the one that syncs."""
+    """THE Obsidian conversion, `{doc, media, links}`, under the safety net above: no
+    internal key or scheme is ever visible text (ruling B)."""
+    def convert() -> dict[str, Any]:
+        return _convert_obsidian_once(
+            body_md, vault_path=vault_path, paths=paths, basename_map=basename_map,
+            vault_id=vault_id, import_key_fn=import_key_fn, vault_label=vault_label,
+            refs=refs, plugin_supports=plugin_supports)
+
+    out = convert()
+    if not _leaks(out["doc"]):
+        return out
+    refused: frozenset = frozenset()
+    for _ in range(_NET_ROUNDS):
+        probe = _NetRun(refused, probe=True)
+        probed = _run_with(probe, convert)
+        found = {probe.tags[int(n)] for s in _visible_strings(probed["doc"])
+                 for n in _NET_TAG_RE.findall(s) if int(n) < len(probe.tags)} - refused
+        if not found:
+            break
+        refused = refused | found
+        out = _run_with(_NetRun(refused, probe=False), convert)
+        if not _leaks(out["doc"]):
+            break
+    logger.warning(
+        "obsidian: safety net left %d link(s) as written in %s; %s", len(refused), vault_path,
+        "the note is clean" if not _leaks(out["doc"]) else "an internal key is STILL visible")
+    return out
+
+
+def _convert_obsidian_once(
+    body_md: str, *, vault_path: str, paths: list[str], basename_map: dict[str, list[str]],
+    vault_id: str, import_key_fn: Any, vault_label: str | None = None,
+    refs: Any = NO_ATTACHMENT_PASS, plugin_supports: bool = False,
+) -> dict[str, Any]:
+    """One conversion: the attachment pass (`refs`, Plan C Task 3), the wiki-syntax
+    pre-pass, the shared converter with this vault's relative-link resolver, the attachment
+    placeholders made real, then callouts. What `ObsidianProvider._convert_row` runs (via
+    `convert_obsidian_markdown`) and what the parity rail summarises -- one function, so the
+    rail can never watch a different pipeline from the one that syncs."""
     index = _index_of(paths, basename_map)  # the caller's batch index; built only if absent
     pre = _preprocess_obsidian_markdown(
         body_md or "", paths, index, vault_id, import_key_fn,

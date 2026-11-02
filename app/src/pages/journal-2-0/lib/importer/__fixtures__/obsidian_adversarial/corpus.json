@@ -1,0 +1,852 @@
+{
+  "cases": [
+    {
+      "input": "see [[Plan|a\nb\nb]] end",
+      "targets": [
+        "Plan.md"
+      ]
+    },
+    {
+      "input": "see [[Plan|a `c`\n> b\nb]] end",
+      "targets": []
+    },
+    {
+      "input": "see ![[Plan|a\n>\nb]] end",
+      "targets": []
+    },
+    {
+      "input": "see [[Plan|a\n# b\nb]] end",
+      "targets": []
+    },
+    {
+      "input": "see [[Plan|a `c`\n#\nb]] end",
+      "targets": []
+    },
+    {
+      "input": "see ![[Plan|a\n- b\nb]] end",
+      "targets": []
+    },
+    {
+      "input": "see [[Plan|a\n-\nb]] end",
+      "targets": []
+    },
+    {
+      "input": "see [[Plan|a `c`\n* b\nb]] end",
+      "targets": []
+    },
+    {
+      "input": "see ![[Plan|a\n1. b\nb]] end",
+      "targets": []
+    },
+    {
+      "input": "see [[Plan|a\n1) b\nb]] end",
+      "targets": []
+    },
+    {
+      "input": "see [[Plan|a `c`\n---\nb]] end",
+      "targets": []
+    },
+    {
+      "input": "see ![[Plan|a\n***\nb]] end",
+      "targets": []
+    },
+    {
+      "input": "see [[Plan|a\n===\nb]] end",
+      "targets": []
+    },
+    {
+      "input": "see [[Plan|a `c`\n<div>b\nb]] end",
+      "targets": []
+    },
+    {
+      "input": "see ![[Plan|a\n```\nb]] end",
+      "targets": []
+    },
+    {
+      "input": "see [[Plan|a\n~~~\nb]] end",
+      "targets": []
+    },
+    {
+      "input": "see [[Plan|a `c`\n    b\nb]] end",
+      "targets": [
+        "Plan.md"
+      ]
+    },
+    {
+      "input": "see ![[Plan|a\n   - b\nb]] end",
+      "targets": []
+    },
+    {
+      "input": "see [[Plan|a\n`c` b\nb]] end",
+      "targets": [
+        "Plan.md"
+      ]
+    },
+    {
+      "input": "see [[Plan|a `c`\n> # b\nb]] end",
+      "targets": []
+    },
+    {
+      "input": "see ![[Plan|a\n> ```\nb]] end",
+      "targets": []
+    },
+    {
+      "input": "see [[Plan|a\n| x |\n| --- |\nb]] end",
+      "targets": []
+    },
+    {
+      "input": "see [[Plan|a `c`\n%% c %%\nb]] end",
+      "targets": [
+        "Plan.md"
+      ]
+    },
+    {
+      "input": "see ![[Plan|a\n\tb\nb]] end",
+      "targets": [
+        "Plan.md"
+      ]
+    },
+    {
+      "input": "see [[Plan|a\n> b\n> b]] end",
+      "targets": []
+    },
+    {
+      "input": "see [[Plan|a `c`\n> > b\n> b]] end",
+      "targets": []
+    },
+    {
+      "input": "see ![[Plan|a\n> >\n> b]] end",
+      "targets": []
+    },
+    {
+      "input": "see [[Plan|a\n> # b\n> b]] end",
+      "targets": []
+    },
+    {
+      "input": "see [[Plan|a `c`\n> #\n> b]] end",
+      "targets": []
+    },
+    {
+      "input": "see ![[Plan|a\n> - b\n> b]] end",
+      "targets": []
+    },
+    {
+      "input": "see [[Plan|a\n> -\n> b]] end",
+      "targets": []
+    },
+    {
+      "input": "see [[Plan|a `c`\n> * b\n> b]] end",
+      "targets": []
+    },
+    {
+      "input": "see ![[Plan|a\n> 1. b\n> b]] end",
+      "targets": []
+    },
+    {
+      "input": "see [[Plan|a\n> 1) b\n> b]] end",
+      "targets": []
+    },
+    {
+      "input": "see [[Plan|a `c`\n> ---\n> b]] end",
+      "targets": []
+    },
+    {
+      "input": "see ![[Plan|a\n> ***\n> b]] end",
+      "targets": []
+    },
+    {
+      "input": "see [[Plan|a\n> ===\n> b]] end",
+      "targets": []
+    },
+    {
+      "input": "see [[Plan|a `c`\n> <div>b\n> b]] end",
+      "targets": []
+    },
+    {
+      "input": "see ![[Plan|a\n> ```\n> b]] end",
+      "targets": []
+    },
+    {
+      "input": "see [[Plan|a\n> ~~~\n> b]] end",
+      "targets": []
+    },
+    {
+      "input": "see [[Plan|a `c`\n>     b\n> b]] end",
+      "targets": []
+    },
+    {
+      "input": "see ![[Plan|a\n>    - b\n> b]] end",
+      "targets": []
+    },
+    {
+      "input": "see [[Plan|a\n> `c` b\n> b]] end",
+      "targets": []
+    },
+    {
+      "input": "see [[Plan|a `c`\n> > # b\n> b]] end",
+      "targets": []
+    },
+    {
+      "input": "see ![[Plan|a\n> > ```\n> b]] end",
+      "targets": []
+    },
+    {
+      "input": "see [[Plan|a\n> | x |\n| --- |\n> b]] end",
+      "targets": []
+    },
+    {
+      "input": "see [[Plan|a `c`\n> %% c %%\n> b]] end",
+      "targets": []
+    },
+    {
+      "input": "see ![[Plan|a\n> \tb\n> b]] end",
+      "targets": []
+    },
+    {
+      "input": "> see [[Plan|a\nb\nb]] end",
+      "targets": [
+        "Plan.md"
+      ]
+    },
+    {
+      "input": "> see [[Plan|a `c`\n> b\nb]] end",
+      "targets": [
+        "Plan.md"
+      ]
+    },
+    {
+      "input": "> see ![[Plan|a\n>\nb]] end",
+      "targets": []
+    },
+    {
+      "input": "> see [[Plan|a\n# b\nb]] end",
+      "targets": []
+    },
+    {
+      "input": "> see [[Plan|a `c`\n#\nb]] end",
+      "targets": []
+    },
+    {
+      "input": "> see ![[Plan|a\n- b\nb]] end",
+      "targets": []
+    },
+    {
+      "input": "> see [[Plan|a\n-\nb]] end",
+      "targets": []
+    },
+    {
+      "input": "> see [[Plan|a `c`\n* b\nb]] end",
+      "targets": []
+    },
+    {
+      "input": "> see ![[Plan|a\n1. b\nb]] end",
+      "targets": []
+    },
+    {
+      "input": "> see [[Plan|a\n1) b\nb]] end",
+      "targets": []
+    },
+    {
+      "input": "> see [[Plan|a `c`\n---\nb]] end",
+      "targets": []
+    },
+    {
+      "input": "> see ![[Plan|a\n***\nb]] end",
+      "targets": []
+    },
+    {
+      "input": "> see [[Plan|a\n===\nb]] end",
+      "targets": []
+    },
+    {
+      "input": "> see [[Plan|a `c`\n<div>b\nb]] end",
+      "targets": []
+    },
+    {
+      "input": "> see ![[Plan|a\n```\nb]] end",
+      "targets": []
+    },
+    {
+      "input": "> see [[Plan|a\n~~~\nb]] end",
+      "targets": []
+    },
+    {
+      "input": "> see [[Plan|a `c`\n    b\nb]] end",
+      "targets": [
+        "Plan.md"
+      ]
+    },
+    {
+      "input": "> see ![[Plan|a\n   - b\nb]] end",
+      "targets": []
+    },
+    {
+      "input": "> see [[Plan|a\n`c` b\nb]] end",
+      "targets": [
+        "Plan.md"
+      ]
+    },
+    {
+      "input": "> see [[Plan|a `c`\n> # b\nb]] end",
+      "targets": []
+    },
+    {
+      "input": "> see ![[Plan|a\n> ```\nb]] end",
+      "targets": []
+    },
+    {
+      "input": "> see [[Plan|a\n| x |\n| --- |\nb]] end",
+      "targets": [
+        "Plan.md"
+      ]
+    },
+    {
+      "input": "> see [[Plan|a `c`\n%% c %%\nb]] end",
+      "targets": [
+        "Plan.md"
+      ]
+    },
+    {
+      "input": "> see ![[Plan|a\n\tb\nb]] end",
+      "targets": [
+        "Plan.md"
+      ]
+    },
+    {
+      "input": "> see [[Plan|a\n> b\n> b]] end",
+      "targets": [
+        "Plan.md"
+      ]
+    },
+    {
+      "input": "> see [[Plan|a `c`\n> > b\n> b]] end",
+      "targets": []
+    },
+    {
+      "input": "> see ![[Plan|a\n> >\n> b]] end",
+      "targets": []
+    },
+    {
+      "input": "> see [[Plan|a\n> # b\n> b]] end",
+      "targets": []
+    },
+    {
+      "input": "> see [[Plan|a `c`\n> #\n> b]] end",
+      "targets": []
+    },
+    {
+      "input": "> see ![[Plan|a\n> - b\n> b]] end",
+      "targets": []
+    },
+    {
+      "input": "> see [[Plan|a\n> -\n> b]] end",
+      "targets": []
+    },
+    {
+      "input": "> see [[Plan|a `c`\n> * b\n> b]] end",
+      "targets": []
+    },
+    {
+      "input": "> see ![[Plan|a\n> 1. b\n> b]] end",
+      "targets": []
+    },
+    {
+      "input": "> see [[Plan|a\n> 1) b\n> b]] end",
+      "targets": []
+    },
+    {
+      "input": "> see [[Plan|a `c`\n> ---\n> b]] end",
+      "targets": []
+    },
+    {
+      "input": "> see ![[Plan|a\n> ***\n> b]] end",
+      "targets": []
+    },
+    {
+      "input": "> see [[Plan|a\n> ===\n> b]] end",
+      "targets": []
+    },
+    {
+      "input": "> see [[Plan|a `c`\n> <div>b\n> b]] end",
+      "targets": []
+    },
+    {
+      "input": "> see ![[Plan|a\n> ```\n> b]] end",
+      "targets": []
+    },
+    {
+      "input": "> see [[Plan|a\n> ~~~\n> b]] end",
+      "targets": []
+    },
+    {
+      "input": "> see [[Plan|a `c`\n>     b\n> b]] end",
+      "targets": [
+        "Plan.md"
+      ]
+    },
+    {
+      "input": "> see ![[Plan|a\n>    - b\n> b]] end",
+      "targets": []
+    },
+    {
+      "input": "> see [[Plan|a\n> `c` b\n> b]] end",
+      "targets": [
+        "Plan.md"
+      ]
+    },
+    {
+      "input": "> see [[Plan|a `c`\n> > # b\n> b]] end",
+      "targets": []
+    },
+    {
+      "input": "> see ![[Plan|a\n> > ```\n> b]] end",
+      "targets": []
+    },
+    {
+      "input": "> see [[Plan|a\n> | x |\n| --- |\n> b]] end",
+      "targets": [
+        "Plan.md"
+      ]
+    },
+    {
+      "input": "> see [[Plan|a `c`\n> %% c %%\n> b]] end",
+      "targets": [
+        "Plan.md"
+      ]
+    },
+    {
+      "input": "> see ![[Plan|a\n> \tb\n> b]] end",
+      "targets": [
+        "Plan.md"
+      ]
+    },
+    {
+      "input": "- see [[Plan|a\nb\nb]] end",
+      "targets": [
+        "Plan.md"
+      ]
+    },
+    {
+      "input": "- see [[Plan|a `c`\n> b\nb]] end",
+      "targets": []
+    },
+    {
+      "input": "- see ![[Plan|a\n>\nb]] end",
+      "targets": []
+    },
+    {
+      "input": "- see [[Plan|a\n# b\nb]] end",
+      "targets": []
+    },
+    {
+      "input": "- see [[Plan|a `c`\n#\nb]] end",
+      "targets": []
+    },
+    {
+      "input": "- see ![[Plan|a\n- b\nb]] end",
+      "targets": []
+    },
+    {
+      "input": "- see [[Plan|a\n-\nb]] end",
+      "targets": []
+    },
+    {
+      "input": "- see [[Plan|a `c`\n* b\nb]] end",
+      "targets": []
+    },
+    {
+      "input": "- see ![[Plan|a\n1. b\nb]] end",
+      "targets": []
+    },
+    {
+      "input": "- see [[Plan|a\n1) b\nb]] end",
+      "targets": []
+    },
+    {
+      "input": "- see [[Plan|a `c`\n---\nb]] end",
+      "targets": []
+    },
+    {
+      "input": "- see ![[Plan|a\n***\nb]] end",
+      "targets": []
+    },
+    {
+      "input": "- see [[Plan|a\n===\nb]] end",
+      "targets": []
+    },
+    {
+      "input": "- see [[Plan|a `c`\n<div>b\nb]] end",
+      "targets": []
+    },
+    {
+      "input": "- see ![[Plan|a\n```\nb]] end",
+      "targets": []
+    },
+    {
+      "input": "- see [[Plan|a\n~~~\nb]] end",
+      "targets": []
+    },
+    {
+      "input": "- see [[Plan|a `c`\n    b\nb]] end",
+      "targets": [
+        "Plan.md"
+      ]
+    },
+    {
+      "input": "- see ![[Plan|a\n   - b\nb]] end",
+      "targets": []
+    },
+    {
+      "input": "- see [[Plan|a\n`c` b\nb]] end",
+      "targets": [
+        "Plan.md"
+      ]
+    },
+    {
+      "input": "- see [[Plan|a `c`\n> # b\nb]] end",
+      "targets": []
+    },
+    {
+      "input": "- see ![[Plan|a\n> ```\nb]] end",
+      "targets": []
+    },
+    {
+      "input": "- see [[Plan|a\n| x |\n| --- |\nb]] end",
+      "targets": [
+        "Plan.md"
+      ]
+    },
+    {
+      "input": "- see [[Plan|a `c`\n%% c %%\nb]] end",
+      "targets": [
+        "Plan.md"
+      ]
+    },
+    {
+      "input": "- see ![[Plan|a\n\tb\nb]] end",
+      "targets": [
+        "Plan.md"
+      ]
+    },
+    {
+      "input": "- see [[Plan|a\n> b\n> b]] end",
+      "targets": []
+    },
+    {
+      "input": "- see [[Plan|a `c`\n> > b\n> b]] end",
+      "targets": []
+    },
+    {
+      "input": "- see ![[Plan|a\n> >\n> b]] end",
+      "targets": []
+    },
+    {
+      "input": "- see [[Plan|a\n> # b\n> b]] end",
+      "targets": []
+    },
+    {
+      "input": "- see [[Plan|a `c`\n> #\n> b]] end",
+      "targets": []
+    },
+    {
+      "input": "- see ![[Plan|a\n> - b\n> b]] end",
+      "targets": []
+    },
+    {
+      "input": "- see [[Plan|a\n> -\n> b]] end",
+      "targets": []
+    },
+    {
+      "input": "- see [[Plan|a `c`\n> * b\n> b]] end",
+      "targets": []
+    },
+    {
+      "input": "- see ![[Plan|a\n> 1. b\n> b]] end",
+      "targets": []
+    },
+    {
+      "input": "- see [[Plan|a\n> 1) b\n> b]] end",
+      "targets": []
+    },
+    {
+      "input": "- see [[Plan|a `c`\n> ---\n> b]] end",
+      "targets": []
+    },
+    {
+      "input": "- see ![[Plan|a\n> ***\n> b]] end",
+      "targets": []
+    },
+    {
+      "input": "- see [[Plan|a\n> ===\n> b]] end",
+      "targets": []
+    },
+    {
+      "input": "- see [[Plan|a `c`\n> <div>b\n> b]] end",
+      "targets": []
+    },
+    {
+      "input": "- see ![[Plan|a\n> ```\n> b]] end",
+      "targets": []
+    },
+    {
+      "input": "- see [[Plan|a\n> ~~~\n> b]] end",
+      "targets": []
+    },
+    {
+      "input": "- see [[Plan|a `c`\n>     b\n> b]] end",
+      "targets": []
+    },
+    {
+      "input": "- see ![[Plan|a\n>    - b\n> b]] end",
+      "targets": []
+    },
+    {
+      "input": "- see [[Plan|a\n> `c` b\n> b]] end",
+      "targets": []
+    },
+    {
+      "input": "- see [[Plan|a `c`\n> > # b\n> b]] end",
+      "targets": []
+    },
+    {
+      "input": "- see ![[Plan|a\n> > ```\n> b]] end",
+      "targets": []
+    },
+    {
+      "input": "- see [[Plan|a\n> | x |\n| --- |\n> b]] end",
+      "targets": []
+    },
+    {
+      "input": "- see [[Plan|a `c`\n> %% c %%\n> b]] end",
+      "targets": []
+    },
+    {
+      "input": "- see ![[Plan|a\n> \tb\n> b]] end",
+      "targets": []
+    },
+    {
+      "input": "> > see [[Plan|a\nb\nb]] end",
+      "targets": [
+        "Plan.md"
+      ]
+    },
+    {
+      "input": "> > see [[Plan|a `c`\n> b\nb]] end",
+      "targets": [
+        "Plan.md"
+      ]
+    },
+    {
+      "input": "> > see ![[Plan|a\n>\nb]] end",
+      "targets": []
+    },
+    {
+      "input": "> > see [[Plan|a\n# b\nb]] end",
+      "targets": []
+    },
+    {
+      "input": "> > see [[Plan|a `c`\n#\nb]] end",
+      "targets": []
+    },
+    {
+      "input": "> > see ![[Plan|a\n- b\nb]] end",
+      "targets": []
+    },
+    {
+      "input": "> > see [[Plan|a\n-\nb]] end",
+      "targets": []
+    },
+    {
+      "input": "> > see [[Plan|a `c`\n* b\nb]] end",
+      "targets": []
+    },
+    {
+      "input": "> > see ![[Plan|a\n1. b\nb]] end",
+      "targets": []
+    },
+    {
+      "input": "> > see [[Plan|a\n1) b\nb]] end",
+      "targets": []
+    },
+    {
+      "input": "> > see [[Plan|a `c`\n---\nb]] end",
+      "targets": []
+    },
+    {
+      "input": "> > see ![[Plan|a\n***\nb]] end",
+      "targets": []
+    },
+    {
+      "input": "> > see [[Plan|a\n===\nb]] end",
+      "targets": []
+    },
+    {
+      "input": "> > see [[Plan|a `c`\n<div>b\nb]] end",
+      "targets": []
+    },
+    {
+      "input": "> > see ![[Plan|a\n```\nb]] end",
+      "targets": []
+    },
+    {
+      "input": "> > see [[Plan|a\n~~~\nb]] end",
+      "targets": []
+    },
+    {
+      "input": "> > see [[Plan|a `c`\n    b\nb]] end",
+      "targets": [
+        "Plan.md"
+      ]
+    },
+    {
+      "input": "> > see ![[Plan|a\n   - b\nb]] end",
+      "targets": []
+    },
+    {
+      "input": "> > see [[Plan|a\n`c` b\nb]] end",
+      "targets": [
+        "Plan.md"
+      ]
+    },
+    {
+      "input": "> > see [[Plan|a `c`\n> # b\nb]] end",
+      "targets": []
+    },
+    {
+      "input": "> > see ![[Plan|a\n> ```\nb]] end",
+      "targets": []
+    },
+    {
+      "input": "> > see [[Plan|a\n| x |\n| --- |\nb]] end",
+      "targets": [
+        "Plan.md"
+      ]
+    },
+    {
+      "input": "> > see [[Plan|a `c`\n%% c %%\nb]] end",
+      "targets": [
+        "Plan.md"
+      ]
+    },
+    {
+      "input": "> > see ![[Plan|a\n\tb\nb]] end",
+      "targets": [
+        "Plan.md"
+      ]
+    },
+    {
+      "input": "> > see [[Plan|a\n> b\n> b]] end",
+      "targets": [
+        "Plan.md"
+      ]
+    },
+    {
+      "input": "> > see [[Plan|a `c`\n> > b\n> b]] end",
+      "targets": [
+        "Plan.md"
+      ]
+    },
+    {
+      "input": "> > see ![[Plan|a\n> >\n> b]] end",
+      "targets": []
+    },
+    {
+      "input": "> > see [[Plan|a\n> # b\n> b]] end",
+      "targets": []
+    },
+    {
+      "input": "> > see [[Plan|a `c`\n> #\n> b]] end",
+      "targets": []
+    },
+    {
+      "input": "> > see ![[Plan|a\n> - b\n> b]] end",
+      "targets": []
+    },
+    {
+      "input": "> > see [[Plan|a\n> -\n> b]] end",
+      "targets": []
+    },
+    {
+      "input": "> > see [[Plan|a `c`\n> * b\n> b]] end",
+      "targets": []
+    },
+    {
+      "input": "> > see ![[Plan|a\n> 1. b\n> b]] end",
+      "targets": []
+    },
+    {
+      "input": "> > see [[Plan|a\n> 1) b\n> b]] end",
+      "targets": []
+    },
+    {
+      "input": "> > see [[Plan|a `c`\n> ---\n> b]] end",
+      "targets": []
+    },
+    {
+      "input": "> > see ![[Plan|a\n> ***\n> b]] end",
+      "targets": []
+    },
+    {
+      "input": "> > see [[Plan|a\n> ===\n> b]] end",
+      "targets": []
+    },
+    {
+      "input": "> > see [[Plan|a `c`\n> <div>b\n> b]] end",
+      "targets": []
+    },
+    {
+      "input": "> > see ![[Plan|a\n> ```\n> b]] end",
+      "targets": []
+    },
+    {
+      "input": "> > see [[Plan|a\n> ~~~\n> b]] end",
+      "targets": []
+    },
+    {
+      "input": "> > see [[Plan|a `c`\n>     b\n> b]] end",
+      "targets": [
+        "Plan.md"
+      ]
+    },
+    {
+      "input": "> > see ![[Plan|a\n>    - b\n> b]] end",
+      "targets": []
+    },
+    {
+      "input": "> > see [[Plan|a\n> `c` b\n> b]] end",
+      "targets": [
+        "Plan.md"
+      ]
+    },
+    {
+      "input": "> > see [[Plan|a `c`\n> > # b\n> b]] end",
+      "targets": []
+    },
+    {
+      "input": "> > see ![[Plan|a\n> > ```\n> b]] end",
+      "targets": []
+    },
+    {
+      "input": "> > see [[Plan|a\n> | x |\n| --- |\n> b]] end",
+      "targets": [
+        "Plan.md"
+      ]
+    },
+    {
+      "input": "> > see [[Plan|a `c`\n> %% c %%\n> b]] end",
+      "targets": [
+        "Plan.md"
+      ]
+    },
+    {
+      "input": "> > see ![[Plan|a\n> \tb\n> b]] end",
+      "targets": [
+        "Plan.md"
+      ]
+    }
+  ],
+  "vault_paths": [
+    "a.md",
+    "Plan.md"
+  ]
+}

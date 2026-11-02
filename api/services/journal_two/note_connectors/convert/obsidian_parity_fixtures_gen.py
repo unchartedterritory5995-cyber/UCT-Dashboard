@@ -95,10 +95,12 @@ from ..link_keys import OBSIDIAN_NAME_KIND
 from ..providers.obsidian import (
     ATT_SCHEME,
     FILE_SCHEME,
+    _INTERNAL_MARKERS,
     ObsidianProvider,
     _basename,
     _build_basename_map,
     _q,
+    _visible_strings,
 )
 
 _HERE = pathlib.Path(__file__).resolve().parent
@@ -294,6 +296,60 @@ def generate(
     return written
 
 
+# ── Adversarial alias corpus (D2 fix round 5 (final), ruling B) ──────────────
+#
+# Every combination of the link's own line prefix (none, a quote, a list item, a nested
+# quote), the next line's quote continuation, and a next line that starts (or nearly
+# starts) a block: headings, list items, thematic and setext breaks, HTML, fences, code,
+# tables, Obsidian comments, indented code. Three link shapes rotate (a plain alias, an
+# alias holding a code span, and a note embed). The server's own conversion runs over each
+# one; the corpus pins which notes each links to. `obsidianParity.contract.test.js` runs
+# the CLIENT over the same inputs and asserts the two lanes agree on link/no-link and that
+# no internal key is ever visible text on either lane.
+ADVERSARIAL_OUT_PATH = FIXTURES_OUT_DIR.parent / "obsidian_adversarial" / "corpus.json"
+ADVERSARIAL_VAULT_PATHS = ["a.md", "Plan.md"]
+_ADV_STARTS = ("", "> ", "- ", "> > ")
+_ADV_CONTS = ("", "> ")
+_ADV_NEXT = ("b", "> b", ">", "# b", "#", "- b", "-", "* b", "1. b", "1) b", "---", "***",
+             "===", "<div>b", "```", "~~~", "    b", "   - b", "`c` b", "> # b", "> ```",
+             "| x |\n| --- |", "%% c %%", "\tb")
+_ADV_KINDS = ("[[Plan|a", "[[Plan|a `c`", "![[Plan|a")
+#: Internal strings that must never be VISIBLE text, and how a doc's visible strings are
+#: read: the provider's own (`_INTERNAL_MARKERS`, `_visible_strings`), the ones its safety
+#: net checks, never a second copy.
+INTERNAL_MARKERS = _INTERNAL_MARKERS
+visible_strings = _visible_strings
+
+
+def adversarial_corpus() -> list[str]:
+    """The corpus inputs, in a fixed order (192 notes)."""
+    bodies: list[str] = []
+    for start in _ADV_STARTS:
+        for cont in _ADV_CONTS:
+            for nxt in _ADV_NEXT:
+                kind = _ADV_KINDS[len(bodies) % len(_ADV_KINDS)]
+                bodies.append(f"{start}see {kind}\n{cont}{nxt}\n{cont}b]] end")
+    return bodies
+
+
+def generate_adversarial(out_path: pathlib.Path = ADVERSARIAL_OUT_PATH) -> pathlib.Path:
+    """Writes the corpus with the server's link targets per input."""
+    vault_id = "vault-1"
+    server_paths = [p for p in ADVERSARIAL_VAULT_PATHS if p.endswith(".md")]
+    basename_map = _build_basename_map(server_paths)
+    provider = ObsidianProvider(user_id="fixture-user", vault_id=vault_id)
+    cases = []
+    for body in adversarial_corpus():
+        result = provider._convert_row("a.md", body, server_paths, basename_map, refs=[])
+        links = semantic_summary(result["doc"], vault_id, [])["links"]
+        cases.append({"input": body, "targets": sorted({link["target"] for link in links})})
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(_render({"vault_paths": ADVERSARIAL_VAULT_PATHS, "cases": cases}),
+                        encoding="utf-8", newline="\n")
+    return out_path
+
+
 if __name__ == "__main__":
     for path in generate():
         print(f"wrote {path}")
+    print(f"wrote {generate_adversarial()}")

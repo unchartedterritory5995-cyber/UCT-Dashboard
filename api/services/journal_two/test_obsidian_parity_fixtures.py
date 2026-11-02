@@ -131,3 +131,35 @@ def test_two_files_with_the_same_bytes_each_map_to_their_own_path():
     assert gen._normalize_image_src(f"import-ref://obsidian-att:{_SHA}/shot.png", refs) == "a/shot.png"
     assert (gen._normalize_image_src(f"import-ref://obsidian-att:{_SHA}/shot%20copy.png", refs)
             == "b/shot copy.png")
+
+
+# ── D2 fix round 5 (final), ruling B: the adversarial alias corpus ───────────
+
+def test_the_adversarial_corpus_is_byte_identical_to_its_regeneration(tmp_path):
+    """The committed corpus (inputs and the server's link targets) is what the generator
+    writes now; the JS rail runs the client over the same inputs."""
+    regenerated = gen.generate_adversarial(tmp_path / "corpus.json")
+    norm = lambda b: b.replace(b"\r\n", b"\n")
+    assert norm(gen.ADVERSARIAL_OUT_PATH.read_bytes()) == norm(regenerated.read_bytes()), (
+        "obsidian_adversarial/corpus.json is STALE: regenerate with `python -m api.services."
+        "journal_two.note_connectors.convert.obsidian_parity_fixtures_gen`")
+    assert len(gen.adversarial_corpus()) >= 190
+
+
+def test_no_internal_marker_is_ever_visible_text_on_the_adversarial_corpus():
+    """Ruling B: whatever shape the alias takes, a member never reads an internal key or
+    scheme. On both attachment branches (a ref list, and an old plugin's none)."""
+    from api.services.journal_two.note_connectors.providers.obsidian import (
+        ObsidianProvider, _build_basename_map,
+    )
+    paths = ["a.md", "Plan.md"]
+    provider = ObsidianProvider(user_id="u", vault_id="vault-1")
+    leaks = []
+    for body in gen.adversarial_corpus():
+        for refs in ([], None):
+            doc = provider._convert_row("a.md", body, paths, _build_basename_map(paths),
+                                        refs=refs)["doc"]
+            seen = " ".join(gen.visible_strings(doc))
+            if any(marker in seen for marker in gen.INTERNAL_MARKERS):
+                leaks.append((body, refs, seen))
+    assert leaks == []

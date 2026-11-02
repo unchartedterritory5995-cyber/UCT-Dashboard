@@ -312,3 +312,54 @@ describe('Obsidian client<->server pre-pass parity', () => {
     })
   })
 })
+
+// ── D2 fix round 5 (final), ruling B: the adversarial alias corpus ───────────
+// `obsidian_parity_fixtures_gen.py::generate_adversarial` writes ~200 alias shapes (block
+// starts, quote prefixes, newlines, fences, code spans) with the notes the SERVER links
+// each to. The client must link the same notes, and neither lane may ever show an internal
+// key or scheme as text (the client's held-markup placeholders included).
+const ADVERSARIAL = JSON.parse(fs.readFileSync(
+  path.resolve(__dirname, '__fixtures__/obsidian_adversarial/corpus.json'), 'utf8'))
+// `obsidian_parity_fixtures_gen.py::INTERNAL_MARKERS`, plus the client's own placeholders.
+const INTERNAL_MARKERS = ['import-link://', 'import-ref://', 'obsidian-att:', 'obsidian-file:',
+  'obsidian-notice:']
+// The held-markup placeholder code points (U+FDD0, U+E001, U+E010 to U+E019), built from
+// numbers so this file holds no raw noncharacter or private-use code point.
+const CLIENT_PLACEHOLDER_RE = new RegExp(`[${String.fromCharCode(0xfdd0, 0xe001, 0xe010)}-${String.fromCharCode(0xe019)}]`)
+
+// Mirrors `providers/obsidian.py::_visible_strings`.
+function visibleStrings(node, out = []) {
+  if (node && typeof node === 'object') {
+    if (node.type === 'text' && typeof node.text === 'string') out.push(node.text)
+    for (const [k, v] of Object.entries(node.attrs || {})) {
+      if (['label', 'name', 'alt', 'title'].includes(k) && typeof v === 'string') out.push(v)
+    }
+    for (const child of node.content || []) visibleStrings(child, out)
+  }
+  return out
+}
+
+describe('Obsidian adversarial alias corpus (ruling B)', () => {
+  it('holds the committed corpus', () => {
+    expect(ADVERSARIAL.cases.length).toBeGreaterThanOrEqual(190)
+  })
+
+  it('the client links the same notes as the server and never shows an internal key', async () => {
+    const disagree = []
+    const leaks = []
+    for (const { input, targets } of ADVERSARIAL.cases) {
+      const vfiles = ADVERSARIAL.vault_paths.map((p) => vf(p, p === 'a.md' ? input : ''))
+      const { docs } = await obsidianAdapter.parse(vfiles)
+      const doc = docs.find((d) => d.importKey === 'obsidian:a.md')
+      const { bodyJson } = htmlToNote(doc.html)
+      const got = [...new Set(semanticSummary(bodyJson).links.map((l) => l.target))].sort()
+      if (JSON.stringify(got) !== JSON.stringify(targets)) disagree.push({ input, got, targets })
+      const seen = visibleStrings(bodyJson).join(' ')
+      if (INTERNAL_MARKERS.some((m) => seen.includes(m)) || CLIENT_PLACEHOLDER_RE.test(seen)) {
+        leaks.push({ input, seen })
+      }
+    }
+    expect(leaks).toEqual([])
+    expect(disagree).toEqual([])
+  })
+})

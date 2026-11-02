@@ -978,6 +978,28 @@ describe('obsidian adapter — D2 fix round 5: a wikilink never spans a blank li
     })
   }
 
+  // D2 fix round 5 (final), ruling B: the safety net. Shapes no stop names (an empty
+  // heading or list item, a table) still cut the held link; it no longer comes back as ONE
+  // link with its whole text, so that match is left as written and every other link in
+  // the note stays, as on the server.
+  for (const shape of ['#', '-', '| x |\n| --- |']) {
+    it(`leaves a link cut by ${JSON.stringify(shape)} as written, and keeps the others`, async () => {
+      const body = `see [[Plan]] ok\n\nsee [[Plan|a\n${shape}\nb]] end\n\nand [[Plan|c\nd]] too`
+      const { d, bodyJson, text } = await parseOne(body)
+      const runs = []
+      const walk = (n) => {
+        if (n.marks?.some((m) => m.type === 'link')) runs.push(n.text)
+        ;(n.content || []).forEach(walk)
+      }
+      walk(bodyJson)
+      expect(runs.map((t) => t.replace(/\s+/g, ' '))).toEqual(['Plan', 'c d'])
+      expect(d.links).toHaveLength(2)
+      expect(text).toContain('[[Plan|a')
+      expect(text).toContain('b]]')
+      expect(d.html).not.toContain('data-uct-obsidian-net')
+    })
+  }
+
   it('a single newline inside an alias is still the one link', async () => {
     const { d, marks } = await parseOne('see [[Plan|first\nsecond]] end')
     expect(d.links.map((l) => l.targetKey)).toEqual(['obsidian:V/Plan.md'])
