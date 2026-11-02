@@ -10,6 +10,7 @@ import { ImageFigure, ImageCaption } from './imageFigureNode'
 import { BlockHandle } from './blockHandle'
 import { Columns, Column, ColumnsGuard } from './columnsNode'
 import { LinkPreview, WebEmbed } from './webLinkNodes'
+import { ImportNotice } from './importNoticeNode'
 import { LinkPasteOffer } from './linkPasteOffer'
 import { AlertPhraseOffer } from './alertPhraseOffer'
 import { LinkClickOpen, isPlainTextPendingLink } from './linkClickOpen'
@@ -261,6 +262,10 @@ export function buildExtensions({ placeholder = 'Start writing… or type / for 
     // (webLinkNodes.js). Block atoms with no text: rows in the citation
     // tables' _LEAF_TYPES; schema 2. Same "never remove" rule as WidgetEmbed.
     LinkPreview, WebEmbed,
+    // Connector fidelity (2026-11): the marker an import leaves where something
+    // could not come over ("Couldn't copy chart.png", importNoticeNode.js). A block
+    // atom with no text: _LEAF_TYPES only; schema 5. Same "never remove" rule.
+    ImportNotice,
     // Wave 6: @today / @tomorrow / @next monday / @2026-10-02 -> an inline date
     // (dateMentionNode.js). ⭐ Lane F's tasks service reads it as a task's due
     // date: the name and the `date` attr are a contract. Citation leafText =

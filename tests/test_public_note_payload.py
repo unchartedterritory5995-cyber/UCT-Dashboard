@@ -248,6 +248,10 @@ FIXTURES: dict[str, Callable[[], dict]] = {
                           {"id": "i2", "kind": "chart", "x": 0, "y": 0, "w": 400, "h": 260, "symbol": "NVDA",
                            "tf": "D", "mode": "live", "asOf": None}],
         "edges": [], "levels": [{"id": "l1", "role": "entry", "label": "Entry", "price": 182.5, "chartId": "i2"}]}}}),
+    # Connector fidelity (2026-11): an import's "couldn't copy" marker, naming a file and its source.
+    "importNotice": lambda: doc({"type": "importNotice", "attrs": {
+        "reason": "fetch_failed", "name": "chart.png", "sourceUrl": "https://example.com/chart.png",
+        "ref": "r1", "attempts": 3}}),
     # marks
     "bold": lambda: doc(p(t("b", {"type": "bold"}))),
     "code": lambda: doc(p(t("c", {"type": "code"}))),
@@ -292,6 +296,7 @@ EXPECTED.update({
     "financialFact": ("neutral", "neutral"),  # the fixture is a Massive price fact
     "documentExcerpt": ("neutral", "neutral"),
     "tradeCanvas": ("neutral", "neutral"),  # wave 11 11D: a plan mixes member text with Massive charts
+    "importNotice": ("gone", "gone"),       # connector fidelity: an import's marker never leaves
 })
 
 #: Wave 12 lane 12A -- what each type becomes in the THIRD mode, `gallery` (a member template

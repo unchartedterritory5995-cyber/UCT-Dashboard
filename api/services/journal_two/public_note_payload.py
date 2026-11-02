@@ -438,6 +438,10 @@ NODE_POLICY: dict[str, dict[str, str]] = {
     "financialFact": {"share": "market-data", "publish": "market-data", "gallery": "neutral"},
     "documentExcerpt": {"share": "market-data", "publish": "market-data", "gallery": "neutral"},
     "tradeCanvas": {"share": "market-data", "publish": "market-data", "gallery": "neutral"},  # wave 11 11D: a trade plan
+    # Connector fidelity (2026-11): an import's "couldn't copy" marker. It names a file of the
+    # member's and the address it came from, and says nothing a reader needs: it never leaves
+    # the member's notebook (example mode inherits gallery's drop).
+    "importNotice": {"share": "drop", "publish": "drop", "gallery": "drop"},
     # ── marks ──
     "bold": {"share": "mark", "publish": "mark", "gallery": "mark"},
     "code": {"share": "mark", "publish": "mark", "gallery": "mark"},
