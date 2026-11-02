@@ -163,7 +163,9 @@ def lowercase_checks(token: str, own: dict, idx) -> list:
         if not is_own and _consistent(r, own):
             continue
         for w in _WORD_RE.findall(name):                                            # L3
-            if _ticker_ref(w, name, own_t):
+            # a ticker reference marks ANOTHER row as the same family ("2x Long NVDA"); on the token's OWN row the
+            # upper-case word is still a word: "NICE Ltd" makes "nice" word-like (agent-qa F-24)
+            if not is_own and _ticker_ref(w, name, own_t):
                 continue
             wl = w.lower()
             # a whole word anywhere; inside its OWN name, also a fragment of a longer word ("coin" in Coinbase, "link"
