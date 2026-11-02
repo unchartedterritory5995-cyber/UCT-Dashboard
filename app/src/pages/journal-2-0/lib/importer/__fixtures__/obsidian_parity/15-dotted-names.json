@@ -4,6 +4,7 @@
   "self_path": "Notes/Src.md",
   "server": {
     "callouts": [],
+    "files": [],
     "highlights": [],
     "images": [],
     "links": [
@@ -48,10 +49,6 @@
         "text": "Setup"
       },
       {
-        "target": "img/chart.png",
-        "text": "chart"
-      },
-      {
         "target": "People/Dr.Smith.md",
         "text": "Dr.Smith"
       }
@@ -68,6 +65,10 @@
       {
         "key": "name:obsidian:vault-1/archive.tar|notes",
         "text": "archive.tar"
+      },
+      {
+        "key": "name:obsidian:vault-1/chart|notes",
+        "text": "chart"
       },
       {
         "key": "name:obsidian:vault-1/missing.person|notes",

@@ -1,0 +1,21 @@
+{
+  "vault_id": "vault-1",
+  "self_path": "a.md",
+  "vault_paths": [
+    "a.md",
+    "attachments/my chart #1 (v2).png",
+    "attachments/Ünïcode.png",
+    "attachments/q3 report.pdf"
+  ],
+  "attachments": [
+    {"original": "![[my chart #1 (v2).png]]", "embed": true,
+     "path": "attachments/my chart #1 (v2).png", "size": 2048,
+     "sha256": "469b244a740e75fdd003e562339cceff6e2a5a691eff0ce03c9e1204379161ef", "status": "ok"},
+    {"original": "![](attachments/Ünïcode.png)", "embed": true,
+     "path": "attachments/Ünïcode.png", "size": 4096,
+     "sha256": "00b24be80c8dd6e9d76ed28922c27452555f9f803875c55583d04e2311b448ac", "status": "ok"},
+    {"original": "[the report](attachments/q3%20report.pdf)", "embed": false,
+     "path": "attachments/q3 report.pdf", "size": 8192,
+     "sha256": "845bcfa0f93302a84be01c8e8ef78aff9e5c65ecb5bf1bcc00b261dc07e11e59", "status": "ok"}
+  ]
+}

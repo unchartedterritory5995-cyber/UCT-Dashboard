@@ -21,10 +21,16 @@ the guard is the fix.
 
   - Python-owned, committed raw inputs under `obsidian_fixtures_in/*.md`,
     each with a `<stem>.vault.json` sidecar: `{vault_id, self_path,
-    vault_paths}` — the vault path manifest the wikilink/embed resolver
-    needs (Obsidian resolution requires knowing what OTHER files exist in
-    the vault; see `providers/obsidian.py`'s `_known_paths`/
-    `_build_basename_map`).
+    vault_paths, attachments?}`. `vault_paths` is the REAL vault listing,
+    markdown AND binaries: that is what the CLIENT lane sees when a member
+    drags the folder in. The SERVER lane is given only the `.md` entries as
+    its staging paths, because production staging never holds a binary path
+    (the plugin stages notes; it sends files as the note's attachment refs),
+    plus `attachments` as the note's refs (Plan C Task 4). A sidecar with no
+    `attachments` is a note that references no file, as a >=0.2.0 plugin
+    sends it: an empty list. ⚰️ Until Plan C Task 4 the server lane was
+    handed the binaries as staging paths too, which production never does,
+    so the rail compared an image path production could not produce.
   - This module runs the REAL server-side conversion
     (`ObsidianProvider._convert_row` -> `providers.obsidian.convert_obsidian_markdown`:
     the pre-pass, the REAL shared converter `convert.mddoc.md_to_tiptap` with the
@@ -86,7 +92,12 @@ from typing import Any
 from api.services.journal_two.notes import extract_plain_text
 
 from ..link_keys import OBSIDIAN_NAME_KIND
-from ..providers.obsidian import ObsidianProvider, _build_basename_map
+from ..providers.obsidian import (
+    ATT_SCHEME,
+    FILE_SCHEME,
+    ObsidianProvider,
+    _build_basename_map,
+)
 
 _HERE = pathlib.Path(__file__).resolve().parent
 FIXTURES_IN_DIR = _HERE / "obsidian_fixtures_in"
@@ -122,17 +133,32 @@ def _normalize_link_href(href: str, vault_id: str) -> str:
     return href[len(prefix):] if href.startswith(prefix) else href
 
 
-def _normalize_image_src(src: str) -> str:
+def _normalize_image_src(src: str, refs: list[dict] | None = None) -> str:
     """Mirrors `obsidianParity.contract.test.js::normalizeImageSrc`. Same
-    byte-for-byte rule as `_normalize_link_href` above."""
+    byte-for-byte rule as `_normalize_link_href` above.
+
+    Plan C Task 4: an attachment the plugin sent is stored as
+    `obsidian-att:<sha256>/<quoted name>` (or `obsidian-file:`), this lane's
+    OWN deterministic encoding of a staged blob. It maps to the `path` of the
+    sidecar ref with that sha, the vault path the client lane names it by.
+    That strips our own encoding and nothing else: no percent-decoding of
+    anything, and an unknown sha stays as written so the rail shows it."""
     prefix = "import-ref://"
-    return src[len(prefix):] if src.startswith(prefix) else src
+    bare = src[len(prefix):] if src.startswith(prefix) else src
+    for scheme in (ATT_SCHEME, FILE_SCHEME):
+        if bare.startswith(scheme):
+            sha = bare[len(scheme):].split("/", 1)[0]
+            for ref in refs or ():
+                if ref.get("sha256") == sha and isinstance(ref.get("path"), str):
+                    return ref["path"]
+    return bare
 
 
 _PENDING_PREFIX = f"import-link://{OBSIDIAN_NAME_KIND}"
 
 
-def _walk_semantic(node: Any, vault_id: str, out: dict[str, list]) -> None:
+def _walk_semantic(node: Any, vault_id: str, out: dict[str, list],
+                   refs: list[dict] | None = None) -> None:
     """Recursive doc walk collecting the three cross-lane-comparable facts a
     wikilink/embed/task-list pre-pass can get wrong: what a link resolved
     to, what an embed resolved to, and which task items are checked. Mirrors
@@ -175,17 +201,22 @@ def _walk_semantic(node: Any, vault_id: str, out: dict[str, list]) -> None:
                 "color": (hl_mark.get("attrs") or {}).get("color"),
             })
     elif ntype == "image":
-        out["images"].append(_normalize_image_src(attrs.get("src", "")))
+        out["images"].append(_normalize_image_src(attrs.get("src", ""), refs))
+    elif ntype == "attachmentChip":
+        # Plan C Task 4: a non-image file is a chip in both lanes. Its NAME, in
+        # document order -- what the member reads on the chip.
+        out["files"].append(attrs.get("name"))
     elif ntype == "callout":
         # Plan A Task 13: an Obsidian callout is the editor's callout node, by variant.
         out["callouts"].append(attrs.get("variant"))
     elif ntype == "taskItem":
         out["task_checked"].append(bool(attrs.get("checked")))
     for child in node.get("content") or []:
-        _walk_semantic(child, vault_id, out)
+        _walk_semantic(child, vault_id, out, refs)
 
 
-def semantic_summary(doc: dict[str, Any], vault_id: str) -> dict[str, Any]:
+def semantic_summary(doc: dict[str, Any], vault_id: str,
+                     refs: list[dict] | None = None) -> dict[str, Any]:
     """The cross-lane comparison unit this whole rail is built around.
     `text` reuses `notes.extract_plain_text` — the SAME function that is
     already pinned in lockstep with the client's `lib/tiptap.js::
@@ -193,8 +224,8 @@ def semantic_summary(doc: dict[str, Any], vault_id: str) -> dict[str, Any]:
     hand-rolled text walker. Mirrors `obsidianParity.contract.test.js::
     semanticSummary`."""
     out: dict[str, list] = {"links": [], "images": [], "task_checked": [], "highlights": [],
-                            "pending": [], "callouts": []}
-    _walk_semantic(doc, vault_id, out)
+                            "pending": [], "callouts": [], "files": []}
+    _walk_semantic(doc, vault_id, out, refs)
     return {"text": extract_plain_text(doc), **out}
 
 
@@ -219,9 +250,12 @@ def generate(
         vault_id = manifest["vault_id"]
         self_path = manifest["self_path"]
         vault_paths = manifest["vault_paths"]
+        attachments = manifest.get("attachments", [])
         body_md = md_path.read_text(encoding="utf-8")
 
-        basename_map = _build_basename_map(vault_paths)
+        # Production truth: staging holds notes only; files arrive as refs.
+        server_paths = [p for p in vault_paths if p.endswith(".md")]
+        basename_map = _build_basename_map(server_paths)
         # A throwaway provider instance purely to reuse the REAL
         # `import_key` formatting (no DB access — `import_key` is pure
         # string formatting; see `providers/base.py::NoteProvider.import_key`)
@@ -230,8 +264,9 @@ def generate(
         provider = ObsidianProvider(user_id="fixture-user", vault_id=vault_id)
         # The provider's OWN conversion (`_convert_row`: pre-pass, the shared converter
         # with the vault's relative-link resolver, callouts) -- the pipeline that syncs.
-        result = provider._convert_row(self_path, body_md, vault_paths, basename_map,
-                                       vault_label=manifest.get("vault_label"))
+        result = provider._convert_row(self_path, body_md, server_paths, basename_map,
+                                       vault_label=manifest.get("vault_label"),
+                                       refs=attachments)
 
         fixture = {
             "id": md_path.stem,
@@ -239,7 +274,7 @@ def generate(
             "self_path": self_path,
             "vault_id": vault_id,
             "vault_paths": vault_paths,
-            "server": semantic_summary(result["doc"], vault_id),
+            "server": semantic_summary(result["doc"], vault_id, attachments),
         }
         out_path = out_dir / f"{md_path.stem}.json"
         out_path.write_text(_render(fixture), encoding="utf-8", newline="\n")

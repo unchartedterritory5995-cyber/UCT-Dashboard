@@ -1,0 +1,27 @@
+{
+  "id": "18-attachment-names",
+  "input_markdown": "# Attachment names\n\n![[my chart #1 (v2).png]]\n\n![](attachments/Ünïcode.png)\n\nRead [the report](attachments/q3%20report.pdf) before the open.\n",
+  "self_path": "a.md",
+  "server": {
+    "callouts": [],
+    "files": [
+      "q3 report.pdf"
+    ],
+    "highlights": [],
+    "images": [
+      "attachments/my chart #1 (v2).png",
+      "attachments/Ünïcode.png"
+    ],
+    "links": [],
+    "pending": [],
+    "task_checked": [],
+    "text": "Attachment names Read  [file: q3 report.pdf]  before the open."
+  },
+  "vault_id": "vault-1",
+  "vault_paths": [
+    "a.md",
+    "attachments/my chart #1 (v2).png",
+    "attachments/Ünïcode.png",
+    "attachments/q3 report.pdf"
+  ]
+}
