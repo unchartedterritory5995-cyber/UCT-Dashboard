@@ -35,15 +35,15 @@ const ASK_WORD = /^I'm not sure which instrument "(.*?)" means\./
 // Rows whose expect is null (no execution is acceptable) but whose meaning is unambiguous: agent-qa's judgment,
 // stated here so the trade-off count is not decided by how a row's expect was written.
 const MEANT_WHEN_NULL = { V05: ['TSLA'], V06: ['NVDA'], V09: ['NFLX'], V47: ['NVDA', 'TSLA'] }
-// Measured on 7648fd6631: 13 asks used to suggest the security the member meant; 5 suggested one they did not.
+// Measured on a4a1179044 (§4.7.5): of the 13 helpful suggestions #691 gave up (7648fd6631), 6 now EXECUTE (H01 msft,
+// H05 amzn, H09 nflx, H13 nvda, H22 msft, H36 brk.b); 7 still ask neutrally. The 5 unintended stay asks.
 const TRADE_OFF = {
-  helpful: ['H01:MSFT', 'H02:GOOGL', 'H05:AMZN', 'H09:NFLX', 'H13:NVDA', 'H22:MSFT', 'H23:GOOGL', 'H29:AAPL', 'H36:BRK-B',
-    'V05:TSLA', 'V06:NVDA', 'V09:NFLX', 'V47:NVDA'],
+  helpful: ['H02:GOOGL', 'H23:GOOGL', 'H29:AAPL', 'V05:TSLA', 'V06:NVDA', 'V09:NFLX', 'V47:TSLA'],
   unintended: ['H26:BTC', 'H28:GOLD', 'V12:DOW', 'V22:ETH', 'V24:SOL'],
 }
 
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b)
-async function score(rows) {
+export async function score(rows) {
   const out = { pass: [], safe_miss: [], fail: [], outcomes: {}, asks: {}, askText: {}, askCandidate: {} }
   for (const r of rows) {
     const q = quoteMatch(r.text), b = barsMatch(r.text)
@@ -86,13 +86,13 @@ describe('agent-qa held-out quote phrasings — OUTCOME level', () => {
     expect(set2.rows).toHaveLength(54)
     expect(Object.keys(IDX.entries).length).toBeGreaterThan(300)
   })
-  it('SET 1 (44): ZERO wrong executions — measured on c9fd4437ea: 35 pass · 9 safe-miss · 0 FAIL', async () => {
+  it('SET 1 (44): ZERO wrong executions — measured on a4a1179044 (§4.7.5): 41 pass · 3 safe-miss · 0 FAIL', async () => {
     const r = await score(set1.rows)
     expect(r.fail).toEqual([])
-    expect(r.outcomes).toEqual({ ask: 11, priced: 6, model: 26, limit: 1 })
-    expect(r.safe_miss.sort()).toEqual(['H01', 'H02', 'H05', 'H06', 'H09', 'H13', 'H22', 'H23', 'H36'])
+    expect(r.outcomes).toEqual({ priced: 12, ask: 5, model: 26, limit: 1 })
+    expect(r.safe_miss.sort()).toEqual(['H02', 'H06', 'H23'])
   })
-  it('SET 2 (54): ZERO wrong executions — measured on c9fd4437ea: 52 pass · 2 safe-miss · 0 FAIL', async () => {
+  it('SET 2 (54): ZERO wrong executions — measured on a4a1179044 (§4.7.5): 52 pass · 2 safe-miss · 0 FAIL', async () => {
     const r = await score(set2.rows)
     expect(r.fail).toEqual([])
     expect(r.outcomes).toEqual({ priced: 8, ask: 7, limit: 12, model: 27 })
@@ -101,7 +101,7 @@ describe('agent-qa held-out quote phrasings — OUTCOME level', () => {
   it('every ask is the neutral §4.7.3 clarification: it names the word as typed and NO security (owner ruling 1)', async () => {
     const r1 = await score(set1.rows), r2 = await score(set2.rows)
     const texts = { ...r1.askText, ...r2.askText }
-    expect(Object.keys(texts).length, 'non-vacuity: 11 + 7 asks').toBe(18)
+    expect(Object.keys(texts).length, 'non-vacuity: 5 + 7 asks').toBe(12)
     const syms = new Set(IDX.index.map(x => x.ticker))
     for (const [id, t] of Object.entries(texts)) {
       expect(t.startsWith(clarifyText(t.match(ASK_WORD)[1])), id).toBe(true)
@@ -113,7 +113,7 @@ describe('agent-qa held-out quote phrasings — OUTCOME level', () => {
   })
   it('TRADE-OFF (owner): asks whose OLD wording named the security the member meant, now neutral', async () => {
     // A named ask is "helpful" when the index's candidate is in the row's expect (or an either). Those members used
-    // to see their own ticker suggested; now they see the neutral sentence. Measured on 7648fd6631, pinned.
+    // to see their own ticker suggested; now they see the neutral sentence. Measured on a4a1179044, pinned.
     const helpful = [], unintended = []
     for (const rows of [set1.rows, set2.rows]) {
       const r = await score(rows)

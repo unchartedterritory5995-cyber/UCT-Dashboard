@@ -38,6 +38,39 @@ Only agent-qa edits this file. Update it in every PR.
   `stock.quote`.
 - Suites on #691 + pins, under the lock: Agent pytest 1733 passed; vitest 138 files, 2494 passed.
 
+## PR #695 (`a4a1179044`, MD-1 §4.7.5 lowercase tickers): **NOT YET — one blocking finding (F-24), fix measured**, 2026-11-02
+- **Scored on the REAL classifier and the REAL `ticker_search_index.search`.** My generator previously used a toy
+  search; it is now seeded with QA's rows, so L3/L4/L5 see production's ranking. The fixtures were regenerated and the
+  pins refreshed to measured values.
+  - Set 1: 41 pass / 3 safe-miss / **0 FAIL**. Set 2: 52 / 2 / **0 FAIL**.
+  - Set 3: **0 FAIL**, 5 must-miss (spy, qqq, googl and their two compounds). Lowercase crypto cashtags now ask (this
+    settles the `$sol` question).
+  - Of the 13 helpful suggestions #691 gave up, 6 now EXECUTE (msft, amzn, nflx, nvda, msft, brk.b).
+  - Set 3 rows A10 and C12 were used by agent-md to tune the parser, so set 3 is no longer blind for them.
+- **FRESH set 4 (22 rows, unseen by agent-md), scored end to end over PRODUCTION rows.** It uses two read-only probes
+  of the public `/api/ticker-search`, agent-lead's 34 words + agent-qa's 132, as one 3,453-row index.
+  - All 5 must-execute rows execute.
+  - **3 FAIL:** "nice, nvda price" → NICE+NVDA; "ok nice, aapl price" → NICE+AAPL; "nice, now whats nvda at" → NICE+NVDA.
+- **F-24 (owner: agent-md) — BLOCKING.** `nice` is confirmed as NICE Ltd. L3 treats an upper-case word equal to the
+  ticker inside a mixed-case name as a ticker REFERENCE, and that exemption applies to the token's OWN row ("NICE Ltd").
+  The parser makes "nice," (a chat interjection) a list item.
+  - **Fix measured:** skip the reference only on OTHER rows (`if not is_own and _ticker_ref(...)`). Then `nice` asks;
+    the cost is `asml` and `mara` becoming safe asks.
+  - Optional defence in depth: an interjection before a comma should not become a list item.
+  - Rails: strict xfail `test_BAR_no_english_interjection_resolves`, plus `it.fails` on set 4. Both go red once the fix
+    lands, so the pins move with it.
+- **Each check bites on PRODUCTION rows.** Dropping one check alone flips:
+  - L2: fizz, grow (+avgo, fang, googl);
+  - L3: gold, dow, now, open, real, safe, love, well, jack, plug, rare, wing, … (30);
+  - L4: bch (Bitcoin Cash), ltc (Litecoin), cl (crude), si (silver), hd, gm, ba, ups, tsm, ibm;
+  - L1 never decides alone (every probed fund also shares a root); with L4 dropped it is the backstop for btc, gld, xrp;
+  - L5: only a scan below its limit prices.
+- With all production rows at once, agent-md's 13 priced and 21 ask tokens hold. No other interjection resolves:
+  38 tried, including wow, cool, well, good, sure, lit and man.
+- **Flags off:** the 21-check allowlist probe passes 21/21 on this tree; #695 changes only the resolve classifier and the
+  browser parser, both behind the data flags; the md2Panel dark shapes pass.
+- **Suites (lock):** Agent pytest 1810 passed + 1 xfailed; vitest 140 files green (QA 13 files, 184 passed).
+
 ## In flight
 - **PR 1 — program fixtures** (`agent/qa/fixtures-v1`): fake-provider DataEnvelopes for all 12 MD-1 v1 kinds and
   the 3 SC-1 kinds; cases live · delayed · periodic · historical · stale · market-closed · unavailable · refused ·
