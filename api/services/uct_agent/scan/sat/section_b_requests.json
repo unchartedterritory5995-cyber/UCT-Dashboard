@@ -2863,7 +2863,7 @@
     "name": "stock.compare",
     "domain": "stock",
     "target": "market",
-    "summary": "Compare the fundamentals of TWO stocks side by side from UCT's Research data (market cap, P/E, revenue, growth, margins, beta, next earnings, UCT composite rating). Use this (disposition apply, research null) for \"compare NVDA and AMD\".",
+    "summary": "Compare the fundamentals of TWO stocks side by side from UCT's Research data (market cap, P/E, revenue, growth, margins, beta, next earnings). Use this (disposition apply, research null) for \"compare NVDA and AMD\".",
     "hints": "target = the ref of the stockData entry; symbols = exactly two tickers, uppercase. For three or more, clarify which two.",
     "args": {
      "type": "object",
@@ -7398,7 +7398,7 @@
     "name": "stock.compare",
     "domain": "stock",
     "target": "market",
-    "summary": "Compare the fundamentals of TWO stocks side by side from UCT's Research data (market cap, P/E, revenue, growth, margins, beta, next earnings, UCT composite rating). Use this (disposition apply, research null) for \"compare NVDA and AMD\".",
+    "summary": "Compare the fundamentals of TWO stocks side by side from UCT's Research data (market cap, P/E, revenue, growth, margins, beta, next earnings). Use this (disposition apply, research null) for \"compare NVDA and AMD\".",
     "hints": "target = the ref of the stockData entry; symbols = exactly two tickers, uppercase. For three or more, clarify which two.",
     "args": {
      "type": "object",

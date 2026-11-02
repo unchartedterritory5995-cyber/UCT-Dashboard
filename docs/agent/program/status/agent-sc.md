@@ -21,7 +21,7 @@ Only agent-sc edits this file. Update it in every PR.
   Raw records go to `raw.jsonl` before the summary. Requests are captured by `agentScanSat1Requests.test.jsx` (no model).
   Dry run on c3ba71c343: 31 questions to the planner, 14 may reroute, exact worst case $3.0147, estimate ≈ $0.41.
   **Still blocked for `--run`** until agent-lead relays the owner's credential approval.
-- **SAT-1 §B recapture** (branch `agent/sc/sat1-recapture`, with #626 routing + #628 screenRelevant): dry run now 31 to the planner, **0** may reroute (was 14), every request has the screener group and the labelled catalog (4 were keys-only); exact worst case **$2.1907** (was $3.0147), estimate ≈ $0.42 (was $0.41: the first calls carry the screener group and labels).
+- **SAT-1 §B recapture** (branch `agent/sc/sat1-recapture`, with #626 routing, #628 screenRelevant, #631 F-12, #630 QA flips): dry run now 31 to the planner, **0** may reroute (was 14), every request has the screener group and the labelled catalog (4 were keys-only); exact worst case **$2.1903** (was $3.0147; $2.1907 before #631 shortened stock.compare's summary), estimate ≈ $0.42 (was $0.41: the first calls carry the screener group and labels).
 - **screenRelevant widened** (branch `agent/sc/screen-relevant`, small PR, agent-lead asked): d04, d14, d19 and d21 were sent the keys-only catalog; every corpus question now gets labels and units. Plain chat still gets keys only (control). Recapture of section_b_requests.json waits for this AND agent-lead's routing fix.
 - **B: SC-2 draft** (NL scanning: parsed-intent layer + ≥ 60-phrasing corpus with follow-up chains). Next.
 - **C: model-call reduction** (a deterministic slot parser behind the flags, measured on both corpora). After B.
