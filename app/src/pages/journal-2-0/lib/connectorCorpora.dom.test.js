@@ -12,7 +12,7 @@
  * Two kinds of check:
  *   1. corpus-wide, per note: every `<a href>` either has a door (`openableLinkHref`,
  *      `internalNoteIdFromHref` or `pendingLinkFallbackHref`), is a plain-text placeholder
- *      (`data-link-plain`), is an attachment download, or is in the one named inert set;
+ *      (`data-link-plain`), or is an attachment download (Task 15: no inert exception);
  *      every stored link survives the editor; every `<img src>` is an attachment URL; no
  *      `import-ref://` survives anywhere; every `importNotice` renders its sentence;
  *   2. ONE named assertion per corpus construct (the table at the bottom).
@@ -31,9 +31,9 @@ if (!Range.prototype.getClientRects) Range.prototype.getClientRects = () => []
 if (!Range.prototype.getBoundingClientRect) Range.prototype.getBoundingClientRect = () => ({ top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0 })
 
 const ATTACHMENTS = '/api/j2/notes/attachments/'
-// Kept by the server's link policy, but ruling 165 opens only http(s) and mailto: a `tel:`
-// link renders as a link with no Ctrl/Cmd+click door. Named here so nothing else can be.
-const INERT_BY_RULING_165 = new Set(['tel:+15550100'])
+// ⚰️ `tel:+15550100` was named here as the one allowed INERT href (kept by the server, no
+// door under ruling 165). Plan A Task 15 gave `tel:` a door (`openableLinkHref`), so no
+// stored link may be inert any more: every one has a door, is plain text, or is a download.
 
 const CORPORA = { notion_messy: notionCorpus, obsidian_messy: obsidianCorpus }
 const ALL = Object.entries(CORPORA).flatMap(([corpus, data]) => Object.entries(data.members)
@@ -76,7 +76,7 @@ const noteLink = (id) => `/journal?j2tab=notebook&note=${id}`
 
 describe.each([['read-only', false], ['editable', true]])('connector corpora in the %s editor', (_mode, editable) => {
   describe.each(ALL.map((x) => [`${x.corpus} / ${x.note.title}`, x]))('%s', (_name, { note: n }) => {
-    it('every link has a door, is plain text, is a download, or is named inert', () => {
+    it('every link has a door, is plain text, or is a download', () => {
       const root = mount(n.bodyJson, editable)
       for (const a of root.querySelectorAll('a[href]')) {
         const href = a.getAttribute('href')
@@ -86,15 +86,18 @@ describe.each([['read-only', false], ['editable', true]])('connector corpora in 
           expect(isPlainTextPendingLink(href), href).toBe(true)
         } else {
           const door = openableLinkHref(href) || internalNoteIdFromHref(href) || pendingLinkFallbackHref(href)
-          expect(Boolean(door) || INERT_BY_RULING_165.has(href), `no door for ${href}`).toBe(true)
+          expect(Boolean(door), `no door for ${href}`).toBe(true)
         }
       }
     })
 
     it('every stored link survives the editor, raw', () => {
       const root = mount(n.bodyJson, editable)
-      const rendered = new Set(textLinks(root).map((a) => a.getAttribute('href')))
-      expect(rendered).toEqual(new Set(storedLinkHrefs(n.bodyJson)))
+      // Sorted ARRAYS, never Sets: a Set would read two stored links rendered as one (or one
+      // rendered twice) as equal. Sorted, because the editor may split one marked run into
+      // several anchors only if it also splits the stored run -- the count must match exactly.
+      const rendered = textLinks(root).map((a) => a.getAttribute('href')).sort()
+      expect(rendered).toEqual([...storedLinkHrefs(n.bodyJson)].sort())
     })
 
     it('every image is an attachment URL and none is lost', () => {
