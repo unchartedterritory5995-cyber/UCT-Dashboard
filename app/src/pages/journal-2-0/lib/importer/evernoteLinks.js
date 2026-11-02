@@ -14,11 +14,108 @@
  * resolution here.
  */
 
-const APP_LINK_RE = /^evernote:\/\/\/?view\//i
+import { neutraliseAnchor } from './linkPolicy'
+
+const APP_LINK_RE =/^evernote:\/\/\/?view\//i
 const WEB_LINK_RE = /^https?:\/\/(?:www\.)?evernote\.com\/(?:shard\/[^/]+\/(?:nl|sh)\/|l\/)./i
 
 export function isEvernoteNoteHref(href) {
   if (typeof href !== 'string') return false
   const h = href.trim()
   return APP_LINK_RE.test(h) || WEB_LINK_RE.test(h)
+}
+
+// ---------------------------------------------------------------------------
+// Task 7: note links resolved BY TITLE (spec E-5, §15 Q5)
+// ---------------------------------------------------------------------------
+
+/** The key kind the server heals by title (`link_keys.EVERNOTE_TITLE_KIND`). */
+export const EVERNOTE_TITLE_KIND = 'evernote-title:'
+
+// ⛔ Exactly the characters Python's `str.split()` splits on (`str.isspace`), because the server
+// compares titles with `" ".join(t.split())` (`link_keys._norm_title`). JS `\s` is NOT that set:
+// it lacks U+001C-U+001F and U+0085 and adds U+FEFF. A title that normalises one way here and
+// another on the server would resolve in one import and never heal across imports.
+const PY_WHITESPACE_RUN = new RegExp('[\t\n\x0b\x0c\r\x1c-\x1f \x85\xa0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]+')
+
+/** Trim + collapse whitespace to one space; case kept. Comparison is exact on the result. */
+export function normTitle(s) {
+  if (typeof s !== 'string') return ''
+  return s.split(PY_WHITESPACE_RUN).filter(Boolean).join(' ')
+}
+
+const NOTE_LINK = 'a[data-evernote-link]'
+
+/**
+ * Resolves every `a[data-evernote-link]` in every doc BY ITS TEXT against the titles of the docs
+ * in this import (Evernote exports carry no note ids, so a link names its note only by title):
+ *   - exactly one doc has that title -> `data-import-link="<its importKey>"`;
+ *   - none -> `data-import-link="evernote-title:<text>"`, which the server heals against the
+ *     member's one Evernote note of that title, now or after a later import;
+ *   - two or more -> the link becomes its content, with a warning naming it. Never a guess.
+ *   - no text (an image-only link) -> the link becomes its content, with a warning: there is no
+ *     title to resolve by.
+ * Every kept target is pushed onto `doc.links` once (`{targetKey}`).
+ *
+ * A doc carrying `root` (the adapter's LIVE DOM, before `liftMediaOutOfLinks`) is worked on in
+ * place and its resolved anchors keep `href` + `data-evernote-link`, so the lift still moves media
+ * out of them; the caller then runs `settleEvernoteLinks(root)`. A doc with only `html` is parsed,
+ * resolved, settled and written back.
+ */
+export function resolveEvernoteLinks(docs, warnings) {
+  const keysByTitle = new Map()
+  for (const d of docs) {
+    const t = normTitle(d.title)
+    if (!t) continue
+    if (!keysByTitle.has(t)) keysByTitle.set(t, [])
+    keysByTitle.get(t).push(d.importKey)
+  }
+  for (const d of docs) {
+    const live = d.root || null
+    const root = live || new DOMParser().parseFromString(`<!DOCTYPE html><html><body>${d.html || ''}</body></html>`, 'text/html').body
+    const anchors = [...root.querySelectorAll(NOTE_LINK)]
+    if (!anchors.length) continue
+    const links = Array.isArray(d.links) ? d.links : (d.links = [])
+    const seen = new Set(links.map((l) => l.targetKey))
+    const keep = (targetKey) => {
+      if (seen.has(targetKey)) return
+      seen.add(targetKey)
+      links.push({ targetKey })
+    }
+    for (const a of anchors) {
+      const text = normTitle(a.textContent)
+      if (!text) {
+        // Left marked: the lift (live DOM) or the settle below makes it its content.
+        warnings.push(`A link to another note in "${d.title}" was kept as its content: it has no text, and Evernote links name their note only by its title.`)
+        if (!live) neutraliseAnchor(a)
+        continue
+      }
+      const keys = keysByTitle.get(text) || []
+      if (keys.length > 1) {
+        neutraliseAnchor(a)
+        warnings.push(`Link "${text}" in "${d.title}" was kept as text: more than one note is titled "${text}".`)
+        continue
+      }
+      const targetKey = keys.length === 1 ? keys[0] : `${EVERNOTE_TITLE_KIND}${text}`
+      a.setAttribute('data-import-link', targetKey)
+      keep(targetKey)
+    }
+    if (!live) {
+      settleEvernoteLinks(root)
+      d.html = root.innerHTML
+    }
+  }
+}
+
+/** After the lift: a resolved note link drops its `evernote:`/evernote.com href and its marker
+ *  (it is a `data-import-link` now); a marked link still unresolved becomes its content. */
+export function settleEvernoteLinks(root) {
+  for (const a of [...root.querySelectorAll(NOTE_LINK)]) {
+    if (a.hasAttribute('data-import-link')) {
+      a.removeAttribute('href')
+      a.removeAttribute('data-evernote-link')
+    } else {
+      neutraliseAnchor(a)
+    }
+  }
 }
