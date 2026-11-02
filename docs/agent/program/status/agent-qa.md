@@ -311,6 +311,17 @@ a visible input has exactly that input's order. And counts at thresholds, run on
 QA's rails for the implemented ruling will take the hidden set as data, so B1 and B2 join with a one-line change
 if the owner agrees.
 
+**OWNER DECISION on this review (relayed by agent-lead):** the recommendation is ACCEPTED.
+- **The final hidden set (31)** = the ruling's 26 + B1 (`sector_rs_pct`) + B2 (`pattern_entry_dist_pct`,
+  `pattern_stop_dist_pct`, `pattern_expectancy_r`) + **`archive_calls_n`** (newly hidden as proprietary research).
+- **Visible:** public inputs (price changes, PEG, growth, institutional %, technicals). A ranking on public data that
+  the member asks for is allowed. The Agent must not deliberately reproduce UCT formulas or expose their weights.
+- **Enforcement:** server-side, with QA rails and adversarial tests (to come, against agent-sc's implementation).
+
+| Matrix cell | State |
+|---|---|
+| F-16-R: a hidden UCT output reconstructed from visible public inputs (A1–A7, C1–C3 above) | **ACCEPTED RESIDUAL (owner decision), not an OPEN cell.** Hiding the outputs does not guarantee they cannot be reconstructed. The protected things are UCT's computed outputs and its formulas and weights. The rails will check the Agent never names a UCT weight or formula (manifest, hints, system prompt, answers). They will not check that a member's own public-data sort can't resemble one |
+
 ## Sprint 2 task 2: MD-2 ACCEPTANCE HARNESS for agent-md's `stock.quote` (#624, MD-1 v1.5 §4.5)
 Files: server `tests/test_uct_agent_qa_md2.py`, browser `app/src/agent/qa/md2Quote.test.js`, and fixtures
 `app/src/agent/__fixtures__/program/md2/scenarios.json` (generated with `--write`). It is independent of agent-md's own
