@@ -30,6 +30,7 @@ import Input from '../../../components/ui/Input'
 import { requestExplanation, cachedExplanation } from '../../../lib/tradeExchangeNewsExplain'
 import { sentRecently } from '../../../lib/tradeExchangeNewsNotebook'
 import { CollectionPicker } from './TradeExchangeNewsCollections'
+import { NewsAgentAsk } from './TradeExchangeNewsAsk'
 import { CATEGORY_FILTERS, categoryTitle, cleanCategories, explainable, explanationText, fmtReceivedFull, fmtStamp, hitRanges, runsIn,
   dayLabel, dayStatus, cleanTime, MAX_PRESETS, monthGrid, MONTHS, tickerTitle, tickerTone, timeLabel, tokenize,
   WEEKDAYS } from './tradeExchangeNewsModel'
@@ -273,10 +274,14 @@ export const Row = memo(function Row({ item, linkedSym, onSym, colorMode, prices
  *  use it.
  *  ⛔ Branding only -- nothing here talks to the Agent (increments 2/3 will, through
  *  app/src/agent's public exports, never AgentPanel internals). */
-function ExplainTitle() {
+function useAgentVoice() {
   const admin = useContext(AuthContext)?.user?.role === 'admin'
   const agentOn = useAgentFlag()
-  if (!(admin && agentOn)) return <span className={styles.explainTitle}><UIcon name="sparkle" size={10} /> Explanation</span>
+  return admin && agentOn
+}
+
+function ExplainTitle({ agentVoice }) {
+  if (!agentVoice) return <span className={styles.explainTitle}><UIcon name="sparkle" size={10} /> Explanation</span>
   return (
     <span className={`${styles.explainTitle} ${styles.explainAgent}`}>
       <span className={styles.agentMark} aria-hidden="true"><img src={compassMark} alt="" /></span>
@@ -316,11 +321,12 @@ export function InlineExplanation({ item, onClose, openerRef }) {
   }, [copied])
   const close = useCallback(() => { onClose(); openerRef?.current?.focus?.() }, [onClose, openerRef])
   const { body, error, loading } = state
+  const agentVoice = useAgentVoice()
   return (
     <div ref={boxRef} className={styles.explain} role="region" aria-label="Explanation" tabIndex={-1}
       onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); close() } }}>
       <div className={styles.explainHead}>
-        <ExplainTitle />
+        <ExplainTitle agentVoice={agentVoice} />
         {body && (
           <button type="button" className={styles.explainCopy}
             onClick={async () => setCopied((await copyText(explanationText(body))) ? 'ok' : 'err')}
@@ -346,6 +352,9 @@ export function InlineExplanation({ item, onClose, openerRef }) {
             <p className={styles.explainText}>{body.explanation}</p>
             <h4 className={styles.explainLabel}>What to watch</h4>
             <p className={styles.explainText}>{body.watch}</p>
+            {/* follow-ups: only where the Agent itself is allowed, and only once there is
+                an explanation to follow up on (members keep the explanation alone) */}
+            {agentVoice && <NewsAgentAsk newsId={item.id} />}
           </>
         )}
         {error && (

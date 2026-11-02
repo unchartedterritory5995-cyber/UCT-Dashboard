@@ -8,6 +8,8 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AuthContext } from '../../../context/AuthContext'
 import { setAgentFlag } from '../../../agent/agentFlag'
+import { NewsAgentContext } from './tradeExchangeNewsAgent'
+import { useState as useStateForStub } from 'react'
 
 const feed = vi.hoisted(() => {
   const listeners = new Set()
@@ -88,8 +90,10 @@ const BASE = [
   H(3, 'SYNTHETIC: NVDA and AMD rally while NVDA leads', ['NVDA', 'AMD']),
 ]
 
-function mount(opts = {}, items = BASE, onOptsChange = vi.fn(), { role } = {}) {
-  const widget = <TradeExchangeNewsWidget color="A" opts={opts} onOptsChange={onOptsChange} />
+function mount(opts = {}, items = BASE, onOptsChange = vi.fn(), { role, agent } = {}) {
+  let widget = <TradeExchangeNewsWidget color="A" opts={opts} onOptsChange={onOptsChange} />
+  // `agent`: what UCT Agent provides News ({ useAsk, openAgent }); a test stub until agent-lead's exports land.
+  if (agent) widget = <NewsAgentContext.Provider value={agent}>{widget}</NewsAgentContext.Provider>
   // `role`: the signed-in member's role, for what only an admin sees (UCT Agent's mark).
   // Unset = no AuthProvider, which the widget treats as a member.
   const utils = render(role ? <AuthContext.Provider value={{ user: { id: 'u1', role }, isPaid: true }}>{widget}</AuthContext.Provider> : widget)
@@ -944,6 +948,151 @@ describe('Explanation', () => {
     await waitFor(() => expect(screen.getAllByRole('region', { name: 'Explanation' })).toHaveLength(2))
     for (const d of screen.getAllByRole('region', { name: 'Explanation' })) await within(d).findByText(EXPL.explanation)
     expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+})
+
+// ── Ask UCT Agent (increments 2/3): News renders the thread; the Agent runs it ──
+// The stub stands in for agent-lead's `useAgentAsk` / `openAgent` (the agreed contract):
+// it records exactly what News hands the Agent, and answers like the server would.
+describe('Ask UCT Agent', () => {
+  const EXPL = { id: 'id2', explanation: 'SYNTHETIC: The headline reports Fed minutes are due.', watch: '2-year yield',
+    generated_at_ms: NOW, cached: false, version: 'v2' }
+  const ok = () => ({ ok: true, status: 200, json: async () => EXPL })
+  const explainBtn = (container, seq) => within(rowEl(container, seq)).getByRole('button', { name: 'Explain this headline' })
+  let calls, threads, pending, openAgent
+  // Threads live OUTSIDE React (as the Agent's own store would): render only reads them.
+  const thread = (key) => threads.get(key) || { turns: [], busy: false, error: null, conversationId: null }
+  const patch = (key, fn) => threads.set(key, fn(thread(key)))
+  const settle = (key, answer) => patch(key, (t) => (answer instanceof Error
+    ? { ...t, busy: false, error: { text: answer.message, retry: true } }
+    : { ...t, busy: false, conversationId: 'ac_news_1', turns: [...t.turns, { id: `a${t.turns.length}`, role: 'agent', text: answer }] }))
+  function useAskStub(args) {
+    recordCall(args)
+    const key = args.newsId
+    const [, bump] = useStateForStub(0)
+    return { ...thread(key), ask: (text) => {
+      patch(key, (t) => ({ ...t, busy: true, error: null, turns: [...t.turns, { id: `m${t.turns.length}`, role: 'member', text }] }))
+      bump((n) => n + 1)
+      pending.push((answer) => { settle(key, answer); bump((n) => n + 1) })
+    } }
+  }
+  const recordCall = (args) => calls.push(args)
+  const agent = () => ({ useAsk: useAskStub, openAgent })
+  beforeEach(() => {
+    _resetExplainCacheForTests()
+    calls = []; threads = new Map(); pending = []; openAgent = vi.fn()
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(ok()))
+  })
+  afterEach(() => setAgentFlag(null))
+  const open = async (who) => {
+    const utils = mount({}, BASE, vi.fn(), who)
+    fireEvent.click(explainBtn(utils.container, 2))
+    const panel = await screen.findByRole('region', { name: 'Explanation' })
+    await within(panel).findByText(EXPL.explanation)
+    return { ...utils, panel }
+  }
+  const answer = (x) => act(() => { pending.shift()(x) })
+  const askBox = (panel) => within(panel).getByRole('textbox', { name: 'Ask UCT Agent about this headline' })
+  const say = (panel, text) => {
+    fireEvent.change(askBox(panel), { target: { value: text } })
+    fireEvent.submit(askBox(panel).closest('form'))
+  }
+
+  it('shows nowhere the Agent is not allowed: member, admin with the switch off, or no Agent provided yet', async () => {
+    for (const [flag, who] of [[true, { role: 'member', agent: agent() }], [false, { role: 'admin', agent: agent() }],
+      [true, { role: 'admin' }], [true, { agent: agent() }]]) {
+      setAgentFlag(flag)
+      const { panel, unmount } = await open(who)
+      expect(within(panel).queryByRole('textbox', { name: 'Ask UCT Agent about this headline' })).toBeNull()
+      expect(calls).toEqual([])                                           // the Agent was never even asked to mount
+      unmount()
+    }
+  })
+
+  it('an admin with the switch on gets the box under the explanation, once the explanation is there', async () => {
+    setAgentFlag(true)
+    let release
+    vi.stubGlobal('fetch', vi.fn().mockReturnValue(new Promise((r) => { release = r })))
+    const { container } = mount({}, BASE, vi.fn(), { role: 'admin', agent: agent() })
+    fireEvent.click(explainBtn(container, 2))
+    const panel = await screen.findByRole('region', { name: 'Explanation' })
+    expect(within(panel).queryByRole('textbox')).toBeNull()               // not while it is still being written
+    await act(async () => release(ok()))
+    const box = await within(panel).findByRole('textbox', { name: 'Ask UCT Agent about this headline' })
+    expect(box.getAttribute('placeholder')).toBe('Ask UCT Agent…')
+    expect(box.getAttribute('maxlength')).toBe('500')
+    expect(within(panel).queryByRole('button', { name: /Continue in UCT Agent/ })).toBeNull()  // nothing to continue yet
+  })
+
+  it('asks by headline id only, shows the question, typing, then the answer; follow-ups stay in the same thread', async () => {
+    setAgentFlag(true)
+    const { panel } = await open({ role: 'admin', agent: agent() })
+    expect(calls.every((c) => JSON.stringify(c) === JSON.stringify({ newsId: 'id2' }))).toBe(true)  // never the headline text
+    say(panel, '  What does this mean for banks?  ')
+    expect(askBox(panel).value).toBe('')
+    const log = within(panel).getByRole('log', { name: 'Conversation with UCT Agent' })
+    expect(log.textContent).toContain('What does this mean for banks?')
+    expect(log.textContent).toContain('UCT Agent is typing…')
+    expect(within(panel).getByRole('button', { name: 'Send question' }).disabled).toBe(true)
+    answer('SYNTHETIC: Banks may watch the rate path; I don’t have a live quote here.')
+    expect(log.textContent).not.toContain('is typing')
+    say(panel, 'And regional banks?')
+    answer('SYNTHETIC: Regional lenders are more rate-sensitive; the headline says nothing specific about them.')
+    const lines = [...log.querySelectorAll('p')].map((p) => p.textContent.replace('UCT Agent: ', ''))
+    expect(lines).toEqual(['What does this mean for banks?', 'SYNTHETIC: Banks may watch the rate path; I don’t have a live quote here.',
+      'And regional banks?', 'SYNTHETIC: Regional lenders are more rate-sensitive; the headline says nothing specific about them.'])
+  })
+
+  it('an empty question sends nothing; an answer renders as text, never markup', async () => {
+    setAgentFlag(true)
+    const { panel } = await open({ role: 'admin', agent: agent() })
+    say(panel, '   ')
+    expect(pending).toHaveLength(0)
+    say(panel, 'q')
+    answer('SYNTHETIC <b>bold</b> <img src=x onerror=alert(1)>')
+    expect(within(panel).getByRole('log').querySelector('b, img')).toBeNull()
+  })
+
+  it('a failed answer shows the Agent’s own words and Retry asks the same question again', async () => {
+    setAgentFlag(true)
+    const { panel } = await open({ role: 'admin', agent: agent() })
+    say(panel, 'Why now?')
+    answer(new Error('UCT Agent has used today’s budget. It resets at midnight ET.'))
+    expect(within(panel).getByRole('log').textContent).toContain('used today’s budget')
+    fireEvent.click(within(panel).getByRole('button', { name: 'Retry' }))
+    expect(thread('id2').turns.filter((t) => t.role === 'member').map((t) => t.text)).toEqual(['Why now?', 'Why now?'])
+  })
+
+  it('Continue in UCT Agent hands the SAME conversation id to the Agent panel', async () => {
+    setAgentFlag(true)
+    const { panel } = await open({ role: 'admin', agent: agent() })
+    say(panel, 'Context?')
+    answer('SYNTHETIC: context.')
+    fireEvent.click(within(panel).getByRole('button', { name: /Continue in UCT Agent/ }))
+    expect(openAgent).toHaveBeenCalledTimes(1)
+    expect(openAgent).toHaveBeenCalledWith({ conversationId: 'ac_news_1' })
+  })
+
+  it('typing stays in the box; Esc still closes the explanation, and reopening keeps the thread', async () => {
+    setAgentFlag(true)
+    const { container, panel } = await open({ role: 'admin', agent: agent() })
+    say(panel, 'Kept?')
+    answer('SYNTHETIC: kept.')
+    fireEvent.keyDown(askBox(panel), { key: 'Escape' })
+    expect(screen.queryByRole('region', { name: 'Explanation' })).toBeNull()
+    fireEvent.click(explainBtn(container, 2))
+    const again = await screen.findByRole('region', { name: 'Explanation' })
+    expect((await within(again).findByRole('log')).textContent).toContain('SYNTHETIC: kept.')
+  })
+
+  it('a long thread folds its earlier turns behind "Show earlier"', async () => {
+    setAgentFlag(true)
+    const { panel } = await open({ role: 'admin', agent: agent() })
+    for (let i = 0; i < 4; i++) { say(panel, `Q${i}`); answer(`A${i}`) }
+    const log = within(panel).getByRole('log')
+    expect(log.querySelectorAll('p')).toHaveLength(6)
+    fireEvent.click(within(log).getByRole('button', { name: 'Show 2 earlier' }))
+    expect(log.querySelectorAll('p')).toHaveLength(8)
   })
 })
 

@@ -50,6 +50,7 @@ import { fakeNewsDay, fakeNewsDays } from './fakeNewsDay'
 import { fakeLibraryServer } from './fakeLibraryServer'
 import { formatTimeEt } from '../../lib/presentation/presentationPrimitives'
 import { timeLabel } from '../../pages/charts/widgets/tradeExchangeNewsModel'
+import { NewsAgentContext } from '../../pages/charts/widgets/tradeExchangeNewsAgent'
 import { CHART_THEME_BY_ID, patchWidgetOptsWithTheme, mapThemeToWidgetSettings, themeWithAppSurface } from '../../components/chart/chartThemes'
 import wsStyles from '../../pages/charts/ChartsWorkspace.module.css'
 
@@ -315,6 +316,45 @@ function Pane({ label, type, Component, initial, index = 0 }) {
   )
 }
 
+// ?ask=1 (|seed|error): an INVENTED stand-in for UCT Agent's `useAgentAsk` / `openAgent`, so the
+// Ask thread can be looked at before the Agent exports land. No model, no network: answers
+// are canned SYNTHETIC text after a short delay. `seed` opens with a 4-turn thread; `error`
+// fails every question with the Agent's budget sentence.
+const ASK = params.get('ask')
+// Threads live OUTSIDE React (as the Agent's own store would): render only reads them.
+const ASK_THREADS = new Map()
+const askThread = (newsId) => {
+  if (!ASK_THREADS.has(newsId)) ASK_THREADS.set(newsId, freshThread())
+  return ASK_THREADS.get(newsId)
+}
+const patchThread = (newsId, fn) => ASK_THREADS.set(newsId, fn(askThread(newsId)))
+function harnessAnswer(newsId, text, bump) {
+  patchThread(newsId, (t) => (ASK === 'error'
+    ? { ...t, busy: false, error: { text: 'UCT Agent has used today’s budget. It resets at midnight ET.', retry: true } }
+    : { ...t, busy: false, conversationId: 'ac_harness',
+      turns: [...t.turns, { id: `a${t.turns.length}`, role: 'agent', text: `SYNTHETIC answer to “${text}”.` }] }))
+  bump((n) => n + 1)
+}
+function freshThread() {
+  return {
+    turns: ASK === 'seed' ? [
+      { id: 's0', role: 'member', text: 'What does this mean for the stock?' },
+      { id: 's1', role: 'agent', text: 'SYNTHETIC: The company says profit beat its own outlook. That is the company’s claim; I don’t have a live quote here, so I can’t say how the stock is reacting.' },
+      { id: 's2', role: 'member', text: 'What should I look for next?' },
+      { id: 's3', role: 'agent', text: 'SYNTHETIC: Guidance details and any analyst revisions; the headline gives neither yet.' },
+    ] : [], busy: false, error: null, conversationId: ASK === 'seed' ? 'ac_harness' : null }
+}
+function useHarnessAsk({ newsId }) {
+  const [, bump] = useState(0)
+  return { ...askThread(newsId), ask: (text) => {
+    patchThread(newsId, (t) => ({ ...t, busy: true, error: null,
+      turns: [...t.turns, { id: `m${t.turns.length}`, role: 'member', text }] }))
+    bump((n) => n + 1)
+    setTimeout(() => harnessAnswer(newsId, text, bump), 600)
+  } }
+}
+const HARNESS_AGENT = ASK ? { useAsk: useHarnessAsk, openAgent: (x) => { window.__openAgent = x } } : null
+
 function Harness() {
   const [groupSyms, setGroupSyms] = useState({ A: 'DLTX' })
   const ws = useMemo(() => ({
@@ -327,6 +367,7 @@ function Harness() {
     <MemoryRouter>
       <AuthProvider>
         <WorkspaceContext.Provider value={ws}>
+          <NewsAgentContext.Provider value={HARNESS_AGENT}>
           <div className="row">
             {!ONLY_NEWS && <Pane label="Watchlist" type="watchlist" Component={WatchlistWidget} initial={{ watchKey: 'user:wl1', watchName: 'Harness List' }} />}
             {!ONLY_NEWS && <Pane label="Theme Tracker" type="themes" Component={ThemesWidget} initial={{}} />}
@@ -337,6 +378,7 @@ function Harness() {
                 Component={TradeExchangeNewsWidget} initial={newsOpts} />
             ))}
           </div>
+          </NewsAgentContext.Provider>
         </WorkspaceContext.Provider>
       </AuthProvider>
     </MemoryRouter>
