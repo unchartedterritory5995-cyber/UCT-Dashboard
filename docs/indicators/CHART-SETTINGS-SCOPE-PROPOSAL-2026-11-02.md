@@ -1,5 +1,21 @@
 # Where an indicator edit is saved: a scope policy proposal (2026-11-02)
 
+> **Owner decision, 2026-11-02 (release approval):** keep Model Book, popups (TickerPopup and
+> TickerHubSheet), Theme Tracker and Research on their existing main-chart settings behaviour for now.
+> #686 is NOT expanded into new storage for those surfaces. They are the documented exceptions below.
+> Any further change is proposed separately.
+>
+> **The exceptions, as built in #686:**
+> - **Plain `StockChart`, no override:** global by design. Model Book (`ModelBook.jsx`,
+>   `modelbook/SetupsView.jsx`, `BottomsView.jsx`, `ChartExampleKit.jsx`), the Research Technical tab
+>   and the Theme Tracker panel. Pinned by the control test "a chart with no home of its own still edits
+>   the main chart".
+> - **`ChartPane` hosts with `stored={null}`:** TickerPopup, TickerHubSheet, the Watchlists page, Theme
+>   Tracker, DarkPool and OptionsFlow. They are unchanged by #686.
+>   - Their read/write mismatch (they read the `/charts` widget blob and write the whole blob to global)
+>     is still open as backlog #11.
+>   - Any fix will be proposed separately.
+
 **Proposal for review. No behaviour has changed.** The owner asked on 2026-11-02 for a clear scope policy before anything changes. The findings come from a read-only investigation of `2cd4c3839c`. Line numbers are dated claims; re-read them before acting.
 
 ## The defect, confirmed by reading the code

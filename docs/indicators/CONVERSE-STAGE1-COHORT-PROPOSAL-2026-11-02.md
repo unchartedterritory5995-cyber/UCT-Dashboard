@@ -1,12 +1,21 @@
 # `/converse` stage 1: proposed member cohort (2026-11-02)
 
+> **Owner decision, 2026-11-02 (release approval):** prepare a small **opt-in** pilot of about 5–10
+> active indicator creators. Do not activate the cohort or select members without separate approval.
+>
+> **What "opt-in" adds to the steps below:** after the owner approves the candidate ids, each
+> candidate is ASKED, by the owner and outside the product, whether they want to try it. Only members
+> who say yes are written to the cohort, and only after the flag decision. A member who declines is
+> never added. A member who later wants out is removed with `tools/rollout_cohort.py remove … --apply`
+> (dry run first).
+
 **For owner approval. Not activated.** The owner asked for this to be reported separately from the
 admin validation stage (`CONVERSE-ADMIN-VALIDATION-STAGE-2026-11-02.md`). Stage 1 is not proposed for
 activation until that stage's exit criteria hold.
 
 ## Who
 
-**5–10 paid members.** Each must meet ALL of:
+**5–10 paid members, each of whom has opted in.** Each must meet ALL of:
 1. a paid plan (the door's existing `require_paid`);
 2. at least 1 saved indicator in the last 30 days, so they already build indicators and can judge the
    result;
