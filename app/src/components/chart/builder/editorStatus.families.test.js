@@ -59,6 +59,33 @@ describe('refusal families', () => {
     expect(familyOf('pine:offset-negative').id).toBe('presentation')
     expect(familyOf('pine:block').id).toBe('block')
     expect(familyOf('other-symbol:unsupplied').id).toBe('request')
+    // `runtime:object-tree-outputs` is exact under shape, ahead of the `runtime:object` prefix
+    expect(familyOf('runtime:object-tree-outputs').id).toBe('shape')
+  })
+
+  it('the chart door\'s own guards have the families chosen for them (spec section 4)', () => {
+    expect(familyOf('pine:paint-pane').id).toBe('presentation')
+    expect(familyOf('runtime:na-test').id).toBe('state')
+    expect(familyOf('runtime:withheld-all').id).toBe('shape')
+    expect(familyOf('runtime:nothing-drawn').id).toBe('shape')
+    expect(familyOf('runtime:output-map').id).toBe('fault')
+    expect(familyOf('runtime:document').id).toBe('fault')
+    for (const g of ['runtime:killed', 'runtime:not-yet-graded', 'runtime:repaint-unstated']) {
+      expect(familyOf(g).id, g).toBe('unverified')
+    }
+    // a screening fact, not a drawing: the script draws, a screen has nothing to filter on
+    expect(familyOf('pine:objects-only').id).toBe('shape')
+    // a chart-period read is not data from another symbol
+    expect(familyOf('bind:period-reads').id).toBe('period')
+  })
+
+  it('every family has its row in the spec\'s section 4 table', () => {
+    const spec = fs.readFileSync(path.join(HERE, '..', '..', '..', '..', '..', 'docs', 'pine', 'EDITOR-STATUS-PANEL-SPEC.md'), 'utf8')
+    const section = spec.slice(spec.indexOf('## 4.'), spec.indexOf('## 5.'))
+    expect(section.length).toBeGreaterThan(100) // non-vacuity: the section was found
+    for (const f of [...FAMILIES, UNKNOWN_FAMILY]) {
+      expect(section, f.id).toContain(`| \`${f.id}\` |`)
+    }
   })
 
   it('no family copy, and no panel source, contains an em dash', () => {

@@ -242,19 +242,26 @@ const NATIVE_NAMES = new Set([
  *     in a paste using lower-case `and`/`or`, says so instead of only blaming TC2000.
  */
 export function inspectSource(source, dialect = 'auto', opts = undefined) {
+  // ⭐ EDITOR STATUS — the language the door had settled on when a throw came. The
+  // controlled report keeps its `formula` stamp (nothing that renders it changes);
+  // `faultDialect` says the text was read as Pine, so the Pine editor's status panel
+  // can show its engine-fault state for it (`PineEditorStatus.usePineEditorStatus`).
+  const routed = { dialect: dialect === 'auto' ? null : dialect }
   let report
   try {
-    report = routeAndInspect(source, dialect, opts)
+    report = routeAndInspect(source, dialect, opts, routed)
   } catch (e) {
-    return controlledErrorReport(source, e, dialect === 'auto' ? 'formula' : dialect)
+    const fault = controlledErrorReport(source, e, dialect === 'auto' ? 'formula' : dialect)
+    return routed.dialect === 'pine' && fault.dialect !== 'pine' ? { ...fault, faultDialect: 'pine' } : fault
   }
   return { ...report, outcome: importOutcome(report) }
 }
 
-function routeAndInspect(source, dialect, opts) {
+function routeAndInspect(source, dialect, opts, routed = {}) {
   const text = typeof source === 'string' ? source : ''
   if (dialect !== 'auto') return inspectSourceUnguarded(text, dialect, opts)
   const detected = detectDialect(text)
+  routed.dialect = detected
   if (detected !== 'pine') {
     const found = foreignLanguage(text)
     if (found) {

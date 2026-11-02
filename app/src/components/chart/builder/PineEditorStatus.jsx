@@ -13,7 +13,7 @@
 // ⭐ Touch tier (<= 1024 px, `useIsTouch`): a one-row summary whose `Details`
 // button opens the full panel in `mobile/Sheet`. Above that, inline.
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { memberPaneDefinition } from './memberPane/memberPaneDefinition'
 import {
   editorStatus, PANEL_STATE, SEVERITY, stillWorksText, sourceLine,
@@ -31,9 +31,12 @@ export const POLICY_TEXT = 'Anything we cannot compute the way TradingView does 
 
 const BADGE = Object.freeze({ true: '[OK]', partial: '[~]', false: '[--]' })
 
-/** The chart's view of the script, through the door "Add to chart" uses. Never throws. */
+/** The chart's view of the script, through the door "Add to chart" uses. Never throws.
+ *  ⛔ NOT GATED ON `report.ok`. The report is the screener lane's translation; it
+ *  refuses a strategy and an objects-only script that the chart door draws, so the
+ *  chart row always asks the chart door, which answers with its own refusal. */
 export function paneFor(report, source) {
-  if (!report || report.dialect !== 'pine' || !report.ok || report.error) return null
+  if (!report || report.dialect !== 'pine' || report.error || report.foreign) return null
   try {
     return memberPaneDefinition({ source })
   } catch (e) {
@@ -153,7 +156,12 @@ function Body({ status, source, onGoToLine, onReport, reportOffered }) {
  * line marks: one computation, two renderers.
  */
 export function usePineEditorStatus({ enabled, report, inspectedSource = '', savedRow = null, computePane = paneFor }) {
-  const isPine = !!(enabled && report && report.dialect === 'pine' && !report.foreign)
+  // ⭐ A Pine paste the translator threw on is the door's controlled error report,
+  // stamped `formula` by the auto door; `faultDialect` is the door's own record that
+  // it had read the text as Pine (`PineBox.inspectSource`), so the engine-fault
+  // state can be shown for it.
+  const isPine = !!(enabled && report && !report.foreign
+    && (report.dialect === 'pine' || report.faultDialect === 'pine'))
   const pane = useMemo(() => (isPine ? computePane(report, inspectedSource) : null),
     [isPine, report, inspectedSource, computePane])
   return useMemo(() => (isPine ? editorStatus({ report, pane, savedRow }) : null),
@@ -177,15 +185,34 @@ export default function PineEditorStatus({
   const isPine = !!status
   const cfg = useReportsConfig(isPine)
   const gaps = useMemo(() => gapLogPayload(importGaps(report)).gaps, [report])
+  // ⛔ A `Line N` tapped inside the touch Sheet is applied AFTER the Sheet closes.
+  // `mobile/Sheet` hands focus back to its opener when it closes; called at the
+  // tap, the editor's focus was taken straight back to the Details button. This
+  // effect's setup runs after the Sheet's close cleanup, so the editor keeps it.
+  const pendingLine = useRef(null)
+  useEffect(() => {
+    if (sheetOpen || pendingLine.current == null) return
+    const n = pendingLine.current
+    pendingLine.current = null
+    if (onGoToLine) onGoToLine(n)
+  }, [sheetOpen, onGoToLine])
 
   if (!isPine || !status || !String(currentText || '').trim()) return null
   const checking = currentText !== inspectedSource
   const headline = checking ? CHECKING_TEXT : status.headline
   const state = checking ? PANEL_STATE.CHECKING : status.state
   const reportOffered = !!(cfg && cfg.reportsEnabled)
+  const goTo = (n) => {
+    if (sheetOpen) {
+      pendingLine.current = n
+      setSheetOpen(false)
+      return
+    }
+    if (onGoToLine) onGoToLine(n)
+  }
 
   const body = checking ? null : (
-    <Body status={status} source={inspectedSource} onGoToLine={(n) => { setSheetOpen(false); if (onGoToLine) onGoToLine(n) }}
+    <Body status={status} source={inspectedSource} onGoToLine={goTo}
       onReport={() => setReportOpen(true)} reportOffered={reportOffered} />
   )
 

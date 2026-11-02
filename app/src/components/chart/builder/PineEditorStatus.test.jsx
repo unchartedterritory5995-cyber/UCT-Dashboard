@@ -8,6 +8,20 @@ vi.mock('../../../hooks/useBreakpoint', async (importOriginal) => {
   const real = await importOriginal()
   return { ...real, useIsTouch: () => touch.value }
 })
+// ⭐ A translator throw on demand, through the REAL door: any source carrying the
+// marker makes the member-input translation throw, exactly as a translator defect
+// would. Every other source passes straight through to the real function.
+const thrower = vi.hoisted(() => ({ marker: '__uct_translator_throws__' }))
+vi.mock('./builderInputs', async (importOriginal) => {
+  const real = await importOriginal()
+  return {
+    ...real,
+    memberInputTranslation: (translate, source, ...rest) => {
+      if (typeof source === 'string' && source.includes(thrower.marker)) throw new Error('translator exploded (test)')
+      return real.memberInputTranslation(translate, source, ...rest)
+    },
+  }
+})
 const reports = vi.hoisted(() => ({ enabled: false }))
 vi.mock('../supportLoop/supportApi', async (importOriginal) => {
   const real = await importOriginal()
@@ -95,6 +109,30 @@ describe('PineEditorStatus', () => {
     expect(screen.getByTestId('pine-status-runs-on')).toBeTruthy()
   })
 
+  it('touch: a Line N tapped in the Sheet closes it and leaves focus in the editor, not on Details', async () => {
+    touch.value = true
+    const { report, status } = statusFor(REQUEST)
+    const editor = document.createElement('textarea')
+    document.body.appendChild(editor)
+    try {
+      const onGoToLine = vi.fn(() => editor.focus())
+      render(<PineEditorStatus status={status} report={report} inspectedSource={REQUEST} currentText={REQUEST} onGoToLine={onGoToLine} />)
+      await flush()
+      const open = screen.getByTestId('pine-status-open-sheet')
+      open.focus()
+      fireEvent.click(open)
+      await flush()
+      const btn = within(screen.getByRole('dialog')).getAllByRole('button', { name: /^Go to line \d+$/ })[0]
+      fireEvent.click(btn)
+      await flush()
+      expect(screen.queryByRole('dialog')).toBeNull()
+      expect(onGoToLine).toHaveBeenCalledTimes(1)
+      expect(document.activeElement).toBe(editor)
+    } finally {
+      editor.remove()
+    }
+  })
+
   it('"Tell us you need this" appears only when the report door is on and something is withheld', async () => {
     const { report, status } = statusFor(REQUEST)
     const { unmount } = render(<PineEditorStatus status={status} report={report} inspectedSource={REQUEST} currentText={REQUEST} />)
@@ -130,6 +168,34 @@ describe('the wire into the Pine tab (VITE_PINE_EDITOR_STATUS)', () => {
     await pasteAndSettle('sma(close, 20) > close')
     await screen.findByTestId('import-outcome')
     expect(screen.queryByTestId('pine-editor-status')).toBeNull()
+  })
+
+  it('on: a translator throw on a Pine paste shows the engine-fault state (the auto door stamps it formula)', async () => {
+    vi.stubEnv('VITE_PINE_EDITOR_STATUS', '1')
+    const quiet = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      render(<ImportBox onPick={() => {}} />)
+      await pasteAndSettle(`//@version=6\nindicator("x")\n// ${thrower.marker}\nplot(close)`)
+      const panel = await screen.findByTestId('pine-editor-status')
+      expect(panel.getAttribute('data-state')).toBe('engine-error')
+      expect(screen.getByTestId('pine-status-headline').textContent).toMatch(/not your script/)
+    } finally {
+      quiet.mockRestore()
+    }
+  })
+
+  it('the door marks only a PINE paste\'s fault, and changes nothing else on the report', () => {
+    const quiet = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      const pine = inspectSource(`//@version=6\nindicator("x")\n// ${thrower.marker}\nplot(close)`, 'auto')
+      expect(pine.error).toBeTruthy()
+      expect(pine.dialect).toBe('formula')
+      expect(pine.faultDialect).toBe('pine')
+      const clean = inspectSource(RUNS, 'auto')
+      expect('faultDialect' in clean).toBe(false)
+    } finally {
+      quiet.mockRestore()
+    }
   })
 
   it('on: only the literal "1" opens it', async () => {
