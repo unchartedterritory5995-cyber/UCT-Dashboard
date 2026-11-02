@@ -46,7 +46,7 @@ def release_links_enabled() -> bool:
 
 def release_links_sec_enabled() -> bool:
     """The SEC EDGAR stage of the resolver (free; the repo's fair-access client)."""
-    return os.environ.get("TXN_RELEASE_LINKS_SEC", "").strip() == "1"
+    return os.environ.get("TXN_RELEASE_LINKS_SEC_ENABLED", "").strip() == "1"
 
 
 def release_links_interval_s() -> float:

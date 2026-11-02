@@ -49,7 +49,7 @@ def env(monkeypatch, tmp_path):
     c.close()
     monkeypatch.setattr(cn_store, "_DB_PATH", str(cn))
     monkeypatch.setenv("TXN_SOURCE_ALLOWLIST", "TX-PressRelease,TX-News")
-    monkeypatch.setenv("TXN_RELEASE_LINKS_SEC", "1")
+    monkeypatch.setenv("TXN_RELEASE_LINKS_SEC_ENABLED", "1")
     rl._LINKS.clear()
     rl.COUNTS.clear()
     yield cn
@@ -442,12 +442,12 @@ def test_sec_budget_bounds_requests_per_pass(store, env):
 
 def test_sec_off_leaves_rows_pending_for_later(store, env, monkeypatch):
     eid = tx(store, f"ACME - {TITLE}", ms=T0 - 5 * 86_400_000)
-    monkeypatch.setenv("TXN_RELEASE_LINKS_SEC", "0")
+    monkeypatch.setenv("TXN_RELEASE_LINKS_SEC_ENABLED", "0")
     fake = FakeSec(EXHIBIT, accepted_ms=T0 - 5 * 86_400_000 + 4 * MIN)
     sec_res(store, fake).run_pass()
     assert fake.urls == []
     assert store._conn().execute("SELECT status FROM release_link_state WHERE event_id=?", (eid,)).fetchone()[0] == "pending"
-    monkeypatch.setenv("TXN_RELEASE_LINKS_SEC", "1")
+    monkeypatch.setenv("TXN_RELEASE_LINKS_SEC_ENABLED", "1")
     sec_res(store, fake).run_pass()
     assert link_rows(store) and link_rows(store)[0][1] == "sec_filing"
 

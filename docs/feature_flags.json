@@ -1490,6 +1490,24 @@
       "owner": "trade-exchange-news",
       "note": "Trade Exchange News Checkpoint B (2026-10-27). DARK BY OWNER RULE: no deploy, no member access and no Trade Exchange webhook registration without explicit owner approval; history storage additionally waits on Trade Exchange's written retention/redistribution permission. Read in api/services/trade_exchange_news/config.py::enabled() (strict == '1'). ON: mounts POST /api/trade-exchange-news/internal/ingest (the receiver service's private-network push, bearer TXN_INGEST_TOKEN checked as its sha-256 against TXN_INGEST_TOKEN_SHA256) and GET /api/admin/trade-exchange-news, and starts the single-writer pipeline (/data/trade_exchange_news.db, bounded 7 days / 5,000 headlines) plus the R2 journal reconciler. OFF: routes do not match, nothing starts, /data untouched. Rollback = unset; the store and the R2 journal are kept."
     },
+    "TXN_RELEASE_LINKS_ENABLED": {
+      "status": "dark",
+      "since": "2026-11-01",
+      "where": [
+        "web"
+      ],
+      "owner": "trade-exchange-news",
+      "note": "UCT News original press-release links (api/services/trade_exchange_news/release_links.py). DARK until the owner approves. ON: a background thread (after company-news FMP polls, one pass a minute) matches TX-PressRelease headlines to FMP wire rows in company_news.db (read-only, mode=ro) and stores ONLY verified links (exact headline + same ticker + unique wire URL + time within 30 min + URL slug) in trade_exchange_news.db release_links, keyed by TX event id, write-once; weaker candidates go to release_link_candidates for review and are never shown. Includes a one-time historical catch-up on first pass. OFF: nothing is resolved; links already stored still display (headline_event dict lookup). Rollback = unset; the tables are kept and never touch headlines/deliveries."
+    },
+    "TXN_RELEASE_LINKS_SEC_ENABLED": {
+      "status": "dark",
+      "since": "2026-11-01",
+      "where": [
+        "web"
+      ],
+      "owner": "trade-exchange-news",
+      "note": "The SEC EDGAR stage of the press-release link resolver (needs TXN_RELEASE_LINKS_ENABLED=1). ON: for headlines FMP did not link, 45 min / 2 h / 6 h / 24 h / 72 h after arrival, reads the slot issuer's 8-K/6-K filings through fundamentals_pit.sec_client (the repo's fair-access client and SEC_USER_AGENT), at most TXN_RELEASE_LINKS_SEC_BUDGET (40) requests a pass, and links the Exhibit 99 document only when it opens with the exact headline (shown as 'SEC filing'). OFF: rows stay pending so turning it on later still reaches them. Rollback = unset."
+    },
     "INDICATOR_VISION_ENABLED": {
       "status": "armed",
       "where": [
