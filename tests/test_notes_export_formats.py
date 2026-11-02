@@ -866,3 +866,34 @@ def test_a_chip_only_ever_links_a_web_or_relative_address_in_the_markdown_export
     for bad in ("javascript:alert(1)", "JavaScript:alert(1)", "data:text/html,x", "vbscript:x",
                 "//evil.test/x", "file:///c/x", " javascript:alert(1)"):
         assert md(bad) == "q3.pdf", bad
+
+
+def _md_link_hrefs(markdown: str) -> list[str]:
+    """Every link destination a CommonMark reader finds in `markdown` (markdown-it-py)."""
+    from markdown_it import MarkdownIt
+    hrefs = []
+    for token in MarkdownIt("commonmark").parse(markdown):
+        for child in token.children or []:
+            if child.type == "link_open":
+                hrefs.append(child.attrGet("href"))
+    return hrefs
+
+
+def test_a_chip_address_is_one_destination_whatever_it_holds():
+    """D2 fix round 2, N2: an address holding a space, a parenthesis, an angle bracket or a
+    backslash is written in CommonMark's `<...>` form (`<`, `>` and backslash escaped), so it
+    stays ONE link: a hostile href cannot close the link early and plant a live second one,
+    and a relative path with a space still links. An ordinary address is written as before."""
+    def md(href):
+        chip = {"type": "attachmentChip", "attrs": {"href": href, "name": "q3.pdf"}}
+        return notes_export.tiptap_to_markdown(_doc(chip)).strip()
+    hostile = "https://cdn.example/f/q3.pdf) [x](javascript:alert(1)"
+    out = md(hostile)
+    assert _md_link_hrefs(out) == ["https://cdn.example/f/q3.pdf)%20%5Bx%5D(javascript:alert(1)"]
+    assert md("files/q3 report.pdf") == "[q3.pdf](<files/q3 report.pdf>)"
+    assert _md_link_hrefs(md("files/q3 report.pdf")) == ["files/q3%20report.pdf"]
+    backslash = chr(92)
+    assert _md_link_hrefs(md(f"https://x.test/a<b>c{backslash}d.pdf")) == ["https://x.test/a%3Cb%3Ec%5Cd.pdf"]
+    assert md("https://x.test/q3.pdf") == "[q3.pdf](https://x.test/q3.pdf)"   # unchanged
+    for bad in ("https://x.test/a\nb", "files/a\rb"):
+        assert md(bad) == "q3.pdf", repr(bad)

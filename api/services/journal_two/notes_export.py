@@ -1109,7 +1109,7 @@ def _block(node: dict[str, Any], resolver=None) -> str:
         target = local or href
         # D2 fix round 1 (M2): only ever a web or relative address; any other href is the
         # chip's text alone, never a link (a crafted `javascript:` chip cannot become one).
-        return f"[{shown}]({target})" if _chip_target_ok(target) else shown
+        return f"[{shown}]({_chip_destination(target)})" if _chip_target_ok(target) else shown
     if ntype == "videoTimestamp":
         # Mirrors app/src/components/video/playerUtils.js::fmtTime exactly --
         # the same helper the editor's own node view renders with
@@ -1275,6 +1275,22 @@ def _chip_target_ok(target: str) -> bool:
         return False
     m = _CHIP_SCHEME_RE.match(t)
     return m is None or m.group(0).lower() in ("http:", "https:")
+
+
+_BARE_DESTINATION_UNSAFE = re.compile(r"[\s()<>\\]")
+_ANGLE_DESTINATION_ESCAPE = re.compile(r"[<>\\]")
+
+
+def _chip_destination(target: str) -> str:
+    """A chip address as ONE CommonMark destination (D2 fix round 2, N2). An ordinary address
+    is written bare, as before; one holding whitespace, a parenthesis, an angle bracket or a
+    backslash is written in the `<...>` form, `<`, `>` and backslash escaped, so it can
+    neither close the link early (`q3.pdf) [x](javascript:...)` planted a second, live link)
+    nor stop being a link (`files/q3 report.pdf`). Line breaks never reach here
+    (`_chip_target_ok` refuses control characters)."""
+    if not _BARE_DESTINATION_UNSAFE.search(target):
+        return target
+    return "<" + _ANGLE_DESTINATION_ESCAPE.sub(lambda m: "\\" + m.group(0), target) + ">"
 
 
 def chip_label(attrs: dict[str, Any]) -> str | None:
