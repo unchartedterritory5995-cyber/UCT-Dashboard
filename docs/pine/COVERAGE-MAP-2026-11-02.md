@@ -29,18 +29,15 @@ These are door verdicts, not parity verdicts.
 
 ---
 
-> **WIP status (hand-off, 2026-11-02).** All four measurements are DONE and summarised below:
-> production census, runtime-on census, vendor harness both lanes, and the map (both lanes).
-> STILL TO RUN: only the optional engine-door probe (the `COVERAGE_DOOR_OUT` step in section 10);
-> it was queued behind other agents' heavy-lock jobs. Until it lands, `coverage-map.json` in this
-> commit carries an EMPTY `engineTableThroughPineDoor` (the 10-31 file had 83 rows); no count in
-> this document depends on it. Then: re-run `coverage_map.py` with `--engine-door`, and the
-> pre-commit pytest list + `tools/check_repo_hygiene.py`.
-> Raw outputs on the ORIGINAL machine (not committed; reference sources are local-only by licence):
-> `C:\Users\Patrick\uct-worktrees\_w0-2026-11-02\` - `prod/` and `rt/` (census caches with `census.jsonl`),
-> `verdicts-prod/`, `verdicts-rt/` (harness `verdicts.json` + `summary.md`), `ref/pine_v6_reference.json`,
-> `coverage-map.json`, `old-map.json` (the 10-31 committed map), logs `census-*.log`, `harness-*.log`.
-> Tables regenerate with `tools/pine_coverage/w0/targets.py` then `gen_md.py` (section 9).
+> **Status (2026-11-02).** All four measurements are done and summarised below: production
+> census, runtime-on census, vendor harness both lanes, and the map (both lanes), all on master
+> 6272ed7fa3. The optional engine-door probe (the `COVERAGE_DOOR_OUT` step in section 10) was NOT
+> run for this measurement, so `engineTableThroughPineDoor` in `coverage-map.json` is EMPTY (the
+> 10-31 map had 83 rows). No count in this document depends on it. The next W0 re-run, after the
+> next merged waves, measures it with `--engine-door`.
+> Raw census caches and harness outputs are not committed: the reference sources and fetched
+> scripts are licence-held and stay local. The tables regenerate from `coverage-map.json` with
+> `tools/pine_coverage/w0/targets.py` then `gen_md.py` (section 9).
 
 ## 1. Headline
 
@@ -623,8 +620,9 @@ builtin-over-state, `pine:state`, ...) = W4. Runtime-lane drawing walls (`runtim
   community scripts.
 - The production and runtime lists are each a lane's own peel; a script's runtime-lane walls can
   differ from its production walls (the runtime lane is offered a script only on a host refusal).
-- The engine's declared functions through the Pine door (`engineTableThroughPineDoor`) were
-  re-measured with `COVERAGE_DOOR_OUT`; it does not feed any count above.
+- The engine's declared functions through the Pine door (`engineTableThroughPineDoor`) were NOT
+  measured in this run (the field is empty; see the status note at the top). It does not feed
+  any count above.
 
 **How the target lists were made.** `coverage-targets-2026-11-02.json` is a join over
 `coverage-map.json` only: `prodWalls` (production wall label -> scripts, from `scripts[].walls`),
@@ -639,7 +637,7 @@ builtin-over-state, `pine:state`, ...) = W4. Runtime-lane drawing walls (`runtim
 ```sh
 SCR=<scratch dir>; cp -r <sample cache>/. $SCR/prod/; cp -r <sample cache>/. $SCR/rt/
 node tools/pine_survey/pine_reference_extract.js --out $SCR/ref/pine_v6_reference.json --cache $SCR/ref/_chunkcache
-L="python C:/Users/Patrick/uct-clips/tools/heavy_lock.py run --timeout 14400"
+L="python $HEAVY_LOCK run --timeout 14400"   # HEAVY_LOCK = this machine's heavy_lock.py
 $L --label census-prod -- python tools/pine_coverage/run_census.py --cache $SCR/prod --ref $SCR/ref/pine_v6_reference.json
 $L --label census-rt   -- python tools/pine_coverage/run_census.py --runtime-on --cache $SCR/rt --ref $SCR/ref/pine_v6_reference.json
 cd app
