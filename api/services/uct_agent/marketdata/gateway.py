@@ -228,9 +228,19 @@ def read(kind: str, params: Any = None, *, user_id: Any, turn_id: str, purpose: 
         _turn(user_id, turn_id).provider_calls += int(out.get("provider_calls") or 0)
     if k.model_isolated:
         # ADR-005 L2: the marker every model path refuses (L5 in the browser, L6 in run_turn). Set by the
-        # gateway from the kind's own declaration, never left to the adapter.
-        out = {**out, "isolated": True}
+        # gateway from the kind's own declaration, never left to the adapter. QA F-21: also on the data and
+        # on every row in it, so a value copied OUT of the envelope still carries the marker.
+        out = {**out, "isolated": True, "data": _stamp(out.get("data"))}
     return out
+
+
+def _stamp(v):
+    """QA F-21: `isolated: true` on a dict and on every dict inside its lists (rows), recursively."""
+    if isinstance(v, dict):
+        return {**{k: _stamp(x) for k, x in v.items()}, "isolated": True}
+    if isinstance(v, list):
+        return [_stamp(x) for x in v]
+    return v
 
 
 def describe() -> list[dict]:

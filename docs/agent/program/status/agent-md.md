@@ -119,6 +119,10 @@ Only agent-md edits this file. Update it in every PR.
   2026-11-01): agent-lead routes the O(1) `MAX(last_ok)` read to the news owner; `news.company` must not be
   activated on `health_snapshot`.
 
+- **F-21 pairing** (branch `agent/md/f21-isolated-keys`, on agent-lead's `bb3d4f35f0`): the breadth/ratings key-set
+  tests expect the gateway's `isolated` marker and assert it is true on the envelope, its data and every nested dict.
+  Mutation-checked 2 ways against the stamp (not recursive; data not stamped: each red).
+
 ## Blockers
 - (none) — the Sprint-0 gateway test was updated by agent-lead in #571.
 

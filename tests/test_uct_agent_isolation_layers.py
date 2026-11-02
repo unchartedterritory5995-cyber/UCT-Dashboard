@@ -125,3 +125,39 @@ def test_L6_an_unmarked_request_is_unchanged():
 def test_L6_counts_what_it_removed():
     *_, n = turn.strip_isolated_request({"a": MARKED, "b": [MARKED, 1]}, MARKED, None, None, [])
     assert n == 3
+
+
+# ── QA F-21: the marker travels with the data and every row ─────────────────────────────────────────
+def test_F21_data_and_every_row_carry_the_marker(isolated_on):
+    r = gw.Registry()
+
+    def rows(params, ctx):
+        return env.make_envelope("sealed", params, status="ok", freshness="periodic", as_of="2026-11-01T20:00:00Z",
+                                 source="fixture", data={"ratings": [{"symbol": "NVDA", "v": SECRET}, {"symbol": "AMD"}],
+                                                         "summary": {"top": SECRET}, "count": 2})
+    r.register(gw.Kind(name="sealed", fn=rows, freshness="periodic", model_isolated=True))
+    gw._reset_for_test(r)
+    out = _read("sealed")
+    assert out["isolated"] is True and out["data"]["isolated"] is True
+    assert all(row["isolated"] is True for row in out["data"]["ratings"])
+    assert out["data"]["summary"]["isolated"] is True and out["data"]["count"] == 2
+    copied = {"widgets": [{"ref": "w1", "row": out["data"]["ratings"][0]}, {"ref": "w2", "top": out["data"]["summary"]}]}
+    assert SECRET not in _sent(context=copied)          # a value copied OUT of the envelope is still refused
+
+
+def test_F21_an_ordinary_kinds_data_is_untouched(isolated_on):
+    assert "isolated" not in (_read("plain")["data"] or {})
+
+
+# ── QA F-22: the naming call screens isolated rows too ──────────────────────────────────────────────
+def test_F22_naming_skips_an_agent_row_carrying_the_marker():
+    calls = []
+
+    def caller(**k):
+        calls.append(k)
+        return types.SimpleNamespace(content=[types.SimpleNamespace(type="text", text=json.dumps({"title": "x"}))],
+                                     stop_reason="end_turn", usage=types.SimpleNamespace(input_tokens=1, output_tokens=1))
+    turns = [{"role": "member", "text": "ratings please", "data": {}},
+             {"role": "agent", "text": f"rating {SECRET}", "data": {"envelope": {"ops": []}, "seen": MARKED}}]
+    turn.name_conversation(turns, caller=caller)
+    assert calls and SECRET not in json.dumps(calls[0], ensure_ascii=False, default=str)

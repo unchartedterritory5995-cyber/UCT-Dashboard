@@ -1209,8 +1209,8 @@ def name_conversation(turns: list[dict], caller: Callable | None = None, meter=N
     for t in turns[-16:]:
         if t.get("role") not in ("member", "agent") or not t.get("text"):
             continue
-        if t["role"] == "agent" and is_local_row(t):
-            continue                                       # QA F-18: a local result never reaches the naming model
+        if t["role"] == "agent" and (is_local_row(t) or _strip_isolated(t.get("data"))[1]):
+            continue                                       # QA F-18 / F-22: a local or isolated result never reaches the naming model
         who = "Member" if t["role"] == "member" else "Agent"
         lines.append(f"{who}: {' '.join(str(t['text']).split())[:400]}")
     if not any(ln.startswith("Member:") for ln in lines):
