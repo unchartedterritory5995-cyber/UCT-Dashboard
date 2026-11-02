@@ -42,7 +42,7 @@ import { matchName } from '../nl/match'
 import { serverServesScan, serverDataKinds } from '../agentClient'
 import { readData } from '../marketdata/client'
 import { currentTurnId } from '../trace'
-import { isHidden, refusalFor } from './scanHidden'
+import { isHidden, refusalFor, DEFAULT_SORT, DEFAULT_ORDER_WORDS } from './scanHidden'
 
 const META_TTL_MS = 6 * 3600 * 1000      // the registry changes only on deploy
 const SAVED_TTL_MS = 60 * 1000
@@ -57,9 +57,8 @@ const PAGE = 500                  // the engine's own page cap (services/screene
 // limit (the watchlist server has none): a bound on one request, always SAID, never a silent cut.
 export const FILL_MAX = 1000
 const CANDIDATES_MAX = 10000      // a screen with measure conditions reads at most this many candidates
-// SC-1 §2d (owner F-16): never the Screener's own default order (UCT Composite, a proprietary rating).
-const DEFAULT_SORT = { key: 'market_cap', dir: 'desc' }
-const DEFAULT_ORDER_WORDS = 'ordered by market cap, largest first (no other order was asked for)'
+// SC-1 §2d (owner F-16): never the Screener's own default order (UCT Composite, a proprietary rating). DEFAULT_SORT
+// and DEFAULT_ORDER_WORDS come from scanHidden.js, generated from the server's spec.DEFAULT_SORT: one authority.
 /** SC-1 §2d: the refusal sentence when ANY part of a wire spec names a hidden field (a filter, an `other`, a logic
  *  leaf, an arithmetic term, the sort, a rank criterion, a column), or null. One walk, every shape. */
 export function hiddenRefusal(spec) {

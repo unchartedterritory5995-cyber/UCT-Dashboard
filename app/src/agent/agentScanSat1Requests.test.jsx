@@ -17,6 +17,7 @@ import { registerBuiltins } from './builtins'
 import { _resetScreenerCache, loadMeta } from './capabilities/screener'
 import { _resetAgentConfig } from './agentClient'
 import { _resetTurns } from './trace'
+import { isHidden } from './capabilities/scanHidden'
 
 registerBuiltins()
 const REPO = path.resolve(__dirname, '../../..')
@@ -53,7 +54,13 @@ describe('SAT-1 section B: the planner request the real panel sends per corpus q
       // every discovery question reaches the planner today (QA #608: the fast path handles 0/31); if one stops
       // doing so this records null and the runner reports it as answered without the planner
       results[q.id] = body ? { ...body, conversationId: null } : null
-      if (body) expect(body.message).toBe(q.question)
+      if (body) {
+        expect(body.message).toBe(q.question)
+        // SC-1 §2d (owner F-16): the planner's Screener catalog names no rating, proprietary score or flow field
+        const fields = String(body.context?.screener?.[0]?.fields || '').split(/[;,]/).map(f => f.split(':')[0])
+        expect(fields.filter(isHidden)).toEqual([])
+        expect(fields.length).toBeGreaterThan(50)                                  // non-vacuity: the catalog is there
+      }
     }, 30000)
   }
 
