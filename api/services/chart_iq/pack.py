@@ -35,8 +35,27 @@ def enabled() -> bool:
     return os.environ.get("CHART_IQ_PACK_ENABLED", "0") == "1" and os.environ.get("CHART_IQ_ENABLED", "0") == "1"
 
 
+def _data_dir() -> str:
+    return os.environ.get("DATA_DIR", "/data")
+
+
+def _current_marker() -> str:
+    return os.path.join(_data_dir(), "chart_iq_pack.current")
+
+
 def _path() -> str:
-    return os.environ.get("CHART_IQ_PACK_DB") or os.path.join(os.environ.get("DATA_DIR", "/data"), "chart_iq_pack.db")
+    """The active pack file: CHART_IQ_PACK_DB (tests), else the file named by the 'current' marker (a pack installed from R2),
+    else the server-built default. A received pack never replaces a live file in place (a WAL database must not be swapped
+    under its -wal / -shm): it gets its own name and the marker is switched atomically."""
+    if os.environ.get("CHART_IQ_PACK_DB"):
+        return os.environ["CHART_IQ_PACK_DB"]
+    try:
+        name = open(_current_marker(), encoding="utf-8").read().strip()
+        if name and os.path.isfile(os.path.join(_data_dir(), name)):
+            return os.path.join(_data_dir(), name)
+    except OSError:
+        pass
+    return os.path.join(_data_dir(), "chart_iq_pack.db")
 
 
 def _conn() -> sqlite3.Connection:
@@ -178,6 +197,87 @@ def build(force: bool = False, tickers: list[str] | None = None, sleep=time.slee
         return {"error": type(e).__name__}
     finally:
         _BUILDING.clear()
+
+
+# ── the efficient path: the lab PC builds the pack (fast local disk: ~10 min for the universe) and uploads ONE file to R2
+# (chart_iq/<ts>.db.gz + chart_iq/latest.txt, the same bucket and DATA_SYNC_* credentials as the bars and brain packs).
+# The pod pulls it every 15 minutes: download, gunzip to a new versioned file, integrity_check, sanity (rows, day not older
+# than the installed pack), switch the 'current' marker atomically, keep the previous file one cycle. The server-side build()
+# remains as the fallback when no fresh pack arrives.
+MIN_ROWS = 1000
+R2_PREFIX = "chart_iq/"
+
+
+def _installed_ts() -> int:
+    try:
+        return int(open(os.path.join(_data_dir(), "chart_iq_pack.r2ts"), encoding="utf-8").read().strip())
+    except (OSError, ValueError):
+        return 0
+
+
+def sync_from_r2(s3=None) -> dict:
+    """Install a newer PC-built pack from R2. Returns a report; never raises."""
+    if not enabled():
+        return {"skipped": "disabled"}
+    import gzip
+    import shutil
+    import tempfile
+    try:
+        bucket = os.environ["DATA_SYNC_BUCKET"]
+        if s3 is None:
+            from api.services.brain_sync import _s3_client
+            s3 = _s3_client()
+        latest = int(s3.get_object(Bucket=bucket, Key=R2_PREFIX + "latest.txt")["Body"].read().decode().strip())
+        if latest <= _installed_ts():
+            return {"skipped": "current", "ts": latest}
+        blob = s3.get_object(Bucket=bucket, Key=R2_PREFIX + "%d.db.gz" % latest)["Body"].read()
+        name = "chart_iq_pack-%d.db" % latest
+        target = os.path.join(_data_dir(), name)
+        fd, tmp = tempfile.mkstemp(prefix=".chart_iq_pack-", suffix=".db", dir=_data_dir())
+        os.close(fd)
+        try:
+            with open(tmp, "wb") as fh:
+                fh.write(gzip.decompress(blob))
+            c = sqlite3.connect(tmp)
+            try:
+                if c.execute("PRAGMA integrity_check").fetchone()[0] != "ok":
+                    raise ValueError("integrity_check failed")
+                rows = c.execute("SELECT count(*) FROM reads").fetchone()[0]
+                day = dict(c.execute("SELECT k, v FROM meta").fetchall()).get("day")
+            finally:
+                c.close()
+            if rows < MIN_ROWS or not day:
+                raise ValueError("pack too small or undated (%s rows, day %s)" % (rows, day))
+            cur = status().get("day")
+            if cur and day < cur:
+                raise ValueError("pack day %s is older than the installed %s" % (day, cur))
+            os.replace(tmp, target)
+            tmp = None
+        finally:
+            if tmp and os.path.exists(tmp):
+                os.remove(tmp)
+        prev = _path()
+        with open(_current_marker() + ".tmp", "w", encoding="utf-8") as fh:
+            fh.write(name)
+        os.replace(_current_marker() + ".tmp", _current_marker())
+        with open(os.path.join(_data_dir(), "chart_iq_pack.r2ts"), "w", encoding="utf-8") as fh:
+            fh.write(str(latest))
+        keep = {name, os.path.basename(prev)}    # the new pack and the one it replaced; older received packs (and their
+        for f in os.listdir(_data_dir()):        # -wal / -shm side files) are removed
+            if not f.startswith("chart_iq_pack-"):
+                continue
+            base = f[:f.index(".db") + 3] if ".db" in f else f
+            if base not in keep:
+                try:
+                    os.remove(os.path.join(_data_dir(), f))
+                except OSError:
+                    pass
+        rep = {"installed": latest, "day": day, "rows": rows}
+        log.info("[chart_iq_pack] synced %s", rep)
+        return rep
+    except Exception as e:  # noqa: BLE001
+        log.warning("[chart_iq_pack] sync failed: %s", e)
+        return {"error": "%s: %s" % (type(e).__name__, e)}
 
 
 def build_if_behind() -> dict:
