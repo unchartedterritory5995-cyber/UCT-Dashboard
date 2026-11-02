@@ -130,8 +130,15 @@ Only agent-md edits this file. Update it in every PR.
     class per word — symbol · symbol_typed_lowercase · name_match · non_equity · unknown; a cold index is
     `unavailable`; 0 provider calls; only the index's public read API. Freshness corpus +4 questions (38).
     Tests 34, mutation-checked 5 ways.
-  - **Client half** (intent-only parser, resolve-before-read in stock.quote and stock.dailyBars, named securities,
-    fixed clarifications, activation needs `instrument.resolve`): in progress.
+  - **Client half** (same branch): `marketDataPhrases.js` is intent-only. It records candidates as typed
+    (cashtag / upper / lower; an all-caps sentence counts as lower) and vetoes times it cannot resolve without a
+    clock. `marketDataResolve.js` makes one `instrument.resolve` read and decides all or nothing, using §4.7.3's
+    fixed words. stock.quote and stock.dailyBars resolve before any read, name every security, and register only
+    with `instrument.resolve` in `data_kinds`. `MD-1-phrasings.md` is rewritten (P01–P42, with outcomes).
+    One shared fixture index (`marketdata/__fixtures__/symbol-index.json`) holds BOTH the server classifier and the
+    client to the doc's outcome column.
+  - **Self-check on QA's 44 at the outcome level:** 0 FAIL (5 priced correctly, 9 ask, 4 limit, 26 model).
+    Client mutation-checked 9 ways, each red.
 
 ## Blockers
 - (none) — the Sprint-0 gateway test was updated by agent-lead in #571.

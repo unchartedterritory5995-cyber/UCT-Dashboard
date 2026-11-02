@@ -58,6 +58,7 @@ export async function resolveInstruments(candidates) {
   // the member's open turn (trace.js): the server's per-turn budget key; never minted, never injected
   const turnId = currentTurnId()
   if (!turnId) return { ok: false, text: "I couldn't check that ticker: this needs the Agent's turn, which wasn't available." }
-  const env = await readData(RESOLVE_KIND, { symbols: candidates }, { purpose: 'answer', turnId })
+  // the kind is a string LITERAL at the call: agent-qa's isolation rail checks every readData kind statically
+  const env = await readData('instrument.resolve', { symbols: candidates }, { purpose: 'answer', turnId })
   return decide(env, candidates)
 }
