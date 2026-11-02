@@ -1435,6 +1435,59 @@ const BUILTIN_SERIES_TREE = Object.freeze({
   // measured against the full-history capture in `pinePhase1Builtins.test.js`).
   nvi: () => volumeIndexTree('<'),
   pvi: () => volumeIndexTree('>'),
+  // ⭐⭐ W1 (2026-11-02) — `ta.obv` and `ta.pvt` JOIN THE SAME `cum` BARGAIN, the
+  // one `_functions_excluded.obv`/`.pvt` refuse for a SCREEN and
+  // `_functions_cumulative` (amended 2026-09-08) permits on a PANE. Each is
+  // TradingView's published reference body, verbatim:
+  //     ta.obv = ta.cum(math.sign(ta.change(close)) * volume)
+  //     ta.pvt = ta.cum((ta.change(close) / close[1]) * volume)
+  // so bar 0 (`ta.change` is `na` there) is `na`, and `cum`'s vendor-measured
+  // `na` rule (blank on an `na` bar, total held across it) is what the reference
+  // body inherits. ⛔ THE BOUNDED REWRITES ARE UNTOUCHED AND STILL WIN:
+  // `obv > obv[k]`, `obv - obv[k]` and `obv <cmp> sma(obv, n)` are decided in the
+  // binary case before either operand resolves, so a SCREEN keeps `obvN`/`pvtN`,
+  // and a bare LEVEL reaches here only on a pane (`seriesTreeOf`).
+  // ⚠️ No capture holds either level yet: `docs/pine/capture-queue-2026-11-02-w1.md`.
+  obv: () => cCall('cum', [cOp('*', [cCall('sign', [cCall('change', [cSeries('close')])]), cSeries('volume')])]),
+  pvt: () => cCall('cum', [cOp('*', [
+    cOp('/', [cCall('change', [cSeries('close')]), { type: 'offset', value: 1, args: [cSeries('close')] }]),
+    cSeries('volume'),
+  ])]),
+  // ⭐ W1 (2026-11-02) — the three remaining volume built-ins, each TradingView's
+  // published reference body verbatim (the "the same on pine" half of each
+  // variable's own reference example):
+  //     ta.iii  = ((2 * close - high - low) / (high - low)) * volume
+  //     ta.wvad = (close - open) / (high - low) * volume
+  //     ta.wad  = ta.cum(mom > 0 ? close - math.min(low, close[1])
+  //                      : mom < 0 ? close - math.max(high, close[1]) : 0),  mom = ta.change(close)
+  // `iii` and `wvad` are per-bar (no state), so a screen may read them. `wad` is a
+  // running total and joins the `cum` bargain (pane only). Its bar 0 is 0, not
+  // `na`: `mom` is `na` there and both comparisons answer false, exactly as the
+  // reference body reads in Pine. ⚠️ No capture yet (capture queue W1-C).
+  iii: () => cOp('*', [
+    cOp('/', [
+      cOp('-', [cOp('-', [cOp('*', [cNum(2), cSeries('close')]), cSeries('high')]), cSeries('low')]),
+      cOp('-', [cSeries('high'), cSeries('low')]),
+    ]),
+    cSeries('volume'),
+  ]),
+  wvad: () => cOp('*', [
+    cOp('/', [cOp('-', [cSeries('close'), cSeries('open')]), cOp('-', [cSeries('high'), cSeries('low')])]),
+    cSeries('volume'),
+  ]),
+  wad: () => {
+    const prevClose = () => ({ type: 'offset', value: 1, args: [cSeries('close')] })
+    const mom = () => cCall('change', [cSeries('close')])
+    return cCall('cum', [cOp('?:', [
+      cOp('>', [mom(), cNum(0)]),
+      cOp('-', [cSeries('close'), cCall('min', [cSeries('low'), prevClose()])]),
+      cOp('?:', [
+        cOp('<', [mom(), cNum(0)]),
+        cOp('-', [cSeries('close'), cCall('max', [cSeries('high'), prevClose()])]),
+        cNum(0),
+      ]),
+    ])])
+  },
 })
 
 /** Does a canonical tree call any of `names`? Iterative, like every walk here. */
@@ -1466,11 +1519,23 @@ const PHASE1_MODERN_SPELLING = Object.freeze({
   nvi: 'ta.nvi',
   pvi: 'ta.pvi',
   accdist: 'ta.accdist',
+  obv: 'ta.obv',
+  pvt: 'ta.pvt',
+  iii: 'ta.iii',
+  wvad: 'ta.wvad',
+  wad: 'ta.wad',
+  cmo: 'ta.cmo',
+  cog: 'ta.cog',
 })
+
+/** W1 — the longest `ta.cog` window unrolled into a tree (`BUILTIN_CALL_TREE.cog`).
+ *  The only literal length in the sample and corpus (2026-11-02) is TradingView's
+ *  own example, 10; a longer one is refused by name, not built. */
+const COG_MAX_UNROLL = 200
 
 /** The `BUILTIN_SERIES_TREE` names that are running totals (`cum`), so only a
  *  pane is handed them — see `Resolver.seriesTreeOf`. */
-const PINE_WINDOW_DEPENDENT_SERIES = Object.freeze(new Set(['accdist', 'nvi', 'pvi']))
+const PINE_WINDOW_DEPENDENT_SERIES = Object.freeze(new Set(['accdist', 'nvi', 'pvi', 'obv', 'pvt', 'wad']))
 
 /** `exp(cum(cond ? ln(1 + (close - close[1]) / close[1]) : 0))` — see `nvi`/`pvi`
  *  above. `cmp` is how this bar's volume must compare with `nz(volume[1], 0)`. */
@@ -2403,6 +2468,49 @@ export const BUILTIN_CALL_TREE = Object.freeze({
     const pc = cCall('change', [a[0]])
     const doubleSmooth = (s) => cCall('ema', [cCall('ema', [s, longLen]), shortLen])
     return cOp('/', [doubleSmooth(pc), doubleSmooth(cCall('abs', [pc]))])
+  },
+  // ⭐ W1 (2026-11-02) — `ta.cmo(source, length)`, TradingView's published
+  // `f_cmo`, verbatim in its arithmetic and its order:
+  //     mom = ta.change(src)
+  //     sm1 = math.sum(mom >= 0 ? mom : 0.0, length)
+  //     sm2 = math.sum(mom >= 0 ? 0.0 : -mom, length)
+  //     100 * (sm1 - sm2) / (sm1 + sm2)
+  // ⚠️ An `na` momentum is NOT symmetric in that body and is kept so: `na >= 0`
+  // is false, so it adds 0.0 to `sm1` and `-na` (= `na`) to `sm2`, which
+  // `math.sum` SKIPS (the table's `sum`, vendor-pinned `NA.SKIP`). So `sm2` holds
+  // `length` known values only from bar `length`, the first bar this answers,
+  // and a hole later in the source skews `sm2`'s window by one bar exactly as
+  // the published body does. `length` must be a whole
+  // number this engine can read when it builds the formula (the caller records
+  // an input that reaches it). ⚠️ No capture yet (capture queue W1-C).
+  cmo: (a) => {
+    if (a.length !== 2) return null
+    const n = foldWindow(a[1])
+    if (!(n && n.type === 'num' && Number.isInteger(Number(n.value)) && Number(n.value) >= 1)) return null
+    const mom = () => cCall('change', [a[0]])
+    const up = () => cOp('>=', [mom(), cNum(0)])
+    const sm1 = cCall('sum', [cOp('?:', [up(), mom(), cNum(0)]), n])
+    const sm2 = cCall('sum', [cOp('?:', [up(), cNum(0), cOp('u-', [mom()])]), n])
+    return cOp('/', [cOp('*', [cNum(100), cOp('-', [sm1, sm2])]), cOp('+', [sm1, sm2])])
+  },
+  // ⭐ W1 (2026-11-02) — `ta.cog(source, length)`, TradingView's published
+  // `pine_cog`: `-num / math.sum(source, length)`, where `num` starts at 0.0 and
+  // adds `source[i] * (i + 1)` for i = 0 … length − 1 IN THAT ORDER. The loop has
+  // a whole-number bound, so it is unrolled into the same left-to-right sum
+  // (`0.0 + x` is `x` exactly, so the seed term is dropped). An `na` anywhere in
+  // the window is `na`, by plain arithmetic, as there. ⛔ A length above
+  // `COG_MAX_UNROLL` is refused rather than unrolled into a tree of that size.
+  // ⚠️ No capture yet (capture queue W1-C).
+  cog: (a) => {
+    if (a.length !== 2) return null
+    const n = foldWindow(a[1])
+    if (!(n && n.type === 'num' && Number.isInteger(Number(n.value)) && Number(n.value) >= 1)) return null
+    const len = Number(n.value)
+    if (len > COG_MAX_UNROLL) return null
+    const at = (k) => (k === 0 ? a[0] : { type: 'offset', value: k, args: [a[0]] })
+    let num = at(0)
+    for (let i = 1; i < len; i++) num = cOp('+', [num, cOp('*', [at(i), cNum(i + 1)])])
+    return cOp('/', [cOp('u-', [num]), cCall('sum', [a[0], n])])
   },
   // ⭐⭐ THE `timenow` CLOCK-FIELD IDENTITY FORMS (2026-09-20). Pine spells
   // five calendar values two ways: a bare global (`year`) reads THIS bar's
@@ -13190,6 +13298,20 @@ export class Resolver {
     }
     const bare = normaliseName(base)
     this.refuseBareModernSpelling(pineName, base, tok)
+    // ⭐ W1 (2026-11-02) — A v1–v4 SCRIPT'S BARE ONE-ARGUMENT `barssince(cond)` IS
+    // PINE'S OWN, UNBOUNDED `barssince` — the function v5 renamed `ta.barssince`
+    // (v4 reference: `barssince(condition) → series[integer]`, one parameter). The
+    // table's `barssince(condition, n)` takes TWO, so a one-argument call cannot be
+    // the table's and was refused `pine:arity` ("add a number") — the capped
+    // near-miss `PINE_INEXPRESSIBLE.barssince` exists to stop. It is re-routed to
+    // the namespaced spelling, so it meets EXACTLY what `ta.barssince(cond)` meets:
+    // the exact unbounded count on a pane, that entry's refusal on a screen.
+    // ⛔ Bounded by the version (as `LEGACY_BARE_NAMESPACE` routing is): from v5 the
+    // bare spelling is not Pine, and a versionless source is the formula box.
+    if (bare === 'barssince' && pineName === base && this.pineVersion !== null && this.pineVersion <= 4
+        && Array.isArray(args) && args.length === 1 && args[0] && !args[0].name) {
+      return this.resolveTableCall('ta.barssince', base, args, tok)
+    }
     // ⭐ PHASE 1 (2026-10-30) — `ta.alma`'s optional fifth argument, `floor`.
     // A written `false` is the four-argument call exactly (TradingView's
     // reference applies `math.floor` to `m` only when it is true), so it is
@@ -13346,6 +13468,19 @@ export class Resolver {
             ? `\`${pineName}\` takes one series, by position`
             : `\`${pineName}\` needs its source and its two lengths, each length a whole `
               + 'number this engine can read when it builds the formula', locate(tok))
+      }
+      // ⭐ W1 — `ta.cmo` / `ta.cog`: a length that reaches a window is not a member
+      // knob (`windowBoundInputs`, as the table path's `int` slot records it), and
+      // a shape the expansion declines is named rather than handed on as `null`.
+      if (bare === 'cmo' || bare === 'cog') {
+        if (built.length === 2) for (const n of declaredInputNames(built[1])) this.windowBoundInputs.add(n)
+        const tree = BUILTIN_CALL_TREE[bare](built)
+        if (tree) return tree
+        throw new PineRefusal(built.length === 2 ? 'pine:window' : 'pine:arity',
+          built.length === 2
+            ? `\`${pineName}\` needs its length as a whole number this engine can read when it `
+              + `builds the formula${bare === 'cog' ? ` (at most ${COG_MAX_UNROLL})` : ''}`
+            : `\`${pineName}\` takes a source and a length, by position`, locate(tok))
       }
       if (bare === 'kcw' && (built.length < 3 || built.length > 4)) {
         throw new PineRefusal('pine:arity',

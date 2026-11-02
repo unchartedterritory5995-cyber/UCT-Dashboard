@@ -1,5 +1,5 @@
 {
-  "measured_at": "2026-10-31",
+  "measured_at": "2026-11-02",
   "scripts": 266,
   "host_ok": 82,
   "screener_ok": 68,
@@ -1047,14 +1047,13 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:arity",
         "pine:tuple",
         "pine:strategy-call"
       ],
       "screenerGuards": [
         "pine:declaration-strategy",
         "pine:strategy-call",
-        "pine:arity",
+        "pine:function",
         "pine:tuple"
       ]
     },

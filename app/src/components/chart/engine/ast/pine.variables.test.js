@@ -828,7 +828,8 @@ plot(show ? ta.sma(close, 5) : na)
     // Without this the case above would pass for a translator that simply never
     // looks at the `no` arm of a ternary.
     // ⚰️ …and `fixnan` translates since 2026-10-30 (Pine coverage Phase 1), so the
-    // refusing arm is `ta.wad` now: undeclared, unruled, and not served anywhere.
+    // refusing arm is `ta.wad` now: undeclared, unruled, and refused on a SCREEN
+    // (this file's contract). W1 (2026-11-02) serves it on a PANE only, as `cum`.
     expect(refusalOf(`${HEAD}plot(close > open ? ta.sma(close, 5) : ta.wad)\n`).guard).toBe('pine:function')
   })
 

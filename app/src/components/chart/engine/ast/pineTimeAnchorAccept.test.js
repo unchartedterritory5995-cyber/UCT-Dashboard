@@ -276,15 +276,18 @@ describe('⭐ time(<timeframe>) one-argument anchor form redirects to dayopentim
     expect(rWelotrades.refusal.message).toMatch(/OPENING TIMESTAMP/)
   })
 
-  it('⛔ CONTROL — a genuinely unimplemented function (ta.wad) still refuses pine:function', () => {
+  it('⛔ CONTROL — a genuinely unimplemented function (ta.sar) still refuses pine:function', () => {
     // ⚰️ (2026-10-30) this read `smart-money-volume-index-algoalpha`, whose first
     // wall was `ta.nvi` — served on a pane since Pine coverage Phase 1 (`exp(cum(…))`,
     // matched to TradingView in `pinePhase1Builtins.test.js`). `ta.wad` is still
     // genuinely undeclared and unruled, so it is the control now.
-    const src = ['//@version=5', 'indicator("t")', 'plot(ta.wad)', ''].join(String.fromCharCode(10))
+    // ⚰️ (2026-11-02) …and `ta.wad` is served on a pane since W1 (TradingView's own
+    // `f_wad` body under the `cum` bargain, `pineW1Builtins.test.js`). `ta.sar` is
+    // unimplemented and RULED (`_functions_excluded.sar`), still `pine:function`.
+    const src = ['//@version=5', 'indicator("t")', 'plot(ta.sar(0.02, 0.02, 0.2))', ''].join(String.fromCharCode(10))
     const t = translatePine(src, { strict: true })
     expect(t.ok).toBe(false)
     expect(t.refusal.guard).toBe('pine:function')
-    expect(t.refusal.message).toMatch(/ta\.wad/)
+    expect(t.refusal.message).toMatch(/ta\.sar/)
   })
 })
