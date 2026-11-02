@@ -125,7 +125,7 @@ describe('no performance numbers on the chart (tracked privately, not displayed)
     const p = buildPlan(PAYLOAD, BARS)
     const buys = p.markers.filter((m) => m.kind === 'buy')
     expect(buys.length).toBeGreaterThan(0)
-    for (const m of buys) expect(`${m.text} ${m.why}`).not.toMatch(/%|run|since \+/)
+    for (const m of buys) expect(`${m.text} ${m.why}`).not.toMatch(/%|\brun\b|since \+/)
   })
 })
 

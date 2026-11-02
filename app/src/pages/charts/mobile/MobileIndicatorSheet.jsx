@@ -11,6 +11,7 @@ import IndicatorHistoryButtons from '../../../components/chart/IndicatorHistoryB
 import UnavailableIndicators from '../../../components/chart/UnavailableIndicators'
 import { isInstanceTombstone } from '../../../components/chart/instanceShape'
 import { useChartIqAllowed } from '../../../components/chart/chartIq/chartIqGate'
+import Switch from '../../../components/ui/Switch'
 import styles from './MobileCharts.module.css'
 
 // Preset swatches for the phone param editors — the desktop ColorPicker's
@@ -332,17 +333,15 @@ export default function MobileIndicatorSheet({ open, onClose, cs, onWrite, onBro
                   <span className={styles.indNote}> · daily charts</span>
                 </span>
               </span>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={!!cs?.showChartIq}
+              <Switch
+                checked={!!cs?.showChartIq}
                 aria-label="Chart IQ pattern recognition"
                 data-testid="chart-iq-mobile-toggle"
-                className={`${styles.switch} ${cs?.showChartIq ? styles.switchOn : ''}`}
+                className={styles.switch}
+                checkedClassName={styles.switchOn}
+                knobClassName={styles.knob}
                 onClick={() => { haptics.tap(); onWrite({ ...cs, showChartIq: !cs?.showChartIq, preset: 'custom' }) }}
-              >
-                <span className={styles.knob} />
-              </button>
+              />
             </div>
           </>
         )}

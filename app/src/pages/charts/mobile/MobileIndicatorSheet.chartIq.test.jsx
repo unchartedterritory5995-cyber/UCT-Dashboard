@@ -43,6 +43,6 @@ test('shows ON when the setting is on, and switches it off', async () => {
 test('showChartIq survives the settings merge (an undeclared key is dropped, which left the switch stuck OFF)', async () => {
   const { mergeChartSettings } = await import('../../../components/chart/chartDefaults')
   expect(mergeChartSettings({ showChartIq: true }).showChartIq).toBe(true)
-  expect(mergeChartSettings({}).showChartIq).toBe(false)
-  expect(mergeChartSettings({ showChartIq: 'yes' }).showChartIq).toBe(false)
+  expect('showChartIq' in mergeChartSettings({})).toBe(false)   // off = no key at all: every other chart merges as before
+  expect('showChartIq' in mergeChartSettings({ showChartIq: 'yes' })).toBe(false)
 })
