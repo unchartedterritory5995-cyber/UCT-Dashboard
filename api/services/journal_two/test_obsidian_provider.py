@@ -1540,3 +1540,49 @@ def test_a_missing_dotted_note_embed_waits_like_a_wikilink_and_a_missing_file_is
     assert _link_marks(out["doc"]) == [("Dr.Smith", f"import-link://{pending}")]
     assert out["links"] == [pending]
     assert extract_plain_text(out["doc"]) == "Dr.Smith report.pdf"
+
+
+# ── D1 fix round 3 ───────────────────────────────────────────────────────────
+
+
+def _runs(node, out=None):
+    out = [] if out is None else out
+    if isinstance(node, dict):
+        if node.get("type") == "text":
+            marks = node.get("marks") or []
+            href = next((m["attrs"]["href"] for m in marks if m.get("type") == "link"), None)
+            out.append((node.get("text"), "+".join(sorted(m["type"] for m in marks)), href))
+        for c in node.get("content") or []:
+            _runs(c, out)
+    return out
+
+
+def test_a_wikilink_inside_a_highlight_keeps_its_link_and_its_highlight():
+    """N2: `==[[Plan]]==` is a highlighted LINK. The highlight pass used to escape the
+    `<import-link://...>` destination, and the link was lost."""
+    out = _convert("a ==[[Plan]]== b and ==see [[Plan|the plan]] & <more>== c", ["Plan.md"])
+    assert _runs(out["doc"]) == [
+        ("a ", "", None),
+        ("Plan", "highlight+link", _key("Plan.md")),
+        (" b and ", "", None),
+        ("see ", "highlight", None),
+        ("the plan", "highlight+link", _key("Plan.md")),
+        (" & <more>", "highlight", None),
+        (" c", "", None),
+    ]
+    assert out["links"] == [f"obsidian:{_V}/Plan.md"] * 2
+
+
+def test_a_missing_dotted_note_inside_a_highlight_is_a_highlighted_pending_link():
+    out = _convert("a ==[[Ghost.Name]]== b", [])
+    pending = f"import-link://name:obsidian:{_V}/ghost.name|notes"
+    assert _runs(out["doc"]) == [("a ", "", None), ("Ghost.Name", "highlight+link", pending), (" b", "", None)]
+    assert extract_plain_text(out["doc"]) == "a Ghost.Name b"
+
+
+def test_a_wikilink_in_a_callout_title_stays_a_link_in_the_bold_title():
+    out = _convert("> [!note] See [[Plan]]\n> body", ["Plan.md"])
+    callout = out["doc"]["content"][0]
+    assert callout["type"] == "callout"
+    assert _runs(callout["content"][0]) == [("See ", "bold", None), ("Plan", "bold+link", _key("Plan.md"))]
+    assert extract_plain_text(out["doc"]) == "See Plan body"

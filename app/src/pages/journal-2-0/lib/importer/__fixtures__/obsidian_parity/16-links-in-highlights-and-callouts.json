@@ -1,0 +1,69 @@
+{
+  "id": "16-links-in-highlights-and-callouts",
+  "input_markdown": "# Wikilinks in highlights and callouts\n\na ==[[Plan]]== b and ==see [[Plan|the plan]] & more== c.\n\nMissing: x ==[[Ghost.Name]]== y.\n\n> [!note] See [[Plan]]\n> Body with [[Ghost.Name]].\n\n> [!tip] [[Ghost.Name]]\n> body\n",
+  "self_path": "Src.md",
+  "server": {
+    "callouts": [
+      "note",
+      "success"
+    ],
+    "highlights": [
+      {
+        "color": null,
+        "text": "Plan"
+      },
+      {
+        "color": null,
+        "text": "see "
+      },
+      {
+        "color": null,
+        "text": "the plan"
+      },
+      {
+        "color": null,
+        "text": " & more"
+      },
+      {
+        "color": null,
+        "text": "Ghost.Name"
+      }
+    ],
+    "images": [],
+    "links": [
+      {
+        "target": "Plan.md",
+        "text": "Plan"
+      },
+      {
+        "target": "Plan.md",
+        "text": "the plan"
+      },
+      {
+        "target": "Plan.md",
+        "text": "Plan"
+      }
+    ],
+    "pending": [
+      {
+        "key": "name:obsidian:vault-1/ghost.name",
+        "text": "Ghost.Name"
+      },
+      {
+        "key": "name:obsidian:vault-1/ghost.name",
+        "text": "Ghost.Name"
+      },
+      {
+        "key": "name:obsidian:vault-1/ghost.name",
+        "text": "Ghost.Name"
+      }
+    ],
+    "task_checked": [],
+    "text": "Wikilinks in highlights and callouts a Plan b and see the plan & more c. Missing: x Ghost.Name y. See Plan Body with Ghost.Name. Ghost.Name body"
+  },
+  "vault_id": "vault-1",
+  "vault_paths": [
+    "Plan.md",
+    "Src.md"
+  ]
+}

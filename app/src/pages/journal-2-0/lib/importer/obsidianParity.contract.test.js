@@ -219,6 +219,12 @@ const knownClientGap = {
       text: 'Callouts Size Keep it small. > Wait for the pivot.',
     },
   },
+  // The same Plan B "Obsidian callouts" gap as 12 and nothing else: the client writes
+  // the two callouts as blockquotes. Their titles' links, the highlighted links and the
+  // text all compare strictly (D1 fix round 3, N1/N2).
+  '16-links-in-highlights-and-callouts.json': {
+    clientReads: { callouts: [] },
+  },
   // ⚰️ 13-duplicate-basenames: closed by D1 fix round 2 (M1). Both lanes now share one
   // tie-break (same folder, then shortest path, then sort order).
   // Plan B task "Obsidian deep links" (spec L-4): the client drops an

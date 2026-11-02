@@ -220,12 +220,40 @@ async function makeDoc(vfile, vfiles, byPath, basenameMap) {
 
 function preprocessWikiSyntax(text, ctx) {
   return transformOutsideCode(text, (segment) => {
+    const held = []
+    const hctx = { ...ctx, hold: (html) => holdMarkup(held, html) }
     let out = segment
-    out = transformEmbeds(out, ctx)
-    out = transformWikiLinks(out, ctx)
+    out = transformEmbeds(out, hctx)
+    out = transformWikiLinks(out, hctx)
     out = transformCallouts(out)
     out = transformHighlights(out)
-    return out
+    return releaseMarkup(out, held)
+  })
+}
+
+// ⛔ The embed and wikilink passes emit finished HTML (`<a ...>`, `<img>`, an
+// entity-encoded unresolved name), and the callout and highlight passes after
+// them ESCAPE their text. So each finished piece is HELD: the pass writes a
+// private-use placeholder (no `&`, `<`, `>`, `=` or ASCII digit for a later
+// pass to escape or match), and the real markup goes back in only after every
+// pass has run, right before `mdToHtml`. ⚰️ D1 fix round 2 wrote `&#46;` straight
+// into the text, and a highlight or callout title escaped it again into a
+// visible `&#46;`; a link inside `==...==` lost the highlight, and one in a
+// callout title showed as escaped `<a>` markup (D1 fix round 3, N1/N2).
+const HOLD_OPEN = '\uE000'
+const HOLD_CLOSE = '\uE001'
+const HOLD_RE = /\uE000([\uE010-\uE019]+)\uE001/g
+
+function holdMarkup(held, html) {
+  held.push(html)
+  const digits = String(held.length - 1).replace(/[0-9]/g, (d) => String.fromCharCode(0xe010 + Number(d)))
+  return HOLD_OPEN + digits + HOLD_CLOSE
+}
+
+function releaseMarkup(text, held) {
+  return text.replace(HOLD_RE, (whole, digits) => {
+    const idx = Number(digits.replace(/[\uE010-\uE019]/g, (c) => String(c.charCodeAt(0) - 0xe010)))
+    return idx < held.length ? held[idx] : whole
   })
 }
 
@@ -250,7 +278,7 @@ function transformEmbeds(text, ctx) {
     // segment — strip it before resolving.
     const target = rawTarget.split('|')[0].trim()
     const resolvedPath = resolveTarget(target, ctx.vfiles, ctx.basenameMap, ctx.fromDir)
-    if (!resolvedPath) return unresolvedText(target)
+    if (!resolvedPath) return ctx.hold(unresolvedText(target))
 
     const name = basename(resolvedPath)
     if (/\.md$/i.test(resolvedPath)) {
@@ -259,15 +287,15 @@ function transformEmbeds(text, ctx) {
       // as the server lane's does (`providers/obsidian.py`, Task 13).
       const targetKey = `obsidian:${resolvedPath}`
       ctx.links.push({ targetKey })
-      return `<a data-import-link="${escapeAttr(targetKey)}">${escapeHtml(name.replace(/\.md$/i, ''))}</a>`
+      return ctx.hold(`<a data-import-link="${escapeAttr(targetKey)}">${escapeHtml(name.replace(/\.md$/i, ''))}</a>`)
     }
     const vfile = ctx.byPath.get(resolvedPath)
     if (IMAGE_EXT.test(resolvedPath)) {
       ctx.media.push({ ref: resolvedPath, vfile, kind: 'image', name })
-      return `<img src="import-ref://${escapeAttr(resolvedPath)}">`
+      return ctx.hold(`<img src="import-ref://${escapeAttr(resolvedPath)}">`)
     }
     ctx.media.push({ ref: resolvedPath, vfile, kind: 'file', name })
-    return `<a data-type="attachmentChip" data-import-ref="${escapeAttr(resolvedPath)}" data-name="${escapeAttr(name)}" href="import-ref://${escapeAttr(resolvedPath)}">${escapeHtml(name)}</a>`
+    return ctx.hold(`<a data-type="attachmentChip" data-import-ref="${escapeAttr(resolvedPath)}" data-name="${escapeAttr(name)}" href="import-ref://${escapeAttr(resolvedPath)}">${escapeHtml(name)}</a>`)
   })
 }
 
@@ -277,11 +305,11 @@ function transformWikiLinks(text, ctx) {
     const alias = rawAlias ? rawAlias.trim() : ''
     const display = alias || target
     const resolvedPath = resolveTarget(target, ctx.vfiles, ctx.basenameMap, ctx.fromDir)
-    if (!resolvedPath) return unresolvedText(display)
+    if (!resolvedPath) return ctx.hold(unresolvedText(display))
 
     const targetKey = `obsidian:${resolvedPath}`
     ctx.links.push({ targetKey })
-    return `<a data-import-link="${escapeAttr(targetKey)}">${escapeHtml(display)}</a>`
+    return ctx.hold(`<a data-import-link="${escapeAttr(targetKey)}">${escapeHtml(display)}</a>`)
   })
 }
 
@@ -450,7 +478,8 @@ function extractH1Title(html) {
 // text: markdown-it's linkify would turn `Ghost.Name` (`.name` is a real TLD)
 // into a link to `http://Ghost.Name`, a wrong link where the member wrote a
 // note name (D1 fix round 2). An entity-encoded dot is a separate token that
-// linkify never sees; it renders as `.`.
+// linkify never sees; it renders as `.`. Always HELD (`holdMarkup`), so no
+// later pass escapes the entity into visible text.
 function unresolvedText(s) {
   return escapeHtml(s).replace(/\./g, '&#46;')
 }

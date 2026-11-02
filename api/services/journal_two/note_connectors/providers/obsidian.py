@@ -609,9 +609,24 @@ def _escape_html(text: str) -> str:
 def _transform_highlights(segment: str) -> str:
     """`==text==` -> `<mark>text</mark>`, the client lane's own output (see
     the module docstring's "Conversion" section); `md_to_tiptap` reads the
-    pair as a `highlight` mark."""
+    pair as a `highlight` mark. The markdown links and images the wikilink pass wrote
+    inside it (`==[[Plan]]==`) are kept as written, so the run stays a link AND a
+    highlight; only the text around them is escaped. ⚰️ Escaping the whole span turned the
+    `<import-link://...>` destination into `&lt;...&gt;` and the link was lost (D1 fix
+    round 3, N2). Mirrors the client's held markup (`obsidian.js::holdMarkup`)."""
     return _HIGHLIGHT_RE.sub(
-        lambda m: f"{m.group(1)}<mark>{_escape_html(m.group(2))}</mark>", segment)
+        lambda m: f"{m.group(1)}<mark>{_escape_outside_links(m.group(2))}</mark>", segment)
+
+
+def _escape_outside_links(text: str) -> str:
+    out: list[str] = []
+    last = 0
+    for m in _MD_LINK_OR_IMAGE_RE.finditer(text):
+        out.append(_escape_html(text[last:m.start()]))
+        out.append(m.group(0))
+        last = m.end()
+    out.append(_escape_html(text[last:]))
+    return "".join(out)
 
 
 def _transform_outside_code(text: str, fn: Any) -> str:

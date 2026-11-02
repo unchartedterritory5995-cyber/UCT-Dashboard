@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { obsidianAdapter } from './adapters/obsidian'
+import { htmlToNote } from './convert'
+import { extractPlainText } from '../tiptap'
 
 const vf = (path, text) => ({ path, size: text.length, lastModified: null,
                               bytes: async () => new TextEncoder().encode(text) })
@@ -345,5 +347,63 @@ describe('obsidian adapter — D1 fix round 2', () => {
     const { docs } = await obsidianAdapter.parse([vf('V/src.md', 'see [[Ghost.Name]] and ![[Missing.Name]]')])
     expect(docs[0].html).not.toContain('href')
     expect(docs[0].html).toContain('Ghost.Name')
+  })
+})
+// ---------------------------------------------------------------------------
+// D1 fix round 3: markup the wikilink pass writes survives the callout and
+// highlight passes after it (N1: no visible `&#46;`; N2: a link inside a
+// highlight or callout title keeps both). Parity fixture
+// 16-links-in-highlights-and-callouts pins the server lane on the same input.
+// ---------------------------------------------------------------------------
+
+describe('obsidian adapter — D1 fix round 3', () => {
+  const stored = async (body, files = []) => {
+    const { docs } = await obsidianAdapter.parse([
+      ...files.map((f) => vf(`V/${f}`, 'x')), vf('V/src.md', body)])
+    const d = docs.find((x) => x.importKey === 'obsidian:V/src.md')
+    const { bodyJson } = htmlToNote(d.html)
+    return { html: d.html, doc: bodyJson, text: extractPlainText(bodyJson) }
+  }
+  const marksOf = (node, out = []) => {
+    if (node && node.type === 'text') out.push([node.text, (node.marks || []).map((m) => m.type).sort().join('+'),
+      (node.marks || []).find((m) => m.type === 'link')?.attrs?.href || null])
+    for (const c of node?.content || []) marksOf(c, out)
+    return out
+  }
+  const noPlaceholder = (s) => expect(/[\uE000-\uF8FF]/.test(s)).toBe(false)
+
+  it('keeps an unresolved dotted name plain "Ghost.Name" inside a highlight (N1)', async () => {
+    const r = await stored('a ==[[Ghost.Name]]== b')
+    expect(r.text).toBe('a Ghost.Name b')
+    expect(r.html).not.toContain('&amp;#46;')
+    expect(r.html).not.toContain('href')
+    expect(marksOf(r.doc)).toEqual([['a ', '', null], ['Ghost.Name', 'highlight', null], [' b', '', null]])
+    noPlaceholder(r.html)
+    noPlaceholder(JSON.stringify(r.doc))
+  })
+
+  it('keeps an unresolved dotted name plain "Ghost.Name" in a callout title (N1)', async () => {
+    const r = await stored('> [!note] [[Ghost.Name]]\n> body')
+    expect(r.text).toBe('Ghost.Name body')
+    expect(r.html).not.toContain('&amp;#46;')
+    expect(r.html).not.toContain('href')
+    noPlaceholder(r.html)
+    noPlaceholder(JSON.stringify(r.doc))
+  })
+
+  it('keeps a link AND its highlight for ==[[Plan]]== (N2)', async () => {
+    const r = await stored('a ==[[Plan]]== b', ['Plan.md'])
+    expect(r.text).toBe('a Plan b')
+    expect(marksOf(r.doc).find(([t]) => t === 'Plan')?.[1]).toBe('highlight+link')
+    expect(r.html).toContain('data-import-link="obsidian:V/Plan.md"')
+    noPlaceholder(r.html)
+  })
+
+  it('keeps a link inside a callout title, never escaped markup (N2)', async () => {
+    const r = await stored('> [!note] See [[Plan]]\n> body', ['Plan.md'])
+    expect(r.text).toBe('See Plan body')
+    expect(r.html).not.toContain('&lt;a')
+    expect(marksOf(r.doc).find(([t]) => t === 'Plan')?.[1]).toBe('bold+link')
+    noPlaceholder(r.html)
   })
 })
