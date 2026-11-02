@@ -264,10 +264,6 @@ export const Row = memo(function Row({ item, linkedSym, onSym, colorMode, prices
 
 // ── AI Explanation: expands INSIDE the headline's row ──
 
-/** One headline's explanation, asked for when it opens (the member's click), shown
- *  directly under the headline it explains -- the row grows, the rows below move
- *  down, nothing is covered. Rendered as TEXT only: React escapes it, nothing is
- *  parsed as HTML or markdown. Escape or ✕ closes it and returns focus to Explain. */
 /** Whose voice the explanation is in. UCT Agent is ADMIN-ONLY (its routes are
  *  require_admin_dark), so its mark and name show only where the Agent itself would:
  *  the SAME two keys as the /charts panel (ChartsWorkspace `agentAllowed`) -- this
@@ -289,6 +285,10 @@ function ExplainTitle() {
   )
 }
 
+/** One headline's explanation, asked for when it opens (the member's click), shown
+ *  directly under the headline it explains -- the row grows, the rows below move
+ *  down, nothing is covered. Rendered as TEXT only: React escapes it, nothing is
+ *  parsed as HTML or markdown. Escape or ✕ closes it and returns focus to Explain. */
 export function InlineExplanation({ item, onClose, openerRef }) {
   const [state, setState] = useState(() => {
     const hit = cachedExplanation(item.id)
