@@ -3132,30 +3132,16 @@ from api.services.journal_two import media_policy  # noqa: E402
 _IMGS = tuple(f"https://cdn.example.com/{c}.png" for c in "abc")
 
 
-def _distinct_png(i: int) -> bytes:
-    """A PNG unlike any other `i`: identical bytes in one note are ONE content-addressed file
-    and count once against the cap (final review I1), so a cap test needs distinct images."""
-    import io
-    from PIL import Image
-    buf = io.BytesIO()
-    Image.new("RGB", (1, 1), (i * 40 % 256, 7, 9)).save(buf, "PNG")
-    return buf.getvalue()
-
-
-_IMG_BYTES = {ref: _distinct_png(i) for i, ref in enumerate(_IMGS)}
-_CAP_FOR_TWO = len(_IMG_BYTES[_IMGS[0]]) + len(_IMG_BYTES[_IMGS[1]])
-
-
 def _media_cap(monkeypatch, nbytes):
     monkeypatch.setattr(media_policy, "MEMBER_IMPORT_MEDIA_CAP_BYTES", nbytes)
 
 
 async def test_cap_reached_mid_note_imports_the_note_and_marks_the_rest(source, provider, monkeypatch):
     media_policy._USAGE_MEMO.clear()
-    _media_cap(monkeypatch, _CAP_FOR_TWO)
+    _media_cap(monkeypatch, len(PNG_BYTES) * 2)
     _image_note(provider, *_IMGS, failing=())
     for ref in _IMGS:
-        provider.media_by_ref[ref] = (_IMG_BYTES[ref], "image/png")
+        provider.media_by_ref[ref] = (PNG_BYTES, "image/png")
 
     result = await engine.sync_source(source["id"], full=True)
 
@@ -3172,10 +3158,10 @@ async def test_cap_reached_mid_note_imports_the_note_and_marks_the_rest(source, 
 
 async def test_storage_wait_retries_once_space_frees(source, provider, monkeypatch):
     media_policy._USAGE_MEMO.clear()
-    _media_cap(monkeypatch, _CAP_FOR_TWO)
+    _media_cap(monkeypatch, len(PNG_BYTES) * 2)
     _image_note(provider, *_IMGS, failing=())
     for ref in _IMGS:
-        provider.media_by_ref[ref] = (_IMG_BYTES[ref], "image/png")
+        provider.media_by_ref[ref] = (PNG_BYTES, "image/png")
     await engine.sync_source(source["id"], full=True)
     assert _row("u1", _IMG_KEY)["import_media_pending"] == 2
     note_id = _row("u1", _IMG_KEY)["id"]
@@ -3195,7 +3181,7 @@ async def test_storage_wait_retries_once_space_frees(source, provider, monkeypat
     assert provider.fetch_media_calls == [*_IMGS, _IMGS[2]]
     body = _body(notes_svc.get_note("u1", note_id))
     assert len(_nodes_of(body, "image")) == 3
-    assert set(stored_srcs) < {n["attrs"]["src"] for n in _nodes_of(body, "image")}
+    assert [n["attrs"]["src"] for n in _nodes_of(body, "image")][:2] == stored_srcs
     assert _nodes_of(body, "importNotice") == []
     assert _row("u1", _IMG_KEY)["import_media_pending"] == 0
     assert notes_svc.get_note("u1", note_id)["updatedAt"] == stamped     # timestamp-neutral
@@ -3246,124 +3232,6 @@ async def test_a_retry_never_stores_an_already_resolved_file_twice(source, provi
     files = [p for p in (tmp_path / "att").rglob("*") if p.is_file()]
     assert sorted(p.suffix for p in files) == [".csv", ".png"]          # one each, no orphan
     assert provider.fetch_media_calls == ["f.csv", _IMG, _IMG]
-
-
-def _image_and_file_note(provider, *, text="Chart page", updated_at="2026-08-01T00:00:00+00:00"):
-    provider.refs = [RemoteRef(remote_id="p1", updated_at=updated_at)]
-    rn = _rn("p1", "Chart page", text=text, updated_at=updated_at, media=[
-        {"ref": _IMG, "kind": "image", "name": "a.png"},
-        {"ref": "f.csv", "kind": "file", "name": "f.csv"}])
-    rn.doc["content"] += [{"type": "image", "attrs": {"src": f"import-ref://{_IMG}", "alt": "chart"}},
-                          {"type": "attachmentChip", "attrs": {"href": "import-ref://f.csv", "name": "f.csv"}}]
-    provider.notes_by_id = {"p1": rn}
-    provider.media_by_ref.update({"f.csv": (b"a,b,c", "text/csv"), _IMG: (PNG_BYTES, "image/png")})
-    return rn
-
-
-def _media_urls(body):
-    return ([n["attrs"]["src"] for n in _nodes_of(body, "image")],
-            [n["attrs"]["href"] for n in _nodes_of(body, "attachmentChip")])
-
-
-async def test_a_converter_change_near_the_cap_reuses_stored_media(source, provider, monkeypatch):
-    """Final review I1: the deploy after a converter change re-imports every unchanged note.
-    A member near the media cap (1.9 GB of 2 GB, here: no room left at all) must not have
-    working images and files re-downloaded, re-counted and turned into storage-limit notices:
-    the remote revision is unchanged, so the media the stored body holds is reused."""
-    media_policy._USAGE_MEMO.clear()
-    _image_and_file_note(provider)
-    await engine.sync_source(source["id"], full=True)
-    note_id = _row("u1", _IMG_KEY)["id"]
-    before = _body(notes_svc.get_note("u1", note_id))
-    stamped = notes_svc.get_note("u1", note_id)["updatedAt"]
-    used = media_policy.member_media_bytes("u1")
-    assert used > 0 and _nodes_of(before, "importNotice") == []
-    _media_cap(monkeypatch, used)                      # at the cap: one new byte is refused
-    provider.fetch_media_calls.clear()
-
-    # same remote revision, better conversion (a converter fix shipped)
-    _image_and_file_note(provider, text="Chart page, converted better")
-    r = await engine.sync_source(source["id"], full=True, manual=True)
-
-    assert r["updated"] == 1 and r["conflicts"] == 0
-    assert provider.fetch_media_calls == []            # zero new fetches
-    after = _body(notes_svc.get_note("u1", note_id))
-    assert "converted better" in notes_svc.get_note("u1", note_id)["bodyPlain"]
-    assert _nodes_of(after, "importNotice") == []      # no storage_limit notice
-    assert _media_urls(after) == _media_urls(before)   # the same stored files, in place
-    assert _only(after, "image")["attrs"]["alt"] == "chart"
-    assert _only(after, "attachmentChip")["attrs"]["name"] == "f.csv"
-    assert _only(after, "attachmentChip")["attrs"]["size"] == 5
-    assert media_policy.member_media_bytes("u1") == used          # usage unchanged
-    assert _row("u1", _IMG_KEY)["import_media_pending"] == 0
-    assert notes_svc.get_note("u1", note_id)["updatedAt"] == stamped
-    assert _last_failures(source["id"]) is None
-
-
-async def test_a_remote_revision_change_still_fetches_its_media(source, provider):
-    """The control: when the REMOTE changed, its media may have changed too -- fetched."""
-    _image_and_file_note(provider)
-    await engine.sync_source(source["id"], full=True)
-    provider.fetch_media_calls.clear()
-    _image_and_file_note(provider, text="remote v2", updated_at="2026-08-02T00:00:00+00:00")
-    await engine.sync_source(source["id"], full=True, manual=True)
-    assert sorted(provider.fetch_media_calls) == sorted([_IMG, "f.csv"])
-
-
-async def test_a_converter_change_that_moves_media_fetches_rather_than_guess(source, provider):
-    """Media the new conversion added or reordered cannot be lined up with the stored body:
-    the note imports exactly as before (everything fetched), never a wrong image."""
-    _image_and_file_note(provider)
-    await engine.sync_source(source["id"], full=True)
-    provider.fetch_media_calls.clear()
-    rn = _image_and_file_note(provider, text="converted better")
-    rn.doc["content"] = [rn.doc["content"][0], rn.doc["content"][2], rn.doc["content"][1]]
-    await engine.sync_source(source["id"], full=True, manual=True)
-    assert sorted(provider.fetch_media_calls) == sorted([_IMG, "f.csv"])
-
-
-def test_reusable_media_lines_up_an_original_and_refuses_an_ambiguous_one(db, tmp_path):
-    root = tmp_path / "att" / "u1" / "notes" / "n1"
-    (root / "inline").mkdir(parents=True)
-    (root / "file").mkdir(parents=True)
-    (root / "inline" / "a.jpg").write_bytes(b"j" * 7)
-    (root / "file" / "o.heic").write_bytes(b"h" * 9)
-    (root / "file" / "f.pdf").write_bytes(b"p" * 3)
-    base = "/api/j2/notes/attachments/u1/n1"
-    img = {"type": "image", "attrs": {"src": f"{base}/inline/a.jpg"}}
-    orig = {"type": "attachmentChip", "attrs": {"href": f"{base}/file/o.heic", "name": "IMG.heic", "size": 9}}
-    pdf = {"type": "attachmentChip", "attrs": {"href": f"{base}/file/f.pdf", "name": "f.pdf", "size": 3}}
-    para = lambda *c: {"type": "doc", "content": list(c)}  # noqa: E731
-    ph_img = {"type": "image", "attrs": {"src": "import-ref://IMG.heic"}}
-    ph_pdf = {"type": "attachmentChip", "attrs": {"href": "import-ref://f.pdf", "name": "f.pdf"}}
-
-    got = engine._reusable_media(json.dumps(para(img, orig)), para(ph_img), "u1", "n1")
-    assert got["IMG.heic"].url == f"{base}/inline/a.jpg" and got["IMG.heic"].size == 7
-    assert got["IMG.heic"].original.url == f"{base}/file/o.heic"
-    assert got["IMG.heic"].original.size == 9
-    # an image followed by a separate attachment in a different paragraph is not ambiguous
-    got = engine._reusable_media(json.dumps(para({"type": "paragraph", "content": [img]}, pdf)),
-                                 para({"type": "paragraph", "content": [ph_img]}, ph_pdf), "u1", "n1")
-    assert got["IMG.heic"].original is None and got["f.pdf"].url == f"{base}/file/f.pdf"
-    # image directly followed by a chip in both bodies: the counts decide (no slot is left
-    # over for an original), so the chip is the next file's
-    got = engine._reusable_media(json.dumps(para(img, pdf)), para(ph_img, ph_pdf), "u1", "n1")
-    assert got["IMG.heic"].original is None and got["f.pdf"].url == f"{base}/file/f.pdf"
-    # two alignments fit three image placeholders over [img, chip, img2, chip]: the first
-    # chip is img's original and the third image was kept as a file, OR the second image was
-    # kept as a file and the last chip is img2's original. Never guess.
-    (root / "inline" / "b.jpg").write_bytes(b"k" * 4)
-    img2 = {"type": "image", "attrs": {"src": f"{base}/inline/b.jpg"}}
-    ph = [{"type": "image", "attrs": {"src": f"import-ref://{n}.png"}} for n in "xyz"]
-    assert engine._reusable_media(json.dumps(para(img, orig, img2, pdf)), para(*ph), "u1", "n1") == {}
-    # the control: with one fewer chip only one alignment fits
-    got = engine._reusable_media(json.dumps(para(img, orig, img2)), para(*ph[:2]), "u1", "n1")
-    assert got["x.png"].original.url == f"{base}/file/o.heic"
-    assert got["y.png"].url == f"{base}/inline/b.jpg" and got["y.png"].original is None
-    # another note's file, or a file gone from disk, is never reused
-    assert engine._reusable_media(json.dumps(para(img)), para(ph_img), "u1", "n2") == {}
-    (root / "inline" / "a.jpg").unlink()
-    assert engine._reusable_media(json.dumps(para(img)), para(ph_img), "u1", "n1") == {}
 
 
 async def test_a_connector_file_chip_is_never_decoded(source, provider):

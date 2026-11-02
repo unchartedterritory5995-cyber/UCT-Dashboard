@@ -1677,182 +1677,6 @@ def _retry_source(stored_body: str | None, rn: RemoteNote) -> tuple[dict[str, An
     return (doc, retry) if retry and isinstance(doc, dict) else None
 
 
-_ATTACHMENT_URL_PREFIX = "/api/j2/notes/attachments/"
-
-
-def _owned_media(user_id: str, note_id: str, url: Any, *, sub: str) -> tuple[str, int] | None:
-    """`(file name, size on disk)` when `url` is one of THIS note's own stored files under
-    `sub` ("inline" or "file") and the file is still there; else None."""
-    if not isinstance(url, str):
-        return None
-    head = f"{_ATTACHMENT_URL_PREFIX}{user_id}/{note_id}/{sub}/"
-    if not url.startswith(head):
-        return None
-    filename = url[len(head):]
-    if not all(notes_svc._is_safe_path_segment(s) for s in (user_id, note_id, filename)):
-        return None
-    # The write root first (where `store_media` put it), then every root the serve route reads.
-    for path in (notes_svc._ATTACHMENT_ROOT / user_id / "notes" / note_id / sub / filename,
-                 notes_svc.serve_note_image_path(user_id, note_id, sub, filename)):
-        try:
-            if path is not None and path.is_file():
-                return filename, path.stat().st_size
-        except OSError:
-            continue
-    return None
-
-
-def _media_sequence(doc: Any) -> list[tuple[dict, list, int]]:
-    """Every media node of a body in document order, with its parent list and index there:
-    an `image`, an `attachmentChip` or an `importNotice` carrying a ref."""
-    out: list[tuple[dict, list, int]] = []
-
-    def walk(node: Any) -> None:
-        content = node.get("content") if isinstance(node, dict) else None
-        if not isinstance(content, list):
-            return
-        for i, child in enumerate(content):
-            if not isinstance(child, dict):
-                continue
-            kind = child.get("type")
-            if kind in ("image", "attachmentChip") or (
-                    kind == import_notice.IMPORT_NOTICE_TYPE and (child.get("attrs") or {}).get("ref")):
-                out.append((child, content, i))
-            walk(child)
-
-    walk(doc)
-    return out
-
-
-def _reusable_media(
-    stored_body: str | None, doc: Any, user_id: str, note_id: str,
-) -> dict[str, media_policy.StoredMedia]:
-    """Final review I1(b): `{ref: StoredMedia}` for every placeholder of the NEW conversion
-    `doc` whose media the note's CURRENT stored body already holds, so a re-import of a note
-    whose REMOTE REVISION is unchanged (a converter change re-hashes every note) reuses it
-    instead of downloading and storing it again. The `_retry_source` pattern, for the case
-    where the body itself must be rebuilt from the new conversion.
-
-    The stored body keeps no ref on a resolved node, so the two bodies are aligned in
-    document order, exactly as `rewrite_body` produced the stored one: a placeholder image
-    became `image{src}` (attrs otherwise unchanged), optionally followed by its original's
-    chip; one stored as a file became a chip; a placeholder chip stayed a chip with its
-    name; a failure became an `importNotice` with the same ref (not reused: it is fetched,
-    its attempts counting on). Every reused URL must be one of THIS note's own files, still
-    on disk. Anything that does not line up -- a converter change that moved, added or
-    removed media, an ambiguous original -- returns {} and the note imports exactly as
-    before (fetch everything): a wrong image in the wrong place is never the trade."""
-    if not stored_body or REF_PREFIX in stored_body:
-        return {}
-    try:
-        stored = json.loads(stored_body)
-    except (TypeError, ValueError):
-        return {}
-    placeholders = [(node, parent, i) for node, parent, i in _media_sequence(doc)
-                    if node.get("type") in ("image", "attachmentChip")]
-    slots = _media_sequence(stored)
-    if not placeholders:
-        return {}
-
-    def ref_of(node: dict) -> str | None:
-        attr = "src" if node.get("type") == "image" else "href"
-        value = (node.get("attrs") or {}).get(attr)
-        if isinstance(value, str) and value.startswith(REF_PREFIX) and value[len(REF_PREFIX):]:
-            return value[len(REF_PREFIX):]
-        return None
-
-    def without(attrs: Any, *keys: str) -> dict:
-        return {k: v for k, v in (attrs or {}).items() if k not in keys}
-
-    owned_seen: dict[tuple[Any, str], tuple[str, int] | None] = {}
-
-    def owned_media(url: Any, sub: str) -> tuple[str, int] | None:
-        key = (url if isinstance(url, str) else None, sub)
-        if key not in owned_seen:                  # one stat per stored file, not per state
-            owned_seen[key] = _owned_media(user_id, note_id, url, sub=sub)
-        return owned_seen[key]
-
-    def chip_media(attrs: dict, *, exact: bool) -> media_policy.StoredMedia | None:
-        if exact and set(attrs) != {"href", "name", "size"}:
-            return None
-        owned = owned_media(attrs.get("href"), "file")
-        if owned is None:
-            return None
-        name = attrs.get("name") if isinstance(attrs.get("name"), str) else owned[0]
-        return media_policy.StoredMedia(kind="file", url=attrs["href"], name=name, size=owned[1],
-                                        mime="", width=None, height=None)
-
-    refs = [ref_of(node) for node, _p, _i in placeholders]
-    n_ph, n_slots = len(placeholders), len(slots)
-    if None in refs or n_slots < n_ph:
-        return {}           # a non-placeholder image in the new conversion: not ours to align
-
-    def options(k: int, j: int) -> list[tuple[media_policy.StoredMedia | None, int]]:
-        """Every way placeholder `k` can match the stored slots starting at `j`:
-        `(media or None for a notice, next slot)`."""
-        if j >= n_slots:
-            return []
-        pnode, ref = placeholders[k][0], refs[k]
-        snode, sparent, si = slots[j]
-        pattrs, sattrs, stype = pnode.get("attrs") or {}, snode.get("attrs") or {}, snode.get("type")
-        if stype == import_notice.IMPORT_NOTICE_TYPE:
-            # it failed last time: fetched again (attempts counting on), never reused
-            return [(None, j + 1)] if sattrs.get("ref") == ref else []
-        if pnode.get("type") == "image" and stype == "image":
-            if without(pattrs, "src") != without(sattrs, "src"):
-                return []
-            owned = owned_media(sattrs.get("src"), "inline")
-            if owned is None:
-                return []
-            media = media_policy.StoredMedia(kind="image", url=sattrs["src"], name=owned[0],
-                                             size=owned[1], mime="", width=None, height=None)
-            found = [(media, j + 1)]
-            nxt = slots[j + 1] if j + 1 < n_slots else None
-            if (nxt is not None and nxt[0].get("type") == "attachmentChip"
-                    and nxt[1] is sparent and nxt[2] == si + 1):
-                original = chip_media(nxt[0].get("attrs") or {}, exact=True)
-                if original is not None:          # the chip right after it may be its original
-                    found.append((dataclasses.replace(media, original=original), j + 2))
-            return found
-        if stype == "attachmentChip":
-            if pnode.get("type") == "attachmentChip":
-                if without(pattrs, "href", "size") != without(sattrs, "href", "size") and not (
-                        "name" not in pattrs and without(pattrs, "href", "size")
-                        == without(sattrs, "href", "size", "name")):
-                    return []
-                media = chip_media(sattrs, exact=False)
-            else:
-                media = chip_media(sattrs, exact=True)   # an image the policy kept as a file
-            return [(media, j + 1)] if media is not None else []
-        return []
-
-    # Count the alignments from each (placeholder, slot) state, capped at 2, backwards. Each
-    # placeholder takes one slot, or two (an image and its original), so slot j for
-    # placeholder k lies in [k, k + n_slots - n_ph]: O(placeholders x originals) states.
-    span = n_slots - n_ph
-    count: dict[tuple[int, int], int] = {}
-    opts: dict[tuple[int, int], list] = {}
-    for k in range(n_ph, -1, -1):
-        for j in range(k, k + span + 1):
-            if k == n_ph:
-                count[(k, j)] = 1 if j == n_slots else 0
-                continue
-            opts[(k, j)] = options(k, j)
-            count[(k, j)] = min(2, sum(count.get((k + 1, nj), 0) for _m, nj in opts[(k, j)]))
-    if count.get((0, 0)) != 1:
-        return {}           # no alignment, or two (an original vs the next file): never guess
-    out: dict[str, media_policy.StoredMedia] = {}
-    j = 0
-    for k in range(n_ph):
-        media, j = next((m, nj) for m, nj in opts[(k, j)] if count.get((k + 1, nj), 0) == 1)
-        if media is None:
-            continue
-        if refs[k] in out and out[refs[k]] != media:
-            return {}       # one ref, two different stored files: not a body we produced
-        out[refs[k]] = media
-    return out
-
-
 def _note_title(rn: RemoteNote, key: str) -> str:
     """The title the member sees for the note at `key` (a conflict sibling's included)."""
     return f"{rn.title} (synced copy)" if key.endswith("#remote") else rn.title
@@ -2163,13 +1987,10 @@ async def _confirm_and_resolve_batch(
     *, notice_attempts: dict[str, dict[str, int]] | None = None,
     budget: media_policy.MediaBudget | None = None,
     retry_bodies: dict[str, str] | None = None,
-    reuse_bodies: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     """`budget` (Plan A Task 8): the member's `MediaBudget` for the whole pass; None reads one
     (a direct caller). `retry_bodies` (fix round 1, I4): `{import_key: stored body}` for a
     note re-imported only to retry its media (remote unchanged); see `_retry_source`.
-    `reuse_bodies` (final review I1): `{import_key: stored body}` for a note re-imported
-    because OUR conversion changed while its remote revision did not; see `_reusable_media`.
     `notice_attempts` (Plan A Task 6): `{import_key: {ref: attempts}}`, read by
     `_bulk_existing_note_meta` BEFORE this confirm overwrites the bodies; each
     failed ref counts on from its prior attempts. `result["noticeFailures"]` holds
@@ -2301,23 +2122,16 @@ async def _confirm_and_resolve_batch(
         # still missing; anything already resolved is reused, never stored twice.
         source_doc, media = rn.doc, rn.media
         retry = _retry_source((retry_bodies or {}).get(key), rn) if status == "updated" else None
-        resolved: dict[str, media_policy.StoredMedia] = {}
         if retry is not None:
             source_doc, retry_refs = retry
             media = [m for m in (rn.media or []) if m.get("ref") in retry_refs]
-        elif status == "updated" and key in (reuse_bodies or {}):
-            # Final review I1(b): the remote revision is unchanged (only OUR conversion
-            # moved), so media the stored body already holds is reused, never re-fetched
-            # and stored again against the member's cap.
-            resolved = _reusable_media(reuse_bodies[key], rn.doc, user_id, note_id)
-            media = [m for m in (rn.media or []) if m.get("ref") not in resolved]
 
+        resolved: dict[str, media_policy.StoredMedia] = {}
         notices: dict[str, dict] = {}
         if media:
-            fetched, notices, up, med_failures = await _upload_media_for_note(
+            resolved, notices, up, med_failures = await _upload_media_for_note(
                 provider, creds, user_id, note_id, media,
                 prior_attempts=(notice_attempts or {}).get(key, {}), budget=budget)
-            resolved = {**resolved, **fetched}
             result["mediaUploaded"] += up
             result["failures"].extend(med_failures)
         # Plan A Task 6, no silent drop: a placeholder the provider never listed in
@@ -2424,7 +2238,6 @@ async def _import_remote_notes(
         pre_confirm_conflicts = 0
         user_owned_unchanged = 0
         retry_bodies: dict[str, str] = {}
-        reuse_ids: dict[str, str] = {}   # import_key -> note id (final review I1)
 
         for rn, key in zip(remote_notes, import_keys):
             meta = existing.get(key)
@@ -2496,24 +2309,11 @@ async def _import_remote_notes(
                 # changed -- no tally, no sibling confirm, no resurrection of
                 # a sibling the user deleted.
                 normal_items.append((entry, rn, key))
-                entry_hash = notes_svc._import_payload_hash(entry)
                 # Fix round 1 (I4): remote unchanged and media still pending -> this pass
                 # is a media RETRY; it builds on the stored body (`_retry_source`).
                 if (meta is not None and meta.get("pendingBody")
-                        and meta.get("importHash") == entry_hash):
+                        and meta.get("importHash") == notes_svc._import_payload_hash(entry)):
                     retry_bodies[key] = meta["pendingBody"]
-                # Final review I1(b): our conversion changed but the REMOTE revision did not
-                # (the same `_remote_changed` answer the conflict gate uses) -> this note's
-                # stored media is reused by the re-import; its body is read below, before
-                # confirm overwrites it.
-                elif (meta is not None and (rn.media or _placeholder_refs(rn.doc))
-                        and meta.get("importHash") != entry_hash
-                        and not _remote_changed(meta, rn, entry_hash)):
-                    reuse_ids[key] = meta["id"]
-
-        stored_bodies = _bulk_note_body_json(conn, list(reuse_ids.values()))
-        reuse_bodies = {key: stored_bodies[nid] for key, nid in reuse_ids.items()
-                        if stored_bodies.get(nid)}
 
         totals: dict[str, Any] = {
             "created": 0, "updated": 0, "skipped": user_owned_unchanged, "mediaUploaded": 0,
@@ -2539,7 +2339,7 @@ async def _import_remote_notes(
             res = await _confirm_and_resolve_batch(
                 conn, user_id, source, provider, creds,
                 source.get("destFolderId"), entries, pairs, notice_attempts=notice_attempts,
-                budget=budget, retry_bodies=retry_bodies, reuse_bodies=reuse_bodies,
+                budget=budget, retry_bodies=retry_bodies,
             )
             _merge_batch_result(totals, res, all_touched)
 
