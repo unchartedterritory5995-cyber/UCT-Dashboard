@@ -78,11 +78,42 @@ describe('notion adapter — images/attachments (resolved like generic)', () => 
 })
 
 describe('notion adapter — internal links, edge cases', () => {
-  it('leaves an internal link inert when its target file is missing from the import', async () => {
+  const DASHED2 = 'def45678-9012-3456-78ab-cdef01abc123'
+
+  it('turns a link to a page missing from the zip into the server notion key (dashed lowercase uuid)', async () => {
     const { docs } = await notionAdapter.parse([
-      vf(`A ${HEX}.md`, `[ghost](Missing%20${HEX2}.md)`),
+      vf(`A ${HEX}.md`, `[gone](Gone%20${HEX2.toUpperCase()}.md)`),
     ])
-    expect(docs[0].html).not.toContain('data-import-link')
+    expect(docs[0].html).toContain(`data-import-link="notion:${DASHED2}"`)
+    expect(docs[0].html).not.toContain('href=')
+    expect(docs[0].links).toEqual([{ targetKey: `notion:${DASHED2}`, placeholder: `Gone%20${HEX2.toUpperCase()}.md` }])
+  })
+
+  it('keeps a missing link with no page id as text, never a relative href', async () => {
+    const { docs } = await notionAdapter.parse([
+      vf(`A ${HEX}.md`, '[ghost](Missing.md) tail'),
+    ])
+    expect(docs[0].html).toContain('ghost tail')
+    expect(docs[0].html).not.toContain('<a')
+    expect(docs[0].html).not.toContain('Missing.md')
+    expect(docs[0].links).toHaveLength(0)
+  })
+
+  it('maps a notion.so URL to a page that is in the zip onto that note', async () => {
+    const { docs } = await notionAdapter.parse([
+      vf(`A ${HEX}.md`, `[t](https://www.notion.so/ws/Sub-${HEX2}?pvs=4#frag)`),
+      vf(`Sub ${HEX2}.md`, 'target'),
+    ])
+    const a = docs.find((d) => d.title === 'A')
+    expect(a.html).toContain('data-import-link="notion:Sub.md"')
+    expect(a.links[0].targetKey).toBe('notion:Sub.md')
+  })
+
+  it('leaves a notion.so URL to a page outside the zip as the working URL it is', async () => {
+    const { docs } = await notionAdapter.parse([
+      vf(`A ${HEX}.md`, `[t](https://www.notion.so/Other-${HEX2})`),
+    ])
+    expect(docs[0].html).toContain(`href="https://www.notion.so/Other-${HEX2}"`)
     expect(docs[0].links).toHaveLength(0)
   })
 
