@@ -161,6 +161,22 @@ Only agent-qa edits this file. Update it in every PR.
 - **Verdicts:** 64b522a433 GREEN (exact: pytest 1181, vitest 2007). 80229cba14 + #596 + #603: QA rails green, and
   #596's own tests need its #599 refresh (27 fail without UCT_AGENT_ISOLATED, and all 32 pass with it).
 
+- **F-15 (Indicators, owner of `app/src/components/chart/builder/agentDefinitions.js`; cc agent-lead), new with
+  #610 on r2. The Agent's Undo of a definition DELETE is no longer exact for a Pine-imported script.**
+  Repro (both halves probed on r2):
+  - Browser: the real `executeDefinitionAction` then `undoDefinitionAction` with the real `saveUserDefinition`. Undo
+    reports `confirmed`, but the saved body's `meta` has lost `engineVersion` (`saveUserDefinition` strips the stamp
+    from any save that carries no `pineSource`).
+  - Server: the real `user_definitions` service. A script save stores the script, and the tombstone keeps it. The
+    Agent's resurrecting save sends no `pine_source`, so the restored version holds **no script**.
+  Expected: Undo restores the stamped document and its stored script, or refuses.
+  Actual: the maths are unchanged, but the auto-upgrade link is lost. Once `VITE_SAVED_SCRIPT_UPGRADE` is on, the
+  restored indicator shows "Updated accuracy available — open in Builder and save".
+  Not blocking: the Agent is admin-only and dark, production bakes the flag `'0'`, and nothing renders differently
+  today. Script stamping itself is NOT flag-gated, so stamped rows already exist in production.
+  Fix direction (the owner's call): capture with `GET /{id}?source=1` before deleting, and pass `pineSource` on the
+  Undo save.
+
 ## Blockers
 - (none)
 
@@ -173,6 +189,28 @@ Only agent-qa edits this file. Update it in every PR.
   constants imported from the adapters, coverage on quote reads, no `delayed` quote path. New v1.1 quote cases:
   extended-live, extended-closed, holiday, no-current-trade. Rules (a)–(e) are a reusable predicate
   (`quote_semantics_errors`) with controls showing it can fail. Other MD-1 kinds keep provisional `data` shapes.
+
+## ⭐ FINAL VERDICT — refreshed Sprint 1 RC r2 `0da44001b83b01b04630870622a571389baf56e3` (`agent/rc/sprint1-r2`): GREEN
+r2 = c6895db012 + a merge of master `e56d4cfd2d` (= production: Pine #610/#613, Indicators #577, News #615).
+Checked out EXACTLY at the r2 SHA (detached, clean), nothing added, every Agent flag unset.
+- **Agent paths unchanged:** `git diff c6895db012 0da44001b8` over `api/services/uct_agent`, `app/src/agent`,
+  `api/routers/uct_agent.py`, `agentMutations*`, `api/services/news`, the Agent tests and tools is **empty**. 40 files
+  differ, all of them master work.
+- **Full Agent suites (suite lock):** pytest **1251 passed**; vitest **120 files passed (5 skipped), 2058 passed
+  (6 skipped)**. Again with `VITE_SAVED_SCRIPT_UPGRADE=0` (the value production bakes): **identical, 2058 passed**.
+- **QA rails:** pytest **253 passed**; the QA vitest rails ran inside the full vitest run.
+- **Corpus:** oracle **31/31** (26/26, 5/5) · grammar-direct **5/31** (0/26 answerable) · browser fast path **0/31**.
+  All three match their pinned baselines.
+- **Flags-off server probe: 50/50.** Config reports data/scan/nl1 false. `/api/agent/data` refuses every kind for
+  every purpose, and spies show no adapter or validator ran and no budget opened. Each flag gates on its own, and a
+  member is denied.
+- **Route table** (`api.main:app` walked on each tree): r2 vs master `e56d4cfd2d` adds exactly one route,
+  **`POST /api/agent/data` (`require_admin_dark`)**, and removes none. Against base `51b9af9794`, the only other
+  addition is `GET /api/trade-exchange-news/library/bookmarks/{event_id}`, which is master's #615 and already live.
+- **Screener, flags off:** the answers plus the full request sequence are **byte-identical** to base `51b9af9794`.
+- **#610 / #577 vs the Agent:** I walked the acorn import closure of `agentMutations.js` (108 files) and found
+  **0 changed files**. #577 (`importVerdict.js`) is reached only through a render chain, and no Agent code calls it.
+  #610 has **one real contact: F-15** (below), which is latent and not RC-blocking.
 
 ## ⭐ FINAL VERDICT — Sprint 1 release candidate `c6895db012f97cede60d998fd300ca608f730531` (`agent/rc/sprint1`): GREEN
 Checked out EXACTLY at the RC SHA (detached, `git diff --quiet`), nothing added, every Agent flag unset in the shell.
