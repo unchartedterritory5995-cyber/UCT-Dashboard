@@ -505,3 +505,30 @@ def test_a_full_disk_reads_storage_limit(att_root, monkeypatch):
         media_policy.store_media("u1", "n1", _heic_like_result(),
                                  budget=media_policy.MediaBudget.for_member("u1"))
     assert e.value.reason == "storage_limit"
+
+
+def test_an_image_already_on_disk_is_never_counted_twice(att_root, monkeypatch):
+    """Final review I1(a): an inline image is content-addressed, so storing the same bytes
+    again into the same note writes nothing, and must reserve nothing either. A member near
+    the cap whose unchanged notes re-import must not see working images turn into
+    storage-limit notices."""
+    result = media_policy.MediaResult(kind="image", mime="image/png", data=PNG, filename="a.png")
+    first = media_policy.store_media("u1", "n1", result, budget=media_policy.MediaBudget.for_member("u1"))
+    budget = media_policy.MediaBudget.for_member("u1")
+    used = budget.used
+    assert used == len(PNG)
+    # the member is now exactly at the cap: one more NEW byte would be refused
+    monkeypatch.setattr(media_policy, "MEMBER_IMPORT_MEDIA_CAP_BYTES", used)
+    again = media_policy.store_media("u1", "n1", result, budget=budget)
+    assert again.url == first.url
+    assert budget.used == used                                   # no double count
+    assert media_policy.member_media_bytes("u1") == used         # and no second file
+    # control: a different image still needs room, and is refused at the cap
+    other = media_policy.MediaResult(kind="image", mime="image/png", data=_img_bytes("PNG", size=(9, 9)),
+                                     filename="b.png")
+    with pytest.raises(MediaRejected) as e:
+        media_policy.store_media("u1", "n1", other, budget=budget)
+    assert e.value.reason == "storage_limit"
+    # and the same bytes in ANOTHER note are a new file, so they count
+    with pytest.raises(MediaRejected):
+        media_policy.store_media("u1", "n2", result, budget=budget)

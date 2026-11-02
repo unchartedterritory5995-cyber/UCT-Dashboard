@@ -625,8 +625,15 @@ def store_media(user_id: str, note_id: str, result: MediaResult, *, budget: Medi
     Fix round 1, M4: the ORIGINAL is written first. It is a uuid-named file no other note
     shares, so if the primary then fails it is deleted, and the budget released: no file
     outlives a refusal. (The primary is never deleted on a later failure: an inline image is
-    content-addressed and may be the same file another ref of this note already uses.)"""
-    need = len(result.data) + (len(result.original.data) if result.original is not None else 0)
+    content-addressed and may be the same file another ref of this note already uses.)
+
+    Final review I1(a): an inline image whose content-addressed file is ALREADY on disk is a
+    no-op write (`notes.note_image_target`, the path the save itself uses), so it reserves
+    nothing: a re-import of unchanged media never counts the same bytes twice."""
+    primary_is_new = not (result.kind == "image" and notes_svc.note_image_target(
+        user_id, note_id, result.data, result.mime).is_file())
+    need = ((len(result.data) if primary_is_new else 0)
+            + (len(result.original.data) if result.original is not None else 0))
     if not budget.reserve(need):
         raise _reject("storage_limit", result.filename)
     original = None

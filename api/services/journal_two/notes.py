@@ -5923,6 +5923,30 @@ def ensure_folder_path(user_id: str, path_parts: list[str], dest_folder_id: str 
 
 # ── Image upload ─────────────────────────────────────────────────────────────
 
+_IMAGE_EXT_BY_MIME = {
+    "image/png": ".png", "image/jpeg": ".jpg",
+    "image/gif": ".gif", "image/webp": ".webp",
+}
+
+
+def note_image_target(
+    user_id: str, note_id: str, data: bytes, content_type: str, *, kind: str = "inline",
+) -> Path:
+    """The ONE place an image's on-disk path is decided: where `save_note_image_bytes` writes
+    these bytes (and finds them already written). Content-hash filename (post-v1 dedupe,
+    designed for from day one via the fallback.url indirection): an identical byte-for-byte
+    upload — e.g. the embed self-archive re-capturing an unchanged chart — lands on the SAME
+    path and is a no-op instead of a new file. Truncated sha256 keeps the exact 32-hex shape
+    uuid4().hex had, so the attachment GC's upload-name filter and every stored URL stay
+    valid; changed pixels = new hash = new file, and the orphaned old one ages into the GC.
+    `media_policy.store_media` reads it too, so a no-op write reserves no room under the
+    member's media cap (connector fidelity final review I1)."""
+    sub = "hero" if kind == "hero" else "inline"
+    ext = _IMAGE_EXT_BY_MIME.get(content_type, ".png")
+    new_id = hashlib.sha256(data).hexdigest()[:32]
+    return _ATTACHMENT_ROOT / user_id / "notes" / note_id / sub / f"{new_id}{ext}"
+
+
 def save_note_image_bytes(
     user_id: str,
     note_id: str,
@@ -5949,29 +5973,14 @@ def save_note_image_bytes(
     except NoteQuotaExceeded as e:
         raise NoteValidationError(str(e)) from e
 
-    ext_map = {
-        "image/png": ".png", "image/jpeg": ".jpg",
-        "image/gif": ".gif", "image/webp": ".webp",
-    }
-    ext = ext_map.get(content_type, ".png")
-
     sub = "hero" if kind == "hero" else "inline"
-    target_dir = _ATTACHMENT_ROOT / user_id / "notes" / note_id / sub
-    target_dir.mkdir(parents=True, exist_ok=True)
-    # Content-hash filename (post-v1 dedupe, designed for from day one via the
-    # fallback.url indirection): an identical byte-for-byte upload — e.g. the
-    # embed self-archive re-capturing an unchanged chart — lands on the SAME
-    # path and is a no-op instead of a new file. Truncated sha256 keeps the
-    # exact 32-hex shape uuid4().hex had, so the attachment GC's upload-name
-    # filter and every stored URL stay valid; changed pixels = new hash = new
-    # file, and the orphaned old one ages into the GC.
-    new_id = hashlib.sha256(data).hexdigest()[:32]
-    target_path = target_dir / f"{new_id}{ext}"
+    target_path = note_image_target(user_id, note_id, data, content_type, kind=kind)
+    target_path.parent.mkdir(parents=True, exist_ok=True)
     if not target_path.exists():
         target_path.write_bytes(data)
 
     public_url = (
-        f"/api/j2/notes/attachments/{user_id}/{note_id}/{sub}/{new_id}{ext}"
+        f"/api/j2/notes/attachments/{user_id}/{note_id}/{sub}/{target_path.name}"
     )
     # Width/height: only computed if Pillow can read it; otherwise skip.
     width = height = None
