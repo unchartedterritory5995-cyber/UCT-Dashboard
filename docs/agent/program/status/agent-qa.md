@@ -2,6 +2,25 @@
 
 Only agent-qa edits this file. Update it in every PR.
 
+## G2 / PR #699 (`a5067f8603`, §4.7.5 L6 stale index): **GO**, 2026-11-02
+- **Measured on the head, independent of agent-md's tests:** every QA phrase (sets 1-4) through the REAL `read_instruments`,
+  over QA's index and the production union, with a fresh index, then an old one (3 days + 1 h), then an undated one
+  (`built_at` 0). That is 796 phrase/index combinations.
+  - The 44 lowercase words a fresh index prices all became the neutral ask with `basis` `["index_stale"]`, the same candidate kept.
+  - Every word already an ask gained `index_stale` as the last basis entry and nothing else.
+  - No lowercase word was priced on a stale index. UPPERCASE and all-capitals cashtags did not change.
+  - The envelope said `stale: true` on every stale read and `false` on every fresh one.
+- **Client:** `decide()` asks on the class alone, so the new basis entry needs no client change; the vitest's stub matches the
+  real server shape (`symbol: null`, candidate kept).
+- **Rebuild path:** a failed or empty rebuild keeps the prior `built_at`, so a refresh that keeps failing turns into
+  the ask after 3 days. That is the safe direction, and the envelope says `stale: true`; nothing pages, though. Not covered:
+  a rebuild that succeeds with a truncated row set gets a fresh `built_at`. That is out of G2's scope.
+- **Pins:** none move. QA's generator calls `classify` without the flag and pins the shell to `stale: false`. That is
+  deliberate: QA's fixed `BUILT_AT` (2026-10-29) is already over 3 days old. agent-md's `_seed` is relative to now.
+- **Suites on the head:** `tests/test_uct_agent_qa_*.py` + `test_uct_agent_data_instruments.py`: 488 passed; QA vitest +
+  `agentDataResolve.test.js` through the lock: 14 files, 315 passed. Probe script kept in the session scratchpad;
+  agent-qa will land it as a rail once #699 is in agent/int.
+
 ## G4: a signed-in NON-admin member is refused, before any provider call — rail `tests/test_uct_agent_qa_member_refused.py`, 2026-11-02
 - Drives the REAL `api.main:app` through the REAL auth chain (a real users row, `create_session`, `comp_user_access`),
   with no dependency overridden. Gateway ON: `UCT_AGENT_DATA=1`, `UCT_AGENT_DATA_KINDS=quote,instrument.resolve`.
