@@ -297,6 +297,36 @@ describe('M3 — Pine 6 `bool` is never `na`', () => {
     const out = run(`${v6}float x = close\nf() =>\n    y = if close > 105\n        x\n    nz(y)\nplot(f())\n`)
     expect(out).toEqual([0, 0, 0, 0, 0, 0, 106, 107])
   })
+  // ⛔ re-review 2 M-3 — a function's own declaration of `b` (in a block the read is
+  // outside) does not hide the main program's BOOL `b`: conflicting types in reach refuse
+  it('⛔⛔ re-review 2 M-3: a main-program bool read in a function that declares the name elsewhere refuses', () => {
+    const r = refusalOf(`${v6}b = close > open\nf() =>\n    if close > 1000\n        b = 1.0\n    y = if close > 102\n        b\n    y\nplot(f() ? 1 : 0)\n`)
+    expect(r.message).toMatch(/v6 bool is never `na`/)
+  })
+  // ⛔ re-review 2 L-4 — a declaration wins over a built-in of the same spelling
+  it('⛔ re-review 2 L-4: a shadowed built-in (`high = close > open`) is the member\'s bool, refused', () => {
+    const r = refusalOf(`${v6}high = close > open\nb = if close > 102\n    high\nplot(b ? 1 : 0)\n`)
+    expect(r.message).toMatch(/v6 bool is never `na`/)
+  })
+  // ⛔ re-review 2 L-5 — the SOURCE argument is resolved by name
+  it('⛔ re-review 2 L-5: `ta.change(length = 1, source = up)` types by `up` (a bool), refused', () => {
+    const r = refusalOf(`${v6}up = close > open\nb = if close > 102\n    ta.change(length = 1, source = up)\nplot(b ? 1 : 0)\n`)
+    expect(r.message).toMatch(/v6 bool is never `na`/)
+  })
+  it('⭐ CONTROL — L-5: `ta.change(length = 1, source = close)` is a number, served', () => {
+    const out = run(`${v6}x = if close > 105\n    ta.change(length = 1, source = close)\nplot(x)\n`)
+    expect(out.slice(0, 6).every(Number.isNaN)).toBe(true)
+    expect(out.slice(6)).toEqual([1, 1])
+  })
+  // ⛔ a user function whose value is a bool stays refused (the inference only proves numbers)
+  it('⛔⛔ re-review 2 H-2: a user function returning a bool is refused as the arm value', () => {
+    const r = refusalOf(`${v6}f(v) => v > 104\nb = if close > 102\n    f(close)\nplot(b ? 1 : 0)\n`)
+    expect(r.message).toMatch(/v6 bool is never `na`/)
+  })
+  it('⛔⛔ re-review 2 H-2: `input.bool` is a bool, refused', () => {
+    const r = refusalOf(`${v6}on = input.bool(true, "On")\nb = if close > 102\n    on\nplot(b ? 1 : 0)\n`)
+    expect(r.message).toMatch(/v6 bool is never `na`/)
+  })
   // ⛔ review 3 L-3 — a ternary whose both branches are numbers is a number
   it('⛔ CONTROL — L-3: a numeric ternary arm is served (na where unmatched)', () => {
     const out = run(`${v6}x = if close > 103\n    close > open ? 1.0 : 2.0\nplot(x)\n`)
