@@ -166,7 +166,9 @@ def lowercase_checks(token: str, own: dict, idx) -> list:
             if _ticker_ref(w, name, own_t):
                 continue
             wl = w.lower()
-            if wl == t or (is_own and len(wl) > len(t) and wl.startswith(t)):
+            # a whole word anywhere; inside its OWN name, also a fragment of a longer word ("coin" in Coinbase, "link"
+            # in Interlink, "hood" in Robinhood): the ticker spells a word, so lowercase is ambiguous
+            if wl == t or (is_own and len(wl) > len(t) and t in wl):
                 name_word = True
         # L4: another symbol that STARTS with the token (a shared root: BTCO, ETHA, SOLZ, ESGU). A token buried inside
         # a symbol (BAMD, DJINTCUN) is a coincidence of letters, not a root.

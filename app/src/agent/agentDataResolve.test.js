@@ -97,6 +97,17 @@ describe('MD-1 §4.7.1: a time the parser cannot resolve without a clock is neve
   })
 })
 
+describe('MD-1 §4.7.1: a list must name a candidate in every item', () => {
+  it.each(['nvda and on price', 'nvda, it price', 'NVDA and the price', 'tsla and now premarket'])(
+    '"%s": an item the grammar swallowed → not claimed (never half an answer)', (s) => {
+      expect(parsePriceSentence(s)).toBeNull()
+    })
+  it.each([['nvda and amd price', 2], ['quotes for msft, googl, meta', 3], ['NVDA and ON price', 2], ['pltr price rn', 1]])(
+    '"%s" → %i candidates', (s, n) => {
+      expect(parsePriceSentence(s)?.candidates?.length).toBe(n)
+    })
+})
+
 describe('MD-1 §4.7: each row ends exactly as the doc says, through the real fast path and answer', () => {
   beforeEach(() => { _resetAgentConfig(); _resetForTest(); vi.restoreAllMocks(); TURN = 't-r' })
 
@@ -167,7 +178,7 @@ describe('decide(): all or nothing, precedence, and a cold index', () => {
     expect(decide(env(c), c)).toEqual({ ok: true, symbols: ['BTC', 'SPY'],
       names: { BTC: `${NAMES.BTC}, an ETF`, SPY: `${NAMES.SPY}, an ETF` } })
   })
-  it.each(['btc', 'gold', 'apple', 'nvda'])('"%s" typed lowercase → the neutral clarification, naming no security', (w) => {
+  it.each(['btc', 'gold', 'apple', 'meta', 'spy'])('"%s" typed lowercase → the neutral clarification, naming no security', (w) => {
     const c = [{ text: w, form: 'lower' }]
     const d = decide(env(c), c)
     expect(d).toEqual({ ok: false, text: clarifyText(w) })

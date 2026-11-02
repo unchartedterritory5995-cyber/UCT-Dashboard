@@ -169,12 +169,12 @@ describe('stock.quote: flags off is exactly stock.profile; on is one gateway rea
     const two = await answerQuote({ symbols: ['NVDA', '$amd'] })
     expect(two.text).toContain('AMD (Advanced Micro Devices, Inc.)')
     TURN = 't3'
-    expect(await answerQuote({ symbols: ['nvda'] })).toBe('I\'m not sure which instrument "nvda" means. I can quote US-listed stocks and ETFs by ticker. Type the ticker in capitals and I\'ll get it.')
+    expect(await answerQuote({ symbols: ['gold'] })).toBe('I\'m not sure which instrument "gold" means. I can quote US-listed stocks and ETFs by ticker. Type the ticker in capitals and I\'ll get it.')
     const posts = globalThis.fetch.mock.calls.filter(c => c[0] === '/api/agent/data').map(c => JSON.parse(c[1].body))
     expect(posts.map(p => [p.kind, p.turn_id])).toEqual([
       ['instrument.resolve', 't1'], ['quote', 't1'],
       ['instrument.resolve', 't2'], ['quotes', 't2'],
-      ['instrument.resolve', 't3'],                                  // lowercase: asked, never priced
+      ['instrument.resolve', 't3'],                                  // a word-like lowercase ticker (§4.7.5): asked, never priced
     ])
     expect(posts[1].params).toEqual({ symbol: 'NVDA' })
     expect(posts[2].params).toEqual({ symbols: [{ text: 'NVDA', form: 'upper' }, { text: '$amd', form: 'cashtag' }] })
