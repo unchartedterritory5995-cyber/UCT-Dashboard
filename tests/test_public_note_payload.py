@@ -473,6 +473,21 @@ def test_internal_link_marks_lose_the_link_and_keep_the_words():
     assert hrefs == ["https://example.com/ok", "mailto:me@example.com"]
 
 
+@pytest.mark.parametrize("mode", ["share", "publish"])
+def test_internal_note_href_mark_renders_as_text_on_share_and_publish(mode):
+    """Plan A Task 2 (L-1): an imported wiki link resolves to `/journal?j2tab=notebook&note=<id>`
+    -- a link MARK, not a noteLink node. In the app it opens the note; on a public page it is
+    the member's words only: mark removed, text kept, and the private note id nowhere in the
+    payload, whichever order the query names its params in."""
+    body = doc(p(t("my alias", {"type": "link", "attrs": {"href": f"/journal?j2tab=notebook&note={OTHER}"}}),
+                 t(" and ", ),
+                 t("again", {"type": "link", "attrs": {"href": f"/journal?note={OTHER}&j2tab=notebook"}})))
+    out = reduce(body, mode, NOTE_LINKS_IN_PUBLICATION if mode == "publish" else None)
+    assert "".join(texts_in(out)) == "my alias and again"
+    assert all(not n.get("marks") for n in find(out, "text"))
+    assert OTHER not in json.dumps(out)
+
+
 # ── M-6: the URL attributes of KEPT nodes (wave-8 final review) ─────────────────────────
 #
 # `link` marks already lost an in-app href; these are the node attributes that carry a URL

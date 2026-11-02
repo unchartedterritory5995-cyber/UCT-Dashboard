@@ -2598,6 +2598,14 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
         conn.rollback()
         print(f"[notebook-migration-v7] aborted: {e}")
 
+    # Plan A Task 2 (L-2): internal link MARKS already stored become note links.
+    # A background thread with its own connection (see its docstring): never boot's
+    # critical path, and a no-op once its flag exists.
+    try:
+        start_internal_link_projection_backfill(conn)
+    except Exception as e:  # noqa: BLE001 — never crash startup over this
+        print(f"[note-links-internal-href] not started: {e}")
+
     # Note Connectors additive columns (Task 8): `miss_streak` on
     # j2_note_remote_index (2-strikes delete-detection counter) and
     # `conflicts` on j2_note_sync_log. run_notebook_migration_v3 above is
@@ -4237,3 +4245,107 @@ def run_notebook_migration_v7(conn: sqlite3.Connection, *, clock=time.monotonic)
         count_table="j2_notes", extra_columns=_BODY_PLAIN_BACKFILL_EXTRA,
         on_changed=_rebuild_note_mentions(conn), clock=clock, label="notebook-migration-v7",
     )
+
+
+# ── Plan A Task 2 (L-2): project internal link MARKS already stored ─────────────
+_INTERNAL_LINK_BACKFILL_FLAG = ".note_links_internal_href_v1"
+_INTERNAL_LINK_BACKFILL_BATCH = 500
+
+
+def run_internal_link_projection_backfill(conn: sqlite3.Connection) -> dict[str, Any]:
+    """One-shot: every stored note whose body holds an internal note link MARK
+    (`/journal?j2tab=notebook&note=<id>`, an imported wiki link) gets its sidecars
+    rebuilt through `notes._sync_note_sidecars` -- the same function every save
+    reaches -- so the link becomes a backlink and a graph edge. Saves already do
+    this from Plan A Task 2 on; this covers bodies written before it.
+
+    ⛔ Writes the sidecar tables ONLY: never `updated_at`, never `body_json` (the
+    offline store's baseline and the sync engine's optimistic lock).
+
+    Pages of `_INTERNAL_LINK_BACKFILL_BATCH` rows in id order, each read and
+    rebuilt inside one `BEGIN IMMEDIATE` transaction, so a member save cannot land
+    between this pass reading a body and projecting it. Trashed notes are included:
+    a restore does not rebuild sidecars, and every read path already filters
+    trashed sources. The LIKE is a pre-filter only (params may come in either
+    order); `_sync_note_sidecars` decides what counts. Idempotent (the sidecars are
+    delete+insert); the flag `.note_links_internal_href_v1` in DATA_DIR is written
+    when the walk finishes and at least one note exists (v4's rule: a flag over
+    zero notes would let a restored backup skip the pass forever).
+
+    Returns {"scanned", "synced"} or {"skipped": True} once flagged."""
+    from api.services.journal_two.notes import _sync_note_sidecars, extract_plain_text
+
+    flag = _data_dir() / _INTERNAL_LINK_BACKFILL_FLAG
+    if flag.exists():
+        return {"skipped": True}
+    out = {"scanned": 0, "synced": 0}
+    last = ""
+    while True:
+        if conn.in_transaction:
+            conn.commit()
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            rows = conn.execute(
+                "SELECT id, user_id, body_json, body_plain FROM j2_notes"
+                " WHERE id > ? AND body_json LIKE '%j2tab=notebook%'"
+                " ORDER BY id LIMIT ?",
+                (last, _INTERNAL_LINK_BACKFILL_BATCH),
+            ).fetchall()
+            for note_id, user_id, body_json, body_plain in rows:
+                last = note_id
+                out["scanned"] += 1
+                doc = _stored_doc(body_json)
+                if doc is None:
+                    continue
+                if body_plain is None:
+                    body_plain = extract_plain_text(doc)
+                _sync_note_sidecars(conn, user_id, note_id, doc, body_plain)
+                out["synced"] += 1
+            conn.commit()
+        except BaseException:
+            conn.rollback()
+            raise
+        if len(rows) < _INTERNAL_LINK_BACKFILL_BATCH:
+            break
+    if conn.execute("SELECT COUNT(*) FROM j2_notes").fetchone()[0] == 0:
+        return out
+    try:
+        _write_flag_atomic(flag, b"1")
+    except Exception:  # noqa: BLE001 -- a missed flag costs one idempotent re-pass, never data
+        pass
+    return out
+
+
+def start_internal_link_projection_backfill(conn: sqlite3.Connection):
+    """Start `run_internal_link_projection_backfill` on a daemon thread with its own
+    connection to the same database file, so boot never waits on it. Returns the
+    thread, or None when there is nothing to do: already flagged, an in-memory
+    database (no file a second connection could open), or no notes at all."""
+    import threading
+
+    if (_data_dir() / _INTERNAL_LINK_BACKFILL_FLAG).exists():
+        return None
+    try:
+        path = next((r[2] for r in conn.execute("PRAGMA database_list").fetchall() if r[1] == "main"), "")
+        if not path:
+            return None
+        if conn.execute("SELECT 1 FROM j2_notes LIMIT 1").fetchone() is None:
+            return None
+    except sqlite3.Error:
+        return None
+
+    def run() -> None:
+        try:
+            c = sqlite3.connect(path, timeout=30)
+            try:
+                out = run_internal_link_projection_backfill(c)
+                if out.get("synced"):
+                    print(f"[note-links-internal-href] projected: {out}")
+            finally:
+                c.close()
+        except Exception as e:  # noqa: BLE001 -- a background one-shot never takes the pod down
+            print(f"[note-links-internal-href] aborted: {e}")
+
+    t = threading.Thread(target=run, name="note-links-internal-href-backfill", daemon=True)
+    t.start()
+    return t

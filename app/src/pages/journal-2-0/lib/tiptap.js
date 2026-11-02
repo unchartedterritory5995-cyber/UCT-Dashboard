@@ -12,7 +12,7 @@ import { Columns, Column, ColumnsGuard } from './columnsNode'
 import { LinkPreview, WebEmbed } from './webLinkNodes'
 import { LinkPasteOffer } from './linkPasteOffer'
 import { AlertPhraseOffer } from './alertPhraseOffer'
-import { LinkClickOpen } from './linkClickOpen'
+import { LinkClickOpen, isPlainTextPendingLink } from './linkClickOpen'
 import { DateMention } from './dateMentionNode'
 import { DateSuggest } from './dateSuggest'
 import { TableOfContents } from './tableOfContentsNode'
@@ -197,6 +197,18 @@ const GuardedLink = Link.extend({
         },
       },
     }
+  },
+  // Plan A Task 2 ([B A5]): an unresolved `import-link://` placeholder with no door
+  // renders as plain text. `data-link-plain` is decided by linkClickOpen.js's
+  // `isPlainTextPendingLink` (a JS check, so Plan B's `import-link://notion:<path>`
+  // keys stay plain while a real Notion page id keeps its link) and styled by
+  // noteContent.css. Render-only: never a schema attribute, never parsed back.
+  renderHTML(props) {
+    const out = this.parent(props)
+    if (Array.isArray(out) && out[1] && isPlainTextPendingLink(out[1].href)) {
+      out[1] = { ...out[1], 'data-link-plain': '' }
+    }
+    return out
   },
 })
 

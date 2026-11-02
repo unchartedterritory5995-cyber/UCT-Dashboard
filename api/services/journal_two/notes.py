@@ -463,6 +463,42 @@ def _routine_tracker_use_row(widget_id: str, params: dict[str, Any]) -> tuple[st
     return (widget_id, tool_id, None)
 
 
+# ── An internal note link MARK (Plan A Task 2, L-2) ─────────────────────────
+# An imported wiki link resolves to a `link` mark whose href is
+# `/journal?j2tab=notebook&note=<id>` (note_connectors/convert/rewrite.py), not a
+# `noteLink` node, so it used to be invisible to backlinks and the graph. It is
+# projected into j2_note_links alongside the nodes. Only this exact shape counts:
+# the two params in either order, nothing else in the query, no fragment.
+# ⛔ ONE FACT IN TWO FILES: INTERNAL_NOTE_RE in
+# app/src/pages/journal-2-0/lib/linkClickOpen.js (what opens in-app) is this
+# pattern; test_note_links_internal_href.py reads that literal and pins the two.
+_INTERNAL_NOTE_RE = re.compile(
+    r"^/journal\?(?:j2tab=notebook&note=([A-Za-z0-9_-]+)|note=([A-Za-z0-9_-]+)&j2tab=notebook)$")
+
+
+def _internal_note_id(href: Any) -> str | None:
+    """The note id an in-app note link names, or None for any other href."""
+    if not isinstance(href, str):
+        return None
+    m = _INTERNAL_NOTE_RE.fullmatch(href.strip())
+    return (m.group(1) or m.group(2)) if m else None
+
+
+def _internal_link_href(text_node: dict[str, Any]) -> str | None:
+    """A TEXT node's link href when it is an internal note link, else None. The
+    caller has already read the node's type (the one-walk rule: each node's type
+    is read once, test_sync_note_sidecars_walks_the_document_exactly_once)."""
+    marks = text_node.get("marks")
+    if not isinstance(marks, list):
+        return None
+    for mark in marks:
+        if isinstance(mark, dict) and mark.get("type") == "link":
+            attrs = mark.get("attrs")
+            href = attrs.get("href") if isinstance(attrs, dict) else None
+            return href if _internal_note_id(href) else None
+    return None
+
+
 def _sync_note_sidecars(
     conn: sqlite3.Connection, user_id: str, note_id: str,
     body_json: dict[str, Any] | None, body_plain: str | None,
@@ -483,10 +519,14 @@ def _sync_note_sidecars(
     excerpt_ids: list[str] = []
     has_task = [False]   # wave 10: whether the task index needs its own walk at all
 
-    def walk(node: Any) -> None:
+    def walk(node: Any) -> str | None:
+        """Visits `node`; returns its internal note link href when it is a text
+        node carrying one (its PARENT decides whether that starts a new link)."""
         if not isinstance(node, dict):
-            return
+            return None
         ntype = node.get("type")
+        if ntype == "text":
+            return _internal_link_href(node)
         if ntype == "taskItem":
             has_task[0] = True
         if ntype == "widgetEmbed":
@@ -559,8 +599,17 @@ def _sync_note_sidecars(
         # body that predates it from 500ing the save.
         children = node.get("content")
         if isinstance(children, list):
+            # Plan A Task 2 (L-2): an internal note link MARK is a note link too. One
+            # link bolded in the middle is several adjacent text nodes carrying the
+            # same href -- it counts ONCE, so a run continuing the previous sibling's
+            # href adds nothing. Any other sibling (plain words, a hard break) ends it.
+            prev_href: str | None = None
             for child in children:
-                walk(child)
+                href = walk(child)
+                if href is not None and href != prev_href:
+                    link_ids.append(_internal_note_id(href))
+                prev_href = href
+        return None
     if isinstance(body_json, dict):
         walk(body_json)
 
@@ -607,7 +656,8 @@ def _sync_note_sidecars(
     # (db.run_notebook_migration_v7) rebuilds it through this same code.
     _sync_note_mentions(conn, user_id, note_id, body_plain)
 
-    # j2_note_links -- a `noteLink` node's target id is NEVER validated
+    # j2_note_links -- a `noteLink` node's (or an internal link mark's,
+    # Plan A Task 2) target id is NEVER validated
     # against j2_notes here: a link to a note that doesn't exist (foreign
     # tenant, already deleted, malformed id typed via direct API use) still
     # gets a sidecar row -- resolving whether that target is real, owned,

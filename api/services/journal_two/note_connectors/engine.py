@@ -1299,8 +1299,23 @@ def _apply_resolved_body(
         "WHERE id = ? AND user_id = ? AND updated_at = ?",
         (body_blob, body_plain, still_pending, note_id, user_id, expected_updated_at),
     )
+    applied = cur.rowcount > 0
+    if applied:
+        # Plan A Task 2, controller ruling 1: every other body write rebuilds the
+        # content sidecars in its own transaction, and this one must too -- a link
+        # this pass resolves (import-link:// -> /journal?j2tab=notebook&note=<id>),
+        # or one Task 4's heal pass writes through here, is otherwise never a
+        # backlink or a graph edge. Timestamp-neutral like the UPDATE above:
+        # `_sync_note_sidecars` writes only the sidecar tables, never j2_notes.
+        # One transaction with the body: if the projection raises, the body write
+        # is rolled back too, never left pending for some later commit to land alone.
+        try:
+            notes_svc._sync_note_sidecars(conn, user_id, note_id, body, body_plain)
+        except Exception:
+            conn.rollback()
+            raise
     conn.commit()
-    return cur.rowcount > 0
+    return applied
 
 
 def _find_stranded_placeholder_ids(
