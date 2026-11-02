@@ -417,10 +417,10 @@ describe('obsidian adapter — D1 fix round 3', () => {
 // ---------------------------------------------------------------------------
 
 describe('obsidian adapter — D1 fix round 4: member text vs held-markup placeholders', () => {
-  const O = ''
-  const C = ''
+  const O = '\uE000'
+  const C = '\uE001'
   const D = (n) => String.fromCharCode(0xe010 + n)
-  const F = '﷐'
+  const F = '\uFDD0'
   const textOf = async (body) => {
     const { docs, warnings } = await obsidianAdapter.parse([
       vf('V/src.md', body), vf('V/Plan.md', 'p'), vf('V/Other.md', 'o'), vf('V/img.png', 'i')])
@@ -445,10 +445,10 @@ describe('obsidian adapter — D1 fix round 4: member text vs held-markup placeh
     ['inside a callout title', `> [!note] ${O}${D(0)}${C} [[Plan]]\n> body`, `${O}${D(0)}${C} Plan body`, 1],
     ['next to an unresolved dotted name', `${O}${D(0)}${C} and [[Ghost.Name]]`, `${O}${D(0)}${C} and Ghost.Name`, 0],
     ['Nerd Font / Powerline / Font Awesome glyphs',
-      ' branch  home  [[Plan]] ' + O + C, ' branch  home  Plan ' + O + C, 1],
-    ['glyphs in a highlight', '== [[Plan]] ==', ' Plan ', 1],
-    ['glyphs in a callout title', '> [!tip]  [[Plan]] \n> b', ' Plan  b', 1],
-    ['Pomicons run', `${O}${C} [[Plan]]`, `${O}${C} Plan`, 1],
+      '\uE0A0 branch \uF015 home \uE5FA [[Plan]] ' + O + C, '\uE0A0 branch \uF015 home \uE5FA Plan ' + O + C, 1],
+    ['glyphs in a highlight', '==\uF015 [[Plan]] \uE0A0==', '\uF015 Plan \uE0A0', 1],
+    ['glyphs in a callout title', '> [!tip] \uF015 [[Plan]] \uE0A0\n> b', '\uF015 Plan \uE0A0 b', 1],
+    ['Pomicons run', `${O}${C}\uE002\uE003\uE00A [[Plan]]`, `${O}${C}\uE002\uE003\uE00A Plan`, 1],
     ['lone E000 / E001 around a link', `${O}[[Plan]]${C}`, `${O}Plan${C}`, 1],
     ['adjacent E000 E010 before a link', `${O}${D(0)}[[Plan]]`, `${O}${D(0)}Plan`, 1],
     ['inside a code span', `\`${O}${D(0)}${C}\` [[Plan]]`, `${O}${D(0)}${C} Plan`, 1],
@@ -483,7 +483,7 @@ describe('obsidian adapter — D1 fix round 4: member text vs held-markup placeh
     it(`adds no placeholder character to the output: ${name}`, async () => {
       const r = await textOf(body)
       const doc = JSON.stringify(r.doc)
-      for (const re of [/﷐/g, /[-]/g]) {
+      for (const re of [/\uFDD0/g, /[\uE000-\uE019]/g]) {
         expect(count(r.html, re)).toBeLessThanOrEqual(count(body, re))
         expect(count(doc, re)).toBeLessThanOrEqual(count(body, re))
       }
