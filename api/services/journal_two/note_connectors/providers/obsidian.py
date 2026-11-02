@@ -301,8 +301,17 @@ _CODE_RE = re.compile(_FENCE_SRC + r"|`[^`\n]*`")
 # `[` scanned the rest of a line of `[` at every one of them, so a 20 KB line of `[` cost
 # ~13 s per sync (~20 s on an old-plugin row). Obsidian itself refuses `[` and `]` in a
 # file name, so no real target holds `[[`.
-_WIKI_TARGET = r"(?:(?!\[\[)[^\]|])+"
-_WIKI_ALIAS = r"(?:(?!\[\[)[^\]])+"
+# ⛔ Nor across a blank line (a newline, optional spaces, tabs or `\r`, a newline) or a fence
+# (```` ``` ```` or `~~~`, D2 fix round 5, M-r4-1): Obsidian does not link across a paragraph
+# break. ⚰️ `[[Plan|first\n\nsecond]]` was rewritten to a markdown link the paragraph break
+# then cut, and the member read the INTERNAL `import-link://` key as autolinked text; a fenced
+# block inside the alias did the same. Such text is now left exactly as written. A single
+# newline is still allowed (the same one link on both lanes). Each stop is a fixed string or
+# one whitespace run that ends at the next newline, so the patterns stay linear.
+# `obsidian.js::WIKI_STOP` mirrors this.
+_WIKI_STOP = r"\[\[|\n[ \t\r]*\n|```|~~~"
+_WIKI_TARGET = rf"(?:(?!{_WIKI_STOP})[^\]|])+"
+_WIKI_ALIAS = rf"(?:(?!{_WIKI_STOP})[^\]])+"
 _WIKI_EMBED = rf"!\[\[{_WIKI_TARGET}(?:\|{_WIKI_ALIAS})?\]\]"
 _WIKI_RE = re.compile(rf"(!)?\[\[({_WIKI_TARGET})(?:\|({_WIKI_ALIAS}))?\]\]")
 # D2 fix round 1 (e): an embed in ALIAS position, `[[Plan|![[img.png]]]]` (or the attachment

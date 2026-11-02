@@ -1895,7 +1895,9 @@ def test_every_wikilink_pattern_of_this_provider_is_linear_on_a_bracket_run():
 
     from api.services.journal_two.note_connectors.providers import obsidian as provider
     patterns = ["_WIKI_RE", "_NESTED_EMBED_RE", "_ALIAS_EMBED_RE", "_CUT_ALIAS_EMBED_RE"]
-    for body in ("[" * 40000, "![[" * 13400, "[[a|" * 10000):
+    # D2 fix round 5: the blank-line stop scans a whitespace run, so a run of them is timed too.
+    for body in ("[" * 40000, "![[" * 13400, "[[a|" * 10000, "[[a|\n" + " " * 40000,
+                 "[[a|" + "\n " * 20000, "![[" + "\n \t" * 13400):
         for name in patterns:
             started = time.perf_counter()
             list(getattr(provider, name).finditer(body))
@@ -1913,6 +1915,39 @@ def test_a_note_wikilink_whose_alias_holds_a_code_span_is_a_link():
     assert callout["type"] == "callout"
     assert [h for _, h in _link_marks(callout["content"][0])] == [_key("Plan.md")] * 2
     assert extract_plain_text(callout) == "See the x body"
+
+
+@pytest.mark.parametrize("refs", [NO_ATTACHMENT_PASS, None], ids=["refs-branch", "old-plugin"])
+def test_a_wikilink_never_spans_a_blank_line_or_a_fence(refs):
+    """D2 fix round 5, M-r4-1: a wikilink or embed target or alias may not hold a blank line (a
+    newline, optional whitespace, a newline) or a fence. Obsidian does not link across a
+    paragraph break. ⚰️ The pass wrote `[first\\n\\nsecond](import-link://...)`; the paragraph
+    break cut that markdown link and the member read the INTERNAL import key as autolinked
+    text. Both lanes now leave such text exactly as written."""
+    paths = ["Plan.md", "attachments/chart.png"]
+    for body, plain in [
+        ("see [[Plan|first\n\nsecond]] end", "see [[Plan|first second]] end"),
+        ("see [[Plan|first\n \t\nsecond]] end", "see [[Plan|first second]] end"),
+        ("see [[Plan|first\r\n\r\nsecond]] end", "see [[Plan|first second]] end"),
+        ("see [[Pl\n\nan]] end", "see [[Pl an]] end"),
+        ("x ![[chart.png|a\n\nb]] y", "x ![[chart.png|a b]] y"),
+        ("x ![[chart\n\n.png]] y", "x ![[chart .png]] y"),
+    ]:
+        out = _convert(body, paths, refs=refs)
+        assert _link_marks(out["doc"]) == [] and out["links"] == [], body
+        assert _all(out["doc"], "image") == [] and out["media"] == [], body
+        assert "import-link" not in _plain(out["doc"]), body
+        assert _plain(out["doc"]) == plain, body
+    for fence in ("```", "~~~"):
+        body = f"[[Plan|a\n{fence}\ncode\n{fence}\nb]]"
+        out = _convert(body, paths, refs=refs)
+        assert _link_marks(out["doc"]) == [] and out["links"] == [], body
+        assert "import-link" not in _plain(out["doc"]), body
+        assert [n["type"] for n in out["doc"]["content"]] == ["paragraph", "codeBlock", "paragraph"]
+        assert _plain(out["doc"]) == "[[Plan|a code b]]", body
+    # A single newline inside an alias is still the one link it was, on both lanes.
+    out = _convert("see [[Plan|first\nsecond]] end", paths, refs=refs)
+    assert [h for _, h in _link_marks(out["doc"])] == [_key("Plan.md")]
 
 
 def test_wikilinks_in_code_or_cut_by_code_stay_as_written():

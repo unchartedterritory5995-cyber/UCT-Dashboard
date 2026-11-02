@@ -241,6 +241,18 @@ const knownClientGap = {
       text: 'Tilde fence before ![[img.png]] [[Plan]]\n after ',
     },
   },
+  // 28-blank-line-and-fence-alias (D2 fix round 5, M-r4-1): links, images and media agree --
+  // a link or embed across a blank line or a fence is left as written on both lanes, and a
+  // single-newline alias is the one link. What is left is 27's code BLOCK difference: the
+  // client keeps the fence's final newline in the codeBlock text, the server's `mddoc` drops
+  // it. Closed by D3 (shared-converter follow-up PR: fenced code final newline) -- delete
+  // this entry then.
+  '28-blank-line-and-fence-alias.json': {
+    clientReads: {
+      text: 'Blank line or fence in a link see [[Plan|first second]] end see [[Pl an]] end '
+        + 'x ![[chart.png|a b]] y [[Plan|a code\n b]] see one line still links',
+    },
+  },
   // ⚰️ 18-attachment-names and 19-nested-embeds: their text gaps (the EMPTY paragraph
   // beside a block image, and `Read ` losing its trailing space at a chip split, from the
   // shared parse `convert.js::htmlToNote`) are closed by D2 item 5.

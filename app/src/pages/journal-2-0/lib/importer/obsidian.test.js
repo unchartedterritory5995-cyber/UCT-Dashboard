@@ -864,12 +864,71 @@ describe('obsidian adapter — D2 fix round 3: a ~~~ fence is code', () => {
   })
 })
 
+// D2 fix round 5, M-r4-1: a wikilink or embed target or alias may not hold a blank line (a
+// newline, optional whitespace, a newline) or a fence, as on the server (`_WIKI_STOP`).
+// Obsidian does not link across a paragraph break. ⚰️ The client made TWO links, one each
+// side of the break (or of the fenced block); the server leaked its internal import key.
+// Both lanes now leave such text exactly as written.
+describe('obsidian adapter — D2 fix round 5: a wikilink never spans a blank line or a fence', () => {
+  const parseOne = async (body) => {
+    const { docs } = await obsidianAdapter.parse([
+      vf('V/src.md', body), vf('V/Plan.md', 'p'), vf('V/chart.png', 'i')])
+    const d = docs.find((x) => x.importKey === 'obsidian:V/src.md')
+    const bodyJson = htmlToNote(d.html).bodyJson
+    const marks = []
+    const walk = (n) => {
+      for (const m of n.marks || []) if (m.type === 'link') marks.push(m.attrs.href)
+      ;(n.content || []).forEach(walk)
+    }
+    walk(bodyJson)
+    return { d, bodyJson, marks, text: extractPlainText(bodyJson) }
+  }
+
+  for (const [body, text] of [
+    ['see [[Plan|first\n\nsecond]] end', 'see [[Plan|first second]] end'],
+    ['see [[Plan|first\n \t\nsecond]] end', 'see [[Plan|first second]] end'],
+    ['see [[Plan|first\r\n\r\nsecond]] end', 'see [[Plan|first second]] end'],
+    ['see [[Pl\n\nan]] end', 'see [[Pl an]] end'],
+    ['x ![[chart.png|a\n\nb]] y', 'x ![[chart.png|a b]] y'],
+    ['x ![[chart\n\n.png]] y', 'x ![[chart .png]] y'],
+  ]) {
+    it(`leaves ${JSON.stringify(body)} as written`, async () => {
+      const { d, bodyJson, marks, text: got } = await parseOne(body)
+      expect(marks).toEqual([])
+      expect(d.links).toEqual([])
+      expect(d.media).toEqual([])
+      expect(bodyJson.content.filter((n) => n.type === 'image')).toEqual([])
+      expect(got).toBe(text)
+    })
+  }
+
+  for (const fence of ['```', '~~~']) {
+    it(`leaves a wikilink across a ${fence} fence as written`, async () => {
+      const { d, bodyJson, marks, text } = await parseOne(`[[Plan|a\n${fence}\ncode\n${fence}\nb]]`)
+      expect(marks).toEqual([])
+      expect(d.links).toEqual([])
+      expect(bodyJson.content.map((n) => n.type)).toEqual(['paragraph', 'codeBlock', 'paragraph'])
+      expect(text.replace(/\n/g, '')).toBe('[[Plan|a code b]]')
+    })
+  }
+
+  it('a single newline inside an alias is still the one link', async () => {
+    const { d, marks } = await parseOne('see [[Plan|first\nsecond]] end')
+    expect(d.links.map((l) => l.targetKey)).toEqual(['obsidian:V/Plan.md'])
+    expect(new Set(marks).size).toBe(1)
+  })
+})
+
 // D2 fix round 3 (perf): a wikilink or embed target never runs across `[[`, as on the
 // server, so a long line of `[` (or of `![[`) is linear: each try stops at the next `[[`.
 // ⚰️ 80 KB of `[` cost ~2 s in WIKILINK_RE alone, quadratically more as it grew.
 describe('obsidian adapter — D2 fix round 3: a long run of brackets is linear', () => {
   for (const [name, body] of [['brackets', '['.repeat(80000)], ['embed openers', '![['.repeat(54000)],
-    ['brackets then close', `${'['.repeat(80000)}]]`]]) {
+    ['brackets then close', `${'['.repeat(80000)}]]`],
+    // D2 fix round 5: the blank-line stop scans a whitespace run, so runs of them are timed too.
+    ['an alias of one whitespace run', `[[Plan|\n${' '.repeat(80000)}`],
+    ['an alias of newline-space pairs', `[[Plan|${'\n '.repeat(40000)}`],
+    ['an embed of newline-space-tab runs', `![[${'\n \t'.repeat(27000)}`]]) {
     it(`parses 80-160 KB of ${name} in well under a second`, async () => {
       const started = performance.now()
       const { docs } = await obsidianAdapter.parse([vf('V/a.md', body), vf('V/Plan.md', 'p')])

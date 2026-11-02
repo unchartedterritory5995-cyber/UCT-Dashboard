@@ -84,8 +84,16 @@ const CODE_RE = /```[\s\S]*?```|~~~[\s\S]*?~~~|`[^`\n]*`/g
 // `_WIKI_TARGET`/`_WIKI_ALIAS`): it keeps these patterns LINEAR. A target that could take
 // `[` scanned the rest of a line of `[` at every one of them (80 KB: ~2 s, quadratic).
 // Obsidian refuses `[` and `]` in a file name, so no real target holds `[[`.
-const EMBED_RE = /!\[\[((?:(?!\[\[)[^\]])+)\]\]/g
-const WIKILINK_RE = /\[\[((?:(?!\[\[)[^\]|])+)(?:\|((?:(?!\[\[)[^\]])+))?\]\]/g
+// ⛔ Nor across a blank line (a newline, optional spaces, tabs or `\r`, a newline) or a
+// fence (``` or `~~~`), D2 fix round 5, M-r4-1, mirroring the server's `_WIKI_STOP`:
+// Obsidian does not link across a paragraph break. ⚰️ `[[Plan|first\n\nsecond]]` made two
+// links, one each side of the break (or of a fenced block). Such text is now left exactly
+// as written. A single newline is still allowed. Each stop is a fixed string or one
+// whitespace run that ends at the next newline, so the patterns stay linear.
+const WIKI_STOP = '\\[\\[|\\n[ \\t\\r]*\\n|```|~~~'
+const EMBED_RE = new RegExp(`!\\[\\[((?:(?!${WIKI_STOP})[^\\]])+)\\]\\]`, 'g')
+const WIKILINK_RE = new RegExp(
+  `\\[\\[((?:(?!${WIKI_STOP})[^\\]|])+)(?:\\|((?:(?!${WIKI_STOP})[^\\]])+))?\\]\\]`, 'g')
 // ⛔ A trader's prose is full of `==` COMPARISONS ("if rsi == 30 and macd == 0").
 // The old `/==([^=\n]+)==/` highlighted the span between two comparisons and
 // deleted both operators. A highlight now needs a non-space just inside each
