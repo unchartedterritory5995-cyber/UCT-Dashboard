@@ -197,12 +197,38 @@ const BLOCKED = []
 const NOTEBOOK = []
 window.__newsHarnessNotebook = NOTEBOOK
 window.__newsHarnessBlocked = BLOCKED
+// ?ask=real: UCT Agent's OWN useAgentAsk talks to this INVENTED /api/agent (no model, never the
+// network). Every request is kept in window.__agentCalls; &askfail=1 refuses each turn the way the
+// server's budget refusal does; &askdelay=ms holds each answer (default 300).
+const ASK_REAL = params.get('ask') === 'real'
+const AGENT_CALLS = []
+window.__agentCalls = AGENT_CALLS
+const AGENT_TRANSCRIPT = [
+  { id: 1, role: 'member', text: 'What does this mean for the stock?' },
+  { id: 2, role: 'agent', text: 'SYNTHETIC: The company says profit beat its own outlook. That is the company’s claim; I don’t have a live quote here.' },
+  { id: 3, role: 'member', text: 'What should I look for next?' },
+  { id: 4, role: 'agent', text: 'SYNTHETIC: Guidance details and any analyst revisions; the headline gives neither yet.' },
+]
+function fakeAgent(method, path, init) {
+  const body = init && init.body ? JSON.parse(init.body) : null
+  AGENT_CALLS.push({ method, path, body })
+  if (method === 'POST' && path === '/api/agent/turn') {
+    if (params.get('askfail') === '1') return json({ detail: 'UCT Agent has used today’s budget. It resets at midnight ET.' }, 402)
+    return new Promise((r) => setTimeout(r, Number(params.get('askdelay')) || 300)).then(() => json({
+      conversationId: 'ac_harness_news', envelope: { disposition: 'answer', reply: `SYNTHETIC answer to “${body.message}”.` } }))
+  }
+  if (method === 'GET' && path.startsWith('/api/agent/conversations/')) {
+    return json({ id: decodeURIComponent(path.split('/').pop()), turns: AGENT_TRANSCRIPT })
+  }
+  return json({ detail: 'not in the harness' }, 404)
+}
 const realFetch = window.fetch.bind(window)
 window.fetch = (input, init) => {
   const url = typeof input === 'string' ? input : (input && input.url) || ''
   const method = ((init && init.method) || (input && input.method) || 'GET').toUpperCase()
   if (!url.startsWith('/') && !url.startsWith(location.origin)) return realFetch(input, init)
   const path = url.replace(location.origin, '')
+  if (ASK_REAL && path.startsWith('/api/agent/')) return fakeAgent(method, path, init)
   if (LIVE && path.startsWith('/api/trade-exchange-news')) return realFetch(input, init)
   if (path.startsWith('/api/trade-exchange-news/library')) return libraryServer().fetch(path, init || {})
   if (method === 'POST' && path === '/api/trade-exchange-news/day') {
@@ -354,7 +380,7 @@ function useHarnessAsk({ newsId }) {
     setTimeout(() => harnessAnswer(newsId, text, bump), 600)
   } }
 }
-// ?ask=real: UCT Agent's OWN useAgentAsk / openAgent (its /api/agent/* calls are faked by the test, never a model).
+// ?ask=real: UCT Agent's OWN useAgentAsk / openAgent, on the invented /api/agent above.
 const HARNESS_AGENT = ASK === 'real' ? { useAsk: useAgentAsk, openAgent }
   : ASK ? { useAsk: useHarnessAsk, openAgent: (x) => { window.__openAgent = x } } : null
 
