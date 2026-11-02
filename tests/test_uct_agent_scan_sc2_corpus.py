@@ -150,3 +150,27 @@ def test_the_contract_names_this_corpus_and_marks_proposed_values():
     text = CONTRACT.read_text(encoding="utf-8")
     assert "api/services/uct_agent/scan/eval/sc2.json" in text and "PROPOSED" in text
     assert "/api/screener/compile" in text                                     # stated as not used
+
+
+# ── daily dollar volume (agent-lead ruling): "a day" / "per day" with no session named = the 30-day average;
+#    a NAMED session ("today", "yesterday", "last session") = that session's dollar_vol_1d. Both corpora, both ways.
+_SESSION = re.compile(r"\b(today|yesterday|last session|this session)\b", re.I)
+_DAILY = re.compile(r"\b(a|per) day\b", re.I)
+
+
+def _dollar_items():
+    disc = json.loads((REPO / "api/services/uct_agent/scan/eval/discovery.json").read_text(encoding="utf-8"))["questions"]
+    out = [(q["id"], q["question"], q["expect"].get("criteria_text") or "") for q in disc if not q["expect_refusal"]]
+    out += [(cid, e["text"], e["expect"].get("criteria_text") or "") for cid, e in ALL if e["expect"]["type"] == "spec"]
+    return [(i, t, c) for i, t, c in out if "dollar_vol" in c]
+
+
+def test_daily_dollar_volume_rule_holds_in_both_directions():
+    items = _dollar_items()
+    named = [x for x in items if _SESSION.search(x[1])]
+    unnamed = [x for x in items if _DAILY.search(x[1]) and not _SESSION.search(x[1])]
+    assert named and unnamed                                                    # non-vacuity: both cases exist
+    for cid, text, crit in unnamed:
+        assert "dollar_vol_30d" in crit and "dollar_vol_1d" not in crit, f"{cid}: {text!r} must read the 30-day average"
+    for cid, text, crit in named:
+        assert "dollar_vol_1d" in crit and "dollar_vol_30d" not in crit, f"{cid}: {text!r} names a session: dollar_vol_1d"

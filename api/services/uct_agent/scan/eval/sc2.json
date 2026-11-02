@@ -202,7 +202,7 @@
    "text": "names trading over $100M a day",
    "expect": {
     "type": "spec",
-    "criteria_text": "dollar_vol_1d > 100000000"
+    "criteria_text": "dollar_vol_30d > 100000000"
    }
   },
   {
@@ -266,6 +266,33 @@
    "expect": {
     "type": "spec",
     "criteria_text": "rsi14 > 70"
+   }
+  },
+  {
+   "id": "u09",
+   "category": "units",
+   "text": "stocks that traded over $50M yesterday",
+   "expect": {
+    "type": "spec",
+    "criteria_text": "dollar_vol_1d > 50000000"
+   }
+  },
+  {
+   "id": "u10",
+   "category": "units",
+   "text": "names doing over $20M per day",
+   "expect": {
+    "type": "spec",
+    "criteria_text": "dollar_vol_30d > 20000000"
+   }
+  },
+  {
+   "id": "u11",
+   "category": "units",
+   "text": "over $25M of dollar volume today",
+   "expect": {
+    "type": "spec",
+    "criteria_text": "dollar_vol_1d > 25000000"
    }
   },
   {

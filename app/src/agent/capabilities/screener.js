@@ -614,7 +614,7 @@ export function registerScreenerCapabilities() {
     hints: 'target = the screener entry ref. filters: each {field: a key from screener `fields` (never invented), op, value, max, values}. '
       + 'Numbers: op gt|gte|lt|lte|eq|between, value, max (between only, else null), values null; % fields take 5 for 5%, $ fields take dollars (10M = 10000000). '
       + 'yes/no: op eq, value 1|0. (list) fields: op in|not_in, values = the member\'s own words (["software"]) — UCT matches the real values; value/max null. '
-      + '"(latest session)" fields = the last completed trading day: use them for a daily dollar volume ("trades over $10M a day"), never a 30-day average or share volume. '
+      + '"(latest session)" fields only when a session is named ("today", "yesterday"); "$10M a day" / "per day" if none named = the 30-day average, not share volume. '
       + 'A measure not in `fields`: say the Screener doesn\'t have it, never substitute. sort_field/sort_dir or null. mode refine = change the LAST screen, else new. '
       + 'show: rows (null = 10, max 25). as: name the RESULT (screen1) when a later op uses its stocks ({from:"screen1", top:null} = all); else null. '
       + 'within: a watchlist ref only if they name that list ("in Momentum"); else null (the whole market).',
