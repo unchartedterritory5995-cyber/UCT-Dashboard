@@ -250,13 +250,20 @@ const knownClientGap = {
   //     codeBlock text, the server's `mddoc` drops it (D3: fenced code final newline);
   //   - 25's code RUN difference: the client's code mark drops the link from `x`, the
   //     server stores link+code (D3: a code run carries no other mark).
+  //   - Round 5 (final), ruling A's `[[Plan|a\n<div>b]]` row: no link and no key on either
+  //     lane, but the raw HTML block `<div>b]]` reads differently in the SHARED parses: the
+  //     server's `mddoc` keeps the tag as text (`<div>b]]`), the client's parse renders it
+  //     (`b]]`). Not an Obsidian pass; named for D3 (shared-converter follow-up PR: raw
+  //     HTML blocks).
   // Delete this entry when D3 lands.
   '28-blank-line-and-fence-alias.json': {
     missingLinks: [{ target: 'Plan.md', text: 'x' }],
     clientReads: {
       text: 'Blank line or fence in a link see [[Plan|first second]] end see [[Pl an]] end '
         + 'x ![[chart.png|a b]] y [[Plan|a code\n b]] see one line still links '
-        + 'quoted [[Plan|c d]] stays text quoted one line still links see a x b inline code links',
+        + 'quoted [[Plan|c d]] stays text quoted one line still links see a x b inline code links '
+        + 'see [[Plan|a b]] end see [[Plan|a b]] end see [[Plan|a b]] end see [[Plan|a b]] end '
+        + 'see [[Plan|a b]] end see [[Plan|a b]] end [[Plan|a b]]',
     },
   },
   // ⚰️ 18-attachment-names and 19-nested-embeds: their text gaps (the EMPTY paragraph

@@ -93,9 +93,16 @@ const CODE_RE = /```[\s\S]*?```|~~~[\s\S]*?~~~|`[^`\n]*`/g
 //   - A fence is a fence LINE: a newline, up to 3 spaces, optional `>` prefixes, then ``` or
 //     `~~~`. A one-line ``` run is an inline code span, which a link may hold whole
 //     (`clearOfCode`), as it may hold a single-backtick one.
+//   - Nor across a newline whose next line starts a block (D2 fix round 5 (final), ruling
+//     A): after up to 3 spaces and optional `>` prefixes, a heading, a list item, a
+//     thematic break, an HTML block start (`<`) or a fence.
+//   - A `>` that opens a DEEPER quote than the link's own line is a block start too; a
+//     pattern cannot know the link's own line, so that one is `deepensQuote`.
 // A single newline is still allowed. Each stop reads at most one line from a newline, so
-// the patterns stay linear.
-const WIKI_STOP = '\\[\\[|\\n[ \\t\\r]*(?:>[ \\t\\r]*)*\\n|\\n {0,3}(?:>[ \\t]*)*(?:```|~~~)'
+// the patterns stay linear. The SAME source as the server's `_WIKI_STOP`.
+const WIKI_STOP = '\\[\\[|\\n[ \\t\\r]*(?:>[ \\t\\r]*)*\\n|\\n {0,3}(?:>[ \\t]*)*(?:```|~~~|#{1,6}[ \\t]'
+  + '|[-*+][ \\t]|\\d{1,9}[.)][ \\t]|(?:-[ \\t]*){3,}(?:\\r?\\n|$)|(?:\\*[ \\t]*){3,}(?:\\r?\\n|$)'
+  + '|(?:_[ \\t]*){3,}(?:\\r?\\n|$)|<)'
 const EMBED_RE = new RegExp(`!\\[\\[((?:(?!${WIKI_STOP})[^\\]])+)\\]\\]`, 'g')
 const WIKILINK_RE = new RegExp(
   `\\[\\[((?:(?!${WIKI_STOP})[^\\]|])+)(?:\\|((?:(?!${WIKI_STOP})[^\\]])+))?\\]\\]`, 'g')
@@ -297,10 +304,34 @@ function clearOfCode(at, end, spans) {
   return true
 }
 
+const QUOTE_PREFIX_DEPTH_RE = / {0,3}((?:>[ \t]*)*)/y
+
+// How many `>` prefixes open the line holding `at`.
+function quoteDepth(text, at) {
+  QUOTE_PREFIX_DEPTH_RE.lastIndex = at > 0 ? text.lastIndexOf('\n', at - 1) + 1 : 0
+  const m = QUOTE_PREFIX_DEPTH_RE.exec(text)
+  return m ? m[1].split('>').length - 1 : 0
+}
+
+// `text.slice(start, end)` crosses a newline into a line with MORE `>` prefixes than its
+// first line: a quote that begins inside the link (ruling A). Mirrors
+// `providers/obsidian.py::_deepens_quote`; only a match holding a newline scans.
+function deepensQuote(text, start, end) {
+  let nl = text.indexOf('\n', start)
+  if (nl === -1 || nl >= end) return false
+  const depth = quoteDepth(text, start)
+  while (nl !== -1 && nl < end) {
+    if (quoteDepth(text, nl + 1) > depth) return true
+    nl = text.indexOf('\n', nl + 1)
+  }
+  return false
+}
+
 // `text.replace(re, fn)`, taking only matches `clearOfCode`; a refused match is left as
-// written and the scan resumes one character after its start. Mirrors
+// written and the scan resumes one character after its start. `wiki`: a wikilink-shaped
+// pattern, whose match must also not open a deeper quote (`deepensQuote`). Mirrors
 // `providers/obsidian.py::_sub_clear_of_code`.
-function replaceClearOfCode(text, re, fn) {
+function replaceClearOfCode(text, re, fn, wiki = false) {
   const spans = codeSpans(text)
   const rx = new RegExp(re.source, re.flags.includes('g') ? re.flags : `${re.flags}g`)
   let out = ''
@@ -311,7 +342,7 @@ function replaceClearOfCode(text, re, fn) {
     const m = rx.exec(text)
     if (!m) break
     const end = m.index + m[0].length
-    if (clearOfCode(m.index, end, spans)) {
+    if (clearOfCode(m.index, end, spans) && !(wiki && deepensQuote(text, m.index, end))) {
       out += text.slice(last, m.index) + fn(...m)
       last = end
       pos = end > m.index ? end : end + 1
@@ -431,7 +462,7 @@ function transformEmbeds(text, ctx) {
     }
     return ctx.hold(`<a data-type="attachmentChip" data-import-ref="${escapeAttr(resolvedPath)}" data-name="${escapeAttr(name)}" href="import-ref://${escapeAttr(resolvedPath)}">${escapeHtml(name)}</a>`,
       () => ctx.media.push({ ref: resolvedPath, vfile, kind: 'file', name }))
-  })
+  }, true)
 }
 
 function transformWikiLinks(text, ctx) {
@@ -471,7 +502,7 @@ function transformWikiLinks(text, ctx) {
     return ctx.hold(`<a data-import-link="${escapeAttr(targetKey)}">${escapeHtml(display)}</a>`,
       () => ctx.links.push({ targetKey }))
   }
-  return replaceClearOfCode(text, WIKILINK_RE, (_, rawTarget, rawAlias) => piece(rawTarget, rawAlias))
+  return replaceClearOfCode(text, WIKILINK_RE, (_, rawTarget, rawAlias) => piece(rawTarget, rawAlias), true)
 }
 
 // ---------------------------------------------------------------------------

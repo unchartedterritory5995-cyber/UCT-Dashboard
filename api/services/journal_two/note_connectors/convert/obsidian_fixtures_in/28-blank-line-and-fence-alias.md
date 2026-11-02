@@ -29,3 +29,25 @@ line]] still links
 > line]] still links
 
 see [[Plan|a ```x``` b]] inline code links
+
+see [[Plan|a
+> b]] end
+
+see [[Plan|a
+# b]] end
+
+see [[Plan|a
+- b]] end
+
+see [[Plan|a
+1. b]] end
+
+see [[Plan|a
+---
+b]] end
+
+- see [[Plan|a
+- b]] end
+
+[[Plan|a
+<div>b]]

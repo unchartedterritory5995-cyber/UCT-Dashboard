@@ -311,10 +311,42 @@ _CODE_RE = re.compile(_FENCE_SRC + r"|`[^`\n]*`")
 #   - A fence is a fence LINE: a newline, up to 3 spaces, optional `>` prefixes, then
 #     ```` ``` ```` or `~~~`. A one-line ```` ``` ```` run is an inline code span, which a link
 #     may hold whole (`_clear_of_code`), as it may hold a single-backtick one (N-I4).
+#   - Nor across a newline whose next line starts a block (D2 fix round 5 (final), ruling A):
+#     after up to 3 spaces and optional `>` prefixes, a heading (`#` to `######` and a space),
+#     a list item (`-`, `*`, `+` or 1-9 digits and `.`/`)`, then a space), a thematic break
+#     (`---`, `***`, `___`, spaces allowed), an HTML block start (`<`) or a fence. ⚰️ Each one
+#     cut the markdown link the pass wrote and leaked the key, as a paragraph break did.
+#   - A `>` that opens a DEEPER quote than the link's own line is a block start too, but a
+#     pattern cannot know the link's own line: inside a quote `> b` is a continuation. So
+#     that one is `_deepens_quote`, checked on every wikilink match.
 # A single newline is still allowed (the same one link on both lanes). Each stop reads at
 # most one line from a newline, so the patterns stay linear. `obsidian.js::WIKI_STOP`
 # mirrors this.
-_WIKI_STOP = r"\[\[|\n[ \t\r]*(?:>[ \t\r]*)*\n|\n {0,3}(?:>[ \t]*)*(?:```|~~~)"
+_WIKI_STOP = (r"\[\[|\n[ \t\r]*(?:>[ \t\r]*)*\n|\n {0,3}(?:>[ \t]*)*(?:```|~~~|#{1,6}[ \t]"
+              r"|[-*+][ \t]|\d{1,9}[.)][ \t]|(?:-[ \t]*){3,}(?:\r?\n|$)|(?:\*[ \t]*){3,}(?:\r?\n|$)"
+              r"|(?:_[ \t]*){3,}(?:\r?\n|$)|<)")
+_QUOTE_PREFIX_DEPTH_RE = re.compile(r" {0,3}((?:>[ \t]*)*)")
+
+
+def _quote_depth(text: str, at: int) -> int:
+    """How many `>` prefixes open the line holding `at`."""
+    start = text.rfind("\n", 0, at) + 1
+    return _QUOTE_PREFIX_DEPTH_RE.match(text, start).group(1).count(">")
+
+
+def _deepens_quote(text: str, start: int, end: int) -> bool:
+    """`text[start:end]` crosses a newline into a line with MORE `>` prefixes than its first
+    line: a quote that begins inside the link (ruling A). `obsidian.js::deepensQuote`.
+    Only a match holding a newline scans; it reads its own lines once, so this is linear."""
+    nl = text.find("\n", start, end)
+    if nl == -1:
+        return False
+    depth = _quote_depth(text, start)
+    while nl != -1:
+        if _quote_depth(text, nl + 1) > depth:
+            return True
+        nl = text.find("\n", nl + 1, end)
+    return False
 _WIKI_TARGET = rf"(?:(?!{_WIKI_STOP})[^\]|])+"
 _WIKI_ALIAS = rf"(?:(?!{_WIKI_STOP})[^\]])+"
 _WIKI_EMBED = rf"!\[\[{_WIKI_TARGET}(?:\|{_WIKI_ALIAS})?\]\]"
@@ -660,9 +692,9 @@ def _transform_wiki_and_embeds(
 
     # D2 fix round 4, N-I4: called on the WHOLE body, so every pass takes only matches clear
     # of code (`_sub_clear_of_code`): a wikilink may hold a whole code span, never cut one.
-    segment = _sub_clear_of_code(_ALIAS_EMBED_RE, alias_embed, segment)
-    segment = _sub_clear_of_code(_NESTED_EMBED_RE, nested, segment)
-    return _sub_clear_of_code(_WIKI_RE, repl, segment)
+    segment = _sub_clear_of_code(_ALIAS_EMBED_RE, alias_embed, segment, wiki=True)
+    segment = _sub_clear_of_code(_NESTED_EMBED_RE, nested, segment, wiki=True)
+    return _sub_clear_of_code(_WIKI_RE, repl, segment, wiki=True)
 
 
 def _escape_html(text: str) -> str:
@@ -918,7 +950,7 @@ def _mark_unsent_attachments(
         return _notice_markdown(reason, _basename(path))
 
     return _sub_clear_of_code(_MD_LINK_OR_IMAGE_RE, markdown,
-                              _sub_clear_of_code(_WIKI_RE, wiki, segment))
+                              _sub_clear_of_code(_WIKI_RE, wiki, segment, wiki=True))
 
 
 # ── Code spans and the attachment pass (D2 fix round 2, N-I1) ───────────────
@@ -946,15 +978,17 @@ def _clear_of_code(at: int, end: int, code: list[tuple[int, int]], code_starts: 
     return True
 
 
-def _sub_clear_of_code(rx: "re.Pattern[str]", fn: Any, text: str) -> str:
+def _sub_clear_of_code(rx: "re.Pattern[str]", fn: Any, text: str, *, wiki: bool = False) -> str:
     """`rx.sub(fn, text)`, taking only matches `_clear_of_code`; a refused match is left as
-    written and the scan resumes one character after its start."""
+    written and the scan resumes one character after its start. `wiki`: a wikilink-shaped
+    pattern, whose match must also not open a deeper quote (`_deepens_quote`, ruling A)."""
     code = _code_spans(text)
     code_starts = [c[0] for c in code]
     out: list[str] = []
     last = pos = 0
     while (m := rx.search(text, pos)) is not None:
-        if _clear_of_code(m.start(), m.end(), code, code_starts):
+        if (_clear_of_code(m.start(), m.end(), code, code_starts)
+                and not (wiki and _deepens_quote(text, m.start(), m.end()))):
             out.append(text[last:m.start()])
             out.append(fn(m))
             last = pos = m.end()

@@ -1898,11 +1898,26 @@ def test_every_wikilink_pattern_of_this_provider_is_linear_on_a_bracket_run():
     # D2 fix round 5: the blank-line stop scans a whitespace run, so a run of them is timed too.
     for body in ("[" * 40000, "![[" * 13400, "[[a|" * 10000, "[[a|\n" + " " * 40000,
                  "[[a|" + "\n " * 20000, "![[" + "\n \t" * 13400,
-                 "[[a|\n" + "> " * 20000, "[[a|" + "\n   > >``" * 5000):
+                 "[[a|\n" + "> " * 20000, "[[a|" + "\n   > >``" * 5000,
+                 # D2 fix round 5 (final), ruling A: the block-start stops.
+                 "[[a|\n" + "-" * 40000, "[[a|\n" + "* " * 20000, "[[a|\n" + "9" * 40000,
+                 "[[a|" + "\n   > > -x" * 4000):
         for name in patterns:
             started = time.perf_counter()
             list(getattr(provider, name).finditer(body))
             assert time.perf_counter() - started < 0.2, (name, body[:4], len(body))
+
+
+def test_the_deeper_quote_check_is_linear():
+    """D2 fix round 5 (final), ruling A: `_deepens_quote` reads each multi-line match's own
+    lines once, so thousands of multi-line wikilinks on long quoted lines stay fast."""
+    import time
+
+    from api.services.journal_two.note_connectors.providers import obsidian as provider
+    for body in (("> " * 50 + "x [[a|b\n> c]] ") * 4000, "[[a|b\nc]] " * 20000):
+        started = time.perf_counter()
+        provider._sub_clear_of_code(provider._WIKI_RE, lambda m: "L", body, wiki=True)
+        assert time.perf_counter() - started < 0.5, len(body)
 
 
 def test_a_note_wikilink_whose_alias_holds_a_code_span_is_a_link():
@@ -1969,6 +1984,42 @@ def test_a_quote_paragraph_break_stops_a_wikilink_and_only_a_fence_line_is_a_fen
     for body in ["> see [[Plan|a\n> b]] end", "see [[Plan|a ```x``` b]] end",
                  "see [[Plan|a ~~~x~~~ b]] end", "see [[Plan|a\n    ```x``` b]] end"]:
         out = _convert(body, paths, refs=refs)
+        assert {h for _, h in _link_marks(out["doc"])} == {_key("Plan.md")}, body
+        assert "import-link" not in _plain(out["doc"]) and "[[" not in _plain(out["doc"]), body
+
+
+#: D2 fix round 5 (final), ruling A: a single newline whose next line starts a block.
+BLOCK_START_AS_WRITTEN = [
+    "see [[Plan|a\n> b]] end", "see [[Plan|a\n# b]] end", "see [[Plan|a\n### b]] end",
+    "see [[Plan|a\n- b]] end", "see [[Plan|a\n* b]] end", "see [[Plan|a\n+ b]] end",
+    "see [[Plan|a\n1. b]] end", "see [[Plan|a\n12) b]] end", "see [[Plan|a\n---\nb]] end",
+    "see [[Plan|a\n* * *\nb]] end", "see [[Plan|a\n___\nb]] end", "- see [[Plan|a\n- b]] end",
+    "> see [[Plan|a\n> > b]] end", "> see [[Plan|a\n> # b]] end", "see [[Plan|a\n   - b]] end",
+    "x ![[Plan|a\n# b]] y",
+]
+BLOCK_START_ONE_LINK = [
+    "> see [[Plan|a\n> b]] end", "> see [[Plan|a\nb]] end", "> > see [[Plan|a\n> b]] end",
+    "- see [[Plan|a\n  b]] end", "see [[Plan|a\nb # c]] end", "see [[Plan|a\n-b]] end",
+    "see [[Plan|a\n1.5 b]] end", "see [[Plan|a\n#b]] end",
+]
+
+
+@pytest.mark.parametrize("refs", [NO_ATTACHMENT_PASS, None], ids=["refs-branch", "old-plugin"])
+def test_a_wikilink_never_crosses_into_a_line_that_starts_a_block(refs):
+    """D2 fix round 5 (final), ruling A: a target or alias may not cross a newline whose next
+    line (after up to 3 spaces and optional `>` prefixes) starts a block: a heading, a list
+    item, a thematic break, an HTML block or a fence, or a `>` that opens a DEEPER quote than
+    the line the link starts on. ⚰️ Each of these leaked `import-link://...` as text: the
+    block cut the markdown link the pass wrote. Such text is left as written."""
+    for body in BLOCK_START_AS_WRITTEN + ["see [[Plan|a\n<div>b]] end"]:
+        out = _convert(body, ["Plan.md"], refs=refs)
+        assert _link_marks(out["doc"]) == [] and out["links"] == [], body
+        text = _plain(out["doc"])
+        assert "import-link" not in text, (body, text)
+        if "<div>" not in body:
+            assert "[[Plan|a" in text and "b]]" in text, (body, text)
+    for body in BLOCK_START_ONE_LINK:
+        out = _convert(body, ["Plan.md"], refs=refs)
         assert {h for _, h in _link_marks(out["doc"])} == {_key("Plan.md")}, body
         assert "import-link" not in _plain(out["doc"]) and "[[" not in _plain(out["doc"]), body
 

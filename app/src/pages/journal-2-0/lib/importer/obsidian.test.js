@@ -947,6 +947,37 @@ describe('obsidian adapter — D2 fix round 5: a wikilink never spans a blank li
     }
   })
 
+  // D2 fix round 5 (final), ruling A: nor across a newline whose next line starts a block
+  // (heading, list item, thematic break, HTML block, fence, or a DEEPER quote). Same cases
+  // as the server's BLOCK_START_AS_WRITTEN / BLOCK_START_ONE_LINK.
+  for (const body of ['see [[Plan|a\n> b]] end', 'see [[Plan|a\n# b]] end', 'see [[Plan|a\n### b]] end',
+    'see [[Plan|a\n- b]] end', 'see [[Plan|a\n* b]] end', 'see [[Plan|a\n+ b]] end',
+    'see [[Plan|a\n1. b]] end', 'see [[Plan|a\n12) b]] end', 'see [[Plan|a\n---\nb]] end',
+    'see [[Plan|a\n* * *\nb]] end', 'see [[Plan|a\n___\nb]] end', '- see [[Plan|a\n- b]] end',
+    '> see [[Plan|a\n> > b]] end', '> see [[Plan|a\n> # b]] end', 'see [[Plan|a\n   - b]] end',
+    'x ![[Plan|a\n# b]] y', 'see [[Plan|a\n<div>b]] end']) {
+    it(`leaves ${JSON.stringify(body)} as written (block start)`, async () => {
+      const { d, marks, text } = await parseOne(body)
+      expect(marks).toEqual([])
+      expect(d.links).toEqual([])
+      expect(text).not.toContain('import-link')
+      if (!body.includes('<div>')) {
+        expect(text).toContain('[[Plan|a')
+        expect(text).toContain('b]]')
+      }
+    })
+  }
+  for (const body of ['> see [[Plan|a\n> b]] end', '> see [[Plan|a\nb]] end', '> > see [[Plan|a\n> b]] end',
+    '- see [[Plan|a\n  b]] end', 'see [[Plan|a\nb # c]] end', 'see [[Plan|a\n-b]] end',
+    'see [[Plan|a\n1.5 b]] end', 'see [[Plan|a\n#b]] end']) {
+    it(`keeps ${JSON.stringify(body)} as the one link (no block start)`, async () => {
+      const { d, marks, text } = await parseOne(body)
+      expect(d.links.map((l) => l.targetKey)).toEqual(['obsidian:V/Plan.md'])
+      expect(new Set(marks).size).toBe(1)
+      expect(text).not.toContain('[[')
+    })
+  }
+
   it('a single newline inside an alias is still the one link', async () => {
     const { d, marks } = await parseOne('see [[Plan|first\nsecond]] end')
     expect(d.links.map((l) => l.targetKey)).toEqual(['obsidian:V/Plan.md'])
@@ -966,7 +997,12 @@ describe('obsidian adapter — D2 fix round 3: a long run of brackets is linear'
     ['an embed of newline-space-tab runs', `![[${'\n \t'.repeat(27000)}`],
     // Follow-up: the quote-prefix run of the blank-line and fence-line stops.
     ['an alias of one quote-prefix run', `[[Plan|\n${'> '.repeat(40000)}`],
-    ['an alias of near-fence quoted lines', `[[Plan|${'\n   > >``'.repeat(10000)}`]]) {
+    ['an alias of near-fence quoted lines', `[[Plan|${'\n   > >``'.repeat(10000)}`],
+    // D2 fix round 5 (final), ruling A: the block-start stops and the deeper-quote check.
+    ['an alias of one dash run', `[[Plan|\n${'-'.repeat(80000)}`],
+    ['an alias of one digit run', `[[Plan|\n${'9'.repeat(80000)}`],
+    ['long quoted lines of multi-line links',
+      `${'> '.repeat(50)}x ${`[[Plan|b\n${'> '.repeat(51)}c]] `.repeat(2000)}`]]) {
     it(`parses 80-160 KB of ${name} in well under a second`, async () => {
       const started = performance.now()
       const { docs } = await obsidianAdapter.parse([vf('V/a.md', body), vf('V/Plan.md', 'p')])
