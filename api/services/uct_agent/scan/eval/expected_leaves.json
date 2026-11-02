@@ -5,67 +5,18 @@
  "discovery": {
   "d01": {
    "text": "top RS names near 52-week highs",
-   "kind": "spec",
-   "leaves": [
-    {
-     "key": "rs_rank",
-     "op": "gte",
-     "min": 80
-    },
-    {
-     "key": "dist_52w_high_pct",
-     "op": "lte",
-     "max": 5
-    }
-   ],
-   "sort": null,
-   "tolerance": {
-    "rs_rank": {
-     "abs": 10
-    },
-    "dist_52w_high_pct": {
-     "abs": 5
-    }
-   }
+   "kind": "refuse",
+   "reason": "UCT proprietary ratings"
   },
   "d02": {
    "text": "stocks with RS rank above 90",
-   "kind": "spec",
-   "leaves": [
-    {
-     "key": "rs_rank",
-     "op": "gt",
-     "min": 90
-    }
-   ],
-   "sort": null,
-   "tolerance": {
-    "rs_rank": {
-     "abs": 1
-    }
-   }
+   "kind": "refuse",
+   "reason": "UCT proprietary ratings"
   },
   "d03": {
    "text": "show me the leaders making new highs",
-   "kind": "spec",
-   "leaves": [
-    {
-     "key": "new_52w_high",
-     "op": "eq",
-     "value": 1
-    },
-    {
-     "key": "rs_rank",
-     "op": "gte",
-     "min": 80
-    }
-   ],
-   "sort": null,
-   "tolerance": {
-    "rs_rank": {
-     "abs": 10
-    }
-   }
+   "kind": "refuse",
+   "reason": "UCT proprietary ratings"
   },
   "d04": {
    "text": "what's ripping this month",
@@ -242,25 +193,8 @@
   },
   "d13": {
    "text": "NR7 days in strong stocks",
-   "kind": "spec",
-   "leaves": [
-    {
-     "key": "nr7",
-     "op": "eq",
-     "value": 1
-    },
-    {
-     "key": "rs_rank",
-     "op": "gte",
-     "min": 70
-    }
-   ],
-   "sort": null,
-   "tolerance": {
-    "rs_rank": {
-     "abs": 10
-    }
-   }
+   "kind": "refuse",
+   "reason": "UCT proprietary ratings"
   },
   "d14": {
    "text": "pullbacks to the 20 EMA in uptrends",
@@ -502,28 +436,8 @@
   },
   "d25": {
    "text": "strongest sectors' leaders",
-   "kind": "spec",
-   "leaves": [
-    {
-     "key": "sector_rs_pct",
-     "op": "gte",
-     "min": 80
-    },
-    {
-     "key": "rs_rank",
-     "op": "gte",
-     "min": 80
-    }
-   ],
-   "sort": null,
-   "tolerance": {
-    "sector_rs_pct": {
-     "abs": 10
-    },
-    "rs_rank": {
-     "abs": 10
-    }
-   }
+   "kind": "refuse",
+   "reason": "UCT proprietary ratings"
   },
   "d26": {
    "text": "chip stocks up today",
@@ -578,66 +492,13 @@
  "sc2": {
   "c01": {
    "text": "liquid semis above the 50-day with RS over 80 and volume picking up",
-   "kind": "spec",
-   "leaves": [
-    {
-     "key": "dollar_vol_30d",
-     "op": "gte",
-     "min": 20000000
-    },
-    {
-     "key": "industry",
-     "op": "in",
-     "values": [
-      "Semiconductors"
-     ]
-    },
-    {
-     "key": "above_50sma",
-     "op": "eq",
-     "value": 1
-    },
-    {
-     "key": "rs_rank",
-     "op": "gt",
-     "min": 80
-    },
-    {
-     "key": "vol_ratio",
-     "op": "gte",
-     "min": 1.5
-    }
-   ],
-   "sort": null
+   "kind": "refuse",
+   "reason": "UCT proprietary ratings"
   },
   "c02": {
    "text": "large cap tech near highs with strong RS",
-   "kind": "spec",
-   "leaves": [
-    {
-     "key": "market_cap",
-     "op": "gt",
-     "min": 10000000000
-    },
-    {
-     "key": "sector",
-     "op": "in",
-     "values": [
-      "Technology"
-     ]
-    },
-    {
-     "key": "dist_52w_high_pct",
-     "op": "lte",
-     "max": 5
-    },
-    {
-     "key": "rs_rank",
-     "op": "gte",
-     "min": 80
-    }
-   ],
-   "sort": null
+   "kind": "refuse",
+   "reason": "UCT proprietary ratings"
   },
   "c03": {
    "text": "small caps under $2B up more than 20% this month on volume",
@@ -688,30 +549,8 @@
   },
   "c05": {
    "text": "tight setups above the 50-day in leaders over $20",
-   "kind": "spec",
-   "leaves": [
-    {
-     "key": "tight_consolidation",
-     "op": "eq",
-     "value": 1
-    },
-    {
-     "key": "above_50sma",
-     "op": "eq",
-     "value": 1
-    },
-    {
-     "key": "rs_rank",
-     "op": "gte",
-     "min": 80
-    },
-    {
-     "key": "price",
-     "op": "gt",
-     "min": 20
-    }
-   ],
-   "sort": null
+   "kind": "refuse",
+   "reason": "UCT proprietary ratings"
   },
   "c06": {
    "text": "high ADR liquid names within 3% of their 20-day high",
@@ -822,33 +661,11 @@
   },
   "c11": {
    "text": "NR7 in liquid leaders above the 50-day",
-   "kind": "spec",
-   "leaves": [
-    {
-     "key": "nr7",
-     "op": "eq",
-     "value": 1
-    },
-    {
-     "key": "dollar_vol_30d",
-     "op": "gte",
-     "min": 20000000
-    },
-    {
-     "key": "rs_rank",
-     "op": "gte",
-     "min": 80
-    },
-    {
-     "key": "above_50sma",
-     "op": "eq",
-     "value": 1
-    }
-   ],
-   "sort": null
+   "kind": "refuse",
+   "reason": "UCT proprietary ratings"
   },
   "c12": {
-   "text": "pullbacks to the 20 EMA in strong semis",
+   "text": "pullbacks to the 20 EMA in semis",
    "kind": "spec",
    "leaves": [
     {
@@ -872,11 +689,6 @@
      "values": [
       "Semiconductors"
      ]
-    },
-    {
-     "key": "rs_rank",
-     "op": "gte",
-     "min": 80
     }
    ],
    "sort": null
@@ -1015,23 +827,8 @@
   },
   "c19": {
    "text": "Nasdaq 100 names above the 50-day sorted by RS",
-   "kind": "spec",
-   "leaves": [
-    {
-     "key": "index_ndx",
-     "op": "eq",
-     "value": 1
-    },
-    {
-     "key": "above_50sma",
-     "op": "eq",
-     "value": 1
-    }
-   ],
-   "sort": {
-    "key": "rs_rank",
-    "dir": "desc"
-   }
+   "kind": "refuse",
+   "reason": "UCT proprietary ratings"
   },
   "c20": {
    "text": "top 3-month performers in software over $10 billion",
@@ -1289,7 +1086,7 @@
    "kind": "planner"
   },
   "p03": {
-   "text": "screen for leaders and put the top 5 in my Momentum list",
+   "text": "screen for liquid semis and put the top 5 in my Momentum list",
    "kind": "planner"
   },
   "p04": {
@@ -1320,6 +1117,31 @@
    "text": "bullish options flow over $5M",
    "kind": "refuse",
    "reason": "flow fields need owner approval"
+  },
+  "f01": {
+   "text": "stocks with RS rank above 90",
+   "kind": "refuse",
+   "reason": "UCT proprietary ratings"
+  },
+  "f02": {
+   "text": "sort by UCT composite",
+   "kind": "refuse",
+   "reason": "UCT proprietary ratings"
+  },
+  "f03": {
+   "text": "strongest sectors' leaders",
+   "kind": "refuse",
+   "reason": "UCT proprietary ratings"
+  },
+  "f04": {
+   "text": "high setup score names",
+   "kind": "refuse",
+   "reason": "UCT proprietary ratings"
+  },
+  "f05": {
+   "text": "stocks in the UCT 20",
+   "kind": "refuse",
+   "reason": "UCT proprietary ratings"
   }
  },
  "sc2_chains": [
@@ -1327,7 +1149,7 @@
    "id": "k01",
    "steps": [
     {
-     "text": "liquid semis above the 50-day with RS over 80 and volume picking up",
+     "text": "liquid semis above the 50-day up more than 20% this month and volume picking up",
      "delta": "new",
      "kind": "spec",
      "leaves": [
@@ -1349,9 +1171,9 @@
        "value": 1
       },
       {
-       "key": "rs_rank",
+       "key": "chg_pct_1m",
        "op": "gt",
-       "min": 80
+       "min": 20
       },
       {
        "key": "vol_ratio",
@@ -1384,9 +1206,9 @@
        "value": 1
       },
       {
-       "key": "rs_rank",
+       "key": "chg_pct_1m",
        "op": "gt",
-       "min": 80
+       "min": 20
       },
       {
        "key": "vol_ratio",
@@ -1424,9 +1246,9 @@
        "value": 1
       },
       {
-       "key": "rs_rank",
+       "key": "chg_pct_1m",
        "op": "gt",
-       "min": 80
+       "min": 20
       },
       {
        "key": "vol_ratio",
@@ -1469,9 +1291,9 @@
        "value": 1
       },
       {
-       "key": "rs_rank",
+       "key": "chg_pct_1m",
        "op": "gt",
-       "min": 80
+       "min": 20
       },
       {
        "key": "vol_ratio",
@@ -1517,9 +1339,9 @@
        "value": 1
       },
       {
-       "key": "rs_rank",
+       "key": "chg_pct_1m",
        "op": "gt",
-       "min": 80
+       "min": 20
       },
       {
        "key": "vol_ratio",
@@ -1548,45 +1370,45 @@
    "id": "k02",
    "steps": [
     {
-     "text": "stocks with RS rank above 80",
+     "text": "stocks with ADR over 5%",
      "delta": "new",
      "kind": "spec",
      "leaves": [
       {
-       "key": "rs_rank",
-       "op": "gt",
-       "min": 80
-      }
-     ],
-     "sort": null
-    },
-    {
-     "text": "make that 90",
-     "delta": "add",
-     "kind": "spec",
-     "leaves": [
-      {
-       "key": "rs_rank",
-       "op": "gt",
-       "min": 90
-      }
-     ],
-     "sort": null
-    },
-    {
-     "text": "and ADR over 5%",
-     "delta": "add",
-     "kind": "spec",
-     "leaves": [
-      {
-       "key": "rs_rank",
-       "op": "gt",
-       "min": 90
-      },
-      {
        "key": "adr_pct",
        "op": "gt",
        "min": 5
+      }
+     ],
+     "sort": null
+    },
+    {
+     "text": "make that 6",
+     "delta": "add",
+     "kind": "spec",
+     "leaves": [
+      {
+       "key": "adr_pct",
+       "op": "gt",
+       "min": 6
+      }
+     ],
+     "sort": null
+    },
+    {
+     "text": "and price over $20",
+     "delta": "add",
+     "kind": "spec",
+     "leaves": [
+      {
+       "key": "adr_pct",
+       "op": "gt",
+       "min": 6
+      },
+      {
+       "key": "price",
+       "op": "gt",
+       "min": 20
       }
      ],
      "sort": null
@@ -1597,7 +1419,7 @@
    "id": "k03",
    "steps": [
     {
-     "text": "large caps above the 50-day with RS over 70",
+     "text": "large caps above the 50-day with RSI over 70",
      "delta": "new",
      "kind": "spec",
      "leaves": [
@@ -1612,7 +1434,7 @@
        "value": 1
       },
       {
-       "key": "rs_rank",
+       "key": "rsi14",
        "op": "gt",
        "min": 70
       }
@@ -1620,7 +1442,7 @@
      "sort": null
     },
     {
-     "text": "forget the RS filter",
+     "text": "forget the RSI filter",
      "delta": "remove",
      "kind": "spec",
      "leaves": [
@@ -1869,14 +1691,14 @@
    "id": "k08",
    "steps": [
     {
-     "text": "leaders above the 50-day",
+     "text": "high ADR names above the 50-day",
      "delta": "new",
      "kind": "spec",
      "leaves": [
       {
-       "key": "rs_rank",
-       "op": "gte",
-       "min": 80
+       "key": "adr_pct",
+       "op": "gt",
+       "min": 5
       },
       {
        "key": "above_50sma",
@@ -1892,9 +1714,9 @@
      "kind": "spec",
      "leaves": [
       {
-       "key": "rs_rank",
-       "op": "gte",
-       "min": 80
+       "key": "adr_pct",
+       "op": "gt",
+       "min": 5
       },
       {
        "key": "above_50sma",
@@ -1911,6 +1733,37 @@
       "key": "rvol_live",
       "dir": "desc"
      }
+    }
+   ]
+  },
+  {
+   "id": "k09",
+   "steps": [
+    {
+     "text": "semis above the 50-day",
+     "delta": "new",
+     "kind": "spec",
+     "leaves": [
+      {
+       "key": "industry",
+       "op": "in",
+       "values": [
+        "Semiconductors"
+       ]
+      },
+      {
+       "key": "above_50sma",
+       "op": "eq",
+       "value": 1
+      }
+     ],
+     "sort": null
+    },
+    {
+     "text": "only the ones with RS over 80",
+     "delta": "add",
+     "kind": "refuse",
+     "reason": "UCT proprietary ratings"
     }
    ]
   }

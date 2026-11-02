@@ -26,14 +26,14 @@ const META = JSON.parse(fs.readFileSync(path.join(REPO, 'app/src/agent/__fixture
 const opt = (values) => ({ values, with_value: values.length, total: values.length })
 const OPTIONS = { industry: opt(['Semiconductors', 'Software - Application', 'Software - Infrastructure']), sector: opt(['Energy', 'Technology']) }
 const ALL = ['screen.run', 'screen.count', 'screen.saved']
-const LEAD = 'liquid semis above the 50-day with RS over 80 and volume picking up'
+const LEAD = 'liquid semis above the 50-day up more than 20% this month and volume picking up'
 
 let p, cfg, reads
 const envelope = (kind, params) => ({
   contract: 'MD-1.0', kind, params_echo: params, status: 'ok', freshness: 'periodic', as_of: '2026-10-30T20:00:00Z',
   fetched_at: '2026-11-01T15:00:00Z', delay_s: null, stale: false, source: 'uct-screener', provider_calls: 0,
   coverage: { evaluated: 3600, answered: 3600, dropped: 0, not_computable: 0 }, notes: [],
-  data: { spec: params.spec || {}, rows: [{ symbol: 'AAA', price: 50, rs_rank: 99 }], total_matches: 7 },
+  data: { spec: params.spec || {}, rows: [{ symbol: 'AAA', price: 50, chg_pct_3m: 99 }], total_matches: 7 },
 })
 beforeEach(() => {
   _resetScreenerCache(); _resetAgentConfig(); _resetTurns()
@@ -84,7 +84,7 @@ describe('SC-2 H1: the intent layer through screener.run\'s fast claim', () => {
     const out = await say(LEAD)
     expect(p.turns()).toBe(0)
     expect(reads.filter(r => r[0] === 'gateway')).toHaveLength(1)
-    expect(keysOf(lastSpec())).toEqual(['above_50sma', 'dollar_vol_30d', 'industry', 'rs_rank', 'vol_ratio'])
+    expect(keysOf(lastSpec())).toEqual(['above_50sma', 'chg_pct_1m', 'dollar_vol_30d', 'industry', 'vol_ratio'])
     expect(out).toContain('7 stocks match')
   }, 30000)
 
@@ -109,7 +109,7 @@ describe('SC-2 H1: the intent layer through screener.run\'s fast claim', () => {
     await say(LEAD)
     await say('only the ones near highs')
     expect(p.turns()).toBe(0)
-    expect(keysOf(lastSpec())).toEqual(['above_50sma', 'dist_52w_high_pct', 'dollar_vol_30d', 'industry', 'rs_rank', 'vol_ratio'])
+    expect(keysOf(lastSpec())).toEqual(['above_50sma', 'chg_pct_1m', 'dist_52w_high_pct', 'dollar_vol_30d', 'industry', 'vol_ratio'])
   }, 30000)
 
   it('⛔ a last screen from ANOTHER conversation is never reused: the follow-up goes to the planner', async () => {
@@ -128,8 +128,8 @@ describe('SC-2 H1: the intent layer through screener.run\'s fast claim', () => {
     p.mount(...ONE())
     await ready()
     await waitFor(() => expect(intentArgs('large caps')).not.toBeNull())          // the gate is open (control)
-    expect(intentArgs('semis above the 50-day and RS over 80 that look ready')).toBeNull()   // the whole: not fully read
-    expect(intentArgs('RS over 80')).toBeNull()                                    // its clause, as the fast path splits it
+    expect(intentArgs('semis above the 50-day and ADR over 5% that look ready')).toBeNull()   // the whole: not fully read
+    expect(intentArgs('ADR over 5%')).toBeNull()                                   // its clause, as the fast path splits it
     expect(intentArgs('semis above the 50-day')).toBeNull()
     expect(intentArgs('oversold large caps')).not.toBeNull()                       // a new message clears the memory
   }, 30000)

@@ -13,6 +13,8 @@
 // a rule whose field the catalog does not hold is not applied (→ planner).
 // Pure: no network, no state, no clock. NOT wired anywhere yet — agent-lead wires the fast-path hook (SC-2 §7).
 
+import { RATINGS_REFUSAL, FLOW_REFUSAL, isHidden } from './scanHidden'
+
 const TIME = /\b(today|right now|now|this morning|so far)\b/
 const N = '(\\d+(?:\\.\\d+)?)'
 const AMT = '\\$?\\s?(\\d+(?:\\.\\d+)?)\\s?(k|m|mm|million|b|bn|billion|t|trillion)?\\b'
@@ -30,7 +32,7 @@ const ENERGY = () => F('sector', 'in', null, null, ['Energy'])
 const WINDOW = { day: 'chg_pct_1d', today: 'chg_pct_1d', week: 'chg_pct_1w', month: 'chg_pct_1m', '3 months': 'chg_pct_3m',
   'three months': 'chg_pct_3m', '6 months': 'chg_pct_6m', year: 'chg_pct_1y', ytd: 'chg_pct_ytd' }
 const RIP = { chg_pct_1d: 5, chg_pct_1w: 10, chg_pct_1m: 20 }                       // SC-2 §4 PROPOSED
-const REMOVE_WORDS = { rs: ['rs_rank'], price: ['price'], adr: ['adr_pct'], volume: ['vol_ratio', 'rvol_live'],
+const REMOVE_WORDS = { rs: ['rs_rank'], rsi: ['rsi14'], price: ['price'], adr: ['adr_pct'], volume: ['vol_ratio', 'rvol_live'],
   'market cap': ['market_cap'], size: ['market_cap'], liquidity: ['dollar_vol_30d', 'dollar_vol_1d'] }
 
 // Words that carry no screen meaning. Anything else left over sends the message to the planner.
@@ -43,15 +45,17 @@ const REFUSALS = [
   [/\bcross(es|ed|ing|over|overs)?\b|\bmacd\b|\bcustom\b[\w\s]*\bindicator\b|\bindicator\b[\w\s]*\bscan\b/, 'indicator-condition scans',
     "Scans on indicator conditions (crosses, MACD, custom indicators) aren't available in UCT Agent yet."],
   [/\bput\s*\/?\s*call\b/, 'the Screener has no field', "The Screener doesn't have a put/call ratio."],
-  [/\bdark\s*pool\b|\boptions?\s+flow\b/, 'flow fields need owner approval',
-    "Dark pool and options-flow screens aren't available in UCT Agent yet."],
+  [/\bdark\s*pool\b|\boptions?\s+flow\b/, 'flow fields need owner approval', FLOW_REFUSAL],
+  // SC-1 §2d (owner F-16): UCT's ratings and proprietary scores. "strong" / "leaders" / "RS" read as RS Rank in UCT's
+  // vocabulary, so they are REFUSED, never answered with a substitute (a return sort is not RS Rank)
+  [/\bstrongest\b|\bstrong\b|\bleaders?\b|\brs\b(?! line)|\brelative strength\b|\bcomposite\b|\bsetup score\b|\buct ?20\b|\b(eps|smr|value|growth) rating\b|\bsponsorship\b|\bacc(umulation)?\/dis(tribution)?\b/,
+    'UCT proprietary ratings', RATINGS_REFUSAL],
 ]
 
 // [regex, effect(m, ctx) → { f?, uni?, sort?, remove?, show?, ask?, replaceLast?, reset?, mark? }]
 // Ordered: the most specific phrase first; each match is CONSUMED (blanked) so a later rule cannot reuse its words.
 const RULES = [
   [/\bstart over\b/, () => ({ reset: true })],
-  [/\bstrongest sectors'? leaders\b/, () => ({ f: [F('sector_rs_pct', 'gte', 80), F('rs_rank', 'gte', 80)] })],
   [/\bpullbacks? to the 20[- ]?(day )?ema( in (an )?uptrends?)?\b/, () => ({ f: [F('pct_vs_ema20', 'gte', -2), F('pct_vs_ema20', 'lte', 2), bool('ema20_rising')] })],
   [/\bema stack intact\b/, () => ({ f: [bool('ema_stack_intact')] })],
   [/\brs line trending up\b/, () => ({ f: [F('rs_line_trend', 'in', null, null, ['up'])] })],
@@ -85,8 +89,6 @@ const RULES = [
   [new RegExp(`\\b(under|below) ${N} bucks\\b`), (m) => ({ f: [F('price', 'lt', Number(m[2]))] })],
   [new RegExp(`\\bprice (over|above|under|below) ${N}\\b`), (m) => ({ f: [F('price', cmp(m[1]), Number(m[2]))] })],
   // strength
-  [new RegExp(`\\brs(?: rank)? (above|over|of at least|at least) ${N}\\b`), (m) => ({ f: [F('rs_rank', /least/.test(m[1]) ? 'gte' : 'gt', Number(m[2]))] })],
-  [/\btop rs names\b|\bstrong rs\b|\bleaders\b|\bstrong\b/, () => ({ f: [F('rs_rank', 'gte', 80)] })],
   // location
   [new RegExp(`\\bwithin ${N} ?% of (?:their |the )?20[- ]?day high\\b`), (m) => ({ f: [F('dist_20d_high_pct', 'lte', Number(m[1]))] })],
   [/\bmaking new (52[- ]week )?highs\b|\bnew (52[- ]week )?highs\b/, () => ({ f: [bool('new_52w_high')] })],
@@ -108,7 +110,6 @@ const RULES = [
   [/\b(?:are )?up today\b/, () => ({ f: [F('chg_pct_1d', 'gt', 0)] })],
   [/\b(?:are )?down today\b/, () => ({ f: [F('chg_pct_1d', 'lt', 0)] })],
   [/\btop (3|6)[- ]month performers\b/, (m) => ({ sort: { key: `chg_pct_${m[1]}m`, dir: 'desc' } })],
-  [/\bsorted by rs\b|\bsort by rs\b/, () => ({ sort: { key: 'rs_rank', dir: 'desc' } })],
   [/\bbiggest movers first\b/, () => ({ sort: { key: 'chg_pct_1d', dir: 'desc' } })],
   // fundamentals / events
   [new RegExp(`\\beps growth (?:above|over) ${N} ?%`), (m) => ({ f: [F('eps_growth', 'gt', Number(m[1]))] })],
@@ -136,7 +137,7 @@ const RULES = [
   [/\bfinancials?\b/, () => ({ ask: { slot: 'universe', question: 'The Financial Services sector, or banks only?' } })],
   // follow-up only
   [/\bshow me (\d+)\b/, (m) => ({ show: Number(m[1]) })],
-  [/\b(?:forget|drop|remove|without) the (rs|price|adr|volume|market cap|size|liquidity)(?: filter| limit| condition)?\b/, (m) => ({ remove: REMOVE_WORDS[m[1]], removeWord: m[1] })],
+  [/\b(?:forget|drop|remove|without) the (rsi|price|adr|volume|market cap|size|liquidity)(?: filter| limit| condition)?\b/, (m) => ({ remove: REMOVE_WORDS[m[1]], removeWord: m[1] })],
   [new RegExp(`\\bmake that ${N}\\b`), (m) => ({ replaceLast: Number(m[1]) })],
   [/\bsame thing in\b|\bnow just\b/, () => ({ mark: 'replace_universe' })],
 ]
@@ -184,6 +185,9 @@ export function intent(message, { fields = null, last = null } = {}) {
   }
   const nothing = !out.f.length && !out.uni.length && !out.sort && !out.remove.length && out.show == null && out.replaceLast == null
   if (nothing) return { kind: 'planner', why: 'no screen criteria' }
+  // SC-1 §2d backstop: no rule may produce a hidden field (a rating, a UCT score, flow); if one ever did, refuse
+  const named0 = [...out.f, ...out.uni].map(x => x.field).concat(out.sort ? [out.sort.key] : [])
+  if (named0.some(isHidden)) return { kind: 'refuse', reason: 'UCT proprietary ratings', sentence: RATINGS_REFUSAL }
   // the catalog decides: a rule whose field this catalog does not hold is never applied
   if (fields) {
     const named = [...out.f, ...out.uni].map(x => x.field).concat(out.sort ? [out.sort.key] : [])

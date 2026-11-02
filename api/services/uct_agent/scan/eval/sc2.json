@@ -415,7 +415,7 @@
   {
    "id": "p03",
    "category": "planner",
-   "text": "screen for leaders and put the top 5 in my Momentum list",
+   "text": "screen for liquid semis and put the top 5 in my Momentum list",
    "expect": {
     "type": "planner",
     "why": "a screen plus another action"

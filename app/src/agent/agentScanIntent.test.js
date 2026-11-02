@@ -133,14 +133,14 @@ describe('scanIntent: safety rails', () => {
     expect(intent('dark pool prints over $10M').reason).toBe('flow fields need owner approval')
   })
   it('a follow-up with no last screen is asked about, never guessed', () => {
-    for (const t of ['only the ones near highs', 'sort by relative volume', 'now just tech', 'forget the RS filter']) {
+    for (const t of ['only the ones near highs', 'sort by relative volume', 'now just tech', 'forget the RSI filter']) {
       expect(intent(t, { fields: FIELDS }).kind).toBe('ask')
     }
   })
   it('a follow-up refines the last screen by key (refine semantics), and remove of an absent filter is a local sentence', () => {
-    const last = intent('stocks with RS rank above 80', { fields: FIELDS }).args
-    const r = intent('make that 90', { fields: FIELDS, last })
-    expect(argsToLeaves(r.args)).toEqual([{ key: 'rs_rank', op: 'gt', min: 90 }])
+    const last = intent('stocks with ADR over 5%', { fields: FIELDS }).args
+    const r = intent('make that 6', { fields: FIELDS, last })
+    expect(argsToLeaves(r.args)).toEqual([{ key: 'adr_pct', op: 'gt', min: 6 }])
     const a = intent('without the price limit', { fields: FIELDS, last })
     expect(a.kind).toBe('ask')
     expect(a.question).toMatch(/no price filter/)
@@ -149,5 +149,14 @@ describe('scanIntent: safety rails', () => {
     expect(argsToLeaves(intent('names trading over $100M a day', { fields: FIELDS }).args)).toEqual([{ key: 'dollar_vol_30d', op: 'gt', min: 100000000 }])
     expect(argsToLeaves(intent('stocks that traded over $50M yesterday', { fields: FIELDS }).args)).toEqual([{ key: 'dollar_vol_1d', op: 'gt', min: 50000000 }])
     expect(argsToLeaves(intent('small caps under $2B', { fields: FIELDS }).args)).toEqual([{ key: 'market_cap', op: 'lt', max: 2000000000 }])
+  })
+  it('⛔ SC-1 §2d (owner F-16): rating words are REFUSED with the sentence, never read as a public field', () => {
+    for (const t of ['stocks with RS rank above 90', 'show me the leaders making new highs', 'strong semis', 'sort by UCT composite',
+      'high setup score names', 'stocks in the UCT 20', 'strongest sectors\' leaders']) {
+      const r = intent(t, { fields: FIELDS })
+      expect(r.kind).toBe('refuse')
+      expect(r.sentence).toMatch(/proprietary ratings and scores/)
+    }
+    expect(intent('RS line trending up', { fields: FIELDS }).kind).not.toBe('refuse')       // a price-vs-SPY trend is public
   })
 })

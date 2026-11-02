@@ -8,23 +8,23 @@
   "wrong_refusal": 0
  },
  "sc2": {
-  "items": 72,
-  "pass": 70,
+  "items": 79,
+  "pass": 77,
   "safe_miss": 2,
   "false_resolve": 0,
   "wrong_refusal": 0
  },
  "rows": {
   "discovery.d01": {
-   "got": "spec",
+   "got": "refuse",
    "grade": "pass"
   },
   "discovery.d02": {
-   "got": "spec",
+   "got": "refuse",
    "grade": "pass"
   },
   "discovery.d03": {
-   "got": "spec",
+   "got": "refuse",
    "grade": "pass"
   },
   "discovery.d04": {
@@ -64,7 +64,7 @@
    "grade": "pass"
   },
   "discovery.d13": {
-   "got": "spec",
+   "got": "refuse",
    "grade": "pass"
   },
   "discovery.d14": {
@@ -112,7 +112,7 @@
    "grade": "pass"
   },
   "discovery.d25": {
-   "got": "spec",
+   "got": "refuse",
    "grade": "pass"
   },
   "discovery.d26": {
@@ -140,11 +140,11 @@
    "grade": "pass"
   },
   "sc2.c01": {
-   "got": "spec",
+   "got": "refuse",
    "grade": "pass"
   },
   "sc2.c02": {
-   "got": "spec",
+   "got": "refuse",
    "grade": "pass"
   },
   "sc2.c03": {
@@ -156,7 +156,7 @@
    "grade": "pass"
   },
   "sc2.c05": {
-   "got": "spec",
+   "got": "refuse",
    "grade": "pass"
   },
   "sc2.c06": {
@@ -180,7 +180,7 @@
    "grade": "pass"
   },
   "sc2.c11": {
-   "got": "spec",
+   "got": "refuse",
    "grade": "pass"
   },
   "sc2.c12": {
@@ -212,7 +212,7 @@
    "grade": "pass"
   },
   "sc2.c19": {
-   "got": "spec",
+   "got": "refuse",
    "grade": "pass"
   },
   "sc2.c20": {
@@ -335,6 +335,26 @@
    "got": "refuse",
    "grade": "pass"
   },
+  "sc2.f01": {
+   "got": "refuse",
+   "grade": "pass"
+  },
+  "sc2.f02": {
+   "got": "refuse",
+   "grade": "pass"
+  },
+  "sc2.f03": {
+   "got": "refuse",
+   "grade": "pass"
+  },
+  "sc2.f04": {
+   "got": "refuse",
+   "grade": "pass"
+  },
+  "sc2.f05": {
+   "got": "refuse",
+   "grade": "pass"
+  },
   "sc2.k01.1": {
    "got": "spec",
    "grade": "pass"
@@ -425,6 +445,14 @@
   },
   "sc2.k08.2": {
    "got": "spec",
+   "grade": "pass"
+  },
+  "sc2.k09.1": {
+   "got": "spec",
+   "grade": "pass"
+  },
+  "sc2.k09.2": {
+   "got": "refuse",
    "grade": "pass"
   }
  }
