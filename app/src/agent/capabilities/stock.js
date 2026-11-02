@@ -155,9 +155,8 @@ export async function answerCompare({ symbols }) {
   const fa = c?.a?.fundamentals || {}
   const fb = c?.b?.fundamentals || {}
   const rows = CMP_ROWS.map(([label, fn]) => ({ metric: label, a: fn(fa) || '—', b: fn(fb) || '—' }))
-  const ca = c?.a?.ratings?.composite
-  const cb = c?.b?.ratings?.composite
-  if (num(ca) != null || num(cb) != null) rows.push({ metric: 'UCT composite rating', a: num(ca) != null ? String(ca) : '—', b: num(cb) != null ? String(cb) : '—' })
+  // F-12 (owner, Sprint 2): UCT's proprietary rating is DISPLAY-ONLY and server-enforced isolation does not
+  // cover this route, so it is never part of the Agent's compare — not in the table, the text or the summary.
   const note = c?.fundamentals_period_note ? ` ${c.fundamentals_period_note}` : ''
   return {
     text: `${a} vs ${b} — fundamentals from UCT's Research compare data (vendor snapshot).${note}`,
@@ -212,7 +211,7 @@ export function registerStockCapabilities() {
     name: 'stock.compare',
     surfaces: ['charts'],
     target: 'market', query: true,
-    summary: 'Compare the fundamentals of TWO stocks side by side from UCT\'s Research data (market cap, P/E, revenue, growth, margins, beta, next earnings, UCT composite rating). Use this (disposition apply, research null) for "compare NVDA and AMD".',
+    summary: 'Compare the fundamentals of TWO stocks side by side from UCT\'s Research data (market cap, P/E, revenue, growth, margins, beta, next earnings). Use this (disposition apply, research null) for "compare NVDA and AMD".',
     hints: 'target = the ref of the stockData entry; symbols = exactly two tickers, uppercase. For three or more, clarify which two.',
     args: { type: 'object', properties: { symbols: { type: 'array', items: { type: 'string' } } }, required: ['symbols'], additionalProperties: false },
     answer: (_snap, args) => answerCompare(args),

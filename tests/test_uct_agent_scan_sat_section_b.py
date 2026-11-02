@@ -67,11 +67,27 @@ def test_the_capture_covers_every_corpus_question_with_its_own_words():
             assert rb["reroute"] is True and "screener" in rb["routing"]["selected"] and rb["message"] == qs[qid]
 
 
-def test_a_question_routed_without_the_screener_has_its_reroute_captured_and_one_routed_with_it_does_not():
+def test_after_the_F_SB_1_routing_fix_every_corpus_question_reaches_the_planner_with_the_screener_group():
+    """agent-lead's #626 pinned here from the capture: no discovery question needs a need_groups reroute any more,
+    and every one is sent the LABELLED catalog (#628). A regression shows up as a reroute in the capture."""
     without = [q for q, b in R["requests"].items() if "screener" not in (b["routing"]["selected"] or [])]
-    assert without                                                    # non-vacuity: the case exists today
-    assert all(R["requests"][q].get("reroute_on") for q in without)
-    assert all(not b.get("reroute_on") for q, b in R["requests"].items() if q not in without)
+    assert without == []
+    assert not [q for q, b in R["requests"].items() if b.get("reroute_on")]
+    keys_only = [q for q, b in R["requests"].items() if ";" not in str(b["context"]["screener"][0].get("fields", ""))]
+    assert keys_only == []
+
+
+def _rerouting(qid: str) -> dict:
+    """A copy of the capture in which `qid` was routed WITHOUT the screener group, and its reroute is the real captured
+    body (the shape the browser sends): the reroute path stays tested now that no corpus question needs it."""
+    import copy
+    r = copy.deepcopy(R)
+    body = r["requests"][qid]
+    first = copy.deepcopy(body)
+    first["routing"]["selected"] = [g for g in first["routing"]["selected"] if g != "screener"]
+    first["reroute_on"] = {"need_groups": ["screener"], "body": {**body, "reroute": True}}
+    r["requests"][qid] = first
+    return r
 
 
 # ═══ dry run: priced, nothing sent, nothing opened ══════════════════════════════════════════════
@@ -157,20 +173,22 @@ def test_RUN_counts_every_call_in_the_agent_ledger_and_records_raw_evidence_firs
 
 
 def test_RUN_replays_the_captured_reroute_when_the_model_asks_for_the_screener(ledger, tmp_path):
-    b = R["requests"]["d06"]
+    rr = _rerouting("d06")
+    b = rr["requests"]["d06"]
     rb = b["reroute_on"]["body"]
     op = _screen_op(_screener_ref(rb), [{"field": "vol_ratio", "op": "gte", "value": 2, "max": None, "values": None}], _compact(rb))
     model = _model_for({b["message"]: [_env(need_groups=["screener"]), _env("apply", [op])]})
-    s = sb.run(R, ["d06"], 1.0, tmp_path, caller=model, site_reader=ZERO_SITE)
+    s = sb.run(rr, ["d06"], 1.0, tmp_path, caller=model, site_reader=ZERO_SITE)
     rec = json.loads((tmp_path / "raw.jsonl").read_text(encoding="utf-8").splitlines()[0])
     assert s["model_calls"] == 2 and [c["call"] for c in rec["calls"]] == ["first", "reroute"]
     assert rec["candidate"]["logic"] == {"key": "vol_ratio", "op": "gte", "min": 2}
 
 
 def test_RUN_never_improvises_a_reroute_that_was_not_captured(ledger, tmp_path):
-    b = R["requests"]["d06"]
+    rr = _rerouting("d06")
+    b = rr["requests"]["d06"]
     model = _model_for({b["message"]: [_env(need_groups=["alerts"])]})
-    sb.run(R, ["d06"], 1.0, tmp_path, caller=model, site_reader=ZERO_SITE)
+    sb.run(rr, ["d06"], 1.0, tmp_path, caller=model, site_reader=ZERO_SITE)
     rec = json.loads((tmp_path / "raw.jsonl").read_text(encoding="utf-8").splitlines()[0])
     assert rec["reroute_not_captured"] == ["alerts"] and len(rec["calls"]) == 1 and rec["candidate"]["refused"]
 

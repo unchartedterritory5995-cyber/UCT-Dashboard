@@ -21,11 +21,13 @@ Only agent-sc edits this file. Update it in every PR.
   Raw records go to `raw.jsonl` before the summary. Requests are captured by `agentScanSat1Requests.test.jsx` (no model).
   Dry run on c3ba71c343: 31 questions to the planner, 14 may reroute, exact worst case $3.0147, estimate ≈ $0.41.
   **Still blocked for `--run`** until agent-lead relays the owner's credential approval.
+- **SAT-1 §B recapture** (#634, integrated 0f15a02e10, with #626 routing, #628 screenRelevant, #631 F-12, #630 QA flips): dry run now 31 to the planner, **0** may reroute (was 14), every request has the screener group and the labelled catalog (4 were keys-only); exact worst case **$2.1903** (was $3.0147; $2.1907 before #631 shortened stock.compare's summary), estimate ≈ $0.42 (was $0.41: the first calls carry the screener group and labels).
+- **screenRelevant widened** (#628, integrated 0f15a02e10, agent-lead asked): d04, d14, d19 and d21 were sent the keys-only catalog; every corpus question now gets labels and units. Plain chat still gets keys only (control). Recapture of section_b_requests.json waits for this AND agent-lead's routing fix.
 - **B: SC-2 draft 0.1** (branch `agent/sc/sc2-draft`, this PR): `contracts/SC-2-nl-scan.md`, the parsed-intent slots, follow-up deltas (add / narrow / replace_universe / sort / show / remove / reset), the vocabulary with PROPOSED defaults, and the ask / planner / refuse exits (zero false resolves). Corpus `scan/eval/sc2.json`: 69 phrasings (46 single + 8 chains, 23 steps). Validated by `test_uct_agent_scan_sc2_corpus.py`. Flow fields (`dp_*`, `opt_*`) are refused per agent-lead's ruling; the catalog still listing them is recorded in §6.
 - **C: model-call reduction** (a deterministic slot parser behind the flags, measured on both corpora). After B.
 
 ## Findings (no paid call needed)
-- **F-SB-1 (routing, agent-lead's `routing.js`):** 14 of 31 discovery questions are routed WITHOUT the screener group
+- **F-SB-1 (routing, agent-lead's `routing.js`) — FIXED by #626, measured in the recapture:** 14 of 31 discovery questions are routed WITHOUT the screener group
   (e.g. "RSI over 70" → indicators; "unusual volume in semis" → charts; "small caps … short float" → data). The planner
   cannot screen on its first call for those; it must spend the request's second call on a `need_groups` reroute.
   Reported to agent-lead; the runner measures it rather than assumes it.
