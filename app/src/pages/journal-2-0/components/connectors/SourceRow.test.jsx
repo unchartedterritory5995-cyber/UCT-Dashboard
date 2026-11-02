@@ -254,7 +254,8 @@ describe('SourceRow — what a Sync now press says', () => {
 
   it('refused and enumeration_failed say what happened', async () => {
     const onSync = vi.fn()
-      .mockResolvedValueOnce({ status: 'ok', removalCheck: { ran: false, reason: 'refused', pending: 0, severed: 0, nextAllowedAt: null } })
+      // The server sends `ran: true` for a refusal: enumeration ran, the <50% guard refused.
+      .mockResolvedValueOnce({ status: 'ok', removalCheck: { ran: true, reason: 'refused', pending: 0, severed: 0, nextAllowedAt: null } })
       .mockResolvedValueOnce({ status: 'ok', removalCheck: { ran: false, reason: 'enumeration_failed', pending: 0, severed: 0, nextAllowedAt: null } })
     renderWith(makeSource(), { onSync })
     await press()

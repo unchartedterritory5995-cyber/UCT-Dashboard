@@ -92,7 +92,13 @@ function errorNotice(err) {
 }
 
 function removalNotice(removalCheck, providerLabel) {
-  if (!removalCheck || removalCheck.ran) return null
+  if (!removalCheck) return null
+  // A refusal arrives with `ran: true` (enumeration ran, the <50% guard refused),
+  // so it is checked before the `ran` early-return.
+  if (removalCheck.reason === 'refused') {
+    return `Couldn't confirm removals this time: ${providerLabel} returned far fewer notes than expected, so nothing was changed.`
+  }
+  if (removalCheck.ran) return null
   if (removalCheck.reason === 'rate_limited') {
     const when = removalCheck.nextAllowedAt ? new Date(removalCheck.nextAllowedAt) : null
     const time = when && !Number.isNaN(when.getTime())
@@ -100,9 +106,6 @@ function removalNotice(removalCheck, providerLabel) {
       : null
     return 'Removals were checked less than 10 minutes ago, so this sync brought in new and edited notes only. '
       + (time ? `Press Sync now again after ${time} to check for removals.` : 'Press Sync now again in a few minutes to check for removals.')
-  }
-  if (removalCheck.reason === 'refused') {
-    return `Couldn't confirm removals this time: ${providerLabel} returned far fewer notes than expected, so nothing was changed.`
   }
   if (removalCheck.reason === 'enumeration_failed') {
     return `Couldn't check ${providerLabel} for removals this time. New and edited notes were still synced.`
