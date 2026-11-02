@@ -62,6 +62,8 @@ const ONLY_NEWS = params.get('only') === 'news'
 const COUNT = Math.max(1, Math.min(4, Number(params.get('count')) || 1))
 const LIVE = params.get('live') === '1'
 const LIBRARY = params.get('library') === '1'
+// ?role=member: a signed-in member (no UCT Agent mark on explanations); default admin.
+const ROLE = params.get('role') === 'member' ? 'member' : 'admin'
 document.documentElement.dataset.theme = THEME
 
 const SYMS = ['ALFA', 'BRVO', 'CHRL', 'DLTX', 'ECHO', 'FXTR', 'GLFX', 'HTLX']
@@ -206,10 +208,10 @@ window.fetch = (input, init) => {
     const id = JSON.parse((init && init.body) || '{}').id
     const row = NEWS.find((n) => n.id === id)
     return json({ id, headline: row?.content || '', received_at_ms: row?.received_at_ms || NOW,
-      explanation: 'SYNTHETIC: The headline reports a company update. Adjusted figures exclude one-time items, '
-        + 'so traders may read it against expectations, though the headline gives no detail on margins or guidance.',
+      explanation: 'SYNTHETIC: The company says adjusted profit beat its own outlook. Adjusted figures leave out '
+        + 'one-time items, so traders may compare them with expectations; the headline gives no detail on guidance yet.',
       watch: 'Company follow-up details, sector peers, analyst estimate revisions', generated_at_ms: NOW,
-      cached: false, version: 'v1' })
+      cached: false, version: 'v2' })
   }
   // Send to Notebook: any Notebook write (the capture door's current note or its inbox),
   // recorded in page memory -- never the network.
@@ -219,7 +221,7 @@ window.fetch = (input, init) => {
   }
   if (method !== 'GET') { BLOCKED.push(`${method} ${path}`); return json({}) }
   if (path.startsWith('/api/auth/me')) {
-    return json({ user: { id: 'harness', email: 'harness@local', role: 'admin', display_name: 'Harness' },
+    return json({ user: { id: 'harness', email: 'harness@local', role: ROLE, display_name: 'Harness' },
       plan: 'pro', subscription: null, trial: null })
   }
   if (path.startsWith('/api/auth/preferences')) {

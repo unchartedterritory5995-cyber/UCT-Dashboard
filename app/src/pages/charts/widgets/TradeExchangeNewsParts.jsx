@@ -3,7 +3,7 @@
  *   Row            one headline (memoised: a quote tick re-renders only the rows
  *                  naming that symbol), its collapse, Explain (AI), Bookmark,
  *                  one-click Copy and ⋯ (the secondary actions)
- *   InlineExplanation  the AI Explanation of one headline, expanded INSIDE its row
+ *   InlineExplanation  the explanation of one headline, expanded INSIDE its row
  *                  under the headline (the rows below move down; nothing covered)
  *   ActionsMenu    ⋯: Add to Watchlist, Send to Notebook, Add to Collection, Copy
  *   FilterMenu     categories (multi-select) + this widget's saved presets
@@ -19,15 +19,17 @@
  * (sendCaptureToJournal), Copy is the browser clipboard. News alerts are not
  * offered from a headline (switched off in production until the owner approves).
  */
-import { memo, useCallback, useEffect, useRef, useState } from 'react'
+import { memo, useCallback, useContext, useEffect, useRef, useState } from 'react'
 import useSWR from 'swr'
 import UIcon from '../../../components/ui/UIcon'
+import { AuthContext } from '../../../context/AuthContext'
+import compassMark from '../../../components/intro/assets/compass-mark.png'
 import { formatNumber } from '../../../lib/presentation/presentationPrimitives'
 import Input from '../../../components/ui/Input'
 import { requestExplanation, cachedExplanation } from '../../../lib/tradeExchangeNewsExplain'
 import { sentRecently } from '../../../lib/tradeExchangeNewsNotebook'
 import { CollectionPicker } from './TradeExchangeNewsCollections'
-import { CATEGORY_FILTERS, categoryTitle, cleanCategories, explainable, explanationText, fmtReceived, fmtReceivedFull, fmtStamp, hitRanges, runsIn,
+import { CATEGORY_FILTERS, categoryTitle, cleanCategories, explainable, explanationText, fmtReceivedFull, fmtStamp, hitRanges, runsIn,
   dayLabel, dayStatus, cleanTime, MAX_PRESETS, monthGrid, MONTHS, tickerTitle, tickerTone, timeLabel, tokenize,
   WEEKDAYS } from './tradeExchangeNewsModel'
 import styles from './TradeExchangeNewsWidget.module.css'
@@ -210,7 +212,7 @@ export const Row = memo(function Row({ item, linkedSym, onSym, colorMode, prices
               onClick={(e) => { e.stopPropagation(); onExplain(item, e.currentTarget) }}
               aria-label="Explain this headline"
               aria-expanded={!!explainOpen}
-              title="Explain (AI)"
+              title="Explain"
             ><UIcon name="sparkle" size={11} gold={false} /></button>
           )}
           {onSave && item.id && (
@@ -265,6 +267,23 @@ export const Row = memo(function Row({ item, linkedSym, onSym, colorMode, prices
  *  directly under the headline it explains -- the row grows, the rows below move
  *  down, nothing is covered. Rendered as TEXT only: React escapes it, nothing is
  *  parsed as HTML or markdown. Escape or ✕ closes it and returns focus to Explain. */
+/** Whose voice the explanation is in. UCT Agent is ADMIN-ONLY (its routes are
+ *  require_admin_dark), so only an admin sees its mark and name; a member reads the
+ *  same explanation under a neutral heading. No AuthProvider (isolated tests) = a
+ *  member: the failure direction never shows the Agent to someone who can't use it.
+ *  ⛔ Branding only -- nothing here talks to the Agent (increments 2/3 will, through
+ *  app/src/agent's public exports, never AgentPanel internals). */
+function ExplainTitle() {
+  const admin = useContext(AuthContext)?.user?.role === 'admin'
+  if (!admin) return <span className={styles.explainTitle}><UIcon name="sparkle" size={10} /> Explanation</span>
+  return (
+    <span className={`${styles.explainTitle} ${styles.explainAgent}`}>
+      <span className={styles.agentMark} aria-hidden="true"><img src={compassMark} alt="" /></span>
+      UCT Agent
+    </span>
+  )
+}
+
 export function InlineExplanation({ item, onClose, openerRef }) {
   const [state, setState] = useState(() => {
     const hit = cachedExplanation(item.id)
@@ -293,10 +312,10 @@ export function InlineExplanation({ item, onClose, openerRef }) {
   const close = useCallback(() => { onClose(); openerRef?.current?.focus?.() }, [onClose, openerRef])
   const { body, error, loading } = state
   return (
-    <div ref={boxRef} className={styles.explain} role="region" aria-label="AI Explanation" tabIndex={-1}
+    <div ref={boxRef} className={styles.explain} role="region" aria-label="Explanation" tabIndex={-1}
       onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); close() } }}>
       <div className={styles.explainHead}>
-        <span className={styles.explainTitle}><UIcon name="sparkle" size={10} /> AI Explanation</span>
+        <ExplainTitle />
         {body && (
           <button type="button" className={styles.explainCopy}
             onClick={async () => setCopied((await copyText(explanationText(body))) ? 'ok' : 'err')}
@@ -318,9 +337,10 @@ export function InlineExplanation({ item, onClose, openerRef }) {
         )}
         {body && (
           <>
+            <h4 className={styles.explainLabel}>What this means</h4>
             <p className={styles.explainText}>{body.explanation}</p>
-            <p className={styles.explainText}><strong>Watch:</strong> {body.watch}</p>
-            <p className={styles.explainNote}>AI-generated from this headline only · not advice</p>
+            <h4 className={styles.explainLabel}>What to watch</h4>
+            <p className={styles.explainText}>{body.watch}</p>
           </>
         )}
         {error && (
