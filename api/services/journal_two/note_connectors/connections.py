@@ -3,8 +3,10 @@ and the remote-delete-detection index.
 
 Mirrors `api/services/journal_two/broker/connections.py`'s idiom exactly:
 provider-agnostic, synchronous, testable against an in-memory/temp-file
-SQLite, encrypt at exactly ONE write site (`upsert_connector`) and decrypt
-at exactly ONE read site (`get_token`). Provider network calls live in
+SQLite, encrypt through exactly one encrypt helper (`_encrypt_token`, used by
+`upsert_connector` and `swap_token_if_unchanged`) and decrypt through exactly
+one decrypt helper (`_decrypt_token`, used by `get_token` and
+`swap_token_if_unchanged`). Provider network calls live in
 `note_connectors/providers/*` (later tasks); this module only ever touches
 `j2_note_connectors` / `j2_note_sources` / `j2_note_sync_log` /
 `j2_note_remote_index` (spec §5).
@@ -44,9 +46,9 @@ def upsert_connector(
     *,
     record_consent: bool = True,
 ) -> dict[str, Any]:
-    """Encrypt + upsert a connector's token. THE ONLY call site in this
-    module that invokes `crypto_box.NoteBox.encrypt` — mirrors `get_token`
-    being the only call site that invokes `.decrypt`.
+    """Encrypt + upsert a connector's token, through `_encrypt_token` (the
+    one helper that invokes `crypto_box.NoteBox.encrypt`; `get_token` reads
+    through `_decrypt_token`, the one that invokes `.decrypt`).
 
     `token_dict` is JSON-encoded before encryption (token blobs are dicts —
     e.g. Roam's {graphToken, graphName}, Craft's {capabilityUrl, bearer}).
@@ -57,7 +59,7 @@ def upsert_connector(
     mirroring `broker.connections.save_broker_user`. A None `account_label`
     on an existing row leaves the stored label untouched (so a token-only
     refresh doesn't blank a user-set label)."""
-    enc = crypto_box.NoteBox.encrypt(json.dumps(token_dict))
+    enc = _encrypt_token(token_dict)
     owned = conn is None
     conn = conn or get_connection()
     try:
@@ -108,8 +110,7 @@ def get_token(
     user_id: str, provider: str, conn: sqlite3.Connection | None = None,
 ) -> dict[str, Any] | None:
     """Return the decrypted+json-loaded token dict for this connector, or
-    None if no connector row exists. THE ONLY call site in this module that
-    invokes `crypto_box.NoteBox.decrypt`.
+    None if no connector row exists. Decrypts through `_decrypt_token`.
 
     Raises `crypto_box.CryptoBoxError` if the stored token cannot be
     decrypted (key lost/rotated, tampered blob). Per the broker contract
@@ -127,13 +128,72 @@ def get_token(
         if row is None:
             return None
         try:
-            return json.loads(crypto_box.NoteBox.decrypt(row["token_enc"]))
+            return _decrypt_token(row["token_enc"])
         except crypto_box.CryptoBoxError:
             set_connector_status(user_id, provider, "broken", conn=conn)
             raise
     finally:
         if owned:
             conn.close()
+
+
+def _encrypt_token(token_dict: dict[str, Any]) -> str:
+    """THE one helper that invokes `crypto_box.NoteBox.encrypt` (token blobs are JSON dicts)."""
+    return crypto_box.NoteBox.encrypt(json.dumps(token_dict))
+
+
+def _decrypt_token(token_enc: str) -> dict[str, Any]:
+    """THE one helper that invokes `crypto_box.NoteBox.decrypt`. Raises `CryptoBoxError`."""
+    return json.loads(crypto_box.NoteBox.decrypt(token_enc))
+
+
+def swap_token_if_unchanged(
+    user_id: str, provider: str, expected_refresh_token: str, new_token: dict[str, Any],
+) -> bool:
+    """Compare-and-swap for a ROTATING refresh token (Plan E Task 2, Evernote).
+
+    Writes `new_token` only if the stored credential's `refreshToken` is still
+    `expected_refresh_token`, and returns True when it wrote. The read and the write run inside
+    ONE `BEGIN IMMEDIATE` transaction, so the write lock is held from before the compare until the
+    commit: no other writer (a second refresher in another process, or a reconnect through
+    `upsert_connector`) can land between them. A refresher that lost the race, or that a member's
+    reconnect overtook, gets False and must re-read rather than overwrite the newer credential.
+
+    Returns False, writing nothing, when there is no connector row or the stored blob cannot be
+    decrypted (the caller's `get_token` re-read then surfaces that failure the usual way and marks
+    the connector broken). Touches only `token_enc` and `updated_at`: status, label and consent
+    are the reconnect path's to set."""
+    enc = _encrypt_token(new_token)  # outside the transaction: hold the write lock briefly
+    conn = get_connection()
+    try:
+        conn.execute("BEGIN IMMEDIATE")
+        row = conn.execute(
+            "SELECT token_enc FROM j2_note_connectors WHERE user_id = ? AND provider = ?",
+            (user_id, provider),
+        ).fetchone()
+        if row is None:
+            conn.rollback()
+            return False
+        try:
+            current = _decrypt_token(row["token_enc"])
+        except crypto_box.CryptoBoxError:
+            conn.rollback()
+            return False
+        if current.get("refreshToken") != expected_refresh_token:
+            conn.rollback()
+            return False
+        conn.execute(
+            "UPDATE j2_note_connectors SET token_enc = ?, updated_at = ? "
+            "WHERE user_id = ? AND provider = ?",
+            (enc, _now_iso(), user_id, provider),
+        )
+        conn.commit()
+        return True
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
 
 
 def set_connector_status(
