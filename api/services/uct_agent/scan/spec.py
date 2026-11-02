@@ -13,6 +13,8 @@ from __future__ import annotations
 import json
 from typing import Any, Optional
 
+from api.services.uct_agent.scan import hidden
+
 #: SC-1 §2 / MD-1 §5 — a scan returns at most 50 rows.
 ROW_CAP = 50
 #: Size bounds on what a model can hand the screener in one spec.
@@ -31,6 +33,9 @@ INDICATOR_REFUSAL = ("indicator-condition scans (crosses, custom or saved indica
                      "Agent yet; only Screener field filters can be scanned")
 #: Spec keys the screener's own ScanSpec model accepts (api/routers/screener.py `ScanSpec`), minus paging.
 SPEC_KEYS = frozenset({"filters", "sort", "view", "columns", "rank", "logic"})
+#: SC-1 §2d (owner decision, agent-lead ruling): the order when none is asked for. Never a rating.
+DEFAULT_SORT = {"key": "market_cap", "dir": "desc"}
+DEFAULT_ORDER_NOTE = "Ordered by market cap, largest first (no other order was asked for)."
 
 
 class SpecError(ValueError):
@@ -51,6 +56,21 @@ def column_keys() -> frozenset:
 def view_names() -> frozenset:
     from api.services.screener import filters
     return frozenset(filters.VIEWS)
+
+
+def view_columns(view: str) -> list:
+    from api.services.screener import filters
+    v = filters.VIEWS.get(view) or {}
+    return list(v.get("columns") or []) if isinstance(v, dict) else list(v or [])
+
+
+def _arith_fields(e: Any, depth: int = 0) -> list:
+    """The field keys an arithmetic term names (query._arith_sql's shape: {f} | {n} | {o, a, b})."""
+    if depth > 16 or not isinstance(e, dict):
+        return []
+    if "f" in e:
+        return [e["f"]] if isinstance(e["f"], str) else []
+    return _arith_fields(e.get("a"), depth + 1) + _arith_fields(e.get("b"), depth + 1)
 
 
 def _leaves(spec: dict) -> list:
@@ -101,8 +121,18 @@ def validate(spec: Any, *, catalog: frozenset | None = None, columns: frozenset 
             raise SpecError("every filter names a screener field (`key`)")
         if key in INDICATOR_KEYS:
             raise SpecError(INDICATOR_REFUSAL)
+        if key == "arith":
+            # an arithmetic filter names fields inside its terms ({"f": key}); a hidden one is refused like any
+            # other use (a rating times 1 is still the rating)
+            refusal = hidden.refusal_for(_arith_fields(f.get("lhs")) + _arith_fields(f.get("rhs")))
+            if refusal:
+                raise SpecError(refusal)
+            continue
         if key in SPECIAL_KEYS:
             continue
+        refusal = hidden.refusal_for([key, f.get("other")])
+        if refusal:                                   # SC-1 §2d: refused, never dropped or substituted
+            raise SpecError(refusal)
         if key not in catalog:
             raise SpecError(f"the Screener has no field {key!r}")
         other = f.get("other")
@@ -113,6 +143,8 @@ def validate(spec: Any, *, catalog: frozenset | None = None, columns: frozenset 
     if sort is not None:
         if not isinstance(sort, dict) or not isinstance(sort.get("key"), str):
             raise SpecError("`sort` must be {key, dir}")
+        if hidden.refusal_for([sort["key"]]):
+            raise SpecError(hidden.refusal_for([sort["key"]]))
         if sort["key"] not in columns and sort["key"] not in catalog:
             raise SpecError(f"the Screener cannot sort by {sort['key']!r}")
         if sort.get("dir") not in (None, "asc", "desc"):
@@ -121,6 +153,12 @@ def validate(spec: Any, *, catalog: frozenset | None = None, columns: frozenset 
     view = spec.get("view", "overview")
     if not isinstance(view, str) or view not in views:
         raise SpecError(f"the Screener has no view {view!r}")
+    if "view" in spec:
+        # SC-1 §2d: a view ASKED FOR by name that shows hidden columns (uct_ratings, flow, patterns...) is refused;
+        # the default view's hidden columns are dropped from the rows instead, and the receipt says so (screen.run)
+        refusal = hidden.refusal_for(view_columns(view))
+        if refusal:
+            raise SpecError(refusal)
 
     cols = spec.get("columns")
     if cols is not None:
@@ -128,16 +166,27 @@ def validate(spec: Any, *, catalog: frozenset | None = None, columns: frozenset 
             raise SpecError("`columns` must be a list of screener columns")
         if len(cols) > MAX_COLUMNS:
             raise SpecError(f"at most {MAX_COLUMNS} columns")
+        if hidden.refusal_for(cols):
+            raise SpecError(hidden.refusal_for(cols))
         bad = [c for c in cols if c not in columns]
         if bad:
             raise SpecError(f"the Screener has no column {bad[0]!r}")
 
-    if spec.get("rank") is not None and not isinstance(spec["rank"], dict):
+    rank = spec.get("rank")
+    if rank is not None and not isinstance(rank, dict):
         raise SpecError("`rank` must be a screener rank object")
+    if isinstance(rank, dict):
+        named = [c.get("column") for c in rank.get("criteria") or [] if isinstance(c, dict)]
+        if hidden.refusal_for(named):
+            raise SpecError(hidden.refusal_for(named))
 
     out = {k: spec[k] for k in SPEC_KEYS if k in spec and spec[k] is not None}
     out.setdefault("filters", [])
     out["view"] = view
+    # SC-1 §2d: never the screener's own default order (UCT Composite, a proprietary rating). With no order
+    # asked for, the Agent's screens are ordered by market cap, largest first, and the receipt says so.
+    if "sort" not in out and not out.get("rank"):
+        out["sort"] = dict(DEFAULT_SORT)
     return out
 
 

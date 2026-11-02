@@ -25,7 +25,7 @@ from typing import Any, Optional
 from zoneinfo import ZoneInfo
 
 from api.services.uct_agent.marketdata import envelope as env
-from api.services.uct_agent.scan import sources
+from api.services.uct_agent.scan import hidden, sources
 from api.services.uct_agent.scan import spec as scan_spec
 
 SOURCE = "uct-screener"
@@ -204,10 +204,15 @@ def run(params: dict, ctx: dict) -> dict:
         return _refused(kind, params, f"the Screener refused this spec: {e}")
     cov, listed = _coverage(spec, user_id)
     as_of, stale, notes = _provenance_fields(prov)
-    fields = list(spec.get("columns") or out.get("view_columns") or [])
+    # SC-1 §2d: a view's own column set may carry a rating or flow column; the Agent never returns its values
+    # SC-1 §2d: columns the member ASKED FOR that are hidden were refused in spec.validate; the default view's own
+    # hidden columns (overview carries RS Rank) were never asked for, and their values are simply not returned
+    fields = [f for f in (spec.get("columns") or out.get("view_columns") or []) if f not in hidden.hidden_keys()]
     rows = _project((out.get("rows") or [])[:scan_spec.ROW_CAP], fields)
     snap = out.get("snapshot") or {}
     notes += _coverage_notes(cov) + _live_note(snap.get("live"))
+    if spec.get("sort") == scan_spec.DEFAULT_SORT:
+        notes.append(scan_spec.DEFAULT_ORDER_NOTE)
     total = int(out.get("total") or 0)
     if total > len(rows):
         notes.append(f"Showing {len(rows)} of {total} matches.")
@@ -265,6 +270,8 @@ def saved(params: dict, ctx: dict) -> dict:
         except scan_spec.SpecError as e:
             entry["runnable"] = False
             entry["reason"] = str(e)
+            if str(e) in (hidden.RATINGS_REFUSAL, hidden.FLOW_REFUSAL):
+                entry["spec"] = None          # SC-1 §2d: its rating / flow criteria never reach the model
         if i < 100:
             screens.append(entry)
         ts = r.get("updated_at") or r.get("created_at")

@@ -139,7 +139,7 @@ def test_refusals_are_what_sc1_refuses_or_flow_fields_without_owner_approval():
     with pytest.raises(scan_spec.SpecError, match="indicator-condition scans"):
         scan_spec.validate({"filters": [{"key": "scan", "op": "in", "value": ["h"]}]})
     reasons = {e["expect"]["reason"] for _, e in ALL if e["expect"]["type"] == "refuse"}
-    assert reasons == {"indicator-condition scans", "the Screener has no field", "flow fields need owner approval"}
+    assert reasons == {"indicator-condition scans", "the Screener has no field", "flow fields need owner approval", "UCT proprietary ratings"}
     # the recorded gap is REAL: the catalog lists flow fields today (SC-2 §6), so refusing them is a rule SC-2 applies
     assert {"dp_notional_1d", "opt_net_premium_1d"} <= set(CATALOG)
     # and the no-field refusal is real: nothing in the catalog is a put/call ratio
@@ -174,3 +174,14 @@ def test_daily_dollar_volume_rule_holds_in_both_directions():
         assert "dollar_vol_30d" in crit and "dollar_vol_1d" not in crit, f"{cid}: {text!r} must read the 30-day average"
     for cid, text, crit in named:
         assert "dollar_vol_1d" in crit and "dollar_vol_30d" not in crit, f"{cid}: {text!r} names a session: dollar_vol_1d"
+
+
+def test_no_expected_spec_names_a_field_hidden_from_the_agent():
+    """Owner F-16: ratings, proprietary scores and flow fields never appear in an expected spec or sort."""
+    from api.services.uct_agent.scan import hidden
+    keys = set()
+    for _, e in ALL:
+        if e["expect"]["type"] == "spec":
+            keys |= {lf["key"] for lf in _leaves(e["expect"])} | ({e["expect"]["sort"]["key"]} if e["expect"].get("sort") else set())
+    assert not keys & hidden.hidden_keys()
+    assert [cid for cid, e in ALL if e["expect"].get("reason") == "UCT proprietary ratings"]   # non-vacuity
