@@ -125,7 +125,51 @@ describe('ImportWizard — the report of what was kept, not copied, or not conne
     await toPreview()
     fireEvent.click(screen.getByRole('button', { name: /^import$/i }))
     await waitFor(() => expect(screen.getByText('“Hello” — file 2 of 4')).toBeInTheDocument(), { timeout: 10000 })
+    // M5: announced politely to a screen reader as it moves
+    expect(screen.getByTestId('import-item-progress')).toHaveAttribute('aria-live', 'polite')
     finish()
     await waitFor(() => expect(screen.getByText('Import complete')).toBeInTheDocument(), { timeout: 10000 })
+  })
+
+  it('I2 + M3: notes a Stop cut off are named apart, never counted as imported, and the title says stopped', async () => {
+    runImport.mockResolvedValue(RESULT({
+      created: 0, stopped: true,
+      outcomes: { 'file:hello.md': 'unfinished' },
+      unfinished: [{ name: 'Hello', importKey: 'file:hello.md' }],
+    }))
+    await toPreview()
+    fireEvent.click(screen.getByRole('button', { name: /^import$/i }))
+    await waitFor(() => expect(screen.getByText('Import stopped')).toBeInTheDocument(), { timeout: 10000 })
+    expect(screen.queryByText('Import complete')).toBeNull()
+    expect(screen.getByText(/Imported 0 notes\./)).toBeInTheDocument()
+    const section = screen.getByRole('region', { name: 'Stopped before finishing' })
+    expect(within(section).getByText('Hello')).toBeInTheDocument()
+    expect(within(section).getByText('Import the same export again to finish them.')).toBeInTheDocument()
+    const row = screen.getByRole('row', { name: /^Unfiled/i })
+    expect(within(row).getAllByRole('cell').map((c) => c.textContent)).toEqual(['Unfiled', '0', '0', '1'])
+  })
+
+  it('M1: a long report shows its first 50 rows and says how many more', async () => {
+    const notices = Array.from({ length: 60 }, (_, i) => ({
+      note: `Note ${i}`, importKey: `file:n${i}.md`, reason: 'upload_failed', name: `p${i}.png`, sourceUrl: null }))
+    runImport.mockResolvedValue(RESULT({ notices }))
+    await toPreview()
+    fireEvent.click(screen.getByRole('button', { name: /^import$/i }))
+    await waitFor(() => expect(screen.getByText('Import complete')).toBeInTheDocument(), { timeout: 10000 })
+    const section = screen.getByRole('region', { name: "Couldn't be copied" })
+    const rows = within(section).getAllByRole('listitem')
+    expect(rows).toHaveLength(51)
+    expect(rows[50]).toHaveTextContent('and 10 more')
+    expect(within(section).queryByText('Note 50')).toBeNull()
+  })
+
+  it('M2: Stop during conversion returns to the preview with nothing sent', async () => {
+    runImport.mockResolvedValue(RESULT())
+    await toPreview()
+    fireEvent.click(screen.getByRole('button', { name: /^import$/i }))
+    fireEvent.click(screen.getByRole('button', { name: /stop import/i }))
+    await waitFor(() => expect(screen.getByText(/Import stopped before anything was saved/)).toBeInTheDocument(), { timeout: 10000 })
+    expect(screen.getByRole('button', { name: /^import$/i })).toBeInTheDocument()
+    expect(runImport).not.toHaveBeenCalled()
   })
 })
