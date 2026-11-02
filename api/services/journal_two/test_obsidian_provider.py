@@ -1370,6 +1370,48 @@ def test_overlapping_originals_still_rewrite_longest_first_by_position():
     assert out == f"{chip}![](<obsidian-att:{_SHA}/a.png>){chip}"
 
 
+def test_an_embed_nested_in_a_wikilink_keeps_its_image_and_media_entry():
+    """D2 item 3: `[[![[img.png]]]]` shows the image, as the client does. The wikilink
+    pattern used to read the target as `![[img.png` (a pending link `[![img.png]]`), and with
+    the plugin's ref the image sat between literal `[[` and `]]`."""
+    ref = REF(original="![[img.png]]", path="att/img.png")
+    src = "import-ref://obsidian-att:" + _SHA + "/img.png"
+    for refs in ([ref], [REF(original="![[img.png|300]]", path="att/img.png")]):
+        body = "[[![[img.png]]]] after" if refs[0]["original"] == "![[img.png]]" else "[[![[img.png|300]]]] after"
+        conv = _convert(body, refs=refs)
+        assert [n["attrs"]["src"] for n in _all(conv["doc"], "image")] == [src]
+        assert conv["media"] == [{"ref": src[len("import-ref://"):], "kind": "image", "name": "img.png"}]
+        assert conv["links"] == []
+        assert _plain(conv["doc"]).strip() == "after"
+    # A vault path (no plugin ref): the same image, by the embed rule.
+    conv = _convert("[[![[img.png]]]] after", ["att/img.png"], refs=[])
+    assert [n["attrs"]["src"] for n in _all(conv["doc"], "image")] == ["import-ref://att/img.png"]
+    assert [m["ref"] for m in conv["media"]] == ["att/img.png"]
+    assert conv["links"] == [] and _plain(conv["doc"]).strip() == "after"
+    # A nested NOTE embed reads as the link to the note, as the client's.
+    conv = _convert("[[![[Plan]]]] after", ["Plan.md"])
+    assert _link_marks(conv["doc"]) == [("Plan", _key("Plan.md"))]
+    assert extract_plain_text(conv["doc"]) == "Plan after"
+    # An old plugin row: the update notice names the file, never `![[img.png`.
+    conv = _convert("[[![[img.png]]]] after", refs=None, supports=False)
+    assert [(n["attrs"]["reason"], n["attrs"]["name"]) for n in _all(conv["doc"], "importNotice")] == [
+        ("obsidian-plugin-outdated", "img.png")]
+    assert "[[" not in _plain(conv["doc"]) and conv["links"] == []
+
+
+def test_an_embed_nested_in_a_wikilink_with_an_alias_shows_the_alias_and_lists_nothing():
+    """D2 items 3 and 4: `[[![[img.png]]|al.ias]]` shows the alias (no link: an embed is not
+    a note name), so the image is not shown, and nothing uploads a file no node uses."""
+    for refs, paths in (([REF(original="![[img.png]]", path="att/img.png")], ()),
+                        ([], ("att/img.png",)), (None, ())):
+        conv = _convert("[[![[img.png]]|al.ias]] after", paths, refs=refs)
+        assert extract_plain_text(conv["doc"]) == "al.ias after"
+        assert conv["media"] == [] and conv["links"] == []
+        assert _all(conv["doc"], "image") == [] and _all(conv["doc"], "importNotice") == []
+    conv = _convert("[[![[Plan]]|the plan]] after", ["Plan.md"])
+    assert extract_plain_text(conv["doc"]) == "the plan after" and conv["links"] == []
+
+
 async def test_fetch_media_refuses_a_malformed_sha_at_once(db):
     """N1: `obsidian-att:zzz/x` (only reachable by typing it) is a final refusal, never three
     "retrying" passes."""

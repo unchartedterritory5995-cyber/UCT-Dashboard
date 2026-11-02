@@ -294,7 +294,15 @@ _CODE_RE = re.compile(_FENCE_SRC + r"|`[^`\n]*`")
 # optional group after `|` is an ALIAS; for an embed it is Obsidian's
 # `|width` sizing suffix and is deliberately ignored (mirrors
 # `transformEmbeds`'s `rawTarget.split('|')[0]`).
-_WIKI_RE = re.compile(r"(!)?\[\[([^\]|]+)(?:\|([^\]]+))?\]\]")
+# ⛔ A target never runs across an embed's own `![[` (D2 item 3): in `[[![[img.png]]]]` the
+# match is the inner embed, never a wikilink to a note named `![[img.png`.
+_WIKI_RE = re.compile(r"(!)?\[\[((?:(?!!\[\[)[^\]|])+)(?:\|([^\]]+))?\]\]")
+# D2 item 3: an embed wrapped in a wikilink, `[[![[img.png]]]]` / `[[![[img.png|300]]|alias]]`,
+# or the attachment pass's markdown for that embed (`![](<obsidian-att:...>)`) inside one.
+# Without an alias it reads as the embed; with one, as the alias alone (item 4). Mirrors
+# what the client's held markup does (`obsidian.js::preprocessWikiSyntax`).
+_NESTED_EMBED_RE = re.compile(
+    r"\[\[(!\[\[[^\]|]+(?:\|[^\]]+)?\]\]|!\[\]\(<[^<>\n]*>\))(?:\|([^\]]+))?\]\]")
 # ⛔ A trader's prose is full of `==` COMPARISONS ("if rsi == 30 and macd == 0").
 # The old `==([^=\n]+)==` read the span between two comparisons as a highlight and
 # deleted both operators. A highlight now needs a non-space just inside each `==`,
@@ -605,7 +613,16 @@ def _transform_wiki_and_embeds(
         # Angle-bracket destination form -- same space-safety fix as above.
         return f"[{display}](<import-link://{_pct(key)}>)"
 
-    return _WIKI_RE.sub(repl, segment)
+    def nested(m: "re.Match[str]") -> str:
+        # The alias is all `[[![[img.png]]|alias]]` shows: no link (an embed names no
+        # note), and no image, so no media entry uploads a file nothing shows (item 4).
+        alias = (m.group(2) or "").strip()
+        if alias:
+            return alias
+        inner = m.group(1)
+        return _WIKI_RE.sub(repl, inner) if inner.startswith("![[") else inner
+
+    return _WIKI_RE.sub(repl, _NESTED_EMBED_RE.sub(nested, segment))
 
 
 def _escape_html(text: str) -> str:
