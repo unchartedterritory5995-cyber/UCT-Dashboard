@@ -206,17 +206,41 @@ def test_file_key_relative_link(db):
 
 # ── what cannot resolve ───────────────────────────────────────────────────────
 
-def test_unresolvable_relative_href_becomes_plain_text(db):
+def test_unresolvable_relative_note_href_is_left_as_written_and_counted(db):
+    """Fix round 1, I-3: a repair never makes a note worse. A link it cannot resolve keeps its
+    href exactly as written; the code is a count for the dry run, not a write."""
     doc = _doc(_para(_t("before "), _t("Missing", BOLD, _link("Missing.md")), _t(" after")))
     out, actions = _repair(doc, import_key="obsidian:Vault/Here.md", import_source="Obsidian")
-    assert out == _doc(_para(_t("before "), _t("Missing", BOLD), _t(" after")))
-    assert actions == ["relative_to_text"]
-    # an unknown source, a key of no known kind, a missing vault: text, never a guess
+    assert out == doc
+    assert actions == ["relative_unresolved"]
+    # an unknown source, a key of no known kind, a missing vault: as written, never a guess
     for key, source in (("keep:a.json", "Google Keep"), ("obsidian:Nowhere/Here.md", "Obsidian"),
-                        ("evernote:nb/t/1", "Evernote")):
-        out, actions = _repair(_doc(_para(_t("m", _link("Missing.md")))), import_key=key,
-                               import_source=source)
-        assert out == _doc(_para(_t("m"))) and actions == ["relative_to_text"], key
+                        ("evernote:nb/t/1", "Evernote"), ("notion:Export/Home.md", "Notion"),
+                        ("file:notes/a.md", "Files (2)")):
+        doc = _doc(_para(_t("m", _link("Missing.md"))))
+        out, actions = _repair(doc, import_key=key, import_source=source)
+        assert out == doc and actions == ["relative_unresolved"], key
+
+
+@pytest.mark.parametrize("href,key,source", [
+    ("report.pdf", "obsidian:Vault/Here.md", "Obsidian"),
+    ("attachments/x.png", "obsidian:Vault/Here.md", "Obsidian"),
+    (f"Home/Budget%20{HEX}.csv", "notion:Export/Home.md", "Notion"),
+    ("files/deck.pdf", "file:notes/a.md", "Files (2)"),
+    ("../Trip.textbundle/text.md", "file:notes/a.md", "Files (2)"),  # a bundle's text file
+])
+def test_a_non_note_file_link_is_left_as_written_and_counted_apart(db, href, key, source):
+    """I-3: a link to a file that is not a note is a lost file, counted under its own code so
+    T4/T6 can place the visible `missing_from_import` marker for it."""
+    doc = _doc(_para(_t("f", _link(href))))
+    out, actions = _repair(doc, import_key=key, import_source=source)
+    assert out == doc and actions == ["relative_file_unresolved"]
+
+
+def test_action_codes_split_into_writes_and_counts():
+    assert links.COUNT_ONLY_ACTIONS == frozenset({
+        "relative_ambiguous", "relative_target_trashed", "relative_unresolved",
+        "relative_file_unresolved"})
 
 
 def test_relative_hrefs_are_repaired_in_file_notes_only(db):
@@ -244,12 +268,12 @@ def test_ambiguous_relative_targets(db):
                                         import_source="Obsidian", index=index)
         assert got == f"obsidian:Vault/{want}"
     # Notion: two pages named Plan collide, so both carry their raw path; an id-less href
-    # names neither and is never guessed.
+    # names neither and is never guessed (left as written, counted).
     _import("Notion", f"notion:Export/Plan {HEX}.md")
     _import("Notion", f"notion:Export/Plan {HEX2}.md")
-    out, actions = _repair(_doc(_para(_t("p", _link("Plan.md")))), import_key="notion:Export/Home.md",
-                           import_source="Notion")
-    assert out == _doc(_para(_t("p"))) and actions == ["relative_to_text"]
+    doc = _doc(_para(_t("p", _link("Plan.md"))))
+    out, actions = _repair(doc, import_key="notion:Export/Home.md", import_source="Notion")
+    assert out == doc and actions == ["relative_unresolved"]
 
 
 # ── linkify and the fixed point ───────────────────────────────────────────────
@@ -282,13 +306,16 @@ def test_repair_links_is_a_fixed_point(db):
         {"type": "image", "attrs": {"src": "import-ref://pending.png"}},
     )
     once, actions = _repair(doc, import_key="obsidian:Vault/Here.md", import_source="Obsidian")
-    assert actions == ["pct_key_decoded", "relative_to_note", "relative_to_text", "linkified",
+    assert actions == ["pct_key_decoded", "relative_to_note", "relative_unresolved", "linkified",
                        "link_resolved:1"]
     assert _note_href(target) in _hrefs(once)
     assert LINK_PREFIX + "obsidian:Vault/Ghost.md" in _hrefs(once)  # unresolved stays pending
+    assert "Missing.md" in _hrefs(once)  # an unresolvable relative link stays as written
     assert once["content"][-1] == doc["content"][-1]  # a pending media ref is never dropped
     twice, again = _repair(once, import_key="obsidian:Vault/Here.md", import_source="Obsidian")
-    assert twice == once and again == []
+    # the second run writes nothing: only the counts of what is still left as written recur
+    assert twice == once and again == ["relative_unresolved"]
+    assert set(again) <= links.COUNT_ONLY_ACTIONS
 
 
 # ── the client's id-strip rule ────────────────────────────────────────────────

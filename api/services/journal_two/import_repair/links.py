@@ -50,6 +50,21 @@ _NOTION = "notion:"
 _FILE = "file:"
 _PCT_KEY_PREFIXES = ("obsidian:", "name:obsidian:")
 _PCT_RE = re.compile(r"%[0-9A-Fa-f]{2}")
+#: The generic file importer's note files and its TextBundle text (`adapters/generic.js`).
+_GENERIC_NOTE_EXT_RE = re.compile(r"\.(md|txt|html|docx)$", re.IGNORECASE)
+_TEXTBUNDLE_TEXT_RE = re.compile(r"\.textbundle/text\.md$", re.IGNORECASE)
+
+# ── action codes (fix round 1) ───────────────────────────────────────────────
+# WRITES: the body changed. COUNTS: nothing was written for that link; it stays exactly as
+# written and the code is what the dry run counts (a repair never makes a note worse).
+TO_NOTE = "relative_to_note"            # write: a relative href became its note's key
+UNRESOLVED = "relative_unresolved"      # count: a note link nothing names (yet)
+FILE_UNRESOLVED = "relative_file_unresolved"  # count: a link to a file that is not a note;
+#                                         T4/T6 place the visible `missing_from_import` marker
+#: Step 2's codes, in the order `repair_links` reports them.
+RELATIVE_ACTIONS = (TO_NOTE, UNRESOLVED, FILE_UNRESOLVED)
+COUNT_ONLY_ACTIONS = frozenset({UNRESOLVED, FILE_UNRESOLVED,
+                                "relative_ambiguous", "relative_target_trashed"})
 
 
 def strip_notion_id_path(path: str) -> str:
@@ -109,39 +124,55 @@ def _join(base_dir: str, rel: str) -> str:
     return "/".join(stack)
 
 
-def relative_target_key(href: str, *, import_key: str, import_source: str,
-                        index: FileKeyIndex) -> str | None:
-    """The import key a relative href in a FILE note names, else None (never a guess)."""
+def relative_target(href: str, *, import_key: str, import_source: str,
+                    index: FileKeyIndex) -> tuple[str | None, str]:
+    """`(import key, action)` for a relative href in a FILE note. With a key, the action is a
+    write (`relative_to_note`); without one it is a count (`COUNT_ONLY_ACTIONS`) and the link
+    stays exactly as written: never a guess, and never made worse (fix round 1, I-3)."""
     if not isinstance(href, str) or not isinstance(import_key, str):
-        return None
+        return None, UNRESOLVED
     target = unquote(href).split("#", 1)[0].strip()
     if not target:
-        return None
+        return None, UNRESOLVED
     if import_source == OBSIDIAN_SOURCE and import_key.startswith(_OBSIDIAN):
         vault, inner = _vault_split(import_key[len(_OBSIDIAN):])
         vault_index = index.obsidian.get(vault)
         path = target.split("?", 1)[0].strip()
+        if not _OBSIDIAN_NOTE_EXT_RE.search(path):
+            return None, FILE_UNRESOLVED  # only a `.md` link names a note (the provider's rule)
         # `|` separates a pending key's fields and cannot be in an Obsidian file name.
-        if vault_index is None or "|" in path or not _OBSIDIAN_NOTE_EXT_RE.search(path):
-            return None
+        if vault_index is None or "|" in path:
+            return None, UNRESOLVED
         from_dir = obsidian_provider._dir_of(inner)
         resolved = obsidian_provider.resolve_pending_target(f"{path}|{from_dir}|rel", vault_index)
         if resolved is None:
-            return None
-        return f"{_OBSIDIAN}{vault}/{resolved}" if vault else f"{_OBSIDIAN}{resolved}"
+            return None, UNRESOLVED
+        return (f"{_OBSIDIAN}{vault}/{resolved}" if vault else f"{_OBSIDIAN}{resolved}"), TO_NOTE
     if import_source == NOTION_SOURCE and import_key.startswith(_NOTION):
         path = _join(posixpath.dirname(import_key[len(_NOTION):]), target.split("?", 1)[0])
         if not _NOTION_PAGE_EXT_RE.search(path):
-            return None
+            return None, FILE_UNRESOLVED  # an attachment, never a page
         for key in (_NOTION + strip_notion_id_path(path), _NOTION + path):
             if key in index.keys:
-                return key
+                return key, TO_NOTE
         m = _NOTION_PAGE_ID_RE.search(path.rsplit("/", 1)[-1])
-        return linkify.notion_note_key(m.group(1)) if m else None
+        return (linkify.notion_note_key(m.group(1)), TO_NOTE) if m else (None, UNRESOLVED)
     if import_key.startswith(_FILE):
-        key = _FILE + _join(posixpath.dirname(import_key[len(_FILE):]), target)
-        return key if key in index.keys else None
-    return None
+        path = _join(posixpath.dirname(import_key[len(_FILE):]), target)
+        key = _FILE + path
+        if key in index.keys:
+            return key, TO_NOTE
+        # A bundle's text file, or anything the generic importer never makes a note of.
+        if _TEXTBUNDLE_TEXT_RE.search(path) or not _GENERIC_NOTE_EXT_RE.search(path):
+            return None, FILE_UNRESOLVED
+        return None, UNRESOLVED
+    return None, UNRESOLVED
+
+
+def relative_target_key(href: str, *, import_key: str, import_source: str,
+                        index: FileKeyIndex) -> str | None:
+    """The import key a relative href in a FILE note names, else None (never a guess)."""
+    return relative_target(href, import_key=import_key, import_source=import_source, index=index)[0]
 
 
 def _walk_link_marks(node: Any, fn) -> None:
@@ -190,27 +221,22 @@ def _decode_pct_keys(doc: dict, conn, user_id: str) -> bool:
 
 
 def _repair_relative(doc: dict, *, import_key: str, import_source: str,
-                     index: FileKeyIndex) -> tuple[bool, bool]:
-    """Step 2 (FILE notes only): `(any became a note key, any became plain text)`."""
-    outcome = {"note": False, "text": False}
+                     index: FileKeyIndex) -> set[str]:
+    """Step 2 (FILE notes only): every relative href that names a note becomes its key; any
+    other stays as written. Returns the action codes that occurred."""
+    seen: set[str] = set()
 
-    def fix(node, marks, i, href):
+    def fix(_node, marks, i, href):
         if not is_relative_href(href):
             return
-        key = relative_target_key(href, import_key=import_key, import_source=import_source, index=index)
+        key, action = relative_target(href, import_key=import_key, import_source=import_source,
+                                      index=index)
         if key is not None:
             marks[i] = {**marks[i], "attrs": {**marks[i]["attrs"], "href": LINK_PREFIX + key}}
-            outcome["note"] = True
-            return
-        # spec L-4: no source URL to resolve against, and a relative href would land on our
-        # origin. The text and its other marks stay.
-        del marks[i]
-        if not marks:
-            node.pop("marks", None)
-        outcome["text"] = True
+        seen.add(action)
 
     _walk_link_marks(doc, fix)
-    return outcome["note"], outcome["text"]
+    return seen
 
 
 def repair_links(doc: dict, *, note_class: str, import_key: str, import_source: str,
@@ -221,12 +247,8 @@ def repair_links(doc: dict, *, note_class: str, import_key: str, import_source: 
     if _decode_pct_keys(out, conn, user_id):
         actions.append("pct_key_decoded")
     if note_class == import_repair.FILE:
-        to_note, to_text = _repair_relative(out, import_key=import_key, import_source=import_source,
-                                            index=index)
-        if to_note:
-            actions.append("relative_to_note")
-        if to_text:
-            actions.append("relative_to_text")
+        seen = _repair_relative(out, import_key=import_key, import_source=import_source, index=index)
+        actions.extend(code for code in RELATIVE_ACTIONS if code in seen)
     if note_class != import_repair.CONNECTOR_LIVE:
         linked = linkify.linkify_doc(out)
         if linked != out:
