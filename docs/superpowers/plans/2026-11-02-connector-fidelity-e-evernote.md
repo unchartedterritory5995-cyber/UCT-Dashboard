@@ -10,22 +10,34 @@
 
 **Spec:** `docs/superpowers/specs/2026-11-01-connector-fidelity-and-evernote-design.md`, sections 6 (E1), 7, 12 and 15 Q3. Measured API facts come from `docs/notebook-connectors/evernote-mcp-probe.md` and `docs/notebook-connectors/evernote-probe-2026-11-02/tools_list.json`, the raw schemas. Read both before Task 1.
 
+**Amended (pre-flight):** this plan was amended on 2026-11-02 after the pre-flight scan in `.superpowers/sdd/2026-11-02-connector-fidelity-e-evernote/progress.md` ("## Pre-flight scan", section (d)). Every changed passage starts with "Amended (pre-flight):". Where an amended passage and an older sentence disagree, the amended passage wins.
+
 ## Global Constraints
 
-- Branch off `origin/master` (Plans A, B and D are merged there: `media_policy.normalize_media`, `import_provenance.edited_since_import`, `import_notice`, the Plan D removal check). Use worktree `uct-worktrees/connector-evernote` and branch `feat/connector-evernote`. Run one implementer at a time and focused test files only, never whole directories (PC load rule).
+- Branch off `origin/master` (Plans A, B and D are merged there: `media_policy.normalize_media`, `import_provenance.edited_since_import`, `import_notice`, the Plan D removal check). Use worktree `uct-worktrees/connector-evernote`. Run one implementer at a time and focused test files only, never whole directories (PC load rule).
+- Amended (pre-flight): **Branches and PRs.** There is one working branch, `feat/connector-fidelity-e-evernote`, and two PRs:
+  - **PR E1 (server, dark)** is opened from `feat/connector-fidelity-e-evernote`. It carries Tasks 1-9 and 11.
+  - **PR E2 (tile)** is opened from `feat/connector-fidelity-e-evernote-tile`, a follow-up branch cut from `feat/connector-fidelity-e-evernote` after E1 merges. It carries Task 10 only. Task 10 is never committed on the E1 branch.
+- Amended (pre-flight): **Plan C lands first.** Plan C (branch `feat/connector-fidelity-c-server`) merges to master before E1. Before E1's PR is opened, rebase `feat/connector-fidelity-e-evernote` onto master after Plan C merges (Task 11, Step 0). Six files are edited by both plans; the resolutions are listed in Task 11, Step 0. Task 4's parity rail runs through Plan C's `convert.js::htmlToNote`, so Task 4 does not commit until Plan C's `convert.js` is on the base. If Plan C has not merged when Task 4 starts, rebase onto `feat/connector-fidelity-c-server` first and regenerate the fixtures after the final rebase.
 - MCP endpoint `https://mcp.evernote.com/mcp`. Auth server `https://accounts.evernote.com`: `/auth/register`, `/auth/authorize`, `/auth/token`. `resource=https://mcp.evernote.com`, `scope=read`, `token_endpoint_auth_method: none`, `code_challenge_method=S256`. Header `MCP-Protocol-Version: 2025-06-18`.
 - Production callback: `https://uctintelligence.com/api/j2/notes/connectors/evernote/callback`. It is derived by the existing `oauth._redirect_uri("evernote")`, never typed a second time.
 - Measured tool shapes, used verbatim:
   - `search_notes{query, clientTimeZone, maxResults 1-100, startIndex, sortBy ∈ updated|created|relevance|title, ascending}` returns `structuredContent {hits[{noteId,title,snippet,createdAt,updatedAt,score}], totalResultCount, startIndex, isLastPage}`. An empty `query` returns active notes only; `intrash:true` returns trash only.
   - `get_note{noteId}` returns `structuredContent.content` (ENML) and `structuredContent.resources[] {id, hash, mime, name, sizeBytes}`. `noteId` also accepts an `evernote:///view/…` link.
+  - Amended (pre-flight): the measured `get_note.structuredContent` keys are `id, title, version, updateSequenceNumber, notebookId, content, created, updated, active, deleted, tasks, tags, resources, attributes`. The plan reads exactly these names: `notebookId`, `tags`, `created`, `updated`, `attributes`, `resources`. **`resources` is `null`, not `[]`, on a note without attachments**, and every consumer treats `null` as an empty list. Not measured: the element type of `tags` and the keys inside `attributes`. Code accepts both a string and an object carrying a name or guid there, and the live gate records the real shapes (Task 11).
   - `get_attachment{noteId, hash /^[0-9a-f]{32}$/}` returns `{downloadUrl, expiresAt, mimeType, filename, sizeBytes}`. `downloadUrl` is a pre-signed `storage.googleapis.com` link that needs no auth header.
-  - `search_notebooks{query, maxResults, sortBy, defaultOnly}` returns `hits[{notebookId,label,stack,…}]`.
-  - `search_tags{query, maxResults, sortBy}` returns `hits[{tagId,label,…}]`, capped at 500 with no paging.
+  - Amended (pre-flight): the measured `get_attachment.structuredContent` keys are `downloadUrl, expiresAt (epoch ms), noteId, resourceGuid, hash, mimeType, filename, sizeBytes`. The plan uses `downloadUrl, expiresAt, mimeType, filename, sizeBytes`. The download host is exactly `storage.googleapis.com` (path-style, as measured). **Every redirect hop** must stay on that host, not only the first request.
+  - Amended (pre-flight): `search_notebooks{query, maxResults, sortBy, defaultOnly}` returns `hits[{notebookId,label,stack,…}]`. It has **no `startIndex`** and `maxResults` is at most 100, so it cannot page. One call with `maxResults: 100` is the whole listing.
+  - Amended (pre-flight): `search_tags{query, maxResults, sortBy}` returns `hits[{tagId,label,…}]`. It has **no `startIndex`** and `maxResults` is at most 100, so it cannot page. One call with `maxResults: 100` is the whole listing.
+  - Amended (pre-flight): when either listing returns exactly 100 hits, the provider logs a warning (`evernote notebooks listing hit the 100 cap` or `evernote tags listing hit the 100 cap`) and falls back to discovering notebooks and tags from the notes' own `notebookId` and `tags` (Task 5).
+  - Amended (pre-flight): `search_notes` hits carry `createdAt` and `updatedAt` as `string or null`. A null is handled by a stated rule (Task 5), never a crash.
 - Read tools only. `READ_TOOLS = {"search_notes","get_note","get_attachment","search_notebooks","search_tags"}`. Every tool in `tools_list.json` whose `annotations.readOnlyHint` is false must be refused before it reaches the network.
 - Access tokens last 3600 s. **The refresh token rotates on every refresh**: persist the new one atomically, encrypted with `crypto_box.NoteBox` exactly like every other connector token.
 - Flag `NOTE_SYNC_EVERNOTE_ENABLED`: unset/`0` = off, `admin` = admins only (the owner), `1` = every paid member. It is recorded `dark` in `docs/feature_flags.json` and defaults OFF.
 - The 2-strike delete rule, the <50% enumeration refuse guard and the 20%/pass cap are unchanged. Trashed notes are tagged `source-deleted` and never erased.
 - One predicate decides "edited since import": `import_provenance.edited_since_import`. No new copy of it.
+- Amended (pre-flight): one ISO timestamp parser. `git grep` finds `import_provenance._instant(value) -> datetime | None` (ISO string, any offset, `Z`, naive read as UTC). Task 5 makes it public as `import_provenance.instant` and every new ISO parse in this plan (Task 5 `_iso`, Task 8 adoption matching) calls it. No second ISO parser is written. Epoch milliseconds are converted at the provider boundary the way `providers/roam.py::_epoch_ms_to_iso` does.
+- Amended (pre-flight): **sync-log outcomes.** The engine persists per-pass counts in `j2_note_sync_log` through `engine._finish_log` (`notes_created`, `notes_updated`, `notes_skipped`, `media_uploaded`, `conflicts`, `source_deleted`, `failures_json`). The router's `_ZERO_COUNTS` (`api/routers/note_sync.py:309`, not engine.py) feeds `/status` `counts`, whose exact key set is pinned by `tests/test_note_sync_router.py:1239`. So the adopted count follows the `source_deleted` precedent: a new nullable `adopted INTEGER` log column, written by `_finish_log` and returned by `GET /sources/{id}/log` (Task 8). `_ZERO_COUNTS` and `/status` `counts` do not change. Per-note Evernote failures reach `failures_json` in Plan D's shape `{noteTitle, reason, name}` (Task 5 and Task 8), as well as the `failures` strings of the sync result and the log row's `error`.
 - Engine bookkeeping writes stay timestamp-neutral: they never bump `updated_at`.
 - Copy rules: no emoji (UIcon only). Wherever a sentence in the UI sits next to a provider name, the provider label comes from `NOTE_CONNECTOR_PROVIDERS`.
 - `requirements.txt` does not change, so no `UCT_FLOW_OVERRIDE` step is needed and a merge is allowed at any hour. Still run `python tools/flow_worker_watch_coverage.py` on the PR and classify any red (note sync runs on `web` only).
@@ -61,6 +73,12 @@
 | `api/services/journal_two/note_connectors/corpora/evernote_live_messy.json` + `corpora_gen.py` (modify) | Messy live corpus through the real engine |
 | `app/src/pages/journal-2-0/hooks/useNoteConnectors.js`, `components/connectors/{ConnectedAppsCard,ConnectConsentPanel}.jsx`, new `evernoteCopy.js`, `tabs/NotebookTab.jsx` | The honest tile |
 | `docs/notebook-connectors/evernote-live-gate.md` (new) | Owner gate runbook + support email |
+| Amended (pre-flight): `app/src/pages/journal-2-0/lib/importer/adapters/evernote.js` (modify, Task 4) | Client code-block rule matching the server's rule 9 |
+| Amended (pre-flight): `api/services/journal_two/note_connectors/providers/base.py` (modify, Task 5) | Optional `allowed_host` on `guarded_media_get`/`guarded_media_stream`, checked before every hop |
+| Amended (pre-flight): `api/services/journal_two/import_provenance.py` (modify, Task 5) | `_instant` made public as `instant`, the one ISO parser |
+| Amended (pre-flight): `api/services/journal_two/db.py` (modify, Task 8) | Nullable `j2_note_sync_log.adopted` column (both CREATE blocks + the ALTER list) |
+| Amended (pre-flight): `api/routers/note_sync.py` (modify, Tasks 7 and 8) | Task 8 adds `adopted` to `GET /sources/{id}/log` rows only |
+| Amended (pre-flight): `docs/notebook-connectors/RESUME-connector-fidelity.md` (create or append, Task 11) | Plan E state + owner click points |
 
 ---
 
@@ -246,6 +264,7 @@ git commit -m "feat(evernote): public-client OAuth with PKCE and a rotating refr
   - `LIVE_KEY_PREFIX = "evernote:guid:"`; `def live_import_key(guid: str) -> str`
   - `def note_guid_from_href(href: str) -> str | None` handles `evernote:///view/{uid}/{shard}/{guid}/{guid}/` and `https://www.evernote.com/shard/{s}/nl/{uid}/{guid}/`; `/l/…` and `share…/note/…` return `None`
   - `def enml_to_tiptap(enml: str, resources: list[dict], *, note_guid: str, source_url: str | None = None) -> dict` returns `{"doc","media","links"}`
+  - Amended (pre-flight): the signature is `resources: list[dict] | None`. `None` is read as `[]` on the first line (`resources = resources or []`), because `get_note` returns `resources: null` for a note without attachments.
 
 Ruling: the live import key is `evernote:guid:{guid}`. A `.enex` key is always `evernote:{notebook}/{title}/{created}`, which contains two `/`, and a GUID contains none, so the two key spaces cannot collide. `link_keys.EVERNOTE_SOURCE` matching keeps working unchanged.
 
@@ -267,7 +286,7 @@ The rules port `adapters/evernote.js` one for one, in this order:
 8. Media is lifted out of links (`mediaRefs.liftMediaOutOfLinks` semantics).
 9. `<div style="…-en-codeblock:true…">` becomes `<pre><code>` with its text verbatim.
 
-Ruling: rule 9 exists only on the server side unless Task 4's parity rail shows that the client drops code blocks. If it does, the client gets the same rule in Task 4 and both sides change in one commit, so behaviour stays one.
+Amended (pre-flight): the outcome is decided up front, replacing the earlier "server-only unless the rail shows otherwise" ruling. `git grep` finds no code-block rule in the client `adapters/evernote.js`, so 07-codeblock would go red. Rule 9 therefore exists on **both** sides. Task 4 adds the matching client rule to `adapters/evernote.js`, and fixture `07-codeblock` pins it in both the Python and JS halves of the parity rail.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -297,6 +316,7 @@ def test_source_url_line_only_for_http_urls(): ...
 def test_codeblock_div_becomes_code_block_verbatim(): ...
 def test_table_and_nested_lists_survive(): ...
 def test_entities_like_nbsp_do_not_crash(): ...
+def test_null_resources_is_read_as_no_resources(): ...   # Amended (pre-flight): enml_to_tiptap(enml, None, ...) == enml_to_tiptap(enml, [], ...); an <en-media> then becomes a missing_resource notice
 ```
 
 - [ ] **Step 2: Run the tests and confirm they fail**
@@ -327,7 +347,12 @@ git commit -m "feat(evernote): server-side ENML to TipTap converter porting the 
 - Create: `api/services/journal_two/note_connectors/convert/enml_parity_fixtures_gen.py`
 - Create: `app/src/pages/journal-2-0/lib/importer/__fixtures__/enml_parity/*.json` (generated)
 - Create: `app/src/pages/journal-2-0/lib/importer/enmlParity.contract.test.js`
+- Modify: `api/services/journal_two/note_connectors/convert/fixtures_gen.py` (the `.enml` branch, Step 4)
+- Amended (pre-flight): Modify: `api/services/journal_two/note_connectors/convert/enml.py` (Task 3's file: any server-lane fix the rail finds lands here)
+- Amended (pre-flight): Modify: `app/src/pages/journal-2-0/lib/importer/adapters/evernote.js` (the client code-block rule, plus any client-lane fix the rail finds)
 - Test: `api/services/journal_two/test_enml_parity_fixtures.py`
+
+Amended (pre-flight): **the client code-block rule.** In `adapters/evernote.js`, a `<div>` whose `style` contains `-en-codeblock:true` (ignore whitespace and case around the colon, as the server's rule 9 does) becomes `<pre><code>` holding its text verbatim. Each child `<div>` and each `<br>` becomes one `\n`, and nothing is trimmed inside the block. This mirrors rule 9 in `enml.py` exactly, so `07-codeblock` produces one `codeBlock` in both summaries. Do not edit `lib/importer/evernote.test.js`: Plan C edits it. The parity fixture is the pin on both sides.
 
 **Interfaces:**
 - Consumes: `enml.enml_to_tiptap` (Task 3); on the client, `adapters/evernote.js::evernoteAdapter.parse`, `postParse.parseImport` and `convert.js::htmlToNote` (the production path, as in `obsidianParity.contract.test.js`)
@@ -357,7 +382,7 @@ it.each(fixtures)('%s: the client .enex path means the same as the server ENML p
 Run: `python -m pytest api/services/journal_two/test_enml_parity_fixtures.py -q` → FAIL (no generator module)
 Run: `cd app && npx vitest run src/pages/journal-2-0/lib/importer/enmlParity.contract.test.js` → FAIL on `found at least one committed fixture`
 
-- [ ] **Step 3: Write the generator and the fixtures, then run `python -m api.services.journal_two.note_connectors.convert.enml_parity_fixtures_gen`.** For each red stem, find which lane is wrong. The client is the reference for every construct except one: a construct the client loses content on, such as code blocks if it flattens them. Then fix that lane and record the decision in the generator docstring. Prove the rail can fail: temporarily skip `en-todo` grouping in `enml.py`, regenerate, watch the JS test go red on `01-todo`, revert, and quote that red/green in the commit message.
+- [ ] **Step 3: Write the generator and the fixtures, then run `python -m api.services.journal_two.note_connectors.convert.enml_parity_fixtures_gen`.** For each red stem, find which lane is wrong. The client is the reference for every construct except one it loses content on. Then fix that lane and record the decision in the generator docstring. Amended (pre-flight): code blocks are that exception and are already decided: add the client code-block rule above to `adapters/evernote.js` in this step, and confirm `07-codeblock` goes green in both halves. Prove the rail can fail: temporarily skip `en-todo` grouping in `enml.py`, regenerate, watch the JS test go red on `01-todo`, revert, and quote that red/green in the commit message.
 
 - [ ] **Step 4: Run both halves and confirm they pass**
 
@@ -367,9 +392,11 @@ Expected: PASS. Add the 9 enml docs to the `server_convert` schema rail inputs t
 - [ ] **Step 5: Commit**
 
 ```bash
-git add api/services/journal_two/note_connectors/convert/enml_fixtures_in api/services/journal_two/note_connectors/convert/enml_parity_fixtures_gen.py api/services/journal_two/note_connectors/convert/fixtures_gen.py app/src/pages/journal-2-0/lib/importer/__fixtures__/enml_parity app/src/pages/journal-2-0/lib/importer/__fixtures__/server_convert app/src/pages/journal-2-0/lib/importer/enmlParity.contract.test.js api/services/journal_two/test_enml_parity_fixtures.py
+git add api/services/journal_two/note_connectors/convert/enml_fixtures_in api/services/journal_two/note_connectors/convert/enml_parity_fixtures_gen.py api/services/journal_two/note_connectors/convert/fixtures_gen.py api/services/journal_two/note_connectors/convert/enml.py app/src/pages/journal-2-0/lib/importer/adapters/evernote.js app/src/pages/journal-2-0/lib/importer/__fixtures__/enml_parity app/src/pages/journal-2-0/lib/importer/__fixtures__/server_convert app/src/pages/journal-2-0/lib/importer/enmlParity.contract.test.js api/services/journal_two/test_enml_parity_fixtures.py
 git commit -m "test(evernote): ENML parity rail pinning the server converter to the .enex adapter"
 ```
+
+Amended (pre-flight): the `git add` now includes `convert/enml.py` and `adapters/evernote.js`. Run `cd app && npx vitest run src/pages/journal-2-0/lib/importer/evernote.test.js src/pages/journal-2-0/lib/importer/evernoteLinks.test.js src/pages/journal-2-0/lib/importer/corpora.evernote.test.js` before committing, so the existing client tests stay green with the new rule.
 
 ---
 
@@ -377,10 +404,16 @@ git commit -m "test(evernote): ENML parity rail pinning the server converter to 
 
 **Files:**
 - Create: `api/services/journal_two/note_connectors/providers/evernote.py`
+- Amended (pre-flight): Modify: `api/services/journal_two/note_connectors/providers/base.py` (optional `allowed_host` keyword on `guarded_media_get` and `guarded_media_stream`)
+- Amended (pre-flight): Modify: `api/services/journal_two/import_provenance.py` (rename `_instant` to public `instant`; update the module's own callers; no behaviour change)
 - Test: `api/services/journal_two/test_note_connectors_evernote_provider.py`
+- Amended (pre-flight): Test: `api/services/journal_two/test_note_connectors_media_host_pin.py` (the per-hop host pin in `base.py`)
 
 **Interfaces:**
-- Consumes: `EvernoteMcpClient` (Task 1), `evernote_oauth.refresh_if_needed(user_id, force=True)` as `on_unauthorized` (Task 2), `enml.enml_to_tiptap` and `enml.live_import_key` (Task 3), `base.guarded_media_get` and `base.media_http_client`
+- Consumes: `EvernoteMcpClient` (Task 1), `evernote_oauth.refresh_if_needed(user_id, force=True)` as `on_unauthorized` (Task 2), `enml.enml_to_tiptap` and `enml.live_import_key` (Task 3), `base.guarded_media_get` and `base.media_http_client`, `import_provenance.instant`
+- Amended (pre-flight): `on_unauthorized` contract (scan a4): the coroutine calls `refresh_if_needed(self._user_id, force=True)`. A `None` result (no connector row) raises `NoteConnAuthError`; otherwise it returns `creds["accessToken"]`. A provider built with `user_id=None` has no `on_unauthorized` at all, so a 401 surfaces as `NoteConnAuthError` from Task 1.
+- Amended (pre-flight): Produces, in `base.py`: `guarded_media_get(..., allowed_host: str | None = None)` and the same keyword on `guarded_media_stream`. When set, the hop loop checks `urlsplit(url).hostname == allowed_host` (exact, lowercase compare) **before every request, the first and every redirect hop**, next to the unchanged `assert_public_https`. A mismatch raises `NoteConnUnsafeAddress` before that hop's request is sent. The default `None` leaves the five existing callers byte-identical.
+- Amended (pre-flight): Produces, on `EvernoteProvider`: `drain_item_failures() -> list[dict]`, which returns and clears the `{noteTitle, reason, name}` entries (Plan D's `failures_json` shape, `name` is `None`) for every per-note problem this instance recorded since the last drain. Task 8 wires the engine to read it.
 - Produces: `class EvernoteProvider(NoteProvider)` with
   - `name = "evernote"`, `adopt_import_source = "evernote"` (read by Task 8)
   - `PAGE_SIZE = 100`, `CURSOR_OVERLAP_S = 120`, `ATTACHMENT_HOST = "storage.googleapis.com"`
@@ -396,17 +429,26 @@ git commit -m "test(evernote): ENML parity rail pinning the server converter to 
 
 Behaviour:
 - **Timestamps:** `_iso(value)` turns an ISO string (any offset) or epoch milliseconds into `datetime.astimezone(utc).isoformat(timespec="milliseconds")`. Every `RemoteRef.updated_at` and every `RemoteNote.created_at`/`updated_at` goes through it, so the engine's string comparisons stay sound.
+  - Amended (pre-flight): the ISO branch calls `import_provenance.instant` (the repo's existing parser, made public in this task). The epoch-ms branch (`int`/`float`, or an all-digit string) uses `datetime.fromtimestamp(ms / 1000, tz=timezone.utc)`, as `providers/roam.py::_epoch_ms_to_iso` does. `None` or an unreadable value returns `None`; it never raises.
+- Amended (pre-flight): **Null `createdAt`/`updatedAt` on a search hit** (both are `string or null`). A hit's ref time is `updatedAt`, else `createdAt`. When both are null, `RemoteRef.updated_at` is the floor: the cursor passed in, or `"1970-01-01T00:00:00.000+00:00"` when there is none. So the hit is always listed and fetched (an unchanged note is a skip in `import_confirm`), it never counts as "older than the bound" for stopping a page, and it can never advance the engine's `max(ref.updated_at)` cursor past a real timestamp. `RemoteNote.created_at`/`updated_at` come from `get_note` `created`/`updated` instead; a null there stays `None`.
 - **`list_changed`:** `search_notes{query:"", sortBy:"updated", ascending:false, maxResults:100, startIndex}` pages newest first. With a cursor, paging stops at the first page that contains a hit older than `cursor - CURSOR_OVERLAP_S`, and hits at or after that bound are returned. Ruling: re-fetching inside a 120 s overlap is cheap, because `import_confirm`'s hash check makes an unchanged note a skip, and a strict `>` against a timestamp of unknown precision would lose same-second edits. With `cursor=None` it enumerates everything.
 - **`list_present_refs`:** the full active enumeration. It requires `len(unique noteIds) == totalResultCount` and the last page `isLastPage`. On a mismatch it re-enumerates once; if the second pass mismatches too it raises `NoteConnTransient`, so the engine skips the removal check (Review Focus 1). Ruling: implement the hook so a nightly full pass keeps the stored cursor and fetches only changed notes, instead of 215 `get_note` calls every night.
 - **`list_deleted`:** `query:"intrash:true"`, enumerated the same way. Trash is an explicit, certain signal (spec section 7, Notion's shape), and notes the member never synced are untouched because the engine acts only on tracked keys. A note purged from trash disappears from both listings and falls to the 2-strike miss streak.
-- **`fetch`:** `get_note{noteId}` → `enml_to_tiptap(sc["content"], sc["resources"], note_guid=…, source_url=…)`.
-  - Folders: `folder_path = [stack, notebook label]` when a stack exists, else `[notebook label]`. The notebook map comes from one `search_notebooks{query:"", maxResults:100}` per provider instance, paged until `isLastPage`.
-  - Tags: labels. When `get_note` gives only tag ids, they are mapped through one `search_tags{query:"", maxResults:100}`, paged until `isLastPage`. Past the 500 cap, an unknown id is dropped and named once in a failure string.
+- **`fetch`:** Amended (pre-flight): `get_note{noteId}` → `enml_to_tiptap(sc["content"], sc.get("resources") or [], note_guid=…, source_url=…)`. `resources` is `null` on a note without attachments, and **every** read of it in this provider (the converter call, unreferenced-resource handling, any count) goes through `sc.get("resources") or []`.
+  - Folders: `folder_path = [stack, notebook label]` when a stack exists, else `[notebook label]`. Amended (pre-flight): the notebook map comes from **one** `search_notebooks{query:"", maxResults:100}` call per provider instance. There is no paging: the tool has no `startIndex`.
+  - Tags: labels. Amended (pre-flight): the tag-id map comes from **one** `search_tags{query:"", maxResults:100}` call per provider instance, made only when some note's `tags` holds an element that needs an id lookup. There is no paging: a call returns at most 100.
+  - Amended (pre-flight): **cap fallback.** When either call returns exactly 100 hits, log one warning per instance (`evernote notebooks listing hit the 100 cap` / `evernote tags listing hit the 100 cap`) and treat the map as partial. The provider then discovers notebooks and tags from the notes' own fields. A `tags` element that carries its own name is used directly and needs no map. A tag id the map does not hold is dropped, and recorded once per id per instance as `evernote tag not listed: <id>`. A `notebookId` the map does not hold puts the note at the source root, recorded once per id as `evernote notebook not listed: <id>`. Neither ever crashes the note.
   - The title comes from `get_note`, falling back to the hit title.
-- **`get_note` keys that are not measured:** the probe measured `content` and `resources`; the notebook, tag and created/updated keys come from the tool description, not a captured payload. Ruling: read those through one `_NOTE_KEYS` table holding candidate names (`notebookId|notebookGuid`, `tags|tagIds`, `created|createdAt`, `updated|updatedAt`, `sourceUrl|attributes.sourceURL`). A missing notebook puts the note at the source root and adds the failure string `evernote note shape: no notebook id`. The live gate (Task 11) must see zero such strings, and a non-zero count stops the gate before members.
+- **`get_note` keys:** Amended (pre-flight): the probe measured every key this provider reads ("Measured field names" in `evernote-mcp-probe.md`). `_NOTE_KEYS` holds **only the measured names**: `notebook → "notebookId"`, `tags → "tags"`, `created → "created"`, `updated → "updated"`, `attributes → "attributes"`, `resources → "resources"`, `content → "content"`, `title → "title"`. The guessed names (`notebookGuid`, `tagIds`, `createdAt`, `updatedAt`, `sourceUrl`) are deleted. The one lookup helper `_note_field(sc, field)` keeps its fallback branch **only as drift protection**: when a measured key is absent from a payload, it returns `None` and records `evernote note shape: missing <key>` once per key per instance. It never tries another name. A missing `notebookId` puts the note at the source root. The live gate (Task 11) must see zero `evernote note shape:` strings, and a non-zero count stops the gate before members.
+- Amended (pre-flight): **Unmeasured element shapes.** The element type of `tags` and the keys inside `attributes` were not measured (`get_note` has `outputSchema: null`). The code accepts both forms:
+  - A `tags` element that is a **string** is looked up in the tag map as an id; if the map does not hold it, the string itself is the label. A `tags` element that is an **object** uses `name` or `label` as the label when present, else `guid` or `id` through the tag map. Any other element is skipped and recorded as `evernote note shape: tag element <type name>`.
+  - `attributes` is read only when it is a dict. The source URL is `attributes["sourceURL"]` (the Evernote `NoteAttributes` field name), accepted when it is a string, or an object carrying a string `name`; it is used only when it is http(s). Any other shape means no source URL, with no failure string.
+  - Shape sample for the live gate: the first `fetch` per provider instance logs one INFO line, `evernote note shape sample: tags=<type name of the first element, or none> tag_keys=<sorted keys if it is a dict> attributes_keys=<sorted keys of attributes>`. It logs key names and type names only, never values or note content. The first `fetch_media` per instance also logs `evernote attachment host sample: <hostname of downloadUrl>`, the host only, never the path or the signed query. Task 11 reads both lines to record the real shapes.
+- Amended (pre-flight): **Where failures go.** Every per-note string above (`evernote note shape: …`, `evernote tag not listed: …`, `evernote notebook not listed: …`) is recorded as `{noteTitle: <note title>, reason: <the string>, name: None}` in the list `drain_item_failures()` returns. Task 8 wires the engine to put those entries in `failures_json` and their `reason` in the pass's `item_failures`.
 - **`fetch_media`:** parses `evernote-res://{guid}/{hash}` and calls `get_attachment{noteId:guid, hash}` **on every call**.
   - It refuses `sizeBytes > base.MEDIA_MAX_BYTES` (`NoteConnTooLarge`) before downloading.
   - It requires `urlsplit(downloadUrl)` to be `https` with host exactly `ATTACHMENT_HOST`; anything else is `NoteConnUnsafeAddress`. It then downloads through `guarded_media_get(self._media_http, url, what=filename)` with no Authorization header ever set.
+  - Amended (pre-flight): the download call is `guarded_media_get(self._media_http, url, what=filename, allowed_host=ATTACHMENT_HOST)`. The pin is the exact host `storage.googleapis.com` (path-style, as measured; `bucket.storage.googleapis.com` is refused) and it is checked on **every redirect hop**, not only the first URL. A redirect to any other host is refused before that hop's request is sent.
   - It returns `(content, mimeType or the response content type)`.
   - Ruling: the URL comes from Evernote, not from note content, so the narrow host pin is added **on top of** the unchanged public-address guard. `storage.googleapis.com` resolves to public addresses, so `assert_public_https` needs no allowance.
 
@@ -428,24 +470,48 @@ def test_fetch_media_refuses_a_non_gcs_host(): ...
 def test_fetch_media_refuses_oversize_before_downloading(): ...
 def test_fetch_media_sends_no_authorization_header(): ...
 def test_provider_only_ever_calls_read_tools(): ...                             # whole provider surface; mcp.tool_calls ⊆ READ_TOOLS
+# Amended (pre-flight):
+def test_fetch_reads_the_measured_keys(): ...                                   # payload with notebookId/tags/created/updated/attributes only -> all mapped, no failure strings
+def test_guessed_key_names_are_not_read(): ...                                  # payload with notebookGuid/tagIds/createdAt/updatedAt/sourceUrl only -> treated as missing: "evernote note shape: missing notebookId" etc., never used
+def test_null_resources_is_an_empty_list_everywhere(): ...                      # resources: None -> fetch ok, no media, no crash; ENML <en-media> becomes a missing_resource notice
+def test_tags_accept_strings_and_objects(): ...                                 # ["id-1", "Plain label", {"name": "Obj"}, {"guid": "id-2"}] -> labels via map / as-is / name / map
+def test_attributes_source_url_accepts_string_or_named_object(): ...            # {"sourceURL": "https://x"} and {"sourceURL": {"name": "https://x"}}; non-dict attributes -> no source line, no failure
+def test_notebooks_and_tags_are_one_call_each_with_max_100(): ...               # exactly one search_notebooks and at most one search_tags, maxResults 100, no startIndex argument sent
+def test_cap_of_100_logs_a_warning_and_falls_back_to_note_fields(caplog): ...   # 100 notebook hits; note's notebookId not among them -> root + "evernote notebook not listed: <id>"; tag object with name still labelled
+def test_null_hit_timestamps_are_listed_and_never_move_the_cursor(): ...        # hit {createdAt: None, updatedAt: None} -> listed; updated_at == cursor floor; max(updated_at) unchanged
+def test_null_updated_at_falls_back_to_created_at(): ...
+def test_shape_sample_is_logged_once_with_keys_only(caplog): ...                # one INFO line per instance; contains no note title, content or attribute value
+def test_drain_item_failures_returns_plan_d_shape_and_clears(): ...             # [{noteTitle, reason, name: None}], second drain == []
+def test_on_unauthorized_none_refresh_raises_auth_error(): ...                  # refresh_if_needed -> None => NoteConnAuthError
+def test_fetch_media_passes_the_host_pin_to_every_hop(): ...                    # guarded_media_get called with allowed_host="storage.googleapis.com"
+```
+
+Amended (pre-flight): `test_note_connectors_media_host_pin.py` (the `base.py` change):
+
+```python
+def test_redirect_hop_to_another_host_is_refused_before_it_is_requested(): ...  # storage.googleapis.com 302 -> evil.example: NoteConnUnsafeAddress, transport saw ONE request
+def test_redirect_hop_on_the_same_host_is_followed(): ...                       # storage.googleapis.com 302 -> storage.googleapis.com/other: 200 returned
+def test_virtual_host_style_bucket_host_is_refused(): ...                       # bucket.storage.googleapis.com, first request: refused
+def test_second_of_three_hops_off_host_is_refused(): ...                        # pin holds past the first redirect, not only on it
+def test_allowed_host_none_keeps_existing_callers_unchanged(): ...              # no pin: a redirect to another public host is followed, as today
 ```
 
 - [ ] **Step 2: Run the tests and confirm they fail**
 
-Run: `python -m pytest api/services/journal_two/test_note_connectors_evernote_provider.py -q`
-Expected: FAIL with `ModuleNotFoundError: ... providers.evernote`
+Run: `python -m pytest api/services/journal_two/test_note_connectors_evernote_provider.py api/services/journal_two/test_note_connectors_media_host_pin.py -q`
+Expected: FAIL with `ModuleNotFoundError: ... providers.evernote`, and `TypeError: ... unexpected keyword argument 'allowed_host'`
 
-- [ ] **Step 3: Implement `providers/evernote.py`** to the behaviour above. The MCP client is built lazily from `creds["accessToken"]`, with `on_unauthorized` set to a coroutine that calls `evernote_oauth.refresh_if_needed(self._user_id, force=True)` and returns the new access token.
+- [ ] **Step 3: Implement `providers/evernote.py`** to the behaviour above. The MCP client is built lazily from `creds["accessToken"]`, with `on_unauthorized` set to a coroutine that calls `evernote_oauth.refresh_if_needed(self._user_id, force=True)` and returns the new access token. Amended (pre-flight): also add `allowed_host` to the hop loop in `base.guarded_media_stream` (and pass it through `guarded_media_get`), and rename `import_provenance._instant` to `instant` (update its in-module callers; `git grep -n "_instant" api/` must show no remaining caller of the old name).
 
 - [ ] **Step 4: Run the tests and confirm they pass**
 
-Run: `python -m pytest api/services/journal_two/test_note_connectors_evernote_provider.py -q`
+Run: `python -m pytest api/services/journal_two/test_note_connectors_evernote_provider.py api/services/journal_two/test_note_connectors_media_host_pin.py -q`, then the existing callers of the two changed modules, found by name first: `git grep -ln "guarded_media_get\|guarded_media_stream\|import_provenance" -- 'api/**/test_*.py' 'tests/test_*.py'` and run exactly those files.
 Expected: PASS
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add api/services/journal_two/note_connectors/providers/evernote.py api/services/journal_two/test_note_connectors_evernote_provider.py
+git add api/services/journal_two/note_connectors/providers/evernote.py api/services/journal_two/note_connectors/providers/base.py api/services/journal_two/import_provenance.py api/services/journal_two/test_note_connectors_evernote_provider.py api/services/journal_two/test_note_connectors_media_host_pin.py
 git commit -m "feat(evernote): EvernoteProvider over MCP: watermark listing, trash sweep, notebooks to folders, pre-signed attachments"
 ```
 
@@ -459,6 +525,8 @@ git commit -m "feat(evernote): EvernoteProvider over MCP: watermark listing, tra
 - Modify: `docs/feature_flags.json`
 - Modify: `api/services/journal_two/test_note_connectors_registry.py` (its "evernote is unknown" assertions become a different unknown name, `"evernote-legacy"`)
 - Test: `api/services/journal_two/test_note_connectors_evernote_registry.py`
+- Amended (pre-flight): Test: `api/services/journal_two/test_note_connectors_evernote_token_cas.py` (the `BEGIN IMMEDIATE` concurrency check, Step 4b)
+- Amended (pre-flight): Modify, only if Step 4b finds a defect: `api/services/journal_two/note_connectors/connections.py` (`swap_token_if_unchanged` only)
 
 **Interfaces:**
 - Consumes: Task 2 `evernote_oauth.client_id`, `refresh_if_needed`; Task 5 `EvernoteProvider`
@@ -469,6 +537,7 @@ git commit -m "feat(evernote): EvernoteProvider over MCP: watermark listing, tra
   - `_REGISTRY["evernote"] = ProviderEntry("evernote", "Evernote", "oauth", _evernote_configured, _build_evernote, refresh=_evernote_refresh)`
   - `_evernote_configured()` is `mode != "off" and evernote_oauth.client_id() and NoteBox.is_configured()`
   - `_build_evernote(source)` raises `NoteConnNotConfigured` when the mode is `off`. Ruling: turning the flag off stops scheduled syncs of existing sources too, not only new connects, so the flag is a real kill switch with no delete involved.
+  - Amended (pre-flight): otherwise `_build_evernote(source)` returns `EvernoteProvider(user_id=(source or {}).get("userId"))`, passing `source["userId"]` exactly as `_build_obsidian` does. Without it the provider has no user for `on_unauthorized`, and a mid-sync 401 could not refresh. A `None` source (a probe) gets `user_id=None`.
   - In `engine._resolve_credentials`: `entry.refresh` wins when set; otherwise the existing `oauth.is_registered` path runs, then `get_token`.
 
 - [ ] **Step 1: Write the failing tests**
@@ -479,6 +548,7 @@ def test_flag_modes(monkeypatch, val, mode): ...
 def test_evernote_not_configured_without_client_id_or_key(monkeypatch): ...
 def test_admin_mode_allows_admins_only(monkeypatch): ...
 def test_build_raises_not_configured_when_flag_off(monkeypatch): ...
+def test_build_passes_the_source_user_id_to_the_provider(monkeypatch): ...      # Amended (pre-flight): _build_evernote({"userId": "u1", ...})._user_id == "u1"
 def test_resolve_credentials_routes_evernote_through_its_refresh_hook(monkeypatch): ...
 def test_resolve_credentials_unchanged_for_notion_and_dropbox(monkeypatch): ...
 def test_flag_is_in_the_ledger_as_dark():
@@ -498,10 +568,31 @@ Expected: FAIL (no evernote entry, no `evernote_flag_mode`, ledger key missing)
 Run: `python -m pytest api/services/journal_two/test_note_connectors_evernote_registry.py api/services/journal_two/test_note_connectors_registry.py api/services/journal_two/test_note_connectors_engine_oauth_refresh.py tests/test_feature_flag_ledger.py -q`
 Expected: PASS
 
+- [ ] **Step 4b: Amended (pre-flight): verify that `get_connection()` honours `BEGIN IMMEDIATE` for the refresh-token compare-and-swap.** Task 2's `swap_token_if_unchanged` runs `BEGIN IMMEDIATE` on a connection from `api.services.auth_db.get_connection()`. That function returns a pooled connection (`factory=_PooledConnection`, `timeout=3`, default `isolation_level`). Two things could silently defeat the swap: a pooled connection handed out with a transaction already open (then `BEGIN IMMEDIATE` raises "cannot start a transaction within a transaction", or the read runs outside the write lock), and an isolation mode that turns the explicit `BEGIN` into a no-op. Read `get_connection` and `_PooledConnection` first, then write `test_note_connectors_evernote_token_cas.py` against a real temp `auth.db` file (not `:memory:`, which is per-connection):
+
+```python
+def test_two_threads_swapping_the_same_expected_token_exactly_one_wins(tmp_db): ...
+    # stored rt0; two threads, a threading.Barrier before the call, each swap_token_if_unchanged(u, "evernote", "rt0", {...rtA}) / {...rtB}
+    # -> exactly one True, one False; stored refreshToken is the winner's; never a mix
+def test_swap_holds_the_write_lock_between_read_and_write(tmp_db): ...
+    # a second connection that runs BEGIN IMMEDIATE while the swap is between its read and its write
+    # (monkeypatch the decrypt step to wait on an Event) gets "database is locked" or waits; it never writes in between
+def test_swap_under_a_held_write_lock_times_out_without_writing(tmp_db): ...
+    # another connection holds BEGIN IMMEDIATE; the swap raises sqlite3.OperationalError after timeout=3 and stored stays rt0
+def test_swap_on_a_pooled_connection_starts_its_own_transaction(tmp_db): ...
+    # conn.in_transaction is False right before BEGIN IMMEDIATE; after the swap returns, in_transaction is False again (committed or rolled back)
+```
+
+  If a test fails, fix `swap_token_if_unchanged` only (for example, take a connection with `isolation_level=None`, or roll back a stray open transaction before `BEGIN IMMEDIATE`), and record the cause in its docstring. Do not change `get_connection()`: every auth request uses it.
+
+Run: `python -m pytest api/services/journal_two/test_note_connectors_evernote_token_cas.py api/services/journal_two/test_note_connectors_evernote_oauth.py api/services/journal_two/test_note_connectors_connections.py -q`
+Expected: PASS
+
 - [ ] **Step 5: Commit**
 
 ```bash
-git add api/services/journal_two/note_connectors/registry.py api/services/journal_two/note_connectors/engine.py docs/feature_flags.json api/services/journal_two/test_note_connectors_registry.py api/services/journal_two/test_note_connectors_evernote_registry.py
+git add api/services/journal_two/note_connectors/registry.py api/services/journal_two/note_connectors/engine.py docs/feature_flags.json api/services/journal_two/test_note_connectors_registry.py api/services/journal_two/test_note_connectors_evernote_registry.py api/services/journal_two/test_note_connectors_evernote_token_cas.py
+# Amended (pre-flight): add api/services/journal_two/note_connectors/connections.py too, only if Step 4b changed it
 git commit -m "feat(evernote): registry entry behind NOTE_SYNC_EVERNOTE_ENABLED (off|admin|1), dark in the ledger"
 ```
 
@@ -510,7 +601,9 @@ git commit -m "feat(evernote): registry entry behind NOTE_SYNC_EVERNOTE_ENABLED 
 ### Task 7: Router (connect, callback, per-user gate, plan-required reason)
 
 **Files:**
-- Modify: `api/routers/note_sync.py` (`get_status`, `_start_oauth`, `oauth_callback`, `disconnect`)
+- Modify: `api/routers/note_sync.py` (`get_status`, `connect`, `_start_oauth`, `oauth_callback`, `disconnect`)
+
+Amended (pre-flight): **the per-user flag gate goes in `connect()`** (note_sync.py, the `POST /{provider}/connect` handler), before it dispatches to `_start_oauth(provider, user_id)`. `_start_oauth` receives only `user_id` and gates on `entry.configured()` with no user, so it cannot apply the admin gate. In `connect()`: `if provider == "evernote" and not registry.provider_allowed_for("evernote", user): raise HTTPException(503, "Evernote is not configured on this server.")`, using the same 503 text as the unconfigured case so a member cannot tell "admin-only" from "off". The callback needs no gate: its state is signed and was minted only by a gated `connect()`. Confirm the auth user dict carries `role` (`get_current_user`) before relying on it (scan a15).
 - Test: `tests/test_note_sync_router_evernote.py`
 
 **Interfaces:**
@@ -547,7 +640,7 @@ def test_disconnect_evernote_deletes_connector_and_keeps_notes(client_admin, mon
 Run: `python -m pytest tests/test_note_sync_router_evernote.py -q`
 Expected: FAIL (evernote falls into the Dropbox branch, and the status ignores the user gate)
 
-- [ ] **Step 3: Implement** the branches and the per-user gate in `get_status` and `connect`.
+- [ ] **Step 3: Implement** the branches and the per-user gate in `get_status` and `connect`. Amended (pre-flight): the `connect` gate sits in `connect()` itself, before the `connect_kind == "oauth"` dispatch to `_start_oauth`, never inside `_start_oauth`.
 
 - [ ] **Step 4: Run the tests and confirm they pass**
 
@@ -568,15 +661,26 @@ git commit -m "feat(evernote): connect and callback with PKCE, admin-first gate,
 **Files:**
 - Create: `api/services/journal_two/note_connectors/adoption.py`
 - Modify: `api/services/journal_two/note_connectors/engine.py` (`_import_remote_notes`: call the seam before `_bulk_existing_note_meta`; `counts["adopted"]` in `_do_sync` and `_finish_log`)
+- Amended (pre-flight): Modify: `api/services/journal_two/db.py` (nullable `adopted INTEGER` on `j2_note_sync_log`: the `_J2_SCHEMA` CREATE near L749, the second CREATE near L3040, and the ALTER list right after `"ALTER TABLE j2_note_sync_log ADD COLUMN failures_json TEXT"`)
+- Amended (pre-flight): Modify: `api/routers/note_sync.py` (`source_log` only: each row gains `"adopted": r["adopted"] or 0`)
 - Test: `api/services/journal_two/test_note_connectors_adoption.py`
+- Amended (pre-flight): Modify: `api/services/journal_two/test_note_connectors_db.py` (the older-DB ALTER test also asserts `adopted` is added)
 
 **Interfaces:**
-- Consumes: `RemoteNote`, `provider.import_key`, `getattr(provider, "adopt_import_source", None)`, `notes_svc` plain-text extraction (`body_plain` is already stored)
+- Consumes: `RemoteNote`, `provider.import_key`, `getattr(provider, "adopt_import_source", None)`, `notes_svc` plain-text extraction (`body_plain` is already stored), Amended (pre-flight): `import_provenance.instant` (Task 5) and `getattr(provider, "drain_item_failures", None)` (Task 5)
 - Produces: `def adopt_file_imports(conn: sqlite3.Connection, user_id: str, import_source: str, candidates: list[tuple[str, RemoteNote]]) -> list[dict]`, which returns `[{"fromKey", "toKey", "noteId"}]`. `candidates` are `(live_key, rn)` pairs for which no non-trashed row holds `live_key`.
+  - Amended (pre-flight): the return type is `tuple[list[dict], list[dict]]`: `(adopted, failures)`. `adopted` is the `[{"fromKey", "toKey", "noteId"}]` list above. `failures` holds `{noteTitle, reason, name: None}` entries (Plan D's `failures_json` shape), one per ambiguous title, with `reason = 'adoption ambiguous: "<title>"'`.
+
+Amended (pre-flight): **where the adopted count and the failures go** (engine.py, `_ZERO_COUNTS`, the sync-log writer):
+- `_do_sync`'s `counts` dict (engine.py L533) gains `"adopted": 0`, and the seam adds `len(adopted)` to it. The sync result spreads `**counts`, so the Sync now response carries `adopted`.
+- `_finish_log` writes `adopted = int(counts.get("adopted", 0))` into the new `j2_note_sync_log.adopted` column, in the same `UPDATE` as the other counts. A NULL in older rows reads as 0.
+- `GET /sources/{id}/log` rows gain `"adopted"`. If an existing test pins that row's exact key set, update it in this task.
+- **Not changed:** `_ZERO_COUNTS` and `_latest_sync_counts` in `api/routers/note_sync.py`, and so `/status` `counts`. Its key set is pinned by `tests/test_note_sync_router.py:1239`, and Plan D chose not to widen it. An adopted note is also counted as `updated` or `skipped` by `import_confirm`, as any synced note is; `adopted` is the extra fact "this one was a `.enex` row".
+- **Failures, as Plan D designed:** `failures_json` holds `{noteTitle, reason, name}` entries. After `_fetch_remote_notes`, and again after the adoption seam, the engine calls `getattr(provider, "drain_item_failures", None)` when present and appends each entry to `notice_failures` (so it reaches `failures_json` through `_finish_log`) and its `reason` to `item_failures` (so it reaches the result's `failures` and the log row's `error`). The adoption seam's `failures` go to the same two places. Providers without the method are byte-identical. `FAILURES_JSON_CAP` (50) still applies.
 
 Rules, from the spec, with the builder's calls:
 - **Candidates:** a candidate row is a `j2_notes` row with `user_id` matching, `deleted_at IS NULL`, `lower(import_source) = import_source`, and an `import_key` that does not start with `enml.LIVE_KEY_PREFIX`.
-- **Matching:** a candidate matches when `title.strip() == rn.title.strip()` and both `created_at` values parse to the same UTC minute. If several match, the tie-break is `sha256` of whitespace-collapsed plain text, stored `body_plain` against the converted remote doc. Exactly one survivor is adopted. Zero or two or more means not adopted: the note imports as new, and the pair is named in a failure string `adoption ambiguous: "<title>"`. A file row can be adopted at most once per pass.
+- **Matching:** a candidate matches when `title.strip() == rn.title.strip()` and both `created_at` values parse to the same UTC minute. Amended (pre-flight): "parse" means `import_provenance.instant(value)` floored to the minute (`.replace(second=0, microsecond=0)`), and the "same UTC second" check below uses the same call floored to the second. `adoption.py` writes no timestamp parser of its own. An unreadable `created_at` on either side is a non-match. If several match, the tie-break is `sha256` of whitespace-collapsed plain text, stored `body_plain` against the converted remote doc. Exactly one survivor is adopted. Zero or two or more means not adopted: the note imports as new, and the pair is named in a failure string `adoption ambiguous: "<title>"`. A file row can be adopted at most once per pass.
 - **Re-keying:** adoption is one timestamp-neutral `UPDATE j2_notes SET import_key=? WHERE id=? AND user_id=? AND import_key=?`, which never touches `updated_at` or `imported_at`. That keeps `edited_since_import` true for an edited note, so the existing conflict rules apply unchanged: remote changed ⇒ `(synced copy)` sibling, unchanged ⇒ left alone.
 - Ruling: in the same `UPDATE`, set `import_remote_rev = rn.updated_at`, but only when the stored rev parses to the same UTC second as `rn.updated_at`. A `.enex` exported from the same unchanged Evernote note then reads "remote unchanged" instead of "changed" merely because the two sources spell the time differently. When they differ, the stored rev is kept and the remote counts as changed, which is the conservative branch.
 - An unedited adopted note is then updated in place by `import_confirm` like any synced note. No duplicate is ever created for a matched note.
@@ -597,6 +701,13 @@ def test_adoption_does_not_touch_updated_at_or_imported_at(tmp_db): ...
 def test_adoption_sets_remote_rev_only_when_same_instant(tmp_db): ...
 def test_providers_without_the_attribute_are_unaffected(tmp_db): ...             # notion fake: zero adoption queries
 def test_second_pass_adopts_nothing_and_changes_nothing(tmp_db): ...
+# Amended (pre-flight):
+def test_adopted_count_is_written_to_the_sync_log_row(tmp_db): ...              # j2_note_sync_log.adopted == 1 on the adopting pass, 0 on the next
+def test_source_log_rows_carry_adopted(tmp_db): ...                             # GET /sources/{id}/log row has "adopted"
+def test_status_counts_shape_is_unchanged(tmp_db): ...                          # /status counts keys == _ZERO_COUNTS keys (no "adopted")
+def test_ambiguous_adoption_reaches_failures_json_in_plan_d_shape(tmp_db): ...  # failures_json == [{"noteTitle": "Plan", "reason": 'adoption ambiguous: "Plan"', "name": None}]
+def test_provider_item_failures_reach_failures_json_and_error(tmp_db): ...      # fake provider with drain_item_failures -> entries in failures_json, reasons in the log row's error and result["failures"]
+def test_adoption_uses_the_shared_instant_parser(tmp_db, monkeypatch): ...      # monkeypatch import_provenance.instant to a spy -> called for both created_at values
 ```
 
 - [ ] **Step 2: Run the tests and confirm they fail**
@@ -604,17 +715,18 @@ def test_second_pass_adopts_nothing_and_changes_nothing(tmp_db): ...
 Run: `python -m pytest api/services/journal_two/test_note_connectors_adoption.py -q`
 Expected: FAIL with `ModuleNotFoundError: ... adoption`
 
-- [ ] **Step 3: Implement `adoption.py` and the engine seam** (one `getattr`, one call, one count).
+- [ ] **Step 3: Implement `adoption.py` and the engine seam** (one `getattr`, one call, one count). Amended (pre-flight): also add the `adopted` column (three places in `db.py`), the `_finish_log` write, the `source_log` field, and the `drain_item_failures` read, as described above.
 
 - [ ] **Step 4: Run the tests and confirm they pass**
 
-Run: `python -m pytest api/services/journal_two/test_note_connectors_adoption.py api/services/journal_two/test_note_connectors_engine.py -q`
+Run: `python -m pytest api/services/journal_two/test_note_connectors_adoption.py api/services/journal_two/test_note_connectors_engine.py api/services/journal_two/test_note_connectors_db.py tests/test_note_sync_router.py -q`
 Expected: PASS
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add api/services/journal_two/note_connectors/adoption.py api/services/journal_two/note_connectors/engine.py api/services/journal_two/test_note_connectors_adoption.py
+git add api/services/journal_two/note_connectors/adoption.py api/services/journal_two/note_connectors/engine.py api/services/journal_two/db.py api/routers/note_sync.py api/services/journal_two/test_note_connectors_adoption.py api/services/journal_two/test_note_connectors_db.py
+# Amended (pre-flight): add tests/test_note_sync_router.py too, only if a pinned /log key set had to change
 git commit -m "feat(evernote): adopt .enex-imported notes into live sync by title and created minute, never duplicating or overwriting"
 ```
 
@@ -651,6 +763,8 @@ The corpus contains, at minimum:
 - two notebooks in one stack plus one unstacked notebook
 - 3 trashed notes, one of which was synced in pass 1
 - one `.enex`-imported note seeded before pass 1, for adoption
+- Amended (pre-flight): the dump uses the **measured** key names only (`notebookId`, `tags`, `created`, `updated`, `attributes`, `resources`; `get_attachment` `downloadUrl`, `expiresAt`, `mimeType`, `filename`, `sizeBytes`). It includes a note with `resources: null`, a search hit with `createdAt: null, updatedAt: null`, `tags` elements in both string and object form, and one attachment whose download 302-redirects off `storage.googleapis.com` (refused, named notice).
+- Amended (pre-flight): `corpora_gen._run_evernote` emits `toolCalls` (the provider's `mcp.tool_calls` over every pass) and, per pass, `adopted` from the sync result, so the tests below read them.
 
 Between passes, the member edits one note in UCT and the remote edits it too. The member also edits a second note whose remote stays unchanged.
 
@@ -670,6 +784,9 @@ def test_only_read_tools_were_called_in_any_pass(run):
     assert set(run["evernote_live_messy"]["toolCalls"]) <= evernote_mcp.READ_TOOLS
 def test_oversize_attachment_is_a_too_large_notice(run): ...
 def test_expired_attachment_url_recovers_on_retry(run): ...
+def test_off_host_redirect_is_refused_and_named(run): ...                      # Amended (pre-flight)
+def test_null_resources_note_imports_with_no_media(run): ...                   # Amended (pre-flight)
+def test_no_evernote_note_shape_failures_on_measured_payloads(run): ...        # Amended (pre-flight): the gate criterion, proven on the corpus first
 def test_oversize_note_is_isolated_and_named(run): ...
 def test_enex_note_adopted_once_no_duplicate(run): ...
 def test_nothing_is_left_as_an_import_placeholder(run): ...                   # already parametrized over CORPORA
@@ -699,6 +816,8 @@ git commit -m "test(evernote): messy live corpus through the real engine: idempo
 ---
 
 ### Task 10: The honest tile
+
+Amended (pre-flight): **Branch.** This task is PR E2. Do it only after PR E1 has merged. Cut `feat/connector-fidelity-e-evernote-tile` from `feat/connector-fidelity-e-evernote` (`git switch -c feat/connector-fidelity-e-evernote-tile feat/connector-fidelity-e-evernote`), then `git rebase origin/master` so it sits on the merged E1. Commit and push only on that branch, and open PR E2 from it. Nothing from this task is committed on `feat/connector-fidelity-e-evernote`.
 
 **Files:**
 - Create: `app/src/pages/journal-2-0/components/connectors/evernoteCopy.js`
@@ -737,7 +856,7 @@ it('notebook opens the import wizard once for ?import=evernote and strips the pa
 Run: `cd app && npx vitest run src/pages/journal-2-0/components/connectors/ConnectedAppsCard.test.jsx src/pages/journal-2-0/components/connectors/ConnectTilesCompact.test.jsx`
 Expected: FAIL (no evernote tile)
 
-- [ ] **Step 3: Implement.** The `NotebookTab` param read runs inside the existing mount effect and uses `setImportOpen(true)`. It must not add a new key listener, so the key-listener census rail stays green.
+- [ ] **Step 3: Implement.** The `NotebookTab` param read uses `setImportOpen(true)`. It must not add a new key listener, so the key-listener census rail stays green. Amended (pre-flight): there is no single "existing mount effect" in `NotebookTab.jsx`. Copy the `?styles=1` effect pattern (`NotebookTab.jsx` near L447-453: `useState(() => searchParams.get('styles') === '1')` plus a `useEffect` on `[searchParams, setSearchParams]` that returns early unless the param is set, opens, then deletes the param with `setSearchParams(prev => …, { replace: true })`). The new effect reads `searchParams.get('import') === 'evernote'`, calls `setImportOpen(true)`, and deletes `import` the same way. It sits next to the `?styles=1` effect.
 
 - [ ] **Step 4: Run the tests and confirm they pass,** including the census and first-open byte budget rails named in spec section 11.
 
@@ -758,30 +877,34 @@ git commit -m "feat(evernote): honest Evernote tile: beta, paid-plan notice, .en
 **Files:**
 - Create: `docs/notebook-connectors/evernote-live-gate.md`
 - Modify: `docs/notebook-connectors/RESUME-connector-fidelity.md` (Plan E state + owner click points)
+- Amended (pre-flight): `RESUME-connector-fidelity.md` does not exist on this branch today (`git ls-files` is empty); Plan A/B/D's copy may arrive with the rebase in Step 0. Check after Step 0 with `git ls-files docs/notebook-connectors/RESUME-connector-fidelity.md`: **create** it if absent, with a `# Connector fidelity: resume here` heading and a `## Plan E (Evernote live sync)` section; **append** a `## Plan E (Evernote live sync)` section at the end if it exists, never rewriting earlier sections.
 
 No code. The runbook carries the steps below verbatim. Gate results are appended to `docs/notebook-connectors/60-user-reliability-certification.md` after the gate, never by rewriting earlier sections.
 
 **Deploy shape**
-- **PR E1 `feat/connector-evernote` (server, dark):** Tasks 1-9 and 11. Title: `feat(notebook): Evernote live sync, dark (NOTE_SYNC_EVERNOTE_ENABLED)`.
-- **PR E2 `feat/connector-evernote-tile`:** Task 10, stacked on E1 and merged after it. While dark, the tile shows the `.enex` offer for everyone, which is true today.
+- Amended (pre-flight): **PR E1, from branch `feat/connector-fidelity-e-evernote` (server, dark):** Tasks 1-9 and 11. Title: `feat(notebook): Evernote live sync, dark (NOTE_SYNC_EVERNOTE_ENABLED)`.
+- Amended (pre-flight): **PR E2, from branch `feat/connector-fidelity-e-evernote-tile`:** Task 10 only. That branch is cut from `feat/connector-fidelity-e-evernote` after E1 merges and rebased onto master (Task 10's Branch note). While dark, the tile shows the `.enex` offer for everyone, which is true today.
 - `requirements.txt` is unchanged, so neither PR needs `UCT_FLOW_OVERRIDE`, and either can merge at any hour. Paste the classification from `tools/flow_worker_watch_coverage.py` into the PR body.
 
 **Owner click points, in order**
-1. Merge PR E1, then PR E2. The agent asks once both are green.
+1. Amended (pre-flight): Merge PR E1 once it is green. The agent then cuts `feat/connector-fidelity-e-evernote-tile` (Task 10), opens PR E2, and asks again once E2 is green. Steps 2-5 below need only E1; the tile is not needed for the gate.
 2. The agent runs `python tools/evernote_register_client.py` (no account needed) and hands over the printed id. The owner sets it on `web`: `railway variables --service web --set EVERNOTE_CLIENT_ID=<id> --set NOTE_SYNC_EVERNOTE_ENABLED=admin`. The agent then confirms a real boot (uptime reset) and checks that `GET /api/j2/notes/connectors/status`, read as the owner, shows `evernote.configured: true`. Owner only: the flag is `admin`.
 3. Optional but recommended for adoption: in Evernote desktop, export ONE notebook to `.enex`, then import it in UCT (Notebook → Import).
 4. In UCT Settings → Connections → Evernote → Connect → approve Evernote's read-access consent page (one sign-in).
 5. In Evernote: create a note `UCT gate probe` with one image and one link, then press Sync now in UCT. Edit that note in Evernote and press Sync now. Trash it and press Sync now.
 
 **Gate criteria** (the agent reads them; the owner does not re-measure)
-- Created = 215 active notes, with no duplicates of adopted `.enex` notes (adopted count = the step 3 notebook's note count).
-- 0 trashed notes imported (73 in trash).
-- All 6 image notes render every image from UCT storage.
-- Zero `evernote note shape:` failure strings.
-- A second Sync now with no remote change gives created 0, updated 0, mediaUploaded 0.
-- The probe note: created, then updated, then tagged `source-deleted` (not erased).
-- Every link in the probe note is clickable.
-- The sync log holds no write-tool names (the rail already proves this; the gate re-reads `toolCalls` if exposed in the log).
+
+Amended (pre-flight): every criterion names where it is read, and reads only something that exists after Tasks 1-9. "Log" means `GET /api/j2/notes/connectors/sources/{id}/log` read as the owner; "Sync now response" means the JSON `POST /api/j2/notes/connectors/sources/{id}/sync` returns.
+- Created = 215 active notes, with no duplicates of adopted `.enex` notes. Read: the first pass's log row `created` plus `adopted` (Task 8's column) accounts for 215, and `adopted` = the step 3 notebook's note count.
+- 0 trashed notes imported (73 in trash). Read: the same totals match the 215 active notes exactly, and no Notebook note carries a title that only exists in Evernote's trash (spot-check three).
+- All 6 image notes render every image from UCT storage. Read: open each in the Notebook.
+- Zero `evernote note shape:` failure strings. Read: every log row's `failures` (from `failures_json`, Task 8) and the Sync now response's `failures`.
+- A second Sync now with no remote change gives created 0, updated 0, mediaUploaded 0. Read: the Sync now response (`created`, `updated`, `mediaUploaded`; the log rows do not carry `mediaUploaded`).
+- The probe note: created, then updated, then tagged `source-deleted` (not erased). Read: log rows `created`/`updated`/`sourceDeleted` per pass, and the note itself.
+- Every link in the probe note is clickable. Read: open the note.
+- Only read tools are ever called. Read: nothing at the gate. No log stores tool names, so this criterion rests on the rails (Task 1 allow-list tests, Task 5 `test_provider_only_ever_calls_read_tools`, Task 9 `test_only_read_tools_were_called_in_any_pass`), which must be green on the merged SHA.
+- Amended (pre-flight): **Record the unmeasured shapes.** Read the `evernote note shape sample:` INFO line (Task 5) from `railway logs --service web` after the first pass, and copy it into `evernote-live-gate.md` and `docs/notebook-connectors/evernote-mcp-probe.md` under "Measured field names" (append only): the `tags` element type and keys, and the `attributes` keys. Also record whether either `search_notebooks` or `search_tags` hit the 100 cap (the warning lines), and record one real `downloadUrl` **host** (host only, never the signed query). If the `tags` or `attributes` shape differs from what Task 5 accepts, or the host is not exactly `storage.googleapis.com`, the gate stops and the plan is amended before members.
 
 A failing criterion means the flag returns to `0` with a redeploy, and the cause is recorded in the runbook.
 
@@ -808,8 +931,17 @@ A failing criterion means the flag returns to `0` with a redeploy, and the cause
 > Thank you,
 > Patrick, UCT Intelligence
 
+- [ ] **Step 0: Amended (pre-flight): rebase onto master after Plan C merges, before E1's PR is opened.** Plan C (`feat/connector-fidelity-c-server`) lands first. Wait until it is on `origin/master`, then `git fetch origin && git rebase origin/master` on `feat/connector-fidelity-e-evernote`. Six files are edited by both plans. Resolve each by hand, never with "ours" or "theirs":
+  1. `api/routers/note_sync.py` (HIGH: same import block, same `get_status` provider loop). Keep all of Plan C's imports and Obsidian routes; put E's imports (`evernote_oauth`, `EvernoteProvider`) on new lines after C's; add E's `get_status` change as one call to `registry.provider_allowed_for` on its own line inside C's loop. Then run `tests/test_note_sync_router.py`, `tests/test_note_sync_router_evernote.py` and the Obsidian router tests (list them by name with `git ls-files 'tests/test_note_sync_router*' 'tests/*obsidian*'`).
+  2. `app/src/pages/journal-2-0/hooks/useNoteConnectors.js`. Keep C's `normalizeSource` change. Note: E's `NOTE_CONNECTOR_PROVIDERS` entry is Task 10, so on the E1 rebase this file should not conflict; it matters again when E2 is cut.
+  3. `app/src/pages/journal-2-0/hooks/useNoteConnectors.test.js`. Keep both changes, and derive the expected provider-key list from `NOTE_CONNECTOR_PROVIDERS` so neither plan retypes it (also E2-relevant).
+  4. `api/services/journal_two/note_connectors/test_connector_corpora.py`. Keep C's edits (L295, L649, L742 on C's base); add E's `CORPORA`-driven tests and `_run_evernote` wiring by hand.
+  5. `app/src/pages/journal-2-0/lib/connectorCorpora.dom.test.js`. Keep C's `CONSTRUCTS` change; add `evernote_live_messy` to `CORPORA`/`ALL` by hand.
+  6. `docs/feature_flags.json`. Keep both entries (`NOTE_SYNC_OBSIDIAN_ENABLED` from C, `NOTE_SYNC_EVERNOTE_ENABLED` from E) in alphabetical order; run `tests/test_feature_flag_ledger.py` (duplicate-key rail).
+
+  Also, not a file conflict: E's ENML parity rail runs through C's `convert.js::htmlToNote`. After the rebase, regenerate (`python -m api.services.journal_two.note_connectors.convert.enml_parity_fixtures_gen` and `python -m api.services.journal_two.note_connectors.corpora.corpora_gen`), commit any change, and rerun Task 4's and Task 9's test commands. The connector component files (`components/connectors/*`) do not overlap by file; rerun the connector component tests once both are on master. After Steps 1-3 below, push `feat/connector-fidelity-e-evernote` (a rebased branch that was pushed before needs `--force-with-lease`, on this feature branch only, never on master) and open PR E1.
 - [ ] **Step 1: Write `evernote-live-gate.md`** with the deploy shape, click points, gate criteria, rollback and email above.
-- [ ] **Step 2: Update the RESUME file** with Plan E's PRs and click points.
+- [ ] **Step 2: Update the RESUME file** with Plan E's PRs and click points. Amended (pre-flight): create it if absent or append a section if present, as stated under Files above.
 - [ ] **Step 3: Commit**
 
 ```bash
