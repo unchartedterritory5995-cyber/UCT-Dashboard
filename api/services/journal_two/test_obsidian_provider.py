@@ -1184,25 +1184,47 @@ def test_dropbox_attachment_promotion_unchanged():
             json.dumps(reference(converted), sort_keys=False), text
 
 
-def _synced_note(path, *, pending, updated_at=T1, imported_at=T1, vault="vault-1", user="user-a"):
+_STAGED_SHA = "e" * 64
+_MISSING_SHA = "f" * 64
+
+
+def _retrying_body(sha=_STAGED_SHA, *, attempts=1):
+    """A stored body holding one "retrying" notice for an Obsidian blob ref (what the engine
+    writes when `fetch_media` raised Transient)."""
+    return {"type": "doc", "content": [{"type": "importNotice", "attrs": {
+        "reason": "fetch_failed", "name": "chart.png", "sourceUrl": None,
+        "ref": f"obsidian-att:{sha}/chart.png", "attempts": attempts}}]}
+
+
+def _staged_blob(sha=_STAGED_SHA, *, vault="vault-1", user="user-a"):
+    conn = auth_db.get_connection()
+    conn.execute("INSERT INTO j2_obsidian_attachments (user_id, vault_id, sha256, size,"
+                 " received_at) VALUES (?, ?, ?, 1, ?)", (user, vault, sha, T1))
+    conn.commit()
+    conn.close()
+
+
+def _synced_note(path, *, pending, updated_at=T1, imported_at=T1, vault="vault-1", user="user-a",
+                 body=None, key_suffix=""):
     conn = auth_db.get_connection()
     conn.execute(
         "INSERT INTO j2_notes (id, user_id, title, import_key, import_media_pending, created_at,"
-        " updated_at, imported_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-        (f"n-{user}-{vault}-{path}", user, path, f"obsidian:{vault}/{path}", pending, T1,
-         updated_at, imported_at))
+        " updated_at, imported_at, body_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        (f"n-{user}-{vault}-{path}{key_suffix}", user, path, f"obsidian:{vault}/{path}{key_suffix}",
+         pending, T1, updated_at, imported_at,
+         json.dumps(body if body is not None else _retrying_body())))
     conn.commit()
     conn.close()
 
 
 async def test_list_changed_relists_a_note_still_waiting_on_media_without_moving_the_cursor(db):
-    """Plan C Task 3: a note whose media is still pending (a blob not staged yet) comes back
-    on every pass until the engine's bounded retry settles it, even though nothing new was
-    pushed; the cursor still moves only on pushed rows."""
+    """Plan C Task 3: a note whose media retry can succeed NOW (its blob has been staged since)
+    comes back even though nothing new was pushed; the cursor still moves only on pushed rows."""
     _stage("user-a", "vault-1", "waiting.md", "x", T1)
     _stage("user-a", "vault-1", "done.md", "x", T1)
     _stage("user-a", "vault-1", "edited.md", "x", T1)
     _stage("user-a", "vault-1", "new.md", "x", T3)
+    _staged_blob()
     _synced_note("waiting.md", pending=1)
     _synced_note("done.md", pending=0)
     _synced_note("edited.md", pending=1, updated_at=T3, imported_at=T1)   # the member's now
@@ -1238,3 +1260,147 @@ def test_every_reason_this_provider_writes_has_its_own_sentence():
     assert import_notice.marker_text("not-found", "x.png") == "x.png wasn't found in the vault."
     assert import_notice.marker_text("sync-off", "x.png") == (
         "x.png wasn't synced because image and file sync is turned off in the plugin settings.")
+
+
+# ── Plan C Task 3, fix round 1 ───────────────────────────────────────────────
+
+def test_old_plugin_row_keeps_links_to_dotted_note_names():
+    """I1: a row with no attachment list must not read a NOTE whose name has a dot as a file.
+    `[[Dr.Smith]]`, `[[Q3.Review|alias]]` and `[[Drawing.excalidraw]]` (with those notes
+    staged) stay note links, alias text and all."""
+    paths = ["People/Dr.Smith.md", "Q3.Review.md", "Drawing.excalidraw.md"]
+    body = "[[Dr.Smith]] then [[Q3.Review|alias]] then [[Drawing.excalidraw]]\n\n![[Drawing.excalidraw]]\n"
+    conv = _convert(body, paths, refs=None, supports=False)
+    without_pass = _convert(body, paths)
+    assert _all(conv["doc"], "importNotice") == []
+    # Exactly what the same note converts to with no attachment pass at all: the link keys
+    # (today's resolver leaves a dotted name pending; that is not this pass's business) and
+    # the member's text, alias included.
+    assert conv["links"] == without_pass["links"] and len(conv["links"]) == 3
+    assert [t for t, _h in _link_marks(conv["doc"])] == ["Dr.Smith", "alias", "Drawing.excalidraw"]
+    assert conv["doc"] == without_pass["doc"]
+
+
+def test_old_plugin_row_only_marks_known_attachment_extensions():
+    """I1: an unresolved dotted name that is not a known file type (`[[Mr.Jones]]`,
+    `[[notes.final]]`) is a pending note link, never an "update your plugin" notice."""
+    conv = _convert("[[Mr.Jones]] and [[notes.final]] and ![[clip.mp4]] and [d](deck.pptx)",
+                    refs=None)
+    assert [n["attrs"]["name"] for n in _all(conv["doc"], "importNotice")] == ["clip.mp4", "deck.pptx"]
+    assert [t for t, _h in _link_marks(conv["doc"])] == ["Mr.Jones", "notes.final"]
+
+
+def test_a_ref_whose_path_has_no_file_name_is_left_as_written():
+    """M4: `path` ending in `/` names no file. The ref is ignored (its original stays as the
+    member wrote it), never a chip with an empty name."""
+    ref = REF(original="[[att/]]", path="att/", embed=False)
+    conv = _convert("see [[att/]]", refs=[ref])
+    assert _all(conv["doc"], "attachmentChip") == [] and conv["media"] == []
+    assert all(m["name"] for m in conv["media"])
+
+
+def test_original_text_inside_a_replacement_is_never_rewritten_again():
+    """N4: an `original` (`chart.png`) that occurs inside another ref's written replacement
+    must not be re-matched: the token indirection is what keeps the image intact."""
+    refs = [REF(), REF(original="chart.png", embed=False, sha256="b" * 64)]
+    conv = _convert("![[chart.png]]", refs=refs)
+    assert _only(conv["doc"], "image")["attrs"]["src"] == "import-ref://obsidian-att:" + _SHA + "/chart.png"
+
+
+async def test_fetch_media_refuses_a_malformed_sha_at_once(db):
+    """N1: `obsidian-att:zzz/x` (only reachable by typing it) is a final refusal, never three
+    "retrying" passes."""
+    provider = ObsidianProvider(user_id="user-a", vault_id="vault-1")
+    with pytest.raises(errors.NoteConnUnsupported):
+        await provider.fetch_media({}, "obsidian-att:zzz/x.png")
+
+
+async def test_a_note_waiting_on_a_blob_not_staged_yet_is_not_relisted(db):
+    """I2: re-listing a note whose blob is still absent would only spend a retry attempt on a
+    try that cannot succeed. It waits, untouched, until the blob is staged."""
+    _stage("user-a", "vault-1", "waiting.md", "x", T1)
+    _synced_note("waiting.md", pending=1, body=_retrying_body(_MISSING_SHA))
+    provider = ObsidianProvider(user_id="user-a", vault_id="vault-1")
+    assert await provider.list_changed({}, cursor=T3) == []
+    _staged_blob(_MISSING_SHA)
+    provider = ObsidianProvider(user_id="user-a", vault_id="vault-1")
+    assert [r.remote_id for r in await provider.list_changed({}, cursor=T3)] == ["waiting.md"]
+
+
+async def test_a_staged_blob_of_another_vault_does_not_relist(db):
+    _stage("user-a", "vault-1", "waiting.md", "x", T1)
+    _synced_note("waiting.md", pending=1)
+    _staged_blob(vault="vault-2")
+    provider = ObsidianProvider(user_id="user-a", vault_id="vault-1")
+    assert await provider.list_changed({}, cursor=T3) == []
+
+
+async def test_a_plugin_storage_limit_notice_is_never_relisted(db):
+    """M1: a `storage-limit` notice the PLUGIN decided carries no ref; only the plugin's own
+    re-push can clear it. Re-listing it after the engine's storage flip re-wrote the same
+    notice on every other pass."""
+    _stage("user-a", "vault-1", "full.md", "x", T1)
+    _staged_blob()
+    body = {"type": "doc", "content": [{"type": "importNotice", "attrs": {
+        "reason": "storage-limit", "name": "chart.png", "sourceUrl": None, "ref": None,
+        "attempts": 0}}]}
+    _synced_note("full.md", pending=1, body=body)
+    provider = ObsidianProvider(user_id="user-a", vault_id="vault-1")
+    assert await provider.list_changed({}, cursor=T3) == []
+
+
+async def test_an_engine_storage_wait_on_a_staged_blob_is_relisted_once_flipped(db):
+    """The other storage case: the ENGINE's own `storage_limit` notice (it carries the ref)
+    on a staged blob, flipped back to 1 once space freed, is retried."""
+    _stage("user-a", "vault-1", "full.md", "x", T1)
+    _staged_blob()
+    body = {"type": "doc", "content": [{"type": "importNotice", "attrs": {
+        "reason": "storage_limit", "name": "chart.png", "sourceUrl": None,
+        "ref": f"obsidian-att:{_STAGED_SHA}/chart.png", "attempts": 0}}]}
+    _synced_note("full.md", pending=1, body=body)
+    provider = ObsidianProvider(user_id="user-a", vault_id="vault-1")
+    assert [r.remote_id for r in await provider.list_changed({}, cursor=T3)] == ["full.md"]
+
+
+async def test_literal_import_ref_text_does_not_relist_a_note(db):
+    """M3: `import-ref://` typed as TEXT makes the stored body read as pending, but it is no
+    placeholder; nothing can be retried, so the note is not re-listed."""
+    _stage("user-a", "vault-1", "prose.md", "x", T1)
+    _staged_blob()
+    body = {"type": "doc", "content": [{"type": "paragraph", "content": [
+        {"type": "text", "text": f"I wrote import-ref://obsidian-att:{_STAGED_SHA}/chart.png here"}]}]}
+    _synced_note("prose.md", pending=1, body=body)
+    provider = ObsidianProvider(user_id="user-a", vault_id="vault-1")
+    assert await provider.list_changed({}, cursor=T3) == []
+
+
+async def test_a_conflict_sibling_does_not_relist_its_edited_original(db):
+    """M2: the `#remote` sibling of a member-edited note is never touched by the engine while
+    the remote is unchanged, so its pending media must not re-list the original's path."""
+    _stage("user-a", "vault-1", "plan.md", "x", T1)
+    _staged_blob()
+    _synced_note("plan.md", pending=0, updated_at=T3, imported_at=T1)       # edited original
+    _synced_note("plan.md", pending=1, key_suffix="#remote")                # its sibling
+    provider = ObsidianProvider(user_id="user-a", vault_id="vault-1")
+    assert await provider.list_changed({}, cursor=T3) == []
+
+
+async def test_an_https_hotlink_retry_is_still_relisted(db):
+    _stage("user-a", "vault-1", "web.md", "x", T1)
+    body = {"type": "doc", "content": [{"type": "importNotice", "attrs": {
+        "reason": "fetch_failed", "name": "i.png", "sourceUrl": "https://e.x/i.png",
+        "ref": "https://e.x/i.png", "attempts": 1}}]}
+    _synced_note("web.md", pending=1, body=body)
+    provider = ObsidianProvider(user_id="user-a", vault_id="vault-1")
+    assert [r.remote_id for r in await provider.list_changed({}, cursor=T3)] == ["web.md"]
+
+
+def test_old_plugin_row_keeps_a_link_to_a_staged_note_named_like_a_file():
+    """I1: a NOTE whose name ends in a file extension (`Brief.txt.md`, linked as
+    `[[Brief.txt]]`) is a staged note, so the link stays a link; the same name with no such
+    note is a file and gets the notice."""
+    conv = _convert("[[Brief.txt|the brief]]", ["Brief.txt.md"], refs=None)
+    assert _all(conv["doc"], "importNotice") == []
+    assert [t for t, _h in _link_marks(conv["doc"])] == ["the brief"]
+    conv = _convert("[[Brief.txt|the brief]]", [], refs=None)
+    assert _only(conv["doc"], "importNotice")["attrs"]["name"] == "Brief.txt"

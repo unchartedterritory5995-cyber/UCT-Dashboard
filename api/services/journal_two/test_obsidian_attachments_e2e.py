@@ -234,6 +234,31 @@ async def test_note_pushed_before_its_blob_heals_on_a_later_sync(client):
     assert healed["pending"] == 0
 
 
+async def test_a_blob_uploaded_after_three_passes_still_heals(client):
+    """Fix round 1 (I2): passes that run while the blob is still absent (the hourly tick, a
+    sync another push triggered, the nightly pass) must not spend the retry budget. Three
+    such passes, then the upload, then one pass: the image is served."""
+    token, source_id = _connect(client)
+    png = (_BIN / "chart.png").read_bytes()
+    refs = [_ref("![[chart.png]]", "att/chart.png", png)]
+    _ingest(client, token, "![[chart.png]]", refs)
+    for _ in range(3):
+        await _sync(source_id)
+    waiting = _stored_note()
+    [notice] = _of_type(waiting["doc"], "importNotice")
+    assert notice["attrs"]["reason"] == "fetch_failed" and notice["attrs"]["attempts"] == 1
+    assert waiting["pending"] == 1
+
+    _upload(client, token, png, "chart.png", "image/png")
+    await _sync(source_id)
+    healed = _stored_note()
+    assert _of_type(healed["doc"], "importNotice") == []
+    [image] = _of_type(healed["doc"], "image")
+    with Image.open(io.BytesIO(_served(image["attrs"]["src"]))) as im:
+        assert im.size == (37, 23)
+    assert healed["pending"] == 0
+
+
 async def test_old_plugin_payload_still_imports_text_with_outdated_notice(client):
     token, source_id = _connect(client)
     _ingest(client, token, "# Trade plan\n\nEntry above the pivot.\n\n![[chart.png]]\n", None,
