@@ -252,7 +252,7 @@
        },
        {
         "attrs": {
-         "attempts": 1,
+         "attempts": 2,
          "name": "dead.png",
          "reason": "fetch_failed",
          "ref": "https://img.example.com/dead.png",
@@ -840,11 +840,21 @@
        {
         "content": [
          {
-          "text": "Attachment embed: chart one.png",
+          "text": "Attachment embed: ",
           "type": "text"
          }
         ],
         "type": "paragraph"
+       },
+       {
+        "attrs": {
+         "attempts": 0,
+         "name": "chart one.png",
+         "reason": "obsidian-plugin-outdated",
+         "ref": null,
+         "sourceUrl": null
+        },
+        "type": "importNotice"
        },
        {
         "content": [
@@ -859,8 +869,8 @@
         "attrs": {
          "attempts": 0,
          "name": "chart one.png",
-         "reason": "unsupported",
-         "ref": "attachments/chart one.png",
+         "reason": "obsidian-plugin-outdated",
+         "ref": null,
          "sourceUrl": null
         },
         "type": "importNotice"
@@ -1241,7 +1251,7 @@
      "mediaUploaded": 0,
      "skipped": 0,
      "status": "ok",
-     "updated": 0
+     "updated": 1
     }
    ]
   }

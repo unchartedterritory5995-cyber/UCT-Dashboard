@@ -292,7 +292,9 @@ def test_corpus_every_pass_completed(run):
         {"status": "ok", "created": 2, "updated": 1, "skipped": 59, "mediaUploaded": 0, "conflicts": 1}]
     assert run["obsidian_messy"]["members"]["u-obsidian"]["passes"] == [
         {"status": "ok", "created": 9, "updated": 0, "skipped": 0, "mediaUploaded": 9, "conflicts": 0},
-        {"status": "ok", "created": 2, "updated": 0, "skipped": 0, "mediaUploaded": 0, "conflicts": 1}]
+        # `updated: 1`: the Media wall note is re-listed for its https hotlink retry
+        # (Plan C Task 3 I2, `_media_retry_rows`), so pass 2 re-converts it (D2 fix round 1, I1).
+        {"status": "ok", "created": 2, "updated": 1, "skipped": 0, "mediaUploaded": 0, "conflicts": 1}]
 
 
 # ── Notion: links ──────────────────────────────────────────────────────────────────
@@ -646,10 +648,13 @@ def test_corpus_obsidian_raw_html_links_keep_safe_targets_only(hub):
 
 
 def test_corpus_obsidian_local_attachments_are_text_or_a_notice(hub):
-    assert _para_runs(hub, "Attachment embed:") == [("Attachment embed: chart one.png", None)]
-    assert _notices(hub)["chart one.png"] == {
-        "reason": "unsupported", "name": "chart one.png", "sourceUrl": None,
-        "ref": "attachments/chart one.png", "attempts": 0}
+    # The corpus device reports no plugin version (Plan C Task 3): the embed and the markdown
+    # image link each become a notice that says to update the plugin. ⚰️ The embed was silent
+    # plain text and the link an `unsupported` notice (D2 fix round 1, I1).
+    assert _para_runs(hub, "Attachment embed:") == [("Attachment embed: ", None)]
+    outdated = [n["attrs"] for n in _nodes(hub, "importNotice") if n["attrs"].get("name") == "chart one.png"]
+    assert outdated == [{"reason": "obsidian-plugin-outdated", "name": "chart one.png", "sourceUrl": None,
+                         "ref": None, "attempts": 0}] * 2
 
 
 def test_corpus_obsidian_bare_urls_link_without_their_trailing_punctuation(hub):
@@ -739,7 +744,9 @@ def test_corpus_obsidian_refused_media_have_notices_with_reasons(o_wall):
         "page.png": ("unsupported", 0),          # an HTML page called .png
         "moved-private.png": ("unsafe", 0),      # a hotlink that redirects to a private address
         "huge.zip": ("too_large", 0),            # over the source cap
-        "dead.png": ("fetch_failed", 1),         # retried next sync
+        # retried next sync; 2: pass 2 re-lists the note for that retry and spends one
+        # (Plan C Task 3 I2; D2 fix round 1, I1)
+        "dead.png": ("fetch_failed", 2),
         "script image": ("unsafe", 0),           # Task 15 fix round 1: see the test below
     }
     assert all(a["sourceUrl"] == f"https://img.example.com/{name}" for name, a in notices.items()

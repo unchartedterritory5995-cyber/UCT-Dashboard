@@ -276,7 +276,11 @@ const CONSTRUCTS = [
     expect(callout.textContent).toContain('Size it down')
   }],
   ['obsidian: a local attachment says why it did not come over', O, OU, OHUB, (root) => {
-    expect(notices(root)).toEqual(["chart one.png can't be shown here"])
+    // The corpus device has no plugin version (Plan C Task 3): the embed and the markdown
+    // image link each say so, and what to do. ⚰️ The embed used to be silent plain text and
+    // the link an "unsupported" notice (D2 fix round 1, I1).
+    const outdated = "chart one.png wasn't synced. Update the UCT Notebook Sync plugin in Obsidian to bring images and files over."
+    expect(notices(root)).toEqual([outdated, outdated])
   }],
   ['obsidian: refused hotlinks say why, with a link to the original', O, OU, OWALL, (root) => {
     expect(notices(root)).toEqual([
