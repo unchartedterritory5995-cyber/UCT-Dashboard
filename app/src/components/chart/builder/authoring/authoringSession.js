@@ -246,7 +246,9 @@ export function unavailableLines(res) {
     const phrase = String((n && (n.phrase || n.column || n.name)) || '').trim()
     if (!phrase || seen.has(phrase.toLowerCase())) continue
     seen.add(phrase.toLowerCase())
-    out.push(`“${phrase}” is a text label in UCT's screener data, which a chart formula can't read.`)
+    // ⛔ NOT "a text label": most excluded columns are numbers (enterprise value, EPS), live-only or
+    // dates. And never the manifest's `reason`, which is internal prose ("TEXT -- ...").
+    out.push(`“${phrase}” is in UCT's screener data, which a chart formula can't read.`)
   }
   return out
 }

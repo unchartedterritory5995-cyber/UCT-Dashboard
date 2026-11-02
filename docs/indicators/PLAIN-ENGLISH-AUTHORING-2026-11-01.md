@@ -89,8 +89,13 @@ internal column name and manifest prose, and it was false.
 **Fix.** `authoringSession.unavailableLines`:
 - a turn that **built something** no longer prints these notes. The read-back already says what was
   built, and the model is never shown the notes (`_language_notes`).
-- a turn that built nothing says, in member words: "“sector” is a text label in UCT's screener data,
-  which a chart formula can't read."
+- a turn that built nothing says, in member words: "“sector” is in UCT's screener data, which a chart
+  formula can't read." (2026-11-02 review: an earlier draft said "is a text label", which is false for
+  most excluded columns, such as enterprise value, EPS and dates.)
+- **Visible change to saved definitions:** the new recogniser reads back an existing hand-written
+  `sma(x,n) ± k*stdev(x,n)` (or a Pine `ta.bb` import) as Bollinger Bands, named "BB upper …" and printed
+  as `bbUpper(close, 20, 2)`. The maths and the stored tree are unchanged (Keltner already behaves this
+  way), and the printed formula parses in both lanes.
 
 Rail: `authoring/unavailableLines.test.js`. A mutation that puts the old line back reds it.
 

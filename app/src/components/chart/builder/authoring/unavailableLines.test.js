@@ -28,13 +28,17 @@ describe('unavailable screener columns, in member words', () => {
         turn: 'noop', envelope: null, unavailable: [{ phrase: 'sector', name: 'sector', reason: 'TEXT -- GICS sector' }] }),
     })
     const text = allText(out)
-    expect(text).toMatch(/“sector” is a text label in UCT's screener data, which a chart formula can't read\./)
+    expect(text).toMatch(/“sector” is in UCT's screener data, which a chart formula can't read\./)
     expect(text).not.toMatch(/TEXT --|GICS/)
   })
 
   it('one line per phrase, never the internal column name when the phrase is known', () => {
     expect(unavailableLines({ unavailable: [CANDLE, { ...CANDLE }, { phrase: 'Doji', name: 'candle_matches' }] }))
-      .toEqual(['“doji” is a text label in UCT\'s screener data, which a chart formula can\'t read.'])
+      .toEqual(['“doji” is in UCT\'s screener data, which a chart formula can\'t read.'])
+    // ⭐ 11-02 review: most excluded columns are NOT text (enterprise value, EPS, dates), so
+    // the line never claims "text label".
+    expect(unavailableLines({ unavailable: [{ phrase: 'enterprise value', name: 'enterprise_value', reason: 'NUMBER -- Wave 7' }] }))
+      .toEqual(['“enterprise value” is in UCT\'s screener data, which a chart formula can\'t read.'])
     expect(unavailableLines({ unavailable: [] })).toEqual([])
     expect(unavailableLines(null)).toEqual([])
   })
