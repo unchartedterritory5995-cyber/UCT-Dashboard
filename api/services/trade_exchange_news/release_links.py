@@ -81,7 +81,15 @@ SEC_RETRY_MS = 15 * MIN           # after a transport error
 SEC_MAX_ATTEMPTS = 8
 SEC_WINDOW = (-3 * 60 * MIN, 72 * 60 * MIN)   # acceptance time vs arrival
 SEC_FORMS = frozenset({"8-K", "8-K/A", "6-K", "6-K/A"})
-SEC_TITLE_CHARS = 3000            # the headline must open the exhibit
+SEC_TITLE_CHARS = 3000            # how much of the exhibit is read
+#: Where the exact headline must START in the normalized document to count as the
+#: release itself: within 800 characters, or 300 for a filing accepted more than
+#: 6 h after the headline (a later filing that merely repeats it never qualifies).
+#: Measured on the 163 SEC matches of 2026-11-01: 156 start within 400, every
+#: filing later than 6 h within 150. Deeper matches are shadow-only.
+SEC_TITLE_HEAD = 800
+SEC_LATE_TITLE_HEAD = 300
+SEC_LATE_MS = 6 * 60 * MIN
 SEC_MIN_WORDS = 4
 SEC_MAX_FILINGS = 4
 SEC_MAX_DOCS = 3
@@ -301,14 +309,15 @@ def exhibit_text(raw: bytes) -> str:
     return _norm(s)[:SEC_TITLE_CHARS * 2]
 
 
-def decide_sec_text(tx_norm: str, text: str) -> tuple[str, float] | None:
-    """('exact', 1.0) when the headline opens the exhibit; ('containment', share)
-    when >= 90% of its words are in the opening; else None."""
+def decide_sec_text(tx_norm: str, text: str, head: int = SEC_TITLE_HEAD) -> tuple[str, float] | None:
+    """('exact', 1.0) when the headline starts within ``head`` characters of the
+    document; ('deep', 1.0) when it appears later in the read part; ('containment',
+    share) when >= 90% of its words are in the opening; else None."""
     if not tx_norm:
         return None
-    head = text[:SEC_TITLE_CHARS]
-    if tx_norm in head and len(tx_norm.split()) >= SEC_MIN_WORDS:
-        return "exact", 1.0
+    at = text[:SEC_TITLE_CHARS].find(tx_norm)
+    if at >= 0 and len(tx_norm.split()) >= SEC_MIN_WORDS:
+        return ("exact", 1.0) if at <= head else ("deep", 1.0)
     words = tx_norm.split()
     if len(words) >= 6:
         opening = set(text.split()[:400])
@@ -656,8 +665,9 @@ def decide_sec(tx: dict[str, Any], sec: SecLookup) -> dict[str, Any]:
             if e.status == 404:
                 continue
             raise
+        late = f["accepted_ms"] - tx["ms"] > SEC_LATE_MS
         for url, body in docs:
-            v = decide_sec_text(tx["norm"], exhibit_text(body))
+            v = decide_sec_text(tx["norm"], exhibit_text(body), SEC_LATE_TITLE_HEAD if late else SEC_TITLE_HEAD)
             if v is None:
                 continue
             if safe_url(url, (SEC_HOST,)) is None:
@@ -666,7 +676,8 @@ def decide_sec(tx: dict[str, Any], sec: SecLookup) -> dict[str, Any]:
             if v[0] == "exact":
                 exact.append((f, url, ref))
                 break
-            out["shadow"].append(("sec_containment", {"url": url, "ref": ref, "publisher": "SEC EDGAR"}, v[1],
+            tier = "sec_exhibit_deep" if v[0] == "deep" else "sec_containment"
+            out["shadow"].append((tier, {"url": url, "ref": ref, "publisher": "SEC EDGAR"}, v[1],
                                   {"form": f["form"], "delta_ms": f["accepted_ms"] - tx["ms"]}))
         if exact:
             break

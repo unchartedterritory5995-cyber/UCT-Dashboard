@@ -844,3 +844,37 @@ def test_a_gzip_sec_response_is_inflated_with_the_cap(monkeypatch):
     monkeypatch.setattr(urllib.request, "urlopen", lambda req, timeout=None: resp(b"a" * 50_000))
     with pytest.raises(ValueError):
         rl._sec_get(asked, 1000)
+
+
+def _filler(chars):
+    return "<p>" + ("routine words " * (chars // 14 + 1)) + "</p>"
+
+
+def test_sec_title_must_start_near_the_top_of_the_document(store, env):
+    """Within SEC_TITLE_HEAD it is the release; deeper (a main form that names the
+    exhibit, a later filing quoting it) is shadow-only, never a link."""
+    eid = tx(store, f"ACME - {TITLE}")
+    sec_res(store, FakeSec(_filler(1200) + f"<p>{TITLE}</p>")).run_pass()
+    assert link_rows(store) == [] and ("sec", "sec_exhibit_deep") in shadow(store, eid)
+
+
+def test_sec_title_within_the_head_is_linked(store, env):
+    tx(store, f"ACME - {TITLE}")
+    sec_res(store, FakeSec(_filler(500) + f"<p>{TITLE}</p>")).run_pass()
+    assert link_rows(store) and link_rows(store)[0][1] == "sec_filing"
+
+
+def test_a_later_filing_that_repeats_the_headline_below_its_opening_is_not_linked(store, env):
+    """QA M2: an 8-K filed 40 h later that repeats this headline 500 characters in
+    ('as previously announced ...') is a different filing, not this release."""
+    eid = tx(store, f"ACME - {TITLE}")
+    later = T0 + 40 * 60 * MIN
+    sec_res(store, FakeSec(_filler(500) + f"<p>{TITLE}</p>", accepted_ms=later), now=later + 10 * MIN).run_pass()
+    assert link_rows(store) == [] and ("sec", "sec_exhibit_deep") in shadow(store, eid)
+
+
+def test_a_later_filing_that_opens_with_the_headline_is_still_linked(store, env):
+    tx(store, f"ACME - {TITLE}")
+    later = T0 + 22 * 60 * MIN
+    sec_res(store, FakeSec(EXHIBIT, accepted_ms=later), now=later + 10 * MIN).run_pass()
+    assert link_rows(store) and link_rows(store)[0][1] == "sec_filing"
