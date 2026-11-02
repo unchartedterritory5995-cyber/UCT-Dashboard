@@ -1071,7 +1071,7 @@ async def test_body_write_race_reroutes_resolved_content_to_a_sibling_preserving
     fired = {"done": False}
 
     def racing_rewrite_body(doc, media_urls, id_by_key, *, strip_unresolved_links=True,
-                            notices=None):
+                            notices=None, resolved=None):
         if not fired["done"]:
             fired["done"] = True
             # Simulates a user's OWN edit landing in the window between this
@@ -1079,7 +1079,7 @@ async def test_body_write_race_reroutes_resolved_content_to_a_sibling_preserving
             notes_svc.update_note("u1", original_id, {"title": "user's own concurrent edit"})
         return real_rewrite_body(
             doc, media_urls, id_by_key, strip_unresolved_links=strip_unresolved_links,
-            notices=notices)
+            notices=notices, resolved=resolved)
 
     monkeypatch.setattr(engine, "rewrite_body", racing_rewrite_body)
 
@@ -1322,11 +1322,16 @@ async def test_a_note_whose_projection_fails_is_a_named_failure_and_the_pass_con
     assert upd == seen_baselines[bad_note["id"]]                       # updated_at never moved
 
 
-async def test_oversized_resolved_body_fails_validation_and_leaves_placeholder_in_place(
+async def test_oversized_resolved_body_fails_validation_and_terminates(
     source, provider, monkeypatch,
 ):
     """Exercises the PER-BATCH (media) pass's validation call — the note has
-    media so `_confirm_and_resolve_batch` actually reaches `rewrite_body`."""
+    media so `_confirm_and_resolve_batch` actually reaches `rewrite_body`.
+
+    Plan A Task 8 (Task 6 review d): it used to leave the placeholder in place, pending,
+    so every later pass re-fetched the media with no attempt counted. When even the
+    final-notice body cannot be stored (this fake makes EVERY rewrite huge), the
+    placeholders are removed, the note stops pending, and the loss is a named failure."""
     provider.refs = [RemoteRef(remote_id="p1", updated_at="2026-08-01T00:00:00+00:00")]
     rn = _rn("p1", "Oversize Target", media=[{"ref": "img-1", "kind": "image", "name": "x.png"}])
     rn.doc["content"].append({"type": "image", "attrs": {"src": "import-ref://img-1"}})
@@ -1342,7 +1347,7 @@ async def test_oversized_resolved_body_fails_validation_and_leaves_placeholder_i
     }
 
     def fake_rewrite_body(doc, media_urls, id_by_key, *, strip_unresolved_links=True,
-                          notices=None):
+                          notices=None, resolved=None):
         return huge_doc, []
 
     monkeypatch.setattr(engine, "rewrite_body", fake_rewrite_body)
@@ -1354,9 +1359,14 @@ async def test_oversized_resolved_body_fails_validation_and_leaves_placeholder_i
     assert any("validation" in f.lower() for f in result["failures"])
 
     note = notes_svc.list_notes("u1")[0]
-    # the placeholder body import_confirm wrote is still there, untouched.
-    assert "import-ref://img-1" in json.dumps(_body(note))
+    assert "import-ref://img-1" not in json.dumps(_body(note))
     assert json.dumps(_body(note)) != json.dumps(huge_doc)
+    assert _row("u1", "fake:fake-graph/p1")["import_media_pending"] == 0
+    assert _last_failures(source["id"]) == [{
+        "noteTitle": "Oversize Target", "name": "x.png",
+        "reason": "x.png can't be shown here"}]
+    await engine.sync_source(source["id"], full=True, manual=True)
+    assert provider.fetch_media_calls == ["img-1"]                      # never fetched again
 
 
 async def test_oversized_resolved_link_body_fails_validation_in_the_final_pass(
@@ -1386,7 +1396,7 @@ async def test_oversized_resolved_link_body_fails_validation_in_the_final_pass(
     }
 
     def fake_rewrite_body(doc, media_urls, id_by_key, *, strip_unresolved_links=True,
-                          notices=None):
+                          notices=None, resolved=None):
         return huge_doc, []
 
     monkeypatch.setattr(engine, "rewrite_body", fake_rewrite_body)
@@ -3013,10 +3023,12 @@ def test_notice_for_exception_maps_each_failure_to_its_reason():
 
     assert reason(errors.NoteConnTransient("503")) == "fetch_failed"
     assert reason(RuntimeError("boom")) == "fetch_failed"
+    # Plan A Task 8: the TYPE decides, never the words.
+    assert reason(errors.NoteConnUnsafeAddress("x", reason="anything at all")) == "unsafe"
     assert reason(errors.NoteConnUnsupported(
-        "x", reason="Media reference points at a private/internal network address")) == "unsafe"
-    assert reason(errors.NoteConnUnsupported(
-        "x", reason="Media reference is not a secure (https) URL")) == "unsafe"
+        "x", reason="Media reference points at a private/internal network address")) == "unsupported"
+    assert reason(errors.NoteConnTooLarge("x", reason="too big")) == "too_large"
+    assert reason(media_policy.MediaRejected("storage_limit", "s")) == "storage_limit"
     assert reason(errors.NoteConnUnsupported("x", reason="encoding not read")) == "unsupported"
     assert reason(notes_svc.NoteValidationError("Only PNG/JPG/GIF/WebP images allowed")) == "unsupported"
     try:
@@ -3038,3 +3050,191 @@ async def test_a_placeholder_with_no_media_entry_still_leaves_a_notice(source, p
     assert notice["attrs"]["ref"] == "orphan.png"
     assert notice["attrs"]["reason"] == "unsupported"
     assert _row("u1", _IMG_KEY)["import_media_pending"] == 0
+
+
+# ---------------------------------------------------------------------------
+# Plan A Task 8: every stored file goes through the ONE media policy
+# ---------------------------------------------------------------------------
+
+from api.services.journal_two import media_policy  # noqa: E402
+
+_IMGS = tuple(f"https://cdn.example.com/{c}.png" for c in "abc")
+
+
+def _media_cap(monkeypatch, nbytes):
+    monkeypatch.setattr(media_policy, "MEMBER_IMPORT_MEDIA_CAP_BYTES", nbytes)
+
+
+async def test_cap_reached_mid_note_imports_the_note_and_marks_the_rest(source, provider, monkeypatch):
+    media_policy._USAGE_MEMO.clear()
+    _media_cap(monkeypatch, len(PNG_BYTES) * 2)
+    _image_note(provider, *_IMGS, failing=())
+    for ref in _IMGS:
+        provider.media_by_ref[ref] = (PNG_BYTES, "image/png")
+
+    result = await engine.sync_source(source["id"], full=True)
+
+    assert result["status"] == "ok" and result["created"] == 1          # the note still imports
+    body = _body(notes_svc.list_notes("u1")[0])
+    assert len(_nodes_of(body, "image")) == 2
+    notice = _only(body, "importNotice")
+    assert (notice["attrs"]["reason"], notice["attrs"]["ref"]) == ("storage_limit", _IMGS[2])
+    assert _row("u1", _IMG_KEY)["import_media_pending"] == 2
+    assert _last_failures(source["id"]) == [{
+        "noteTitle": "Chart page", "name": "c.png",
+        "reason": "Not copied: storage limit. c.png will be copied once space frees up"}]
+
+
+async def test_storage_wait_retries_once_space_frees(source, provider, monkeypatch):
+    media_policy._USAGE_MEMO.clear()
+    _media_cap(monkeypatch, len(PNG_BYTES) * 2)
+    _image_note(provider, *_IMGS, failing=())
+    for ref in _IMGS:
+        provider.media_by_ref[ref] = (PNG_BYTES, "image/png")
+    await engine.sync_source(source["id"], full=True)
+    assert _row("u1", _IMG_KEY)["import_media_pending"] == 2
+    note_id = _row("u1", _IMG_KEY)["id"]
+    stamped = notes_svc.get_note("u1", note_id)["updatedAt"]
+
+    # still full: waiting is not a re-import, and nothing is fetched again
+    r2 = await engine.sync_source(source["id"], full=True, manual=True)
+    assert r2["skipped"] == 1 and r2["updated"] == 0
+    assert len(provider.fetch_media_calls) == 3
+    assert _row("u1", _IMG_KEY)["import_media_pending"] == 2
+
+    # space frees -> the waiting note comes back on the next pass
+    _media_cap(monkeypatch, 10 * 1024 * 1024)
+    await engine.sync_source(source["id"], full=True, manual=True)
+    body = _body(notes_svc.get_note("u1", note_id))
+    assert len(_nodes_of(body, "image")) == 3
+    assert _nodes_of(body, "importNotice") == []
+    assert _row("u1", _IMG_KEY)["import_media_pending"] == 0
+    assert notes_svc.get_note("u1", note_id)["updatedAt"] == stamped     # timestamp-neutral
+
+
+def test_the_storage_wait_flip_is_member_scoped_and_timestamp_neutral(db):
+    conn = auth_db.get_connection()
+    try:
+        for nid, uid in (("n1", "u1"), ("n2", "u2")):
+            conn.execute(
+                "INSERT INTO j2_notes (id, user_id, title, body_json, created_at, updated_at, "
+                "import_media_pending) VALUES (?, ?, 't', '{}', '2026-01-01', '2026-01-01', 2)",
+                (nid, uid))
+        conn.commit()
+        assert engine._flip_storage_waits(conn, "u1") == 1
+        rows = {r["id"]: (r["import_media_pending"], r["updated_at"]) for r in
+                conn.execute("SELECT id, import_media_pending, updated_at FROM j2_notes")}
+    finally:
+        conn.close()
+    assert rows == {"n1": (1, "2026-01-01"), "n2": (2, "2026-01-01")}
+
+
+async def test_an_image_over_the_size_limit_reads_too_large(source, provider, monkeypatch):
+    """Task 6 review (b): an oversize image is the policy's `too_large`, never `unsupported`."""
+    monkeypatch.setattr(media_policy, "MEDIA_SOURCE_MAX_BYTES", len(PNG_BYTES) - 1)
+    _image_note(provider, failing=())
+    provider.media_by_ref[_IMG] = (PNG_BYTES, "image/png")
+    await engine.sync_source(source["id"], full=True)
+    notice = _only(_body(notes_svc.list_notes("u1")[0]), "importNotice")
+    assert notice["attrs"]["reason"] == "too_large" and notice["attrs"]["attempts"] == 0
+    assert _row("u1", _IMG_KEY)["import_media_pending"] == 0
+
+
+async def test_a_download_refused_for_its_size_reads_too_large(source, provider, monkeypatch):
+    _image_note(provider, failing=())
+
+    async def too_big(_creds, ref):
+        raise errors.NoteConnTooLarge("x", reason="Media reference is larger than the allowed size limit")
+
+    monkeypatch.setattr(provider, "fetch_media", too_big)
+    await engine.sync_source(source["id"], full=True)
+    assert _only(_body(notes_svc.list_notes("u1")[0]), "importNotice")["attrs"]["reason"] == "too_large"
+
+
+async def test_bomb_and_disguised_html_from_a_connector_are_notices_never_stored(source, provider, tmp_path):
+    _image_note(provider, *_IMGS[:2], failing=())
+    provider.media_by_ref[_IMGS[0]] = (b"<!DOCTYPE html><html><script>x()</script></html>", "image/png")
+    from api.services.journal_two.test_media_policy import _bomb_tiff
+    provider.media_by_ref[_IMGS[1]] = (_bomb_tiff(), "image/tiff")
+    result = await engine.sync_source(source["id"], full=True)
+    assert result["status"] == "ok"
+    notices = {n["attrs"]["ref"]: n["attrs"]["reason"] for n in
+               _nodes_of(_body(notes_svc.list_notes("u1")[0]), "importNotice")}
+    assert notices == {_IMGS[0]: "unsupported", _IMGS[1]: "too_large"}
+    stored = [p for p in (tmp_path / "att").rglob("*") if p.is_file()] if (tmp_path / "att").exists() else []
+    assert stored == []
+
+
+async def test_a_placeholder_chip_keeps_chip_intent_for_an_image_and_svg_is_never_inline(source, provider):
+    provider.refs = [RemoteRef(remote_id="p1", updated_at="2026-08-01T00:00:00+00:00")]
+    svg = b'<svg xmlns="http://www.w3.org/2000/svg"></svg>'
+    rn = _rn("p1", "Chart page", media=[
+        {"ref": "s.svg", "kind": "image", "name": "logo.svg"},
+        {"ref": "p.png", "kind": "file", "name": "shot.png"}])
+    rn.doc["content"] += [{"type": "image", "attrs": {"src": "import-ref://s.svg"}},
+                          {"type": "attachmentChip", "attrs": {"href": "import-ref://p.png", "name": "shot.png"}}]
+    provider.notes_by_id = {"p1": rn}
+    provider.media_by_ref.update({"s.svg": (svg, "image/svg+xml"), "p.png": (PNG_BYTES, "image/png")})
+    await engine.sync_source(source["id"], full=True)
+    body = _body(notes_svc.list_notes("u1")[0])
+    assert _nodes_of(body, "image") == []
+    chips = {c["attrs"]["name"]: c["attrs"] for c in _nodes_of(body, "attachmentChip")}
+    assert chips["logo.svg"]["href"].endswith(".svg") and "/file/" in chips["logo.svg"]["href"]
+    assert chips["shot.png"]["href"].endswith(".png") and "/file/" in chips["shot.png"]["href"]
+    assert chips["shot.png"]["size"] == len(PNG_BYTES)
+
+
+async def test_unsafe_is_the_guards_type_never_the_wording(source, provider, monkeypatch):
+    """Task 6 review (c)+(e): a provider's own 'private page' refusal reads unsupported; only the
+    SSRF guard's TYPE reads unsafe."""
+    _image_note(provider, *_IMGS[:2], failing=())
+
+    async def refuse(_creds, ref):
+        if ref == _IMGS[0]:
+            raise errors.NoteConnUnsupported("x", reason="This is a private page you cannot share")
+        raise errors.NoteConnUnsafeAddress("x", reason="Media reference was refused")
+
+    monkeypatch.setattr(provider, "fetch_media", refuse)
+    await engine.sync_source(source["id"], full=True)
+    reasons = {n["attrs"]["ref"]: n["attrs"]["reason"] for n in
+               _nodes_of(_body(notes_svc.list_notes("u1")[0]), "importNotice")}
+    assert reasons == {_IMGS[0]: "unsupported", _IMGS[1]: "unsafe"}
+
+
+@pytest.mark.parametrize("url", [
+    "http://cdn.example.com/a.png", "https:///nohost.png", "https://10.0.0.7/a.png",
+    "https://169.254.169.254/latest/meta-data", "https://[::1]/a.png",
+])
+async def test_the_ssrf_guard_raises_the_unsafe_type(url):
+    from api.services.journal_two.note_connectors.providers.base import assert_public_https
+    with pytest.raises(errors.NoteConnUnsafeAddress):
+        await assert_public_https(url)
+    assert not hasattr(engine, "_UNSAFE_REASON_WORDS")      # the word list is gone
+
+
+async def test_a_resolved_body_that_fails_validation_terminates_under_the_bound(
+        source, provider, monkeypatch):
+    """Task 6 review (d): a resolved body the validator refuses used to leave the placeholder
+    pending, re-fetching its media on every pass with no attempt counted. It now lands each
+    item's final notice (a named failure), and the next pass fetches nothing."""
+    _image_note(provider, failing=())
+    provider.media_by_ref[_IMG] = (PNG_BYTES, "image/png")
+    real = notes_svc._validate_body_json
+
+    def refuse_resolved_media(raw):
+        if "/api/j2/notes/attachments/" in json.dumps(raw):
+            raise notes_svc.NoteValidationError("This note is too long to save as one page.")
+        return real(raw)
+
+    monkeypatch.setattr(notes_svc, "_validate_body_json", refuse_resolved_media)
+    result = await engine.sync_source(source["id"], full=True)
+    assert result["status"] == "ok"
+    assert any("validation" in f.lower() for f in result["failures"])
+    notice = _only(_body(notes_svc.list_notes("u1")[0]), "importNotice")
+    assert (notice["attrs"]["reason"], notice["attrs"]["ref"]) == ("unsupported", _IMG)
+    assert _row("u1", _IMG_KEY)["import_media_pending"] == 0
+    assert _last_failures(source["id"]) == [{
+        "noteTitle": "Chart page", "name": "a.png", "reason": "a.png can't be shown here"}]
+
+    await engine.sync_source(source["id"], full=True, manual=True)
+    assert provider.fetch_media_calls == [_IMG]                         # bounded: no refetch

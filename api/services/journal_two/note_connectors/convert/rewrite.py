@@ -89,6 +89,7 @@ def rewrite_body(
     *,
     strip_unresolved_links: bool = True,
     notices: dict[str, dict] | None = None,
+    resolved: dict[str, Any] | None = None,
 ) -> tuple[dict[str, Any], list[str]]:
     """Resolves import-time placeholders in `body_json` into their real,
     post-confirm values. Returns `(body, dropped_media)`. Never mutates
@@ -101,6 +102,13 @@ def rewrite_body(
     neither a URL nor a notice is still dropped and listed in `dropped_media`.
     `notices=None` (the default) is today's JS-parity drop, byte-for-byte.
 
+    `resolved` (Plan A Task 8): `{ref: media_policy.StoredMedia}`, what the one media policy
+    stored for each ref; it wins over `media_urls` for the same ref. An `image` placeholder
+    whose stored kind is "image" becomes `image{src=url}`, followed, when the policy kept an
+    `original` (a HEIC, an animation), by an `attachmentChip{href, name, size}` for it; one
+    stored as a "file" (an SVG, a file the bytes say is not an image) becomes an
+    `attachmentChip`. An `attachmentChip` placeholder stays a chip, its `size` filled.
+
     `strip_unresolved_links` (default True, matching the original/JS-twin
     one-shot behavior): when an `import-link://` mark can't be resolved via
     `id_by_key`, True drops the mark and keeps the text as plain text; False
@@ -108,6 +116,7 @@ def rewrite_body(
     can still find and resolve it. See the module docstring."""
     media_urls = media_urls or {}
     id_by_key = id_by_key or {}
+    resolved = resolved or {}
     dropped_media: list[str] = []
 
     def unresolved(ref: str) -> Any:
@@ -117,11 +126,35 @@ def rewrite_body(
         dropped_media.append(ref)
         return None
 
+    def chip(stored: Any) -> dict[str, Any]:
+        return {"type": "attachmentChip",
+                "attrs": {"href": stored.url, "name": stored.name, "size": stored.size}}
+
     def walk(node: Any) -> Any:
+        """A node, None (dropped), or a list of nodes (an image followed by its original)."""
         if not isinstance(node, dict):
             return copy.deepcopy(node)
 
         node_type = node.get("type")
+
+        if node_type in ("image", "attachmentChip"):
+            attr = "src" if node_type == "image" else "href"
+            ref = _ref_from_placeholder((node.get("attrs") or {}).get(attr))
+            stored = resolved.get(ref) if ref is not None else None
+            if stored is not None:
+                if node_type == "attachmentChip" or stored.kind != "image":
+                    new_chip = copy.deepcopy(node) if node_type == "attachmentChip" else chip(stored)
+                    new_chip.setdefault("attrs", {})
+                    new_chip["attrs"].update(href=stored.url, size=stored.size)
+                    if node_type != "attachmentChip" or not new_chip["attrs"].get("name"):
+                        new_chip["attrs"]["name"] = stored.name
+                    return new_chip
+                new_node = copy.deepcopy(node)
+                new_node.setdefault("attrs", {})
+                new_node["attrs"]["src"] = stored.url
+                if stored.original is not None:
+                    return [new_node, chip(stored.original)]
+                return new_node
 
         if node_type == "image":
             ref = _ref_from_placeholder((node.get("attrs") or {}).get("src"))
@@ -152,8 +185,14 @@ def rewrite_body(
             next_node["marks"] = _rewrite_marks(
                 node["marks"], id_by_key, strip_unresolved_links=strip_unresolved_links)
         if isinstance(node.get("content"), list):
-            walked = [walk(child) for child in node["content"]]
-            next_node["content"] = [n for n in walked if n is not None]
+            out: list[Any] = []
+            for child in node["content"]:
+                walked = walk(child)
+                if isinstance(walked, list):
+                    out.extend(walked)
+                elif walked is not None:
+                    out.append(walked)
+            next_node["content"] = out
         return next_node
 
     body = walk(body_json)

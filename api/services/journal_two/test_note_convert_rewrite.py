@@ -72,3 +72,35 @@ def test_rewrite_with_notices_resolves_what_uploaded_and_drops_what_has_no_notic
     # a ref with neither a URL nor a notice is still reported as dropped
     body2, dropped2 = rewrite_body(doc, {}, {}, notices={"a.png": notice_a})
     assert dropped2 == ["b.pdf"]
+
+
+# ── `resolved` (Plan A Task 8): what the media policy stored for each ref ────
+
+def _stored(kind, url, name, size, original=None):
+    from api.services.journal_two.media_policy import StoredMedia
+    return StoredMedia(kind=kind, url=url, name=name, size=size, mime="x/y", width=None,
+                       height=None, original=original)
+
+
+def test_resolved_image_becomes_an_image_then_its_kept_original_as_a_chip():
+    doc = _table_doc()
+    original = copy.deepcopy(doc)
+    heic = _stored("file", "/att/IMG.heic", "IMG.heic", 900)
+    body, dropped = rewrite_body(doc, {}, {}, resolved={
+        "a.png": _stored("image", "/att/IMG.jpg", "IMG.jpg", 300, original=heic),
+        "b.pdf": _stored("file", "/att/b.pdf", "b.pdf", 42)})
+    cell = _cell(body)
+    assert [n["type"] for n in cell] == ["paragraph", "image", "attachmentChip", "attachmentChip", "paragraph"]
+    assert cell[1]["attrs"]["src"] == "/att/IMG.jpg"
+    assert cell[2]["attrs"] == {"href": "/att/IMG.heic", "name": "IMG.heic", "size": 900}
+    assert cell[3]["attrs"] == {"href": "/att/b.pdf", "name": "b.pdf", "size": 42}
+    assert dropped == [] and doc == original
+
+
+def test_an_image_placeholder_stored_as_a_file_becomes_a_chip():
+    body, _ = rewrite_body(_table_doc(), {}, {}, resolved={
+        "a.png": _stored("file", "/att/logo.svg", "logo.svg", 77)}, notices={})
+    cell = _cell(body)
+    assert cell[1] == {"type": "attachmentChip",
+                       "attrs": {"href": "/att/logo.svg", "name": "logo.svg", "size": 77}}
+    assert [n["type"] for n in cell] == ["paragraph", "attachmentChip", "paragraph"]   # b: no notice, dropped

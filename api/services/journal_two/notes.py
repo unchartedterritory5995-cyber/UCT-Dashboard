@@ -138,6 +138,30 @@ _ALLOWED_FILE_MIMES = {
     "application/vnd.openxmlformats-officedocument.spreadsheetml.document",
 }
 _MAX_FILE_BYTES = 25 * 1024 * 1024
+# The extensions a stored file may carry (anything else is stored as `.bin`). The legacy set is
+# what an allowlisted (untrusted-MIME) save keeps; the media policy's trusted save
+# (`media_policy.store_media`) keeps the widened set, and names an extension-less file from its
+# sniffed type. `.html`/`.htm`/`.js` are deliberately absent: the policy refuses web pages.
+_LEGACY_FILE_EXTS = frozenset({".pdf", ".txt", ".csv", ".md", ".zip", ".mp3", ".m4a", ".docx", ".xlsx"})
+_SAFE_FILE_EXTS = _LEGACY_FILE_EXTS | frozenset({
+    ".mp4", ".mov", ".webm", ".wav", ".ogg", ".m4a", ".mp3", ".pptx", ".ppt", ".doc", ".xls", ".rtf",
+    ".json", ".epub", ".heic", ".heif", ".tif", ".tiff", ".bmp", ".avif", ".svg", ".gif", ".png",
+    ".jpg", ".webp", ".key",
+})
+_FILE_EXT_BY_MIME = {
+    "application/pdf": ".pdf", "text/plain": ".txt", "text/csv": ".csv", "text/markdown": ".md",
+    "application/zip": ".zip", "audio/mpeg": ".mp3", "audio/mp4": ".m4a", "audio/wav": ".wav",
+    "audio/ogg": ".ogg", "video/mp4": ".mp4", "video/quicktime": ".mov", "video/webm": ".webm",
+    "application/json": ".json", "application/rtf": ".rtf", "application/epub+zip": ".epub",
+    "application/msword": ".doc", "application/vnd.ms-excel": ".xls",
+    "application/vnd.ms-powerpoint": ".ppt", "application/vnd.apple.keynote": ".key",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": ".xlsx",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation": ".pptx",
+    "image/heic": ".heic", "image/heif": ".heif", "image/tiff": ".tif", "image/bmp": ".bmp",
+    "image/avif": ".avif", "image/svg+xml": ".svg", "image/gif": ".gif", "image/png": ".png",
+    "image/jpeg": ".jpg", "image/webp": ".webp",
+}
 # WAVE P POST-CLOSURE: the byte cap is the ONLY member-facing authority.
 # `_MAX_PAGES = 500` is an internal secondary ceiling and must never be
 # quoted as an upload guarantee: how many scanned pages fit inside 25 MB moves
@@ -5966,12 +5990,21 @@ def save_note_attachment_bytes(
     data: bytes,
     filename: str,
     content_type: str,
+    *,
+    trusted_mime: bool = False,
 ) -> dict[str, Any]:
     """Sync bytes-level file save. Validate + persist file bytes to disk.
     Returns {url, name, size}. File is stored under _ATTACHMENT_ROOT/{user_id}/notes/{note_id}/file/
 
-    Empty filename defaults to "attachment"."""
-    if content_type not in _ALLOWED_FILE_MIMES:
+    Empty filename defaults to "attachment".
+
+    `trusted_mime=True` (Plan A Task 8): the caller is `media_policy.store_media`, whose
+    `normalize_media` already sniffed the bytes and refused web pages, so the
+    `_ALLOWED_FILE_MIMES` allowlist is skipped (every file type is kept, never dropped) and a
+    filename with no known extension takes the extension of `content_type`. The stored
+    extension is always one of `_SAFE_FILE_EXTS`, else `.bin`; serving adds `nosniff` to every
+    file and download-only headers to the risky ones (`journal_two.serve_note_attachment`)."""
+    if not trusted_mime and content_type not in _ALLOWED_FILE_MIMES:
         raise NoteValidationError(f"MIME type {content_type} not allowed")
     if len(data) > _MAX_FILE_BYTES:
         raise NoteValidationError(FILE_TOO_BIG_SENTENCE)   # see the constant's note
@@ -5985,17 +6018,18 @@ def save_note_attachment_bytes(
     # Fallback: empty filename becomes "attachment"
     filename = filename or "attachment"
 
-    # Extract extension from filename; default to .bin if not in allowlist
-    ext_map = {
-        ".pdf": ".pdf", ".txt": ".txt", ".csv": ".csv", ".md": ".md",
-        ".zip": ".zip", ".mp3": ".mp3", ".m4a": ".m4a",
-        ".docx": ".docx", ".xlsx": ".xlsx",
-    }
-    # Get extension from filename (case-insensitive)
+    # Get extension from filename (case-insensitive); default to .bin if not in the safe set
     file_ext = ""
     if "." in filename:
         file_ext = filename[filename.rfind("."):].lower()
-    ext = ext_map.get(file_ext, ".bin")
+    if file_ext == ".jpeg":
+        file_ext = ".jpg"
+    if file_ext in (_SAFE_FILE_EXTS if trusted_mime else _LEGACY_FILE_EXTS):
+        ext = file_ext
+    elif trusted_mime:
+        ext = _FILE_EXT_BY_MIME.get(content_type, ".bin")
+    else:
+        ext = ".bin"
 
     sub = "file"
     target_dir = _ATTACHMENT_ROOT / user_id / "notes" / note_id / sub

@@ -1251,10 +1251,13 @@ async def test_internal_media_exceeding_content_length_cap_yields_too_large_mark
     (`_MAX_IMAGE_BYTES`, 5MB) must be refused BEFORE the body is consumed —
     proven here by returning a response whose (small, harmless) ACTUAL body
     would otherwise have downloaded fine; the guard must still refuse it
-    purely off the declared length, not off what actually arrives."""
-    from api.services.journal_two.notes import _MAX_IMAGE_BYTES
+    purely off the declared length, not off what actually arrives.
 
-    oversized_declared_length = _MAX_IMAGE_BYTES + (1024 * 1024)  # 1MB over the 5MB cap
+    Plan A Task 8: the cap is now the media policy's SOURCE cap (25 MB) for images too, so
+    an oversize photo reaches the policy and is downscaled (next test)."""
+    from api.services.journal_two.media_policy import MEDIA_SOURCE_MAX_BYTES
+
+    oversized_declared_length = MEDIA_SOURCE_MAX_BYTES + (1024 * 1024)  # 1MB over the 25MB cap
 
     def handler(request: httpx.Request) -> httpx.Response:
         if request.url.host == _API_HOST:
@@ -1280,6 +1283,33 @@ async def test_internal_media_exceeding_content_length_cap_yields_too_large_mark
     assert note.media == [], "an over-cap media item must never be registered/embedded"
     assert "[media too large: " in json.dumps(note.doc)
     assert "[image unavailable" not in json.dumps(note.doc), "too-large is a DISTINCT failure from a download error"
+
+
+async def test_an_image_over_the_inline_cap_is_downloaded_for_the_policy_to_downscale():
+    """Plan A Task 8: a 6 MB photo used to be refused here at the 5 MB inline cap; it now
+    downloads (up to the 25 MB source cap) and `media_policy` makes it fit."""
+    from api.services.journal_two.media_policy import IMAGE_MAX_BYTES
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.host == _API_HOST:
+            if request.url.path == "/v1/pages/page-photo" and request.method == "GET":
+                return httpx.Response(200, json={"id": "page-photo", "properties": {"title": _title_prop("Photo")}})
+            if request.url.path == "/v1/blocks/page-photo/children" and request.method == "GET":
+                return httpx.Response(200, json={
+                    "results": [_block("img-photo", "image", {"type": "file", "file": {"url": S3_IMAGE_URL}, "caption": []})],
+                    "has_more": False,
+                })
+            return httpx.Response(404)
+        if str(request.url) == S3_IMAGE_URL:
+            return httpx.Response(200, content=_PNG_BYTES, headers={
+                "content-length": str(IMAGE_MAX_BYTES + 1024 * 1024), "content-type": "image/png",
+            })
+        return httpx.Response(404)
+
+    provider = _make_provider(handler)
+    note = await provider.fetch(CREDS, RemoteRef(remote_id="page-photo", updated_at="x"))
+    assert "[media too large: " not in json.dumps(note.doc)
+    assert [m["ref"] for m in note.media] == ["notion:img-photo"]
 
 
 # ---------------------------------------------------------------------------

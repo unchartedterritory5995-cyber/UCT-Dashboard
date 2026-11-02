@@ -621,7 +621,10 @@ class OneNoteProvider(NoteProvider):
         # it -- mirrors OneDrive/Notion/Dropbox's identical precedent.
         parsed = urlsplit(ref)
         if (parsed.scheme or "").lower() != "https":
-            raise errors.NoteConnUnsupported(
+            # A scheme that is not https is an address refusal (`unsafe`); no scheme at all is
+            # a ref that names no resource (`unsupported`). Plan A Task 8: typed.
+            refusal = errors.NoteConnUnsafeAddress if parsed.scheme else errors.NoteConnUnsupported
+            raise refusal(
                 f"Cannot fetch media over a non-OneNote, non-https reference ({ref!r})",
                 reason="Media reference did not resolve to a OneNote resource and is "
                        "not a secure (https) URL",

@@ -101,7 +101,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from api.services.auth_db import get_connection
-from api.services.journal_two import import_notice
+from api.services.journal_two import import_notice, media_policy
 from api.services.journal_two import notes as notes_svc
 from api.services.journal_two.import_provenance import edited_since_import
 from api.services.journal_two.notes_quota import NoteQuotaExceeded
@@ -1487,28 +1487,29 @@ def _decode_data_uri(data_uri: str) -> tuple[bytes, str]:
     return data, content_type
 
 
-#: Words in a `NoteConnUnsupported.reason` that mean the SSRF guard refused the address
-#: (`providers/base.py::_assert_public_https_url`): a private/internal host, a
-#: non-https scheme, no host at all.
-_UNSAFE_REASON_WORDS = ("private", "non-public", "(https)", "non-https", "no host")
-
-
 def _notice_for_exception(
     exc: Exception, *, ref: str, name: str | None, source_url: str | None, attempts: int,
 ) -> dict:
     """The importNotice a media failure leaves where the file was (Plan A Task 6).
 
-    `NoteConnUnsupported` is final: `unsafe` when its reason names a refused address,
-    else `unsupported`. A `NoteValidationError` from the save is final `unsupported`,
-    except the storage quota (raised `from NoteQuotaExceeded`), which is `storage_limit`:
-    it waits for space (`import_media_pending = 2`). Anything else (`NoteConnTransient`,
-    a network error, a bad data URI) is `fetch_failed`, retried while
+    Decided by TYPE, never by an error's wording (Plan A Task 8): a `MediaRejected` from the
+    one media policy carries its own reason; `NoteConnUnsafeAddress` (the SSRF guard) is
+    `unsafe`; `NoteConnTooLarge` (a capped download) is `too_large`; any other
+    `NoteConnUnsupported` is final `unsupported`. A `NoteValidationError` from a save is final
+    `unsupported`, except the storage quota (raised `from NoteQuotaExceeded`), which is
+    `storage_limit`: it waits for space (`import_media_pending = 2`). Anything else
+    (`NoteConnTransient`, a network error, a bad data URI) is `fetch_failed`, retried while
     `attempts < MEDIA_RETRY_MAX_ATTEMPTS`. `attempts` counts fetch tries and is kept only
     on `fetch_failed`, the one reason it bounds: a waiting or final notice stores 0, so a
     storage wait can never run a bound out."""
-    if isinstance(exc, errors.NoteConnUnsupported):
-        why = str(getattr(exc, "reason", None) or exc).lower()
-        reason = "unsafe" if any(w in why for w in _UNSAFE_REASON_WORDS) else "unsupported"
+    if isinstance(exc, media_policy.MediaRejected):
+        reason = exc.reason
+    elif isinstance(exc, errors.NoteConnUnsafeAddress):
+        reason = "unsafe"
+    elif isinstance(exc, errors.NoteConnTooLarge):
+        reason = "too_large"
+    elif isinstance(exc, errors.NoteConnUnsupported):
+        reason = "unsupported"
     elif isinstance(exc, NoteQuotaExceeded) or isinstance(exc.__cause__, NoteQuotaExceeded):
         reason = "storage_limit"
     elif isinstance(exc, notes_svc.NoteValidationError):
@@ -1559,20 +1560,114 @@ def _notice_failures(title: str, body: Any, notices: dict[str, dict]) -> list[di
              "name": a.get("name")} for a in placed]
 
 
+def _strip_media_placeholders(node: Any) -> Any:
+    """A copy of `node` with every media placeholder (`image`/`attachmentChip` on an
+    `import-ref://`) removed. Pure, and never through `rewrite_body`: it is the last resort
+    when even `rewrite_body`'s output cannot be stored."""
+    if isinstance(node, list):
+        return [c for c in (_strip_media_placeholders(n) for n in node) if c is not None]
+    if not isinstance(node, dict):
+        return node
+    attr = {"image": "src", "attachmentChip": "href"}.get(node.get("type"))
+    value = (node.get("attrs") or {}).get(attr) if attr else None
+    if isinstance(value, str) and value.startswith(REF_PREFIX):
+        return None
+    out = dict(node)
+    if isinstance(node.get("content"), list):
+        out["content"] = _strip_media_placeholders(node["content"])
+    return out
+
+
+def _final_body_without_media(
+    rn: RemoteNote, key: str,
+) -> tuple[dict[str, Any] | None, dict[str, dict], list[dict[str, Any]]]:
+    """Plan A Task 8 (Task 6 review d): the body to store when the RESOLVED body fails
+    validation, so the note terminates instead of staying pending (which re-fetched every
+    item on every pass with no attempt counted). First choice: every placeholder becomes its
+    FINAL `unsupported` notice (attempts 0). If that body cannot be stored either, the
+    placeholders are removed. Returns `(body, notices, dropped_failures)`: `dropped_failures`
+    are the `failures_json` entries for items removed with no notice left in the note, so the
+    loss is still named. `(None, {}, [])` when nothing storable can be built (cannot happen
+    for a body `import_confirm` accepted; the old leave-in-place behaviour is the fallback)."""
+    names = {m.get("ref"): m.get("name") for m in (rn.media or []) if isinstance(m, dict)}
+    by_ref = {m.get("ref"): m for m in (rn.media or []) if isinstance(m, dict)}
+    final = {ref: import_notice.notice_node(
+        "unsupported", name=names.get(ref),
+        source_url=_media_source_url(by_ref[ref]) if ref in by_ref else import_notice.safe_source_url(ref),
+        ref=ref, attempts=0) for ref in _placeholder_refs(rn.doc)}
+    body, _dropped = rewrite_body(rn.doc, {}, {}, strip_unresolved_links=False, notices=final)
+    try:
+        notes_svc._validate_body_json(body)
+        return body, final, []
+    except notes_svc.NoteValidationError:
+        pass
+    stripped = _strip_media_placeholders(rn.doc)
+    try:
+        notes_svc._validate_body_json(stripped)
+    except notes_svc.NoteValidationError:
+        return None, {}, []
+    title = _note_title(rn, key) or "Untitled note"
+    return stripped, {}, [{"noteTitle": title, "reason": import_notice.notice_text(n["attrs"]),
+                           "name": n["attrs"]["name"]} for n in final.values()]
+
+
+#: At most this many waiting notes come back per pass when storage frees (bounded work).
+STORAGE_WAIT_FLIP_LIMIT = 200
+
+
+def _flip_storage_waits(conn: sqlite3.Connection, user_id: str) -> int:
+    """Plan A Task 8 (spec §15 Q2, "they come back once space frees"): this member's notes
+    waiting for storage (`import_media_pending = 2`) go back to 1 (retry), so the pass that
+    follows re-imports them. Member-scoped, bounded (`STORAGE_WAIT_FLIP_LIMIT`), and
+    timestamp-neutral: only `import_media_pending` moves. The caller decides that space has
+    freed; this commits and returns how many rows moved."""
+    cur = conn.execute(
+        "UPDATE j2_notes SET import_media_pending = 1 WHERE id IN ("
+        "SELECT id FROM j2_notes WHERE user_id = ? AND import_media_pending = 2 LIMIT ?)",
+        (user_id, STORAGE_WAIT_FLIP_LIMIT))
+    conn.commit()
+    return cur.rowcount
+
+
+def _storage_has_freed(budget: media_policy.MediaBudget) -> bool:
+    """Space a waiting note can use: the member is under the media cap AND the volume has
+    headroom (`assert_import_headroom`, the other storage_limit source -- read through
+    `notes`, the same reference every save checks)."""
+    if not budget.under_cap():
+        return False
+    try:
+        notes_svc.assert_import_headroom(0)
+    except NoteQuotaExceeded:
+        return False
+    return True
+
+
 async def _upload_media_for_note(
     provider: NoteProvider, creds: dict[str, Any], user_id: str, note_id: str,
     media_entries: list[dict[str, Any]], *, prior_attempts: dict[str, int],
-) -> tuple[dict[str, str], dict[str, dict], int, list[str]]:
-    """Per-item try/except — one bad media ref is a NAMED failure, never a crash
-    of the whole note (or the whole sync). Returns `(media_urls, notices,
-    uploaded, failures)`.
+    budget: media_policy.MediaBudget,
+) -> tuple[dict[str, media_policy.StoredMedia], dict[str, dict], int, list[str]]:
+    """`_upload_media_for_note(provider, creds, user_id, note_id, media_entries, *,
+    prior_attempts, budget) -> (resolved, notices, uploaded, failures)`.
+
+    Per-item try/except — one bad media ref is a NAMED failure, never a crash
+    of the whole note (or the whole sync).
+
+    Plan A Task 8: every item goes through the ONE media policy --
+    `media_policy.normalize_media` (sniff, convert, downscale, classify, refuse) then
+    `media_policy.store_media` under `budget`, the member's `MediaBudget` for this whole
+    pass (one `MediaBudget.for_member` per `_import_remote_notes` call, never per item).
+    `resolved` is `{ref: StoredMedia}` for `rewrite_body(..., resolved=...)`. An item the
+    provider listed as a file (`kind != "image"`) keeps chip intent: an image there is
+    stored as a file (`media_policy.as_file`), never re-routed inline. Items past the cap
+    are `storage_limit` notices; the note itself still imports.
 
     Plan A Task 6 (spec I-7): a ref that cannot be copied gets an importNotice in
     `notices`, which `rewrite_body` puts where the file was -- never a silent drop.
     `prior_attempts` is `{ref: attempts}` from the note's stored notices; a ref that
     has already used `MEDIA_RETRY_MAX_ATTEMPTS` is not fetched again, it keeps its
     final notice."""
-    media_urls: dict[str, str] = {}
+    resolved: dict[str, media_policy.StoredMedia] = {}
     notices: dict[str, dict] = {}
     uploaded = 0
     failures: list[str] = []
@@ -1591,13 +1686,10 @@ async def _upload_media_for_note(
             else:
                 data, content_type = await provider.fetch_media(creds, ref)
             name = m.get("name") or ref
-            if m.get("kind") == "image":
-                result = notes_svc.save_note_image_bytes(
-                    user_id, note_id, data, name, content_type, kind="inline")
-            else:
-                result = notes_svc.save_note_attachment_bytes(
-                    user_id, note_id, data, name, content_type)
-            media_urls[ref] = result["url"]
+            result = media_policy.normalize_media(data, content_type, name)
+            if m.get("kind") != "image" and result.kind == "image":
+                result = media_policy.as_file(result, source=data, source_name=name)
+            resolved[ref] = media_policy.store_media(user_id, note_id, result, budget=budget)
             uploaded += 1
         except Exception as e:  # noqa: BLE001
             failures.append(f"media {ref!r} on note {note_id}: {e}")
@@ -1605,7 +1697,7 @@ async def _upload_media_for_note(
                 notices[ref] = _notice_for_exception(
                     e, ref=ref, name=m.get("name"), source_url=_media_source_url(m),
                     attempts=prior + 1)
-    return media_urls, notices, uploaded, failures
+    return resolved, notices, uploaded, failures
 
 
 def _bulk_note_updated_at(conn: sqlite3.Connection, note_ids: list[str]) -> dict[str, str | None]:
@@ -1735,8 +1827,10 @@ async def _confirm_and_resolve_batch(
     provider: NoteProvider, creds: dict[str, Any], dest_folder_id: str | None,
     entries: list[dict[str, Any]], pairs: list[tuple[RemoteNote, str]],
     *, notice_attempts: dict[str, dict[str, int]] | None = None,
+    budget: media_policy.MediaBudget | None = None,
 ) -> dict[str, Any]:
-    """`notice_attempts` (Plan A Task 6): `{import_key: {ref: attempts}}`, read by
+    """`budget` (Plan A Task 8): the member's `MediaBudget` for the whole pass; None reads one
+    (a direct caller). `notice_attempts` (Plan A Task 6): `{import_key: {ref: attempts}}`, read by
     `_bulk_existing_note_meta` BEFORE this confirm overwrites the bodies; each
     failed ref counts on from its prior attempts. `result["noticeFailures"]` holds
     the `failures_json` entries of every notice this batch wrote.
@@ -1777,6 +1871,8 @@ async def _confirm_and_resolve_batch(
     # bucket and returns normally, see below) can still report every one of
     # them as not-stored — the cursor must not advance past ANY of them.
     remote_id_by_key = {key: rn.remote_id for rn, key in pairs}
+    if budget is None:
+        budget = media_policy.MediaBudget.for_member(user_id)
     try:
         r = notes_svc.import_confirm(
             user_id,
@@ -1856,18 +1952,18 @@ async def _confirm_and_resolve_batch(
                 result["touched"].append((rn, key, note_id))
             continue
 
-        media_urls: dict[str, str] = {}
+        resolved: dict[str, media_policy.StoredMedia] = {}
         notices: dict[str, dict] = {}
         if rn.media:
-            media_urls, notices, up, med_failures = await _upload_media_for_note(
+            resolved, notices, up, med_failures = await _upload_media_for_note(
                 provider, creds, user_id, note_id, rn.media,
-                prior_attempts=(notice_attempts or {}).get(key, {}))
+                prior_attempts=(notice_attempts or {}).get(key, {}), budget=budget)
             result["mediaUploaded"] += up
             result["failures"].extend(med_failures)
         # Plan A Task 6, no silent drop: a placeholder the provider never listed in
         # `media` cannot be fetched at all, so it is a final notice too.
         for ref in _placeholder_refs(rn.doc):
-            if ref not in media_urls and ref not in notices:
+            if ref not in resolved and ref not in notices:
                 notices[ref] = import_notice.notice_node(
                     "unsupported", name=None, source_url=import_notice.safe_source_url(ref),
                     ref=ref, attempts=0)
@@ -1877,21 +1973,27 @@ async def _confirm_and_resolve_batch(
         # untouched (not stripped, not resolved) for the final pass to see.
         # `notices`: every placeholder without a URL becomes its importNotice.
         body, _dropped = rewrite_body(
-            rn.doc, media_urls, {}, strip_unresolved_links=False, notices=notices)
+            rn.doc, {}, {}, strip_unresolved_links=False, notices=notices, resolved=resolved)
 
         # Important 6: validate the RESOLVED doc (1MB/shape backstop) before
         # the raw write — a malformed/oversized result must never land in
-        # the DB. Leave the placeholder body in place; the self-heal branch
-        # above retries it on a future sync once the underlying issue clears.
+        # the DB. Plan A Task 8 (Task 6 review d): the placeholder body is NOT
+        # left pending -- that re-fetched the media on every pass with no attempt
+        # counted, outside the I-7 bound. The note gets each item's FINAL notice
+        # instead (or, if even that cannot be stored, loses the placeholders), and
+        # every item is a named failure, so it terminates this pass.
+        dropped_failures: list[dict[str, Any]] = []
         try:
             notes_svc._validate_body_json(body)
         except notes_svc.NoteValidationError as e:
             result["failures"].append(
                 f"resolved body failed validation for note {note_id!r}: {e}"
             )
-            if rn.links:
-                result["touched"].append((rn, key, note_id))  # placeholder still intact
-            continue
+            body, notices, dropped_failures = _final_body_without_media(rn, key)
+            if body is None:
+                if rn.links:
+                    result["touched"].append((rn, key, note_id))  # placeholder still intact
+                continue
 
         expected = baseline_updated_at.get(note_id)
         try:
@@ -1906,6 +2008,7 @@ async def _confirm_and_resolve_batch(
             continue
         if applied:
             result["noticeFailures"].extend(_notice_failures(_note_title(rn, key), body, notices))
+            result["noticeFailures"].extend(dropped_failures)
             if rn.links:
                 result["touched"].append((rn, key, note_id))
         else:
@@ -1922,6 +2025,8 @@ async def _confirm_and_resolve_batch(
             if sibling_id:
                 result["noticeFailures"].extend(_notice_failures(
                     _note_title(rn, f"{key}#remote"), body, notices))
+                result["noticeFailures"].extend(
+                    dict(f, noteTitle=_note_title(rn, f"{key}#remote")) for f in dropped_failures)
             if sibling_id and rn.links:
                 result["touched"].append((rn, f"{key}#remote", sibling_id))
 
@@ -1934,6 +2039,16 @@ async def _import_remote_notes(
 ) -> dict[str, Any]:
     conn = get_connection()
     try:
+        # Plan A Task 8: ONE media budget for this whole pass (one memoised usage read), and
+        # the storage wait: once space has freed, this member's notes waiting at
+        # `import_media_pending = 2` go back to 1 BEFORE the existing-meta read, so the
+        # confirm below re-imports them like any other retry.
+        budget = media_policy.MediaBudget.for_member(user_id)
+        if _storage_has_freed(budget):
+            try:
+                _flip_storage_waits(conn, user_id)
+            except sqlite3.Error as e:   # a busy DB defers the wait one pass; never fails the sync
+                log.warning("[note-sync] storage-wait flip deferred (%s)", type(e).__name__)
         import_keys = [
             provider.import_key(source["remoteId"], rn.remote_id) for rn in remote_notes
         ]
@@ -2044,6 +2159,7 @@ async def _import_remote_notes(
             res = await _confirm_and_resolve_batch(
                 conn, user_id, source, provider, creds,
                 source.get("destFolderId"), entries, pairs, notice_attempts=notice_attempts,
+                budget=budget,
             )
             _merge_batch_result(totals, res, all_touched)
 
@@ -2056,6 +2172,7 @@ async def _import_remote_notes(
             res = await _confirm_and_resolve_batch(
                 conn, user_id, source, provider, creds,
                 original_folder_id, [entry], [(rn, sibling_key)], notice_attempts=notice_attempts,
+                budget=budget,
             )
             _merge_batch_result(totals, res, all_touched)
 
