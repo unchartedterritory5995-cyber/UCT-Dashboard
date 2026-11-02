@@ -7119,14 +7119,20 @@ export default function StockChart({
   // ⭐ THE FOURTH SOURCE FAMILY'S DATA — historical point-in-time fundamentals
   // (`fund:`). Same seam, same stable-identity discipline as the line above; a
   // chart with no `fund:` source makes no request at all.
-  const fundamentalSources = useFundamentalSources(_storedInstances, _defOf, sym, csView)
+  // ⭐ 2026-11-01 — the SAME reload rule as the other-symbol hooks above
+  // (OPEN-FINDINGS §10): `_defOf` never changes identity, so a saved `fund:` /
+  // Market Cap / `econ:` source whose definition loaded after the chart restored
+  // was never asked for until the view changed. Each hook re-reads its needed set
+  // when the member's definitions land (`userDefsGeneration`).
+  const fundamentalSources = useFundamentalSources(_storedInstances, _defOf, sym, _otherSymbolsRevalidate)
   // ⭐ Market Cap's canonical PIT authority -- null (legacy path) unless the server
   // authority is ON; a chart with no Market Cap source makes no request.
-  const marketCapAuthoritySources = useMarketCapAuthority(_storedInstances, _defOf, sym, csView)
+  const marketCapAuthoritySources = useMarketCapAuthority(_storedInstances, _defOf, sym, _otherSymbolsRevalidate)
   // ⭐ THE FIFTH SOURCE FAMILY'S DATA — economic series (`econ:<SYMBOL>`), for an
   // overlay on ANY chart and for the primary economic series alike. Same seam, same
   // stable-identity discipline; a chart with no `econ:` source makes no request.
-  const economicSources = useEconomicSources(_storedInstances, _defOf, cs)
+  const _economicRevalidate = useMemo(() => ({ cs, userDefsGeneration }), [cs, userDefsGeneration])
+  const economicSources = useEconomicSources(_storedInstances, _defOf, _economicRevalidate)
 
   // ⭐ THE SERVER LANE'S REPAINT SIGNAL (the RS line). `computeFor` reads the
   // column cache synchronously and the fetch lands later; this is what tells
