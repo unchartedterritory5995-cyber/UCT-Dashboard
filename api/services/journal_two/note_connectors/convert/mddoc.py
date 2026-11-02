@@ -475,17 +475,23 @@ def _data_uri_image_node(src: str, ctx: _Ctx) -> dict[str, Any] | None:
     return {"type": "image", "attrs": {"src": f"{REF_PREFIX}{ref}"}}
 
 
-def _destination_as_written(dest: str) -> str:
+_SCHEME_RE = re.compile(r"^[A-Za-z][A-Za-z0-9+.\-]*:")
+
+
+def _destination_as_written(dest: str, *, markdown_image: bool = False) -> str:
     """The ONE place a markdown-it-normalized destination is decoded.
 
-    markdown-it percent-encodes a link destination (`<a b>` -> `a%20b`), so an
-    internal `import-link://` href, or a scheme-less image src (a vault path),
-    comes back encoded. Decode it exactly once, here, so the stored key is the
-    one the author wrote. Any other destination (https, mailto, #fragment) is
-    returned unchanged: its `%20` is the author's own."""
+    markdown-it percent-encodes a link destination (`<a b>` -> `a%20b`). Two
+    kinds come back encoded and are decoded exactly once, here:
+    an `import-link://` href, and (`markdown_image=True`, markdown token path
+    only) a truly scheme-less image src, i.e. a vault path. EVERYTHING else
+    passes through byte-for-byte: https/mailto/#fragment, relative link
+    hrefs (decoding `%2F%2Fevil.com` would mint a protocol-relative external
+    link), connector-private refs (`dbx-md-media:`, `od-html:` ... which their
+    providers decode themselves) and raw HTML attribute values."""
     if dest.startswith(LINK_PREFIX):
         return urllib.parse.unquote(dest)
-    if dest and not dest.startswith(("data:", REF_PREFIX)) and "://" not in dest             and not dest.startswith(("#", "/", "mailto:")):
+    if markdown_image and dest and not _SCHEME_RE.match(dest) and not dest.startswith("//"):
         return urllib.parse.unquote(dest)
     return dest
 
@@ -493,7 +499,7 @@ def _destination_as_written(dest: str) -> str:
 def _image_node(token: Token, ctx: _Ctx) -> dict[str, Any] | None:
     """Returns the TipTap image node, or `None` when the src is an
     unsupported data URI (caller degrades to visible text in that case)."""
-    src = _destination_as_written(token.attrs.get("src") or "")
+    src = _destination_as_written(token.attrs.get("src") or "", markdown_image=True)
     if src.startswith(REF_PREFIX):
         # Already a connector-supplied placeholder — pass through untouched,
         # no duplicate media entry (the connector already registered it).
@@ -840,7 +846,7 @@ def _unwrap_unknown_html(nodes: list[Any]) -> list[Any]:
 
 
 def _html_image_node(node: "_HtmlNode", ctx: _Ctx) -> dict[str, Any] | None:
-    src = _destination_as_written((node.attrs.get("src") or "").strip())
+    src = (node.attrs.get("src") or "").strip()
     if not src:
         return None
     if src.startswith(REF_PREFIX):
