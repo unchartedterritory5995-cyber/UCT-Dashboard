@@ -38,6 +38,7 @@ class _Store:
 @pytest.fixture(autouse=True)
 def _env(monkeypatch):
     monkeypatch.setenv(gw.DATA_ENV, "1")
+    monkeypatch.setenv(gw.KINDS_ENV, ",".join(gw.registry().names()))  # every kind on
     gw._reset_for_test(None)
     # nothing in this kind may reach a provider, start a job or write a cache
     boom = lambda *a, **k: (_ for _ in ()).throw(AssertionError("side effect"))  # noqa: E731

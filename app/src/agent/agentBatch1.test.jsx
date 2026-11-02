@@ -105,7 +105,9 @@ describe('stock.* — deterministic answers from UCT data, sources and freshness
     const a = await getCapability('stock.compare').answer(null, { symbols: ['nvda', 'AMD'] })
     expect(a.table.columns.map(c => c.label)).toEqual(['', 'NVDA', 'AMD'])
     expect(a.table.rows.find(r => r.metric === 'Market cap')).toEqual({ metric: 'Market cap', a: '$5.64T', b: '$270B' })
-    expect(a.table.rows.find(r => r.metric === 'UCT composite rating')).toEqual({ metric: 'UCT composite rating', a: '88', b: '71' })
+    // F-12 (owner, Sprint 2): the payload carries ratings 88 / 71, and the Agent's compare shows neither
+    expect(a.table.rows.some(r => /\brating\b|composite/i.test(r.metric))).toBe(false)
+    expect(JSON.stringify(a)).not.toMatch(/\b(88|71)\b/)
     expect(a.text).toMatch(/Not guaranteed to be the same period/)
     expect(await getCapability('stock.compare').answer(null, { symbols: ['NVDA'] })).toBe('Name exactly two tickers to compare.')
   })
