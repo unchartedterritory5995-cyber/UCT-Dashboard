@@ -323,6 +323,27 @@ describe('M3 — Pine 6 `bool` is never `na`', () => {
     const r = refusalOf(`${v6}up = close > open\ny = ta.valuewhen(source = up, condition = high > low, occurrence = 0)\nb = if close > 102\n    y\nplot(b ? 1 : 0)\n`)
     expect(r.message).toMatch(/v6 bool is never `na`/)
   })
+  // ⛔ re-review 4 L — an inline switch arm CONTINUED on the next line (`c => close` /
+  // `      > open`): the block reader opens a sub-block after `=>`, so the text after `=>`
+  // is not the arm's whole value. Its type is unknown, so it refuses (both readers).
+  // (a value `switch`, and a function ending in a plain `switch`, are refused by the arm
+  // lowering itself — "ends in a block" — before the classifier is asked)
+  it('⛔⛔ re-review 4: a value `switch` arm continued onto the next line refuses', () => {
+    const r = refusalOf(`${v6}x = switch\n    close > 104 => close\n          > open\nplot(x ? 1 : 0)\n`)
+    expect(r.message).toMatch(/v6 bool is never `na`|ends in a block/)
+  })
+  // ⛔⛔ REACHABLE through C47: a `switch <simple string param>` body lowers ONE arm's
+  // inline text per call site, so the lowering does not refuse; the classifier must.
+  it('⛔⛔ re-review 4: a C47 `switch m` body whose arms continue onto the next line (bools) refuses as an arm value', () => {
+    const r = refusalOf(`${v6}f(simple string m) =>\n    switch m\n        "a" => close\n              > open\n        "b" => open\n              > close\nx = if close > 103\n    f("a")\nplot(x ? 1 : 0)\n`)
+    expect(r.message).toMatch(/v6 bool is never `na`/)
+  })
+  it('⭐ re-review 4 CONTROL: a single-line numeric inline arm is served — v6 draws v5', () => {
+    const body = 'x = switch\n    close > 104 => close\nplot(x)\n'
+    const five = run(v5 + body)
+    expect(five.some((x) => !Number.isNaN(x))).toBe(true)
+    expect(run(v6 + body)).toEqual(five)
+  })
   // ⛔ re-review 3 L-2 — a parameter's DEFAULT value is a read, not a declaration: `close`
   // and `na` in `f(src = close, alt = na)` are still the built-ins inside f
   it('⭐ re-review 3 L-2: identifiers in parameter defaults are not declarations — v6 draws v5', () => {

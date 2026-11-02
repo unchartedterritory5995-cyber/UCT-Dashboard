@@ -7977,6 +7977,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
         const t = arm.header || []
         const at = findTop(t, (x) => isPunct(x, '=>'))
         if (at < 0) return null
+        // ⛔ (re-review 4) an inline arm with a sub-block is CONTINUED on the next line
+        // (`c => close` / `      > open`): the text after `=>` is not its value — unknown
+        if (at < t.length - 1 && arm.sub && arm.sub.length) return null
         const r = at < t.length - 1 ? [t.slice(at + 1)] : bodyResultToks(arm.sub, d + 1)
         if (!r) return null
         out.push(...r)
@@ -8200,6 +8203,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
       refuseV6UnmatchedBool(mkArm, (armLines || []).map((arm) => {
         const at2 = findTop(arm.header, (t) => isPunct(t, '=>'))
         const rhs = arm.header.slice(at2 + 1)
+        // ⛔ (re-review 4) a continued inline arm's value is not the text after `=>` — unknown
+        if (rhs.length && arm.sub && arm.sub.length) return null
         return rhs.length ? rhs : armValueToks(arm.sub)
       }), locate(atTok), 'a `switch` with no default')
     }
