@@ -10,6 +10,7 @@ from __future__ import annotations
 import ast
 import asyncio
 import pathlib
+import re
 import sqlite3
 import threading
 import time
@@ -210,8 +211,19 @@ def test_only_the_explain_route_and_the_meter_import_explain():
         s = p.read_text(encoding="utf-8", errors="ignore")
         if "trade_exchange_news import explain" in s or "trade_exchange_news.explain" in s:
             hits.append(p.relative_to(REPO).as_posix())
+    agent_news = "api/services/uct_agent/news.py"   # UCT Agent's news turn: reads only (below)
     assert sorted(hits) == ["api/routers/trade_exchange_news.py",
-                            "api/services/ai_meters.py"]
+                            "api/services/ai_meters.py"] + ([agent_news] if (REPO / agent_news).exists() else [])
+
+
+def test_uct_agent_news_only_reads_explain_never_writes_one():
+    """UCT Agent's news turn (agent-lead's contract) may READ an explanation already written
+    (cache_get) and reuse the headline rules -- it never generates, caches or meters one."""
+    p = REPO / "api" / "services" / "uct_agent" / "news.py"
+    if not p.exists():                       # before the Agent side is merged
+        pytest.skip("UCT Agent's news turn is not in this tree")
+    used = set(re.findall(r"\bexplain\.([A-Za-z_]+)", p.read_text(encoding="utf-8")))
+    assert used <= {"cache_get", "explainable", "received_label", "MAX_HEADLINE_CHARS"}, used
 
 
 # ── generate: one draft, at most one repair ─────────────────────────────────
