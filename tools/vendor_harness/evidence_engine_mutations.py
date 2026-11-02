@@ -43,6 +43,9 @@ for label, path, a, b, rail in MUTATIONS:
     saved = path.read_bytes()
     sha = hashlib.sha256(saved).hexdigest()
     text = saved.decode("utf-8")
+    # A checkout under core.autocrlf=true has CRLF on disk while these patterns are written with LF.
+    if "\r\n" in text:
+        a, b = a.replace("\n", "\r\n"), b.replace("\n", "\r\n")
     assert text.count(a) == 1, (label, text.count(a))
     try:
         path.write_bytes(text.replace(a, b).encode("utf-8"))
