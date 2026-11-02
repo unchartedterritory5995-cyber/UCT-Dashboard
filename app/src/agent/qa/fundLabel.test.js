@@ -81,18 +81,16 @@ describe('ETF labelling (owner rulings 2 and 3)', () => {
     expect(r.text).not.toContain('Grayscale')
     expect(r.text).not.toContain(FUND_NOTE)
   })
-  it('lowercase crypto cashtags ($btc / $eth / $sol): executing the listing is NOT silent (owner judgement recorded)', async () => {
-    // A cashtag is an explicit ticker marker, so the listing is priced. The answer must name the listed security,
-    // and for a fund say it is an ETF and that its price is not the coin's. $sol is a STOCK (Emeren), so there is
-    // no fund note: the security's name is the only signal that this is not Solana.
-    const btc = await ask('$btc', 'quote')
-    expect(btc.text).toContain('BTC (Grayscale Bitcoin Mini Trust, an ETF)')
-    expect(count(btc.text, FUND_NOTE)).toBe(1)
-    const eth = await ask('$eth', 'quote')
-    expect(eth.text).toContain('ETH (Grayscale Ethereum Mini Trust, an ETF)')
-    expect(count(eth.text, FUND_NOTE)).toBe(1)
-    const sol = await ask('$sol', 'quote')
-    expect(sol.text).toContain('SOL (Emeren Group Ltd)')
-    expect(sol.text).not.toContain(FUND_NOTE)
+  it('lowercase crypto cashtags ($btc / $eth / $sol) take the same §4.7.5 checks as the bare word: the neutral ask, no read', async () => {
+    // #691 priced the listing for these; §4.7.5 (#695) treats a lowercase cashtag like the bare word, which settles
+    // the owner question agent-qa raised ($sol priced Emeren Group, a solar stock). In capitals the member chose it.
+    for (const t of ['$btc', '$eth', '$sol']) {
+      const r = await ask(t, 'quote')
+      expect(r.reads, t).toEqual([])
+      expect(r.text, t).toMatch(new RegExp(`^I'm not sure which instrument "${t.slice(1)}" means\.`))
+    }
+    const caps = await ask('$BTC', 'quote')
+    expect(caps.text).toContain('BTC (Grayscale Bitcoin Mini Trust, an ETF)')
+    expect(count(caps.text, FUND_NOTE)).toBe(1)
   })
 })
