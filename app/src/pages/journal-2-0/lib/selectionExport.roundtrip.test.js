@@ -11,6 +11,7 @@
 import { describe, it, expect, beforeAll } from 'vitest'
 import { detectAdapter } from './importer/registry'
 import { mdToHtml } from './importer/adapters/generic'
+import { finishDoc } from './importer/postParse'
 import { exportSelection, pythonAvailable } from './testing/exportBridge'
 
 const hasPython = pythonAvailable()
@@ -96,11 +97,13 @@ d('a selection export round-trips through our own importer, links included', () 
 
   it('⛔ CONTROL — the unencoded form the export used to write is NOT a link to our importer', () => {
     // What makes the rail above able to fail: the same link, unencoded, is not a
-    // link to the note. ⚰️ Worse than plain text, measured: markdown-it's linkify
-    // reads the tail "3.md" as a web address (".md" is a country domain) and
-    // makes THAT a link, to http://3.md.
-    const html = mdToHtml('[Cup and handle #3](../../Trading Ideas/Setups (2026)/Cup and handle #3.md)')
+    // link to the note. ⚰️ It used to be worse than plain text: markdown-it's own
+    // linkify read the tail "3.md" as a web address (".md" is a country domain) and
+    // linked http://3.md. Since Plan B Task 3 the markdown lane runs `linkify: false`
+    // and the one link policy (postParse -> linkPolicy) drops a fuzzy bare domain,
+    // so the unencoded form is now plain text and nothing else.
+    const html = finishDoc({ html: mdToHtml('[Cup and handle #3](../../Trading Ideas/Setups (2026)/Cup and handle #3.md)'), media: [] }).html
     expect(hrefsIn(html).filter((l) => l.text === 'Cup and handle #3')).toEqual([])
-    expect(hrefsIn(html).map((l) => l.href)).toEqual(['http://3.md'])
+    expect(hrefsIn(html).map((l) => l.href)).toEqual([])
   })
 })
