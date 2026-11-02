@@ -56,6 +56,10 @@ accept more than this list, but it must handle every row exactly as written.
 | `bars.change` | `bars.daily {symbol, bars: n+1}` | close-to-close % change over the last `n` completed sessions |
 | `bars.range52w` | `bars.daily {symbol, bars: 252}` | 52-week high/low from completed daily bars (highs/lows), with the dates |
 
+- **What `match()` returns.** The action column is the parser's intent. `match()` in `marketDataQuote.js`
+  returns the capability, `{action: 'stock.quote', params: {symbols: [...]}}`, for both `quote.one` (one symbol)
+  and `quote.many`. The `bars.*` intents are returned by `marketDataBars.js` (PR C). The parser shared by both
+  files is `marketDataPhrases.js`.
 - **Completed sessions only** for every `bars.*` answer; today's partial session never counts.
 - **Weeks** convert at 5 sessions per week, so "past week" = 5.
 - **Not enough sessions:** if `bars.daily` returns fewer sessions than asked, the answer says how many it
