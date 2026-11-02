@@ -25,9 +25,10 @@ the guard is the fix.
     needs (Obsidian resolution requires knowing what OTHER files exist in
     the vault; see `providers/obsidian.py`'s `_known_paths`/
     `_build_basename_map`).
-  - This module runs the REAL server-side pre-pass
-    (`providers.obsidian._preprocess_obsidian_markdown`) + the REAL shared
-    converter (`convert.mddoc.md_to_tiptap`) — never a second, hand-rolled
+  - This module runs the REAL server-side conversion
+    (`ObsidianProvider._convert_row` -> `providers.obsidian.convert_obsidian_markdown`:
+    the pre-pass, the REAL shared converter `convert.mddoc.md_to_tiptap` with the
+    vault's relative-link resolver, and callouts) — never a second, hand-rolled
     copy — then reduces the resulting TipTap doc to a SEMANTIC summary. Node/
     mark SHAPE validity is already covered by the schema-contract rail
     (`fixtures_gen.py` / `serverConvert.contract.test.js`); this rail checks
@@ -66,7 +67,7 @@ the guard is the fix.
     dir reproduces the COMMITTED fixtures byte-for-byte, so an uncommitted
     regeneration here is caught even before the JS rail runs.
 
-Determinism: `_preprocess_obsidian_markdown` + `md_to_tiptap` are
+Determinism: `ObsidianProvider._convert_row` (pre-pass + `md_to_tiptap`) is
 deterministic per input (see `fixtures_gen.py`'s own note on this). This
 module adds `sort_keys=True` + a fixed `indent`/newline convention on top,
 same as `fixtures_gen.py`.
@@ -84,8 +85,8 @@ from typing import Any
 
 from api.services.journal_two.notes import extract_plain_text
 
-from ..providers.obsidian import ObsidianProvider, _build_basename_map, _preprocess_obsidian_markdown
-from .mddoc import md_to_tiptap
+from ..link_keys import OBSIDIAN_NAME_KIND
+from ..providers.obsidian import ObsidianProvider, _build_basename_map
 
 _HERE = pathlib.Path(__file__).resolve().parent
 FIXTURES_IN_DIR = _HERE / "obsidian_fixtures_in"
@@ -128,6 +129,9 @@ def _normalize_image_src(src: str) -> str:
     return src[len(prefix):] if src.startswith(prefix) else src
 
 
+_PENDING_PREFIX = f"import-link://{OBSIDIAN_NAME_KIND}"
+
+
 def _walk_semantic(node: Any, vault_id: str, out: dict[str, list]) -> None:
     """Recursive doc walk collecting the three cross-lane-comparable facts a
     wikilink/embed/task-list pre-pass can get wrong: what a link resolved
@@ -147,10 +151,18 @@ def _walk_semantic(node: Any, vault_id: str, out: dict[str, list]) -> None:
         )
         if link_mark is not None:
             href = (link_mark.get("attrs") or {}).get("href", "")
-            out["links"].append({
-                "text": node.get("text", ""),
-                "target": _normalize_link_href(href, vault_id),
-            })
+            if href.startswith(_PENDING_PREFIX):
+                # Plan A Task 13: a link waiting for its note (a `name:` key) is NOT a
+                # resolved link, so it is never counted under `links`. It has its own
+                # list, which the JS rail treats as server-only: the client lane has no
+                # later heal, and shows the same text with no link.
+                out["pending"].append({"text": node.get("text", ""),
+                                       "key": href[len("import-link://"):]})
+            else:
+                out["links"].append({
+                    "text": node.get("text", ""),
+                    "target": _normalize_link_href(href, vault_id),
+                })
         # N5 (wave 5 review): a `==x==` highlight is a MARK in both lanes now.
         # The run's text AND its colour (null = the default highlight) -- so
         # neither lane can drop the mark, or invent a colour, unseen.
@@ -164,6 +176,9 @@ def _walk_semantic(node: Any, vault_id: str, out: dict[str, list]) -> None:
             })
     elif ntype == "image":
         out["images"].append(_normalize_image_src(attrs.get("src", "")))
+    elif ntype == "callout":
+        # Plan A Task 13: an Obsidian callout is the editor's callout node, by variant.
+        out["callouts"].append(attrs.get("variant"))
     elif ntype == "taskItem":
         out["task_checked"].append(bool(attrs.get("checked")))
     for child in node.get("content") or []:
@@ -177,7 +192,8 @@ def semantic_summary(doc: dict[str, Any], vault_id: str) -> dict[str, Any]:
     extractPlainText` for the notebook search index — rather than a fourth
     hand-rolled text walker. Mirrors `obsidianParity.contract.test.js::
     semanticSummary`."""
-    out: dict[str, list] = {"links": [], "images": [], "task_checked": [], "highlights": []}
+    out: dict[str, list] = {"links": [], "images": [], "task_checked": [], "highlights": [],
+                            "pending": [], "callouts": []}
     _walk_semantic(doc, vault_id, out)
     return {"text": extract_plain_text(doc), **out}
 
@@ -212,10 +228,10 @@ def generate(
         # rather than hand-typing the `obsidian:{vault_id}/{path}` format a
         # second time.
         provider = ObsidianProvider(user_id="fixture-user", vault_id=vault_id)
-        pre = _preprocess_obsidian_markdown(
-            body_md, vault_paths, basename_map, vault_id, provider.import_key,
-        )
-        result = md_to_tiptap(pre)
+        # The provider's OWN conversion (`_convert_row`: pre-pass, the shared converter
+        # with the vault's relative-link resolver, callouts) -- the pipeline that syncs.
+        result = provider._convert_row(self_path, body_md, vault_paths, basename_map,
+                                       vault_label=manifest.get("vault_label"))
 
         fixture = {
             "id": md_path.stem,

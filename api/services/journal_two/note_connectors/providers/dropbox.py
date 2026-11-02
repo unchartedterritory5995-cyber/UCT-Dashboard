@@ -132,7 +132,7 @@ from ..convert import (
     md_to_tiptap,
     txt_to_tiptap,
 )
-from .base import AccountInfo, NoteProvider, RemoteNote, RemoteRef, guarded_media_get
+from .base import AccountInfo, NoteProvider, RemoteNote, RemoteRef, fetch_content_url, media_http_client
 
 
 _API_BASE = "https://api.dropboxapi.com/2"
@@ -548,7 +548,7 @@ class DropboxProvider(NoteProvider):
 
     async def _get_client(self) -> httpx.AsyncClient:
         if self._client is None:
-            self._client = httpx.AsyncClient(timeout=30.0)
+            self._client = media_http_client(timeout=30.0)   # its media hops ride it: no env proxy
         return self._client
 
     async def _try_refresh(self, credentials: dict[str, Any]) -> str | None:
@@ -1067,7 +1067,7 @@ class DropboxProvider(NoteProvider):
         elif ext == ".md":
             text = self._resolve_relative_media_markdown(text, path_lower)
             text = self._resolve_relative_attachments_markdown(text, path_lower)
-            converted = md_to_tiptap(text)
+            converted = md_to_tiptap(text, unsafe_image_notice=True)
             converted = self._promote_md_attachments(converted)
         else:  # .txt
             converted = txt_to_tiptap(text)
@@ -1132,24 +1132,17 @@ class DropboxProvider(NoteProvider):
         # `follow_redirects=True`-equivalent behavior manually, hop by hop,
         # since plain httpx auto-follow re-validates nothing between hops).
         parsed = urlsplit(ref)
-        if (parsed.scheme or "").lower() != "https":
-            # A scheme that is not https is an address refusal (`unsafe`); no scheme at all is
-            # a relative path that found no file (`unsupported`). Plan A Task 8: typed.
-            refusal = errors.NoteConnUnsafeAddress if parsed.scheme else errors.NoteConnUnsupported
-            raise refusal(
-                f"Cannot fetch media over a non-Dropbox, non-https reference ({ref!r})",
+        if not parsed.scheme:
+            # No scheme at all is a relative path that found no file (`unsupported`). Any
+            # scheme other than http(s) is refused by the guard itself (`unsafe`). Plan A Task 8.
+            raise errors.NoteConnUnsupported(
+                f"Cannot fetch media over a non-Dropbox, non-web reference ({ref!r})",
                 reason="Media reference did not resolve to a file in the synced "
-                       "folder and is not a secure (https) URL",
+                       "folder and is not a web address",
             )
+        # Plan A Task 9 (I-5): a hotlink is copied in -- http allowed for the download only.
         client = await self._get_client()
-        response = await guarded_media_get(client, ref, what="Dropbox media")
-        if response.status_code >= 400:
-            raise errors.NoteConnTransient(
-                f"Failed to download media ({response.status_code})",
-                status=response.status_code,
-            )
-        content_type = response.headers.get("content-type", "application/octet-stream")
-        return response.content, content_type
+        return await fetch_content_url(client, ref, what="Dropbox media")
 
 
 _CONTENT_TYPE_BY_EXT = {

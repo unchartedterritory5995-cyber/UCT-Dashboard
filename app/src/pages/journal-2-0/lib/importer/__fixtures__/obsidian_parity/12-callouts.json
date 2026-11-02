@@ -1,0 +1,21 @@
+{
+  "id": "12-callouts",
+  "input_markdown": "# Callouts\n\n> [!warning] Size\n> Keep it small.\n\n> [!tip]\n> Wait for the pivot.\n",
+  "self_path": "a.md",
+  "server": {
+    "callouts": [
+      "warning",
+      "success"
+    ],
+    "highlights": [],
+    "images": [],
+    "links": [],
+    "pending": [],
+    "task_checked": [],
+    "text": "Callouts Size Keep it small. Tip Wait for the pivot."
+  },
+  "vault_id": "vault-1",
+  "vault_paths": [
+    "a.md"
+  ]
+}

@@ -4319,13 +4319,16 @@ def run_internal_link_projection_backfill(conn: sqlite3.Connection) -> dict[str,
     and at least one note exists (v4's rule: a flag over zero notes would let a
     restored backup skip the pass forever).
 
-    Returns {"scanned", "synced"} or {"skipped": True} once flagged."""
+    A note whose projection raises is logged, skipped and counted in "failed"; the
+    walk goes on and the flag is still written when it finishes.
+
+    Returns {"scanned", "synced", "failed"} or {"skipped": True} once flagged."""
     from api.services.journal_two.notes import _sync_note_sidecars, extract_plain_text
 
     flag = _data_dir() / _INTERNAL_LINK_BACKFILL_FLAG
     if flag.exists():
         return {"skipped": True}
-    out = {"scanned": 0, "synced": 0}
+    out = {"scanned": 0, "synced": 0, "failed": 0}
     if conn.in_transaction:
         conn.commit()
     last = ""
@@ -4350,9 +4353,23 @@ def run_internal_link_projection_backfill(conn: sqlite3.Connection) -> dict[str,
                     doc = _stored_doc(body_json)
                     if doc is None:
                         continue
-                    if body_plain is None:
-                        body_plain = extract_plain_text(doc)
-                    _sync_note_sidecars(conn, user_id, note_id, doc, body_plain)
+                    # Final review (promoted minor): one note that cannot be projected is
+                    # logged and skipped, its own partial sidecar writes undone (a
+                    # SAVEPOINT), never the end of the pass: an abort wrote no flag, so
+                    # the same note aborted every boot and nothing behind it was projected.
+                    conn.execute("SAVEPOINT internal_link_backfill_note")
+                    try:
+                        if body_plain is None:
+                            body_plain = extract_plain_text(doc)
+                        _sync_note_sidecars(conn, user_id, note_id, doc, body_plain)
+                    except Exception:  # noqa: BLE001 -- one poison note, named in the log
+                        conn.execute("ROLLBACK TO SAVEPOINT internal_link_backfill_note")
+                        conn.execute("RELEASE SAVEPOINT internal_link_backfill_note")
+                        logger.warning("[note-links-internal-href] note %s not projected, skipped",
+                                       note_id, exc_info=True)
+                        out["failed"] += 1
+                        continue
+                    conn.execute("RELEASE SAVEPOINT internal_link_backfill_note")
                     out["synced"] += 1
                 conn.commit()
             except BaseException:
@@ -4388,12 +4405,13 @@ def start_internal_link_projection_backfill(connect=None):
             c = connect()
             try:
                 out = run_internal_link_projection_backfill(c)
-                if out.get("synced"):
-                    print(f"[note-links-internal-href] projected: {out}")
+                if out.get("synced") or out.get("failed"):
+                    logger.info("[note-links-internal-href] projected: %s", out)
             finally:
                 c.close()
-        except Exception as e:  # noqa: BLE001 -- a background one-shot never takes the pod down
-            print(f"[note-links-internal-href] aborted (the next boot resumes): {e}")
+        except Exception:  # noqa: BLE001 -- a background one-shot never takes the pod down
+            logger.warning("[note-links-internal-href] aborted (the next boot resumes)",
+                           exc_info=True)
 
     t = threading.Thread(target=run, name="note-links-internal-href-backfill", daemon=True)
     t.start()

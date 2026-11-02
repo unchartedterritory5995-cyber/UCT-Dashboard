@@ -30,7 +30,7 @@
  * own FYI 2, 2026-09-30:
  *   - there is no caret to protect, so a PLAIN click or tap on a link opens
  *     it directly (new tab, `noopener,noreferrer`), under the same
- *     `openableLinkHref` safety rule (http(s) and mailto only), plus the two
+ *     `openableLinkHref` safety rule (http(s), mailto and tel only), plus the two
  *     Plan A doors named below;
  *   - a touch reader can never satisfy "the caret is already inside the
  *     link" — there is no caret to be inside — so the editable branch's
@@ -39,10 +39,11 @@
  *     view, since there is no second gesture left to name (the plain click
  *     already opens).
  *
- * ⛔ Only an http(s) or `mailto:` href ever opens in a new tab through
+ * ⛔ Only an http(s), `mailto:` or `tel:` href ever opens in a new tab through
  * `openableLinkHref`, in EITHER branch. It reuses `webLinkNodes.js`'s
  * `safeLinkHref` — the SAME rule already applied to a pasted link-preview
- * card's target — for the http(s) half, and adds `mailto:` itself. A
+ * card's target — for the http(s) half, and adds `mailto:` and (Plan A
+ * Task 15: the server keeps them, so they must not be inert) `tel:` itself. A
  * `javascript:` href, an `import-link://` placeholder or a `/journal...` path
  * (the Link mark's `isAllowedUri` lets all three past the schema, same file)
  * answer null there. Plan A Task 2 adds exactly TWO more doors, by the same
@@ -76,6 +77,10 @@ import { notebookFlag } from './offline/notebookFlags'
 export const linkClickOpenKey = new PluginKey('uctLinkClickOpen')
 
 const MAILTO_RE = /^mailto:/i
+/** A `tel:` link (Plan A Task 15): digits with the usual visual separators, nothing else.
+ *  The server keeps tel: links (its link policy and TipTap's both allow the scheme), so a
+ *  stored one must not be inert. */
+const TEL_RE = /^tel:\+?[0-9().-]*[0-9][0-9().-]*$/i
 /** A terminal command link (TERM-056): the shell's own `?cmd=` door, nothing else. */
 const TERMINAL_CMD_RE = /^\/terminal\?cmd=[^\s]+$/
 
@@ -86,6 +91,7 @@ const TERMINAL_CMD_RE = /^\/terminal\?cmd=[^\s]+$/
  *   - mailto:: accepted when it carries an "@" and no whitespace after the
  *     scheme — loose on purpose (multiple recipients, a `?subject=` query are
  *     all legal), just enough to refuse a bare "mailto:" or garbage.
+ *   - tel:: at least one digit, only digits and `+ ( ) . -` (`TEL_RE`).
  *   - anything else (javascript:, data:, a relative/internal path, …): null.
  */
 export function openableLinkHref(href) {
@@ -98,6 +104,7 @@ export function openableLinkHref(href) {
     const rest = trimmed.slice('mailto:'.length)
     return rest && rest.includes('@') && !/\s/.test(rest) ? trimmed : null
   }
+  if (TEL_RE.test(trimmed)) return trimmed
   return safeLinkHref(trimmed)
 }
 

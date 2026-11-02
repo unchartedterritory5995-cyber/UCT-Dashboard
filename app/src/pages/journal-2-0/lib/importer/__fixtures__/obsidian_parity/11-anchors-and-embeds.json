@@ -1,0 +1,32 @@
+{
+  "id": "11-anchors-and-embeds",
+  "input_markdown": "# Anchors and embeds\n\nSee [[Other note#Risk]] and [[Other note#Risk|the risk]].\n\n![[Other note]]\n",
+  "self_path": "a.md",
+  "server": {
+    "callouts": [],
+    "highlights": [],
+    "images": [],
+    "links": [
+      {
+        "target": "Other note.md",
+        "text": "Other note > Risk"
+      },
+      {
+        "target": "Other note.md",
+        "text": "the risk"
+      },
+      {
+        "target": "Other note.md",
+        "text": "Other note"
+      }
+    ],
+    "pending": [],
+    "task_checked": [],
+    "text": "Anchors and embeds See Other note > Risk and the risk. Other note"
+  },
+  "vault_id": "vault-1",
+  "vault_paths": [
+    "a.md",
+    "Other note.md"
+  ]
+}

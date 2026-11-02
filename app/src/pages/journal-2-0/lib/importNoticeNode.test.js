@@ -121,6 +121,30 @@ describe('the importNotice block', () => {
     expect(copyHasHiddenItems(body)).toBe(false)
   })
 
+  it('a table cell holds an importNotice, an image and an attachment chip (the Notion database cell shapes)', () => {
+    // Plan A Task 12: the server's Notion converter writes these three straight into tableCell content.
+    const cell = (content) => ({ type: 'tableCell', content })
+    const table = (...cells) => ({ type: 'table', content: [{ type: 'tableRow', content: cells }] })
+    const good = table(
+      cell([{ type: 'paragraph', content: [{ type: 'text', text: 'AAPL' }] }, { type: 'image', attrs: { src: 'https://example.com/a.png' } }]),
+      cell([{ type: 'attachmentChip', attrs: { href: '/api/j2/notes/attachments/x', name: 'deck.pptx', size: null } }]),
+      cell([notice({ reason: 'missing_resource', name: 'gone.pdf', attempts: 0 }),
+        notice({ reason: 'truncated', name: 'the first 20 of 23 files in Files', attempts: 0 })]),
+    )
+    const schema = editorSchema()
+    expect(() => schema.nodeFromJSON({ type: 'doc', content: [good] }).check()).not.toThrow()
+    // control: the same check refuses a cell the schema does not allow (bare text in a cell)
+    const bad = table(cell([{ type: 'text', text: 'loose' }]))
+    expect(() => schema.nodeFromJSON({ type: 'doc', content: [bad] }).check()).toThrow()
+    // and the live editor keeps all three, the notices reading their derived sentences
+    const doms = mount(good)
+    expect(doms.map((d) => d.textContent)).toEqual(["gone.pdf couldn't be found, so it wasn't copied",
+      'Only the first 20 of 23 files in Files came over'])
+    const json = JSON.stringify(editor.getJSON())
+    expect(json).toContain('"type":"image"')
+    expect(json).toContain('"type":"attachmentChip"')
+  })
+
   it('is registered in buildExtensions and in NOTEBOOK_TYPE_SCHEMA at 5', () => {
     const schema = editorSchema()
     expect(schema.nodes.importNotice).toBeTruthy()

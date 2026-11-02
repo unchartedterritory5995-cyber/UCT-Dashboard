@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import io
 import os
+import pathlib
 import struct
 import zlib
 
@@ -103,9 +104,12 @@ def test_conversion_keeps_alpha_as_png():
 def test_heic_converts_and_keeps_the_original_as_a_file():
     import pi_heif
     pi_heif.register_heif_opener()
-    heic = _img_bytes("HEIF")
+    # Fixture: 32x16 HEIC with EXIF Orientation=6, written once with pillow-heif (a one-off
+    # scratch install, NOT a project dependency; pi-heif is decode-only and cannot encode).
+    heic = (pathlib.Path(__file__).resolve().parents[3] / "tests" / "fixtures" / "media" / "rotated_32x16_orient6.heic").read_bytes()
     r = normalize_media(heic, "image/heic", "IMG.heic")
     assert r.kind == "image" and r.mime == "image/jpeg" and r.filename == "IMG.jpg"
+    assert Image.open(io.BytesIO(r.data)).size == (16, 32)  # the 90 degree turn was applied
     assert r.original is not None
     assert (r.original.kind, r.original.mime, r.original.filename) == ("file", "image/heic", "IMG.heic")
     assert r.original.data == heic
@@ -501,3 +505,30 @@ def test_a_full_disk_reads_storage_limit(att_root, monkeypatch):
         media_policy.store_media("u1", "n1", _heic_like_result(),
                                  budget=media_policy.MediaBudget.for_member("u1"))
     assert e.value.reason == "storage_limit"
+
+
+def test_an_image_already_on_disk_is_never_counted_twice(att_root, monkeypatch):
+    """Final review I1(a): an inline image is content-addressed, so storing the same bytes
+    again into the same note writes nothing, and must reserve nothing either. A member near
+    the cap whose unchanged notes re-import must not see working images turn into
+    storage-limit notices."""
+    result = media_policy.MediaResult(kind="image", mime="image/png", data=PNG, filename="a.png")
+    first = media_policy.store_media("u1", "n1", result, budget=media_policy.MediaBudget.for_member("u1"))
+    budget = media_policy.MediaBudget.for_member("u1")
+    used = budget.used
+    assert used == len(PNG)
+    # the member is now exactly at the cap: one more NEW byte would be refused
+    monkeypatch.setattr(media_policy, "MEMBER_IMPORT_MEDIA_CAP_BYTES", used)
+    again = media_policy.store_media("u1", "n1", result, budget=budget)
+    assert again.url == first.url
+    assert budget.used == used                                   # no double count
+    assert media_policy.member_media_bytes("u1") == used         # and no second file
+    # control: a different image still needs room, and is refused at the cap
+    other = media_policy.MediaResult(kind="image", mime="image/png", data=_img_bytes("PNG", size=(9, 9)),
+                                     filename="b.png")
+    with pytest.raises(MediaRejected) as e:
+        media_policy.store_media("u1", "n1", other, budget=budget)
+    assert e.value.reason == "storage_limit"
+    # and the same bytes in ANOTHER note are a new file, so they count
+    with pytest.raises(MediaRejected):
+        media_policy.store_media("u1", "n2", result, budget=budget)

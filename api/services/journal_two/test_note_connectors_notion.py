@@ -38,6 +38,11 @@ from cryptography.fernet import Fernet
 from api.services import auth_db
 from api.services.journal_two.db import ensure_schema
 from api.services.journal_two.note_connectors import errors
+from api.services.journal_two.note_connectors.convert.linkify import normalize_link_hrefs
+from api.services.journal_two.note_connectors.convert.notion_blocks import (
+    _rich_text_to_inline,
+    notion_page_id_from_href,
+)
 from api.services.journal_two.note_connectors.providers import base as base_module
 from api.services.journal_two.note_connectors.providers.base import RemoteRef
 from api.services.journal_two.note_connectors.providers.notion import NotionProvider
@@ -1125,13 +1130,72 @@ async def test_external_media_fetch_media_carries_no_auth_header():
 # ---------------------------------------------------------------------------
 
 
-async def test_fetch_media_refuses_a_plain_http_url_without_making_a_request():
-    def handler(request: httpx.Request) -> httpx.Response:  # pragma: no cover
-        raise AssertionError("must never issue a request for a non-https ref")
+async def test_http_hotlink_is_downloaded_for_the_engine_to_rehost():
+    """Plan A Task 9 (I-5): an `external` image on an http:// host is DOWNLOADED (never kept
+    as a hotlink); `http` is allowed for the download only, without any credential."""
+    captured: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured.append(request)
+        return httpx.Response(200, content=_PNG_BYTES, headers={"content-type": "image/png"})
 
     provider = _make_provider(handler)
-    with pytest.raises(errors.NoteConnUnsupported):
-        await provider.fetch_media(CREDS, "http://example.com/img.png")
+    data, content_type = await provider.fetch_media(CREDS, "http://cdn.example.com/a.png")
+    assert (data, content_type) == (_PNG_BYTES, "image/png")
+    # fix round 1 (I1): an http hop connects to the checked address, Host kept
+    assert [str(r.url) for r in captured] == ["http://142.250.0.1/a.png"]
+    assert captured[0].headers["host"] == "cdn.example.com"
+    assert "authorization" not in {k.lower() for k in captured[0].headers.keys()}
+
+
+def _logical_url(request: httpx.Request) -> str:
+    return f"{request.url.scheme}://{request.headers['host']}{request.url.raw_path.decode()}"
+
+
+async def test_notion_external_media_follows_redirects():
+    calls: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(_logical_url(request))
+        if request.headers["host"] == "cdn.example.com":
+            return httpx.Response(302, headers={"location": "https://cdn2.example.com/real.png"})
+        return httpx.Response(200, content=_PNG_BYTES, headers={"content-type": "image/png"})
+
+    provider = _make_provider(handler)
+    data, content_type = await provider.fetch_media(CREDS, "http://cdn.example.com/a.png")
+    assert (data, content_type) == (_PNG_BYTES, "image/png")
+    assert calls == ["http://cdn.example.com/a.png", "https://cdn2.example.com/real.png"]
+
+
+async def test_notion_external_media_redirect_to_the_metadata_address_is_unsafe():
+    calls: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(_logical_url(request))
+        if request.headers["host"] == "cdn.example.com":
+            return httpx.Response(302, headers={"location": "http://169.254.169.254/latest/meta-data/"})
+        raise AssertionError("must never reach the redirect target")  # pragma: no cover
+
+    provider = _make_provider(handler)
+    with pytest.raises(errors.NoteConnUnsafeAddress):
+        await provider.fetch_media(CREDS, "http://cdn.example.com/a.png")
+    assert calls == ["http://cdn.example.com/a.png"]
+
+
+async def test_notion_external_media_entry_carries_its_source_url():
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/v1/pages/page-x" and request.method == "GET":
+            return httpx.Response(200, json={"id": "page-x", "properties": {"title": _title_prop("X")}})
+        if request.url.path == "/v1/blocks/page-x/children" and request.method == "GET":
+            return httpx.Response(200, json={"results": [_block(
+                "img-x", "image", {"type": "external", "external": {"url": "http://cdn.example.com/a.png"}})],
+                "has_more": False})
+        return httpx.Response(404)
+
+    provider = _make_provider(handler)
+    note = await provider.fetch(CREDS, RemoteRef(remote_id="page-x", updated_at="x"))
+    assert note.media[0]["ref"] == "http://cdn.example.com/a.png"
+    assert note.media[0]["source_url"] == "http://cdn.example.com/a.png"
 
 
 @pytest.mark.parametrize(
@@ -1187,7 +1251,10 @@ async def test_internal_media_download_from_a_private_host_yields_a_missing_mark
     provider = _make_provider(handler)
     note = await provider.fetch(CREDS, RemoteRef(remote_id="page-priv", updated_at="x"))
     assert note.media == []
-    assert "[image unavailable" in json.dumps(note.doc)
+    # Fix round 2 (ruling): the SSRF guard's refusal is definitive -- a FINAL `unsafe`
+    # importNotice (the engine's own reason for that refusal), no longer a text marker.
+    assert [n["attrs"]["reason"] for n in _find_all(note.doc, "importNotice")] == ["unsafe"]
+    assert "unavailable" not in json.dumps(note.doc)
 
 
 async def test_media_403_refetches_block_once_and_retries():
@@ -1222,7 +1289,11 @@ async def test_media_403_refetches_block_once_and_retries():
     assert note.media[0]["data_uri"].startswith("data:image/png;base64,")
 
 
-async def test_media_permanent_failure_degrades_to_visible_marker_not_a_crash():
+async def test_media_transient_failure_stays_a_placeholder_for_the_engine_to_retry():
+    """Fix round 2 (ruling): this test pinned a TEXT marker ("[image unavailable") for a media
+    host answering 500. A 5xx is retryable: the image stays a placeholder with a byte-less media
+    entry, and `fetch_media` answers the engine with the failure, which the engine turns into a
+    counted `fetch_failed` notice (see the engine file's real-provider test)."""
     def handler(request: httpx.Request) -> httpx.Response:
         if request.url.host == _API_HOST:
             if request.url.path == "/v1/pages/page-fail" and request.method == "GET":
@@ -1240,8 +1311,75 @@ async def test_media_permanent_failure_degrades_to_visible_marker_not_a_crash():
     provider = _make_provider(handler)
     note = await provider.fetch(CREDS, RemoteRef(remote_id="page-fail", updated_at="x"))
 
-    assert note.media == []
-    assert "[image unavailable" in json.dumps(note.doc)
+    assert note.media == [{"ref": "notion:img-fail", "kind": "image", "name": "image.png"}]
+    assert [i["attrs"]["src"] for i in _find_all(note.doc, "image")] == ["import-ref://notion:img-fail"]
+    assert _find_all(note.doc, "importNotice") == [] and "unavailable" not in json.dumps(note.doc)
+    from api.services.journal_two.note_connectors import engine as engine_mod
+    with pytest.raises(errors.NoteConnTransient) as exc:
+        await provider.fetch_media(CREDS, "notion:img-fail")
+    assert engine_mod.media_failure_reason(exc.value) == "fetch_failed"
+
+
+async def test_fetch_media_for_an_unknown_notion_ref_is_retryable_and_a_success_clears_a_deferral():
+    """Fix round 3: a `notion:` ref this provider never deferred (another instance converted the
+    note, say) is a TRANSIENT failure -- never handed to the URL fetcher, whose refusal of the
+    `notion:` scheme would read as a FINAL `unsafe` notice. And once a later traversal downloads a
+    block that an earlier one deferred, the stale deferral is dropped."""
+    from api.services.journal_two.note_connectors import engine as engine_mod
+    fail = {"on": True}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.host == _API_HOST:
+            if request.url.path == "/v1/pages/page-flip":
+                return httpx.Response(200, json={"id": "page-flip", "properties": {"title": _title_prop("F")}})
+            if request.url.path == "/v1/blocks/page-flip/children":
+                return httpx.Response(200, json={"has_more": False, "results": [
+                    _block("img-flip", "image", {"type": "file", "file": {"url": S3_IMAGE_URL}, "caption": []})]})
+            return httpx.Response(500)
+        if fail["on"]:
+            return httpx.Response(503)
+        return httpx.Response(200, content=_PNG_BYTES, headers={"content-type": "image/png"})
+
+    provider = _make_provider(handler)
+    with pytest.raises(errors.NoteConnTransient) as exc:
+        await provider.fetch_media(CREDS, "notion:never-seen")
+    assert engine_mod.media_failure_reason(exc.value) == "fetch_failed"
+
+    await provider.fetch(CREDS, RemoteRef(remote_id="page-flip", updated_at="x"))
+    assert "notion:img-flip" in provider._deferred_media
+    fail["on"] = False
+    note = await provider.fetch(CREDS, RemoteRef(remote_id="page-flip", updated_at="y"))
+    assert note.media[0]["data_uri"].startswith("data:image/png;base64,")
+    assert "notion:img-flip" not in provider._deferred_media, "a success clears the stale deferral"
+
+
+async def test_a_top_level_image_whose_file_is_gone_is_a_final_import_notice():
+    """Fix round 2 (ruling): a DEFINITIVE failure is a final importNotice from the converter --
+    the media host says the file is gone (404), or the block names no file at all."""
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.host == _API_HOST:
+            if request.url.path == "/v1/pages/page-gone":
+                return httpx.Response(200, json={"id": "page-gone", "properties": {"title": _title_prop("G")}})
+            if request.url.path == "/v1/blocks/page-gone/children":
+                return httpx.Response(200, json={"has_more": False, "results": [
+                    _block("img-gone", "image", {"type": "file", "file": {"url": S3_IMAGE_URL},
+                                                 "caption": [_rt("the setup")]}),
+                    _block("img-none", "image", {"type": "file", "file": {}, "caption": []}),
+                ]})
+            return httpx.Response(404)
+        return httpx.Response(404)  # the media host: gone
+
+    provider = _make_provider(handler)
+    note = await provider.fetch(CREDS, RemoteRef(remote_id="page-gone", updated_at="x"))
+    assert note.media == [] and _find_all(note.doc, "image") == []
+    notices = [n["attrs"] for n in _find_all(note.doc, "importNotice")]
+    assert notices == [
+        {"reason": "missing_resource", "name": "image.png", "sourceUrl": None, "ref": None, "attempts": 0},
+        {"reason": "missing_resource", "name": "image", "sourceUrl": None, "ref": None, "attempts": 0}]
+    assert "the setup" in _plain_text(note.doc), "the caption still comes over"
+    assert "unavailable" not in json.dumps(note.doc)
+    from api.services.journal_two import notes as notes_svc
+    assert notes_svc._validate_body_json(note.doc)["type"] == "doc"
 
 
 async def test_internal_media_exceeding_content_length_cap_yields_too_large_marker():
@@ -1281,8 +1419,10 @@ async def test_internal_media_exceeding_content_length_cap_yields_too_large_mark
     note = await provider.fetch(CREDS, RemoteRef(remote_id="page-big-media", updated_at="x"))
 
     assert note.media == [], "an over-cap media item must never be registered/embedded"
-    assert "[media too large: " in json.dumps(note.doc)
-    assert "[image unavailable" not in json.dumps(note.doc), "too-large is a DISTINCT failure from a download error"
+    # Fix round 2 (ruling): a FINAL `too_large` importNotice, no longer a text marker.
+    assert [n["attrs"] for n in _find_all(note.doc, "importNotice")] == [
+        {"reason": "too_large", "name": "image.png", "sourceUrl": None, "ref": None, "attempts": 0}]
+    assert "too large" not in _plain_text(note.doc) and "unavailable" not in json.dumps(note.doc)
 
 
 async def test_an_image_over_the_inline_cap_is_downloaded_for_the_policy_to_downscale():
@@ -1415,3 +1555,548 @@ async def test_server_error_raises_transient():
     provider = _make_provider(handler)
     with pytest.raises(errors.NoteConnTransient):
         await provider.validate(CREDS)
+
+
+# ── Task 11 (N-4, N-5): Notion links point where they pointed ───────────────
+# Mentions and in-workspace links arrive as working links: a page Notion can name becomes
+# `import-link://notion:<dashed uuid>` (the key `import_key` writes, so the engine's link-key
+# pass turns it into the in-app note link, and an unresolved one opens notion.so meanwhile);
+# every other link keeps its own URL; user/date mentions stay text. Nothing is dropped.
+_T11_HEX = "1a2b3c4d5e6f47a8b9c0d1e2f3a4b5c6"
+_T11_UUID = "1a2b3c4d-5e6f-47a8-b9c0-d1e2f3a4b5c6"
+_T11_KEY = f"import-link://notion:{_T11_UUID}"
+
+
+def _mention(text: str, mention: dict, *, bold=False, href=None) -> dict:
+    out = _rt(text, bold=bold, href=href)
+    out["type"] = "mention"
+    out.pop("text")
+    out["mention"] = mention
+    return out
+
+
+def _link_of(node: dict) -> str | None:
+    hrefs = [m["attrs"]["href"] for m in node.get("marks") or [] if m.get("type") == "link"]
+    assert len(hrefs) <= 1
+    return hrefs[0] if hrefs else None
+
+
+def test_link_mention_is_a_link_to_the_url():
+    out = _rich_text_to_inline([_mention(
+        "Example Domain",
+        {"type": "link_mention", "link_mention": {"href": "https://example.com/article", "title": "Example Domain"}},
+        href="https://example.com/article",
+    )])
+    assert out == [{"type": "text", "text": "Example Domain",
+                    "marks": [{"type": "link", "attrs": {"href": "https://example.com/article"}}]}]
+
+
+def test_link_preview_mention_is_a_link():
+    url = "https://github.com/octo/repo/pull/7"
+    out = _rich_text_to_inline([_mention(url, {"type": "link_preview", "link_preview": {"url": url}},
+                                         bold=True, href=url)])
+    assert out == [{"type": "text", "text": url,
+                    "marks": [{"type": "bold"}, {"type": "link", "attrs": {"href": url}}]}]
+
+
+def test_database_mention_links_to_its_notion_url():
+    rt = _mention("Trades DB", {"type": "database", "database": {"id": _T11_UUID}},
+                  href=f"https://www.notion.so/{_T11_HEX}")
+    out = _rich_text_to_inline([rt])
+    # databases are not notes: the link keeps Notion's own working URL
+    assert [(n["text"], _link_of(n)) for n in out] == [("Trades DB", rt["href"])]
+
+
+def test_workspace_relative_link_maps_to_the_imported_page():
+    out = _rich_text_to_inline([_rt("my other page", href=f"/{_T11_HEX}")])
+    assert out[0]["marks"][-1]["attrs"]["href"] == _T11_KEY
+    assert out[0]["text"] == "my other page"
+    out = _rich_text_to_inline([_rt("slugged", href=f"/My-Other-Page-{_T11_HEX}#blockid")])
+    assert _link_of(out[0]) == _T11_KEY
+
+
+def test_a_workspace_link_survives_the_engines_link_policy():
+    # Task 10's policy turns an unresolvable relative href into TEXT (no source URL is a
+    # notion.so page origin); the converter must map it first or the link is lost.
+    doc = {"type": "doc", "content": [{"type": "paragraph", "content": _rich_text_to_inline(
+        [_rt("my other page", href=f"/{_T11_HEX}")])}]}
+    out = normalize_link_hrefs(doc, None)
+    assert _link_of(out["content"][0]["content"][0]) == _T11_KEY
+
+
+@pytest.mark.parametrize("href", [
+    f"/{_T11_HEX}",
+    f"/{_T11_UUID}",
+    f"/My-Page-{_T11_HEX}",
+    f"/{_T11_HEX}?pvs=4",
+    f"/{_T11_HEX}#5e6f47a8b9c0d1e2f3a4b5c61a2b3c4d",
+    f"https://www.notion.so/{_T11_HEX}",
+    f"https://notion.so/My-Page-{_T11_HEX}",
+    f"https://www.notion.so/acme/My-Page-{_T11_HEX}?pvs=4#abc",
+    f"https://www.notion.so/acme/My-Page-{_T11_UUID}",
+    f"HTTPS://WWW.NOTION.SO/My-Page-{_T11_HEX.upper()}",
+    f"https://acme.notion.site/My-Page-{_T11_HEX}",
+    f"https://www.notion.com/acme/My-Page-{_T11_HEX}",
+    f"notion://www.notion.so/acme/My-Page-{_T11_HEX}",
+    f"notion://www.notion.so/{_T11_HEX}?pvs=4",
+])
+def test_notion_so_and_notion_site_links_map_too(href):
+    assert notion_page_id_from_href(href) == _T11_UUID
+    out = _rich_text_to_inline([_rt("p", bold=True, href=href)])
+    assert out[0]["marks"] == [{"type": "bold"}, {"type": "link", "attrs": {"href": _T11_KEY}}]
+
+
+@pytest.mark.parametrize("href", [
+    f"https://example.com/My-Page-{_T11_HEX}",          # not Notion: a hex tail is not a page id
+    f"https://evilnotion.so/My-Page-{_T11_HEX}",
+    f"https://notion.so.evil.com/My-Page-{_T11_HEX}",
+    f"https://www.notion.so/MyPage{_T11_HEX}",          # the id is a whole segment or `-<id>`
+    f"https://www.notion.so/{_T11_HEX}/settings",       # the id must END the path
+    f"//www.notion.so/{_T11_HEX}",
+    "https://www.notion.so/no-page-id-here",
+    "/news/a-123",
+    f"/{_T11_HEX[:-1]}",
+    "#top",
+    "",
+    None,
+])
+def test_a_href_that_names_no_notion_page_is_not_mapped(href):
+    assert notion_page_id_from_href(href) is None
+    if href:
+        out = _rich_text_to_inline([_rt("x", href=href)])
+        assert _link_of(out[0]) == href   # kept as written; Task 10's policy decides it later
+
+
+def test_user_and_date_mentions_stay_text():
+    out = _rich_text_to_inline([
+        _mention("@Patrick", {"type": "user", "user": {"id": "u1", "object": "user"}}),
+        _mention("November 1, 2026", {"type": "date", "date": {"start": "2026-11-01"}}),
+        _mention("@Today", {"type": "template_mention", "template_mention": {"type": "template_mention_date"}}),
+    ])
+    assert out == [{"type": "text", "text": "@Patrick"},
+                   {"type": "text", "text": "November 1, 2026"},
+                   {"type": "text", "text": "@Today"}]
+
+
+def test_external_link_annotations_kept():
+    out = _rich_text_to_inline([_rt("read this", bold=True, italic=True, href="https://example.com/a")])
+    assert out == [{"type": "text", "text": "read this",
+                    "marks": [{"type": "bold"}, {"type": "italic"},
+                              {"type": "link", "attrs": {"href": "https://example.com/a"}}]}]
+
+
+def test_a_page_mention_still_maps_to_its_import_key():
+    out = _rich_text_to_inline([_mention("Plan", {"type": "page", "page": {"id": _T11_UUID}},
+                                         href=f"https://www.notion.so/{_T11_HEX}")])
+    assert _link_of(out[0]) == _T11_KEY
+
+
+def test_a_mention_with_no_url_degrades_to_text_never_dropped():
+    out = _rich_text_to_inline([
+        _mention("broken", {"type": "link_mention", "link_mention": {}}),
+        _mention("db", {"type": "database", "database": {"id": _T11_UUID}}),
+    ])
+    assert out == [{"type": "text", "text": "broken"}, {"type": "text", "text": "db"}]
+
+
+# ---------------------------------------------------------------------------
+# Plan A Task 12 (N-8, N-9, I-4 video): database cells keep links and files,
+# page links carry titles, YouTube becomes an embed.
+# ---------------------------------------------------------------------------
+
+from api.services.journal_two.note_connectors.convert import notion_blocks as _nb  # noqa: E402
+
+_ROW = "2b3c4d5e-6f70-4812-9a3b-4c5d6e7f8091"
+_S3_CHART = "https://prod-files-secure.s3.amazonaws.com/a/chart.png?sig=1"
+_YT = "https://youtu.be/dQw4w9WgXcQ"
+
+
+def _t12_converter(*, rows=None, resolve=None, titles=None, with_fetch_title=True):
+    calls = {"resolve": [], "title": []}
+
+    async def fetch_children(block_id):
+        return []
+
+    async def query_database(database_id):
+        return rows if rows is not None else []
+
+    async def resolve_media(block):
+        calls["resolve"].append(block)
+        return resolve(block) if resolve else None
+
+    async def fetch_title(page_id):
+        calls["title"].append(page_id)
+        return (titles or {}).get(page_id)
+
+    kwargs = {"fetch_title": fetch_title} if with_fetch_title else {}
+    conv = _nb.NotionBlockConverter(
+        fetch_children=fetch_children, query_database=query_database, resolve_media=resolve_media, **kwargs)
+    return conv, calls
+
+
+async def _t12_db(props, *, resolve=None, row_id=_ROW):
+    conv, calls = _t12_converter(rows=[{"object": "page", "id": row_id, "properties": props}], resolve=resolve)
+    out = await conv.convert([_block("db-t12", "child_database", {"title": "Journal"})])
+    return out, calls
+
+
+def _t12_cell(out, column):
+    table = _find_all(out["doc"], "table")[0]
+    header = [_plain_text(c) for c in table["content"][0]["content"]]
+    return table["content"][1]["content"][header.index(column)]
+
+
+def _t12_links(node):
+    return [(t["text"], m["attrs"]["href"]) for t in _t12_texts(node) for m in t.get("marks") or []
+            if m.get("type") == "link"]
+
+
+def _t12_texts(node):
+    out = []
+
+    def walk(n):
+        if isinstance(n, dict):
+            if n.get("type") == "text":
+                out.append(n)
+            for c in n.get("content") or []:
+                walk(c)
+    walk(node)
+    return out
+
+
+def _t12_valid(doc):
+    from api.services.journal_two import notes as notes_svc
+    assert notes_svc._validate_body_json(doc)["type"] == "doc"
+
+
+async def test_database_url_cell_is_a_link():
+    out, _ = await _t12_db({
+        "Name": _title_prop("AAPL trade"),
+        "Link": {"type": "url", "url": "https://example.com/chart"},
+        "Mail": {"type": "email", "email": "desk@example.com"},
+        "Phone": {"type": "phone_number", "phone_number": "+1 555 0100"},
+    })
+    assert _t12_links(_t12_cell(out, "Link")) == [("https://example.com/chart", "https://example.com/chart")]
+    assert _t12_links(_t12_cell(out, "Mail")) == [("desk@example.com", "mailto:desk@example.com")]
+    assert _t12_links(_t12_cell(out, "Phone")) == [("+1 555 0100", "tel:+15550100")]
+    _t12_valid(out["doc"])
+
+
+async def test_database_rich_text_cell_keeps_hrefs():
+    out, _ = await _t12_db({
+        "Name": _title_prop("AAPL trade"),
+        "Notes": {"type": "rich_text", "rich_text": [_rt("see "), _rt("post", bold=True, href="https://x.com/p/1")]},
+    })
+    cell = _t12_cell(out, "Notes")
+    assert _plain_text(cell) == "see post"
+    post = next(t for t in _t12_texts(cell) if t["text"] == "post")
+    assert {"type": "bold"} in post["marks"]
+    assert _t12_links(cell) == [("post", "https://x.com/p/1")]
+
+
+async def test_database_files_cell_rehosts_image_inline_and_file_as_chip():
+    # files: chart.png (type file, S3 url) -> image import-ref in the cell, media registered; deck.pptx -> attachmentChip
+    def resolve(block):
+        info = _nb.extract_media_info(block)  # the provider reads the synthesized block with this
+        if info is None:
+            return None  # no address at all: definitively gone
+        if "huge" in info[0]:
+            return {"too_large": True, "name": info[2]}
+        kind = "image" if block["type"] == "image" else "file"
+        return {"ref": f"notion:{block['id']}", "kind": kind, "name": info[2], "data_uri": "data:x/y;base64,AA=="}
+
+    out, calls = await _t12_db({
+        "Name": _title_prop("AAPL trade"),
+        "Files": {"type": "files", "files": [
+            {"name": "chart.png", "type": "file", "file": {"url": _S3_CHART}},
+            {"name": "deck.pptx", "type": "external", "external": {"url": "https://cdn.example.com/deck.pptx"}},
+            {"name": "gone.pdf", "type": "file", "file": {}},
+            {"name": "huge.mov", "type": "file", "file": {"url": "https://prod-files-secure.s3.amazonaws.com/huge.mov"}},
+        ]},
+    }, resolve=resolve)
+
+    assert [(b["type"], b["id"], b["_synthetic"]) for b in calls["resolve"]] == [
+        ("image", f"{_ROW}:Files:0", True), ("file", f"{_ROW}:Files:1", True),
+        ("file", f"{_ROW}:Files:2", True), ("file", f"{_ROW}:Files:3", True)]
+    assert _nb.extract_media_info(calls["resolve"][0]) == (_S3_CHART, False, "chart.png")
+    # image versus file is the media policy's ONE extension table, through its public name
+    from api.services.journal_two import media_policy
+    assert _nb.extension_mime is media_policy.extension_mime and not hasattr(media_policy, "_ext_mime")
+
+    cell = _t12_cell(out, "Files")
+    images = _find_all(cell, "image")
+    chips = _find_all(cell, "attachmentChip")
+    assert [i["attrs"]["src"] for i in images] == [f"import-ref://notion:{_ROW}:Files:0"]
+    assert [(c["attrs"]["href"], c["attrs"]["name"]) for c in chips] == [
+        (f"import-ref://notion:{_ROW}:Files:1", "deck.pptx")]
+    # what cannot come over is an importNotice block, never a text paragraph
+    assert [(n["attrs"]["reason"], n["attrs"]["name"]) for n in _find_all(cell, "importNotice")] == [
+        ("missing_resource", "gone.pdf"), ("too_large", "huge.mov")]
+    assert "unavailable" not in _plain_text(out["doc"]) and "too large" not in _plain_text(out["doc"])
+    assert [m["ref"] for m in out["media"]] == [f"notion:{_ROW}:Files:0", f"notion:{_ROW}:Files:1"]
+    _t12_valid(out["doc"])
+
+
+async def test_database_files_cell_is_capped_with_one_truncated_notice():
+    files = [{"name": f"shot{i}.png", "type": "file", "file": {"url": f"https://s3.example.com/{i}.png"}}
+             for i in range(23)]
+
+    def resolve(block):
+        return {"ref": f"notion:{block['id']}", "kind": "image", "name": "x", "data_uri": "data:x/y;base64,AA=="}
+
+    out, calls = await _t12_db({"Name": _title_prop("AAPL trade"),
+                                "Files": {"type": "files", "files": files}}, resolve=resolve)
+    assert len(calls["resolve"]) == _nb._DATABASE_CELL_FILES_MAX == 20
+    cell = _t12_cell(out, "Files")
+    assert len(_find_all(cell, "image")) == 20
+    notices = _find_all(cell, "importNotice")
+    assert [(n["attrs"]["reason"], n["attrs"]["name"]) for n in notices] == [
+        ("truncated", "the first 20 of 23 files in Files")]
+    _t12_valid(out["doc"])
+
+
+async def test_database_row_title_links_to_the_row_note():
+    out, _ = await _t12_db({"Name": _title_prop("AAPL trade"), "Qty": {"type": "number", "number": 3}})
+    assert _t12_links(_t12_cell(out, "Name")) == [("AAPL trade", f"import-link://notion:{_ROW}")]
+    assert f"notion:{_ROW}" in out["links"]
+    # An untitled row still links, under a visible name.
+    out, _ = await _t12_db({"Name": {"type": "title", "title": []}})
+    assert _t12_links(_t12_cell(out, "Name")) == [("Untitled", f"import-link://notion:{_ROW}")]
+
+
+async def test_database_labels_stay_visible_text():
+    out, _ = await _t12_db({
+        "Name": _title_prop("AAPL trade"),
+        "Status": {"type": "status", "status": {"name": "In progress"}},
+        "Setup": {"type": "select", "select": {"name": "VCP"}},
+        "Tags": {"type": "multi_select", "multi_select": [{"name": "earnings"}, {"name": "A+"}]},
+    })
+    assert _plain_text(_t12_cell(out, "Status")) == "In progress"
+    assert _plain_text(_t12_cell(out, "Setup")) == "VCP"
+    assert _plain_text(_t12_cell(out, "Tags")) == "earnings, A+"
+
+
+async def test_link_to_page_uses_the_target_title():
+    conv, calls = _t12_converter(titles={_T11_UUID: "Q3 Plan"})
+    out = await conv.convert([_block("b-ltp", "link_to_page", {"type": "page_id", "page_id": _T11_UUID})])
+    assert _t12_links(out["doc"]) == [("Q3 Plan", _T11_KEY)]
+    assert calls["title"] == [_T11_UUID]
+
+
+async def test_link_to_page_falls_back_to_linked_page():
+    conv, _ = _t12_converter(titles={})
+    out = await conv.convert([_block("b-ltp", "link_to_page", {"type": "page_id", "page_id": _T11_UUID})])
+    assert _t12_links(out["doc"]) == [("Linked page", _T11_KEY)]
+    conv, _ = _t12_converter(with_fetch_title=False)
+    out = await conv.convert([_block("b-ltp", "link_to_page", {"type": "page_id", "page_id": _T11_UUID})])
+    assert _t12_links(out["doc"]) == [("Linked page", _T11_KEY)]
+
+
+async def test_youtube_video_block_is_a_web_embed_not_a_download():
+    conv, calls = _t12_converter(resolve=lambda b: {"ref": "x", "kind": "file", "name": "x"})
+    out = await conv.convert([
+        _block("b-yt", "video", {"type": "external", "external": {"url": _YT}, "caption": [_rt("The setup")]}),
+        _block("b-tv", "embed", {"url": "https://www.tradingview.com/symbols/NASDAQ-AAPL/", "caption": []}),
+    ])
+    embeds = _find_all(out["doc"], "webEmbed")
+    assert [e["attrs"] for e in embeds] == [
+        {"provider": "youtube", "ref": "dQw4w9WgXcQ", "url": _YT},
+        {"provider": "tradingview", "ref": "NASDAQ:AAPL", "url": "https://www.tradingview.com/symbols/NASDAQ-AAPL/"},
+    ]
+    assert out["media"] == [] and calls["resolve"] == [], "an embeddable video is never downloaded"
+    assert "The setup" in _plain_text(out["doc"]), "the caption survives under the player"
+    _t12_valid(out["doc"])
+
+
+async def test_vimeo_video_block_is_a_plain_link():
+    conv, calls = _t12_converter(resolve=lambda b: {"ref": "x", "kind": "file", "name": "x"})
+    vimeo = "https://vimeo.com/76979871"
+    out = await conv.convert([
+        _block("b-vm", "video", {"type": "external", "external": {"url": vimeo}}),
+        _block("b-em", "embed", {"url": "https://www.loom.com/share/abc", "caption": []}),
+    ])
+    assert _find_all(out["doc"], "webEmbed") == []
+    assert _t12_links(out["doc"]) == [(vimeo, vimeo), ("https://www.loom.com/share/abc", "https://www.loom.com/share/abc")]
+    assert out["media"] == [] and calls["resolve"] == []
+
+
+async def test_a_truncated_database_says_so_in_the_note():
+    rows = _nb.DatabaseRows(
+        [{"object": "page", "id": _ROW, "properties": {"Name": _title_prop("AAPL trade")}}], truncated=True)
+    conv, _ = _t12_converter(rows=rows)
+    out = await conv.convert([_block("db-t12", "child_database", {"title": "Journal"})])
+    assert [n["attrs"] for n in _find_all(out["doc"], "importNotice")] == [
+        {"reason": "truncated", "name": "the first 1 rows of Journal", "sourceUrl": None, "ref": None, "attempts": 0}]
+    _t12_valid(out["doc"])
+    # ...and a complete one carries no notice.
+    conv, _ = _t12_converter(rows=[{"object": "page", "id": _ROW, "properties": {"Name": _title_prop("A")}}])
+    out = await conv.convert([_block("db-t12", "child_database", {"title": "Journal"})])
+    assert _find_all(out["doc"], "importNotice") == []
+
+
+async def test_provider_database_query_stops_at_its_cap_with_a_visible_notice(monkeypatch):
+    from api.services.journal_two.note_connectors.providers import notion as notion_mod
+    monkeypatch.setattr(notion_mod, "_MAX_DATA_SOURCE_PAGES", 2)
+    queries = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        path, method = request.url.path, request.method
+        if path == "/v1/pages/p-db" and method == "GET":
+            return httpx.Response(200, json={"id": "p-db", "properties": {"title": _title_prop("DB page")}})
+        if path == "/v1/blocks/p-db/children":
+            return httpx.Response(200, json={"results": [_block("db-cap", "child_database", {"title": "Big"})],
+                                             "has_more": False})
+        if path == "/v1/databases/db-cap":
+            return httpx.Response(200, json={"data_sources": [{"id": "ds-cap"}]})
+        if path == "/v1/data_sources/ds-cap/query" and method == "POST":
+            n = len(queries)
+            queries.append(n)
+            return httpx.Response(200, json={
+                "results": [{"object": "page", "id": f"r{n}", "properties": {"Name": _title_prop(f"Row {n}")}}],
+                "has_more": True, "next_cursor": f"c{n + 1}"})
+        return httpx.Response(404)
+
+    provider = _make_provider(handler)
+    note = await provider.fetch(CREDS, RemoteRef(remote_id="p-db", updated_at="x"))
+    assert len(queries) == 2, "the query is bounded by its page cap"
+    text = _plain_text(note.doc)
+    assert "Row 0" in text and "Row 1" in text
+    from api.services.journal_two import import_notice
+    assert [import_notice.notice_text(n["attrs"]) for n in _find_all(note.doc, "importNotice")] == [
+        "Only the first 2 rows of Big came over"]
+
+
+async def test_provider_database_files_cell_downloads_now_and_never_refetches_a_synthesized_block():
+    expired = "https://prod-files-secure.s3.amazonaws.com/b/old.pdf?sig=2"
+    huge = "https://prod-files-secure.s3.amazonaws.com/b/huge.mov?sig=3"
+    requests = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        if request.url.host != _API_HOST:
+            assert "authorization" not in request.headers, "the bearer never leaves api.notion.com"
+            if str(request.url) == _S3_CHART:
+                return httpx.Response(200, content=_PNG_BYTES, headers={"content-type": "image/png"})
+            if str(request.url) == huge:
+                return httpx.Response(200, content=b"x", headers={
+                    "content-type": "video/quicktime", "content-length": str(10 ** 10)})
+            return httpx.Response(403)
+        path = request.url.path
+        if path == "/v1/pages/p-files":
+            return httpx.Response(200, json={"id": "p-files", "properties": {"title": _title_prop("Files")}})
+        if path == "/v1/blocks/p-files/children":
+            return httpx.Response(200, json={"results": [_block("db-f", "child_database", {"title": "Shots"})],
+                                             "has_more": False})
+        if path == "/v1/databases/db-f":
+            return httpx.Response(200, json={"data_sources": [{"id": "ds-f"}]})
+        if path == "/v1/data_sources/ds-f/query":
+            return httpx.Response(200, json={"has_more": False, "results": [{"object": "page", "id": _ROW, "properties": {
+                "Name": _title_prop("AAPL trade"),
+                "Shots": {"type": "files", "files": [
+                    {"name": "chart.png", "type": "file", "file": {"url": _S3_CHART}},
+                    {"name": "old.pdf", "type": "file", "file": {"url": expired}},
+                    {"name": "huge.mov", "type": "file", "file": {"url": huge}},
+                ]}}}]})
+        return httpx.Response(404)
+
+    provider = _make_provider(handler)
+    note = await provider.fetch(CREDS, RemoteRef(remote_id="p-files", updated_at="x"))
+    entry = next(m for m in note.media if m["ref"] == f"notion:{_ROW}:Shots:0")
+    assert entry["kind"] == "image" and entry["data_uri"].startswith("data:image/png;base64,")
+    assert [i["attrs"]["src"] for i in _find_all(note.doc, "image")] == [f"import-ref://notion:{_ROW}:Shots:0"]
+    assert not [r for r in requests if r.url.host == _API_HOST and r.url.path.startswith("/v1/blocks/")
+                and not r.url.path.endswith("/children")], "a synthesized cell block is never re-read"
+
+    # A TRANSIENTLY failed cell file (an expired link, 403) stays a PLACEHOLDER with a media
+    # entry and no bytes: the engine's media pass asks `fetch_media`, which answers with the
+    # failure seen during traversal -- so the engine writes the counted `fetch_failed` notice.
+    from api.services.journal_two.note_connectors import engine as engine_mod
+    chips = {c["attrs"]["name"]: c["attrs"]["href"] for c in _find_all(note.doc, "attachmentChip")}
+    assert chips == {"old.pdf": f"import-ref://notion:{_ROW}:Shots:1"}
+    listed = next(m for m in note.media if m["ref"] == f"notion:{_ROW}:Shots:1")
+    assert "data_uri" not in listed and listed["name"] == "old.pdf"
+    with pytest.raises(errors.NoteConnError) as exc:
+        await provider.fetch_media(CREDS, f"notion:{_ROW}:Shots:1")
+    assert engine_mod.media_failure_reason(exc.value) == "fetch_failed"
+    # A DEFINITIVE one (over the size cap) is a FINAL notice from the converter (fix round 2).
+    assert [(n["attrs"]["reason"], n["attrs"]["name"]) for n in _find_all(note.doc, "importNotice")] == [
+        ("too_large", "huge.mov")]
+    downloads = [r for r in requests if r.url.host != _API_HOST]
+    assert len(downloads) == 3, "fetch_media re-raises; it never downloads again"
+
+
+async def test_provider_fetch_title_reads_the_cache_then_one_get_and_degrades_to_none():
+    cached_id = "3c4d5e6f-7081-4923-ab4c-5d6e7f809102"
+    gets = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        path = request.url.path
+        if path == "/v1/pages/p-links":
+            return httpx.Response(200, json={"id": "p-links", "properties": {"title": _title_prop("Links")}})
+        if path == "/v1/blocks/p-links/children":
+            return httpx.Response(200, json={"has_more": False, "results": [
+                _block("l1", "link_to_page", {"type": "page_id", "page_id": _T11_UUID}),
+                _block("l2", "link_to_page", {"type": "page_id", "page_id": _T11_UUID}),
+                _block("l3", "link_to_page", {"type": "page_id", "page_id": cached_id}),
+                _block("l4", "link_to_page", {"type": "page_id", "page_id": "4d5e6f70-8192-4a34-bc5d-6e7f80910213"}),
+            ]})
+        if path.startswith("/v1/pages/"):
+            gets.append(path)
+            if path == f"/v1/pages/{_T11_UUID}":
+                return httpx.Response(200, json={"id": _T11_UUID, "properties": {"title": _title_prop("Q3 Plan")}})
+            return httpx.Response(404)
+        return httpx.Response(404)
+
+    provider = _make_provider(handler)
+    provider._page_meta[cached_id] = {"id": cached_id, "properties": {"title": _title_prop("From search")}}
+    note = await provider.fetch(CREDS, RemoteRef(remote_id="p-links", updated_at="x"))
+    assert [t for t, _ in _t12_links(note.doc)] == ["Q3 Plan", "Q3 Plan", "From search", "Linked page"]
+    assert gets == [f"/v1/pages/{_T11_UUID}", "/v1/pages/4d5e6f70-8192-4a34-bc5d-6e7f80910213"], (
+        "one GET per unknown target, none for a cached one, none repeated")
+
+
+async def test_a_transient_title_failure_keeps_the_link_address_and_is_not_memoised():
+    """Fix round 1: a 429/5xx while reading a target's title must not freeze the link as a
+    generic "Linked page" (the skip gate never re-converts an unchanged page). The link keeps
+    its own address as its text, and the failure is not remembered, so the next reference in
+    the same batch asks again. Only a definitive answer (not found, no access) is the label."""
+    gets = []
+    flaky = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        path = request.url.path
+        if path == "/v1/pages/p-flaky":
+            return httpx.Response(200, json={"id": "p-flaky", "properties": {"title": _title_prop("Flaky")}})
+        if path == "/v1/blocks/p-flaky/children":
+            return httpx.Response(200, json={"has_more": False, "results": [
+                _block("l1", "link_to_page", {"type": "page_id", "page_id": _T11_UUID}),
+                _block("l2", "link_to_page", {"type": "page_id", "page_id": _T11_UUID}),
+            ]})
+        if path == f"/v1/pages/{_T11_UUID}":
+            gets.append(path)
+            flaky["n"] += 1
+            if flaky["n"] == 1:
+                return httpx.Response(503)
+            return httpx.Response(200, json={"id": _T11_UUID, "properties": {"title": _title_prop("Q3 Plan")}})
+        return httpx.Response(404)
+
+    provider = _make_provider(handler, sleep_fn=lambda _s: asyncio.sleep(0))
+    note = await provider.fetch(CREDS, RemoteRef(remote_id="p-flaky", updated_at="x"))
+    assert _t12_links(note.doc) == [(f"https://www.notion.so/{_T11_HEX}", _T11_KEY), ("Q3 Plan", _T11_KEY)]
+    assert len(gets) == 2
+
+
+async def test_fetch_title_answers_none_only_for_a_definitive_refusal():
+    for status in (403, 404):
+        def handler(request: httpx.Request, status=status) -> httpx.Response:
+            return httpx.Response(status)
+        provider = _make_provider(handler)
+        conv = provider._build_converter(TOKEN)
+        assert await conv._fetch_title(_T11_UUID) is None, status
+    for status in (429, 500, 503):
+        def handler(request: httpx.Request, status=status) -> httpx.Response:
+            return httpx.Response(status)
+        provider = _make_provider(handler, sleep_fn=lambda _s: asyncio.sleep(0))
+        conv = provider._build_converter(TOKEN)
+        with pytest.raises(errors.NoteConnError):
+            await conv._fetch_title(_T11_UUID)

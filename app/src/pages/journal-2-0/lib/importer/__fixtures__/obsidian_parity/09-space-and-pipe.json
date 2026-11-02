@@ -3,6 +3,7 @@
   "input_markdown": "# Spaces and pipes\n\nSee [[Target Note]] and [[Target Note|alias]].\n\n| col |\n| --- |\n| [[Other note\\|alias]] |\n\n![[My Img.png]]\n",
   "self_path": "a.md",
   "server": {
+    "callouts": [],
     "highlights": [],
     "images": [
       "attachments/My Img.png"
@@ -21,6 +22,7 @@
         "text": "alias"
       }
     ],
+    "pending": [],
     "task_checked": [],
     "text": "Spaces and pipes See Target Note and alias. col alias"
   },

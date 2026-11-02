@@ -56,13 +56,17 @@ function tap(el, opts = {}) {
   return fireEvent.click(el, { ctrlKey: !!opts.ctrlKey, metaKey: !!opts.metaKey, bubbles: true })
 }
 
-describe('openableLinkHref — ruling 165: only http(s) and mailto ever open', () => {
+describe('openableLinkHref — ruling 165: only http(s), mailto and (Task 15) tel ever open', () => {
   it.each([
     ['https://example.com/path', 'https://example.com/path'],
     ['http://example.com/path', 'http://example.com/path'],
     ['  https://example.com/path  ', 'https://example.com/path'],
     ['mailto:trader@example.com', 'mailto:trader@example.com'],
     ['mailto:a@example.com,b@example.com?subject=Hi', 'mailto:a@example.com,b@example.com?subject=Hi'],
+    // Plan A Task 15 (TEL): the server keeps tel: links, so they open too.
+    ['tel:+15550100', 'tel:+15550100'],
+    ['TEL:+1-555-010-0100', 'TEL:+1-555-010-0100'],
+    ['tel:(555)010.0100', 'tel:(555)010.0100'],
   ])('%s opens', (href, expected) => {
     expect(openableLinkHref(href)).toBe(expected)
   })
@@ -74,6 +78,14 @@ describe('openableLinkHref — ruling 165: only http(s) and mailto ever open', (
     'mailto:',
     'mailto:not-an-email',
     'mailto:has space@example.com',
+    'tel:',
+    'tel:+',
+    'tel:call-me',
+    'tel:+1 555 0100', // whitespace, as for mailto
+    'tel:javascript:alert(1)',
+    'vbscript:msgbox(1)',
+    'file:///C:/Windows/win.ini',
+    'data:text/html,tel:+15550100',
     '/journal?j2tab=notebook&note=n1', // an internal note link is its own door (uct:open-note), never a window.open
     'import-link://some-target-key',
     'import-link://notion:1a2b3c4d-5e6f-47a8-b9c0-d1e2f3a4b5c6', // its own door too (pendingLinkFallbackHref)
@@ -114,6 +126,13 @@ describe('Ctrl/Cmd+click opens the link, safely, in a new tab', () => {
     tap(linkEl(ed), { ctrlKey: true })
     expect(openSpy).toHaveBeenCalledWith('mailto:desk@example.com', '_blank', 'noopener,noreferrer')
   })
+
+  it('a tel: link opens on Ctrl+click too, through the same door as mailto:', () => {
+    const ed = mount([linkPara('call the desk', 'tel:+15550100')])
+    const notPrevented = tap(linkEl(ed), { ctrlKey: true })
+    expect(notPrevented).toBe(false)
+    expect(openSpy).toHaveBeenCalledWith('tel:+15550100', '_blank', 'noopener,noreferrer')
+  })
 })
 
 describe('ruling 165: a TOUCH tap opens the link only when the caret is ALREADY inside it', () => {
@@ -151,6 +170,12 @@ describe('controller ruling on FYI 2: a READ-ONLY view opens on a PLAIN click/ta
     const ed = mount([linkPara('read this', 'https://example.com/report')], { editable: false })
     tap(linkEl(ed), { pointerType: 'touch' })
     expect(openSpy).toHaveBeenCalledWith('https://example.com/report', '_blank', 'noopener,noreferrer')
+  })
+
+  it('a plain tap on a read-only tel: link opens it (Plan A Task 15)', () => {
+    const ed = mount([linkPara('call', 'tel:+15550100')], { editable: false })
+    tap(linkEl(ed), { pointerType: 'touch' })
+    expect(openSpy).toHaveBeenCalledWith('tel:+15550100', '_blank', 'noopener,noreferrer')
   })
 
   it('javascript: and import-link:// still never open on a read-only plain click', () => {

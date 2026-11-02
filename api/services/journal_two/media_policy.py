@@ -122,11 +122,15 @@ class MediaRejected(Exception):
         self.marker_text = marker_text
 
 
-def _reject(reason: str, filename: str | None) -> MediaRejected:
-    # A `fetch_failed` from here is said in its final form ("Couldn't copy X"): an upload door
-    # retries nothing, and the engine builds its own notice (with attempts) from the reason.
+def rejection(reason: str, filename: str | None) -> MediaRejected:
+    """The refusal a DOOR answers with (an upload, the member media-fetch door).
+    A `fetch_failed` from here is said in its final form ("Couldn't copy X"): a door
+    retries nothing, and the engine builds its own notice (with attempts) from the reason."""
     attempts = import_notice.MEDIA_RETRY_MAX_ATTEMPTS if reason == "fetch_failed" else 0
     return MediaRejected(reason, import_notice.marker_text(reason, filename or None, attempts=attempts))
+
+
+_reject = rejection
 
 
 # ── sniffing ─────────────────────────────────────────────────────────────────
@@ -278,7 +282,10 @@ def _declared(value: str | None) -> str | None:
     return mime or None
 
 
-def _ext_mime(filename: str | None) -> str | None:
+def extension_mime(filename: str | None) -> str | None:
+    """The type a file NAME claims, from the one extension table (`_MIME_BY_EXT`), or None.
+    Public for callers that must decide image versus file before any bytes exist (the Notion
+    converter's database file cells, Plan A Task 12); the bytes are still sniffed later."""
     if not isinstance(filename, str):
         return None
     return _MIME_BY_EXT.get(os.path.splitext(filename.strip())[1].lower())
@@ -288,7 +295,7 @@ def _sniff(data: bytes, declared_mime: str | None, filename: str | None) -> tupl
     """`(mime, confirmed)`: the ONE decision `sniff_mime` and `normalize_media` both read;
     `confirmed` is True when the bytes themselves named the type."""
     declared = _declared(declared_mime)
-    ext = _ext_mime(filename)
+    ext = extension_mime(filename)
     magic = _magic(data)
     if magic is not None:
         family = _REFINES.get(magic, frozenset())
@@ -618,8 +625,15 @@ def store_media(user_id: str, note_id: str, result: MediaResult, *, budget: Medi
     Fix round 1, M4: the ORIGINAL is written first. It is a uuid-named file no other note
     shares, so if the primary then fails it is deleted, and the budget released: no file
     outlives a refusal. (The primary is never deleted on a later failure: an inline image is
-    content-addressed and may be the same file another ref of this note already uses.)"""
-    need = len(result.data) + (len(result.original.data) if result.original is not None else 0)
+    content-addressed and may be the same file another ref of this note already uses.)
+
+    Final review I1(a): an inline image whose content-addressed file is ALREADY on disk is a
+    no-op write (`notes.note_image_target`, the path the save itself uses), so it reserves
+    nothing: a re-import of unchanged media never counts the same bytes twice."""
+    primary_is_new = not (result.kind == "image" and notes_svc.note_image_target(
+        user_id, note_id, result.data, result.mime).is_file())
+    need = ((len(result.data) if primary_is_new else 0)
+            + (len(result.original.data) if result.original is not None else 0))
     if not budget.reserve(need):
         raise _reject("storage_limit", result.filename)
     original = None

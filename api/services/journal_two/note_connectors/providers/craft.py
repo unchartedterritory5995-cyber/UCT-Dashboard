@@ -62,7 +62,7 @@ from ..errors import (
     NoteConnUnsafeAddress,
     NoteConnUnsupported,
 )
-from .base import AccountInfo, NoteProvider, RemoteNote, RemoteRef, assert_public_https
+from .base import AccountInfo, NoteProvider, RemoteNote, RemoteRef, fetch_content_url, media_http_client
 
 # Self-imposed politeness ceiling — Craft documents no rate limit for this
 # API (spec §7).
@@ -255,7 +255,7 @@ class CraftProvider(NoteProvider):
 
     async def _get_client(self) -> httpx.AsyncClient:
         if self._client is None:
-            self._client = httpx.AsyncClient(timeout=30.0)
+            self._client = media_http_client(timeout=30.0)   # its media hops ride it: no env proxy
         return self._client
 
     async def _get(
@@ -421,7 +421,7 @@ class CraftProvider(NoteProvider):
             raise NoteConnTransient(
                 "Craft returned non-markdown content", status=response.status_code,
             )
-        converted = md_to_tiptap(body_text)
+        converted = md_to_tiptap(body_text, unsafe_image_notice=True)
 
         return RemoteNote(
             remote_id=ref.remote_id,
@@ -451,39 +451,30 @@ class CraftProvider(NoteProvider):
         _base_url, _link_id, bearer = self._creds(credentials)
         parsed = urlsplit(ref)
         scheme = (parsed.scheme or "").lower()
-        if scheme != "https":
-            # Plan A Task 8: typed. A non-https scheme is an address refusal (`unsafe`); no
+        if scheme not in ("http", "https"):
+            # Plan A Task 8: typed. A non-web scheme is an address refusal (`unsafe`); no
             # scheme at all is a ref this provider cannot read (`unsupported`).
             refusal = NoteConnUnsafeAddress if scheme else NoteConnUnsupported
             raise refusal(
-                f"Cannot fetch Craft media over a non-https URL ({scheme or 'no scheme'!r})",
-                reason="Media reference is not a secure (https) URL",
+                f"Cannot fetch Craft media over a non-web URL ({scheme or 'no scheme'!r})",
+                reason="Media reference is not a web address",
             )
-        headers: dict[str, str] = {}
-        if _is_trusted_craft_host(parsed.hostname):
-            headers["Authorization"] = f"Bearer {bearer}"
-        else:
-            # An untrusted host — fetch WITHOUT credentials (public-URL
-            # fallback), never widen `_is_trusted_craft_host` to fix a
-            # legitimate asset host that fails this check; add it to that
-            # function's exact allowlist instead. Final-review Item D: this
-            # fallback still blindly GETs wherever `ref` points --
-            # `assert_public_https` refuses a host that resolves to
-            # loopback/private/link-local/metadata before that GET is
-            # issued (`_get`'s client never auto-follows redirects --
-            # httpx's default is `follow_redirects=False`, and nothing here
-            # overrides it -- so a single host check is sufficient, no
-            # redirect-hop revalidation needed). Scoped to ONLY this
-            # no-auth branch -- the trusted-host branch above targets
-            # Craft's OWN infrastructure (an exact/suffix-matched domain
-            # Craft controls, not attacker-arbitrary), so it carries none
-            # of the risk this guard exists for.
-            await assert_public_https(ref, what="Craft media")
-        response = await self._get(ref, headers=headers)
-        if response.status_code >= 400:
-            raise NoteConnTransient(
-                f"Failed to download Craft media ({response.status_code})",
-                status=response.status_code,
-            )
-        content_type = response.headers.get("content-type", "application/octet-stream")
-        return response.content, content_type
+        if scheme == "https" and _is_trusted_craft_host(parsed.hostname):
+            # Craft's own infrastructure, over https only: the bearer is attached, and this
+            # GET never follows a redirect (httpx's default), so it never leaves Craft.
+            response = await self._get(ref, headers={"Authorization": f"Bearer {bearer}"})
+            if response.status_code >= 400:
+                raise NoteConnTransient(
+                    f"Failed to download Craft media ({response.status_code})",
+                    status=response.status_code,
+                )
+            return response.content, response.headers.get("content-type", "application/octet-stream")
+        # Plan A Task 9 (I-5): anything else is a hotlink from content -- copied in with no
+        # credential, http allowed for the download only (never the bearer over http, not even
+        # to a Craft host), redirects followed with the SSRF guard on every hop.
+        await self._limiter.acquire()
+        client = await self._get_client()
+        # Never widen `_is_trusted_craft_host` to fix a legitimate asset host that lands here;
+        # add it to that function's exact allowlist instead. The trusted branch above targets
+        # Craft's OWN infrastructure, so it carries none of the risk this guard exists for.
+        return await fetch_content_url(client, ref, what="Craft media")

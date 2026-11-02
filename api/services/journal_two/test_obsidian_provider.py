@@ -19,7 +19,10 @@ from api.services.journal_two.db import ensure_schema
 from api.services.journal_two.note_connectors import errors
 from api.services.journal_two.note_connectors.convert import md_to_tiptap
 from api.services.journal_two.note_connectors.providers.base import RemoteRef
-from api.services.journal_two.note_connectors.providers.obsidian import ObsidianProvider
+from api.services.journal_two.note_connectors.providers.obsidian import (
+    ObsidianProvider, _build_basename_map, _resolve_target,
+)
+from api.services.journal_two.notes import extract_plain_text
 
 
 # ---------------------------------------------------------------------------
@@ -215,6 +218,25 @@ async def test_fetch_produces_a_remote_note_from_the_existing_converter(db):
     assert note.created_at is None
 
 
+async def test_fetch_turns_an_unsafe_image_into_an_unsafe_notice(db):
+    """Plan A Task 15 fix round 1 (controller ruling): the Obsidian connector passes
+    `unsafe_image_notice=True`, so a javascript:/vbscript: image -- raw or percent-encoded --
+    is an importNotice `unsafe` where it stood, never media and never `[unsupported image]`."""
+    body = "Look ![chart](javascript%3Aalert(1)) here\n\n![](vbscript:msgbox(1))\n"
+    _stage("user-a", "vault-1", "Notes/bad.md", body, T1)
+    _manifest("user-a", "vault-1", ["Notes/bad.md"])
+    provider = ObsidianProvider(user_id="user-a", vault_id="vault-1")
+    note = await provider.fetch({}, RemoteRef(remote_id="Notes/bad.md", updated_at=T1))
+    notice = lambda name: {"type": "importNotice", "attrs": {  # noqa: E731
+        "reason": "unsafe", "name": name, "sourceUrl": None, "ref": None, "attempts": 0}}
+    assert note.media == []
+    assert note.doc["content"] == [
+        {"type": "paragraph", "content": [{"type": "text", "text": "Look "}]},
+        notice("chart"),
+        {"type": "paragraph", "content": [{"type": "text", "text": " here"}]},
+        notice(None)]
+
+
 async def test_fetch_title_falls_back_to_filename_when_no_h1(db):
     _stage("user-a", "vault-1", "Notes/plain.md", "just a paragraph", T1)
     provider = ObsidianProvider(user_id="user-a", vault_id="vault-1")
@@ -350,15 +372,17 @@ async def test_a_bare_wikilink_with_no_alias_resolves_by_basename(db):
     assert link_mark["attrs"]["href"] == "import-link://obsidian:vault-1/Deep/Nested/Target.md"
 
 
-async def test_an_unresolvable_wikilink_degrades_to_plain_text(db):
+async def test_an_unresolvable_wikilink_keeps_its_text_and_waits_under_a_name_key(db):
+    # Plan A Task 13 (O-4): it used to degrade to plain text, so a note created later
+    # could never heal it. It is now a pending `name:obsidian:` mark (see the
+    # pure-conversion tests at the end of this file).
     _stage("user-a", "vault-1", "a.md", "see [[Ghost Note]] over there", T1)
     provider = ObsidianProvider(user_id="user-a", vault_id="vault-1")
     note = await provider.fetch({}, RemoteRef(remote_id="a.md", updated_at=T1))
     paragraph = note.doc["content"][0]
     joined = "".join(n.get("text", "") for n in paragraph["content"])
-    assert "Ghost Note" in joined
-    assert note.links == []
-    assert not any("link" in (n.get("marks") or [{}])[0].get("type", "") for n in paragraph["content"] if n.get("marks"))
+    assert joined == "see Ghost Note over there"
+    assert note.links == ["name:obsidian:vault-1/ghost note"]
 
 
 # ---------------------------------------------------------------------------
@@ -481,6 +505,21 @@ async def test_fetch_media_downloads_a_genuine_external_https_reference(db):
     content, content_type = await provider.fetch_media({}, "https://example.com/chart.png")
     assert content == b"bytes"
     assert content_type == "image/png"
+    await provider.aclose()
+
+
+async def test_http_hotlink_is_downloaded(db):
+    """Plan A Task 9 (I-5): an http hotlink in a vault note is copied in (download only)."""
+    seen: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(str(request.url))
+        return httpx.Response(200, content=b"bytes", headers={"content-type": "image/png"})
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    provider = ObsidianProvider(user_id="user-a", vault_id="vault-1", client=client)
+    assert await provider.fetch_media({}, "http://1.1.1.1/chart.png") == (b"bytes", "image/png")
+    assert seen == ["http://1.1.1.1/chart.png"]
     await provider.aclose()
 
 
@@ -623,3 +662,200 @@ async def test_embedded_image_with_space_registers_the_raw_vault_path(db):
 async def test_a_literal_percent_twenty_in_a_name_survives(db):
     note = await _fetch_a("[[100%20club]]", ["100%20club.md"])
     assert note.links == ["obsidian:vault-1/100%20club.md"]
+
+
+# ---------------------------------------------------------------------------
+# Plan A Task 13 (O-4, O-5, §5.2 polish): links that heal later, relative links,
+# deep links, anchors, note embeds, callouts, duplicate names, raw HTML.
+# Pure conversion -- `_convert_row` is what `fetch`/`fetch_many` run, minus the DB.
+# ---------------------------------------------------------------------------
+
+_V = "vault-1"
+
+
+def _convert(body, paths, *, self_path="Notes/Src.md", label=None):
+    paths = sorted({*paths, self_path})
+    provider = ObsidianProvider(user_id="user-a", vault_id=_V)
+    return provider._convert_row(self_path, body, paths, _build_basename_map(paths),
+                                 vault_label=label)
+
+
+def _key(path):
+    return f"import-link://obsidian:{_V}/{path}"
+
+
+def test_unresolved_wikilink_keeps_display_text_and_a_pending_key():
+    out = _convert("see [[Ghost Note]] and [[Ghost Note#Risk|the risk]].", [])
+    # `|notes`: the linking note's folder, so the heal applies the same-folder rule too.
+    pending = f"import-link://name:obsidian:{_V}/ghost note|notes"
+    assert _link_marks(out["doc"]) == [("Ghost Note", pending), ("the risk", pending)]
+    assert out["links"] == [f"name:obsidian:{_V}/ghost note|notes"] * 2
+    assert extract_plain_text(out["doc"]) == "see Ghost Note and the risk."
+
+
+def test_relative_markdown_links_resolve():
+    paths = ["Notes/Other note.md", "Notes/Other.md", "Archive/Deep.md"]
+    body = ("[a](Other%20note.md) [b](../Notes/Other.md) [c](<Other note.md#Heading>) "
+            "[d](Archive/Deep.md) [e](https://example.com/x.md) [f](#local) [g](Missing.md) "
+            "[h](./Other.md)")
+    out = _convert(body, paths)
+    assert _link_marks(out["doc"]) == [
+        ("a", _key("Notes/Other note.md")),
+        ("b", _key("Notes/Other.md")),
+        ("c", _key("Notes/Other note.md")),
+        ("d", _key("Archive/Deep.md")),          # not beside the note: the vault root
+        ("e", "https://example.com/x.md"),       # a scheme is never the vault's business
+        ("f", "#local"),                         # left to the one link policy (Task 10)
+        # May arrive later: as written, with the linking note's folder, marked relative.
+        ("g", f"import-link://name:obsidian:{_V}/missing.md|notes|rel"),
+        ("h", _key("Notes/Other.md")),
+    ]
+
+
+def test_obsidian_deep_link_resolves_within_the_vault():
+    body = ("[o](obsidian://open?vault=Trading&file=Notes%2FOther) "
+            "[x](obsidian://open?vault=Elsewhere&file=Notes%2FOther)")
+    out = _convert(body, ["Notes/Other.md"], label="Trading")
+    # Another vault's link is not this vault's note: it stays text (Task 10's policy).
+    assert _link_marks(out["doc"]) == [("o", _key("Notes/Other.md"))]
+    assert out["links"] == [f"obsidian:{_V}/Notes/Other.md"]
+    assert extract_plain_text(out["doc"]) == "o x"
+
+
+def test_heading_anchor_display_reads_note_then_heading():
+    body = "[[Other note#Risk]] [[Other note#^abc123]] [[Other note#Risk|r]]"
+    out = _convert(body, ["Notes/Other note.md"])
+    assert _link_marks(out["doc"]) == [
+        ("Other note > Risk", _key("Notes/Other note.md")),
+        ("Other note", _key("Notes/Other note.md")),   # a block id is not a heading
+        ("r", _key("Notes/Other note.md")),
+    ]
+
+
+def test_note_embed_text_has_no_md_extension():
+    out = _convert("![[Other note]]", ["Notes/Other note.md"])
+    assert _link_marks(out["doc"]) == [("Other note", _key("Notes/Other note.md"))]
+
+
+def test_callout_becomes_a_native_callout():
+    out = _convert("> [!warning] Size\n> text", [])
+    assert out["doc"]["content"] == [{
+        "type": "callout", "attrs": {"variant": "warning"},
+        "content": [
+            {"type": "paragraph", "content": [{"type": "text", "text": "Size", "marks": [{"type": "bold"}]}]},
+            {"type": "paragraph", "content": [{"type": "text", "text": "text"}]},
+        ],
+    }]
+    for written, variant, title in [
+        ("note", "note", "Note"), ("INFO", "info", "INFO"), ("success", "success", "Success"),
+        ("danger", "danger", "Danger"), ("tip", "success", "Tip"), ("caution", "warning", "Caution"),
+        ("important", "warning", "Important"), ("bug", "danger", "Bug"),
+        ("failure", "danger", "Failure"), ("zebra", "note", "Zebra"),
+    ]:
+        got = _convert(f"> [!{written}]-\n> body", [])["doc"]["content"][0]
+        assert (got["type"], got["attrs"], got["content"][0]["content"][0]["text"]) == \
+            ("callout", {"variant": variant}, title), written
+    # A quote that is not a callout stays a quote; a marker mid-quote is just text.
+    plain = _convert("> just a quote\n> [!note] later", [])["doc"]["content"][0]
+    assert plain["type"] == "blockquote"
+
+
+def test_duplicate_basenames_prefer_same_folder_then_shortest():
+    paths = ["A/Deep/Plan.md", "B/Plan.md", "Notes/Sub/Plan.md", "C/Plan.md"]
+    bmap = _build_basename_map(paths)
+    assert _resolve_target("Plan", paths, bmap, from_path="Notes/Sub/Src.md") == "Notes/Sub/Plan.md"
+    assert _resolve_target("Plan", paths, bmap, from_path="Other/Src.md") == "B/Plan.md"
+    assert _resolve_target("Plan", paths, bmap) == "B/Plan.md"
+    out = _convert("[[Plan]]", paths, self_path="Notes/Sub/Src.md")
+    assert out["links"] == [f"obsidian:{_V}/Notes/Sub/Plan.md"]
+
+
+def test_raw_img_and_a_html_become_image_and_link():
+    body = ('Before <a href="https://example.com/x">site</a> after.\n\n'
+            '<img src="https://example.com/c.png" alt="c">\n\n'
+            'Inline <img src="files/d.png"> here, <a href="Other%20note.md">o</a> and '
+            '<a href="javascript:alert(1)">bad</a>.')
+    out = _convert(body, ["Notes/Other note.md"])
+    assert _link_marks(out["doc"]) == [
+        ("site", "https://example.com/x"), ("o", _key("Notes/Other note.md"))]
+    images = [n["attrs"]["src"] for n in out["doc"]["content"] if n["type"] == "image"]
+    assert images == ["import-ref://https://example.com/c.png", "import-ref://files/d.png"]
+    assert [m["ref"] for m in out["media"]] == ["https://example.com/c.png", "files/d.png"]
+    text = extract_plain_text(out["doc"])
+    assert "<" not in text and "bad" in text
+
+
+# ── Fix round 1 ──────────────────────────────────────────────────────────────
+
+async def test_one_vault_index_per_fetch_batch_not_one_per_note(db, monkeypatch):
+    """I-1: the vault's path index is built ONCE per `fetch_many` and shared by every
+    note's link resolution. ⚰️ The relative resolver rebuilt a path dict per note
+    (O(notes x paths) on a first sync, on the event loop)."""
+    from api.services.journal_two.note_connectors.providers import obsidian as obs
+
+    built: list[int] = []
+    real_init = obs._VaultIndex.__init__
+
+    def counting_init(self, paths):
+        built.append(len(paths))
+        real_init(self, paths)
+
+    monkeypatch.setattr(obs._VaultIndex, "__init__", counting_init)
+    names = [f"Notes/n{i}.md" for i in range(6)]
+    for i, path in enumerate(names):
+        _stage("user-a", "vault-1", path,
+               f"[next](n{(i + 1) % 6}.md) [[Ghost {i}]] [up](../Notes/n0.md)", T1)
+    _manifest("user-a", "vault-1", names)
+    provider = ObsidianProvider(user_id="user-a", vault_id="vault-1")
+    notes = await provider.fetch_many({}, [RemoteRef(remote_id=p, updated_at=T1) for p in names])
+    assert len(notes) == 6
+    assert all(n.links[0].startswith("obsidian:vault-1/Notes/n") for n in notes)
+    assert built == [6]
+
+
+def test_an_image_whose_src_is_a_deep_link_is_left_alone():
+    """M-2: only a LINK to `obsidian://open` is this vault's business. An image with
+    that src is never rewritten into an `import-link://` image; it stays a media ref
+    the provider refuses by name (a visible notice), and joins no `links`."""
+    body = ("![pic](obsidian://open?vault=Trading&file=Plan) "
+            "[see [the] plan](obsidian://open?vault=Trading&file=Plan)")
+    out = _convert(body, ["Plan.md"], label="Trading")
+    images = [n["attrs"]["src"] for n in out["doc"]["content"] if n["type"] == "image"]
+    assert images == ["import-ref://obsidian://open?vault=Trading&file=Plan"]
+    assert out["links"] == [f"obsidian:{_V}/Plan.md"]
+    assert _link_marks(out["doc"]) == [("see [the] plan", _key("Plan.md"))]
+
+
+def test_tilde_fences_are_code_for_every_obsidian_pass():
+    """M-4: a `~~~` fence is code: no wikilink, highlight, deep link or callout inside it
+    is rewritten."""
+    fenced = ("> [!note] Title\n> body\n[[Plan]] ==hi== "
+              "[d](obsidian://open?vault=Trading&file=Plan)")
+    out = _convert(f"~~~\n{fenced}\n~~~\n\n[[Plan]]", ["Plan.md"], label="Trading")
+    code = next(n for n in out["doc"]["content"] if n["type"] == "codeBlock")
+    assert code["content"][0]["text"] == fenced
+    assert out["links"] == [f"obsidian:{_V}/Plan.md"]  # the one OUTSIDE the fence
+
+
+# ── Fix round 2 ──────────────────────────────────────────────────────────────
+
+def _cells(doc):
+    table = next(n for n in doc["content"] if n["type"] == "table")
+    return [["".join(t.get("text", "") for p in cell["content"] for t in p.get("content") or [])
+             for cell in row["content"]] for row in table["content"]]
+
+
+def test_a_pending_link_in_a_sub_folder_note_survives_a_table_cell():
+    """The `|<folder>` field of a pending key is written into the markdown BEFORE it is
+    parsed, and a GFM table splits a cell on a bare `|`. ⚰️ `| [[Ghost]] | x |` in
+    `Notes/Src.md` became three cells and `links == []`. `_pct` writes `|` as `%7C`; the
+    one decode in mddoc turns it back, so the key stored equals the key the heal matches."""
+    body = ("| a | b |\n|---|---|\n| [[Ghost]] | x |\n"
+            "| [d](obsidian://open?vault=Trading&file=Later) | y |\n")
+    out = _convert(body, [], self_path="Notes/Src.md", label="Trading")
+    assert _cells(out["doc"]) == [["a", "b"], ["Ghost", "x"], ["d", "y"]]
+    ghost = f"name:obsidian:{_V}/ghost|notes"
+    later = f"name:obsidian:{_V}/later|notes"
+    assert out["links"] == [ghost, later]
+    assert _link_marks(out["doc"]) == [
+        ("Ghost", f"import-link://{ghost}"), ("d", f"import-link://{later}")]
