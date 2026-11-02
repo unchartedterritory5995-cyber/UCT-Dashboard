@@ -1,5 +1,9 @@
-import { describe, it, expect } from 'vitest'
-import {
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { renderHook } from '@testing-library/react'
+import { SWRConfig } from 'swr'
+import React from 'react'
+import useNoteConnectors, {
+  normalizeSyncResult, normalizeLogRows, normalizeSource, BUSY_DETAIL,
   normalizeStatus, normalizeFolders, NOTE_CONNECTOR_PROVIDERS, FOLDER_PICKER_PROVIDERS,
   FOLDER_PICKER_ROOT_REMOTE_ID,
 } from './useNoteConnectors'
@@ -51,6 +55,7 @@ describe('normalizeStatus — the field-name contract (fix-round 1 finding #2, c
         id: 's1', provider: 'roam', displayName: 'My Graph', remoteId: 'my-graph',
         syncEnabled: true, status: 'active', lastSyncAt: '2026-08-01T00:00:00Z',
         lastSyncStatus: 'ok', lastSyncError: null, warmingUntil: null,
+        pendingRemoval: 0, lastFailureCount: 0, lastFailuresUnreadable: false,
         counts: {
           notesCreated: 5, notesUpdated: 2, notesSkipped: 1, mediaUploaded: 4,
           conflicts: 0, sourceDeleted: 6,
@@ -90,6 +95,7 @@ describe('normalizeStatus — the field-name contract (fix-round 1 finding #2, c
         id: 's2', provider: 'craft', displayName: 'My Space', remoteId: 'link-1',
         syncEnabled: false, status: 'broken', lastSyncAt: '2026-08-02T00:00:00Z',
         lastSyncStatus: 'error', lastSyncError: 'token expired', warmingUntil: null,
+        pendingRemoval: 0, lastFailureCount: 0, lastFailuresUnreadable: false,
         counts: {
           notesCreated: 9, notesUpdated: 0, notesSkipped: 2, mediaUploaded: 1,
           conflicts: 4, sourceDeleted: 7,
@@ -222,5 +228,93 @@ describe('normalizeFolders — the provider-neutral folder contract (Task 12b, f
   it('drops null/garbage entries', () => {
     const out = normalizeFolders({ folders: [null, { path_lower: '/x', name: 'X' }] })
     expect(out).toEqual([{ name: 'X', remoteId: '/x', drillPath: '/x' }])
+  })
+})
+
+describe('Task 5: Sync now result, log rows, source counters', () => {
+  it('normalizeSyncResult keeps a rate-limited check as a stated outcome', () => {
+    expect(normalizeSyncResult({ status: 'ok', removalCheck: { ran: false, reason: 'rate_limited', nextAllowedAt: 'x', pending: 1, severed: 0 } }).removalCheck)
+      .toEqual({ ran: false, reason: 'rate_limited', nextAllowedAt: 'x', pending: 1, severed: 0 })
+    expect(normalizeSyncResult({ status: 'ok' }).removalCheck).toBeNull()
+    expect(normalizeSyncResult({ status: 'ok', removalCheck: { ran: false, reason: 'refused', nextAllowedAt: null, pending: 0, severed: 0 } }).removalCheck.nextAllowedAt).toBeNull()
+    expect(normalizeSyncResult(null)).toEqual({ status: 'unknown', removalCheck: null })
+  })
+
+  it('normalizeLogRows fills defaults and keeps failuresUnreadable', () => {
+    expect(normalizeLogRows(undefined)).toEqual([])
+    expect(normalizeLogRows({ rows: 'nope' })).toEqual([])
+    const [a, b] = normalizeLogRows({ rows: [
+      { id: 1, at: 't', status: 'ok', created: 2, failures: [{ noteTitle: 'N', reason: 'r', name: 'n' }] },
+      { id: 2, failuresUnreadable: true },
+    ] })
+    expect(a).toEqual({ id: 1, at: 't', status: 'ok', created: 2, updated: 0, skipped: 0, conflicts: 0, sourceDeleted: 0,
+      failures: [{ noteTitle: 'N', reason: 'r', name: 'n' }], failuresUnreadable: false })
+    expect(b.failures).toEqual([])
+    expect(b.failuresUnreadable).toBe(true)
+    expect(b.created).toBe(0)
+  })
+
+  it('normalizeSource reads pendingRemoval and lastFailureCount, defaulting to 0', () => {
+    expect(normalizeSource({ id: 'a', pendingRemoval: 3, lastFailureCount: 2 })).toMatchObject({ pendingRemoval: 3, lastFailureCount: 2 })
+    expect(normalizeSource({ id: 'a', pending_removal: 4, last_failure_count: 1 })).toMatchObject({ pendingRemoval: 4, lastFailureCount: 1 })
+    expect(normalizeSource({ id: 'a' })).toMatchObject({ pendingRemoval: 0, lastFailureCount: 0 })
+  })
+
+  it('normalizeSource keeps an unreadable failure count as unreadable, never as "none"', () => {
+    expect(normalizeSource({ id: 'a', lastFailureCount: null, lastFailuresUnreadable: true }))
+      .toMatchObject({ lastFailureCount: 0, lastFailuresUnreadable: true })
+    expect(normalizeSource({ id: 'a', last_failure_count: null, last_failures_unreadable: true }))
+      .toMatchObject({ lastFailuresUnreadable: true })
+    expect(normalizeSource({ id: 'a' })).toMatchObject({ lastFailuresUnreadable: false })
+  })
+})
+
+describe('Task 5: hook fetches', () => {
+  const wrapper = ({ children }) =>
+    React.createElement(SWRConfig, { value: { provider: () => new Map(), dedupingInterval: 0 } }, children)
+  const json = (status, body) => ({ ok: status < 400, status, json: async () => body })
+  const unreadable = { ok: true, status: 200, json: async () => { throw new Error('bad') } }
+  let calls
+  beforeEach(() => { calls = [] })
+  afterEach(() => { vi.unstubAllGlobals() })
+  const stub = (handler) => vi.stubGlobal('fetch', vi.fn(async (url, init) => { calls.push([String(url), init]); return handler(String(url)) }))
+
+  it('Sync now always asks for the removal check', async () => {
+    stub((u) => (u.includes('/sync') ? json(200, { status: 'ok', removalCheck: { ran: true, reason: null, nextAllowedAt: null, pending: 0, severed: 1 } }) : json(200, {})))
+    const { result } = renderHook(() => useNoteConnectors(), { wrapper })
+    const out = await result.current.syncSource('s1')
+    expect(calls.find((c) => c[0].includes('/sync'))[0]).toMatch(/\/sources\/s1\/sync\?full=1$/)
+    expect(out.removalCheck.severed).toBe(1)
+    await result.current.syncSource('s1', { background: true })
+    expect(calls.filter((c) => c[0].includes('/sync')).pop()[0]).toMatch(/\?full=1&background=1$/)
+  })
+
+  it('a busy source rejects with status 409 and the exact detail', async () => {
+    stub((u) => (u.includes('/sync') ? json(409, { detail: BUSY_DETAIL }) : json(200, {})))
+    const { result } = renderHook(() => useNoteConnectors(), { wrapper })
+    await expect(result.current.syncSource('s1')).rejects.toMatchObject({ status: 409, detail: BUSY_DETAIL })
+  })
+
+  it('an unreadable success body is unknown, not a crash', async () => {
+    stub((u) => (u.includes('/sync') ? unreadable : json(200, {})))
+    const { result } = renderHook(() => useNoteConnectors(), { wrapper })
+    expect(await result.current.syncSource('s1')).toEqual({ status: 'unknown', removalCheck: null })
+  })
+
+  it('getSourceLog rejects on an unreadable body instead of resolving []', async () => {
+    stub((u) => (u.includes('/log') ? unreadable : json(200, {})))
+    const { result } = renderHook(() => useNoteConnectors(), { wrapper })
+    await expect(result.current.getSourceLog('s1')).rejects.toThrow('Could not read recent syncs.')
+  })
+
+  it('getSourceLog throws on a non-ok response and returns normalized rows on ok', async () => {
+    stub((u) => (u.includes('/log') ? json(500, {}) : json(200, {})))
+    let h = renderHook(() => useNoteConnectors(), { wrapper })
+    await expect(h.result.current.getSourceLog('s1')).rejects.toThrow('Could not load recent syncs.')
+    stub((u) => (u.includes('/log') ? json(200, { rows: [{ id: 1, created: 3 }] }) : json(200, {})))
+    h = renderHook(() => useNoteConnectors(), { wrapper })
+    const rows = await h.result.current.getSourceLog('s1', { limit: 2 })
+    expect(rows[0].created).toBe(3)
+    expect(calls.pop()[0]).toMatch(/\/sources\/s1\/log\?limit=2$/)
   })
 })

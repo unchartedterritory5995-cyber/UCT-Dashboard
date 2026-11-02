@@ -10,6 +10,7 @@ isolation), against a temp auth.db.
 from __future__ import annotations
 
 import asyncio
+import json
 
 import pytest
 from cryptography.fernet import Fernet
@@ -872,6 +873,64 @@ def test_callback_replayed_state_is_rejected_on_second_use(client, monkeypatch):
     assert r2.status_code == 400
 
 
+def test_a_cross_device_callback_explains_what_happened_and_how_to_finish(client, monkeypatch):
+    monkeypatch.setenv("NOTION_CLIENT_ID", "cid")
+    monkeypatch.setenv("NOTION_CLIENT_SECRET", "csecret")
+    import api.routers.note_sync as ns
+    from api.middleware import auth_middleware as authmw
+    state = ns._sign_state("u1", "notion")
+    # The other device has no session at all.
+    client._app.dependency_overrides[authmw.get_current_user_optional] = lambda: None
+    r = client.get("/api/j2/notes/connectors/notion/callback",
+                   params={"code": "c", "state": state}, follow_redirects=False)
+    assert r.status_code == 400 and r.headers["content-type"].startswith("text/html")
+    assert "same browser where you pressed Connect" in r.text
+    assert "section=connections&amp;connector=notion&amp;connected=0&amp;reason=oauth_state" in r.text
+    assert "u1" not in r.text and state not in r.text
+    assert "<script" not in r.text
+    assert client.get("/api/j2/notes/connectors/status").json()["providers"]["notion"]["connected"] is False
+
+
+def test_every_state_failure_renders_the_same_page(client, monkeypatch):
+    monkeypatch.setenv("NOTION_CLIENT_ID", "cid")
+    monkeypatch.setenv("NOTION_CLIENT_SECRET", "csecret")
+    import api.routers.note_sync as ns
+    import base64
+    import hashlib
+    import hmac
+    import time as _time
+    from api.middleware import auth_middleware as authmw
+
+    def get(state):
+        return client.get("/api/j2/notes/connectors/notion/callback",
+                          params={"code": "c", "state": state}, follow_redirects=False)
+
+    tampered = ns._sign_state("u1", "notion")[:-4] + "abcd"
+    payload = f"u1:notion:{int(_time.time()) - 3600}:expired-nonce"
+    sig = hmac.new(ns._state_secret(), payload.encode("utf-8"), hashlib.sha256).hexdigest()
+    expired = base64.urlsafe_b64encode(f"{payload}:{sig}".encode("utf-8")).decode("utf-8")
+    cross_user = ns._sign_state("user2", "notion")
+
+    pages = [get(tampered), get(expired), get(cross_user)]
+
+    good = ns._sign_state("u1", "notion")
+    client._app.dependency_overrides[authmw.get_current_user_optional] = lambda: None
+    pages.append(get(good))  # no session
+    client._app.dependency_overrides[authmw.get_current_user_optional] = lambda: {"id": "u1", "role": "member"}
+
+    async def fake_exchange_code(provider, code, **kw):
+        return {"accessToken": "t", "workspaceId": "ws1", "workspaceName": "W"}
+
+    monkeypatch.setattr(ns.oauth, "exchange_code", fake_exchange_code)
+    replay = ns._sign_state("u1", "notion")
+    assert get(replay).status_code == 302
+    pages.append(get(replay))  # replayed
+
+    for p in pages:
+        assert p.status_code == 400 and p.headers["content-type"].startswith("text/html")
+    assert len({p.text for p in pages}) == 1
+
+
 # ── Fix-round-1 Important #3: OAuth state signing fails closed ───────────────
 
 def test_connect_oauth_fails_closed_with_no_secret_configured(client, monkeypatch):
@@ -1044,18 +1103,18 @@ def test_manual_sync_fires_the_engine_with_the_right_args(client, monkeypatch):
 
     calls = []
 
-    async def fake_sync_source(sid, *, full=False, manual=False):
-        calls.append((sid, full, manual))
+    async def fake_sync_source(sid, *, full=False, manual=False, member=False):
+        calls.append((sid, full, manual, member))
         return {"status": "ok", "sourceId": sid, "created": 0, "updated": 0, "skipped": 0}
 
     monkeypatch.setattr(engine, "sync_source", fake_sync_source)
 
     r2 = client.post(f"/api/j2/notes/connectors/sources/{source_id}/sync")
     assert r2.status_code == 200
-    assert calls == [(source_id, False, True)]
+    assert calls == [(source_id, False, True, True)]
 
     r3 = client.post(f"/api/j2/notes/connectors/sources/{source_id}/sync?full=true")
-    assert calls[-1] == (source_id, True, True)
+    assert calls[-1] == (source_id, True, True, True)
 
 
 def test_manual_sync_background_returns_immediately(client, monkeypatch):
@@ -1067,7 +1126,7 @@ def test_manual_sync_background_returns_immediately(client, monkeypatch):
 
     started = asyncio.Event()
 
-    async def fake_sync_source(sid, *, full=False, manual=False):
+    async def fake_sync_source(sid, *, full=False, manual=False, member=False):
         started.set()
         return {"status": "ok"}
 
@@ -1076,6 +1135,160 @@ def test_manual_sync_background_returns_immediately(client, monkeypatch):
     r2 = client.post(f"/api/j2/notes/connectors/sources/{source_id}/sync?background=true")
     assert r2.status_code == 200
     assert r2.json() == {"status": "started", "background": True}
+
+
+# ── Plan D: Sync now busy/409, status fields, camelCase log ───────────────────
+
+def _connect_roam(client, monkeypatch):
+    fake = FakeTokenProvider(label="my-graph")
+    monkeypatch.setattr(registry, "build_provider", lambda name, source=None: fake)
+    r = client.post("/api/j2/notes/connectors/roam/connect",
+                    json={"consent": True, "graphName": "my-graph", "token": "tok"})
+    return r.json()["source"]["id"]
+
+
+def _insert_log(source_id, *, finished_at, failures_json, created=0, updated=0, skipped=0,
+                status="ok"):
+    conn = auth_db.get_connection()
+    try:
+        conn.execute(
+            "INSERT INTO j2_note_sync_log (source_id, user_id, started_at, finished_at, status, "
+            "notes_created, notes_updated, notes_skipped, media_uploaded, conflicts, source_deleted, "
+            "failures_json) VALUES (?, 'u1', 's', ?, ?, ?, ?, ?, NULL, 0, NULL, ?)",
+            (source_id, finished_at, status, created, updated, skipped, failures_json),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def test_manual_sync_on_a_busy_source_is_a_fast_409(client, monkeypatch):
+    source_id = _connect_roam(client, monkeypatch)
+
+    async def fake_sync_source(sid, *, full=False, manual=False, member=False):
+        return {"status": "busy", "sourceId": sid}
+
+    monkeypatch.setattr(engine, "sync_source", fake_sync_source)
+    r = client.post(f"/api/j2/notes/connectors/sources/{source_id}/sync?full=1")
+    assert r.status_code == 409 and r.json()["detail"] == note_sync_router.BUSY_DETAIL
+    assert note_sync_router.BUSY_DETAIL == (
+        "A sync is already running for this source. Its results will appear here when it finishes.")
+
+
+def test_background_sync_on_a_busy_source_is_409_and_schedules_nothing(client, monkeypatch):
+    source_id = _connect_roam(client, monkeypatch)
+    calls = []
+
+    async def fake_sync_source(sid, *, full=False, manual=False, member=False):
+        calls.append(sid)
+        return {"status": "ok"}
+
+    monkeypatch.setattr(engine, "sync_source", fake_sync_source)
+    monkeypatch.setattr(engine, "is_source_busy", lambda sid: True)
+    r = client.post(f"/api/j2/notes/connectors/sources/{source_id}/sync?background=1")
+    assert r.status_code == 409 and r.json()["detail"] == note_sync_router.BUSY_DETAIL
+    assert calls == []
+
+
+def test_background_sync_passes_member_true_and_survives_a_busy_result(client, monkeypatch):
+    source_id = _connect_roam(client, monkeypatch)
+    calls = []
+
+    async def fake_sync_source(sid, *, full=False, manual=False, member=False):
+        calls.append((sid, full, manual, member))
+        return {"status": "busy", "sourceId": sid}
+
+    monkeypatch.setattr(engine, "sync_source", fake_sync_source)
+    monkeypatch.setattr(engine, "is_source_busy", lambda sid: False)
+
+    async def drive():
+        # Call the route coroutine on a loop we own, so the detached task is
+        # awaited deterministically (TestClient may tear its loop down first).
+        out = await note_sync_router.sync_source_now(
+            source_id, full=True, background=True, user={"id": "u1", "plan": "pro"})
+        for _ in range(100):
+            if calls:
+                break
+            await asyncio.sleep(0.01)
+        await asyncio.sleep(0)  # let the task finish after the busy result
+        return out
+
+    out = asyncio.run(drive())
+    assert out == {"status": "started", "background": True}
+    assert len(calls) == 1  # a vacuous all([]) cannot satisfy this
+    assert calls[0] == (source_id, True, True, True)
+
+
+def test_status_sources_carry_pending_removal_and_last_failure_count(client, monkeypatch):
+    source_id = _connect_roam(client, monkeypatch)
+    conn = auth_db.get_connection()
+    try:
+        for rid in ("r1", "r2"):
+            conn.execute(
+                "INSERT INTO j2_note_remote_index (user_id, source_id, remote_id, import_key, seen_at, "
+                "miss_streak) VALUES ('u1', ?, ?, ?, 't', 1)", (source_id, rid, "k" + rid))
+        conn.commit()
+    finally:
+        conn.close()
+    _insert_log(source_id, finished_at="t1", failures_json=json.dumps([{"noteTitle": "old"}]))
+    _insert_log(source_id, finished_at="t2", failures_json=json.dumps([
+        {"noteTitle": "a", "reason": "x"}, {"noteTitle": "b", "reason": "y"}, {"noteTitle": "c", "reason": "z"}]))
+    status = client.get("/api/j2/notes/connectors/status").json()
+    src = status["providers"]["roam"]["sources"][0]
+    assert src["pendingRemoval"] == 2 and src["lastFailureCount"] == 3
+    assert set(src["counts"]) == {"notesCreated", "notesUpdated", "notesSkipped",
+                                  "mediaUploaded", "conflicts", "sourceDeleted"}
+
+
+def test_status_sources_default_pending_removal_and_failure_count_to_zero(client, monkeypatch):
+    _connect_roam(client, monkeypatch)
+    src = client.get("/api/j2/notes/connectors/status").json()["providers"]["roam"]["sources"][0]
+    assert src["pendingRemoval"] == 0 and src["lastFailureCount"] == 0
+    assert src["lastFailuresUnreadable"] is False
+
+
+def test_status_unreadable_latest_failures_are_unknown_never_zero(client, monkeypatch):
+    """An unreadable newest `failures_json` is NOT "no failures": the count is
+    null (unknown) and `lastFailuresUnreadable` says why, so the card keeps a
+    path to the log's "couldn't be read" line."""
+    source_id = _connect_roam(client, monkeypatch)
+    _insert_log(source_id, finished_at="t1", failures_json="{not json")
+    src = client.get("/api/j2/notes/connectors/status").json()["providers"]["roam"]["sources"][0]
+    assert src["lastFailureCount"] is None
+    assert src["lastFailuresUnreadable"] is True
+
+
+def test_status_only_the_newest_row_decides_unreadable(client, monkeypatch):
+    source_id = _connect_roam(client, monkeypatch)
+    _insert_log(source_id, finished_at="t1", failures_json="{not json")
+    _insert_log(source_id, finished_at="t2", failures_json=json.dumps([{"noteTitle": "a", "reason": "x"}]))
+    src = client.get("/api/j2/notes/connectors/status").json()["providers"]["roam"]["sources"][0]
+    assert src["lastFailureCount"] == 1 and src["lastFailuresUnreadable"] is False
+
+
+def test_source_log_rows_are_camelcase_with_failures_parsed(client, monkeypatch):
+    source_id = _connect_roam(client, monkeypatch)
+    _insert_log(source_id, finished_at="t1", failures_json=None)
+    _insert_log(source_id, finished_at="t2", created=1, updated=2, skipped=3, failures_json=json.dumps([
+        {"noteTitle": "Trip", "reason": "Image couldn't be copied", "name": "a.heic", "extra": "dropped"}]))
+    rows = client.get(f"/api/j2/notes/connectors/sources/{source_id}/log?limit=5").json()["rows"]
+    assert isinstance(rows[0].pop("id"), int)
+    assert rows[0] == {"at": "t2", "status": "ok", "created": 1, "updated": 2, "skipped": 3,
+                       "conflicts": 0, "sourceDeleted": 0, "failuresUnreadable": False,
+                       "failures": [{"noteTitle": "Trip", "reason": "Image couldn't be copied",
+                                     "name": "a.heic"}]}
+    assert rows[1]["failures"] == [] and rows[1]["failuresUnreadable"] is False
+    assert not any("_" in k for k in rows[0])
+
+
+def test_source_log_marks_unreadable_failures_instead_of_reporting_none(client, monkeypatch):
+    source_id = _connect_roam(client, monkeypatch)
+    _insert_log(source_id, finished_at="t1", failures_json="{not json")
+    _insert_log(source_id, finished_at="t2", failures_json=json.dumps([{"noteTitle": 5, "reason": "r"}]))
+    rows = client.get(f"/api/j2/notes/connectors/sources/{source_id}/log").json()["rows"]
+    assert rows[0]["failuresUnreadable"] is False
+    assert rows[0]["failures"] == [{"noteTitle": "Untitled note", "reason": "r", "name": None}]
+    assert rows[1]["failures"] == [] and rows[1]["failuresUnreadable"] is True
 
 
 def test_manual_sync_unknown_source_404(client):

@@ -36,6 +36,7 @@ import base64
 import importlib
 import json
 import threading
+from datetime import datetime, timedelta, timezone
 
 import pytest
 from cryptography.fernet import Fernet
@@ -508,6 +509,24 @@ async def test_conflicted_note_with_remote_change_after_an_unchanged_pass_still_
 # 5. Delete detection: 2-strikes + refuse guard
 # ---------------------------------------------------------------------------
 
+
+def _a_night_later(source_id):
+    """Backdate the source's previous full pass by a day, so the next
+    back-to-back full pass on the real clock is shaped like the NEXT nightly
+    pass. Every full pass, scheduler included, leaves at least
+    MEMBER_FULL_PASS_MIN_INTERVAL_S between strike 1 and strike 2; these
+    tests model nightly passes, which are a day apart."""
+    conn = auth_db.get_connection()
+    try:
+        conn.execute(
+            "UPDATE j2_note_sources SET last_full_sync_at = ? WHERE id = ?",
+            ((datetime.now(timezone.utc) - timedelta(days=1)).isoformat(), source_id),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
 async def test_delete_detection_needs_two_consecutive_full_misses(source, provider):
     provider.refs = [
         RemoteRef(remote_id="a", updated_at="2026-08-01T00:00:00+00:00"),
@@ -522,6 +541,7 @@ async def test_delete_detection_needs_two_consecutive_full_misses(source, provid
 
     # Full sync #2: "c" is missing -> first miss, NOT deleted yet.
     provider.refs = provider.refs[:2]  # only a, b
+    _a_night_later(source["id"])
     r2 = await engine.sync_source(source["id"], full=True, manual=True)
     assert r2["status"] == "ok"
     idx_rows = {r["remote_id"]: r for r in _remote_index_rows(source["id"])}
@@ -530,6 +550,7 @@ async def test_delete_detection_needs_two_consecutive_full_misses(source, provid
     assert "source-deleted" not in c_note["tags"]
 
     # Full sync #3: "c" STILL missing -> second consecutive miss -> tagged + severed.
+    _a_night_later(source["id"])
     r3 = await engine.sync_source(source["id"], full=True, manual=True)
     assert r3["status"] == "ok"
     idx_rows = {r["remote_id"]: r for r in _remote_index_rows(source["id"])}
@@ -573,10 +594,12 @@ async def test_a_sever_is_persisted_to_the_sync_log_row_the_card_reads(source, p
     assert _newest_log_source_deleted() == 0
 
     provider.refs = provider.refs[:2]              # "c" goes missing
+    _a_night_later(source["id"])
     r2 = await engine.sync_source(source["id"], full=True, manual=True)
     assert r2["sourceDeleted"] == 0                # first miss: no sever yet
     assert _newest_log_source_deleted() == 0
 
+    _a_night_later(source["id"])
     r3 = await engine.sync_source(source["id"], full=True, manual=True)
     assert r3["sourceDeleted"] == 1                # second miss: severed
     # ⛔ THE POINT: the same 1 must be readable from the log row, because that
@@ -1522,6 +1545,7 @@ async def test_list_deleted_blast_radius_over_cap_refuses_and_falls_back_to_miss
 
     provider.list_deleted = _list_deleted
 
+    _a_night_later(source["id"])
     result = await engine.sync_source(source["id"], full=True, manual=True)
     assert result["status"] == "warning"
     assert result["sourceDeleted"] == 0  # nothing severed THIS pass
@@ -1582,6 +1606,7 @@ async def test_unrelated_two_strike_severs_still_apply_alongside_a_refused_expli
     # its miss_streak to 1, not yet severed) -- everything else present.
     provider.refs = refs[:-1]
     provider.notes_by_id = {r.remote_id: provider.notes_by_id[r.remote_id] for r in refs[:-1]}
+    _a_night_later(source["id"])
     r2 = await engine.sync_source(source["id"], full=True, manual=True)
     assert r2["sourceDeleted"] == 0
 
@@ -1599,6 +1624,7 @@ async def test_unrelated_two_strike_severs_still_apply_alongside_a_refused_expli
 
     provider.list_deleted = _list_deleted
 
+    _a_night_later(source["id"])
     r3 = await engine.sync_source(source["id"], full=True, manual=True)
     assert r3["status"] == "warning"
     assert r3["sourceDeleted"] == 1  # the genuine 2-strike sever still counted
@@ -1648,7 +1674,9 @@ async def test_severed_note_is_untagged_when_the_remote_id_reappears(source, pro
         RemoteRef(remote_id="p3", updated_at="2026-08-01T00:00:00+00:00"),
     ]
     provider.notes_by_id = {"p2": provider.notes_by_id["p2"], "p3": provider.notes_by_id["p3"]}
+    _a_night_later(source["id"])
     await engine.sync_source(source["id"], full=True, manual=True)
+    _a_night_later(source["id"])
     r2 = await engine.sync_source(source["id"], full=True, manual=True)
     assert r2["sourceDeleted"] == 1
     tagged = next(n for n in notes_svc.list_notes("u1") if n["title"] == "Comeback Kid")
@@ -1721,7 +1749,9 @@ async def test_severed_note_reappearing_does_not_create_a_conflict_duplicate(sou
         RemoteRef(remote_id="p3", updated_at="2026-08-01T00:00:00+00:00"),
     ]
     provider.notes_by_id = {"p2": provider.notes_by_id["p2"], "p3": provider.notes_by_id["p3"]}
+    _a_night_later(source["id"])
     await engine.sync_source(source["id"], full=True, manual=True)
+    _a_night_later(source["id"])
     r2 = await engine.sync_source(source["id"], full=True, manual=True)
     assert r2["sourceDeleted"] == 1
 
@@ -1772,7 +1802,9 @@ async def test_a_genuine_user_edit_during_the_severed_window_still_conflicts_on_
         RemoteRef(remote_id="p3", updated_at="2026-08-01T00:00:00+00:00"),
     ]
     provider.notes_by_id = {"p2": provider.notes_by_id["p2"], "p3": provider.notes_by_id["p3"]}
+    _a_night_later(source["id"])
     await engine.sync_source(source["id"], full=True, manual=True)
+    _a_night_later(source["id"])
     r2 = await engine.sync_source(source["id"], full=True, manual=True)
     assert r2["sourceDeleted"] == 1
 
@@ -2023,3 +2055,417 @@ async def test_a_member_edit_survives_a_resync_of_a_note_with_an_unresolvable_li
         assert result["updated"] == 0
         assert result["conflicts"] == 0
         assert len(notes_svc.list_notes("u1")) == 1
+
+
+# ── Plan D task 2: a member caller never waits through the busy ladder ───────
+
+async def test_a_member_sync_on_a_busy_source_returns_busy_without_sleeping(
+    source, provider, monkeypatch,
+):
+    slept = []
+
+    async def fake_sleep(s):
+        slept.append(s)
+
+    monkeypatch.setattr(engine.asyncio, "sleep", fake_sleep)
+    assert engine._try_acquire_source(source["id"])
+    try:
+        r = await engine.sync_source(source["id"], member=True)
+    finally:
+        engine._release_source(source["id"])
+    assert r == {"status": "busy", "sourceId": source["id"]}
+    assert slept == []  # the ladder was not walked
+    assert provider.list_changed_calls == []
+
+
+async def test_a_scheduler_sync_on_a_busy_source_still_walks_the_ladder(
+    source, provider, monkeypatch,
+):
+    slept = []
+
+    async def fake_sleep(s):
+        slept.append(s)
+
+    monkeypatch.setattr(engine.asyncio, "sleep", fake_sleep)
+    assert engine._try_acquire_source(source["id"])
+    try:
+        r = await engine.sync_source(source["id"])
+    finally:
+        engine._release_source(source["id"])
+    assert r == {"status": "busy", "sourceId": source["id"]}
+    assert len(slept) == len(engine._LOCKED_RETRY_DELAYS)
+    assert provider.list_changed_calls == []
+
+
+async def test_a_member_sync_skips_the_cooldown(source, provider):
+    first = await engine.sync_source(source["id"], manual=True)
+    assert first.get("status") != "busy"
+    again = await engine.sync_source(source["id"], member=True)
+    assert again.get("status") not in ("cooldown", "busy")
+
+
+def test_is_source_busy_reflects_the_inflight_set(source):
+    assert engine.is_source_busy(source["id"]) is False
+    assert engine._try_acquire_source(source["id"])
+    try:
+        assert engine.is_source_busy(source["id"]) is True
+    finally:
+        engine._release_source(source["id"])
+    assert engine.is_source_busy(source["id"]) is False
+
+
+
+# ── Plan D task 3: Sync now removal check ────────────────────────────────────
+#
+# A member's "Sync now" with full=True runs a rate-limited removal check: a
+# complete listing feeds the SAME 2-strike delete detection the nightly pass
+# uses. The rate limit (MEMBER_FULL_PASS_MIN_INTERVAL_S from
+# last_full_sync_at) is also what keeps two member presses inside ten minutes
+# from counting as two strikes. The clock is moved with engine._utcnow.
+
+T0 = datetime(2026, 11, 1, 15, 0, tzinfo=timezone.utc)
+
+
+def _at(monkeypatch, dt):
+    monkeypatch.setattr(engine, "_utcnow", lambda: dt)
+
+
+def _refs(*ids, updated_at="2026-08-01T00:00:00+00:00"):
+    return [RemoteRef(remote_id=i, updated_at=updated_at) for i in ids]
+
+
+def _note_by_title(title):
+    return next(n for n in notes_svc.list_notes("u1") if n["title"] == title)
+
+
+def _set_last_full(source_id, value):
+    conn = auth_db.get_connection()
+    try:
+        conn.execute(
+            "UPDATE j2_note_sources SET last_full_sync_at = ? WHERE id = ?", (value, source_id),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def _seed_abcde(provider):
+    provider.refs = _refs("a", "b", "c", "d", "e")
+    provider.notes_by_id = {i: _rn(i, i.upper()) for i in "abcde"}
+
+
+async def _strike_one_on_e(source, provider, monkeypatch):
+    """Scheduler seed at T0, then "e" disappears and a member presses at
+    T0+11m: strike 1, pending 1."""
+    _seed_abcde(provider)
+    _at(monkeypatch, T0)
+    await engine.sync_source(source["id"], full=True)
+    provider.refs = _refs("a", "b", "c", "d")
+    _at(monkeypatch, T0 + timedelta(minutes=11))
+    r = await engine.sync_source(source["id"], full=True, member=True)
+    assert r["removalCheck"]["ran"] is True
+    assert r["removalCheck"]["pending"] == 1
+    return r
+
+
+async def test_explicit_trash_severs_on_one_member_press(source, provider, monkeypatch):
+    _seed_abcde(provider)
+    _at(monkeypatch, T0)
+    await engine.sync_source(source["id"], full=True)            # scheduler seed
+    provider.refs = _refs("a", "b", "c", "d")
+
+    async def trash(c):
+        return _refs("e")
+
+    provider.list_deleted = trash
+    _at(monkeypatch, T0 + timedelta(minutes=11))
+    r = await engine.sync_source(source["id"], full=True, member=True)
+    assert r["removalCheck"] == {"ran": True, "reason": None, "pending": 0, "severed": 1,
+                                 "nextAllowedAt": (T0 + timedelta(minutes=21)).isoformat()}
+    assert "source-deleted" in _note_by_title("E")["tags"]
+
+
+async def test_an_enumeration_miss_is_strike_one_and_reported_pending(source, provider, monkeypatch):
+    r = await _strike_one_on_e(source, provider, monkeypatch)
+    assert r["removalCheck"] == {"ran": True, "reason": None, "pending": 1, "severed": 0,
+                                 "nextAllowedAt": (T0 + timedelta(minutes=21)).isoformat()}
+    assert r["sourceDeleted"] == 0
+    assert "source-deleted" not in _note_by_title("E")["tags"]
+    idx = {row["remote_id"]: row for row in _remote_index_rows(source["id"])}
+    assert idx["e"]["miss_streak"] == 1
+
+
+async def test_a_second_press_inside_ten_minutes_is_not_a_strike(source, provider, monkeypatch):
+    await _strike_one_on_e(source, provider, monkeypatch)
+    stored_cursor = engine.connections.get_source_by_id(source["id"])["cursor"]
+    calls_before = len(provider.list_changed_calls)
+
+    _at(monkeypatch, T0 + timedelta(minutes=16))
+    r = await engine.sync_source(source["id"], full=True, member=True)
+    assert r["removalCheck"]["ran"] is False and r["removalCheck"]["reason"] == "rate_limited"
+    assert r["removalCheck"]["nextAllowedAt"] == (T0 + timedelta(minutes=21)).isoformat()
+    assert r["removalCheck"]["pending"] == 1 and "source-deleted" not in _note_by_title("E")["tags"]
+    assert r["removalCheck"]["severed"] == 0
+    assert provider.list_changed_calls[-1] == stored_cursor     # downgraded to incremental, one call only
+    assert len(provider.list_changed_calls) == calls_before + 1
+    # the rate-limited press did not move the stamp
+    assert engine.connections.get_source_by_id(source["id"])["lastFullSyncAt"] == (
+        T0 + timedelta(minutes=11)).isoformat()
+    idx = {row["remote_id"]: row for row in _remote_index_rows(source["id"])}
+    assert idx["e"]["miss_streak"] == 1
+
+
+async def test_a_second_press_after_ten_minutes_confirms_the_removal(source, provider, monkeypatch):
+    await _strike_one_on_e(source, provider, monkeypatch)
+    _at(monkeypatch, T0 + timedelta(minutes=22))
+    r = await engine.sync_source(source["id"], full=True, member=True)
+    assert r["removalCheck"]["ran"] is True and r["removalCheck"]["reason"] is None
+    assert r["removalCheck"]["severed"] == 1 and r["removalCheck"]["pending"] == 0
+    assert "source-deleted" in _note_by_title("E")["tags"]
+    assert "e" not in {row["remote_id"] for row in _remote_index_rows(source["id"])}
+
+
+async def test_a_nightly_pass_two_minutes_after_a_member_strike_is_not_strike_two(
+    source, provider, monkeypatch,
+):
+    """The strike gap holds for EVERY pass: a scheduler full pass less than
+    MEMBER_FULL_PASS_MIN_INTERVAL_S after the member's strike 1 does not
+    count an enumeration miss, but still stamps last_full_sync_at."""
+    await _strike_one_on_e(source, provider, monkeypatch)                 # strike 1 at T0+11m
+    _at(monkeypatch, T0 + timedelta(minutes=13))
+    r = await engine.sync_source(source["id"], full=True, manual=True)   # scheduler shape
+    assert r["sourceDeleted"] == 0
+    assert "removalCheck" not in r
+    e = _note_by_title("E")
+    assert "source-deleted" not in e["tags"]
+    assert notes_svc.get_note("u1", e["id"]) is not None
+    idx = {row["remote_id"]: row for row in _remote_index_rows(source["id"])}
+    assert idx["e"]["miss_streak"] == 1
+    assert engine.connections.get_source_by_id(source["id"])["lastFullSyncAt"] == (
+        T0 + timedelta(minutes=13)).isoformat()
+
+
+async def test_a_nightly_pass_eleven_minutes_after_a_member_strike_confirms(
+    source, provider, monkeypatch,
+):
+    await _strike_one_on_e(source, provider, monkeypatch)                 # strike 1 at T0+11m
+    _at(monkeypatch, T0 + timedelta(minutes=22))
+    r = await engine.sync_source(source["id"], full=True, manual=True)   # scheduler shape
+    assert r["sourceDeleted"] == 1
+    assert "removalCheck" not in r
+    e = _note_by_title("E")
+    assert "source-deleted" in e["tags"]
+    assert notes_svc.get_note("u1", e["id"]) is not None                 # never erased
+    assert "e" not in {row["remote_id"] for row in _remote_index_rows(source["id"])}
+    assert engine.connections.get_source_by_id(source["id"])["lastFullSyncAt"] == (
+        T0 + timedelta(minutes=22)).isoformat()
+
+
+async def test_an_explicit_trash_ref_inside_the_strike_gap_still_severs(
+    source, provider, monkeypatch,
+):
+    await _strike_one_on_e(source, provider, monkeypatch)                 # strike 1 on "e" at T0+11m
+    provider.refs = _refs("a", "b", "c")                                  # "d" now gone too
+
+    async def trash(c):
+        return _refs("d")
+
+    provider.list_deleted = trash
+    _at(monkeypatch, T0 + timedelta(minutes=13))
+    r = await engine.sync_source(source["id"], full=True, manual=True)   # scheduler shape
+    assert r["sourceDeleted"] == 1                                        # "d" only
+    assert "source-deleted" in _note_by_title("D")["tags"]
+    assert "source-deleted" not in _note_by_title("E")["tags"]
+    idx = {row["remote_id"]: row for row in _remote_index_rows(source["id"])}
+    assert "d" not in idx
+    assert idx["e"]["miss_streak"] == 1
+
+
+async def test_search_index_lag_never_severs_a_page_that_comes_back(source, provider, monkeypatch):
+    async def lagging_trash(c):
+        return []                     # Notion-shaped: the trash index has not caught up
+
+    provider.list_deleted = lagging_trash
+    r1 = await _strike_one_on_e(source, provider, monkeypatch)
+    assert r1["removalCheck"]["pending"] == 1
+
+    _at(monkeypatch, T0 + timedelta(minutes=12))
+    r2 = await engine.sync_source(source["id"], full=True, member=True)
+    assert r2["removalCheck"]["reason"] == "rate_limited"
+
+    provider.refs = _refs("a", "b", "c", "d", "e")           # "e" is back in the listing
+    _at(monkeypatch, T0 + timedelta(minutes=23))
+    r3 = await engine.sync_source(source["id"], full=True, member=True)
+    assert r3["removalCheck"]["ran"] is True and r3["removalCheck"]["pending"] == 0
+    assert r3["removalCheck"]["severed"] == 0
+    assert "source-deleted" not in _note_by_title("E")["tags"]
+    idx = {row["remote_id"]: row for row in _remote_index_rows(source["id"])}
+    assert _remote_index_rows(source["id"])  # e row present with miss_streak 0
+    assert idx["e"]["miss_streak"] == 0
+
+
+async def test_a_page_present_only_in_the_delta_listing_is_present(source, provider, monkeypatch):
+    """The union rule: a page in EITHER listing is present. Here the full
+    listing (cursor=None) lags and omits "e", but the delta listing carries it
+    (it was just edited) -- "e" must not take a strike."""
+    _seed_abcde(provider)
+    _at(monkeypatch, T0)
+    await engine.sync_source(source["id"], full=True)
+    provider.refs = _refs("a", "b", "c", "d") + _refs("e", updated_at="2026-08-09T00:00:00+00:00")
+    provider.notes_by_id["e"] = _rn("e", "E", text="edited", updated_at="2026-08-09T00:00:00+00:00")
+    orig = provider.list_changed
+
+    async def lagging_full_listing(creds, cursor=None):
+        got = await orig(creds, cursor=cursor)
+        return [r for r in got if r.remote_id != "e"] if cursor is None else got
+
+    provider.list_changed = lagging_full_listing
+    _at(monkeypatch, T0 + timedelta(minutes=11))
+    r = await engine.sync_source(source["id"], full=True, member=True)
+    assert r["removalCheck"]["ran"] is True and r["removalCheck"]["pending"] == 0
+    idx = {row["remote_id"]: row for row in _remote_index_rows(source["id"])}
+    assert idx["e"]["miss_streak"] == 0
+
+
+async def test_removal_check_lists_fully_first_and_fetches_only_the_delta(source, provider, monkeypatch):
+    provider.refs = _refs("a", "b")
+    provider.notes_by_id = {"a": _rn("a", "A"), "b": _rn("b", "B")}
+    _at(monkeypatch, T0)
+    await engine.sync_source(source["id"], full=True)
+    stored_cursor = engine.connections.get_source_by_id(source["id"])["cursor"]
+
+    provider.refs = _refs("a", "b") + _refs("c", updated_at="2026-08-05T00:00:00+00:00")
+    provider.notes_by_id["c"] = _rn("c", "C", updated_at="2026-08-05T00:00:00+00:00")
+    provider.fetch_many_calls = []
+    _at(monkeypatch, T0 + timedelta(minutes=11))
+    r = await engine.sync_source(source["id"], full=True, member=True)
+    assert provider.list_changed_calls[-2:] == [None, stored_cursor]
+    assert {x for call in provider.fetch_many_calls for x in call} == {"c"}
+    assert r["created"] == 1
+    assert {row["remote_id"] for row in _remote_index_rows(source["id"])} == {"a", "b", "c"}
+    # the cursor advances exactly as an incremental pass would
+    assert engine.connections.get_source_by_id(source["id"])["cursor"] == "2026-08-05T00:00:00+00:00"
+
+
+async def test_the_under_half_guard_still_refuses_a_member_press(source, provider, monkeypatch):
+    provider.refs = _refs("0", "1", "2", "3")
+    provider.notes_by_id = {str(i): _rn(str(i), f"N{i}") for i in range(4)}
+    _at(monkeypatch, T0)
+    await engine.sync_source(source["id"], full=True)
+    before = {row["remote_id"]: row["miss_streak"] for row in _remote_index_rows(source["id"])}
+
+    provider.refs = _refs("0")
+    _at(monkeypatch, T0 + timedelta(minutes=11))
+    r = await engine.sync_source(source["id"], full=True, member=True)
+    assert r["removalCheck"]["ran"] is True
+    assert r["removalCheck"]["reason"] == "refused"
+    assert r["removalCheck"]["pending"] == 0 and r["removalCheck"]["severed"] == 0
+    assert r["status"] == "warning" and r["deleteDetectionWarning"]
+    after = {row["remote_id"]: row["miss_streak"] for row in _remote_index_rows(source["id"])}
+    assert after == before
+    # a refused check is still a check for the rate limit
+    assert engine.connections.get_source_by_id(source["id"])["lastFullSyncAt"] == (
+        T0 + timedelta(minutes=11)).isoformat()
+    assert r["removalCheck"]["nextAllowedAt"] == (T0 + timedelta(minutes=21)).isoformat()
+
+
+async def test_a_failed_enumeration_degrades_to_an_incremental_pass(source, provider, monkeypatch):
+    provider.refs = _refs("a")
+    provider.notes_by_id = {"a": _rn("a", "A")}
+    _at(monkeypatch, T0)
+    await engine.sync_source(source["id"], full=True)
+
+    provider.refs = _refs("a") + _refs("b", updated_at="2026-08-05T00:00:00+00:00")
+    provider.notes_by_id["b"] = _rn("b", "B", updated_at="2026-08-05T00:00:00+00:00")
+    orig = provider.list_changed
+
+    async def full_listing_down(creds, cursor=None):
+        if cursor is None:
+            provider.list_changed_calls.append(None)
+            raise RuntimeError("enumeration down")
+        return await orig(creds, cursor=cursor)
+
+    provider.list_changed = full_listing_down
+    _at(monkeypatch, T0 + timedelta(minutes=11))
+    r = await engine.sync_source(source["id"], full=True, member=True)
+    assert r["status"] == "ok"
+    assert r["removalCheck"]["ran"] is False
+    assert r["removalCheck"]["reason"] == "enumeration_failed"
+    assert r["removalCheck"]["severed"] == 0 and r["removalCheck"]["pending"] == 0
+    assert r["removalCheck"]["nextAllowedAt"] is None    # T0+10m is already past: allowed now
+    assert any("enumeration down" in f for f in r["failures"])
+    assert r["created"] == 1 and _note_by_title("B")         # delta still imported
+    assert engine.connections.get_source_by_id(source["id"])["lastFullSyncAt"] == T0.isoformat()
+
+
+async def test_removal_check_on_an_empty_index_is_a_quiet_no_op(source, provider, monkeypatch):
+    provider.refs = _refs("a")
+    provider.notes_by_id = {"a": _rn("a", "A")}
+    _at(monkeypatch, T0)
+    r = await engine.sync_source(source["id"], full=True, member=True)   # first-ever call
+    assert r["status"] == "ok"
+    assert r["deleteDetectionWarning"] is None
+    assert r["removalCheck"] == {"ran": True, "reason": None, "pending": 0, "severed": 0,
+                                 "nextAllowedAt": (T0 + timedelta(minutes=10)).isoformat()}
+
+
+async def test_removal_check_on_an_empty_remote_and_empty_index_is_quiet(source, provider, monkeypatch):
+    _at(monkeypatch, T0)
+    r = await engine.sync_source(source["id"], full=True, member=True)
+    assert r["status"] == "ok" and r["deleteDetectionWarning"] is None
+    assert r["removalCheck"]["ran"] is True and r["removalCheck"]["reason"] is None
+    assert r["removalCheck"]["pending"] == 0
+
+
+async def test_an_unreadable_or_future_last_full_stamp_never_locks_the_member_out(
+    source, provider, monkeypatch,
+):
+    provider.refs = _refs("a")
+    provider.notes_by_id = {"a": _rn("a", "A")}
+    _at(monkeypatch, T0)
+    for stamp in ("garbage", (T0 + timedelta(hours=2)).isoformat(), "2026-11-01T14:49:00"):
+        _set_last_full(source["id"], stamp)
+        r = await engine.sync_source(source["id"], full=True, member=True)
+        assert r["removalCheck"]["ran"] is True, stamp
+        assert r["removalCheck"]["reason"] is None, stamp
+        assert engine.connections.get_source_by_id(source["id"])["lastFullSyncAt"] == T0.isoformat()
+    # ...but a stamp within the 60 s skew allowance still counts as a recent pass
+    _set_last_full(source["id"], (T0 + timedelta(seconds=30)).isoformat())
+    r = await engine.sync_source(source["id"], full=True, member=True)
+    assert r["removalCheck"]["reason"] == "rate_limited"
+
+
+async def test_a_pending_note_that_reappears_incrementally_heals_and_leaves_the_count(
+    source, provider, monkeypatch, db,
+):
+    await _strike_one_on_e(source, provider, monkeypatch)
+    assert db.pending_removal_counts("u1", [source["id"]]) == {source["id"]: 1}
+
+    provider.refs = _refs("a", "b", "c", "d") + _refs("e", updated_at="2026-08-09T00:00:00+00:00")
+    provider.notes_by_id["e"] = _rn("e", "E", text="edited", updated_at="2026-08-09T00:00:00+00:00")
+    _at(monkeypatch, T0 + timedelta(minutes=12))
+    r = await engine.sync_source(source["id"], manual=True)          # plain incremental
+    assert "removalCheck" not in r
+    assert db.pending_removal_counts("u1", [source["id"]]) == {}
+    assert "source-deleted" not in _note_by_title("E")["tags"]
+    idx = {row["remote_id"]: row for row in _remote_index_rows(source["id"])}
+    assert idx["e"]["miss_streak"] == 0
+
+
+async def test_every_full_pass_stamps_last_full_sync_at(source, provider, monkeypatch):
+    provider.refs = _refs("a")
+    provider.notes_by_id = {"a": _rn("a", "A")}
+    _at(monkeypatch, T0)
+    await engine.sync_source(source["id"], full=True)
+    assert engine.connections.get_source_by_id(source["id"])["lastFullSyncAt"] == T0.isoformat()
+    # an incremental pass (scheduler or member) never stamps it
+    _at(monkeypatch, T0 + timedelta(minutes=30))
+    await engine.sync_source(source["id"], manual=True)
+    await engine.sync_source(source["id"], member=True)
+    assert engine.connections.get_source_by_id(source["id"])["lastFullSyncAt"] == T0.isoformat()
+
+
+async def test_a_member_incremental_press_carries_no_removal_check(source, provider, monkeypatch):
+    _at(monkeypatch, T0)
+    r = await engine.sync_source(source["id"], member=True)
+    assert "removalCheck" not in r

@@ -711,6 +711,7 @@ CREATE TABLE IF NOT EXISTS j2_note_sources (
     last_sync_status  TEXT,
     last_sync_error   TEXT,
     warming_until     TEXT,
+    last_full_sync_at TEXT,
     created_at        TEXT NOT NULL,
     UNIQUE(user_id, provider, remote_id)
 );
@@ -730,7 +731,8 @@ CREATE TABLE IF NOT EXISTS j2_note_sync_log (
     notes_skipped   INTEGER,
     media_uploaded  INTEGER,
     conflicts       INTEGER,
-    source_deleted  INTEGER
+    source_deleted  INTEGER,
+    failures_json   TEXT
 );
 
 CREATE TABLE IF NOT EXISTS j2_note_remote_index (
@@ -2606,6 +2608,10 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
         # structurally blind to deletions -- the one lifecycle outcome
         # a member is most likely to want explained.
         "ALTER TABLE j2_note_sync_log ADD COLUMN source_deleted INTEGER",
+        # Plan D (Sync now): when the last FULL pass finished (NULL = never),
+        # and the per-note failures of a pass (JSON array, written by plan A).
+        "ALTER TABLE j2_note_sources ADD COLUMN last_full_sync_at TEXT",
+        "ALTER TABLE j2_note_sync_log ADD COLUMN failures_json TEXT",
         # Chart-parity round: capture-time drawings ride the inbox row.
         "ALTER TABLE j2_capture_inbox ADD COLUMN annotations_json TEXT",
         # Wave 3 (Thesis-Trade Link): j2_trades.id and j2_option_strategies.id
@@ -2987,6 +2993,7 @@ _NOTE_CONNECTOR_TABLE_DDL = {
             last_sync_status  TEXT,
             last_sync_error   TEXT,
             warming_until     TEXT,
+            last_full_sync_at TEXT,
             created_at        TEXT NOT NULL,
             UNIQUE(user_id, provider, remote_id)
         )
@@ -3005,7 +3012,8 @@ _NOTE_CONNECTOR_TABLE_DDL = {
             notes_skipped   INTEGER,
             media_uploaded  INTEGER,
             conflicts       INTEGER,
-            source_deleted  INTEGER
+            source_deleted  INTEGER,
+            failures_json   TEXT
         )
     """,
     "j2_note_remote_index": """
