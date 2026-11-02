@@ -226,6 +226,10 @@ def read(kind: str, params: Any = None, *, user_id: Any, turn_id: str, purpose: 
         out = env.unavailable(kind, params, k.owner, "the data claimed a fresher class than its kind declares")
     with _lock:
         _turn(user_id, turn_id).provider_calls += int(out.get("provider_calls") or 0)
+    if k.model_isolated:
+        # ADR-005 L2: the marker every model path refuses (L5 in the browser, L6 in run_turn). Set by the
+        # gateway from the kind's own declaration, never left to the adapter.
+        out = {**out, "isolated": True}
     return out
 
 
