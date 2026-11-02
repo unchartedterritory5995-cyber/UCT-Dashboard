@@ -1895,7 +1895,8 @@ _SCRIPT_ENGINE_JS = os.path.join(
     "app", "src", "components", "chart", "engine", "scriptEngineVersion.js")
 
 #: The declaration, at the start of a line — never a mention in the comment block above it.
-_ENGINE_DECL_RE = re.compile(r"^export const SCRIPT_ENGINE_VERSION = (\d+)\s*$", re.M)
+_ENGINE_DECL_RE = re.compile(
+    r"^export\s+const\s+SCRIPT_ENGINE_VERSION\s*=\s*(\d+)\s*;?\s*(?://.*)?$", re.M)
 
 
 def read_script_engine_version(path: Any = None) -> Optional[int]:
