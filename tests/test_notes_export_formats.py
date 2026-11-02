@@ -897,3 +897,15 @@ def test_a_chip_address_is_one_destination_whatever_it_holds():
     assert md("https://x.test/q3.pdf") == "[q3.pdf](https://x.test/q3.pdf)"   # unchanged
     for bad in ("https://x.test/a\nb", "files/a\rb"):
         assert md(bad) == "q3.pdf", repr(bad)
+
+
+def test_the_invalid_xml_class_is_spelled_with_escapes_and_matches_what_it_did():
+    """D2 fix round 2 (info): `_INVALID_XML` held raw U+FFFE and U+FFFF, which an editor shows
+    as nothing. It is spelled with escapes now, and matches exactly the code points it did:
+    C0 controls but tab, newline and carriage return, then the two noncharacters."""
+    import pathlib
+    expected = [c for c in range(0x20) if c not in (9, 10, 13)] + [0xFFFE, 0xFFFF]
+    hits = [c for c in range(0x110000) if not 0xD800 <= c <= 0xDFFF and F._INVALID_XML.search(chr(c))]
+    assert hits == expected
+    source = pathlib.Path(F.__file__).read_text(encoding="utf-8")
+    assert chr(0xFFFE) not in source and chr(0xFFFF) not in source
