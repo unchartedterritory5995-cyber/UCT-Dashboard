@@ -71,7 +71,7 @@ from ..errors import (
     NoteConnTransient,
     NoteConnUnsupported,
 )
-from .base import AccountInfo, NoteProvider, RemoteNote, RemoteRef, fetch_content_url
+from .base import AccountInfo, NoteProvider, RemoteNote, RemoteRef, fetch_content_url, media_http_client
 
 _API_BASE = "https://api.roamresearch.com/api/graph"
 
@@ -262,7 +262,8 @@ class RoamProvider(NoteProvider):
             # follow_redirects=False is LOAD-BEARING — see module docstring
             # point 1. Never flip this without also removing the manual
             # `_send_with_redirect` re-auth below.
-            self._client = httpx.AsyncClient(follow_redirects=False, timeout=30.0)
+            # Its media hops ride it too: `media_http_client`, never an env proxy.
+            self._client = media_http_client(follow_redirects=False, timeout=30.0)
         return self._client
 
     async def _send_with_redirect(

@@ -2697,10 +2697,11 @@ NOTE_MEDIA_FETCH_BUSY_SENTENCE = "Already copying images for you. Try again in a
 
 
 def _media_fetch_client():
-    """The door's HTTP client: no credential, no cookie jar shared with anything. A seam so
-    the route test answers from a mock transport (no network)."""
-    import httpx
-    return httpx.AsyncClient(timeout=_MEDIA_FETCH_TIMEOUT_S)
+    """The door's HTTP client: no credential, no cookie jar shared with anything, never an env
+    proxy (`media_http_client`). A seam so the route test answers from a mock transport (no
+    network)."""
+    from api.services.journal_two.note_connectors.providers.base import media_http_client
+    return media_http_client(timeout=_MEDIA_FETCH_TIMEOUT_S)
 
 
 def _hotlink_filename(url: str) -> str:

@@ -79,6 +79,7 @@ from ..errors import (
 )
 from .base import (
     AccountInfo, NoteProvider, RemoteNote, RemoteRef, fetch_content_url, guarded_media_stream,
+    media_http_client,
 )
 
 # The SAME byte limits notes.py's own persistence layer enforces on decoded
@@ -254,7 +255,7 @@ class NotionProvider(NoteProvider):
 
     async def _get_client(self) -> httpx.AsyncClient:
         if self._client is None:
-            self._client = httpx.AsyncClient(timeout=30.0)
+            self._client = media_http_client(timeout=30.0)   # its media hops ride it: no env proxy
         return self._client
 
     async def _request(

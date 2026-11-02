@@ -132,7 +132,7 @@ from ..convert import (
     md_to_tiptap,
     txt_to_tiptap,
 )
-from .base import AccountInfo, NoteProvider, RemoteNote, RemoteRef, fetch_content_url
+from .base import AccountInfo, NoteProvider, RemoteNote, RemoteRef, fetch_content_url, media_http_client
 
 
 _API_BASE = "https://api.dropboxapi.com/2"
@@ -548,7 +548,7 @@ class DropboxProvider(NoteProvider):
 
     async def _get_client(self) -> httpx.AsyncClient:
         if self._client is None:
-            self._client = httpx.AsyncClient(timeout=30.0)
+            self._client = media_http_client(timeout=30.0)   # its media hops ride it: no env proxy
         return self._client
 
     async def _try_refresh(self, credentials: dict[str, Any]) -> str | None:

@@ -264,7 +264,7 @@ from api.services.auth_db import get_connection
 from .. import errors
 from ..convert import LINK_PREFIX, md_to_tiptap
 from ..link_keys import OBSIDIAN_NAME_KIND
-from .base import AccountInfo, NoteProvider, RemoteNote, RemoteRef, fetch_content_url
+from .base import AccountInfo, NoteProvider, RemoteNote, RemoteRef, fetch_content_url, media_http_client
 
 # ---------------------------------------------------------------------------
 # Wiki-syntax pre-pass (markdown -> markdown, run before md_to_tiptap)
@@ -833,7 +833,7 @@ class ObsidianProvider(NoteProvider):
 
     async def _get_client(self) -> httpx.AsyncClient:
         if self._client is None:
-            self._client = httpx.AsyncClient(timeout=30.0)
+            self._client = media_http_client(timeout=30.0)   # its media hops ride it: no env proxy
         return self._client
 
     # ── vault-path knowledge (for wikilink/embed resolution) ────────────

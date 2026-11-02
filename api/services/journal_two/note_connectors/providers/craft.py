@@ -62,7 +62,7 @@ from ..errors import (
     NoteConnUnsafeAddress,
     NoteConnUnsupported,
 )
-from .base import AccountInfo, NoteProvider, RemoteNote, RemoteRef, fetch_content_url
+from .base import AccountInfo, NoteProvider, RemoteNote, RemoteRef, fetch_content_url, media_http_client
 
 # Self-imposed politeness ceiling — Craft documents no rate limit for this
 # API (spec §7).
@@ -255,7 +255,7 @@ class CraftProvider(NoteProvider):
 
     async def _get_client(self) -> httpx.AsyncClient:
         if self._client is None:
-            self._client = httpx.AsyncClient(timeout=30.0)
+            self._client = media_http_client(timeout=30.0)   # its media hops ride it: no env proxy
         return self._client
 
     async def _get(

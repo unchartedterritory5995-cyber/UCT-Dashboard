@@ -806,3 +806,68 @@ async def test_an_empty_resolution_is_never_a_pass(monkeypatch):
     monkeypatch.setattr(base_module, "_resolve_host", resolve)
     with pytest.raises(NoteConnTransient):
         await assert_public_https("http://nothing.example.com/a.png", allow_http=True)
+
+
+# -- Final review (promoted minor): no media hop ever goes through an env proxy ---------------
+
+_PROXY_ENV = ("HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "http_proxy", "https_proxy", "all_proxy")
+
+
+@pytest.fixture
+def proxy_env(monkeypatch):
+    """Every proxy variable httpx reads, pointed at a proxy that is not there."""
+    for name in _PROXY_ENV:
+        monkeypatch.setenv(name, "http://10.9.9.9:3128")
+    monkeypatch.delenv("NO_PROXY", raising=False)
+    monkeypatch.delenv("no_proxy", raising=False)
+
+
+def _routes_direct(client: httpx.AsyncClient) -> bool:
+    """True when a request from `client` to a public address goes straight out (the client's
+    own transport), False when it would be handed to a proxy transport."""
+    return all(client._transport_for_url(httpx.URL(u)) is client._transport
+               for u in ("http://93.184.216.34/a.png", "https://93.184.216.34/a.png"))
+
+
+async def test_CONTROL_a_default_client_would_route_through_the_env_proxy(proxy_env):
+    client = httpx.AsyncClient()
+    try:
+        assert not _routes_direct(client)     # the probe can see a proxy when there is one
+    finally:
+        await client.aclose()
+
+
+async def test_the_media_client_never_trusts_proxy_env_vars(proxy_env):
+    """A pinned http hop connects to the address that passed the SSRF check; through a proxy,
+    the PROXY would resolve the name again, so the pin (and the guard) would mean nothing."""
+    client = base_module.media_http_client(timeout=5.0)
+    try:
+        assert client.trust_env is False and _routes_direct(client)
+    finally:
+        await client.aclose()
+
+
+async def test_every_provider_and_the_fetch_door_build_their_client_without_proxy_env(proxy_env):
+    from api.routers import journal_two as jt
+    from api.services.journal_two.note_connectors.providers.craft import CraftProvider
+    from api.services.journal_two.note_connectors.providers.dropbox import DropboxProvider
+    from api.services.journal_two.note_connectors.providers.msgraph_base import MSGraphClient
+    from api.services.journal_two.note_connectors.providers.notion import NotionProvider
+    from api.services.journal_two.note_connectors.providers.obsidian import ObsidianProvider
+    from api.services.journal_two.note_connectors.providers.roam import RoamProvider
+
+    owners = [CraftProvider(), DropboxProvider(), NotionProvider(), RoamProvider(),
+              ObsidianProvider(user_id="u1", vault_id="v1")]
+    clients = [await p._get_client() for p in owners]
+    graph = MSGraphClient()
+    clients.append(await graph.get_client())
+    door = jt._media_fetch_client()
+    clients.append(door)
+    try:
+        assert [c.trust_env for c in clients] == [False] * len(clients)
+        assert all(_routes_direct(c) for c in clients)
+    finally:
+        for p in owners:
+            await p.aclose()
+        await graph.aclose()
+        await door.aclose()

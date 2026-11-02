@@ -448,6 +448,16 @@ async def _read_content_capped(response: httpx.Response, *, max_bytes: int, what
     return b"".join(pieces)
 
 
+def media_http_client(**kwargs: Any) -> httpx.AsyncClient:
+    """THE constructor for every client a media hop can ride: each provider's own client
+    (its `fetch_media` sends content URLs through it) and the hotlink fetch door's.
+    `trust_env=False` (final review, promoted minor): an `HTTP(S)_PROXY`/`ALL_PROXY` variable can
+    never route a hop through a proxy. Through a proxy the PROXY resolves the name again, so
+    the address `_checked_addresses` passed -- and the http hop pinned to it -- would mean
+    nothing. (It also stops `.netrc` credentials riding on a hop.)"""
+    return httpx.AsyncClient(trust_env=False, **kwargs)
+
+
 #: The byte budget `guarded_media_get` reads a media body to when its caller
 #: names none: `notes._MAX_FILE_BYTES` (25 MiB), IMPORTED, never retyped. It is
 #: the largest body the importer would keep -- every `fetch_media` result lands
