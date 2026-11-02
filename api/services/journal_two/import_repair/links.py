@@ -86,25 +86,43 @@ def strip_notion_id_path(path: str) -> str:
 class FileKeyIndex:
     """One member's non-trashed import keys, read once per member."""
     keys: frozenset[str]
-    obsidian: dict[str, Any] = field(default_factory=dict)  # vault -> `_VaultIndex`
-    #: vault -> lowercased paths (inside the vault) of the member's TRASHED Obsidian file
-    #: notes (fix round 1, I-1): a link that names one exactly is never given another note.
-    obsidian_trashed: dict[str, frozenset[str]] = field(default_factory=dict)
-    #: Every Obsidian file note's FULL key path, lowercased -> as stored (the first in sort
-    #: order wins a case tie), and the trashed ones: the drop-wide exact retry (I-4).
-    obsidian_paths: dict[str, str] = field(default_factory=dict)
-    obsidian_paths_trashed: frozenset[str] = frozenset()
-    #: NFC form of every non-trashed key -> the key as STORED (fix round 1, M-1). Every lookup
-    #: above is built over NFC forms; this maps an answer back to the exact stored key.
-    by_nfc: dict[str, str] = field(default_factory=dict)
+    #: vault -> `_VaultIndex` over the vault's NFC inner paths: the NAME rule only (C-1).
+    obsidian: dict[str, Any] = field(default_factory=dict)
+    #: vault -> NFC inner path -> every inner path AS STORED with that NFC form (N-3), so a
+    #: name candidate expands to each real note, twins included.
+    obsidian_raw: dict[str, dict[str, list[str]]] = field(default_factory=dict)
+    #: Every live Obsidian file note's FULL key path as stored (the exact lookup), and
+    #: folded (NFC + lowercase) -> every such path (the fallback, taken only when unique).
+    obsidian_paths: frozenset[str] = frozenset()
+    obsidian_folded: dict[str, list[str]] = field(default_factory=dict)
+    #: Folded FULL key paths of the member's TRASHED Obsidian file notes (I-1).
+    obsidian_trashed: frozenset[str] = frozenset()
+    #: NFC key -> every live key AS STORED with that NFC form (M-1, N-3).
+    by_nfc: dict[str, list[str]] = field(default_factory=dict)
 
     def stored(self, key: str) -> str | None:
-        """The stored key whose NFC form is `key`'s, else None."""
-        return self.by_nfc.get(_nfc(key))
+        """The stored key `key` names: itself when stored exactly; else the ONE stored key with
+        its NFC form (fix round 2, N-3: a unicode twin never beats the exact string)."""
+        if key in self.keys:
+            return key
+        twins = self.by_nfc.get(_nfc(key), [])
+        return twins[0] if len(twins) == 1 else None
+
+    def obsidian_path(self, full: str) -> str | None:
+        """The live Obsidian key path `full` names: exact first, else the ONE folded match."""
+        if full in self.obsidian_paths:
+            return full
+        twins = self.obsidian_folded.get(_fold(full), [])
+        return twins[0] if len(twins) == 1 else None
 
 
 def _nfc(text: str) -> str:
     return unicodedata.normalize("NFC", text)
+
+
+def _fold(text: str) -> str:
+    """The comparison form when the exact string misses: NFC and lowercase (M-1, M-2)."""
+    return _nfc(text).lower()
 
 
 def _vault_split(path: str) -> tuple[str, str]:
@@ -116,11 +134,14 @@ def _vault_split(path: str) -> tuple[str, str]:
 def build_file_key_index(conn, user_id: str) -> FileKeyIndex:
     """ONE query over the member's import keys: the non-trashed ones are the index, and the
     trashed Obsidian file paths are kept apart (I-1). Column access is by position, so a
-    connection without `row_factory` reads the same. The Obsidian structures hold NFC forms."""
+    connection without `row_factory` reads the same. Paths are kept as STORED; the folded and
+    NFC maps are fallbacks (fix round 2, N-3)."""
     keys: set[str] = set()
-    by_nfc: dict[str, str] = {}
-    by_vault: dict[str, list[str]] = {}
-    trashed: dict[str, set[str]] = {}
+    by_nfc: dict[str, list[str]] = {}
+    raw: dict[str, dict[str, list[str]]] = {}
+    paths: set[str] = set()
+    folded: dict[str, list[str]] = {}
+    trashed: set[str] = set()
     for row in conn.execute(
         "SELECT import_key, import_source, deleted_at IS NOT NULL FROM j2_notes"
         " WHERE user_id = ? AND import_key IS NOT NULL ORDER BY import_key",
@@ -131,25 +152,25 @@ def build_file_key_index(conn, user_id: str) -> FileKeyIndex:
             continue
         if not is_trashed:
             keys.add(key)
-            by_nfc.setdefault(_nfc(key), key)
+            by_nfc.setdefault(_nfc(key), []).append(key)
         if source == OBSIDIAN_SOURCE and key.startswith(_OBSIDIAN):
-            vault, inner = _vault_split(_nfc(key)[len(_OBSIDIAN):])
+            full = key[len(_OBSIDIAN):]
+            vault, inner = _vault_split(full)
             if not inner:
                 continue
             if is_trashed:
-                trashed.setdefault(vault, set()).add(inner.lower())
+                trashed.add(_fold(full))
             else:
-                by_vault.setdefault(vault, []).append(inner)
-    full_paths: dict[str, str] = {}
-    for full in sorted(f"{v}/{p}" if v else p for v, ps in by_vault.items() for p in ps):
-        full_paths.setdefault(full.lower(), full)
+                paths.add(full)
+                folded.setdefault(_fold(full), []).append(full)
+                raw.setdefault(vault, {}).setdefault(_nfc(inner), []).append(inner)
     return FileKeyIndex(
         keys=frozenset(keys),
-        obsidian={v: obsidian_provider._build_basename_map(sorted(set(p))) for v, p in by_vault.items()},
-        obsidian_trashed={v: frozenset(p) for v, p in trashed.items()},
-        obsidian_paths=full_paths,
-        obsidian_paths_trashed=frozenset((f"{v}/{p}" if v else p).lower()
-                                         for v, ps in trashed.items() for p in ps),
+        obsidian={v: obsidian_provider._build_basename_map(sorted(r)) for v, r in raw.items()},
+        obsidian_raw=raw,
+        obsidian_paths=frozenset(paths),
+        obsidian_folded=folded,
+        obsidian_trashed=frozenset(trashed),
         by_nfc=by_nfc,
     )
 
@@ -219,20 +240,18 @@ def _obsidian_target(path: str, full: str, index: FileKeyIndex) -> tuple[str | N
     vault, inner = _vault_split(full)
     prefix = vault + "/" if vault else ""
     vault_index = index.obsidian.get(vault) or obsidian_provider._build_basename_map([])
-    trashed = index.obsidian_trashed.get(vault, frozenset())
-    for form in _exact_forms(path, obsidian_provider._dir_of(inner)):
-        found = vault_index.by_lower.get(form.lower())
-        if found is not None:
-            return prefix + found, TO_NOTE
-        if form.lower() in trashed:
-            return None, TRASHED
-    for form in _exact_forms(path, obsidian_provider._dir_of(full), rooted=False):
-        found = index.obsidian_paths.get(form.lower())
+    # Steps 1 and 2 compare FULL key paths: the exact string first, then the one folded match
+    # (fix round 2, N-3).
+    tries = [prefix + f for f in _exact_forms(path, obsidian_provider._dir_of(inner))]
+    tries += _exact_forms(path, obsidian_provider._dir_of(full), rooted=False)
+    for form in tries:
+        found = index.obsidian_path(form)
         if found is not None:
             return found, TO_NOTE
-        if form.lower() in index.obsidian_paths_trashed:
+        if _fold(form) in index.obsidian_trashed:
             return None, TRASHED
-    candidates = _name_candidates(path, vault_index)
+    raw = index.obsidian_raw.get(vault, {})
+    candidates = [r for c in _name_candidates(_nfc(path), vault_index) for r in raw.get(c, [c])]
     if len(candidates) > 1:
         return None, AMBIGUOUS
     scope = inner.split("/", 1)[0] + "/" if "/" in inner else ""
@@ -281,10 +300,10 @@ def relative_target(href: str, *, import_key: str, import_source: str,
 def _source_target(href: str, *, import_key: str, import_source: str,
                    index: FileKeyIndex) -> tuple[str | None, str]:
     """`relative_target` by the linking note's source, before the host-like check."""
-    # M-1: the comparison is in NFC on both sides (a macOS export stores NFD names); every
-    # answer is mapped back to the key as STORED (`index.stored`).
-    target = _nfc(unquote(href)).split("#", 1)[0].strip()
-    import_key = _nfc(import_key)
+    # The href is read exactly as written; every lookup tries that exact string first and
+    # falls back to NFC (M-1, a macOS export stores NFD names) or NFC + case only when that
+    # names ONE note (fix round 2, N-3). An answer is always a key as STORED.
+    target = unquote(href).split("#", 1)[0].strip()
     if not target:
         return None, UNRESOLVED
     if import_source == OBSIDIAN_SOURCE and import_key.startswith(_OBSIDIAN):
@@ -295,7 +314,7 @@ def _source_target(href: str, *, import_key: str, import_source: str,
         if "|" in path:
             return None, UNRESOLVED
         resolved, action = _obsidian_target(path, import_key[len(_OBSIDIAN):], index)
-        return (None if resolved is None else index.stored(_OBSIDIAN + resolved)), action
+        return (None if resolved is None else _OBSIDIAN + resolved), action
     if import_source == NOTION_SOURCE and import_key.startswith(_NOTION):
         path = _join(posixpath.dirname(import_key[len(_NOTION):]), target.split("?", 1)[0])
         if not _NOTION_PAGE_EXT_RE.search(path):

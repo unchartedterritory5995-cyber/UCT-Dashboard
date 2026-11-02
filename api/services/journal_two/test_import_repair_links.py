@@ -350,6 +350,40 @@ def test_unicode_normal_forms_compare_equal(db, stored_form, href_form, source, 
     assert actions == ["relative_to_note", "link_resolved:1"]
 
 
+@pytest.mark.parametrize("source,key_of,here", [
+    ("Obsidian", lambda name: f"obsidian:V/{name}.md", "obsidian:V/Here.md"),
+    ("Notion", lambda name: f"notion:Export/{name}.md", "notion:Export/Home.md"),
+    ("Files (2)", lambda name: f"file:docs/{name}.md", "file:docs/a.md"),
+])
+def test_the_exact_string_wins_over_a_unicode_twin(db, source, key_of, here):
+    """Fix round 2, N-3 (re-review R7): with an NFC and an NFD note of the same name, each
+    link opens the note spelled EXACTLY as it is written; folding is only a fallback."""
+    ids = {form: _import(source, key_of(unicodedata.normalize(form, "Café"))) for form in ("NFD", "NFC")}
+    for form in ("NFC", "NFD"):
+        href = quote(unicodedata.normalize(form, "Café") + ".md")
+        out, _ = _repair(_doc(_para(_t("c", _link(href)))), import_key=here, import_source=source)
+        assert _hrefs(out) == [_note_href(ids[form])], form
+
+
+def test_the_exact_case_wins_over_a_case_twin_and_folding_needs_one_candidate(db):
+    """N-3 (re-review R5/P5): `other.md` opens `other.md`, `Other.md` opens `Other.md`; an
+    href matching neither exactly, with two case twins, names nothing."""
+    upper = _import("Obsidian", "obsidian:V/Other.md")
+    lower = _import("Obsidian", "obsidian:V/other.md")
+    for href, want in (("other.md", lower), ("Other.md", upper)):
+        out, _ = _repair(_doc(_para(_t("o", _link(href)))), import_key="obsidian:V/Here.md",
+                         import_source="Obsidian")
+        assert _hrefs(out) == [_note_href(want)], href
+    doc = _doc(_para(_t("o", _link("OTHER.md"))))
+    out, actions = _repair(doc, import_key="obsidian:V/Here.md", import_source="Obsidian")
+    assert out == doc and actions == ["relative_ambiguous"]
+    # one candidate: folding still finds it
+    only = _import("Obsidian", "obsidian:V/Solo.md")
+    out, _ = _repair(_doc(_para(_t("s", _link("SOLO.md")))), import_key="obsidian:V/Here.md",
+                     import_source="Obsidian")
+    assert _hrefs(out) == [_note_href(only)]
+
+
 # ── what cannot resolve ───────────────────────────────────────────────────────
 
 def test_unresolvable_relative_note_href_is_left_as_written_and_counted(db):
