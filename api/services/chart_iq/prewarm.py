@@ -78,6 +78,8 @@ def warm(sleep=time.sleep, clock=time.time) -> dict:
     """Warm the rows cache for the latest session, one industry at a time. Returns a small report."""
     if not enabled():
         return {"skipped": "disabled"}
+    if os.environ.get("CHART_IQ_PACK_ENABLED", "0") == "1":
+        return {"skipped": "the nightly pack reads every stock already"}
     started = clock()
     try:
         from api.services.chart_iq import pipeline

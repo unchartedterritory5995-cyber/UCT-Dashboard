@@ -354,3 +354,77 @@ def test_prewarm_job_registers_only_with_its_flag(monkeypatch):
     monkeypatch.setenv("CHART_IQ_PREWARM_ENABLED", "1")
     assert M.register_chart_iq_prewarm_jobs(sched) is True
     assert sorted(jobs) == ["chart_iq_prewarm_evening", "chart_iq_prewarm_morning"]
+
+
+# ── the nightly pack: every stock's latest-session read computed ahead, so a read is one lookup ──
+
+@pytest.fixture
+def packdb(tmp_path, monkeypatch):
+    monkeypatch.setenv("CHART_IQ_PACK_DB", str(tmp_path / "pack.db"))
+    monkeypatch.setenv("CHART_IQ_ROW_CACHE_DB", str(tmp_path / "rows.db"))
+    return tmp_path
+
+
+def test_pack_build_stores_reads_and_skips_safely(packdb, monkeypatch):
+    import datetime as _dt
+    from api.services.chart_iq import pack, pipeline
+    assert pack.build() == {"skipped": "disabled"}
+    monkeypatch.setenv("CHART_IQ_ENABLED", "1"); monkeypatch.setenv("CHART_IQ_PACK_ENABLED", "1")
+    monkeypatch.setattr(pack, "in_session", lambda now=None: True)
+    assert pack.build() == {"skipped": "regular session"}                   # never during the session unless forced
+    monkeypatch.setattr(pack, "in_session", lambda now=None: False)
+    monkeypatch.setattr(pipeline, "latest_day", lambda: "2026-10-30")
+    monkeypatch.setattr(pipeline, "analyze", lambda t, d=None: {"error": "x"} if t == "BAD" else dict(FAKE, ticker=t, asof=d, bars=[1], timing={}))
+    rep = pack.build(tickers=["AAA", "BAD", "CCC"], sleep=lambda s: None)
+    assert rep["ok"] == 2 and rep["errors"] == 1 and rep["day"] == "2026-10-30"
+    got = pack.get("aaa", today="2026-11-02")
+    assert got["ticker"] == "AAA" and got["asof"] == "2026-10-30" and "bars" not in got and "timing" not in got
+    assert pack.get("BAD", today="2026-11-02") is None
+    assert pack.get("AAA", today="2026-11-20") is None                      # older than STALE_DAYS: not served
+    st = pack.status(); assert st["rows"] == 2 and st["day"] == "2026-10-30" and st["building"] is False
+    monkeypatch.setenv("CHART_IQ_PACK_ENABLED", "0")
+    assert pack.get("AAA", today="2026-11-02") is None                      # rollback: flag off, file ignored
+
+
+def test_pack_session_window():
+    from zoneinfo import ZoneInfo
+    import datetime as _dt
+    from api.services.chart_iq import pack
+    et = ZoneInfo("America/New_York")
+    assert pack.in_session(_dt.datetime(2026, 11, 2, 10, 0, tzinfo=et)) is True
+    assert pack.in_session(_dt.datetime(2026, 11, 2, 18, 15, tzinfo=et)) is False
+    assert pack.in_session(_dt.datetime(2026, 11, 2, 6, 30, tzinfo=et)) is False
+    assert pack.in_session(_dt.datetime(2026, 11, 7, 12, 0, tzinfo=et)) is False   # Saturday
+
+
+def test_route_answers_a_latest_read_from_the_pack_without_computing(packdb, monkeypatch, fbdb):
+    from api.services.chart_iq import pack, pipeline
+    monkeypatch.setenv("CHART_IQ_ENABLED", "1"); monkeypatch.setenv("CHART_IQ_MEMBERS_ENABLED", "1")
+    monkeypatch.setenv("CHART_IQ_PACK_ENABLED", "1")
+    monkeypatch.setattr(pack, "in_session", lambda now=None: False)
+    monkeypatch.setattr(pipeline, "latest_day", lambda: "2026-10-30")
+    monkeypatch.setattr(pipeline, "analyze", lambda t, d=None: dict(FAKE, ticker=t, asof="2026-10-30", thesis="packed"))
+    pack.build(tickers=["ABC"], sleep=lambda s: None)
+    monkeypatch.setattr(pack, "_et_now", lambda: __import__("datetime").datetime(2026, 11, 2, 10, 0))
+    def boom(*a, **k):
+        raise AssertionError("the live pipeline ran for a packed ticker")
+    monkeypatch.setattr(pipeline, "analyze", boom)
+    r = client(MEMBER, monkeypatch).get("/api/chart-iq/ABC")
+    assert r.status_code == 200 and r.json()["thesis"] == "packed" and "raw" not in r.json()
+    monkeypatch.setattr(pipeline, "analyze", lambda t, d=None: dict(FAKE, ticker=t, thesis="live"))
+    assert client(MEMBER, monkeypatch).get("/api/chart-iq/XYZ").json()["thesis"] == "live"           # not in the pack: live path
+    assert client(MEMBER, monkeypatch).get("/api/chart-iq/ABC?date=2025-01-02").json()["thesis"] == "live"   # a past date: live
+
+
+def test_pack_admin_endpoints_and_jobs(packdb, monkeypatch):
+    from api import main as M
+    monkeypatch.setenv("CHART_IQ_ENABLED", "1"); monkeypatch.setenv("CHART_IQ_MEMBERS_ENABLED", "1")
+    assert client(MEMBER, monkeypatch).get("/api/chart-iq/pack/status").status_code == 404
+    assert client(ADMIN, monkeypatch).get("/api/chart-iq/pack/status").status_code == 200
+    assert client(MEMBER, monkeypatch).post("/api/chart-iq/pack/build").status_code == 404
+    jobs = []
+    sched = type("S", (), {"add_job": lambda self, fn, **kw: jobs.append(kw["id"])})()
+    monkeypatch.delenv("CHART_IQ_PACK_ENABLED", raising=False)
+    assert M.register_chart_iq_pack_jobs(sched) is False and jobs == []
+    monkeypatch.setenv("CHART_IQ_PACK_ENABLED", "1")
+    assert M.register_chart_iq_pack_jobs(sched) is True and sorted(jobs) == ["chart_iq_pack_evening", "chart_iq_pack_morning"]
