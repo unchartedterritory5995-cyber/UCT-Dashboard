@@ -223,6 +223,26 @@ describe('obsidian adapter — Obsidian resolution (Plan B Task 8)', () => {
     expect(d.media.map((m) => m.ref)).toContain('V/files/deck.pdf')
   })
 
+  // Post-merge fix 3: a relative link the vault rules resolve (`resolveVaultAnchors`) is the
+  // same chip the beside-the-note path makes (`resolveRelativeMedia`): the member's link
+  // text, as rendered, is its label (D2 item 6), and none when it is just the name.
+  it('a vault-resolved link to a file keeps its rendered link text as the chip label', async () => {
+    const d = await docOf([
+      vf('V/.obsidian/app.json', '{}'),
+      vf('V/sub/m.md', '[**the** deck](files/deck.pdf) and [deck.pdf](files/deck.pdf)'),
+      vf('V/files/deck.pdf', 'x'),
+    ], 'V/sub/m.md')
+    const chips = [...d.html.matchAll(/<a [^>]*data-type="attachmentChip"[^>]*>/g)].map((m) => m[0])
+    expect(chips).toHaveLength(2)
+    expect(chips[0]).toContain('data-label="the deck"')
+    expect(chips[1]).not.toContain('data-label')
+    const { bodyJson } = htmlToNote(d.html)
+    const labels = []
+    const walk = (n) => { if (n.type === 'attachmentChip') labels.push(n.attrs.label ?? null); (n.content || []).forEach(walk) }
+    walk(bodyJson)
+    expect(labels).toEqual(['the deck', null])
+  })
+
   it('resolves a wikilink with an escaped pipe in a table', async () => {
     const d = await docOf([
       vf('a.md', '| col |\n| --- |\n| [[Other note\\|alias]] |\n'), vf('Other note.md', ''),

@@ -5,3 +5,5 @@
 [[/Notes/Plan|by path]] names the folder.
 
 [[/Ghost]] is not in the vault.
+
+see [the **q3** deck](files/deck.pdf) from the vault root, and [deck.pdf](files/deck.pdf) by its name.

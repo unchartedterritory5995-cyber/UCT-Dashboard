@@ -79,7 +79,7 @@
  * parity rail): a one-shot drag-in has no later sync to heal a key it never stores.
  */
 
-import { mdToHtml, mdInlineText, resolveRelativeMedia, dedupeMedia } from './generic'
+import { mdToHtml, mdInlineText, resolveRelativeMedia, dedupeMedia, markAttachmentChip } from './generic'
 import { extractFrontmatter, frontmatterDates } from '../frontmatter'
 import { reportIgnoredFiles } from './reportIgnored'
 import { IMAGE_EXT } from '../mediaRefs'
@@ -746,11 +746,8 @@ function resolveVaultAnchors(html, ctx, root) {
     }
     const vfile = ctx.byPath.get(resolvedPath)
     if (!vfile) continue
-    const name = basename(resolvedPath)
-    a.setAttribute('data-type', 'attachmentChip')
-    a.setAttribute('data-import-ref', resolvedPath)
-    a.setAttribute('data-name', name)
-    a.setAttribute('href', `import-ref://${resolvedPath}`)
+    // Post-merge fix 3: the same chip, label included, as the beside-the-note path writes.
+    const name = markAttachmentChip(a, resolvedPath)
     ctx.media.push({ ref: resolvedPath, vfile, kind: 'file', name })
   }
   return doc.body.innerHTML

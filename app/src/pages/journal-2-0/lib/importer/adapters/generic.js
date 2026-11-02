@@ -421,25 +421,36 @@ export function resolveRelativeMedia(html, dir, byPath, opts = {}) {
       }
       return
     }
-    const name = basename(resolvedPath)
-    // D2 item 6: the member's own link text (`[the report](q3%20report.pdf)`) is the
-    // chip's LABEL, shown in place of the name, when it says something else; the
-    // download name stays `name` (`attachmentChip.js`). The server's Obsidian lane
-    // writes the same (`providers/obsidian.py::_ref_label`).
-    const text = (a.textContent || '').trim()
-    a.setAttribute('data-type', 'attachmentChip')
-    a.setAttribute('data-import-ref', resolvedPath)
-    a.setAttribute('data-name', name)
-    if (text && text !== name) a.setAttribute('data-label', text)
-    // The AttachmentChip TipTap node (Task 5) reads `href` in parseHTML — not
-    // `data-import-ref` — mirroring the <img src> branch above. Without this,
-    // the placeholder never reaches bodyJson and Task 13's rewriteBody (which
-    // matches `href === 'import-ref://<ref>'`) has nothing to swap.
-    a.setAttribute('href', `import-ref://${resolvedPath}`)
+    const name = markAttachmentChip(a, resolvedPath)
     media.push({ ref: resolvedPath, vfile: target, kind: 'file', name })
   })
 
   return { html: doc.body.innerHTML, media, links }
+}
+
+/**
+ * Turns a parsed `<a>` that names a vault file into the attachment chip, returning the
+ * file's name. ONE writer for every chip made from a markdown link: this module's
+ * beside-the-note path and the Obsidian adapter's vault-resolved one
+ * (`obsidian.js::resolveVaultAnchors`, post-merge fix 3).
+ * D2 item 6: the member's own link text, as rendered (`[**the** report](q.pdf)` ->
+ * `the report`), is the chip's LABEL when it says something other than the name; the
+ * download name stays `name` (`attachmentChip.js`). The server's Obsidian lane writes the
+ * same (`providers/obsidian.py::_ref_label`).
+ */
+export function markAttachmentChip(a, resolvedPath) {
+  const name = basename(resolvedPath)
+  const text = (a.textContent || '').trim()
+  a.setAttribute('data-type', 'attachmentChip')
+  a.setAttribute('data-import-ref', resolvedPath)
+  a.setAttribute('data-name', name)
+  if (text && text !== name) a.setAttribute('data-label', text)
+  // The AttachmentChip TipTap node (Task 5) reads `href` in parseHTML — not
+  // `data-import-ref` — mirroring the <img src> branch above. Without this,
+  // the placeholder never reaches bodyJson and Task 13's rewriteBody (which
+  // matches `href === 'import-ref://<ref>'`) has nothing to swap.
+  a.setAttribute('href', `import-ref://${resolvedPath}`)
+  return name
 }
 
 function isAbsoluteRef(src) {
