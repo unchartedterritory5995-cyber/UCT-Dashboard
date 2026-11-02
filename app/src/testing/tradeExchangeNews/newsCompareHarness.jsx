@@ -50,6 +50,8 @@ import { fakeNewsDay, fakeNewsDays } from './fakeNewsDay'
 import { fakeLibraryServer } from './fakeLibraryServer'
 import { formatTimeEt } from '../../lib/presentation/presentationPrimitives'
 import { timeLabel } from '../../pages/charts/widgets/tradeExchangeNewsModel'
+import { NewsAgentContext } from '../../pages/charts/widgets/tradeExchangeNewsAgent'
+import { openAgent, useAgentAsk } from '../../agent/newsAsk'
 import { CHART_THEME_BY_ID, patchWidgetOptsWithTheme, mapThemeToWidgetSettings, themeWithAppSurface } from '../../components/chart/chartThemes'
 import wsStyles from '../../pages/charts/ChartsWorkspace.module.css'
 
@@ -62,6 +64,12 @@ const ONLY_NEWS = params.get('only') === 'news'
 const COUNT = Math.max(1, Math.min(4, Number(params.get('count')) || 1))
 const LIVE = params.get('live') === '1'
 const LIBRARY = params.get('library') === '1'
+// ?role=member: a signed-in member (no UCT Agent mark on explanations); default admin.
+const ROLE = params.get('role') === 'member' ? 'member' : 'admin'
+// ?agent=1|0: this browser's UCT Agent switch (the panel's own key); unset leaves it alone.
+if (params.get('agent') === '1' || params.get('agent') === '0') {
+  try { localStorage.setItem('uct.feature.agent', params.get('agent')) } catch { /* storage blocked */ }
+}
 document.documentElement.dataset.theme = THEME
 
 const SYMS = ['ALFA', 'BRVO', 'CHRL', 'DLTX', 'ECHO', 'FXTR', 'GLFX', 'HTLX']
@@ -189,12 +197,43 @@ const BLOCKED = []
 const NOTEBOOK = []
 window.__newsHarnessNotebook = NOTEBOOK
 window.__newsHarnessBlocked = BLOCKED
+// ?ask=real: UCT Agent's OWN useAgentAsk talks to this INVENTED /api/agent (no model, never the
+// network). Every request is kept in window.__agentCalls; &askfail=402 refuses each turn the way the
+// server's budget refusal does (final), &askfail=503 like a passing outage (retryable);
+// &askdelay=ms holds each answer (default 300); &asknews=0 = the server's News switch off.
+const ASK_REAL = params.get('ask') === 'real'
+const AGENT_CALLS = []
+window.__agentCalls = AGENT_CALLS
+const AGENT_TRANSCRIPT = [
+  { id: 1, role: 'member', text: 'What does this mean for the stock?' },
+  { id: 2, role: 'agent', text: 'SYNTHETIC: The company says profit beat its own outlook. That is the company’s claim; I don’t have a live quote here.' },
+  { id: 3, role: 'member', text: 'What should I look for next?' },
+  { id: 4, role: 'agent', text: 'SYNTHETIC: Guidance details and any analyst revisions; the headline gives neither yet.' },
+]
+function fakeAgent(method, path, init) {
+  const body = init && init.body ? JSON.parse(init.body) : null
+  AGENT_CALLS.push({ method, path, body })
+  if (method === 'POST' && path === '/api/agent/turn') {
+    const fail = Number(params.get('askfail'))
+    if (fail === 402) return json({ detail: 'UCT Agent has used today’s budget. It resets at midnight ET.' }, 402)
+    if (fail >= 500) return json({ detail: 'UCT Agent is busy right now. Try again in a moment.' }, fail)
+    return new Promise((r) => setTimeout(r, Number(params.get('askdelay')) || 300)).then(() => json({
+      conversationId: 'ac_harness_news', envelope: { disposition: 'answer', reply: `SYNTHETIC answer to “${body.message}”.` } }))
+  }
+  // The server's News switch (UCT_AGENT_NEWS) as /api/agent/config reports it; &asknews=0 = off.
+  if (method === 'GET' && path.startsWith('/api/agent/config')) return json({ news: params.get('asknews') !== '0' })
+  if (method === 'GET' && path.startsWith('/api/agent/conversations/')) {
+    return json({ id: decodeURIComponent(path.split('/').pop()), turns: AGENT_TRANSCRIPT })
+  }
+  return json({ detail: 'not in the harness' }, 404)
+}
 const realFetch = window.fetch.bind(window)
 window.fetch = (input, init) => {
   const url = typeof input === 'string' ? input : (input && input.url) || ''
   const method = ((init && init.method) || (input && input.method) || 'GET').toUpperCase()
   if (!url.startsWith('/') && !url.startsWith(location.origin)) return realFetch(input, init)
   const path = url.replace(location.origin, '')
+  if (ASK_REAL && path.startsWith('/api/agent/')) return fakeAgent(method, path, init)
   if (LIVE && path.startsWith('/api/trade-exchange-news')) return realFetch(input, init)
   if (path.startsWith('/api/trade-exchange-news/library')) return libraryServer().fetch(path, init || {})
   if (method === 'POST' && path === '/api/trade-exchange-news/day') {
@@ -206,10 +245,10 @@ window.fetch = (input, init) => {
     const id = JSON.parse((init && init.body) || '{}').id
     const row = NEWS.find((n) => n.id === id)
     return json({ id, headline: row?.content || '', received_at_ms: row?.received_at_ms || NOW,
-      explanation: 'SYNTHETIC: The headline reports a company update. Adjusted figures exclude one-time items, '
-        + 'so traders may read it against expectations, though the headline gives no detail on margins or guidance.',
+      explanation: 'SYNTHETIC: The company says adjusted profit beat its own outlook. Adjusted figures leave out '
+        + 'one-time items, so traders may compare them with expectations; the headline gives no detail on guidance yet.',
       watch: 'Company follow-up details, sector peers, analyst estimate revisions', generated_at_ms: NOW,
-      cached: false, version: 'v1' })
+      cached: false, version: 'v2' })
   }
   // Send to Notebook: any Notebook write (the capture door's current note or its inbox),
   // recorded in page memory -- never the network.
@@ -219,7 +258,7 @@ window.fetch = (input, init) => {
   }
   if (method !== 'GET') { BLOCKED.push(`${method} ${path}`); return json({}) }
   if (path.startsWith('/api/auth/me')) {
-    return json({ user: { id: 'harness', email: 'harness@local', role: 'admin', display_name: 'Harness' },
+    return json({ user: { id: 'harness', email: 'harness@local', role: ROLE, display_name: 'Harness' },
       plan: 'pro', subscription: null, trial: null })
   }
   if (path.startsWith('/api/auth/preferences')) {
@@ -309,6 +348,47 @@ function Pane({ label, type, Component, initial, index = 0 }) {
   )
 }
 
+// ?ask=1 (|seed|error): an INVENTED stand-in for UCT Agent's `useAgentAsk` / `openAgent`, so the
+// Ask thread can be looked at before the Agent exports land. No model, no network: answers
+// are canned SYNTHETIC text after a short delay. `seed` opens with a 4-turn thread; `error`
+// fails every question with the Agent's budget sentence.
+const ASK = params.get('ask')
+// Threads live OUTSIDE React (as the Agent's own store would): render only reads them.
+const ASK_THREADS = new Map()
+const askThread = (newsId) => {
+  if (!ASK_THREADS.has(newsId)) ASK_THREADS.set(newsId, freshThread())
+  return ASK_THREADS.get(newsId)
+}
+const patchThread = (newsId, fn) => ASK_THREADS.set(newsId, fn(askThread(newsId)))
+function harnessAnswer(newsId, text, bump) {
+  patchThread(newsId, (t) => (ASK === 'error'
+    ? { ...t, busy: false, error: { text: 'UCT Agent has used today’s budget. It resets at midnight ET.', retry: true } }
+    : { ...t, busy: false, conversationId: 'ac_harness',
+      turns: [...t.turns, { id: `a${t.turns.length}`, role: 'agent', text: `SYNTHETIC answer to “${text}”.` }] }))
+  bump((n) => n + 1)
+}
+function freshThread() {
+  return {
+    turns: ASK === 'seed' ? [
+      { id: 's0', role: 'member', text: 'What does this mean for the stock?' },
+      { id: 's1', role: 'agent', text: 'SYNTHETIC: The company says profit beat its own outlook. That is the company’s claim; I don’t have a live quote here, so I can’t say how the stock is reacting.' },
+      { id: 's2', role: 'member', text: 'What should I look for next?' },
+      { id: 's3', role: 'agent', text: 'SYNTHETIC: Guidance details and any analyst revisions; the headline gives neither yet.' },
+    ] : [], busy: false, error: null, conversationId: ASK === 'seed' ? 'ac_harness' : null }
+}
+function useHarnessAsk({ newsId }) {
+  const [, bump] = useState(0)
+  return { ...askThread(newsId), available: true, ask: (text) => {
+    patchThread(newsId, (t) => ({ ...t, busy: true, error: null,
+      turns: [...t.turns, { id: `m${t.turns.length}`, role: 'member', text }] }))
+    bump((n) => n + 1)
+    setTimeout(() => harnessAnswer(newsId, text, bump), 600)
+  } }
+}
+// ?ask=real: UCT Agent's OWN useAgentAsk / openAgent, on the invented /api/agent above.
+const HARNESS_AGENT = ASK === 'real' ? { useAsk: useAgentAsk, openAgent }
+  : ASK ? { useAsk: useHarnessAsk, openAgent: (x) => { window.__openAgent = x } } : null
+
 function Harness() {
   const [groupSyms, setGroupSyms] = useState({ A: 'DLTX' })
   const ws = useMemo(() => ({
@@ -321,6 +401,7 @@ function Harness() {
     <MemoryRouter>
       <AuthProvider>
         <WorkspaceContext.Provider value={ws}>
+          <NewsAgentContext.Provider value={HARNESS_AGENT}>
           <div className="row">
             {!ONLY_NEWS && <Pane label="Watchlist" type="watchlist" Component={WatchlistWidget} initial={{ watchKey: 'user:wl1', watchName: 'Harness List' }} />}
             {!ONLY_NEWS && <Pane label="Theme Tracker" type="themes" Component={ThemesWidget} initial={{}} />}
@@ -331,6 +412,7 @@ function Harness() {
                 Component={TradeExchangeNewsWidget} initial={newsOpts} />
             ))}
           </div>
+          </NewsAgentContext.Provider>
         </WorkspaceContext.Provider>
       </AuthProvider>
     </MemoryRouter>
