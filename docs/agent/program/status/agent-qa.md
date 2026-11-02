@@ -211,6 +211,24 @@ Only agent-qa edits this file. Update it in every PR.
   `history_messages` applies.** An unblanked stored local-plan reply reaches the naming call.
   Repro: `-k NAMING`. Latent: such rows are blanked at write, and the model wrote them before any value existed.
 
+- **F-19 (agent-md, `quotes._session_detail`; the helper is `massive._today_et_is_a_trading_day`): `now` is
+  half-honoured.**
+  `_session_detail(now)` uses `now` for the minutes but asks the WALL clock whether it is a trading day. agent-md's
+  tests hide this by patching the helper with a hand-picked value per row.
+  Repro: `pytest tests/test_uct_agent_qa_md2.py -k F19`. On any day, a mid-session `now` on a day of the opposite type
+  gets the wrong state.
+  Expected: the day comes from `now`. Actual: it comes from the wall clock.
+  Production passes no `now`, so this is latent, but every frozen-clock caller (tests, corpora) is affected.
+- **F-20 (agent-md, `marketDataQuote.answerFromEnvelope`): a refusal or unavailable answer echoes `env.notes[0]`.**
+  §4.5 says notes never leave the module and that such an answer has "no number at all". A budget refusal gives
+  "I couldn't get a price for NVDA: this turn already made 8 data reads…", which contains a number and a gateway note.
+  Repro: `npx vitest run src/agent/qa/md2Quote.test.js -t F-20`.
+  Expected: fixed words (or a reason from a closed list), no digits. Actual: the note, verbatim.
+- **O-1 (observation for agent-md, not a defect today):** on an early-close day (2026-11-27), `after-hours` runs from
+  13:00 to 20:00. On NYSE half days, extended trading ends at 17:00, so 17:00–20:00 is labelled after hours when no
+  session trades. The answer stays honest, because a print older than 15 minutes says "no trade in the last 15
+  minutes … Not a real-time price".
+
 ## Blockers
 - (none)
 
@@ -223,6 +241,25 @@ Only agent-qa edits this file. Update it in every PR.
   constants imported from the adapters, coverage on quote reads, no `delayed` quote path. New v1.1 quote cases:
   extended-live, extended-closed, holiday, no-current-trade. Rules (a)–(e) are a reusable predicate
   (`quote_semantics_errors`) with controls showing it can fail. Other MD-1 kinds keep provisional `data` shapes.
+
+## Sprint 2 task 2: MD-2 ACCEPTANCE HARNESS for agent-md's `stock.quote` (#624, MD-1 v1.5 §4.5)
+Files: server `tests/test_uct_agent_qa_md2.py`, browser `app/src/agent/qa/md2Quote.test.js`, and fixtures
+`app/src/agent/__fixtures__/program/md2/scenarios.json` (generated with `--write`). It is independent of agent-md's own
+tests in two ways:
+- the trading day is DERIVED from the real NYSE calendar for the frozen clock's own date, never hand-picked;
+- the envelopes come from the REAL `quotes` adapter, with the session clock, staleness clock and `fetched_at` all
+  frozen at one instant.
+
+| Area | Result |
+|---|---|
+| Session clocks (19) | PASS. regular · open bell · 09:29 premarket · 04:00 · 03:59 overnight · 16:00 and 19:59 after-hours · 20:00 overnight · Monday 03:59 after a weekend · Saturday · Sunday 21:00 · Thanksgiving (holiday) · its eve 21:00 · observed 2026-07-03 · early close 2026-11-27 (12:59 regular, 13:00 / 19:59 after-hours) · both DST Mondays. A UTC `now` gives the same answer. An unreadable calendar reads closed; an unreadable early close falls back to 16:00 |
+| §4.5 rules, 12 real scenarios (one per answer row, plus a budget refusal) | PASS: only `{text, present}` leave; "live/now" appears iff the read is fresh and live (text and shown figures); no envelope field names, source id or notes are echoed on ok/partial reads. Each row's sentence is checked: stale in the price sentence, extended hours, the last extended print and its time, closed + last trade or last close with its date, priced from a close, `Partial: no price for NOPE.` |
+| As-of reference | PASS: from `fetched_at`; a browser clock moved to 2031 changes nothing |
+| Session from the data, not the words | PASS: P01 "…premarket?" during the regular session answers "regular session", with one `quote` read for purpose `answer` and the open turn id |
+| Flags off (4 states: data off; no `data_kinds` accessor; quote not activated; `quotes` missing) | PASS: not served, registers nothing, `match()` is null for all 30. `answerQuote` equals `answerProfile` byte for byte with the same request sequence, and makes no gateway read |
+| Fast path, 30 phrasings parsed from MD-1-phrasings.md | PASS: all 16 fast quote rows match exactly (P01–P10, P12, P13, P15–P17, P25); every model/clarify row is null; bars rows are not stock.quote's; `match()` does no I/O |
+| Zero model turns in the REAL panel (`md2Panel.test.jsx`, on agent/int `40185db069` with #632/#633 wired) | **PASS**: every fast quote row makes **0 model turns** and exactly 1 gateway read of the right kind (`quote`, or `quotes` for many) with the right symbols, purpose `answer` and the turn id. All 14 model/clarify/bars rows make no fast-path read. Every dark config shape (data off · no `data_kinds` · quote not activated · `quotes` missing) makes no read, sends the sentence to the model as today, and leaves stock.quote out of the manifest. Mutation-proved: a fast handler that never claims → 16 red; flags ignored → 3 red (the 4th, data off, is also held by the data client's own refusal) |
+| Mutation proofs (capability) | 5 of 5 red: stale claiming live; overnight claiming live; notes leaking on ok reads; the session taken from the words; flags-off ignoring `data_kinds` |
 
 ## Sprint 2 task 3: COST BASELINE (model calls per corpus phrasing, today)
 A measurement, pinned exactly so any reduction or regression is a reviewed diff. File:
@@ -274,13 +311,13 @@ gateway's exception log, the local-plan reply drop, and the `recent_outcome` gua
 | 12 | History: the planning reply of a local plan, even stored unblanked | L4 | PROVEN | `test_L4_PROVEN_...` (mutation-proved) | - |
 | 13 | History: an outcome row with no `actions` (F-11) | L4 | OPEN on master; **PROVEN with #622** (fails closed for `answered`, garbled, empty and None kinds). Residual by design: the 25 `ACTIONLESS_OUTCOME_KINDS` browser notes still replay, which is safe while their text is UCT's fixed words (railed by agent-lead against useAgent.js) | `test_L4_F11_an_answered_row_without_actions` (with a CONTROL) | agent-lead (#622) |
 | 14 | History: any NON-local outcome row's text is replayed verbatim | L4 | **OPEN by design**: the server keys on the action name or the `local` flag, never on content; safe only while every non-local capability's TEXT is value-free | `test_L4_OPEN_PIN_...` | agent-lead (structural) |
-| 15 | Conversation naming reads an unblanked local-plan reply (`history_messages` drops it; `name_conversation` has no guard) | L4 | **OPEN, latent** (F-18) | `test_L4_OPEN_LATENT_the_NAMING_call_...` | agent-lead |
-| 16 | `recentOutcome` (free browser text) | L6 | **OPEN, latent** (F-17): reaches the model whenever history holds no local row yet; no browser sends it today | `test_L6_OPEN_LATENT_recent_outcome_...` · control `test_L6_PROVEN_...` (mutation-proved) | agent-lead |
+| 15 | Conversation naming reads an unblanked local-plan reply (`history_messages` drops it; `name_conversation` has no guard) | L4 | **PROVEN with agent-lead `5aabae8a73`** (F-18 fixed: the same `is_local_row` guard), with a CONTROL showing a non-local reply is still read | `test_L4_PROVEN_F18_the_NAMING_call_...` (mutation-proved: red on the pre-fix turn.py) | agent-lead (done) |
+| 16 | `recentOutcome` (free browser text) | L6 | **PROVEN with `5aabae8a73`** (F-17 fixed: run_turn never forwards it; the TurnIn field stays accepted for old clients), with a CONTROL showing the member's words still go | `test_L6_PROVEN_F17_...` (mutation-proved) · `test_L6_PROVEN_recent_outcome_is_dropped_once_...` | agent-lead (done) |
 | 17 | `workspace_context` forwarded whole; no marker strip | L6 | NOT BUILT, DORMANT (no isolated caller) | `test_L6_NOT_BUILT_...` | agent-lead |
 | 18 | Gateway envelope to server to model | L6 | PROVEN by structure: `turn.py` imports no marketdata/gateway module (AST) | `test_L6_research_results_...` | - |
 | 19 | Browser serializer drops `isolated` objects (agentClient) | L5 | NOT BUILT (no caller yet) | - | agent-lead |
 | 20 | Isolated reader end to end: context, memory, pending, title, telemetry, traces | L5/L7 | PROVEN for a `localOnly` reader, with a leaking CONTROL that is caught | `app/src/agent/qa/modelIsolation.test.jsx` (2) | - |
-| 21 | stock.compare composite (F-12) | L4/L5 | PROVEN today (only in the stored table; text and turn bodies clean) | `app/src/agent/qa/modelIsolation.test.jsx::F-12 ...` | owner (policy) |
+| 21 | stock.compare composite (F-12) | L4/L5 | **REMOVED with `5aabae8a73`** (owner display-only rule): the rating is absent from views, text, turn bodies, memory, traces and telemetry, while the served payload carried it (CONTROL), and a source rail forbids reading it | `modelIsolation.test.jsx::F-12 FIXED …` · `isolationAudit.test.jsx::F-12 …` (mutation-proved) | agent-lead (done) |
 | 22 | **Screener composition, raw values**: the catalog carries `uct_composite`, `rating_*`, `sponsorship`, `accdis`, `rs_rank`, the same UCT Ratings (`screener/enrich.py`) | L4/L5/L7 | PROVEN: values stay in the stored table; text, context, memory, telemetry and traces are clean | `app/src/agent/qa/isolationAudit.test.jsx::PROVEN ...` | - |
 | 23 | **Screener composition, RANKING**: a screen sorted by `uct_composite` puts `memory.recent_results[0].symbols_in_order` in composite order, plus `lastScreen.sort` | L5/L7 | **OPEN** (F-16) | `app/src/agent/qa/isolationAudit.test.jsx::OPEN ... RANKING ...` | owner + agent-lead |
 | 24 | **Screener composition, COUNT**: matches at a member-chosen threshold in the replayed text AND in context `lastScreen.matches`; a one-name `within` screen at `>= X`, repeated, bisects a stock's exact composite | L4/L6 | **OPEN** (F-16) | `app/src/agent/qa/isolationAudit.test.jsx::OPEN ... COUNT ...` | owner + agent-lead |
@@ -303,7 +340,7 @@ demonstrably intact.
 | Server enforcement | **NONE**: the value comes from `/api/research/compare` (the Research page route), not the gateway; no isolated kind, marker or local flag applies | `… F-12 … NOT SERVER-ENFORCED` (strict pin) |
 | Compositions | **OPEN**: the same composite is a screener field, so its ranking and threshold counts reach the model (F-16) | `isolationAudit.test.jsx::OPEN …` |
 
-**Verdict: server-enforced isolation is NOT intact for F-12.** Two cells fail: server enforcement (none) and
+**Resolved with agent-lead `5aabae8a73`: the rating is omitted** (every cell above now reads absent, a source rail keeps it out, and the proofs go red on the pre-fix stock.js). The verdict that led to it: **server-enforced isolation was NOT intact for F-12.** Two cells fail: server enforcement (none) and
 compositions (F-16). By the owner's rule, the rating should be omitted from stock.compare. That is agent-lead's
 removal; QA will flip these pins to proofs that it is gone.
 

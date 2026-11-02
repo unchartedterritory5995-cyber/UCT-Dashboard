@@ -1209,6 +1209,8 @@ def name_conversation(turns: list[dict], caller: Callable | None = None, meter=N
     for t in turns[-16:]:
         if t.get("role") not in ("member", "agent") or not t.get("text"):
             continue
+        if t["role"] == "agent" and is_local_row(t):
+            continue                                       # QA F-18: a local result never reaches the naming model
         who = "Member" if t["role"] == "member" else "Agent"
         lines.append(f"{who}: {' '.join(str(t['text']).split())[:400]}")
     if not any(ln.startswith("Member:") for ln in lines):
@@ -1581,10 +1583,10 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
         blocks.append(_block("validation_error", repair_in))
     if pending:
         blocks.append(_block("pending_proposal", pending))
-    if recent_outcome and not any(is_local_row(t) for t in (history or []) if isinstance(t, dict)):
-        # ⛔ LOCAL-RESULT BOUNDARY: free text from the browser about the last outcome could repeat a
-        # local result's figures; in a conversation that holds one, it is dropped (fail closed).
-        blocks.append(_block("recent_outcome", recent_outcome))
+    # ⛔ LOCAL-RESULT BOUNDARY (QA F-17): `recent_outcome` is free text from the browser about the last outcome.
+    # The server cannot tell what it repeats, so it is NEVER forwarded to the model (no browser sends it); the
+    # stored transcript — which history_messages screens row by row — is the only account of what happened.
+    del recent_outcome
     if conversation_title:
         blocks.append(_block("conversation_title", conversation_title))
     blocks.append(_block("member_request", msg))

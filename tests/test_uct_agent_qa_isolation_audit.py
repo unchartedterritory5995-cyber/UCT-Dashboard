@@ -249,23 +249,27 @@ def test_L4_PROVEN_the_planning_reply_of_a_local_plan_is_never_replayed_even_if_
     assert not leaks(turn.history_messages(rows))
 
 
-def test_L4_OPEN_LATENT_the_NAMING_call_reads_an_unblanked_local_plan_reply_that_history_would_drop():
-    """Asymmetry: `history_messages` drops an agent row of a local plan (is_local_row); `name_conversation` reads
-    every member/agent row's text with NO such guard. Today such a row is blanked when stored (and the model wrote
-    it before any value existed), so this needs a stored row that was not blanked — an older or garbled row.
-    Owner: agent-lead (turn.py). STRICT pin: fails when name_conversation applies the same guard."""
+def test_L4_PROVEN_F18_the_NAMING_call_skips_an_unblanked_local_plan_reply_as_history_does():
+    """F-18, fixed by agent-lead (isolation-fixes): `name_conversation` now applies `is_local_row` to agent rows, the
+    same guard as `history_messages`. CONTROL: a NON-local agent row's text still reaches the naming call, so the
+    detector can fail."""
     agent_data = {"envelope": {"disposition": "apply", "ops": [{"action": "breadth.show", "args": {}}]}}
     rows = _conv({"kind": "answered", "actions": ["breadth.show"], "local": True}, "x",
                  agent_text=f"It reads {SENT_INT}", agent_data=agent_data)
-    sent = []
 
-    def caller(**kw):
-        sent.append(kw)
-        return types.SimpleNamespace(content=[types.SimpleNamespace(type="text", text='{"title": "t"}')], usage=None)
-    turn.name_conversation(rows, caller=caller)
-    assert sent, "the naming call was not reached: vacuous"
-    assert leaks(sent) == [SENT_INT]
-    assert not leaks(turn.history_messages(rows)), "history must still drop it (the control for the asymmetry)"
+    def naming_input(rs):
+        sent = []
+
+        def caller(**kw):
+            sent.append(kw)
+            return types.SimpleNamespace(content=[types.SimpleNamespace(type="text", text='{"title": "t"}')], usage=None)
+        turn.name_conversation(rs, caller=caller)
+        assert sent, "the naming call was not reached: vacuous"
+        return sent
+    assert not leaks(naming_input(rows))
+    assert not leaks(turn.history_messages(rows))
+    plain = _conv({"kind": "answered", "actions": ["chart.setType"]}, "x", agent_text=f"Switched {SENT_INT}")
+    assert leaks(naming_input(plain)) == [SENT_INT], "CONTROL: a non-local reply is still read (the test can fail)"
 
 
 # ── L6 the model request itself: run_turn with a scripted model ──────────────────────────────────────────────
@@ -291,15 +295,15 @@ def _sent(calls) -> str:
     return json.dumps([{k: c.get(k) for k in ("system", "messages")} for c in calls], default=str)
 
 
-def test_L6_OPEN_LATENT_recent_outcome_is_free_text_that_reaches_the_model_when_history_holds_no_local_row(no_cost):
-    """`TurnIn.recentOutcome` is accepted by the router and forwarded verbatim. It is dropped ONLY when the stored
-    history already holds a local row; the first local answer of a conversation (or one whose /record has not
-    landed) is not in history yet. No browser code sends recentOutcome today (grep: zero senders), so it is an
-    unused door. Owner: agent-lead. STRICT pin: fails when the door is removed or fails closed."""
+def test_L6_PROVEN_F17_recent_outcome_never_reaches_the_model_even_with_no_local_row(no_cost):
+    """F-17, fixed by agent-lead (isolation-fixes): run_turn never forwards `recent_outcome` (the TurnIn field stays
+    accepted for old clients). CONTROL: the same request's member text DOES reach the model."""
     calls = []
-    turn.run_turn(message="and now?", context={}, history=[], caller=_scripted(calls),
+    turn.run_turn(message=f"and now {SENT_STR}?", context={}, history=[], caller=_scripted(calls),
                   recent_outcome=f"breadth {SENT_NUM}% above 50sma")
-    assert leaks(_sent(calls)) == [SENT_NUM]
+    sent = _sent(calls)
+    assert SENT_NUM not in sent
+    assert SENT_STR in sent, "CONTROL: the member's own words are forwarded (the detector can see a payload)"
 
 
 def test_L6_PROVEN_recent_outcome_is_dropped_once_history_holds_a_local_row(no_cost):
