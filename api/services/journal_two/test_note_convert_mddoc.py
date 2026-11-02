@@ -934,18 +934,60 @@ def test_an_unsafe_scheme_autolink_is_text_never_a_mark():
         {"type": "text", "text": "see javascript:alert(1) now"}]
 
 
-@pytest.mark.parametrize("src", [
+_UNSAFE_IMAGE_SRCS = [
     "javascript:alert(1)", "vbscript:msgbox(1)", "file:///C:/pic.png",
-])
+    # Task 15 fix round 1: the ENCODED forms. A scheme-less-looking src is decoded once for
+    # a vault path (`_destination_as_written`), so the check must read the decoded form too,
+    # or `javascript%3Aalert(1)` became the media ref `javascript:alert(1)`.
+    "javascript%3Aalert(1)", "JavaScript%3aalert(1)", "vbscript%3Amsgbox(1)",
+    "file%3A///C:/pic.png", "data%3Atext/html,x",
+]
+
+
+@pytest.mark.parametrize("src", _UNSAFE_IMAGE_SRCS)
 def test_an_unsafe_scheme_image_is_never_a_media_entry(src):
     # The widened gate also lets these reach the IMAGE rule. An image the stock gate refuses
-    # is never registered as media (nothing would ever fetch a `javascript:` "image"): it
-    # degrades to the visible unsupported-image text, as an unusable data URI does.
+    # is never registered as media (nothing would ever fetch a `javascript:` "image"). By
+    # DEFAULT (the personal API and inbound email, which strip media to markers themselves)
+    # it degrades to the visible unsupported-image text, as an unusable data URI does.
     result = md_to_tiptap(f"![pic]({src})\n")
     assert result["media"] == []
     dumped = json.dumps(result["doc"])
     assert '"type": "image"' not in dumped and "import-ref://" not in dumped
+    assert "importNotice" not in dumped
     assert "[unsupported image]" in dumped
+
+
+@pytest.mark.parametrize("src", _UNSAFE_IMAGE_SRCS)
+def test_on_the_connector_path_an_unsafe_image_is_an_unsafe_notice(src):
+    # Task 15 fix round 1 (controller ruling): a CONNECTOR caller passes
+    # `unsafe_image_notice=True`, and the image becomes an importNotice `unsafe` in place,
+    # hoisted out of its paragraph like the image it replaces. No ref, no sourceUrl: the
+    # address is exactly what must not be stored or offered as a link.
+    result = md_to_tiptap(f"before ![pic]({src}) after\n", unsafe_image_notice=True)
+    assert result["media"] == []
+    assert result["doc"]["content"] == [
+        {"type": "paragraph", "content": [{"type": "text", "text": "before "}]},
+        {"type": "importNotice", "attrs": {
+            "reason": "unsafe", "name": "pic", "sourceUrl": None, "ref": None, "attempts": 0}},
+        {"type": "paragraph", "content": [{"type": "text", "text": " after"}]},
+    ]
+
+
+def test_connector_unsafe_image_notice_without_alt_and_in_a_heading():
+    result = md_to_tiptap("# Title ![](javascript:alert(1))\n", unsafe_image_notice=True)
+    assert result["doc"]["content"] == [
+        {"type": "heading", "attrs": {"level": 1}, "content": [{"type": "text", "text": "Title "}]},
+        {"type": "importNotice", "attrs": {
+            "reason": "unsafe", "name": None, "sourceUrl": None, "ref": None, "attempts": 0}},
+    ]
+
+
+def test_connector_option_leaves_a_safe_image_alone():
+    # CONTROL: the option changes only what the stock gate refuses.
+    plain = md_to_tiptap("![a](img/a%20b.png)\n")
+    assert md_to_tiptap("![a](img/a%20b.png)\n", unsafe_image_notice=True) == plain
+    assert plain["media"] == [{"ref": "img/a b.png", "kind": "image", "name": "a b.png"}]
 
 
 def test_relative_and_journal_and_import_link_hrefs_still_allowed():

@@ -28,4 +28,6 @@
 
 <img src="https://img.example.com/raw.png" alt="raw">
 
+![script image](javascript%3Aalert(1))
+
 [png as a link](data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAEElEQVR4nGP8zwACTGCSAQANHQEDgslx/wAAAABJRU5ErkJggg==)

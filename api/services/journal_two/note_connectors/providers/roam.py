@@ -419,7 +419,7 @@ class RoamProvider(NoteProvider):
             title_to_uid=self._title_to_uid,
             uid_to_string=uid_to_string,
         )
-        converted = md_to_tiptap(final_md)
+        converted = md_to_tiptap(final_md, unsafe_image_notice=True)
         # Repairs a bare {{[[TODO]]}}/{{[[DONE]]}} block (no other text),
         # which md_to_tiptap alone can't recognize as a task item — see
         # roam_text.fix_empty_task_items's docstring.

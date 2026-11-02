@@ -49,6 +49,8 @@ from markdown_it.common.normalize_url import validateLink as markdown_it_validat
 from markdown_it.token import Token
 from mdit_py_plugins.tasklists import tasklists_plugin
 
+from api.services.journal_two import import_notice
+
 from . import ATTACHMENT_REF_PREFIX, LINK_PREFIX, REF_PREFIX
 
 _MD: MarkdownIt | None = None
@@ -85,9 +87,14 @@ def _validate_link(url: str) -> bool:
 
 
 class _Ctx:
-    __slots__ = ("media", "links", "media_refs", "data_uri_counter", "resolve_href")
+    __slots__ = ("media", "links", "media_refs", "data_uri_counter", "resolve_href",
+                 "unsafe_image_notice")
 
-    def __init__(self, resolve_href: Callable[[str], str | None] | None = None) -> None:
+    def __init__(self, resolve_href: Callable[[str], str | None] | None = None,
+                 unsafe_image_notice: bool = False) -> None:
+        # Task 15 fix round 1: a connector caller's answer for an unsafe image src
+        # (`_inline_nodes`' image branch): an importNotice `unsafe`, not the text marker.
+        self.unsafe_image_notice = unsafe_image_notice
         self.media: list[dict[str, Any]] = []
         self.links: list[str] = []
         self.media_refs: set[str] = set()  # dedup guard for `_register_media`
@@ -135,6 +142,7 @@ def _extract_data_uri_images(md: str) -> str:
 
 def md_to_tiptap(
     md: str | None, *, resolve_href: Callable[[str], str | None] | None = None,
+    unsafe_image_notice: bool = False,
 ) -> dict[str, Any]:
     """Convert a markdown string into `{doc, media, links}`.
 
@@ -153,10 +161,17 @@ def md_to_tiptap(
     (markdown `[x](...)` or a raw `<a href>`), decoded once. A string answer replaces the
     href; None keeps today's href, which the engine's one link policy then judges
     (`linkify.resolve_href`: a relative href with no http(s) source becomes text).
+
+    `unsafe_image_notice` (Task 15 fix round 1, controller ruling): passed True by the
+    CONNECTOR callers only. An image whose src markdown-it's stock gate refuses
+    (`_is_unsafe_image_src`: javascript, vbscript, file, a non-image data URI, read raw AND
+    decoded once) then becomes an importNotice `unsafe` in place. False (the personal API and
+    inbound email, which strip media to their own markers) keeps the `[unsupported image]`
+    text. Either way it is never a media entry.
     """
     cleaned = _extract_data_uri_images(md or "")
     tokens = _get_md().parse(cleaned)
-    ctx = _Ctx(resolve_href)
+    ctx = _Ctx(resolve_href, unsafe_image_notice)
     content = _blocks(tokens, 0, len(tokens), ctx)
     return {"doc": {"type": "doc", "content": content}, "media": ctx.media, "links": ctx.links}
 
@@ -197,8 +212,8 @@ def _blocks(tokens: list[Token], start: int, end: int, ctx: _Ctx) -> list[dict[s
             # installed @tiptap/extension-heading@3.23.6 source) — it cannot
             # hold a block-level Image node. Hoist any image OUT as a sibling
             # block right after the heading; the heading keeps only its text.
-            text_items = [n for n in flat if n.get("type") != "image"]
-            images = [n for n in flat if n.get("type") == "image"]
+            text_items = [n for n in flat if n.get("type") not in _HOISTABLE_BLOCK_TYPES]
+            images = [n for n in flat if n.get("type") in _HOISTABLE_BLOCK_TYPES]
             out.append({"type": "heading", "attrs": {"level": level}, "content": text_items})
             out.extend(images)
             i += 3
@@ -274,7 +289,9 @@ def _blocks(tokens: list[Token], start: int, end: int, ctx: _Ctx) -> list[dict[s
 # so the HTML walker's `_html_inline_walk` (which CAN emit one directly, via
 # `ATTACHMENT_REF_PREFIX`) gets the same correct hoisting for free. Widening
 # this set is a strict no-op for existing markdown-walker output.
-_HOISTABLE_BLOCK_TYPES = frozenset({"image", "attachmentChip"})
+#: `importNotice` (Task 15 fix round 1): a block leaf, written in an image's place on the
+#: connector path, hoisted exactly as the image would have been.
+_HOISTABLE_BLOCK_TYPES = frozenset({"image", "attachmentChip", import_notice.IMPORT_NOTICE_TYPE})
 
 
 def _wrap_paragraph(flat: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -570,10 +587,22 @@ def _is_unsafe_image_src(src: str) -> bool:
 
 def _image_node(token: Token, ctx: _Ctx) -> dict[str, Any] | None:
     """Returns the TipTap image node, or `None` when the src is an
-    unsupported data URI (caller degrades to visible text in that case)."""
-    src = _destination_as_written(token.attrs.get("src") or "", markdown_image=True)
-    if _is_unsafe_image_src(token.attrs.get("src") or ""):
-        return None
+    unsupported data URI (caller degrades to visible text in that case).
+
+    An unsafe src (`_is_unsafe_image_src`) is asked on the src as markdown-it normalised it
+    AND as `_destination_as_written` decodes it -- the decoded form is the one that would be
+    registered (Task 15 fix round 1: `javascript%3Aalert(1)` passed the raw check and became
+    the media ref `javascript:alert(1)`). Read as a browser reads it (`link_href_as_read`),
+    so `java%09script:` is caught too. It is never a media entry: the connector path
+    (`ctx.unsafe_image_notice`) gets an importNotice `unsafe` in place, everyone else `None`
+    (the caller's visible marker)."""
+    raw = token.attrs.get("src") or ""
+    src = _destination_as_written(raw, markdown_image=True)
+    if _is_unsafe_image_src(raw) or _is_unsafe_image_src(link_href_as_read(src)):
+        if not ctx.unsafe_image_notice:
+            return None
+        return import_notice.notice_node(
+            "unsafe", name=token.content or None, source_url=None, ref=None, attempts=0)
     if src.startswith(REF_PREFIX):
         # Already a connector-supplied placeholder — pass through untouched,
         # no duplicate media entry (the connector already registered it).

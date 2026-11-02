@@ -1067,7 +1067,7 @@ class DropboxProvider(NoteProvider):
         elif ext == ".md":
             text = self._resolve_relative_media_markdown(text, path_lower)
             text = self._resolve_relative_attachments_markdown(text, path_lower)
-            converted = md_to_tiptap(text)
+            converted = md_to_tiptap(text, unsafe_image_notice=True)
             converted = self._promote_md_attachments(converted)
         else:  # .txt
             converted = txt_to_tiptap(text)

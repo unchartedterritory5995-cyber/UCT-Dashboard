@@ -629,6 +629,33 @@ async def test_updated_at_is_never_content_hash_shaped():
     assert note.updated_at == "2026-08-01T00:00:00Z"
 
 
+async def test_an_unsafe_markdown_image_is_an_unsafe_notice_never_media():
+    """Plan A Task 15 fix round 1 (controller ruling): on the connector path an image whose
+    src is javascript:/vbscript:/file: -- raw or percent-encoded -- becomes an importNotice
+    `unsafe` in place, and is never a media entry the engine would try to fetch."""
+    entries = [{
+        ".tag": "file", "name": "a.md", "path_lower": TRADING_MD_PATH,
+        "content_hash": "b" * 64, "server_modified": "2026-08-01T00:00:00Z",
+    }]
+    text = "![x](javascript:alert(1))\n\n![y](javascript%3Aalert(1))\n\n![](file:///C:/a.png)\n"
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/2/files/list_folder":
+            return httpx.Response(200, json={"entries": entries, "cursor": "c", "has_more": False})
+        if request.url.path == "/2/files/download":
+            return httpx.Response(200, content=text.encode("utf-8"))
+        return httpx.Response(404)
+
+    provider = _make_provider(handler)
+    refs = await provider.list_changed(CREDS)
+    note = await provider.fetch(CREDS, refs[0])
+    assert note.media == []
+    assert note.doc["content"] == [
+        {"type": "importNotice", "attrs": {
+            "reason": "unsafe", "name": name, "sourceUrl": None, "ref": None, "attempts": 0}}
+        for name in ("x", "y", None)]
+
+
 async def test_last_seen_hashes_disambiguates_by_credentials_not_just_folder_path():
     """Round-2 review fix: `_LAST_SEEN_HASHES` keyed by `folder_path` ALONE is a
     same-process CROSS-TENANT hazard, not a future scale-out risk. Dropbox's

@@ -514,7 +514,7 @@ class OneDriveProvider(NoteProvider):
         if ext == ".md":
             text = self._resolve_relative_media_markdown(text, item_id)
             text = self._resolve_relative_attachments_markdown(text, item_id)
-            converted = md_to_tiptap(text)
+            converted = md_to_tiptap(text, unsafe_image_notice=True)
             converted = self._promote_md_attachments(converted)
         elif ext in (".html", ".htm"):
             text = self._resolve_relative_media_html(text, item_id)

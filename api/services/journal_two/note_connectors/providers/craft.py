@@ -421,7 +421,7 @@ class CraftProvider(NoteProvider):
             raise NoteConnTransient(
                 "Craft returned non-markdown content", status=response.status_code,
             )
-        converted = md_to_tiptap(body_text)
+        converted = md_to_tiptap(body_text, unsafe_image_notice=True)
 
         return RemoteNote(
             remote_id=ref.remote_id,

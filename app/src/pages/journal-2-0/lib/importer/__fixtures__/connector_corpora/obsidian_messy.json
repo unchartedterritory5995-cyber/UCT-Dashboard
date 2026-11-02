@@ -267,6 +267,16 @@
         "type": "image"
        },
        {
+        "attrs": {
+         "attempts": 0,
+         "name": "script image",
+         "reason": "unsafe",
+         "ref": null,
+         "sourceUrl": null
+        },
+        "type": "importNotice"
+       },
+       {
         "content": [
          {
           "text": "png as a link",

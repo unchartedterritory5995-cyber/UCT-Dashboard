@@ -218,6 +218,25 @@ async def test_fetch_produces_a_remote_note_from_the_existing_converter(db):
     assert note.created_at is None
 
 
+async def test_fetch_turns_an_unsafe_image_into_an_unsafe_notice(db):
+    """Plan A Task 15 fix round 1 (controller ruling): the Obsidian connector passes
+    `unsafe_image_notice=True`, so a javascript:/vbscript: image -- raw or percent-encoded --
+    is an importNotice `unsafe` where it stood, never media and never `[unsupported image]`."""
+    body = "Look ![chart](javascript%3Aalert(1)) here\n\n![](vbscript:msgbox(1))\n"
+    _stage("user-a", "vault-1", "Notes/bad.md", body, T1)
+    _manifest("user-a", "vault-1", ["Notes/bad.md"])
+    provider = ObsidianProvider(user_id="user-a", vault_id="vault-1")
+    note = await provider.fetch({}, RemoteRef(remote_id="Notes/bad.md", updated_at=T1))
+    notice = lambda name: {"type": "importNotice", "attrs": {  # noqa: E731
+        "reason": "unsafe", "name": name, "sourceUrl": None, "ref": None, "attempts": 0}}
+    assert note.media == []
+    assert note.doc["content"] == [
+        {"type": "paragraph", "content": [{"type": "text", "text": "Look "}]},
+        notice("chart"),
+        {"type": "paragraph", "content": [{"type": "text", "text": " here"}]},
+        notice(None)]
+
+
 async def test_fetch_title_falls_back_to_filename_when_no_h1(db):
     _stage("user-a", "vault-1", "Notes/plain.md", "just a paragraph", T1)
     provider = ObsidianProvider(user_id="user-a", vault_id="vault-1")

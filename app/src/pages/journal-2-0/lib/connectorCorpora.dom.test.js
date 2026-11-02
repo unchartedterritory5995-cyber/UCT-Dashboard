@@ -284,7 +284,9 @@ const CONSTRUCTS = [
       `page.png can't be shown here — ${OPEN_ORIGINAL}`,
       `moved-private.png wasn't copied: its address isn't allowed — ${OPEN_ORIGINAL}`,
       `huge.zip is too large to copy (limit 25 MB) — ${OPEN_ORIGINAL}`,
-      `Couldn't copy dead.png — retrying on the next sync — ${OPEN_ORIGINAL}`])
+      `Couldn't copy dead.png — retrying on the next sync — ${OPEN_ORIGINAL}`,
+      // Task 15 fix round 1: an unsafe image src, with no original to open.
+      "script image wasn't copied: its address isn't allowed"])
   }],
   ['obsidian: copied hotlinks, data: images and raw <img> render', O, OU, OWALL, (root) => {
     expect(root.querySelectorAll('img')).toHaveLength(7)

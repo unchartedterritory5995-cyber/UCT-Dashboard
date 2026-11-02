@@ -740,8 +740,20 @@ def test_corpus_obsidian_refused_media_have_notices_with_reasons(o_wall):
         "moved-private.png": ("unsafe", 0),      # a hotlink that redirects to a private address
         "huge.zip": ("too_large", 0),            # over the source cap
         "dead.png": ("fetch_failed", 1),         # retried next sync
+        "script image": ("unsafe", 0),           # Task 15 fix round 1: see the test below
     }
-    assert all(a["sourceUrl"] == f"https://img.example.com/{name}" for name, a in notices.items())
+    assert all(a["sourceUrl"] == f"https://img.example.com/{name}" for name, a in notices.items()
+               if name != "script image")
+
+
+def test_corpus_obsidian_unsafe_image_src_is_an_unsafe_notice_never_media(o_wall):
+    """Task 15 fix round 1 (controller ruling): `![script image](javascript%3Aalert(1))` --
+    percent-encoded, so only the DECODED src reads as javascript: -- is an importNotice
+    `unsafe` through the real engine, carrying no ref and no sourceUrl (the address is what
+    must not be stored or offered), and nothing was fetched for it."""
+    assert _notices(o_wall)["script image"] == {
+        "reason": "unsafe", "name": "script image", "sourceUrl": None, "ref": None, "attempts": 0}
+    assert "javascript" not in json.dumps(o_wall)
 
 
 def test_corpus_obsidian_data_image_as_a_link_is_text(o_wall):

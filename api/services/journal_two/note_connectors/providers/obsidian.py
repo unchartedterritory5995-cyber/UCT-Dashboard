@@ -775,7 +775,7 @@ def convert_obsidian_markdown(
         from_path=vault_path, vault_label=vault_label,
     )
     out = md_to_tiptap(pre, resolve_href=_relative_href_resolver(
-        vault_path, index, vault_id, import_key_fn))
+        vault_path, index, vault_id, import_key_fn), unsafe_image_notice=True)
     return {**out, "doc": _callouts_in_doc(out["doc"])}
 
 
