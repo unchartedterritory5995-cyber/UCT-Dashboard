@@ -252,6 +252,59 @@ Only agent-qa edits this file. Update it in every PR.
   extended-live, extended-closed, holiday, no-current-trade. Rules (a)–(e) are a reusable predicate
   (`quote_semantics_errors`) with controls showing it can fail. Other MD-1 kinds keep provisional `data` shapes.
 
+## NL DIAGNOSTIC (owner, read-only, no paid calls): why the Agent seems to understand but doesn't execute
+Built from QA's own records only: the held-out quote sets, the discovery corpus measurements, the cost baseline, the
+MD-2 and F-16 rails and the isolation audit. **M** = measured by a QA test or record. **I** = inferred from code;
+confirming it needs a paid planner run, which is not authorised.
+
+**The one-paragraph answer.** The Agent's deterministic layers claim almost nothing: the browser fast path answers
+**0 of 31** discovery questions (M, `scores/fastpath-candidates.json`), and before F-16 the screener grammar answered
+0 of 26 (M). So nearly every request depends on the model planning a valid op from a ROUTED manifest. Three things
+then turn understanding into no execution:
+- (a) when the needed action's group isn't in the routed manifest, the model can only answer in words or ask for
+  `need_groups`, which costs a second call (I; agent-lead's F-SB-1 / #626 fix exists because screen conditions missed
+  the screener group);
+- (b) a reply that narrates work without planning ops is replaced by `NOTHING_DONE` ("I didn't do that — no action
+  was planned…"). That is an honest guard, and it is likely the visible "understood but didn't do it" (I,
+  `turn._CLAIMS_WITHOUT_ACTION`);
+- (c) many execution paths are dark by owner decision: data, scan and isolated flags off, and F-16 refusals. The
+  model literally has no tool to call (M).
+The deterministic layers that DO claim are not yet safe: 7 of 44 and 17 of 54 held-out quote phrasings are
+confident wrong answers (M).
+
+| Class | Representative case (evidence) | Asked → understood | Capability (selected / right one) | Where it stopped | Expected? | Smallest safe fix |
+|---|---|---|---|---|---|---|
+| 1 Interpretation | "what's the price of gold", "btc price", "how's the s&p doing", "tesla stock price", "nvda price last week" (M, held-out sets 1+2) | a commodity, crypto or index price; a company by name; a past price → read as the TICKERS `GOLD`/`BTC`/`S`,`P`/`TESLA`, and as the CURRENT price | stock.quote selected; the right handling is model or clarify (no deterministic owner), or stock.dailyBars with a date | it did NOT stop: it answered, wrongly, with 0 model calls | **No: a technical defect** (the release blocker) | Claim only positively resolved symbols (`$`/UPPERCASE, or a known-ticker check that dictionary, commodity, crypto and company words fail); temporal words ("last week", "on friday", "history", "in 2021", "open") veto. agent-md is on it; the gate is FAIL = 0 on both sets |
+| 2 Routing / discovery | All 31 discovery screen questions (M: 31/31 go to the planner, 64 model calls, cost baseline); screen conditions naming an indicator previously missed the screener group (I: #626) | a screen → no deterministic claim, so it's planned by the model from the routed manifest | screener.run is right; it's only selected if routing includes the screener group | first call: plan, or `need_groups` (a second call); or a words-only answer | Partly **unnecessary**: screens with a closed vocabulary needn't cost a model call | Wire SC-2's deterministic intent layer (`scanIntent.js`, 28/31 in-sample) behind spec.validate, with ZERO false resolves proven on a held-out set (QA's SC-2 set, deferred) before it's trusted |
+| 3 Missing capability | "nvda close on friday", "what did tsla close at on 2026-10-15", "aapl's high today", "nvda calls", "what's the nasdaq at", "oil price" (M, held-out) | a dated close; an intraday high; options; an index or commodity level | none today. `bars.daily` already supports point-in-time `to` (M: adapter), but stock.dailyBars exposes no date. No index, commodity or crypto kind exists | should go to the model or ask (correct where it did); wrong where the matcher answered (class 1) | **Legitimate gap** (scope), but the dated close is cheap | Expose `to` on stock.dailyBars ("close on <date or weekday>" → one bars.daily read with `to`); everything else stays model or clarify by design |
+| 4 Argument extraction / validation | "price of apple and microsoft" → [APPLE], MSFT dropped (M); grammar refused "$50M"/"$2B" scope prefixes (M: discovery d08, d22); the F-16 arith key had been skipped by validation until agent-sc fixed it (M: #654 note) | a 2-company compare / a cap filter in member units | quote.many / screener.run with a market_cap filter | wrong args were answered (quote), or a valid spec was refused (grammar) | **No** (quote); unnecessary (units) | Never emit a partial symbol list (all resolved, or null); normalise member units (`$50M`, `2B`) in the grammar; keep spec.validate as the single gate |
+| 5 Permission / approval | "show me my strongest stocks" (M: a local refusal after F-16); a rating screen or saved screen refused (M, f16Rails); isolated kinds dormant; data, scan and NL-1 off (M) | a strength ranking / a rating screen → understood exactly | screener.run (RS rank), but prohibited by the owner | refused with the clear sentence, 0 calls | **Yes: a legitimate safety refusal** (owner ruling) | Have the refusal offer the nearest PUBLIC alternative the member can choose ("I can rank by 3-month change or distance from the 52-week high"), without reproducing a UCT formula or weight (the owner's line) |
+| 6 Execution / API integration | F-23: on a half day from 13:00 to 16:00 the completed session reads as not done (M); F-19 (wall clock) and F-20 (notes echoed) were found and fixed (M); real Massive payloads never exercised (faked everywhere) | the last close / a quote | stock.dailyBars / stock.quote | answered with the wrong "last completed session" (F-23); real-provider behaviour unverified | **No, technical** (F-23, latent while dark); **unknown** (real provider) | F-23: apply `_session_close_minutes` in `bars_daily._last_completed_at_or_before`. Real provider: one admin-only smoke against Massive in a sandbox once the owner authorises a credential (SAT-1 B) |
+| 7 State / stale / UI feedback | a narrated "done" with no ops → `NOTHING_DONE` (I); `recentOutcome` was dropped (F-17, M); a follow-up refine depends on `lastScreen`/memory (M: F-16 rails); a stale quote says stale (M: MD-2) | "do X" → "I'll do X" with no ops / follow-ups after a refusal | the right op exists but wasn't planned | after the reply: the panel shows NOTHING_DONE; after a refused screen, no `lastScreen` exists, so a "refine" has nothing to refine | Honest-status: **expected**, but its CAUSE (a plan with no ops) is the defect. Refine after a refusal: expected | Measure it: count NOTHING_DONE per phrasing in a paid planner run (est. below). Cheap now: the NOTHING_DONE text names the action the model described, so the member can re-ask |
+
+**What a paid run would measure, if authorised.** The planner's op selection, args and NOTHING_DONE rate on the 31
+discovery questions, the 98 held-out quote and price phrasings, and ~20 multi-turn chains.
+- Cost: about 150 turns. At today's measured ~2 calls per turn (cost baseline: 64/31), with the planner and naming
+  calls on the configured Agent model, that is under the $5/day Agent budget, assuming roughly $0.01–0.03 per call.
+  That per-call price is an assumption, not measured.
+- Approval is needed before any of it runs.
+
+**Scenario evidence (existing; no new harness tonight):**
+- discovery corpus: 31;
+- MD-1 phrasings: 30;
+- held-out quote set 1: 44;
+- held-out quote set 2: 54, private until agent-md's head;
+- MD-2 quote and bars scenarios: 12 + 9;
+- F-16 rails: 13 browser + 40 server;
+- isolation audit: 27+ cells.
+The multi-turn chains the owner listed (find strong stocks → add a volume filter → drop under $10 → best RS → why is
+NVDA moving → compare with AMD → put the top five on a watchlist) are covered piecewise today:
+- refine: f16Rails, isolationAudit;
+- compare: modelIsolation F-12;
+- watchlist add: agentRankingIntegrity;
+- research: the cost baseline's forced-research cases d17/d26.
+"Best RS" is now a legitimate refusal (F-16).
+
 ## ⭐ FINAL VERDICT: Sprint 2 release candidate `608ad6adaec6207fb29accb3fcf72ad5741c391f`
 **GO to deploy DARK (every flag off). HOLD on activating quote (`UCT_AGENT_DATA=1` + `UCT_AGENT_DATA_KINDS=quote,quotes`) until
 the held-out misreads (item 7) are fixed.**
