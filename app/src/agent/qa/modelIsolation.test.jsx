@@ -31,6 +31,7 @@ import { currentTurnId } from '../trace'
 import { loadAgentConfig, _resetAgentConfig } from '../agentClient'
 import { loadBreadthDates, _resetBreadthDates } from '../capabilities/breadth'
 import { makeBoard } from '../__fixtures__/board'
+import { leaksOf, SENT_NUM, SENT_INT, SENT_STR } from '../__fixtures__/program/sentinels'
 
 vi.mock('../../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
 import AgentPanel from '../AgentPanel'
@@ -126,11 +127,11 @@ describe('agent-qa model isolation (1): exposure is nil and stays guarded', () =
 })
 
 // ── (2) end to end ──────────────────────────────────────────────────────────────────────────────────
-const SENT = ['987.654', '13579', 'ISO-SENTINEL-7y3']
-const leaks = (o) => SENT.filter(s => String(JSON.stringify(o ?? null)).includes(s))
+// token-aware sentinels (./sentinels.js): a timing such as trace.js `t0` can no longer read as a leak
+const leaks = (o) => leaksOf(o)
 const RATINGS = (() => {
   const e = loadFixture('ratings')                                // the program fixture, values replaced by sentinels
-  e.data = { ratings: [{ symbol: 'NVDA', rating: 987.654, percentile: 13579, label: 'ISO-SENTINEL-7y3' }], missing: [] }
+  e.data = { ratings: [{ symbol: 'NVDA', rating: Number(SENT_NUM), percentile: Number(SENT_INT), label: SENT_STR }], missing: [] }
   return e
 })()
 
@@ -143,10 +144,10 @@ const answerFrom = (opts) => async () => {
 }
 registerCapability({ name: 'qa.isolatedShow', surfaces: ['charts'], target: 'breadth', query: true, localOnly: true,
   summary: 'agent-qa test capability: a local-only reader of an isolated kind.', args: { type: 'object', properties: {}, additionalProperties: false },
-  answer: answerFrom({ title: 'Ratings ISO-SENTINEL-7y3' }) })
+  answer: answerFrom({ title: `Ratings ${SENT_STR}` }) })
 registerCapability({ name: 'qa.leakyShow', surfaces: ['charts'], target: 'breadth', query: true,
   summary: 'agent-qa CONTROL: the same reader WITHOUT localOnly, title carrying a value.', args: { type: 'object', properties: {}, additionalProperties: false },
-  answer: answerFrom({ title: 'Ratings ISO-SENTINEL-7y3' }) })
+  answer: answerFrom({ title: `Ratings ${SENT_STR}` }) })
 
 let envelopes, turnBodies, records, dataBodies
 beforeEach(async () => {
@@ -162,8 +163,8 @@ beforeEach(async () => {
     if (url === '/api/agent/data') { dataBodies.push(body); return json(RATINGS) }
     if (url === '/api/agent/breadth/dates') return json({ today_et: '2026-10-11', latest_finalized: { us: '2026-10-09' } })
     if (String(url).startsWith('/api/live-prices')) return json({})
-    if (String(url).startsWith('/api/research/compare/')) return json({ a: { fundamentals: {}, ratings: { composite: 987.654 } },
-      b: { fundamentals: {}, ratings: { composite: 13579 } } })
+    if (String(url).startsWith('/api/research/compare/')) return json({ a: { fundamentals: {}, ratings: { composite: Number(SENT_NUM) } },
+      b: { fundamentals: {}, ratings: { composite: Number(SENT_INT) } } })
     return json({ conversations: [] })
   })
   await loadAgentConfig()
@@ -184,7 +185,7 @@ async function showThenAsk(action) {
   await loadBreadthDates()
   envelopes.push((b) => plan([{ action, target: b.context.breadth?.[0]?.ref, args: {} }]))
   await say('show me the composite rating for NVDA please')
-  await screen.findByText(/NVDA rating 987\.654/, {}, { timeout: 6000 })               // the MEMBER sees it
+  await screen.findByText(/NVDA rating 987\.654321/, {}, { timeout: 6000 })               // the MEMBER sees it
   await waitFor(() => expect(records.some(r => r.outcomeData?.kind === 'answered')).toBe(true), { timeout: 6000 })
   envelopes.push(answer)
   await say('thanks, and what else should I look at?')
@@ -192,7 +193,7 @@ async function showThenAsk(action) {
 }
 
 describe('agent-qa model isolation (2): end to end through the real panel', () => {
-  it('F-12: stock.compare shows the UCT composite rating OUTSIDE MD-1, and today it still never reaches a model payload', async () => {
+  it('F-12 FIXED (owner: display-only needs server isolation, which it lacks): stock.compare no longer shows the UCT composite anywhere', async () => {
     const { say } = await mount()
     envelopes.push((b) => plan([{ action: 'stock.compare', target: b.context.stockData?.[0]?.ref, args: { symbols: ['NVDA', 'AMD'] } }]))
     // (worded so the MODEL plans it: the obvious wording is a fast-path chart command)
@@ -202,7 +203,9 @@ describe('agent-qa model isolation (2): end to end through the real panel', () =
     await waitFor(() => expect(records.some(r => r.outcomeData?.kind === 'answered')).toBe(true), { timeout: 6000 })
     const row = records.find(r => r.outcomeData?.kind === 'answered')
     expect(leaks(row.outcome), 'outcome TEXT (replayed by the server for a non-local row)').toEqual([])
-    expect(leaks(row.outcomeData.views).length, 'views keep it (stored, never replayed)').toBeGreaterThan(0)
+    expect(leaks(row.outcomeData.views), 'views: the rating is no longer shown at all').toEqual([])
+    expect(globalThis.fetch.mock.calls.some(([u]) => String(u).startsWith('/api/research/compare/')),
+      'CONTROL: the compare payload that carries the sentinel composite WAS fetched').toBe(true)
     envelopes.push(answer)
     await say('and which one has the better margin?')
     await waitFor(() => expect(turnBodies.length).toBe(2), { timeout: 6000 })

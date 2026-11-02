@@ -11,15 +11,23 @@ Sprint 1, PR 3: `fundamentals` (financial_statements), `earnings` (earnings_tabl
 Sprint 1, PR 4a: `themes` (theme_performance overlay, read without building).
 Sprint 1, PR 4b: `breadth.current` (breadth_current.reading) and `ratings` (research/ratings) — both
 MODEL-ISOLATED: the gateway serves them for purpose "answer" only.
+Sprint 2: `instrument.resolve` (the canonical symbol index, ticker_search_index — see instruments.py, MD-1 §4.7).
 """
 from __future__ import annotations
 
-from api.services.uct_agent.marketdata import (bars_daily, breadth, earnings, news_company, quotes, ratings,
-                                              statements, themes)
+from api.services.uct_agent.marketdata import (bars_daily, breadth, earnings, instruments, news_company, quotes,
+                                              ratings, statements, themes)
 
 
 def register(registry) -> None:
     from api.services.uct_agent.marketdata.gateway import Kind
+    registry.register(Kind(
+        name="instrument.resolve", fn=instruments.read_instruments, validate=instruments.validate,
+        freshness="periodic", owner="agent-md", max_symbols=instruments.MAX_TOKENS,
+        description="Which security a member's word names, from UCT's canonical symbol index (no provider call): "
+                    "symbol | symbol_typed_lowercase | name_match | non_equity | unknown per word (MD-1 §4.7). "
+                    "Params: {symbols: [{text, form: cashtag|upper|lower}]}.",
+    ))
     registry.register(Kind(
         name="quote", fn=quotes.read_quote, validate=quotes.validate_quote, freshness="live", owner="agent-md",
         max_symbols=1,
