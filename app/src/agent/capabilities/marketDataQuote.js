@@ -207,10 +207,11 @@ let unregister = null
 /** Idempotent; registers ONLY what the server serves and activates — stock.quote while `quote` + `quotes` are
  *  active, stock.dailyBars while `bars.daily` is (marketDataBars.js) — so the model's manifest and every flags-off
  *  answer stay exactly as they are. Call it after /api/agent/config has loaded (builtins.registerServerGatedBuiltins).
- *  Returns true when this call registered anything. */
+ *  Returns true when THIS call registered stock.quote (the contract since #624; stock.dailyBars reports through
+ *  `registerBarsCapability` and is visible in the capability registry). */
 export function registerMarketDataCapabilities() {
-  const bars = registerBarsCapability()
-  if (registered || !quoteServed()) return bars
+  registerBarsCapability()
+  if (registered || !quoteServed()) return false
   registered = true
   unregister = registerCapability({
     name: CAPABILITY,

@@ -89,8 +89,10 @@ describe('stock.dailyBars answers (completed sessions only)', () => {
   it('range52w, full year: the highest high and lowest low, each with its date (and the year when it differs)', () => {
     const ds = sessions(SESSIONS_52W)
     const bars = ds.map((d, i) => bar(d, 100 + (i % 7)))
-    bars[10] = bar(ds[10], 120, { high: 160.5 })
-    bars[200] = bar(ds[200], 95, { low: 80.25 })
+    bars[10] = bar(ds[10], 120, { high: 160.5 })      // the highest HIGH…
+    bars[30] = bar(ds[30], 150, { high: 151 })        // …is not on the highest CLOSE (150): the range reads highs/lows
+    bars[200] = bar(ds[200], 95, { low: 80.25 })      // the lowest LOW…
+    bars[220] = bar(ds[220], 82, { low: 81 })         // …is not on the lowest CLOSE (82)
     const t = says(answerFromBars(barsEnv(bars), { symbol: 'NVDA', measure: 'range52w' }))
     expect(t).toMatch(/^NVDA 52-week range \(the last 252 completed sessions, \w{3}, \w{3} \d+, 2025 to Fri, Oct 30\): high \$160\.50 on \w{3}, \w{3} \d+, 2025, low \$80\.25 on \w{3}, \w{3} \d+\. Last close/)
   })
@@ -102,8 +104,8 @@ describe('stock.dailyBars answers (completed sessions only)', () => {
   })
 
   it.each([
-    ['refused', "I couldn't answer that for NVDA: that request wasn't allowed for this question, so I didn't read its daily bars. No price is stated."],
-    ['unavailable', "I couldn't answer that for NVDA: UCT doesn't hold completed daily bars for it. No price is stated."],
+    ['refused', "I couldn't answer that for NVDA: that request wasn't allowed for this question, so its daily bars are not available. No price is stated."],
+    ['unavailable', "I couldn't answer that for NVDA: its completed daily bars are not available from UCT's market data. No price is stated."],
   ])('%s: fixed words, no number, never the note', (status, want) => {
     const e = { ...barsEnv([]), status, data: null, notes: ['this turn already made 8 data reads'] }
     expect(says(answerFromBars(e, { symbol: 'NVDA', measure: 'lastClose' }))).toBe(want)
@@ -174,8 +176,8 @@ describe('stock.dailyBars on the real fast path, served and dark', () => {
   it('served: one bars.daily read per question, sized per measure, zero model turns, never /api/live-prices', async () => {
     wire({ data: true, kinds: ['bars.daily'] })
     await loadAgentConfig()
-    expect(registerMarketDataCapabilities()).toBe(true)
-    expect(allCapabilityNames()).toContain(CAPABILITY)
+    expect(registerMarketDataCapabilities()).toBe(false)                     // its return value is about stock.quote (#624)…
+    expect(allCapabilityNames()).toContain(CAPABILITY)                       // …and stock.dailyBars is registered
     expect(allCapabilityNames()).not.toContain(QUOTE)                       // quote not activated: not registered
     for (const s of ['how did AAPL close yesterday', "NVDA's 5-day change", 'NVDA 52-week high']) {
       const f = fastParse(s, {})

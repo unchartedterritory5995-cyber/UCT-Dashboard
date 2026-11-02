@@ -220,6 +220,43 @@ null, and it is held row by row to `MD-1-phrasings.md`.
 - **Re-checked on every call.** `match()` re-checks the gate each time, so a capability registered earlier claims
   nothing once the server reports dark.
 
+### 4.6 `stock.dailyBars`: answers over `bars.daily` (v1.5)
+
+**The capability.** `stock.dailyBars` lives in `app/src/agent/capabilities/marketDataBars.js`. It answers
+deterministically, with no model call. It makes one gateway read of `bars.daily`, with zero provider calls, and
+uses **completed sessions only**: today's developing bar is never used. It is registered, and its fast path claims
+anything, only while the server serves data **and** `data_kinds` includes `bars.daily`. Otherwise it registers
+nothing. Like stock.quote, it takes the turn id from `currentTurnId()` at the read.
+
+| measure | read | answer |
+|---|---|---|
+| `lastClose` | `bars: 2` | `AAPL closed at $142.10 on Fri, Oct 30, its last completed session: +$2.10 (+1.50%) vs the previous close of $140.00 on Thu, Oct 29.` |
+| `change` (n sessions; weeks × 5) | `bars: n + 1` (n ≤ 250) | `NVDA over the last 5 completed sessions: +10.00% (+$10.00), from a close of $100.00 on Fri, Oct 23 to $110.00 on Fri, Oct 30.` |
+| `range52w` | `bars: 252` | `NVDA 52-week range (the last 252 completed sessions, <first> to <last>): high $X on <date>, low $Y on <date>. Last close $Z on <date>.` The high and low come from each bar's high and low, never from its close. |
+
+**Rules for every answer:**
+- **Completed sessions, said.** Every answer ends with *From UCT's daily bars: completed sessions only, today's
+  session is not included.* It never uses live / now / right now / real-time.
+- **Dates.** Session dates are the bars' own ET trading dates. The year is added when it differs from the newest
+  bar's year.
+- **The store is behind (`stale`).** The answer adds *Note: UCT's bars for NVDA end <date>, but the most recent
+  completed session was <date>, so this is not the latest close.*
+- **Fewer sessions than asked (`partial`).** The window actually covered is stated, and nothing is extrapolated:
+  - change: *the last 2 completed sessions held (you asked for 10)*;
+  - range: *the 40 completed sessions held …, less than a full 52 weeks*;
+  - a single bar gives no change.
+- **No usable bars.** The answer uses fixed words keyed on status, never the envelope's notes:
+  - refused: *I couldn't answer that for NVDA: that request wasn't allowed for this question, so its daily bars
+    are not available. No price is stated.*
+  - unavailable: *… its completed daily bars are not available from UCT's market data. No price is stated.*
+- **What leaves the module.** Only `{text, present}`.
+
+**Fast path.** `match(text)` handles the bars rows of `MD-1-phrasings.md` (P18–P24) and returns `{action:
+'stock.dailyBars', params: {symbol, measure, sessions}}`. "This week" (P21) and an intraday low (P26) go to the
+model. The hook is `fastWhole` + `fast` with `fastCorrect: false`, the same as stock.quote.
+`registerMarketDataCapabilities()` registers both capabilities, each only when its own kinds are active. Its return
+value still means what it did in #624: true only when that call registered `stock.quote`.
+
 ## 5. Budgets
 
 The gateway counts **both** logical operations **and** underlying provider requests, per Agent turn (`turn_id`).
@@ -269,6 +306,7 @@ QA's suite runs `validate_envelope` against every registered kind using its fixt
 
 ## 9. Changelog
 
+- **v1.5 addition (2026-11-01, agent-md, Sprint 2 C):** §4.6 `stock.dailyBars` answer contract over `bars.daily` (last close, N-session change, 52-week range). No envelope or kind change.
 - **v1.5 (2026-11-01, agent-md, Sprint 2):** additive. `quote` / `quotes` gain `data.session_detail` (`regular` · `premarket` · `after-hours` · `overnight` · `closed`); `data.session` is derived from it. §4.5 gives the `stock.quote` answer contract per session state. No envelope field changed.
 - **v1.4 (2026-11-01, agent-md, rulings by agent-lead):** `breadth.current` and `ratings` implemented as MODEL-ISOLATED kinds (purpose `answer` only, gateway #588); §4.4. No envelope change.
 - **v1.3 (2026-11-01, agent-md, rulings by agent-lead):** `themes` source and time semantics (§4.3); `volume.surge` REMOVED (relative volume is SC-1's; see SC-1 §2c); `nhnl` folded into `breadth.current` metrics, `nhnl_live` not exposed. No envelope change.

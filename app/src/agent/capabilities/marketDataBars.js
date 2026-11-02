@@ -44,8 +44,8 @@ export function barsFor(measure, sessions) {
 
 const COMPLETED = "From UCT's daily bars: completed sessions only, today's session is not included."
 const NO_BARS = {
-  refused: "that request wasn't allowed for this question, so I didn't read its daily bars",
-  unavailable: "UCT doesn't hold completed daily bars for it",
+  refused: "that request wasn't allowed for this question, so its daily bars are not available",
+  unavailable: "its completed daily bars are not available from UCT's market data",
 }
 export function noBarsSentence(env, sym) {
   const why = NO_BARS[env?.status] || NO_BARS.unavailable
