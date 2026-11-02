@@ -57,6 +57,13 @@ class _Conn:
         self._name, self._path_fn, self._epoch_fn = name, path_fn, epoch_fn or (lambda: 0)
 
     def _c(self):
+        if self._name == "bars" and not os.environ.get("CHART_IQ_BARS_DB"):
+            # ON THE SITE: read through the site's own bars connection (api/services/bars_sqlite._conn: per thread, WAL, mmap,
+            # follows the snapshot-swap epoch). Measured 2026-11-02 on the web pod: a separate mode=ro URI connection cost ~1 s
+            # PER QUERY (10 queries = 9 s for one read) while the site's reads of the same table are fast. The engine only
+            # SELECTs. CHART_IQ_BARS_DB (tests, lab parity) keeps the private read-only connection below.
+            from api.services import bars_sqlite
+            return bars_sqlite._conn()
         # The web pod replaces bars.db wholesale (data_sync snapshot pull) and bumps bars_sqlite's connection epoch; an open
         # connection keeps reading the OLD, unlinked inode forever. So a cached connection is reused only while the epoch it
         # was opened under is still current, exactly like bars_sqlite._conn().

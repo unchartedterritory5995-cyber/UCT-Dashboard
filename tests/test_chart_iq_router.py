@@ -224,3 +224,19 @@ def test_engine_follows_a_bars_db_swap(tmp_path, monkeypatch):
     assert _db.bars().execute(q).fetchone()[0] == 10.0    # no bump yet: the thread keeps its connection (no reopen per query)
     bars_sqlite.bump_db_epoch()
     assert _db.bars().execute(q).fetchone()[0] == 20.0
+
+
+def test_on_the_site_bars_are_read_through_the_sites_own_connection(monkeypatch):
+    """Without CHART_IQ_BARS_DB (production), the engine must use bars_sqlite._conn: a private mode=ro connection cost ~1 s per
+    query on the web pod (2026-11-02). With it set (tests, lab parity) the private read-only connection is used."""
+    import sqlite3 as _sq
+    from api.services import bars_sqlite
+    from api.services.chart_iq.engine import _db
+    fake = _sq.connect(":memory:", check_same_thread=False)
+    fake.execute("CREATE TABLE ohlcv (ticker TEXT, tf TEXT, ts INTEGER, c REAL)")
+    fake.execute("INSERT INTO ohlcv VALUES ('SITE','D',20261030,42.0)")
+    calls = []
+    monkeypatch.setattr(bars_sqlite, "_conn", lambda: calls.append(1) or fake)
+    monkeypatch.delenv("CHART_IQ_BARS_DB", raising=False)
+    assert _db.bars().execute("SELECT c FROM ohlcv WHERE ticker='SITE'").fetchone()[0] == 42.0
+    assert calls, "the site path did not go through bars_sqlite._conn"
