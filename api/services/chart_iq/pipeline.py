@@ -61,6 +61,12 @@ def _analyze(ticker, asof):
     asof = asof or latest_day()
     if not asof:
         return {"error": "no daily bars available"}
+    if latest:
+        # One index seek for the symbol's newest bar BEFORE reading its history: a dead symbol answers without the 520-row read
+        # (that read alone was 14 s for CFLT on a fresh pod, 2026-11-02).
+        mx = _db.bars().execute("SELECT max(ts) FROM ohlcv WHERE ticker=? AND tf='D'", (ticker,)).fetchone()
+        if mx and mx[0] and _days(_ymd(mx[0]), asof) > STALE_LATEST_DAYS:
+            return {"error": "%s: no daily bars since %s" % (ticker, _ymd(mx[0]))}
     rows = _db.bars().execute(
         "SELECT ts,o,h,l,c,v FROM (SELECT ts,o,h,l,c,v FROM ohlcv WHERE ticker=? AND tf='D' AND ts<=? ORDER BY ts DESC LIMIT 520) ORDER BY ts",
         (ticker, int(asof.replace("-", "")))).fetchall()
