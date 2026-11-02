@@ -230,6 +230,10 @@ function preprocessWikiSyntax(text, ctx) {
         lists[held.length] = list
         return holdMarkup(held, html, open)
       },
+      // A string that is exactly one placeholder this segment made (an embed already
+      // held): only the importer writes a run of `open`'s length (see below).
+      isHeld: (s) => s.length > open.length && s.startsWith(open)
+        && /^[-]+$/.test(s.slice(open.length)),
     }
     let out = segment
     out = transformEmbeds(out, hctx)
@@ -356,9 +360,15 @@ function transformEmbeds(text, ctx) {
 }
 
 function transformWikiLinks(text, ctx) {
-  return text.replace(WIKILINK_RE, (_, rawTarget, rawAlias) => {
+  const piece = (rawTarget, rawAlias) => {
     const target = rawTarget.trim()
     const alias = rawAlias ? rawAlias.trim() : ''
+    if (alias && ctx.isHeld?.(alias)) {
+      // D2 fix round 1 (e): an embed in alias position, `[[Plan|![[img.png]]]]`, is the
+      // embed and then the link to Plan as `[[Plan]]` reads -- both kept, as the server
+      // lane writes it. ⚰️ The image went inside the link and the link was lost.
+      return alias + piece(rawTarget, '')
+    }
     const resolvedPath = resolveTarget(target, ctx.vfiles, ctx.basenameMap, ctx.fromDir)
     // A missing FILE whose name holds `#` (`[[report #2.pdf]]`) keeps its name;
     // anything else reads as Obsidian shows it (`wikilinkDisplay`, D2 item 8).
@@ -382,7 +392,8 @@ function transformWikiLinks(text, ctx) {
     const targetKey = `obsidian:${resolvedPath}`
     return ctx.hold(`<a data-import-link="${escapeAttr(targetKey)}">${escapeHtml(display)}</a>`,
       () => ctx.links.push({ targetKey }))
-  })
+  }
+  return text.replace(WIKILINK_RE, (_, rawTarget, rawAlias) => piece(rawTarget, rawAlias))
 }
 
 // ---------------------------------------------------------------------------

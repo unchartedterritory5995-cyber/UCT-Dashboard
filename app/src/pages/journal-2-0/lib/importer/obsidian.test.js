@@ -488,7 +488,8 @@ describe('obsidian adapter — D1 fix round 4: member text vs held-markup placeh
       `${RUN}${D(0)}${C} Plan${RUN}Other ${RUN}`, 2],
     // Fix round 5, M-b: a held piece holding an earlier placeholder.
     ['note embed nested in a wikilink', '[[![[Plan]]]] after', 'Plan after', 1],
-    ['note embed nested in an alias', '[[Other|![[Plan]]]] after', 'Plan after', 2],
+    // D2 fix round 1 (e): the embed, then the link to Other (it used to swallow it).
+    ['note embed nested in an alias', '[[Other|![[Plan]]]] after', 'PlanOther after', 2],
   ]
 
   for (const [name, body, expected, links] of ROWS) {
@@ -767,5 +768,30 @@ describe('obsidian adapter — D2 fix round 1, I3: a wikilink to a file is a chi
     expect(chips.map((c) => c.name)).toEqual(['chart.png'])
     expect(d.media.map((m) => [m.ref, m.kind])).toEqual([['V/att/chart.png', 'file']])
     expect(d.links.map((l) => l.targetKey)).toEqual(['obsidian:V/Plan.md'])
+  })
+})
+
+// D2 fix round 1 (e): an embed in alias position, `[[Plan|![[img.png]]]]`, is the
+// embed and then the link to Plan, both kept, with the text around them, the same
+// as the server lane. ⚰️ The image landed inside the link and the link was lost.
+describe('obsidian adapter — D2 fix round 1 (e): an embed as a wikilink alias', () => {
+  const shape = (n) => (n.type === 'text'
+    ? JSON.stringify(n.text) + ((n.marks || []).some((m) => m.type === 'link') ? '[link]' : '')
+    : n.type + (n.content ? `(${n.content.map(shape).join(', ')})` : ''))
+  const parseOne = async (body) => {
+    const { docs } = await obsidianAdapter.parse([vf('V/src.md', body), vf('V/Plan.md', 'p'), vf('V/img.png', 'i')])
+    const d = docs.find((x) => x.importKey === 'obsidian:V/src.md')
+    return { d, doc: htmlToNote(d.html).bodyJson }
+  }
+  it('keeps the image, the link to Plan and the spaces', async () => {
+    const { d, doc } = await parseOne('x [[Plan|![[img.png]]]] y')
+    expect(shape(doc)).toBe('doc(paragraph("x "), image, paragraph("Plan"[link], " y"))')
+    expect(d.media.map((m) => m.ref)).toEqual(['V/img.png'])
+    expect(d.links.map((l) => l.targetKey)).toEqual(['obsidian:V/Plan.md'])
+  })
+  it('a missing note still reads as Obsidian names it, after the image', async () => {
+    const { d, doc } = await parseOne('[[Ghost#Risk|![[img.png]]]]')
+    expect(shape(doc)).toBe('doc(image, paragraph("Ghost > Risk"))')
+    expect(d.links).toEqual([])
   })
 })

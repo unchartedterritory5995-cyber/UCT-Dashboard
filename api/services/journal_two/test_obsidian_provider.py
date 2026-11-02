@@ -1774,3 +1774,27 @@ def test_a_chip_label_is_the_rendered_text_of_the_link_never_its_markdown():
     original = "[[q3 report.pdf|the **deck**]]"
     conv = _convert(original, refs=[REF(original=original, embed=False, path="attachments/q3 report.pdf")])
     assert _only(conv["doc"], "attachmentChip")["attrs"]["label"] == "the deck"
+
+
+def test_an_embed_in_alias_position_keeps_the_image_and_the_link():
+    """D2 fix round 1 (e): `[[Plan|![[img.png]]]]` is the embed, then the link to Plan reading
+    as Obsidian names it, with the text around it kept. ⚰️ The alias pattern read `![[img.png`
+    as the alias, so raw brackets showed around the image and the link was lost."""
+    ref = REF(original="![[img.png]]", path="att/img.png")
+    src = "import-ref://obsidian-att:" + _SHA + "/img.png"
+    for refs, paths in (([ref], ["Plan.md"]), ([], ["Plan.md", "att/img.png"])):
+        conv = _convert("x [[Plan|![[img.png]]]] y", paths, refs=refs)
+        images = [n["attrs"]["src"] for n in _all(conv["doc"], "image")]
+        assert images == ([src] if refs else ["import-ref://att/img.png"])
+        assert _link_marks(conv["doc"]) == [("Plan", _key("Plan.md"))]
+        assert extract_plain_text(conv["doc"]) == "x  Plan y"
+        assert "[" not in _plain(conv["doc"]) and "]" not in _plain(conv["doc"])
+    # A note not here yet: the image, then the pending link, as any wikilink waits.
+    conv = _convert("[[Ghost#Risk|![[img.png]]]]", refs=[ref])
+    assert len(_all(conv["doc"], "image")) == 1
+    assert conv["links"] == [f"name:obsidian:{_V}/ghost|notes"]
+    assert extract_plain_text(conv["doc"]) == "Ghost > Risk"
+    # An old plugin row: the update notice for the file, and still the link.
+    conv = _convert("[[Plan|![[img.png]]]]", ["Plan.md"], refs=None, supports=False)
+    assert [n["attrs"]["name"] for n in _all(conv["doc"], "importNotice")] == ["img.png"]
+    assert _link_marks(conv["doc"]) == [("Plan", _key("Plan.md"))]

@@ -297,7 +297,14 @@ _CODE_RE = re.compile(_FENCE_SRC + r"|`[^`\n]*`")
 # `transformEmbeds`'s `rawTarget.split('|')[0]`).
 # ⛔ A target never runs across an embed's own `![[` (D2 item 3): in `[[![[img.png]]]]` the
 # match is the inner embed, never a wikilink to a note named `![[img.png`.
-_WIKI_RE = re.compile(r"(!)?\[\[((?:(?!!\[\[)[^\]|])+)(?:\|([^\]]+))?\]\]")
+_WIKI_RE = re.compile(r"(!)?\[\[((?:(?!!\[\[)[^\]|])+)(?:\|((?:(?!!\[\[)[^\]])+))?\]\]")
+# D2 fix round 1 (e): an embed in ALIAS position, `[[Plan|![[img.png]]]]` (or the attachment
+# pass's markdown for that embed inside one). It reads as the embed, then the link to the
+# note as a plain `[[Plan]]` would read -- both kept. ⚰️ The alias pattern took `![[img.png`
+# as the alias: raw brackets around the image, and the link lost. The client lane writes
+# the same (`obsidian.js::transformWikiLinks`).
+_ALIAS_EMBED_RE = re.compile(
+    r"\[\[((?:(?!!\[\[)[^\]|])+)\|(!\[\[[^\]|]+(?:\|[^\]]+)?\]\]|!\[\]\(<[^<>\n]*>\))\]\]")
 # D2 item 3: an embed wrapped in a wikilink, `[[![[img.png]]]]` / `[[![[img.png|300]]|alias]]`,
 # or the attachment pass's markdown for that embed (`![](<obsidian-att:...>)`) inside one.
 # Without an alias it reads as the embed; with one, as the alias alone (item 4). Mirrors
@@ -623,6 +630,12 @@ def _transform_wiki_and_embeds(
         inner = m.group(1)
         return _WIKI_RE.sub(repl, inner) if inner.startswith("![[") else inner
 
+    def alias_embed(m: "re.Match[str]") -> str:
+        inner = m.group(2)
+        embed = _WIKI_RE.sub(repl, inner) if inner.startswith("![[") else inner
+        return embed + _WIKI_RE.sub(repl, f"[[{m.group(1)}]]")
+
+    segment = _ALIAS_EMBED_RE.sub(alias_embed, segment)
     return _WIKI_RE.sub(repl, _NESTED_EMBED_RE.sub(nested, segment))
 
 
