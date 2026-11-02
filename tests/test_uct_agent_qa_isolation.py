@@ -34,12 +34,13 @@ REPO = Path(__file__).resolve().parents[1]
 HANDSHAKE = REPO / "app" / "src" / "agent" / "__fixtures__" / "program" / "isolation.json"
 #: the owner's isolation decisions (MD-1 v1.4 §4.4). A kind may JOIN this set; one may never silently LEAVE it.
 MUST_BE_ISOLATED = {"breadth.current", "ratings"}
-SENTINELS = ("987.654", "13579", "NHNL-SENTINEL-4242")
+# token-aware sentinels (tests/test_uct_agent_qa_sentinels.py): a timing can no longer read as a leak
+from tests.test_uct_agent_qa_sentinels import leaks as _token_leaks, SENT_NUM, SENT_INT
+SENTINELS = (SENT_NUM, SENT_INT, "NHNL-SENTINEL-4242")
 
 
 def _leaks(obj) -> list[str]:
-    s = json.dumps(obj, default=str)
-    return [x for x in SENTINELS if x in s]
+    return _token_leaks(obj, SENTINELS)
 
 
 @pytest.fixture(autouse=True)
@@ -75,7 +76,7 @@ def _spy_kind(name, k, calls):
     def fn(params, ctx):
         calls["fn"] += 1
         return env.make_envelope(name, params, status="ok", freshness="periodic", as_of="2026-10-30T20:00:00Z",
-                                 source="x", data={"v": 987.654})
+                                 source="x", data={"v": float(SENT_NUM)})
 
     def validate(params):
         calls["validate"] += 1
@@ -113,7 +114,7 @@ def test_an_isolated_kind_is_refused_before_admission_for_any_purpose_but_answer
         def fn(params, ctx, _c=calls):
             _c["fn"] += 1
             return env.make_envelope(name, params, status="ok", freshness="periodic", as_of="2026-10-30T20:00:00Z",
-                                     source="x", data={"v": 987.654})
+                                     source="x", data={"v": float(SENT_NUM)})
 
         def validate(params, _c=calls):
             _c["validate"] += 1
@@ -138,10 +139,10 @@ def test_an_isolated_kind_is_refused_before_admission_for_any_purpose_but_answer
 def _local_answer_rows(action: str, data_extra: dict | None = None) -> list[dict]:
     """What /api/agent/record stores for a member's local-only answer, figures and all (useAgent.js:668)."""
     data = {"kind": "answered", "actions": [action], "local": True, "requests": [{"symbol": "NVDA"}],
-            "views": [{"table": {"rows": [{"metric": "UCT composite rating", "value": "987.654"}]}}]}
+            "views": [{"table": {"rows": [{"metric": "UCT composite rating", "value": SENT_NUM}]}}]}
     data.update(data_extra or {})
     return [{"role": "member", "text": "show me NVDA's breadth reading", "data": {"local": True}},
-            {"role": "outcome", "text": "NVDA rating 987.654; new highs 13579 NHNL-SENTINEL-4242", "data": data}]
+            {"role": "outcome", "text": f"NVDA rating {SENT_NUM}; new highs {SENT_INT} NHNL-SENTINEL-4242", "data": data}]
 
 
 @pytest.mark.parametrize("action", sorted(agent_turn.LOCAL_ONLY_ACTIONS))
@@ -161,14 +162,14 @@ def test_the_browser_local_flag_alone_also_closes_the_door():
 @pytest.mark.parametrize("data", [None, "garbled", {"actions": "not-a-list"}, {"actions": [1, 2]}])
 def test_an_unreadable_outcome_row_FAILS_CLOSED(data):
     rows = [{"role": "member", "text": "q", "data": {}},
-            {"role": "outcome", "text": "rating 987.654", "data": data}]
+            {"role": "outcome", "text": f"rating {SENT_NUM}", "data": data}]
     msgs = agent_turn.history_messages(rows)
     assert not _leaks(msgs) and agent_turn.UNREADABLE_OUTCOME in json.dumps(msgs)
 
 
 def test_the_planning_reply_of_a_local_plan_is_never_replayed():
     rows = [{"role": "member", "text": "breadth please", "data": {}},
-            {"role": "agent", "text": "It is 987.654 today",
+            {"role": "agent", "text": f"It is {SENT_NUM} today",
              "data": {"envelope": {"disposition": "apply", "ops": [{"action": "breadth.show", "args": {}}]}}},
             {"role": "outcome", "text": "x", "data": {"kind": "answered", "actions": ["breadth.show"], "local": True}}]
     assert not _leaks(agent_turn.history_messages(rows))
