@@ -3,6 +3,7 @@ import taskLists from 'markdown-it-task-lists'
 import { uctMarkdown } from '../markdownExtensions'
 import { extractFrontmatter, frontmatterDates } from '../frontmatter'
 import { reportIgnoredFiles } from './reportIgnored'
+import { IMAGE_EXT } from '../mediaRefs'
 
 // ---------------------------------------------------------------------------
 // mdToHtml — exported for reuse by the Obsidian/Notion adapters (Tasks 10/11).
@@ -62,7 +63,6 @@ export function getLinkify() {
 // ---------------------------------------------------------------------------
 
 const SUPPORTED_EXT = /\.(md|txt|html|docx)$/i
-const IMAGE_EXT = /\.(png|jpe?g|gif|webp|svg|bmp|heic)$/i
 const TEXTBUNDLE_TEXT_RE = /\.textbundle\/text\.md$/i
 const TEXTBUNDLE_DIR_RE = /(^|\/)[^/]+\.textbundle\//i
 

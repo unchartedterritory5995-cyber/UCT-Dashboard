@@ -70,8 +70,8 @@
 import { mdToHtml, resolveRelativeMedia, dedupeMedia } from './generic'
 import { extractFrontmatter, frontmatterDates } from '../frontmatter'
 import { reportIgnoredFiles } from './reportIgnored'
+import { IMAGE_EXT } from '../mediaRefs'
 
-const IMAGE_EXT = /\.(png|jpe?g|gif|webp|svg|bmp|heic)$/i
 const SKIP_DIR_RE = /(^|\/)\.(obsidian|trash)\//i
 // Fence alternative MUST come first — at a run of 3+ backticks it has to win
 // over the inline-span alternative, or the inline pattern would consume just
