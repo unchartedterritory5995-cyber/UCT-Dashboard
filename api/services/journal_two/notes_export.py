@@ -1105,8 +1105,11 @@ def _block(node: dict[str, Any], resolver=None) -> str:
         # its name, as the editor shows it; the link is the file either way.
         href = attrs.get("href") or ""
         local = resolver(href) if resolver else None
-        shown = chip_label(attrs) or attrs.get("name") or "attachment"
-        return f"[{_closed(_prose(shown))}]({local or href})"
+        shown = _link_text(_closed(_prose(chip_label(attrs) or attrs.get("name") or "attachment")))
+        target = local or href
+        # D2 fix round 1 (M2): only ever a web or relative address; any other href is the
+        # chip's text alone, never a link (a crafted `javascript:` chip cannot become one).
+        return f"[{shown}]({target})" if _chip_target_ok(target) else shown
     if ntype == "videoTimestamp":
         # Mirrors app/src/components/video/playerUtils.js::fmtTime exactly --
         # the same helper the editor's own node view renders with
@@ -1245,6 +1248,33 @@ def _trade_canvas_markdown(attrs: Any) -> str:
         lines.append("")
         lines.extend(f"- {_prose(r)}" for r in rows)
     return "\n".join(lines)
+
+
+#: A `[` or `]` (or a tag-opening `<`) in link text that is not already escaped: an even
+#: run of backslashes (none included) before it.
+_UNESCAPED_LINK_TEXT_PUNCT = re.compile(r"(?<!\\)((?:\\\\)*)(\[|\]|<(?=[A-Za-z/!?]))")
+_CHIP_SCHEME_RE = re.compile(r"^[A-Za-z][A-Za-z0-9+.\-]*:")
+
+
+def _link_text(prose: str) -> str:
+    """`_prose` output that sits between a link's `[` and `]` (D2 fix round 1, M2): every
+    bracket and tag-opening `<` the member wrote is escaped, so the text can neither end the
+    link early (`a](javascript:...) [b` planted a second, live link) nor open raw HTML. A
+    member's own escape (`\\]`, which `_prose` already wrote as an escaped backslash and an
+    escaped bracket) is left as it is. Raw inside a raw island, like `_prose`."""
+    if not _ESCAPE_PROSE_DOLLARS.get():
+        return prose
+    return _UNESCAPED_LINK_TEXT_PUNCT.sub(lambda m: f"{m.group(1)}\\{m.group(2)}", prose)
+
+
+def _chip_target_ok(target: str) -> bool:
+    """A chip links only an http(s) address or a relative path (our upload URL, a bundled
+    file's archive path) -- never another scheme or a protocol-relative `//host`."""
+    t = (target or "").strip()
+    if not t or t != target or t.startswith("//") or any(ord(c) < 32 for c in t):
+        return False
+    m = _CHIP_SCHEME_RE.match(t)
+    return m is None or m.group(0).lower() in ("http:", "https:")
 
 
 def chip_label(attrs: dict[str, Any]) -> str | None:

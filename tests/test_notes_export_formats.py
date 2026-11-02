@@ -832,3 +832,37 @@ def test_a_labeled_chip_shows_its_label_in_word_and_lists_the_file_by_name():
     assert "the report --" not in text
     plain = _docx_text(F.note_docx(_doc(_UNLABELED), title="t"))
     assert plain.split("Not included")[0].strip() == "t q3 report.pdf"
+
+
+def test_chip_text_cannot_break_or_plant_a_link_in_the_markdown_export():
+    """D2 fix round 1 (M2): `[`, `]` and a tag-opening `<` in a chip's text are escaped, so a
+    crafted label can neither end the file link early nor write a live `javascript:` link
+    into the .md, and the web page shows the words as words."""
+    def md(label, href="https://x.test/q3.pdf"):
+        chip = {"type": "attachmentChip", "attrs": {"href": href, "name": "q3.pdf", "label": label}}
+        return notes_export.tiptap_to_markdown(_doc(chip)).strip()
+    hostile = "a](javascript:alert(1)) [b"
+    assert md(hostile) == r"[a\](javascript:alert(1)) \[b](https://x.test/q3.pdf)"
+    assert md("x ] y") == r"[x \] y](https://x.test/q3.pdf)"
+    assert md("<b>x</b>") == r"[\<b>x\</b>](https://x.test/q3.pdf)"
+    assert md(r"a\]b") == r"[a\\\]b](https://x.test/q3.pdf)"   # the member's own escape, as before
+    page = F.note_html(_doc({"type": "attachmentChip", "attrs": {
+        "href": "https://x.test/q3.pdf", "name": "q3.pdf", "label": hostile}}), resolver=None, title="t")
+    body = page.split('<div class="uct-note-body">')[1]
+    assert "javascript:" not in body and 'href="https://x.test/q3.pdf"' in body
+    assert body.count("<a ") == 1
+
+
+def test_a_chip_only_ever_links_a_web_or_relative_address_in_the_markdown_export():
+    """D2 fix round 1 (M2): a chip's href is our upload URL (relative) or, bundled, a relative
+    path; anything else (a crafted `javascript:`, `data:` or `//host` href) is written as the
+    chip's text alone, never as a link."""
+    def md(href):
+        chip = {"type": "attachmentChip", "attrs": {"href": href, "name": "q3.pdf"}}
+        return notes_export.tiptap_to_markdown(_doc(chip)).strip()
+    assert md("/api/j2/notes/attachments/u/n/file/q3.pdf") == "[q3.pdf](/api/j2/notes/attachments/u/n/file/q3.pdf)"
+    assert md("https://x.test/q3.pdf") == "[q3.pdf](https://x.test/q3.pdf)"
+    assert md("attachments/u/n/file/q3.pdf") == "[q3.pdf](attachments/u/n/file/q3.pdf)"
+    for bad in ("javascript:alert(1)", "JavaScript:alert(1)", "data:text/html,x", "vbscript:x",
+                "//evil.test/x", "file:///c/x", " javascript:alert(1)"):
+        assert md(bad) == "q3.pdf", bad
