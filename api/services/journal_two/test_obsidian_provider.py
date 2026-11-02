@@ -19,7 +19,10 @@ from api.services.journal_two.db import ensure_schema
 from api.services.journal_two.note_connectors import errors
 from api.services.journal_two.note_connectors.convert import md_to_tiptap
 from api.services.journal_two.note_connectors.providers.base import RemoteRef
-from api.services.journal_two.note_connectors.providers.obsidian import ObsidianProvider
+from api.services.journal_two.note_connectors.providers.obsidian import (
+    ObsidianProvider, _build_basename_map, _resolve_target,
+)
+from api.services.journal_two.notes import extract_plain_text
 
 
 # ---------------------------------------------------------------------------
@@ -350,15 +353,17 @@ async def test_a_bare_wikilink_with_no_alias_resolves_by_basename(db):
     assert link_mark["attrs"]["href"] == "import-link://obsidian:vault-1/Deep/Nested/Target.md"
 
 
-async def test_an_unresolvable_wikilink_degrades_to_plain_text(db):
+async def test_an_unresolvable_wikilink_keeps_its_text_and_waits_under_a_name_key(db):
+    # Plan A Task 13 (O-4): it used to degrade to plain text, so a note created later
+    # could never heal it. It is now a pending `name:obsidian:` mark (see the
+    # pure-conversion tests at the end of this file).
     _stage("user-a", "vault-1", "a.md", "see [[Ghost Note]] over there", T1)
     provider = ObsidianProvider(user_id="user-a", vault_id="vault-1")
     note = await provider.fetch({}, RemoteRef(remote_id="a.md", updated_at=T1))
     paragraph = note.doc["content"][0]
     joined = "".join(n.get("text", "") for n in paragraph["content"])
-    assert "Ghost Note" in joined
-    assert note.links == []
-    assert not any("link" in (n.get("marks") or [{}])[0].get("type", "") for n in paragraph["content"] if n.get("marks"))
+    assert joined == "see Ghost Note over there"
+    assert note.links == ["name:obsidian:vault-1/ghost note"]
 
 
 # ---------------------------------------------------------------------------
@@ -638,3 +643,122 @@ async def test_embedded_image_with_space_registers_the_raw_vault_path(db):
 async def test_a_literal_percent_twenty_in_a_name_survives(db):
     note = await _fetch_a("[[100%20club]]", ["100%20club.md"])
     assert note.links == ["obsidian:vault-1/100%20club.md"]
+
+
+# ---------------------------------------------------------------------------
+# Plan A Task 13 (O-4, O-5, §5.2 polish): links that heal later, relative links,
+# deep links, anchors, note embeds, callouts, duplicate names, raw HTML.
+# Pure conversion -- `_convert_row` is what `fetch`/`fetch_many` run, minus the DB.
+# ---------------------------------------------------------------------------
+
+_V = "vault-1"
+
+
+def _convert(body, paths, *, self_path="Notes/Src.md", label=None):
+    paths = sorted({*paths, self_path})
+    provider = ObsidianProvider(user_id="user-a", vault_id=_V)
+    return provider._convert_row(self_path, body, paths, _build_basename_map(paths),
+                                 vault_label=label)
+
+
+def _key(path):
+    return f"import-link://obsidian:{_V}/{path}"
+
+
+def test_unresolved_wikilink_keeps_display_text_and_a_pending_key():
+    out = _convert("see [[Ghost Note]] and [[Ghost Note#Risk|the risk]].", [])
+    pending = f"import-link://name:obsidian:{_V}/ghost note"
+    assert _link_marks(out["doc"]) == [("Ghost Note", pending), ("the risk", pending)]
+    assert out["links"] == [f"name:obsidian:{_V}/ghost note"] * 2
+    assert extract_plain_text(out["doc"]) == "see Ghost Note and the risk."
+
+
+def test_relative_markdown_links_resolve():
+    paths = ["Notes/Other note.md", "Notes/Other.md", "Archive/Deep.md"]
+    body = ("[a](Other%20note.md) [b](../Notes/Other.md) [c](<Other note.md#Heading>) "
+            "[d](Archive/Deep.md) [e](https://example.com/x.md) [f](#local) [g](Missing.md) "
+            "[h](./Other.md)")
+    out = _convert(body, paths)
+    assert _link_marks(out["doc"]) == [
+        ("a", _key("Notes/Other note.md")),
+        ("b", _key("Notes/Other.md")),
+        ("c", _key("Notes/Other note.md")),
+        ("d", _key("Archive/Deep.md")),          # not beside the note: the vault root
+        ("e", "https://example.com/x.md"),       # a scheme is never the vault's business
+        ("f", "#local"),                         # left to the one link policy (Task 10)
+        ("g", f"import-link://name:obsidian:{_V}/notes/missing.md"),  # may arrive later
+        ("h", _key("Notes/Other.md")),
+    ]
+
+
+def test_obsidian_deep_link_resolves_within_the_vault():
+    body = ("[o](obsidian://open?vault=Trading&file=Notes%2FOther) "
+            "[x](obsidian://open?vault=Elsewhere&file=Notes%2FOther)")
+    out = _convert(body, ["Notes/Other.md"], label="Trading")
+    # Another vault's link is not this vault's note: it stays text (Task 10's policy).
+    assert _link_marks(out["doc"]) == [("o", _key("Notes/Other.md"))]
+    assert out["links"] == [f"obsidian:{_V}/Notes/Other.md"]
+    assert extract_plain_text(out["doc"]) == "o x"
+
+
+def test_heading_anchor_display_reads_note_then_heading():
+    body = "[[Other note#Risk]] [[Other note#^abc123]] [[Other note#Risk|r]]"
+    out = _convert(body, ["Notes/Other note.md"])
+    assert _link_marks(out["doc"]) == [
+        ("Other note > Risk", _key("Notes/Other note.md")),
+        ("Other note", _key("Notes/Other note.md")),   # a block id is not a heading
+        ("r", _key("Notes/Other note.md")),
+    ]
+
+
+def test_note_embed_text_has_no_md_extension():
+    out = _convert("![[Other note]]", ["Notes/Other note.md"])
+    assert _link_marks(out["doc"]) == [("Other note", _key("Notes/Other note.md"))]
+
+
+def test_callout_becomes_a_native_callout():
+    out = _convert("> [!warning] Size\n> text", [])
+    assert out["doc"]["content"] == [{
+        "type": "callout", "attrs": {"variant": "warning"},
+        "content": [
+            {"type": "paragraph", "content": [{"type": "text", "text": "Size", "marks": [{"type": "bold"}]}]},
+            {"type": "paragraph", "content": [{"type": "text", "text": "text"}]},
+        ],
+    }]
+    for written, variant, title in [
+        ("note", "note", "Note"), ("INFO", "info", "INFO"), ("success", "success", "Success"),
+        ("danger", "danger", "Danger"), ("tip", "success", "Tip"), ("caution", "warning", "Caution"),
+        ("important", "warning", "Important"), ("bug", "danger", "Bug"),
+        ("failure", "danger", "Failure"), ("zebra", "note", "Zebra"),
+    ]:
+        got = _convert(f"> [!{written}]-\n> body", [])["doc"]["content"][0]
+        assert (got["type"], got["attrs"], got["content"][0]["content"][0]["text"]) == \
+            ("callout", {"variant": variant}, title), written
+    # A quote that is not a callout stays a quote; a marker mid-quote is just text.
+    plain = _convert("> just a quote\n> [!note] later", [])["doc"]["content"][0]
+    assert plain["type"] == "blockquote"
+
+
+def test_duplicate_basenames_prefer_same_folder_then_shortest():
+    paths = ["A/Deep/Plan.md", "B/Plan.md", "Notes/Sub/Plan.md", "C/Plan.md"]
+    bmap = _build_basename_map(paths)
+    assert _resolve_target("Plan", paths, bmap, from_path="Notes/Sub/Src.md") == "Notes/Sub/Plan.md"
+    assert _resolve_target("Plan", paths, bmap, from_path="Other/Src.md") == "B/Plan.md"
+    assert _resolve_target("Plan", paths, bmap) == "B/Plan.md"
+    out = _convert("[[Plan]]", paths, self_path="Notes/Sub/Src.md")
+    assert out["links"] == [f"obsidian:{_V}/Notes/Sub/Plan.md"]
+
+
+def test_raw_img_and_a_html_become_image_and_link():
+    body = ('Before <a href="https://example.com/x">site</a> after.\n\n'
+            '<img src="https://example.com/c.png" alt="c">\n\n'
+            'Inline <img src="files/d.png"> here, <a href="Other%20note.md">o</a> and '
+            '<a href="javascript:alert(1)">bad</a>.')
+    out = _convert(body, ["Notes/Other note.md"])
+    assert _link_marks(out["doc"]) == [
+        ("site", "https://example.com/x"), ("o", _key("Notes/Other note.md"))]
+    images = [n["attrs"]["src"] for n in out["doc"]["content"] if n["type"] == "image"]
+    assert images == ["import-ref://https://example.com/c.png", "import-ref://files/d.png"]
+    assert [m["ref"] for m in out["media"]] == ["https://example.com/c.png", "files/d.png"]
+    text = extract_plain_text(out["doc"])
+    assert "<" not in text and "bad" in text

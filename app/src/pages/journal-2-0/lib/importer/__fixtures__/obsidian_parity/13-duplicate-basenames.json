@@ -1,0 +1,26 @@
+{
+  "id": "13-duplicate-basenames",
+  "input_markdown": "# Duplicate names\n\nFollow [[Plan]].\n",
+  "self_path": "Notes/Sub/Src.md",
+  "server": {
+    "callouts": [],
+    "highlights": [],
+    "images": [],
+    "links": [
+      {
+        "target": "Notes/Sub/Plan.md",
+        "text": "Plan"
+      }
+    ],
+    "pending": [],
+    "task_checked": [],
+    "text": "Duplicate names Follow Plan."
+  },
+  "vault_id": "vault-1",
+  "vault_paths": [
+    "A/Deep/Plan.md",
+    "B/Plan.md",
+    "Notes/Sub/Plan.md",
+    "Notes/Sub/Src.md"
+  ]
+}

@@ -1469,3 +1469,52 @@ def test_a_raw_html_img_src_is_not_decoded():
 
     out = html_to_tiptap('<p><img src="a%20b.png"></p>')
     assert [m["ref"] for m in out["media"]] == ["a%20b.png"]
+
+
+def test_resolve_href_sees_only_scheme_less_non_fragment_destinations_decoded_once():
+    """Plan A Task 13: `md_to_tiptap(md, resolve_href=...)`. The callback is asked about a
+    scheme-less, non-`#` destination only, decoded once; never about one that decodes INTO
+    a scheme or a protocol-relative `//host`. A string answer replaces the href (and an
+    `import-link://` answer joins `links`); None keeps today's href."""
+    seen: list[str] = []
+
+    def resolver(dest):
+        seen.append(dest)
+        return "import-link://k/one" if dest == "a b.md" else None
+
+    out = md_to_tiptap(
+        "[1](a%20b.md) [2](<a b.md>) [3](other.md) [4](#top) [5](https://x.com/a.md) "
+        "[6](%2F%2Fevil.com) [7](javascript%3Aalert.md) [8](mailto:a@b.c) "
+        '<a href="a%20b.md">9</a>',
+        resolve_href=resolver)
+    assert seen == ["a b.md", "a b.md", "other.md", "a b.md"]
+    hrefs = [m["attrs"]["href"] for n in out["doc"]["content"][0]["content"]
+             for m in n.get("marks") or [] if m["type"] == "link"]
+    assert hrefs == ["import-link://k/one", "import-link://k/one", "other.md", "#top",
+                     "https://x.com/a.md", "%2F%2Fevil.com", "javascript%3Aalert.md",
+                     "mailto:a@b.c", "import-link://k/one"]
+    assert out["links"] == ["k/one", "k/one", "k/one"]
+    # No callback: today's behaviour, byte for byte.
+    assert md_to_tiptap("[1](a%20b.md)") == md_to_tiptap("[1](a%20b.md)", resolve_href=None)
+
+
+def test_raw_inline_img_and_a_become_nodes_and_an_unsafe_a_stays_text():
+    out = md_to_tiptap(
+        'x <a href="https://a.com/p?q=1&amp;r=2">site</a> <img src="i.png" alt="i"> '
+        '<a href="javascript:alert(1)">bad</a> <b>kept</b>')
+    content = out["doc"]["content"]
+    assert [n["type"] for n in content] == ["paragraph", "image", "paragraph"]
+    links = [(n["text"], m["attrs"]["href"]) for blk in content for n in blk.get("content") or []
+             for m in n.get("marks") or [] if m["type"] == "link"]
+    assert links == [("site", "https://a.com/p?q=1&r=2")]
+    assert content[1]["attrs"]["src"] == "import-ref://i.png"
+    assert [m["ref"] for m in out["media"]] == ["i.png"]
+    tail = "".join(n.get("text", "") for n in content[2]["content"])
+    assert tail == " bad <b>kept</b>"  # any other raw tag still shows, never vanishes
+    # A raw `<img>` alone on its line is an HTML BLOCK, and becomes an image too.
+    block = md_to_tiptap('<img src="https://a.com/c.png">\n\nafter')
+    assert [n["type"] for n in block["doc"]["content"]] == ["image", "paragraph"]
+    # A block holding any other tag keeps today's literal text.
+    other = md_to_tiptap("<div>x</div>")
+    assert other["doc"]["content"] == [
+        {"type": "paragraph", "content": [{"type": "text", "text": "<div>x</div>"}]}]

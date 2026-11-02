@@ -98,6 +98,39 @@ def test_evernote_title_key_resolves_only_a_unique_match(db):
                    "evernote-title: Lower  Case Source ": lower}
 
 
+def test_obsidian_name_key_resolves_with_the_conversion_rules(db):
+    """Plan A Task 13 (O-4): `name:obsidian:<vault>/<target>` resolves against that vault's
+    imported notes with the SAME `_resolve_target` the provider converts with: basename,
+    path-qualified, `.md` optional, case-insensitive, shortest of duplicate names."""
+    deep = _import("u1", "obsidian", "obsidian:v1/Archive/Old/Plan.md", "Plan old")
+    plan = _import("u1", "obsidian", "obsidian:v1/Notes/Plan.md", "Plan")
+    vcp = _import("u1", "obsidian", "obsidian:v1/Setups/VCP Base.md", "VCP")
+    _import("u1", "obsidian", "obsidian:v2/Only There.md", "Other vault")
+    _import("u1", "obsidian", "obsidian:v1x/Prefix Trap.md", "Prefix trap")  # v1x is not v1
+    gone = _import("u1", "obsidian", "obsidian:v1/Trashed.md", "Trashed")
+    notes_svc.delete_note("u1", gone)
+    _import("u2", "obsidian", "obsidian:v1/Theirs.md", "Another member")
+
+    got = _resolve("u1", [
+        "name:obsidian:v1/plan",              # two Plans -> the shorter path
+        "name:obsidian:v1/archive/old/plan",  # path-qualified
+        "name:obsidian:v1/vcp base.md",       # extension written
+        "name:obsidian:v1/setups/vcp base",
+        "name:obsidian:v1/only there",        # another vault's note
+        "name:obsidian:v1/prefix trap",
+        "name:obsidian:v1/trashed",
+        "name:obsidian:v1/theirs",            # another member's note
+        "name:obsidian:v1/",                  # no target
+        "name:obsidian:no-slash",
+    ])
+    assert got == {
+        "name:obsidian:v1/plan": plan,
+        "name:obsidian:v1/archive/old/plan": deep,
+        "name:obsidian:v1/vcp base.md": vcp,
+        "name:obsidian:v1/setups/vcp base": vcp,
+    }
+
+
 # ── heal_pending_links ───────────────────────────────────────────────────────
 
 def test_heal_resolves_a_title_link_timestamp_neutrally_and_projects_it(db):
