@@ -1485,3 +1485,58 @@ def test_a_missing_dotted_note_stays_pending_and_heals_when_it_arrives():
     assert resolve_pending_target("dr.smith|notes", _build_basename_map([])) is None
     arrived = _build_basename_map(["Notes/Src.md", "People/Dr.Smith.md"])
     assert resolve_pending_target("dr.smith|notes", arrived) == "People/Dr.Smith.md"
+
+
+# ── D1 fix round 2 ───────────────────────────────────────────────────────────
+
+
+def _r(target, paths, from_path=None):
+    return _resolve_target(target, paths, _build_basename_map(paths), from_path=from_path)
+
+
+def test_a_dotted_target_never_reaches_a_file_by_its_stem():
+    """I1: the stem match is for a dot-less name only. A dotted name opens its note or the
+    file of exactly that name, never `<name>.<ext>`."""
+    assert _r("Dr.Smith", ["People/Dr.Smith.csv"]) is None
+    assert _r("Dr.Smith", ["People/Dr.Smith.csv", "People/Dr.md"]) is None
+    assert _r("People/Dr.Smith", ["People/Dr.Smith.csv"]) is None
+    assert _r("Q3.Review", ["Q3.Review.xlsx", "Reviews/Q3.md"]) is None
+    assert _r("report.pdf", ["report.pdf.png"]) is None
+    assert _r("archive.tar", ["archive.tar.gz"]) is None
+    assert _r("v1.2 notes", ["v1.2 notes.pdf"]) is None
+    assert _r("Plan.md", ["Notes/Plan.md.bak"]) is None
+    # A dot-less name keeps its stem match, bare and folder-qualified.
+    assert _r("chart", ["img/chart.png"]) == "img/chart.png"
+    assert _r("img/chart", ["img/chart.png"]) == "img/chart.png"
+    assert _r("v1.2/chart", ["v1.2/chart.png"]) == "v1.2/chart.png"
+
+
+def test_the_exact_note_step_takes_only_the_note_never_a_note_with_a_second_extension():
+    """I2: `<target>.md` exactly. A `Plan.md.bak` listed first never wins, and alone it is
+    not the note."""
+    for order in (["Notes/Plan.md.bak", "Notes/Plan.md"], ["Notes/Plan.md", "Notes/Plan.md.bak"]):
+        assert _r("Notes/Plan", order) == "Notes/Plan.md"
+        assert _r("Plan", order) == "Notes/Plan.md"
+    assert _r("Notes/Plan", ["Notes/Plan.md.bak"]) is None
+    assert _r("Files/report.pdf", ["Files/report.pdf.md.zip", "Files/report.pdf.md"]) == "Files/report.pdf.md"
+
+
+def test_same_named_candidates_break_ties_the_same_way_whatever_the_listing_order():
+    """M1: same folder as the linking note, then fewest folders, then sort order."""
+    paths = ["Z/Setup.md", "B/Setup.md", "A/Deep/Setup.md"]
+    assert _r("Setup", paths) == "B/Setup.md"
+    assert _r("Setup", list(reversed(paths))) == "B/Setup.md"
+    assert _r("Setup", paths, from_path="Z/Src.md") == "Z/Setup.md"
+    assert _r("Setup", paths, from_path="A/Deep/Src.md") == "A/Deep/Setup.md"
+    assert _r("Dr.Smith", ["A/B/Dr.Smith.md", "Dr.Smith.md"], from_path="Src.md") == "Dr.Smith.md"
+    assert _r("report.pdf", ["Y/report.pdf", "X/report.pdf"]) == "X/report.pdf"
+
+
+def test_a_missing_dotted_note_embed_waits_like_a_wikilink_and_a_missing_file_is_text():
+    """M3: `![[Dr.Smith]]` before its note arrives is the same pending link `[[Dr.Smith]]` is,
+    so it heals; `![[report.pdf]]` (a known attachment extension) stays plain text."""
+    out = _convert("![[Dr.Smith]]\n\n![[report.pdf]]", [])
+    pending = f"name:obsidian:{_V}/dr.smith|notes"
+    assert _link_marks(out["doc"]) == [("Dr.Smith", f"import-link://{pending}")]
+    assert out["links"] == [pending]
+    assert extract_plain_text(out["doc"]) == "Dr.Smith report.pdf"

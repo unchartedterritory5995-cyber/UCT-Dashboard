@@ -107,9 +107,8 @@ provider-specific grammar. Two syntaxes, two decisions:
   - `[[Target]]` / `[[Target|alias]]` / `![[Target]]` — resolved against the
     UNION of this vault's manifest + staging vault_paths (the closest
     server-side equivalent of the JS adapter's whole-batch `vfiles` array),
-    using the SAME basename-map + path-qualified-suffix-match algorithm
-    (`resolveTarget`/`buildBasenameMap`/`resolvePathQualified` in
-    `obsidian.js`). A resolved plain wikilink becomes a real CommonMark link
+    using the SAME rule (`_resolve_in`/`_pick` here, `resolveTarget`/`pick`
+    in `obsidian.js`; parity fixture `15-dotted-names` pins both). A resolved plain wikilink becomes a real CommonMark link
     `[display](<import-link://{import_key}>)` — `import_key` comes from
     `self.import_key(self.vault_id, resolved_path)`, the SAME method
     `engine.py::_touch_remote_index`/`_import_remote_notes` use to compute
@@ -337,39 +336,23 @@ def _strip_fragment(target: str) -> str:
 class _VaultIndex(dict):
     """A vault's paths, indexed ONCE for every lookup the link rules make (fix round 1,
     I-1/I-2). As a dict it is the basename map: lowercased, extension-stripped basename
-    -> EVERY full vault path with that name, in the order seen (`_resolve_target` picks
-    among several). Its attributes answer the other lookups in O(1):
-      * `by_lower`  -- lowercased path -> first such path (relative links);
-      * `exact`     -- lowercased path, with or without its extension -> the first path
-                       matching either (path-qualified exact match);
-      * `suffix`    -- every `/`-boundary suffix of each lowercased path, with or
-                       without extension -> the first path ending in it.
-    Built in O(V x depth). ⛔ Never rebuilt per note or per key: a fetch builds one for
-    the batch and the heal builds one per vault per resolve call. ⚰️ Before this, the
-    relative resolver rebuilt a path dict for EVERY note and the path-qualified rule
-    scanned every path for every key -- O(notes x paths) on a first sync, on the loop.
-
-    ⚰️ The basename map used to keep the first path seen, so `[[Plan]]` written beside
-    `Notes/Plan.md` could open `Archive/Old/Plan.md`. The client lane
-    (`obsidian.js::buildBasenameMap`) still keeps the first; the parity rail names that
-    as a known client gap."""
+    -> EVERY full vault path with that name, in the order seen (`_resolve_in` filters and
+    picks among them, so a lookup costs the number of same-named files, never the vault).
+    `by_lower` maps a lowercased path -> the first such path (relative links).
+    Built in O(V). ⛔ Never rebuilt per note or per key: a fetch builds one for the batch
+    and the heal builds one per vault per resolve call. ⚰️ Before this, the relative
+    resolver rebuilt a path dict for EVERY note and the path-qualified rule scanned every
+    path for every key -- O(notes x paths) on a first sync, on the loop. ⚰️ D1 fix round 2:
+    the `exact`/`suffix` maps (each path with AND without its extension) are gone; a
+    stripped form let `[[Notes/Plan]]` open `Notes/Plan.md.bak`."""
 
     def __init__(self, paths: list[str]) -> None:
         super().__init__()
         self.paths = list(paths)
         self.by_lower: dict[str, str] = {}
-        self.exact: dict[str, str] = {}
-        self.suffix: dict[str, str] = {}
         for path in self.paths:
             self.setdefault(_basename_sans_ext(path).lower(), []).append(path)
-            p_lower = path.lower()
-            self.by_lower.setdefault(p_lower, path)
-            for form in (p_lower, _strip_ext(p_lower)):
-                self.exact.setdefault(form, path)
-                start = form.find("/")
-                while start != -1:
-                    self.suffix.setdefault(form[start + 1:], path)
-                    start = form.find("/", start + 1)
+            self.by_lower.setdefault(path.lower(), path)
 
 
 def _build_basename_map(paths: list[str]) -> _VaultIndex:
@@ -383,15 +366,6 @@ def _index_of(paths: list[str], basename_map: Any) -> _VaultIndex:
 
 def _dir_of(path: str) -> str:
     return path.rsplit("/", 1)[0] if "/" in path else ""
-
-
-def _resolve_path_qualified(target: str, index: _VaultIndex) -> str | None:
-    """Mirrors `obsidian.js::resolvePathQualified`: an exact match (with or
-    without extension) wins; otherwise the first `/`-boundary suffix match is
-    used, so `Setups/VCP` resolves against `Vault/Setups/VCP.md` even though
-    `Vault/` isn't written in the link. Two dict lookups (`_VaultIndex`)."""
-    lower = target.lower()
-    return index.exact.get(lower) or index.suffix.get(lower)
 
 
 def _note_file_of(target: str) -> str:
@@ -408,42 +382,65 @@ def _note_file_of(target: str) -> str:
 
 
 def _pick(candidates: list[str], from_dir: str | None) -> str | None:
-    """One of several same-named paths, by Obsidian's order: the one in the linking note's
-    folder, else the shortest path (fewest folders), else the first seen."""
-    if len(candidates) <= 1:
-        return candidates[0] if candidates else None
+    """THE tie-break among same-named paths (both runtimes; `obsidian.js::pick` mirrors it):
+    the one in the linking note's folder (bare names only: `from_dir` is None for a
+    path-qualified target), else the shortest path (fewest folders), else the
+    lexicographically first path, so the answer never depends on listing order."""
+    if not candidates:
+        return None
     if from_dir is not None:
         here = from_dir.lower()
-        for c in candidates:
-            if _dir_of(c).lower() == here:
-                return c
-    return min(candidates, key=lambda c: c.count("/"))  # min keeps the first of a tie
+        beside = [c for c in candidates if _dir_of(c).lower() == here]
+        if beside:
+            candidates = beside
+    return min(candidates, key=lambda c: (c.count("/"), c))
+
+
+def _ends_at(form: str, want: str) -> bool:
+    """`form` is `want`, or ends in it at a folder boundary (`Vault/Setups/VCP.md` ends at
+    `setups/vcp.md`). Both lowercased."""
+    return form == want or form.endswith("/" + want)
+
+
+def _stem_path(path: str) -> str:
+    """`path` without its file's extension (`v1.2/chart.png` -> `v1.2/chart`)."""
+    folder = _dir_of(path)
+    stem = _basename_sans_ext(path)
+    return f"{folder}/{stem}" if folder else stem
 
 
 def _resolve_in(target: str, index: _VaultIndex, from_dir: str | None) -> str | None:
-    """The wikilink rule over an index; `from_dir` is the linking note's folder.
-      1. the exact note `_note_file_of(target)` names, always first;
+    """The wikilink rule over an index; `from_dir` is the linking note's folder. A target
+    with a `/` is matched against the end of each path at a folder boundary; a bare one
+    against the file name. In order:
+      1. the exact note `_note_file_of(target)` names (`[[Dr.Smith]]` -> `Dr.Smith.md`,
+         `[[report.pdf]]` -> `report.pdf.md`), always first;
       2. a file whose full name IS the target (`[[report.pdf]]` -> `report.pdf`);
-      3. a file whose name WITHOUT its extension is the target (`[[chart]]` -> `chart.png`).
-    ⛔ The target itself is never stripped of a dot suffix: `[[Dr.Smith]]` with only `Dr.md`
-    staged stays unresolved, because opening the WRONG note is worse than a visible pending
-    link. ⚰️ Step 3 used to strip the target too, so `[[Dr.Smith]]` opened `Dr.md` and
-    `[[report.pdf]]` could open `report.png`."""
+      3. ONLY for a target whose name has no dot, a file whose name without its extension
+         is the target (`[[chart]]` -> `chart.png`).
+    Each step compares a candidate's FULL name (step 3: its full name minus one extension),
+    never an extension-stripped form against a dotted target. So `[[Dr.Smith]]` never opens
+    `Dr.md` or `Dr.Smith.csv`, `[[report.pdf]]` never `report.pdf.png`, `[[Notes/Plan]]`
+    never `Notes/Plan.md.bak`: a wrong file is worse than a visible pending link.
+    Same-named candidates go through `_pick`. Mirrors `obsidian.js::resolveTarget`."""
     target = _strip_fragment(target)
     if not target:
         return None
-    note_file = _note_file_of(target)
-    if "/" in target:
-        hit = index.exact.get(note_file) or index.suffix.get(note_file)
-        return hit if hit is not None else _resolve_path_qualified(target, index)
     lower = target.lower()
-    notes = [c for c in index.get(note_file[:-3]) or [] if _basename(c).lower() == note_file]
-    if notes:
-        return _pick(notes, from_dir)
-    files = [c for c in index.get(_strip_ext(lower)) or [] if _basename(c).lower() == lower]
-    if files:
-        return _pick(files, from_dir)
-    return _pick(index.get(lower) or [], from_dir)
+    note_file = _note_file_of(target)
+    name = _basename(lower)
+    near = None if "/" in lower else from_dir
+    steps = [
+        (_basename_sans_ext(note_file), note_file, str.lower),
+        (_strip_ext(name), lower, str.lower),
+    ]
+    if "." not in name:
+        steps.append((name, lower, lambda c: _stem_path(c).lower()))
+    for key, want, form in steps:
+        hits = [c for c in index.get(key) or [] if _ends_at(form(c), want)]
+        if hits:
+            return _pick(hits, near)
+    return None
 
 
 def _resolve_target(
@@ -453,7 +450,7 @@ def _resolve_target(
     """The vault path a link target names, else None. THE wikilink rules, used at
     conversion time AND by the later heal (`resolve_pending_target`). A bare name with
     several candidates (Plan A Task 13, Obsidian's own order): the one in `from_path`'s
-    folder, else the shortest path (fewest folders), else the first seen."""
+    folder, else the shortest path (fewest folders), else the first path in sort order."""
     return _resolve_in(raw_target, _index_of(paths, basename_map),
                        _dir_of(from_path) if from_path is not None else None)
 
@@ -559,11 +556,13 @@ def _transform_wiki_and_embeds(
         if is_embed:
             if resolved is None:
                 # An embed of a NOTE not in the vault yet waits like a wikilink does
-                # (Task 13). Anything else unresolvable -> plain text of the target,
-                # never a broken <img> or a phantom media entry (mirrors obsidian.js's
-                # own unresolvable-embed fallback).
+                # (Task 13), dotted name or not (`![[Dr.Smith]]` names `Dr.Smith.md`, D1).
+                # Only a known attachment extension makes it a missing FILE -> plain text
+                # of the target, never a broken <img> or a phantom media entry (mirrors
+                # obsidian.js's own unresolvable-embed fallback).
                 bare = _strip_fragment(raw_target)
-                if bare and ("." not in _basename(bare) or _NOTE_EXT_RE.search(bare)):
+                if bare and (_NOTE_EXT_RE.search(bare)
+                             or _ext_of(_basename(bare)) not in _UNSENT_ATTACHMENT_EXTS):
                     return _pending_link(_NOTE_EXT_RE.sub("", bare), vault_id, raw_target,
                                          from_path)
                 return raw_target

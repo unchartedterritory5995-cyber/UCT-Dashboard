@@ -1,0 +1,105 @@
+{
+  "id": "15-dotted-names",
+  "input_markdown": "# Dotted names\n\n[[Dr.Smith]] then [[Q3.Review|the review]] then [[Dr.Smith#Intro|the intro]] then [[v1.2 notes]].\n\nExact note first: [[report.pdf]] then [[Files/report.pdf]] then [[Brief.txt]].\n\nNo stem match for a dotted name: [[Ghost.Name]] then [[Q3.Plan]] then [[archive.tar]].\n\nExact note only: [[Notes/Plan]]. Same name: [[Plan]] then [[Setup]]. No dot: [[chart]].\n\n![[Dr.Smith]]\n\n![[Missing.Person]]\n",
+  "self_path": "Notes/Src.md",
+  "server": {
+    "callouts": [],
+    "highlights": [],
+    "images": [],
+    "links": [
+      {
+        "target": "People/Dr.Smith.md",
+        "text": "Dr.Smith"
+      },
+      {
+        "target": "Reviews/Q3.Review.md",
+        "text": "the review"
+      },
+      {
+        "target": "People/Dr.Smith.md",
+        "text": "the intro"
+      },
+      {
+        "target": "v1.2 notes.md",
+        "text": "v1.2 notes"
+      },
+      {
+        "target": "Files/report.pdf.md",
+        "text": "report.pdf"
+      },
+      {
+        "target": "Files/report.pdf.md",
+        "text": "Files/report.pdf"
+      },
+      {
+        "target": "Brief.txt.md",
+        "text": "Brief.txt"
+      },
+      {
+        "target": "Notes/Plan.md",
+        "text": "Notes/Plan"
+      },
+      {
+        "target": "Notes/Plan.md",
+        "text": "Plan"
+      },
+      {
+        "target": "B/Setup.md",
+        "text": "Setup"
+      },
+      {
+        "target": "img/chart.png",
+        "text": "chart"
+      },
+      {
+        "target": "People/Dr.Smith.md",
+        "text": "Dr.Smith"
+      }
+    ],
+    "pending": [
+      {
+        "key": "name:obsidian:vault-1/ghost.name|notes",
+        "text": "Ghost.Name"
+      },
+      {
+        "key": "name:obsidian:vault-1/q3.plan|notes",
+        "text": "Q3.Plan"
+      },
+      {
+        "key": "name:obsidian:vault-1/archive.tar|notes",
+        "text": "archive.tar"
+      },
+      {
+        "key": "name:obsidian:vault-1/missing.person|notes",
+        "text": "Missing.Person"
+      }
+    ],
+    "task_checked": [],
+    "text": "Dotted names Dr.Smith then the review then the intro then v1.2 notes. Exact note first: report.pdf then Files/report.pdf then Brief.txt. No stem match for a dotted name: Ghost.Name then Q3.Plan then archive.tar. Exact note only: Notes/Plan. Same name: Plan then Setup. No dot: chart. Dr.Smith Missing.Person"
+  },
+  "vault_id": "vault-1",
+  "vault_paths": [
+    "People/Dr.Smith.csv",
+    "People/Dr.Smith.md",
+    "Reviews/Q3.Review.xlsx",
+    "Reviews/Q3.Review.md",
+    "v1.2 notes.md",
+    "Files/report.pdf",
+    "Files/report.pdf.md",
+    "Brief.txt.md",
+    "Ghost.md",
+    "Ghost.Name.csv",
+    "Reviews/Q3.md",
+    "Q3.Plan.xlsx",
+    "archive.tar.gz",
+    "Notes/Plan.md.bak",
+    "Notes/Plan.md",
+    "A/Deep/Plan.md",
+    "B/Plan.md",
+    "Z/Setup.md",
+    "B/Setup.md",
+    "A/Deep/Setup.md",
+    "img/chart.png",
+    "Notes/Src.md"
+  ]
+}

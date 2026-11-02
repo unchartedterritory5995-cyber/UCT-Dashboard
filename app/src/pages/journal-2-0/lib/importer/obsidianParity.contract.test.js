@@ -198,15 +198,17 @@ const knownClientGap = {
       ],
     },
   },
-  // Plan B task "Obsidian anchors and note embeds" (spec §5.2 polish, O-11): the client
-  // shows `Other note#Risk` and makes `![[Other note]]` a file chip of the raw `.md`.
+  // Plan B task "Obsidian anchors" (spec §5.2 polish, O-11): the client shows
+  // `Other note#Risk`. ⚰️ Its `![[Other note]]` file chip of the raw `.md` is closed
+  // (D1 fix round 2, M4): a note embed is now a link to the note on both lanes.
   '11-anchors-and-embeds.json': {
     clientReads: {
       links: [
         { text: 'Other note#Risk', target: 'Other note.md' },
         { text: 'the risk', target: 'Other note.md' },
+        { text: 'Other note', target: 'Other note.md' },
       ],
-      text: 'Anchors and embeds See Other note#Risk and the risk.  [file: Other note.md]',
+      text: 'Anchors and embeds See Other note#Risk and the risk. Other note',
     },
   },
   // Plan B task "Obsidian callouts" (spec §5.2 polish): the client writes a blockquote
@@ -217,11 +219,8 @@ const knownClientGap = {
       text: 'Callouts Size Keep it small. > Wait for the pivot.',
     },
   },
-  // Plan B task "Obsidian duplicate names" (spec §5.2 polish): the client resolves a
-  // bare name to the first file seen, the server to the same folder, then the shortest.
-  '13-duplicate-basenames.json': {
-    clientReads: { links: [{ text: 'Plan', target: 'A/Deep/Plan.md' }] },
-  },
+  // ⚰️ 13-duplicate-basenames: closed by D1 fix round 2 (M1). Both lanes now share one
+  // tie-break (same folder, then shortest path, then sort order).
   // Plan B task "Obsidian deep links" (spec L-4): the client drops an
   // `obsidian://open?vault=<this vault>` link to text; the server resolves it.
   '14-raw-html-and-deep-link.json': {

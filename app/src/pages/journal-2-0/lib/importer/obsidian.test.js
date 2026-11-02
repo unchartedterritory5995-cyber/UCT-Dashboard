@@ -280,3 +280,70 @@ describe('obsidian adapter — wikilinks to notes with a dot in the name', () =>
     expect(docs[0].html).toContain('see Dr.Smith')
   })
 })
+// ---------------------------------------------------------------------------
+// D1 fix round 2: the same rule as providers/obsidian.py::_resolve_in, case for
+// case (the server twins are in test_obsidian_provider.py, and the parity
+// fixture 15-dotted-names pins both runtimes on one input).
+// ---------------------------------------------------------------------------
+
+describe('obsidian adapter — D1 fix round 2', () => {
+  const resolveIn = async (target, files, src = 'src.md') => {
+    const { docs } = await obsidianAdapter.parse([
+      ...files.map((f) => vf(`V/${f}`, 'x')), vf(`V/${src}`, `[[${target}]]`)])
+    const d = docs.find((x) => x.importKey === `obsidian:V/${src}`)
+    const m = d.html.match(/data-import-link="obsidian:V\/([^"]+)"/)
+    return m ? m[1] : null
+  }
+
+  it('never reaches a file by its stem from a dotted target (I1)', async () => {
+    expect(await resolveIn('Dr.Smith', ['People/Dr.Smith.csv'])).toBeNull()
+    expect(await resolveIn('Dr.Smith', ['People/Dr.Smith.csv', 'People/Dr.md'])).toBeNull()
+    expect(await resolveIn('People/Dr.Smith', ['People/Dr.Smith.csv'])).toBeNull()
+    expect(await resolveIn('Q3.Review', ['Q3.Review.xlsx', 'Reviews/Q3.md'])).toBeNull()
+    expect(await resolveIn('report.pdf', ['report.pdf.png'])).toBeNull()
+    expect(await resolveIn('archive.tar', ['archive.tar.gz'])).toBeNull()
+    expect(await resolveIn('v1.2 notes', ['v1.2 notes.pdf'])).toBeNull()
+    expect(await resolveIn('Plan.md', ['Notes/Plan.md.bak'])).toBeNull()
+    expect(await resolveIn('chart', ['img/chart.png'])).toBe('img/chart.png')
+    expect(await resolveIn('img/chart', ['img/chart.png'])).toBe('img/chart.png')
+    expect(await resolveIn('v1.2/chart', ['v1.2/chart.png'])).toBe('v1.2/chart.png')
+  })
+
+  it('takes only the exact note, never a note file with a second extension (I2)', async () => {
+    for (const order of [['Notes/Plan.md.bak', 'Notes/Plan.md'], ['Notes/Plan.md', 'Notes/Plan.md.bak']]) {
+      expect(await resolveIn('Notes/Plan', order)).toBe('Notes/Plan.md')
+      expect(await resolveIn('Plan', order)).toBe('Notes/Plan.md')
+    }
+    expect(await resolveIn('Notes/Plan', ['Notes/Plan.md.bak'])).toBeNull()
+    expect(await resolveIn('Files/report.pdf', ['Files/report.pdf.md.zip', 'Files/report.pdf.md'])).toBe('Files/report.pdf.md')
+  })
+
+  it('breaks same-name ties the same way whatever the listing order (M1)', async () => {
+    const paths = ['Z/Setup.md', 'B/Setup.md', 'A/Deep/Setup.md']
+    expect(await resolveIn('Setup', paths)).toBe('B/Setup.md')
+    expect(await resolveIn('Setup', [...paths].reverse())).toBe('B/Setup.md')
+    expect(await resolveIn('Setup', paths, 'Z/src.md')).toBe('Z/Setup.md')
+    expect(await resolveIn('Setup', paths, 'A/Deep/src.md')).toBe('A/Deep/Setup.md')
+    expect(await resolveIn('Dr.Smith', ['A/B/Dr.Smith.md', 'Dr.Smith.md'])).toBe('Dr.Smith.md')
+    expect(await resolveIn('report.pdf', ['Y/report.pdf', 'X/report.pdf'])).toBe('X/report.pdf')
+  })
+
+  it('makes a note embed a link to the note, never an attachment chip (M4)', async () => {
+    const { docs } = await obsidianAdapter.parse([
+      vf('V/src.md', '![[report.pdf]]\n\n![[Drawing.excalidraw]]'),
+      vf('V/Files/report.pdf', '%PDF'), vf('V/Files/report.pdf.md', 'x'), vf('V/Drawing.excalidraw.md', 'y')])
+    const src = docs.find((d) => d.importKey === 'obsidian:V/src.md')
+    expect(src.media).toEqual([])
+    expect(src.html).not.toContain('attachmentChip')
+    expect([...src.html.matchAll(/data-import-link="([^"]+)">([^<]*)</g)].map((m) => [m[1], m[2]])).toEqual([
+      ['obsidian:V/Files/report.pdf.md', 'report.pdf'],
+      ['obsidian:V/Drawing.excalidraw.md', 'Drawing.excalidraw'],
+    ])
+  })
+
+  it('leaves an unresolved dotted name as plain text, never a web link', async () => {
+    const { docs } = await obsidianAdapter.parse([vf('V/src.md', 'see [[Ghost.Name]] and ![[Missing.Name]]')])
+    expect(docs[0].html).not.toContain('href')
+    expect(docs[0].html).toContain('Ghost.Name')
+  })
+})

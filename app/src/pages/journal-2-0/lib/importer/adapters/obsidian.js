@@ -177,7 +177,7 @@ async function makeDoc(vfile, vfiles, byPath, basenameMap) {
 
   const media = []
   const links = []
-  const ctx = { vfiles, byPath, basenameMap, media, links }
+  const ctx = { vfiles, byPath, basenameMap, media, links, fromDir: dirOf(vfile.path) }
   const processed = preprocessWikiSyntax(body, ctx)
   let html = mdToHtml(processed)
   if (fields.hero_image) {
@@ -249,10 +249,18 @@ function transformEmbeds(text, ctx) {
     // A trailing `|width` (Obsidian's embed-sizing syntax) is not a target
     // segment — strip it before resolving.
     const target = rawTarget.split('|')[0].trim()
-    const resolvedPath = resolveTarget(target, ctx.vfiles, ctx.basenameMap)
-    if (!resolvedPath) return escapeHtml(target)
+    const resolvedPath = resolveTarget(target, ctx.vfiles, ctx.basenameMap, ctx.fromDir)
+    if (!resolvedPath) return unresolvedText(target)
 
     const name = basename(resolvedPath)
+    if (/\.md$/i.test(resolvedPath)) {
+      // An embed of a NOTE is a link to that note, never an attachment chip
+      // that would upload the `.md` as a file. It reads by the note's name,
+      // as the server lane's does (`providers/obsidian.py`, Task 13).
+      const targetKey = `obsidian:${resolvedPath}`
+      ctx.links.push({ targetKey })
+      return `<a data-import-link="${escapeAttr(targetKey)}">${escapeHtml(name.replace(/\.md$/i, ''))}</a>`
+    }
     const vfile = ctx.byPath.get(resolvedPath)
     if (IMAGE_EXT.test(resolvedPath)) {
       ctx.media.push({ ref: resolvedPath, vfile, kind: 'image', name })
@@ -268,8 +276,8 @@ function transformWikiLinks(text, ctx) {
     const target = rawTarget.trim()
     const alias = rawAlias ? rawAlias.trim() : ''
     const display = alias || target
-    const resolvedPath = resolveTarget(target, ctx.vfiles, ctx.basenameMap)
-    if (!resolvedPath) return escapeHtml(display)
+    const resolvedPath = resolveTarget(target, ctx.vfiles, ctx.basenameMap, ctx.fromDir)
+    if (!resolvedPath) return unresolvedText(display)
 
     const targetKey = `obsidian:${resolvedPath}`
     ctx.links.push({ targetKey })
@@ -296,20 +304,21 @@ function transformHighlights(text) {
 // target resolution
 // ---------------------------------------------------------------------------
 
-// basenameMap -> (lowercased FULL file name -> first such path).
-const FILE_NAMES = new WeakMap()
+// basenameMap -> (lowercased extension-stripped file name -> EVERY path with
+// that name, in the order seen). `resolveTarget` filters and picks among them,
+// mirroring the server's `_VaultIndex` dict.
+const BY_STEM = new WeakMap()
 
 function buildBasenameMap(vfiles) {
   const map = new Map()
-  const names = new Map()
+  const byStem = new Map()
   for (const v of vfiles) {
-    const name = basename(v.path)
-    const key = stripExt(name).toLowerCase()
+    const key = stripExt(basename(v.path)).toLowerCase()
     if (!map.has(key)) map.set(key, v.path)
-    const lower = name.toLowerCase()
-    if (!names.has(lower)) names.set(lower, v.path)
+    if (!byStem.has(key)) byStem.set(key, [])
+    byStem.get(key).push(v.path)
   }
-  FILE_NAMES.set(map, names)
+  BY_STEM.set(map, byStem)
   return map
 }
 
@@ -329,52 +338,71 @@ function noteFileOf(target) {
 }
 
 /**
- * Resolves an embed/link target to a full vault path, or null.
- *  - A trailing `#Heading` / `#^blockId` anchor (Obsidian's link-to-a-specific-
- *    section syntax) is stripped before resolving — the target note is what
- *    gets imported; the finer-grained anchor has no equivalent here and is
- *    dropped rather than making the whole link fail to resolve.
- *  - No `/` in the (anchor-stripped) target -> basename search (map lookup,
- *    first-wins).
- *  - Contains `/` -> path-qualified: an exact match against a vfile's full
- *    path (with or without its extension) wins immediately; otherwise the
- *    first `/`-boundary suffix match is used (so `Setups/VCP` resolves
- *    against `Vault/Setups/VCP.md` even though `Vault/` isn't written).
+ * Resolves an embed/link target to a full vault path, or null. THE rule of
+ * `providers/obsidian.py::_resolve_in`, step for step (the parity fixture
+ * `15-dotted-names` pins both). A trailing `#Heading` / `#^blockId` anchor is
+ * stripped first. A target with a `/` is matched against the end of each path
+ * at a folder boundary (`Setups/VCP` -> `Vault/Setups/VCP.md`); a bare one
+ * against the file name. In order:
+ *  1. the exact note `noteFileOf(target)` (`[[Dr.Smith]]` -> `Dr.Smith.md`,
+ *     `[[report.pdf]]` -> `report.pdf.md`), always first;
+ *  2. a file whose full name IS the target (`[[report.pdf]]` -> `report.pdf`);
+ *  3. ONLY for a target whose name has no dot, a file whose name without its
+ *     extension is the target (`[[chart]]` -> `chart.png`).
+ * Never an extension-stripped form against a dotted target: `[[Dr.Smith]]`
+ * never opens `Dr.md` or `Dr.Smith.csv`, `[[Notes/Plan]]` never
+ * `Notes/Plan.md.bak`. Same-named candidates go through `pick`.
  */
-function resolveTarget(rawTarget, vfiles, basenameMap) {
+function resolveTarget(rawTarget, vfiles, basenameMap, fromDir = null) {
   const target = stripFragment((rawTarget || '').trim())
   if (!target) return null
-  // 1. the exact note `noteFileOf` names, always first; 2. a file whose full
-  // name IS the target; 3. a file whose name without its extension is the
-  // target. ⛔ The target itself is never stripped of a dot suffix:
-  // `[[Dr.Smith]]` with only `Dr.md` stays unresolved (a wrong note is worse
-  // than a visible miss). Mirrors `providers/obsidian.py::_resolve_in`.
-  const noteFile = noteFileOf(target)
-  if (target.includes('/')) {
-    return resolvePathQualified(noteFile, vfiles) || resolvePathQualified(target, vfiles)
-  }
+  const byStem = BY_STEM.get(basenameMap) || new Map()
   const lower = target.toLowerCase()
-  const names = FILE_NAMES.get(basenameMap)
-  return names?.get(noteFile) || names?.get(lower) || basenameMap.get(lower) || null
+  const noteFile = noteFileOf(target)
+  const name = basename(lower)
+  const near = lower.includes('/') ? null : fromDir
+  const steps = [
+    [stripExt(basename(noteFile)), noteFile, (p) => p.toLowerCase()],
+    [stripExt(name), lower, (p) => p.toLowerCase()],
+  ]
+  if (!name.includes('.')) steps.push([name, lower, (p) => stemPath(p).toLowerCase()])
+  for (const [key, want, form] of steps) {
+    const hits = (byStem.get(key) || []).filter((p) => endsAt(form(p), want))
+    if (hits.length) return pick(hits, near)
+  }
+  return null
+}
+
+// THE tie-break among same-named paths, mirroring `providers/obsidian.py::_pick`:
+// the one in the linking note's folder (bare names only), else the shortest
+// path (fewest folders), else the first path in sort order.
+function pick(candidates, fromDir) {
+  let pool = candidates
+  if (fromDir !== null && fromDir !== undefined) {
+    const here = fromDir.toLowerCase()
+    const beside = pool.filter((p) => dirOf(p).toLowerCase() === here)
+    if (beside.length) pool = beside
+  }
+  const depth = (p) => p.split('/').length
+  return pool.reduce((best, p) => {
+    if (depth(p) !== depth(best)) return depth(p) < depth(best) ? p : best
+    return p < best ? p : best
+  })
+}
+
+function endsAt(form, want) {
+  return form === want || form.endsWith(`/${want}`)
+}
+
+function stemPath(path) {
+  const folder = dirOf(path)
+  const stem = stripExt(basename(path))
+  return folder ? `${folder}/${stem}` : stem
 }
 
 function stripFragment(target) {
   const idx = target.indexOf('#')
   return idx === -1 ? target : target.slice(0, idx).trim()
-}
-
-function resolvePathQualified(target, vfiles) {
-  const lower = target.toLowerCase()
-  let suffixMatch = null
-  for (const v of vfiles) {
-    const pLower = v.path.toLowerCase()
-    const pSansExt = stripExt(pLower)
-    if (pLower === lower || pSansExt === lower) return v.path
-    if (!suffixMatch && (pLower.endsWith(`/${lower}`) || pSansExt.endsWith(`/${lower}`))) {
-      suffixMatch = v.path
-    }
-  }
-  return suffixMatch
 }
 
 // ---------------------------------------------------------------------------
@@ -416,6 +444,15 @@ function extractH1Title(html) {
   const h1 = doc.querySelector('h1')
   const text = h1?.textContent?.trim()
   return text || null
+}
+
+// An unresolved wikilink/embed reads as its plain text, and must STAY plain
+// text: markdown-it's linkify would turn `Ghost.Name` (`.name` is a real TLD)
+// into a link to `http://Ghost.Name`, a wrong link where the member wrote a
+// note name (D1 fix round 2). An entity-encoded dot is a separate token that
+// linkify never sees; it renders as `.`.
+function unresolvedText(s) {
+  return escapeHtml(s).replace(/\./g, '&#46;')
 }
 
 function escapeHtml(s) {
