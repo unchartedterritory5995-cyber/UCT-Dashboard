@@ -5,8 +5,8 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { render, screen, act, cleanup } from '@testing-library/react'
 
-vi.mock('./agentClient', () => ({ agentTurn: vi.fn(), agentConversation: vi.fn() }))
-import { agentTurn, agentConversation } from './agentClient'
+vi.mock('./agentClient', () => ({ agentTurn: vi.fn(), agentConversation: vi.fn(), loadAgentConfig: vi.fn(), serverNewsState: vi.fn() }))
+import { agentTurn, agentConversation, loadAgentConfig, serverNewsState } from './agentClient'
 import { useAgentAsk, openAgent, canUseAgent, AgentIdentity, NEWS_ASK_MAX, _resetNewsAsk } from './newsAsk'
 import { AGENT_CONVERSATION_KEY, AGENT_FLAG_KEY, AGENT_OPEN_EVENT, AGENT_OPEN_KEY } from './agentFlag'
 
@@ -29,6 +29,8 @@ beforeEach(() => {
   localStorage.clear()
   agentTurn.mockReset()
   agentConversation.mockReset().mockResolvedValue(null)
+  loadAgentConfig.mockReset().mockResolvedValue(false)
+  serverNewsState.mockReset().mockReturnValue(true)
 })
 afterEach(() => cleanup())
 
@@ -133,6 +135,34 @@ describe('useAgentAsk', () => {
     expect(agentConversation).toHaveBeenCalledWith('ac_news_1')
     expect(api.turns).toEqual([])
     expect(api.conversationId).toBe(null)
+  })
+})
+
+describe('available', () => {
+  it('null while the config loads, then what it reports — from ONE shared config read for every headline', async () => {
+    let state = null
+    let answer
+    serverNewsState.mockImplementation(() => state)
+    loadAgentConfig.mockReturnValue(new Promise((r) => { answer = r }))
+    const seen = {}
+    function Two() {
+      seen.a = useAgentAsk({ newsId: ID }).available
+      seen.b = useAgentAsk({ newsId: '01JBX7Q2W9R3T5V7X9Z1B3D5F8' }).available
+      return null
+    }
+    render(<Two />)
+    expect(seen).toEqual({ a: null, b: null })
+    expect(loadAgentConfig).toHaveBeenCalledTimes(1)
+    state = true
+    await act(async () => { answer(false) })
+    expect(seen).toEqual({ a: true, b: true })
+  })
+
+  it.each([[false, 'news off or no Agent'], [true, 'news on']])('is %s when the config says so (%s)', async (state) => {
+    serverNewsState.mockReturnValue(state)
+    render(<Probe newsId={ID} />)
+    expect(api.available).toBe(state)
+    expect(loadAgentConfig).not.toHaveBeenCalled()
   })
 })
 

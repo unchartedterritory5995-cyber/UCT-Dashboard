@@ -2,7 +2,9 @@
 //
 // What UCT News imports from the Agent (its NewsAgentContext value is `{ useAsk: useAgentAsk, openAgent }`):
 //
-//   useAgentAsk({ newsId })  -> { ask(text), turns, busy, error, conversationId }
+//   useAgentAsk({ newsId })  -> { ask(text), turns, busy, error, conversationId, available }
+//                               available: true (the server serves headline chats, UCT_AGENT_NEWS), false (it
+//                               does not, or the Agent is not available), null (its config is still loading)
 //                               turns: [{ id, role: 'member' | 'agent', text }]   plain text, stable ids
 //                               error: { text, retry } | null                    a sentence a member can read
 //   openAgent({ conversationId })   the main Agent panel, on that same conversation
@@ -17,7 +19,7 @@
 // browser, so a reload reopens the same chat from the server's transcript.
 
 import { useCallback, useEffect, useSyncExternalStore } from 'react'
-import { agentConversation, agentTurn } from './agentClient'
+import { agentConversation, agentTurn, loadAgentConfig, serverNewsState } from './agentClient'
 import { AGENT_CONVERSATION_KEY, AGENT_OPEN_EVENT, AGENT_OPEN_KEY, readLocal, resolveAgentFlag, writeLocal } from './agentFlag'
 
 export { AgentIdentity } from './AgentIdentity'
@@ -40,9 +42,17 @@ const keyFor = (newsId) => `uct.agent.news.${etDay()}.${newsId}`
 function read(newsId) { return threads.get(newsId) || EMPTY }
 function patch(newsId, fn) {
   threads.set(newsId, { ...read(newsId), ...fn(read(newsId)) })
-  for (const l of listeners) l()
+  notify()
 }
 function subscribe(l) { listeners.add(l); return () => listeners.delete(l) }
+const notify = () => { for (const l of listeners) l() }
+// The Agent's ONE shared, cached config read (agentClient.loadAgentConfig) — never a request per headline.
+let configAsked = false
+function askConfig() {
+  if (configAsked) return
+  configAsked = true
+  Promise.resolve(loadAgentConfig()).catch(() => {}).finally(() => { configAsked = false; notify() })
+}
 const turnId = () => `nt${++seq}`
 
 /** The admin + switch gate News renders behind. Branding only — the server decides every request. */
@@ -98,13 +108,15 @@ async function ask(newsId, raw) {
 export function useAgentAsk({ newsId } = {}) {
   const id = newsId == null ? '' : String(newsId)
   const thread = useSyncExternalStore(subscribe, () => (id ? read(id) : EMPTY), () => EMPTY)
+  const available = useSyncExternalStore(subscribe, serverNewsState, () => null)
+  useEffect(() => { if (available === null) askConfig() }, [available])
   useEffect(() => {
     if (!id || restored.has(id)) return
     restored.add(id)
     restore(id).catch(() => {})
   }, [id])
   const send = useCallback((text) => (id ? ask(id, text) : undefined), [id])
-  return { ask: send, turns: thread.turns, busy: thread.busy, error: thread.error, conversationId: thread.conversationId }
+  return { ask: send, turns: thread.turns, busy: thread.busy, error: thread.error, conversationId: thread.conversationId, available }
 }
 
 /**
@@ -124,4 +136,4 @@ export function openAgent({ conversationId } = {}) {
   try { window.dispatchEvent(new CustomEvent(AGENT_OPEN_EVENT, { detail: { conversationId } })) } catch { /* ignore */ }
 }
 
-export const _resetNewsAsk = () => { threads.clear(); restored.clear(); seq = 0; for (const l of listeners) l() }
+export const _resetNewsAsk = () => { threads.clear(); restored.clear(); seq = 0; configAsked = false; notify() }
