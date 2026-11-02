@@ -27,7 +27,7 @@ import Input from '../../../components/ui/Input'
 import { requestExplanation, cachedExplanation } from '../../../lib/tradeExchangeNewsExplain'
 import { sentRecently } from '../../../lib/tradeExchangeNewsNotebook'
 import { CollectionPicker } from './TradeExchangeNewsCollections'
-import { CATEGORY_FILTERS, categoryTitle, cleanCategories, explainable, explanationText, fmtReceived, fmtReceivedFull, hitRanges, runsIn,
+import { CATEGORY_FILTERS, categoryTitle, cleanCategories, explainable, explanationText, fmtReceived, fmtReceivedFull, fmtStamp, hitRanges, runsIn,
   dayLabel, dayStatus, cleanTime, MAX_PRESETS, monthGrid, MONTHS, tickerTitle, tickerTone, timeLabel, tokenize,
   WEEKDAYS } from './tradeExchangeNewsModel'
 import styles from './TradeExchangeNewsWidget.module.css'
@@ -116,7 +116,7 @@ function Headline({ item, linkedSym, onSym, colorMode, prices, staleSymbols, pro
 /** Only what a row DISPLAYS from a quote: a tick that moves none of it is no render. */
 const quoteKey = (q) => (q ? `${q.price}|${q.change_pct}|${q.updated_at || q.timestamp || ''}` : '')
 const ROW_KEYS = ['item', 'linkedSym', 'colorMode', 'provisional', 'clampLines', 'expanded', 'flashing',
-  'showCategory', 'timeOnly', 'groupCount', 'groupOpen', 'related', 'onSym', 'onToggleExpand', 'onToggleGroup', 'onActions',
+  'showCategory', 'groupCount', 'groupOpen', 'related', 'onSym', 'onToggleExpand', 'onToggleGroup', 'onActions',
   'actionsOpen', 'onExplain', 'explainOpen', 'onCloseExplain', 'onSave', 'saved', 'needles']
 function rowPropsEqual(a, b) {
   for (const k of ROW_KEYS) if (a[k] !== b[k]) return false
@@ -175,7 +175,7 @@ function CopyButton({ text }) {
 }
 
 export const Row = memo(function Row({ item, linkedSym, onSym, colorMode, prices, staleSymbols, provisional,
-  clampLines, expanded, onToggleExpand, flashing, showCategory, timeOnly = false, groupCount = 0, groupOpen = false,
+  clampLines, expanded, onToggleExpand, flashing, showCategory, groupCount = 0, groupOpen = false,
   onToggleGroup, related = false, onActions, actionsOpen, onExplain, explainOpen, onCloseExplain, onSave, saved = false,
   needles = null }) {
   const headRef = useRef(null)
@@ -189,8 +189,8 @@ export const Row = memo(function Row({ item, linkedSym, onSym, colorMode, prices
       {flashing && <span className={styles.flash} aria-hidden="true" />}
       <span className={styles.when}>
         <span className={styles.time} title={`Received by UCT ${fmtReceivedFull(item.received_at_ms)} · Trade Exchange does not send a publication time`}>
-          {/* a day view names its date once (the date bar); each row says the time */}
-          {fmtReceived(item.received_at_ms, timeOnly ? item.received_at_ms : undefined)}
+          {/* the date and time on every row: All history mixes days */}
+          {fmtStamp(item.received_at_ms)}
         </span>
         {showCategory && item.category && (
           <span className={styles.category} title={categoryTitle(item)}>{item.category}</span>

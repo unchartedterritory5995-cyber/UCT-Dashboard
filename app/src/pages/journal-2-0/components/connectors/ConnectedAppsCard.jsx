@@ -57,7 +57,7 @@ import styles from './ConnectedAppsCard.module.css'
 export default function ConnectedAppsCard() {
   const { isPaid, startCheckout } = useAuth()
   const {
-    providers, enabled, isLoading, refresh, connectToken, startOAuth, mintConnectCode, syncSource,
+    providers, enabled, isLoading, refresh, connectToken, startOAuth, mintConnectCode, syncSource, getSourceLog,
     updateSource, disconnect, listFolders, addSource,
   } = useNoteConnectors()
 
@@ -83,12 +83,26 @@ export default function ConnectedAppsCard() {
   // (connector only, no source yet) — remember it here so the follow-up
   // effect (below, once fresh `providers` lands) can auto-open the folder
   // picker instead of leaving a silently-incomplete tile.
+  const [returnNotice, setReturnNotice] = useState(null)   // { connector, reason } after a failed OAuth return
   const healedRef = useRef(false)
   const autoPickProviderRef = useRef(null)
   useEffect(() => {
     if (healedRef.current) return
     const params = new URLSearchParams(window.location.search)
     const connector = params.get('connector')
+    if (connector && params.get('connected') === '0') {
+      // A return that did NOT connect (provider error, or the callback landed
+      // in a browser that is not the one that pressed Connect). Say so and
+      // strip the params; nothing to refresh, nothing was connected.
+      healedRef.current = true
+      setReturnNotice({ connector, reason: params.get('reason') || '' })
+      params.delete('connector')
+      params.delete('connected')
+      params.delete('reason')
+      const failQs = params.toString()
+      window.history.replaceState({}, '', window.location.pathname + (failQs ? `?${failQs}` : ''))
+      return
+    }
     if (!connector || params.get('connected') !== '1') return
     healedRef.current = true
     autoPickProviderRef.current = connector
@@ -181,7 +195,9 @@ export default function ConnectedAppsCard() {
     setConsentChecked(false)
   }
 
+  // Returns the normalized sync result; SourceRow turns it (or a throw) into its notice.
   const handleSync = (source) => syncSource(source.id)
+  const handleLoadLog = (source) => getSourceLog(source.id)
   const handleTogglePause = (source) => updateSource(source.id, { syncEnabled: !source.syncEnabled })
   const handleDisconnect = async (source) => {
     setActionError(null)
@@ -220,6 +236,16 @@ export default function ConnectedAppsCard() {
         </p>
 
         {actionError && <div className={styles.error} role="alert">{actionError}</div>}
+
+        {returnNotice && (() => {
+          const label = NOTE_CONNECTOR_PROVIDERS.find((x) => x.key === returnNotice.connector)?.label || returnNotice.connector
+          const text = returnNotice.reason === 'oauth_state'
+            ? `Connecting ${label} didn't finish in this browser. Press Connect below to start again here.`
+            : returnNotice.reason
+              ? `Couldn't connect ${label}: ${returnNotice.reason}`
+              : `Couldn't connect ${label}. Try again.`
+          return <p className={styles.pausedNotice} role="status" data-testid="oauth-return-notice">{text}</p>
+        })()}
 
         {/* Final-review Item B: `enabled` (server's NOTE_SYNC_ENABLED gate)
             has no consumer without this — a connected, healthy-looking tile
@@ -304,7 +330,9 @@ export default function ConnectedAppsCard() {
                         key={s.id}
                         source={s}
                         providerSourceCount={sources.length}
+                        providerLabel={p.label}
                         onSync={handleSync}
+                        onLoadLog={handleLoadLog}
                         onTogglePause={handleTogglePause}
                         onDisconnect={handleDisconnect}
                         onReconnect={() => openConnect(p)}
