@@ -33,6 +33,8 @@ and gallery drop it (`public_note_payload.NODE_POLICY`).
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
+from types import MappingProxyType
 from typing import Any
 from urllib.parse import urlsplit
 
@@ -53,7 +55,9 @@ NAME_FALLBACK = "this item"
 
 #: The copy table, the single server authority. `{name}` is the notice's name. The key
 #: `fetch_failed_retrying` is the `fetch_failed` sentence while a retry is still due.
-NOTICE_COPY: dict[str, str] = {
+#: A read-only view (MappingProxyType), like the client's `Object.freeze`d table: no caller
+#: can rewrite a sentence at run time.
+NOTICE_COPY: Mapping[str, str] = MappingProxyType({
     "fetch_failed_retrying": "Couldn't copy {name} — retrying on the next sync",
     "fetch_failed": "Couldn't copy {name}",
     "too_large": "{name} is too large to copy (limit 25 MB)",
@@ -71,7 +75,7 @@ NOTICE_COPY: dict[str, str] = {
     "obsidian_attachments_unavailable": "{name} wasn't synced yet. It will be retried on the next sync.",
     "not_found": "{name} wasn't found in the vault.",
     "sync_off": "{name} wasn't synced because image and file sync is turned off in the plugin settings.",
-}
+})
 
 #: What the renderer appends, as a link, when `sourceUrl` is a safe http(s) address.
 OPEN_ORIGINAL = "open the original"
@@ -88,8 +92,24 @@ def _attempts(value: Any) -> int:
     return value if isinstance(value, int) and not isinstance(value, bool) and value > 0 else 0
 
 
-def _name(name: Any) -> str:
-    return " ".join(name.split()) if isinstance(name, str) and name.strip() else NAME_FALLBACK
+def _fill(template: str, name: Any) -> str:
+    """`template` with `{name}` filled. A REAL name is written exactly as given (whitespace
+    collapsed), wherever it falls -- "chart.png" stays "chart.png" even opening a sentence.
+    The FALLBACK is capitalised where it opens a sentence (the template's start, or after
+    ". "), and stays lowercase mid-sentence: a member-facing sentence never starts lowercase
+    (controller ruling, fix round 1). The client's `fillName` is the same rule."""
+    real = " ".join(name.split()) if isinstance(name, str) and name.strip() else None
+    parts = template.split("{name}")
+    out = [parts[0]]
+    for before, after in zip(parts, parts[1:]):
+        if real is not None:
+            out.append(real)
+        elif before == "" or before.endswith(". "):
+            out.append(NAME_FALLBACK[:1].upper() + NAME_FALLBACK[1:])
+        else:
+            out.append(NAME_FALLBACK)
+        out.append(after)
+    return "".join(out)
 
 
 def safe_source_url(value: Any) -> str | None:
@@ -118,7 +138,7 @@ def marker_text(reason: str, name: str | None, *, attempts: int = 0, source_url:
     code = _reason(reason)
     if code == "fetch_failed" and _attempts(attempts) < MEDIA_RETRY_MAX_ATTEMPTS:
         code = "fetch_failed_retrying"
-    text = NOTICE_COPY[code].replace("{name}", _name(name))
+    text = _fill(NOTICE_COPY[code], name)
     if safe_source_url(source_url):
         text = f"{text} — {OPEN_ORIGINAL}"
     return text

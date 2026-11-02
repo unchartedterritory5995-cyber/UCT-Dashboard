@@ -43,7 +43,8 @@ describe('the importNotice block', () => {
   it('never renders a javascript: sourceUrl as a link', () => {
     // `javascript://host/…` and `file://host/…` HAVE a host: only the scheme check refuses them.
     const bad = ['javascript:alert(1)', 'javascript://example.com/%0Aalert(1)', 'data:text/html,<b>x</b>',
-      'vbscript:msgbox(1)', 'file:///c/chart.png', 'file://server/chart.png', 'JavaScript:alert(1)']
+      'vbscript:msgbox(1)', 'file:///c/chart.png', 'file://server/chart.png', 'JavaScript:alert(1)',
+      '//evil.com/chart.png'] // protocol-relative: a host and no scheme, never a link
     const doms = mount(...bad.map((sourceUrl) => notice({ sourceUrl })))
     expect(doms).toHaveLength(bad.length)
     for (const dom of doms) {
@@ -67,7 +68,8 @@ describe('the importNotice block', () => {
     const [unknown, missing, named] = mount(notice({ reason: 'from_the_future' }), notice({ reason: null, name: null }),
       notice({ reason: 'too-large' }))
     expect(unknown.textContent).toBe("chart.png can't be shown here")
-    expect(missing.textContent).toBe("this item can't be shown here")
+    // fix round 1: a sentence never starts lowercase -- the fallback opens it capitalised
+    expect(missing.textContent).toBe("This item can't be shown here")
     expect(named.textContent).toBe('chart.png is too large to copy (limit 25 MB)')
   })
 
@@ -75,7 +77,14 @@ describe('the importNotice block', () => {
     expect(importNoticeText({ reason: 'fetch_failed', name: 'a.png', attempts: 1 })).toBe("Couldn't copy a.png — retrying on the next sync")
     expect(importNoticeText({ reason: 'fetch_failed', name: 'a.png', attempts: 3 })).toBe("Couldn't copy a.png")
     expect(importNoticeText({ reason: 'unsupported', name: '$& $1' })).toBe("$& $1 can't be shown here")
-    expect(importNoticeText(undefined)).toBe("this item can't be shown here")
+    expect(importNoticeText(undefined)).toBe("This item can't be shown here")
+  })
+
+  it('capitalises the fallback only where it opens a sentence, and never touches a real name', () => {
+    expect(importNoticeText({ reason: 'too_large' })).toBe('This item is too large to copy (limit 25 MB)')
+    expect(importNoticeText({ reason: 'storage_limit' })).toBe('Not copied: storage limit. This item will be copied once space frees up')
+    expect(importNoticeText({ reason: 'fetch_failed', attempts: 3 })).toBe("Couldn't copy this item")
+    expect(importNoticeText({ reason: 'too_large', name: 'chart.png' })).toBe('chart.png is too large to copy (limit 25 MB)')
   })
 
   it('round-trips through getJSON with all five attrs', () => {

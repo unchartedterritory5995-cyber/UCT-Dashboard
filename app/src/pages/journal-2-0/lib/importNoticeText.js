@@ -13,7 +13,7 @@
  *   · an unknown reason reads as `unsupported` — never blank, never a crash;
  *   · a hyphenated code (`too-large`, the Obsidian plan's spelling) reads as its snake_case twin;
  *   · `fetch_failed` says "retrying" while `attempts < MEDIA_RETRY_MAX_ATTEMPTS`;
- *   · `{name}` falls back to `this item`.
+ *   · `{name}` falls back to `this item` ("This item" where it opens a sentence).
  * The " — open the original" link is the RENDERER's (importNoticeNode.js), and only for an
  * http(s) `sourceUrl`.
  */
@@ -59,8 +59,25 @@ function attemptsOf(value) {
   return Number.isInteger(value) && value > 0 ? value : 0
 }
 
-function nameOf(name) {
-  return typeof name === 'string' && name.trim() ? name.trim().split(/\s+/).join(' ') : NAME_FALLBACK
+/**
+ * `template` with `{name}` filled. A REAL name is written exactly as given (whitespace
+ * collapsed), wherever it falls. The FALLBACK is capitalised where it opens a sentence (the
+ * template's start, or after ". ") and stays lowercase mid-sentence: a member-facing sentence
+ * never starts lowercase (controller ruling, fix round 1). The server's `_fill` is the same
+ * rule; split/join, never String#replace, so a name holding `$&` reads as typed.
+ */
+function fillName(template, name) {
+  const real = typeof name === 'string' && name.trim() ? name.trim().split(/\s+/).join(' ') : null
+  const parts = template.split('{name}')
+  let out = parts[0]
+  for (let i = 1; i < parts.length; i += 1) {
+    const before = parts[i - 1]
+    if (real !== null) out += real
+    else if (before === '' || before.endsWith('. ')) out += NAME_FALLBACK.charAt(0).toUpperCase() + NAME_FALLBACK.slice(1)
+    else out += NAME_FALLBACK
+    out += parts[i]
+  }
+  return out
 }
 
 /** The sentence a notice's attrs read as (without the renderer's link). */
@@ -68,6 +85,5 @@ export function importNoticeText(attrs) {
   const a = attrs && typeof attrs === 'object' && !Array.isArray(attrs) ? attrs : {}
   let code = reasonOf(a.reason)
   if (code === 'fetch_failed' && attemptsOf(a.attempts) < MEDIA_RETRY_MAX_ATTEMPTS) code = 'fetch_failed_retrying'
-  // split/join, never String#replace: a name holding `$&` must read as typed
-  return NOTICE_COPY[code].split('{name}').join(nameOf(a.name))
+  return fillName(NOTICE_COPY[code], a.name)
 }

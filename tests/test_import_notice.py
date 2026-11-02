@@ -43,7 +43,10 @@ def _client_copy(path: Path = CLIENT_COPY) -> dict:
           "m.importNoticeText({reason: 'fetch_failed', name: 'a.png', attempts: 3}),"
           "m.importNoticeText({reason: 'nonsense', name: null}),"
           "m.importNoticeText({reason: 'too-large', name: 'v.mov (31.2 MB)'}),"
-          "m.importNoticeText(null)]})))")
+          "m.importNoticeText(null),"
+          "m.importNoticeText({reason: 'storage_limit', name: '  '}),"
+          "m.importNoticeText({reason: 'fetch_failed', attempts: 3}),"
+          "m.importNoticeText({reason: 'too_large', name: 'chart.png'})]})))")
     r = subprocess.run([node, "--input-type=module", "-e", js], capture_output=True, timeout=120)
     err = (r.stderr or b"").decode("utf-8", errors="replace")
     assert r.returncode == 0, f"node could not import {path}: {err[:2000]}"
@@ -68,14 +71,23 @@ def test_the_reason_union_name_fallback_and_derivation_agree_on_both_sides():
     client = _client_copy()
     assert tuple(client["reasons"]) == import_notice.NOTICE_REASONS
     assert client["fallback"] == import_notice.NAME_FALLBACK
-    # the same five derivations on both sides: the rule, not only the table, is one fact
-    assert client["samples"] == [
+    # the same derivations on both sides: the rule, not only the table, is one fact
+    want = [
         marker_text("fetch_failed", "a.png", attempts=1),
         marker_text("fetch_failed", "a.png", attempts=3),
         marker_text("nonsense", None),
         marker_text("too-large", "v.mov (31.2 MB)"),
         import_notice.notice_text(None),
+        # fix round 1: the fallback capitalised where it opens a sentence (at the start and
+        # after ". "), lowercase mid-sentence, and a real name never touched
+        marker_text("storage_limit", "  "),
+        marker_text("fetch_failed", None, attempts=3),
+        marker_text("too_large", "chart.png"),
     ]
+    assert want[2] == "This item can't be shown here"   # non-vacuity: the samples hold the rule
+    assert want[5].endswith(". This item will be copied once space frees up")
+    assert want[6] == "Couldn't copy this item" and want[7].startswith("chart.png ")
+    assert client["samples"] == want
 
 
 def test_the_reason_union_covers_server_client_and_plugin_codes_and_every_one_has_copy():
@@ -118,9 +130,17 @@ def test_each_reason_reads_its_sentence(reason, want):
 
 
 def test_the_name_falls_back_and_an_unknown_reason_reads_as_unsupported():
-    assert marker_text("too_large", None) == "this item is too large to copy (limit 25 MB)"
-    assert marker_text("too_large", "   ") == "this item is too large to copy (limit 25 MB)"
-    assert marker_text("too_large", 5) == "this item is too large to copy (limit 25 MB)"
+    # Ruling (fix round 1): a member-facing sentence never starts lowercase. The FALLBACK is
+    # capitalised where it opens the sentence; mid-sentence it stays as it is.
+    assert marker_text("too_large", None) == "This item is too large to copy (limit 25 MB)"
+    assert marker_text("too_large", "   ") == "This item is too large to copy (limit 25 MB)"
+    assert marker_text("too_large", 5) == "This item is too large to copy (limit 25 MB)"
+    assert marker_text("fetch_failed", None, attempts=3) == "Couldn't copy this item"
+    # `{name}` after ". " opens a sentence too
+    assert marker_text("storage_limit", None) == (
+        "Not copied: storage limit. This item will be copied once space frees up")
+    # a REAL name is never changed, even where it opens the sentence
+    assert marker_text("too_large", "chart.png") == "chart.png is too large to copy (limit 25 MB)"
     for unknown in ("not_a_reason", "", None, 7, {"x": 1}):
         assert marker_text(unknown, "a.png") == "a.png can't be shown here", unknown
     # Plan C's hyphenated spelling reads as its snake_case twin
@@ -136,6 +156,7 @@ def test_a_safe_source_url_adds_the_link_words_and_an_unsafe_one_never_does():
     assert marker_text("unsupported", "a.png", source_url="http://x/a.png").endswith("open the original")
     # `javascript://host/...` and `ftp://host/...` HAVE a host: only the scheme check refuses them.
     for bad in ("javascript:alert(1)", "javascript://example.com/%0Aalert(1)", "ftp://example.com/a.png",
+                "//evil.com/a.png",   # protocol-relative: a host, no scheme -- never a link
                 "data:text/html,x", "vbscript:x", "file:///etc/passwd", "file://server/share/a.png",
                 "https://user:pw@x/a", "https:///nohost", "https://x/a b", " ", None, 5):
         assert marker_text("unsupported", "a.png", source_url=bad) == "a.png can't be shown here", bad
@@ -193,7 +214,7 @@ def test_notice_markdown_export():
 
 
 def test_notice_markdown_export_without_or_with_an_unsafe_source_is_the_sentence_alone():
-    for url in (None, "javascript:alert(1)", "javascript://example.com/%0Aalert(1)",
+    for url in (None, "javascript:alert(1)", "javascript://example.com/%0Aalert(1)", "//evil.com/a.png",
                 "data:image/png;base64,AAAA", "file:///c/a.png", "file://server/a.png"):
         n = notice_node("unsupported", name="a.png", source_url=url, ref=None, attempts=0)
         out = notes_export.tiptap_to_markdown(_doc(n)).strip()
@@ -228,3 +249,9 @@ def test_a_note_holding_a_notice_needs_schema_5_and_a_level_4_client_is_refused(
     with pytest.raises(nbs.NotebookSchemaTooOld):
         nbs.check_body_write(json.dumps(body), 4)
     nbs.check_body_write(json.dumps(body), 5)   # CONTROL: a bundle that reads it may write
+
+
+def test_the_server_copy_table_is_read_only_like_the_frozen_client_table():
+    with pytest.raises(TypeError):
+        import_notice.NOTICE_COPY["too_large"] = "rewritten"   # type: ignore[index]
+    assert import_notice.NOTICE_COPY["too_large"] == "{name} is too large to copy (limit 25 MB)"
