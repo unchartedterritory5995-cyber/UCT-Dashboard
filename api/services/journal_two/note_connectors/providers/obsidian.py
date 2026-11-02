@@ -254,6 +254,7 @@ Brief: .superpowers/sdd/2026-09-02-obsidian-ingest-server/task-4-brief.md
 from __future__ import annotations
 
 import asyncio
+import bisect
 import json
 import posixpath
 import re
@@ -814,11 +815,19 @@ def _apply_attachment_refs(
     paths: list[str] = (), basename_map: Any = None, from_path: str | None = None,
 ) -> str:
     """Markdown -> markdown: each ref's `original` (exact substring, every occurrence) becomes
-    its attachment, file chip or notice (`_ref_markdown`). LONGEST originals first, through
-    placeholder tokens, so `[[a.png]]` can never rewrite the inside of `![[a.png]]` and no
-    replacement is ever matched again. `refs is None` (the plugin sent no list):
-    `_mark_unsent_attachments`, outdated unless `plugin_supports`; `paths`/`basename_map`
-    are the vault's, so a link to a staged note is never read as a file."""
+    its attachment, file chip or notice (`_ref_markdown`). LONGEST originals first, so
+    `[[a.png]]` can never rewrite the inside of `![[a.png]]`. Matching is by POSITION in
+    the member's own text: each original claims the spans it occupies that no longer one
+    claimed, and the output is written once from those spans, so no replacement is ever
+    matched again and nothing the member wrote can be mistaken for one.
+    ⚰️ D2 item 2: this wrote `\\x00obsidian-ref-N\\x00` tokens into the text and then
+    replaced every occurrence of each, so member text already holding that form (NUL
+    characters included) was swapped for an attachment. ⛔ Not a longer sentinel either
+    (the client's held-markup idea): an original is any string the plugin sends, and one
+    could straddle a token's edge; a span cannot be straddled. `refs is None` (the plugin
+    sent no list): `_mark_unsent_attachments`, outdated unless `plugin_supports`;
+    `paths`/`basename_map` are the vault's, so a link to a staged note is never read as a
+    file."""
     if refs is None:
         return _mark_unsent_attachments(
             segment, UNAVAILABLE_REASON if plugin_supports else OUTDATED_REASON,
@@ -831,15 +840,27 @@ def _apply_attachment_refs(
         written = _ref_markdown(ref)
         if written is not None:
             table[original] = written
-    tokens: list[tuple[str, str]] = []
+    starts: list[int] = []  # sorted; spans[i] starts at starts[i]
+    spans: list[tuple[int, int, str]] = []
     for original in sorted(table, key=len, reverse=True):
-        if original in segment:
-            token = f"\x00obsidian-ref-{len(tokens)}\x00"
-            tokens.append((token, table[original]))
-            segment = segment.replace(original, token)
-    for token, written in tokens:
-        segment = segment.replace(token, written)
-    return segment
+        at = segment.find(original)
+        while at != -1:
+            end = at + len(original)
+            i = bisect.bisect_right(starts, at)
+            if (i and spans[i - 1][1] > at) or (i < len(spans) and spans[i][0] < end):
+                at = segment.find(original, at + 1)  # inside a longer original's span
+                continue
+            starts.insert(i, at)
+            spans.insert(i, (at, end, table[original]))
+            at = segment.find(original, end)
+    out: list[str] = []
+    last = 0
+    for start, end, written in spans:
+        out.append(segment[last:start])
+        out.append(written)
+        last = end
+    out.append(segment[last:])
+    return "".join(out)
 
 
 def _ref_name(ref: str) -> str:

@@ -20,8 +20,8 @@ from api.services.journal_two.note_connectors import errors
 from api.services.journal_two.note_connectors.convert import md_to_tiptap
 from api.services.journal_two.note_connectors.providers.base import RemoteRef
 from api.services.journal_two.note_connectors.providers.obsidian import (
-    NO_ATTACHMENT_PASS, ObsidianProvider, _build_basename_map, _resolve_target,
-    resolve_pending_target,
+    NO_ATTACHMENT_PASS, ObsidianProvider, _apply_attachment_refs, _build_basename_map,
+    _resolve_target, resolve_pending_target,
 )
 from api.services.journal_two.notes import extract_plain_text
 
@@ -1333,10 +1333,41 @@ def test_a_ref_whose_path_has_no_file_name_is_left_as_written():
 
 def test_original_text_inside_a_replacement_is_never_rewritten_again():
     """N4: an `original` (`chart.png`) that occurs inside another ref's written replacement
-    must not be re-matched: the token indirection is what keeps the image intact."""
+    must not be re-matched: matching by position in the member's text (D2 item 2; a token
+    indirection before it) is what keeps the image intact."""
     refs = [REF(), REF(original="chart.png", embed=False, sha256="b" * 64)]
     conv = _convert("![[chart.png]]", refs=refs)
     assert _only(conv["doc"], "image")["attrs"]["src"] == "import-ref://obsidian-att:" + _SHA + "/chart.png"
+
+
+def test_member_text_in_the_old_token_form_is_never_swapped_for_an_attachment():
+    """D2 item 2: the pass used to write `\\x00obsidian-ref-N\\x00` tokens and then replace
+    every occurrence, so a note that already held that text (NUL characters and all) got an
+    attachment where the member wrote words. Each `original` is now matched against the
+    member's text once, by position, and nothing else is ever replaced."""
+    member = "\x00obsidian-ref-0\x00 \x00obsidian-ref-1\x00 \x00\x00obsidian-ref-0\x00\x00"
+    sha2 = "b" * 64
+    refs = [REF(), REF(original="[[q.pdf]]", embed=False, path="q.pdf", sha256=sha2)]
+    seg = f"![[chart.png]] {member} [[q.pdf]] {member}"
+    out = _apply_attachment_refs(seg, refs, True)
+    image = f"![](<obsidian-att:{_SHA}/chart.png>)"
+    chip = f"![](<obsidian-file:{sha2}/q.pdf>)"
+    assert out == f"{image} {member} {chip} {member}"
+    conv = _convert(f"Above {member}\n\n![[chart.png]]\n\n{member} [[q.pdf]]\n", refs=refs)
+    assert len(_all(conv["doc"], "image")) == 1
+    assert len(_all(conv["doc"], "attachmentChip")) == 1
+    assert _plain(conv["doc"]).count("obsidian-ref-") == 6
+
+
+def test_overlapping_originals_still_rewrite_longest_first_by_position():
+    """D2 item 2: the positional pass keeps the old order. A longer original claims its text
+    first; a shorter one is matched only outside it, and never across it."""
+    sha2 = "d" * 64
+    refs = [REF(original="[[a.png]]", embed=False, path="a.png", sha256=sha2),
+            REF(original="![[a.png]]", path="a.png")]
+    out = _apply_attachment_refs("[[a.png]]![[a.png]][[a.png]]", refs, True)
+    chip = f"![](<obsidian-file:{sha2}/a.png>)"
+    assert out == f"{chip}![](<obsidian-att:{_SHA}/a.png>){chip}"
 
 
 async def test_fetch_media_refuses_a_malformed_sha_at_once(db):
