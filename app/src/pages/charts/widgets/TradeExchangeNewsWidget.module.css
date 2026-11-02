@@ -194,6 +194,14 @@
   cursor: pointer;
 }
 .listSelect:focus-visible { outline: 1px solid var(--txn-accent, var(--ut-gold)); outline-offset: 1px; }
+/* The native popup's options (UCT's select pattern, e.g. BreadthSettingsPanel .sizeSelect option):
+   the widget's own solid surface and text, so the list reads in every theme -- the browser's
+   default white popup under this widget's light text was what made it unreadable. */
+.listSelect option { background: var(--txn-bg-solid, var(--bg-elevated, #16181c)); color: var(--txn-text, var(--text-bright)); }
+.listSelect option:checked {
+  background: color-mix(in srgb, var(--txn-accent, var(--ut-gold)) 24%, var(--txn-bg-solid, var(--bg-elevated, #16181c)));
+  color: var(--txn-text, var(--text-bright));
+}
 
 /* ── notices ───────────────────────────────────────────────────────────── */
 .notice {
@@ -382,6 +390,18 @@
 
 /* Row actions (copy, then ⋯): revealed on hover / keyboard focus; always there on touch. */
 .rowActions { margin-left: auto; align-self: center; display: inline-flex; gap: 2px; }
+/* Narrow widgets: the date + time + category fill the stamp line, so the row's actions float at
+   its right end instead of wrapping onto an empty line of their own. The line keeps one icon's
+   room for the always-shown saved bookmark, so the stamp is never covered; the rest of the
+   actions (hidden until hover) get the row's surface behind them only while hovered. */
+@container (max-width: 330px) {
+  .when { padding-right: 22px; }
+  .rowActions { position: absolute; z-index: 2; top: 4px; right: 6px; padding-left: 6px; }
+  .row:hover .rowActions { background: linear-gradient(to right, transparent, var(--txn-bg-solid, var(--bg)) 6px); }
+  .compact .rowActions { top: 2px; }
+  /* the always-shown saved mark takes the reserved slot at the far right */
+  .rowBtnSaved { order: 10; }
+}
 .rowBtn {
   display: inline-flex;
   align-items: center;

@@ -189,6 +189,19 @@ export function fmtReceived(ms, nowMs = Date.now()) {
   return _etDay(ms) === _etDay(nowMs) ? formatTimeEt(ms, { seconds: true }) : formatDateTimeEt(ms / 1000)
 }
 
+/** A headline's stamp on its row: "11/01/2026 12:48:13 PM ET" -- the date ALWAYS (All history
+ *  mixes days), UCT's receipt time in the market zone, with its zone label (the presentation
+ *  rule: a market-zone time names its zone -- formatDateTimeEt). Built from the shared ET
+ *  primitives (etDateKey -> formatDateTimeEt; formatTimeEt), so DST is the time-zone
+ *  database's, never a fixed offset. */
+export function fmtStamp(ms) {
+  if (!ms) return ''
+  const key = etDateKey(ms)
+  const time = formatTimeEt(ms, { seconds: true })
+  if (!key || !time) return ''
+  return `${key.slice(5, 7)}/${key.slice(8, 10)}/${key.slice(0, 4)} ${time} ET`
+}
+
 /** Tooltip for the category label: derived by UCT, the provider's own label kept. */
 export function categoryTitle(item) {
   const src = item?.source ? ` · Trade Exchange label: ${item.source}` : ''
