@@ -192,15 +192,6 @@ def test_the_chat_naming_call_never_reads_outcome_rows():
     assert not _leaks(seen), "outcome-row values reached the naming model call"
 
 
-def test_F11_an_answered_row_that_omits_actions_is_treated_as_NOT_local():
-    """KNOWN FINDING F-11 (agent-lead, turn.py `_row_actions`): a dict without `actions` defaults to [] and is
-    replayed. No browser call site omits `actions` on an answered row today (useAgent.js record calls), so it is
-    latent. STRICT: when the server fails closed here, this test fails — delete it and keep the fixed behaviour."""
-    rows = [{"role": "member", "text": "q", "data": {}},
-            {"role": "outcome", "text": "rating 987.654", "data": {"kind": "answered"}}]
-    assert _leaks(agent_turn.history_messages(rows)) == ["987.654"]
-
-
 # ── (f) the handshake for the browser rail ──────────────────────────────────────────────────────────
 def test_the_isolation_handshake_is_current():
     want = handshake_text()
