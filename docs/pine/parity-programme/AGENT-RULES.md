@@ -4,6 +4,33 @@ Programme plan: `C:\Users\Patrick\uct-worktrees\_resume-2026-11-01\PINE-FULL-PAR
 Repo: UCT-Dashboard. Existing measurements: `docs/pine/COVERAGE-MAP.md`,
 `docs/pine/PHASE3-RUNTIME-PLAN.md`, capture queues `docs/pine/capture-queue-*.md`.
 
+## Scope rule: fix the language, never the script (owner, 2026-11-02)
+The goal is infrastructure: ANY open-source Pine indicator can be written or pasted here and runs
+exactly as on TradingView, on the chart, in screens, scans and alerts. The 679-script sample is the
+yardstick that ranks which language features block real code; it is not the target list.
+- Every change implements a Pine language capability (a built-in, a statement form, a type, a
+  drawing primitive, a semantic rule) for every script that uses it, proven by its own rail against
+  TradingView's published behaviour or a capture. Never special-case a script, its title, its
+  author or its text.
+- Report progress in two measures: scripts transferred on the sample, and Pine v6 reference items
+  (functions, variables, constants, types, keywords) that work exactly per lane (the
+  language-coverage scoreboard).
+
+## Agents, models and concurrency (owner, 2026-11-02)
+- Up to 6 concurrent agents plus the integrator for this programme (owner request 2026-11-02; the
+  same cap as the Terminal programme's D-013). CLAUDE.md's memory check still applies: print free
+  memory before every launch and stay at 3 when it is under ~4 GB. At most 3 top-tier (Fable/Opus)
+  agents at once (five concurrent Opus agents once hit the account's rate limit).
+- Model by task: Fable for the hardest engine design and builds; Opus for fix rounds and every
+  merge-gating independent review (the independent opus reviewer GO rule stands); Sonnet for
+  routine work from a precise spec (tests, tools, measurement runs, docs, capture-queue rows);
+  Haiku for mechanical extraction, log parsing and file-list checks.
+- Heavy jobs stay serialized through the lock whatever the agent count.
+
+## Machine paths
+Paths below are the desktop's. On the laptop, `source docs/pine/parity-programme/scripts/env-laptop.sh`
+(it sets UCT_WORKTREES, UCT_RESUME, HEAVY_LOCK, UCT_PY and the `hl <label> -- <cmd>` helper).
+
 ## Machine safety (the owner's PC froze yesterday: page file on a slow HDD)
 - Every vitest / pytest / census / harness run goes through the lock, ONE job at a time:
   `python C:/Users/Patrick/uct-clips/tools/heavy_lock.py run --label <you>-<what> --timeout 14400 -- <cmd>`
@@ -32,9 +59,11 @@ Repo: UCT-Dashboard. Existing measurements: `docs/pine/COVERAGE-MAP.md`,
 - Output-changing engine work: do NOT bump SCRIPT_ENGINE_VERSION yourself; the coordinator bumps
   once per merge (app/src/components/chart/engine/scriptEngineVersion.js; server reads it).
 - New VITE_* reads need a Dockerfile.web ARG + ENV line and a docs/feature_flags.json row.
-- Before committing: `python -m pytest tests/test_no_shadowed_definitions.py tests/test_dockerfile_vite_build_args.py tests/test_vite_flag_ledger.py tests/test_visibility_flag_ledger.py tests/test_script_engine_version_gate.py -q`
-  and `python tools/check_repo_hygiene.py` (via the lock).
-- Commits end with `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.
+- Before the final push of a work package (and before asking for review): `python -m pytest tests/test_no_shadowed_definitions.py tests/test_dockerfile_vite_build_args.py tests/test_vite_flag_ledger.py tests/test_visibility_flag_ledger.py tests/test_script_engine_version_gate.py -q`
+  (via the lock; the integrator runs it again on the merged tip). Before every commit:
+  `python tools/check_repo_hygiene.py`.
+- Commits end with `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>` (plus the session's
+  `Claude-Session:` line when the coordinator gives one).
 - Anything needing a TradingView capture to prove: add a row to a capture queue doc
   (`docs/pine/capture-queue-2026-11-02-<wave>.md`) with the exact probe script, and keep the
   shape refused by name until captured.
