@@ -162,15 +162,17 @@ def test_a_recorded_REFUSAL_is_appended_never_touches_the_document_and_is_served
     after = svc.get("u1", DEF_ID)
     assert after["definition"] == before["definition"] and after["version"] == 1
     assert after["engine_status"] == {"engine": 1, "status": "refused",
-                                      "reason": "the pasted script offers no plot"}
+                                      "reason": "the pasted script offers no plot",
+                                      "same_maths": True}
     assert svc.list_for_user("u1")[0]["engine_status"]["status"] == "refused"
     assert svc.live_definitions()[0]["engine_status"]["status"] == "refused"
     why = svc.engine_withheld_reason(after)
     assert why and "offers no plot" in why
-    # a WRITE-FAILED status is remembered but withholds nothing from the lanes
+    # ⛔ F1 — a WRITE-FAILED recorded after it never clears the refusal (a write-failed
+    # ALONE withholds nothing: `test_F1_CONTROL_a_write_failed_with_no_refusal_...`)
     svc.record_engine_status("u1", DEF_ID, version=1, engine=1, status="write-failed",
                              reason="needs your repaint acknowledgement")
-    assert svc.engine_withheld_reason(svc.get("u1", DEF_ID)) is None
+    assert svc.engine_withheld_reason(svc.get("u1", DEF_ID))
 
 
 def test_a_status_about_a_version_that_is_no_longer_live_is_refused(store):
@@ -346,7 +348,7 @@ def test_a_fork_of_a_refused_definition_is_refused_too(store):
 
 
 def test_the_withhold_sentence_names_the_real_door():
-    st = {"engine_status": {"engine": 1, "status": "refused", "reason": "r"}}
+    st = {"engine_status": {"engine": svc.SCRIPT_ENGINE_VERSION, "status": "refused", "reason": "r"}}
     assert "Pine tab" in svc.engine_withheld_reason(st)
 
 
@@ -367,6 +369,7 @@ def _bump(monkeypatch, n):
 
 
 def test_a_carried_refusal_on_a_SCRIPTLESS_descendant_expires_when_the_engine_passes_it(store, monkeypatch):
+    _bump(monkeypatch, 1)                             # today = the refusing engine (independent of the shipped number)
     _refused(store)                                   # v1 refused by engine 1 (today's)
     edited = defn(23)
     edited["meta"]["scriptEdited"] = True
@@ -462,3 +465,226 @@ def test_a_copy_and_its_carried_verdict_commit_together(store, monkeypatch, door
     owner = "u1" if door == "fork" else "u2"
     assert [r["def_id"] for r in svc.list_for_user(owner)] == ([DEF_ID] if door == "fork" else []), \
         "the copy was committed without its verdict"
+
+
+# ═══ pre-bump review F1 — a write-failed record never clears an older refusal ═══
+#
+# Engine 1 refused version N; the bumped engine accepts the script but its write-back
+# is refused by the store (a 4xx, e.g. a 422 repaint acknowledgement) and the browser
+# records `write-failed` at the new engine. That record is about the WRITE, not about
+# the maths: the stored document is still the one engine 1 refused, so every lane
+# keeps withholding it, and the browser keeps drawing today's translation (never the
+# stored maths) without PUTting it again.
+
+def test_F1_a_write_failed_record_does_not_clear_an_older_refusal(store, monkeypatch):
+    _refused(store)                                   # v1 refused by engine 1
+    _bump(monkeypatch, 2)
+    svc.record_engine_status("u1", DEF_ID, version=1, engine=2, status="write-failed",
+                             reason="needs your repaint acknowledgement")
+    row = svc.get("u1", DEF_ID)
+    st = row["engine_status"]
+    assert st["status"] == "refused" and st["engine"] == 1, \
+        "a write-failed record replaced the refusal it says nothing about"
+    assert st["write_failed_engine"] == 2
+    why = svc.engine_withheld_reason(row)
+    assert why and "could not be saved automatically" in why
+    # the lanes withhold it, and the newer browser still gets the script so it can draw
+    # today's translation instead of the stored (refused) maths
+    from api.services.screener import scan_evaluator
+    assert scan_evaluator.definitions_to_sweep() == []
+    assert svc.list_for_user("u1", source_below=2)[0]["pine_source"] == SCRIPT
+
+
+def test_F1_the_refusal_also_survives_onto_the_next_version(store, monkeypatch):
+    _refused(store)
+    _bump(monkeypatch, 2)
+    svc.record_engine_status("u1", DEF_ID, version=1, engine=2, status="write-failed", reason="422")
+    svc.save("u1", DEF_ID, _scriptless(20), expected_version=1)
+    row = svc.get("u1", DEF_ID)
+    assert row["engine_status"]["status"] == "refused"
+    assert svc.engine_withheld_reason(row), "the carry read the write-failed row and dropped the refusal"
+
+
+def test_F1_CONTROL_a_write_failed_with_no_refusal_still_withholds_nothing(store, monkeypatch):
+    svc.save("u1", DEF_ID, defn(20), pine_source=SCRIPT)
+    _bump(monkeypatch, 2)
+    svc.record_engine_status("u1", DEF_ID, version=1, engine=2, status="write-failed", reason="422")
+    row = svc.get("u1", DEF_ID)
+    assert row["engine_status"] == {"engine": 2, "status": "write-failed", "reason": "422"}
+    assert svc.engine_withheld_reason(row) is None
+
+
+# ═══ pre-bump review F2 — ONE authority for the engine number ═════════════════
+#
+# The server no longer carries its own copy: it READS the declaration out of the
+# browser's `scriptEngineVersion.js` (shipped in every runtime image — the web image is
+# `COPY . /app`, the nixpacks services build from the checkout), so bumping the JS
+# constant bumps both and they cannot drift. Unreadable fails CLOSED: every recorded
+# refusal binds.
+
+_JS_DECL = "export const SCRIPT_ENGINE_VERSION = {n}\n"
+
+
+def test_F2_the_server_number_is_READ_from_the_declaration_not_from_prose(tmp_path):
+    p = tmp_path / "scriptEngineVersion.js"
+    p.write_text("// bump SCRIPT_ENGINE_VERSION = 9 when...\n//   export const SCRIPT_ENGINE_VERSION = 8\n"
+                 + _JS_DECL.format(n=3), encoding="utf-8")
+    assert svc.read_script_engine_version(p) == 3
+    p.write_text(_JS_DECL.format(n=7), encoding="utf-8")       # move the source: it follows
+    assert svc.read_script_engine_version(p) == 7
+
+
+@pytest.mark.parametrize("text", [None, "", "// nothing declared\n",
+                                  _JS_DECL.format(n=2) + _JS_DECL.format(n=3),
+                                  "export const SCRIPT_ENGINE_VERSION = 0\n"])
+def test_F2_a_missing_ambiguous_or_invalid_declaration_is_None(tmp_path, text):
+    p = tmp_path / "scriptEngineVersion.js"
+    if text is not None:
+        p.write_text(text, encoding="utf-8")
+    assert svc.read_script_engine_version(p) is None
+
+
+def test_F2_the_module_number_IS_the_reader_not_a_literal():
+    """A literal beside the reader is the second authority this fix removed."""
+    import ast
+    tree = ast.parse((ROOT / "api/services/user_definitions.py").read_text(encoding="utf-8"))
+    assigns = [n for n in tree.body if isinstance(n, ast.Assign)
+               and any(isinstance(t, ast.Name) and t.id == "SCRIPT_ENGINE_VERSION" for t in n.targets)]
+    assert len(assigns) == 1
+    v = assigns[0].value
+    assert isinstance(v, ast.Call) and getattr(v.func, "id", None) == "read_script_engine_version"
+    assert svc.SCRIPT_ENGINE_VERSION == svc.read_script_engine_version()
+    assert isinstance(svc.SCRIPT_ENGINE_VERSION, int)
+
+
+def test_F2_an_unreadable_engine_number_holds_every_refusal(store, monkeypatch):
+    _refused(store)
+    svc.save("u1", DEF_ID, _scriptless(23), expected_version=1)   # would EXPIRE past engine 1
+    _bump(monkeypatch, None)
+    assert svc.engine_withheld_reason(svc.get("u1", DEF_ID)), \
+        "an unknown engine number must fail closed, never expire a refusal"
+
+
+def test_F2_every_runtime_image_ships_the_js_file():
+    docker = (ROOT / "Dockerfile.web").read_text(encoding="utf-8")
+    runtime = docker.split("AS runtime", 1)[1]
+    assert re.search(r"^COPY \. /app$", runtime, re.M), "the runtime image no longer ships the tree"
+    ignore = ROOT / ".dockerignore"
+    if ignore.exists():
+        for line in ignore.read_text(encoding="utf-8").splitlines():
+            pat = line.strip()
+            if pat and not pat.startswith("#"):
+                assert not any(k in pat for k in ("app/src", "*.js", "app")), \
+                    f".dockerignore may drop the engine file: {pat}"
+    rj = json.loads((ROOT / "railway.json").read_text(encoding="utf-8"))
+    assert rj["build"]["builder"] in ("NIXPACKS", "DOCKERFILE")
+
+
+# ═══ pre-bump review F3 — expiry needs DIFFERENT maths, not just a missing script ═
+#
+# A scriptless version expires past its refusing engine only when its maths differs
+# from the maths that engine refused (the store's own identity: the scan tree's hash
+# plus the trees identity). A no-op Undo, a presentation-only studio save or a share
+# install carries the refused calculation unchanged: still held.
+
+def _scriptless(period, **meta):
+    d = defn(period)
+    d["meta"]["scriptEdited"] = True
+    d["meta"].update(meta)
+    return d
+
+
+def test_F3_a_NO_OP_scriptless_save_stays_held_past_its_engine(store, monkeypatch):
+    _refused(store)
+    svc.save("u1", DEF_ID, _scriptless(20), expected_version=1)
+    _bump(monkeypatch, 2)
+    row = svc.get("u1", DEF_ID)
+    assert row["engine_status"]["same_maths"] is True
+    why = svc.engine_withheld_reason(row)
+    assert why and "same calculation" in why
+
+
+def test_F3_a_COSMETIC_save_stays_held_past_its_engine(store, monkeypatch):
+    _refused(store)
+    d = _scriptless(20, name="Renamed", shortName="RN")
+    d["plots"][0]["style"] = "histogram"
+    svc.save("u1", DEF_ID, d, expected_version=1)
+    _bump(monkeypatch, 2)
+    assert svc.get("u1", DEF_ID)["version"] == 2
+    assert svc.engine_withheld_reason(svc.get("u1", DEF_ID))
+
+
+def test_F3_a_SHARE_INSTALL_of_refused_maths_stays_held_past_its_engine(store, monkeypatch):
+    _refused(store)
+    out = svc.install_share("u2", svc.share("u1", DEF_ID)["token"])
+    _bump(monkeypatch, 2)
+    row = svc.get("u2", out["def_id"])
+    assert row["engine_status"]["same_maths"] is True
+    assert svc.engine_withheld_reason(row), "the installer ran maths the author's engine refused"
+
+
+def test_F3_a_REAL_maths_edit_expires(store, monkeypatch):
+    _refused(store)
+    svc.save("u1", DEF_ID, _scriptless(23), expected_version=1)
+    _bump(monkeypatch, 2)
+    row = svc.get("u1", DEF_ID)
+    assert row["engine_status"]["same_maths"] is False
+    assert svc.engine_withheld_reason(row) is None
+
+
+def test_F3_a_carry_of_a_carry_keeps_the_REFUSED_maths_not_its_own(store, monkeypatch):
+    """refused(20) -> edit to 23 (carried) -> edit back to 20: still the refused maths."""
+    _refused(store)
+    svc.save("u1", DEF_ID, _scriptless(23), expected_version=1)
+    svc.save("u1", DEF_ID, _scriptless(20), expected_version=2)
+    _bump(monkeypatch, 2)
+    assert svc.engine_withheld_reason(svc.get("u1", DEF_ID))
+
+
+def test_F3_a_LEGACY_refusal_with_no_recorded_maths_expires_as_before(store, monkeypatch):
+    svc.save("u1", DEF_ID, defn(20), pine_source=SCRIPT)
+    svc.save("u1", DEF_ID, _scriptless(20), expected_version=1)
+    con = sqlite3.connect(svc._DB_PATH)
+    con.execute("INSERT INTO definition_engine_status (user_id, def_id, version, engine, status, "
+                "reason, created_at) VALUES ('u1', ?, 2, 1, 'refused', 'old', 1)", (DEF_ID,))
+    con.commit()
+    con.close()
+    _bump(monkeypatch, 2)
+    row = svc.get("u1", DEF_ID)
+    assert row["engine_status"]["same_maths"] is False
+    assert svc.engine_withheld_reason(row) is None
+
+
+# ═══ `_awaits_retranslation` — its shape and stamp checks, railed one by one ═══
+
+def _await_row(**over):
+    d = defn(20, engine=over.pop("stamp", None))
+    row = {"has_pine_source": True, "definition": d}
+    for k, v in over.items():
+        if k == "kind":
+            d["compute"]["kind"] = v
+        elif k == "origin":
+            d["meta"]["recurrenceOrigin"] = v
+        elif k == "compute":
+            d["compute"] = v
+        elif k == "meta":
+            d["meta"] = v
+        else:
+            row[k] = v
+    return row
+
+
+@pytest.mark.parametrize("over,expected", [
+    ({}, True),                                    # unstamped, script held, script-shaped
+    ({"stamp": 1}, True),                          # stamped below today's (2)
+    ({"stamp": 2}, False),                         # stamped at today's
+    ({"stamp": 3}, False),                         # stamped above today's
+    ({"has_pine_source": False}, False),           # no script to re-translate
+    ({"definition": "not a mapping"}, False),
+    ({"kind": "runtime"}, False),                  # another lane
+    ({"compute": None}, False),
+    ({"origin": "formula"}, False),                # not a Pine script document
+    ({"meta": None}, False),
+])
+def test_awaits_retranslation_shape_and_stamp(over, expected):
+    assert svc._awaits_retranslation(_await_row(**over), 2) is expected

@@ -33,6 +33,7 @@ import { memberPaneDefinition } from '../../builder/memberPane/memberPaneDefinit
 import { objectReaderFor } from '../objectColumns'
 import { evaluateObjects } from '../objectRuntime'
 import { toRenderState } from '../objectRenderState'
+import { buildRuntimeIr } from '../ast/pineRuntimeFrontend.js'
 
 const DIR = path.resolve(process.cwd(), '..', 'tests/fixtures/vendor/harness')
 const capture = (file) => JSON.parse(fs.readFileSync(path.join(DIR, file), 'utf8'))
@@ -305,8 +306,17 @@ describe('C48 — BUG 2: the var re-read through a function or a block-valued ri
       vi.stubEnv('VITE_PINE_RUNTIME_PANE_ENABLED', '')
       const src = `${body}if barstate.islast\n    label.new(bar_index, s, str.tostring(s))\n`
       const built = memberPaneDefinition({ source: src, id: 'u_plotvar', name: 'P' })
-      expect(built.ok, built.reason).toBe(true)
       const bars = toProductBars(RDDT)
+      // ⛔ P3 WS-A (#676): the C18 object door refuses a block-valued `:=` that reads
+      // its own name, by name (Q-A2). With nothing else to draw the script then offers
+      // no pane at all — withheld by name, never a wrong number.
+      const door = buildRuntimeIr(src, { bars, inputs: {}, objectTrees: [], objectTreesAt: [], objectDoor: true })
+      const doorNamed = !door.ok && door.refusal.guard === 'runtime:object-door'
+        && /reads `s` inside its own block.*Q-A2/.test(door.refusal.message)
+      if (!built.ok) {
+        expect(doorNamed, JSON.stringify({ reason: built.reason, door: door.refusal })).toBe(true)
+        return
+      }
       const reader = objectReaderFor(built.definition, bars, { tf: 'D', symbol: { ticker: 'RDDT', exchange: 'NYSE' }, newestBarIsForming: false, historyFromListing: true })
       const run = evaluateObjects(reader.program, { barCount: bars.length, readNode: reader.readNode,
         readTime: reader.readTime, readUnknown: reader.readUnknown, offListing: false })
@@ -314,14 +324,16 @@ describe('C48 — BUG 2: the var re-read through a function or a block-valued ri
       const diag = (built.translation && built.translation.objectDiagnostics) || {}
       const why = JSON.stringify({ r: reader.refusals, drop: diag.dropReasons, notes: diag.dropNotes })
       // never NaN, never the every-bar number: TradingView's, or withheld by name
-      // (at the bind, `pine:block`; or at translation, the drawing dropped with its reason)
+      // (at the bind, `pine:block`; at translation, the drawing dropped with its reason;
+      // or — merged with P3 WS-A, #676 — the C18 object door refusing a block-valued
+      // `:=` that reads its own name, `runtime:object-door` (Q-A2), until a capture)
       if (labels.length) {
         expect(labels.length, why).toBe(1)
         expect(Number(labels[0]), why).toBeCloseTo(truthOf(body), 6)
       } else {
         const named = (reader.refusals || []).some((r) => r.guard === 'pine:block')
         const dropped = Object.values(diag.dropReasons || {}).reduce((a, b) => a + b, 0) > 0
-        expect(named || dropped, why).toBe(true)
+        expect(named || dropped || doorNamed, why).toBe(true)
       }
     })
   }
@@ -489,21 +501,28 @@ describe('C48 — the object lane: a helper reads a var where it is CALLED', () 
   }
 })
 
-describe('C48 — the runtime lane: a block-valued `:=` reads the name as it stood before it', () => {
-  it('a TEXT var written from an `if` that reads it keeps its text (the value slot is a text slot too)', () => {
+describe('C48 / P3 WS-A — the runtime lane: a block-valued `:=` that reads its own name', () => {
+  // ⛔⛔ CHANGED with the merge of P3 WS-A (#676), which is LIVE and the one authority
+  // for this lowering (a hidden temp, then `x`): on the C18 object DOOR a block-valued
+  // `:=` that reads its own name is REFUSED by name until a TradingView capture
+  // (Q-A2). This rail used to expect the door to DRAW the text (`[t]`); master drew it
+  // wrong before either branch, so no value production drew correctly is lost. The
+  // runtime PANE still builds it.
+  it('a TEXT var written from an `if` that reads it: the door refuses it by name (Q-A2); the pane builds it', () => {
     vi.stubEnv('VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', '1')
     vi.stubEnv('VITE_PINE_MEMBER_PANE_ENABLED', '1')
     vi.stubEnv('VITE_PINE_RUNTIME_PANE_ENABLED', '')
     const src = `${H}var string t = "none"\nt := if close > open * 1.03\n    "big"\nelse if close < open\n    "down"\nelse\n    t\nif barstate.islast\n    label.new(bar_index, close, t)\nplot(close)\n`
     const built = memberPaneDefinition({ source: src, id: 'u_plotvar', name: 'P' })
     expect(built.ok, built.reason).toBe(true)
-    expect(built.definition.objects, JSON.stringify(built.translation.objectDiagnostics)).toBeTruthy()
-    const reader = objectReaderFor(built.definition, RDDT_BARS, { tf: 'D', symbol: { ticker: 'RDDT', exchange: 'NYSE' }, newestBarIsForming: false, historyFromListing: true })
-    const run = evaluateObjects(reader.program, { barCount: RDDT_BARS.length, readNode: reader.readNode,
-      readTime: reader.readTime, readUnknown: reader.readUnknown, offListing: false })
-    const labels = (toRenderState(run.live, { bars: RDDT_BARS, tf: 'D', pineVersion: reader.program.pineVersion }).labels || []).map((l) => l.text)
-    let t = 'none'
-    for (const b of RDDT_BARS) t = b.c > b.o * 1.03 ? 'big' : b.c < b.o ? 'down' : t
-    expect(labels).toEqual([t])
+    // no drawing reaches the chart: the label is dropped at translation (its text is a
+    // block value the plot lane cannot hold) and the door that would draw it refuses
+    expect(built.definition.objects, JSON.stringify(built.translation.objectDiagnostics)).toBeFalsy()
+    expect(built.translation.objectDiagnostics.dropReasons).toEqual({ 'create:label': 1 })
+    const door = buildRuntimeIr(src, { bars: RDDT_BARS, inputs: {}, objectTrees: [], objectTreesAt: [], objectDoor: true })
+    expect(door.ok).toBe(false)
+    expect(door.refusal.guard).toBe('runtime:object-door')
+    expect(door.refusal.message).toMatch(/reads `t` inside its own block.*Q-A2/)
+    expect(buildRuntimeIr(src, { bars: RDDT_BARS, inputs: {}, objectTrees: [], objectTreesAt: [] }).ok).toBe(true)
   })
 })
