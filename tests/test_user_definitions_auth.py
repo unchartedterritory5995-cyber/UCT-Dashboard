@@ -90,7 +90,9 @@ PAID_DETAIL = "Custom indicators require a paid plan"
 #: other two sites moved with it, and the path count below 10 -> 11.
 #: 2026-10-07 (Phase 4): 18 -> 19 — `POST /{def_id}/fork`. Its OWN `require_paid`
 #: was verified before this moved; the path count below 11 -> 12.
-EXPECTED_ROUTE_COUNT = 19
+#: 2026-11-01 (saved-script auto-upgrade, pre-bump): 19 -> 20 — `POST /{def_id}/engine-status`.
+#: Its OWN `require_paid` was verified before this moved; the path count below 12 -> 13.
+EXPECTED_ROUTE_COUNT = 20
 
 
 # ─── the derived route table ─────────────────────────────────────────────────
@@ -182,7 +184,8 @@ def test_a_free_user_is_refused_on_EVERY_route_of_this_router(free_client):
     # ⭐ 9 -> 10 on 2026-10-02 (RT1): `GET /runtime-kill` is a new PATH.
     # ⭐ 10 -> 11 on 2026-10-06 (P2 server): `POST /converse` is a new PATH.
     assert sorted(seen) == sorted(set(seen)), seen
-    assert len({s.split(" ", 1)[1] for s in seen}) == 12, seen
+    # ⭐ 12 -> 13 on 2026-11-01: `POST /{def_id}/engine-status` is a new PATH.
+    assert len({s.split(" ", 1)[1] for s in seen}) == 13, seen
 
 
 def test_every_route_declares_its_OWN_require_paid_and_the_router_declares_NONE():

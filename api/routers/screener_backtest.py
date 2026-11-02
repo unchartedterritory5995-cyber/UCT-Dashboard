@@ -408,6 +408,11 @@ def _definition_tree(def_id: str, user_id: Any) -> tuple[dict, dict]:
     if row is None:
         raise HTTPException(status_code=404,
                             detail=f"no definition {def_id!r} for this member")
+    # ⭐ SAVED-SCRIPT AUTO-UPGRADE — a version today's script engine refuses is not
+    # replayed: 409 (the request is fine; the STATE says no), with the reason.
+    engine_why = defs.engine_withheld_reason(row)
+    if engine_why:
+        raise HTTPException(status_code=409, detail=f"definition {def_id!r} is withheld: {engine_why}")
     doc = row.get("definition") if isinstance(row.get("definition"), dict) else {}
     compute = doc.get("compute") if isinstance(doc.get("compute"), dict) else {}
     tree = compute.get("ast")

@@ -864,6 +864,21 @@ def _gate_definition(user_id: Any, def_id: str, version: Optional[int]) -> dict:
     return row
 
 
+def _gate_engine(row: Mapping[str, Any], def_id: str) -> None:
+    """⭐ SAVED-SCRIPT AUTO-UPGRADE — a stored version today's script engine refuses
+    (recorded by the member's browser, `user_definitions.record_engine_status`) is
+    WITHHELD here by name, so the alert lane never evaluates maths the member's own
+    chart has stopped drawing. Gate `withheld`: the alert surfaces through the same
+    `refusal_for_alert` → needs-attention path every other withheld value uses.
+    ⚠️ fix/prod-ternary-history adds `block_runs_withheld` on the same gate name;
+    the two are independent conditions and merge side by side."""
+    from api.services import user_definitions
+    why = user_definitions.engine_withheld_reason(row)
+    if why:
+        raise AdmissionRefused(
+            "withheld", f"{def_id!r} {REFUSAL_FRAGMENTS['withheld']} ({why})")
+
+
 def _gate_lane(row: Mapping[str, Any]) -> dict:
     """It is a FORMULA. `compute.kind` is the lane, and only `ast` is one."""
     definition = row.get("definition") or {}
@@ -1168,6 +1183,7 @@ def admit_user_definition(user_id: Any, def_id: str,
     registers one entry in `USER_FUNCS` per plot.
     """
     row = _gate_definition(user_id, def_id, version)
+    _gate_engine(row, def_id)
     definition = _gate_lane(row)
     _gate_requirements(row, def_id)
     _gate_repaint(row, definition)

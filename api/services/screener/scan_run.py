@@ -357,6 +357,11 @@ def _load_definition(user_id: Any, def_id: str) -> dict:
         raise BadRequest(str(exc)) from exc
     if row is None:
         raise DefinitionNotFound(def_id)
+    # ⭐ SAVED-SCRIPT AUTO-UPGRADE — refused by today's script engine: not scannable, by name
+    # (the closed run-gate set has no `withheld`; `not-scannable` is the one that fits).
+    why = user_definitions.engine_withheld_reason(row)
+    if why:
+        raise RunRefused("gate:not-scannable", why)
     return row
 
 

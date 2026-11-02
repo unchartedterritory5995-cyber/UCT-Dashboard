@@ -23,11 +23,18 @@ export function chartIqKey(sym, tf, enabled) {
   return enabled && sym && String(tf || '') === 'D' ? `/api/chart-iq/${encodeURIComponent(String(sym).toUpperCase())}` : null
 }
 
+export function chartIqRetry(error, _key, _config, revalidate, { retryCount }) {
+  if (error?.status !== 503 || retryCount >= 3) return
+  setTimeout(() => revalidate({ retryCount }), 4000)
+}
+
 export function useChartIq(sym, tf, enabled) {
   const { data, error, isLoading } = useSWR(chartIqKey(sym, tf, enabled), fetcher, {
     revalidateOnFocus: false,
     dedupingInterval: 60_000,
-    shouldRetryOnError: false,
+    // A 503 means the server was still computing a cold read past its timeout: it keeps going and caches the rows, so the
+    // retry a few seconds later is fast. Only 503 is retried (twice); any other failure shows its reason at once.
+    onErrorRetry: chartIqRetry,
   })
   return { data: data || null, error: error || null, isLoading }
 }

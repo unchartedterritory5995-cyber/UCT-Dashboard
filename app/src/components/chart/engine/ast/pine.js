@@ -6543,8 +6543,8 @@ const COLOUR_BLOCK_RUNS = '_colourBlockRuns'
  *  bars it picks `na`, so the colour is part of WHERE the output is drawn. A
  *  withheld colour draws in the series colour (`binder.pointColour` → null) on
  *  every bar — a line where TradingView leaves gaps. ⚰️ F2 did exactly that. So a
- *  palette holding an `na` leaf or a fully transparent colour (`#RRGGBB00`), a
- *  and a rule whose shared opacity is 0 answer false: the gate stays on the
+ *  palette (or two-colour pair) holding an `na` leaf or a fully transparent
+ *  colour (`#RRGGBB00`), and a rule whose shared opacity is 0, answer false: the gate stays on the
  *  output, which is withheld whole. (An `na`-gated colour this door could not
  *  carry, `colorNaGated`, has no rule to hang a gate on: it stays there anyway.)
  *  The one rule for "colour-only or whole output" a colour gate is routed by. */
@@ -6567,7 +6567,9 @@ export function colourWithholdsAlone(pres) {
  *  rule. Host lane only (the caller's test): nothing binds a screener column. */
 export function colourBlockRunsOf(t, table) {
   const pres = (t && t.presentation) || {}
-  const holders = [...((t && t.outputs) || []).map((o) => o && o.presentation),
+  // ⛔ H1 — an output whose colour can HIDE it (`colourWithholdsAlone` false) is not
+  // a holder here: its colour's arm gates ride the output itself (`_blockRuns`).
+  const holders = [...((t && t.outputs) || []).map((o) => o && colourWithholdsAlone(o.presentation) ? o.presentation : null),
     ...(pres.fills || []), ...(pres.paints || [])]
   const out = []
   const done = new Set()
@@ -20214,7 +20216,55 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     if (!op.into || !regId.has(op.into) || regId.get(op.into) !== x.requiresEmpty) return false
     const d = collected.decls && typeof collected.decls.get === 'function' ? collected.decls.get(op.into) : null
     if (!d || d.kind !== 'var') return false
-    return (varWrites.get(op.into) || []).length === 1
+    if ((varWrites.get(op.into) || []).length !== 1) return false
+    return handleNeverEmptiedAgain(op)
+  }
+  /** ⭐⭐ L1b (review M1) — …AND NOTHING ELSE CAN EMPTY THE HANDLE. The object
+   *  runtime's `reap` (`objectRuntime.js`) nulls every register that held the object
+   *  it tears down, so `na(lb)` is true again on a later bar and the create re-runs
+   *  with the every-bar colour. `reap`'s callers, per family, read from the runtime:
+   *    · `delete` — no delete of `lb`'s family, or of a family the reader could not
+   *      name;
+   *    · `collect` (label / line / box / polyline, `POOL_LIMITS`) — per family; it
+   *      spares a register-held object today, but any OTHER create (or `.copy`) of the
+   *      family is refused anyway (conservative: that sparing is Pine's order applied,
+   *      not a measurement — see `collect`);
+   *    · `replaceTableAt` — a `table.new` at the same position (held or not): the
+   *      same "no other create of the family" rule covers it;
+   *    · linefill (`fillBetween`, a reaped line, the envelope's FIFO, and a create
+   *      between lines not yet live clearing the handle) — never exempt.
+   *  Families are separate pools (`counts[family]`, `collect(family)`): a create of
+   *  ANOTHER family is no threat. */
+  let flatSourceOps = null
+  const sourceOpsFlat = () => {
+    if (flatSourceOps) return flatSourceOps
+    flatSourceOps = []
+    const walk = (list) => { for (const o of list || []) { flatSourceOps.push(o); if (o && o.body) walk(o.body) } }
+    walk(collected.ops)
+    return flatSourceOps
+  }
+  const codeLines = () => String(source || '').split('\n').map((l) => l.replace(/\/\/.*$/, ''))
+  const handleNeverEmptiedAgain = (op) => {
+    const fam = op.family
+    if (!fam || fam === 'linefill') return false
+    const all = sourceOpsFlat()
+    const lines = codeLines()
+    // ⭐ ONE `<family>.new(` IN THE TEXT: every other create of the family (a loop's,
+    // an inlined function's, one the reader refused) is written somewhere.
+    const newRe = new RegExp(`\\b${fam}\\.new\\s*\\(`, 'g')
+    if (lines.reduce((n, l) => n + (l.match(newRe) || []).length, 0) !== 1) return false
+    // `label.copy(x)` / `x.copy()` mint an object in the same pool
+    const copyRe = new RegExp(`\\b${fam}\\.copy\\s*\\(|\\.copy\\s*\\(\\s*\\)`)
+    if (lines.some((l) => copyRe.test(l))) return false
+    // ⛔ With no other create of the family, every live object of it is `lb`'s own,
+    // so a delete of the family (or of a family the reader could not name) can only
+    // name `lb` — whatever its argument spells (`lb`, `lb[n]`, a slot, a copy, a
+    // parameter): no argument has to be resolved to know it.
+    // ⚰️ A `.delete(` the reader carried no op for (loop-blocked, unreadable) needs no
+    // check here: it already refuses the whole drawing ("it removes drawings as it
+    // runs, and this chart can't follow part of that") — measured, a text-scan guard
+    // for it could not be made to fire through the member door, so it was removed.
+    return !all.some((o) => o.k === 'delete' && (!o.family || o.family === fam))
   }
   const heldColour = (node, call) => {
     const at = node && node.tok ? locate(node.tok) : null
@@ -25950,9 +26000,12 @@ function translatePineResult(source, opts = {}) {
       // that colour's condition column and the plot draws in its series colour.
       // ⛔ Only where the presentation carries a colour rule to hang them on; with
       // none, they stay the plot's, as before (never dropped).
-      // ⛔ H1 — and only a colour that cannot HIDE the output (`colourWithholdsAlone`);
-      // one that can keeps its gates on the output, withheld whole.
-      const colourRules = colourWithholdsAlone(row.presentation)
+      // ⛔⛔ H1 — ONE DECISION PER ROW, read by both kinds of colour gate: these
+      // block gates here and the colour's arm gates below. A colour that cannot
+      // HIDE the output (`colourWithholdsAlone`) is withheld alone; one that can
+      // keeps every gate on the output, withheld whole.
+      const colourAlone = colourWithholdsAlone(row.presentation)
+      const colourRules = colourAlone
         ? COLOUR_RULE_KEYS.map((k) => row.presentation[k]).filter(Boolean) : []
       const colourRuns = resolver.condGate && colourRules.length ? resolver.blockRuns.splice(valueBlockRuns) : []
       const guardsOf = (runs) => {
@@ -25991,7 +26044,21 @@ function translatePineResult(source, opts = {}) {
       // again and nothing is minted. ⛔ The value only (`armRunTreesOf`): a colour
       // rule's gates are its colour's (`colourBlockRunsOf`, H1). ⛔ The host lane
       // only, as above: a screener column binds no chart.
-      if (resolver.condGate) for (const g of armRunGates(armRunTreesOf(row), table)) gates.push(g)
+      // ⛔⛔ H1 — …and a colour rule that can HIDE the output (an `na` / fully
+      // transparent entry, opacity 0 — `colourWithholdsAlone`) is part of WHERE the
+      // output draws: its arm gates are the output's, withheld whole. Withheld as a
+      // colour alone it would draw in the series colour on every bar where
+      // TradingView leaves gaps.
+      if (resolver.condGate) {
+        const armTrees = armRunTreesOf(row)
+        if (row.presentation && !colourAlone) {
+          for (const k of COLOUR_RULE_KEYS) {
+            const rule = row.presentation[k]
+            if (rule && rule.ast) armTrees.push(rule.ast)
+          }
+        }
+        for (const g of armRunGates(armTrees, table)) gates.push(g)
+      }
       if (gates.length) Object.defineProperty(row, '_blockRuns', { value: gates, enumerable: false })
     } catch (err) {
       row = {

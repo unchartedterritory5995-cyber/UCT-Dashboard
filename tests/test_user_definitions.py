@@ -1345,7 +1345,9 @@ def test_the_user_namespace_cannot_collide_with_a_SHIPPED_definition(js):
 #: 2026-10-07 (Phase 4): 18 -> 19 — `POST /{def_id}/fork`, "Create custom copy" (a
 #: new, independent definition from the caller's OWN). Its OWN `require_paid` was
 #: verified before this moved; the other two sites moved with it.
-EXPECTED_ROUTE_COUNT = 19
+#: 2026-11-01 (saved-script auto-upgrade, pre-bump): 19 -> 20 — `POST /{def_id}/engine-status`,
+#: a newer engine's verdict on the caller's OWN live version. Its OWN `require_paid` verified.
+EXPECTED_ROUTE_COUNT = 20
 
 
 def _routes():
