@@ -11,10 +11,11 @@ import { modelSafeBody, agentTurn, agentTurnStream, isolationDrops, _resetAgentC
 import { _resetTurns } from '../trace'
 
 registerBuiltins()
-const SENT = '987.654'
+import { leaksOf, SENT_NUM } from './sentinels'
+const SENT = SENT_NUM                                    // token-aware (./sentinels.js)
 const OK = 'UNMARKED-CONTROL-55'
 const marked = () => ({ isolated: true, kind: 'ratings', data: { composite: Number(SENT) } })
-const has = (o, s) => JSON.stringify(o ?? null).includes(s)
+const has = (o, s) => (s === SENT ? leaksOf(o, [SENT]).length > 0 : JSON.stringify(o ?? null).includes(s))
 
 describe('L5 modelSafeBody: marked objects never leave in a model request', () => {
   it('strips at any depth in every model-bound part; unmarked siblings and the member\'s words stay', () => {
@@ -40,7 +41,7 @@ describe('L5 modelSafeBody: marked objects never leave in a model request', () =
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     modelSafeBody({ context: { a: marked() } })
     expect(warn).toHaveBeenCalled()
-    expect(warn.mock.calls.flat().join(' ')).not.toContain(SENT)
+    expect(has(warn.mock.calls.flat().join(' '), SENT)).toBe(false)
     warn.mockRestore()
   })
 })
@@ -61,13 +62,13 @@ describe('L5 wiring: BOTH turn routes send the stripped body', () => {
     try { await agentTurn(body()) } catch { /* the reply shape is not the point */ }
     const [url, b] = posted[0]
     expect(url).toBe('/api/agent/turn')
-    expect(b).not.toContain(SENT); expect(b).toContain(OK)
+    expect(has(b, SENT)).toBe(false); expect(b).toContain(OK)
   })
   it('/api/agent/turn/stream', async () => {
     try { await agentTurnStream(body(), () => {}) } catch { /* stream parsing is not the point */ }
     const [url, b] = posted[0]
     expect(url).toMatch(/\/api\/agent\/turn\/stream/)
-    expect(b).not.toContain(SENT); expect(b).toContain(OK)
+    expect(has(b, SENT)).toBe(false); expect(b).toContain(OK)
   })
 })
 
@@ -90,7 +91,7 @@ describe('L5 end to end: a context provider that publishes a marked object, thro
       await say('in your own words, what do you think about the general market mood lately?')
       expect(p.turns(), 'the sentence went to the model (non-vacuity)').toBeGreaterThan(0)
       expect(bodies.length).toBeGreaterThan(0)
-      for (const b of bodies) { expect(b).not.toContain(SENT); expect(b).toContain(OK) }
+      for (const b of bodies) { expect(has(b, SENT)).toBe(false); expect(b).toContain(OK) }
     } finally { if (typeof off === 'function') off() }
   }, 30000)
 })

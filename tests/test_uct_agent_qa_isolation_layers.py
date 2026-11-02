@@ -19,7 +19,8 @@ from api.services.uct_agent import turn
 from api.services.uct_agent.marketdata import envelope as env
 from api.services.uct_agent.marketdata import gateway as gw
 
-SENT = "987.654"
+# token-aware sentinels, shared (tests/test_uct_agent_qa_sentinels.py)
+from tests.test_uct_agent_qa_sentinels import SENT_NUM as SENT, leaks as _leaks
 OK = "UNMARKED-CONTROL-55"
 KINDS_ENV = "UCT_AGENT_DATA_KINDS"
 
@@ -129,7 +130,7 @@ def test_L6_marked_objects_at_ANY_depth_in_context_are_never_sent_and_an_unmarke
     ctx = {"charts": [{"ref": "c1", "label": OK, "deep": {"list": [marked(), {"keep": OK}]}}], "top": marked()}
     turn.run_turn(message="hello", context=ctx, history=[], caller=call)
     s = sent(calls)
-    assert SENT not in s
+    assert SENT not in _leaks(s)
     assert s.count(OK) >= 2, "CONTROL: the unmarked siblings are forwarded"
 
 
@@ -137,7 +138,7 @@ def test_L6_a_wholly_marked_context_becomes_empty_never_partial(scripted):
     call, calls = scripted
     turn.run_turn(message=f"hello {OK}", context=marked(), history=[], caller=call)
     s = sent(calls)
-    assert SENT not in s and OK in s
+    assert SENT not in _leaks(s) and OK in s
 
 
 @pytest.mark.parametrize("field", ["pending", "reference"])
@@ -146,7 +147,7 @@ def test_L6_pending_and_reference_are_stripped_too(scripted, field):
     kw = {field: {"a": marked(), "b": OK}}
     turn.run_turn(message="hello", context={}, history=[], caller=call, **kw)
     s = sent(calls)
-    assert SENT not in s
+    assert SENT not in _leaks(s)
     if field == "pending":                                   # pending is always forwarded; reference only under NL-1
         assert OK in s, "CONTROL"
 
@@ -160,7 +161,7 @@ def test_L6_a_stored_row_carrying_a_marked_object_is_replayed_as_unreadable_text
             {"role": role, "text": f"it is {SENT}", "data": data}]
     turn.run_turn(message="and?", context={}, history=hist, caller=call)
     s = sent(calls)
-    assert SENT not in s, "the row's TEXT is not replayed once its data carries the marker"
+    assert SENT not in _leaks(s), "the row's TEXT is not replayed once its data carries the marker"
     assert OK in s, "CONTROL: the member's own words are"
 
 
@@ -169,21 +170,21 @@ def test_L6_CONTROL_the_same_row_WITHOUT_the_marker_is_replayed(scripted):
     hist = [{"role": "member", "text": "q", "data": {}},
             {"role": "outcome", "text": f"it is {SENT}", "data": {"kind": "answered", "actions": ["chart.setType"]}}]
     turn.run_turn(message="and?", context={}, history=hist, caller=call)
-    assert SENT in sent(calls), "the detector can see a replayed value"
+    assert SENT in _leaks(sent(calls)), "the detector can see a replayed value"
 
 
 def test_L6_the_strip_is_logged_as_a_count_never_its_content(scripted, caplog):
     call, calls = scripted
     with caplog.at_level("DEBUG"):
         turn.run_turn(message="hello", context={"x": marked()}, history=[], caller=call)
-    assert "removed 1 isolated value" in caplog.text and SENT not in caplog.text
+    assert "removed 1 isolated value" in caplog.text and SENT not in _leaks(caplog.text)
 
 
 def test_L6_F21_OPEN_PIN_a_value_COPIED_OUT_of_an_isolated_read_passes_the_strip(scripted):
     """The other side of F-21: the composite copied into an unmarked object is forwarded. L3/L4 must hold."""
     call, calls = scripted
     turn.run_turn(message="hello", context={"stock": {"composite": float(SENT)}}, history=[], caller=call)
-    assert SENT in sent(calls)
+    assert SENT in _leaks(sent(calls))
 
 
 def test_L6_F22_OPEN_PIN_the_naming_call_does_not_go_through_strip_isolated_request():
@@ -200,4 +201,4 @@ def test_L6_F22_OPEN_PIN_the_naming_call_does_not_go_through_strip_isolated_requ
         return types.SimpleNamespace(content=[types.SimpleNamespace(type="text", text='{"title": "t"}')], usage=None)
     turn.name_conversation(rows, caller=caller)
     assert seen, "vacuous"
-    assert SENT in json.dumps(seen, default=str)
+    assert SENT in _leaks(json.dumps(seen, default=str))

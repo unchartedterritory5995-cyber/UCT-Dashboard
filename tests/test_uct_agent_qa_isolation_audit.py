@@ -320,7 +320,7 @@ def test_L6_PROVEN_a_MARKED_object_in_workspace_context_is_stripped_and_L2_marks
                                                       "reading": {"isolated": True, "value": float(SENT_NUM)}}]},
                   history=[], caller=_scripted(calls))
     s = _sent(calls)
-    assert SENT_NUM not in s and SENT_STR in s
+    assert SENT_NUM not in leaks(s) and SENT_STR in s
     assert env.validate_envelope({**env.refused("ratings", {}, "x"), "isolated": False}), "L2: a non-true marker is invalid"
 
 
