@@ -228,13 +228,13 @@ Only agent-qa edits this file. Update it in every PR.
   13:00 to 20:00. On NYSE half days, extended trading ends at 17:00, so 17:00–20:00 is labelled after hours when no
   session trades. The answer stays honest, because a print older than 15 minutes says "no trade in the last 15
   minutes … Not a real-time price".
-- **F-21 (agent-lead, gateway.py L2): the marker is on the envelope only.** `env.data`, its rows, or a value copied
+- **F-21: FIXED by agent-lead `bb3d4f35f0`.** The marker travels with `data` and every dict/row inside it, and a copied-out row or `data` object is stripped end to end. Proofs `test_L2_F21_PROVEN_…` go red on the pre-fix gateway. Residual by construction, still pinned: a bare SCALAR carries no marker; L3 + L4 hold it. Was: **(agent-lead, gateway.py L2): the marker is on the envelope only.** `env.data`, its rows, or a value copied
   out of them carry no marker, so L5/L6 cannot recognise them, and that is how a capability answer is built.
   Repro: `pytest tests/test_uct_agent_qa_isolation_layers.py -k F21`. Both sides are pinned: the data is unmarked, and
   a copied-out value passes the strip.
   Suggest also stamping `data` and each row, so a copied sub-object stays marked. L3 (allowlist) + L4 (local-only)
   remain the boundary for derived values.
-- **F-22 (agent-lead, turn.py): L6 runs inside `run_turn` only.** `name_conversation` (router `_name_unnamed`) reads
+- **F-22: FIXED by `bb3d4f35f0`.** The naming call screens rows for the marker. CONTROL: an unmarked reply is still read. The proof goes red on the pre-fix turn.py. Was: **(agent-lead, turn.py): L6 runs inside `run_turn` only.** `name_conversation` (router `_name_unnamed`) reads
   stored member and agent text without `strip_isolated_request`, so an agent row whose data carries the marker is
   still read. Latent: that text is the model's own words.
   Repro: `-k F22`. Suggest applying the same marker check to the naming call's rows.
