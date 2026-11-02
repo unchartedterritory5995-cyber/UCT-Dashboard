@@ -163,6 +163,44 @@ def test_a_unique_name_match_in_the_notes_own_folder_is_counted_apart(db):
     assert _hrefs(out) == [_note_href(target)] and actions == ["relative_by_name", "link_resolved:1"]
 
 
+@pytest.mark.parametrize("from_key,href,target_key", [
+    ("obsidian:Notes/a.md", "../b.md", "obsidian:b.md"),                       # P7a
+    ("obsidian:Notes/a.md", "../Archive/Old.md", "obsidian:Archive/Old.md"),   # P7b
+    ("obsidian:b.md", "Notes/a.md", "obsidian:Notes/a.md"),                    # P7c
+])
+def test_a_drop_without_a_vault_folder_resolves_exact_paths_across_it(db, from_key, href, target_key):
+    """I-4: when the member dropped the vault's CONTENTS, the first segment is a folder, not a
+    vault. An exact relative path is what the member wrote, so it is retried over every Obsidian
+    file path of the member (exact only, never the name rule)."""
+    ids = {k: _import("Obsidian", k) for k in ("obsidian:Notes/a.md", "obsidian:b.md",
+                                                "obsidian:Archive/Old.md")}
+    doc = _doc(_para(_t("x", _link(href))))
+    out, actions = _repair(doc, import_key=from_key, import_source="Obsidian")
+    assert _hrefs(out) == [_note_href(ids[target_key])]
+    assert actions == ["relative_to_note", "link_resolved:1"]
+
+
+def test_the_drop_wide_retry_is_exact_only(db):
+    """I-4: the retry across first folders never uses the name rule (that would be C-1's
+    hazard again): `Plan.md` from `Work/Here.md` does not open `Personal/Plan.md`."""
+    _import("Obsidian", "obsidian:Personal/Plan.md")
+    _import("Obsidian", "obsidian:Work/Here.md")
+    doc = _doc(_para(_t("p", _link("Plan.md"))))
+    out, actions = _repair(doc, import_key="obsidian:Work/Here.md", import_source="Obsidian")
+    assert out == doc and actions == ["relative_unresolved"]
+
+
+def test_the_drop_wide_retry_respects_a_trashed_target(db):
+    """I-4 + I-1: an exact path across first folders that names a trashed note is counted as
+    trashed, never resolved and never reported as merely missing."""
+    gone = _import("Obsidian", "obsidian:Top/Plan.md")
+    _import("Obsidian", "obsidian:Notes/a.md")
+    _trash(gone)
+    doc = _doc(_para(_t("p", _link("../Top/Plan.md"))))
+    out, actions = _repair(doc, import_key="obsidian:Notes/a.md", import_source="Obsidian")
+    assert out == doc and actions == ["relative_target_trashed"]
+
+
 def _trash(note_id):
     conn = auth_db.get_connection()
     try:

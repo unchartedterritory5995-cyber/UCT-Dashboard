@@ -85,6 +85,10 @@ class FileKeyIndex:
     #: vault -> lowercased paths (inside the vault) of the member's TRASHED Obsidian file
     #: notes (fix round 1, I-1): a link that names one exactly is never given another note.
     obsidian_trashed: dict[str, frozenset[str]] = field(default_factory=dict)
+    #: Every Obsidian file note's FULL key path, lowercased -> as stored (the first in sort
+    #: order wins a case tie), and the trashed ones: the drop-wide exact retry (I-4).
+    obsidian_paths: dict[str, str] = field(default_factory=dict)
+    obsidian_paths_trashed: frozenset[str] = frozenset()
 
 
 def _vault_split(path: str) -> tuple[str, str]:
@@ -118,10 +122,16 @@ def build_file_key_index(conn, user_id: str) -> FileKeyIndex:
                 trashed.setdefault(vault, set()).add(inner.lower())
             else:
                 by_vault.setdefault(vault, []).append(inner)
+    full_paths: dict[str, str] = {}
+    for full in sorted(f"{v}/{p}" if v else p for v, ps in by_vault.items() for p in ps):
+        full_paths.setdefault(full.lower(), full)
     return FileKeyIndex(
         keys=frozenset(keys),
         obsidian={v: obsidian_provider._build_basename_map(sorted(set(p))) for v, p in by_vault.items()},
         obsidian_trashed={v: frozenset(p) for v, p in trashed.items()},
+        obsidian_paths=full_paths,
+        obsidian_paths_trashed=frozenset((f"{v}/{p}" if v else p).lower()
+                                         for v, ps in trashed.items() for p in ps),
     )
 
 
@@ -165,32 +175,47 @@ def _name_candidates(path: str, vault_index: Any) -> list[str]:
     return [p for p in named if obsidian_provider._basename(p).lower() == lower]
 
 
-def _obsidian_target(path: str, inner: str, vault_index: Any,
-                     trashed: frozenset[str]) -> tuple[str | None, str]:
-    """`(path inside the vault, action)` for a `.md` relative href of the note at `inner`.
+def _obsidian_target(path: str, full: str, index: FileKeyIndex) -> tuple[str | None, str]:
+    """`(stored key path, action)` for a `.md` relative href of the note whose key path is
+    `full` (`obsidian:<full>`).
 
-    1. The exact path the member wrote (beside the note, then from the top): `relative_to_note`.
-       When that path is a note the member TRASHED, the link meant that note: it is left as
-       written (`relative_target_trashed`), never handed to a same-named note (I-1).
-    2. Fix round 1, C-1: the provider's NAME rule chooses among same-named notes (same folder,
+    1. The exact path the member wrote (beside the note, then from the top), inside the C9
+       vault: `relative_to_note`. When that path is a note the member TRASHED, the link meant
+       that note: it is left as written (`relative_target_trashed`), never handed to a
+       same-named note (I-1).
+    2. Fix round 1, I-4: the same EXACT paths over every Obsidian file path of the member
+       (beside the note, then from the drop top). A member who dropped the vault's contents
+       has no vault folder, so the first segment is just a folder; an exact path is what they
+       wrote, never a guess. Exact only: the name rule never runs across first folders.
+    3. Fix round 1, C-1: the provider's NAME rule chooses among same-named notes (same folder,
        else shortest path). A connector vault is one vault, so that choice is safe there; the
        file importer's keys do not show where a drop's vaults are rooted (`.obsidian/` is not
        stored), so here a choice could open ANOTHER vault's note. A name match is taken only
        when it is the ONE candidate in the C9 vault AND it sits in the linking note's own first
        folder (`relative_by_name`); two or more is `relative_ambiguous`; one elsewhere is
        `relative_unresolved`. Both leave the link as written."""
+    vault, inner = _vault_split(full)
+    prefix = vault + "/" if vault else ""
+    vault_index = index.obsidian.get(vault) or obsidian_provider._build_basename_map([])
+    trashed = index.obsidian_trashed.get(vault, frozenset())
     for form in _exact_forms(path, obsidian_provider._dir_of(inner)):
         found = vault_index.by_lower.get(form.lower())
         if found is not None:
-            return found, TO_NOTE
+            return prefix + found, TO_NOTE
         if form.lower() in trashed:
+            return None, TRASHED
+    for form in _exact_forms(path, obsidian_provider._dir_of(full)):
+        found = index.obsidian_paths.get(form.lower())
+        if found is not None:
+            return found, TO_NOTE
+        if form.lower() in index.obsidian_paths_trashed:
             return None, TRASHED
     candidates = _name_candidates(path, vault_index)
     if len(candidates) > 1:
         return None, AMBIGUOUS
     scope = inner.split("/", 1)[0] + "/" if "/" in inner else ""
     if len(candidates) == 1 and candidates[0].startswith(scope):
-        return candidates[0], BY_NAME
+        return prefix + candidates[0], BY_NAME
     return None, UNRESOLVED
 
 
@@ -205,19 +230,14 @@ def relative_target(href: str, *, import_key: str, import_source: str,
     if not target:
         return None, UNRESOLVED
     if import_source == OBSIDIAN_SOURCE and import_key.startswith(_OBSIDIAN):
-        vault, inner = _vault_split(import_key[len(_OBSIDIAN):])
         path = target.split("?", 1)[0].strip()
         if not _OBSIDIAN_NOTE_EXT_RE.search(path):
             return None, FILE_UNRESOLVED  # only a `.md` link names a note (the provider's rule)
         # `|` separates a pending key's fields and cannot be in an Obsidian file name.
         if "|" in path:
             return None, UNRESOLVED
-        vault_index = index.obsidian.get(vault) or obsidian_provider._build_basename_map([])
-        resolved, action = _obsidian_target(path, inner, vault_index,
-                                            index.obsidian_trashed.get(vault, frozenset()))
-        if resolved is None:
-            return None, action
-        return (f"{_OBSIDIAN}{vault}/{resolved}" if vault else f"{_OBSIDIAN}{resolved}"), action
+        resolved, action = _obsidian_target(path, import_key[len(_OBSIDIAN):], index)
+        return (None if resolved is None else _OBSIDIAN + resolved), action
     if import_source == NOTION_SOURCE and import_key.startswith(_NOTION):
         path = _join(posixpath.dirname(import_key[len(_NOTION):]), target.split("?", 1)[0])
         if not _NOTION_PAGE_EXT_RE.search(path):
