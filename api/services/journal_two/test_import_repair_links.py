@@ -127,6 +127,42 @@ def test_relative_obsidian_key_carries_the_vault_segment(db):
     assert key == "obsidian:Work/Notes/Other.md"
 
 
+def test_multi_vault_drop_never_opens_another_vaults_note(db):
+    """C-1 (review P1a/P1b): `Obsidian/Work` and `Obsidian/Personal` are two vaults to the
+    client (`.obsidian/` roots), but the stored keys only show the first segment `Obsidian`.
+    A name match is taken only when it is the ONE candidate in the C9 vault AND it sits in the
+    linking note's own first folder; anything else is left as written and counted."""
+    here = "obsidian:Obsidian/Work/Notes/Here.md"
+    _import("Obsidian", here)
+    _import("Obsidian", "obsidian:Obsidian/Work/Projects/Plan.md")
+    _import("Obsidian", "obsidian:Obsidian/Personal/Plan.md")
+    _import("Obsidian", "obsidian:Obsidian/Personal/Budget.md")
+    # P1a: two Plans, one per vault -> never chosen between
+    doc = _doc(_para(_t("p", _link("Plan.md"))))
+    out, actions = _repair(doc, import_key=here, import_source="Obsidian")
+    assert out == doc and actions == ["relative_ambiguous"]
+    # P1b: the only Budget is in the OTHER vault -> never crossed into
+    doc = _doc(_para(_t("b", _link("Budget.md"))))
+    out, actions = _repair(doc, import_key=here, import_source="Obsidian")
+    assert out == doc and actions == ["relative_unresolved"]
+
+
+def test_a_unique_name_match_in_the_notes_own_folder_is_counted_apart(db):
+    """C-1: the one name match the repair takes (single candidate, same first folder) is a
+    write under its own code, so the dry run shows how many links resolved by name."""
+    target = _import("Obsidian", "obsidian:Vault/Notes/Deep/Plan.md")
+    here = "obsidian:Vault/Notes/Here.md"
+    _import("Obsidian", here)
+    doc = _doc(_para(_t("p", _link("Plan.md"))), _para(_t("q", _link("Deep2/Plan.md"))))
+    out, actions = _repair(doc, import_key=here, import_source="Obsidian")
+    assert _hrefs(out) == [_note_href(target), "Deep2/Plan.md"]
+    assert actions == ["relative_by_name", "relative_unresolved", "link_resolved:1"]
+    # a path-qualified name (suffix) follows the same rule
+    out, actions = _repair(_doc(_para(_t("p", _link("Deep/Plan.md")))), import_key="obsidian:Vault/Notes/X/Here.md",
+                           import_source="Obsidian")
+    assert _hrefs(out) == [_note_href(target)] and actions == ["relative_by_name", "link_resolved:1"]
+
+
 def test_a_relative_link_to_a_non_note_file_is_not_a_note(db):
     """The live provider resolves a relative link only when it is a `.md` path:
     `report.pdf` must never open the note `report.md`."""
@@ -255,18 +291,24 @@ def test_relative_hrefs_are_repaired_in_file_notes_only(db):
 
 
 def test_ambiguous_relative_targets(db):
-    """C10: the expected answer is the LIVE resolver's on the same fixture, never a hard-coded
-    order. Same-folder wins; else the shortest path; a duplicate Notion name is text."""
+    """C10 + fix round 1 C-1: the exact path the member wrote agrees with the LIVE resolver;
+    where the live resolver would CHOOSE between two notes by name (shortest path), the repair
+    refuses: it cannot see vault roots, so a choice could open another vault's note."""
     paths = ["A/Plan.md", "B/Sub/Plan.md", "C/Here.md", "B/Sub/Here.md"]
     for p in paths:
         _import("Obsidian", f"obsidian:Vault/{p}")
     live = _build_basename_map(sorted(paths))
     index = _index()
-    for from_dir, want in (("B/Sub", "B/Sub/Plan.md"), ("C", "A/Plan.md")):
-        assert resolve_pending_target(f"Plan.md|{from_dir}|rel", live) == want
-        got = links.relative_target_key("Plan.md", import_key=f"obsidian:Vault/{from_dir}/Here.md",
-                                        import_source="Obsidian", index=index)
-        assert got == f"obsidian:Vault/{want}"
+    assert resolve_pending_target("Plan.md|B/Sub|rel", live) == "B/Sub/Plan.md"
+    assert links.relative_target("Plan.md", import_key="obsidian:Vault/B/Sub/Here.md",
+                                 import_source="Obsidian", index=index) == (
+        "obsidian:Vault/B/Sub/Plan.md", "relative_to_note")
+    assert resolve_pending_target("Plan.md|C|rel", live) == "A/Plan.md"  # live: shortest
+    assert links.relative_target("Plan.md", import_key="obsidian:Vault/C/Here.md",
+                                 import_source="Obsidian", index=index) == (None, "relative_ambiguous")
+    doc = _doc(_para(_t("p", _link("Plan.md"))))
+    out, actions = _repair(doc, import_key="obsidian:Vault/C/Here.md", import_source="Obsidian")
+    assert out == doc and actions == ["relative_ambiguous"]
     # Notion: two pages named Plan collide, so both carry their raw path; an id-less href
     # names neither and is never guessed (left as written, counted).
     _import("Notion", f"notion:Export/Plan {HEX}.md")

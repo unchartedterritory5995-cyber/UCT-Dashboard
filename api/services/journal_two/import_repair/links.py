@@ -1,15 +1,18 @@
 """Plan F Task 3: link repair over a stored, already-imported note body.
 
 `repair_links` fixes the link shapes `shapes.py` counts, by the rules the live importers use
-today, and never by a rule of its own:
-  * an Obsidian relative href resolves by the provider's `resolve_pending_target` (the rule
-    conversion and the heal both use), over a per-vault `_VaultIndex`;
+today, and never by a rule of its own, except where the live rule would GUESS:
+  * an Obsidian relative href resolves by the provider's exact-path order (`_resolve_relative`:
+    beside the note, then from the top) over a per-vault `_VaultIndex`. Its name rule is
+    narrowed (fix round 1, C-1): see `_obsidian_target`;
   * a Notion relative href resolves to the key the client's Notion adapter writes
     (`notion:<id-stripped path>`, its raw path on a collision, else `notion_note_key(<id>)`);
   * a bare URL is linked by `linkify_doc` (the live allow-list);
   * every `import-link://` key resolves through `link_keys.resolve_link_keys`, and is
     rewritten by `rewrite_body` with `strip_unresolved_links=False`, so an unresolved key stays
-    a placeholder the live heal sweep finishes once its target arrives (spec Q5).
+    a placeholder the live heal sweep finishes once its target arrives (spec Q5);
+  * a link it cannot resolve stays exactly as written and is counted (`COUNT_ONLY_ACTIONS`):
+    a repair never makes a note worse (fix round 1, I-3).
 
 Pure over its input: it deep-copies first and never writes. The runner does the write.
 
@@ -57,14 +60,15 @@ _TEXTBUNDLE_TEXT_RE = re.compile(r"\.textbundle/text\.md$", re.IGNORECASE)
 # ── action codes (fix round 1) ───────────────────────────────────────────────
 # WRITES: the body changed. COUNTS: nothing was written for that link; it stays exactly as
 # written and the code is what the dry run counts (a repair never makes a note worse).
-TO_NOTE = "relative_to_note"            # write: a relative href became its note's key
+TO_NOTE = "relative_to_note"            # write: the exact path (or the client's key) named a note
+BY_NAME = "relative_by_name"            # write: the ONE same-folder name match (C-1)
+AMBIGUOUS = "relative_ambiguous"        # count: two or more notes carry that name (C-1)
 UNRESOLVED = "relative_unresolved"      # count: a note link nothing names (yet)
 FILE_UNRESOLVED = "relative_file_unresolved"  # count: a link to a file that is not a note;
 #                                         T4/T6 place the visible `missing_from_import` marker
 #: Step 2's codes, in the order `repair_links` reports them.
-RELATIVE_ACTIONS = (TO_NOTE, UNRESOLVED, FILE_UNRESOLVED)
-COUNT_ONLY_ACTIONS = frozenset({UNRESOLVED, FILE_UNRESOLVED,
-                                "relative_ambiguous", "relative_target_trashed"})
+RELATIVE_ACTIONS = (TO_NOTE, BY_NAME, AMBIGUOUS, UNRESOLVED, FILE_UNRESOLVED)
+COUNT_ONLY_ACTIONS = frozenset({AMBIGUOUS, UNRESOLVED, FILE_UNRESOLVED, "relative_target_trashed"})
 
 
 def strip_notion_id_path(path: str) -> str:
@@ -124,6 +128,55 @@ def _join(base_dir: str, rel: str) -> str:
     return "/".join(stack)
 
 
+def _exact_forms(path: str, from_dir: str) -> list[str]:
+    """The paths a relative href names exactly, in the provider's order (`_resolve_relative`):
+    beside the linking note, then from the top. One that climbs above the top is no path."""
+    joined = posixpath.normpath(posixpath.join(from_dir, path)) if from_dir else posixpath.normpath(path)
+    rooted = posixpath.normpath(path.lstrip("/"))
+    out: list[str] = []
+    for form in (joined, rooted):
+        if not obsidian_provider._escapes_root(form) and form not in out:
+            out.append(form)
+    return out
+
+
+def _name_candidates(path: str, vault_index: Any) -> list[str]:
+    """EVERY vault path the name rule could pick for `path` (a bare name by basename, a
+    path-qualified one by `/`-boundary suffix), never just the first."""
+    form = posixpath.normpath(path.lstrip("/"))
+    if obsidian_provider._escapes_root(form) or form == ".":
+        return []
+    lower = form.lower()
+    if "/" in form:
+        return [p for p in vault_index.paths if p.lower() == lower or p.lower().endswith("/" + lower)]
+    named = vault_index.get(obsidian_provider._strip_ext(form).lower()) or []
+    return [p for p in named if obsidian_provider._basename(p).lower() == lower]
+
+
+def _obsidian_target(path: str, inner: str, vault_index: Any) -> tuple[str | None, str]:
+    """`(path inside the vault, action)` for a `.md` relative href of the note at `inner`.
+
+    1. The exact path the member wrote (beside the note, then from the top): `relative_to_note`.
+    2. Fix round 1, C-1: the provider's NAME rule chooses among same-named notes (same folder,
+       else shortest path). A connector vault is one vault, so that choice is safe there; the
+       file importer's keys do not show where a drop's vaults are rooted (`.obsidian/` is not
+       stored), so here a choice could open ANOTHER vault's note. A name match is taken only
+       when it is the ONE candidate in the C9 vault AND it sits in the linking note's own first
+       folder (`relative_by_name`); two or more is `relative_ambiguous`; one elsewhere is
+       `relative_unresolved`. Both leave the link as written."""
+    for form in _exact_forms(path, obsidian_provider._dir_of(inner)):
+        found = vault_index.by_lower.get(form.lower())
+        if found is not None:
+            return found, TO_NOTE
+    candidates = _name_candidates(path, vault_index)
+    if len(candidates) > 1:
+        return None, AMBIGUOUS
+    scope = inner.split("/", 1)[0] + "/" if "/" in inner else ""
+    if len(candidates) == 1 and candidates[0].startswith(scope):
+        return candidates[0], BY_NAME
+    return None, UNRESOLVED
+
+
 def relative_target(href: str, *, import_key: str, import_source: str,
                     index: FileKeyIndex) -> tuple[str | None, str]:
     """`(import key, action)` for a relative href in a FILE note. With a key, the action is a
@@ -143,11 +196,10 @@ def relative_target(href: str, *, import_key: str, import_source: str,
         # `|` separates a pending key's fields and cannot be in an Obsidian file name.
         if vault_index is None or "|" in path:
             return None, UNRESOLVED
-        from_dir = obsidian_provider._dir_of(inner)
-        resolved = obsidian_provider.resolve_pending_target(f"{path}|{from_dir}|rel", vault_index)
+        resolved, action = _obsidian_target(path, inner, vault_index)
         if resolved is None:
-            return None, UNRESOLVED
-        return (f"{_OBSIDIAN}{vault}/{resolved}" if vault else f"{_OBSIDIAN}{resolved}"), TO_NOTE
+            return None, action
+        return (f"{_OBSIDIAN}{vault}/{resolved}" if vault else f"{_OBSIDIAN}{resolved}"), action
     if import_source == NOTION_SOURCE and import_key.startswith(_NOTION):
         path = _join(posixpath.dirname(import_key[len(_NOTION):]), target.split("?", 1)[0])
         if not _NOTION_PAGE_EXT_RE.search(path):
