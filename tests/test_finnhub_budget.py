@@ -269,3 +269,16 @@ def test_the_budget_stays_under_finnhubs_published_limit():
     )
     # ...and not so far under that a normal day is throttled for no reason.
     assert fhc._FH_RATE_LIMIT_PER_MIN >= 30.0
+
+
+def test_the_budget_leaves_room_for_the_other_services_on_the_key(monkeypatch):
+    """2026-11-02: tx-recap and morning-wire share FINNHUB_API_KEY; at 55/min this pod starved them (429s)."""
+    import importlib
+    import api.services.finnhub_client as fhc_mod
+    assert fhc_mod._rate_from_env() == 45.0 or "FINNHUB_RATE_PER_MIN" in __import__("os").environ
+    monkeypatch.setenv("FINNHUB_RATE_PER_MIN", "50")
+    assert fhc_mod._rate_from_env() == 50.0
+    monkeypatch.setenv("FINNHUB_RATE_PER_MIN", "500")
+    assert fhc_mod._rate_from_env() == 55.0          # never above the old ceiling
+    monkeypatch.setenv("FINNHUB_RATE_PER_MIN", "nonsense")
+    assert fhc_mod._rate_from_env() == 45.0
