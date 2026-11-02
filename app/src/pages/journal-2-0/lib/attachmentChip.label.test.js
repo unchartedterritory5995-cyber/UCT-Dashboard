@@ -40,7 +40,7 @@ describe('attachmentChip — a label is shown, the download stays the name', () 
   it('renders the label as the chip text and keeps it through a parse', () => {
     const html = generateHTML(chipDoc({ href: HREF, name: 'q3 report.pdf', label: 'the report' }), EXT)
     expect(html).toBe(
-      '<a data-type="attachmentChip" data-name="q3 report.pdf" data-label="the report" '
+      '<a data-type="attachmentChip" data-name="q3 report.pdf" data-label="the report" title="q3 report.pdf" '
       + 'href="/api/j2/notes/attachments/u1/n1/file/q3 report.pdf" download="q3 report.pdf" '
       + 'rel="noreferrer">the report</a>')
     const back = generateJSON(html, EXT).content[0]
@@ -61,6 +61,18 @@ describe('attachmentChip — a label is shown, the download stays the name', () 
       expect(html, String(label)).toContain('>q3 report.pdf</a>')
       expect(html, String(label)).not.toContain('data-label')
     }
+  })
+
+  it('a label never hides the real file: its name is on hover and is the download (D2 fix round 1, M3)', () => {
+    // `[invoice.pdf](payload.exe)`: the chip reads invoice.pdf, so the real name must show.
+    editor = new Editor({ extensions: EXT, content: chipDoc({ href: HREF, name: 'payload.exe', label: 'invoice.pdf' }) })
+    const a = editor.view.dom.querySelector('a[data-type="attachmentChip"]')
+    expect(a.textContent).toBe('invoice.pdf')
+    expect(a.getAttribute('title')).toBe('payload.exe')
+    expect(a.getAttribute('download')).toBe('payload.exe')
+    // No label, no title: today's chip, unchanged.
+    const plain = generateHTML(chipDoc({ href: HREF, name: 'payload.exe' }), EXT)
+    expect(plain).not.toContain('title=')
   })
 
   it('search and citation text name the file, label or not', () => {

@@ -49,6 +49,9 @@ export const AttachmentChip = Node.create({
       'data-name': node.attrs.name,
       'data-size': node.attrs.size ?? undefined,
       'data-label': label ?? undefined,
+      // D2 fix round 1 (M3): a label can say anything (`[invoice.pdf](payload.exe)`), so
+      // the real file's name is always on hover; the download is always `name` (below).
+      title: label ? node.attrs.name : undefined,
       href: node.attrs.href,
       download: node.attrs.name,
       rel: 'noreferrer',
