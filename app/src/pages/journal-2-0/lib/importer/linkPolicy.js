@@ -38,7 +38,9 @@ const KEEP_SCHEMAS = new Set(['http:', 'https:', 'mailto:'])
 // The server's `_STOP_RE`, code point for code point (the vectors' `_doc` lists them).
 const STOP_RE = /[\u3000\u3001\u3002\uFF0C\uFF1B\uFF1A\uFF01\uFF1F\uFF08\uFF09\u3010\u3011\u300C\u300D\u300E\u300F\u300A\u300B\u3008\u3009\u201C\u201D\u2018\u2019\u2026]/
 const TRAIL_CHARS = '.,:;!?'
-const SKIP_SELECTOR = 'a, code, pre, [data-type="inline-math"], [data-type="block-math"], [data-latex], [data-type="attachmentChip"]'
+// Fix round 1: never an `<a>` inside a raw-text or foreign element (script, style,
+// textarea, title, svg), where it would be text or a foreign node, not a link.
+const SKIP_SELECTOR = 'a, code, pre, [data-type="inline-math"], [data-type="block-math"], [data-latex], [data-type="attachmentChip"], script, style, textarea, title, svg'
 
 const kept = (m) => KEEP_SCHEMAS.has(m.schema) || (m.schema === '' && m.raw.slice(0, 4).toLowerCase() === 'www.')
 

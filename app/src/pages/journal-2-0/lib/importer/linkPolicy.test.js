@@ -71,6 +71,17 @@ describe('linkifyTextNodes', () => {
     expect(linkifyTextNodes(b)).toBe(2)
     expect(b.innerHTML).toBe('<p><b>x</b> a <a href="https://a.com">https://a.com</a> b <a href="https://www.b.com">www.b.com</a> c</p>')
   })
+  it('never inserts an <a> into script, style, textarea, title or svg (fix round 1)', () => {
+    const doc = new DOMParser().parseFromString(
+      '<html><head><title>https://t.com</title></head><body>'
+      + '<script>var u = "https://s.com"</script><style>a{background:url(https://st.com/x.png)}</style>'
+      + '<textarea>https://ta.com</textarea><svg><text>https://sv.com</text></svg>'
+      + '<p>https://ok.com</p></body></html>', 'text/html')
+    expect(linkifyTextNodes(doc.documentElement)).toBe(1)
+    expect([...doc.querySelectorAll('a')].map((a) => a.getAttribute('href'))).toEqual(['https://ok.com'])
+    expect(doc.querySelector('script').textContent).toBe('var u = "https://s.com"')
+    expect(doc.querySelector('textarea').value).toBe('https://ta.com')
+  })
   it('is idempotent', () => {
     const b = dom('<p>see https://a.com</p>')
     expect(linkifyTextNodes(b)).toBe(1)
@@ -208,6 +219,34 @@ describe('markdown lane: a refused link keeps its visible text only (Plan A hand
     }
     const ok = dom(mdToHtml('[![i](https://cdn.com/c.png)](https://a.com)'))
     expect(ok.querySelector('a img').getAttribute('src')).toBe('https://cdn.com/c.png')
+  })
+  it.each([
+    '[<javascript:alert(1)>](https://a.com)',
+    '[a <javascript:alert(1)> b](https://a.com)',
+    '[<vbscript:x>](https://a.com)',
+  ])('an autolink inside a link label keeps the stock gate: %s (fix round 1)', (md) => {
+    const b = dom(mdToHtml(md))
+    expect(b.querySelector('a[href^="javascript"], a[href^="vbscript"]')).toBeNull()
+    expect(b.querySelector('a a')).toBeNull()
+    expect(b.querySelector('a').getAttribute('href')).toBe('https://a.com')
+    expect(b.textContent).toContain('script:')
+  })
+  it('a bare URL inside a link label is not a nested link', () => {
+    const b = dom(mdToHtml('[see https://b.com](https://a.com)'))
+    expect(b.querySelector('a a')).toBeNull()
+    expect(b.querySelectorAll('a')).toHaveLength(1)
+  })
+  it.each([
+    '[x](<javascript:alert(1)>)', '[x](javascript:alert(1) "t")',
+  ])('%s is still emitted as a link that resolveHref refuses (text only)', (md) => {
+    const b = dom(mdToHtml(md))
+    expect(b.textContent.trim()).toBe('x')
+    const a = b.querySelector('a')
+    expect(a).not.toBeNull()
+    expect(resolveHref(a.getAttribute('href'))).toBeNull()
+    neutraliseAnchor(a)
+    expect(b.querySelector('a')).toBeNull()
+    expect(b.textContent.trim()).toBe('x')
   })
   it('a link nested in an image alt is not opened by it', () => {
     expect(dom(mdToHtml('![[x](javascript:y)](javascript:z)')).querySelector('img')).toBeNull()
