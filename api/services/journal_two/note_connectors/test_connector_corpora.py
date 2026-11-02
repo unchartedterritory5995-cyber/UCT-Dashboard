@@ -146,6 +146,9 @@ def _images_by_size(work, corpus: str, body) -> dict[tuple[int, int], dict[str, 
     for node in _nodes(body, "image"):
         path = _file(work, corpus, node["attrs"]["src"])
         with Image.open(path) as im:
+            # Task 15: two images of one size would silently overwrite each other here, and a
+            # construct test would then assert on whichever came last.
+            assert im.size not in out, f"two images of size {im.size}: key by something else"
             out[im.size] = {"node": node, "path": path, "format": im.format,
                             "orientation": im.getexif().get(0x0112)}
     return out
@@ -161,6 +164,119 @@ def test_corpus_fixtures_are_current(run, corpus):
     assert gen.render(run[corpus]).encode("utf-8") == committed, (
         f"{corpus}: the engine's stored output differs from the committed fixture. Review the "
         "change, then run `python -m api.services.journal_two.note_connectors.corpora.corpora_gen`.")
+
+
+# ── the rail's own guards (Task 15) ─────────────────────────────────────────────────
+
+def test_corpus_run_reached_no_network(run):
+    """`gen.PUBLIC_TEST_ADDRESS` is a real Google address: the run must never have tried
+    any outbound door (recorded, because the engine turns most failures into a notice)."""
+    assert gen.LAST_RUN_REFUSED == []
+
+
+def test_corpus_network_guard_refuses_every_outbound_door():
+    import asyncio
+    import socket
+
+    import httpx
+
+    original = socket.create_connection
+    refused: list[str] = []
+    with gen.no_network(refused):
+        with pytest.raises(gen.NetworkRefused):
+            socket.create_connection(("192.0.2.1", 443), timeout=0.2)
+        with socket.socket() as s, pytest.raises(gen.NetworkRefused):
+            s.settimeout(0.2)
+            s.connect((gen.PUBLIC_TEST_ADDRESS, 443))
+        with socket.socket() as s, pytest.raises(gen.NetworkRefused):
+            s.settimeout(0.2)
+            s.connect_ex(("192.0.2.1", 443))
+        with pytest.raises(gen.NetworkRefused):
+            socket.getaddrinfo("corpus-guard.invalid", 443)
+        with httpx.Client(timeout=0.2) as client, pytest.raises(gen.NetworkRefused):
+            client.get(f"https://{gen.PUBLIC_TEST_ADDRESS}/")
+
+        async def async_get() -> None:
+            async with httpx.AsyncClient(timeout=0.2) as client:
+                await client.get(f"https://{gen.PUBLIC_TEST_ADDRESS}/")
+        with pytest.raises(gen.NetworkRefused):
+            asyncio.run(async_get())
+        # CONTROL: loopback stays open (asyncio's self-pipe on Windows is a loopback socketpair).
+        a, b = socket.socketpair()
+        a.close(), b.close()
+    assert len(refused) == 6, refused
+    assert socket.create_connection is original  # restored on the way out
+
+
+def test_corpus_build_runs_inside_the_network_guard(tmp_path, monkeypatch):
+    """`build()` itself enters the guard (so `python -m ...corpora_gen` is guarded too), and a
+    refusal the code under test SWALLOWS is still recorded."""
+    import socket
+
+    async def swallowing_run_all(_work_dir):
+        try:
+            socket.create_connection(("192.0.2.1", 443), timeout=0.2)
+        except Exception:  # noqa: BLE001 -- the engine's own shape: a failure becomes a notice
+            pass
+        return {}
+
+    saved = list(gen.LAST_RUN_REFUSED)
+    monkeypatch.setattr(gen, "_run_all", swallowing_run_all)
+    try:
+        assert gen.build(tmp_path) == {}
+        assert gen.LAST_RUN_REFUSED == ["socket.create_connection ('192.0.2.1', 443)"]
+    finally:
+        gen.LAST_RUN_REFUSED[:] = saved
+
+
+def test_corpus_fixture_write_is_atomic(tmp_path, monkeypatch):
+    """`generate()` writes through `_write_atomically`: a failed write leaves the committed
+    fixture byte for byte and no stray temp file."""
+    path = tmp_path / "corpus.json"
+    path.write_bytes(b'{"committed": true}\n')
+    with pytest.raises(UnicodeEncodeError):
+        gen._write_atomically(path, '{"half": "\ud800"}\n')   # fails while encoding
+    monkeypatch.setattr(gen.os, "replace", lambda *_a: (_ for _ in ()).throw(OSError("disk")))
+    with pytest.raises(OSError):
+        gen._write_atomically(path, '{"new": true}\n')        # fails at the swap
+    assert path.read_bytes() == b'{"committed": true}\n'
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["corpus.json"]
+    monkeypatch.undo()
+    gen._write_atomically(path, '{"new": true}\n')
+    assert path.read_bytes() == b'{"new": true}\n'
+
+
+def test_corpus_generate_writes_through_the_atomic_writer(tmp_path, monkeypatch):
+    """...and `generate()` refuses to write anything after a run that tried the network."""
+    written: list[str] = []
+    monkeypatch.setattr(gen, "build", lambda _work: {"c": {"x": 1}})
+    monkeypatch.setattr(gen, "_write_atomically", lambda path, text: written.append(path.name))
+    assert [p.name for p in gen.generate(tmp_path)] == ["c.json"] and written == ["c.json"]
+    saved = list(gen.LAST_RUN_REFUSED)
+    gen.LAST_RUN_REFUSED[:] = ["socket.connect x"]
+    try:
+        with pytest.raises(gen.NetworkRefused):
+            gen.generate(tmp_path)
+    finally:
+        gen.LAST_RUN_REFUSED[:] = saved
+    assert written == ["c.json"]
+
+
+def test_corpus_every_xfail_here_pins_what_it_expects():
+    """A strict xfail with no `raises=` passes on ANY exception -- a typo'd fixture name, a
+    KeyError -- so it can stay "expected" for a reason it never named (Task 15)."""
+    import ast
+    tree = ast.parse(pathlib.Path(__file__).read_text(encoding="utf-8"))
+    loose = [node.lineno for node in ast.walk(tree) if isinstance(node, ast.Call)
+             and isinstance(node.func, ast.Attribute) and node.func.attr == "xfail"
+             and not any(k.arg == "raises" for k in node.keywords)]
+    assert loose == [], f"xfail without raises= at lines {loose}"
+
+
+def test_images_by_size_refuses_two_images_of_one_size(work, wall):
+    image = _nodes(wall, "image")[0]
+    with pytest.raises(AssertionError, match="two images of size"):
+        _images_by_size(work, "notion_messy", {"type": "doc", "content": [image, image]})
 
 
 def test_corpus_nothing_is_left_as_an_import_placeholder(run):

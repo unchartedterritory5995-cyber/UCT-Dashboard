@@ -14,7 +14,8 @@ It runs the REAL engine end to end -- never a second, hand-rolled converter:
   * Notion: `engine.sync_source` with the real `NotionProvider`, whose client is an
     `httpx.AsyncClient` on `httpx.MockTransport` serving the dump (`base._resolve_host` is
     patched to a public address, so the SSRF guard runs on every hop and no DNS lookup or
-    socket is ever made). Two members: `u-notion` (two passes) and `u-capped` (one pass,
+    socket is ever made; since Task 15 `no_network()` enforces that rather than assuming
+    it). Two members: `u-notion` (two passes) and `u-capped` (one pass,
     under a small per-member media cap, so the cap is reached in the middle of a note).
   * Obsidian: the vault's markdown is pushed through the real staging door
     (`obsidian_staging.ingest_batch`), then `engine.sync_source` runs the real
@@ -286,6 +287,87 @@ async def _public_address(_host: str) -> list[str]:
     return [PUBLIC_TEST_ADDRESS]
 
 
+# ── the network guard (Plan A Task 15) ───────────────────────────────────────────────
+#
+# ⛔ `PUBLIC_TEST_ADDRESS` is a REAL Google address. Every hop is meant to land on a
+# `MockTransport`, but nothing used to PROVE it: one client built without the mock transport
+# would have sent a member-shaped request to Google, and the run would still have produced
+# plausible output (a `fetch_failed` notice is a legal corpus outcome). So the whole run sits
+# inside `no_network()`, which refuses, and RECORDS, every outbound door this process has:
+# a socket connect, `socket.create_connection`, a DNS lookup, and httpx's two DEFAULT
+# transports (a `MockTransport` is neither, so the corpus's own traffic is untouched).
+# Loopback stays open: on Windows asyncio's own self-pipe is a socketpair made by a
+# loopback connect. Recorded as well as raised, because the engine turns most failures into
+# a notice: `LAST_RUN_REFUSED` must be empty after a run (`test_connector_corpora.py`).
+
+class NetworkRefused(RuntimeError):
+    """An outbound connection attempted inside `no_network()`."""
+
+
+#: Every refusal of the last `build()`, as `"<door> <target>"`. Empty is the only pass.
+LAST_RUN_REFUSED: list[str] = []
+
+_LOOPBACK_HOSTS = frozenset({"localhost", "127.0.0.1", "::1", "0:0:0:0:0:0:0:1"})
+
+
+def _is_loopback(host: Any) -> bool:
+    if not isinstance(host, str):
+        return False
+    return host.lower() in _LOOPBACK_HOSTS or host.startswith("127.")
+
+
+@contextlib.contextmanager
+def no_network(refused: list[str]) -> Iterator[list[str]]:
+    import socket
+
+    def refuse(door: str, target: Any) -> None:
+        refused.append(f"{door} {target}")
+        raise NetworkRefused(f"connector corpora: no network ({door} {target})")
+
+    def guarded_connect(original: Any, door: str) -> Any:
+        def connect(self: Any, address: Any, *args: Any, **kwargs: Any) -> Any:
+            host = address[0] if isinstance(address, tuple) and address else address
+            if not _is_loopback(host):
+                refuse(door, address)
+            return original(self, address, *args, **kwargs)
+        return connect
+
+    def create_connection(address: Any, *args: Any, **kwargs: Any) -> Any:
+        if not _is_loopback(address[0] if isinstance(address, tuple) and address else address):
+            refuse("socket.create_connection", address)
+        return original_create_connection(address, *args, **kwargs)
+
+    def getaddrinfo(host: Any, *args: Any, **kwargs: Any) -> Any:
+        if host is not None and not _is_loopback(host):
+            refuse("socket.getaddrinfo", host)
+        return original_getaddrinfo(host, *args, **kwargs)
+
+    def sync_transport(self: Any, request: httpx.Request) -> Any:
+        refuse("httpx.HTTPTransport", request.url)
+
+    async def async_transport(self: Any, request: httpx.Request) -> Any:
+        refuse("httpx.AsyncHTTPTransport", request.url)
+
+    original_create_connection = socket.create_connection
+    original_getaddrinfo = socket.getaddrinfo
+    patches = [
+        (socket.socket, "connect", guarded_connect(socket.socket.connect, "socket.connect")),
+        (socket.socket, "connect_ex", guarded_connect(socket.socket.connect_ex, "socket.connect_ex")),
+        (socket, "create_connection", create_connection),
+        (socket, "getaddrinfo", getaddrinfo),
+        (httpx.HTTPTransport, "handle_request", sync_transport),
+        (httpx.AsyncHTTPTransport, "handle_async_request", async_transport),
+    ]
+    saved = [(obj, name, getattr(obj, name)) for obj, name, _ in patches]
+    try:
+        for obj, name, value in patches:
+            setattr(obj, name, value)
+        yield refused
+    finally:
+        for obj, name, value in saved:
+            setattr(obj, name, value)
+
+
 @contextlib.contextmanager
 def _run_environment(work_dir: pathlib.Path) -> Iterator[dict[str, Any]]:
     from api.services import auth_db
@@ -483,8 +565,12 @@ async def _run_all(work_dir: pathlib.Path) -> dict[str, dict[str, Any]]:
 def build(work_dir: pathlib.Path) -> dict[str, dict[str, Any]]:
     """Runs both corpora through the real engine under `work_dir` (a fresh database and
     attachment root per corpus: `<work_dir>/<corpus>/auth.db`, `<work_dir>/<corpus>/att`).
-    Returns `{corpus: stored result}`. The files stay under `work_dir` for the rail to read."""
-    return asyncio.run(_run_all(pathlib.Path(work_dir)))
+    Returns `{corpus: stored result}`. The files stay under `work_dir` for the rail to read.
+    The whole run, event loop included, is inside `no_network()`; its refusals are left in
+    `LAST_RUN_REFUSED`."""
+    LAST_RUN_REFUSED.clear()
+    with no_network(LAST_RUN_REFUSED):
+        return asyncio.run(_run_all(pathlib.Path(work_dir)))
 
 
 def render(result: dict[str, Any]) -> str:
@@ -496,11 +582,30 @@ def generate(out_dir: pathlib.Path = FIXTURES_OUT_DIR) -> list[pathlib.Path]:
     written = []
     # ignore_cleanup_errors: on Windows a SQLite handle the app keeps open can outlive the run.
     with tempfile.TemporaryDirectory(prefix="connector-corpora-", ignore_cleanup_errors=True) as tmp:
-        for name, result in build(pathlib.Path(tmp)).items():
+        results = build(pathlib.Path(tmp))
+        if LAST_RUN_REFUSED:
+            raise NetworkRefused(f"the run tried to reach the network: {LAST_RUN_REFUSED}")
+        for name, result in results.items():
             path = out_dir / f"{name}.json"
-            path.write_text(render(result), encoding="utf-8", newline="\n")
+            _write_atomically(path, render(result))
             written.append(path)
     return written
+
+
+def _write_atomically(path: pathlib.Path, text: str) -> None:
+    """Encode to a temp file beside `path`, then `os.replace` (Task 15): `write_text` opens
+    with "w", which TRUNCATES the committed fixture before a byte of the new one is written,
+    so a failure mid-write would leave a half fixture for the byte rail to compare against."""
+    data = text.encode("utf-8")  # an encoding failure raises before anything is touched
+    fd, tmp_name = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)
+    try:
+        with os.fdopen(fd, "wb") as handle:
+            handle.write(data)
+        os.replace(tmp_name, path)
+    except BaseException:
+        with contextlib.suppress(FileNotFoundError):
+            os.unlink(tmp_name)
+        raise
 
 
 if __name__ == "__main__":
