@@ -152,42 +152,63 @@ def test_regular_session_with_no_current_trade_at_all_is_historical(monkeypatch)
     assert q.NOTE_CLOSED not in out["notes"]
 
 
-@pytest.mark.parametrize("ymd,hm,trading,want", [
-    ("2025-12-02", (10, 0), True, "regular"), ("2025-12-02", (9, 29), True, "extended"),
-    ("2025-12-02", (4, 0), True, "extended"), ("2025-12-02", (3, 59), True, "closed"),
-    ("2025-12-02", (16, 0), True, "extended"), ("2025-12-02", (19, 59), True, "extended"),
-    ("2025-12-02", (20, 0), True, "closed"), ("2025-11-28", (13, 30), True, "extended"),   # early close
-    ("2025-11-28", (12, 59), True, "regular"), ("2025-11-29", (11, 0), False, "closed"),
-])
-def test_session_is_classified_from_the_et_clock_and_calendar(monkeypatch, ymd, hm, trading, want):
+# The trading day and the minutes BOTH come from `now`, read against the real NYSE calendar: no helper is patched with
+# a hand-picked "is it a trading day" (agent-qa F-19 — that patch is exactly what hid the wall-clock read).
+def _et(ymd, hm):
     from zoneinfo import ZoneInfo
-    monkeypatch.setattr(massive, "_today_et_is_a_trading_day", lambda: trading)
     y, m, d = map(int, ymd.split("-"))
-    now = __import__("datetime").datetime(y, m, d, *hm, tzinfo=ZoneInfo("America/New_York"))
-    assert q._session(now) == want
+    return __import__("datetime").datetime(y, m, d, *hm, tzinfo=ZoneInfo("America/New_York"))
 
 
-@pytest.mark.parametrize("ymd,hm,trading,want", [
-    ("2025-12-02", (10, 0), True, "regular"), ("2025-12-02", (9, 29), True, "premarket"),
-    ("2025-12-02", (4, 0), True, "premarket"), ("2025-12-02", (3, 59), True, "overnight"),
-    ("2025-12-02", (16, 0), True, "after-hours"), ("2025-12-02", (19, 59), True, "after-hours"),
-    ("2025-12-02", (20, 0), True, "overnight"), ("2025-11-28", (13, 0), True, "after-hours"),   # early close
-    ("2025-11-28", (12, 59), True, "regular"), ("2025-11-29", (11, 0), False, "closed"),        # Saturday
-    ("2025-12-25", (10, 0), False, "closed"),                                                    # holiday
+@pytest.mark.parametrize("ymd,hm,want", [
+    ("2025-12-02", (10, 0), "regular"), ("2025-12-02", (9, 29), "extended"),
+    ("2025-12-02", (4, 0), "extended"), ("2025-12-02", (3, 59), "closed"),
+    ("2025-12-02", (16, 0), "extended"), ("2025-12-02", (19, 59), "extended"),
+    ("2025-12-02", (20, 0), "closed"), ("2025-11-28", (13, 30), "extended"),   # early close
+    ("2025-11-28", (12, 59), "regular"), ("2025-11-29", (11, 0), "closed"),
 ])
-def test_session_detail_v15_and_the_v11_label_never_disagree(monkeypatch, ymd, hm, trading, want):
-    from zoneinfo import ZoneInfo
-    monkeypatch.setattr(massive, "_today_et_is_a_trading_day", lambda: trading)
-    y, m, d = map(int, ymd.split("-"))
-    now = __import__("datetime").datetime(y, m, d, *hm, tzinfo=ZoneInfo("America/New_York"))
+def test_session_is_classified_from_the_et_clock_and_calendar(ymd, hm, want):
+    assert q._session(_et(ymd, hm)) == want
+
+
+@pytest.mark.parametrize("ymd,hm,want", [
+    ("2025-12-02", (10, 0), "regular"), ("2025-12-02", (9, 29), "premarket"),
+    ("2025-12-02", (4, 0), "premarket"), ("2025-12-02", (3, 59), "overnight"),
+    ("2025-12-02", (16, 0), "after-hours"), ("2025-12-02", (19, 59), "after-hours"),
+    ("2025-12-02", (20, 0), "overnight"),
+    ("2025-11-28", (12, 59), "regular"), ("2025-11-28", (13, 0), "after-hours"),            # half day: 13:00 close
+    ("2025-11-28", (16, 59), "after-hours"), ("2025-11-28", (17, 0), "overnight"),          # …extended ends 17:00 (O-1)
+    ("2025-11-29", (11, 0), "closed"), ("2025-11-30", (12, 0), "closed"),                    # Saturday, Sunday
+    ("2025-12-25", (10, 0), "closed"), ("2025-11-27", (11, 0), "closed"),                    # Christmas, Thanksgiving
+])
+def test_session_detail_v15_and_the_v11_label_never_disagree(ymd, hm, want):
+    now = _et(ymd, hm)
     assert q._session_detail(now) == want and want in q.SESSION_DETAILS
     assert q._session(now) == {"premarket": "extended", "after-hours": "extended"}.get(
         want, "closed" if want in ("overnight", "closed") else want)
 
 
+@pytest.mark.parametrize("wall", ["2026-11-01 12:00", "2026-11-26 12:00", "2026-11-03 12:00"])  # Sun, holiday, Tue
+def test_a_given_now_never_reads_the_wall_clock_F19(monkeypatch, wall):
+    # whatever day the WALL clock says, an explicit `now` decides alone (agent-qa F-19 repro: Sunday wall, Tue now)
+    from zoneinfo import ZoneInfo
+    frozen = __import__("datetime").datetime.strptime(wall, "%Y-%m-%d %H:%M").replace(tzinfo=ZoneInfo("America/New_York"))
+
+    class _Wall(__import__("datetime").datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return frozen if tz is None else frozen.astimezone(tz)
+    monkeypatch.setattr(q, "datetime", _Wall)
+    monkeypatch.setattr(massive, "_today_et_is_a_trading_day", lambda: (_ for _ in ()).throw(AssertionError("wall clock read")))
+    assert q._session_detail(_et("2025-12-02", (12, 0))) == "regular"        # a Tuesday noon `now`
+    assert q._session_detail(_et("2025-11-30", (12, 0))) == "closed"         # a Sunday noon `now`
+    assert q._session_detail() == ("closed" if wall[:10] in ("2026-11-01", "2026-11-26") else "regular")
+
+
 def test_unreadable_calendar_is_closed_never_open(monkeypatch):
-    monkeypatch.setattr(massive, "_today_et_is_a_trading_day", lambda: (_ for _ in ()).throw(RuntimeError("x")))
-    assert q._session_detail() == "closed" and q._session() == "closed"
+    from api.services import bars_fetch
+    monkeypatch.setattr(bars_fetch, "_is_nyse_holiday", lambda ymd: (_ for _ in ()).throw(RuntimeError("x")))
+    assert q._session_detail(_et("2025-12-02", (10, 0))) == "closed" and q._session(_et("2025-12-02", (10, 0))) == "closed"
 
 
 @pytest.mark.parametrize("detail,label", [("regular", "regular"), ("premarket", "extended"),
