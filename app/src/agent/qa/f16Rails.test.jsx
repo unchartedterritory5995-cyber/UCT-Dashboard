@@ -142,3 +142,32 @@ describe('F-16 browser (3): "strongest" is refused locally, and the market-cap d
     expect(String(row.outcome || '')).toMatch(/market cap/i)
   }, 30000)
 })
+
+// agent-sc #657 @ 9c28e17: the "strongest" refusal fires ONLY on a screen or ranking BY strength. QA's own phrasings
+// (not agent-sc's examples): ranking/screening by strength is refused locally; other uses of "strong" are not refused.
+describe('F-16 browser (4): the strength refusal is narrow (QA phrasings)', () => {
+  // MEASURED on 9c28e17: these three variants are NOT claimed by the narrow fast path (they cost a model call).
+  // The safety property is that the PLANNER path is refused too: if the model plans the natural screen (by RS rank or
+  // the composite), it is refused with the clear sentence and no scan.
+  for (const [text, sort] of [['find the strongest stocks in the market', 'rs_rank'], ['screen for the strongest names in tech', 'uct_composite'],
+    ['sort everything by relative strength', 'rs_rank']]) {
+    it(`planner path refused, no scan: "${text}" (planned as a sort by ${sort})`, async () => {
+      const say = await mount()
+      envelopes.push((b) => plan([{ action: 'screener.run', target: b.context.screener?.[0]?.ref, args: run({ filters: [f('price', 5)], sort_field: sort, sort_dir: 'desc' }) }]))
+      await say(text)
+      await waitFor(() => expect(records.length).toBeGreaterThan(0), { timeout: 6000 })
+      expect(bodies.length, 'measured: this variant went to the model').toBe(1)
+      expect(scans).toHaveLength(0)
+      expect(JSON.stringify(records)).toContain(RATINGS_REFUSAL.slice(0, 40))
+    }, 30000)
+  }
+  for (const text of ['which of nvda and amd looks stronger to you', 'add the strongest one of those to my watchlist', 'the market feels really strong this week']) {
+    it(`NOT refused (another sense of "strong"): "${text}"`, async () => {
+      const say = await mount()
+      envelopes.push(answer)
+      await say(text)
+      await waitFor(() => expect(records.length + bodies.length).toBeGreaterThan(0), { timeout: 6000 })
+      expect(JSON.stringify(records)).not.toContain(RATINGS_REFUSAL.slice(0, 40))
+    }, 30000)
+  }
+})
