@@ -9,20 +9,28 @@
  *   -> htmlToNote per doc -> runImport
  *
  * against a SCRIPTED SERVER that mirrors the real Plan A door shapes (controller ruling R10):
- *   - `POST /import/confirm`   -> {created, updated, recovered, keptEdited, skipped, failed}
+ *   - `POST /import/confirm`   -> {created, updated, recovered, keptEdited, skipped, failed}.
+ *       Like `notes.import_confirm`: a known key whose fingerprint (here: the confirmed note's
+ *       JSON) is unchanged and whose media phase finished is `skipped` (non-recover only);
  *   - `POST /{id}/images|attachments` -> 200 `_stored_media_payload`
  *       {url, kind, name, size, mime, width, height, original}: an `image/svg+xml` part is
  *       stored as `kind: "file"`, an `image/heic` part as a JPEG plus its kept `original`;
  *       a part named in `storageLimit` -> 400 {detail, reason: "storage_limit"};
  *   - `POST /media/fetch` -> 200 {src, kind, filename, original?} for `cdn.example.com` /
- *       `news.example.com`, 404 {detail} for `gone.example.com`, NO ANSWER (until aborted) for
- *       `slow.example.com`, else 422 {reason: "fetch_failed", markerText};
- *   - `POST /import/heal-links` -> {healed, unresolved: [{noteId, key, text}]}: a kept
- *       `import-link://` key names a note this server holds by importKey => healed, else
- *       unresolved (an `evernote-title:` key always reads unresolved, as the brief scripts);
+ *       `news.example.com`, NO ANSWER (until aborted) for `slow.example.com`, else (a dead or
+ *       refused upstream, `gone.example.com` included) 422 {reason: "fetch_failed", markerText}.
+ *       Its ONLY 404 is the real door's: an unknown `noteImportKey` (a key in `trashed`);
+ *   - `POST /import/heal-links` -> {healed, unresolved: [{noteId, key, text}]}, like
+ *       `link_keys.heal_pending_links` over `resolve_link_keys`: an exact key resolves to the
+ *       note holding that importKey; an `evernote-title:` key to the ONE Evernote-sourced note
+ *       whose whitespace-collapsed title equals it (two or more => nothing, never a guess).
+ *       Resolved marks in the named notes are REWRITTEN in the stored body; `unresolved` lists
+ *       each key left once, with its (adjacent-run-joined) text;
  *   - `PUT /{id}` -> the body is STORED (`puts`), never normalised;
- *   - every one of the four doors answers its FIRST call 429 (`Retry-After: 0`), then 200:
- *     ONE 429-then-200 per door, so every corpus run crosses the busy path (H4).
+ *   - every one of the four doors answers its FIRST call with a plain 429 {detail}, NO
+ *     `Retry-After` (the real doors send none), then 200: ONE 429-then-200 per door, so every
+ *     corpus run crosses commit.js's own exponential back-off branch (H4). `run.sleeps` records
+ *     the back-off delays the client asked for.
  * Every multipart upload is recorded with its `Blob.type` and its bytes. Nothing touches the
  * network: an unscripted URL throws.
  *
@@ -89,7 +97,12 @@ export const fixtureBytes = (rel) => new Uint8Array(readFileSync(join(CORPORA, r
 export const ATTACH = '/api/j2/notes/attachments/u-corpus/'
 const json = (body, status = 200, headers = {}) => new Response(JSON.stringify(body), {
   status, headers: { 'Content-Type': 'application/json', ...headers } })
-const busy = () => json({ detail: 'Busy, try again.' }, 429, { 'Retry-After': '0' })
+// ⛔ No Retry-After: journal_two.py's upload gate and fetch in-flight cap, and
+// public_note_payload.enforce_rate, all raise a plain HTTPException(429, detail).
+const busy = () => json({ detail: 'Busy, try again.' }, 429)
+
+/** Python `" ".join(t.split())` for the titles here (`link_keys._norm_title`). */
+const normTitle = (t) => (typeof t === 'string' ? t.split(/\s+/).filter(Boolean).join(' ') : '')
 
 const FETCH_OK = new Set(['cdn.example.com', 'news.example.com'])
 const LINK_PREFIX = 'import-link://'
@@ -103,15 +116,24 @@ function walkNodes(node, out = []) {
 }
 
 /**
- * @param {{existing?: Record<string, {id: string, body: object, edited?: boolean}>,
- *          storageLimit?: string[], onDoorCall?: (call) => void}} [opts]
+ * @param {{existing?: Record<string, {id: string, body: object, title?: string, source?: string,
+ *            edited?: boolean, hash?: string}>,
+ *          inherit?: object, trashed?: string[], storageLimit?: string[]}} [opts]
+ *   `inherit`: an earlier server's `state` -- the member's notebook after a previous import
+ *   (notes, titles, sources, fingerprints, media-pending flags), so a re-import meets it.
+ *   `trashed`: importKeys the fetch door no longer finds (its 404).
  */
 export function makeServer(opts = {}) {
+  const prev = opts.inherit || null
   const state = {
-    seq: 0,
-    byKey: new Map(), // importKey -> id
-    bodies: new Map(), // id -> stored body (what the member's notebook holds)
-    titles: new Map(), // id -> title
+    seq: prev ? prev.seq : 0,
+    byKey: new Map(prev?.byKey), // importKey -> id
+    bodies: new Map(prev?.bodies), // id -> stored body (what the member's notebook holds)
+    titles: new Map(prev?.titles), // id -> title
+    sources: new Map(prev?.sources), // id -> import_source (the adapter label)
+    hashes: new Map(prev?.hashes), // id -> import fingerprint
+    pending: new Set(prev?.pending), // ids whose media phase did not finish (import_media_pending)
+    trashed: new Set(opts.trashed || []),
     edited: new Set(), // importKeys the member edited since import
     puts: new Map(), // id -> the body the import PUT
     putsRaw: [], // every PUT, in order: {id, bodyJson, importMediaPending}
@@ -127,7 +149,54 @@ export function makeServer(opts = {}) {
     state.byKey.set(key, row.id)
     state.bodies.set(row.id, row.body)
     state.titles.set(row.id, row.title || key)
+    if (row.source) state.sources.set(row.id, row.source)
+    if (row.hash) state.hashes.set(row.id, row.hash)
     if (row.edited) state.edited.add(key)
+  }
+
+  /** `resolve_link_keys`: exact importKey, or the ONE Evernote note of that title. */
+  function resolveKey(key) {
+    if (key.startsWith('evernote-title:')) {
+      const want = normTitle(key.slice('evernote-title:'.length))
+      const ids = [...state.titles].filter(([id, t]) => (state.sources.get(id) || '').toLowerCase() === 'evernote'
+        && normTitle(t) === want).map(([id]) => id)
+      return ids.length === 1 ? ids[0] : null
+    }
+    return state.byKey.get(key) || null
+  }
+
+  /** `_link_runs`: {key: first run's text, joined with adjacent runs carrying the same key}. */
+  function linkRuns(body) {
+    const out = new Map()
+    for (const block of walkNodes(body)) {
+      if (!Array.isArray(block.content)) continue
+      let open = null
+      for (const child of block.content) {
+        const href = child.type === 'text' ? (child.marks || []).find((m) => m.type === 'link')?.attrs?.href : null
+        const key = typeof href === 'string' && href.startsWith(LINK_PREFIX) ? href.slice(LINK_PREFIX.length) : null
+        if (!key) { open = null; continue }
+        if (open === key) { if (out.get(key).joinable) out.get(key).text += child.text; continue }
+        if (out.has(key)) out.get(key).joinable = false
+        else out.set(key, { text: child.text, joinable: true })
+        open = key
+      }
+    }
+    return new Map([...out].map(([k, v]) => [k, v.text]))
+  }
+
+  /** The body with every mark whose key is in `ids` pointed at its note (a structural copy). */
+  function rewriteMarks(node, ids) {
+    if (!node || typeof node !== 'object') return node
+    const next = { ...node }
+    if (Array.isArray(node.marks)) {
+      next.marks = node.marks.map((m) => {
+        const href = m.type === 'link' ? m.attrs?.href : null
+        const key = typeof href === 'string' && href.startsWith(LINK_PREFIX) ? href.slice(LINK_PREFIX.length) : null
+        return key && ids[key] ? { ...m, attrs: { ...m.attrs, href: `/journal?j2tab=notebook&note=${ids[key]}` } } : m
+      })
+    }
+    if (Array.isArray(node.content)) next.content = node.content.map((c) => rewriteMarks(c, ids))
+    return next
   }
 
   // ONE 429-then-200 per door: the first call of each kind is answered busy.
@@ -150,8 +219,16 @@ export function makeServer(opts = {}) {
           continue
         }
         const updatedAt = '2026-11-02T00:00:00Z'
+        const hash = JSON.stringify(n)
         if (known) {
+          if (payload.mode !== 'recover' && state.hashes.get(known) === hash && !state.pending.has(known)) {
+            out.skipped.push({ importKey: n.importKey, id: known })
+            continue
+          }
           state.bodies.set(known, n.bodyJson)
+          state.hashes.set(known, hash)
+          state.titles.set(known, n.title)
+          state.sources.set(known, payload.source)
           out[payload.mode === 'recover' ? 'recovered' : 'updated'].push({ importKey: n.importKey, id: known, updatedAt })
           continue
         }
@@ -160,6 +237,8 @@ export function makeServer(opts = {}) {
         state.byKey.set(n.importKey, id)
         state.bodies.set(id, n.bodyJson)
         state.titles.set(id, n.title)
+        state.sources.set(id, payload.source)
+        state.hashes.set(id, hash)
         out.created.push({ importKey: n.importKey, id, updatedAt })
       }
       return json(out)
@@ -173,17 +252,17 @@ export function makeServer(opts = {}) {
       let healed = 0
       for (const id of noteIds) {
         const body = state.bodies.get(id)
-        let healedHere = false
-        for (const node of walkNodes(body)) {
-          for (const m of node.marks || []) {
-            const href = m.type === 'link' ? m.attrs?.href : null
-            if (typeof href !== 'string' || !href.startsWith(LINK_PREFIX)) continue
-            const key = href.slice(LINK_PREFIX.length)
-            if (!key.startsWith('evernote-title:') && state.byKey.has(key)) healedHere = true
-            else unresolved.push({ noteId: id, key, text: node.text || '' })
-          }
+        const runs = linkRuns(body)
+        const mine = {}
+        for (const key of runs.keys()) {
+          const target = resolveKey(key)
+          if (target) mine[key] = target
         }
-        if (healedHere) healed += 1
+        if (Object.keys(mine).length) {
+          state.bodies.set(id, rewriteMarks(body, mine))
+          healed += 1
+        }
+        for (const [key, text] of runs) if (!mine[key]) unresolved.push({ noteId: id, key, text })
       }
       return json({ healed, unresolved })
     }
@@ -194,14 +273,18 @@ export function makeServer(opts = {}) {
       const record = { url: target, noteImportKey, status: b ? 429 : null }
       state.fetches.push(record)
       if (b) return b
-      if (!state.byKey.has(noteImportKey)) { record.status = 404; return json({ detail: 'Not found' }, 404) }
+      // The real door's ONLY 404: `import_check` found no live note for this key.
+      if (!state.byKey.has(noteImportKey) || state.trashed.has(noteImportKey)) {
+        record.status = 404
+        return json({ detail: 'Not found' }, 404)
+      }
       if (host === 'slow.example.com') {
         record.status = 'aborted'
         return new Promise((_, reject) => {
           init.signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')))
         })
       }
-      if (host === 'gone.example.com') { record.status = 404; return json({ detail: 'Not found' }, 404) }
+      // A dead or refusing upstream (`gone.example.com` too) is the door's named 422.
       if (!FETCH_OK.has(host)) {
         record.status = 422
         return json({ reason: 'fetch_failed', markerText: 'Linked image could not be copied' }, 422)
@@ -244,6 +327,8 @@ export function makeServer(opts = {}) {
       state.puts.set(id, payload.bodyJson)
       state.putsRaw.push({ id, ...payload })
       state.bodies.set(id, payload.bodyJson)
+      if (payload.importMediaPending) state.pending.add(id)
+      else state.pending.delete(id)
       return json({ id, updatedAt: '2026-11-02T00:00:01Z' })
     }
     throw new Error(`unscripted ${method} ${url}`)
@@ -259,8 +344,11 @@ export function makeServer(opts = {}) {
 
 // ── the real client path ────────────────────────────────────────────────────
 
-/** Test timing for the door calls: no real back-off sleeps, a short per-call deadline. */
-export const RETRY = { sleep: async () => {}, random: () => 0, timeoutMs: 150 }
+/** commit.js's first busy back-off with `random() = 0`: BUSY_BASE_MS * 2^0, no jitter. */
+export const FIRST_BACKOFF_MS = 500
+
+/** Test timing for the door calls: the back-off sleep is recorded, not slept; a short deadline. */
+const retryFor = (sleeps) => ({ sleep: async (ms) => { sleeps.push(ms) }, random: () => 0, timeoutMs: 150 })
 
 /**
  * @param {Array} vfiles  the drop, as the wizard receives it
@@ -282,10 +370,11 @@ export async function importCorpus(vfiles, opts = {}) {
   }
   vi.stubGlobal('fetch', server.fetchImpl)
   let summary
+  const sleeps = []
   try {
     summary = await runImport({
       source: adapter.label, destFolderId: null, docs, mode: opts.mode,
-      isCancelled: opts.isCancelled, retry: RETRY, onProgress: opts.onProgress,
+      isCancelled: opts.isCancelled, retry: retryFor(sleeps), onProgress: opts.onProgress,
     })
   } finally {
     vi.unstubAllGlobals()
@@ -304,6 +393,8 @@ export async function importCorpus(vfiles, opts = {}) {
     docs,
     warnings: [...expandWarnings, ...parsed.warnings],
     summary,
+    /** The back-off delays commit.js asked to sleep, in order (one per 429 it retried). */
+    sleeps,
     server: state,
     puts: state.puts,
     putsByKey,
@@ -394,7 +485,9 @@ const UNSAFE_READ = /^(javascript|data|vbscript|file):/i
 export function assertCorpusInvariants(run) {
   let checked = 0
   for (const doc of run.docs) {
-    const needsPut = (doc.media || []).length > 0 || (doc.links || []).length > 0
+    // Written this run (a `skipped` note was finished by an earlier one) and with a media/link phase.
+    const written = ['created', 'updated', 'recovered'].includes(run.summary.outcomes[doc.importKey])
+    const needsPut = written && ((doc.media || []).length > 0 || (doc.links || []).length > 0)
     if (needsPut) expect(run.putsByKey.get(doc.importKey), `${doc.title}: an import with media or links is PUT`).toBeTruthy()
     const body = run.storedByKey.get(doc.importKey)
     expect(body, `${doc.title}: stored`).toBeTruthy()

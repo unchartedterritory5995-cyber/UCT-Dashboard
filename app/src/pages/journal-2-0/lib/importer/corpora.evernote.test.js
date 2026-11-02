@@ -12,6 +12,7 @@ import { afterEach, beforeAll, describe, expect, it } from 'vitest'
 import {
   importCorpus, folderDrop, fixtureBytes, renderBody, destroyEditors, renderedLinks, renderedImgs,
   renderedChips, renderedNotices, storedLinks, storedText, nodes, noteHref, assertCorpusInvariants, ATTACH,
+  FIRST_BACKOFF_MS, makeServer,
 } from './__tests__/corpora.harness'
 import { MEDIA_RETRY_MAX_ATTEMPTS } from '../importNoticeText'
 
@@ -63,6 +64,9 @@ describe('Evernote corpus: the whole run', () => {
     expect(first((c) => c.url.endsWith('/attachments'))).toEqual([429, 200])
     expect(first((c) => c.url.endsWith('/media/fetch'))).toEqual([429, 200])
     expect(first((c) => c.url.endsWith('/heal-links'))).toEqual([429, 200])
+    // No Retry-After (the real doors send none): each 429 took commit.js's OWN back-off branch
+    expect(run.sleeps).toEqual([FIRST_BACKOFF_MS, FIRST_BACKOFF_MS, FIRST_BACKOFF_MS, FIRST_BACKOFF_MS])
+    expect(run.server.calls.filter((c) => c.status === 429)).toHaveLength(4)
   })
 
   it('the summary lists exactly what did not come over, once each', () => {
@@ -225,8 +229,9 @@ describe('Evernote corpus: media', () => {
     expect(JSON.stringify(body)).not.toMatch(/"(src|href)":"\s*data:/i)
   })
 
-  it('a door that never answers is stopped and named; a 404 is fetch_failed with the URL kept', () => {
+  it('a door that never answers is stopped and named; a dead upstream (the door\'s 422) is fetch_failed with the URL kept', () => {
     expect(run.server.fetches.filter((f) => f.url.includes('slow.example.com')).map((f) => f.status)).toEqual(['aborted'])
+    expect(run.server.fetches.filter((f) => f.url.includes('gone.example.com')).map((f) => f.status)).toEqual([422])
     const notices = nodes(run.bodyOf('Media mess'), 'importNotice').slice(1)
     expect(notices.map((x) => [x.attrs.reason, x.attrs.name, x.attrs.sourceUrl])).toEqual([
       ['fetch_failed', 's.png', 'https://slow.example.com/s.png'],
@@ -317,5 +322,37 @@ describe('Evernote corpus: links between notes', () => {
     expect(storedText(run.bodyOf('Links to notes'))).toBe(['App link: Trade plan', 'Shard link: Trade plan', 'Share link: Watchlist',
       'Shared: Missing note', 'Ambiguous: Duplicate title', 'Picture link:', 'Trade plan', `Long: ${'L'.repeat(320)}`,
       'Not a note: pricing'].join(''))
+  })
+})
+
+describe('Evernote corpus: a title link heals against an EARLIER import (link_keys.resolve_link_keys)', () => {
+  const MISSING = 'import-link://evernote-title:Missing note'
+  const earlier = (id, title) => ({ id, title, source: 'Evernote',
+    body: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'From an earlier import.' }] }] } })
+
+  it('ONE earlier Evernote note of that (whitespace-normalised) title: the heal door rewrites the link to it', async () => {
+    const server = makeServer({ existing: { 'evernote:Old book/Missing note/20250101T000000Z': earlier('old1', '  Missing   note ') } })
+    const healedRun = await importCorpus(folderDrop('evernote'), { server })
+    const body = healedRun.bodyOf('Links to notes')
+    expect(storedLinks(body)).toContainEqual({ text: 'Missing note', href: noteHref('old1') })
+    expect(storedLinks(body).map((l) => l.href)).not.toContain(MISSING)
+    const [a] = paragraphLinks(renderBody(body), 'Shared')
+    expect(a).toEqual({ text: 'Missing note', href: noteHref('old1'), plain: false })
+    expect(healedRun.summary.unconnectedLinks.map((u) => u.text)).toEqual(['L'.repeat(320)])
+    // the PUT still carried the placeholder: it was the HEAL that connected it, not the client
+    const put = healedRun.server.putsRaw.find((p) => p.id === healedRun.idOf(healedRun.docs.find((d) => d.title === 'Links to notes').importKey))
+    expect(storedLinks(put.bodyJson)).toContainEqual({ text: 'Missing note', href: MISSING })
+  })
+
+  it('TWO earlier notes of that title: never a guess, the link stays a placeholder and is listed', async () => {
+    const server = makeServer({ existing: {
+      'evernote:Old book/Missing note/20250101T000000Z': earlier('old1', 'Missing note'),
+      'evernote:Old book/Missing note/20250202T000000Z': earlier('old2', 'Missing note'),
+    } })
+    const ambiguousRun = await importCorpus(folderDrop('evernote'), { server })
+    const body = ambiguousRun.bodyOf('Links to notes')
+    expect(storedLinks(body)).toContainEqual({ text: 'Missing note', href: MISSING })
+    expect(paragraphLinks(renderBody(body), 'Shared')).toEqual([{ text: 'Missing note', href: MISSING, plain: true }])
+    expect(ambiguousRun.summary.unconnectedLinks.map((u) => u.text)).toEqual(['Missing note', 'L'.repeat(320)])
   })
 })

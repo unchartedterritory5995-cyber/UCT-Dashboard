@@ -32,6 +32,44 @@ describe('storage_full: the door answers storage_limit', () => {
   })
 })
 
+describe('the fetch door\'s only 404: the note\'s import key is unknown to it', () => {
+  it('a note trashed between confirm and fetch: its linked picture is a fetch_failed notice with the URL kept', async () => {
+    const ALPHA = 'file:notes/Alpha.md'
+    const run = await importCorpus(folderDrop('generic'), { server: makeServer({ trashed: [ALPHA] }) })
+    expect(run.server.fetches.map((f) => [f.noteImportKey, f.status])).toEqual([[ALPHA, 429], [ALPHA, 404]])
+    const alpha = run.storedByKey.get(ALPHA)
+    expect(nodes(alpha, 'importNotice').map((n) => [n.attrs.reason, n.attrs.name, n.attrs.sourceUrl])).toEqual([
+      ['fetch_failed', 'linked.png', 'https://cdn.example.com/linked.png']])
+    expect(run.server.putsRaw.find((p) => p.id === run.idOf(ALPHA)).importMediaPending).toBe(true)
+  })
+})
+
+describe('a plain re-import of an unchanged export (non-recover)', () => {
+  it('unchanged notes whose media finished come back `skipped` and are not touched; a pending one is redone', async () => {
+    const first = await importCorpus(folderDrop('generic'))
+    const run = await importCorpus(folderDrop('generic'), { server: makeServer({ inherit: first.server }) })
+    const SKIPPED = ['file:notes/Alpha.md', 'file:notes/Beta.md', 'file:notes/sub/Gamma.md']
+    const PAGE = 'file:page.html' // its two lost pictures left it import_media_pending
+
+    expect(run.server.confirms.map((c) => c.mode)).toEqual([undefined])
+    expect(run.summary.skipped).toBe(3)
+    expect(run.summary.updated).toBe(1)
+    expect(run.summary.created).toBe(0)
+    for (const k of SKIPPED) expect(run.summary.outcomes[k]).toBe('skipped')
+    expect(run.summary.outcomes[PAGE]).toBe('updated')
+    const skippedIds = SKIPPED.map((k) => first.idOf(k))
+    expect(run.server.putsRaw.map((p) => p.id)).toEqual([first.idOf(PAGE)])
+    expect(run.server.uploads.filter((u) => skippedIds.includes(u.noteId))).toEqual([])
+    expect(run.server.fetches).toEqual([])
+    // the member's notes hold exactly what the first import left
+    for (const k of SKIPPED) expect(run.storedByKey.get(k)).toBe(first.storedByKey.get(k))
+    // same ids, nothing duplicated; the sweep still ran (an all-skipped confirm counts)
+    for (const k of [...SKIPPED, PAGE]) expect(run.idOf(k)).toBe(first.idOf(k))
+    expect(run.server.heals.map((h) => h.status)).toEqual([429, 200])
+    expect(assertCorpusInvariants(run)).toBe(4)
+  })
+})
+
 describe('recover mode with a note the member edited', () => {
   it('rebuilds every other note, keeps the edited one untouched, and links still reach it', async () => {
     const first = await importCorpus(folderDrop('generic'))
