@@ -32,6 +32,115 @@ def db_clock():
     return round(getattr(_TL, "db_s", 0.0), 3), getattr(_TL, "db_n", 0)
 
 
+# ── the bars row cache ─────────────────────────────────────────────────────────────────────────────────────────────────────────
+# Every bars query the engine makes is "the last N daily rows of one ticker up to a day" (SELECT ts,... FROM ohlcv WHERE ticker=? AND
+# tf='D' AND ts<=? ... LIMIT). Measured on the web pod 2026-11-02: ~1 s per such query (a ticker's rows are scattered across a
+# 30+ GB file), 10-247 of them per read, while the answers are shared: SPY/QQQ/IWM by every read, an industry's members by every
+# stock in it. The SAME SQL with the SAME parameters returns the SAME rows, so this caches exactly that, in memory and in a small
+# SQLite file under DATA_DIR that survives a deploy restart. Freshness: a row set ending on today's ET date can still change (the
+# developing bar), so it lives LIVE_TTL_S; an older day is final except for split adjustments, so it lives FINAL_TTL_S.
+# Only on the site path (no CHART_IQ_BARS_DB): tests and lab parity read the database directly.
+import collections
+import datetime
+import json
+import re
+
+LIVE_TTL_S = 900
+FINAL_TTL_S = 24 * 3600
+MEM_MAX = 40000
+_SQL_OK = re.compile(r"^SELECT ts,[a-z,]+ FROM \(SELECT ts,[a-z,]+ FROM ohlcv WHERE ticker=\? AND tf='D' AND ts<=\? ORDER BY ts DESC LIMIT (\?|\d+)\) ORDER BY ts$")
+
+
+def _today_et():
+    now = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=5)   # ET within an hour; the boundary only picks the TTL
+    return now.year * 10000 + now.month * 100 + now.day
+
+
+def _row_key(name, a):
+    if name != "bars" or os.environ.get("CHART_IQ_BARS_DB") or len(a) < 2:
+        return None
+    sql = " ".join(a[0].split())
+    if not _SQL_OK.match(sql):
+        return None
+    try:
+        day = int(a[1][1])
+    except (TypeError, ValueError, IndexError):
+        return None
+    return (sql, tuple(a[1]), day)
+
+
+class _RowCache:
+    def __init__(self):
+        self._mem = collections.OrderedDict()
+        self._lock = threading.Lock()
+        self._disk = None
+        self._disk_failed = False
+        self._pruned = 0.0
+
+    def _ttl(self, day):
+        return LIVE_TTL_S if day >= _today_et() else FINAL_TTL_S
+
+    def _db(self):
+        if self._disk is None and not self._disk_failed:
+            try:
+                p = os.environ.get("CHART_IQ_ROW_CACHE_DB") or os.path.join(os.environ.get("DATA_DIR", "/data"), "chart_iq_rows.db")
+                c = sqlite3.connect(p, timeout=2, check_same_thread=False)
+                c.execute("PRAGMA journal_mode=WAL")
+                c.execute("PRAGMA busy_timeout=2000")
+                c.execute("CREATE TABLE IF NOT EXISTS rows (k TEXT PRIMARY KEY, day INTEGER, at REAL, v TEXT)")
+                self._disk = c
+            except Exception:  # noqa: BLE001 -- a cache that cannot open is a cache miss, never an error
+                self._disk_failed = True
+        return self._disk
+
+    def get(self, key):
+        sql, params, day = key
+        now = time.time()
+        with self._lock:
+            hit = self._mem.get(key)
+            if hit and now - hit[0] < self._ttl(day):
+                self._mem.move_to_end(key)
+                return hit[1]
+            db = self._db()
+            if db is None:
+                return None
+            try:
+                r = db.execute("SELECT at, v FROM rows WHERE k=?", (json.dumps([sql, params]),)).fetchone()
+            except Exception:  # noqa: BLE001
+                return None
+            if not r or now - r[0] >= self._ttl(day):
+                return None
+            rows = [tuple(x) for x in json.loads(r[1])]
+            self._put_mem(key, r[0], rows)
+            return rows
+
+    def _put_mem(self, key, at, rows):
+        self._mem[key] = (at, rows)
+        self._mem.move_to_end(key)
+        while len(self._mem) > MEM_MAX:
+            self._mem.popitem(last=False)
+
+    def put(self, key, rows):
+        sql, params, day = key
+        now = time.time()
+        with self._lock:
+            self._put_mem(key, now, list(rows))
+            db = self._db()
+            if db is None:
+                return
+            try:
+                db.execute("INSERT OR REPLACE INTO rows (k, day, at, v) VALUES (?,?,?,?)", (json.dumps([sql, params]), day, now, json.dumps(list(rows))))
+                if now - self._pruned > 3600:
+                    db.execute("DELETE FROM rows WHERE at < ?", (now - FINAL_TTL_S,))
+                    self._pruned = now
+                db.commit()
+            except Exception:  # noqa: BLE001
+                pass
+
+
+_ROWS = _RowCache()
+
+
 def _bars_path():
     return os.environ.get("CHART_IQ_BARS_DB") or os.path.join(os.environ.get("DATA_DIR", "/data"), "bars.db")
 
@@ -84,10 +193,15 @@ class _Conn:
         # Rows are fetched here (not lazily by the caller) so the time spent reading the database is measurable per read: the
         # pipeline reports it to admins as timing.db_s / db_n. Same rows, same order; _Rows answers fetchone / fetchall / iteration.
         t = time.perf_counter()
-        rows = _Rows(self._c().execute(*a).fetchall())
+        key = _row_key(self._name, a)
+        rows = _ROWS.get(key) if key else None
+        if rows is None:
+            rows = _Rows(self._c().execute(*a).fetchall())
+            _TL.db_n = getattr(_TL, "db_n", 0) + 1
+            if key:
+                _ROWS.put(key, rows)
         _TL.db_s = getattr(_TL, "db_s", 0.0) + (time.perf_counter() - t)
-        _TL.db_n = getattr(_TL, "db_n", 0) + 1
-        return rows
+        return _Rows(rows)
 
     def close(self):
         """The engine closes per-call connections; the thread keeps its own open."""
