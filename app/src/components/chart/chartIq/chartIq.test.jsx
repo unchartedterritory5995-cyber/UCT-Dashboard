@@ -4,7 +4,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { buildPlan, defaultLayers, LAYERS } from './chartIqPlan'
 import { chartIqAllowed } from './chartIqGate'
 import { chartIqKey } from '../../../hooks/useChartIq'
-import ChartIqPanel, { firstSentence, ChartIqFeedback } from './ChartIqPanel'
+import ChartIqPanel, { firstSentence, ChartIqFeedback, errorText } from './ChartIqPanel'
 
 const BARS = ['2026-10-26', '2026-10-27', '2026-10-28', '2026-10-29', '2026-10-30']
 const PAYLOAD = {
@@ -158,5 +158,15 @@ describe('ChartIqFeedback', () => {
     render(<ChartIqFeedback data={{ ...DATA, my_feedback: { vote: 'partly', note: 'missed the gap' } }} />)
     expect(screen.getByRole('button', { name: 'Partly' }).getAttribute('aria-pressed')).toBe('true')
     expect(screen.getByLabelText(/get wrong or miss/i).value).toBe('missed the gap')
+  })
+})
+
+describe('errorText: says why a read failed', () => {
+  it('maps the engine reasons and keeps everything else generic', () => {
+    expect(errorText({ status: 404, detail: 'NEWCO: not enough daily bars as of 2026-10-30 (40)' })).toMatch(/6 months of daily history/)
+    expect(errorText({ status: 404, detail: 'no daily bars available' })).toMatch(/no daily bars/)
+    expect(errorText({ status: 503, detail: 'Chart IQ is busy, try again' })).toMatch(/busy/)
+    expect(errorText({ status: 404, detail: 'ABC: KeyError' })).toBe('Chart IQ could not read this chart')
+    expect(errorText(null)).toBe('')
   })
 })

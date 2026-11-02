@@ -75,9 +75,19 @@ export function firstSentence(s) {
   return k > 0 ? t.slice(0, k + 1) : t
 }
 
+// Why a read failed, in plain words. Only the engine's own data reasons are shown as-is; anything else stays generic.
+export function errorText(error) {
+  if (!error) return ''
+  const d = String(error.detail || '')
+  if (error.status === 503) return 'Chart IQ is busy, try again in a moment'
+  if (/not enough daily bars/i.test(d)) return 'Chart IQ needs about 6 months of daily history; this chart does not have it yet'
+  if (/no daily bars|no bars/i.test(d)) return 'Chart IQ has no daily bars for this symbol'
+  return 'Chart IQ could not read this chart'
+}
+
 export default function ChartIqPanel({ data, loading, error, layers, onLayer, onClose }) {
   const [open, setOpen] = useState(false)
-  const status = error ? 'Chart IQ could not read this chart' : loading && !data ? 'Chart IQ is reading the chart...' : ''
+  const status = error ? errorText(error) : loading && !data ? 'Chart IQ is reading the chart...' : ''
   return (
     <div style={box} data-testid="chart-iq-panel" onPointerDown={(e) => e.stopPropagation()}>
       <div style={head} onClick={() => setOpen((v) => !v)} role="button" aria-expanded={open} tabIndex={0}
