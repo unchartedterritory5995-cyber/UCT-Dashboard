@@ -96,6 +96,20 @@ describe('makeObsidianResolver', () => {
     expect(r.resolve('Dr.Smith', 'a.md')).toBe('Dr.Smith.md')
   })
 
+  it('a leading-/ wikilink is root-relative, the exact note first (the server\'s _resolve_rooted)', async () => {
+    const r = await makeObsidianResolver([vf('Plan.md'), vf('Notes/Plan.md'), vf('Notes/Src.md'),
+      vf('files/deck.pdf'), vf('report.pdf'), vf('report.pdf.md')])
+    expect(r.resolve('/Plan', 'Notes/Src.md')).toBe('Plan.md')
+    expect(r.resolve('/notes/plan.md#Risk', 'Src.md')).toBe('Notes/Plan.md')
+    expect(r.resolve('/report.pdf', 'Src.md')).toBe('report.pdf.md')
+    expect(r.resolve('/Notes/../Plan', 'Src.md')).toBe('Plan.md')
+    for (const miss of ['/Ghost', '/../Plan', '/deck.pdf', '/']) {
+      expect(r.resolve(miss, 'Notes/Src.md')).toBe(null)
+    }
+    // A markdown href keeps the path as written first: it names a FILE.
+    expect(r.resolve('/report.pdf', 'Src.md', { decode: true })).toBe('report.pdf')
+  })
+
   it('decodes a markdown href once and appends .md', async () => {
     const r = await makeObsidianResolver(withConfig('{}'))
     expect(r.resolve('Other%20note', 'V/A/n.md', { decode: true })).toBe('V/Other note.md')

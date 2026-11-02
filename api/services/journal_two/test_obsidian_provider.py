@@ -1654,6 +1654,27 @@ def test_same_named_candidates_break_ties_the_same_way_whatever_the_listing_orde
     assert _r("report.pdf", ["Y/report.pdf", "X/report.pdf"]) == "X/report.pdf"
 
 
+def test_a_leading_slash_wikilink_is_vault_root_relative():
+    """Post-merge fix 1: `[[/x]]` names `x` from the VAULT ROOT, as the client's resolver
+    (Plan B, `obsidianResolve.js`) reads it: the exact note first, then the path as written;
+    never a same-folder or by-name pick, and never above the root. ⚰️ The server read
+    `/plan` as a path-qualified suffix no path ends in, so the link stayed pending."""
+    paths = ["Plan.md", "Notes/Plan.md", "Notes/Src.md", "files/deck.pdf", "report.pdf",
+             "report.pdf.md"]
+    assert _r("/Plan", paths, from_path="Notes/Src.md") == "Plan.md"
+    assert _r("Plan", paths, from_path="Notes/Src.md") == "Notes/Plan.md"   # control
+    assert _r("/Notes/Plan", paths, from_path="Src.md") == "Notes/Plan.md"
+    assert _r("/notes/plan.md#Risk", paths) == "Notes/Plan.md"
+    assert _r("/files/deck.pdf", paths) == "files/deck.pdf"
+    assert _r("/report.pdf", paths) == "report.pdf.md"
+    assert _r("//Plan", paths) == "Plan.md"
+    assert _r("/Notes/../Plan", paths) == "Plan.md"
+    for miss in ("/Ghost", "/../Plan", "/deck.pdf", "/", "/Notes/Ghost"):
+        assert _r(miss, paths, from_path="Notes/Src.md") is None, miss
+    out = _convert("[[/Plan]] and [[/Notes/Plan|by path]]", paths, self_path="Notes/Src.md")
+    assert [h for _, h in _link_marks(out["doc"])] == [_key("Plan.md"), _key("Notes/Plan.md")]
+
+
 def test_a_missing_dotted_note_embed_waits_like_a_wikilink_and_a_missing_file_is_text():
     """M3: `![[Dr.Smith]]` before its note arrives is the same pending link `[[Dr.Smith]]` is,
     so it heals; `![[report.pdf]]` (a known attachment extension) stays plain text."""

@@ -27,7 +27,8 @@
  *     `[[report.pdf]]` -> `report.pdf.md`), always first; then a file whose full name IS
  *     the target. Never an extension-stripped form (no stem rule);
  *   - a target holding `/` matches the end of each path at a folder boundary; a bare one
- *     the file name; a leading `/` is root-relative exact (below).
+ *     the file name; a leading `/` names the path from the vault root, the exact note
+ *     first, then as written (the server's `_resolve_rooted`, post-merge fix 1).
  *
  * A markdown href or image src (`decode`): percent-decoded ONCE, after splitting off
  * `#`/`?` (an encoded `%23` stays in the name). Then, in order:
@@ -164,7 +165,10 @@ async function makeVaultIndex(root, allPaths, vfiles) {
 
     if (target.startsWith('/')) {
       const rooted = normalize(target.replace(/^\/+/, ''), root)
-      return rooted === null ? null : lookupWithMd(rooted)
+      if (rooted === null || rooted === root) return null
+      // A wikilink: the exact note first, as every wikilink step takes it (the server's
+      // `_resolve_rooted`). A markdown href names a file: as written first.
+      return opts.decode ? lookupWithMd(rooted) : lookup(noteFileOf(rooted)) ?? lookup(rooted)
     }
     if (target.includes('/')) {
       for (const candidate of [normalize(target, dirOf(sourcePath)), normalize(target, root)]) {

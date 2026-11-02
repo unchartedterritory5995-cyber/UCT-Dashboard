@@ -494,8 +494,14 @@ def _resolve_in(target: str, index: _VaultIndex, from_dir: str | None) -> str | 
     than a visible pending link. ⚰️ A third step stem-matched a dot-less name to a file
     (`[[chart]]` -> `chart.png`). Obsidian assumes `.md` for a link with no extension, so
     `[[chart]]` names `chart.md` only; the step is gone (Plan C Task 4 fix round 1).
-    Same-named candidates go through `_pick`. Mirrors `obsidian.js::resolveTarget`."""
+    Same-named candidates go through `_pick`.
+    A LEADING `/` names the path from the vault root (post-merge fix 1, the client's
+    Plan B rule): the anchor split off, `.`/`..` folded (never above the root), then the
+    exact note that path names, then the path as written. Mirrors
+    `obsidianResolve.js::resolve` (wikilink mode)."""
     whole = target.strip()
+    if whole.startswith("/"):
+        return _resolve_rooted(_strip_fragment(whole), index)
     if "#" in whole:
         hit = _resolve_steps(whole, index, from_dir, exact_file_only=True)
         if hit is not None:
@@ -504,6 +510,22 @@ def _resolve_in(target: str, index: _VaultIndex, from_dir: str | None) -> str | 
     if not target:
         return None
     return _resolve_steps(target, index, from_dir)
+
+
+def _resolve_rooted(target: str, index: _VaultIndex) -> str | None:
+    """A leading-`/` wikilink target: the path from the vault root, exact (any case), the
+    note it names first. None when it is empty or climbs above the root."""
+    rel = target.lstrip("/").strip()
+    if not rel:
+        return None
+    rooted = posixpath.normpath(rel)
+    if rooted == "." or _escapes_root(rooted):
+        return None
+    for want in (_note_file_of(rooted), rooted.lower()):
+        found = index.by_lower.get(want)
+        if found:
+            return found
+    return None
 
 
 def _resolve_steps(target: str, index: _VaultIndex, from_dir: str | None, *,

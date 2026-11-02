@@ -1,0 +1,11 @@
+{
+  "_comment": "Post-merge fix 1: a leading-/ wikilink is vault-root relative on both lanes (the client's Plan B rule, now the server's _resolve_rooted): the root Plan.md, not the same-folder pick a bare [[Plan]] gets.",
+  "vault_id": "vault-1",
+  "self_path": "Notes/a.md",
+  "vault_paths": [
+    "Notes/a.md",
+    "Plan.md",
+    "Notes/Plan.md",
+    "files/deck.pdf"
+  ]
+}
