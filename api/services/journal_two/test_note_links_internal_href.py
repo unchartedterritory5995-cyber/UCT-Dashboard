@@ -225,6 +225,38 @@ def test_backfill_pages_through_more_than_one_batch(monkeypatch, tmp_path):
     assert all(_link_rows(c, i) == [b["id"]] for i in ids)
 
 
+def test_one_poison_note_never_aborts_the_backfill(monkeypatch, tmp_path, caplog):
+    """Final review (promoted minor): one note whose projection raises aborted the whole pass,
+    and with no flag written, it aborted again on every boot, so no note behind it was ever
+    projected. Now: that note is logged and skipped, its half-written sidecars undone, the rest
+    projected, and the flag written when the walk finishes."""
+    import logging
+    from api.services.journal_two import notes as notes_mod
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    c = _conn()
+    b = _create(c, "u1", "B", _doc())
+    ids = sorted(_create(c, "u1", f"A{i}", _doc())["id"] for i in range(3))
+    body = json.dumps(_doc(_para(_linked("x", _href(b["id"])))))
+    c.executemany("UPDATE j2_notes SET body_json = ? WHERE id = ?", [(body, i) for i in ids])
+    c.commit()
+    poison = ids[0]                   # first in walk order: everything after it must still run
+    real = notes_mod._sync_note_sidecars
+
+    def sync(conn, user_id, note_id, doc, body_plain):
+        real(conn, user_id, note_id, doc, body_plain)       # writes its rows, THEN fails
+        if note_id == poison:
+            raise ValueError("a body the projection cannot read")
+
+    monkeypatch.setattr(notes_mod, "_sync_note_sidecars", sync)
+    with caplog.at_level(logging.WARNING):
+        out = j2db.run_internal_link_projection_backfill(c)
+    assert out["synced"] == 2 and out["failed"] == 1
+    assert all(_link_rows(c, i) == [b["id"]] for i in ids[1:])
+    assert _link_rows(c, poison) == []                       # its partial write was undone
+    assert (tmp_path / ".note_links_internal_href_v1").exists()
+    assert any(poison in r.getMessage() for r in caplog.records)
+
+
 def test_backfill_writes_no_flag_over_an_empty_notebook(monkeypatch, tmp_path):
     """v4's rule: a flag over zero notes would let a restored backup skip the pass forever."""
     monkeypatch.setenv("DATA_DIR", str(tmp_path))
