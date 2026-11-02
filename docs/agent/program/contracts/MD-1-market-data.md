@@ -168,7 +168,10 @@ The canonical services' own stale-while-revalidate refresh and the news store's 
 
 **Additive data field.** Every `quote` / `quotes` read now carries `data.session_detail`:
 `regular` · `premarket` · `after-hours` · `overnight` · `closed`.
-- `overnight` is 20:00–04:00 ET around a trading day.
+- `overnight` runs from the end of extended trading (20:00 ET, or 17:00 ET on a half day) to 04:00 ET, around a
+  trading day.
+- Every input comes from `now` (default: the wall clock): the ET minutes and whether that ET date is a NYSE session
+  (a weekday and not a full-closure holiday). Nothing reads today's date separately (agent-qa F-19).
 - `closed` is a weekend or holiday, or a calendar the adapter could not read (it never claims the market is open).
 - `data.session` (v1.1) is derived from it: premarket and after-hours → `extended`; overnight → `closed`. The two
   labels can never disagree.
@@ -190,9 +193,13 @@ five. It never calls `/api/live-prices`.
 | `overnight` / `closed` | `Market closed (overnight / weekend or holiday): NVDA last close $142.10 (Fri, Oct 30), …. Not a real-time price.` When the price is an after-hours print, it says `last trade $X (date, time ET)` instead. |
 | `regular`, row priced from a close | `NVDA: no current trade in the regular session — showing the day's close, $142.10 …. Not a real-time price.` |
 | `partial` (`quotes`) | one line per symbol, then `Partial: no price for NOPE.` |
-| `unavailable` / `refused` | `I couldn't get a price for NVDA: <reason>.` — no number at all |
+| `refused` | `I couldn't get a price for NVDA: that request wasn't allowed for this question, so I didn't read a price. No price is stated.` |
+| `unavailable` (or no priced row) | `I couldn't get a price for NVDA: UCT's market data didn't return a price for it. No price is stated.` |
 
 **Rules for every answer:**
+- **No-price answers use fixed words.** A read with no usable price answers from a closed list keyed on
+  status only. The envelope's notes are never echoed, since they can carry numbers such as a budget count
+  (agent-qa F-20).
 - **As-of.** The as-of time is in ET, with the date when it is not the read's own ET day. The reference day is
   the read's `fetched_at`, never the browser clock.
 - **Change.** The change is always against the previous close.
@@ -269,6 +276,7 @@ QA's suite runs `validate_envelope` against every registered kind using its fixt
 
 ## 9. Changelog
 
+- **v1.5 amendment (2026-11-01, agent-md, agent-qa F-19/F-20/O-1):** `session_detail` takes every input from `now`; on a half day extended trading ends at 17:00 ET; no-price answers use fixed words. No envelope field changed.
 - **v1.5 (2026-11-01, agent-md, Sprint 2):** additive. `quote` / `quotes` gain `data.session_detail` (`regular` · `premarket` · `after-hours` · `overnight` · `closed`); `data.session` is derived from it. §4.5 gives the `stock.quote` answer contract per session state. No envelope field changed.
 - **v1.4 (2026-11-01, agent-md, rulings by agent-lead):** `breadth.current` and `ratings` implemented as MODEL-ISOLATED kinds (purpose `answer` only, gateway #588); §4.4. No envelope change.
 - **v1.3 (2026-11-01, agent-md, rulings by agent-lead):** `themes` source and time semantics (§4.3); `volume.surge` REMOVED (relative volume is SC-1's; see SC-1 §2c); `nhnl` folded into `breadth.current` metrics, `nhnl_live` not exposed. No envelope change.

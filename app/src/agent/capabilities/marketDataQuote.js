@@ -154,6 +154,18 @@ const rowsOf = (env) => {
   return rows.filter(r => r && typeof r.symbol === 'string' && num(r.last) != null)
 }
 
+// A read with no usable price answers in FIXED words (agent-qa F-20): never the envelope's notes, which can carry
+// numbers ("this turn already made 8 data reads…") and are not member copy. A closed list, keyed on status only.
+const NO_PRICE = {
+  refused: "that request wasn't allowed for this question, so I didn't read a price",
+  unavailable: "UCT's market data didn't return a price for it",
+}
+export function noPriceSentence(env, syms) {
+  const who = syms.length ? syms.join(', ') : 'that'
+  const why = NO_PRICE[env?.status] || NO_PRICE.unavailable
+  return `I couldn't get a price for ${who}: ${why}. No price is stated.`
+}
+
 const SOURCE_LINE = 'Source: Massive market snapshot through the UCT data gateway.'
 
 /** A whole `quote`/`quotes` envelope → the member's answer. Pure; exported for the acceptance harness. */
@@ -161,10 +173,7 @@ export function answerFromEnvelope(env, asked) {
   const syms = (asked || []).map(s => String(s).toUpperCase())
   const usable = env && (env.status === 'ok' || env.status === 'partial')
   const rows = usable ? rowsOf(env) : []
-  if (!rows.length) {
-    const why = String((env?.notes || [])[0] || 'the price is not available').replace(/\.$/, '')
-    return { text: `I couldn't get a price for ${syms.join(', ') || 'that'}: ${why}. The price is not available right here, so I'm not stating one.` }
-  }
+  if (!rows.length) return { text: noPriceSentence(env, syms) }
   const described = rows.map(r => describeRow(env, r))
   const lines = described.map(x => x.line)
   if (env.status === 'partial') lines.push(...partialLines(env, syms))

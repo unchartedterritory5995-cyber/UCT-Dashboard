@@ -146,11 +146,22 @@ describe('stock.quote answers state the session, as-of and freshness honestly', 
     ])
   })
 
-  it.each(['unavailable', 'refused'])('%s: states no number at all', (status) => {
-    const t = says(answerFromEnvelope({ ...env({ status, freshness: 'unavailable', as_of: null }), data: null, notes: ['the quote provider could not answer'] }, ['NVDA']))
-    expect(t).toMatch(/^I couldn't get a price for NVDA: the quote provider could not answer\./)
-    expect(t).not.toMatch(/\$\d|\d\.\d/)
-    expect(t).not.toMatch(/\blive\b/)
+  it.each([
+    ['refused', "I couldn't get a price for NVDA: that request wasn't allowed for this question, so I didn't read a price. No price is stated."],
+    ['unavailable', "I couldn't get a price for NVDA: UCT's market data didn't return a price for it. No price is stated."],
+  ])('%s: fixed words, no number at all, never the envelope note (F-20)', (status, want) => {
+    for (const note of ['this turn already made 8 data reads (the limit is 8)', 'the quote provider could not answer', '']) {
+      const t = says(answerFromEnvelope({ ...env({ status, freshness: 'unavailable', as_of: null }), data: null, notes: note ? [note] : [] }, ['NVDA']))
+      expect(t).toBe(want)
+      expect(t).not.toMatch(/\d/)
+      expect(t).not.toMatch(/\b(live|now)\b/)
+    }
+  })
+
+  it('an unknown status with no rows is the unavailable sentence, and an ok read with no priced row too', () => {
+    const want = "I couldn't get a price for NVDA: UCT's market data didn't return a price for it. No price is stated."
+    expect(says(answerFromEnvelope({ ...env({ status: 'weird' }), notes: ['9 9 9'] }, ['NVDA']))).toBe(want)
+    expect(says(answerFromEnvelope({ ...env(), data: { quote: { symbol: 'NVDA', last: null } }, notes: ['8 reads'] }, ['NVDA']))).toBe(want)
   })
 
   it('only the text and labelled figures leave the module — never the envelope', () => {

@@ -69,6 +69,13 @@ Only agent-md edits this file. Update it in every PR.
     `fastCorrect: false` on the stock.quote registration. `agentDataQuoteFast.test.js`, with every builtin registered:
     zero model turns when served, sole claimant for every quote row, a rival claimant goes to the model, dark in every
     config shape, and no claim after the server goes dark. Mutation-checked 3 ways.
+  - **QA findings on #624 (MD-2 harness #635)**, fixed on branch `agent/md/quote-fixes`:
+    - **F-19:** `quotes._session_detail` read today's trading day from the wall clock even when given `now`. It now
+      derives weekday and holiday from `now`'s ET date; the tests no longer patch a hand-picked trading flag.
+    - **F-20:** a no-price answer echoed `env.notes[0]` (a budget refusal stated a number). It now uses fixed words
+      keyed on status.
+    - **O-1:** on a half day, after-hours now ends at 17:00 ET, then overnight.
+    - Mutation-checked 3 ways (each fix reverted: red).
   - **D — freshness corpus (#598)**: merged up to agent/int; per-session fixture clocks in progress.
   - **C — `bars.daily` answers** (`capabilities/marketDataBars.js`). Pending.
   - Lead-owned dependencies: `builtins.js` registration line, `UCT_AGENT_DATA_KINDS` allowlist (fail closed),
