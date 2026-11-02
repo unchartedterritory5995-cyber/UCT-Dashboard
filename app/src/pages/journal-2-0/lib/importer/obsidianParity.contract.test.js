@@ -243,14 +243,20 @@ const knownClientGap = {
   },
   // 28-blank-line-and-fence-alias (D2 fix round 5, M-r4-1): links, images and media agree --
   // a link or embed across a blank line or a fence is left as written on both lanes, and a
-  // single-newline alias is the one link. What is left is 27's code BLOCK difference: the
-  // client keeps the fence's final newline in the codeBlock text, the server's `mddoc` drops
-  // it. Closed by D3 (shared-converter follow-up PR: fenced code final newline) -- delete
-  // this entry then.
+  // single-newline alias is the one link, in a quote too (follow-up: a `>`-only quote line
+  // is a paragraph break, and a one-line ``` run is inline code a link may hold). What is
+  // left is two D3 differences, neither an Obsidian pass:
+  //   - 27's code BLOCK difference: the client keeps the fence's final newline in the
+  //     codeBlock text, the server's `mddoc` drops it (D3: fenced code final newline);
+  //   - 25's code RUN difference: the client's code mark drops the link from `x`, the
+  //     server stores link+code (D3: a code run carries no other mark).
+  // Delete this entry when D3 lands.
   '28-blank-line-and-fence-alias.json': {
+    missingLinks: [{ target: 'Plan.md', text: 'x' }],
     clientReads: {
       text: 'Blank line or fence in a link see [[Plan|first second]] end see [[Pl an]] end '
-        + 'x ![[chart.png|a b]] y [[Plan|a code\n b]] see one line still links',
+        + 'x ![[chart.png|a b]] y [[Plan|a code\n b]] see one line still links '
+        + 'quoted [[Plan|c d]] stays text quoted one line still links see a x b inline code links',
     },
   },
   // ⚰️ 18-attachment-names and 19-nested-embeds: their text gaps (the EMPTY paragraph

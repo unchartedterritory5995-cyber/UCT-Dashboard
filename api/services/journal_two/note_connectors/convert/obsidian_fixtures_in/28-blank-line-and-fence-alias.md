@@ -20,3 +20,12 @@ b]]
 
 see [[Plan|one
 line]] still links
+
+> quoted [[Plan|c
+>
+> d]] stays text
+
+> quoted [[Plan|one
+> line]] still links
+
+see [[Plan|a ```x``` b]] inline code links

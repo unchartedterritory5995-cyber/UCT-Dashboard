@@ -301,15 +301,20 @@ _CODE_RE = re.compile(_FENCE_SRC + r"|`[^`\n]*`")
 # `[` scanned the rest of a line of `[` at every one of them, so a 20 KB line of `[` cost
 # ~13 s per sync (~20 s on an old-plugin row). Obsidian itself refuses `[` and `]` in a
 # file name, so no real target holds `[[`.
-# ⛔ Nor across a blank line (a newline, optional spaces, tabs or `\r`, a newline) or a fence
-# (```` ``` ```` or `~~~`, D2 fix round 5, M-r4-1): Obsidian does not link across a paragraph
-# break. ⚰️ `[[Plan|first\n\nsecond]]` was rewritten to a markdown link the paragraph break
-# then cut, and the member read the INTERNAL `import-link://` key as autolinked text; a fenced
-# block inside the alias did the same. Such text is now left exactly as written. A single
-# newline is still allowed (the same one link on both lanes). Each stop is a fixed string or
-# one whitespace run that ends at the next newline, so the patterns stay linear.
-# `obsidian.js::WIKI_STOP` mirrors this.
-_WIKI_STOP = r"\[\[|\n[ \t\r]*\n|```|~~~"
+# ⛔ Nor across a blank line or a fence line (D2 fix round 5, M-r4-1, and its follow-up):
+# Obsidian does not link across a paragraph break. ⚰️ `[[Plan|first\n\nsecond]]` was
+# rewritten to a markdown link the paragraph break then cut, and the member read the
+# INTERNAL `import-link://` key as autolinked text; a fenced block inside the alias did the
+# same. Such text is now left exactly as written.
+#   - A blank line is a newline, then only spaces, tabs, `\r` and `>` quote prefixes, then a
+#     newline: inside a blockquote or callout a line holding only `>` is a paragraph break.
+#   - A fence is a fence LINE: a newline, up to 3 spaces, optional `>` prefixes, then
+#     ```` ``` ```` or `~~~`. A one-line ```` ``` ```` run is an inline code span, which a link
+#     may hold whole (`_clear_of_code`), as it may hold a single-backtick one (N-I4).
+# A single newline is still allowed (the same one link on both lanes). Each stop reads at
+# most one line from a newline, so the patterns stay linear. `obsidian.js::WIKI_STOP`
+# mirrors this.
+_WIKI_STOP = r"\[\[|\n[ \t\r]*(?:>[ \t\r]*)*\n|\n {0,3}(?:>[ \t]*)*(?:```|~~~)"
 _WIKI_TARGET = rf"(?:(?!{_WIKI_STOP})[^\]|])+"
 _WIKI_ALIAS = rf"(?:(?!{_WIKI_STOP})[^\]])+"
 _WIKI_EMBED = rf"!\[\[{_WIKI_TARGET}(?:\|{_WIKI_ALIAS})?\]\]"

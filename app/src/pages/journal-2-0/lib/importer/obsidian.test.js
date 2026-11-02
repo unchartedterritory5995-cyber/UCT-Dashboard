@@ -912,6 +912,41 @@ describe('obsidian adapter — D2 fix round 5: a wikilink never spans a blank li
     })
   }
 
+  // Follow-up: inside a blockquote or callout a line holding only `>` is a paragraph break,
+  // and a fence is a fence LINE (newline, up to 3 spaces, optional `>`, then ``` or ~~~).
+  for (const body of ['> see [[Plan|a\n>\n> b]] end', '> see [[Plan|a\n> \t\n> b]] end',
+    '> see [[Plan|a\r\n>\r\n> b]] end', '> > see [[Plan|a\n> >\n> > b]] end',
+    '> [!tip] See [[Plan|a\n>\n> b]] end',
+    '> [[Plan|a\n> ```\n> code\n> ```\n> b]]', '[[Plan|a\n   ~~~\ncode\n   ~~~\nb]]']) {
+    it(`leaves ${JSON.stringify(body)} as written (quote break or fence line)`, async () => {
+      const { d, marks, text } = await parseOne(body)
+      expect(marks).toEqual([])
+      expect(d.links).toEqual([])
+      expect(text).toContain('[[Plan|a')
+      expect(text).toContain('b]]')
+    })
+  }
+
+  for (const body of ['> see [[Plan|a\n> b]] end', 'see [[Plan|a ```x``` b]] end',
+    'see [[Plan|a ~~~x~~~ b]] end', 'see [[Plan|a\n    ```x``` b]] end']) {
+    it(`keeps ${JSON.stringify(body)} as the one link`, async () => {
+      const { d, marks, text } = await parseOne(body)
+      expect(d.links.map((l) => l.targetKey)).toEqual(['obsidian:V/Plan.md'])
+      expect(marks.length).toBeGreaterThan(0)
+      expect(new Set(marks).size).toBe(1)
+      expect(text).not.toContain('[[')
+    })
+  }
+
+  it('an alias that runs onto the next quoted line reads without the `>` prefix', async () => {
+    // As the server's markdown link does: the quote prefix is block syntax, not link text.
+    for (const [body, want] of [['> see [[Plan|a\n> b]] end', 'see a b end'],
+      ['> > see [[Plan|a\n> > b]] end', 'see a b end']]) {
+      const { text } = await parseOne(body)
+      expect(text.replace(/\s+/g, ' ')).toBe(want)
+    }
+  })
+
   it('a single newline inside an alias is still the one link', async () => {
     const { d, marks } = await parseOne('see [[Plan|first\nsecond]] end')
     expect(d.links.map((l) => l.targetKey)).toEqual(['obsidian:V/Plan.md'])
@@ -928,7 +963,10 @@ describe('obsidian adapter — D2 fix round 3: a long run of brackets is linear'
     // D2 fix round 5: the blank-line stop scans a whitespace run, so runs of them are timed too.
     ['an alias of one whitespace run', `[[Plan|\n${' '.repeat(80000)}`],
     ['an alias of newline-space pairs', `[[Plan|${'\n '.repeat(40000)}`],
-    ['an embed of newline-space-tab runs', `![[${'\n \t'.repeat(27000)}`]]) {
+    ['an embed of newline-space-tab runs', `![[${'\n \t'.repeat(27000)}`],
+    // Follow-up: the quote-prefix run of the blank-line and fence-line stops.
+    ['an alias of one quote-prefix run', `[[Plan|\n${'> '.repeat(40000)}`],
+    ['an alias of near-fence quoted lines', `[[Plan|${'\n   > >``'.repeat(10000)}`]]) {
     it(`parses 80-160 KB of ${name} in well under a second`, async () => {
       const started = performance.now()
       const { docs } = await obsidianAdapter.parse([vf('V/a.md', body), vf('V/Plan.md', 'p')])

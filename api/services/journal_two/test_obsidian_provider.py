@@ -1897,7 +1897,8 @@ def test_every_wikilink_pattern_of_this_provider_is_linear_on_a_bracket_run():
     patterns = ["_WIKI_RE", "_NESTED_EMBED_RE", "_ALIAS_EMBED_RE", "_CUT_ALIAS_EMBED_RE"]
     # D2 fix round 5: the blank-line stop scans a whitespace run, so a run of them is timed too.
     for body in ("[" * 40000, "![[" * 13400, "[[a|" * 10000, "[[a|\n" + " " * 40000,
-                 "[[a|" + "\n " * 20000, "![[" + "\n \t" * 13400):
+                 "[[a|" + "\n " * 20000, "![[" + "\n \t" * 13400,
+                 "[[a|\n" + "> " * 20000, "[[a|" + "\n   > >``" * 5000):
         for name in patterns:
             started = time.perf_counter()
             list(getattr(provider, name).finditer(body))
@@ -1948,6 +1949,28 @@ def test_a_wikilink_never_spans_a_blank_line_or_a_fence(refs):
     # A single newline inside an alias is still the one link it was, on both lanes.
     out = _convert("see [[Plan|first\nsecond]] end", paths, refs=refs)
     assert [h for _, h in _link_marks(out["doc"])] == [_key("Plan.md")]
+
+
+@pytest.mark.parametrize("refs", [NO_ATTACHMENT_PASS, None], ids=["refs-branch", "old-plugin"])
+def test_a_quote_paragraph_break_stops_a_wikilink_and_only_a_fence_line_is_a_fence(refs):
+    """D2 fix round 5 follow-up. (1) Inside a blockquote or callout a line holding only `>` is
+    a paragraph break, so a wikilink does not span it either: the key leaked there too.
+    (2) A fence is a fence LINE (a newline, up to 3 spaces, optional `>` prefixes, then ```` ``` ````
+    or `~~~`). A one-line ```` ``` ```` run is an inline code span, which a link may hold whole."""
+    paths = ["Plan.md"]
+    for body in ["> see [[Plan|a\n>\n> b]] end", "> see [[Plan|a\n> \t\n> b]] end",
+                 "> see [[Plan|a\r\n>\r\n> b]] end", "> > see [[Plan|a\n> >\n> > b]] end",
+                 "> [!tip] See [[Plan|a\n>\n> b]] end",
+                 "> [[Plan|a\n> ```\n> code\n> ```\n> b]]", "[[Plan|a\n   ~~~\ncode\n   ~~~\nb]]"]:
+        out = _convert(body, paths, refs=refs)
+        assert _link_marks(out["doc"]) == [] and out["links"] == [], body
+        text = _plain(out["doc"])
+        assert "import-link" not in text and "[[Plan|a" in text and "b]]" in text, (body, text)
+    for body in ["> see [[Plan|a\n> b]] end", "see [[Plan|a ```x``` b]] end",
+                 "see [[Plan|a ~~~x~~~ b]] end", "see [[Plan|a\n    ```x``` b]] end"]:
+        out = _convert(body, paths, refs=refs)
+        assert {h for _, h in _link_marks(out["doc"])} == {_key("Plan.md")}, body
+        assert "import-link" not in _plain(out["doc"]) and "[[" not in _plain(out["doc"]), body
 
 
 def test_wikilinks_in_code_or_cut_by_code_stay_as_written():

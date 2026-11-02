@@ -84,13 +84,18 @@ const CODE_RE = /```[\s\S]*?```|~~~[\s\S]*?~~~|`[^`\n]*`/g
 // `_WIKI_TARGET`/`_WIKI_ALIAS`): it keeps these patterns LINEAR. A target that could take
 // `[` scanned the rest of a line of `[` at every one of them (80 KB: ~2 s, quadratic).
 // Obsidian refuses `[` and `]` in a file name, so no real target holds `[[`.
-// ⛔ Nor across a blank line (a newline, optional spaces, tabs or `\r`, a newline) or a
-// fence (``` or `~~~`), D2 fix round 5, M-r4-1, mirroring the server's `_WIKI_STOP`:
-// Obsidian does not link across a paragraph break. ⚰️ `[[Plan|first\n\nsecond]]` made two
-// links, one each side of the break (or of a fenced block). Such text is now left exactly
-// as written. A single newline is still allowed. Each stop is a fixed string or one
-// whitespace run that ends at the next newline, so the patterns stay linear.
-const WIKI_STOP = '\\[\\[|\\n[ \\t\\r]*\\n|```|~~~'
+// ⛔ Nor across a blank line or a fence line (D2 fix round 5, M-r4-1, and its follow-up),
+// mirroring the server's `_WIKI_STOP`: Obsidian does not link across a paragraph break.
+// ⚰️ `[[Plan|first\n\nsecond]]` made two links, one each side of the break (or of a fenced
+// block). Such text is now left exactly as written.
+//   - A blank line is a newline, then only spaces, tabs, `\r` and `>` quote prefixes, then a
+//     newline: inside a blockquote or callout a line holding only `>` is a paragraph break.
+//   - A fence is a fence LINE: a newline, up to 3 spaces, optional `>` prefixes, then ``` or
+//     `~~~`. A one-line ``` run is an inline code span, which a link may hold whole
+//     (`clearOfCode`), as it may hold a single-backtick one.
+// A single newline is still allowed. Each stop reads at most one line from a newline, so
+// the patterns stay linear.
+const WIKI_STOP = '\\[\\[|\\n[ \\t\\r]*(?:>[ \\t\\r]*)*\\n|\\n {0,3}(?:>[ \\t]*)*(?:```|~~~)'
 const EMBED_RE = new RegExp(`!\\[\\[((?:(?!${WIKI_STOP})[^\\]])+)\\]\\]`, 'g')
 const WIKILINK_RE = new RegExp(
   `\\[\\[((?:(?!${WIKI_STOP})[^\\]|])+)(?:\\|((?:(?!${WIKI_STOP})[^\\]])+))?\\]\\]`, 'g')
@@ -432,7 +437,10 @@ function transformEmbeds(text, ctx) {
 function transformWikiLinks(text, ctx) {
   const piece = (rawTarget, rawAlias) => {
     const target = rawTarget.trim()
-    const alias = rawAlias ? rawAlias.trim() : ''
+    // D2 fix round 5 follow-up: an alias that runs onto the next line of a blockquote or
+    // callout carries that line's `>` prefix, which is block syntax, not link text. The
+    // server's markdown link loses it in the parse; the held link here never reaches one.
+    const alias = rawAlias ? rawAlias.replace(/\n[ \t]*(?:>[ \t]?)+/g, '\n').trim() : ''
     if (alias && ctx.isHeld?.(alias)) {
       // D2 fix round 1 (e): an embed in alias position, `[[Plan|![[img.png]]]]`, is the
       // embed and then the link to Plan as `[[Plan]]` reads -- both kept, as the server
