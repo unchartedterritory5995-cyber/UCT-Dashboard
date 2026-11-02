@@ -14,12 +14,47 @@ function getMd() {
     // `uctMarkdown` (wave 8, 8C, C5): `$…$` / `$$` math, `==…==` highlight, and image alts
     // that keep every character (../markdownExtensions.js).
     _md = new MarkdownIt({ html: true, linkify: true }).use(taskLists).use(uctMarkdown)
+    openInlineLinkGate(_md)
   }
   return _md
 }
 
+// Plan A handoff H3 (Plan B Task 1). markdown-it's stock `validateLink` does not refuse a
+// LINK, it refuses to PARSE one: `[t](javascript:x)` was stored as that raw markdown
+// source. For an inline `[text](dest)` link the gate is OPEN, so a `link_open` is emitted
+// and the post-parse pass's `resolveHref` (../linkPolicy.js) turns a refused href into its
+// visible text, the same answer as the server (`mddoc._validate_link`). Every other caller
+// of the gate keeps the stock answer: images (Task 2 handles `data:image`), reference
+// definitions (an image may use one, and is not re-validated) and markdown-it's autolinks.
+// ⛔ The INNERMOST rule decides: the link rule parses its label (which may hold an image)
+// before and after it validates its destination, so a nested image pushes its own frame
+// and gets the stock answer, never the link's open one.
+function openInlineLinkGate(md) {
+  const stock = md.validateLink
+  const frames = []
+  md.validateLink = (url) => frames[frames.length - 1] === 'link' || stock(url)
+  for (const name of ['link', 'image']) {
+    const rule = md.inline.ruler.__rules__.find((r) => r.name === name)
+    if (!rule) throw new Error(`markdown-it has no inline rule "${name}"`)
+    const original = rule.fn
+    md.inline.ruler.at(name, (state, silent) => {
+      frames.push(name)
+      try {
+        return original(state, silent)
+      } finally {
+        frames.pop()
+      }
+    })
+  }
+}
+
 export function mdToHtml(text) {
   return getMd().render(text || '')
+}
+
+/** The markdown lane's own linkify-it instance: ONE linkify behaviour (../linkPolicy.js). */
+export function getLinkify() {
+  return getMd().linkify
 }
 
 // ---------------------------------------------------------------------------
