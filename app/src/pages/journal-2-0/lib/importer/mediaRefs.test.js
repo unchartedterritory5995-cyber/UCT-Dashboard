@@ -1,10 +1,12 @@
 // Plan B Task 2: media references -- one IMAGE_EXT, `data:` images become uploadable media
 // items, remote and unresolvable images become refs, media is lifted out of links.
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi, afterEach } from 'vitest'
 import SparkMD5 from 'spark-md5'
 import {
   IMAGE_EXT,
   MEDIA_SOURCE_MAX_BYTES,
+  MEDIA_NAME_MAX,
+  percentDecode,
   extractDataUriImages,
   collectRemoteImages,
   liftMediaOutOfLinks,
@@ -220,6 +222,73 @@ describe('collectRemoteImages', () => {
     collectRemoteImages(b, media)
     expect(media).toEqual([])
     expect(b.innerHTML).toBe(html)
+  })
+
+  it('reads a padded src as the browser does: a ref already ours, or a data: src, is skipped', () => {
+    const html = '<p><img src="  import-ref://data-abc"><img src=" /api/j2/notes/attachments/u/1.png"><img src=" data:image/png;base64,QUJD"><img src="DATA:text/plain,x"></p>'
+    const b = dom(html)
+    const media = []
+    collectRemoteImages(b, media)
+    expect(media).toEqual([])
+    expect(b.innerHTML).toBe(html)
+  })
+
+  it('bounds an unresolvable name and a remote name, so a huge src never becomes a huge name', () => {
+    const longSrc = 'assets/' + 'x'.repeat(5000) + '.png'
+    const longUrl = 'https://cdn.example.com/' + 'y'.repeat(5000) + '.png'
+    const media = []
+    collectRemoteImages(dom(`<p><img src="${longSrc}"><img src="${longUrl}"></p>`), media)
+    expect(MEDIA_NAME_MAX).toBe(200)
+    expect(media.map((m) => m.name.length)).toEqual([200, 200])
+    expect(media[0].name.startsWith('assets/xxx')).toBe(true)
+    expect(media[1].remoteUrl).toBe(longUrl)
+    // a short name is untouched
+    const short = []
+    collectRemoteImages(dom('<p><img src="a.png"></p>'), short)
+    expect(short[0].name).toBe('a.png')
+  })
+})
+
+describe('percentDecode (bounded)', () => {
+  afterEach(() => vi.restoreAllMocks())
+
+  it('decodes byte-exact: %XX bytes, stray %, UTF-8 runs', () => {
+    const out = percentDecode('%89%FFa%zz%4é%41')
+    expect(Array.from(out.bytes)).toEqual([0x89, 0xff, 0x61, 0x25, 0x7a, 0x7a, 0x25, 0x34, 0xc3, 0xa9, 0x41])
+  })
+
+  it('stops at the cap: never writes into, or allocates, more than cap + 1 bytes', () => {
+    const spy = vi.spyOn(TextEncoder.prototype, 'encodeInto')
+    const cap = 64
+    // 10^5 segments, 300k bytes decoded if it ran to the end.
+    const out = percentDecode('éé%41'.repeat(100000), cap)
+    expect(out).toEqual({ reason: 'too_large' })
+    expect(spy.mock.calls.length).toBeLessThanOrEqual(cap) // early exit, not a full pass
+    for (const [, dest] of spy.mock.calls) expect(dest.buffer.byteLength).toBeLessThanOrEqual(cap + 1)
+  })
+
+  it('a %XX-only payload over the cap is refused at the first byte past it', () => {
+    expect(percentDecode('%41'.repeat(11), 10)).toEqual({ reason: 'too_large' })
+    expect(Array.from(percentDecode('%41'.repeat(10), 10).bytes)).toEqual(Array(10).fill(0x41))
+  })
+
+  it('exactly at the cap is kept, one byte past is refused (UTF-8 run)', () => {
+    expect(percentDecode('a'.repeat(10), 10).bytes.length).toBe(10)
+    expect(percentDecode('a'.repeat(11), 10)).toEqual({ reason: 'too_large' })
+    expect(percentDecode('aaaaaaaaaé', 10)).toEqual({ reason: 'too_large' }) // 9 + 2 bytes
+  })
+
+  it('a percent-encoded data: image under the length cap but over 25 MB decoded is too_large, buffer bounded', () => {
+    const spy = vi.spyOn(TextEncoder.prototype, 'encodeInto')
+    const b = dom('<p></p>')
+    const img = b.ownerDocument.createElement('img')
+    img.setAttribute('src', `data:image/svg+xml,${'é'.repeat(14 * 1024 * 1024)}`) // 14M chars -> 28 MB
+    b.firstChild.appendChild(img)
+    const media = []
+    extractDataUriImages(b, media)
+    expect(media).toEqual([{ ref: 'bad-data-1', kind: 'image', name: null, failed: { reason: 'too_large', sourceUrl: null } }])
+    expect(spy).toHaveBeenCalled()
+    for (const [, dest] of spy.mock.calls) expect(dest.buffer.byteLength).toBeLessThanOrEqual(MEDIA_SOURCE_MAX_BYTES + 1)
   })
 })
 

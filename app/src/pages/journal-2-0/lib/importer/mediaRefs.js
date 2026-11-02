@@ -70,23 +70,48 @@ function base64Bytes(payload) {
   return bytes
 }
 
-/** `urllib.parse.unquote_to_bytes`: `%XX` is a byte, a stray `%` stays, the rest is UTF-8. */
-function percentBytes(payload) {
+const TOO_LARGE = { reason: 'too_large' }
+
+function hexValue(code) {
+  if (code >= 48 && code <= 57) return code - 48 // 0-9
+  if (code >= 65 && code <= 70) return code - 55 // A-F
+  if (code >= 97 && code <= 102) return code - 87 // a-f
+  return -1
+}
+
+/**
+ * `urllib.parse.unquote_to_bytes`: `%XX` is a byte, a stray `%` stays, the rest is UTF-8.
+ * `{bytes}`, or `TOO_LARGE` the moment the output passes `cap`. ⛔ Decodes into ONE buffer
+ * of at most `cap + 1` bytes and stops there: a ~35M-character URI under the length cap
+ * must never become a 35M-element array (~280 MB) before it is refused.
+ */
+export function percentDecode(payload, cap = MEDIA_SOURCE_MAX_BYTES) {
+  // A UTF-16 code unit is at most 3 UTF-8 bytes (a pair, 2 units, is 4); `%XX` is 3 -> 1.
+  const out = new Uint8Array(Math.min(cap + 1, payload.length * 3))
   const enc = new TextEncoder()
-  const out = []
+  let pos = 0
   let i = 0
   while (i < payload.length) {
-    if (payload[i] === '%' && /^[0-9a-fA-F]{2}$/.test(payload.slice(i + 1, i + 3))) {
-      out.push(parseInt(payload.slice(i + 1, i + 3), 16))
-      i += 3
-      continue
+    if (payload.charCodeAt(i) === 37 /* % */) {
+      const hi = hexValue(payload.charCodeAt(i + 1))
+      const lo = hi < 0 ? -1 : hexValue(payload.charCodeAt(i + 2))
+      if (lo >= 0) {
+        if (pos >= cap) return TOO_LARGE
+        out[pos++] = hi * 16 + lo
+        i += 3
+        continue
+      }
     }
     const j = payload.indexOf('%', i + 1)
     const end = j === -1 ? payload.length : j
-    for (const b of enc.encode(payload.slice(i, end))) out.push(b)
+    const run = payload.slice(i, end)
+    const { read, written } = enc.encodeInto(run, out.subarray(pos))
+    pos += written
+    // The buffer is cap + 1 (or the run's own upper bound), so it fills only past the cap.
+    if (read < run.length || pos > cap) return TOO_LARGE
     i = end
   }
-  return Uint8Array.from(out)
+  return { bytes: out.slice(0, pos) }
 }
 
 /** `{bytes, mime}` for an image data URI, or `{reason}` (`too_large` | `decode_failed`). */
@@ -99,7 +124,13 @@ function decodeDataUri(src) {
   const params = m[2].split(';').map((p) => p.trim().toLowerCase())
   let bytes
   try {
-    bytes = params.includes('base64') ? base64Bytes(m[3]) : percentBytes(m[3])
+    if (params.includes('base64')) {
+      bytes = base64Bytes(m[3])
+    } else {
+      const out = percentDecode(m[3])
+      if (out.reason) return out
+      bytes = out.bytes
+    }
   } catch {
     return { reason: 'decode_failed' }
   }
@@ -171,22 +202,30 @@ function remoteUrlFor(src, sourceUrl) {
   return url.protocol === 'http:' || url.protocol === 'https:' ? url : null
 }
 
-/** Every other `<img>` not already ours -> a remote item (one per URL), or unresolvable. */
+/** A media item's display name, bounded: a src can be megabytes long. */
+export const MEDIA_NAME_MAX = 200
+const boundedName = (s) => (s === null || s.length <= MEDIA_NAME_MAX ? s : s.slice(0, MEDIA_NAME_MAX - 1) + '…')
+
+/**
+ * Every other `<img>` not already ours -> a remote item (one per URL), or unresolvable.
+ * A `data:` src is `extractDataUriImages`'s, never this pass's (run that one first).
+ */
 export function collectRemoteImages(root, media, sourceUrl = null) {
   const known = new Set(media.map((m) => m.ref))
   for (const img of root.querySelectorAll('img[src]')) {
     const src = img.getAttribute('src')
-    if (OURS.some((p) => src.startsWith(p))) continue
+    const trimmed = src.trim()
+    if (OURS.some((p) => trimmed.startsWith(p)) || DATA_PREFIX_RE.test(trimmed)) continue
     const url = remoteUrlFor(src, sourceUrl)
     let ref
     if (url) {
       ref = `remote-${SparkMD5.hash(url.href).toLowerCase()}`
       if (!known.has(ref)) {
-        media.push({ ref, kind: 'image', name: lastSegment(url), remoteUrl: url.href })
+        media.push({ ref, kind: 'image', name: boundedName(lastSegment(url)), remoteUrl: url.href })
         known.add(ref)
       }
     } else {
-      ref = failedItem(media, 'unresolvable-', src, 'unresolvable_src')
+      ref = failedItem(media, 'unresolvable-', boundedName(src), 'unresolvable_src')
       known.add(ref)
     }
     img.setAttribute('src', REF + ref)
