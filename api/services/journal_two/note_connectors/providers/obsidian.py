@@ -888,7 +888,51 @@ def _mark_unsent_attachments(
             return m.group(0)
         return _notice_markdown(reason, _basename(path))
 
-    return _MD_LINK_OR_IMAGE_RE.sub(markdown, _WIKI_RE.sub(wiki, segment))
+    return _sub_clear_of_code(_MD_LINK_OR_IMAGE_RE, markdown,
+                              _sub_clear_of_code(_WIKI_RE, wiki, segment))
+
+
+# ── Code spans and the attachment pass (D2 fix round 2, N-I1) ───────────────
+#
+# The attachment pass runs over the WHOLE body, before the code split, because an original
+# may hold a code span (`` [`q3` deck](q.pdf) ``): split first, it was cut at its code span,
+# never found, and the file never came over -- silently, on both the ref and the no-list
+# branch. Code stays protected: a match may CONTAIN whole code spans (fenced or inline, the
+# same `_CODE_RE` `_transform_outside_code` splits on), but may never start, end or sit
+# inside one.
+
+def _code_spans(text: str) -> list[tuple[int, int]]:
+    return [(m.start(), m.end()) for m in _CODE_RE.finditer(text)]
+
+
+def _clear_of_code(at: int, end: int, code: list[tuple[int, int]], code_starts: list[int]) -> bool:
+    """`[at, end)` cuts no code span and lies inside none; it may contain whole ones."""
+    j = bisect.bisect_right(code_starts, at) - 1
+    k = max(j, 0)
+    while k < len(code) and code[k][0] < end:
+        cs, ce = code[k]
+        if ce > at and not (at <= cs and ce <= end and (cs, ce) != (at, end)):
+            return False
+        k += 1
+    return True
+
+
+def _sub_clear_of_code(rx: "re.Pattern[str]", fn: Any, text: str) -> str:
+    """`rx.sub(fn, text)`, taking only matches `_clear_of_code`; a refused match is left as
+    written and the scan resumes one character after its start."""
+    code = _code_spans(text)
+    code_starts = [c[0] for c in code]
+    out: list[str] = []
+    last = pos = 0
+    while (m := rx.search(text, pos)) is not None:
+        if _clear_of_code(m.start(), m.end(), code, code_starts):
+            out.append(text[last:m.start()])
+            out.append(fn(m))
+            last = pos = m.end()
+        else:
+            pos = m.start() + 1
+    out.append(text[last:])
+    return "".join(out)
 
 
 _SCHEME_RE = re.compile(r"^[A-Za-z][A-Za-z0-9+.\-]*:")
@@ -924,6 +968,8 @@ def _apply_attachment_refs(
         written = _ref_markdown(ref)
         if written is not None:
             table[original] = written
+    code = _code_spans(segment)
+    code_starts = [c[0] for c in code]
     starts: list[int] = []  # sorted; spans[i] starts at starts[i]
     spans: list[tuple[int, int, str]] = []
     for original in sorted(table, key=len, reverse=True):
@@ -931,8 +977,10 @@ def _apply_attachment_refs(
         while at != -1:
             end = at + len(original)
             i = bisect.bisect_right(starts, at)
-            if (i and spans[i - 1][1] > at) or (i < len(spans) and spans[i][0] < end):
-                at = segment.find(original, at + 1)  # inside a longer original's span
+            if ((i and spans[i - 1][1] > at) or (i < len(spans) and spans[i][0] < end)
+                    or not _clear_of_code(at, end, code, code_starts)):
+                # inside a longer original's span, or inside / across a code span
+                at = segment.find(original, at + 1)
                 continue
             starts.insert(i, at)
             spans.insert(i, (at, end, table[original]))
@@ -1067,10 +1115,13 @@ def _preprocess_obsidian_markdown(
     vault_label: str | None = None, refs: Any = NO_ATTACHMENT_PASS,
     plugin_supports: bool = False,
 ) -> str:
+    if refs is not NO_ATTACHMENT_PASS:
+        # Over the WHOLE body, code spans protected, never per code-split segment: an
+        # original may hold a code span (D2 fix round 2, N-I1; see `_clear_of_code`).
+        body_md = _apply_attachment_refs(body_md, refs, plugin_supports, paths=paths,
+                                         basename_map=basename_map, from_path=from_path)
+
     def fn(segment: str) -> str:
-        if refs is not NO_ATTACHMENT_PASS:
-            segment = _apply_attachment_refs(segment, refs, plugin_supports, paths=paths,
-                                             basename_map=basename_map, from_path=from_path)
         segment = _transform_wiki_and_embeds(
             segment, paths, basename_map, vault_id, import_key_fn, from_path=from_path)
         segment = _transform_obsidian_uris(

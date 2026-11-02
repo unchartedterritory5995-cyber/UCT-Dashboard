@@ -1,0 +1,18 @@
+{
+  "_comment": "D2 fix round 2, N-I1: a file link whose text holds a code span is a chip labelled with the rendered text on both lanes (the server attachment pass runs over the whole body, code spans protected); an embed inside an inline code span stays code.",
+  "vault_id": "vault-1",
+  "self_path": "a.md",
+  "vault_paths": [
+    "a.md",
+    "attachments/q.pdf",
+    "attachments/chart.png"
+  ],
+  "attachments": [
+    {"original": "[`q3` deck](attachments/q.pdf)", "embed": false,
+     "path": "attachments/q.pdf", "size": 4096,
+     "sha256": "845bcfa0f93302a84be01c8e8ef78aff9e5c65ecb5bf1bcc00b261dc07e11e59", "status": "ok"},
+    {"original": "![[chart.png]]", "embed": true,
+     "path": "attachments/chart.png", "size": 2048,
+     "sha256": "469b244a740e75fdd003e562339cceff6e2a5a691eff0ce03c9e1204379161ef", "status": "ok"}
+  ]
+}

@@ -1798,3 +1798,37 @@ def test_an_embed_in_alias_position_keeps_the_image_and_the_link():
     conv = _convert("[[Plan|![[img.png]]]]", ["Plan.md"], refs=None, supports=False)
     assert [n["attrs"]["name"] for n in _all(conv["doc"], "importNotice")] == ["img.png"]
     assert _link_marks(conv["doc"]) == [("Plan", _key("Plan.md"))]
+
+
+def test_a_file_link_whose_text_holds_a_code_span_is_a_chip_or_a_notice():
+    """D2 fix round 2, N-I1: the attachment pass runs over the WHOLE body with code spans
+    protected, so an original that CONTAINS a whole code span is still found. It used to run
+    per code-split segment, the original was cut at its code span and never found: no chip,
+    no upload, no notice -- silently, on both the new- and the old-plugin path."""
+    original = "[`q3` deck](attachments/q.pdf)"
+    conv = _convert(f"see {original} end",
+                    refs=[REF(original=original, embed=False, path="attachments/q.pdf")])
+    chip = _only(conv["doc"], "attachmentChip")
+    assert chip["attrs"]["name"] == "q.pdf" and chip["attrs"]["label"] == "q3 deck"
+    assert [m["ref"] for m in conv["media"]] == ["obsidian-file:" + _SHA + "/q.pdf"]
+    old = _convert(f"see {original} end", refs=None, supports=False)
+    assert [(n["attrs"]["reason"], n["attrs"]["name"]) for n in _all(old["doc"], "importNotice")] == [
+        ("obsidian-plugin-outdated", "q.pdf")]
+    wiki = "[[q.pdf|the `q3` deck]]"
+    conv = _convert(f"a {wiki} b", refs=[REF(original=wiki, embed=False, path="attachments/q.pdf")])
+    assert _only(conv["doc"], "attachmentChip")["attrs"]["label"] == "the q3 deck"
+
+
+def test_an_original_inside_or_across_a_code_span_is_never_rewritten():
+    """D2 fix round 2, N-I1 guard: an original may contain a whole code span, never sit inside
+    one, start inside one or end inside one; fences are code too. Both branches."""
+    refs = [REF(), REF(original="[a](q.pdf)", embed=False, path="q.pdf"),
+            REF(original="[a `b](q.pdf)", embed=False, path="q.pdf")]
+    body = ("`![[chart.png]]` and `x [a](q.pdf) y`\n\n```\n[a](q.pdf) ![[chart.png]]\n```\n\n"
+            "~~~\n![[chart.png]]\n~~~\n\n[a `b](q.pdf) c` d\n")
+    for kwargs in ({"refs": refs}, {"refs": None, "supports": False}):
+        conv = _convert(body, **kwargs)
+        assert _all(conv["doc"], "image") == [] and _all(conv["doc"], "attachmentChip") == []
+        assert _all(conv["doc"], "importNotice") == [], kwargs
+        assert conv["media"] == []
+        assert "![[chart.png]]" in _plain(conv["doc"]) and "[a](q.pdf)" in _plain(conv["doc"])
