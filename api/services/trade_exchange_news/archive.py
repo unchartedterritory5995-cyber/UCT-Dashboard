@@ -81,6 +81,12 @@ DAY_CACHE_DAYS = 64
 DAY_CACHE_ROWS = 60_000
 DERIVED_MAX = 20_000
 CONCURRENT = 2
+#: ⭐ ALL HISTORY (Linked to chart): one request walks archived days newest -> oldest and
+#: stops at whichever comes first -- a full page, this much wall time, or this many rows
+#: read -- then answers with a cursor to continue from. The walk itself has NO date
+#: cutoff: the reader's scrolling carries it back to the archive's first day.
+HISTORY_BUDGET_S = 1.5
+HISTORY_BUDGET_ROWS = 6_000
 #: categories.CATEGORIES, restated so this module imports nothing heavy (the tests
 #: assert the two never drift).
 CATEGORIES = ("News", "Macro", "Options", "Press Release", "Earnings", "Price", "Filing", "Other")
@@ -450,6 +456,51 @@ def _cursor(raw: Any) -> tuple[int, int] | None:
     return None
 
 
+def _rule(query: str, categories, symbol, symbols, hide_placeholders: bool) -> dict[str, Any]:
+    """The widget's filters, normalised once per request (``visibleItems`` + ``matchesQuery``)."""
+    q = str(query or "").strip().lower()[:MAX_QUERY]
+    q_sym = q[1:].upper() if q.startswith("$") else q.upper()
+    cats = None
+    if categories:
+        picked = frozenset(c for c in categories if isinstance(c, str) and c in CATEGORIES)
+        cats = picked if picked and len(picked) < len(CATEGORIES) else None
+    return {"q": q, "q_sym": q_sym, "q_needs_tickers": bool(q) and bool(_SYMBOLISH.match(q_sym)), "cats": cats,
+            "sym": str(symbol).strip().upper() if symbol else None, "syms": _clean_syms(symbols),
+            "hide": bool(hide_placeholders)}
+
+
+def _filter_day(day_rows: list[tuple], rule: dict[str, Any]) -> tuple[list[tuple[int, int]], dict[int, tuple], int]:
+    """One day's matches, newest first by (received_at_ms, seq): (keys, rows by seq, graphic posts seen)."""
+    day_rows.sort(key=lambda r: (r[3], r[0]), reverse=True)
+    q, q_sym, q_needs_tickers = rule["q"], rule["q_sym"], rule["q_needs_tickers"]
+    cats, sym, syms, hide = rule["cats"], rule["sym"], rule["syms"], rule["hide"]
+    match: list[tuple[int, int]] = []                 # (received_at_ms, seq), newest first
+    by_seq: dict[int, tuple] = {}
+    hidden = 0
+    # ⛔ No voluntary GIL yields here: Python already switches threads every 5 ms, and
+    # in a busy process every give-back is a wait to get it again.
+    for r in day_rows:
+        seq, source, content, received = r[:4]
+        cat, graphic, lc = _light_of(source, content)
+        if graphic:
+            hidden += 1
+            if hide:
+                continue
+        if cats is not None and cat not in cats:
+            continue
+        if sym or syms is not None:
+            tick = _tickers(source, content)
+            if sym and sym not in tick:
+                continue
+            if syms is not None and tick.isdisjoint(syms):
+                continue
+        if q and q not in lc and not (q_needs_tickers and q_sym in _tickers(source, content)):
+            continue
+        match.append((received, seq))
+        by_seq[seq] = r
+    return match, by_seq, hidden
+
+
 def day_slice(store, *, day: _date, limit: int = DEFAULT_LIMIT, cursor: Any = None, direction: str = "older",
               at: int | None = None, query: str = "", categories: Iterable[str] | None = None,
               symbol: str | None = None, symbols: Iterable[Any] | None = None,
@@ -469,42 +520,9 @@ def day_slice(store, *, day: _date, limit: int = DEFAULT_LIMIT, cursor: Any = No
     """
     limit = max(1, min(MAX_LIMIT, int(limit)))
     start, end = day_bounds(day)
-    q = str(query or "").strip().lower()[:MAX_QUERY]
-    q_sym = q[1:].upper() if q.startswith("$") else q.upper()
-    q_needs_tickers = bool(q) and bool(_SYMBOLISH.match(q_sym))
-    cats = None
-    if categories:
-        picked = frozenset(c for c in categories if isinstance(c, str) and c in CATEGORIES)
-        cats = picked if picked and len(picked) < len(CATEGORIES) else None
-    sym = str(symbol).strip().upper() if symbol else None
-    syms = _clean_syms(symbols)
-
+    rule = _rule(query, categories, symbol, symbols, hide_placeholders)
     day_rows, top = _day_rows(store, day)
-    day_rows.sort(key=lambda r: (r[3], r[0]), reverse=True)
-    match: list[tuple[int, int]] = []                 # (received_at_ms, seq), newest first
-    by_seq: dict[int, tuple] = {}
-    hidden = 0
-    # ⛔ No voluntary GIL yields here: Python already switches threads every 5 ms, and
-    # in a busy process every give-back is a wait to get it again.
-    for r in day_rows:
-        seq, source, content, received = r[:4]
-        cat, graphic, lc = _light_of(source, content)
-        if graphic:
-            hidden += 1
-            if hide_placeholders:
-                continue
-        if cats is not None and cat not in cats:
-            continue
-        if sym or syms is not None:
-            tick = _tickers(source, content)
-            if sym and sym not in tick:
-                continue
-            if syms is not None and tick.isdisjoint(syms):
-                continue
-        if q and q not in lc and not (q_needs_tickers and q_sym in _tickers(source, content)):
-            continue
-        match.append((received, seq))
-        by_seq[seq] = r
+    match, by_seq, hidden = _filter_day(day_rows, rule)
 
     neg = [(-k[0], -k[1]) for k in match]             # ascending, for bisect
     cur = _cursor(cursor)
@@ -534,3 +552,78 @@ def day_slice(store, *, day: _date, limit: int = DEFAULT_LIMIT, cursor: Any = No
             "newer_cursor": list(keys[0]) if keys else None,
             "older_cursor": list(keys[-1]) if keys else None,
             "top": top, "seqs": [k[1] for k in keys], "_rows": [by_seq[k[1]] for k in keys]}
+
+
+# ── all history: every archived day, newest first (Linked to chart) ──────────
+
+def history_slice(store, *, limit: int = DEFAULT_LIMIT, cursor: Any = None, query: str = "",
+                  categories: Iterable[str] | None = None, symbol: str | None = None,
+                  symbols: Iterable[Any] | None = None, hide_placeholders: bool = True,
+                  budget_s: float | None = None, budget_rows: int | None = None,
+                  now_ms: int | None = None) -> dict[str, Any]:
+    """Up to ``limit`` matches across EVERY archived day, newest first by
+    ``(received_at_ms, seq)``, strictly older than ``cursor`` when one is given.
+
+    Walks the days that hold archived rows (``days()``), newest first, through the
+    same bounded day reader and the same filter as ``day_slice`` -- never a scan of
+    the archive in one go. One request stops at a full page, ``HISTORY_BUDGET_S``
+    or ``HISTORY_BUDGET_ROWS`` (checked between days), whichever is first, and
+    answers ``has_older`` with an ``older_cursor`` to continue from: the last match
+    returned, or -- when the budget ran out first -- the start of the oldest day it
+    finished, so the next request begins with the day before it. There is no date
+    cutoff; ``searched_to`` (the oldest date fully searched) and ``reached_start``
+    let the widget say how far back it has looked. ``total`` is None: counting every
+    match would mean reading every day.
+    """
+    limit = max(1, min(MAX_LIMIT, int(limit)))
+    budget_s = HISTORY_BUDGET_S if budget_s is None else budget_s
+    budget_rows = HISTORY_BUDGET_ROWS if budget_rows is None else budget_rows
+    rule = _rule(query, categories, symbol, symbols, hide_placeholders)
+    cur = _cursor(cursor)
+    held = [_date.fromisoformat(r["date"]) for r in days(store, now_ms)["days"]]
+    held.sort(reverse=True)
+    if cur is not None:
+        cut = day_of(cur[0])
+        # the cursor's own day only if it can still hold an older row (a budget stop
+        # leaves the cursor exactly at a searched day's start: that day is done)
+        held = [d for d in held if d < cut or (d == cut and (cur[0], cur[1]) > (day_bounds(d)[0], 0))]
+    t0 = time.perf_counter()
+    keys: list[tuple[int, int]] = []
+    rows_out: list[tuple] = []
+    scanned = 0
+    searched_to = None
+    top = 0
+    stopped = None                                    # the oldest day finished when a budget stopped the walk
+    for i, d in enumerate(held):
+        day_rows, top = _day_rows(store, d)
+        scanned += len(day_rows)
+        match, by_seq, _ = _filter_day(day_rows, rule)
+        if cur is not None:
+            match = [k for k in match if (k[0], k[1]) < cur]
+        need = limit - len(keys)
+        take = match[:need]
+        keys.extend(take)
+        rows_out.extend(by_seq[k[1]] for k in take)
+        if len(match) > need:                         # a full page, with more in this day
+            return _history_out(keys, rows_out, True, top, searched_to, False, scanned)
+        searched_to = d
+        if len(keys) >= limit:
+            return _history_out(keys, rows_out, i + 1 < len(held), top, searched_to, i + 1 >= len(held), scanned)
+        if i + 1 < len(held) and (time.perf_counter() - t0 >= budget_s or scanned >= budget_rows):
+            stopped = d
+            break
+    if stopped is not None:
+        start, _ = day_bounds(stopped)
+        out = _history_out(keys, rows_out, True, top, searched_to, False, scanned)
+        out["older_cursor"] = [start, 0]              # strictly older than this day: the day before it
+        return out
+    return _history_out(keys, rows_out, False, top, searched_to, True, scanned)
+
+
+def _history_out(keys, rows_out, has_older, top, searched_to, reached_start, scanned) -> dict[str, Any]:
+    return {"history": True, "total": None, "day_total": None, "at_match": None, "hidden_placeholders": None,
+            "has_newer": False, "has_older": bool(has_older),
+            "newer_cursor": list(keys[0]) if keys else None,
+            "older_cursor": list(keys[-1]) if keys else None,
+            "searched_to": searched_to.isoformat() if searched_to else None, "reached_start": bool(reached_start),
+            "scanned_rows": scanned, "top": top, "seqs": [k[1] for k in keys], "_rows": rows_out}

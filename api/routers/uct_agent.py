@@ -3,8 +3,11 @@
   POST /api/agent/turn                     one model turn -> structured envelope
   POST /api/agent/turn/stream              the same turn as text/event-stream (an answer streams when
                                            UCT_AGENT_STREAM is on; the final event is /turn's JSON)
-  GET  /api/agent/config                   {stream, nl1}: does this server stream turns (UCT_AGENT_STREAM),
-                                           does it serve NL-1 (UCT_AGENT_NL1)
+  GET  /api/agent/config                   {stream, nl1, data, scan}: does this server stream turns (UCT_AGENT_STREAM),
+                                           does it serve NL-1 (UCT_AGENT_NL1), the MD-1 data gateway
+                                           (UCT_AGENT_DATA) and its scan kinds (UCT_AGENT_SCAN)
+  POST /api/agent/data                     one MD-1 market-data read -> DataEnvelope (read-only, no model;
+                                           refused unless UCT_AGENT_DATA=1)
   POST /api/agent/record                   record what the BROWSER did (fast-path
                                            turns, receipts, refusals, undo) + telemetry
   GET  /api/agent/conversations            the member's chats, newest first
@@ -188,7 +191,9 @@ def agent_config(user: dict = Depends(require_admin_dark)):
     """What the browser needs to know about this server's Agent: whether turns stream, and whether it serves
     NL-1 (flags only). The browser takes NL-1's path only when this says so AND its own switch is on."""
     from api.services.uct_agent import turn
-    return {"stream": streaming_enabled(), "nl1": turn.nl1_enabled()}
+    from api.services.uct_agent.marketdata import gateway
+    return {"stream": streaming_enabled(), "nl1": turn.nl1_enabled(),
+            "data": gateway.data_enabled(), "scan": gateway.scan_enabled()}
 
 
 @router.post("/api/agent/turn/stream")
@@ -492,6 +497,21 @@ def agent_session_stats(body: SessionStatsIn, user: dict = Depends(require_admin
     if len(body.symbols) > session_stats.MAX_SYMBOLS:
         raise HTTPException(status_code=400, detail=f"at most {session_stats.MAX_SYMBOLS} symbols at once")
     return session_stats.latest_session(body.symbols)
+
+
+class DataReadIn(BaseModel):
+    kind: str = Field(..., max_length=64)
+    params: dict = Field(default_factory=dict)
+    purpose: str = Field("answer", max_length=16)
+    turn_id: str = Field(..., max_length=80)
+
+
+@router.post("/api/agent/data")
+def agent_data(body: DataReadIn, user: dict = Depends(require_admin_dark)):
+    """One MD-1 market-data read (services/uct_agent/marketdata/gateway.py) -> a DataEnvelope. Read-only, no
+    model call. Dark twice: admin-dark like every route here, and refused unless UCT_AGENT_DATA=1."""
+    from api.services.uct_agent.marketdata import gateway
+    return gateway.read(body.kind, body.params, user_id=user.get("id"), turn_id=body.turn_id, purpose=body.purpose)
 
 
 # ── Market Intelligence breadth slice 1 — LOCAL-RESULT BOUNDARY ────────────────────────────────────

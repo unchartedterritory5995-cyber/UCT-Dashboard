@@ -93,7 +93,10 @@ export function blockRunsRefusal(def, key, evaluate) {
     }
     const hit = firstRunAfterSkip(column)
     if (hit) {
-      return `${gate.why} — on this chart the block skips bar ${hit.skipped} and runs again on bar ${hit.bar}, `
+      // ⭐ C45 — a gate names what it guards when that is not a block: `that arm`
+      // of a `?:`, `that right side` of a v6 `and` / `or` (`pine.js::armRunGates`).
+      const what = typeof gate.what === 'string' && gate.what ? gate.what : 'the block'
+      return `${gate.why} — on this chart ${what} skips bar ${hit.skipped} and runs again on bar ${hit.bar}, `
         + 'so its calls have not run on every bar'
     }
   }
