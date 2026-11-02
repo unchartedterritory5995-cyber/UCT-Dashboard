@@ -22,6 +22,12 @@ from api.services.journal_two.note_connectors import obsidian_attachments as oa
 from api.services.journal_two.note_connectors import obsidian_link
 
 
+def _add_device(conn, user, vault):
+    conn.execute(
+        "INSERT INTO j2_obsidian_devices (id, user_id, vault_id, token_enc, created_at)"
+        " VALUES (?, ?, ?, 'enc', '2026-11-01T00:00:00Z')", (f"dev-{user}-{vault}", user, vault))
+
+
 @pytest.fixture
 def env(tmp_path, monkeypatch):
     dbfile = tmp_path / "auth.db"
@@ -34,7 +40,13 @@ def env(tmp_path, monkeypatch):
     auth_db.init_db()
     conn = auth_db.get_connection()
     ensure_schema(conn)
+    # A commit requires the (member, vault)'s device to still exist (fix round 1, item 4a).
+    for user in ("u", "u2", "u3"):
+        for vault in ("v", "v2"):
+            _add_device(conn, user, vault)
+    conn.commit()
     conn.close()
+    oa._SWEEP_OFFSET.clear()
     yield tmp_path
     media_policy._USAGE_MEMO.clear()
 
@@ -360,3 +372,147 @@ def test_blob_root_is_outside_the_attachment_root(monkeypatch, tmp_path):
     monkeypatch.setenv("DATA_DIR", str(tmp_path))
     assert oa.blob_root() == tmp_path / "j2_obsidian_staging_blobs"
     assert oa.MAX_BLOB_BYTES == media_policy.MEDIA_SOURCE_MAX_BYTES
+
+
+# ── fix round 1 ─────────────────────────────────────────────────────────────
+
+def _orphan(user, vault, data):
+    p = oa.blob_root() / user / vault / _sha(data)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_bytes(data)
+    return p
+
+
+def _tmp_file(user, vault, hours_old):
+    import os
+    import uuid
+    p = oa.blob_root() / user / vault / f"{_sha(uuid.uuid4().bytes)}.tmp-{uuid.uuid4().hex}"
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_bytes(b"partial")
+    t = (datetime.now(timezone.utc) - timedelta(hours=hours_old)).timestamp()
+    os.utime(p, (t, t))
+    return p
+
+
+@pytest.mark.asyncio
+async def test_gc_sweeps_orphan_files_and_stale_tmp(env):
+    """Item 1: a blob file with no row (crash between row delete and unlink) and a tmp file
+    left by a killed upload are invisible to the row pass and to the room check; the
+    bounded directory sweep removes them. A fresh tmp (an upload in flight), a staged blob
+    and another member's orphan are left alone."""
+    await _stage(data=b"kept")
+    orphan = _orphan("u", "v", b"orphan")
+    old_tmp = _tmp_file("u", "v", hours_old=25)
+    fresh_tmp = _tmp_file("u", "v", hours_old=0)
+    other = _orphan("u2", "v", b"other member orphan")
+    assert oa.gc_unreferenced("u", "v") == 2
+    assert not orphan.exists() and not old_tmp.exists()
+    assert fresh_tmp.exists() and other.exists()
+    assert oa.read_blob("u", "v", _sha(b"kept")) == (b"kept", "image/png")
+
+
+@pytest.mark.asyncio
+async def test_gc_sweep_never_removes_a_live_upload_tmp_even_with_a_zero_cutoff(env):
+    fresh_tmp = _tmp_file("u", "v", hours_old=0)
+    assert oa.gc_unreferenced("u", "v", older_than=timedelta(0)) == 0
+    assert fresh_tmp.exists()
+
+
+@pytest.mark.asyncio
+async def test_gc_sweep_is_bounded_and_resumes(env, monkeypatch):
+    monkeypatch.setattr(oa, "GC_SWEEP_MAX", 2)
+    kept = [b"k1", b"k2", b"k3"]
+    for d in kept:
+        await _stage(data=d)
+    orphans = [_orphan("u", "v", b"o%d" % i) for i in range(3)]
+    results = [oa.gc_unreferenced("u", "v") for _ in range(8)]
+    assert all(r <= 2 for r in results)
+    assert sum(results) == 3
+    assert not any(p.exists() for p in orphans)
+    for d in kept:
+        assert oa.read_blob("u", "v", _sha(d)) == (d, "image/png")
+
+
+@pytest.mark.asyncio
+async def test_commit_time_room_recheck_refuses(env, monkeypatch):
+    """Item 2: the pre-stream and in-stream checks pass (room looks ample), then the room is
+    gone by the time the upload commits (another upload took it). Only the re-check inside
+    `_commit`, under `_COMMIT_LOCK`, can refuse here."""
+    calls = []
+    real = oa.remaining_bytes
+
+    def shrinking(user_id):
+        calls.append(user_id)
+        return 10 ** 9 if len(calls) == 1 else 0
+
+    monkeypatch.setattr(oa, "remaining_bytes", shrinking)
+    with pytest.raises(oa.BlobRejected) as e:
+        await _stage(data=b"late")
+    assert e.value.status == 413 and "storage" in e.value.detail.lower()
+    assert len(calls) == 2  # the pre-stream read and the commit-time re-check
+    monkeypatch.setattr(oa, "remaining_bytes", real)
+    assert _rows() == [] and _files() == []
+
+
+@pytest.mark.asyncio
+async def test_os_invalid_ids_are_400_not_500(env):
+    for vault in ("a\x00b", "a:b", "a|b", "a\nb", "x" * 201, "trailing.", "trailing "):
+        with pytest.raises(oa.BlobRejected) as e:
+            await oa.stage_blob_stream(user_id="u", vault_id=vault, sha256=_sha(b"x"), declared_mime=None,
+                                       name="a", chunks=_chunks(b"x"), declared_length=1)
+        assert e.value.status == 400, vault
+    assert _files() == [] and _rows() == []
+    assert oa.read_blob("u", "a\x00b", _sha(b"x")) is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("revoke", ["devices", "account"])
+async def test_upload_finishing_after_revoke_or_account_purge_is_refused(env, revoke):
+    """Item 4a: the stream started while the vault was connected; the member disconnects
+    (or the account is deleted) mid-stream. The commit must not recreate a row or a file."""
+    from api.services.journal_two import account_purge
+
+    async def chunks_then_revoke():
+        yield b"first half "
+        if revoke == "devices":
+            obsidian_link.revoke_devices("u")
+        else:
+            conn = auth_db.get_connection()
+            try:
+                account_purge.purge_user_data("u", conn)
+            finally:
+                conn.close()
+        yield b"second half"
+
+    data = b"first half second half"
+    with pytest.raises(oa.BlobRejected) as e:
+        await oa.stage_blob_stream(user_id="u", vault_id="v", sha256=_sha(data), declared_mime=None,
+                                   name="a.png", chunks=chunks_then_revoke(), declared_length=len(data))
+    assert e.value.status == 403
+    assert _rows("u") == []
+    assert [p for p in _files() if p.relative_to(oa.blob_root()).parts[0] == "u"] == []
+
+
+@pytest.mark.asyncio
+async def test_gc_unlink_keeps_a_file_whose_row_came_back(env, monkeypatch):
+    """Item 4b: GC deletes the row, then an upload of the same sha commits (row + file)
+    before GC's unlink runs. The unlink must re-check the row under the lock and keep
+    the new file, or the member is left with a row pointing at nothing."""
+    data = b"raced"
+    await _stage(data=data)
+    _age_rows("u", "v", 25)
+    real = oa._remove_if_unreferenced
+
+    def upload_commits_first(user_id, vault_id, sha256):
+        conn = auth_db.get_connection()
+        conn.execute(
+            "INSERT OR IGNORE INTO j2_obsidian_attachments (user_id, vault_id, sha256, size,"
+            " declared_mime, name, received_at) VALUES (?, ?, ?, ?, 'image/png', 'a.png', ?)",
+            (user_id, vault_id, sha256, len(data), datetime.now(timezone.utc).isoformat()))
+        conn.commit()
+        conn.close()
+        return real(user_id, vault_id, sha256)
+
+    monkeypatch.setattr(oa, "_remove_if_unreferenced", upload_commits_first)
+    oa.gc_unreferenced("u", "v")
+    assert oa.read_blob("u", "v", _sha(data)) == (data, "image/png")

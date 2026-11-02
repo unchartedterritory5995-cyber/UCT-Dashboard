@@ -66,7 +66,7 @@ _COMMIT_LOCK = threading.Lock()
 
 
 class BlobRejected(Exception):
-    """A staging upload refused: `.status` is the HTTP status (400/413/503)."""
+    """A staging upload refused: `.status` is the HTTP status (400/403/413/503)."""
 
     def __init__(self, status: int, detail: str):
         super().__init__(detail)
@@ -85,10 +85,23 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+_MAX_SEGMENT = 200
+# Characters no path segment may carry on any OS we run on: control characters (NUL
+# included) and the Windows-reserved set. A segment that reaches mkdir/open with one of
+# these raises there (a 500); refused here as a 400 instead.
+_BAD_SEGMENT_CHARS = frozenset('<>:"|?*') | frozenset(chr(c) for c in range(32)) | {"\x7f"}
+
+
+def _safe_id(value) -> bool:
+    return (isinstance(value, str) and len(value) <= _MAX_SEGMENT
+            # The segment rule media_policy applies to the member's attachment directory.
+            and media_policy._safe_segment(value)
+            and not (_BAD_SEGMENT_CHARS & set(value))
+            and value == value.rstrip(" ."))
+
+
 def _valid_ids(user_id, vault_id) -> bool:
-    # Same segment rule media_policy applies to the member's attachment directory.
-    return (isinstance(user_id, str) and isinstance(vault_id, str)
-            and media_policy._safe_segment(user_id) and media_policy._safe_segment(vault_id))
+    return _safe_id(user_id) and _safe_id(vault_id)
 
 
 def _valid_sha(sha256) -> bool:
@@ -171,12 +184,23 @@ def _no_room() -> BlobRejected:
 
 def _commit(user_id: str, vault_id: str, sha256: str, tmp: Path, final: Path, size: int,
             declared_mime: str | None, name: str | None) -> bool:
-    """Final room check + rename + row insert, under `_COMMIT_LOCK`."""
+    """Final checks + rename + row insert, under `_COMMIT_LOCK`.
+
+    The room re-check is what makes the room rule atomic: the earlier checks in
+    `stage_blob_stream` run outside the lock, so two concurrent uploads can both pass
+    them. The device check refuses an upload that finishes after `revoke_devices` or the
+    account purge removed this (member, vault)'s device: without it, the commit would
+    recreate a row and a file for a revoked vault or a deleted member."""
     with _COMMIT_LOCK:
-        if size > remaining_bytes(user_id):
-            raise _no_room()
         conn = get_connection()
         try:
+            if conn.execute(
+                "SELECT 1 FROM j2_obsidian_devices WHERE user_id = ? AND vault_id = ?",
+                (user_id, vault_id),
+            ).fetchone() is None:
+                raise BlobRejected(403, "this vault is no longer connected")
+            if size > remaining_bytes(user_id):
+                raise _no_room()
             os.replace(tmp, final)
             cur = conn.execute(
                 "INSERT OR IGNORE INTO j2_obsidian_attachments"
@@ -310,13 +334,25 @@ def read_blob(user_id: str, vault_id: str, sha256: str) -> tuple[bytes, str | No
 # ── gc / purge ──────────────────────────────────────────────────────────────
 
 def gc_unreferenced(user_id: str, vault_id: str, *, older_than: timedelta = timedelta(hours=24)) -> int:
-    """Removes up to `GC_BATCH` blobs of ONE (member, vault) that no staging row's
-    `attachments_json` references and that were received before `older_than` ago.
-    A referenced blob always survives (an engine retry re-calls `fetch_media`). When any
-    reference list for the vault is unreadable, nothing is removed: guessing could delete
-    a blob a note still needs. Returns the number removed. Sync: run it in a worker thread."""
+    """GC for ONE (member, vault). Sync: run it in a worker thread. Returns the number of
+    rows plus orphan files removed. Two bounded passes:
+
+    1. Rows: up to `GC_BATCH` blobs that no staging row's `attachments_json` references and
+       that were received before `older_than` ago. A referenced blob always survives (an
+       engine retry re-calls `fetch_media`). When any reference list for the vault is
+       unreadable, this pass removes nothing: guessing could delete a blob a note needs.
+    2. Directory sweep (`_sweep_orphans`): files the row pass cannot see, because the room
+       check counts ROWS and these have none. A blob file with no row (a crash between a
+       row delete and its unlink, or between `os.replace` and the insert) and a
+       `<sha>.tmp-<id>` older than the cutoff (a process killed mid-stream, before its
+       cleanup ran). Without this they would sit on /data outside the member's bound."""
     if not _valid_ids(user_id, vault_id):
         return 0
+    removed = _gc_rows(user_id, vault_id, older_than)
+    return removed + _sweep_orphans(user_id, vault_id, older_than)
+
+
+def _gc_rows(user_id: str, vault_id: str, older_than: timedelta) -> int:
     cutoff = (datetime.now(timezone.utc) - older_than).isoformat()
     conn = get_connection()
     try:
@@ -350,11 +386,102 @@ def gc_unreferenced(user_id: str, vault_id: str, *, older_than: timedelta = time
         conn.commit()
     finally:
         conn.close()
-    # Rows first, files after the commit: a crash between leaves an orphan FILE (overwritten
-    # by a later upload), never a row pointing at nothing.
+    # Rows first, files after the commit: a crash between leaves an orphan FILE with no row,
+    # never a row pointing at nothing. The orphan is not counted by the room check (that
+    # sums rows); the directory sweep in gc_unreferenced is what removes it.
     for sha in doomed:
-        _unlink(_path(user_id, vault_id, sha))
+        _remove_if_unreferenced(user_id, vault_id, sha)
     return len(doomed)
+
+
+def _remove_if_unreferenced(user_id: str, vault_id: str, sha256: str) -> bool:
+    """Unlinks a blob file only when no row names it, checked under `_COMMIT_LOCK` (the lock
+    `_commit` holds from `os.replace` to the insert's commit). Without the re-check, an
+    upload of the same sha committing between GC's row delete and this unlink would lose
+    its file and leave a row pointing at nothing."""
+    with _COMMIT_LOCK:
+        conn = get_connection()
+        try:
+            if conn.execute(
+                "SELECT 1 FROM j2_obsidian_attachments WHERE user_id = ? AND vault_id = ? AND sha256 = ?",
+                (user_id, vault_id, sha256),
+            ).fetchone() is not None:
+                return False
+        finally:
+            conn.close()
+        p = _path(user_id, vault_id, sha256)
+        existed = p.is_file()
+        _unlink(p)
+        return existed
+
+
+# Most directory entries one sweep examines, and where the next sweep of that vault resumes
+# (process-local: a restart starts again from the top, which only costs a repeat).
+GC_SWEEP_MAX = 2000
+_SWEEP_OFFSET: dict[tuple[str, str], int] = {}
+_TMP_RE = re.compile(r"^[0-9a-f]{64}\.tmp-[0-9a-f]{32}$")
+# A tmp file is an upload in flight until it is at least this old, whatever `older_than`
+# the caller passed: removing a live upload's tmp would fail that upload.
+TMP_MIN_AGE = timedelta(hours=1)
+
+
+def _sweep_orphans(user_id: str, vault_id: str, older_than: timedelta) -> int:
+    vdir = blob_root() / user_id / vault_id
+    key = (user_id, vault_id)
+    start = _SWEEP_OFFSET.get(key, 0)
+    tmp_cutoff = (datetime.now(timezone.utc) - max(older_than, TMP_MIN_AGE)).timestamp()
+    stale_tmp: list[Path] = []
+    blobs: list[str] = []
+    seen = examined = 0
+    exhausted = True
+    try:
+        with os.scandir(vdir) as it:
+            for entry in it:
+                seen += 1
+                if seen <= start:
+                    continue
+                if examined >= GC_SWEEP_MAX:
+                    exhausted = False
+                    break
+                examined += 1
+                name = entry.name
+                try:
+                    if not entry.is_file(follow_symlinks=False):
+                        continue
+                    if _SHA_RE.match(name):
+                        blobs.append(name)
+                    elif _TMP_RE.match(name) and entry.stat(follow_symlinks=False).st_mtime < tmp_cutoff:
+                        stale_tmp.append(Path(entry.path))
+                except OSError:
+                    continue
+    except FileNotFoundError:
+        _SWEEP_OFFSET.pop(key, None)
+        return 0
+    except OSError as e:
+        log.warning("obsidian staging sweep skipped for %s/%s: %s", user_id, vault_id, e)
+        return 0
+    have: set[str] = set()
+    conn = get_connection()
+    try:
+        for i in range(0, len(blobs), _IN_CHUNK):
+            part = blobs[i:i + _IN_CHUNK]
+            marks = ",".join("?" * len(part))
+            have.update(r[0] for r in conn.execute(
+                f"SELECT sha256 FROM j2_obsidian_attachments WHERE user_id = ? AND vault_id = ?"
+                f" AND sha256 IN ({marks})", (user_id, vault_id, *part)))
+    finally:
+        conn.close()
+    removed = 0
+    for sha in blobs:
+        if sha not in have and _remove_if_unreferenced(user_id, vault_id, sha):
+            removed += 1
+    for p in stale_tmp:
+        if p.exists():
+            _unlink(p)
+            removed += 1
+    # Resume after what this sweep kept; what it removed no longer occupies an entry.
+    _SWEEP_OFFSET[key] = 0 if exhausted else max(0, start + examined - removed)
+    return removed
 
 
 def delete_user_rows(conn: sqlite3.Connection, user_id: str) -> int:
