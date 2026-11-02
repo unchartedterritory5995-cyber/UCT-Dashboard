@@ -1507,6 +1507,58 @@ def _context_refs(context: dict) -> set[str]:
     return refs
 
 
+_DROPPED = object()
+
+
+def _strip_isolated(v):
+    """ADR-005 L6: `v` with every object marked `isolated: true` removed (at any depth), and how many were."""
+    if isinstance(v, dict):
+        if v.get("isolated") is True:
+            return _DROPPED, 1
+        out, n = {}, 0
+        for k, x in v.items():
+            y, m = _strip_isolated(x)
+            n += m
+            if y is not _DROPPED:
+                out[k] = y
+        return out, n
+    if isinstance(v, list):
+        out, n = [], 0
+        for x in v:
+            y, m = _strip_isolated(x)
+            n += m
+            if y is not _DROPPED:
+                out.append(y)
+        return out, n
+    return v, 0
+
+
+def strip_isolated_request(context, pending, reference, repair, history):
+    """ADR-005 L6, fail closed: whatever the browser sent, nothing marked isolated reaches a model. Objects
+    carrying the marker are removed from the request's model-bound inputs; a stored history row whose data
+    carries it is replayed as an unreadable (local) row — its text is never sent. The member's own words are
+    never touched. Returns the cleaned inputs and the number of removals (logged content-free)."""
+    total = 0
+    cleaned = []
+    for v in (context, pending, reference, repair):
+        if v is None:
+            cleaned.append(None)
+            continue
+        y, n = _strip_isolated(v)
+        total += n
+        cleaned.append(None if y is _DROPPED else y)
+    rows = []
+    for row in history or []:
+        if isinstance(row, dict) and row.get("role") in ("agent", "outcome") and _strip_isolated(row.get("data"))[1]:
+            rows.append({**row, "data": {"envelope": None, "isolated_dropped": True}})
+            total += 1
+        else:
+            rows.append(row)
+    if total:
+        log.warning("[uct-agent] removed %d isolated value(s) from a model request (ADR-005 L6)", total)
+    return (*cleaned, rows, total)
+
+
 def run_turn(*, message: str, context: dict, history: list[dict], capabilities: list | None = None,
              pending: dict | None = None, recent_outcome: str | None = None,
              caller: Callable[..., Any] | None = None, manifest_version: int | None = None,
@@ -1532,6 +1584,8 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
     SERVER would reject (unknown action, arguments off-schema, a target the browser never offered) is sent
     back to the model once, in this request, if a call is left; the result passes every check as usual."""
     t_build = time.perf_counter()
+    context, pending, reference, repair, history, _ = strip_isolated_request(context, pending, reference, repair, history)
+    context = context or {}
     msg = (message or "").strip()
     if not msg:
         raise TurnError("Say what you'd like UCT Agent to do or explain.")
