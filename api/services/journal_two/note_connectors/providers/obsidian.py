@@ -971,6 +971,14 @@ def _apply_attachment_refs(
         written = _ref_markdown(ref)
         if written is not None:
             table[original] = written
+    # D2 fix round 2, N4: a file link whose alias is an embed (`[[q.pdf|![[img.png]]]]`) sent
+    # as ONE ref is the embed (its own ref's rewrite, or the embed as written for the passes
+    # after) and then the file's chip, as the client writes it and as `_ALIAS_EMBED_RE` reads
+    # a note link. ⚰️ The whole link claimed the text first, so the image vanished silently.
+    for original, written in list(table.items()):
+        m = _ALIAS_EMBED_RE.fullmatch(original)
+        if m is not None and m.group(2).startswith("![["):
+            table[original] = table.get(m.group(2), m.group(2)) + written
     code = _code_spans(segment)
     code_starts = [c[0] for c in code]
     starts: list[int] = []  # sorted; spans[i] starts at starts[i]

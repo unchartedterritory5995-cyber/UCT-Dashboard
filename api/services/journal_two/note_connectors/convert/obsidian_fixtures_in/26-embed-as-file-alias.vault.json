@@ -1,0 +1,18 @@
+{
+  "_comment": "D2 fix round 2, N4: an embed as the alias of a FILE wikilink reads as the image, then the file chip, on both lanes. The refs pin the shape the reviewer measured: the whole link as one non-embed original beside the embed's own ref (Plan C Task 8 sends Obsidian's LinkCache/EmbedCache `original` strings; how Obsidian's cache splits this exact text is not verified here).",
+  "vault_id": "vault-1",
+  "self_path": "a.md",
+  "vault_paths": [
+    "a.md",
+    "attachments/q.pdf",
+    "attachments/img.png"
+  ],
+  "attachments": [
+    {"original": "[[q.pdf|![[img.png]]]]", "embed": false,
+     "path": "attachments/q.pdf", "size": 4096,
+     "sha256": "845bcfa0f93302a84be01c8e8ef78aff9e5c65ecb5bf1bcc00b261dc07e11e59", "status": "ok"},
+    {"original": "![[img.png]]", "embed": true,
+     "path": "attachments/img.png", "size": 1024,
+     "sha256": "7c1f0b0e8b6f2d4f5a3c9e1d0b2a4c6e8f0a1b3c5d7e9f1a3b5c7d9e1f3a5b7c", "status": "ok"}
+  ]
+}

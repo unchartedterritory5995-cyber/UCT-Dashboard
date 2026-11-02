@@ -1834,3 +1834,24 @@ def test_an_original_inside_or_across_a_code_span_is_never_rewritten():
         assert _all(conv["doc"], "importNotice") == [], kwargs
         assert conv["media"] == []
         assert "![[chart.png]]" in _plain(conv["doc"]) and "[a](q.pdf)" in _plain(conv["doc"])
+
+
+def test_an_embed_as_the_alias_of_a_file_link_keeps_the_image_and_the_chip():
+    """D2 fix round 2, N4: `[[q.pdf|![[img.png]]]]` arriving as one non-embed ref (with the
+    embed's own ref beside it) reads as the image, then the file chip, as on the client. The
+    whole link used to claim the text first, so the image vanished silently."""
+    pdf = REF(original="[[q.pdf|![[img.png]]]]", embed=False, path="att/q.pdf", sha256="b" * 64)
+    img = REF(original="![[img.png]]", path="att/img.png")
+    chip = {"href": "import-ref://obsidian-file:" + "b" * 64 + "/q.pdf", "name": "q.pdf"}
+    for refs in ([pdf, img], [img, pdf]):
+        conv = _convert("x [[q.pdf|![[img.png]]]] y", refs=refs)
+        kinds = [n["type"] for n in conv["doc"]["content"]]
+        assert kinds == ["paragraph", "image", "attachmentChip", "paragraph"], kinds
+        assert _only(conv["doc"], "attachmentChip")["attrs"] == chip
+        assert _only(conv["doc"], "image")["attrs"]["src"] == "import-ref://obsidian-att:" + _SHA + "/img.png"
+        assert [m["kind"] for m in conv["media"]] == ["image", "file"]
+        assert extract_plain_text(conv["doc"]) == "x  [file: q.pdf]  y"
+    # Only the link's ref: the embed stays for the passes after, which show its name.
+    conv = _convert("x [[q.pdf|![[img.png]]]] y", refs=[pdf])
+    assert _only(conv["doc"], "attachmentChip")["attrs"] == chip
+    assert "img.png" in _plain(conv["doc"])
