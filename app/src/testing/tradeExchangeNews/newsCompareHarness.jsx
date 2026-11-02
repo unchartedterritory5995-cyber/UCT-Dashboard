@@ -198,8 +198,9 @@ const NOTEBOOK = []
 window.__newsHarnessNotebook = NOTEBOOK
 window.__newsHarnessBlocked = BLOCKED
 // ?ask=real: UCT Agent's OWN useAgentAsk talks to this INVENTED /api/agent (no model, never the
-// network). Every request is kept in window.__agentCalls; &askfail=1 refuses each turn the way the
-// server's budget refusal does; &askdelay=ms holds each answer (default 300).
+// network). Every request is kept in window.__agentCalls; &askfail=402 refuses each turn the way the
+// server's budget refusal does (final), &askfail=503 like a passing outage (retryable);
+// &askdelay=ms holds each answer (default 300).
 const ASK_REAL = params.get('ask') === 'real'
 const AGENT_CALLS = []
 window.__agentCalls = AGENT_CALLS
@@ -213,7 +214,9 @@ function fakeAgent(method, path, init) {
   const body = init && init.body ? JSON.parse(init.body) : null
   AGENT_CALLS.push({ method, path, body })
   if (method === 'POST' && path === '/api/agent/turn') {
-    if (params.get('askfail') === '1') return json({ detail: 'UCT Agent has used today’s budget. It resets at midnight ET.' }, 402)
+    const fail = Number(params.get('askfail'))
+    if (fail === 402) return json({ detail: 'UCT Agent has used today’s budget. It resets at midnight ET.' }, 402)
+    if (fail >= 500) return json({ detail: 'UCT Agent is busy right now. Try again in a moment.' }, fail)
     return new Promise((r) => setTimeout(r, Number(params.get('askdelay')) || 300)).then(() => json({
       conversationId: 'ac_harness_news', envelope: { disposition: 'answer', reply: `SYNTHETIC answer to “${body.message}”.` } }))
   }
