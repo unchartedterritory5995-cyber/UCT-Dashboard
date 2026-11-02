@@ -14,7 +14,7 @@
 //   • stale and partial reads say so plainly, in the sentence that carries the price; unavailable states no number.
 // Only { text, present, link, chart } leave this module: never the envelope, its notes array or provider fields.
 //
-// Dark by construction: unless the server serves data AND activates `quote`/`quotes` (`data_kinds`), `match`
+// Dark by construction: unless the server serves data AND activates `quote`/`quotes`/`instrument.resolve`, `match`
 // returns null, `registerMarketDataCapabilities` registers nothing (the model's manifest is unchanged) and
 // `answerQuote` returns stock.profile's own answer, unchanged.
 
@@ -26,6 +26,7 @@ import { answerProfile } from './stock'
 import { parsePriceSentence, MAX_TICKERS } from './marketDataPhrases'
 import { num, money, signedMoney, signedPct } from './marketDataFormat'
 import { registerBarsCapability, _resetBarsForTest } from './marketDataBars'
+import { RESOLVE_KIND, toCandidates, resolveInstruments } from './marketDataResolve'
 
 export const CAPABILITY = 'stock.quote'
 const ET = 'America/New_York'
@@ -36,7 +37,7 @@ const LIVE_SOURCES = new Set(['trade', 'minute'])
 export function quoteServed() {
   if (!agentClient.serverServesData()) return false
   const kinds = typeof agentClient.serverDataKinds === 'function' ? agentClient.serverDataKinds() : null
-  return Array.isArray(kinds) && kinds.includes('quote') && kinds.includes('quotes')
+  return Array.isArray(kinds) && kinds.includes('quote') && kinds.includes('quotes') && kinds.includes(RESOLVE_KIND)
 }
 
 const SESSION_WORDS = {
@@ -75,7 +76,7 @@ function changeText(row) {
  * One row of a `quote`/`quotes` read → { line, figures }. `env` is the whole read (its freshness, stale flag,
  * session and fetched_at); `row` is one data row. Pure.
  */
-export function describeRow(env, row) {
+export function describeRow(env, row, names = {}) {
   const d = env.data || {}
   const detail = d.session_detail || (d.session === 'regular' ? 'regular' : d.session === 'extended' ? 'premarket' : 'closed')
   const rowLive = LIVE_SOURCES.has(row.last_source)
@@ -84,7 +85,8 @@ export function describeRow(env, row) {
   const price = money(row.last)
   const when = stampET(row.as_of || env.as_of, env.fetched_at)
   const chg = changeText(row)
-  const sym = row.symbol
+  // every executed answer names the security, from the symbol index (MD-1 §4.7.3)
+  const sym = names[row.symbol] ? `${row.symbol} (${names[row.symbol]})` : row.symbol
   let line
   let fresh
   if (readLive && rowLive && detail === 'regular') {
@@ -156,12 +158,12 @@ export function noPriceSentence(env, syms) {
 const SOURCE_LINE = 'Source: Massive market snapshot through the UCT data gateway.'
 
 /** A whole `quote`/`quotes` envelope → the member's answer. Pure; exported for the acceptance harness. */
-export function answerFromEnvelope(env, asked) {
+export function answerFromEnvelope(env, asked, names = {}) {
   const syms = (asked || []).map(s => String(s).toUpperCase())
   const usable = env && (env.status === 'ok' || env.status === 'partial')
   const rows = usable ? rowsOf(env) : []
   if (!rows.length) return { text: noPriceSentence(env, syms) }
-  const described = rows.map(r => describeRow(env, r))
+  const described = rows.map(r => describeRow(env, r, names))
   const lines = described.map(x => x.line)
   if (env.status === 'partial') lines.push(...partialLines(env, syms))
   lines.push(SOURCE_LINE)
@@ -192,15 +194,20 @@ export async function answerQuote(args) {
     const each = await Promise.all(syms.map(s => answerProfile({ symbol: s })))
     return each.map(a => (typeof a === 'string' ? a : a.text)).join('\n\n')
   }
-  if (!syms.length) return "Which ticker? I couldn't find a symbol in that."
-  if (syms.length > MAX_TICKERS) return `That's more than ${MAX_TICKERS} tickers at once; ask for a few at a time.`
+  const list = Array.isArray(args?.symbols) ? args.symbols : args?.symbol != null ? [args.symbol] : []
+  const candidates = toCandidates(list)
+  if (!candidates.length) return "Which ticker? I couldn't find a symbol in that."
+  if (candidates.length > MAX_TICKERS) return `That's more than ${MAX_TICKERS} tickers at once; ask for a few at a time.`
+  // MD-1 §4.7: every word is resolved against UCT's symbol index BEFORE any price is read; all or nothing
+  const r = await resolveInstruments(candidates)
+  if (!r.ok) return r.text
   // the member's open turn (trace.js): the server's per-turn budget key; never minted, never injected
   const turnId = currentTurnId()
   if (!turnId) return "I couldn't read the price: this needs the Agent's turn, which wasn't available."
-  const env = syms.length === 1
-    ? await readData('quote', { symbol: syms[0] }, { purpose: 'answer', turnId })
-    : await readData('quotes', { symbols: syms }, { purpose: 'answer', turnId })
-  return answerFromEnvelope(env, syms)
+  const env = r.symbols.length === 1
+    ? await readData('quote', { symbol: r.symbols[0] }, { purpose: 'answer', turnId })
+    : await readData('quotes', { symbols: r.symbols }, { purpose: 'answer', turnId })
+  return answerFromEnvelope(env, r.symbols, r.names)
 }
 
 /** Fast path (agent-lead wires it into fastPath.js behind the data flag): pure, fail-closed. */
@@ -208,7 +215,8 @@ export function match(text) {
   if (!quoteServed()) return null
   const p = parsePriceSentence(text)
   if (!p || p.intent !== 'quote') return null
-  return { action: CAPABILITY, params: { symbols: p.symbols } }
+  // the words AS TYPED: case is the evidence `instrument.resolve` classifies on (MD-1 §4.7.2)
+  return { action: CAPABILITY, params: { symbols: p.candidates.map(c => c.text) } }
 }
 
 let registered = false

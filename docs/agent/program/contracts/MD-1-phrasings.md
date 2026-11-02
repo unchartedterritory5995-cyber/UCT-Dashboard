@@ -1,124 +1,124 @@
 # MD-1 phrasings: ordinary price and daily-bars questions (owner: agent-md)
 
-**Status:** draft for Sprint 2, flags off. It goes with MD-1 v1.4 (v1.5 adds the quote `session` field) and
-with the `match(text)` export that `app/src/agent/capabilities/marketDataQuote.js` and `marketDataBars.js` will
-provide.
+**Status:** Sprint 2, flags off. Rewritten for MD-1 v1.5 §4.7 (instrument and intent resolution), after agent-qa's
+held-out set found confident wrong answers under the first version.
 
 **Who reads it:**
 - agent-lead and agent-sc, for the fast-path grammar.
 - agent-qa, for the acceptance harness.
 
-**What it is:** a list of phrasings with the handling each one must get. It is not a grammar: the matcher may
-accept more than this list, but it must handle every row exactly as written.
+**What it is:** phrasings with the outcome each one must get. It is not a grammar: the parser may claim more than
+this list, but it must handle every row exactly as written. The test suites read this table.
 
-## 1. Rules the matcher follows
+## 1. How a sentence is handled (summary of MD-1 §4.7)
 
-1. **Pure and fail-closed.**
-   - `match(text)` returns `{action, params}` or `null`. It does no I/O and reads no clock.
-   - `null` means "not mine, or not sure". The sentence then goes to the normal path (the model). The matcher
-     never guesses.
-2. **Ticker extraction.**
-   - A token is a ticker when it is `$`-prefixed, or when it is 1–5 letters and an ordinary word does not claim
-     it.
-   - It is uppercased, and a leading `$` is removed (`$nvda` → `NVDA`).
-   - Class shares keep their separator as typed (`BRK.B`, `BRK-B`). MD-1 validators accept both.
-3. **Ambiguous tickers** (agent-lead rule): `CAN`, `ALL`, `NOW`, `LOW`, `IT`, `ON`, `A`, `ARE`, `SO`, `BE`, `GO`,
-   `DO`, `FOR`, `ONE`, `REAL`, `OPEN`, `HAS`, `KEY`, `FAST`, `CAR`, `PLAY`, `SEE`, `TRUE`, `WELL`, `LOVE`, and any
-   other English word that is also a symbol.
-   - Such a word matches **only** when it is `$`-prefixed, or written in UPPERCASE inside a price context
-     ("what's NOW trading at").
-   - Lowercase `now` / `low` / `all` / `it` / `on` is always a plain word.
-   - When in doubt, return `null`.
-4. **Price context words:**
-   - Price words: price, trading at, quote, at, worth (as "what's X at"), doing, up, down, change, move.
-   - Session words: premarket / pre-market / pre mkt / pm, after hours / after-hours / ah / postmarket,
-     overnight.
-   - Bars words: close / closed, high, low (only as "52-week low" / "year low"), N-day / N-week change.
-5. **Session words never change the kind.**
-   - "premarket" asks for a `quote`. The ANSWER states the actual session from the read's `session` field.
-   - If the user asks "premarket" during the regular session, the answer says it is the regular session. It
-     never pretends to be a premarket price.
-6. **Typos.** Only the small fixed list in §3 is corrected. Anything else returns `null`; no fuzzy matching.
-7. **Not price questions → `null`.** Examples: "why is NVDA up" (research), news, fundamentals (market cap,
-   P/E: stock.profile), options/flow/dark pool (out of scope), and alerts ("tell me when NVDA hits 150").
-8. **Limits.**
-   - `quote` takes 1 symbol; `quotes` takes up to 50.
-   - `bars.daily` takes 1 symbol and at most 500 bars.
-   - A compound question with more than 5 tickers returns `null` (it is likely a list or a screen).
+1. **Intent, on the client.**
+   - The pure parser (`capabilities/marketDataPhrases.js`) decides only what is asked: a current quote, a last
+     close, an N-session change, a 52-week range, or nothing.
+   - It records every non-grammar word as a **candidate**, exactly as typed: `cashtag` (`$nvda`), `upper` (`NVDA`)
+     or `lower` (`nvda`).
+   - It never decides what a word refers to.
+2. **Instrument, on the server.**
+   - Before any price is read, the candidates go to `instrument.resolve`, which checks them against UCT's canonical
+     symbol index.
+   - Only an exact US stock or ETF symbol typed `$X` or UPPERCASE is priced. Everything else gets a fixed sentence
+     with no number and no substitute.
+   - All or nothing.
+3. **`null` means the model, as today.** Not claimed:
+   - a time the parser cannot resolve without a clock: history, a weekday, a date, yesterday, this/last week,
+     all-time, …;
+   - a different request: why, news, options, futures, alerts, …;
+   - `&`;
+   - more than 5 candidates;
+   - two candidates without `and` / `,` (unless all are `$`);
+   - a sentence with no candidate.
+4. **Session words never change the kind.** "premarket" asks for a quote, and the answer states the actual
+   session.
+5. **Typos.** A fixed list, for intent words only (pirce → price). Never for a symbol.
 
-## 2. Actions
+## 2. Outcomes
 
-| action | MD-1 read | answer |
+| outcome | when | what the member gets |
 |---|---|---|
-| `quote.one` | `quote {symbol}` | price, change $ and %, session label, as-of (ET), freshness; stale/partial said plainly |
-| `quote.many` | `quotes {symbols}` | one line per symbol, same fields; one read |
-| `bars.lastClose` | `bars.daily {symbol, bars: 2}` | last completed session's close and its change vs the prior close |
-| `bars.change` | `bars.daily {symbol, bars: n+1}` | close-to-close % change over the last `n` completed sessions |
-| `bars.range52w` | `bars.daily {symbol, bars: 252}` | 52-week high/low from completed daily bars (highs/lows), with the dates |
+| `price` | quote intent, every candidate `symbol` | the §4.5 answer, naming each security: `NVDA (NVIDIA Corporation) $142.10 …` |
+| `bars` | bars intent, the candidate `symbol` | the §4.6 answer, naming the security |
+| `ask:SYM` | a candidate is `symbol_typed_lowercase` or `name_match` | `Did you mean SYM (Name)? Type the ticker in capitals, like SYM, and I'll get it.` |
+| `limit` | a candidate is `non_equity` or `unknown` | `I can quote US-listed stocks and ETFs by ticker. <word> isn't one I can price here.` |
+| `model` | the parser does not claim it | the normal path (a safe miss) |
 
-- **What `match()` returns.** The action column is the parser's intent. `match()` in `marketDataQuote.js`
-  returns the capability, `{action: 'stock.quote', params: {symbols: [...]}}`, for both `quote.one` (one symbol)
-  and `quote.many`. The `bars.*` intents are returned by `marketDataBars.js` (PR C). The parser shared by both
-  files is `marketDataPhrases.js`.
-- **Completed sessions only** for every `bars.*` answer; today's partial session never counts.
-- **Weeks** convert at 5 sessions per week, so "past week" = 5.
-- **Not enough sessions:** if `bars.daily` returns fewer sessions than asked, the answer says how many it
-  covered and does not extrapolate.
+**The reference index for this table:** a standard index where the usual large caps exist as stocks or ETFs.
+- `SPX` is typed `index`.
+- `BTC` is the Grayscale Bitcoin Mini Trust ETF.
+- `GOLD` is Barrick Gold.
+- Apple Inc. and Microsoft Corporation are the only exact name matches for "apple" and "microsoft".
+- `nvdia` and `bitcoin` match nothing.
 
 ## 3. The phrasings
 
-**Handling column:**
-- **fast** = deterministic, zero model turns, the output as listed.
-- **model** = `null`; the sentence goes to the model.
-- **clarify** = `null` in v1. A future clarify path may take it.
+**Candidates** are the words as typed, in the form `text:form`.
 
-| # | phrasing (verbatim) | handling | action → params | why / note |
+| # | phrasing (verbatim) | intent | candidates | outcome |
 |---|---|---|---|---|
-| P01 | what's NVDA trading at premarket? | fast | `quote.one` → `{symbol: NVDA}` | the Sprint 2 target sentence; the answer states the real session |
-| P02 | nvda price | fast | `quote.one` → `NVDA` | lowercase ticker, not an ambiguous word |
-| P03 | $nvda | fast | `quote.one` → `NVDA` | a bare cashtag is a quote request |
-| P04 | where's tsla at | fast | `quote.one` → `TSLA` | "at" in price context |
-| P05 | how's aapl doing today | fast | `quote.one` → `AAPL` | "doing today" = price and change |
-| P06 | NVDA and AMD premarket | fast | `quote.many` → `[NVDA, AMD]` | compound; one `quotes` read, not two `quote` reads |
-| P07 | quotes for msft, googl, meta | fast | `quote.many` → `[MSFT, GOOGL, META]` | comma list |
-| P08 | wats nvda tradin at | fast | `quote.one` → `NVDA` | fixed typo list: wats→what's, tradin→trading |
-| P09 | pirce of amd | fast | `quote.one` → `AMD` | fixed typo list: pirce→price |
-| P10 | what's NOW trading at | fast | `quote.one` → `NOW` | ambiguous word in UPPERCASE plus price context |
-| P11 | what's now trading at | model | `null` | lowercase "now" is a word, so there is no ticker |
-| P12 | $CAN price | fast | `quote.one` → `CAN` | ambiguous word with `$` prefix |
-| P13 | can you get me the price of amd | fast | `quote.one` → `AMD` | "can" here is a word, never ticker CAN |
-| P14 | is it up after hours | model | `null` | "it" is a pronoun; follow-up resolution belongs to the conversation layer |
-| P15 | NVDA after hours | fast | `quote.one` → `NVDA` | the answer states the real session |
-| P16 | spy overnight | fast | `quote.one` → `SPY` | the answer reads "closed: last close $X (date)" unless a live session applies; never "live" overnight |
-| P17 | brk.b price | fast | `quote.one` → `BRK.B` | class share keeps its separator |
-| P18 | how did AAPL close yesterday | fast | `bars.lastClose` → `{symbol: AAPL, bars: 2}` | "yesterday" = the last completed session, even after a weekend |
-| P19 | aapl close | fast | `bars.lastClose` → `AAPL` | |
-| P20 | NVDA's 5-day change | fast | `bars.change` → `{symbol: NVDA, n: 5}` | |
-| P21 | how much is tsla up this week | model | `null` | "this week" is calendar-ambiguous (week-to-date vs 5 sessions), so it is not guessed |
-| P22 | amd past 2 weeks | fast | `bars.change` → `{symbol: AMD, n: 10}` | weeks × 5 sessions |
-| P23 | NVDA 52-week high | fast | `bars.range52w` → `{symbol: NVDA, bars: 252}` | the answer gives both high and low, with dates |
-| P24 | aapl 52w low | fast | `bars.range52w` → `AAPL` | "low" is safe only inside "52w low" / "year low" |
-| P25 | what's LOW at | fast | `quote.one` → `LOW` | ambiguous word in UPPERCASE plus price context |
-| P26 | what's the low on nvda today | model | `null` | intraday low is not a v1 field; "low" without "52-week" is not matched |
-| P27 | why is nvda up | model | `null` | asking for a reason is research, not a price read |
-| P28 | nvda market cap | model | `null` | belongs to stock.profile (fundamentals), not stock.quote |
-| P29 | tell me when nvda hits 150 | model | `null` | an alert request; price reads never create or trigger alerts |
-| P30 | nvda calls premarket | model | `null` | options are out of scope; "calls" vetoes the match |
+| P01 | what's NVDA trading at premarket? | quote | `NVDA:upper` | price |
+| P02 | nvda price | quote | `nvda:lower` | ask:NVDA |
+| P03 | $nvda | quote | `$nvda:cashtag` | price |
+| P04 | where's tsla at | quote | `tsla:lower` | ask:TSLA |
+| P05 | how's aapl doing today | quote | `aapl:lower` | ask:AAPL |
+| P06 | NVDA and AMD premarket | quote | `NVDA:upper AMD:upper` | price |
+| P07 | quotes for msft, googl, meta | quote | `msft:lower googl:lower meta:lower` | ask:MSFT |
+| P08 | wats nvda tradin at | quote | `nvda:lower` | ask:NVDA |
+| P09 | pirce of amd | quote | `amd:lower` | ask:AMD |
+| P10 | what's NOW trading at | quote | `NOW:upper` | price |
+| P11 | what's now trading at | none | — | model |
+| P12 | $CAN price | quote | `$CAN:cashtag` | price |
+| P13 | can you get me the price of amd | quote | `amd:lower` | ask:AMD |
+| P14 | is it up after hours | none | — | model |
+| P15 | NVDA after hours | quote | `NVDA:upper` | price |
+| P16 | spy overnight | quote | `spy:lower` | ask:SPY |
+| P17 | brk.b price | quote | `brk.b:lower` | ask:BRK-B |
+| P18 | how did AAPL close yesterday | none | — | model |
+| P19 | aapl close | bars.lastClose | `aapl:lower` | ask:AAPL |
+| P20 | NVDA's 5-day change | bars.change n=5 | `NVDA:upper` | bars |
+| P21 | how much is tsla up this week | none | — | model |
+| P22 | AMD past 2 weeks | bars.change n=10 | `AMD:upper` | bars |
+| P23 | NVDA 52-week high | bars.range52w | `NVDA:upper` | bars |
+| P24 | aapl 52w low | bars.range52w | `aapl:lower` | ask:AAPL |
+| P25 | what's LOW at | quote | `LOW:upper` | price |
+| P26 | what's the low on nvda today | none | — | model |
+| P27 | why is nvda up | none | — | model |
+| P28 | nvda market cap | none | — | model |
+| P29 | tell me when nvda hits 150 | none | — | model |
+| P30 | nvda calls premarket | none | — | model |
+| P31 | btc price | quote | `btc:lower` | ask:BTC |
+| P32 | BTC price | quote | `BTC:upper` | price |
+| P33 | what's the price of gold | quote | `gold:lower` | ask:GOLD |
+| P34 | how's the s&p doing | none | — | model |
+| P35 | price of apple and microsoft | quote | `apple:lower microsoft:lower` | ask:AAPL |
+| P36 | nvdia price | quote | `nvdia:lower` | limit |
+| P37 | SPX price | quote | `SPX:upper` | limit |
+| P38 | nvda price history | none | — | model |
+| P39 | nvda close on friday | none | — | model |
+| P40 | $nvda $amd $tsla | quote | `$nvda:cashtag $amd:cashtag $tsla:cashtag` | price |
+| P41 | NVDA and nvdia price | quote | `NVDA:upper nvdia:lower` | limit |
+| P42 | WHAT'S NVDA AT | quote | `nvda:lower` | ask:NVDA |
 
-## 4. Answer obligations (all `fast` rows)
+**Notes on the rows:**
+- **P35 and P41 (all or nothing):** one unresolved word blocks the whole compound. Nothing is priced, and the
+  first problem by precedence is named.
+- **P42 (an all-caps sentence):** when the whole sentence is in capitals, capitals carry no evidence, so every
+  candidate counts as lowercase.
 
-These follow from MD-1 and QA's freshness corpus. Every answer must meet all of them:
+## 4. Answer obligations (`price` and `bars` rows)
 
-1. **Required fields.** The price, change ($ and %), session label, as-of time (ET, with the date when it is not
-   today), and freshness are all present.
-2. **"Live".** The words "live", "now" or "right now" may appear only when `freshness == "live"` and `stale` is
-   false.
-3. **Closed market.**
-   - Overnight, weekends and holidays read "closed: last close $X (date)".
-   - Extended hours past the 15-minute live window read as the last extended print, with its time.
-4. **Stale reads.** A stale read says it is stale, in the sentence that carries the price.
-5. **Partial reads.** A `partial` read names what is missing (the symbols with no quote, and rows priced from
-   a close).
-6. **Unavailable or refused reads.** These state no number at all and say the price is not available.
-7. **Model-visible output.** Only the text and labelled figures leave the capability, never the envelope.
-8. **Flags off.** With the data flag off, price questions keep today's stock.profile path, byte for byte.
+These follow from MD-1 §4.5–§4.7 and agent-qa's freshness corpus.
+
+1. **The security is named** from the symbol index, beside its ticker.
+2. **Required fields.** The price, change ($ and %), session label, as-of time (ET, with the date when it is not
+   today) and freshness are all present.
+3. **"Live".** The words "live", "now" or "right now" appear only when the read is live and not stale.
+4. **Closed market.** Overnight, weekends and holidays read "Market closed (…): last close $X (date)".
+5. **Stale and partial reads** say so, plainly, in the sentence that carries the price.
+6. **No price.** Unavailable, refused, `ask` and `limit` answers state no number at all.
+7. **Model-visible output.** Only the text and labelled figures leave the capability, never an envelope.
+8. **Activation.** Unless `data_kinds` includes `instrument.resolve` and the capability's own kinds, price
+   questions keep today's stock.profile path, byte for byte.

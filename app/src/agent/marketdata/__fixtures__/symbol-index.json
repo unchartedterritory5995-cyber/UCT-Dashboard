@@ -1,0 +1,22 @@
+{
+  "about": "The reference symbol index for docs/agent/program/contracts/MD-1-phrasings.md section 2 (owner agent-md). Read by BOTH tests/test_uct_agent_data_instruments.py (the real server classifier) and app/src/agent/agentDataResolve.test.js (the client), so the two halves are held to the same rows and the same outcome column.",
+  "rows": [
+    ["NVDA", "NVIDIA Corporation", "stock"],
+    ["TSLA", "Tesla, Inc.", "stock"],
+    ["AAPL", "Apple Inc.", "stock"],
+    ["APLE", "Apple Hospitality REIT, Inc.", "stock"],
+    ["AMD", "Advanced Micro Devices, Inc.", "stock"],
+    ["MSFT", "Microsoft Corporation", "stock"],
+    ["GOOGL", "Alphabet Inc. Class A", "stock"],
+    ["META", "Meta Platforms, Inc.", "stock"],
+    ["SPY", "SPDR S&P 500 ETF Trust", "etf"],
+    ["BRK-B", "Berkshire Hathaway Inc. Class B", "stock"],
+    ["NOW", "ServiceNow, Inc.", "stock"],
+    ["CAN", "Canaan Inc.", "stock"],
+    ["LOW", "Lowe's Companies, Inc.", "stock"],
+    ["BTC", "Grayscale Bitcoin Mini Trust", "etf"],
+    ["IBIT", "iShares Bitcoin Trust ETF", "etf"],
+    ["GOLD", "Barrick Gold Corporation", "stock"],
+    ["SPX", "S&P 500 Index", "index"]
+  ]
+}

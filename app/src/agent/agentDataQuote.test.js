@@ -2,14 +2,11 @@
 // ROW BY ROW (the doc is parsed, not restated), every session state answers honestly, nothing envelope-shaped reaches
 // the output, and with the data gateway off everything is exactly stock.profile.
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { readFileSync } from 'node:fs'
-import { fileURLToPath } from 'node:url'
-import { resolve, dirname } from 'node:path'
 import { loadAgentConfig, _resetAgentConfig } from './agentClient'
-import { parsePriceSentence, tickersOf } from './capabilities/marketDataPhrases'
 import { match, answerQuote, answerFromEnvelope, describeRow, registerMarketDataCapabilities, _resetForTest, CAPABILITY } from './capabilities/marketDataQuote'
 import { answerProfile } from './capabilities/stock'
 import { allCapabilityNames } from './capabilities'
+import { resolveEnvelope } from './marketdata/__fixtures__/fakeResolve'
 
 // the turn id comes from trace.js only (agent-qa's readDataTurnId rail); the tests set it there
 let TURN = 't1'
@@ -17,63 +14,9 @@ vi.mock('./trace', async (orig) => ({ ...(await orig()), currentTurnId: () => TU
 // agent-lead #621's per-kind activation, sent as /api/agent/config `data_kinds` (null = an older server: no key)
 let KINDS = null
 
-const here = dirname(fileURLToPath(import.meta.url))
-const DOC = readFileSync(resolve(here, '../../../docs/agent/program/contracts/MD-1-phrasings.md'), 'utf8')
 const json = (o, status = 200) => new Response(JSON.stringify(o), { status, headers: { 'content-type': 'application/json' } })
 
-// ── the phrasings table, read from the doc ────────────────────────────────────────────────────────────────────────
-const ROWS = DOC.split('\n').filter(l => /^\| P\d\d \|/.test(l)).map(l => {
-  const c = l.split('|').map(s => s.trim())
-  const [id, phrase, handling, ap] = [c[1], c[2], c[3], c[4]]
-  const action = (ap.match(/`([a-z.A-Z0-9]+)`/) || [])[1] || null
-  const params = ap.split('→')[1] || ''
-  const syms = (params.match(/\b[A-Z][A-Z0-9]*(\.[A-Z])?\b/g) || []).filter(w => !['NVDA_'].includes(w))
-  const n = (params.match(/\bn: (\d+)/) || [])[1]
-  return { id, phrase, handling, action, syms, n: n ? Number(n) : null }
-})
-
-describe('MD-1 phrasings doc (the table the fast path is held to)', () => {
-  it('has the 30 rows', () => {
-    expect(ROWS.map(r => r.id)).toEqual(Array.from({ length: 30 }, (_, i) => `P${String(i + 1).padStart(2, '0')}`))
-    expect(ROWS.every(r => ['fast', 'model', 'clarify'].includes(r.handling))).toBe(true)
-  })
-
-  it.each(ROWS)('$id "$phrase" → $handling', (r) => {
-    const p = parsePriceSentence(r.phrase)
-    if (r.handling !== 'fast') { expect(p).toBeNull(); return }
-    expect(p).not.toBeNull()
-    if (r.action === 'quote.one' || r.action === 'quote.many') {
-      expect(p.intent).toBe('quote')
-      expect(p.symbols).toEqual(r.syms)
-      expect(p.symbols.length > 1).toBe(r.action === 'quote.many')
-    } else {
-      expect(p.intent).toBe(r.action)
-      expect([p.symbol]).toEqual(r.syms)
-      if (r.n != null) expect(p.n).toBe(r.n)
-    }
-  })
-
-  it('a discriminator: the table is not one answer', () => {
-    const kinds = new Set(ROWS.map(r => (r.handling === 'fast' ? r.action : 'null')))
-    expect(kinds.size).toBeGreaterThanOrEqual(5)
-  })
-
-  it('ambiguous words: $ or UPPERCASE only', () => {
-    expect(tickersOf('can you get me the price of amd')).toEqual(['AMD'])
-    expect(tickersOf("what's NOW trading at")).toEqual(['NOW'])
-    expect(tickersOf("what's now trading at")).toEqual([])
-    expect(tickersOf('$low price')).toEqual(['LOW'])
-    expect(tickersOf('is it up')).toEqual([])
-  })
-
-  it.each(['show me nvda at 5 minutes', 'add rsi to nvda', 'switch to amd', 'nvda at 3pm', 'zoom nvda in',
-    'put NVDA on my watchlist', 'what is a stock', 'hi', '', 'NVDA AMD TSLA', 'a b c d e f g price',
-    'nvda, amd, tsla, meta, msft, googl price'])('never claims "%s"', (s) => {
-    const p = parsePriceSentence(s)
-    expect(p === null || p.intent !== 'quote' || p.symbols.length <= 5).toBe(true)
-    if (/minutes|rsi|switch|3pm|zoom|watchlist|^what is|^hi$|^$|NVDA AMD TSLA|googl price/.test(s)) expect(p).toBeNull()
-  })
-})
+// The MD-1-phrasings rows (intent, candidates and outcome) are held in agentDataResolve.test.js since MD-1 §4.7.
 
 // ── answers, per session state ────────────────────────────────────────────────────────────────────────────────────
 const FETCHED = '2026-11-02T15:31:10Z'            // Mon Nov 2 2026, 10:31 AM ET
@@ -195,6 +138,7 @@ function wire({ data }) {
     if (u.startsWith('/api/live-prices')) return json({ NVDA: { price: 142.1, change_pct: 0.87, observed_at: 1793640665 } })
     if (u === '/api/agent/data') {
       const b = JSON.parse(init.body)
+      if (b.kind === 'instrument.resolve') return json(resolveEnvelope(b.params))
       return json(b.kind === 'quote' ? env() : { ...env({ kind: 'quotes' }), data: { quotes: b.params.symbols.map(s => row({ symbol: s })), session: 'regular', session_detail: 'regular' } })
     }
     return json({}, 404)
@@ -202,7 +146,7 @@ function wire({ data }) {
 }
 
 describe('stock.quote: flags off is exactly stock.profile; on is one gateway read', () => {
-  beforeEach(() => { _resetAgentConfig(); _resetForTest(); vi.restoreAllMocks(); TURN = 't1'; KINDS = ['quote', 'quotes'] })
+  beforeEach(() => { _resetAgentConfig(); _resetForTest(); vi.restoreAllMocks(); TURN = 't1'; KINDS = ['instrument.resolve', 'quote', 'quotes'] })
 
   it('flags off: same bytes as stock.profile, no gateway POST, nothing registered, no fast-path claim', async () => {
     wire({ data: false })
@@ -219,15 +163,22 @@ describe('stock.quote: flags off is exactly stock.profile; on is one gateway rea
   it('on: one `quote` read for one symbol, one `quotes` read for several, never /api/live-prices', async () => {
     wire({ data: true })
     await loadAgentConfig()
-    const one = await answerQuote({ symbols: ['nvda'] })
-    expect(one.text).toContain('NVDA $142.10')
+    const one = await answerQuote({ symbols: ['NVDA'] })
+    expect(one.text).toContain('NVDA (NVIDIA Corporation) $142.10')
     TURN = 't2'
-    await answerQuote({ symbols: ['NVDA', '$amd'] })
+    const two = await answerQuote({ symbols: ['NVDA', '$amd'] })
+    expect(two.text).toContain('AMD (Advanced Micro Devices, Inc.)')
+    TURN = 't3'
+    expect(await answerQuote({ symbols: ['nvda'] })).toBe("Did you mean NVDA (NVIDIA Corporation)? Type the ticker in capitals, like NVDA, and I'll get it.")
     const posts = globalThis.fetch.mock.calls.filter(c => c[0] === '/api/agent/data').map(c => JSON.parse(c[1].body))
-    expect(posts).toEqual([
-      { kind: 'quote', params: { symbol: 'NVDA' }, purpose: 'answer', turn_id: 't1' },
-      { kind: 'quotes', params: { symbols: ['NVDA', 'AMD'] }, purpose: 'answer', turn_id: 't2' },
+    expect(posts.map(p => [p.kind, p.turn_id])).toEqual([
+      ['instrument.resolve', 't1'], ['quote', 't1'],
+      ['instrument.resolve', 't2'], ['quotes', 't2'],
+      ['instrument.resolve', 't3'],                                  // lowercase: asked, never priced
     ])
+    expect(posts[1].params).toEqual({ symbol: 'NVDA' })
+    expect(posts[2].params).toEqual({ symbols: [{ text: 'NVDA', form: 'upper' }, { text: '$amd', form: 'cashtag' }] })
+    expect(posts[3].params).toEqual({ symbols: ['NVDA', 'AMD'] })
     expect(globalThis.fetch.mock.calls.some(c => String(c[0]).startsWith('/api/live-prices'))).toBe(false)
   })
 
@@ -236,7 +187,9 @@ describe('stock.quote: flags off is exactly stock.profile; on is one gateway rea
     await loadAgentConfig()
     expect(match("what's NVDA trading at premarket?")).toEqual({ action: CAPABILITY, params: { symbols: ['NVDA'] } })
     expect(match('NVDA and AMD premarket')).toEqual({ action: CAPABILITY, params: { symbols: ['NVDA', 'AMD'] } })
-    expect(match('how did AAPL close yesterday')).toBeNull()        // bars: marketDataBars.js (PR C)
+    expect(match('nvda price')).toEqual({ action: CAPABILITY, params: { symbols: ['nvda'] } })   // as typed: resolve decides
+    expect(match('AAPL close')).toBeNull()                          // bars: marketDataBars.js
+    expect(match('how did AAPL close yesterday')).toBeNull()        // a day the parser cannot resolve
     expect(match('why is nvda up')).toBeNull()
     expect(registerMarketDataCapabilities()).toBe(true)
     expect(registerMarketDataCapabilities()).toBe(false)
@@ -244,7 +197,8 @@ describe('stock.quote: flags off is exactly stock.profile; on is one gateway rea
   })
 
   it.each([[null, 'an older server with no data_kinds'], [[], 'nothing activated'], [['bars.daily'], 'quote not activated'],
-    [['quote'], 'quotes not activated']])('data on but kinds %j (%s): still exactly stock.profile', async (kinds) => {
+    [['quote'], 'quotes not activated'], [['quote', 'quotes'], 'instrument.resolve not activated'],
+    [['instrument.resolve', 'bars.daily'], 'only bars']])('data on but kinds %j (%s): still exactly stock.profile', async (kinds) => {
     KINDS = kinds
     wire({ data: true })
     await loadAgentConfig()

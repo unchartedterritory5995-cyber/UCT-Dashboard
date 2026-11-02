@@ -11,6 +11,7 @@ import { fastParse } from './fastPath'
 import { allCapabilityNames, getCapability } from './capabilities'
 import { registerMarketDataCapabilities, _resetForTest, CAPABILITY as QUOTE } from './capabilities/marketDataQuote'
 import { match, answerFromBars, answerDailyBars, barsFor, CAPABILITY, SESSIONS_52W } from './capabilities/marketDataBars'
+import { resolveEnvelope } from './marketdata/__fixtures__/fakeResolve'
 
 let TURN = 't-bars'
 vi.mock('./trace', async (orig) => ({ ...(await orig()), currentTurnId: () => TURN }))
@@ -18,9 +19,11 @@ registerBuiltins()
 
 const here = dirname(fileURLToPath(import.meta.url))
 const DOC = readFileSync(resolve(here, '../../../docs/agent/program/contracts/MD-1-phrasings.md'), 'utf8')
+// MD-1-phrasings §3 (MD-1 §4.7 format): | # | phrasing | intent | candidates | outcome |
 const ROWS = DOC.split('\n').filter(l => /^\| P\d\d \|/.test(l)).map(l => l.split('|').map(s => s.trim()))
-  .map(c => ({ id: c[1], phrase: c[2], handling: c[3], ap: c[4] }))
-const BAR_ROWS = ROWS.filter(r => /`bars\./.test(r.ap))
+  .map(c => ({ id: c[1], phrase: c[2], intent: c[3].split(' ')[0], n: Number((c[3].match(/n=(\d+)/) || [])[1]) || null,
+    cand: c[4] === '—' ? null : [...c[4].matchAll(/`([^`]+)`/g)][0][1].split(' ')[0], outcome: c[5] }))
+const BAR_ROWS = ROWS.filter(r => r.intent.startsWith('bars.'))
 const MEASURE = { 'bars.lastClose': 'lastClose', 'bars.change': 'change', 'bars.range52w': 'range52w' }
 
 // ── fixtures: completed trading days (weekdays) ending on a date ────────────────────────────────────────────────────
@@ -47,9 +50,8 @@ const json = (o, status = 200) => new Response(JSON.stringify(o), { status, head
 
 describe('MD-1 phrasings: the bars rows', () => {
   it('the doc has bars rows of every measure, plus the two bars-shaped sentences that go to the model', () => {
-    expect(new Set(BAR_ROWS.map(r => r.ap.match(/`(bars\.[a-zA-Z0-9]+)`/)[1]))).toEqual(new Set(Object.keys(MEASURE)))
-    expect(ROWS.find(r => r.id === 'P21').handling).toBe('model')
-    expect(ROWS.find(r => r.id === 'P26').handling).toBe('model')
+    expect(new Set(BAR_ROWS.map(r => r.intent))).toEqual(new Set(Object.keys(MEASURE)))
+    for (const id of ['P18', 'P21', 'P26', 'P39']) expect(ROWS.find(r => r.id === id).outcome).toBe('model')
   })
 })
 
@@ -141,6 +143,7 @@ function wire({ data, kinds }) {
     if (u.endsWith('/api/agent/config')) return json({ stream: false, nl1: false, data, scan: false, ...(kinds ? { data_kinds: kinds } : {}) })
     if (u === '/api/agent/data') {
       const b = JSON.parse(init.body)
+      if (b.kind === 'instrument.resolve') return json(resolveEnvelope(b.params))
       return json(barsEnv(sessions(b.params.bars).map((d, i) => bar(d, 100 + i))))
     }
     return json({}, 404)
@@ -151,22 +154,19 @@ const posts = () => globalThis.fetch.mock.calls.filter(c => c[0] === '/api/agent
 describe('stock.dailyBars on the real fast path, served and dark', () => {
   beforeEach(() => { _resetAgentConfig(); _resetForTest(); vi.restoreAllMocks(); TURN = 't-bars' })
 
-  it.each(BAR_ROWS)('served: $id "$phrase" → $handling', async (r) => {
-    wire({ data: true, kinds: ['bars.daily', 'quote', 'quotes'] })
+  it.each(BAR_ROWS)('served: $id "$phrase" is claimed with its word as typed', async (r) => {
+    wire({ data: true, kinds: ['instrument.resolve', 'bars.daily', 'quote', 'quotes'] })
     await loadAgentConfig()
     registerMarketDataCapabilities()
     const m = match(r.phrase)
     const f = fastParse(r.phrase, {})
-    if (r.handling !== 'fast') { expect(m).toBeNull(); expect(f?.ops?.some(o => o.action === CAPABILITY) ?? false).toBe(false); return }
-    const intent = r.ap.match(/`(bars\.[a-zA-Z0-9]+)`/)[1]
-    const sym = (r.ap.split('→')[1].match(/\b[A-Z][A-Z0-9]*\b/g) || [])[0]
-    const n = (r.ap.match(/\bn: (\d+)/) || [])[1]
-    expect(m).toEqual({ action: CAPABILITY, params: { symbol: sym, measure: MEASURE[intent], sessions: n ? Number(n) : null } })
+    const text = r.cand.slice(0, r.cand.lastIndexOf(':'))
+    expect(m).toEqual({ action: CAPABILITY, params: { symbol: text, measure: MEASURE[r.intent], sessions: r.n } })
     expect(f?.ops?.map(o => o.action)).toEqual([CAPABILITY])                 // the sole claimant among every builtin
   })
 
   it.each(['P21', 'P26'])('served: %s (a bars-shaped sentence for the model) gets no market-data claim', async (id) => {
-    wire({ data: true, kinds: ['bars.daily', 'quote', 'quotes'] })
+    wire({ data: true, kinds: ['instrument.resolve', 'bars.daily', 'quote', 'quotes'] })
     await loadAgentConfig()
     registerMarketDataCapabilities()
     const f = fastParse(ROWS.find(r => r.id === id).phrase, {})
@@ -174,35 +174,38 @@ describe('stock.dailyBars on the real fast path, served and dark', () => {
   })
 
   it('served: one bars.daily read per question, sized per measure, zero model turns, never /api/live-prices', async () => {
-    wire({ data: true, kinds: ['bars.daily'] })
+    wire({ data: true, kinds: ['instrument.resolve', 'bars.daily'] })
     await loadAgentConfig()
     expect(registerMarketDataCapabilities()).toBe(false)                     // its return value is about stock.quote (#624)…
     expect(allCapabilityNames()).toContain(CAPABILITY)                       // …and stock.dailyBars is registered
     expect(allCapabilityNames()).not.toContain(QUOTE)                       // quote not activated: not registered
-    for (const s of ['how did AAPL close yesterday', "NVDA's 5-day change", 'NVDA 52-week high']) {
+    for (const [s, name] of [['AAPL close', 'Apple Inc.'], ["NVDA's 5-day change", 'NVIDIA Corporation'], ['NVDA 52-week high', 'NVIDIA Corporation']]) {
       const f = fastParse(s, {})
       const out = await getCapability(CAPABILITY).answer(null, f.ops[0].args)
       expect(says(out)).toMatch(/completed sessions only/)
+      expect(says(out)).toContain(`(${name})`)                                // the security is named
     }
-    expect(posts().map(p => [p.kind, p.params.bars, p.purpose, p.turn_id])).toEqual([
-      ['bars.daily', 2, 'answer', 't-bars'], ['bars.daily', 6, 'answer', 't-bars'], ['bars.daily', 252, 'answer', 't-bars']])
+    expect(posts().map(p => [p.kind, p.params.bars ?? null, p.purpose, p.turn_id])).toEqual([
+      ['instrument.resolve', null, 'answer', 't-bars'], ['bars.daily', 2, 'answer', 't-bars'],
+      ['instrument.resolve', null, 'answer', 't-bars'], ['bars.daily', 6, 'answer', 't-bars'],
+      ['instrument.resolve', null, 'answer', 't-bars'], ['bars.daily', 252, 'answer', 't-bars']])
     const urls = globalThis.fetch.mock.calls.map(c => String(c[0]))
     expect(urls.filter(u => u !== '/api/agent/config').every(u => u === '/api/agent/data')).toBe(true)
   })
 
-  it.each([[false, ['bars.daily']], [true, null], [true, []], [true, ['quote', 'quotes']]])('dark (data %s, kinds %j): no claim, nothing registered, no read', async (data, kinds) => {
+  it.each([[false, ['instrument.resolve', 'bars.daily']], [true, null], [true, []], [true, ['quote', 'quotes']], [true, ['bars.daily']]])('dark (data %s, kinds %j): no claim, nothing registered, no read', async (data, kinds) => {
     wire({ data, kinds })
     await loadAgentConfig()
     registerMarketDataCapabilities()
     expect(allCapabilityNames()).not.toContain(CAPABILITY)
-    expect(match('how did AAPL close yesterday')).toBeNull()
-    expect(fastParse('how did AAPL close yesterday', {})?.ops?.some(o => o.action === CAPABILITY) ?? false).toBe(false)
+    expect(match('AAPL close')).toBeNull()
+    expect(fastParse('AAPL close', {})?.ops?.some(o => o.action === CAPABILITY) ?? false).toBe(false)
     expect(says(await answerDailyBars({ symbol: 'AAPL', measure: 'lastClose', sessions: null }))).toBe("UCT's daily bars aren't available to the Agent here.")
     expect(posts()).toEqual([])
   })
 
   it('no turn id: no read', async () => {
-    wire({ data: true, kinds: ['bars.daily'] })
+    wire({ data: true, kinds: ['instrument.resolve', 'bars.daily'] })
     await loadAgentConfig()
     TURN = null
     expect(await answerDailyBars({ symbol: 'AAPL', measure: 'lastClose', sessions: null })).toMatch(/needs the Agent's turn/)

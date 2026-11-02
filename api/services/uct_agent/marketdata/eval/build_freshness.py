@@ -166,6 +166,42 @@ for id_, question, clock, trading, sym, last, printed, category, disclose in SES
     add(id_, question, _quote_at(clock, trading, sym, last, printed), category=category, disclose=disclose)
     Q[-1]["clock"] = {"et": clock, "trading_day": trading}
 
+
+# ── instrument.resolve (MD-1 §4.7): the REAL adapter over the real index module, seeded with fixture rows ──────────
+INDEX_BUILT = datetime(2026, 11, 2, 9, 0, tzinfo=ET).timestamp()
+INDEX_ROWS = [("NVDA", "NVIDIA Corporation", "stock"), ("GOLD", "Barrick Gold Corporation", "stock"),
+              ("SPX", "S&P 500 Index", "index")]
+
+
+def _resolve_with(rows, entries) -> dict:
+    """Run instruments.read_instruments with the symbol index holding exactly `rows` (empty = not loaded)."""
+    from api.services import ticker_search_index as tsi
+    from api.services.uct_agent.marketdata import instruments as ins
+    idx = [{"sym": s, "name": n, "name_lc": n.lower(), "type": t, "exch": "XNAS", "entity_id": None}
+           for s, n, t in sorted(rows)]
+    saved = (tsi._INDEX, tsi._BY_SYM, tsi._BUILT_AT, tsi._LIQ)
+    try:
+        tsi._INDEX, tsi._BY_SYM, tsi._BUILT_AT, tsi._LIQ = idx, {r["sym"]: r for r in idx}, INDEX_BUILT, {}
+        saved_time = ins.time
+        ins.time = __import__("types").SimpleNamespace(time=lambda: INDEX_BUILT + 3600)
+        e = ins.read_instruments({"symbols": [{"text": t, "form": f} for t, f in entries]}, {})
+    finally:
+        tsi._INDEX, tsi._BY_SYM, tsi._BUILT_AT, tsi._LIQ = saved
+        ins.time = saved_time
+    e["fetched_at"] = FETCHED
+    assert env.validate_envelope(e) == [], env.validate_envelope(e)
+    return e
+
+
+add("ir-symbol", "What's NVDA trading at right now?", _resolve_with(INDEX_ROWS, [("NVDA", "upper")]),
+    category="instrument-symbol", disclose=["NVIDIA Corporation"])
+add("ir-lowercase-word", "what's the price of gold right now", _resolve_with(INDEX_ROWS, [("gold", "lower")]),
+    category="instrument-ask", disclose=["Barrick Gold Corporation"])
+add("ir-index", "What's SPX at now?", _resolve_with(INDEX_ROWS, [("SPX", "upper")]),
+    category="instrument-non-equity", disclose=["index"])
+add("ir-not-ready", "What's NVDA trading at right now?", _resolve_with([], [("NVDA", "upper")]),
+    category="instrument-unavailable")
+
 # ── bars.daily ────────────────────────────────────────────────────────────────────────────────────────
 bars = {"symbol": "AAPL", "bars": [{"date": "2026-10-30", "open": 1, "high": 2, "low": 0.5, "close": 1.5,
                                     "volume": 10}], "through": "2026-10-30", "latest_completed_session": "2026-10-30"}

@@ -22,6 +22,7 @@ import { readData } from '../marketdata/client'
 import { currentTurnId } from '../trace'
 import { parsePriceSentence } from './marketDataPhrases'
 import { num, money, signedMoney, signedPct, sessionDate } from './marketDataFormat'
+import { RESOLVE_KIND, toCandidates, resolveInstruments } from './marketDataResolve'
 
 export const CAPABILITY = 'stock.dailyBars'
 export const SESSIONS_52W = 252
@@ -32,7 +33,7 @@ const INTENT_TO_MEASURE = { 'bars.lastClose': 'lastClose', 'bars.change': 'chang
 export function barsServed() {
   if (!agentClient.serverServesData()) return false
   const kinds = typeof agentClient.serverDataKinds === 'function' ? agentClient.serverDataKinds() : null
-  return Array.isArray(kinds) && kinds.includes('bars.daily')
+  return Array.isArray(kinds) && kinds.includes('bars.daily') && kinds.includes(RESOLVE_KIND)
 }
 
 /** How many bars a measure reads (the kind's own cap is 500). */
@@ -72,11 +73,13 @@ function caveats(env, bars, want) {
 }
 
 /** A `bars.daily` envelope → the member's answer for `measure`. Pure; exported for the acceptance harness. */
-export function answerFromBars(env, { symbol, measure, sessions = null }) {
-  const sym = String(symbol || '').toUpperCase()
+export function answerFromBars(env, { symbol, measure, sessions = null, name = null }) {
+  const bare = String(symbol || '').toUpperCase()
+  // every executed answer names the security, from the symbol index (MD-1 §4.7.3)
+  const sym = name ? `${bare} (${name})` : bare
   const usable = env && (env.status === 'ok' || env.status === 'partial')
   const bars = usable ? usableBars(env) : []
-  if (!bars.length) return { text: noBarsSentence(env, sym) }
+  if (!bars.length) return { text: noBarsSentence(env, bare) }
   const last = bars[bars.length - 1]
   const ref = last.date
   const lines = []
@@ -130,11 +133,11 @@ export function answerFromBars(env, { symbol, measure, sessions = null }) {
     return { text: noBarsSentence({ status: 'unavailable' }, sym) }
   }
   lines.push(COMPLETED)
-  return { text: lines.join('\n'), present: { kind: 'metrics', title: `${sym} daily`, short: sym, items: items.filter(i => i.value) } }
+  return { text: lines.join('\n'), present: { kind: 'metrics', title: `${bare} daily`, short: bare, items: items.filter(i => i.value) } }
 }
 
 function cleanArgs(args) {
-  const symbol = String(args?.symbol || '').trim().toUpperCase().replace(/^\$/, '')
+  const symbol = String(args?.symbol || '').trim()
   const measure = MEASURES.includes(args?.measure) ? args.measure : null
   const sessions = Number.isInteger(args?.sessions) ? args.sessions : null
   return { symbol, measure, sessions }
@@ -143,14 +146,19 @@ function cleanArgs(args) {
 export async function answerDailyBars(args) {
   const { symbol, measure, sessions } = cleanArgs(args)
   if (!barsServed()) return "UCT's daily bars aren't available to the Agent here."
-  if (!/^[A-Z][A-Z0-9.-]{0,9}$/.test(symbol)) return "Which ticker? I couldn't find a symbol in that."
+  const candidates = toCandidates([symbol])
+  if (candidates.length !== 1) return "Which ticker? I couldn't find a symbol in that."
   if (!measure) return 'I can give the last close, the change over a number of sessions, or the 52-week high and low.'
   if (measure === 'change' && !(sessions >= 1)) return 'Over how many sessions? For example "NVDA 5-day change".'
+  // MD-1 §4.7: the word is resolved against UCT's symbol index BEFORE any bars are read
+  const r = await resolveInstruments(candidates)
+  if (!r.ok) return r.text
+  const resolved = r.symbols[0]
   // the member's open turn (trace.js): the server's per-turn budget key; never minted, never injected
   const turnId = currentTurnId()
   if (!turnId) return "I couldn't read the daily bars: this needs the Agent's turn, which wasn't available."
-  const env = await readData('bars.daily', { symbol, bars: barsFor(measure, sessions) }, { purpose: 'answer', turnId })
-  return answerFromBars(env, { symbol, measure, sessions })
+  const env = await readData('bars.daily', { symbol: resolved, bars: barsFor(measure, sessions) }, { purpose: 'answer', turnId })
+  return answerFromBars(env, { symbol: resolved, measure, sessions, name: r.names[resolved] })
 }
 
 /** Fast path: pure, fail-closed; the bars rows of MD-1-phrasings.md. */
@@ -160,7 +168,8 @@ export function match(text) {
   const measure = p ? INTENT_TO_MEASURE[p.intent] : null
   if (!measure) return null
   const sessions = measure === 'change' ? Math.min(p.n, MAX_CHANGE_SESSIONS) : null
-  return { action: CAPABILITY, params: { symbol: p.symbol, measure, sessions } }
+  // the word AS TYPED: case is the evidence `instrument.resolve` classifies on (MD-1 §4.7.2)
+  return { action: CAPABILITY, params: { symbol: p.candidates[0].text, measure, sessions } }
 }
 
 let registered = false
