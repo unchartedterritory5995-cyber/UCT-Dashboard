@@ -64,6 +64,10 @@ const LIVE = params.get('live') === '1'
 const LIBRARY = params.get('library') === '1'
 // ?role=member: a signed-in member (no UCT Agent mark on explanations); default admin.
 const ROLE = params.get('role') === 'member' ? 'member' : 'admin'
+// ?agent=1|0: this browser's UCT Agent switch (the panel's own key); unset leaves it alone.
+if (params.get('agent') === '1' || params.get('agent') === '0') {
+  try { localStorage.setItem('uct.feature.agent', params.get('agent')) } catch { /* storage blocked */ }
+}
 document.documentElement.dataset.theme = THEME
 
 const SYMS = ['ALFA', 'BRVO', 'CHRL', 'DLTX', 'ECHO', 'FXTR', 'GLFX', 'HTLX']

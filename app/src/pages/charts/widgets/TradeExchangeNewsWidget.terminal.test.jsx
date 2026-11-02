@@ -7,6 +7,7 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AuthContext } from '../../../context/AuthContext'
+import { setAgentFlag } from '../../../agent/agentFlag'
 
 const feed = vi.hoisted(() => {
   const listeners = new Set()
@@ -733,6 +734,7 @@ describe('Explanation', () => {
   const ok = (body = EXPL) => ({ ok: true, status: 200, json: async () => body })
   const refused = (status, reason, detail) => ({ ok: false, status, json: async () => ({ reason, detail }) })
   beforeEach(() => _resetExplainCacheForTests())
+  afterEach(() => setAgentFlag(null))
 
   it('is offered only on headlines with text: never on a graphic-only post or a row without an id', () => {
     const { container } = mount({ settings: { graphicPlaceholders: 'show' } }, [...BASE,
@@ -804,8 +806,30 @@ describe('Explanation', () => {
     }
   })
 
-  it('an admin reads it in UCT Agent\'s voice: the compass mark and the name, same sections, no footer', async () => {
+  it('an admin with the Agent switch OFF reads the neutral heading, like the /charts panel', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(ok()))
+    setAgentFlag(false)
+    const { container } = mount({}, BASE, vi.fn(), { role: 'admin' })
+    fireEvent.click(explainBtn(container, 2))
+    const panel = await screen.findByRole('region', { name: 'Explanation' })
+    await within(panel).findByText(EXPL.explanation)
+    expect(panel.textContent).not.toContain('UCT Agent')
+    expect(panel.querySelector('img')).toBeNull()
+  })
+
+  it('a member with the switch ON (a shared browser) still reads the neutral heading', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(ok()))
+    setAgentFlag(true)
+    const { container } = mount({}, BASE, vi.fn(), { role: 'member' })
+    fireEvent.click(explainBtn(container, 2))
+    const panel = await screen.findByRole('region', { name: 'Explanation' })
+    await within(panel).findByText(EXPL.explanation)
+    expect(panel.textContent).not.toContain('UCT Agent')
+  })
+
+  it('an admin with the Agent switch on reads it in UCT Agent\'s voice: the compass mark and the name, same sections, no footer', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(ok()))
+    setAgentFlag(true)
     const { container } = mount({}, BASE, vi.fn(), { role: 'admin' })
     fireEvent.click(explainBtn(container, 2))
     const panel = await screen.findByRole('region', { name: 'Explanation' })

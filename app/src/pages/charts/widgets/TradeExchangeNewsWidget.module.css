@@ -383,6 +383,10 @@
   .compact .rowActions { top: 2px; }
   /* the always-shown saved mark takes the reserved slot at the far right */
   .rowBtnSaved { order: 10; }
+  /* An open explanation keeps its row's buttons lit (.rowExplaining), but here they float
+     over the stamp: at rest only the saved mark stays; hover or keyboard focus brings the
+     rest back (the explanation has its own Close). */
+  .rowExplaining:not(:hover) .rowBtn:not(.rowBtnSaved):not(:focus-visible) { opacity: 0; pointer-events: none; }
 }
 .rowBtn {
   display: inline-flex;

@@ -23,6 +23,7 @@ import { memo, useCallback, useContext, useEffect, useRef, useState } from 'reac
 import useSWR from 'swr'
 import UIcon from '../../../components/ui/UIcon'
 import { AuthContext } from '../../../context/AuthContext'
+import { useAgentFlag } from '../../../agent/agentFlag'
 import compassMark from '../../../components/intro/assets/compass-mark.png'
 import { formatNumber } from '../../../lib/presentation/presentationPrimitives'
 import Input from '../../../components/ui/Input'
@@ -268,14 +269,18 @@ export const Row = memo(function Row({ item, linkedSym, onSym, colorMode, prices
  *  down, nothing is covered. Rendered as TEXT only: React escapes it, nothing is
  *  parsed as HTML or markdown. Escape or ✕ closes it and returns focus to Explain. */
 /** Whose voice the explanation is in. UCT Agent is ADMIN-ONLY (its routes are
- *  require_admin_dark), so only an admin sees its mark and name; a member reads the
- *  same explanation under a neutral heading. No AuthProvider (isolated tests) = a
- *  member: the failure direction never shows the Agent to someone who can't use it.
+ *  require_admin_dark), so its mark and name show only where the Agent itself would:
+ *  the SAME two keys as the /charts panel (ChartsWorkspace `agentAllowed`) -- this
+ *  browser's Agent switch AND the admin role. Everyone else (a member, an admin with
+ *  the switch off, no AuthProvider in isolated tests) reads the same explanation under
+ *  a neutral heading: the failure direction never shows the Agent to someone who can't
+ *  use it.
  *  ⛔ Branding only -- nothing here talks to the Agent (increments 2/3 will, through
  *  app/src/agent's public exports, never AgentPanel internals). */
 function ExplainTitle() {
   const admin = useContext(AuthContext)?.user?.role === 'admin'
-  if (!admin) return <span className={styles.explainTitle}><UIcon name="sparkle" size={10} /> Explanation</span>
+  const agentOn = useAgentFlag()
+  if (!(admin && agentOn)) return <span className={styles.explainTitle}><UIcon name="sparkle" size={10} /> Explanation</span>
   return (
     <span className={`${styles.explainTitle} ${styles.explainAgent}`}>
       <span className={styles.agentMark} aria-hidden="true"><img src={compassMark} alt="" /></span>
