@@ -840,4 +840,48 @@ describe('C45 / C48 — ⛔ a DRAWING\'s colour whose `ta.*` call runs only on s
       + 'if close < close[1]\n    lb := na\n', 6)
     heldOnce(`${H}var label lb = na\nif na(lb) and close > close[1]\n    lb := label.new(bar_index, high, "x", color = up and ta.rising(close, 2) ? color.green : color.red)\n`, 6)
   })
+
+  // ── L1b (review M1 / L2): the `if na(lb)` create runs ONCE only while nothing can
+  // empty `lb` again. The object runtime's `reap` nulls every register holding an
+  // object it deletes, collects or replaces, so `na(lb)` is true again later.
+  const IFNA = 'if na(lb)\n    lb := label.new(bar_index, high, "x", color = up and ta.rising(close, 2) ? color.green : color.red)\n'
+  const heldAmong = (src, line) => {
+    const r = draw(src)
+    expect(r.held, src).toEqual([`fn:conditional-history \`ta.rising\`@${line}`])
+    expect(r.labels.filter((l) => l.text === 'x'), src).toEqual([])
+    return r
+  }
+
+  it('⛔ L1b — a NON-`var` handle (`label lb = na`) is `na` again on every bar: the create is STILL held', () => {
+    heldOnce(`${H}label lb = na\n${IFNA}`, 6)
+  })
+
+  it('⛔ L1b — a `label.delete` of the handle empties it, so the create can run again: STILL held', () => {
+    heldOnce(`${H}var label lb = na\n${IFNA}if close < open\n    label.delete(lb)\n`, 6)
+    // …through a method call too
+    heldOnce(`${H}var label lb = na\n${IFNA}if close < open\n    lb.delete()\n`, 6)
+    // …inside a loop, and through a function's parameter: the argument is never resolved
+    heldOnce(`${H}var label lb = na\n${IFNA}for i = 0 to 1\n    if close < open\n        label.delete(lb)\n`, 6)
+    heldOnce(`${H}var label lb = na\n${IFNA}kill(x) =>\n    label.delete(x)\nif close < open\n    kill(lb)\n`, 6)
+  })
+
+  it('⛔ L1b — another create of the SAME family can collect the object and empty the handle: STILL held', () => {
+    heldAmong(`${H}var label lb = na\n${IFNA}label.new(bar_index, low, ".")\n`, 6)
+    // …a `label.copy` mints one in the same pool
+    heldAmong(`${H}var label lb = na\n${IFNA}if close < open\n    c = label.copy(lb)\n`, 6)
+  })
+
+  it('⛔ L1b — a linefill handle is emptied whenever a line it names goes (and a fill between lines not live is `na`): STILL held', () => {
+    heldAmong(`${H}var line a = line.new(bar_index, high, bar_index + 1, high)\nvar line b = line.new(bar_index, low, bar_index + 1, low)\n`
+      + 'var linefill lf = na\nif na(lf)\n    lf := linefill.new(a, b, color = up and ta.rising(close, 2) ? color.green : color.red)\n', 8)
+  })
+
+  it('⭐ L1b — a create of ANOTHER family is a separate pool (`counts[family]`, `collect(family)`): still DRAWN', () => {
+    // …and a delete of that other family cannot name `lb`
+    const r = draw(`${H}var label lb = na\n${IFNA}ln = line.new(bar_index, low, bar_index + 1, low)\nline.delete(ln[1])\n`)
+    expect(r.held).toEqual([])
+    expect(r.labels.length).toBe(1)
+    expect(r.labels[0].bx).toBe(0)
+    expect(r.labels[0].color).toBe(RED)
+  })
 })

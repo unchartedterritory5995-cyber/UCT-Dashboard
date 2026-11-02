@@ -20075,7 +20075,55 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     if (!op.into || !regId.has(op.into) || regId.get(op.into) !== x.requiresEmpty) return false
     const d = collected.decls && typeof collected.decls.get === 'function' ? collected.decls.get(op.into) : null
     if (!d || d.kind !== 'var') return false
-    return (varWrites.get(op.into) || []).length === 1
+    if ((varWrites.get(op.into) || []).length !== 1) return false
+    return handleNeverEmptiedAgain(op)
+  }
+  /** ⭐⭐ L1b (review M1) — …AND NOTHING ELSE CAN EMPTY THE HANDLE. The object
+   *  runtime's `reap` (`objectRuntime.js`) nulls every register that held the object
+   *  it tears down, so `na(lb)` is true again on a later bar and the create re-runs
+   *  with the every-bar colour. `reap`'s callers, per family, read from the runtime:
+   *    · `delete` — no delete of `lb`'s family, or of a family the reader could not
+   *      name;
+   *    · `collect` (label / line / box / polyline, `POOL_LIMITS`) — per family; it
+   *      spares a register-held object today, but any OTHER create (or `.copy`) of the
+   *      family is refused anyway (conservative: that sparing is Pine's order applied,
+   *      not a measurement — see `collect`);
+   *    · `replaceTableAt` — a `table.new` at the same position (held or not): the
+   *      same "no other create of the family" rule covers it;
+   *    · linefill (`fillBetween`, a reaped line, the envelope's FIFO, and a create
+   *      between lines not yet live clearing the handle) — never exempt.
+   *  Families are separate pools (`counts[family]`, `collect(family)`): a create of
+   *  ANOTHER family is no threat. */
+  let flatSourceOps = null
+  const sourceOpsFlat = () => {
+    if (flatSourceOps) return flatSourceOps
+    flatSourceOps = []
+    const walk = (list) => { for (const o of list || []) { flatSourceOps.push(o); if (o && o.body) walk(o.body) } }
+    walk(collected.ops)
+    return flatSourceOps
+  }
+  const codeLines = () => String(source || '').split('\n').map((l) => l.replace(/\/\/.*$/, ''))
+  const handleNeverEmptiedAgain = (op) => {
+    const fam = op.family
+    if (!fam || fam === 'linefill') return false
+    const all = sourceOpsFlat()
+    const lines = codeLines()
+    // ⭐ ONE `<family>.new(` IN THE TEXT: every other create of the family (a loop's,
+    // an inlined function's, one the reader refused) is written somewhere.
+    const newRe = new RegExp(`\\b${fam}\\.new\\s*\\(`, 'g')
+    if (lines.reduce((n, l) => n + (l.match(newRe) || []).length, 0) !== 1) return false
+    // `label.copy(x)` / `x.copy()` mint an object in the same pool
+    const copyRe = new RegExp(`\\b${fam}\\.copy\\s*\\(|\\.copy\\s*\\(\\s*\\)`)
+    if (lines.some((l) => copyRe.test(l))) return false
+    // ⛔ With no other create of the family, every live object of it is `lb`'s own,
+    // so a delete of the family (or of a family the reader could not name) can only
+    // name `lb` — whatever its argument spells (`lb`, `lb[n]`, a slot, a copy, a
+    // parameter): no argument has to be resolved to know it.
+    // ⚰️ A `.delete(` the reader carried no op for (loop-blocked, unreadable) needs no
+    // check here: it already refuses the whole drawing ("it removes drawings as it
+    // runs, and this chart can't follow part of that") — measured, a text-scan guard
+    // for it could not be made to fire through the member door, so it was removed.
+    return !all.some((o) => o.k === 'delete' && (!o.family || o.family === fam))
   }
   const heldColour = (node, call) => {
     const at = node && node.tok ? locate(node.tok) : null
