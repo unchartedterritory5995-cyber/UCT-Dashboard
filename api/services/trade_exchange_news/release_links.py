@@ -100,8 +100,12 @@ WIRE_HOSTS: dict[str, tuple[str, ...]] = {
 }
 SEC_HOST = "www.sec.gov"
 
-#: TX press releases lead with the issuer: "SYM - ", "SYM, SYM2 - ", "$SYM - ".
-_SLOT = re.compile(r"^\s*\$?([A-Z][A-Z0-9.]{0,6}(?:\s*[,/]\s*\$?[A-Z][A-Z0-9.]{0,6})*)\s+[-–—:]\s+")
+#: TX press releases lead with the issuer slot: "SYM - ", "SYM, SYM2 - ", "$SYM - ",
+#: and -- measured in the 2026-11-01 review, 60+ of 74 'close wording' rows -- symbols
+#: repeated or listed with spaces and class suffixes: "APPN APPN - ", "DCOM DCOM-P
+#: DCBG - ", "SPGI KMB MGRC OKTA ... - ". Up to 12 symbols of <= 7 characters; the
+#: separator before the headline is a dash or colon WITH spaces, so "DCOM-P" stays one.
+_SLOT = re.compile(r"^\s*\$?([A-Z][A-Z0-9.\-]{0,6}(?:(?:\s*[,/]\s*|\s+)\$?[A-Z][A-Z0-9.\-]{0,6}){0,11})\s+[-–—:]\s+")
 _SLUG_SPLIT = re.compile(r"[^a-z0-9]+")
 _SLUG_NOISE = frozenset({"news", "release", "releases", "html", "htm", "en", "home", "aspx", "php"})
 _TAGS = re.compile(r"<[^>]+>")
@@ -109,8 +113,10 @@ _EX99 = re.compile(r"ex[-_]?99|exhibit[-_]?99|ex991|dex99", re.I)
 
 
 def _norm(s: str) -> str:
+    """Company news' own headline folding, after HTML entities are decoded: TX sends
+    some headlines entity-encoded ("Floor &amp; Decor", "&quot;Together&quot;")."""
     from api.services.news.dedupe import normalize_headline
-    return normalize_headline(s or "")
+    return normalize_headline(_html.unescape(s or ""))
 
 
 # ── pure helpers ─────────────────────────────────────────────────────────────
@@ -120,7 +126,7 @@ def split_slot(content: str) -> tuple[set[str], str]:
     m = _SLOT.match(content or "")
     if not m:
         return set(), content or ""
-    syms = {s.strip().lstrip("$").upper() for s in re.split(r"[,/]", m.group(1)) if s.strip()}
+    syms = {s.strip().lstrip("$").upper() for s in re.split(r"[\s,/]+", m.group(1)) if s.strip()}
     return syms, content[m.end():]
 
 
@@ -223,6 +229,9 @@ def decide_fmp(tx: dict[str, Any], candidates: list[dict[str, Any]]) -> dict[str
     out: dict[str, Any] = {"accept": None, "detail": {}, "shadow": [], "reason": "no_candidate"}
     if not tx["norm"]:
         out["reason"] = "empty_headline"
+        return out
+    if any(c.get("overflow") for c in candidates):
+        out["reason"] = "too_many_identical"       # never unique; nothing to review either
         return out
     short = len(tx["tokens"]) <= SHORT_WORDS
     limit = SHORT_TIME_MS if short else FMP_TIME_MS
@@ -362,8 +371,12 @@ def _public(kind: str, url: str, publisher: str) -> dict[str, str]:
 
 
 def lookup(event_id: str) -> dict[str, str] | None:
-    """The verified link for a headline, or None. A dict get; never raises."""
-    return _LINKS.get(event_id) if event_id else None
+    """The verified link for a headline, or None. A dict get; never raises.
+    ``TXN_RELEASE_LINKS_DISPLAY_ENABLED`` unset hides every link at once (the
+    rollback switch) without touching what is stored."""
+    if not event_id or not _LINKS or not config.release_links_display_enabled():
+        return None
+    return _LINKS.get(event_id)
 
 
 def ensure_schema(store) -> None:
@@ -403,10 +416,26 @@ def _fmp_poll_marker(cn: sqlite3.Connection) -> str:
         return ""
 
 
+#: Extra history below the window when bounding by row id (see _first_id_since).
+ID_BOUND_MARGIN_MS = 6 * 60 * MIN
+#: More identical headlines than this in one window is never a unique match.
+HK_MAX = 200
+
+
 def _first_id_since(cn: sqlite3.Connection, lo_iso: str) -> int:
-    """The first company-news row stored at or after ``lo_iso``. ``id`` is
-    AUTOINCREMENT and ``ingested_at`` is set once at insert (kept on update), so
-    both rise together: a binary search over the primary key, ~20 lookups."""
+    """The first company-news row stored at or after ``lo_iso`` -- a binary search
+    over the primary key, ~20 lookups.
+
+    ⚠ INVARIANT IT RELIES ON (company news owns it): ``news_items.id`` is
+    AUTOINCREMENT and ``ingested_at`` is stamped when a row is normalized just before
+    its insert and never changed after (``store.upsert`` excludes it from UPDATE),
+    so the two rise together up to a small batching lag (a row stamped, then
+    inserted a little later). The caller subtracts ``ID_BOUND_MARGIN_MS`` for that.
+
+    ⭐ WHAT BREAKS IF IT DOES NOT HOLD: only CLOSE-WORDING shadow candidates (the
+    ticker query). Every row with the EXACT headline comes from the headline-key
+    query, which is never id-bounded -- so an accepted link, an ambiguity and a
+    ticker disagreement never depend on this optimization (tests rail both)."""
     top = cn.execute("SELECT MAX(id) FROM news_items").fetchone()[0] or 0
     a, b = 1, top + 1
     while a < b:
@@ -432,15 +461,23 @@ def _fmp_candidates(cn: sqlite3.Connection, tx: dict[str, Any]) -> list[dict[str
         marks = ",".join("?" for _ in syms)
         # ``news_id >= first id stored since lo``: without it a ticker with decades of
         # SEC rows is walked whole (prod p90 56 ms -> 0.19 ms, identical results).
+        lo_id = datetime.fromtimestamp((tx["ms"] - 6 * 60 * MIN - ID_BOUND_MARGIN_MS) / 1000, timezone.utc).isoformat()
         for r in cn.execute(f"SELECT DISTINCT {cols} FROM news_tickers t JOIN news_items i ON i.id=t.news_id "
                             f"WHERE t.ticker IN ({marks}) AND t.news_id >= ? AND i.provider='fmp' "
-                            f"AND i.ingested_at BETWEEN ? AND ? LIMIT 400", [*syms, _first_id_since(cn, lo), lo, hi]):
+                            f"AND i.ingested_at BETWEEN ? AND ? LIMIT 400", [*syms, _first_id_since(cn, lo_id), lo, hi]):
             rows[r[0]] = r
-    hk = headline_key(tx["body"])
+    # The EXACT-headline rows, whatever their ticker and id: the only rows an
+    # accepted link, an ambiguity or a ticker disagreement is decided from.
+    hk = headline_key(_html.unescape(tx["body"]))
+    overflow = False
     if hk:
-        for r in cn.execute(f"SELECT {cols} FROM news_items i WHERE i.headline_key=? AND i.ingested_at BETWEEN ? AND ? "
-                            f"LIMIT 50", (hk, lo, hi)):
+        exact = cn.execute(f"SELECT {cols} FROM news_items i WHERE i.headline_key=? AND i.ingested_at BETWEEN ? AND ? "
+                           f"LIMIT ?", (hk, lo, hi, HK_MAX + 1)).fetchall()
+        overflow = len(exact) > HK_MAX
+        for r in exact:
             rows[r[0]] = r
+    if overflow:
+        return [{"overflow": True}]
     if not rows:
         return []
     ids = list(rows)
@@ -517,6 +554,10 @@ class BudgetSpent(Exception):
     pass
 
 
+class RedirectRefused(ValueError):
+    pass
+
+
 def _sec_get(url: str, max_bytes: int) -> bytes:
     import urllib.request
     from api.services.fundamentals_pit import sec_client
@@ -524,6 +565,12 @@ def _sec_get(url: str, max_bytes: int) -> bytes:
     class _Capped:
         def __init__(self, resp):
             self._r, self.headers = resp, resp.headers
+            # ⛔ NO REDIRECTS. urllib follows them silently; the link we store is the
+            # URL we asked for, so the bytes we verified must have come from exactly
+            # there -- never from wherever a redirect pointed.
+            if resp.geturl() != url:
+                resp.close()
+                raise RedirectRefused(f"SEC response came from a different URL than requested: {url}")
 
         def __enter__(self):
             return self
@@ -615,6 +662,7 @@ class Resolver:
         self._cn_connect, self._now = cn_connect, now_ms
         self._marker: str | None = None
         self._seq_mark = 0
+        self._hold_ms = 0.0
         self.last: dict[str, Any] = {}
         ensure_schema(store)
 
@@ -636,9 +684,11 @@ class Resolver:
 
     def _write(self, stmts: list[tuple[str, tuple]]) -> None:
         """State and shadow rows in ONE short transaction: the headline writer
-        waits on this lock for a few ms at most, never for a whole pass."""
+        waits on this lock for a few ms at most, never for a whole pass. The
+        longest hold of a pass is reported (``write_ms_max``)."""
         if not stmts:
             return
+        t0 = time.perf_counter()
         c = self.store._conn()  # noqa: SLF001
         c.execute("BEGIN IMMEDIATE")
         try:
@@ -648,6 +698,8 @@ class Resolver:
         except Exception:
             c.execute("ROLLBACK")
             raise
+        finally:
+            self._hold_ms = max(self._hold_ms, (time.perf_counter() - t0) * 1000)
 
     def _tx(self, event_id: str) -> dict[str, Any] | None:
         r = self.store._conn().execute(  # noqa: SLF001
@@ -694,7 +746,7 @@ class Resolver:
             _LINKS[tx["id"]] = pub
         _bump(f"linked_{tier}")
         logger.info("[txn] release link id=%s kind=%s tier=%s", tx["id"], kind, tier)
-        if self.on_link:
+        if self.on_link and config.release_links_display_enabled():
             try:
                 self.on_link(tx["id"], {"seq": tx["seq"], "link": pub})
             except Exception:  # noqa: BLE001 -- a publish fault never undoes a stored link
@@ -705,12 +757,17 @@ class Resolver:
 
     def run_pass(self, *, fmp_batch: int = 300, sec_budget: int = 40) -> dict[str, Any]:
         t0 = time.perf_counter()
+        self._hold_ms = 0.0
         now = self._now()
         st = {"registered": self._register_new(now), "fmp_checked": 0, "fmp_linked": 0, "sec_checked": 0,
               "sec_linked": 0, "sec_errors": 0, "fmp_ran": False}
         c = self.store._conn()  # noqa: SLF001
-        cn = self._cn_connect()
-        if cn is not None:
+        # Each stage has its own switch, read every pass: FMP and SEC are enabled,
+        # watched and rolled back independently.
+        cn = self._cn_connect() if config.release_links_fmp_enabled() else None
+        if not config.release_links_fmp_enabled():
+            st["fmp_off"] = True
+        elif cn is not None:
             try:
                 marker = _fmp_poll_marker(cn)
                 fresh_due = marker != self._marker
@@ -786,6 +843,7 @@ class Resolver:
         self._write([("UPDATE release_link_state SET status='exhausted', updated_ms=? WHERE status='pending' "
                       "AND fmp_final=1 AND sec_attempts>0 AND sec_next_ms IS NULL", (now,))])
         st["ms"] = round((time.perf_counter() - t0) * 1000, 1)
+        st["write_ms_max"] = round(self._hold_ms, 2)
         st["sec_requests"] = self.sec.requests if self.sec else 0
         self.last = st
         _bump("passes")
@@ -800,7 +858,9 @@ class Resolver:
 
 
 def snapshot(store=None) -> dict[str, Any]:
-    out: dict[str, Any] = {"enabled": config.release_links_enabled(), "sec_enabled": config.release_links_sec_enabled(),
+    out: dict[str, Any] = {"enabled": config.release_links_enabled(), "fmp_enabled": config.release_links_fmp_enabled(),
+                           "sec_enabled": config.release_links_sec_enabled(),
+                           "display_enabled": config.release_links_display_enabled(),
                            "links_cached": len(_LINKS), "counts": dict(COUNTS),
                            "last_pass": dict(_RESOLVER.last) if _RESOLVER else None}
     if store is not None:

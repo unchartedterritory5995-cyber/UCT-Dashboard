@@ -49,7 +49,9 @@ def env(monkeypatch, tmp_path):
     c.close()
     monkeypatch.setattr(cn_store, "_DB_PATH", str(cn))
     monkeypatch.setenv("TXN_SOURCE_ALLOWLIST", "TX-PressRelease,TX-News")
+    monkeypatch.setenv("TXN_RELEASE_LINKS_FMP_ENABLED", "1")
     monkeypatch.setenv("TXN_RELEASE_LINKS_SEC_ENABLED", "1")
+    monkeypatch.setenv("TXN_RELEASE_LINKS_DISPLAY_ENABLED", "1")
     rl._LINKS.clear()
     rl.COUNTS.clear()
     yield cn
@@ -505,3 +507,222 @@ def test_no_matching_happens_on_read(monkeypatch, store, env):
     row = store.after(0, 1)[0]
     assert row["event_id"] == eid
     pl.headline_event(row, store.epoch, derived={})
+
+
+# ── 2026-11-01 review follow-ups ─────────────────────────────────────────────
+
+@pytest.mark.parametrize("content, syms, body", [
+    ("APPN APPN - Appian Marks Major Milestone", {"APPN"}, "Appian Marks Major Milestone"),
+    ("DCOM DCOM-P DCBG - Dime Declares Dividend", {"DCOM", "DCOM-P", "DCBG"}, "Dime Declares Dividend"),
+    ("BH BH-A - BIGLARI HOLDINGS INC. NEWS RELEASE", {"BH", "BH-A"}, "BIGLARI HOLDINGS INC. NEWS RELEASE"),
+    ("ACME, BETA - Acme and Beta Merge", {"ACME", "BETA"}, "Acme and Beta Merge"),
+    ("$ACME - Acme Reports", {"ACME"}, "Acme Reports"),
+    ("PATK - ROCKFORD FOSGATE PROMOTES A VP - REGION", {"PATK"}, "ROCKFORD FOSGATE PROMOTES A VP - REGION"),
+    ("Acme Corp Reports Results", set(), "Acme Corp Reports Results"),
+    ("THE REALREAL ANNOUNCES RESULTS", set(), "THE REALREAL ANNOUNCES RESULTS"),
+])
+def test_split_slot_reads_every_slot_shape(content, syms, body):
+    assert rl.split_slot(content) == (syms, body)
+
+
+def test_a_repeated_symbol_slot_is_an_exact_match(store, env):
+    """60+ of the 74 'close wording' rows of the 2026-11-01 review were this."""
+    eid = tx(store, f"ACME ACME ACME-P - {TITLE}")
+    fmp(env, TITLE, ["ACME"])
+    resolver(store).run_pass()
+    assert link_rows(store)[0][0] == eid
+
+
+def test_html_entities_in_the_tx_headline_still_match_exactly(store, env):
+    title = "Floor & Decor Announces Board Leadership Transition"
+    eid = tx(store, "FND - Floor &amp; Decor Announces Board Leadership Transition")
+    fmp(env, title, ["FND"], url="https://www.businesswire.com/news/home/20261029000009/en/Floor-Decor-Announces-Board-Leadership-Transition",
+        publisher="Business Wire")
+    resolver(store).run_pass()
+    assert link_rows(store)[0][0] == eid
+
+
+def test_a_sibling_company_with_near_identical_wording_is_never_linked(store, env):
+    """The review's false positives: MSG Rangers vs MSG Knickerbockers (both in the
+    slot) and Medallion Financial vs Medallion Bank."""
+    eid = tx(store, "MSGR MSGK - MSG Rangers Corp. to Release Fiscal 2027 First Quarter Results")
+    knicks = "https://www.businesswire.com/news/home/1/en/MSG-Knickerbockers-Corp.-to-Release-Fiscal-2027-First-Quarter-Results"
+    rangers = "https://www.businesswire.com/news/home/2/en/MSG-Rangers-Corp.-to-Release-Fiscal-2027-First-Quarter-Results"
+    fmp(env, "MSG Knickerbockers Corp. to Release Fiscal 2027 First Quarter Results", ["MSGK"], url=knicks, publisher="Business Wire")
+    fmp(env, "MSG Rangers Corp. to Release Fiscal 2027 First Quarter Results", ["MSGR"], url=rangers, publisher="Business Wire")
+    m = tx(store, "MFIN - Medallion Financial Corp. Reports 2026 Third Quarter Results")
+    fmp(env, "Medallion Bank Reports 2026 Third Quarter Results and Declares Series G Preferred Stock Dividend", ["MFIN"],
+        url="https://www.globenewswire.com/news-release/2026/10/29/5/0/en/Medallion-Bank-Reports-2026-Third-Quarter-Results.html")
+    resolver(store).run_pass()
+    got = {r[0]: r[2] for r in link_rows(store)}
+    assert got == {eid: rangers} and m not in got
+    assert ("fmp", "fmp_fuzzy_ticker") in shadow(store, m)
+
+
+def test_a_plausible_url_on_a_record_that_does_not_match_is_not_linked(store, env):
+    """The URL's slug spells the TX headline, but the RECORD's headline differs: a
+    link is never accepted because its URL looks right."""
+    tx(store, f"ACME - {TITLE}")
+    fmp(env, "Acme Corp Schedules Investor Day", ["ACME"], url=GNW)
+    resolver(store).run_pass()
+    assert link_rows(store) == []
+
+
+def test_two_rows_with_the_same_url_are_one_release(store, env):
+    eid = tx(store, f"ACME - {TITLE}")
+    fmp(env, TITLE, ["ACME"])
+    fmp(env, TITLE, ["ACME"], pub_ms=T0 - 2 * MIN)       # the same article from FMP's other lane
+    resolver(store).run_pass()
+    assert link_rows(store)[0][:3] == (eid, "original_release", GNW)
+
+
+def test_too_many_identical_headlines_never_link(store, env, monkeypatch):
+    monkeypatch.setattr(rl, "HK_MAX", 3)
+    tx(store, f"ACME - {TITLE}")
+    fmp(env, TITLE, ["ACME"])
+    for i in range(4):
+        fmp(env, TITLE, [f"X{i}"], url=GNW.replace("3176543", f"99{i}"))
+    resolver(store).run_pass()
+    assert link_rows(store) == []
+
+
+def _scramble_ids(cn_path, n=60):
+    """Rows inserted AFTER the candidates but stamped long BEFORE them: the
+    ingested_at/id order the binary search assumes is broken."""
+    c = sqlite3.connect(cn_path)
+    for i in range(n):
+        c.execute("INSERT INTO news_items(provider, provider_id, source_display, source_class, url, headline, "
+                  "headline_key, published_at, ingested_at) VALUES ('fmp', ?, 'GlobeNewswire', 'wire', ?, ?, '', ?, ?)",
+                  (f"old{i}", f"https://www.globenewswire.com/old/{i}", f"Old {i}", iso_utc(T0 - 40 * 3600_000),
+                   iso_utc(T0 - 40 * 3600_000)))
+    c.commit()
+    c.close()
+
+
+def test_acceptance_does_not_depend_on_the_row_id_invariant(store, env):
+    eid = tx(store, f"ACME - {TITLE}")
+    fmp(env, TITLE, ["ACME"])                              # low id, in window
+    _scramble_ids(env)
+    cn = sqlite3.connect(env)
+    try:                                                   # the id bound now EXCLUDES the candidate...
+        lo = iso_utc(T0 - 6 * 3600_000 - rl.ID_BOUND_MARGIN_MS)
+        assert rl._first_id_since(cn, lo) > 1
+    finally:
+        cn.close()
+    resolver(store).run_pass()                             # ...and the exact match is still found
+    assert link_rows(store)[0][0] == eid
+
+
+def test_ambiguity_does_not_depend_on_the_row_id_invariant(store, env):
+    tx(store, f"ACME - {TITLE}")
+    fmp(env, TITLE, ["ACME"], url=GNW.replace("3176543", "111"))   # hidden below a broken id bound
+    _scramble_ids(env)
+    fmp(env, TITLE, ["ACME"])
+    resolver(store).run_pass()
+    assert link_rows(store) == []                          # still two URLs: ambiguous
+
+
+@pytest.mark.parametrize("url", [
+    "https://www.globenewsіre.com/news-release/Acme-Corp-Reports-Third-Quarter-2026-Results.html",   # Cyrillic i
+    "https://www.globenewswire.com%2eevil.example/Acme-Corp-Reports-Third-Quarter-2026-Results.html",
+    "https://evil.example" + "\\" + "@www.globenewswire.com/Acme-Corp-Reports-Third-Quarter-2026-Results.html",
+    "https://www.globenewswire.com.@evil.example/Acme-Corp-Reports-Third-Quarter-2026-Results.html",
+    "https://www.globenewswire.com@evil.example/Acme-Corp-Reports-Third-Quarter-2026-Results.html",
+    "https://evil.example/https://www.globenewswire.com/Acme-Corp-Reports-Third-Quarter-2026-Results.html",
+    "//www.globenewswire.com/Acme-Corp-Reports-Third-Quarter-2026-Results.html",
+    "https:/www.globenewswire.com/Acme-Corp-Reports-Third-Quarter-2026-Results.html",
+])
+def test_lookalike_and_smuggled_hosts_are_refused(url):
+    assert rl.safe_url(url, rl.WIRE_HOSTS["GlobeNewswire"]) is None
+
+
+class _Resp:
+    def __init__(self, url, body=b"{}"):
+        self._u, self._b, self.headers = url, body, {}
+
+    def geturl(self):
+        return self._u
+
+    def read(self, n=-1):
+        return self._b
+
+    def close(self):
+        pass
+
+
+def test_sec_documents_are_never_taken_from_a_redirect(monkeypatch):
+    import urllib.request
+    asked = "https://www.sec.gov/Archives/edgar/data/1/2/ex99-1.htm"
+    monkeypatch.setattr(urllib.request, "urlopen", lambda req, timeout=None: _Resp("https://evil.example/ex99.htm"))
+    with pytest.raises(rl.RedirectRefused):
+        rl._sec_get(asked, 1000)
+    monkeypatch.setattr(urllib.request, "urlopen", lambda req, timeout=None: _Resp(asked, b"ok"))
+    assert rl._sec_get(asked, 1000) == b"ok"
+
+
+def test_a_redirected_sec_fetch_is_an_error_not_a_link(store, env):
+    tx(store, f"ACME - {TITLE}")
+    fake = FakeSec(EXHIBIT)
+
+    def redirected(url, max_bytes):
+        if url.endswith("ex99-1.htm"):
+            raise rl.RedirectRefused(url)
+        return fake(url, max_bytes)
+    st = resolver(store, now=T0 + 50 * MIN, sec=rl.SecLookup(get=redirected)).run_pass()
+    assert st["sec_errors"] == 1 and link_rows(store) == []
+
+
+# ── flags: independent, default off, reversible ─────────────────────────────
+
+def test_every_flag_defaults_off(monkeypatch):
+    from api.services.trade_exchange_news import config
+    for k in ("TXN_RELEASE_LINKS_ENABLED", "TXN_RELEASE_LINKS_FMP_ENABLED", "TXN_RELEASE_LINKS_SEC_ENABLED",
+              "TXN_RELEASE_LINKS_DISPLAY_ENABLED"):
+        monkeypatch.delenv(k, raising=False)
+    assert not any((config.release_links_enabled(), config.release_links_fmp_enabled(),
+                    config.release_links_sec_enabled(), config.release_links_display_enabled()))
+
+
+def test_fmp_off_skips_fmp_and_sec_still_runs_alone(store, env, monkeypatch):
+    monkeypatch.setenv("TXN_RELEASE_LINKS_FMP_ENABLED", "0")
+    eid = tx(store, f"ACME - {TITLE}")
+    fmp(env, TITLE, ["ACME"])
+    st = resolver(store, now=T0 + 50 * MIN, sec=rl.SecLookup(get=FakeSec(EXHIBIT))).run_pass()
+    assert st.get("fmp_off") and st["fmp_checked"] == 0
+    rows = link_rows(store)
+    assert len(rows) == 1 and rows[0][0] == eid and rows[0][1] == "sec_filing"
+
+
+def test_display_off_hides_every_link_and_publishes_nothing_but_keeps_them(store, env, monkeypatch):
+    monkeypatch.setenv("TXN_RELEASE_LINKS_DISPLAY_ENABLED", "0")
+    eid = tx(store, f"ACME - {TITLE}")
+    fmp(env, TITLE, ["ACME"])
+    pubs = []
+    resolver(store, published=pubs).run_pass()
+    row = store.after(0, 1)[0]
+    assert len(link_rows(store)) == 1 and pubs == []
+    assert rl.lookup(eid) is None and "link" not in pl.headline_event(row, store.epoch, derived={})
+    monkeypatch.setenv("TXN_RELEASE_LINKS_DISPLAY_ENABLED", "1")
+    assert pl.headline_event(row, store.epoch, derived={})["link"]["url"] == GNW
+
+
+def test_a_pass_reports_its_longest_write_hold(store, env):
+    for i in range(50):
+        tx(store, f"ACME - Acme Corp Item {i} Announced Today For Everyone")
+    st = resolver(store).run_pass()
+    assert st["fmp_checked"] == 50 and 0 <= st["write_ms_max"] < 1000
+
+
+def test_headline_ingest_proceeds_while_the_resolver_runs(store, env):
+    """The resolver's writes are short transactions on its own connection; the
+    single writer's ingest never fails behind them."""
+    import threading
+    for i in range(200):
+        tx(store, f"ACME - Acme Corp Item {i} Announced Today For Everyone")
+    r = resolver(store)
+    t = threading.Thread(target=r.run_pass)
+    t.start()
+    ids = [tx(store, f"BETA - Beta Live Headline {i}", ms=NOW + i) for i in range(20)]
+    t.join()
+    got = {r_["event_id"] for r_ in store.after(0, 1000)}
+    assert set(ids) <= got

@@ -34,6 +34,12 @@ describe('releaseLinkFor', () => {
     ['not a string', { kind: 'original_release', url: 42 }],
     ['too long', { kind: 'original_release', url: `${GNW}?${'a'.repeat(1100)}` }],
     ['malformed', { kind: 'original_release', url: 'https://' }],
+    ['Cyrillic lookalike', { kind: 'original_release', url: 'https://www.globenewsіre.com/x' }],
+    ['percent-encoded dot', { kind: 'original_release', url: 'https://www.globenewswire.com%2eevil.example/x' }],
+    ['backslash host smuggle', { kind: 'original_release', url: 'https://evil.example\\@www.globenewswire.com/x' }],
+    ['userinfo smuggle', { kind: 'original_release', url: 'https://www.globenewswire.com@evil.example/x' }],
+    ['wire host in the path', { kind: 'original_release', url: 'https://evil.example/https://www.globenewswire.com/x' }],
+    ['protocol-relative', { kind: 'original_release', url: '//www.globenewswire.com/x' }],
   ])('refuses %s', (_name, link) => {
     expect(releaseLinkFor({ link })).toBeNull()
   })

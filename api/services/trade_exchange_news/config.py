@@ -38,15 +38,30 @@ def _float(key: str, default: float) -> float:
         return default
 
 
+#: Press-release links (release_links.py): FOUR independent switches, all off by
+#: default. The thread runs only with ENABLED; each stage needs its own flag; what
+#: members see needs DISPLAY. So links can be resolved and reviewed dark, each
+#: source rolled back alone, and every link hidden at once without losing any.
+
 def release_links_enabled() -> bool:
-    """Run the press-release link resolver (release_links.py). Off: stored links
-    still display; nothing new is resolved."""
+    """Start the resolver thread at boot. Off: nothing new is resolved."""
     return os.environ.get("TXN_RELEASE_LINKS_ENABLED", "").strip() == "1"
 
 
+def release_links_fmp_enabled() -> bool:
+    """The FMP wire stage (company news, read-only). Read every pass."""
+    return os.environ.get("TXN_RELEASE_LINKS_FMP_ENABLED", "").strip() == "1"
+
+
 def release_links_sec_enabled() -> bool:
-    """The SEC EDGAR stage of the resolver (free; the repo's fair-access client)."""
+    """The SEC EDGAR stage (free; the repo's fair-access client). Read every pass."""
     return os.environ.get("TXN_RELEASE_LINKS_SEC_ENABLED", "").strip() == "1"
+
+
+def release_links_display_enabled() -> bool:
+    """Members see stored links (headline events, the live ``link`` event). Off
+    hides every link immediately; the stored rows are untouched."""
+    return os.environ.get("TXN_RELEASE_LINKS_DISPLAY_ENABLED", "").strip() == "1"
 
 
 def release_links_interval_s() -> float:
