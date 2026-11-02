@@ -184,6 +184,14 @@ describe('decide(): all or nothing, precedence, and a cold index', () => {
     expect(d).toEqual({ ok: false, text: clarifyText(w) })
     for (const [s, n] of INDEX.rows) { expect(d.text).not.toContain(n); expect(d.text).not.toContain(`${s} (`) }
   })
+  it('G2: a stale index declines a lowercase word with the neutral ask (basis index_stale), naming no security', () => {
+    const c = [{ text: 'nvda', form: 'lower' }]
+    const stale = { status: 'ok', stale: true, data: { all_symbols: false, results: [{ input: 'nvda', form: 'lower',
+      class: 'symbol_typed_lowercase', symbol: null, name: null, type: null, basis: ['index_stale'],
+      candidate: { symbol: 'NVDA', name: 'NVIDIA Corporation', type: 'stock' } }] } }
+    expect(decide(stale, c)).toEqual({ ok: false, text: clarifyText('nvda') })
+    expect(clarifyText('nvda')).not.toMatch(/NVIDIA|NVDA/)
+  })
   it('precedence: non_equity > unknown > name_match > symbol_typed_lowercase', () => {
     const c = (...xs) => xs.map(([text, form]) => ({ text, form }))
     expect(decide(env(c(['nvda', 'lower'], ['SPX', 'upper'])), c(['nvda', 'lower'], ['SPX', 'upper'])).text).toMatch(/SPX isn't one I can price/)

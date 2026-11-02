@@ -99,7 +99,10 @@ def _exact_row(idx, sym: str) -> Optional[dict]:
 # index turns a resolve into an ask, never the reverse.
 SCAN_LIMIT = 400                                        # a search that fills this is incomplete (L5)
 BASIS_CONFIRMED = "lowercase_confirmed"
-BASIS_CHECKS = ("fund", "not_an_abbreviation", "name_word", "symbol_root", "scan_incomplete")
+# L6 (G2): an index older than INDEX_STALE_S may lack a row that would collide (a listing added since), and every
+# check above reads "no collision" from the index's silence, so a stale index confirms nothing.
+BASIS_STALE = "index_stale"
+BASIS_CHECKS = ("fund", "not_an_abbreviation", "name_word", "symbol_root", "scan_incomplete", BASIS_STALE)
 _WORD_RE = re.compile(r"[A-Za-z0-9]+")
 
 
@@ -184,8 +187,9 @@ def lowercase_checks(token: str, own: dict, idx) -> list:
     return failed
 
 
-def classify(text: str, form: str, idx) -> dict:
-    """One entry → {input, form, class, symbol, name, type, candidate, basis}. Pure over the index's read API."""
+def classify(text: str, form: str, idx, index_stale: bool = False) -> dict:
+    """One entry → {input, form, class, symbol, name, type, candidate, basis}. Pure over the index's read API.
+    `index_stale`: the index is older than INDEX_STALE_S (or undated) — a lowercase word is then never confirmed."""
     word = text.lstrip("$")
     sym = word.upper()
     out = {"input": text, "form": form, "class": "unknown", "symbol": None, "name": None, "type": None,
@@ -201,6 +205,8 @@ def classify(text: str, form: str, idx) -> dict:
                 out.update({"class": "symbol", **info})
                 return out
             failed = lowercase_checks(word, row, idx)                           # §4.7.5
+            if index_stale:
+                failed = [*failed, BASIS_STALE]                                   # §4.7.5 L6
             if failed:
                 out.update({"class": "symbol_typed_lowercase", "candidate": info, "basis": failed})
             else:
@@ -234,16 +240,16 @@ def read_instruments(params: dict, ctx: dict) -> dict:  # noqa: ARG001 — no pe
         ready = False
     if not ready:
         return env.unavailable(kind, params, SOURCE, NOTE_INDEX_NOT_READY)
-    results = [classify(it["text"], it["form"], idx) for it in _entries(params)]
     try:
         built = float(idx.status().get("built_at") or 0.0)
     except Exception:  # noqa: BLE001
         built = 0.0
+    stale = built <= 0 or (time.time() - built) > INDEX_STALE_S
+    results = [classify(it["text"], it["form"], idx, index_stale=stale) for it in _entries(params)]
     as_of = env.utc_iso(datetime.fromtimestamp(built, timezone.utc)) if built > 0 else None
     notes = [NOTE_FROM_INDEX]
     if as_of is None:
         notes.append("the symbol index does not say when it was built")
-    stale = built <= 0 or (time.time() - built) > INDEX_STALE_S
     return env.make_envelope(kind, params, status="ok", freshness="periodic", as_of=as_of, source=SOURCE,
                              data={"results": results, "all_symbols": all(r["class"] == "symbol" for r in results)},
                              stale=stale, notes=notes, provider_calls=0)

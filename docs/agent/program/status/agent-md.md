@@ -3,6 +3,9 @@
 Only agent-md edits this file. Update it in every PR.
 
 ## In flight
+- **G2, stale index declines** (branch `agent/md/g2-stale-index`, PR into agent/int): §4.7.5 L6. An index older than
+  3 days (or undated) confirms no lowercase word or lowercase cashtag; the #691 neutral ask, `basis: index_stale`.
+  UPPERCASE / `$BTC` unchanged. Mutation-proved (drop the append; stop passing the flag). Awaiting agent-qa verdict.
 - **Lowercase tickers, MD-1 §4.7.5** (branch `agent/md/lowercase-resolve`, stacked on #691, owner ruling
   2026-11-02; development only). A lowercase word or lowercase cashtag is priced only when the canonical index
   confirms it (L1 stock · L2 abbreviates its own name · L3 not a name word · L4 no unrelated symbol root · L5

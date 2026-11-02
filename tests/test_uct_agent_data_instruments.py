@@ -323,6 +323,28 @@ def test_a_capped_scan_is_never_read_as_no_collision(monkeypatch):
     assert r["class"] == "symbol_typed_lowercase" and r["basis"] == ["scan_incomplete"]
 
 
+@pytest.mark.parametrize("age", [ins.INDEX_STALE_S + 60, None])   # older than 3 days, or undated (built_at 0)
+def test_G2_a_stale_index_confirms_no_lowercase_word(monkeypatch, age):
+    """G2 / §4.7.5 L6: every check reads "no collision" from the index's silence, so an old index cannot confirm."""
+    _seed(monkeypatch, rows=LROWS, built=(time.time() - age) if age else 0.0)
+    out = _resolve(("nvda", "lower"), ("$nvda", "cashtag"), ("NVDA", "upper"), ("$NVDA", "cashtag"))
+    assert out["stale"] is True
+    low, cash, up, upcash = out["data"]["results"]
+    for r in (low, cash):                                              # the #691 neutral ask, never a price
+        assert r["class"] == "symbol_typed_lowercase" and r["basis"] == [ins.BASIS_STALE]
+        assert r["symbol"] is None and r["candidate"]["symbol"] == "NVDA"
+    assert up["class"] == upcash["class"] == "symbol" and up["basis"] is None   # explicit capitals: unchanged
+    assert out["data"]["all_symbols"] is False
+
+
+def test_G2_the_stale_check_adds_to_the_others_and_lifts_when_fresh(monkeypatch):
+    _seed(monkeypatch, rows=LROWS, built=time.time() - ins.INDEX_STALE_S - 60)
+    (gold,) = _resolve(("gold", "lower"))["data"]["results"]
+    assert gold["basis"][-1] == ins.BASIS_STALE and len(gold["basis"]) > 1   # its own L3 failure is still recorded
+    _seed(monkeypatch, rows=LROWS, built=time.time() - ins.INDEX_STALE_S + 600)  # just inside 3 days
+    (nvda,) = _resolve(("nvda", "lower"))["data"]["results"]
+    assert nvda["class"] == "symbol" and nvda["basis"] == [ins.BASIS_CONFIRMED]
+
 def test_adding_rows_never_turns_an_ask_into_a_price(monkeypatch):
     """§4.7.5 fail-safe direction: from the base fixture, add each extra row alone; no lowercase ask may resolve."""
     tokens = ["nvda", "tsla", "aapl", "msft", "amd", "brk.b", "spy", "btc", "gold", "es", "wdgt"]
