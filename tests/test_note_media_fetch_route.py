@@ -163,6 +163,60 @@ def test_media_fetch_door_follows_a_redirect(app, client, web):
     assert web["calls"] == [_HOT, "https://cdn2.example.com/real.png"]
 
 
+def test_media_fetch_door_hands_stored_media_to_documents_like_the_upload_doors(app, client, web, monkeypatch):
+    """Plan B R7 (a): a fetched image is searchable (OCR) exactly as an uploaded one is."""
+    from api.services.journal_two import document_extraction
+    seen = []
+    monkeypatch.setattr(document_extraction, "on_attachment_saved",
+                        lambda user_id, note_id, saved, content_type, *, kind: seen.append(
+                            (user_id, note_id, saved["url"], content_type, kind)))
+    _login_as(app, "u1")
+    note_id = _imported(client, "notion:page-1")
+    web["routes"][_HOT] = lambda: httpx.Response(200, content=PNG, headers={"content-type": "image/png"})
+    r = _fetch(client)
+    assert r.status_code == 200, r.text
+    assert seen == [("u1", note_id, r.json()["src"], "image/png", "image")]
+
+
+def test_a_failed_document_hand_off_never_costs_the_fetch(app, client, web, monkeypatch):
+    from api.services.journal_two import document_extraction
+
+    def boom(*a, **k):
+        raise RuntimeError("auth.db busy")
+
+    monkeypatch.setattr(document_extraction, "on_attachment_saved", boom)
+    _login_as(app, "u1")
+    _imported(client, "notion:page-1")
+    web["routes"][_HOT] = lambda: httpx.Response(200, content=PNG, headers={"content-type": "image/png"})
+    assert _fetch(client).status_code == 200
+
+
+def test_media_fetch_door_returns_the_kept_original(app, client, web, monkeypatch):
+    """Plan B R7 (b): when the policy keeps an original (a HEIC source, an animation), the door
+    returns it so the importer inserts its chip -- never an orphan file on the member's cap."""
+    from api.services.journal_two import media_policy
+    real = media_policy.normalize_media
+    heic = b"\x00\x00\x00\x18ftypheic-the-source"
+
+    def with_original(data, content_type, filename):
+        out = real(data, content_type, filename)
+        return media_policy.MediaResult(kind=out.kind, mime=out.mime, data=out.data, filename=out.filename,
+                                        original=media_policy.MediaResult(
+                                            kind="file", mime="image/heic", data=heic, filename="a.heic"))
+
+    monkeypatch.setattr(media_policy, "normalize_media", with_original)
+    _login_as(app, "u1")
+    note_id = _imported(client, "notion:page-1")
+    web["routes"][_HOT] = lambda: httpx.Response(200, content=PNG, headers={"content-type": "image/png"})
+    r = _fetch(client)
+    assert r.status_code == 200, r.text
+    out = r.json()
+    assert set(out) == {"src", "kind", "filename", "original"}
+    assert out["original"]["name"] == "a.heic"
+    assert out["original"]["url"].startswith(f"/api/j2/notes/attachments/u1/{note_id}/file/")
+    assert client.get(out["original"]["url"]).content == heic
+
+
 def test_media_fetch_door_unsafe_redirect_is_422(app, client, web, attachment_root):
     _login_as(app, "u1")
     _imported(client, "notion:page-1")
