@@ -584,6 +584,97 @@ async def test_legacy_row_without_remote_rev_uses_imported_at_fallback(source, p
     assert sorted(x["title"] for x in notes_svc.list_notes("u1")) == ["Mine", "Page (synced copy)"]
 
 
+async def _legacy_conflicted_row_with_deleted_sibling(source, provider):
+    """A note that conflicted BEFORE Task 1 deployed: member-edited, remote
+    revision later than its (stale) imported_at, "(synced copy)" deleted by
+    the member, and `import_remote_rev` NULL (the pre-deploy baseline write
+    never recorded one). Returns (note id, the remote revision)."""
+    from datetime import datetime, timedelta, timezone
+    provider.refs = [RemoteRef(remote_id="p1", updated_at="2026-08-01T00:00:00+00:00")]
+    provider.notes_by_id = {"p1": _rn("p1", "Page")}
+    await engine.sync_source(source["id"], full=True)
+    n = notes_svc.list_notes("u1")[0]
+    notes_svc.update_note("u1", n["id"], {"title": "Mine"})
+    later = (datetime.now(timezone.utc) + timedelta(days=1)).isoformat()
+    provider.refs = [RemoteRef(remote_id="p1", updated_at=later)]
+    provider.notes_by_id = {"p1": _rn("p1", "Page", text="remote v2", updated_at=later)}
+    r = await engine.sync_source(source["id"], full=True, manual=True)
+    assert r["conflicts"] == 1
+    sibling = next(x for x in notes_svc.list_notes("u1") if x["id"] != n["id"])
+    assert notes_svc.delete_note("u1", sibling["id"]) is True
+    conn = auth_db.get_connection()
+    try:
+        conn.execute("UPDATE j2_notes SET import_remote_rev = NULL WHERE id = ?", (n["id"],))
+        conn.commit()
+    finally:
+        conn.close()
+    return n["id"], later
+
+
+def _remote_rev_of(note_id):
+    conn = auth_db.get_connection()
+    try:
+        return conn.execute("SELECT import_remote_rev, updated_at FROM j2_notes WHERE id = ?",
+                            (note_id,)).fetchone()
+    finally:
+        conn.close()
+
+
+async def test_unchanged_pass_backfills_a_legacy_conflicted_rows_revision(source, provider):
+    """Fix round 1, finding 1: an unchanged pass (equal hash) records the
+    remote revision on a legacy row, timestamp-neutrally, so a LATER
+    converter change can no longer resurrect the deleted sibling."""
+    note_id, later = await _legacy_conflicted_row_with_deleted_sibling(source, provider)
+    before = _remote_rev_of(note_id)
+    assert before["import_remote_rev"] is None
+
+    # (i) unchanged pass: same revision, same conversion
+    provider.notes_by_id = {"p1": _rn("p1", "Page", text="remote v2", updated_at=later)}
+    r1 = await engine.sync_source(source["id"], full=True, manual=True)
+    assert r1["conflicts"] == 0
+    after = _remote_rev_of(note_id)
+    assert after["import_remote_rev"] == later
+    assert after["updated_at"] == before["updated_at"]  # timestamp-neutral
+
+    # (ii) converter change, same revision: no copy, no conflict
+    provider.notes_by_id = {"p1": _rn("p1", "Page", text="remote v2, converted better",
+                                       updated_at=later)}
+    r2 = await engine.sync_source(source["id"], full=True, manual=True)
+    assert r2["conflicts"] == 0
+    assert [x["title"] for x in notes_svc.list_notes("u1")] == ["Mine"]
+
+
+async def test_legacy_conflicted_row_converter_change_without_prior_pass_is_no_worse(
+    source, provider,
+):
+    """Fix round 1, finding 1, the residual case: a converter change reaching
+    a legacy conflicted row BEFORE any unchanged pass. Pre-Task-1 the hash
+    rule called this a conflict and tried to re-confirm the deleted sibling
+    (a trashed sibling keeps its import_key, so that surfaces as a stored
+    failure, not a visible note); it still does (no worse), and the baseline
+    write now records the revision, so it happens at most ONCE -- the next
+    converter change is quiet."""
+    note_id, later = await _legacy_conflicted_row_with_deleted_sibling(source, provider)
+    provider.notes_by_id = {"p1": _rn("p1", "Page", text="remote v2, converted better",
+                                       updated_at=later)}
+    r1 = await engine.sync_source(source["id"], full=True, manual=True)
+    assert r1["conflicts"] == 1  # same as the pre-Task-1 hash rule
+    assert _remote_rev_of(note_id)["import_remote_rev"] == later
+    # The trashed sibling keeps its import_key, so the re-confirm hits the
+    # unique index and is reported as a failure rather than reappearing --
+    # exactly what the pre-Task-1 hash rule did on this pass.
+    assert any("p1#remote" in f for f in r1["failures"])
+    titles_after_first = sorted(x["title"] for x in notes_svc.list_notes("u1"))
+    assert titles_after_first == ["Mine"]
+
+    provider.notes_by_id = {"p1": _rn("p1", "Page", text="remote v2, converted twice",
+                                       updated_at=later)}
+    r2 = await engine.sync_source(source["id"], full=True, manual=True)
+    assert r2["conflicts"] == 0
+    assert r2["failures"] == []
+    assert sorted(x["title"] for x in notes_svc.list_notes("u1")) == titles_after_first
+
+
 # ---------------------------------------------------------------------------
 # 5. Delete detection: 2-strikes + refuse guard
 # ---------------------------------------------------------------------------

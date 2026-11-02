@@ -835,6 +835,41 @@ def _write_import_hash_preserving_updated_at(
         )
 
 
+def _backfill_remote_revs_preserving_updated_at(
+    conn: sqlite3.Connection, user_id: str, remote_notes: list[RemoteNote],
+    import_keys: list[str], existing: dict[str, dict[str, Any]],
+) -> int:
+    """Plan A Task 1 fix round 1: give a LEGACY row (`import_remote_rev`
+    NULL) its revision the first time a pass sees it UNCHANGED (stored
+    `import_hash` == this pass's hash, so `rn.updated_at` is exactly the
+    revision that hash was taken at). Without it a legacy row that had
+    already conflicted (imported_at stale, remote revision later) stays on
+    `_remote_changed`'s imported_at fallback, and the first converter change
+    reads as a remote edit and re-tallies the conflict / re-confirms a
+    sibling the member deleted.
+
+    Raw write, never `updated_at` (same idiom as
+    `_write_import_hash_preserving_updated_at`). Run BEFORE the conflict
+    gate's own writes and committed on its own by the caller, so committing
+    it can never commit a conflict baseline ahead of its sibling."""
+    n = 0
+    for rn, key in zip(remote_notes, import_keys):
+        meta = existing.get(key)
+        rev = rn.updated_at or None
+        if meta is None or rev is None or meta.get("importRemoteRev") is not None:
+            continue
+        if notes_svc._import_payload_hash(_build_confirm_entry(rn, key)) != (meta.get("importHash") or ""):
+            continue
+        conn.execute(
+            "UPDATE j2_notes SET import_remote_rev = ? "
+            "WHERE id = ? AND user_id = ? AND import_remote_rev IS NULL",
+            (rev, meta["id"], user_id),
+        )
+        meta["importRemoteRev"] = rev
+        n += 1
+    return n
+
+
 def _tag_note_source_deleted(conn: sqlite3.Connection, user_id: str, import_key: str) -> None:
     """NEVER deletes the note — flags it (mirrors the `demote_broker_accounts`
     instinct: a missing-remote item soft-degrades, it doesn't vanish)."""
@@ -1529,6 +1564,9 @@ async def _import_remote_notes(
             provider.import_key(source["remoteId"], rn.remote_id) for rn in remote_notes
         ]
         existing = _bulk_existing_note_meta(conn, user_id, import_keys)
+        if _backfill_remote_revs_preserving_updated_at(
+                conn, user_id, remote_notes, import_keys, existing):
+            conn.commit()
 
         normal_items: list[tuple[dict[str, Any], RemoteNote, str]] = []
         # (confirm_entry, remote_note, sibling_key, original_folder_id)
@@ -1564,7 +1602,9 @@ async def _import_remote_notes(
             # Plan A Task 1: the hash alone also moves when OUR converter
             # changes, so `_remote_changed` keys the answer on the remote's
             # own revision (see its docstring, incl. the minute-precision
-            # limitation accepted for Notion).
+            # limitation accepted for Notion). Consequence: a remote move/
+            # rename that does NOT advance the remote revision (folderPath and
+            # title sit in the hash) is now SKIPPED on an edited note, not copied.
             is_genuine_conflict = (
                 meta is not None and _is_conflict(meta)
                 and _remote_changed(meta, rn, notes_svc._import_payload_hash(entry))
