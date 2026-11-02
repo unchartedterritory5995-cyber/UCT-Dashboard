@@ -252,6 +252,85 @@ Only agent-qa edits this file. Update it in every PR.
   extended-live, extended-closed, holiday, no-current-trade. Rules (a)–(e) are a reusable predicate
   (`quote_semantics_errors`) with controls showing it can fail. Other MD-1 kinds keep provisional `data` shapes.
 
+## ⭐⭐ FINAL VERDICT: Sprint 2 RELEASE CANDIDATE `f479b0ae327de056b2b53176c0c6fa6d20d722ea` (`agent/rc/sprint2`): **GO**
+**GO** to release, including activating quotes (`UCT_AGENT_DATA=1` + `UCT_AGENT_DATA_KINDS=quote,quotes,instrument.resolve`).
+Everything else stays dark: scan, isolated, NL-1, `bars.daily`.
+Two items are for the owner to decide, and neither blocks the release (below).
+Checked out EXACTLY at the SHA (detached, clean); every probe was added only for its run, then removed.
+
+1. **Suites (lock):** Agent pytest **1733 passed**; vitest **137 files, 2482 passed** (both equal agent-lead's).
+   QA rails: pytest 350; the QA vitest files all pass, including `quoteHeldout` 4/4, `md2Quote` 34/34 and `md2Panel` 48/48.
+2. **Held-out quote sets at the OUTCOME level: FAIL = 0 on BOTH** (rail `qa/quoteHeldout.test.js`, on this SHA).
+   - Set 1 (44): 35 pass · 9 safe-miss · **0 FAIL**.
+   - Set 2 (54, written blind to the fix): 52 pass · 2 safe-miss · **0 FAIL**.
+   - Every execution prices exactly the meant symbol.
+3. **Server allowlist: 21/21** (real router; spies on every kind's adapter and validator).
+   - Flags off: everything is refused, nothing runs, no budget; config has `data_kinds` [].
+   - KINDS = quote, quotes, instrument.resolve: ONLY those three are admitted, with config `data_kinds` listing exactly
+     them. Every other kind (bars.daily, isolated, screen.*) is refused for every purpose, and its source never runs.
+   - Listing isolated or scan kinds without their own flag never widens access.
+   - Unset, empty or garbage settings admit nothing.
+   - A member is denied `/data`, `/config` and `/turn`.
+4. **Flags-off vs production `2cd4c3839c`.** Production is an ANCESTOR (the RC was built by merge), the gate timeout
+   stays 40, and all 88 changed files are Agent paths.
+   - Routes: 1967 = 1967, +0 −0; the 15 Agent routes and their auth dependencies are identical.
+   - `stock.profile` answers plus request sequence, and the screener's flags-off answers plus request sequence, are
+     BYTE-IDENTICAL to production.
+   - Golden: only `screener.run.hints` and `stock.compare.summary` change; no capability is added or removed.
+   - **Every intended change, and nothing else:**
+     (a) F-12: stock.compare's rating removed;
+     (b) F-17: `recentOutcome` is never forwarded;
+     (c) F-18 and F-22: naming skips local and marked rows;
+     (d) F-11: action-less outcome rows fail closed;
+     (e) the L5 and L6 strips (a no-op while nothing is marked) and L2/F-21 marking (dark);
+     (f) #626 routing patterns;
+     (g) the #646 "(latest session)" hint, plus a wider `SCREEN_WORDS`;
+     (h) config `data_kinds`;
+     (i) the screener's gateway path also needs `screen.*` in `data_kinds`;
+     (j) **#660: the OpenChart button clears "Opening…" only while it is still mounted** (no visible change while it is
+         mounted);
+     (k) **§4.7: resolve-before-price, and the `instrument.resolve` kind registered** (refused while flags are off;
+         dark);
+     (l) dormant stock.quote / stock.dailyBars code, and eval or test data.
+5. **Quote-only isolation (owner (A)): PROVEN; no new path.**
+   - Server: only the three are admitted; the quote and resolve rows hold none of the 33 prohibited fields; every
+     `screen.*` kind is refused for every purpose.
+   - Browser: for the same panel turns, prohibited-name occurrences in the model-bound body are IDENTICAL with quote
+     OFF and ON; the stock.quote entry names none; the screener stays on its own route.
+   - Residual, unchanged by this release: the pre-existing screener catalog names all 33 (F-16 is not in this RC).
+6. **MD-2.**
+   - 21 session clocks; real-adapter envelopes for live, stale, pre, post, overnight, weekend, holiday, early close,
+     partial, unavailable and refused.
+   - **Every MD-1-phrasings row's outcome column (price / bars / ask / limit / model) end to end through the real
+     panel (48/48)**, with the real server classifier over QA's own index.
+   - The served path is resolve → ONE quote read, with **no `/api/live-prices`**.
+   - Five dark shapes, including "`instrument.resolve` missing".
+7. **Isolation matrix**
+   - **PROVEN:** L1–L7; F-11, F-12, F-17, F-18, F-21, F-22.
+   - **ACCEPTED (owner):** F-16-R, cell #14, the bare-scalar residual.
+   - **OPEN, stated explicitly: F-16 enforcement (#654/#657/#661) is NOT in this RC.** The pre-existing screener
+     route still names the 33 prohibited fields to the model, as it does in production today.
+   - Also OPEN, dark: F-23 (half-day close). The fix (#666) is not in this RC, and `bars.daily` stays unlisted.
+8. **F-2:** the same 25 pre-existing non-Agent files. None is in the release diff, the rail is not in the master gate,
+   and `qa/sentinels.js` is no longer flagged. Harmless noise for this release.
+9. **Still unverified:**
+   - SAT-1 B (no credential);
+   - the real Massive quote payloads (faked in every QA test);
+   - **the production symbol index (`ticker_search_index`, built from Massive reference data)**. QA used its own
+     index. If the production index isn't loaded, every price question answers "I can't check ticker symbols right
+     now". That fails safe, but it would look broken;
+   - planner quality (paid);
+   - a real browser;
+   - stock.dailyBars in activation (dark; QA's #655 harness must move to the §4.7 table);
+   - isolated kinds with a reader;
+   - F-16 enforcement.
+10. **GO, with:**
+    - (i) a post-activation smoke on the production pod: one admin `instrument.resolve` read, which must be `ok` and
+      not "not loaded", then one "NVDA price" through the panel;
+    - (ii) owner decisions, not blockers: five asks name a probably-unintended security (btc / gold / dow / eth / sol),
+      and "BTC" in capitals prices the Grayscale Bitcoin Mini Trust ETF, named in the answer;
+    - (iii) promote by MERGE.
+
 ## RELEASE BLOCKER CLEARED: held-out quote sets at the OUTCOME level on agent-md #664 + agent-lead `c9fd4437ea` (MD-1 §4.7)
 **Set 1 (44): 35 PASS · 9 SAFE-MISS · 0 FAIL. Set 2 (54, written blind to the fix, published now): 52 PASS ·
 2 SAFE-MISS · 0 FAIL.**
