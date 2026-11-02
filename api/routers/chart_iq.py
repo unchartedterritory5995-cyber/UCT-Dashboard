@@ -21,6 +21,7 @@ import weakref
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.concurrency import run_in_threadpool
+from pydantic import BaseModel, Field
 
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
 from api.services.cache import TTLCache
@@ -65,17 +66,61 @@ def _sem() -> asyncio.Semaphore:
     return s
 
 
-@router.get("/{sym}")
-async def chart_iq(sym: str, date: str | None = Query(default=None, description="YYYY-MM-DD; default the latest session"),
-                   user: dict = Depends(require_paid)):
+def _gate(user: dict) -> bool:
+    """404 unless this viewer may use Chart IQ now; returns whether the viewer is an admin."""
     if not enabled():
         raise HTTPException(status_code=404, detail="Not found")
     admin = _is_admin(user)
     if not admin and not members_enabled():
         raise HTTPException(status_code=404, detail="Not found")
+    return admin
+
+
+def _clean_sym(sym: str) -> str:
     sym = (sym or "").upper().strip()
     if not _SYM.match(sym):
         raise HTTPException(status_code=400, detail="bad ticker")
+    return sym
+
+
+class FeedbackIn(BaseModel):
+    asof: str = Field(..., description="the as-of day of the read being judged, YYYY-MM-DD")
+    vote: str = Field(..., description="useful | partly | noise")
+    note: str = Field(default="", max_length=4000)
+    version: str = Field(default="", max_length=40)
+
+
+@router.get("/feedback/export")
+async def chart_iq_feedback_export(since: float = Query(default=0.0), limit: int = Query(default=5000, ge=1, le=20000),
+                                   user: dict = Depends(require_paid)):
+    """Admin only: every vote updated after ``since`` (epoch seconds), member ids hashed. The lab pulls this nightly."""
+    if not _gate(user):
+        raise HTTPException(status_code=404, detail="Not found")
+    from api.services.chart_iq import feedback
+    rows = await run_in_threadpool(feedback.export, since, limit)
+    return {"rows": rows, "next_since": rows[-1]["updated"] if rows else since}
+
+
+@router.post("/{sym}/feedback")
+async def chart_iq_feedback(sym: str, body: FeedbackIn, user: dict = Depends(require_paid)):
+    admin = _gate(user)
+    sym = _clean_sym(sym)
+    if not _DATE.match(body.asof or ""):
+        raise HTTPException(status_code=400, detail="asof must be YYYY-MM-DD")
+    from api.services.chart_iq import feedback
+    try:
+        return await run_in_threadpool(feedback.save, str(user.get("id")), sym, body.asof, body.vote, body.note, body.version, admin)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except feedback.CapReached:
+        raise HTTPException(status_code=429, detail="Daily feedback limit reached")
+
+
+@router.get("/{sym}")
+async def chart_iq(sym: str, date: str | None = Query(default=None, description="YYYY-MM-DD; default the latest session"),
+                   user: dict = Depends(require_paid)):
+    admin = _gate(user)
+    sym = _clean_sym(sym)
     if date is not None and not _DATE.match(date):
         raise HTTPException(status_code=400, detail="date must be YYYY-MM-DD")
     from api.services.chart_iq import pipeline   # lazy: the engine loads on first use, never at boot
@@ -94,6 +139,10 @@ async def chart_iq(sym: str, date: str | None = Query(default=None, description=
     if "error" in res:
         raise HTTPException(status_code=404, detail=res["error"])
     out = {k: res[k] for k in _MEMBER_FIELDS if k in res}
+    if not admin:   # members see no performance numbers yet (tracked privately, not displayed): drop each buy day's run since
+        out["buydays"] = [{k: v for k, v in b.items() if k != "run"} for b in out.get("buydays") or []]
+    from api.services.chart_iq import feedback
+    out["my_feedback"] = await run_in_threadpool(feedback.mine, str(user.get("id")), sym, out.get("asof") or "")
     if admin:
         out["raw"] = res.get("raw", [])            # every level / line the engines found, not only the drawn ones (admin debugging)
     return out

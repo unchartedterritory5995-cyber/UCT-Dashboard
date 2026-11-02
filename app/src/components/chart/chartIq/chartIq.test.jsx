@@ -1,10 +1,10 @@
 // Chart IQ client rails: the drawing plan (chartIqPlan.buildPlan), the gate, the daily-only fetch key and the panel.
-import { describe, it, expect } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { describe, it, expect, vi, afterEach } from 'vitest'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { buildPlan, defaultLayers, LAYERS } from './chartIqPlan'
 import { chartIqAllowed } from './chartIqGate'
 import { chartIqKey } from '../../../hooks/useChartIq'
-import ChartIqPanel, { firstSentence } from './ChartIqPanel'
+import ChartIqPanel, { firstSentence, ChartIqFeedback } from './ChartIqPanel'
 
 const BARS = ['2026-10-26', '2026-10-27', '2026-10-28', '2026-10-29', '2026-10-30']
 const PAYLOAD = {
@@ -116,5 +116,47 @@ describe('ChartIqPanel', () => {
   it('firstSentence', () => {
     expect(firstSentence('A b. C d.')).toBe('A b.')
     expect(firstSentence('no stop')).toBe('no stop')
+  })
+})
+
+
+describe('no performance numbers on the chart (tracked privately, not displayed)', () => {
+  it('a buy day marker never shows a run, a percent or a return', () => {
+    const p = buildPlan(PAYLOAD, BARS)
+    const buys = p.markers.filter((m) => m.kind === 'buy')
+    expect(buys.length).toBeGreaterThan(0)
+    for (const m of buys) expect(`${m.text} ${m.why}`).not.toMatch(/%|run|since \+/)
+  })
+})
+
+describe('ChartIqFeedback', () => {
+  afterEach(() => { vi.restoreAllMocks() })
+  const DATA = { ticker: 'CVLT', asof: '2026-10-30', version: 'v4.38', my_feedback: null }
+
+  it('a vote posts the chart, the day, the vote and the note, then says saved', async () => {
+    const f = vi.spyOn(globalThis, 'fetch').mockResolvedValue({ ok: true, status: 200, json: async () => ({ vote: 'noise', note: 'too busy' }) })
+    render(<ChartIqFeedback data={DATA} />)
+    fireEvent.change(screen.getByLabelText(/get wrong or miss/i), { target: { value: 'too busy' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Noise' }))
+    await waitFor(() => expect(screen.getByRole('status').textContent).toMatch(/Saved/))
+    const [url, opts] = f.mock.calls[0]
+    expect(url).toBe('/api/chart-iq/CVLT/feedback')
+    expect(opts.method).toBe('POST')
+    expect(JSON.parse(opts.body)).toEqual({ asof: '2026-10-30', vote: 'noise', note: 'too busy', version: 'v4.38' })
+    expect(screen.getByRole('button', { name: 'Noise' }).getAttribute('aria-pressed')).toBe('true')
+  })
+
+  it('shows the saved vote and note, asks for a vote before saving a bare note, and reports a failure', async () => {
+    const f = vi.spyOn(globalThis, 'fetch').mockResolvedValue({ ok: false, status: 429, json: async () => ({}) })
+    const { unmount } = render(<ChartIqFeedback data={DATA} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Save note' }))
+    expect(screen.getByRole('status').textContent).toMatch(/Pick Useful/)
+    expect(f).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Useful' }))
+    await waitFor(() => expect(screen.getByRole('status').textContent).toMatch(/Not saved: Daily limit/))
+    unmount()
+    render(<ChartIqFeedback data={{ ...DATA, my_feedback: { vote: 'partly', note: 'missed the gap' } }} />)
+    expect(screen.getByRole('button', { name: 'Partly' }).getAttribute('aria-pressed')).toBe('true')
+    expect(screen.getByLabelText(/get wrong or miss/i).value).toBe('missed the gap')
   })
 })

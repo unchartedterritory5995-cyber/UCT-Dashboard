@@ -122,7 +122,7 @@ export function buildPlan(payload, barTimes, layers = defaultLayers()) {
       const name = String(b.name || '').split(' ·')[0]
       out.markers.push({ t: b.d, pos: 'below', color: b.best ? CYAN : '#67e8f9', shape: 'up', size: b.best ? 2 : 1,
         text: b.best ? `BEST BUY · ${name}` : (fresh(b.d) ? `BUY · ${name}` : ''),
-        why: b.held ? `held, +${b.run}% since` : `failed: closed under its low ${b.failed_on || ''}`, kind: 'buy' })
+        why: b.held ? 'held: no close under its low since' : `failed: closed under its low ${b.failed_on || ''}`, kind: 'buy' })
     }
   }
   if (layers.watch) {

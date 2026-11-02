@@ -124,3 +124,98 @@ def test_engine_carries_no_lab_paths():
     text = "".join(p.read_text(encoding="utf-8") for p in root.rglob("*.py"))
     for bad in ("C:/data", "owner_review_local", "TSDR", "similar_index", "ratings.json"):
         assert bad not in text, bad
+
+
+# ── member feedback (useful / partly / noise + note) and the no-performance-numbers rule ──
+
+@pytest.fixture
+def fbdb(tmp_path, monkeypatch):
+    monkeypatch.setenv("CHART_IQ_FEEDBACK_DB", str(tmp_path / "fb.db"))
+    return tmp_path / "fb.db"
+
+
+def test_feedback_is_gated_like_the_read(monkeypatch, fbdb):
+    body = {"asof": "2026-10-30", "vote": "useful"}
+    assert client(ADMIN, monkeypatch).post("/api/chart-iq/ABC/feedback", json=body).status_code == 404
+    monkeypatch.setenv("CHART_IQ_ENABLED", "1")
+    assert client(MEMBER, monkeypatch).post("/api/chart-iq/ABC/feedback", json=body).status_code == 404
+    assert client(FREE, monkeypatch, paid=False).post("/api/chart-iq/ABC/feedback", json=body).status_code == 402
+    assert client(ADMIN, monkeypatch).post("/api/chart-iq/ABC/feedback", json=body).status_code == 200
+
+
+def test_feedback_saves_replaces_and_comes_back_with_the_read(monkeypatch, fbdb):
+    monkeypatch.setenv("CHART_IQ_ENABLED", "1")
+    monkeypatch.setenv("CHART_IQ_MEMBERS_ENABLED", "1")
+    c = client(MEMBER, monkeypatch)
+    assert c.get("/api/chart-iq/ABC").json()["my_feedback"] is None
+    assert c.post("/api/chart-iq/ABC/feedback", json={"asof": "2026-10-30", "vote": "noise", "note": "too many lines"}).status_code == 200
+    assert c.post("/api/chart-iq/abc/feedback", json={"asof": "2026-10-30", "vote": "partly", "note": "better"}).status_code == 200
+    assert c.get("/api/chart-iq/ABC").json()["my_feedback"] == {"vote": "partly", "note": "better"}
+    # another member's view of the same chart does not see this vote
+    assert client(dict(MEMBER, id="m2"), monkeypatch).get("/api/chart-iq/ABC").json()["my_feedback"] is None
+    assert c.post("/api/chart-iq/ABC/feedback", json={"asof": "2026-10-30", "vote": "great"}).status_code == 400
+    assert c.post("/api/chart-iq/ABC/feedback", json={"asof": "10/30/2026", "vote": "useful"}).status_code == 400
+
+
+def test_feedback_export_is_admin_only_and_hashes_members(monkeypatch, fbdb):
+    monkeypatch.setenv("CHART_IQ_ENABLED", "1")
+    monkeypatch.setenv("CHART_IQ_MEMBERS_ENABLED", "1")
+    client(MEMBER, monkeypatch).post("/api/chart-iq/ABC/feedback", json={"asof": "2026-10-30", "vote": "useful", "note": "n"})
+    assert client(MEMBER, monkeypatch).get("/api/chart-iq/feedback/export").status_code == 404
+    r = client(ADMIN, monkeypatch).get("/api/chart-iq/feedback/export")
+    assert r.status_code == 200
+    rows = r.json()["rows"]
+    assert len(rows) == 1 and rows[0]["vote"] == "useful" and rows[0]["ticker"] == "ABC"
+    assert "m1" not in r.text and rows[0]["member"] and not rows[0]["is_admin"]
+    nxt = r.json()["next_since"]
+    assert client(ADMIN, monkeypatch).get("/api/chart-iq/feedback/export?since=%s" % nxt).json()["rows"] == []
+
+
+def test_feedback_daily_cap(monkeypatch, fbdb):
+    monkeypatch.setenv("CHART_IQ_ENABLED", "1")
+    from api.services.chart_iq import feedback
+    monkeypatch.setattr(feedback, "DAILY_CAP", 2)
+    c = client(ADMIN, monkeypatch)
+    for s in ("AAA", "BBB"):
+        assert c.post("/api/chart-iq/%s/feedback" % s, json={"asof": "2026-10-30", "vote": "useful"}).status_code == 200
+    assert c.post("/api/chart-iq/CCC/feedback", json={"asof": "2026-10-30", "vote": "useful"}).status_code == 429
+    assert c.post("/api/chart-iq/AAA/feedback", json={"asof": "2026-10-30", "vote": "noise"}).status_code == 200   # re-vote allowed
+
+
+def test_members_get_no_performance_numbers(monkeypatch, fbdb):
+    from api.services.chart_iq import pipeline
+    bd = [{"d": "2026-10-20", "name": "UnR", "held": True, "best": True, "run": 12.5}]
+    monkeypatch.setattr(pipeline, "analyze", lambda sym, date=None: dict(FAKE, ticker=sym, buydays=bd))
+    monkeypatch.setenv("CHART_IQ_ENABLED", "1")
+    monkeypatch.setenv("CHART_IQ_MEMBERS_ENABLED", "1")
+    m = client(MEMBER, monkeypatch).get("/api/chart-iq/ABC").json()
+    assert m["buydays"] and "run" not in m["buydays"][0]
+    assert client(ADMIN, monkeypatch).get("/api/chart-iq/ABC").json()["buydays"][0]["run"] == 12.5   # cache not mutated by the strip
+
+
+def test_engine_follows_a_bars_db_swap(tmp_path, monkeypatch):
+    """The web pod replaces bars.db wholesale and bumps bars_sqlite's epoch; the engine must reopen, not keep the old inode."""
+    import os
+    from api.services import bars_sqlite
+    from api.services.chart_iq.engine import _db
+
+    def make(path, close):
+        c = sqlite3.connect(path)
+        c.execute("CREATE TABLE ohlcv (ticker TEXT, tf TEXT, ts INTEGER, o REAL, h REAL, l REAL, c REAL, v REAL)")
+        c.execute("INSERT INTO ohlcv VALUES ('ZZZ','D',20261030,1,1,1,?,1)", (close,))
+        c.commit(); c.close()
+
+    live = tmp_path / "bars.db"
+    make(str(live), 10.0)
+    monkeypatch.setenv("CHART_IQ_BARS_DB", str(live))
+    monkeypatch.delattr(_db._TL, "bars", raising=False)
+    q = "SELECT c FROM ohlcv WHERE ticker='ZZZ'"
+    assert _db.bars().execute(q).fetchone()[0] == 10.0
+    new = tmp_path / "new.db"
+    make(str(new), 20.0)
+    # data_sync moves a new file over the path (a new inode); Windows refuses to replace an open file, so point the path at the
+    # new file instead: either way only a REOPEN reads the new data, and the held connection still reads the old one
+    monkeypatch.setenv("CHART_IQ_BARS_DB", str(new))
+    assert _db.bars().execute(q).fetchone()[0] == 10.0    # no bump yet: the thread keeps its connection (no reopen per query)
+    bars_sqlite.bump_db_epoch()
+    assert _db.bars().execute(q).fetchone()[0] == 20.0

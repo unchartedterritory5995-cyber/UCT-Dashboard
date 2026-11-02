@@ -34,15 +34,25 @@ def _uri(path):
 class _Conn:
     """A thread-local read-only connection with the two methods the engine uses (execute, close)."""
 
-    def __init__(self, name, path_fn):
-        self._name, self._path_fn = name, path_fn
+    def __init__(self, name, path_fn, epoch_fn=None):
+        self._name, self._path_fn, self._epoch_fn = name, path_fn, epoch_fn or (lambda: 0)
 
     def _c(self):
-        c = getattr(_TL, self._name, None)
-        if c is None:
-            c = sqlite3.connect(_uri(self._path_fn()), uri=True, check_same_thread=False, timeout=10)
-            setattr(_TL, self._name, c)
-        return c
+        # The web pod replaces bars.db wholesale (data_sync snapshot pull) and bumps bars_sqlite's connection epoch; an open
+        # connection keeps reading the OLD, unlinked inode forever. So a cached connection is reused only while the epoch it
+        # was opened under is still current, exactly like bars_sqlite._conn().
+        ep = self._epoch_fn()
+        held = getattr(_TL, self._name, None)
+        if held is not None and held[1] != ep:
+            try:
+                held[0].close()
+            except Exception:  # noqa: BLE001
+                pass
+            held = None
+        if held is None:
+            held = (sqlite3.connect(_uri(self._path_fn()), uri=True, check_same_thread=False, timeout=10), ep)
+            setattr(_TL, self._name, held)
+        return held[0]
 
     def execute(self, *a):
         return self._c().execute(*a)
@@ -51,7 +61,15 @@ class _Conn:
         """The engine closes per-call connections; the thread keeps its own open."""
 
 
-_BARS = _Conn("bars", _bars_path)
+def _bars_epoch():
+    try:
+        from api.services import bars_sqlite
+        return bars_sqlite._db_epoch
+    except Exception:  # noqa: BLE001 -- outside the site (the lab's parity run) there is no swap to follow
+        return 0
+
+
+_BARS = _Conn("bars", _bars_path, _bars_epoch)
 _IND = _Conn("industry", _industry_path)
 
 
