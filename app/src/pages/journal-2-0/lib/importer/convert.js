@@ -273,7 +273,11 @@ export function htmlToNote(html) {
   if (held) return { bodyJson: held, bodyPlain: extractPlainText(held) }
   _ext = _ext || buildExtensions()
   const doc = sanitizeDoc(new DOMParser().parseFromString(html || '', 'text/html'))
-  const marker = pickMarker(html || '')
+  // ⛔ Picked against the DECODED document, never the raw string: a noncharacter written
+  // as an entity (`&#xFDD0;`) is only a character once parsed (D2 fix round 1, M1). The
+  // serializer writes every text and attribute character back as itself (it escapes only
+  // `&`, `<`, `>`, `"` and U+00A0), so `innerHTML` holds each one the member wrote.
+  const marker = pickMarker(doc.body.innerHTML)
   const marked = marker ? markBlockAtomEdges(doc, marker) : 0
   let bodyJson = generateJSON(doc.body.innerHTML, _ext)
   if (marked) {

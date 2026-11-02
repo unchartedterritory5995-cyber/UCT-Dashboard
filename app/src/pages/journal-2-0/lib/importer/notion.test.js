@@ -209,3 +209,18 @@ describe('notion adapter — D2 item 5: no empty paragraph, no lost space', () =
       'doc(paragraph("Top"), image, paragraph("Read "), attachmentChip, paragraph(" more"))')
   })
 })
+
+// D2 fix round 1 (M1): a noncharacter in a Notion page is the member's text, never the
+// shared parse's marker. A raw one, and an `<aside>` HTML island holding the entity (Notion's
+// markdown export passes HTML islands through as written).
+describe('notion adapter — D2 fix round 1: a member noncharacter survives', () => {
+  it('keeps it beside an image split', async () => {
+    const { htmlToNote } = await import('./convert')
+    const bin = (p) => ({ path: p, size: 1, lastModified: null, bytes: async () => new Uint8Array([1]) })
+    const nc = String.fromCharCode(0xfdd0) // a noncharacter, spelled by code point
+    const { docs } = await notionAdapter.parse([
+      vf(`Page ${HEX}.md`, `keep ${nc}\n\n<aside>&#xFDD0;</aside>\n\nRead ![](Page%20${HEX}/img.png)`),
+      bin(`Page ${HEX}/img.png`)])
+    expect(htmlToNote(docs[0].html).bodyPlain).toBe(`keep ${nc} ${nc} Read `)
+  })
+})

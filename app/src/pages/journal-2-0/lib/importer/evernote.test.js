@@ -138,3 +138,21 @@ describe('evernote adapter — D2 item 5: no empty paragraph, no lost space', ()
       'doc(paragraph("Top"), image, paragraph("Read "), attachmentChip, paragraph(" more"))')
   })
 })
+
+describe('evernote adapter — D2 fix round 1: an entity-encoded noncharacter survives', () => {
+  it('keeps it beside an image split', async () => {
+    const { htmlToNote } = await import('./convert')
+    const note = `<?xml version="1.0" encoding="UTF-8"?>
+<en-export><note><title>N</title>
+  <content><![CDATA[<?xml version="1.0"?><!DOCTYPE en-note SYSTEM "http://xml.evernote.com/pub/enml2.dtd">
+<en-note><p>keep &#xFDD0;</p><p>&#xFDD0;</p><p>Read <en-media type="image/png" hash="${pngMd5}"></en-media></p></en-note>]]></content>
+  <created>20240105T093000Z</created>
+  <resource><data encoding="base64">${PNG_B64}</data><mime>image/png</mime>
+   <resource-attributes><file-name>chart.png</file-name></resource-attributes></resource>
+</note></en-export>`
+    const file = { path: 'N.enex', size: note.length, lastModified: null, bytes: async () => new TextEncoder().encode(note) }
+    const { docs } = await evernoteAdapter.parse([file])
+    const nc = String.fromCharCode(0xfdd0) // a noncharacter, spelled by code point
+    expect(htmlToNote(docs[0].html).bodyPlain).toBe(`keep ${nc} ${nc} Read `)
+  })
+})

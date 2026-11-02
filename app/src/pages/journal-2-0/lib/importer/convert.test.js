@@ -220,6 +220,9 @@ const shape = (n) => (n.type === 'text'
   ? JSON.stringify(n.text) + (n.marks ? `[${n.marks.map((m) => m.type).join('+')}]` : '')
   : n.type + (n.content ? `(${n.content.map(shape).join(', ')})` : ''))
 const shapeOf = (html) => shape(htmlToNote(html).bodyJson)
+// Noncharacters, spelled by code point so an editor shows them (they render as nothing).
+const NC0 = String.fromCharCode(0xfdd0)
+const NC1 = String.fromCharCode(0xfdd1)
 
 describe('htmlToNote — D2 item 5: block atoms split paragraphs without losing whitespace', () => {
   it('leaves no empty paragraph before an image that is the whole paragraph', () => {
@@ -253,9 +256,18 @@ describe('htmlToNote — D2 item 5: block atoms split paragraphs without losing 
   })
 
   it('never takes the member\'s own noncharacters for its marker', () => {
-    const own = '﷐﷑ '
-    const { bodyJson, bodyPlain } = htmlToNote(`<p>x${own}<img src="import-ref://a.png"></p><p>﷐</p>`)
-    expect(shape(bodyJson)).toBe(`doc(paragraph(${JSON.stringify(`x${own}`)}), image, paragraph("﷐"))`)
-    expect(bodyPlain).toContain('﷐﷑')
+    const own = `${NC0}${NC1} `
+    const { bodyJson, bodyPlain } = htmlToNote(`<p>x${own}<img src="import-ref://a.png"></p><p>${NC0}</p>`)
+    expect(shape(bodyJson)).toBe(`doc(paragraph(${JSON.stringify(`x${own}`)}), image, paragraph("${NC0}"))`)
+    expect(bodyPlain).toContain(`${NC0}${NC1}`)
+  })
+})
+
+// D2 fix round 1 (M1): the marker is picked against the DECODED note, so a noncharacter the
+// member wrote as an entity (`&#xFDD0;`) is the member's text, never taken for the marker.
+describe('htmlToNote — D2 fix round 1: an entity-encoded noncharacter is the member\'s', () => {
+  it('keeps &#xFDD0; text and its paragraph beside a split', () => {
+    const { bodyJson } = htmlToNote('<p>keep &#xFDD0;</p><p>&#xFDD0;</p><p>Read <img src="import-ref://a.png"></p>')
+    expect(shape(bodyJson)).toBe(`doc(paragraph("keep ${NC0}"), paragraph("${NC0}"), paragraph("Read "), image)`)
   })
 })

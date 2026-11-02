@@ -264,3 +264,25 @@ describe('generic adapter — D2 item 5: no empty paragraph, no lost space', () 
     expect(shape(htmlToNote(docs[0].html).bodyJson)).toBe(want)
   })
 })
+
+// D2 fix round 1 (M1): a noncharacter the member wrote as an entity is the member's text,
+// never the shared parse's marker. An .html file hands the entity to the parse as written;
+// markdown-it decodes a noncharacter entity to U+FFFD itself, so a markdown file cannot
+// collide (pinned too, so a markdown-it change is seen).
+describe('generic adapter — D2 fix round 1: an entity-encoded noncharacter survives', () => {
+  const bin = (p) => ({ path: p, size: 1, lastModified: null, bytes: async () => new Uint8Array([1]) })
+  it('html: keeps it, and its paragraph, beside an image split', async () => {
+    const { htmlToNote } = await import('./convert')
+    const { docs } = await genericAdapter.parse([
+      vf('Vault/n.html', '<html><body><p>keep &#xFDD0;</p><p>&#xFDD0;</p><p>Read <img src="img.png"></p></body></html>'),
+      bin('Vault/img.png')])
+    const nc = String.fromCharCode(0xfdd0) // a noncharacter, spelled by code point
+    expect(htmlToNote(docs[0].html).bodyPlain).toBe(`keep ${nc} ${nc} Read `)
+  })
+  it('markdown: markdown-it reads the entity as U+FFFD, kept beside an image split', async () => {
+    const { htmlToNote } = await import('./convert')
+    const { docs } = await genericAdapter.parse([vf('Vault/n.md', 'keep &#xFDD0;\n\n&#xFDD0;\n\nRead ![](img.png)'), bin('Vault/img.png')])
+    const rc = String.fromCharCode(0xfffd) // U+FFFD, the replacement character
+    expect(htmlToNote(docs[0].html).bodyPlain).toBe(`keep ${rc} ${rc} Read `)
+  })
+})

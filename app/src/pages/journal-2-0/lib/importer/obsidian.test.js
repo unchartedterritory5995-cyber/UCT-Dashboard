@@ -795,3 +795,15 @@ describe('obsidian adapter — D2 fix round 1 (e): an embed as a wikilink alias'
     expect(d.links).toEqual([])
   })
 })
+
+// D2 fix round 1 (M1): a member's noncharacter is never the shared parse's marker. Raw, it
+// is kept; written as an entity, markdown-it itself reads it as U+FFFD.
+describe('obsidian adapter — D2 fix round 1: a member noncharacter survives', () => {
+  it('keeps it beside an image split', async () => {
+    const nc = String.fromCharCode(0xfdd0)
+    const { docs } = await obsidianAdapter.parse([
+      vf('V/a.md', `keep ${nc}\n\n&#xFDD0;\n\nRead ![[img.png]]`), vf('V/img.png', 'i')])
+    const d = docs.find((x) => x.importKey === 'obsidian:V/a.md')
+    expect(htmlToNote(d.html).bodyPlain).toBe(`keep ${nc} ${String.fromCharCode(0xfffd)} Read `)
+  })
+})
