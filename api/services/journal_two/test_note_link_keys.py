@@ -168,6 +168,21 @@ def test_the_sweep_budget_is_not_spent_on_member_edited_notes(db):
     assert "import-link://" not in _row(healable)["body_json"]
 
 
+def test_never_resolvable_notes_cannot_starve_a_healable_one(db):
+    # Fix round 1 (I1). More never-resolvable pending notes than the limit, all OLDER
+    # (lower rowids) than the healable one, so a sweep in index order returns the same
+    # never-resolvable notes every time and the healable note starves.
+    for i in range(4):
+        _import("u1", "fake", f"fake:g/never{i}", f"Never{i}", _link("fake:g/absent", "absent"))
+    healable = _import("u1", "fake", "fake:g/h", "Healable", _link("fake:g/t", "T"))
+    _import("u1", "fake", "fake:g/t", "T")
+
+    for _ in range(50):
+        if link_keys.heal_pending_links("u1", limit=3)["healed"]:
+            break
+    assert "import-link://" not in _row(healable)["body_json"]
+
+
 # ── POST /api/j2/notes/import/heal-links ─────────────────────────────────────
 
 @pytest.fixture

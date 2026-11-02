@@ -167,7 +167,11 @@ def heal_pending_links(
         register_sql_function(conn)
         rows.extend(r for r in conn.execute(
             f"{_SELECT} WHERE {_CANDIDATE} AND import_links_pending = 1"
-            f" AND NOT {EDITED_SQL_FUNCTION}(updated_at, imported_at) LIMIT ?",
+            f" AND NOT {EDITED_SQL_FUNCTION}(updated_at, imported_at)"
+            # Fix round 1 (I1): a RANDOM sample, never index order. In rowid order the
+            # same first `limit` notes -- ones whose link can never resolve -- would fill
+            # every sweep, and a newer note whose target has arrived would never heal.
+            f" ORDER BY random() LIMIT ?",
             (user_id, max(0, int(limit)))).fetchall() if r["id"] not in named_set)
 
         unresolved: list[dict[str, str]] = []
