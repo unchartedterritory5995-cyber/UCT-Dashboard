@@ -200,7 +200,7 @@ window.__newsHarnessBlocked = BLOCKED
 // ?ask=real: UCT Agent's OWN useAgentAsk talks to this INVENTED /api/agent (no model, never the
 // network). Every request is kept in window.__agentCalls; &askfail=402 refuses each turn the way the
 // server's budget refusal does (final), &askfail=503 like a passing outage (retryable);
-// &askdelay=ms holds each answer (default 300).
+// &askdelay=ms holds each answer (default 300); &asknews=0 = the server's News switch off.
 const ASK_REAL = params.get('ask') === 'real'
 const AGENT_CALLS = []
 window.__agentCalls = AGENT_CALLS
@@ -220,6 +220,8 @@ function fakeAgent(method, path, init) {
     return new Promise((r) => setTimeout(r, Number(params.get('askdelay')) || 300)).then(() => json({
       conversationId: 'ac_harness_news', envelope: { disposition: 'answer', reply: `SYNTHETIC answer to “${body.message}”.` } }))
   }
+  // The server's News switch (UCT_AGENT_NEWS) as /api/agent/config reports it; &asknews=0 = off.
+  if (method === 'GET' && path.startsWith('/api/agent/config')) return json({ news: params.get('asknews') !== '0' })
   if (method === 'GET' && path.startsWith('/api/agent/conversations/')) {
     return json({ id: decodeURIComponent(path.split('/').pop()), turns: AGENT_TRANSCRIPT })
   }
