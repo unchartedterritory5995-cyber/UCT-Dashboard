@@ -800,4 +800,44 @@ describe('C45 / C48 — ⛔ a DRAWING\'s colour whose `ta.*` call runs only on s
     const nested = every(`${H}show = input.bool(true, "Show")\nlabel.new(bar_index, high, "x", color = (show ? ta.rising(close, 2) : false) ? color.green : color.red)\n`)
     expect(nested.every((l) => l.color === (rising[l.bx] ? GREEN : RED))).toBe(true)
   })
+
+  // ── L1 (review): a create that runs EXACTLY ONCE, on bar 0 ─────────────────
+  // A `var` drawing create with no enclosing block, and the `if na(lb)` create-once
+  // idiom over a `var` handle nothing else writes, run on the first bar only. There
+  // the every-bar `ta.*` call and TradingView's first call agree (both have bar 0's
+  // history alone), so the colour is drawn — holding it would drop a label that
+  // matched TradingView.
+  const once = (src) => {
+    const r = draw(src)
+    expect(r.held, src).toEqual([])
+    expect(r.labels.length, src).toBe(1)
+    expect(r.labels[0].bx, src).toBe(0)
+    // bar 0: `ta.rising(close, 2)` has one bar of history — false in both lanes
+    expect(r.labels[0].color, src).toBe(RED)
+    return r
+  }
+
+  it('⭐ L1 — a `var` create (typed, untyped, `varip`) with no block runs once on bar 0: its colour is DRAWN, not held', () => {
+    once(`${H}var label lb = label.new(bar_index, high, "x", color = up and ta.rising(close, 2) ? color.green : color.red)\n`)
+    once(`${H}var lb = label.new(bar_index, high, "x", color = up and ta.rising(close, 2) ? color.green : color.red)\n`)
+    once(`${H}varip label lb = label.new(bar_index, high, "x", color = up ? (ta.rising(close, 2) ? color.green : color.red) : color.red)\n`)
+  })
+
+  it('⭐ L1 — the `if na(lb)` create-once guard over a `var` handle nothing else writes: drawn, not held', () => {
+    once(`${H}var label lb = na\nif na(lb)\n    lb := label.new(bar_index, high, "x", color = up and ta.rising(close, 2) ? color.green : color.red)\n`)
+  })
+
+  it('⛔ L1 — a `var` create later re-coloured every bar by `label.set_color` with a lazy colour: the setter is STILL held', () => {
+    const r = draw(`${H}var label lb = label.new(bar_index, high, "x", color = color.red)\n`
+      + 'label.set_color(lb, up and ta.rising(close, 2) ? color.green : color.red)\n')
+    expect(r.held).toEqual(['fn:conditional-history `ta.rising`@5'])
+    expect(r.labels).toEqual([])
+  })
+
+  it('⛔ L1 — creates that do NOT run once on bar 0 are STILL held: a `var` inside a varying block, an `if na(lb)` whose handle is emptied again, an `if na(lb) and …`', () => {
+    heldOnce(`${H}if close > close[1]\n    var label lb = label.new(bar_index, high, "x", color = up and ta.rising(close, 2) ? color.green : color.red)\n`, 5)
+    heldOnce(`${H}var label lb = na\nif na(lb)\n    lb := label.new(bar_index, high, "x", color = up and ta.rising(close, 2) ? color.green : color.red)\n`
+      + 'if close < close[1]\n    lb := na\n', 6)
+    heldOnce(`${H}var label lb = na\nif na(lb) and close > close[1]\n    lb := label.new(bar_index, high, "x", color = up and ta.rising(close, 2) ? color.green : color.red)\n`, 6)
+  })
 })
