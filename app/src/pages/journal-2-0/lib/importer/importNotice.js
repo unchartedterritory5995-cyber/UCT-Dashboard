@@ -42,7 +42,8 @@ export function noticeReasonFor(reason) {
   return code === NOTICE_REASONS.storageLimit ? NOTICE_REASONS.storageFull : code
 }
 
-const nameOrNull = (v) => (typeof v === 'string' && v.trim() ? v : null)
+/** A usable display name, or `null` (blank and non-strings are no name). */
+export const nameOrNull = (v) => (typeof v === 'string' && v.trim() ? v : null)
 const httpOrNull = (v) => (typeof v === 'string' && /^https?:\/\//i.test(v.trim()) ? v.trim() : null)
 
 /**
