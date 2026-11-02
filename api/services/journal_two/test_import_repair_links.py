@@ -7,7 +7,9 @@ client stores (`obsidian:${vfile.path}`, `notion:<id-stripped path>`, `file:${vf
 from __future__ import annotations
 
 import copy
+import unicodedata
 from pathlib import Path
+from urllib.parse import quote
 
 import pytest
 
@@ -316,6 +318,24 @@ def test_a_file_link_that_leaves_the_drop_names_nothing(db):
     out, _ = _repair(_doc(_para(_t("p", _link(f"../../Plan%20{HEX}.md")))),
                      import_key="notion:Export/Home.md", import_source="Notion")
     assert _hrefs(out) == [_note_href(plan)]
+
+
+@pytest.mark.parametrize("stored_form,href_form", [("NFD", "NFC"), ("NFC", "NFD")])
+@pytest.mark.parametrize("source,key_of,here", [
+    ("Obsidian", lambda name: f"obsidian:V/{name}.md", "obsidian:V/Here.md"),
+    ("Notion", lambda name: f"notion:Export/{name}.md", "notion:Export/Home.md"),
+    ("Files (2)", lambda name: f"file:docs/{name}.md", "file:docs/a.md"),
+])
+def test_unicode_normal_forms_compare_equal(db, stored_form, href_form, source, key_of, here):
+    """M-1 (review P6): a macOS export stores names decomposed (NFD); a link may be written
+    composed (NFC), or the other way round. Both sides are NFC-normalised for the lookup, and
+    the key written back is the one STORED, so `resolve_link_keys` finds it exactly."""
+    stored = key_of(unicodedata.normalize(stored_form, "Café Plan"))
+    target = _import(source, stored)
+    href = quote(unicodedata.normalize(href_form, "Café Plan") + ".md")
+    out, actions = _repair(_doc(_para(_t("c", _link(href)))), import_key=here, import_source=source)
+    assert _hrefs(out) == [_note_href(target)]
+    assert actions == ["relative_to_note", "link_resolved:1"]
 
 
 # ── what cannot resolve ───────────────────────────────────────────────────────

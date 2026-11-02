@@ -27,6 +27,7 @@ from __future__ import annotations
 import copy
 import posixpath
 import re
+import unicodedata
 from dataclasses import dataclass, field
 from typing import Any
 from urllib.parse import unquote
@@ -89,6 +90,17 @@ class FileKeyIndex:
     #: order wins a case tie), and the trashed ones: the drop-wide exact retry (I-4).
     obsidian_paths: dict[str, str] = field(default_factory=dict)
     obsidian_paths_trashed: frozenset[str] = frozenset()
+    #: NFC form of every non-trashed key -> the key as STORED (fix round 1, M-1). Every lookup
+    #: above is built over NFC forms; this maps an answer back to the exact stored key.
+    by_nfc: dict[str, str] = field(default_factory=dict)
+
+    def stored(self, key: str) -> str | None:
+        """The stored key whose NFC form is `key`'s, else None."""
+        return self.by_nfc.get(_nfc(key))
+
+
+def _nfc(text: str) -> str:
+    return unicodedata.normalize("NFC", text)
 
 
 def _vault_split(path: str) -> tuple[str, str]:
@@ -100,13 +112,14 @@ def _vault_split(path: str) -> tuple[str, str]:
 def build_file_key_index(conn, user_id: str) -> FileKeyIndex:
     """ONE query over the member's import keys: the non-trashed ones are the index, and the
     trashed Obsidian file paths are kept apart (I-1). Column access is by position, so a
-    connection without `row_factory` reads the same."""
+    connection without `row_factory` reads the same. The Obsidian structures hold NFC forms."""
     keys: set[str] = set()
+    by_nfc: dict[str, str] = {}
     by_vault: dict[str, list[str]] = {}
     trashed: dict[str, set[str]] = {}
     for row in conn.execute(
         "SELECT import_key, import_source, deleted_at IS NOT NULL FROM j2_notes"
-        " WHERE user_id = ? AND import_key IS NOT NULL",
+        " WHERE user_id = ? AND import_key IS NOT NULL ORDER BY import_key",
         (user_id,),
     ):
         key, source, is_trashed = row[0], row[1], bool(row[2])
@@ -114,8 +127,9 @@ def build_file_key_index(conn, user_id: str) -> FileKeyIndex:
             continue
         if not is_trashed:
             keys.add(key)
+            by_nfc.setdefault(_nfc(key), key)
         if source == OBSIDIAN_SOURCE and key.startswith(_OBSIDIAN):
-            vault, inner = _vault_split(key[len(_OBSIDIAN):])
+            vault, inner = _vault_split(_nfc(key)[len(_OBSIDIAN):])
             if not inner:
                 continue
             if is_trashed:
@@ -132,6 +146,7 @@ def build_file_key_index(conn, user_id: str) -> FileKeyIndex:
         obsidian_paths=full_paths,
         obsidian_paths_trashed=frozenset((f"{v}/{p}" if v else p).lower()
                                          for v, ps in trashed.items() for p in ps),
+        by_nfc=by_nfc,
     )
 
 
@@ -227,7 +242,10 @@ def relative_target(href: str, *, import_key: str, import_source: str,
     stays exactly as written: never a guess, and never made worse (fix round 1, I-3)."""
     if not isinstance(href, str) or not isinstance(import_key, str):
         return None, UNRESOLVED
-    target = unquote(href).split("#", 1)[0].strip()
+    # M-1: the comparison is in NFC on both sides (a macOS export stores NFD names); every
+    # answer is mapped back to the key as STORED (`index.stored`).
+    target = _nfc(unquote(href)).split("#", 1)[0].strip()
+    import_key = _nfc(import_key)
     if not target:
         return None, UNRESOLVED
     if import_source == OBSIDIAN_SOURCE and import_key.startswith(_OBSIDIAN):
@@ -238,14 +256,15 @@ def relative_target(href: str, *, import_key: str, import_source: str,
         if "|" in path:
             return None, UNRESOLVED
         resolved, action = _obsidian_target(path, import_key[len(_OBSIDIAN):], index)
-        return (None if resolved is None else _OBSIDIAN + resolved), action
+        return (None if resolved is None else index.stored(_OBSIDIAN + resolved)), action
     if import_source == NOTION_SOURCE and import_key.startswith(_NOTION):
         path = _join(posixpath.dirname(import_key[len(_NOTION):]), target.split("?", 1)[0])
         if not _NOTION_PAGE_EXT_RE.search(path):
             return None, FILE_UNRESOLVED  # an attachment, never a page
         for key in (_NOTION + strip_notion_id_path(path), _NOTION + path):
-            if key in index.keys:
-                return key, TO_NOTE
+            stored = index.stored(key)
+            if stored is not None:
+                return stored, TO_NOTE
         m = _NOTION_PAGE_ID_RE.search(path.rsplit("/", 1)[-1])
         return (linkify.notion_note_key(m.group(1)), TO_NOTE) if m else (None, UNRESOLVED)
     if import_key.startswith(_FILE):
@@ -254,9 +273,9 @@ def relative_target(href: str, *, import_key: str, import_source: str,
         path = posixpath.normpath(posixpath.join(posixpath.dirname(import_key[len(_FILE):]), target))
         if obsidian_provider._escapes_root(path):
             return None, UNRESOLVED if _GENERIC_NOTE_EXT_RE.search(path) else FILE_UNRESOLVED
-        key = _FILE + path
-        if key in index.keys:
-            return key, TO_NOTE
+        stored = index.stored(_FILE + path)
+        if stored is not None:
+            return stored, TO_NOTE
         # A bundle's text file, or anything the generic importer never makes a note of.
         if _TEXTBUNDLE_TEXT_RE.search(path) or not _GENERIC_NOTE_EXT_RE.search(path):
             return None, FILE_UNRESOLVED
