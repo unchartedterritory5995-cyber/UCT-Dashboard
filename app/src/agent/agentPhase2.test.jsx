@@ -55,8 +55,10 @@ describe('NOT guessed: anything not obvious still goes to the model', () => {
     'add macd 8 21 5',                      // three lengths, none called `period` — the model maps them
     'remove it',                            // which?
     'open my trading layout',               // no such layout here → the model (or a question)
-    'show me my strongest stocks',
-    'delete my Swing watchlist',            // "delete" is never folded into "remove"
+    // ('show me my strongest stocks' left this list 2026-11-01: it is the screener's own fast path
+    //  (rs_rank desc) since the 2026-10-11 ruling; it read 'MODEL' here only because no field catalog
+    //  was loaded — the F-SAT-3 defect, where loading must never cause a paid model call)
+    'delete my Swing watchlist',           // "delete" is never folded into "remove"
     'find stocks over $10m dollar volume',
   ])('%s', (t) => expect(parse(t)).toBe('MODEL'))
 })

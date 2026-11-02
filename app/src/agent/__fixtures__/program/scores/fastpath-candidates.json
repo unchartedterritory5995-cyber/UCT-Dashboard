@@ -1,0 +1,161 @@
+{
+ "about": "measured by app/src/agent/qa/fastPathCorpus.test.jsx (UPDATE_QA_FASTPATH=1 rewrites)",
+ "corpus_version": "1.0",
+ "questions": {
+  "d01": {
+   "model_turns": 1,
+   "scan": null,
+   "reply": ""
+  },
+  "d02": {
+   "model_turns": 1,
+   "scan": null,
+   "reply": ""
+  },
+  "d03": {
+   "model_turns": 1,
+   "scan": null,
+   "reply": ""
+  },
+  "d04": {
+   "model_turns": 1,
+   "scan": null,
+   "reply": ""
+  },
+  "d05": {
+   "model_turns": 1,
+   "scan": null,
+   "reply": ""
+  },
+  "d06": {
+   "model_turns": 1,
+   "scan": null,
+   "reply": ""
+  },
+  "d07": {
+   "model_turns": 1,
+   "scan": null,
+   "reply": ""
+  },
+  "d08": {
+   "model_turns": 1,
+   "scan": null,
+   "reply": ""
+  },
+  "d09": {
+   "model_turns": 1,
+   "scan": null,
+   "reply": ""
+  },
+  "d10": {
+   "model_turns": 1,
+   "scan": null,
+   "reply": ""
+  },
+  "d11": {
+   "model_turns": 1,
+   "scan": null,
+   "reply": ""
+  },
+  "d12": {
+   "model_turns": 1,
+   "scan": null,
+   "reply": ""
+  },
+  "d13": {
+   "model_turns": 1,
+   "scan": null,
+   "reply": ""
+  },
+  "d14": {
+   "model_turns": 1,
+   "scan": null,
+   "reply": ""
+  },
+  "d15": {
+   "model_turns": 1,
+   "scan": null,
+   "reply": ""
+  },
+  "d16": {
+   "model_turns": 1,
+   "scan": null,
+   "reply": ""
+  },
+  "d17": {
+   "model_turns": 1,
+   "scan": null,
+   "reply": ""
+  },
+  "d18": {
+   "model_turns": 1,
+   "scan": null,
+   "reply": ""
+  },
+  "d19": {
+   "model_turns": 1,
+   "scan": null,
+   "reply": ""
+  },
+  "d20": {
+   "model_turns": 1,
+   "scan": null,
+   "reply": ""
+  },
+  "d21": {
+   "model_turns": 1,
+   "scan": null,
+   "reply": ""
+  },
+  "d22": {
+   "model_turns": 1,
+   "scan": null,
+   "reply": ""
+  },
+  "d23": {
+   "model_turns": 1,
+   "scan": null,
+   "reply": ""
+  },
+  "d24": {
+   "model_turns": 1,
+   "scan": null,
+   "reply": ""
+  },
+  "d25": {
+   "model_turns": 1,
+   "scan": null,
+   "reply": ""
+  },
+  "d26": {
+   "model_turns": 1,
+   "scan": null,
+   "reply": ""
+  },
+  "r01": {
+   "model_turns": 1,
+   "scan": null,
+   "reply": ""
+  },
+  "r02": {
+   "model_turns": 1,
+   "scan": null,
+   "reply": ""
+  },
+  "r03": {
+   "model_turns": 1,
+   "scan": null,
+   "reply": ""
+  },
+  "r04": {
+   "model_turns": 1,
+   "scan": null,
+   "reply": ""
+  },
+  "r05": {
+   "model_turns": 1,
+   "scan": null,
+   "reply": ""
+  }
+ }
+}

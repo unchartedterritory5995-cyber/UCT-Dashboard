@@ -29,6 +29,9 @@
 // first page only). A measure provider may SUPERSEDE a catalog field on the same clock (the
 // session's close replaces the snapshot price) so every number in one screen is one session's.
 //
+// ⭐ SC-1 GATEWAY (dark): while GET /api/agent/config says `scan`, the run / runSaved / listSaved ANSWERS
+// read through the MD-1 gateway (`screen.run`, `screen.saved`) instead — see runViaGateway below.
+//
 // ⛔ Not here: operating the Screener PAGE's own filters (it only exists inside
 // /screener), My Scans (Indicator formulas), logic groups. Saving / renaming / copying /
 // deleting SAVED screens is capabilities/savedScreens.js (the same routes the Screener's menu uses).
@@ -36,6 +39,9 @@
 import { registerCapability, registerTargetKind, registerContextProvider, registerWarmup, registerOutputSource, SYMBOLS } from '../capabilities'
 import { encodeSpec } from '../../pages/screener/shell/specUrl'
 import { matchName } from '../nl/match'
+import { serverServesScan } from '../agentClient'
+import { readData } from '../marketdata/client'
+import { currentTurnId } from '../trace'
 
 const META_TTL_MS = 6 * 3600 * 1000      // the registry changes only on deploy
 const SAVED_TTL_MS = 60 * 1000
@@ -51,6 +57,8 @@ const PAGE = 500                  // the engine's own page cap (services/screene
 export const FILL_MAX = 1000
 const CANDIDATES_MAX = 10000      // a screen with measure conditions reads at most this many candidates
 const DEFAULT_SORT = { key: 'uct_composite', dir: 'desc' }
+// A saved screen named in the member's words before the saved list had loaded (SAT-1 F-SAT-3) — never an id.
+const BY_NAME = 'name:'
 
 // ── the engine (the Screener's own routes) ──
 const req = (u, o) => fetch(u, { credentials: 'include', ...o })
@@ -77,6 +85,18 @@ export function loadMeta() {
     }).finally(() => { cache.metaP = null })
   }
   return cache.metaP
+}
+// ⭐ SAT-1 F-SAT-3 (agent-lead spec): a message the fast path claimed while the catalog was still loading
+// waits for it here, BOUNDED, then runs normally. A load that fails or takes longer is a local answer:
+// no model call, no receipt, nothing applied. (fast() itself is synchronous by contract — fastPath.js —
+// so the wait lives in the answer, which is where the catalog is first needed.)
+export const META_WAIT_MS = 3000
+export const META_UNAVAILABLE = "The screener's field list couldn't load, so I didn't run that — try again."
+export function metaWithin(ms = META_WAIT_MS) {
+  if (cache.meta && Date.now() - cache.metaAt < META_TTL_MS) return Promise.resolve(cache.meta)
+  let timer
+  const timeout = new Promise((_resolve, reject) => { timer = setTimeout(() => reject(new Error('timeout')), ms) })
+  return Promise.race([loadMeta(), timeout]).finally(() => clearTimeout(timer))
 }
 /** Each list field's real values + how much of the universe it classifies (`/fields?options=1`). */
 export function loadOptions() {
@@ -374,6 +394,82 @@ async function runSpec(spec, { show = SHOW_DEFAULT, name = null, savedId = null,
   }
 }
 
+// ── SC-1 GATEWAY PATH (dark: only while the server serves Agent scans — GET /api/agent/config → scan) ──
+// With the gateway on, a conversational screen ANSWER is one MD-1 read: `screen.run` (≤50 rows, the
+// coverage receipt, the data's own `as_of`, stale) — never the /api/screener/* routes, never a second
+// scan engine. The server spends the turn's ONE scan on it; `trace.currentTurnId()` (the member's turn) is what
+// that budget is keyed by, so a missing turn id REFUSES rather than minting one (a per-call id would
+// void the one-scan-per-turn limit).
+// ⚠️ NOT on this path, by SC-1's 50-row cap: `produce()` (up to FILL_MAX symbols for a list) and screens
+// with latest-session measure conditions (they page up to CANDIDATES_MAX candidates). Both stay on the
+// Screener's own routes.
+const usesGateway = (spec) => serverServesScan() && !(spec?.post || []).length
+
+/** One `screen.run` through the gateway → the answer text/table, or a refusal sentence. */
+async function runViaGateway(spec, { show = SHOW_DEFAULT, name = null, savedId = null, notes: extra = [] } = {}) {
+  // the member's open turn (trace.js: ONE per message / panel action) — the server's budget key; never minted
+  const turnId = currentTurnId()
+  if (!turnId) return "I didn't run it: this screen needs the Agent's turn, which wasn't available."
+  const keys = [...new Set([...(spec.filters || []).map(f => f.key), spec.sort?.key].filter(k => k && fieldOf(k) && !fieldOf(k).provider && fieldOf(k).type !== 'list'))]
+  const shown = Math.min(SHOW_MAX, Math.max(1, show))
+  const own = savedId && /^\d+$/.test(String(savedId))
+  const params = own
+    ? { saved_id: Number(savedId), limit: shown }
+    : { spec: { filters: (spec.filters || []).map(f => wireOf(f)), sort: spec.sort || DEFAULT_SORT, ...(spec.rank ? { rank: spec.rank } : {}), ...(spec.logic ? { logic: spec.logic } : {}), columns: ['ticker', 'company', 'price', 'chg_pct_1d', ...keys] }, limit: shown }
+  const t0 = Date.now()
+  const env = await readData('screen.run', params, { purpose: 'answer', turnId })
+  const ms = Date.now() - t0
+  if (!env || (env.status !== 'ok' && env.status !== 'partial')) {
+    const why = (env?.notes || [])[0] || 'the Screener could not answer'
+    return `I didn't run it: ${why.replace(/\.$/, '')}.`
+  }
+  const d = env.data || {}
+  const rows = (d.rows || []).slice(0, shown).map(r => ({ ...r, ticker: r.symbol }))
+  const total = Number(d.total_matches) || 0
+  const extra3 = keys.filter(k => !['price', 'chg_pct_1d'].includes(k)).slice(0, 3)
+  const columns = [{ key: 'ticker', label: 'Symbol' }, { key: 'price', label: 'Price' }, ...extra3.map(k => ({ key: k, label: fieldOf(k)?.label || k })), { key: 'chg_pct_1d', label: 'Chg 1D' }]
+  const fmt = (k, v) => {
+    if (v == null || v === '') return '—'
+    if (typeof v !== 'number') return String(v)
+    const f = k === 'chg_pct_1d' ? { unit: '%' } : fieldOf(k)
+    const n = Math.abs(v) >= 1000 ? v.toLocaleString(undefined, { maximumFractionDigits: 0 }) : v.toFixed(2)
+    return f?.unit === '$' || k === 'price' ? `$${n}` : f?.unit === '%' ? `${n}%` : n
+  }
+  const asOfDay = typeof env.as_of === 'string' ? env.as_of.slice(0, 10) : null
+  cache.last = { spec, name: name || d.origin?.name || null, savedId, total, asOf: asOfDay, live: null, symbols: rows.map(x => x.ticker), ms, envelope: { as_of: env.as_of, stale: env.stale, coverage: env.coverage, freshness: env.freshness } }
+  const head = `${name ? `${name}: ` : ''}${total.toLocaleString()} stock${total === 1 ? '' : 's'} match${total === 1 ? 'es' : ''}`
+  const what = (spec.filters || []).length ? ` (${spec.filters.map(describeFilter).join(' · ')})` : ''
+  const { label: sortLabel, ranked } = sortCoverage(spec, rows, {})
+  const unrankable = !!spec.sort && rows.length > 0 && ranked === 0
+  const sortWord = !spec.sort ? ''
+    : ` by ${sortLabel} (${spec.sort.dir === 'asc' ? 'lowest' : 'highest'} first)${ranked < rows.length ? `; only ${ranked} of these ${rows.length} have ${sortLabel} values — the other ${rows.length - ranked} have none and are not ranked by it` : ''}`
+  const showing = unrankable ? ` ${unrankableText(sortLabel, spec.sort.dir)}.` : rows.length ? ` Showing the first ${rows.length}${sortWord}.` : ''
+  const c = env.coverage
+  const covLine = c && (c.dropped || c.not_computable) ? `Checked ${c.evaluated.toLocaleString()} stocks: ${c.answered.toLocaleString()} could be decided${c.not_computable ? `, ${c.not_computable.toLocaleString()} had a missing value` : ''}${c.dropped ? `, ${c.dropped.toLocaleString()} ${c.dropped === 1 ? 'was' : 'were'} excluded for stopped price history` : ''}` : null
+  // the envelope's own notes carry the data's time ("as of the <date> close, not live"), staleness and any overlay
+  // (the coverage line above already says what was excluded / not computable: the envelope's own coverage notes would repeat it)
+  const envNotes = (env.notes || []).filter(n => !/^Showing \d+ of \d+ matches\.?$/.test(n) && !/^\d[\d,]* names? (?:was|were) excluded because|^\d[\d,]* names? could not be decided/.test(n)).map(n => n.replace(/\.$/, ''))
+  const notes = [...extra, ...coverageNotes(spec), ...(env.stale ? ['This data is stale'] : []), ...(covLine ? [covLine] : []), ...envNotes]
+  return {
+    text: `${head}${what}.${showing}${notes.length ? ` ${notes.map(n => `${n}.`).join(' ')}` : ''}`,
+    table: rows.length && !unrankable ? { columns, rows: rows.map(x => Object.fromEntries(columns.map(col => [col.key, col.key === 'ticker' ? x.ticker : fmt(col.key, x[col.key])]))) } : null,
+    link: openLinkFor(spec, own ? String(savedId) : null),
+  }
+}
+
+/** The member's own saved screens through `screen.saved` (read-only) → the answer text. */
+async function listSavedViaGateway() {
+  // the member's open turn (trace.js: ONE per message / panel action) — the server's budget key; never minted
+  const turnId = currentTurnId()
+  if (!turnId) return "I couldn't read your screens: this needs the Agent's turn, which wasn't available."
+  const env = await readData('screen.saved', {}, { purpose: 'answer', turnId })
+  if (!env || (env.status !== 'ok' && env.status !== 'partial')) return `I couldn't read your screens: ${((env?.notes || [])[0] || 'the Screener could not answer').replace(/\.$/, '')}.`
+  const screens = env.data?.screens || []
+  if (!screens.length) return "You haven't saved any screens yet."
+  const names = screens.map(s => (s.runnable ? s.name : `${s.name} (can't run here: ${s.reason})`))
+  return `Your screens: ${names.join(', ')}`
+}
+
 /** The model's screen args → the Screener's wire spec (with "refine" building on the last screen). */
 function buildSpec({ filters, sort_field: sortField, sort_dir: sortDir, mode, within = null }, { lenient = false, host = null } = {}) {
   if ((filters || []).length > MAX_FILTERS) return { error: `that's more than ${MAX_FILTERS} conditions at once` }
@@ -559,11 +655,15 @@ export function registerScreenerCapabilities() {
     //       which goes to the model)
     //   "now only the ones above $50" (a screen already ran here) → that screen REFINED with price
     // Anything else — a named list, a second condition, a bare number — goes to the model.
+    // ⭐ SAT-1 F-SAT-3: a message typed while the field catalog is still loading must not fall through to
+    // the (paid) planner. The strongest phrase is fixed wording, so it is claimed WITHOUT the catalog; answer()
+    // awaits the catalog and checks `rs_rank` exists then (a failed load is a refusal sentence, never a model
+    // call). With the catalog loaded and no `rs_rank`, it is the planner's, exactly as before.
     fast: ({ lower }) => {
-      if (!cache.meta) return null
       if (/^(?:please )?(?:(?:show(?: me)?|find(?: me)?|list|give me|get(?: me)?|what are|which are) )?(?:my |the )?(?:strongest|rs leaders|relative strength leaders|highest rs(?: rank(?:ed)?)?)(?: stocks| names)?(?: right now| today)?$/.test(lower)) {
-        return fieldOf('rs_rank') ? { filters: [], sort_field: 'rs_rank', sort_dir: 'desc', mode: 'new', show: null, as: null, within: null } : null
+        return !cache.meta || fieldOf('rs_rank') ? { filters: [], sort_field: 'rs_rank', sort_dir: 'desc', mode: 'new', show: null, as: null, within: null } : null
       }
+      if (!cache.meta) return null
       const m = /^(?:(?:now|and|ok|okay) )?(?:show me )?(?:only|just) (?:the ones|those|them|the stocks|the names|stocks|names)? ?(above|over|under|below) \$(\d+(?:\.\d+)?)$/.exec(lower)
       if (m && cache.last && fieldOf('price')) {
         const op = m[1] === 'above' || m[1] === 'over' ? 'gt' : 'lt'
@@ -572,14 +672,31 @@ export function registerScreenerCapabilities() {
       return null
     },
     async answer(_snap, args, host) {
+      try { await metaWithin() } catch { return META_UNAVAILABLE }
       let b
       try { b = await specFor(args, host) } catch (e) { return `I didn't run it: ${e?.message || 'the Screener could not be read'}.` }
       if (b.error) return `I didn't run it: ${b.error}.`
+      if (usesGateway(b.spec)) return runViaGateway(b.spec, { show: args.show || SHOW_DEFAULT, notes: b.notes })
       return runSpec(b.spec, { show: args.show || SHOW_DEFAULT, notes: b.notes })
     },
   })
 
   // ── screener.runSaved ──
+  // `screen` is a saved-screen id, or (F-SAT-3, before the list had loaded) `BY_NAME + <the member's words>`,
+  // resolved here with the same rules the fast path uses: an exact name, else ONE clear fuzzy match.
+  const resolveSaved = (lib, screen) => {
+    const all = [...lib.saved, ...lib.starters]
+    const key = String(screen)
+    if (!key.startsWith(BY_NAME)) return { s: all.find(x => x.id === key) || null }
+    const words = key.slice(BY_NAME.length)
+    const exact = all.filter(x => norm(x.name) === norm(words) || norm(x.name) === norm(`${words} screen`))
+    if (exact.length === 1) return { s: exact[0] }
+    const f = exact.length ? { kind: 'none' } : matchName(words, all.map(x => x.name))
+    const one = f.kind === 'fuzzy' ? all.filter(x => x.name === f.name) : []
+    if (one.length === 1) return { s: one[0] }
+    const names = all.map(x => x.name)
+    return { s: null, why: `I couldn't find one saved screen called “${words}”${names.length ? ` (your screens: ${names.slice(0, 12).join(', ')})` : ''}` }
+  }
   registerCapability({
     name: 'screener.runSaved',
     target: 'screener', query: true, surfaces: ['charts'],
@@ -589,19 +706,24 @@ export function registerScreenerCapabilities() {
     args: { type: 'object', properties: { screen: { type: 'string' }, show: { type: ['integer', 'null'] }, as: { type: ['string', 'null'] }, }, required: ['screen', 'show', 'as'], additionalProperties: false },
     produces: SYMBOLS,
     describeProduce({ screen }) {
-      const s = cache.saved && [...cache.saved.saved, ...cache.saved.starters].find(x => x.id === String(screen))
-      return `Run your screen ${s ? `“${s.name}”` : String(screen)} — fresh when you apply`
+      const s = cache.saved && resolveSaved(cache.saved, screen).s
+      const label = s ? `“${s.name}”` : String(screen).startsWith(BY_NAME) ? `“${String(screen).slice(BY_NAME.length)}”` : String(screen)
+      return `Run your screen ${label} — fresh when you apply`
     },
     async produce({ screen }) {
       await loadMeta()
       const lib = await loadSaved()
-      const s = [...lib.saved, ...lib.starters].find(x => x.id === String(screen))
-      if (!s) throw new Error("that saved screen isn't there any more")
+      const { s, why } = resolveSaved(lib, screen)
+      if (!s) throw new Error(why || "that saved screen isn't there any more")
       return produceSymbols({ filters: s.spec?.filters || [], sort: s.spec?.sort || null, rank: s.spec?.rank || null, logic: s.spec?.logic || null }, { name: s.name, savedId: s.kind === 'yours' ? s.id : null })
     },
     fast: ({ raw }) => {
       const m = /^(?:run|open|show(?: me)?|load) (?:my |the )?(.+?)(?: screen| scan)?[.!]?$/i.exec(String(raw).trim())
-      if (!m || !cache.saved) return null
+      if (!m) return null
+      // ⭐ SAT-1 F-SAT-3: the saved list is still loading. Only an EXPLICIT "… screen"/"… scan" is claimed
+      // (so "show me AAPL" is never mistaken for a screen), carried by NAME and resolved in answer()/produce()
+      // against the member's own list exactly as below; no match or a tie is a sentence, never a model call.
+      if (!cache.saved) return /\s(?:screen|scan)[.!]?$/i.test(String(raw).trim()) ? { screen: `${BY_NAME}${m[1]}`, show: null, as: null } : null
       const all = [...cache.saved.saved, ...cache.saved.starters]
       const hits = all.filter(s => norm(s.name) === norm(m[1]) || norm(s.name) === norm(`${m[1]} screen`))
       if (hits.length) return hits.length === 1 ? { screen: hits[0].id, show: null, as: null } : null
@@ -612,10 +734,14 @@ export function registerScreenerCapabilities() {
       return one.length === 1 ? { screen: one[0].id, show: null, as: null } : null
     },
     async answer(_snap, { screen, show }) {
-      await loadMeta()
-      const lib = await loadSaved()
-      const s = [...lib.saved, ...lib.starters].find(x => x.id === String(screen))
-      if (!s) return "I couldn't find that saved screen."
+      try { await metaWithin() } catch { return META_UNAVAILABLE }
+      let lib
+      try { lib = await loadSaved() } catch (e) { return `I couldn't run it: ${e?.message || 'your screens could not be read'}.` }
+      const { s, why } = resolveSaved(lib, screen)
+      if (!s) return why ? `${why}.` : "I couldn't find that saved screen."
+      const sspec = { filters: s.spec?.filters || [], sort: s.spec?.sort || null, rank: s.spec?.rank || null, logic: s.spec?.logic || null }
+      // the member's OWN screen is run by id (the server resolves it among THEIR screens only); a starter by its spec
+      if (usesGateway(sspec)) return runViaGateway(sspec, { show: show || SHOW_DEFAULT, name: s.name, savedId: s.kind === 'yours' ? s.id : null })
       return runSpec({ filters: s.spec?.filters || [], sort: s.spec?.sort || null, rank: s.spec?.rank || null, logic: s.spec?.logic || null }, { show: show || SHOW_DEFAULT, name: s.name, savedId: s.kind === 'yours' ? s.id : null })
     },
   })
@@ -644,6 +770,7 @@ export function registerScreenerCapabilities() {
     args: { type: 'object', properties: {}, required: [], additionalProperties: false },
     fast: ({ lower }) => (/^((what|which) (saved )?(screens|scans) (do i have|have i saved)|(show|list)( me)?( my)? (saved )?screens|my (saved )?screens)$/.test(lower) ? {} : null),
     async answer() {
+      if (serverServesScan()) return listSavedViaGateway()
       const lib = await loadSaved()
       const mine = lib.saved.map(s => s.name)
       const starters = lib.starters.map(s => s.name)
