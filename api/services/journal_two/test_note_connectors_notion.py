@@ -1251,7 +1251,10 @@ async def test_internal_media_download_from_a_private_host_yields_a_missing_mark
     provider = _make_provider(handler)
     note = await provider.fetch(CREDS, RemoteRef(remote_id="page-priv", updated_at="x"))
     assert note.media == []
-    assert "[image unavailable" in json.dumps(note.doc)
+    # Fix round 2 (ruling): the SSRF guard's refusal is definitive -- a FINAL `unsafe`
+    # importNotice (the engine's own reason for that refusal), no longer a text marker.
+    assert [n["attrs"]["reason"] for n in _find_all(note.doc, "importNotice")] == ["unsafe"]
+    assert "unavailable" not in json.dumps(note.doc)
 
 
 async def test_media_403_refetches_block_once_and_retries():
@@ -1286,7 +1289,11 @@ async def test_media_403_refetches_block_once_and_retries():
     assert note.media[0]["data_uri"].startswith("data:image/png;base64,")
 
 
-async def test_media_permanent_failure_degrades_to_visible_marker_not_a_crash():
+async def test_media_transient_failure_stays_a_placeholder_for_the_engine_to_retry():
+    """Fix round 2 (ruling): this test pinned a TEXT marker ("[image unavailable") for a media
+    host answering 500. A 5xx is retryable: the image stays a placeholder with a byte-less media
+    entry, and `fetch_media` answers the engine with the failure, which the engine turns into a
+    counted `fetch_failed` notice (see the engine file's real-provider test)."""
     def handler(request: httpx.Request) -> httpx.Response:
         if request.url.host == _API_HOST:
             if request.url.path == "/v1/pages/page-fail" and request.method == "GET":
@@ -1304,8 +1311,42 @@ async def test_media_permanent_failure_degrades_to_visible_marker_not_a_crash():
     provider = _make_provider(handler)
     note = await provider.fetch(CREDS, RemoteRef(remote_id="page-fail", updated_at="x"))
 
-    assert note.media == []
-    assert "[image unavailable" in json.dumps(note.doc)
+    assert note.media == [{"ref": "notion:img-fail", "kind": "image", "name": "image.png"}]
+    assert [i["attrs"]["src"] for i in _find_all(note.doc, "image")] == ["import-ref://notion:img-fail"]
+    assert _find_all(note.doc, "importNotice") == [] and "unavailable" not in json.dumps(note.doc)
+    from api.services.journal_two.note_connectors import engine as engine_mod
+    with pytest.raises(errors.NoteConnTransient) as exc:
+        await provider.fetch_media(CREDS, "notion:img-fail")
+    assert engine_mod.media_failure_reason(exc.value) == "fetch_failed"
+
+
+async def test_a_top_level_image_whose_file_is_gone_is_a_final_import_notice():
+    """Fix round 2 (ruling): a DEFINITIVE failure is a final importNotice from the converter --
+    the media host says the file is gone (404), or the block names no file at all."""
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.host == _API_HOST:
+            if request.url.path == "/v1/pages/page-gone":
+                return httpx.Response(200, json={"id": "page-gone", "properties": {"title": _title_prop("G")}})
+            if request.url.path == "/v1/blocks/page-gone/children":
+                return httpx.Response(200, json={"has_more": False, "results": [
+                    _block("img-gone", "image", {"type": "file", "file": {"url": S3_IMAGE_URL},
+                                                 "caption": [_rt("the setup")]}),
+                    _block("img-none", "image", {"type": "file", "file": {}, "caption": []}),
+                ]})
+            return httpx.Response(404)
+        return httpx.Response(404)  # the media host: gone
+
+    provider = _make_provider(handler)
+    note = await provider.fetch(CREDS, RemoteRef(remote_id="page-gone", updated_at="x"))
+    assert note.media == [] and _find_all(note.doc, "image") == []
+    notices = [n["attrs"] for n in _find_all(note.doc, "importNotice")]
+    assert notices == [
+        {"reason": "missing_resource", "name": "image.png", "sourceUrl": None, "ref": None, "attempts": 0},
+        {"reason": "missing_resource", "name": "image", "sourceUrl": None, "ref": None, "attempts": 0}]
+    assert "the setup" in _plain_text(note.doc), "the caption still comes over"
+    assert "unavailable" not in json.dumps(note.doc)
+    from api.services.journal_two import notes as notes_svc
+    assert notes_svc._validate_body_json(note.doc)["type"] == "doc"
 
 
 async def test_internal_media_exceeding_content_length_cap_yields_too_large_marker():
@@ -1345,8 +1386,10 @@ async def test_internal_media_exceeding_content_length_cap_yields_too_large_mark
     note = await provider.fetch(CREDS, RemoteRef(remote_id="page-big-media", updated_at="x"))
 
     assert note.media == [], "an over-cap media item must never be registered/embedded"
-    assert "[media too large: " in json.dumps(note.doc)
-    assert "[image unavailable" not in json.dumps(note.doc), "too-large is a DISTINCT failure from a download error"
+    # Fix round 2 (ruling): a FINAL `too_large` importNotice, no longer a text marker.
+    assert [n["attrs"] for n in _find_all(note.doc, "importNotice")] == [
+        {"reason": "too_large", "name": "image.png", "sourceUrl": None, "ref": None, "attempts": 0}]
+    assert "too large" not in _plain_text(note.doc) and "unavailable" not in json.dumps(note.doc)
 
 
 async def test_an_image_over_the_inline_cap_is_downloaded_for_the_policy_to_downscale():
@@ -1931,22 +1974,20 @@ async def test_provider_database_files_cell_downloads_now_and_never_refetches_a_
     assert not [r for r in requests if r.url.host == _API_HOST and r.url.path.startswith("/v1/blocks/")
                 and not r.url.path.endswith("/children")], "a synthesized cell block is never re-read"
 
-    # A failed or oversized cell file stays a PLACEHOLDER with a media entry and no bytes: the
-    # engine's media pass asks `fetch_media`, which answers with the failure seen during
-    # traversal -- so the engine writes the notice, counts its attempts and lists it in the log.
+    # A TRANSIENTLY failed cell file (an expired link, 403) stays a PLACEHOLDER with a media
+    # entry and no bytes: the engine's media pass asks `fetch_media`, which answers with the
+    # failure seen during traversal -- so the engine writes the counted `fetch_failed` notice.
     from api.services.journal_two.note_connectors import engine as engine_mod
     chips = {c["attrs"]["name"]: c["attrs"]["href"] for c in _find_all(note.doc, "attachmentChip")}
-    assert chips == {"old.pdf": f"import-ref://notion:{_ROW}:Shots:1",
-                     "huge.mov": f"import-ref://notion:{_ROW}:Shots:2"}
-    reasons = {}
-    for name, href in chips.items():
-        ref = href[len("import-ref://"):]
-        listed = next(m for m in note.media if m["ref"] == ref)
-        assert "data_uri" not in listed and listed["name"] == name
-        with pytest.raises(errors.NoteConnError) as exc:
-            await provider.fetch_media(CREDS, ref)
-        reasons[name] = engine_mod.media_failure_reason(exc.value)
-    assert reasons == {"old.pdf": "fetch_failed", "huge.mov": "too_large"}
+    assert chips == {"old.pdf": f"import-ref://notion:{_ROW}:Shots:1"}
+    listed = next(m for m in note.media if m["ref"] == f"notion:{_ROW}:Shots:1")
+    assert "data_uri" not in listed and listed["name"] == "old.pdf"
+    with pytest.raises(errors.NoteConnError) as exc:
+        await provider.fetch_media(CREDS, f"notion:{_ROW}:Shots:1")
+    assert engine_mod.media_failure_reason(exc.value) == "fetch_failed"
+    # A DEFINITIVE one (over the size cap) is a FINAL notice from the converter (fix round 2).
+    assert [(n["attrs"]["reason"], n["attrs"]["name"]) for n in _find_all(note.doc, "importNotice")] == [
+        ("too_large", "huge.mov")]
     downloads = [r for r in requests if r.url.host != _API_HOST]
     assert len(downloads) == 3, "fetch_media re-raises; it never downloads again"
 

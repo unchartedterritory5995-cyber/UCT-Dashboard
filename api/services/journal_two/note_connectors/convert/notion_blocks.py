@@ -110,6 +110,25 @@ def _notice(reason: str, name: str | None) -> dict[str, Any]:
     return notice_node(reason, name=name, source_url=None, ref=None, attempts=0)
 
 
+def _final_notice(resolution: dict[str, Any] | None, name: str | None) -> dict[str, Any] | None:
+    """The FINAL importNotice for a media resolution that is a definitive failure, else None
+    (a success, or a retryable failure the provider deferred to the engine as a placeholder).
+
+      * None (no address to fetch at all)          -> `missing_resource`
+      * `{"too_large": True}` (over the source cap) -> `too_large`
+      * `{"final": <reason>}` (gone, refused, unsafe) -> that reason
+    """
+    if resolution is None:
+        return _notice("missing_resource", name)
+    label = resolution.get("name") or name
+    if resolution.get("too_large"):
+        return _notice("too_large", label)
+    reason = resolution.get("final")
+    if isinstance(reason, str) and reason:
+        return _notice(reason, label)
+    return None
+
+
 # ── small pure helpers (no I/O; independently testable) ─────────────────────
 
 def extract_media_info(block: dict[str, Any]) -> tuple[str, bool, str] | None:
@@ -883,14 +902,12 @@ class NotionBlockConverter:
         name = item.get("name") or (_basename_from_url(url) if isinstance(url, str) and url else "file")
         btype = "image" if (extension_mime(name) or "").startswith("image/") else "file"
         resolution = await self._resolve_media({"type": btype, "id": block_id, "_synthetic": True, btype: item})
-        # The provider answers a download failure with a deferred entry (a placeholder the
-        # engine's media pass turns into a counted, retried `fetch_failed` or a `too_large`
-        # notice). What reaches these two branches is final: no address at all, or a resolver
-        # that decided "too large" itself.
-        if resolution is None:
-            return _notice("missing_resource", name)
-        if resolution.get("too_large"):
-            return _notice("too_large", resolution.get("name") or name)
+        # The provider answers a TRANSIENT download failure with a deferred entry (a placeholder
+        # the engine's media pass turns into a counted, retried `fetch_failed` notice). A
+        # definitive one is a final notice here.
+        final = _final_notice(resolution, name)
+        if final is not None:
+            return final
         media.register(resolution)
         return self._media_node(btype, resolution)
 
@@ -996,25 +1013,12 @@ class NotionBlockConverter:
                 # allow-listed one plays in the note; any other is its link.
                 return None, _embed_or_link(info[0], caption)
         resolution = await self._resolve_media(block)
-        if resolution is None:
-            name = None
-            info = extract_media_info(block)
-            if info is not None:
-                name = info[2]
-            nodes = [_text_para(f"[{btype} unavailable: {name or btype}]")]
-            if caption:
-                nodes.append(_para([_add_mark(n, "italic") for n in caption]))
-            return None, nodes
-
-        if resolution.get("too_large"):
-            # Distinct from "unavailable" (download failed/errored) — this
-            # one downloaded fine but exceeded the persistence-layer size
-            # cap (`providers/notion.py::_resolve_media`, checked via
-            # Content-Length before the body is even read where possible).
-            # Named per-media failure, never a silent drop — same principle
-            # as every other unresolved-media marker in this dispatch table.
-            name = resolution.get("name") or btype
-            nodes = [_text_para(f"[media too large: {name}]")]
+        # Fix round 2 (ruling): a DEFINITIVE failure is a final importNotice here; a retryable one
+        # arrives as an ordinary (byte-less) resolution and stays a placeholder for the engine.
+        info = extract_media_info(block)
+        final = _final_notice(resolution, info[2] if info is not None else btype)
+        if final is not None:
+            nodes = [final]
             if caption:
                 nodes.append(_para([_add_mark(n, "italic") for n in caption]))
             return None, nodes

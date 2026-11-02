@@ -3542,3 +3542,51 @@ async def test_a_notice_the_provider_placed_is_listed_in_failures_json_once(sour
     r2 = await engine.sync_source(source["id"], full=True, manual=True)
     assert (r2["updated"], r2["skipped"]) == (0, 1), r2
     assert _last_failures(source["id"]) is None
+
+
+async def test_a_notion_media_block_that_failed_transiently_becomes_the_engines_retryable_notice(
+        source, provider, monkeypatch):
+    """Plan A Task 12 fix round 2 (ruling): the REAL Notion provider converts a page whose
+    image download answers 503. The image stays a placeholder with a byte-less media entry, and
+    the engine -- asking the provider's `fetch_media` -- writes the counted `fetch_failed`
+    notice WITH its ref: retried (the note stays pending) and listed in `failures_json`."""
+    import httpx
+    from api.services.journal_two.note_connectors.providers import base as base_module
+    from api.services.journal_two.note_connectors.providers.notion import NotionProvider
+    from api.services.journal_two.broker.rate_limit import AsyncRateLimiter
+
+    async def _public(_host):
+        return ["142.250.0.1"]
+    monkeypatch.setattr(base_module, "_resolve_host", _public)
+    s3 = "https://s3.notion-static.com/internal/chart.png?X-Amz-Signature=abc"
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.host != "api.notion.com":
+            return httpx.Response(503)
+        if request.url.path == "/v1/pages/p1":
+            return httpx.Response(200, json={"id": "p1", "properties": {
+                "title": {"type": "title", "title": [{"plain_text": "Chart page"}]}}})
+        if request.url.path == "/v1/blocks/p1/children":
+            return httpx.Response(200, json={"has_more": False, "results": [{
+                "object": "block", "id": "img-1", "type": "image", "has_children": False,
+                "image": {"type": "file", "file": {"url": s3}, "caption": []}}]})
+        return httpx.Response(500)
+
+    notion = NotionProvider(client=httpx.AsyncClient(transport=httpx.MockTransport(handler)),
+                            rate_limiter=AsyncRateLimiter(1000.0))
+    ref = RemoteRef(remote_id="p1", updated_at="2026-08-01T00:00:00+00:00")
+    rn = await notion.fetch({"accessToken": "t"}, ref)
+    assert rn.media == [{"ref": "notion:img-1", "kind": "image", "name": "chart.png"}]
+    provider.refs = [ref]
+    provider.notes_by_id = {"p1": rn}
+    monkeypatch.setattr(provider, "fetch_media", notion.fetch_media)
+
+    await engine.sync_source(source["id"], full=True)
+    body = _body(notes_svc.list_notes("u1")[0])
+    assert _nodes_of(body, "image") == []
+    assert _only(body, "importNotice")["attrs"] == {
+        "reason": "fetch_failed", "name": "chart.png", "sourceUrl": None, "ref": "notion:img-1", "attempts": 1}
+    assert _row("u1", "fake:fake-graph/p1")["import_media_pending"] == 1, "retried on the next sync"
+    assert _last_failures(source["id"]) == [
+        {"noteTitle": "Chart page", "reason": "Couldn't copy chart.png — retrying on the next sync",
+         "name": "chart.png"}]

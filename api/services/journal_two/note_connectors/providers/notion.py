@@ -74,6 +74,7 @@ from ..errors import (
     NoteConnRateLimited,
     NoteConnTooLarge,
     NoteConnTransient,
+    NoteConnUnsafeAddress,
     NoteConnUnsupported,
 )
 from .base import (
@@ -113,6 +114,21 @@ _MAX_DATA_SOURCE_PAGES = 100  # bounds POST /v1/data_sources/{id}/query paginati
 # forever.
 _MAX_RATE_RETRIES = 3
 _DEFAULT_RETRY_DELAY = 1.0
+
+
+#: A media download failure worth trying again next sync (Plan A Task 12 fix round 2).
+_RETRY = "retry"
+
+
+def _status_failure(status: int) -> str:
+    """What a media host's error status means. Gone (404/410): `missing_resource`, final. An
+    expired signed link (403), a rate limit (429) or a server error (5xx): `_RETRY`. Any other
+    refusal: `unsupported`, final."""
+    if status in (404, 410):
+        return "missing_resource"
+    if status in (403, 408, 429) or status >= 500:
+        return _RETRY
+    return "unsupported"
 
 
 class _MediaTooLarge(Exception):
@@ -597,39 +613,38 @@ class NotionProvider(NoteProvider):
         # of refused here. One cap for both kinds now.
         cap = _media_source_max_bytes()
         ref = f"notion:{block.get('id')}"
-        synthetic = block.get("_synthetic") is True
         try:
-            data, content_type = await self._download_internal(block, url, token, cap=cap)
+            data, content_type, failure = await self._download_internal(block, url, token, cap=cap)
         except _MediaTooLarge:
-            if synthetic:
-                return self._defer_media(ref, kind, name, NoteConnTooLarge(
-                    f"Notion file {name!r} exceeds {cap} bytes", reason="File is larger than the allowed size limit"))
-            return {"too_large": True, "name": name}
-        if data is None:
-            if synthetic:
-                return self._defer_media(ref, kind, name, NoteConnTransient(
-                    f"Notion file {name!r} could not be downloaded"))
-            return None
+            return {"too_large": True, "name": name}  # definitive: the converter's FINAL notice
+        if failure == _RETRY:
+            return self._defer_media(ref, kind, name, NoteConnTransient(
+                f"Notion media {name!r} could not be downloaded"))
+        if failure is not None:
+            return {"final": failure, "name": name}   # definitive: the converter's FINAL notice
         b64 = base64.b64encode(data).decode("ascii")
         return {"ref": ref, "kind": kind, "name": name, "data_uri": f"data:{content_type};base64,{b64}"}
 
     def _defer_media(self, ref: str, kind: str, name: str, exc: NoteConnError) -> dict[str, Any]:
-        """Plan A Task 12 fix round 1: a database file cell whose download failed during
-        traversal stays a PLACEHOLDER with a byte-less media entry, and `fetch_media(ref)`
-        answers the engine's media pass with this failure. So the ENGINE writes its notice
-        (`fetch_failed` counted against `MEDIA_RETRY_MAX_ATTEMPTS`, or `too_large`) and lists it
-        in the sync log, exactly as for any other media. Never a second download: the next sync
-        re-reads the database and gets a fresh signed URL."""
+        """Plan A Task 12 fix rounds 1-2: Notion-hosted media (a media block or a database file
+        cell) whose download failed TRANSIENTLY during traversal stays a PLACEHOLDER with a
+        byte-less media entry, and `fetch_media(ref)` answers the engine's media pass with this
+        failure. So the ENGINE writes the `fetch_failed` notice, with its ref, counted against
+        `MEDIA_RETRY_MAX_ATTEMPTS`, retried and listed in the sync log, exactly as for any other
+        media. Never a second download in the same sync: the next sync re-reads the block and
+        gets a fresh signed URL."""
         self._deferred_media[ref] = exc
         return {"ref": ref, "kind": kind, "name": name}
 
     async def _download_internal(
         self, block: dict[str, Any], url: str, token: str, *, cap: int,
-    ) -> tuple[bytes | None, str]:
-        data, content_type, status = await self._get_media_bytes(url, cap=cap)
+    ) -> tuple[bytes | None, str, str | None]:
+        """`(data, content_type, failure)`; `failure` is None on success, `_RETRY` for a
+        transient one, else the FINAL notice reason (see `_get_media_bytes`)."""
+        data, content_type, status, failure = await self._get_media_bytes(url, cap=cap)
         # A database `files` cell's file rides a SYNTHESIZED block (`_synthetic: True`, see
         # `notion_blocks._database_file_nodes`): there is no block to re-read, and its id is no
-        # path segment to put in a Notion API URL. Its expired link is simply unavailable.
+        # path segment to put in a Notion API URL. Its expired link is retried next sync.
         if status == 403 and block.get("_synthetic") is not True:
             # Pre-signed url expired mid-traversal — refetch the BLOCK
             # (a normal, authenticated api.notion.com call) for a fresh
@@ -637,14 +652,12 @@ class NotionProvider(NoteProvider):
             fresh_block = await self._get_block(block.get("id"), token)
             info2 = notion_blocks.extract_media_info(fresh_block) if fresh_block else None
             if info2 is not None and not info2[1]:
-                data, content_type, status = await self._get_media_bytes(info2[0], cap=cap)
-        if data is None or (status is not None and status >= 400):
-            return None, ""
-        return data, content_type
+                data, content_type, status, failure = await self._get_media_bytes(info2[0], cap=cap)
+        return data, content_type, failure
 
     async def _get_media_bytes(
         self, url: str, *, cap: int,
-    ) -> tuple[bytes | None, str, int | None]:
+    ) -> tuple[bytes | None, str, int | None, str | None]:
         """Streamed GET, NEVER Authorization-headed (credential-boundary
         rule). `cap` is the SAME raw-byte limit notes.py's own persistence
         layer will enforce on the decoded bytes (`_MAX_IMAGE_BYTES`/
@@ -671,23 +684,28 @@ class NotionProvider(NoteProvider):
         guard is cheap and this IS content fetched during traversal
         without a host allowlist, exactly what the review asked to have
         checked, so it gets the same `assert_public_https` treatment for
-        defense-in-depth. A resolution/scheme refusal here folds into the
-        existing "treat as unavailable" `None` return below rather than
-        raising, matching this method's own contract of never raising for
-        a bad url -- `_download_internal`'s caller already treats a `None`
-        data return as "this media just isn't available.\""""
+        defense-in-depth. A refusal here never raises (except `_MediaTooLarge`):
+        it returns `None` data plus a failure kind (fix round 2) -- `_RETRY`
+        for a transient one (the engine's counted `fetch_failed`), else the
+        FINAL notice reason (`unsafe`, `unsupported`, `missing_resource`)."""
         # Plan A Task 9: the read is the shared `guarded_media_stream` (https only -- this url is
         # Notion-issued, not content; the guard on every redirect hop; the cap counted on the
         # decoded bytes). Its typed `NoteConnTooLarge` is this method's `_MediaTooLarge` (the
         # existing `too_large` result); any other refusal is "unavailable".
+        # Plan A Task 12 fix round 2: the fourth value says what a failure IS, so a retryable one
+        # stays a placeholder for the engine and only a definitive one becomes a final notice.
         client = await self._get_client()
         try:
             data, response = await guarded_media_stream(client, url, what="Notion media", max_bytes=cap)
         except NoteConnTooLarge:
             raise _MediaTooLarge() from None
-        except (NoteConnUnsupported, NoteConnTransient):
-            return None, "", None
+        except NoteConnUnsafeAddress:
+            return None, "", None, "unsafe"
+        except NoteConnUnsupported:
+            return None, "", None, "unsupported"
+        except NoteConnTransient:
+            return None, "", None, _RETRY
         if not 200 <= response.status_code < 300:
-            return None, "", response.status_code
+            return None, "", response.status_code, _status_failure(response.status_code)
         content_type = response.headers.get("content-type", "application/octet-stream")
-        return data, content_type, response.status_code
+        return data, content_type, response.status_code, None
