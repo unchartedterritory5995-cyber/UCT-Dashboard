@@ -14,9 +14,43 @@ const withConfig = (cfg, paths = VAULT) =>
 describe('makeObsidianResolver', () => {
   it('finds the vault root from .obsidian/ and reads attachmentFolderPath', async () => {
     const r = await makeObsidianResolver(withConfig('{"attachmentFolderPath":"Files"}'))
-    expect(r.root).toBe('V')
+    expect(r.roots).toEqual(['V'])
+    expect(r.rootOf('V/A/n.md')).toBe('V')
     const none = await makeObsidianResolver(VAULT.map((p) => vf(p)))
-    expect(none.root).toBe('')
+    expect(none.roots).toEqual([])
+    expect(none.rootOf('V/A/n.md')).toBe('')
+  })
+
+  it('resolves each link inside its own note\'s vault when the drop holds two', async () => {
+    const r = await makeObsidianResolver([
+      vf('Obsidian/Work/.obsidian/app.json', '{}'), vf('Obsidian/Personal/.obsidian/app.json', '{}'),
+      vf('Obsidian/Work/a.md'), vf('Obsidian/Work/Plan.md'), vf('Obsidian/Work/img/c.png'),
+      vf('Obsidian/Personal/b.md'), vf('Obsidian/Personal/Deep/Plan.md'), vf('Obsidian/Personal/c.png'),
+    ])
+    expect(r.rootOf('Obsidian/Personal/b.md')).toBe('Obsidian/Personal')
+    expect(r.resolve('Plan', 'Obsidian/Work/a.md')).toBe('Obsidian/Work/Plan.md')
+    expect(r.resolve('Plan', 'Obsidian/Personal/b.md')).toBe('Obsidian/Personal/Deep/Plan.md')
+    expect(r.resolve('c.png', 'Obsidian/Work/a.md')).toBe('Obsidian/Work/img/c.png')
+    expect(r.resolve('c.png', 'Obsidian/Personal/b.md')).toBe('Obsidian/Personal/c.png')
+    expect(r.resolve('/Plan', 'Obsidian/Personal/b.md')).toBe(null)
+  })
+
+  it('resolves a loose note beside a vault against the whole drop', async () => {
+    const r = await makeObsidianResolver([
+      vf('Drop/Vault/.obsidian/app.json', '{}'), vf('Drop/Vault/Plan.md'), vf('Drop/Vault/x.png'),
+      vf('Drop/loose.md'), vf('Drop/Other.md'),
+    ])
+    expect(r.resolve('Plan', 'Drop/loose.md')).toBe('Drop/Vault/Plan.md')
+    expect(r.resolve('Other', 'Drop/loose.md')).toBe('Drop/Other.md')
+    expect(r.resolve('x.png', 'Drop/loose.md')).toBe('Drop/Vault/x.png')
+    // ...while the vault's own notes still see only the vault.
+    expect(r.resolve('Other', 'Drop/Vault/Plan.md')).toBe(null)
+  })
+
+  it('splits #/? off a markdown href BEFORE its one decode', async () => {
+    const r = await makeObsidianResolver([vf('a.md'), vf('Q%3F and %23.md'), vf('Q? and #1.md')])
+    expect(r.resolve('Q%253F and %2523.md', 'a.md', { decode: true })).toBe('Q%3F and %23.md')
+    expect(r.resolve('Q%3F and %231.md#H', 'a.md', { decode: true })).toBe('Q? and #1.md')
   })
 
   it('prefers the same folder', async () => {

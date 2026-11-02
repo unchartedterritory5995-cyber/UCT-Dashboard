@@ -216,7 +216,7 @@ async function makeDoc(vfile, byPath, resolver) {
     return hit && !NOTE_RE.test(hit) ? hit : null
   }
   const resolved = resolveRelativeMedia(html, dir, byPath, { fallbackResolve })
-  resolved.html = resolveVaultAnchors(resolved.html, ctx, resolver.root)
+  resolved.html = resolveVaultAnchors(resolved.html, ctx, resolver.rootOf(vfile.path))
   const allMedia = dedupeMedia([...media, ...resolved.media])
   const title = fields.title || extractH1Title(resolved.html) || filenameSansExt(basename(vfile.path))
 
@@ -290,9 +290,15 @@ function transformEmbeds(text, ctx) {
       ctx.media.push({ ref: resolvedPath, vfile, kind: 'image', name })
       return `<img src="import-ref://${escapeAttr(resolvedPath)}">`
     }
-    ctx.media.push({ ref: resolvedPath, vfile, kind: 'file', name })
-    return `<a data-type="attachmentChip" data-import-ref="${escapeAttr(resolvedPath)}" data-name="${escapeAttr(name)}" href="import-ref://${escapeAttr(resolvedPath)}">${escapeHtml(name)}</a>`
+    return fileChip(resolvedPath, name, ctx)
   })
+}
+
+/** A vault file that is not a note: an attachment chip plus its media item. */
+function fileChip(resolvedPath, text, ctx) {
+  const name = basename(resolvedPath)
+  ctx.media.push({ ref: resolvedPath, vfile: ctx.byPath.get(resolvedPath), kind: 'file', name })
+  return `<a data-type="attachmentChip" data-import-ref="${escapeAttr(resolvedPath)}" data-name="${escapeAttr(name)}" href="import-ref://${escapeAttr(resolvedPath)}">${escapeHtml(text)}</a>`
 }
 
 function transformWikiLinks(text, ctx) {
@@ -303,6 +309,10 @@ function transformWikiLinks(text, ctx) {
     const display = alias || wikilinkDisplay(stripEscapedPipe(rawTarget.trim()))
     const resolvedPath = ctx.resolve(rawTarget.trim())
     if (!resolvedPath) return escapeHtml(display)
+    // `[[deck.pdf]]` / `[[chart.png]]` names a FILE: no doc carries that key, so a note
+    // link to it would be a dead import-link nothing can heal. It is a chip, as a relative
+    // markdown link to the same file is (`resolveVaultAnchors`).
+    if (!NOTE_RE.test(resolvedPath)) return fileChip(resolvedPath, display, ctx)
     return noteLink(resolvedPath, display, ctx)
   })
 }

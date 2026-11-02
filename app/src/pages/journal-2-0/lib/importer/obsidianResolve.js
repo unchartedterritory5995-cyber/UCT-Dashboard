@@ -3,17 +3,23 @@
  * Plan B Task 8: I-9, O-5, O-8, O-11). ONE resolver for wikilinks, embeds, relative
  * markdown links and images, built once per `parse()`.
  *
- * `makeObsidianResolver(vfiles)` -> `{root, resolve(linkpath, sourcePath, {decode})}`.
- *  - `root`: the folder holding `.obsidian/` (`''` when the drop has none; the shallowest
- *    when it has several). Only files under it are ever a link's target, so a link never
- *    climbs out of the vault into something else dropped beside it.
+ * `makeObsidianResolver(vfiles)` -> `{roots, rootOf(sourcePath), resolve(linkpath,
+ * sourcePath, {decode})}`.
+ *  - `roots`: every folder holding `.obsidian/`. A drop may hold several vaults (an
+ *    `Obsidian/` folder with `Work/` and `Personal/`), or one vault beside loose notes.
+ *  - `rootOf(sourcePath)`: the note's vault, its NEAREST ancestor root; `''` (the drop top)
+ *    for a note in no vault. A link resolves against ITS note's vault only -- one index per
+ *    root, built once -- so `[[Plan]]` in `Work/` never opens `Personal/Plan.md`, and a
+ *    link never climbs out of its vault into something dropped beside it. The drop top
+ *    indexes the whole drop, so a loose note's links resolve as before.
  *  - `attachmentFolderPath` comes from `<root>/.obsidian/app.json`; missing or unreadable
  *    reads `'/'` (the vault root), as Obsidian does.
  *
  * `resolve` drops `#…` and `|…`, removes ONE trailing `\` (a wikilink's pipe escaped
  * inside a table cell, `[[Note\|alias]]`, O-8), and percent-decodes ONCE only when
  * `decode` is set (a markdown href or image src; never a wikilink, whose `%20` is part of
- * a name as written). Then, in order:
+ * a name as written) -- after splitting off `#`/`?`, so an encoded `%23` stays in the
+ * name. Then, in order:
  *   1. a leading `/` -> root-relative exact;
  *   2. a path holding `/` -> beside the source note, then from the root, each as written
  *      and then with `.md` appended (unless it already ends `.md`) (a `..` that climbs above the root is never a target);
@@ -32,12 +38,31 @@ const CONFIG_RE = /(^|\/)\.obsidian\//i
 const SKIP_DIR_RE = /(^|\/)\.(obsidian|trash)\//i
 
 export async function makeObsidianResolver(vfiles) {
-  const root = findRoot(vfiles)
+  const roots = findRoots(vfiles)
+  const allPaths = vfiles.map((v) => v.path).filter((p) => !SKIP_DIR_RE.test(p))
+  // One index per vault, built once; the drop top (`''`) indexes the whole drop and serves
+  // every note that sits in no vault.
+  const vaults = new Map()
+  for (const root of new Set(['', ...roots])) {
+    vaults.set(root, await makeVaultIndex(root, allPaths, vfiles))
+  }
+  /** The vault a note belongs to: its NEAREST ancestor folder holding `.obsidian/`. */
+  const rootOf = (sourcePath) => {
+    let best = ''
+    for (const root of roots) {
+      if (String(sourcePath || '').startsWith(`${root}/`) && root.length > best.length) best = root
+    }
+    return best
+  }
+  const resolve = (linkpath, sourcePath, opts = {}) =>
+    vaults.get(rootOf(sourcePath)).resolve(linkpath, sourcePath, opts)
+  return { roots, rootOf, resolve }
+}
+
+async function makeVaultIndex(root, allPaths, vfiles) {
   const attachmentFolder = await readAttachmentFolder(vfiles, root)
   const prefix = root ? `${root}/` : ''
-  const paths = vfiles
-    .map((v) => v.path)
-    .filter((p) => (!prefix || p.startsWith(prefix)) && !SKIP_DIR_RE.test(p))
+  const paths = allPaths.filter((p) => !prefix || p.startsWith(prefix))
 
   const exact = new Map()
   const exactLower = new Map()
@@ -72,14 +97,17 @@ export async function makeObsidianResolver(vfiles) {
   function resolve(linkpath, sourcePath, opts = {}) {
     let target = String(linkpath ?? '')
     if (opts.decode) {
+      // Split BEFORE the one decode: an encoded `%23`/`%3F` is part of the name.
+      target = target.split('#')[0].split('?')[0]
       try {
         target = decodeURIComponent(target)
       } catch {
         // a malformed escape: the href as written
       }
-      target = target.split('?')[0]
+    } else {
+      target = target.split('#')[0]
     }
-    target = target.split('#')[0].split('|')[0]
+    target = target.split('|')[0]
     if (target.endsWith('\\')) target = target.slice(0, -1)
     target = target.trim()
     if (!target) return null
@@ -124,19 +152,17 @@ export async function makeObsidianResolver(vfiles) {
     return stack.join('/')
   }
 
-  return { root, resolve }
+  return { resolve }
 }
 
-function findRoot(vfiles) {
-  let best = null
-  const depth = (p) => (p ? p.split('/').length : 0)
+/** Every folder holding a `.obsidian/` (`''` for one at the top of the drop). */
+function findRoots(vfiles) {
+  const roots = new Set()
   for (const v of vfiles) {
     const m = CONFIG_RE.exec(v.path)
-    if (!m) continue
-    const root = v.path.slice(0, m.index).replace(/\/$/, '')
-    if (best === null || depth(root) < depth(best)) best = root
+    if (m) roots.add(v.path.slice(0, m.index).replace(/\/$/, ''))
   }
-  return best ?? ''
+  return [...roots]
 }
 
 async function readAttachmentFolder(vfiles, root) {
