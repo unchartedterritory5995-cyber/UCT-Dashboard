@@ -44,6 +44,7 @@ import { readData } from '../marketdata/client'
 import { currentTurnId } from '../trace'
 import { AGENT_CONVERSATION_KEY, readLocal } from '../agentFlag'
 import { intent as readIntent } from './scanIntent'
+import { isHidden, refusalFor, DEFAULT_SORT, DEFAULT_ORDER_WORDS } from './scanHidden'
 
 const META_TTL_MS = 6 * 3600 * 1000      // the registry changes only on deploy
 const SAVED_TTL_MS = 60 * 1000
@@ -58,7 +59,22 @@ const PAGE = 500                  // the engine's own page cap (services/screene
 // limit (the watchlist server has none): a bound on one request, always SAID, never a silent cut.
 export const FILL_MAX = 1000
 const CANDIDATES_MAX = 10000      // a screen with measure conditions reads at most this many candidates
-const DEFAULT_SORT = { key: 'uct_composite', dir: 'desc' }
+// SC-1 §2d (owner F-16): never the Screener's own default order (UCT Composite, a proprietary rating). DEFAULT_SORT
+// and DEFAULT_ORDER_WORDS come from scanHidden.js, generated from the server's spec.DEFAULT_SORT: one authority.
+/** SC-1 §2d: the refusal sentence when ANY part of a wire spec names a hidden field (a filter, an `other`, a logic
+ *  leaf, an arithmetic term, the sort, a rank criterion, a column), or null. One walk, every shape. */
+export function hiddenRefusal(spec) {
+  const keys = []
+  const walk = (v, depth = 0) => {
+    if (depth > 24 || v == null || typeof v !== 'object') return
+    if (Array.isArray(v)) { v.forEach(x => walk(x, depth + 1)); return }
+    for (const k of ['key', 'other', 'f', 'column']) if (typeof v[k] === 'string') keys.push(v[k])
+    for (const x of Object.values(v)) walk(x, depth + 1)
+  }
+  walk(spec)
+  if (Array.isArray(spec?.columns)) keys.push(...spec.columns.filter(c => typeof c === 'string'))
+  return refusalFor(keys)
+}
 // A saved screen named in the member's words before the saved list had loaded (SAT-1 F-SAT-3) — never an id.
 const BY_NAME = 'name:'
 
@@ -81,7 +97,7 @@ export function loadMeta() {
   if (!cache.metaP) {
     cache.metaP = req('/api/screener/fields').then(r => json(r, 'Reading the Screener fields')).then(m => {
       const list = Array.isArray(m.fields) ? m.fields : []
-      cache.meta = { fields: list.filter(f => f && f.key && (f.type === 'range' || f.type === 'bool' || f.type === 'enum')).map(f => ({ key: f.key, label: f.label || f.key, type: f.type === 'enum' ? 'list' : f.type, unit: f.unit || '', category: f.category || null })) }
+      cache.meta = { fields: list.filter(f => f && f.key && !isHidden(f.key) && (f.type === 'range' || f.type === 'bool' || f.type === 'enum')).map(f => ({ key: f.key, label: f.label || f.key, type: f.type === 'enum' ? 'list' : f.type, unit: f.unit || '', category: f.category || null })) }
       cache.metaAt = Date.now()
       return cache.meta
     }).finally(() => { cache.metaP = null })
@@ -207,6 +223,7 @@ export function toWireFilters(filters, { lenient = false } = {}) {
   const post = []
   const notes = []
   for (const x of filters || []) {
+    if (isHidden(String(x.field || ''))) return { error: refusalFor([x.field]) }
     const f = fieldOf(String(x.field || ''))
     if (!f) return { error: `the Screener has no field “${x.field}”` }
     if (f.type === 'list') {
@@ -351,6 +368,8 @@ const unrankableText = (label, dir) => `${label} data is unavailable for these r
 
 /** Run a wire spec through the engine: the real count + the first `show` rows. */
 async function runSpec(spec, { show = SHOW_DEFAULT, name = null, savedId = null, notes: extra = [] } = {}) {
+  const hidden = hiddenRefusal(spec)                      // SC-1 §2d: refused, never stripped
+  if (hidden) return `I didn't run ${name ? `“${name}”` : 'it'}: ${hidden}.`
   const keys = [...new Set([...(spec.filters || []).map(f => f.key), spec.sort?.key].filter(k => k && fieldOf(k) && !fieldOf(k).provider && fieldOf(k).type !== 'list'))]
   const shown = Math.min(SHOW_MAX, Math.max(1, show))
   const t0 = Date.now()
@@ -385,7 +404,7 @@ async function runSpec(spec, { show = SHOW_DEFAULT, name = null, savedId = null,
   const { label: sortLabel, ranked } = sortCoverage(spec, rows, r.values)
   // ⛔ NO usable value at all: the engine's order is not that ranking, so no rows are shown as one.
   const unrankable = !!spec.sort && rows.length > 0 && ranked === 0
-  const sortWord = !spec.sort ? ''
+  const sortWord = !spec.sort ? `, ${DEFAULT_ORDER_WORDS}`
     : ` by ${sortLabel} (${spec.sort.dir === 'asc' ? 'lowest' : 'highest'} first)${ranked < rows.length ? `; only ${ranked} of these ${rows.length} have ${sortLabel} values — the other ${rows.length - ranked} have none and are not ranked by it` : ''}`
   const showing = unrankable ? ` ${unrankableText(sortLabel, spec.sort.dir)}.` : rows.length ? ` Showing the first ${rows.length}${sortWord}.` : ''
   const notes = [...extra, ...coverageNotes(spec), ...r.notes]
@@ -465,6 +484,8 @@ const usesGateway = (spec) => servesKind('screen.run') && !(spec?.post || []).le
 
 /** One `screen.run` through the gateway → the answer text/table, or a refusal sentence. */
 async function runViaGateway(spec, { show = SHOW_DEFAULT, name = null, savedId = null, notes: extra = [] } = {}) {
+  const hidden = hiddenRefusal(spec)                      // SC-1 §2d: refused, never stripped
+  if (hidden) return `I didn't run ${name ? `“${name}”` : 'it'}: ${hidden}.`
   // the member's open turn (trace.js: ONE per message / panel action) — the server's budget key; never minted
   const turnId = currentTurnId()
   if (!turnId) return "I didn't run it: this screen needs the Agent's turn, which wasn't available."
@@ -499,14 +520,14 @@ async function runViaGateway(spec, { show = SHOW_DEFAULT, name = null, savedId =
   const what = (spec.filters || []).length ? ` (${spec.filters.map(describeFilter).join(' · ')})` : ''
   const { label: sortLabel, ranked } = sortCoverage(spec, rows, {})
   const unrankable = !!spec.sort && rows.length > 0 && ranked === 0
-  const sortWord = !spec.sort ? ''
+  const sortWord = !spec.sort ? `, ${DEFAULT_ORDER_WORDS}`
     : ` by ${sortLabel} (${spec.sort.dir === 'asc' ? 'lowest' : 'highest'} first)${ranked < rows.length ? `; only ${ranked} of these ${rows.length} have ${sortLabel} values — the other ${rows.length - ranked} have none and are not ranked by it` : ''}`
   const showing = unrankable ? ` ${unrankableText(sortLabel, spec.sort.dir)}.` : rows.length ? ` Showing the first ${rows.length}${sortWord}.` : ''
   const c = env.coverage
   const covLine = c && (c.dropped || c.not_computable) ? `Checked ${c.evaluated.toLocaleString()} stocks: ${c.answered.toLocaleString()} could be decided${c.not_computable ? `, ${c.not_computable.toLocaleString()} had a missing value` : ''}${c.dropped ? `, ${c.dropped.toLocaleString()} ${c.dropped === 1 ? 'was' : 'were'} excluded for stopped price history` : ''}` : null
   // the envelope's own notes carry the data's time ("as of the <date> close, not live"), staleness and any overlay
   // (the coverage line above already says what was excluded / not computable: the envelope's own coverage notes would repeat it)
-  const envNotes = (env.notes || []).filter(n => !/^Showing \d+ of \d+ matches\.?$/.test(n) && !/^\d[\d,]* names? (?:was|were) excluded because|^\d[\d,]* names? could not be decided/.test(n)).map(n => n.replace(/\.$/, ''))
+  const envNotes = (env.notes || []).filter(n => !/^Showing \d+ of \d+ matches\.?$/.test(n) && !/^Ordered by market cap, largest first/.test(n) && !/^\d[\d,]* names? (?:was|were) excluded because|^\d[\d,]* names? could not be decided/.test(n)).map(n => n.replace(/\.$/, ''))
   const notes = [...extra, ...coverageNotes(spec), ...(env.stale ? ['This data is stale'] : []), ...(covLine ? [covLine] : []), ...envNotes]
   return {
     text: `${head}${what}.${showing}${notes.length ? ` ${notes.map(n => `${n}.`).join(' ')}` : ''}`,
@@ -549,6 +570,7 @@ function buildSpec({ filters, sort_field: sortField, sort_dir: sortDir, mode, wi
     postF = [...(cache.last.spec.post || []).filter(f => !mine.has(f.key)), ...postF]
   }
   if (sortField) {
+    if (isHidden(sortField)) return { error: refusalFor([sortField]) }
     const sf = fieldOf(sortField)
     if (!sf || sf.provider || sf.type === 'list') return { error: `the Screener has no field “${sortField}” to sort by` }
     sort = { key: sortField, dir: sortDir === 'asc' ? 'asc' : 'desc' }
@@ -562,6 +584,8 @@ const specWords = (spec) => [...(spec.filters || []), ...(spec.post || [])].map(
 /** A screen's RESULT as a typed symbol set: EVERY match (up to FILL_MAX) in the engine's own order.
  *  `count` is the true number of matches, so a consumer can refuse rather than cut. */
 async function produceSymbols(spec, { name = null, savedId = null, notes: extra = [] } = {}) {
+  const hidden = hiddenRefusal(spec)                      // SC-1 §2d: refused, never stripped
+  if (hidden) throw new Error(hidden)
   const sk = spec.sort?.key
   const sortCol = sk && fieldOf(sk) && !fieldOf(sk).provider && fieldOf(sk).type !== 'list' && !(spec.post || []).some(f => f.key === sk) ? [sk] : []
   const r = await resultOf(spec, ['ticker', ...sortCol], FILL_MAX)
@@ -721,7 +745,10 @@ export function registerScreenerCapabilities() {
     // call). With the catalog loaded and no `rs_rank`, it is the planner's, exactly as before.
     fast: ({ raw, lower }) => {
       if (/^(?:please )?(?:(?:show(?: me)?|find(?: me)?|list|give me|get(?: me)?|what are|which are) )?(?:my |the )?(?:strongest|rs leaders|relative strength leaders|highest rs(?: rank(?:ed)?)?)(?: stocks| names)?(?: right now| today)?$/.test(lower)) {
-        return !cache.meta || fieldOf('rs_rank') ? { filters: [], sort_field: 'rs_rank', sort_dir: 'desc', mode: 'new', show: null, as: null, within: null } : null
+        // ⛔ SC-1 §2d (owner F-16 ruling): "strongest" in UCT's vocabulary IS the RS Rank ranking, a proprietary
+        // rating. The phrase stays claimed so it never reaches the planner, and answer() refuses it with the §2d
+        // sentence: 0 model calls, no screen, nothing substituted (never a return sort in its place).
+        return { filters: [], sort_field: 'rs_rank', sort_dir: 'desc', mode: 'new', show: null, as: null, within: null }
       }
       if (!cache.meta) return null
       const m = /^(?:(?:now|and|ok|okay) )?(?:show me )?(?:only|just) (?:the ones|those|them|the stocks|the names|stocks|names)? ?(above|over|under|below) \$(\d+(?:\.\d+)?)$/.exec(lower)

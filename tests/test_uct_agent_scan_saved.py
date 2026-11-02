@@ -13,9 +13,9 @@ from api.services.uct_agent.scan import sources
 
 ME, OTHER = "admin-1", "member-2"
 _ROW = {"company": "Co", "sector": "Technology", "price": 50.0, "chg_pct_1d": 1.0, "vol_ratio": 1.0,
-        "rs_rank": 50, "market_cap": 5e9, "bars_asof": 20261030, "snapshot_date": "2026-10-31",
+        "rsi14": 50, "market_cap": 5e9, "bars_asof": 20261030, "snapshot_date": "2026-10-31",
         "security_type": "Common Stock", "avg_dollar_vol_30d": 5e7}
-RS = {"filters": [{"key": "rs_rank", "op": "gte", "min": 50}]}
+RS = {"filters": [{"key": "rsi14", "op": "gte", "min": 50}]}
 
 
 @pytest.fixture
@@ -24,7 +24,7 @@ def world(tmp_path, monkeypatch):
     from api.services.screener import saved_screens, snapshot_db
     monkeypatch.setenv("SCREENER_DB_PATH", str(tmp_path / "screener.db"))
     snapshot_db.init_db()
-    snapshot_db.upsert_rows([dict(_ROW, ticker=f"T{i:02d}", price=10.0 + i, rs_rank=i) for i in range(60)])
+    snapshot_db.upsert_rows([dict(_ROW, ticker=f"T{i:02d}", price=10.0 + i, rsi14=i) for i in range(60)])
     monkeypatch.setattr(auth_db, "_DB_PATH", str(tmp_path / "auth.db"))
     saved_screens.init()                                  # test setup only; the adapter never calls init()
     mine = saved_screens.create(ME, "Leaders", RS)
@@ -121,11 +121,11 @@ def test_ambiguous_or_bad_sources_are_refused(world, params, words):
 
 def test_criteria_text_runs_through_the_screeners_grammar(world, monkeypatch):
     monkeypatch.setenv("SCREENER_LOGIC_ENABLED", "1")
-    out = _read("screen.count", {"text": "rs_rank >= 50"}, "t1")
+    out = _read("screen.count", {"text": "rsi14 >= 50"}, "t1")
     assert env.validate_envelope(out) == [], out
     assert out["data"]["count"] == 10
     o = out["data"]["origin"]
-    assert o["source"] == "text" and o["text"] == "rs_rank >= 50" and o["explanation"]
+    assert o["source"] == "text" and o["text"] == "rsi14 >= 50" and o["explanation"]
     assert "logic" in out["data"]["spec"]          # the spec the member can open in the Screener
 
 
@@ -145,13 +145,13 @@ def test_a_scope_follows_the_screeners_own_grammar_gate(world, monkeypatch):
 
 def test_criteria_text_is_refused_while_the_screeners_language_is_off(world, monkeypatch):
     monkeypatch.delenv("SCREENER_LOGIC_ENABLED", raising=False)
-    out = _read("screen.run", {"text": "rs_rank >= 50"}, "t3")
+    out = _read("screen.run", {"text": "rsi14 >= 50"}, "t3")
     assert out["status"] == "refused" and "criteria language is off" in out["notes"][0]
 
 
 def test_unreadable_criteria_text_carries_the_grammars_sentence(world, monkeypatch):
     monkeypatch.setenv("SCREENER_LOGIC_ENABLED", "1")
-    out = _read("screen.run", {"text": "rs_rank >>> banana"}, "t4")
+    out = _read("screen.run", {"text": "rsi14 >>> banana"}, "t4")
     assert out["status"] == "refused" and out["notes"][0].startswith("the Screener could not read those criteria")
 
 

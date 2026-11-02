@@ -12,10 +12,10 @@ import { turnStart, turnEnd, currentTurnId, _resetTurns } from './trace'
 registerBuiltins()
 
 const META = { fields: [
-  { key: 'rs_rank', label: 'RS Rank', type: 'range', unit: '' },
+  { key: 'chg_pct_3m', label: '3M %', type: 'range', unit: '%' },
   { key: 'price', label: 'Price', type: 'range', unit: '$' },
 ] }
-const SAVED = { saved: [{ id: 7, name: 'Leaders', spec: { filters: [{ key: 'rs_rank', op: 'gte', min: 80 }] } }],
+const SAVED = { saved: [{ id: 7, name: 'Leaders', spec: { filters: [{ key: 'chg_pct_3m', op: 'gte', min: 80 }] } }],
   starters: [{ id: 'starter_uct_50', name: 'UCT 50', spec: { filters: [{ key: 'price', op: 'gte', min: 5 }] } }] }
 
 const envelope = (kind, params, over = {}) => ({
@@ -51,7 +51,7 @@ beforeEach(async () => {
       }
       if (params.saved_id != null && params.saved_id !== 7) return json(refused(kind, params, 'you have no saved screen with that id'))
       return json(envelope(kind, params, { status: 'partial', coverage: { evaluated: 3600, answered: 3590, dropped: 4, not_computable: 6 },
-        data: { spec: params.spec || {}, rows: [{ symbol: 'AAA', price: 50, rs_rank: 99, chg_pct_1d: 1.5 }, { symbol: 'BBB', price: 20, rs_rank: 95, chg_pct_1d: -0.5 }], total_matches: 42, fields: [], excluded: [], origin: { source: params.saved_id ? 'saved' : 'spec' } } }))
+        data: { spec: params.spec || {}, rows: [{ symbol: 'AAA', price: 50, chg_pct_3m: 99, chg_pct_1d: 1.5 }, { symbol: 'BBB', price: 20, chg_pct_3m: 95, chg_pct_1d: -0.5 }], total_matches: 42, fields: [], excluded: [], origin: { source: params.saved_id ? 'saved' : 'spec' } } }))
     }
     return json({})
   })
@@ -63,7 +63,7 @@ afterEach(() => { _resetTurns(); vi.restoreAllMocks() })
 /** Run `fn` inside one member turn (as trace.js opens per message), returning [result, turnId]. */
 async function inTurn(fn) { turnStart('send'); const id = currentTurnId(); try { return [await fn(), id] } finally { turnEnd() } }
 
-const ARGS = { filters: [{ field: 'rs_rank', op: 'gte', value: 80, max: null, values: null }], sort_field: 'rs_rank', sort_dir: 'desc', mode: 'new', show: null, as: null, within: null }
+const ARGS = { filters: [{ field: 'chg_pct_3m', op: 'gte', value: 80, max: null, values: null }], sort_field: 'chg_pct_3m', sort_dir: 'desc', mode: 'new', show: null, as: null, within: null }
 const answerRun = (args = ARGS) => getCapability('screener.run').answer(null, args, null, { surface: 'charts' })
 const run = async (args = ARGS) => (await inTurn(() => answerRun(args)))[0]
 const dataCalls = () => calls.filter(c => c[0] === '/api/agent/data')
@@ -77,9 +77,9 @@ describe('SC-1 gateway path for the screener capability', () => {
     const [, body] = dataCalls()[0]
     expect(id).toMatch(/^t-/)
     expect(body).toMatchObject({ kind: 'screen.run', purpose: 'answer', turn_id: id })
-    expect(body.params.spec.filters).toEqual([{ key: 'rs_rank', op: 'gte', min: 80 }])
+    expect(body.params.spec.filters).toEqual([{ key: 'chg_pct_3m', op: 'gte', min: 80 }])
     expect(body.params.limit).toBe(10)
-    expect(a.text).toMatch(/^42 stocks match \(RS Rank ≥ 80\)\. Showing the first 2 by RS Rank/)
+    expect(a.text).toMatch(/^42 stocks match \(3M % ≥ 80%\)\. Showing the first 2 by 3M % \(highest first\)/)
     expect(a.text).toContain('Checked 3,600 stocks: 3,590 could be decided, 6 had a missing value, 4 were excluded for stopped price history.')
     expect(a.text).toContain('values as of the 2026-10-30 close (nightly), not live.')
     expect(a.text).not.toMatch(/\blive prices\b|\bright now\b/)
@@ -110,7 +110,7 @@ describe('SC-1 gateway path for the screener capability', () => {
   })
 
   it('STALE data is said in words', async () => {
-    nextScan = (kind, params) => envelope(kind, params, { stale: true, data: { spec: {}, rows: [{ symbol: 'AAA', price: 1, rs_rank: 90 }], total_matches: 1 },
+    nextScan = (kind, params) => envelope(kind, params, { stale: true, data: { spec: {}, rows: [{ symbol: 'AAA', price: 1, chg_pct_3m: 90 }], total_matches: 1 },
       notes: ['Screener snapshot — values as of the 2026-10-27 close (nightly), not live.', 'This snapshot is 3 sessions behind the last close.'] })
     const a = await run()
     expect(a.text).toContain('This data is stale.')

@@ -12,9 +12,9 @@ VENDOR's own timestamps, never from fetch time (and not from `massive._detect_se
 20:00–04:00 and weekends `post_market`):
   * regular session (09:30 to the session's close, early closes honoured) on a trading day -> `live`;
     `stale` once the oldest live stamp is older than FRESHNESS_BUDGET_S (60 s);
-  * extended hours on a trading day (04:00–09:30, close–20:00) -> `live` with NOTE_EXTENDED when the oldest
+  * extended hours on a trading day (04:00–09:30, close–20:00; close–17:00 on a half day) -> `live` with NOTE_EXTENDED when the oldest
     live stamp is at most EXTENDED_LIVE_S (15 min) old, otherwise `historical` with NOTE_CLOSED;
-  * overnight (20:00–04:00), weekends and holidays -> `historical` with NOTE_CLOSED, stale false.
+  * overnight (after extended trading until 04:00), weekends and holidays -> `historical` with NOTE_CLOSED, stale false.
 Each row says where its `last` came from (`last_source`: trade | minute | day_close | prev_close). In a
 `live` read, a row priced from day_close/prev_close is NOT live: the read is `partial`, a note names it,
 and its stamp is EXCLUDED from the envelope `as_of` (the oldest stamp among the rows that ARE live), so a
@@ -51,30 +51,38 @@ NOTE_SET_AS_OF_LIVE = "as_of is the oldest current trade in this set"
 SESSION_DETAILS = ("regular", "premarket", "after-hours", "overnight", "closed")
 
 
+EXTENDED_END_MIN = 20 * 60                 # extended trading ends 20:00 ET on a full day
+EXTENDED_END_EARLY_CLOSE_MIN = 17 * 60     # …and 17:00 ET on a half day (13:00 regular close)
+
+
 def _session_detail(now: Optional[datetime] = None) -> str:
-    """MD-1 v1.5: `regular` | `premarket` | `after-hours` | `overnight` | `closed`, from the ET clock and the
-    product's own calendar helpers. `overnight` is 20:00–04:00 around a trading day; `closed` is a weekend or
-    holiday, or an unreadable calendar (never claim the market is open). `_session` is derived from this, so the
-    two labels can never disagree."""
-    from api.services import bars_fetch, massive
+    """MD-1 v1.5: `regular` | `premarket` | `after-hours` | `overnight` | `closed`.
+
+    EVERY input comes from `now` (default: the wall clock): the ET minutes AND whether that ET date is a NYSE session
+    (weekday, not a full-closure holiday; the same rule as `massive._today_et_is_a_trading_day`, applied to `now`'s
+    date rather than to today's — agent-qa F-19). `overnight` is between the end of extended trading and 04:00 ET on
+    a trading day; `closed` is a weekend or holiday, or an unreadable calendar (never claim the market is open).
+    `_session` is derived from this, so the two labels can never disagree."""
+    from api.services import bars_fetch
     from zoneinfo import ZoneInfo
+    et = (now or datetime.now(timezone.utc)).astimezone(ZoneInfo("America/New_York"))
+    ymd = int(et.strftime("%Y%m%d"))
     try:
-        trading_day = massive._today_et_is_a_trading_day()
+        if et.weekday() >= 5 or bars_fetch._is_nyse_holiday(ymd):
+            return "closed"
     except Exception:  # noqa: BLE001 — unknown calendar: never claim the market is open
         return "closed"
-    if not trading_day:
-        return "closed"
-    et = (now or datetime.now(timezone.utc)).astimezone(ZoneInfo("America/New_York"))
     mins = et.hour * 60 + et.minute
     try:
-        close = bars_fetch._session_close_minutes(int(et.strftime("%Y%m%d")))
+        close = bars_fetch._session_close_minutes(ymd)
     except Exception:  # noqa: BLE001
         close = 16 * 60
+    ext_end = EXTENDED_END_MIN if close >= 16 * 60 else EXTENDED_END_EARLY_CLOSE_MIN
     if 9 * 60 + 30 <= mins < close:
         return "regular"
     if 4 * 60 <= mins < 9 * 60 + 30:
         return "premarket"
-    if close <= mins < 20 * 60:
+    if close <= mins < ext_end:
         return "after-hours"
     return "overnight"
 

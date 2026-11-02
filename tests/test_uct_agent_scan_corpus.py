@@ -49,4 +49,17 @@ def test_indicator_refusals_are_what_sc1_actually_refuses():
     with pytest.raises(scan_spec.SpecError, match="indicator-condition scans"):
         scan_spec.validate({"filters": [{"key": "scan", "op": "in", "value": ["h"]}]})
     reasons = {q["refusal_reason"] for q in QS if q["expect_refusal"]}
-    assert reasons <= {"indicator-condition scans", "the Screener has no field"}
+    assert reasons <= {"indicator-condition scans", "the Screener has no field", "UCT proprietary ratings"}
+
+
+def test_no_expected_answer_names_a_field_hidden_from_the_agent(monkeypatch):
+    """Owner F-16: a rating, proprietary score or flow field is never an expected answer; those questions refuse."""
+    from api.services.uct_agent.scan import hidden
+    monkeypatch.setenv("SCREENER_LOGIC_ENABLED", "1")
+    named = set()
+    for q in QS:
+        if not q["expect_refusal"]:
+            named |= {leaf["key"] for leaf in logic.leaves(grammar.compile_text(q["expect"]["criteria_text"])["logic"])}
+        named |= set(q["required_fields"]) | set(q["tolerance"])
+    assert not named & hidden.hidden_keys()
+    assert {q["id"] for q in QS if q.get("refusal_reason") == "UCT proprietary ratings"}     # non-vacuity

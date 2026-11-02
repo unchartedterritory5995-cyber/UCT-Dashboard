@@ -1,4 +1,4 @@
-// agent-qa — SENTINEL DETECTION that cannot collide with timings, ids or hex (browser twin of
+// agent-qa — SENTINEL DETECTION that cannot collide with timings, ids or hex (test-only: lives under __fixtures__ so reachable.test.js treats it as test infra; browser twin of
 // tests/test_uct_agent_qa_sentinels.py).
 //
 // ⚰️ Measured on master f1342137b1 (gate run 41372562071): modelIsolation.test.jsx matched `13579` as a plain

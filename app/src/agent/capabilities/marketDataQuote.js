@@ -24,6 +24,8 @@ import { readData } from '../marketdata/client'
 import { currentTurnId } from '../trace'
 import { answerProfile } from './stock'
 import { parsePriceSentence, MAX_TICKERS } from './marketDataPhrases'
+import { num, money, signedMoney, signedPct } from './marketDataFormat'
+import { registerBarsCapability, _resetBarsForTest } from './marketDataBars'
 
 export const CAPABILITY = 'stock.quote'
 const ET = 'America/New_York'
@@ -42,22 +44,7 @@ const SESSION_WORDS = {
   overnight: 'overnight', closed: 'weekend or holiday',
 }
 
-const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null)
-export function money(v) {
-  const n = num(v)
-  if (n == null) return null
-  const d = Math.abs(n) < 1 ? 4 : 2
-  return `$${n.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d })}`
-}
-function signedMoney(v) {
-  const n = num(v)
-  if (n == null) return null
-  return `${n >= 0 ? '+' : '−'}${money(Math.abs(n))}`
-}
-function signedPct(v) {
-  const n = num(v)
-  return n == null ? null : `${n >= 0 ? '+' : '−'}${Math.abs(n).toFixed(2)}%`
-}
+export { money }
 const etDay = (d) => new Intl.DateTimeFormat('en-CA', { timeZone: ET, year: 'numeric', month: '2-digit', day: '2-digit' }).format(d)
 const etTime = (d) => new Intl.DateTimeFormat('en-US', { timeZone: ET, hour: 'numeric', minute: '2-digit' }).format(d)
 const etDate = (d) => new Intl.DateTimeFormat('en-US', { timeZone: ET, weekday: 'short', month: 'short', day: 'numeric' }).format(d)
@@ -154,6 +141,18 @@ const rowsOf = (env) => {
   return rows.filter(r => r && typeof r.symbol === 'string' && num(r.last) != null)
 }
 
+// A read with no usable price answers in FIXED words (agent-qa F-20): never the envelope's notes, which can carry
+// numbers ("this turn already made 8 data reads…") and are not member copy. A closed list, keyed on status only.
+const NO_PRICE = {
+  refused: "that request wasn't allowed for this question, so the price is not available",
+  unavailable: "the price is not available from UCT's market data",
+}
+export function noPriceSentence(env, syms) {
+  const who = syms.length ? syms.join(', ') : 'that'
+  const why = NO_PRICE[env?.status] || NO_PRICE.unavailable
+  return `I couldn't get a price for ${who}: ${why}. No price is stated.`
+}
+
 const SOURCE_LINE = 'Source: Massive market snapshot through the UCT data gateway.'
 
 /** A whole `quote`/`quotes` envelope → the member's answer. Pure; exported for the acceptance harness. */
@@ -161,10 +160,7 @@ export function answerFromEnvelope(env, asked) {
   const syms = (asked || []).map(s => String(s).toUpperCase())
   const usable = env && (env.status === 'ok' || env.status === 'partial')
   const rows = usable ? rowsOf(env) : []
-  if (!rows.length) {
-    const why = String((env?.notes || [])[0] || 'the price is not available').replace(/\.$/, '')
-    return { text: `I couldn't get a price for ${syms.join(', ') || 'that'}: ${why}. The price is not available right here, so I'm not stating one.` }
-  }
+  if (!rows.length) return { text: noPriceSentence(env, syms) }
   const described = rows.map(r => describeRow(env, r))
   const lines = described.map(x => x.line)
   if (env.status === 'partial') lines.push(...partialLines(env, syms))
@@ -217,9 +213,13 @@ export function match(text) {
 
 let registered = false
 let unregister = null
-/** Idempotent; registers nothing while the server does not serve the data gateway, so the model's manifest and
- *  every flags-off answer stay exactly as they are. Call it after /api/agent/config has loaded. */
+/** Idempotent; registers ONLY what the server serves and activates — stock.quote while `quote` + `quotes` are
+ *  active, stock.dailyBars while `bars.daily` is (marketDataBars.js) — so the model's manifest and every flags-off
+ *  answer stay exactly as they are. Call it after /api/agent/config has loaded (builtins.registerServerGatedBuiltins).
+ *  Returns true when THIS call registered stock.quote (the contract since #624; stock.dailyBars reports through
+ *  `registerBarsCapability` and is visible in the capability registry). */
 export function registerMarketDataCapabilities() {
+  registerBarsCapability()
   if (registered || !quoteServed()) return false
   registered = true
   unregister = registerCapability({
@@ -240,4 +240,4 @@ export function registerMarketDataCapabilities() {
   })
   return true
 }
-export const _resetForTest = () => { if (unregister) unregister(); unregister = null; registered = false }
+export const _resetForTest = () => { if (unregister) unregister(); unregister = null; registered = false; _resetBarsForTest() }

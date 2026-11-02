@@ -53,7 +53,7 @@ def _count(sb, scenario, spec, capsys=None):
     return gateway.read("screen.count", {"spec": spec}, user_id="u", turn_id="t", purpose="answer")
 
 
-RS90 = {"filters": [{"key": "rs_rank", "op": "gte", "min": 90}]}
+RS90 = {"filters": [{"key": "float_pct", "op": "gte", "min": 90}]}
 
 
 def test_fresh_is_dated_not_stale_and_has_its_receipt(sandbox):
@@ -96,8 +96,12 @@ def test_saved_screens_for_the_member_and_another_members_screen_is_refused(sand
     gateway._reset_for_test()
     saved = gateway.read("screen.saved", {}, user_id=u["id"], turn_id="s", purpose="answer")
     names = {s["name"]: s for s in saved["data"]["screens"]}
-    assert set(names) == {"SAT Leaders", "SAT Semis volume", "SAT EMA cross (indicator)"}
+    assert set(names) == {"SAT Leaders", "SAT Semis volume", "SAT EMA cross (indicator)", "SAT Composite (rating)"}
     assert names["SAT EMA cross (indicator)"]["runnable"] is False
+    rated = names["SAT Composite (rating)"]                         # SC-1 §2d: listed, never run, says why
+    assert rated["runnable"] is False and "proprietary ratings" in rated["reason"] and rated["spec"] is None
+    env = gateway.read("screen.run", {"saved_id": rated["id"]}, user_id=u["id"], turn_id="r", purpose="answer")
+    assert env["status"] == "refused" and "proprietary ratings" in env["notes"][0]
     from api.services.screener import saved_screens
     other = [s for s in saved_screens.list_for(seed.OTHER_MEMBER)][0]
     env = gateway.read("screen.run", {"saved_id": other["id"]}, user_id=u["id"], turn_id="o", purpose="answer")

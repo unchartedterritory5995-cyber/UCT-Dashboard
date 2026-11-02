@@ -40,7 +40,39 @@ export function turnReply(res) {
   return ok ? res : { ok: false, status: res.status, malformed: true, error: FAILED }
 }
 
-export const agentTurn = async (body) => turnReply(await post('/api/agent/turn', body))
+// ⛔ ADR-005 L5: an object marked `isolated: true` (an MD-1 envelope of a model-isolated kind, L2) never
+// leaves the browser in a model request — removed at any depth from the request's model-bound parts, and
+// the removal is counted (never its content). L6 strips again on the server: neither layer trusts the other.
+const MODEL_BOUND = ['context', 'pending', 'reference', 'repair', 'history', 'memory']
+let isolationDropped = 0
+export const isolationDrops = () => isolationDropped
+const DROP = Symbol('isolated')
+function stripIsolated(v) {
+  if (Array.isArray(v)) return v.map(stripIsolated).filter(x => x !== DROP)
+  if (v && typeof v === 'object') {
+    if (v.isolated === true) { isolationDropped += 1; return DROP }
+    const out = {}
+    for (const [k, x] of Object.entries(v)) { const y = stripIsolated(x); if (y !== DROP) out[k] = y }
+    return out
+  }
+  return v
+}
+export function modelSafeBody(body) {
+  if (!body || typeof body !== 'object') return body
+  const before = isolationDropped
+  const out = { ...body }
+  for (const k of MODEL_BOUND) {
+    if (!(k in out)) continue
+    const y = stripIsolated(out[k])
+    if (y === DROP) delete out[k]
+    else out[k] = y
+  }
+  if (isolationDropped > before) {
+    try { console.warn(`[uct-agent] removed ${isolationDropped - before} isolated value(s) from a model request (ADR-005 L5)`) } catch { /* ignore */ }
+  }
+  return out
+}
+export const agentTurn = async (body) => turnReply(await post('/api/agent/turn', modelSafeBody(body)))
 
 /**
  * The same turn as `agentTurn`, over POST /api/agent/turn/stream (text/event-stream). `onEvent` gets
@@ -93,7 +125,7 @@ export async function agentTurnStream(body, onEvent = () => {}) {
     r = await fetch('/api/agent/turn/stream', {
       method: 'POST', credentials: 'include',
       headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
-      body: JSON.stringify(body),
+      body: JSON.stringify(modelSafeBody(body)),
     })
   } catch {
     return { ok: false, error: 'Could not reach UCT. Check your connection.' }
