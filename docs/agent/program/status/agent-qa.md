@@ -252,6 +252,99 @@ Only agent-qa edits this file. Update it in every PR.
   extended-live, extended-closed, holiday, no-current-trade. Rules (a)–(e) are a reusable predicate
   (`quote_semantics_errors`) with controls showing it can fail. Other MD-1 kinds keep provisional `data` shapes.
 
+## ⭐ FINAL VERDICT: Sprint 2 release candidate `608ad6adaec6207fb29accb3fcf72ad5741c391f`
+**GO to deploy DARK (every flag off). HOLD on activating quote (`UCT_AGENT_DATA=1` + `UCT_AGENT_DATA_KINDS=quote,quotes`) until
+the held-out misreads (item 7) are fixed.**
+Checked out EXACTLY at the SHA (detached, clean), every Agent flag unset; probes added only for their run, then removed.
+
+1. **Suites (lock):** Agent pytest **1658 passed**; vitest **134 files, 2373 passed** (both equal agent-lead's).
+   QA rails: pytest 338, vitest 148.
+2. **Per-kind allowlist (server, real router, spies on every kind's adapter and validator): 20/20.**
+   - Flags off: config `data/scan/nl1` false and `data_kinds` [], every kind × purpose refused, nothing ran, no budget.
+   - DATA=1, KINDS=quote,quotes: config `data_kinds` = [quote, quotes]; ONLY quote and quotes are admitted. Every other
+     kind (bars.daily, breadth.current, ratings, screen.*) is refused for every purpose and its source never ran.
+   - Listing isolated or scan kinds with ISOLATED or SCAN off is still refused (it never widens).
+   - KINDS unset, empty, or garbage (`*,all,QUOTE,quotes.x, ,ratingz`) admits nothing.
+   - A member is denied on `/data`, `/config` and `/turn`.
+3. **Flags-off regression against production `c6c6545006`.**
+   - Production = the Sprint 1 tree + one CI commit (#619, the gate timeout 25→40). The RC does not contain it, so the
+     Agent's own changes are `c3ba71c343..RC`. ⚠️ **Promote by MERGE, not tree replace**, or the gate timeout reverts
+     to 25.
+   - Routes: 1967 vs 1967, +0 −0; the 15 Agent routes and their auth dependencies are identical.
+   - `stock.profile`: answers plus request sequence BYTE-IDENTICAL production vs RC.
+   - Screener flags-off answers plus request sequence: BYTE-IDENTICAL.
+   - stock.quote and stock.dailyBars are absent from the manifest (the golden has no added or removed capability).
+   - Chart, indicator, watchlist, workspace and Undo: none of their files changed (`agentMutations` closure has 0
+     changed files), and their suites are green.
+   - **Every intended flags-off change, and nothing else (all non-test product files in the diff):**
+     - (a) stock.compare's rating row, text and summary removed (F-12);
+     - (b) `run_turn` never forwards `recentOutcome` (F-17; the field is still accepted);
+     - (c) naming skips local and marked rows (F-18, F-22);
+     - (d) history fails closed on action-less outcome rows outside `ACTIONLESS_OUTCOME_KINDS` (F-11, #622);
+     - (e) the L6 strip and the L5 `modelSafeBody` run on every turn, a no-op while nothing is marked;
+     - (f) #626 routing: the screen-condition patterns add the screener group;
+     - (g) #646: `screener.run`'s hint for "(latest session)" fields, plus a wider `SCREEN_WORDS` deciding when the full
+       catalog is sent;
+     - (h) config gains `data_kinds`;
+     - (i) the screener's gateway path also needs `screen.*` in `data_kinds` (no effect with scan off);
+     - (j) golden: only `screener.run.hints` and `stock.compare.summary`.
+     - Everything else is dormant code (marketData*, quotes `session_detail`, gateway allowlist and markers) or
+       test/eval data (`freshness.json`, `sc2.json`, `section_b*`, which has no importer).
+4. **Quote (MD-2) at this SHA:** PASS.
+   - 21 session clocks, including weekend, holiday, early close and O-1; real-adapter envelopes for live, stale, pre,
+     post, overnight, weekend, holiday, early close, partial, unavailable and refused.
+   - 16 fast phrasings at **0 model calls**; 4 dark shapes; the served path makes **no `/api/live-prices`** call and no
+     screener call.
+5. **stock.dailyBars (#644, in the RC, dark: `bars.daily` will not be listed):** the harness (PR #655) ran on this SHA
+   and PASSES (28 vitest + 10 pytest).
+   - Open: **F-23** (half-day 13:00–16:00 "last completed session"). Untested in activation; it stays dark this release.
+6. **Isolation matrix at this SHA**
+   - **PROVEN:** L1 (dormant, allowlist, refusal order); L2 including F-21 (data and rows marked); L3; L4 (local rows,
+     unreadable rows, F-11, F-18); L5; L6 (F-17, F-22, marked rows); L7; F-12 rating removed.
+   - **ACCEPTED (owner):** F-16-R (reconstruction from public inputs); cell #14 (non-local outcome text replayed, safe
+     while capability text is value-free); the bare-scalar copy-out residual (held by L3/L4).
+   - **OPEN, stated explicitly: F-16 enforcement (agent-sc PR-A #654 / PR-B) is NOT in this candidate.** The
+     pre-existing screener route still sends the model the field catalog that names all 33 prohibited fields (the 31 +
+     base_structure, base_relation_count, hvc_52w, theme). Measured in the model-bound body: each once, `theme` 16×.
+   - **Owner condition (A) PROVEN:** quote activation adds NO new path.
+     - Server: only quote and quotes are admitted, the quote row's fields contain none of the 33, and every `screen.*`
+       kind is refused for every purpose.
+     - Browser: for the same panel turns, prohibited-name occurrences in the model-bound body are IDENTICAL with quote
+       OFF and ON; the stock.quote manifest entry names none; the planner path makes no gateway read; the screener
+       stays on `/api/screener/scan`.
+7. **NL quality: held-out quote phrasings (44, written by QA without reading the parser;
+   `scores/quote-heldout.json`, rail `qa/quoteHeldout.test.js`): 35 PASS · 2 SAFE-MISS · 7 FAIL.**
+   - **FAIL, a confident answer at 0 model calls:**
+     - H26 "btc price" → quote BTC (an ETF, not bitcoin);
+     - H28 "what's the price of gold" → GOLD (Barrick);
+     - H37 "how's the s&p doing" → S, P;
+     - H29 "price of apple and microsoft" → APPLE (MSFT dropped);
+     - H30 "nvdia price" → NVDIA;
+     - H19 "nvda price history" → today's quote;
+     - H40 "nvda close on friday" → the latest close, whatever the day.
+   - SAFE-MISS: H06 "amd vs nvda price" and H35 "$nvda $amd $tsla" go to the model.
+   - **This misses the owner's bar** (a wrong quote or symbol is a FAIL), so: HOLD on activation. Owner: agent-md
+     (marketDataPhrases.js).
+8. **Still unverified:**
+   - SAT-1 B (credentialed live run; no credential);
+   - the real Massive provider's payloads (faked in every QA test);
+   - planner (model) quality on any phrasing (needs paid runs, not authorised);
+   - a real browser (jsdom only);
+   - stock.dailyBars in activation (dark);
+   - isolated kinds with a real reader (no caller exists);
+   - F-16 enforcement (not in the RC).
+9. **F-2, exactly (`components/screener/reachable.test.js`, a non-gate rail):**
+   - It fails 3 ways: the expired 2026-10-31 parking note "DASHBOARD COCKPIT RETIREMENT" still covers 24 files;
+     `chart/supportLoop/doorNameCoverage.js` is unreachable; `chart/engine/ast/doorCoverage.js` is reachable but still
+     parked.
+   - **None of the 25 is in the Agent release diff or changed vs production.**
+   - One is in the Agent's import closure: `doorCoverage.js`, via the existing chart builder (drawings → … → PineBox →
+     importGaps), unchanged since 2026-09-18. The rail's complaint about it is a stale parking entry, not a severed wire.
+   - The rail is **not in the master deploy gate**, which runs `tests/test_uct_agent*.py` and
+     `vitest src/agent + agentMutations`.
+   - **Verdict: harmless reachability noise for this release.** The notes belong to the dashboard and chart owners.
+   - `qa/sentinels.js` (the 26th, mine) has moved under `__fixtures__/program/` (test infra) in this PR.
+
 ## ⭐ F-16 FINAL RULING: agent-qa's INDEPENDENT review of fields that could reproduce a hidden UCT ranking
 For the owner (via agent-lead). Written **without reading agent-sc's list**, from the code on agent/int `0a1cda2216`:
 `api/services/screener/enrich.py`, `research/ratings.py`, `rs_weighted_return.py`, `screener/setup_score.py`,
