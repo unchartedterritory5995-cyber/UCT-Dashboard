@@ -1,0 +1,9 @@
+{
+  "_comment": "D2 item 8: a wikilink's display text, as Obsidian shows it, the same on both lanes: a heading link reads `Note > Heading`, a block link `Note`, this note's own heading `Heading`, a missing #-named file its name; a missing note embed reads as the note's name.",
+  "vault_id": "vault-1",
+  "self_path": "a.md",
+  "vault_paths": [
+    "a.md",
+    "Other note.md"
+  ]
+}

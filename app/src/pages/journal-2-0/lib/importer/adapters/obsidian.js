@@ -326,7 +326,16 @@ function transformEmbeds(text, ctx) {
     // segment — strip it before resolving.
     const target = rawTarget.split('|')[0].trim()
     const resolvedPath = resolveTarget(target, ctx.vfiles, ctx.basenameMap, ctx.fromDir)
-    if (!resolvedPath) return ctx.hold(unresolvedText(target))
+    if (!resolvedPath) {
+      // A missing NOTE reads as the note's name (`![[Ghost#Risk]]`, `![[Ghost.md]]`
+      // -> `Ghost`), as the server's pending link does; a missing FILE as written
+      // (D2 item 8, `providers/obsidian.py::_transform_wiki_and_embeds`).
+      const bare = unresolvedBareTarget(target)
+      if (bare && (/\.md$/i.test(bare) || !isAttachmentName(bare))) {
+        return ctx.hold(unresolvedText(bare.replace(/\.md$/i, '')))
+      }
+      return ctx.hold(unresolvedText(target))
+    }
 
     const name = basename(resolvedPath)
     if (/\.md$/i.test(resolvedPath)) {
@@ -351,8 +360,11 @@ function transformWikiLinks(text, ctx) {
   return text.replace(WIKILINK_RE, (_, rawTarget, rawAlias) => {
     const target = rawTarget.trim()
     const alias = rawAlias ? rawAlias.trim() : ''
-    const display = alias || target
     const resolvedPath = resolveTarget(target, ctx.vfiles, ctx.basenameMap, ctx.fromDir)
+    // A missing FILE whose name holds `#` (`[[report #2.pdf]]`) keeps its name;
+    // anything else reads as Obsidian shows it (`wikilinkDisplay`, D2 item 8).
+    const fileName = !resolvedPath && unresolvedBareTarget(target) !== stripFragment(target)
+    const display = alias || (fileName ? target : wikilinkDisplay(target))
     if (!resolvedPath) return ctx.hold(unresolvedText(display))
 
     const targetKey = `obsidian:${resolvedPath}`
@@ -484,6 +496,52 @@ function endsAt(form, want) {
 function stripFragment(target) {
   const idx = target.indexOf('#')
   return idx === -1 ? target : target.slice(0, idx).trim()
+}
+
+/**
+ * What a wikilink with no alias shows, as Obsidian shows it: `Note#Risk` reads
+ * `Note > Risk`; a block reference (`Note#^abc123`) reads just `Note`;
+ * `[[#Risk]]` (this note's own heading) reads `Risk`. Mirrors
+ * `providers/obsidian.py::_wikilink_display` (D2 item 8). ⚰️ It showed the
+ * target as written, `Note#Risk`.
+ */
+function wikilinkDisplay(rawTarget) {
+  const idx = rawTarget.indexOf('#')
+  if (idx === -1) return rawTarget
+  const note = rawTarget.slice(0, idx).trim()
+  const anchor = rawTarget.slice(idx + 1).trim()
+  if (anchor.startsWith('^') || !anchor) return note || rawTarget
+  return note ? `${note} > ${anchor}` : anchor
+}
+
+// THE extensions an unresolved target reads as a FILE, not a note. ⛔ The same
+// list as `providers/obsidian.py::_UNSENT_ATTACHMENT_EXTS`, pinned against it by
+// `test_obsidian_provider.py::test_the_client_attachment_extensions_are_the_servers`.
+const ATTACHMENT_EXTS = new Set((
+  'png jpg jpeg gif webp bmp svg heic heif tif tiff avif ' +
+  'pdf doc docx xls xlsx ppt pptx odt ods odp rtf csv tsv txt json xml ' +
+  'zip 7z rar gz tar ' +
+  'mp3 m4a wav ogg flac aac opus ' +
+  'mp4 mov m4v webm mkv avi ' +
+  'canvas epub'
+).split(' '))
+
+function isAttachmentName(path) {
+  const name = basename(path)
+  const idx = name.lastIndexOf('.')
+  return idx > 0 && ATTACHMENT_EXTS.has(name.slice(idx + 1).toLowerCase())
+}
+
+/**
+ * The name an UNRESOLVED target stands for, for the fallbacks that ask "is
+ * this a file?": the FULL text when it holds a `#` and its own extension is an
+ * attachment's (`my chart #1 (v2).png` is a file NAME), else the target with its
+ * anchor split off. Mirrors `providers/obsidian.py::_unresolved_bare_target`.
+ */
+function unresolvedBareTarget(target) {
+  const whole = target.trim()
+  if (whole.includes('#') && isAttachmentName(whole)) return whole
+  return stripFragment(whole)
 }
 
 // ---------------------------------------------------------------------------

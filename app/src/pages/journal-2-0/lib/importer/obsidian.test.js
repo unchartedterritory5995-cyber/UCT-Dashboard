@@ -174,10 +174,11 @@ describe('obsidian adapter — link anchors (#Heading / #^block) resolve to the 
     expect(a.links).toHaveLength(2)
     expect(a.links.every((l) => l.targetKey === 'obsidian:Vault/Note.md')).toBe(true)
     expect(a.html).toContain('data-import-link="obsidian:Vault/Note.md"')
-    // ...and the written display text (including the anchor) is preserved,
-    // not silently dropped, since only the RESOLUTION step ignores it.
-    expect(a.html).toContain('Note#Heading')
-    expect(a.html).toContain('Note#^abc123')
+    // ...and the anchor stays in the display text as Obsidian shows it, never
+    // silently dropped: a heading as `Note > Heading`, a block as the note's
+    // name (D2 item 8; it used to read `Note#Heading` / `Note#^abc123`).
+    const { bodyJson } = htmlToNote(a.html)
+    expect(extractPlainText(bodyJson)).toBe('see Note > Heading and Note')
   })
 })
 
@@ -557,5 +558,51 @@ describe('obsidian adapter — D2 item 4: an unshown embed lists no media and no
     expect(img.d.media.map((m) => m.ref)).toEqual(['V/img.png', 'V/q.pdf'])
     const both = await parseOne('[[Other|![[Plan]]]] after')
     expect(both.d.links.map((l) => l.targetKey)).toEqual(['obsidian:V/Plan.md', 'obsidian:V/Other.md'])
+  })
+})
+
+// ---------------------------------------------------------------------------
+// D2 item 8: a wikilink's display text is the server lane's
+// (`providers/obsidian.py::_wikilink_display`), as Obsidian shows it: a heading
+// link reads `Note > Heading`, a block link reads `Note`, a link to this note's
+// own heading reads `Heading`. A missing FILE whose name holds `#` keeps its
+// name. An unresolved note embed reads as the note's name, as the server's
+// pending link does. Parity fixtures 11 and 21 pin both lanes.
+// ---------------------------------------------------------------------------
+
+describe('obsidian adapter — D2 item 8: heading-link display text', () => {
+  const textOf = async (body) => {
+    const { docs } = await obsidianAdapter.parse([vf('V/src.md', body), vf('V/Other note.md', 'o')])
+    const d = docs.find((x) => x.importKey === 'obsidian:V/src.md')
+    return extractPlainText(htmlToNote(d.html).bodyJson)
+  }
+  const ROWS = [
+    ['[[Ghost#Risk]]', 'Ghost > Risk'],
+    ['[[Ghost#^abc]]', 'Ghost'],
+    ['[[#Risk]]', 'Risk'],
+    ['[[#^abc]]', '#^abc'],
+    ['[[Ghost# Risk ]]', 'Ghost > Risk'],
+    ['[[Ghost#]]', 'Ghost'],
+    ['[[Ghost#Risk#Sub]]', 'Ghost > Risk#Sub'],
+    ['[[Other note#Risk]]', 'Other note > Risk'],
+    ['[[Other note#^abc]]', 'Other note'],
+    ['[[Other note#Risk|the risk]]', 'the risk'],
+    ['[[report #2.pdf]]', 'report #2.pdf'],
+    ['[[q3 #4.xlsx|the sheet]]', 'the sheet'],
+    ['![[Ghost#Risk]]', 'Ghost'],
+    ['![[Ghost.md]]', 'Ghost'],
+    ['![[missing.png]]', 'missing.png'],
+    ['![[my chart #1 (v2).png]]', 'my chart #1 (v2).png'],
+  ]
+  for (const [body, expected] of ROWS) {
+    it(`${body} reads "${expected}"`, async () => {
+      expect(await textOf(body)).toBe(expected)
+    })
+  }
+
+  it('keeps the link of a resolved heading link under its new text', async () => {
+    const { docs } = await obsidianAdapter.parse([vf('V/src.md', '[[Other note#Risk]]'), vf('V/Other note.md', 'o')])
+    const d = docs.find((x) => x.importKey === 'obsidian:V/src.md')
+    expect(d.html).toContain('<a data-import-link="obsidian:V/Other note.md">Other note &gt; Risk</a>')
   })
 })

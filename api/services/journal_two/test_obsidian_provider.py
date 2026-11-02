@@ -1706,3 +1706,22 @@ def test_a_wikilink_in_a_callout_title_stays_a_link_in_the_bold_title():
     assert callout["type"] == "callout"
     assert _runs(callout["content"][0]) == [("See ", "bold", None), ("Plan", "bold+link", _key("Plan.md"))]
     assert extract_plain_text(out["doc"]) == "See Plan body"
+
+
+def test_the_client_attachment_extensions_are_the_servers():
+    """D2 item 8: the client adapter reads an unresolved `#`-holding target as a FILE name by
+    the same extension list as this provider (`_UNSENT_ATTACHMENT_EXTS`), so both lanes show
+    `[[report #2.pdf]]` the same way. Parses the client's string literals; one list, two
+    copies, pinned."""
+    import pathlib
+    import re as _re
+
+    from api.services.journal_two.note_connectors.providers.obsidian import _UNSENT_ATTACHMENT_EXTS
+
+    js = (pathlib.Path(__file__).resolve().parents[3] / "app" / "src" / "pages" / "journal-2-0"
+          / "lib" / "importer" / "adapters" / "obsidian.js").read_text(encoding="utf-8")
+    block = _re.search(r"const ATTACHMENT_EXTS = new Set\(\(([\s\S]*?)\)\.split\(' '\)\)", js)
+    assert block, "obsidian.js no longer declares ATTACHMENT_EXTS in the pinned shape"
+    words = " ".join(_re.findall(r"'([^']*)'", block.group(1))).split()
+    assert len(words) == len(set(words))
+    assert set(words) == set(_UNSENT_ATTACHMENT_EXTS)

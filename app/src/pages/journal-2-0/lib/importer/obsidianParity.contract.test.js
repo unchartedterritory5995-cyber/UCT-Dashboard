@@ -202,19 +202,9 @@ const knownClientGap = {
       ],
     },
   },
-  // Plan B task "Obsidian anchors" (spec §5.2 polish, O-11): the client shows
-  // `Other note#Risk`. ⚰️ Its `![[Other note]]` file chip of the raw `.md` is closed
-  // (D1 fix round 2, M4): a note embed is now a link to the note on both lanes.
-  '11-anchors-and-embeds.json': {
-    clientReads: {
-      links: [
-        { text: 'Other note#Risk', target: 'Other note.md' },
-        { text: 'the risk', target: 'Other note.md' },
-        { text: 'Other note', target: 'Other note.md' },
-      ],
-      text: 'Anchors and embeds See Other note#Risk and the risk. Other note',
-    },
-  },
+  // ⚰️ 11-anchors-and-embeds: closed by D2 item 8. Both lanes show a heading link as
+  // `Other note > Risk` (the client showed `Other note#Risk`); the `![[Other note]]` file
+  // chip was closed by D1 fix round 2, M4.
   // Plan B task "Obsidian callouts" (spec §5.2 polish): the client writes a blockquote
   // with a bold title, and its marker regex loses the untitled callout's title.
   '12-callouts.json': {
