@@ -1020,6 +1020,246 @@
       }
     },
     {
+      "id": "ir-symbol",
+      "category": "instrument-symbol",
+      "kind": "instrument.resolve",
+      "purpose": "answer",
+      "question": "What's NVDA trading at right now?",
+      "envelope": {
+        "contract": "MD-1.0",
+        "kind": "instrument.resolve",
+        "params_echo": {
+          "symbols": [
+            {
+              "text": "NVDA",
+              "form": "upper"
+            }
+          ]
+        },
+        "status": "ok",
+        "freshness": "periodic",
+        "as_of": "2026-11-02T14:00:00Z",
+        "fetched_at": "2026-11-02T16:55:00Z",
+        "delay_s": null,
+        "stale": false,
+        "source": "uct-symbol-index",
+        "coverage": null,
+        "data": {
+          "results": [
+            {
+              "input": "NVDA",
+              "form": "upper",
+              "class": "symbol",
+              "symbol": "NVDA",
+              "name": "NVIDIA Corporation",
+              "type": "stock",
+              "candidate": null
+            }
+          ],
+          "all_symbols": true
+        },
+        "notes": [
+          "classified from UCT's symbol index (US stocks and ETFs, with indexes and UCT series typed apart)"
+        ],
+        "provider_calls": 0
+      },
+      "expect": {
+        "freshness_class": "periodic",
+        "as_of_renderings": [
+          "2026-11-02",
+          "Nov 2",
+          "November 2",
+          "9:00"
+        ],
+        "may_claim_live": false,
+        "must_disclose_stale": false,
+        "must_say_unavailable": false,
+        "must_not_state_a_value": false,
+        "must_disclose": [
+          "NVIDIA Corporation"
+        ],
+        "as_of_null_reason_required": false
+      },
+      "expect_refusal": false,
+      "flags": {}
+    },
+    {
+      "id": "ir-lowercase-word",
+      "category": "instrument-ask",
+      "kind": "instrument.resolve",
+      "purpose": "answer",
+      "question": "what's the price of gold right now",
+      "envelope": {
+        "contract": "MD-1.0",
+        "kind": "instrument.resolve",
+        "params_echo": {
+          "symbols": [
+            {
+              "text": "gold",
+              "form": "lower"
+            }
+          ]
+        },
+        "status": "ok",
+        "freshness": "periodic",
+        "as_of": "2026-11-02T14:00:00Z",
+        "fetched_at": "2026-11-02T16:55:00Z",
+        "delay_s": null,
+        "stale": false,
+        "source": "uct-symbol-index",
+        "coverage": null,
+        "data": {
+          "results": [
+            {
+              "input": "gold",
+              "form": "lower",
+              "class": "symbol_typed_lowercase",
+              "symbol": null,
+              "name": null,
+              "type": null,
+              "candidate": {
+                "symbol": "GOLD",
+                "name": "Barrick Gold Corporation",
+                "type": "stock"
+              }
+            }
+          ],
+          "all_symbols": false
+        },
+        "notes": [
+          "classified from UCT's symbol index (US stocks and ETFs, with indexes and UCT series typed apart)"
+        ],
+        "provider_calls": 0
+      },
+      "expect": {
+        "freshness_class": "periodic",
+        "as_of_renderings": [
+          "2026-11-02",
+          "Nov 2",
+          "November 2",
+          "9:00"
+        ],
+        "may_claim_live": false,
+        "must_disclose_stale": false,
+        "must_say_unavailable": false,
+        "must_not_state_a_value": false,
+        "must_disclose": [
+          "Barrick Gold Corporation"
+        ],
+        "as_of_null_reason_required": false
+      },
+      "expect_refusal": false,
+      "flags": {}
+    },
+    {
+      "id": "ir-index",
+      "category": "instrument-non-equity",
+      "kind": "instrument.resolve",
+      "purpose": "answer",
+      "question": "What's SPX at now?",
+      "envelope": {
+        "contract": "MD-1.0",
+        "kind": "instrument.resolve",
+        "params_echo": {
+          "symbols": [
+            {
+              "text": "SPX",
+              "form": "upper"
+            }
+          ]
+        },
+        "status": "ok",
+        "freshness": "periodic",
+        "as_of": "2026-11-02T14:00:00Z",
+        "fetched_at": "2026-11-02T16:55:00Z",
+        "delay_s": null,
+        "stale": false,
+        "source": "uct-symbol-index",
+        "coverage": null,
+        "data": {
+          "results": [
+            {
+              "input": "SPX",
+              "form": "upper",
+              "class": "non_equity",
+              "symbol": null,
+              "name": "S&P 500 Index",
+              "type": "index",
+              "candidate": null
+            }
+          ],
+          "all_symbols": false
+        },
+        "notes": [
+          "classified from UCT's symbol index (US stocks and ETFs, with indexes and UCT series typed apart)"
+        ],
+        "provider_calls": 0
+      },
+      "expect": {
+        "freshness_class": "periodic",
+        "as_of_renderings": [
+          "2026-11-02",
+          "Nov 2",
+          "November 2",
+          "9:00"
+        ],
+        "may_claim_live": false,
+        "must_disclose_stale": false,
+        "must_say_unavailable": false,
+        "must_not_state_a_value": false,
+        "must_disclose": [
+          "index"
+        ],
+        "as_of_null_reason_required": false
+      },
+      "expect_refusal": false,
+      "flags": {}
+    },
+    {
+      "id": "ir-not-ready",
+      "category": "instrument-unavailable",
+      "kind": "instrument.resolve",
+      "purpose": "answer",
+      "question": "What's NVDA trading at right now?",
+      "envelope": {
+        "contract": "MD-1.0",
+        "kind": "instrument.resolve",
+        "params_echo": {
+          "symbols": [
+            {
+              "text": "NVDA",
+              "form": "upper"
+            }
+          ]
+        },
+        "status": "unavailable",
+        "freshness": "unavailable",
+        "as_of": null,
+        "fetched_at": "2026-11-02T16:55:00Z",
+        "delay_s": null,
+        "stale": false,
+        "source": "uct-symbol-index",
+        "coverage": null,
+        "data": null,
+        "notes": [
+          "the symbol index is not loaded yet, so no word can be checked"
+        ],
+        "provider_calls": 0
+      },
+      "expect": {
+        "freshness_class": "unavailable",
+        "as_of_renderings": [],
+        "may_claim_live": false,
+        "must_disclose_stale": false,
+        "must_say_unavailable": true,
+        "must_not_state_a_value": true,
+        "must_disclose": [],
+        "as_of_null_reason_required": false
+      },
+      "expect_refusal": false,
+      "flags": {}
+    },
+    {
       "id": "b-today",
       "category": "historical",
       "kind": "bars.daily",

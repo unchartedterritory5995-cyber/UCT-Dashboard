@@ -123,6 +123,16 @@ Only agent-md edits this file. Update it in every PR.
   tests expect the gateway's `isolated` marker and assert it is true on the envelope, its data and every nested dict.
   Mutation-checked 2 ways against the stamp (not recursive; data not stamped: each red).
 
+- **Quote-language fix (owner decision; RELEASE BLOCKER for quote activation), MD-1 §4.7.** QA's blind held-out set
+  (#656) found 7 confident wrong answers. Approved design: intent on the client (pure parser), instrument on the
+  server from the canonical symbol index (`ticker_search_index`), failing closed.
+  - **Server half** (branch `agent/md/instrument-resolve`): new kind `instrument.resolve` (`instruments.py`), one
+    class per word — symbol · symbol_typed_lowercase · name_match · non_equity · unknown; a cold index is
+    `unavailable`; 0 provider calls; only the index's public read API. Freshness corpus +4 questions (38).
+    Tests 34, mutation-checked 5 ways.
+  - **Client half** (intent-only parser, resolve-before-read in stock.quote and stock.dailyBars, named securities,
+    fixed clarifications, activation needs `instrument.resolve`): in progress.
+
 ## Blockers
 - (none) — the Sprint-0 gateway test was updated by agent-lead in #571.
 
