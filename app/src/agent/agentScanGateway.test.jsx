@@ -26,15 +26,16 @@ const envelope = (kind, params, over = {}) => ({
 })
 const refused = (kind, params, note) => envelope(kind, params, { status: 'refused', freshness: 'unavailable', as_of: null, coverage: null, data: null, notes: [note] })
 
-let calls, scansByTurn, scanFlag, nextScan
+let calls, scansByTurn, scanFlag, nextScan, kinds
+const ALL_SCAN_KINDS = ['screen.run', 'screen.count', 'screen.saved']
 beforeEach(async () => {
   _resetScreenerCache(); _resetAgentConfig(); _resetTurns()
-  calls = []; scansByTurn = new Map(); scanFlag = true; nextScan = null
+  calls = []; scansByTurn = new Map(); scanFlag = true; nextScan = null; kinds = ALL_SCAN_KINDS
   globalThis.fetch = vi.fn(async (url, init = {}) => {
     const body = init.body ? JSON.parse(init.body) : null
     calls.push([String(url), body])
     const json = (o, status = 200) => new Response(JSON.stringify(o), { status, headers: { 'content-type': 'application/json' } })
-    if (url === '/api/agent/config') return json({ stream: false, nl1: false, data: scanFlag, scan: scanFlag })
+    if (url === '/api/agent/config') return json({ stream: false, nl1: false, data: scanFlag, scan: scanFlag, data_kinds: kinds })
     if (url === '/api/screener/fields') return json(META)
     if (url === '/api/screener/saved-screens') return json(SAVED)
     if (url === '/api/screener/scan') return json({ total: 2, rows: [{ ticker: 'LEG', price: 1 }], snapshot_date: '2026-10-31', snapshot: {} })

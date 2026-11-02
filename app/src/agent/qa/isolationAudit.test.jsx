@@ -19,6 +19,7 @@ import { loadAgentConfig, _resetAgentConfig } from '../agentClient'
 import { _resetScreenerCache, loadMeta } from '../capabilities/screener'
 import { _resetTurns } from '../trace'
 import { makeBoard } from '../__fixtures__/board'
+import { leaksOf } from './sentinels'
 
 vi.mock('../../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
 import AgentPanel from '../AgentPanel'
@@ -26,9 +27,9 @@ import AgentPanel from '../AgentPanel'
 registerBuiltins()
 const REPO = path.resolve(__dirname, '../../../..')
 const META = JSON.parse(fs.readFileSync(path.join(REPO, 'app/src/agent/__fixtures__/program/scores/screener-fields.json'), 'utf8'))
-const VALUES = ['987.654', '135.79', '246.81']                         // sentinel composites, never real 1–99 values
+const VALUES = ['987.65', '135.79', '246.81']   // sentinel composites, never real 1–99; their OWN 2-decimal display form (the table rounds), matched as whole tokens
 const ORDER = ['ZZQA', 'ZZQB', 'ZZQC']                                  // the screen's rows, ranked by composite
-const leaks = (o) => VALUES.filter(v => JSON.stringify(o ?? null).includes(v))
+const leaks = (o) => leaksOf(o, VALUES)                                  // token-aware (./sentinels.js)
 
 let envelopes, turnBodies, records, scans
 beforeEach(async () => {

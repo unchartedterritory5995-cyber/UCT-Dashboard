@@ -25,17 +25,14 @@ from api.services.uct_agent import turn
 from api.services.uct_agent.marketdata import envelope as env
 from api.services.uct_agent.marketdata import gateway as gw
 
-SENT_NUM = "987.654"
-SENT_INT = "13579"
-SENT_STR = "ISO-SENTINEL-7Q"
-SENTINELS = (SENT_NUM, SENT_INT, SENT_STR)
+# token-aware sentinels, shared (tests/test_uct_agent_qa_sentinels.py): a timing can no longer read as a leak
+from tests.test_uct_agent_qa_sentinels import SENT_NUM, SENT_INT, SENT_STR, SENTINELS, leaks as _token_leaks
 PURPOSES = sorted(env.PURPOSES)
 KINDS_ENV = "UCT_AGENT_DATA_KINDS"          # agent-lead's planned per-kind allowlist (Sprint 2)
 
 
 def leaks(obj) -> list[str]:
-    s = obj if isinstance(obj, str) else json.dumps(obj, default=str)
-    return [x for x in SENTINELS if x in s]
+    return _token_leaks(obj, SENTINELS)
 
 
 @pytest.fixture(autouse=True)
@@ -302,7 +299,7 @@ def test_L6_PROVEN_F17_recent_outcome_never_reaches_the_model_even_with_no_local
     turn.run_turn(message=f"and now {SENT_STR}?", context={}, history=[], caller=_scripted(calls),
                   recent_outcome=f"breadth {SENT_NUM}% above 50sma")
     sent = _sent(calls)
-    assert SENT_NUM not in sent
+    assert SENT_NUM not in leaks(sent)
     assert SENT_STR in sent, "CONTROL: the member's own words are forwarded (the detector can see a payload)"
 
 
