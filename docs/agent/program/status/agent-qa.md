@@ -2,6 +2,24 @@
 
 Only agent-qa edits this file. Update it in every PR.
 
+## Lowercase crypto cashtags (`$btc`, `$eth`, `$sol`): reviewed the REAL answer text, 2026-11-02 (rail `qa/fundLabel.test.js`)
+- `$btc` → `BTC (Grayscale Bitcoin Mini Trust, an ETF) $… ` plus the fund-price sentence; `$eth` is the same (Grayscale
+  Ethereum Mini Trust). **Not silent: acceptable.**
+- `$sol` → `SOL (Emeren Group Ltd) $…`, with NO fund sentence (a stock, not a fund). The only signal that this is a
+  solar company and not Solana is the name. **Not silent, but the weakest of the three. Owner decision:** keep it
+  (a cashtag is an explicit marker), or treat lowercase cashtags on known crypto words like the bare word
+  (the neutral ask).
+
+## Adversarial quote set 3 (BLIND, 97 rows), committed before agent-md's general lowercase design was seen, 2026-11-02
+- `scores/quote-adversarial-3.json` and the rail `qa/quoteAdversarial.test.js`. It covers clear lowercase tickers, word
+  and crypto tickers, explicit-ticker controls, lowercase crypto cashtags, natural commodity/index/crypto phrasing,
+  misspellings and share classes, historical phrasing, compounds and controls.
+- The bar: FAIL = 0 (no wrong, coincidental or current-for-historical execution); `must_execute` (22) for clear tickers.
+- QA index +8 real listings (GOOG, CAT, CAR, FUN, LINK, GLD, DIA, IBIT); the resolve fixture was regenerated. All
+  existing QA pins are unchanged (12 files, 180 passed).
+- **Baseline on #691: 0 FAIL; 14 must-execute misses** (every clear lowercase ticker and compound). `$btc/$eth/$sol`
+  execute the listing, which is allowed ONLY if the answer names it. That needs a text review on the real answer.
+
 ## PR #691 (`7648fd6631`, neutral ask + ETF labelling): **GO** as the fallback; pins updated, 2026-11-02
 - Owner ruling 1 (neutral ask): every ask in both held-out sets (18) and all 15 MD-1-phrasings ask rows is the
   `clarifyText` sentence. It names the word as typed, never offers a candidate and names no index security.
