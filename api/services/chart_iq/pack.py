@@ -103,7 +103,29 @@ def _reader():
         _conn().close()   # schema / WAL set up once per file
         held = (p, sqlite3.connect(p, timeout=5, check_same_thread=False))
         _TL.conn = held
+        warm_file(p)
     return held[1]
+
+
+_WARMED: set = set()
+
+
+def warm_file(path: str) -> None:
+    """Read the pack file once, sequentially, in the background, so its pages sit in the OS page cache: the first lookups on a
+    fresh pod were 1-2 s each on the network disk (measured 2026-11-02) while a sequential read of the whole file is fast. No
+    copy is held in the process; the kernel may evict the pages as it likes. Once per file per process."""
+    if path in _WARMED:
+        return
+    _WARMED.add(path)
+
+    def _run():
+        try:
+            with open(path, "rb") as fh:
+                while fh.read(8 * 1024 * 1024):
+                    pass
+        except OSError:
+            pass
+    threading.Thread(target=_run, name="chart-iq-pack-warm", daemon=True).start()
 
 
 def get(ticker: str, today: str | None = None) -> dict | None:
@@ -287,6 +309,7 @@ def sync_from_r2(s3=None) -> dict:
                     os.remove(os.path.join(_data_dir(), f))
                 except OSError:
                     pass
+        warm_file(target)
         rep = {"installed": latest, "day": day, "rows": rows}
         log.info("[chart_iq_pack] synced %s", rep)
         return rep

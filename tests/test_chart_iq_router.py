@@ -482,3 +482,16 @@ def test_pack_sync_installs_a_pc_built_pack_and_refuses_bad_ones(tmp_path, monke
     s3.put(104, _pack_blob(tmp_path, "2026-11-02"))
     assert pack.sync_from_r2(s3=s3).get("installed") == 104 and pack._path().endswith("chart_iq_pack-104.db")
     assert not any(f.startswith(".chart_iq_pack-") for f in os.listdir(d))   # no staging files left behind
+
+
+def test_pack_file_is_warmed_once_per_file(tmp_path, monkeypatch):
+    from api.services.chart_iq import pack
+    reads = []
+    real_open = open
+    f = tmp_path / "p.db"; f.write_bytes(b"x" * 1000)
+    monkeypatch.setattr(pack, "_WARMED", set())
+    import threading as _th
+    started = []
+    monkeypatch.setattr(pack.threading, "Thread", lambda target, **kw: type("T", (), {"start": lambda self: (started.append(1), target())})())
+    pack.warm_file(str(f)); pack.warm_file(str(f))
+    assert started == [1]                                                   # once per file per process
