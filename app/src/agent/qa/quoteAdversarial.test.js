@@ -65,17 +65,19 @@ describe('agent-qa adversarial quote set 3 (blind)', () => {
     expect(new Set(SET3.rows.map(r => r.cat)).size).toBe(9)
     expect(SET3.rows.filter(r => r.must_execute)).toHaveLength(22)
   })
-  it('BASELINE on #691 (7648fd6631): ZERO wrong executions; every clear lowercase ticker is a must-miss', async () => {
+  it('#695 (a4a1179044, §4.7.5): ZERO wrong executions; 5 must-execute misses (spy, qqq, googl and their compounds)', async () => {
     const r = await scoreAdversarial(SET3.rows)
     expect(r.fail).toEqual([])
     expect(r).toMatchObject(BASELINE)
   })
 })
 
-// Measured on 7648fd6631 + agent-qa pins. The general design is scored against this file; FAIL must stay [].
+// #691 (7648fd6631) measured: 0 FAIL, 14 must-miss (every clear lowercase ticker), and $btc/$eth/$sol executed.
+// #695 (a4a1179044, §4.7.5) measured below: 0 FAIL, 5 must-miss; lowercase crypto cashtags now ask. FAIL must stay [].
 const BASELINE = {
-  must_miss: ['A01', 'A02', 'A03', 'A04', 'A05', 'A06', 'A07', 'A08', 'A09', 'A10', 'A12', 'C01', 'C04', 'C06'],
-  executed: { H13: 'AAPL:range52w', K01: 'NVDA', K02: 'NVDA', M10: 'GOOG', W20: 'ON', W21: 'GOLD', W22: 'BTC', W23: 'NOW',
-    W24: 'CAT', W30: 'BTC', W31: 'ETH', W32: 'SOL' },
-  outcomes: { answered_without_read: 47, model: 38, priced: 12 },
+  must_miss: ['A04', 'A05', 'A09', 'C04', 'C06'],
+  executed: { A01: 'NVDA', A02: 'AAPL', A03: 'MSFT', A06: 'TSLA', A07: 'AMD', A08: 'NVDA', A10: 'PLTR', A12: 'AMZN',
+    C01: 'NVDA+AMD', H12: 'AAPL:range52w', H13: 'AAPL:range52w', K01: 'NVDA', K02: 'NVDA', M10: 'GOOG', W20: 'ON',
+    W21: 'GOLD', W22: 'BTC', W23: 'NOW', W24: 'CAT' },
+  outcomes: { priced: 19, answered_without_read: 40, model: 38 },
 }
