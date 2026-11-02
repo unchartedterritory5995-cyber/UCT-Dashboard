@@ -7752,11 +7752,30 @@ function buildRuntimeIrLinked(source, opts, holder) {
   const NON_BOOL_TYPES = new Set(['float', 'int', 'string', 'color'])
   const TYPE_WORDS = new Set(['float', 'int', 'string', 'color', 'bool'])
   const NUMERIC_SERIES = new Set(['open', 'high', 'low', 'close', 'volume', 'hl2', 'hlc3', 'ohlc4', 'hlcc4',
-    'bar_index', 'time', 'time_close', 'last_bar_index', 'timenow'])
-  const NUMERIC_CALL = /^(ta\.(sma|ema|rma|wma|hma|vwma|swma|alma|linreg|atr|tr|rsi|cci|mfi|stdev|variance|dev|highest|lowest|highestbars|lowestbars|mom|roc|cum|percentrank|median|mode|range|barssince|correlation|vwap|wpr|cmo|tsi|obv|pvt|accdist|iii|wvad|nvi|pvi|sar|supertrend|bb|bbw|kc|kcw|dmi|macd|stoch|pivothigh|pivotlow)|math\.[a-z_]+|str\.(tostring|format|length|replace|replace_all|lower|upper|substring|trim|repeat|tonumber|pos)|color\.[a-z_]+|int|float|string)$/
+    'bar_index', 'time', 'time_close', 'last_bar_index', 'timenow',
+    // ⭐ (re-review 2 H-2) `na` is never a v6 bool (a bool cannot hold `na`); the
+    // built-in VARIABLES below are numbers or strings by Pine's reference
+    'na', 'ta.tr', 'ta.vwap', 'ta.obv', 'ta.accdist', 'ta.iii', 'ta.nvi', 'ta.pvi', 'ta.pvt', 'ta.wad', 'ta.wvad',
+    'dayofweek', 'dayofmonth', 'hour', 'minute', 'second', 'month', 'year', 'weekofyear', 'last_bar_time',
+    'time_tradingday', 'timeframe.period', 'timeframe.multiplier', 'syminfo.mintick', 'syminfo.pointvalue',
+    'syminfo.pricescale', 'syminfo.minmove', 'syminfo.ticker', 'syminfo.tickerid', 'syminfo.prefix',
+    'syminfo.root', 'syminfo.currency', 'syminfo.basecurrency', 'syminfo.description', 'syminfo.type',
+    'syminfo.timezone', 'syminfo.session'])
+  const NUMERIC_CALL = /^(ta\.(sma|ema|rma|wma|hma|vwma|swma|alma|linreg|atr|tr|rsi|cci|mfi|stdev|variance|dev|highest|lowest|highestbars|lowestbars|mom|roc|cum|percentrank|median|mode|range|barssince|correlation|vwap|wpr|cmo|tsi|obv|pvt|accdist|iii|wvad|nvi|pvi|sar|supertrend|bb|bbw|kc|kcw|dmi|macd|stoch|pivothigh|pivotlow|max|min)|math\.[a-z_]+|input\.(int|float|source|price|string|color|timeframe|symbol|session|text_area|time)|str\.(tostring|format|length|replace|replace_all|lower|upper|substring|trim|repeat|tonumber|pos)|color\.[a-z_]+|int|float|string)$/
   // ⛔ (review 3 M-1a, re-review H-2) `ta.valuewhen`, `ta.change` and `nz` return their
   // SOURCE's type: provably non-bool exactly when that source argument is.
   const SOURCE_TYPED_CALL = Object.freeze({ nz: 0, 'ta.change': 0, 'ta.valuewhen': 1 })
+  // ⛔ (re-review 2 L-5) the source is the argument NAMED `source` when one is, else the
+  // positional one at its index (Pine puts positional arguments first)
+  const sourceArgOf = (args, idx) => {
+    const list = Array.isArray(args) ? args : []
+    const named = list.find((a) => a && a.name === 'source')
+    if (named) return named.value
+    const a = list.filter((x) => x && !x.name)[idx]
+    return a ? (a.value !== undefined ? a.value : a) : null
+  }
+  // ⭐ (re-review 2 H-2) builtins returning a TUPLE of numbers: every destructured name is one
+  const NUMERIC_TUPLE_CALL = new Set(['ta.macd', 'ta.bb', 'ta.kc', 'ta.dmi', 'ta.supertrend'])
   // ⛔ (review 3 M-1b, re-review H-2) NAMES ARE TYPED PER SCOPE: the main program, or one
   // user function (its parameters and every binding in its body). A spelling is numeric
   // in a scope when every DECLARATION of it there (`=`; a parameter counts, untyped =
@@ -7771,7 +7790,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
   }
   const typeTables = () => {
     if (typeInfo) return typeInfo
-    const decls = new Map()   // `${scope}\u0000${name}` -> [{ ty, rhs }]  (rhs null = unknown)
+    const decls = new Map()   // `${scope}\u0000${name}` -> [{ ty, rhs, sc, tuple }]  (rhs null = unknown)
+    const results = new Map() // function name -> [result tokens | null]  (one per definition)
     const add = (sc, nm, rec) => {
       const key = `${sc}\u0000${nm}`
       if (!decls.has(key)) decls.set(key, [])
@@ -7788,31 +7808,75 @@ function buildRuntimeIrLinked(source, opts, holder) {
           let tyw = null
           for (const x of h.slice(open + 1, arrow)) {
             if (x.kind === 'ident' && TYPE_WORDS.has(x.value)) { tyw = x.value; continue }
-            if (x.kind === 'ident' && !['simple', 'series', 'const'].includes(x.value)) { add(fn, String(x.value), { ty: tyw, rhs: null }); tyw = null }
+            if (x.kind === 'ident' && !['simple', 'series', 'const'].includes(x.value)) { add(fn, String(x.value), { ty: tyw, rhs: null, sc: fn }); tyw = null }
             if (isPunct(x, ',')) tyw = null
           }
           const inline = h.slice(arrow + 1)
           if (inline.length) visit([{ header: inline, sub: [] }], fn)
           visit(st.sub, fn)
+          // ⭐ (re-review 2 H-2) a user function's value is its LAST line's, typed in its
+          // own scope; a body ending in a block is unknown (null)
+          if (!results.has(fn)) results.set(fn, [])
+          results.get(fn).push(inline.length ? inline : armValueToks(st.sub))
           continue
         }
         for (const t of statementCommaParts(st) || [h]) {
           const eq = findTop(t, (x) => isPunct(x, '='))
+          if (eq > 0 && isPunct(t[0], '[') && isPunct(t[eq - 1], ']')) {
+            // ⭐ (re-review 2 H-2) `[a, b] = rhs`: each name is the rhs tuple's element
+            let i = 0
+            for (const x of t.slice(1, eq - 1)) {
+              if (x.kind === 'ident') { add(sc, String(x.value), { ty: null, rhs: null, sc, tuple: { rhs: t.slice(eq + 1), i } }); i += 1 }
+            }
+            continue
+          }
           if (eq <= 0 || !t[eq - 1] || t[eq - 1].kind !== 'ident') continue
           const tyTok = t.slice(0, eq - 1).find((x) => x.kind === 'ident' && TYPE_WORDS.has(x.value))
-          add(sc, String(t[eq - 1].value), { ty: tyTok ? tyTok.value : null, rhs: t.slice(eq + 1) })
+          add(sc, String(t[eq - 1].value), { ty: tyTok ? tyTok.value : null, rhs: t.slice(eq + 1), sc })
         }
         visit(st.sub, sc)
       }
     }
     visit(stmts, '')
-    typeInfo = { decls, memo: new Map() }
+    typeInfo = { decls, results, memo: new Map() }
     return typeInfo
   }
   const curTypeScope = () => (owner === null ? '' : String((functions[owner] && functions[owner].name) || ''))
+  // ⛔ (re-review 2 M-3) typing is not block-scope aware, so a read inside a function may
+  // reach its own declarations OR the main program's: BOTH must be numeric (conflicting
+  // types in reach are unknown — the conservative direction).
   const declsOf = (sc, nm) => {
     const { decls } = typeTables()
-    return decls.get(`${sc}\u0000${nm}`) || (sc !== '' ? decls.get(`\u0000${nm}`) : null) || null
+    const own = decls.get(`${sc}\u0000${nm}`) || []
+    const main = sc !== '' ? (decls.get(`\u0000${nm}`) || []) : []
+    const all = [...own, ...main]
+    return all.length ? all : null
+  }
+  /** element `i` of a tuple-valued rhs: a numeric builtin tuple, or a user function
+   *  whose every definition ends in a tuple literal `[…]` */
+  const tupleElementNumeric = ({ rhs, i }) => {
+    let node = null
+    try { node = parseWholeExpression(rhs) } catch { return false }
+    if (!node || node.type !== 'call') return false
+    const nm = String(node.name)
+    const rs = typeTables().results.get(nm)
+    if (rs) {
+      return rs.every((toks) => {
+        if (!toks || !isPunct(toks[0], '[') || !isPunct(toks[toks.length - 1], ']')) return false
+        const parts = []
+        let depth = 0
+        let cur = []
+        for (const x of toks.slice(1, -1)) {
+          if (isPunct(x, '(') || isPunct(x, '[')) depth += 1
+          if (isPunct(x, ')') || isPunct(x, ']')) depth -= 1
+          if (depth === 0 && isPunct(x, ',')) { parts.push(cur); cur = []; continue }
+          cur.push(x)
+        }
+        parts.push(cur)
+        return !!parts[i] && provablyNonBoolToks(parts[i], nm)
+      })
+    }
+    return NUMERIC_TUPLE_CALL.has(nm)
   }
   const nameIsNumeric = (sc, nm) => {
     const { memo } = typeTables()
@@ -7820,7 +7884,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
     if (memo.has(key)) return memo.get(key)
     memo.set(key, false)   // a cycle is not a proof
     const ds = declsOf(sc, nm)
-    const ok = !!ds && ds.every((d) => (d.ty ? NON_BOOL_TYPES.has(d.ty) : d.rhs !== null && provablyNonBoolToks(d.rhs, sc)))
+    const ok = !!ds && ds.every((d) => (d.ty ? NON_BOOL_TYPES.has(d.ty)
+      : d.tuple ? tupleElementNumeric(d.tuple)
+        : d.rhs !== null && provablyNonBoolToks(d.rhs, d.sc)))
     memo.set(key, ok)
     return ok
   }
@@ -7840,14 +7906,29 @@ function buildRuntimeIrLinked(source, opts, holder) {
     if (n.type === 'offset') return provablyNonBoolNode(n.of || n.expr || n.target, sc, d + 1)
     if (n.type === 'call') {
       const nm = String(n.name)
+      // ⭐ (re-review 2 H-2) a user function is typed by its result, in its own scope
+      if (typeTables().results.has(nm)) return fnIsNumeric(nm)
       if (Object.prototype.hasOwnProperty.call(SOURCE_TYPED_CALL, nm)) {
-        const a = Array.isArray(n.args) ? n.args[SOURCE_TYPED_CALL[nm]] : null
-        return !!a && provablyNonBoolNode(a.value !== undefined ? a.value : a, sc, d + 1)
+        const a = sourceArgOf(n.args, SOURCE_TYPED_CALL[nm])
+        return !!a && provablyNonBoolNode(a, sc, d + 1)
       }
       return NUMERIC_CALL.test(nm)
     }
-    if (n.type === 'name') return NUMERIC_SERIES.has(String(n.name)) || nameIsNumeric(sc, String(n.name))
+    // ⛔ (re-review 2 L-4) a declaration wins over a built-in of the same spelling
+    if (n.type === 'name') {
+      const nm = String(n.name)
+      return declsOf(sc, nm) ? nameIsNumeric(sc, nm) : NUMERIC_SERIES.has(nm)
+    }
     return false
+  }
+  const fnIsNumeric = (fn) => {
+    const { results, memo } = typeTables()
+    const key = `\u0001${fn}`
+    if (memo.has(key)) return memo.get(key)
+    memo.set(key, false)   // recursion is not a proof
+    const ok = results.get(fn).every((toks) => !!toks && provablyNonBoolToks(toks, fn))
+    memo.set(key, ok)
+    return ok
   }
   const provablyNonBoolToks = (toks, sc = curTypeScope()) => {
     if (!toks || !toks.length) return false

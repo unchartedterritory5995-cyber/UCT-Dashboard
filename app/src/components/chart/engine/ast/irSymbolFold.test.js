@@ -160,6 +160,21 @@ describe('⭐⭐ v2:249 clears when the IR lane is told the symbol', () => {
     }
   })
 
+  // ⛔ re-review 2 L-6 — the property loop above passes VACUOUSLY on an empty list, so it
+  // is proved able to see a skip: a helper this lane cannot compile (a `for … in` loop),
+  // injected after v2's `indicator(…)` line, is reported by name, line and guard.
+  it('⛔ the skip list still reports a skipped definition when one exists (the loop is not vacuous)', () => {
+    const lines = V2.split(/\r?\n/)
+    const at = lines.findIndex((l) => l.startsWith('indicator('))
+    expect(at).toBeGreaterThan(0)
+    const helper = ['f_spin_rail(_x) =>', '    float s = 0.0', '    for v in _x', '        s := s + v', '    s']
+    const src = [...lines.slice(0, at + 1), ...helper, ...lines.slice(at + 1)].join('\n')
+    const r = buildRuntimeIr(src, { ...runtimeClockOpts(false), tf: 'D', symbol: SYMBOL })
+    const skipped = r.diagnostics.skippedFunctions || []
+    expect(skipped).toContain(`f_spin_rail@${at + 2} runtime:loop`)
+    for (const entry of skipped) expect(entry).toMatch(/^\w+@\d+ [a-z]+:[a-z-]+$/)
+  })
+
   it('⛔ ONE AUTHORITY — the registry re-exports the SAME function object', () => {
     // ⚰️ The defect this guards against has already happened once on this exact
     // call: the plot lane's `symbol` was fixed at R-K and the object lane's was
