@@ -1,8 +1,8 @@
-# MD-1 — UCT market-data contract (v1.4)
+# MD-1 — UCT market-data contract (v1.5)
 
 - **Owner:** agent-md implements the kinds. agent-lead owns `gateway.py` and `envelope.py`, the framework every consumer relies on.
 - **Consumers:** agent-sc, agent-rs, agent-qa, and later the D and G workstreams.
-- **Status:** v1.4 (v1.1–v1.4 each additive or a scope reduction, all acked by agent-lead 2026-11-01). See §9 for what changed. The envelope's wire field `contract` stays `"MD-1.0"`: v1.1 adds no envelope field.
+- **Status:** v1.5 (v1.1–v1.5 each additive or a scope reduction; v1.1–v1.4 acked by agent-lead 2026-11-01, v1.5 agreed for Sprint 2). See §9 for what changed. The envelope's wire field `contract` stays `"MD-1.0"`: v1.1 adds no envelope field.
 - **Changes:** see §8.
 
 ## 1. Purpose
@@ -164,6 +164,62 @@ The canonical services' own stale-while-revalidate refresh and the news store's 
 - **`flow.summary`:** only through the existing flow proxy (`api/flow_proxy.py`), after verifying from `web` that the data is really available. Never by importing `flow_router` in-process: `flow.db` lives on flow-worker. Never a second Massive connection.
 - **`darkpool`:** only once a trustworthy `as_of` source is identified.
 
+### 4.5 `stock.quote`: the answer contract over `quote` / `quotes` (v1.5)
+
+**Additive data field.** Every `quote` / `quotes` read now carries `data.session_detail`:
+`regular` · `premarket` · `after-hours` · `overnight` · `closed`.
+- `overnight` is 20:00–04:00 ET around a trading day.
+- `closed` is a weekend or holiday, or a calendar the adapter could not read (it never claims the market is open).
+- `data.session` (v1.1) is derived from it: premarket and after-hours → `extended`; overnight → `closed`. The two
+  labels can never disagree.
+- The early close is honoured, from `bars_fetch._session_close_minutes`.
+- No envelope field changed, and the freshness rules of §4.1 are unchanged.
+
+**The capability.** `stock.quote` lives in `app/src/agent/capabilities/marketDataQuote.js`. It answers
+deterministically, with no model call. It makes one gateway read: `quote` for one symbol, `quotes` for two to
+five. It never calls `/api/live-prices`.
+
+**The answer, per session state.** The words *live*, *now* and *right now* appear only on a fresh live row.
+
+| read | answer |
+|---|---|
+| live, not stale, `regular` | `NVDA $142.10, +$1.23 (+0.87%) vs the previous close — live, regular session, as of 10:31 AM ET.` |
+| live, stale, `regular` | `… — stale, not a real-time price: the latest trade is from 10:20 AM ET, more than a minute old (regular session).` |
+| live, `premarket` / `after-hours` | `NVDA $142.10 in premarket trading, … — live, extended hours (thin trading), as of 7:45 AM ET.` |
+| historical, `premarket` / `after-hours` (no trade in 15 min) | `NVDA last traded $142.10 at 4:30 PM ET (after hours, no trade in the last 15 minutes), …. Not a real-time price.` |
+| `overnight` / `closed` | `Market closed (overnight / weekend or holiday): NVDA last close $142.10 (Fri, Oct 30), …. Not a real-time price.` When the price is an after-hours print, it says `last trade $X (date, time ET)` instead. |
+| `regular`, row priced from a close | `NVDA: no current trade in the regular session — showing the day's close, $142.10 …. Not a real-time price.` |
+| `partial` (`quotes`) | one line per symbol, then `Partial: no price for NOPE.` |
+| `unavailable` / `refused` | `I couldn't get a price for NVDA: <reason>.` — no number at all |
+
+**Rules for every answer:**
+- **As-of.** The as-of time is in ET, with the date when it is not the read's own ET day. The reference day is
+  the read's `fetched_at`, never the browser clock.
+- **Change.** The change is always against the previous close.
+- **The session label.** It comes from `session_detail`, never from the member's words. A question that says
+  "premarket" during the regular session is answered as the regular session.
+- **What leaves the module.** Only `{text, present}` (plus `link` / `chart` from stock.profile when the gateway is
+  off). The envelope, its notes, provider fields and `params_echo` never do. `present` carries the labelled
+  figures: Price, Change, Session, Freshness.
+
+**Flags off.** The gateway path is taken only when `GET /api/agent/config` reports `data: true` **and** its `data_kinds`
+list (agent-lead #621, from `UCT_AGENT_DATA_KINDS`, fail closed) includes both `quote` and `quotes`. In every other
+case (the default, an older server with no list, or `quote` not activated):
+- `registerMarketDataCapabilities()` registers nothing, so the model's manifest is unchanged.
+- `match()` returns null.
+- `answerQuote` returns stock.profile's own answer, byte for byte. The rail is in `agentDataQuote.test.js`.
+
+**Fast path.** `match(text)` is pure and fail-closed. It returns `{action: 'stock.quote', params: {symbols}}` or
+null, and it is held row by row to `MD-1-phrasings.md`.
+- **The hook.** The registration carries the fast path's own hook for query capabilities, `fastWhole: true` plus
+  `fast({raw})`, so `fastPath.js` is unchanged.
+- **One claimant.** `matchWhole` answers only when exactly one capability claims the sentence. A sentence another
+  capability also claims goes to the model.
+- **No guessed spellings.** `fastCorrect: false`: only the parser's own fixed typo list counts, never the shared
+  spelling corrector.
+- **Re-checked on every call.** `match()` re-checks the gate each time, so a capability registered earlier claims
+  nothing once the server reports dark.
+
 ## 5. Budgets
 
 The gateway counts **both** logical operations **and** underlying provider requests, per Agent turn (`turn_id`).
@@ -213,6 +269,7 @@ QA's suite runs `validate_envelope` against every registered kind using its fixt
 
 ## 9. Changelog
 
+- **v1.5 (2026-11-01, agent-md, Sprint 2):** additive. `quote` / `quotes` gain `data.session_detail` (`regular` · `premarket` · `after-hours` · `overnight` · `closed`); `data.session` is derived from it. §4.5 gives the `stock.quote` answer contract per session state. No envelope field changed.
 - **v1.4 (2026-11-01, agent-md, rulings by agent-lead):** `breadth.current` and `ratings` implemented as MODEL-ISOLATED kinds (purpose `answer` only, gateway #588); §4.4. No envelope change.
 - **v1.3 (2026-11-01, agent-md, rulings by agent-lead):** `themes` source and time semantics (§4.3); `volume.surge` REMOVED (relative volume is SC-1's; see SC-1 §2c); `nhnl` folded into `breadth.current` metrics, `nhnl_live` not exposed. No envelope change.
 - **v1.2 (2026-11-01, agent-md):** additive. `fundamentals`, `earnings` and `news.company` sources are named in §4 (`financial_statements`, `earnings_table`, the news store), and their stale budgets are restated to measure the data (§4.2). Every class stays `periodic`; the wire `contract` stays `"MD-1.0"` (§8.4).

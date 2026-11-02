@@ -53,8 +53,26 @@ Only agent-md edits this file. Update it in every PR.
   DORMANT unless `UCT_AGENT_ISOLATED=1` — refused for every purpose, `answer` included; active-behaviour tests set the flag.
 - **Open measurement:** `news.company`'s `store.health_snapshot()` runs COUNT(*) over news_items/news_tickers per
   read — cost on the production DB size must be measured and recorded here before any flag goes on (agent-lead).
-- Next: PR 4b after the gateway PR; ADR-003 flow/darkpool spike (draft);
-  freshness eval corpus with agent-qa.
+- PR 4b is ✅ INTEGRATED as #596 (`e242740211`), live dark in production `c3ba71c343` (QA GREEN r2 `0da44001b8`).
+- **Sprint 2 (flags off), agreed order A → B → D → C with agent-lead:**
+  - **A — phrasings list** (branch `agent/md/phrasings`): `contracts/MD-1-phrasings.md`, 30 phrasings with their
+    deterministic handling, ambiguous-ticker rule, answer obligations. Docs only.
+  - **B — `stock.quote`** (branch `agent/md/stock-quote`, includes A): `capabilities/marketDataQuote.js` (answer +
+    `match()` + idempotent registration that is a no-op while `data` is false) over the shared pure parser
+    `capabilities/marketDataPhrases.js`. `quotes.py` gains the additive `data.session_detail` (regular · premarket
+    · after-hours · overnight · closed); `session` is derived from it. MD-1 **v1.5** §4.5. Flags off = stock.profile
+    byte for byte (rail), also while `data_kinds` (#621) lacks `quote`/`quotes`. The turn id comes from
+    `currentTurnId()` at the read (agent-qa's rail). Vitest 66, mutation-checked 6 ways (kinds gate dropped, flag
+    ignored, stale-as-live, fallback removed, ambiguous rule dropped, veto dropped: each red).
+  - A ✅ #620 and B ✅ #624 INTEGRATED into agent/int (`25979607eb`).
+  - **B2 — fast-path hook** (branch `agent/md/quote-fast`, agent-lead's request): `fastWhole` + `fast()` +
+    `fastCorrect: false` on the stock.quote registration. `agentDataQuoteFast.test.js`, with every builtin registered:
+    zero model turns when served, sole claimant for every quote row, a rival claimant goes to the model, dark in every
+    config shape, and no claim after the server goes dark. Mutation-checked 3 ways.
+  - **D — freshness corpus (#598)**: merged up to agent/int; per-session fixture clocks in progress.
+  - **C — `bars.daily` answers** (`capabilities/marketDataBars.js`). Pending.
+  - Lead-owned dependencies: `builtins.js` registration line, `UCT_AGENT_DATA_KINDS` allowlist (fail closed),
+    `fastPath.js` wiring of `match()`.
 
 ## Blockers
 - (none) — the Sprint-0 gateway test was updated by agent-lead in #571.
@@ -66,4 +84,5 @@ Only agent-md edits this file. Update it in every PR.
   a store one session behind (stale), and a store row for today's developing bar (must be excluded).
 
 ## Ready for integration
-- PR 4b `breadth.current` + `ratings`
+- PR A phrasings list (docs only), #620
+- PR B `stock.quote` (needs agent-lead: `builtins.js` line, `UCT_AGENT_DATA_KINDS`, `fastPath.js` wiring)

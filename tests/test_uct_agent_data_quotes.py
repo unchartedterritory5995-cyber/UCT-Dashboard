@@ -55,7 +55,8 @@ def _env(monkeypatch):
 
 
 def _market(monkeypatch, *, session="regular", client=None):
-    monkeypatch.setattr(q, "_session", lambda now=None: session)
+    detail = {"extended": "premarket"}.get(session, session)       # a v1.1 label or a v1.5 detail
+    monkeypatch.setattr(q, "_session_detail", lambda now=None: detail)
     monkeypatch.setattr(massive, "_get_client", lambda: client)
     return client
 
@@ -166,6 +167,41 @@ def test_session_is_classified_from_the_et_clock_and_calendar(monkeypatch, ymd, 
     assert q._session(now) == want
 
 
+@pytest.mark.parametrize("ymd,hm,trading,want", [
+    ("2025-12-02", (10, 0), True, "regular"), ("2025-12-02", (9, 29), True, "premarket"),
+    ("2025-12-02", (4, 0), True, "premarket"), ("2025-12-02", (3, 59), True, "overnight"),
+    ("2025-12-02", (16, 0), True, "after-hours"), ("2025-12-02", (19, 59), True, "after-hours"),
+    ("2025-12-02", (20, 0), True, "overnight"), ("2025-11-28", (13, 0), True, "after-hours"),   # early close
+    ("2025-11-28", (12, 59), True, "regular"), ("2025-11-29", (11, 0), False, "closed"),        # Saturday
+    ("2025-12-25", (10, 0), False, "closed"),                                                    # holiday
+])
+def test_session_detail_v15_and_the_v11_label_never_disagree(monkeypatch, ymd, hm, trading, want):
+    from zoneinfo import ZoneInfo
+    monkeypatch.setattr(massive, "_today_et_is_a_trading_day", lambda: trading)
+    y, m, d = map(int, ymd.split("-"))
+    now = __import__("datetime").datetime(y, m, d, *hm, tzinfo=ZoneInfo("America/New_York"))
+    assert q._session_detail(now) == want and want in q.SESSION_DETAILS
+    assert q._session(now) == {"premarket": "extended", "after-hours": "extended"}.get(
+        want, "closed" if want in ("overnight", "closed") else want)
+
+
+def test_unreadable_calendar_is_closed_never_open(monkeypatch):
+    monkeypatch.setattr(massive, "_today_et_is_a_trading_day", lambda: (_ for _ in ()).throw(RuntimeError("x")))
+    assert q._session_detail() == "closed" and q._session() == "closed"
+
+
+@pytest.mark.parametrize("detail,label", [("regular", "regular"), ("premarket", "extended"),
+                                          ("after-hours", "extended"), ("overnight", "closed"),
+                                          ("closed", "closed")])
+def test_the_read_carries_both_session_fields(monkeypatch, detail, label):
+    _market(monkeypatch, session=detail, client=_Client({"AAPL": _tick("AAPL", observed=NOW - 2)}))
+    out = _read("quote", {"symbol": "AAPL"})
+    assert env.validate_envelope(out) == []
+    assert out["data"]["session"] == label and out["data"]["session_detail"] == detail
+    if detail in ("overnight", "closed"):
+        assert out["freshness"] == "historical" and q.NOTE_CLOSED in out["notes"]
+
+
 def test_quotes_set_as_of_is_the_oldest_and_partial_names_the_missing(monkeypatch):
     c = _market(monkeypatch, client=_Client({"AAPL": _tick("AAPL", observed=NOW - 2),
                                              "MSFT": _tick("MSFT", observed=NOW - 40)}))
@@ -195,7 +231,7 @@ def test_missing_observation_time_gives_null_as_of_with_a_note_and_stale(monkeyp
 def test_provider_failures_are_honest_unavailable(monkeypatch, client, calls):
     if client is None:
         monkeypatch.setattr(massive, "_get_client", lambda: (_ for _ in ()).throw(RuntimeError("no key")))
-        monkeypatch.setattr(q, "_session", lambda now=None: "regular")
+        monkeypatch.setattr(q, "_session_detail", lambda now=None: "regular")
     else:
         _market(monkeypatch, client=client)
     out = _read("quote", {"symbol": "AAPL"})

@@ -161,6 +161,56 @@ Only agent-qa edits this file. Update it in every PR.
 - **Verdicts:** 64b522a433 GREEN (exact: pytest 1181, vitest 2007). 80229cba14 + #596 + #603: QA rails green, and
   #596's own tests need its #599 refresh (27 fail without UCT_AGENT_ISOLATED, and all 32 pass with it).
 
+- **F-15 (Indicators, owner of `app/src/components/chart/builder/agentDefinitions.js`; cc agent-lead), new with
+  #610 on r2. The Agent's Undo of a definition DELETE is no longer exact for a Pine-imported script.**
+  Repro (both halves probed on r2):
+  - Browser: the real `executeDefinitionAction` then `undoDefinitionAction` with the real `saveUserDefinition`. Undo
+    reports `confirmed`, but the saved body's `meta` has lost `engineVersion` (`saveUserDefinition` strips the stamp
+    from any save that carries no `pineSource`).
+  - Server: the real `user_definitions` service. A script save stores the script, and the tombstone keeps it. The
+    Agent's resurrecting save sends no `pine_source`, so the restored version holds **no script**.
+  Expected: Undo restores the stamped document and its stored script, or refuses.
+  Actual: the maths are unchanged, but the auto-upgrade link is lost. Once `VITE_SAVED_SCRIPT_UPGRADE` is on, the
+  restored indicator shows "Updated accuracy available — open in Builder and save".
+  Not blocking: the Agent is admin-only and dark, production bakes the flag `'0'`, and nothing renders differently
+  today. Script stamping itself is NOT flag-gated, so stamped rows already exist in production.
+  Fix direction (the owner's call): capture with `GET /{id}?source=1` before deleting, and pass `pineSource` on the
+  Undo save.
+  **Fix: draft PR #617 (`77b46e56cc`, Indicators, based on master; it waits behind Sprint 1 and the owner's go).
+  agent-qa re-check on a local, never-pushed merge of r2 + #617:**
+  - My reproduction, turned around to require exactness, passes: delete then Undo of a stamped script restores the
+    stamp and the stored script.
+  - Control: a server that withholds the script means nothing is deleted.
+  - #617's `agentDefinitions.test.js`: 23 passed.
+  - Agent vitest under the lock: **121 files, 2081 passed** (r2's 2058 plus those 23), with no Agent file changed.
+  - Ownership: all 3 files are EXTERNAL (Indicators: `chart/**` and `useUserDefinitions.js`), so agent-lead
+    approval is needed.
+  - Seen in passing, not from #617: `src/hooks/pollingSites.rail.test.js` fails on master content
+    (`pages/traderArchive/TodayRhymes.jsx: 1 (listed 0)`). It is outside the Agent gate and is for agent-lead to
+    route.
+  F-15 closes when #617 lands.
+
+- **F-16 (owner decision; agent-lead for the mechanics): the screener exposes the UCT Ratings that `ratings`
+  isolates, so the composite's RANKING and threshold COUNTS reach the model.**
+  Repro: `cd app && npx vitest run src/agent/qa/isolationAudit.test.jsx`. A scripted plan runs `screener.run`
+  filtered and sorted by `uct_composite`, with sentinel values in the scan rows.
+  Expected (if the composite is model-isolated): no ordering or count derived from it reaches a model request.
+  Actual: the raw values stay out, but the next model request carries:
+  - `conversation_memory.recent_results[0].symbols_in_order` in composite order;
+  - `screener.lastScreen` with `sort: "uct_composite desc"` and `matches`;
+  - the replayed outcome text "3 stocks match (UCT Composite >= 90)".
+  A one-name `within` screen at `>= X`, repeated, bisects a stock's exact composite. The same holds for
+  `rating_eps/growth/value/smr`, `sponsorship`, `accdis` and `rs_rank`.
+  Options: drop these fields from the Agent's screener catalog, mark screens on them local-only, or rule that ranking
+  and counts are acceptable and only raw values are protected.
+- **F-17 (agent-lead, turn.py / router): `TurnIn.recentOutcome` is an unused door for free text into the model
+  request.** It is dropped only when stored history already holds a local row.
+  Repro: `pytest tests/test_uct_agent_qa_isolation_audit.py -k recent_outcome`.
+  Expected: the door is removed, or it fails closed. Actual: a sentinel reaches `messages`. No browser sends it today.
+- **F-18 (agent-lead, turn.py): `name_conversation` reads agent rows without the `is_local_row` guard that
+  `history_messages` applies.** An unblanked stored local-plan reply reaches the naming call.
+  Repro: `-k NAMING`. Latent: such rows are blanked at write, and the model wrote them before any value existed.
+
 ## Blockers
 - (none)
 
@@ -174,7 +224,145 @@ Only agent-qa edits this file. Update it in every PR.
   extended-live, extended-closed, holiday, no-current-trade. Rules (a)–(e) are a reusable predicate
   (`quote_semantics_errors`) with controls showing it can fail. Other MD-1 kinds keep provisional `data` shapes.
 
-## Verdicts on `agent/int`
+## Sprint 2 task 3: COST BASELINE (model calls per corpus phrasing, today)
+A measurement, pinned exactly so any reduction or regression is a reviewed diff. File:
+`app/src/agent/__fixtures__/program/scores/cost-baseline.json`. Rail: `tests/test_uct_agent_qa_cost_baseline.py`.
+No paid call: a scripted planner that answers directly, with research stubbed.
+- **Model:** model_calls = browser_requests × (server_calls + naming_call).
+  - Browser requests come from the real panel (`fastPathCorpus.test.jsx`).
+  - server_calls = 1, or 2 when UCT forces research for current-facts wording.
+  - naming_call = 1 per new conversation the plan leaves unnamed, measured as an upper bound.
+- **Discovery corpus (31 phrasings), measured on agent/int `191a06510c`:**
+  - 31 browser requests, 0 handled by the fast path.
+  - **64 model calls**: 31 planner + 31 naming + 2 post-research. d17 and d26 trigger forced research.
+  - By category: refusal 10/5, setup 10/5, strength 10/5, volume 8/4, momentum 7/3, sector 7/3, fundamental 6/3,
+    volatility 4/2, earnings 2/1.
+- **The levers this exposes** (each a model-call reduction, owned by agent-lead):
+  1. The fast path claims none of the 31.
+  2. Naming costs one call per conversation whenever the plan gives no title. Making the planner always return a
+     title would remove up to 31.
+  3. Forced research on "latest / today" wording costs two calls each.
+- A CONTROL proves the instrument tells 1 call from 2. Every phrasing stays within the 2-call per-request ceiling.
+- Next: add agent-md's 30 MD-1 phrasings (#620) as a second corpus once merged (fastPathCorpus measures them too).
+
+## ⭐ Sprint 2 task 1: ADVERSARIAL MODEL-ISOLATION AUDIT (ADR-005), on master `c3ba71c343`
+Targets: `breadth.current`, `ratings`, and the stock.compare composite (F-12).
+Method: SENTINEL values planted at the source, then a check of what every model-bound payload carries. Each path is
+run both dormant and activated (`UCT_AGENT_ISOLATED=1` set inside the test).
+**States:**
+- PROVEN: blocked by code, whatever the flags.
+- DORMANT: blocked only because a flag is off or no caller is wired.
+- OPEN: a sentinel or a derived number reaches a model request. These are strict pins that fail once fixed.
+Tests: server `tests/test_uct_agent_qa_isolation_audit.py`, browser `app/src/agent/qa/isolationAudit.test.jsx`, plus the existing `tests/test_uct_agent_qa_isolation.py` and `app/src/agent/qa/modelIsolation.test.jsx`.
+Three guards were mutation-proved, each broken by hand, then restored from the committed blob and sha-checked: the
+gateway's exception log, the local-plan reply drop, and the `recent_outcome` guard.
+
+| # | Path | Layer | State | Proof (test) | Owner of any fix |
+|---|---|---|---|---|---|
+| 1 | Isolated kind read, any purpose, flags at default | L1 | DORMANT (+ PROVEN refusal order) | `test_L1_ORDER_...` · `tests/test_uct_agent_qa_isolation.py::test_DORMANT_...` | - |
+| 2 | Isolated kind, activated, purpose research/scan | L1 | PROVEN | `tests/test_uct_agent_qa_isolation.py::test_an_isolated_kind_is_refused_...` | - |
+| 3 | Validator raising with a value in its message | L1 | PROVEN (type-only log, fixed note) | `test_L1_a_validator_that_RAISES_...` | - |
+| 4 | Adapter raising with a value in its message | L1 | PROVEN | `test_L1_an_adapter_that_RAISES_...` (mutation-proved) | - |
+| 5 | Adapter returning a contract-breaking envelope full of values | L1 | PROVEN (replaced; the logged MD-1 errors echo no values) | `test_L1_a_contract_BREAKING_...` | - |
+| 6 | Validator text passed into envelope notes | L1 | PROVEN for the two real validators (fixed words) | `test_L1_the_REAL_validators_...` | - |
+| 7 | Per-kind allowlist `UCT_AGENT_DATA_KINDS=quote`: every other kind, for every purpose, even with ISOLATED on | L1 | OPEN on master; **PROVEN with #621** (refused, nothing run, no budget). The test follows the code and asserts both states strictly | `test_L1_ALLOWLIST_with_DATA_on_...` | agent-lead (#621) |
+| 7a | Allowlist fails closed (DATA on, KINDS unset → every kind refused) and never widens ISOLATED or SCAN (every kind listed, both off → isolated and scan kinds still refused) | L1 | **PROVEN with #621** (skipped before it, as there is nothing to test) | `test_L1_ALLOWLIST_fails_closed_...` | — |
+| 8 | Envelope marker `isolated: true` | L2 | NOT BUILT (no caller yet) | `test_L6_NOT_BUILT_...` (asserts the marker is absent) | agent-lead |
+| 9 | Caller allowlist (who may `readData` an isolated kind) | L3 | PROVEN (static AST rail) | `app/src/agent/qa/modelIsolation.test.jsx` (1) | - |
+| 10 | History: a local-only outcome row | L4 | PROVEN | `tests/test_uct_agent_qa_isolation.py::test_a_stored_local_answer_...` | - |
+| 11 | History: an unreadable outcome row | L4 | PROVEN (fail closed) | `tests/test_uct_agent_qa_isolation.py::test_an_unreadable_outcome_row_FAILS_CLOSED` | - |
+| 12 | History: the planning reply of a local plan, even stored unblanked | L4 | PROVEN | `test_L4_PROVEN_...` (mutation-proved) | - |
+| 13 | History: an outcome row with no `actions` (F-11) | L4 | OPEN on master; **PROVEN with #622** (fails closed for `answered`, garbled, empty and None kinds). Residual by design: the 25 `ACTIONLESS_OUTCOME_KINDS` browser notes still replay, which is safe while their text is UCT's fixed words (railed by agent-lead against useAgent.js) | `test_L4_F11_an_answered_row_without_actions` (with a CONTROL) | agent-lead (#622) |
+| 14 | History: any NON-local outcome row's text is replayed verbatim | L4 | **OPEN by design**: the server keys on the action name or the `local` flag, never on content; safe only while every non-local capability's TEXT is value-free | `test_L4_OPEN_PIN_...` | agent-lead (structural) |
+| 15 | Conversation naming reads an unblanked local-plan reply (`history_messages` drops it; `name_conversation` has no guard) | L4 | **OPEN, latent** (F-18) | `test_L4_OPEN_LATENT_the_NAMING_call_...` | agent-lead |
+| 16 | `recentOutcome` (free browser text) | L6 | **OPEN, latent** (F-17): reaches the model whenever history holds no local row yet; no browser sends it today | `test_L6_OPEN_LATENT_recent_outcome_...` · control `test_L6_PROVEN_...` (mutation-proved) | agent-lead |
+| 17 | `workspace_context` forwarded whole; no marker strip | L6 | NOT BUILT, DORMANT (no isolated caller) | `test_L6_NOT_BUILT_...` | agent-lead |
+| 18 | Gateway envelope to server to model | L6 | PROVEN by structure: `turn.py` imports no marketdata/gateway module (AST) | `test_L6_research_results_...` | - |
+| 19 | Browser serializer drops `isolated` objects (agentClient) | L5 | NOT BUILT (no caller yet) | - | agent-lead |
+| 20 | Isolated reader end to end: context, memory, pending, title, telemetry, traces | L5/L7 | PROVEN for a `localOnly` reader, with a leaking CONTROL that is caught | `app/src/agent/qa/modelIsolation.test.jsx` (2) | - |
+| 21 | stock.compare composite (F-12) | L4/L5 | PROVEN today (only in the stored table; text and turn bodies clean) | `app/src/agent/qa/modelIsolation.test.jsx::F-12 ...` | owner (policy) |
+| 22 | **Screener composition, raw values**: the catalog carries `uct_composite`, `rating_*`, `sponsorship`, `accdis`, `rs_rank`, the same UCT Ratings (`screener/enrich.py`) | L4/L5/L7 | PROVEN: values stay in the stored table; text, context, memory, telemetry and traces are clean | `app/src/agent/qa/isolationAudit.test.jsx::PROVEN ...` | - |
+| 23 | **Screener composition, RANKING**: a screen sorted by `uct_composite` puts `memory.recent_results[0].symbols_in_order` in composite order, plus `lastScreen.sort` | L5/L7 | **OPEN** (F-16) | `app/src/agent/qa/isolationAudit.test.jsx::OPEN ... RANKING ...` | owner + agent-lead |
+| 24 | **Screener composition, COUNT**: matches at a member-chosen threshold in the replayed text AND in context `lastScreen.matches`; a one-name `within` screen at `>= X`, repeated, bisects a stock's exact composite | L4/L6 | **OPEN** (F-16) | `app/src/agent/qa/isolationAudit.test.jsx::OPEN ... COUNT ...` | owner + agent-lead |
+| 25 | Telemetry: unknown keys dropped; 5 short free-text columns not value-checked | L7 | PROVEN for unknown keys; the free text relies on the browser (railed for the isolated reader in #20) | `test_L7_telemetry_...` | - |
+| 26 | Server logs on a turn carrying sentinels in context and history | L7 | PROVEN (none logged) | `test_L7_a_scripted_turn_...` | - |
+| 27 | Web research results | L6 | out of scope: web text, not UCT data (research is forced off in these tests) | - | - |
+
+
+**F-12, stock.compare's UCT composite: its OWN row.** Owner rule: DISPLAY-ONLY *iff* server-enforced isolation is
+demonstrably intact.
+
+| Cell | State | Proof |
+|---|---|---|
+| Display to the member (stored views) | shown (CONTROL: the detector sees it) | `isolationAudit.test.jsx::F-12 display …` |
+| Tool result: outcome text | clean today | `… F-12 … no value in any of them TODAY` · `modelIsolation.test.jsx::F-12` |
+| History replay | clean today, **browser-enforced only**: the row is NOT local, so the server replays its text verbatim (cell #14) | `test_L4_OPEN_PIN_…` (pins it with `stock.compare`) |
+| Summaries and titles | clean: `name_conversation` never reads outcome rows | `test_uct_agent_qa_isolation.py::test_the_chat_naming_call_never_reads_outcome_rows` |
+| Memory, context, pending | clean today (memory holds NVDA and AMD in the member's order) | `… F-12 … TODAY` |
+| Traces and telemetry | clean today | `… F-12 … TODAY` |
+| Server enforcement | **NONE**: the value comes from `/api/research/compare` (the Research page route), not the gateway; no isolated kind, marker or local flag applies | `… F-12 … NOT SERVER-ENFORCED` (strict pin) |
+| Compositions | **OPEN**: the same composite is a screener field, so its ranking and threshold counts reach the model (F-16) | `isolationAudit.test.jsx::OPEN …` |
+
+**Verdict: server-enforced isolation is NOT intact for F-12.** Two cells fail: server enforcement (none) and
+compositions (F-16). By the owner's rule, the rating should be omitted from stock.compare. That is agent-lead's
+removal; QA will flip these pins to proofs that it is gone.
+
+**Activation gate (recommendation to agent-lead and the owner).** `UCT_AGENT_ISOLATED` stays off until:
+- (a) L2, L5 and L6 exist, and cells #8, #17 and #19 are flipped to PROVEN;
+- (b) the allowlist lands (#7's xfail turns into a pass);
+- (c) F-11, F-17 and F-18 are closed;
+- (d) **the owner decides F-16**. While the screener serves the same UCT Ratings as ordinary fields, isolating the
+  `ratings` kind does not keep the composite's ranking or threshold counts from the model.
+
+Note for the owner (outside the Agent, untouched): `api/routers/ai_search.py:1158` already writes "UCT composite N"
+into AI Search's own model prompt. That is relevant to the F-16 policy; it is not an Agent finding.
+
+## ⭐ FINAL VERDICT — refreshed Sprint 1 RC r2 `0da44001b83b01b04630870622a571389baf56e3` (`agent/rc/sprint1-r2`): GREEN
+r2 = c6895db012 + a merge of master `e56d4cfd2d` (= production: Pine #610/#613, Indicators #577, News #615).
+Checked out EXACTLY at the r2 SHA (detached, clean), nothing added, every Agent flag unset.
+- **Agent paths unchanged:** `git diff c6895db012 0da44001b8` over `api/services/uct_agent`, `app/src/agent`,
+  `api/routers/uct_agent.py`, `agentMutations*`, `api/services/news`, the Agent tests and tools is **empty**. 40 files
+  differ, all of them master work.
+- **Full Agent suites (suite lock):** pytest **1251 passed**; vitest **120 files passed (5 skipped), 2058 passed
+  (6 skipped)**. Again with `VITE_SAVED_SCRIPT_UPGRADE=0` (the value production bakes): **identical, 2058 passed**.
+- **QA rails:** pytest **253 passed**; the QA vitest rails ran inside the full vitest run.
+- **Corpus:** oracle **31/31** (26/26, 5/5) · grammar-direct **5/31** (0/26 answerable) · browser fast path **0/31**.
+  All three match their pinned baselines.
+- **Flags-off server probe: 50/50.** Config reports data/scan/nl1 false. `/api/agent/data` refuses every kind for
+  every purpose, and spies show no adapter or validator ran and no budget opened. Each flag gates on its own, and a
+  member is denied.
+- **Route table** (`api.main:app` walked on each tree): r2 vs master `e56d4cfd2d` adds exactly one route,
+  **`POST /api/agent/data` (`require_admin_dark`)**, and removes none. Against base `51b9af9794`, the only other
+  addition is `GET /api/trade-exchange-news/library/bookmarks/{event_id}`, which is master's #615 and already live.
+- **Screener, flags off:** the answers plus the full request sequence are **byte-identical** to base `51b9af9794`.
+- **#610 / #577 vs the Agent:** I walked the acorn import closure of `agentMutations.js` (108 files) and found
+  **0 changed files**. #577 (`importVerdict.js`) is reached only through a render chain, and no Agent code calls it.
+  #610 has **one real contact: F-15** (below), which is latent and not RC-blocking.
+
+## ⭐ FINAL VERDICT — Sprint 1 release candidate `c6895db012f97cede60d998fd300ca608f730531` (`agent/rc/sprint1`): GREEN
+Checked out EXACTLY at the RC SHA (detached, `git diff --quiet`), nothing added, every Agent flag unset in the shell.
+- **Full Agent suites (suite lock):** pytest **1251 passed**; vitest **120 files passed (5 skipped), 2058 passed (6 skipped)**.
+  Both match agent-lead's gate.
+- **QA suites:** pytest **253** (isolation, clock, fixtures, scan corpus); vitest **69** (turn-id 21, isolation 12,
+  fast-path corpus 32, fixtures 4). Corpus: oracle 31/31 · grammar-direct answerable 0/26 · browser fast path 0/31.
+- **Flags-off regression (UCT_AGENT_DATA, UCT_AGENT_SCAN, UCT_AGENT_ISOLATED, UCT_AGENT_NL1 all unset):**
+  - The real router on a bare app: **50/50**.
+    - `/api/agent/config` reports data, scan and nl1 false; the gateway reports isolated dormant.
+    - `/api/agent/data` refuses EVERY registered kind for answer/research/scan with the UCT_AGENT_DATA sentence and
+      valid envelopes. **No adapter or validator ran, and no budget was opened** (spy registry).
+    - With DATA on alone: scan kinds are refused (UCT_AGENT_SCAN) and isolated kinds stay dormant.
+    - A member is denied both routes.
+  - Route table vs the pre-program base 51b9af9794, by AST: **exactly one Agent route added, POST /api/agent/data,
+    admin-dark**. None were removed, and all 15 RC Agent routes are admin-dark.
+  - Browser, flags off: the screener capability (run, runSaved own/starter, listSaved, no-turn run), every answer AND
+    the full request sequence are **byte-identical between the pre-program base and the RC**, with no /api/agent/data call.
+- **Open findings, all ruled:**
+  - F-11: latent, with a lead hardening PR after the RC.
+  - F-12: stock.compare composite rating, a known limitation; the owner decides.
+  - F-13: wording, fixed.
+  - F-14: read-only, fixed in #606.
+  - Nothing blocks.
+
 - **42d962963d — GREEN** (#572 integrated). The locked run's tree differed from this tip only by 2 lines of this file
   (two-dot `git diff`). Agent pytest under the lock: 1049 passed. Agent vitest: 115 files passed, 5 skipped;
   1988 passed, 6 skipped.

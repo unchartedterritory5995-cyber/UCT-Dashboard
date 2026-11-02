@@ -48,8 +48,14 @@ NOTE_SET_AS_OF = "as_of is the oldest quote in this set"
 NOTE_SET_AS_OF_LIVE = "as_of is the oldest current trade in this set"
 
 
-def _session(now: Optional[datetime] = None) -> str:
-    """`regular` | `extended` | `closed`, from the ET clock and the product's own calendar helpers."""
+SESSION_DETAILS = ("regular", "premarket", "after-hours", "overnight", "closed")
+
+
+def _session_detail(now: Optional[datetime] = None) -> str:
+    """MD-1 v1.5: `regular` | `premarket` | `after-hours` | `overnight` | `closed`, from the ET clock and the
+    product's own calendar helpers. `overnight` is 20:00–04:00 around a trading day; `closed` is a weekend or
+    holiday, or an unreadable calendar (never claim the market is open). `_session` is derived from this, so the
+    two labels can never disagree."""
     from api.services import bars_fetch, massive
     from zoneinfo import ZoneInfo
     try:
@@ -66,9 +72,20 @@ def _session(now: Optional[datetime] = None) -> str:
         close = 16 * 60
     if 9 * 60 + 30 <= mins < close:
         return "regular"
-    if 4 * 60 <= mins < 9 * 60 + 30 or close <= mins < 20 * 60:
-        return "extended"
-    return "closed"
+    if 4 * 60 <= mins < 9 * 60 + 30:
+        return "premarket"
+    if close <= mins < 20 * 60:
+        return "after-hours"
+    return "overnight"
+
+
+def _session(now: Optional[datetime] = None) -> str:
+    """`regular` | `extended` | `closed` (the MD-1 v1.1 label the freshness rules use)."""
+    return _session_from_detail(_session_detail(now))
+
+
+def _session_from_detail(detail: str) -> str:
+    return {"regular": "regular", "premarket": "extended", "after-hours": "extended"}.get(detail, "closed")
 
 
 def _norm_symbols(raw: Any) -> tuple[list[str], list[str]]:
@@ -146,7 +163,8 @@ def _read(kind: str, params: dict, symbols_raw: Any) -> dict:
     symbols, rejected = _norm_symbols(symbols_raw)
     if not symbols:
         return env.unavailable(kind, params, SOURCE, "no valid ticker symbol was given")
-    label = _session()
+    detail = _session_detail()
+    label = _session_from_detail(detail)
     raw, calls, failure = _fetch(symbols)
     if raw is None:
         return env.unavailable(kind, params, SOURCE, failure or "the quote provider could not answer", calls)
@@ -200,6 +218,7 @@ def _read(kind: str, params: dict, symbols_raw: Any) -> dict:
     status = "ok" if (not missing and not no_price and not rejected and not not_live) else "partial"
     data = {"quote": rows[0]} if kind == "quote" else {"quotes": rows}
     data["session"] = label
+    data["session_detail"] = detail
     return env.make_envelope(kind, params, status=status, freshness=freshness, as_of=as_of, source=SOURCE,
                              data=data, stale=stale, coverage=coverage, notes=notes, provider_calls=calls)
 
