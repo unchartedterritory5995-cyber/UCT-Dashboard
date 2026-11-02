@@ -221,14 +221,28 @@ async function makeDoc(vfile, vfiles, byPath, basenameMap) {
 function preprocessWikiSyntax(text, ctx) {
   return transformOutsideCode(text, (segment) => {
     const held = []
+    const lists = [] // lists[i]: what piece i adds to `media` / `links` once it is SHOWN
+    const shown = new Set()
     const open = holdOpenFor(segment)
-    const hctx = { ...ctx, hold: (html) => holdMarkup(held, html, open) }
+    const hctx = {
+      ...ctx,
+      hold: (html, list) => {
+        lists[held.length] = list
+        return holdMarkup(held, html, open)
+      },
+    }
     let out = segment
     out = transformEmbeds(out, hctx)
     out = transformWikiLinks(out, hctx)
     out = transformCallouts(out)
     out = transformHighlights(out)
-    return releaseMarkup(out, held, open)
+    out = releaseMarkup(out, held, open, shown)
+    // ⛔ D2 item 4: a piece's media entry or link is listed only when the piece is
+    // released into the note. `[[![[img.png]]|al.ias]]` shows the alias, so the
+    // image placeholder is dropped and nothing uploads a file no node references.
+    // In index order, which is the order the passes made them (embeds, then links).
+    for (let i = 0; i < held.length; i += 1) if (shown.has(i)) lists[i]?.()
+    return out
   })
 }
 
@@ -281,12 +295,13 @@ function holdMarkup(held, html, open) {
   return open + digits + HOLD_CLOSE
 }
 
-function releaseMarkup(text, held, open) {
+function releaseMarkup(text, held, open, shown) {
   return text.replace(HOLD_RE, (whole, run, digits) => {
     if (run.length < open.length) return whole
     const idx = Number(digits.replace(/[\uE010-\uE019]/g, (c) => String(c.charCodeAt(0) - 0xe010)))
     if (idx >= held.length) return whole
-    return run.slice(0, run.length - open.length) + releaseMarkup(held[idx], held, open)
+    shown.add(idx)
+    return run.slice(0, run.length - open.length) + releaseMarkup(held[idx], held, open, shown)
   })
 }
 
@@ -319,16 +334,16 @@ function transformEmbeds(text, ctx) {
       // that would upload the `.md` as a file. It reads by the note's name,
       // as the server lane's does (`providers/obsidian.py`, Task 13).
       const targetKey = `obsidian:${resolvedPath}`
-      ctx.links.push({ targetKey })
-      return ctx.hold(`<a data-import-link="${escapeAttr(targetKey)}">${escapeHtml(name.replace(/\.md$/i, ''))}</a>`)
+      return ctx.hold(`<a data-import-link="${escapeAttr(targetKey)}">${escapeHtml(name.replace(/\.md$/i, ''))}</a>`,
+        () => ctx.links.push({ targetKey }))
     }
     const vfile = ctx.byPath.get(resolvedPath)
     if (IMAGE_EXT.test(resolvedPath)) {
-      ctx.media.push({ ref: resolvedPath, vfile, kind: 'image', name })
-      return ctx.hold(`<img src="import-ref://${escapeAttr(resolvedPath)}">`)
+      return ctx.hold(`<img src="import-ref://${escapeAttr(resolvedPath)}">`,
+        () => ctx.media.push({ ref: resolvedPath, vfile, kind: 'image', name }))
     }
-    ctx.media.push({ ref: resolvedPath, vfile, kind: 'file', name })
-    return ctx.hold(`<a data-type="attachmentChip" data-import-ref="${escapeAttr(resolvedPath)}" data-name="${escapeAttr(name)}" href="import-ref://${escapeAttr(resolvedPath)}">${escapeHtml(name)}</a>`)
+    return ctx.hold(`<a data-type="attachmentChip" data-import-ref="${escapeAttr(resolvedPath)}" data-name="${escapeAttr(name)}" href="import-ref://${escapeAttr(resolvedPath)}">${escapeHtml(name)}</a>`,
+      () => ctx.media.push({ ref: resolvedPath, vfile, kind: 'file', name }))
   })
 }
 
@@ -341,8 +356,8 @@ function transformWikiLinks(text, ctx) {
     if (!resolvedPath) return ctx.hold(unresolvedText(display))
 
     const targetKey = `obsidian:${resolvedPath}`
-    ctx.links.push({ targetKey })
-    return ctx.hold(`<a data-import-link="${escapeAttr(targetKey)}">${escapeHtml(display)}</a>`)
+    return ctx.hold(`<a data-import-link="${escapeAttr(targetKey)}">${escapeHtml(display)}</a>`,
+      () => ctx.links.push({ targetKey }))
   })
 }
 

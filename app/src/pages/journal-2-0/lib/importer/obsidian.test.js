@@ -516,3 +516,46 @@ describe('obsidian adapter — D1 fix round 4: member text vs held-markup placeh
     expect(JSON.stringify(r.doc)).toContain('import-ref://V/img.png')
   })
 })
+
+// ---------------------------------------------------------------------------
+// D2 item 4: a held piece the note never shows lists nothing. In
+// `[[![[img.png]]|al.ias]]` the alias is what shows, so the image is not
+// displayed, and a media entry for it would upload a file nothing references
+// (ruling: do not list it). The same for a note embed's link. The server lane
+// does the same (`test_an_embed_nested_in_a_wikilink_with_an_alias_...`).
+// ---------------------------------------------------------------------------
+
+describe('obsidian adapter — D2 item 4: an unshown embed lists no media and no link', () => {
+  const parseOne = async (body) => {
+    const { docs } = await obsidianAdapter.parse([
+      vf('V/src.md', body), vf('V/Plan.md', 'p'), vf('V/Other.md', 'o'), vf('V/img.png', 'i'),
+      vf('V/q.pdf', 'q')])
+    const d = docs.find((x) => x.importKey === 'obsidian:V/src.md')
+    const { bodyJson } = htmlToNote(d.html)
+    return { d, text: extractPlainText(bodyJson).replace(/\s+/g, ' ').trim() }
+  }
+
+  it('shows the alias of [[![[img.png]]|al.ias]] and lists no media for the image', async () => {
+    const { d, text } = await parseOne('[[![[img.png]]|al.ias]] after')
+    expect(text).toBe('al.ias after')
+    expect(d.html).not.toContain('<img')
+    expect(d.media).toEqual([])
+    expect(d.links).toEqual([])
+  })
+
+  it('lists no file for [[![[q.pdf]]|the file]] and no link for [[![[Plan]]|the plan]]', async () => {
+    const pdf = await parseOne('[[![[q.pdf]]|the file]] after')
+    expect(pdf.text).toBe('the file after')
+    expect(pdf.d.media).toEqual([])
+    const note = await parseOne('[[![[Plan]]|the plan]] after')
+    expect(note.text).toBe('the plan after')
+    expect(note.d.links).toEqual([])
+  })
+
+  it('still lists what IS shown: a nested embed with no alias, and an embed in an alias', async () => {
+    const img = await parseOne('[[![[img.png]]]] and ![[img.png]] and [[![[q.pdf]]]]')
+    expect(img.d.media.map((m) => m.ref)).toEqual(['V/img.png', 'V/q.pdf'])
+    const both = await parseOne('[[Other|![[Plan]]]] after')
+    expect(both.d.links.map((l) => l.targetKey)).toEqual(['obsidian:V/Plan.md', 'obsidian:V/Other.md'])
+  })
+})

@@ -1,0 +1,28 @@
+{
+  "id": "19-nested-embeds",
+  "input_markdown": "# Nested embeds\n\n[[![[img.png]]]] after the chart.\n\n[[![[img.png]]|al.ias]] after the alias.\n\n[[![[Plan]]]] and [[![[Plan]]|the plan]] now.\n",
+  "self_path": "a.md",
+  "server": {
+    "callouts": [],
+    "files": [],
+    "highlights": [],
+    "images": [
+      "attachments/img.png"
+    ],
+    "links": [
+      {
+        "target": "Plan.md",
+        "text": "Plan"
+      }
+    ],
+    "pending": [],
+    "task_checked": [],
+    "text": "Nested embeds  after the chart. al.ias after the alias. Plan and the plan now."
+  },
+  "vault_id": "vault-1",
+  "vault_paths": [
+    "a.md",
+    "Plan.md",
+    "attachments/img.png"
+  ]
+}

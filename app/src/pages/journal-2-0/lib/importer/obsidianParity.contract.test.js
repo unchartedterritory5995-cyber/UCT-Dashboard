@@ -263,6 +263,14 @@ const knownClientGap = {
       text: 'Attachment names  Read [file: q3 report.pdf]  before the open.',
     },
   },
+  // D2 items 3 and 4: images, links and the alias text agree. What is left is the same
+  // shared-parse whitespace as 18 (a): the image splits its paragraph and the client keeps
+  // the EMPTY paragraph before it. Closed by D2 item 5: delete this entry then.
+  '19-nested-embeds.json': {
+    clientReads: {
+      text: 'Nested embeds   after the chart. al.ias after the alias. Plan and the plan now.',
+    },
+  },
 }
 
 describe('Obsidian client<->server pre-pass parity', () => {
