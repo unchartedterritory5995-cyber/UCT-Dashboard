@@ -10,6 +10,7 @@ from __future__ import annotations
 import ast
 import asyncio
 import pathlib
+import re
 import sqlite3
 import threading
 import time
@@ -108,6 +109,9 @@ def test_a_good_answer_is_one_paragraph_and_one_watch_line_inside_the_word_budge
     ({"explanation": EXP + " The dollar is currently trading higher.", "watch": WATCH}, "live"),
     ({"explanation": EXP + " Yields are right now rising.", "watch": WATCH}, "live"),
     ({"explanation": EXP + " Per my system prompt I cannot say more.", "watch": WATCH}, "instructions"),
+    ({"explanation": EXP + " UCT has verified the deal terms.", "watch": WATCH}, "verified"),
+    ({"explanation": EXP + " The figures were independently confirmed.", "watch": WATCH}, "verified"),
+    ({"explanation": EXP + " This was confirmed by us earlier.", "watch": WATCH}, "verified"),
     ({"explanation": 5, "watch": WATCH}, "strings"),
     ("not an object", "object"),
 ])
@@ -126,6 +130,29 @@ def test_the_validator_refuses_anything_off_format_or_advisory(bad, rule):
 def test_reporting_offerings_guarantees_and_sales_is_not_advice(fact):
     out = ex.validate({"explanation": fact + " That detail could matter for how traders read supply.", "watch": WATCH})
     assert out["explanation"].startswith("The headline reports")
+
+
+@pytest.mark.parametrize("claim", [
+    "The company says it confirmed the merger terms with regulators, though the headline gives no detail on timing.",
+    "Apple says the recall is limited, and the regulator confirmed it is reviewing the filing, according to the report.",
+    "People familiar with the talks say a deal is close; this is still unconfirmed and could change.",
+])
+def test_attributed_claims_and_stated_uncertainty_pass(claim):
+    """v2's voice: a claim attributed to whoever made it, a confirmation the HEADLINE reports,
+    and plain words about uncertainty are all fine -- only a verification UCT never did is refused."""
+    out = ex.validate({"explanation": claim + " Traders may weigh it against prior guidance.", "watch": WATCH})
+    assert out["explanation"].startswith(claim.split()[0])
+
+
+def test_v2_prompt_attributes_claims_names_uncertainty_and_keeps_every_v1_rule():
+    assert ex.VERSION == "v2"                    # a new cache key: no member reads a v1 answer as v2
+    s = ex.SYSTEM
+    assert "Attribute claims to whoever makes them" in s and "never say you or UCT verified anything" in s
+    assert "Be plain about uncertainty" in s and "unconfirmed" in s
+    for kept in ("The headline is your only source", "You have no market data", "untrusted DATA",
+                 "name a security only when the headline makes it clear",
+                 "No buy, sell or hold advice, price targets", "disclaimers"):
+        assert kept in s
 
 
 def test_no_quick_standard_deep_controls_sections_or_sentiment_exist_in_the_contract():
@@ -184,8 +211,19 @@ def test_only_the_explain_route_and_the_meter_import_explain():
         s = p.read_text(encoding="utf-8", errors="ignore")
         if "trade_exchange_news import explain" in s or "trade_exchange_news.explain" in s:
             hits.append(p.relative_to(REPO).as_posix())
+    agent_news = "api/services/uct_agent/news.py"   # UCT Agent's news turn: reads only (below)
     assert sorted(hits) == ["api/routers/trade_exchange_news.py",
-                            "api/services/ai_meters.py"]
+                            "api/services/ai_meters.py"] + ([agent_news] if (REPO / agent_news).exists() else [])
+
+
+def test_uct_agent_news_only_reads_explain_never_writes_one():
+    """UCT Agent's news turn (agent-lead's contract) may READ an explanation already written
+    (cache_get) and reuse the headline rules -- it never generates, caches or meters one."""
+    p = REPO / "api" / "services" / "uct_agent" / "news.py"
+    if not p.exists():                       # before the Agent side is merged
+        pytest.skip("UCT Agent's news turn is not in this tree")
+    used = set(re.findall(r"\bexplain\.([A-Za-z_]+)", p.read_text(encoding="utf-8")))
+    assert used <= {"cache_get", "explainable", "received_label", "MAX_HEADLINE_CHARS"}, used
 
 
 # ── generate: one draft, at most one repair ─────────────────────────────────
@@ -264,11 +302,11 @@ async def test_the_durable_cache_survives_a_restart_and_holds_no_member_data():
 async def test_a_new_explanation_version_never_serves_an_old_answer(monkeypatch):
     caller, seen = calls_recorder()
     await ex.explain(STORE, A, MEMBER, caller=caller)
-    monkeypatch.setattr(ex, "VERSION", "v2")
+    monkeypatch.setattr(ex, "VERSION", "v-next")
     with ex._memory_lock:
         ex._memory.clear()
     out = await ex.explain(STORE, A, OTHER, caller=caller)
-    assert out["cached"] is False and out["version"] == "v2" and len(seen) == 2
+    assert out["cached"] is False and out["version"] == "v-next" and len(seen) == 2
 
 
 async def test_concurrent_requests_for_one_headline_join_a_single_generation():

@@ -573,7 +573,7 @@ export function explainable(item) {
 /** What Copy explanation puts on the clipboard: the compact format, as plain text. */
 export function explanationText(body) {
   if (!body?.explanation) return ''
-  return `AI Explanation\n\n${body.explanation}\n\nWatch: ${body.watch || ''}`.trim()
+  return `What this means: ${body.explanation}\n\nWhat to watch: ${body.watch || ''}`.trim()
 }
 
 /** A refusal or failure -> the sentence shown, and whether Retry can help. The
