@@ -17,7 +17,16 @@ vi.mock('../agentClient', async (importOriginal) => {
 })
 vi.mock('../marketdata/client', async (importOriginal) => {
   const real = await importOriginal()
-  return { ...real, readData: vi.fn(async (kind, params, opts) => { reads.push({ kind, params, opts }); return nextEnvelope }) }
+  return { ...real, readData: vi.fn(async (kind, params, opts) => {
+    reads.push({ kind, params, opts })
+    if (kind === 'instrument.resolve') {                       // MD-1 §4.7: an exact UPPERCASE / $ symbol resolves
+      const results = params.symbols.map(c => ({ input: c.text, form: c.form, class: c.form === 'lower' ? 'symbol_typed_lowercase' : 'symbol',
+        symbol: c.form === 'lower' ? null : c.text.replace(/^\$/, '').toUpperCase(), name: null, type: 'stock',
+        candidate: c.form === 'lower' ? { symbol: c.text.toUpperCase(), name: null, type: 'stock' } : null }))
+      return { status: 'ok', data: { results, all_symbols: results.every(r => r.class === 'symbol') } }
+    }
+    return nextEnvelope
+  }) }
 })
 
 import { answerFromEnvelope, answerQuote, match, quoteServed, registerMarketDataCapabilities, _resetForTest, CAPABILITY } from '../capabilities/marketDataQuote'
@@ -29,17 +38,15 @@ const REPO = path.resolve(__dirname, '../../../..')
 const SC = JSON.parse(fs.readFileSync(path.join(REPO, 'app/src/agent/__fixtures__/program/md2/scenarios.json'), 'utf8')).scenarios
 const PHRASES_MD = fs.readFileSync(path.join(REPO, 'docs/agent/program/contracts/MD-1-phrasings.md'), 'utf8')
 
-/** The phrasings table, parsed from the contract: {id, text, handling, action, symbols}. */
+/** The phrasings table (MD-1 §4.7 format), parsed from the contract: {id, text, intent, candidates, outcome}. */
 function phrasings() {
   const out = []
   for (const line of PHRASES_MD.split(/\r?\n/)) {
-    const m = line.match(/^\|\s*(P\d\d)\s*\|\s*(.+?)\s*\|\s*(fast|model|clarify)\s*\|\s*(.+?)\s*\|/)
+    const m = line.match(/^\|\s*(P\d\d)\s*\|\s*(.+?)\s*\|\s*(quote|none|bars\.[a-zA-Z0-9]+(?: n=\d+)?)\s*\|\s*(.+?)\s*\|\s*(.+?)\s*\|/)
     if (!m) continue
-    const [, id, text, handling, act] = m
-    const a = act.match(/`([a-zA-Z.]+)`\s*→\s*`?([^`]*)`?/)
-    const action = a ? a[1] : null
-    const symbols = a ? (a[2].replace(/symbol(s)?:|bars:\s*\d+|n:\s*\d+/g, '').match(/[A-Z][A-Z0-9.]{0,9}/g) || []) : []
-    out.push({ id, text, handling, action, symbols })
+    const [, id, text, intent, cand, outcome] = m
+    const candidates = cand === '—' ? [] : cand.replace(/`/g, '').trim().split(/\s+/).map(t => { const i = t.lastIndexOf(':'); return { text: t.slice(0, i), form: t.slice(i + 1) } })
+    out.push({ id, text, intent, candidates, outcome })
   }
   return out
 }
@@ -54,7 +61,7 @@ describe('MD-2 (1): §4.5 rules on REAL adapter envelopes, one per answer row', 
   it('non-vacuity: every §4.5 row has a scenario, and the phrasings table parsed to 30 rows', () => {
     expect(Object.keys(SC).sort()).toEqual(['early_close_afterhours_live', 'historical_afterhours', 'holiday_close', 'live_premarket',
       'live_regular', 'overnight_ah_print', 'partial_quotes', 'refused_budget', 'regular_from_close', 'stale_regular', 'unavailable', 'weekend_close'])
-    expect(ALL).toHaveLength(30)
+    expect(ALL).toHaveLength(42)
   })
 
   for (const [name, s] of Object.entries(SC)) {
@@ -138,7 +145,7 @@ describe('MD-2 (1): §4.5 rules on REAL adapter envelopes, one per answer row', 
 
 describe('MD-2 (2): session from the DATA, never the member\'s words', () => {
   it('"what\'s NVDA trading at premarket?" during the regular session is answered as the regular session', async () => {
-    flags.data = true; flags.kinds = ['quote', 'quotes']
+    flags.data = true; flags.kinds = ['quote', 'quotes', 'instrument.resolve']
     const p01 = ALL.find(r => r.id === 'P01')
     const m = match(p01.text)
     expect(m).toEqual({ action: CAPABILITY, params: { symbols: ['NVDA'] } })
@@ -146,9 +153,10 @@ describe('MD-2 (2): session from the DATA, never the member\'s words', () => {
     turnStart('send')
     let out
     try { out = await answerQuote(m.params) } finally { turnEnd() }
-    expect(reads).toHaveLength(1)
-    expect(reads[0]).toMatchObject({ kind: 'quote', params: { symbol: 'NVDA' }, opts: { purpose: 'answer' } })
-    expect(typeof reads[0].opts.turnId).toBe('string')
+    expect(reads.map(r => r.kind), '§4.7: the symbol is resolved BEFORE any price is read').toEqual(['instrument.resolve', 'quote'])
+    expect(reads[1]).toMatchObject({ kind: 'quote', params: { symbol: 'NVDA' }, opts: { purpose: 'answer' } })
+    expect(typeof reads[1].opts.turnId).toBe('string')
+    expect(reads[1].opts.turnId, 'one turn for both reads').toBe(reads[0].opts.turnId)
     expect(out.text).toMatch(/regular session/)
     expect(out.text).not.toMatch(/premarket/i)
   })
@@ -156,7 +164,8 @@ describe('MD-2 (2): session from the DATA, never the member\'s words', () => {
 
 describe('MD-2 (3): flags off = today\'s stock.profile, byte for byte', () => {
   const states = [['data off', false, ['quote', 'quotes']], ['data on, no data_kinds accessor answer', true, null],
-    ['data on, quote not activated', true, ['bars.daily']], ['data on, quotes missing', true, ['quote']]]
+    ['data on, quote not activated', true, ['bars.daily']], ['data on, quotes missing', true, ['quote', 'instrument.resolve']],
+    ['data on, instrument.resolve missing (§4.7.4)', true, ['quote', 'quotes']]]
   for (const [label, data, kinds] of states) {
     it(`${label}: not served, registers nothing, matches nothing`, () => {
       flags.data = data; flags.kinds = kinds
@@ -181,14 +190,13 @@ describe('MD-2 (3): flags off = today\'s stock.profile, byte for byte', () => {
 })
 
 describe('MD-2 (4): the fast path (MD-1-phrasings.md, row by row)', () => {
-  it('with quote served: every fast quote row matches exactly; every model/clarify row is null; match does no I/O', () => {
-    flags.data = true; flags.kinds = ['quote', 'quotes']
+  it('with quote served: every quote row hands over its candidates AS TYPED; every other row is null; no I/O', () => {
+    flags.data = true; flags.kinds = ['quote', 'quotes', 'instrument.resolve']
     const spy = vi.fn(); globalThis.fetch = spy
-    const quoteRows = ALL.filter(r => r.handling === 'fast' && /^quote\./.test(r.action))
-    expect(quoteRows.length, 'non-vacuity').toBe(16)
-    for (const r of quoteRows) expect(match(r.text), `${r.id} ${r.text}`).toEqual({ action: CAPABILITY, params: { symbols: r.symbols } })
-    for (const r of ALL.filter(r => r.handling !== 'fast')) expect(match(r.text), `${r.id} ${r.text}`).toBeNull()
-    for (const r of ALL.filter(r => /^bars\./.test(r.action || ''))) expect(match(r.text), `${r.id}: a bars row is not stock.quote's`).toBeNull()
+    const quoteRows = ALL.filter(r => r.intent === 'quote')
+    expect(quoteRows.length, 'non-vacuity: the contract table has 25 quote rows').toBe(25)
+    for (const r of quoteRows) expect(match(r.text), `${r.id} ${r.text}`).toEqual({ action: CAPABILITY, params: { symbols: r.candidates.map(c => c.text) } })
+    for (const r of ALL.filter(r => r.intent !== 'quote')) expect(match(r.text), `${r.id} ${r.text}`).toBeNull()
     expect(spy).not.toHaveBeenCalled()
     expect(reads).toHaveLength(0)
   })
