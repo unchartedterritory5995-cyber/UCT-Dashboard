@@ -1,0 +1,419 @@
+{
+ "about": "measured by app/src/agent/agentScanIntent.test.js (UPDATE_SCAN_INTENT=1 rewrites); deterministic, no model",
+ "discovery": {
+  "items": 31,
+  "pass": 28,
+  "safe_miss": 2,
+  "false_resolve": 1,
+  "wrong_refusal": 0
+ },
+ "sc2": {
+  "items": 69,
+  "pass": 68,
+  "safe_miss": 1,
+  "false_resolve": 0,
+  "wrong_refusal": 0
+ },
+ "rows": {
+  "discovery.d01": {
+   "got": "spec",
+   "grade": "pass"
+  },
+  "discovery.d02": {
+   "got": "spec",
+   "grade": "pass"
+  },
+  "discovery.d03": {
+   "got": "spec",
+   "grade": "pass"
+  },
+  "discovery.d04": {
+   "got": "spec",
+   "grade": "pass"
+  },
+  "discovery.d05": {
+   "got": "planner",
+   "grade": "safe_miss"
+  },
+  "discovery.d06": {
+   "got": "spec",
+   "grade": "pass"
+  },
+  "discovery.d07": {
+   "got": "spec",
+   "grade": "pass"
+  },
+  "discovery.d08": {
+   "got": "spec",
+   "grade": "false_resolve"
+  },
+  "discovery.d09": {
+   "got": "spec",
+   "grade": "pass"
+  },
+  "discovery.d10": {
+   "got": "spec",
+   "grade": "pass"
+  },
+  "discovery.d11": {
+   "got": "planner",
+   "grade": "safe_miss"
+  },
+  "discovery.d12": {
+   "got": "spec",
+   "grade": "pass"
+  },
+  "discovery.d13": {
+   "got": "spec",
+   "grade": "pass"
+  },
+  "discovery.d14": {
+   "got": "spec",
+   "grade": "pass"
+  },
+  "discovery.d15": {
+   "got": "spec",
+   "grade": "pass"
+  },
+  "discovery.d16": {
+   "got": "spec",
+   "grade": "pass"
+  },
+  "discovery.d17": {
+   "got": "spec",
+   "grade": "pass"
+  },
+  "discovery.d18": {
+   "got": "spec",
+   "grade": "pass"
+  },
+  "discovery.d19": {
+   "got": "spec",
+   "grade": "pass"
+  },
+  "discovery.d20": {
+   "got": "spec",
+   "grade": "pass"
+  },
+  "discovery.d21": {
+   "got": "spec",
+   "grade": "pass"
+  },
+  "discovery.d22": {
+   "got": "spec",
+   "grade": "pass"
+  },
+  "discovery.d23": {
+   "got": "spec",
+   "grade": "pass"
+  },
+  "discovery.d24": {
+   "got": "spec",
+   "grade": "pass"
+  },
+  "discovery.d25": {
+   "got": "spec",
+   "grade": "pass"
+  },
+  "discovery.d26": {
+   "got": "spec",
+   "grade": "pass"
+  },
+  "discovery.r01": {
+   "got": "refuse",
+   "grade": "pass"
+  },
+  "discovery.r02": {
+   "got": "refuse",
+   "grade": "pass"
+  },
+  "discovery.r03": {
+   "got": "refuse",
+   "grade": "pass"
+  },
+  "discovery.r04": {
+   "got": "refuse",
+   "grade": "pass"
+  },
+  "discovery.r05": {
+   "got": "refuse",
+   "grade": "pass"
+  },
+  "sc2.c01": {
+   "got": "spec",
+   "grade": "pass"
+  },
+  "sc2.c02": {
+   "got": "spec",
+   "grade": "pass"
+  },
+  "sc2.c03": {
+   "got": "spec",
+   "grade": "pass"
+  },
+  "sc2.c04": {
+   "got": "spec",
+   "grade": "pass"
+  },
+  "sc2.c05": {
+   "got": "spec",
+   "grade": "pass"
+  },
+  "sc2.c06": {
+   "got": "spec",
+   "grade": "pass"
+  },
+  "sc2.c07": {
+   "got": "spec",
+   "grade": "pass"
+  },
+  "sc2.c08": {
+   "got": "spec",
+   "grade": "pass"
+  },
+  "sc2.c09": {
+   "got": "spec",
+   "grade": "pass"
+  },
+  "sc2.c10": {
+   "got": "spec",
+   "grade": "pass"
+  },
+  "sc2.c11": {
+   "got": "spec",
+   "grade": "pass"
+  },
+  "sc2.c12": {
+   "got": "spec",
+   "grade": "pass"
+  },
+  "sc2.c13": {
+   "got": "spec",
+   "grade": "pass"
+  },
+  "sc2.c14": {
+   "got": "spec",
+   "grade": "pass"
+  },
+  "sc2.c15": {
+   "got": "spec",
+   "grade": "pass"
+  },
+  "sc2.c16": {
+   "got": "spec",
+   "grade": "pass"
+  },
+  "sc2.c17": {
+   "got": "spec",
+   "grade": "pass"
+  },
+  "sc2.c18": {
+   "got": "spec",
+   "grade": "pass"
+  },
+  "sc2.c19": {
+   "got": "spec",
+   "grade": "pass"
+  },
+  "sc2.c20": {
+   "got": "spec",
+   "grade": "pass"
+  },
+  "sc2.u01": {
+   "got": "spec",
+   "grade": "pass"
+  },
+  "sc2.u02": {
+   "got": "spec",
+   "grade": "pass"
+  },
+  "sc2.u03": {
+   "got": "spec",
+   "grade": "pass"
+  },
+  "sc2.u04": {
+   "got": "spec",
+   "grade": "pass"
+  },
+  "sc2.u05": {
+   "got": "spec",
+   "grade": "pass"
+  },
+  "sc2.u06": {
+   "got": "spec",
+   "grade": "pass"
+  },
+  "sc2.u07": {
+   "got": "spec",
+   "grade": "pass"
+  },
+  "sc2.u08": {
+   "got": "spec",
+   "grade": "pass"
+  },
+  "sc2.v01": {
+   "got": "spec",
+   "grade": "pass"
+  },
+  "sc2.v02": {
+   "got": "spec",
+   "grade": "pass"
+  },
+  "sc2.v03": {
+   "got": "planner",
+   "grade": "safe_miss"
+  },
+  "sc2.v04": {
+   "got": "spec",
+   "grade": "pass"
+  },
+  "sc2.a01": {
+   "got": "ask",
+   "grade": "pass"
+  },
+  "sc2.a02": {
+   "got": "ask",
+   "grade": "pass"
+  },
+  "sc2.a03": {
+   "got": "ask",
+   "grade": "pass"
+  },
+  "sc2.a04": {
+   "got": "ask",
+   "grade": "pass"
+  },
+  "sc2.a05": {
+   "got": "ask",
+   "grade": "pass"
+  },
+  "sc2.p01": {
+   "got": "planner",
+   "grade": "pass"
+  },
+  "sc2.p02": {
+   "got": "planner",
+   "grade": "pass"
+  },
+  "sc2.p03": {
+   "got": "planner",
+   "grade": "pass"
+  },
+  "sc2.p04": {
+   "got": "planner",
+   "grade": "pass"
+  },
+  "sc2.r01": {
+   "got": "refuse",
+   "grade": "pass"
+  },
+  "sc2.r02": {
+   "got": "refuse",
+   "grade": "pass"
+  },
+  "sc2.r03": {
+   "got": "refuse",
+   "grade": "pass"
+  },
+  "sc2.r04": {
+   "got": "refuse",
+   "grade": "pass"
+  },
+  "sc2.r05": {
+   "got": "refuse",
+   "grade": "pass"
+  },
+  "sc2.k01.1": {
+   "got": "spec",
+   "grade": "pass"
+  },
+  "sc2.k01.2": {
+   "got": "spec",
+   "grade": "pass"
+  },
+  "sc2.k01.3": {
+   "got": "spec",
+   "grade": "pass"
+  },
+  "sc2.k01.4": {
+   "got": "spec",
+   "grade": "pass"
+  },
+  "sc2.k01.5": {
+   "got": "spec",
+   "grade": "pass"
+  },
+  "sc2.k02.1": {
+   "got": "spec",
+   "grade": "pass"
+  },
+  "sc2.k02.2": {
+   "got": "spec",
+   "grade": "pass"
+  },
+  "sc2.k02.3": {
+   "got": "spec",
+   "grade": "pass"
+  },
+  "sc2.k03.1": {
+   "got": "spec",
+   "grade": "pass"
+  },
+  "sc2.k03.2": {
+   "got": "spec",
+   "grade": "pass"
+  },
+  "sc2.k03.3": {
+   "got": "spec",
+   "grade": "pass"
+  },
+  "sc2.k04.1": {
+   "got": "spec",
+   "grade": "pass"
+  },
+  "sc2.k04.2": {
+   "got": "spec",
+   "grade": "pass"
+  },
+  "sc2.k04.3": {
+   "got": "spec",
+   "grade": "pass"
+  },
+  "sc2.k05.1": {
+   "got": "spec",
+   "grade": "pass"
+  },
+  "sc2.k05.2": {
+   "got": "spec",
+   "grade": "pass"
+  },
+  "sc2.k05.3": {
+   "got": "spec",
+   "grade": "pass"
+  },
+  "sc2.k06.1": {
+   "got": "spec",
+   "grade": "pass"
+  },
+  "sc2.k06.2": {
+   "got": "ask",
+   "grade": "pass"
+  },
+  "sc2.k07.1": {
+   "got": "spec",
+   "grade": "pass"
+  },
+  "sc2.k07.2": {
+   "got": "spec",
+   "grade": "pass"
+  },
+  "sc2.k08.1": {
+   "got": "spec",
+   "grade": "pass"
+  },
+  "sc2.k08.2": {
+   "got": "spec",
+   "grade": "pass"
+  }
+ }
+}
