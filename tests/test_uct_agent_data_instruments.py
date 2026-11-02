@@ -424,3 +424,17 @@ def test_the_client_fixture_is_the_real_classifiers_output(monkeypatch):
     assert _RESOLVED.exists(), "generate it: UCT_REGEN_RESOLVED=1"
     assert _json.loads(_RESOLVED.read_text(encoding="utf-8")) == want, "stale: regenerate with UCT_REGEN_RESOLVED=1"
     assert len(want["entries"]) > 60                                       # non-vacuity
+
+
+@pytest.mark.parametrize("own_row,token", [
+    (("NICE", "NICE Ltd", "stock"), "nice"),                      # agent-qa F-24: "nice, nvda price"
+    (("ASML", "ASML Holding N.V.", "stock"), "asml"),             # the measured cost: a safe ask
+])
+def test_an_upper_case_ticker_in_its_own_name_is_still_a_word_of_that_name(monkeypatch, own_row, token):
+    _seed(monkeypatch, rows=[own_row, ("NVDA", "Nvidia Corp", "stock")])
+    (r,) = _resolve((token, "lower"))["data"]["results"]
+    assert r["class"] == "symbol_typed_lowercase" and r["basis"] == ["name_word"], r
+    # control: the same upper-case word on ANOTHER row is a ticker reference, not a collision
+    _seed(monkeypatch, rows=[("NVDA", "Nvidia Corp", "stock"), ("NVDL", "GraniteShares 2x Long NVDA Daily ETF", "etf")])
+    (n,) = _resolve(("nvda", "lower"))["data"]["results"]
+    assert n["class"] == "symbol"
