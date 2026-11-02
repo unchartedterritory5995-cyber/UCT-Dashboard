@@ -322,6 +322,20 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
   // one would leave a `colorMode` naming a column nobody declared.
   const conditionRows = []
   const conditionKeyByFormula = new Map()
+  // ⭐⭐ H1 (C45, review round 2) — A COLOUR RULE'S GATES RIDE ITS CONDITION COLUMN.
+  // The translation reads the gates each colour rule carries (`pine.js::
+  // colourBlockRunsOf`, keyed by the rule's formula — the key this door mints one
+  // column per); the column is a plot of the document like any other, so the bind
+  // refuses THAT column where the colour's arm runs after a bar it skipped
+  // (`nativeRegistry.computeFor`, `engine/blockRuns.js`), and the plot draws in its
+  // series colour (`binder.pointColour` → null), a fill or a paint draws nothing.
+  // ⚰️ They rode the PLOT, and a plot whose colour read such an arm drew no line.
+  // (`colourBlockRunsOf` writes an entry only for a rule that carries gates.)
+  const colourGatesByFormula = new Map(((t && t.blockRuns && t.blockRuns.colours) || [])
+    .map((c) => [c.formula, c.gates]))
+  /** condition-column key → the gates its colour rule carries. One column per
+   *  formula (`conditionKeyByFormula`), so a key only ever meets one formula's. */
+  const colourBlockRunKeys = new Map()
   /** ⭐ B1 — the paints this document draws (`definition.paints`), built below. */
   const docPaints = []
   /** ⭐⭐ The `input.color` specs a band's hue reads, by key (see the fills loop). */
@@ -354,6 +368,8 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
       })
       conditionKeyByFormula.set(formula, key)
     }
+    // ⭐ H1 — see `colourGatesByFormula`: the gates go with the column, by formula
+    if (colourGatesByFormula.has(formula)) colourBlockRunKeys.set(key, colourGatesByFormula.get(formula))
     return key
   }
   const rows = drawable.map((o, i) => {
@@ -846,11 +862,15 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
   // count, which only the chart knows; the producer still owns the wording
   // (`parse.js::requirementNote`) and the consumer supplies the number.
   const requirementTags = requirementTagsRaised(t)
-  // ⭐ C48 — see `blockRuns` below: each drawable plot's own gates, by its key.
-  const blockRunKeys = drawable.flatMap((o, i) => {
-    const hit = ((t.blockRuns && t.blockRuns.outputs) || []).find((x) => x.index === (t.outputs || []).indexOf(o))
-    return hit ? [{ key: keyAt(i), gates: hit.gates }] : []
-  })
+  // ⭐ C48 — see `blockRuns` below: each drawable plot's own gates, by its key —
+  // ⭐ H1 — and after them each colour condition column's (`colourBlockRunKeys`).
+  const blockRunKeys = [
+    ...drawable.flatMap((o, i) => {
+      const hit = ((t.blockRuns && t.blockRuns.outputs) || []).find((x) => x.index === (t.outputs || []).indexOf(o))
+      return hit ? [{ key: keyAt(i), gates: hit.gates }] : []
+    }),
+    ...[...colourBlockRunKeys].map(([key, gates]) => ({ key, gates })),
+  ]
   definition.meta = {
     ...(definition.meta || {}),
     disclosures: notes.map((n) => ({ name: n.name, note: n.note })),
@@ -909,6 +929,8 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
     // bar, each with that block's guard as a tree: the bind refuses the plot, by
     // name, on a chart where the block runs after a bar it skipped
     // (`engine/blockRuns.js`). Absent for every script with no such plot.
+    // ⭐ H1 — a colour's hidden condition column is such a plot too: refused, it
+    // takes the colour and only the colour with it.
     ...(blockRunKeys.length ? { blockRuns: { keys: blockRunKeys } } : {}),
   }
 

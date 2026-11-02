@@ -140,6 +140,25 @@ class _RowCache:
 
 _ROWS = _RowCache()
 
+WIDE_N = 1500
+_FULL = ("ts", "o", "h", "l", "c", "v")
+_WIDE_SQL = "SELECT ts,o,h,l,c,v FROM (SELECT ts,o,h,l,c,v FROM ohlcv WHERE ticker=? AND tf='D' AND ts<=? ORDER BY ts DESC LIMIT ?) ORDER BY ts"
+
+
+def _shape(sql, params):
+    """(columns, N) of a cacheable "last N rows" query, or (None, None)."""
+    m = _SQL_OK.match(sql)
+    if not m:
+        return None, None
+    cols = tuple(sql[len("SELECT "):sql.index(" FROM")].split(","))
+    if any(c not in _FULL for c in cols):
+        return None, None
+    try:
+        n = int(m.group(1)) if m.group(1) != "?" else int(params[2])
+    except (TypeError, ValueError, IndexError):
+        return None, None
+    return cols, n
+
 
 def _bars_path():
     return os.environ.get("CHART_IQ_BARS_DB") or os.path.join(os.environ.get("DATA_DIR", "/data"), "bars.db")
@@ -195,6 +214,8 @@ class _Conn:
         t = time.perf_counter()
         key = _row_key(self._name, a)
         rows = _ROWS.get(key) if key else None
+        if rows is None and key:
+            rows = self._from_wide(key)
         if rows is None:
             rows = _Rows(self._c().execute(*a).fetchall())
             _TL.db_n = getattr(_TL, "db_n", 0) + 1
@@ -202,6 +223,37 @@ class _Conn:
                 _ROWS.put(key, rows)
         _TL.db_s = getattr(_TL, "db_s", 0.0) + (time.perf_counter() - t)
         return _Rows(rows)
+
+    def _from_wide(self, key):
+        """Answer a "last N rows" query from ONE wide read of the ticker (the last WIDE_N full rows up to the day): the last N rows
+        are the tail of the last M rows whenever M >= N, or always when the ticker has fewer than M rows. A full-column miss
+        fetches the wide window (so a read's 520 / 300 / 190 / 80 / 1500-row asks cost one query, not five); a narrower ask (the
+        group members' 70 closes) only uses a wide window already cached, never widens its own read."""
+        sql, params, day = key
+        cols, n = _shape(sql, params)
+        if cols is None or n is None or n < 0:
+            return None
+        ticker = params[0]
+        wkey = (_WIDE_SQL, (ticker, day, max(n, WIDE_N)), day)
+        wide = _ROWS.get(wkey)
+        if wide is None:
+            for m in (WIDE_N,) if n <= WIDE_N else ():
+                wide = _ROWS.get((_WIDE_SQL, (ticker, day, m), day))
+        if wide is None:
+            if cols != _FULL:
+                return None
+            want = max(n, WIDE_N)
+            wide = _Rows(self._c().execute(_WIDE_SQL, (ticker, day, want)).fetchall())
+            _TL.db_n = getattr(_TL, "db_n", 0) + 1
+            wkey = (_WIDE_SQL, (ticker, day, want), day)
+            _ROWS.put(wkey, wide)
+        m = wkey[1][2]
+        if n > m and len(wide) >= m:
+            return None                    # the wide window may be missing older rows this ask needs
+        idx = [_FULL.index(c) for c in cols]
+        rows = [tuple(r[i] for i in idx) for r in (wide[-n:] if n else [])]
+        _ROWS.put(key, rows)
+        return rows
 
     def close(self):
         """The engine closes per-call connections; the thread keeps its own open."""

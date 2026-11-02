@@ -282,3 +282,33 @@ def test_bars_row_cache_is_exact_fresh_and_survives_a_restart(tmp_path, monkeypa
     monkeypatch.setattr(_db.time, "time", real)
     monkeypatch.setenv("CHART_IQ_BARS_DB", str(tmp_path / "none.db"))
     assert _db._row_key("bars", (q, ("ABC", 20261020, 5))) is None
+
+
+def test_one_wide_read_answers_every_window_exactly(tmp_path, monkeypatch):
+    """A full-column miss reads the ticker's last WIDE_N rows once; every later "last N rows" ask for it (any N, any column subset)
+    is the exact tail of that window, including a ticker with fewer rows than asked."""
+    import sqlite3 as _sq
+    from api.services import bars_sqlite
+    from api.services.chart_iq.engine import _db
+    fake = _sq.connect(":memory:", check_same_thread=False)
+    fake.execute("CREATE TABLE ohlcv (ticker TEXT, tf TEXT, ts INTEGER, o REAL, h REAL, l REAL, c REAL, v REAL)")
+    for k in range(400):
+        fake.execute("INSERT INTO ohlcv VALUES ('LONG','D',?,1,2,0.5,?,?)", (20200101 + k, float(k), k * 10))
+    for k in range(40):
+        fake.execute("INSERT INTO ohlcv VALUES ('SHORT','D',?,1,2,0.5,?,?)", (20260901 + k, float(k), k))
+    hits = []
+    monkeypatch.setattr(bars_sqlite, "_conn", lambda: hits.append(1) or fake)
+    monkeypatch.delenv("CHART_IQ_BARS_DB", raising=False)
+    monkeypatch.setenv("CHART_IQ_ROW_CACHE_DB", str(tmp_path / "rows.db"))
+    monkeypatch.setattr(_db, "_ROWS", _db._RowCache())
+    monkeypatch.setattr(_db, "WIDE_N", 300)
+    full = "SELECT ts,o,h,l,c,v FROM (SELECT ts,o,h,l,c,v FROM ohlcv WHERE ticker=? AND tf='D' AND ts<=? ORDER BY ts DESC LIMIT ?) ORDER BY ts"
+    tc = "SELECT ts,c FROM (SELECT ts,c FROM ohlcv WHERE ticker=? AND tf='D' AND ts<=? ORDER BY ts DESC LIMIT ?) ORDER BY ts"
+    day = 20200101 + 350
+    for q, n in ((full, 120), (full, 300), (full, 80), (tc, 70), (full, 0)):
+        assert _db.bars().execute(q, ("LONG", day, n)).fetchall() == fake.execute(q, ("LONG", day, n)).fetchall()
+    assert len(hits) == 1                                            # one wide read served all five
+    assert _db.bars().execute(full, ("LONG", day, 350)).fetchall() == fake.execute(full, ("LONG", day, 350)).fetchall()
+    assert len(hits) == 2                                            # wider than the window: read again, never truncated
+    for q, n in ((full, 120), (full, 520), (tc, 70)):                 # SHORT has 40 rows: every ask is all of them
+        assert _db.bars().execute(q, ("SHORT", 20261231, n)).fetchall() == fake.execute(q, ("SHORT", 20261231, n)).fetchall()
