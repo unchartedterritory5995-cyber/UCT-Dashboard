@@ -980,10 +980,15 @@ def _write_tags_preserving_updated_at(
     conn: sqlite3.Connection, user_id: str, note_id: str, tags: list[str],
 ) -> None:
     """Writes ONLY the `tags` column, deliberately WITHOUT bumping
-    `updated_at` — used EXCLUSIVELY by the engine's own sever/un-sever tag
-    writes (`_tag_note_source_deleted`, `_untag_note_source_reappeared`),
-    never by a real user edit (Fix-round-2 Important, carried from Task 8:
-    made user-visible by round-1's heal path, not introduced by it).
+    `updated_at` — used EXCLUSIVELY by the engine's own tag writes: the
+    sever/un-sever tags (`_tag_note_source_deleted`,
+    `_untag_note_source_reappeared`) and, since Plan A Task 15 (D1), the
+    `sync-conflict` tag on a member-edited original (`_import_remote_notes`'
+    conflict loop and `_reroute_resolved_body_to_sibling`) — never by a real
+    user edit (Fix-round-2 Important, carried from Task 8: made user-visible
+    by round-1's heal path, not introduced by it). Through `update_note` the
+    conflict tag moved the member's edit time to the sync time, so the note
+    jumped to the top of "recently edited".
 
     Root cause: `notes_svc.update_note` (notes.py) unconditionally bumps
     `updated_at` to now on ANY patch, including a tags-only one. `_is_conflict`
@@ -1484,7 +1489,9 @@ def _reroute_resolved_body_to_sibling(
         cur_tags = json.loads(row["tags"] or "[]")
         if "sync-conflict" not in cur_tags:
             cur_tags.append("sync-conflict")
-            notes_svc.update_note(user_id, row["id"], {"tags": cur_tags}, conn=conn)
+            # Engine bookkeeping, not an edit: the member's own edit time stays (Task 15 D1).
+            _write_tags_preserving_updated_at(conn, user_id, row["id"], cur_tags)
+            conn.commit()
     return sibling_id, failures
 
 
@@ -2348,9 +2355,12 @@ async def _import_remote_notes(
 
         # Tag the ORIGINAL note in a pre-confirm conflict — add-tag only,
         # body/title untouched. Both the original and its sibling now carry
-        # 'sync-conflict'; neither version was lost.
+        # 'sync-conflict'; neither version was lost. Timestamp-neutral (Task 15 D1): the
+        # original is member-edited, and a tag the ENGINE adds must not move its edit time.
         for note_id, tags in conflict_tag_updates.items():
-            notes_svc.update_note(user_id, note_id, {"tags": tags}, conn=conn)
+            _write_tags_preserving_updated_at(conn, user_id, note_id, tags)
+        if conflict_tag_updates:
+            conn.commit()
 
         # Final pass (Critical 3 round-2 fix, PRIMARY): resolve every
         # import-link:// mark across the WHOLE round now that every batch

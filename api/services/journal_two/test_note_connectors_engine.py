@@ -419,6 +419,28 @@ async def test_local_edit_conflict_creates_sibling_and_preserves_both_versions(s
     assert sibling["folderId"] == original_folder_id  # same folder as the original
 
 
+async def test_pre_confirm_conflict_tag_keeps_the_members_edit_time(source, provider):
+    """Task 15 D1, site 1 (`_import_remote_notes`' conflict_tag_updates loop): tagging the
+    member-edited ORIGINAL `sync-conflict` is engine bookkeeping, not an edit. Its
+    `updated_at` must stay the member's own edit time byte for byte, or the note jumps to
+    the top of "recently edited" at every sync that finds a conflict."""
+    provider.refs = [RemoteRef(remote_id="p1", updated_at="2026-08-01T00:00:00+00:00")]
+    provider.notes_by_id = {"p1": _rn("p1", "Trading Journal", text="remote v1")}
+    await engine.sync_source(source["id"], full=True)
+    original = notes_svc.list_notes("u1")[0]
+    edited = notes_svc.update_note("u1", original["id"], {"title": "My local rewrite"})
+
+    provider.refs = [RemoteRef(remote_id="p1", updated_at="2026-08-10T00:00:00+00:00")]
+    provider.notes_by_id = {"p1": _rn("p1", "Trading Journal", text="remote v2",
+                                      updated_at="2026-08-10T00:00:00+00:00")}
+    result = await engine.sync_source(source["id"], full=True, manual=True)
+    assert result["conflicts"] == 1
+
+    kept = notes_svc.get_note("u1", original["id"])
+    assert "sync-conflict" in kept["tags"]
+    assert kept["updatedAt"] == edited["updatedAt"]
+
+
 async def test_conflict_resync_updates_the_sibling_not_the_original(source, provider):
     """A second remote change, while the local edit persists, must keep
     routing to the SAME sibling (update in place), never spawn a second one,
@@ -1109,7 +1131,7 @@ async def test_body_write_race_reroutes_resolved_content_to_a_sibling_preserving
     provider.notes_by_id = {"p1": rn2, "p2": _rn("p2", "Target Note")}
 
     real_rewrite_body = engine.rewrite_body
-    fired = {"done": False}
+    fired = {"done": False, "edited_at": None}
 
     def racing_rewrite_body(doc, media_urls, id_by_key, *, strip_unresolved_links=True,
                             notices=None, resolved=None):
@@ -1117,7 +1139,8 @@ async def test_body_write_race_reroutes_resolved_content_to_a_sibling_preserving
             fired["done"] = True
             # Simulates a user's OWN edit landing in the window between this
             # note's import_confirm (already run) and this resolve step.
-            notes_svc.update_note("u1", original_id, {"title": "user's own concurrent edit"})
+            edited = notes_svc.update_note("u1", original_id, {"title": "user's own concurrent edit"})
+            fired["edited_at"] = edited["updatedAt"]
         return real_rewrite_body(
             doc, media_urls, id_by_key, strip_unresolved_links=strip_unresolved_links,
             notices=notices, resolved=resolved)
@@ -1131,6 +1154,9 @@ async def test_body_write_race_reroutes_resolved_content_to_a_sibling_preserving
     kept_original = notes_svc.get_note("u1", original_id)
     assert kept_original["title"] == "user's own concurrent edit"  # never clobbered
     assert "sync-conflict" in kept_original["tags"]
+    # Task 15 D1, site 2 (`_reroute_resolved_body_to_sibling`): the tag write is engine
+    # bookkeeping; the member's edit time survives it byte for byte.
+    assert kept_original["updatedAt"] == fired["edited_at"]
     # the LOSING (resolved) write never applied -> the placeholder confirm
     # already wrote is still there, untouched by the race.
     assert "import-link://" in json.dumps(_body(kept_original))

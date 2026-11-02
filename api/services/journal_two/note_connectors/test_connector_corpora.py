@@ -14,8 +14,10 @@ runs it ONCE (module fixture, a few seconds), then:
 
 The DOM half is `app/src/pages/journal-2-0/lib/connectorCorpora.dom.test.js`.
 
-Two `xfail(strict=True)` tests record REAL defects the corpora exposed (see each reason). They
-are not fixed here; strict means the day the defect is fixed they go red and must be flipped.
+The corpora exposed two REAL defects (Task 14), recorded as strict xfails and fixed by Task 15:
+the member-edited note's edit time (D1) and the Obsidian unsafe-link markdown source (D2). Both
+are now ordinary assertions. A future strict xfail here must pin `raises=` so it can only pass
+for the reason it names.
 
 Regenerate after a deliberate change:
     python -m api.services.journal_two.note_connectors.corpora.corpora_gen
@@ -447,16 +449,13 @@ def test_corpus_notion_member_edited_note_is_never_rewritten(notion):
     assert "sync-conflict" in mine["tags"] and "sync-conflict" in theirs["tags"]
 
 
-_TIMESTAMP_DEFECT = (
-    "REAL DEFECT (Task 14 corpora): the engine tags the member-edited original `sync-conflict` "
-    "through notes_svc.update_note (engine.py `_import_remote_notes`, the conflict_tag_updates "
-    "loop), which bumps updated_at to the sync time: the member's own edit time is lost and the "
-    "note jumps to the top of 'recently edited'. The body is untouched (test above).")
-
-
-@pytest.mark.xfail(strict=True, reason=_TIMESTAMP_DEFECT)
 def test_corpus_notion_member_edited_note_keeps_its_edit_time(notion):
-    assert _n(notion, MEMBER)["updatedInLastPass"] is False
+    """Task 14 found it, Task 15 D1 fixed it: the engine's `sync-conflict` tag is written
+    timestamp-neutral, so the member's own edit time survives the pass byte for byte
+    (`updatedInLastPass` compares the raw `updated_at` strings before and after)."""
+    mine = _n(notion, MEMBER)
+    assert "sync-conflict" in mine["tags"]
+    assert mine["updatedInLastPass"] is False
 
 
 # ── Obsidian: links ────────────────────────────────────────────────────────────────
@@ -648,6 +647,8 @@ def test_corpus_obsidian_member_edited_note_is_never_rewritten(obsidian):
     assert "sync-conflict" in mine["tags"] and "sync-conflict" in theirs["tags"]
 
 
-@pytest.mark.xfail(strict=True, reason=_TIMESTAMP_DEFECT)
 def test_corpus_obsidian_member_edited_note_keeps_its_edit_time(obsidian):
-    assert _o(obsidian, "Member edited.md")["updatedInLastPass"] is False
+    """Task 15 D1, as for Notion above."""
+    mine = _o(obsidian, "Member edited.md")
+    assert "sync-conflict" in mine["tags"]
+    assert mine["updatedInLastPass"] is False
