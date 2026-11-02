@@ -5226,6 +5226,65 @@ worse than no log. `--self-check` proves the refusal fires and that a failed
 read still renders as **FAILED** rather than blank — a gate nobody has seen fire
 is not a gate.
 
+### ⛔ SIGN-IN REQUIRED — the rig profile is signed out
+
+⛔ **No check row was written, and none will be until this clears.** A
+signed-out rig can read nothing, and a row assembled from nothing reads as
+evidence. The daily task keeps running and keeps landing here.
+
+| | |
+|---|---|
+| first seen | **2026-10-18T20:00:00Z** |
+| last seen | **2026-11-01T21:00:00Z** |
+| consecutive runs blocked | **3** |
+| notification | a desktop balloon fires on every occurrence |
+
+**⭐ THE FIX IS ONE THING AND NOTHING ELSE: sign in once, in the rig window.**
+
+```
+python tools/window_check.py --park      # opens the rig at /login and leaves it up
+```
+
+Sign in there by hand, close nothing, and the next scheduled run picks the
+session up. ⛔ Do not add a credentials file, do not script the login form,
+do not copy cookies from another profile. The session cookie is a 30-day
+cookie, so one sign-in covers the whole observation window.
+
+### sunday-canary — **2026-10-11T20:00:00Z**
+
+⛔ **ROLLBACK — TWO LEVERS, AND THE FAST ONE IS A VARIABLE.** ☠️ ~~*"IT IS A DEPLOY, NOT A VARIABLE"*~~ — **struck 2026-09-12, superseded by Wave K**, which puts the kill switch on the auth payload. Left marked rather than deleted: a reader who remembers the old sentence would revert a commit where one Railway variable would have done it. **(1) THE SWITCH:** set `NOTEBOOK_OFFLINE_DEFAULT_ON=0` on `web`. The value is read PER REQUEST in `_access_payload`, so the app needs no rebuild — but `railway variables --set` has been measured BOTH ways, so verify a NEW BOOT either way and read the value in-process, never from `--kv`. **(2) THE DEPLOY, still real:** `OFFLINE_DEFAULT_ON` remains a **compile-time constant** in `app/src/pages/journal-2-0/lib/offline/offlineFlag.js` and is what a browser falls back to when the payload carries no Notebook keys at all (an older pod, or K not yet live). Removing the CODE is a revert + push to `master` + a `web` rebuild (**~2–3 min**; measured once at **138 s** on `b63cf9775`, Railway `createdAt` → process start). A member with an open tab keeps the OLD bundle until they reload. **REACH — verbatim, §2b of the kill-switch spec:** a flip reaches a member on their next authenticated request or reload; it does not reach a tab mid-session (latched for §21). If the auth payload is unreachable, the wave stays ON — the switch kills a decision, not an outage, until K-1.
+
+| | reading |
+|---|---|
+| rig | PID **12376** · Chrome/154.0.8037.98 · CDP `127.0.0.1:59402` · **persistent profile** |
+| signed in | `/api/auth/me` **200**, account `7a6d0299-fd98-4017-b8dc-51b849d1ab1d` |
+| notebook config served | `notebook_ai_actions_enabled`=**true** · `notebook_ask_insert_on`=**true** · `notebook_attachments_on`=**false** · `notebook_chart_plan_enabled`=**true** · `notebook_conflict_ux_on`=**false** · `notebook_door_guard`=**unknown-only** · `notebook_earnings_prep_enabled`=**true** · `notebook_entry_context_enabled`=**true** · `notebook_find_similar_enabled`=**true** · `notebook_formulas_enabled`=**true** · `notebook_getting_started_enabled`=**true** · `notebook_image_docx_documents_enabled`=**true** · `notebook_offline_default_on`=**true** · `notebook_offline_read_on`=**false** · `notebook_onboarding_enabled`=**true** · `notebook_passed_setups_enabled`=**true** · `notebook_plan_grading_enabled`=**true** · `notebook_playbook_enabled`=**true** · `notebook_publish_enabled`=**true** · `notebook_review_drafts_enabled`=**true** · `notebook_semantic_search_enabled`=**true** · `notebook_setups_board_enabled`=**true** · `notebook_ta_fingerprint_enabled`=**true** · `notebook_task_reminders_enabled`=**true** · `notebook_template_gallery_enabled`=**true** · `notebook_terminal_links_enabled`=**true** · `notebook_thesis_chips_enabled`=**true** · `notebook_trade_canvas_enabled`=**true** · `notebook_transcript_capture_enabled`=**true** · `notebook_visual_playbook_enabled`=**true** · `notebook_voice_notes_enabled`=**true** · `notebook_writing_help_enabled`=**true** |
+| offline proven both ways | offline ⇒ `FAILED: TypeError`, `onLine=false` · online ⇒ `ONLINE 200`, `true` |
+| four durable stores | `conflicts` 0 · `meta` 0 · `notes` 0 · `outbox` 0 |
+| notebook locks | **1** `uct.nb.sync.*` · claimable: **False** |
+| opt-in key | **unset** — a profile that has never opted in |
+| notes | **6** · canary notes 0 · `sync-conflict` 3 |
+| telemetry scope | **population-wide (admin)** |
+| `j2:notebook_blocked_no_baseline` | count **0** · latest **none** · scope: population-wide (admin) |
+| opted-in browsers (`j2:notebook_offline_opt_in`) | count **7** · latest 2026-10-09 21:03:29 · scope: population-wide (admin) |
+| teardown | killed **0** by marker · 0 left · owner's browser [33636] untouched |
+| profile KEPT, lock released | `canary-chrome-profile-persistent` retained · lock free ⇒ the next run can open it |
+| opt-out reached DISK (Chrome not running) | on-disk `uct.j2.offline.enabled` = **`'0'`** · 2 append(s) · tail `10` |
+| door this run | **`hero`** — `DOORS[35 % 4]`, derived from this run's own row number |
+| **mini-canary** | ✅ **12/12** steps green |
+|  ↳ 1 opt in → leadership | held **['exclusive']**, pending **0**, DB opened with 4 stores |
+|  ↳ 1b seed a first hero (SETUP, not the measurement) | `POST /hero` {'ok': True, 'status': 200} |
+|  ↳ 2 type online → one CAS PUT | **1** PUT(s), baseline(s) `['2026-10-11T20:00:42.996102+00:00']` |
+|  ↳ 3 offline is real | `FAILED: TypeError` |
+|  ↳ 4 door `hero` moved the baseline under the queued entry | run **#35** ⇒ `DOORS[35 % 4]` = **`hero`** · PUT **200** in **1** attempt(s) · baseline `None` → `2026-10-11T20:01:04.923803+00:00` · queued sends that beat it: **3** |
+|  ↳ 3 reload (network UP) → the local layers hold THE OFFLINE SENTENCE | record holds the sentence: **True** · draft holds the sentence: **False** · outbox entries: **0** · baseline `2026-10-11T20:01:04.923803+00:00` |
+|  ↳ 4 reconnect → the queue settled (this step says NOTHING about the body) | `dirty` **0** · outbox **0** · baseline `2026-10-11T20:01:04.923803+00:00` |
+|  ↳ 4 the server BODY CONTAINS THE OFFLINE SENTENCE (door `hero`) | `WINDOW-CHECK-SENTINEL typed offline @ 2026-10-11T20:00:00Z` is in the server body: **True** · a send carried the post-door baseline `2026-10-11T20:01:04.923803+00:00`: **False** · door value kept: **True** (`heroImageUrl` = '/api/j2/notes/attachments/7a6d0299-fd98-4017-b8dc-51b849d1ab1d/f8ce4c7945a9455c80dad03a17108140/hero/7c4000a1b75ac7ce6f9c846ef59f8799.png') |
+|  ↳ 5 no fork from a single writer | no `(conflicted copy)` created by this run - no pre-existing copies to exclude |
+|  ↳ 5 note count moved by exactly this run's own note | **6 → 7** (expected **7**) |
+|  ↳ 5 cleanup → stores 0, sync lock claimable, opted out | stores all zero: **True** · sync lock claimable: **True** (census **0**) · key **`'0'`** · leftover canary notes **0** (+0 pre-existing, excluded) · notes **6 → 6** |
+|  ↳ 5 opted back out — ALWAYS, finding or not | `uct.j2.offline.enabled` read back as `'0'` |
+
 ### check 18 — **2026-09-14T07:00:24Z**
 
 ⛔ **ROLLBACK — TWO LEVERS, AND THE FAST ONE IS A VARIABLE.** ☠️ ~~*"IT IS A DEPLOY, NOT A VARIABLE"*~~ — **struck 2026-09-12, superseded by Wave K**, which puts the kill switch on the auth payload. Left marked rather than deleted: a reader who remembers the old sentence would revert a commit where one Railway variable would have done it. **(1) THE SWITCH:** set `NOTEBOOK_OFFLINE_DEFAULT_ON=0` on `web`. The value is read PER REQUEST in `_access_payload`, so the app needs no rebuild — but `railway variables --set` has been measured BOTH ways, so verify a NEW BOOT either way and read the value in-process, never from `--kv`. **(2) THE DEPLOY, still real:** `OFFLINE_DEFAULT_ON` remains a **compile-time constant** in `app/src/pages/journal-2-0/lib/offline/offlineFlag.js` and is what a browser falls back to when the payload carries no Notebook keys at all (an older pod, or K not yet live). Removing the CODE is a revert + push to `master` + a `web` rebuild (**~2–3 min**; measured once at **138 s** on `b63cf9775`, Railway `createdAt` → process start). A member with an open tab keeps the OLD bundle until they reload. **REACH — verbatim, §2b of the kill-switch spec:** a flip reaches a member on their next authenticated request or reload; it does not reach a tab mid-session (latched for §21). If the auth payload is unreachable, the wave stays ON — the switch kills a decision, not an outage, until K-1.
@@ -6324,7 +6383,7 @@ overwrites it. Rows 4–9 are static and checked by eye on the day.
 
 <!-- WINDOW-CHECK:DECISION:BEGIN -->
 
-⛔ **REGENERATED BY `tools/window_check.py` ON EVERY RUN — as of check 18 — 2026-09-14T07:00:24Z.**
+⛔ **REGENERATED BY `tools/window_check.py` ON EVERY RUN — as of sunday-canary — 2026-10-11T20:00:00Z.**
 It is never hand-edited: a decision table maintained by hand is one that
 goes stale exactly when it matters. Rows 4–9 below it are static and
 checked by eye on the day.
@@ -6332,17 +6391,13 @@ checked by eye on the day.
 | # | condition | latest reading |
 |---|---|---|
 | 1 | Zero `notebook_blocked_no_baseline` across the instrument clock | **0** |
-| 2 | Opted-in browsers (the denominator) | **4** — need ≥ **5** |
-| 3 | Consecutive green daily runs, mini-canary all steps | **22** — need **7** |
+| 2 | Opted-in browsers (the denominator) | **7** — need ≥ **5** |
+| 3 | Consecutive green daily runs, mini-canary all steps | **23** — need **7** |
 | — | Has a 🚨 NEW FINDING ever fired? | **no** |
 
-## ⛔ RECOMMENDATION: **NO-GO**
+## ✅ RECOMMENDATION: **GO**
 
-**Met:** zero blocked-baseline events · 22 consecutive green runs
-
-**What is holding it:**
-
-- only **4** opted-in browser(s), need ≥ 5 — zero events over a tiny population is not evidence
+**Met:** zero blocked-baseline events · 7 opted-in browsers · 23 consecutive green runs
 
 ⚠️ **The 36-minute gap stands.** The denominator starts 2026-09-10T05:42:53Z,
 the numerator 05:06:56Z. A browser that opted in inside that window is
