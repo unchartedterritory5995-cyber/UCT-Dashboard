@@ -2,6 +2,19 @@
 
 Only agent-qa edits this file. Update it in every PR.
 
+## G4: a signed-in NON-admin member is refused, before any provider call — rail `tests/test_uct_agent_qa_member_refused.py`, 2026-11-02
+- Drives the REAL `api.main:app` through the REAL auth chain (a real users row, `create_session`, `comp_user_access`),
+  with no dependency overridden. Gateway ON: `UCT_AGENT_DATA=1`, `UCT_AGENT_DATA_KINDS=quote,instrument.resolve`.
+- A **paid** (comped, role `member`) member gets **403 "Admin access required"** on `GET /api/agent/config`,
+  `POST /api/agent/turn`, `POST /api/agent/turn/stream`, and `POST /api/agent/data` for `quote` and `instrument.resolve`.
+  On every one, the model client is never acquired, no market-data adapter runs, and the daily request counter is not charged.
+- An **unpaid** member is refused earlier, by `require_paid`: **402**, also with no provider call. That is why the
+  403 rows use a paid member: a 402 would prove the plan gate, not the admin gate. Signed out stays 401.
+- **Non-vacuity:** the same requests from an admin reach the spies (the model client on both turn routes; the `quote` and
+  `instrument.resolve` adapters on `/data`).
+- **Mutation-proved:** with `require_admin_dark` returning the user instead of calling `require_admin`, exactly the five
+  403 rows went red (5 failed, 17 passed). The router was restored and verified unchanged against HEAD.
+
 ## Lowercase crypto cashtags (`$btc`, `$eth`, `$sol`): reviewed the REAL answer text, 2026-11-02 (rail `qa/fundLabel.test.js`)
 - `$btc` → `BTC (Grayscale Bitcoin Mini Trust, an ETF) $… ` plus the fund-price sentence; `$eth` is the same (Grayscale
   Ethereum Mini Trust). **Not silent: acceptable.**
