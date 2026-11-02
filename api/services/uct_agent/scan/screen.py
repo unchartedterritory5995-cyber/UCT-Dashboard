@@ -207,7 +207,8 @@ def run(params: dict, ctx: dict) -> dict:
     # SC-1 §2d: a view's own column set may carry a rating or flow column; the Agent never returns its values
     # SC-1 §2d: columns the member ASKED FOR that are hidden were refused in spec.validate; the default view's own
     # hidden columns (overview carries RS Rank) were never asked for, and their values are simply not returned
-    fields = [f for f in (spec.get("columns") or out.get("view_columns") or []) if f not in hidden.hidden_keys()]
+    catalog = scan_spec.catalog_keys()
+    fields = [f for f in (spec.get("columns") or out.get("view_columns") or []) if hidden.agent_column(f, catalog)]
     rows = _project((out.get("rows") or [])[:scan_spec.ROW_CAP], fields)
     snap = out.get("snapshot") or {}
     notes += _coverage_notes(cov) + _live_note(snap.get("live"))

@@ -44,10 +44,17 @@ OWNER_NAMED_PROPRIETARY = frozenset({
     "earnings_setup_grade",    # "Earnings Setup Grade" (screener/earnings_context.py), a UCT grade
     "in_uct20",                # "In UCT 20" (screener/context_joins.py), UCT's own list
     "archive_calls_n",         # UCT's internal research archive (owner F-16 follow-up: proprietary)
+    "base_structure", "base_relation_count",   # UCT's base detector (screener/base_*.py), owner decision: proprietary
+    "hvc_52w",                 # "HVC", UCT's own construct and terminology, owner decision: proprietary
+    "theme",                   # "UCT Theme", UCT's theme taxonomy, owner decision: protected pending an exposure review
     # every pattern-engine score and signal (screener/pattern_join.py + the live tier's entry/stop distances)
     "pattern_engine_id", "pattern_engine_conf", "pattern_engine_dir", "pattern_engine_vcp", "pattern_engine_flat_base",
     "pattern_expectancy_r", "pattern_entry_dist_pct", "pattern_stop_dist_pct",
 })
+#: the only non-catalog columns the Agent may name or receive: a row's identity. Every other raw snapshot column
+#: (33 sit outside the catalog, incl. archive_* research and base-detector internals) is never used (SC-1 §2d).
+IDENTITY_COLUMNS = frozenset({"ticker", "company"})
+
 #: further owner rulings go here, one line each
 EXTRA_RATINGS: frozenset = frozenset()
 EXTRA_FLOW: frozenset = frozenset()
@@ -90,6 +97,11 @@ def flow_keys() -> frozenset:
 
 def hidden_keys() -> frozenset:
     return rating_keys() | flow_keys()
+
+
+def agent_column(key: str, catalog: frozenset) -> bool:
+    """May a returned row carry this column? Catalog fields that are not hidden, and the identity columns."""
+    return (key in catalog or key in IDENTITY_COLUMNS) and key not in hidden_keys()
 
 
 def refusal_for(keys: Iterable[str]) -> Optional[str]:

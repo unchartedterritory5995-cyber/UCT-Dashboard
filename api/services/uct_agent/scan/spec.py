@@ -145,7 +145,9 @@ def validate(spec: Any, *, catalog: frozenset | None = None, columns: frozenset 
             raise SpecError("`sort` must be {key, dir}")
         if hidden.refusal_for([sort["key"]]):
             raise SpecError(hidden.refusal_for([sort["key"]]))
-        if sort["key"] not in columns and sort["key"] not in catalog:
+        if sort["key"] not in catalog and sort["key"] not in hidden.IDENTITY_COLUMNS:
+            # SC-1 §2d: only the catalog's own fields, never a raw snapshot column (33 exist outside the catalog,
+            # among them UCT research-archive and base-detector internals that no hidden list names)
             raise SpecError(f"the Screener cannot sort by {sort['key']!r}")
         if sort.get("dir") not in (None, "asc", "desc"):
             raise SpecError("`sort.dir` is asc or desc")
@@ -168,7 +170,7 @@ def validate(spec: Any, *, catalog: frozenset | None = None, columns: frozenset 
             raise SpecError(f"at most {MAX_COLUMNS} columns")
         if hidden.refusal_for(cols):
             raise SpecError(hidden.refusal_for(cols))
-        bad = [c for c in cols if c not in columns]
+        bad = [c for c in cols if c not in columns or (c not in catalog and c not in hidden.IDENTITY_COLUMNS)]
         if bad:
             raise SpecError(f"the Screener has no column {bad[0]!r}")
 
@@ -179,6 +181,9 @@ def validate(spec: Any, *, catalog: frozenset | None = None, columns: frozenset 
         named = [c.get("column") for c in rank.get("criteria") or [] if isinstance(c, dict)]
         if hidden.refusal_for(named):
             raise SpecError(hidden.refusal_for(named))
+        raw = [c for c in named if c not in catalog]
+        if raw:
+            raise SpecError(f"the Screener has no field {raw[0]!r} to rank by")
 
     out = {k: spec[k] for k in SPEC_KEYS if k in spec and spec[k] is not None}
     out.setdefault("filters", [])

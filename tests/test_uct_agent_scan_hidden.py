@@ -152,3 +152,33 @@ def test_an_order_the_member_asked_for_is_kept_and_not_labelled_as_the_default(w
     out = _read("screen.run", {"spec": {"filters": [], "sort": {"key": "price", "dir": "asc"}}, "limit": 3}, "o4")
     assert out["data"]["spec"]["sort"] == {"key": "price", "dir": "asc"}
     assert scan_spec.DEFAULT_ORDER_NOTE not in out["notes"]
+
+
+# ── raw snapshot columns outside the catalog are never a bypass (sort, columns, rank, rows) ─────
+
+def test_a_raw_snapshot_column_outside_the_catalog_cannot_be_sorted_requested_or_ranked():
+    from api.services.screener import snapshot_db
+    raw = sorted(set(snapshot_db.COLUMNS) - scan_spec.catalog_keys() - hidden.IDENTITY_COLUMNS)
+    assert "archive_setup_edge_r" in raw and "base_matches" in raw                # non-vacuity: they exist
+    for col in ("archive_setup_edge_r", "archive_traders_n", "base_matches", "pattern_engine_ids"):
+        for spec in ({"filters": [], "sort": {"key": col, "dir": "desc"}},
+                     {"filters": [], "columns": ["ticker", col]},
+                     {"filters": [], "rank": {"criteria": [{"column": col, "weight": 1}], "top_n": 5}}):
+            with pytest.raises(scan_spec.SpecError):
+                scan_spec.validate(spec)
+    assert scan_spec.validate({"filters": [], "columns": ["ticker", "company", "price"]})   # identity + public: fine
+
+
+def test_rows_carry_only_public_catalog_columns_and_identity(world):
+    out = _read("screen.run", {"spec": {"filters": [{"key": "rsi14", "op": "gte", "min": 1}]}, "limit": 3}, "r9")
+    cat = scan_spec.catalog_keys()
+    for row in out["data"]["rows"]:
+        assert all(k == "symbol" or hidden.agent_column(k, cat) for k in row)
+
+
+@pytest.mark.parametrize("key", ["base_structure", "base_relation_count", "hvc_52w", "theme", "archive_calls_n"])
+def test_the_owners_later_rulings_are_hidden_and_refused(key):
+    assert key in hidden.rating_keys()
+    with pytest.raises(scan_spec.SpecError) as e:
+        scan_spec.validate({"filters": [], "sort": {"key": key, "dir": "desc"}})
+    assert str(e.value) == hidden.RATINGS_REFUSAL
