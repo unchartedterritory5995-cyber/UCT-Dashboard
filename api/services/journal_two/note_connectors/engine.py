@@ -162,9 +162,12 @@ _COOLDOWN_SECONDS = 600
 # 2-strike delete detection) at most once per this many seconds per source,
 # measured from `j2_note_sources.last_full_sync_at`, which EVERY full pass
 # writes (scheduler and member alike). Inside the window the press downgrades
-# to an incremental pass. This one guard is also what makes "strike 2 only if
-# at least 10 minutes after strike 1" hold for member passes: there is no
-# separate strike-gap check. Scheduler (nightly) passes are never limited.
+# to an incremental pass. The same gap holds for EVERY full pass, scheduler
+# included: `_run_delete_detection` counts no enumeration-only miss as a
+# strike when the previous full pass was under this many seconds ago, so
+# strike 2 always lands at least 10 minutes after strike 1. Scheduler passes
+# are never downgraded (they still list fully, stamp, and honour explicit
+# trash refs); only their enumeration strikes wait for the gap.
 MEMBER_FULL_PASS_MIN_INTERVAL_S = 600
 
 # A stored `last_full_sync_at` up to this far in the future is clock skew and
@@ -842,6 +845,21 @@ def _run_delete_detection(
     explicit_deleted_ids = {r.remote_id for r in (deleted_refs or [])}
     conn = get_connection()
     try:
+        # Strike gap for EVERY pass: when the PREVIOUS full pass (read before
+        # this one stamps) was under MEMBER_FULL_PASS_MIN_INTERVAL_S ago, an
+        # enumeration-only miss does not count as a strike this pass. Explicit
+        # `deleted_refs` still sever (within the 20% cap) and seen notes still
+        # reset. Unparseable or far-future stamps count as "no previous pass".
+        prev_stamp_row = conn.execute(
+            "SELECT last_full_sync_at FROM j2_note_sources WHERE id = ? AND user_id = ?",
+            (source_id, user_id),
+        ).fetchone()
+        gap_now = _utcnow()
+        prev_full = _last_full_pass_at(prev_stamp_row["last_full_sync_at"] if prev_stamp_row else None, gap_now)
+        strike_gap_open = (
+            prev_full is not None
+            and (gap_now - prev_full).total_seconds() < MEMBER_FULL_PASS_MIN_INTERVAL_S
+        )
         conn.execute(
             "UPDATE j2_note_sources SET last_full_sync_at = ? WHERE id = ? AND user_id = ?",
             (stamp_at, source_id, user_id),
@@ -896,6 +914,8 @@ def _run_delete_detection(
                 )
                 deleted += 1
                 continue
+            if strike_gap_open:
+                continue  # inside the strike gap: an enumeration miss is not a strike
             streak = (row["miss_streak"] or 0) + 1
             if streak >= 2:
                 _tag_note_source_deleted(conn, user_id, row["import_key"])

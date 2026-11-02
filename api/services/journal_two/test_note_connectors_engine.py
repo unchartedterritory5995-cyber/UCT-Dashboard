@@ -509,6 +509,24 @@ async def test_conflicted_note_with_remote_change_after_an_unchanged_pass_still_
 # 5. Delete detection: 2-strikes + refuse guard
 # ---------------------------------------------------------------------------
 
+
+def _a_night_later(source_id):
+    """Backdate the source's previous full pass by a day, so the next
+    back-to-back full pass on the real clock is shaped like the NEXT nightly
+    pass. Every full pass, scheduler included, leaves at least
+    MEMBER_FULL_PASS_MIN_INTERVAL_S between strike 1 and strike 2; these
+    tests model nightly passes, which are a day apart."""
+    conn = auth_db.get_connection()
+    try:
+        conn.execute(
+            "UPDATE j2_note_sources SET last_full_sync_at = ? WHERE id = ?",
+            ((datetime.now(timezone.utc) - timedelta(days=1)).isoformat(), source_id),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
 async def test_delete_detection_needs_two_consecutive_full_misses(source, provider):
     provider.refs = [
         RemoteRef(remote_id="a", updated_at="2026-08-01T00:00:00+00:00"),
@@ -523,6 +541,7 @@ async def test_delete_detection_needs_two_consecutive_full_misses(source, provid
 
     # Full sync #2: "c" is missing -> first miss, NOT deleted yet.
     provider.refs = provider.refs[:2]  # only a, b
+    _a_night_later(source["id"])
     r2 = await engine.sync_source(source["id"], full=True, manual=True)
     assert r2["status"] == "ok"
     idx_rows = {r["remote_id"]: r for r in _remote_index_rows(source["id"])}
@@ -531,6 +550,7 @@ async def test_delete_detection_needs_two_consecutive_full_misses(source, provid
     assert "source-deleted" not in c_note["tags"]
 
     # Full sync #3: "c" STILL missing -> second consecutive miss -> tagged + severed.
+    _a_night_later(source["id"])
     r3 = await engine.sync_source(source["id"], full=True, manual=True)
     assert r3["status"] == "ok"
     idx_rows = {r["remote_id"]: r for r in _remote_index_rows(source["id"])}
@@ -574,10 +594,12 @@ async def test_a_sever_is_persisted_to_the_sync_log_row_the_card_reads(source, p
     assert _newest_log_source_deleted() == 0
 
     provider.refs = provider.refs[:2]              # "c" goes missing
+    _a_night_later(source["id"])
     r2 = await engine.sync_source(source["id"], full=True, manual=True)
     assert r2["sourceDeleted"] == 0                # first miss: no sever yet
     assert _newest_log_source_deleted() == 0
 
+    _a_night_later(source["id"])
     r3 = await engine.sync_source(source["id"], full=True, manual=True)
     assert r3["sourceDeleted"] == 1                # second miss: severed
     # ⛔ THE POINT: the same 1 must be readable from the log row, because that
@@ -1523,6 +1545,7 @@ async def test_list_deleted_blast_radius_over_cap_refuses_and_falls_back_to_miss
 
     provider.list_deleted = _list_deleted
 
+    _a_night_later(source["id"])
     result = await engine.sync_source(source["id"], full=True, manual=True)
     assert result["status"] == "warning"
     assert result["sourceDeleted"] == 0  # nothing severed THIS pass
@@ -1583,6 +1606,7 @@ async def test_unrelated_two_strike_severs_still_apply_alongside_a_refused_expli
     # its miss_streak to 1, not yet severed) -- everything else present.
     provider.refs = refs[:-1]
     provider.notes_by_id = {r.remote_id: provider.notes_by_id[r.remote_id] for r in refs[:-1]}
+    _a_night_later(source["id"])
     r2 = await engine.sync_source(source["id"], full=True, manual=True)
     assert r2["sourceDeleted"] == 0
 
@@ -1600,6 +1624,7 @@ async def test_unrelated_two_strike_severs_still_apply_alongside_a_refused_expli
 
     provider.list_deleted = _list_deleted
 
+    _a_night_later(source["id"])
     r3 = await engine.sync_source(source["id"], full=True, manual=True)
     assert r3["status"] == "warning"
     assert r3["sourceDeleted"] == 1  # the genuine 2-strike sever still counted
@@ -1649,7 +1674,9 @@ async def test_severed_note_is_untagged_when_the_remote_id_reappears(source, pro
         RemoteRef(remote_id="p3", updated_at="2026-08-01T00:00:00+00:00"),
     ]
     provider.notes_by_id = {"p2": provider.notes_by_id["p2"], "p3": provider.notes_by_id["p3"]}
+    _a_night_later(source["id"])
     await engine.sync_source(source["id"], full=True, manual=True)
+    _a_night_later(source["id"])
     r2 = await engine.sync_source(source["id"], full=True, manual=True)
     assert r2["sourceDeleted"] == 1
     tagged = next(n for n in notes_svc.list_notes("u1") if n["title"] == "Comeback Kid")
@@ -1722,7 +1749,9 @@ async def test_severed_note_reappearing_does_not_create_a_conflict_duplicate(sou
         RemoteRef(remote_id="p3", updated_at="2026-08-01T00:00:00+00:00"),
     ]
     provider.notes_by_id = {"p2": provider.notes_by_id["p2"], "p3": provider.notes_by_id["p3"]}
+    _a_night_later(source["id"])
     await engine.sync_source(source["id"], full=True, manual=True)
+    _a_night_later(source["id"])
     r2 = await engine.sync_source(source["id"], full=True, manual=True)
     assert r2["sourceDeleted"] == 1
 
@@ -1773,7 +1802,9 @@ async def test_a_genuine_user_edit_during_the_severed_window_still_conflicts_on_
         RemoteRef(remote_id="p3", updated_at="2026-08-01T00:00:00+00:00"),
     ]
     provider.notes_by_id = {"p2": provider.notes_by_id["p2"], "p3": provider.notes_by_id["p3"]}
+    _a_night_later(source["id"])
     await engine.sync_source(source["id"], full=True, manual=True)
+    _a_night_later(source["id"])
     r2 = await engine.sync_source(source["id"], full=True, manual=True)
     assert r2["sourceDeleted"] == 1
 
@@ -2194,15 +2225,60 @@ async def test_a_second_press_after_ten_minutes_confirms_the_removal(source, pro
     assert "e" not in {row["remote_id"] for row in _remote_index_rows(source["id"])}
 
 
-async def test_the_nightly_pass_confirms_regardless_of_the_member_gap(source, provider, monkeypatch):
-    await _strike_one_on_e(source, provider, monkeypatch)
+async def test_a_nightly_pass_two_minutes_after_a_member_strike_is_not_strike_two(
+    source, provider, monkeypatch,
+):
+    """The strike gap holds for EVERY pass: a scheduler full pass less than
+    MEMBER_FULL_PASS_MIN_INTERVAL_S after the member's strike 1 does not
+    count an enumeration miss, but still stamps last_full_sync_at."""
+    await _strike_one_on_e(source, provider, monkeypatch)                 # strike 1 at T0+11m
     _at(monkeypatch, T0 + timedelta(minutes=13))
+    r = await engine.sync_source(source["id"], full=True, manual=True)   # scheduler shape
+    assert r["sourceDeleted"] == 0
+    assert "removalCheck" not in r
+    e = _note_by_title("E")
+    assert "source-deleted" not in e["tags"]
+    assert notes_svc.get_note("u1", e["id"]) is not None
+    idx = {row["remote_id"]: row for row in _remote_index_rows(source["id"])}
+    assert idx["e"]["miss_streak"] == 1
+    assert engine.connections.get_source_by_id(source["id"])["lastFullSyncAt"] == (
+        T0 + timedelta(minutes=13)).isoformat()
+
+
+async def test_a_nightly_pass_eleven_minutes_after_a_member_strike_confirms(
+    source, provider, monkeypatch,
+):
+    await _strike_one_on_e(source, provider, monkeypatch)                 # strike 1 at T0+11m
+    _at(monkeypatch, T0 + timedelta(minutes=22))
     r = await engine.sync_source(source["id"], full=True, manual=True)   # scheduler shape
     assert r["sourceDeleted"] == 1
     assert "removalCheck" not in r
-    assert "source-deleted" in _note_by_title("E")["tags"]
+    e = _note_by_title("E")
+    assert "source-deleted" in e["tags"]
+    assert notes_svc.get_note("u1", e["id"]) is not None                 # never erased
+    assert "e" not in {row["remote_id"] for row in _remote_index_rows(source["id"])}
     assert engine.connections.get_source_by_id(source["id"])["lastFullSyncAt"] == (
-        T0 + timedelta(minutes=13)).isoformat()
+        T0 + timedelta(minutes=22)).isoformat()
+
+
+async def test_an_explicit_trash_ref_inside_the_strike_gap_still_severs(
+    source, provider, monkeypatch,
+):
+    await _strike_one_on_e(source, provider, monkeypatch)                 # strike 1 on "e" at T0+11m
+    provider.refs = _refs("a", "b", "c")                                  # "d" now gone too
+
+    async def trash(c):
+        return _refs("d")
+
+    provider.list_deleted = trash
+    _at(monkeypatch, T0 + timedelta(minutes=13))
+    r = await engine.sync_source(source["id"], full=True, manual=True)   # scheduler shape
+    assert r["sourceDeleted"] == 1                                        # "d" only
+    assert "source-deleted" in _note_by_title("D")["tags"]
+    assert "source-deleted" not in _note_by_title("E")["tags"]
+    idx = {row["remote_id"]: row for row in _remote_index_rows(source["id"])}
+    assert "d" not in idx
+    assert idx["e"]["miss_streak"] == 1
 
 
 async def test_search_index_lag_never_severs_a_page_that_comes_back(source, provider, monkeypatch):
