@@ -100,6 +100,15 @@
    "symbol": "AMZN",
    "type": "stock"
   },
+  "$AMZON|cashtag": {
+   "candidate": null,
+   "class": "unknown",
+   "form": "cashtag",
+   "input": "$AMZON",
+   "name": null,
+   "symbol": null,
+   "type": null
+  },
   "$AND|cashtag": {
    "candidate": null,
    "class": "unknown",
@@ -253,6 +262,24 @@
    "symbol": null,
    "type": null
   },
+  "$CAR|cashtag": {
+   "candidate": null,
+   "class": "symbol",
+   "form": "cashtag",
+   "input": "$CAR",
+   "name": "Avis Budget Group, Inc.",
+   "symbol": "CAR",
+   "type": "stock"
+  },
+  "$CAT|cashtag": {
+   "candidate": null,
+   "class": "symbol",
+   "form": "cashtag",
+   "input": "$CAT",
+   "name": "Caterpillar Inc.",
+   "symbol": "CAT",
+   "type": "stock"
+  },
   "$CHANGE|cashtag": {
    "candidate": null,
    "class": "unknown",
@@ -289,11 +316,29 @@
    "symbol": null,
    "type": null
   },
+  "$COMPARE|cashtag": {
+   "candidate": null,
+   "class": "unknown",
+   "form": "cashtag",
+   "input": "$COMPARE",
+   "name": null,
+   "symbol": null,
+   "type": null
+  },
   "$COPPER|cashtag": {
    "candidate": null,
    "class": "unknown",
    "form": "cashtag",
    "input": "$COPPER",
+   "name": null,
+   "symbol": null,
+   "type": null
+  },
+  "$CRUDE|cashtag": {
+   "candidate": null,
+   "class": "unknown",
+   "form": "cashtag",
+   "input": "$CRUDE",
    "name": null,
    "symbol": null,
    "type": null
@@ -370,11 +415,29 @@
    "symbol": null,
    "type": null
   },
+  "$ELECTION|cashtag": {
+   "candidate": null,
+   "class": "unknown",
+   "form": "cashtag",
+   "input": "$ELECTION",
+   "name": null,
+   "symbol": null,
+   "type": null
+  },
   "$ES|cashtag": {
    "candidate": null,
    "class": "unknown",
    "form": "cashtag",
    "input": "$ES",
+   "name": null,
+   "symbol": null,
+   "type": null
+  },
+  "$ETHEREUM|cashtag": {
+   "candidate": null,
+   "class": "unknown",
+   "form": "cashtag",
+   "input": "$ETHEREUM",
    "name": null,
    "symbol": null,
    "type": null
@@ -441,6 +504,15 @@
    "name": null,
    "symbol": null,
    "type": null
+  },
+  "$FUN|cashtag": {
+   "candidate": null,
+   "class": "symbol",
+   "form": "cashtag",
+   "input": "$FUN",
+   "name": "Six Flags Entertainment Corporation",
+   "symbol": "FUN",
+   "type": "stock"
   },
   "$FUTURES|cashtag": {
    "candidate": null,
@@ -521,6 +593,15 @@
    "input": "$GOOGL",
    "name": "Alphabet Inc. Class A",
    "symbol": "GOOGL",
+   "type": "stock"
+  },
+  "$GOOG|cashtag": {
+   "candidate": null,
+   "class": "symbol",
+   "form": "cashtag",
+   "input": "$GOOG",
+   "name": "Alphabet Inc. Class C",
+   "symbol": "GOOG",
    "type": "stock"
   },
   "$GREEN|cashtag": {
@@ -622,6 +703,15 @@
    "symbol": "IT",
    "type": "stock"
   },
+  "$JONES|cashtag": {
+   "candidate": null,
+   "class": "unknown",
+   "form": "cashtag",
+   "input": "$JONES",
+   "name": null,
+   "symbol": null,
+   "type": null
+  },
   "$KEY|cashtag": {
    "candidate": null,
    "class": "symbol",
@@ -648,6 +738,15 @@
    "name": null,
    "symbol": null,
    "type": null
+  },
+  "$LINK|cashtag": {
+   "candidate": null,
+   "class": "symbol",
+   "form": "cashtag",
+   "input": "$LINK",
+   "name": "Interlink Electronics, Inc.",
+   "symbol": "LINK",
+   "type": "stock"
   },
   "$LOW|cashtag": {
    "candidate": null,
@@ -816,6 +915,15 @@
    "class": "unknown",
    "form": "cashtag",
    "input": "$NVIDIA",
+   "name": null,
+   "symbol": null,
+   "type": null
+  },
+  "$OCTOBER|cashtag": {
+   "candidate": null,
+   "class": "unknown",
+   "form": "cashtag",
+   "input": "$OCTOBER",
    "name": null,
    "symbol": null,
    "type": null
@@ -991,6 +1099,15 @@
    "symbol": null,
    "type": null
   },
+  "$RN|cashtag": {
+   "candidate": null,
+   "class": "unknown",
+   "form": "cashtag",
+   "input": "$RN",
+   "name": null,
+   "symbol": null,
+   "type": null
+  },
   "$RUSSELL|cashtag": {
    "candidate": null,
    "class": "unknown",
@@ -1032,6 +1149,15 @@
    "class": "unknown",
    "form": "cashtag",
    "input": "$SILVER",
+   "name": null,
+   "symbol": null,
+   "type": null
+  },
+  "$SOLANA|cashtag": {
+   "candidate": null,
+   "class": "unknown",
+   "form": "cashtag",
+   "input": "$SOLANA",
    "name": null,
    "symbol": null,
    "type": null
@@ -1158,6 +1284,15 @@
    "class": "unknown",
    "form": "cashtag",
    "input": "$TIME",
+   "name": null,
+   "symbol": null,
+   "type": null
+  },
+  "$TLSA|cashtag": {
+   "candidate": null,
+   "class": "unknown",
+   "form": "cashtag",
+   "input": "$TLSA",
    "name": null,
    "symbol": null,
    "type": null
@@ -1486,6 +1621,15 @@
    "symbol": "AMZN",
    "type": "stock"
   },
+  "$amzon|cashtag": {
+   "candidate": null,
+   "class": "unknown",
+   "form": "cashtag",
+   "input": "$amzon",
+   "name": null,
+   "symbol": null,
+   "type": null
+  },
   "$and|cashtag": {
    "candidate": null,
    "class": "unknown",
@@ -1639,6 +1783,24 @@
    "symbol": null,
    "type": null
   },
+  "$car|cashtag": {
+   "candidate": null,
+   "class": "symbol",
+   "form": "cashtag",
+   "input": "$car",
+   "name": "Avis Budget Group, Inc.",
+   "symbol": "CAR",
+   "type": "stock"
+  },
+  "$cat|cashtag": {
+   "candidate": null,
+   "class": "symbol",
+   "form": "cashtag",
+   "input": "$cat",
+   "name": "Caterpillar Inc.",
+   "symbol": "CAT",
+   "type": "stock"
+  },
   "$change|cashtag": {
    "candidate": null,
    "class": "unknown",
@@ -1675,11 +1837,29 @@
    "symbol": null,
    "type": null
   },
+  "$compare|cashtag": {
+   "candidate": null,
+   "class": "unknown",
+   "form": "cashtag",
+   "input": "$compare",
+   "name": null,
+   "symbol": null,
+   "type": null
+  },
   "$copper|cashtag": {
    "candidate": null,
    "class": "unknown",
    "form": "cashtag",
    "input": "$copper",
+   "name": null,
+   "symbol": null,
+   "type": null
+  },
+  "$crude|cashtag": {
+   "candidate": null,
+   "class": "unknown",
+   "form": "cashtag",
+   "input": "$crude",
    "name": null,
    "symbol": null,
    "type": null
@@ -1756,11 +1936,29 @@
    "symbol": null,
    "type": null
   },
+  "$election|cashtag": {
+   "candidate": null,
+   "class": "unknown",
+   "form": "cashtag",
+   "input": "$election",
+   "name": null,
+   "symbol": null,
+   "type": null
+  },
   "$es|cashtag": {
    "candidate": null,
    "class": "unknown",
    "form": "cashtag",
    "input": "$es",
+   "name": null,
+   "symbol": null,
+   "type": null
+  },
+  "$ethereum|cashtag": {
+   "candidate": null,
+   "class": "unknown",
+   "form": "cashtag",
+   "input": "$ethereum",
    "name": null,
    "symbol": null,
    "type": null
@@ -1827,6 +2025,15 @@
    "name": null,
    "symbol": null,
    "type": null
+  },
+  "$fun|cashtag": {
+   "candidate": null,
+   "class": "symbol",
+   "form": "cashtag",
+   "input": "$fun",
+   "name": "Six Flags Entertainment Corporation",
+   "symbol": "FUN",
+   "type": "stock"
   },
   "$futures|cashtag": {
    "candidate": null,
@@ -1907,6 +2114,15 @@
    "input": "$googl",
    "name": "Alphabet Inc. Class A",
    "symbol": "GOOGL",
+   "type": "stock"
+  },
+  "$goog|cashtag": {
+   "candidate": null,
+   "class": "symbol",
+   "form": "cashtag",
+   "input": "$goog",
+   "name": "Alphabet Inc. Class C",
+   "symbol": "GOOG",
    "type": "stock"
   },
   "$green|cashtag": {
@@ -2008,6 +2224,15 @@
    "symbol": "IT",
    "type": "stock"
   },
+  "$jones|cashtag": {
+   "candidate": null,
+   "class": "unknown",
+   "form": "cashtag",
+   "input": "$jones",
+   "name": null,
+   "symbol": null,
+   "type": null
+  },
   "$key|cashtag": {
    "candidate": null,
    "class": "symbol",
@@ -2034,6 +2259,15 @@
    "name": null,
    "symbol": null,
    "type": null
+  },
+  "$link|cashtag": {
+   "candidate": null,
+   "class": "symbol",
+   "form": "cashtag",
+   "input": "$link",
+   "name": "Interlink Electronics, Inc.",
+   "symbol": "LINK",
+   "type": "stock"
   },
   "$low|cashtag": {
    "candidate": null,
@@ -2202,6 +2436,15 @@
    "class": "unknown",
    "form": "cashtag",
    "input": "$nvidia",
+   "name": null,
+   "symbol": null,
+   "type": null
+  },
+  "$october|cashtag": {
+   "candidate": null,
+   "class": "unknown",
+   "form": "cashtag",
+   "input": "$october",
    "name": null,
    "symbol": null,
    "type": null
@@ -2377,6 +2620,15 @@
    "symbol": null,
    "type": null
   },
+  "$rn|cashtag": {
+   "candidate": null,
+   "class": "unknown",
+   "form": "cashtag",
+   "input": "$rn",
+   "name": null,
+   "symbol": null,
+   "type": null
+  },
   "$russell|cashtag": {
    "candidate": null,
    "class": "unknown",
@@ -2418,6 +2670,15 @@
    "class": "unknown",
    "form": "cashtag",
    "input": "$silver",
+   "name": null,
+   "symbol": null,
+   "type": null
+  },
+  "$solana|cashtag": {
+   "candidate": null,
+   "class": "unknown",
+   "form": "cashtag",
+   "input": "$solana",
    "name": null,
    "symbol": null,
    "type": null
@@ -2544,6 +2805,15 @@
    "class": "unknown",
    "form": "cashtag",
    "input": "$time",
+   "name": null,
+   "symbol": null,
+   "type": null
+  },
+  "$tlsa|cashtag": {
+   "candidate": null,
+   "class": "unknown",
+   "form": "cashtag",
+   "input": "$tlsa",
    "name": null,
    "symbol": null,
    "type": null
@@ -2872,6 +3142,15 @@
    "symbol": "AMZN",
    "type": "stock"
   },
+  "AMZON|upper": {
+   "candidate": null,
+   "class": "unknown",
+   "form": "upper",
+   "input": "AMZON",
+   "name": null,
+   "symbol": null,
+   "type": null
+  },
   "AND|upper": {
    "candidate": null,
    "class": "unknown",
@@ -3029,6 +3308,24 @@
    "symbol": null,
    "type": null
   },
+  "CAR|upper": {
+   "candidate": null,
+   "class": "symbol",
+   "form": "upper",
+   "input": "CAR",
+   "name": "Avis Budget Group, Inc.",
+   "symbol": "CAR",
+   "type": "stock"
+  },
+  "CAT|upper": {
+   "candidate": null,
+   "class": "symbol",
+   "form": "upper",
+   "input": "CAT",
+   "name": "Caterpillar Inc.",
+   "symbol": "CAT",
+   "type": "stock"
+  },
   "CHANGE|upper": {
    "candidate": null,
    "class": "unknown",
@@ -3065,11 +3362,29 @@
    "symbol": null,
    "type": null
   },
+  "COMPARE|upper": {
+   "candidate": null,
+   "class": "unknown",
+   "form": "upper",
+   "input": "COMPARE",
+   "name": null,
+   "symbol": null,
+   "type": null
+  },
   "COPPER|upper": {
    "candidate": null,
    "class": "unknown",
    "form": "upper",
    "input": "COPPER",
+   "name": null,
+   "symbol": null,
+   "type": null
+  },
+  "CRUDE|upper": {
+   "candidate": null,
+   "class": "unknown",
+   "form": "upper",
+   "input": "CRUDE",
    "name": null,
    "symbol": null,
    "type": null
@@ -3146,11 +3461,29 @@
    "symbol": null,
    "type": null
   },
+  "ELECTION|upper": {
+   "candidate": null,
+   "class": "unknown",
+   "form": "upper",
+   "input": "ELECTION",
+   "name": null,
+   "symbol": null,
+   "type": null
+  },
   "ES|upper": {
    "candidate": null,
    "class": "unknown",
    "form": "upper",
    "input": "ES",
+   "name": null,
+   "symbol": null,
+   "type": null
+  },
+  "ETHEREUM|upper": {
+   "candidate": null,
+   "class": "unknown",
+   "form": "upper",
+   "input": "ETHEREUM",
    "name": null,
    "symbol": null,
    "type": null
@@ -3217,6 +3550,15 @@
    "name": null,
    "symbol": null,
    "type": null
+  },
+  "FUN|upper": {
+   "candidate": null,
+   "class": "symbol",
+   "form": "upper",
+   "input": "FUN",
+   "name": "Six Flags Entertainment Corporation",
+   "symbol": "FUN",
+   "type": "stock"
   },
   "FUTURES|upper": {
    "candidate": null,
@@ -3297,6 +3639,15 @@
    "input": "GOOGL",
    "name": "Alphabet Inc. Class A",
    "symbol": "GOOGL",
+   "type": "stock"
+  },
+  "GOOG|upper": {
+   "candidate": null,
+   "class": "symbol",
+   "form": "upper",
+   "input": "GOOG",
+   "name": "Alphabet Inc. Class C",
+   "symbol": "GOOG",
    "type": "stock"
   },
   "GREEN|upper": {
@@ -3398,6 +3749,15 @@
    "symbol": "IT",
    "type": "stock"
   },
+  "JONES|upper": {
+   "candidate": null,
+   "class": "unknown",
+   "form": "upper",
+   "input": "JONES",
+   "name": null,
+   "symbol": null,
+   "type": null
+  },
   "KEY|upper": {
    "candidate": null,
    "class": "symbol",
@@ -3424,6 +3784,15 @@
    "name": null,
    "symbol": null,
    "type": null
+  },
+  "LINK|upper": {
+   "candidate": null,
+   "class": "symbol",
+   "form": "upper",
+   "input": "LINK",
+   "name": "Interlink Electronics, Inc.",
+   "symbol": "LINK",
+   "type": "stock"
   },
   "LOW|upper": {
    "candidate": null,
@@ -3608,6 +3977,15 @@
    "symbol": null,
    "type": null
   },
+  "OCTOBER|upper": {
+   "candidate": null,
+   "class": "unknown",
+   "form": "upper",
+   "input": "OCTOBER",
+   "name": null,
+   "symbol": null,
+   "type": null
+  },
   "OF|upper": {
    "candidate": null,
    "class": "unknown",
@@ -3779,6 +4157,15 @@
    "symbol": null,
    "type": null
   },
+  "RN|upper": {
+   "candidate": null,
+   "class": "unknown",
+   "form": "upper",
+   "input": "RN",
+   "name": null,
+   "symbol": null,
+   "type": null
+  },
   "RUSSELL|upper": {
    "candidate": null,
    "class": "unknown",
@@ -3820,6 +4207,15 @@
    "class": "unknown",
    "form": "upper",
    "input": "SILVER",
+   "name": null,
+   "symbol": null,
+   "type": null
+  },
+  "SOLANA|upper": {
+   "candidate": null,
+   "class": "unknown",
+   "form": "upper",
+   "input": "SOLANA",
    "name": null,
    "symbol": null,
    "type": null
@@ -3950,6 +4346,15 @@
    "class": "unknown",
    "form": "upper",
    "input": "TIME",
+   "name": null,
+   "symbol": null,
+   "type": null
+  },
+  "TLSA|upper": {
+   "candidate": null,
+   "class": "unknown",
+   "form": "upper",
+   "input": "TLSA",
    "name": null,
    "symbol": null,
    "type": null
@@ -4294,6 +4699,15 @@
    "symbol": null,
    "type": null
   },
+  "amzon|lower": {
+   "candidate": null,
+   "class": "unknown",
+   "form": "lower",
+   "input": "amzon",
+   "name": null,
+   "symbol": null,
+   "type": null
+  },
   "and|lower": {
    "candidate": null,
    "class": "unknown",
@@ -4471,6 +4885,32 @@
    "symbol": null,
    "type": null
   },
+  "car|lower": {
+   "candidate": {
+    "name": "Avis Budget Group, Inc.",
+    "symbol": "CAR",
+    "type": "stock"
+   },
+   "class": "symbol_typed_lowercase",
+   "form": "lower",
+   "input": "car",
+   "name": null,
+   "symbol": null,
+   "type": null
+  },
+  "cat|lower": {
+   "candidate": {
+    "name": "Caterpillar Inc.",
+    "symbol": "CAT",
+    "type": "stock"
+   },
+   "class": "symbol_typed_lowercase",
+   "form": "lower",
+   "input": "cat",
+   "name": null,
+   "symbol": null,
+   "type": null
+  },
   "change|lower": {
    "candidate": null,
    "class": "unknown",
@@ -4507,11 +4947,29 @@
    "symbol": null,
    "type": null
   },
+  "compare|lower": {
+   "candidate": null,
+   "class": "unknown",
+   "form": "lower",
+   "input": "compare",
+   "name": null,
+   "symbol": null,
+   "type": null
+  },
   "copper|lower": {
    "candidate": null,
    "class": "unknown",
    "form": "lower",
    "input": "copper",
+   "name": null,
+   "symbol": null,
+   "type": null
+  },
+  "crude|lower": {
+   "candidate": null,
+   "class": "unknown",
+   "form": "lower",
+   "input": "crude",
    "name": null,
    "symbol": null,
    "type": null
@@ -4592,11 +5050,29 @@
    "symbol": null,
    "type": null
   },
+  "election|lower": {
+   "candidate": null,
+   "class": "unknown",
+   "form": "lower",
+   "input": "election",
+   "name": null,
+   "symbol": null,
+   "type": null
+  },
   "es|lower": {
    "candidate": null,
    "class": "unknown",
    "form": "lower",
    "input": "es",
+   "name": null,
+   "symbol": null,
+   "type": null
+  },
+  "ethereum|lower": {
+   "candidate": null,
+   "class": "unknown",
+   "form": "lower",
+   "input": "ethereum",
    "name": null,
    "symbol": null,
    "type": null
@@ -4664,6 +5140,19 @@
    "class": "unknown",
    "form": "lower",
    "input": "from",
+   "name": null,
+   "symbol": null,
+   "type": null
+  },
+  "fun|lower": {
+   "candidate": {
+    "name": "Six Flags Entertainment Corporation",
+    "symbol": "FUN",
+    "type": "stock"
+   },
+   "class": "symbol_typed_lowercase",
+   "form": "lower",
+   "input": "fun",
    "name": null,
    "symbol": null,
    "type": null
@@ -4753,6 +5242,19 @@
    "class": "symbol_typed_lowercase",
    "form": "lower",
    "input": "googl",
+   "name": null,
+   "symbol": null,
+   "type": null
+  },
+  "goog|lower": {
+   "candidate": {
+    "name": "Alphabet Inc. Class C",
+    "symbol": "GOOG",
+    "type": "stock"
+   },
+   "class": "symbol_typed_lowercase",
+   "form": "lower",
+   "input": "goog",
    "name": null,
    "symbol": null,
    "type": null
@@ -4860,6 +5362,15 @@
    "symbol": null,
    "type": null
   },
+  "jones|lower": {
+   "candidate": null,
+   "class": "unknown",
+   "form": "lower",
+   "input": "jones",
+   "name": null,
+   "symbol": null,
+   "type": null
+  },
   "key|lower": {
    "candidate": {
     "name": "KeyCorp",
@@ -4887,6 +5398,19 @@
    "class": "unknown",
    "form": "lower",
    "input": "level",
+   "name": null,
+   "symbol": null,
+   "type": null
+  },
+  "link|lower": {
+   "candidate": {
+    "name": "Interlink Electronics, Inc.",
+    "symbol": "LINK",
+    "type": "stock"
+   },
+   "class": "symbol_typed_lowercase",
+   "form": "lower",
+   "input": "link",
    "name": null,
    "symbol": null,
    "type": null
@@ -5098,6 +5622,15 @@
    "symbol": null,
    "type": null
   },
+  "october|lower": {
+   "candidate": null,
+   "class": "unknown",
+   "form": "lower",
+   "input": "october",
+   "name": null,
+   "symbol": null,
+   "type": null
+  },
   "of|lower": {
    "candidate": null,
    "class": "unknown",
@@ -5281,6 +5814,15 @@
    "symbol": null,
    "type": null
   },
+  "rn|lower": {
+   "candidate": null,
+   "class": "unknown",
+   "form": "lower",
+   "input": "rn",
+   "name": null,
+   "symbol": null,
+   "type": null
+  },
   "russell|lower": {
    "candidate": null,
    "class": "unknown",
@@ -5322,6 +5864,15 @@
    "class": "unknown",
    "form": "lower",
    "input": "silver",
+   "name": null,
+   "symbol": null,
+   "type": null
+  },
+  "solana|lower": {
+   "candidate": null,
+   "class": "unknown",
+   "form": "lower",
+   "input": "solana",
    "name": null,
    "symbol": null,
    "type": null
@@ -5464,6 +6015,15 @@
    "class": "unknown",
    "form": "lower",
    "input": "time",
+   "name": null,
+   "symbol": null,
+   "type": null
+  },
+  "tlsa|lower": {
+   "candidate": null,
+   "class": "unknown",
+   "form": "lower",
+   "input": "tlsa",
    "name": null,
    "symbol": null,
    "type": null
@@ -5842,6 +6402,46 @@
   {
    "name": "United States Oil Fund",
    "ticker": "USO",
+   "type": "etf"
+  },
+  {
+   "name": "Alphabet Inc. Class C",
+   "ticker": "GOOG",
+   "type": "stock"
+  },
+  {
+   "name": "Caterpillar Inc.",
+   "ticker": "CAT",
+   "type": "stock"
+  },
+  {
+   "name": "Avis Budget Group, Inc.",
+   "ticker": "CAR",
+   "type": "stock"
+  },
+  {
+   "name": "Six Flags Entertainment Corporation",
+   "ticker": "FUN",
+   "type": "stock"
+  },
+  {
+   "name": "Interlink Electronics, Inc.",
+   "ticker": "LINK",
+   "type": "stock"
+  },
+  {
+   "name": "SPDR Gold Shares",
+   "ticker": "GLD",
+   "type": "etf"
+  },
+  {
+   "name": "SPDR Dow Jones Industrial Average ETF Trust",
+   "ticker": "DIA",
+   "type": "etf"
+  },
+  {
+   "name": "iShares Bitcoin Trust ETF",
+   "ticker": "IBIT",
    "type": "etf"
   },
   {
