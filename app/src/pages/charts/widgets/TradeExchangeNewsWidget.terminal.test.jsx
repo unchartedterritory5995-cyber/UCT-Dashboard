@@ -4,7 +4,7 @@
 // (continuous scrolling, calendar, previous/next day, jump to time, live Today),
 // several widgets at once, and re-render economy on a quote tick. The shared pool
 // and the day server are faked (fakeNewsDay); synthetic only.
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, renderHook, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AuthContext } from '../../../context/AuthContext'
 import { setAgentFlag } from '../../../agent/agentFlag'
@@ -1151,9 +1151,7 @@ describe('Bookmark a headline', () => {
 
 describe('News ↔ UCT Agent seam', () => {
   it('by default News uses UCT Agent’s own News exports (nothing else)', () => {
-    let got
-    function Probe() { got = useContext(NewsAgentContext); return null }
-    render(<Probe />)
-    expect(got).toEqual({ useAsk: useAgentAsk, openAgent: agentOpenAgent })
+    const { result } = renderHook(() => useContext(NewsAgentContext))
+    expect(result.current).toEqual({ useAsk: useAgentAsk, openAgent: agentOpenAgent })
   })
 })
