@@ -176,6 +176,19 @@ Only agent-qa edits this file. Update it in every PR.
   today. Script stamping itself is NOT flag-gated, so stamped rows already exist in production.
   Fix direction (the owner's call): capture with `GET /{id}?source=1` before deleting, and pass `pineSource` on the
   Undo save.
+  **Fix: draft PR #617 (`77b46e56cc`, Indicators, based on master; it waits behind Sprint 1 and the owner's go).
+  agent-qa re-check on a local, never-pushed merge of r2 + #617:**
+  - My reproduction, turned around to require exactness, passes: delete then Undo of a stamped script restores the
+    stamp and the stored script.
+  - Control: a server that withholds the script means nothing is deleted.
+  - #617's `agentDefinitions.test.js`: 23 passed.
+  - Agent vitest under the lock: **121 files, 2081 passed** (r2's 2058 plus those 23), with no Agent file changed.
+  - Ownership: all 3 files are EXTERNAL (Indicators: `chart/**` and `useUserDefinitions.js`), so agent-lead
+    approval is needed.
+  - Seen in passing, not from #617: `src/hooks/pollingSites.rail.test.js` fails on master content
+    (`pages/traderArchive/TodayRhymes.jsx: 1 (listed 0)`). It is outside the Agent gate and is for agent-lead to
+    route.
+  F-15 closes when #617 lands.
 
 ## Blockers
 - (none)
