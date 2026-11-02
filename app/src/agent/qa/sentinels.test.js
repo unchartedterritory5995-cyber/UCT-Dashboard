@@ -1,7 +1,7 @@
 // agent-qa — regression for the 2026-11-01 master-gate false positive (run 41372562071): a timing that contains a
 // sentinel's digits must read clean; the sentinels themselves must still be caught.
 import { describe, it, expect } from 'vitest'
-import { leaksOf, SENT_NUM, SENT_INT, SENT_STR } from './sentinels'
+import { leaksOf, SENT_NUM, SENT_INT, SENT_STR } from '../__fixtures__/program/sentinels'
 
 describe('agent-qa sentinels', () => {
   it('timings, ids and hex carrying every sentinel\'s digits read CLEAN (the trace.js t0 case included)', () => {

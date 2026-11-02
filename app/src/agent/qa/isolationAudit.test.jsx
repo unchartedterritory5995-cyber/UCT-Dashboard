@@ -19,7 +19,7 @@ import { loadAgentConfig, _resetAgentConfig } from '../agentClient'
 import { _resetScreenerCache, loadMeta } from '../capabilities/screener'
 import { _resetTurns } from '../trace'
 import { makeBoard } from '../__fixtures__/board'
-import { leaksOf } from './sentinels'
+import { leaksOf } from '../__fixtures__/program/sentinels'
 
 vi.mock('../../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
 import AgentPanel from '../AgentPanel'

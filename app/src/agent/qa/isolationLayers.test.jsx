@@ -11,7 +11,7 @@ import { modelSafeBody, agentTurn, agentTurnStream, isolationDrops, _resetAgentC
 import { _resetTurns } from '../trace'
 
 registerBuiltins()
-import { leaksOf, SENT_NUM } from './sentinels'
+import { leaksOf, SENT_NUM } from '../__fixtures__/program/sentinels'
 const SENT = SENT_NUM                                    // token-aware (./sentinels.js)
 const OK = 'UNMARKED-CONTROL-55'
 const marked = () => ({ isolated: true, kind: 'ratings', data: { composite: Number(SENT) } })
