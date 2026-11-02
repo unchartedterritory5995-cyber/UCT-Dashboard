@@ -157,8 +157,8 @@ const rowsOf = (env) => {
 // A read with no usable price answers in FIXED words (agent-qa F-20): never the envelope's notes, which can carry
 // numbers ("this turn already made 8 data reads…") and are not member copy. A closed list, keyed on status only.
 const NO_PRICE = {
-  refused: "that request wasn't allowed for this question, so I didn't read a price",
-  unavailable: "UCT's market data didn't return a price for it",
+  refused: "that request wasn't allowed for this question, so the price is not available",
+  unavailable: "the price is not available from UCT's market data",
 }
 export function noPriceSentence(env, syms) {
   const who = syms.length ? syms.join(', ') : 'that'

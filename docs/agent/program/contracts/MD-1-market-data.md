@@ -193,8 +193,8 @@ five. It never calls `/api/live-prices`.
 | `overnight` / `closed` | `Market closed (overnight / weekend or holiday): NVDA last close $142.10 (Fri, Oct 30), …. Not a real-time price.` When the price is an after-hours print, it says `last trade $X (date, time ET)` instead. |
 | `regular`, row priced from a close | `NVDA: no current trade in the regular session — showing the day's close, $142.10 …. Not a real-time price.` |
 | `partial` (`quotes`) | one line per symbol, then `Partial: no price for NOPE.` |
-| `refused` | `I couldn't get a price for NVDA: that request wasn't allowed for this question, so I didn't read a price. No price is stated.` |
-| `unavailable` (or no priced row) | `I couldn't get a price for NVDA: UCT's market data didn't return a price for it. No price is stated.` |
+| `refused` | `I couldn't get a price for NVDA: that request wasn't allowed for this question, so the price is not available. No price is stated.` |
+| `unavailable` (or no priced row) | `I couldn't get a price for NVDA: the price is not available from UCT's market data. No price is stated.` |
 
 **Rules for every answer:**
 - **No-price answers use fixed words.** A read with no usable price answers from a closed list keyed on

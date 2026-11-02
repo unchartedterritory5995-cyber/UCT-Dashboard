@@ -147,8 +147,8 @@ describe('stock.quote answers state the session, as-of and freshness honestly', 
   })
 
   it.each([
-    ['refused', "I couldn't get a price for NVDA: that request wasn't allowed for this question, so I didn't read a price. No price is stated."],
-    ['unavailable', "I couldn't get a price for NVDA: UCT's market data didn't return a price for it. No price is stated."],
+    ['refused', "I couldn't get a price for NVDA: that request wasn't allowed for this question, so the price is not available. No price is stated."],
+    ['unavailable', "I couldn't get a price for NVDA: the price is not available from UCT's market data. No price is stated."],
   ])('%s: fixed words, no number at all, never the envelope note (F-20)', (status, want) => {
     for (const note of ['this turn already made 8 data reads (the limit is 8)', 'the quote provider could not answer', '']) {
       const t = says(answerFromEnvelope({ ...env({ status, freshness: 'unavailable', as_of: null }), data: null, notes: note ? [note] : [] }, ['NVDA']))
@@ -159,7 +159,7 @@ describe('stock.quote answers state the session, as-of and freshness honestly', 
   })
 
   it('an unknown status with no rows is the unavailable sentence, and an ok read with no priced row too', () => {
-    const want = "I couldn't get a price for NVDA: UCT's market data didn't return a price for it. No price is stated."
+    const want = "I couldn't get a price for NVDA: the price is not available from UCT's market data. No price is stated."
     expect(says(answerFromEnvelope({ ...env({ status: 'weird' }), notes: ['9 9 9'] }, ['NVDA']))).toBe(want)
     expect(says(answerFromEnvelope({ ...env(), data: { quote: { symbol: 'NVDA', last: null } }, notes: ['8 reads'] }, ['NVDA']))).toBe(want)
   })
