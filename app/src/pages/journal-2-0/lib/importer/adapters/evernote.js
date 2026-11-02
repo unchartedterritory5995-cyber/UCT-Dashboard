@@ -85,7 +85,7 @@ import SparkMD5 from 'spark-md5'
 import { reportIgnoredFiles } from './reportIgnored'
 import { liftMediaOutOfLinks } from '../mediaRefs'
 import { resolveHref, neutraliseAnchor } from '../linkPolicy'
-import { isEvernoteNoteHref, resolveEvernoteLinks, settleEvernoteLinks } from '../evernoteLinks'
+import { isEvernoteNoteHref, resolveEvernoteLinks, settleEvernoteLinks, pyStrip } from '../evernoteLinks'
 
 const ENEX_EXT = /\.enex$/i
 const ENML_PROLOG_RE = /^\s*<\?xml[^>]*\?>\s*<!DOCTYPE[^>]*>\s*/i
@@ -127,7 +127,7 @@ async function parse(vfiles, opts = {}) {
           // `root` = the note's LIVE DOM, held until every .enex is parsed (Task 7).
           docs.push(await makeNoteDoc(noteEl, notebookName))
         } catch (err) {
-          const t = noteEl.querySelector('title')?.textContent?.trim() || '(untitled)'
+          const t = pyStrip(noteEl.querySelector('title')?.textContent) || '(untitled)'
           warnings.push(`Could not import note "${t}" in "${vfile.path}": ${err?.message || err}`)
         }
       }
@@ -173,7 +173,9 @@ async function parse(vfiles, opts = {}) {
 // ---------------------------------------------------------------------------
 
 async function makeNoteDoc(noteEl, notebookName) {
-  const title = noteEl.querySelector('title')?.textContent?.trim() || 'Untitled'
+  // `pyStrip`, not `trim()`: the server stores `title.strip()` (Python), and a title the two
+  // sides strip differently resolves here but never heals there (Task 7 fix round 1).
+  const title = pyStrip(noteEl.querySelector('title')?.textContent) || 'Untitled'
   const createdRaw = noteEl.querySelector('created')?.textContent?.trim() || ''
   const updatedRaw = noteEl.querySelector('updated')?.textContent?.trim() || createdRaw
   const tags = Array.from(noteEl.querySelectorAll('tag')).map((t) => t.textContent.trim())
