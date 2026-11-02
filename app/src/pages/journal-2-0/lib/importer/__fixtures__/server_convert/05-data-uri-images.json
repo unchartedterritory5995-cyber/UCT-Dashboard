@@ -69,13 +69,10 @@
         "type": "image"
       },
       {
-        "content": [
-          {
-            "text": "[unsupported image: tiny unsupported svg, image/svg+xml]",
-            "type": "text"
-          }
-        ],
-        "type": "paragraph"
+        "attrs": {
+          "src": "import-ref://md-img-2.svg"
+        },
+        "type": "image"
       }
     ],
     "type": "doc"
@@ -87,6 +84,12 @@
       "kind": "image",
       "name": "md-img-1.png",
       "ref": "md-img-1.png"
+    },
+    {
+      "data_uri": "data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=",
+      "kind": "image",
+      "name": "md-img-2.svg",
+      "ref": "md-img-2.svg"
     }
   ]
 }

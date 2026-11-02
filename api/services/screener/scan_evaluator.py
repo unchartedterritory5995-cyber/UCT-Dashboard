@@ -141,6 +141,7 @@ from zoneinfo import ZoneInfo
 from api.services import ast_freshness
 from api.services import ast_interpret
 from api.services import ast_table
+from api.services import block_runs
 from api.services import definition_record
 from api.services import scan_definition
 from api.services.nyse_calendar import (
@@ -1377,6 +1378,35 @@ def _assert_sweep_closes(*, handed: int, swept: int, refused: int,
             f"refused={refused} duplicate={duplicate} unswept={unswept}")
 
 
+def _block_runs_withheld(definition: Any, key: Optional[str], bars: list, scalars: Any,
+                         tf_code: Any, symbol_series: Any, _eval_now: Any) -> Optional[str]:
+    """⭐⭐ C48 / C45 — why the plot this scan runs is withheld on THIS symbol's bars,
+    or ``None``. A Pine document's plot that reads a call whose code runs only on
+    some bars (a ``ta.*`` in an ``if`` block, in one arm of a ``?:``, on the right of
+    a v6 ``and`` / ``or``) carries that code's guard (``meta.blockRuns``); the
+    member's chart refuses the plot, by name, wherever the code runs after a bar it
+    skipped (``engine/blockRuns.js``), and this sweep asks the SAME question of the
+    same guards over the symbol's own bars (``block_runs.block_runs_refusal``).
+    ⛔ UNDER THE OPTS THE TREE ITSELF IS EVALUATED WITH: the dict below is
+    ``evaluate_one``'s ``interpret`` opts, key for key and expression for expression
+    (the parameters carry the same names), held so by
+    ``tests/test_block_runs_server_lanes.py``. Outside ``evaluate_one`` on purpose:
+    that function's one ``interpret`` call is railed by AST, and this one evaluates
+    a guard, not the tree."""
+    if not key:
+        return None
+    opts = {"tf": tf_code,
+            "symbols": symbol_series,
+            "now": _eval_now,
+            "barIndexAbsolute":
+                ast_interpret.bar_index_absolute_for(definition),
+            "semantics":
+                ast_interpret.semantics_for(definition)}
+    return block_runs.block_runs_refusal(
+        definition, key,
+        lambda guard: ast_interpret.interpret(guard, bars, scalars=scalars, opts=dict(opts)))
+
+
 def evaluate_one(definition: Any, tf: str = DEFAULT_TF, *,
                  universe: Optional[Sequence[str]] = None,
                  as_of: Optional[Any] = None,
@@ -1461,6 +1491,11 @@ def evaluate_one(definition: Any, tf: str = DEFAULT_TF, *,
     tree = compute.get("ast")
     rev = compute.get("rev")
     def_hash = spec["def_hash"]
+    # ⭐⭐ C48 / C45 — the gates the member door stamped on the plot this scan runs
+    # (`compute.ast` is that plot's tree), read ONCE; `None` for every document
+    # without them, which is then evaluated exactly as before.
+    scan_key = block_runs.scan_plot_key(definition)
+    scan_gates = block_runs.block_runs_for(definition, scan_key) if scan_key else None
 
     tf_code = scan_store._normalise_tf(tf)
     # ⭐ ONE INSTANT FOR THE WHOLE CALL, HANDED IN. `tick` is the sweep's own
@@ -1842,6 +1877,17 @@ def evaluate_one(definition: Any, tf: str = DEFAULT_TF, *,
                                                        ast_interpret.bar_index_absolute_for(definition),
                                                    "semantics":
                                                        ast_interpret.semantics_for(definition)})
+            # ⭐⭐ C48 / C45 — A PLOT THE MEMBER'S CHART WITHHOLDS ON THESE BARS IS
+            # NOT COMPUTABLE HERE EITHER (`_block_runs_withheld`, under the opts
+            # above), never answered off the every-bar value. Asked AFTER the tree.
+            if scan_gates:
+                why = _block_runs_withheld(definition, scan_key, bars, scalars,
+                                           tf_code, symbol_series, _eval_now)
+                if why:
+                    _unanswered(sym, NOT_COMPUTABLE_REASON,
+                                detail=f"{block_runs.BLOCK_RUNS_GUARD}: {why}")
+                    not_computable += 1
+                    continue
             value = column[index]
             if (value is None or isinstance(value, bool)
                     or not isinstance(value, (int, float))
@@ -2615,6 +2661,11 @@ def definitions_to_sweep() -> list:
         # absence. A log line per definition per night would be noise about a
         # refusal the member already read.
         if user_definitions.consumer_refusal("sweep", row.get("requirements")):
+            continue
+        # ⭐ SAVED-SCRIPT AUTO-UPGRADE — a version today's script engine refuses is
+        # not swept (silent here for the reason above: the member reads it BY NAME
+        # at `routers/user_definitions._stamped`, gate `withheld`).
+        if user_definitions.engine_withheld_reason(row):
             continue
         compute = definition.get("compute")
         if not isinstance(compute, dict) or compute.get("kind") != scan_definition.AST_KIND:

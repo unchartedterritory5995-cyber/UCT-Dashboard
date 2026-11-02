@@ -639,10 +639,24 @@ async def test_fetch_media_external_url_is_unauthenticated():
     assert seen["external"] is None  # NOT authenticated -- credential-boundary rule
 
 
-async def test_fetch_media_refuses_non_https_external_ref():
+async def test_fetch_media_refuses_a_non_http_external_ref():
     provider = _make_provider(lambda r: httpx.Response(404))
     with pytest.raises(NoteConnUnsupported):
-        await provider.fetch_media(CREDS, "http://example.com/insecure.png")
+        await provider.fetch_media(CREDS, "ftp://example.com/insecure.png")
+
+
+async def test_http_hotlink_is_downloaded_without_the_bearer():
+    """Plan A Task 9 (I-5): an http hotlink in a page is copied in (download only)."""
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(200, content=b"img", headers={"content-type": "image/png"})
+
+    provider = _make_provider(handler)
+    assert await provider.fetch_media(CREDS, "http://1.1.1.1/a.png") == (b"img", "image/png")
+    assert [str(r.url) for r in seen] == ["http://1.1.1.1/a.png"]
+    assert "authorization" not in {k.lower() for k in seen[0].headers.keys()}
 
 
 # ---------------------------------------------------------------------------

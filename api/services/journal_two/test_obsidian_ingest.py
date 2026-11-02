@@ -14,6 +14,7 @@ token IS the credential under test.
 from __future__ import annotations
 
 import json
+from datetime import datetime, timedelta, timezone
 
 import pytest
 from cryptography.fernet import Fernet
@@ -132,6 +133,22 @@ def _redeem_via_http(client, user_id: str, vault_id: str = "vault-1", label: str
     r = client.post(_REDEEM_URL, json={"code": code, "vaultId": vault_id, "label": label})
     assert r.status_code == 200, r.text
     return r.json()["token"]
+
+
+def _a_night_later(source_id):
+    """Backdate the source's previous full pass by a day, so the next
+    back-to-back full pass on the real clock is shaped like the NEXT nightly
+    pass. A removal strike only counts when the previous full pass is at least
+    MEMBER_FULL_PASS_MIN_INTERVAL_S old; these tests model nightly passes."""
+    conn = auth_db.get_connection()
+    try:
+        conn.execute(
+            "UPDATE j2_note_sources SET last_full_sync_at = ? WHERE id = ?",
+            ((datetime.now(timezone.utc) - timedelta(days=1)).isoformat(), source_id),
+        )
+        conn.commit()
+    finally:
+        conn.close()
 
 
 def _note(vault_path: str, content_hash: str, body_md: str = "# body") -> dict:
@@ -697,6 +714,50 @@ async def test_mint_redeem_ingest_chain_is_visible_through_the_provider_for_that
     assert titles == {"One", "Two"}
 
 
+async def test_link_to_a_note_created_later_heals_without_repushing_the_source(client):
+    """Plan A Task 13 (O-4). `Src.md` links `[[Later]]` before `Later.md` exists. It syncs
+    with a pending `name:obsidian:` mark; then `Later.md` is pushed ALONE and an
+    INCREMENTAL sync runs. The round's heal pass resolves Src's link to the new note
+    without Src being re-pushed or re-imported, and without touching its `updated_at`."""
+    from api.services.journal_two import notes as notes_svc
+    from api.services.journal_two.note_connectors import engine as sync_engine
+
+    code = obsidian_link.mint_connect_code("user-a")
+    r = client.post(_REDEEM_URL, json={"code": code, "vaultId": "vault-heal", "label": "Heal"})
+    assert r.status_code == 200, r.text
+    hdr = {"Authorization": f"Bearer {r.json()['token']}"}
+    source_id = r.json()["source"]["id"]
+
+    r = client.post(_URL, headers=hdr, json={
+        "consent": True, "notes": [_note("Src.md", "h1", "# Src\n\nsee [[Later]] soon")],
+        "manifest": ["Src.md"], "final": True})
+    assert r.status_code == 200, r.text
+    first = await sync_engine.sync_source(source_id, full=True, manual=True)
+    assert (first["status"], first["created"]) == ("ok", 1), first
+
+    def _note_row(title):
+        note = next(n for n in notes_svc.list_notes("user-a") if n["title"] == title)
+        return notes_svc.get_note("user-a", note["id"])
+
+    src = _note_row("Src")
+    assert "import-link://name:obsidian:vault-heal/later" in json.dumps(src["bodyJson"])
+    src_updated_at = src["updatedAt"]
+
+    r = client.post(_URL, headers=hdr, json={
+        "consent": True, "notes": [_note("Later.md", "h2", "# Later")],
+        "manifest": ["Src.md", "Later.md"], "final": True})
+    assert r.status_code == 200, r.text
+    second = await sync_engine.sync_source(source_id, full=False, manual=True)
+    assert (second["status"], second["created"], second["updated"]) == ("ok", 1, 0), second
+
+    later = _note_row("Later")
+    src = _note_row("Src")
+    hrefs = [m["attrs"]["href"] for blk in src["bodyJson"]["content"]
+             for n in blk.get("content") or [] for m in n.get("marks") or [] if m["type"] == "link"]
+    assert hrefs == [f"/journal?j2tab=notebook&note={later['id']}"]
+    assert src["updatedAt"] == src_updated_at
+
+
 async def test_delete_detection_still_fires_through_the_real_sync_engine(client):
     """Not a C1/I2 regression -- existing behaviour the fix must leave
     alone. A vault_path dropped from a subsequent FINAL manifest still gets
@@ -741,11 +802,13 @@ async def test_delete_detection_still_fires_through_the_real_sync_engine(client)
     )
     assert ir2.status_code == 200, ir2.text
 
+    _a_night_later(source_id)
     second = await sync_engine.sync_source(source_id, full=True, manual=True)
     assert second["status"] == "ok", second
     assert second["sourceDeleted"] == 0  # first miss -- streak 1, not severed yet
     assert "source-deleted" not in _tags_for("B")
 
+    _a_night_later(source_id)
     third = await sync_engine.sync_source(source_id, full=True, manual=True)
     assert third["status"] == "ok", third
     assert third["sourceDeleted"] == 1  # second consecutive miss -- severed

@@ -179,6 +179,11 @@ REFUSALS: Mapping[str, str] = {
     "bad_horizon": "a forward horizon is a whole number of bars, at least 1",
     "bad_window": "the window starts after it ends",
     "bad_date": "a window bound is not a YYYY-MM-DD date",
+    # ⭐ C48 / C45 (review round 2, M3) — the member's chart withholds this screen on
+    # every symbol that had an answer to give (`meta.blockRuns`, `withheld_for`)
+    "block_runs": ("this screen cannot be backtested on these symbols: it reads a call "
+                   "whose code runs only on some bars, and on their bars that code ran "
+                   "after a bar it skipped, so the member's chart withholds it there"),
 }
 
 
@@ -872,7 +877,9 @@ def run_backtest(tree: Any, symbols: Sequence[str], frm: str, to: str, *,
                  min_signals: int = DEFAULT_MIN_SIGNALS,
                  membership: str = "current",
                  bars_source: Optional[str] = None,
-                 opts: Optional[Mapping[str, Any]] = None) -> Receipt:
+                 opts: Optional[Mapping[str, Any]] = None,
+                 withheld_for: Optional[Callable[[Sequence[Mapping[str, Any]]], Optional[str]]] = None,
+                 ) -> Receipt:
     """Backtest one screen. Returns a ``Receipt`` — an answer or a named refusal.
 
     :param tree:        a canonical AST (``parse.js::canonicalise``'s output)
@@ -882,6 +889,15 @@ def run_backtest(tree: Any, symbols: Sequence[str], frm: str, to: str, *,
     :param horizons:    forward horizons in bars
     :param min_signals: the floor below which a win rate is withheld
     :param bars_source: a label for the receipt; this module never reads bars itself
+    :param withheld_for: ``bars -> sentence | None`` — ⭐ C48 / C45 (M3): why the
+                        member's chart withholds this screen on a symbol's bars
+                        (a saved definition's ``meta.blockRuns``, asked by the
+                        route). A withheld symbol is NOT TESTED and is counted in
+                        its own bucket (``coverage.symbols_withheld``, named in
+                        ``method.withheld``); when no symbol is left to test the
+                        receipt is the named refusal ``block_runs``. ``None`` (every
+                        posted tree, every unstamped definition) changes nothing —
+                        not a key of the receipt.
 
     ⛔ NEVER RAISES FOR A REFUSAL. ``BacktestRefusal`` is caught and returned as a
     receipt, because "we cannot answer this, and here is why" is an ANSWER the
@@ -960,6 +976,8 @@ def run_backtest(tree: Any, symbols: Sequence[str], frm: str, to: str, *,
     missing_bars = 0        # the reader had nothing for this symbol -> NOT TESTED
     no_window_bars = 0      # bars, but none inside the window -> NOT TESTED
     unanswered_only = 0     # in-window bars, but the screen answered none of them
+    withheld = 0            # ⭐ M3: the member's chart withholds it on these bars -> NOT TESTED
+    withheld_why: Optional[str] = None
     try:
         for sym in symbols:
             bars = bars_for(sym)
@@ -969,6 +987,16 @@ def run_backtest(tree: Any, symbols: Sequence[str], frm: str, to: str, *,
             bars = list(bars)
             scan = _scan_symbol(tree, bars, frm=frm, to=to, warmup=warmup,
                                 fields=fields, opts=opts)
+            # ⭐⭐ C48 / C45 (M3) — ASKED AFTER THE TREE, as the chart and the sweep ask
+            # it (a symbol whose bars the tree refuses keeps that refusal). Withheld,
+            # the symbol contributes no bar to any count: its every answer is the
+            # every-bar number, which the member's chart refuses to draw.
+            if withheld_for is not None:
+                why = withheld_for(bars)
+                if why:
+                    withheld += 1
+                    withheld_why = withheld_why or why
+                    continue
             tallies.append(scan)
             if scan.in_window == 0:
                 no_window_bars += 1
@@ -984,7 +1012,8 @@ def run_backtest(tree: Any, symbols: Sequence[str], frm: str, to: str, *,
     _assert_closes("universe", len(symbols),
                    {"tested": tested, "missing_bars": missing_bars,
                     "no_window_bars": no_window_bars,
-                    "unanswered_only": unanswered_only})
+                    "unanswered_only": unanswered_only,
+                    "withheld": withheld})
 
     coverage: Dict[str, int] = {
         "symbols_requested": len(symbols),
@@ -995,6 +1024,8 @@ def run_backtest(tree: Any, symbols: Sequence[str], frm: str, to: str, *,
         "symbols_missing_bars": missing_bars,
         "symbols_no_bars_in_window": no_window_bars,
         "symbols_no_answer_in_window": unanswered_only,
+        # ⭐ M3 — and a fourth, present only when a definition's gates were asked
+        **({"symbols_withheld": withheld} if withheld_for is not None else {}),
         # ⛔ OVER `tallies`, NEVER OVER `scans` — see the walk above. A symbol
         # kept out of the horizon loop still had bars, and they are still part of
         # what this window looked like.
@@ -1008,6 +1039,16 @@ def run_backtest(tree: Any, symbols: Sequence[str], frm: str, to: str, *,
                     "not_computable": coverage["bars_not_computable"],
                     "answered": coverage["bars_answered"]})
 
+    if withheld:
+        # ⭐ M3 — WHY, by the gate's own sentence (the first symbol's), beside the count
+        method["withheld"] = {"guard": "pine:block", "symbols": withheld, "reason": withheld_why}
+    if tested == 0 and withheld:
+        return refuse("block_runs",
+                      f"— {withheld} of {len(symbols)} symbols are withheld "
+                      f"({missing_bars} had no bars, {no_window_bars} none between "
+                      f"{frm} and {to}, {unanswered_only} nothing the screen could "
+                      f"answer). The first: {withheld_why}.",
+                      warmup=warmup, coverage=coverage)
     if tested == 0:
         return refuse("no_bars_in_window",
                       f"— {len(symbols)} symbols asked, {missing_bars} had no "

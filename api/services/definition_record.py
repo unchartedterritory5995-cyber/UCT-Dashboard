@@ -93,7 +93,7 @@ import re
 import sqlite3
 import threading
 import time
-from typing import Any, Optional, Sequence
+from typing import Any, Mapping, Optional, Sequence
 
 from api.services import user_definitions as _defs
 from api.services.signature import ledger
@@ -484,7 +484,7 @@ def record_evaluations(def_hash: str, rev: int, tf: str,
 
 def record_pass(rev: int, tf: str, sym: str, *, ast: Any, bars: Sequence[dict],
                 inputs: Optional[dict] = None, budget: Optional[dict] = None,
-                at: Optional[float] = None) -> dict:
+                at: Optional[float] = None, definition: Optional[Mapping] = None) -> dict:
     """Evaluate `ast` over `bars` for `sym` and record what it said.
 
     ⭐ THIS IS THE MEMBER-INDEPENDENT HALF, AND ITS INPUT LIST IS THE PROOF. A
@@ -524,6 +524,16 @@ def record_pass(rev: int, tf: str, sym: str, *, ast: Any, bars: Sequence[dict],
     A `TableRefusal` from the interpreter is NOT caught here. A tree the table
     refuses is refused for every symbol, and swallowing it per symbol would turn
     one loud authoring error into a universe of quietly dropped rows.
+
+    ⭐⭐ C48 / C45 (review round 2, M3) — `definition`, when given, is the saved
+    document the tree is the scan plot of, and its `meta.blockRuns` gates are
+    honoured exactly as the scan sweep honours them (`scan_evaluator._block_runs_
+    withheld`): where the member's chart withholds the plot on these bars, NOTHING
+    is recorded and `skipped` names the guard and the gate's own sentence
+    (`pine:block: …`) — a receipt for the every-bar number is a receipt for a value
+    the chart refuses to draw. ⛔ It must be THAT tree's document (`compute.ast`,
+    by hash): a document whose gates describe another tree is refused, never
+    asked. `None` — every caller today — records exactly as before.
     """
     from api.services import ast_interpret
 
@@ -533,6 +543,23 @@ def record_pass(rev: int, tf: str, sym: str, *, ast: Any, bars: Sequence[dict],
 
     bars = list(bars)
     column = ast_interpret.interpret(ast, bars, inputs, budget)
+    # ⭐ M3 — the gates, asked AFTER the tree (a tree that cannot compute keeps its
+    # own refusal), under the tree's own inputs and budget
+    if definition is not None:
+        from api.services import block_runs
+        key = block_runs.scan_plot_key(definition)
+        if key and block_runs.block_runs_for(definition, key):
+            compute = definition.get("compute") if isinstance(definition.get("compute"), Mapping) else {}
+            if _defs.ast_hash(compute.get("ast")) != def_hash:
+                raise ValueError(
+                    "the rule record refuses this pass: the definition given is not the one this "
+                    "tree is the scan plot of, so its block-run gates describe another tree")
+            why = block_runs.block_runs_refusal(
+                definition, key, lambda guard: ast_interpret.interpret(guard, bars, inputs, budget))
+            if why:
+                return {"def_hash": def_hash, "evaluated": 0, "true": 0,
+                        "first_bar_time": None, "through_bar_time": None,
+                        "recorded": False, "skipped": f"{block_runs.BLOCK_RUNS_GUARD}: {why}"}
     # `max_lookback` counts BARS NEEDED, so the last warm-up index is one less.
     pad = max(0, ast_interpret.max_lookback(ast) - 1)
     evaluated = 0

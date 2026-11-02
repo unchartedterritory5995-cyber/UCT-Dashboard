@@ -150,6 +150,11 @@ export const FIXTURES = {
     board: { v: 1, items: [{ id: 'c1', kind: 'text', x: 0, y: 0, w: 240, h: 120, text: 'canvascardword' }],
       edges: [], levels: [{ id: 'l1', role: 'entry', label: 'Entry', price: 101.5, chartId: null }] },
     searchText: 'canvascardword' } }), probe: 'canvascardword' },
+  // Connector fidelity (2026-11): an import's "couldn't copy" marker. Its words are DERIVED
+  // (the exports write the sentence); probe: the name, which only the sentence carries.
+  importNotice: { doc: doc({ type: 'importNotice', attrs: {
+    reason: 'fetch_failed', name: 'noticefileword.png', sourceUrl: 'https://example.com/noticefileword.png',
+    ref: 'r1', attempts: 3 } }), probe: 'noticefileword' },
 }
 
 // Wave 13 lane 13H-1: a chart whose plan was DRAWN — roles written by lib/chartPlan.js (the

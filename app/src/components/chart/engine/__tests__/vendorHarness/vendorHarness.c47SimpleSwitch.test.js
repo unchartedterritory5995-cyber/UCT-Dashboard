@@ -296,9 +296,20 @@ describe('⛔ C47 — what the call-site rule does NOT serve', () => {
     const afterDefault = run(wrap(['pick(float s, simple string m) =>', '    switch m', '        => s', '        "A" => s * 2']), rows)
     const twoDefaults = run(wrap(['pick(float s, simple string m) =>', '    switch m', '        "B" => s * 2', '        => s * 5', '        => s']), rows)
     const notAParameter = run(wrap(['string G = "A"', 'pick(float s, simple string m) =>', '    switch G', '        "A" => s * 2', '        => s']), rows)
-    for (const [name, r] of Object.entries({ series, block, label, afterDefault, twoDefaults, notAParameter })) {
+    // ⭐ P3 WS-A — a function body ENDING IN A SWITCH lowers as a block value now
+    // (A4, `p3StatementsBlockValues.test.js`), whatever the subject's qualifier
+    // or the arm's shape: the switch runs per bar on the run, which is Pine's
+    // own evaluation, so the call-site specialisation is no longer the only door.
+    // These four were refused as `pine:block` and are served, each = close * 2.
+    const closeX2 = rows.map((b) => b.c * 2)
+    for (const [name, r] of Object.entries({ series, block, label, notAParameter })) {
+      expect(r.refusal, `${name}: ${r.refusal && r.refusal.message}`).toBeUndefined()
+      expect(r.columns[0], name).toEqual(closeX2)
+    }
+    // ⛔ an arm after the default has no reading the lane may pick: still refused
+    for (const [name, r] of Object.entries({ afterDefault, twoDefaults })) {
       expect(r.refusal, `${name}: still refused`).toBeTruthy()
-      expect(r.refusal.guard, name).toBe('pine:block')
+      expect(r.refusal.guard, name).toBe('runtime:switch')
     }
     // control: the same definition in the served shape is served
     const ok = run(wrap(['pick(float s, simple string m) =>', '    switch m', '        "A" => s * 2', '        => s']), rows)

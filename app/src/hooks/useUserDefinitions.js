@@ -32,9 +32,11 @@ import {
 } from '../components/chart/engine/nativeRegistry'
 import { reduceIfOversized, hydrateGraphDocument } from '../components/chart/engine/ast/graphDocument'
 import { META_KEY } from '../pages/screener/hooks/useScreenerMeta'
-import { SCRIPT_ENGINE_VERSION, withoutEngineStamp } from '../components/chart/engine/scriptEngineVersion'
 import {
-  resolveRow, writeBackOnce, onUpgradeSettled,
+  SCRIPT_ENGINE_VERSION, withoutEngineStamp, withinPineSourceCap,
+} from '../components/chart/engine/scriptEngineVersion'
+import {
+  resolveRow, writeBackOnce, recordOnce, onUpgradeSettled, isScriptDocument,
 } from '../components/chart/builder/memberPane/savedScriptUpgrade'
 
 export const USER_DEFINITIONS_KEY = '/api/user-definitions'
@@ -179,9 +181,18 @@ export async function saveUserDefinition(definition, defId = null, telemetry = n
   // Undo, any hand edit — every one of them can carry a stored row's `meta` through)
   // cannot make that claim, so the stamp is dropped here, at the only door every
   // writer goes through, rather than at each writer.
+  // ⛔ L6 — a script over the store's cap is not sent (the store would refuse the
+  // whole request); the document saves without it and later offers the Builder row.
   const pineSource = options && typeof options.pineSource === 'string' && options.pineSource.trim()
-    ? options.pineSource : null
-  if (!pineSource) definition = withoutEngineStamp(definition)
+    && withinPineSourceCap(options.pineSource) ? options.pineSource : null
+  if (!pineSource) {
+    definition = withoutEngineStamp(definition)
+    // ⭐ L2 — and a script document saved WITHOUT its script is the member's own
+    // maths now (a hand edit): marked, so it is never offered "paste the script".
+    if (isScriptDocument(definition) && definition.meta.scriptEdited !== true) {
+      definition = { ...definition, meta: { ...definition.meta, scriptEdited: true } }
+    }
+  }
   const url = defId ? `${USER_DEFINITIONS_KEY}/${encodeURIComponent(defId)}` : USER_DEFINITIONS_KEY
   let r
   try {
@@ -204,6 +215,8 @@ export async function saveUserDefinition(definition, defId = null, telemetry = n
         // ⭐ PHASE 4 — revision-aware save: only an EDIT sends the version it opened.
         ...(defId && options && Number.isInteger(options.baseVersion) ? { base_version: options.baseVersion } : {}),
         ...(pineSource ? { pine_source: pineSource } : {}),
+        // ⭐ MEDIUM-1 — only the load-time write-back sends this, and only with its script.
+        ...(pineSource && options && options.reason === 'engine-upgrade' ? { save_reason: 'engine-upgrade' } : {}),
       }),
     })
   } catch {
@@ -324,10 +337,10 @@ export async function forkUserDefinition(defId) {
  * @returns {Promise<{ok: true, row: object} | {ok: false, status: number|null, error: string}>}
  *   `status: 404` is the authoritative "not live"; `null` is a transport failure.
  */
-export async function readUserDefinition(defId) {
+export async function readUserDefinition(defId, { withSource = false } = {}) {
   let r
   try {
-    r = await fetch(`${USER_DEFINITIONS_KEY}/${encodeURIComponent(defId)}`, { credentials: 'include' })
+    r = await fetch(`${USER_DEFINITIONS_KEY}/${encodeURIComponent(defId)}${withSource ? '?source=1' : ''}`, { credentials: 'include' })
   } catch {
     return { ok: false, status: null, error: 'Could not reach the server — check your connection and try again.' }
   }
@@ -339,6 +352,27 @@ export async function readUserDefinition(defId) {
     return { ok: false, status: r.status, error: 'The server answered without the definition.' }
   }
   return { ok: false, status: r.status, error: `The server could not read this indicator (${r.status}).` }
+}
+
+/**
+ * ⭐⭐ SAVED-SCRIPT AUTO-UPGRADE — remember, server-side, what this browser's newer
+ * script engine learned about the LIVE version of one of the member's script
+ * documents (`refused` / `write-failed`). Append-only; the document is never touched.
+ * @returns {Promise<{ok: boolean, status: number|null}>}
+ */
+export async function recordEngineStatus(defId, { version, engine, status, reason }) {
+  let r
+  try {
+    r = await fetch(`${USER_DEFINITIONS_KEY}/${encodeURIComponent(defId)}/engine-status`, {
+      method: 'POST', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ version, engine, status, reason: String(reason || '').slice(0, 2000) || status }),
+    })
+  } catch {
+    return { ok: false, status: null }
+  }
+  if (r.ok) mutate(USER_DEFINITIONS_KEY)
+  return { ok: r.ok, status: r.status }
 }
 
 /** HTTP statuses that are an AUTHORITATIVE "this session has no definitions".
@@ -447,10 +481,10 @@ export function useInstalledUserDefinitions() {
   // version and compute handle ⇒ no write, no generation bump) and
   // `clearUserDefinitions` returns early on an empty index, so a second run
   // costs a loop and changes nothing a consumer can observe.
-  const { installedIds, errors, writeBacks, pending } = useMemo(() => {
+  const { installedIds, errors, writeBacks, records, pending } = useMemo(() => {
     if (key === '<refused>') {
       clearUserDefinitions()
-      return { installedIds: [], errors: [], writeBacks: NO_ROWS, pending: 0 }
+      return { installedIds: [], errors: [], writeBacks: NO_ROWS, records: NO_ROWS, pending: 0 }
     }
     // ⭐⭐ SAVED-SCRIPT AUTO-UPGRADE — each row resolves to the document to draw
     // (`resolveRow`): a CURRENT row is its stored document, byte for byte, with no
@@ -460,11 +494,13 @@ export function useInstalledUserDefinitions() {
     const docs = []
     const refusals = []
     const plans = []
+    const records = []
     const held = []
     for (const r of rows) {
       if (!r || !r.definition || typeof r.definition !== 'object') continue
       const res = resolveRow(r)
       if (res.pending) { held.push(r.def_id); continue }
+      if (res.record) records.push(res.record)
       if (res.refusal) {
         refusals.push(res.refusal)
         // ⛔ the refusal wins on this chart too, whatever an earlier install left
@@ -491,6 +527,7 @@ export function useInstalledUserDefinitions() {
       installedIds: installed.map(d => d.id),
       errors: refusals.length ? [...installErrors, ...refusals] : installErrors,
       writeBacks: plans.length ? plans.filter(p => ok.has(p.row.def_id)) : NO_ROWS,
+      records: records.length ? records : NO_ROWS,
       pending: held.length,
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- upgradeTick: re-run when a held script's new translation lands (`resolveRow` reads it from the upgrade module, not from React)
@@ -498,8 +535,13 @@ export function useInstalledUserDefinitions() {
   // The write-back is a NETWORK effect, so it runs after commit — once per stored
   // version per tab (`writeBackOnce` dedupes across every chart that mounts this).
   useEffect(() => {
-    for (const plan of writeBacks) writeBackOnce(plan, saveUserDefinition)
+    for (const plan of writeBacks) writeBackOnce(plan, saveUserDefinition, recordEngineStatus)
   }, [writeBacks])
+  // ⭐ MEDIUM-2(a) — a refusal this tab just learned is remembered for every lane and
+  // device (once per stored version); after that no load translates it again.
+  useEffect(() => {
+    for (const plan of records) recordOnce(plan, recordEngineStatus)
+  }, [records])
   // The ids the store returned — installed or refused — so a non-resolving formula the store
   // HAS reads "no longer passes checks", and one it lacks reads "deleted" (A1.4).
   const storeDefIds = useMemo(() => new Set(rows.map(r => r && r.def_id).filter(Boolean)), [rows])

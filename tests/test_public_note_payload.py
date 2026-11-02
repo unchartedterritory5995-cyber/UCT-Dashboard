@@ -248,6 +248,10 @@ FIXTURES: dict[str, Callable[[], dict]] = {
                           {"id": "i2", "kind": "chart", "x": 0, "y": 0, "w": 400, "h": 260, "symbol": "NVDA",
                            "tf": "D", "mode": "live", "asOf": None}],
         "edges": [], "levels": [{"id": "l1", "role": "entry", "label": "Entry", "price": 182.5, "chartId": "i2"}]}}}),
+    # Connector fidelity (2026-11): an import's "couldn't copy" marker, naming a file and its source.
+    "importNotice": lambda: doc({"type": "importNotice", "attrs": {
+        "reason": "fetch_failed", "name": "chart.png", "sourceUrl": "https://example.com/chart.png",
+        "ref": "r1", "attempts": 3}}),
     # marks
     "bold": lambda: doc(p(t("b", {"type": "bold"}))),
     "code": lambda: doc(p(t("c", {"type": "code"}))),
@@ -292,6 +296,7 @@ EXPECTED.update({
     "financialFact": ("neutral", "neutral"),  # the fixture is a Massive price fact
     "documentExcerpt": ("neutral", "neutral"),
     "tradeCanvas": ("neutral", "neutral"),  # wave 11 11D: a plan mixes member text with Massive charts
+    "importNotice": ("gone", "gone"),       # connector fidelity: an import's marker never leaves
 })
 
 #: Wave 12 lane 12A -- what each type becomes in the THIRD mode, `gallery` (a member template
@@ -471,6 +476,21 @@ def test_internal_link_marks_lose_the_link_and_keep_the_words():
     assert texts_in(out) == ["a", "b", "c", "d", "e"]
     hrefs = [m["attrs"]["href"] for n in find(out, "text") for m in n.get("marks", [])]
     assert hrefs == ["https://example.com/ok", "mailto:me@example.com"]
+
+
+@pytest.mark.parametrize("mode", ["share", "publish"])
+def test_internal_note_href_mark_renders_as_text_on_share_and_publish(mode):
+    """Plan A Task 2 (L-1): an imported wiki link resolves to `/journal?j2tab=notebook&note=<id>`
+    -- a link MARK, not a noteLink node. In the app it opens the note; on a public page it is
+    the member's words only: mark removed, text kept, and the private note id nowhere in the
+    payload, whichever order the query names its params in."""
+    body = doc(p(t("my alias", {"type": "link", "attrs": {"href": f"/journal?j2tab=notebook&note={OTHER}"}}),
+                 t(" and ", ),
+                 t("again", {"type": "link", "attrs": {"href": f"/journal?note={OTHER}&j2tab=notebook"}})))
+    out = reduce(body, mode, NOTE_LINKS_IN_PUBLICATION if mode == "publish" else None)
+    assert "".join(texts_in(out)) == "my alias and again"
+    assert all(not n.get("marks") for n in find(out, "text"))
+    assert OTHER not in json.dumps(out)
 
 
 # ── M-6: the URL attributes of KEPT nodes (wave-8 final review) ─────────────────────────

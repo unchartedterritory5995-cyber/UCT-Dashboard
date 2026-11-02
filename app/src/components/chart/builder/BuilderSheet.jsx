@@ -84,7 +84,7 @@ import { astHash } from '../engine/ast/parse'
 import { lexPine } from '../engine/ast/pine'
 import { DOOR_VERSION } from '../engine/memberDocumentMigration'
 import { withEngineStamp } from '../engine/scriptEngineVersion'
-import { SCRIPT_UPGRADE_PASTE_NOTE } from './memberPane/savedScriptUpgrade'
+import { SCRIPT_UPGRADE_PASTE_NOTE, SCRIPT_UPGRADE_RESAVE_NOTE } from './memberPane/savedScriptUpgrade'
 // ⛔ THE SECOND MACHINE-ASSIGNED BADGE, AND IT IS MEASURED HERE FOR THE SAME
 // REASON `repaint` IS: `validateUserDefinitions` REQUIRES `meta.freshness` on
 // the `ast` lane and refuses a disagreement in both directions, so a document
@@ -1441,9 +1441,11 @@ export default function BuilderSheet({
     if (row && row.upgradeScript === true && compute.kind === 'ast') {
       setEditing({ defId: row.def_id, version: Number(row.version) || 1, prior: def || null, runtime: true })
       setName(String(def?.meta?.name || ''))
-      setPineText('')
+      // the script, when it is stored (a remembered failed write-back); else an empty box
+      const stored = typeof row.pine_source === 'string' && row.pine_source.trim() ? row.pine_source : ''
+      setPineText(stored)
       setBuildMode('pine')
-      setScriptUpgradeNote(SCRIPT_UPGRADE_PASTE_NOTE)
+      setScriptUpgradeNote(stored ? SCRIPT_UPGRADE_RESAVE_NOTE : SCRIPT_UPGRADE_PASTE_NOTE)
       return
     }
     // ⛔⛔ P1 HARDENING (2026-10-11) — THE FORMULA BOX EDITS FORMULAS, AND ONLY FORMULAS.

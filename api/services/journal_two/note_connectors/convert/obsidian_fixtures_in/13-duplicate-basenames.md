@@ -1,0 +1,3 @@
+# Duplicate names
+
+Follow [[Plan]].

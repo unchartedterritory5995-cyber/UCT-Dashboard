@@ -153,10 +153,26 @@ describe('⭐⭐ v2:249 clears when the IR lane is told the symbol', () => {
     // ⭐ The skip list moves with the capabilities too, so this asserts the
     // PROPERTY the case is about — every skipped definition named, with its line
     // and its guard — rather than a frozen string.
-    expect(withSym.diagnostics.skippedFunctions.length).toBeGreaterThan(0)
-    for (const entry of withSym.diagnostics.skippedFunctions) {
+    // ⚰️ P3 WS-A — the list can reach EMPTY as capabilities land (tuple-valued `if`
+    // arms compiled its last entry, `f_getVolumeUnit`); only a non-empty list is set.
+    for (const entry of withSym.diagnostics.skippedFunctions || []) {
       expect(entry).toMatch(/^\w+@\d+ [a-z]+:[a-z-]+$/)
     }
+  })
+
+  // ⛔ re-review 2 L-6 — the property loop above passes VACUOUSLY on an empty list, so it
+  // is proved able to see a skip: a helper this lane cannot compile (a `for … in` loop),
+  // injected after v2's `indicator(…)` line, is reported by name, line and guard.
+  it('⛔ the skip list still reports a skipped definition when one exists (the loop is not vacuous)', () => {
+    const lines = V2.split(/\r?\n/)
+    const at = lines.findIndex((l) => l.startsWith('indicator('))
+    expect(at).toBeGreaterThan(0)
+    const helper = ['f_spin_rail(_x) =>', '    float s = 0.0', '    for v in _x', '        s := s + v', '    s']
+    const src = [...lines.slice(0, at + 1), ...helper, ...lines.slice(at + 1)].join('\n')
+    const r = buildRuntimeIr(src, { ...runtimeClockOpts(false), tf: 'D', symbol: SYMBOL })
+    const skipped = r.diagnostics.skippedFunctions || []
+    expect(skipped).toContain(`f_spin_rail@${at + 2} runtime:loop`)
+    for (const entry of skipped) expect(entry).toMatch(/^\w+@\d+ [a-z]+:[a-z-]+$/)
   })
 
   it('⛔ ONE AUTHORITY — the registry re-exports the SAME function object', () => {

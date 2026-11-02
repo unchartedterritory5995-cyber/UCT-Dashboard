@@ -73,6 +73,11 @@ import IpoFirstTradeTag from './chart/IpoFirstTradeTag'
 import { createEarningsBadgePrimitive } from './chart/earningsBadgePrimitive'
 import { ThinVolumeSeries } from './chart/thinVolumeSeries'
 import PatternOverlay from './chart/PatternOverlay'
+import ChartIqOverlay from './chart/chartIq/ChartIqOverlay'
+import ChartIqPanel from './chart/chartIq/ChartIqPanel'
+import { buildPlan as buildChartIqPlan, defaultLayers as chartIqDefaultLayers } from './chart/chartIq/chartIqPlan'
+import { useChartIqAllowed } from './chart/chartIq/chartIqGate'
+import { useChartIq } from '../hooks/useChartIq'
 import PatternSidePanel from './chart/PatternSidePanel'
 import ChartToolbar, { CHART_TOOLBAR_FOOTPRINT_PX, TOOLS as DESKTOP_TOOLS } from './chart/ChartToolbar'
 import MobileDrawBar from './chart/MobileDrawBar'
@@ -6317,6 +6322,22 @@ export default function StockChart({
     handleUpdateChartSettings({ ...cs, showPatterns: next, preset: 'custom' })
   }, [cs, handleUpdateChartSettings])
   const [activeDetection, setActiveDetection] = useState(null)
+  // ── Chart IQ (pattern recognition drawn on the chart; api/routers/chart_iq.py) ── the toolbar switch persists in chart_settings
+  // like Patterns; it shows only while the server allows this viewer (chart_iq_enabled), and the engine reads DAILY bars, so
+  // the fetch and the drawing happen on the 1D timeframe only. `disablePatterns` (grid cells) kills it with the pattern layer.
+  const chartIqAllowed = useChartIqAllowed()
+  const persistedShowChartIq = !!cs.showChartIq
+  const [showChartIq, setShowChartIq] = useState(persistedShowChartIq)
+  useEffect(() => { setShowChartIq(persistedShowChartIq) }, [persistedShowChartIq])
+  const handleToggleChartIq = useCallback((next) => {
+    setShowChartIq(next)
+    handleUpdateChartSettings({ ...cs, showChartIq: next, preset: 'custom' })
+  }, [cs, handleUpdateChartSettings])
+  const chartIqOn = showChartIq && chartIqAllowed && !disablePatterns
+  const chartIqActive = chartIqOn && resolvedTf === 'D'
+  const { data: chartIqData, error: chartIqError, isLoading: chartIqLoading } = useChartIq(sym, resolvedTf, chartIqActive)
+  const [chartIqLayers, setChartIqLayers] = useState(chartIqDefaultLayers)   // per tab, not persisted
+  const handleChartIqLayer = useCallback((id, on) => setChartIqLayers((l) => ({ ...l, [id]: on })), [])
   // Auto Structures (AUTO_STRUCTURES_ENABLED): the overlay, its fetch and its toolbar toggle are
   // ADMIN-ONLY while the flag is on, and off for everyone else — a member whose persisted
   // `showPatterns` is true still sees (and fetches) nothing, exactly as before.
@@ -9745,6 +9766,11 @@ export default function StockChart({
     [patternsActive, ohlcData],
   )
   const patternLastPrice = patternsActive && ohlcData.length ? ohlcData[ohlcData.length - 1].close : null
+  // Chart IQ's drawing plan: its dates are the daily series' own keys ('YYYY-MM-DD'), clipped to the loaded bars.
+  const chartIqPlan = useMemo(
+    () => (chartIqActive && chartIqData && ohlcData.length ? buildChartIqPlan(chartIqData, ohlcData.map((d) => d.time), chartIqLayers) : null),
+    [chartIqActive, chartIqData, ohlcData, chartIqLayers],
+  )
   // Publish the DRAWN candle count (see the `onDrawnBarCount` prop). Reported on
   // every change rather than latched once, so a chart that recovers on a later
   // SWR refresh stops reporting empty — a latch taken at first settle would pin
@@ -18976,7 +19002,9 @@ export default function StockChart({
           canModify: (() => { try { return !!toolbarRef.current?.canModifyWithIntelligence?.() } catch { return false } })(),
           copyRefusal: copyCheck && !copyCheck.ok ? copyCheck.reason : undefined,
           // ⭐⭐ SAVED-SCRIPT AUTO-UPGRADE — a script saved before its source was kept.
-          scriptUpgrade: needsScriptForUpgrade(c.defId),
+          // ⛔ L2 — the row is a door into the builder: offered only where that door opens.
+          scriptUpgrade: needsScriptForUpgrade(c.defId)
+            && (() => { try { return !!toolbarRef.current?.canManageIndicators?.() } catch { return false } })(),
           scriptUpgradeLabel: UPGRADE_NOTICE_LABEL,
         })
         const move = items.find((i) => i.key === 'move')
@@ -20661,7 +20689,9 @@ export default function StockChart({
         </div>
         )
       })}
-      {!disablePatterns && bars?.length > 0 && (
+      {/* ONE pattern engine draws at a time (owner, 2026-11-01): while Chart IQ is drawing this daily chart, Auto Structures'
+          overlay steps aside, and it is back the moment Chart IQ is off or the chart leaves 1D. Nothing is retired. */}
+      {!disablePatterns && !chartIqActive && bars?.length > 0 && (
         <PatternOverlay
           chart={chartRef.current}
           series={candleSeriesRef.current}
@@ -20688,9 +20718,29 @@ export default function StockChart({
           candles={patternsActive ? ohlcData : null}
         />
       )}
+      {chartIqActive && bars?.length > 0 && chartIqPlan && (
+        <ChartIqOverlay
+          chart={chartRef.current}
+          series={candleSeriesRef.current}
+          containerRef={containerRef}
+          plan={chartIqPlan}
+          candles={ohlcData}
+        />
+      )}
+      {chartIqActive && bars?.length > 0 && (
+        <ChartIqPanel
+          data={chartIqData && String(chartIqData.ticker || '').toUpperCase() === String(sym || '').toUpperCase() ? chartIqData : null}
+          loading={chartIqLoading}
+          error={chartIqError}
+          layers={chartIqLayers}
+          onLayer={handleChartIqLayer}
+          onClose={() => handleToggleChartIq(false)}
+        />
+      )}
       {/* The UCT Intelligence indicator's panel: only on a chart that added it, only while the pattern
           layer exists for this viewer. The released-layer toggles inside it appear from their gates. */}
-      {uctIntelOn && (
+      {/* Steps aside for Chart IQ too: same top-right spot, and its switches drive the overlay that is hidden meanwhile. */}
+      {uctIntelOn && !chartIqActive && (
         <UctIntelligencePanel
           state={uctIntel}
           availability={uctIntelAvailability}
@@ -20904,6 +20954,9 @@ export default function StockChart({
             onReplaySpeedChange={setReplaySpeed}
             showPatterns={showPatterns}
             onTogglePatterns={handleTogglePatterns}
+            showChartIq={showChartIq}
+            onToggleChartIq={handleToggleChartIq}
+            chartIqDaily={resolvedTf === 'D'}
             libraryExtraRows={uctIntelLibraryRows}
             showLevels={showPatternLevels}
             onToggleLevels={setShowPatternLevels}
