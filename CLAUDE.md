@@ -508,7 +508,11 @@ trades (`imported:true` flag + `coach_prompts.py` rule).
   only, so a second process doubles it · that door's in-flight caps `journal_two._MEDIA_FETCH_SEM`
   (`MEDIA_FETCH_GLOBAL_INFLIGHT` = 8 downloads at once) and `journal_two._media_fetch_inflight`
   (`MEDIA_FETCH_PER_MEMBER_INFLIGHT` = 2 per member, one more answers 429): a second process
-  doubles both · `notebook_export._SINGLE_NOTE_SLOTS` (wave 8: the one-note
+  doubles both · since the connector fidelity Plan A final review (I3), the editor upload doors'
+  (`POST /api/j2/notes/{id}/images` and `/attachments`) in-flight caps `journal_two._UPLOAD_GATE`
+  (`UPLOAD_PER_MEMBER_INFLIGHT` = 2 per member and `UPLOAD_GLOBAL_INFLIGHT` = 4 for the pod; over
+  either answers 429 at once, before the threadpool): a second process doubles both ·
+  `notebook_export._SINGLE_NOTE_SLOTS` (wave 8: the one-note
   export door's `SINGLE_NOTE_CONCURRENCY` = 2 build slots, one more answers 429 — a second
   process doubles how many Word/web-page builds run at once) · `note_ask._inflight` (the
   concurrent Ask / writing-help stream slots, `NOTE_ASK_MAX_CONCURRENT`) ·

@@ -285,6 +285,111 @@ def test_svg_attachment_is_served_download_only(app, client):
     assert served.headers["x-content-type-options"] == "nosniff"
 
 
+BUSY = {"detail": "Too many uploads at once. Try again in a moment."}
+
+
+@pytest.fixture
+def gate(monkeypatch):
+    from api.routers import journal_two as jt
+    monkeypatch.setattr(jt, "_UPLOAD_GATE", jt._UploadGate())
+    return jt._UPLOAD_GATE
+
+
+def test_a_member_with_two_uploads_in_flight_gets_429_at_once(app, client, gate, attachment_root, monkeypatch):
+    """Final review I3: queued HEIC/large uploads parked the shared threadpool. The door
+    refuses BEFORE it enters the threadpool: no decode, no file, an immediate 429."""
+    from api.services.journal_two import media_policy
+    _login_as(app, "u1")
+    note = _note(client)
+    decoded = []
+    real = media_policy.normalize_media
+    monkeypatch.setattr(media_policy, "normalize_media", lambda *a: decoded.append(1) or real(*a))
+    gate.by_member["u1"] = 2
+    gate.total = 2
+    for door in ("images", "attachments"):
+        r = client.post(f"/api/j2/notes/{note}/{door}", files={"file": ("a.png", _img("PNG"), "image/png")})
+        assert (r.status_code, r.json()) == (429, BUSY), door
+    assert decoded == [] and _files(attachment_root) == []
+    # another member is not held up by u1's uploads
+    _login_as(app, "u2")
+    note2 = _note(client)
+    ok = client.post(f"/api/j2/notes/{note2}/images", files={"file": ("a.png", _img("PNG"), "image/png")})
+    assert ok.status_code == 200, ok.text
+    assert (gate.total, gate.by_member) == (2, {"u1": 2})        # u2's slot came back
+
+
+def test_the_whole_pod_caps_uploads_in_flight(app, client, gate, attachment_root):
+    from api.routers import journal_two as jt
+    _login_as(app, "u3")
+    note = _note(client)
+    gate.total = jt.UPLOAD_GLOBAL_INFLIGHT
+    r = client.post(f"/api/j2/notes/{note}/images", files={"file": ("a.png", _img("PNG"), "image/png")})
+    assert (r.status_code, r.json()) == (429, BUSY)
+    assert _files(attachment_root) == [] and "u3" not in gate.by_member
+    gate.total = jt.UPLOAD_GLOBAL_INFLIGHT - 1
+    r = client.post(f"/api/j2/notes/{note}/images", files={"file": ("a.png", _img("PNG"), "image/png")})
+    assert r.status_code == 200, r.text
+
+
+def test_an_upload_slot_comes_back_on_every_exit(app, gate, monkeypatch):
+    from api.services.journal_two import media_policy
+    _login_as(app, "u1")
+    client = TestClient(app, raise_server_exceptions=False)
+    note = _note(client)
+
+    def boom(*a, **k):
+        raise RuntimeError("disk on fire")
+
+    real_store = media_policy.store_media
+    monkeypatch.setattr(media_policy, "store_media", boom)
+    for _ in range(3):              # more than the per-member cap: a leaked slot would 429
+        r = client.post(f"/api/j2/notes/{note}/images", files={"file": ("a.png", _img("PNG"), "image/png")})
+        assert r.status_code == 500
+    assert (gate.total, gate.by_member) == (0, {})
+    monkeypatch.setattr(media_policy, "store_media", real_store)
+    monkeypatch.setattr(media_policy, "MEMBER_IMPORT_MEDIA_CAP_BYTES", 0)
+    for _ in range(3):              # a refusal (400) releases too
+        r = client.post(f"/api/j2/notes/{note}/images", files={"file": ("a.png", _img("PNG"), "image/png")})
+        assert r.status_code == 400 and r.json()["reason"] == "storage_limit"
+    assert (gate.total, gate.by_member) == (0, {})
+
+
+def test_concurrent_uploads_past_the_cap_are_refused_not_queued(app, gate, monkeypatch):
+    """Two of a member's uploads are decoding (held); a third answers 429 immediately instead
+    of waiting for a threadpool thread or a decode slot."""
+    import threading as _t
+    from api.services.journal_two import media_policy
+    _login_as(app, "u1")
+    inside, release = _t.Semaphore(0), _t.Event()
+    real = media_policy.normalize_media
+
+    def held(*a):
+        inside.release()
+        assert release.wait(10)
+        return real(*a)
+
+    with TestClient(app) as client:          # one portal: every request on ONE event loop
+        note = _note(client)
+        monkeypatch.setattr(media_policy, "normalize_media", held)
+        results = []
+
+        def post():
+            results.append(client.post(f"/api/j2/notes/{note}/images",
+                                       files={"file": ("a.png", _img("PNG"), "image/png")}).status_code)
+
+        workers = [_t.Thread(target=post) for _ in range(2)]
+        for w in workers:
+            w.start()
+        assert inside.acquire(timeout=10) and inside.acquire(timeout=10)
+        third = client.post(f"/api/j2/notes/{note}/images", files={"file": ("a.png", _img("PNG"), "image/png")})
+        assert (third.status_code, third.json()) == (429, BUSY)
+        release.set()
+        for w in workers:
+            w.join(10)
+    assert sorted(results) == [200, 200]
+    assert (gate.total, gate.by_member) == (0, {})
+
+
 def test_every_served_file_is_nosniff_and_a_pdf_still_opens_inline(app, client):
     _login_as(app, "u1")
     note = _note(client)

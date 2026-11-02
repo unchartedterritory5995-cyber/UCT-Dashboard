@@ -4054,6 +4054,44 @@ def _stored_media_payload(stored: "media_policy.StoredMedia") -> dict[str, Any]:
     }
 
 
+#: Final review I3: uploads through the media policy in flight at once, per member and for the
+#: whole pod. Over either => 429 at once, BEFORE the threadpool: a burst of HEIC/large uploads
+#: never queues on the decode semaphore inside it (`media_policy._DECODE_SLOTS`, still there)
+#: and parks the shared threadpool every sync route runs on. Per-process state (CLAUDE.md's
+#: single-process roster): a second process doubles both.
+UPLOAD_PER_MEMBER_INFLIGHT = 2
+UPLOAD_GLOBAL_INFLIGHT = 4
+UPLOAD_BUSY_SENTENCE = "Too many uploads at once. Try again in a moment."
+
+
+class _UploadGate:
+    """The two in-flight counts. Event-loop state only: `acquire` and `release` never await,
+    so a check and its increment cannot interleave with another request."""
+
+    def __init__(self) -> None:
+        self.total = 0
+        self.by_member: dict[str, int] = {}
+
+    def acquire(self, user_id: str) -> bool:
+        mine = self.by_member.get(user_id, 0)
+        if mine >= UPLOAD_PER_MEMBER_INFLIGHT or self.total >= UPLOAD_GLOBAL_INFLIGHT:
+            return False
+        self.by_member[user_id] = mine + 1
+        self.total += 1
+        return True
+
+    def release(self, user_id: str) -> None:
+        self.total = max(0, self.total - 1)
+        left = self.by_member.get(user_id, 1) - 1
+        if left > 0:
+            self.by_member[user_id] = left
+        else:
+            self.by_member.pop(user_id, None)
+
+
+_UPLOAD_GATE = _UploadGate()
+
+
 async def _upload_through_media_policy(user_id: str, note_id: str, file: UploadFile,
                                        *, file_intent: bool) -> Any:
     """Plan A Task 8 [B A1]: the ONE media policy behind both editor upload doors. The raw
@@ -4080,6 +4118,9 @@ async def _upload_through_media_policy(user_id: str, note_id: str, file: UploadF
         budget = media_policy.MediaBudget.for_member(user_id)
         return media_policy.store_media(user_id, note_id, result, budget=budget)
 
+    gate = _UPLOAD_GATE
+    if not gate.acquire(user_id):
+        raise HTTPException(status_code=429, detail=UPLOAD_BUSY_SENTENCE)
     try:
         stored = await run_in_threadpool(decide_and_store)
     except media_policy.MediaRejected as e:
@@ -4090,6 +4131,8 @@ async def _upload_through_media_policy(user_id: str, note_id: str, file: UploadF
         return JSONResponse(status_code=400, content={"detail": detail, "reason": e.reason})
     except NoteValidationError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        gate.release(user_id)
     payload = _stored_media_payload(stored)
     # Wave 7 seam S1: every saved attachment reports to document_extraction,
     # which decides whether it becomes a searchable document. The decision
