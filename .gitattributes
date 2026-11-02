@@ -58,6 +58,11 @@ app/src/pages/journal-2-0/lib/importer/__fixtures__/server_convert/*.json text e
 # byte-identical to its blob once line endings are normalised (e.g. 556 bytes on
 # disk vs a 535-byte blob, exactly its 21 CRLFs). Nothing about the converter drifted.
 app/src/pages/journal-2-0/lib/importer/__fixtures__/obsidian_parity/*.json text eol=lf
+# Plan A Task 14: the connector corpora. `test_connector_corpora.py` re-runs the
+# engine and compares RAW bytes (no line-ending normalisation), so the committed
+# output and the corpus inputs the engine reads must both stay LF on checkout.
+app/src/pages/journal-2-0/lib/importer/__fixtures__/connector_corpora/*.json text eol=lf
+api/services/journal_two/note_connectors/corpora/** text eol=lf
 
 # ⛔⛔ THE CLASS, NOT THE INSTANCE — a DIRECTORY BACKSTOP for every fixture
 # (added 2026-09-11, third instance of the same defect).
