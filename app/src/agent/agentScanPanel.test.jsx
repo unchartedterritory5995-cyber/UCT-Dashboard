@@ -201,6 +201,32 @@ describe('SC-1 §2d (owner F-16): UCT ratings, proprietary scores and flow never
   const SENTENCE = "UCT Agent can't screen on UCT's proprietary ratings and scores. You can use them on the Screener page"
   const reads = () => [...gateway(), ...route()]
 
+  it.each(['show me my strongest stocks', 'rank them by RS', 'sort by relative strength'])(
+    'POSITIVE: "%s" (a screen or ranking BY strength) is refused locally, 0 model turns', async (t) => {
+      const { say } = p.mount(...ONE())
+      await ready()
+      const out = await say(t)
+      expect(p.turns()).toBe(0)
+      expect(out).toContain(SENTENCE)
+      expect(reads()).toEqual([])
+    }, 30000)
+
+  it.each([
+    'Put the strongest five on my watchlist',                       // the previous results' shown order (memory)
+    'the strongest one',
+    'the strongest of those',
+    'Find me some stocks that are looking really strong today',     // today's performance (public)
+    'Which is stronger today, NVDA or AMD?',                        // a public comparison
+  ])('NEGATIVE: "%s" is never refused: it is the planner\'s (a false refusal is a correctness failure)', async (t) => {
+    const { say } = p.mount(...ONE())
+    await ready()
+    screen3m()
+    await say('screen by 3-month performance')                        // a screen ran first, as in conversation
+    const out = await say(t)
+    expect(out).not.toContain(SENTENCE)
+    expect(p.turns()).toBe(2)                                       // the screen's scripted op + this message: the model
+  }, 30000)
+
   it('"show me my strongest stocks" is refused LOCALLY: 0 model turns, the sentence, no read, nothing substituted', async () => {
     const { say } = p.mount(...ONE())
     await ready()
