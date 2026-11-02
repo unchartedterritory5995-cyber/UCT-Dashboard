@@ -229,6 +229,48 @@ def test_a_builtin_alert_carries_no_line_and_is_untouched(defs_db, alerts_db, ri
     assert row["plot_uid"] is None and aus.refusal_for_alert(row) is None
 
 
+def test_a_pre_identity_alert_is_RETIRED_when_its_line_is_replaced_in_ONE_save(
+        defs_db, alerts_db, rising):
+    """Independent QA 2026-11-02, a CONFIRMED blocker: a definition and an alert from
+    before line identity (both unbound), then ONE save in which the member removed
+    'value' and added a new 'value' (`newLine`). The key never left the document,
+    so only the identity change `k:value` -> `p_...` shows the line is new -- and
+    a legacy exemption in the continuity check let the alert adopt it."""
+    save(USER_A, defn(ast_tree=_ast_sma(5)))
+    alert = _create()
+    with sqlite3.connect(str(ud._DB_PATH)) as c:
+        c.execute("UPDATE user_definitions SET line_ids=NULL WHERE def_id=?", (DEF_ID,))
+    d = defn(ast_tree=_ast_sma(5))
+    d["plots"][0][ud.NEW_LINE_FLAG] = True
+    save(USER_A, d)
+    assert UID.match(_ids()["value"])
+    _stamp_times({1: 1000, 2: 2000})
+    _unbind(alert, 1500)
+    aus.forget()
+    refusal = aus.refusal_for_alert(ias.get(alert))
+    assert refusal is not None and refusal.gate == "line"
+    assert ias.get(alert)["plot_uid"] == aus.RETIRED_LINE
+
+
+def test_identities_of_an_all_legacy_history_need_no_document_parse(defs_db, alerts_db,
+                                                                     monkeypatch):
+    """QA 2026-11-02 measured ~0.8 s for a 100-version history. With no row that
+    recorded identities, the answer comes from a metadata query alone."""
+    for n in range(5, 25):
+        save(USER_A, defn(ast_tree=_ast_sma(n)))
+    with sqlite3.connect(str(ud._DB_PATH)) as c:
+        c.execute("UPDATE user_definitions SET line_ids=NULL WHERE def_id=?", (DEF_ID,))
+    calls = {"n": 0}
+    real = ud._plot_keys_of
+
+    def counting(doc):
+        calls["n"] += 1
+        return real(doc)
+    monkeypatch.setattr(ud, "_plot_keys_of", counting)
+    assert ud.line_identities(USER_A, DEF_ID) == {"value": "k:value"}
+    assert calls["n"] == 1, f"parsed {calls['n']} documents for one version"
+
+
 def test_line_is_a_named_gate():
     assert "line" in aus.GATES and set(aus.REFUSAL_FRAGMENTS) == set(aus.GATES)
 

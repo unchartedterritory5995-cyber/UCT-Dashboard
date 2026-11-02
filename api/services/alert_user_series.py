@@ -1368,7 +1368,10 @@ def _check_line(alert: Mapping[str, Any], address: str, fn: Any) -> Any:
         if alert.get("id") is not None:
             from api.services import indicator_alert_service as _ias
             try:
-                _ias.bind_plot_uid(int(alert["id"]), bound)
+                if not _ias.bind_plot_uid(int(alert["id"]), bound):
+                    # another cycle bound it first: ITS answer is the binding
+                    stored = (_ias.get(int(alert["id"])) or {}).get("plot_uid")
+                    bound = stored or bound
             except Exception as exc:                     # noqa: BLE001
                 # The decision below stands either way; an unrecorded binding is
                 # simply decided again from the history on the next cycle.

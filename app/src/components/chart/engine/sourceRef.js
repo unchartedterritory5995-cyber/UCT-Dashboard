@@ -420,7 +420,6 @@ export function sourceInputsOf(def, instance) {
   return out
 }
 
-/** A numeric series from the bars, for a bar-field source. */
 // ─── ⭐⭐ LINE IDENTITY ON A SOURCE REFERENCE (2026-11-02) ─────────────────────
 //
 // `@<instanceId>::<plotKey>` names a KEY, and a key can be removed and taken again by
@@ -548,6 +547,7 @@ export function stampLegacySourceLines(instances, defOf) {
   return changed ? out : instances
 }
 
+/** A numeric series from the bars, for a bar-field source. */
 export function barFieldSeries(bars, field) {
   const n = Array.isArray(bars) ? bars.length : 0
   const out = new Array(n)

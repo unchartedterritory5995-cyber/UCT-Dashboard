@@ -905,33 +905,65 @@ def _effective_line_ids(c: sqlite3.Connection, user_id: Any, def_id: str,
     is NULL (written before the column, or by a path that did not set it): a key
     that version declares takes its uid from the NEAREST earlier row that recorded
     identities, as long as the key is declared in every version in between -- the
-    same continuity rule `decide_line_ids` applies. Usually the first row answers."""
+    same continuity rule `decide_line_ids` applies.
+
+    ⭐ CHEAP ON EXISTING DATA (independent QA 2026-11-02 measured the naive walk at
+    ~0.8 s for a 100-version history). A metadata-only query finds the newest row
+    that recorded identities; when there is none -- every row stored before line
+    identity -- the answer is ``{}`` without parsing a single document, and
+    otherwise only the rows from that one to the target are parsed (usually one)."""
     params: list = [str(user_id), def_id]
     where = "user_id=? AND def_id=?"
     if version is not None:
         where += " AND version<=?"
         params.append(int(version))
+    meta = c.execute(f"SELECT version, line_ids FROM user_definitions WHERE {where} "
+                     f"ORDER BY version DESC", params).fetchall()
+    anchor = next((m["version"] for m in meta if m["line_ids"] is not None), None)
+    if anchor is None:
+        return {}
+    rows = c.execute(f"SELECT version, definition, line_ids FROM user_definitions "
+                     f"WHERE {where} AND version>=? ORDER BY version DESC",
+                     params + [anchor]).fetchall()
     out: dict = {}
     pending: Optional[set] = None
-    for r in c.execute(f"SELECT version, definition, line_ids FROM user_definitions "
-                       f"WHERE {where} ORDER BY version DESC", params):
+    for r in rows:
         try:
             keys = set(_plot_keys_of(json.loads(r["definition"])))
         except (TypeError, ValueError):
             break
         if pending is None:
             pending = set(keys)
-        for k in list(pending):
-            if k not in keys:            # the line began after this row: no identity recorded
-                pending.discard(k)
+        pending &= keys                  # a key this row lacks began after it: no uid
         if _has_line_ids(r):
             ids = row_line_ids(r)
-            for k in list(pending):
-                if k in ids:
-                    out[k] = ids[k]
-            pending.clear()
+            out.update({k: ids[k] for k in pending if k in ids})
+            break
         if not pending:
             break
+    return out
+
+
+def _all_effective_line_ids(c: sqlite3.Connection, user_id: Any, def_id: str) -> dict:
+    """``{version: {plotKey: uid}}`` for EVERY version, in ONE forward pass -- for
+    the readers that need the whole history (`line_continuous_since`, the history
+    route). Never quadratic."""
+    out: dict = {}
+    prev_keys: set = set()
+    prev_ids: dict = {}
+    for r in c.execute("SELECT version, definition, line_ids FROM user_definitions "
+                       "WHERE user_id=? AND def_id=? ORDER BY version ASC",
+                       (str(user_id), def_id)):
+        try:
+            keys = set(_plot_keys_of(json.loads(r["definition"])))
+        except (TypeError, ValueError):
+            keys = set()
+        if _has_line_ids(r):
+            ids = row_line_ids(r)
+        else:
+            ids = {k: v for k, v in prev_ids.items() if k in keys and k in prev_keys}
+        out[r["version"]] = ids
+        prev_keys, prev_ids = keys, ids
     return out
 
 
@@ -954,6 +986,46 @@ def line_identities(user_id: Any, def_id: str, version: Optional[int] = None) ->
     except (TypeError, ValueError):
         return {}
     return {k: line_identity(k, ids) for k in keys}
+
+
+def line_identities_many(user_id: Any, refs: Any) -> dict:
+    """``{(def_id, version): {plotKey: identity}}`` for many stored versions on ONE
+    connection -- the list route serves every definition of a member at once."""
+    out: dict = {}
+    with contextlib.closing(_connect()) as c:
+        _ensure(c)
+        for def_id, version in refs:
+            if not isinstance(def_id, str) or version is None:
+                continue
+            row = c.execute(
+                "SELECT definition FROM user_definitions WHERE user_id=? AND def_id=? "
+                "AND version=?", (str(user_id), def_id, int(version))).fetchone()
+            if row is None:
+                continue
+            try:
+                keys = _plot_keys_of(json.loads(row["definition"]))
+            except (TypeError, ValueError):
+                continue
+            ids = _effective_line_ids(c, user_id, def_id, int(version))
+            out[(def_id, int(version))] = {k: line_identity(k, ids) for k in keys}
+    return out
+
+
+def history_line_identities(user_id: Any, def_id: str) -> dict:
+    """``{version: {plotKey: identity}}`` for every version, in one pass."""
+    out: dict = {}
+    with contextlib.closing(_connect()) as c:
+        _ensure(c)
+        eff = _all_effective_line_ids(c, user_id, def_id)
+        for r in c.execute("SELECT version, definition FROM user_definitions "
+                           "WHERE user_id=? AND def_id=?", (str(user_id), def_id)):
+            try:
+                keys = _plot_keys_of(json.loads(r["definition"]))
+            except (TypeError, ValueError):
+                keys = []
+            ids = eff.get(r["version"], {})
+            out[r["version"]] = {k: line_identity(k, ids) for k in keys}
+    return out
 
 
 def with_served_uids(definition: Any, identities: Mapping) -> Any:
@@ -989,8 +1061,7 @@ def line_continuous_since(user_id: Any, def_id: str, plot_key: str,
             "ORDER BY version ASC", (str(user_id), def_id)).fetchall()
         if not rows or rows[-1]["deleted_at"] is not None:
             return None
-        effective = {r["version"]: _effective_line_ids(c, user_id, def_id, r["version"])
-                     for r in rows}
+        effective = _all_effective_line_ids(c, user_id, def_id)
     start = 0
     for i, r in enumerate(rows):
         if int(r["created_at"]) <= since_ts:
@@ -1003,8 +1074,13 @@ def line_continuous_since(user_id: Any, def_id: str, plot_key: str,
             return None
         if plot_key not in keys:
             return None
-        cur = line_identity(plot_key, effective[r["version"]])
-        if ident is not None and cur != ident and not ident.startswith(LEGACY_LINE_PREFIX):
+        cur = line_identity(plot_key, effective.get(r["version"], {}))
+        # ⛔ ANY change of identity is a break -- INCLUDING `k:<key>` -> `p_...`.
+        # A line from before line identity never gains a uid by continuing, so that
+        # change only happens when the draft marked the row `newLine`: a NEW line.
+        # (Independent QA 2026-11-02, a confirmed blocker: the old legacy exemption
+        # let an unbound pre-identity alert adopt it.)
+        if ident is not None and cur != ident:
             return None
         ident = cur
     return ident

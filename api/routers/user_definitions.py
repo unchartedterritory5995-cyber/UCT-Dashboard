@@ -383,8 +383,15 @@ def list_definitions(user: dict = Depends(require_paid),
     asked = isinstance(engine, int) and not isinstance(engine, bool)
     rows = (svc.list_for_user(user["id"], source_below=engine) if asked
             else svc.list_for_user(user["id"]))
-    return {"definitions": _maybe_compact(
-        [_served_lines(user["id"], _stamped(r)) for r in rows], graph)}
+    stamped = [_stamped(r) for r in rows]
+    # ⭐ 2026-11-02 -- LINE IDENTITY, read for every row on ONE connection.
+    ids = svc.line_identities_many(
+        user["id"], [(r.get("def_id"), r.get("version")) for r in stamped
+                     if isinstance(r, dict)])
+    stamped = [dict(r, plot_identities=ids.get((r.get("def_id"), r.get("version")), {}))
+               if isinstance(r, dict) and isinstance(r.get("definition"), dict) else r
+               for r in stamped]
+    return {"definitions": _maybe_compact(stamped, graph)}
 
 
 @router.post("")
@@ -787,7 +794,10 @@ def definition_history(def_id: str, user: dict = Depends(require_paid),
     # version of a document that stores as a graph would otherwise arrive as a
     # separate expanded forest, so a ten-version history of the corpus'
     # heaviest script is ~3.6 MB of response for ~80 KB of stored program.
-    rows = [_served_lines(user["id"], runtime_definitions.stamp_served(r)) for r in rows]
+    by_version = svc.history_line_identities(user["id"], def_id)
+    rows = [dict(r, plot_identities=by_version.get(r.get("version"), {}))
+            if isinstance(r, dict) else r
+            for r in (runtime_definitions.stamp_served(r) for r in rows)]
     return {"def_id": def_id, "versions": _maybe_compact(rows, graph)}
 
 
