@@ -13,16 +13,20 @@ with no TradingView access. `batch` hands the page work to `batch_capture.py run
 
 ⛔ WHAT THIS NEVER DOES
   * writes Pine from a prose row (a row with no probe file is NEEDS_PROBE);
+  * guesses a chart: a target no row names a readable chart for is NEEDS_CHART, never batched;
   * batches a row that needs a live session (NEEDS_LIVE);
+  * re-queues a capture already committed anywhere under tests/fixtures/vendor/;
   * commits, or overwrites an existing fixture (evidence is appended, never replaced);
   * lets a capture into git whose source licence is not clear (LICENCE_HOLD: graded
     locally, verdict filed in the ledger with the source sha, capture kept out of git);
+  * grades without the machine-wide heavy lock (no lock tool found: grade REFUSES);
   * promotes anything without `--packet-sha` naming the packet as it is NOW.
 
 ⭐ ONE AUTHORITY PER VALUE: capture validity is `verify_capture.mjs` (called through
 `batch_capture.NodeVerifier`), licence is `corpus_licence.is_permitted`, the door
 flag state is `batch_manifest.ledger_flag_state`, guard capabilities are
-`coverage_map.GUARD_BUCKET`. None of them is re-implemented here.
+`coverage_map.GUARD_BUCKET`, the pacing floor is `batch_capture.throttle_refusal`,
+a source's capture stem is `capture_stem` (below). None of them is re-implemented.
 """
 from __future__ import annotations
 
@@ -55,24 +59,40 @@ MANIFEST_SCHEMA = "uct.vendor-batch-manifest/v1"
 DOCS = REPO / "docs" / "pine"
 PROBE_DIRS = (REPO / "tools" / "visual_conformance" / "probes", REPO / "docs" / "pine" / "probes")
 CORPUS = REPO / "corpus"
-FIXTURES = REPO / "tests" / "fixtures" / "vendor" / "harness"
+#: Every committed capture, in ANY directory below this: the index the queue reads. ⛔ Not `harness/`
+#: alone: 17 captures (the 2026-09-27 vocabulary wave) sit beside it, and a queue blind to them
+#: re-queued work already done.
+FIXTURE_ROOT = REPO / "tests" / "fixtures" / "vendor"
+FIXTURES = FIXTURE_ROOT / "harness"          # where `promote` files a new capture
 COVERAGE = DOCS / "coverage-map.json"
 QUEUE_OUT = DOCS / "vendor-harness" / "capture-queue.json"
 LEDGER = DOCS / "vendor-harness" / "evidence-ledger.jsonl"
 DOOR_FLAG = "VITE_PINE_OBJECTS_ONLY_PANE_ENABLED"
-HEAVY_LOCK = pathlib.Path(os.environ.get("UCT_HEAVY_LOCK") or r"C:\Users\Patrick\uct-clips\tools\heavy_lock.py")
+#: The desktop's heavy-job lock tool; `$HEAVY_LOCK` (set by the laptop's env) wins. See `heavy_lock_tool`.
+DESKTOP_HEAVY_LOCK = r"C:\Users\Patrick\uct-clips\tools\heavy_lock.py"
 DEFAULT_CHART = ("NYSE:RDDT", "1D")
 HOUSE_SYMBOLS = {"RDDT": "NYSE:RDDT", "SPY": "AMEX:SPY", "QQQ": "NASDAQ:QQQ", "AAPL": "NASDAQ:AAPL",
                  "BTCUSD": "BITSTAMP:BTCUSD"}
-EXCHANGES = ("NYSE", "AMEX", "NASDAQ", "BITSTAMP", "BINANCE", "COINBASE", "CME", "TVC", "OANDA", "INDEX", "SP")
+EXCHANGES = ("NYSE", "AMEX", "NASDAQ", "BITSTAMP", "BINANCE", "COINBASE", "CME", "TVC", "OANDA", "INDEX", "SP",
+             "FX")
 TF_ALLOWED = {"1", "3", "5", "15", "30", "45", "60", "120", "180", "240"}
-MIN_THROTTLE_S = 10.0
 DEFAULT_LIMIT = 40
 
 #: Header cells that mark a table as a LEDGER of what is already settled, not a
 #: queue of questions. Such tables are counted per doc as `contextTables`, never dropped silently.
 LEDGER_HEADERS = {"settled", "served", "was", "now", "witness"}
 LEDGER_FIRST_HEADERS = {"refused as"}
+#: A heading that files the tables below it as a RECORD of captures already taken.
+FINISHED_HEAD_RX = re.compile(r"^(?:CAPTURED|READINGS?|BUILT|TAKEN|Taken)\b")
+#: A capture id written out in a doc: `<stem>-...-<yyyy-mm-dd>`, optionally `.json`.
+ID_TOKEN_RX = re.compile(r"`([a-z0-9][a-z0-9.-]*-\d{4}-\d{2}-\d{2})(?:\.json)?`")
+#: Anything shaped `EXCH:SYM`, known exchange or not (an unknown one is a chart this parser cannot read).
+CHART_TOKEN_RX = re.compile(r"\b([A-Z][A-Z0-9_]{1,15}):([A-Z0-9][A-Z0-9.!]{0,14})")
+#: What `capture_stem` yields, and what follows it in an id the driver writes (`batch_capture.Driver.capture`).
+STEM_RX = re.compile(r"[a-z0-9][a-z0-9.-]*")
+TAIL_RX = re.compile(r"[a-z0-9.!]+(?:-[a-z0-9.!]+)*-(?:\d+|1?[dwm]|[0-9]+[dwm])-\d{4}-\d{2}-\d{2}")
+#: Strongest first: where a target's chart was read. Only `default` (nothing named) is NEEDS_CHART.
+CHART_RANK = {"row": 0, "section": 1, "preamble": 2, "census": 3, "default": 4}
 
 LIVE_RX = re.compile(r"market hours|during regular hours|\brealtime\b|\breal-time\b|\blive\b|\bforming\b|"
                      r"minutes apart|\bintrabar\b|\bvarip\b|\b1m\b|\bticks?\b", re.I)
@@ -155,6 +175,16 @@ def slugify(s) -> str:
     return re.sub(r"[^a-z0-9]+", "-", str(s).lower()).strip("-")
 
 
+def house_slug(stem) -> str:
+    """A file stem's house slug: everything from its first `__` dropped (the corpus hash, as the census slug
+    in `memberDoorCensus.measure.test.js` drops it), lowercased, each run outside [a-z0-9.] one `-`."""
+    return re.sub(r"[^a-z0-9.]+", "-", str(stem).split("__", 1)[0].lower()).strip("-")
+
+
+def _pkey(p) -> str:
+    return os.path.normcase(str(pathlib.Path(p).resolve()))
+
+
 def split_cells(line: str) -> list[str]:
     body = line.strip()
     if body.startswith("|"):
@@ -172,7 +202,7 @@ def clean_cell(c: str) -> str:
 class World:
     """Everything on disk the queue reads. Paths are injectable so tests build a small one."""
 
-    def __init__(self, docs_dir=DOCS, probe_dirs=PROBE_DIRS, corpus=CORPUS, fixtures=FIXTURES,
+    def __init__(self, docs_dir=DOCS, probe_dirs=PROBE_DIRS, corpus=CORPUS, fixtures=FIXTURE_ROOT,
                  coverage=COVERAGE, ledger=LEDGER, cache_dir=None):
         self.docs_dir = pathlib.Path(docs_dir)
         self.probe_dirs = [pathlib.Path(p) for p in probe_dirs]
@@ -187,6 +217,8 @@ class World:
         self._fixtures = None
         self._coverage = None
         self._ledger = None
+        self._by_sha = None
+        self._stems = None
 
     # probes: stem -> path
     @property
@@ -209,11 +241,12 @@ class World:
 
     @property
     def fixture_index(self) -> list:
-        """[{id, file, sha, symbol, tf}] for every v1 capture under the fixture dir."""
+        """[{id, file, sha, symbol, tf}] for every v1 capture ANYWHERE under the fixture root (recursive:
+        a capture beside `harness/` is as committed as one in it)."""
         if self._fixtures is None:
             out = []
             if self.fixtures.exists():
-                for f in sorted(self.fixtures.glob("*.json")):
+                for f in sorted(self.fixtures.rglob("*.json")):
                     try:
                         c = json.loads(f.read_text(encoding="utf-8"))
                     except (OSError, ValueError):
@@ -227,6 +260,36 @@ class World:
                                 "tf": norm_tf(c.get("timeframe"))})
             self._fixtures = out
         return self._fixtures
+
+    @property
+    def fixture_ids(self) -> set:
+        """Every committed capture's id and file stem (they agree for a well-named file; both are held)."""
+        return {f["id"] for f in self.fixture_index} | {pathlib.PurePath(f["file"]).stem for f in self.fixture_index}
+
+    @property
+    def sources_by_sha(self) -> dict:
+        """{sha256: (kind, path)} over every probe and corpus file; a probe wins a tie (it is ours)."""
+        if self._by_sha is None:
+            out = {}
+            for kind, files in (("probe", self.probes), ("corpus", self.corpus_files)):
+                for p in files.values():
+                    out.setdefault(sha256_bytes(p.read_bytes()), (kind, p))
+            self._by_sha = out
+        return self._by_sha
+
+    @property
+    def capture_stems(self) -> dict:
+        """{path key: capture stem} for every probe and corpus file (see `capture_stem`)."""
+        if self._stems is None:
+            groups = collections.defaultdict(list)
+            for p in list(self.probes.values()) + list(self.corpus_files.values()):
+                groups[house_slug(p.stem)].append(p)
+            out = {}
+            for base, files in groups.items():
+                for p in files:
+                    out[_pkey(p)] = f"{base}-{sha256_bytes(p.read_bytes())[:8]}" if len(files) > 1 else base
+            self._stems = out
+        return self._stems
 
     @property
     def coverage(self) -> dict:
@@ -265,6 +328,17 @@ class World:
         if stem in self.corpus_files:
             return "corpus", self.corpus_files[stem]
         return None, None
+
+
+def capture_stem(world: World, path) -> str:
+    """⭐ THE capture stem of a source file: the `<script>` of `<script>-<sym>-<tf>-<yyyy-mm-dd>`. ONE authority:
+    `build_manifest` hands it to the driver as `captureStem`, `fixture_status` finds a stale capture by it, and
+    `gate_capture` holds a capture's id to it, so the three cannot disagree. ⚰️ They did: the manifest handed
+    over the raw stem, a corpus capture came back as `gamma__abcdef1234-rddt-1d-...`, failed the gate's own id
+    rule, was never promotable, and every batch took it again.
+    The house rule (the census slug `batch_manifest.py` selects on): `__<hash>` dropped, lowercased, and
+    `-<sha8>` appended when two files of the world share the slug (three `support-and-resistance__*` today)."""
+    return world.capture_stems.get(_pkey(path)) or house_slug(pathlib.Path(path).stem)
 
 
 # ─── the census: what a target would unblock ─────────────────────────────────
@@ -364,11 +438,15 @@ def tfs_after(text: str, pos: int) -> list:
     return out
 
 
-def parse_charts(text: str) -> list:
+def parse_charts(text: str, prose: bool = False) -> list:
     """[(symbol, tf)] named in `text`, in order, deduplicated. A symbol with no timeframe
-    right after it reads as 1D (the house default for every queue doc)."""
+    right after it reads as 1D (the house default for every queue doc).
+    ⛔ In PROSE (a doc's preamble, a section's lead) only an explicit `EXCH:SYM` is a chart: a bare
+    `RDDT` there is a reference to an old capture ("qqe-signals RDDT 1D", "40 SPY bars"), not an ask."""
     out = []
     for m in SYMBOL_RX.finditer(text):
+        if prose and not m.group(1):
+            continue
         sym = f"{m.group(1)}:{m.group(2)}" if m.group(1) else HOUSE_SYMBOLS[m.group(3)]
         for t in tfs_after(text, m.end()) or ["1D"]:
             if (sym, t) not in out:
@@ -376,8 +454,43 @@ def parse_charts(text: str) -> list:
     return out
 
 
+def unparsed_charts(text: str) -> list:
+    """`EXCH:SYM` tokens whose exchange this parser does not know: charts a row names and nobody can read."""
+    return sorted({m.group(0) for m in CHART_TOKEN_RX.finditer(text) if m.group(1) not in EXCHANGES})
+
+
+def heading_path(lines, start) -> list:
+    """The headings a table sits under: the nearest one, then each shallower one enclosing it."""
+    out, level = [], 7
+    for k in range(start - 1, -1, -1):
+        m = re.match(r"^(#{1,6})\s+(.*)", lines[k])
+        if m and len(m.group(1)) < level:
+            out.append(m.group(2).strip())
+            level = len(m.group(1))
+    return out
+
+
+def finished_table(world: World, header, trows, heads):
+    """Why a table RECORDS captures already taken rather than asking for one, or None. Such a table is
+    context: read as a queue, its rows re-queue finished work on a guessed chart (the 2026-09-27
+    CAPTURED table made seven targets that way)."""
+    for h in heads:
+        if FINISHED_HEAD_RX.match(re.sub(r"^[\s*`_]+", "", h)):
+            return f"under the heading {h[:48]!r}"
+    for ci, name in enumerate(header):
+        if "capture" not in name:
+            continue
+        toks = [t for _, cells in trows if ci < len(cells) for t in ID_TOKEN_RX.findall(cells[ci])]
+        if toks and all(t in world.fixture_ids for t in toks):
+            return f"its {name!r} column lists committed captures"
+    return None
+
+
 def resolve_sources(world: World, text: str):
-    """(sources [(kind, path)], owed [names], fixture_stems [stems]) named in `text`."""
+    """(sources [(kind, path)], owed [names], fixture_stems [stems]) named in `text`.
+    ⛔ A token `<probe stem>-<chart>[-<date>]` names a CAPTURE of that probe: it is filed as a fixture
+    reference, never read as the row's source (`vw-bool-cast-spy-60` in a prose cell is not a request to
+    run vw-bool-cast; the row's section says what to run)."""
     sources, owed, fx = [], [], []
     seen = set()
     for name in PINE_RX.findall(text):
@@ -400,13 +513,8 @@ def resolve_sources(world: World, text: str):
                 sources.append(("probe", p))
             continue
         hit = next((s for s in stems if tok.startswith(s + "-")), None)
-        if hit:
-            p = world.probes[hit]
-            if hit not in fx:
-                fx.append(hit)
-            if str(p) not in seen:
-                seen.add(str(p))
-                sources.append(("probe", p))
+        if hit and hit not in fx:
+            fx.append(hit)       # a REFERENCE to a capture of `hit`, never a source
     return sources, owed, fx
 
 
@@ -445,7 +553,7 @@ def parse_doc(world: World, path: pathlib.Path) -> dict:
     first_table = next((i for i, ln in enumerate(lines) if ln.lstrip().startswith("|")), len(lines))
     preamble = "\n".join(lines[:first_table])
     pre_sources = explicit_pines(world, preamble)
-    pre_charts = parse_charts(preamble)
+    pre_charts = parse_charts(preamble, prose=True)
     rows, context = [], 0
     ids = collections.Counter()
     for start, header, trows in iter_tables(lines):
@@ -453,9 +561,14 @@ def parse_doc(world: World, path: pathlib.Path) -> dict:
         h = next((k for k in range(start - 1, -1, -1) if lines[k].lstrip().startswith("#")), None)
         lead = "\n".join(lines[h:start]) if h is not None and h >= first_table else ""
         lead_sources = explicit_pines(world, lead) if lead else []
-        lead_charts = parse_charts(lead) if lead else []
-        inherit_from = lead_sources if len(lead_sources) == 1 else pre_sources
+        lead_charts = parse_charts(lead, prose=True) if lead else []
+        # ⭐ THE SECTION DECIDES: a section naming its own .pine is asked (two of them is ambiguous, so
+        # nothing is inherited); the preamble speaks only for a section that names none.
+        inherit_from = lead_sources if lead_sources else pre_sources
         if (set(header) & LEDGER_HEADERS) or (header and header[0] in LEDGER_FIRST_HEADERS):
+            context += 1
+            continue
+        if finished_table(world, header, trows, heading_path(lines, start)):
             context += 1
             continue
         stated_cols = [i for i, h in enumerate(header) if STATED_HEAD_RX.search(h)]
@@ -489,11 +602,26 @@ def parse_doc(world: World, path: pathlib.Path) -> dict:
                     needs_probe = needs_probe or f"probe file owed: {', '.join(owed)}"
                 else:
                     needs_probe = needs_probe or "no probe file named (an inline shape or prose)"
-            charts = parse_charts(rtext) or lead_charts or pre_charts
-            defaulted = False
-            if not charts:
+            # ⛔ WHERE THE CHART COMES FROM, strongest first. A row that names a chart nobody can read gets
+            # NO chart (never its section's), and a row with nothing to read takes the house default and
+            # is marked so: its target is NEEDS_CHART, never batched (the queue must not invent charts).
+            row_charts, unparsed = parse_charts(rtext), unparsed_charts(rtext)
+            if row_charts:
+                charts, chart_source = row_charts, "row"
+            elif unparsed:
+                charts, chart_source = [], "default"
+            elif lead_charts:
+                charts, chart_source = lead_charts, "section"
+            elif pre_charts:
+                charts, chart_source = pre_charts, "preamble"
+            else:
+                charts, chart_source = [], "default"
+            defaulted = chart_source == "default"
+            if defaulted:
                 charts = [DEFAULT_CHART]
-                defaulted = True
+            listing = bool(LISTING_RX.search(rtext)
+                           or (chart_source == "section" and LISTING_RX.search(lead))
+                           or (chart_source == "preamble" and LISTING_RX.search(preamble)))
             stated = None
             for ci in stated_cols:
                 if ci < len(cells):
@@ -505,8 +633,9 @@ def parse_doc(world: World, path: pathlib.Path) -> dict:
                 "text": re.sub(r"\s+", " ", rtext)[:400],
                 "sources": [{"kind": k, "path": rel(p)} for k, p in sources],
                 "sourceInherited": inherited,
-                "charts": [list(c) for c in charts], "chartDefaulted": defaulted,
-                "fromListing": bool(LISTING_RX.search(rtext) or (not parse_charts(rtext) and LISTING_RX.search(preamble))),
+                "charts": [list(c) for c in charts], "chartDefaulted": defaulted, "chartSource": chart_source,
+                "unparsedCharts": unparsed,
+                "fromListing": listing,
                 "needsLive": bool(LIVE_RX.search(rtext)),
                 "needsProbe": needs_probe,
                 "guards": sorted(set(GUARD_RX.findall(rtext))),
@@ -530,7 +659,7 @@ def licence_of(world: World, kind: str, path: pathlib.Path) -> str:
         return "held"
 
 
-def fixture_status(world: World, sha: str, stem: str, symbol: str, tf: str):
+def fixture_status(world: World, path, sha: str, symbol: str, tf: str):
     t = norm_tf(tf)
     exact = [f for f in world.fixture_index if f["sha"] == sha and f["symbol"] == symbol.upper() and f["tf"] == t]
     if exact:
@@ -539,7 +668,9 @@ def fixture_status(world: World, sha: str, stem: str, symbol: str, tf: str):
         if r.get("sourceSha256") == sha and str(r.get("symbol", "")).upper() == symbol.upper() \
                 and norm_tf(r.get("timeframe")) == t and r.get("verdict"):
             return "VERDICT_LOCAL", [r.get("captureId")]
-    lead = f"{stem}-{slugify(symbol.split(':')[-1])}-"     # never a sibling probe's (`x-v4-...`) fixture
+    # a capture of an OLDER version of this file, found by its capture stem (never a sibling probe's
+    # `x-v4-...` fixture, never another corpus file's that shares the slug: that one carries its -sha8)
+    lead = f"{capture_stem(world, path)}-{slugify(symbol.split(':')[-1])}-"
     stale = [f for f in world.fixture_index if f["id"].startswith(lead) and f["symbol"] == symbol.upper()
              and f["tf"] == t and f["sha"] != sha]
     if stale:
@@ -554,20 +685,21 @@ def build_queue(world: World | None = None) -> dict:
     docs = [parse_doc(world, p) for p in sorted(world.docs_dir.glob("capture-queue-*.md"))]
     targets = {}
 
-    def target_for(kind, path, symbol, tf, listing, origin):
+    def target_for(kind, path, symbol, tf, listing, origin, chart_source):
         raw = path.read_bytes()
         sha = sha256_bytes(raw)
         tid = f"{path.stem}@{symbol}@{norm_tf(tf)}"
         t = targets.get(tid)
         if t is None:
             t = targets[tid] = {
-                "id": tid, "source": rel(path), "sourceKind": kind, "sha256": sha, "bytes": len(raw),
+                "id": tid, "path": path, "source": rel(path), "sourceKind": kind, "sha256": sha, "bytes": len(raw),
                 "stem": path.stem, "symbol": symbol, "tf": rig_tf(tf), "fromListing": False,
                 "licence": licence_of(world, kind, path), "rows": [], "origins": [],
                 "needsLive": False, "guards": set(), "named": set(), "direct": set(), "stated": [],
-                "docWaves": set(), "docDates": set(),
+                "docWaves": set(), "docDates": set(), "chartSources": set(), "unparsed": set(),
             }
         t["fromListing"] = t["fromListing"] or listing
+        t["chartSources"].add(chart_source)
         if origin not in t["origins"]:
             t["origins"].append(origin)
         return t
@@ -582,8 +714,9 @@ def build_queue(world: World | None = None) -> dict:
             for s in r["sources"]:
                 p = REPO / s["path"] if not pathlib.Path(s["path"]).is_absolute() else pathlib.Path(s["path"])
                 for sym, tf in r["charts"]:
-                    t = target_for(s["kind"], p, sym, tf, r["fromListing"], "queue-doc")
+                    t = target_for(s["kind"], p, sym, tf, r["fromListing"], "queue-doc", r["chartSource"])
                     t["rows"].append(r["key"])
+                    t["unparsed"].update(r["unparsedCharts"])
                     t["needsLive"] = t["needsLive"] or r["needsLive"]
                     t["guards"].update(r["guards"])
                     t["named"].update(f"committed:{x}" for x in r["namedScripts"])
@@ -604,7 +737,8 @@ def build_queue(world: World | None = None) -> dict:
             p = world.corpus_files.get(slug)
             if p is None:
                 continue
-            t = target_for("corpus", p, DEFAULT_CHART[0], DEFAULT_CHART[1], True, "census")
+            # the house chart, chosen ON PURPOSE for this pool (one MATCH per script): not a guess
+            t = target_for("corpus", p, DEFAULT_CHART[0], DEFAULT_CHART[1], True, "census", "census")
             t["direct"].add(k)
             t["docWaves"].add("E-census")
         else:
@@ -613,12 +747,20 @@ def build_queue(world: World | None = None) -> dict:
                          "cachedSource": rel(cache), "sourcePresent": cache.exists(),
                          "vendorVerdict": s.get("vendorVerdict")})
 
+    by_sha = collections.defaultdict(set)
+    for f in world.fixture_index:
+        by_sha[f["sha"]].add(f"{f['symbol']} {f['tf']}")
     out_targets = []
     for t in targets.values():
-        st, ev = fixture_status(world, t["sha256"], t["stem"], t["symbol"], t["tf"])
-        # ⛔ THE ONE LIVE GUARD: a target any row says needs a live session is NEEDS_LIVE unless it is
-        # already answered; the manifest selects by status alone, so nothing else has to repeat this.
-        if t["needsLive"] and st in (None, "STALE"):
+        st, ev = fixture_status(world, t["path"], t["sha256"], t["symbol"], t["tf"])
+        chart_source = min(t["chartSources"], key=CHART_RANK.__getitem__)
+        chart_defaulted = chart_source == "default"     # no row, section, preamble or pool named this chart
+        # ⛔ THE CHART GUARD: a target whose chart nobody named is NEEDS_CHART whatever is on disk for the
+        # guessed chart (a capture there does not answer the row). ⛔ THE ONE LIVE GUARD: a target any row says
+        # needs a live session is NEEDS_LIVE unless already answered. The manifest selects by status alone.
+        if chart_defaulted:
+            st = "NEEDS_CHART"
+        elif t["needsLive"] and st in (None, "STALE"):
             st = "NEEDS_LIVE"
         elif st is None:
             st = "QUEUED" if t["licence"] != "held" else "LICENCE_HOLD"
@@ -626,7 +768,10 @@ def build_queue(world: World | None = None) -> dict:
         out_targets.append({
             "id": t["id"], "status": st, "evidence": ev,
             "source": t["source"], "sourceKind": t["sourceKind"], "sha256": t["sha256"], "bytes": t["bytes"],
-            "stem": t["stem"], "symbol": t["symbol"], "tf": t["tf"], "fromListing": t["fromListing"],
+            "stem": t["stem"], "captureStem": capture_stem(world, t["path"]),
+            "symbol": t["symbol"], "tf": t["tf"], "fromListing": t["fromListing"],
+            "chartDefaulted": chart_defaulted, "chartSource": chart_source, "unparsedCharts": sorted(t["unparsed"]),
+            "capturedOn": sorted(by_sha.get(t["sha256"], ())),
             "licence": t["licence"], "needsLive": t["needsLive"],
             "priority": u["priority"], "unblocks": u,
             "statedUnblocks": max(t["stated"]) if t["stated"] else None,
@@ -636,6 +781,7 @@ def build_queue(world: World | None = None) -> dict:
         })
     out_targets.sort(key=priority_key)
     counts = summarise(out_targets, needs_probe, held)
+    counts["rowsNamingUnreadableCharts"] = sum(1 for r in rows_out if r["unparsedCharts"])
     return {
         "schema": QUEUE_SCHEMA,
         "generatedBy": "tools/vendor_harness/evidence_engine.py queue",
@@ -647,6 +793,11 @@ def build_queue(world: World | None = None) -> dict:
                         "the target's rows name; named: non-transferring scripts the rows name; direct: the target IS a "
                         "transferring, never-MATCHed sample script (its capture verifies it)",
             "upper": "non-transferring sample scripts touching any named guard (a ceiling, not a promise)",
+            "NEEDS_CHART": "no row, section or preamble names a chart this parser can read for the target, so its "
+                           "chart is the house default, a guess: never batched; a person names the chart in the row",
+            "chartSource": "where the chart was read: row | section (the heading above the table) | preamble "
+                           "(explicit EXCH:SYM only) | census (the E-census pool's house chart, on purpose) | default",
+            "capturedOn": "every chart a committed capture of this exact source sha is on (any directory)",
         },
         "counts": counts,
         "targets": out_targets,
@@ -695,10 +846,13 @@ def door_flag_state():
 
 
 def build_manifest(queue: dict, top: int | None = None, wave: str | None = None, plan: str | None = None,
-                   statuses=("QUEUED",), include_stale=False, only=None) -> dict:
+                   statuses=("QUEUED",), include_stale=False, only=None, world: World | None = None) -> dict:
     from batch_capture import KNOWN_LISTING  # noqa: E402 — the one listing authority
+    world = world or World()
     want = set(statuses) | ({"STALE"} if include_stale else set())
-    picked = [t for t in queue["targets"] if t["status"] in want
+    # ⛔ A GUESSED CHART IS NEVER BATCHED, whatever statuses were asked for: no manifest takes a target
+    # whose chart nobody named (the queue's NEEDS_CHART, held here a second way for a hand-made selection).
+    picked = [t for t in queue["targets"] if t["status"] in want and not t.get("chartDefaulted")
               and (wave is None or wave in t["docWaves"]) and (plan is None or t["planWave"] == plan)
               and (not only or t["id"] in only)]
     picked.sort(key=priority_key)
@@ -719,8 +873,10 @@ def build_manifest(queue: dict, top: int | None = None, wave: str | None = None,
         scripts.append({
             "slug": slug, "path": t["source"], "sha256": t["sha256"], "bytes": t["bytes"],
             "plots": None, "drawsObjects": None, "largestWindow": None,
-            "symbol": t["symbol"], "tf": t["tf"], "captureStem": t["stem"],
+            "symbol": t["symbol"], "tf": t["tf"],
+            "captureStem": capture_stem(world, p),
             "listingDate": KNOWN_LISTING.get(t["symbol"].upper()) if t["fromListing"] else None,
+            "chartDefaulted": bool(t.get("chartDefaulted")), "chartSource": t.get("chartSource"),
             "queueTargetId": t["id"], "rows": t["rows"], "priority": t["priority"],
             "planWave": t["planWave"], "localOnly": t["licence"] == "held",
         })
@@ -738,13 +894,9 @@ ID_RX = re.compile(r"^[a-z0-9][a-z0-9.-]*-[a-z0-9.!]+-(?:\d+|1?[dwm]|[0-9]+[dwm]
 
 def licence_of_capture(world: World, capture: dict) -> str:
     src = capture.get("source") or {}
-    sha = src.get("sha256")
-    for p in world.probes.values():
-        if sha256_bytes(p.read_bytes()) == sha:
-            return "probe"
-    for p in world.corpus_files.values():
-        if sha256_bytes(p.read_bytes()) == sha:
-            return "corpus"
+    hit = world.sources_by_sha.get(src.get("sha256"))
+    if hit is not None:
+        return hit[0]                 # "probe" | "corpus": the bytes are ours, or committed open source
     try:
         from corpus_licence import is_permitted  # noqa: E402
         return "permitted" if is_permitted(src.get("text") or "") else "held"
@@ -767,10 +919,21 @@ def gate_capture(world: World, path: pathlib.Path, verifier, fixtures_dir: pathl
         problems.append(f"verify_capture.mjs refused it ({v.get('verdict')}): {v.get('tail')}")
     if cid != path.stem:
         problems.append(f"the file is {path.name} but the capture id is {cid!r}")
-    if not isinstance(cid, str) or not ID_RX.match(cid):
+    # ⛔ THE ID RULE: for a source the world knows, the id must open with THAT source's capture stem (the
+    # one the manifest asked the driver for); for any other source, the house form.
+    src = world.sources_by_sha.get((cap.get("source") or {}).get("sha256"))
+    if not isinstance(cid, str):
         problems.append(f"id {cid!r} is not <script>-<sym>-<tf>-<yyyy-mm-dd>")
-    if (pathlib.Path(fixtures_dir) / f"{cid}.json").exists():
-        problems.append(f"{cid}.json already exists under the fixtures: evidence is appended, never replaced")
+    elif src is not None:
+        want = capture_stem(world, src[1])
+        if not (cid.startswith(want + "-") and TAIL_RX.fullmatch(cid[len(want) + 1:])):
+            problems.append(f"id {cid!r} is not {want}-<sym>-<tf>-<yyyy-mm-dd>: {want} is the capture stem of its "
+                            f"source, {rel(src[1])}")
+    elif not ID_RX.match(cid):
+        problems.append(f"id {cid!r} is not <script>-<sym>-<tf>-<yyyy-mm-dd>")
+    # ⛔ NEVER REPLACED: not in the directory it would be filed in, and not anywhere in the fixture tree
+    if (pathlib.Path(fixtures_dir) / f"{cid}.json").exists() or cid in world.fixture_ids:
+        problems.append(f"{cid} is already a committed capture: evidence is appended, never replaced")
     lic = licence_of_capture(world, cap)
     return {"file": str(path), "id": cid, "ok": not problems, "licence": lic, "problems": problems, "capture": cap}
 
@@ -833,6 +996,9 @@ def build_packet(run_dir: pathlib.Path, world: World | None = None, verifier=Non
             "verdict": (v or {}).get("verdict"), "reason": (v or {}).get("reason"),
             "firstDivergence": first_divergence(v),
             "licence": g["licence"], "queueTargetId": man.get("queueTargetId"), "rows": man.get("rows") or [],
+            # was this chart ASKED (by a row, a section, a preamble, the census pool) or a guess? None: the
+            # run's manifest does not say (a manifest that predates the field, or none)
+            "chartDefaulted": man.get("chartDefaulted"), "chartSource": man.get("chartSource"),
             "provenance": res.get("provenance"),
             "problems": problems,
             "action": ("REFUSE" if problems else "LEDGER_ONLY" if held else "PROMOTE"),
@@ -856,14 +1022,17 @@ def write_packet(run_dir: pathlib.Path, body: dict) -> str:
           "Nothing below is in git. Read every line, then promote with the sha's first 12 hex:", "",
           f"    python tools/vendor_harness/evidence_engine.py promote --run-dir {run_dir} --packet-sha {sha[:12]}", "",
           "PROMOTE = copied into tests/fixtures/vendor/harness + ledger row. LEDGER_ONLY = licence-held: "
-          "verdict filed, capture stays out of git. REFUSE = nothing happens; the reason is listed.", "",
-          "| action | capture | chart | verdict | first divergence | licence | rows | problems |",
-          "|---|---|---|---|---|---|---|---|"]
+          "verdict filed, capture stays out of git. REFUSE = nothing happens; the reason is listed.",
+          "`chart asked`: where the chart came from (row / section / preamble / census). `GUESSED` = no row named "
+          "it, so the capture answers no row's question; `?` = the run's manifest does not say.", "",
+          "| action | capture | chart | chart asked | verdict | first divergence | licence | rows | problems |",
+          "|---|---|---|---|---|---|---|---|---|"]
     for i in body["items"]:
         fd = i["firstDivergence"]
         fds = (f"{fd.get('plot')} bar {fd.get('bar', fd.get('index'))} {fd.get('kind')}" if fd else "")
-        md.append("| {} | `{}` | {} {} | {} | {} | {} | {} | {} |".format(
-            i["action"], i["id"], i["symbol"], i["timeframe"], i["verdict"], fds.replace("|", "/"),
+        asked = "?" if i.get("chartDefaulted") is None else "GUESSED" if i["chartDefaulted"] else i.get("chartSource")
+        md.append("| {} | `{}` | {} {} | {} | {} | {} | {} | {} | {} |".format(
+            i["action"], i["id"], i["symbol"], i["timeframe"], asked, i["verdict"], fds.replace("|", "/"),
             i["licence"], len(i["rows"]), "; ".join(i["problems"]).replace("|", "/")[:300]))
     md += ["", f"Counts: {json.dumps(body['counts'])}", "", f"sha256 {sha}", ""]
     write_atomic(run_dir / "PROMOTION-PACKET.md", "\n".join(md))
@@ -942,7 +1111,8 @@ def promote(run_dir: pathlib.Path, packet_sha: str, world: World | None = None, 
             "verdict": i["verdict"], "reason": i["reason"], "firstDivergence": i["firstDivergence"],
             "licence": i["licence"], "promoted": i["action"] == "PROMOTE",
             "fixture": (rel(pathlib.Path(fixtures_dir) / f"{i['id']}.json") if i["action"] == "PROMOTE" else None),
-            "queueTargetId": i["queueTargetId"], "rows": i["rows"], "provenance": i["provenance"],
+            "queueTargetId": i["queueTargetId"], "rows": i["rows"], "chartDefaulted": i.get("chartDefaulted"),
+            "provenance": i["provenance"],
         })
     n = append_ledger(ledger, ledger_rows)
     log(f"[promote] promoted {len(promoted)} · ledger-only {len(filed)} · refused {len(refused)} · ledger +{n}")
@@ -967,16 +1137,35 @@ def queue_text(q: dict) -> str:
     return dump(q)
 
 
-def heavy(label: str, cmd: list) -> list:
-    if HEAVY_LOCK.exists():
-        return [sys.executable, str(HEAVY_LOCK), "run", "--label", label, "--timeout", "14400", "--", *cmd]
-    return cmd
+def heavy_lock_tool():
+    """The machine-wide heavy-job lock tool, or None: `$HEAVY_LOCK` (the laptop's env sets it), else the
+    desktop's path. Read at call time, never at import. ⛔ None means REFUSE: a heavy job never runs unlocked
+    (⚰️ it did: a missing desktop path made `grade` run the corpus harness with no lock at all)."""
+    p = pathlib.Path(os.environ.get("HEAVY_LOCK") or DESKTOP_HEAVY_LOCK)
+    return p if p.is_file() else None
+
+
+def heavy(label: str, cmd: list):
+    """`cmd` wrapped in the heavy lock, or None when no lock tool is found (the caller refuses)."""
+    lock = heavy_lock_tool()
+    if lock is None:
+        return None
+    return [sys.executable, str(lock), "run", "--label", label, "--timeout", "14400", "--", *cmd]
+
+
+def no_lock_reason() -> str:
+    return (f"no heavy-lock tool (HEAVY_LOCK={os.environ.get('HEAVY_LOCK') or 'unset'}; desktop default "
+            f"{DESKTOP_HEAVY_LOCK} absent). Set HEAVY_LOCK to the lock tool's path")
 
 
 def cmd_grade(run_dir) -> int:
     cmd = [sys.executable, str(HERE / "batch_capture.py"), "grade", "--run-dir", str(run_dir)]
-    print(f"[grade] {' '.join(heavy('evidence-grade', cmd))}")
-    return subprocess.call(heavy("evidence-grade", cmd), cwd=str(REPO))
+    wrapped = heavy("evidence-grade", cmd)
+    if wrapped is None:
+        print(f"[grade] REFUSED: {no_lock_reason()}. Grading runs the corpus harness, a heavy job: never unlocked.")
+        return 2
+    print(f"[grade] {' '.join(wrapped)}")
+    return subprocess.call(wrapped, cwd=str(REPO))
 
 
 def main(argv=None) -> int:
@@ -1019,7 +1208,7 @@ def main(argv=None) -> int:
     args = ap.parse_args(argv)
 
     if args.cmd == "queue":
-        qd = build_queue()
+        qd = build_queue(World())
         text = queue_text(qd)
         out = pathlib.Path(args.out)
         if args.check:
@@ -1034,10 +1223,22 @@ def main(argv=None) -> int:
         return 0
 
     if args.cmd in ("manifest", "batch"):
+        if args.cmd == "batch":
+            # ⛔ BEFORE ANYTHING IS READ OR LAUNCHED: the owner's pacing, then the lock the grade step needs
+            # (a batch that could not grade would spend the owner's session for nothing).
+            from batch_capture import throttle_refusal  # noqa: E402 — the one pacing authority
+            why = throttle_refusal(args.throttle_s)
+            if why:
+                print(f"[batch] REFUSED: {why}")
+                return 2
+            if heavy_lock_tool() is None:
+                print(f"[batch] REFUSED before any browser: {no_lock_reason()}; the grade step would refuse.")
+                return 2
         statuses = ("QUEUED", "LICENCE_HOLD") if args.local_evidence else ("QUEUED",)
-        qd = build_queue()
+        world = World()
+        qd = build_queue(world)
         man = build_manifest(qd, top=args.top, wave=args.wave, plan=args.plan_wave, statuses=statuses,
-                             include_stale=args.include_stale, only=args.only)
+                             include_stale=args.include_stale, only=args.only, world=world)
         if args.cmd == "manifest":
             out = pathlib.Path(args.out) if args.out else None
             if out:
@@ -1046,9 +1247,6 @@ def main(argv=None) -> int:
             else:
                 print(dump(man))
             return 0
-        if args.throttle_s < MIN_THROTTLE_S:
-            print(f"[batch] REFUSED: --throttle-s {args.throttle_s} is below {MIN_THROTTLE_S:.0f}s (the owner's own account)")
-            return 2
         if not man["scripts"]:
             print("[batch] nothing QUEUED matches the selection")
             return 0

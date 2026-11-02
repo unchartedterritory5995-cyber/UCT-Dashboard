@@ -25,6 +25,9 @@ the window this tool opens, and every later step is this process.
     checked in Python AND again inside the same page evaluation as the click.
     A gate that refuses NEVER clicks.
   * saves anything, or calls `chart.exportData()` (plan-gated).
+  * records the account name, or an unsalted hash of it: provenance keeps HMAC-SHA256 of the
+    name under a LOCAL salt (`$UCT_PROVENANCE_SALT`, >= 16 characters), or `no-salt` without one.
+  * paces below 10 s between scripts, or by a non-finite value (`throttle_refusal`).
 
 ⭐ OUTCOMES ARE FOUR, AND THEY ARE DIFFERENT FACTS:
   CAPTURED       a capture file written by `verify_capture.mjs --assemble`, exit 0
@@ -63,8 +66,10 @@ import base64
 import copy
 import datetime as _dt
 import hashlib
+import hmac
 import io
 import json
+import math
 import os
 import pathlib
 import re
@@ -100,6 +105,11 @@ OUTCOMES = (CAPTURED, REFUSED_BY_TV, GATE_FAILED, INCONCLUSIVE, INCOMPLETE)
 DEFAULT_RETRY = (INCOMPLETE, INCONCLUSIVE, GATE_FAILED)
 #: The pause between scripts may be lowered, never below this: it is the owner's own account.
 MIN_THROTTLE_S = 10.0
+#: The LOCAL secret that salts the account fingerprint (never committed, never printed). A bare sha256
+#: of a public username is a lookup table, not a fingerprint: anyone can hash a candidate name and
+#: compare. Unset or shorter than MIN_SALT_CHARS -> the account is not fingerprinted (`no-salt`).
+PROVENANCE_SALT_ENV = "UCT_PROVENANCE_SALT"
+MIN_SALT_CHARS = 16
 
 #: Listing days this tool may assert `startsAtBar0` against. A young listing is
 #: the instrument (capture-procedure.md, "BAR 0 IS NOT REACHABLE ON A LONG-HISTORY
@@ -316,8 +326,9 @@ VH_CLEANUP_JS = "() => (window.__uctVH ? window.__uctVH.cleanup() : { globalsLef
 GLOBALS_JS = "() => Object.keys(window).filter((k) => /^__uct/.test(k))"
 
 #: READ-ONLY: the signed-in TradingView username, for PROVENANCE only. Python keeps
-#: sha256(username)[:12], never the name (the repository is public). `null` when the
-#: page does not expose one: provenance then says `unread`, which is honest, not a failure.
+#: HMAC-SHA256(local salt, username)[:12], never the name (the repository is public), and never
+#: an unsalted hash of it (`account_fingerprint`). `null` when the page does not expose one:
+#: provenance then says `unread`, which is honest, not a failure.
 ACCOUNT_JS = r"""() => {
   const tryv = (f) => { try { const v = f(); return (typeof v === 'string' && v) ? v : null } catch (e) { return null } };
   return tryv(() => window.user.username) || tryv(() => window.TradingView.currentUser.username)
@@ -365,6 +376,18 @@ def newest_bar_forming(mode: str, now_utc=None):
     now = (now_utc or _dt.datetime.now(_dt.timezone.utc)).astimezone(ZoneInfo("America/New_York"))
     rth = now.weekday() < 5 and (9, 30) <= (now.hour, now.minute) < (16, 0)
     return rth, f"auto: {now:%a %H:%M} ET is {'inside' if rth else 'outside'} regular hours"
+
+
+def throttle_refusal(throttle_s) -> str | None:
+    """None when `throttle_s` may pace a batch, else why not. THE pacing authority: this CLI and the
+    evidence engine's `batch` both ask it. ⛔ A non-finite value is refused by name: `nan < 10` is
+    False, so a bare floor test let `--throttle-s nan` through (and `inf` cannot be slept)."""
+    t = float(throttle_s)
+    if not math.isfinite(t):
+        return f"--throttle-s {throttle_s} is not a finite number of seconds"
+    if t < MIN_THROTTLE_S:
+        return f"--throttle-s {throttle_s} is below {MIN_THROTTLE_S:.0f}s (this is the owner's own account)"
+    return None
 
 
 def write_json_atomic(path: pathlib.Path, obj) -> None:
@@ -980,13 +1003,26 @@ def should_skip(prior, script, rd: RunDir, verifier, retry) -> tuple[bool, str]:
     return False, f"unknown prior outcome {out!r}"
 
 
+def provenance_salt() -> str | None:
+    """The local salt from `$UCT_PROVENANCE_SALT`, or None when it is unset or too short to be a secret."""
+    s = os.environ.get(PROVENANCE_SALT_ENV) or ""
+    return s if len(s) >= MIN_SALT_CHARS else None
+
+
 def account_fingerprint(page) -> str:
-    """sha256(username)[:12] of the signed-in account, or `unread`. Never the name."""
+    """HMAC-SHA256(local salt, username)[:12] of the signed-in account; `no-salt` when no local salt is set
+    (DOCUMENTED FALLBACK: the account is then not fingerprinted at all, and the page is not even asked);
+    `unread` when the page names no user. Never the name, never an unsalted hash of it."""
+    salt = provenance_salt()
+    if salt is None:
+        return "no-salt"
     try:
         name = page.evaluate(ACCOUNT_JS)
     except Exception:  # noqa: BLE001 — provenance must never fail a capture
         name = None
-    return hashlib.sha256(name.encode("utf-8")).hexdigest()[:12] if isinstance(name, str) and name else "unread"
+    if not (isinstance(name, str) and name):
+        return "unread"
+    return hmac.new(salt.encode("utf-8"), name.encode("utf-8"), hashlib.sha256).hexdigest()[:12]
 
 
 def engine_sha() -> str:
@@ -1021,6 +1057,9 @@ def run_batch(page, manifest: dict, rd: RunDir, opts: Opts, clock, verifier=None
             original = drv.read_state("state_original")
             drv.provenance = batch_provenance(page, rd, opts)
             rd.ledger("provenance", **drv.provenance)
+            if drv.provenance["account"] == "no-salt":
+                log(f"[batch] provenance: ${PROVENANCE_SALT_ENV} is unset or under {MIN_SALT_CHARS} characters, "
+                    "so the account is NOT fingerprinted (set it once to a local secret to record one)")
             # ⭐ A DEAD PROCESS'S ORPHAN, RECOGNISED BY ITS RECORDED ID — never by
             # name. A study is removed here ONLY if every study on the chart is
             # one an INCOMPLETE result in THIS run dir recorded adding; anything
@@ -1269,9 +1308,9 @@ def main(argv=None) -> int:
         return _launch(args, lambda page: _recon(page, args))
 
     if args.cmd == "run":
-        if args.throttle_s < MIN_THROTTLE_S:
-            print(f"[batch] REFUSED: --throttle-s {args.throttle_s} is below {MIN_THROTTLE_S:.0f}s "
-                  "(this is the owner's own account)")
+        why = throttle_refusal(args.throttle_s)
+        if why:
+            print(f"[batch] REFUSED: {why}")
             return 2
         manifest = _load_manifest(args.manifest)
         run_id = _dt.datetime.now().strftime("%Y%m%d-%H%M%S")

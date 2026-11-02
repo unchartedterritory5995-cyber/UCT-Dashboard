@@ -90,14 +90,22 @@ text, its doc's wave tag (the filename after the date: `wsc-history`, `c47`, ...
   2. a corpus file (`corpus/committed/<slug>.pine`);
   3. a version VARIANT (`line 1 //@version=4`): the sibling file `<stem>-v4.pine` when it
      exists, else the row needs a probe;
-  4. nothing in the row: the doc's preamble (text before its first table) when it names
-     exactly one probe;
+  4. nothing in the row: the one `.pine` its SECTION names (the heading above its table), else,
+     only for a section naming none, the one its doc's preamble names. A section naming two is
+     ambiguous: nothing is inherited;
   5. otherwise the row is **NEEDS_PROBE** (an inline shape, prose, or a builtin by id). The
      engine never writes Pine from prose; a person writes the probe file, and the next build
      picks it up.
+  ⛔ A token `<probe stem>-<chart>[-<date>]` (`vw-bool-cast-spy-60`) names a CAPTURE of that probe.
+  It is filed as a fixture reference and is never the row's source.
 - **charts**: `EXCH:SYM tf` pairs named in the row (`NYSE:RDDT **1D**`, `AMEX:SPY 15`, a bare
-  `SPY 1D`), else the preamble's, else the house default `NYSE:RDDT 1D` marked
-  `chartDefaulted: true`. "from the listing" sets the listing-date assertion.
+  `SPY 1D`), else the section's lead's, else the preamble's. In that PROSE only an explicit
+  `EXCH:SYM` counts: a bare `RDDT` there refers to an old capture ("qqe-signals RDDT 1D"), it
+  does not ask for one. A row naming a chart the parser cannot read (an exchange it does not
+  know) gets no chart. With nothing named, the chart is the house default `NYSE:RDDT 1D`, the
+  row says `chartDefaulted: true` / `chartSource: default`, and its target is **NEEDS_CHART**:
+  never batched, because a guessed chart answers nobody's question. "from the listing" sets
+  the listing-date assertion.
 - **flags**: `needsLive` (market hours, realtime, forming bar, `varip`, twice minutes apart,
   1m), `needsVariant`, `needsTwoWitnesses`. A `needsLive` row is never in an unattended
   batch: a forming bar cannot be captured after the close.
@@ -111,11 +119,15 @@ How the parser reads the docs (they were written by hand, by many sessions, in s
 shapes; these rules are what makes them machine-readable without rewriting them):
 
 - A table whose header has a cell `settled` / `served` / `was` / `now` / `witness`, or whose
-  first header is `refused as`, is a LEDGER of what is already known, not a queue. It is
-  counted per doc (`contextTables`), never silently dropped.
+  first header is `refused as`, is a LEDGER of what is already known, not a queue. So is a
+  RECORD of finished captures: a table under a heading `CAPTURED` / `READINGS` / `BUILT` /
+  `Taken` (at any level above it), or one whose `capture` column names only committed
+  captures. Both are counted per doc (`contextTables`), never silently dropped. (The
+  2026-09-27 CAPTURED table, read as a queue, made seven targets on a guessed chart.)
 - Inheritance is by SECTION first: a row with no source takes the one `.pine` file named in
-  the heading above its table (`### 6. vw-mintick.pine ...`), else the one named in the doc's
-  preamble. Only explicit `.pine` names are handed down, never a bare stem in prose.
+  the heading above its table (`### 6. vw-mintick.pine ...`); only a section that names none
+  defers to the doc's preamble. Only explicit `.pine` names are handed down, never a bare stem
+  in prose.
 - A timeframe is read only as the list that immediately follows a symbol (`NYSE:RDDT **15**,
   **60**, **240**`, `AMEX:SPY 1D (and 1W)`); a number later in the sentence (`bars 0 and 1`,
   `1,800 bars`) is never a timeframe.
@@ -130,13 +142,22 @@ from disk on every build:
 
 | status | meaning |
 |---|---|
-| `CAPTURED` | a fixture under `tests/fixtures/vendor/harness/` carries this source sha on this symbol and timeframe |
+| `CAPTURED` | a fixture ANYWHERE under `tests/fixtures/vendor/` (recursive: 17 committed captures sit beside `harness/`) carries this source sha on this symbol and timeframe |
 | `VERDICT_LOCAL` | a licence-held capture was graded and its verdict filed in the evidence ledger (no fixture in git, by design) |
-| `STALE` | a fixture exists for this probe stem and chart, but the probe file changed since (sha differs): re-capture to grade the current probe |
-| `QUEUED` | runnable unattended: source on disk, licence-clear or local-evidence mode, not live |
+| `STALE` | a fixture of this source's capture stem on this chart exists, but the file changed since (sha differs): re-capture to grade the current one |
+| `QUEUED` | runnable unattended: source on disk, a chart someone named, licence-clear or local-evidence mode, not live |
+| `NEEDS_CHART` | no row, section or preamble names a chart this parser can read: the chart would be a guess (excluded from batches, whatever a fixture on the guessed chart says; `capturedOn` lists the charts this source IS captured on) |
 | `NEEDS_LIVE` | runnable only with the owner watching a live session (excluded from batches) |
 | `NEEDS_PROBE` | no runnable source yet (row-level; no target is formed) |
 | `LICENCE_HOLD` | the source exists only in the gitignored survey cache (builtin / reference-only); capturable in local-evidence mode only |
+
+**The capture stem** (`evidence_engine.capture_stem`, ONE authority) is the `<script>` of a capture id
+`<script>-<sym>-<tf>-<yyyy-mm-dd>`: the manifest hands it to the driver (`captureStem`), the STALE lookup
+finds older captures by it, and the gate holds every id to it. House rule, as the census slug
+`batch_manifest.py` selects on: `__<hash>` dropped, lowercased, and `-<sha8>` appended when two files share
+the slug (three `support-and-resistance__*` today). Before it existed the manifest handed over the raw stem,
+every corpus capture came back as `name__hash-...`, failed the gate's own id rule and was retaken by every
+batch.
 
 ### 2.3 Priority = scripts unblocked, derived from the census, never typed
 
@@ -181,9 +202,11 @@ selects `QUEUED` targets (and `LICENCE_HOLD` only with `--local-evidence`), in p
 order, then groups by chart within each priority band so a batch switches symbol as few
 times as it can without letting a lower-priority capture jump a higher one. It writes a
 `uct.vendor-batch-manifest/v1` that `batch_capture.py` already reads, with per-script
-`symbol`, `tf`, `listingDate`, `captureStem`, `queueTargetId`, `rows`, `localOnly`, and the
+`symbol`, `tf`, `listingDate`, `captureStem` (the capture stem, above), `chartDefaulted` and
+`chartSource` (where the chart was read), `queueTargetId`, `rows`, `localOnly`, and the
 production door-flag state (read from `docs/frontend_feature_flags.json`, as
-`batch_manifest.py` does) so the grader runs the door the census counted.
+`batch_manifest.py` does) so the grader runs the door the census counted. ⛔ No manifest takes a
+target whose chart was defaulted, whatever statuses a selection asks for.
 
 ## 4. [C] The rig and the live run (owner only)
 
@@ -227,8 +250,9 @@ added, restore symbol / resolution / stretch, no `__uct*` globals).
 
 - Only the owner's own account and session; only scripts that are open source (corpus,
   builtins, our own probes); nothing private to another user is opened or read.
-- `--throttle-s 30` between scripts (default; the tool refuses below 10 s), and a per-session
-  cap (`--limit`, default 40 from the evidence engine). A 40-script session is about 40-60
+- `--throttle-s 30` between scripts (default; the tool refuses below 10 s and any non-finite
+  value such as `nan`, `batch_capture.throttle_refusal`, which both CLIs ask before anything
+  else), and a per-session cap (`--limit`, default 40 from the evidence engine). A 40-script session is about 40-60
   minutes of the owner's account doing what a person would do by hand, slower than a person.
 - Daily captures run after the close (`newestBarIsForming` derived by `tv_capture.js`).
   `needsLive` rows are never batched.
@@ -248,7 +272,7 @@ run's orphan study is removed only by the id it recorded.
 | `runId`, `startedAtUTC`, `finishedAtUTC` | the run |
 | `capturedAtUTC`, `page.url`, `tool` | the capture itself (already in v1) |
 | `symbol` (pro name, session, timezone), `timeframe`, `newestBarIsForming`, `history.startsAtBar0` | the capture itself |
-| `account` | `sha256(username)[:12]` read off the page (`ACCOUNT_JS`), or `unread`. Never the name itself: the repository is public; a fingerprint proves "the same account across captures" without publishing it |
+| `account` | `HMAC-SHA256(salt, username)[:12]`, the username read off the page (`ACCOUNT_JS`) and the salt a LOCAL secret in `$UCT_PROVENANCE_SALT` (>= 16 characters, never committed). `no-salt` when it is unset or shorter: the account is then not fingerprinted and the page is not asked (documented fallback, logged at batch start). `unread` when the page names no user. Never the name, and never a bare `sha256(username)`: a public username's unsalted hash is a lookup, anyone can hash a candidate and compare |
 | `profile` | the profile directory's leaf name (`tradingview`), never a full path with the user name |
 | `rigLayout` | `01f1AcIj` |
 | `engineSha` | `git rev-parse HEAD` of the checkout that drove the run |
@@ -259,9 +283,10 @@ run's orphan study is removed only by the id it recorded.
 
 - **Validate** (`fixture_gate`): `verify_capture.mjs` (shape, receipt, source sha: the one
   authority, called, never re-implemented) + the file name equals `<id>.json` and the id has
-  the house form `<script>-<sym>-<tf>-<yyyy-mm-dd>` + **licence** (below) + **no overwrite**
-  (an id already under `tests/fixtures/vendor/harness/` is refused; evidence is appended,
-  never replaced).
+  the house form `<script>-<sym>-<tf>-<yyyy-mm-dd>`, where for a source the repository holds
+  (a probe or corpus file, by sha) `<script>` must be THAT source's capture stem + **licence**
+  (below) + **no overwrite** (an id already in the directory it would be filed in, or anywhere
+  in the fixture tree, is refused; evidence is appended, never replaced).
 - **Licence gate.** A fixture embeds its Pine verbatim, so a capture may enter git only if
   its source is (a) one of our own probes (sha equals a file under the probe dirs), (b) a
   `corpus/committed/` file (sha match), or (c) carries an explicit permitted header
@@ -270,12 +295,17 @@ run's orphan study is removed only by the id it recorded.
   sha, its capture kept outside git.
 - **Grade** = the existing corpus harness over `<run>/captures`, run through
   `heavy_lock.py` (machine rule: one heavy job at a time), with the door-flag state from the
-  manifest. `evidence-report.json` joins each verdict back to its target and rows.
+  manifest. The lock tool is `$HEAVY_LOCK` (the laptop's env sets it), else the desktop's
+  `C:\Users\Patrick\uct-clips\tools\heavy_lock.py`; with neither, `grade` REFUSES (exit 2) and
+  `batch` refuses before any browser. It never runs unlocked. `evidence-report.json` joins
+  each verdict back to its target and rows.
 
 ## 6. [P] [F] The human checkpoint, then filing
 
-`packet` writes `<run>/PROMOTION-PACKET.md` (one line per capture: id, chart, rows answered,
-verdict, first divergence, licence class, validation problems) and `promotion-packet.json`,
+`packet` writes `<run>/PROMOTION-PACKET.md` (one line per capture: id, chart, whether that chart
+was asked and by what (`chartDefaulted` / `chartSource`, carried from the run's manifest into the
+packet and the ledger row), rows answered, verdict, first divergence, licence class, validation
+problems) and `promotion-packet.json`,
 and prints the packet's sha256. `promote` requires `--packet-sha <first 12 hex>`: the sha of
 the packet as it is on disk now. If anything changed after the packet was written (a new
 capture, a regrade), the sha moves and promote refuses. That is the checkpoint: a person has
@@ -304,17 +334,25 @@ work, filed by the wave that owns the guard.
 ## 8. What is proven by this branch, and what is not
 
 - **Proven offline (tests):** queue parsing over every committed queue doc, target collapse,
-  status derivation from fixtures, priority derivation against a synthetic census, manifest
-  emission (live / probe-less / licence-held excluded; per-script chart), per-script chart
-  honoured by the driver against the recording double, the licence gate, the no-overwrite
-  rule, the packet-sha checkpoint, ledger filing. Each new guard is mutation-proved.
+  status derivation from fixtures in any directory, priority derivation against a synthetic
+  census, the queue never inventing a target (NEEDS_CHART for a guessed or unreadable chart,
+  fixture references never a source, finished-capture tables as context, no chart from bare
+  prose symbols), manifest emission (live / probe-less / licence-held / guessed-chart excluded;
+  per-script chart), the capture stem shared by manifest, STALE lookup and gate (a corpus
+  target runs manifest -> recording double -> packet and comes out PROMOTE), the licence gate,
+  the no-overwrite rule, the packet-sha checkpoint, ledger filing, the pacing floor (non-finite
+  refused), the salted account fingerprint, the heavy-lock refusal. Every guard is
+  mutation-proved: `tools/vendor_harness/evidence_engine_mutations.py` is the record.
 - **Not proven until the owner's first live batch:** that TradingView's page still has every
   hook the driver looks for (`recon` prints each reading first), and that `ACCOUNT_JS`
   finds a username (if not, provenance says `unread`, which is honest, not a failure).
 
 ## 9. The owner's command
 
-From the repo root, after the close, rig profile already signed in:
+From the repo root, after the close, rig profile already signed in. Once per machine, set
+`UCT_PROVENANCE_SALT` (a user environment variable) to a local secret of 16 or more characters,
+or provenance records `no-salt` instead of an account fingerprint; and `HEAVY_LOCK` to the lock
+tool when it is not at the desktop's path.
 
 ```
 python tools/vendor_harness/evidence_engine.py batch --top 20

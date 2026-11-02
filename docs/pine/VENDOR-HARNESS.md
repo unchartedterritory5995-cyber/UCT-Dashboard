@@ -258,7 +258,8 @@ with each target's OWN symbol and timeframe, grades the run under the heavy lock
 promotion packet a person reads before `promote --packet-sha` copies licence-clear captures into
 `tests/fixtures/vendor/harness/` and files every verdict in `evidence-ledger.jsonl`. Design:
 `docs/pine/EVIDENCE-ENGINE-DESIGN.md`. Owner command:
-`python tools/vendor_harness/evidence_engine.py batch --top 20`.
+`python tools/vendor_harness/evidence_engine.py batch --top 20` (set `UCT_PROVENANCE_SALT` once
+first, a local secret of 16+ characters, or provenance records `no-salt` for the account).
 
 ## Unattended batch (2026-09-28) — many scripts, no keyboard after one sign-in
 
