@@ -33,6 +33,7 @@ TODAY = NOW_DT.date()
 @pytest.fixture(autouse=True)
 def _env(monkeypatch):
     monkeypatch.setenv(gw.DATA_ENV, "1")
+    monkeypatch.setenv(gw.KINDS_ENV, ",".join(gw.registry().names()))  # every kind on
     frozen = SimpleNamespace(time=lambda: NOW_TS)
     monkeypatch.setattr(stm, "time", frozen)
     monkeypatch.setattr(nc, "time", frozen)

@@ -44,6 +44,7 @@ class _Client:
 @pytest.fixture(autouse=True)
 def _env(monkeypatch):
     monkeypatch.setenv(gw.DATA_ENV, "1")
+    monkeypatch.setenv(gw.KINDS_ENV, ",".join(gw.registry().names()))  # every kind on
     # Freeze the clock the ADAPTER reads at the same instant every stamp is built from. `NOW` is taken at
     # import, and a full-suite run can reach these tests minutes later; without this the 60 s live budget
     # trips on wall-clock elapsed time, not on anything the adapter did (agent-lead, #579).

@@ -32,6 +32,7 @@ def snap(tmp_path, monkeypatch):
 @pytest.fixture
 def on(monkeypatch):
     monkeypatch.setenv("UCT_AGENT_DATA", "1")
+    monkeypatch.setenv(gateway.KINDS_ENV, ",".join(gateway.registry().names()))  # every kind on
     monkeypatch.setenv("UCT_AGENT_SCAN", "1")
     gateway._reset_for_test()
     yield

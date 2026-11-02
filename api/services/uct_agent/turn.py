@@ -778,11 +778,25 @@ def _plans_local_lookup(env) -> bool:
 UNREADABLE_OUTCOME = "[UCT] (an earlier UCT message that is not repeated here)"
 
 
+#: Outcome kinds the browser records WITHOUT `actions` (useAgent.js): UCT's own fixed wording — undo, clarify,
+#: refusal and cancel notes — never a capability's result. Any other row that omits `actions` (an `answered`
+#: row in particular) cannot show it carried no local-only result, so it is unreadable (QA F-11: fail closed).
+ACTIONLESS_OUTCOME_KINDS = frozenset({
+    "authoring-cancelled", "authoring-prompt", "clarify-multichart", "clarify-referent", "clarify-save-target",
+    "clarify-workspace", "compound-stopped", "compound-too-long", "dismissed", "followup-refused",
+    "guide-do-say", "nothing-pending", "reference-refused", "refused-stale", "retarget-refused", "undo",
+    "undo-none", "undo-refused", "undo-refused-mismatch", "undo-refused-protected", "undo-turn",
+    "undo-unsaved", "unsupported",
+})
+
+
 def _row_actions(data) -> list | None:
     """The `actions` a stored row names, [] when it names none, None when the shape is unreadable."""
     if not isinstance(data, dict):
         return None
-    acts = data.get("actions", [])
+    if "actions" not in data:
+        return [] if data.get("kind") in ACTIONLESS_OUTCOME_KINDS else None
+    acts = data.get("actions")
     if not isinstance(acts, list) or not all(isinstance(a, str) for a in acts):
         return None
     return acts
