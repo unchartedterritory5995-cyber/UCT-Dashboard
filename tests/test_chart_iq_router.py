@@ -8,6 +8,7 @@ on the site's own data path.
 from __future__ import annotations
 
 import math
+import os
 import sqlite3
 
 import pytest
@@ -321,8 +322,10 @@ def test_prewarm_warms_each_recently_opened_industry_once(tmp_path, monkeypatch)
     monkeypatch.setenv("CHART_IQ_ROW_CACHE_DB", str(tmp_path / "rows.db"))
     assert prewarm.warm() == {"skipped": "disabled"}                       # off by default
     monkeypatch.setenv("CHART_IQ_ENABLED", "1"); monkeypatch.setenv("CHART_IQ_PREWARM_ENABLED", "1")
+    prewarm._PENDING.clear()                                               # other tests' reads share the in-memory buffer
     for t in ("AAA", "AAB", "BBB", "FND", "OLD"):
         prewarm.record_view(t)
+    assert prewarm.flush() == 5                                            # views are batched; flush writes them
     import time as _t
     c = prewarm._conn(); c.execute("UPDATE viewed SET at=? WHERE ticker='OLD'", (_t.time() - 10 * 86400,)); c.commit(); c.close()
     monkeypatch.setattr(CX, "IM", {"AAA": ("S", "Semis"), "AAB": ("S", "Semis"), "BBB": ("T", "Software"), "FND": ("F", "Exchange Traded Fund"),
@@ -427,4 +430,55 @@ def test_pack_admin_endpoints_and_jobs(packdb, monkeypatch):
     monkeypatch.delenv("CHART_IQ_PACK_ENABLED", raising=False)
     assert M.register_chart_iq_pack_jobs(sched) is False and jobs == []
     monkeypatch.setenv("CHART_IQ_PACK_ENABLED", "1")
-    assert M.register_chart_iq_pack_jobs(sched) is True and sorted(jobs) == ["chart_iq_pack_evening", "chart_iq_pack_morning"]
+    assert M.register_chart_iq_pack_jobs(sched) is True and sorted(jobs) == ["chart_iq_pack_evening", "chart_iq_pack_morning", "chart_iq_pack_sync"]
+
+
+
+def _pack_blob(tmp_path, day, rows=5, corrupt=False):
+    import gzip, sqlite3 as _sq
+    import uuid
+    f = tmp_path / ("src-%s-%d-%s.db" % (day, rows, uuid.uuid4().hex[:8]))
+    c = _sq.connect(f)
+    c.execute("CREATE TABLE reads (ticker TEXT PRIMARY KEY, asof TEXT NOT NULL, body TEXT NOT NULL, built REAL NOT NULL)")
+    c.execute("CREATE TABLE meta (k TEXT PRIMARY KEY, v TEXT NOT NULL)")
+    for k in range(rows):
+        c.execute("INSERT INTO reads VALUES (?,?,?,0)", ("T%d" % k, day, '{"ticker":"T%d","asof":"%s","thesis":"pc"}' % (k, day)))
+    c.execute("INSERT INTO meta VALUES ('day', ?)", (day,)); c.commit(); c.close()
+    raw = f.read_bytes()
+    return gzip.compress(raw[:200] if corrupt else raw)
+
+
+class _FakeS3:
+    def __init__(self):
+        self.objs = {}
+
+    def put(self, ts, blob):
+        self.objs["chart_iq/latest.txt"] = str(ts).encode(); self.objs["chart_iq/%d.db.gz" % ts] = blob
+
+    def get_object(self, Bucket, Key):
+        import io
+        return {"Body": io.BytesIO(self.objs[Key])}
+
+
+def test_pack_sync_installs_a_pc_built_pack_and_refuses_bad_ones(tmp_path, monkeypatch):
+    from api.services.chart_iq import pack
+    d = tmp_path / "data"; d.mkdir()
+    monkeypatch.setenv("DATA_DIR", str(d)); monkeypatch.delenv("CHART_IQ_PACK_DB", raising=False)
+    monkeypatch.setenv("CHART_IQ_ENABLED", "1"); monkeypatch.setenv("CHART_IQ_PACK_ENABLED", "1")
+    monkeypatch.setenv("DATA_SYNC_BUCKET", "b"); monkeypatch.setattr(pack, "MIN_ROWS", 3)
+    s3 = _FakeS3()
+    s3.put(100, _pack_blob(tmp_path, "2026-10-30"))
+    rep = pack.sync_from_r2(s3=s3)
+    assert rep.get("installed") == 100 and rep["rows"] == 5
+    assert pack.get("T1", today="2026-11-02")["thesis"] == "pc" and pack._path().endswith("chart_iq_pack-100.db")
+    assert pack.sync_from_r2(s3=s3) == {"skipped": "current", "ts": 100}
+    s3.put(101, _pack_blob(tmp_path, "2026-10-29"))                     # older day than installed: refused
+    assert "older" in pack.sync_from_r2(s3=s3).get("error", "")
+    s3.put(102, _pack_blob(tmp_path, "2026-11-02", corrupt=True))       # corrupt: refused
+    assert "error" in pack.sync_from_r2(s3=s3)
+    s3.put(103, _pack_blob(tmp_path, "2026-11-02", rows=2))             # too small: refused
+    assert "too small" in pack.sync_from_r2(s3=s3).get("error", "")
+    assert pack._path().endswith("chart_iq_pack-100.db")                # every refusal left the good pack in place
+    s3.put(104, _pack_blob(tmp_path, "2026-11-02"))
+    assert pack.sync_from_r2(s3=s3).get("installed") == 104 and pack._path().endswith("chart_iq_pack-104.db")
+    assert not any(f.startswith(".chart_iq_pack-") for f in os.listdir(d))   # no staging files left behind

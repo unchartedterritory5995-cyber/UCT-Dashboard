@@ -401,6 +401,10 @@
   .compact .rowActions { top: 2px; }
   /* the always-shown saved mark takes the reserved slot at the far right */
   .rowBtnSaved { order: 10; }
+  /* An open explanation keeps its row's buttons lit (.rowExplaining), but here they float
+     over the stamp: at rest only the saved mark stays; hover or keyboard focus brings the
+     rest back (the explanation has its own Close). */
+  .rowExplaining:not(:hover) .rowBtn:not(.rowBtnSaved):not(:focus-visible) { opacity: 0; pointer-events: none; }
 }
 .rowBtn {
   display: inline-flex;
@@ -817,10 +821,30 @@
 }
 .explainCopy:hover, .explainClose:hover { color: var(--txn-text, var(--text)); background: var(--txn-divider, var(--bg-hover)); }
 .explainCopy:focus-visible, .explainClose:focus-visible, .explainAction:focus-visible { outline: 1px solid currentColor; }
-.explainText { margin: 0 0 4px; }
-.explainText strong { font-weight: 700; }
-.explainNote { margin: 3px 0 0; font-size: 9.5px; color: var(--txn-chrome, var(--text-muted)); }
+/* An admin reads it in UCT Agent's voice: the panel's compass avatar (gold rim on the
+   elevated surface, AgentPanel .avatar) at row scale, and its name in sentence case. */
+.explainAgent {
+  gap: 5px;
+  font-size: 10.5px; font-weight: 600; letter-spacing: 0; text-transform: none;
+  color: var(--txn-text, var(--text-bright));
+}
+.agentMark {
+  flex: 0 0 16px; width: 16px; height: 16px; border-radius: 50%;
+  display: grid; place-items: center; box-sizing: border-box;
+  background: var(--txn-bg-solid, var(--bg-elevated));
+  border: 1px solid color-mix(in srgb, var(--txn-accent, var(--ut-gold)) 55%, transparent);
+}
+.agentMark img { width: 11px; height: 11px; object-fit: contain; }
+.explainLabel {
+  margin: 4px 0 1px;
+  font-size: 9px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase;
+  color: var(--txn-accent, var(--widget-accent, var(--ut-gold)));
+}
+.explainLabel:first-child { margin-top: 1px; }
+.explainText { margin: 0 0 3px; }
+.explainText:last-child { margin-bottom: 0; }
 .compact .explain { font-size: 10.5px; line-height: 1.4; margin-top: 3px; padding-top: 4px; }
+.compact .explainLabel { margin-top: 3px; font-size: 8.5px; }
 .explainLoading { display: flex; flex-direction: column; gap: 5px; padding: 3px 0 2px; }
 .explainSkel {
   height: 7px; border-radius: 3px;
@@ -841,6 +865,62 @@
   color: var(--txn-text, var(--text)); cursor: pointer;
 }
 .explainAction:hover { background: var(--txn-divider, var(--bg-hover)); }
+
+/* ── Ask UCT Agent (admin + Agent switch; rendered only when the Agent provides it) ──
+   Compact by design: a short thread capped in height, one input line, one link.
+   Member questions sit right in a quiet chip; Agent answers read as body text. */
+.ask {
+  display: flex; flex-direction: column; gap: 4px; margin-top: 6px; padding-top: 6px;
+  border-top: 1px solid var(--txn-divider, var(--border));
+}
+.askLog {
+  display: flex; flex-direction: column; gap: 4px;
+  max-height: 168px; overflow-y: auto; overscroll-behavior: contain;
+  padding-right: 2px;
+}
+.askMine, .askAgent, .askBusy { margin: 0; white-space: pre-wrap; }
+.askMine {
+  align-self: flex-end; max-width: 88%;
+  padding: 2px 7px; border-radius: 8px 8px 2px 8px;
+  background: color-mix(in srgb, var(--txn-accent, var(--ut-gold)) 14%, var(--txn-bg-solid, var(--bg-elevated)));
+  color: var(--txn-text, var(--text-bright));
+}
+.askAgent { color: var(--txn-text, var(--text-bright)); }
+.askBusy { color: var(--txn-chrome, var(--text-muted)); font-style: italic; }
+.askEarlier {
+  align-self: center; padding: 0 6px; background: none; border: none; cursor: pointer;
+  font: inherit; font-size: 10px; color: var(--txn-chrome, var(--text-muted));
+}
+.askEarlier:hover { color: var(--txn-text, var(--text)); }
+.askForm {
+  display: flex; align-items: center; gap: 4px;
+  height: 24px; padding: 0 2px 0 8px;
+  border: 1px solid var(--txn-divider, var(--border)); border-radius: 12px;
+  background: var(--txn-bg-solid, var(--bg-elevated));
+}
+.askForm:focus-within { border-color: color-mix(in srgb, var(--txn-accent, var(--ut-gold)) 60%, transparent); }
+.askInput {
+  flex: 1 1 auto; min-width: 0; height: 100%;
+  background: none; border: none; outline: none;
+  font: inherit; font-size: 11px; color: var(--txn-text, var(--text-bright));
+}
+.askInput::placeholder { color: var(--txn-chrome, var(--text-muted)); opacity: 1; }
+.askSend {
+  flex: 0 0 20px; width: 20px; height: 20px; padding: 0; border: none; border-radius: 50%;
+  display: grid; place-items: center; cursor: pointer;
+  background: var(--txn-accent, var(--ut-gold)); color: var(--txn-bg-solid, var(--bg));
+}
+.askSend:disabled { cursor: default; background: var(--txn-divider, var(--border)); color: var(--txn-chrome, var(--text-muted)); }
+.askSend:focus-visible, .askEarlier:focus-visible, .askContinue:focus-visible { outline: 1px solid currentColor; outline-offset: 1px; }
+.askContinue {
+  align-self: flex-start; padding: 0; background: none; border: none; cursor: pointer;
+  font: inherit; font-size: 10.5px; font-weight: 600;
+  color: var(--txn-accent, var(--widget-accent, var(--ut-gold)));
+}
+.askContinue:hover { text-decoration: underline; }
+.compact .ask { margin-top: 4px; padding-top: 4px; }
+.compact .askForm { height: 22px; }
+.compact .askLog { max-height: 140px; }
 
 /* ── Research Library: the saved mark and the save / Undo toast ── */
 .rowBtnSaved, .row:hover .rowBtnSaved { opacity: 1; color: var(--txn-sym, var(--ut-gold, #c9a84c)); }

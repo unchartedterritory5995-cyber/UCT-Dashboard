@@ -275,6 +275,8 @@ function SearchResults({ results, query, active, setActive, onPick, member }) {
 
 // `request` (Indicators ⇄ Agent): `{id, chartRef, defId?, name?}` — the chart's Create Indicator /
 // Modify door opened the Agent; each NEW id asks once (useAgent.prompt) and focuses the composer.
+// `{id, kind: 'conversation', conversationId}` (UCT News "Continue in UCT Agent", newsAsk.openAgent):
+// the panel shows that chat — the server's transcript, as History opens it — and asks nothing.
 export default function AgentPanel({ host, gridMode, onClose, request = null }) {
   const member = useMember()
   // A new chat greets afresh (typing, new timestamp); messages after the greeting keep it.
@@ -304,10 +306,16 @@ export default function AgentPanel({ host, gridMode, onClose, request = null }) 
   // when that reply lands, never dropped).
   useEffect(() => {
     if (!request || !request.id || askedRef.current === request.id || agent.restoring || agent.busy) return
+    if (request.kind === 'conversation') {
+      askedRef.current = request.id
+      if (request.conversationId && request.conversationId !== agent.conversationId) agent.openConversation(request.conversationId)
+      inputRef.current?.focus()
+      return
+    }
     if (!askAgent(request)) return
     askedRef.current = request.id
     inputRef.current?.focus()
-  }, [request, agent.restoring, agent.busy, askAgent])
+  }, [request, agent.restoring, agent.busy, askAgent, agent.conversationId, agent.openConversation])
   // Follow the conversation: stay pinned to the newest line while the reader is at the bottom,
   // including when a line grows after it lands (welcome reveal, photos, the typing line's room).
   const stickRef = useRef(true)

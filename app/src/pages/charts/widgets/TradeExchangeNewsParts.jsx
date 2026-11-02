@@ -3,7 +3,7 @@
  *   Row            one headline (memoised: a quote tick re-renders only the rows
  *                  naming that symbol), its collapse, Explain (AI), Bookmark,
  *                  one-click Copy and ⋯ (the secondary actions)
- *   InlineExplanation  the AI Explanation of one headline, expanded INSIDE its row
+ *   InlineExplanation  the explanation of one headline, expanded INSIDE its row
  *                  under the headline (the rows below move down; nothing covered)
  *   ActionsMenu    ⋯: Add to Watchlist, Send to Notebook, Add to Collection, Copy
  *   FilterMenu     categories (multi-select) + this widget's saved presets
@@ -19,15 +19,19 @@
  * (sendCaptureToJournal), Copy is the browser clipboard. News alerts are not
  * offered from a headline (switched off in production until the owner approves).
  */
-import { memo, useCallback, useEffect, useRef, useState } from 'react'
+import { memo, useCallback, useContext, useEffect, useRef, useState } from 'react'
 import useSWR from 'swr'
 import UIcon from '../../../components/ui/UIcon'
+import { AuthContext } from '../../../context/AuthContext'
+import { useAgentFlag } from '../../../agent/agentFlag'
+import compassMark from '../../../components/intro/assets/compass-mark.png'
 import { formatNumber } from '../../../lib/presentation/presentationPrimitives'
 import Input from '../../../components/ui/Input'
 import { requestExplanation, cachedExplanation } from '../../../lib/tradeExchangeNewsExplain'
 import { sentRecently } from '../../../lib/tradeExchangeNewsNotebook'
 import { CollectionPicker } from './TradeExchangeNewsCollections'
-import { CATEGORY_FILTERS, categoryTitle, cleanCategories, explainable, explanationText, fmtReceived, fmtReceivedFull, fmtStamp, hitRanges, runsIn,
+import { NewsAgentAsk } from './TradeExchangeNewsAsk'
+import { CATEGORY_FILTERS, categoryTitle, cleanCategories, explainable, explanationText, fmtReceivedFull, fmtStamp, hitRanges, runsIn,
   dayLabel, dayStatus, cleanTime, MAX_PRESETS, monthGrid, MONTHS, tickerTitle, tickerTone, timeLabel, tokenize,
   WEEKDAYS } from './tradeExchangeNewsModel'
 import styles from './TradeExchangeNewsWidget.module.css'
@@ -230,7 +234,7 @@ export const Row = memo(function Row({ item, linkedSym, onSym, colorMode, prices
               onClick={(e) => { e.stopPropagation(); onExplain(item, e.currentTarget) }}
               aria-label="Explain this headline"
               aria-expanded={!!explainOpen}
-              title="Explain (AI)"
+              title="Explain"
             ><UIcon name="sparkle" size={11} gold={false} /></button>
           )}
           {onSave && item.id && (
@@ -281,6 +285,31 @@ export const Row = memo(function Row({ item, linkedSym, onSym, colorMode, prices
 
 // ── AI Explanation: expands INSIDE the headline's row ──
 
+/** Whose voice the explanation is in. UCT Agent is ADMIN-ONLY (its routes are
+ *  require_admin_dark), so its mark and name show only where the Agent itself would:
+ *  the SAME two keys as the /charts panel (ChartsWorkspace `agentAllowed`) -- this
+ *  browser's Agent switch AND the admin role. Everyone else (a member, an admin with
+ *  the switch off, no AuthProvider in isolated tests) reads the same explanation under
+ *  a neutral heading: the failure direction never shows the Agent to someone who can't
+ *  use it.
+ *  ⛔ Branding only -- nothing here talks to the Agent (increments 2/3 will, through
+ *  app/src/agent's public exports, never AgentPanel internals). */
+function useAgentVoice() {
+  const admin = useContext(AuthContext)?.user?.role === 'admin'
+  const agentOn = useAgentFlag()
+  return admin && agentOn
+}
+
+function ExplainTitle({ agentVoice }) {
+  if (!agentVoice) return <span className={styles.explainTitle}><UIcon name="sparkle" size={10} /> Explanation</span>
+  return (
+    <span className={`${styles.explainTitle} ${styles.explainAgent}`}>
+      <span className={styles.agentMark} aria-hidden="true"><img src={compassMark} alt="" /></span>
+      UCT Agent
+    </span>
+  )
+}
+
 /** One headline's explanation, asked for when it opens (the member's click), shown
  *  directly under the headline it explains -- the row grows, the rows below move
  *  down, nothing is covered. Rendered as TEXT only: React escapes it, nothing is
@@ -312,11 +341,12 @@ export function InlineExplanation({ item, onClose, openerRef }) {
   }, [copied])
   const close = useCallback(() => { onClose(); openerRef?.current?.focus?.() }, [onClose, openerRef])
   const { body, error, loading } = state
+  const agentVoice = useAgentVoice()
   return (
-    <div ref={boxRef} className={styles.explain} role="region" aria-label="AI Explanation" tabIndex={-1}
+    <div ref={boxRef} className={styles.explain} role="region" aria-label="Explanation" tabIndex={-1}
       onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); close() } }}>
       <div className={styles.explainHead}>
-        <span className={styles.explainTitle}><UIcon name="sparkle" size={10} /> AI Explanation</span>
+        <ExplainTitle agentVoice={agentVoice} />
         {body && (
           <button type="button" className={styles.explainCopy}
             onClick={async () => setCopied((await copyText(explanationText(body))) ? 'ok' : 'err')}
@@ -338,9 +368,13 @@ export function InlineExplanation({ item, onClose, openerRef }) {
         )}
         {body && (
           <>
+            <h4 className={styles.explainLabel}>What this means</h4>
             <p className={styles.explainText}>{body.explanation}</p>
-            <p className={styles.explainText}><strong>Watch:</strong> {body.watch}</p>
-            <p className={styles.explainNote}>AI-generated from this headline only · not advice</p>
+            <h4 className={styles.explainLabel}>What to watch</h4>
+            <p className={styles.explainText}>{body.watch}</p>
+            {/* follow-ups: only where the Agent itself is allowed, and only once there is
+                an explanation to follow up on (members keep the explanation alone) */}
+            {agentVoice && <NewsAgentAsk newsId={item.id} />}
           </>
         )}
         {error && (
