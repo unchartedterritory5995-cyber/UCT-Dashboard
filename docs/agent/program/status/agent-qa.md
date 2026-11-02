@@ -38,6 +38,23 @@ Only agent-qa edits this file. Update it in every PR.
   `stock.quote`.
 - Suites on #691 + pins, under the lock: Agent pytest 1733 passed; vitest 138 files, 2494 passed.
 
+## PR #695 at `f0b1dee621` (F-24 fixed): **GO** — FAIL = 0 on all four sets, 2026-11-02
+- The fix is my measured one-liner: L3 now treats an upper-case ticker in the token's OWN name as a word. I reviewed the
+  diff: `instruments.py` changes by 1 line plus a comment, and agent-md's test file gains a rail.
+- Re-scored independently on the real classifier and the REAL `ticker_search_index.search`, with fixtures regenerated:
+  - set 1: 41 pass / 3 safe-miss / **0 FAIL** (unchanged);
+  - set 2: 52 / 2 / **0 FAIL**;
+  - set 3: **0 FAIL**, 5 must-miss (spy, qqq, googl and their compounds);
+  - set 4 (fresh, production rows): **0 FAIL, 0 must-miss.** "nice, nvda price", "ok nice, aapl price" and
+    "nice, now whats nvda at" no longer execute anything; pins, nke, wmt, adbe+orcl and qcom+panw execute.
+- F-24 rails moved:
+  - the xfail is now a passing bar check with an NVDA control;
+  - the fix is proven to bite: reverting it as a mutation re-opens exactly nice, asml and mara;
+  - the name_word bite list gains asml, mara and nice;
+  - ltc leaves the root-only list (LTC Properties now also fails L3); the L1 backstop is btc and gld.
+- Costs the owner should know: asml and mara now ask. spy, qqq and googl still ask (L1 fund rule; Alphabet).
+- Flags off: the allowlist probe passes 21/21. Suites (lock): Agent pytest 1813 passed; vitest 140 files, 2509 passed.
+
 ## PR #695 (`a4a1179044`, MD-1 §4.7.5 lowercase tickers): **NOT YET — one blocking finding (F-24), fix measured**, 2026-11-02
 - **Scored on the REAL classifier and the REAL `ticker_search_index.search`.** My generator previously used a toy
   search; it is now seeded with QA's rows, so L3/L4/L5 see production's ranking. The fixtures were regenerated and the

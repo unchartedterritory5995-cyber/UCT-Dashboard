@@ -65,22 +65,21 @@ describe('agent-qa adversarial quote set 4 (fresh, production rows)', () => {
     expect(SET4.rows.filter(r => r.must_execute)).toHaveLength(5)
     expect(IDX.index_rows).toBeGreaterThan(1000)
   })
-  it('#695 (a4a1179044): MEASURED, pinned. Every clear lowercase ticker executes; "nice," before a comma is priced', async () => {
-    const r = await scoreAdversarial(SET4.rows)
-    expect(r).toMatchObject(MEASURED_695)
-  })
-  // ⛔ FINDING F-24 (agent-md): the bar is FAIL = 0. "nice, nvda price" prices NICE Ltd beside NVDA. `it.fails` keeps
-  // the suite green while the defect stands and turns RED the day it is fixed, so the pin above must then be updated.
-  it.fails('BAR: ZERO wrong executions on set 4 (fails today: F01, F02, F03 price NICE)', async () => {
+  it('BAR: ZERO wrong executions on set 4, and every must-execute row executes', async () => {
     const r = await scoreAdversarial(SET4.rows)
     expect(r.fail).toEqual([])
+    expect(r.must_miss).toEqual([])
+  })
+  it('#695 at f0b1dee621 (F-24 fixed): MEASURED, pinned', async () => {
+    // a4a1179044 measured F01-F03 FAIL (NICE+NVDA, NICE+AAPL, NICE+NVDA) and priced F09 nice, F19 mara, F20 asml.
+    const r = await scoreAdversarial(SET4.rows)
+    expect(r).toMatchObject(MEASURED)
   })
 })
 
-const MEASURED_695 = {
-  fail: ['F01', 'F02', 'F03'],
+const MEASURED = {
+  fail: [],
   must_miss: [],
-  executed: { F01: 'NICE+NVDA', F02: 'NICE+AAPL', F03: 'NICE+NVDA', F09: 'NICE', F10: 'EAT', F14: 'PINS', F15: 'NKE', F16: 'WMT',
-    F17: 'ADBE+ORCL', F18: 'QCOM+PANW', F19: 'MARA', F20: 'ASML' },
-  outcomes: { priced: 12, answered_without_read: 10 },
+  executed: { F10: 'EAT', F14: 'PINS', F15: 'NKE', F16: 'WMT', F17: 'ADBE+ORCL', F18: 'QCOM+PANW' },
+  outcomes: { priced: 6, answered_without_read: 16 },
 }

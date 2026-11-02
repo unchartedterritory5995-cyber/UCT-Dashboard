@@ -9,8 +9,8 @@ production scans 400 and §4.7.5 is monotone (a row can only add a collision), s
 2. Each check BITES on production rows: drop it (and only it) from the verdict; the tokens that flip from the neutral
    ask to a price are exactly what that check alone protects. Pinned by name.
 3. Fresh words: every lowercase word that RESOLVES is listed and judged. Bar: nothing coincidental.
-   FINDING F-24: `nice` (NICE Ltd) resolves, so "nice, nvda price" prices NICE beside NVDA (end to end in
-   qa/quoteAdversarial4.test.js). Strict xfail below; the measured fix is pinned too.
+   F-24 (FIXED in f0b1dee621): `nice` (NICE Ltd) used to resolve, so "nice, nvda price" priced NICE beside NVDA. L3 now
+   counts an upper-case ticker in the token's OWN name as a word; the fix is proven to bite by reverting it below.
 """
 from __future__ import annotations
 
@@ -74,13 +74,14 @@ def test_with_all_rows_at_once_agent_mds_priced_tokens_still_price_and_every_ask
 EXPECTED_BITES = {
     "fund": {},                                                    # never alone on production: see the backstop test
     "not_an_abbreviation": {"avgo": "AVGO", "fang": "FANG", "fizz": "FIZZ", "googl": "GOOGL", "grow": "GROW"},
-    "name_word": {"baba": "BABA", "beam": "BEAM", "bill": "BILL", "cake": "CAKE", "chef": "CHEF", "coin": "COIN",
+    "name_word": {"asml": "ASML", "mara": "MARA", "nice": "NICE", "baba": "BABA", "beam": "BEAM", "bill": "BILL", "cake": "CAKE", "chef": "CHEF", "coin": "COIN",
                   "cost": "COST", "dow": "DOW", "gold": "GOLD", "hon": "HON", "hood": "HOOD", "intu": "INTU",
                   "jack": "JACK", "jpm": "JPM", "love": "LOVE", "lulu": "LULU", "now": "NOW", "open": "OPEN",
                   "path": "PATH", "plug": "PLUG", "rare": "RARE", "real": "REAL", "riot": "RIOT", "roku": "ROKU",
                   "safe": "SAFE", "snow": "SNOW", "sofi": "SOFI", "uber": "UBER", "well": "WELL", "wing": "WING"},
-    "symbol_root": {"ba": "BA", "bch": "BCH", "cl": "CL", "gm": "GM", "hd": "HD", "ibm": "IBM", "ltc": "LTC", "si": "SI",
-                    "tsm": "TSM", "ups": "UPS"},             # bch/ltc: Bitcoin Cash/Litecoin; cl/si: crude/silver futures
+    "symbol_root": {"ba": "BA", "bch": "BCH", "cl": "CL", "gm": "GM", "hd": "HD", "ibm": "IBM", "si": "SI",
+                    "tsm": "TSM", "ups": "UPS"},             # bch: Bitcoin Cash; cl/si: crude/silver futures
+    # (ltc left this list with F-24's fix: "LTC Properties" now also fails L3 on its own name)
 }
 
 
@@ -92,7 +93,7 @@ def test_each_check_bites_on_production_rows(check):
 def test_L1_is_the_backstop_for_funds_when_no_root_is_shared():
     # on production rows every probed fund also shares a root (BTCO, GLDM…), so L1 never decides ALONE; drop L4 too
     # and L1 is what keeps lowercase btc / gld from pricing the fund
-    assert set(_flips(("fund", "symbol_root"))) - set(EXPECTED_BITES["symbol_root"]) == {"btc", "gld", "xrp"}
+    assert set(_flips(("fund", "symbol_root"))) - set(EXPECTED_BITES["symbol_root"]) == {"btc", "gld"}
 
 
 def test_L5_bites_when_the_scan_fills_its_limit(monkeypatch):
@@ -106,10 +107,10 @@ def test_L5_bites_when_the_scan_fills_its_limit(monkeypatch):
 
 
 # ── 3. fresh words agent-md had not seen ───────────────────────────────────────────────────────────────────────────
-# Fresh words that RESOLVE on production rows. QA judgement: each is the security a member means EXCEPT `nice` (F-24).
-# `eat` (Brinker) is an English word too, but "eat price" has no other reading in a price sentence: recorded, not a finding.
-FRESH_PRICED = {"adbe": "ADBE", "anet": "ANET", "asml": "ASML", "eat": "EAT", "mara": "MARA", "nice": "NICE", "nke": "NKE",
-                "orcl": "ORCL", "panw": "PANW", "pins": "PINS", "qcom": "QCOM", "wmt": "WMT"}
+# Fresh words that RESOLVE on production rows. QA judgement: each is the security a member means. `eat` (Brinker) is an
+# English word too, but "eat price" has no other reading in a price sentence: recorded, not a finding.
+FRESH_PRICED = {"adbe": "ADBE", "anet": "ANET", "eat": "EAT", "nke": "NKE", "orcl": "ORCL", "panw": "PANW", "pins": "PINS",
+                "qcom": "QCOM", "wmt": "WMT"}
 
 
 def test_fresh_words_that_resolve_are_pinned():
@@ -124,22 +125,21 @@ def test_no_other_interjection_resolves():
     assert _priced(_classify_all(words)) == []
 
 
-@pytest.mark.xfail(strict=True, reason="FINDING F-24 (agent-md): `nice` passes L3 because its OWN name 'NICE Ltd' is read "
-                                       "as a ticker reference; strict, so the fix turns this red until the pins move")
 def test_BAR_no_english_interjection_resolves():
-    assert _classify_all(["nice"])["nice"]["class"] != "symbol"
+    assert _classify_all(["nice"])["nice"]["class"] == "symbol_typed_lowercase"           # F-24 fixed
+    assert _classify_all(["nvda"])["nvda"]["class"] == "symbol"                           # control
 
 
-def test_the_proposed_fix_closes_nice_at_the_cost_of_two_safe_misses():
-    """F-24's fix as a mutation: L3 skips a ticker reference only in OTHER rows' names, never in the token's own name.
-    `nice` then asks; the cost is `asml` and `mara` asking too (their own names are their tickers)."""
+def test_the_F24_fix_bites_reverting_it_reopens_nice_asml_and_mara():
+    """F-24's fix proven as a mutation: put back the old L3 line (the ticker-reference skip on the token's OWN row too)
+    and exactly nice, asml and mara price again; nothing else moves."""
     src = inspect.getsource(ins.lowercase_checks)
-    old = "            if _ticker_ref(w, name, own_t):\n                continue"
-    assert src.count(old) == 1, "the L3 loop changed shape: re-derive this mutation"
+    fixed = "            if not is_own and _ticker_ref(w, name, own_t):\n                continue"
+    assert src.count(fixed) == 1, "the L3 loop changed shape: re-derive this mutation"
     ns: dict = {}
-    exec(compile(src.replace(old, old.replace("if _ticker_ref", "if not is_own and _ticker_ref")), "l3_fix", "exec"),
+    exec(compile(src.replace(fixed, fixed.replace("if not is_own and _ticker_ref", "if _ticker_ref")), "l3_revert", "exec"),
          vars(ins), ns)
     tokens = sorted(set(MD) | set(QA))
-    before = set(_priced(_classify_all(tokens)))
-    after = set(_priced(_classify_all(tokens, checks=ns["lowercase_checks"])))
-    assert before - after == {"asml", "mara", "nice"} and after <= before
+    now = set(_priced(_classify_all(tokens)))
+    reverted = set(_priced(_classify_all(tokens, checks=ns["lowercase_checks"])))
+    assert reverted - now == {"asml", "mara", "nice"} and now <= reverted

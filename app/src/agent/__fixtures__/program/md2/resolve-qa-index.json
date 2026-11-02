@@ -2997,7 +2997,8 @@
   },
   "$qqq|cashtag": {
    "basis": [
-    "fund"
+    "fund",
+    "name_word"
    ],
    "candidate": {
     "name": "Invesco QQQ Trust",
@@ -6575,7 +6576,8 @@
   },
   "qqq|lower": {
    "basis": [
-    "fund"
+    "fund",
+    "name_word"
    ],
    "candidate": {
     "name": "Invesco QQQ Trust",
