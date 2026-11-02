@@ -386,10 +386,12 @@ describePy('JSON — the lossless round trip through the REAL uct adapter', () =
     // a link whose target did NOT come in is left exactly as stored
     const alone = rewriteBody(a.bodyJson, { mediaUrls: {}, idByKey: {} })
     expect(alone.body.content[0].content[1].attrs.noteId).toBe('lb')
-    // an unresolved IMAGE is dropped (the importer's rule for every image); an unresolved
-    // WIDGET picture lets only the picture go — the widget is still the widget
-    expect(alone.body.content.map((n) => n.type)).toEqual(['paragraph', 'widgetEmbed'])
-    expect(alone.body.content[1].attrs.fallback).toBeNull()
+    // an unresolved IMAGE becomes an importNotice in its place (Plan B Task 4: the importer's
+    // rule for every image); an unresolved WIDGET picture lets only the picture go — the
+    // widget is still the widget
+    expect(alone.body.content.map((n) => n.type)).toEqual(['paragraph', 'importNotice', 'widgetEmbed'])
+    expect(alone.body.content[1].attrs).toMatchObject({ reason: 'missing_resource', ref })
+    expect(alone.body.content[2].attrs.fallback).toBeNull()
     expect(alone.droppedMedia).toEqual([ref, ref])
   })
 

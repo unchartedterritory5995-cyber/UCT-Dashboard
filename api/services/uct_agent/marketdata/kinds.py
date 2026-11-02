@@ -11,18 +11,31 @@ Sprint 1, PR 3: `fundamentals` (financial_statements), `earnings` (earnings_tabl
 Sprint 1, PR 4a: `themes` (theme_performance overlay, read without building).
 Sprint 1, PR 4b: `breadth.current` (breadth_current.reading) and `ratings` (research/ratings) — both
 MODEL-ISOLATED: the gateway serves them for purpose "answer" only.
+Sprint 2: `instrument.resolve` (the canonical symbol index, ticker_search_index — see instruments.py, MD-1 §4.7).
 """
 from __future__ import annotations
 
-from api.services.uct_agent.marketdata import (bars_daily, breadth, earnings, news_company, quotes, ratings,
-                                              statements, themes)
+from api.services.uct_agent.marketdata import (bars_daily, breadth, earnings, instruments, news_company, quotes,
+                                              ratings, statements, themes)
+
+# Symbols one read may name. A request-shape bound per kind, not a toolkit cap: the cap numbers live only
+# in entitlements.TOOLKITS (tests/test_entitlements.py, "the NUMBERS live in exactly ONE place").
+ONE_SYMBOL = 1
+NO_SYMBOL = 0
 
 
 def register(registry) -> None:
     from api.services.uct_agent.marketdata.gateway import Kind
     registry.register(Kind(
+        name="instrument.resolve", fn=instruments.read_instruments, validate=instruments.validate,
+        freshness="periodic", owner="agent-md", max_symbols=instruments.MAX_TOKENS,
+        description="Which security a member's word names, from UCT's canonical symbol index (no provider call): "
+                    "symbol | symbol_typed_lowercase | name_match | non_equity | unknown per word (MD-1 §4.7). "
+                    "Params: {symbols: [{text, form: cashtag|upper|lower}]}.",
+    ))
+    registry.register(Kind(
         name="quote", fn=quotes.read_quote, validate=quotes.validate_quote, freshness="live", owner="agent-md",
-        max_symbols=1,
+        max_symbols=ONE_SYMBOL,
         description="One ticker's latest price from the Massive snapshot. Live in the regular session "
                     f"(stale after {quotes.FRESHNESS_BUDGET_S}s) and in extended hours when the vendor stamp is "
                     f"at most {quotes.EXTENDED_LIVE_S // 60} min old; historical with a note otherwise "
@@ -36,49 +49,49 @@ def register(registry) -> None:
     registry.register(Kind(
         name="bars.daily", fn=bars_daily.read_bars_daily, validate=bars_daily.validate, freshness="historical",
         owner="agent-md",
-        max_symbols=1,
+        max_symbols=ONE_SYMBOL,
         description="Completed daily sessions for one ticker from UCT's bars store (never today's "
                     "developing bar); as_of is the newest bar's session close. Point-in-time with `to`. "
                     f"Params: {{symbol, bars (1-{bars_daily.MAX_BARS}, default {bars_daily.DEFAULT_BARS}), to?}}.",
     ))
     registry.register(Kind(
         name="fundamentals", fn=statements.read_fundamentals, validate=statements.validate, freshness="periodic",
-        owner="agent-md", max_symbols=1,
+        owner="agent-md", max_symbols=ONE_SYMBOL,
         description="Periodic financial disclosures (income, balance, cash flow) from Yahoo Finance via "
                     "financial_statements; as_of is the newest period end, stale after "
                     f"{statements.STALE_AFTER_DAYS} days. Params: {{symbol, period: quarterly|annual, periods}}.",
     ))
     registry.register(Kind(
         name="earnings", fn=earnings.read_earnings, validate=earnings.validate, freshness="periodic",
-        owner="agent-md", max_symbols=1,
+        owner="agent-md", max_symbols=ONE_SYMBOL,
         description="Reported quarters (actual vs estimate) and the next scheduled report, from earnings_table. "
                     "Reported rows carry no date, so as_of is null; stale when "
                     f"{earnings.STALE_QUARTERS}+ quarters behind. Params: {{symbol}}.",
     ))
     registry.register(Kind(
         name="news.company", fn=news_company.read_news_company, validate=news_company.validate,
-        freshness="periodic", owner="agent-md", max_symbols=1,
+        freshness="periodic", owner="agent-md", max_symbols=ONE_SYMBOL,
         description="Published company news from UCT's news store (no provider call, no body text); as_of is the "
                     "newest item; stale when news ingest has not succeeded for an hour. "
                     f"Params: {{symbol, limit (1-{news_company.MAX_LIMIT})}}.",
     ))
     registry.register(Kind(
         name="themes", fn=themes.read_themes, validate=themes.validate, freshness="periodic", owner="agent-md",
-        max_symbols=0,
+        max_symbols=NO_SYMBOL,
         description="Equal-weight returns of UCT's curated themes (the Theme Tracker payload), read without "
                     "building it — 'theme data is warming' when no complete overlay exists. "
                     f"Params: {{period: {'|'.join(themes.PERIODS)}, order: leaders|laggards, limit (1-{themes.MAX_LIMIT})}}.",
     ))
     registry.register(Kind(
         name="breadth.current", fn=breadth.read_breadth_current, validate=breadth.validate, freshness="periodic",
-        owner="agent-md", max_symbols=0, model_isolated=True,
+        owner="agent-md", max_symbols=NO_SYMBOL, model_isolated=True,
         description="The current breadth reading for one measure on the US, NYSE or Nasdaq universe, from "
                     "breadth_current (intraday, provisional or finalized, with its label). Includes the "
                     "new-high/new-low measures. Shown to the member only. Params: {universe, metric}.",
     ))
     registry.register(Kind(
         name="ratings", fn=ratings.read_ratings, validate=ratings.validate, freshness="periodic",
-        owner="agent-md", max_symbols=1, model_isolated=True,
+        owner="agent-md", max_symbols=ONE_SYMBOL, model_isolated=True,
         description="UCT Ratings: UCT's own composite 0-99 and component scores (not an analyst rating); "
                     "as_of is the price data's last session. Shown to the member only. Params: {symbol}.",
     ))

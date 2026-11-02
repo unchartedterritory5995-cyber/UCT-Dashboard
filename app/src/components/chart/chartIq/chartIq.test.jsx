@@ -165,6 +165,7 @@ describe('errorText: says why a read failed', () => {
   it('maps the engine reasons and keeps everything else generic', () => {
     expect(errorText({ status: 404, detail: 'NEWCO: not enough daily bars as of 2026-10-30 (40)' })).toMatch(/6 months of daily history/)
     expect(errorText({ status: 404, detail: 'no daily bars available' })).toMatch(/no daily bars/)
+    expect(errorText({ status: 404, detail: 'CFLT: no daily bars since 2026-03-16' })).toBe('No recent trading for this symbol (last bar 2026-03-16)')
     expect(errorText({ status: 503, detail: 'Chart IQ is busy, try again' })).toMatch(/still reading/)
     expect(errorText({ status: 404, detail: 'ABC: KeyError' })).toBe('Chart IQ could not read this chart')
     expect(errorText(null)).toBe('')
@@ -201,5 +202,31 @@ describe('found on the live site 2026-11-02', () => {
     expect(show).toHaveBeenCalledTimes(1)
     fireEvent.click(screen.getByRole('button', { name: 'Turn Chart IQ off' }))
     expect(close).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('layoutLabels: no label sits on another (live site 2026-11-02)', () => {
+  it('keeps clear labels where they are, nudges a colliding one a line away, hides the text it cannot place', async () => {
+    const { layoutLabels } = await import('./ChartIqOverlay')
+    const a = { text: 'Base breakout (support)', x: 500, y: 200, anchor: 'end' }
+    const far = { text: 'Buy 32.89', x: 100, y: 50, anchor: 'start' }
+    const b = { text: 'BUY · Hammer at support', x: 500, y: 201, anchor: 'end' }
+    const out = layoutLabels([a, far, b], 600, 400)
+    expect(out[0]).toEqual({ y: 200, hidden: false })
+    expect(out[1]).toEqual({ y: 50, hidden: false })
+    expect(out[2].hidden).toBe(false)
+    expect(Math.abs(out[2].y - 201)).toBeGreaterThanOrEqual(10)              // moved off the first label
+    const crowd = Array.from({ length: 7 }, (_, i) => ({ text: 'Same spot label ' + i, x: 300, y: 100, anchor: 'end' }))
+    const laid = layoutLabels(crowd, 600, 400)
+    expect(laid.filter((l) => !l.hidden).length).toBe(5)                     // five lines fit (own + 2 up + 2 down), the rest drop text
+    const ys = laid.filter((l) => !l.hidden).map((l) => l.y)
+    expect(new Set(ys).size).toBe(ys.length)
+  })
+
+  it('the Patterns and Team toolbar buttons size to their labels too (they overlapped each other)', async () => {
+    const { default: PatternToolbarButton } = await import('../PatternToolbarButton')
+    render(<PatternToolbarButton active={false} onToggle={() => {}} />)
+    const b = screen.getByRole('button', { name: /pattern/i })
+    expect(b.style.width).toBe('auto')
   })
 })

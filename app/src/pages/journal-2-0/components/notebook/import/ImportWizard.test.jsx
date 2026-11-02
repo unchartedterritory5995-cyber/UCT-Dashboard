@@ -1151,3 +1151,61 @@ describe('import_used — the finished import counts itself, and nothing the fil
     expect(JSON.stringify(telemetry())).not.toMatch(/hello|n1/)
   })
 })
+
+describe('ImportWizard — re-import to recover (Plan B Task 11)', () => {
+  afterEach(() => vi.restoreAllMocks())
+
+  function mockServer({ existing = {} } = {}) {
+    const confirms = []
+    vi.stubGlobal('fetch', vi.fn(async (url, opts) => {
+      const u = String(url)
+      if (u.endsWith('/import/check')) return new Response(JSON.stringify({ existing }))
+      if (u.endsWith('/import/confirm')) {
+        confirms.push(JSON.parse(opts.body))
+        return new Response(JSON.stringify({ created: [], updated: [], skipped: [],
+          recovered: [{ importKey: 'file:hello.md', id: 'n1', updatedAt: '2026-11-01T00:00:00Z' }], keptEdited: [] }))
+      }
+      if (u.endsWith('/note-folders')) return new Response(JSON.stringify({ folders: [] }))
+      if (u.endsWith('/enrichment/scan')) return new Response(JSON.stringify({ candidates: [], scanned: 0 }))
+      return new Response(JSON.stringify({ ok: true }))
+    }))
+    return confirms
+  }
+
+  it('offers recover mode only on a re-import and sends it when ticked', async () => {
+    // A first import: nothing to recover, so no offer.
+    mockServer()
+    const first = render(<ImportWizard open onClose={() => {}} onImported={() => {}} />)
+    fireEvent.change(screen.getByTestId('import-file-input'), { target: { files: [mdFile] } })
+    await waitFor(() => expect(screen.getByText(/1 note/i)).toBeInTheDocument(), { timeout: 10000 })
+    expect(screen.queryByTestId('import-recover-mode')).toBeNull()
+    first.unmount()
+
+    // A re-import of a note that already exists: offered, off by default, sent when ticked.
+    const confirms = mockServer({ existing: { 'file:hello.md': { id: 'n1', updatedAt: '2026-10-01T00:00:00Z', importHash: null } } })
+    render(<ImportWizard open onClose={() => {}} onImported={() => {}} />)
+    fireEvent.change(screen.getByTestId('import-file-input'), { target: { files: [mdFile] } })
+    await waitFor(() => expect(screen.getByText(/update 1/i)).toBeInTheDocument(), { timeout: 10000 })
+    const box = screen.getByTestId('import-recover-mode')
+    expect(box).not.toBeChecked()
+    expect(screen.getByLabelText('Re-import to recover missing pictures and links')).toBe(box)
+    expect(screen.getByText(
+      "Notes you haven't changed since they were imported are rebuilt from this export. Notes you've edited are left exactly as they are.",
+    )).toBeInTheDocument()
+    fireEvent.click(box)
+    fireEvent.click(screen.getByRole('button', { name: /^import$/i }))
+    await waitFor(() => expect(confirms).toHaveLength(1), { timeout: 10000 })
+    expect(confirms[0].mode).toBe('recover')
+    await waitFor(() => expect(screen.getByText(/Recovered: 1/)).toBeInTheDocument(), { timeout: 10000 })
+  })
+
+  it('an untouched checkbox sends an ordinary import with no mode', async () => {
+    const confirms = mockServer({ existing: { 'file:hello.md': { id: 'n1', updatedAt: '2026-10-01T00:00:00Z', importHash: null } } })
+    render(<ImportWizard open onClose={() => {}} onImported={() => {}} />)
+    fireEvent.change(screen.getByTestId('import-file-input'), { target: { files: [mdFile] } })
+    await waitFor(() => expect(screen.getByText(/update 1/i)).toBeInTheDocument(), { timeout: 10000 })
+    fireEvent.click(screen.getByRole('button', { name: /^import$/i }))
+    await waitFor(() => expect(confirms).toHaveLength(1), { timeout: 10000 })
+    expect('mode' in confirms[0]).toBe(false)
+  })
+})

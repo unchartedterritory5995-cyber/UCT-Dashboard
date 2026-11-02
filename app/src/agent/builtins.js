@@ -26,6 +26,7 @@ import { registerDefinitionCapabilities } from './capabilities/definitions'
 import { registerBreadthCapabilities } from './capabilities/breadth'
 import { registerBreadthHistoryCapability } from './capabilities/breadthHistory'
 import { registerGuideCapabilities } from './capabilities/guide'
+import { registerMarketDataCapabilities } from './capabilities/marketDataQuote'
 
 let done = false
 export function registerBuiltins() {
@@ -56,4 +57,11 @@ export function registerBuiltins() {
   registerDefinitionCapabilities()
   registerAboutCapabilities()
   registerGuideCapabilities()
+}
+
+// SERVER-GATED capabilities: registered only once /api/agent/config has answered, and only when the server
+// activates what they read (each register function is idempotent and registers nothing otherwise), so the
+// model's manifest and every flags-off answer stay exactly as they are while the gateway is dark.
+export function registerServerGatedBuiltins() {
+  registerMarketDataCapabilities()
 }

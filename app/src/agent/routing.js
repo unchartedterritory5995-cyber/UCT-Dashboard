@@ -92,7 +92,20 @@ export const GROUPS = [
       /\b(strongest|weakest|best|worst|top|bottom|leading|lagging|top[- ]rated|highest[- ]rated)(?:[- ]performing)?\s+(?:[a-z0-9&.-]+\s+){0,2}?(stocks|names|tickers|equities|performers|movers|setups)\b/,
       /\b(relative strength|rs rank|rs leaders?|market leaders?|strength leaders?|leaders and laggards)\b/,
       /\b(leaders?|leading) (stocks|names)\b|\b(stocks|names) leading\b/,
-      /\btop (momentum|performing|performers?|gainers?|losers?|movers?)\b|\bmomentum (stocks|names|leaders?)\b/],
+      /\btop (momentum|performing|performers?|gainers?|losers?|movers?)\b|\bmomentum (stocks|names|leaders?)\b/,
+      // SCREEN CONDITIONS (F-SB-1, Sprint 2): a condition on a universe of stocks — a level, a volume
+      // multiple, a window, a cross — is a screen even when it names an indicator or a data field. These
+      // only ADD the screener group (the indicators / data / breadth group a word also matches stays), so
+      // the planner can screen on its first call instead of spending one on need_groups.
+      /\b(stocks|names|tickers) (where|that|which|whose)\b/,
+      /\b(making|hitting|at|near) new (52[- ]week )?highs\b/,
+      /\bunusual (volume|activity)\b/, /\b\d+(\.\d+)?\s*x (their |the |its )?(average|avg|normal|usual) volume\b/, /\bvolume (dried|drying|dries) up\b/,
+      /\bconsolidat\w*\b/, /\bpull ?backs? to (the )?\d+\b/, /\buptrends?\b/, /\b(ema|ma|sma) stack\b/, /\brs line\b/,
+      /\bwithin \d+(\.\d+)?\s*% of\b/,
+      /\b(rsi|adx|cci|stochastics?|mfi)\s*(is |reading |readings? )?(over|above|under|below|greater than|less than|>|<)\s*-?\d+/,
+      /\b(ema|sma|ma)\s*\d+\s+cross\w*\s+(above|below|over|under)\b/, /\b(macd|rsi|momentum) (just )?(turned|turning|crossed|went) (positive|negative|up|down|bullish|bearish)\b/,
+      /\bshort (float|interest)\b/, /\b(earnings|reporting|reports?|report) (in|within) the next \d+ (days?|weeks?)\b|\b(reporting|earnings) (this|next) week\b/,
+      /\bsectors?'? leaders\b|\bleaders (in|of) (the )?(strongest|top|leading|best) (sectors?|groups?|industries)\b/],
     // ⭐ Gate B (0C): TRADING VOCABULARY that names a SCREEN without the word "screen" (soft, see
     // selectGroups). Routing only: it changes which actions the model SEES first, never what a word
     // means (meanings are Phase 1B) and never drops a group that would otherwise have been sent.

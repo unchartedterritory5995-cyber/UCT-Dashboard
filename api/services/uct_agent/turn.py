@@ -778,11 +778,25 @@ def _plans_local_lookup(env) -> bool:
 UNREADABLE_OUTCOME = "[UCT] (an earlier UCT message that is not repeated here)"
 
 
+#: Outcome kinds the browser records WITHOUT `actions` (useAgent.js): UCT's own fixed wording — undo, clarify,
+#: refusal and cancel notes — never a capability's result. Any other row that omits `actions` (an `answered`
+#: row in particular) cannot show it carried no local-only result, so it is unreadable (QA F-11: fail closed).
+ACTIONLESS_OUTCOME_KINDS = frozenset({
+    "authoring-cancelled", "authoring-prompt", "clarify-multichart", "clarify-referent", "clarify-save-target",
+    "clarify-workspace", "compound-stopped", "compound-too-long", "dismissed", "followup-refused",
+    "guide-do-say", "nothing-pending", "reference-refused", "refused-stale", "retarget-refused", "undo",
+    "undo-none", "undo-refused", "undo-refused-mismatch", "undo-refused-protected", "undo-turn",
+    "undo-unsaved", "unsupported",
+})
+
+
 def _row_actions(data) -> list | None:
     """The `actions` a stored row names, [] when it names none, None when the shape is unreadable."""
     if not isinstance(data, dict):
         return None
-    acts = data.get("actions", [])
+    if "actions" not in data:
+        return [] if data.get("kind") in ACTIONLESS_OUTCOME_KINDS else None
+    acts = data.get("actions")
     if not isinstance(acts, list) or not all(isinstance(a, str) for a in acts):
         return None
     return acts
@@ -1195,6 +1209,8 @@ def name_conversation(turns: list[dict], caller: Callable | None = None, meter=N
     for t in turns[-16:]:
         if t.get("role") not in ("member", "agent") or not t.get("text"):
             continue
+        if t["role"] == "agent" and (is_local_row(t) or _strip_isolated(t.get("data"))[1]):
+            continue                                       # QA F-18 / F-22: a local or isolated result never reaches the naming model
         who = "Member" if t["role"] == "member" else "Agent"
         lines.append(f"{who}: {' '.join(str(t['text']).split())[:400]}")
     if not any(ln.startswith("Member:") for ln in lines):
@@ -1491,13 +1507,65 @@ def _context_refs(context: dict) -> set[str]:
     return refs
 
 
+_DROPPED = object()
+
+
+def _strip_isolated(v):
+    """ADR-005 L6: `v` with every object marked `isolated: true` removed (at any depth), and how many were."""
+    if isinstance(v, dict):
+        if v.get("isolated") is True:
+            return _DROPPED, 1
+        out, n = {}, 0
+        for k, x in v.items():
+            y, m = _strip_isolated(x)
+            n += m
+            if y is not _DROPPED:
+                out[k] = y
+        return out, n
+    if isinstance(v, list):
+        out, n = [], 0
+        for x in v:
+            y, m = _strip_isolated(x)
+            n += m
+            if y is not _DROPPED:
+                out.append(y)
+        return out, n
+    return v, 0
+
+
+def strip_isolated_request(context, pending, reference, repair, history):
+    """ADR-005 L6, fail closed: whatever the browser sent, nothing marked isolated reaches a model. Objects
+    carrying the marker are removed from the request's model-bound inputs; a stored history row whose data
+    carries it is replayed as an unreadable (local) row — its text is never sent. The member's own words are
+    never touched. Returns the cleaned inputs and the number of removals (logged content-free)."""
+    total = 0
+    cleaned = []
+    for v in (context, pending, reference, repair):
+        if v is None:
+            cleaned.append(None)
+            continue
+        y, n = _strip_isolated(v)
+        total += n
+        cleaned.append(None if y is _DROPPED else y)
+    rows = []
+    for row in history or []:
+        if isinstance(row, dict) and row.get("role") in ("agent", "outcome") and _strip_isolated(row.get("data"))[1]:
+            rows.append({**row, "data": {"envelope": None, "isolated_dropped": True}})
+            total += 1
+        else:
+            rows.append(row)
+    if total:
+        log.warning("[uct-agent] removed %d isolated value(s) from a model request (ADR-005 L6)", total)
+    return (*cleaned, rows, total)
+
+
 def run_turn(*, message: str, context: dict, history: list[dict], capabilities: list | None = None,
              pending: dict | None = None, recent_outcome: str | None = None,
              caller: Callable[..., Any] | None = None, manifest_version: int | None = None,
              routing: dict | None = None, conversation_title: str | None = None,
              on_event: Callable[[dict], None] | None = None, stream_caller: Callable[..., Any] | None = None,
              meter=None, reroute: bool = False, interpreter: str | None = None, repair: dict | None = None,
-             reference: dict | None = None) -> dict:
+             reference: dict | None = None, headline: dict | None = None, answer_only: bool = False) -> dict:
     """Returns {envelope, usage, title}. Raises TurnError with a member sentence.
     `on_event` (streaming, optional): receives {"t": "delta", "text"} for an answer's reply as it is
     written (ReplyStream's gate), {"t": "retract"} when streamed text will not be the answer after all
@@ -1514,8 +1582,13 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
     request's 2-call ceiling): UCT's planner refused the previous plan for these reasons — the model plans
     again with them in view. A repair request is never repaired again. With NL-1 and no `repair`, a plan the
     SERVER would reject (unknown action, arguments off-schema, a target the browser never offered) is sent
-    back to the model once, in this request, if a call is left; the result passes every check as usual."""
+    back to the model once, in this request, if a call is left; the result passes every check as usual.
+    `headline` (News -> Agent, news.py): ONE stored UCT News headline the SERVER read by its id, shown to the
+    model as data with news.RULES. `answer_only` (the News Ask box): no web research runs and any op the model
+    writes is dropped -- the turn can only answer."""
     t_build = time.perf_counter()
+    context, pending, reference, repair, history, _ = strip_isolated_request(context, pending, reference, repair, history)
+    context = context or {}
     msg = (message or "").strip()
     if not msg:
         raise TurnError("Say what you'd like UCT Agent to do or explain.")
@@ -1546,7 +1619,7 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
     # NL-1: no keyword decides research. The model asks for it (`research`); the structural gates stay —
     # research only on an answer or a mixed request, never a change based on what was found, never for a
     # plan that looks up UCT's own data (a local lookup), always inside the call and budget limits.
-    forced_research = False if nl1 else _needs_current_facts(msg)
+    forced_research = False if (nl1 or answer_only) else _needs_current_facts(msg)
     compact = True if nl1 else compact_ops(caps)
     schema = envelope_schema(caps, unselected, compact, nl1=nl1)
     has_last = bool(((context or {}).get("conversation_memory") or {}).get("last_change_detail")) if nl1 else False
@@ -1562,15 +1635,20 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
         parts = texts[:1] + ([ref_block] if ref_block else []) + texts[1:]
     else:
         parts = [system_prompt(caps, unselected, compact)]
+    if headline is not None:
+        from api.services.uct_agent import news as agent_news
+        parts = parts + [agent_news.RULES + (agent_news.ANSWER_ONLY if answer_only else "")]
     system_blocks = [{"type": "text", "text": t, "cache_control": {"type": "ephemeral"}} for t in parts]
+    if headline is not None:
+        blocks.append(_block("news_headline", headline))
     if repair_in:
         blocks.append(_block("validation_error", repair_in))
     if pending:
         blocks.append(_block("pending_proposal", pending))
-    if recent_outcome and not any(is_local_row(t) for t in (history or []) if isinstance(t, dict)):
-        # ⛔ LOCAL-RESULT BOUNDARY: free text from the browser about the last outcome could repeat a
-        # local result's figures; in a conversation that holds one, it is dropped (fail closed).
-        blocks.append(_block("recent_outcome", recent_outcome))
+    # ⛔ LOCAL-RESULT BOUNDARY (QA F-17): `recent_outcome` is free text from the browser about the last outcome.
+    # The server cannot tell what it repeats, so it is NEVER forwarded to the model (no browser sends it); the
+    # stored transcript — which history_messages screens row by row — is the only account of what happened.
+    del recent_outcome
     if conversation_title:
         blocks.append(_block("conversation_title", conversation_title))
     blocks.append(_block("member_request", msg))
@@ -1673,6 +1751,8 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
             usage["research_forced"] = True
         wants = ((disp == "answer" or (disp in MUTATING and (nl1 or _asks_question(msg)))) and isinstance(req, dict)
                  and str(req.get("query") or "").strip() and round_ < MAX_RESEARCH_CALLS)
+        if answer_only:
+            wants = False             # the News Ask box answers from the stored headline, never the web
         if _plans_local_lookup(env):
             # ⛔ MIXED requests beside a local-only lookup: no research (nothing is searched or spent),
             # and no explanation of figures the model never saw. The lookup runs; the member is TOLD
@@ -1769,6 +1849,10 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
                    else env.get("reply")}
         if compact and isinstance(env, dict) and env.get("disposition") in MUTATING:
             env = expand_compact_ops(env, caps)
+        if answer_only and isinstance(env, dict) and (env.get("ops") or env.get("disposition") in MUTATING):
+            # ⛔ answer-only: the News Ask box never changes anything, whatever the model wrote
+            env = {**env, "disposition": "answer", "ops": [], "question": None,
+                   "reply": env.get("reply") or "I can only answer questions about this headline here."}
         envelope = enforce_approval(finish(sanitize_envelope(env, valid_refs, cap_names, unselected_ids, local_notice=notice), env), caps)
         usage["latency_ms"] = int((time.monotonic() - started) * 1000)
         usage["citations"] = list(dict.fromkeys(usage["citations"]))[:8]

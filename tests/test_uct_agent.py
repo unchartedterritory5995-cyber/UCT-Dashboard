@@ -377,7 +377,7 @@ def test_research_has_a_hard_ceiling_of_one(monkeypatch):
 
 
 def test_history_alternates_and_carries_what_uct_actually_did():
-    rows = [{"role": "member", "text": "bars"}, {"role": "outcome", "text": "Changed chart to Bars", "data": {"kind": "applied"}},
+    rows = [{"role": "member", "text": "bars"}, {"role": "outcome", "text": "Changed chart to Bars", "data": {"kind": "applied", "actions": ["chart.style"]}},
             {"role": "member", "text": "why?"}, {"role": "agent", "text": "Because."}]
     msgs = turn.history_messages(rows)
     assert [m["role"] for m in msgs] == ["user", "assistant", "user", "assistant"]
@@ -478,7 +478,7 @@ def test_a_store_failure_is_a_sentence_and_gives_the_charge_back(make_client, mo
 
 def test_a_proposal_in_history_never_reads_as_executed():
     rows = [{"role": "member", "text": "make it cleaner"},
-            {"role": "outcome", "text": "Proposed: Hid Volume", "data": {"kind": "proposed"}},
+            {"role": "outcome", "text": "Proposed: Hid Volume", "data": {"kind": "proposed", "actions": ["indicator.hide"]}},
             {"role": "member", "text": "why?"}, {"role": "agent", "text": "Less clutter."}]
     msgs = turn.history_messages(rows)
     assert "executed" not in msgs[1]["content"].replace("NOT executed", "")

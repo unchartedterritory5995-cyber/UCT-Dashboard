@@ -67,6 +67,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { obsidianAdapter } from './adapters/obsidian'
+import { parseImport } from './postParse'
 import { htmlToNote } from './convert'
 import { extractPlainText } from '../tiptap'
 
@@ -173,46 +174,44 @@ function withoutServerOnly(summary) {
 async function clientSummaryFor(fixture) {
   const vfiles = fixture.vault_paths.map((p) =>
     vf(p, p === fixture.self_path ? fixture.input_markdown : ''))
-  const { docs } = await obsidianAdapter.parse(vfiles)
+  // The wizard's own call (Plan B Task 3): adapter.parse + the one post-parse pass.
+  const { docs } = await parseImport(obsidianAdapter, vfiles, {})
   const doc = docs.find((d) => d.importKey === `obsidian:${fixture.self_path}`)
   const { bodyJson } = htmlToNote(doc.html)
-  return semanticSummary(bodyJson)
+  const summary = semanticSummary(bodyJson)
+  // Plan B Task 3: the client's post-parse pass turns a hotlinked `<img src="https://…">`
+  // into a remote media item (`import-ref://remote-<md5>`, copied by the fetch door at
+  // commit), where the server summary still names the URL. Same image, two transports: read
+  // the ref back through the doc's OWN media list to the URL it stands for. Only a remote
+  // item is mapped; a vault file or a data: item keeps its ref.
+  const remote = new Map(doc.media.filter((m) => m.remoteUrl).map((m) => [m.ref, m.remoteUrl]))
+  summary.images = summary.images.map((ref) => remote.get(ref) ?? ref)
+  return summary
 }
 
 // Differences the CLIENT importer is known to have against the server lane,
 // named one by one so the rail stays strict for everything else. Never
-// normalize a difference away -- list it here, with the plan that closes it.
-//   09-space-and-pipe: the client adapter does not unescape `\|` inside a
-//   table cell, so `[[Other note\|alias]]` never resolves. Closed by Plan B
-//   (client importer), task "Obsidian escaped pipe" -- delete this entry then.
-//   10..14 (server Plan A Task 13): rules the server lane adopted that the client
-//   adapter has not yet. Each is closed by the named Plan B (client importer) task --
-//   delete the entry then; the rail turns red until you do.
+// normalize a difference away -- list it here, with the plan that closes it; delete the
+// entry when it closes (the rail turns red until you do).
+// ⚰️ 09 (escaped pipe), 10 (relative links), 11 (anchor text + note embeds),
+// 13 (duplicate names) and 14 (deep links) were listed here until Plan B Task 8 closed
+// them (`obsidianResolve.js` + `adapters/obsidian.js`).
 const knownClientGap = {
-  '09-space-and-pipe.json': {
-    missingLinks: [{ target: 'Other note.md', text: 'alias' }],
-  },
-  // Plan B task "Obsidian relative links" (spec O-5): the client keeps the raw relative
-  // href and drops the one that is not beside the note; the server resolves all four.
-  '10-relative-links.json': {
-    clientReads: {
-      links: [
-        { text: 'the other', target: 'Other%20note.md' },
-        { text: 'up and over', target: '../Notes/Other.md' },
-        { text: 'a section', target: 'Other%20note.md#Heading' },
-      ],
-    },
-  },
-  // ⚰️ 11-anchors-and-embeds: closed by D2 item 8. Both lanes show a heading link as
+  // ⚰️ 11-anchors-and-embeds: also closed by D2 item 8. Both lanes show a heading link as
   // `Other note > Risk` (the client showed `Other note#Risk`); the `![[Other note]]` file
   // chip was closed by D1 fix round 2, M4.
   // ⚰️ 12-callouts, 16-links-in-highlights-and-callouts, 17-member-placeholder-characters:
-  // closed by D2 item 1. The client writes an Obsidian callout as the callout node (the
-  // server's variant and bold title), and an untitled callout's title is its type.
-  // ⚰️ 13-duplicate-basenames: closed by D1 fix round 2 (M1). Both lanes now share one
-  // tie-break (same folder, then shortest path, then sort order).
-  // Plan B task "Obsidian deep links" (spec L-4): the client drops an
-  // `obsidian://open?vault=<this vault>` link to text; the server resolves it.
+  // closed by D2 item 1 (master listed 12 here as ruling R9's polish until the merge). The
+  // client writes an Obsidian callout as the callout node (the server's variant and bold
+  // title), and an untitled callout's title is its type.
+  // ⚰️ 13-duplicate-basenames: also closed by D1 fix round 2 (M1). Both lanes share one
+  // tie-break (same folder, then fewest folders, then sort order; `obsidianResolve.js::rank`
+  // and the server's `_pick`).
+  // Plan B final review, fix 2 (DELIBERATE, not a Plan B gap): the server knows its vault's
+  // name (the plugin's device label), so `vault=Trading` resolves there. A client drop of
+  // LOOSE files (no `.obsidian/`, no single top folder) cannot show the link is into the
+  // vault it holds, so the deep link stays text rather than resolve by name across the drop
+  // (which opened another vault's note). Dropped as a `Trading/` folder, the client links it.
   '14-raw-html-and-deep-link.json': {
     missingLinks: [{ target: 'Plan.md', text: 'the plan' }],
   },
@@ -349,7 +348,8 @@ describe('Obsidian adversarial alias corpus (ruling B)', () => {
     const leaks = []
     for (const { input, targets } of ADVERSARIAL.cases) {
       const vfiles = ADVERSARIAL.vault_paths.map((p) => vf(p, p === 'a.md' ? input : ''))
-      const { docs } = await obsidianAdapter.parse(vfiles)
+      // Through `parseImport`, the wizard's own call (as `clientSummaryFor` above).
+      const { docs } = await parseImport(obsidianAdapter, vfiles, {})
       const doc = docs.find((d) => d.importKey === 'obsidian:a.md')
       const { bodyJson } = htmlToNote(doc.html)
       const got = [...new Set(semanticSummary(bodyJson).links.map((l) => l.target))].sort()

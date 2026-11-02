@@ -75,8 +75,15 @@ export function planConfirmBatches(items, toPayload, limits = {}) {
   return { batches, tooLarge }
 }
 
-/** The request body for one planned batch: exactly `{source, destFolderId, notes: [...]}`. */
-export function confirmBody({ source, destFolderId }, parts) {
-  const envelope = JSON.stringify({ source, destFolderId, notes: [] })
+/**
+ * The request body for one planned batch: exactly `{source, destFolderId, notes: [...]}`, plus
+ * `"mode":"recover"` only when `mode === 'recover'` (Plan B Task 11). Any other mode adds nothing,
+ * so an ordinary import's body stays byte-identical. The planner's `ENVELOPE_BYTES` room (4 KiB)
+ * already covers the 18 bytes `mode` adds.
+ */
+export function confirmBody({ source, destFolderId, mode }, parts) {
+  const envelope = JSON.stringify(mode === 'recover'
+    ? { source, destFolderId, mode: 'recover', notes: [] }
+    : { source, destFolderId, notes: [] })
   return `${envelope.slice(0, -2)}${parts.join(',')}]}`
 }

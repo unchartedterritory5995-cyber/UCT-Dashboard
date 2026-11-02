@@ -60,6 +60,7 @@ def test_dark_by_default_every_registered_kind_is_refused_and_never_runs(monkeyp
 
 def test_scan_kinds_stay_refused_with_only_the_data_flag(monkeypatch):
     monkeypatch.setenv(gw.DATA_ENV, "1")
+    monkeypatch.setenv(gw.KINDS_ENV, ",".join(gw.registry().names()))  # every kind on
     gw._reset_for_test(None)
     real = gw.registry()
     for name in [n for n in real.names() if real.get(n).category == "scan"]:
@@ -69,6 +70,7 @@ def test_scan_kinds_stay_refused_with_only_the_data_flag(monkeypatch):
 
 def test_enabled_read_returns_a_valid_envelope(monkeypatch):
     monkeypatch.setenv(gw.DATA_ENV, "1")
+    monkeypatch.setenv(gw.KINDS_ENV, ",".join(gw.registry().names()))  # every kind on
     _with(_kind())
     out = _read()
     assert env.validate_envelope(out) == [] and out["status"] == "ok" and out["as_of"] == "2026-11-01T15:59:00Z"
@@ -76,6 +78,7 @@ def test_enabled_read_returns_a_valid_envelope(monkeypatch):
 
 def test_unknown_kind_bad_purpose_and_missing_turn_are_refused(monkeypatch):
     monkeypatch.setenv(gw.DATA_ENV, "1")
+    monkeypatch.setenv(gw.KINDS_ENV, ",".join(gw.registry().names()))  # every kind on
     _with(_kind())
     assert _read("nope")["status"] == "refused"
     assert gw.read("quote", {}, user_id=1, turn_id="t", purpose="trade")["status"] == "refused"
@@ -84,6 +87,7 @@ def test_unknown_kind_bad_purpose_and_missing_turn_are_refused(monkeypatch):
 
 def test_scan_kinds_need_their_own_flag(monkeypatch):
     monkeypatch.setenv(gw.DATA_ENV, "1")
+    monkeypatch.setenv(gw.KINDS_ENV, ",".join(gw.registry().names()))  # every kind on
     _with(_kind("screen.run", freshness="periodic", category="scan"))
     assert "UCT_AGENT_SCAN" in _read("screen.run")["notes"][0]
     monkeypatch.setenv(gw.SCAN_ENV, "1")
@@ -92,6 +96,7 @@ def test_scan_kinds_need_their_own_flag(monkeypatch):
 
 def test_budget_counts_logical_reads(monkeypatch):
     monkeypatch.setenv(gw.DATA_ENV, "1")
+    monkeypatch.setenv(gw.KINDS_ENV, ",".join(gw.registry().names()))  # every kind on
     _with(_kind(provider_calls=0))
     outs = [_read() for _ in range(gw.MAX_READS_PER_TURN + 1)]
     assert [o["status"] for o in outs[:-1]] == ["ok"] * gw.MAX_READS_PER_TURN
@@ -101,6 +106,7 @@ def test_budget_counts_logical_reads(monkeypatch):
 
 def test_budget_counts_provider_requests(monkeypatch):
     monkeypatch.setenv(gw.DATA_ENV, "1")
+    monkeypatch.setenv(gw.KINDS_ENV, ",".join(gw.registry().names()))  # every kind on
     _with(_kind(provider_calls=gw.MAX_PROVIDER_CALLS_PER_TURN))
     assert _read()["status"] == "ok"
     out = _read()
@@ -109,6 +115,7 @@ def test_budget_counts_provider_requests(monkeypatch):
 
 def test_one_scan_per_turn(monkeypatch):
     monkeypatch.setenv(gw.DATA_ENV, "1")
+    monkeypatch.setenv(gw.KINDS_ENV, ",".join(gw.registry().names()))  # every kind on
     monkeypatch.setenv(gw.SCAN_ENV, "1")
     _with(_kind("screen.run", freshness="periodic", category="scan", provider_calls=0))
     assert _read("screen.run")["status"] == "ok"
@@ -117,6 +124,7 @@ def test_one_scan_per_turn(monkeypatch):
 
 def test_validate_runs_before_admission_and_spends_nothing(monkeypatch):
     monkeypatch.setenv(gw.DATA_ENV, "1")
+    monkeypatch.setenv(gw.KINDS_ENV, ",".join(gw.registry().names()))  # every kind on
     monkeypatch.setenv(gw.SCAN_ENV, "1")
     ran = []
 
@@ -145,6 +153,7 @@ def test_validate_runs_before_admission_and_spends_nothing(monkeypatch):
 
 def test_model_isolated_kinds_answer_the_member_only(monkeypatch):
     monkeypatch.setenv(gw.DATA_ENV, "1")
+    monkeypatch.setenv(gw.KINDS_ENV, ",".join(gw.registry().names()))  # every kind on
     ran = []
 
     def fn(params, ctx):
@@ -169,6 +178,7 @@ def test_model_isolated_kinds_answer_the_member_only(monkeypatch):
 
 def test_symbol_cap(monkeypatch):
     monkeypatch.setenv(gw.DATA_ENV, "1")
+    monkeypatch.setenv(gw.KINDS_ENV, ",".join(gw.registry().names()))  # every kind on
     _with(_kind("quotes"))
     out = gw.read("quotes", {"symbols": ["X"] * (gw.MAX_SYMBOLS_PER_READ + 1)}, user_id=1, turn_id="t")
     assert out["status"] == "refused"
@@ -176,6 +186,7 @@ def test_symbol_cap(monkeypatch):
 
 def test_contract_breaking_or_failing_adapters_are_unavailable_never_passed_through(monkeypatch):
     monkeypatch.setenv(gw.DATA_ENV, "1")
+    monkeypatch.setenv(gw.KINDS_ENV, "a,b,c,d")
     _with(_kind("a", bad=True), _kind("b", boom=True), _kind("c", freshness="periodic", out_freshness="live"),
           _kind("d", freshness="live", out_freshness="historical"))
     for k in ("a", "b", "c"):

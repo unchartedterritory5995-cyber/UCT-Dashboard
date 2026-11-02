@@ -40,6 +40,7 @@ def _payload(generated="2026-10-30T21:30:00+00:00", live="2026-11-02T15:04:05+00
 @pytest.fixture(autouse=True)
 def _env(monkeypatch):
     monkeypatch.setenv(gw.DATA_ENV, "1")
+    monkeypatch.setenv(gw.KINDS_ENV, ",".join(gw.registry().names()))  # every kind on
     gw._reset_for_test(None)
     boom = lambda *a, **k: (_ for _ in ()).throw(AssertionError("built the theme overlay"))  # noqa: E731
     monkeypatch.setattr(svc, "build_theme_performance", boom)

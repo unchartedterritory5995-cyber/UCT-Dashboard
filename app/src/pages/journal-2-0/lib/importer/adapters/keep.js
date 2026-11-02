@@ -38,8 +38,8 @@
  */
 
 import { reportIgnoredFiles } from './reportIgnored'
+import { IMAGE_EXT } from '../mediaRefs'
 
-const IMAGE_EXT = /\.(png|jpe?g|gif|webp|bmp|heic)$/i
 const KEEP_DIR_JSON_RE = /(^|\/)Keep\/[^/]+\.json$/i
 const SAMPLE_LIMIT = 20
 const SAMPLE_MAX_BYTES = 256 * 1024

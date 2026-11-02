@@ -89,6 +89,8 @@ def validate_envelope(env: Any) -> list[str]:
         errs.append("source is required")
     if not isinstance(env["provider_calls"], int) or env["provider_calls"] < 0:
         errs.append("provider_calls must be a non-negative int")
+    if "isolated" in env and env["isolated"] is not True:
+        errs.append("isolated, when present, must be true (ADR-005 L2)")
     if env["status"] in ("ok", "partial"):
         if env["freshness"] == "unavailable":
             errs.append("an ok/partial read cannot be freshness 'unavailable'")

@@ -56,7 +56,7 @@ function tap(el, opts = {}) {
   return fireEvent.click(el, { ctrlKey: !!opts.ctrlKey, metaKey: !!opts.metaKey, bubbles: true })
 }
 
-describe('openableLinkHref — ruling 165: only http(s), mailto and (Task 15) tel ever open', () => {
+describe('openableLinkHref — ruling 165: only http(s), mailto and (Task 15, B-14) tel/sms ever open', () => {
   it.each([
     ['https://example.com/path', 'https://example.com/path'],
     ['http://example.com/path', 'http://example.com/path'],
@@ -64,9 +64,14 @@ describe('openableLinkHref — ruling 165: only http(s), mailto and (Task 15) te
     ['mailto:trader@example.com', 'mailto:trader@example.com'],
     ['mailto:a@example.com,b@example.com?subject=Hi', 'mailto:a@example.com,b@example.com?subject=Hi'],
     // Plan A Task 15 (TEL): the server keeps tel: links, so they open too.
+    // B-14: a number opens NORMALISED to its digits and leading +, and sms: opens the same way.
     ['tel:+15550100', 'tel:+15550100'],
-    ['TEL:+1-555-010-0100', 'TEL:+1-555-010-0100'],
-    ['tel:(555)010.0100', 'tel:(555)010.0100'],
+    ['TEL:+1-555-010-0100', 'tel:+15550100100'],
+    ['tel:(555)010.0100', 'tel:5550100100'],
+    ['tel:+1 555 0100', 'tel:+15550100'],
+    ['  tel:+1 (555) 010-0100  ', 'tel:+15550100100'],
+    ['sms:+15550100', 'sms:+15550100'],
+    ['SMS:+1 555 0100', 'sms:+15550100'],
   ])('%s opens', (href, expected) => {
     expect(openableLinkHref(href)).toBe(expected)
   })
@@ -81,7 +86,13 @@ describe('openableLinkHref — ruling 165: only http(s), mailto and (Task 15) te
     'tel:',
     'tel:+',
     'tel:call-me',
-    'tel:+1 555 0100', // whitespace, as for mailto
+    'tel:+1\t5550100', // a tab is not a number separator
+    'tel:+1 555 0100 ext 2',
+    'tel:1+5550100',
+    'sms:',
+    'sms:+15550100?body=hi',
+    'ftp://example.com/f',
+    'zoommtg://zoom.us/join?confno=1',
     'tel:javascript:alert(1)',
     'vbscript:msgbox(1)',
     'file:///C:/Windows/win.ini',
@@ -176,6 +187,15 @@ describe('controller ruling on FYI 2: a READ-ONLY view opens on a PLAIN click/ta
     const ed = mount([linkPara('call', 'tel:+15550100')], { editable: false })
     tap(linkEl(ed), { pointerType: 'touch' })
     expect(openSpy).toHaveBeenCalledWith('tel:+15550100', '_blank', 'noopener,noreferrer')
+  })
+
+  it.each([
+    ['tel:+1 555 0100', 'tel:+15550100'],
+    ['sms:+1 (555) 010-0100', 'sms:+15550100100'],
+  ])('B-14: a plain tap on a read-only %s link opens it normalised', (href, opened) => {
+    const ed = mount([linkPara('call', href)], { editable: false })
+    tap(linkEl(ed), { pointerType: 'touch' })
+    expect(openSpy).toHaveBeenCalledWith(opened, '_blank', 'noopener,noreferrer')
   })
 
   it('javascript: and import-link:// still never open on a read-only plain click', () => {

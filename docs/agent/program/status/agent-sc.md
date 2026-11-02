@@ -2,20 +2,37 @@
 
 Only agent-sc edits this file. Update it in every PR.
 
-## Integrated (agent/int)
+## Released (master / production c3ba71c343, Sprint 1, every Agent flag OFF)
 - **#570** `screen.run` + `screen.count`: SC-1 v1.1 §2a, the `Kind.validate` precheck, and the F-4 zero-match fix.
 - **#578** `screen.saved` + `saved_id` / `text` sources (SC-1 §2b).
 - **#580** (agent-lead) ADR-002 with agent-sc's inventory of legacy-screener callers.
 - **#582** discovery eval corpus (31 questions) + `screen.saved` coverage counts every screen.
 - **#584** the screener capability answers through the gateway (dark), keyed by `trace.currentTurnId()`, with panelHarness acceptance (F-7 fixed).
 - **#592** SC-1 v1.3 §2c, relative volume (docs); MD-1 §4.3 (#591) points to it.
+- **#593** SAT-1 kit + run-1 results (owner accepted A/C/D/E as PASS on 8f9e65eda0; B NOT TESTED).
+- **#601** F-SAT-3: a screener message typed before the catalog loads waits for it (≤ 3 s) and never falls to the model.
 
-## In flight
-- **#593 SAT-1 kit + run-1 results** (branch `agent/sc/sat1`, agent-lead gating). Owner ACCEPTED A/C/D/E as PASS on 8f9e65eda0; B is NOT TESTED (no approved credential).
-- **F-SAT-3 fix** (branch `agent/sc/fastpath-init`, this PR; carries #593, so merge #593 first): a screener message typed before the field catalog or saved list loads takes the fast path and waits for them, bounded at 3 s. A failed load is a local answer, never a model call. After init, behaviour is unchanged. Test: `agentScanInit.test.jsx` (8).
-- (from #593) `scan/sat/seed.py` (a synthetic sandbox universe; measured expected answers) + `contracts/SC-1-SAT-1.md` (exact instructions). Also the singular/plural wording in the coverage notes (server and client).
-- **SAT-1 section B:** blocked until an explicitly approved development credential exists. None will be obtained or reused.
-- **Next: PR 3**, discovery planning per SC-1 §2c (`rvol_live` / `vol_ratio`, canonical; no relative-volume calculator).
+## In flight (Sprint 2, flags-off preparation; order A → B → C, agent-lead approved)
+- **A: SAT-1 section B as one command** (branch `agent/sc/sat1-b-runner`, this PR).
+  `python -m api.services.uct_agent.scan.sat.section_b` is a DRY RUN by default: it prices the exact requests and sends
+  nothing (no key, no data dir, no database opened). `--run --i-have-owner-approval --data-dir <sandbox>` replays the
+  real panel's captured requests through `turn.run_turn` with `budget.Meter`: Agent $5 ledger counted, shared $15
+  ledger checked (read-only, owner Gate A option 1), 2-call ceiling, and a per-run `--max-usd` (default $1.00).
+  Raw records go to `raw.jsonl` before the summary. Requests are captured by `agentScanSat1Requests.test.jsx` (no model).
+  Dry run on c3ba71c343: 31 questions to the planner, 14 may reroute, exact worst case $3.0147, estimate ≈ $0.41.
+  **Still blocked for `--run`** until agent-lead relays the owner's credential approval.
+- **SAT-1 §B recapture** (#634, integrated 0f15a02e10, with #626 routing, #628 screenRelevant, #631 F-12, #630 QA flips): dry run now 31 to the planner, **0** may reroute (was 14), every request has the screener group and the labelled catalog (4 were keys-only); exact worst case **$2.1903** (was $3.0147; $2.1907 before #631 shortened stock.compare's summary), estimate ≈ $0.42 (was $0.41: the first calls carry the screener group and labels).
+- **screenRelevant widened** (#628, integrated 0f15a02e10, agent-lead asked): d04, d14, d19 and d21 were sent the keys-only catalog; every corpus question now gets labels and units. Plain chat still gets keys only (control). Recapture of section_b_requests.json waits for this AND agent-lead's routing fix.
+- **#621 kinds gate in the screener capability** (#639, integrated 1c7a419bd1): the gateway path now also needs `config.data_kinds` to list `screen.run` (screens) / `screen.saved` (the saved list). Unlisted, or an older server with no list: the Screener route, exactly as with the flags off, never a refused gateway read. Panel tests: 4 new, mutation-checked.
+- **B: SC-2 draft 0.1** (#637, integrated affc475028): `contracts/SC-2-nl-scan.md`, the parsed-intent slots, follow-up deltas (add / narrow / replace_universe / sort / show / remove / reset), the vocabulary with PROPOSED defaults, and the ask / planner / refuse exits (zero false resolves). Corpus `scan/eval/sc2.json`: 69 phrasings (46 single + 8 chains, 23 steps). Validated by `test_uct_agent_scan_sc2_corpus.py`. Flow fields (`dp_*`, `opt_*`) are refused per agent-lead's ruling; the catalog still listing them is recorded in §6.
+- **Daily dollar volume rule** (branch `agent/sc/daily-dollar-volume`, agent-lead ruling): "a day" / "per day" with no session named = `dollar_vol_30d` (the 30-day average); a NAMED session ("today", "yesterday") = `dollar_vol_1d`. Corrected in the screener.run hint (it said the opposite) and SC-2 §4; sc2 u01 fixed, u09–u11 added; discovery d08 unchanged (it was right). Pinned both ways in the corpus test and `agentScanHint.test.js`. Manifest change: SAT-1 §B recaptured (worst case $2.1904); the golden manifest is agent-lead's to regenerate.
+- **C: model-call reduction** (a deterministic slot parser behind the flags, measured on both corpora). After B.
+
+## Findings (no paid call needed)
+- **F-SB-1 (routing, agent-lead's `routing.js`) — FIXED by #626, measured in the recapture:** 14 of 31 discovery questions are routed WITHOUT the screener group
+  (e.g. "RSI over 70" → indicators; "unusual volume in semis" → charts; "small caps … short float" → data). The planner
+  cannot screen on its first call for those; it must spend the request's second call on a `need_groups` reroute.
+  Reported to agent-lead; the runner measures it rather than assumes it.
 
 ## Scope rulings
 - Indicator conditions are refused until their own milestone (IC-1 / ADR-004 → SC-1 v1.2, unscheduled).
@@ -24,12 +41,11 @@ Only agent-sc edits this file. Update it in every PR.
 - SC-1's 50-row cap stays; `produce` and measure screens use the Screener's route.
 
 ## Blockers
-- SAT-1 section B: needs an approved development API credential from the owner.
+- SAT-1 section B `--run`: an owner-approved development credential (agent-lead is raising it). None will be obtained or reused.
 
 ## Handoffs (to / from)
-- agent-qa: corpus scorer (theirs); the no-model fast-path baseline is next.
-- agent-md: MD-1 §4.3 (#591) points to SC-1 §2c (#592).
+- agent-qa: corpus scorer (theirs). A recorded section-B run is scorable offline from `raw.jsonl` (`candidate.logic`).
+- agent-lead: F-SB-1 (routing); the fast-path hook for C will be a written request, never an edit.
 
 ## Ready for integration
-- #593 (SAT-1 kit + results).
-- `agent/sc/fastpath-init` (F-SAT-3), after #593.
+- `agent/sc/sat1-b-runner` (A).

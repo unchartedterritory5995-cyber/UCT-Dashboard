@@ -39,7 +39,7 @@
 import { registerCapability, registerTargetKind, registerContextProvider, registerWarmup, registerOutputSource, SYMBOLS } from '../capabilities'
 import { encodeSpec } from '../../pages/screener/shell/specUrl'
 import { matchName } from '../nl/match'
-import { serverServesScan } from '../agentClient'
+import { serverServesScan, serverDataKinds } from '../agentClient'
 import { readData } from '../marketdata/client'
 import { currentTurnId } from '../trace'
 
@@ -403,7 +403,10 @@ async function runSpec(spec, { show = SHOW_DEFAULT, name = null, savedId = null,
 // ⚠️ NOT on this path, by SC-1's 50-row cap: `produce()` (up to FILL_MAX symbols for a list) and screens
 // with latest-session measure conditions (they page up to CANDIDATES_MAX candidates). Both stay on the
 // Screener's own routes.
-const usesGateway = (spec) => serverServesScan() && !(spec?.post || []).length
+// #621: the server must ALSO list the kind in `data_kinds` (UCT_AGENT_DATA_KINDS, fail-closed). Not listed, or an older
+// server with no list: the Screener's own route, exactly as with the flags off -- never a refused gateway read.
+const servesKind = (kind) => serverServesScan() && (serverDataKinds() || []).includes(kind)
+const usesGateway = (spec) => servesKind('screen.run') && !(spec?.post || []).length
 
 /** One `screen.run` through the gateway → the answer text/table, or a refusal sentence. */
 async function runViaGateway(spec, { show = SHOW_DEFAULT, name = null, savedId = null, notes: extra = [] } = {}) {
@@ -565,7 +568,7 @@ async function specFor(args, host = null) {
 
 // Could this request involve screening? Deliberately BROAD (a false positive costs ~3 KB; a
 // false negative still leaves every field key visible).
-const SCREEN_WORDS = /\b(stocks?|screens?|screener|scan\w*|find|filter\w*|sort\w*|tickers?|names|compan\w+|results?|matches|those|them|top\s+\d+|above|below|over|under|between|at least|more than|less than|greater|higher|lower|adr|atr|rsi|volume|price|market cap|cap|growth|margin|eps|revenue|p\/?e|dividend|beta|float|earnings|perf\w*|gainers?|losers?|up|down|etfs?|sector|industry|leaders?|momentum|high|low)\b|%|\$/i
+const SCREEN_WORDS = /\b(stocks?|screens?|screener|scan\w*|find|filter\w*|sort\w*|tickers?|names|compan\w+|results?|matches|those|them|top\s+\d+|above|below|over|under|between|at least|more than|less than|greater|higher|lower|adr|atr|rsi|volume|price|market cap|cap|growth|margin|eps|revenue|p\/?e|dividend|beta|float|earnings|perf\w*|gainers?|losers?|up|down|etfs?|sector|industry|leaders?|momentum|high|low|caps?|ripp\w*|runners?|movers?|oversold|overbought|pullbacks?|uptrends?|downtrends?|growers?|semis?|chips?|software|breakouts?|bases?)\b|%|\$/i
 export const screenRelevant = (message) => SCREEN_WORDS.test(String(message || ''))
 
 let registered = false
@@ -614,7 +617,7 @@ export function registerScreenerCapabilities() {
     hints: 'target = the screener entry ref. filters: each {field: a key from screener `fields` (never invented), op, value, max, values}. '
       + 'Numbers: op gt|gte|lt|lte|eq|between, value, max (between only, else null), values null; % fields take 5 for 5%, $ fields take dollars (10M = 10000000). '
       + 'yes/no: op eq, value 1|0. (list) fields: op in|not_in, values = the member\'s own words (["software"]) — UCT matches the real values; value/max null. '
-      + '"(latest session)" fields = the last completed trading day: use them for a daily dollar volume ("trades over $10M a day"), never a 30-day average or share volume. '
+      + '"(latest session)" fields only when a session is named ("today", "yesterday"); "$10M a day" / "per day" if none named = the 30-day average, not share volume. '
       + 'A measure not in `fields`: say the Screener doesn\'t have it, never substitute. sort_field/sort_dir or null. mode refine = change the LAST screen, else new. '
       + 'show: rows (null = 10, max 25). as: name the RESULT (screen1) when a later op uses its stocks ({from:"screen1", top:null} = all); else null. '
       + 'within: a watchlist ref only if they name that list ("in Momentum"); else null (the whole market).',
@@ -770,7 +773,7 @@ export function registerScreenerCapabilities() {
     args: { type: 'object', properties: {}, required: [], additionalProperties: false },
     fast: ({ lower }) => (/^((what|which) (saved )?(screens|scans) (do i have|have i saved)|(show|list)( me)?( my)? (saved )?screens|my (saved )?screens)$/.test(lower) ? {} : null),
     async answer() {
-      if (serverServesScan()) return listSavedViaGateway()
+      if (servesKind('screen.saved')) return listSavedViaGateway()
       const lib = await loadSaved()
       const mine = lib.saved.map(s => s.name)
       const starters = lib.starters.map(s => s.name)

@@ -57,22 +57,34 @@
  * the fenced/inline code split, since a frontmatter block is only ever at
  * byte 0.)
  *
- * Resolution (used by both embeds and links): a single basename map,
- * `Map<lowercased basename sans extension, full vault path>`, built ONCE
- * per parse() call over every vfile in the drop (first occurrence per key
- * wins — ambiguity between same-named files across folders is accepted for
- * v1). A target containing `/` is treated as path-qualified and resolved
- * directly against the full vault paths instead (exact match preferred,
- * falling back to a `/`-boundary suffix match) — this is what lets
- * `[[Setups/VCP|the setup]]` resolve even though the vault root folder
- * (`Vault/`) isn't part of the written target.
+ * Resolution (Plan B Task 8): ONE resolver, `../obsidianResolve.js`, built once per
+ * parse() and used by embeds, wikilinks, relative markdown links, images and
+ * `obsidian://open` deep links alike. A wikilink or embed follows the server lane's rule
+ * (`providers/obsidian.py::_resolve_in`): the exact note first, a `#`-holding file name
+ * whole, no stem rule; ties go to the linking note's folder, then the attachment folder,
+ * then the fewest folders, then sort order, so `[[Plan]]` beside `Notes/Plan.md` opens
+ * that one, not the first `Plan.md` the drop listed.
+ *  - `[[Note\|alias]]` in a table cell: the `\` escapes the pipe from the table (O-8).
+ *  - a wikilink's text reads as Obsidian shows it: `Note > Heading`; a block id not at all.
+ *  - `![[Other note]]` (an embedded NOTE) is a link to that note, never a file chip (O-11).
+ *  - after `resolveRelativeMedia`, every relative `<a href>` left is resolved (O-5):
+ *    a note -> a note link; any other vault file -> an attachment chip; a miss is left for
+ *    the post-parse pass (`../postParse.js`), which makes it its text.
+ *  - `obsidian://open?vault=<this vault>&file=<f>` -> the note `f` names. A deep link into a
+ *    vault with another name (when this drop names its vault folder) is left for the
+ *    post-parse pass, which makes it text.
+ *  - `![](attachments/x.png)` from a note in a sub-folder: the dir-relative path misses, the
+ *    resolver finds it from the vault root (I-9).
+ * An unresolved link is the member's text with no link (`pending` is server-only, see the
+ * parity rail): a one-shot drag-in has no later sync to heal a key it never stores.
  */
 
 import { mdToHtml, mdInlineText, resolveRelativeMedia, dedupeMedia } from './generic'
 import { extractFrontmatter, frontmatterDates } from '../frontmatter'
 import { reportIgnoredFiles } from './reportIgnored'
+import { IMAGE_EXT } from '../mediaRefs'
+import { makeObsidianResolver } from '../obsidianResolve'
 
-const IMAGE_EXT = /\.(png|jpe?g|gif|webp|svg|bmp|heic)$/i
 const SKIP_DIR_RE = /(^|\/)\.(obsidian|trash)\//i
 // Fence alternative MUST come first — at a run of 3+ backticks it has to win
 // over the inline-span alternative, or the inline pattern would consume just
@@ -115,6 +127,8 @@ const WIKILINK_RE = new RegExp(
 // cannot parse lookbehind (app/src/noRegexLookbehind.test.js). The server lane
 // (`providers/obsidian.py`) uses the same rule; parity fixture `08-comparisons`.
 const HIGHLIGHT_RE = /(^|[^=\p{L}\p{N}_])==(?=\S)([^=\n]*?\S)==(?![=\p{L}\p{N}_])/gu
+// A vault note (the server's `_NOTE_EXT_RE`).
+const NOTE_RE = /\.md$/i
 
 const SAMPLE_LIMIT = 20
 const SAMPLE_MAX_BYTES = 256 * 1024
@@ -166,7 +180,8 @@ async function parse(vfiles, opts = {}) {
   const { onProgress } = opts
   const warnings = []
   const byPath = new Map(vfiles.map((v) => [v.path, v]))
-  const basenameMap = buildBasenameMap(vfiles)
+  const resolver = await makeObsidianResolver(vfiles)
+  const topFolder = dropTopFolder(vfiles)
 
   const items = vfiles.filter((v) => /\.md$/i.test(v.path) && !SKIP_DIR_RE.test(v.path))
 
@@ -174,7 +189,7 @@ async function parse(vfiles, opts = {}) {
   let done = 0
   for (const vfile of items) {
     try {
-      const doc = await makeDoc(vfile, vfiles, byPath, basenameMap)
+      const doc = await makeDoc(vfile, byPath, resolver, topFolder)
       docs.push(doc)
     } catch (err) {
       warnings.push(`Could not import "${vfile.path}": ${err?.message || err}`)
@@ -198,12 +213,17 @@ async function parse(vfiles, opts = {}) {
   return { docs, warnings }
 }
 
-async function makeDoc(vfile, vfiles, byPath, basenameMap) {
+async function makeDoc(vfile, byPath, resolver, topFolder = null) {
   const raw = await readText(vfile)
   const { fields, tags, body } = extractFrontmatter(raw)
 
-  const guarded = guardedPreprocess(body, { vfiles, byPath, basenameMap, fromDir: dirOf(vfile.path) })
+  const resolve = (target, opts) => resolver.resolve(target, vfile.path, opts)
+  // The wiki passes run under the safety net (`guardedPreprocess`, D2 fix round 5); each
+  // round gets fresh `media`/`links`, and the kept round's lists carry on into the passes
+  // below (`resolveRelativeMedia`, `resolveVaultAnchors`).
+  const guarded = guardedPreprocess(body, { byPath, resolve, topFolder })
   const { media, links } = guarded
+  const ctx = { byPath, resolve, media, links, topFolder }
   let html = guarded.html
   if (fields.hero_image) {
     // Same reasoning as generic.js's identical block: a front-matter cover
@@ -221,7 +241,14 @@ async function makeDoc(vfile, vfiles, byPath, basenameMap) {
   // Anything already rewritten to `import-ref://...` is skipped by
   // resolveRelativeMedia's own absolute-scheme check, so this can't
   // double-resolve or duplicate a media entry.
-  const resolved = resolveRelativeMedia(html, dir, byPath)
+  // I-9: a src that misses beside the note is looked up the Obsidian way (vault root,
+  // attachment folder, by name). A note is never an image.
+  const fallbackResolve = (rel) => {
+    const hit = resolve(rel, { decode: true })
+    return hit && !NOTE_RE.test(hit) ? hit : null
+  }
+  const resolved = resolveRelativeMedia(html, dir, byPath, { fallbackResolve })
+  resolved.html = resolveVaultAnchors(resolved.html, ctx, resolver.rootOf(vfile.path))
   const allMedia = dedupeMedia([...media, ...resolved.media])
   const title = fields.title || extractH1Title(resolved.html) || filenameSansExt(basename(vfile.path))
 
@@ -505,41 +532,71 @@ function transformEmbeds(text, ctx) {
   return replaceClearOfCode(text, EMBED_RE, (_, rawTarget) => {
     // A trailing `|width` (Obsidian's embed-sizing syntax) is not a target
     // segment — strip it before resolving.
-    const target = rawTarget.split('|')[0].trim()
-    const resolvedPath = resolveTarget(target, ctx.vfiles, ctx.basenameMap, ctx.fromDir)
+    const written = rawTarget.split('|')[0].trim()
+    // O-8: the resolver drops a table-escaped pipe's `\` itself; this copy is the TEXT.
+    const target = stripEscapedPipe(written)
+    const resolvedPath = ctx.resolve(written)
     if (!resolvedPath) {
       // A missing NOTE reads as the note's name (`![[Ghost#Risk]]`, `![[Ghost.md]]`
       // -> `Ghost`), as the server's pending link does; a missing FILE as written
-      // (D2 item 8, `providers/obsidian.py::_transform_wiki_and_embeds`).
+      // (D2 item 8, `providers/obsidian.py::_transform_wiki_and_embeds`). Never a broken
+      // <img> or a phantom media entry.
       const bare = unresolvedBareTarget(target)
-      if (bare && (/\.md$/i.test(bare) || !isAttachmentName(bare))) {
-        return ctx.hold(unresolvedText(bare.replace(/\.md$/i, '')))
+      if (bare && (NOTE_RE.test(bare) || !isAttachmentName(bare))) {
+        return ctx.hold(unresolvedText(bare.replace(NOTE_RE, '')))
       }
       return ctx.hold(unresolvedText(target))
     }
 
     const name = basename(resolvedPath)
-    if (/\.md$/i.test(resolvedPath)) {
-      // An embed of a NOTE is a link to that note, never an attachment chip
-      // that would upload the `.md` as a file. It reads by the note's name,
-      // as the server lane's does (`providers/obsidian.py`, Task 13).
-      const targetKey = `obsidian:${resolvedPath}`
-      return ctx.hold(`<a data-import-link="${escapeAttr(targetKey)}">${escapeHtml(name.replace(/\.md$/i, ''))}</a>`,
-        () => ctx.links.push({ targetKey }))
+    if (NOTE_RE.test(resolvedPath)) {
+      // O-11: an embed of a NOTE is a link to that note, never an attachment chip that
+      // would upload the `.md` as a file. It reads by the note's name, as the server
+      // lane's does (`providers/obsidian.py`, Task 13).
+      return noteLink(resolvedPath, name.replace(NOTE_RE, ''), ctx)
     }
-    const vfile = ctx.byPath.get(resolvedPath)
     if (IMAGE_EXT.test(resolvedPath)) {
+      const vfile = ctx.byPath.get(resolvedPath)
       return ctx.hold(`<img src="import-ref://${escapeAttr(resolvedPath)}">`,
         () => ctx.media.push({ ref: resolvedPath, vfile, kind: 'image', name }))
     }
-    return ctx.hold(`<a data-type="attachmentChip" data-import-ref="${escapeAttr(resolvedPath)}" data-name="${escapeAttr(name)}" href="import-ref://${escapeAttr(resolvedPath)}">${escapeHtml(name)}</a>`,
-      () => ctx.media.push({ ref: resolvedPath, vfile, kind: 'file', name }))
+    return fileChip(resolvedPath, name, ctx)
   }, true, ctx.net)
+}
+
+/**
+ * A vault file that is not a note: an attachment chip, held, whose media item is listed
+ * once the piece is shown (D2 item 4). The chip shows the file's NAME; `label` (the
+ * rendered text of a wikilink's alias, D2 item 6) rides `data-label` when it differs.
+ * ONE writer for every chip this adapter makes: an embed (`![[deck.pdf]]`) and a wikilink
+ * to a file (`[[deck.pdf|the deck]]`, Plan B Task 8 fix round 1 and D2 fix round 1, I3).
+ * `resolveVaultAnchors` turns a relative markdown link into the same attributes.
+ */
+function fileChip(resolvedPath, name, ctx, label = '') {
+  const vfile = ctx.byPath.get(resolvedPath)
+  const labelAttr = label && label !== name ? ` data-label="${escapeAttr(label)}"` : ''
+  return ctx.hold(`<a data-type="attachmentChip" data-import-ref="${escapeAttr(resolvedPath)}" data-name="${escapeAttr(name)}"${labelAttr} href="import-ref://${escapeAttr(resolvedPath)}">${escapeHtml(name)}</a>`,
+    () => ctx.media.push({ ref: resolvedPath, vfile, kind: 'file', name }))
+}
+
+/** A note link, held; listed in `links` once shown. */
+function noteLink(resolvedPath, display, ctx) {
+  const targetKey = `obsidian:${resolvedPath}`
+  return ctx.hold(`<a data-import-link="${escapeAttr(targetKey)}">${escapeHtml(display)}</a>`,
+    () => ctx.links.push({ targetKey }))
+}
+
+/** O-8: `[[Note\|alias]]` in a table cell -- the `\` escapes the pipe, it is not the name. */
+function stripEscapedPipe(target) {
+  return target.endsWith('\\') ? target.slice(0, -1).trimEnd() : target
 }
 
 function transformWikiLinks(text, ctx) {
   const piece = (rawTarget, rawAlias) => {
-    const target = rawTarget.trim()
+    // O-8: `[[Note\|alias]]` in a table cell -- the `\` escapes the pipe, it is not the
+    // name. The resolver drops it for the lookup; `stripEscapedPipe` keeps it out of the text.
+    const written = rawTarget.trim()
+    const target = stripEscapedPipe(written)
     // D2 fix round 5 follow-up: an alias that runs onto the next line of a blockquote or
     // callout carries that line's `>` prefix, which is block syntax, not link text. The
     // server's markdown link loses it in the parse; the held link here never reaches one.
@@ -550,29 +607,21 @@ function transformWikiLinks(text, ctx) {
       // lane writes it. ⚰️ The image went inside the link and the link was lost.
       return alias + piece(rawTarget, '')
     }
-    const resolvedPath = resolveTarget(target, ctx.vfiles, ctx.basenameMap, ctx.fromDir)
+    const resolvedPath = ctx.resolve(written)
     // A missing FILE whose name holds `#` (`[[report #2.pdf]]`) keeps its name;
     // anything else reads as Obsidian shows it (`wikilinkDisplay`, D2 item 8).
     const fileName = !resolvedPath && unresolvedBareTarget(target) !== stripFragment(target)
     const display = alias || (fileName ? target : wikilinkDisplay(target))
     if (!resolvedPath) return ctx.hold(unresolvedText(display))
 
-    if (!/\.md$/i.test(resolvedPath)) {
-      // D2 fix round 1, I3: a wikilink to a FILE (`[[q.pdf]]`, `[[q.pdf|the deck]]`,
-      // `[[chart.png]]`) is the file chip, as the server lane makes it for the plugin's
-      // non-embed ref; the alias, as rendered text, is its label. ⚰️ It was a link to a
-      // note key no note has: commit stripped it and the file never uploaded.
-      const name = basename(resolvedPath)
-      const vfile = ctx.byPath.get(resolvedPath)
-      const label = alias ? mdInlineText(alias).trim() : ''
-      const labelAttr = label && label !== name ? ` data-label="${escapeAttr(label)}"` : ''
-      return ctx.hold(`<a data-type="attachmentChip" data-import-ref="${escapeAttr(resolvedPath)}" data-name="${escapeAttr(name)}"${labelAttr} href="import-ref://${escapeAttr(resolvedPath)}">${escapeHtml(name)}</a>`,
-        () => ctx.media.push({ ref: resolvedPath, vfile, kind: 'file', name }))
+    if (!NOTE_RE.test(resolvedPath)) {
+      // A wikilink to a FILE (`[[q.pdf]]`, `[[q.pdf|the deck]]`, `[[chart.png]]`) is the
+      // file chip (D2 fix round 1, I3; Plan B Task 8 fix round 1), as the server lane
+      // makes it for the plugin's non-embed ref: no doc carries a note key for it, so a
+      // note link would be dead. The alias, as rendered text, is its label (D2 item 6).
+      return fileChip(resolvedPath, basename(resolvedPath), ctx, alias ? mdInlineText(alias).trim() : '')
     }
-
-    const targetKey = `obsidian:${resolvedPath}`
-    return ctx.hold(`<a data-import-link="${escapeAttr(targetKey)}">${escapeHtml(display)}</a>`,
-      () => ctx.links.push({ targetKey }))
+    return noteLink(resolvedPath, display, ctx)
   }
   return replaceClearOfCode(text, WIKILINK_RE, (_, rawTarget, rawAlias) => piece(rawTarget, rawAlias),
     true, ctx.net)
@@ -663,108 +712,91 @@ function transformHighlights(text) {
 }
 
 // ---------------------------------------------------------------------------
-// target resolution
+// relative and deep-link anchors (O-5, `obsidian://`), after resolveRelativeMedia
 // ---------------------------------------------------------------------------
 
-// basenameMap -> (lowercased extension-stripped file name -> EVERY path with
-// that name, in the order seen). `resolveTarget` filters and picks among them,
-// mirroring the server's `_VaultIndex` dict.
-const BY_STEM = new WeakMap()
+const SCHEME_RE = /^[a-z][a-z0-9+.-]*:/i
+const OBSIDIAN_URI_RE = /^obsidian:/i
 
-function buildBasenameMap(vfiles) {
-  const map = new Map()
-  const byStem = new Map()
+/**
+ * Every `<a href>` resolveRelativeMedia left relative, and every `obsidian://open` link:
+ * a note -> `data-import-link` (pushed onto `links`); any other vault file -> an attachment
+ * chip plus its media item; an image target is left (images ride `<img>`). A miss is left
+ * as written, for the post-parse pass to make it text. Never resolved against a web origin.
+ */
+function resolveVaultAnchors(html, ctx, root) {
+  const doc = new DOMParser().parseFromString(html, 'text/html')
+  for (const a of [...doc.querySelectorAll('a[href]')]) {
+    const href = a.getAttribute('href') || ''
+    let resolvedPath = null
+    if (OBSIDIAN_URI_RE.test(href)) {
+      resolvedPath = resolveDeepLink(href, ctx, root)
+      if (!resolvedPath || !NOTE_RE.test(resolvedPath)) continue
+    } else {
+      if (!href || href.startsWith('#') || href.startsWith('//') || SCHEME_RE.test(href)) continue
+      resolvedPath = ctx.resolve(href, { decode: true })
+      if (!resolvedPath || IMAGE_EXT.test(resolvedPath)) continue
+    }
+    if (NOTE_RE.test(resolvedPath)) {
+      const targetKey = `obsidian:${resolvedPath}`
+      a.removeAttribute('href')
+      a.setAttribute('data-import-link', targetKey)
+      ctx.links.push({ targetKey })
+      continue
+    }
+    const vfile = ctx.byPath.get(resolvedPath)
+    if (!vfile) continue
+    const name = basename(resolvedPath)
+    a.setAttribute('data-type', 'attachmentChip')
+    a.setAttribute('data-import-ref', resolvedPath)
+    a.setAttribute('data-name', name)
+    a.setAttribute('href', `import-ref://${resolvedPath}`)
+    ctx.media.push({ ref: resolvedPath, vfile, kind: 'file', name })
+  }
+  return doc.body.innerHTML
+}
+
+/** `obsidian://open?vault=<v>&file=<f>` -> the path `f` names, as a wikilink target
+ *  (`URLSearchParams` has already decoded it once). A drop whose vault folder has a name
+ *  answers only for that name; another vault's link is not this import's to resolve.
+ *
+ *  Plan B final review, fix 2: with NO vault root (no `.obsidian/` above the note) a `vault`
+ *  parameter must equal the drop's top folder name (`dropTopFolder`: the one first path
+ *  segment every dropped file shares), compared EXACTLY -- case-sensitive, after trimming
+ *  whitespace, as Obsidian matches a vault by its name. A drop with no single top folder, or
+ *  a different name, cannot show the link is into THIS vault, so it stays text: resolving
+ *  `vault=Personal&file=Plan` by name across the whole drop opened the wrong vault's note.
+ *  No `vault` parameter at all: resolved as before. With a vault root the comparison is
+ *  unchanged (the root folder's name, any case). */
+function resolveDeepLink(href, ctx, root) {
+  let url
+  try {
+    url = new URL(href)
+  } catch {
+    return null
+  }
+  if (url.hostname.toLowerCase() !== 'open') return null
+  const file = (url.searchParams.get('file') || '').trim()
+  const vault = (url.searchParams.get('vault') || '').trim()
+  if (!file) return null
+  if (root && vault && vault.toLowerCase() !== basename(root).toLowerCase()) return null
+  if (!root && vault && vault !== ctx.topFolder) return null
+  return ctx.resolve(file)
+}
+
+/** The first path segment every file in the drop shares (the folder the member dropped),
+ *  or null when files sit at the drop top or under different folders. */
+function dropTopFolder(vfiles) {
+  let top = null
   for (const v of vfiles) {
-    const key = stripExt(basename(v.path)).toLowerCase()
-    if (!map.has(key)) map.set(key, v.path)
-    if (!byStem.has(key)) byStem.set(key, [])
-    byStem.get(key).push(v.path)
+    const path = String(v.path || '')
+    const slash = path.indexOf('/')
+    if (slash <= 0) return null
+    const seg = path.slice(0, slash)
+    if (top === null) top = seg
+    else if (seg !== top) return null
   }
-  BY_STEM.set(map, byStem)
-  return map
-}
-
-/**
- * The note file a wikilink target names, lowercased: `<target>.md`, or the
- * target itself when it already ends in `.md`. Every dot is part of the
- * note's name: `[[Dr.Smith]]`, `[[Q3.Review]]`, `[[v1.2 notes]]` and even
- * `[[Brief.txt]]` name `Dr.Smith.md`, `Q3.Review.md`, `v1.2 notes.md` and
- * `Brief.txt.md`; that note, when present, ALWAYS wins. ⚰️ The basename rule
- * used to strip `.Smith` as an extension and look up `Dr`, so those links
- * fell back to plain text or opened `Dr.md`. Mirrors
- * `providers/obsidian.py::_note_file_of`.
- */
-function noteFileOf(target) {
-  const lower = target.toLowerCase()
-  return lower.endsWith('.md') ? lower : `${lower}.md`
-}
-
-/**
- * Resolves an embed/link target to a full vault path, or null. THE rule of
- * `providers/obsidian.py::_resolve_in`, step for step (the parity fixture
- * `15-dotted-names` pins both). A target with a `/` is matched against the end
- * of each path at a folder boundary (`Setups/VCP` -> `Vault/Setups/VCP.md`); a
- * bare one against the file name. First, a target holding a `#` (an anchor, or
- * part of a NAME: `my chart #1 (v2).png`) that EXACTLY names a vault file opens
- * that file; only otherwise is the `#Heading` / `#^blockId` anchor stripped
- * (Plan C Task 4 fix round 1). Then, in order:
- *  1. the exact note `noteFileOf(target)` (`[[Dr.Smith]]` -> `Dr.Smith.md`,
- *     `[[report.pdf]]` -> `report.pdf.md`), always first;
- *  2. a file whose full name IS the target (`[[report.pdf]]` -> `report.pdf`).
- * Never an extension-stripped form: `[[Dr.Smith]]` never opens `Dr.md` or
- * `Dr.Smith.csv`, `[[Notes/Plan]]` never `Notes/Plan.md.bak`. ⚰️ A third step
- * stem-matched a dot-less name to a file (`[[chart]]` -> `chart.png`); Obsidian
- * assumes `.md` for a link with no extension, so it is gone (fix round 1).
- * Same-named candidates go through `pick`.
- */
-function resolveTarget(rawTarget, vfiles, basenameMap, fromDir = null) {
-  const whole = (rawTarget || '').trim()
-  if (whole.includes('#')) {
-    const hit = resolveSteps(whole, basenameMap, fromDir, true)
-    if (hit) return hit
-  }
-  const target = stripFragment(whole)
-  if (!target) return null
-  return resolveSteps(target, basenameMap, fromDir, false)
-}
-
-// Steps 1 and 2 of `resolveTarget` over an anchor-free target (`exactFileOnly`:
-// step 2 alone, the full-name check a `#`-holding target gets first). Mirrors
-// `providers/obsidian.py::_resolve_steps`.
-function resolveSteps(target, basenameMap, fromDir, exactFileOnly) {
-  const byStem = BY_STEM.get(basenameMap) || new Map()
-  const lower = target.toLowerCase()
-  const noteFile = noteFileOf(target)
-  const name = basename(lower)
-  const near = lower.includes('/') ? null : fromDir
-  const steps = exactFileOnly ? [] : [[stripExt(basename(noteFile)), noteFile]]
-  steps.push([stripExt(name), lower])
-  for (const [key, want] of steps) {
-    const hits = (byStem.get(key) || []).filter((p) => endsAt(p.toLowerCase(), want))
-    if (hits.length) return pick(hits, near)
-  }
-  return null
-}
-
-// THE tie-break among same-named paths, mirroring `providers/obsidian.py::_pick`:
-// the one in the linking note's folder (bare names only), else the shortest
-// path (fewest folders), else the first path in sort order.
-function pick(candidates, fromDir) {
-  let pool = candidates
-  if (fromDir !== null && fromDir !== undefined) {
-    const here = fromDir.toLowerCase()
-    const beside = pool.filter((p) => dirOf(p).toLowerCase() === here)
-    if (beside.length) pool = beside
-  }
-  const depth = (p) => p.split('/').length
-  return pool.reduce((best, p) => {
-    if (depth(p) !== depth(best)) return depth(p) < depth(best) ? p : best
-    return p < best ? p : best
-  })
-}
-
-function endsAt(form, want) {
-  return form === want || form.endsWith(`/${want}`)
+  return top
 }
 
 function stripFragment(target) {
@@ -836,11 +868,6 @@ function basename(path) {
 function dirOf(path) {
   const idx = path.lastIndexOf('/')
   return idx === -1 ? '' : path.slice(0, idx)
-}
-
-function stripExt(path) {
-  const idx = path.lastIndexOf('.')
-  return idx > 0 ? path.slice(0, idx) : path
 }
 
 function filenameSansExt(name) {

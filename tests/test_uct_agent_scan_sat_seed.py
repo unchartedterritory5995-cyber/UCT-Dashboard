@@ -15,6 +15,7 @@ def sandbox(tmp_path, monkeypatch):
     for k in seed.RAILWAY:
         monkeypatch.delenv(k, raising=False)
     monkeypatch.setenv("UCT_AGENT_DATA", "1")
+    monkeypatch.setenv(gateway.KINDS_ENV, ",".join(gateway.registry().names()))  # every kind on
     monkeypatch.setenv("UCT_AGENT_SCAN", "1")
     # the real pin() sets ~116 census paths; inside pytest only the two these tests read are pinned, via
     # monkeypatch, so nothing leaks into other tests (pin() itself is tested on an isolated environ below)

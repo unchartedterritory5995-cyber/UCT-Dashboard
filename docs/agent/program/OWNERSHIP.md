@@ -57,6 +57,7 @@ app/src/agent/capabilities/scan*.js                agent-sc
 app/src/agent/agentScan*.test.*                    agent-sc
 tests/test_uct_agent_scan*.py                      agent-sc
 docs/agent/program/contracts/SC-1-*.md             agent-sc
+docs/agent/program/contracts/SC-2-*.md             agent-sc
 docs/agent/program/status/agent-sc.md              agent-sc
 
 # ── QA & integration ──

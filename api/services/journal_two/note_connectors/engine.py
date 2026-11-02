@@ -113,7 +113,7 @@ from api.services.journal_two.note_connectors import connections, errors, oauth
 from api.services.journal_two.note_connectors.link_keys import heal_pending_links, resolve_link_keys
 from api.services.journal_two.note_connectors.convert import REF_PREFIX, mddoc, rewrite_body
 from api.services.journal_two.note_connectors.convert.linkify import (
-    import_link_keys, linkify_doc, normalize_link_hrefs,
+    finalize_links, import_link_keys,
 )
 from api.services.journal_two.note_connectors.providers.base import (
     NoteProvider, RemoteNote, RemoteRef,
@@ -1211,7 +1211,7 @@ def _finalize_remote_doc(doc: dict[str, Any]) -> dict[str, Any]:
     Notion rich text, Roam, Craft, OneNote, Dropbox and Obsidian alike -- before it is
     hashed or stored. Existing hrefs go through the one scheme policy first (an unsafe or
     dead link becomes text), then bare URLs in plain text become links. Pure."""
-    return linkify_doc(normalize_link_hrefs(doc))
+    return finalize_links(doc)  # B-14 fix round 1: a refused link's text is never re-linked
 
 
 def _finalize_remote_notes(notes: list[RemoteNote]) -> list[RemoteNote]:

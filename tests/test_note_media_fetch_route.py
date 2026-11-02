@@ -92,6 +92,7 @@ def web(monkeypatch):
         # An http hop is sent to the checked IP with the original Host (fix round 1, I1).
         url = f"{request.url.scheme}://{request.headers['host']}{request.url.raw_path.decode()}"
         state["calls"].append(url)
+        state.setdefault("headers", []).append(dict(request.headers))
         answer = state["routes"].get(url)
         if answer is None:
             raise AssertionError(f"unexpected request to {url}")
@@ -150,6 +151,23 @@ def test_media_fetch_door_copies_an_http_hotlink(app, client, web):
     assert web["calls"] == [_HOT]
     served = client.get(out["src"])                         # what we serve is our own URL
     assert served.status_code == 200 and served.content == PNG
+
+
+def test_media_fetch_door_names_itself_to_the_image_host(app, client, web):
+    """Live gate 2026-11-02: Wikimedia answered 403 to httpx's default `python-httpx/<v>`
+    agent, so a hotlinked image a browser loads fine became a marker. Every hop now sends a
+    descriptive User-Agent and an image Accept."""
+    from api.services.journal_two.note_connectors.providers import base as base_module
+    _login_as(app, "u1")
+    _imported(client, "notion:page-1")
+    web["routes"][_HOT] = lambda: httpx.Response(200, content=PNG, headers={"content-type": "image/png"})
+
+    assert _fetch(client).status_code == 200
+    sent = web["headers"][0]
+    assert sent["user-agent"] == base_module.MEDIA_USER_AGENT
+    assert "python-httpx" not in sent["user-agent"]
+    assert sent["accept"].startswith("image/*")
+    assert sent["accept-encoding"] == "identity"
 
 
 def test_media_fetch_door_follows_a_redirect(app, client, web):

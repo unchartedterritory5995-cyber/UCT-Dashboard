@@ -14,7 +14,7 @@ import { WorkspaceContext } from './WorkspaceContext'
 // UCT Agent (admin-dark): lazy, so nothing of the Agent reaches the board's chunk
 // for anyone who never opens it. The host only READS the chart registry below.
 import useSWR, { useSWRConfig } from 'swr'
-import { useAgentFlag, AGENT_OPEN_KEY, readLocal, writeLocal } from '../../agent/agentFlag'
+import { useAgentFlag, AGENT_OPEN_EVENT, AGENT_OPEN_KEY, readLocal, writeLocal } from '../../agent/agentFlag'
 import AgentDock from '../../agent/AgentDock'
 import { buildWorkspaceHost } from '../../agent/host'
 import { useInRouterContext } from 'react-router-dom'
@@ -3183,6 +3183,18 @@ function ChartsWorkspaceBoard() {
       return true
     })
   }, [agentAllowed, agentHost, setAgentOpen])
+  // UCT News "Continue in UCT Agent" (agent/newsAsk.openAgent): the panel opens on that conversation.
+  useEffect(() => {
+    if (!agentAllowed) return undefined
+    const onOpen = (e) => {
+      const conversationId = e?.detail?.conversationId
+      if (typeof conversationId !== 'string' || !conversationId) return
+      setAgentOpen(true)
+      setAgentRequest({ id: ++agentRequestSeq.current, kind: 'conversation', conversationId })
+    }
+    window.addEventListener(AGENT_OPEN_EVENT, onOpen)
+    return () => window.removeEventListener(AGENT_OPEN_EVENT, onOpen)
+  }, [agentAllowed, setAgentOpen])
 
   if (isMobile) {
     // Phone: the chart-first mobile app (full-bleed chart + bottom-sheet

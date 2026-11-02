@@ -30,17 +30,18 @@ const envelope = (kind, params, over = {}) => ({
 const refused = (kind, params, note) => envelope(kind, params, { status: 'refused', freshness: 'unavailable', as_of: null, coverage: null, notes: [note] })
 const ROWS = [{ symbol: 'AAA', price: 50, rs_rank: 99, chg_pct_1d: 1.5 }, { symbol: 'BBB', price: 20, rs_rank: 95, chg_pct_1d: -0.5 }]
 
-let p, scanFlag, perTurn, nextScan, seen
+let p, scanFlag, perTurn, nextScan, seen, kinds
+const ALL_SCAN_KINDS = ['screen.run', 'screen.count', 'screen.saved']
 beforeEach(() => {
   _resetScreenerCache(); _resetAgentConfig(); _resetTurns()
-  scanFlag = true; perTurn = new Map(); nextScan = null; seen = []
+  scanFlag = true; perTurn = new Map(); nextScan = null; seen = []; kinds = ALL_SCAN_KINDS
   p = setupPanel()
   const harness = globalThis.fetch
   globalThis.fetch = vi.fn(async (url, init = {}) => {
     const u = String(url)
     const body = init.body ? JSON.parse(init.body) : null
     const json = (o, status = 200) => new Response(JSON.stringify(o), { status, headers: { 'content-type': 'application/json' } })
-    if (u === '/api/agent/config') return json({ stream: false, nl1: false, data: scanFlag, scan: scanFlag })
+    if (u === '/api/agent/config') return json({ stream: false, nl1: false, data: scanFlag, scan: scanFlag, data_kinds: kinds })
     if (u.startsWith('/api/screener/fields')) return json(u.includes('options') ? { options: {} } : META)
     if (u === '/api/screener/saved-screens') return json(SAVED)
     if (u === '/api/screener/scan') { seen.push(['route', body]); return json({ total: 2, rows: [{ ticker: 'ROUTE', price: 1, rs_rank: 1 }], snapshot_date: '2026-10-31', snapshot: {} }) }
@@ -95,6 +96,29 @@ describe('SC-1 acceptance: the screener capability in the real panel, through th
     expect(gateway()).toEqual([])
     expect(route()).toHaveLength(1)
     expect(out).toContain('2 stocks match')
+  }, 30000)
+
+  it.each([
+    [['screen.saved'], 'screen.run not activated'],
+    [[], 'nothing activated'],
+    [null, 'an older server with no data_kinds'],
+  ])('KIND NOT LISTED (#621, %j: %s): flags on, but the Screener route is used and nothing reaches the gateway', async (k) => {
+    kinds = k
+    const { say } = p.mount(...ONE())
+    await ready()
+    const out = await say('show me my strongest stocks')
+    expect(gateway()).toEqual([])
+    expect(route()).toHaveLength(1)
+    expect(out).toContain('2 stocks match')
+  }, 30000)
+
+  it('KIND NOT LISTED (#621): "my saved screens" without screen.saved reads the Screener route, not the gateway', async () => {
+    kinds = ['screen.run', 'screen.count']
+    const { say } = p.mount(...ONE())
+    await ready()
+    const out = await say('my saved screens')
+    expect(gateway()).toEqual([])
+    expect(out).toContain('Leaders')
   }, 30000)
 
   it('MALFORMED CRITERIA: an unknown field is refused before any read; a spec the server refuses shows its sentence', async () => {
