@@ -194,6 +194,26 @@ def test_notice_attempts_by_ref_walks_nesting_and_text_bodies():
         assert import_notice.notice_attempts_by_ref(junk) == {}, junk
 
 
+def test_media_pending_state_is_tri_state():
+    """1 = retry now (a placeholder, or a notice with attempts left); 2 = waiting for storage
+    space; 0 = nothing left to do. Retry-now wins over waiting."""
+    retry = notice_node("fetch_failed", name="a", source_url=None, ref="r1", attempts=2)
+    final = notice_node("fetch_failed", name="a", source_url=None, ref="r1", attempts=3)
+    space = notice_node("storage_limit", name="b", source_url=None, ref="r2", attempts=1)
+    other = notice_node("unsupported", name="c", source_url=None, ref="r3", attempts=1)
+    placeholder = {"type": "image", "attrs": {"src": "import-ref://r4"}}
+    nested = {"type": "columns", "content": [{"type": "column", "content": [retry]}]}
+    state = import_notice.media_pending_state
+    assert state({"type": "doc", "content": [placeholder]}) == 1
+    assert state({"type": "doc", "content": [nested]}) == 1
+    assert state({"type": "doc", "content": [space, retry]}) == 1
+    assert state({"type": "doc", "content": [space, final, other]}) == 2
+    assert state({"type": "doc", "content": [final, other]}) == 0
+    assert state(json.dumps({"type": "doc", "content": [space]})) == 2
+    for junk in (None, "not json", 5, {"type": "doc", "content": "x"}):
+        assert state(junk) == 0, junk
+
+
 def _doc(*blocks):
     return {"type": "doc", "content": list(blocks)}
 

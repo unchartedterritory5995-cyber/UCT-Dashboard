@@ -101,11 +101,13 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from api.services.auth_db import get_connection
+from api.services.journal_two import import_notice
 from api.services.journal_two import notes as notes_svc
 from api.services.journal_two.import_provenance import edited_since_import
+from api.services.journal_two.notes_quota import NoteQuotaExceeded
 from api.services.journal_two.note_connectors import connections, errors, oauth
 from api.services.journal_two.note_connectors.link_keys import heal_pending_links, resolve_link_keys
-from api.services.journal_two.note_connectors.convert import rewrite_body
+from api.services.journal_two.note_connectors.convert import REF_PREFIX, rewrite_body
 from api.services.journal_two.note_connectors.providers.base import (
     NoteProvider, RemoteNote, RemoteRef,
 )
@@ -329,9 +331,13 @@ def _start_log(user_id: str, source_id: str) -> int:
         conn.close()
 
 
+#: The most `failures_json` entries one log row keeps (Plan D's card lists them).
+FAILURES_JSON_CAP = 50
+
+
 def _finish_log(
     log_id: int, *, status: str, counts: dict[str, int], error: str | None = None,
-    source_deleted: int = 0,
+    source_deleted: int = 0, failures_json: list[dict] | None = None,
 ) -> None:
     """`source_deleted` is passed SEPARATELY from `counts` on purpose: the
     sever count is produced by delete detection, not by the per-note import
@@ -340,7 +346,15 @@ def _finish_log(
     `_latest_sync_counts` (routers/note_sync.py) reads the newest log row to
     build the connectors card's counts -- a deletion that is never written to
     this row is invisible to the member no matter what the sync response
-    said in the moment."""
+    said in the moment.
+
+    `failures_json` (Plan A Task 6, read by Plan D's `/log` parser in
+    routers/note_sync.py): the `{noteTitle, reason, name}` of every
+    importNotice this pass wrote, `reason` being the member-readable sentence.
+    Capped at `FAILURES_JSON_CAP`; NULL when there were none. Plan D's DDL
+    always has the column, so it is written unconditionally."""
+    items = list(failures_json or [])[:FAILURES_JSON_CAP]
+    blob = json.dumps(items, ensure_ascii=False) if items else None
     conn = get_connection()
     try:
         conn.execute(
@@ -348,7 +362,8 @@ def _finish_log(
             UPDATE j2_note_sync_log
                SET finished_at = ?, status = ?, error = ?,
                    notes_created = ?, notes_updated = ?, notes_skipped = ?,
-                   media_uploaded = ?, conflicts = ?, source_deleted = ?
+                   media_uploaded = ?, conflicts = ?, source_deleted = ?,
+                   failures_json = ?
              WHERE id = ?
             """,
             (
@@ -356,7 +371,7 @@ def _finish_log(
                 int(counts.get("created", 0)), int(counts.get("updated", 0)),
                 int(counts.get("skipped", 0)), int(counts.get("mediaUploaded", 0)),
                 int(counts.get("conflicts", 0)), int(source_deleted or 0),
-                log_id,
+                blob, log_id,
             ),
         )
         conn.commit()
@@ -510,6 +525,9 @@ async def _do_sync(
     log_id = _start_log(user_id, source_id)
     counts = {"created": 0, "updated": 0, "skipped": 0, "mediaUploaded": 0, "conflicts": 0}
     item_failures: list[str] = []
+    # Plan A Task 6: {noteTitle, reason, name} per importNotice written this pass,
+    # for the log row's `failures_json` (the `failures` strings above are unchanged).
+    notice_failures: list[dict[str, Any]] = []
     delete_guard_warning: str | None = None
     deleted_count = 0
     provider: NoteProvider | None = None
@@ -695,6 +713,7 @@ async def _do_sync(
             counts["mediaUploaded"] += result["mediaUploaded"]
             counts["conflicts"] += result["conflicts"]
             item_failures.extend(result["failures"])
+            notice_failures.extend(result.get("noticeFailures", []))
             not_stored_refs.update(result.get("notStoredRefs", []))
 
         # Task 11 MUST-RESOLVE #1: an opaque cursor the provider published
@@ -755,7 +774,7 @@ async def _do_sync(
         _finish_log(
             log_id, status=status, counts=counts,
             error="; ".join(error_parts) if error_parts else None,
-            source_deleted=deleted_count,
+            source_deleted=deleted_count, failures_json=notice_failures,
         )
 
         result = {
@@ -785,7 +804,8 @@ async def _do_sync(
                 connections.set_connector_status(user_id, source["provider"], "broken")
             except Exception:  # noqa: BLE001 — never let this bookkeeping mask the real error
                 pass
-        _finish_log(log_id, status="error", counts=counts, error=str(e))
+        _finish_log(log_id, status="error", counts=counts, error=str(e),
+                    failures_json=notice_failures)
         raise
     finally:
         if provider is not None:
@@ -1243,9 +1263,13 @@ def _bulk_existing_note_meta(
         # "doesn't exist" to the sync engine, same reasoning as
         # notes.py::import_check — otherwise a background sync would
         # silently resurrect a note the member deliberately trashed.
+        # Plan A Task 6: the body is read only for a note still pending media (1 retry
+        # now, 2 waiting for space) -- the only rows whose notices carry attempts the
+        # next try must count from. Read HERE, before confirm overwrites the body.
         rows = conn.execute(
             f"SELECT id, import_key, updated_at, imported_at, tags, folder_id, import_hash, "
-            f"import_remote_rev "
+            f"import_remote_rev, "
+            f"CASE WHEN import_media_pending IN (1, 2) THEN body_json END AS pending_body "
             f"FROM j2_notes WHERE user_id = ? AND deleted_at IS NULL"
             f" AND import_key IN ({placeholders})",
             (user_id, *chunk),
@@ -1259,6 +1283,9 @@ def _bulk_existing_note_meta(
                 "folderId": row["folder_id"],
                 "importHash": row["import_hash"],
                 "importRemoteRev": row["import_remote_rev"],  # Plan A Task 1
+                # Plan A Task 6: {ref: attempts} of this note's notices ({} unless pending)
+                "noticeAttempts": (import_notice.notice_attempts_by_ref(row["pending_body"])
+                                   if row["pending_body"] else {}),
             }
     return out
 
@@ -1288,7 +1315,9 @@ def _apply_resolved_body(
 
     audit B5: also recomputes `import_media_pending` from the body this call
     is ABOUT to write (not the note's prior state). Media resolves fully in
-    one pass, so a media-only note clears the flag here.
+    one pass, so a media-only note clears the flag here. Plan A Task 6: this
+    is also the ONLY writer of an `importNotice`'s `attempts` (the retry
+    bookkeeping lives in the body), so the count moves without `updated_at`.
 
     Plan A Task 4: and `import_links_pending`, separately. A link left as an
     inert intact placeholder (unresolved marks are never stripped, on
@@ -1300,7 +1329,9 @@ def _apply_resolved_body(
     target exists, writing through THIS function."""
     body_plain = notes_svc.extract_plain_text(body)
     body_blob = json.dumps(body)
-    media_pending = 1 if notes_svc._body_has_import_placeholder(body) else 0
+    # Plan A Task 6: tri-state -- 1 while a placeholder or a retryable importNotice
+    # remains (the next sync retries it), 2 while only a storage_limit notice waits.
+    media_pending = import_notice.media_pending_state(body)
     links_pending = 1 if notes_svc._body_has_import_link(body) else 0
     # One unit with its sidecars (below): a SAVEPOINT, so a failed projection undoes
     # THIS note's body write and nothing else the connection may hold.
@@ -1456,18 +1487,103 @@ def _decode_data_uri(data_uri: str) -> tuple[bytes, str]:
     return data, content_type
 
 
+#: Words in a `NoteConnUnsupported.reason` that mean the SSRF guard refused the address
+#: (`providers/base.py::_assert_public_https_url`): a private/internal host, a
+#: non-https scheme, no host at all.
+_UNSAFE_REASON_WORDS = ("private", "non-public", "(https)", "non-https", "no host")
+
+
+def _notice_for_exception(
+    exc: Exception, *, ref: str, name: str | None, source_url: str | None, attempts: int,
+) -> dict:
+    """The importNotice a media failure leaves where the file was (Plan A Task 6).
+
+    `NoteConnUnsupported` is final: `unsafe` when its reason names a refused address,
+    else `unsupported`. A `NoteValidationError` from the save is final `unsupported`,
+    except the storage quota (raised `from NoteQuotaExceeded`), which is `storage_limit`:
+    it waits for space (`import_media_pending = 2`). Anything else (`NoteConnTransient`,
+    a network error, a bad data URI) is `fetch_failed`, retried while
+    `attempts < MEDIA_RETRY_MAX_ATTEMPTS`. `attempts` counts fetch tries and is kept only
+    on `fetch_failed`, the one reason it bounds: a waiting or final notice stores 0, so a
+    storage wait can never run a bound out."""
+    if isinstance(exc, errors.NoteConnUnsupported):
+        why = str(getattr(exc, "reason", None) or exc).lower()
+        reason = "unsafe" if any(w in why for w in _UNSAFE_REASON_WORDS) else "unsupported"
+    elif isinstance(exc, NoteQuotaExceeded) or isinstance(exc.__cause__, NoteQuotaExceeded):
+        reason = "storage_limit"
+    elif isinstance(exc, notes_svc.NoteValidationError):
+        reason = "unsupported"
+    else:
+        reason = "fetch_failed"
+    return import_notice.notice_node(
+        reason, name=name, source_url=source_url, ref=ref,
+        attempts=attempts if reason == "fetch_failed" else 0)
+
+
+def _media_source_url(m: dict[str, Any]) -> str | None:
+    """The address a notice links to: the entry's own `source_url` (http(s) only), else
+    the ref itself when the ref is a safe http(s) address."""
+    return import_notice.safe_source_url(m.get("source_url")) or import_notice.safe_source_url(m.get("ref"))
+
+
+def _placeholder_refs(doc: Any) -> list[str]:
+    """Every media placeholder ref in a body, in document order: an `image`'s `src` or an
+    `attachmentChip`'s `href` reading `import-ref://<ref>` -- exactly what `rewrite_body`
+    resolves."""
+    out: list[str] = []
+    stack = [doc]
+    while stack:
+        node = stack.pop()
+        if not isinstance(node, dict):
+            continue
+        attr = {"image": "src", "attachmentChip": "href"}.get(node.get("type"))
+        value = (node.get("attrs") or {}).get(attr) if attr else None
+        if isinstance(value, str) and value.startswith(REF_PREFIX) and value[len(REF_PREFIX):]:
+            out.append(value[len(REF_PREFIX):])
+        content = node.get("content")
+        if isinstance(content, list):
+            stack.extend(reversed(content))
+    return list(dict.fromkeys(out))
+
+
+def _note_title(rn: RemoteNote, key: str) -> str:
+    """The title the member sees for the note at `key` (a conflict sibling's included)."""
+    return f"{rn.title} (synced copy)" if key.endswith("#remote") else rn.title
+
+
+def _notice_failures(title: str, body: Any, notices: dict[str, dict]) -> list[dict[str, Any]]:
+    """`failures_json` entries for the notices THIS pass placed in `body`: `{noteTitle,
+    reason, name}`, `reason` being the sentence the member reads in the note."""
+    placed = [a for a in import_notice.iter_notices(body) if a.get("ref") in notices]
+    return [{"noteTitle": title or "Untitled note", "reason": import_notice.notice_text(a),
+             "name": a.get("name")} for a in placed]
+
+
 async def _upload_media_for_note(
     provider: NoteProvider, creds: dict[str, Any], user_id: str, note_id: str,
-    media_entries: list[dict[str, Any]],
-) -> tuple[dict[str, str], int, list[str]]:
-    """Per-item try/except — one bad media ref is a NAMED failure, dropped
-    from the note's body by `rewrite_body`, never a crash of the whole note
-    (or the whole sync)."""
+    media_entries: list[dict[str, Any]], *, prior_attempts: dict[str, int],
+) -> tuple[dict[str, str], dict[str, dict], int, list[str]]:
+    """Per-item try/except — one bad media ref is a NAMED failure, never a crash
+    of the whole note (or the whole sync). Returns `(media_urls, notices,
+    uploaded, failures)`.
+
+    Plan A Task 6 (spec I-7): a ref that cannot be copied gets an importNotice in
+    `notices`, which `rewrite_body` puts where the file was -- never a silent drop.
+    `prior_attempts` is `{ref: attempts}` from the note's stored notices; a ref that
+    has already used `MEDIA_RETRY_MAX_ATTEMPTS` is not fetched again, it keeps its
+    final notice."""
     media_urls: dict[str, str] = {}
+    notices: dict[str, dict] = {}
     uploaded = 0
     failures: list[str] = []
     for m in media_entries:
         ref = m.get("ref")
+        prior = prior_attempts.get(ref, 0) if isinstance(ref, str) else 0
+        if prior >= import_notice.MEDIA_RETRY_MAX_ATTEMPTS:
+            notices[ref] = import_notice.notice_node(
+                "fetch_failed", name=m.get("name"), source_url=_media_source_url(m),
+                ref=ref, attempts=prior)
+            continue
         try:
             data_uri = m.get("data_uri")
             if data_uri:
@@ -1485,7 +1601,11 @@ async def _upload_media_for_note(
             uploaded += 1
         except Exception as e:  # noqa: BLE001
             failures.append(f"media {ref!r} on note {note_id}: {e}")
-    return media_urls, uploaded, failures
+            if isinstance(ref, str) and ref:
+                notices[ref] = _notice_for_exception(
+                    e, ref=ref, name=m.get("name"), source_url=_media_source_url(m),
+                    attempts=prior + 1)
+    return media_urls, notices, uploaded, failures
 
 
 def _bulk_note_updated_at(conn: sqlite3.Connection, note_ids: list[str]) -> dict[str, str | None]:
@@ -1535,6 +1655,7 @@ def _merge_batch_result(
     totals["conflicts"] += res.get("conflicts", 0)
     totals["failures"].extend(res["failures"])
     totals["notStoredRefs"].extend(res.get("notStoredRefs", []))
+    totals["noticeFailures"].extend(res.get("noticeFailures", []))
     all_touched.extend(res.get("touched", []))
 
 
@@ -1613,8 +1734,14 @@ async def _confirm_and_resolve_batch(
     conn: sqlite3.Connection, user_id: str, source: dict[str, Any],
     provider: NoteProvider, creds: dict[str, Any], dest_folder_id: str | None,
     entries: list[dict[str, Any]], pairs: list[tuple[RemoteNote, str]],
+    *, notice_attempts: dict[str, dict[str, int]] | None = None,
 ) -> dict[str, Any]:
-    """Confirms ONE batch, then immediately resolves MEDIA (upload +
+    """`notice_attempts` (Plan A Task 6): `{import_key: {ref: attempts}}`, read by
+    `_bulk_existing_note_meta` BEFORE this confirm overwrites the bodies; each
+    failed ref counts on from its prior attempts. `result["noticeFailures"]` holds
+    the `failures_json` entries of every notice this batch wrote.
+
+    Confirms ONE batch, then immediately resolves MEDIA (upload +
     validate + guarded write) for every created/updated note in THAT SAME
     batch, plus any 'skipped' note whose stored body still carries a
     stranded literal placeholder (self-heal). Per Critical 3 (PRIMARY):
@@ -1642,6 +1769,7 @@ async def _confirm_and_resolve_batch(
     result: dict[str, Any] = {
         "created": 0, "updated": 0, "skipped": 0, "mediaUploaded": 0,
         "conflicts": 0, "failures": [], "touched": [], "notStoredRefs": [],
+        "noticeFailures": [],
     }
     # Every ref THIS batch is attempting, so a whole-call exception below
     # (a batch-level failure, e.g. a malformed overall payload — NOT a
@@ -1719,8 +1847,9 @@ async def _confirm_and_resolve_batch(
         if status == "skipped" and not healing:
             continue  # unchanged, no stranded placeholder -> nothing to do
 
-        if not healing and not rn.media:
-            # No media to resolve in THIS pass. If it has links, the final
+        if not healing and not rn.media and not _placeholder_refs(rn.doc):
+            # No media to resolve in THIS pass (Plan A Task 6: and no media
+            # placeholder either -- one with no `media` entry still needs its notice). If it has links, the final
             # link pass reads the confirm-written body directly — nothing
             # else has touched it since, so no write happens here at all.
             if rn.links:
@@ -1728,16 +1857,27 @@ async def _confirm_and_resolve_batch(
             continue
 
         media_urls: dict[str, str] = {}
+        notices: dict[str, dict] = {}
         if rn.media:
-            media_urls, up, med_failures = await _upload_media_for_note(
-                provider, creds, user_id, note_id, rn.media)
+            media_urls, notices, up, med_failures = await _upload_media_for_note(
+                provider, creds, user_id, note_id, rn.media,
+                prior_attempts=(notice_attempts or {}).get(key, {}))
             result["mediaUploaded"] += up
             result["failures"].extend(med_failures)
+        # Plan A Task 6, no silent drop: a placeholder the provider never listed in
+        # `media` cannot be fetched at all, so it is a final notice too.
+        for ref in _placeholder_refs(rn.doc):
+            if ref not in media_urls and ref not in notices:
+                notices[ref] = import_notice.notice_node(
+                    "unsupported", name=None, source_url=import_notice.safe_source_url(ref),
+                    ref=ref, attempts=0)
 
         # MEDIA ONLY in this pass: id_by_key={} + strip_unresolved_links=False
         # means every import-link:// mark passes through completely
         # untouched (not stripped, not resolved) for the final pass to see.
-        body, _dropped = rewrite_body(rn.doc, media_urls, {}, strip_unresolved_links=False)
+        # `notices`: every placeholder without a URL becomes its importNotice.
+        body, _dropped = rewrite_body(
+            rn.doc, media_urls, {}, strip_unresolved_links=False, notices=notices)
 
         # Important 6: validate the RESOLVED doc (1MB/shape backstop) before
         # the raw write — a malformed/oversized result must never land in
@@ -1765,6 +1905,7 @@ async def _confirm_and_resolve_batch(
                 result["touched"].append((rn, key, note_id))  # placeholder still intact
             continue
         if applied:
+            result["noticeFailures"].extend(_notice_failures(_note_title(rn, key), body, notices))
             if rn.links:
                 result["touched"].append((rn, key, note_id))
         else:
@@ -1778,6 +1919,9 @@ async def _confirm_and_resolve_batch(
                 conn, user_id, source, rn, key, body)
             result["failures"].extend(reroute_failures)
             result["conflicts"] += 1
+            if sibling_id:
+                result["noticeFailures"].extend(_notice_failures(
+                    _note_title(rn, f"{key}#remote"), body, notices))
             if sibling_id and rn.links:
                 result["touched"].append((rn, f"{key}#remote", sibling_id))
 
@@ -1879,7 +2023,10 @@ async def _import_remote_notes(
         totals: dict[str, Any] = {
             "created": 0, "updated": 0, "skipped": user_owned_unchanged, "mediaUploaded": 0,
             "conflicts": pre_confirm_conflicts, "failures": [], "notStoredRefs": [],
+            "noticeFailures": [],
         }
+        # Plan A Task 6: prior notice attempts per key, read before any confirm below.
+        notice_attempts = {k: m["noticeAttempts"] for k, m in existing.items() if m["noticeAttempts"]}
         all_touched: list[tuple[RemoteNote, str, str]] = []
 
         # Per-batch pipeline (Critical 3, PRIMARY): confirm batch N, resolve
@@ -1896,7 +2043,7 @@ async def _import_remote_notes(
             pairs = [(rn, k) for _e, rn, k in batch]
             res = await _confirm_and_resolve_batch(
                 conn, user_id, source, provider, creds,
-                source.get("destFolderId"), entries, pairs,
+                source.get("destFolderId"), entries, pairs, notice_attempts=notice_attempts,
             )
             _merge_batch_result(totals, res, all_touched)
 
@@ -1908,7 +2055,7 @@ async def _import_remote_notes(
         for entry, rn, sibling_key, original_folder_id in sibling_items:
             res = await _confirm_and_resolve_batch(
                 conn, user_id, source, provider, creds,
-                original_folder_id, [entry], [(rn, sibling_key)],
+                original_folder_id, [entry], [(rn, sibling_key)], notice_attempts=notice_attempts,
             )
             _merge_batch_result(totals, res, all_touched)
 

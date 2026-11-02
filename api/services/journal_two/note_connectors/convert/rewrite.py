@@ -88,10 +88,18 @@ def rewrite_body(
     id_by_key: dict[str, str] | None = None,
     *,
     strip_unresolved_links: bool = True,
+    notices: dict[str, dict] | None = None,
 ) -> tuple[dict[str, Any], list[str]]:
     """Resolves import-time placeholders in `body_json` into their real,
     post-confirm values. Returns `(body, dropped_media)`. Never mutates
     `body_json`.
+
+    `notices` (Plan A Task 6, spec I-7): `{ref: importNotice node}`. When given,
+    an `image`/`attachmentChip` placeholder with no URL whose ref has a notice
+    is REPLACED by (a copy of) that notice, in place, instead of dropped, so a
+    file that could not be copied leaves a visible marker. Only a ref with
+    neither a URL nor a notice is still dropped and listed in `dropped_media`.
+    `notices=None` (the default) is today's JS-parity drop, byte-for-byte.
 
     `strip_unresolved_links` (default True, matching the original/JS-twin
     one-shot behavior): when an `import-link://` mark can't be resolved via
@@ -101,6 +109,13 @@ def rewrite_body(
     media_urls = media_urls or {}
     id_by_key = id_by_key or {}
     dropped_media: list[str] = []
+
+    def unresolved(ref: str) -> Any:
+        """A placeholder with no URL: its notice when there is one, else dropped."""
+        if notices is not None and ref in notices:
+            return copy.deepcopy(notices[ref])
+        dropped_media.append(ref)
+        return None
 
     def walk(node: Any) -> Any:
         if not isinstance(node, dict):
@@ -114,8 +129,7 @@ def rewrite_body(
                 return copy.deepcopy(node)
             url = media_urls.get(ref)
             if url is None:
-                dropped_media.append(ref)
-                return None
+                return unresolved(ref)
             new_node = copy.deepcopy(node)
             new_node.setdefault("attrs", {})
             new_node["attrs"]["src"] = url
@@ -127,8 +141,7 @@ def rewrite_body(
                 return copy.deepcopy(node)
             url = media_urls.get(ref)
             if url is None:
-                dropped_media.append(ref)
-                return None
+                return unresolved(ref)
             new_node = copy.deepcopy(node)
             new_node.setdefault("attrs", {})
             new_node["attrs"]["href"] = url

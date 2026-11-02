@@ -168,6 +168,56 @@ def is_retryable(attrs: Any) -> bool:
     return a.get("reason") == "fetch_failed" and _attempts(a.get("attempts")) < MEDIA_RETRY_MAX_ATTEMPTS
 
 
+#: `import_media_pending` values (Plan A Task 6). 2 is "waiting for storage space": the
+#: skip gate in `notes.import_confirm` treats it like 0, so a full notebook is not
+#: re-imported and re-downloaded on every pass.
+MEDIA_PENDING_NONE, MEDIA_PENDING_RETRY, MEDIA_PENDING_STORAGE = 0, 1, 2
+
+_REF_PLACEHOLDER = "import-ref://"
+
+
+def iter_notices(body_json: Any):
+    """Every importNotice node's attrs in a parsed body, in document order."""
+    stack = [body_json]
+    while stack:
+        node = stack.pop()
+        if isinstance(node, list):
+            stack.extend(reversed(node))
+            continue
+        if not isinstance(node, dict):
+            continue
+        if node.get("type") == IMPORT_NOTICE_TYPE and isinstance(node.get("attrs"), dict):
+            yield node["attrs"]
+        content = node.get("content")
+        if isinstance(content, list):
+            stack.extend(reversed(content))
+
+
+def media_pending_state(body_json: Any) -> int:
+    """The `import_media_pending` value a body earns. 1 (retry now) when it still holds an
+    `import-ref://` placeholder or a notice with attempts left; else 2 (waiting for storage
+    space) when it holds a `storage_limit` notice; else 0. The placeholder test is the same
+    substring scan `notes._body_has_import_placeholder` always used (that function now
+    delegates here, so there is one rule)."""
+    if isinstance(body_json, (str, bytes)):
+        try:
+            body_json = json.loads(body_json)
+        except (ValueError, TypeError):
+            return MEDIA_PENDING_NONE
+    try:
+        blob = json.dumps(body_json)
+    except (TypeError, ValueError):
+        return MEDIA_PENDING_NONE
+    if _REF_PLACEHOLDER in blob:
+        return MEDIA_PENDING_RETRY
+    waiting = False
+    for attrs in iter_notices(body_json):
+        if is_retryable(attrs):
+            return MEDIA_PENDING_RETRY
+        waiting = waiting or _reason(attrs.get("reason")) == "storage_limit"
+    return MEDIA_PENDING_STORAGE if waiting else MEDIA_PENDING_NONE
+
+
 def notice_attempts_by_ref(body_json: Any) -> dict[str, int]:
     """{ref: attempts} for every notice in a stored body (a dict or its JSON text) that carries a
     ref. A ref seen twice keeps its larger count. A malformed body is {}."""
@@ -177,19 +227,8 @@ def notice_attempts_by_ref(body_json: Any) -> dict[str, int]:
         except (ValueError, TypeError):
             return {}
     out: dict[str, int] = {}
-    stack = [body_json]
-    while stack:
-        node = stack.pop()
-        if isinstance(node, list):
-            stack.extend(node)
-            continue
-        if not isinstance(node, dict):
-            continue
-        if node.get("type") == IMPORT_NOTICE_TYPE and isinstance(node.get("attrs"), dict):
-            ref = node["attrs"].get("ref")
-            if isinstance(ref, str) and ref:
-                out[ref] = max(out.get(ref, 0), _attempts(node["attrs"].get("attempts")))
-        content = node.get("content")
-        if isinstance(content, list):
-            stack.extend(content)
+    for attrs in iter_notices(body_json):
+        ref = attrs.get("ref")
+        if isinstance(ref, str) and ref:
+            out[ref] = max(out.get(ref, 0), _attempts(attrs.get("attempts")))
     return out

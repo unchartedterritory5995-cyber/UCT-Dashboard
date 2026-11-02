@@ -103,6 +103,9 @@ from api.services.journal_two.attachment_root import (
 from api.services.journal_two.notes_quota import (
     NoteQuotaExceeded, assert_import_headroom,
 )
+from api.services.journal_two.import_notice import (
+    MEDIA_PENDING_RETRY, MEDIA_PENDING_STORAGE, media_pending_state,
+)
 from api.services.journal_two.notes_search import fts_match_expr
 # Which node types are leaves / inline leaves / textblocks: ONE table, owned by
 # the citation text and pinned against the real schema (see extract_plain_text).
@@ -1346,12 +1349,11 @@ def _body_has_import_placeholder(body_json: Any) -> bool:
     its media, on every pass. "Pending" means something can still resolve
     by re-importing; a link is `_body_has_import_link`'s answer
     (`import_links_pending`), finished by the link heal pass
-    (`note_connectors/link_keys.py`), never by a re-import."""
-    try:
-        blob = json.dumps(body_json)
-    except (TypeError, ValueError):
-        return False
-    return "import-ref://" in blob
+    (`note_connectors/link_keys.py`), never by a re-import.
+
+    Plan A Task 6: delegates to `import_notice.media_pending_state(...) == 1`, so
+    "retry now" has ONE rule: a placeholder, or an importNotice with attempts left."""
+    return media_pending_state(body_json) == MEDIA_PENDING_RETRY
 
 
 def _body_has_import_link(body_json: Any) -> bool:
@@ -1543,12 +1545,16 @@ def import_confirm(user_id: str, payload: dict, conn: sqlite3.Connection | None 
                 # ever retries it. Fall through to the normal write instead,
                 # which recomputes media_pending below and reports this note
                 # via `updated` so the client's media/link phase runs again.
-                if row and row["import_hash"] == h and not row["import_media_pending"]:
+                # Plan A Task 6: 2 ("waiting for storage space") skips like 0 --
+                # waiting must not re-import and re-download the note every pass.
+                if row and row["import_hash"] == h and (
+                        not row["import_media_pending"]
+                        or row["import_media_pending"] == MEDIA_PENDING_STORAGE):
                     skipped.append(item)
                     continue
                 created_at = _import_date(n.get("createdAt"), now)
                 updated_at = _import_date(n.get("updatedAt"), now)
-                media_pending = 1 if _body_has_import_placeholder(body_json) else 0
+                media_pending = media_pending_state(body_json)  # Plan A Task 6: 0 / 1 / 2
                 links_pending = 1 if _body_has_import_link(body_json) else 0  # Plan A Task 4
 
                 # This note's write is isolated in its own SAVEPOINT: a note

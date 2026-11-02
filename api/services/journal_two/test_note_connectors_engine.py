@@ -1070,14 +1070,16 @@ async def test_body_write_race_reroutes_resolved_content_to_a_sibling_preserving
     real_rewrite_body = engine.rewrite_body
     fired = {"done": False}
 
-    def racing_rewrite_body(doc, media_urls, id_by_key, *, strip_unresolved_links=True):
+    def racing_rewrite_body(doc, media_urls, id_by_key, *, strip_unresolved_links=True,
+                            notices=None):
         if not fired["done"]:
             fired["done"] = True
             # Simulates a user's OWN edit landing in the window between this
             # note's import_confirm (already run) and this resolve step.
             notes_svc.update_note("u1", original_id, {"title": "user's own concurrent edit"})
         return real_rewrite_body(
-            doc, media_urls, id_by_key, strip_unresolved_links=strip_unresolved_links)
+            doc, media_urls, id_by_key, strip_unresolved_links=strip_unresolved_links,
+            notices=notices)
 
     monkeypatch.setattr(engine, "rewrite_body", racing_rewrite_body)
 
@@ -1339,7 +1341,8 @@ async def test_oversized_resolved_body_fails_validation_and_leaves_placeholder_i
         "content": [{"type": "paragraph", "content": [{"type": "text", "text": "x" * 2_000_000}]}],
     }
 
-    def fake_rewrite_body(doc, media_urls, id_by_key, *, strip_unresolved_links=True):
+    def fake_rewrite_body(doc, media_urls, id_by_key, *, strip_unresolved_links=True,
+                          notices=None):
         return huge_doc, []
 
     monkeypatch.setattr(engine, "rewrite_body", fake_rewrite_body)
@@ -1382,7 +1385,8 @@ async def test_oversized_resolved_link_body_fails_validation_in_the_final_pass(
         "content": [{"type": "paragraph", "content": [{"type": "text", "text": "x" * 2_000_000}]}],
     }
 
-    def fake_rewrite_body(doc, media_urls, id_by_key, *, strip_unresolved_links=True):
+    def fake_rewrite_body(doc, media_urls, id_by_key, *, strip_unresolved_links=True,
+                          notices=None):
         return huge_doc, []
 
     monkeypatch.setattr(engine, "rewrite_body", fake_rewrite_body)
@@ -2812,3 +2816,225 @@ async def test_heal_never_touches_a_member_edited_note(source, provider):
     kept = notes_svc.get_note("u1", p1_id)
     assert kept["bodyJson"] == member_body
     assert kept["updatedAt"] == member_updated_at
+
+
+# ---------------------------------------------------------------------------
+# Plan A Task 6 (spec I-7): failed media is visible and retried, bounded
+# ---------------------------------------------------------------------------
+
+_IMG = "https://cdn.example.com/a.png"
+_IMG_KEY = "fake:fake-graph/p1"
+
+
+def _image_note(provider, *refs, failing=None):
+    """One remote page, "Chart page", carrying an image placeholder per ref. Every ref in
+    `failing` (default: all) raises from `fetch_media`."""
+    provider.refs = [RemoteRef(remote_id="p1", updated_at="2026-08-01T00:00:00+00:00")]
+    refs = refs or (_IMG,)
+    rn = _rn("p1", "Chart page", media=[
+        {"ref": r, "kind": "image", "name": r.rsplit("/", 1)[-1]} for r in refs])
+    for r in refs:
+        rn.doc["content"].append({"type": "image", "attrs": {"src": f"import-ref://{r}"}})
+    provider.notes_by_id = {"p1": rn}
+    provider.raise_on_fetch_media_for = set(refs if failing is None else failing)
+    return rn
+
+
+def _nodes_of(body, node_type):
+    out, stack = [], [body]
+    while stack:
+        node = stack.pop()
+        if isinstance(node, dict):
+            if node.get("type") == node_type:
+                out.append(node)
+            stack.extend(node.get("content") or [])
+    return out
+
+
+def _only(body, node_type):
+    found = _nodes_of(body, node_type)
+    assert len(found) == 1, (node_type, body)
+    return found[0]
+
+
+def _last_failures(source_id):
+    raw = _log_rows(source_id)[-1]["failures_json"]
+    return None if raw is None else json.loads(raw)
+
+
+async def test_failed_image_leaves_a_visible_notice_and_stays_pending(source, provider):
+    _image_note(provider)
+    r1 = await engine.sync_source(source["id"], full=True)
+
+    assert r1["status"] == "ok" and r1["created"] == 1 and r1["mediaUploaded"] == 0
+    body = _body(notes_svc.list_notes("u1")[0])
+    assert _nodes_of(body, "image") == []
+    notice = _only(body, "importNotice")
+    assert notice["attrs"] == {"reason": "fetch_failed", "name": "a.png",
+                               "sourceUrl": _IMG, "ref": _IMG, "attempts": 1}
+    assert _row("u1", _IMG_KEY)["import_media_pending"] == 1
+    assert _last_failures(source["id"]) == [
+        {"noteTitle": "Chart page", "reason": "Couldn't copy a.png — retrying on the next sync",
+         "name": "a.png"}]
+    # the `_do_sync` result's own `failures` list is unchanged in shape: plain strings
+    assert any(_IMG in f for f in r1["failures"])
+    assert all(isinstance(f, str) for f in r1["failures"])
+
+
+async def test_clean_pass_writes_null_failures_json(source, provider):
+    _image_note(provider, failing=())
+    provider.media_by_ref[_IMG] = (PNG_BYTES, "image/png")
+    r1 = await engine.sync_source(source["id"], full=True)
+    assert r1["mediaUploaded"] == 1
+    assert _log_rows(source["id"])[-1]["failures_json"] is None
+    assert _row("u1", _IMG_KEY)["import_media_pending"] == 0
+
+
+async def test_retry_replaces_the_notice_with_the_image(source, provider):
+    _image_note(provider)
+    await engine.sync_source(source["id"], full=True)
+    assert _row("u1", _IMG_KEY)["import_media_pending"] == 1
+
+    provider.raise_on_fetch_media_for = set()
+    provider.media_by_ref[_IMG] = (PNG_BYTES, "image/png")
+    r2 = await engine.sync_source(source["id"], full=True, manual=True)
+
+    assert r2["mediaUploaded"] == 1
+    body = _body(notes_svc.list_notes("u1")[0])
+    assert _nodes_of(body, "importNotice") == []
+    assert _only(body, "image")["attrs"]["src"].startswith("/api/j2/notes/attachments/u1/")
+    assert _row("u1", _IMG_KEY)["import_media_pending"] == 0
+    assert provider.fetch_media_calls == [_IMG, _IMG]
+    assert _last_failures(source["id"]) is None
+
+
+async def test_retry_stops_after_max_attempts_with_a_final_notice(source, provider):
+    from api.services.journal_two.import_notice import MEDIA_RETRY_MAX_ATTEMPTS
+    _image_note(provider)
+    for n in range(1, MEDIA_RETRY_MAX_ATTEMPTS + 1):
+        await engine.sync_source(source["id"], full=True, manual=True)
+        notice = _only(_body(notes_svc.list_notes("u1")[0]), "importNotice")
+        assert notice["attrs"]["attempts"] == n
+    assert len(provider.fetch_media_calls) == MEDIA_RETRY_MAX_ATTEMPTS
+    # final: no longer pending, and the sentence no longer promises a retry
+    assert _row("u1", _IMG_KEY)["import_media_pending"] == 0
+    assert _last_failures(source["id"]) == [
+        {"noteTitle": "Chart page", "reason": "Couldn't copy a.png", "name": "a.png"}]
+
+    r4 = await engine.sync_source(source["id"], full=True, manual=True)
+    assert len(provider.fetch_media_calls) == MEDIA_RETRY_MAX_ATTEMPTS  # never fetched again
+    assert r4["skipped"] == 1
+    assert _only(_body(notes_svc.list_notes("u1")[0]), "importNotice")["attrs"]["attempts"] == 3
+    assert _last_failures(source["id"]) is None  # nothing was written this pass
+
+
+async def test_a_maxed_ref_is_not_fetched_while_a_sibling_ref_keeps_the_note_pending(
+        source, provider):
+    a, b = _IMG, "https://cdn.example.com/b.png"
+    _image_note(provider, a, b, failing=(a,))
+    provider.media_by_ref[b] = (PNG_BYTES, "image/png")
+    await engine.sync_source(source["id"], full=True)                  # a:1  b: ok
+    provider.raise_on_fetch_media_for = {a, b}
+    for _ in range(2):
+        await engine.sync_source(source["id"], full=True, manual=True)  # a:2,3  b:1,2
+    assert _row("u1", _IMG_KEY)["import_media_pending"] == 1             # b still retryable
+    assert provider.fetch_media_calls.count(a) == 3
+
+    await engine.sync_source(source["id"], full=True, manual=True)
+    assert provider.fetch_media_calls.count(a) == 3                     # a is done trying
+    by_ref = {n["attrs"]["ref"]: n["attrs"] for n in
+              _nodes_of(_body(notes_svc.list_notes("u1")[0]), "importNotice")}
+    assert by_ref[a]["reason"] == "fetch_failed" and by_ref[a]["attempts"] == 3
+    assert by_ref[b]["attempts"] == 3
+    assert _row("u1", _IMG_KEY)["import_media_pending"] == 0
+
+
+async def test_retry_bookkeeping_never_moves_updated_at(source, provider):
+    _image_note(provider)
+    await engine.sync_source(source["id"], full=True)
+    note_id = _row("u1", _IMG_KEY)["id"]
+    first = notes_svc.get_note("u1", note_id)["updatedAt"]
+    for _ in range(2):
+        await engine.sync_source(source["id"], full=True, manual=True)
+        assert notes_svc.get_note("u1", note_id)["updatedAt"] == first
+    # and the retries never read as a member edit: no conflict copy, no conflict count
+    assert len(notes_svc.list_notes("u1")) == 1
+    assert _log_rows(source["id"])[-1]["conflicts"] == 0
+
+
+async def test_edited_note_with_failed_media_is_left_alone(source, provider):
+    _image_note(provider)
+    await engine.sync_source(source["id"], full=True)
+    note_id = _row("u1", _IMG_KEY)["id"]
+    notes_svc.update_note("u1", note_id, {"title": "Chart page (mine)"})
+    member = notes_svc.get_note("u1", note_id)
+
+    provider.raise_on_fetch_media_for = set()
+    provider.media_by_ref[_IMG] = (PNG_BYTES, "image/png")
+    await engine.sync_source(source["id"], full=True, manual=True)
+
+    kept = notes_svc.get_note("u1", note_id)
+    assert kept["bodyJson"] == member["bodyJson"]   # the notice stays; no retry write
+    assert kept["updatedAt"] == member["updatedAt"]
+    assert kept["title"] == "Chart page (mine)"
+    assert provider.fetch_media_calls == [_IMG]
+
+
+async def test_storage_limit_waits_without_re_importing_every_pass(source, provider, monkeypatch):
+    from api.services.journal_two.notes_quota import NoteQuotaExceeded
+
+    def full(_n):
+        raise NoteQuotaExceeded("over the notebook storage limit")
+
+    monkeypatch.setattr(notes_svc, "assert_import_headroom", full)
+    _image_note(provider, failing=())
+    provider.media_by_ref[_IMG] = (PNG_BYTES, "image/png")
+    await engine.sync_source(source["id"], full=True)
+
+    notice = _only(_body(notes_svc.list_notes("u1")[0]), "importNotice")
+    assert notice["attrs"]["reason"] == "storage_limit"
+    assert _row("u1", _IMG_KEY)["import_media_pending"] == 2
+    assert _last_failures(source["id"]) == [{
+        "noteTitle": "Chart page", "name": "a.png",
+        "reason": "Not copied: storage limit. a.png will be copied once space frees up"}]
+
+    r2 = await engine.sync_source(source["id"], full=True, manual=True)
+    assert r2["skipped"] == 1 and r2["updated"] == 0     # waiting is not a re-import
+    assert provider.fetch_media_calls == [_IMG]
+
+
+def test_notice_for_exception_maps_each_failure_to_its_reason():
+    from api.services.journal_two.notes_quota import NoteQuotaExceeded
+
+    def reason(exc):
+        n = engine._notice_for_exception(exc, ref="r", name="a.png", source_url=None, attempts=1)
+        assert n["type"] == "importNotice" and n["attrs"]["ref"] == "r"
+        return n["attrs"]["reason"]
+
+    assert reason(errors.NoteConnTransient("503")) == "fetch_failed"
+    assert reason(RuntimeError("boom")) == "fetch_failed"
+    assert reason(errors.NoteConnUnsupported(
+        "x", reason="Media reference points at a private/internal network address")) == "unsafe"
+    assert reason(errors.NoteConnUnsupported(
+        "x", reason="Media reference is not a secure (https) URL")) == "unsafe"
+    assert reason(errors.NoteConnUnsupported("x", reason="encoding not read")) == "unsupported"
+    assert reason(notes_svc.NoteValidationError("Only PNG/JPG/GIF/WebP images allowed")) == "unsupported"
+    try:
+        raise notes_svc.NoteValidationError("full") from NoteQuotaExceeded("full")
+    except notes_svc.NoteValidationError as e:
+        assert reason(e) == "storage_limit"
+
+
+async def test_a_placeholder_with_no_media_entry_still_leaves_a_notice(source, provider):
+    """No silent drop: a placeholder the provider never listed in `media` cannot be fetched,
+    so it becomes a final notice instead of vanishing."""
+    rn = _image_note(provider, failing=())
+    provider.media_by_ref[_IMG] = (PNG_BYTES, "image/png")
+    rn.doc["content"].append({"type": "image", "attrs": {"src": "import-ref://orphan.png"}})
+    await engine.sync_source(source["id"], full=True)
+    body = _body(notes_svc.list_notes("u1")[0])
+    assert len(_nodes_of(body, "image")) == 1
+    notice = _only(body, "importNotice")
+    assert notice["attrs"]["ref"] == "orphan.png"
+    assert notice["attrs"]["reason"] == "unsupported"
+    assert _row("u1", _IMG_KEY)["import_media_pending"] == 0
