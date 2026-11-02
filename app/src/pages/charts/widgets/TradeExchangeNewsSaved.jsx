@@ -22,7 +22,7 @@ import Select from '../../../components/ui/Select'
 import * as library from '../../../lib/tradeExchangeNewsLibrary'
 import { Hl, InlineExplanation, withOffsets } from './TradeExchangeNewsParts'
 import { ManageCollections, NoteEditor } from './TradeExchangeNewsCollections'
-import { explainable, fmtReceivedFull, hitRanges, searchNeedles, tickerTitle, tokenize } from './tradeExchangeNewsModel'
+import { explainable, fmtReceivedFull, fmtStamp, hitRanges, searchNeedles, tickerTitle, tokenize } from './tradeExchangeNewsModel'
 import news from './TradeExchangeNewsWidget.module.css'
 import styles from './TradeExchangeNewsSaved.module.css'
 
@@ -81,7 +81,7 @@ const SavedRow = memo(function SavedRow({ item, collections, linkedSym, onSym, o
     <div className={`${news.row} ${styles.row}${explainOpen ? ' ' + news.rowExplaining : ''}`} data-id={item.id}>
       <span className={news.when}>
         <span className={news.time} title={`Received by UCT ${fmtReceivedFull(item.received_at_ms)} · Trade Exchange does not send a publication time`}>
-          {fmtReceivedFull(item.received_at_ms)}</span>
+          {fmtStamp(item.received_at_ms)}</span>
         <span className={news.rowActions}>
           {explainable(item) && (
             <button ref={explainRef} type="button" className={`${news.rowBtn}${explainOpen ? ' ' + news.rowBtnOn : ''}`}

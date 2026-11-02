@@ -401,7 +401,7 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange, def
   // so a live arrival never re-renders the rows already on screen.
   const needles = useMemo(() => { const n = searchNeedles(query); return n.length ? n : null }, [query])
   const rowProps = { linkedSym, onSym, colorMode: settings.tickerColorMode, prices, staleSymbols, quotesUsed, needles,
-    provisional: feed.provisional, clampLines, onToggleExpand, showCategory: settings.showCategory !== 'off', timeOnly: true,
+    provisional: feed.provisional, clampLines, onToggleExpand, showCategory: settings.showCategory !== 'off',
     onToggleGroup, onActions, onExplain, onCloseExplain: closeExplain, onSave }
   const renderRow = (it, extra) => (
     <Row key={it.seq} item={it} {...rowProps} expanded={expanded.has(it.seq)} flashing={flashing.has(it.seq)}
