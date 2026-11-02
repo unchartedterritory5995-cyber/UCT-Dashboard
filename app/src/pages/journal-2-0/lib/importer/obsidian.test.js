@@ -846,3 +846,20 @@ describe('obsidian adapter — D2 fix round 3, N-I2: a wikilink alias holding a 
     expect(text).toBe('[[q.pdf]] and ![[img.png]] and [[q.pdf x]] y z')
   })
 })
+
+// D2 fix round 3, M-new-1: a `~~~` fence is code to the wiki passes too, as a ``` fence
+// is (the server's `_FENCE_SRC`): an embed in it stays literal code and lists nothing.
+describe('obsidian adapter — D2 fix round 3: a ~~~ fence is code', () => {
+  it('keeps ![[img.png]] in a ~~~ fence as code and does not list the image', async () => {
+    const { docs } = await obsidianAdapter.parse([
+      vf('V/src.md', 'before\n\n~~~\n![[img.png]] [[Plan]]\n~~~\n\nafter ![[img.png]]'),
+      vf('V/img.png', 'i'), vf('V/Plan.md', 'p')])
+    const d = docs.find((x) => x.importKey === 'obsidian:V/src.md')
+    const doc = htmlToNote(d.html).bodyJson
+    const code = doc.content.find((n) => n.type === 'codeBlock')
+    expect(code.content[0].text.trimEnd()).toBe('![[img.png]] [[Plan]]')
+    expect(d.links).toEqual([])
+    expect(d.media.map((m) => m.ref)).toEqual(['V/img.png'])   // the one outside the fence
+    expect(doc.content.filter((n) => n.type === 'image')).toHaveLength(1)
+  })
+})

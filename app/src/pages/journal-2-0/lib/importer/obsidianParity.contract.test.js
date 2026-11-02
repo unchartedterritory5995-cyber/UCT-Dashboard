@@ -220,6 +220,17 @@ const knownClientGap = {
   // Both lanes dropped the no-dot stem rule (`[[chart]]` names `chart.md` only), and
   // both check a `#`-holding target against the vault's full file names before
   // splitting an anchor (`![[my chart #1 (v2).png]]` keeps its image).
+  // 27-tilde-fence (D2 fix round 3, M-new-1): images, links and media agree -- the `~~~`
+  // fence keeps its embed and wikilink as code on both lanes. What is left is a code BLOCK
+  // difference no Obsidian pass makes: the shared client parse keeps the fence's final
+  // newline in the codeBlock text (markdown-it), the server's `mddoc` drops it. Every
+  // importer's fenced code has it; a follow-up for the shared parse -- delete this entry
+  // then.
+  '27-tilde-fence.json': {
+    clientReads: {
+      text: 'Tilde fence before ![[img.png]] [[Plan]]\n after ',
+    },
+  },
   // ⚰️ 18-attachment-names and 19-nested-embeds: their text gaps (the EMPTY paragraph
   // beside a block image, and `Read ` losing its trailing space at a chip split, from the
   // shared parse `convert.js::htmlToNote`) are closed by D2 item 5.

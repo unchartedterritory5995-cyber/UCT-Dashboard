@@ -77,7 +77,9 @@ const SKIP_DIR_RE = /(^|\/)\.(obsidian|trash)\//i
 // Fence alternative MUST come first — at a run of 3+ backticks it has to win
 // over the inline-span alternative, or the inline pattern would consume just
 // the fence's opening backticks and mis-split its content.
-const CODE_RE = /```[\s\S]*?```|`[^`\n]*`/g
+// D2 fix round 3, M-new-1: a `~~~` fence is code too, in the same order as the
+// server's `_FENCE_SRC`. ⚰️ An embed in one became an <img> as code TEXT, uploaded.
+const CODE_RE = /```[\s\S]*?```|~~~[\s\S]*?~~~|`[^`\n]*`/g
 const EMBED_RE = /!\[\[([^\]]+)\]\]/g
 const WIKILINK_RE = /\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g
 // ⛔ A trader's prose is full of `==` COMPARISONS ("if rsi == 30 and macd == 0").
