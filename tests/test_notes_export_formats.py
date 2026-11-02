@@ -773,3 +773,32 @@ def test_W11_R61_one_mb_of_markers_matches_in_under_half_a_second(shape):
 def test_W11_R61_a_toggle_still_renders_through_the_export():
     html = _nef.markdown_to_html("<details>\n<summary>**Plan**</summary>\nInside\n</details>\n")
     assert "<details>" in html and "<strong>Plan</strong>" in html and "Inside" in html
+
+
+# ── Connector fidelity (2026-11): the `importNotice` block in the web page and Word ──────────
+
+def _notice(url):
+    return {"type": "importNotice", "attrs": {"reason": "fetch_failed", "name": "chart.png",
+                                               "sourceUrl": url, "ref": "r1", "attempts": 3}}
+
+
+def test_an_import_notice_is_a_quoted_sentence_with_a_safe_link_in_the_web_page():
+    html = F.note_html(_doc(_notice("https://example.com/chart.png")), resolver=None, title="t")
+    assert "<blockquote>" in html and "Couldn&#x27;t copy chart.png" in html
+    assert '<a href="https://example.com/chart.png"' in html and ">open the original</a>" in html
+    for bad in ("javascript:alert(1)", "javascript://example.com/%0Aalert(1)", "data:text/html,x",
+                "vbscript:x", "file:///c/chart.png", "file://server/chart.png", "//evil.com/chart.png"):
+        page = F.note_html(_doc(_notice(bad)), resolver=None, title="t")
+        assert "Couldn&#x27;t copy chart.png" in page and "open the original" not in page, bad
+        assert bad.split(":")[0] + ":" not in page.split('<div class="uct-note-body">')[1], bad
+
+
+def test_an_import_notice_in_word_is_the_sentence_and_a_link_only_for_http():
+    blob = F.note_docx(_doc(_notice("https://example.com/chart.png")), title="t")
+    parts = validate_docx(blob)
+    assert "Couldn't copy chart.png open the original" in _docx_text(blob)
+    assert _external_targets(parts) == ["https://example.com/chart.png"]
+    blob = F.note_docx(_doc(_notice("file://server/chart.png")), title="t")
+    parts = validate_docx(blob)
+    assert "Couldn't copy chart.png" in _docx_text(blob) and "open the original" not in _docx_text(blob)
+    assert _external_targets(parts) == []

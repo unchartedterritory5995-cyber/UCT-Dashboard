@@ -306,13 +306,27 @@ async def test_fetch_media_downloads_bytes_and_content_type():
 # ---------------------------------------------------------------------------
 
 
-async def test_fetch_media_refuses_a_plain_http_url_without_making_a_request():
+async def test_fetch_media_refuses_a_non_http_scheme_without_making_a_request():
     def handler(request: httpx.Request) -> httpx.Response:  # pragma: no cover
-        raise AssertionError("must never issue a request for a non-https ref")
+        raise AssertionError("must never issue a request for a non-http(s) ref")
 
     provider = _make_provider(handler)
     with pytest.raises(NoteConnUnsupported):
-        await provider.fetch_media(CREDS, "http://example.com/img.png")
+        await provider.fetch_media(CREDS, "ftp://example.com/img.png")
+
+
+async def test_http_hotlink_is_downloaded_without_the_token():
+    """Plan A Task 9 (I-5): an http hotlink in a graph is copied in (download only)."""
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(200, content=b"img", headers={"content-type": "image/png"})
+
+    provider = _make_provider(handler)
+    assert await provider.fetch_media(CREDS, "http://1.1.1.1/a.png") == (b"img", "image/png")
+    assert [str(r.url) for r in seen] == ["http://1.1.1.1/a.png"]
+    assert "authorization" not in {k.lower() for k in seen[0].headers.keys()}
 
 
 @pytest.mark.parametrize(

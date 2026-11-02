@@ -21,7 +21,13 @@ inline table, >50 -> per-row pages, spec's "wizard parity" threshold) /
 child_page -> import-link:// / link_to_page -> import-link:// / synced_block
 (resolve the original ONCE, cycle-guarded) / column_list -> sequential /
 equation -> codeBlock-styled text / image·video·file·pdf·audio -> media
-placeholders / bookmark·link_preview·embed -> plain external link.
+placeholders, EXCEPT an external video, which is never downloaded /
+video·embed of an allow-listed player (`web_embed.embed_for`, the client's
+YouTube/TradingView list) -> `webEmbed`, any other -> plain link (Plan A
+Task 12) / bookmark·link_preview -> plain external link. A database table's
+cells keep their links, labels and files (`_property_inline`), and a
+`link_to_page` reads its target's title through the optional fourth
+callable, `fetch_title`.
 table_of_contents/breadcrumb are Notion-UI-only navigational blocks with no
 user content to preserve — deliberately DROPPED (not routed through the
 `unsupported` marker, which exists for content we don't know how to
@@ -63,6 +69,11 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from . import LINK_PREFIX, REF_PREFIX
+from .linkify import canonical_notion_page_id, notion_note_key, notion_page_id_from_href  # the ONE Notion page-link reader and key builder (Task 10/11)
+from ...web_embed import embed_for  # the client's embed allow-list, ported (Task 12)
+from ...media_policy import extension_mime  # the one extension -> type table (an image file cell shows inline)
+from ...import_notice import notice_node  # what cannot come over is an importNotice block (Task 12 fix round 1)
+from ..errors import NoteConnError
 
 # spec §7: "<=50 rows -> table doc, >50 -> per-row pages (wizard parity)" —
 # matches the wizard's own CSV_MAX_ROWS constant
@@ -72,8 +83,50 @@ _DATABASE_TABLE_MAX_ROWS = 50
 FetchChildrenFn = Callable[[str], Awaitable[list[dict[str, Any]]]]
 QueryDatabaseFn = Callable[[str], Awaitable[list[dict[str, Any]]]]
 ResolveMediaFn = Callable[[dict[str, Any]], Awaitable[dict[str, Any] | None]]
+FetchTitleFn = Callable[[str], Awaitable[str | None]]
 
 _MEDIA_BLOCK_TYPES = ("image", "video", "file", "pdf", "audio")
+
+
+class DatabaseRows(list):
+    """A database query's rows, plus whether the query stopped at its cap before the database
+    ran out (`truncated`). `query_database` may return a plain list (never truncated); the
+    provider returns this when its bounded paging hit the cap, and the converter writes a
+    `truncated` importNotice under the table so the member sees that rows are missing."""
+
+    def __init__(self, rows=(), *, truncated: bool = False) -> None:
+        super().__init__(rows)
+        self.truncated = truncated
+
+
+#: The most files one database `files` cell resolves (each may be a download during traversal).
+#: The rest are named by one `truncated` notice in the cell.
+_DATABASE_CELL_FILES_MAX = 20
+
+
+def _notice(reason: str, name: str | None) -> dict[str, Any]:
+    """A FINAL importNotice the converter writes itself (no ref: it holds no placeholder, so the
+    engine never retries it; it lists it in the sync log, `engine._provider_notice_failures`)."""
+    return notice_node(reason, name=name, source_url=None, ref=None, attempts=0)
+
+
+def _final_notice(resolution: dict[str, Any] | None, name: str | None) -> dict[str, Any] | None:
+    """The FINAL importNotice for a media resolution that is a definitive failure, else None
+    (a success, or a retryable failure the provider deferred to the engine as a placeholder).
+
+      * None (no address to fetch at all)          -> `missing_resource`
+      * `{"too_large": True}` (over the source cap) -> `too_large`
+      * `{"final": <reason>}` (gone, refused, unsafe) -> that reason
+    """
+    if resolution is None:
+        return _notice("missing_resource", name)
+    label = resolution.get("name") or name
+    if resolution.get("too_large"):
+        return _notice("too_large", label)
+    reason = resolution.get("final")
+    if isinstance(reason, str) and reason:
+        return _notice(reason, label)
+    return None
 
 
 # ── small pure helpers (no I/O; independently testable) ─────────────────────
@@ -117,13 +170,21 @@ def extract_title(page: dict[str, Any]) -> str:
     Notion page/database-row object — used for both the top-level page
     title (`providers/notion.py`) and a database row's derived title
     (`convert_row_page` below). Falls back to "Untitled", never raises."""
+    return page_title_or_none(page) or "Untitled"
+
+
+def page_title_or_none(page: Any) -> str | None:
+    """The page's title text, or None when it has none (`extract_title` without the fallback;
+    `link_to_page` reads it through `fetch_title` so an untitled target says "Linked page")."""
+    if not isinstance(page, dict):
+        return None
     for prop in (page.get("properties") or {}).values():
         if not isinstance(prop, dict) or prop.get("type") != "title":
             continue
-        text = "".join(rt.get("plain_text", "") for rt in prop.get("title") or [])
+        text = "".join(rt.get("plain_text", "") for rt in prop.get("title") or [] if isinstance(rt, dict))
         if text:
             return text
-    return "Untitled"
+    return None
 
 
 def _property_plain_text(prop: dict[str, Any] | None) -> str:
@@ -177,6 +238,75 @@ def _property_plain_text(prop: dict[str, Any] | None) -> str:
     return ""
 
 
+#: Property types whose value is an address: the scheme its link gets ("" = the value is the URL).
+_LINKED_PROPERTY_SCHEMES = {"url": "", "email": "mailto:", "phone_number": "tel:"}
+
+
+def _link_mark(href: str) -> dict[str, Any]:
+    return {"type": "link", "attrs": {"href": href}}
+
+
+def _property_inline(prop: Any, *, row_id: str, file_nodes: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """ONE database cell's content (N-8): what a member could click in Notion stays clickable.
+
+      * `url` / `email` / `phone_number` -> the value as linked text (`mailto:` / `tel:`). The
+        engine's link policy still decides the href, so an unsafe scheme stays text.
+      * `rich_text` / `title` -> `_rich_text_to_inline`, hrefs and marks kept. A `title` cell
+        additionally links to the row's own note (`import-link://notion:<row_id>`), as Notion
+        opens the row from its title; an untitled row still links, as "Untitled".
+      * `files` -> `file_nodes`, the cell's files already resolved by `_child_database` (an image
+        inline, any other file a chip, a file that could not come over a named marker). With no
+        resolved nodes, the file names as text.
+      * everything else (select / status / multi_select labels, numbers, dates, ...) -> today's
+        `_property_plain_text`, so a label is always visible text (N-9).
+    Returns inline text nodes, plus BLOCK nodes for files; `_cell_content` lays them out."""
+    if not isinstance(prop, dict):
+        return []
+    t = prop.get("type")
+    if t in _LINKED_PROPERTY_SCHEMES:
+        value = prop.get(t)
+        if not isinstance(value, str) or not value.strip():
+            return []
+        value = value.strip()
+        target = "".join(value.split()) if t == "phone_number" else value
+        return [{"type": "text", "text": value, "marks": [_link_mark(_LINKED_PROPERTY_SCHEMES[t] + target)]}]
+    if t in ("rich_text", "title"):
+        inline = _rich_text_to_inline(prop.get(t))
+        if t != "title":
+            return inline
+        href = f"{LINK_PREFIX}{notion_note_key(row_id)}"
+        inline = inline or [{"type": "text", "text": "Untitled"}]
+        out = []
+        for node in inline:
+            marks = list(node.get("marks") or [])
+            if not any(m.get("type") == "link" for m in marks):
+                node = {**node, "marks": [*marks, _link_mark(href)]}
+            out.append(node)
+        return out
+    if t == "files" and file_nodes:
+        return list(file_nodes)
+    text = _property_plain_text(prop)
+    return [{"type": "text", "text": text}] if text else []
+
+
+def _cell_content(nodes: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """A table cell holds blocks: runs of inline text become paragraphs, block nodes (an image,
+    an attachment chip, a marker paragraph) stand on their own. Never empty."""
+    out: list[dict[str, Any]] = []
+    run: list[dict[str, Any]] = []
+    for node in nodes:
+        if node.get("type") == "text":
+            run.append(node)
+            continue
+        if run:
+            out.append(_para(run))
+            run = []
+        out.append(node)
+    if run:
+        out.append(_para(run))
+    return out or [_text_para("")]
+
+
 def _add_mark(node: dict[str, Any], mark_type: str) -> dict[str, Any]:
     out = dict(node)
     marks = list(out.get("marks") or [])
@@ -224,16 +354,14 @@ def _rich_text_to_inline(rich_text: list[dict[str, Any]] | None) -> list[dict[st
 
         if rt_type == "mention":
             mention = rt.get("mention") or {}
-            if mention.get("type") == "page":
-                page_id = (mention.get("page") or {}).get("id")
-                if page_id and text:
-                    marks = _annotations_to_marks(rt.get("annotations") or {})
-                    marks.append({"type": "link", "attrs": {"href": f"{LINK_PREFIX}notion:{page_id}"}})
-                    items.append({"type": "text", "text": text, "marks": marks})
-                    continue
-            # Any other mention kind (user/date/database/link_preview) has
-            # no resolution path here — degrade to its plain text, never
-            # dropped.
+            href = _mention_href(rt, mention)
+            if href and text:
+                marks = _annotations_to_marks(rt.get("annotations") or {})
+                marks.append({"type": "link", "attrs": {"href": href}})
+                items.append({"type": "text", "text": text, "marks": marks})
+                continue
+            # A user/date/template mention, or one with no URL to point at,
+            # degrades to its plain text — never dropped.
             if text:
                 items.append({"type": "text", "text": text})
             continue
@@ -242,10 +370,39 @@ def _rich_text_to_inline(rich_text: list[dict[str, Any]] | None) -> list[dict[st
         marks = _annotations_to_marks(rt.get("annotations") or {})
         href = rt.get("href")
         if href:
-            marks.append({"type": "link", "attrs": {"href": href}})
+            marks.append({"type": "link", "attrs": {"href": _text_href(href)}})
         if text:
             items.append({"type": "text", "text": text, "marks": marks} if marks else {"type": "text", "text": text})
     return items
+
+
+def _text_href(href: str) -> str:
+    """A link Notion wrote: one naming a Notion page (a workspace-relative `/<id>`, a
+    notion.so / notion.site / notion:// URL) becomes the pending `import-link://notion:<id>`
+    (spec N-4) — the engine's link-key pass turns it into the imported note, and an
+    unresolved one opens notion.so meanwhile (N-5). Every other href is kept as written;
+    the engine's link policy (Task 10) decides it."""
+    page_id = notion_page_id_from_href(href)
+    return f"{LINK_PREFIX}{notion_note_key(page_id)}" if page_id else href
+
+
+def _mention_href(rt: dict[str, Any], mention: dict[str, Any]) -> str | None:
+    """Where a mention points, or None for one that is only text (user, date, template)."""
+    kind = mention.get("type")
+    if kind == "page":
+        page_id = (mention.get("page") or {}).get("id")
+        return f"{LINK_PREFIX}{notion_note_key(page_id)}" if page_id else None
+    if kind == "link_mention":
+        href = (mention.get("link_mention") or {}).get("href")
+    elif kind == "link_preview":
+        href = (mention.get("link_preview") or {}).get("url")
+    elif kind == "database":
+        # Databases are not notes: Notion's own URL for it, never a pending note link.
+        href = rt.get("href")
+        return href if isinstance(href, str) and href else None
+    else:
+        return None
+    return _text_href(href) if isinstance(href, str) and href else None
 
 
 def _unsupported_marker(block_type: str | None) -> dict[str, Any]:
@@ -259,6 +416,33 @@ def _para(inline: list[dict[str, Any]]) -> dict[str, Any]:
 
 def _text_para(text: str) -> dict[str, Any]:
     return {"type": "paragraph", "content": [{"type": "text", "text": text}] if text else []}
+
+
+def notion_page_url(page_id: str) -> str:
+    """The page's own notion.so address (`https://www.notion.so/<32 hex>`), the words a page
+    link reads as when its title could not be read this time."""
+    canonical = canonical_notion_page_id(page_id)
+    return f"https://www.notion.so/{str(canonical).replace('-', '')}"
+
+
+def _link_para(url: str, caption: list[dict[str, Any]]) -> dict[str, Any]:
+    """An external page as one linked paragraph: the caption's text, else the URL itself."""
+    text = "".join(n.get("text", "") for n in caption) or url
+    return _para([{"type": "text", "text": text, "marks": [_link_mark(url)]}])
+
+
+def _embed_or_link(url: str, caption: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """A video/embed URL (I-4): a `webEmbed` when the client's allow-list would embed it (the
+    same `{provider, ref, url}` node a member's paste builds; the player is rebuilt from
+    provider + ref on render), the caption italic beneath; anything else a plain link."""
+    match = embed_for(url)
+    if match is None:
+        return [_link_para(url, caption)]
+    provider, ref = match
+    nodes = [{"type": "webEmbed", "attrs": {"provider": provider, "ref": ref, "url": url}}]
+    if caption:
+        nodes.append(_para([_add_mark(n, "italic") for n in caption]))
+    return nodes
 
 
 def _extract_link_targets(node: Any, out: list[str]) -> None:
@@ -343,12 +527,17 @@ def _properties_preamble(page: dict[str, Any]) -> list[dict[str, Any]]:
     ]
 
 
-def _database_table_node(rows: list[dict[str, Any]]) -> dict[str, Any]:
+def _database_table_node(
+    rows: list[dict[str, Any]],
+    file_nodes: dict[tuple[str, str], list[dict[str, Any]]] | None = None,
+) -> dict[str, Any]:
     """<=50-row database -> one inline TipTap `table`. Column order: the
     title-typed property first, then the rest of the FIRST row's own
     property key order (alphabetical tiebreak keeps it deterministic for
     same-shaped rows) — every row is rendered against that SAME column
-    set, missing values simply blank."""
+    set, missing values simply blank. Each cell is `_property_inline`;
+    `file_nodes` maps `(row id, column)` to that `files` cell's resolved
+    nodes (`_child_database` builds it)."""
     if not rows:
         return {"type": "table", "content": [{"type": "tableRow", "content": [
             {"type": "tableCell", "content": [_text_para("")]},
@@ -365,13 +554,12 @@ def _database_table_node(rows: list[dict[str, Any]]) -> dict[str, Any]:
     body_rows = []
     for row in rows:
         props = row.get("properties") or {}
+        row_id = row.get("id")
         cells = []
         for c in columns:
-            prop = props.get(c)
-            text = _property_plain_text(prop)
-            if isinstance(prop, dict) and prop.get("type") == "title" and not text:
-                text = extract_title(row)
-            cells.append({"type": "tableCell", "content": [_text_para(text)]})
+            nodes = _property_inline(props.get(c), row_id=row_id,
+                                     file_nodes=(file_nodes or {}).get((row_id, c)) or [])
+            cells.append({"type": "tableCell", "content": _cell_content(nodes)})
         body_rows.append({"type": "tableRow", "content": cells})
     return {"type": "table", "content": [header_row, *body_rows]}
 
@@ -399,11 +587,14 @@ class NotionBlockConverter:
 
     def __init__(
         self, *, fetch_children: FetchChildrenFn, query_database: QueryDatabaseFn,
-        resolve_media: ResolveMediaFn,
+        resolve_media: ResolveMediaFn, fetch_title: FetchTitleFn | None = None,
     ) -> None:
         self._fetch_children = fetch_children
         self._query_database = query_database
         self._resolve_media = resolve_media
+        # `link_to_page` reads its target's title through this (None, or a None answer, keeps
+        # "Linked page"). The provider memoises it, so a target costs at most one call per batch.
+        self._fetch_title = fetch_title
         # synced_block original-resolution cache/cycle-guard — instance
         # lifetime (see module docstring).
         self._synced_cache: dict[str, list[dict[str, Any]]] = {}
@@ -652,9 +843,14 @@ class NotionBlockConverter:
         rows = await self._query_database(database_id)
         title = (block.get("child_database") or {}).get("title")
         heading = [{"type": "heading", "attrs": {"level": 3}, "content": [{"type": "text", "text": title}]}] if title else []
+        # A query that stopped at its cap says so, under the table or the row list: never a
+        # database that silently lost its tail. The count rides in the notice's name.
+        notice = ([_notice("truncated", f"the first {len(rows)} rows of {title or 'this database'}")]
+                  if getattr(rows, "truncated", False) else [])
 
         if len(rows) <= _DATABASE_TABLE_MAX_ROWS:
-            return None, [*heading, _database_table_node(rows)]
+            file_nodes = await self._database_file_nodes(rows, media)
+            return None, [*heading, _database_table_node(rows, file_nodes), *notice]
 
         # >50 rows -> per-row pages (spec: "wizard parity"). Leave a
         # navigable linked list in the parent's own body rather than a gap.
@@ -666,18 +862,71 @@ class NotionBlockConverter:
                 "type": "listItem",
                 "content": [_para([{
                     "type": "text", "text": row_note["title"],
-                    "marks": [{"type": "link", "attrs": {"href": f"{LINK_PREFIX}notion:{row_note['remote_id']}"}}],
+                    "marks": [{"type": "link", "attrs": {"href": f"{LINK_PREFIX}{notion_note_key(row_note['remote_id'])}"}}],
                 }])],
             })
         note_para = _text_para(f"({len(rows)} rows — imported as separate linked pages)")
-        return None, [*heading, note_para, {"type": "bulletList", "content": link_items}]
+        return None, [*heading, note_para, {"type": "bulletList", "content": link_items}, *notice]
+
+    async def _database_file_nodes(
+        self, rows: list[dict[str, Any]], media: _Media,
+    ) -> dict[tuple[str, str], list[dict[str, Any]]]:
+        """Every `files` cell's files, resolved through the SAME `resolve_media` door a media
+        block uses (so a Notion-hosted file is downloaded now, before its signed URL expires, and
+        a hotlink is copied by the engine later) and registered on this note's media. Bounded by
+        the table (at most `_DATABASE_TABLE_MAX_ROWS` rows) and per cell (at most
+        `_DATABASE_CELL_FILES_MAX` files; the rest are one `truncated` notice in the cell). The
+        synthesized block's id `<row id>:<column>:<i>` is unique per file, and its `_synthetic`
+        flag tells the provider there is no real block behind it."""
+        out: dict[tuple[str, str], list[dict[str, Any]]] = {}
+        for row in rows:
+            row_id = row.get("id")
+            for column, prop in (row.get("properties") or {}).items():
+                if not isinstance(prop, dict) or prop.get("type") != "files":
+                    continue
+                items = [(i, item) for i, item in enumerate(prop.get("files") or []) if isinstance(item, dict)]
+                nodes: list[dict[str, Any]] = []
+                for i, item in items[:_DATABASE_CELL_FILES_MAX]:
+                    nodes.append(await self._file_cell_node(f"{row_id}:{column}:{i}", item, media))
+                if len(items) > _DATABASE_CELL_FILES_MAX:
+                    nodes.append(_notice(
+                        "truncated", f"the first {_DATABASE_CELL_FILES_MAX} of {len(items)} files in {column}"))
+                if nodes:
+                    out[(row_id, column)] = nodes
+        return out
+
+    async def _file_cell_node(self, block_id: str, item: dict[str, Any], media: _Media) -> dict[str, Any]:
+        kind = item.get("type")
+        data = item.get(kind) if isinstance(kind, str) else None
+        url = data.get("url") if isinstance(data, dict) else None
+        name = item.get("name") or (_basename_from_url(url) if isinstance(url, str) and url else "file")
+        btype = "image" if (extension_mime(name) or "").startswith("image/") else "file"
+        resolution = await self._resolve_media({"type": btype, "id": block_id, "_synthetic": True, btype: item})
+        # The provider answers a TRANSIENT download failure with a deferred entry (a placeholder
+        # the engine's media pass turns into a counted, retried `fetch_failed` notice). A
+        # definitive one is a final notice here.
+        final = _final_notice(resolution, name)
+        if final is not None:
+            return final
+        media.register(resolution)
+        return self._media_node(btype, resolution)
+
+    @staticmethod
+    def _media_node(btype: str, resolution: dict[str, Any]) -> dict[str, Any]:
+        ref = resolution["ref"]
+        if btype == "image":
+            return {"type": "image", "attrs": {"src": f"{REF_PREFIX}{ref}"}}
+        return {
+            "type": "attachmentChip",
+            "attrs": {"href": f"{REF_PREFIX}{ref}", "name": resolution.get("name"), "size": None},
+        }
 
     async def _child_page(self, block, media, extra_pages):
         title = (block.get("child_page") or {}).get("title") or "Untitled"
         page_id = block["id"]
         para = _para([{
             "type": "text", "text": title,
-            "marks": [{"type": "link", "attrs": {"href": f"{LINK_PREFIX}notion:{page_id}"}}],
+            "marks": [{"type": "link", "attrs": {"href": f"{LINK_PREFIX}{notion_note_key(page_id)}"}}],
         }])
         return None, [para]
 
@@ -686,9 +935,19 @@ class NotionBlockConverter:
         target_id = data.get("page_id") or data.get("database_id")
         if not target_id:
             return None, [_unsupported_marker("link_to_page")]
+        # The target's own title, as Notion shows it (N-8). A database target, a target the
+        # integration cannot read (`fetch_title` answers None), or no reader at all keeps
+        # "Linked page". A TRANSIENT failure (rate limit, 5xx) raises instead: the link then
+        # reads as its own Notion address -- never a generic label frozen in by the skip gate.
+        label = None
+        if data.get("page_id") and self._fetch_title is not None:
+            try:
+                label = await self._fetch_title(target_id)
+            except NoteConnError:
+                label = notion_page_url(target_id)
         para = _para([{
-            "type": "text", "text": "Linked page",
-            "marks": [{"type": "link", "attrs": {"href": f"{LINK_PREFIX}notion:{target_id}"}}],
+            "type": "text", "text": label if isinstance(label, str) and label.strip() else "Linked page",
+            "marks": [{"type": "link", "attrs": {"href": f"{LINK_PREFIX}{notion_note_key(target_id)}"}}],
         }])
         return None, [para]
 
@@ -745,42 +1004,27 @@ class NotionBlockConverter:
 
     async def _media_block(self, block, media, extra_pages):
         btype = block["type"]
-        resolution = await self._resolve_media(block)
         block_data = block.get(btype) or {}
         caption = _rich_text_to_inline(block_data.get("caption"))
-        if resolution is None:
-            name = None
+        if btype == "video":
             info = extract_media_info(block)
-            if info is not None:
-                name = info[2]
-            nodes = [_text_para(f"[{btype} unavailable: {name or btype}]")]
-            if caption:
-                nodes.append(_para([_add_mark(n, "italic") for n in caption]))
-            return None, nodes
-
-        if resolution.get("too_large"):
-            # Distinct from "unavailable" (download failed/errored) — this
-            # one downloaded fine but exceeded the persistence-layer size
-            # cap (`providers/notion.py::_resolve_media`, checked via
-            # Content-Length before the body is even read where possible).
-            # Named per-media failure, never a silent drop — same principle
-            # as every other unresolved-media marker in this dispatch table.
-            name = resolution.get("name") or btype
-            nodes = [_text_para(f"[media too large: {name}]")]
+            if info is not None and info[1]:
+                # An external video is a page, not a file (I-4): never downloaded. An
+                # allow-listed one plays in the note; any other is its link.
+                return None, _embed_or_link(info[0], caption)
+        resolution = await self._resolve_media(block)
+        # Fix round 2 (ruling): a DEFINITIVE failure is a final importNotice here; a retryable one
+        # arrives as an ordinary (byte-less) resolution and stays a placeholder for the engine.
+        info = extract_media_info(block)
+        final = _final_notice(resolution, info[2] if info is not None else btype)
+        if final is not None:
+            nodes = [final]
             if caption:
                 nodes.append(_para([_add_mark(n, "italic") for n in caption]))
             return None, nodes
 
         media.register(resolution)
-        ref = resolution["ref"]
-        if btype == "image":
-            node = {"type": "image", "attrs": {"src": f"{REF_PREFIX}{ref}"}}
-        else:
-            node = {
-                "type": "attachmentChip",
-                "attrs": {"href": f"{REF_PREFIX}{ref}", "name": resolution.get("name"), "size": None},
-            }
-        nodes = [node]
+        nodes = [self._media_node(btype, resolution)]
         if caption:
             nodes.append(_para([_add_mark(n, "italic") for n in caption]))
         return None, nodes
@@ -792,9 +1036,11 @@ class NotionBlockConverter:
         if not url:
             return None, [_unsupported_marker(btype)]
         caption = _rich_text_to_inline(data.get("caption"))
-        text = "".join(n.get("text", "") for n in caption) or url
-        para = _para([{"type": "text", "text": text, "marks": [{"type": "link", "attrs": {"href": url}}]}])
-        return None, [para]
+        if btype == "embed":
+            # An embed of an allow-listed player plays in the note (I-4). Bookmarks and link
+            # previews stay links: there is no metadata here to fill a preview card.
+            return None, _embed_or_link(url, caption)
+        return None, [_link_para(url, caption)]
 
     async def _silent_drop(self, block, media, extra_pages):
         # table_of_contents / breadcrumb — Notion-UI-only navigational

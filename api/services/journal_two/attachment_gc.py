@@ -49,6 +49,20 @@ _REF_RE = re.compile(r"[0-9a-f]{32}\.[A-Za-z0-9]{1,5}")
 _SUBS = ("inline", "hero", "file")
 _EXAMPLE_CAP = 40
 
+# Plan A Task 8 fix round 2 (N1): a note whose connector media is still pending
+# (`import_media_pending` 1 = retry, 2 = waiting for storage space) keeps EVERY file under
+# its directory. Between `import_confirm` committing the placeholder body and the engine
+# writing the resolved one back, the files a retry REUSES are referenced by no body, and a
+# storage wait can last days, far past the age gate; collecting them would leave the note
+# pointing at deleted files that are never fetched again (remote unchanged). One member's
+# rows only, served by the `(user_id, ...)` indexes; NULL (legacy) counts as not pending.
+_PENDING_NOTES_SQL = (
+    "SELECT id FROM j2_notes WHERE user_id = ? AND import_media_pending != 0")
+
+
+def _media_pending_note_ids(conn: sqlite3.Connection, user_id: str) -> set[str]:
+    return {row["id"] for row in conn.execute(_PENDING_NOTES_SQL, (user_id,))}
+
 
 def _referenced_names(conn: sqlite3.Connection, user_id: str) -> set[str]:
     """Every upload filename any of this user's notes (raw body_json text +
@@ -113,6 +127,7 @@ def sweep_orphaned_attachments(
         "orphaned": 0,
         "deleted": 0,
         "skipped_young": 0,
+        "skipped_import_pending": 0,
         "freed_bytes": 0,
         "examples": [],
     }
@@ -130,6 +145,7 @@ def sweep_orphaned_attachments(
                 continue
             report["users"] += 1
             referenced = _referenced_names(conn, udir.name)
+            importing = _media_pending_note_ids(conn, udir.name)
             notes_dir = udir / "notes"
             if not notes_dir.is_dir():
                 continue
@@ -143,6 +159,9 @@ def sweep_orphaned_attachments(
                         if not _UPLOAD_NAME_RE.match(f.name):
                             continue  # not one of ours — never touch it
                         if f.name in referenced:
+                            continue
+                        if ndir.name in importing:
+                            report["skipped_import_pending"] += 1   # N1: its import is unfinished
                             continue
                         report["orphaned"] += 1
                         try:

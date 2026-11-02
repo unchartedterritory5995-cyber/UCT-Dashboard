@@ -595,3 +595,279 @@ async def test_guarded_media_gets_default_budget_is_the_importers_attachment_cap
     client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
     with pytest.raises(NoteConnUnsupported):
         await guarded_media_get(client, "https://8.8.8.8/img.png")      # no max_bytes: the default
+
+
+# ---------------------------------------------------------------------------
+# Plan A Task 9 (I-5): `allow_http` -- http is allowed for the DOWNLOAD of a
+# content URL only; the address check is unchanged and runs on EVERY hop.
+# ---------------------------------------------------------------------------
+
+from api.services.journal_two.note_connectors.errors import NoteConnUnsafeAddress  # noqa: E402
+from api.services.journal_two.note_connectors.providers.base import fetch_content_url  # noqa: E402
+
+
+def _logical_url(request: httpx.Request) -> str:
+    """The URL a request was FOR: an http hop is sent to the checked IP (fix round 1, I1), with
+    the original authority in `Host`."""
+    return f"{request.url.scheme}://{request.headers['host']}{request.url.raw_path.decode()}"
+
+
+async def test_https_only_callers_still_refuse_http():
+    # The default is https-only: every caller that does not opt in is unchanged.
+    with pytest.raises(NoteConnUnsafeAddress):
+        await assert_public_https("http://8.8.8.8/img.png")
+    with pytest.raises(NoteConnUnsafeAddress):
+        await guarded_media_get(httpx.AsyncClient(transport=httpx.MockTransport(
+            lambda r: httpx.Response(200, content=b"x"))), "http://8.8.8.8/img.png")
+
+
+async def test_allow_http_admits_http_and_https_to_a_public_host(monkeypatch):
+    _stub_resolver(monkeypatch, ["142.250.0.1"])
+    assert await assert_public_https("http://cdn.example.com/a.png", allow_http=True) == \
+        "http://cdn.example.com/a.png"
+    assert await assert_public_https("https://cdn.example.com/a.png", allow_http=True) == \
+        "https://cdn.example.com/a.png"
+
+
+@pytest.mark.parametrize("url", [
+    "ftp://8.8.8.8/a.png", "javascript:alert(1)", "file:///etc/passwd", "data:image/png;base64,AA",
+    "vbscript:msgbox", "gopher://8.8.8.8/",
+])
+async def test_allow_http_admits_no_other_scheme(url):
+    with pytest.raises(NoteConnUnsafeAddress):
+        await assert_public_https(url, allow_http=True)
+
+
+@pytest.mark.parametrize("url", [
+    "http://127.0.0.1/a.png", "http://10.0.0.7/a.png", "http://169.254.169.254/latest/meta-data/",
+    "http://[::1]/a.png", "http://0.0.0.0/a.png",
+])
+async def test_allow_http_keeps_the_address_check(url):
+    with pytest.raises(NoteConnUnsafeAddress):
+        await assert_public_https(url, allow_http=True)
+
+
+async def test_allow_http_still_checks_the_address_on_every_redirect_hop(monkeypatch):
+    """The per-hop guard with http allowed: a public http URL 302s to the metadata address
+    over http. The hop is refused, typed `unsafe`, before any request reaches it."""
+    _stub_resolver(monkeypatch, ["142.250.0.1"])
+    calls = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(_logical_url(request))
+        if request.headers["host"] == "cdn.example.com":
+            return httpx.Response(302, headers={"location": "http://169.254.169.254/latest/meta-data/"})
+        raise AssertionError("must never reach the redirect target")  # pragma: no cover
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    with pytest.raises(NoteConnUnsafeAddress):
+        await guarded_media_get(client, "http://cdn.example.com/a.png", allow_http=True)
+    assert calls == ["http://cdn.example.com/a.png"]
+
+
+async def test_allow_http_follows_a_redirect_from_http_to_https(monkeypatch):
+    _stub_resolver(monkeypatch, ["142.250.0.1"])
+    calls = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(_logical_url(request))
+        if request.headers["host"] == "cdn.example.com":
+            return httpx.Response(301, headers={"location": "https://cdn2.example.com/real.png"})
+        return httpx.Response(200, content=b"real")
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    content, _ = await guarded_media_stream(
+        client, "http://cdn.example.com/a.png", allow_http=True, max_bytes=100)
+    assert content == b"real"
+    assert calls == ["http://cdn.example.com/a.png", "https://cdn2.example.com/real.png"]
+
+
+async def test_fetch_content_url_returns_bytes_and_type_and_refuses_a_failed_status(monkeypatch):
+    _stub_resolver(monkeypatch, ["142.250.0.1"])
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/a.png":
+            return httpx.Response(200, content=b"png", headers={"content-type": "image/png"})
+        if request.url.path == "/moved":
+            return httpx.Response(302)                      # a redirect with no Location
+        return httpx.Response(404, content=b"nope")
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    assert await fetch_content_url(client, "http://cdn.example.com/a.png", what="m") == (b"png", "image/png")
+    for path in ("/gone.png", "/moved"):
+        with pytest.raises(NoteConnTransient):
+            await fetch_content_url(client, f"http://cdn.example.com{path}", what="m")
+
+
+# ---------------------------------------------------------------------------
+# Task 9 fix round 1 (I1): DNS rebinding on a plain-http hop, and non-global ranges
+# ---------------------------------------------------------------------------
+
+
+def _rebinding_resolver(monkeypatch, first: str, then: str) -> list[str]:
+    """A TTL-0 resolver: `first` on the first lookup, `then` on every later one."""
+    asked: list[str] = []
+
+    async def resolve(host):
+        asked.append(host)
+        return [first if len(asked) == 1 else then]
+
+    monkeypatch.setattr(base_module, "_resolve_host", resolve)
+    return asked
+
+
+async def test_an_http_hop_connects_to_the_address_that_passed_the_check(monkeypatch):
+    """The rebinding attack: public on the check, 169.254.169.254 on the connect. The http
+    hop must connect to the PUBLIC address it checked (Host header kept), never ask DNS
+    again -- so the second, internal answer is never used."""
+    asked = _rebinding_resolver(monkeypatch, "142.250.0.1", "169.254.169.254")
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(200, content=b"img", headers={"content-type": "image/png"})
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    assert await fetch_content_url(client, "http://rebind.example.com:8080/a.png?x=1", what="m") == (
+        b"img", "image/png")
+    (req,) = seen
+    assert req.url.host == "142.250.0.1" and req.url.port == 8080
+    assert req.url.path == "/a.png" and req.url.query == b"x=1"
+    assert req.headers["host"] == "rebind.example.com:8080"
+    assert asked == ["rebind.example.com"]                     # one lookup per hop, no second answer
+
+
+async def test_an_http_hop_to_an_ipv6_address_is_bracketed(monkeypatch):
+    async def resolve(host):
+        return ["2607:f8b0:4004:800::200e"]
+
+    monkeypatch.setattr(base_module, "_resolve_host", resolve)
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(200, content=b"img")
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    await fetch_content_url(client, "http://v6.example.com/a.png", what="m")
+    assert seen[0].url.host == "2607:f8b0:4004:800::200e"
+    assert seen[0].headers["host"] == "v6.example.com"
+
+
+async def test_every_redirect_hop_is_pinned_to_its_own_checked_address(monkeypatch):
+    answers = {"a.example.com": "142.250.0.1", "b.example.com": "142.250.0.2"}
+
+    async def resolve(host):
+        return [answers[host]]
+
+    monkeypatch.setattr(base_module, "_resolve_host", resolve)
+    seen: list[tuple[str, str]] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append((request.url.host, request.headers["host"]))
+        if request.headers["host"] == "a.example.com":
+            return httpx.Response(302, headers={"location": "http://b.example.com/real.png"})
+        return httpx.Response(200, content=b"img")
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    await fetch_content_url(client, "http://a.example.com/a.png", what="m")
+    assert seen == [("142.250.0.1", "a.example.com"), ("142.250.0.2", "b.example.com")]
+
+
+async def test_an_https_hop_keeps_the_hostname(monkeypatch):
+    """https is not pinned: the certificate binds the connection to the name."""
+    _stub_resolver(monkeypatch, ["142.250.0.1"])
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(200, content=b"img")
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    await fetch_content_url(client, "https://cdn.example.com/a.png", what="m")
+    assert seen[0].url.host == "cdn.example.com"
+
+
+@pytest.mark.parametrize("addr", ["100.64.0.1", "100.127.255.254", "198.18.0.1", "192.0.2.10",
+                                  "fd12:3456::1", "fc00::1"])
+async def test_a_non_global_address_is_refused(monkeypatch, addr):
+    async def resolve(host):
+        return [addr]
+
+    monkeypatch.setattr(base_module, "_resolve_host", resolve)
+    with pytest.raises(NoteConnUnsafeAddress):
+        await assert_public_https("http://cgnat.example.com/a.png", allow_http=True)
+
+
+async def test_an_empty_resolution_is_never_a_pass(monkeypatch):
+    async def resolve(host):
+        return []
+
+    monkeypatch.setattr(base_module, "_resolve_host", resolve)
+    with pytest.raises(NoteConnTransient):
+        await assert_public_https("http://nothing.example.com/a.png", allow_http=True)
+
+
+# -- Final review (promoted minor): no media hop ever goes through an env proxy ---------------
+
+_PROXY_ENV = ("HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "http_proxy", "https_proxy", "all_proxy")
+
+
+@pytest.fixture
+def proxy_env(monkeypatch):
+    """Every proxy variable httpx reads, pointed at a proxy that is not there."""
+    for name in _PROXY_ENV:
+        monkeypatch.setenv(name, "http://10.9.9.9:3128")
+    monkeypatch.delenv("NO_PROXY", raising=False)
+    monkeypatch.delenv("no_proxy", raising=False)
+
+
+def _routes_direct(client: httpx.AsyncClient) -> bool:
+    """True when a request from `client` to a public address goes straight out (the client's
+    own transport), False when it would be handed to a proxy transport."""
+    return all(client._transport_for_url(httpx.URL(u)) is client._transport
+               for u in ("http://93.184.216.34/a.png", "https://93.184.216.34/a.png"))
+
+
+async def test_CONTROL_a_default_client_would_route_through_the_env_proxy(proxy_env):
+    client = httpx.AsyncClient()
+    try:
+        assert not _routes_direct(client)     # the probe can see a proxy when there is one
+    finally:
+        await client.aclose()
+
+
+async def test_the_media_client_never_trusts_proxy_env_vars(proxy_env):
+    """A pinned http hop connects to the address that passed the SSRF check; through a proxy,
+    the PROXY would resolve the name again, so the pin (and the guard) would mean nothing."""
+    client = base_module.media_http_client(timeout=5.0)
+    try:
+        assert client.trust_env is False and _routes_direct(client)
+    finally:
+        await client.aclose()
+
+
+async def test_every_provider_and_the_fetch_door_build_their_client_without_proxy_env(proxy_env):
+    from api.routers import journal_two as jt
+    from api.services.journal_two.note_connectors.providers.craft import CraftProvider
+    from api.services.journal_two.note_connectors.providers.dropbox import DropboxProvider
+    from api.services.journal_two.note_connectors.providers.msgraph_base import MSGraphClient
+    from api.services.journal_two.note_connectors.providers.notion import NotionProvider
+    from api.services.journal_two.note_connectors.providers.obsidian import ObsidianProvider
+    from api.services.journal_two.note_connectors.providers.roam import RoamProvider
+
+    owners = [CraftProvider(), DropboxProvider(), NotionProvider(), RoamProvider(),
+              ObsidianProvider(user_id="u1", vault_id="v1")]
+    clients = [await p._get_client() for p in owners]
+    graph = MSGraphClient()
+    clients.append(await graph.get_client())
+    door = jt._media_fetch_client()
+    clients.append(door)
+    try:
+        assert [c.trust_env for c in clients] == [False] * len(clients)
+        assert all(_routes_direct(c) for c in clients)
+    finally:
+        for p in owners:
+            await p.aclose()
+        await graph.aclose()
+        await door.aclose()

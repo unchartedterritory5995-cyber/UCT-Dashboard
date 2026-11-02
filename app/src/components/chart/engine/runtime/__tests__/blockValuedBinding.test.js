@@ -156,14 +156,19 @@ describe('⛔ the bounds of what is served, stated rather than implied', () => {
     expect(r.message).toContain('no value')
   })
 
-  it('⛔ a MULTI-STATEMENT arm body refuses by name, and names the shape', () => {
-    // ⚠️ NOT SERVED ON PURPOSE, and the refusal says which part is the problem.
-    // Every one of the 11 corpus scripts on this row has single-expression arms;
-    // serving the general case means deciding what a mid-arm assignment does to
-    // an outer name, which is `foldIfChain`'s whole `touched` loop and belongs
-    // in its own measurement.
-    const r = refusalOf(`${head}var y = 0.0\nx = if close > 110\n    y := 1\n    y + 1\nplot(x)\n`)
-    expect(r.guard).toBe('runtime:block-value')
-    expect(r.message).toMatch(/one expression|single/i)
+  it('⭐⭐ P3 WS-A — a MULTI-STATEMENT arm runs its statements, then yields its last', () => {
+    // ⚰️ THIS WAS A REFUSAL ("must be one expression") until P3 WS-A. Pine runs
+    // the arm's statements in order and the arm's value is its LAST statement's;
+    // a write to an OUTER name mid-arm is an ordinary statement, seen by the
+    // value line after it and by every later bar (`y` is a `var`).
+    const out = runPine(`${head}var y = 0.0\nx = if close > 110\n    y := y + 1\n    y * 10\nplot(x)\n`)
+    let y = 0
+    for (let i = 0; i < N; i += 1) {
+      if (BARS[i].c > 110) { y += 1; expect(out[i], `bar ${i}`).toBe(y * 10) }
+      else expect(Number.isNaN(out[i]), `bar ${i} takes no arm: na`).toBe(true)
+    }
+    // ⛔ NON-VACUITY: the outer write accumulates, so the arm ran on each bar it
+    // matched and the value line read the write above it, not the bar-start value.
+    expect(y).toBeGreaterThan(5)
   })
 })

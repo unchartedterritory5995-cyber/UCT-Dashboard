@@ -1,0 +1,30 @@
+{
+  "id": "14-raw-html-and-deep-link",
+  "input_markdown": "# Raw HTML and deep links\n\nRead <a href=\"https://example.com/x\">the site</a> and [the plan](obsidian://open?vault=Trading&file=Plan).\n\n<img src=\"https://example.com/c.png\" alt=\"c\">\n",
+  "self_path": "a.md",
+  "server": {
+    "callouts": [],
+    "highlights": [],
+    "images": [
+      "https://example.com/c.png"
+    ],
+    "links": [
+      {
+        "target": "https://example.com/x",
+        "text": "the site"
+      },
+      {
+        "target": "Plan.md",
+        "text": "the plan"
+      }
+    ],
+    "pending": [],
+    "task_checked": [],
+    "text": "Raw HTML and deep links Read the site and the plan."
+  },
+  "vault_id": "vault-1",
+  "vault_paths": [
+    "a.md",
+    "Plan.md"
+  ]
+}

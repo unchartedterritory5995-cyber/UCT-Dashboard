@@ -14,7 +14,7 @@ import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 import { translatePine, REFUSALS, PER_ROW_PROMISE_GUARDS } from './pine.js'
-import { buildRuntimeIr, RUNTIME_LANE_REFUSALS } from './pineRuntimeFrontend.js'
+import { buildRuntimeIr, RUNTIME_LANE_REFUSALS, RUNTIME_REFUSALS } from './pineRuntimeFrontend.js'
 import { paneGate, paneCanRender, PANE_LANE } from './paneGate.js'
 import { runtimeClockOpts } from './pineRuntimeClock.js'
 
@@ -85,14 +85,16 @@ describe('⛔⛔ the text refusal no longer promises what this lane cannot deliv
     // case is really about is that every skipped definition is REPORTED, with
     // its line and the guard it hit, rather than silently dropped; so that is
     // what it asserts, plus a ceiling so the list cannot quietly grow.
-    const named = a.diagnostics.skippedFunctions
-    expect(named.length).toBeGreaterThan(0)
+    // ⚰️ P3 WS-A — the list reached EMPTY: `f_getVolumeUnit@161`, the last entry,
+    // compiles once an `if` chain can yield a tuple (`['B', 1e9]` arms). An empty
+    // list is absent from the diagnostics (only a non-empty one is set).
+    const named = a.diagnostics.skippedFunctions || []
     expect(named.length).toBeLessThanOrEqual(4)
     for (const entry of named) {
       expect(entry, 'every skipped function names its line and its guard')
         .toMatch(/^\w+@\d+ [a-z]+:[a-z-]+$/)
     }
-    expect(b.diagnostics.skippedFunctions.length).toBe(named.length)
+    expect((b.diagnostics.skippedFunctions || []).length).toBe(named.length)
   })
 
   it('⭐ and where BOTH now stop is the same line, named — the R-K symbol seam', () => {
@@ -172,7 +174,9 @@ plot(ta.sma("ab", 5))
     expect(r.ok).toBe(false)
     expect(r.refusal.guard).toBe('runtime:loop')
     expect(RUNTIME_LANE_REFUSALS['runtime:loop']).toBeUndefined()
-    expect(r.refusal.message).toContain('the runtime has no iteration yet')
+    // ⭐ P3 WS-A — DERIVED FROM THE TABLE, not retyped: the sentence was stale
+    // ("no iteration yet") and was rewritten; the property is "its OWN sentence".
+    expect(r.refusal.message).toContain(RUNTIME_REFUSALS['runtime:loop'])
   })
 })
 

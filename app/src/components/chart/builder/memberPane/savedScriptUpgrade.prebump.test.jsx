@@ -302,3 +302,71 @@ describe('review #1 — a refusal expires with its engine; browser and server ag
     expect(upgradeKindOf(row, N + 1)).toBe('retranslate')
   })
 })
+
+// ⭐ pre-bump review F3 — past its engine, a scriptless version is released only when
+// its maths DIFFERS from the refused maths. The server answers that (`same_maths`, from
+// the store's own maths identity); the browser holds exactly what the alerts withhold.
+describe('pre-bump F3 — the SAME refused maths stays held past its engine', () => {
+  const N = SCRIPT_ENGINE_VERSION
+  const sameMaths = (same) => ({ engine: N, status: 'refused', reason: 'no plot', same_maths: same })
+
+  it('a no-op / cosmetic scriptless save carrying the refused maths: still held at N + 1', () => {
+    const d = stale('u_bbbbbbbbbb31')
+    d.meta = { ...d.meta, scriptEdited: true }
+    expect(upgradeKindOf(rowOf(d, { engine_status: sameMaths(true) }), N + 1)).toBe('refused')
+    expect(upgradeKindOf(rowOf(d, { engine_status: sameMaths(false) }), N + 1)).toBe('none')
+  })
+
+  it('a share install of the refused maths: still held at N + 1', () => {
+    const d = { ...stale('u_bbbbbbbbbb32'), origin: { author_id: 'a', def_id: 'u_x', version: 1 } }
+    expect(upgradeKindOf(rowOf(d, { engine_status: sameMaths(true) }), N + 1)).toBe('refused')
+  })
+
+  it('a current-stamp or non-script document carrying the refused maths: still held', () => {
+    const d = withEngineStamp(stale('u_bbbbbbbbbb33'))
+    expect(upgradeKindOf(rowOf(d, { engine_status: sameMaths(true) }), N + 1)).toBe('refused')
+    const e = stale('u_bbbbbbbbbb34')
+    e.meta = { ...e.meta }
+    delete e.meta.recurrenceOrigin
+    expect(upgradeKindOf(rowOf(e, { engine_status: sameMaths(true) }), N + 1)).toBe('refused')
+  })
+
+  it('a version HOLDING its script is still re-translated (today’s engine answers it)', () => {
+    const row = rowOf(stale('u_bbbbbbbbbb35'), { has_pine_source: true, pine_source: SCRIPT, engine_status: sameMaths(true) })
+    expect(upgradeKindOf(row, N + 1)).toBe('retranslate')
+  })
+})
+
+// ⭐ pre-bump review F1 — the store refused the write-back of an upgrade of a version an
+// OLDER engine refused. The server keeps serving the refusal (with `write_failed_engine`),
+// so the chart draws TODAY's translation (never the stored, refused maths), does not PUT
+// it again, and offers the Builder.
+describe('pre-bump F1 — a failed write-back never re-draws the refused maths', () => {
+  it('re-translates, draws the new translation, no write-back plan, the Builder row offered', async () => {
+    const d = stale('u_bbbbbbbbbb41')
+    const row = rowOf(d, {
+      has_pine_source: true, pine_source: SCRIPT,
+      engine_status: { engine: SCRIPT_ENGINE_VERSION - 1, status: 'refused', reason: 'old', write_failed_engine: SCRIPT_ENGINE_VERSION },
+    })
+    expect(upgradeKindOf(row)).toBe('retranslate')
+    expect(scriptUpgradeHeld(row), 'its edit door is the script (the re-save note)').toBe(true)
+    expect(resolveRow(row).pending).toBe(true)
+    await flush(); await flush(); await flush()
+    const res = resolveRow(row)
+    expect(res.definition).not.toBe(null)
+    expect(res.definition).not.toBe(d)
+    expect(engineStampOf(res.definition)).toBe(SCRIPT_ENGINE_VERSION)
+    expect(res.writeBack, 'the store already refused this write at today’s engine').toBe(null)
+    expect(needsScriptForUpgrade(d.id)).toBe(true)
+  })
+
+  it('CONTROL: a write-failed recorded by an OLDER engine does not stop today’s write-back', async () => {
+    const row = rowOf(stale('u_bbbbbbbbbb42'), {
+      has_pine_source: true, pine_source: SCRIPT,
+      engine_status: { engine: SCRIPT_ENGINE_VERSION - 1, status: 'refused', reason: 'old', write_failed_engine: SCRIPT_ENGINE_VERSION - 1 },
+    })
+    resolveRow(row)
+    await flush(); await flush(); await flush()
+    expect(resolveRow(row).writeBack).not.toBe(null)
+  })
+})

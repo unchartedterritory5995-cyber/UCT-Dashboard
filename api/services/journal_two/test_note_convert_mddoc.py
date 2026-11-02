@@ -21,6 +21,8 @@ from __future__ import annotations
 import copy
 import json
 
+import pytest
+
 from api.services.journal_two.note_connectors.convert.mddoc import md_to_tiptap
 from api.services.journal_two.note_connectors.convert.rewrite import rewrite_body
 
@@ -689,9 +691,11 @@ def test_multiple_data_uri_images_get_distinct_incrementing_refs():
 # ---------------------------------------------------------------------------
 
 
-def test_svg_data_uri_pretokenization_pass_produces_a_short_marker_not_a_giant_node():
+def test_non_image_data_uri_pretokenization_pass_produces_a_short_marker_not_a_giant_node():
+    # Plan A Task 9: an SVG is now an image (below); the giant-text hazard is any NON-image
+    # `data:` payload, which markdown-it refuses to tokenize as an image.
     big_payload = "A" * 20000  # mirrors the reviewer's ~20KB probe
-    src = f"data:image/svg+xml;base64,{big_payload}"
+    src = f"data:text/html;base64,{big_payload}"
     result = md_to_tiptap(f"![diagram]({src})\n")
 
     top = result["doc"]["content"]
@@ -701,16 +705,16 @@ def test_svg_data_uri_pretokenization_pass_produces_a_short_marker_not_a_giant_n
     assert len(para["content"]) == 1
     text_node = para["content"][0]
     assert text_node["type"] == "text"
-    assert text_node["text"] == "[unsupported image: diagram, image/svg+xml]"
+    assert text_node["text"] == "[unsupported image: diagram, text/html]"
     assert len(text_node["text"]) < 100  # short marker, NOT the 20K payload
     assert result["media"] == []
 
 
 def test_unsupported_data_uri_without_alt_omits_the_alt_segment_from_the_marker():
-    src = "data:image/svg+xml;base64,PHN2Zz48L3N2Zz4="
+    src = "data:text/html;base64,PGI+PC9iPg=="
     result = md_to_tiptap(f"![]({src})\n")
     para = result["doc"]["content"][0]
-    assert para["content"][0]["text"] == "[unsupported image: image/svg+xml]"
+    assert para["content"][0]["text"] == "[unsupported image: text/html]"
     assert result["media"] == []
 
 
@@ -719,12 +723,83 @@ def test_unsupported_data_uri_with_a_title_suffix_is_still_caught():
     # regex must tolerate it (non-greedy payload capture, optional quoted
     # title before the closing paren) rather than leaving a dangling
     # `"title")` fragment behind or failing to match at all.
-    src = "data:image/svg+xml;base64,PHN2Zz48L3N2Zz4="
+    src = "data:text/plain;base64,PHN2Zz48L3N2Zz4="
     result = md_to_tiptap(f'![diagram]({src} "an svg diagram")\n')
     para = result["doc"]["content"][0]
-    assert para["content"][0]["text"] == "[unsupported image: diagram, image/svg+xml]"
+    assert para["content"][0]["text"] == "[unsupported image: diagram, text/plain]"
     assert "title" not in para["content"][0]["text"]
     assert result["media"] == []
+
+
+# ---------------------------------------------------------------------------
+# Plan A Task 9 (I-6): every `data:image/*` URI -- any image MIME, base64 or
+# percent-encoded -- is a media entry the engine decodes and rehosts. A
+# non-image `data:` stays visible text; a `data:` LINK href stays text.
+# ---------------------------------------------------------------------------
+
+
+def test_svg_and_heic_data_uris_become_media_entries():
+    svg = "data:image/svg+xml;base64,PHN2Zz48L3N2Zz4="
+    heic = "data:image/heic;base64,AAAAGGZ0eXBoZWlj"
+    tiff = "data:image/tiff;base64,SUkqAA=="
+    result = md_to_tiptap(f"![d]({svg}) ![p]({heic}) ![t]({tiff})\n")
+    images = [n for n in result["doc"]["content"] if n["type"] == "image"]
+    assert [n["attrs"]["src"] for n in images] == [
+        "import-ref://md-img-1.svg", "import-ref://md-img-2.heic", "import-ref://md-img-3.tif"]
+    assert result["media"] == [
+        {"ref": "md-img-1.svg", "kind": "image", "name": "md-img-1.svg", "data_uri": svg},
+        {"ref": "md-img-2.heic", "kind": "image", "name": "md-img-2.heic", "data_uri": heic},
+        {"ref": "md-img-3.tif", "kind": "image", "name": "md-img-3.tif", "data_uri": tiff},
+    ]
+
+
+def test_html_img_data_uri_becomes_a_media_entry():
+    from api.services.journal_two.note_connectors.convert.mddoc import html_to_tiptap
+    src = "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%2F%3E"
+    result = html_to_tiptap(f'<p>x</p><img src="{src}">')
+    assert result["media"] == [
+        {"ref": "md-img-1.svg", "kind": "image", "name": "md-img-1.svg", "data_uri": src}]
+    assert '"import-ref://md-img-1.svg"' in json.dumps(result["doc"])
+
+
+def test_percent_encoded_svg_data_uri_decodes():
+    from api.services.journal_two.note_connectors.engine import _decode_data_uri
+    src = "data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E"
+    result = md_to_tiptap(f"![logo]({src})\n")
+    (entry,) = result["media"]
+    assert entry["ref"] == "md-img-1.svg"
+    data, content_type = _decode_data_uri(entry["data_uri"])
+    assert data.startswith(b"<svg")
+    assert data == b"<svg xmlns='http://www.w3.org/2000/svg'></svg>"
+    assert content_type == "image/svg+xml"
+
+
+def test_data_uri_with_parameters_before_base64_decodes():
+    from api.services.journal_two.note_connectors.engine import _decode_data_uri
+    assert _decode_data_uri("data:image/png;name=a.png;base64,iVBORw==") == (
+        b"\x89PNG", "image/png")
+    assert _decode_data_uri("data:image/svg+xml;charset=utf-8,%3Csvg%2F%3E") == (
+        b"<svg/>", "image/svg+xml")
+
+
+def test_data_text_html_stays_text():
+    payload = "%3Cscript%3Ealert(1)%3C%2Fscript%3E"
+    result = md_to_tiptap(
+        f"![x](data:text/html,{payload})\n\n[click](data:text/html,{payload})\n\n"
+        f"[pic](data:image/png;base64,AAAA)\n")
+    assert result["media"] == []
+    dumped = json.dumps(result["doc"])
+    assert '"type": "image"' not in dumped
+    assert "[unsupported image: x, text/html]" in dumped
+    # a `data:` LINK href stays text -- never a link mark, image MIME or not
+    assert '"link"' not in dumped
+    assert "click" in dumped and "pic" in dumped
+
+
+def test_http_image_media_entry_ref_is_the_original_address():
+    # The ref IS the original: the engine's notice links to it (`_media_source_url`).
+    result = md_to_tiptap("![a](http://cdn.example.com/a.png)\n")
+    assert result["media"] == [{"ref": "http://cdn.example.com/a.png", "kind": "image", "name": "a.png"}]
 
 
 def test_supported_png_data_uri_is_untouched_by_the_pretokenization_pass_regression():
@@ -759,7 +834,7 @@ def test_unsupported_data_uri_mime_degrades_image_to_visible_text():
     from api.services.journal_two.note_connectors.convert import mddoc
 
     ctx = mddoc._Ctx()
-    node = mddoc._data_uri_image_node("data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=", ctx)
+    node = mddoc._data_uri_image_node("data:text/html;base64,PHN2Zz48L3N2Zz4=", ctx)
     assert node is None
     assert ctx.media == []
 
@@ -773,9 +848,11 @@ def test_non_base64_data_uri_also_degrades_image_to_visible_text():
     # contract.
     from api.services.journal_two.note_connectors.convert import mddoc
 
+    # Plan A Task 9: a percent-encoded `data:image/*` is now an image (I-6); what stays
+    # refused here is a URI with no `,` at all, and a non-image MIME in either encoding.
     ctx = mddoc._Ctx()
-    node = mddoc._data_uri_image_node("data:image/png,not-base64-at-all", ctx)
-    assert node is None
+    for src in ("data:image/png;base64", "data:text/plain,not-base64-at-all"):
+        assert mddoc._data_uri_image_node(src, ctx) is None
     assert ctx.media == []
 
 
@@ -792,7 +869,7 @@ def test_data_uri_image_end_to_end_through_inline_nodes_when_unsupported():
 
     ctx = mddoc._Ctx()
     tok = Token("image", "img", 0)
-    tok.attrs = {"src": "data:image/svg+xml;base64,PHN2Zz48L3N2Zz4="}
+    tok.attrs = {"src": "data:text/html;base64,PHN2Zz48L3N2Zz4="}
     items = mddoc._inline_nodes([tok], ctx)
     assert len(items) == 1
     assert items[0]["type"] == "text"
@@ -819,14 +896,9 @@ def test_link_with_a_default_allowed_scheme_keeps_its_mark():
 
 
 def test_link_with_a_disallowed_scheme_strips_the_mark_keeps_the_text():
-    # `whatsapp://...` is the reachable case: markdown-it-py's OWN link
-    # validator (`normalize_url.BAD_PROTO_RE = ^(vbscript|javascript|file|
-    # data):`) only blocks those four prefixes, so an arbitrary custom
-    # scheme like this one DOES become a link_open token (verified) — unlike
-    # `javascript:`, which markdown-it-py's parser refuses to tokenize as a
-    # link AT ALL (falls back to raw literal source text, a layer earlier
-    # than mddoc.py's own `_is_allowed_link_href` ever runs). This is the
-    # case that actually exercises the Tiptap-allowlist check.
+    # A custom scheme markdown-it never refused. Since Task 15 (D2) `_validate_link` is
+    # open, so `javascript:` & co. reach the same Tiptap-allowlist check too (see
+    # test_an_unsafe_scheme_link_keeps_only_its_visible_text).
     result = md_to_tiptap("[text](whatsapp://send?text=hi)\n")
     para = result["doc"]["content"][0]
     assert _plain_text(para) == "text"
@@ -835,18 +907,87 @@ def test_link_with_a_disallowed_scheme_strips_the_mark_keeps_the_text():
             assert n.get("marks", []) == []
 
 
-def test_javascript_scheme_link_never_becomes_a_mark_either_markdown_it_blocks_it_first():
-    # Documents the OTHER defense layer: markdown-it-py's own parser already
-    # refuses to tokenize a `javascript:` destination as a link at all (same
-    # BAD_PROTO_RE gate noted above), so this never even reaches
-    # `_is_allowed_link_href`. End result is the same (no link mark reaches
-    # the doc) via a different mechanism — raw source text, unparsed.
-    result = md_to_tiptap("[text](javascript:alert(1))\n")
+@pytest.mark.parametrize("href", [
+    "javascript:alert(1)",
+    "JavaScript:alert(1)",
+    "data:text/html,%3Cscript%3Ealert(1)%3C%2Fscript%3E",
+    "data:image/png;base64,AAAA",
+    "vbscript:msgbox(1)",
+    "file:///C:/Windows/win.ini",
+])
+def test_an_unsafe_scheme_link_keeps_only_its_visible_text(href):
+    # Plan A Task 15 (D2). markdown-it-py's own validateLink refuses these four schemes
+    # (`BAD_PROTO_RE`), and a refused destination is not a link token at all: the paragraph
+    # used to store the raw markdown SOURCE, `[text](javascript:alert(1))`. `_validate_link`
+    # now lets the destination tokenize so the ONE link policy (`_is_allowed_link_href`)
+    # decides, and it refuses each of these: the visible text stays, unmarked, nothing else.
+    result = md_to_tiptap(f"before [text]({href}) after\n")
     para = result["doc"]["content"][0]
-    assert "javascript:" in _plain_text(para)
-    for n in para["content"]:
-        if n.get("type") == "text":
-            assert n.get("marks", []) == []
+    assert para["content"] == [{"type": "text", "text": "before text after"}], href
+    assert result["media"] == [] and result["links"] == []
+
+
+def test_an_unsafe_scheme_autolink_is_text_never_a_mark():
+    # The same gate decides `<scheme:...>` autolinks: the address stays as visible text.
+    result = md_to_tiptap("see <javascript:alert(1)> now\n")
+    assert result["doc"]["content"][0]["content"] == [
+        {"type": "text", "text": "see javascript:alert(1) now"}]
+
+
+_UNSAFE_IMAGE_SRCS = [
+    "javascript:alert(1)", "vbscript:msgbox(1)", "file:///C:/pic.png",
+    # Task 15 fix round 1: the ENCODED forms. A scheme-less-looking src is decoded once for
+    # a vault path (`_destination_as_written`), so the check must read the decoded form too,
+    # or `javascript%3Aalert(1)` became the media ref `javascript:alert(1)`.
+    "javascript%3Aalert(1)", "JavaScript%3aalert(1)", "vbscript%3Amsgbox(1)",
+    "file%3A///C:/pic.png", "data%3Atext/html,x",
+]
+
+
+@pytest.mark.parametrize("src", _UNSAFE_IMAGE_SRCS)
+def test_an_unsafe_scheme_image_is_never_a_media_entry(src):
+    # The widened gate also lets these reach the IMAGE rule. An image the stock gate refuses
+    # is never registered as media (nothing would ever fetch a `javascript:` "image"). By
+    # DEFAULT (the personal API and inbound email, which strip media to markers themselves)
+    # it degrades to the visible unsupported-image text, as an unusable data URI does.
+    result = md_to_tiptap(f"![pic]({src})\n")
+    assert result["media"] == []
+    dumped = json.dumps(result["doc"])
+    assert '"type": "image"' not in dumped and "import-ref://" not in dumped
+    assert "importNotice" not in dumped
+    assert "[unsupported image]" in dumped
+
+
+@pytest.mark.parametrize("src", _UNSAFE_IMAGE_SRCS)
+def test_on_the_connector_path_an_unsafe_image_is_an_unsafe_notice(src):
+    # Task 15 fix round 1 (controller ruling): a CONNECTOR caller passes
+    # `unsafe_image_notice=True`, and the image becomes an importNotice `unsafe` in place,
+    # hoisted out of its paragraph like the image it replaces. No ref, no sourceUrl: the
+    # address is exactly what must not be stored or offered as a link.
+    result = md_to_tiptap(f"before ![pic]({src}) after\n", unsafe_image_notice=True)
+    assert result["media"] == []
+    assert result["doc"]["content"] == [
+        {"type": "paragraph", "content": [{"type": "text", "text": "before "}]},
+        {"type": "importNotice", "attrs": {
+            "reason": "unsafe", "name": "pic", "sourceUrl": None, "ref": None, "attempts": 0}},
+        {"type": "paragraph", "content": [{"type": "text", "text": " after"}]},
+    ]
+
+
+def test_connector_unsafe_image_notice_without_alt_and_in_a_heading():
+    result = md_to_tiptap("# Title ![](javascript:alert(1))\n", unsafe_image_notice=True)
+    assert result["doc"]["content"] == [
+        {"type": "heading", "attrs": {"level": 1}, "content": [{"type": "text", "text": "Title "}]},
+        {"type": "importNotice", "attrs": {
+            "reason": "unsafe", "name": None, "sourceUrl": None, "ref": None, "attempts": 0}},
+    ]
+
+
+def test_connector_option_leaves_a_safe_image_alone():
+    # CONTROL: the option changes only what the stock gate refuses.
+    plain = md_to_tiptap("![a](img/a%20b.png)\n")
+    assert md_to_tiptap("![a](img/a%20b.png)\n", unsafe_image_notice=True) == plain
+    assert plain["media"] == [{"ref": "img/a b.png", "kind": "image", "name": "a b.png"}]
 
 
 def test_relative_and_journal_and_import_link_hrefs_still_allowed():
@@ -1365,3 +1506,81 @@ def test_html_never_emits_a_foreign_node_type_stress_fixture():
     )
     result = html_to_tiptap(stress_html)
     _assert_in_vocabulary(result["doc"])
+
+
+def test_link_destination_decoded_once_only_for_internal_and_relative():
+    external = md_to_tiptap("[x](https://a.com/a%20b)")
+    assert json.dumps(external).count("https://a.com/a%20b") == 1
+    internal = md_to_tiptap("[x](<import-link://k/a b>)")
+    assert internal["links"] == ["k/a b"]
+    assert "import-link://k/a b" in json.dumps(internal)
+    assert "%20" not in json.dumps(internal)
+
+
+def test_connector_private_media_ref_with_a_literal_percent_passes_through_unchanged():
+    for scheme in ("dbx-md-media", "od-md-media"):
+        ref = f"{scheme}:/team/file%20name.png"
+        out = md_to_tiptap(f"![x]({ref})")
+        assert [m["ref"] for m in out["media"]] == [ref]
+
+
+def test_a_relative_link_is_never_decoded_into_a_protocol_relative_url():
+    dumped = json.dumps(md_to_tiptap("[x](%2F%2Fevil.com)"))
+    assert "%2F%2Fevil.com" in dumped
+    assert "//evil.com" not in dumped.replace("%2F%2Fevil.com", "")
+
+
+def test_a_raw_html_img_src_is_not_decoded():
+    from api.services.journal_two.note_connectors.convert.mddoc import html_to_tiptap
+
+    out = html_to_tiptap('<p><img src="a%20b.png"></p>')
+    assert [m["ref"] for m in out["media"]] == ["a%20b.png"]
+
+
+def test_resolve_href_sees_only_scheme_less_non_fragment_destinations_decoded_once():
+    """Plan A Task 13: `md_to_tiptap(md, resolve_href=...)`. The callback is asked about a
+    scheme-less, non-`#` destination only, decoded once; never about one that decodes INTO
+    a scheme or a protocol-relative `//host`. A string answer replaces the href (and an
+    `import-link://` answer joins `links`); None keeps today's href."""
+    seen: list[str] = []
+
+    def resolver(dest):
+        seen.append(dest)
+        return "import-link://k/one" if dest == "a b.md" else None
+
+    out = md_to_tiptap(
+        "[1](a%20b.md) [2](<a b.md>) [3](other.md) [4](#top) [5](https://x.com/a.md) "
+        "[6](%2F%2Fevil.com) [7](javascript%3Aalert.md) [8](mailto:a@b.c) "
+        '<a href="a%20b.md">9</a>',
+        resolve_href=resolver)
+    assert seen == ["a b.md", "a b.md", "other.md", "a b.md"]
+    hrefs = [m["attrs"]["href"] for n in out["doc"]["content"][0]["content"]
+             for m in n.get("marks") or [] if m["type"] == "link"]
+    assert hrefs == ["import-link://k/one", "import-link://k/one", "other.md", "#top",
+                     "https://x.com/a.md", "%2F%2Fevil.com", "javascript%3Aalert.md",
+                     "mailto:a@b.c", "import-link://k/one"]
+    assert out["links"] == ["k/one", "k/one", "k/one"]
+    # No callback: today's behaviour, byte for byte.
+    assert md_to_tiptap("[1](a%20b.md)") == md_to_tiptap("[1](a%20b.md)", resolve_href=None)
+
+
+def test_raw_inline_img_and_a_become_nodes_and_an_unsafe_a_stays_text():
+    out = md_to_tiptap(
+        'x <a href="https://a.com/p?q=1&amp;r=2">site</a> <img src="i.png" alt="i"> '
+        '<a href="javascript:alert(1)">bad</a> <b>kept</b>')
+    content = out["doc"]["content"]
+    assert [n["type"] for n in content] == ["paragraph", "image", "paragraph"]
+    links = [(n["text"], m["attrs"]["href"]) for blk in content for n in blk.get("content") or []
+             for m in n.get("marks") or [] if m["type"] == "link"]
+    assert links == [("site", "https://a.com/p?q=1&r=2")]
+    assert content[1]["attrs"]["src"] == "import-ref://i.png"
+    assert [m["ref"] for m in out["media"]] == ["i.png"]
+    tail = "".join(n.get("text", "") for n in content[2]["content"])
+    assert tail == " bad <b>kept</b>"  # any other raw tag still shows, never vanishes
+    # A raw `<img>` alone on its line is an HTML BLOCK, and becomes an image too.
+    block = md_to_tiptap('<img src="https://a.com/c.png">\n\nafter')
+    assert [n["type"] for n in block["doc"]["content"]] == ["image", "paragraph"]
+    # A block holding any other tag keeps today's literal text.
+    other = md_to_tiptap("<div>x</div>")
+    assert other["doc"]["content"] == [
+        {"type": "paragraph", "content": [{"type": "text", "text": "<div>x</div>"}]}]

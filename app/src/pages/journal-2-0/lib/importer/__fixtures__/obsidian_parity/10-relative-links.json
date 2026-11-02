@@ -1,0 +1,38 @@
+{
+  "id": "10-relative-links",
+  "input_markdown": "# Relative links\n\nRead [the other](Other%20note.md), [up and over](../Notes/Other.md), [a section](<Other note.md#Heading>) and [from the root](Archive/Deep.md).\n",
+  "self_path": "Notes/Src.md",
+  "server": {
+    "callouts": [],
+    "highlights": [],
+    "images": [],
+    "links": [
+      {
+        "target": "Notes/Other note.md",
+        "text": "the other"
+      },
+      {
+        "target": "Notes/Other.md",
+        "text": "up and over"
+      },
+      {
+        "target": "Notes/Other note.md",
+        "text": "a section"
+      },
+      {
+        "target": "Archive/Deep.md",
+        "text": "from the root"
+      }
+    ],
+    "pending": [],
+    "task_checked": [],
+    "text": "Relative links Read the other, up and over, a section and from the root."
+  },
+  "vault_id": "vault-1",
+  "vault_paths": [
+    "Notes/Src.md",
+    "Notes/Other note.md",
+    "Notes/Other.md",
+    "Archive/Deep.md"
+  ]
+}
