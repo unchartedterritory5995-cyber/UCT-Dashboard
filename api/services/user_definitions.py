@@ -1884,10 +1884,19 @@ def _row_to_dict(row: sqlite3.Row) -> dict:
     }
 
 
+#: ⭐ THE SCRIPT ENGINE TODAY'S BUILD SHIPS — `scriptEngineVersion.SCRIPT_ENGINE_VERSION`,
+#: read here ONLY to decide whether a recorded `refused` verdict still binds
+#: (`engine_withheld_reason`): the server lanes have no browser to ask. Pinned equal to
+#: the JS constant by `tests/test_saved_script_prebump.py::test_the_server_engine_number_IS_the_browsers`
+#: (one web image ships both). ⛔ Bump BOTH in the same commit.
+SCRIPT_ENGINE_VERSION = 1
+
+
 def engine_stamp_of(definition: Any) -> Optional[int]:
     """The script-engine version a document was translated by (`meta.engineVersion`,
     written by the browser's `scriptEngineVersion.js`), or None when unstamped.
-    The SERVER never decides what is current — the browser asks with its own number."""
+    The list serves scripts by the ASKING browser's number (`source_below`); only
+    `engine_withheld_reason` reads `SCRIPT_ENGINE_VERSION`."""
     meta = definition.get("meta") if isinstance(definition, Mapping) else None
     v = meta.get("engineVersion") if isinstance(meta, Mapping) else None
     return v if isinstance(v, int) and not isinstance(v, bool) and v >= 1 else None
@@ -2168,16 +2177,29 @@ def _engine_status_of(c: sqlite3.Connection, user_id: Any, def_id: str,
 
 def _carry_refusal(c: sqlite3.Connection, user_id: Any, def_id: str,
                    from_version: int, to_version: int, now: int,
-                   to_def_id: Optional[str] = None) -> None:
-    """Copy a `refused` verdict from one stored version onto another (same txn)."""
+                   to_def_id: Optional[str] = None, *,
+                   to_user_id: Any = None,
+                   script_stamp: Optional[int] = None) -> None:
+    """Copy a `refused` verdict from one stored version onto another, in the CALLER's
+    transaction (it commits). The carry keeps the REFUSING ENGINE's number, so it
+    expires exactly as the verdict would (`engine_withheld_reason`).
+
+    ⛔ ``script_stamp`` — the new version's engine stamp WHEN it carries its script
+    (else None). Only a translation by an engine at least as new as the one that
+    refused (stamp >= verdict engine) answers the refusal; an older stamp (a raw PUT
+    of the stored refused document with its stored script) is not today's
+    translation, and the refusal rides on."""
     held = _engine_status_of(c, user_id, def_id, from_version)
-    if held is not None and held["status"] == "refused":
-        c.execute(
-            "INSERT INTO definition_engine_status "
-            "(user_id, def_id, version, engine, status, reason, created_at) "
-            "VALUES (?,?,?,?,?,?,?)",
-            (str(user_id), to_def_id or def_id, to_version, held["engine"], "refused",
-             held["reason"], now))
+    if held is None or held["status"] != "refused":
+        return
+    if script_stamp is not None and script_stamp >= held["engine"]:
+        return
+    c.execute(
+        "INSERT INTO definition_engine_status "
+        "(user_id, def_id, version, engine, status, reason, created_at) "
+        "VALUES (?,?,?,?,?,?,?)",
+        (str(user_id if to_user_id is None else to_user_id), to_def_id or def_id,
+         to_version, held["engine"], "refused", held["reason"], now))
 
 
 def _with_engine_status(c: sqlite3.Connection, out: dict) -> dict:
@@ -2188,16 +2210,52 @@ def _with_engine_status(c: sqlite3.Connection, out: dict) -> dict:
     return out
 
 
-def engine_withheld_reason(row: Any) -> Optional[str]:
+def _awaits_retranslation(row: Mapping, current: int) -> bool:
+    """Would today's browser re-translate this version on load? The server's half of
+    `savedScriptUpgrade.upgradeKindOf` → 'retranslate': a Pine script document,
+    holding its script, stamped below today's engine (or unstamped)."""
+    d = row.get("definition")
+    if not row.get("has_pine_source") or not isinstance(d, Mapping):
+        return False
+    compute, meta = d.get("compute"), d.get("meta")
+    if not (isinstance(compute, Mapping) and compute.get("kind") == "ast"
+            and isinstance(meta, Mapping) and meta.get("recurrenceOrigin") == "pine"):
+        return False
+    stamp = engine_stamp_of(d)
+    return stamp is None or stamp < current
+
+
+def engine_withheld_reason(row: Any, current: Optional[int] = None) -> Optional[str]:
     """⭐ THE ONE QUESTION EVERY SERVER LANE ASKS (alerts, the sweep, on-demand runs,
-    backtests, the scannable stamp): is this stored version known to be refused by
-    today's script engine? The sentence to show, or None."""
+    backtests, the scannable stamp): is this stored version held by a `refused`
+    verdict? The sentence to show, or None.
+
+    ⛔⛔ A VERDICT BINDS ITS OWN ENGINE, NOT FOREVER (the bump runbook's "recovery =
+    ship another bump" depends on it). With `current` = today's engine:
+      * verdict engine >= current — today's engine refused it: HELD;
+      * an older engine refused it and the version HOLDS its script — HELD until
+        today's engine re-answers (the member's next chart load re-translates it:
+        accepted → written back from the script path, which lifts it; refused → a
+        new verdict at today's number);
+      * an older engine refused it and the version has NO script to re-translate (a
+        studio / Formula hand edit, a share install) — EXPIRED: nothing can re-check
+        it, so it runs as the member's own maths.
+    The browser (`savedScriptUpgrade.upgradeKindOf`) answers the same way, so a chart
+    never draws what the alerts withhold, or the reverse."""
     st = row.get("engine_status") if isinstance(row, Mapping) else None
     if not isinstance(st, Mapping) or st.get("status") != "refused":
         return None
-    return (f"engine-refused: today's script engine (version {st.get('engine')}) "
-            f"refuses this script — {st.get('reason')}. It stays withheld until it is "
-            "saved from its script (open it in the Builder's Pine tab and save).")
+    cur = SCRIPT_ENGINE_VERSION if current is None else current
+    eng = st.get("engine")
+    if not isinstance(eng, int) or isinstance(eng, bool) or eng >= cur:
+        return (f"engine-refused: today's script engine (version {eng}) "
+                f"refuses this script — {st.get('reason')}. It stays withheld until it is "
+                "saved from its script (open it in the Builder's Pine tab and save).")
+    if _awaits_retranslation(row, cur):
+        return (f"engine-refused: script engine version {eng} refused this script — "
+                f"{st.get('reason')}. It stays withheld until today's engine (version "
+                f"{cur}) re-checks it, which happens the next time it is opened on a chart.")
+    return None
 
 
 def save(user_id: Any, def_id: str, definition: dict,
@@ -2207,7 +2265,8 @@ def save(user_id: Any, def_id: str, definition: dict,
          expected_version: Optional[int] = None,
          pine_source: Any = None,
          reason: Optional[str] = None,
-         _copy_of_stored: bool = False) -> dict:
+         _copy_of_stored: bool = False,
+         _carry_from: Optional[tuple] = None) -> dict:
     """Append a version. Bump `rev` iff the maths moved, and MIGRATE if it did.
 
     ⭐⭐ SAVED-SCRIPT AUTO-UPGRADE — ``pine_source``: the script a SCRIPT door
@@ -2687,9 +2746,19 @@ def save(user_id: Any, def_id: str, definition: dict,
         # script path (stamped AND carrying its script — today's translation of it). A
         # Formula-tab or studio save of the refused maths, even an unchanged one, would
         # otherwise put the known-wrong calculation back into alerts, scans and charts.
-        if prev_version is not None and not (
-                pine_source is not None and engine_stamp_of(definition) is not None):
-            _carry_refusal(c, user_id, def_id, prev_version, version, now)
+        # ⛔ "came from the script path" = its script AND a stamp at least as new as
+        # the engine that refused (`_carry_refusal(script_stamp=…)`): an old stamp
+        # with the stored script is a re-PUT of the refused translation, not a new one.
+        script_stamp = engine_stamp_of(definition) if pine_source is not None else None
+        if prev_version is not None:
+            _carry_refusal(c, user_id, def_id, prev_version, version, now,
+                           script_stamp=script_stamp)
+        # ⛔ A COPY (fork, share install) carries its source version's verdict in THIS
+        # transaction (`_carry_from` = (owner, def_id, version)): never committed without it.
+        if _carry_from is not None:
+            src_user, src_def, src_version = _carry_from
+            _carry_refusal(c, src_user, src_def, src_version, version, now,
+                           to_def_id=def_id, to_user_id=user_id, script_stamp=script_stamp)
         c.commit()
 
     # ── phase 4: FORGET. The registry holds a CAPTURED tree; this row replaces it.
@@ -3362,7 +3431,12 @@ def install_share(user_id: Any, token: str, limits: Any = None, *, role: Any = N
     # script" row either (`savedScriptUpgrade.upgradeKindOf`: a copy carrying
     # `origin` has no script to paste). Follow-up, not built: a recipient's copy
     # following the author's re-saves server-side.
-    out = save(user_id, def_id, doc, limits=limits, role=role, _copy_of_stored=True)
+    # ⛔ A copy of a refused version is refused too: the installer's alerts and scans
+    # must not run maths the author's engine refused. The verdict rides in the copy's
+    # own transaction (`_carry_from`) and expires with its engine like any carry.
+    out = save(user_id, def_id, doc, limits=limits, role=role, _copy_of_stored=True,
+               _carry_from=(resolved["author_id"], resolved["origin_def_id"],
+                            resolved["origin_version"]))
     out["origin"] = doc["origin"]
     return out
 
@@ -3405,15 +3479,11 @@ def fork(user_id: Any, def_id: str, limits: Any = None, *, role: Any = None) -> 
     if compute is not None and "rev" in compute:
         compute["rev"] = FIRST_REV
     # ⭐ SAVED-SCRIPT AUTO-UPGRADE — a copy of a script document keeps its script.
+    # ⛔ a copy of a refused version is refused too (the same known-wrong maths), carried
+    # in the copy's own transaction (`_carry_from`).
     out = save(user_id, new_id, doc, limits=limits, role=role, _copy_of_stored=True,
-               pine_source=src.get("pine_source"))
-    # ⛔ a copy of a refused version is refused too (it is the same known-wrong maths)
-    if out.get("appended") and src.get("version") is not None:
-        with _WRITE_LOCK, contextlib.closing(_connect()) as c:
-            _ensure(c)
-            _carry_refusal(c, user_id, def_id, src["version"], out["version"],
-                           int(time.time()), to_def_id=new_id)
-            c.commit()
+               pine_source=src.get("pine_source"),
+               _carry_from=(user_id, def_id, src["version"]))
     out["forked_from"] = meta["forkedFrom"]
     return out
 

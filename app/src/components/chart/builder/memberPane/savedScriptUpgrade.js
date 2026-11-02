@@ -100,10 +100,17 @@ export function recordedEngineStatus(row, current = SCRIPT_ENGINE_VERSION) {
  *               the Builder row offered, no translation, no PUT. */
 export function upgradeKindOf(row, current = SCRIPT_ENGINE_VERSION) {
   const def = row && row.definition
+  const recorded = isObj(def) ? recordedEngineStatus(row, current) : null
+  // ⛔⛔ A LIVE REFUSAL HOLDS ANY DOCUMENT, whatever its shape or stamp — the server's
+  // `engine_withheld_reason` never reads either to hold, and the two must agree (no
+  // "chart draws it but alerts withhold it" split). A refusal carried onto a studio
+  // edit (no longer script-shaped) or a share install is held here as there. It
+  // binds only while its engine is today's (`recordedEngineStatus`): past it, a
+  // version holding its script re-translates below, and one without expires.
+  if (recorded && recorded.status === 'refused') return 'refused'
   if (!isScriptDocument(def)) return 'none'
   if (!isStaleStamp(def, current)) return 'current'
-  const recorded = recordedEngineStatus(row, current)
-  if (recorded) return recorded.status === 'refused' ? 'refused' : 'retry'
+  if (recorded) return 'retry'
   if (typeof row.pine_source === 'string' && row.pine_source.trim()) return 'retranslate'
   // ⛔ A stale row whose script IS stored but was not sent (the list carries it
   // only to a browser that asked with a newer engine) is not legacy — it is a

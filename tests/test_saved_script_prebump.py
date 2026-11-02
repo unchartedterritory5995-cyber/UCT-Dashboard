@@ -348,3 +348,117 @@ def test_a_fork_of_a_refused_definition_is_refused_too(store):
 def test_the_withhold_sentence_names_the_real_door():
     st = {"engine_status": {"engine": 1, "status": "refused", "reason": "r"}}
     assert "Pine tab" in svc.engine_withheld_reason(st)
+
+
+# ═══ review #1 — every refusal has a way out: it binds only its own engine ════
+#
+# Semantics (`engine_withheld_reason`): a `refused` verdict (recorded or carried)
+# names the engine that refused. While that engine is today's (`SCRIPT_ENGINE_VERSION`
+# >= it), the version is held. Once the engine moves past it:
+#   * a version that HOLDS its script is held until today's engine re-answers it (the
+#     next chart load re-translates it: accepted -> written back from the script path,
+#     refused -> a new verdict at today's number);
+#   * a version WITHOUT its script (a studio / Formula hand edit, a share install) can
+#     never be re-translated, so the verdict expires and it runs as the member's maths.
+# The browser (`savedScriptUpgrade.upgradeKindOf`) answers the same question the same way.
+
+def _bump(monkeypatch, n):
+    monkeypatch.setattr(svc, "SCRIPT_ENGINE_VERSION", n)
+
+
+def test_a_carried_refusal_on_a_SCRIPTLESS_descendant_expires_when_the_engine_passes_it(store, monkeypatch):
+    _refused(store)                                   # v1 refused by engine 1 (today's)
+    edited = defn(23)
+    edited["meta"]["scriptEdited"] = True
+    svc.save("u1", DEF_ID, edited, expected_version=1)   # studio edit: no script
+    row = svc.get("u1", DEF_ID)
+    assert row["engine_status"]["engine"] == 1, "the carry must name the engine that refused"
+    assert svc.engine_withheld_reason(row), "while the refusing engine is today's, it is held"
+    _bump(monkeypatch, 2)
+    assert svc.engine_withheld_reason(svc.get("u1", DEF_ID)) is None, \
+        "a scriptless descendant can never be re-translated: the verdict must expire"
+    from api.services.screener import scan_evaluator
+    assert len(scan_evaluator.definitions_to_sweep()) == 1
+
+
+def test_a_refused_version_HOLDING_its_script_stays_held_until_todays_engine_re_answers(store, monkeypatch):
+    _refused(store)
+    _bump(monkeypatch, 2)
+    row = svc.get("u1", DEF_ID)
+    why = svc.engine_withheld_reason(row)
+    assert why and "re-check" in why, "held, but as awaiting today's engine, not as refused by it"
+    # the list hands the newer browser the script so it CAN re-answer
+    assert svc.list_for_user("u1", source_below=2)[0]["pine_source"] == SCRIPT
+    # today's engine accepts it: the write-back (script path, stamp 2) lifts it
+    svc.save("u1", DEF_ID, defn(25, engine=2), pine_source=SCRIPT, expected_version=1,
+             reason="engine-upgrade")
+    assert svc.engine_withheld_reason(svc.get("u1", DEF_ID)) is None
+
+
+def test_CONTROL_todays_engine_refusing_again_keeps_it_held(store, monkeypatch):
+    _refused(store)
+    _bump(monkeypatch, 2)
+    svc.record_engine_status("u1", DEF_ID, version=1, engine=2, status="refused", reason="still no plot")
+    why = svc.engine_withheld_reason(svc.get("u1", DEF_ID))
+    assert why and "version 2" in why and "still no plot" in why
+
+
+def test_the_server_engine_number_IS_the_browsers():
+    """`svc.SCRIPT_ENGINE_VERSION` is read against the JS file, not trusted."""
+    js = (ROOT / "app/src/components/chart/engine/scriptEngineVersion.js").read_text(encoding="utf-8")
+    m = re.search(r"export const SCRIPT_ENGINE_VERSION = (\d+)", js)
+    assert m and int(m.group(1)) == svc.SCRIPT_ENGINE_VERSION
+
+
+# ═══ review #2 — the script path lifts a refusal only with a stamp >= the refuser ═
+
+def test_a_raw_PUT_of_the_stored_script_with_its_OLD_stamp_does_not_lift_it(store, monkeypatch):
+    _bump(monkeypatch, 2)
+    svc.save("u1", DEF_ID, defn(20, engine=1), pine_source=SCRIPT)
+    svc.record_engine_status("u1", DEF_ID, version=1, engine=2, status="refused", reason="no plot")
+    out = svc.save("u1", DEF_ID, defn(21, engine=1), pine_source=SCRIPT, expected_version=1)
+    assert out["appended"] is True
+    row = svc.get("u1", DEF_ID)
+    assert svc.engine_withheld_reason(row), "an engine-1 stamp is not today's translation"
+
+
+def test_CONTROL_a_stamp_at_the_refusing_engine_does_lift_it(store, monkeypatch):
+    _bump(monkeypatch, 2)
+    svc.save("u1", DEF_ID, defn(20, engine=1), pine_source=SCRIPT)
+    svc.record_engine_status("u1", DEF_ID, version=1, engine=2, status="refused", reason="no plot")
+    svc.save("u1", DEF_ID, defn(26, engine=2), pine_source=SCRIPT, expected_version=1)
+    assert svc.engine_withheld_reason(svc.get("u1", DEF_ID)) is None
+
+
+# ═══ review #3 — a share install carries the verdict, like a fork ═════════════
+
+def test_a_share_install_of_a_refused_version_carries_its_verdict(store):
+    _refused(store)
+    token = svc.share("u1", DEF_ID)["token"]
+    out = svc.install_share("u2", token)
+    row = svc.get("u2", out["def_id"])
+    assert row["engine_status"]["status"] == "refused" and row["engine_status"]["engine"] == 1
+    assert svc.engine_withheld_reason(row), "the installer's lanes would run the refused maths"
+
+
+def test_CONTROL_a_share_install_of_an_unrefused_version_carries_nothing(store):
+    svc.save("u1", DEF_ID, defn(20), pine_source=SCRIPT)
+    out = svc.install_share("u2", svc.share("u1", DEF_ID)["token"])
+    assert "engine_status" not in svc.get("u2", out["def_id"])
+
+
+# ═══ review #4 — the copy and its carried verdict are ONE transaction ════════
+
+@pytest.mark.parametrize("door", ["fork", "install"])
+def test_a_copy_and_its_carried_verdict_commit_together(store, monkeypatch, door):
+    _refused(store)
+    token = svc.share("u1", DEF_ID)["token"] if door == "install" else None
+
+    def boom(*a, **k):
+        raise RuntimeError("carry failed")
+    monkeypatch.setattr(svc, "_carry_refusal", boom)
+    with pytest.raises(RuntimeError):
+        svc.fork("u1", DEF_ID) if door == "fork" else svc.install_share("u2", token)
+    owner = "u1" if door == "fork" else "u2"
+    assert [r["def_id"] for r in svc.list_for_user(owner)] == ([DEF_ID] if door == "fork" else []), \
+        "the copy was committed without its verdict"

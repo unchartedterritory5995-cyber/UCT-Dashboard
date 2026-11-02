@@ -27,14 +27,29 @@
 //   bump costs one translation + one write per saved script per member.
 //
 // ⛔⛔ ENGINE BUMP RUNBOOK — read before AND after every bump.
+//   • ⛔ BUMP TWO NUMBERS IN ONE COMMIT: this one and the server's mirror,
+//     `api/services/user_definitions.py::SCRIPT_ENGINE_VERSION` (the alert/scan/backtest
+//     lanes have no browser to ask). `tests/test_saved_script_prebump.py` pins them equal.
 //   • A TRANSLATOR REGRESSION CAN MARK GOOD SCRIPTS 'refused' SERVER-SIDE. A browser
-//     running the bumped engine records each refusal (`definition_engine_status`), and
-//     every server lane — alerts, scans, backtests — then WITHHOLDS that definition by
-//     name, for every device, until the NEXT bump. Nothing on the member's side clears it
-//     except saving the script again.
-//   • RECOVERY IS TO SHIP ANOTHER BUMP (the fixed translator with this number + 1). A
-//     verdict only binds browsers whose engine is not newer than the one that recorded
-//     it, so the next bump re-asks every refused script and clears the ones it now accepts.
+//     running the bumped engine records each refusal (`definition_engine_status`, with
+//     the engine number that refused), and every server lane — alerts, scans, backtests —
+//     then WITHHOLDS that definition by name, for every device. A save that does not come
+//     from the script path (stamped >= the refusing engine, script attached) CARRIES the
+//     refusal to the new version, refusing engine and all; so do a fork, a share install
+//     and a delete/resurrect.
+//   • A VERDICT (RECORDED OR CARRIED) BINDS ONLY WHILE ITS ENGINE IS TODAY'S. Browser
+//     (`savedScriptUpgrade.upgradeKindOf`) and server (`engine_withheld_reason`) answer
+//     identically once this number moves past it:
+//       – a version that HOLDS its script stays held until today's engine re-answers: the
+//         member's next chart load re-translates it (accepted → written back from the
+//         script path, lifted; refused → a new verdict at today's number);
+//       – a version WITHOUT its script (a studio / Formula hand edit of a refused script,
+//         a share-installed copy) EXPIRES and runs as stored. Chosen over carrying the
+//         script forward: re-translating the ancestor's script would overwrite the
+//         member's hand edit (the L2 rule — a hand edit is the member's own maths), and a
+//         verdict about a script cannot be re-checked against a document that has none.
+//   • RECOVERY IS TO SHIP ANOTHER BUMP (the fixed translator with this number + 1). Every
+//     refused script is re-asked on its next chart load and every scriptless carry expires.
 //   • AFTER EVERY BUMP, CHECK THE REFUSED COUNT: in the web pod, against
 //     user_definitions.db, `SELECT engine, COUNT(*) FROM definition_engine_status WHERE
 //     status='refused' GROUP BY engine` — a jump on the new engine is a regression signal,

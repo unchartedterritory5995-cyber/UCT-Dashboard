@@ -257,3 +257,48 @@ describe('review MEDIUM-1 — which documents are HELD to the script door', () =
     expect(scriptUpgradeHeld(rowOf(d, { pine_source: SCRIPT }))).toBe(false)
   })
 })
+
+// ⭐ review #1 — a verdict binds only the engine that gave it, and the browser agrees
+// with the server (`user_definitions.engine_withheld_reason`) on every shape a held
+// document can take: no "chart draws it but alerts withhold it" split.
+describe('review #1 — a refusal expires with its engine; browser and server agree', () => {
+  const refusedBy = (engine) => ({ engine, status: 'refused', reason: 'no plot' })
+  const N = SCRIPT_ENGINE_VERSION
+
+  it('a scriptless studio-edited descendant: held while its refuser is today’s engine, drawn once it is passed', () => {
+    const d = stale('u_bbbbbbbbbb21')
+    d.meta = { ...d.meta, scriptEdited: true }
+    const row = rowOf(d, { engine_status: refusedBy(N) })
+    expect(upgradeKindOf(row, N)).toBe('refused')
+    expect(upgradeKindOf(row, N + 1)).toBe('none')
+  })
+
+  it('a document the studio rewrote out of the script shape is STILL held by a live refusal', () => {
+    const d = stale('u_bbbbbbbbbb22')
+    d.meta = { ...d.meta }
+    delete d.meta.recurrenceOrigin           // no longer a script document
+    const row = rowOf(d, { engine_status: refusedBy(N) })
+    expect(upgradeKindOf(row, N)).toBe('refused')
+    expect(scriptUpgradeHeld(row)).toBe(true)
+    expect(upgradeKindOf(row, N + 1)).toBe('none')
+  })
+
+  it('a refused version carrying a CURRENT stamp is held too (the server never reads the stamp to hold)', () => {
+    const d = withEngineStamp(stale('u_bbbbbbbbbb23'))
+    expect(upgradeKindOf(rowOf(d, { engine_status: refusedBy(N) }), N)).toBe('refused')
+    expect(upgradeKindOf(rowOf(d, { engine_status: refusedBy(N) }), N + 1)).toBe('legacy')
+  })
+
+  it('a share-installed copy (origin, no script) is held by its carried verdict, then released', () => {
+    const d = { ...stale('u_bbbbbbbbbb24'), origin: { author_id: 'a', def_id: 'u_x', version: 1 } }
+    const row = rowOf(d, { engine_status: refusedBy(N) })
+    expect(upgradeKindOf(row, N)).toBe('refused')
+    expect(upgradeKindOf(row, N + 1)).toBe('none')
+  })
+
+  it('a refused version HOLDING its script is re-translated by the next engine (held until it answers)', () => {
+    const row = rowOf(stale('u_bbbbbbbbbb25'), { has_pine_source: true, pine_source: SCRIPT, engine_status: refusedBy(N) })
+    expect(upgradeKindOf(row, N)).toBe('refused')
+    expect(upgradeKindOf(row, N + 1)).toBe('retranslate')
+  })
+})
