@@ -58,7 +58,7 @@ function bind(cap, source) {
     })
     const errors = registry.columnErrors(cols) || {}
     const col = cols.value ? Array.from(cols.value) : null
-    return { door, col, err: errors.value || null, bars }
+    return { door, col, err: errors.value || null, bars, cols, errors }
   } finally {
     registry.uninstallUserDefinition(HARNESS_DEF_ID)
   }
@@ -73,6 +73,28 @@ function expectWithheld(cap, source) {
   expect(err && err.guard, JSON.stringify({ err, out: door.built.translation.outputs[0] })).toBe(BLOCK_RUNS_GUARD)
   expect(err.message).toMatch(/runs again on bar \d+/)
   return { err, door }
+}
+
+/** The hidden condition column a drawn plot names (`colorMode: 'column:<key>'`). */
+function colourColumnOf(door, key) {
+  const spec = door.def.plots.find((p) => p.key === key)
+  return spec && typeof spec.colorMode === 'string' && spec.colorMode.startsWith('column:')
+    ? spec.colorMode.slice('column:'.length) : null
+}
+
+/** The value drawn exactly (every bar's close), and its colour's condition column
+ *  withheld by name (`pine:block`) — the plot draws in its series colour (H1). */
+function expectColourWithheld(source) {
+  const { cols, errors, door, bars } = bind(RDDT, source)
+  expect(errors.value, JSON.stringify(errors.value)).toBeUndefined()
+  expect(Array.from(cols.value)).toEqual(bars.map((b) => b.c))
+  const ck = colourColumnOf(door, 'value')
+  expect(ck, 'the colour rides a condition column').toBeTruthy()
+  expect(cols[ck]).toBeUndefined()
+  expect(errors[ck].guard).toBe(BLOCK_RUNS_GUARD)
+  expect(errors[ck].message).toMatch(/runs again on bar \d+/)
+  expect(door.def.meta.blockRuns.keys.map((k) => k.key)).toEqual([ck])
+  return { door, cols }
 }
 
 const condVar = (guard, call, tail = 'plot(s)\n') => `${H}var float s = na\nif ${guard}\n    s := ${call}\n${tail}`
@@ -108,8 +130,28 @@ describe('C48 plot lane — a var written from a ta.* call in a block that skips
   it('an else-if arm: withheld', () => {
     expectWithheld(RDDT, `${H}var float s = na\nif close < 0\n    s := close\nelse if close > open\n    s := ta.sma(close, 3)\nplot(s)\n`)
   })
-  it('the plot\'s COLOUR read from the gated var withholds the plot too', () => {
-    expectWithheld(RDDT, condVar('close > open', 'ta.sma(close, 3)', 'plot(close, color = s > close ? color.red : color.green)\n'))
+  // ⛔⛔ F2 (review, after merging fix/prod-ternary-history) — A COLOUR READ OF THE
+  // GATED VAR WITHHOLDS THE COLOUR ALONE, never the value it colours: one policy
+  // with H1 (`colourBlockRunsOf`). ⚰️ This rail used to say the opposite ("the
+  // plot's COLOUR read from the gated var withholds the plot too"), and `close`
+  // — TradingView's own value on every bar — was not drawn.
+  it('⭐ the plot\'s COLOUR read from the gated var withholds that colour alone: the value (close) is drawn', () => {
+    expectColourWithheld(condVar('close > open', 'ta.sma(close, 3)', 'plot(close, color = s > close ? color.red : color.green)\n'))
+  })
+  it('⭐ the same for the non-`var` conditional-call form (master\'s `condCall` path)', () => {
+    expectColourWithheld(`${H}float m = na\nif close > open\n    m := ta.sma(close, 3)\nplot(close, color = close > m ? color.green : color.red)\n`)
+  })
+  it('a plot whose VALUE and colour both read the var is still withheld whole', () => {
+    expectWithheld(RDDT, condVar('close > open', 'ta.sma(close, 3)', 'plot(s, color = s > close ? color.red : color.green)\n'))
+  })
+  it('a second plot\'s colour reading the var a first plot drew keeps its own colour gate', () => {
+    const { cols, errors, door, bars } = bind(RDDT, condVar('close > open', 'ta.sma(close, 3)', 'plot(close, color = s > close ? color.red : color.green)\nplot(s)\n'))
+    expect(errors.value).toBeUndefined()
+    expect(Array.from(cols.value)).toEqual(bars.map((b) => b.c))
+    expect(errors.out2.guard).toBe(BLOCK_RUNS_GUARD)
+    const ck = colourColumnOf(door, 'value')
+    expect(ck).toBeTruthy()
+    expect(errors[ck].guard).toBe(BLOCK_RUNS_GUARD)
   })
 
   // ⛔ NEVER STOP DRAWING A VALUE THAT IS TRADINGVIEW'S.
@@ -287,6 +329,43 @@ describe('C48 — a function reads a var where it is CALLED (Pine), refused wher
   })
   it('a function whose local reads the var is refused the same way', () => {
     expectRefusedReassign('var float s = na\nf() =>\n    a = s * 2\n    a\ns := close\nplot(f())\n')
+  })
+  // ⛔⛔ F1 (review) — AN OFFSET READ IS NOT THE STALE READ. `f() => s[1]` reads the
+  // var's HISTORY, the same series wherever the function is declared, so the stale-read
+  // guard must not claim it. ⚖️ MEASURED 2026-11-01 (RDDT, member door): master does
+  // NOT draw these — the fold refuses them itself (`pine:state`, the offset read of a
+  // var written later in the script), on the plot lane and the object lane alike; the
+  // review's "master drew close[1]" was read, not run. So the rail is the refusal's
+  // OWNER: master's own `pine:state`, never this branch's `pine:reassign` sentence
+  // ("`f` reads `s`, a `var` written after"), which is false of a history read.
+  for (const body of [
+    'var float s = na\nf() => s[1]\ns := close\nplot(f())\n',
+    'var float s = 0\nf() => nz(s[1])\ns := s * 0.5 + close\nplot(f())\n',
+    'var float s = 0\nf() => s[ 2 ]\ns := s + close\nplot(f())\n',
+    'var float s = na\nf() =>\n    a = s[1]\n    a * 1\ns := close\nplot(f())\n',
+  ]) {
+    it(`⭐ ${JSON.stringify(body.split(String.fromCharCode(10))[1])} reads the var's history: not refused as a stale read (master's refusal stands)`, () => {
+      const { col, refusal } = plotOf(body)
+      expect(col).toBeNull()
+      expect(refusal && refusal.guard, JSON.stringify(refusal)).toBe('pine:state')
+    })
+  }
+  it('🔴 CONTROL — the same history read declared AFTER the write is drawn exactly (accum[1])', () => {
+    const { col, refusal } = plotOf('var float s = 0\ns := s * 0.5 + close\nf() => s[1]\nplot(f())\n')
+    expect(refusal).toBeNull()
+    let prev = NaN
+    let cur = 0
+    for (const b of B) { prev = cur; cur = cur * 0.5 + b.c }
+    expect(last(col)).toBeCloseTo(prev, 9)
+  })
+  it('a body that reads `s[1]` AND `s` is still refused (the bare read is stale)', () => {
+    expectRefusedReassign('var float s = na\nf() => s[1] + s\ns := close\nplot(f())\n')
+  })
+  it('`s[0]` is the bare read: refused', () => {
+    expectRefusedReassign('var float s = na\nf() => s[0]\ns := close\nplot(f())\n')
+  })
+  it('`s[k]` with an offset that may be 0 is refused', () => {
+    expectRefusedReassign('var float s = na\nk = bar_index % 2\nf() => s[k]\ns := close\nplot(f())\n')
   })
   it('a function called BEFORE the write reads the value there, and is drawn exactly', () => {
     // `s` before the write on this bar is the previous bar's close

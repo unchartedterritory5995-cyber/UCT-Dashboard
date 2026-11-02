@@ -6530,6 +6530,12 @@ function armRunTreesOf(row) {
  *  the member door turns into a hidden condition column (`conditionColumnFor`). */
 const COLOUR_RULE_KEYS = Object.freeze(['colorCondition', 'colorIndex', 'colorGradient'])
 
+/** ⭐ F2 — the block gates a colour rule's own read noted while the output loop
+ *  resolved it (`condCall`, `stateRuns`, a block local's history): non-enumerable
+ *  on the rule, so no digest or persisted copy sees it; `colourBlockRunsOf` adds
+ *  them to the rule's arm gates. */
+const COLOUR_BLOCK_RUNS = '_colourBlockRuns'
+
 /** ⭐⭐ H1 — THE GATES EACH COLOUR RULE CARRIES, `[{formula, gates}]`, for the whole
  *  translation: every output's presentation, every fill and every paint, one entry
  *  per rule formula that carries any. The member door mints ONE condition column per
@@ -6549,7 +6555,9 @@ export function colourBlockRunsOf(t, table) {
     for (const k of COLOUR_RULE_KEYS) {
       const rule = h[k]
       if (!rule || done.has(rule.formula)) continue
-      const gates = armRunGates([rule.ast], table)
+      // ⭐ F2 — the arms the rule's tree stamped, then the block gates its read
+      // noted in the output loop (`COLOUR_BLOCK_RUNS`): one rule, one column.
+      const gates = [...armRunGates([rule.ast], table), ...(rule[COLOUR_BLOCK_RUNS] || [])]
       if (!gates.length) continue
       done.add(rule.formula)
       out.push({ formula: rule.formula, gates })
@@ -15069,7 +15077,30 @@ function parseReadsName(node, name) {
  *  contributes the reads it recorded. */
 function outerStateReadsOf(headToks, sub, beforeFn, fnEnv) {
   const names = new Set()
-  const walk = (toks) => { for (const t of toks || []) if (t && t.kind === 'ident') names.add(t.value) }
+  // ⛔⛔ AN OFFSET READ IS NOT THIS READ (review F1). `s[k]` with `k` a literal
+  // integer >= 1 reads the var's HISTORY: past bars' values, the same series
+  // wherever the function is declared, so this sentence ("reads `s`, a `var`
+  // written after") is false of it. ⚖️ Measured 2026-11-01: `f() => s[1]` /
+  // `s := close` / `plot(f())` is refused on master too, by the fold's own
+  // `pine:state` (an offset read of a var written later), on the plot and object
+  // lanes — nothing drawn was lost; the refusal is master's again, not this one.
+  // Only that exact shape is skipped: `s[0]` is the bare read, and `s[k]` with
+  // any other offset (an expression, a name) may be 0 on some bar — both count.
+  const historyOnly = (toks, i) => {
+    const open = toks[i + 1]
+    const k = toks[i + 2]
+    const close = toks[i + 3]
+    return !!(open && open.kind === 'punct' && open.value === '['
+      && k && k.kind === 'number' && Number.isInteger(k.value) && k.value >= 1
+      && close && close.kind === 'punct' && close.value === ']')
+  }
+  const walk = (toks) => {
+    const list = toks || []
+    for (let i = 0; i < list.length; i += 1) {
+      const t = list[i]
+      if (t && t.kind === 'ident' && !historyOnly(list, i)) names.add(t.value)
+    }
+  }
   walk(headToks)
   const stack = [...(sub || [])]
   while (stack.length) {
@@ -25739,6 +25770,9 @@ function translatePineResult(source, opts = {}) {
       // ⭐ 2026-09-28 — which inputs the VALUE read, snapshotted before the
       // presentation below resolves the colour: see `_colourInputs`.
       const valueInputKeys = new Set(resolver.usedInputs.keys())
+      // ⭐ F2 — and how many block gates the VALUE noted, before the presentation
+      // below reads the colour: see `colourRuns`.
+      const valueBlockRuns = resolver.blockRuns.length
       row = {
         kind: out.kind,
         title: outputTitle(args, out.kind, out.role) || null,
@@ -25852,26 +25886,48 @@ function translatePineResult(source, opts = {}) {
       // none, refuses the row here — after the whole output, value and
       // presentation, minted what it always minted.
       if (resolver.condRefusal) throw resolver.condRefusal
-      const gates = []
-      if (resolver.blockRuns.length) {
+      // ⛔⛔ F2 (review) — A GATE ONLY THE COLOUR NOTED IS THE COLOUR'S (H1's rule,
+      // `colourBlockRunsOf`). One resolver reads the value and then the
+      // presentation, so a colour that reads a conditional call (`condCall`) or a
+      // `var` filled in a block that skips (`stateRuns`) used to put its block's
+      // guard on the PLOT: `plot(close, color = close > s ? … : …)` was withheld
+      // whole, though its value is every bar's close. The gates noted after the
+      // value (`valueBlockRuns`) ride the colour rules instead: the bind withholds
+      // that colour's condition column and the plot draws in its series colour.
+      // ⛔ Only where the presentation carries a colour rule to hang them on; with
+      // none, they stay the plot's, as before (never dropped).
+      const colourRules = COLOUR_RULE_KEYS.map((k) => row.presentation && row.presentation[k]).filter(Boolean)
+      const colourRuns = resolver.condGate && colourRules.length ? resolver.blockRuns.splice(valueBlockRuns) : []
+      const guardsOf = (runs) => {
+        const out = []
+        if (!runs.length) return out
         const minted = resolver.paramMint
         const observer = resolver.onCondition
         resolver.paramMint = null
         resolver.onCondition = null
         resolver.mintOnly += 1
         try {
-          for (const g of resolver.blockRuns) {
+          for (const g of runs) {
             const node = blockGuardNode(g.chain)
             let guard
             try { guard = resolver.condition(resolver.resolve(node), 'ternary', node.tok) } catch { throw g.err }
-            gates.push({ why: g.why, guard })
+            out.push({ why: g.why, guard })
           }
         } finally {
           resolver.mintOnly -= 1
           resolver.paramMint = minted
           resolver.onCondition = observer
         }
+        return out
       }
+      const colourGates = guardsOf(colourRuns)
+      if (colourGates.length) {
+        for (const rule of colourRules) {
+          const had = Array.isArray(rule[COLOUR_BLOCK_RUNS]) ? rule[COLOUR_BLOCK_RUNS] : []
+          Object.defineProperty(rule, COLOUR_BLOCK_RUNS, { value: [...had, ...colourGates], enumerable: false, configurable: true })
+        }
+      }
+      const gates = guardsOf(resolver.blockRuns)
       // ⭐⭐ C45 — …AND EACH `?:` ARM / v6 `and` / `or` RIGHT SIDE / `if`-expression
       // branch THE ROW'S VALUE TREE STAMPED (`armRunGates`): the same gate, the arm's
       // own test as the guard. Read off the finished tree, so nothing is resolved
