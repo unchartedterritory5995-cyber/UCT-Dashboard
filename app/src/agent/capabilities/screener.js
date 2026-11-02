@@ -637,6 +637,8 @@ export function registerScreenerCapabilities() {
   registerCapability({
     name: 'screener.run',
     target: 'screener', query: true, surfaces: ['charts'],
+    // tried on the WHOLE message first, so "rank them by RS" is the screener's, never read as a plural chart target
+    fastWhole: true,
     summary: 'Run a stock screen on UCT\'s Screener and show the real matches (count + top rows). Changes nothing in UCT. Use this for "show me / find stocks with …".',
     hints: 'target = the screener entry ref. filters: each {field: a key from screener `fields` (never invented), op, value, max, values}. '
       + 'Numbers: op gt|gte|lt|lte|eq|between, value, max (between only, else null), values null; % fields take 5 for 5%, $ fields take dollars (10M = 10000000). '
@@ -691,6 +693,13 @@ export function registerScreenerCapabilities() {
         // ⛔ SC-1 §2d (owner F-16 ruling): "strongest" in UCT's vocabulary IS the RS Rank ranking, a proprietary
         // rating. The phrase stays claimed so it never reaches the planner, and answer() refuses it with the §2d
         // sentence: 0 model calls, no screen, nothing substituted (never a return sort in its place).
+        return { filters: [], sort_field: 'rs_rank', sort_dir: 'desc', mode: 'new', show: null, as: null, within: null }
+      }
+      // ⛔ the same refusal for an explicit request to RANK by RS ("rank them by RS", "sort by relative strength").
+      // ONLY a screen or ranking by strength is claimed here: "put the strongest five on my watchlist" (the shown
+      // order, memory), "the strongest of those", "stocks looking really strong today" (today's performance) and
+      // "which is stronger, NVDA or AMD" are never claimed, so they never get a false refusal.
+      if (/^(?:please )?(?:rank|sort|order)(?: (?:them|these|those|it|my stocks|the results|the list|this screen))? by (?:rs|rs rank|relative strength)(?: rank(?:ing)?)?$/.test(lower)) {
         return { filters: [], sort_field: 'rs_rank', sort_dir: 'desc', mode: 'new', show: null, as: null, within: null }
       }
       if (!cache.meta) return null
