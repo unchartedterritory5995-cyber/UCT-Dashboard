@@ -1244,13 +1244,26 @@ def test_status_sources_default_pending_removal_and_failure_count_to_zero(client
     _connect_roam(client, monkeypatch)
     src = client.get("/api/j2/notes/connectors/status").json()["providers"]["roam"]["sources"][0]
     assert src["pendingRemoval"] == 0 and src["lastFailureCount"] == 0
+    assert src["lastFailuresUnreadable"] is False
 
 
-def test_status_last_failure_count_is_zero_for_unreadable_json(client, monkeypatch):
+def test_status_unreadable_latest_failures_are_unknown_never_zero(client, monkeypatch):
+    """An unreadable newest `failures_json` is NOT "no failures": the count is
+    null (unknown) and `lastFailuresUnreadable` says why, so the card keeps a
+    path to the log's "couldn't be read" line."""
     source_id = _connect_roam(client, monkeypatch)
     _insert_log(source_id, finished_at="t1", failures_json="{not json")
     src = client.get("/api/j2/notes/connectors/status").json()["providers"]["roam"]["sources"][0]
-    assert src["lastFailureCount"] == 0
+    assert src["lastFailureCount"] is None
+    assert src["lastFailuresUnreadable"] is True
+
+
+def test_status_only_the_newest_row_decides_unreadable(client, monkeypatch):
+    source_id = _connect_roam(client, monkeypatch)
+    _insert_log(source_id, finished_at="t1", failures_json="{not json")
+    _insert_log(source_id, finished_at="t2", failures_json=json.dumps([{"noteTitle": "a", "reason": "x"}]))
+    src = client.get("/api/j2/notes/connectors/status").json()["providers"]["roam"]["sources"][0]
+    assert src["lastFailureCount"] == 1 and src["lastFailuresUnreadable"] is False
 
 
 def test_source_log_rows_are_camelcase_with_failures_parsed(client, monkeypatch):

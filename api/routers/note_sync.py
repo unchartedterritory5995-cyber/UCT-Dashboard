@@ -382,10 +382,11 @@ def _parse_failures(raw: Any) -> tuple[list[dict[str, Any]], bool]:
     return out, False
 
 
-def _latest_failure_counts(user_id: str, source_ids: list[str]) -> dict[str, int]:
+def _latest_failure_counts(user_id: str, source_ids: list[str]) -> dict[str, int | None]:
     """Per-source failure count from the newest `j2_note_sync_log` row's
-    `failures_json` (0 for NULL or unreadable). Same newest-row subquery as
-    `_latest_sync_counts`; one bulk query, never N+1."""
+    `failures_json`: 0 for NULL, None for UNREADABLE (unknown, never "none":
+    a 0 would hide the card's "didn't come over" label). Same newest-row
+    subquery as `_latest_sync_counts`; one bulk query, never N+1."""
     if not source_ids:
         return {}
     placeholders = ",".join("?" * len(source_ids))
@@ -406,7 +407,11 @@ def _latest_failure_counts(user_id: str, source_ids: list[str]) -> dict[str, int
         ).fetchall()
     finally:
         conn.close()
-    return {r["source_id"]: len(_parse_failures(r["failures_json"])[0]) for r in rows}
+    out: dict[str, int | None] = {}
+    for r in rows:
+        failures, unreadable = _parse_failures(r["failures_json"])
+        out[r["source_id"]] = None if unreadable else len(failures)
+    return out
 
 
 @router.get("/status")
@@ -425,7 +430,12 @@ def get_status(user: dict = Depends(get_current_user)) -> dict[str, Any]:
         s = dict(s)
         s["counts"] = counts_by_source.get(s["id"], dict(_ZERO_COUNTS))
         s["pendingRemoval"] = int(pending.get(s["id"], 0))
-        s["lastFailureCount"] = int(failure_counts.get(s["id"], 0))
+        # None = the newest row's failures could not be read: the count is
+        # unknown (null), and `lastFailuresUnreadable` keeps the card's path to
+        # the log's "couldn't be read" line. Older clients read null as 0.
+        failure_count = failure_counts.get(s["id"], 0)
+        s["lastFailureCount"] = None if failure_count is None else int(failure_count)
+        s["lastFailuresUnreadable"] = failure_count is None
         sources_by_provider.setdefault(s["provider"], []).append(s)
 
     providers: dict[str, Any] = {}

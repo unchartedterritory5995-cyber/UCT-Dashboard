@@ -126,6 +126,9 @@ export function normalizeSource(raw) {
     warmingUntil: pick(raw, 'warmingUntil', 'warming_until', null),
     pendingRemoval: pick(raw, 'pendingRemoval', 'pending_removal', 0) || 0,
     lastFailureCount: pick(raw, 'lastFailureCount', 'last_failure_count', 0) || 0,
+    // The newest sync's failure details could not be read (the server sends a
+    // null count with this flag): unknown, never "nothing failed".
+    lastFailuresUnreadable: !!pick(raw, 'lastFailuresUnreadable', 'last_failures_unreadable', false),
     counts: normalizeCounts(raw.counts),
   }
 }

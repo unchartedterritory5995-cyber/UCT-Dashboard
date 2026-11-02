@@ -55,7 +55,7 @@ describe('normalizeStatus — the field-name contract (fix-round 1 finding #2, c
         id: 's1', provider: 'roam', displayName: 'My Graph', remoteId: 'my-graph',
         syncEnabled: true, status: 'active', lastSyncAt: '2026-08-01T00:00:00Z',
         lastSyncStatus: 'ok', lastSyncError: null, warmingUntil: null,
-        pendingRemoval: 0, lastFailureCount: 0,
+        pendingRemoval: 0, lastFailureCount: 0, lastFailuresUnreadable: false,
         counts: {
           notesCreated: 5, notesUpdated: 2, notesSkipped: 1, mediaUploaded: 4,
           conflicts: 0, sourceDeleted: 6,
@@ -95,7 +95,7 @@ describe('normalizeStatus — the field-name contract (fix-round 1 finding #2, c
         id: 's2', provider: 'craft', displayName: 'My Space', remoteId: 'link-1',
         syncEnabled: false, status: 'broken', lastSyncAt: '2026-08-02T00:00:00Z',
         lastSyncStatus: 'error', lastSyncError: 'token expired', warmingUntil: null,
-        pendingRemoval: 0, lastFailureCount: 0,
+        pendingRemoval: 0, lastFailureCount: 0, lastFailuresUnreadable: false,
         counts: {
           notesCreated: 9, notesUpdated: 0, notesSkipped: 2, mediaUploaded: 1,
           conflicts: 4, sourceDeleted: 7,
@@ -258,6 +258,14 @@ describe('Task 5: Sync now result, log rows, source counters', () => {
     expect(normalizeSource({ id: 'a', pendingRemoval: 3, lastFailureCount: 2 })).toMatchObject({ pendingRemoval: 3, lastFailureCount: 2 })
     expect(normalizeSource({ id: 'a', pending_removal: 4, last_failure_count: 1 })).toMatchObject({ pendingRemoval: 4, lastFailureCount: 1 })
     expect(normalizeSource({ id: 'a' })).toMatchObject({ pendingRemoval: 0, lastFailureCount: 0 })
+  })
+
+  it('normalizeSource keeps an unreadable failure count as unreadable, never as "none"', () => {
+    expect(normalizeSource({ id: 'a', lastFailureCount: null, lastFailuresUnreadable: true }))
+      .toMatchObject({ lastFailureCount: 0, lastFailuresUnreadable: true })
+    expect(normalizeSource({ id: 'a', last_failure_count: null, last_failures_unreadable: true }))
+      .toMatchObject({ lastFailuresUnreadable: true })
+    expect(normalizeSource({ id: 'a' })).toMatchObject({ lastFailuresUnreadable: false })
   })
 })
 

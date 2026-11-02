@@ -301,6 +301,14 @@ describe('SourceRow — Recent syncs', () => {
     expect(screen.getByRole('button', { name: /Recent syncs · 2 items didn't come over/ })).toBeInTheDocument()
   })
 
+  it('an unreadable last sync keeps the Recent syncs path and says so', async () => {
+    const onLoadLog = vi.fn().mockResolvedValue([{ ...ROW, failures: [], failuresUnreadable: true }])
+    renderWith(makeSource({ lastSyncAt: null, lastFailureCount: 0, lastFailuresUnreadable: true }), { onLoadLog })
+    const btn = screen.getByRole('button', { name: /Recent syncs · details of the last sync couldn't be read/ })
+    fireEvent.click(btn)
+    expect(await screen.findByText("Details for this sync couldn't be read.")).toBeInTheDocument()
+  })
+
   it('singular item label', () => {
     renderWith(makeSource({ lastFailureCount: 1 }), { onLoadLog: vi.fn() })
     expect(screen.getByRole('button', { name: /Recent syncs · 1 item didn't come over/ })).toBeInTheDocument()

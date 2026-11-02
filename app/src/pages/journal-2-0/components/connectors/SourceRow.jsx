@@ -213,7 +213,11 @@ export default function SourceRow({
 
   const pending = source.pendingRemoval || 0
   const failedCount = source.lastFailureCount || 0
-  const showLog = !!onLoadLog && (!!source.lastSyncAt || failedCount > 0)
+  const failuresUnreadable = !!source.lastFailuresUnreadable
+  const showLog = !!onLoadLog && (!!source.lastSyncAt || failedCount > 0 || failuresUnreadable)
+  const logLabelSuffix = failedCount > 0
+    ? ` · ${failedCount} ${plural(failedCount, 'item', 'items')} didn't come over`
+    : failuresUnreadable ? " · details of the last sync couldn't be read" : ''
 
   const handleTogglePause = async () => {
     if (pauseBusy) return
@@ -299,7 +303,7 @@ export default function SourceRow({
             aria-expanded={logOpen}
             onClick={toggleLog}
           >
-            {`Recent syncs${failedCount > 0 ? ` · ${failedCount} ${plural(failedCount, 'item', 'items')} didn't come over` : ''}`}
+            {`Recent syncs${logLabelSuffix}`}
           </button>
           {logOpen && (
             <div className={styles.historyList}>
