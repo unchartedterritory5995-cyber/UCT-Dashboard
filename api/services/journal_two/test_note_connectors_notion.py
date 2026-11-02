@@ -1320,6 +1320,39 @@ async def test_media_transient_failure_stays_a_placeholder_for_the_engine_to_ret
     assert engine_mod.media_failure_reason(exc.value) == "fetch_failed"
 
 
+async def test_fetch_media_for_an_unknown_notion_ref_is_retryable_and_a_success_clears_a_deferral():
+    """Fix round 3: a `notion:` ref this provider never deferred (another instance converted the
+    note, say) is a TRANSIENT failure -- never handed to the URL fetcher, whose refusal of the
+    `notion:` scheme would read as a FINAL `unsafe` notice. And once a later traversal downloads a
+    block that an earlier one deferred, the stale deferral is dropped."""
+    from api.services.journal_two.note_connectors import engine as engine_mod
+    fail = {"on": True}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.host == _API_HOST:
+            if request.url.path == "/v1/pages/page-flip":
+                return httpx.Response(200, json={"id": "page-flip", "properties": {"title": _title_prop("F")}})
+            if request.url.path == "/v1/blocks/page-flip/children":
+                return httpx.Response(200, json={"has_more": False, "results": [
+                    _block("img-flip", "image", {"type": "file", "file": {"url": S3_IMAGE_URL}, "caption": []})]})
+            return httpx.Response(500)
+        if fail["on"]:
+            return httpx.Response(503)
+        return httpx.Response(200, content=_PNG_BYTES, headers={"content-type": "image/png"})
+
+    provider = _make_provider(handler)
+    with pytest.raises(errors.NoteConnTransient) as exc:
+        await provider.fetch_media(CREDS, "notion:never-seen")
+    assert engine_mod.media_failure_reason(exc.value) == "fetch_failed"
+
+    await provider.fetch(CREDS, RemoteRef(remote_id="page-flip", updated_at="x"))
+    assert "notion:img-flip" in provider._deferred_media
+    fail["on"] = False
+    note = await provider.fetch(CREDS, RemoteRef(remote_id="page-flip", updated_at="y"))
+    assert note.media[0]["data_uri"].startswith("data:image/png;base64,")
+    assert "notion:img-flip" not in provider._deferred_media, "a success clears the stale deferral"
+
+
 async def test_a_top_level_image_whose_file_is_gone_is_a_final_import_notice():
     """Fix round 2 (ruling): a DEFINITIVE failure is a final importNotice from the converter --
     the media host says the file is gone (404), or the block names no file at all."""

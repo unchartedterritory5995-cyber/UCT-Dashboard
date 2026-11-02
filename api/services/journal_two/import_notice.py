@@ -72,7 +72,9 @@ NOTICE_COPY: Mapping[str, str] = MappingProxyType({
     "type_refused": "{name} is a file type that can't be stored here",
     "unresolvable_src": "Couldn't find the image file for {name}",
     "decode_failed": "{name} couldn't be read",
-    "missing_resource": "{name} was missing from the export",
+    # `missing_resource` is written by BOTH the client file importer and the Notion converter
+    # (a live sync has no export), so its sentence names no source.
+    "missing_resource": "{name} couldn't be found, so it wasn't copied",
     # Plan C (Obsidian plugin) -- copy verbatim from the Plan C plan.
     "obsidian_plugin_outdated": (
         "{name} wasn't synced. Update the UCT Notebook Sync plugin in Obsidian to bring images and files over."),

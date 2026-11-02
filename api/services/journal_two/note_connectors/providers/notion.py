@@ -446,6 +446,12 @@ class NotionProvider(NoteProvider):
         deferred = self._deferred_media.get(ref)
         if deferred is not None:
             raise deferred
+        if isinstance(ref, str) and ref.startswith("notion:"):
+            # Fix round 3: a Notion-hosted ref this instance never deferred (a different
+            # provider instance converted the note). It is no URL: handing it to the fetcher
+            # would read as a FINAL `unsafe`. It is retried instead, and the next traversal
+            # downloads it afresh.
+            raise NoteConnTransient(f"Notion media {ref!r} is not available in this sync")
         client = await self._get_client()
         return await fetch_content_url(client, ref, what="Notion media")
 
@@ -616,12 +622,15 @@ class NotionProvider(NoteProvider):
         try:
             data, content_type, failure = await self._download_internal(block, url, token, cap=cap)
         except _MediaTooLarge:
+            self._deferred_media.pop(ref, None)
             return {"too_large": True, "name": name}  # definitive: the converter's FINAL notice
         if failure == _RETRY:
             return self._defer_media(ref, kind, name, NoteConnTransient(
                 f"Notion media {name!r} could not be downloaded"))
         if failure is not None:
+            self._deferred_media.pop(ref, None)
             return {"final": failure, "name": name}   # definitive: the converter's FINAL notice
+        self._deferred_media.pop(ref, None)  # fix round 3: a success clears a stale deferral
         b64 = base64.b64encode(data).decode("ascii")
         return {"ref": ref, "kind": kind, "name": name, "data_uri": f"data:{content_type};base64,{b64}"}
 

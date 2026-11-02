@@ -48,7 +48,8 @@ def _client_copy(path: Path = CLIENT_COPY) -> dict:
           "m.importNoticeText({reason: 'fetch_failed', attempts: 3}),"
           "m.importNoticeText({reason: 'too_large', name: 'chart.png'}),"
           "m.importNoticeText({reason: 'truncated', name: 'the first 20 of 27 files in Shots'}),"
-          "m.importNoticeText({reason: 'truncated', name: null})]})))")
+          "m.importNoticeText({reason: 'truncated', name: null}),"
+          "m.importNoticeText({reason: 'missing_resource', name: null})]})))")
     r = subprocess.run([node, "--input-type=module", "-e", js], capture_output=True, timeout=120)
     err = (r.stderr or b"").decode("utf-8", errors="replace")
     assert r.returncode == 0, f"node could not import {path}: {err[:2000]}"
@@ -89,8 +90,11 @@ def test_the_reason_union_name_fallback_and_derivation_agree_on_both_sides():
         # copy tables derive the same sentence from the five attrs alone
         marker_text("truncated", "the first 20 of 27 files in Shots"),
         marker_text("truncated", None),
+        # fix round 3: source-neutral (a live Notion sync has no export), fallback capitalised
+        marker_text("missing_resource", None),
     ]
     assert want[8] == "Only the first 20 of 27 files in Shots came over"
+    assert want[10] == "This item couldn't be found, so it wasn't copied"
     assert want[2] == "This item can't be shown here"   # non-vacuity: the samples hold the rule
     assert want[5].endswith(". This item will be copied once space frees up")
     assert want[6] == "Couldn't copy this item" and want[7].startswith("chart.png ")
@@ -130,7 +134,7 @@ def test_marker_text_retry_vs_final():
     ("type_refused", "a.png is a file type that can't be stored here"),
     ("unresolvable_src", "Couldn't find the image file for a.png"),
     ("decode_failed", "a.png couldn't be read"),
-    ("missing_resource", "a.png was missing from the export"),
+    ("missing_resource", "a.png couldn't be found, so it wasn't copied"),
     ("not_found", "a.png wasn't found in the vault."),
     ("sync_off", "a.png wasn't synced because image and file sync is turned off in the plugin settings."),
 ])

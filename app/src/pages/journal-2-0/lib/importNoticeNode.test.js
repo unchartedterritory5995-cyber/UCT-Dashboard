@@ -138,7 +138,7 @@ describe('the importNotice block', () => {
     expect(() => schema.nodeFromJSON({ type: 'doc', content: [bad] }).check()).toThrow()
     // and the live editor keeps all three, the notices reading their derived sentences
     const doms = mount(good)
-    expect(doms.map((d) => d.textContent)).toEqual(['gone.pdf was missing from the export',
+    expect(doms.map((d) => d.textContent)).toEqual(["gone.pdf couldn't be found, so it wasn't copied",
       'Only the first 20 of 23 files in Files came over'])
     const json = JSON.stringify(editor.getJSON())
     expect(json).toContain('"type":"image"')

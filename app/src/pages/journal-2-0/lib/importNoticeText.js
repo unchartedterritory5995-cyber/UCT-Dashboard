@@ -41,7 +41,8 @@ export const NOTICE_COPY = Object.freeze({
   type_refused: "{name} is a file type that can't be stored here",
   unresolvable_src: "Couldn't find the image file for {name}",
   decode_failed: "{name} couldn't be read",
-  missing_resource: '{name} was missing from the export',
+  // Written by both the file importer and the Notion converter (a live sync has no export).
+  missing_resource: "{name} couldn't be found, so it wasn't copied",
   // Plan C (Obsidian plugin) — copy verbatim from the Plan C plan.
   obsidian_plugin_outdated: "{name} wasn't synced. Update the UCT Notebook Sync plugin in Obsidian to bring images and files over.",
   obsidian_attachments_unavailable: "{name} wasn't synced yet. It will be retried on the next sync.",
