@@ -135,6 +135,32 @@ def test_the_indicator_name_labels_a_line_only_on_a_ONE_line_definition(conv):
     assert not _refused(conv, e1, MEASURED, _view())
 
 
+import pytest  # noqa: E402
+
+
+@pytest.mark.parametrize("message", [
+    "plot the put/call ratio next to the RSI",          # "call" inside put/call
+    "hide the RSI label",                                # "label" as a noun, name BEFORE it
+    "make the RSI length 28 and call the options flow later",
+])
+def test_a_naming_word_that_names_nothing_does_not_admit_a_rename(conv, message):
+    """Independent QA 2026-11-02, CONFIRMED false negatives: a naming word anywhere in
+    the message used to admit any word of it as a line name."""
+    e = env(1, [{"op": "rename_output", "output": "sig", "label": "RSI"}])
+    assert _refused(conv, e, message, _two_lines())
+
+
+@pytest.mark.parametrize("message", [
+    "label the signal line Fast",
+    "call the signal line Fast",
+    "name the second line Fast",
+    "rename the signal line to Fast",
+])
+def test_the_ordinary_ways_of_naming_a_line_still_pass(conv, message):
+    e = env(1, [{"op": "rename_output", "output": "sig", "label": "Fast"}])
+    assert not _refused(conv, e, message, _two_lines())
+
+
 def test_label_wording_and_punctuation_are_the_members(conv):
     e = env(1, [{"op": "rename_output", "output": "sig", "label": "Sig (9)"}])
     assert not _refused(conv, e, "label the signal line “Sig (9)”", _two_lines())

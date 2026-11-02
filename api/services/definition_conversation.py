@@ -1251,7 +1251,23 @@ def _said(phrase: str, text: str) -> bool:
 #: that merely occurs in the text ("RSI" in "make the RSI length 28") is not a name
 #: the member gave (independent review, 2026-11-02).
 _RENAME_INTENT = re.compile(
-    r"\b(?:re-?name[sd]?|label(?:l?ed|s)?|call(?:ed|s)?|name[sd]?|title[sd]?)\b", re.I)
+    r"(?<![/\w-])(?:re-?name[sd]?|label(?:l?ed|s)?|call(?:ed|s)?|name[sd]?|title[sd]?)\b"
+    r"(?!\s+(?:ratios?|options?|spreads?)\b)", re.I)
+#: How many words after a naming verb the name itself may sit ("rename the RSI line
+#: to Fast RSI" -- 4 words between). Independent QA 2026-11-02: tying the label to
+#: the verb is what stops "hide the RSI label" or "the put/call ratio next to the
+#: RSI" from counting as a request to name a line "RSI".
+_NAME_WINDOW_WORDS = 10
+
+
+def _named_after_intent(label: str, text: str) -> bool:
+    """`label` occurs, as whole words, within `_NAME_WINDOW_WORDS` words AFTER a
+    naming verb in `text` (both already folded)."""
+    for m in _RENAME_INTENT.finditer(text):
+        window = " ".join(text[m.end():].split()[:_NAME_WINDOW_WORDS])
+        if _said(label, window):
+            return True
+    return False
 
 
 def check_output_renames(envelope: Mapping[str, Any], message: Any, view: Any,
@@ -1299,8 +1315,7 @@ def check_output_renames(envelope: Mapping[str, Any], message: Any, view: Any,
     for text in texts:
         names, rest = conversation_preflight.naming_split(text)
         cue_names.update(_label_text(n) for n in names)
-        if _RENAME_INTENT.search(rest):
-            asked.append(_label_text(rest))
+        asked.append(_label_text(rest))
     one_line = len(current) <= 1
     for i, o in enumerate(ops):
         if o.get("op") != "rename_output" or o.get("output") in new_keys:
@@ -1308,7 +1323,7 @@ def check_output_renames(envelope: Mapping[str, Any], message: Any, view: Any,
         label = _label_text(o.get("label"))
         if not label or label == current.get(o.get("output")):
             continue
-        if (one_line and label in cue_names) or any(_said(label, a) for a in asked):
+        if (one_line and label in cue_names) or any(_named_after_intent(label, a) for a in asked):
             continue
         raise _Refused(
             "envelope:rename-unrequested",
