@@ -3,7 +3,7 @@
 // figures, a period, rows, headlines or prose — with the full answer one tap away under "Details".
 // Sized by the PANEL (container queries in AgentResult.module.css), never by the window: a narrow
 // panel stacks a table into one card per row; nothing scrolls sideways.
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useInRouterContext } from 'react-router-dom'
 import styles from './AgentResult.module.css'
 import { chartTarget } from './present'
@@ -99,9 +99,13 @@ function Details({ details, sources }) {
 function OpenChart({ target, onOpen, disabled }) {
   // "Opening…" while THIS card's click runs (the panel's busy state disables every card's button)
   const [opening, setOpening] = useState(false)
+  // The open can outlive the card (the panel closes, the conversation changes, a test tears down): the
+  // "Opening…" state is only cleared while the button still exists.
+  const alive = useRef(true)
+  useEffect(() => { alive.current = true; return () => { alive.current = false } }, [])
   const click = () => {
     setOpening(true)
-    Promise.resolve().then(() => onOpen(target)).finally(() => setOpening(false))
+    Promise.resolve().then(() => onOpen(target)).finally(() => { if (alive.current) setOpening(false) })
   }
   return (
     <button type="button" className={styles.chartAction} onClick={click} disabled={disabled || opening}
