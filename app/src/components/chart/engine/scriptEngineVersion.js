@@ -81,7 +81,9 @@
 /** 1 = the first stamped engine (C45/C48 `blockRuns` withholding is in it). */
 /** 2 = the first real bump (2026-11-02): saved scripts re-translate once with every engine
  *  change merged since 1 was stamped (#610), now that refusals are remembered (#673). */
-export const SCRIPT_ENGINE_VERSION = 2
+/** 3 = P3 WS-A: the C18 object door refuses by name the master-wrong block shapes (readSelf,
+ *  v6 unmatched bool, moved for-bound, continued switch arms). */
+export const SCRIPT_ENGINE_VERSION = 3
 
 /** The meta key the stamp lives under. `defSchema` keeps unknown `meta` keys
  *  (ignore-and-preserve), and it sits outside every tree, so no hash moves. */
