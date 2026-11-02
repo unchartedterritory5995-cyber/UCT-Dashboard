@@ -210,8 +210,15 @@ case (the default, an older server with no list, or `quote` not activated):
 - `answerQuote` returns stock.profile's own answer, byte for byte. The rail is in `agentDataQuote.test.js`.
 
 **Fast path.** `match(text)` is pure and fail-closed. It returns `{action: 'stock.quote', params: {symbols}}` or
-null, and it is held row by row to `MD-1-phrasings.md`. agent-lead wires it into `fastPath.js` behind the data
-flag.
+null, and it is held row by row to `MD-1-phrasings.md`.
+- **The hook.** The registration carries the fast path's own hook for query capabilities, `fastWhole: true` plus
+  `fast({raw})`, so `fastPath.js` is unchanged.
+- **One claimant.** `matchWhole` answers only when exactly one capability claims the sentence. A sentence another
+  capability also claims goes to the model.
+- **No guessed spellings.** `fastCorrect: false`: only the parser's own fixed typo list counts, never the shared
+  spelling corrector.
+- **Re-checked on every call.** `match()` re-checks the gate each time, so a capability registered earlier claims
+  nothing once the server reports dark.
 
 ## 5. Budgets
 

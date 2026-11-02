@@ -231,6 +231,11 @@ export function registerMarketDataCapabilities() {
       + 'Use this (disposition apply, research null) for "what\'s NVDA trading at?", "AMD premarket", "NVDA and AMD after hours".',
     hints: 'target = the ref of the stockData entry; symbols = the tickers, uppercase. Not for fundamentals (stock.profile), news or "why is it moving".',
     args: { type: 'object', properties: { symbols: { type: 'array', items: { type: 'string' } } }, required: ['symbols'], additionalProperties: false },
+    // the fast path (fastPath.js matchWhole): the whole sentence, claimed only when NO other capability claims it too
+    fastWhole: true,
+    // market data is never read on a guessed spelling: only the parser's own fixed typo list (MD-1-phrasings §1.6)
+    fastCorrect: false,
+    fast: ({ raw }) => { const m = match(raw); return m ? m.params : null },
     answer: (_snap, args) => answerQuote(args),
   })
   return true
