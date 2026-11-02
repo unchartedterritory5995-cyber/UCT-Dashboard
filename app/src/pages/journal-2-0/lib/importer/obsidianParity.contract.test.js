@@ -200,6 +200,14 @@ const knownClientGap = {
       text: 'Callouts Size Keep it small. > Wait for the pivot.',
     },
   },
+  // Plan B final review, fix 2 (DELIBERATE, not a Plan B gap): the server knows its vault's
+  // name (the plugin's device label), so `vault=Trading` resolves there. A client drop of
+  // LOOSE files (no `.obsidian/`, no single top folder) cannot show the link is into the
+  // vault it holds, so the deep link stays text rather than resolve by name across the drop
+  // (which opened another vault's note). Dropped as a `Trading/` folder, the client links it.
+  '14-raw-html-and-deep-link.json': {
+    missingLinks: [{ target: 'Plan.md', text: 'the plan' }],
+  },
 }
 
 describe('Obsidian client<->server pre-pass parity', () => {
