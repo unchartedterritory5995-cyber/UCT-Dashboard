@@ -55,7 +55,7 @@ export function streamingEnabled() {
 }
 // Whether THIS server streams turns (GET /api/agent/config, read once when the Agent opens). Until it
 // has answered yes, every turn is asked the old way — a server with streaming off sees no change at all.
-let serverStream = { on: false, nl1: false, data: false, scan: false, inflight: null, at: 0 }
+let serverStream = { on: false, nl1: false, data: false, scan: false, kinds: null, inflight: null, at: 0 }
 const CONFIG_TTL_MS = 5 * 60 * 1000
 export function loadAgentConfig() {
   if (serverStream.inflight) return serverStream.inflight
@@ -65,6 +65,7 @@ export function loadAgentConfig() {
     .then((c) => {
       serverStream.on = !!(c && c.stream === true); serverStream.nl1 = !!(c && c.nl1 === true)
       serverStream.data = !!(c && c.data === true); serverStream.scan = !!(c && c.scan === true)
+      serverStream.kinds = serverStream.data && Array.isArray(c.data_kinds) ? c.data_kinds.filter(k => typeof k === 'string') : null
       serverStream.at = Date.now(); return serverStream.on
     })
     .catch(() => serverStream.on)
@@ -78,7 +79,10 @@ export const serverServesNl1 = () => serverStream.nl1 === true
 // False until the config has answered yes, and on any error — so nothing reads the gateway while it is dark.
 export const serverServesData = () => serverStream.data === true
 export const serverServesScan = () => serverStream.data === true && serverStream.scan === true
-export const _resetAgentConfig = () => { serverStream = { on: false, nl1: false, data: false, scan: false, inflight: null, at: 0 } }
+// #621: the kinds THIS server activates (UCT_AGENT_DATA_KINDS -> config `data_kinds`), or null while the gateway is
+// dark, the list is missing, or the config has not answered. A capability reads a kind only when it is listed here.
+export const serverDataKinds = () => (serverStream.data === true && Array.isArray(serverStream.kinds) ? [...serverStream.kinds] : null)
+export const _resetAgentConfig = () => { serverStream = { on: false, nl1: false, data: false, scan: false, kinds: null, inflight: null, at: 0 } }
 // One MD-1 gateway read (POST /api/agent/data) -> { ok, data: DataEnvelope } | { ok: false, error }.
 // Only app/src/agent/data/client.js calls this.
 export const agentDataRead = (body) => post('/api/agent/data', body)
