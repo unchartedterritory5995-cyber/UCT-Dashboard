@@ -12,11 +12,16 @@
  *
  * Created by Task 6, which marks such anchors `data-evernote-link`; Task 7 adds the by-title
  * resolution here.
+ *
+ * ⚠️ LIMIT: in an .enex the link's TEXT is the only title source. ENEX carries no note ids, and
+ * the `evernote:///view/…` GUIDs name nothing in the export. So a link labelled "click here"
+ * resolves (here, or later by the server's heal) only if exactly one Evernote note is titled
+ * exactly "click here"; otherwise it stays plain text.
  */
 
 import { neutraliseAnchor } from './linkPolicy'
 
-const APP_LINK_RE =/^evernote:\/\/\/?view\//i
+const APP_LINK_RE = /^evernote:\/\/\/?view\//i
 const WEB_LINK_RE = /^https?:\/\/(?:www\.)?evernote\.com\/(?:shard\/[^/]+\/(?:nl|sh)\/|l\/)./i
 
 export function isEvernoteNoteHref(href) {
@@ -36,12 +41,35 @@ export const EVERNOTE_TITLE_KIND = 'evernote-title:'
 // compares titles with `" ".join(t.split())` (`link_keys._norm_title`). JS `\s` is NOT that set:
 // it lacks U+001C-U+001F and U+0085 and adds U+FEFF. A title that normalises one way here and
 // another on the server would resolve in one import and never heal across imports.
-const PY_WHITESPACE_RUN = new RegExp('[\t\n\x0b\x0c\r\x1c-\x1f \x85\xa0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]+')
+// The test derives the set from a Python-generated fixture (pyWhitespace.json), never restates it.
+export const PY_WHITESPACE_CLASS = '[\t\n\x0b\x0c\r\x1c-\x1f \x85\xa0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]'
+const PY_WHITESPACE_RUN = new RegExp(`${PY_WHITESPACE_CLASS}+`)
+const PY_STRIP_RE = new RegExp(`^${PY_WHITESPACE_CLASS}+|${PY_WHITESPACE_CLASS}+$`, 'g')
+
+/** Python `str.strip()`: JS `trim()` strips U+FEFF and keeps U+001C-U+001F / U+0085; this does not. */
+export function pyStrip(s) {
+  return typeof s === 'string' ? s.replace(PY_STRIP_RE, '') : ''
+}
 
 /** Trim + collapse whitespace to one space; case kept. Comparison is exact on the result. */
 export function normTitle(s) {
   if (typeof s !== 'string') return ''
   return s.split(PY_WHITESPACE_RUN).filter(Boolean).join(' ')
+}
+
+/** `notes.MAX_TITLE_CHARS`: the server cuts an imported title to this many CODE POINTS (a test
+ *  reads the constant out of notes.py, so the two cannot drift silently). */
+export const SERVER_TITLE_MAX = 300
+
+/**
+ * The text an `evernote-title:` key carries, so it heals against the title the SERVER stored:
+ * `(title or "Untitled").strip()[:300]` (notes.import_confirm), then `_norm_title` (link_keys).
+ * Same order: strip, cut at 300 code points (`[...s]`; `.slice` would count UTF-16 units and
+ * shift the cut by one per astral character), then normalise. \u26d4 Only for the cross-import key;
+ * within one import the FULL title matches (the importKey names the note).
+ */
+export function titleKeyText(s) {
+  return normTitle([...pyStrip(s)].slice(0, SERVER_TITLE_MAX).join(''))
 }
 
 const NOTE_LINK = 'a[data-evernote-link]'
@@ -50,8 +78,8 @@ const NOTE_LINK = 'a[data-evernote-link]'
  * Resolves every `a[data-evernote-link]` in every doc BY ITS TEXT against the titles of the docs
  * in this import (Evernote exports carry no note ids, so a link names its note only by title):
  *   - exactly one doc has that title -> `data-import-link="<its importKey>"`;
- *   - none -> `data-import-link="evernote-title:<text>"`, which the server heals against the
- *     member's one Evernote note of that title, now or after a later import;
+ *   - none -> `data-import-link="evernote-title:<titleKeyText(text)>"`, which the server heals
+ *     against the member's one Evernote note of that title, now or after a later import;
  *   - two or more -> the link becomes its content, with a warning naming it. Never a guess.
  *   - no text (an image-only link) -> the link becomes its content, with a warning: there is no
  *     title to resolve by.
@@ -96,7 +124,7 @@ export function resolveEvernoteLinks(docs, warnings) {
         warnings.push(`Link "${text}" in "${d.title}" was kept as text: more than one note is titled "${text}".`)
         continue
       }
-      const targetKey = keys.length === 1 ? keys[0] : `${EVERNOTE_TITLE_KIND}${text}`
+      const targetKey = keys.length === 1 ? keys[0] : `${EVERNOTE_TITLE_KIND}${titleKeyText(a.textContent)}`
       a.setAttribute('data-import-link', targetKey)
       keep(targetKey)
     }
