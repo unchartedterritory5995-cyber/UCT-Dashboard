@@ -47,23 +47,51 @@ def _conn() -> sqlite3.Connection:
     return c
 
 
+_PENDING: dict = {}
+_FLUSHER = []
+
+
 def record_view(ticker: str) -> None:
-    """Remember that a chart was read. Never raises: a failed note must never fail the read."""
+    """Remember that a chart was read: an in-memory note, written in batches by a background thread (a synchronous write on the
+    pod's network disk cost a member's read up to a second, measured 2026-11-02). Never raises, never blocks on the disk."""
     try:
         with _LOCK:
-            c = _conn()
-            try:
-                c.execute("INSERT INTO viewed (ticker, at) VALUES (?, ?) ON CONFLICT(ticker) DO UPDATE SET at=excluded.at",
-                          (str(ticker).upper(), time.time()))
-                c.commit()
-            finally:
-                c.close()
+            _PENDING[str(ticker).upper()] = time.time()
+            if not _FLUSHER:
+                t = threading.Thread(target=_flush_loop, name="chart-iq-views", daemon=True)
+                _FLUSHER.append(t)
+                t.start()
     except Exception:  # noqa: BLE001
         pass
 
 
+def _flush_loop():
+    while True:
+        time.sleep(30)
+        flush()
+
+
+def flush() -> int:
+    """Write the pending views now. Returns how many were written. Never raises."""
+    with _LOCK:
+        batch = list(_PENDING.items()); _PENDING.clear()
+    if not batch:
+        return 0
+    try:
+        c = _conn()
+        try:
+            c.executemany("INSERT INTO viewed (ticker, at) VALUES (?, ?) ON CONFLICT(ticker) DO UPDATE SET at=excluded.at", batch)
+            c.commit()
+        finally:
+            c.close()
+        return len(batch)
+    except Exception:  # noqa: BLE001
+        return 0
+
+
 def recent_tickers(now: float | None = None) -> list[str]:
     now = time.time() if now is None else now
+    flush()
     try:
         c = _conn()
         try:

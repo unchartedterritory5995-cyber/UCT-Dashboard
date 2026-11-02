@@ -87,16 +87,31 @@ def _days_between(a: str, b: str) -> int:
     return (datetime.date.fromisoformat(b) - datetime.date.fromisoformat(a)).days
 
 
+_TL = threading.local()
+
+
+def _reader():
+    """A per-thread read connection, reopened when the active pack file changes (a sync installs a new versioned file)."""
+    p = _path()
+    held = getattr(_TL, "conn", None)
+    if held is None or held[0] != p:
+        if held is not None:
+            try:
+                held[1].close()
+            except Exception:  # noqa: BLE001
+                pass
+        _conn().close()   # schema / WAL set up once per file
+        held = (p, sqlite3.connect(p, timeout=5, check_same_thread=False))
+        _TL.conn = held
+    return held[1]
+
+
 def get(ticker: str, today: str | None = None) -> dict | None:
     """The packed read for this ticker, or None (pack off, no pack, not in it, or older than STALE_DAYS). Never raises."""
     if not enabled():
         return None   # rollback is the flag: an old pack file on disk is never served once it is off
     try:
-        c = _conn()
-        try:
-            r = c.execute("SELECT asof, body FROM reads WHERE ticker=?", (str(ticker).upper(),)).fetchone()
-        finally:
-            c.close()
+        r = _reader().execute("SELECT asof, body FROM reads WHERE ticker=?", (str(ticker).upper(),)).fetchone()
         if not r:
             return None
         today = today or _et_now().date().isoformat()

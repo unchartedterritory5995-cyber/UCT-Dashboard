@@ -322,8 +322,10 @@ def test_prewarm_warms_each_recently_opened_industry_once(tmp_path, monkeypatch)
     monkeypatch.setenv("CHART_IQ_ROW_CACHE_DB", str(tmp_path / "rows.db"))
     assert prewarm.warm() == {"skipped": "disabled"}                       # off by default
     monkeypatch.setenv("CHART_IQ_ENABLED", "1"); monkeypatch.setenv("CHART_IQ_PREWARM_ENABLED", "1")
+    prewarm._PENDING.clear()                                               # other tests' reads share the in-memory buffer
     for t in ("AAA", "AAB", "BBB", "FND", "OLD"):
         prewarm.record_view(t)
+    assert prewarm.flush() == 5                                            # views are batched; flush writes them
     import time as _t
     c = prewarm._conn(); c.execute("UPDATE viewed SET at=? WHERE ticker='OLD'", (_t.time() - 10 * 86400,)); c.commit(); c.close()
     monkeypatch.setattr(CX, "IM", {"AAA": ("S", "Semis"), "AAB": ("S", "Semis"), "BBB": ("T", "Software"), "FND": ("F", "Exchange Traded Fund"),
