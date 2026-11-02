@@ -10,7 +10,9 @@ the new `client_id` and the redirect URI it was registered with. The owner then 
 The client is PUBLIC (`token_endpoint_auth_method: none`, no secret), so the id is not
 sensitive. Writes nothing to disk and needs no Evernote account.
 
-REFUSES (exit 2, no request sent) unless the redirect URI is the production callback.
+REFUSES (exit 2, no request sent) unless the redirect URI is the production callback, and
+REFUSES (exit 2, no id printed) when Evernote's reply does not echo the requested redirect URIs and
+`token_endpoint_auth_method: none`.
 `oauth._redirect_uri` honours `EVERNOTE_REDIRECT_URI` and `DASHBOARD_URL`, so a run on a box with
 either set would otherwise register a client whose redirect production can never answer.
 """
@@ -38,7 +40,14 @@ def main(argv: list[str] | None = None) -> int:
             file=sys.stderr,
         )
         return 2
-    registration = asyncio.run(evernote_oauth.register_client(redirect_uri))
+    try:
+        registration = asyncio.run(evernote_oauth.register_client(redirect_uri))
+    except evernote_oauth.RegistrationMismatch as exc:
+        # Evernote registered something other than what was asked: do not hand over the id.
+        print(f"REFUSED: {exc}", file=sys.stderr)
+        return 2
+    print(f"registered redirect_uris: {registration.get('redirect_uris')}")
+    print(f"token_endpoint_auth_method: {registration.get('token_endpoint_auth_method')}")
     print(f"client_id: {registration['client_id']}")
     print("Set it on web: railway variables --service web --set "
           f"EVERNOTE_CLIENT_ID={registration['client_id']}")

@@ -30,7 +30,10 @@ import base64
 import hashlib
 import hmac
 import os
+import random
+import sqlite3
 import threading
+import time
 from typing import Any
 from urllib.parse import urlencode
 
@@ -54,8 +57,23 @@ CLIENT_NAME = "UCT Notebook Sync"
 PRODUCTION_CALLBACK = "https://uctintelligence.com/api/j2/notes/connectors/evernote/callback"
 
 _PKCE_LABEL = b"evernote-pkce:"
+
+# After a successful refresh POST the rotated token exists only in memory until the swap lands, so
+# a swap that hits a busy auth.db is RETRIED (the CAS is idempotent) rather than lost (Task 2
+# review I1). Total wall-clock budget, jittered doubling backoff between attempts; each attempt
+# also waits up to auth.db's own 3 s busy timeout.
+SWAP_RETRY_BUDGET_S = 30.0
+_SWAP_FIRST_DELAY_S = 0.25
+_SWAP_MAX_DELAY_S = 4.0
+_swap_sleep = time.sleep  # injectable (tests)
+_swap_clock = time.monotonic  # injectable (tests)
 _HTTP_TIMEOUT = 30.0
 _HEADERS = {"Accept": "application/json", "User-Agent": MEDIA_USER_AGENT}
+
+
+class RegistrationMismatch(errors.NoteConnError):
+    """Evernote's DCR reply does not echo what was requested (the redirect URIs, or a public client
+    with `token_endpoint_auth_method: none`). The deploy tool refuses to hand over the client id."""
 
 
 def client_id() -> str | None:
@@ -186,7 +204,34 @@ def _post_refresh(refresh_token: str, cid: str, client: httpx.Client | None) -> 
     return data
 
 
-def _refresh_sync(user_id: str, force: bool, client: httpx.Client | None) -> dict | None:
+def _is_busy(exc: sqlite3.OperationalError) -> bool:
+    text = str(exc).lower()
+    return "locked" in text or "busy" in text
+
+
+def _swap_with_retry(user_id: str, expected_refresh_token: str, new_creds: dict[str, Any]) -> bool:
+    """`connections.swap_token_if_unchanged`, retried on a busy/locked auth.db within
+    `SWAP_RETRY_BUDGET_S`. Any other error propagates at once. Exhausted -> `NoteConnTransient`
+    (the rotated token is then lost: the accepted gap below)."""
+    deadline = _swap_clock() + SWAP_RETRY_BUDGET_S
+    delay = _SWAP_FIRST_DELAY_S
+    while True:
+        try:
+            return connections.swap_token_if_unchanged(
+                user_id, PROVIDER, expected_refresh_token, new_creds)
+        except sqlite3.OperationalError as exc:
+            if not _is_busy(exc):
+                raise
+            remaining = deadline - _swap_clock()
+            if remaining <= 0:
+                raise errors.NoteConnTransient(
+                    "evernote refresh: could not store the rotated token (auth.db busy)") from None
+            _swap_sleep(min(delay * random.uniform(0.5, 1.5), remaining))
+            delay = min(delay * 2, _SWAP_MAX_DELAY_S)
+
+
+def _refresh_sync(user_id: str, force: bool, client: httpx.Client | None,
+                  rejected_access_token: str | None = None) -> dict | None:
     with _lock_for(user_id):
         # Re-read INSIDE the lock: a waiter sees what the first thread through just wrote, finds it
         # fresh, and makes no second POST. The lock serialises; the re-read dedupes.
@@ -194,6 +239,11 @@ def _refresh_sync(user_id: str, force: bool, client: httpx.Client | None) -> dic
         if creds is None:
             return None
         if not force and not oauth._needs_refresh(creds):
+            return creds
+        if (force and rejected_access_token is not None
+                and creds.get("accessToken") != rejected_access_token):
+            # Task 2 review m1: the stored access token is not the one the caller saw rejected, so a
+            # concurrent refresher already rotated. Use its tokens; do not rotate again.
             return creds
         refresh_token = creds.get("refreshToken")
         if not refresh_token:
@@ -223,7 +273,10 @@ def _refresh_sync(user_id: str, force: bool, client: httpx.Client | None) -> dic
         # recovery path an outright-revoked token already takes.
         # (Copied from oauth.py; here the write is `swap_token_if_unchanged` and the provider
         # Evernote.)
-        if connections.swap_token_if_unchanged(user_id, PROVIDER, refresh_token, new_creds):
+        # A response lost in transit (a read timeout after Evernote processed the POST) reaches the
+        # same stranded state and is inherent, like the crash. A busy auth.db is NOT part of the
+        # gap: `_swap_with_retry` retries the idempotent swap for up to SWAP_RETRY_BUDGET_S.
+        if _swap_with_retry(user_id, refresh_token, new_creds):
             return new_creds
         # The store moved under us (a reconnect, or another process's refresh): never overwrite
         # it, hand back what is stored now.
@@ -231,13 +284,19 @@ def _refresh_sync(user_id: str, force: bool, client: httpx.Client | None) -> dic
 
 
 async def refresh_if_needed(user_id: str, *, force: bool = False,
-                            client: httpx.Client | None = None) -> dict | None:
+                            client: httpx.Client | None = None,
+                            rejected_access_token: str | None = None) -> dict | None:
     """The member's current Evernote creds, refreshed first when within 60 s of expiry (the
     `oauth.py` skew) or when `force` (the MCP client got a 401). None when there is no connector.
 
-    `client` is a SYNCHRONOUS `httpx.Client` (tests inject a MockTransport one): the work runs in
-    a worker thread under a `threading.Lock`, so it cannot share an event-loop-bound client."""
-    return await asyncio.to_thread(_refresh_sync, user_id, force, client)
+    `rejected_access_token`: on a forced refresh, the access token the caller saw rejected. When
+    the stored one already differs, a concurrent refresher won and its creds are returned with no
+    POST (no needless rotation).
+
+    `client` is a SYNCHRONOUS `httpx.Client` or None (tests inject a MockTransport one): the work
+    runs in a worker thread under a `threading.Lock`, so it cannot share an event-loop-bound
+    client."""
+    return await asyncio.to_thread(_refresh_sync, user_id, force, client, rejected_access_token)
 
 
 # ── dynamic client registration (deploy-time only) ───────────────────────────
@@ -269,4 +328,16 @@ async def register_client(redirect_uri: str, *, client: httpx.AsyncClient | None
         raise errors.NoteConnError(
             f"evernote client registration failed: HTTP {resp.status_code} "
             f"{data.get('error') or ''}".strip(), status=resp.status_code, code=data.get("error"))
+    # Task 2 review m4: the reply must echo what was asked for, or a silently altered registration
+    # would surface only at the first member connect.
+    mismatched = []
+    if data.get("redirect_uris") != [redirect_uri]:
+        mismatched.append(f"redirect_uris={data.get('redirect_uris')!r}")
+    if data.get("token_endpoint_auth_method") != "none":
+        mismatched.append(
+            f"token_endpoint_auth_method={data.get('token_endpoint_auth_method')!r}")
+    if mismatched:
+        raise RegistrationMismatch(
+            "evernote registration reply does not match the request: " + ", ".join(mismatched),
+            code="evernote_registration_mismatch")
     return data

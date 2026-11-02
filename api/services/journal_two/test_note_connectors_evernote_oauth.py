@@ -281,6 +281,93 @@ async def test_force_refresh_posts_even_when_not_expired(tmp_db):
     assert len(server.requests) == 1 and out["refreshToken"] == "rt1"
 
 
+async def test_forced_refresh_skips_the_post_when_a_concurrent_refresher_already_won(tmp_db):
+    # Review m1: the caller saw at0 rejected; the store already holds a newer access token, so a
+    # concurrent refresher rotated first. No second rotation.
+    tmp_db.upsert_connector(USER, "evernote", _creds("rt1", expires_in_s=3600))  # at-for-rt1
+    server = TokenServer(lambda req: _token_reply("at2", "rt2"))
+    with server.sync_client() as http:
+        out = await evernote_oauth.refresh_if_needed(
+            USER, force=True, rejected_access_token="at-for-rt0", client=http)
+    assert server.requests == []
+    assert out["refreshToken"] == "rt1"
+
+
+async def test_forced_refresh_posts_when_the_stored_access_token_is_the_rejected_one(tmp_db):
+    tmp_db.upsert_connector(USER, "evernote", _creds("rt0", expires_in_s=3600))  # at-for-rt0
+    server = TokenServer(lambda req: _token_reply("at1", "rt1"))
+    with server.sync_client() as http:
+        out = await evernote_oauth.refresh_if_needed(
+            USER, force=True, rejected_access_token="at-for-rt0", client=http)
+    assert len(server.requests) == 1 and out["refreshToken"] == "rt1"
+
+
+def test_swap_retries_while_another_writer_holds_the_lock(tmp_db, monkeypatch):
+    # Review I1: Evernote has already rotated rt0 -> rt1 when the swap runs. If auth.db is busy past
+    # the 3 s busy timeout, the swap must retry, not lose rt1 and lock the member out.
+    import sqlite3
+
+    tmp_db.upsert_connector(USER, "evernote", _creds("rt0"))
+    holder = sqlite3.connect(auth_db._DB_PATH, timeout=1, isolation_level=None,
+                             check_same_thread=False)  # released from the refresh worker thread
+    holder.execute("BEGIN IMMEDIATE")  # held across the first swap attempt
+    sleeps: list[float] = []
+
+    def fake_sleep(s):
+        sleeps.append(s)
+        if holder.in_transaction:
+            holder.execute("COMMIT")  # release only after an attempt has failed on the lock
+
+    monkeypatch.setattr(evernote_oauth, "_swap_sleep", fake_sleep)
+    server = TokenServer(lambda req: _token_reply("at1", "rt1"))
+    try:
+        with server.sync_client() as http:
+            out = asyncio.run(evernote_oauth.refresh_if_needed(USER, client=http))
+    finally:
+        if holder.in_transaction:
+            holder.execute("ROLLBACK")
+        holder.close()
+    assert len(sleeps) >= 1  # at least one attempt hit the held lock
+    assert out["refreshToken"] == "rt1"
+    assert tmp_db.get_token(USER, "evernote")["refreshToken"] == "rt1"
+    assert len(server.requests) == 1
+
+
+def test_swap_retry_is_bounded_and_never_retries_other_errors(tmp_db, monkeypatch):
+    import sqlite3
+
+    calls = {"n": 0}
+
+    def always_locked(*a, **kw):
+        calls["n"] += 1
+        raise sqlite3.OperationalError("database is locked")
+
+    clock = {"t": 0.0}
+
+    def fake_sleep(s):
+        clock["t"] += s
+
+    monkeypatch.setattr(evernote_oauth.connections, "swap_token_if_unchanged", always_locked)
+    monkeypatch.setattr(evernote_oauth, "_swap_sleep", fake_sleep)
+    monkeypatch.setattr(evernote_oauth, "_swap_clock", lambda: clock["t"])
+    with pytest.raises(errors.NoteConnTransient) as ei:
+        evernote_oauth._swap_with_retry(USER, "rt0-SECRET", _creds("rt1-SECRET"))
+    assert "SECRET" not in str(ei.value)
+    assert calls["n"] >= 3
+    assert clock["t"] <= evernote_oauth.SWAP_RETRY_BUDGET_S
+
+    def other_error(*a, **kw):
+        raise sqlite3.OperationalError("no such table: j2_note_connectors")
+
+    monkeypatch.setattr(evernote_oauth.connections, "swap_token_if_unchanged", other_error)
+    with pytest.raises(sqlite3.OperationalError):
+        evernote_oauth._swap_with_retry(USER, "rt0", _creds("rt1"))
+
+
+def test_swap_retry_budget_constant():
+    assert evernote_oauth.SWAP_RETRY_BUDGET_S == 30.0
+
+
 async def test_refresh_without_a_connector_returns_none(tmp_db):
     server = TokenServer(lambda req: _token_reply("at1", "rt1"))
     with server.sync_client() as http:
@@ -300,12 +387,37 @@ async def test_forced_refresh_without_a_refresh_token_raises_token_expired(tmp_d
     assert server.requests == []
 
 
-def test_two_threads_racing_one_expired_token_post_once(tmp_db):
+class _ProbedLock:
+    """Wraps whatever lock `_lock_for` returns and counts arrivals at `acquire`, BEFORE acquiring,
+    so the test can hold the first POST open until the second thread has reached the lock."""
+
+    def __init__(self, inner, arrivals, both_arrived):
+        self.inner, self.arrivals, self.both_arrived = inner, arrivals, both_arrived
+
+    def __enter__(self):
+        with self.arrivals["guard"]:
+            self.arrivals["n"] += 1
+            if self.arrivals["n"] >= 2:
+                self.both_arrived.set()
+        return self.inner.__enter__()
+
+    def __exit__(self, *exc):
+        return self.inner.__exit__(*exc)
+
+
+def test_two_threads_racing_one_expired_token_post_once(tmp_db, monkeypatch):
+    # Review m2: deterministic. The first POST does not return until the second thread has arrived
+    # at the lock, so with a real per-user lock it is provably waiting while the first refreshes;
+    # with a broken lock it runs its own POST (2 POSTs, red).
     tmp_db.upsert_connector(USER, "evernote", _creds("rt0"))
-    gate = threading.Event()
+    arrivals = {"n": 0, "guard": threading.Lock()}
+    both_arrived = threading.Event()
+    real_lock_for = evernote_oauth._lock_for
+    monkeypatch.setattr(evernote_oauth, "_lock_for",
+                        lambda user_id: _ProbedLock(real_lock_for(user_id), arrivals, both_arrived))
 
     def reply(req):
-        gate.wait(5)  # hold the first POST open until both threads are running
+        assert both_arrived.wait(10), "second thread never reached the refresh lock"
         return _token_reply("at1", "rt1")
 
     server = TokenServer(reply)
@@ -322,11 +434,11 @@ def test_two_threads_racing_one_expired_token_post_once(tmp_db):
     threads = [threading.Thread(target=run, args=(i,)) for i in range(2)]
     for t in threads:
         t.start()
-    gate.set()
     for t in threads:
-        t.join(15)
+        t.join(30)
     http.close()
     assert failures == []
+    assert both_arrived.is_set()
     assert len(server.requests) == 1
     assert results[0]["refreshToken"] == "rt1" and results[1]["refreshToken"] == "rt1"
     assert tmp_db.get_token(USER, "evernote")["refreshToken"] == "rt1"
@@ -463,9 +575,32 @@ def test_upsert_and_swap_share_one_encrypt_helper(tmp_db, monkeypatch):
 # --------------------------------------------------------------------------- DCR
 
 
+def _registration(**overrides) -> dict:
+    reply = {"client_id": "cid-new", "token_endpoint_auth_method": "none",
+             "redirect_uris": [PROD_CALLBACK],
+             "grant_types": ["authorization_code", "refresh_token"]}
+    reply.update(overrides)
+    return reply
+
+
+@pytest.mark.parametrize("bad", [
+    {"redirect_uris": ["https://evil.example/cb"]},
+    {"redirect_uris": [PROD_CALLBACK, "https://evil.example/cb"]},
+    {"redirect_uris": None},
+    {"token_endpoint_auth_method": "client_secret_basic"},
+    {"token_endpoint_auth_method": None},
+])
+async def test_register_client_refuses_a_reply_that_does_not_echo_the_request(bad):
+    # Review m4: a server that silently altered the registration is caught at deploy.
+    reply = {k: v for k, v in _registration(**bad).items() if v is not None}
+    server = TokenServer(lambda req: httpx.Response(201, json=reply))
+    async with server.async_client() as http:
+        with pytest.raises(evernote_oauth.RegistrationMismatch):
+            await evernote_oauth.register_client(PROD_CALLBACK, client=http)
+
+
 async def test_register_client_body_matches_the_probe():
-    server = TokenServer(lambda req: httpx.Response(201, json={
-        "client_id": "cid-new", "token_endpoint_auth_method": "none"}))
+    server = TokenServer(lambda req: httpx.Response(201, json=_registration()))
     async with server.async_client() as http:
         out = await evernote_oauth.register_client(PROD_CALLBACK, client=http)
     assert out["client_id"] == "cid-new"
@@ -517,3 +652,13 @@ def test_register_tool_refuses_a_non_production_redirect(monkeypatch, capsys):
     out = capsys.readouterr().out
     assert "cid-printed" in out and PROD_CALLBACK in out
     assert called == [PROD_CALLBACK]
+
+    # Review m4: Evernote's reply did not echo the request -> exit 2, no client id handed over.
+    async def mismatched(redirect_uri, *, client=None):
+        raise evernote_oauth.RegistrationMismatch(
+            "evernote registration reply does not match the request: redirect_uris")
+
+    monkeypatch.setattr(tool.evernote_oauth, "register_client", mismatched)
+    assert tool.main([]) == 2
+    captured = capsys.readouterr()
+    assert "REFUSED" in captured.err and "client_id:" not in captured.out
