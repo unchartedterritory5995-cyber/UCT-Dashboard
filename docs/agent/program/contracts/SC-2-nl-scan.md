@@ -149,10 +149,15 @@ defect, not a coverage win. Coverage is reported together with the false-resolve
 
 - **Indicator conditions** (crosses, MACD, custom indicators): SC-1's indicator refusal, unchanged until IC-1.
 - **A measure the catalog lacks** (put/call ratio, …): "The Screener doesn't have <measure>", with no substitute.
-- **Flow fields** (`dp_*`, `opt_*`): **OPEN QUESTION for agent-lead / agent-md.** The catalog serves
-  `dp_notional_1d` ("Dark Pool Block Notional (1d)", `$`) and the `opt_*` premium fields as filterable, but MD-1
-  deferred dark pool for want of a trustworthy `as_of`, and discovery r05 ("dark pool prints over $10M") expects a
-  refusal. Until this is ruled on, SC-2 treats flow fields as **refused** and the corpus marks them so.
+- **Flow fields** (`dp_*`, `opt_*`): **refused, with a stated reason** (agent-lead ruling, 2026-11-01). The owner's
+  standing rule is no options flow or dark pool without approval, and ADR-003 is still a draft. The answer says
+  "Dark pool and options-flow screens aren't available in UCT Agent yet", never a substitute field. Discovery r05
+  ("dark pool prints over $10M") keeps its refusal expectation.
+  - **Recorded gap:** today's Agent screener catalog still LISTS these fields through the existing route.
+    `filters.field_catalog()` serves `dp_notional_1d` ("Dark Pool Block Notional (1d)", `$`), `dp_prints_1d`,
+    `dp_notional_5d`, `dp_level_dist_pct` and the `opt_*` premium fields as filterable. The planner can therefore
+    see them in the `fields` context and write a `screener.run` on them. agent-lead is raising this with the owner
+    together with F-16. SC-2's deterministic layer will refuse them regardless.
 
 ## 7. Where it runs (Sprint 2 task C)
 
@@ -160,6 +165,7 @@ defect, not a coverage win. Coverage is reported together with the false-resolve
   in agent-sc paths, behind the existing flags.
 - It is reached from the fast path through ONE hook, which agent-lead wires (`fastPath.js` / `useAgent.js` are
   agent-lead's files).
+- It takes the gateway path only when the server says it serves scans: `config.scan` AND `config.data_kinds` listing the scan kind (#621: `UCT_AGENT_DATA_KINDS` is a fail-closed per-kind allowlist). Otherwise the Screener route, as today.
 - It reads the catalog the client already loaded. It never makes a network call of its own; the scan itself is the
   normal `screen.run` read.
 
@@ -180,4 +186,4 @@ approves a paid run, the planner via SAT-1 §B):
 
 ## 9. Changes
 
-These follow MD-1 §8. Draft 0.1 → 1.0 once the owner rules on §4's PROPOSED values and §6's open question.
+These follow MD-1 §8. Draft 0.1 → 1.0 once the owner rules on §4's PROPOSED values (and on §6's recorded catalog gap, via agent-lead).

@@ -135,12 +135,12 @@ def test_asks_name_their_slot_and_a_reason_and_planner_items_say_why():
             assert ex["why"], cid
 
 
-def test_refusals_are_what_sc1_refuses_or_the_open_flow_question():
+def test_refusals_are_what_sc1_refuses_or_flow_fields_without_owner_approval():
     with pytest.raises(scan_spec.SpecError, match="indicator-condition scans"):
         scan_spec.validate({"filters": [{"key": "scan", "op": "in", "value": ["h"]}]})
     reasons = {e["expect"]["reason"] for _, e in ALL if e["expect"]["type"] == "refuse"}
-    assert reasons == {"indicator-condition scans", "the Screener has no field", "flow fields pending a ruling"}
-    # the open question is REAL: the catalog serves flow fields today (SC-2 §6), so refusing them is a choice
+    assert reasons == {"indicator-condition scans", "the Screener has no field", "flow fields need owner approval"}
+    # the recorded gap is REAL: the catalog lists flow fields today (SC-2 §6), so refusing them is a rule SC-2 applies
     assert {"dp_notional_1d", "opt_net_premium_1d"} <= set(CATALOG)
     # and the no-field refusal is real: nothing in the catalog is a put/call ratio
     assert not [k for k, f in CATALOG.items() if "put" in (f.get("label") or "").lower()]

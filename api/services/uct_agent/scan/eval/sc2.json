@@ -438,8 +438,8 @@
    "text": "biggest dark pool prints today",
    "expect": {
     "type": "refuse",
-    "reason": "flow fields pending a ruling",
-    "why": "SC-2 section 6 open question: dp_* refused until ruled"
+    "reason": "flow fields need owner approval",
+    "why": "SC-2 section 6: dp_* refused (owner approval; ADR-003 draft)"
    }
   },
   {
@@ -448,8 +448,8 @@
    "text": "bullish options flow over $5M",
    "expect": {
     "type": "refuse",
-    "reason": "flow fields pending a ruling",
-    "why": "SC-2 section 6 open question: opt_* refused until ruled"
+    "reason": "flow fields need owner approval",
+    "why": "SC-2 section 6: opt_* refused (owner approval; ADR-003 draft)"
    }
   }
  ],

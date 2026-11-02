@@ -21,7 +21,7 @@ Only agent-sc edits this file. Update it in every PR.
   Raw records go to `raw.jsonl` before the summary. Requests are captured by `agentScanSat1Requests.test.jsx` (no model).
   Dry run on c3ba71c343: 31 questions to the planner, 14 may reroute, exact worst case $3.0147, estimate ≈ $0.41.
   **Still blocked for `--run`** until agent-lead relays the owner's credential approval.
-- **B: SC-2 draft** (NL scanning: parsed-intent layer + ≥ 60-phrasing corpus with follow-up chains). Next.
+- **B: SC-2 draft 0.1** (branch `agent/sc/sc2-draft`, this PR): `contracts/SC-2-nl-scan.md`, the parsed-intent slots, follow-up deltas (add / narrow / replace_universe / sort / show / remove / reset), the vocabulary with PROPOSED defaults, and the ask / planner / refuse exits (zero false resolves). Corpus `scan/eval/sc2.json`: 69 phrasings (46 single + 8 chains, 23 steps). Validated by `test_uct_agent_scan_sc2_corpus.py`. Flow fields (`dp_*`, `opt_*`) are refused per agent-lead's ruling; the catalog still listing them is recorded in §6.
 - **C: model-call reduction** (a deterministic slot parser behind the flags, measured on both corpora). After B.
 
 ## Findings (no paid call needed)
