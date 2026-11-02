@@ -290,3 +290,69 @@ describe('search hits are marked', () => {
     await waitFor(() => expect([...savedList.querySelectorAll('[data-id="id2"] mark')].map((m) => m.textContent)).toEqual(['NVDA', 'NVDA']))
   })
 })
+
+describe('the date and time on every headline, and All history in full-timestamp order', () => {
+  it('stamps MM/DD/YYYY h:mm:ss AM/PM ET in the market zone, DST by the zone database', async () => {
+    const { fmtStamp } = await import('./tradeExchangeNewsModel')
+    expect(fmtStamp(Date.UTC(2026, 10, 1, 17, 48, 13))).toBe('11/01/2026 12:48:13 PM ET')     // EST, after the change
+    expect(fmtStamp(Date.UTC(2026, 10, 1, 3, 59, 59))).toBe('10/31/2026 11:59:59 PM ET')      // EDT: still Oct 31 in New York
+    expect(fmtStamp(Date.UTC(2026, 10, 1, 4, 0, 0))).toBe('11/01/2026 12:00:00 AM ET')
+    // the repeated hour: 1:30 EDT and 1:30 EST are different instants with the same wall time
+    expect(fmtStamp(Date.UTC(2026, 10, 1, 5, 30))).toBe('11/01/2026 1:30:00 AM ET')
+    expect(fmtStamp(Date.UTC(2026, 10, 1, 6, 30))).toBe('11/01/2026 1:30:00 AM ET')
+    // spring forward, 2026-03-08: 1:59:59 EST is followed by 3:00:00 EDT
+    expect(fmtStamp(Date.UTC(2026, 2, 8, 6, 59, 59))).toBe('03/08/2026 1:59:59 AM ET')
+    expect(fmtStamp(Date.UTC(2026, 2, 8, 7, 0, 0))).toBe('03/08/2026 3:00:00 AM ET')
+    expect(fmtStamp(null)).toBe('')
+  })
+
+  it('every feed row carries its date as well as its time', async () => {
+    const { container } = mount()
+    await waitFor(() => expect(seqs(container)).toEqual([2, 1]))
+    for (const row of container.querySelectorAll('[data-seq]')) {
+      expect(row.querySelector('[class*="_time_"]').textContent).toMatch(/^\d{2}\/\d{2}\/\d{4} \d{1,2}:\d{2}:\d{2} [AP]M ET$/)
+    }
+  })
+
+  it('All history orders by the full timestamp across days, even when older days have later clock times', async () => {
+    feed.reset()
+    // Older days at LATER times of day: sorting by time of day alone would put Oct 24 23:00 first.
+    const mixed = [
+      H(800, 'SYNTHETIC: NVDA late night oct 24', ['NVDA'], ET(24, 23, 0)),
+      H(810, 'SYNTHETIC: NVDA early oct 25', ['NVDA'], ET(25, 1, 0)),
+      H(820, 'SYNTHETIC: NVDA evening oct 25', ['NVDA'], ET(25, 22, 0)),
+      H(830, 'SYNTHETIC: NVDA dawn oct 26', ['NVDA'], ET(26, 5, 0)),
+      H(840, 'SYNTHETIC: AMD late oct 26', ['AMD'], ET(26, 23, 30)),
+    ]
+    feed.archive = [...mixed, ...TODAY]
+    const out = { opts: { linked: true } }
+    const { container, rerender } = render(<Host initial={{ linked: true }} out={out} />)
+    act(() => feed.set({ status: 'live', items: TODAY, lastSeq: 2, replayUntil: 2, lastHeadlineAt: NOW }))
+    await waitFor(() => expect(seqs(container)).toEqual([2, 830, 820, 810, 800]))
+    const times = [...container.querySelectorAll('[data-seq]')].map((r) => r.querySelector('[class*="_time_"]').textContent)
+    expect(times.slice(1)).toEqual(['10/26/2026 5:00:00 AM ET', '10/25/2026 10:00:00 PM ET', '10/25/2026 1:00:00 AM ET', '10/24/2026 11:00:00 PM ET'])
+    ws.groupSyms = { A: 'AMD' }                                                    // a new symbol: same rule
+    rerender(<Host initial={{ linked: true }} out={out} />)
+    await waitFor(() => expect(seqs(container)).toEqual([1, 840]))            // today's AMD is the newest
+  })
+
+  it('All history keeps full-timestamp order across pages (page breaks inside and between days)', async () => {
+    feed.reset()
+    const many = []
+    for (let d = 20; d <= 26; d++) {
+      for (let i = 0; i < 20; i++) many.push(H(d * 100 + i, `SYNTHETIC: NVDA d${d} r${i}`, ['NVDA'], ET(d, 23 - i, 0)))
+    }
+    feed.archive = [...many, ...TODAY]
+    const { container } = render(<Host initial={{ linked: true }} />)
+    act(() => feed.set({ status: 'live', items: TODAY, lastSeq: 2, replayUntil: 2, lastHeadlineAt: NOW }))
+    await waitFor(() => expect(seqs(container).length).toBeGreaterThan(30))
+    for (let i = 0; i < 6; i++) {
+      const el = list(container)
+      el.scrollTop = 10 ** 7
+      fireEvent.scroll(el)
+      await new Promise((r) => setTimeout(r, 30))
+    }
+    const want = [TODAY[1], ...many].sort((a, b) => b.received_at_ms - a.received_at_ms || b.seq - a.seq).map((it) => it.seq)
+    await waitFor(() => expect(seqs(container)).toEqual(want))
+  })
+})

@@ -949,3 +949,66 @@ async def test_fetch_end_to_end_repairs_a_bare_todo_block():
     assert len(task_items) == 1
     assert task_items[0]["attrs"]["checked"] is False
     assert _find_all(note.doc, "listItem") == []
+
+
+# ---------------------------------------------------------------------------
+# Plan A Task 1 fix round 1, finding 2: the engine keys "did the remote
+# change" on RemoteNote.updated_at. A Roam page's own :edit/time may not move
+# when only a child block is edited, so the revision is the MAX :edit/time
+# over the page and every block in its tree -- read from the SAME pull-many
+# call (the selector carries :edit/time), never an extra request.
+# ---------------------------------------------------------------------------
+
+_PAGE_MS = 1755000000000  # PAGE_1's :edit/time in ENUMERATE_ROWS
+
+
+def _page_with_block_times(child_ms: int, grandchild_ms: int) -> dict:
+    return {
+        ":block/uid": PAGE_1_UID, ":node/title": "Trading Notes", ":edit/time": _PAGE_MS,
+        ":block/children": [{
+            ":block/uid": BLOCK_A, ":block/string": "parent", ":block/order": 0,
+            ":edit/time": child_ms,
+            ":block/children": [{
+                ":block/uid": BLOCK_A1, ":block/string": "child", ":block/order": 0,
+                ":edit/time": grandchild_ms,
+            }],
+        }],
+    }
+
+
+def _handler_for(entity: dict, calls: dict):
+    def handler(request: httpx.Request) -> httpx.Response:
+        payload = json.loads(request.content or b"{}")
+        if request.url.path.endswith("/q"):
+            return httpx.Response(200, json={"result": ENUMERATE_ROWS})
+        if request.url.path.endswith("/pull-many"):
+            calls["pull_many"] = calls.get("pull_many", 0) + 1
+            calls["selector"] = payload.get("selector")
+            return httpx.Response(200, json=_pull_many_result(entity))
+        return httpx.Response(404)
+    return handler
+
+
+async def _fetch_page_1(entity: dict, calls: dict):
+    provider = _make_provider(_handler_for(entity, calls))
+    ref = next(r for r in await provider.list_changed(CREDS) if r.remote_id == PAGE_1_UID)
+    return ref, await provider.fetch(CREDS, ref)
+
+
+async def test_editing_only_a_child_block_changes_the_revision():
+    calls: dict = {}
+    ref, before = await _fetch_page_1(_page_with_block_times(_PAGE_MS - 10, _PAGE_MS - 5), calls)
+    # nothing newer than the page: the revision is the page's own, string-identical
+    assert before.updated_at == ref.updated_at
+    # only the GRANDCHILD block is edited; the page's :edit/time does not move
+    ref2, after = await _fetch_page_1(_page_with_block_times(_PAGE_MS - 10, _PAGE_MS + 60_000), calls)
+    assert ref2.updated_at == ref.updated_at
+    assert after.updated_at != before.updated_at
+    assert after.updated_at == roam_module._epoch_ms_to_iso(_PAGE_MS + 60_000)
+
+
+async def test_block_edit_times_come_from_the_same_pull_many_call():
+    calls: dict = {}
+    await _fetch_page_1(_page_with_block_times(_PAGE_MS + 1, _PAGE_MS + 2), calls)
+    assert calls["pull_many"] == 1  # no extra request
+    assert ":edit/time" in calls["selector"]
