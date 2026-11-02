@@ -192,7 +192,7 @@ async function showThenAsk(action) {
 }
 
 describe('agent-qa model isolation (2): end to end through the real panel', () => {
-  it('F-12: stock.compare shows the UCT composite rating OUTSIDE MD-1, and today it still never reaches a model payload', async () => {
+  it('F-12 FIXED (owner: display-only needs server isolation, which it lacks): stock.compare no longer shows the UCT composite anywhere', async () => {
     const { say } = await mount()
     envelopes.push((b) => plan([{ action: 'stock.compare', target: b.context.stockData?.[0]?.ref, args: { symbols: ['NVDA', 'AMD'] } }]))
     // (worded so the MODEL plans it: the obvious wording is a fast-path chart command)
@@ -202,7 +202,9 @@ describe('agent-qa model isolation (2): end to end through the real panel', () =
     await waitFor(() => expect(records.some(r => r.outcomeData?.kind === 'answered')).toBe(true), { timeout: 6000 })
     const row = records.find(r => r.outcomeData?.kind === 'answered')
     expect(leaks(row.outcome), 'outcome TEXT (replayed by the server for a non-local row)').toEqual([])
-    expect(leaks(row.outcomeData.views).length, 'views keep it (stored, never replayed)').toBeGreaterThan(0)
+    expect(leaks(row.outcomeData.views), 'views: the rating is no longer shown at all').toEqual([])
+    expect(globalThis.fetch.mock.calls.some(([u]) => String(u).startsWith('/api/research/compare/')),
+      'CONTROL: the compare payload that carries the sentinel composite WAS fetched').toBe(true)
     envelopes.push(answer)
     await say('and which one has the better margin?')
     await waitFor(() => expect(turnBodies.length).toBe(2), { timeout: 6000 })

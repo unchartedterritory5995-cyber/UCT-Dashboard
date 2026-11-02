@@ -568,7 +568,7 @@ async function specFor(args, host = null) {
 
 // Could this request involve screening? Deliberately BROAD (a false positive costs ~3 KB; a
 // false negative still leaves every field key visible).
-const SCREEN_WORDS = /\b(stocks?|screens?|screener|scan\w*|find|filter\w*|sort\w*|tickers?|names|compan\w+|results?|matches|those|them|top\s+\d+|above|below|over|under|between|at least|more than|less than|greater|higher|lower|adr|atr|rsi|volume|price|market cap|cap|growth|margin|eps|revenue|p\/?e|dividend|beta|float|earnings|perf\w*|gainers?|losers?|up|down|etfs?|sector|industry|leaders?|momentum|high|low)\b|%|\$/i
+const SCREEN_WORDS = /\b(stocks?|screens?|screener|scan\w*|find|filter\w*|sort\w*|tickers?|names|compan\w+|results?|matches|those|them|top\s+\d+|above|below|over|under|between|at least|more than|less than|greater|higher|lower|adr|atr|rsi|volume|price|market cap|cap|growth|margin|eps|revenue|p\/?e|dividend|beta|float|earnings|perf\w*|gainers?|losers?|up|down|etfs?|sector|industry|leaders?|momentum|high|low|caps?|ripp\w*|runners?|movers?|oversold|overbought|pullbacks?|uptrends?|downtrends?|growers?|semis?|chips?|software|breakouts?|bases?)\b|%|\$/i
 export const screenRelevant = (message) => SCREEN_WORDS.test(String(message || ''))
 
 let registered = false
