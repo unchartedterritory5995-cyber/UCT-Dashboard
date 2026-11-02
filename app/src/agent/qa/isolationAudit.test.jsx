@@ -132,10 +132,13 @@ describe('agent-qa isolation audit: F-12 stock.compare composite', () => {
     return records.find(r => r.outcomeData?.kind === 'answered')
   }
 
-  it('display: the member sees it (stored views) — CONTROL that the detector can see the value', async () => {
+  it('FIXED: the rating is omitted even from the member display (stored views), while the payload carried it', async () => {
     const row = await compareThenAsk()
-    expect(leaks(row.outcomeData.views).length).toBeGreaterThan(0)
-    expect(row.outcomeData.local, 'NOT local: the server replays this row\'s TEXT').toBeUndefined()
+    expect(globalThis.fetch.mock.calls.some(([u]) => String(u).startsWith('/api/research/compare/')),
+      'CONTROL: the payload carrying the sentinel composite WAS served').toBe(true)
+    expect(row.outcomeData.views, 'non-vacuity: the comparison table was stored').toBeTruthy()
+    expect(leaks(row.outcomeData.views), 'views').toEqual([])
+    expect(leaks(row.outcome), 'outcome text').toEqual([])
   }, 30000)
 
   it('tool result / history / summaries / memory / traces / telemetry: no value in any of them TODAY', async () => {
@@ -148,10 +151,10 @@ describe('agent-qa isolation audit: F-12 stock.compare composite', () => {
     expect(leaks(globalThis.window.__uctAgentTrace()), 'apply traces').toEqual([])
   }, 30000)
 
-  it('NOT SERVER-ENFORCED (strict pin): the composite comes from /api/research/compare, outside the gateway and its isolation', () => {
+  it('FIXED (source rail): stock.js reads no rating off the research payload and promises none in its summary', () => {
     const src = fs.readFileSync(path.join(REPO, 'app/src/agent/capabilities/stock.js'), 'utf8')
-    expect(src).toMatch(/\/api\/research\/compare\//)
-    expect(src).not.toMatch(/marketdata\/client/)             // never `readData('ratings', …)`: no L1/L2/L4 marker applies
-    expect(src).toMatch(/ratings\?\.composite/)               // and the value is read straight off the research payload
+    expect(src, 'non-vacuity: it still serves the compare payload').toMatch(/\/api\/research\/compare\//)
+    expect(src).not.toMatch(/ratings\s*\?\.\s*composite|\.ratings\b|composite rating/i)
+    expect(src).not.toMatch(/marketdata\/client/)             // and it never reads an isolated kind instead
   })
 })
