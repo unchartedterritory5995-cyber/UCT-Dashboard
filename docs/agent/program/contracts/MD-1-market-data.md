@@ -1,8 +1,8 @@
-# MD-1 — UCT market-data contract (v1.4)
+# MD-1 — UCT market-data contract (v1.5)
 
 - **Owner:** agent-md implements the kinds. agent-lead owns `gateway.py` and `envelope.py`, the framework every consumer relies on.
 - **Consumers:** agent-sc, agent-rs, agent-qa, and later the D and G workstreams.
-- **Status:** v1.4 (v1.1–v1.4 each additive or a scope reduction, all acked by agent-lead 2026-11-01). See §9 for what changed. The envelope's wire field `contract` stays `"MD-1.0"`: v1.1 adds no envelope field.
+- **Status:** v1.5 (v1.1–v1.5 each additive or a scope reduction; v1.1–v1.4 acked by agent-lead 2026-11-01, v1.5 agreed for Sprint 2). See §9 for what changed. The envelope's wire field `contract` stays `"MD-1.0"`: v1.1 adds no envelope field.
 - **Changes:** see §8.
 
 ## 1. Purpose
@@ -164,6 +164,190 @@ The canonical services' own stale-while-revalidate refresh and the news store's 
 - **`flow.summary`:** only through the existing flow proxy (`api/flow_proxy.py`), after verifying from `web` that the data is really available. Never by importing `flow_router` in-process: `flow.db` lives on flow-worker. Never a second Massive connection.
 - **`darkpool`:** only once a trustworthy `as_of` source is identified.
 
+### 4.5 `stock.quote`: the answer contract over `quote` / `quotes` (v1.5)
+
+**Additive data field.** Every `quote` / `quotes` read now carries `data.session_detail`:
+`regular` · `premarket` · `after-hours` · `overnight` · `closed`.
+- `overnight` runs from the end of extended trading (20:00 ET, or 17:00 ET on a half day) to 04:00 ET, around a
+  trading day.
+- Every input comes from `now` (default: the wall clock): the ET minutes and whether that ET date is a NYSE session
+  (a weekday and not a full-closure holiday). Nothing reads today's date separately (agent-qa F-19).
+- `closed` is a weekend or holiday, or a calendar the adapter could not read (it never claims the market is open).
+- `data.session` (v1.1) is derived from it: premarket and after-hours → `extended`; overnight → `closed`. The two
+  labels can never disagree.
+- The early close is honoured, from `bars_fetch._session_close_minutes`.
+- No envelope field changed, and the freshness rules of §4.1 are unchanged.
+
+**The capability.** `stock.quote` lives in `app/src/agent/capabilities/marketDataQuote.js`. It answers
+deterministically, with no model call. It makes one gateway read: `quote` for one symbol, `quotes` for two to
+five. It never calls `/api/live-prices`.
+
+**The answer, per session state.** The words *live*, *now* and *right now* appear only on a fresh live row.
+
+| read | answer |
+|---|---|
+| live, not stale, `regular` | `NVDA $142.10, +$1.23 (+0.87%) vs the previous close — live, regular session, as of 10:31 AM ET.` |
+| live, stale, `regular` | `… — stale, not a real-time price: the latest trade is from 10:20 AM ET, more than a minute old (regular session).` |
+| live, `premarket` / `after-hours` | `NVDA $142.10 in premarket trading, … — live, extended hours (thin trading), as of 7:45 AM ET.` |
+| historical, `premarket` / `after-hours` (no trade in 15 min) | `NVDA last traded $142.10 at 4:30 PM ET (after hours, no trade in the last 15 minutes), …. Not a real-time price.` |
+| `overnight` / `closed` | `Market closed (overnight / weekend or holiday): NVDA last close $142.10 (Fri, Oct 30), …. Not a real-time price.` When the price is an after-hours print, it says `last trade $X (date, time ET)` instead. |
+| `regular`, row priced from a close | `NVDA: no current trade in the regular session — showing the day's close, $142.10 …. Not a real-time price.` |
+| `partial` (`quotes`) | one line per symbol, then `Partial: no price for NOPE.` |
+| `refused` | `I couldn't get a price for NVDA: that request wasn't allowed for this question, so the price is not available. No price is stated.` |
+| `unavailable` (or no priced row) | `I couldn't get a price for NVDA: the price is not available from UCT's market data. No price is stated.` |
+
+**Rules for every answer:**
+- **No-price answers use fixed words.** A read with no usable price answers from a closed list keyed on
+  status only. The envelope's notes are never echoed, since they can carry numbers such as a budget count
+  (agent-qa F-20).
+- **As-of.** The as-of time is in ET, with the date when it is not the read's own ET day. The reference day is
+  the read's `fetched_at`, never the browser clock.
+- **Change.** The change is always against the previous close.
+- **The session label.** It comes from `session_detail`, never from the member's words. A question that says
+  "premarket" during the regular session is answered as the regular session.
+- **What leaves the module.** Only `{text, present}` (plus `link` / `chart` from stock.profile when the gateway is
+  off). The envelope, its notes, provider fields and `params_echo` never do. `present` carries the labelled
+  figures: Price, Change, Session, Freshness.
+
+**Flags off.** The gateway path is taken only when `GET /api/agent/config` reports `data: true` **and** its `data_kinds`
+list (agent-lead #621, from `UCT_AGENT_DATA_KINDS`, fail closed) includes both `quote` and `quotes`. In every other
+case (the default, an older server with no list, or `quote` not activated):
+- `registerMarketDataCapabilities()` registers nothing, so the model's manifest is unchanged.
+- `match()` returns null.
+- `answerQuote` returns stock.profile's own answer, byte for byte. The rail is in `agentDataQuote.test.js`.
+
+**Fast path.** `match(text)` is pure and fail-closed. It returns `{action: 'stock.quote', params: {symbols}}` or
+null, and it is held row by row to `MD-1-phrasings.md`.
+- **The hook.** The registration carries the fast path's own hook for query capabilities, `fastWhole: true` plus
+  `fast({raw})`, so `fastPath.js` is unchanged.
+- **One claimant.** `matchWhole` answers only when exactly one capability claims the sentence. A sentence another
+  capability also claims goes to the model.
+- **No guessed spellings.** `fastCorrect: false`: only the parser's own fixed typo list counts, never the shared
+  spelling corrector.
+- **Re-checked on every call.** `match()` re-checks the gate each time, so a capability registered earlier claims
+  nothing once the server reports dark.
+
+### 4.6 `stock.dailyBars`: answers over `bars.daily` (v1.5)
+
+**The capability.** `stock.dailyBars` lives in `app/src/agent/capabilities/marketDataBars.js`. It answers
+deterministically, with no model call. It makes one gateway read of `bars.daily`, with zero provider calls, and
+uses **completed sessions only**: today's developing bar is never used. It is registered, and its fast path claims
+anything, only while the server serves data **and** `data_kinds` includes `bars.daily`. Otherwise it registers
+nothing. Like stock.quote, it takes the turn id from `currentTurnId()` at the read.
+
+| measure | read | answer |
+|---|---|---|
+| `lastClose` | `bars: 2` | `AAPL closed at $142.10 on Fri, Oct 30, its last completed session: +$2.10 (+1.50%) vs the previous close of $140.00 on Thu, Oct 29.` |
+| `change` (n sessions; weeks × 5) | `bars: n + 1` (n ≤ 250) | `NVDA over the last 5 completed sessions: +10.00% (+$10.00), from a close of $100.00 on Fri, Oct 23 to $110.00 on Fri, Oct 30.` |
+| `range52w` | `bars: 252` | `NVDA 52-week range (the last 252 completed sessions, <first> to <last>): high $X on <date>, low $Y on <date>. Last close $Z on <date>.` The high and low come from each bar's high and low, never from its close. |
+
+**Rules for every answer:**
+- **Completed sessions, said.** Every answer ends with *From UCT's daily bars: completed sessions only, today's
+  session is not included.* It never uses live / now / right now / real-time.
+- **Dates.** Session dates are the bars' own ET trading dates. The year is added when it differs from the newest
+  bar's year.
+- **The store is behind (`stale`).** The answer adds *Note: UCT's bars for NVDA end <date>, but the most recent
+  completed session was <date>, so this is not the latest close.*
+- **Fewer sessions than asked (`partial`).** The window actually covered is stated, and nothing is extrapolated:
+  - change: *the last 2 completed sessions held (you asked for 10)*;
+  - range: *the 40 completed sessions held …, less than a full 52 weeks*;
+  - a single bar gives no change.
+- **No usable bars.** The answer uses fixed words keyed on status, never the envelope's notes:
+  - refused: *I couldn't answer that for NVDA: that request wasn't allowed for this question, so its daily bars
+    are not available. No price is stated.*
+  - unavailable: *… its completed daily bars are not available from UCT's market data. No price is stated.*
+- **What leaves the module.** Only `{text, present}`.
+
+**Fast path.** `match(text)` handles the bars rows of `MD-1-phrasings.md` (P18–P24) and returns `{action:
+'stock.dailyBars', params: {symbol, measure, sessions}}`. "This week" (P21) and an intraday low (P26) go to the
+model. The hook is `fastWhole` + `fast` with `fastCorrect: false`, the same as stock.quote.
+`registerMarketDataCapabilities()` registers both capabilities, each only when its own kinds are active. Its return
+value still means what it did in #624: true only when that call registered `stock.quote`.
+
+### 4.7 Instrument and intent resolution (v1.5, owner decision after agent-qa's held-out set)
+
+**The bar.** A wrong ticker, a wrong price, or a different security substituted for the one asked is a FAIL. A
+zero-model answer is allowed only when BOTH the request (intent) and the security (instrument) are unambiguous.
+Anything else asks, or goes to the model; it never executes.
+
+**Two halves, two owners of truth.**
+- **Intent** is decided on the client by the pure parser (`capabilities/marketDataPhrases.js`). It decides only what
+  is being asked. It never decides what a word refers to.
+- **Instrument** is decided on the server by the kind `instrument.resolve`, from UCT's canonical symbol index
+  (`services/ticker_search_index.py`). That index is built from Massive's reference tickers plus cap_universe, held
+  in memory, and read with no provider call. **No word list carries instrument logic.** The only lists are intent
+  grammar (price, premarket, close …) and the normalisation of corporate-form words in company names (Inc, Corp …).
+
+#### 4.7.1 Intent (client)
+
+| intent | claimed when | MD-1 read after resolution |
+|---|---|---|
+| current quote | a price, quote or session word, or nothing but `$` tickers | `quote` (1 symbol) / `quotes` (2–5) |
+| last close | close / closed / closing, with no session word and no "today" | `bars.daily` {bars: 2} |
+| N-session change | "N-day", "N sessions", "N weeks" (× 5) with a change or move word | `bars.daily` {bars: N + 1} |
+| 52-week range | "52-week", "52 wk", "year high / low / range" | `bars.daily` {bars: 252} |
+| **none** | anything else | the sentence goes to the model as today (a safe miss) |
+
+Not claimed, whatever else the sentence says:
+- **A time the parser cannot resolve without a clock:** history, ago, since, before, a weekday, a month, a date,
+  yesterday, last / this / next week (or month, quarter, year), all-time, YTD, "on <date>", intraday, today's
+  high / low / open.
+- **A different request:** why, news, earnings, fundamentals, options, calls / puts, flow, dark pool, futures,
+  alerts, targets, forecasts, buy / sell, currency conversion, volume, chart commands.
+- **Shape problems:**
+  - `&` anywhere (s&p, AT&T);
+  - more than 5 candidate words;
+  - two or more candidates without `and` or `,` (unless every one is `$`-typed);
+  - a word that is neither intent grammar nor a candidate.
+
+Every word that is not intent grammar is a **candidate**, recorded with how it was typed: `cashtag` (`$nvda`),
+`upper` (`NVDA`) or `lower` (`nvda`, `Nvda`). The parser sends candidates and their forms to `instrument.resolve`.
+It never decides whether one is a security.
+
+#### 4.7.2 Instrument (server, `instrument.resolve`)
+
+One class per candidate, from the index's own row and the typed form:
+
+| class | rule | example |
+|---|---|---|
+| `symbol` | exact symbol, index type `stock` or `etf`, typed `$X` or UPPERCASE | `NVDA`, `$nvda`, `IT`, `BTC`, `BRK.B` |
+| `symbol_typed_lowercase` | exact stock / ETF symbol, typed lowercase | `nvda`, `gold`, `btc`, `es` |
+| `name_match` | not a symbol; exactly ONE stock / ETF whose normalised name equals the word (not for `$` words) | `apple` → AAPL |
+| `non_equity` | exact symbol the index types `index`, `theme` or `breadth` | `SPX`, `spx` |
+| `unknown` | anything else: a misspelling, a plain word, several equal names, a `$` word that is no symbol | `nvdia`, `bitcoin`, `$NVDIA` |
+
+- **A cold, empty or unreadable index** answers `unavailable` for the whole read: no class, no price.
+- **Budget:** `max_symbols` is 5, 0 provider calls, and `validate=` refuses a malformed request before admission.
+- **Freshness:** `freshness` is `periodic`; `as_of` is the index build time; stale after 3 days.
+
+#### 4.7.3 Outcomes (the member's answer)
+
+**All or nothing.** A price or bars read happens only when EVERY candidate is `symbol`. Otherwise the answer is
+built from the first candidate that is not, in this order of precedence: unavailable index, `non_equity`,
+`unknown`, `name_match`, `symbol_typed_lowercase`. No number is ever stated in these answers.
+
+| situation | answer (fixed words) |
+|---|---|
+| all `symbol` | the §4.5 / §4.6 answer, **naming each security from the index**: `NVDA (NVIDIA Corporation) $142.10 …` |
+| `symbol_typed_lowercase` | `Did you mean NVDA (NVIDIA Corporation)? Type the ticker in capitals, like NVDA, and I'll get it.` |
+| `name_match` | `Did you mean AAPL (Apple Inc.)? Type the ticker in capitals, like AAPL, and I'll get it.` |
+| `non_equity` | `I can quote US-listed stocks and ETFs by ticker. SPX isn't one I can price here.` |
+| `unknown` | `I can quote US-listed stocks and ETFs by ticker. nvdia isn't one I can price here.` |
+| index unavailable | `I can't check ticker symbols right now, so I'm not stating a price.` |
+
+- **No substitute is ever offered** for `non_equity` or `unknown`: never "try SPY" (agent-lead ruling a).
+- **The member confirms by typing the symbol** in capitals or with `$` (ruling b). That is a new turn, through the
+  same rules.
+- **An UPPERCASE or `$` symbol** is the member's explicit choice. It is priced with the index name shown, so
+  `BTC (Grayscale Bitcoin Mini Trust)` is never silently a different instrument (ruling c).
+
+#### 4.7.4 Activation and budget
+
+- **Activation:** `stock.quote` registers only while `data_kinds` includes `instrument.resolve`, `quote` and
+  `quotes`. `stock.dailyBars` registers only while it includes `instrument.resolve` and `bars.daily`.
+- **Budget:** one answered question costs 2 gateway reads (resolve + the price or bars read). The 8-read turn
+  budget fits four 5-symbol compounds.
+
 ## 5. Budgets
 
 The gateway counts **both** logical operations **and** underlying provider requests, per Agent turn (`turn_id`).
@@ -213,6 +397,10 @@ QA's suite runs `validate_envelope` against every registered kind using its fixt
 
 ## 9. Changelog
 
+- **v1.5 addition (2026-11-01, agent-md, Sprint 2 C):** §4.6 `stock.dailyBars` answer contract over `bars.daily` (last close, N-session change, 52-week range). No envelope or kind change.
+- **v1.5 addition (2026-11-01, agent-md, owner decision):** §4.7 instrument and intent resolution; new kind `instrument.resolve` over the canonical symbol index. No envelope change.
+- **v1.5 amendment (2026-11-01, agent-md, agent-qa F-19/F-20/O-1):** `session_detail` takes every input from `now`; on a half day extended trading ends at 17:00 ET; no-price answers use fixed words. No envelope field changed.
+- **v1.5 (2026-11-01, agent-md, Sprint 2):** additive. `quote` / `quotes` gain `data.session_detail` (`regular` · `premarket` · `after-hours` · `overnight` · `closed`); `data.session` is derived from it. §4.5 gives the `stock.quote` answer contract per session state. No envelope field changed.
 - **v1.4 (2026-11-01, agent-md, rulings by agent-lead):** `breadth.current` and `ratings` implemented as MODEL-ISOLATED kinds (purpose `answer` only, gateway #588); §4.4. No envelope change.
 - **v1.3 (2026-11-01, agent-md, rulings by agent-lead):** `themes` source and time semantics (§4.3); `volume.surge` REMOVED (relative volume is SC-1's; see SC-1 §2c); `nhnl` folded into `breadth.current` metrics, `nhnl_live` not exposed. No envelope change.
 - **v1.2 (2026-11-01, agent-md):** additive. `fundamentals`, `earnings` and `news.company` sources are named in §4 (`financial_statements`, `earnings_table`, the news store), and their stale budgets are restated to measure the data (§4.2). Every class stays `periodic`; the wire `contract` stays `"MD-1.0"` (§8.4).

@@ -448,6 +448,19 @@ async def _read_content_capped(response: httpx.Response, *, max_bytes: int, what
     return b"".join(pieces)
 
 
+# Sent on EVERY media hop (live gate 2026-11-02): with no User-Agent, httpx announces
+# itself as `python-httpx/<v>` and hosts with a bot policy refuse it -- Wikimedia answered
+# 403 to a hotlinked image a browser loads fine, so the import left a marker instead of the
+# image. Per hop, never on the client: provider clients also make JSON API calls, and an
+# image-only `Accept` there would be wrong. `identity` keeps the byte cap honest.
+MEDIA_USER_AGENT = "UCTIntelligenceNotebook/1.0 (+https://uctintelligence.com)"
+MEDIA_REQUEST_HEADERS = {
+    "User-Agent": MEDIA_USER_AGENT,
+    "Accept": "image/*,*/*;q=0.8",
+    "Accept-Encoding": "identity",
+}
+
+
 def media_http_client(**kwargs: Any) -> httpx.AsyncClient:
     """THE constructor for every client a media hop can ride: each provider's own client
     (its `fetch_media` sends content URLs through it) and the hotlink fetch door's.
@@ -573,7 +586,7 @@ async def guarded_media_stream(
     for _ in range(max_redirects + 1):
         # ⛔ EVERY hop, `allow_http` or not (Plan A Task 9): the address check is the guard.
         addrs = await _checked_addresses(next_url, what=what, allow_http=allow_http)
-        request_url, headers = next_url, {"Accept-Encoding": "identity"}
+        request_url, headers = next_url, dict(MEDIA_REQUEST_HEADERS)
         if urlsplit(next_url).scheme.lower() == "http":
             # Fix round 1 (I1): no TLS on this hop, so nothing binds the connection to the
             # name -- connect to the address that passed, never a second DNS answer.

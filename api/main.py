@@ -3287,6 +3287,36 @@ def _pattern_vision_contract_line() -> str:
             f"confirmed_only={'on' if conf_only is True else 'OFF'}[api_default]")
 
 
+def register_chart_iq_pack_jobs(scheduler):
+    """Chart IQ nightly pack (api/services/chart_iq/pack.py): every stock's latest-session read, built after the close so a
+    member's read is one lookup. 18:15 ET (the day's bars are final) and a 06:30 ET catch-up that builds only when the pack is
+    behind. Gate: CHART_IQ_PACK_ENABLED=1, read again inside build(). Returns True if registered."""
+    import os
+    if os.environ.get("CHART_IQ_PACK_ENABLED", "").strip() != "1":
+        return False
+    from apscheduler.triggers.cron import CronTrigger
+
+    def _evening():
+        try:
+            from api.services.chart_iq import pack
+            pack.build()
+        except Exception as exc:  # noqa: BLE001
+            logging.getLogger(__name__).warning("[chart_iq_pack] job error: %s", exc)
+
+    def _morning():
+        try:
+            from api.services.chart_iq import pack
+            pack.build_if_behind()
+        except Exception as exc:  # noqa: BLE001
+            logging.getLogger(__name__).warning("[chart_iq_pack] job error: %s", exc)
+
+    scheduler.add_job(_evening, trigger=CronTrigger(day_of_week="mon-fri", hour=18, minute=15, timezone=_ET),
+                      id="chart_iq_pack_evening", max_instances=1, replace_existing=True, coalesce=True, misfire_grace_time=3600)
+    scheduler.add_job(_morning, trigger=CronTrigger(day_of_week="mon-fri", hour=6, minute=30, timezone=_ET),
+                      id="chart_iq_pack_morning", max_instances=1, replace_existing=True, coalesce=True, misfire_grace_time=3600)
+    return True
+
+
 def register_chart_iq_prewarm_jobs(scheduler):
     """Chart IQ group pre-warm (api/services/chart_iq/prewarm.py): after the close, warm the rows cache for the industries members
     opened in the last few days, so the first chart of each industry on the new session is not the 5-25 s cold read. 18:30 ET
@@ -7344,6 +7374,8 @@ async def lifespan(app: FastAPI):
         # -- Full-market screener nightly snapshot build (spec 2026-06-19) --
         try:
             register_screener_jobs(_scheduler)
+            if register_chart_iq_pack_jobs(_scheduler):
+                logging.getLogger(__name__).info("[startup] chart-iq nightly pack: 18:15 ET build, 06:30 ET catch-up, weekdays")
             if register_chart_iq_prewarm_jobs(_scheduler):
                 logging.getLogger(__name__).info("[startup] chart-iq group pre-warm: 18:30 / 07:00 ET weekdays")
             if register_call_recap_warm_jobs(_scheduler):

@@ -40,7 +40,39 @@ export function turnReply(res) {
   return ok ? res : { ok: false, status: res.status, malformed: true, error: FAILED }
 }
 
-export const agentTurn = async (body) => turnReply(await post('/api/agent/turn', body))
+// ⛔ ADR-005 L5: an object marked `isolated: true` (an MD-1 envelope of a model-isolated kind, L2) never
+// leaves the browser in a model request — removed at any depth from the request's model-bound parts, and
+// the removal is counted (never its content). L6 strips again on the server: neither layer trusts the other.
+const MODEL_BOUND = ['context', 'pending', 'reference', 'repair', 'history', 'memory']
+let isolationDropped = 0
+export const isolationDrops = () => isolationDropped
+const DROP = Symbol('isolated')
+function stripIsolated(v) {
+  if (Array.isArray(v)) return v.map(stripIsolated).filter(x => x !== DROP)
+  if (v && typeof v === 'object') {
+    if (v.isolated === true) { isolationDropped += 1; return DROP }
+    const out = {}
+    for (const [k, x] of Object.entries(v)) { const y = stripIsolated(x); if (y !== DROP) out[k] = y }
+    return out
+  }
+  return v
+}
+export function modelSafeBody(body) {
+  if (!body || typeof body !== 'object') return body
+  const before = isolationDropped
+  const out = { ...body }
+  for (const k of MODEL_BOUND) {
+    if (!(k in out)) continue
+    const y = stripIsolated(out[k])
+    if (y === DROP) delete out[k]
+    else out[k] = y
+  }
+  if (isolationDropped > before) {
+    try { console.warn(`[uct-agent] removed ${isolationDropped - before} isolated value(s) from a model request (ADR-005 L5)`) } catch { /* ignore */ }
+  }
+  return out
+}
+export const agentTurn = async (body) => turnReply(await post('/api/agent/turn', modelSafeBody(body)))
 
 /**
  * The same turn as `agentTurn`, over POST /api/agent/turn/stream (text/event-stream). `onEvent` gets
@@ -55,7 +87,7 @@ export function streamingEnabled() {
 }
 // Whether THIS server streams turns (GET /api/agent/config, read once when the Agent opens). Until it
 // has answered yes, every turn is asked the old way — a server with streaming off sees no change at all.
-let serverStream = { on: false, nl1: false, data: false, scan: false, inflight: null, at: 0 }
+let serverStream = { on: false, nl1: false, data: false, scan: false, kinds: null, inflight: null, at: 0 }
 const CONFIG_TTL_MS = 5 * 60 * 1000
 export function loadAgentConfig() {
   if (serverStream.inflight) return serverStream.inflight
@@ -65,6 +97,7 @@ export function loadAgentConfig() {
     .then((c) => {
       serverStream.on = !!(c && c.stream === true); serverStream.nl1 = !!(c && c.nl1 === true)
       serverStream.data = !!(c && c.data === true); serverStream.scan = !!(c && c.scan === true)
+      serverStream.kinds = serverStream.data && Array.isArray(c.data_kinds) ? c.data_kinds.filter(k => typeof k === 'string') : null
       serverStream.at = Date.now(); return serverStream.on
     })
     .catch(() => serverStream.on)
@@ -78,7 +111,10 @@ export const serverServesNl1 = () => serverStream.nl1 === true
 // False until the config has answered yes, and on any error — so nothing reads the gateway while it is dark.
 export const serverServesData = () => serverStream.data === true
 export const serverServesScan = () => serverStream.data === true && serverStream.scan === true
-export const _resetAgentConfig = () => { serverStream = { on: false, nl1: false, data: false, scan: false, inflight: null, at: 0 } }
+// #621: the kinds THIS server activates (UCT_AGENT_DATA_KINDS -> config `data_kinds`), or null while the gateway is
+// dark, the list is missing, or the config has not answered. A capability reads a kind only when it is listed here.
+export const serverDataKinds = () => (serverStream.data === true && Array.isArray(serverStream.kinds) ? [...serverStream.kinds] : null)
+export const _resetAgentConfig = () => { serverStream = { on: false, nl1: false, data: false, scan: false, kinds: null, inflight: null, at: 0 } }
 // One MD-1 gateway read (POST /api/agent/data) -> { ok, data: DataEnvelope } | { ok: false, error }.
 // Only app/src/agent/data/client.js calls this.
 export const agentDataRead = (body) => post('/api/agent/data', body)
@@ -89,7 +125,7 @@ export async function agentTurnStream(body, onEvent = () => {}) {
     r = await fetch('/api/agent/turn/stream', {
       method: 'POST', credentials: 'include',
       headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
-      body: JSON.stringify(body),
+      body: JSON.stringify(modelSafeBody(body)),
     })
   } catch {
     return { ok: false, error: 'Could not reach UCT. Check your connection.' }
