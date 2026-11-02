@@ -163,6 +163,36 @@ def test_a_healed_relative_link_uses_the_same_rooted_and_name_fallbacks(db):
     assert _resolve("u1", [rooted_key]) == {rooted_key: beside}
 
 
+def test_pending_links_in_a_sub_folder_table_cell_store_the_exact_key_and_heal(db):
+    """Fix round 2: a pending wikilink and a pending deep link, in a table cell of a
+    SUB-FOLDER note. The key stored in the doc is byte-for-byte the key in `links` (the
+    `|` of `|notes` survived the table as `%7C` and was decoded once), and it heals."""
+    import json as _json
+    from api.services.journal_two.note_connectors.providers.obsidian import (
+        ObsidianProvider, _build_basename_map,
+    )
+    paths = ["Notes/Src.md"]
+    body = ("| a | b |\n|---|---|\n| [[Ghost]] | x |\n"
+            "| [d](obsidian://open?vault=Trading&file=Later) | y |\n")
+    out = ObsidianProvider(user_id="u1", vault_id="v1")._convert_row(
+        "Notes/Src.md", body, paths, _build_basename_map(paths), vault_label="Trading")
+    assert out["links"] == ["name:obsidian:v1/ghost|notes", "name:obsidian:v1/later|notes"]
+    src = _import("u1", "obsidian", "obsidian:v1/Notes/Src.md", "Src", *out["doc"]["content"])
+    stored = _json.loads(_row(src)["body_json"])
+    hrefs = [m["attrs"]["href"] for row in stored["content"][0]["content"] for c in row["content"]
+             for p in c["content"] for t in p.get("content") or [] for m in t.get("marks") or []]
+    assert hrefs == [f"import-link://{k}" for k in out["links"]]  # the round trip
+    assert _row(src)["import_links_pending"] == 1
+
+    ghost = _import("u1", "obsidian", "obsidian:v1/Notes/Ghost.md", "Ghost")
+    later = _import("u1", "obsidian", "obsidian:v1/Later.md", "Later")
+    assert link_keys.heal_pending_links("u1")["healed"] == 1
+    body_json = _row(src)["body_json"]
+    assert f"/journal?j2tab=notebook&note={ghost}" in body_json
+    assert f"/journal?j2tab=notebook&note={later}" in body_json
+    assert "import-link://" not in body_json
+
+
 def test_resolving_many_name_keys_over_a_large_vault_is_not_keys_times_paths(db, monkeypatch):
     """Fix round 1, I-2: the engine's final link pass hands every touched note's links to
     `resolve_link_keys`, uncapped. 2,000 keys over a 20,000-note vault resolve with ONE

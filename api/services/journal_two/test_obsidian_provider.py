@@ -816,3 +816,27 @@ def test_tilde_fences_are_code_for_every_obsidian_pass():
     code = next(n for n in out["doc"]["content"] if n["type"] == "codeBlock")
     assert code["content"][0]["text"] == fenced
     assert out["links"] == [f"obsidian:{_V}/Plan.md"]  # the one OUTSIDE the fence
+
+
+# ── Fix round 2 ──────────────────────────────────────────────────────────────
+
+def _cells(doc):
+    table = next(n for n in doc["content"] if n["type"] == "table")
+    return [["".join(t.get("text", "") for p in cell["content"] for t in p.get("content") or [])
+             for cell in row["content"]] for row in table["content"]]
+
+
+def test_a_pending_link_in_a_sub_folder_note_survives_a_table_cell():
+    """The `|<folder>` field of a pending key is written into the markdown BEFORE it is
+    parsed, and a GFM table splits a cell on a bare `|`. ⚰️ `| [[Ghost]] | x |` in
+    `Notes/Src.md` became three cells and `links == []`. `_pct` writes `|` as `%7C`; the
+    one decode in mddoc turns it back, so the key stored equals the key the heal matches."""
+    body = ("| a | b |\n|---|---|\n| [[Ghost]] | x |\n"
+            "| [d](obsidian://open?vault=Trading&file=Later) | y |\n")
+    out = _convert(body, [], self_path="Notes/Src.md", label="Trading")
+    assert _cells(out["doc"]) == [["a", "b"], ["Ghost", "x"], ["d", "y"]]
+    ghost = f"name:obsidian:{_V}/ghost|notes"
+    later = f"name:obsidian:{_V}/later|notes"
+    assert out["links"] == [ghost, later]
+    assert _link_marks(out["doc"]) == [
+        ("Ghost", f"import-link://{ghost}"), ("d", f"import-link://{later}")]

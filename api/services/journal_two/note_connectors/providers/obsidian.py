@@ -451,9 +451,13 @@ def resolve_pending_target(rest: str, index: _VaultIndex) -> str | None:
 
 
 def _pct(path: str) -> str:
-    """A literal `%` in a name must survive the ONE decode in
-    `mddoc._destination_as_written`, so it is written as `%25`."""
-    return path.replace("%", "%25")
+    """A destination spliced into the markdown BEFORE it is parsed. A literal `%` must
+    survive the ONE decode in `mddoc._destination_as_written`, so it is written as `%25`;
+    and a `|` (the field separator of a pending key, `_name_key`) as `%7C`, because inside a
+    GFM table a bare `|` ends the CELL (fix round 2: `| [[Ghost]] | x |` in a sub-folder
+    note split into broken cells and lost the link). The one decode restores both, so the
+    key stored in the doc is the key `links` reports and the heal matches."""
+    return path.replace("%", "%25").replace("|", "%7C")
 
 
 def _name_key(vault_id: str, target: str, from_path: str | None = None, *,
