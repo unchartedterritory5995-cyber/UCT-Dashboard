@@ -115,6 +115,10 @@ def test_real_engine_runs_on_the_site_data_path(tmp_path, monkeypatch):
     assert r["asof"] == "%s-%s-%s" % (str(last)[:4], str(last)[4:6], str(last)[6:])
     assert isinstance(r["clean"], list) and isinstance(r["card"], list) and r["thesis"]
     assert {"Trend", "Setup"} <= {k for k, _ in r["card"]}
+    # every read carries the vendored engine release, so a member's vote is tied to the engine that produced the read
+    import re
+    from api.services.chart_iq.engine import _version
+    assert re.fullmatch(r"v\d+\.\d+[a-z]?", _version.VERSION) and r["version"] == _version.VERSION
     assert pipeline.analyze("NOPE").get("error")
 
 

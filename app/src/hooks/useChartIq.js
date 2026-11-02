@@ -5,9 +5,17 @@
 // polling; the server caches it too.
 import useSWR from 'swr'
 
+// A failed read carries the server's reason (`detail`) and status, so the panel can say WHY instead of a bare failure.
 const fetcher = (url) =>
-  fetch(url, { credentials: 'include' }).then((r) => {
-    if (!r.ok) throw new Error(`HTTP ${r.status}`)
+  fetch(url, { credentials: 'include' }).then(async (r) => {
+    if (!r.ok) {
+      let detail = ''
+      try { detail = (await r.json())?.detail || '' } catch { /* not JSON */ }
+      const e = new Error(detail || `HTTP ${r.status}`)
+      e.status = r.status
+      e.detail = typeof detail === 'string' ? detail : ''
+      throw e
+    }
     return r.json()
   })
 

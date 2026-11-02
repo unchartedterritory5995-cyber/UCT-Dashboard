@@ -11,6 +11,7 @@ import logging
 import time
 
 from .engine import _db
+from .engine import _version
 from .engine import forward as F
 from .engine import markup as MK
 from .engine import run_markup as RM
@@ -113,4 +114,4 @@ def _analyze(ticker, asof):
             "context": clean.get("context", ""), "rs": clean.get("rs") or [],
             "raw": raw, "candles": candles, "cycle": cyc, "buydays": buys, "gaps": gaps,
             "watches": F.watches(b, R), "market": F.market(R, bf, last),
-            "version": clean.get("version", ""), "built_s": round(time.time() - t0, 2)}
+            "version": _version.VERSION, "built_s": round(time.time() - t0, 2)}
