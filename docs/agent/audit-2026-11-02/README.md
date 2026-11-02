@@ -12,6 +12,7 @@ Independent, read-only audit of UCT Agent against `origin/master` `cfc35a3b3f`, 
 | 6 | [Multi-agent execution plan](06-MULTI-AGENT-EXECUTION.md) | how to organize Claude Code sessions, worktrees, persistence and cost |
 | 7 | [Scorecard and evaluation framework](07-SCORECARD-AND-EVAL.md) | baseline, outcome classes, categories, nightly mechanics, expected gains per package |
 | 8 | [Decision memo](08-DECISION-MEMO.md) | the recommendation, stop/continue, build first, owner decisions |
+| 9 | [Wave 1 execution-ready proposal](09-WAVE-1-EXECUTION-PROPOSAL.md) | after the owner's review: verified pricing/caching, capped eval plan, activation sequence with F-16/F-23 status, CI benchmark design, two-week plan with fallback, what can start now |
 
 Appendices (raw audit evidence with `file:line` citations and the commands used):
 
