@@ -1,0 +1,16 @@
+{"format": "uct-notebook-note", "version": 1, "note": {
+  "id": "orig-crafted", "title": "Crafted", "folderPath": ["Trading"], "tags": ["uct"],
+  "createdAt": "2026-10-01T12:00:00Z", "updatedAt": "2026-10-02T12:00:00Z",
+  "bodyJson": {"type": "doc", "content": [
+    {"type": "paragraph", "content": [
+      {"type": "text", "text": "click me", "marks": [{"type": "bold"}, {"type": "link", "attrs": {"href": "javascript:alert(document.cookie)"}}]},
+      {"type": "text", "text": " and "},
+      {"type": "text", "text": "tabbed", "marks": [{"type": "link", "attrs": {"href": "java\tscript:alert(1)"}}]},
+      {"type": "text", "text": " and "},
+      {"type": "text", "text": "a real site", "marks": [{"type": "link", "attrs": {"href": "https://example.com/uct"}}]},
+      {"type": "text", "text": " and "},
+      {"type": "noteLink", "attrs": {"noteId": "orig-levels", "title": "Levels"}}
+    ]},
+    {"type": "image", "attrs": {"src": "attachments/levels.png", "alt": "levels"}}
+  ]}
+}}

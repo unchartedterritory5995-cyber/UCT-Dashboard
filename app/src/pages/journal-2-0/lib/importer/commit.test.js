@@ -1,8 +1,19 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { rewriteBody, runImport } from './commit'
+import { rewriteBody, runImport, declaredType, checkExisting, storeMediaItem, EARLIER_NOTE } from './commit'
+import { importNoticeText, MEDIA_RETRY_MAX_ATTEMPTS } from '../importNoticeText'
+import { settleNoteWrites } from '../offline/settleNoteWrite'
+
+// Plan B Task 11: the REAL settle, wrapped in a spy so a test can see which revisions an import
+// landed (a recovered note is rewritten like an updated one). Behaviour is unchanged.
+vi.mock('../offline/settleNoteWrite', async (importOriginal) => {
+  const real = await importOriginal()
+  return { ...real, settleNoteWrites: vi.fn(real.settleNoteWrites), settleNoteWrite: vi.fn(real.settleNoteWrite) }
+})
 
 const img = (src) => ({ type: 'image', attrs: { src } })
 const doc = (content) => ({ type: 'doc', content })
+const para = (text) => ({ type: 'paragraph', content: [{ type: 'text', text }] })
+const chip = (href, name) => ({ type: 'attachmentChip', attrs: { href, name } })
 
 describe('rewriteBody', () => {
   it('swaps media refs, resolves links, drops failed media by name', () => {
@@ -20,15 +31,130 @@ describe('rewriteBody', () => {
     expect(out.content[1].content[0].marks[0].attrs.href)
       .toBe('/journal?j2tab=notebook&note=note42')
     expect(out.content.filter((n) => n.type === 'image')).toHaveLength(1)
+    // Task 4: the unresolved image is never dropped in silence: a notice holds its place.
+    expect(out.content[2].type).toBe('importNotice')
     expect(droppedMedia).toEqual(['v/missing.png'])
   })
 
-  it('removes link marks whose target did not import, keeping the text', () => {
-    const body = doc([{ type: 'paragraph', content: [{ type: 'text', text: 'ghost',
-      marks: [{ type: 'link', attrs: { href: 'import-link://obsidian:gone.md' } }] }] }])
-    const { body: out } = rewriteBody(body, { mediaUrls: {}, idByKey: {} })
-    expect(out.content[0].content[0].marks ?? []).toHaveLength(0)
+  it('keeps an unresolved link mark as an import-link placeholder for the heal pass', () => {
+    const mark = { type: 'link', attrs: { href: 'import-link://obsidian:gone.md' } }
+    const body = doc([{ type: 'paragraph', content: [{ type: 'text', text: 'ghost', marks: [mark] }] }])
+    const { body: out, keptLinks } = rewriteBody(body, { mediaUrls: {}, idByKey: {} })
+    expect(out.content[0].content[0].marks).toEqual([mark])
     expect(out.content[0].content[0].text).toBe('ghost')
+    expect(keptLinks).toEqual([{ key: 'obsidian:gone.md', text: 'ghost' }])
+  })
+
+  it('keeps an Evernote title placeholder raw, and still resolves a sibling that did import', () => {
+    const body = doc([{ type: 'paragraph', content: [
+      { type: 'text', text: 'Trade plan', marks: [{ type: 'link', attrs: { href: 'import-link://evernote-title:Trade plan' } }] },
+      { type: 'text', text: ' and ' },
+      { type: 'text', text: 'here', marks: [{ type: 'link', attrs: { href: 'import-link://obsidian:b.md' } }] },
+    ] }])
+    const { body: out, keptLinks } = rewriteBody(body, { idByKey: { 'obsidian:b.md': 'n9' } })
+    expect(out.content[0].content[0].marks[0].attrs.href).toBe('import-link://evernote-title:Trade plan')
+    expect(out.content[0].content[2].marks[0].attrs.href).toBe('/journal?j2tab=notebook&note=n9')
+    expect(keptLinks).toEqual([{ key: 'evernote-title:Trade plan', text: 'Trade plan' }])
+  })
+
+  it('replaces a failed image with an importNotice in the same position', () => {
+    const body = doc([para('a'), img('import-ref://r1'), para('b')])
+    const { body: out, notices, droppedMedia } = rewriteBody(body, { mediaResults: {
+      r1: { ok: false, reason: 'fetch_failed', name: 'c.png', sourceUrl: 'https://cdn.com/c.png' } } })
+    expect(out.content.map((n) => n.type)).toEqual(['paragraph', 'importNotice', 'paragraph'])
+    // R3: a file-import notice is FINAL, so `fetch_failed` never reads "retrying on the next sync".
+    expect(out.content[1].attrs).toEqual({ reason: 'fetch_failed', name: 'c.png',
+      sourceUrl: 'https://cdn.com/c.png', ref: 'r1', attempts: MEDIA_RETRY_MAX_ATTEMPTS })
+    expect(importNoticeText(out.content[1].attrs)).toBe("Couldn't copy c.png")
+    expect(droppedMedia).toEqual(['r1'])
+    expect(notices).toEqual([{ ref: 'r1', reason: 'fetch_failed', name: 'c.png', sourceUrl: 'https://cdn.com/c.png' }])
+  })
+
+  it('a placeholder with no result at all becomes a missing_resource notice, never vanishes', () => {
+    const body = doc([img('import-ref://gone.png'), chip('import-ref://f.pdf', 'f.pdf')])
+    const { body: out, droppedMedia, notices } = rewriteBody(body, {})
+    expect(out.content.map((n) => n.type)).toEqual(['importNotice', 'importNotice'])
+    expect(out.content[0].attrs.reason).toBe('missing_resource')
+    // a nameless failure keeps name null: the copy table's fallback reads it, never an empty string
+    expect(out.content[0].attrs.name).toBeNull()
+    expect(importNoticeText(out.content[0].attrs)).toBe("This item couldn't be found, so it wasn't copied")
+    expect(out.content[1].attrs.name).toBe('f.pdf')
+    expect(droppedMedia).toEqual(['gone.png', 'f.pdf'])
+    expect(notices).toHaveLength(2)
+  })
+
+  it('a door storage refusal is written as the final storage_full, never the "will be copied" promise', () => {
+    const body = doc([img('import-ref://big.png')])
+    const { body: out } = rewriteBody(body, { mediaResults: { 'big.png': { ok: false, reason: 'storage_limit', name: 'big.png' } } })
+    expect(out.content[0].attrs.reason).toBe('storage_full')
+    expect(importNoticeText(out.content[0].attrs)).toMatch(/import again/)
+  })
+
+  it('a failure name that is blank or not a string is written as null, and a non-http sourceUrl is dropped', () => {
+    const body = doc([img('import-ref://x')])
+    const { body: out } = rewriteBody(body, { mediaResults: { x: { ok: false, reason: 'decode_failed', name: '  ', sourceUrl: 'javascript:alert(1)' } } })
+    expect(out.content[0].attrs.name).toBeNull()
+    expect(out.content[0].attrs.sourceUrl).toBeNull()
+  })
+
+  it('an image the server stored as a file becomes an attachment chip', () => {
+    const body = doc([img('import-ref://logo.svg')])
+    const { body: out, droppedMedia } = rewriteBody(body, { mediaResults: {
+      'logo.svg': { ok: true, src: '/api/j2/notes/attachments/u/n/f/logo.svg', kind: 'file', name: 'logo.svg' } } })
+    expect(out.content).toEqual([{ type: 'attachmentChip',
+      attrs: { href: '/api/j2/notes/attachments/u/n/f/logo.svg', name: 'logo.svg' } }])
+    expect(droppedMedia).toEqual([])
+  })
+
+  it('an image the server stored as an image keeps its own attrs with the new src', () => {
+    const body = doc([{ type: 'image', attrs: { src: 'import-ref://a.png', alt: 'chart' } }])
+    const { body: out } = rewriteBody(body, { mediaResults: { 'a.png': { ok: true, src: '/i/a.png', kind: 'image', name: 'a.png' } } })
+    expect(out.content).toEqual([{ type: 'image', attrs: { src: '/i/a.png', alt: 'chart' } }])
+  })
+
+  it('a kept original rides as a chip right after its converted image', () => {
+    const body = doc([para('x'), img('import-ref://p.heic'), para('y')])
+    const { body: out } = rewriteBody(body, { mediaResults: { 'p.heic': { ok: true, src: '/i/p.jpg', kind: 'image', name: 'p.jpg',
+      original: { src: '/f/p.heic', name: 'p.heic' } } } })
+    expect(out.content.map((n) => n.type)).toEqual(['paragraph', 'image', 'attachmentChip', 'paragraph'])
+    expect(out.content[1].attrs.src).toBe('/i/p.jpg')
+    expect(out.content[2].attrs).toEqual({ href: '/f/p.heic', name: 'p.heic' })
+  })
+
+  it('a null original adds no chip (the server sends null, not a missing key)', () => {
+    const body = doc([img('import-ref://a.png')])
+    const { body: out } = rewriteBody(body, { mediaResults: { 'a.png': { ok: true, src: '/i/a.png', kind: 'image', name: 'a.png', original: null } } })
+    expect(out.content.map((n) => n.type)).toEqual(['image'])
+  })
+
+  it('an attachment chip swaps its href and takes the stored name', () => {
+    const body = doc([chip('import-ref://r.pdf', 'r.pdf')])
+    const { body: out } = rewriteBody(body, { mediaResults: { 'r.pdf': { ok: true, src: '/f/r.pdf', kind: 'file', name: 'report.pdf' } } })
+    expect(out.content[0]).toEqual({ type: 'attachmentChip', attrs: { href: '/f/r.pdf', name: 'report.pdf' } })
+  })
+
+  it('replaces a failed image inside a table cell and a list item', () => {
+    const cell = { type: 'tableCell', content: [img('import-ref://t.png')] }
+    const body = doc([
+      { type: 'table', content: [{ type: 'tableRow', content: [cell] }] },
+      { type: 'bulletList', content: [{ type: 'listItem', content: [para('i'), img('import-ref://l.png')] }] },
+    ])
+    const input = JSON.parse(JSON.stringify(body))
+    const { body: out, droppedMedia } = rewriteBody(body, { mediaResults: {
+      't.png': { ok: false, reason: 'too_large', name: 't.png' }, 'l.png': { ok: false, reason: 'upload_failed', name: 'l.png' } } })
+    expect(out.content[0].content[0].content[0].content[0]).toMatchObject({ type: 'importNotice', attrs: { reason: 'too_large', ref: 't.png' } })
+    expect(out.content[1].content[0].content.map((n) => n.type)).toEqual(['paragraph', 'importNotice'])
+    expect(droppedMedia).toEqual(['t.png', 'l.png'])
+    expect(body).toEqual(input) // never mutates its input
+  })
+
+  it('still accepts the legacy mediaUrls map', () => {
+    const body = doc([img('import-ref://a.png'), chip('import-ref://b.pdf', 'b.pdf')])
+    const { body: out, notices } = rewriteBody(body, { mediaUrls: { 'a.png': '/i/a.png', 'b.pdf': '/f/b.pdf' } })
+    expect(out.content.map((n) => n.type)).toEqual(['image', 'attachmentChip'])
+    expect(out.content[0].attrs.src).toBe('/i/a.png')
+    expect(out.content[1].attrs.href).toBe('/f/b.pdf')
+    expect(notices).toEqual([])
   })
 
   // ⛔⛔ 2026-09-02 adversarial audit: every test above walks a 1-3 node
@@ -76,9 +202,14 @@ describe('rewriteBody', () => {
     // exactly the resolvable images were rewritten to their real URL, the
     // rest dropped -- checked by NAME (order-sensitive), not just a count,
     // so a walk that resolves the wrong half still fails this.
-    const survivingImages = out.content.slice(4)
-    expect(survivingImages.every((n) => n.type === 'image')).toBe(true)
+    // Task 4: an unresolved image is now an importNotice IN ITS PLACE, so the images
+    // are read out of the tail by type, and the notices are checked by ref, in order.
+    const tail = out.content.slice(4)
+    expect(tail).toHaveLength(N_IMAGES)
+    const survivingImages = tail.filter((n) => n.type === 'image')
     expect(survivingImages).toHaveLength(N_IMAGES / 2)
+    expect(tail.filter((n) => n.type === 'importNotice').map((n) => n.attrs.ref)).toEqual(
+      Array.from({ length: N_IMAGES / 2 }, (_, k) => `shot-${k * 2 + 1}.png`))
     expect(survivingImages.map((n) => n.attrs.src)).toEqual(
       Array.from({ length: N_IMAGES / 2 }, (_, k) => `/api/j2/notes/attachments/u/n/inline/shot-${k * 2}.png`))
     expect(droppedMedia).toEqual(
@@ -111,6 +242,8 @@ describe('runImport', () => {
     })
     expect(calls.map((c) => c.url)).toEqual([
       '/api/j2/notes/import/confirm', '/api/j2/notes/n1/images', '/api/j2/notes/n1',
+      // Task 5 R6: one heal call per import that wrote a note
+      '/api/j2/notes/import/heal-links',
     ])
     expect(summary.created).toBe(1)
     expect(summary.failures).toEqual([])
@@ -216,6 +349,9 @@ describe('runImport', () => {
     const badPut = putCalls.find((c) => c[0] === '/api/j2/notes/n2')
     expect(JSON.parse(okPut[1].body).importMediaPending).toBe(false)
     expect(JSON.parse(badPut[1].body).importMediaPending).toBe(true)
+    // Task 4: the failed upload is an upload_failed notice IN PLACE in the PUT body, not a gap.
+    expect(JSON.parse(badPut[1].body).bodyJson.content).toEqual([{ type: 'importNotice',
+      attrs: { reason: 'upload_failed', name: 'bad.png', sourceUrl: null, ref: 'bad.png', attempts: MEDIA_RETRY_MAX_ATTEMPTS } }])
   })
 
   it('continues past a failed confirm batch instead of stopping the run (session-audit.md A2)', async () => {
@@ -332,7 +468,7 @@ describe('runImport', () => {
     ])
   })
 
-  it('makes exactly one fetch call for a note the server reports as skipped', async () => {
+  it('a note the server reports as skipped gets no media or PUT call, only the heal sweep (fix round 1, I1)', async () => {
     const calls = []
     vi.stubGlobal('fetch', vi.fn(async (url, opts) => {
       calls.push({ url, method: opts?.method })
@@ -351,8 +487,7 @@ describe('runImport', () => {
                links: [] }],
       onProgress: () => {},
     })
-    expect(calls).toHaveLength(1)
-    expect(calls[0].url).toBe('/api/j2/notes/import/confirm')
+    expect(calls.map((c) => c.url)).toEqual(['/api/j2/notes/import/confirm', '/api/j2/notes/import/heal-links'])
     expect(summary.skipped).toBe(1)
     expect(summary.created).toBe(0)
   })
@@ -382,7 +517,9 @@ describe('runImport', () => {
       onProgress: () => {},
     })
     expect(imageAttempts).toBe(3)
-    expect(summary.failures).toEqual([{ name: 'a.png', reason: expect.stringContaining('500') }])
+    // Fix round 1, ruling 1: reported once, in `notices` ("Couldn't be copied"), not in `failures`.
+    expect(summary.failures).toEqual([])
+    expect(summary.notices.map((n) => [n.name, n.reason])).toEqual([['a.png', 'upload_failed']])
     expect(calls.filter((c) => c.url === '/api/j2/notes/n1' && c.method === 'PUT')).toHaveLength(1)
   })
 
@@ -408,7 +545,13 @@ describe('runImport', () => {
                links: [] }],
       onProgress: () => {},
     })
-    expect(summary.failures).toEqual([{ name: 'big.pdf', reason: 'File must be < 25 MB' }])
+    // Fix round 1, ruling 1: the notice row is the one report; `storeMediaItem` still carries
+    // the server's sentence as `message` for any caller that wants it.
+    expect(summary.failures).toEqual([])
+    expect(summary.notices.map((n) => [n.name, n.reason])).toEqual([['big.pdf', 'too_large']])
+    const one = await storeMediaItem('n1', 'file:a.md', { ref: 'big.pdf', kind: 'file', name: 'big.pdf',
+      vfile: { bytes: async () => new Uint8Array([1]), path: 'big.pdf' } })
+    expect(one).toMatchObject({ ok: false, message: 'File must be < 25 MB' })
   })
 
   // ── the confirm step is sent as several requests, bounded by bytes and by count ──
@@ -725,4 +868,649 @@ describe('runImport — outcomes/importedNoteIds/attentionKeys (arrival + enrich
     })
     expect(summary.attentionKeys).toEqual([])
   })
+})
+
+// ---------------------------------------------------------------------------
+// Plan B Task 5: upload by declared MIME (the server sniffs and decides), copy remote images in
+// through the fetch door, retry the doors' 429 "busy" answers, list what did not come over, and
+// always call the heal door.
+// ---------------------------------------------------------------------------
+describe('Task 5 — declaredType', () => {
+  it('strips parameters and lowercases a declared MIME; it wins over the name', () => {
+    expect(declaredType({ name: 'x.jpg', mime: ' Image/PNG; charset=binary ' })).toBe('image/png')
+  })
+  it('falls back to the name, then the vfile path, then octet-stream', () => {
+    expect(declaredType({ name: 'x.heic' })).toBe('image/heic')
+    expect(declaredType({ name: 'r', vfile: { path: 'a/b.TIF' } })).toBe('image/tiff')
+    expect(declaredType({ name: 'r', vfile: { path: 'a/b' } })).toBe('application/octet-stream')
+    for (const [ext, mime] of [['heif', 'image/heif'], ['avif', 'image/avif'], ['tiff', 'image/tiff'], ['bmp', 'image/bmp'], ['svg', 'image/svg+xml']]) {
+      expect(declaredType({ name: `x.${ext}` })).toBe(mime)
+    }
+  })
+  it('a blank declared MIME is no declaration', () => {
+    expect(declaredType({ name: 'x.png', mime: '  ; q=1' })).toBe('image/png')
+  })
+})
+
+describe('Task 5 — runImport media and heal', () => {
+  beforeEach(() => vi.restoreAllMocks())
+
+  const CONFIRM = (ids) => new Response(JSON.stringify({
+    created: ids.map(([importKey, id]) => ({ importKey, id })), updated: [], skipped: [] }))
+  const json = (body, status = 200, headers = {}) => new Response(JSON.stringify(body), { status, headers })
+  const BUSY = (headers = {}) => json({ detail: 'Too many uploads at once. Try again in a moment.' }, 429, headers)
+  const vf = (path) => ({ bytes: async () => new Uint8Array([1]), path })
+  const noSleep = () => ({ sleep: vi.fn(async () => {}), random: () => 0 })
+
+  // A scripted server: `routes(url, opts)` answers anything it knows; confirm, PUT and heal have
+  // defaults. Every request is recorded with its parsed JSON body, or its multipart file part.
+  function server(routes, { ids = [['file:a.md', 'n1']], heal = () => json({ healed: 0, unresolved: [] }) } = {}) {
+    const calls = []
+    vi.stubGlobal('fetch', vi.fn(async (url, opts = {}) => {
+      const call = { url, method: opts.method }
+      if (typeof opts.body === 'string') call.json = JSON.parse(opts.body)
+      else if (opts.body && typeof opts.body.get === 'function') call.file = opts.body.get('file')
+      calls.push(call)
+      if (url.endsWith('/import/confirm')) return CONFIRM(ids)
+      if (url.endsWith('/import/heal-links')) return heal(call)
+      const out = routes(url, opts, call)
+      if (out) return out
+      if (opts.method === 'PUT') return json({ ok: true })
+      throw new Error(`unscripted ${url}`)
+    }))
+    return calls
+  }
+  const one = (bodyJson, media, extra = {}) => [{ importKey: 'file:a.md', title: 'A', tags: [], folderPath: [], bodyJson, media, links: [], ...extra }]
+  const putBody = (calls, id = 'n1') => calls.find((c) => c.method === 'PUT' && c.url === `/api/j2/notes/${id}`).json
+
+  it('sends the declared Evernote MIME for an extensionless web-clip image', async () => {
+    const calls = server((url) => (url.endsWith('/images') ? json({ url: '/i/1', kind: 'image', name: 'clip-image', original: null }) : null))
+    await runImport({ source: 'file', destFolderId: null, retry: noSleep(),
+      docs: one(doc([img('import-ref://e1')]), [{ ref: 'e1', kind: 'image', name: 'clip-image', mime: 'image/png; charset=binary', vfile: vf('clip-image') }]) })
+    const up = calls.find((c) => c.file)
+    expect(up.url).toBe('/api/j2/notes/n1/images')
+    expect(up.file.type).toBe('image/png')
+  })
+
+  it('falls back to an extension hint only when nothing is declared', async () => {
+    const calls = server((url) => (url.endsWith('/images') ? json({ url: '/i/1.jpg', kind: 'image', name: 'x.jpg', original: { url: '/f/x.heic', name: 'x.heic' } }) : null))
+    await runImport({ source: 'file', destFolderId: null, retry: noSleep(),
+      docs: one(doc([img('import-ref://x.heic')]), [{ ref: 'x.heic', kind: 'image', name: 'x.heic', vfile: vf('x.heic') }]) })
+    expect(calls.find((c) => c.file).file.type).toBe('image/heic')
+    // the kept original travels into the body as a chip right after the image
+    expect(putBody(calls).bodyJson.content).toEqual([
+      { type: 'image', attrs: { src: '/i/1.jpg' } },
+      { type: 'attachmentChip', attrs: { href: '/f/x.heic', name: 'x.heic' } },
+    ])
+  })
+
+  it('copies a remote image in through the fetch route and stores its src', async () => {
+    const url = 'https://cdn.example.com/a.png'
+    const calls = server((u) => (u === '/api/j2/notes/media/fetch' ? json({ src: '/i/fetched.png', kind: 'image', filename: 'a.png' }) : null))
+    const summary = await runImport({ source: 'file', destFolderId: null, retry: noSleep(),
+      docs: one(doc([img('import-ref://remote-1')]), [{ ref: 'remote-1', kind: 'image', name: 'a.png', remoteUrl: url }]) })
+    const f = calls.find((c) => c.url === '/api/j2/notes/media/fetch')
+    expect(f.method).toBe('POST')
+    expect(f.json).toEqual({ url, noteImportKey: 'file:a.md' })
+    expect(calls.some((c) => c.file)).toBe(false)
+    expect(putBody(calls).bodyJson.content).toEqual([{ type: 'image', attrs: { src: '/i/fetched.png' } }])
+    expect(putBody(calls).importMediaPending).toBe(false)
+    expect(summary.notices).toEqual([])
+    expect(summary.attentionKeys).toEqual([])
+  })
+
+  it('a fetched SVG the server stored as a file becomes a chip; a fetched original rides along', async () => {
+    const calls = server((u) => (u === '/api/j2/notes/media/fetch'
+      ? json({ src: '/f/l.svg', kind: 'file', filename: 'l.svg', original: { url: '/f/o.heic', name: 'o.heic' } }) : null))
+    await runImport({ source: 'file', destFolderId: null, retry: noSleep(),
+      docs: one(doc([img('import-ref://remote-1')]), [{ ref: 'remote-1', kind: 'image', name: 'l.svg', remoteUrl: 'https://x.com/l.svg' }]) })
+    expect(putBody(calls).bodyJson.content).toEqual([
+      { type: 'attachmentChip', attrs: { href: '/f/l.svg', name: 'l.svg' } },
+      { type: 'attachmentChip', attrs: { href: '/f/o.heic', name: 'o.heic' } },
+    ])
+  })
+
+  it('fetches a repeated remote image once per note and marks every occurrence on failure', async () => {
+    const url = 'https://cdn.example.com/gone.png'
+    const calls = server((u) => (u === '/api/j2/notes/media/fetch' ? json({ reason: 'unsafe', markerText: 'x' }, 422) : null))
+    const item = { ref: 'remote-1', kind: 'image', name: 'gone.png', remoteUrl: url }
+    const summary = await runImport({ source: 'file', destFolderId: null, retry: noSleep(),
+      // the same ref twice in the body AND (defensively) twice in the media list
+      docs: one(doc([img('import-ref://remote-1'), para('mid'), img('import-ref://remote-1')]), [item, { ...item }]) })
+    expect(calls.filter((c) => c.url === '/api/j2/notes/media/fetch')).toHaveLength(1)
+    const content = putBody(calls).bodyJson.content
+    expect(content.map((n) => n.type)).toEqual(['importNotice', 'paragraph', 'importNotice'])
+    expect(content[0].attrs).toMatchObject({ reason: 'unsafe', name: 'gone.png', sourceUrl: url })
+    expect(putBody(calls).importMediaPending).toBe(true)
+    expect(summary.notices).toEqual([
+      { note: 'A', importKey: 'file:a.md', reason: 'unsafe', name: 'gone.png', sourceUrl: url },
+      { note: 'A', importKey: 'file:a.md', reason: 'unsafe', name: 'gone.png', sourceUrl: url },
+    ])
+    expect(summary.attentionKeys).toEqual(['file:a.md'])
+  })
+
+  it('a fetch-door answer that is not 200 or 422 is fetch_failed, and the import goes on', async () => {
+    const calls = server((u) => (u === '/api/j2/notes/media/fetch' ? json({ detail: 'Not found' }, 404) : null))
+    const summary = await runImport({ source: 'file', destFolderId: null, retry: noSleep(),
+      docs: one(doc([img('import-ref://remote-1')]), [{ ref: 'remote-1', kind: 'image', name: 'a.png', remoteUrl: 'https://x.com/a.png' }]) })
+    expect(putBody(calls).bodyJson.content[0].attrs.reason).toBe('fetch_failed')
+    expect(summary.notices[0].reason).toBe('fetch_failed')
+  })
+
+  it('unresolvable and bad-data items become notices directly, with no request and no TypeError', async () => {
+    const calls = server(() => null)
+    const summary = await runImport({ source: 'file', destFolderId: null, retry: noSleep(),
+      docs: one(doc([img('import-ref://unresolvable-1'), img('import-ref://bad-data-1')]), [
+        { ref: 'unresolvable-1', kind: 'image', name: 'weird:src', failed: { reason: 'unresolvable_src', sourceUrl: null } },
+        { ref: 'bad-data-1', kind: 'image', name: null, failed: { reason: 'decode_failed', sourceUrl: null } },
+      ]) })
+    expect(calls.map((c) => c.url)).toEqual(['/api/j2/notes/import/confirm', '/api/j2/notes/n1', '/api/j2/notes/import/heal-links'])
+    expect(summary.notices.map((n) => [n.reason, n.name])).toEqual([['unresolvable_src', 'weird:src'], ['decode_failed', null]])
+    expect(summary.failures).toEqual([])
+    expect(putBody(calls).importMediaPending).toBe(true)
+  })
+
+  it('a refused upload leaves an importNotice in the saved body and a notices row', async () => {
+    const calls = server((u) => (u.endsWith('/images') ? json({ detail: 'a.png is over the 25 MB limit', reason: 'too_large' }, 400) : null))
+    const summary = await runImport({ source: 'file', destFolderId: null, retry: noSleep(),
+      docs: one(doc([img('import-ref://a.png')]), [{ ref: 'a.png', kind: 'image', name: 'a.png', vfile: vf('a.png') }]) })
+    expect(putBody(calls).bodyJson.content[0]).toMatchObject({ type: 'importNotice', attrs: { reason: 'too_large', name: 'a.png' } })
+    expect(summary.notices[0].reason).toBe('too_large')
+    expect(putBody(calls).importMediaPending).toBe(true)
+    // Fix round 1, ruling 1: one report only, the notice row; never also in `failures`
+    expect(summary.failures).toEqual([])
+    expect(summary.notices).toHaveLength(1)
+  })
+
+  it('a storage_limit refusal is written as storage_full and the note stays pending for a re-import', async () => {
+    const calls = server((u) => (u.endsWith('/images') ? json({ detail: 'full', reason: 'storage_limit' }, 400) : null))
+    const summary = await runImport({ source: 'file', destFolderId: null, retry: noSleep(),
+      docs: one(doc([img('import-ref://a.png')]), [{ ref: 'a.png', kind: 'image', name: 'a.png', vfile: vf('a.png') }]) })
+    expect(putBody(calls).bodyJson.content[0].attrs.reason).toBe('storage_full')
+    expect(summary.notices[0].reason).toBe('storage_full')
+    expect(putBody(calls).importMediaPending).toBe(true)
+  })
+
+  it('a stored-as-file answer becomes a chip in the saved body', async () => {
+    const calls = server((u) => (u.endsWith('/images') ? json({ url: '/f/logo.svg', kind: 'file', name: 'logo.svg', original: null }) : null))
+    await runImport({ source: 'file', destFolderId: null, retry: noSleep(),
+      docs: one(doc([img('import-ref://logo.svg')]), [{ ref: 'logo.svg', kind: 'image', name: 'logo.svg', vfile: vf('logo.svg') }]) })
+    expect(calls.find((c) => c.file).file.type).toBe('image/svg+xml')
+    expect(putBody(calls).bodyJson.content).toEqual([{ type: 'attachmentChip', attrs: { href: '/f/logo.svg', name: 'logo.svg' } }])
+  })
+
+  it('an upload whose 200 body cannot be read is upload_failed, never a stored image with no src', async () => {
+    const calls = server((u) => (u.endsWith('/images') ? new Response('<html>', { status: 200 }) : null))
+    const summary = await runImport({ source: 'file', destFolderId: null, retry: noSleep(),
+      docs: one(doc([img('import-ref://a.png')]), [{ ref: 'a.png', kind: 'image', name: 'a.png', vfile: vf('a.png') }]) })
+    expect(putBody(calls).bodyJson.content[0].attrs.reason).toBe('upload_failed')
+    expect(summary.failures).toEqual([])
+    expect(summary.notices.map((n) => n.reason)).toEqual(['upload_failed'])
+  })
+
+  // ── H4: 429 is the doors' "busy", never a final answer on the first try ──
+
+  it('retries a 429 upload with exponential backoff and jitter, then stores it', async () => {
+    let n = 0
+    const calls = server((u) => {
+      if (!u.endsWith('/images')) return null
+      n += 1
+      return n < 3 ? BUSY() : json({ url: '/i/a.png', kind: 'image', name: 'a.png', original: null })
+    })
+    const retry = { sleep: vi.fn(async () => {}), random: () => 0.5 }
+    const summary = await runImport({ source: 'file', destFolderId: null, retry,
+      docs: one(doc([img('import-ref://a.png')]), [{ ref: 'a.png', kind: 'image', name: 'a.png', vfile: vf('a.png') }]) })
+    expect(n).toBe(3)
+    expect(retry.sleep.mock.calls.map((c) => c[0])).toEqual([500 + 125, 1000 + 125])
+    expect(putBody(calls).bodyJson.content).toEqual([{ type: 'image', attrs: { src: '/i/a.png' } }])
+    expect(summary.notices).toEqual([])
+  })
+
+  it('honours Retry-After on a 429', async () => {
+    let n = 0
+    server((u) => {
+      if (!u.endsWith('/images')) return null
+      n += 1
+      return n === 1 ? BUSY({ 'Retry-After': '3' }) : json({ url: '/i/a.png', kind: 'image', name: 'a.png', original: null })
+    })
+    const retry = { sleep: vi.fn(async () => {}), random: () => 0 }
+    await runImport({ source: 'file', destFolderId: null, retry,
+      docs: one(doc([img('import-ref://a.png')]), [{ ref: 'a.png', kind: 'image', name: 'a.png', vfile: vf('a.png') }]) })
+    expect(retry.sleep.mock.calls.map((c) => c[0])).toEqual([3000])
+  })
+
+  it('a 429 that never clears ends, bounded, as a named upload_failed notice (never a silent drop)', async () => {
+    let n = 0
+    const calls = server((u) => (u.endsWith('/images') ? (n += 1, BUSY()) : null))
+    const summary = await runImport({ source: 'file', destFolderId: null, retry: noSleep(),
+      docs: one(doc([img('import-ref://a.png')]), [{ ref: 'a.png', kind: 'image', name: 'a.png', vfile: vf('a.png') }]) })
+    expect(n).toBe(4)
+    expect(putBody(calls).bodyJson.content[0].attrs.reason).toBe('upload_failed')
+    expect(summary.failures).toEqual([])
+    expect(summary.notices.map((n) => [n.name, n.reason])).toEqual([['a.png', 'upload_failed']])
+  })
+
+  it('retries a 429 from the fetch door; one that never clears is fetch_failed', async () => {
+    let n = 0
+    const calls = server((u) => (u === '/api/j2/notes/media/fetch' ? (n += 1, n === 1 ? BUSY() : json({ src: '/i/r.png', kind: 'image', filename: 'r.png' })) : null))
+    await runImport({ source: 'file', destFolderId: null, retry: noSleep(),
+      docs: one(doc([img('import-ref://remote-1')]), [{ ref: 'remote-1', kind: 'image', name: 'r.png', remoteUrl: 'https://x.com/r.png' }]) })
+    expect(n).toBe(2)
+    expect(putBody(calls).bodyJson.content[0].attrs.src).toBe('/i/r.png')
+
+    vi.restoreAllMocks()
+    let m = 0
+    const calls2 = server((u) => (u === '/api/j2/notes/media/fetch' ? (m += 1, BUSY()) : null))
+    await runImport({ source: 'file', destFolderId: null, retry: noSleep(),
+      docs: one(doc([img('import-ref://remote-1')]), [{ ref: 'remote-1', kind: 'image', name: 'r.png', remoteUrl: 'https://x.com/r.png' }]) })
+    expect(m).toBe(4)
+    expect(putBody(calls2).bodyJson.content[0].attrs.reason).toBe('fetch_failed')
+  })
+
+  // ── R6: the heal door is called ALWAYS once per import that wrote a note ──
+
+  const linkDoc = (key, title, target, text = 'ghost') => ({
+    importKey: key, title, tags: [], folderPath: [], media: [], links: [target],
+    bodyJson: doc([{ type: 'paragraph', content: [{ type: 'text', text, marks: [{ type: 'link', attrs: { href: `import-link://${target}` } }] }] }]),
+  })
+
+  it('lists links the heal pass could not connect, and falls back to its own list when the route is missing', async () => {
+    const calls = server(() => null, {
+      ids: [['file:a.md', 'n1']],
+      heal: () => json({ healed: 0, unresolved: [{ noteId: 'n1', key: 'evernote-title:Gone', text: 'Gone (server)' }] }),
+    })
+    const summary = await runImport({ source: 'file', destFolderId: null, retry: noSleep(), docs: [linkDoc('file:a.md', 'A', 'evernote-title:Gone')] })
+    expect(calls.find((c) => c.url.endsWith('/heal-links')).json).toEqual({ noteIds: ['n1'] })
+    expect(summary.unconnectedLinks).toEqual([{ note: 'A', text: 'Gone (server)' }])
+
+    vi.restoreAllMocks()
+    server(() => null, { heal: () => json({ detail: 'Not Found' }, 404) })
+    const fallback = await runImport({ source: 'file', destFolderId: null, retry: noSleep(), docs: [linkDoc('file:a.md', 'A', 'evernote-title:Gone')] })
+    expect(fallback.unconnectedLinks).toEqual([{ note: 'A', text: 'ghost' }])
+  })
+
+  it('a heal network error or unreadable body falls back to the kept list', async () => {
+    server(() => null, { heal: () => { throw new TypeError('offline') } })
+    const a = await runImport({ source: 'file', destFolderId: null, retry: noSleep(), docs: [linkDoc('file:a.md', 'A', 'x:y')] })
+    expect(a.unconnectedLinks).toEqual([{ note: 'A', text: 'ghost' }])
+    vi.restoreAllMocks()
+    server(() => null, { heal: () => new Response('nope', { status: 200 }) })
+    const b = await runImport({ source: 'file', destFolderId: null, retry: noSleep(), docs: [linkDoc('file:a.md', 'A', 'x:y')] })
+    expect(b.unconnectedLinks).toEqual([{ note: 'A', text: 'ghost' }])
+  })
+
+  // Plan B final review, fix 3: the heal call has the same per-call timeout as every other
+  // door (`doorTimeout`). A reply that never comes ends the import with the links listed as
+  // not connected, never a wizard stuck on its last step.
+  it('a heal reply that never comes is stopped by its per-call timeout; the links are listed as not connected', async () => {
+    const heals = []
+    server(() => null, { heal: (call) => {
+      heals.push(call)
+      const opts = vi.mocked(fetch).mock.calls.at(-1)[1]
+      return new Promise((_, reject) => {
+        opts.signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')))
+      })
+    } })
+    const summary = await runImport({ source: 'file', destFolderId: null, retry: { ...noSleep(), timeoutMs: 20 },
+      docs: [linkDoc('file:a.md', 'A', 'x:y')] })
+    expect(heals).toHaveLength(1) // a timed-out call is not retried
+    expect(summary.unconnectedLinks).toEqual([{ note: 'A', text: 'ghost' }])
+  }, 3000)
+
+  it('calls heal once with noteIds [] when no note kept a link, so the server sweep still heals OLD notes', async () => {
+    const calls = server((u) => (u.endsWith('/images') ? json({ url: '/i/a.png', kind: 'image', name: 'a.png', original: null }) : null))
+    const summary = await runImport({ source: 'file', destFolderId: null, retry: noSleep(),
+      docs: one(doc([img('import-ref://a.png')]), [{ ref: 'a.png', kind: 'image', name: 'a.png', vfile: vf('a.png') }]) })
+    const heals = calls.filter((c) => c.url.endsWith('/heal-links'))
+    expect(heals).toHaveLength(1)
+    expect(heals[0]).toMatchObject({ method: 'POST', json: { noteIds: [] } })
+    expect(summary.unconnectedLinks).toEqual([])
+  })
+
+  it('also heals for a note with no media and no links at all, and for an all-skipped re-import (I1)', async () => {
+    const calls = server(() => null)
+    await runImport({ source: 'file', destFolderId: null, retry: noSleep(), docs: one(doc([para('plain')]), []) })
+    expect(calls.filter((c) => c.url.endsWith('/heal-links'))).toHaveLength(1)
+
+    vi.restoreAllMocks()
+    const calls2 = []
+    vi.stubGlobal('fetch', vi.fn(async (url) => {
+      calls2.push(url)
+      return json({ created: [], updated: [], skipped: [{ importKey: 'file:a.md', id: 'n1' }] })
+    }))
+    await runImport({ source: 'file', destFolderId: null, retry: noSleep(), docs: one(doc([para('plain')]), []) })
+    expect(calls2.filter((u) => u.endsWith('/heal-links'))).toHaveLength(1)
+  })
+
+  it('retries a 429 from the heal door', async () => {
+    let n = 0
+    server(() => null, { heal: () => (n += 1, n === 1 ? BUSY() : json({ healed: 1, unresolved: [] })) })
+    const summary = await runImport({ source: 'file', destFolderId: null, retry: noSleep(), docs: [linkDoc('file:a.md', 'A', 'x:y')] })
+    expect(n).toBe(2)
+    expect(summary.unconnectedLinks).toEqual([])
+  })
+
+  it('chunks noteIds at 500; a failed chunk falls back to THAT chunk only', async () => {
+    const N = 501
+    const docs = Array.from({ length: N }, (_, i) => linkDoc(`k${i}`, `T${i}`, `x:${i}`))
+    let call = 0
+    const calls = server(() => null, {
+      ids: docs.map((d, i) => [d.importKey, `n${i}`]),
+      heal: () => (call += 1, call === 1 ? json({ healed: 500, unresolved: [] }) : json({ detail: 'boom' }, 400)),
+    })
+    const summary = await runImport({ source: 'file', destFolderId: null, retry: noSleep(), docs })
+    const heals = calls.filter((c) => c.url.endsWith('/heal-links'))
+    expect(heals.map((h) => h.json.noteIds.length)).toEqual([500, 1])
+    expect(summary.unconnectedLinks).toEqual([{ note: 'T500', text: 'ghost' }])
+  })
+
+  it('a link split across text runs is one kept link with its joined text, deduped by key', async () => {
+    const href = 'import-link://x:split'
+    const d = { importKey: 'file:a.md', title: 'A', tags: [], folderPath: [], media: [], links: ['x:split'],
+      bodyJson: doc([{ type: 'paragraph', content: [
+        { type: 'text', text: 'Trade ', marks: [{ type: 'link', attrs: { href } }] },
+        { type: 'text', text: 'plan', marks: [{ type: 'bold' }, { type: 'link', attrs: { href } }] },
+        { type: 'text', text: ' and again ' },
+        { type: 'text', text: 'Trade plan', marks: [{ type: 'link', attrs: { href } }] },
+      ] }]) }
+    server(() => null, { heal: () => json({ detail: 'x' }, 404) })
+    const summary = await runImport({ source: 'file', destFolderId: null, retry: noSleep(), docs: [d] })
+    expect(summary.unconnectedLinks).toEqual([{ note: 'A', text: 'Trade plan' }])
+  })
+})
+
+describe('Task 4 carry-overs in rewriteBody', () => {
+  it('a blank server name falls back to the node alt/title', () => {
+    const body = doc([{ type: 'image', attrs: { src: 'import-ref://x', alt: 'my chart' } }])
+    const { body: out } = rewriteBody(body, { mediaResults: { x: { ok: false, reason: 'upload_failed', name: '  ' } } })
+    expect(out.content[0].attrs.name).toBe('my chart')
+  })
+
+  it('an unresolved widgetEmbed fallback is recorded in notices too (counts match droppedMedia)', () => {
+    const body = doc([{ type: 'widgetEmbed', attrs: { widget: 'chart', fallback: { url: 'import-ref://w1' } } }])
+    const { body: out, droppedMedia, notices } = rewriteBody(body, { mediaResults: { w1: { ok: false, reason: 'too_large', name: 'w1.png' } } })
+    expect(out.content[0].attrs.fallback).toBeNull()
+    expect(droppedMedia).toEqual(['w1'])
+    expect(notices).toEqual([{ ref: 'w1', reason: 'too_large', name: 'w1.png', sourceUrl: null }])
+  })
+})
+
+describe('Task 11 — recover, kept-as-edited, cancel, per-call timeout', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks()
+    settleNoteWrites.mockClear()
+  })
+
+  const json = (body, status = 200) => new Response(JSON.stringify(body), { status })
+  const vf = (path) => ({ bytes: async () => new Uint8Array([1]), path })
+  const noSleep = (extra = {}) => ({ sleep: vi.fn(async () => {}), random: () => 0, ...extra })
+  const note = (key, title, media = [], bodyJson = doc([para(title)])) => ({
+    importKey: key, title, tags: [], folderPath: [], bodyJson, media, links: [] })
+
+  // `confirm(call)` answers the confirm step; uploads, fetches, PUTs and heal have defaults.
+  function server(confirm, routes = () => null) {
+    const calls = []
+    vi.stubGlobal('fetch', vi.fn(async (url, opts = {}) => {
+      const call = { url, method: opts.method, raw: opts.body, signal: opts.signal }
+      if (typeof opts.body === 'string') call.json = JSON.parse(opts.body)
+      calls.push(call)
+      const out = await routes(url, opts, call)
+      if (out) return out
+      if (url.endsWith('/import/confirm')) return confirm(call)
+      if (url.endsWith('/import/heal-links')) return json({ healed: 0, unresolved: [] })
+      if (url.endsWith('/images')) return json({ url: `/i/${calls.length}.png`, kind: 'image' })
+      if (opts.method === 'PUT') return json({ ok: true })
+      throw new Error(`unscripted ${url}`)
+    }))
+    return calls
+  }
+
+  it('sends mode recover and treats recovered notes like updated ones', async () => {
+    const calls = server(() => json({ created: [], updated: [], skipped: [], failed: [],
+      recovered: [{ importKey: 'file:a.md', id: 'n1', updatedAt: '2026-11-01T00:00:00Z' }], keptEdited: [] }))
+    const summary = await runImport({ source: 'Markdown', destFolderId: null, mode: 'recover', retry: noSleep(),
+      docs: [note('file:a.md', 'A', [{ ref: 'a.png', kind: 'image', name: 'a.png', vfile: vf('a.png') }],
+        doc([img('import-ref://a.png')]))] })
+    const confirm = calls.find((c) => c.url.endsWith('/import/confirm'))
+    expect(JSON.parse(confirm.raw).mode).toBe('recover')
+    // the recovered note gets its media phase: the upload, then the PUT of the rewritten body
+    expect(calls.map((c) => c.url)).toEqual([
+      '/api/j2/notes/import/confirm', '/api/j2/notes/n1/images', '/api/j2/notes/n1', '/api/j2/notes/import/heal-links'])
+    expect(calls.find((c) => c.method === 'PUT').json.bodyJson.content[0].attrs.src).toMatch(/^\/i\//)
+    expect(summary.recovered).toBe(1)
+    expect(summary.updated).toBe(0)
+    expect(summary.outcomes['file:a.md']).toBe('recovered')
+    expect(summary.importedNoteIds).toEqual(['n1'])
+    // its new revision is landed like an updated note's
+    expect(settleNoteWrites.mock.calls.flatMap(([items]) => items.map((i) => i.id))).toContain('n1')
+  })
+
+  it('lists notes kept because the member edited them', async () => {
+    const calls = server(() => json({ created: [{ importKey: 'file:b.md', id: 'n2' }], updated: [], skipped: [], failed: [],
+      recovered: [], keptEdited: [{ importKey: 'file:a.md', id: 'n1' }] }))
+    const summary = await runImport({ source: 'Markdown', destFolderId: null, mode: 'recover', retry: noSleep(),
+      docs: [note('file:a.md', 'My edited plan'), note('file:b.md', 'B')] })
+    expect(summary.keptEdited).toEqual([{ name: 'My edited plan', importKey: 'file:a.md' }])
+    expect(summary.outcomes['file:a.md']).toBe('kept_edited')
+    // never counted as recovered or written, and never touched afterwards
+    expect(summary.recovered).toBe(0)
+    expect(summary.updated).toBe(0)
+    expect(summary.importedNoteIds).toEqual(['n2'])
+    expect(calls.some((c) => c.url === '/api/j2/notes/n1')).toBe(false)
+  })
+
+  it('a kept-edited note is reported on an ordinary re-import too (the server guards both modes)', async () => {
+    server(() => json({ created: [], updated: [], skipped: [], keptEdited: [{ importKey: 'file:a.md', id: 'n1' }] }))
+    const summary = await runImport({ source: 'Markdown', destFolderId: null, retry: noSleep(), docs: [note('file:a.md', 'A')] })
+    expect(summary.keptEdited).toEqual([{ name: 'A', importKey: 'file:a.md' }])
+  })
+
+  it('the default import sends no mode key', async () => {
+    const calls = server(() => json({ created: [{ importKey: 'file:a.md', id: 'n1' }], updated: [], skipped: [] }))
+    await runImport({ source: 'Markdown', destFolderId: 'f1', retry: noSleep(), docs: [note('file:a.md', 'A')] })
+    const raw = calls.find((c) => c.url.endsWith('/import/confirm')).raw
+    expect(Object.keys(JSON.parse(raw))).toEqual(['source', 'destFolderId', 'notes'])
+    expect(raw.startsWith('{"source":"Markdown","destFolderId":"f1","notes":[')).toBe(true)
+  })
+
+  it('a confirm reply that cannot be read is a named failed batch, never a thrown import', async () => {
+    server(() => new Response('<html>oops</html>', { status: 200 }))
+    const summary = await runImport({ source: 'Markdown', destFolderId: null, retry: noSleep(), docs: [note('file:a.md', 'A')] })
+    expect(summary.failedBatches).toHaveLength(1)
+    expect(summary.failedBatches[0].message).toMatch(/could not be read/)
+    expect(summary.outcomes['file:a.md']).toBe('batch_failed')
+  })
+
+  it('checkExisting names an unreadable reply instead of throwing a JSON parse error', async () => {
+    server(() => null, (url) => (url.endsWith('/import/check') ? new Response('nope', { status: 200 }) : null))
+    await expect(checkExisting([{ importKey: 'k' }])).rejects.toThrow(/could not be read/)
+  })
+
+  it('stops between items when the import is cancelled: no further uploads, PUTs or heal call', async () => {
+    let stop = false
+    const calls = server(() => json({ created: [
+      { importKey: 'file:a.md', id: 'n1' }, { importKey: 'file:b.md', id: 'n2' }], updated: [], skipped: [] }),
+    (url) => {
+      // the member presses Stop while the first picture is uploading
+      if (url.endsWith('/images')) { stop = true; return json({ url: '/i/x.png', kind: 'image' }) }
+      return null
+    })
+    const media = (p) => [{ ref: `${p}1`, kind: 'image', name: `${p}1.png`, vfile: vf(`${p}1.png`) },
+      { ref: `${p}2`, kind: 'image', name: `${p}2.png`, vfile: vf(`${p}2.png`) }]
+    const summary = await runImport({ source: 'Markdown', destFolderId: null, retry: noSleep(), isCancelled: () => stop,
+      docs: [note('file:a.md', 'A', media('a'), doc([img('import-ref://a1'), img('import-ref://a2')])),
+        note('file:b.md', 'B', media('b'), doc([img('import-ref://b1')]))] })
+    expect(calls.filter((c) => c.url.endsWith('/images'))).toHaveLength(1)
+    expect(calls.some((c) => c.method === 'PUT')).toBe(false)
+    expect(calls.some((c) => c.url.endsWith('/heal-links'))).toBe(false)
+    expect(summary.stopped).toBe(true)
+    // I2: both notes were saved at confirm but their media phase never finished, so neither
+    // counts as imported; both are named as unfinished.
+    expect(summary.created).toBe(0)
+    expect(summary.unfinished).toEqual([{ name: 'A', importKey: 'file:a.md' }, { name: 'B', importKey: 'file:b.md' }])
+    expect(summary.outcomes).toEqual({ 'file:a.md': 'unfinished', 'file:b.md': 'unfinished' })
+    expect(summary.importedNoteIds).toEqual([])
+  })
+
+  it('a cancel before the confirm step sends nothing at all', async () => {
+    const calls = server(() => json({ created: [], updated: [], skipped: [] }))
+    const summary = await runImport({ source: 'Markdown', destFolderId: null, retry: noSleep(), isCancelled: () => true,
+      docs: [note('file:a.md', 'A')] })
+    expect(calls).toEqual([])
+    expect(summary.stopped).toBe(true)
+  })
+
+  it('reports progress per item within a note', async () => {
+    server(() => json({ created: [{ importKey: 'file:a.md', id: 'n1' }], updated: [], skipped: [] }))
+    const seen = []
+    await runImport({ source: 'Markdown', destFolderId: null, retry: noSleep(), onProgress: (p) => seen.push(p),
+      docs: [note('file:a.md', 'A', [
+        { ref: 'a1', kind: 'image', name: 'a1.png', vfile: vf('a1.png') },
+        { ref: 'a2', kind: 'image', name: 'a2.png', vfile: vf('a2.png') }], doc([img('import-ref://a1'), img('import-ref://a2')]))] })
+    const items = seen.filter((p) => p.phase === 'commit' && p.itemTotal === 2)
+    expect(items.map((p) => [p.note, p.itemDone])).toEqual([['A', 0], ['A', 1]])
+  })
+
+  // A door call that never answers: it settles only when its own signal aborts it.
+  const hang = (opts) => new Promise((_, reject) => {
+    opts.signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')))
+  })
+
+  it('an upload that never answers is stopped by its per-call timeout and named, and the import goes on', async () => {
+    const calls = server(() => json({ created: [{ importKey: 'file:a.md', id: 'n1' }], updated: [], skipped: [] }),
+      (url, opts) => (url.endsWith('/images') ? hang(opts) : null))
+    const summary = await runImport({ source: 'Markdown', destFolderId: null, retry: noSleep({ timeoutMs: 20 }),
+      docs: [note('file:a.md', 'A', [{ ref: 'a1', kind: 'image', name: 'a1.png', vfile: vf('a1.png') }], doc([img('import-ref://a1')]))] })
+    // one attempt: a timed-out call is not retried (that would triple the wait)
+    expect(calls.filter((c) => c.url.endsWith('/images'))).toHaveLength(1)
+    expect(summary.notices.map((n) => n.reason)).toEqual(['upload_failed'])
+    expect(summary.failures).toEqual([])
+    const one = await storeMediaItem('n1', 'file:a.md', { ref: 'a1', kind: 'image', name: 'a1.png', vfile: vf('a1.png') }, { timeoutMs: 20 })
+    expect(one).toMatchObject({ ok: false, reason: 'upload_failed', message: 'This file took too long to upload, so it was stopped.' })
+    expect(calls.find((c) => c.method === 'PUT').json.importMediaPending).toBe(true)
+  }, 3000)
+
+  it('a fetch-door call that never answers is stopped by its per-call timeout', async () => {
+    server(() => json({ created: [{ importKey: 'file:a.md', id: 'n1' }], updated: [], skipped: [] }),
+      (url, opts) => (url.endsWith('/media/fetch') ? hang(opts) : null))
+    const summary = await runImport({ source: 'Markdown', destFolderId: null, retry: noSleep({ timeoutMs: 20 }),
+      docs: [note('file:a.md', 'A', [{ ref: 'r1', kind: 'image', name: 'r.png', remoteUrl: 'https://x.com/r.png' }], doc([img('import-ref://r1')]))] })
+    expect(summary.notices.map((n) => n.reason)).toEqual(['fetch_failed'])
+    expect(summary.failures).toEqual([])
+    const one = await storeMediaItem('n1', 'file:a.md', { ref: 'r1', kind: 'image', name: 'r.png', remoteUrl: 'https://x.com/r.png' }, { timeoutMs: 20 })
+    expect(one).toMatchObject({ ok: false, reason: 'fetch_failed', message: 'Copying this linked image took too long, so it was stopped.' })
+  }, 3000)
+
+  it('a fetch-door 4xx (not 422) shows a fixed sentence, never the server detail', async () => {
+    server(() => json({ created: [{ importKey: 'file:a.md', id: 'n1' }], updated: [], skipped: [] }),
+      (url) => (url.endsWith('/media/fetch') ? json({ detail: 'internal: row 42 has no owner' }, 404) : null))
+    const summary = await runImport({ source: 'Markdown', destFolderId: null, retry: noSleep(),
+      docs: [note('file:a.md', 'A', [{ ref: 'r1', kind: 'image', name: 'r.png', remoteUrl: 'https://x.com/r.png' }], doc([img('import-ref://r1')]))] })
+    expect(summary.failures).toEqual([])
+    expect(summary.notices.map((n) => n.reason)).toEqual(['fetch_failed'])
+    const one = await storeMediaItem('n1', 'file:a.md', { ref: 'r1', kind: 'image', name: 'r.png', remoteUrl: 'https://x.com/r.png' }, noSleep())
+    expect(one.message).toBe("This linked image couldn't be copied into your notebook.")
+    expect(one.message).not.toMatch(/row 42/)
+  })
+})
+
+describe('Task 11 fix round 1', () => {
+  beforeEach(() => vi.restoreAllMocks())
+
+  const json = (body, status = 200, headers = {}) => new Response(JSON.stringify(body), { status, headers })
+  const vf = (path) => ({ bytes: async () => new Uint8Array([1]), path })
+  const linkDoc = (key, title, target) => ({
+    importKey: key, title, tags: [], folderPath: [], media: [], links: [{ key: target }],
+    bodyJson: doc([{ type: 'paragraph', content: [{ type: 'text', text: 'see', marks: [{ type: 'link', attrs: { href: `import-link://${target}` } }] }] }]),
+  })
+
+  function stub(handler) {
+    const calls = []
+    vi.stubGlobal('fetch', vi.fn(async (url, opts = {}) => {
+      const call = { url, method: opts.method, json: typeof opts.body === 'string' ? JSON.parse(opts.body) : null }
+      calls.push(call)
+      const out = await handler(url, opts, call)
+      if (out) return out
+      if (url.endsWith('/import/heal-links')) return json({ healed: 0, unresolved: [] })
+      if (opts.method === 'PUT') return json({ ok: true })
+      throw new Error(`unscripted ${url}`)
+    }))
+    return calls
+  }
+
+  it('I1: a link-only note a Stop cut off is finished by the next import, even when everything comes back skipped', async () => {
+    const docs = [linkDoc('file:a.md', 'A', 'file:x.md'), linkDoc('file:b.md', 'B', 'file:y.md')]
+    // Run 1: both notes confirmed; Stop lands after A's PUT, so B is never PUT and no heal runs.
+    let stop = false
+    const run1 = stub((url, opts) => {
+      if (url.endsWith('/import/confirm')) return json({ created: [{ importKey: 'file:a.md', id: 'n1' }, { importKey: 'file:b.md', id: 'n2' }], updated: [], skipped: [] })
+      if (opts.method === 'PUT') { stop = true; return json({ ok: true }) }
+      return null
+    })
+    const first = await runImport({ source: 'Markdown', destFolderId: null, isCancelled: () => stop, docs })
+    expect(run1.filter((c) => c.method === 'PUT').map((c) => c.url)).toEqual(['/api/j2/notes/n1'])
+    expect(run1.some((c) => c.url.endsWith('/heal-links'))).toBe(false)
+    expect(first.unfinished).toEqual([{ name: 'B', importKey: 'file:b.md' }])
+
+    // Run 2: the same export. B only had link placeholders, so the server skips it (and A).
+    // Nothing is written, yet the heal sweep must still run: it is what connects B's links.
+    const run2 = stub((url) => (url.endsWith('/import/confirm')
+      ? json({ created: [], updated: [], skipped: [{ importKey: 'file:a.md', id: 'n1' }, { importKey: 'file:b.md', id: 'n2' }] })
+      : null))
+    await runImport({ source: 'Markdown', destFolderId: null, docs })
+    expect(run2.map((c) => c.url)).toEqual(['/api/j2/notes/import/confirm', '/api/j2/notes/import/heal-links'])
+  })
+
+  it('I1: no heal call when the server confirmed nothing (the whole batch failed)', async () => {
+    const calls = stub((url) => (url.endsWith('/import/confirm') ? json({ detail: 'down' }, 500) : null))
+    await runImport({ source: 'Markdown', destFolderId: null, docs: [linkDoc('file:a.md', 'A', 'file:x.md')] })
+    expect(calls.some((c) => c.url.endsWith('/heal-links'))).toBe(false)
+  })
+
+  it('ruling 2: an unresolved link in a note this import did not name reads "an earlier note", never an id', async () => {
+    stub((url) => {
+      if (url.endsWith('/import/confirm')) return json({ created: [{ importKey: 'file:a.md', id: 'n1' }], updated: [], skipped: [] })
+      if (url.endsWith('/heal-links')) return json({ healed: 0, unresolved: [{ noteId: 'old-77f3', text: 'Q3 plan' }] })
+      return null
+    })
+    const summary = await runImport({ source: 'Markdown', destFolderId: null, docs: [{ importKey: 'file:a.md', title: 'A', tags: [], folderPath: [], media: [], links: [], bodyJson: doc([para('x')]) }] })
+    expect(summary.unconnectedLinks).toEqual([{ note: EARLIER_NOTE, text: 'Q3 plan' }])
+    expect(EARLIER_NOTE).toBe('an earlier note')
+  })
+
+  it('M4: a Stop during a 429 back-off ends the back-off: no further attempt, the note is not PUT', async () => {
+    let stop = false
+    let attempts = 0
+    const calls = stub((url) => {
+      if (url.endsWith('/import/confirm')) return json({ created: [{ importKey: 'file:a.md', id: 'n1' }], updated: [], skipped: [] })
+      if (url.endsWith('/images')) { attempts += 1; return json({ detail: 'busy' }, 429, { 'Retry-After': '5' }) }
+      return null
+    })
+    // the member presses Stop while the import is waiting out the server's Retry-After
+    const sleep = vi.fn(async (ms, isCancelled) => { stop = true; expect(isCancelled()).toBe(true) })
+    const summary = await runImport({ source: 'Markdown', destFolderId: null, isCancelled: () => stop, retry: { sleep, random: () => 0 },
+      docs: [{ importKey: 'file:a.md', title: 'A', tags: [], folderPath: [], links: [], bodyJson: doc([img('import-ref://a1')]),
+        media: [{ ref: 'a1', kind: 'image', name: 'a1.png', vfile: vf('a1.png') }] }] })
+    expect(attempts).toBe(1)
+    expect(sleep).toHaveBeenCalledTimes(1)
+    expect(calls.some((c) => c.method === 'PUT')).toBe(false)
+    expect(summary.stopped).toBe(true)
+  })
+
+  it('M4: the real back-off sleep wakes early on a Stop', async () => {
+    let stop = false
+    let attempts = 0
+    stub((url) => {
+      if (url.endsWith('/import/confirm')) return json({ created: [{ importKey: 'file:a.md', id: 'n1' }], updated: [], skipped: [] })
+      if (url.endsWith('/images')) { attempts += 1; setTimeout(() => { stop = true }, 30); return json({ detail: 'busy' }, 429, { 'Retry-After': '10' }) }
+      return null
+    })
+    const t0 = Date.now()
+    await runImport({ source: 'Markdown', destFolderId: null, isCancelled: () => stop,
+      docs: [{ importKey: 'file:a.md', title: 'A', tags: [], folderPath: [], links: [], bodyJson: doc([img('import-ref://a1')]),
+        media: [{ ref: 'a1', kind: 'image', name: 'a1.png', vfile: vf('a1.png') }] }] })
+    // a 10 s Retry-After, cut short within one 200 ms sleep step of the Stop
+    expect(Date.now() - t0).toBeLessThan(1500)
+    expect(attempts).toBe(1)
+  }, 4000)
 })

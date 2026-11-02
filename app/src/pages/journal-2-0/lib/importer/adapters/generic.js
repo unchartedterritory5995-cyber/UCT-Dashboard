@@ -3,6 +3,7 @@ import taskLists from 'markdown-it-task-lists'
 import { uctMarkdown } from '../markdownExtensions'
 import { extractFrontmatter, frontmatterDates } from '../frontmatter'
 import { reportIgnoredFiles } from './reportIgnored'
+import { IMAGE_EXT } from '../mediaRefs'
 
 // ---------------------------------------------------------------------------
 // mdToHtml — exported for reuse by the Obsidian/Notion adapters (Tasks 10/11).
@@ -13,13 +14,58 @@ function getMd() {
   if (!_md) {
     // `uctMarkdown` (wave 8, 8C, C5): `$…$` / `$$` math, `==…==` highlight, and image alts
     // that keep every character (../markdownExtensions.js).
-    _md = new MarkdownIt({ html: true, linkify: true }).use(taskLists).use(uctMarkdown)
+    // ⛔ `linkify: false` (Plan B Task 3): the post-parse pass (../postParse.js) runs
+    // `linkifyTextNodes` over EVERY adapter's HTML, so markdown-it's own fuzzy linkify would
+    // be a second, looser rule (it links `NVDA.US`/`example.com` as `http://`). Its linkify-it
+    // instance still exists and is what `getLinkify()` hands the one policy for matching.
+    _md = new MarkdownIt({ html: true, linkify: false }).use(taskLists).use(uctMarkdown)
+    openInlineLinkGate(_md)
   }
   return _md
 }
 
+// Plan A handoff H3 (Plan B Task 1). markdown-it's stock `validateLink` does not refuse a
+// LINK, it refuses to PARSE one: `[t](javascript:x)` was stored as that raw markdown
+// source. For an inline `[text](dest)` link the gate is OPEN, so a `link_open` is emitted
+// and the post-parse pass's `resolveHref` (../linkPolicy.js) turns a refused href into its
+// visible text, the same answer as the server (`mddoc._validate_link`). Every other caller
+// of the gate keeps the stock answer: images (Task 2 handles `data:image`), reference
+// definitions (an image may use one, and is not re-validated) and `<autolink>`s --
+// including when they sit inside a link's label.
+// ⛔ The INNERMOST rule decides: the link rule tokenizes its label (which may hold an
+// image, an `<autolink>` or a bare URL) INSIDE its own call, so every other inline rule
+// that asks the gate pushes its own frame and gets the stock answer, never the link's open
+// one. ⚰️ Fix round 1: only `image` pushed a frame, so `[<javascript:x>](https://a.com)`
+// opened the autolink and emitted a nested `<a href="javascript:x">` inside the link.
+// (The inline `linkify` rule needs no frame: it returns early inside a link label,
+// `state.linkLevel > 0`, so it never runs under the link's frame.)
+const GATED_INLINE_RULES = ['link', 'image', 'autolink']
+function openInlineLinkGate(md) {
+  const stock = md.validateLink
+  const frames = []
+  md.validateLink = (url) => frames[frames.length - 1] === 'link' || stock(url)
+  for (const name of GATED_INLINE_RULES) {
+    const rule = md.inline.ruler.__rules__.find((r) => r.name === name)
+    if (!rule) throw new Error(`markdown-it has no inline rule "${name}"`)
+    const original = rule.fn
+    md.inline.ruler.at(name, (state, silent) => {
+      frames.push(name)
+      try {
+        return original(state, silent)
+      } finally {
+        frames.pop()
+      }
+    })
+  }
+}
+
 export function mdToHtml(text) {
   return getMd().render(text || '')
+}
+
+/** The markdown lane's own linkify-it instance: ONE linkify behaviour (../linkPolicy.js). */
+export function getLinkify() {
+  return getMd().linkify
 }
 
 // ---------------------------------------------------------------------------
@@ -27,7 +73,6 @@ export function mdToHtml(text) {
 // ---------------------------------------------------------------------------
 
 const SUPPORTED_EXT = /\.(md|txt|html|docx)$/i
-const IMAGE_EXT = /\.(png|jpe?g|gif|webp|svg|bmp|heic)$/i
 const TEXTBUNDLE_TEXT_RE = /\.textbundle\/text\.md$/i
 const TEXTBUNDLE_DIR_RE = /(^|\/)[^/]+\.textbundle\//i
 
@@ -77,6 +122,14 @@ async function parse(vfiles, opts = {}) {
     ...singleFiles.map((v) => ({ type: 'file', vfile: v })),
   ]
 
+  // Every note this import makes, by the path a relative link names: a link between two of
+  // them (our own selection export writes `../Other folder/Other note.md`) is a note link.
+  const keyByPath = new Map([
+    ...bundles.map((b) => [b.textVfile.path, `file:${b.bundleDir}`]),
+    ...singleFiles.map((v) => [v.path, `file:${v.path}`]),
+  ])
+  const noteLinkKey = (path) => keyByPath.get(path) ?? null
+
   const docs = []
   // Collected as each doc is built, BEFORE applyFallbackImageBug can strip a
   // ref back out of doc.media below — a file that was genuinely referenced
@@ -92,8 +145,8 @@ async function parse(vfiles, opts = {}) {
     try {
       const doc =
         item.type === 'bundle'
-          ? await makeBundleDoc(item, byPath)
-          : await makeFileDoc(item.vfile, byPath, warnings)
+          ? await makeBundleDoc(item, byPath, noteLinkKey)
+          : await makeFileDoc(item.vfile, byPath, warnings, noteLinkKey)
       for (const m of doc.media || []) consumed.add(m.ref)
       docs.push(doc)
     } catch (err) {
@@ -122,7 +175,7 @@ async function parse(vfiles, opts = {}) {
 // per-file conversion
 // ---------------------------------------------------------------------------
 
-async function makeFileDoc(vfile, byPath, warnings) {
+async function makeFileDoc(vfile, byPath, warnings, noteLinkKey = null) {
   const ext = extOf(vfile.path)
   const dir = dirOf(vfile.path)
   let html
@@ -164,7 +217,7 @@ async function makeFileDoc(vfile, byPath, warnings) {
     throw new Error(`Unsupported file type: ${vfile.path}`)
   }
 
-  const resolved = resolveRelativeMedia(html, dir, byPath)
+  const resolved = resolveRelativeMedia(html, dir, byPath, { noteLinkKey })
   const media = dedupeMedia([...extraMedia, ...resolved.media])
   // Front matter's own `title:` is the author's explicit, authoritative
   // title (the convention every static-site generator honors) — it wins
@@ -180,15 +233,21 @@ async function makeFileDoc(vfile, byPath, warnings) {
     ticker: fmFields.ticker,
     folderPath: dir ? dir.split('/') : [],
     media,
-    links: [],
+    links: dedupeLinks(resolved.links),
     ...(fmDates || datesFromLastModified(vfile.lastModified)),
   }
 }
 
-async function makeBundleDoc(item, byPath) {
+/** One `{targetKey}` per target: `links` only tells the commit that a body has one. */
+function dedupeLinks(list) {
+  const seen = new Set()
+  return list.filter((l) => !seen.has(l.targetKey) && seen.add(l.targetKey))
+}
+
+async function makeBundleDoc(item, byPath, noteLinkKey = null) {
   const { bundleDir, textVfile } = item
   const html = mdToHtml(await readText(textVfile))
-  const resolved = resolveRelativeMedia(html, bundleDir, byPath)
+  const resolved = resolveRelativeMedia(html, bundleDir, byPath, { noteLinkKey })
   const media = dedupeMedia(resolved.media)
   const title = extractH1Title(resolved.html) || bundleTitleFromDir(bundleDir)
   const parentDir = dirOf(bundleDir)
@@ -200,7 +259,7 @@ async function makeBundleDoc(item, byPath) {
     tags: [],
     folderPath: parentDir ? parentDir.split('/') : [],
     media,
-    links: [],
+    links: dedupeLinks(resolved.links),
     ...datesFromLastModified(textVfile.lastModified),
   }
 }
@@ -307,15 +366,27 @@ function escapeAttr(s) {
  * media entries. Also doubles as the ".html -> body as-is" extraction step,
  * since DOMParser populates `.body` whether given a full document or a
  * fragment.
+ *
+ * `opts.noteLinkKey(resolvedPath)` (Plan B Task 3 fix round 1): a relative link to another
+ * note IN THIS IMPORT becomes `href="import-link://<that note's importKey>"` (commit.js
+ * resolves it after the confirm, or keeps it for the heal door) and `{targetKey}` goes into
+ * `links`. Without it -- or when it answers null -- the relative href is left as it is, and
+ * the post-parse pass (../postParse.js) renders an unresolvable one as text.
  */
-export function resolveRelativeMedia(html, dir, byPath) {
+export function resolveRelativeMedia(html, dir, byPath, opts = {}) {
+  const { noteLinkKey = null, fallbackResolve = null } = opts
   const doc = new DOMParser().parseFromString(html, 'text/html')
   const media = []
+  const links = []
 
   doc.querySelectorAll('img[src]').forEach((img) => {
     const src = img.getAttribute('src')
     if (!src || isAbsoluteRef(src)) return
-    const resolvedPath = resolvePath(dir, src)
+    let resolvedPath = resolvePath(dir, src)
+    // `opts.fallbackResolve(src) -> path|null` (Plan B Task 8, I-9): asked only when the
+    // dir-relative path misses -- the Obsidian adapter finds `attachments/x.png` written in
+    // a sub-folder note at the vault root, as Obsidian does.
+    if (!byPath.has(resolvedPath) && fallbackResolve) resolvedPath = fallbackResolve(src) ?? resolvedPath
     const target = byPath.get(resolvedPath)
     if (!target) return
     img.setAttribute('src', `import-ref://${resolvedPath}`)
@@ -331,9 +402,17 @@ export function resolveRelativeMedia(html, dir, byPath) {
     if (IMAGE_EXT.test(resolvedPath)) return // images are handled via <img>, not <a>
     // A relative link to another importable doc (.md/.txt/.html/.docx/a
     // TextBundle's text.md) is a link BETWEEN notes, not a file attachment —
-    // leave it as an inert relative anchor. Resolving doc-to-doc links into
-    // `data-import-link="<targetKey>"` is the Notion/Obsidian adapters' job.
-    if (SUPPORTED_EXT.test(resolvedPath)) return
+    // resolve it to the target note's link key when the caller can name one, else
+    // leave it as an inert relative anchor (the Notion/Obsidian adapters resolve
+    // their own doc-to-doc links).
+    if (SUPPORTED_EXT.test(resolvedPath)) {
+      const targetKey = noteLinkKey ? noteLinkKey(resolvedPath) : null
+      if (targetKey) {
+        a.setAttribute('href', `import-link://${targetKey}`)
+        links.push({ targetKey, placeholder: href })
+      }
+      return
+    }
     const name = basename(resolvedPath)
     a.setAttribute('data-type', 'attachmentChip')
     a.setAttribute('data-import-ref', resolvedPath)
@@ -346,7 +425,7 @@ export function resolveRelativeMedia(html, dir, byPath) {
     media.push({ ref: resolvedPath, vfile: target, kind: 'file', name })
   })
 
-  return { html: doc.body.innerHTML, media }
+  return { html: doc.body.innerHTML, media, links }
 }
 
 function isAbsoluteRef(src) {
