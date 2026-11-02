@@ -203,7 +203,7 @@ describe('persistence — the gravestone is ordinary, durable chart-settings sta
 // ⚰️ It read: "DISCLOSED, NOT FIXED — an output KEY reused across a definition edit
 // (remove output "fast", later add a NEW "fast") is read by an MA / info value on
 // `@inst::fast` without the member choosing it; needs output provenance across versions
-// (owner review)". The store now gives every saved line a `uid` (`carry_plot_uids`) and
+// (owner review)". The store now gives every saved line a `uid` (`decide_line_ids`) and
 // a reference records the line it bound to (`sourceLines` / an info value's `line`).
 //
 // Each case drives the REAL doors: `setInstanceInput` (records), the binder (resolves),

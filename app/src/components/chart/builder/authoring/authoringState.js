@@ -177,7 +177,7 @@ export function prepareSave(state, { draftId = null } = {}) {
   if (!state.working) return { doc: null, defId: null, errors: ['There is nothing to save yet.'], needsAck: [], ack: [], requests: state.requests }
   const editing = !!state.defId && Number.isInteger(state.baseVersion)
   // ⭐ LINE IDENTITY — the `newLine` marks ride an EDIT's body to the store
-  // (`carry_plot_uids`); a CREATE has no previous version, so every line is new
+  // (`decide_line_ids`); a CREATE has no previous version, so every line is new
   // anyway and the marks would only be noise in the body.
   const doc = {
     ...(editing ? state.working : withoutNewLineMarkers(state.working)),

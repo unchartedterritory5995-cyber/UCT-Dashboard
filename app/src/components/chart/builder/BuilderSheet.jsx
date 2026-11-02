@@ -684,7 +684,7 @@ export function buildDefinition({ defId, name, source, ast, mode, rev = 1, versi
       // ⭐⭐ LINE IDENTITY (owner decision 2026-11-02) — a row ADDED in this edit (or
       // re-keyed) tells the store it is a NEW line, so a key removed and typed again
       // before one save does not inherit the removed line's references or alerts
-      // (`api/services/user_definitions.py::carry_plot_uids`). The store never keeps
+      // (`api/services/user_definitions.py::decide_line_ids`). The store never keeps
       // the marker. A row restored from the saved document never carries it, so
       // every existing document's bytes are unchanged.
       ...(rowIsNewLine(r) ? { [NEW_LINE_FLAG]: true } : {}),

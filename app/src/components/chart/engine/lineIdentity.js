@@ -9,7 +9,7 @@
 // A plot's `key` is a NAME, and a name can be taken again: remove "fast", later add
 // a different "fast", and everything that read `@<instance>::fast` used to read the
 // new maths without anybody choosing it. The server now gives every saved line a
-// stable `uid` (`api/services/user_definitions.py::carry_plot_uids`) and THIS module
+// stable `uid` (`api/services/user_definitions.py::decide_line_ids`) and THIS module
 // is the browser's half of the same vocabulary:
 //
 //   * `lineIdentity(plot)` — the plot's `uid`, or `k:<key>` for a plot stored before
@@ -150,7 +150,7 @@ export function withoutNewLineMarkers(definition) {
  * The copy of a just-saved document this TAB installs, with each line's identity
  * as the store decided it — or marked pending where only the store knows it.
  *
- * Mirrors `carry_plot_uids`: a line the store's answer names keeps that identity; a
+ * Mirrors `decide_line_ids`: a line the store's answer names keeps that identity; a
  * line the prior copy also declared (and that is not new) keeps the prior's uid; any
  * other line is pending (`newLine: true`) until the store's copy is installed.
  *
