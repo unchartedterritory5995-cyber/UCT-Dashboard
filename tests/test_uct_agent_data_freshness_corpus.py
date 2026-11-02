@@ -76,6 +76,9 @@ def test_expectations_are_derived_from_the_envelope(q):
 @pytest.mark.parametrize("q", [q for q in QS if q["expect_refusal"]], ids=_ids)
 def test_refusal_questions_are_what_the_gateway_actually_refuses(q, monkeypatch):
     monkeypatch.setenv(gw.DATA_ENV, "1")
+    # #621: only activated kinds are served at all; activate exactly the one under test, so the refusal comes from
+    # the isolation rules (dormant default / purpose gate), never from the kind simply being off
+    monkeypatch.setenv(gw.KINDS_ENV, q["kind"])
     monkeypatch.delenv(gw.ISOLATED_ENV, raising=False)
     for k, v in q["flags"].items():
         monkeypatch.setenv(k, v)
