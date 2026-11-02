@@ -123,6 +123,22 @@ def _kc_band(sign: str) -> Callable[[List[Any]], Optional[Dict[str, Any]]]:
     return build
 
 
+def _bb_middle(a: List[Any]) -> Optional[Dict[str, Any]]:
+    n = _window(a[1], 1)
+    return None if n is None else _call("sma", [a[0], _num(n)])
+
+
+def _bb_band(sign: str) -> Callable[[List[Any]], Optional[Dict[str, Any]]]:
+    """``ta.bb``'s bands: sma(src, n) ± mult × stdev(src, n) (pine.js ``bb``)."""
+    def build(a: List[Any]) -> Optional[Dict[str, Any]]:
+        n = _window(a[1], 1)
+        if n is None or not a[2]:
+            return None
+        return _op(sign, [_call("sma", [a[0], _num(n)]),
+                          _op("*", [a[2], _call("stdev", [a[0], _num(n)])])])
+    return build
+
+
 #: ``callExpansions.js::SUPERTREND_WARMUP`` -- the bars each of supertrend's three bounded
 #: recurrences re-seeds over. Same number in both lanes (the parity test pins the trees).
 SUPERTREND_WARMUP = 200
@@ -283,6 +299,9 @@ CALL_EXPANSIONS: Dict[str, tuple] = {
     "kcMiddle": (2, 2, "kcMiddle(source, length)", _kc_middle),
     "kcUpper": (3, 3, "kcUpper(source, length, multiplier)", _kc_band("+")),
     "kcLower": (3, 3, "kcLower(source, length, multiplier)", _kc_band("-")),
+    "bbMiddle": (2, 2, "bbMiddle(source, length)", _bb_middle),
+    "bbUpper": (3, 3, "bbUpper(source, length, multiplier)", _bb_band("+")),
+    "bbLower": (3, 3, "bbLower(source, length, multiplier)", _bb_band("-")),
     "supertrend": (2, 2, "supertrend(factor, atrPeriod)", _supertrend_part("value")),
     "supertrendDirection": (2, 2, "supertrendDirection(factor, atrPeriod)", _supertrend_part("direction")),
     "sar": (2, 2, "sar(step, maxStep)", _sar_part("value")),

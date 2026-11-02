@@ -190,10 +190,8 @@ export function renameTurn(before, name, { gateCtx = {}, memberWords = null } = 
  */
 export async function modelTurn(before, current, words, { snippets = [], gateCtx = {}, converse = converseTurn } = {}) {
   const res = await converse({ message: words, state: before, gateCtx, snippets })
-  const gaps = [
-    ...distinctNotUnderstood(res).map((n) => `I didn't understand "${n.clause || n.text || ''}"${n.reason ? ` — ${n.reason}` : ''}.`),
-    ...((res && res.unavailable) || []).map((n) => `${n.column || n.name || 'That'} isn't available yet${n.reason ? ` — ${n.reason}` : ''}.`),
-  ]
+  const unclear = distinctNotUnderstood(res).map((n) => `I didn't understand "${n.clause || n.text || ''}"${n.reason ? ` — ${n.reason}` : ''}.`)
+  const gaps = [...unclear, ...unavailableLines(res)]
   const turn = classifyTurn(res)
   const said = (ok, entry, extra = {}) => ({ ok, state: null, changed: false, entries: [entry], outcome: turn.outcome, ...extra })
   if (turn.outcome === OUTCOMES.ANSWER) {
@@ -228,7 +226,31 @@ export async function modelTurn(before, current, words, { snippets = [], gateCtx
   // ⛔ P3S: a CHANGE shows the deterministic readback of the RESULT and nothing the model wrote.
   return { ok: true, state: out.state, changed: true, outcome: turn.outcome, changes: result.changes || [],
     entries: [{ role: 'uct', kind: before.working ? 'patched' : 'created', revision: out.state.revision, updated: true,
-      lines: [...replyLines(out.readback, out.state, result.changes), ...gaps] }] }
+      lines: [...replyLines(out.readback, out.state, result.changes), ...unclear] }] }
+}
+
+/**
+ * ⭐ 2026-11-01 — the planner's `unavailable` notes, in member words, and ONLY beside a turn
+ * that built nothing. They name a SCREENER column the formula grammar cannot read (a text
+ * label: `candle_matches`, `bar_character`, `sector`). On a chart the model often builds the
+ * idea from bars instead ("mark a doji", "every inside day"), and the old line then sat
+ * under a working indicator saying "candle_matches isn't available yet — TEXT -- the
+ * Candle Matches column…": an internal column name, manifest prose, and false. The model
+ * is never told these notes (`definition_conversation._language_notes`), so a change it
+ * made is its own answer; the read-back above describes exactly what was built.
+ */
+export function unavailableLines(res) {
+  const seen = new Set()
+  const out = []
+  for (const n of (res && res.unavailable) || []) {
+    const phrase = String((n && (n.phrase || n.column || n.name)) || '').trim()
+    if (!phrase || seen.has(phrase.toLowerCase())) continue
+    seen.add(phrase.toLowerCase())
+    // ⛔ NOT "a text label": most excluded columns are numbers (enterprise value, EPS), live-only or
+    // dates. And never the manifest's `reason`, which is internal prose ("TEXT -- ...").
+    out.push(`“${phrase}” is in UCT's screener data, which a chart formula can't read.`)
+  }
+  return out
 }
 
 /** Undo the last applied change. @returns null (nothing to undo) | `{state, entry}`. */
