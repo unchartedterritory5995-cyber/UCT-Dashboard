@@ -49,7 +49,9 @@ def _client_copy(path: Path = CLIENT_COPY) -> dict:
           "m.importNoticeText({reason: 'too_large', name: 'chart.png'}),"
           "m.importNoticeText({reason: 'truncated', name: 'the first 20 of 27 files in Shots'}),"
           "m.importNoticeText({reason: 'truncated', name: null}),"
-          "m.importNoticeText({reason: 'missing_resource', name: null})]})))")
+          "m.importNoticeText({reason: 'missing_resource', name: null}),"
+          "m.importNoticeText({reason: 'storage_full', name: null}),"
+          "m.importNoticeText({reason: 'storage_full', name: 'chart.heic'})]})))")
     r = subprocess.run([node, "--input-type=module", "-e", js], capture_output=True, timeout=120)
     err = (r.stderr or b"").decode("utf-8", errors="replace")
     assert r.returncode == 0, f"node could not import {path}: {err[:2000]}"
@@ -92,7 +94,14 @@ def test_the_reason_union_name_fallback_and_derivation_agree_on_both_sides():
         marker_text("truncated", None),
         # fix round 3: source-neutral (a live Notion sync has no export), fallback capitalised
         marker_text("missing_resource", None),
+        # Plan B R3: a FILE import's storage refusal is final (nothing retries a file import),
+        # so its sentence promises nothing; nameless, the fallback is mid-sentence, lowercase
+        marker_text("storage_full", None),
+        marker_text("storage_full", "chart.heic"),
     ]
+    assert want[11] == (
+        "Not copied: storage limit. Free up space and import again to bring this item over")
+    assert want[12].endswith("to bring chart.heic over")
     assert want[8] == "Only the first 20 of 27 files in Shots came over"
     assert want[10] == "This item couldn't be found, so it wasn't copied"
     assert want[2] == "This item can't be shown here"   # non-vacuity: the samples hold the rule
@@ -105,7 +114,8 @@ def test_the_reason_union_covers_server_client_and_plugin_codes_and_every_one_ha
     assert import_notice.SERVER_REASONS == (
         "too_large", "storage_limit", "unsupported", "fetch_failed", "unsafe", "truncated")
     assert import_notice.CLIENT_REASONS == (
-        "upload_failed", "type_refused", "unresolvable_src", "decode_failed", "missing_resource")
+        "upload_failed", "type_refused", "unresolvable_src", "decode_failed", "missing_resource",
+        "storage_full")
     assert import_notice.PLUGIN_REASONS == (
         "obsidian_plugin_outdated", "obsidian_attachments_unavailable", "not_found", "sync_off")
     assert len(set(import_notice.NOTICE_REASONS)) == len(import_notice.NOTICE_REASONS)
@@ -135,6 +145,7 @@ def test_marker_text_retry_vs_final():
     ("unresolvable_src", "Couldn't find the image file for a.png"),
     ("decode_failed", "a.png couldn't be read"),
     ("missing_resource", "a.png couldn't be found, so it wasn't copied"),
+    ("storage_full", "Not copied: storage limit. Free up space and import again to bring a.png over"),
     ("not_found", "a.png wasn't found in the vault."),
     ("sync_off", "a.png wasn't synced because image and file sync is turned off in the plugin settings."),
 ])
