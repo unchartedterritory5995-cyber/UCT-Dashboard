@@ -394,14 +394,25 @@ def _resolve_path_qualified(target: str, index: _VaultIndex) -> str | None:
     return index.exact.get(lower) or index.suffix.get(lower)
 
 
-def _resolve_in(target: str, index: _VaultIndex, from_dir: str | None) -> str | None:
-    """The wikilink rule over an index; `from_dir` is the linking note's folder."""
-    target = _strip_fragment(target)
-    if not target:
+def _note_file_of(target: str) -> str | None:
+    """The note file a wikilink target names, lowercased: `<target>.md`, or the target itself
+    when it already ends in `.md`. None when the target ends in a known attachment extension
+    (`[[report.pdf]]` is a file, never `report.pdf.md`). ⛔ Any OTHER dot is part of the note's
+    name: `[[Dr.Smith]]`, `[[Q3.Review]]` and `[[v1.2 notes]]` name `Dr.Smith.md`,
+    `Q3.Review.md` and `v1.2 notes.md`. ⚰️ The bare-name rule used to strip `.Smith` as if it
+    were an extension and look up `Dr`, so those links stayed pending forever. Mirrors
+    `obsidian.js::noteFileOf`."""
+    lower = target.lower()
+    if _NOTE_EXT_RE.search(lower):
+        return lower
+    if _ext_of(_basename(lower)) in _UNSENT_ATTACHMENT_EXTS:
         return None
-    if "/" in target:
-        return _resolve_path_qualified(target, index)
-    candidates = index.get(_strip_ext(target).lower()) or []
+    return f"{lower}.md"
+
+
+def _pick(candidates: list[str], from_dir: str | None) -> str | None:
+    """One of several same-named paths, by Obsidian's order: the one in the linking note's
+    folder, else the shortest path (fewest folders), else the first seen."""
     if len(candidates) <= 1:
         return candidates[0] if candidates else None
     if from_dir is not None:
@@ -410,6 +421,28 @@ def _resolve_in(target: str, index: _VaultIndex, from_dir: str | None) -> str | 
             if _dir_of(c).lower() == here:
                 return c
     return min(candidates, key=lambda c: c.count("/"))  # min keeps the first of a tie
+
+
+def _resolve_in(target: str, index: _VaultIndex, from_dir: str | None) -> str | None:
+    """The wikilink rule over an index; `from_dir` is the linking note's folder. First the
+    exact note `_note_file_of(target)` names, then the path / basename matching."""
+    target = _strip_fragment(target)
+    if not target:
+        return None
+    note_file = _note_file_of(target)
+    if "/" in target:
+        if note_file is not None:
+            hit = index.exact.get(note_file) or index.suffix.get(note_file)
+            if hit is not None:
+                return hit
+        return _resolve_path_qualified(target, index)
+    if note_file is not None:
+        notes = [c for c in index.get(note_file[:-3]) or []
+                 if _basename(c).lower() == note_file]
+        if notes:
+            return _pick(notes, from_dir)
+    candidates = index.get(_strip_ext(target).lower()) or []
+    return _pick(candidates, from_dir)
 
 
 def _resolve_target(

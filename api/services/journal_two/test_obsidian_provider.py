@@ -21,6 +21,7 @@ from api.services.journal_two.note_connectors.convert import md_to_tiptap
 from api.services.journal_two.note_connectors.providers.base import RemoteRef
 from api.services.journal_two.note_connectors.providers.obsidian import (
     NO_ATTACHMENT_PASS, ObsidianProvider, _build_basename_map, _resolve_target,
+    resolve_pending_target,
 )
 from api.services.journal_two.notes import extract_plain_text
 
@@ -1274,10 +1275,13 @@ def test_old_plugin_row_keeps_links_to_dotted_note_names():
     without_pass = _convert(body, paths)
     assert _all(conv["doc"], "importNotice") == []
     # Exactly what the same note converts to with no attachment pass at all: the link keys
-    # (today's resolver leaves a dotted name pending; that is not this pass's business) and
-    # the member's text, alias included.
-    assert conv["links"] == without_pass["links"] and len(conv["links"]) == 3
-    assert [t for t, _h in _link_marks(conv["doc"])] == ["Dr.Smith", "alias", "Drawing.excalidraw"]
+    # and the member's text, alias included. D1: the dotted names now RESOLVE to their notes
+    # (they used to stay pending), and the note embed reads as a link to that note.
+    assert conv["links"] == without_pass["links"] == [
+        f"obsidian:{_V}/People/Dr.Smith.md", f"obsidian:{_V}/Q3.Review.md",
+        f"obsidian:{_V}/Drawing.excalidraw.md", f"obsidian:{_V}/Drawing.excalidraw.md"]
+    assert [t for t, _h in _link_marks(conv["doc"])] == [
+        "Dr.Smith", "alias", "Drawing.excalidraw", "Drawing.excalidraw"]
     assert conv["doc"] == without_pass["doc"]
 
 
@@ -1404,3 +1408,61 @@ def test_old_plugin_row_keeps_a_link_to_a_staged_note_named_like_a_file():
     assert [t for t, _h in _link_marks(conv["doc"])] == ["the brief"]
     conv = _convert("[[Brief.txt|the brief]]", [], refs=None)
     assert _only(conv["doc"], "importNotice")["attrs"]["name"] == "Brief.txt"
+
+
+# ---------------------------------------------------------------------------
+# D1: a dot in a note's NAME is not an extension. `[[Dr.Smith]]` names `Dr.Smith.md`
+# (Obsidian's rule); only a known attachment extension makes the target a file.
+# ---------------------------------------------------------------------------
+
+
+def test_a_wikilink_to_a_note_with_a_dot_in_its_name_resolves_to_the_note():
+    paths = ["People/Dr.Smith.md", "Notes/v1.2 notes.md"]
+    bmap = _build_basename_map(paths)
+    assert _resolve_target("Dr.Smith", paths, bmap) == "People/Dr.Smith.md"
+    assert _resolve_target("v1.2 notes", paths, bmap) == "Notes/v1.2 notes.md"
+    assert _resolve_target("Dr.Smith.md", paths, bmap) == "People/Dr.Smith.md"
+    out = _convert("[[Dr.Smith]] and [[v1.2 notes]]", paths)
+    assert _link_marks(out["doc"]) == [
+        ("Dr.Smith", _key("People/Dr.Smith.md")),
+        ("v1.2 notes", _key("Notes/v1.2 notes.md")),
+    ]
+    assert out["links"] == [f"obsidian:{_V}/People/Dr.Smith.md", f"obsidian:{_V}/Notes/v1.2 notes.md"]
+
+
+def test_a_dotted_note_name_with_an_alias_resolves_and_keeps_the_alias():
+    out = _convert("[[Q3.Review|the review]]", ["Reviews/Q3.Review.md"])
+    assert _link_marks(out["doc"]) == [("the review", _key("Reviews/Q3.Review.md"))]
+
+
+def test_a_dotted_note_name_with_a_heading_or_block_resolves_to_the_note():
+    out = _convert("[[Dr.Smith#Intro]] [[Dr.Smith#^abc123]]", ["People/Dr.Smith.md"])
+    assert _link_marks(out["doc"]) == [
+        ("Dr.Smith > Intro", _key("People/Dr.Smith.md")),
+        ("Dr.Smith", _key("People/Dr.Smith.md")),
+    ]
+
+
+def test_the_note_wins_over_a_file_sharing_its_dotted_stem():
+    # `Dr.Smith.csv` sorts before `Dr.Smith.md`: the note is what `[[Dr.Smith]]` names.
+    paths = ["People/Dr.Smith.csv", "People/Dr.Smith.md"]
+    bmap = _build_basename_map(paths)
+    assert _resolve_target("Dr.Smith", paths, bmap) == "People/Dr.Smith.md"
+    assert _resolve_target("People/Dr.Smith", paths, bmap) == "People/Dr.Smith.md"
+
+
+def test_a_known_attachment_extension_is_a_file_never_a_note():
+    staged_note = ["report.pdf.md"]
+    assert _resolve_target("report.pdf", staged_note, _build_basename_map(staged_note)) is None
+    files = ["Files/report.pdf", "report.pdf.md"]
+    assert _resolve_target("report.pdf", files, _build_basename_map(files)) == "Files/report.pdf"
+
+
+def test_a_missing_dotted_note_stays_pending_and_heals_when_it_arrives():
+    out = _convert("[[Dr.Smith]]", [])
+    pending = f"name:obsidian:{_V}/dr.smith|notes"
+    assert _link_marks(out["doc"]) == [("Dr.Smith", f"import-link://{pending}")]
+    assert out["links"] == [pending]
+    assert resolve_pending_target("dr.smith|notes", _build_basename_map([])) is None
+    arrived = _build_basename_map(["Notes/Src.md", "People/Dr.Smith.md"])
+    assert resolve_pending_target("dr.smith|notes", arrived) == "People/Dr.Smith.md"

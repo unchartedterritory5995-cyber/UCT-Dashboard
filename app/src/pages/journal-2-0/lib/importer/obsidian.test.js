@@ -203,3 +203,60 @@ describe('obsidian adapter — mixed-platform drop (audit B4)', () => {
     expect(warnings).toEqual([])
   })
 })
+// ---------------------------------------------------------------------------
+// D1: a dot in a note's NAME is not an extension. `[[Dr.Smith]]` names
+// `Dr.Smith.md` (Obsidian's rule, mirrored from providers/obsidian.py
+// `_note_file_of`); only a known attachment extension makes it a file.
+// ---------------------------------------------------------------------------
+
+describe('obsidian adapter — wikilinks to notes with a dot in the name', () => {
+  const linkOf = (html) => [...html.matchAll(/data-import-link="([^"]+)">([^<]*)</g)].map((m) => [m[1], m[2]])
+
+  it('resolves [[Dr.Smith]] and [[v1.2 notes]] to their notes', async () => {
+    const { docs } = await obsidianAdapter.parse([
+      vf('V/src.md', '[[Dr.Smith]] and [[v1.2 notes]] and [[Dr.Smith.md]]'),
+      vf('V/People/Dr.Smith.md', 'x'), vf('V/v1.2 notes.md', 'y')])
+    const src = docs.find((d) => d.importKey === 'obsidian:V/src.md')
+    expect(linkOf(src.html)).toEqual([
+      ['obsidian:V/People/Dr.Smith.md', 'Dr.Smith'],
+      ['obsidian:V/v1.2 notes.md', 'v1.2 notes'],
+      ['obsidian:V/People/Dr.Smith.md', 'Dr.Smith.md'],
+    ])
+  })
+
+  it('resolves [[Q3.Review|alias]] and keeps the alias text', async () => {
+    const { docs } = await obsidianAdapter.parse([
+      vf('V/src.md', '[[Q3.Review|the review]]'), vf('V/Reviews/Q3.Review.md', 'x')])
+    const src = docs.find((d) => d.importKey === 'obsidian:V/src.md')
+    expect(linkOf(src.html)).toEqual([['obsidian:V/Reviews/Q3.Review.md', 'the review']])
+  })
+
+  it('resolves [[Dr.Smith#Intro]] and [[Dr.Smith#^abc]] to the note', async () => {
+    const { docs } = await obsidianAdapter.parse([
+      vf('V/src.md', '[[Dr.Smith#Intro]] [[Dr.Smith#^abc]]'), vf('V/Dr.Smith.md', 'x')])
+    const src = docs.find((d) => d.importKey === 'obsidian:V/src.md')
+    expect(linkOf(src.html).map(([k]) => k)).toEqual(['obsidian:V/Dr.Smith.md', 'obsidian:V/Dr.Smith.md'])
+  })
+
+  it('prefers the note over a file sharing its dotted stem, bare and path-qualified', async () => {
+    const { docs } = await obsidianAdapter.parse([
+      vf('V/src.md', '[[Dr.Smith]] [[People/Dr.Smith]]'),
+      vf('V/People/Dr.Smith.csv', 'a,b'), vf('V/People/Dr.Smith.md', 'x')])
+    const src = docs.find((d) => d.importKey === 'obsidian:V/src.md')
+    expect(linkOf(src.html).map(([k]) => k)).toEqual(['obsidian:V/People/Dr.Smith.md', 'obsidian:V/People/Dr.Smith.md'])
+  })
+
+  it('treats [[report.pdf]] as a file, never the note report.pdf.md', async () => {
+    const { docs } = await obsidianAdapter.parse([
+      vf('V/src.md', '[[report.pdf]]'), vf('V/report.pdf.md', 'x')])
+    const src = docs.find((d) => d.importKey === 'obsidian:V/src.md')
+    expect(linkOf(src.html)).toEqual([])
+    expect(src.html).toContain('report.pdf')
+  })
+
+  it('leaves [[Dr.Smith]] as text when no such note exists', async () => {
+    const { docs } = await obsidianAdapter.parse([vf('V/src.md', 'see [[Dr.Smith]]')])
+    expect(linkOf(docs[0].html)).toEqual([])
+    expect(docs[0].html).toContain('see Dr.Smith')
+  })
+})
