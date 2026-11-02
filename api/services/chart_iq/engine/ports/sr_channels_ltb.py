@@ -149,7 +149,7 @@ def compute(bars, **overrides):
             for y in range(0, len(pivotvals)):
                 cpp = pivotvals[y]
                 wdth = hi - cpp if cpp <= hi else cpp - lo
-                if _le(wdth, cwidth):
+                if wdth <= cwidth:
                     if cpp <= hi:
                         lo = min(lo, cpp)
                     else:
@@ -172,15 +172,12 @@ def compute(bars, **overrides):
                 supres.append(float(strength))
                 supres.append(hi)
                 supres.append(lo)
+            w0 = max(0, bar_index - loopback)
+            win = list(zip(high[w0:bar_index + 1], low[w0:bar_index + 1]))
             for x in range(0, len(pivotvals)):
                 h = supres[x * 3 + 1]
                 l = supres[x * 3 + 2]
-                s = 0
-                for y in range(0, loopback + 1):
-                    hy = hist(high, bar_index, y)
-                    ly = hist(low, bar_index, y)
-                    if _le(hy, h) and _ge(hy, l) or (_le(ly, h) and _ge(ly, l)):
-                        s = s + 1
+                s = sum((1 for hy, ly in win if l <= hy <= h or l <= ly <= h))
                 supres[x * 3] = supres[x * 3] + s
             debug_supres_before = list(supres)
             for k in range(20):
