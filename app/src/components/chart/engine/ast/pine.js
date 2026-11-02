@@ -6536,6 +6536,27 @@ const COLOUR_RULE_KEYS = Object.freeze(['colorCondition', 'colorIndex', 'colorGr
  *  them to the rule's arm gates. */
 const COLOUR_BLOCK_RUNS = '_colourBlockRuns'
 
+/** ⛔⛔ H1 (re-review of F2) — CAN A GATE ON THIS PRESENTATION'S COLOUR BE
+ *  WITHHELD AS A COLOUR ALONE? Only when no colour it can pick HIDES the output.
+ *  `cond ? color.green : na` is a palette with a transparent entry
+ *  (`TRANSPARENT_PALETTE_ENTRY`, `colourIndexChain`): Pine draws nothing on the
+ *  bars it picks `na`, so the colour is part of WHERE the output is drawn. A
+ *  withheld colour draws in the series colour (`binder.pointColour` → null) on
+ *  every bar — a line where TradingView leaves gaps. ⚰️ F2 did exactly that. So a
+ *  palette holding an `na` leaf or a fully transparent colour (`#RRGGBB00`), a
+ *  and a rule whose shared opacity is 0 answer false: the gate stays on the
+ *  output, which is withheld whole. (An `na`-gated colour this door could not
+ *  carry, `colorNaGated`, has no rule to hang a gate on: it stays there anyway.)
+ *  The one rule for "colour-only or whole output" a colour gate is routed by. */
+export function colourWithholdsAlone(pres) {
+  if (!pres) return false
+  if (pres.opacity === 0) return false
+  // the two-colour pair too: `c ? color.new(green, 100) : red` bakes each branch's
+  // own alpha into `colorUp` / `colorDown` (`#RRGGBB00` is a branch that hides)
+  const palette = [pres.colorUp, pres.colorDown, ...(Array.isArray(pres.colorPalette) ? pres.colorPalette : [])]
+  return !palette.some((e) => e === TRANSPARENT_PALETTE_ENTRY || /^#[0-9a-f]{6}00$/i.test(String(e)))
+}
+
 /** ⭐⭐ H1 — THE GATES EACH COLOUR RULE CARRIES, `[{formula, gates}]`, for the whole
  *  translation: every output's presentation, every fill and every paint, one entry
  *  per rule formula that carries any. The member door mints ONE condition column per
@@ -25929,7 +25950,10 @@ function translatePineResult(source, opts = {}) {
       // that colour's condition column and the plot draws in its series colour.
       // ⛔ Only where the presentation carries a colour rule to hang them on; with
       // none, they stay the plot's, as before (never dropped).
-      const colourRules = COLOUR_RULE_KEYS.map((k) => row.presentation && row.presentation[k]).filter(Boolean)
+      // ⛔ H1 — and only a colour that cannot HIDE the output (`colourWithholdsAlone`);
+      // one that can keeps its gates on the output, withheld whole.
+      const colourRules = colourWithholdsAlone(row.presentation)
+        ? COLOUR_RULE_KEYS.map((k) => row.presentation[k]).filter(Boolean) : []
       const colourRuns = resolver.condGate && colourRules.length ? resolver.blockRuns.splice(valueBlockRuns) : []
       const guardsOf = (runs) => {
         const out = []

@@ -141,6 +141,29 @@ describe('C48 plot lane — a var written from a ta.* call in a block that skips
   it('⭐ the same for the non-`var` conditional-call form (master\'s `condCall` path)', () => {
     expectColourWithheld(`${H}float m = na\nif close > open\n    m := ta.sma(close, 3)\nplot(close, color = close > m ? color.green : color.red)\n`)
   })
+  // ⛔⛔ H1 (re-review of F2) — A COLOUR THAT CAN HIDE THE PLOT IS PART OF ITS
+  // VALUE. `cond ? color.green : na` is a palette with a transparent entry: Pine
+  // draws nothing on the bars it picks `na`. Withholding that colour alone made the
+  // binder draw the line in the pane's colour on EVERY bar, where TradingView leaves
+  // gaps. So a gated colour rule whose palette holds a hiding entry (an `na` leaf,
+  // a fully transparent colour) keeps the gate on the PLOT: withheld whole, as
+  // master withheld it. Only an all-real-colour palette is withheld alone.
+  for (const [name, source] of [
+    ['var form, `? color.green : na`', condVar('close > open', 'ta.sma(close, 3)', 'plot(close, color = close > s ? color.green : na)@n')],
+    ['non-`var` form, `? color.green : na`', `${H}float m = na@nif close > open@n    m := ta.sma(close, 3)@nplot(close, color = close > m ? color.green : na)@n`],
+    ['an `na` FIRST arm', condVar('close > open', 'ta.sma(close, 3)', 'plot(close, color = close > s ? na : color.red)@n')],
+    ['a fully transparent arm (`color.new(c, 100)`)', condVar('close > open', 'ta.sma(close, 3)', 'plot(close, color = close > s ? color.new(color.green, 100) : color.red)@n')],
+    ['both arms fully transparent', condVar('close > open', 'ta.sma(close, 3)', 'plot(close, color = close > s ? color.new(color.green, 100) : color.new(color.red, 100))@n')],
+    ['a three-way chain with an `na` leaf', condVar('close > open', 'ta.sma(close, 3)', 'plot(close, color = close > s ? color.green : close < s * 0.9 ? color.red : na)@n')],
+    ['a plotshape whose colour hides it', condVar('close > open', 'ta.sma(close, 3)', 'plotshape(close > open, color = close > s ? color.red : na)@n')],
+  ]) {
+    it(`⛔ ${name}: the colour can hide the plot, so the plot is withheld whole`, () => {
+      expectWithheld(RDDT, source.split('@n').join(String.fromCharCode(10)))
+    })
+  }
+  it('🔴 CONTROL — a three-way chain of real colours is withheld as a colour alone', () => {
+    expectColourWithheld(condVar('close > open', 'ta.sma(close, 3)', 'plot(close, color = close > s ? color.green : close < s * 0.9 ? color.red : color.gray)\n'))
+  })
   it('a plot whose VALUE and colour both read the var is still withheld whole', () => {
     expectWithheld(RDDT, condVar('close > open', 'ta.sma(close, 3)', 'plot(s, color = s > close ? color.red : color.green)\n'))
   })
