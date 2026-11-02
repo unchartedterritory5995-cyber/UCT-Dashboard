@@ -1,4 +1,5 @@
 {
+  "_comment": "The FIRST ref (`![[my chart #1 (v2).png]]`, status ok) is only what production sends once Plan C Task 8's `resolveLink` tries the FULL link text before `parseLinktext` strips the `#` anchor (plan Task 8, Task 4 review I1). Until that lands, the plugin sends no ref or a `missing` one for this embed.",
   "vault_id": "vault-1",
   "self_path": "a.md",
   "vault_paths": [

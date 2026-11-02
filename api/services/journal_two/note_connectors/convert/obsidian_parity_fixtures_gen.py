@@ -96,7 +96,9 @@ from ..providers.obsidian import (
     ATT_SCHEME,
     FILE_SCHEME,
     ObsidianProvider,
+    _basename,
     _build_basename_map,
+    _q,
 )
 
 _HERE = pathlib.Path(__file__).resolve().parent
@@ -140,17 +142,26 @@ def _normalize_image_src(src: str, refs: list[dict] | None = None) -> str:
     Plan C Task 4: an attachment the plugin sent is stored as
     `obsidian-att:<sha256>/<quoted name>` (or `obsidian-file:`), this lane's
     OWN deterministic encoding of a staged blob. It maps to the `path` of the
-    sidecar ref with that sha, the vault path the client lane names it by.
-    That strips our own encoding and nothing else: no percent-decoding of
-    anything, and an unknown sha stays as written so the rail shows it."""
+    sidecar ref with that sha AND that encoded name, the vault path the client
+    lane names it by. That strips our own encoding and nothing else: no
+    percent-decoding of anything, and a src no ref matches stays as written so
+    the rail shows it.
+
+    Task 4 review M1: the encoded name must equal the provider's own encoding
+    of the ref's file name (`_q(_basename(path))`). Matching on sha alone hid a
+    wrong or double-encoded name, and two vault files with identical bytes (one
+    screenshot saved twice) share a sha, so both mapped to the first ref's
+    path."""
     prefix = "import-ref://"
     bare = src[len(prefix):] if src.startswith(prefix) else src
     for scheme in (ATT_SCHEME, FILE_SCHEME):
         if bare.startswith(scheme):
-            sha = bare[len(scheme):].split("/", 1)[0]
+            sha, _, encoded = bare[len(scheme):].partition("/")
             for ref in refs or ():
-                if ref.get("sha256") == sha and isinstance(ref.get("path"), str):
-                    return ref["path"]
+                path = ref.get("path")
+                if (ref.get("sha256") == sha and isinstance(path, str)
+                        and encoded == _q(_basename(path))):
+                    return path
     return bare
 
 

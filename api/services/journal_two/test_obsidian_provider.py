@@ -1002,6 +1002,28 @@ def test_old_plugin_row_leaves_note_names_with_dots_alone():
     assert _all(conv["doc"], "importNotice") == []
 
 
+def test_a_hash_in_an_attachment_name_is_the_file_not_a_note_in_the_fallbacks():
+    """Task 4 review M2: a `#`-holding target whose own extension is an attachment's is a
+    FILE name in the fallbacks too, as in `_resolve_in` (ruling 1). Old plugin: the update
+    notice for the whole name. New plugin, no ref: the name as text. Never a pending note
+    link reading `my chart`."""
+    body = "![[my chart #1 (v2).png]]\n\n[[report #2.pdf]]"
+    old = _convert(body, refs=None, supports=False)
+    assert [(n["attrs"]["reason"], n["attrs"]["name"]) for n in _all(old["doc"], "importNotice")] == [
+        ("obsidian-plugin-outdated", "my chart #1 (v2).png"),
+        ("obsidian-plugin-outdated", "report #2.pdf")]
+    assert old["links"] == []
+    new = _convert("![[my chart #1 (v2).png]]", refs=[])
+    assert new["links"] == []
+    assert _all(new["doc"], "importNotice") == []
+    assert "my chart #1 (v2).png" in _plain(new["doc"])
+    # An anchor on a NOTE still splits: `[[Ghost#Risk]]` waits for `Ghost`, both ways.
+    for refs in (None, []):
+        conv = _convert("[[Ghost#Risk]] ![[Ghost#Risk]]", refs=refs)
+        assert _all(conv["doc"], "importNotice") == []
+        assert conv["links"] == [f"name:obsidian:{_V}/ghost|notes"] * 2
+
+
 def test_new_plugin_row_without_list_says_unavailable_not_outdated():
     conv = _convert("![[x.png]]", refs=None, supports=True)
     assert _only(conv["doc"], "importNotice")["attrs"]["reason"] == "obsidian-attachments-unavailable"

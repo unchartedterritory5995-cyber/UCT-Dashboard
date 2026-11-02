@@ -252,8 +252,12 @@ const knownClientGap = {
   // parse (`convert.js::htmlToNote`) leaves an EMPTY paragraph beside the block image
   // (the server hoists the image out, no paragraph); (b) `Read ` loses its trailing
   // space when the block chip splits the paragraph (the server keeps `Read `). The
-  // member reads the same words. AWAITING A RULING (Plan C Task 4 fix round 1): fix in
-  // the client parse, or accept; no Plan B task covers it yet.
+  // member reads the same words. Closed by D2 (shared-parse fidelity: the empty paragraph
+  // beside a block image, the trailing space at a chip split; tested across all
+  // importers): delete this entry then.
+  // Both lanes also drop the link text `the report` for a chip (no label attribute);
+  // D2 adds an optional `attachmentChip.label`, and this fixture's `files`/`text` move
+  // when it lands.
   '18-attachment-names.json': {
     clientReads: {
       text: 'Attachment names  Read [file: q3 report.pdf]  before the open.',

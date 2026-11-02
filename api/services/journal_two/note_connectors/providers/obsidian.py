@@ -563,7 +563,7 @@ def _transform_wiki_and_embeds(
                 # Only a known attachment extension makes it a missing FILE -> plain text
                 # of the target, never a broken <img> or a phantom media entry (mirrors
                 # obsidian.js's own unresolvable-embed fallback).
-                bare = _strip_fragment(raw_target)
+                bare = _unresolved_bare_target(raw_target)
                 if bare and (_NOTE_EXT_RE.search(bare)
                              or _ext_of(_basename(bare)) not in _UNSENT_ATTACHMENT_EXTS):
                     return _pending_link(_NOTE_EXT_RE.sub("", bare), vault_id, raw_target,
@@ -745,6 +745,19 @@ def _is_attachment_path(path: str) -> bool:
     return _ext_of(_basename(path)) in _UNSENT_ATTACHMENT_EXTS
 
 
+def _unresolved_bare_target(target: str) -> str:
+    """The name an UNRESOLVED wiki target stands for, for the fallbacks that ask "is this a
+    file?": the FULL text when it holds a `#` and its own extension is an attachment's
+    (`my chart #1 (v2).png` is a file NAME), else the target with its anchor split off.
+    The same full-text-first rule `_resolve_in` applies (Task 4 fix round 1, ruling 1;
+    review M2). ⚰️ The fallbacks split first, so `![[my chart #1 (v2).png]]` read as a
+    note `my chart` and became a pending note link, not the update notice."""
+    whole = target.strip()
+    if "#" in whole and _is_attachment_path(whole):
+        return whole
+    return _strip_fragment(target)
+
+
 def _mark_unsent_attachments(
     segment: str, reason: str, *, paths: list[str] = (), basename_map: Any = None,
     from_path: str | None = None,
@@ -768,7 +781,7 @@ def _mark_unsent_attachments(
         target = m.group(2).strip()
         if target.endswith("\\"):
             target = target[:-1].rstrip()
-        bare = _strip_fragment(target)
+        bare = _unresolved_bare_target(target)
         if not bare or not _is_attachment_path(bare) or is_note(bare):
             return m.group(0)
         return _notice_markdown(reason, _basename(bare))
