@@ -21,6 +21,7 @@ Only agent-sc edits this file. Update it in every PR.
   Raw records go to `raw.jsonl` before the summary. Requests are captured by `agentScanSat1Requests.test.jsx` (no model).
   Dry run on c3ba71c343: 31 questions to the planner, 14 may reroute, exact worst case $3.0147, estimate ≈ $0.41.
   **Still blocked for `--run`** until agent-lead relays the owner's credential approval.
+- **#621 kinds gate in the screener capability** (branch `agent/sc/scan-kinds-gate`, small PR): the gateway path now also needs `config.data_kinds` to list `screen.run` (screens) / `screen.saved` (the saved list). Unlisted, or an older server with no list: the Screener route, exactly as with the flags off, never a refused gateway read. Panel tests: 4 new, mutation-checked.
 - **B: SC-2 draft** (NL scanning: parsed-intent layer + ≥ 60-phrasing corpus with follow-up chains). Next.
 - **C: model-call reduction** (a deterministic slot parser behind the flags, measured on both corpora). After B.
 
