@@ -329,8 +329,8 @@ built from the first candidate that is not, in this order of precedence: unavail
 | situation | answer (fixed words) |
 |---|---|
 | all `symbol` | the §4.5 / §4.6 answer, **naming each security from the index**: `NVDA (NVIDIA Corporation) $142.10 …` |
-| `symbol_typed_lowercase` | `Did you mean NVDA (NVIDIA Corporation)? Type the ticker in capitals, like NVDA, and I'll get it.` |
-| `name_match` | `Did you mean AAPL (Apple Inc.)? Type the ticker in capitals, like AAPL, and I'll get it.` |
+| `symbol_typed_lowercase` | `I'm not sure which instrument "btc" means. I can quote US-listed stocks and ETFs by ticker. Type the ticker in capitals and I'll get it.` |
+| `name_match` | `I'm not sure which instrument "apple" means. I can quote US-listed stocks and ETFs by ticker. Type the ticker in capitals and I'll get it.` |
 | `non_equity` | `I can quote US-listed stocks and ETFs by ticker. SPX isn't one I can price here.` |
 | `unknown` | `I can quote US-listed stocks and ETFs by ticker. nvdia isn't one I can price here.` |
 | index unavailable | `I can't check ticker symbols right now, so I'm not stating a price.` |
@@ -338,8 +338,14 @@ built from the first candidate that is not, in this order of precedence: unavail
 - **No substitute is ever offered** for `non_equity` or `unknown`: never "try SPY" (agent-lead ruling a).
 - **The member confirms by typing the symbol** in capitals or with `$` (ruling b). That is a new turn, through the
   same rules.
-- **An UPPERCASE or `$` symbol** is the member's explicit choice. It is priced with the index name shown, so
-  `BTC (Grayscale Bitcoin Mini Trust)` is never silently a different instrument (ruling c).
+- **A clarification names no security** (owner ruling, 2026-11-02). It quotes the word as typed and says what
+  can be quoted. The index's candidate is never offered, so a lowercase `btc`, `gold`, `dow`, `eth` or `sol` is
+  never answered with an unrelated fund or company that happens to hold that ticker.
+- **An UPPERCASE or `$` symbol** is the member's explicit choice. It is priced with the index name shown (ruling c).
+- **A fund is labelled a fund** (owner ruling, 2026-11-02). When the index types the symbol `etf`, the name reads
+  `BTC (Grayscale Bitcoin Mini Trust, an ETF)`, and the answer adds, once: `An ETF's price is the fund's own share
+  price, not the price of the asset it tracks or holds.` It never presents a fund's price as the underlying asset's
+  (a cryptocurrency's spot price, gold's, an index level). Both rules key on the index's `type`, never a word list.
 
 #### 4.7.4 Activation and budget
 
@@ -397,6 +403,7 @@ QA's suite runs `validate_envelope` against every registered kind using its fixt
 
 ## 9. Changelog
 
+- **v1.5 amendment (2026-11-02, agent-md, owner rulings):** §4.7.3 wording. Clarifications are neutral and name no security; an ETF is labelled `an ETF` and every answer pricing one says the price is the fund's share price, not the underlying's. Classes, precedence and reads are unchanged.
 - **v1.5 addition (2026-11-01, agent-md, Sprint 2 C):** §4.6 `stock.dailyBars` answer contract over `bars.daily` (last close, N-session change, 52-week range). No envelope or kind change.
 - **v1.5 addition (2026-11-01, agent-md, owner decision):** §4.7 instrument and intent resolution; new kind `instrument.resolve` over the canonical symbol index. No envelope change.
 - **v1.5 amendment (2026-11-01, agent-md, agent-qa F-19/F-20/O-1):** `session_detail` takes every input from `now`; on a half day extended trading ends at 17:00 ET; no-price answers use fixed words. No envelope field changed.

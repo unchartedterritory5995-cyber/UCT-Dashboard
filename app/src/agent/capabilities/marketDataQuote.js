@@ -26,7 +26,7 @@ import { answerProfile } from './stock'
 import { parsePriceSentence, MAX_TICKERS } from './marketDataPhrases'
 import { num, money, signedMoney, signedPct } from './marketDataFormat'
 import { registerBarsCapability, _resetBarsForTest } from './marketDataBars'
-import { RESOLVE_KIND, toCandidates, resolveInstruments } from './marketDataResolve'
+import { RESOLVE_KIND, toCandidates, resolveInstruments, isFundLabel, FUND_NOTE } from './marketDataResolve'
 
 export const CAPABILITY = 'stock.quote'
 const ET = 'America/New_York'
@@ -166,6 +166,8 @@ export function answerFromEnvelope(env, asked, names = {}) {
   const described = rows.map(r => describeRow(env, r, names))
   const lines = described.map(x => x.line)
   if (env.status === 'partial') lines.push(...partialLines(env, syms))
+  // owner ruling 3: an ETF's price is never presented as the underlying asset's price
+  if (rows.some(r => isFundLabel(names[r.symbol]))) lines.push(FUND_NOTE)
   lines.push(SOURCE_LINE)
   const one = rows.length === 1
   return {
