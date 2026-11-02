@@ -1,0 +1,8 @@
+{
+  "_comment": "D2 item 7: a link or embed to a missing FILE whose name holds `#` reads as its name (or alias) as text on both lanes, never a pending link to a note `report`. No such files exist and the plugin sent no ref (an empty list).",
+  "vault_id": "vault-1",
+  "self_path": "a.md",
+  "vault_paths": [
+    "a.md"
+  ]
+}
