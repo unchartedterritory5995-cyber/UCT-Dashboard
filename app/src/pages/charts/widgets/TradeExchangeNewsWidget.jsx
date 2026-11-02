@@ -51,7 +51,7 @@ import { formatNumber } from '../../../lib/presentation/presentationPrimitives'
 import { ActionsMenu, CalendarPopover, DayBar, DayList, FilterMenu, HealthPopover, Row, TimePopover } from './TradeExchangeNewsParts'
 import SavedHeadlines from './TradeExchangeNewsSaved'
 import { TXN_SOUND_OPTIONS, txnClampLines, txnSettingsFor, txnWidgetStyleVars } from './tradeExchangeNewsSettings'
-import { categoriesLabel, cleanCategories, cleanPresets, coverageNotice, dayLabel, dayRequest, feedHealth, groupRelated,
+import { categoriesLabel, cleanCategories, cleanPresets, coverageNotice, dayLabel, dayRequest, feedHealth, groupRelated, searchNeedles,
   liveStatus, presetPatch, presetSnapshot, quoteSymbols, viewHealth, visibleItems } from './tradeExchangeNewsModel'
 import useTradeExchangeNewsDay from './useTradeExchangeNewsDay'
 import * as library from '../../../lib/tradeExchangeNewsLibrary'
@@ -144,7 +144,10 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange, def
   const dayReq = useMemo(() => dayRequest(filterArgs),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [query, linked, linkedSym, watchSet, categories, settings.graphicPlaceholders])
-  const day = useTradeExchangeNewsDay({ feed, matches: shown, request: dayReq, enabled: feed.status !== 'unavailable' })
+  // Linked to chart with a symbol to link: All history by default (every archived day).
+  const day = useTradeExchangeNewsDay({ feed, matches: shown, request: dayReq, enabled: feed.status !== 'unavailable',
+    history: linked && !!linkedSym })
+  const viewLabel = day.allHistory ? `All history · ${linkedSym}` : dayLabel(day.dateKey, day.todayKey)
   const rows = day.rows
   // Grouping runs AFTER the filters, so a group only ever holds headlines the reader
   // asked to see -- and each one keeps its own row, time and links.
@@ -252,7 +255,7 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange, def
     }
   }, [topSeq, rows, following])
   // A new date, time or filter starts at its top.
-  const viewKey = `${day.dateKey}|${day.at || ''}|${JSON.stringify(dayReq)}`
+  const viewKey = `${day.allHistory ? 'all' : day.dateKey}|${day.at || ''}|${JSON.stringify(dayReq)}`
   useLayoutEffect(() => {
     if (listRef.current) listRef.current.scrollTop = 0
     setAtTop(true)
@@ -265,7 +268,8 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange, def
     if (day.hasNewer && el.scrollTop < NEAR_END_PX) { anchorNext.current = true; day.loadNewer() }
   }, [day])
   // ...and keeps loading while what is loaded does not fill the list.
-  useEffect(() => { nearEnds(listRef.current) }, [rows.length, day.hasOlder, day.hasNewer, nearEnds])
+  // (cursorKey: an All-history step that found nothing in its budget still asks for the next)
+  useEffect(() => { nearEnds(listRef.current) }, [rows.length, day.hasOlder, day.hasNewer, day.cursorKey, nearEnds])
   const onScroll = useCallback((e) => {
     const top = e.currentTarget.scrollTop < 4
     setAtTop(top)
@@ -391,9 +395,13 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange, def
   const loading = (day.loading && !rows.length)
     || ((feed.status === 'connecting' || feed.status === 'idle') && !feed.items.length && day.live && !rows.length)
   const filtered = !!(query || linked || watchlistId || categories.length)
+  const otherFilters = !!(query || watchlistId || categories.length)    // besides Linked
   const now = Date.now()
-  const rowProps = { linkedSym, onSym, colorMode: settings.tickerColorMode, prices, staleSymbols, quotesUsed,
-    provisional: feed.provisional, clampLines, onToggleExpand, showCategory: settings.showCategory !== 'off', timeOnly: true,
+  // The search's hits, marked in every shown headline. Memoised on the (debounced) query,
+  // so a live arrival never re-renders the rows already on screen.
+  const needles = useMemo(() => { const n = searchNeedles(query); return n.length ? n : null }, [query])
+  const rowProps = { linkedSym, onSym, colorMode: settings.tickerColorMode, prices, staleSymbols, quotesUsed, needles,
+    provisional: feed.provisional, clampLines, onToggleExpand, showCategory: settings.showCategory !== 'off',
     onToggleGroup, onActions, onExplain, onCloseExplain: closeExplain, onSave }
   const renderRow = (it, extra) => (
     <Row key={it.seq} item={it} {...rowProps} expanded={expanded.has(it.seq)} flashing={flashing.has(it.seq)}
@@ -474,7 +482,8 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange, def
           onApply={applyPreset} onSave={savePreset} onRename={renamePreset} onDelete={deletePreset} />
       )}
       {calendarOpen && (
-        <CalendarPopover selected={day.dateKey} meta={day.meta} anchorEl={calRef.current} hostEl={rootRef.current}
+        <CalendarPopover selected={day.dateKey || day.todayKey} meta={day.meta} anchorEl={calRef.current} hostEl={rootRef.current}
+          history={day.history} allHistory={day.allHistory} onAll={day.showAll}
           themeVars={menuVars} onPick={day.select} onClose={closeCalendar} />
       )}
       {timeOpen && (
@@ -482,8 +491,9 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange, def
           onPick={day.jumpTo} onClose={closeTime} live={day.live} onLatest={day.toLatest} />
       )}
       {healthOpen && (
-        <HealthPopover lines={[...feedHealth(feed, now), ...viewHealth({ dateLabel: dayLabel(day.dateKey, day.todayKey),
-          count: day.total != null ? footerCount(filtered, day.total, day.dayTotal ?? day.total) : null,
+        <HealthPopover lines={[...feedHealth(feed, now), ...viewHealth({ dateLabel: viewLabel,
+          count: day.total != null ? footerCount(filtered, day.total, day.dayTotal ?? day.total)
+            : day.allHistory && rows.length ? `${formatNumber(rows.length, { decimals: 0 })} loaded` : null,
           provisional: feed.provisional, hidden: hiddenPlaceholders, showing: settings.graphicPlaceholders === 'show' })]} anchorEl={statusRef.current} hostEl={rootRef.current}
           themeVars={menuVars} onClose={closeHealth} />
       )}
@@ -585,7 +595,7 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange, def
 
       <div ref={listRef} className={`${styles.list}${day.loading && rows.length ? ' ' + styles.listBusy : ''}`} onScroll={onScroll}
         aria-busy={day.loading || day.loadingMore || undefined}
-        aria-label={`Headlines, ${dayLabel(day.dateKey, day.todayKey)}${day.at ? ` from ${day.at} ET` : ''}`}>
+        aria-label={`Headlines, ${viewLabel}${day.at ? ` from ${day.at} ET` : ''}`}>
         {unavailable && (
           <div className={styles.empty}>{status.title}</div>
         )}
@@ -598,11 +608,23 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange, def
         )}
         {!unavailable && day.error && (
           <div className={styles.empty}>
-            Headlines for this date could not be loaded.
+            {day.allHistory ? 'The UCT News archive could not be reached.' : 'Headlines for this date could not be loaded.'}
             <button type="button" className={styles.emptyBtn} onClick={day.retry}>Retry</button>
           </div>
         )}
-        {!unavailable && !loading && !rows.length && feed.status !== 'failed' && !day.error && (
+        {!unavailable && !loading && !rows.length && feed.status !== 'failed' && !day.error && day.allHistory && (
+          <div className={styles.empty}>
+            {day.hasOlder
+              ? `Searching the archive for ${linkedSym}…${day.searchedTo ? ` (back to ${dayLabel(day.searchedTo, day.todayKey)})` : ''}`
+              : otherFilters
+                ? `No archived headlines naming ${linkedSym} match these filters.`
+                : `No archived headlines name ${linkedSym}. New ones appear here the moment they arrive.`}
+            {!day.hasOlder && otherFilters && (
+              <button type="button" className={styles.emptyBtn} onClick={() => { patchOpts({ categories: [], watchlistId: null, presetId: null }); setQueryRaw(''); setQuery('') }}>Clear other filters</button>
+            )}
+          </div>
+        )}
+        {!unavailable && !loading && !rows.length && feed.status !== 'failed' && !day.error && !day.allHistory && (
           <div className={styles.empty}>
             {filtered ? `No headlines on ${dayLabel(day.dateKey, day.todayKey)} match these filters.`
               : day.isToday ? 'No headlines yet today. New Trade Exchange headlines appear here the moment they arrive.'
@@ -616,7 +638,9 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange, def
         <DayList groups={groups} rootRef={listRef} renderGroup={renderGroup} viewKey={viewKey} />
         {rows.length > 0 && (
           <div className={styles.dayEdge} aria-live="polite">
-            {day.hasOlder ? 'Loading earlier headlines…'
+            {day.hasOlder ? (day.allHistory && day.searchedTo
+              ? `Loading earlier headlines… (searched back to ${dayLabel(day.searchedTo, day.todayKey)})` : 'Loading earlier headlines…')
+              : day.allHistory ? `Start of the UCT News archive${day.meta?.first_day ? ` (${dayLabel(day.meta.first_day, day.todayKey)})` : ''}`
               : `Start of ${dayLabel(day.dateKey, day.todayKey)}${day.meta?.first_day === day.dateKey && day.meta?.first_day_partial ? ' (the UCT News archive began here)' : ''}`}
           </div>
         )}

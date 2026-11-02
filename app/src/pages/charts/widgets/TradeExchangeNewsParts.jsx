@@ -27,7 +27,7 @@ import Input from '../../../components/ui/Input'
 import { requestExplanation, cachedExplanation } from '../../../lib/tradeExchangeNewsExplain'
 import { sentRecently } from '../../../lib/tradeExchangeNewsNotebook'
 import { CollectionPicker } from './TradeExchangeNewsCollections'
-import { CATEGORY_FILTERS, categoryTitle, cleanCategories, explainable, explanationText, fmtReceived, fmtReceivedFull,
+import { CATEGORY_FILTERS, categoryTitle, cleanCategories, explainable, explanationText, fmtReceived, fmtReceivedFull, fmtStamp, hitRanges, runsIn,
   dayLabel, dayStatus, cleanTime, MAX_PRESETS, monthGrid, MONTHS, tickerTitle, tickerTone, timeLabel, tokenize,
   WEEKDAYS } from './tradeExchangeNewsModel'
 import styles from './TradeExchangeNewsWidget.module.css'
@@ -71,14 +71,29 @@ function useLong(ref, lines, content, expanded) {
   return long
 }
 
-function Headline({ item, linkedSym, onSym, colorMode, prices, staleSymbols, provisional, clampLines, expanded, headRef }) {
-  const parts = tokenize(item.content, item.tickers, item.mentions)
+/** `text` with the search's hits marked (<mark>, the Agent's gold): React text only.
+ *  `ranges`/`offset`: the WHOLE headline's hits and where this piece starts in it. */
+export function Hl({ text, needles, ranges, offset = 0 }) {
+  const rs = ranges || (needles?.length ? hitRanges(text, needles) : null)
+  if (!rs?.length) return text
+  return runsIn(text, rs, offset).map((r, i) => (r.hit ? <mark key={i} className={styles.hit}>{r.text}</mark> : r.text))
+}
+
+/** The pieces of a tokenized headline with their offsets in the whole text. */
+export function withOffsets(parts) {
+  let at = 0
+  return parts.map((p) => { const o = at; at += String(p.text ?? '').length; return { ...p, offset: o } })
+}
+
+function Headline({ item, linkedSym, onSym, colorMode, prices, staleSymbols, provisional, clampLines, expanded, headRef, needles }) {
+  const parts = withOffsets(tokenize(item.content, item.tickers, item.mentions))
+  const ranges = needles ? hitRanges(item.content, needles) : null
   const clamp = clampLines && !expanded
   return (
     <span ref={headRef} className={`${styles.headline}${clamp ? ' ' + styles.clamped : ''}`}
       style={clamp ? { WebkitLineClamp: clampLines } : undefined}>
       {parts.map((p, i) => {
-        if (!p.sym) return <span key={i}>{p.text}</span>
+        if (!p.sym) return <span key={i}><Hl text={p.text} ranges={ranges} offset={p.offset} /></span>
         const q = prices?.[p.sym]
         const stale = !!staleSymbols?.has?.(p.sym)
         const t = tickerTone(q, stale)
@@ -91,7 +106,7 @@ function Headline({ item, linkedSym, onSym, colorMode, prices, staleSymbols, pro
             className={`${styles.sym}${tone ? ' ' + tone : ''}${p.sym === linkedSym ? ' ' + styles.symLinked : ''}`}
             onClick={() => onSym(p.sym)}
             title={`${tickerTitle(p.sym, q, stale, { named: p.named })}${provisional ? ' · ticker detected automatically (provisional)' : ''}`}
-          >{p.text}</button>
+          ><Hl text={p.text} ranges={ranges} offset={p.offset} /></button>
         )
       })}
     </span>
@@ -101,8 +116,8 @@ function Headline({ item, linkedSym, onSym, colorMode, prices, staleSymbols, pro
 /** Only what a row DISPLAYS from a quote: a tick that moves none of it is no render. */
 const quoteKey = (q) => (q ? `${q.price}|${q.change_pct}|${q.updated_at || q.timestamp || ''}` : '')
 const ROW_KEYS = ['item', 'linkedSym', 'colorMode', 'provisional', 'clampLines', 'expanded', 'flashing',
-  'showCategory', 'timeOnly', 'groupCount', 'groupOpen', 'related', 'onSym', 'onToggleExpand', 'onToggleGroup', 'onActions',
-  'actionsOpen', 'onExplain', 'explainOpen', 'onCloseExplain', 'onSave', 'saved']
+  'showCategory', 'groupCount', 'groupOpen', 'related', 'onSym', 'onToggleExpand', 'onToggleGroup', 'onActions',
+  'actionsOpen', 'onExplain', 'explainOpen', 'onCloseExplain', 'onSave', 'saved', 'needles']
 function rowPropsEqual(a, b) {
   for (const k of ROW_KEYS) if (a[k] !== b[k]) return false
   if (!a.quotesUsed && !b.quotesUsed) return true
@@ -160,8 +175,9 @@ function CopyButton({ text }) {
 }
 
 export const Row = memo(function Row({ item, linkedSym, onSym, colorMode, prices, staleSymbols, provisional,
-  clampLines, expanded, onToggleExpand, flashing, showCategory, timeOnly = false, groupCount = 0, groupOpen = false,
-  onToggleGroup, related = false, onActions, actionsOpen, onExplain, explainOpen, onCloseExplain, onSave, saved = false }) {
+  clampLines, expanded, onToggleExpand, flashing, showCategory, groupCount = 0, groupOpen = false,
+  onToggleGroup, related = false, onActions, actionsOpen, onExplain, explainOpen, onCloseExplain, onSave, saved = false,
+  needles = null }) {
   const headRef = useRef(null)
   const explainRef = useRef(null)
   const long = useLong(headRef, clampLines, item.content, expanded)
@@ -173,8 +189,8 @@ export const Row = memo(function Row({ item, linkedSym, onSym, colorMode, prices
       {flashing && <span className={styles.flash} aria-hidden="true" />}
       <span className={styles.when}>
         <span className={styles.time} title={`Received by UCT ${fmtReceivedFull(item.received_at_ms)} · Trade Exchange does not send a publication time`}>
-          {/* a day view names its date once (the date bar); each row says the time */}
-          {fmtReceived(item.received_at_ms, timeOnly ? item.received_at_ms : undefined)}
+          {/* the date and time on every row: All history mixes days */}
+          {fmtStamp(item.received_at_ms)}
         </span>
         {showCategory && item.category && (
           <span className={styles.category} title={categoryTitle(item)}>{item.category}</span>
@@ -224,7 +240,7 @@ export const Row = memo(function Row({ item, linkedSym, onSym, colorMode, prices
       </span>
       <Headline item={item} linkedSym={linkedSym} onSym={onSym} colorMode={colorMode} prices={prices}
         staleSymbols={staleSymbols} provisional={provisional} clampLines={clampLines}
-        expanded={expanded} headRef={headRef} />
+        expanded={expanded} headRef={headRef} needles={needles} />
       <span className={styles.badges}>
         {item.repeat_count > 0 && (
           <span className={styles.badge} title={`Received ${item.repeat_count + 1} times within a minute (a resend or a repeat publication)`}>×{item.repeat_count + 1}</span>
@@ -587,7 +603,8 @@ function placeAbove(anchorEl, hostEl, width) {
 /** A month of days. Future dates and dates before the archive began are disabled and
  *  say why; a dot marks an archived date with headlines (only what the server reports).
  *  The archive is permanent: nothing in it ever ages out. */
-export function CalendarPopover({ selected, meta, anchorEl, hostEl, themeVars, onPick, onClose }) {
+export function CalendarPopover({ selected, meta, anchorEl, hostEl, themeVars, onPick, onClose, history = false,
+  allHistory = false, onAll }) {
   const boxRef = useRef(null)
   const onKey = usePopover(boxRef, anchorEl, onClose)
   const [ym, setYm] = useState(() => [Number(selected.slice(0, 4)), Number(selected.slice(5, 7)) - 1])
@@ -615,6 +632,12 @@ export function CalendarPopover({ selected, meta, anchorEl, hostEl, themeVars, o
   return (
     <div ref={boxRef} className={styles.menuPop} style={{ ...(themeVars || {}), ...placeAbove(anchorEl, hostEl, width), top: 'auto', width }}
       role="dialog" aria-label="Choose a date" onKeyDown={(e) => { onKey(e); keys(e) }}>
+      {history && onAll && (
+        <button type="button" className={`${styles.menuItem}${allHistory ? ' ' + styles.menuItemOn : ''}`} aria-pressed={allHistory}
+          onClick={() => { onAll(); onClose() }} title="Every archived headline naming the linked symbol, newest first">
+          All history
+        </button>
+      )}
       <div className={styles.calHead}>
         {nav('Previous year', '«', () => move(-1, 0))}
         {nav('Previous month', '‹', () => move(0, -1))}
@@ -701,35 +724,37 @@ export function TimePopover({ at, anchorEl, hostEl, themeVars, onPick, onClose, 
 export function DayBar({ day, onCalendar, onTime, calendarOpen, timeOpen, calRef, timeRef }) {
   const first = day.meta?.first_day
   const prevOff = !!first && day.dateKey <= first
-  const full = dayLabel(day.dateKey, day.todayKey)
-  const label = day.isToday ? 'Today' : full
-  const short = day.isToday ? 'Today' : full.replace(/^\w+, /, '')
+  const all = !!day.allHistory
+  const full = all ? 'All history' : dayLabel(day.dateKey, day.todayKey)
+  const label = all ? 'All history' : day.isToday ? 'Today' : full
+  const short = all ? 'All history' : day.isToday ? 'Today' : full.replace(/^\w+, /, '')
   const atText = day.at ? `${day.atMatch === 'after' ? 'after' : 'from'} ${timeLabel(day.at)} ET` : null
   return (
     <nav className={styles.dayBar} aria-label="Date">
       <span className={styles.dayNav}>
-        <button type="button" className={styles.pageBtn} onClick={day.prevDay} disabled={prevOff}
-          aria-label="Previous day" title={prevOff ? 'Earlier dates are not retained' : 'Previous day'}>
+        <button type="button" className={styles.pageBtn} onClick={day.prevDay} disabled={prevOff || all}
+          aria-label="Previous day" title={all ? 'Pick a day from the calendar to browse one day' : prevOff ? 'Earlier dates are not retained' : 'Previous day'}>
           <UIcon name="chevronLeft" size={12} gold={false} />
         </button>
         <button ref={calRef} type="button" className={`${styles.dayBtn}${calendarOpen ? ' ' + styles.dayBtnOn : ''}`} onClick={onCalendar}
-          aria-haspopup="dialog" aria-expanded={calendarOpen} aria-label={`Date: ${day.isToday ? `Today, ${full}` : full}. Choose a date`}
-          title={day.isToday ? `Today, ${full} (ET). Choose a date` : `${full} (ET). Choose a date`}>
+          aria-haspopup="dialog" aria-expanded={calendarOpen} aria-label={`Date: ${all ? 'All history' : day.isToday ? `Today, ${full}` : full}. Choose a date`}
+          title={all ? 'Every archived headline naming the linked symbol. Choose a day to narrow it' : day.isToday ? `Today, ${full} (ET). Choose a date` : `${full} (ET). Choose a date`}>
           <span className={styles.dayIcon}><UIcon name="calendar" size={12} gold={false} /></span>
           <span className={`${styles.dayText} ${styles.dayLong}`}>{label}</span>
           <span className={`${styles.dayText} ${styles.dayShort}`}>{short}</span>
         </button>
-        <button type="button" className={styles.pageBtn} onClick={day.nextDay} disabled={day.isToday}
-          aria-label="Next day" title={day.isToday ? 'Today is the latest date' : 'Next day'}>
+        <button type="button" className={styles.pageBtn} onClick={day.nextDay} disabled={day.isToday || all}
+          aria-label="Next day" title={all ? 'Pick a day from the calendar to browse one day' : day.isToday ? 'Today is the latest date' : 'Next day'}>
           <UIcon name="chevronRight" size={12} gold={false} />
         </button>
       </span>
       <button ref={timeRef} type="button" className={`${styles.timeBtn}${day.at || !day.live ? ' ' + styles.dayBtnOn : ''}`} onClick={onTime}
-        aria-haspopup="dialog" aria-expanded={timeOpen}
+        aria-haspopup="dialog" aria-expanded={timeOpen} disabled={all}
         aria-label={atText ? `Jump to Time: showing ${atText}. Change the time` : 'Jump to Time'}
         title={day.at ? (day.atMatch === 'after'
           ? `Jump to Time · nothing at or before ${timeLabel(day.at)} ET: showing from the day's first headline`
-          : `Jump to Time · showing from the closest headline at or before ${timeLabel(day.at)} ET`) : 'Jump to Time'}>
+          : `Jump to Time · showing from the closest headline at or before ${timeLabel(day.at)} ET`)
+          : all ? 'Jump to Time works within one day: pick a day first' : 'Jump to Time'}>
         <UIcon name="clock" size={13} gold={false} />
       </button>
     </nav>

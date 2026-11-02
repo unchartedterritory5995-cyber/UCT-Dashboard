@@ -193,3 +193,32 @@
   cursor: pointer;
   white-space: nowrap;
 }
+
+/* Sync-press notice and the Recent syncs disclosure (Task 6). Reuses the
+   conflictHint tone; tap targets follow the touch tier. */
+.syncNotice {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--warn);
+  margin: 0;
+}
+.recentSyncs { display: flex; flex-direction: column; gap: 6px; }
+.logToggle {
+  align-self: flex-start;
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  font-size: 12px;
+  color: inherit;
+  opacity: 0.8;
+  text-decoration: underline;
+  cursor: pointer;
+}
+@media (max-width: 1024px) {
+  .logToggle { min-height: var(--tap-min); padding: 0 4px; }
+}
+.historyList { display: flex; flex-direction: column; gap: 8px; }
+.logEntry { display: flex; flex-direction: column; gap: 2px; }
+.logLine { font-size: 12px; margin: 0; opacity: 0.85; }
+.failureList { margin: 0; padding-left: 18px; font-size: 12px; color: var(--color-danger, #f87171); }

@@ -37,7 +37,7 @@
  * OWN per-provider sentinel (`FOLDER_PICKER_ROOT_REMOTE_ID`, see that
  * constant's own comment for why OneDrive doesn't have one yet).
  */
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import Sheet from '../../../../components/mobile/Sheet'
 import UIcon from '../../../../components/ui/UIcon'
 import { FOLDER_PICKER_ROOT_REMOTE_ID } from '../../hooks/useNoteConnectors'
@@ -54,17 +54,25 @@ export default function DropboxFolderPicker({
   const [error, setError] = useState(null)
   const [busy, setBusy] = useState(false)
 
+  // Latest-wins: every listing takes a ticket, and only the newest ticket may
+  // write state. Closing the picker also takes one, so a response that lands
+  // after close/reopen or after navigating elsewhere is dropped.
+  const requestIdRef = useRef(0)
+
   const load = useCallback(
     async (p) => {
+      const id = ++requestIdRef.current
       setLoading(true)
       setError(null)
       try {
         const list = await listFolders(provider, p)
-        setFolders(list)
+        if (id === requestIdRef.current) setFolders(list)
       } catch (err) {
-        setError(err?.detail || err?.message || `Could not load your ${providerLabel} folders.`)
+        if (id === requestIdRef.current) {
+          setError(err?.detail || err?.message || `Could not load your ${providerLabel} folders.`)
+        }
       } finally {
-        setLoading(false)
+        if (id === requestIdRef.current) setLoading(false)
       }
     },
     [listFolders, provider, providerLabel]
@@ -72,7 +80,10 @@ export default function DropboxFolderPicker({
 
   // Fresh state every time the picker opens — mirrors ConnectTokenModal.
   useEffect(() => {
-    if (!open) return
+    if (!open) {
+      requestIdRef.current += 1
+      return
+    }
     setPath('')
     setCrumbs([])
     setFolders([])

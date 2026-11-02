@@ -14,8 +14,8 @@
  * (--widget-*, set by WidgetHost from the canvas) → the app theme tokens.
  */
 .root {
-  --txn-ctl-h: 32px;           /* the toolbar's three controls: Search, Filters, All Lists */
-  --txn-foot-h: 28px;          /* the footer's controls */
+  --txn-ctl-h: 26px;           /* the toolbar's three controls: Search, Filters, All Lists (the compact Charts height) */
+  --txn-foot-h: 22px;          /* the footer's controls: a ~30 px footer with its padding and hairline */
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -79,7 +79,7 @@
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.2px;
-  color: var(--txn-chrome-strong, var(--widget-text-strong, var(--text)));
+  color: var(--txn-text, var(--text-bright));        /* the widget's primary text, every theme */
   white-space: nowrap;
   /* a very narrow widget clips the title -- it never runs under the status dot */
   overflow: hidden;
@@ -89,7 +89,7 @@
   font-size: 9px;
   font-weight: 400;
   letter-spacing: 0.2px;
-  color: var(--txn-chrome, var(--widget-text, var(--text-muted)));
+  color: var(--txn-text, var(--text-bright));        /* primary text, as the title */
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -127,13 +127,13 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 8px;
+  padding: 4px 8px;
   box-sizing: border-box;
   border-bottom: 1px solid var(--txn-divider, var(--widget-divider, var(--border)));
   flex: 0 0 auto;
 }
-.compact { --txn-ctl-h: 28px; }
-.compact .searchBar { padding: 5px 8px; }
+.compact { --txn-ctl-h: 24px; }
+.compact .searchBar { padding: 3px 8px; }
 .searchWrap { position: relative; flex: 1 1 auto; min-width: 0; display: flex; }
 .searchInput, .filterBtn, .listSelect {
   height: var(--txn-ctl-h);
@@ -153,7 +153,7 @@
   outline: none;
   transition: border-color 0.15s;
 }
-.searchInput::placeholder { color: var(--txn-chrome, var(--text-muted)); }
+.searchInput::placeholder { color: var(--txn-text, var(--text-bright)); opacity: 1; }   /* primary text, every theme */
 .searchInput:focus { border-color: var(--accent); }
 .searchClear {
   position: absolute;
@@ -172,7 +172,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: var(--txn-ctl-h);
+  width: calc(var(--txn-ctl-h) + 2px);
   padding: 0;
   color: var(--txn-chrome, var(--text-muted));
   cursor: pointer;
@@ -194,6 +194,14 @@
   cursor: pointer;
 }
 .listSelect:focus-visible { outline: 1px solid var(--txn-accent, var(--ut-gold)); outline-offset: 1px; }
+/* The native popup's options (UCT's select pattern, e.g. BreadthSettingsPanel .sizeSelect option):
+   the widget's own solid surface and text, so the list reads in every theme -- the browser's
+   default white popup under this widget's light text was what made it unreadable. */
+.listSelect option { background: var(--txn-bg-solid, var(--bg-elevated, #16181c)); color: var(--txn-text, var(--text-bright)); }
+.listSelect option:checked {
+  background: color-mix(in srgb, var(--txn-accent, var(--ut-gold)) 24%, var(--txn-bg-solid, var(--bg-elevated, #16181c)));
+  color: var(--txn-text, var(--text-bright));
+}
 
 /* ── notices ───────────────────────────────────────────────────────────── */
 .notice {
@@ -364,6 +372,18 @@
 
 /* Row actions (copy, then ⋯): revealed on hover / keyboard focus; always there on touch. */
 .rowActions { margin-left: auto; align-self: center; display: inline-flex; gap: 2px; }
+/* Narrow widgets: the date + time + category fill the stamp line, so the row's actions float at
+   its right end instead of wrapping onto an empty line of their own. The line keeps one icon's
+   room for the always-shown saved bookmark, so the stamp is never covered; the rest of the
+   actions (hidden until hover) get the row's surface behind them only while hovered. */
+@container (max-width: 330px) {
+  .when { padding-right: 22px; }
+  .rowActions { position: absolute; z-index: 2; top: 4px; right: 6px; padding-left: 6px; }
+  .row:hover .rowActions { background: linear-gradient(to right, transparent, var(--txn-bg-solid, var(--bg)) 6px); }
+  .compact .rowActions { top: 2px; }
+  /* the always-shown saved mark takes the reserved slot at the far right */
+  .rowBtnSaved { order: 10; }
+}
 .rowBtn {
   display: inline-flex;
   align-items: center;
@@ -467,7 +487,7 @@
   flex: 0 0 auto;
   display: flex;
   align-items: center;
-  padding: 6px 8px;
+  padding: 3px 8px;
   font-family: var(--font-sans);
   font-size: 11px;
   color: var(--txn-chrome, var(--text-muted));
@@ -476,7 +496,7 @@
   white-space: nowrap;
   min-width: 0;
 }
-.compact .footer { padding: 5px 8px; }
+.compact .footer { padding: 3px 8px; }
 .dayBar { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex: 1 1 auto; min-width: 0; }
 .dayNav { display: inline-flex; align-items: center; gap: 4px; min-width: 0; }
 .pageBtn, .dayBtn, .timeBtn {
@@ -489,7 +509,7 @@
   font: inherit;
   cursor: pointer;
 }
-.pageBtn { width: 24px; padding: 0; }
+.pageBtn { width: 22px; padding: 0; }
 .pageBtn:hover:not(:disabled), .timeBtn:hover, .dayBtn:hover {
   color: var(--txn-text, var(--text));
   background: var(--txn-row-hover, var(--widget-row-hover, var(--bg-hover)));
@@ -500,7 +520,7 @@
 /* The date and the clock are the two bordered controls. */
 .dayBtn, .timeBtn { border-color: var(--txn-divider, var(--widget-divider, var(--border))); }
 .dayBtn {
-  gap: 6px; min-width: 0; padding: 0 9px;
+  gap: 5px; min-width: 0; padding: 0 8px;
   color: var(--txn-text, var(--text-bright)); font-weight: 600;
 }
 .timeBtn { width: var(--txn-foot-h); padding: 0; flex: 0 0 auto; }
@@ -830,3 +850,18 @@
 .pane { position: relative; display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
 .paneHidden { position: absolute; top: 34px; left: 0; right: 0; bottom: 0; visibility: hidden; pointer-events: none; }
 .menuBack { color: var(--menu-text-dim, var(--text-muted)); border-bottom: 1px solid var(--menu-divider, var(--border)); }
+
+/* "All history" in the date picker when it is the view (Linked to chart). */
+.menuItemOn { color: var(--menu-accent, var(--ut-gold)); }
+
+/* ── search hits: the UCT Agent search treatment (AgentPanel.module.css .hit) ──
+   A soft gold wash, gold text, weight 600, every occurrence, original capitals kept.
+   The gold is mixed with the headline's own text colour so it stays readable on every
+   theme: paler on dark surfaces, deeper on light ones. */
+.hit {
+  background: color-mix(in srgb, var(--ut-gold) 18%, transparent);
+  color: color-mix(in srgb, var(--ut-gold) 60%, var(--txn-text, currentColor));
+  font-weight: 600;
+  border-radius: 3px;
+  padding: 0 1px;
+}

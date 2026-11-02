@@ -160,6 +160,14 @@ describe('ConnectedAppsCard — provider matrix', () => {
     expect(screen.queryByText(/source-deleted/)).not.toBeInTheDocument()
   })
 
+  it('passes the provider label so the pending line names the app', async () => {
+    const pending = JSON.parse(JSON.stringify(STATUS_MIXED))
+    pending.providers.roam.sources[0].pendingRemoval = 2
+    mockFetch([['/api/j2/notes/connectors/status', { body: pending }]])
+    render(<ConnectedAppsCard />)
+    expect(await screen.findByText('2 notes look removed in Roam Research; confirming on the next check.')).toBeInTheDocument()
+  })
+
   it('Sync now fires POST /sources/{id}/sync', async () => {
     mockFetch([
       ['/api/j2/notes/connectors/status', { body: STATUS_MIXED }],
@@ -429,6 +437,30 @@ describe('ConnectedAppsCard — OAuth return self-heal', () => {
     expect(window.location.search).not.toContain('connector')
     expect(window.location.search).not.toContain('connected')
     expect(window.location.search).toContain('section=connections')
+  })
+
+  const failedReturn = async (query) => {
+    window.history.replaceState({}, '', `/settings?section=connections&${query}`)
+    mockFetch([['/api/j2/notes/connectors/status', { body: { providers: {} } }]])
+    render(<ConnectedAppsCard />)
+  }
+
+  it('an OAuth return that failed in this browser says how to finish, then strips the params', async () => {
+    await failedReturn('connector=notion&connected=0&reason=oauth_state')
+    const note = await screen.findByText("Connecting Notion didn't finish in this browser. Press Connect below to start again here.")
+    expect(note.getAttribute('role')).toBe('status')
+    expect(window.location.search).toBe('?section=connections')
+  })
+
+  it('names any other reason the provider gave', async () => {
+    await failedReturn('connector=dropbox&connected=0&reason=access_denied')
+    expect(await screen.findByText("Couldn't connect Dropbox: access_denied")).toBeTruthy()
+    expect(window.location.search).toBe('?section=connections')
+  })
+
+  it('says to try again when there is no reason', async () => {
+    await failedReturn('connector=notion&connected=0')
+    expect(await screen.findByText("Couldn't connect Notion. Try again.")).toBeTruthy()
   })
 })
 
