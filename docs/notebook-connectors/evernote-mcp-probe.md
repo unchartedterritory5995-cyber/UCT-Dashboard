@@ -20,3 +20,11 @@ Other facts:
 - `tools/list` also advertises WRITE tools (create/edit/delete) under a `read` grant. The product must call read tools only, pinned by a test against an allow-list.
 - Open: Evernote's terms on unattended/scheduled use of the MCP beta. Owner to confirm (support email draft in the Plan E doc) before the flag goes on for members.
 - Free-plan members cannot use it (Evernote rule); the tile must say so and offer .enex import.
+
+## Measured field names (follow-up calls, same session)
+- `search_notes` hit: `noteId, title, snippet, createdAt, updatedAt, score`.
+- `get_note.structuredContent`: `id, title, version, updateSequenceNumber, notebookId, content (ENML), created, updated, active, deleted, tasks, tags, resources, attributes`. `resources` is `null` (not `[]`) on a note without attachments.
+- `resources[]`: `id, hash (md5, 32 hex), mime, name, sizeBytes`.
+- `get_attachment.structuredContent`: `downloadUrl, expiresAt (epoch ms), noteId, resourceGuid, hash, mimeType, filename, sizeBytes`.
+- `search_notes` with `resource:image/*` matched 6 notes; `resource:application/pdf` matched 0.
+- Plan E: use these exact names; the candidate-name fallback is only for drift.
