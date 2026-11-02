@@ -18,7 +18,9 @@
     "href_vectors (B-14, controller ruling: every stored link has a door or is plain text): resolve_href / resolveHref of `href`",
     "(against `source` when given) must equal `want`; null = the link becomes plain text. Kept schemes: http(s) (// + a host,",
     "no whitespace, no userinfo, port <= 65535, a numeric last label only as a dotted-quad IPv4), mailto: with an @, tel:/sms:",
-    "with a number (digits, optional leading +, spaces - . ( )). `door` (client only) = what linkClickOpen.openableLinkHref opens."
+    "with a number (digits, optional leading +, spaces - . ( )). `door` (client only) = what linkClickOpen.openableLinkHref opens.",
+    "refused_link_vectors (B-14 fix round 1): a link with `href` over `text`; resolve_href refuses it, so the import keeps `text`",
+    "exactly as plain text and makes NO link anywhere in it (linkify never re-links a refused link's text). Both sides' import passes."
   ],
   "version": 1,
   "vectors": [
@@ -152,6 +154,26 @@
     {"name": "relative with no source", "href": "/news/a-123", "want": null},
     {"name": "relative with a space, against a source", "href": "/news/a b", "source": "https://news.example.com/2026/clip", "want": null},
     {"name": "protocol-relative with userinfo", "href": "//user:pw@cdn.example.com/x", "want": null},
-    {"name": "prose that is not a URL", "href": "not a url", "want": null}
+    {"name": "prose that is not a URL", "href": "not a url", "want": null},
+    {"name": "leading U+FEFF is not trimmed (Python strip keeps it)", "href": "\ufeffhttps://example.com/a", "want": null},
+    {"name": "trailing U+FEFF is not trimmed", "href": "https://example.com/a\ufeff", "want": null},
+    {"name": "leading U+001C is trimmed", "href": "\u001chttps://example.com/a", "want": "https://example.com/a", "door": "https://example.com/a"},
+    {"name": "trailing U+001F is trimmed", "href": "https://example.com/a\u001f", "want": "https://example.com/a", "door": "https://example.com/a"},
+    {"name": "leading U+0085 is trimmed", "href": "\u0085mailto:me@example.com", "want": "mailto:me@example.com", "door": "mailto:me@example.com"},
+    {"name": "trailing U+202F is trimmed", "href": "tel:+15550100\u202f", "want": "tel:+15550100", "door": "tel:+15550100"},
+    {"name": "interior U+202F", "href": "https://example.com/a\u202fb", "want": null},
+    {"name": "interior U+0085", "href": "mailto:a@x\u0085.com", "want": null},
+    {"name": "relative with U+0085, against a source", "href": "/news/a\u0085b", "source": "https://news.example.com/2026/clip", "want": null},
+    {"name": "protocol-relative with a space", "href": "//ex.com/a b", "want": null},
+    {"name": "protocol-relative with a tab", "href": "//ex.com/a\tb", "want": null},
+    {"name": "protocol-relative with a tab after the first slash", "href": "/\t/cdn.example.com/x", "want": null}
+  ],
+  "refused_link_vectors": [
+    {"name": "refused link whose text is a URL", "href": "https://example.com/a b", "text": "https://example.com/a b"},
+    {"name": "refused ftp link whose text holds a URL", "href": "ftp://example.com/f", "text": "see https://example.com/x now"},
+    {"name": "refused userinfo link whose text is a www host", "href": "https://user:pw@example.com/", "text": "www.example.com"},
+    {"name": "refused bare mailto whose text is an email", "href": "mailto:", "text": "desk@example.com"},
+    {"name": "unsafe link whose text is a URL", "href": "javascript:alert(1)", "text": "https://evil.example/"},
+    {"name": "refused protocol-relative link whose text is its URL", "href": "//ex.com/a b", "text": "//ex.com/a b https://ex.com/a"}
   ]
 }

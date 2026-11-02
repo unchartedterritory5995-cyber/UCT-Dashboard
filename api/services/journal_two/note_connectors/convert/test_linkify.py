@@ -13,7 +13,7 @@ from pathlib import Path
 import pytest
 
 from api.services.journal_two.note_connectors.convert.linkify import (
-    import_link_keys, linkify_doc, normalize_link_hrefs, resolve_href,
+    finalize_links, import_link_keys, linkify_doc, normalize_link_hrefs, resolve_href,
 )
 
 _VECTORS = (
@@ -23,6 +23,7 @@ _VECTORS = (
 _ALL = json.loads(_VECTORS.read_text(encoding="utf-8"))
 VECTORS = _ALL["vectors"]
 HREF_VECTORS = _ALL["href_vectors"]
+REFUSED_VECTORS = _ALL["refused_link_vectors"]
 EXISTING = "https://existing.example/"
 LINK = "import-link://"
 
@@ -213,6 +214,48 @@ def test_href_vectors_cover_both_sides_of_every_allowed_scheme():
         assert scheme in refused, scheme
 
 
+def _marks_anywhere(node) -> set:
+    out = set()
+    if isinstance(node, dict):
+        out |= {m.get("type") for m in node.get("marks") or [] if isinstance(m, dict)}
+        for c in node.get("content") or []:
+            out |= _marks_anywhere(c)
+    return out
+
+
+@pytest.mark.parametrize("v", REFUSED_VECTORS, ids=[v["name"] for v in REFUSED_VECTORS])
+def test_shared_refused_link_vectors(v):
+    """B-14 fix round 1: the text a refused link leaves is plain text with NO link in it --
+    linkify never re-links it (it used to turn `https://example.com/a b` into a link to
+    `https://example.com/a`). Shared with the client's postParse.test.js."""
+    assert resolve_href(v["href"]) is None
+    doc = _doc(_run(v["text"], {"type": "bold"}, _link(v["href"])))
+    out = finalize_links(doc)
+    assert _links(out) == []
+    assert "".join(t["text"] for t in _texts(out)) == v["text"]
+    assert _marks_anywhere(out) == {"bold"}  # the internal marker never leaves the module
+
+
+def test_finalize_links_still_linkifies_around_a_refused_link():
+    out = finalize_links(_doc("see https://a.com/x ", _run("https://b.com/c d", _link("https://b.com/c d")),
+                              " and www.e.com"))
+    assert _links(out) == [("https://a.com/x", "https://a.com/x"), ("www.e.com", "https://www.e.com")]
+    assert _marks_anywhere(out) == {"link"}
+
+
+def test_finalize_links_is_normalize_then_linkify_when_nothing_is_refused():
+    doc = _doc("see https://a.com/x ", _run("label", _link("//cdn.example.com/p")), " and a@b.com")
+    snapshot = copy.deepcopy(doc)
+    assert finalize_links(doc) == linkify_doc(normalize_link_hrefs(doc))
+    assert doc == snapshot
+
+
+def test_the_engine_finalizes_through_finalize_links():
+    from api.services.journal_two.note_connectors import engine
+    doc = _doc(_run("https://example.com/a b", _link("https://example.com/a b")))
+    assert _links(engine._finalize_remote_doc(doc)) == []
+
+
 @pytest.mark.parametrize("href", [
     "ftp://x.org/f", "zoommtg://zoom.us/join?confno=1", "tel:+1 555 0100 ext 2", "sms:",
     "mailto:", "https://example.com/a b", "https://user:pw@example.com/",
@@ -238,7 +281,9 @@ def test_relative_resolves_only_against_a_known_http_source_url():
     # would otherwise resolve it as "relative" (Python's urljoin strips the tab itself)
     for sneaky in ("java\tscript:alert(1)", "\x01javascript:alert(1)", "da\nta:text/html,x"):
         assert resolve_href(sneaky, "https://news.example.com/p") is None
-    assert resolve_href("/\t/cdn.example.com/x") == "https://cdn.example.com/x"
+    # B-14 fix round 1: a protocol-relative href is built from the href as written, never the
+    # invisible-stripped reading, so a tab in it makes it text (not `https://cdn.example.com/x`)
+    assert resolve_href("/\t/cdn.example.com/x") is None
     # ⛔ never against the app's own origin
     assert resolve_href("/news/a-123", "https://uctintelligence.com/journal") is None
     assert resolve_href("#x", "https://www.uctintelligence.com/a") is None

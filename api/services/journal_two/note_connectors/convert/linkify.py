@@ -82,7 +82,7 @@ _STOP_RE = re.compile(
 # (32k dots = 2.9 s, under `_LINKIFY_LOCK` and holding the GIL) on member-controlled text.
 _TRAIL_CHARS = ".,:;!?"
 _SKIP_SUBTREES = frozenset({"codeBlock", "inlineMath", "blockMath"})
-_BOUNDARY_MARKS = frozenset({"code", "link"})
+_BOUNDARY_MARKS = frozenset({"code", "link", "__uctRefusedLink__"})  # the last: `_REFUSED_MARK`
 
 _KEPT_PREFIXES = (LINK_PREFIX, REF_PREFIX, "/journal", "/terminal?cmd=", "/api/j2/notes/attachments/")
 _UNSAFE_SCHEMES = frozenset({"javascript", "data", "vbscript", "file"})
@@ -181,13 +181,15 @@ _MAILTO_RE = re.compile(r"^mailto:", re.IGNORECASE)
 _NUMBER_RE = re.compile(r"^(tel|sms):(\+?[0-9 ().\-]*[0-9][0-9 ().\-]*)$", re.IGNORECASE)
 
 
-# U+FEFF is not in TipTap's class but IS whitespace to the editor's door (a JS `\s`), so it
-# is refused too: every kept link stays openable.
-_BOM = chr(0xFEFF)
+# Whitespace by EITHER runtime's reading that TipTap's class lacks: U+FEFF and U+202F are a JS
+# `\s` (the editor door's own checks refuse them), U+0085 and U+202F are Python `isspace`.
+# Refusing all three keeps every kept link openable and both sides equal.
+_EXTRA_SPACES = (chr(0xFEFF), chr(0x202F), chr(0x85))
 
 
 def _clean(x: str) -> bool:
-    return link_href_as_read(x) == x and _BOM not in x
+    """No whitespace or invisible character in `x`, by TipTap's, JS's or Python's reading."""
+    return link_href_as_read(x) == x and not any(c in x for c in _EXTRA_SPACES)
 
 
 def _web_host_ok(h: str) -> bool:
@@ -238,7 +240,7 @@ def _resolve_relative(href: str, source_url: str | None) -> str | None:
         return None
     if host == _APP_HOST or host.endswith("." + _APP_HOST):
         return None
-    if link_href_as_read(href) != href:
+    if not _clean(href):
         return None  # B-14: whitespace in a relative href; the two runtimes' resolvers read it differently
     try:
         # `href` has no scheme (`resolve_href` decided that), so the result keeps the base's.
@@ -270,14 +272,22 @@ def resolve_href(href: Any, source_url: str | None = None) -> str | None:
             return f"{LINK_PREFIX}{key}" if key else None
         return kept_scheme_href(h)
     if read.startswith("//"):
-        return kept_scheme_href("https:" + read)
+        # B-14 fix round 1: built from `h`, never `read`: `//ex.com/a<TAB>b` must not become
+        # `https://ex.com/ab`, a target the source never named. Whitespace in `h` -> text.
+        return kept_scheme_href("https:" + h)
     return _resolve_relative(h, source_url)
 
 
-def _normalize_in_place(node: Any, source_url: str | None) -> None:
+# B-14 fix round 1: the text a REFUSED link leaves behind carries this mark between the two
+# passes of `finalize_links`, so linkify never re-links it (`https://x.com/a b` must not come
+# back as a link to `https://x.com/a`). A linkify boundary; it never leaves this module.
+_REFUSED_MARK = "__uctRefusedLink__"
+
+
+def _normalize_in_place(node: Any, source_url: str | None, mark_refused: bool = False) -> None:
     if isinstance(node, list):
         for c in node:
-            _normalize_in_place(c, source_url)
+            _normalize_in_place(c, source_url, mark_refused)
         return
     if not isinstance(node, dict):
         return
@@ -289,6 +299,8 @@ def _normalize_in_place(node: Any, source_url: str | None) -> None:
                 attrs = m.get("attrs") if isinstance(m.get("attrs"), dict) else {}
                 href = resolve_href(attrs.get("href"), source_url)
                 if href is None:
+                    if mark_refused:
+                        kept.append({"type": _REFUSED_MARK})
                     continue  # the mark goes; the text and its other marks stay
                 m["attrs"] = {**attrs, "href": href}
             kept.append(m)
@@ -296,7 +308,7 @@ def _normalize_in_place(node: Any, source_url: str | None) -> None:
             node["marks"] = kept
         else:
             del node["marks"]
-    _normalize_in_place(node.get("content"), source_url)
+    _normalize_in_place(node.get("content"), source_url, mark_refused)
 
 
 def normalize_link_hrefs(doc: dict, source_url: str | None = None) -> dict:
@@ -442,4 +454,33 @@ def linkify_doc(doc: dict) -> dict:
     """A deep copy of `doc` with bare URLs, `www.` hosts and emails turned into links."""
     out = copy.deepcopy(doc)
     _linkify_in_place(out)
+    return out
+
+
+def _strip_refused_marks(node: Any) -> None:
+    if isinstance(node, list):
+        for c in node:
+            _strip_refused_marks(c)
+        return
+    if not isinstance(node, dict):
+        return
+    marks = node.get("marks")
+    if isinstance(marks, list) and any(isinstance(m, dict) and m.get("type") == _REFUSED_MARK for m in marks):
+        kept = [m for m in marks if not (isinstance(m, dict) and m.get("type") == _REFUSED_MARK)]
+        if kept:
+            node["marks"] = kept
+        else:
+            del node["marks"]
+    _strip_refused_marks(node.get("content"))
+
+
+def finalize_links(doc: dict, source_url: str | None = None) -> dict:
+    """`linkify_doc(normalize_link_hrefs(doc))`, except that the text a REFUSED link leaves is
+    never re-linked (B-14 fix round 1): a deep copy, every href through `resolve_href`, then
+    bare URLs in plain text become links, never inside a refused link's text. THE entry point
+    for an import's doc (the engine's `_finalize_remote_doc`)."""
+    out = copy.deepcopy(doc)
+    _normalize_in_place(out, source_url, mark_refused=True)
+    _linkify_in_place(out)
+    _strip_refused_marks(out)
     return out

@@ -14,7 +14,9 @@
  *   4. `liftMediaOutOfLinks` -- after step 3, so a link emptied by the lift shows its
  *      RESOLVED href, never the raw relative one;
  *   5. `linkifyTextNodes` -- last: it only makes http(s)/mailto/www hrefs, which step 3
- *      would keep anyway, and it never runs inside a, code, pre, math or raw-text elements.
+ *      would keep anyway, and it never runs inside a, code, pre, math or raw-text elements,
+ *      nor inside the text a REFUSED link left (step 3's marker span, B-14 fix round 1),
+ *      which `unwrapRefusedLinks` then unwraps.
  * Then `doc.html = body.innerHTML` and the new items are appended to `doc.media`, deduped
  * by `ref` (first wins: an adapter's own item beats a pass's).
  *
@@ -27,7 +29,7 @@
  * before each one. Whatever `adapter.parse` throws propagates unchanged.
  */
 import { heldBody } from './uctJson'
-import { linkifyTextNodes, resolveHref, neutraliseRefusedAnchor } from './linkPolicy'
+import { linkifyTextNodes, resolveHref, neutraliseRefusedAnchor, unwrapRefusedLinks } from './linkPolicy'
 import { extractDataUriImages, collectRemoteImages, liftMediaOutOfLinks } from './mediaRefs'
 
 export function finishDoc(doc) {
@@ -48,6 +50,7 @@ export function finishDoc(doc) {
   }
   liftMediaOutOfLinks(body)
   linkifyTextNodes(body)
+  unwrapRefusedLinks(body)
 
   doc.html = body.innerHTML
   const seen = new Set()

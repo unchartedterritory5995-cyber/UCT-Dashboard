@@ -9,6 +9,15 @@ import { notionAdapter } from './adapters/notion'
 import { obsidianAdapter } from './adapters/obsidian'
 import { evernoteAdapter } from './adapters/evernote'
 import { keepAdapter } from './adapters/keep'
+import { readFileSync } from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+// B-14 fix round 1: the shared refused-link vectors (the server's test_linkify.py reads them too).
+const REFUSED = JSON.parse(readFileSync(
+  path.join(path.dirname(fileURLToPath(import.meta.url)), '__fixtures__', 'linkify_vectors.json'), 'utf8',
+)).refused_link_vectors
+const escHtml = (t) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 
 const PNG_B64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
 const vf = (path, text) => ({
@@ -18,6 +27,46 @@ const vf = (path, text) => ({
   bytes: async () => new TextEncoder().encode(text),
 })
 const body = (html) => new DOMParser().parseFromString(`<body>${html}</body>`, 'text/html').body
+
+const linkMarks = (bodyJson) => {
+  const out = []
+  const walk = (n) => {
+    for (const m of n.marks || []) if (m.type === 'link') out.push(m.attrs.href)
+    for (const c of n.content || []) walk(c)
+  }
+  walk(bodyJson)
+  return out
+}
+const textOf = (bodyJson) => {
+  let t = ''
+  const walk = (n) => { if (n.type === 'text') t += n.text; for (const c of n.content || []) walk(c) }
+  walk(bodyJson)
+  return t
+}
+
+describe('shared refused-link vectors: the text a refused link leaves is never re-linked (B-14 fix round 1)', () => {
+  it.each(REFUSED.map((v) => [v.name, v]))('finishDoc: %s', (_name, v) => {
+    const d = finishDoc({ html: `<p><a href="${escHtml(v.href)}"><b>${escHtml(v.text)}</b></a></p>`, media: [] })
+    expect(d.html).not.toContain('data-uct-refused-link')
+    const { bodyJson } = htmlToNote(d.html)
+    expect(linkMarks(bodyJson)).toEqual([])
+    expect(textOf(bodyJson)).toBe(v.text)
+  })
+  it.each(REFUSED.map((v) => [v.name, v]))('Evernote adapter, then finishDoc: %s', async (_name, v) => {
+    const enex = `<?xml version="1.0" encoding="UTF-8"?>
+<en-export><note><title>T</title><content><![CDATA[<?xml version="1.0"?><!DOCTYPE en-note SYSTEM "http://xml.evernote.com/pub/enml2.dtd"><en-note><div><a href="${escHtml(v.href)}">${escHtml(v.text)}</a></div></en-note>]]></content><created>20240105T093000Z</created></note></en-export>`
+    const { docs } = await parseImport(evernoteAdapter, [vf('Book.enex', enex)])
+    expect(docs).toHaveLength(1)
+    expect(docs[0].html).not.toContain('data-uct-refused-link')
+    const { bodyJson } = htmlToNote(docs[0].html)
+    expect(linkMarks(bodyJson)).toEqual([])
+    expect(textOf(bodyJson)).toBe(v.text)
+  })
+  it('linkify still runs around a refused link', () => {
+    const d = finishDoc({ html: '<p>see https://a.com/x <a href="https://b.com/c d">https://b.com/c d</a> and www.e.com</p>', media: [] })
+    expect(linkMarks(htmlToNote(d.html).bodyJson)).toEqual(['https://a.com/x', 'https://www.e.com'])
+  })
+})
 
 describe('finishDoc', () => {
   it('applies the shared rules to an Evernote-shaped doc', () => {
@@ -110,9 +159,12 @@ describe('finishDoc', () => {
     expect(body(d.html).textContent).toContain('j t v d f')
   })
 
-  it('linkify runs after the href pass: a neutralised link whose text is a URL becomes that link', () => {
+  // B-14 fix round 1 (controller ruling) REVERSES what this test used to pin ("a neutralised
+  // link whose text is a URL becomes that link"): a refused link's text is never re-linked on
+  // either runtime, because the URL it names may not be the one the text shows.
+  it('linkify runs after the href pass, but never over a neutralised link\'s text', () => {
     const d = finishDoc({ html: '<p><a href="javascript:x">https://y.com</a></p>', media: [] })
-    expect(d.html).toBe('<p><a href="https://y.com">https://y.com</a></p>')
+    expect(d.html).toBe('<p>https://y.com</p>')
   })
 
   it('linkify never runs inside a link, code, pre or math, and runs after the href pass', () => {

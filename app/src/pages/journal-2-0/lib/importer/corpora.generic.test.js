@@ -259,6 +259,7 @@ describe('B-14: every imported link has a door or is plain text (the defect Task
     const html = '<html><body><h1>Doors</h1>'
       + NO_DOOR.map((h, i) => `<p>N${i}: <a href="${h}">L${i}</a></p>`).join('')
       + NO_DOOR.map((h, i) => `<p>E${i}: <a href="${h}"></a></p>`).join('')
+      + NO_DOOR.map((h, i) => `<p>U${i}: <a href="${h}">${h}</a></p>`).join('')
       + KEPT.map(([h], i) => `<p>K${i}: <a href="${h}">K${i}</a></p>`).join('')
       + '</body></html>'
     const run = await importCorpus([vfileOf('doors.html', strToU8(html))], { expectAdapter: 'file' })
@@ -278,12 +279,18 @@ describe('B-14: every imported link has a door or is plain text (the defect Task
     expect(p.querySelector('a')).toBeNull()
   })
 
+  it.each(NO_DOOR.map((h, i) => [h, i]))('%s whose text is its own URL stays plain text, never re-linked (fix round 1)', (h, i) => {
+    const p = paragraph(body, `U${i}:`)
+    expect(p.textContent).toBe(`U${i}: ${h}`)
+    expect(p.querySelector('a')).toBeNull()
+  })
+
   it.each(NO_DOOR.map((h, i) => [h, i]))('%s with no text of its own keeps its URL as text', (h, i) => {
     const p = paragraph(body, `E${i}:`)
     expect(p.textContent).toBe(`E${i}: ${h}`)
-    // The URL is now prose, so linkify reads it like any other prose: `https://example.com/a b`
-    // yields a link on `https://example.com/a` (a door), never one on the refused href.
-    expect(renderedLinks(p).map((l) => l.href)).toEqual(h === 'https://example.com/a b' ? ['https://example.com/a'] : [])
+    // B-14 fix round 1: the URL a refused link leaves is never re-linkified -- before, the text
+    // `https://example.com/a b` came back as a link to `https://example.com/a`, a wrong target.
+    expect(p.querySelector('a')).toBeNull()
   })
 
   it('tel: with spaces, sms:, mailto: and https stay links, and the door opens each', () => {

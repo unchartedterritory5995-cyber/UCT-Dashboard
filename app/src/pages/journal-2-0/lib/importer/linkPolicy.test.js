@@ -6,7 +6,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, it, expect } from 'vitest'
 import { isAllowedUri } from '@tiptap/extension-link'
-import { linkifyTextNodes, resolveHref, neutraliseAnchor, neutraliseRefusedAnchor, refusedLinkText, hrefAsRead } from './linkPolicy'
+import { linkifyTextNodes, resolveHref, neutraliseAnchor, neutraliseRefusedAnchor, unwrapRefusedLinks, refusedLinkText, hrefAsRead } from './linkPolicy'
 import { openableLinkHref } from '../linkClickOpen'
 import { getLinkify, mdToHtml } from './adapters/generic'
 
@@ -159,7 +159,8 @@ describe('resolveHref', () => {
 
   it('an invisible-split app scheme is read as that scheme', () => {
     expect(resolveHref('ever\tnote:///view/1', 'https://news.example.com/p')).toBeNull()
-    expect(resolveHref('/\t/cdn.example.com/x.jpg')).toBe('https://cdn.example.com/x.jpg')
+    // B-14 fix round 1: built from the href as written, so a tab in it makes it text
+    expect(resolveHref('/\t/cdn.example.com/x.jpg')).toBeNull()
   })
 
   it.each([
@@ -226,12 +227,17 @@ describe('neutraliseRefusedAnchor (B-14: a refused link keeps its visible text, 
     const b = dom(html)
     neutraliseRefusedAnchor(b.querySelector('a'))
     expect(b.querySelector('a')).toBeNull()
+    expect(b.querySelectorAll('[data-uct-refused-link]')).toHaveLength(1) // linkify skips it
+    expect(linkifyTextNodes(b)).toBe(0)
+    expect(unwrapRefusedLinks(b)).toBe(1)
+    expect(b.querySelector('span')).toBeNull()
     expect(b.textContent).toBe(text)
   })
   it('an anchor holding only media keeps the media, not the URL', () => {
     const b = dom('<p><a href="ftp://x/f"><img src="import-ref://h"></a></p>')
     expect(refusedLinkText(b.querySelector('a'))).toBeNull()
     neutraliseRefusedAnchor(b.querySelector('a'))
+    unwrapRefusedLinks(b)
     expect(b.innerHTML).toBe('<p><img src="import-ref://h"></p>')
   })
 })

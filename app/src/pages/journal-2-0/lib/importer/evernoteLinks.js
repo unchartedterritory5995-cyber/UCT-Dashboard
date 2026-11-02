@@ -20,6 +20,7 @@
  */
 
 import { neutraliseAnchor } from './linkPolicy'
+import { PY_WHITESPACE_CLASS, pyStrip } from '../linkSchemes'
 
 const APP_LINK_RE = /^evernote:\/\/\/?view\//i
 const WEB_LINK_RE = /^https?:\/\/(?:www\.)?evernote\.com\/(?:shard\/[^/]+\/(?:nl|sh)\/|l\/)./i
@@ -37,19 +38,10 @@ export function isEvernoteNoteHref(href) {
 /** The key kind the server heals by title (`link_keys.EVERNOTE_TITLE_KIND`). */
 export const EVERNOTE_TITLE_KIND = 'evernote-title:'
 
-// ⛔ Exactly the characters Python's `str.split()` splits on (`str.isspace`), because the server
-// compares titles with `" ".join(t.split())` (`link_keys._norm_title`). JS `\s` is NOT that set:
-// it lacks U+001C-U+001F and U+0085 and adds U+FEFF. A title that normalises one way here and
-// another on the server would resolve in one import and never heal across imports.
-// The test derives the set from a Python-generated fixture (pyWhitespace.json), never restates it.
-export const PY_WHITESPACE_CLASS = '[\t\n\x0b\x0c\r\x1c-\x1f \x85\xa0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]'
+// Python's whitespace (`str.isspace`): `PY_WHITESPACE_CLASS` and `pyStrip` live in ../linkSchemes.js
+// (the link policy strips hrefs with them too); the title rules below read the same class.
 const PY_WHITESPACE_RUN = new RegExp(`${PY_WHITESPACE_CLASS}+`)
-const PY_STRIP_RE = new RegExp(`^${PY_WHITESPACE_CLASS}+|${PY_WHITESPACE_CLASS}+$`, 'g')
-
-/** Python `str.strip()`: JS `trim()` strips U+FEFF and keeps U+001C-U+001F / U+0085; this does not. */
-export function pyStrip(s) {
-  return typeof s === 'string' ? s.replace(PY_STRIP_RE, '') : ''
-}
+export { PY_WHITESPACE_CLASS, pyStrip }
 
 /** Trim + collapse whitespace to one space; case kept. Comparison is exact on the result. */
 export function normTitle(s) {

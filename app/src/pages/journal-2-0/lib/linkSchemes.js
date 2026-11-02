@@ -30,12 +30,27 @@ const INVISIBLE_RE = /[\u0000-\u0020\u00A0\u1680\u180E\u2000-\u2029\u205F\u3000]
 /** `href` as TipTap's `isAllowedUri` -- and a browser -- reads it: invisible characters removed. */
 export function hrefAsRead(href) {
   return href.replace(INVISIBLE_RE, '')
-
 }
-// U+FEFF is not in TipTap's class but IS in a JS `\s`, which the door's own checks
-// (`webUrl`, the mailto rule) refuse: refusing it here keeps every kept link openable.
-const BOM = String.fromCharCode(0xfeff)
-const clean = (x) => hrefAsRead(x) === x && !x.includes(BOM)
+
+// Whitespace by EITHER runtime's reading that TipTap's class lacks: U+FEFF and U+202F are a JS
+// `\s` (the door's own checks, `webUrl` and the mailto rule, refuse them), U+0085 and U+202F
+// are Python `isspace`. Refusing all three keeps every kept link openable and both sides equal.
+const EXTRA_SPACES = [0xfeff, 0x202f, 0x85].map((c) => String.fromCharCode(c))
+/** True when `x` holds no whitespace or invisible character by any of the three readings. */
+export const clean = (x) => hrefAsRead(x) === x && !EXTRA_SPACES.some((c) => x.includes(c))
+
+// ⛔ Exactly the characters Python's `str.split()`/`str.strip()` treat as whitespace
+// (`str.isspace`). JS `\s` and `trim()` are NOT that set: they lack U+001C-U+001F and U+0085
+// and add U+FEFF. An href is trimmed with THIS set (`pyStrip`), because the server trims with
+// `str.strip()`; evernoteLinks.test.js derives the set from a Python-generated fixture
+// (pyWhitespace.json), never restates it.
+export const PY_WHITESPACE_CLASS = '[\t\n\x0b\x0c\r\x1c-\x1f \x85\xa0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]'
+const PY_STRIP_RE = new RegExp(`^${PY_WHITESPACE_CLASS}+|${PY_WHITESPACE_CLASS}+$`, 'g')
+
+/** Python `str.strip()`: JS `trim()` strips U+FEFF and keeps U+001C-U+001F / U+0085; this does not. */
+export function pyStrip(s) {
+  return typeof s === 'string' ? s.replace(PY_STRIP_RE, '') : ''
+}
 
 const WEB_RE = /^https?:\/\/([^/?#]*)/i
 // host[:port]: a bracketed IPv6 literal, or a name with none of the characters a URL parser

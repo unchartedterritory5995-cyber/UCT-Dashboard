@@ -32,12 +32,13 @@
  * shared `href_vectors` pin it to the server. A linkify match it would refuse is not made.
  *
  * `neutraliseAnchor(a)` -- replaces `a` with its children (formatting and media kept).
- * `neutraliseRefusedAnchor(a)` -- the same for a link `resolveHref` refused; an anchor with NO
- * visible content shows its href instead (`refusedLinkText`), so the URL is not lost. Never for
+ * `neutraliseRefusedAnchor(a)` -- the same for a link `resolveHref` refused, held in a marker
+ * span linkify skips (`unwrapRefusedLinks` drops it); an anchor with NO visible content shows
+ * its href instead (`refusedLinkText`), so the URL is not lost. Never for
  * an unsafe scheme or a scheme-less href (as before).
  */
 import { getLinkify } from './adapters/generic'
-import { hrefAsRead, keptSchemeHref } from '../linkSchemes'
+import { hrefAsRead, keptSchemeHref, clean, pyStrip } from '../linkSchemes'
 
 // ── linkify (L-3) ────────────────────────────────────────────────────────────
 
@@ -47,7 +48,10 @@ const STOP_RE = /[\u3000\u3001\u3002\uFF0C\uFF1B\uFF1A\uFF01\uFF1F\uFF08\uFF09\u
 const TRAIL_CHARS = '.,:;!?'
 // Fix round 1: never an `<a>` inside a raw-text or foreign element (script, style,
 // textarea, title, svg), where it would be text or a foreign node, not a link.
-const SKIP_SELECTOR = 'a, code, pre, [data-type="inline-math"], [data-type="block-math"], [data-latex], [data-type="attachmentChip"], script, style, textarea, title, svg'
+// B-14 fix round 1: `[data-uct-refused-link]` is the text a REFUSED link left behind
+// (`neutraliseRefusedAnchor`): never re-linkified, or `https://x.com/a b` would come back as a
+// link to `https://x.com/a`, a target nobody named. `unwrapRefusedLinks` removes the marker.
+const SKIP_SELECTOR = 'a, [data-uct-refused-link], code, pre, [data-type="inline-math"], [data-type="block-math"], [data-latex], [data-type="attachmentChip"], script, style, textarea, title, svg'
 
 const kept = (m) => KEEP_SCHEMAS.has(m.schema) || (m.schema === '' && m.raw.slice(0, 4).toLowerCase() === 'www.')
 
@@ -165,7 +169,7 @@ function resolveRelative(href, sourceUrl) {
   if (host === APP_HOST || host.endsWith('.' + APP_HOST)) return null
   // B-14: whitespace in a relative href is text; `new URL` would percent-encode it and the
   // server's `urljoin` would not, so the two runtimes could not agree on the result.
-  if (hrefAsRead(href) !== href) return null
+  if (!clean(href)) return null
   try {
     const out = new URL(href, base)
     return out.protocol === 'http:' || out.protocol === 'https:' ? keptSchemeHref(out.href) : null
@@ -177,7 +181,8 @@ function resolveRelative(href, sourceUrl) {
 /** The href to keep, or `null` meaning "render as text". The server's `resolve_href`. */
 export function resolveHref(href, sourceUrl = null) {
   if (typeof href !== 'string') return null
-  const h = href.trim()
+  // B-14 fix round 1: Python's `str.strip()` set, never `trim()` (U+FEFF, U+001C-U+001F, U+0085).
+  const h = pyStrip(href)
   if (!h) return null
   if (KEPT_PREFIXES.some((p) => h.startsWith(p))) return h
   // ⛔ THE scheme guard: read as TipTap and a browser read it. `new URL` strips a tab too,
@@ -195,7 +200,8 @@ export function resolveHref(href, sourceUrl = null) {
     // B-14: a scheme the editor has no door for is text, never an inert link.
     return keptSchemeHref(h)
   }
-  if (read.startsWith('//')) return keptSchemeHref('https:' + read)
+  // B-14 fix round 1: built from `h`, never `read`: `//ex.com/a<TAB>b` must not become `ex.com/ab`.
+  if (read.startsWith('//')) return keptSchemeHref('https:' + h)
   return resolveRelative(h, sourceUrl)
 }
 
@@ -215,14 +221,30 @@ export function neutraliseAnchor(a) {
  */
 export function refusedLinkText(a) {
   if (a.textContent.trim() !== '' || a.querySelector('img, picture, video, audio, svg')) return null
-  const href = (a.getAttribute('href') || '').trim()
+  const href = pyStrip(a.getAttribute('href') || '')
   const m = SCHEME_RE.exec(hrefAsRead(href))
   return m && !UNSAFE_SCHEMES.has(m[1].toLowerCase()) ? href : null
 }
 
-/** A refused link becomes plain text: its content (`neutraliseAnchor`), or its URL when empty. */
+export const REFUSED_LINK_ATTR = 'data-uct-refused-link'
+
+/**
+ * A refused link becomes plain text: its content, or its URL when empty (`refusedLinkText`),
+ * held in a `<span data-uct-refused-link>` so `linkifyTextNodes` never re-links it (B-14 fix
+ * round 1). `unwrapRefusedLinks` removes the span after linkify (finishDoc step 5).
+ */
 export function neutraliseRefusedAnchor(a) {
   const text = refusedLinkText(a)
-  if (text !== null) a.replaceChildren(a.ownerDocument.createTextNode(text))
-  neutraliseAnchor(a)
+  const span = a.ownerDocument.createElement('span')
+  span.setAttribute(REFUSED_LINK_ATTR, '')
+  if (text !== null) span.textContent = text
+  else while (a.firstChild) span.appendChild(a.firstChild)
+  a.replaceWith(span)
+}
+
+/** Unwraps every `neutraliseRefusedAnchor` marker in `root` (children kept); returns how many. */
+export function unwrapRefusedLinks(root) {
+  const spans = [...root.querySelectorAll(`[${REFUSED_LINK_ATTR}]`)]
+  for (const s of spans) neutraliseAnchor(s)
+  return spans.length
 }
