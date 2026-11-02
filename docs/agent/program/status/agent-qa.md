@@ -38,6 +38,45 @@ Only agent-qa edits this file. Update it in every PR.
   `stock.quote`.
 - Suites on #691 + pins, under the lock: Agent pytest 1733 passed; vitest 138 files, 2494 passed.
 
+## #692 News → Agent: GO HOLDS on the trial merge `f9e58e73a2`, and the REAL-BACKEND gate passes, 2026-11-02
+- **Trial merge checks:**
+  - parents are master `ef0a495631` and `ce1d25860f`; production is an ancestor;
+  - (trial − master) and (`a4fbfc3bf1..ce1d25860f`) have the same patch-id (`b9a146c…`);
+  - master's only change (`kinds.py`) overlaps nothing; every RC file is blob-identical in the trial.
+- **REAL BACKEND, on `f9e58e73a2`.** The real app runs under uvicorn on 127.0.0.1:8093 via `scripts/hub_sandbox_boot.py`:
+  sandbox `C:/data-qa-news`, 116 AST-derived path pins, the `C:\data` tripwire, a 74-entry kill-list, model keys
+  blank.
+  - The real UCT News pipeline and store (`TXN_ENABLED=1`, `TXN_SYNTHETIC_ONLY=1`, no journal) were seeded with two
+    ULID headlines through `Store.ingest`.
+  - The real Agent conversation store and real auth: local test accounts `qa-admin`, `qa-admin2` and `qa-member`;
+    the member was comped by an admin over HTTP.
+  - `UCT_AGENT_NEWS` was set only in that process. The model was stubbed at the provider boundary
+    (`engine._anthropic_client`, every request recorded), with no paid call possible.
+  - The shared venv lacks `linkify_it` / `pi_heif`, so throwaway stub modules were put on PYTHONPATH (the venv was
+    not touched).
+  - Four boots on the same sandbox:
+    - **Boot 1, (a):** an Ask returns 200; the model prompt carries the STORED headline read by `by_event_id`; the
+      client-sent text reaches no model call; the rules frame the headline as untrusted DATA; the answer has no ops.
+    - **Boot 1, (b):** GET `/api/agent/conversations/<id>` returns the conversation; a follow-up continues it; it is
+      named "News: NVIDIA…".
+    - **Boot 1, (c):** each refusal has 0 model calls and no spend change: signed out 401, member 403, `../etc` 422,
+      lowercase ULID 422, unknown ULID 404. Another admin's id is not continued and is unreadable; another headline's
+      chat is not continued.
+    - **Boot 1, (e):** a news turn settles on `agent_spend` at $0.0013 per call, the same as an ordinary turn, with no
+      open reservations; the shared $15 site block is read.
+    - **Boot 2 (restart), (b):** the conversation is intact (6 of 6 turns); a follow-up continues it with the headline
+      re-read; a "Continue in UCT Agent" panel turn keeps the chat and the headline.
+    - **Boot 3 (switch unset), (d):** config `news:false`; `context.news` gets 404 with 0 calls and no spend; the
+      panel chat works without the headline.
+    - **Boot 4 (cap 0.000001), (e):** the Ask gets 429 before any model call.
+  - Results: 32 checks passed. One check was my driver's (it read `/api/auth/me` wrong); the roles were confirmed by
+    hand: admin, admin, member.
+  - `C:\data` was CLEAN at every snapshot (pre-boot ×5, +15s ×2, shutdown ×1), and the live files' mtimes are
+    unchanged (11:33).
+  - Evidence: the scratchpad `news_backend/` (boot.py, seed.py, drive.py, boot1–4 logs, sandbox-runs/).
+- **Not done:** headless Chromium Ask → Continue. Playwright and Chromium are not installed in either Python, and
+  installing them would change the shared venv or `node_modules`. The HTTP half covers both sides of the continuity.
+
 ## PR #695 at `f0b1dee621` (F-24 fixed): **GO** — FAIL = 0 on all four sets, 2026-11-02
 - The fix is my measured one-liner: L3 now treats an upper-case ticker in the token's OWN name as a word. I reviewed the
   diff: `instruments.py` changes by 1 line plus a comment, and agent-md's test file gains a rail.
