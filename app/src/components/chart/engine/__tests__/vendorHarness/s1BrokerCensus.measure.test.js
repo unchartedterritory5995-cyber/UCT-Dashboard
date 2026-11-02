@@ -24,7 +24,8 @@ import path from 'node:path'
 import * as registry from '../../nativeRegistry'
 import { gradeCapture, loadCapture, HARNESS_DIR, enterDoorState, REPO } from './harness'
 import { cap3Signature } from './cap3Signature'
-import { enterMemberDoor, HARNESS_DEF_ID } from './ourSide'
+import { enterMemberDoor, HARNESS_DEF_ID, toProductBars } from './ourSide'
+import { computeRuntimeColumns } from '../../runtime/runtimeColumns.js'
 import { buildRuntimeIr } from '../../ast/pineRuntimeFrontend.js'
 import { lowerIrProgram } from '../../runtime/lowerIr.js'
 import { execute } from '../../runtime/vm.js'
@@ -83,8 +84,18 @@ it.skipIf(!RUN)('S1 (B): the corpus strategies, flag off and on', () => {
       enterDoorState('runtime')
       vi.stubEnv(FLAG, flag)
       const door = enterMemberDoor(src)
-      registry.uninstallUserDefinition(HARNESS_DEF_ID)
       row[`door_${k}`] = door.def ? 'attach' : `${door.stage}: ${String(door.refusal).slice(0, 160)}`
+      // the member's own run of an attached RUNTIME document, on the R1 RDDT bars
+      if (door.def && door.def.compute && typeof door.def.compute.source === 'string') {
+        try {
+          const cols = computeRuntimeColumns(door.def, toProductBars(r1), {
+            tf: 'D', symbol, newestBarIsForming: false, historyFromListing: true })
+          row[`door_run_${k}`] = `drawn: ${Object.entries(cols).filter(([x]) => !x.startsWith('__')).map(([x, c]) => `${x}=${Array.isArray(c) ? c.filter((v) => Number.isFinite(v)).length : '?'} finite`).join(', ')} of ${r1.bars.rows.length} bars`
+        } catch (e) {
+          row[`door_run_${k}`] = `${e.guard || e.name}: ${String(e.message).slice(0, 200)}`
+        }
+      }
+      registry.uninstallUserDefinition(HARNESS_DEF_ID)
       const b = buildRuntimeIr(src, { bars, inputs: {}, symbol, strategyBroker: flag === '1' })
       row[`build_${k}`] = b.ok ? (b.ir.broker ? 'ok (broker)' : 'ok') : `${b.refusal.guard}: ${String(b.refusal.message).slice(0, 160)}`
       if (b.ok && b.ir.broker) {

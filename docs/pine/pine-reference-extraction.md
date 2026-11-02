@@ -410,6 +410,7 @@ async function cached(fileName, url) {
 | output riddled with `<<MISSING_STRING_*>>` | a localized chunk id was missed, or the locale differs | confirm every `.e()` id was downloaded; pass `--lang en` explicitly |
 | stale content after a TradingView deploy | `_chunkcache/` is keyed by filename, and the filename contains the content hash | a new hash means a new filename means an automatic refetch; to force a full refresh delete `_chunkcache/` |
 | 403 / Cloudflare | UA filtering | the script already sends a desktop Chrome UA — keep it |
+| `FAILED: a.t is not a function` at step 7 (2026-10-04) | TradingView renamed the i18n helper module: the data module now reads `var a=n(383636)`, not `n(982245)` | read the helper id off the data chunk's head (`head -c 600 42609.*.js`) and add it to the stub's `if (id === 982245 ...)` test; with `383636` added the v4 / v5 / v6 extractions completed (S1, `docs/pine/strategy-broker-spec.md`) |
 
 ## 8. Provenance and caveats
 
