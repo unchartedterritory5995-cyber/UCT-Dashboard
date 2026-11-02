@@ -159,7 +159,7 @@ import { compileMessagePattern, tostringPatternOf } from '../pineTextFormat.js'
 // copies of "does an empty needle match" is the second-authority defect this repo
 // keeps paying for. The exchange-witness map lives there too: it is consulted per
 // BINDING, which is not a question a door that runs once per script can answer.
-import { TEXT_PREDICATE_FN, foldScalar } from './bind.js'
+import { TEXT_PREDICATE_FN, foldScalar, SYMBOL_TYPE_NEVER_LISTED, SYMBOL_LISTING_KIND } from './bind.js'
 // ⭐ THE SHARED WINDOW PREDICATE — from `parse.js`, the one module the SAVE
 // door, the bind stage and the repaint LINTER can all see. See L2 in
 // `bindFoldableAgreement.test.js` for why it cannot live beside the fold.
@@ -8239,6 +8239,25 @@ export class Resolver {
     return null
   }
 
+  /** ⭐⭐ W19-H2 — `syminfo.type == L` / `!= L` where `L` is a WRITTEN string no exchange
+   *  listing can carry (`type_decidable.never_on_a_confirmed_exchange`: forex, crypto, cfd,
+   *  futures, index, economic, spread). The answer is false (`!=`: true) for every symbol
+   *  on a confirmed exchange, so the door emits `textop ne|eq(symtext listing_kind,
+   *  <marker>)`: the binding supplies the marker only for a confirmed exchange, and any
+   *  other symbol stops the fold by name. ⛔ Only the bare built-in name against a
+   *  literal: `== "stock"`, a binding holding the type, or text built from it return
+   *  null and keep `unserved.type`. */
+  decidableSymbolTypeComparison(node) {
+    if (!SYMBOL_LISTING_KIND || !SYMBOL_TYPE_NEVER_LISTED.size) return null
+    const isType = (n) => !!n && n.type === 'name' && n.name === 'syminfo.type' && !(this.env && this.env.get && this.env.get(n.name))
+    const other = isType(node.left) ? node.right : isType(node.right) ? node.left : null
+    if (!other || isType(other)) return null
+    const lit = this.stringValueOf(other)
+    if (lit === null || !SYMBOL_TYPE_NEVER_LISTED.has(lit)) return null
+    return { type: 'textop', name: node.op === '==' ? 'ne' : 'eq',
+      args: [{ type: 'symtext', name: 'listing_kind' }, { type: 'str', value: SYMBOL_LISTING_KIND }] }
+  }
+
   /** ⭐ H6 — is `ta.obv`'s LEVEL served here? The host lane only, and only while
    *  the pieces it is spelled from are the table's (`cum` admitted for a pane by
    *  `_requirement_tags`, `sign` and `change` declared). A screen keeps the table's
@@ -9467,6 +9486,14 @@ export class Resolver {
         // script bug, and quietly answering 0 would hide it: `textOperandOf`
         // returns null for the number and this falls through to the ordinary
         // refusal, which names the operand.
+        // ⭐⭐ W19-H2 — `syminfo.type` COMPARED WITH A TYPE NO EXCHANGE LISTING CAN HAVE
+        // (`symbolScope.json::type_decidable`, integrator ruling 2026-10-05). Asked BEFORE
+        // `textOperandOf`, which refuses the field by name — and still does for every
+        // other use. Deferred to the binding: only a confirmed exchange settles it.
+        if (node.op === '==' || node.op === '!=') {
+          const typeCmp = this.decidableSymbolTypeComparison(node)
+          if (typeCmp) return typeCmp
+        }
         if (node.op === '==' || node.op === '!=') {
           const lt = this.textOperandOf(node.left)
           const rt = lt ? this.textOperandOf(node.right) : null

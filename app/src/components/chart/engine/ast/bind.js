@@ -176,6 +176,14 @@ export const SYMBOL_EXCHANGE_CONFIRMED = Object.freeze(Object.fromEntries(
     .map(([k, v]) => [k, String(v.pine)]),
 ))
 
+/** ⭐ W19-H2 — the marker a confirmed exchange's binding carries so the door's
+ *  `syminfo.type` comparisons against `type_decidable.never_on_a_confirmed_exchange`
+ *  fold; the type's VALUE is never served. Mirrors `ast_bind.py::SYMBOL_LISTING_KIND`. */
+export const SYMBOL_LISTING_KIND = (SYMBOL_SCOPE && SYMBOL_SCOPE.type_decidable
+  && typeof SYMBOL_SCOPE.type_decidable.listing_kind === 'string') ? SYMBOL_SCOPE.type_decidable.listing_kind : null
+export const SYMBOL_TYPE_NEVER_LISTED = Object.freeze(new Set(((SYMBOL_SCOPE && SYMBOL_SCOPE.type_decidable
+  && SYMBOL_SCOPE.type_decidable.never_on_a_confirmed_exchange) || []).map(String)))
+
 /** The listing fields a US listing answers (`syminfo.root`, `basecurrency`,
  *  `currency`, `timezone`, `session`, `pointvalue`), per our store's exchange,
  *  ONLY for an exchange whose `symbolScope.json::listing_fields` entry names
@@ -221,6 +229,9 @@ export function symbolConstantsWith(confirmed, symbol, ticks = null, listing = n
     const pine = confirmed[stored]
     out['syminfo.prefix'] = pine
     out['syminfo.tickerid'] = `${pine}:${ticker}`
+    // ⭐ W19-H2 — a confirmed exchange settles `syminfo.type`'s DECIDABLE comparisons
+    // (`symbolScope.json::type_decidable`): the door's `textop` over this marker.
+    if (SYMBOL_LISTING_KIND) out['syminfo.listing_kind'] = SYMBOL_LISTING_KIND
   }
   // ⭐ 2026-09-28 — THE TICK SIZE, ON ITS OWN WITNESS TABLE. Same key (our
   // store's exchange), different evidence: an exchange whose prefix was measured

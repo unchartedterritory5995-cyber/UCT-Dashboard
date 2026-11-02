@@ -223,6 +223,12 @@ SYMBOL_TICK_SIZE = {
 }
 
 
+#: W19-H2 -- ``bind.js::SYMBOL_LISTING_KIND``: the marker a confirmed exchange's binding
+#: carries so ``syminfo.type == <never-listed type>`` folds; the VALUE is never served.
+_TYPE_DECIDABLE = _SYMBOL_SCOPE.get("type_decidable") or {}
+SYMBOL_LISTING_KIND = _TYPE_DECIDABLE.get("listing_kind") if isinstance(_TYPE_DECIDABLE.get("listing_kind"), str) else None
+SYMBOL_TYPE_NEVER_LISTED = frozenset(str(x) for x in (_TYPE_DECIDABLE.get("never_on_a_confirmed_exchange") or []))
+
 #: The six listing fields a US listing answers, ONLY for an exchange whose
 #: ``symbolScope.json::listing_fields`` entry names witnesses (C29, 2026-09-30).
 #: Mirrors ``bind.js::SYMBOL_LISTING_FIELDS``.
@@ -281,6 +287,9 @@ def symbol_constants_with(confirmed, symbol=None, ticks=None, listing=None) -> d
         pine = confirmed[stored]
         out["syminfo.prefix"] = pine
         out["syminfo.tickerid"] = pine + ":" + ticker
+        # W19-H2 -- ``syminfo.type``'s decidable comparisons (``bind.js`` twin).
+        if SYMBOL_LISTING_KIND:
+            out["syminfo.listing_kind"] = SYMBOL_LISTING_KIND
     # ⭐ 2026-09-28 — THE TICK SIZE, ON ITS OWN WITNESS TABLE. Same key (our
     # store's exchange), different evidence: an exchange whose prefix was
     # measured has not thereby had its tick size measured, so ``ticks`` is read

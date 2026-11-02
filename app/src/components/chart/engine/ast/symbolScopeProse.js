@@ -33,6 +33,8 @@ export const KEEP = Object.freeze([
   'listing_fields',
   'pending_measurement',
   'tick_size',
+  // W19-H2 — `syminfo.type`'s decidable comparisons (bind.js / pine.js read it).
+  'type_decidable',
   'unserved',
   'unserved_on_a_screen',
 ])

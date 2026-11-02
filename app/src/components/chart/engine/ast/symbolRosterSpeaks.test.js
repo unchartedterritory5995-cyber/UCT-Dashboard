@@ -102,8 +102,10 @@ describe('(h) — three syminfo fields retire by name, from the roster', () => {
     expect(Object.keys(BUILTIN_SYMBOL_UNSERVED)).not.toContain('syminfo.tickerid')
     // ⭐ `mintick` joined `pending_measurement` on 2026-09-28: served where a
     // capture backs the exchange, refused with THIS roster's sentence where not.
+    // ⭐ W19-H2: `listing_kind` joined it — the marker `syminfo.type`'s decidable
+    // comparisons fold from, refused with this roster's sentence off a confirmed exchange.
     expect(Object.keys(SYMBOL_SCOPE.pending_measurement).filter((k) => !k.startsWith('_')).sort())
-      .toEqual(['basecurrency', 'currency', 'mintick', 'pointvalue', 'prefix', 'root', 'session',
+      .toEqual(['basecurrency', 'currency', 'listing_kind', 'mintick', 'pointvalue', 'prefix', 'root', 'session',
         'tickerid', 'timezone'])
     expect(Object.keys(BUILTIN_SYMBOL_UNSERVED)).not.toContain('syminfo.mintick')
   })
