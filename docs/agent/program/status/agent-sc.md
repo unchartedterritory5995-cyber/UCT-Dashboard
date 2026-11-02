@@ -2,18 +2,33 @@
 
 Only agent-sc edits this file. Update it in every PR.
 
-## Integrated (agent/int)
+## Released (master / production c3ba71c343, Sprint 1, every Agent flag OFF)
 - **#570** `screen.run` + `screen.count`: SC-1 v1.1 §2a, the `Kind.validate` precheck, and the F-4 zero-match fix.
 - **#578** `screen.saved` + `saved_id` / `text` sources (SC-1 §2b).
 - **#580** (agent-lead) ADR-002 with agent-sc's inventory of legacy-screener callers.
 - **#582** discovery eval corpus (31 questions) + `screen.saved` coverage counts every screen.
 - **#584** the screener capability answers through the gateway (dark), keyed by `trace.currentTurnId()`, with panelHarness acceptance (F-7 fixed).
+- **#592** SC-1 v1.3 §2c, relative volume (docs); MD-1 §4.3 (#591) points to it.
+- **#593** SAT-1 kit + run-1 results (owner accepted A/C/D/E as PASS on 8f9e65eda0; B NOT TESTED).
+- **#601** F-SAT-3: a screener message typed before the catalog loads waits for it (≤ 3 s) and never falls to the model.
 
-## In flight
-- **#592** SC-1 v1.3 §2c "Relative volume" (docs). It must land before or with agent-md's #591 (MD-1 §4.3 points to it).
-- **SAT-1 kit** (branch `agent/sc/sat1`, this PR): `scan/sat/seed.py` (a synthetic sandbox universe; measured expected answers) + `contracts/SC-1-SAT-1.md` (exact instructions). Also the singular/plural wording in the coverage notes (server and client).
-- **SAT-1 execution:** no-model sections A, C, D and E in a local sandbox. Section B (planner) only with an approved dev credential under the existing $5/day Agent and $15 shared caps; no credential on this box yet.
-- **Next: PR 3**, discovery planning per SC-1 §2c (`rvol_live` / `vol_ratio`, canonical; no relative-volume calculator).
+## In flight (Sprint 2, flags-off preparation; order A → B → C, agent-lead approved)
+- **A: SAT-1 section B as one command** (branch `agent/sc/sat1-b-runner`, this PR).
+  `python -m api.services.uct_agent.scan.sat.section_b` is a DRY RUN by default: it prices the exact requests and sends
+  nothing (no key, no data dir, no database opened). `--run --i-have-owner-approval --data-dir <sandbox>` replays the
+  real panel's captured requests through `turn.run_turn` with `budget.Meter`: Agent $5 ledger counted, shared $15
+  ledger checked (read-only, owner Gate A option 1), 2-call ceiling, and a per-run `--max-usd` (default $1.00).
+  Raw records go to `raw.jsonl` before the summary. Requests are captured by `agentScanSat1Requests.test.jsx` (no model).
+  Dry run on c3ba71c343: 31 questions to the planner, 14 may reroute, exact worst case $3.0147, estimate ≈ $0.41.
+  **Still blocked for `--run`** until agent-lead relays the owner's credential approval.
+- **B: SC-2 draft** (NL scanning: parsed-intent layer + ≥ 60-phrasing corpus with follow-up chains). Next.
+- **C: model-call reduction** (a deterministic slot parser behind the flags, measured on both corpora). After B.
+
+## Findings (no paid call needed)
+- **F-SB-1 (routing, agent-lead's `routing.js`):** 14 of 31 discovery questions are routed WITHOUT the screener group
+  (e.g. "RSI over 70" → indicators; "unusual volume in semis" → charts; "small caps … short float" → data). The planner
+  cannot screen on its first call for those; it must spend the request's second call on a `need_groups` reroute.
+  Reported to agent-lead; the runner measures it rather than assumes it.
 
 ## Scope rulings
 - Indicator conditions are refused until their own milestone (IC-1 / ADR-004 → SC-1 v1.2, unscheduled).
@@ -22,12 +37,11 @@ Only agent-sc edits this file. Update it in every PR.
 - SC-1's 50-row cap stays; `produce` and measure screens use the Screener's route.
 
 ## Blockers
-- SAT-1 section B: needs an approved development API credential from the owner.
+- SAT-1 section B `--run`: an owner-approved development credential (agent-lead is raising it). None will be obtained or reused.
 
 ## Handoffs (to / from)
-- agent-qa: corpus scorer (theirs); the no-model fast-path baseline is next.
-- agent-md: MD-1 §4.3 (#591) points to SC-1 §2c (#592).
+- agent-qa: corpus scorer (theirs). A recorded section-B run is scorable offline from `raw.jsonl` (`candidate.logic`).
+- agent-lead: F-SB-1 (routing); the fast-path hook for C will be a written request, never an edit.
 
 ## Ready for integration
-- #592 (SC-1 §2c).
-- SAT-1 kit (this PR).
+- `agent/sc/sat1-b-runner` (A).

@@ -509,7 +509,7 @@ def test_the_files_on_disk_are_exactly_what_this_module_generates():
     assert want, "the generator produced nothing"           # non-vacuity
     # scores/ belongs to tests/test_uct_agent_qa_scan_corpus.py (its pinned baseline); every other JSON here is ours
     on_disk = sorted(rel for rel in (p.relative_to(FIXTURE_DIR).as_posix() for p in FIXTURE_DIR.rglob("*.json"))
-                     if not rel.startswith("scores/"))
+                     if not rel.startswith("scores/") and rel != "isolation.json")   # isolation.json: the isolation rail's
     assert on_disk == sorted(want), "a fixture JSON exists that this module does not generate, or one is missing"
     # line endings are normalised: git stores LF, and autocrlf checks these out as CRLF on Windows
     stale = [rel for rel, text in want.items()
@@ -702,6 +702,7 @@ def test_bars_daily_fixtures_mirror_the_merged_adapter():
 
 def test_the_fake_registry_round_trips_through_the_real_gateway(monkeypatch):
     monkeypatch.setenv(gw.DATA_ENV, "1")
+    monkeypatch.setenv(gw.KINDS_ENV, ",".join(KINDS))  # every fixture kind on
     monkeypatch.setenv(gw.SCAN_ENV, "1")
     try:
         gw._reset_for_test(fake_registry())

@@ -237,15 +237,20 @@ async def day(request: Request, _user: dict = Depends(get_current_user)) -> JSON
     store = pipe.store
     t_req = time.perf_counter()
 
+    history = d.get("history") is True
+
     def build() -> dict[str, Any]:
         t0 = time.perf_counter()
         misses0 = txn_archive.stats["misses"]
-        out = txn_archive.day_slice(
-            store, day=which, limit=limit, cursor=d.get("cursor"),
-            direction="newer" if d.get("direction") == "newer" else "older", at=at,
-            query=d.get("query") if isinstance(d.get("query"), str) else "", categories=cats,
-            symbol=d.get("symbol") if isinstance(d.get("symbol"), str) else None, symbols=syms,
-            hide_placeholders=d.get("hide_placeholders", True) is not False)
+        common = dict(query=d.get("query") if isinstance(d.get("query"), str) else "", categories=cats,
+                      symbol=d.get("symbol") if isinstance(d.get("symbol"), str) else None, symbols=syms,
+                      hide_placeholders=d.get("hide_placeholders", True) is not False)
+        if history:                                   # Linked to chart: every archived day, newest first
+            out = txn_archive.history_slice(store, limit=limit, cursor=d.get("cursor"), **common)
+        else:
+            out = txn_archive.day_slice(
+                store, day=which, limit=limit, cursor=d.get("cursor"),
+                direction="newer" if d.get("direction") == "newer" else "older", at=at, **common)
         t1 = time.perf_counter()
         out.pop("seqs")
         out["items"] = [txn_pipeline.headline_event(r, store.epoch, txn_archive.event_fields(r["source"], r["content"]))
@@ -257,7 +262,7 @@ async def day(request: Request, _user: dict = Depends(get_current_user)) -> JSON
         return out
 
     out = await _in_slot(build)
-    out.update(date=which.isoformat(), epoch=store.epoch, coverage=_coverage(),
+    out.update(date=None if history else which.isoformat(), epoch=store.epoch, coverage=_coverage(),
                tickers_provisional=TICKERS_PROVISIONAL, server_ms=int(time.time() * 1000))
     return JSONResponse(out)
 
@@ -326,6 +331,11 @@ def library_items(q: str = Query("", max_length=200), ticker: str = Query("", ma
     return _lib(txn_library.items, _uid(user), store, query=q, ticker=ticker, collection=collection,
                 date_from=date_from, date_to=date_to, sort=sort, offset=offset, limit=limit,
                 event_for=_event_for(store))
+
+
+@router.get(LIB + "/bookmarks/{event_id}")
+def library_bookmark(event_id: str, user: dict = Depends(get_current_user)) -> JSONResponse:
+    return _lib(txn_library.get_bookmark, _uid(user), event_id, _store())
 
 
 @router.put(LIB + "/bookmarks/{event_id}")

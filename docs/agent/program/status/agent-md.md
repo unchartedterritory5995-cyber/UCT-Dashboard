@@ -51,6 +51,21 @@ Only agent-md edits this file. Update it in every PR.
   as_of = price session close; undated legs noted; incomplete → partial; 3 calls). MD-1 **v1.4** §4.4.
   Tests 39, mutation-checked (dropping isolation reds 4; as_of from computed_at reds 3). Refreshed for #599:
   DORMANT unless `UCT_AGENT_ISOLATED=1` — refused for every purpose, `answer` included; active-behaviour tests set the flag.
+- PR 4b is ✅ INTEGRATED as #596 (`e242740211`), live dark in production `c3ba71c343` (QA GREEN r2 `0da44001b8`).
+- **Sprint 2 (flags off), agreed order A → B → D → C with agent-lead:**
+  - **A — phrasings list** (branch `agent/md/phrasings`): `contracts/MD-1-phrasings.md`, 30 phrasings with their
+    deterministic handling, ambiguous-ticker rule, answer obligations. Docs only.
+  - **B — `stock.quote`** (branch `agent/md/stock-quote`, includes A): `capabilities/marketDataQuote.js` (answer +
+    `match()` + idempotent registration that is a no-op while `data` is false) over the shared pure parser
+    `capabilities/marketDataPhrases.js`. `quotes.py` gains the additive `data.session_detail` (regular · premarket
+    · after-hours · overnight · closed); `session` is derived from it. MD-1 **v1.5** §4.5. Flags off = stock.profile
+    byte for byte (rail), also while `data_kinds` (#621) lacks `quote`/`quotes`. The turn id comes from
+    `currentTurnId()` at the read (agent-qa's rail). Vitest 66, mutation-checked 6 ways (kinds gate dropped, flag
+    ignored, stale-as-live, fallback removed, ambiguous rule dropped, veto dropped: each red).
+  - **D — freshness corpus (#598)**: merged up to agent/int `25979607eb` (A and B in); per-session fixture clocks in progress.
+  - **C — `bars.daily` answers** (`capabilities/marketDataBars.js`). Pending.
+  - Lead-owned dependencies: `builtins.js` registration line, `UCT_AGENT_DATA_KINDS` allowlist (fail closed),
+    `fastPath.js` wiring of `match()`.
 - **Freshness regression corpus** (branch `agent/md/freshness-corpus`, **stacked on #596**: it quotes the
   breadth/ratings note constants). `api/services/uct_agent/marketdata/eval/freshness.json`: 25 present-tense
   questions, each with a fixture MD-1 envelope (built by `make_envelope`, so valid by construction) and
@@ -81,8 +96,6 @@ Only agent-md edits this file. Update it in every PR.
   quiet as stale, so it is not a substitute. Until then the kind stays dark (it is). **Known limitation and pre-activation requirement** (agent-lead,
   2026-11-01): agent-lead routes the O(1) `MAX(last_ok)` read to the news owner; `news.company` must not be
   activated on `health_snapshot`.
-- Next: PR 4b after the gateway PR; ADR-003 flow/darkpool spike (draft);
-  freshness eval corpus with agent-qa.
 
 ## Blockers
 - (none) — the Sprint-0 gateway test was updated by agent-lead in #571.
@@ -94,4 +107,5 @@ Only agent-md edits this file. Update it in every PR.
   a store one session behind (stale), and a store row for today's developing bar (must be excluded).
 
 ## Ready for integration
-- PR 4b `breadth.current` + `ratings`
+- PR A phrasings list (docs only), #620
+- PR B `stock.quote` (needs agent-lead: `builtins.js` line, `UCT_AGENT_DATA_KINDS`, `fastPath.js` wiring)

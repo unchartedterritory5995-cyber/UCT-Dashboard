@@ -180,6 +180,23 @@ MAX_DEFINITION_BYTES = 64 * 1024
 #: Live (non-tombstoned) definitions per user.
 MAX_DEFINITIONS_PER_USER = 50
 
+#: ⭐⭐ SAVED-SCRIPT AUTO-UPGRADE — the Pine source a script door saved the
+#: document FROM, stored in its own column (`pine_source`), never inside the
+#: document. Three reasons it is a column and not `meta.*`:
+#:   * the document's 64 KiB cap is about the TRANSLATED maths; a 34 KB script
+#:     inside it would refuse saves that succeed today;
+#:   * `list_for_user` feeds every chart load, and the source is needed only by a
+#:     browser whose engine is newer than the document's stamp — so the list
+#:     carries it ONLY for those rows (`list_for_user(source_below=…)`) and a
+#:     current document costs zero extra bytes;
+#:   * every server lane (alerts, scans, backtests) reads `definition`, and none
+#:     of them needs, or should ever see, the script text.
+#: A source above this cap is NOT a refusal (that would refuse a save that works
+#: today): the document is stored without it, the answer says
+#: `pine_source_stored: false`, and the chart offers the "open and save" notice
+#: instead of the silent upgrade. ⛔ THE SOURCE IS NEVER LOGGED — only its size.
+MAX_PINE_SOURCE_BYTES = 256 * 1024
+
 #: ⭐ THE ID NAMESPACE, AND THE SHAPE IS FORCED, NOT CHOSEN.
 #:
 #: `defSchema.ID_RE` is `/^[A-Za-z0-9][A-Za-z0-9_-]*$/` — NO DOTS, because plots
@@ -282,6 +299,10 @@ def _connect() -> sqlite3.Connection:
 #: tags, and a default of `'[]'` would silently under-tag history.
 _ADDED_COLUMNS = (
     ("user_definitions", "requirements", "TEXT NOT NULL DEFAULT '[]'"),
+    # ⭐ SAVED-SCRIPT AUTO-UPGRADE — the member's Pine, kept BESIDE the document
+    # (never inside it). NULL for every row written before this column and for
+    # every row a non-script door writes. See `MAX_PINE_SOURCE_BYTES`.
+    ("user_definitions", "pine_source", "TEXT"),
 )
 
 
@@ -1097,6 +1118,69 @@ def refresh_from_door_stamps(definition: Any, rules: Optional[Mapping] = None) -
     return out
 
 
+# ⭐⭐ PHASE 3 WS-D — THE TWO INPUT TYPES ONLY A RUNTIME DOCUMENT MAY DECLARE, mirrored from
+# `defSchema.js` (`RUNTIME_INPUT_TYPES`, `isSessionString`, `TIME_INPUT_MAX_ABS_MS`): a pasted
+# Pine script's `input.time` (whole UNIX milliseconds) and `input.session` (`HHMM-HHMM`, ranges
+# joined by `,`, an optional `:days` suffix of 1..7 each at most once, or `24x7`).
+# ⛔ The browser refuses both on any document that is not `compute.kind == "runtime"` and checks
+# their values; this is the same rule at the door every member shares. Every OTHER input type is
+# left exactly as this store has always treated it (nothing here reads one), so no stored
+# document's shape is judged differently: no client ever minted these two types before WS-D.
+RUNTIME_INPUT_TYPES = ("time", "session")
+TIME_INPUT_MAX_ABS_MS = 8_640_000_000_000_000
+# ⛔ `[0-9]` + `re.ASCII` + `fullmatch`, never a bare `\d`: Python's `\d` matches ANY Unicode
+# digit (Arabic-Indic, fullwidth, Devanagari) where JavaScript's matches 0-9 only, so a
+# direct-API save would store a session the browser refuses and the document would never
+# install. The shared fixture's non-ASCII rows pin both sides.
+_SESSION_RE = re.compile(r"([0-9]{4}-[0-9]{4}(?:,[0-9]{4}-[0-9]{4})*)(?::([1-7]{1,7}))?", re.ASCII)
+
+
+def is_session_string(value: Any) -> bool:
+    """`defSchema.js::isSessionString`, the same cases (`tests/test_runtime_input_kinds.py`)."""
+    if not isinstance(value, str):
+        return False
+    if value == "24x7":
+        return True
+    m = _SESSION_RE.fullmatch(value)
+    if not m:
+        return False
+    days = m.group(2)
+    if days and len(set(days)) != len(days):
+        return False
+    for rng in m.group(1).split(","):
+        for hm in rng.split("-"):
+            h, mi = int(hm[:2]), int(hm[2:])
+            if h > 24 or mi > 59 or (h == 24 and mi != 0):
+                return False
+    return True
+
+
+def validate_input_specs(definition: dict) -> None:
+    """⭐ PHASE 3 WS-D — a `time` or `session` input is legal only on a runtime document, and
+    its default must be one. Raises ``ValueError`` whose first token is the field path."""
+    inputs = definition.get("inputs")
+    if not isinstance(inputs, list):
+        return
+    compute = definition.get("compute") if isinstance(definition.get("compute"), dict) else {}
+    runtime_doc = compute.get("kind") == "runtime"
+    for i, spec in enumerate(inputs):
+        if not isinstance(spec, dict) or spec.get("type") not in RUNTIME_INPUT_TYPES:
+            continue
+        kind = spec["type"]
+        if not runtime_doc:
+            raise ValueError(
+                f"inputs[{i}].type: {kind!r} is declared only by a pasted Pine script run bar by bar "
+                "(a runtime document) — nothing else reads it")
+        d = spec.get("default")
+        if kind == "time" and (isinstance(d, bool) or not isinstance(d, int)
+                               or abs(d) > TIME_INPUT_MAX_ABS_MS):
+            raise ValueError(
+                f"inputs[{i}].default: type 'time' requires whole milliseconds since 1970 (UTC), got {d!r}")
+        if kind == "session" and not is_session_string(d):
+            raise ValueError(
+                f"inputs[{i}].default: type 'session' requires a session such as '0930-1600', got {d!r}")
+
+
 def validate_v2(definition: dict) -> None:
     """The rules `defSchema.validateAstCompute` / `validateTrees` /
     `validateTreesAgainstPlots` apply in the browser, applied again at the LAST
@@ -1113,6 +1197,8 @@ def validate_v2(definition: dict) -> None:
     that only asserts something raised is green on a refusal that names the wrong
     cause, and naming the wrong cause is worse than being vague.
     """
+    # ⭐ PHASE 3 WS-D — a formula document may not declare a runtime-only input type.
+    validate_input_specs(definition)
     compute = definition.get("compute") or {}
     own_hash = ast_hash(compute.get("ast"))
 
@@ -1771,7 +1857,33 @@ def _row_to_dict(row: sqlite3.Row) -> dict:
         "requirements": _requirements_of(row),
         "deleted_at": row["deleted_at"],
         "created_at": row["created_at"],
+        # ⭐ SAVED-SCRIPT AUTO-UPGRADE — WHETHER the script is stored, never the
+        # script itself: every reader (the sweep, alerts, the record) arrives
+        # here and none of them needs the text. `list_for_user(source_below=…)`
+        # and `get(…, with_source=True)` are the only doors that serve it.
+        "has_pine_source": _pine_source_of(row) is not None,
     }
+
+
+def engine_stamp_of(definition: Any) -> Optional[int]:
+    """The script-engine version a document was translated by (`meta.engineVersion`,
+    written by the browser's `scriptEngineVersion.js`), or None when unstamped.
+    The SERVER never decides what is current — the browser asks with its own number."""
+    meta = definition.get("meta") if isinstance(definition, Mapping) else None
+    v = meta.get("engineVersion") if isinstance(meta, Mapping) else None
+    return v if isinstance(v, int) and not isinstance(v, bool) and v >= 1 else None
+
+
+def _with_source_if_stale(row: sqlite3.Row, out: dict, source_below: Optional[int]) -> dict:
+    """Attach the row's script iff the asking browser's engine is NEWER than the
+    document's stamp (an unstamped document counts as older than any engine)."""
+    if source_below is None or not out.get("has_pine_source"):
+        return out
+    stamp = engine_stamp_of(out.get("definition"))
+    if stamp is not None and stamp >= source_below:
+        return out
+    out["pine_source"] = _pine_source_of(row)
+    return out
 
 
 def _newest(c: sqlite3.Connection, user_id: Any, def_id: str) -> Optional[sqlite3.Row]:
@@ -1893,13 +2005,49 @@ def decide_semantics(definition: Mapping[str, Any], prev_definition: Optional[Ma
 
 # ─── the write path ──────────────────────────────────────────────────────────
 
+def normalize_pine_source(pine_source: Any) -> tuple:
+    """``(source_or_None, dropped_for_size)`` — what `save` will store.
+
+    Anything that is not a non-blank string is "no source" (a formula save, an old
+    client). A source over `MAX_PINE_SOURCE_BYTES` is DROPPED, not refused, and
+    only its size is logged — never a byte of its text."""
+    if not isinstance(pine_source, str) or not pine_source.strip():
+        return None, False
+    size = len(pine_source.encode("utf-8"))
+    if size > MAX_PINE_SOURCE_BYTES:
+        _log.warning("[user-definitions] pine source of %d bytes exceeds %d; the "
+                     "document is stored without it", size, MAX_PINE_SOURCE_BYTES)
+        return None, True
+    return pine_source, False
+
+
+def _pine_source_of(row: Any) -> Optional[str]:
+    """The stored row's script, or None (a row from before the column, or a door
+    that stored none). Tolerates a row read before `_migrate` ran."""
+    try:
+        v = row["pine_source"]
+    except (IndexError, KeyError):
+        return None
+    return v if isinstance(v, str) and v else None
+
+
 def save(user_id: Any, def_id: str, definition: dict,
          limits: Any = None, *, role: Any = None,
          repaint_acknowledged: Any = None,
          source_dialect: Any = None,
          expected_version: Optional[int] = None,
+         pine_source: Any = None,
          _copy_of_stored: bool = False) -> dict:
     """Append a version. Bump `rev` iff the maths moved, and MIGRATE if it did.
+
+    ⭐⭐ SAVED-SCRIPT AUTO-UPGRADE — ``pine_source``: the script a SCRIPT door
+    built this document from (`MemberPane` → `attachPineAs`, or the browser's
+    load-time upgrade writing back a re-translation). Stored in its own column on
+    THIS version only — never carried from the predecessor, because a save that
+    does not send it (the Formula tab, any hand edit) may have changed the maths
+    away from what the script says, and re-translating that script later would
+    silently undo the member's edit. ⛔ The one carry is the byte-identical
+    re-save below: nothing is appended, so the stored row (and its source) stays.
 
     ⭐ PHASE 4 — ``expected_version``: the version the editor OPENED. When given,
     the save is refused with `SaveConflict` (nothing written) unless it is still
@@ -1977,6 +2125,7 @@ def save(user_id: Any, def_id: str, definition: dict,
     # nothing below — the manifest hook, the graph split, the tree hash, the lint,
     # the migration — applies to it.
     from api.services import runtime_definitions
+    pine_source, pine_source_dropped = normalize_pine_source(pine_source)
     if runtime_definitions.is_runtime(definition):
         # ⭐ GT — `role` is the SAVING member's (the router's `user["role"]`).
         # Only the runtime door reads it (`PINE_RUNTIME_STAGE`); a caller that
@@ -2220,7 +2369,12 @@ def save(user_id: Any, def_id: str, definition: dict,
             # ⚠️ A BYTE-IDENTICAL RE-SAVE IS NOT AN EDIT. An autosaving editor is
             # the one growth class that actually runs away, and it is closed
             # here rather than by a prune that would break a pin.
-            if prev["definition"] == blob and prev["deleted_at"] is None:
+            # ⭐ …AND THE SAME SCRIPT. A source the row does not yet hold (a
+            # pre-feature document re-saved from its script, unchanged maths) is
+            # a fact worth a version: it is what lets the next engine fix reach
+            # this document. No source sent = nothing new to record.
+            if (prev["definition"] == blob and prev["deleted_at"] is None
+                    and (pine_source is None or pine_source == _pine_source_of(prev))):
                 return {
                     "def_id": def_id, "version": prev["version"], "rev": prev["rev"],
                     "rev_bumped": False, "migrated": 0, "notified": 0,
@@ -2236,6 +2390,7 @@ def save(user_id: Any, def_id: str, definition: dict,
                     "appended": False,
                     # ⭐ P0G -- the definition semantics the stored row carries.
                     "semantics": semantics or 1,
+                    "pine_source_stored": _pine_source_of(prev) is not None,
                 }
             prev_version = prev["version"]
             prior_rev = prev["rev"]
@@ -2328,9 +2483,10 @@ def save(user_id: Any, def_id: str, definition: dict,
         c.execute(
             "INSERT INTO user_definitions "
             "(user_id, def_id, version, rev, ast_hash, definition, repaint, "
-            " requirements, deleted_at, created_at) VALUES (?,?,?,?,?,?,?,?,NULL,?)",
+            " requirements, pine_source, deleted_at, created_at) "
+            "VALUES (?,?,?,?,?,?,?,?,?,NULL,?)",
             (str(user_id), def_id, version, rev, new_hash, blob, repaint,
-             requirements, now),
+             requirements, pine_source, now),
         )
         c.commit()
 
@@ -2409,6 +2565,10 @@ def save(user_id: Any, def_id: str, definition: dict,
         # withStoredSemantics`), so the member's chart and the alert lane cannot
         # evaluate one document two ways while the list refetches.
         "semantics": semantics or 1,
+        # ⭐ SAVED-SCRIPT AUTO-UPGRADE — whether this version holds its script
+        # (false when none was sent, or it was over `MAX_PINE_SOURCE_BYTES`).
+        "pine_source_stored": pine_source is not None,
+        **({"pine_source_dropped": True} if pine_source_dropped else {}),
     }
 
 
@@ -2500,6 +2660,8 @@ def _save_runtime(user_id: Any, def_id: str, definition: dict, limits: Any,
     if ungraded:
         raise ValueError(f"{ungraded} — so it is not saved. Nothing else of yours was touched.")
     runtime_definitions.validate(definition)
+    # ⭐ PHASE 3 WS-D — a runtime document's `time` / `session` inputs, checked as the browser does.
+    validate_input_specs(definition)
 
     # ⭐ PRESENTATION PARITY WITH THE FORMULA LANE (`save`). A runtime document draws
     # through the SAME top-level `plots`/`inputs`/`paints` the browser validates with
@@ -2659,14 +2821,16 @@ def soft_delete(user_id: Any, def_id: str) -> bool:
         c.execute(
             "INSERT INTO user_definitions "
             "(user_id, def_id, version, rev, ast_hash, definition, repaint, "
-            " requirements, deleted_at, created_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
+            " requirements, pine_source, deleted_at, created_at) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?,?)",
             (str(user_id), def_id, prev["version"] + 1, prev["rev"],
              prev["ast_hash"], prev["definition"], prev["repaint"],
              # ⛔ CARRIED, NEVER RE-DERIVED. A tombstone is the same document at a
              # later version; re-deriving here would make a delete the one place
-             # the stamp could silently move.
+             # the stamp could silently move. The script rides with it for the
+             # same reason (a tombstone is the same document).
              json.dumps(_requirements_of(prev), separators=(",", ":")),
-             now, now),
+             _pine_source_of(prev), now, now),
         )
         c.commit()
     return True
@@ -2674,9 +2838,13 @@ def soft_delete(user_id: Any, def_id: str) -> bool:
 
 # ─── the read path ───────────────────────────────────────────────────────────
 
-def get(user_id: Any, def_id: str, version: Optional[int] = None) -> Optional[dict]:
+def get(user_id: Any, def_id: str, version: Optional[int] = None, *,
+        with_source: bool = False) -> Optional[dict]:
     """One definition. ``version=None`` is the live newest; a pinned version is
-    served even after a later edit or a delete — that is the whole point."""
+    served even after a later edit or a delete — that is the whole point.
+
+    ``with_source=True`` (the owner's own read) adds the stored script as
+    ``pine_source`` (absent when the version holds none)."""
     _check_def_id(def_id)
     with contextlib.closing(_connect()) as c:
         _ensure(c)
@@ -2691,11 +2859,19 @@ def get(user_id: Any, def_id: str, version: Optional[int] = None) -> Optional[di
             ).fetchone()
             if row is None:
                 return None
-    return _row_to_dict(row)
+    out = _row_to_dict(row)
+    if with_source and out.get("has_pine_source"):
+        out["pine_source"] = _pine_source_of(row)
+    return out
 
 
-def list_for_user(user_id: Any) -> list[dict]:
-    """Every live definition's newest version, oldest def first."""
+def list_for_user(user_id: Any, *, source_below: Optional[int] = None) -> list[dict]:
+    """Every live definition's newest version, oldest def first.
+
+    ⭐ SAVED-SCRIPT AUTO-UPGRADE — ``source_below``: the asking browser's script
+    engine version. A row whose document is stamped below it (or unstamped) AND
+    that holds its script is served WITH ``pine_source``, so the browser can
+    re-translate it without a second request; every other row costs nothing."""
     with contextlib.closing(_connect()) as c:
         _ensure(c)
         rows = c.execute(
@@ -2705,7 +2881,8 @@ def list_for_user(user_id: Any) -> list[dict]:
             " ORDER BY u.id",
             (str(user_id),),
         ).fetchall()
-    return [_row_to_dict(r) for r in rows if r["deleted_at"] is None]
+    return [_with_source_if_stale(r, _row_to_dict(r), source_below)
+            for r in rows if r["deleted_at"] is None]
 
 
 def live_definitions() -> list[dict]:
@@ -2972,6 +3149,14 @@ def install_share(user_id: Any, token: str, limits: Any = None, *, role: Any = N
     }
     # ⭐ P0/0P — a COPY of a stored row: its maths was admitted (or predates the
     # admission gate) where it was saved, so the gate does not re-run here.
+    # ⛔⛔ SAVED-SCRIPT AUTO-UPGRADE — THE AUTHOR'S PINE NEVER TRAVELS WITH A SHARE.
+    # A share link has always handed over the translated document and nothing else;
+    # an author does not expect it to hand over their script, comments and all. So
+    # the copy is saved with NO `pine_source` (owner ruling, privacy-safe default),
+    # and the browser does not offer the recipient the "open and save from your
+    # script" row either (`savedScriptUpgrade.upgradeKindOf`: a copy carrying
+    # `origin` has no script to paste). Follow-up, not built: a recipient's copy
+    # following the author's re-saves server-side.
     out = save(user_id, def_id, doc, limits=limits, role=role, _copy_of_stored=True)
     out["origin"] = doc["origin"]
     return out
@@ -2998,7 +3183,7 @@ def fork(user_id: Any, def_id: str, limits: Any = None, *, role: Any = None) -> 
     Provenance rides on the copy as ``meta.forkedFrom`` (`def_id`, `version`,
     `ast_hash`), never as a link: editing either definition never touches the
     other. The count cap applies (a fork makes a definition live)."""
-    src = get(user_id, def_id)
+    src = get(user_id, def_id, with_source=True)
     if src is None:
         raise ForkRefused("Not found")
     doc = json.loads(json.dumps(src["definition"]))
@@ -3014,7 +3199,9 @@ def fork(user_id: Any, def_id: str, limits: Any = None, *, role: Any = None) -> 
     compute = doc.get("compute") if isinstance(doc.get("compute"), dict) else None
     if compute is not None and "rev" in compute:
         compute["rev"] = FIRST_REV
-    out = save(user_id, new_id, doc, limits=limits, role=role, _copy_of_stored=True)
+    # ⭐ SAVED-SCRIPT AUTO-UPGRADE — a copy of a script document keeps its script.
+    out = save(user_id, new_id, doc, limits=limits, role=role, _copy_of_stored=True,
+               pine_source=src.get("pine_source"))
     out["forked_from"] = meta["forkedFrom"]
     return out
 

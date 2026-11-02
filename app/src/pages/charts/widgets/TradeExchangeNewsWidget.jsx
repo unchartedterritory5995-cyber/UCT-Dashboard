@@ -8,11 +8,19 @@
  * (useTradeExchangeNewsDay -> archive.py). Newest on top. Per-widget, persisted
  * in `opts`:
  *   settings    appearance + density / highlight / sound (⚙, tradeExchangeNewsSettings.js)
- *   follow      auto-follow the live edge (default on)
+ *   follow      auto-follow the live edge (default on; Jump to live turns it back on)
  *   linked      only headlines naming this widget's colour-group symbol
  *   watchlistId only headlines naming a symbol on this list (personal or prebuilt)
  *   categories  only these server categories ([] = all); every filter is AND
  *   presets     this widget's saved filter/display presets; presetId the applied one
+ *   view        'saved' = the Saved Headlines view (the toolbar's bookmark button);
+ *               collection / ticker / sort are that view's filters
+ *
+ * TWO VIEWS, ONE WIDGET. The feed stays mounted and live behind Saved Headlines (its
+ * pane is only hidden), so its scroll position, date, search, filters and follow state
+ * are exactly as left, and the stream never stops. Both views use the same row actions:
+ * Explain expands inside the row, Bookmark saves/removes (Undo), ⋯ holds Watchlist,
+ * Notebook, Collections and Copy.
  *
  * ⛔ Shows only what Trade Exchange sent: the headline text verbatim, UCT's RECEIPT
  * time (labelled), repeat counts, and a `delayed` mark on headlines recovered late.
@@ -39,14 +47,15 @@ import UIcon from '../../../components/ui/UIcon'
 import Input from '../../../components/ui/Input'
 import Select from '../../../components/ui/Select'
 import NewsSettingsPanel from './NewsSettingsPanel'
-import TradeExchangeNewsAlerts from './TradeExchangeNewsAlerts'
 import { formatNumber } from '../../../lib/presentation/presentationPrimitives'
-import { ActionsMenu, CalendarPopover, DayBar, DayList, ExplainPanel, FilterMenu, HealthPopover, Row, TimePopover } from './TradeExchangeNewsParts'
+import { ActionsMenu, CalendarPopover, DayBar, DayList, FilterMenu, HealthPopover, Row, TimePopover } from './TradeExchangeNewsParts'
+import SavedHeadlines from './TradeExchangeNewsSaved'
 import { TXN_SOUND_OPTIONS, txnClampLines, txnSettingsFor, txnWidgetStyleVars } from './tradeExchangeNewsSettings'
-import { categoriesLabel, cleanCategories, cleanPresets, coverageNotice, dayLabel, dayRequest, feedHealth, groupRelated,
+import { categoriesLabel, cleanCategories, cleanPresets, coverageNotice, dayLabel, dayRequest, feedHealth, groupRelated, searchNeedles,
   liveStatus, presetPatch, presetSnapshot, quoteSymbols, viewHealth, visibleItems } from './tradeExchangeNewsModel'
 import useTradeExchangeNewsDay from './useTradeExchangeNewsDay'
 import * as library from '../../../lib/tradeExchangeNewsLibrary'
+import { sendHeadlineToNotebook } from '../../../lib/tradeExchangeNewsNotebook'
 import styles from './TradeExchangeNewsWidget.module.css'
 
 //: New-headline highlight: held for 1.5 s, then a 0.6 s fade (CSS .flash), then removed.
@@ -65,7 +74,7 @@ const NO_REST = Object.freeze([])
 //: Fetch the next step of the day this far (px) before the reader reaches an end.
 const NEAR_END_PX = 900
 
-export default function TradeExchangeNewsWidget({ color, opts, onOptsChange }) {
+export default function TradeExchangeNewsWidget({ color, opts, onOptsChange, defaultView = 'feed' }) {
   const { groupSyms, setGroupSym } = useWorkspace()
   const linkedSym = groupSyms?.[color] || null
   const feed = useSyncExternalStore(NEED.subscribe, NEED.read)
@@ -90,6 +99,10 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange }) {
   }, [settings])
 
   const follow = opts?.follow !== false
+  // A widget placed as the retired Research Library opens on Saved (WidgetHost's defaultView).
+  const view = (opts?.view ?? defaultView) === 'saved' ? 'saved' : 'feed'
+  const [savedMounted, setSavedMounted] = useState(view === 'saved')
+  useEffect(() => { if (view === 'saved') setSavedMounted(true) }, [view])
   const linked = !!opts?.linked
   const watchlistId = typeof opts?.watchlistId === 'string' ? opts.watchlistId : ''
   const categories = useMemo(() => cleanCategories(opts?.categories), [opts?.categories])
@@ -117,7 +130,7 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange }) {
     const mine = (Array.isArray(myLists) ? myLists : []).map((l) => ({ value: l.id, label: l.name }))
     const pre = (Array.isArray(prebuilt) ? prebuilt : []).map((l) => ({ value: l.id, label: `UCT · ${l.name}` }))
     const seen = new Set()                      // a list may appear in both sources
-    return [{ value: '', label: 'All lists' }, ...mine, ...pre]
+    return [{ value: '', label: 'All Lists' }, ...mine, ...pre]
       .filter((o) => !seen.has(o.value) && seen.add(o.value))
   }, [myLists, prebuilt])
 
@@ -131,7 +144,10 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange }) {
   const dayReq = useMemo(() => dayRequest(filterArgs),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [query, linked, linkedSym, watchSet, categories, settings.graphicPlaceholders])
-  const day = useTradeExchangeNewsDay({ feed, matches: shown, request: dayReq, enabled: feed.status !== 'unavailable' })
+  // Linked to chart with a symbol to link: All history by default (every archived day).
+  const day = useTradeExchangeNewsDay({ feed, matches: shown, request: dayReq, enabled: feed.status !== 'unavailable',
+    history: linked && !!linkedSym })
+  const viewLabel = day.allHistory ? `All history · ${linkedSym}` : dayLabel(day.dateKey, day.todayKey)
   const rows = day.rows
   // Grouping runs AFTER the filters, so a group only ever holds headlines the reader
   // asked to see -- and each one keeps its own row, time and links.
@@ -151,7 +167,6 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange }) {
   const newestRef = useRef(0)
   const [flashing, setFlashing] = useState(() => new Set())
   const lastSoundRef = useRef(0)
-  const [alertsOpen, setAlertsOpen] = useState(false)
   useEffect(() => {
     if (feed.status === 'idle' || feed.status === 'connecting') return
     const seen = seenRef.current
@@ -190,11 +205,25 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange }) {
     }
   }, [feed.items, feed.status, shown, settings.highlightNew, settings.sound, settings.soundKey])
 
+  // ── row actions (one menu per widget) and the AI Explanation (one open per widget,
+  //    expanded inside its row; the same headline again, ✕ or Esc closes it) ──
+  const [actions, setActions] = useState(null)              // { item, anchor, view }
+  const onActions = useCallback((item, anchor) => setActions((a) => (a?.item.id === item.id && a.view === 'feed' ? null
+    : { item, anchor, view: 'feed' })), [])
+  const onSavedActions = useCallback((item, anchor) => setActions((a) => (a?.item.id === item.id && a.view === 'saved' ? null
+    : { item, anchor, view: 'saved' })), [])
+  const [explain, setExplain] = useState(null)              // { id, view }
+  const onExplain = useCallback((item) => setExplain((x) => (x?.id === item.id && x.view === 'feed' ? null : { id: item.id, view: 'feed' })), [])
+  const onSavedExplain = useCallback((item) => setExplain((x) => (x?.id === item.id && x.view === 'saved' ? null : { id: item.id, view: 'saved' })), [])
+  const closeExplain = useCallback(() => setExplain(null), [])
+
   // ── auto-follow + Jump to live (newest on top) ──
   const listRef = useRef(null)
   const [atTop, setAtTop] = useState(true)
   const [pending, setPending] = useState(0)
-  const following = follow && atTop
+  // While an explanation is open in the feed, arriving headlines never move it: the
+  // place is held (and counted on Jump to live) exactly as with auto-follow off.
+  const following = follow && atTop && explain?.view !== 'feed'
   const topSeq = rows[0]?.seq || 0
   // A step of NEWER rows loaded above (scrolling up after a time jump) never moves
   // what the reader is looking at; live arrivals follow the auto-follow rule.
@@ -226,7 +255,7 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange }) {
     }
   }, [topSeq, rows, following])
   // A new date, time or filter starts at its top.
-  const viewKey = `${day.dateKey}|${day.at || ''}|${JSON.stringify(dayReq)}`
+  const viewKey = `${day.allHistory ? 'all' : day.dateKey}|${day.at || ''}|${JSON.stringify(dayReq)}`
   useLayoutEffect(() => {
     if (listRef.current) listRef.current.scrollTop = 0
     setAtTop(true)
@@ -239,7 +268,8 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange }) {
     if (day.hasNewer && el.scrollTop < NEAR_END_PX) { anchorNext.current = true; day.loadNewer() }
   }, [day])
   // ...and keeps loading while what is loaded does not fill the list.
-  useEffect(() => { nearEnds(listRef.current) }, [rows.length, day.hasOlder, day.hasNewer, nearEnds])
+  // (cursorKey: an All-history step that found nothing in its budget still asks for the next)
+  useEffect(() => { nearEnds(listRef.current) }, [rows.length, day.hasOlder, day.hasNewer, day.cursorKey, nearEnds])
   const onScroll = useCallback((e) => {
     const top = e.currentTarget.scrollTop < 4
     setAtTop(top)
@@ -276,15 +306,12 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange }) {
     return next
   }), [])
 
-  // ── row actions (one menu per widget) ──
-  const [actions, setActions] = useState(null)              // { item, anchor }
-  const onActions = useCallback((item, anchor) => setActions((a) => (a?.item.seq === item.seq ? null : { item, anchor })), [])
-  const closeActions = useCallback(() => setActions(null), [])
-  // ── AI Explanation (one panel per widget; the same headline again closes it) ──
-  const [explain, setExplain] = useState(null)              // { item, anchor }
-  const onExplain = useCallback((item, anchor) => setExplain((x) => (x?.item.seq === item.seq ? null : { item, anchor })), [])
-  const closeExplain = useCallback(() => setExplain(null), [])
-  // ── Research Library: save / remove (Undo), shared with every News + Library widget ──
+  // ⋯ closes on its own result: a Notebook send reports where it went.
+  const closeActions = useCallback((result) => {
+    setActions(null)
+    if (result && typeof result.text === 'string') setToast({ text: result.text, tone: result.ok ? undefined : 'err' })
+  }, [])
+  // ── bookmarks: save / remove (Undo), shared with every News widget on the page ──
   const lib = useSyncExternalStore(library.subscribe, library.getSnapshot)
   const [toast, setToast] = useState(null)                  // { text, undo?, tone }
   useEffect(() => {
@@ -295,8 +322,12 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange }) {
   const onSave = useCallback(async (item) => {
     const r = await library.toggle(item.id)
     if (!r.ok) setToast({ text: r.error, tone: 'err' })
-    else if (!r.saved) setToast({ text: 'Removed from your library', undo: r.removed })
-    else setToast({ text: 'Saved to your Research Library' })
+    else if (!r.saved) setToast({ text: 'Bookmark removed', undo: r.removed })
+    else setToast({ text: 'Headline saved' })
+  }, [])
+  const onRemove = useCallback(async (item) => {
+    const r = await library.remove(item.id)
+    setToast(r.ok ? { text: 'Bookmark removed', undo: r.removed } : { text: r.error, tone: 'err' })
   }, [])
   const undo = useCallback(async () => {
     const removed = toast?.undo
@@ -304,6 +335,12 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange }) {
     const r = await library.undoRemove(removed)
     if (!r.ok) setToast({ text: r.error || 'Could not restore it. Save it again.', tone: 'err' })
   }, [toast])
+  const onCopied = useCallback((ok) => setToast(ok ? { text: 'Headline copied' }
+    : { text: 'Copy failed: the browser blocked the clipboard', tone: 'err' }), [])
+  const setView = useCallback((v) => {
+    setActions(null)
+    patchOpts({ view: v === 'saved' ? 'saved' : (defaultView === 'saved' ? 'feed' : null) })
+  }, [patchOpts, defaultView])
 
   // ── filters + presets (this widget's opts only) ──
   const [filterOpen, setFilterOpen] = useState(false)
@@ -345,7 +382,6 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange }) {
   // ── chrome ──
   const [settingsOpen, setSettingsOpen] = useState(false)
   const gearRef = useRef(null)
-  const bellRef = useRef(null)
   const rootRef = useRef(null)
   const [, tick] = useState(0)
   useEffect(() => {                         // keep "last headline 2m ago" honest
@@ -359,13 +395,18 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange }) {
   const loading = (day.loading && !rows.length)
     || ((feed.status === 'connecting' || feed.status === 'idle') && !feed.items.length && day.live && !rows.length)
   const filtered = !!(query || linked || watchlistId || categories.length)
+  const otherFilters = !!(query || watchlistId || categories.length)    // besides Linked
   const now = Date.now()
-  const rowProps = { linkedSym, onSym, colorMode: settings.tickerColorMode, prices, staleSymbols, quotesUsed,
+  // The search's hits, marked in every shown headline. Memoised on the (debounced) query,
+  // so a live arrival never re-renders the rows already on screen.
+  const needles = useMemo(() => { const n = searchNeedles(query); return n.length ? n : null }, [query])
+  const rowProps = { linkedSym, onSym, colorMode: settings.tickerColorMode, prices, staleSymbols, quotesUsed, needles,
     provisional: feed.provisional, clampLines, onToggleExpand, showCategory: settings.showCategory !== 'off', timeOnly: true,
-    onToggleGroup, onActions, onExplain, onSave }
+    onToggleGroup, onActions, onExplain, onCloseExplain: closeExplain, onSave }
   const renderRow = (it, extra) => (
     <Row key={it.seq} item={it} {...rowProps} expanded={expanded.has(it.seq)} flashing={flashing.has(it.seq)}
-      actionsOpen={actions?.item.seq === it.seq} explainOpen={explain?.item.seq === it.seq}
+      actionsOpen={actions?.view === 'feed' && actions.item.seq === it.seq}
+      explainOpen={explain?.view === 'feed' && explain.id === it.id}
       saved={lib.ids.has(it.id)} {...extra} />
   )
   const renderGroup = (g) => {
@@ -423,12 +464,10 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange }) {
           themeVars={menuVars}
         />
       )}
-      {alertsOpen && (
-        <TradeExchangeNewsAlerts onClose={() => setAlertsOpen(false)} anchorEl={bellRef.current} themeVars={menuVars} />
-      )}
       {actions && (
-        <ActionsMenu key={actions.item.seq} item={actions.item} anchorEl={actions.anchor} hostEl={rootRef.current}
-          themeVars={menuVars} onClose={closeActions} />
+        <ActionsMenu key={`${actions.view}|${actions.item.id}`} item={actions.item} anchorEl={actions.anchor} hostEl={rootRef.current}
+          themeVars={menuVars} onClose={closeActions} onNotebook={sendHeadlineToNotebook} onCopied={onCopied}
+          saved={lib.ids.has(actions.item.id)} />
       )}
       {toast && (
         <div className={`${styles.toast}${toast.tone === 'err' ? ' ' + styles.toastErr : ''}`} role="status" style={menuVars}>
@@ -436,26 +475,25 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange }) {
           {toast.undo && <button type="button" className={styles.toastBtn} onClick={undo}>Undo</button>}
         </div>
       )}
-      {explain && (
-        <ExplainPanel key={explain.item.id} item={explain.item} anchorEl={explain.anchor} themeVars={menuVars}
-          onClose={closeExplain} />
-      )}
       {filterOpen && (
         <FilterMenu anchorEl={filterRef.current} hostEl={rootRef.current} themeVars={menuVars} onClose={closeFilter}
+          linked={linked} linkedSym={linkedSym} onLinked={(on) => patchOpts({ linked: on, presetId: null })}
           categories={categories} onCategories={setCategories} presets={presets} activeId={opts?.presetId || null}
           onApply={applyPreset} onSave={savePreset} onRename={renamePreset} onDelete={deletePreset} />
       )}
       {calendarOpen && (
-        <CalendarPopover selected={day.dateKey} meta={day.meta} anchorEl={calRef.current} hostEl={rootRef.current}
+        <CalendarPopover selected={day.dateKey || day.todayKey} meta={day.meta} anchorEl={calRef.current} hostEl={rootRef.current}
+          history={day.history} allHistory={day.allHistory} onAll={day.showAll}
           themeVars={menuVars} onPick={day.select} onClose={closeCalendar} />
       )}
       {timeOpen && (
         <TimePopover at={day.at} anchorEl={timeRef.current} hostEl={rootRef.current} themeVars={menuVars}
-          onPick={day.jumpTo} onClose={closeTime} />
+          onPick={day.jumpTo} onClose={closeTime} live={day.live} onLatest={day.toLatest} />
       )}
       {healthOpen && (
-        <HealthPopover lines={[...feedHealth(feed, now), ...viewHealth({ dateLabel: dayLabel(day.dateKey, day.todayKey),
-          count: day.total != null ? footerCount(filtered, day.total, day.dayTotal ?? day.total) : null,
+        <HealthPopover lines={[...feedHealth(feed, now), ...viewHealth({ dateLabel: viewLabel,
+          count: day.total != null ? footerCount(filtered, day.total, day.dayTotal ?? day.total)
+            : day.allHistory && rows.length ? `${formatNumber(rows.length, { decimals: 0 })} loaded` : null,
           provisional: feed.provisional, hidden: hiddenPlaceholders, showing: settings.graphicPlaceholders === 'show' })]} anchorEl={statusRef.current} hostEl={rootRef.current}
           themeVars={menuVars} onClose={closeHealth} />
       )}
@@ -466,6 +504,7 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange }) {
           <span className={styles.brandSub}>Powered by Trade Exchange</span>
         </span>
         <span className={styles.spacer} />
+        {/* Right, in this order: LIVE -> Saved Headlines -> Settings. */}
         <button ref={statusRef} type="button" className={`${styles.status} ${toneCls}`} title={`${status.title} Click for feed health.`}
           aria-live="polite" aria-haspopup="dialog" aria-expanded={healthOpen} onClick={() => setHealthOpen((o) => !o)}>
           <span className={styles.dot} aria-hidden="true" />
@@ -473,19 +512,12 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange }) {
         </button>
         <button
           type="button"
-          className={`${styles.iconBtn}${follow ? ' ' + styles.iconBtnOn : ''}`}
-          onClick={() => patchOpts({ follow: !follow })}
-          title={follow ? 'Auto-follow is on: new headlines appear at the top. Click to hold your place.' : 'Auto-follow is off: your place is held. Click to follow the live edge.'}
-          aria-label={follow ? 'Turn auto-follow off' : 'Turn auto-follow on'}
-        ><UIcon name={follow ? 'pause' : 'play'} size={13} /></button>
-        <button
-          ref={bellRef}
-          type="button"
-          className={`${styles.iconBtn}${alertsOpen ? ' ' + styles.iconBtnOn : ''}`}
-          onClick={() => setAlertsOpen((o) => !o)}
-          title="News alerts"
-          aria-label="News alerts"
-        ><UIcon name="bell" size={14} /></button>
+          className={`${styles.iconBtn}${view === 'saved' ? ' ' + styles.iconBtnOn : ''}`}
+          onClick={() => setView(view === 'saved' ? 'feed' : 'saved')}
+          title={view === 'saved' ? 'Back to the News feed' : 'Saved headlines'}
+          aria-label={view === 'saved' ? 'Back to the News feed' : 'Show saved headlines'}
+          aria-pressed={view === 'saved'}
+        ><UIcon name={view === 'saved' ? 'bookmark-fill' : 'bookmark'} size={14} gold={false} /></button>
         <button
           ref={gearRef}
           type="button"
@@ -496,13 +528,26 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange }) {
         ><UIcon name="gear" size={14} /></button>
       </div>
 
+      {savedMounted && (
+        <div className={`${styles.pane}${view !== 'saved' ? ' ' + styles.paneHidden : ''}`} inert={view !== 'saved'}
+          aria-hidden={view !== 'saved' || undefined}>
+          <SavedHeadlines active={view === 'saved'} opts={opts} patchOpts={patchOpts} linkedSym={linkedSym} onSym={onSym}
+            menuVars={menuVars} onRemove={onRemove} onBack={() => setView('feed')}
+            explainId={explain?.view === 'saved' ? explain.id : null} onExplain={onSavedExplain} onCloseExplain={closeExplain}
+            actionsId={actions?.view === 'saved' ? actions.item.id : null} onActions={onSavedActions} />
+        </div>
+      )}
+      {/* The feed: hidden, never unmounted, while Saved is open -- its scroll, day, search,
+          filters and follow state are exactly as the reader left them. */}
+      <div className={`${styles.pane}${view === 'saved' ? ' ' + styles.paneHidden : ''}`} inert={view === 'saved'}
+        aria-hidden={view === 'saved' || undefined}>
       <div className={styles.searchBar}>
         <span className={styles.searchWrap}>
           <Input
             className={styles.searchInput}
             value={queryRaw}
             onChange={(e) => setQueryRaw(e.target.value)}
-            placeholder="Search"
+            placeholder="Search..."
             aria-label="Search headlines"
             maxLength={80}
           />
@@ -510,28 +555,18 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange }) {
             <button type="button" className={styles.searchClear} onClick={() => setQueryRaw('')} aria-label="Clear search" title="Clear">×</button>
           )}
         </span>
-        <button
-          type="button"
-          className={`${styles.filterBtn}${linked ? ' ' + styles.filterBtnOn : ''}`}
-          onClick={() => patchOpts({ linked: !linked })}
-          title={linked ? `Showing only headlines naming ${linkedSym || "this widget's linked symbol"}` : "Show only headlines naming this widget's linked symbol"}
-          aria-label={linked ? 'Show all tickers' : 'Show only the linked symbol'}
-        >
-          <UIcon name="link" size={11} />
-          <span className={styles.filterLabel}>{linked && linkedSym ? linkedSym : 'Linked'}</span>
-        </button>
+        {/* One Filters button: All / Linked to chart, categories and presets (FilterMenu). */}
         <button
           ref={filterRef}
           type="button"
-          className={`${styles.filterBtn}${categories.length ? ' ' + styles.filterBtnOn : ''}`}
+          className={`${styles.filterBtn}${linked || categories.length ? ' ' + styles.filterBtnOn : ''}`}
           onClick={() => setFilterOpen((o) => !o)}
-          title="Categories and saved presets"
-          aria-label={`Categories: ${categoriesLabel(categories)}. Open filters and presets`}
+          title={`News filters: ${linked ? `linked to ${linkedSym || 'the chart'}` : 'all headlines'} · ${categoriesLabel(categories)}`}
+          aria-label={`News filters: ${linked ? `linked to ${linkedSym || 'the chart'}` : 'all headlines'}, categories ${categoriesLabel(categories)}`}
           aria-haspopup="dialog"
           aria-expanded={filterOpen}
         >
-          <UIcon name="sliders" size={11} />
-          <span className={styles.filterLabel}>{categoriesLabel(categories)}</span>
+          <UIcon name="sliders" size={14} gold={false} />
         </button>
         <Select
           className={styles.listSelect}
@@ -560,7 +595,7 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange }) {
 
       <div ref={listRef} className={`${styles.list}${day.loading && rows.length ? ' ' + styles.listBusy : ''}`} onScroll={onScroll}
         aria-busy={day.loading || day.loadingMore || undefined}
-        aria-label={`Headlines, ${dayLabel(day.dateKey, day.todayKey)}${day.at ? ` from ${day.at} ET` : ''}`}>
+        aria-label={`Headlines, ${viewLabel}${day.at ? ` from ${day.at} ET` : ''}`}>
         {unavailable && (
           <div className={styles.empty}>{status.title}</div>
         )}
@@ -573,11 +608,23 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange }) {
         )}
         {!unavailable && day.error && (
           <div className={styles.empty}>
-            Headlines for this date could not be loaded.
+            {day.allHistory ? 'The UCT News archive could not be reached.' : 'Headlines for this date could not be loaded.'}
             <button type="button" className={styles.emptyBtn} onClick={day.retry}>Retry</button>
           </div>
         )}
-        {!unavailable && !loading && !rows.length && feed.status !== 'failed' && !day.error && (
+        {!unavailable && !loading && !rows.length && feed.status !== 'failed' && !day.error && day.allHistory && (
+          <div className={styles.empty}>
+            {day.hasOlder
+              ? `Searching the archive for ${linkedSym}…${day.searchedTo ? ` (back to ${dayLabel(day.searchedTo, day.todayKey)})` : ''}`
+              : otherFilters
+                ? `No archived headlines naming ${linkedSym} match these filters.`
+                : `No archived headlines name ${linkedSym}. New ones appear here the moment they arrive.`}
+            {!day.hasOlder && otherFilters && (
+              <button type="button" className={styles.emptyBtn} onClick={() => { patchOpts({ categories: [], watchlistId: null, presetId: null }); setQueryRaw(''); setQuery('') }}>Clear other filters</button>
+            )}
+          </div>
+        )}
+        {!unavailable && !loading && !rows.length && feed.status !== 'failed' && !day.error && !day.allHistory && (
           <div className={styles.empty}>
             {filtered ? `No headlines on ${dayLabel(day.dateKey, day.todayKey)} match these filters.`
               : day.isToday ? 'No headlines yet today. New Trade Exchange headlines appear here the moment they arrive.'
@@ -591,7 +638,9 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange }) {
         <DayList groups={groups} rootRef={listRef} renderGroup={renderGroup} viewKey={viewKey} />
         {rows.length > 0 && (
           <div className={styles.dayEdge} aria-live="polite">
-            {day.hasOlder ? 'Loading earlier headlines…'
+            {day.hasOlder ? (day.allHistory && day.searchedTo
+              ? `Loading earlier headlines… (searched back to ${dayLabel(day.searchedTo, day.todayKey)})` : 'Loading earlier headlines…')
+              : day.allHistory ? `Start of the UCT News archive${day.meta?.first_day ? ` (${dayLabel(day.meta.first_day, day.todayKey)})` : ''}`
               : `Start of ${dayLabel(day.dateKey, day.todayKey)}${day.meta?.first_day === day.dateKey && day.meta?.first_day_partial ? ' (the UCT News archive began here)' : ''}`}
           </div>
         )}
@@ -604,6 +653,7 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange }) {
             onTime={() => { setCalendarOpen(false); setTimeOpen((o) => !o) }} />
         </div>
       )}
+      </div>
     </div>
   )
 }

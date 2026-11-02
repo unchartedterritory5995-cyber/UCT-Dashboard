@@ -846,20 +846,28 @@ const PANEL_MANIFESTS = {
       { key: 'follow', type: 'boolean', default: true },
       { key: 'linked', type: 'boolean', default: false },
       { key: 'watchlistId', type: 'string' },
+      // UCT News V2: the Saved Headlines view (the toolbar bookmark) and its filters.
+      { key: 'view', type: 'string' },
+      { key: 'collection', type: 'string' },
+      { key: 'ticker', type: 'string' },
+      { key: 'sort', type: 'string' },
     ],
     plainText: () => '[news: Trade Exchange headlines]',
     reconstructable: false,                     // a live feed at a past instant is not replayable here
     liveCapable: false,
   },
   researchLibrary: {
-    // The member's Research Library: headlines saved from UCT News (`tradeExchangeNews`),
-    // personal collections and notes (api/services/trade_exchange_news/library.py). Released
-    // with News to every SIGNED-IN member; picker-only (PICKER_ONLY_WIDGETS) so UCT Agent's
-    // widget list and golden manifest stay exactly as they were. No Notebook capture.
-    labels: { header: 'Research Library', menu: 'Research Library', tab: 'Library' },
+    // ⛔ RETIRED from every menu (UCT News V2): Saved Headlines now lives INSIDE UCT News
+    // (`tradeExchangeNews`, the toolbar bookmark). The id stays registered so a Research
+    // Library already placed in a member's saved layout still opens: WidgetHost renders it
+    // as UCT News on its Saved Headlines view, reading the same opts (collection / ticker /
+    // sort). Nothing is rewritten or dropped; the member's bookmarks, notes and collections
+    // live server-side (library.py) and are untouched. Still in PICKER_ONLY_WIDGETS, so UCT
+    // Agent's lists and golden manifest are exactly as they were.
+    labels: { header: 'UCT News', menu: 'Research Library', tab: 'News' },
     defaults: { w: 4, h: 10, minW: 2, minH: 4 },
     placement: { family: 'panel', fill: 'narrow' },
-    menus: { workspace: true, tab: true, mobile: false, journal: false },
+    menus: { workspace: false, tab: false, mobile: false, journal: false },
     themeFollow: true,
     paramsSchema: [
       { key: 'settings', type: 'json' },
@@ -868,6 +876,10 @@ const PANEL_MANIFESTS = {
       { key: 'from', type: 'string' },
       { key: 'to', type: 'string' },
       { key: 'sort', type: 'string' },
+      { key: 'view', type: 'string' },
+      { key: 'follow', type: 'boolean', default: true },
+      { key: 'linked', type: 'boolean', default: false },
+      { key: 'watchlistId', type: 'string' },
     ],
     plainText: () => '[library: saved UCT News headlines]',
     reconstructable: false,                     // personal, server-side state
@@ -973,6 +985,35 @@ const PANEL_MANIFESTS = {
     // A reference to curated, static data: re-rendered from the store, with a
     // tombstone when the entry is gone (ModelBookEmbed) — never an error.
     reconstructable: (p) => Number.isInteger(p?.year) && typeof p?.symbol === 'string' && p.symbol !== '',
+    liveCapable: false,
+  },
+  // UCT News V2: "Send to Notebook" on a Trade Exchange headline (lib/tradeExchangeNewsNotebook.js
+  // -> sendCaptureToJournal). A FROZEN reference: the headline verbatim, UCT's receipt time, the
+  // source, the linked tickers and the headline's permanent `eventId` (the R2 journal key) -- the
+  // card re-renders from these params alone and asks nothing. Capture-only like the three above:
+  // no menu offers it and WidgetHost binds none. ⛔ `tickers`, never `symbol`: a headline names
+  // several, and `notes._sync_note_sidecars` would file a single `params.symbol` as THE ticker.
+  tradeExchangeHeadline: {
+    labels: { header: 'UCT News headline', menu: 'UCT News headline', tab: 'Headline' },
+    defaults: { w: 4, h: 3, minW: 2, minH: 2 },
+    placement: { family: 'panel', fill: 'narrow' },
+    menus: { workspace: false, tab: false, mobile: false, journal: false },
+    captureOnly: true,
+    themeFollow: true,
+    paramsSchema: [
+      { key: 'eventId', type: 'string', required: true },     // the permanent archive reference
+      { key: 'content', type: 'string', required: true },     // the headline, verbatim
+      { key: 'receivedAtMs', type: 'number', required: true },// UCT's receipt time (Trade Exchange sends none)
+      { key: 'source', type: 'string' },                      // 'Trade Exchange'
+      { key: 'tickers', type: 'json' },                       // [string] the resolver linked
+    ],
+    plainText: (p) => {
+      const tickers = Array.isArray(p?.tickers) ? p.tickers.filter((t) => typeof t === 'string' && t) : []
+      return `[UCT News: ${p?.content || 'headline'}${tickers.length ? ` · ${tickers.join(' ')}` : ''}`
+        + ` — ${p?.source || 'Trade Exchange'}]`
+    },
+    reconstructable: (p) => typeof p?.eventId === 'string' && p.eventId !== ''
+      && typeof p?.content === 'string' && Number.isFinite(p?.receivedAtMs),
     liveCapable: false,
   },
   // ── Notebook widgets (Task 6): five SNAPSHOT kinds. ⛔ CAPTURE-ONLY and not blocks: each is
@@ -1197,7 +1238,7 @@ export const WIDGET_CATEGORIES = [
   // "Market Internals" is the home for the real-time, market-wide tools — the growing
   // NH/NL-style family. Renamed from "Breadth & Momentum" as that family expands.
   { key: 'internals', label: 'Market Internals',       items: ['indexes', 'breadth', 'marketcontext', 'nhnl', 'nhnlPulse', 'volumescan'] },
-  { key: 'research',  label: 'Research',               items: ['fundamentals', 'profile', 'news', 'tradeExchangeNews', 'researchLibrary', 'aisearch', 'calendar', 'notebook'] },
+  { key: 'research',  label: 'Research',               items: ['fundamentals', 'profile', 'news', 'tradeExchangeNews', 'aisearch', 'calendar', 'notebook'] },
   { key: 'flow',      label: 'Flow & Alerts',          items: ['optionsflow', 'alerts'] },
 ]
 
@@ -1220,7 +1261,6 @@ export const WIDGET_CATALOG = {
   aisearch:     { icon: 'sparkle',  blurb: 'Ask AI about any stock or the market.' },
   news:         { icon: 'wire',     blurb: 'High-impact news & catalysts per stock.' },
   tradeExchangeNews: { icon: 'wire', blurb: 'Breaking market headlines from Trade Exchange, live.', live: true },
-  researchLibrary: { icon: 'library', blurb: 'Your saved UCT News headlines, collections and notes.' },
   profile:      { icon: 'book',     blurb: 'Company profile, description & stats.' },
   alerts:       { icon: 'bell',     blurb: 'Your price alerts, updating live.' },
   calendar:     { icon: 'calendar', blurb: 'Earnings & market events for any day.' },
