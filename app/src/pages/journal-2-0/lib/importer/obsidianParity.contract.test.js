@@ -95,25 +95,19 @@ const vf = (p, text) => ({
 })
 
 // Mirrors `obsidian_parity_fixtures_gen.py::_normalize_link_href` — strips
-// this lane's own identity-encoding down to the bare resolved vault path.
-// The client lane never had a vault_id segment to begin with (see the file
-// docstring), so there is no vault_id prefix to strip here, only the
-// `import-link://obsidian:` scheme. `decodeURIComponent` is a defensive
-// no-op mirror of the Python side's `urllib.parse.unquote` — the client
-// never percent-encodes (it sets hrefs as raw HTML attribute values), but
-// decoding a string with no `%` escapes is idempotent, so this keeps both
-// normalizers symmetric on purpose.
+// the `import-link://obsidian:` scheme and NOTHING ELSE. The rail compares
+// the stored hrefs byte-for-byte: it used to `decodeURIComponent` the
+// remainder, which hid the defect it exists to catch (a name with a space
+// that stored `%20` and never resolved).
 function normalizeLinkHref(href) {
   const prefix = 'import-link://obsidian:'
-  const remainder = href.startsWith(prefix) ? href.slice(prefix.length) : href
-  return decodeURIComponent(remainder)
+  return href.startsWith(prefix) ? href.slice(prefix.length) : href
 }
 
 // Mirrors `obsidian_parity_fixtures_gen.py::_normalize_image_src`.
 function normalizeImageSrc(src) {
   const prefix = 'import-ref://'
-  const remainder = src.startsWith(prefix) ? src.slice(prefix.length) : src
-  return decodeURIComponent(remainder)
+  return src.startsWith(prefix) ? src.slice(prefix.length) : src
 }
 
 // Mirrors `obsidian_parity_fixtures_gen.py::_walk_semantic` exactly:
@@ -161,6 +155,18 @@ async function clientSummaryFor(fixture) {
   return semanticSummary(bodyJson)
 }
 
+// Differences the CLIENT importer is known to have against the server lane,
+// named one by one so the rail stays strict for everything else. Never
+// normalize a difference away -- list it here, with the plan that closes it.
+//   09-space-and-pipe: the client adapter does not unescape `\|` inside a
+//   table cell, so `[[Other note\|alias]]` never resolves. Closed by Plan B
+//   (client importer), task "Obsidian escaped pipe" -- delete this entry then.
+const knownClientGap = {
+  '09-space-and-pipe.json': {
+    missingLinks: [{ target: 'Other note.md', text: 'alias' }],
+  },
+}
+
 describe('Obsidian client<->server pre-pass parity', () => {
   // Non-vacuity control — mirrors serverConvert.contract.test.js's own: a
   // missing/empty fixtures dir must fail loudly, not report zero tests as a
@@ -172,7 +178,21 @@ describe('Obsidian client<->server pre-pass parity', () => {
   describe.each(fixtures.map(({ file, fixture }) => [file, fixture]))('%s', (file, fixture) => {
     it('client adapter agrees with the server provider on the semantic outcome', async () => {
       const clientSummary = await clientSummaryFor(fixture)
-      expect(clientSummary).toEqual(fixture.server)
+      const gap = knownClientGap[file]
+      if (!gap) {
+        expect(clientSummary).toEqual(fixture.server)
+        return
+      }
+      // A named gap stays STRICT: the client must equal the server minus
+      // exactly the listed links (so it cannot widen), and those links must
+      // really be absent (so fixing Plan B forces this entry's removal).
+      const expected = {
+        ...fixture.server,
+        links: fixture.server.links.filter(
+          (l) => !gap.missingLinks.some((m) => m.target === l.target && m.text === l.text)),
+      }
+      expect(expected.links.length).toBe(fixture.server.links.length - gap.missingLinks.length)
+      expect(clientSummary).toEqual(expected)
     })
   })
 })

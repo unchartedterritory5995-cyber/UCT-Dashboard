@@ -567,3 +567,59 @@ def test_the_worst_case_blowup_estimate_is_not_a_guarantee(db):
         "this shape must exceed the constant's own 'worst case' label, or "
         "the test proves nothing about the estimate's limits"
     )
+
+
+# ---------------------------------------------------------------------------
+# Names with spaces, escaped pipes, literal percent signs (O-1, O-8)
+# ---------------------------------------------------------------------------
+
+async def _fetch_a(body, paths):
+    for path in paths:
+        _stage("user-a", "vault-1", path, "", T1)
+    _stage("user-a", "vault-1", "a.md", body, T2)
+    _manifest("user-a", "vault-1", [*paths, "a.md"])
+    provider = ObsidianProvider(user_id="user-a", vault_id="vault-1")
+    return await provider.fetch({}, RemoteRef(remote_id="a.md", updated_at=T2))
+
+
+def _link_marks(node, out=None):
+    out = [] if out is None else out
+    if isinstance(node, dict):
+        for m in node.get("marks") or []:
+            if m.get("type") == "link":
+                out.append((node.get("text"), m["attrs"]["href"]))
+        for c in node.get("content") or []:
+            _link_marks(c, out)
+    return out
+
+
+async def test_wikilink_to_a_name_with_spaces_resolves_to_the_import_key(db):
+    note = await _fetch_a("[[Target Note]]", ["Notes/Target Note.md"])
+    assert note.links == ["obsidian:vault-1/Notes/Target Note.md"]
+
+
+async def test_aliased_link_with_spaces_keeps_the_alias_text(db):
+    note = await _fetch_a("[[Target Note|alias]]", ["Notes/Target Note.md"])
+    assert _link_marks(note.doc) == [
+        ("alias", "import-link://obsidian:vault-1/Notes/Target Note.md")
+    ]
+
+
+async def test_escaped_pipe_in_a_table_cell_resolves(db):
+    body = "| h |\n|---|\n| [[Other note\\|alias]] |\n"
+    note = await _fetch_a(body, ["Other note.md"])
+    assert note.links == ["obsidian:vault-1/Other note.md"]
+    assert _link_marks(note.doc) == [
+        ("alias", "import-link://obsidian:vault-1/Other note.md")
+    ]
+
+
+async def test_embedded_image_with_space_registers_the_raw_vault_path(db):
+    note = await _fetch_a("![[My Img.png]]", ["attachments/My Img.png"])
+    assert [m["ref"] for m in note.media] == ["attachments/My Img.png"]
+    assert note.doc["content"][0]["attrs"]["src"] == "import-ref://attachments/My Img.png"
+
+
+async def test_a_literal_percent_twenty_in_a_name_survives(db):
+    note = await _fetch_a("[[100%20club]]", ["100%20club.md"])
+    assert note.links == ["obsidian:vault-1/100%20club.md"]

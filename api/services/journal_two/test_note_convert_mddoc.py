@@ -1365,3 +1365,12 @@ def test_html_never_emits_a_foreign_node_type_stress_fixture():
     )
     result = html_to_tiptap(stress_html)
     _assert_in_vocabulary(result["doc"])
+
+
+def test_link_destination_decoded_once_only_for_internal_and_relative():
+    external = md_to_tiptap("[x](https://a.com/a%20b)")
+    assert json.dumps(external).count("https://a.com/a%20b") == 1
+    internal = md_to_tiptap("[x](<import-link://k/a b>)")
+    assert internal["links"] == ["k/a b"]
+    assert "import-link://k/a b" in json.dumps(internal)
+    assert "%20" not in json.dumps(internal)

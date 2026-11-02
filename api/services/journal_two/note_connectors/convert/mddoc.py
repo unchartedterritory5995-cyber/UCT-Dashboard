@@ -40,6 +40,7 @@ Spec: docs/superpowers/specs/2026-08-11-note-connectors-design.md §4.
 from __future__ import annotations
 
 import re
+import urllib.parse
 from html.parser import HTMLParser
 from typing import Any
 
@@ -474,10 +475,25 @@ def _data_uri_image_node(src: str, ctx: _Ctx) -> dict[str, Any] | None:
     return {"type": "image", "attrs": {"src": f"{REF_PREFIX}{ref}"}}
 
 
+def _destination_as_written(dest: str) -> str:
+    """The ONE place a markdown-it-normalized destination is decoded.
+
+    markdown-it percent-encodes a link destination (`<a b>` -> `a%20b`), so an
+    internal `import-link://` href, or a scheme-less image src (a vault path),
+    comes back encoded. Decode it exactly once, here, so the stored key is the
+    one the author wrote. Any other destination (https, mailto, #fragment) is
+    returned unchanged: its `%20` is the author's own."""
+    if dest.startswith(LINK_PREFIX):
+        return urllib.parse.unquote(dest)
+    if dest and not dest.startswith(("data:", REF_PREFIX)) and "://" not in dest             and not dest.startswith(("#", "/", "mailto:")):
+        return urllib.parse.unquote(dest)
+    return dest
+
+
 def _image_node(token: Token, ctx: _Ctx) -> dict[str, Any] | None:
     """Returns the TipTap image node, or `None` when the src is an
     unsupported data URI (caller degrades to visible text in that case)."""
-    src = token.attrs.get("src") or ""
+    src = _destination_as_written(token.attrs.get("src") or "")
     if src.startswith(REF_PREFIX):
         # Already a connector-supplied placeholder — pass through untouched,
         # no duplicate media entry (the connector already registered it).
@@ -625,7 +641,7 @@ def _inline_nodes(
             _pop_mark(marks, "strike")
 
         elif child.type == "link_open":
-            href = child.attrs.get("href") or ""
+            href = _destination_as_written(child.attrs.get("href") or "")
             if _is_allowed_link_href(href):
                 if href.startswith(LINK_PREFIX):
                     ctx.links.append(href[len(LINK_PREFIX):])
@@ -824,7 +840,7 @@ def _unwrap_unknown_html(nodes: list[Any]) -> list[Any]:
 
 
 def _html_image_node(node: "_HtmlNode", ctx: _Ctx) -> dict[str, Any] | None:
-    src = (node.attrs.get("src") or "").strip()
+    src = _destination_as_written((node.attrs.get("src") or "").strip())
     if not src:
         return None
     if src.startswith(REF_PREFIX):
@@ -881,7 +897,7 @@ def _html_inline_walk(
             child_marks = marks + [{"type": _HTML_INLINE_MARK_TAGS[tag]}]
             items.extend(_html_inline_walk(n.children, ctx, child_marks))
         elif tag == "a":
-            href = (n.attrs.get("href") or "").strip()
+            href = _destination_as_written((n.attrs.get("href") or "").strip())
             if href.startswith(ATTACHMENT_REF_PREFIX):
                 # A connector (Dropbox's `_resolve_relative_attachments_html`)
                 # already resolved this `<a href>` to a co-located FILE
