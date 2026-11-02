@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import io
 import os
+import pathlib
 import struct
 import zlib
 
@@ -103,9 +104,12 @@ def test_conversion_keeps_alpha_as_png():
 def test_heic_converts_and_keeps_the_original_as_a_file():
     import pi_heif
     pi_heif.register_heif_opener()
-    heic = _img_bytes("HEIF")
+    # Fixture: 32x16 HEIC with EXIF Orientation=6, written once with pillow-heif (a one-off
+    # scratch install, NOT a project dependency; pi-heif is decode-only and cannot encode).
+    heic = (pathlib.Path(__file__).resolve().parents[3] / "tests" / "fixtures" / "media" / "rotated_32x16_orient6.heic").read_bytes()
     r = normalize_media(heic, "image/heic", "IMG.heic")
     assert r.kind == "image" and r.mime == "image/jpeg" and r.filename == "IMG.jpg"
+    assert Image.open(io.BytesIO(r.data)).size == (16, 32)  # the 90 degree turn was applied
     assert r.original is not None
     assert (r.original.kind, r.original.mime, r.original.filename) == ("file", "image/heic", "IMG.heic")
     assert r.original.data == heic

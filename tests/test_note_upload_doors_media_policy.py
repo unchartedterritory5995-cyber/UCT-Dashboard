@@ -109,11 +109,15 @@ def test_images_door_converts_heic_and_reports_the_original(app, client):
     pi_heif.register_heif_opener()
     _login_as(app, "u1")
     note = _note(client)
-    heic = _img("HEIF")
+    # Fixture: 32x16 HEIC with EXIF Orientation=6, written once with pillow-heif (a one-off
+    # scratch install, NOT a project dependency; pi-heif is decode-only and cannot encode).
+    import pathlib
+    heic = (pathlib.Path(__file__).resolve().parent / "fixtures" / "media" / "rotated_32x16_orient6.heic").read_bytes()
     r = client.post(f"/api/j2/notes/{note}/images", files={"file": ("IMG.heic", heic, "image/heic")})
     assert r.status_code == 200, r.text
     body = r.json()
     assert body["kind"] == "image" and body["mime"] == "image/jpeg"
+    assert (body["width"], body["height"]) == (16, 32)  # orientation applied
     assert body["original"]["name"] == "IMG.heic" and body["original"]["url"].endswith(".heic")
 
 
