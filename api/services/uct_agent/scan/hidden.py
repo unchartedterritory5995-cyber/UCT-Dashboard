@@ -44,7 +44,7 @@ OWNER_NAMED_PROPRIETARY = frozenset({
     "earnings_setup_grade",    # "Earnings Setup Grade" (screener/earnings_context.py), a UCT grade
     "in_uct20",                # "In UCT 20" (screener/context_joins.py), UCT's own list
     "archive_calls_n",         # UCT's internal research archive (owner F-16 follow-up: proprietary)
-    "base_structure", "base_relation_count",   # UCT's base detector (screener/base_*.py), owner decision: proprietary
+    "base_structure", "base_relation_count", "base_pivot_px",   # UCT's base detector (screener/base_*.py), owner decision
     "hvc_52w",                 # "HVC", UCT's own construct and terminology, owner decision: proprietary
     "theme",                   # "UCT Theme", UCT's theme taxonomy, owner decision: protected pending an exposure review
     # every pattern-engine score and signal (screener/pattern_join.py + the live tier's entry/stop distances)

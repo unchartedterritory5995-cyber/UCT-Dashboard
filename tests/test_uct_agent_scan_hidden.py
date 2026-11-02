@@ -176,7 +176,7 @@ def test_rows_carry_only_public_catalog_columns_and_identity(world):
         assert all(k == "symbol" or hidden.agent_column(k, cat) for k in row)
 
 
-@pytest.mark.parametrize("key", ["base_structure", "base_relation_count", "hvc_52w", "theme", "archive_calls_n"])
+@pytest.mark.parametrize("key", ["base_structure", "base_relation_count", "base_pivot_px", "hvc_52w", "theme", "archive_calls_n"])
 def test_the_owners_later_rulings_are_hidden_and_refused(key):
     assert key in hidden.rating_keys()
     with pytest.raises(scan_spec.SpecError) as e:

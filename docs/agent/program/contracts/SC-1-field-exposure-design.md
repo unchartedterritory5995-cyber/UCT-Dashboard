@@ -11,7 +11,7 @@
 |---|---|---|
 | `enrich.ratings_fields()` constant `out["…"]` keys, by AST | the 9 UCT Ratings columns | only ratings written there |
 | catalog `category == "flow"` | the 7 dark-pool and options-flow fields | a flow field filed under another category would be missed |
-| hand-named in `hidden.py` (with comments) | rs_rank, rs_return, candle_score, earnings_setup_grade, in_uct20, archive_calls_n, every pattern-engine field, base_structure, base_relation_count, hvc_52w, theme | **a list**; a new proprietary field is EXPOSED until someone adds it |
+| hand-named in `hidden.py` (with comments) | rs_rank, rs_return, candle_score, earnings_setup_grade, in_uct20, archive_calls_n, every pattern-engine field, base_structure, base_relation_count, base_pivot_px, hvc_52w, theme | **a list**; a new proprietary field is EXPOSED until someone adds it |
 | catalog-only rule (SC-1 §2d) | the 33 raw snapshot columns outside the catalog (archive_*, base_*, …) | relies on the catalog being the only door |
 
 The structural problem is **default-allow**: a field added to the catalog tomorrow is visible to the Agent unless someone remembers to list it. The owner wants **default-deny**: unclassified means unavailable to the Agent until reviewed.
@@ -27,7 +27,7 @@ exposure: "public" | "proprietary" | "restricted"
 | Value | Meaning | Examples (today's classification) |
 |---|---|---|
 | `public` | an ordinary market or fundamental measurement any data vendor sells, computed by a published or standard method | price, chg_pct_*, volume, vol_ratio, rvol_live, moving-average relations, RSI, ADR/ATR, standard candlestick properties, gap_pct, market_cap, PEG, eps_growth, rev_growth, margins, inst_pct, short interest, earnings dates, analyst data, sector, industry, index membership, stage2/stage4 |
-| `proprietary` | a UCT score, ranking, grade, classification, list or internal research output | uct_composite, rating_*, accdis, sponsorship, sector_rs_pct, blended_growth, rs_rank, rs_return, candle_score, earnings_setup_grade, in_uct20, archive_calls_n, pattern_engine_* + pattern_entry/stop_dist_pct + pattern_expectancy_r, base_structure, base_relation_count, hvc_52w, theme |
+| `proprietary` | a UCT score, ranking, grade, classification, list or internal research output | uct_composite, rating_*, accdis, sponsorship, sector_rs_pct, blended_growth, rs_rank, rs_return, candle_score, earnings_setup_grade, in_uct20, archive_calls_n, pattern_engine_* + pattern_entry/stop_dist_pct + pattern_expectancy_r, base_structure, base_relation_count, base_pivot_px, hvc_52w, theme |
 | `restricted` | licensed or sensitive data the owner has not released to the Agent | dp_* (dark pool), opt_* (options flow) |
 
 **Rules for the tag**
@@ -91,5 +91,4 @@ Hiding UCT's outputs does not make them impossible to reconstruct: public inputs
 
 1. **Screener owner:** add `exposure` to every field definition, with today's classification in §2's table, and the required-attribute registry test. No behaviour change for members.
 2. **agent-sc:** switch `hidden.py` to the allowlist, keep the cross-check tests, delete the hand-named lists, regenerate the JS mirror. Lands with agent-qa's rails.
-3. **Anything newly classified `public`** in step 1 that is hidden today: none is proposed.
-   - **Open for the owner:** `base_pivot_px` ("Base Pivot Price") also comes from UCT's base detector, like `base_structure`. It is visible today and not yet ruled on. agent-sc recommends `proprietary`.
+3. **Anything newly classified `public`** in step 1 that is hidden today: none is proposed. (`base_pivot_px` was ruled proprietary by the owner and is hidden.)
