@@ -744,3 +744,202 @@ def test_import_confirm_handles_pathological_titles_without_corrupting_siblings(
     # The malformed title is isolated -- named by importKey, not silently
     # dropped and not aborting its healthy siblings above.
     assert any(f["importKey"] == "x:bad-title" for f in r["failed"]), r["failed"]
+
+
+# ── Plan B Task 10: the edit guard, mode="recover", the finalize-write stamp ──
+#
+# "Edited since import" has ONE definition, `import_provenance.edited_since_import`
+# (Plan A controller ruling 2). The file importer's guard is that predicate minus the
+# legacy finalize shape (`import_provenance.legacy_finalize_shape`, ruling R4).
+
+from api.services.journal_two import import_provenance  # noqa: E402
+
+
+def _provenance(conn, note_id):
+    return conn.execute("SELECT updated_at, imported_at FROM j2_notes WHERE id=?", (note_id,)).fetchone()
+
+
+def test_importer_finalize_put_does_not_count_as_an_edit(conn):
+    """R5/H1: commit.js's post-confirm PUT carries `importMediaPending`. It is the importer's
+    own write, so it stamps `imported_at` with the SAME instant as `updated_at`; a member's
+    later save (no `importMediaPending`) still reads as an edit."""
+    out = notes_svc.import_confirm("u1", {"source": "x", "notes": [_mk_import_note_with_media("x:fin")]},
+                                   conn=conn)
+    note_id = out["created"][0]["id"]
+    resolved = {"type": "doc", "content": [{"type": "image", "attrs": {"src": "/api/j2/notes/attachments/r.png"}}]}
+    notes_svc.update_note("u1", note_id, {"bodyJson": resolved, "importMediaPending": False}, conn=conn)
+    row = _provenance(conn, note_id)
+    assert row["imported_at"] == row["updated_at"]
+    assert not import_provenance.edited_since_import(row["updated_at"], row["imported_at"])
+    # control: a member's own save moves updated_at past the stamp
+    notes_svc.update_note("u1", note_id, {"title": "mine"}, conn=conn)
+    row = _provenance(conn, note_id)
+    assert import_provenance.edited_since_import(row["updated_at"], row["imported_at"])
+
+
+def _confirm(conn, notes, **kw):
+    mode = kw.pop("mode", None)
+    payload = {"source": "obsidian", "destFolderId": None, "notes": notes}
+    if mode is not None:
+        payload["mode"] = mode
+    return notes_svc.import_confirm("u1", payload, conn=conn, **kw)
+
+
+def _break_body(conn, note_id, text="half an import"):
+    """A broken earlier import, written straight to the row (no member edit, no stamp move)."""
+    body = {"type": "doc", "content": [{"type": "paragraph", "content": [{"type": "text", "text": text}]}]}
+    conn.execute("UPDATE j2_notes SET body_json=?, body_plain=? WHERE id=?", (json.dumps(body), text, note_id))
+    conn.commit()
+
+
+def _shift(stamp, seconds):
+    from datetime import datetime, timedelta
+    return (datetime.fromisoformat(stamp) + timedelta(seconds=seconds)).isoformat()
+
+
+def test_recover_rebuilds_an_unedited_note_even_with_an_unchanged_hash(conn):
+    note_id = _confirm(conn, [_mk_import_note("obsidian:a.md", "Alpha")])["created"][0]["id"]
+    folder_before = conn.execute("SELECT folder_id FROM j2_notes WHERE id=?", (note_id,)).fetchone()[0]
+    _break_body(conn, note_id)
+    out = _confirm(conn, [_mk_import_note("obsidian:a.md", "Alpha")], mode="recover")   # same hash
+    assert out["recovered"] == [{"importKey": "obsidian:a.md", "id": note_id, "updatedAt": "2024-03-02T12:00:00Z"}]
+    assert not out["updated"] and not out["skipped"] and not out["keptEdited"]
+    row = conn.execute("SELECT body_plain, folder_id FROM j2_notes WHERE id=?", (note_id,)).fetchone()
+    assert row["body_plain"] == "body of Alpha"
+    assert row["folder_id"] == folder_before
+    # the folder stays where it is even when the export now places the note elsewhere
+    _break_body(conn, note_id)
+    _confirm(conn, [_mk_import_note("obsidian:a.md", "Alpha", path=("Elsewhere",))], mode="recover")
+    row = conn.execute("SELECT body_plain, folder_id FROM j2_notes WHERE id=?", (note_id,)).fetchone()
+    assert row["body_plain"] == "body of Alpha" and row["folder_id"] == folder_before
+
+
+def test_recover_never_touches_an_edited_note_and_lists_it(conn):
+    note_id = _confirm(conn, [_mk_import_note("obsidian:a.md", "Alpha")])["created"][0]["id"]
+    notes_svc.update_note("u1", note_id, {"title": "mine"}, conn=conn)
+    out = _confirm(conn, [_mk_import_note("obsidian:a.md", "Alpha")], mode="recover")
+    assert out["keptEdited"] == [{"importKey": "obsidian:a.md", "id": note_id}]
+    assert not out["recovered"] and not out["updated"]
+    assert notes_svc.get_note("u1", note_id, conn=conn)["title"] == "mine"
+
+
+def test_recover_refuses_a_note_whose_import_it_cannot_date(conn):
+    note_id = _confirm(conn, [_mk_import_note("obsidian:a.md", "Alpha")])["created"][0]["id"]
+    _break_body(conn, note_id)
+    conn.execute("UPDATE j2_notes SET imported_at=NULL WHERE id=?", (note_id,))
+    conn.commit()
+    out = _confirm(conn, [_mk_import_note("obsidian:a.md", "Alpha")], mode="recover")
+    assert out["keptEdited"] == [{"importKey": "obsidian:a.md", "id": note_id}] and not out["recovered"]
+    assert conn.execute("SELECT body_plain FROM j2_notes WHERE id=?", (note_id,)).fetchone()[0] == "half an import"
+
+
+def test_default_file_import_keeps_an_edited_note_when_the_export_changed(conn):
+    ids = [c["id"] for c in _confirm(conn, [_mk_import_note("obsidian:a.md", "Alpha"),
+                                            _mk_import_note("obsidian:b.md", "Beta")])["created"]]
+    notes_svc.update_note("u1", ids[0], {"title": "mine"}, conn=conn)
+    changed = [_mk_import_note("obsidian:a.md", "Alpha2"), _mk_import_note("obsidian:b.md", "Beta2")]
+    out = _confirm(conn, changed, guard_edits=True)
+    assert out["keptEdited"] == [{"importKey": "obsidian:a.md", "id": ids[0]}]
+    assert [u["id"] for u in out["updated"]] == [ids[1]]     # control: the unedited one updates
+    assert out["recovered"] == []
+    assert conn.execute("SELECT body_plain FROM j2_notes WHERE id=?", (ids[0],)).fetchone()[0] == "body of Alpha"
+
+
+def test_engine_call_without_guard_is_unchanged(conn):
+    note_id = _confirm(conn, [_mk_import_note("obsidian:a.md", "Alpha")])["created"][0]["id"]
+    notes_svc.update_note("u1", note_id, {"title": "mine"}, conn=conn)
+    out = _confirm(conn, [_mk_import_note("obsidian:a.md", "Alpha2")])
+    assert set(out) == {"created", "updated", "skipped", "failed"}
+    assert [u["id"] for u in out["updated"]] == [note_id]
+    assert notes_svc.get_note("u1", note_id, conn=conn)["title"] == "Alpha2"
+
+
+def _legacy_shape(conn, tmp_path, monkeypatch, note_id):
+    """A note finalized BEFORE the stamp shipped: updated_at 600 s after imported_at, a media
+    file written 5 s before that write, no version after the import."""
+    from datetime import datetime
+    root = tmp_path / "att"
+    monkeypatch.setattr(notes_svc, "_ATTACHMENT_ROOT", root)
+    imported = "2026-10-01T12:00:00+00:00"     # before LEGACY_FINALIZE_CUTOFF: a legacy import
+    updated = _shift(imported, 600)
+    conn.execute("UPDATE j2_notes SET imported_at=?, updated_at=? WHERE id=?", (imported, updated, note_id))
+    conn.commit()
+    _media_at(root, note_id, datetime.fromisoformat(updated).timestamp() - 5)
+    return imported
+
+
+def _media_at(root, note_id, mtime):
+    import os
+    media = root / "u1" / "notes" / note_id / "inline" / "x.png"
+    media.parent.mkdir(parents=True, exist_ok=True)
+    media.write_bytes(b"png")
+    os.utime(media, (mtime, mtime))
+
+
+def test_a_post_cutoff_image_only_member_save_reads_as_edited(conn, tmp_path, monkeypatch):
+    """Fix round 1: after the stamp shipped, the legacy shape is a member's image paste (an
+    image adds no text, so no version is captured). It must read as EDITED: recover keeps it
+    and a guarded import of a changed export keeps it."""
+    from datetime import datetime
+    root = tmp_path / "att"
+    monkeypatch.setattr(notes_svc, "_ATTACHMENT_ROOT", root)
+    note_id = _confirm(conn, [_mk_import_note("obsidian:a.md", "Alpha")])["created"][0]["id"]
+    imported = conn.execute("SELECT imported_at FROM j2_notes WHERE id=?", (note_id,)).fetchone()[0]
+    assert import_provenance.is_later(imported, import_provenance.LEGACY_FINALIZE_CUTOFF)
+    body = notes_svc.get_note("u1", note_id, conn=conn)["bodyJson"]
+    body["content"].append({"type": "image", "attrs": {"src": "/api/j2/notes/attachments/u1/x.png"}})
+    notes_svc.update_note("u1", note_id, {"bodyJson": body}, conn=conn)       # the member's paste
+    updated = conn.execute("SELECT updated_at FROM j2_notes WHERE id=?", (note_id,)).fetchone()[0]
+    t_imported = datetime.fromisoformat(imported).timestamp()
+    t_updated = datetime.fromisoformat(updated).timestamp()
+    _media_at(root, note_id, (t_imported + t_updated) / 2)     # stored between import and save
+    # non-vacuity: WITHOUT the cutoff this note has the legacy shape exactly
+    assert import_provenance.legacy_finalize_shape(updated, imported, (t_imported + t_updated) / 2, False)
+    assert not conn.execute("SELECT 1 FROM j2_note_versions WHERE note_id=?", (note_id,)).fetchone()
+    out = _confirm(conn, [_mk_import_note("obsidian:a.md", "Alpha")], mode="recover")
+    assert out["keptEdited"] == [{"importKey": "obsidian:a.md", "id": note_id}] and not out["recovered"]
+    out = _confirm(conn, [_mk_import_note("obsidian:a.md", "Alpha2")], guard_edits=True)
+    assert out["keptEdited"] == [{"importKey": "obsidian:a.md", "id": note_id}] and not out["updated"]
+    stored = notes_svc.get_note("u1", note_id, conn=conn)["bodyJson"]["content"]
+    assert stored[-1]["type"] == "image"
+
+
+def test_the_finalize_stamp_is_only_written_on_an_imported_note(conn):
+    """Fix round 1 hardening: a hand-crafted PUT carrying importMediaPending on a note nobody
+    imported must not invent an imported_at."""
+    note = notes_svc.create_note("u1", {"title": "mine"}, conn=conn)
+    notes_svc.update_note("u1", note["id"], {"title": "mine2", "importMediaPending": False}, conn=conn)
+    assert conn.execute("SELECT imported_at FROM j2_notes WHERE id=?", (note["id"],)).fetchone()[0] is None
+
+
+def test_legacy_finalize_shape_reads_as_unedited(conn, tmp_path, monkeypatch):
+    note_id = _confirm(conn, [_mk_import_note("obsidian:a.md", "Alpha")])["created"][0]["id"]
+    _legacy_shape(conn, tmp_path, monkeypatch, note_id)
+    _break_body(conn, note_id)
+    out = _confirm(conn, [_mk_import_note("obsidian:a.md", "Alpha")], mode="recover")
+    assert [r["id"] for r in out["recovered"]] == [note_id] and not out["keptEdited"]
+    assert conn.execute("SELECT body_plain FROM j2_notes WHERE id=?", (note_id,)).fetchone()[0] == "body of Alpha"
+
+
+def test_legacy_shape_with_a_later_text_edit_reads_as_edited(conn, tmp_path, monkeypatch):
+    note_id = _confirm(conn, [_mk_import_note("obsidian:a.md", "Alpha")])["created"][0]["id"]
+    imported = _legacy_shape(conn, tmp_path, monkeypatch, note_id)
+    conn.execute("INSERT INTO j2_note_versions (id, user_id, note_id, title, body_json, body_plain, created_at)"
+                 " VALUES ('v1','u1',?,'t','{}','x',?)", (note_id, _shift(imported, 300)))
+    conn.commit()
+    out = _confirm(conn, [_mk_import_note("obsidian:a.md", "Alpha")], mode="recover")
+    assert out["keptEdited"] == [{"importKey": "obsidian:a.md", "id": note_id}] and not out["recovered"]
+
+
+def test_recover_checkpoints_the_replaced_body_in_version_history(conn):
+    note_id = _confirm(conn, [_mk_import_note("obsidian:a.md", "Alpha")])["created"][0]["id"]
+    _break_body(conn, note_id, "what recover replaces")
+    _confirm(conn, [_mk_import_note("obsidian:a.md", "Alpha")], mode="recover")
+    kept = [r[0] for r in conn.execute("SELECT body_plain FROM j2_note_versions WHERE note_id=?", (note_id,))]
+    assert "what recover replaces" in kept
+
+
+def test_import_confirm_refuses_an_unknown_mode(conn):
+    for bad in ("overwrite", "", 1, True):
+        with pytest.raises(notes_svc.NoteValidationError, match='mode must be "recover"'):
+            _confirm(conn, [_mk_import_note("obsidian:a.md")], mode=bad)

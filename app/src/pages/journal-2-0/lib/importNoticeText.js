@@ -20,7 +20,8 @@
 
 /** `truncated`: a bounded read stopped at its cap; its count rides inside the name. */
 export const SERVER_REASONS = Object.freeze(['too_large', 'storage_limit', 'unsupported', 'fetch_failed', 'unsafe', 'truncated'])
-export const CLIENT_REASONS = Object.freeze(['upload_failed', 'type_refused', 'unresolvable_src', 'decode_failed', 'missing_resource'])
+/** `storage_full` (Plan B R3): a file import's storage refusal — final, nothing retries a file import. */
+export const CLIENT_REASONS = Object.freeze(['upload_failed', 'type_refused', 'unresolvable_src', 'decode_failed', 'missing_resource', 'storage_full'])
 /** Plan C (the Obsidian plugin), plugin-only meanings, in snake_case. */
 export const PLUGIN_REASONS = Object.freeze(['obsidian_plugin_outdated', 'obsidian_attachments_unavailable', 'not_found', 'sync_off'])
 export const NOTICE_REASONS = Object.freeze([...SERVER_REASONS, ...CLIENT_REASONS, ...PLUGIN_REASONS])
@@ -43,6 +44,8 @@ export const NOTICE_COPY = Object.freeze({
   decode_failed: "{name} couldn't be read",
   // Written by both the file importer and the Notion converter (a live sync has no export).
   missing_resource: "{name} couldn't be found, so it wasn't copied",
+  // Plan B R3: the file importer's storage refusal — final, never "will be copied".
+  storage_full: 'Not copied: storage limit. Free up space and import again to bring {name} over',
   // Plan C (Obsidian plugin) — copy verbatim from the Plan C plan.
   obsidian_plugin_outdated: "{name} wasn't synced. Update the UCT Notebook Sync plugin in Obsidian to bring images and files over.",
   obsidian_attachments_unavailable: "{name} wasn't synced yet. It will be retried on the next sync.",

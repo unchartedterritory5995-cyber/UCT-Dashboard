@@ -2722,7 +2722,8 @@ async def notes_media_fetch_endpoint(payload: dict[str, Any] = Depends(_json(dic
     with nothing fetched. The download is the shared `fetch_content_url` (http allowed for the
     download only, redirects followed, the SSRF guard on every hop), then `normalize_media` +
     `store_media` under the member's budget, off the event loop. 200 => `{src, kind,
-    filename}`, `src` always our own URL; any refusal => 422 `{"reason", "markerText"}` at the
+    filename}` (+ `original: {url, name}` when the policy kept one, Plan B R7), `src` always
+    our own URL; the stored file is handed to documents like an upload; any refusal => 422 `{"reason", "markerText"}` at the
     top level, the reason decided by TYPE (`engine.media_failure_reason`), never a 500."""
     from fastapi.responses import JSONResponse
     from starlette.concurrency import run_in_threadpool
@@ -2780,7 +2781,16 @@ async def notes_media_fetch_endpoint(payload: dict[str, Any] = Depends(_json(dic
             marker = media_policy.rejection(reason, filename).marker_text
         logger.info("notes/media/fetch refused (%s) for member %s: %s", reason, user_id, e)
         return JSONResponse(status_code=422, content={"reason": reason, "markerText": marker})
-    return {"src": stored.url, "kind": stored.kind, "filename": stored.name}
+    # Plan B R7 (a): a fetched file is searchable exactly as an uploaded one is -- the same
+    # guarded, off-loop hand-off the upload doors make (a failure there never costs the fetch).
+    saved = _stored_media_payload(stored)
+    await _hand_off_to_documents(user_id, note_id, saved, stored.mime, kind=stored.kind)
+    answer = {"src": stored.url, "kind": stored.kind, "filename": stored.name}
+    # Plan B R7 (b): a kept original (a HEIC source, an animation) travels back, so the
+    # importer inserts its chip rather than leaving an orphan file on the member's cap.
+    if saved["original"] is not None:
+        answer["original"] = saved["original"]
+    return answer
 
 
 @router.post("/notes/{note_id}/embeds")
@@ -3390,7 +3400,9 @@ def notes_import_confirm_endpoint(payload: dict[str, Any] = Depends(_json(dict[s
     if isinstance(payload, dict) and sample_marker.reserved_for_the_sample(payload.get("source")):
         raise HTTPException(status_code=400, detail="That import source name is reserved.")
     try:
-        return notes_service.import_confirm(user["id"], payload)
+        # Plan B Task 10: a file import never overwrites a note edited since its import, in
+        # either mode (`keptEdited`); `mode: "recover"` rebuilds the unedited ones.
+        return notes_service.import_confirm(user["id"], payload, guard_edits=True)
     except NoteValidationError as e:
         raise HTTPException(status_code=400, detail=str(e))
 

@@ -45,7 +45,10 @@ IMPORT_NOTICE_TYPE = "importNotice"
 #: copy tables derive the same sentence.
 SERVER_REASONS: tuple[str, ...] = ("too_large", "storage_limit", "unsupported", "fetch_failed", "unsafe", "truncated")
 CLIENT_REASONS: tuple[str, ...] = (
-    "upload_failed", "type_refused", "unresolvable_src", "decode_failed", "missing_resource")
+    "upload_failed", "type_refused", "unresolvable_src", "decode_failed", "missing_resource",
+    # Plan B R3: a file import's storage refusal. Final, unlike the engine's `storage_limit`
+    # ("will be copied once space frees up"): nothing retries a file import, so it says how.
+    "storage_full")
 #: Plan C (the Obsidian plugin), plugin-only meanings. Codes converted to snake_case.
 PLUGIN_REASONS: tuple[str, ...] = (
     "obsidian_plugin_outdated", "obsidian_attachments_unavailable", "not_found", "sync_off")
@@ -75,6 +78,8 @@ NOTICE_COPY: Mapping[str, str] = MappingProxyType({
     # `missing_resource` is written by BOTH the client file importer and the Notion converter
     # (a live sync has no export), so its sentence names no source.
     "missing_resource": "{name} couldn't be found, so it wasn't copied",
+    # Plan B R3: the file importer's storage refusal -- final, never "will be copied".
+    "storage_full": "Not copied: storage limit. Free up space and import again to bring {name} over",
     # Plan C (Obsidian plugin) -- copy verbatim from the Plan C plan.
     "obsidian_plugin_outdated": (
         "{name} wasn't synced. Update the UCT Notebook Sync plugin in Obsidian to bring images and files over."),
