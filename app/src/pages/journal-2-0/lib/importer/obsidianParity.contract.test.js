@@ -273,6 +273,44 @@ const knownClientGap = {
   // move when it lands.
 }
 
+// DELIBERATE lane differences no parity fixture can carry, named one by one, each pinned
+// below on the client and in `test_obsidian_provider.py::test_the_named_lane_differences`
+// on the server, so a change on either side is seen. Never a gap to close.
+//   attachment-folder (post-merge fix 2): Obsidian's "Files and links > Default location for
+//   new attachments" lives in `<vault>/.obsidian/app.json`. A FILE IMPORT holds that file,
+//   so the client's resolver ties a same-named file to the attachment folder after the
+//   note's own folder (`obsidianResolve.js::rank`, Plan B). The SERVER lane never sees
+//   `.obsidian/`: the plugin stages notes and their attachment refs only. A live sync from a
+//   0.2.0 plugin resolves every attachment with Obsidian's OWN resolver and sends the
+//   result as a ref (`_apply_attachment_refs`), so it honours the setting already; only the
+//   old-plugin fallback (no ref list) resolves by the server's rule, which has no setting to
+//   read and ties by fewest folders, then sort order (`_pick`). With no setting both lanes
+//   agree (the vault root's files already have the fewest folders).
+const DELIBERATE_LANE_DIFFERENCES = {
+  'attachment-folder': {
+    paths: ['V/A/x.png', 'V/Files/x.png', 'V/C/m.md'],
+    appJson: '{"attachmentFolderPath":"Files"}',
+    source: 'V/C/m.md',
+    target: 'x.png',
+    client: 'V/Files/x.png',
+    server: 'V/A/x.png',
+  },
+}
+
+describe('Obsidian deliberate lane differences', () => {
+  it('attachment-folder: the client honours app.json; the server cannot see it', async () => {
+    const { makeObsidianResolver } = await import('./obsidianResolve')
+    const d = DELIBERATE_LANE_DIFFERENCES['attachment-folder']
+    const files = [vf('V/.obsidian/app.json', d.appJson), ...d.paths.map((p) => vf(p, ''))]
+    const r = await makeObsidianResolver(files)
+    expect(r.resolve(d.target, d.source)).toBe(d.client)
+    expect(d.client).not.toBe(d.server)
+    // With no setting the client takes the server's answer.
+    const bare = await makeObsidianResolver(d.paths.map((p) => vf(p, '')))
+    expect(bare.resolve(d.target, d.source)).toBe(d.server)
+  })
+})
+
 describe('Obsidian client<->server pre-pass parity', () => {
   // Non-vacuity control — mirrors serverConvert.contract.test.js's own: a
   // missing/empty fixtures dir must fail loudly, not report zero tests as a

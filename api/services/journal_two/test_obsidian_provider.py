@@ -1675,6 +1675,16 @@ def test_a_leading_slash_wikilink_is_vault_root_relative():
     assert [h for _, h in _link_marks(out["doc"])] == [_key("Plan.md"), _key("Notes/Plan.md")]
 
 
+def test_the_named_lane_differences():
+    """Post-merge fix 2: the server half of `obsidianParity.contract.test.js::
+    DELIBERATE_LANE_DIFFERENCES`. attachment-folder: the server has no `.obsidian/app.json`
+    (the plugin stages notes and refs only), so a same-named file ties by fewest folders,
+    then sort order; the client's file import ties to the attachment folder it reads there.
+    A 0.2.0 plugin's refs carry Obsidian's own answer, so live sync is unaffected."""
+    paths = ["V/A/x.png", "V/Files/x.png", "V/C/m.md"]
+    assert _r("x.png", paths, from_path="V/C/m.md") == "V/A/x.png"
+
+
 def test_a_missing_dotted_note_embed_waits_like_a_wikilink_and_a_missing_file_is_text():
     """M3: `![[Dr.Smith]]` before its note arrives is the same pending link `[[Dr.Smith]]` is,
     so it heals; `![[report.pdf]]` (a known attachment extension) stays plain text."""
