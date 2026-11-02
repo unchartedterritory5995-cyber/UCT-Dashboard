@@ -27,9 +27,11 @@
 //   bump costs one translation + one write per saved script per member.
 //
 // ⛔⛔ ENGINE BUMP RUNBOOK — read before AND after every bump.
-//   • ⛔ BUMP TWO NUMBERS IN ONE COMMIT: this one and the server's mirror,
-//     `api/services/user_definitions.py::SCRIPT_ENGINE_VERSION` (the alert/scan/backtest
-//     lanes have no browser to ask). `tests/test_saved_script_prebump.py` pins them equal.
+//   • ⭐ BUMP ONE NUMBER: this one. The server (the alert/scan/backtest lanes have no
+//     browser to ask) READS this declaration (`user_definitions.read_script_engine_version`;
+//     keep it `export const SCRIPT_ENGINE_VERSION = <n>` on one line — any other shape
+//     reads as unreadable, and unreadable fails CLOSED: every recorded refusal binds).
+//     ⛔ Do not add a server literal back: that is the drift this replaced.
 //   • A TRANSLATOR REGRESSION CAN MARK GOOD SCRIPTS 'refused' SERVER-SIDE. A browser
 //     running the bumped engine records each refusal (`definition_engine_status`, with
 //     the engine number that refused), and every server lane — alerts, scans, backtests —
@@ -44,12 +46,26 @@
 //         member's next chart load re-translates it (accepted → written back from the
 //         script path, lifted; refused → a new verdict at today's number);
 //       – a version WITHOUT its script (a studio / Formula hand edit of a refused script,
-//         a share-installed copy) EXPIRES and runs as stored. Chosen over carrying the
-//         script forward: re-translating the ancestor's script would overwrite the
-//         member's hand edit (the L2 rule — a hand edit is the member's own maths), and a
-//         verdict about a script cannot be re-checked against a document that has none.
+//         a share-installed copy) EXPIRES and runs as stored ONLY WHEN ITS MATHS DIFFERS
+//         from the refused maths (the server's `same_maths`, from the store's maths
+//         identity). A no-op Undo, a presentation-only studio save or a share install
+//         carries the refused calculation unchanged and STAYS HELD until it is saved from
+//         a script today's engine accepts. Chosen over carrying the script forward:
+//         re-translating the ancestor's script would overwrite the member's hand edit
+//         (the L2 rule — a hand edit is the member's own maths).
+//       – a `write-failed` (the store refused the write-back, e.g. a 422 repaint ack)
+//         NEVER clears an older refusal: the alerts keep withholding the stored maths and
+//         the chart draws today's translation, without PUTting it again, and offers the
+//         Builder.
+//   • ⛔ A SCRIPT-HOLDING VERSION WHOSE MEMBER NEVER OPENS A CHART STAYS WITHHELD
+//     SERVER-SIDE INDEFINITELY. Only a chart load re-translates it; until then every
+//     alert, scan and backtest on it is withheld by name. Nothing on the server re-asks.
+//     Owner follow-up, not built: "server-side upgrade for members who never open a
+//     chart" (re-translate in the pod with the shipped translator, or notify the member).
 //   • RECOVERY IS TO SHIP ANOTHER BUMP (the fixed translator with this number + 1). Every
-//     refused script is re-asked on its next chart load and every scriptless carry expires.
+//     refused script is re-asked on its next chart load (see the bullet above for a
+//     member who never opens one), and every scriptless carry whose maths differs from
+//     the refused maths expires.
 //   • AFTER EVERY BUMP, CHECK THE REFUSED COUNT: in the web pod, against
 //     user_definitions.db, `SELECT engine, COUNT(*) FROM definition_engine_status WHERE
 //     status='refused' GROUP BY engine` — a jump on the new engine is a regression signal,

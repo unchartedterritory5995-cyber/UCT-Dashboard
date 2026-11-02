@@ -322,6 +322,11 @@ _ADDED_COLUMNS = (
     # (never inside it). NULL for every row written before this column and for
     # every row a non-script door writes. See `MAX_PINE_SOURCE_BYTES`.
     ("user_definitions", "pine_source", "TEXT"),
+    # ⭐ PRE-BUMP F3 — the MATHS a `refused` verdict is about (`_maths_identity` of the
+    # refused version), copied unchanged onto every carry. Past its engine, a scriptless
+    # version expires only when its own maths DIFFERS. NULL on every row written before
+    # this column and on every `write-failed` row: a NULL refusal expires as before.
+    ("definition_engine_status", "refused_maths", "TEXT"),
 )
 
 
@@ -1884,12 +1889,49 @@ def _row_to_dict(row: sqlite3.Row) -> dict:
     }
 
 
-#: ⭐ THE SCRIPT ENGINE TODAY'S BUILD SHIPS — `scriptEngineVersion.SCRIPT_ENGINE_VERSION`,
-#: read here ONLY to decide whether a recorded `refused` verdict still binds
-#: (`engine_withheld_reason`): the server lanes have no browser to ask. Pinned equal to
-#: the JS constant by `tests/test_saved_script_prebump.py::test_the_server_engine_number_IS_the_browsers`
-#: (one web image ships both). ⛔ Bump BOTH in the same commit.
-SCRIPT_ENGINE_VERSION = 1
+#: The browser's engine-number file — the ONE authority for the number.
+_SCRIPT_ENGINE_JS = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+    "app", "src", "components", "chart", "engine", "scriptEngineVersion.js")
+
+#: The declaration, at the start of a line — never a mention in the comment block above it.
+_ENGINE_DECL_RE = re.compile(r"^export const SCRIPT_ENGINE_VERSION = (\d+)\s*$", re.M)
+
+
+def read_script_engine_version(path: Any = None) -> Optional[int]:
+    """`SCRIPT_ENGINE_VERSION` as DECLARED in the browser's `scriptEngineVersion.js`, or
+    None when the file is absent or the declaration is missing, ambiguous or < 1.
+
+    ⛔⛔ PRE-BUMP F2 — ONE AUTHORITY. The server used to carry its own literal, pinned
+    to the JS by a test that ran only in the full-suite REPORT (not the deploy gate),
+    so a bump of the JS constant alone would have left the server at the old number:
+    every scriptless carry held by the alerts forever while the chart drew it. The
+    server now reads the browser's declaration. Every runtime image ships it (the web
+    image is `COPY . /app`; the nixpacks services build from the checkout; the
+    alert lane already runs shipped `app/src` JS under node) — railed by
+    `test_F2_every_runtime_image_ships_the_js_file`."""
+    p = path if path is not None else _SCRIPT_ENGINE_JS
+    try:
+        with open(p, encoding="utf-8") as fh:
+            text = fh.read()
+    except OSError:
+        return None
+    found = _ENGINE_DECL_RE.findall(text)
+    if len(found) != 1:
+        return None
+    v = int(found[0])
+    return v if v >= 1 else None
+
+
+#: ⭐ THE SCRIPT ENGINE TODAY'S BUILD SHIPS — read from `scriptEngineVersion.js`
+#: (`read_script_engine_version`), used ONLY to decide whether a recorded `refused`
+#: verdict still binds (`engine_withheld_reason`): the server lanes have no browser to
+#: ask. ⛔ Never a literal here — bump the JS constant and this follows.
+#: ⛔ None (unreadable) FAILS CLOSED: every recorded refusal binds.
+SCRIPT_ENGINE_VERSION = read_script_engine_version()
+if SCRIPT_ENGINE_VERSION is None:
+    _log.error("[user-definitions] script engine version unreadable from %s — every "
+               "recorded refusal binds until it is readable", _SCRIPT_ENGINE_JS)
 
 
 def engine_stamp_of(definition: Any) -> Optional[int]:
@@ -2152,11 +2194,13 @@ def record_engine_status(user_id: Any, def_id: str, *, version: int, engine: int
             raise ForkRefused("Not found")
         if prev["version"] != version:
             raise SaveConflict(def_id, version, prev["version"])
+        maths = (_maths_identity(prev["ast_hash"], json.loads(prev["definition"]))
+                 if status == "refused" else None)
         c.execute(
             "INSERT INTO definition_engine_status "
-            "(user_id, def_id, version, engine, status, reason, created_at) "
-            "VALUES (?,?,?,?,?,?,?)",
-            (str(user_id), def_id, version, engine, status, text, now))
+            "(user_id, def_id, version, engine, status, reason, created_at, refused_maths) "
+            "VALUES (?,?,?,?,?,?,?,?)",
+            (str(user_id), def_id, version, engine, status, text, now, maths))
         c.commit()
     if status == "refused":
         from api.services import alert_user_series
@@ -2165,14 +2209,50 @@ def record_engine_status(user_id: Any, def_id: str, *, version: int, engine: int
             "status": status, "reason": text}
 
 
+def _maths_identity(ast_hash: Any, definition: Any) -> str:
+    """The store's own identity of a version's MATHS: the scan tree's hash (the
+    `ast_hash` column) plus `trees_identity` of the materialised document — the same
+    pair that decides a `compute.rev` bump. Presentation (names, colours, plot
+    styles), the engine stamp and `compute.rev` do not move it."""
+    doc = definition
+    if isinstance(doc, dict):
+        try:
+            doc = materialize(doc)
+        except ValueError:
+            pass
+    return f"{ast_hash}|{trees_identity(doc) or ''}"
+
+
 def _engine_status_of(c: sqlite3.Connection, user_id: Any, def_id: str,
                       version: int) -> Optional[dict]:
-    row = c.execute(
-        "SELECT engine, status, reason FROM definition_engine_status "
-        "WHERE user_id=? AND def_id=? AND version=? ORDER BY id DESC LIMIT 1",
-        (str(user_id), def_id, int(version))).fetchone()
-    return None if row is None else {"engine": row["engine"], "status": row["status"],
-                                     "reason": row["reason"]}
+    """The verdict that binds this stored version, or None.
+
+    ⛔⛔ PRE-BUMP F1 — A `write-failed` NEVER CLEARS A `refused`. A write-failed record
+    is about the WRITE-BACK of today's translation (the store refused it, e.g. a 422
+    repaint acknowledgement); the stored document is still the one the older engine
+    refused. So the newest `refused` row binds whatever was recorded after it, and a
+    later write-failed rides along as `write_failed_engine` (the browser stops
+    PUTting, keeps drawing today's translation, never the stored maths). With no
+    refusal, the newest row is the status, as before.
+    The internal key `maths` (the refused maths identity) is consumed by
+    `_with_engine_status` / `_carry_refusal` and never served."""
+    rows = c.execute(
+        "SELECT engine, status, reason, refused_maths FROM definition_engine_status "
+        "WHERE user_id=? AND def_id=? AND version=? ORDER BY id DESC",
+        (str(user_id), def_id, int(version))).fetchall()
+    if not rows:
+        return None
+    at = next((i for i, r in enumerate(rows) if r["status"] == "refused"), None)
+    if at is None:
+        r = rows[0]
+        return {"engine": r["engine"], "status": r["status"], "reason": r["reason"]}
+    r = rows[at]
+    out = {"engine": r["engine"], "status": "refused", "reason": r["reason"],
+           "maths": r["refused_maths"]}
+    failed = [x["engine"] for x in rows[:at] if x["status"] == "write-failed"]
+    if failed:
+        out["write_failed_engine"] = max(failed)
+    return out
 
 
 def _carry_refusal(c: sqlite3.Connection, user_id: Any, def_id: str,
@@ -2194,18 +2274,26 @@ def _carry_refusal(c: sqlite3.Connection, user_id: Any, def_id: str,
         return
     if script_stamp is not None and script_stamp >= held["engine"]:
         return
+    # ⛔ F3 — the carry keeps the REFUSED maths (never the new version's own), so a
+    # chain of edits that comes back to the refused calculation is still recognised.
     c.execute(
         "INSERT INTO definition_engine_status "
-        "(user_id, def_id, version, engine, status, reason, created_at) "
-        "VALUES (?,?,?,?,?,?,?)",
+        "(user_id, def_id, version, engine, status, reason, created_at, refused_maths) "
+        "VALUES (?,?,?,?,?,?,?,?)",
         (str(user_id if to_user_id is None else to_user_id), to_def_id or def_id,
-         to_version, held["engine"], "refused", held["reason"], now))
+         to_version, held["engine"], "refused", held["reason"], now, held.get("maths")))
 
 
 def _with_engine_status(c: sqlite3.Connection, out: dict) -> dict:
-    """Attach the newest engine status recorded for THIS version (or nothing)."""
+    """Attach the engine status that binds THIS version (or nothing). A refusal also
+    says whether this version's maths IS the refused maths (`same_maths`, F3) — the
+    one fact `engine_withheld_reason` and the browser's `upgradeKindOf` both read."""
     st = _engine_status_of(c, out.get("user_id"), out.get("def_id"), out.get("version"))
     if st is not None:
+        maths = st.pop("maths", None)
+        if st["status"] == "refused":
+            st["same_maths"] = (maths is not None and maths == _maths_identity(
+                out.get("ast_hash"), out.get("definition")))
         out["engine_status"] = st
     return out
 
@@ -2238,8 +2326,14 @@ def engine_withheld_reason(row: Any, current: Optional[int] = None) -> Optional[
         accepted → written back from the script path, which lifts it; refused → a
         new verdict at today's number);
       * an older engine refused it and the version has NO script to re-translate (a
-        studio / Formula hand edit, a share install) — EXPIRED: nothing can re-check
-        it, so it runs as the member's own maths.
+        studio / Formula hand edit, a share install) — EXPIRED only when its maths
+        DIFFERS from the refused maths (`same_maths`, F3): a no-op Undo, a
+        presentation-only save or a share install carries the refused calculation
+        unchanged and stays HELD; a real maths edit is the member's own maths and runs.
+        A legacy refusal with no recorded maths expires as before.
+    ⛔ A `write-failed` recorded after the refusal never clears it (F1,
+    `_engine_status_of`). ⛔ An unreadable engine number (`current` and
+    `SCRIPT_ENGINE_VERSION` both None) FAILS CLOSED: every refusal binds (F2).
     The browser (`savedScriptUpgrade.upgradeKindOf`) answers the same way, so a chart
     never draws what the alerts withhold, or the reverse."""
     st = row.get("engine_status") if isinstance(row, Mapping) else None
@@ -2247,14 +2341,26 @@ def engine_withheld_reason(row: Any, current: Optional[int] = None) -> Optional[
         return None
     cur = SCRIPT_ENGINE_VERSION if current is None else current
     eng = st.get("engine")
-    if not isinstance(eng, int) or isinstance(eng, bool) or eng >= cur:
+    if cur is None or not isinstance(eng, int) or isinstance(eng, bool) or eng >= cur:
         return (f"engine-refused: today's script engine (version {eng}) "
                 f"refuses this script — {st.get('reason')}. It stays withheld until it is "
                 "saved from its script (open it in the Builder's Pine tab and save).")
     if _awaits_retranslation(row, cur):
+        failed = st.get("write_failed_engine")
+        if isinstance(failed, int) and not isinstance(failed, bool) and failed >= cur:
+            return (f"engine-refused: script engine version {eng} refused this script — "
+                    f"{st.get('reason')}. Today's engine (version {cur}) accepts it, but its "
+                    "update could not be saved automatically: it stays withheld until it is "
+                    "saved from its script (open it in the Builder's Pine tab and save).")
         return (f"engine-refused: script engine version {eng} refused this script — "
                 f"{st.get('reason')}. It stays withheld until today's engine (version "
                 f"{cur}) re-checks it, which happens the next time it is opened on a chart.")
+    if st.get("same_maths") is True:
+        return (f"engine-refused: script engine version {eng} refused this calculation — "
+                f"{st.get('reason')}. This version carries the same calculation (a copy, or "
+                "an edit that changed only how it looks), so it stays withheld until it is "
+                "saved from a script today's engine accepts (open it in the Builder's Pine "
+                "tab and save).")
     return None
 
 
