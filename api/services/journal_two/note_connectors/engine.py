@@ -2583,8 +2583,13 @@ async def _import_remote_notes(
         # EARLIER round whose target has only now arrived. Bounded (`limit`, index-served
         # on `import_links_pending`), timestamp-neutral, and never fails the sync: a
         # failure here is one named failure, and the marks stay for the next round.
+        # Final review I2: up to `HEAL_LIMIT` bodies parsed and rewritten -- never on the event
+        # loop (a manual "Sync now" runs this pass on the uvicorn loop). A worker thread, on
+        # its OWN connection (`conn=None`): a sqlite connection never crosses threads. Same
+        # writes as before (timestamp-neutral, per-note edited re-check inside the heal).
         try:
-            heal = heal_pending_links(user_id, conn=conn)
+            conn.commit()   # nothing of this pass left open to make the heal's writes wait
+            heal = await asyncio.to_thread(heal_pending_links, user_id)
             totals["failures"].extend(heal.get("failures", []))
         except Exception as e:  # noqa: BLE001
             totals["failures"].append(f"link heal pass failed: {e}")

@@ -3373,6 +3373,28 @@ async def test_the_policy_work_runs_off_the_event_loop(source, provider, monkeyp
     assert seen and all(t != loop_thread for t in seen)
 
 
+async def test_the_link_heal_runs_off_the_event_loop_on_its_own_connection(source, provider, monkeypatch):
+    """Final review I2: a manual "Sync now" runs `_import_remote_notes` on the uvicorn loop;
+    the heal sweep parses and rewrites up to 500 bodies, so it runs in a worker thread, with
+    its own connection (a sqlite connection never crosses threads)."""
+    loop_thread = threading.get_ident()
+    seen = []
+
+    def spy(user_id, **kwargs):
+        seen.append((threading.get_ident(), user_id, kwargs))
+        return {"healed": 0, "checked": 0, "unresolved": [], "failures": ["named heal failure"]}
+
+    monkeypatch.setattr(engine, "heal_pending_links", spy)
+    provider.refs = [RemoteRef(remote_id="p1", updated_at="2026-08-01T00:00:00+00:00")]
+    provider.notes_by_id = {"p1": _rn("p1", "Page")}
+    r = await engine.sync_source(source["id"], full=True, manual=True)
+    assert len(seen) == 1
+    thread, user_id, kwargs = seen[0]
+    assert thread != loop_thread and user_id == "u1"
+    assert "conn" not in kwargs
+    assert "named heal failure" in r["failures"]          # its failures still reach the pass
+
+
 def test_the_storage_wait_flip_is_member_scoped_and_timestamp_neutral(db):
     conn = auth_db.get_connection()
     try:
