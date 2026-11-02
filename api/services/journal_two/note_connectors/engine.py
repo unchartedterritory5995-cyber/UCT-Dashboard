@@ -1946,10 +1946,13 @@ def _flip_storage_waits(conn: sqlite3.Connection, user_id: str) -> int:
 
 
 def _storage_has_freed(budget: media_policy.MediaBudget) -> bool:
-    """Space a waiting note can use: the member is under the media cap AND the volume has
-    headroom (`assert_import_headroom`, the other storage_limit source -- read through
-    `notes`, the same reference every save checks)."""
-    if not budget.under_cap():
+    """Space a waiting note can use: room under the member's media cap for the largest item a
+    sync can copy (`MEDIA_SOURCE_MAX_BYTES`) AND volume headroom (`assert_import_headroom`, the
+    other storage_limit source -- read through `notes`, the same reference every save checks).
+    Final review (promoted minor): merely "under the cap" re-downloaded every waiting note of a
+    member a few bytes under it on every nightly pass, forever, only to hit the cap again."""
+    room = media_policy.MEMBER_IMPORT_MEDIA_CAP_BYTES - budget.used
+    if room < media_policy.MEDIA_SOURCE_MAX_BYTES:
         return False
     try:
         notes_svc.assert_import_headroom(0)

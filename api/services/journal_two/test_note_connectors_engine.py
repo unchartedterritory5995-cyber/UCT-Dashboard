@@ -3187,8 +3187,8 @@ async def test_storage_wait_retries_once_space_frees(source, provider, monkeypat
     assert len(provider.fetch_media_calls) == 3
     assert _row("u1", _IMG_KEY)["import_media_pending"] == 2
 
-    # space frees -> the waiting note comes back on the next pass
-    _media_cap(monkeypatch, 10 * 1024 * 1024)
+    # space frees (room for a whole item) -> the waiting note comes back on the next pass
+    _media_cap(monkeypatch, 100 * 1024 * 1024)
     stored_srcs = [n["attrs"]["src"] for n in _nodes_of(_body(notes_svc.get_note("u1", note_id)), "image")]
     await engine.sync_source(source["id"], full=True, manual=True)
     # fix round 1 (I4): ONLY the missing item is fetched; the two already stored are reused
@@ -3199,6 +3199,31 @@ async def test_storage_wait_retries_once_space_frees(source, provider, monkeypat
     assert _nodes_of(body, "importNotice") == []
     assert _row("u1", _IMG_KEY)["import_media_pending"] == 0
     assert notes_svc.get_note("u1", note_id)["updatedAt"] == stamped     # timestamp-neutral
+
+
+async def test_a_storage_wait_comes_back_only_once_a_whole_item_fits(source, provider, monkeypatch):
+    """Final review M (promoted): a member a few bytes under the cap is not "space freed".
+    Flipping them every pass re-downloaded every waiting note every night, forever, only to
+    hit the cap again. A wait comes back once there is room for the largest item a sync can
+    copy (`MEDIA_SOURCE_MAX_BYTES`)."""
+    media_policy._USAGE_MEMO.clear()
+    _media_cap(monkeypatch, _CAP_FOR_TWO)
+    _image_note(provider, *_IMGS, failing=())
+    for ref in _IMGS:
+        provider.media_by_ref[ref] = (_IMG_BYTES[ref], "image/png")
+    await engine.sync_source(source["id"], full=True)
+    assert _row("u1", _IMG_KEY)["import_media_pending"] == 2
+    used = media_policy.member_media_bytes("u1")
+
+    _media_cap(monkeypatch, used + media_policy.MEDIA_SOURCE_MAX_BYTES - 1)    # under, not enough
+    r = await engine.sync_source(source["id"], full=True, manual=True)
+    assert r["skipped"] == 1 and len(provider.fetch_media_calls) == 3          # no re-download
+    assert _row("u1", _IMG_KEY)["import_media_pending"] == 2
+
+    _media_cap(monkeypatch, used + media_policy.MEDIA_SOURCE_MAX_BYTES)        # a whole item fits
+    await engine.sync_source(source["id"], full=True, manual=True)
+    assert provider.fetch_media_calls == [*_IMGS, _IMGS[2]]
+    assert _row("u1", _IMG_KEY)["import_media_pending"] == 0
 
 
 async def test_a_retry_never_stores_an_already_resolved_file_twice(source, provider, monkeypatch, tmp_path):
@@ -3216,7 +3241,7 @@ async def test_a_retry_never_stores_an_already_resolved_file_twice(source, provi
     _media_cap(monkeypatch, 5)
     await engine.sync_source(source["id"], full=True)
     assert _row("u1", _IMG_KEY)["import_media_pending"] == 2
-    _media_cap(monkeypatch, 10 * 1024 * 1024)
+    _media_cap(monkeypatch, 100 * 1024 * 1024)       # room for a whole item: the wait comes back
     await engine.sync_source(source["id"], full=True, manual=True)
     files = [p for p in (tmp_path / "att").rglob("*") if p.is_file()]
     assert sorted(p.suffix for p in files) == [".csv", ".png"]          # one each, no orphan
