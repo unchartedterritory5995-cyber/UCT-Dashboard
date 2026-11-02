@@ -439,8 +439,28 @@ class NotionProvider(NoteProvider):
         async def resolve_media(block: dict[str, Any]) -> dict[str, Any] | None:
             return await self._resolve_media(block, token)
 
+        # Plan A Task 12: a `link_to_page` target's title. The search listing (`_page_meta`)
+        # answers for free; else ONE `GET /pages/{id}` per target per batch, through the
+        # rate-limited `_request`, memoised (an answer of None included) so a page linked
+        # many times costs one call. Any failure (not shared with the integration, deleted,
+        # rate limited out) is None, and the link keeps "Linked page".
+        titles: dict[str, str | None] = {}
+
+        async def fetch_title(page_id: str) -> str | None:
+            if page_id in titles:
+                return titles[page_id]
+            meta = self._page_meta.get(page_id)
+            if meta is None:
+                try:
+                    meta = await self._request("GET", f"/pages/{page_id}", token)
+                except NoteConnError:
+                    meta = None
+            titles[page_id] = notion_blocks.page_title_or_none(meta)
+            return titles[page_id]
+
         return notion_blocks.NotionBlockConverter(
             fetch_children=fetch_children, query_database=query_database, resolve_media=resolve_media,
+            fetch_title=fetch_title,
         )
 
     async def _fetch_one(
@@ -508,16 +528,23 @@ class NotionProvider(NoteProvider):
         except NoteConnError:
             return None
 
-    async def _query_database(self, database_id: str, token: str) -> list[dict[str, Any]]:
+    async def _query_database(self, database_id: str, token: str) -> notion_blocks.DatabaseRows:
         db = await self._request("GET", f"/databases/{database_id}", token)
-        rows: list[dict[str, Any]] = []
+        rows = notion_blocks.DatabaseRows()
         for ds in db.get("data_sources") or []:
             ds_id = ds.get("id")
             if ds_id:
-                rows.extend(await self._query_data_source(ds_id, token))
+                part, truncated = await self._query_data_source(ds_id, token)
+                rows.extend(part)
+                rows.truncated = rows.truncated or truncated
         return rows
 
-    async def _query_data_source(self, data_source_id: str, token: str) -> list[dict[str, Any]]:
+    async def _query_data_source(self, data_source_id: str, token: str) -> tuple[list[dict[str, Any]], bool]:
+        """`(rows, truncated)`. Bounded at `_MAX_DATA_SOURCE_PAGES` pages: a database still
+        reporting `has_more` there keeps the rows read so far and says `truncated`, and the
+        converter writes `database_truncated_text` under it -- the page and the rest of the
+        sync come over, the missing tail is named in the note (Plan A Task 12). It used to
+        raise here, which lost the WHOLE page to one large database."""
         rows: list[dict[str, Any]] = []
         start_cursor: str | None = None
         for _ in range(_MAX_DATA_SOURCE_PAGES):
@@ -532,12 +559,8 @@ class NotionProvider(NoteProvider):
             if not start_cursor:
                 break
         else:
-            raise NoteConnTransient(
-                f"Notion data_source query ({data_source_id}) pagination exceeded "
-                f"{_MAX_DATA_SOURCE_PAGES} pages without finishing ({len(rows)} "
-                "rows collected so far) -- aborting rather than silently truncating",
-            )
-        return rows
+            return rows, True
+        return rows, False
 
     # ── media (credential-boundary critical path — see module docstring) ──
 
@@ -575,7 +598,10 @@ class NotionProvider(NoteProvider):
         self, block: dict[str, Any], url: str, token: str, *, cap: int,
     ) -> tuple[bytes | None, str]:
         data, content_type, status = await self._get_media_bytes(url, cap=cap)
-        if status == 403:
+        # A database `files` cell's file rides a SYNTHESIZED block (`<row>:<column>:<i>`, see
+        # `notion_blocks._database_file_nodes`): there is no block to re-read, and the id is no
+        # path segment to put in a Notion API URL. Its expired link is simply unavailable.
+        if status == 403 and ":" not in str(block.get("id")):
             # Pre-signed url expired mid-traversal — refetch the BLOCK
             # (a normal, authenticated api.notion.com call) for a fresh
             # one, retry the unauthenticated media GET exactly once more.

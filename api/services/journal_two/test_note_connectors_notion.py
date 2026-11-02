@@ -1621,3 +1621,306 @@ def test_a_mention_with_no_url_degrades_to_text_never_dropped():
         _mention("db", {"type": "database", "database": {"id": _T11_UUID}}),
     ])
     assert out == [{"type": "text", "text": "broken"}, {"type": "text", "text": "db"}]
+
+
+# ---------------------------------------------------------------------------
+# Plan A Task 12 (N-8, N-9, I-4 video): database cells keep links and files,
+# page links carry titles, YouTube becomes an embed.
+# ---------------------------------------------------------------------------
+
+from api.services.journal_two.note_connectors.convert import notion_blocks as _nb  # noqa: E402
+
+_ROW = "2b3c4d5e-6f70-4812-9a3b-4c5d6e7f8091"
+_S3_CHART = "https://prod-files-secure.s3.amazonaws.com/a/chart.png?sig=1"
+_YT = "https://youtu.be/dQw4w9WgXcQ"
+
+
+def _t12_converter(*, rows=None, resolve=None, titles=None, with_fetch_title=True):
+    calls = {"resolve": [], "title": []}
+
+    async def fetch_children(block_id):
+        return []
+
+    async def query_database(database_id):
+        return rows if rows is not None else []
+
+    async def resolve_media(block):
+        calls["resolve"].append(block)
+        return resolve(block) if resolve else None
+
+    async def fetch_title(page_id):
+        calls["title"].append(page_id)
+        return (titles or {}).get(page_id)
+
+    kwargs = {"fetch_title": fetch_title} if with_fetch_title else {}
+    conv = _nb.NotionBlockConverter(
+        fetch_children=fetch_children, query_database=query_database, resolve_media=resolve_media, **kwargs)
+    return conv, calls
+
+
+async def _t12_db(props, *, resolve=None, row_id=_ROW):
+    conv, calls = _t12_converter(rows=[{"object": "page", "id": row_id, "properties": props}], resolve=resolve)
+    out = await conv.convert([_block("db-t12", "child_database", {"title": "Journal"})])
+    return out, calls
+
+
+def _t12_cell(out, column):
+    table = _find_all(out["doc"], "table")[0]
+    header = [_plain_text(c) for c in table["content"][0]["content"]]
+    return table["content"][1]["content"][header.index(column)]
+
+
+def _t12_links(node):
+    return [(t["text"], m["attrs"]["href"]) for t in _t12_texts(node) for m in t.get("marks") or []
+            if m.get("type") == "link"]
+
+
+def _t12_texts(node):
+    out = []
+
+    def walk(n):
+        if isinstance(n, dict):
+            if n.get("type") == "text":
+                out.append(n)
+            for c in n.get("content") or []:
+                walk(c)
+    walk(node)
+    return out
+
+
+def _t12_valid(doc):
+    from api.services.journal_two import notes as notes_svc
+    assert notes_svc._validate_body_json(doc)["type"] == "doc"
+
+
+async def test_database_url_cell_is_a_link():
+    out, _ = await _t12_db({
+        "Name": _title_prop("AAPL trade"),
+        "Link": {"type": "url", "url": "https://example.com/chart"},
+        "Mail": {"type": "email", "email": "desk@example.com"},
+        "Phone": {"type": "phone_number", "phone_number": "+1 555 0100"},
+    })
+    assert _t12_links(_t12_cell(out, "Link")) == [("https://example.com/chart", "https://example.com/chart")]
+    assert _t12_links(_t12_cell(out, "Mail")) == [("desk@example.com", "mailto:desk@example.com")]
+    assert _t12_links(_t12_cell(out, "Phone")) == [("+1 555 0100", "tel:+15550100")]
+    _t12_valid(out["doc"])
+
+
+async def test_database_rich_text_cell_keeps_hrefs():
+    out, _ = await _t12_db({
+        "Name": _title_prop("AAPL trade"),
+        "Notes": {"type": "rich_text", "rich_text": [_rt("see "), _rt("post", bold=True, href="https://x.com/p/1")]},
+    })
+    cell = _t12_cell(out, "Notes")
+    assert _plain_text(cell) == "see post"
+    post = next(t for t in _t12_texts(cell) if t["text"] == "post")
+    assert {"type": "bold"} in post["marks"]
+    assert _t12_links(cell) == [("post", "https://x.com/p/1")]
+
+
+async def test_database_files_cell_rehosts_image_inline_and_file_as_chip():
+    # files: chart.png (type file, S3 url) -> image import-ref in the cell, media registered; deck.pptx -> attachmentChip
+    def resolve(block):
+        info = _nb.extract_media_info(block)  # the provider reads the synthesized block with this
+        if info is None or "gone" in info[0]:
+            return None
+        kind = "image" if block["type"] == "image" else "file"
+        return {"ref": f"notion:{block['id']}", "kind": kind, "name": info[2], "data_uri": "data:x/y;base64,AA=="}
+
+    out, calls = await _t12_db({
+        "Name": _title_prop("AAPL trade"),
+        "Files": {"type": "files", "files": [
+            {"name": "chart.png", "type": "file", "file": {"url": _S3_CHART}},
+            {"name": "deck.pptx", "type": "external", "external": {"url": "https://cdn.example.com/deck.pptx"}},
+            {"name": "gone.pdf", "type": "file", "file": {"url": "https://prod-files-secure.s3.amazonaws.com/gone.pdf"}},
+        ]},
+    }, resolve=resolve)
+
+    assert [(b["type"], b["id"]) for b in calls["resolve"]] == [
+        ("image", f"{_ROW}:Files:0"), ("file", f"{_ROW}:Files:1"), ("file", f"{_ROW}:Files:2")]
+    assert _nb.extract_media_info(calls["resolve"][0]) == (_S3_CHART, False, "chart.png")
+
+    cell = _t12_cell(out, "Files")
+    images = _find_all(cell, "image")
+    chips = _find_all(cell, "attachmentChip")
+    assert [i["attrs"]["src"] for i in images] == [f"import-ref://notion:{_ROW}:Files:0"]
+    assert [(c["attrs"]["href"], c["attrs"]["name"]) for c in chips] == [
+        (f"import-ref://notion:{_ROW}:Files:1", "deck.pptx")]
+    assert "[file unavailable: gone.pdf]" in _plain_text(cell), "a file that cannot come over is named, never dropped"
+    assert [m["ref"] for m in out["media"]] == [f"notion:{_ROW}:Files:0", f"notion:{_ROW}:Files:1"]
+    _t12_valid(out["doc"])
+
+
+async def test_database_row_title_links_to_the_row_note():
+    out, _ = await _t12_db({"Name": _title_prop("AAPL trade"), "Qty": {"type": "number", "number": 3}})
+    assert _t12_links(_t12_cell(out, "Name")) == [("AAPL trade", f"import-link://notion:{_ROW}")]
+    assert f"notion:{_ROW}" in out["links"]
+    # An untitled row still links, under a visible name.
+    out, _ = await _t12_db({"Name": {"type": "title", "title": []}})
+    assert _t12_links(_t12_cell(out, "Name")) == [("Untitled", f"import-link://notion:{_ROW}")]
+
+
+async def test_database_labels_stay_visible_text():
+    out, _ = await _t12_db({
+        "Name": _title_prop("AAPL trade"),
+        "Status": {"type": "status", "status": {"name": "In progress"}},
+        "Setup": {"type": "select", "select": {"name": "VCP"}},
+        "Tags": {"type": "multi_select", "multi_select": [{"name": "earnings"}, {"name": "A+"}]},
+    })
+    assert _plain_text(_t12_cell(out, "Status")) == "In progress"
+    assert _plain_text(_t12_cell(out, "Setup")) == "VCP"
+    assert _plain_text(_t12_cell(out, "Tags")) == "earnings, A+"
+
+
+async def test_link_to_page_uses_the_target_title():
+    conv, calls = _t12_converter(titles={_T11_UUID: "Q3 Plan"})
+    out = await conv.convert([_block("b-ltp", "link_to_page", {"type": "page_id", "page_id": _T11_UUID})])
+    assert _t12_links(out["doc"]) == [("Q3 Plan", _T11_KEY)]
+    assert calls["title"] == [_T11_UUID]
+
+
+async def test_link_to_page_falls_back_to_linked_page():
+    conv, _ = _t12_converter(titles={})
+    out = await conv.convert([_block("b-ltp", "link_to_page", {"type": "page_id", "page_id": _T11_UUID})])
+    assert _t12_links(out["doc"]) == [("Linked page", _T11_KEY)]
+    conv, _ = _t12_converter(with_fetch_title=False)
+    out = await conv.convert([_block("b-ltp", "link_to_page", {"type": "page_id", "page_id": _T11_UUID})])
+    assert _t12_links(out["doc"]) == [("Linked page", _T11_KEY)]
+
+
+async def test_youtube_video_block_is_a_web_embed_not_a_download():
+    conv, calls = _t12_converter(resolve=lambda b: {"ref": "x", "kind": "file", "name": "x"})
+    out = await conv.convert([
+        _block("b-yt", "video", {"type": "external", "external": {"url": _YT}, "caption": [_rt("The setup")]}),
+        _block("b-tv", "embed", {"url": "https://www.tradingview.com/symbols/NASDAQ-AAPL/", "caption": []}),
+    ])
+    embeds = _find_all(out["doc"], "webEmbed")
+    assert [e["attrs"] for e in embeds] == [
+        {"provider": "youtube", "ref": "dQw4w9WgXcQ", "url": _YT},
+        {"provider": "tradingview", "ref": "NASDAQ:AAPL", "url": "https://www.tradingview.com/symbols/NASDAQ-AAPL/"},
+    ]
+    assert out["media"] == [] and calls["resolve"] == [], "an embeddable video is never downloaded"
+    assert "The setup" in _plain_text(out["doc"]), "the caption survives under the player"
+    _t12_valid(out["doc"])
+
+
+async def test_vimeo_video_block_is_a_plain_link():
+    conv, calls = _t12_converter(resolve=lambda b: {"ref": "x", "kind": "file", "name": "x"})
+    vimeo = "https://vimeo.com/76979871"
+    out = await conv.convert([
+        _block("b-vm", "video", {"type": "external", "external": {"url": vimeo}}),
+        _block("b-em", "embed", {"url": "https://www.loom.com/share/abc", "caption": []}),
+    ])
+    assert _find_all(out["doc"], "webEmbed") == []
+    assert _t12_links(out["doc"]) == [(vimeo, vimeo), ("https://www.loom.com/share/abc", "https://www.loom.com/share/abc")]
+    assert out["media"] == [] and calls["resolve"] == []
+
+
+async def test_a_truncated_database_says_so_in_the_note():
+    rows = _nb.DatabaseRows(
+        [{"object": "page", "id": _ROW, "properties": {"Name": _title_prop("AAPL trade")}}], truncated=True)
+    conv, _ = _t12_converter(rows=rows)
+    out = await conv.convert([_block("db-t12", "child_database", {"title": "Journal"})])
+    assert _nb.database_truncated_text(1) in _plain_text(out["doc"])
+    # ...and a complete one carries no such line.
+    conv, _ = _t12_converter(rows=[{"object": "page", "id": _ROW, "properties": {"Name": _title_prop("A")}}])
+    out = await conv.convert([_block("db-t12", "child_database", {"title": "Journal"})])
+    assert "truncated" not in _plain_text(out["doc"]).lower()
+
+
+async def test_provider_database_query_stops_at_its_cap_with_a_visible_notice(monkeypatch):
+    from api.services.journal_two.note_connectors.providers import notion as notion_mod
+    monkeypatch.setattr(notion_mod, "_MAX_DATA_SOURCE_PAGES", 2)
+    queries = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        path, method = request.url.path, request.method
+        if path == "/v1/pages/p-db" and method == "GET":
+            return httpx.Response(200, json={"id": "p-db", "properties": {"title": _title_prop("DB page")}})
+        if path == "/v1/blocks/p-db/children":
+            return httpx.Response(200, json={"results": [_block("db-cap", "child_database", {"title": "Big"})],
+                                             "has_more": False})
+        if path == "/v1/databases/db-cap":
+            return httpx.Response(200, json={"data_sources": [{"id": "ds-cap"}]})
+        if path == "/v1/data_sources/ds-cap/query" and method == "POST":
+            n = len(queries)
+            queries.append(n)
+            return httpx.Response(200, json={
+                "results": [{"object": "page", "id": f"r{n}", "properties": {"Name": _title_prop(f"Row {n}")}}],
+                "has_more": True, "next_cursor": f"c{n + 1}"})
+        return httpx.Response(404)
+
+    provider = _make_provider(handler)
+    note = await provider.fetch(CREDS, RemoteRef(remote_id="p-db", updated_at="x"))
+    assert len(queries) == 2, "the query is bounded by its page cap"
+    text = _plain_text(note.doc)
+    assert "Row 0" in text and "Row 1" in text
+    assert _nb.database_truncated_text(2) in text
+
+
+async def test_provider_database_files_cell_downloads_now_and_never_refetches_a_synthesized_block():
+    expired = "https://prod-files-secure.s3.amazonaws.com/b/old.pdf?sig=2"
+    requests = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        if request.url.host != _API_HOST:
+            assert "authorization" not in request.headers, "the bearer never leaves api.notion.com"
+            if str(request.url) == _S3_CHART:
+                return httpx.Response(200, content=_PNG_BYTES, headers={"content-type": "image/png"})
+            return httpx.Response(403)
+        path = request.url.path
+        if path == "/v1/pages/p-files":
+            return httpx.Response(200, json={"id": "p-files", "properties": {"title": _title_prop("Files")}})
+        if path == "/v1/blocks/p-files/children":
+            return httpx.Response(200, json={"results": [_block("db-f", "child_database", {"title": "Shots"})],
+                                             "has_more": False})
+        if path == "/v1/databases/db-f":
+            return httpx.Response(200, json={"data_sources": [{"id": "ds-f"}]})
+        if path == "/v1/data_sources/ds-f/query":
+            return httpx.Response(200, json={"has_more": False, "results": [{"object": "page", "id": _ROW, "properties": {
+                "Name": _title_prop("AAPL trade"),
+                "Shots": {"type": "files", "files": [
+                    {"name": "chart.png", "type": "file", "file": {"url": _S3_CHART}},
+                    {"name": "old.pdf", "type": "file", "file": {"url": expired}},
+                ]}}}]})
+        return httpx.Response(404)
+
+    provider = _make_provider(handler)
+    note = await provider.fetch(CREDS, RemoteRef(remote_id="p-files", updated_at="x"))
+    entry = next(m for m in note.media if m["ref"] == f"notion:{_ROW}:Shots:0")
+    assert entry["kind"] == "image" and entry["data_uri"].startswith("data:image/png;base64,")
+    assert [i["attrs"]["src"] for i in _find_all(note.doc, "image")] == [f"import-ref://notion:{_ROW}:Shots:0"]
+    assert "[file unavailable: old.pdf]" in _plain_text(note.doc)
+    assert not [r for r in requests if r.url.host == _API_HOST and r.url.path.startswith("/v1/blocks/")
+                and not r.url.path.endswith("/children")], "a synthesized cell block is never re-read"
+
+
+async def test_provider_fetch_title_reads_the_cache_then_one_get_and_degrades_to_none():
+    cached_id = "3c4d5e6f-7081-4923-ab4c-5d6e7f809102"
+    gets = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        path = request.url.path
+        if path == "/v1/pages/p-links":
+            return httpx.Response(200, json={"id": "p-links", "properties": {"title": _title_prop("Links")}})
+        if path == "/v1/blocks/p-links/children":
+            return httpx.Response(200, json={"has_more": False, "results": [
+                _block("l1", "link_to_page", {"type": "page_id", "page_id": _T11_UUID}),
+                _block("l2", "link_to_page", {"type": "page_id", "page_id": _T11_UUID}),
+                _block("l3", "link_to_page", {"type": "page_id", "page_id": cached_id}),
+                _block("l4", "link_to_page", {"type": "page_id", "page_id": "4d5e6f70-8192-4a34-bc5d-6e7f80910213"}),
+            ]})
+        if path.startswith("/v1/pages/"):
+            gets.append(path)
+            if path == f"/v1/pages/{_T11_UUID}":
+                return httpx.Response(200, json={"id": _T11_UUID, "properties": {"title": _title_prop("Q3 Plan")}})
+            return httpx.Response(404)
+        return httpx.Response(404)
+
+    provider = _make_provider(handler)
+    provider._page_meta[cached_id] = {"id": cached_id, "properties": {"title": _title_prop("From search")}}
+    note = await provider.fetch(CREDS, RemoteRef(remote_id="p-links", updated_at="x"))
+    assert [t for t, _ in _t12_links(note.doc)] == ["Q3 Plan", "Q3 Plan", "From search", "Linked page"]
+    assert gets == [f"/v1/pages/{_T11_UUID}", "/v1/pages/4d5e6f70-8192-4a34-bc5d-6e7f80910213"], (
+        "one GET per unknown target, none for a cached one, none repeated")
