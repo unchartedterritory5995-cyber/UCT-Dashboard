@@ -80,7 +80,12 @@ Only agent-md edits this file. Update it in every PR.
     15 min) · after-hours · overnight · weekend · holiday · early close before and after 13:00. A gated test
     re-derives each clock's `session_detail` and freshness independently. The refusal rail activates the kind under
     test (#621). Tests 86, mutation-checked 2 ways (after-hours misread as premarket; overnight boundary moved).
-  - **C — `bars.daily` answers** (`capabilities/marketDataBars.js`). Pending.
+  - **C — `stock.dailyBars`** (branch `agent/md/bars-answers`): `capabilities/marketDataBars.js` over `bars.daily`.
+    It answers last close (2 bars), N-session change (n + 1), and 52-week range (252 bars, highs/lows with dates),
+    from completed sessions only. Stale and short windows are stated plainly; no-bars answers use fixed words.
+    Registered only while `bars.daily` is in `data_kinds`, through `registerMarketDataCapabilities()`. Shared
+    formatting is in `capabilities/marketDataFormat.js`. My test stand-ins for `serverDataKinds` are removed; the
+    tests send `data_kinds` in the config. MD-1 v1.5 §4.6. Vitest 26, mutation-checked 8 ways (each red).
   - Lead-owned dependencies: `builtins.js` registration line, `UCT_AGENT_DATA_KINDS` allowlist (fail closed),
     `fastPath.js` wiring of `match()`.
 - **Freshness regression corpus** (branch `agent/md/freshness-corpus`, **stacked on #596**: it quotes the

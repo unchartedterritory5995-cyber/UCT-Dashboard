@@ -17,7 +17,6 @@ import { registerMarketDataCapabilities, _resetForTest, CAPABILITY } from './cap
 let TURN = 't-fast'
 vi.mock('./trace', async (orig) => ({ ...(await orig()), currentTurnId: () => TURN }))
 let KINDS = ['quote', 'quotes']
-vi.mock('./agentClient', async (orig) => ({ ...(await orig()), serverDataKinds: () => KINDS }))
 
 registerBuiltins()
 
@@ -37,7 +36,7 @@ const ENV = {
 function wire(data) {
   globalThis.fetch = vi.fn(async (url) => {
     const u = String(url)
-    if (u.endsWith('/api/agent/config')) return json({ stream: false, nl1: false, data, scan: false })
+    if (u.endsWith('/api/agent/config')) return json({ stream: false, nl1: false, data, scan: false, ...(KINDS ? { data_kinds: KINDS } : {}) })
     if (u === '/api/agent/data') return json(ENV)
     return json({}, 404)
   })
