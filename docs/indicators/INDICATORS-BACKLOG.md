@@ -12,7 +12,10 @@ item names its evidence; re-read the code before acting on a line number.
 |---|---|---|
 | #670 | Full indicator names reach the model; Bollinger Bands by name; no internal column note under a working indicator | Direction approved 11-02; draft until CI and review pass |
 | #671 | A saved `fund:` / Market Cap / `econ:` indicator draws right after a reload | Approved in principle. Browser-verified 11-02 (base blank, fix paints). Workstream reviews pending |
-| #680 | `/converse` refuses a line rename the member did not ask for | New 11-02; review findings fixed; draft |
+| #680 | `/converse` refuses a line rename the member did not ask for | QA round 2 GO |
+| #686 | A chart's settings edits stay on that chart (grid cells, floating windows, study pages) | Grid part GO; the embedded-chart scope needs an owner decision |
+| #687 | Sandboxed end-to-end evaluation harness (offline by default) | QA GO; no spend |
+| #689 | Line identity: a new line never inherits a deleted line's alerts or references | QA GO after the blocker fix |
 
 ## Open, prioritized
 
@@ -32,6 +35,7 @@ item names its evidence; re-read the code before acting on a line number.
 | 12 | **`/propose` and the scan concierge still refuse full indicator names** | #670 rail (recorded as a follow-up) | XS code, needs coordination | Screener + Indicators | Assess the effect on screens with the Screener owner first (owner ruling 11-02) |
 | 13 | **"Average of RSI" restates the RSI subtree** (no output-reference node) | PLAIN-ENGLISH-AUTHORING-2026-11-01 §3.4 | L, a format change | Indicators | Proposal only; owner review before any work |
 | 14 | **Investigate: an AST member definition given a `source` input fetched the data but never painted.** In the #671 browser run, the AST lane appeared to ignore `ctx.source`. It is not yet known whether a member can reach this, or whether only the harness's construction could | #671 browser run, 2026-11-02 (`pr671-browser/evidence.json`, local) | S to investigate | Indicators | Read the AST lane's source handling; decide whether it is a defect |
+| 15 | **Script doors with positional or generic keys**: untitled plots are keyed `outN` by position, and a different script pasted over a definition with shared generic titles ("Signal", "MA") continues the old keys, so a different line can keep an alert. Line identity (#689) cannot see it, because no key disappears | #689 independent QA, 2026-11-02 | M | Indicators | Option: when a script door REPLACES a stored definition's script with a different one, mark rows whose maths changed as new lines. Needs a design that leaves an ordinary script update untouched |
 
 ## Programme items (not defects)
 
