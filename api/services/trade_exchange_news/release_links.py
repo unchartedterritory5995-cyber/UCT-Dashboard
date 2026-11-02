@@ -121,6 +121,10 @@ _SLOT = re.compile(r"^\s*\$?([A-Z][A-Z0-9.\-]{0,6}(?:(?:\s*[,/]\s*|\s+)\$?[A-Z][
 _SLUG_SPLIT = re.compile(r"[^a-z0-9]+")
 _SLUG_NOISE = frozenset({"news", "release", "releases", "html", "htm", "en", "home", "aspx", "php"})
 _TAGS = re.compile(r"<[^>]+>")
+#: Markup whose text is never document text (CSS, scripts, the <head> and its <title>).
+_NOISE = re.compile(r"(?is)<(script|style|head)\b.*?</\1\s*>")
+#: Block-level boundaries: a heading is the whole text of one to three blocks.
+_BLOCK = re.compile(r"(?i)<\s*/?\s*(?:p|div|td|th|tr|li|h[1-6]|table|center|section|article|header)\b[^>]*>")
 _EX99 = re.compile(r"ex[-_]?99|exhibit[-_]?99|ex991|dex99", re.I)
 
 
@@ -304,9 +308,27 @@ def decide_fmp(tx: dict[str, Any], candidates: list[dict[str, Any]]) -> dict[str
 
 def exhibit_text(raw: bytes) -> str:
     """The exhibit's opening, normalized like a headline."""
-    s = raw[:SEC_DOC_MAX_BYTES].decode("utf-8", "replace")
+    s = _NOISE.sub(" ", raw[:SEC_DOC_MAX_BYTES].decode("utf-8", "replace"))
     s = _html.unescape(_TAGS.sub(" ", s))
     return _norm(s)[:SEC_TITLE_CHARS * 2]
+
+
+def is_heading(raw: bytes, tx_norm: str) -> bool:
+    """True when the headline is a WHOLE heading of the document: the full text of
+    one block, or of two or three consecutive blocks (a title set on several
+    lines). A longer heading that merely starts with it ("...; Declares Dividend")
+    is not."""
+    s = _NOISE.sub(" ", raw[:SEC_DOC_MAX_BYTES].decode("utf-8", "replace"))
+    blocks = [b for b in (_norm(_html.unescape(_TAGS.sub(" ", part))) for part in _BLOCK.split(s)[:400]) if b]
+    for i in range(len(blocks)):
+        joined = ""
+        for b in blocks[i:i + 3]:
+            joined = f"{joined} {b}".strip()
+            if joined == tx_norm:
+                return True
+            if len(joined) >= len(tx_norm):
+                break
+    return False
 
 
 def decide_sec_text(tx_norm: str, text: str, head: int = SEC_TITLE_HEAD) -> tuple[str, float] | None:
@@ -670,6 +692,11 @@ def decide_sec(tx: dict[str, Any], sec: SecLookup) -> dict[str, Any]:
             v = decide_sec_text(tx["norm"], exhibit_text(body), SEC_LATE_TITLE_HEAD if late else SEC_TITLE_HEAD)
             if v is None:
                 continue
+            # A filing made more than 6 h later counts only when the headline is a
+            # whole heading of it: a later release whose own heading merely starts
+            # with this headline is a different release.
+            if v[0] == "exact" and late and not is_heading(body, tx["norm"]):
+                v = ("deep", 1.0)
             if safe_url(url, (SEC_HOST,)) is None:
                 continue
             ref = f"sec:{f['accession']}"

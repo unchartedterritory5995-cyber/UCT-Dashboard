@@ -878,3 +878,28 @@ def test_a_later_filing_that_opens_with_the_headline_is_still_linked(store, env)
     later = T0 + 22 * 60 * MIN
     sec_res(store, FakeSec(EXHIBIT, accepted_ms=later), now=later + 10 * MIN).run_pass()
     assert link_rows(store) and link_rows(store)[0][1] == "sec_filing"
+
+
+def test_a_later_combined_release_that_starts_with_the_headline_is_not_linked(store, env):
+    """QA M2 (round 2): 40 h later, a release headed 'TITLE; Acme Declares Quarterly
+    Dividend' opens with this headline but is a different release."""
+    eid = tx(store, f"ACME - {TITLE}")
+    later = T0 + 40 * 60 * MIN
+    ex = f"<p>Exhibit 99.1</p><p><b>{TITLE.upper()}; ACME CORP DECLARES QUARTERLY DIVIDEND</b></p><p>Body.</p>"
+    sec_res(store, FakeSec(ex, accepted_ms=later), now=later + 10 * MIN).run_pass()
+    assert link_rows(store) == [] and ("sec", "sec_exhibit_deep") in shadow(store, eid)
+
+
+def test_a_later_filing_with_the_headline_set_on_two_lines_is_linked(store, env):
+    tx(store, f"ACME - {TITLE}")
+    later = T0 + 22 * 60 * MIN
+    ex = "<p>Exhibit 99.1</p><p><b>ACME CORP REPORTS</b></p><p><b>THIRD QUARTER 2026 RESULTS</b></p><p>Body.</p>"
+    sec_res(store, FakeSec(ex, accepted_ms=later), now=later + 10 * MIN).run_pass()
+    assert link_rows(store) and link_rows(store)[0][1] == "sec_filing"
+
+
+def test_css_and_head_text_never_push_the_title_down(store, env):
+    tx(store, f"ACME - {TITLE}")
+    ex = "<html><head><title>x</title><style>" + ("p { margin: 0 } " * 200) + "</style></head><body>" + EXHIBIT
+    sec_res(store, FakeSec(ex)).run_pass()
+    assert link_rows(store) and link_rows(store)[0][1] == "sec_filing"
