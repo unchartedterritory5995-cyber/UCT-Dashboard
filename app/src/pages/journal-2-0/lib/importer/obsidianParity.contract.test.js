@@ -205,26 +205,9 @@ const knownClientGap = {
   // ⚰️ 11-anchors-and-embeds: closed by D2 item 8. Both lanes show a heading link as
   // `Other note > Risk` (the client showed `Other note#Risk`); the `![[Other note]]` file
   // chip was closed by D1 fix round 2, M4.
-  // Plan B task "Obsidian callouts" (spec §5.2 polish): the client writes a blockquote
-  // with a bold title, and its marker regex loses the untitled callout's title.
-  '12-callouts.json': {
-    clientReads: {
-      callouts: [],
-      text: 'Callouts Size Keep it small. > Wait for the pivot.',
-    },
-  },
-  // The same Plan B "Obsidian callouts" gap as 12 and nothing else: the client writes
-  // the two callouts as blockquotes. Their titles' links, the highlighted links and the
-  // text all compare strictly (D1 fix round 3, N1/N2).
-  '16-links-in-highlights-and-callouts.json': {
-    clientReads: { callouts: [] },
-  },
-  // The same callout gap again and nothing else: member text holding the client's
-  // placeholder characters (U+E000 runs, U+FDD0 runs, icon-font glyphs) compares
-  // strictly on text, links, highlights and pending names (D1 fix round 4, P1).
-  '17-member-placeholder-characters.json': {
-    clientReads: { callouts: [] },
-  },
+  // ⚰️ 12-callouts, 16-links-in-highlights-and-callouts, 17-member-placeholder-characters:
+  // closed by D2 item 1. The client writes an Obsidian callout as the callout node (the
+  // server's variant and bold title), and an untitled callout's title is its type.
   // ⚰️ 13-duplicate-basenames: closed by D1 fix round 2 (M1). Both lanes now share one
   // tie-break (same folder, then shortest path, then sort order).
   // Plan B task "Obsidian deep links" (spec L-4): the client drops an

@@ -26,14 +26,15 @@ describe('obsidian adapter', () => {
     expect(a.html).toContain('Ghost Note')
   })
 
-  it('turns image embeds into media refs and callouts into blockquotes', async () => {
+  it('turns image embeds into media refs and callouts into callout asides', async () => {
     const { docs } = await obsidianAdapter.parse([
       vf('V/n.md', '![[chart.png]]\n\n> [!warning] Risk\n> tight stop'),
       vf('V/files/chart.png', '')])
     const d = docs[0]
     expect(d.media[0].ref).toBe('V/files/chart.png')
     expect(d.html).toContain('import-ref://V/files/chart.png')
-    expect(d.html).toMatch(/<blockquote>.*Risk.*tight stop/s)
+    // D2 item 1: the callout node's own HTML, never a blockquote.
+    expect(d.html).toMatch(/<aside data-variant="warning"><p><strong>Risk<\/strong><\/p>.*tight stop.*<\/aside>/s)
   })
 
   it('skips the .obsidian config dir', async () => {
@@ -604,5 +605,96 @@ describe('obsidian adapter — D2 item 8: heading-link display text', () => {
     const { docs } = await obsidianAdapter.parse([vf('V/src.md', '[[Other note#Risk]]'), vf('V/Other note.md', 'o')])
     const d = docs.find((x) => x.importKey === 'obsidian:V/src.md')
     expect(d.html).toContain('<a data-import-link="obsidian:V/Other note.md">Other note &gt; Risk</a>')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// D2 item 1: an Obsidian callout is the editor's callout node on the client too,
+// the server lane's shape (`providers/obsidian.py::_callouts_in_doc`): `variant`
+// from the callout type, the title (or the type, capitalised) as a bold first
+// paragraph, then the body. The fold marker (`+`/`-`) is dropped, as the server
+// drops it. Parity fixtures 12, 16 and 17 pin both lanes.
+// ---------------------------------------------------------------------------
+
+describe('obsidian adapter — D2 item 1: callouts are callout nodes', () => {
+  const docOf = async (body) => {
+    const { docs } = await obsidianAdapter.parse([vf('V/src.md', body), vf('V/Plan.md', 'p')])
+    const d = docs.find((x) => x.importKey === 'obsidian:V/src.md')
+    return htmlToNote(d.html).bodyJson
+  }
+  const runs = (para) => (para.content || []).map((r) => [r.text, (r.marks || []).map((m) => m.type).sort().join('+')])
+
+  it('makes a titled callout a callout node with its variant, a bold title and the body', async () => {
+    const doc = await docOf('> [!warning] Size\n> Keep it small.')
+    expect(doc.content).toHaveLength(1)
+    const callout = doc.content[0]
+    expect(callout.type).toBe('callout')
+    expect(callout.attrs.variant).toBe('warning')
+    expect(callout.content.map((b) => b.type)).toEqual(['paragraph', 'paragraph'])
+    expect(runs(callout.content[0])).toEqual([['Size', 'bold']])
+    expect(runs(callout.content[1])).toEqual([['Keep it small.', '']])
+  })
+
+  it('titles an untitled callout with its type, never with the next line', async () => {
+    const callout = (await docOf('> [!tip]\n> Wait for the pivot.')).content[0]
+    expect(callout.type).toBe('callout')
+    expect(callout.attrs.variant).toBe('success')
+    expect(runs(callout.content[0])).toEqual([['Tip', 'bold']])
+    expect(runs(callout.content[1])).toEqual([['Wait for the pivot.', '']])
+  })
+
+  it('maps types to the five variants, unknown ones to note, and drops the fold marker', async () => {
+    for (const [type, variant] of [['note', 'note'], ['info', 'info'], ['caution', 'warning'],
+      ['bug', 'danger'], ['important', 'warning'], ['FAILURE', 'danger'], ['quote', 'note']]) {
+      const callout = (await docOf(`> [!${type}]- Folded\n> body`)).content[0]
+      expect(callout.type, type).toBe('callout')
+      expect(callout.attrs.variant, type).toBe(variant)
+      expect(runs(callout.content[0]), type).toEqual([['Folded', 'bold']])
+    }
+    const open = (await docOf('> [!note]+ Open\n> body')).content[0]
+    expect(runs(open.content[0])).toEqual([['Open', 'bold']])
+  })
+
+  it('keeps a link in the title a bold link, and a one-line callout is its title only', async () => {
+    const callout = (await docOf('> [!note] See [[Plan]]')).content[0]
+    expect(callout.type).toBe('callout')
+    expect(callout.content).toHaveLength(1)
+    expect(runs(callout.content[0])).toEqual([['See ', 'bold'], ['Plan', 'bold+link']])
+  })
+
+  it('leaves a plain blockquote, a marker that does not open its quote, and code alone', async () => {
+    const plain = await docOf('> just a quote')
+    expect(plain.content[0].type).toBe('blockquote')
+    const late = await docOf('> first line\n> [!note] not a marker here')
+    expect(late.content[0].type).toBe('blockquote')
+    const fenced = await docOf('```\n> [!note] Title\n> body\n```')
+    expect(fenced.content[0].type).toBe('codeBlock')
+    expect(fenced.content[0].content[0].text.trimEnd()).toBe('> [!note] Title\n> body')
+  })
+
+  it('reads a CRLF note the same way and nests a callout inside a quote', async () => {
+    const crlf = (await docOf('> [!warning] Size\r\n> Keep it small.')).content[0]
+    expect(crlf.type).toBe('callout')
+    expect(runs(crlf.content[0])).toEqual([['Size', 'bold']])
+    const nested = (await docOf('> outer\n>\n> > [!danger] Inner\n> > body')).content[0]
+    expect(nested.type).toBe('blockquote')
+    const inner = nested.content[1]
+    expect(inner.type).toBe('callout')
+    expect(inner.attrs.variant).toBe('danger')
+  })
+
+  it('renders in the editor as the callout node, with its style', async () => {
+    const { Editor } = await import('@tiptap/core')
+    const { buildExtensions } = await import('../tiptap')
+    const doc = await docOf('> [!warning] Size\n> Keep it small.')
+    const editor = new Editor({ extensions: buildExtensions(), content: doc })
+    try {
+      const html = editor.getHTML()
+      expect(html).toContain('data-type="callout"')
+      expect(html).toContain('data-variant="warning"')
+      expect(editor.state.doc.firstChild.type.name).toBe('callout')
+    } finally {
+      editor.destroy()
+    }
   })
 })

@@ -49,9 +49,10 @@
  *                                     attachment chip (non-image target)
  *   2. `[[Target|alias]]`/`[[Target]]` links -> `<a data-import-link=...>`,
  *                                     or plain text when unresolvable
- *   3. `> [!type] Title` callout marker -> `> **Title**` (renders as a
- *                                     blockquote with a bold first line)
- *   4. `==highlight==`             -> `<mark>highlight</mark>`
+ *   3. `==highlight==`             -> `<mark>highlight</mark>`
+ * then, on the whole body, `> [!type] Title` callouts become the editor's
+ * callout node (`splitCalloutTitles` before markdown, `calloutsInHtml` after
+ * it, the server lane's two halves; D2 item 1).
  * (Frontmatter extraction is pass 0, applied once to the raw file before
  * the fenced/inline code split, since a frontmatter block is only ever at
  * byte 0.)
@@ -79,7 +80,6 @@ const SKIP_DIR_RE = /(^|\/)\.(obsidian|trash)\//i
 const CODE_RE = /```[\s\S]*?```|`[^`\n]*`/g
 const EMBED_RE = /!\[\[([^\]]+)\]\]/g
 const WIKILINK_RE = /\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g
-const CALLOUT_RE = /^(\s*>\s*)\[!([A-Za-z0-9_-]+)\]\s*(.*)$/gm
 // ⛔ A trader's prose is full of `==` COMPARISONS ("if rsi == 30 and macd == 0").
 // The old `/==([^=\n]+)==/` highlighted the span between two comparisons and
 // deleted both operators. A highlight now needs a non-space just inside each
@@ -178,8 +178,8 @@ async function makeDoc(vfile, vfiles, byPath, basenameMap) {
   const media = []
   const links = []
   const ctx = { vfiles, byPath, basenameMap, media, links, fromDir: dirOf(vfile.path) }
-  const processed = preprocessWikiSyntax(body, ctx)
-  let html = mdToHtml(processed)
+  const processed = splitCalloutTitles(preprocessWikiSyntax(body, ctx))
+  let html = calloutsInHtml(mdToHtml(processed))
   if (fields.hero_image) {
     // Same reasoning as generic.js's identical block: a front-matter cover
     // image is real authored content, not metadata to discard. Prepending
@@ -234,7 +234,6 @@ function preprocessWikiSyntax(text, ctx) {
     let out = segment
     out = transformEmbeds(out, hctx)
     out = transformWikiLinks(out, hctx)
-    out = transformCallouts(out)
     out = transformHighlights(out)
     out = releaseMarkup(out, held, open, shown)
     // ⛔ D2 item 4: a piece's media entry or link is listed only when the piece is
@@ -373,15 +372,84 @@ function transformWikiLinks(text, ctx) {
   })
 }
 
-function transformCallouts(text) {
-  return text.replace(CALLOUT_RE, (_, prefix, type, rest) => {
-    const title = rest.trim() || capitalize(type)
-    // Every other pass escapes text it inserts into the markdown/HTML stream
-    // (a title containing a literal `<...>` would otherwise be interpreted
-    // as raw HTML passthrough by markdown-it's `html:true`, not shown as
-    // text) — normalize callouts to match.
-    return `${prefix}**${escapeHtml(title)}**`
-  })
+// ---------------------------------------------------------------------------
+// callouts (D2 item 1): THE server lane's two halves, step for step
+// (`providers/obsidian.py::_split_callout_titles` / `_callouts_in_doc`).
+// Before markdown: the marker line is split from the callout's body with an
+// empty quote line, or markdown-it folds title and body into ONE paragraph.
+// After it: each blockquote whose first paragraph opens with `[!type]` becomes
+// the editor's callout node (`calloutNode.js`, an `<aside data-variant>`):
+// `variant` from the type, the title (or the type, capitalised) as a bold
+// first paragraph, then the rest of the quote. The fold marker `+`/`-` is
+// dropped, as the server drops it. Fenced code is never touched.
+// ⚰️ The client wrote `> **Title**`, a blockquote, and its marker regex let
+// `\s*` run across the line end, so an untitled `> [!tip]` took the NEXT line
+// as its title (parity fixtures 12, 16, 17).
+// `[^\n]` stands for Python's `.`, which (unlike JS's) matches `\r`.
+// ---------------------------------------------------------------------------
+const CALLOUT_FENCE_RE = /```[\s\S]*?```|~~~[\s\S]*?~~~/g
+const CALLOUT_LINE_RE = /^([ \t]{0,3}(?:>[ \t]?)+)\[![A-Za-z0-9_-]+\][+-]?[^\n]*$/
+const QUOTE_PREFIX_RE = /^[ \t]{0,3}>/
+const CALLOUT_MARK_RE = /^\[!([A-Za-z0-9_-]+)\][+-]?[ \t]*/
+// Obsidian's callout types -> the editor's five (`calloutNode.js::CALLOUT_VARIANTS`).
+// Any other type is a `note`. Mirrors `providers/obsidian.py::_CALLOUT_VARIANTS`.
+const CALLOUT_VARIANTS = {
+  note: 'note', info: 'info', success: 'success', warning: 'warning', danger: 'danger',
+  tip: 'success', caution: 'warning', important: 'warning', bug: 'danger', failure: 'danger',
+}
+
+function splitCalloutTitles(text) {
+  const linesPass = (part) => {
+    const lines = part.split('\n')
+    const out = []
+    lines.forEach((line, i) => {
+      out.push(line)
+      const m = CALLOUT_LINE_RE.exec(line)
+      const opensQuote = i === 0 || !QUOTE_PREFIX_RE.test(lines[i - 1])
+      if (m && opensQuote && i + 1 < lines.length && QUOTE_PREFIX_RE.test(lines[i + 1])) {
+        out.push(m[1].replace(/\s+$/, ''))
+      }
+    })
+    return out.join('\n')
+  }
+  let result = ''
+  let last = 0
+  for (const m of text.matchAll(CALLOUT_FENCE_RE)) {
+    result += linesPass(text.slice(last, m.index)) + m[0]
+    last = m.index + m[0].length
+  }
+  return result + linesPass(text.slice(last))
+}
+
+function calloutsInHtml(html) {
+  if (!html.includes('[!')) return html
+  const doc = new DOMParser().parseFromString(html, 'text/html')
+  // Innermost first, as the server converts a node's children before the node.
+  for (const quote of [...doc.querySelectorAll('blockquote')].reverse()) {
+    const first = quote.firstElementChild
+    const lead = first?.tagName === 'P' ? first.firstChild : null
+    if (!lead || lead.nodeType !== 3) continue // TEXT_NODE, with no mark around it
+    const m = CALLOUT_MARK_RE.exec(lead.data)
+    if (!m) continue
+    const kind = m[1]
+    lead.data = lead.data.slice(m[0].length)
+    if (!lead.data) lead.remove()
+    const title = doc.createElement('p')
+    const bold = doc.createElement('strong')
+    if ((first.textContent || '').trim()) {
+      while (first.firstChild) bold.appendChild(first.firstChild)
+    } else {
+      bold.textContent = capitalize(kind)
+    }
+    title.appendChild(bold)
+    const aside = doc.createElement('aside')
+    aside.setAttribute('data-variant', CALLOUT_VARIANTS[kind.toLowerCase()] || 'note')
+    aside.appendChild(title)
+    first.remove()
+    while (quote.firstChild) aside.appendChild(quote.firstChild)
+    quote.replaceWith(aside)
+  }
+  return doc.body.innerHTML
 }
 
 function transformHighlights(text) {
