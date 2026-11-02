@@ -960,7 +960,7 @@ describe('Ask UCT Agent', () => {
     generated_at_ms: NOW, cached: false, version: 'v2' }
   const ok = () => ({ ok: true, status: 200, json: async () => EXPL })
   const explainBtn = (container, seq) => within(rowEl(container, seq)).getByRole('button', { name: 'Explain this headline' })
-  let calls, threads, pending, openAgent
+  let calls, threads, pending, openAgent, stubAvailable
   // Threads live OUTSIDE React (as the Agent's own store would): render only reads them.
   const thread = (key) => threads.get(key) || { turns: [], busy: false, error: null, conversationId: null }
   const patch = (key, fn) => threads.set(key, fn(thread(key)))
@@ -971,7 +971,7 @@ describe('Ask UCT Agent', () => {
     recordCall(args)
     const key = args.newsId
     const [, bump] = useStateForStub(0)
-    return { ...thread(key), ask: (text) => {
+    return { ...thread(key), available: stubAvailable, ask: (text) => {
       patch(key, (t) => ({ ...t, busy: true, error: null, turns: [...t.turns, { id: `m${t.turns.length}`, role: 'member', text }] }))
       bump((n) => n + 1)
       pending.push((answer) => { settle(key, answer); bump((n) => n + 1) })
@@ -981,7 +981,7 @@ describe('Ask UCT Agent', () => {
   const agent = () => ({ useAsk: useAskStub, openAgent })
   beforeEach(() => {
     _resetExplainCacheForTests()
-    calls = []; threads = new Map(); pending = []; openAgent = vi.fn()
+    calls = []; threads = new Map(); pending = []; openAgent = vi.fn(); stubAvailable = true
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(ok()))
   })
   afterEach(() => setAgentFlag(null))
@@ -1008,6 +1008,20 @@ describe('Ask UCT Agent', () => {
       expect(calls).toEqual([])                                           // the Agent was never even asked to mount
       unmount()
     }
+  })
+
+  it('no box until the server says News questions are on: not while that is read (null), not when off (false)', async () => {
+    setAgentFlag(true)
+    for (const v of [null, false, undefined]) {
+      stubAvailable = v
+      const { panel, unmount } = await open({ role: 'admin', agent: agent() })
+      expect(within(panel).queryByRole('textbox', { name: 'Ask UCT Agent about this headline' })).toBeNull()
+      expect(within(panel).queryByRole('log')).toBeNull()
+      unmount()
+    }
+    stubAvailable = true
+    const { panel } = await open({ role: 'admin', agent: agent() })
+    expect(within(panel).getByRole('textbox', { name: 'Ask UCT Agent about this headline' })).toBeTruthy()
   })
 
   it('an admin with the switch on gets the box under the explanation, once the explanation is there', async () => {

@@ -376,7 +376,7 @@ function freshThread() {
 }
 function useHarnessAsk({ newsId }) {
   const [, bump] = useState(0)
-  return { ...askThread(newsId), ask: (text) => {
+  return { ...askThread(newsId), available: true, ask: (text) => {
     patchThread(newsId, (t) => ({ ...t, busy: true, error: null,
       turns: [...t.turns, { id: `m${t.turns.length}`, role: 'member', text }] }))
     bump((n) => n + 1)

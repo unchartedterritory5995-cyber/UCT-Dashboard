@@ -6,9 +6,11 @@
  * server resolves the headline from its id, admin-only, the normal meter), reached
  * ONLY through what `NewsAgentContext` provides:
  *
- *   useAsk({ newsId })   -> { ask(text), turns, busy, error, conversationId }
+ *   useAsk({ newsId })   -> { ask(text), turns, busy, error, conversationId, available }
  *                           turns: [{ id, role: 'member' | 'agent', text }]
  *                           error: { text, retry } | null
+ *                           available: true | false | null -- the server's News switch
+ *                             (UCT_AGENT_NEWS); null while it is still being read
  *   openAgent({ conversationId })   opens that same conversation in the Agent panel
  *
  * (the interface agreed with agent-lead: `useAgentAsk` + `openAgent` from app/src/agent).
@@ -33,7 +35,7 @@ export function NewsAgentAsk({ newsId }) {
 }
 
 function AskThread({ newsId, useAsk, openAgent }) {
-  const { ask, turns = [], busy = false, error = null, conversationId = null } = useAsk({ newsId })
+  const { ask, turns = [], busy = false, error = null, conversationId = null, available = null } = useAsk({ newsId })
   const [text, setText] = useState('')
   const [lastAsked, setLastAsked] = useState('')
   const [showAll, setShowAll] = useState(false)
@@ -55,6 +57,9 @@ function AskThread({ newsId, useAsk, openAgent }) {
     send(text)
     setText('')
   }
+  // Only once the server has said News questions are on: never while that is still being read
+  // (no box that appears and then vanishes), never when it is off.
+  if (available !== true) return null
   const hidden = showAll ? 0 : Math.max(0, turns.length - VISIBLE_TURNS)
   const shown = turns.slice(hidden)
 
