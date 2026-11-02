@@ -252,6 +252,26 @@ Only agent-qa edits this file. Update it in every PR.
   extended-live, extended-closed, holiday, no-current-trade. Rules (a)–(e) are a reusable predicate
   (`quote_semantics_errors`) with controls showing it can fail. Other MD-1 kinds keep provisional `data` shapes.
 
+## GO HOLDS on the trial merge `abd9de7c84` (f479b0ae32 onto master `1cfb77fbc2`), 2026-11-02
+- Parents are exactly `1cfb77fbc2` and `f479b0ae32`. Production `2cd4c3839c` is an ancestor. The gate timeout is still 40.
+- Master's 250 files do not overlap the 88 RC files, and none is an Agent path.
+- (merge - master) is the same 88 files as (production -> RC), and every blob is identical to `f479b0ae32`.
+- Master files that touch shared infrastructure, all read:
+  - `auth.py` adds the Chart IQ flag;
+  - `main.py` adds the Chart IQ router and a public logo route;
+  - the gate gains one offline step;
+  - `requirements.txt` adds pi-heif and linkify-it-py.
+  None of them affects the Agent.
+- Route table: merge = master = 1973 routes (+0 -0). The 15 `/api/agent` routes and their auth dependencies are
+  identical to the RC and to master.
+  - Caveat: the shared `C:\UCT\agent\.venv` lacks `linkify_it` and `pi_heif`, so a stub was used to import `api.main`.
+- Re-run on the trial merge:
+  - server allowlist, flags off and quote-only (A): 21/21;
+  - QA pytest: 340 passed, the same as on `f479b0ae32` itself. Status earlier said 350; that number was miscounted;
+  - QA vitest (`src/agent/qa`): 10 files, 172 passed, including `quoteHeldout` 4/4, `md2Quote` 34/34 and `md2Panel` 48/48.
+- Since then master moved to `ecb22ce7f0` (`api/main.py` adds a public `/api/brand/massive-card-logo.png` route, plus a
+  PNG). It does not overlap and is not Agent. The master gate tests whatever tree actually lands.
+
 ## ⭐⭐ FINAL VERDICT: Sprint 2 RELEASE CANDIDATE `f479b0ae327de056b2b53176c0c6fa6d20d722ea` (`agent/rc/sprint2`): **GO**
 **GO** to release, including activating quotes (`UCT_AGENT_DATA=1` + `UCT_AGENT_DATA_KINDS=quote,quotes,instrument.resolve`).
 Everything else stays dark: scan, isolated, NL-1, `bars.daily`.
