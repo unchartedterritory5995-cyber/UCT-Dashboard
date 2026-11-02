@@ -701,6 +701,9 @@ Method) drilled on real charts, with no AI at runtime, every item reviewed by th
   Foundations unit by unit in the spec's order, F1 "Market basics" first (7 units, F1.01 house words from his own
   prose), then F2 chart reading, with the owner reviewing each unit's questions on the review screen before
   import; Vocabulary term bank grows alongside (study_terms is still empty).
+- **2026-11-02 OWNER GRADE ON EVERYTHING SO FAR: "Yeah so far I give everything a 2/100"** (verbatim). Nothing built
+  to date counts as acceptable; before authoring anything, get his picture of what 100 looks like and what is most wrong.
+  No new items, no new screens until that is settled.
 
 ## Owner review packet (Phase 0 — read in this order, one session)
 1. `docs/study/VOICE.md` — the voice rules derived from your Substack/Scans prose; §8 open items.
