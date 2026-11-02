@@ -203,6 +203,42 @@ describe('a multi-chart grid cell keeps its indicator edits to itself', () => {
     renderCell({ id: 'c6', sym: 'AAPL', tf: 'D', chartType: null }, vi.fn())
     expect(screen.getByRole('button', { name: 'Shared chart settings' })).toBeTruthy()
   })
+
+  it('the sink settles: an edit fed back through a real container re-renders a BOUNDED number of times', async () => {
+    // Independent QA 2026-11-02: no test bounded the renders of the new sink. A
+    // container that stores what the cell hands it and renders it back is the
+    // real loop (MultiChartGrid); a sink that wrote on every render would spin here.
+    const { Profiler, useState } = await import('react')
+    let commits = 0
+    let changes = 0
+    function Container() {
+      const [cell, setCell] = useState({ id: 'c1', sym: 'AAPL', tf: 'D', chartType: null })
+      return (
+        <Profiler id="cell" onRender={() => { commits += 1 }}>
+          <GridChartCell
+            cell={cell} badge={null} rationale="" scanning={false}
+            onChange={(next) => { changes += 1; setCell((c) => ({ ...c, ...next })) }}
+            crosshairBus={null} rangeBus={null} volPanePct={null} isActive={() => true}
+            dailyDefaultBars={126} canvasTheme={null} onOpenSettings={() => {}} onBarsReady={() => {}}
+            isMaximized={false} onToggleMaximize={() => {}} deepWarm={false}
+          />
+        </Profiler>
+      )
+    }
+    render(<Container />)
+    await act(async () => { await new Promise((r) => setTimeout(r, 20)) })
+    commits = 0
+    pressCtrlI()
+    // let debounced work (a settings write-back, a deferred repaint) land first
+    await act(async () => { await new Promise((r) => setTimeout(r, 600)) })
+    const afterEdit = commits
+    expect(changes, 'the edit never reached the container — vacuous').toBeGreaterThanOrEqual(1)
+    expect(changes).toBeLessThanOrEqual(2)
+    expect(afterEdit).toBeLessThan(20)
+    await act(async () => { await new Promise((r) => setTimeout(r, 600)) })
+    expect(commits, 'the cell kept re-rendering after the edit settled').toBe(afterEdit)
+    expect(chartSettingsWrites()).toEqual([])
+  })
 })
 
 describe('the other two scopes are unchanged', () => {

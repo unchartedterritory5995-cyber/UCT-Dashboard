@@ -65,17 +65,62 @@ const READ_ONLY_OVERRIDE_HOSTS = {
 
 const CHART_HOSTS = new Set(['StockChart', 'ChartPane'])
 const elName = (opening) => (opening.name?.type === 'JSXIdentifier' ? opening.name.name : null)
+/** ⛔ An attribute whose value is a literal `null` / `undefined` is NOT passed:
+ *  `onSettingsPersist={null}` would otherwise satisfy the rail and leak exactly as
+ *  an absent sink does (independent QA 2026-11-02). */
+const isEmptyValue = (a) => {
+  const e = a.value && a.value.type === 'JSXExpressionContainer' ? a.value.expression : null
+  return !!e && ((e.type === 'Literal' && e.value === null)
+    || (e.type === 'Identifier' && e.name === 'undefined'))
+}
 const attrNames = (opening) => new Set(opening.attributes
-  .filter((a) => a.type === 'JSXAttribute' && a.name?.type === 'JSXIdentifier')
+  .filter((a) => a.type === 'JSXAttribute' && a.name?.type === 'JSXIdentifier' && !isEmptyValue(a))
   .map((a) => a.name.name))
+const hasSpread = (opening) => opening.attributes.some((a) => a.type === 'JSXSpreadAttribute')
+
+/** The two chart component MODULES (repo-relative), resolved from import paths. */
+const CHART_MODULES = new Set(['app/src/components/StockChart.jsx',
+  'app/src/components/chart/pane/ChartPane.jsx'])
+
+/** ⭐ The local names a module gives the two chart components, resolved by import
+ *  PATH (independent QA 2026-11-02): an alias (`import Chart from '…/StockChart'`)
+ *  is a chart; a same-named component from another module (the focus screener's own
+ *  `./ChartPane`) is not. With no `file` (a control snippet) imports resolve by name. */
+function chartNamesOf(ast, file = null) {
+  const names = new Set(CHART_HOSTS)
+  for (const st of ast.body || []) {
+    if (st.type !== 'ImportDeclaration' || typeof st.source?.value !== 'string') continue
+    const resolved = file ? resolveImport(file, st.source.value) : null
+    const isChart = resolved
+      ? CHART_MODULES.has(key(resolved))
+      : CHART_HOSTS.has(st.source.value.split('/').pop().replace(/\.(jsx|js)$/, ''))
+    for (const sp of st.specifiers || []) {
+      if (!sp.local?.name) continue
+      if (isChart) names.add(sp.local.name)
+      else names.delete(sp.local.name)
+    }
+  }
+  return names
+}
+
+// ⛔ SPREAD MOUNTS, VERIFIED. A chart mount that spreads its props could carry an
+// override invisibly; each of these builds its spread object in the same file and
+// that file never mentions `settingsOverride` (asserted below), so the day one does
+// this rail goes red instead of trusting the note.
+const SPREAD_MOUNTS_VERIFIED = {
+  'app/src/pages/modelbook/shared/ChartExampleKit.jsx': 'chartProps is built in-file; no override',
+  'app/src/pages/traderArchive/PlaybookCharts.jsx': 'props built in-file; no override',
+}
 
 /** Rule 1 scan over ONE source text. Exported shape for the control below. */
 function overrideWithoutSink(src) {
   const out = []
-  walk(parse(src), (n) => {
-    if (n.type !== 'JSXOpeningElement' || !CHART_HOSTS.has(elName(n))) return
+  const ast = parse(src)
+  const names = chartNamesOf(ast)
+  walk(ast, (n) => {
+    if (n.type !== 'JSXOpeningElement' || !names.has(elName(n))) return
     const a = attrNames(n)
-    out.push({ name: elName(n), line: n.loc?.start?.line ?? null, override: a.has('settingsOverride'), sink: a.has('onSettingsPersist') })
+    out.push({ name: elName(n), line: n.loc?.start?.line ?? null, override: a.has('settingsOverride'), sink: a.has('onSettingsPersist'), spread: hasSpread(n) })
   })
   return out
 }
@@ -107,11 +152,14 @@ for (const f of FILES) {
 function rule1Findings() {
   const hosts = []
   for (const [f, ast] of AST) {
+    const names = chartNamesOf(ast, f)
     walk(ast, (n) => {
-      if (n.type !== 'JSXOpeningElement' || !CHART_HOSTS.has(elName(n))) return
+      if (n.type !== 'JSXOpeningElement' || !names.has(elName(n))) return
       const a = attrNames(n)
-      if (!a.has('settingsOverride')) return
-      hosts.push({ file: key(f), line: n.loc.start.line, name: elName(n), sink: a.has('onSettingsPersist') })
+      // ⛔ A SPREAD can carry `settingsOverride` invisibly, so a spread chart mount is
+      // treated as if it passed one: it must pass `onSettingsPersist` EXPLICITLY.
+      if (!a.has('settingsOverride') && !hasSpread(n)) return
+      hosts.push({ file: key(f), line: n.loc.start.line, name: elName(n), sink: a.has('onSettingsPersist'), spread: hasSpread(n) && !a.has('settingsOverride') })
     })
   }
   return hosts
@@ -234,11 +282,29 @@ describe('settings scope rail — an edit is saved where the chart lives (policy
       expect(good[0]).toMatchObject({ override: true, sink: true })
     })
 
+    it('CONTROL: a sink written as null/undefined is NOT a sink, and an ALIAS is still a chart', () => {
+      expect(overrideWithoutSink('const x = <StockChart settingsOverride={o} onSettingsPersist={null} />')[0])
+        .toMatchObject({ override: true, sink: false })
+      expect(overrideWithoutSink('const x = <StockChart settingsOverride={o} onSettingsPersist={undefined} />')[0])
+        .toMatchObject({ sink: false })
+      const aliased = overrideWithoutSink("import Chart from '../StockChart'\nconst x = <Chart settingsOverride={o} />")
+      expect(aliased).toEqual([expect.objectContaining({ name: 'Chart', override: true, sink: false })])
+      expect(overrideWithoutSink('const x = <StockChart {...p} />')[0]).toMatchObject({ spread: true, sink: false })
+    })
+
     it('every override host passes a sink, or is an allow-listed read-only surface', () => {
       const leaking = hosts
-        .filter((h) => !h.sink && !READ_ONLY_OVERRIDE_HOSTS[h.file])
-        .map((h) => `${h.file}:${h.line} <${h.name}> passes settingsOverride without onSettingsPersist`)
+        .filter((h) => !h.sink && !READ_ONLY_OVERRIDE_HOSTS[h.file]
+          && !(h.spread && SPREAD_MOUNTS_VERIFIED[h.file]))
+        .map((h) => `${h.file}:${h.line} <${h.name}> ${h.spread ? 'spreads props (may carry settingsOverride)' : 'passes settingsOverride'} without onSettingsPersist`)
       expect(leaking).toEqual([])
+    })
+
+    it('a verified spread mount never mentions settingsOverride, and still needs its entry', () => {
+      for (const f of Object.keys(SPREAD_MOUNTS_VERIFIED)) {
+        expect(read(path.join(ROOT, f)), `${f} now mentions settingsOverride`).not.toMatch(/settingsOverride/)
+        expect(hosts.some((h) => h.file === f && h.spread), `${f} no longer needs its entry`).toBe(true)
+      }
     })
 
     it('the allow-list names only files that still need it (no stale exemptions)', () => {
