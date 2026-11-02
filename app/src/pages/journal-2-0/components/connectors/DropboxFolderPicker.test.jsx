@@ -217,6 +217,62 @@ describe('DropboxFolderPicker (Task 12b)', () => {
   })
 })
 
+describe('DropboxFolderPicker — stale listings (Plan D task 8)', () => {
+  const noop = () => {}
+  const props = { addSource: vi.fn(), onClose: noop, onPicked: noop }
+
+  it('a slower earlier listing never overwrites the folder the member navigated to', async () => {
+    let resolveA
+    let resolveB
+    const listFolders = vi
+      .fn()
+      .mockResolvedValueOnce([{ name: 'Team Notes', remoteId: '/team notes', drillPath: '/team notes' }])
+      .mockImplementationOnce(() => new Promise((r) => { resolveA = r }))
+      .mockImplementationOnce(() => new Promise((r) => { resolveB = r }))
+    render(<DropboxFolderPicker open listFolders={listFolders} {...props} />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Team Notes' }))
+    await waitFor(() => expect(listFolders).toHaveBeenCalledTimes(2))
+    fireEvent.click(screen.getByRole('button', { name: 'Dropbox' }))
+    await waitFor(() => expect(listFolders).toHaveBeenCalledTimes(3))
+
+    resolveB([
+      { name: 'Team Notes', remoteId: '/team notes', drillPath: '/team notes' },
+      { name: 'Archive', remoteId: '/archive', drillPath: '/archive' },
+    ])
+    expect(await screen.findByText('Archive')).toBeInTheDocument()
+    resolveA([{ name: '2026', remoteId: '/team notes/2026', drillPath: '/team notes/2026' }])
+    await Promise.resolve()
+    await new Promise((r) => setTimeout(r, 0))
+
+    expect(screen.getByText('Archive')).toBeInTheDocument()
+    expect(screen.queryByText('2026')).not.toBeInTheDocument()
+    expect(screen.queryByRole('status', { name: /loading folders/i })).not.toBeInTheDocument()
+  })
+
+  it('ignores a listing that resolves after the picker was reopened', async () => {
+    let resolveA
+    let resolveB
+    const listFolders = vi
+      .fn()
+      .mockImplementationOnce(() => new Promise((r) => { resolveA = r }))
+      .mockImplementationOnce(() => new Promise((r) => { resolveB = r }))
+    const { rerender } = render(<DropboxFolderPicker open listFolders={listFolders} {...props} />)
+    await waitFor(() => expect(listFolders).toHaveBeenCalledTimes(1))
+    rerender(<DropboxFolderPicker open={false} listFolders={listFolders} {...props} />)
+    rerender(<DropboxFolderPicker open listFolders={listFolders} {...props} />)
+    await waitFor(() => expect(listFolders).toHaveBeenCalledTimes(2))
+
+    resolveB([{ name: 'Fresh', remoteId: '/fresh', drillPath: '/fresh' }])
+    expect(await screen.findByText('Fresh')).toBeInTheDocument()
+    resolveA([{ name: 'Stale', remoteId: '/stale', drillPath: '/stale' }])
+    await Promise.resolve()
+    await new Promise((r) => setTimeout(r, 0))
+
+    expect(screen.getByText('Fresh')).toBeInTheDocument()
+    expect(screen.queryByText('Stale')).toBeNull()
+  })
+})
+
 describe('DropboxFolderPicker — OneDrive (fix-round CRITICAL: the folder picker could not create a source)', () => {
   it('OneDrive rows carry a real, non-empty remoteId (id-based, not path_lower) and drill/pick correctly', async () => {
     const listFolders = vi.fn(async (provider, path) => {
