@@ -24,8 +24,11 @@ from fastapi.testclient import TestClient
 from api.middleware import auth_middleware as authmw
 from api.routers import note_sync as note_sync_router
 from api.services import auth_db
+from api.services.journal_two import media_policy, notes as notes_svc
 from api.services.journal_two.db import ensure_schema
-from api.services.journal_two.note_connectors import connections, obsidian_link, obsidian_staging
+from api.services.journal_two.note_connectors import (
+    connections, obsidian_attachments, obsidian_link, obsidian_staging,
+)
 from api.services.journal_two.note_connectors.providers.obsidian import ObsidianProvider
 
 _URL = "/api/j2/notes/connectors/obsidian/ingest"
@@ -68,6 +71,12 @@ def client(tmp_path, monkeypatch):
     # returns_503_not_a_500` below), so every test in this file that expects
     # a live ingest call to succeed needs this set -- which it is, here.
     monkeypatch.setenv("NOTE_SYNC_OBSIDIAN_ENABLED", "1")
+    # Plan C Task 2: the attachment routes stage blobs on disk and size the
+    # member's room off the stored-media tree. Both sandboxed per test.
+    monkeypatch.setenv("J2_OBSIDIAN_BLOB_ROOT", str(tmp_path / "blobs"))
+    monkeypatch.setattr(notes_svc, "_ATTACHMENT_ROOT", tmp_path / "att")
+    monkeypatch.setenv("J2_ATTACHMENT_ROOT", str(tmp_path / "att"))
+    media_policy._USAGE_MEMO.clear()
 
     app = FastAPI()
     app.include_router(note_sync_router.router)
@@ -1349,3 +1358,340 @@ def test_a_vault_that_would_exceed_the_staging_row_cap_is_refused(client, monkey
     # The over-cap batch must not have partially landed.
     assert len(_staging_rows("user-a", "vault-1")) == 2
     assert {r["vault_path"] for r in _staging_rows("user-a", "vault-1")} == {"a.md", "b.md"}
+
+
+# ── Plan C Task 2: attachment check/upload routes, per-note refs, plugin version ──
+
+import hashlib  # noqa: E402
+
+_CHECK = "/api/j2/notes/connectors/obsidian/attachments/check"
+
+
+def _put(sha: str) -> str:
+    return f"/api/j2/notes/connectors/obsidian/attachments/{sha}"
+
+
+def H(tok: str, v: str | None = "0.2.0") -> dict:
+    h = {"Authorization": f"Bearer {tok}"}
+    if v is not None:
+        h["X-UCT-Plugin-Version"] = v
+    return h
+
+
+def _sha(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
+def _upload(client, tok, data: bytes, name: str = "chart.png", mime: str = "image/png"):
+    return client.put(_put(_sha(data)), content=data,
+                      headers={**H(tok), "Content-Type": mime, "X-UCT-Attachment-Name": name})
+
+
+def _blob_rows(user_id: str | None = None) -> list[dict]:
+    conn = auth_db.get_connection()
+    try:
+        if user_id is None:
+            rows = conn.execute("SELECT * FROM j2_obsidian_attachments").fetchall()
+        else:
+            rows = conn.execute("SELECT * FROM j2_obsidian_attachments WHERE user_id = ?", (user_id,)).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def _ref(sha: str | None, *, status: str = "ok", original: str = "![[chart.png]]", **k) -> dict:
+    return {"original": original, "embed": True, "path": "att/chart.png", "size": 5,
+            "sha256": sha, "status": status, **k}
+
+
+def test_check_reports_protocol_limits_and_missing(client):
+    tok = _device_token("user-a")
+    r = client.post(_CHECK, json={"sha256": []}, headers=H(tok))
+    assert r.status_code == 200 and r.json()["protocol"] == 1
+    assert r.json()["maxBytes"] == 26214400 and r.json()["missing"] == []
+    assert isinstance(r.json()["remainingBytes"], int) and r.json()["remainingBytes"] > 0
+    data = b"hello"
+    sha = _sha(data)
+    assert client.post(_CHECK, json={"sha256": [sha]}, headers=H(tok)).json()["missing"] == [sha]
+    p = client.put(_put(sha), content=data, headers={**H(tok), "Content-Type": "image/png; charset=binary",
+                                                      "X-UCT-Attachment-Name": "chart%20one.png"})
+    assert p.status_code == 200 and p.json() == {"stored": True}
+    assert client.post(_CHECK, json={"sha256": [sha]}, headers=H(tok)).json()["missing"] == []
+    row = _blob_rows("user-a")[0]
+    # the name is percent-decoded once; the MIME loses its parameters
+    assert (row["vault_id"], row["name"], row["declared_mime"], row["size"]) == \
+        ("vault-1", "chart one.png", "image/png", 5)
+    # a second upload of the same bytes is a no-op the plugin can read
+    assert _upload(client, tok, data).json() == {"stored": False}
+
+
+def test_put_hash_mismatch_is_400_and_oversize_is_413(client, monkeypatch):
+    tok = _device_token("user-a")
+    r = client.put(_put(_sha(b"other")), content=b"hello", headers=H(tok))
+    assert r.status_code == 400 and "sha256" in r.json()["detail"]
+    assert _blob_rows() == []
+
+    monkeypatch.setattr(obsidian_attachments, "MAX_BLOB_BYTES", 10)
+    big = b"x" * 11
+    r = client.put(_put(_sha(big)), content=big, headers=H(tok))  # declared Content-Length
+    assert r.status_code == 413, r.text
+
+    def chunked():  # no Content-Length: the streamed body is bounded while it is read
+        yield b"x" * 6
+        yield b"x" * 6
+    r = client.put(_put(_sha(big + b"x")), content=chunked(), headers=H(tok))
+    assert r.status_code == 413, r.text
+    assert _blob_rows() == []
+    assert [p for p in obsidian_attachments.blob_root().rglob("*") if p.is_file()] == []
+
+
+def test_put_over_the_member_bound_is_413_with_the_member_sentence(client, monkeypatch):
+    tok = _device_token("user-a")
+    monkeypatch.setattr(obsidian_attachments, "MEMBER_IMPORT_MEDIA_CAP_BYTES", 3)
+    r = _upload(client, tok, b"hello")
+    assert r.status_code == 413
+    assert r.json()["detail"] == ("Your UCT storage for imported files is full. "
+                                  "Free up space in the Notebook, then sync again.")
+    assert client.post(_CHECK, json={"sha256": []}, headers=H(tok)).json()["remainingBytes"] == 3  # what the plugin is told it has
+
+
+@pytest.mark.parametrize("status", [400, 403, 413, 503])
+def test_put_maps_every_blob_rejection_to_its_own_status(client, monkeypatch, status):
+    """The route never flattens the store's refusal: the status is the store's, and so is the
+    (member-safe) sentence."""
+    tok = _device_token("user-a")
+
+    async def refuse(**_k):
+        raise obsidian_attachments.BlobRejected(status, f"refused {status}")
+    monkeypatch.setattr(obsidian_attachments, "stage_blob_stream", refuse)
+    r = _upload(client, tok, b"hello")
+    assert (r.status_code, r.json()["detail"]) == (status, f"refused {status}")
+
+
+@pytest.mark.parametrize("name", ["a%2Fb.png", "a%5Cb.png", "x" * 256])
+def test_put_refuses_a_bad_name_header_as_400(client, name):
+    tok = _device_token("user-a")
+    r = _upload(client, tok, b"hello", name=name)
+    assert r.status_code == 400, r.text
+    assert _blob_rows() == []
+
+
+def test_bad_hashes_and_bad_vault_ids_are_400_never_500(client):
+    tok = _device_token("user-a")
+    assert client.put(_put("ABC"), content=b"hello", headers=H(tok)).status_code == 400
+    assert client.put(_put("A" * 64), content=b"hello", headers=H(tok)).status_code == 400
+    assert client.post(_CHECK, json={"sha256": ["nope"]}, headers=H(tok)).status_code == 400
+    assert client.post(_CHECK, json={"sha256": "a" * 64}, headers=H(tok)).status_code == 400
+    assert client.post(_CHECK, json={"sha256": ["a" * 64] * 5001}, headers=H(tok)).status_code == 400
+    assert client.post(_CHECK, content=b"{not json", headers=H(tok)).status_code == 400
+    # a vault id no path segment may carry (Task 1's `_safe_id` rules)
+    bad = _device_token("user-a", vault_id="bad:vault")
+    assert client.post(_CHECK, json={"sha256": []}, headers=H(bad)).status_code == 400
+    assert _upload(client, bad, b"hello").status_code == 400
+    assert _blob_rows() == []
+
+
+@pytest.mark.parametrize("route", ["check", "put"])
+def test_attachment_routes_require_device_token_paid_plan_and_obsidian_flag(client, monkeypatch, route):
+    def call(headers):
+        if route == "check":
+            return client.post(_CHECK, json={"sha256": []}, headers=headers)
+        return client.put(_put(_sha(b"hello")), content=b"hello", headers=headers)
+
+    assert call({}).status_code == 401
+    assert call(H("dev:garbage")).status_code == 401
+    assert call(H(_device_token("user-free"))).status_code == 403
+    tok = _device_token("user-a")
+    monkeypatch.setenv("NOTE_SYNC_OBSIDIAN_ENABLED", "0")
+    assert call(H(tok)).status_code == 503
+    monkeypatch.setenv("NOTE_SYNC_OBSIDIAN_ENABLED", "1")
+    assert call(H(tok)).status_code == 200
+
+
+@pytest.mark.parametrize("route", ["check", "put"])
+def test_attachments_flag_off_answers_404_like_an_old_server(client, monkeypatch, route):
+    monkeypatch.setenv("NOTE_SYNC_OBSIDIAN_ATTACHMENTS_ENABLED", "0")
+    tok = _device_token("user-a")
+    if route == "check":
+        r = client.post(_CHECK, json={"sha256": []}, headers=H(tok))
+    else:
+        r = client.put(_put(_sha(b"hello")), content=b"hello", headers=H(tok))
+    assert r.status_code == 404
+    # first in the gate order: an anonymous caller learns nothing more than an old server says
+    assert client.post(_CHECK, json={"sha256": []}).status_code == 404
+    assert _blob_rows() == []
+
+
+def test_cross_tenant_put_cannot_satisfy_another_users_check(client):
+    data = b"shared bytes"
+    sha = _sha(data)
+    tok_a = _device_token("user-a")
+    tok_b = _device_token("user-b")
+    tok_a2 = _device_token("user-a", vault_id="vault-2")
+    assert _upload(client, tok_b, data).json() == {"stored": True}
+    assert _upload(client, tok_a2, data).json() == {"stored": True}
+    # user-b's blob and user-a's OTHER vault's blob do not satisfy user-a/vault-1
+    assert client.post(_CHECK, json={"sha256": [sha]}, headers=H(tok_a)).json()["missing"] == [sha]
+    assert {(r["user_id"], r["vault_id"]) for r in _blob_rows()} == {("user-b", "vault-1"), ("user-a", "vault-2")}
+    assert _upload(client, tok_a, data).json() == {"stored": True}
+    assert client.post(_CHECK, json={"sha256": [sha]}, headers=H(tok_a)).json()["missing"] == []
+
+
+def test_ingest_stores_attachments_json_and_old_plugin_payload_stores_null(client):
+    tok = _device_token("user-a")
+    ref = _ref("a" * 64)
+    note = {**_note("new.md", "h1", "![[chart.png]]"), "attachments": [ref]}
+    r = client.post(_URL, headers=H(tok), json={"consent": True, "notes": [note]})
+    assert r.status_code == 200, r.text
+    # 0.1.x shape: no attachments key, no version header
+    r = client.post(_URL, headers={"Authorization": f"Bearer {tok}"},
+                    json={"consent": True, "notes": [_note("old.md", "h2")]})
+    assert r.status_code == 200, r.text
+    rows = {row["vault_path"]: row for row in _staging_rows("user-a", "vault-1")}
+    assert json.loads(rows["new.md"]["attachments_json"]) == [ref]
+    assert rows["old.md"]["attachments_json"] is None
+    # an explicit empty list is "this note has no attachments", not "old plugin"
+    r = client.post(_URL, headers=H(tok), json={"consent": True,
+                    "notes": [{**_note("none.md", "h3"), "attachments": []}]})
+    assert r.status_code == 200
+    assert {row["vault_path"]: row for row in _staging_rows("user-a", "vault-1")}["none.md"]["attachments_json"] == "[]"
+
+
+@pytest.mark.parametrize("bad", [
+    [_ref("a" * 64, status="broken")],
+    [_ref("A" * 64)],
+    [_ref("a" * 63)],
+    [_ref("a" * 64, original="x" * 2049)],
+    [_ref("a" * 64, original="")],
+    [_ref("a" * 64, path="")],
+    [_ref("a" * 64, size=-1)],
+    [_ref(None, status="ok")],                    # ok needs its hash
+    [_ref("a" * 64, status="missing")],           # missing carries none
+    [_ref("a" * 64)] * 5001,
+])
+def test_ingest_rejects_malformed_attachment_refs_as_400(client, bad):
+    tok = _device_token("user-a")
+    note = {**_note("a.md", "h1"), "attachments": bad}
+    r = client.post(_URL, headers=H(tok), json={"consent": True, "notes": [_note("ok.md", "h0"), note]})
+    assert r.status_code == 400, r.text
+    assert _staging_rows("user-a", "vault-1") == []
+
+
+def test_ingest_accepts_every_protocol_status(client):
+    tok = _device_token("user-a")
+    refs = [_ref("a" * 64), _ref("b" * 64, status="storage-limit"), _ref(None, status="too-large"),
+            _ref(None, status="missing", size=0), _ref(None, status="off")]
+    r = client.post(_URL, headers=H(tok), json={"consent": True,
+                    "notes": [{**_note("a.md", "h1"), "attachments": refs}]})
+    assert r.status_code == 200, r.text
+    assert json.loads(_staging_rows("user-a", "vault-1")[0]["attachments_json"]) == refs
+
+
+def _device_version(vault_id: str = "vault-1", user_id: str = "user-a") -> str | None:
+    return obsidian_link.plugin_versions_for_user(user_id).get(vault_id)
+
+
+def _device_ids(user_id: str) -> set[str]:
+    conn = auth_db.get_connection()
+    try:
+        return {r["id"] for r in conn.execute("SELECT id FROM j2_obsidian_devices WHERE user_id = ?", (user_id,))}
+    finally:
+        conn.close()
+
+
+def test_plugin_version_recorded_on_redeem_and_ingest_never_erased(client):
+    _login_as(client, "user-a")
+    code = obsidian_link.mint_connect_code("user-a")
+    r = client.post(_REDEEM_URL, json={"code": code, "vaultId": "vault-1", "label": "V"},
+                    headers={"X-UCT-Plugin-Version": "0.2.0"})
+    assert r.status_code == 200, r.text
+    tok = r.json()["token"]
+    src = client.get("/api/j2/notes/connectors/status").json()["providers"]["obsidian"]["sources"][0]
+    assert src["pluginVersion"] == "0.2.0" and src["pluginSupportsAttachments"] is True
+    # later ingest WITHOUT the header: still 0.2.0
+    assert client.post(_URL, headers={"Authorization": f"Bearer {tok}"},
+                       json={"consent": True, "notes": [_note("a.md", "h1")]}).status_code == 200
+    assert _device_version() == "0.2.0"
+    # garbage header: unchanged, and the push still succeeds
+    assert client.post(_URL, headers=H(tok, "x; drop"),
+                       json={"consent": True, "notes": [_note("b.md", "h2")]}).status_code == 200
+    assert _device_version() == "0.2.0"
+    # a real version from the device is recorded, downgrade included
+    assert client.post(_CHECK, json={"sha256": []}, headers=H(tok, "0.1.9")).status_code == 200
+    assert _device_version() == "0.1.9"
+
+
+def test_record_plugin_version_accepts_only_semver_triples(client):
+    _device_token("user-a")
+    device_id = next(iter(_device_ids("user-a")))
+    for raw in ["", "1", "1.2", "1.2.3.4", "v1.2.3", "1.2.3-beta", "12345.0.0", " 1.2.3", "1.2.3\n"]:
+        obsidian_link.record_plugin_version(device_id, raw)
+        assert _device_version() is None, raw
+    obsidian_link.record_plugin_version(device_id, "9999.0.10")
+    assert _device_version() == "9999.0.10"
+    obsidian_link.record_plugin_version(device_id, None)
+    assert _device_version() == "9999.0.10"
+
+
+@pytest.mark.parametrize("version,ok", [
+    (None, False), ("0.1.4", False), ("0.1.99", False), ("0.2.0", True), ("0.2.1", True),
+    ("0.10.0", True), ("1.0.0", True), ("0.0.300", False), ("garbage", False),
+])
+def test_attachment_support_is_a_numeric_version_compare(version, ok):
+    assert obsidian_link.plugin_version_supports_attachments(version) is ok
+
+
+def test_status_reports_null_version_for_a_0_1_plugin(client):
+    _login_as(client, "user-a")
+    tok = _redeem_via_http(client, "user-a")  # no version header, like 0.1.x
+    src = client.get("/api/j2/notes/connectors/status").json()["providers"]["obsidian"]["sources"][0]
+    assert src["pluginVersion"] is None and src["pluginSupportsAttachments"] is False
+    # Ledger ruling: a vault whose staging already carries attachment refs is proof of support,
+    # whatever the recorded version (a stripped header or a pre-release build).
+    note = {**_note("a.md", "h1"), "attachments": [_ref("a" * 64)]}
+    assert client.post(_URL, headers={"Authorization": f"Bearer {tok}", "X-UCT-Plugin-Version": "0.1.4"},
+                       json={"consent": True, "notes": [note]}).status_code == 200
+    src = client.get("/api/j2/notes/connectors/status").json()["providers"]["obsidian"]["sources"][0]
+    assert src["pluginVersion"] == "0.1.4" and src["pluginSupportsAttachments"] is True
+
+
+def test_status_versions_are_scoped_per_member_and_vault(client):
+    code = obsidian_link.mint_connect_code("user-b")
+    assert client.post(_REDEEM_URL, json={"code": code, "vaultId": "vault-1"},
+                       headers={"X-UCT-Plugin-Version": "0.2.0"}).status_code == 200
+    tok_b = obsidian_link.redeem_connect_code(obsidian_link.mint_connect_code("user-b"), "vault-1")[1]
+    note = {**_note("a.md", "h1"), "attachments": [_ref("a" * 64)]}
+    assert client.post(_URL, headers=H(tok_b), json={"consent": True, "notes": [note]}).status_code == 200
+    _login_as(client, "user-a")
+    _redeem_via_http(client, "user-a")
+    src = client.get("/api/j2/notes/connectors/status").json()["providers"]["obsidian"]["sources"][0]
+    assert src["pluginVersion"] is None and src["pluginSupportsAttachments"] is False
+
+
+def test_final_ingest_gcs_unreferenced_blobs(client, monkeypatch):
+    real_gc = obsidian_attachments.gc_unreferenced
+    monkeypatch.setattr(obsidian_attachments, "gc_unreferenced",
+                        lambda u, v, **_k: real_gc(u, v, older_than=timedelta(0)))
+    tok = _device_token("user-a")
+    keep, drop = b"keep me", b"drop me"
+    assert _upload(client, tok, keep).json() == {"stored": True}
+    assert _upload(client, tok, drop).json() == {"stored": True}
+    note = {**_note("a.md", "h1"), "attachments": [_ref(_sha(keep))]}
+    # a NON-final push never collects
+    assert client.post(_URL, headers=H(tok), json={"consent": True, "notes": [note]}).status_code == 200
+    assert {r["sha256"] for r in _blob_rows()} == {_sha(keep), _sha(drop)}
+    r = client.post(_URL, headers=H(tok), json={"consent": True, "notes": [note],
+                                                 "manifest": ["a.md"], "final": True})
+    assert r.status_code == 200, r.text
+    assert {r["sha256"] for r in _blob_rows()} == {_sha(keep)}
+
+
+def test_a_gc_failure_never_fails_the_push(client, monkeypatch):
+    def boom(*_a, **_k):
+        raise RuntimeError("disk went away")
+    monkeypatch.setattr(obsidian_attachments, "gc_unreferenced", boom)
+    tok = _device_token("user-a")
+    r = client.post(_URL, headers=H(tok), json={"consent": True, "notes": [_note("a.md", "h1")],
+                                                 "manifest": ["a.md"], "final": True})
+    assert r.status_code == 200, r.text
+    assert r.json()["manifestReplaced"] is True

@@ -178,8 +178,14 @@ def _too_large() -> BlobRejected:
     return BlobRejected(413, f"attachment is too large (limit {MAX_BLOB_BYTES // (1024 * 1024)} MB)")
 
 
+# The member-facing sentence for the member bound (Plan C Task 2): the upload route hands
+# `BlobRejected.detail` to the plugin verbatim, so this is the one place it is written.
+NO_ROOM_DETAIL = ("Your UCT storage for imported files is full. "
+                  "Free up space in the Notebook, then sync again.")
+
+
 def _no_room() -> BlobRejected:
-    return BlobRejected(413, "storage limit reached for imported media")
+    return BlobRejected(413, NO_ROOM_DETAIL)
 
 
 def _commit(user_id: str, vault_id: str, sha256: str, tmp: Path, final: Path, size: int,

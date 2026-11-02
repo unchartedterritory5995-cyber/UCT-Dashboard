@@ -87,6 +87,7 @@ import base64
 import hashlib
 import hmac
 import os
+import re
 import secrets
 import time
 import uuid
@@ -375,6 +376,54 @@ def get_device(device_id: str) -> dict[str, Any] | None:
         "vault_id": row["vault_id"],
         "label": row["label"],
     }
+
+
+# Plan C Task 2. The plugin sends `X-UCT-Plugin-Version: <manifest version>` on every
+# request; a 0.1.x plugin sends none. Only a plain `major.minor.patch` is ever stored.
+_PLUGIN_VERSION_RE = re.compile(r"^\d{1,4}\.\d{1,4}\.\d{1,4}\Z")
+# The first plugin release that uploads attachments and sends per-note refs.
+OBSIDIAN_ATTACHMENTS_MIN_PLUGIN_VERSION = (0, 2, 0)
+
+
+def record_plugin_version(device_id: str, raw: str | None) -> None:
+    """Stores the device's plugin version when `raw` is a `major.minor.patch` triple.
+    Anything else -- absent, garbage, a pre-release suffix -- is a no-op, so a known
+    version is never overwritten with NULL (a stripped header or a 0.1.x request on a
+    device that once reported 0.2.0 leaves 0.2.0 in place). A real lower version IS
+    recorded: a downgrade is the truth about that device."""
+    if raw is None or not _PLUGIN_VERSION_RE.match(raw):
+        return
+    conn = get_connection()
+    try:
+        conn.execute(
+            "UPDATE j2_obsidian_devices SET plugin_version = ?"
+            " WHERE id = ? AND plugin_version IS NOT ?",
+            (raw, device_id, raw),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def plugin_versions_for_user(user_id: str) -> dict[str, str | None]:
+    """`{vault_id: plugin_version or None}` for every device of this member."""
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT vault_id, plugin_version FROM j2_obsidian_devices WHERE user_id = ?",
+            (user_id,),
+        ).fetchall()
+    finally:
+        conn.close()
+    return {r["vault_id"]: r["plugin_version"] for r in rows}
+
+
+def plugin_version_supports_attachments(version: str | None) -> bool:
+    """True when `version` is at least `OBSIDIAN_ATTACHMENTS_MIN_PLUGIN_VERSION`, compared
+    as numbers (`0.10.0` is newer than `0.2.0`, which a string compare gets wrong)."""
+    if not version or not _PLUGIN_VERSION_RE.match(version):
+        return False
+    return tuple(int(p) for p in version.split(".")) >= OBSIDIAN_ATTACHMENTS_MIN_PLUGIN_VERSION
 
 
 def revoke_devices(user_id: str) -> int:

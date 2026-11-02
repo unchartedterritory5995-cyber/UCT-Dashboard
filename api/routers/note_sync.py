@@ -28,13 +28,13 @@ import logging
 import os
 import secrets
 import time
-from typing import Any
-from urllib.parse import quote
+from typing import Any, Literal
+from urllib.parse import quote, unquote
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, Field, ValidationError, model_validator
 
 from api.middleware.auth_middleware import (
     PAID_PLANS,
@@ -48,7 +48,8 @@ from api.services import request_body_cap as body_cap
 from api.services.auth_db import get_connection
 from api.services.journal_two import notes as notes_svc
 from api.services.journal_two.note_connectors import (
-    connections, engine, errors, obsidian_link, obsidian_staging, oauth, registry,
+    connections, engine, errors, obsidian_attachments, obsidian_link, obsidian_staging, oauth,
+    registry,
 )
 from api.services.journal_two.note_connectors.providers.craft import parse_capability_url
 
@@ -425,9 +426,24 @@ def get_status(user: dict = Depends(get_current_user)) -> dict[str, Any]:
     counts_by_source = _latest_sync_counts(user["id"], source_ids)
     failure_counts = _latest_failure_counts(user["id"], source_ids)
     pending = connections.pending_removal_counts(user["id"], source_ids)
+    # Plan C Task 2: what each Obsidian vault's plugin can do. Supported = it reports
+    # >= 0.2.0, OR its staging already carries attachment refs (ledger ruling: a stripped
+    # header or a pre-release build must not show a false "update" hint).
+    if any(s.get("provider") == "obsidian" for s in all_sources):
+        plugin_versions = obsidian_link.plugin_versions_for_user(user["id"])
+        vaults_with_refs = obsidian_staging.vaults_with_attachment_refs(user["id"])
+    else:
+        plugin_versions, vaults_with_refs = {}, set()
     sources_by_provider: dict[str, list[dict[str, Any]]] = {}
     for s in all_sources:
         s = dict(s)
+        if s.get("provider") == "obsidian":
+            version = plugin_versions.get(s.get("remoteId"))
+            s["pluginVersion"] = version
+            s["pluginSupportsAttachments"] = (
+                obsidian_link.plugin_version_supports_attachments(version)
+                or s.get("remoteId") in vaults_with_refs
+            )
         s["counts"] = counts_by_source.get(s["id"], dict(_ZERO_COUNTS))
         s["pendingRemoval"] = int(pending.get(s["id"], 0))
         # None = the newest row's failures could not be read: the count is
@@ -1033,7 +1049,10 @@ class ObsidianRedeemBody(BaseModel):
 
 
 @router.post("/obsidian/redeem")
-def obsidian_redeem(body: ObsidianRedeemBody = Depends(_json(ObsidianRedeemBody, after=None))) -> dict[str, Any]:
+def obsidian_redeem(
+    request: Request,
+    body: ObsidianRedeemBody = Depends(_json(ObsidianRedeemBody, after=None)),
+) -> dict[str, Any]:
     """Exchanges a connect code for a device token + creates (or reuses) the
     `j2_note_sources` row that makes the sync engine pull this vault.
 
@@ -1112,6 +1131,7 @@ def obsidian_redeem(body: ObsidianRedeemBody = Depends(_json(ObsidianRedeemBody,
         # raised rather than returning.
         raise HTTPException(status_code=503, detail="Obsidian device could not be verified after redemption")
     _require_paid_device_user(device["user_id"])  # same re-check /obsidian/ingest performs on every push
+    obsidian_link.record_plugin_version(device_id, request.headers.get(PLUGIN_VERSION_HEADER))
 
     # ⛔ The `j2_note_sources` row alone is NOT enough to make
     # `engine.sync_source` actually run: `_do_sync` calls
@@ -1188,11 +1208,41 @@ async def _read_bounded_body(request: Request, limit: int) -> bytes:
     return b"".join(chunks)
 
 
+# Plan C wire protocol (docs/superpowers/plans/2026-11-01-connector-fidelity-c-obsidian.md,
+# "The wire protocol"). Every plugin request carries this header; a 0.1.x plugin sends none.
+PLUGIN_VERSION_HEADER = "X-UCT-Plugin-Version"
+_MAX_ATTACHMENTS_PER_NOTE = 5000
+# The statuses that carry a staged blob's hash; every other status carries none.
+_REF_STATUSES_WITH_HASH = frozenset({"ok", "storage-limit"})
+
+
+class ObsidianAttachmentRef(BaseModel):
+    """One attachment reference the plugin resolved with Obsidian's own resolver. The
+    provider swaps `original` (an exact substring of the note) for the attachment. A ref
+    whose hash presence disagrees with its status is refused: the provider would
+    otherwise look up a blob for a status that never uploads one, or render a hashless
+    `ok` as an attachment it can never fetch."""
+    original: str = Field(min_length=1, max_length=2048)
+    embed: bool
+    path: str = Field(min_length=1, max_length=1024)
+    size: int = Field(ge=0)
+    sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
+    status: Literal["ok", "too-large", "missing", "off", "storage-limit"]
+
+    @model_validator(mode="after")
+    def _hash_matches_status(self) -> "ObsidianAttachmentRef":
+        if (self.sha256 is not None) != (self.status in _REF_STATUSES_WITH_HASH):
+            raise ValueError(f"sha256 must be set exactly when status is ok or storage-limit (status {self.status!r})")
+        return self
+
+
 class ObsidianNoteItem(BaseModel):
     vault_path: str
     content_hash: str
     body_md: str
     updated_at: str
+    # None = the plugin sends no refs (0.1.x, or 0.2.0 in legacy mode). Stored as NULL.
+    attachments: list[ObsidianAttachmentRef] | None = Field(default=None, max_length=_MAX_ATTACHMENTS_PER_NOTE)
 
 
 # The ingest batch's top-level notes-array key -- PINNED. This name is a wire
@@ -1299,6 +1349,7 @@ async def obsidian_ingest(request: Request) -> dict[str, Any]:
         raise HTTPException(status_code=503, detail=f"{entry.label} is not configured on this server.")
     device = _authenticate_obsidian_device(request)
     _require_paid_device_user(device["user_id"])
+    obsidian_link.record_plugin_version(device["device_id"], request.headers.get(PLUGIN_VERSION_HEADER))
 
     try:
         declared = int(request.headers.get("content-length") or 0)
@@ -1330,6 +1381,8 @@ async def obsidian_ingest(request: Request) -> dict[str, Any]:
             manifest=body.manifest,
             final=body.final,
         )
+        if result.get("manifestReplaced"):
+            await _gc_staged_blobs(device["user_id"], device["vault_id"])
         # A `final` batch is the plugin saying "that is the whole vault".
         # Draining it into the Notebook right now is what makes connecting a
         # vault mean "bring this vault into UCT" instead of "stage it and
@@ -1350,3 +1403,149 @@ async def obsidian_ingest(request: Request) -> dict[str, Any]:
         # `NoteConnValidationError` for a padded/empty manifest or an
         # over-cap batch — mapped to a clean 400, never a 500.
         _raise_for_provider_error(e)
+
+
+# ── Obsidian attachments (connector fidelity Plan C, Task 2) ─────────────────
+#
+# The plugin hashes a note's attachments, asks `/attachments/check` which hashes this
+# (member, vault) lacks, uploads each missing blob once with `PUT /attachments/{sha256}`,
+# then pushes the notes through `/obsidian/ingest` with per-note `attachments` refs. The
+# blob store is `obsidian_attachments` (Task 1); these routes are its only door.
+#
+# Gate order, the same as `obsidian_ingest`: the attachments flag (404), the Obsidian
+# flag (503), the device token (401), the paid plan (403), then the version header is
+# recorded. The (member, vault) of every read and write is the AUTHENTICATED DEVICE's;
+# nothing in the request names either. 404 with the flag off is exactly what a server
+# without these routes answers, so a 0.2.0 plugin falls back to text-only either way.
+
+_MAX_ATTACHMENT_CHECK_BYTES = 512_000
+_MAX_ATTACHMENT_CHECK_HASHES = 5000
+_MAX_ATTACHMENT_NAME_CHARS = 255
+_MAX_DECLARED_MIME_CHARS = 255
+ATTACHMENT_PROTOCOL_VERSION = 1
+
+
+def _obsidian_attachments_enabled() -> bool:
+    """`NOTE_SYNC_OBSIDIAN_ATTACHMENTS_ENABLED`, default ON: only `"0"` turns it off."""
+    return os.environ.get("NOTE_SYNC_OBSIDIAN_ATTACHMENTS_ENABLED", "1") != "0"
+
+
+class ObsidianAttachmentCheckBody(BaseModel):
+    sha256: list[str] = Field(max_length=_MAX_ATTACHMENT_CHECK_HASHES)
+
+
+def _blob_rejected(e: "obsidian_attachments.BlobRejected") -> HTTPException:
+    """The store's refusal, unflattened: its status (400 bad id/hash, 403 vault revoked
+    mid-upload, 413 too large / member bound, 503 volume full) and its member-safe
+    sentence."""
+    return HTTPException(status_code=e.status, detail=e.detail)
+
+
+async def _gc_staged_blobs(user_id: str, vault_id: str) -> None:
+    """After a `final` push replaced the manifest, drop this vault's staged blobs no staged
+    note references. Off the event loop; a failure is logged and never fails the push
+    (the next final push collects them)."""
+    try:
+        await asyncio.to_thread(obsidian_attachments.gc_unreferenced, user_id, vault_id)
+    except Exception:  # noqa: BLE001 -- GC is housekeeping, never the push's outcome
+        log.exception("obsidian staged-blob gc failed for user=%s vault=%s", user_id, vault_id)
+
+
+async def _blob_body(request: Request):
+    """The upload body as it arrives, never buffered whole, bounded by the per-file cap
+    while it is read (a body with no or a lying Content-Length included). The store
+    streams it to disk and hashes it."""
+    total = 0
+    async for chunk in request.stream():
+        total += len(chunk)
+        if total > obsidian_attachments.MAX_BLOB_BYTES:
+            raise obsidian_attachments.BlobRejected(
+                413, f"attachment is too large (limit {obsidian_attachments.MAX_BLOB_BYTES // (1024 * 1024)} MB)")
+        yield chunk
+
+
+def _attachment_name(raw: str | None) -> str | None:
+    """`X-UCT-Attachment-Name`: the percent-encoded basename, decoded once. A path
+    separator or an over-long name is a 400, never stored."""
+    if raw is None:
+        return None
+    name = unquote(raw)
+    if len(name) > _MAX_ATTACHMENT_NAME_CHARS or "/" in name or "\\" in name:
+        raise HTTPException(status_code=400, detail="X-UCT-Attachment-Name must be a file name of at most 255 characters")
+    return name or None
+
+
+def _declared_mime(raw: str | None) -> str | None:
+    mime = (raw or "").split(";", 1)[0].strip().lower()
+    if len(mime) > _MAX_DECLARED_MIME_CHARS:
+        raise HTTPException(status_code=400, detail="Content-Type is too long")
+    return mime or None
+
+
+@router.post("/obsidian/attachments/check")
+async def obsidian_attachments_check(request: Request) -> dict[str, Any]:
+    """`{"sha256": [..≤5000]}` -> `{"protocol", "missing", "maxBytes", "remainingBytes"}`.
+    `missing` is the hashes not staged for THIS device's (member, vault), in request order;
+    an empty list is how the plugin learns the protocol and the limits."""
+    if not _obsidian_attachments_enabled():
+        raise HTTPException(status_code=404, detail="Not Found")
+    entry = registry.get_entry("obsidian")
+    if not entry.configured():
+        raise HTTPException(status_code=503, detail=f"{entry.label} is not configured on this server.")
+    device = _authenticate_obsidian_device(request)
+    _require_paid_device_user(device["user_id"])
+    obsidian_link.record_plugin_version(device["device_id"], request.headers.get(PLUGIN_VERSION_HEADER))
+
+    raw = await _read_bounded_body(request, _MAX_ATTACHMENT_CHECK_BYTES)
+    try:
+        payload = json.loads(raw or b"{}")
+        body = ObsidianAttachmentCheckBody(**payload) if isinstance(payload, dict) else None
+    except (ValueError, ValidationError):
+        body = None
+    if body is None:
+        raise HTTPException(status_code=400, detail='body must be {"sha256": [up to 5000 hashes]}')
+    try:
+        missing = await asyncio.to_thread(
+            obsidian_attachments.missing_hashes, device["user_id"], device["vault_id"], body.sha256)
+    except obsidian_attachments.BlobRejected as e:
+        raise _blob_rejected(e)
+    remaining = await asyncio.to_thread(obsidian_attachments.remaining_bytes, device["user_id"])
+    return {
+        "protocol": ATTACHMENT_PROTOCOL_VERSION,
+        "missing": missing,
+        "maxBytes": obsidian_attachments.MAX_BLOB_BYTES,
+        "remainingBytes": remaining,
+    }
+
+
+@router.put("/obsidian/attachments/{sha256}")
+async def obsidian_attachments_put(sha256: str, request: Request) -> dict[str, Any]:
+    """Raw body = the blob. `Content-Type` = declared MIME (parameters dropped),
+    `X-UCT-Attachment-Name` = percent-encoded basename. `{"stored": false}` means this
+    (member, vault) already had it. The store refuses a hash mismatch (400), a body over
+    the per-file cap or the member's room (413, the declared length checked before any
+    byte is read) and a full volume (503); nothing is left on disk after a refusal."""
+    if not _obsidian_attachments_enabled():
+        raise HTTPException(status_code=404, detail="Not Found")
+    entry = registry.get_entry("obsidian")
+    if not entry.configured():
+        raise HTTPException(status_code=503, detail=f"{entry.label} is not configured on this server.")
+    device = _authenticate_obsidian_device(request)
+    _require_paid_device_user(device["user_id"])
+    obsidian_link.record_plugin_version(device["device_id"], request.headers.get(PLUGIN_VERSION_HEADER))
+
+    name = _attachment_name(request.headers.get("x-uct-attachment-name"))
+    mime = _declared_mime(request.headers.get("content-type"))
+    length_header = request.headers.get("content-length")
+    try:
+        declared = int(length_header) if length_header is not None else None
+    except ValueError:
+        raise HTTPException(status_code=400, detail="invalid Content-Length")
+    try:
+        stored = await obsidian_attachments.stage_blob_stream(
+            user_id=device["user_id"], vault_id=device["vault_id"], sha256=sha256,
+            declared_mime=mime, name=name, chunks=_blob_body(request), declared_length=declared,
+        )
+    except obsidian_attachments.BlobRejected as e:
+        raise _blob_rejected(e)
+    return {"stored": stored}
