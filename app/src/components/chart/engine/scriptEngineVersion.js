@@ -83,7 +83,9 @@
  *  change merged since 1 was stamped (#610), now that refusals are remembered (#673). */
 /** 3 = P3 WS-A: the C18 object door refuses by name the master-wrong block shapes (readSelf,
  *  v6 unmatched bool, moved for-bound, continued switch arms). */
-export const SCRIPT_ENGINE_VERSION = 3
+/** 4 = the plot lane withholds a var filled from a ta.* call in a block that skips (C48);
+ *  a function reading a var written later is refused; hiding colours withhold the whole output. */
+export const SCRIPT_ENGINE_VERSION = 4
 
 /** The meta key the stamp lives under. `defSchema` keeps unknown `meta` keys
  *  (ignore-and-preserve), and it sits outside every tree, so no hash moves. */
