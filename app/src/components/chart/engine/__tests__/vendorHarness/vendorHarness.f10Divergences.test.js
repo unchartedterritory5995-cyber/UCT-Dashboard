@@ -123,11 +123,14 @@ describe('F10 (4) — volatility-trend-score: a colour through the script\'s own
 indicator("p", overlay=false)
 method transp(color x, int t) =>
     color.new(x, t)
+method new(color x, int t) =>
+    color.red
 plot(close)
 if barstate.islast
     line.new(bar_index - 1, 40, bar_index, 40, color=chart.fg_color.transp(50))
     line.new(bar_index - 1, 20, bar_index, 20, color=color.red.transp(50))
     line.new(bar_index - 1, 10, bar_index, 10, color=color.red.other(50))
+    line.new(bar_index - 1, 5, bar_index, 5, color=color.new(color.blue, 0))
 `
     const t = translatePine(src, {})
     const cols = t.objects.ops.map((op) => op.props.color && op.props.color.node && op.props.color.node.hex)
@@ -135,5 +138,8 @@ if barstate.islast
     expect(cols[1]).toBe('#F2364580')
     // control: a method the script does not define is not invented
     expect(cols[2]).toBeUndefined()
+    // control: a NAMESPACE call is never the script's method of the same name -
+    // `color.new(color.blue, 0)` stays Pine's, though the script defines `method new`
+    expect(cols[3]).toBe('#2196F3')
   })
 })

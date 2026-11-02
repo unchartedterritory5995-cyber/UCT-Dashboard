@@ -756,31 +756,13 @@
       "state": "on",
       "library": false,
       "signature": {
-        "verdict": "INCONCLUSIVE",
-        "reason": "refused on our side: install door refused: u_member-pane-vendorharness: compute.",
-        "plots": [],
-        "objects": null,
-        "paints": null
-      }
-    },
-    {
-      "idPrefix": "mtf-key-levels-support-and-resistance-rddt-1d",
-      "id": "mtf-key-levels-support-and-resistance-rddt-1d-2026-10-04",
-      "script": "corpus/committed/mtf-key-levels-support-and-resistance__29f470a089.pine",
-      "queue": "Q-RT13a",
-      "state": "runtime",
-      "library": false,
-      "signature": {
         "verdict": "DIVERGE",
         "reason": null,
         "plots": [
           [
             "D-VWAP",
-            "DIVERGE",
-            114,
-            "value",
-            6,
-            "persistent"
+            "MATCH",
+            636
           ],
           [
             "W-VWAP",
@@ -809,7 +791,57 @@
             [
               "labels",
               27,
-              3
+              4
+            ]
+          ]
+        ],
+        "paints": null
+      }
+    },
+    {
+      "idPrefix": "mtf-key-levels-support-and-resistance-rddt-1d",
+      "id": "mtf-key-levels-support-and-resistance-rddt-1d-2026-10-04",
+      "script": "corpus/committed/mtf-key-levels-support-and-resistance__29f470a089.pine",
+      "queue": "Q-RT13a",
+      "state": "runtime",
+      "library": false,
+      "signature": {
+        "verdict": "DIVERGE",
+        "reason": null,
+        "plots": [
+          [
+            "D-VWAP",
+            "MATCH",
+            636
+          ],
+          [
+            "W-VWAP",
+            "MATCH",
+            636
+          ],
+          [
+            "M-VWAP",
+            "MATCH",
+            636
+          ],
+          [
+            "Y-VWAP",
+            "MATCH",
+            636
+          ]
+        ],
+        "objects": [
+          "DIVERGE",
+          [
+            [
+              "lines",
+              23,
+              22
+            ],
+            [
+              "labels",
+              27,
+              4
             ]
           ]
         ],
@@ -824,10 +856,39 @@
       "state": "on",
       "library": false,
       "signature": {
-        "verdict": "INCONCLUSIVE",
-        "reason": "refused on our side: install door refused: u_member-pane-vendorharness: compute.",
-        "plots": [],
-        "objects": null,
+        "verdict": "MATCH",
+        "reason": null,
+        "plots": [
+          [
+            "VWAP",
+            "MATCH",
+            636
+          ],
+          [
+            "Plot",
+            "MATCH",
+            636
+          ],
+          [
+            "Plot",
+            "MATCH",
+            636
+          ],
+          [
+            "Plot",
+            "MATCH",
+            636
+          ],
+          [
+            "Plot",
+            "MATCH",
+            636
+          ]
+        ],
+        "objects": [
+          "MATCH",
+          []
+        ],
         "paints": null
       }
     },
@@ -839,48 +900,33 @@
       "state": "runtime",
       "library": false,
       "signature": {
-        "verdict": "DIVERGE",
+        "verdict": "MATCH",
         "reason": null,
         "plots": [
           [
             "VWAP",
-            "DIVERGE",
-            0,
-            "na",
-            2,
-            "scattered"
+            "MATCH",
+            636
           ],
           [
             "Plot",
-            "DIVERGE",
-            0,
-            "na",
-            2,
-            "scattered"
+            "MATCH",
+            636
           ],
           [
             "Plot",
-            "DIVERGE",
-            0,
-            "na",
-            2,
-            "scattered"
+            "MATCH",
+            636
           ],
           [
             "Plot",
-            "DIVERGE",
-            0,
-            "na",
-            2,
-            "scattered"
+            "MATCH",
+            636
           ],
           [
             "Plot",
-            "DIVERGE",
-            0,
-            "na",
-            2,
-            "scattered"
+            "MATCH",
+            636
           ]
         ],
         "objects": [
@@ -898,10 +944,24 @@
       "state": "on",
       "library": false,
       "signature": {
-        "verdict": "INCONCLUSIVE",
-        "reason": "refused on our side: install door refused: u_member-pane-vendorharness: compute.",
-        "plots": [],
-        "objects": null,
+        "verdict": "MATCH",
+        "reason": null,
+        "plots": [
+          [
+            "Shapes",
+            "MATCH",
+            636
+          ],
+          [
+            "Shapes",
+            "MATCH",
+            636
+          ]
+        ],
+        "objects": [
+          "MATCH",
+          []
+        ],
         "paints": null
       }
     },
@@ -913,10 +973,24 @@
       "state": "runtime",
       "library": false,
       "signature": {
-        "verdict": "INCONCLUSIVE",
-        "reason": "refused on our side: install door refused: u_member-pane-vendorharness: compute.",
-        "plots": [],
-        "objects": null,
+        "verdict": "MATCH",
+        "reason": null,
+        "plots": [
+          [
+            "Shapes",
+            "MATCH",
+            636
+          ],
+          [
+            "Shapes",
+            "MATCH",
+            636
+          ]
+        ],
+        "objects": [
+          "MATCH",
+          []
+        ],
         "paints": null
       }
     },
@@ -1050,7 +1124,7 @@
           ]
         ],
         "objects": [
-          "DIVERGE",
+          "MATCH",
           []
         ],
         "paints": "DIVERGE"
@@ -1172,23 +1246,20 @@
       "state": "on",
       "library": false,
       "signature": {
-        "verdict": "DIVERGE",
+        "verdict": "MATCH",
         "reason": null,
         "plots": [
           [
             "ATR Trailing Stoploss",
-            "DIVERGE",
-            0,
-            "color",
-            636,
-            "persistent"
+            "MATCH",
+            636
           ]
         ],
         "objects": [
           "MATCH",
           []
         ],
-        "paints": "DIVERGE"
+        "paints": "MATCH"
       }
     },
     {
@@ -1199,23 +1270,20 @@
       "state": "runtime",
       "library": false,
       "signature": {
-        "verdict": "DIVERGE",
+        "verdict": "MATCH",
         "reason": null,
         "plots": [
           [
             "ATR Trailing Stoploss",
-            "DIVERGE",
-            0,
-            "color",
-            636,
-            "persistent"
+            "MATCH",
+            636
           ]
         ],
         "objects": [
           "MATCH",
           []
         ],
-        "paints": "DIVERGE"
+        "paints": "MATCH"
       }
     },
     {
@@ -1804,7 +1872,7 @@
             [
               "tableCells",
               63,
-              23
+              38
             ]
           ]
         ],
@@ -1834,7 +1902,7 @@
             [
               "tableCells",
               63,
-              23
+              38
             ]
           ]
         ],
@@ -2205,31 +2273,13 @@
       "state": "on",
       "library": false,
       "signature": {
-        "verdict": "INCONCLUSIVE",
-        "reason": "refused on our side: install door refused: u_member-pane-vendorharness: compute.",
-        "plots": [],
-        "objects": null,
-        "paints": null
-      }
-    },
-    {
-      "idPrefix": "mtf-key-levels-support-and-resistance-spy-1d",
-      "id": "mtf-key-levels-support-and-resistance-spy-1d-2026-10-04",
-      "script": "corpus/committed/mtf-key-levels-support-and-resistance__29f470a089.pine",
-      "queue": "Q-RT13a (SPY)",
-      "state": "runtime",
-      "library": false,
-      "signature": {
         "verdict": "DIVERGE",
         "reason": null,
         "plots": [
           [
             "D-VWAP",
-            "DIVERGE",
-            2038,
-            "value",
-            34,
-            "persistent"
+            "MATCH",
+            8477
           ],
           [
             "W-VWAP",
@@ -2258,7 +2308,57 @@
             [
               "labels",
               27,
-              3
+              4
+            ]
+          ]
+        ],
+        "paints": null
+      }
+    },
+    {
+      "idPrefix": "mtf-key-levels-support-and-resistance-spy-1d",
+      "id": "mtf-key-levels-support-and-resistance-spy-1d-2026-10-04",
+      "script": "corpus/committed/mtf-key-levels-support-and-resistance__29f470a089.pine",
+      "queue": "Q-RT13a (SPY)",
+      "state": "runtime",
+      "library": false,
+      "signature": {
+        "verdict": "DIVERGE",
+        "reason": null,
+        "plots": [
+          [
+            "D-VWAP",
+            "MATCH",
+            8477
+          ],
+          [
+            "W-VWAP",
+            "MATCH",
+            8477
+          ],
+          [
+            "M-VWAP",
+            "MATCH",
+            8477
+          ],
+          [
+            "Y-VWAP",
+            "MATCH",
+            8477
+          ]
+        ],
+        "objects": [
+          "DIVERGE",
+          [
+            [
+              "lines",
+              23,
+              22
+            ],
+            [
+              "labels",
+              27,
+              4
             ]
           ]
         ],
@@ -2273,10 +2373,39 @@
       "state": "on",
       "library": false,
       "signature": {
-        "verdict": "INCONCLUSIVE",
-        "reason": "refused on our side: install door refused: u_member-pane-vendorharness: compute.",
-        "plots": [],
-        "objects": null,
+        "verdict": "MATCH",
+        "reason": null,
+        "plots": [
+          [
+            "VWAP",
+            "MATCH",
+            8477
+          ],
+          [
+            "Plot",
+            "MATCH",
+            8477
+          ],
+          [
+            "Plot",
+            "MATCH",
+            8477
+          ],
+          [
+            "Plot",
+            "MATCH",
+            8477
+          ],
+          [
+            "Plot",
+            "MATCH",
+            8477
+          ]
+        ],
+        "objects": [
+          "MATCH",
+          []
+        ],
         "paints": null
       }
     },
@@ -2288,48 +2417,33 @@
       "state": "runtime",
       "library": false,
       "signature": {
-        "verdict": "DIVERGE",
+        "verdict": "MATCH",
         "reason": null,
         "plots": [
           [
             "VWAP",
-            "DIVERGE",
-            0,
-            "na",
-            1,
-            "scattered"
+            "MATCH",
+            8477
           ],
           [
             "Plot",
-            "DIVERGE",
-            0,
-            "na",
-            1,
-            "scattered"
+            "MATCH",
+            8477
           ],
           [
             "Plot",
-            "DIVERGE",
-            0,
-            "na",
-            1,
-            "scattered"
+            "MATCH",
+            8477
           ],
           [
             "Plot",
-            "DIVERGE",
-            0,
-            "na",
-            1,
-            "scattered"
+            "MATCH",
+            8477
           ],
           [
             "Plot",
-            "DIVERGE",
-            0,
-            "na",
-            1,
-            "scattered"
+            "MATCH",
+            8477
           ]
         ],
         "objects": [
@@ -2504,23 +2618,20 @@
       "state": "on",
       "library": false,
       "signature": {
-        "verdict": "DIVERGE",
+        "verdict": "MATCH",
         "reason": null,
         "plots": [
           [
             "ATR Trailing Stoploss",
-            "DIVERGE",
-            0,
-            "color",
-            8477,
-            "persistent"
+            "MATCH",
+            8477
           ]
         ],
         "objects": [
           "MATCH",
           []
         ],
-        "paints": "DIVERGE"
+        "paints": "MATCH"
       }
     },
     {
@@ -2531,23 +2642,20 @@
       "state": "runtime",
       "library": false,
       "signature": {
-        "verdict": "DIVERGE",
+        "verdict": "MATCH",
         "reason": null,
         "plots": [
           [
             "ATR Trailing Stoploss",
-            "DIVERGE",
-            0,
-            "color",
-            8477,
-            "persistent"
+            "MATCH",
+            8477
           ]
         ],
         "objects": [
           "MATCH",
           []
         ],
-        "paints": "DIVERGE"
+        "paints": "MATCH"
       }
     },
     {

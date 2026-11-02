@@ -63,7 +63,7 @@ describe('B1 — paints graded against the captures that record them', () => {
     // deepest committed listing capture (`supply warm <file> <bars> listing=on`), sliced
     // to the window. `notReplayed` = a proved supplier exists but the door draws no
     // paint to replay (folded to `na` or withheld), so there was nothing to warm.
-    'artemis-oscillator-pro-spy-1d-2026-10-03.json': ['supply warm vw-clock-close-tfchange-spy-1d-2026-09-28.json 6677 notReplayed', 'plot_32 naBoth 1800/1800 painted=0'],
+    'artemis-oscillator-pro-spy-1d-2026-10-03.json': ['supply warm atr-trailing-stoploss-strategy-spy-1d-2026-10-04.json 6677 notReplayed', 'plot_32 naBoth 1800/1800 painted=0'],
     'atr-stepped-pdf-ma-loxx-rddt-1d-2026-10-03.json': ['refused pine:block'],
     // plot_8 / plot_11 are the OBV bar colour (`obvOnOff and ta.obv > obvEMA ? … : na`).
     // ⚰️ RE-MEASURED at the H7 x wave-17 merge (2026-10-04): WAS `naBoth` (our condition
@@ -72,43 +72,43 @@ describe('B1 — paints graded against the captures that record them', () => {
     // draw nothing at the default (obvOnOff false) and the grade reads `agree`. Nothing
     // drawn changed. The same grade with the wave-17 tip's own engine files (so not H7/F7).
     'atr-support-and-resistance-rddt-1d-2026-09-28.json': ['supply bar0 warmup=0', 'plot_0 agree 632/632 painted=25', 'plot_3 hiddenBoth', 'plot_8 agree 632/632 painted=0', 'plot_11 agree 632/632 painted=0'],
-    'atr-support-and-resistance-spy-1d-2026-10-03.json': ['supply warm vw-clock-close-tfchange-spy-1d-2026-09-28.json 6677 listing=on', 'plot_0 agree 1800/1800 painted=73', 'plot_3 hiddenBoth', 'plot_8 agree 1800/1800 painted=0', 'plot_11 agree 1800/1800 painted=0'],
+    'atr-support-and-resistance-spy-1d-2026-10-03.json': ['supply warm atr-trailing-stoploss-strategy-spy-1d-2026-10-04.json 6677 listing=on', 'plot_0 agree 1800/1800 painted=73', 'plot_3 hiddenBoth', 'plot_8 agree 1800/1800 painted=0', 'plot_11 agree 1800/1800 painted=0'],
     'atr-trailing-stop-by-ceyhun-rddt-1d-2026-10-02.json': ['supply bar0 warmup=0', 'plot_5 agree 636/636 painted=636'],
     // ⭐ lane B1P's finding (2026-10-04): its 1088 differing bars were NULL paints — the
     // listing-only pass (`interpret.js` `listingPass`) never ran on a capture that is not
     // `startsAtBar0`. Replayed over the listing supplier with the supplier's own
     // `historyFromListing`, it agrees on every bar.
-    'atr-trailing-stop-by-ceyhun-spy-1d-2026-10-02.json': ['supply warm vw-clock-close-tfchange-spy-1d-2026-09-28.json 6677 listing=on', 'plot_5 agree 1800/1800 painted=1800'],
+    'atr-trailing-stop-by-ceyhun-spy-1d-2026-10-02.json': ['supply warm atr-trailing-stoploss-strategy-spy-1d-2026-10-04.json 6677 listing=on', 'plot_5 agree 1800/1800 painted=1800'],
     'atr-trailing-stoploss-rddt-1d-2026-09-27.json': ['supply bar0 warmup=0', 'plot_0 agree 631/631 painted=631'],
-    'atr-trailing-stoploss-spy-1d-2026-10-03.json': ['supply warm vw-clock-close-tfchange-spy-1d-2026-09-28.json 6677 listing=on', 'plot_0 agree 1800/1800 painted=1800'],
+    'atr-trailing-stoploss-spy-1d-2026-10-03.json': ['supply warm atr-trailing-stoploss-strategy-spy-1d-2026-10-04.json 6677 listing=on', 'plot_0 agree 1800/1800 painted=1800'],
     // ⚠️ plot_14 / 16 / 17: the door carries the paint, but its condition column does
     // not compute (`computeFor` answers no column), so nothing is drawn. At the
     // script's defaults TradingView draws nothing there either (every bar `na`), so
     // the picture agrees; with the member's toggle ON it would not — counted, not hidden.
     'btc-charlie-trader-xo-macro-trend-scanner-rddt-1d-2026-09-30.json': ['supply bar0 warmup=0', 'plot_14 notDrawn', 'plot_15 agree 634/634 painted=0', 'plot_16 notDrawn', 'plot_17 notDrawn', 'plot_6 agree 634/634 painted=8', 'plot_7 agree 634/634 painted=9', 'plot_10 agree 634/634 painted=349', 'plot_11 agree 634/634 painted=244'],
-    'btc-charlie-trader-xo-macro-trend-scanner-spy-1d-2026-10-03.json': ['supply warm vw-clock-close-tfchange-spy-1d-2026-09-28.json 6677 listing=on', 'plot_14 notDrawn', 'plot_15 agree 1800/1800 painted=0', 'plot_16 notDrawn', 'plot_17 notDrawn', 'plot_6 agree 1800/1800 painted=25', 'plot_7 agree 1800/1800 painted=24', 'plot_10 agree 1800/1800 painted=1286', 'plot_11 agree 1800/1800 painted=465'],
+    'btc-charlie-trader-xo-macro-trend-scanner-spy-1d-2026-10-03.json': ['supply warm atr-trailing-stoploss-strategy-spy-1d-2026-10-04.json 6677 listing=on', 'plot_14 notDrawn', 'plot_15 agree 1800/1800 painted=0', 'plot_16 notDrawn', 'plot_17 notDrawn', 'plot_6 agree 1800/1800 painted=25', 'plot_7 agree 1800/1800 painted=24', 'plot_10 agree 1800/1800 painted=1286', 'plot_11 agree 1800/1800 painted=465'],
     'deadband-hysteresis-filter-backquant-rddt-1d-2026-10-03.json': ['refused pine:state'],
     'elliott-wave-3-finder-v2-rddt-1d-2026-09-28.json': ['supply bar0 warmup=0', 'plot_2 agree 632/632 painted=65', 'plot_3 agree 632/632 painted=44'],
-    'elliott-wave-3-finder-v2-spy-1d-2026-10-03.json': ['supply warm vw-clock-close-tfchange-spy-1d-2026-09-28.json 6677 listing=on', 'plot_2 agree 1800/1800 painted=140', 'plot_3 agree 1800/1800 painted=117'],
+    'elliott-wave-3-finder-v2-spy-1d-2026-10-03.json': ['supply warm atr-trailing-stoploss-strategy-spy-1d-2026-10-04.json 6677 listing=on', 'plot_2 agree 1800/1800 painted=140', 'plot_3 agree 1800/1800 painted=117'],
     'ema-ribbon-trend-filter-strixedge-rddt-1d-2026-09-28.json': ['supply bar0 warmup=0', 'plot_8 agree 632/632 painted=632', 'plot_9 agree 632/632 painted=0'],
-    'ema-ribbon-trend-filter-strixedge-spy-1d-2026-10-03.json': ['supply warm vw-clock-close-tfchange-spy-1d-2026-09-28.json 6677 listing=on', 'plot_8 agree 1800/1800 painted=1800', 'plot_9 agree 1800/1800 painted=0'],
+    'ema-ribbon-trend-filter-strixedge-spy-1d-2026-10-03.json': ['supply warm atr-trailing-stoploss-strategy-spy-1d-2026-10-04.json 6677 listing=on', 'plot_8 agree 1800/1800 painted=1800', 'plot_9 agree 1800/1800 painted=0'],
     'fibonacci-pivot-points-cc-rddt-1d-2026-09-28.json': ['supply bar0 warmup=0', 'plot_2 agree 632/632 painted=632'],
-    'fibonacci-pivot-points-cc-spy-1d-2026-10-03.json': ['supply warm vw-clock-close-tfchange-spy-1d-2026-09-28.json 6677 listing=on', 'plot_2 agree 1800/1800 painted=1800'],
+    'fibonacci-pivot-points-cc-spy-1d-2026-10-03.json': ['supply warm atr-trailing-stoploss-strategy-spy-1d-2026-10-04.json 6677 listing=on', 'plot_2 agree 1800/1800 painted=1800'],
     'fvg-trend-rddt-1d-2026-09-27.json': ['refused pine:state'],
     // its colour is a ternary CHOOSING between two `color.from_gradient`s; one gradient is
     // carried (C37), a choice between two is not — withheld by name, nothing drawn
     'heat-map-seasons-rddt-1d-2026-09-28.json': ['supply bar0 warmup=0', 'plot_0 withheld'],
-    'heat-map-seasons-spy-1d-2026-10-03.json': ['supply warm vw-clock-close-tfchange-spy-1d-2026-09-28.json 6677 notReplayed', 'plot_0 withheld'],
+    'heat-map-seasons-spy-1d-2026-10-03.json': ['supply warm atr-trailing-stoploss-strategy-spy-1d-2026-10-04.json 6677 notReplayed', 'plot_0 withheld'],
     'inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-rddt-1d-2026-09-28.json': ['refused pine:state'],
     'inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-spy-1d-2026-10-03.json': ['refused pine:state'],
     'kalman-price-filter-backquant-rddt-1d-2026-10-03.json': ['refused pine:block'],
     'artemis-oscillator-pro-rddt-1d-2026-09-28.json': ['supply bar0 warmup=0', 'plot_32 naBoth 632/632 painted=0'],
     'mcclellan-indicators-rddt-1d-2026-09-28.json': ['supply bar0 warmup=0', 'plot_4 naBoth 632/632 painted=0', 'plot_15 naBoth 632/632 painted=0'],
-    'mcclellan-indicators-spy-1d-2026-10-03.json': ['supply warm vw-clock-close-tfchange-spy-1d-2026-09-28.json 6677 notReplayed', 'plot_4 naBoth 1800/1800 painted=0', 'plot_15 naBoth 1800/1800 painted=0'],
+    'mcclellan-indicators-spy-1d-2026-10-03.json': ['supply warm atr-trailing-stoploss-strategy-spy-1d-2026-10-04.json 6677 notReplayed', 'plot_4 naBoth 1800/1800 painted=0', 'plot_15 naBoth 1800/1800 painted=0'],
     'renko-candles-overlay-rddt-1d-2026-10-03.json': ['refused pine:collection'],
     'renko-candles-overlay-spy-1d-2026-10-03.json': ['refused pine:collection'],
     'supertrend-strategy-rddt-1d-2026-10-02.json': ['supply bar0 warmup=0', 'plot_9 withheld'],
-    'supertrend-strategy-spy-1d-2026-10-02.json': ['supply warm vw-clock-close-tfchange-spy-1d-2026-09-28.json 6677 notReplayed', 'plot_9 withheld'],
+    'supertrend-strategy-spy-1d-2026-10-02.json': ['supply warm atr-trailing-stoploss-strategy-spy-1d-2026-10-04.json 6677 notReplayed', 'plot_9 withheld'],
     'trend-targets-algoalpha-rddt-1d-2026-10-02.json': ['refused pine:state'],
     'trend-targets-algoalpha-spy-1d-2026-10-02.json': ['refused pine:state'],
     'vw-bgcolor-barcolor-spy-1d-2026-10-02.json': ['supply warm vw-clock-close-tfchange-spy-1d-2026-09-28.json 6677 listing=on', 'plot_0 agree 1800/1800 painted=975', 'plot_1 agree 1800/1800 painted=975', 'plot_4 agree 1800/1800 painted=1800', 'plot_2 agree 1800/1800 painted=975', 'plot_3 withheld', 'plot_5 agree 1800/1800 painted=1800', 'plot_6 agree 1800/1800 painted=975'],
@@ -118,9 +118,32 @@ describe('B1 — paints graded against the captures that record them', () => {
     'vw-deadband-ticks-spy-1d-2026-09-28.json': ['refused pine:state'],
     // ⭐ F9 — B01 `barcolor(c)` of a `var` colour: carried (`pine.js::colourStateRule`), WAS 'plot_12 withheld'
     'vw-rt6-runtime-colour-rddt-1d-2026-10-03.json': ['supply bar0 warmup=0', 'plot_13 agree 636/636 painted=308', 'plot_12 agree 636/636 painted=636'],
-    'vw-rt6-runtime-colour-spy-1d-2026-10-03.json': ['supply warm vw-clock-close-tfchange-spy-1d-2026-09-28.json 6677 listing=on', 'plot_13 agree 1800/1800 painted=975', 'plot_12 agree 1800/1800 painted=1800'],
+    'vw-rt6-runtime-colour-spy-1d-2026-10-03.json': ['supply warm atr-trailing-stoploss-strategy-spy-1d-2026-10-04.json 6677 listing=on', 'plot_13 agree 1800/1800 painted=975', 'plot_12 agree 1800/1800 painted=1800'],
     'wyckoff-accumulation-distribution-rddt-1d-2026-10-02.json': ['refused pine:state'],
     'wyckoff-accumulation-distribution-spy-1d-2026-10-02.json': ['refused pine:state'],
+    // ⭐ F10 (2026-10-04) — CAP5's captures, pinned from `B1_PRINT=1` (the print path), not by hand.
+    // ⚰️ RE-MEASURED: every SPY row above read `supply warm vw-clock-close-tfchange-spy-1d-2026-09-28.json 6677`.
+    // CAP5 committed longer SPY listing captures; the proved supplier is still 6,677 bars, equal on
+    // time/open/high/low/close/volume to the old one (the OHLCV gate), and the tie is broken by FILE
+    // NAME (`warmBarsSupply`), so the label moved and no bar, colour or count did (rule meets rule).
+    // atr-trailing-stoploss-strategy's barcolor is `agree` with F10's `iff` colour rule (was `withheld`).
+    'atr-trailing-stoploss-strategy-rddt-1d-2026-10-04.json': ['supply bar0 warmup=0', 'plot_0 agree 636/636 painted=636'],
+    'atr-trailing-stoploss-strategy-spy-1d-2026-10-04.json': ['supply bar0 warmup=0', 'plot_0 agree 8477/8477 painted=8477'],
+    'bolingger-bands-inside-bar-boxes-rddt-1d-2026-10-04.json': ['refused pine:reassign'],
+    'ema-92150-vwap-macd-rsi-pro-v6-rddt-1d-2026-10-04.json': ['refused pine:state'],
+    'inside-bar-boxes-rddt-1d-2026-10-04.json': ['refused pine:reassign'],
+    'kernel-channel-backquant-rddt-1d-2026-10-04.json': ['refused pine:block'],
+    'kernel-channel-backquant-spy-1d-2026-10-04.json': ['refused pine:block'],
+    'nonlinear-regression-zero-lag-moving-average-loxx-rddt-1d-2026-10-04.json': ['refused pine:block'],
+    'nonlinear-regression-zero-lag-moving-average-loxx-spy-1d-2026-10-04.json': ['refused pine:block'],
+    'range-filter-bs-signals-rddt-1d-2026-10-04.json': ['refused pine:collection'],
+    'range-filter-bs-signals-spy-1d-2026-10-04.json': ['refused pine:collection'],
+    'smoothed-gaussian-trend-filter-algoalpha-rddt-1d-2026-10-04.json': ['refused pine:state'],
+    'volatility-trend-score-backquant-rddt-1d-2026-10-04.json': ['refused pine:type'],
+    'vw-rt15-colour-nz-rddt-1d-2026-10-04.json': ['supply bar0 warmup=0', 'plot_6 withheld'],
+    'vw-rt15-colour-nz-spy-1d-2026-10-04.json': ['supply bar0 warmup=0', 'plot_6 withheld'],
+    'vw-rt15-paint-offset-flag-false-rddt-1d-2026-10-04.json': ['supply bar0 warmup=0', 'plot_0 withheld'],
+    'vw-rt15-paint-offset-rddt-1d-2026-10-04.json': ['supply bar0 warmup=0', 'plot_0 withheld'],
   }
   const supplyLine = (s) => (s.kind === 'warm'
     ? (s.replayed ? `supply warm ${s.file} ${s.bars} listing=${s.historyFromListing ? 'on' : 'off'}`
@@ -141,7 +164,7 @@ describe('B1 — paints graded against the captures that record them', () => {
     const g = gradeOf(f)
     expect(g.unpaired).toEqual([])
     expect(lines(g)).toEqual(PINNED[f])
-  }, 120000)
+  }, 600000)
 
   it('⛔ NO paint this door draws differs from TradingView on any bar', () => {
     // ⭐ RC1 — graded over EVERY capture that records a paint, read from the directory,
@@ -265,7 +288,9 @@ describe('RC1 — paints replayed over the same series\' proved history', () => 
     expect(ours.ctx.historyFromListing).toBe(false)
     const g = gradeOf(CEYHUN)
     expect(g.rows.map((r) => `${r.id} ${r.state} ${r.compared - r.differ}/${r.compared}`)).toEqual(['plot_5 agree 1800/1800'])
-  }, 120000)
+  // ⚠️ F10: ceyhun SPY's warm replay alone measured 102 s (wave 18 + F10) and 146 s on the
+  // wave-17 tip, on one worker: 120 s was below the work on both trees, never a verdict.
+  }, 600000)
 
   it('the warm-up region: a declared `warmup.bars` wins, else the floor; nothing for warm or bar0', () => {
     expect(paintWarmupOf({ history: { startsAtBar0: false } }, { kind: 'cold' })).toBe(PAINT_WARMUP_FLOOR)
