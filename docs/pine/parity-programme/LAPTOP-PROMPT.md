@@ -41,13 +41,15 @@ STEP 3 - finish the in-flight streams first, closest-to-done first:
      since the last full run), pytest gates + hygiene; `git rm -r app/src/w1probe` (scratch, must
      NOT merge); independent review; measure-pair (it touches the translator the runtime lane
      shares); ship through the full loop with an engine bump (+1). Exact commands: its commit msg.
-  2. Editor status panel (feat/pine-editor-status, flag VITE_PINE_EDITOR_STATUS, dark): run its
-     4 new test files, flag-off byte-identical rail, mutations M1-M4, gates; review; ship dark.
+  2. Editor status panel (feat/pine-editor-status, final 84e42c5e1f, flag VITE_PINE_EDITOR_STATUS,
+     dark): NONE of its new tests has run yet. Run its 4 new test files (expect small fixes), flag-off byte-identical rail, mutations M1-M4, gates; review; ship dark.
   3. E evidence engine (feat/pine-evidence-engine, final ec0882c16a): 17 rails already pass; run
      the 8 mutation proofs (tools/vendor_harness/evidence_engine_mutations.py), gates + hygiene;
      review; ship (offline tooling only). Then give me the exact command for a capture batch with
      my dedicated Chrome rig, and the top-priority probes to capture.
-  4. W0 (docs/pine-coverage-2026-11-02): run gate pytest + hygiene; merge the doc.
+  4. W0 (docs/pine-coverage-2026-11-02, final 89c7e8a7d5): run gate pytest + hygiene; either run the
+     skipped engine-door probe (COVERAGE_DOOR_OUT; doc s10) so coverage-map.json's
+     engineTableThroughPineDoor is filled again, or state in the PR that it is empty; merge the doc.
   5. W2 arming (feat/pine-w2-arming, final 585b303341): run docs/pine/evidence/w2-arming-2026-11-02/
      jobs.sh (set S to a scratch dir, start at J4; the new rail runtimeAllowlistParity.test.js
      still needs its run + mutation proof), write
@@ -77,7 +79,8 @@ STEP 4 - non-negotiable rules for every change:
   - Engine changes: scripts/measure-pair.sh vs a base worktree at the same master (C18 audit,
     probes, census, harness); classify every diff; 0 unintended.
   - Bump SCRIPT_ENGINE_VERSION +1 per merge that changes translator output (the server reads the
-    JS declaration; keep it on one line).
+    JS declaration; keep it on one line). Set it at MERGE time to current master's value + 1 (live
+    is 4), never on a branch ahead of time, so parallel branches cannot collide.
   - One master merge at a time; wait for any other session's merge to promote; `gh pr create`
     then `gh pr merge --merge`; then scripts/verify_deploy.sh <merge-sha> until SMOKE PASS.
   - Known pre-existing failures that are not ours: pollingSites.rail, converseClient.conversationId
