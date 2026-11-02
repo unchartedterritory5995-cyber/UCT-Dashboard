@@ -79,7 +79,7 @@ export function firstSentence(s) {
 export function errorText(error) {
   if (!error) return ''
   const d = String(error.detail || '')
-  if (error.status === 503) return 'Chart IQ is busy, try again in a moment'
+  if (error.status === 503) return 'Chart IQ is still reading this chart...'   // the hook retries a 503 by itself
   if (/not enough daily bars/i.test(d)) return 'Chart IQ needs about 6 months of daily history; this chart does not have it yet'
   if (/no daily bars|no bars/i.test(d)) return 'Chart IQ has no daily bars for this symbol'
   return 'Chart IQ could not read this chart'

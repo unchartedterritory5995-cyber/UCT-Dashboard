@@ -3,7 +3,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { buildPlan, defaultLayers, LAYERS } from './chartIqPlan'
 import { chartIqAllowed } from './chartIqGate'
-import { chartIqKey } from '../../../hooks/useChartIq'
+import { chartIqKey, chartIqRetry } from '../../../hooks/useChartIq'
 import ChartIqPanel, { firstSentence, ChartIqFeedback, errorText } from './ChartIqPanel'
 
 const BARS = ['2026-10-26', '2026-10-27', '2026-10-28', '2026-10-29', '2026-10-30']
@@ -165,8 +165,21 @@ describe('errorText: says why a read failed', () => {
   it('maps the engine reasons and keeps everything else generic', () => {
     expect(errorText({ status: 404, detail: 'NEWCO: not enough daily bars as of 2026-10-30 (40)' })).toMatch(/6 months of daily history/)
     expect(errorText({ status: 404, detail: 'no daily bars available' })).toMatch(/no daily bars/)
-    expect(errorText({ status: 503, detail: 'Chart IQ is busy, try again' })).toMatch(/busy/)
+    expect(errorText({ status: 503, detail: 'Chart IQ is busy, try again' })).toMatch(/still reading/)
     expect(errorText({ status: 404, detail: 'ABC: KeyError' })).toBe('Chart IQ could not read this chart')
     expect(errorText(null)).toBe('')
+  })
+})
+
+describe('chartIqRetry: only a busy (503) read is retried, at most twice', () => {
+  it('retries 503 after a pause and gives up after two retries; never retries another failure', () => {
+    vi.useFakeTimers()
+    const rv = vi.fn()
+    chartIqRetry({ status: 503 }, 'k', {}, rv, { retryCount: 1 }); vi.advanceTimersByTime(4000)
+    expect(rv).toHaveBeenCalledTimes(1)
+    chartIqRetry({ status: 503 }, 'k', {}, rv, { retryCount: 3 }); vi.advanceTimersByTime(4000)
+    chartIqRetry({ status: 404, detail: 'not enough daily bars' }, 'k', {}, rv, { retryCount: 1 }); vi.advanceTimersByTime(4000)
+    expect(rv).toHaveBeenCalledTimes(1)
+    vi.useRealTimers()
   })
 })
