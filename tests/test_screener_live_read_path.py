@@ -767,3 +767,16 @@ def test_the_CONTROL_with_the_overlay_off_rvol_live_screens_NOTHING(served, monk
     assert query.run_scan(spec)["rows"] == []
     assert all(r.get("rvol_live") is None for r in
                query.run_scan({"page_size": 50, "columns": ["rvol_live"]})["rows"])
+
+
+def test_a_ticker_scope_scan_survives_the_live_join(served, monkeypatch):
+    """🔴 PROD 2026-10-19: with the overlay joined, `UPPER(ticker) IN (...)` was
+    `ambiguous column name: ticker` -- every `$TICKER` scope and every member
+    list scope 500'd during live hours. The scope must name `screener_rows`.
+    CONTROL: the same scope returns exactly the named row, live number shown."""
+    from api.services.screener import grammar
+    monkeypatch.setattr(grammar, "v2_enabled", lambda: True)
+    res = query.run_scan({"filters": [{"key": "tickers", "op": "in",
+                                       "values": ["crosser"]}], "page_size": 50})
+    assert [r["ticker"] for r in res["rows"]] == ["CROSSER"]
+    assert res["rows"][0]["chg_pct_1d"] == 6.4
