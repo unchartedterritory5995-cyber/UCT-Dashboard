@@ -1,0 +1,3 @@
+# Fixture BYTES (Plan C Task 3): never line-ending converted -- the e2e test compares sha256s,
+# and a CRLF rewrite of report.pdf would also break its xref offsets.
+* -text

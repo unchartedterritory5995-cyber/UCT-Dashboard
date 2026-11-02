@@ -125,9 +125,11 @@ provider-specific grammar. Two syntaxes, two decisions:
     registers any non-`REF_PREFIX`, non-`data:` src as a normal media
     reference), so it flows through the engine's ordinary media-upload path
     and reaches THIS provider's own `fetch_media` — which honestly raises
-    `NoteConnUnsupported` for it (see that method's docstring: the plugin
-    never pushes attachment bytes, only markdown text, so there is nothing
-    to fetch). An unresolved IMAGE embed degrades to plain text, never a
+    `NoteConnUnsupported` for it (a bare vault path names no staged bytes).
+    ⭐ Plan C Task 3: since plugin 0.2.0 an embed the plugin sent a REF for
+    never reaches this branch -- the attachment pass (`_apply_attachment_refs`,
+    see the "Attachments" section below) swaps it first for a staged-blob
+    image, a file chip or a visible notice. An unresolved IMAGE embed degrades to plain text, never a
     broken image. ⭐ Plan A Task 13 (O-4): an unresolved wikilink (or note
     embed) keeps the member's text under a PENDING mark,
     `import-link://name:obsidian:<vault_id>/<target, lowercased>`, which
@@ -252,17 +254,22 @@ Brief: .superpowers/sdd/2026-09-02-obsidian-ingest-server/task-4-brief.md
 
 from __future__ import annotations
 
+import asyncio
+import json
 import posixpath
 import re
 from typing import Any
-from urllib.parse import parse_qs, urlsplit
+from urllib.parse import parse_qs, quote, unquote, urlsplit
 
 import httpx
 
 from api.services.auth_db import get_connection
+from api.services.journal_two import import_notice
+from api.services.journal_two.import_provenance import edited_since_import
 
-from .. import errors
-from ..convert import LINK_PREFIX, md_to_tiptap
+from .. import errors, obsidian_attachments, obsidian_link
+from ..convert import LINK_PREFIX, REF_PREFIX, md_to_tiptap
+from ..convert.placeholders import map_image_nodes
 from ..link_keys import OBSIDIAN_NAME_KIND
 from .base import AccountInfo, NoteProvider, RemoteNote, RemoteRef, fetch_content_url, media_http_client
 
@@ -588,12 +595,214 @@ def _transform_outside_code(text: str, fn: Any) -> str:
     return "".join(out)
 
 
+# ── Attachments (connector fidelity Plan C, Task 3) ──────────────────────────
+#
+# Since plugin 0.2.0 the plugin resolves each note's attachment references with Obsidian's
+# own resolver and sends them as `attachments` (stored as `j2_obsidian_staging.
+# attachments_json`): `{original, embed, path, size, sha256, status}`, `original` being the
+# exact substring of the note. `_apply_attachment_refs` swaps each `original` for markdown
+# image syntax under one of three schemes of this provider, before any other pass:
+#   * `obsidian-att:<sha256>/<quoted name>`    an image the note shows inline (stays `image`);
+#   * `obsidian-file:<sha256>/<quoted name>`   any other file (becomes an `attachmentChip`);
+#   * `obsidian-notice:<reason>/<quoted name>` something that did not come over (becomes an
+#                                              `importNotice` with that reason, never media).
+# Image syntax borrows `md_to_tiptap`'s block hoisting and media registration (the Dropbox
+# precedent); `_promote_obsidian_placeholders` then gives each node its real type. The bytes
+# of `att`/`file` refs come from the staged blob store (`fetch_media` -> `read_blob`).
+# A row with NO list (a 0.1.x plugin, or 0.2.0 in legacy mode) says so in the note: every
+# local attachment reference becomes a notice, `obsidian-plugin-outdated` when the device's
+# plugin is older than 0.2.0 (or unknown), else `obsidian-attachments-unavailable`.
+ATT_SCHEME = "obsidian-att:"
+FILE_SCHEME = "obsidian-file:"
+NOTICE_SCHEME = "obsidian-notice:"
+OUTDATED_REASON = "obsidian-plugin-outdated"
+UNAVAILABLE_REASON = "obsidian-attachments-unavailable"
+_ATT_IMAGE_EXTS = frozenset("png jpg jpeg gif webp bmp svg heic heif tif tiff avif".split())
+#: A ref's non-ok status -> the notice reason written into `importNotice.attrs.reason`.
+_STATUS_REASONS = {
+    "too-large": "too-large", "missing": "not-found", "off": "sync-off",
+    "storage-limit": "storage-limit",
+}
+#: `_convert_row`'s default: no attachment pass at all (a caller that has no refs to give,
+#: like the parity fixture generator until Plan C Task 4). Production always passes the
+#: row's refs, a list or None.
+NO_ATTACHMENT_PASS: Any = object()
+_MiB = 1024 * 1024
+
+
+def _q(text: str) -> str:
+    return quote(text, safe="")
+
+
+def _ext_of(name: str) -> str:
+    idx = name.rfind(".")
+    return name[idx + 1:].lower() if idx > 0 else ""
+
+
+def _notice_markdown(reason: str, name: str) -> str:
+    return f"![](<{NOTICE_SCHEME}{reason}/{_q(name)}>)"
+
+
+def _ref_markdown(ref: dict[str, Any]) -> str | None:
+    """The markdown one ref's `original` becomes (the rewrite table), or None when the ref
+    names nothing this pass can write (its original then stays as written)."""
+    path = ref.get("path")
+    if not isinstance(path, str) or not path:
+        return None
+    name = _basename(path)
+    status = ref.get("status")
+    if status == "ok":
+        sha = ref.get("sha256")
+        if not isinstance(sha, str) or not sha:
+            return None
+        image = ref.get("embed") is True and _ext_of(name) in _ATT_IMAGE_EXTS
+        return f"![](<{ATT_SCHEME if image else FILE_SCHEME}{sha}/{_q(name)}>)"
+    reason = _STATUS_REASONS.get(status)
+    if reason is None:
+        return None
+    if status == "too-large":
+        size = ref.get("size")
+        if isinstance(size, int) and not isinstance(size, bool) and size >= 0:
+            name = f"{name} ({size / _MiB:.1f} MB)"
+    return _notice_markdown(reason, name)
+
+
+#: An attachment-looking extension: letters and digits with at least one letter, so
+#: `Plan v1.2` or `Call 2026.01.05` (note names) are not read as files.
+_ATTACHMENT_EXT_RE = re.compile(r"\.([A-Za-z0-9]*[A-Za-z][A-Za-z0-9]*)$")
+_MD_LINK_OR_IMAGE_RE = re.compile(
+    r"(!?)\[((?:[^\[\]\n]|\[[^\[\]\n]*\])*)\]\(\s*(<[^<>\n]*>|[^\s()<>]+)"
+    r"(?:\s+(?:\"[^\"\n]*\"|'[^'\n]*'))?\s*\)")
+
+
+def _is_attachment_path(path: str) -> bool:
+    """A vault path that names a FILE, not a note: an extension other than `.md`."""
+    m = _ATTACHMENT_EXT_RE.search(_basename(path))
+    return bool(m) and m.group(1).lower() != "md" and len(m.group(1)) <= 10
+
+
+def _mark_unsent_attachments(segment: str, reason: str) -> str:
+    """A row whose plugin sent no attachment list: every LOCAL attachment reference (a wiki
+    embed or link to a non-`.md` file, a markdown image or file link with no URL scheme)
+    becomes a notice with `reason`. Note links and web addresses are left for the passes
+    after this one."""
+
+    def wiki(m: "re.Match[str]") -> str:
+        target = m.group(2).strip()
+        if target.endswith("\\"):
+            target = target[:-1].rstrip()
+        bare = _strip_fragment(target)
+        if not bare or not _is_attachment_path(bare):
+            return m.group(0)
+        return _notice_markdown(reason, _basename(bare))
+
+    def markdown(m: "re.Match[str]") -> str:
+        dest = m.group(3)
+        if dest.startswith("<"):
+            dest = dest[1:-1]
+        dest = dest.strip()
+        if (not dest or dest.startswith(("#", "//")) or _SCHEME_RE.match(dest)):
+            return m.group(0)
+        path = unquote(re.split(r"[#?]", dest, maxsplit=1)[0])
+        if not path or not _is_attachment_path(path):
+            return m.group(0)
+        return _notice_markdown(reason, _basename(path))
+
+    return _MD_LINK_OR_IMAGE_RE.sub(markdown, _WIKI_RE.sub(wiki, segment))
+
+
+_SCHEME_RE = re.compile(r"^[A-Za-z][A-Za-z0-9+.\-]*:")
+
+
+def _apply_attachment_refs(segment: str, refs: list[dict] | None, plugin_supports: bool) -> str:
+    """Markdown -> markdown: each ref's `original` (exact substring, every occurrence) becomes
+    its attachment, file chip or notice (`_ref_markdown`). LONGEST originals first, through
+    placeholder tokens, so `[[a.png]]` can never rewrite the inside of `![[a.png]]` and no
+    replacement is ever matched again. `refs is None` (the plugin sent no list):
+    `_mark_unsent_attachments`, outdated unless `plugin_supports`."""
+    if refs is None:
+        return _mark_unsent_attachments(
+            segment, UNAVAILABLE_REASON if plugin_supports else OUTDATED_REASON)
+    table: dict[str, str] = {}
+    for ref in refs:
+        original = ref.get("original") if isinstance(ref, dict) else None
+        if not isinstance(original, str) or not original or original in table:
+            continue
+        written = _ref_markdown(ref)
+        if written is not None:
+            table[original] = written
+    tokens: list[tuple[str, str]] = []
+    for original in sorted(table, key=len, reverse=True):
+        if original in segment:
+            token = f"\x00obsidian-ref-{len(tokens)}\x00"
+            tokens.append((token, table[original]))
+            segment = segment.replace(original, token)
+    for token, written in tokens:
+        segment = segment.replace(token, written)
+    return segment
+
+
+def _ref_name(ref: str) -> str:
+    """The file name an `obsidian-att:`/`obsidian-file:` ref carries, decoded exactly once."""
+    return unquote(ref.rsplit("/", 1)[-1])
+
+
+def _promote_obsidian_placeholders(converted: dict[str, Any]) -> dict[str, Any]:
+    """`md_to_tiptap`'s output with this provider's placeholders made real (see the section
+    comment above): an `obsidian-file:` image is an `attachmentChip`, an `obsidian-notice:`
+    image is an `importNotice` (and its media entry is dropped: there is nothing to fetch),
+    an `obsidian-att:` image stays an image. Every `att`/`file` media entry is named by its
+    decoded file name, and a `file` entry is `kind="file"`. Never mutates `converted`."""
+    file_src = f"{REF_PREFIX}{FILE_SCHEME}"
+    notice_src = f"{REF_PREFIX}{NOTICE_SCHEME}"
+
+    def promote(node: dict[str, Any]) -> dict[str, Any]:
+        src = (node.get("attrs") or {}).get("src") or ""
+        if src.startswith(file_src):
+            return {"type": "attachmentChip",
+                    "attrs": {"href": src, "name": _ref_name(src[len(REF_PREFIX):])}}
+        if src.startswith(notice_src):
+            reason, _, quoted = src[len(notice_src):].partition("/")
+            return import_notice.notice_node(
+                reason, name=unquote(quoted), source_url=None, ref=None, attempts=0)
+        return node
+
+    media: list[dict[str, Any]] = []
+    for m in converted["media"]:
+        ref = m.get("ref") or ""
+        if ref.startswith(NOTICE_SCHEME):
+            continue
+        if ref.startswith((ATT_SCHEME, FILE_SCHEME)):
+            m = {**m, "name": _ref_name(ref)}
+            if ref.startswith(FILE_SCHEME):
+                m["kind"] = "file"
+        media.append(m)
+    return {**converted, "doc": map_image_nodes(converted["doc"], promote), "media": media}
+
+
+def _refs_from_row(raw: Any) -> list[dict] | None:
+    """`attachments_json` -> the refs list, or None for "the plugin sent no list" (NULL). A
+    value that is not a JSON list (never written by the ingest route) reads as None too."""
+    if not raw:
+        return None
+    try:
+        refs = json.loads(raw)
+    except (TypeError, ValueError):
+        return None
+    if not isinstance(refs, list):
+        return None
+    return [r for r in refs if isinstance(r, dict)]
+
+
 def _preprocess_obsidian_markdown(
     body_md: str, paths: list[str], basename_map: dict[str, list[str]],
     vault_id: str, import_key_fn: Any, *, from_path: str | None = None,
-    vault_label: str | None = None,
+    vault_label: str | None = None, refs: Any = NO_ATTACHMENT_PASS,
+    plugin_supports: bool = False,
 ) -> str:
     def fn(segment: str) -> str:
+        if refs is not NO_ATTACHMENT_PASS:
+            segment = _apply_attachment_refs(segment, refs, plugin_supports)
         segment = _transform_wiki_and_embeds(
             segment, paths, basename_map, vault_id, import_key_fn, from_path=from_path)
         segment = _transform_obsidian_uris(
@@ -764,18 +973,22 @@ def _relative_href_resolver(
 def convert_obsidian_markdown(
     body_md: str, *, vault_path: str, paths: list[str], basename_map: dict[str, list[str]],
     vault_id: str, import_key_fn: Any, vault_label: str | None = None,
+    refs: Any = NO_ATTACHMENT_PASS, plugin_supports: bool = False,
 ) -> dict[str, Any]:
-    """THE Obsidian conversion, `{doc, media, links}`: the wiki-syntax pre-pass, the
-    shared converter with this vault's relative-link resolver, then callouts. What
+    """THE Obsidian conversion, `{doc, media, links}`: the attachment pass (`refs`, Plan C
+    Task 3), the wiki-syntax pre-pass, the shared converter with this vault's relative-link
+    resolver, the attachment placeholders made real, then callouts. What
     `ObsidianProvider._convert_row` runs and what the parity rail summarises -- one
     function, so the rail can never watch a different pipeline from the one that syncs."""
     index = _index_of(paths, basename_map)  # the caller's batch index; built only if absent
     pre = _preprocess_obsidian_markdown(
         body_md or "", paths, index, vault_id, import_key_fn,
         from_path=vault_path, vault_label=vault_label,
+        refs=refs, plugin_supports=plugin_supports,
     )
     out = md_to_tiptap(pre, resolve_href=_relative_href_resolver(
         vault_path, index, vault_id, import_key_fn), unsafe_image_notice=True)
+    out = _promote_obsidian_placeholders(out)
     return {**out, "doc": _callouts_in_doc(out["doc"])}
 
 
@@ -915,13 +1128,54 @@ class ObsidianProvider(NoteProvider):
                     "ORDER BY received_at ASC, vault_path ASC",
                     (self.user_id, self.vault_id),
                 ).fetchall()
+            retry_rows = self._media_retry_rows(conn, {r["vault_path"] for r in rows})
         finally:
             conn.close()
         if rows:
             self.opaque_cursor = max(r["received_at"] for r in rows)
         elif cursor:
             self.opaque_cursor = cursor
-        return [RemoteRef(remote_id=r["vault_path"], updated_at=r["updated_at"]) for r in rows]
+        return [RemoteRef(remote_id=r["vault_path"], updated_at=r["updated_at"])
+                for r in [*rows, *retry_rows]]
+
+    def _media_retry_rows(self, conn: Any, listed: set[str]) -> list[Any]:
+        """Plan C Task 3: staged rows NOT newer than the cursor whose synced note still waits
+        on media (`import_media_pending = 1`: a placeholder, or a "retrying" notice with
+        attempts left), so the engine's media retry (plan A's I-7) runs again for them. This
+        is how a note pushed before its blob heals once the blob is staged, with no change to
+        the note itself: a pull provider re-lists the note on its next full pass, but this
+        one's `list_changed` only ever returns what was pushed since the cursor.
+
+        Bounded: the retry stops at `MEDIA_RETRY_MAX_ATTEMPTS` (the notice turns final and
+        `import_media_pending` drops to 0), and a note the member has EDITED since its import
+        is left out (`edited_since_import`, the engine's own conflict predicate): the engine
+        never re-writes it, so re-listing it would only re-convert it on every pass. These
+        rows never move the cursor (the caller computes it from `rows` alone)."""
+        prefix = self.import_key(self.vault_id, "")
+        keys = conn.execute(
+            "SELECT import_key, updated_at, imported_at FROM j2_notes"
+            " WHERE user_id = ? AND deleted_at IS NULL AND import_media_pending = 1"
+            " AND substr(import_key, 1, ?) = ?",
+            (self.user_id, len(prefix), prefix),
+        ).fetchall()
+        paths: list[str] = []
+        for k in keys:
+            if edited_since_import(k["updated_at"], k["imported_at"]):
+                continue
+            path = k["import_key"][len(prefix):].removesuffix("#remote")
+            if path and path not in listed and path not in paths:
+                paths.append(path)
+        out: list[Any] = []
+        for i in range(0, len(paths), 500):
+            part = paths[i:i + 500]
+            marks = ",".join("?" * len(part))
+            out.extend(conn.execute(
+                "SELECT vault_path, updated_at, received_at FROM j2_obsidian_staging"
+                f" WHERE user_id = ? AND vault_id = ? AND vault_path IN ({marks})"
+                " ORDER BY received_at ASC, vault_path ASC",
+                (self.user_id, self.vault_id, *part),
+            ).fetchall())
+        return out
 
     async def list_present_refs(self, credentials: dict[str, Any]) -> list[RemoteRef]:
         """The manifest's COMPLETE path set for this vault — this is the
@@ -965,12 +1219,20 @@ class ObsidianProvider(NoteProvider):
 
     def _convert_row(self, vault_path: str, body_md: str, known_paths: list[str],
                       basename_map: dict[str, list[str]], *,
-                      vault_label: str | None = None) -> dict[str, Any]:
+                      vault_label: str | None = None, refs: Any = NO_ATTACHMENT_PASS,
+                      plugin_supports: bool = False) -> dict[str, Any]:
         return convert_obsidian_markdown(
             body_md or "", vault_path=vault_path, paths=known_paths,
             basename_map=basename_map, vault_id=self.vault_id,
             import_key_fn=self.import_key, vault_label=vault_label,
+            refs=refs, plugin_supports=plugin_supports,
         )
+
+    def _plugin_supports_attachments(self) -> bool:
+        """Whether this vault's device runs a plugin that sends attachment lists (>= 0.2.0).
+        Read ONCE per fetch call: it only decides which notice a row with no list gets."""
+        version = obsidian_link.plugin_versions_for_user(self.user_id).get(self.vault_id)
+        return obsidian_link.plugin_version_supports_attachments(version)
 
     def _vault_label(self, conn: Any) -> str | None:
         """The vault's NAME, as the plugin sent it at connect (`vault.getName()`) --
@@ -982,9 +1244,11 @@ class ObsidianProvider(NoteProvider):
         return row["label"] if row is not None else None
 
     def _note_from_row(self, row: Any, known_paths: list[str], basename_map: dict[str, list[str]],
-                       vault_label: str | None = None) -> RemoteNote:
+                       vault_label: str | None = None, plugin_supports: bool = False) -> RemoteNote:
         converted = self._convert_row(row["vault_path"], row["body_md"], known_paths, basename_map,
-                                      vault_label=vault_label)
+                                      vault_label=vault_label,
+                                      refs=_refs_from_row(row["attachments_json"]),
+                                      plugin_supports=plugin_supports)
         fallback_title = _basename_sans_ext(row["vault_path"])
         return RemoteNote(
             remote_id=row["vault_path"],
@@ -1002,7 +1266,7 @@ class ObsidianProvider(NoteProvider):
         conn = get_connection()
         try:
             row = conn.execute(
-                "SELECT vault_path, body_md, updated_at FROM j2_obsidian_staging "
+                "SELECT vault_path, body_md, updated_at, attachments_json FROM j2_obsidian_staging "
                 "WHERE user_id = ? AND vault_id = ? AND vault_path = ?",
                 (self.user_id, self.vault_id, ref.remote_id),
             ).fetchone()
@@ -1015,7 +1279,8 @@ class ObsidianProvider(NoteProvider):
                 f"Obsidian staged note {ref.remote_id!r} is no longer present for this vault",
                 reason="Note content is no longer staged",
             )
-        return self._note_from_row(row, known_paths, _build_basename_map(known_paths), label)
+        return self._note_from_row(row, known_paths, _build_basename_map(known_paths), label,
+                                   plugin_supports=self._plugin_supports_attachments())
 
     async def fetch_many(
         self, credentials: dict[str, Any], refs: list[RemoteRef],
@@ -1032,7 +1297,7 @@ class ObsidianProvider(NoteProvider):
         try:
             placeholders = ",".join("?" for _ in refs)
             rows = conn.execute(
-                "SELECT vault_path, body_md, updated_at FROM j2_obsidian_staging "
+                "SELECT vault_path, body_md, updated_at, attachments_json FROM j2_obsidian_staging "
                 f"WHERE user_id = ? AND vault_id = ? AND vault_path IN ({placeholders})",
                 (self.user_id, self.vault_id, *[r.remote_id for r in refs]),
             ).fetchall()
@@ -1042,6 +1307,7 @@ class ObsidianProvider(NoteProvider):
             conn.close()
         by_path = {r["vault_path"]: r for r in rows}
         basename_map = _build_basename_map(known_paths)
+        supports = self._plugin_supports_attachments()
         notes: list[RemoteNote] = []
         for ref in refs:
             row = by_path.get(ref.remote_id)
@@ -1050,21 +1316,30 @@ class ObsidianProvider(NoteProvider):
                     f"Obsidian staged note {ref.remote_id!r} is no longer present for this vault",
                     reason="Note content is no longer staged",
                 )
-            notes.append(self._note_from_row(row, known_paths, basename_map, label))
+            notes.append(self._note_from_row(row, known_paths, basename_map, label,
+                                             plugin_supports=supports))
         return notes
 
     async def fetch_media(self, credentials: dict[str, Any], ref: str) -> tuple[bytes, str]:
-        """The push transport has no remote to fetch attachment bytes from
-        — the plugin only ever pushes markdown TEXT (`j2_obsidian_staging.
-        body_md`), never binary files. The one case this CAN honor is a
-        genuine external `https://` reference already embedded in a note's
-        own markdown (an ordinary `![alt](https://...)` image, or an
-        Obsidian embed whose target happens to be a full URL) — resolved
-        exactly like every other provider's content-controlled-URL fallback
-        (`guarded_media_get`, the shared SSRF guard). Anything else — in
-        practice, every LOCAL vault embed this provider's own pre-pass
-        turns into a plain (unfetchable) media ref — is refused honestly
-        rather than pretending to succeed."""
+        """Plan C Task 3: an `obsidian-att:`/`obsidian-file:` ref is a blob the plugin
+        staged (`obsidian_attachments.read_blob`, scoped to this member and vault), served
+        as `(data, declared mime or application/octet-stream)`. A blob not staged (yet) is
+        `NoteConnTransient(status=404)`: the engine's notice says "retrying" and a later
+        sync tries again (plan A's I-7), which is how a note pushed before its blob heals.
+
+        A genuine external `http(s)://` reference already in a note's markdown is copied
+        in exactly like every other provider's content-controlled-URL fallback (the shared
+        SSRF guard). Anything else (a local vault path the plugin sent no ref for) is
+        refused honestly rather than pretending to succeed."""
+        for scheme in (ATT_SCHEME, FILE_SCHEME):
+            if ref.startswith(scheme):
+                sha = ref[len(scheme):].split("/", 1)[0]
+                staged = await asyncio.to_thread(
+                    obsidian_attachments.read_blob, self.user_id, self.vault_id, sha)
+                if staged is None:
+                    raise errors.NoteConnTransient("attachment not staged yet", status=404)
+                data, mime = staged
+                return data, mime or "application/octet-stream"
         parsed = urlsplit(ref)
         if (parsed.scheme or "").lower() in ("http", "https"):
             # Plan A Task 9 (I-5): a hotlink is copied in -- http allowed for the download only.
