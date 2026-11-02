@@ -16,7 +16,7 @@ import path from 'node:path'
 vi.mock('../../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
 import { setupPanel, ONE } from '../testing/panelHarness'
 import { registerBuiltins } from '../builtins'
-import { _resetScreenerCache, loadMeta } from '../capabilities/screener'
+import { _resetScreenerCache, loadMeta, loadSaved } from '../capabilities/screener'
 import { _resetAgentConfig } from '../agentClient'
 import { _resetTurns } from '../trace'
 
@@ -39,7 +39,7 @@ beforeEach(async () => {
     const json = (o, status = 200) => new Response(JSON.stringify(o), { status, headers: { 'content-type': 'application/json' } })
     if (u === '/api/agent/config') return json({ stream: false, nl1: false, data: false, scan: false })
     if (u.startsWith('/api/screener/fields')) return json(u.includes('options') ? { options: {} } : { fields: META.fields })
-    if (u === '/api/screener/saved-screens') return json({ saved: [], starters: [] })
+    if (u === '/api/screener/saved-screens') return json({ saved: [{ id: 8, name: 'Big caps', spec: { filters: [{ key: 'market_cap', op: 'gte', min: 1e10 }] } }], starters: [] })
     if (u.startsWith('/api/screener/scan')) { scans.push(JSON.parse(init.body)); return json({ total: 0, rows: [], snapshot_date: '2026-10-31', snapshot: {} }) }
     return harness(url, init)
   })
@@ -48,12 +48,20 @@ beforeEach(async () => {
 afterEach(() => { _resetTurns(); vi.restoreAllMocks() })
 
 describe('agent-qa: discovery corpus through the browser fast path', () => {
-  it('CONTROL: in this exact setup the fast path DOES claim a phrase it knows (0 model turns, 1 scan)', async () => {
+  // F-16 (agent-sc #657): "strongest" is a LOCAL REFUSAL now (it meant the RS rank, a hidden UCT rating), so the
+  // control is two-sided: the fast path still claims a phrase with a real scan, and refuses "strongest" with none.
+  it('CONTROL: the fast path DOES claim a phrase it knows (a saved screen: 0 model turns, 1 scan)', async () => {
+    await loadSaved()
+    const { say } = p.mount(...ONE())
+    await say('run my big caps screen')
+    expect(p.turns()).toBe(0)
+    expect(scans).toHaveLength(1)
+  }, 30000)
+  it('CONTROL: "show me my strongest stocks" is refused LOCALLY (0 model turns, no scan)', async () => {
     const { say } = p.mount(...ONE())
     await say('show me my strongest stocks')
     expect(p.turns()).toBe(0)
-    expect(scans).toHaveLength(1)
-    expect(scans[0].sort).toEqual({ key: 'rs_rank', dir: 'desc' })
+    expect(scans).toHaveLength(0)
   }, 30000)
 
   for (const q of CORPUS.questions) {

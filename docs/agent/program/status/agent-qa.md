@@ -252,6 +252,20 @@ Only agent-qa edits this file. Update it in every PR.
   extended-live, extended-closed, holiday, no-current-trade. Rules (a)–(e) are a reusable predicate
   (`quote_semantics_errors`) with controls showing it can fail. Other MD-1 kinds keep provisional `data` shapes.
 
+## F-16 FINAL RULING: QA rails (independent of agent-sc), on agent-sc #654 + #657 (`d379f1fcc4`)
+**Count correction (mine):** the ruling's original list is **24** fields, not "26" as written in the review below
+(7 ratings · rs_rank + rs_return · 7 flow · candle_score · earnings_setup_grade · 5 pattern_engine_* · in_uct20). So
+"the 31" below is 29: QA's set = 24 + set B (4) + archive_calls_n + the owner's 4 (base_structure,
+base_relation_count, hvc_52w, theme) = **33**. agent-sc's enforced set is 35: QA's 33 plus base_pivot_px (a UCT
+base-detector output) and blended_growth (UCT's growth blend). It is a superset with no gap.
+
+| Rail | Result |
+|---|---|
+| Server (`tests/test_uct_agent_qa_f16.py`, QA's 33 written in the file) | 40/40. **Every** name is refused, with the exact sentence, in each of: filter, `other`, logic all/not, arith term, sort, rank criterion, columns. A view asked for by name that shows one is refused. No order means market_cap desc + the receipt note. The member Screener's server files are unchanged. No UCT weight or formula (the RS_TERMS weights, `rs_weighted_return`, `setup_score`) appears in the system prompt or glossary. CONTROL: public inputs (chg_pct_3m, peg, inst_pct, eps_growth, roe) still screen, sort and show. Mutation-proved: no arith check → 33 red; no sort check → 33 red; default sort = composite → red |
+| Browser (`qa/f16Rails.test.jsx`, the real panel, the real field registry) | 13/13. Non-vacuity: the member registry still carries all 33. The model-bound body has no prohibited catalog KEY (all 33) and no distinctive name anywhere; `theme` is checked as a key only, because the word is also the app's colour theme. Refused with the clear sentence and NO scan: a rating filter, a flow filter, a theme filter, a sort by rs_rank or archive_calls_n, a saved screen using a rating (refused, never stripped), and a follow-up refine adding sector_rs_pct. CONTROL: a public saved screen runs. "show me my strongest stocks" makes 0 model turns and no scan, with the refusal. A screen with no order is sorted market_cap desc and the receipt says so. Mutation-proved: the pre-F-16 screener.js → 11 red |
+| Flips | isolationAudit's 4 COMPOSITION pins (the ranking and the count reaching the model) are now PROOFS: the composite screen is refused, no scan, no result set in memory, no lastScreen, no count. fastPathCorpus's control is two-sided: a saved screen is claimed with 1 scan, and "strongest" is a local refusal with 0 scans |
+| Baselines (regenerated deliberately, diff reviewed) | grammar-direct 5/31 → **10/31**: an ARTIFACT, because agent-sc's corpus now expects d01/d02/d03/d13/d25 to be refused and grammar-direct refuses all English. The oracle is still 31/31. The fast-path candidates and the cost baseline are UNCHANGED: no discovery question is the exact "strongest" phrasing, so all 31 still go to the planner, and the cost is 64 model calls |
+
 ## ⭐ FINAL VERDICT: Sprint 2 release candidate `608ad6adaec6207fb29accb3fcf72ad5741c391f`
 **GO to deploy DARK (every flag off). HOLD on activating quote (`UCT_AGENT_DATA=1` + `UCT_AGENT_DATA_KINDS=quote,quotes`) until
 the held-out misreads (item 7) are fixed.**
@@ -492,8 +506,8 @@ gateway's exception log, the local-plan reply drop, and the `recent_outcome` gua
 | 20 | Isolated reader end to end: context, memory, pending, title, telemetry, traces | L5/L7 | PROVEN for a `localOnly` reader, with a leaking CONTROL that is caught | `app/src/agent/qa/modelIsolation.test.jsx` (2) | - |
 | 21 | stock.compare composite (F-12) | L4/L5 | **REMOVED with `5aabae8a73`** (owner display-only rule): the rating is absent from views, text, turn bodies, memory, traces and telemetry, while the served payload carried it (CONTROL), and a source rail forbids reading it | `modelIsolation.test.jsx::F-12 FIXED …` · `isolationAudit.test.jsx::F-12 …` (mutation-proved) | agent-lead (done) |
 | 22 | **Screener composition, raw values**: the catalog carries `uct_composite`, `rating_*`, `sponsorship`, `accdis`, `rs_rank`, the same UCT Ratings (`screener/enrich.py`) | L4/L5/L7 | PROVEN: values stay in the stored table; text, context, memory, telemetry and traces are clean | `app/src/agent/qa/isolationAudit.test.jsx::PROVEN ...` | - |
-| 23 | **Screener composition, RANKING**: a screen sorted by `uct_composite` puts `memory.recent_results[0].symbols_in_order` in composite order, plus `lastScreen.sort` | L5/L7 | **OPEN** (F-16) | `app/src/agent/qa/isolationAudit.test.jsx::OPEN ... RANKING ...` | owner + agent-lead |
-| 24 | **Screener composition, COUNT**: matches at a member-chosen threshold in the replayed text AND in context `lastScreen.matches`; a one-name `within` screen at `>= X`, repeated, bisects a stock's exact composite | L4/L6 | **OPEN** (F-16) | `app/src/agent/qa/isolationAudit.test.jsx::OPEN ... COUNT ...` | owner + agent-lead |
+| 23 | **Screener composition, RANKING**: a screen sorted by `uct_composite` puts `memory.recent_results[0].symbols_in_order` in composite order, plus `lastScreen.sort` | L5/L7 | **PROVEN with agent-sc #654/#657** (F-16): refused, no scan, no result set, no lastScreen | `app/src/agent/qa/isolationAudit.test.jsx::OPEN ... RANKING ...` | owner + agent-lead |
+| 24 | **Screener composition, COUNT**: matches at a member-chosen threshold in the replayed text AND in context `lastScreen.matches`; a one-name `within` screen at `>= X`, repeated, bisects a stock's exact composite | L4/L6 | **PROVEN with #654/#657** (F-16): refused before any count exists | `app/src/agent/qa/isolationAudit.test.jsx::OPEN ... COUNT ...` | owner + agent-lead |
 | 25 | Telemetry: unknown keys dropped; 5 short free-text columns not value-checked | L7 | PROVEN for unknown keys; the free text relies on the browser (railed for the isolated reader in #20) | `test_L7_telemetry_...` | - |
 | 26 | Server logs on a turn carrying sentinels in context and history | L7 | PROVEN (none logged) | `test_L7_a_scripted_turn_...` | - |
 | 27 | Web research results | L6 | out of scope: web text, not UCT data (research is forced off in these tests) | - | - |
