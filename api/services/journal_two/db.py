@@ -437,6 +437,13 @@ CREATE TABLE IF NOT EXISTS j2_notes (
     import_key      TEXT,
     import_hash     TEXT,
     imported_at     TEXT,
+    -- Connector fidelity Plan A Task 1: the REMOTE's own revision (the import
+    -- entry's `updatedAt` string) last confirmed or baselined. The sync
+    -- engine's "did the remote change" gate keys on this, never on
+    -- import_hash, which also moves when OUR converter changes. NULL for
+    -- legacy rows (the engine falls back to imported_at). Mirrored by the
+    -- ALTER in _PHASE_2_ALTERS.
+    import_remote_rev TEXT,
     -- audit B5: 1 while this note's body still carries an unresolved
     -- import-time placeholder (import-ref://<media> or import-link://
     -- <note>) that the client's post-confirm media-upload + link-rewrite
@@ -2097,6 +2104,9 @@ _PHASE_2_ALTERS = [
     "ALTER TABLE j2_notes ADD COLUMN style_id TEXT",
     "ALTER TABLE j2_notes ADD COLUMN style_version INTEGER",
     "ALTER TABLE j2_notes ADD COLUMN kind_id TEXT",
+    # Connector fidelity Plan A Task 1: see the column's comment on the fresh CREATE TABLE.
+    # Nullable, no backfill: a NULL reads as "legacy row, use the imported_at fallback".
+    "ALTER TABLE j2_notes ADD COLUMN import_remote_rev TEXT",
     # fin-security I-2: the remembered "unplanned" (plan_grading.MatchScope). One row per trade
     # that had no plan the last time it was matched, with a stamp of everything that could
     # change that. A memo, never a freeze: a stamp that no longer matches is ignored and the

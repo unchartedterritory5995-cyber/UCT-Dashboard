@@ -505,6 +505,86 @@ async def test_conflicted_note_with_remote_change_after_an_unchanged_pass_still_
 
 
 # ---------------------------------------------------------------------------
+# Plan A Task 1: "did the remote change" is keyed on the remote's REVISION
+# (`j2_notes.import_remote_rev`), never on our conversion. A converter fix
+# changes `_import_payload_hash` for every note on the next full pass; that
+# must not read as a remote edit on a member-edited note.
+# ---------------------------------------------------------------------------
+
+async def test_converter_change_never_manufactures_a_conflict_copy(source, provider):
+    provider.refs = [RemoteRef(remote_id="p1", updated_at="2026-08-01T00:00:00+00:00")]
+    provider.notes_by_id = {"p1": _rn("p1", "Page")}
+    await engine.sync_source(source["id"], full=True)
+    n = notes_svc.list_notes("u1")[0]
+    notes_svc.update_note("u1", n["id"], {"title": "Mine"})
+    # same remote revision, different conversion (a converter fix shipped)
+    provider.notes_by_id = {"p1": _rn("p1", "Page", text="Page, converted better")}
+    r = await engine.sync_source(source["id"], full=True, manual=True)
+    assert r["conflicts"] == 0
+    assert [x["title"] for x in notes_svc.list_notes("u1")] == ["Mine"]
+    # the member's note is untouched: its body is still the original conversion
+    assert "converted better" not in notes_svc.get_note("u1", n["id"])["bodyPlain"]
+
+
+async def test_converter_change_updates_an_unedited_note_in_place(source, provider):
+    provider.refs = [RemoteRef(remote_id="p1", updated_at="2026-08-01T00:00:00+00:00")]
+    provider.notes_by_id = {"p1": _rn("p1", "Page")}
+    await engine.sync_source(source["id"], full=True)
+    provider.notes_by_id = {"p1": _rn("p1", "Page", text="Page, converted better")}
+    r = await engine.sync_source(source["id"], full=True, manual=True)
+    assert r["conflicts"] == 0
+    all_notes = notes_svc.list_notes("u1")
+    assert len(all_notes) == 1
+    assert r["updated"] == 1 and "converted better" in all_notes[0]["bodyPlain"]
+
+
+async def test_remote_revision_change_on_edited_note_still_conflicts(source, provider):
+    provider.refs = [RemoteRef(remote_id="p1", updated_at="2026-08-01T00:00:00+00:00")]
+    provider.notes_by_id = {"p1": _rn("p1", "Page")}
+    await engine.sync_source(source["id"], full=True)
+    n = notes_svc.list_notes("u1")[0]
+    notes_svc.update_note("u1", n["id"], {"title": "Mine"})
+    provider.refs = [RemoteRef(remote_id="p1", updated_at="2026-08-02T00:00:00+00:00")]
+    provider.notes_by_id = {"p1": _rn("p1", "Page", text="remote v2",
+                                       updated_at="2026-08-02T00:00:00+00:00")}
+    r = await engine.sync_source(source["id"], full=True, manual=True)
+    assert r["conflicts"] == 1
+    assert sorted(x["title"] for x in notes_svc.list_notes("u1")) == ["Mine", "Page (synced copy)"]
+
+
+async def test_legacy_row_without_remote_rev_uses_imported_at_fallback(source, provider):
+    from datetime import datetime, timedelta, timezone
+    provider.refs = [RemoteRef(remote_id="p1", updated_at="2026-08-01T00:00:00+00:00")]
+    provider.notes_by_id = {"p1": _rn("p1", "Page")}
+    await engine.sync_source(source["id"], full=True)
+    n = notes_svc.list_notes("u1")[0]
+    conn = auth_db.get_connection()
+    try:
+        # the rail is only meaningful if the import actually recorded a revision
+        assert conn.execute("SELECT import_remote_rev FROM j2_notes WHERE id = ?",
+                            (n["id"],)).fetchone()[0] == "2026-08-01T00:00:00+00:00"
+        conn.execute("UPDATE j2_notes SET import_remote_rev = NULL WHERE id = ?", (n["id"],))
+        conn.commit()
+    finally:
+        conn.close()
+    notes_svc.update_note("u1", n["id"], {"title": "Mine"})
+
+    # converter change, SAME remote updated_at (older than imported_at) -> no copy
+    provider.notes_by_id = {"p1": _rn("p1", "Page", text="Page, converted better")}
+    r1 = await engine.sync_source(source["id"], full=True, manual=True)
+    assert r1["conflicts"] == 0
+    assert [x["title"] for x in notes_svc.list_notes("u1")] == ["Mine"]
+
+    # a remote edit made AFTER the import -> a genuine conflict
+    later = (datetime.now(timezone.utc) + timedelta(days=1)).isoformat()
+    provider.refs = [RemoteRef(remote_id="p1", updated_at=later)]
+    provider.notes_by_id = {"p1": _rn("p1", "Page", text="remote v2", updated_at=later)}
+    r2 = await engine.sync_source(source["id"], full=True, manual=True)
+    assert r2["conflicts"] == 1
+    assert sorted(x["title"] for x in notes_svc.list_notes("u1")) == ["Mine", "Page (synced copy)"]
+
+
+# ---------------------------------------------------------------------------
 # 5. Delete detection: 2-strikes + refuse guard
 # ---------------------------------------------------------------------------
 
