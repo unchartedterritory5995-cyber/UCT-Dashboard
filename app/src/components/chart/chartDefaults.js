@@ -262,6 +262,9 @@ export const CHART_DEFAULTS = {
   },
   countdown: false,
   showPatterns: false,
+  // Chart IQ (pattern recognition drawn on the chart; server-gated, see chartIq/chartIqGate.js). Both doors write it: the
+  // desktop toolbar button and the phone Indicators sheet. Must be declared here or the merge drops it.
+  showChartIq: false,
   // Right-axis last-value labels. `showPriceLabels` = the boxed last-price tag on
   // the main series (on by default — matches prior behavior). `showMaLabels` = a
   // colored last-value chip per moving average (opt-in, off by default).
@@ -698,6 +701,7 @@ function mergeChartSettingsRaw(userSettings) {
     },
     countdown: parsed.countdown ?? CHART_DEFAULTS.countdown,
     showPatterns: parsed.showPatterns ?? CHART_DEFAULTS.showPatterns,
+    showChartIq: parsed.showChartIq === true,
     // The UCT Intelligence indicator's own block (uctIntelligence.js). NO default and no key at all when
     // absent or malformed, so a chart that never added it merges byte-identically to before.
     ...(sanitizeUctIntelligence(parsed.uctIntelligence) ? { uctIntelligence: sanitizeUctIntelligence(parsed.uctIntelligence) } : {}),

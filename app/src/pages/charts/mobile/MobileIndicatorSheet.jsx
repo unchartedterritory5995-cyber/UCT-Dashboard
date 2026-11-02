@@ -10,6 +10,7 @@ import { setInstanceInput, removeInstance } from '../../../components/chart/engi
 import IndicatorHistoryButtons from '../../../components/chart/IndicatorHistoryButtons'
 import UnavailableIndicators from '../../../components/chart/UnavailableIndicators'
 import { isInstanceTombstone } from '../../../components/chart/instanceShape'
+import { useChartIqAllowed } from '../../../components/chart/chartIq/chartIqGate'
 import styles from './MobileCharts.module.css'
 
 // Preset swatches for the phone param editors — the desktop ColorPicker's
@@ -148,6 +149,7 @@ import { safeCssColour } from '../../../components/chart/engine/objectColour'
 const QUICK_STUDY_IDS = ['rsi', 'macd', 'bb', 'vwap', 'atr', 'stoch']
 
 export default function MobileIndicatorSheet({ open, onClose, cs, onWrite, onBrowseLibrary, onOpenSettings, className = '', initialEditing = null, historyKey = null, historyUserId = null }) {
+  const chartIqAllowed = useChartIqAllowed()
   const overlays = averageSlotView(cs)
   // Wave 8: tap a row's NAME to edit its parameters in a stacked mini-sheet —
   // period/color without the trip through the desktop settings modal.
@@ -318,6 +320,32 @@ export default function MobileIndicatorSheet({ open, onClose, cs, onWrite, onBro
             </div>
           )
         })}
+
+        {chartIqAllowed && (
+          <>
+            <div className={styles.sectionLabel}>Chart IQ</div>
+            {/* The touch door for Chart IQ (the desktop door is the toolbar button). Same setting, same server gate. */}
+            <div className={styles.indRow}>
+              <span className={styles.indNameBtn}>
+                <span className={styles.indName}>
+                  Pattern recognition
+                  <span className={styles.indNote}> · daily charts</span>
+                </span>
+              </span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={!!cs?.showChartIq}
+                aria-label="Chart IQ pattern recognition"
+                data-testid="chart-iq-mobile-toggle"
+                className={`${styles.switch} ${cs?.showChartIq ? styles.switchOn : ''}`}
+                onClick={() => { haptics.tap(); onWrite({ ...cs, showChartIq: !cs?.showChartIq, preset: 'custom' }) }}
+              >
+                <span className={styles.knob} />
+              </button>
+            </div>
+          </>
+        )}
 
         <div className={styles.sectionLabel}>More</div>
         <button

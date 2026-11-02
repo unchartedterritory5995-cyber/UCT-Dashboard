@@ -177,6 +177,7 @@ const KNOWN = [
   K('markers.ipoColor', 'markers', 'IPO marker color', 'Chart Settings → Markers'),
   K('darkPool.*', 'markers', 'Dark-pool levels (paid)', 'Chart Settings → Markers → Dark pool'),
   K('heikinAshi', 'priceStyle', 'Heikin Ashi', 'not on /charts (other chart surfaces)'),
+  K('showChartIq', 'tools', 'Chart IQ pattern recognition (server-gated)', 'Chart toolbar → Chart IQ; phone: Indicators → Chart IQ'),
   K('theme', 'canvas', 'Light/dark palette (Shift+T)', 'Shift+T on the chart'),
   K('positionCalc.*', 'tools', 'Position calculator defaults', 'Position Calculator'),
 ]

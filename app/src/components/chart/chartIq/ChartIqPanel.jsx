@@ -61,7 +61,7 @@ export function ChartIqFeedback({ data }) {
 }
 
 const box = {
-  position: 'absolute', top: 30, right: 72, zIndex: 6, maxWidth: 380, maxHeight: '62%', overflowY: 'auto',
+  position: 'absolute', top: 30, right: 72, zIndex: 6, maxWidth: 'min(380px, calc(100% - 80px))', maxHeight: '62%', overflowY: 'auto',
   background: 'var(--bg-elevated, #161a1f)', border: '1px solid var(--border, #2a2f36)', borderRadius: 6,
   color: 'var(--text, #c9d1d9)', fontSize: 12, lineHeight: 1.4, boxShadow: '0 4px 16px rgba(0,0,0,0.35)',
 }
