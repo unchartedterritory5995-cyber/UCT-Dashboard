@@ -93,12 +93,38 @@ export function recordedEngineStatus(row, current = SCRIPT_ENGINE_VERSION) {
   return (st.status === 'refused' || st.status === 'write-failed') ? st : null
 }
 
+/** ⭐ PRE-BUMP F1 — did the store refuse the write-back of TODAY's translation of a
+ *  version an older engine refused? (`write_failed_engine` rides on the refusal the
+ *  server keeps serving — a write-failed never clears a refusal.) Then today's
+ *  translation is drawn but never PUT again, and the Builder is offered. */
+function writeFailedToday(row, current = SCRIPT_ENGINE_VERSION) {
+  const st = row && row.engine_status
+  return isObj(st) && st.status === 'refused'
+    && Number.isInteger(st.write_failed_engine) && st.write_failed_engine >= current
+}
+
 /** What load-time work a store row needs.
  *  @returns {'current'|'retranslate'|'refused'|'retry'|'legacy'|'none'}
- *   `refused` — today's engine already refused it (recorded): not drawn, no work;
+ *   `refused` — today's engine already refused it (recorded), or an older engine
+ *               refused the very maths it still carries: not drawn, no work;
  *   `retry`   — its upgrade could not be written back (recorded): drawn as stored,
  *               the Builder row offered, no translation, no PUT. */
 export function upgradeKindOf(row, current = SCRIPT_ENGINE_VERSION) {
+  const kind = upgradeKindPastVerdict(row, current)
+  // ⛔⛔ PRE-BUMP F3 — PAST ITS ENGINE, A REFUSAL STILL HOLDS THE SAME MATHS. A version
+  // that cannot be re-translated here (no script, or not a stale script document)
+  // carrying the calculation an older engine refused (`same_maths`, the server's
+  // answer from the store's maths identity: a no-op Undo, a cosmetic studio save, a
+  // share install) is held exactly as `engine_withheld_reason` holds it. A real maths
+  // edit (`same_maths: false`) is the member's own maths and runs.
+  if (kind !== 'retranslate' && kind !== 'refused') {
+    const st = row && row.engine_status
+    if (isObj(st) && st.status === 'refused' && st.same_maths === true) return 'refused'
+  }
+  return kind
+}
+
+function upgradeKindPastVerdict(row, current) {
   const def = row && row.definition
   const recorded = isObj(def) ? recordedEngineStatus(row, current) : null
   // ⛔⛔ A LIVE REFUSAL HOLDS ANY DOCUMENT, whatever its shape or stamp — the server's
@@ -106,7 +132,8 @@ export function upgradeKindOf(row, current = SCRIPT_ENGINE_VERSION) {
   // "chart draws it but alerts withhold it" split). A refusal carried onto a studio
   // edit (no longer script-shaped) or a share install is held here as there. It
   // binds only while its engine is today's (`recordedEngineStatus`): past it, a
-  // version holding its script re-translates below, and one without expires.
+  // version holding its script re-translates below, and one without expires unless
+  // it carries the refused maths (`upgradeKindOf`, F3).
   if (recorded && recorded.status === 'refused') return 'refused'
   if (!isScriptDocument(def)) return 'none'
   if (!isStaleStamp(def, current)) return 'current'
@@ -309,7 +336,8 @@ export function upgradedRow(row) {
 export function resolveRow(row) {
   const stored = row && row.definition
   const kind = savedScriptUpgradeEnabled() ? upgradeKindOf(row) : 'none'
-  const offer = kind === 'legacy' || kind === 'retry' || (row && _retryLocal.has(keyOf(row)))
+  const failedToday = kind === 'retranslate' && writeFailedToday(row)
+  const offer = kind === 'legacy' || kind === 'retry' || failedToday || (row && _retryLocal.has(keyOf(row)))
   if (offer) _legacy.add(row.def_id); else if (row && row.def_id) _legacy.delete(row.def_id)
   const nameOf = () => (isObj(stored.meta) && stored.meta.name) || row.def_id
   const out = (definition, extra = {}) => ({ definition, refusal: null, writeBack: null, record: null, pending: false, ...extra })
@@ -326,7 +354,8 @@ export function resolveRow(row) {
   if (r.status === 'upgraded') {
     // ⛔ L5 — a stored row without an integer version cannot be revision-guarded, so it
     // is never written back (fail closed — never last-write-wins). It still draws.
-    const guarded = Number.isInteger(row.version) && !_retryLocal.has(keyOf(row))
+    // ⛔ F1 — and never PUT again what the store already refused at today's engine.
+    const guarded = Number.isInteger(row.version) && !_retryLocal.has(keyOf(row)) && !failedToday
     return out(r.definition, guarded ? { writeBack: { row, definition: r.definition } } : {})
   }
   if (r.status === 'refused') {
@@ -344,7 +373,7 @@ export function resolveRow(row) {
  *  (`ChartToolbar.openUpgradeDoor`), never the Formula tab on its stored maths. */
 export function scriptUpgradeHeld(row) {
   const k = savedScriptUpgradeEnabled() ? upgradeKindOf(row) : 'none'
-  return k === 'refused' || k === 'retry'
+  return k === 'refused' || k === 'retry' || (k === 'retranslate' && writeFailedToday(row))
 }
 
 /** Does this saved definition offer the "Updated accuracy available" row? */
