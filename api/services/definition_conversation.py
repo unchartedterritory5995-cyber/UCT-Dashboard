@@ -1702,24 +1702,22 @@ def _record_turn(user_id: Any, conversation_id: Any, result: Mapping[str, Any], 
         logger.exception("[converse] turn telemetry failed")
 
 
-def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
-                   snippets: Any, chart: Any, cap_usd: float,
-                   calls: List[Dict[str, Any]],
-                   trace: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-    trace = trace if trace is not None else {}
-    try:
-        message, view, state, turns = _bounded_inputs(message, view, authoring, snippets)
-    except _Refused as refused:
-        return {"ok": False, "gate": refused.gate, "reason": refused.reason}
-    revision = view["revision"]
+def understand_turn(message: str, chart: Any) -> Dict[str, Any]:
+    """The deterministic half of a turn, before any model call: the pre-flight, the
+    member's own names, and the planner. ⭐ PURE (no model, no clock, no network),
+    which is why ``tests/test_plain_english_chart_door.py`` can drive real trader
+    phrasings through the SAME code ``_converse_turn`` runs, for nothing.
 
+    Returns ``{"refusal": <the turn's response>}`` when the turn ends here, else
+    ``{"refusal": None, request_text, notes, advisory, other_sym, discussed,
+    not_understood, unavailable, terms}``.
+    """
     caught = conversation_preflight.check(message, chart)
     if caught is not None:
-        logger.info("[converse] preflight %s (no model call)", caught["gate"])
-        return {"ok": False, "gate": caught["gate"], "reason": caught["reason"],
-                "disposition": "unsupported", "preflight": True, "attempts": 0,
-                "tokens": {"input": 0, "output": 0}, "cost_usd": 0.0,
-                "not_understood": [], "unavailable": []}
+        return {"refusal": {"ok": False, "gate": caught["gate"], "reason": caught["reason"],
+                            "disposition": "unsupported", "preflight": True, "attempts": 0,
+                            "tokens": {"input": 0, "output": 0}, "cost_usd": 0.0,
+                            "not_understood": [], "unavailable": []}}
 
     # ⭐ P3 -- TALK CONTINUITY. A QUESTION (or a bare "compare ...") may name things
     # UCT cannot build -- "What period would you recommend for a Swing Trader?",
@@ -1755,10 +1753,10 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
         request_text = RENAME_REQUEST
     elif not understanding["understood"]:
         first = not_understood[0] if not_understood else None
-        return {"ok": False,
-                "gate": first["gate"] if first else "prompt:empty",
-                "reason": first["reason"] if first else dc.REFUSALS["prompt:empty"],
-                "not_understood": not_understood, "unavailable": unavailable}
+        return {"refusal": {"ok": False,
+                            "gate": first["gate"] if first else "prompt:empty",
+                            "reason": first["reason"] if first else dc.REFUSALS["prompt:empty"],
+                            "not_understood": not_understood, "unavailable": unavailable}}
     else:
         request_text = understanding["understood"]
 
@@ -1771,6 +1769,35 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
         notes["other_symbols"] = [{"symbol": other_sym, "rule": OTHER_SYMBOL_RULE}]
     if member_names:
         notes["member_names"] = [{"name": n, "rule": MEMBER_NAME_RULE} for n in member_names]
+    return {"refusal": None, "request_text": request_text, "notes": notes,
+            "advisory": advisory, "other_sym": other_sym, "discussed": discussed,
+            "not_understood": not_understood, "unavailable": unavailable,
+            "terms": understanding.get("terms") or []}
+
+
+def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
+                   snippets: Any, chart: Any, cap_usd: float,
+                   calls: List[Dict[str, Any]],
+                   trace: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    trace = trace if trace is not None else {}
+    try:
+        message, view, state, turns = _bounded_inputs(message, view, authoring, snippets)
+    except _Refused as refused:
+        return {"ok": False, "gate": refused.gate, "reason": refused.reason}
+    revision = view["revision"]
+
+    understood_turn = understand_turn(message, chart)
+    if understood_turn["refusal"] is not None:
+        if understood_turn["refusal"].get("preflight"):
+            logger.info("[converse] preflight %s (no model call)", understood_turn["refusal"]["gate"])
+        return understood_turn["refusal"]
+    request_text = understood_turn["request_text"]
+    notes = understood_turn["notes"]
+    advisory = understood_turn["advisory"]
+    other_sym = understood_turn["other_sym"]
+    discussed = understood_turn["discussed"]
+    not_understood = understood_turn["not_understood"]
+    unavailable = understood_turn["unavailable"]
     content = user_turn(request_text, notes, view, state, turns)
     if len(content) > MAX_INPUT_CHARS:
         return _refusal("converse:too-large", f"turn {len(content)} > {MAX_INPUT_CHARS}",

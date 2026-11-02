@@ -247,8 +247,15 @@ def test_the_two_lanes_share_the_caps_and_the_refusal_text():
     assert [cap, depth, msg] == [ce.MAX_EXPANDED_NODES, ce.MAX_EXPANSION_DEPTH, str(exc.value)]
 
 
-def test_every_chart_function_word_names_a_real_expansion():
-    from api.services import conversation_preflight
+def test_every_chart_function_word_names_a_real_expansion_or_declared_function():
+    """A word names a call expansion or a function closedTable.json DECLARES (the full
+    names, 2026-11-01). A typo'd key would hand the model a name nothing evaluates."""
+    from api.services import ast_table, conversation_preflight
     words = conversation_preflight.rules()["chartFunctionWords"]["words"]
     assert words and all(len(w) == 2 for w in words)
-    assert {k for _, k in words} <= set(ce.EXPANSION_NAMES)
+    declared = set(ast_table.TABLE["functions"])
+    keys = {k for _, k in words}
+    assert keys <= set(ce.EXPANSION_NAMES) | declared
+    # non-vacuity: both halves are really used
+    assert keys & set(ce.EXPANSION_NAMES)
+    assert keys & (declared - set(ce.EXPANSION_NAMES))
