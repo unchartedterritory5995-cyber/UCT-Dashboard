@@ -163,6 +163,32 @@ def test_a_unique_name_match_in_the_notes_own_folder_is_counted_apart(db):
     assert _hrefs(out) == [_note_href(target)] and actions == ["relative_by_name", "link_resolved:1"]
 
 
+def _trash(note_id):
+    conn = auth_db.get_connection()
+    try:
+        conn.execute("UPDATE j2_notes SET deleted_at = '2026-10-01T00:00:00+00:00' WHERE id = ?", (note_id,))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def test_a_trashed_target_is_never_replaced_by_a_same_named_note(db):
+    """I-1 (review P2b): the link names `Notes/Plan.md` exactly. When the member trashed that
+    note, a same-named note in the same folder tree is NOT what they linked: left as written."""
+    beside = _import("Obsidian", "obsidian:V/Notes/Plan.md")
+    _import("Obsidian", "obsidian:V/Notes/Archive/Plan.md")
+    here = "obsidian:V/Notes/Here.md"
+    _import("Obsidian", here)
+    doc = _doc(_para(_t("p", _link("Plan.md"))))
+    out, actions = _repair(doc, import_key=here, import_source="Obsidian")
+    assert _hrefs(out) == [_note_href(beside)]  # present: the exact path wins
+    _trash(beside)
+    index = _index()
+    assert "obsidian:V/Notes/Plan.md" not in index.keys
+    out, actions = _repair(doc, import_key=here, import_source="Obsidian")
+    assert out == doc and actions == ["relative_target_trashed"]
+
+
 def test_a_relative_link_to_a_non_note_file_is_not_a_note(db):
     """The live provider resolves a relative link only when it is a `.md` path:
     `report.pdf` must never open the note `report.md`."""

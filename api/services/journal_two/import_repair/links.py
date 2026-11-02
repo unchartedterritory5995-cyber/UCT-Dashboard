@@ -63,12 +63,13 @@ _TEXTBUNDLE_TEXT_RE = re.compile(r"\.textbundle/text\.md$", re.IGNORECASE)
 TO_NOTE = "relative_to_note"            # write: the exact path (or the client's key) named a note
 BY_NAME = "relative_by_name"            # write: the ONE same-folder name match (C-1)
 AMBIGUOUS = "relative_ambiguous"        # count: two or more notes carry that name (C-1)
+TRASHED = "relative_target_trashed"     # count: the exact path names a note in the trash (I-1)
 UNRESOLVED = "relative_unresolved"      # count: a note link nothing names (yet)
 FILE_UNRESOLVED = "relative_file_unresolved"  # count: a link to a file that is not a note;
 #                                         T4/T6 place the visible `missing_from_import` marker
 #: Step 2's codes, in the order `repair_links` reports them.
-RELATIVE_ACTIONS = (TO_NOTE, BY_NAME, AMBIGUOUS, UNRESOLVED, FILE_UNRESOLVED)
-COUNT_ONLY_ACTIONS = frozenset({AMBIGUOUS, UNRESOLVED, FILE_UNRESOLVED, "relative_target_trashed"})
+RELATIVE_ACTIONS = (TO_NOTE, BY_NAME, AMBIGUOUS, TRASHED, UNRESOLVED, FILE_UNRESOLVED)
+COUNT_ONLY_ACTIONS = frozenset({AMBIGUOUS, TRASHED, UNRESOLVED, FILE_UNRESOLVED})
 
 
 def strip_notion_id_path(path: str) -> str:
@@ -81,6 +82,9 @@ class FileKeyIndex:
     """One member's non-trashed import keys, read once per member."""
     keys: frozenset[str]
     obsidian: dict[str, Any] = field(default_factory=dict)  # vault -> `_VaultIndex`
+    #: vault -> lowercased paths (inside the vault) of the member's TRASHED Obsidian file
+    #: notes (fix round 1, I-1): a link that names one exactly is never given another note.
+    obsidian_trashed: dict[str, frozenset[str]] = field(default_factory=dict)
 
 
 def _vault_split(path: str) -> tuple[str, str]:
@@ -90,26 +94,34 @@ def _vault_split(path: str) -> tuple[str, str]:
 
 
 def build_file_key_index(conn, user_id: str) -> FileKeyIndex:
-    """ONE query over the member's non-trashed import keys. Column access is by position, so
-    a connection without `row_factory` reads the same."""
+    """ONE query over the member's import keys: the non-trashed ones are the index, and the
+    trashed Obsidian file paths are kept apart (I-1). Column access is by position, so a
+    connection without `row_factory` reads the same."""
     keys: set[str] = set()
     by_vault: dict[str, list[str]] = {}
+    trashed: dict[str, set[str]] = {}
     for row in conn.execute(
-        "SELECT import_key, import_source FROM j2_notes"
-        " WHERE user_id = ? AND deleted_at IS NULL AND import_key IS NOT NULL",
+        "SELECT import_key, import_source, deleted_at IS NOT NULL FROM j2_notes"
+        " WHERE user_id = ? AND import_key IS NOT NULL",
         (user_id,),
     ):
-        key, source = row[0], row[1]
+        key, source, is_trashed = row[0], row[1], bool(row[2])
         if not isinstance(key, str):
             continue
-        keys.add(key)
+        if not is_trashed:
+            keys.add(key)
         if source == OBSIDIAN_SOURCE and key.startswith(_OBSIDIAN):
             vault, inner = _vault_split(key[len(_OBSIDIAN):])
-            if inner:
+            if not inner:
+                continue
+            if is_trashed:
+                trashed.setdefault(vault, set()).add(inner.lower())
+            else:
                 by_vault.setdefault(vault, []).append(inner)
     return FileKeyIndex(
         keys=frozenset(keys),
         obsidian={v: obsidian_provider._build_basename_map(sorted(set(p))) for v, p in by_vault.items()},
+        obsidian_trashed={v: frozenset(p) for v, p in trashed.items()},
     )
 
 
@@ -153,10 +165,13 @@ def _name_candidates(path: str, vault_index: Any) -> list[str]:
     return [p for p in named if obsidian_provider._basename(p).lower() == lower]
 
 
-def _obsidian_target(path: str, inner: str, vault_index: Any) -> tuple[str | None, str]:
+def _obsidian_target(path: str, inner: str, vault_index: Any,
+                     trashed: frozenset[str]) -> tuple[str | None, str]:
     """`(path inside the vault, action)` for a `.md` relative href of the note at `inner`.
 
     1. The exact path the member wrote (beside the note, then from the top): `relative_to_note`.
+       When that path is a note the member TRASHED, the link meant that note: it is left as
+       written (`relative_target_trashed`), never handed to a same-named note (I-1).
     2. Fix round 1, C-1: the provider's NAME rule chooses among same-named notes (same folder,
        else shortest path). A connector vault is one vault, so that choice is safe there; the
        file importer's keys do not show where a drop's vaults are rooted (`.obsidian/` is not
@@ -168,6 +183,8 @@ def _obsidian_target(path: str, inner: str, vault_index: Any) -> tuple[str | Non
         found = vault_index.by_lower.get(form.lower())
         if found is not None:
             return found, TO_NOTE
+        if form.lower() in trashed:
+            return None, TRASHED
     candidates = _name_candidates(path, vault_index)
     if len(candidates) > 1:
         return None, AMBIGUOUS
@@ -189,14 +206,15 @@ def relative_target(href: str, *, import_key: str, import_source: str,
         return None, UNRESOLVED
     if import_source == OBSIDIAN_SOURCE and import_key.startswith(_OBSIDIAN):
         vault, inner = _vault_split(import_key[len(_OBSIDIAN):])
-        vault_index = index.obsidian.get(vault)
         path = target.split("?", 1)[0].strip()
         if not _OBSIDIAN_NOTE_EXT_RE.search(path):
             return None, FILE_UNRESOLVED  # only a `.md` link names a note (the provider's rule)
         # `|` separates a pending key's fields and cannot be in an Obsidian file name.
-        if vault_index is None or "|" in path:
+        if "|" in path:
             return None, UNRESOLVED
-        resolved, action = _obsidian_target(path, inner, vault_index)
+        vault_index = index.obsidian.get(vault) or obsidian_provider._build_basename_map([])
+        resolved, action = _obsidian_target(path, inner, vault_index,
+                                            index.obsidian_trashed.get(vault, frozenset()))
         if resolved is None:
             return None, action
         return (f"{_OBSIDIAN}{vault}/{resolved}" if vault else f"{_OBSIDIAN}{resolved}"), action
