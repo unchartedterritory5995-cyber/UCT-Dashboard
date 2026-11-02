@@ -752,6 +752,56 @@ describe('C45 / C48 — ⛔ a DRAWING\'s colour whose `ta.*` call runs only on s
     heldOnce(`${H}label.new(bar_index, high, "x", color = up and ta.rising(close, 2) ? color.green : color.red)\n`, 4)
   })
 
+  // ── H1 (re-review): a colour that can HIDE the output keeps its arm gates on the
+  // output. `cond ? c : na` is a palette with a transparent entry; withheld as a
+  // colour alone, the binder would draw the line in its series colour on every bar
+  // where TradingView leaves gaps (`colourWithholdsAlone`).
+  const plotDoor = (src) => {
+    vi.stubEnv('VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', '1')
+    vi.stubEnv('VITE_PINE_MEMBER_PANE_ENABLED', '1')
+    vi.stubEnv('VITE_PINE_RUNTIME_PANE_ENABLED', '')
+    const built = memberPaneDefinition({ source: src, id: 'u_c45h1hide', name: 'P' })
+    expect(built.ok, built.reason).toBe(true)
+    const def = built.definition
+    const keys = ((def.meta.blockRuns && def.meta.blockRuns.keys) || []).map((k) => k.key)
+    const { installed } = registry.installUserDefinitions([def])
+    try {
+      const cols = registry.computeFor(installed[0], toProductBars(cap), undefined, { tf: 'D',
+        symbol: { ticker: 'RDDT', exchange: 'NYSE' }, newestBarIsForming: false, historyFromListing: true })
+      return { def, keys, errors: registry.columnErrors(cols) }
+    } finally {
+      registry.uninstallUserDefinition(def.id)
+    }
+  }
+  const wholeWithheld = (src) => {
+    const r = plotDoor(src)
+    // ONE route: the gates ride the output, and no colour column is gated besides
+    expect(r.keys, src).toEqual(['value'])
+    expect(r.errors.value && r.errors.value.guard, src).toBe(BLOCK_RUNS_GUARD)
+    return r
+  }
+
+  it('⛔ H1 — a plot coloured `… ? c : na` (and a 3-way chain with an `na` leaf, a fully transparent arm): the WHOLE plot is withheld, not drawn in its series colour', () => {
+    wholeWithheld(`${H}plot(close, "C", color = up and ta.rising(close, 2) ? color.green : na)\n`)
+    wholeWithheld(`${H}plot(close, "C", color = up ? (ta.rising(close, 2) ? color.green : na) : color.red)\n`)
+    wholeWithheld(`${H}plot(close, "C", color = up and ta.rising(close, 2) ? color.new(color.green, 100) : color.red)\n`)
+  })
+
+  it('⛔ H1 — a `plotshape` whose colour has an `na` arm: withheld whole (no marker where TradingView hides one)', () => {
+    wholeWithheld(`${H}plotshape(up, "S", color = up and ta.rising(close, 2) ? color.green : na)\n`)
+  })
+
+  it('🔴 H1 CONTROL — every colour real (two-way, 3-way chain): the value draws, the colour alone is withheld', () => {
+    for (const c of ['up and ta.rising(close, 2) ? color.green : color.red',
+      'up ? (ta.rising(close, 2) ? color.green : color.blue) : color.red']) {
+      const r = plotDoor(`${H}plot(close, "C", color = ${c})\n`)
+      expect(r.keys, c).not.toContain('value')
+      expect(r.keys.length, c).toBe(1)
+      expect(r.errors.value, c).toBeUndefined()
+      expect(r.errors[r.keys[0]].guard, c).toBe(BLOCK_RUNS_GUARD)
+    }
+  })
+
   it('⛔ plot and drawing coloured by the same `and`: the plot\'s VALUE drawn, its colour column refused by the bind, the drawing held once', () => {
     const r = draw(`${H}plot(close, "C", color = up and ta.rising(close, 2) ? color.green : color.red)\n`
       + 'if close > close[1]\n    label.new(bar_index, high, "x", color = up and ta.rising(close, 2) ? color.green : color.red)\n')
@@ -839,5 +889,49 @@ describe('C45 / C48 — ⛔ a DRAWING\'s colour whose `ta.*` call runs only on s
     heldOnce(`${H}var label lb = na\nif na(lb)\n    lb := label.new(bar_index, high, "x", color = up and ta.rising(close, 2) ? color.green : color.red)\n`
       + 'if close < close[1]\n    lb := na\n', 6)
     heldOnce(`${H}var label lb = na\nif na(lb) and close > close[1]\n    lb := label.new(bar_index, high, "x", color = up and ta.rising(close, 2) ? color.green : color.red)\n`, 6)
+  })
+
+  // ── L1b (review M1 / L2): the `if na(lb)` create runs ONCE only while nothing can
+  // empty `lb` again. The object runtime's `reap` nulls every register holding an
+  // object it deletes, collects or replaces, so `na(lb)` is true again later.
+  const IFNA = 'if na(lb)\n    lb := label.new(bar_index, high, "x", color = up and ta.rising(close, 2) ? color.green : color.red)\n'
+  const heldAmong = (src, line) => {
+    const r = draw(src)
+    expect(r.held, src).toEqual([`fn:conditional-history \`ta.rising\`@${line}`])
+    expect(r.labels.filter((l) => l.text === 'x'), src).toEqual([])
+    return r
+  }
+
+  it('⛔ L1b — a NON-`var` handle (`label lb = na`) is `na` again on every bar: the create is STILL held', () => {
+    heldOnce(`${H}label lb = na\n${IFNA}`, 6)
+  })
+
+  it('⛔ L1b — a `label.delete` of the handle empties it, so the create can run again: STILL held', () => {
+    heldOnce(`${H}var label lb = na\n${IFNA}if close < open\n    label.delete(lb)\n`, 6)
+    // …through a method call too
+    heldOnce(`${H}var label lb = na\n${IFNA}if close < open\n    lb.delete()\n`, 6)
+    // …inside a loop, and through a function's parameter: the argument is never resolved
+    heldOnce(`${H}var label lb = na\n${IFNA}for i = 0 to 1\n    if close < open\n        label.delete(lb)\n`, 6)
+    heldOnce(`${H}var label lb = na\n${IFNA}kill(x) =>\n    label.delete(x)\nif close < open\n    kill(lb)\n`, 6)
+  })
+
+  it('⛔ L1b — another create of the SAME family can collect the object and empty the handle: STILL held', () => {
+    heldAmong(`${H}var label lb = na\n${IFNA}label.new(bar_index, low, ".")\n`, 6)
+    // …a `label.copy` mints one in the same pool
+    heldAmong(`${H}var label lb = na\n${IFNA}if close < open\n    c = label.copy(lb)\n`, 6)
+  })
+
+  it('⛔ L1b — a linefill handle is emptied whenever a line it names goes (and a fill between lines not live is `na`): STILL held', () => {
+    heldAmong(`${H}var line a = line.new(bar_index, high, bar_index + 1, high)\nvar line b = line.new(bar_index, low, bar_index + 1, low)\n`
+      + 'var linefill lf = na\nif na(lf)\n    lf := linefill.new(a, b, color = up and ta.rising(close, 2) ? color.green : color.red)\n', 8)
+  })
+
+  it('⭐ L1b — a create of ANOTHER family is a separate pool (`counts[family]`, `collect(family)`): still DRAWN', () => {
+    // …and a delete of that other family cannot name `lb`
+    const r = draw(`${H}var label lb = na\n${IFNA}ln = line.new(bar_index, low, bar_index + 1, low)\nline.delete(ln[1])\n`)
+    expect(r.held).toEqual([])
+    expect(r.labels.length).toBe(1)
+    expect(r.labels[0].bx).toBe(0)
+    expect(r.labels[0].color).toBe(RED)
   })
 })
