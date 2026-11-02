@@ -1494,6 +1494,42 @@
       "owner": "trade-exchange-news",
       "note": "Trade Exchange News Checkpoint B (2026-10-27). DARK BY OWNER RULE: no deploy, no member access and no Trade Exchange webhook registration without explicit owner approval; history storage additionally waits on Trade Exchange's written retention/redistribution permission. Read in api/services/trade_exchange_news/config.py::enabled() (strict == '1'). ON: mounts POST /api/trade-exchange-news/internal/ingest (the receiver service's private-network push, bearer TXN_INGEST_TOKEN checked as its sha-256 against TXN_INGEST_TOKEN_SHA256) and GET /api/admin/trade-exchange-news, and starts the single-writer pipeline (/data/trade_exchange_news.db, bounded 7 days / 5,000 headlines) plus the R2 journal reconciler. OFF: routes do not match, nothing starts, /data untouched. Rollback = unset; the store and the R2 journal are kept."
     },
+    "TXN_RELEASE_LINKS_ENABLED": {
+      "status": "dark",
+      "since": "2026-11-01",
+      "where": [
+        "web"
+      ],
+      "owner": "trade-exchange-news",
+      "note": "UCT News original press-release links (api/services/trade_exchange_news/release_links.py): starts the resolver thread (one pass a minute, off the delivery path). Does nothing by itself: each stage needs its own flag (TXN_RELEASE_LINKS_FMP_ENABLED, TXN_RELEASE_LINKS_SEC_ENABLED) and members see links only with TXN_RELEASE_LINKS_DISPLAY_ENABLED. Verified links go to trade_exchange_news.db release_links (write-once, keyed by TX event id); weaker candidates to release_link_candidates (never shown). First pass = one-time historical catch-up. Never writes headlines/deliveries or company news. Rollback = unset; stored rows are kept."
+    },
+    "TXN_RELEASE_LINKS_FMP_ENABLED": {
+      "status": "dark",
+      "since": "2026-11-01",
+      "where": [
+        "web"
+      ],
+      "owner": "trade-exchange-news",
+      "note": "FMP wire stage of the press-release link resolver (needs TXN_RELEASE_LINKS_ENABLED). Read every pass. ON: after each company-news FMP poll, matches TX-PressRelease headlines against company_news.db (read-only, mode=ro): exact headline + same ticker + one unique wire URL + time within 30 min (ET-aware, bracketed by ingested_at) + URL slug; links as 'Original release'. OFF: the stage is skipped; rows stay pending. Rollback = unset."
+    },
+    "TXN_RELEASE_LINKS_SEC_ENABLED": {
+      "status": "dark",
+      "since": "2026-11-01",
+      "where": [
+        "web"
+      ],
+      "owner": "trade-exchange-news",
+      "note": "SEC EDGAR stage of the press-release link resolver (needs TXN_RELEASE_LINKS_ENABLED). Read every pass. ON: for headlines FMP did not link, 45 min / 2 h / 6 h / 24 h / 72 h after arrival, reads the slot issuer's 8-K/6-K filings through fundamentals_pit.sec_client (the repo's fair-access client and SEC_USER_AGENT; no redirects accepted), at most TXN_RELEASE_LINKS_SEC_BUDGET (40) requests a pass, and links the Exhibit 99 document only when it opens with the exact headline ('SEC filing'). OFF: rows stay pending so turning it on later still reaches them. Rollback = unset."
+    },
+    "TXN_RELEASE_LINKS_DISPLAY_ENABLED": {
+      "status": "dark",
+      "since": "2026-11-01",
+      "where": [
+        "web"
+      ],
+      "owner": "trade-exchange-news",
+      "note": "Members see stored press-release links ('Original release' / 'SEC filing') on UCT News rows and receive the live `link` SSE event. Read on every headline event (release_links.lookup). OFF hides every link at once without deleting anything -- the rollback switch if a link is ever wrong. Independent of the resolver flags, so links can be resolved and reviewed dark first."
+    },
     "INDICATOR_VISION_ENABLED": {
       "status": "armed",
       "where": [
