@@ -2,10 +2,9 @@
 
 Every proof has a CONTROL (the same sentinel, unmarked, IS forwarded), so a strip that removed everything would
 fail. Two strict OPEN pins mark where the layers do NOT reach by design, for agent-lead to decide:
-  F-21  copy-out: L2 marks the ENVELOPE only. `env.data`, a row, or a value copied out of it carries no marker,
-        so L5/L6 cannot see it. That is exactly how a capability answer is built; L3 + L4 hold that boundary.
-  F-22  L6 runs inside `run_turn` only. The conversation-NAMING call (`name_conversation`, router
-        `_name_unnamed`) reads stored rows without `strip_isolated_request`.
+  F-21  FIXED (agent-lead f21-f22): the marker travels with `data` and every dict inside it; a copied-out row
+        is stripped. Residual by construction: a bare SCALAR carries no marker (L3 + L4 hold that).
+  F-22  FIXED (f21-f22): the conversation-NAMING call screens stored rows for the marker.
 The browser half (L5) is app/src/agent/qa/isolationLayers.test.jsx.
 """
 from __future__ import annotations
@@ -89,18 +88,45 @@ def test_L2_validation_rejects_any_marker_value_but_True(bad):
     assert env.validate_envelope({**e, "isolated": bad}), bad
 
 
-@pytest.mark.parametrize("name", ["breadth.current", "ratings"])
-def test_L2_F21_OPEN_PIN_the_marker_is_on_the_envelope_only_not_on_its_data_or_rows(monkeypatch, name):
-    """F-21 (agent-lead): a capability builds its answer from `env.data`/rows. Copied out, they carry no marker, so
-    L5/L6 cannot recognise them. Suggest stamping `data` (and each row) too. STRICT pin: fails when they are marked."""
+def _isolated_rows_read(monkeypatch, name):
     _activated(monkeypatch, name)
     k = gw.registry().get(name)
     gw._reset_for_test(_kind_with(name, lambda p, c: env.make_envelope(
         name, p, status="ok", freshness=k.freshness, as_of="2026-10-30T20:00:00Z", source="x",
-        data={"rows": [{"v": float(SENT)}]})))
-    out = gw.read(name, {"symbol": "NVDA"} if k.max_symbols else {}, user_id=1, turn_id="f21", purpose="answer")
-    assert out["isolated"] is True
-    assert "isolated" not in out["data"] and "isolated" not in out["data"]["rows"][0]
+        data={"rows": [{"v": float(SENT)}], "summary": {"composite": float(SENT)}})))
+    return gw.read(name, {"symbol": "NVDA"} if k.max_symbols else {}, user_id=1, turn_id="f21", purpose="answer")
+
+
+@pytest.mark.parametrize("name", ["breadth.current", "ratings"])
+def test_L2_F21_PROVEN_the_marker_travels_with_data_every_row_and_every_nested_dict(monkeypatch, name):
+    """F-21, fixed by agent-lead (f21-f22): `data` and every dict inside it carry `isolated: true`, so a sub-object a
+    capability copies out stays recognisable to L5/L6."""
+    out = _isolated_rows_read(monkeypatch, name)
+    assert out["isolated"] is True and out["data"]["isolated"] is True
+    assert out["data"]["rows"][0]["isolated"] is True and out["data"]["summary"]["isolated"] is True
+
+
+@pytest.mark.parametrize("name", ["breadth.current", "ratings"])
+def test_L2_F21_PROVEN_a_COPIED_OUT_row_or_data_object_is_stripped_end_to_end(monkeypatch, name, scripted):
+    """The point of F-21: copy a row (or the whole `data`) out of the read into the context — L6 removes it.
+    CONTROL: an unmarked sibling is sent."""
+    out = _isolated_rows_read(monkeypatch, name)
+    call, calls = scripted
+    turn.run_turn(message="hello", context={"stock": {"label": OK, "row": out["data"]["rows"][0], "data": out["data"],
+                                                      "summary": out["data"]["summary"]}}, history=[], caller=call)
+    s = sent(calls)
+    assert SENT not in _leaks(s) and OK in s
+
+
+def test_L2_CONTROL_a_NON_isolated_reads_data_and_rows_stay_unmarked(monkeypatch):
+    monkeypatch.setenv(gw.DATA_ENV, "1")
+    monkeypatch.setenv(KINDS_ENV, "quote")
+    k = gw.registry().get("quote")
+    gw._reset_for_test(_kind_with("quote", lambda p, c: env.make_envelope(
+        "quote", p, status="ok", freshness=k.freshness, as_of="2026-10-30T20:00:00Z", source="x",
+        data={"quote": {"symbol": "NVDA", "last": 1.0}})))
+    out = gw.read("quote", {"symbol": "NVDA"}, user_id=1, turn_id="c2", purpose="answer")
+    assert "isolated" not in json.dumps(out)
 
 
 # ── L6: run_turn strips marked objects from every model-bound input ───────────────────────────────────────────
@@ -180,25 +206,30 @@ def test_L6_the_strip_is_logged_as_a_count_never_its_content(scripted, caplog):
     assert "removed 1 isolated value" in caplog.text and SENT not in _leaks(caplog.text)
 
 
-def test_L6_F21_OPEN_PIN_a_value_COPIED_OUT_of_an_isolated_read_passes_the_strip(scripted):
-    """The other side of F-21: the composite copied into an unmarked object is forwarded. L3/L4 must hold."""
+def test_L6_RESIDUAL_a_bare_SCALAR_copied_out_of_an_isolated_read_still_passes_the_strip(scripted):
+    """By construction, after F-21: a NUMBER (not a dict) carries no marker, so a capability that writes the bare
+    composite into an unmarked object is not caught by L5/L6. That boundary is L3 (caller allowlist) + L4 (local-only
+    capabilities), railed in modelIsolation.test.jsx. Kept as an explicit pin so nobody believes L5/L6 cover it."""
     call, calls = scripted
     turn.run_turn(message="hello", context={"stock": {"composite": float(SENT)}}, history=[], caller=call)
     assert SENT in _leaks(sent(calls))
 
 
-def test_L6_F22_OPEN_PIN_the_naming_call_does_not_go_through_strip_isolated_request():
-    """F-22 (agent-lead): `name_conversation` reads stored member/agent TEXT without the L6 strip. An agent row whose
-    data carries the marker is still read (only `is_local_row` is consulted, and it knows action names, not the
-    marker). Latent: agent text is the model's own words. STRICT pin: fails when naming applies the marker check."""
+def test_L6_F22_PROVEN_the_naming_call_skips_a_row_whose_data_carries_the_marker():
+    """F-22, fixed by agent-lead (f21-f22): `name_conversation` screens stored rows for the marker, as run_turn does.
+    CONTROL: the same agent row WITHOUT the marker is read by the naming call."""
+    def naming_input(rows):
+        seen = []
+
+        def caller(**kw):
+            seen.append(kw)
+            return types.SimpleNamespace(content=[types.SimpleNamespace(type="text", text='{"title": "t"}')], usage=None)
+        turn.name_conversation(rows, caller=caller)
+        assert seen, "vacuous"
+        return json.dumps(seen, default=str)
     rows = [{"role": "member", "text": "q", "data": {}},
             {"role": "agent", "text": f"reads {SENT}",
              "data": {"envelope": {"disposition": "answer", "ops": []}, "attach": marked()}}]
-    seen = []
-
-    def caller(**kw):
-        seen.append(kw)
-        return types.SimpleNamespace(content=[types.SimpleNamespace(type="text", text='{"title": "t"}')], usage=None)
-    turn.name_conversation(rows, caller=caller)
-    assert seen, "vacuous"
-    assert SENT in _leaks(json.dumps(seen, default=str))
+    assert SENT not in _leaks(naming_input(rows))
+    plain = [rows[0], {**rows[1], "data": {"envelope": {"disposition": "answer", "ops": []}}}]
+    assert SENT in _leaks(naming_input(plain)), "CONTROL: an unmarked agent reply is still read"
