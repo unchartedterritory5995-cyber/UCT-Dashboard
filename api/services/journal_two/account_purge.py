@@ -101,6 +101,9 @@ _DIRECT_USER_TABLES = (
     "j2_obsidian_staging",
     "j2_obsidian_manifest",
     "j2_obsidian_connect_epoch",
+    # Plan C: staged vault attachments (rows here; the blob tree is removed in
+    # purge_user_data beside the attachment tree).
+    "j2_obsidian_attachments",
     # Trade-ref-keyed extras (attachments/excursions/rule-adherence)
     "j2_trade_attachments",
     "j2_trade_excursions",
@@ -410,6 +413,16 @@ def purge_user_data(user_id: str, conn: sqlite3.Connection, *,
     except Exception as e:  # noqa: BLE001 — disk cleanup must never mask the DB purge's result
         errors.append(f"attachments: {e}")
         log.warning("journal_two attachment purge failed for %s: %s", user_id, e)
+
+    # Plan C: staged Obsidian attachment blobs live OUTSIDE attachment_root() (so the
+    # attachment backup never tars them); their rows went with the table list above.
+    try:
+        from api.services.journal_two.note_connectors import obsidian_attachments
+        if obsidian_attachments.remove_user_tree(user_id):
+            freed_dirs += 1
+    except Exception as e:  # noqa: BLE001 -- disk cleanup must never mask the DB purge's result
+        errors.append(f"obsidian staging blobs: {e}")
+        log.warning("obsidian staging blob purge failed for %s: %s", user_id, e)
 
     example_dirs = 0
     try:

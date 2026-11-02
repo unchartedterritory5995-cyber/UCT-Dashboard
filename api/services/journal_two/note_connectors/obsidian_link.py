@@ -435,15 +435,22 @@ def revoke_devices(user_id: str) -> int:
     # their device rows are revoked as one fate, never "codes intact,
     # devices gone" or the reverse.
     invalidate_outstanding_codes(user_id)
+    # Plan C Task 1: staged attachment blobs go with the vault -- their rows in the SAME
+    # transaction as staging/manifest/devices, their files only after that commit (a
+    # failed commit must never leave rows pointing at deleted files).
+    from api.services.journal_two.note_connectors import obsidian_attachments
     conn = get_connection()
     try:
         conn.execute("DELETE FROM j2_obsidian_staging WHERE user_id = ?", (user_id,))
         conn.execute("DELETE FROM j2_obsidian_manifest WHERE user_id = ?", (user_id,))
+        obsidian_attachments.delete_user_rows(conn, user_id)
         cur = conn.execute("DELETE FROM j2_obsidian_devices WHERE user_id = ?", (user_id,))
         conn.commit()
-        return cur.rowcount
+        removed = cur.rowcount
     finally:
         conn.close()
+    obsidian_attachments.remove_user_tree(user_id)
+    return removed
 
 
 def authenticate_device(raw_token: str) -> dict[str, Any] | None:
