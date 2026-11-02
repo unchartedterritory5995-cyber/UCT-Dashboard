@@ -589,6 +589,11 @@ def _transform_wiki_and_embeds(
             key = import_key_fn(vault_id, resolved)
             return f"[{_NOTE_EXT_RE.sub('', _basename(resolved))}](<import-link://{_pct(key)}>)"
 
+        if resolved is None and _unresolved_bare_target(raw_target) != _strip_fragment(raw_target):
+            # A missing FILE whose name holds `#` (`[[report #2.pdf]]`): its name as text,
+            # like the embed branch and the client, never a pending link to a note
+            # `report` (Task 4 review R3, the full-text-first rule of ruling 1).
+            return (raw_alias or "").strip() or raw_target
         display = (raw_alias or "").strip() or _wikilink_display(raw_target)
         if resolved is None:
             # Not in the vault yet: the member's text, under a key that heals when

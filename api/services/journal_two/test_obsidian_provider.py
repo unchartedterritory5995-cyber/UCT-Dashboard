@@ -1017,6 +1017,12 @@ def test_a_hash_in_an_attachment_name_is_the_file_not_a_note_in_the_fallbacks():
     assert new["links"] == []
     assert _all(new["doc"], "importNotice") == []
     assert "my chart #1 (v2).png" in _plain(new["doc"])
+    # R3: the LINK form too (not only the embed), as the client shows it: the name as
+    # text, never a pending link `report > 2.pdf` to a note `report`.
+    link = _convert("see [[report #2.pdf]] and [[q3 #4.xlsx|the sheet]] now", refs=[])
+    assert link["links"] == []
+    assert _link_marks(link["doc"]) == []
+    assert _plain(link["doc"]) == "see report #2.pdf and the sheet now"
     # An anchor on a NOTE still splits: `[[Ghost#Risk]]` waits for `Ghost`, both ways.
     for refs in (None, []):
         conv = _convert("[[Ghost#Risk]] ![[Ghost#Risk]]", refs=refs)
