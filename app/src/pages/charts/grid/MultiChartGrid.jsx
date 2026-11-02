@@ -178,9 +178,18 @@ export default function MultiChartGrid({ mc }) {
       } else if (isNewSym) {
         mc.updateCellAt(i, next)                    // non-group manual ticker change
       } else {
-        // TF / chart-Style change: merge the changed fields onto the REAL target
-        // cell — never overwrite its (possibly still-loading) sym with loadSym.
-        mc.updateCellAt(i, { ...cur, tf: next?.tf ?? cur?.tf, chartType: next?.chartType ?? cur?.chartType })
+        // TF / chart-Style / own-settings change: merge the changed fields onto
+        // the REAL target cell — never overwrite its (possibly still-loading) sym
+        // with loadSym.
+        // ⭐ `settings` is the cell's OWN chart settings (policy A). It is merged by
+        // PRESENCE, not by `??`: "Reset to my chart" sends `settings: null`, and a
+        // nullish-coalesce would keep the fork it was asked to drop.
+        const merged = { ...cur, tf: next?.tf ?? cur?.tf, chartType: next?.chartType ?? cur?.chartType }
+        if (next && 'settings' in next) {
+          if (next.settings) merged.settings = next.settings
+          else delete merged.settings
+        }
+        mc.updateCellAt(i, merged)
       }
     }),
     [cells.length, mc.updateCellAt, spikeActive, inGroupMode, peerFiller, state.group],   // eslint-disable-line react-hooks/exhaustive-deps
@@ -258,6 +267,10 @@ export default function MultiChartGrid({ mc }) {
   }, [mountedIds, cells])
 
   // ── Shared chart settings modal (exact ChartWidget wiring) ──
+  // ⭐ THE ONE EXPLICITLY GLOBAL ACTION ON THE GRID (owner ruling 2026-11-02). Every
+  // other edit on a cell stays on that cell; this modal edits the member's shared
+  // chart_settings, and its title says so. A cell that has forked keeps its own
+  // settings until "Reset to my chart".
   const gridCs = mergeChartSettings(prefs.chart_settings)
   const updateChartSettings = useCallback((next) => {
     setPref('chart_settings', JSON.stringify(next))
@@ -491,6 +504,7 @@ export default function MultiChartGrid({ mc }) {
       <ChartSettingsModal
         open={mc.settingsOpen}
         onClose={() => mc.setSettingsOpen(false)}
+        title="Shared Chart Settings"
         settings={gridCs}
         onChange={updateChartSettings}
         savedColors={savedColors}

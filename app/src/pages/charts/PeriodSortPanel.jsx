@@ -3,6 +3,8 @@
 // chrome mirrors a workspace widget (compact header, grab dots, clickable colour dot,
 // gold corner resize on all four corners) and can dock into the grid or become a tab.
 import { useState, useCallback } from 'react'
+import usePreferences, { parsePref } from '../../hooks/usePreferences'
+import { WATCHLIST_SETTINGS_KEY } from '../watchlist/watchlistSettings'
 import PeriodSortResults from './widgets/PeriodSortResults'
 import UIcon from '../../components/ui/UIcon'
 import styles from './PeriodSortPanel.module.css'
@@ -30,6 +32,16 @@ export default function PeriodSortPanel({ start, end, onClose, onDock, onAddAsTa
   const [tabMenuOpen, setTabMenuOpen] = useState(false)
   const [panelColor, setPanelColor] = useState('A')
   const extraGroupsOn = useExtraGroupsEnabled()
+  // ⭐ POLICY A (owner ruling 2026-11-02): an edit is saved where the list lives.
+  // This floating window owns no persisted store (its position, size and colour
+  // are session state too), so its watchlist settings are scoped to THIS window
+  // for the session. Without a sink, Watchlists wrote every ⚙ edit made here to
+  // the member's GLOBAL watchlist_settings, restyling every list they own.
+  // The seed is unchanged: the host's look, else the member's own template.
+  const { prefs } = usePreferences()
+  const [ownWlSettings, setOwnWlSettings] = useState(null)
+  const persistWlSettings = useCallback((next) => setOwnWlSettings(next && typeof next === 'object' ? next : null), [])
+  const wlSettingsOverride = ownWlSettings || parsePref(prefs?.[WATCHLIST_SETTINGS_KEY], null) || null
 
   const onHeaderPointerDown = useCallback((e) => {
     if (e.target.closest('[data-no-drag]')) return
@@ -98,7 +110,7 @@ export default function PeriodSortPanel({ start, end, onClose, onDock, onAddAsTa
         </div>
       </div>
       <div className={styles.panelBody}>
-        <PeriodSortResults start={start} end={end} color={panelColor} group={group} symbolsFilter={symbolsFilter} titlePrefix={titlePrefix} />
+        <PeriodSortResults start={start} end={end} color={panelColor} group={group} symbolsFilter={symbolsFilter} titlePrefix={titlePrefix} settingsOverride={wlSettingsOverride} onSettingsPersist={persistWlSettings} />
       </div>
       {/* Gold resize corners — grab any of the four to resize. */}
       <span className={`${styles.corner} ${styles.cornerNW}`} onPointerDown={startResize('nw')} />

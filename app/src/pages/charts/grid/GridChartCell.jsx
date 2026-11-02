@@ -25,7 +25,8 @@ import useMarketOpen from '../../../hooks/useMarketOpen'
 import usePreferences from '../../../hooks/usePreferences'
 import useChartSurfaceSettings from '../../../components/chart/pane/useChartSurfaceSettings'
 import { getExtSessionCached } from '../../../utils/extSession'
-import { CHART_TYPE_OPTIONS, mergeChartSettings } from '../../../components/chart/chartDefaults'
+import { CHART_TYPE_OPTIONS, mergeChartSettings, mergeSettingsOverride } from '../../../components/chart/chartDefaults'
+import { sanitizeCellSettings } from './gridLayouts'
 import UIcon from '../../../components/ui/UIcon'
 import wsStyles from '../ChartsWorkspace.module.css'
 import styles from './MultiChartGrid.module.css'
@@ -75,7 +76,7 @@ function GridChartCell({
   const sym = cell.sym
 
   // ── Header data (mirrors ChartWidget so grid cells match the primary chart) ──
-  const { prefs, setPref } = usePreferences()
+  const { prefs } = usePreferences()
   const { data: fund } = useFundamentalSnapshot(sym)
   const meta = useTickerMeta(sym)
   const headerLabel = meta?.name || sym || ''
@@ -94,8 +95,8 @@ function GridChartCell({
     : uctRating >= 40 ? (_sun ? '#7a5c16' : '#c9a84c')
     : (_sun ? '#7d1620' : '#c07a63')
 
-  // Session toggle — ephemeral per-cell (D/W/M) + shared extendedHoursShading
-  // pref (intraday). Copied verbatim from ChartWidget so behavior is identical.
+  // Session toggle — ephemeral per-cell (D/W/M) + this cell's own
+  // extendedHoursShading (intraday, written to the cell — see setExtHours).
   const mkt = useMarketOpen()
   const [sessionView, setSessionView] = useState('regular')
   useEffect(() => { if (mkt.isOpen) setSessionView('regular') }, [mkt.isOpen])
@@ -103,11 +104,6 @@ function GridChartCell({
   const _extSess = getExtSessionCached()
   const extEnabled = _extSess.session === 'pre' || _extSess.session === 'post'
   const extLabel = _extSess.session === 'pre' ? 'Include pre-market' : 'Include post-market'
-  const extHoursOn = mergeChartSettings(prefs.chart_settings).extendedHoursShading ?? true
-  const setExtHours = useCallback((on) => {
-    const next = { ...mergeChartSettings(prefs.chart_settings), extendedHoursShading: on, preset: 'custom' }
-    setPref('chart_settings', JSON.stringify(next))
-  }, [prefs.chart_settings, setPref])
 
   const { isFlagged, toggle: toggleFlag } = useFlagged()
   const [flagToast, setFlagToast] = useState(null)
@@ -184,11 +180,63 @@ function GridChartCell({
   // reference as `ownChartSource`) rather than spread into a new object, so
   // an unrelated re-render never fabricates a fresh identity. Stable identity
   // per the settingsOverride contract (StockChart memo dep).
+  //
+  // ⭐ POLICY A (owner ruling 2026-11-02): "changes to an individual chart should
+  // remain scoped to that chart unless the user explicitly requests a global
+  // change." A cell that has been edited carries its OWN settings (`cell.settings`,
+  // the full blob, forked on the first edit) and that blob replaces the own-chart
+  // source here. An unforked cell is byte-identical to before.
+  const cellSettings = useMemo(() => sanitizeCellSettings(cell.settings), [cell.settings])
+  const forked = !!cellSettings
   const settingsOverride = useMemo(() => {
-    if (!ownChartSource && !cell.chartType) return null
-    if (!cell.chartType) return ownChartSource
-    return { ...(ownChartSource || {}), chartType: cell.chartType }
-  }, [ownChartSource, cell.chartType])
+    const src = cellSettings || ownChartSource
+    if (!src && !cell.chartType) return null
+    if (!cell.chartType) return src
+    return { ...(src || {}), chartType: cell.chartType }
+  }, [cellSettings, ownChartSource, cell.chartType])
+
+  // ⛔⛔ THE CELL'S WRITE SINK. Without it StockChart writes every edit that is not
+  // an overridden key — and `indicatorInstances` is a NEW array after any add,
+  // hide or remove, so it is never "unchanged" — into the member's GLOBAL
+  // chart_settings: one indicator added to one cell appeared on every chart they
+  // own. With it, the whole edited blob lands on THIS cell and nowhere else.
+  // Identity-stable (StockChart keys effects off it): live values come via refs.
+  const liveRef = useRef(null)
+  liveRef.current = { cell, onChange, cellSettings, ownChartSource, globalChartType: mergeChartSettings(prefs.chart_settings).chartType }
+  const persistCellSettings = useCallback((next) => {
+    const live = liveRef.current
+    if (!next || typeof next !== 'object' || !live) return
+    let stored = next
+    // The per-cell Style picker lives on `cell.chartType`, which wins over the
+    // blob anyway. Keep the blob's OWN chart type as it was, so the picker's
+    // "Style" (inherit) still means "this chart's type", not a copy of the pick.
+    if (live.cell.chartType && next.chartType === live.cell.chartType) {
+      const own = live.cellSettings
+        ? live.cellSettings.chartType
+        : (live.ownChartSource?.chartType ?? live.globalChartType)
+      stored = { ...next }
+      if (own === undefined) delete stored.chartType
+      else stored.chartType = own
+    }
+    live.onChange({ ...live.cell, settings: stored })
+  }, [])
+  const resetToMyChart = useCallback(() => {
+    const live = liveRef.current
+    live?.onChange({ ...live.cell, settings: null })
+  }, [])
+
+  // Session toggle (intraday): the extended-hours shading the chart actually
+  // shows is THIS cell's effective settings (own blob or own chart over the
+  // global seed — StockChart's own merge), and a click writes to THIS cell. It
+  // used to write the member's global chart_settings from a per-cell button.
+  const effectiveCs = useMemo(() => {
+    const base = mergeChartSettings(prefs.chart_settings)
+    return settingsOverride ? mergeSettingsOverride(base, settingsOverride) : base
+  }, [prefs.chart_settings, settingsOverride])
+  const extHoursOn = effectiveCs.extendedHoursShading ?? true
+  const setExtHours = useCallback((on) => {
+    persistCellSettings({ ...effectiveCs, extendedHoursShading: on, preset: 'custom' })
+  }, [effectiveCs, persistCellSettings])
   const handleTypeChange = useCallback((val) => {
     onChange({ ...cell, chartType: val || null })
   }, [cell, onChange])
@@ -291,13 +339,24 @@ function GridChartCell({
             <option key={code || 'inherit'} value={code}>{label}</option>
           ))}
         </select>
+        {forked && (
+          <button
+            type="button"
+            className={styles.cellResetBtn}
+            onClick={resetToMyChart}
+            title="This chart has its own settings. Reset it to match your main chart."
+          >
+            <UIcon name="refresh" size={12} />
+            <span>Reset to my chart</span>
+          </button>
+        )}
         <span className={styles.cellHeaderRight}>
           <button
             type="button"
             className={wsStyles.chartSettingsBtn}
             onClick={() => onOpenSettings?.()}
-            title="Chart settings"
-            aria-label="Chart settings"
+            title="Shared chart settings (all charts)"
+            aria-label="Shared chart settings"
           >
             <UIcon name="gear" size={15} />
           </button>
@@ -468,6 +527,7 @@ function GridChartCell({
             priceScaleBottomMargin={0.10}
             canvasTheme={canvasTheme}
             settingsOverride={settingsOverride}
+            onSettingsPersist={persistCellSettings}
             sessionView={sessionView}
             hideExtHoursToolbarToggle
           />
@@ -506,8 +566,13 @@ function GridChartCell({
             <button type="button" className={wsStyles.chartCtxItem} onClick={() => { ctxMenu.resetView?.(); closeCtx() }}>
               <UIcon name="refresh" size={14} className={wsStyles.chartCtxIcon} />Reset view
             </button>
+            {forked && (
+              <button type="button" className={wsStyles.chartCtxItem} onClick={() => { resetToMyChart(); closeCtx() }}>
+                <UIcon name="refresh" size={14} className={wsStyles.chartCtxIcon} />Reset to my chart
+              </button>
+            )}
             <button type="button" className={wsStyles.chartCtxItem} onClick={() => { onOpenSettings?.(); closeCtx() }}>
-              <UIcon name="gear" size={14} className={wsStyles.chartCtxIcon} />Chart settings
+              <UIcon name="gear" size={14} className={wsStyles.chartCtxIcon} />Shared chart settings
             </button>
           </div>
         </>

@@ -290,6 +290,9 @@ const CROSSHAIR_MODE_LABELS = {
 
 export default function ChartSettingsModal({
   open, onClose, settings, onChange, savedColors = [], onSaveColor, onDeleteColor, themeVars = null,
+  // The window's title. A host whose modal edits SHARED settings (the multi-chart
+  // grid) names that here so the scope of the edit is visible before it is made.
+  title = 'Chart Settings',
   // ⭐ A1.2 — the chart's indicator Undo stack, for the Indicators tab's Undo / Redo.
   historyKey = null, historyUserId = null,
   // Optional: apply a UCT theme to EVERY chart in the layout at once. Supplied by
@@ -963,7 +966,7 @@ export default function ChartSettingsModal({
         style={{ ...(themeVars || {}), ...(pos ? { position: 'fixed', left: pos.left, top: pos.top, margin: 0, animation: 'none' } : {}) }}
       >
         <div className={styles.header} onPointerDown={startDrag} style={{ cursor: 'move' }}>
-          <span className={styles.title}>Chart Settings</span>
+          <span className={styles.title}>{title}</span>
           <div className={styles.headerRight} onPointerDown={e => e.stopPropagation()}>
             <button
               type="button"
