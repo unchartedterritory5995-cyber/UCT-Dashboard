@@ -17,7 +17,7 @@ export default function ChartIqToolbarButton({ active, onToggle, daily = true })
       aria-label="Toggle Chart IQ pattern recognition"
       aria-pressed={active}
       data-testid="chart-iq-toggle"
-      style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.3, padding: '2px 6px', whiteSpace: 'nowrap', flexShrink: 0, opacity: daily ? 1 : 0.6 }}
+      style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.3, padding: '2px 6px', whiteSpace: 'nowrap', flexShrink: 0, width: 'auto', minWidth: 24, opacity: daily ? 1 : 0.6 }}
     >
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
         <span style={{ fontSize: 12, lineHeight: 1 }}><UIcon name="compass" size={12} /></span>

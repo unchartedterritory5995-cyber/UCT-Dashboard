@@ -20727,6 +20727,15 @@ export default function StockChart({
           candles={ohlcData}
         />
       )}
+      {/* Chart IQ is ON but this chart is not daily: say so (and offer the switch) instead of a switch that silently does nothing.
+          Measured on the live phone shell 2026-11-02: the phone chart sat on 15m, so turning Chart IQ on drew nothing. */}
+      {chartIqOn && resolvedTf !== 'D' && bars?.length > 0 && (
+        <ChartIqPanel
+          notDaily
+          onShowDaily={typeof onTfChange === 'function' ? () => onTfChange('D') : null}
+          onClose={() => handleToggleChartIq(false)}
+        />
+      )}
       {chartIqActive && bars?.length > 0 && (
         <ChartIqPanel
           data={chartIqData && String(chartIqData.ticker || '').toUpperCase() === String(sym || '').toUpperCase() ? chartIqData : null}

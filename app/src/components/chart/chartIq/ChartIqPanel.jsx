@@ -85,8 +85,27 @@ export function errorText(error) {
   return 'Chart IQ could not read this chart'
 }
 
-export default function ChartIqPanel({ data, loading, error, layers, onLayer, onClose }) {
+export default function ChartIqPanel({ data, loading, error, layers, onLayer, onClose, notDaily = false, onShowDaily = null }) {
   const [open, setOpen] = useState(false)
+  if (notDaily) {
+    return (
+      <div style={box} data-testid="chart-iq-panel" onPointerDown={(e) => e.stopPropagation()}>
+        <div style={{ ...head, cursor: 'default' }}>
+          <span style={tag}>Chart IQ</span>
+          <span style={{ flex: 1 }} data-testid="chart-iq-not-daily">reads daily charts</span>
+          {onShowDaily ? (
+            <button type="button" onClick={onShowDaily}
+              style={{ background: 'none', border: '1px solid var(--gold, #e3b341)', color: 'var(--gold, #e3b341)', borderRadius: 4,
+                cursor: 'pointer', fontSize: 11, fontWeight: 700, padding: '2px 8px', minHeight: 26 }}>Show daily</button>
+          ) : null}
+          {onClose ? (
+            <button type="button" aria-label="Turn Chart IQ off" onClick={onClose}
+              style={{ background: 'none', border: 0, color: 'inherit', cursor: 'pointer', fontSize: 14, padding: '0 2px' }}>×</button>
+          ) : null}
+        </div>
+      </div>
+    )
+  }
   const status = error ? errorText(error) : loading && !data ? 'Chart IQ is reading the chart...' : ''
   return (
     <div style={box} data-testid="chart-iq-panel" onPointerDown={(e) => e.stopPropagation()}>
