@@ -698,3 +698,17 @@ describe('obsidian adapter — D2 item 1: callouts are callout nodes', () => {
     }
   })
 })
+
+// D2 item 5 (shared parse, `convert.js::htmlToNote`): through this importer.
+describe('obsidian adapter — D2 item 5: no empty paragraph, no lost space', () => {
+  const shape = (n) => (n.type === 'text' ? JSON.stringify(n.text)
+    : n.type + (n.content ? `(${n.content.map(shape).join(', ')})` : ''))
+  it('a markdown image alone on its line, and text before a file chip', async () => {
+    const { docs } = await obsidianAdapter.parse([
+      vf('V/a.md', 'Top\n\n![](att/a.png)\n\nRead [the report](att/q.pdf) before the open.'),
+      vf('V/att/a.png', 'i'), vf('V/att/q.pdf', 'q')])
+    const d = docs.find((x) => x.importKey === 'obsidian:V/a.md')
+    expect(shape(htmlToNote(d.html).bodyJson)).toBe(
+      'doc(paragraph("Top"), image, paragraph("Read "), attachmentChip, paragraph(" before the open."))')
+  })
+})

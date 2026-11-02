@@ -113,3 +113,28 @@ describe('evernote adapter: en-media unwrap (same trap as en-todo)', () => {
     expect(d.media).toHaveLength(1)
   })
 })
+
+// D2 item 5 (shared parse, `convert.js::htmlToNote`): through an .enex note.
+describe('evernote adapter — D2 item 5: no empty paragraph, no lost space', () => {
+  const shape = (n) => (n.type === 'text' ? JSON.stringify(n.text)
+    : n.type + (n.content ? `(${n.content.map(shape).join(', ')})` : ''))
+  it('an image alone in its paragraph, and text before a file chip', async () => {
+    const { htmlToNote } = await import('./convert')
+    const pdfB64 = btoa('%PDF-1.4 d2')
+    const pdfMd5 = SparkMD5.ArrayBuffer.hash(Uint8Array.from(atob(pdfB64), (c) => c.charCodeAt(0)).buffer)
+    const note = `<?xml version="1.0" encoding="UTF-8"?>
+<en-export><note><title>Shapes</title>
+  <content><![CDATA[<?xml version="1.0"?><!DOCTYPE en-note SYSTEM "http://xml.evernote.com/pub/enml2.dtd">
+<en-note><p>Top</p><p><en-media type="image/png" hash="${pngMd5}"></en-media></p><div>Read <en-media type="application/pdf" hash="${pdfMd5}"></en-media> more</div></en-note>]]></content>
+  <created>20240105T093000Z</created>
+  <resource><data encoding="base64">${PNG_B64}</data><mime>image/png</mime>
+   <resource-attributes><file-name>chart.png</file-name></resource-attributes></resource>
+  <resource><data encoding="base64">${pdfB64}</data><mime>application/pdf</mime>
+   <resource-attributes><file-name>plan.pdf</file-name></resource-attributes></resource>
+</note></en-export>`
+    const file = { path: 'N.enex', size: note.length, lastModified: null, bytes: async () => new TextEncoder().encode(note) }
+    const { docs } = await evernoteAdapter.parse([file])
+    expect(shape(htmlToNote(docs[0].html).bodyJson)).toBe(
+      'doc(paragraph("Top"), image, paragraph("Read "), attachmentChip, paragraph(" more"))')
+  })
+})

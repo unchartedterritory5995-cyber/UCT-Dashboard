@@ -194,3 +194,18 @@ describe('notion adapter — detect (0.7 tier: index.html beside a hex-suffixed 
     expect(score).toBe(0)
   })
 })
+
+// D2 item 5 (shared parse, `convert.js::htmlToNote`): through the Notion markdown export.
+describe('notion adapter — D2 item 5: no empty paragraph, no lost space', () => {
+  const shape = (n) => (n.type === 'text' ? JSON.stringify(n.text)
+    : n.type + (n.content ? `(${n.content.map(shape).join(', ')})` : ''))
+  it('an image alone on its line, and text before a file chip', async () => {
+    const { htmlToNote } = await import('./convert')
+    const bin = (p) => ({ path: p, size: 1, lastModified: null, bytes: async () => new Uint8Array([1]) })
+    const { docs } = await notionAdapter.parse([
+      vf(`Page ${HEX}.md`, `Top\n\n![](Page%20${HEX}/img.png)\n\nRead [notes](Page%20${HEX}/notes.pdf) more`),
+      bin(`Page ${HEX}/img.png`), bin(`Page ${HEX}/notes.pdf`)])
+    expect(shape(htmlToNote(docs[0].html).bodyJson)).toBe(
+      'doc(paragraph("Top"), image, paragraph("Read "), attachmentChip, paragraph(" more"))')
+  })
+})

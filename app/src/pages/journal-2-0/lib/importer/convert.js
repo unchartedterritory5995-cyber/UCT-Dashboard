@@ -1,11 +1,15 @@
-import { generateJSON } from '@tiptap/core'
+import { generateJSON, getSchema } from '@tiptap/core'
+import { Fragment } from '@tiptap/pm/model'
 import { buildExtensions, extractPlainText } from '../tiptap'
 import { heldBody } from './uctJson'
 
 const BANNED_TAGS = new Set(['SCRIPT', 'IFRAME', 'FORM', 'OBJECT', 'EMBED', 'STYLE', 'LINK', 'META'])
 
 export function sanitizeHtml(html) {
-  const doc = new DOMParser().parseFromString(html || '', 'text/html')
+  return sanitizeDoc(new DOMParser().parseFromString(html || '', 'text/html')).body.innerHTML
+}
+
+function sanitizeDoc(doc) {
   // Remove banned tags by checking tagName.toUpperCase() to handle SVG/MathML foreign content
   ;[...doc.getElementsByTagName('*')].forEach((el) => {
     if (BANNED_TAGS.has(el.tagName.toUpperCase())) el.remove()
@@ -25,7 +29,7 @@ export function sanitizeHtml(html) {
   mapCalloutsAndToggles(doc)
   mapMathCode(doc)
   rewriteImportLinks(doc)
-  return doc.body.innerHTML
+  return doc
 }
 
 // Wave 8 lane 8C: our web-page export writes a formula as its TeX in `<code class="math">`
@@ -167,13 +171,114 @@ export function mapCheckboxLists(doc) {
   })
 }
 
+// ── D2 item 5: a block atom splitting a paragraph ───────────────────────────
+//
+// An image or an attachment chip is a BLOCK node, so ProseMirror's parser closes the
+// paragraph around it. Two artifacts came of that, in every file importer:
+//   (a) `<p><img></p>` (a markdown image alone on its line) left an EMPTY paragraph
+//       before the image: the `<p>` was opened explicitly, then closed with nothing in it;
+//   (b) the text before the atom lost its trailing space (`Read ` read `Read`), because
+//       the parser strips trailing whitespace from a block it closes.
+// The server lane hoists the atom and keeps both texts as written (`mddoc._wrap_paragraph`).
+// Here each such edge gets a MARKER before parsing, and the marker comes out after: for
+// (a) a marker text where the empty paragraph would be (that paragraph is then dropped,
+// unless the schema needs it, e.g. a list item's first paragraph), and for (b) a marker
+// right after the trailing space, so the space is no longer trailing when the parser
+// closes the block. Nothing else in the parse changes.
+// ⛔ The marker is a Unicode noncharacter the note does NOT contain (the first of
+// U+FDD0-U+FDEF absent from the HTML), so the member's own text is never taken for it.
+// A note holding all 32 keeps today's parse.
+const BLOCK_ATOMS = 'img, a[data-type="attachmentChip"]'
+const WS_END_RE = /[ \t\r\n\f]$/
+const NON_WS_RE = /[^ \t\r\n\f]/
+
+function pickMarker(html) {
+  for (let code = 0xfdd0; code <= 0xfdef; code += 1) {
+    const ch = String.fromCharCode(code)
+    if (!html.includes(ch)) return ch
+  }
+  return null
+}
+
+function lastTextIn(node) {
+  if (!node) return null
+  if (node.nodeType === 3) return node
+  for (let child = node.lastChild; child; child = child.previousSibling) {
+    const found = lastTextIn(child)
+    if (found) return found
+  }
+  return null
+}
+
+function markBlockAtomEdges(doc, marker) {
+  let marked = 0
+  for (const atom of doc.body.querySelectorAll(BLOCK_ATOMS)) {
+    let prev = atom.previousSibling
+    while (prev && prev.nodeType === 3 && !NON_WS_RE.test(prev.data)) prev = prev.previousSibling
+    if (!prev) {
+      // (a) the atom opens its paragraph: mark the paragraph the parser would leave empty.
+      if (atom.parentElement?.tagName === 'P') {
+        atom.before(doc.createTextNode(marker))
+        marked += 1
+      }
+      continue
+    }
+    // (b) the text right before the atom ends in whitespace: keep it from trailing.
+    const text = lastTextIn(atom.previousSibling)
+    if (text && WS_END_RE.test(text.data) && NON_WS_RE.test(text.data)) {
+      text.data += marker
+      marked += 1
+    }
+  }
+  return marked
+}
+
+function isBlank(node) {
+  return (node.content || []).every((c) => c.type === 'text' && !NON_WS_RE.test(c.text))
+}
+
+// Takes the marker out of every text, and drops a paragraph the marker left blank, unless
+// its parent's schema needs it there. Returns [the cleaned node, whether it held a marker].
+function dropMarker(node, marker, schema) {
+  if (!Array.isArray(node.content)) return [node, false]
+  let had = false
+  const content = [] // { node, ours }: `ours` is a blank paragraph only the marker made
+  for (const child of node.content) {
+    if (child.type === 'text' && typeof child.text === 'string' && child.text.includes(marker)) {
+      had = true
+      const text = child.text.split(marker).join('')
+      if (text) content.push({ node: { ...child, text }, ours: false })
+      continue
+    }
+    const [clean, childHad] = dropMarker(child, marker, schema)
+    content.push({ node: clean, ours: childHad && clean.type === 'paragraph' && isBlank(clean) })
+  }
+  let kept = content.filter((c) => !c.ours)
+  if (kept.length !== content.length) {
+    const type = schema.nodes[node.type]
+    if (!type || !type.validContent(Fragment.fromJSON(schema, kept.map((c) => c.node)))) kept = content
+  }
+  const out = { ...node }
+  if (kept.length) out.content = kept.map((c) => c.node)
+  else delete out.content
+  return [out, had]
+}
+
 let _ext
+let _schema
 export function htmlToNote(html) {
   // A body the importer already holds (a note from our own JSON export) is answered with
   // that body, never re-derived from HTML it does not have (`uctJson.js::heldBody`).
   const held = heldBody(html)
   if (held) return { bodyJson: held, bodyPlain: extractPlainText(held) }
   _ext = _ext || buildExtensions()
-  const bodyJson = generateJSON(sanitizeHtml(html), _ext)
+  const doc = sanitizeDoc(new DOMParser().parseFromString(html || '', 'text/html'))
+  const marker = pickMarker(html || '')
+  const marked = marker ? markBlockAtomEdges(doc, marker) : 0
+  let bodyJson = generateJSON(doc.body.innerHTML, _ext)
+  if (marked) {
+    _schema = _schema || getSchema(_ext)
+    bodyJson = dropMarker(bodyJson, marker, _schema)[0]
+  }
   return { bodyJson, bodyPlain: extractPlainText(bodyJson) }
 }

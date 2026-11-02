@@ -219,31 +219,12 @@ const knownClientGap = {
   // Both lanes dropped the no-dot stem rule (`[[chart]]` names `chart.md` only), and
   // both check a `#`-holding target against the vault's full file names before
   // splitting an anchor (`![[my chart #1 (v2).png]]` keeps its image).
-  // 18-attachment-names: images, files and links now agree. What is left is TEXT
-  // whitespace only, from the client's HTML parse, not from either resolver: (a) the
-  // markdown image `![](attachments/...)` renders as `<p><img></p>`, and the shared
-  // parse (`convert.js::htmlToNote`) leaves an EMPTY paragraph beside the block image
-  // (the server hoists the image out, no paragraph); (b) `Read ` loses its trailing
-  // space when the block chip splits the paragraph (the server keeps `Read `). The
-  // member reads the same words. Closed by D2 (shared-parse fidelity: the empty paragraph
-  // beside a block image, the trailing space at a chip split; tested across all
-  // importers): delete this entry then.
-  // Both lanes also drop the link text `the report` for a chip (no label attribute);
-  // D2 adds an optional `attachmentChip.label`, and this fixture's `files`/`text` move
-  // when it lands.
-  '18-attachment-names.json': {
-    clientReads: {
-      text: 'Attachment names  Read [file: q3 report.pdf]  before the open.',
-    },
-  },
-  // D2 items 3 and 4: images, links and the alias text agree. What is left is the same
-  // shared-parse whitespace as 18 (a): the image splits its paragraph and the client keeps
-  // the EMPTY paragraph before it. Closed by D2 item 5: delete this entry then.
-  '19-nested-embeds.json': {
-    clientReads: {
-      text: 'Nested embeds   after the chart. al.ias after the alias. Plan and the plan now.',
-    },
-  },
+  // ⚰️ 18-attachment-names and 19-nested-embeds: their text gaps (the EMPTY paragraph
+  // beside a block image, and `Read ` losing its trailing space at a chip split, from the
+  // shared parse `convert.js::htmlToNote`) are closed by D2 item 5.
+  // Both lanes still drop the link text `the report` for a chip in 18 (no label
+  // attribute); D2 item 6 adds an optional `attachmentChip.label`, and 18's `files`/`text`
+  // move when it lands.
 }
 
 describe('Obsidian client<->server pre-pass parity', () => {
