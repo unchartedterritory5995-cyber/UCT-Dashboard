@@ -386,7 +386,11 @@ describe('⛔ what 2F-2A does NOT do — every wall named', () => {
     //     admitting it would need that implementation factored first.
     // A test that keeps asserting the wall a wave just removed is the failure
     // this annotation exists to make visible, twice over.
-    expect(refusalOf(`${head}var x = 0.0\nx := close\nplot(ta.hma(x, 5))\n`).guard)
+    // ⚰️ W19-R1 (step 104) SERVES `ta.hma` OVER STATE where it runs on every evaluation
+    // (`w19r1HullOverState.test.js`, graded on TradingView's `hma-close20`); the composite
+    // still refused is the one in an arm of `?:`, whose own series Pine keeps only on the
+    // evaluations that reach it.
+    expect(refusalOf(`${head}var x = 0.0\nx := close\nplot(close > open ? ta.hma(x, 5) : na)\n`).guard)
       .toBe('runtime:call-windowed-state')
   })
 })

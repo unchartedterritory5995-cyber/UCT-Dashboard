@@ -2373,6 +2373,16 @@ function cumCol(series) {
   return out
 }
 
+/** ⭐ HULL'S TWO DERIVED WINDOWS for a length `n` — `floor(n / 2)` and
+ *  `round(sqrt(n))`, each floored at 1 (`closedTable.json::_functions_hull`).
+ *  ONE authority: the columnar `FN.hma` and the runtime lane's `ta.hma` over
+ *  state (`pineRuntimeFrontend.js`, W19-R1) both ask it, so the two lanes cannot
+ *  size the half or the root window differently. */
+export const hullSpans = (n) => ({
+  half: Math.max(1, Math.floor(n / 2)),
+  root: Math.max(1, Math.round(Math.sqrt(n))),
+})
+
 export const FINITE_WINDOW = Object.freeze({
   sma: { reduce: windowMean, span: (n) => n, na: NA.SKIP },
   wma: { reduce: windowWeightedMean, span: (n) => n, na: NA.FFILL },
@@ -2809,8 +2819,7 @@ export const FN = Object.freeze({
   // `_functions_hull`. A window of 0 is not a window, and `hma(close, 1)` is the
   // case that finds a missing floor.
   hma: (series, n) => {
-    const half = Math.max(1, Math.floor(n / 2))
-    const root = Math.max(1, Math.round(Math.sqrt(n)))
+    const { half, root } = hullSpans(n)
     const near = rolling(series, half, windowWeightedMean)
     const full = rolling(series, n, windowWeightedMean)
     const raw = near.map((v, i) => 2 * v - full[i])

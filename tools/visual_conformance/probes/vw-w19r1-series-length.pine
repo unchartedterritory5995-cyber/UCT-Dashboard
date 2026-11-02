@@ -1,0 +1,40 @@
+//@version=6
+indicator("UCTPROBE_VW_W19R1_SERIES_LENGTH", overlay = false, max_bars_back = 1000)
+
+// --- 2026-10-05 W19-R1 - a SERIES window length, with the erroring row taken out ----
+//
+// CAPTURE: NYSE:RDDT 1D from the listing AND AMEX:SPY 1D (full history), inputs at
+// defaults. A runtime error is a reading: record the message and the row.
+//
+// WHY A SECOND PROBE: `vw-rt12-statements-history.pine` (Q-RT12a) stopped on bar 0 at
+// its L04 row - CAP5 S1-7 / S2-5: RE10001 "Invalid value of the 'length' argument (0)
+// in the 'lowest' function. It must be > 0." (an `na` length is read as 0). That error
+// IS a reading (settled, and served: a length below 1 stops the script, we refuse it by
+// name), but it erased every other row of that probe. This probe repeats those rows
+// WITHOUT an `na` / 0 length, so each one is a plot.
+//
+//   S00  the length itself (CONTROL)                        = RT12 L00
+//   S01  ta.lowest(len) / S02 ta.highest(len)               = RT12 L01 / L02
+//        len = barssince(close > open) + 1 (1 .. a few dozen)
+//   S03  ta.lowest(low, bar_index + 5)  (longer than the bars that exist) = RT12 L03
+//   S05  market-structure-break-order-block:60 as written   = RT12 L05
+//   S06  ta.highestbars(high, bar_index % 7 + 1)            = RT12 L06 (zigzag-multi-time-frame shape)
+//   S07  ta.highestbars(high, nz(len7, 1)), len7 `na` until the first 'D' change, then
+//        bar_index - valuewhen(...) + 1   (zigzag-multi-time-frame-with-fibonacci-retracement:25-29)
+//   S08  ta.lowest(low, bar_index + 1)  on a script whose max_bars_back is 1000: past bar 1000
+//        the window is longer than the declared buffer (a runtime error is the reading)
+
+len = nz(ta.barssince(close > open), 0) + 1
+plot(len, "S00_len_CONTROL")
+plot(ta.lowest(len), "S01_lowest_series_len")
+plot(ta.highest(len), "S02_highest_series_len")
+plot(ta.lowest(low, bar_index + 5), "S03_lowest_len_past_listing")
+lts = ta.barssince((close > open)[1])
+plot(ta.lowest(nz(lts > 0 ? lts : 1, 1)), "S05_msbob_shape")
+plot(ta.highestbars(high, bar_index % 7 + 1), "S06_highestbars_series_len")
+bool newbar = ta.change(time("W")) != 0
+bi = ta.valuewhen(newbar, bar_index, 1)
+len7 = bar_index - bi + 1
+plot(ta.highestbars(high, nz(len7, 1)), "S07_zigzag_mtf_shape")
+plot(len7, "S07b_len7_CONTROL")
+plot(ta.lowest(low, bar_index + 1), "S08_lowest_past_max_bars_back")

@@ -1,0 +1,31 @@
+//@version=5
+indicator("UCTPROBE_VW_W19R1_HMA_STATE", overlay = false)
+
+// --- 2026-10-05 W19-R1 - `ta.hma` over runtime state, and over a source with `na` holes ---
+//
+// CAPTURE: NYSE:RDDT 1D from the listing AND AMEX:SPY 1D, inputs at defaults.
+//
+// W19-R1 serves `ta.hma(x, n)` with `x` runtime state (a parameter, a `var`) as the
+// columnar lane computes it: wma(2 * wma(x, floor(n/2)) - wma(x, n), round(sqrt(n))).
+// Graded so far on `hma-close20-2026-09-06` (SPY 1D, a source with no holes).
+//
+//   H00  ta.hma(close, 20)                      (CONTROL, = the 2026-09-06 capture)
+//   H01  f(x, n) => ta.hma(x, n), f(close, 20)  (a parameter; must equal H00)
+//   H02  ta.hma(s, 9), s a `var` := close        (runtime state)
+//   H03  ta.hma(xh, 9), xh = close with `na` on every 7th bar   (UNSETTLED: the host lane's
+//        hma windows the holes as `na`, the runtime lane's composition uses the measured
+//        `ta.wma` rule (an `na` replaced by the last value); this row says which TradingView does)
+//   H04  ta.hma(xh, 9) inside a function, called every bar (the runtime lane's form of H03)
+//   H05  ta.hma(close, 9) inside one arm of `?:` taken on up bars only (REFUSED by W19-R1:
+//        does TradingView keep the Hull's own series only on the bars the arm runs?)
+
+f(x, n) => ta.hma(x, n)
+var float s = na
+s := close
+xh = bar_index % 7 == 0 ? na : close
+plot(ta.hma(close, 20), "H00_hma20_CONTROL")
+plot(f(close, 20), "H01_hma20_parameter")
+plot(ta.hma(s, 9), "H02_hma9_var")
+plot(ta.hma(xh, 9), "H03_hma9_na_holes")
+plot(f(xh, 9), "H04_hma9_na_holes_parameter")
+plot(close > open ? ta.hma(close, 9) : na, "H05_hma9_in_arm")

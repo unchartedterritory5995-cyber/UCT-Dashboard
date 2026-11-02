@@ -246,7 +246,11 @@ plot(a)
     // table has had to move a row off a shipped capability. What remains is a
     // WINDOW COMPOSITE (`hma`, assembled from FINITE_WINDOW members) and a
     // carried-SHAPED builtin that binds a shipped implementation (`rsi`).
-    ['a WINDOW-COMPOSITE builtin fed by state', `${head}var x = 0.0\nx := close\nplot(ta.hma(x, 5))\n`, 'runtime:call-windowed-state'],
+    // ⚰️ W19-R1 (step 104) SERVES `ta.hma` OVER STATE where it runs on every evaluation
+    // (`w19r1HullOverState.test.js`, graded on TradingView's `hma-close20`); the composite
+    // still refused is the one in an arm of `?:`, whose own series Pine keeps only on the
+    // evaluations that reach it.
+    ['a WINDOW-COMPOSITE builtin fed by state', `${head}var x = 0.0\nx := close\nplot(close > open ? ta.hma(x, 5) : na)\n`, 'runtime:call-windowed-state'],
     ['a SHIPPED-IMPL stateful builtin fed by state', `${head}var x = 0.0\nx := close\nplot(ta.rsi(x, 5))\n`, 'runtime:call-windowed-state'],
     // ⚰️⚰️ `math.max` OVER STATE REFUSED HERE UNTIL 2F-1, WHICH EXECUTES IT, and
     // the replacement case is worth reading because the first attempt was WRONG.

@@ -42,7 +42,7 @@ import { CLOCK_REALTIME } from '../../indicators.js'
 import { linkLibraries, remapLibraryLocation } from './pineLibraries.js'
 import { TABLE, isPointwise } from './parse.js'
 import { splitCommaStatements } from './objectFnInline.js'
-import { interpret, POINTWISE_FOR_PARITY, FINITE_WINDOW, CARRIED, TableRefusal } from './interpret.js'
+import { interpret, POINTWISE_FOR_PARITY, FINITE_WINDOW, CARRIED, TableRefusal, hullSpans } from './interpret.js'
 import { bindConstsFor, foldBound, foldScalar, NotFoldable } from './bind.js'
 import { LOWER_TF_REFUSAL } from '../lowerTf.js'
 import {
@@ -1628,6 +1628,13 @@ function buildRuntimeIrLinked(source, opts, holder) {
   }
   let armDepth = 0
   const lowerArm = (n, scope) => { armDepth += 1; try { return lowerExpr(n, scope) } finally { armDepth -= 1 } }
+  // ⭐ W19-R1 — the right operand of `and` / `or` (which v6 short-circuits) is
+  // lowered one level "lazier"; `armBase` / `lazyBase` are the two depths at the
+  // start of the frame being compiled, so "evaluated on every evaluation of the
+  // statement it sits in" is asked RELATIVE to that frame (`hullOverRuntime`).
+  let lazyDepth = 0
+  let armBase = 0
+  let lazyBase = 0
   const topLevelHistory = (value) => {
     if (!(objectsInRun && condDepth === 0)) return false
     try { return statefulTree(makeResolver().resolve(value)) } catch { return false }
@@ -4394,6 +4401,89 @@ function buildRuntimeIrLinked(source, opts, holder) {
    *  its own source into the same sink; it pushes before this line does, so the
    *  inner binding precedes the outer one, which is the order they must run in.
    */
+  /** ⭐⭐ W19-R1 — `ta.hma` (v1-v4 `hma`) OVER A RUNTIME SERIES, as the columnar
+   *  lane computes it: `wma(2 * wma(x, half) - wma(x, n), root)` with `half` /
+   *  `root` from `interpret.js::hullSpans` (one authority). The inner difference
+   *  is the Hull's own series, so it is given a committed slot of its own on the
+   *  line before the statement (the frame's body inside a function), and the two
+   *  inner and the outer window are this lane's measured `wma` windows.
+   *
+   *  The columnar `FN.hma` is pinned to TradingView by
+   *  `tests/fixtures/vendor/observations/hma-close20-2026-09-06.json`; the
+   *  runtime form is graded against that SAME capture and against the column on
+   *  the same bars (`runtime/__tests__/w19r1HullOverState.test.js`).
+   *
+   *  ⛔ Served only where the call is evaluated on EVERY evaluation of the
+   *  statement it sits in (no `?:` arm, no right side of `and` / `or`, relative
+   *  to the frame being compiled): the hoisted series is computed every time the
+   *  statement runs, while Pine keeps a built-in's own series only on the
+   *  evaluations that reach it. A call in an arm is refused by name; a test the
+   *  call site fixes folds the arm away first (C47 / W19-R1 `fixedArmTest`).
+   *  ⛔ Not inside a request's value, not in a nested block (no hoist sink there):
+   *  the refusal it always had stands.
+   *  @returns IR, or null = not this shape (the caller's refusal stands) */
+  const hullOverRuntime = (node, scope) => {
+    const name = String((node && node.name) || '')
+    if (definedNames.has(name) || isUserFn(name)) return null
+    const v5 = pineVersion !== null && pineVersion >= 5
+    if (!((name === 'ta.hma' && (v5 || pineVersion === null)) || (name === 'hma' && !v5))) return null
+    const args = node.args || []
+    if (args.length !== 2 || args.some((a) => a && a.name)) return null
+    if (inRequestValue) return null
+    const given = args.map((a) => (a && a.value !== undefined ? a.value : a))
+    const tok = node.tok
+    const at = locate(tok)
+    const c = constValueOf(given[1], scope)
+    if (c && typeof c.frameName === 'string') throw frameBoundRefusal(c.frameName, at, `sizes the window of \`${name}\``)
+    if (!c || !Number.isInteger(c.value)) {
+      note('runtime:history-dynamic-offset')
+      throw new RuntimeRefusal('runtime:history-dynamic-offset',
+        `the length of \`${name}\` is only known while the bar is running, `
+        + 'so the ring it needs cannot be sized before bar 0', at)
+    }
+    const n = c.value
+    // CAP5 (S1-7 / S2-5): TradingView stops a script whose window length is 0
+    // (RE10001 "It must be > 0"); a fixed length below 1 is refused, never drawn.
+    if (n < 1) {
+      throw new RuntimeRefusal('runtime:statement', `\`${name}\` needs a length of at least 1, got ${n}`, at)
+    }
+    const arg = (value) => ({ name: null, value, tok })
+    const numNode = (v) => ({ type: 'number', value: v, tok })
+    // a source the columnar lane holds over a length this call site fixed: the
+    // column itself, exactly what the call with the number pasted in computes
+    if (given[0] && !needsRuntime(given[0], scope)) {
+      return column(columnOf({ ...node, args: [arg(given[0]), arg(numNode(n))] }, at))
+    }
+    if (armDepth > armBase || lazyDepth > lazyBase) {
+      note('runtime:call-windowed-state')
+      throw new RuntimeRefusal('runtime:call-windowed-state',
+        `\`${name}\` in one arm of \`?:\` (or the right side of \`and\` / \`or\`) — its own `
+        + 'series would be kept on every evaluation here, and Pine keeps it only on the evaluations that reach it', at)
+    }
+    if (!stmtHoistSink || (owner !== null && stmtHoistOwner !== owner)) return null
+    const W = v5 || pineVersion === null ? 'ta.wma' : 'wma'
+    if (definedNames.has(W) || isUserFn(W)) return null
+    let src = given[0]
+    if (!src || src.type !== 'name') {
+      const h = hoistCommittedSeries(src, scope, name)
+      if (!h) return null
+      src = { type: 'name', name: h.label, tok }
+    }
+    const { half, root } = hullSpans(n)
+    const wma = (s, len) => ({ type: 'call', name: W, args: [arg(s), arg(numNode(len))], tok })
+    const raw = {
+      type: 'binary', op: '-', tok,
+      left: { type: 'binary', op: '*', left: numNode(2), right: wma(src, half), tok },
+      right: wma(src, n),
+    }
+    const tmp = `${name} hull ${stmtHoistSink.length}`
+    const value = lowerExpr(raw, scope)
+    const slot = scope.declare(tmp, newSlot(tmp, false))
+    stmtHoistSink.push(declare(slot, value))
+    conditionalHistoryGuard('a stateful built-in', null)
+    return lowerExpr(wma({ type: 'name', name: tmp, tok }, root), scope)
+  }
+
   const hoistCommittedSeries = (srcNode, scope, label) => {
     if (!stmtHoistSink) return null
     // ⭐⭐ RT10 — INSIDE A FRAME, into the frame's OWN body list only, and only an
@@ -4642,6 +4732,28 @@ function buildRuntimeIrLinked(source, opts, holder) {
    *  the author's default and cannot see the member's — `dependsOnTextInput`);
    *  never inside a request's value (that lane is barred there); and never a
    *  test that is `na` (what a `?:` answers for `na` is the runtime's to say). */
+  /** ⭐⭐ W19-R1 — A `?:` TEST THE CALL SITE FIXES, inside a function body.
+   *
+   *  C47's rule for a body ending in `switch <parameter>`, applied to a `?:`:
+   *  in a copy compiled for ONE call site (`frameConsts`), a test that reads only
+   *  parameters that call site fixed (and literals, and the script's own fixed
+   *  values) is one value on every bar, so ONE arm is the expression and the
+   *  other is never evaluated — Pine evaluates the arm a `?:` takes and no other.
+   *  momentum-based-zigzag: `moving_average(_series, _length, _smoothing) =>
+   *  _smoothing == 'EMA' ? ta.ema(…) : … _smoothing == 'HMA' ? ta.hma(…) : …`
+   *  called with `smoothing_type` (an `input.string`, at the value in force).
+   *
+   *  @returns {{fixed: boolean|null, frameName?: string}} — `frameName` when a
+   *  frame name stopped the fold (the shared frame), so an arm's refusal can be
+   *  held for the call site (`simpleArm`, `simpleSpecialisation`). */
+  const fixedArmTest = (test, scope) => {
+    if (owner === null || !scope || inRequestValue) return { fixed: null }
+    const fs = substFrameNames(test, scope)
+    if (fs.foreign !== null) return { fixed: null, frameName: fs.foreign }
+    // the substituted test (`'SMA' == 'EMA'`) is folded by the lane's own reader
+    return { fixed: fixedTestOf(fs.node, scope) }
+  }
+
   const fixedTestOf = (test, scope) => {
     if (inRequestValue || readsSlot(test, scope) || dependsOnTextInput(test, scope)) return null
     let canonical
@@ -5251,6 +5363,11 @@ function buildRuntimeIrLinked(source, opts, holder) {
               locate(node.tok))
           }
         }
+        if (node.op === 'and' || node.op === 'or') {
+          const l = lowerExpr(node.left, scope)
+          lazyDepth += 1
+          try { return binary(op, l, lowerExpr(node.right, scope)) } finally { lazyDepth -= 1 }
+        }
         return binary(op, lowerExpr(node.left, scope), lowerExpr(node.right, scope))
       }
       case 'unary': {
@@ -5329,11 +5446,27 @@ function buildRuntimeIrLinked(source, opts, holder) {
           const fixed = fixedTestOf(node.test, scope)
           if (fixed !== null) return lowerExpr(fixed ? node.yes : node.no, scope)
         }
-        if (holdsColour(node, scope)) {
-          return ternary(binary('!=', lowerExpr(node.test, scope), num(0)),
-            lowerArm(node.yes, scope), lowerArm(node.no, scope))
+        // ⭐⭐ W19-R1 — …AND A TEST THE CALL SITE FIXES (`fixedArmTest`, C47's
+        // `switch` rule for a `?:`): one arm per call site, the other not lowered.
+        const armTest = fixedArmTest(node.test, scope)
+        if (armTest.fixed !== null) return lowerExpr(armTest.fixed ? node.yes : node.no, scope)
+        const holdArm = (fn) => {
+          try { return fn() } catch (err) {
+            // the shared frame cannot choose the arm (the test reads a parameter):
+            // the arm's refusal is HELD for the call site, which may fix it
+            if (armTest.frameName && err instanceof RuntimeRefusal && err.frameName === undefined
+              && err.simpleSwitch !== true && err.armFrameName === undefined) {
+              err.armFrameName = armTest.frameName
+              err.simpleArm = true
+            }
+            throw err
+          }
         }
-        return ternary(lowerExpr(node.test, scope), lowerArm(node.yes, scope), lowerArm(node.no, scope))
+        if (holdsColour(node, scope)) {
+          return holdArm(() => ternary(binary('!=', lowerExpr(node.test, scope), num(0)),
+            lowerArm(node.yes, scope), lowerArm(node.no, scope)))
+        }
+        return holdArm(() => ternary(lowerExpr(node.test, scope), lowerArm(node.yes, scope), lowerArm(node.no, scope)))
       case 'offset': {
         // RT5: a parameter's or a body local's `[k]` is the CALL SITE's history.
         if (readsFrameName(node.arg)) conditionalHistoryGuard('the history of a parameter or a body local', locate(node.tok))
@@ -5886,6 +6019,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // them (`pine.js::BUILTIN_CALL_TREE`), rebuilt over this call's own nodes.
         const respelled = runtimeRespelling(node, scope)
         if (respelled) return lowerExpr(respelled, scope, opts)
+        // ⭐⭐ W19-R1 — `ta.hma` over a runtime series (`hullOverRuntime`).
+        const hull = hullOverRuntime(node, scope)
+        if (hull) return hull
         const pw = pointwiseTarget(node.name)
         if (pw) {
           for (const a of node.args) {
@@ -8797,6 +8933,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // RT5: a body is judged at its CALL SITE; its own list starts at depth 0.
     const prevCondDepth = condDepth
     condDepth = -1
+    const prevArmBase = armBase
+    const prevLazyBase = lazyBase
+    armBase = armDepth
+    lazyBase = lazyDepth
     owner = fnIndex
     // ⛔ NO PARENT SCOPE. A Pine function cannot assign to a global, and reading
     // a global mutable slot from inside a frame would need a cross-frame address
@@ -9065,6 +9205,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
       guardOuter = prevGuard
       frameConsts = prevFrameConsts
       condDepth = prevCondDepth
+      armBase = prevArmBase
+      lazyBase = prevLazyBase
     }
   }
 
@@ -9099,10 +9241,15 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // (`simpleSwitch`): the arm a FIXED TEXT argument selects is fixed per call
     // site, exactly as the window a fixed number sizes is.
     const heldSwitch = !!held && held.simpleSwitch === true
+    // ⭐ W19-R1 — and a definition held on an arm of a `?:` whose test reads one
+    // of its parameters (`fixedArmTest`): the arm is fixed per call site too.
+    const heldArm = !!held && held.simpleArm === true && held.frameName === undefined
+    // (An arm held on a test this call cannot fix keeps the ARM's own refusal:
+    // `unfixed` returns any error without a `frameName` unchanged.)
     if (!held || inRequestValue) return null
-    if (!heldSwitch && held.guard !== 'runtime:history-dynamic-offset') return null
+    if (!heldSwitch && !heldArm && held.guard !== 'runtime:history-dynamic-offset') return null
     const def = deferredFnDefs.get(node.name)
-    const culprit = held.frameName
+    const culprit = heldArm ? held.armFrameName : held.frameName
     if (!def || typeof culprit !== 'string') return null
     // ⭐ L2 — a header declaring defaults is read by its own reader, as in
     // `defineFunction` (whose call site has already written the defaults in).

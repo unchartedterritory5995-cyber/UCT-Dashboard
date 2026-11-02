@@ -390,7 +390,11 @@ describe('⭐ length, resources and what is NOT admitted', () => {
   })
 
   it('⛔ still refused: a window COMPOSITE, a shipped-impl builtin, an undeclared one', () => {
-    expect(refusalOf(`${head}var x = 0.0\nx := close\nplot(ta.hma(x, 5))\n`).guard)
+    // ⚰️ W19-R1 (step 104) SERVES `ta.hma` OVER STATE where it runs on every evaluation
+    // (`w19r1HullOverState.test.js`, graded on TradingView's `hma-close20`); the composite
+    // still refused is the one in an arm of `?:`, whose own series Pine keeps only on the
+    // evaluations that reach it.
+    expect(refusalOf(`${head}var x = 0.0\nx := close\nplot(close > open ? ta.hma(x, 5) : na)\n`).guard)
       .toBe('runtime:call-windowed-state')
     expect(refusalOf(`${head}var x = 0.0\nx := close\nplot(ta.rsi(x, 5))\n`).guard)
       .toBe('runtime:call-windowed-state')
