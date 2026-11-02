@@ -224,6 +224,27 @@ Only agent-qa edits this file. Update it in every PR.
   extended-live, extended-closed, holiday, no-current-trade. Rules (a)–(e) are a reusable predicate
   (`quote_semantics_errors`) with controls showing it can fail. Other MD-1 kinds keep provisional `data` shapes.
 
+## Sprint 2 task 3: COST BASELINE (model calls per corpus phrasing, today)
+A measurement, pinned exactly so any reduction or regression is a reviewed diff. File:
+`app/src/agent/__fixtures__/program/scores/cost-baseline.json`. Rail: `tests/test_uct_agent_qa_cost_baseline.py`.
+No paid call: a scripted planner that answers directly, with research stubbed.
+- **Model:** model_calls = browser_requests × (server_calls + naming_call).
+  - Browser requests come from the real panel (`fastPathCorpus.test.jsx`).
+  - server_calls = 1, or 2 when UCT forces research for current-facts wording.
+  - naming_call = 1 per new conversation the plan leaves unnamed, measured as an upper bound.
+- **Discovery corpus (31 phrasings), measured on agent/int `191a06510c`:**
+  - 31 browser requests, 0 handled by the fast path.
+  - **64 model calls**: 31 planner + 31 naming + 2 post-research. d17 and d26 trigger forced research.
+  - By category: refusal 10/5, setup 10/5, strength 10/5, volume 8/4, momentum 7/3, sector 7/3, fundamental 6/3,
+    volatility 4/2, earnings 2/1.
+- **The levers this exposes** (each a model-call reduction, owned by agent-lead):
+  1. The fast path claims none of the 31.
+  2. Naming costs one call per conversation whenever the plan gives no title. Making the planner always return a
+     title would remove up to 31.
+  3. Forced research on "latest / today" wording costs two calls each.
+- A CONTROL proves the instrument tells 1 call from 2. Every phrasing stays within the 2-call per-request ceiling.
+- Next: add agent-md's 30 MD-1 phrasings (#620) as a second corpus once merged (fastPathCorpus measures them too).
+
 ## ⭐ Sprint 2 task 1: ADVERSARIAL MODEL-ISOLATION AUDIT (ADR-005), on master `c3ba71c343`
 Targets: `breadth.current`, `ratings`, and the stock.compare composite (F-12).
 Method: SENTINEL values planted at the source, then a check of what every model-bound payload carries. Each path is
