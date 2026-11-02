@@ -166,9 +166,51 @@ def test_the_member_cap_refuses_an_upload_with_storage_limit(app, client, monkey
     assert client.post(f"/api/j2/notes/{note}/images", files={"file": ("a.png", png, "image/png")}).status_code == 200
     r = client.post(f"/api/j2/notes/{note}/attachments", files={"file": ("b.csv", b"x" * 11, "text/csv")})
     assert r.status_code == 400
-    assert r.json() == {"reason": "storage_limit",
-                        "detail": "Not copied: storage limit. b.csv will be copied once space frees up"}
+    # M1: the door's own sentence; nothing retries an editor upload, so no promise of one.
+    assert r.json() == {"reason": "storage_limit", "detail": media_policy.UPLOAD_STORAGE_LIMIT_SENTENCE}
+    assert "once space frees" not in media_policy.UPLOAD_STORAGE_LIMIT_SENTENCE
     assert len(_files(attachment_root)) == 1
+
+
+@pytest.mark.parametrize("name,data,ctype", [
+    ("IMG.heic", b"\x00\x00\x00\x18ftypheic\x00\x00\x00\x00mif1heic" + b"\x00" * 64, "image/heic"),
+    ("broken.png", b"\x89PNG\r\n\x1a\n" + b"corrupt" * 10, "image/png"),
+])
+def test_attachments_door_keeps_an_image_it_cannot_decode(app, client, name, data, ctype):
+    """I5: an attachment is never decoded, so a HEIC with no decoder or a corrupt PNG is still
+    attached as the member's file (the /images door would refuse both)."""
+    _login_as(app, "u1")
+    note = _note(client)
+    r = client.post(f"/api/j2/notes/{note}/attachments", files={"file": (name, data, ctype)})
+    assert r.status_code == 200, r.text
+    assert (r.json()["kind"], r.json()["size"]) == ("file", len(data))
+    assert client.get(r.json()["url"]).content == data
+
+
+def test_attachments_door_keeps_an_oversize_photo_byte_for_byte(app, client):
+    _login_as(app, "u1")
+    note = _note(client)
+    w, h = 2600, 2000
+    buf = io.BytesIO()
+    Image.frombytes("RGB", (w, h), os.urandom(w * h * 3)).save(buf, "JPEG", quality=95)
+    photo = buf.getvalue()
+    assert len(photo) > 5 * 1024 * 1024
+    r = client.post(f"/api/j2/notes/{note}/attachments", files={"file": ("photo.jpg", photo, "image/jpeg")})
+    assert r.status_code == 200 and r.json()["size"] == len(photo)
+
+
+def test_a_disk_error_is_a_named_400_never_a_500(app, client, monkeypatch):
+    from api.services.journal_two import notes as notes_svc
+
+    def disk_error(*a, **k):
+        raise OSError(5, "I/O error")
+
+    monkeypatch.setattr(notes_svc, "save_note_attachment_bytes", disk_error)
+    _login_as(app, "u1")
+    note = _note(client)
+    r = client.post(f"/api/j2/notes/{note}/attachments", files={"file": ("a.csv", b"a,b", "text/csv")})
+    assert r.status_code == 400
+    assert r.json() == {"detail": "Couldn't copy a.csv", "reason": "fetch_failed"}
 
 
 @pytest.mark.parametrize("name,data,ctype,mime", [

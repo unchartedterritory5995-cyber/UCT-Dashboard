@@ -91,6 +91,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import copy
 import json
 import logging
 import os
@@ -1286,6 +1287,9 @@ def _bulk_existing_note_meta(
                 # Plan A Task 6: {ref: attempts} of this note's notices ({} unless pending)
                 "noticeAttempts": (import_notice.notice_attempts_by_ref(row["pending_body"])
                                    if row["pending_body"] else {}),
+                # Plan A Task 8 fix round 1 (I4): the resolved body a retry builds on, so
+                # what already resolved is reused, never fetched and stored again.
+                "pendingBody": row["pending_body"],
             }
     return out
 
@@ -1547,6 +1551,60 @@ def _placeholder_refs(doc: Any) -> list[str]:
     return list(dict.fromkeys(out))
 
 
+def _placeholder_nodes(doc: Any) -> dict[str, dict]:
+    """`{ref: placeholder node}` for every media placeholder in a body (first one per ref)."""
+    out: dict[str, dict] = {}
+    stack = [doc]
+    while stack:
+        node = stack.pop()
+        if not isinstance(node, dict):
+            continue
+        attr = {"image": "src", "attachmentChip": "href"}.get(node.get("type"))
+        value = (node.get("attrs") or {}).get(attr) if attr else None
+        if isinstance(value, str) and value.startswith(REF_PREFIX) and value[len(REF_PREFIX):]:
+            out.setdefault(value[len(REF_PREFIX):], node)
+        content = node.get("content")
+        if isinstance(content, list):
+            stack.extend(reversed(content))
+    return out
+
+
+def _retry_source(stored_body: str | None, rn: RemoteNote) -> tuple[dict[str, Any], set[str]] | None:
+    """Plan A Task 8 fix round 1 (I4): a media RETRY (a storage wait that freed, or a
+    `fetch_failed` with attempts left) of a note whose remote content is unchanged builds on
+    the body already stored, not on the placeholder doc: every notice still worth retrying
+    goes back to its placeholder, and everything that already resolved stays exactly as
+    stored. Returns `(doc, refs_to_retry)`, or None when the stored body cannot be built on
+    (unreadable, still holding a raw placeholder, or nothing to retry): the caller then
+    imports the whole note as before."""
+    if not stored_body or REF_PREFIX in stored_body:
+        return None
+    try:
+        stored = json.loads(stored_body)
+    except (TypeError, ValueError):
+        return None
+    placeholders = _placeholder_nodes(rn.doc)
+    retry: set[str] = set()
+
+    def walk(node: Any) -> Any:
+        if not isinstance(node, dict):
+            return node
+        if node.get("type") == import_notice.IMPORT_NOTICE_TYPE:
+            attrs = node.get("attrs") or {}
+            ref = attrs.get("ref")
+            if ref in placeholders and (import_notice.is_retryable(attrs)
+                                        or attrs.get("reason") == "storage_limit"):
+                retry.add(ref)
+                return copy.deepcopy(placeholders[ref])
+            return node
+        if isinstance(node.get("content"), list):
+            return {**node, "content": [walk(c) for c in node["content"]]}
+        return node
+
+    doc = walk(stored)
+    return (doc, retry) if retry and isinstance(doc, dict) else None
+
+
 def _note_title(rn: RemoteNote, key: str) -> str:
     """The title the member sees for the note at `key` (a conflict sibling's included)."""
     return f"{rn.title} (synced copy)" if key.endswith("#remote") else rn.title
@@ -1579,7 +1637,7 @@ def _strip_media_placeholders(node: Any) -> Any:
 
 
 def _final_body_without_media(
-    rn: RemoteNote, key: str,
+    rn: RemoteNote, key: str, doc: dict[str, Any] | None = None,
 ) -> tuple[dict[str, Any] | None, dict[str, dict], list[dict[str, Any]]]:
     """Plan A Task 8 (Task 6 review d): the body to store when the RESOLVED body fails
     validation, so the note terminates instead of staying pending (which re-fetched every
@@ -1588,20 +1646,22 @@ def _final_body_without_media(
     placeholders are removed. Returns `(body, notices, dropped_failures)`: `dropped_failures`
     are the `failures_json` entries for items removed with no notice left in the note, so the
     loss is still named. `(None, {}, [])` when nothing storable can be built (cannot happen
-    for a body `import_confirm` accepted; the old leave-in-place behaviour is the fallback)."""
+    for a body `import_confirm` accepted; the old leave-in-place behaviour is the fallback).
+    `doc` is the body the pass resolved from (`rn.doc`, or a retry's stored body)."""
+    doc = rn.doc if doc is None else doc
     names = {m.get("ref"): m.get("name") for m in (rn.media or []) if isinstance(m, dict)}
     by_ref = {m.get("ref"): m for m in (rn.media or []) if isinstance(m, dict)}
     final = {ref: import_notice.notice_node(
         "unsupported", name=names.get(ref),
         source_url=_media_source_url(by_ref[ref]) if ref in by_ref else import_notice.safe_source_url(ref),
-        ref=ref, attempts=0) for ref in _placeholder_refs(rn.doc)}
-    body, _dropped = rewrite_body(rn.doc, {}, {}, strip_unresolved_links=False, notices=final)
+        ref=ref, attempts=0) for ref in _placeholder_refs(doc)}
+    body, _dropped = rewrite_body(doc, {}, {}, strip_unresolved_links=False, notices=final)
     try:
         notes_svc._validate_body_json(body)
         return body, final, []
     except notes_svc.NoteValidationError:
         pass
-    stripped = _strip_media_placeholders(rn.doc)
+    stripped = _strip_media_placeholders(doc)
     try:
         notes_svc._validate_body_json(stripped)
     except notes_svc.NoteValidationError:
@@ -1642,6 +1702,17 @@ def _storage_has_freed(budget: media_policy.MediaBudget) -> bool:
     return True
 
 
+def _decide_and_store(
+    user_id: str, note_id: str, data: bytes, content_type: str | None, name: str, *,
+    file_intent: bool, budget: media_policy.MediaBudget,
+) -> media_policy.StoredMedia:
+    """One media item through the policy, synchronously -- called via `asyncio.to_thread`.
+    An item the provider listed as a file keeps file intent (fix round 1, I5): `normalize_file`,
+    never decoded, so an attached image is never refused for its pixels."""
+    decide = media_policy.normalize_file if file_intent else media_policy.normalize_media
+    return media_policy.store_media(user_id, note_id, decide(data, content_type, name), budget=budget)
+
+
 async def _upload_media_for_note(
     provider: NoteProvider, creds: dict[str, Any], user_id: str, note_id: str,
     media_entries: list[dict[str, Any]], *, prior_attempts: dict[str, int],
@@ -1658,9 +1729,10 @@ async def _upload_media_for_note(
     `media_policy.store_media` under `budget`, the member's `MediaBudget` for this whole
     pass (one `MediaBudget.for_member` per `_import_remote_notes` call, never per item).
     `resolved` is `{ref: StoredMedia}` for `rewrite_body(..., resolved=...)`. An item the
-    provider listed as a file (`kind != "image"`) keeps chip intent: an image there is
-    stored as a file (`media_policy.as_file`), never re-routed inline. Items past the cap
-    are `storage_limit` notices; the note itself still imports.
+    provider listed as a file (`kind != "image"`) keeps chip intent: `normalize_file`, the
+    bytes stored as a file, never decoded or re-routed inline. Items past the cap are
+    `storage_limit` notices; the note itself still imports. The policy work runs in a
+    worker thread (`asyncio.to_thread`), never on the event loop.
 
     Plan A Task 6 (spec I-7): a ref that cannot be copied gets an importNotice in
     `notices`, which `rewrite_body` puts where the file was -- never a silent drop.
@@ -1686,10 +1758,12 @@ async def _upload_media_for_note(
             else:
                 data, content_type = await provider.fetch_media(creds, ref)
             name = m.get("name") or ref
-            result = media_policy.normalize_media(data, content_type, name)
-            if m.get("kind") != "image" and result.kind == "image":
-                result = media_policy.as_file(result, source=data, source_name=name)
-            resolved[ref] = media_policy.store_media(user_id, note_id, result, budget=budget)
+            # Fix round 1, I2: the decide+store work (a 25 MB decode/downscale, disk writes)
+            # runs OFF the event loop -- a manual "Sync now" runs this on the uvicorn loop.
+            # The policy's own decode semaphore bounds it alongside the upload doors.
+            resolved[ref] = await asyncio.to_thread(
+                _decide_and_store, user_id, note_id, data, content_type, name,
+                file_intent=m.get("kind") != "image", budget=budget)
             uploaded += 1
         except Exception as e:  # noqa: BLE001
             failures.append(f"media {ref!r} on note {note_id}: {e}")
@@ -1828,9 +1902,12 @@ async def _confirm_and_resolve_batch(
     entries: list[dict[str, Any]], pairs: list[tuple[RemoteNote, str]],
     *, notice_attempts: dict[str, dict[str, int]] | None = None,
     budget: media_policy.MediaBudget | None = None,
+    retry_bodies: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     """`budget` (Plan A Task 8): the member's `MediaBudget` for the whole pass; None reads one
-    (a direct caller). `notice_attempts` (Plan A Task 6): `{import_key: {ref: attempts}}`, read by
+    (a direct caller). `retry_bodies` (fix round 1, I4): `{import_key: stored body}` for a
+    note re-imported only to retry its media (remote unchanged); see `_retry_source`.
+    `notice_attempts` (Plan A Task 6): `{import_key: {ref: attempts}}`, read by
     `_bulk_existing_note_meta` BEFORE this confirm overwrites the bodies; each
     failed ref counts on from its prior attempts. `result["noticeFailures"]` holds
     the `failures_json` entries of every notice this batch wrote.
@@ -1952,17 +2029,25 @@ async def _confirm_and_resolve_batch(
                 result["touched"].append((rn, key, note_id))
             continue
 
+        # Fix round 1, I4: a media retry builds on the stored body, fetching only what is
+        # still missing; anything already resolved is reused, never stored twice.
+        source_doc, media = rn.doc, rn.media
+        retry = _retry_source((retry_bodies or {}).get(key), rn) if status == "updated" else None
+        if retry is not None:
+            source_doc, retry_refs = retry
+            media = [m for m in (rn.media or []) if m.get("ref") in retry_refs]
+
         resolved: dict[str, media_policy.StoredMedia] = {}
         notices: dict[str, dict] = {}
-        if rn.media:
+        if media:
             resolved, notices, up, med_failures = await _upload_media_for_note(
-                provider, creds, user_id, note_id, rn.media,
+                provider, creds, user_id, note_id, media,
                 prior_attempts=(notice_attempts or {}).get(key, {}), budget=budget)
             result["mediaUploaded"] += up
             result["failures"].extend(med_failures)
         # Plan A Task 6, no silent drop: a placeholder the provider never listed in
         # `media` cannot be fetched at all, so it is a final notice too.
-        for ref in _placeholder_refs(rn.doc):
+        for ref in _placeholder_refs(source_doc):
             if ref not in resolved and ref not in notices:
                 notices[ref] = import_notice.notice_node(
                     "unsupported", name=None, source_url=import_notice.safe_source_url(ref),
@@ -1973,7 +2058,7 @@ async def _confirm_and_resolve_batch(
         # untouched (not stripped, not resolved) for the final pass to see.
         # `notices`: every placeholder without a URL becomes its importNotice.
         body, _dropped = rewrite_body(
-            rn.doc, {}, {}, strip_unresolved_links=False, notices=notices, resolved=resolved)
+            source_doc, {}, {}, strip_unresolved_links=False, notices=notices, resolved=resolved)
 
         # Important 6: validate the RESOLVED doc (1MB/shape backstop) before
         # the raw write — a malformed/oversized result must never land in
@@ -1989,7 +2074,7 @@ async def _confirm_and_resolve_batch(
             result["failures"].append(
                 f"resolved body failed validation for note {note_id!r}: {e}"
             )
-            body, notices, dropped_failures = _final_body_without_media(rn, key)
+            body, notices, dropped_failures = _final_body_without_media(rn, key, source_doc)
             if body is None:
                 if rn.links:
                     result["touched"].append((rn, key, note_id))  # placeholder still intact
@@ -2063,6 +2148,7 @@ async def _import_remote_notes(
         conflict_tag_updates: dict[str, list[str]] = {}  # original note id -> new tags
         pre_confirm_conflicts = 0
         user_owned_unchanged = 0
+        retry_bodies: dict[str, str] = {}
 
         for rn, key in zip(remote_notes, import_keys):
             meta = existing.get(key)
@@ -2134,6 +2220,11 @@ async def _import_remote_notes(
                 # changed -- no tally, no sibling confirm, no resurrection of
                 # a sibling the user deleted.
                 normal_items.append((entry, rn, key))
+                # Fix round 1 (I4): remote unchanged and media still pending -> this pass
+                # is a media RETRY; it builds on the stored body (`_retry_source`).
+                if (meta is not None and meta.get("pendingBody")
+                        and meta.get("importHash") == notes_svc._import_payload_hash(entry)):
+                    retry_bodies[key] = meta["pendingBody"]
 
         totals: dict[str, Any] = {
             "created": 0, "updated": 0, "skipped": user_owned_unchanged, "mediaUploaded": 0,
@@ -2159,7 +2250,7 @@ async def _import_remote_notes(
             res = await _confirm_and_resolve_batch(
                 conn, user_id, source, provider, creds,
                 source.get("destFolderId"), entries, pairs, notice_attempts=notice_attempts,
-                budget=budget,
+                budget=budget, retry_bodies=retry_bodies,
             )
             _merge_batch_result(totals, res, all_touched)
 

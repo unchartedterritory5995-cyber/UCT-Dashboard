@@ -334,3 +334,170 @@ def test_as_file_prefers_the_original_then_the_source_bytes():
     converted = normalize_media(tiff, None, "s.tif")
     kept = media_policy.as_file(converted, source=tiff, source_name="s.tif")
     assert (kept.kind, kept.mime, kept.data, kept.filename) == ("file", "image/tiff", tiff, "s.tif")
+
+
+# ── fix round 1 ──────────────────────────────────────────────────────────────
+
+def test_a_canvas_over_the_decode_ceiling_is_too_large_before_any_decode(monkeypatch):
+    """I1: an explicit size check on the header, not Pillow's (thread-unsafe) warning."""
+    from PIL import ImageFile
+    loads = []
+    real_load = ImageFile.ImageFile.load
+    monkeypatch.setattr(ImageFile.ImageFile, "load", lambda self: loads.append(1) or real_load(self))
+    monkeypatch.setattr(media_policy, "MAX_DECODE_PIXELS", 40 * 40 - 1)
+    with pytest.raises(MediaRejected) as e:
+        normalize_media(_img_bytes("TIFF", size=(40, 40)), None, "big.tif")
+    assert e.value.reason == "too_large"
+    assert loads == []                                   # refused on the header alone
+    monkeypatch.setattr(media_policy, "MAX_DECODE_PIXELS", 40 * 40)
+    assert normalize_media(_img_bytes("TIFF", size=(40, 40)), None, "ok.tif").kind == "image"
+
+
+def test_the_default_decode_ceiling_is_50_megapixels():
+    assert media_policy.MAX_DECODE_PIXELS == 50_000_000
+
+
+def test_at_most_two_decodes_run_at_once(monkeypatch):
+    """I1: one process-wide semaphore, shared by the doors and the engine (both reach here)."""
+    import threading
+    import time as _time
+    active, peak, lock = [0], [0], threading.Lock()
+    real_encode = media_policy._encode
+
+    def slow_encode(im, alpha):
+        with lock:
+            active[0] += 1
+            peak[0] = max(peak[0], active[0])
+        _time.sleep(0.05)
+        try:
+            return real_encode(im, alpha)
+        finally:
+            with lock:
+                active[0] -= 1
+
+    monkeypatch.setattr(media_policy, "_encode", slow_encode)
+    tiff = _img_bytes("TIFF")
+    threads = [threading.Thread(target=normalize_media, args=(tiff, None, f"{i}.tif")) for i in range(6)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert peak[0] == media_policy.DECODE_CONCURRENCY == 2
+
+
+def test_a_big_jpeg_is_decoded_at_a_reduced_scale(monkeypatch):
+    """I1: `draft` asks libjpeg for a reduced DCT scale before the load."""
+    from PIL import JpegImagePlugin
+    sizes = []
+    real_draft = JpegImagePlugin.JpegImageFile.draft
+
+    def spy(self, mode, size):
+        sizes.append(size)
+        return real_draft(self, mode, size)
+
+    monkeypatch.setattr(JpegImagePlugin.JpegImageFile, "draft", spy)
+    monkeypatch.setattr(media_policy, "IMAGE_MAX_BYTES", 1_000)
+    monkeypatch.setattr(media_policy, "DOWNSCALE_MAX_EDGE", 100)
+    r = normalize_media(_noise_jpeg(800, 200), "image/jpeg", "wide.jpg")
+    assert sizes and max(sizes[0]) <= 101
+    assert max(_decoded(r).size) <= 100
+
+
+def test_concurrent_reservations_cannot_exceed_the_cap(att_root, monkeypatch):
+    """I3: every budget for a member reserves from ONE running total, atomically."""
+    import threading
+    import time as _time
+
+    class SlowCap(int):
+        """Widens any read-compare-write window: `used + n > cap` calls this first."""
+        def __lt__(self, other):
+            _time.sleep(0.01)
+            return int.__lt__(self, other)
+
+    monkeypatch.setattr(media_policy, "MEMBER_IMPORT_MEDIA_CAP_BYTES", SlowCap(100))
+    budgets = [media_policy.MediaBudget.for_member("u1") for _ in range(20)]
+    assert sum(b.reserve(10) for b in budgets) == 10          # taken before any reserve, still 10
+    media_policy._USAGE_MEMO.clear()
+    results, start = [], threading.Barrier(20)
+
+    def go():
+        b = media_policy.MediaBudget.for_member("u1")
+        start.wait()
+        results.append(b.reserve(10))
+
+    threads = [threading.Thread(target=go) for _ in range(20)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert results.count(True) == 10
+    assert media_policy.MediaBudget.for_member("u1").used == 100
+
+
+def test_a_budget_sees_reservations_made_after_it_was_read(att_root, monkeypatch):
+    monkeypatch.setattr(media_policy, "MEMBER_IMPORT_MEDIA_CAP_BYTES", 100)
+    engine_pass = media_policy.MediaBudget.for_member("u1")
+    assert engine_pass.reserve(50) is True                    # the pass has already reserved
+    media_policy.MediaBudget.for_member("u1").reserve(50)    # an upload during the pass
+    assert engine_pass.under_cap() is False and engine_pass.reserve(1) is False
+
+
+@pytest.mark.parametrize("data,name,mime", [
+    (b"\x00\x00\x00\x18ftypheic\x00\x00\x00\x00mif1heic" + b"\x00" * 64, "IMG.heic", "image/heic"),
+    (b"\x89PNG\r\n\x1a\n" + b"corrupt" * 10, "broken.png", "image/png"),
+    (None, "photo.jpg", "image/jpeg"),
+])
+def test_file_intent_never_decodes(data, name, mime, monkeypatch):
+    """I5: an attached image is kept as the member's bytes: oversize, corrupt or HEIC alike."""
+    if data is None:
+        monkeypatch.setattr(media_policy, "IMAGE_MAX_BYTES", 100)
+        data = _noise_jpeg(64, 64)
+    monkeypatch.setattr(media_policy, "_raster", lambda *a: pytest.fail("decoded"))
+    r = media_policy.normalize_file(data, mime, name)
+    assert (r.kind, r.mime, r.data, r.filename) == ("file", mime, data, name)
+
+
+def test_file_intent_keeps_the_shared_refusals():
+    with pytest.raises(MediaRejected) as e:
+        media_policy.normalize_file(DISGUISED_HTML, "text/plain", "notes.txt")
+    assert e.value.reason == "unsupported"
+    with pytest.raises(MediaRejected) as e:
+        media_policy.normalize_file(b"\x00" * (25 * 1024 * 1024 + 1), None, "big.zip")
+    assert e.value.reason == "too_large"
+    assert media_policy.normalize_file(b"\x89PNG-ish", "image/png", "x").mime == "application/octet-stream"
+
+
+def _heic_like_result():
+    original = media_policy.MediaResult(kind="file", mime="image/heic", data=b"h" * 300, filename="IMG.heic")
+    return media_policy.MediaResult(kind="image", mime="image/png", data=PNG, filename="IMG.png",
+                                    original=original)
+
+
+def test_a_primary_that_fails_after_the_original_leaves_no_file_and_no_reservation(att_root, monkeypatch):
+    """M4: no file outlives a refusal, and a disk error is a named refusal, never a 500."""
+    from api.services.journal_two import notes as notes_svc
+
+    def disk_error(*a, **k):
+        raise OSError(5, "I/O error")
+
+    monkeypatch.setattr(notes_svc, "save_note_image_bytes", disk_error)
+    budget = media_policy.MediaBudget.for_member("u1")
+    with pytest.raises(MediaRejected) as e:
+        media_policy.store_media("u1", "n1", _heic_like_result(), budget=budget)
+    assert e.value.reason == "fetch_failed" and e.value.marker_text == "Couldn't copy IMG.png"
+    assert not any(p.is_file() for p in att_root.rglob("*"))   # the original was removed
+    assert budget.used == 0
+
+
+def test_a_full_disk_reads_storage_limit(att_root, monkeypatch):
+    import errno as _errno
+    from api.services.journal_two import notes as notes_svc
+
+    def full(*a, **k):
+        raise OSError(_errno.ENOSPC, "No space left on device")
+
+    monkeypatch.setattr(notes_svc, "save_note_attachment_bytes", full)
+    with pytest.raises(MediaRejected) as e:
+        media_policy.store_media("u1", "n1", _heic_like_result(),
+                                 budget=media_policy.MediaBudget.for_member("u1"))
+    assert e.value.reason == "storage_limit"

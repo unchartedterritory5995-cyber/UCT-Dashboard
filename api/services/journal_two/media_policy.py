@@ -23,7 +23,11 @@ What `normalize_media` decides (each value pinned by `test_media_policy.py`):
     with alpha), the edge shrunk x0.75 up to 4 times until it fits, else `too_large`. No
     original kept, except an animated GIF/WebP: its first frame is the image and the animation
     is kept as a file.
-  * decoding runs with `DecompressionBombWarning` raised as an error: a bomb => `too_large`.
+  * a canvas over `MAX_DECODE_PIXELS` is `too_large` before a pixel is decoded (checked on
+    the header's size), Pillow's own bomb error likewise; at most `DECODE_CONCURRENCY`
+    decodes run at once, and a big JPEG decodes at a reduced DCT scale (`draft`).
+  * `normalize_file` is the FILE-INTENT path (`/attachments`, a connector's file chip): sniff,
+    refuse web pages/scripts and oversize, keep the bytes as a file -- never decoded.
   * SVG => a file (no rasteriser in the stack; never inline). Everything else => a file.
   * an image TYPE the bytes do not confirm (a declared `image/png` with no PNG signature) is a
     file typed `application/octet-stream`: only magic bytes make something an inline image.
@@ -37,11 +41,11 @@ uploads scans the tree once.
 """
 from __future__ import annotations
 
+import errno
 import io
 import os
 import threading
 import time
-import warnings
 from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Literal
@@ -67,6 +71,24 @@ DOWNSCALE_MAX_EDGE = 4096
 DOWNSCALE_JPEG_QUALITY = 85
 DOWNSCALE_STEP = 0.75
 DOWNSCALE_MAX_SHRINKS = 4
+
+#: Fix round 1, I1: the largest canvas this server will DECODE (convert or downscale), checked
+#: on `im.size` right after `Image.open`, before a pixel is loaded. ~150 MB per RGB copy at the
+#: ceiling. An explicit check, not Pillow's warning (a process-global warnings filter is not
+#: thread-safe). A passthrough image is never decoded here and is bounded only by Pillow's own
+#: `DecompressionBombError`.
+MAX_DECODE_PIXELS = 50_000_000
+
+#: Fix round 1, I1: at most this many decodes at once in the process, shared by the upload doors
+#: and the connector engine (both reach `_raster`). Each holds up to a few copies of a
+#: `MAX_DECODE_PIXELS` canvas, so this bounds the box's decode memory, not just one request's.
+DECODE_CONCURRENCY = 2
+_DECODE_SLOTS = threading.BoundedSemaphore(DECODE_CONCURRENCY)
+
+#: Fix round 1, M1: what an upload door says when the member's cap refuses a file. The import
+#: notice's sentence promises a retry "once space frees up"; nothing retries an editor upload.
+UPLOAD_STORAGE_LIMIT_SENTENCE = (
+    "Not uploaded: you've reached the storage limit for images and files in your notebook.")
 
 
 @dataclass(frozen=True)
@@ -101,7 +123,10 @@ class MediaRejected(Exception):
 
 
 def _reject(reason: str, filename: str | None) -> MediaRejected:
-    return MediaRejected(reason, import_notice.marker_text(reason, filename or None))
+    # A `fetch_failed` from here is said in its final form ("Couldn't copy X"): an upload door
+    # retries nothing, and the engine builds its own notice (with attempts) from the reason.
+    attempts = import_notice.MEDIA_RETRY_MAX_ATTEMPTS if reason == "fetch_failed" else 0
+    return MediaRejected(reason, import_notice.marker_text(reason, filename or None, attempts=attempts))
 
 
 # ── sniffing ─────────────────────────────────────────────────────────────────
@@ -337,17 +362,30 @@ def _raster(data: bytes, mime: str, filename: str) -> MediaResult:
     if mime in _HEIF and not _heif_available():
         raise _reject("unsupported", filename)
     cap = IMAGE_MAX_BYTES
-    # Decompression bombs: a canvas past Pillow's MAX_IMAGE_PIXELS warns at open, and the
-    # warning is an error here, so it is refused before a pixel is decoded.
-    with warnings.catch_warnings():
-        warnings.simplefilter("error", Image.DecompressionBombWarning)
+    try:
+        # Opening reads the header only. Pillow's own DecompressionBombError (a canvas past
+        # twice its MAX_IMAGE_PIXELS) is caught below as `too_large`.
+        im = Image.open(io.BytesIO(data))
+        if mime in _PASSTHROUGH and len(data) <= cap:
+            return MediaResult(kind="image", mime=mime, data=data, filename=filename)
+        width, height = im.size
+    except Image.DecompressionBombError:
+        raise _reject("too_large", filename) from None
+    except Exception:  # noqa: BLE001 -- a raster signature that does not open
+        raise _reject("unsupported", filename) from None
+    # I1: the decode ceiling, on the header's size, before a pixel is loaded.
+    if width * height > MAX_DECODE_PIXELS:
+        raise _reject("too_large", filename)
+    with _DECODE_SLOTS:
         try:
-            im = Image.open(io.BytesIO(data))
-            if mime in _PASSTHROUGH and len(data) <= cap:
-                return MediaResult(kind="image", mime=mime, data=data, filename=filename)
             animated = bool(getattr(im, "is_animated", False))
             if animated:
                 im.seek(0)
+            if im.format == "JPEG" and max(width, height) > DOWNSCALE_MAX_EDGE:
+                # I1: decode at the smallest DCT scale that still covers the first target
+                # edge, so a big JPEG is never held at full size.
+                scale = DOWNSCALE_MAX_EDGE / max(width, height)
+                im.draft("RGB", (max(1, int(width * scale) + 1), max(1, int(height * scale) + 1)))
             im = ImageOps.exif_transpose(im)          # loads; the encode below drops EXIF
             alpha = _has_alpha(im)
             im = im.convert("RGBA" if alpha else "RGB")
@@ -364,7 +402,7 @@ def _raster(data: bytes, mime: str, filename: str) -> MediaResult:
                 if len(candidate) <= cap:
                     out = candidate
                 edge = max(1, int(edge * DOWNSCALE_STEP))
-        except (Image.DecompressionBombWarning, Image.DecompressionBombError):
+        except Image.DecompressionBombError:
             raise _reject("too_large", filename) from None
         except MemoryError:
             raise _reject("too_large", filename) from None
@@ -381,8 +419,9 @@ def _raster(data: bytes, mime: str, filename: str) -> MediaResult:
                        original=original)
 
 
-def normalize_media(data: bytes, declared_mime: str | None, filename: str | None) -> MediaResult:
-    """What this server will store for `data`, or `MediaRejected`. See the module docstring."""
+def _screen(data: bytes, declared_mime: str | None, filename: str | None) -> tuple[str, str, bool]:
+    """The refusals EVERY path shares: empty, over the source cap, a web page or script.
+    Returns `(name, mime, confirmed)`."""
     name = os.path.basename((filename or "").replace("\\", "/")).strip()
     if not data:
         raise _reject("unsupported", name)
@@ -391,6 +430,24 @@ def normalize_media(data: bytes, declared_mime: str | None, filename: str | None
     mime, confirmed = _sniff(data, declared_mime, name)
     if mime in _WEB_PAGE_MIMES:
         raise _reject("unsupported", name)
+    return name, mime, confirmed
+
+
+def normalize_file(data: bytes, declared_mime: str | None, filename: str | None) -> MediaResult:
+    """Fix round 1, I5: the FILE-INTENT decision (`/attachments`, a connector item listed as a
+    file). The member attaches these bytes; nothing is decoded, converted or downscaled, so an
+    image that is huge, corrupt, or a HEIC with no decoder is still kept as the file it is.
+    Only the shared refusals apply (empty, over 25 MB, a web page/script). An image type the
+    bytes do not confirm is typed `application/octet-stream`, as in `normalize_media`."""
+    name, mime, confirmed = _screen(data, declared_mime, filename)
+    if mime in _RASTER and not confirmed:
+        mime = _OCTET
+    return MediaResult(kind="file", mime=mime, data=data, filename=name)
+
+
+def normalize_media(data: bytes, declared_mime: str | None, filename: str | None) -> MediaResult:
+    """What this server will store for `data`, or `MediaRejected`. See the module docstring."""
+    name, mime, confirmed = _screen(data, declared_mime, filename)
     if mime in _RASTER:
         if confirmed:
             return _raster(data, mime, name)
@@ -469,41 +526,61 @@ def _memo_usage(user_id: str) -> int:
     return used
 
 
-def _memo_add(user_id: str, nbytes: int) -> None:
+def _memo_reserve(user_id: str, nbytes: int) -> bool:
+    """Fix round 1, I3: the ONE check-and-add of a member's usage, atomic under `_USAGE_LOCK`
+    against the SHARED memo entry, so concurrent uploads and an engine pass all reserve from
+    the same running total and can never together pass the cap. A missing entry (never read,
+    or cleared) is filled by a scan first, outside the lock, then the check is retried."""
+    key = _memo_key(user_id)
+    for _ in range(2):
+        with _USAGE_LOCK:
+            hit = _USAGE_MEMO.get(key)
+            if hit is not None:
+                if hit[1] + nbytes > MEMBER_IMPORT_MEDIA_CAP_BYTES:
+                    return False
+                _USAGE_MEMO[key] = (hit[0], hit[1] + nbytes)
+                return True
+        _memo_usage(user_id)
+    return False
+
+
+def _memo_release(user_id: str, nbytes: int) -> None:
     key = _memo_key(user_id)
     with _USAGE_LOCK:
         hit = _USAGE_MEMO.get(key)
         if hit is not None:
-            _USAGE_MEMO[key] = (hit[0], max(0, hit[1] + nbytes))
+            _USAGE_MEMO[key] = (hit[0], max(0, hit[1] - nbytes))
 
 
 class MediaBudget:
-    """One member's remaining room under `MEMBER_IMPORT_MEDIA_CAP_BYTES`, for one sync pass or
-    one upload request. `reserve` before writing; a refusal is a `storage_limit`."""
+    """A member's room under `MEMBER_IMPORT_MEDIA_CAP_BYTES`, for one sync pass or one upload
+    request. `reserve` before writing; a refusal is a `storage_limit`. Every budget for the
+    same member reads and reserves against ONE shared running total (the usage memo), so an
+    engine pass sees the uploads made during it and N concurrent uploads cannot each take the
+    remaining room."""
 
-    def __init__(self, user_id: str, used: int):
+    def __init__(self, user_id: str):
         self.user_id = user_id
-        self.used = used
 
     @classmethod
     def for_member(cls, user_id: str) -> "MediaBudget":
-        return cls(user_id, _memo_usage(user_id))
+        _memo_usage(user_id)          # one memoised scan; refreshed after USAGE_MEMO_TTL_S
+        return cls(user_id)
+
+    @property
+    def used(self) -> int:
+        with _USAGE_LOCK:
+            hit = _USAGE_MEMO.get(_memo_key(self.user_id))
+        return hit[1] if hit is not None else _memo_usage(self.user_id)
 
     def under_cap(self) -> bool:
         return self.used < MEMBER_IMPORT_MEDIA_CAP_BYTES
 
     def reserve(self, nbytes: int) -> bool:
-        nbytes = max(0, int(nbytes))
-        if self.used + nbytes > MEMBER_IMPORT_MEDIA_CAP_BYTES:
-            return False
-        self.used += nbytes
-        _memo_add(self.user_id, nbytes)
-        return True
+        return _memo_reserve(self.user_id, max(0, int(nbytes)))
 
     def release(self, nbytes: int) -> None:
-        nbytes = max(0, int(nbytes))
-        self.used = max(0, self.used - nbytes)
-        _memo_add(self.user_id, -nbytes)
+        _memo_release(self.user_id, max(0, int(nbytes)))
 
 
 def _store_one(user_id: str, note_id: str, r: MediaResult) -> StoredMedia:
@@ -517,18 +594,46 @@ def _store_one(user_id: str, note_id: str, r: MediaResult) -> StoredMedia:
                        mime=r.mime, width=None, height=None)
 
 
+def _remove_stored(user_id: str, note_id: str, stored: StoredMedia) -> None:
+    """Delete a file this call just wrote (never one another note may share: only a
+    uuid-named `file`, see `store_media`). Best effort: the attachment GC is the backstop."""
+    parts = stored.url.rsplit("/", 2)
+    if len(parts) != 3:
+        return
+    path = notes_svc.serve_note_image_path(user_id, note_id, parts[1], parts[2])
+    try:
+        if path is not None:
+            path.unlink()
+    except OSError:
+        pass
+
+
 def store_media(user_id: str, note_id: str, result: MediaResult, *, budget: MediaBudget) -> StoredMedia:
     """Store a decided result (and its original) under the member's cap. Raises
     `MediaRejected("storage_limit")` when the budget refuses (the original counts too) or the
-    volume has no headroom; `MediaRejected("unsupported")` for any other save refusal."""
+    volume has no headroom (`NoteQuotaExceeded`, or a disk-full `OSError`);
+    `MediaRejected("unsupported")` for any other save refusal; `MediaRejected("fetch_failed")`
+    for any other disk error (never a 500).
+
+    Fix round 1, M4: the ORIGINAL is written first. It is a uuid-named file no other note
+    shares, so if the primary then fails it is deleted, and the budget released: no file
+    outlives a refusal. (The primary is never deleted on a later failure: an inline image is
+    content-addressed and may be the same file another ref of this note already uses.)"""
     need = len(result.data) + (len(result.original.data) if result.original is not None else 0)
     if not budget.reserve(need):
         raise _reject("storage_limit", result.filename)
+    original = None
     try:
+        if result.original is not None:
+            original = _store_one(user_id, note_id, result.original)
         primary = _store_one(user_id, note_id, result)
-        original = _store_one(user_id, note_id, result.original) if result.original is not None else None
-    except notes_svc.NoteValidationError as e:
+    except (notes_svc.NoteValidationError, OSError) as e:
         budget.release(need)
-        quota = isinstance(e.__cause__, NoteQuotaExceeded)
-        raise _reject("storage_limit" if quota else "unsupported", result.filename) from e
+        if original is not None:
+            _remove_stored(user_id, note_id, original)
+        if isinstance(e, OSError):
+            reason = "storage_limit" if e.errno == errno.ENOSPC else "fetch_failed"
+        else:
+            reason = "storage_limit" if isinstance(e.__cause__, NoteQuotaExceeded) else "unsupported"
+        raise _reject(reason, result.filename) from e
     return replace(primary, original=original)

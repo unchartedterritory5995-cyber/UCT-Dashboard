@@ -2941,10 +2941,14 @@ async def test_retry_stops_after_max_attempts_with_a_final_notice(source, provid
 async def test_a_maxed_ref_is_not_fetched_while_a_sibling_ref_keeps_the_note_pending(
         source, provider):
     a, b = _IMG, "https://cdn.example.com/b.png"
-    _image_note(provider, a, b, failing=(a,))
-    provider.media_by_ref[b] = (PNG_BYTES, "image/png")
-    await engine.sync_source(source["id"], full=True)                  # a:1  b: ok
-    provider.raise_on_fetch_media_for = {a, b}
+    _image_note(provider, a)                                            # a:1
+    await engine.sync_source(source["id"], full=True)
+    # The remote page gains b (a real change, so the whole note re-imports). Plan A Task 8
+    # fix round 1 (I4): a ref that already RESOLVED is never fetched again on a retry, so
+    # the sibling that keeps the note pending has to be one that is still failing.
+    _image_note(provider, a, b)
+    provider.refs = [RemoteRef(remote_id="p1", updated_at="2026-08-02T00:00:00+00:00")]
+    provider.notes_by_id["p1"].updated_at = "2026-08-02T00:00:00+00:00"
     for _ in range(2):
         await engine.sync_source(source["id"], full=True, manual=True)  # a:2,3  b:1,2
     assert _row("u1", _IMG_KEY)["import_media_pending"] == 1             # b still retryable
@@ -3104,12 +3108,70 @@ async def test_storage_wait_retries_once_space_frees(source, provider, monkeypat
 
     # space frees -> the waiting note comes back on the next pass
     _media_cap(monkeypatch, 10 * 1024 * 1024)
+    stored_srcs = [n["attrs"]["src"] for n in _nodes_of(_body(notes_svc.get_note("u1", note_id)), "image")]
     await engine.sync_source(source["id"], full=True, manual=True)
+    # fix round 1 (I4): ONLY the missing item is fetched; the two already stored are reused
+    assert provider.fetch_media_calls == [*_IMGS, _IMGS[2]]
     body = _body(notes_svc.get_note("u1", note_id))
     assert len(_nodes_of(body, "image")) == 3
+    assert [n["attrs"]["src"] for n in _nodes_of(body, "image")][:2] == stored_srcs
     assert _nodes_of(body, "importNotice") == []
     assert _row("u1", _IMG_KEY)["import_media_pending"] == 0
     assert notes_svc.get_note("u1", note_id)["updatedAt"] == stamped     # timestamp-neutral
+
+
+async def test_a_retry_never_stores_an_already_resolved_file_twice(source, provider, monkeypatch, tmp_path):
+    """I4: a file chip that resolved stays; its uuid-named file is not written again (an
+    orphan the cap would count) when a sibling's storage wait retries."""
+    media_policy._USAGE_MEMO.clear()
+    provider.refs = [RemoteRef(remote_id="p1", updated_at="2026-08-01T00:00:00+00:00")]
+    rn = _rn("p1", "Chart page", media=[
+        {"ref": "f.csv", "kind": "file", "name": "f.csv"},
+        {"ref": _IMG, "kind": "image", "name": "a.png"}])
+    rn.doc["content"] += [{"type": "attachmentChip", "attrs": {"href": "import-ref://f.csv", "name": "f.csv"}},
+                          {"type": "image", "attrs": {"src": f"import-ref://{_IMG}"}}]
+    provider.notes_by_id = {"p1": rn}
+    provider.media_by_ref.update({"f.csv": (b"a,b,c", "text/csv"), _IMG: (PNG_BYTES, "image/png")})
+    _media_cap(monkeypatch, 5)
+    await engine.sync_source(source["id"], full=True)
+    assert _row("u1", _IMG_KEY)["import_media_pending"] == 2
+    _media_cap(monkeypatch, 10 * 1024 * 1024)
+    await engine.sync_source(source["id"], full=True, manual=True)
+    files = [p for p in (tmp_path / "att").rglob("*") if p.is_file()]
+    assert sorted(p.suffix for p in files) == [".csv", ".png"]          # one each, no orphan
+    assert provider.fetch_media_calls == ["f.csv", _IMG, _IMG]
+
+
+async def test_a_connector_file_chip_is_never_decoded(source, provider):
+    """I5: an item the provider lists as a file keeps the bytes, even a corrupt image."""
+    provider.refs = [RemoteRef(remote_id="p1", updated_at="2026-08-01T00:00:00+00:00")]
+    broken = b"\x89PNG\r\n\x1a\n" + b"corrupt" * 10
+    rn = _rn("p1", "Chart page", media=[{"ref": "b.png", "kind": "file", "name": "b.png"}])
+    rn.doc["content"].append({"type": "attachmentChip", "attrs": {"href": "import-ref://b.png", "name": "b.png"}})
+    provider.notes_by_id = {"p1": rn}
+    provider.media_by_ref["b.png"] = (broken, "image/png")
+    await engine.sync_source(source["id"], full=True)
+    body = _body(notes_svc.list_notes("u1")[0])
+    assert _nodes_of(body, "importNotice") == []
+    assert _only(body, "attachmentChip")["attrs"]["size"] == len(broken)
+
+
+async def test_the_policy_work_runs_off_the_event_loop(source, provider, monkeypatch):
+    """I2: a manual "Sync now" runs on the uvicorn loop; the decode/store must not."""
+    import threading
+    loop_thread = threading.get_ident()
+    seen = []
+    real = media_policy.store_media
+
+    def spy(*a, **k):
+        seen.append(threading.get_ident())
+        return real(*a, **k)
+
+    monkeypatch.setattr(media_policy, "store_media", spy)
+    _image_note(provider, failing=())
+    provider.media_by_ref[_IMG] = (PNG_BYTES, "image/png")
+    await engine.sync_source(source["id"], full=True)
+    assert seen and all(t != loop_thread for t in seen)
 
 
 def test_the_storage_wait_flip_is_member_scoped_and_timestamp_neutral(db):

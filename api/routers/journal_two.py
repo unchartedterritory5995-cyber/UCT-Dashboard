@@ -3951,8 +3951,9 @@ async def _upload_through_media_policy(user_id: str, note_id: str, file: UploadF
     """Plan A Task 8 [B A1]: the ONE media policy behind both editor upload doors. The raw
     bytes go through `normalize_media` (sniff, convert, downscale, refuse) then `store_media`
     under ONE `MediaBudget` for this request (the member's memoised usage: an upload burst
-    never rescans their tree per file). `file_intent` (the `/attachments` door): an image is
-    stored as a file (`media_policy.as_file`), never re-routed inline. The 2 GB cap applies
+    never rescans their tree per file). `file_intent` (the `/attachments` door) decides with
+    `normalize_file` instead: the bytes are kept as a file, never decoded, converted or
+    re-routed inline (fix round 1, I5). The 2 GB cap applies
     to every upload here: the doors cannot tell an import from an editor upload.
 
     The decode/encode and the disk work run off the event loop. A refusal is a 400
@@ -3965,16 +3966,20 @@ async def _upload_through_media_policy(user_id: str, note_id: str, file: UploadF
     name = file.filename or ("attachment" if file_intent else "image")
 
     def decide_and_store():
-        result = media_policy.normalize_media(raw, file.content_type, name)
-        if file_intent and result.kind == "image":
-            result = media_policy.as_file(result, source=raw, source_name=name)
+        # Fix round 1, I5: an attachment is the member's bytes, never decoded.
+        decide = media_policy.normalize_file if file_intent else media_policy.normalize_media
+        result = decide(raw, file.content_type, name)
         budget = media_policy.MediaBudget.for_member(user_id)
         return media_policy.store_media(user_id, note_id, result, budget=budget)
 
     try:
         stored = await run_in_threadpool(decide_and_store)
     except media_policy.MediaRejected as e:
-        return JSONResponse(status_code=400, content={"detail": e.marker_text, "reason": e.reason})
+        # Fix round 1, M1: the import notice promises a retry once space frees; nothing
+        # retries an editor upload, so the door says so in its own words.
+        detail = (media_policy.UPLOAD_STORAGE_LIMIT_SENTENCE if e.reason == "storage_limit"
+                  else e.marker_text)
+        return JSONResponse(status_code=400, content={"detail": detail, "reason": e.reason})
     except NoteValidationError as e:
         raise HTTPException(status_code=400, detail=str(e))
     payload = _stored_media_payload(stored)
