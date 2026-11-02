@@ -60,6 +60,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import copy
 import datetime as _dt
 import hashlib
 import io
@@ -97,6 +98,8 @@ INCONCLUSIVE = "INCONCLUSIVE"
 INCOMPLETE = "INCOMPLETE"
 OUTCOMES = (CAPTURED, REFUSED_BY_TV, GATE_FAILED, INCONCLUSIVE, INCOMPLETE)
 DEFAULT_RETRY = (INCOMPLETE, INCONCLUSIVE, GATE_FAILED)
+#: The pause between scripts may be lowered, never below this: it is the owner's own account.
+MIN_THROTTLE_S = 10.0
 
 #: Listing days this tool may assert `startsAtBar0` against. A young listing is
 #: the instrument (capture-procedure.md, "BAR 0 IS NOT REACHABLE ON A LONG-HISTORY
@@ -312,6 +315,15 @@ VH_CHUNK_JS = "(i) => JSON.stringify(window.__uctVH.chunk(i))"
 VH_CLEANUP_JS = "() => (window.__uctVH ? window.__uctVH.cleanup() : { globalsLeft: [], absent: true })"
 GLOBALS_JS = "() => Object.keys(window).filter((k) => /^__uct/.test(k))"
 
+#: READ-ONLY: the signed-in TradingView username, for PROVENANCE only. Python keeps
+#: sha256(username)[:12], never the name (the repository is public). `null` when the
+#: page does not expose one: provenance then says `unread`, which is honest, not a failure.
+ACCOUNT_JS = r"""() => {
+  const tryv = (f) => { try { const v = f(); return (typeof v === 'string' && v) ? v : null } catch (e) { return null } };
+  return tryv(() => window.user.username) || tryv(() => window.TradingView.currentUser.username)
+      || tryv(() => window.initData.user.username) || null;
+}"""
+
 
 # ─── small helpers ───────────────────────────────────────────────────────────
 def utcnow() -> str:
@@ -490,6 +502,7 @@ class Opts:
         self.chunk_size = int(kw.get("chunk_size", 60000))
         self.newest_bar_forming = kw.get("newest_bar_forming", "auto")
         self.title_selector = kw.get("title_selector")
+        self.profile_leaf = kw.get("profile_leaf")
         self.retry = set(kw.get("retry", DEFAULT_RETRY))
         self.date = kw.get("date") or _dt.datetime.now().strftime("%Y-%m-%d")
 
@@ -501,6 +514,8 @@ class Driver:
 
     def __init__(self, page, clock, opts: Opts, rd: RunDir, verifier, log=print):
         self.page, self.clock, self.opts, self.rd, self.verifier, self.log = page, clock, opts, rd, verifier, log
+        self.base_opts = opts
+        self.provenance = {}         # batch-level: run, account fingerprint, profile, engine sha
         self.abort = None           # (exit code, reason) once the rig cannot be trusted
         self._reset()
 
@@ -781,7 +796,7 @@ class Driver:
         forming, forming_why = newest_bar_forming(o.newest_bar_forming)
         sym_slug = slugify(o.symbol.split(":")[-1])
         tf_slug = slugify(res_norm(o.tf) if re.fullmatch(r"\d+", res_norm(o.tf)) else "1" + res_norm(o.tf))
-        capture_id = f"{script['slug']}-{sym_slug}-{tf_slug}-{o.date}"
+        capture_id = f"{script.get('captureStem') or script['slug']}-{sym_slug}-{tf_slug}-{o.date}"
         res = self.ev("vh_capture", VH_CAPTURE_JS, {
             "study": title, "source": text, "id": capture_id,
             "newestBarIsForming": forming, "startsAtBar0": starts, "startsAtBar0Why": why,
@@ -892,8 +907,25 @@ class Driver:
             self.abort = (1, f"cleanup left the chart dirty after {self.slug}: {problems}")
         return out
 
+    def opts_for(self, script: dict) -> Opts:
+        """⭐ PER-SCRIPT CHART (evidence engine): a manifest row may name its own
+        `symbol` / `tf` / `listingDate`. Absent, the batch's own options stand, exactly
+        as before. A listing date is never carried over from another symbol."""
+        if not any(script.get(k) for k in ("symbol", "tf", "listingDate")):
+            return self.base_opts
+        o = copy.copy(self.base_opts)
+        if script.get("symbol"):
+            o.symbol = script["symbol"]
+            o.listing_date = script.get("listingDate") or KNOWN_LISTING.get(o.symbol.upper())
+        elif script.get("listingDate"):
+            o.listing_date = script["listingDate"]
+        if script.get("tf"):
+            o.tf = script["tf"]
+        return o
+
     def run_one(self, script: dict) -> dict:
         self._reset()
+        self.opts = self.opts_for(script)
         self.slug = script["slug"]
         started = utcnow()
         self.rd.claim(script, started)             # ⛔ BEFORE the first step
@@ -914,6 +946,9 @@ class Driver:
         finally:
             cleanup = self.cleanup()
         result["cleanup"] = cleanup
+        result["provenance"] = {**self.provenance, "symbol": self.opts.symbol, "tf": self.opts.tf,
+                                "queueTargetId": script.get("queueTargetId"), "rows": script.get("rows") or [],
+                                "localOnly": bool(script.get("localOnly")), "operator": "owner"}
         result["steps"] = list(self.steps)
         result["finishedAtUTC"] = utcnow()
         self.rd.finish(result)
@@ -945,6 +980,29 @@ def should_skip(prior, script, rd: RunDir, verifier, retry) -> tuple[bool, str]:
     return False, f"unknown prior outcome {out!r}"
 
 
+def account_fingerprint(page) -> str:
+    """sha256(username)[:12] of the signed-in account, or `unread`. Never the name."""
+    try:
+        name = page.evaluate(ACCOUNT_JS)
+    except Exception:  # noqa: BLE001 — provenance must never fail a capture
+        name = None
+    return hashlib.sha256(name.encode("utf-8")).hexdigest()[:12] if isinstance(name, str) and name else "unread"
+
+
+def engine_sha() -> str:
+    try:
+        out = subprocess.run(["git", "rev-parse", "HEAD"], cwd=str(REPO), capture_output=True, text=True, timeout=20)
+        return out.stdout.strip() or "unread"
+    except Exception:  # noqa: BLE001
+        return "unread"
+
+
+def batch_provenance(page, rd, opts) -> dict:
+    return {"runId": rd.run_id, "account": account_fingerprint(page),
+            "profile": getattr(opts, "profile_leaf", None) or "unread",
+            "rigLayout": LAYOUT.rstrip("/").rsplit("/", 1)[-1], "engineSha": engine_sha()}
+
+
 def run_batch(page, manifest: dict, rd: RunDir, opts: Opts, clock, verifier=None,
               only=None, limit=None, log=print) -> int:
     verifier = verifier or NodeVerifier()
@@ -961,6 +1019,8 @@ def run_batch(page, manifest: dict, rd: RunDir, opts: Opts, clock, verifier=None
         try:
             drv.gate("batch start")
             original = drv.read_state("state_original")
+            drv.provenance = batch_provenance(page, rd, opts)
+            rd.ledger("provenance", **drv.provenance)
             # ⭐ A DEAD PROCESS'S ORPHAN, RECOGNISED BY ITS RECORDED ID — never by
             # name. A study is removed here ONLY if every study on the chart is
             # one an INCOMPLETE result in THIS run dir recorded adding; anything
@@ -1058,6 +1118,20 @@ def grade(run_dir: pathlib.Path, flag_on: bool, log=print) -> int:
 
 
 # ─── the live session ────────────────────────────────────────────────────────
+def report_profile_lock(profile) -> bool:
+    """⛔ TEARDOWN KEEPS THE PROFILE AND PROVES ITS LOCK RELEASED (the rig rule): the next
+    run must find it free. Reported, never forced: nothing here kills a process."""
+    try:
+        from window_check import profile_lock_released  # noqa: E402 — the one lock-release authority
+        ok, held = profile_lock_released(timeout=30, profile=profile)
+    except Exception as exc:  # noqa: BLE001
+        print(f"[batch] profile lock: could not be checked ({type(exc).__name__}: {exc})")
+        return False
+    print(f"[batch] profile lock: {'released' if ok else 'STILL HELD ' + str(held)} ({pathlib.Path(profile).name}; "
+          "the profile is kept, never deleted)")
+    return ok
+
+
 def _launch(args, body):
     """Open the session-owned browser on the rig layout, sign in (once, by the
     owner), then hand the page to `body`. Mirrors pine_vendor_capture.main()."""
@@ -1098,6 +1172,7 @@ def _launch(args, body):
                 ctx.close()
             except Exception:  # noqa: BLE001
                 pass
+            report_profile_lock(profile)
 
 
 def _recon(page, args) -> int:
@@ -1194,6 +1269,10 @@ def main(argv=None) -> int:
         return _launch(args, lambda page: _recon(page, args))
 
     if args.cmd == "run":
+        if args.throttle_s < MIN_THROTTLE_S:
+            print(f"[batch] REFUSED: --throttle-s {args.throttle_s} is below {MIN_THROTTLE_S:.0f}s "
+                  "(this is the owner's own account)")
+            return 2
         manifest = _load_manifest(args.manifest)
         run_id = _dt.datetime.now().strftime("%Y%m%d-%H%M%S")
         run_dir = pathlib.Path(args.run_dir) if args.run_dir else DEFAULT_RUN_ROOT / run_id
@@ -1209,6 +1288,7 @@ def main(argv=None) -> int:
                     throttle_s=args.throttle_s, compute_timeout_s=args.compute_timeout_s,
                     chunk_size=args.chunk_size, newest_bar_forming=args.newest_bar_forming,
                     title_selector=args.title_selector,
+                    profile_leaf=resolve_profile(args.profile).name,
                     retry=[x.strip() for x in args.retry.split(",") if x.strip()])
         print(f"[batch] run dir: {run_dir}")
         return _launch(args, lambda page: run_batch(page, manifest, rd, opts, RealClock(page),

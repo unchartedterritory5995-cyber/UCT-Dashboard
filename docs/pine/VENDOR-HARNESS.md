@@ -249,6 +249,17 @@ see `docs/pine/vendor-harness/summary.md`). **MATCH 7 · DIVERGE 8 · INCONCLUSI
 not a maths difference: the observations start deep in SPY's history. A capture
 from bar 0 (a young listing, or SPY `12M`) is what settles them.
 
+## The evidence engine (2026-11-02) — the capture queues, batched
+
+`tools/vendor_harness/evidence_engine.py` turns every `docs/pine/capture-queue-*.md` row into one
+machine-readable queue (`docs/pine/vendor-harness/capture-queue.json`, priority = sample scripts
+unblocked, derived from `coverage-map.json`), writes a manifest the unattended batch below runs
+with each target's OWN symbol and timeframe, grades the run under the heavy lock, and stops at a
+promotion packet a person reads before `promote --packet-sha` copies licence-clear captures into
+`tests/fixtures/vendor/harness/` and files every verdict in `evidence-ledger.jsonl`. Design:
+`docs/pine/EVIDENCE-ENGINE-DESIGN.md`. Owner command:
+`python tools/vendor_harness/evidence_engine.py batch --top 20`.
+
 ## Unattended batch (2026-09-28) — many scripts, no keyboard after one sign-in
 
 `tools/vendor_harness/batch_capture.py` runs steps 1–12 above for every script in a

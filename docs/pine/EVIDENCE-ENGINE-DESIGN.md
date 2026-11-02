@@ -107,6 +107,21 @@ text, its doc's wave tag (the filename after the date: `wsc-history`, `c47`, ...
 - **stated unblocks**: a bold number in a column headed "unblock" / "would move" / "confirms";
   kept as the author's claim, never as the priority.
 
+How the parser reads the docs (they were written by hand, by many sessions, in several
+shapes; these rules are what makes them machine-readable without rewriting them):
+
+- A table whose header has a cell `settled` / `served` / `was` / `now` / `witness`, or whose
+  first header is `refused as`, is a LEDGER of what is already known, not a queue. It is
+  counted per doc (`contextTables`), never silently dropped.
+- Inheritance is by SECTION first: a row with no source takes the one `.pine` file named in
+  the heading above its table (`### 6. vw-mintick.pine ...`), else the one named in the doc's
+  preamble. Only explicit `.pine` names are handed down, never a bare stem in prose.
+- A timeframe is read only as the list that immediately follows a symbol (`NYSE:RDDT **15**,
+  **60**, **240**`, `AMEX:SPY 1D (and 1W)`); a number later in the sentence (`bars 0 and 1`,
+  `1,800 bars`) is never a timeframe.
+- A target needing a live session is `NEEDS_LIVE` at status derivation, the single place that
+  rule lives; the manifest selects by status alone.
+
 ### 2.2 Targets (the unit of work)
 
 A **target** is one capture to take: `(source sha, symbol, timeframe)`. Rows that need the
