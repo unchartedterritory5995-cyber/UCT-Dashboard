@@ -41,6 +41,9 @@ import { foreignLanguage, foreignRefusal } from '../engine/ast/foreignLanguage'
 import { TS_CALL_SHAPES, TS_DOC_BLOCKED } from '../engine/ast/thinkscript'
 import { TABLE } from '../engine/ast/parse'
 import ImportGapNotice from '../supportLoop/ImportGapNotice'
+import PineEditorStatus, { usePineEditorStatus } from './PineEditorStatus'
+import { editorStatusEnabled } from './editorStatusGate'
+import { lineMarks as toLineMarks } from './editorStatus'
 import styles from './PineBox.module.css'
 
 /** The same 250 ms `FormulaField` settles on, and for the same reason: a paste is
@@ -592,7 +595,7 @@ function loadEditor() {
  *  (already mounted and already the value carrier) stays the box. Never a reload. */
 const TEXTAREA_FALLBACK = null
 
-function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSourceChange, onImportTelemetry, sym = null, tf = null }) {
+function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSourceChange, onImportTelemetry, sym = null, tf = null, savedRow = null }) {
   const inspect = useCallback(
     (s, opts) => (dialect === undefined ? inspectPine(s, opts) : inspectSource(s, dialect, opts)),
     [dialect],
@@ -632,6 +635,37 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
   const [showNotes, setShowNotes] = useState(false)
   const [Editor, setEditor] = useState(null)
   const areaRef = useRef(null)
+  // ⭐ EDITOR STATUS PANEL (VITE_PINE_EDITOR_STATUS, `docs/pine/EDITOR-STATUS-PANEL-SPEC.md`).
+  // `inspected` is the text `report` was computed on, set in the same breath as
+  // `report`, so the panel can say "checking" and the line marks can refuse to
+  // land on a newer buffer. Off, nothing reads either.
+  const statusOn = editorStatusEnabled()
+  const editorRef = useRef(null)
+  const [inspected, setInspected] = useState(initialSource)
+  const editorStatusNow = usePineEditorStatus({ enabled: statusOn, report, inspectedSource: inspected, savedRow })
+  const statusMarks = useMemo(
+    () => (editorStatusNow ? toLineMarks(editorStatusNow, inspected) : null), [editorStatusNow, inspected])
+  /** The panel's `Line N` button: caret to the start of that line, scrolled into
+   *  view. CodeMirror when it has loaded, the textarea otherwise. */
+  const goToLine = useCallback((n) => {
+    const view = editorRef.current && editorRef.current.view ? editorRef.current.view() : null
+    if (view) {
+      const doc = view.state.doc
+      if (!Number.isInteger(n) || n < 1 || n > doc.lines) return
+      const at = doc.line(n).from
+      view.dispatch({ selection: { anchor: at }, scrollIntoView: true })
+      view.focus()
+      return
+    }
+    const area = areaRef.current
+    if (!area || !Number.isInteger(n) || n < 1) return
+    const lines = String(area.value || '').split('
+')
+    if (n > lines.length) return
+    const at = lines.slice(0, n - 1).reduce((acc, l) => acc + l.length + 1, 0)
+    area.focus()
+    area.setSelectionRange(at, at)
+  }, [])
 
   // ⭐⭐ THE MEMBER'S OWN VALUES. `translatePine`'s `inputValues` has shipped,
   // tested and green since the knob work — and until now its only caller was its
@@ -679,7 +713,7 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
 
   useEffect(() => {
     if (text.trim() === '') {
-      setReport(null); setChosen(null); setAuthorKnobs([]); return undefined
+      setReport(null); setInspected(''); setChosen(null); setAuthorKnobs([]); return undefined
     }
     const id = setTimeout(() => {
       const values = memberSettings(settings)
@@ -695,6 +729,7 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
       const isNewText = lastTextRef.current !== text
       lastTextRef.current = text
       setReport(next)
+      setInspected(text)
       // ⛔ A LENGTH CHANGE MUST NOT MOVE THE MEMBER'S PICK. Re-selecting
       // `next.selected` on every pass would snap a two-plot script back to the
       // first column each time a field is touched.
@@ -1112,6 +1147,20 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
           // hidden textarea every existing rail already types into.
           ariaLabel={`${anyDialect ? 'Script or formula' : 'Pine script'} editor`}
           testId="pine-editor"
+          ref={statusOn ? editorRef : undefined}
+          lineMarks={statusMarks || undefined}
+        />
+      )}
+
+      {statusOn && editorStatusNow && (
+        <PineEditorStatus
+          status={editorStatusNow}
+          report={report}
+          inspectedSource={inspected}
+          currentText={text}
+          sym={sym}
+          tf={tf}
+          onGoToLine={goToLine}
         />
       )}
 
@@ -1560,7 +1609,7 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
  */
 export function ImportBox({
   onPick, disabled = false, initialSource = '', dialect = 'auto', onSourceChange = null,
-  onImportTelemetry = null, sym = null, tf = null,
+  onImportTelemetry = null, sym = null, tf = null, savedRow = null,
 }) {
   return (
     <PasteBox
@@ -1572,6 +1621,7 @@ export function ImportBox({
       onImportTelemetry={onImportTelemetry}
       sym={sym}
       tf={tf}
+      savedRow={savedRow}
     />
   )
 }

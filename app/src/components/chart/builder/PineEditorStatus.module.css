@@ -1,0 +1,94 @@
+/* PineEditorStatus: the Pine editor's status panel (docs/pine/EDITOR-STATUS-PANEL-SPEC.md).
+   Breakpoints are the repo's two: 640 and 1024 (styles/breakpoints.css). */
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+  border-radius: var(--radius-md);
+  background: var(--bg-sunken, rgba(0, 0, 0, 0.2));
+}
+
+.top { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
+
+.head {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.headline { margin: 0; font-size: 13px; font-weight: 600; color: var(--text-bright); flex: 1 1 auto; }
+
+.body { display: flex; flex-direction: column; gap: 8px; }
+
+.runsOn, .items { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+
+.consumer { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; font-size: 12px; }
+.badge { font-family: var(--font-mono, ui-monospace, monospace); font-size: 11px; min-width: 4ch; }
+.badge[data-ok='true'] { color: var(--green, #3fb950); }
+.badge[data-ok='partial'] { color: var(--gold, #c9a84c); }
+.badge[data-ok='false'] { color: var(--text-muted); }
+.consumerLabel { font-weight: 600; color: var(--text-bright); min-width: 7ch; }
+.consumerWhy { color: var(--text-muted); }
+
+.engine, .still, .policy { margin: 0; font-size: 12px; color: var(--text-muted); }
+.policy { font-style: italic; }
+
+.subhead {
+  margin: 4px 0 2px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.item {
+  padding: 6px 8px;
+  border-left: 2px solid var(--gold, #c9a84c);
+  border-radius: 0 5px 5px 0;
+  background: rgba(201, 168, 76, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.item[data-severity='may-withhold'], .item[data-severity='note'] { border-left-color: var(--border-accent, #6e7681); }
+
+.itemHead { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.itemName { font-size: 12px; color: var(--text-bright); }
+.lineNone { font-size: 12px; color: var(--text-muted); }
+.itemSource {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 11px;
+  color: var(--text-bright);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.itemWhy { margin: 0; font-size: 12px; line-height: 1.5; color: var(--text-bright); }
+
+.details { font-size: 11px; color: var(--text-muted); }
+.details summary { cursor: pointer; min-height: var(--tap-min, 44px); display: flex; align-items: center; }
+
+.lineBtn, .action {
+  background: none;
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.12));
+  border-radius: var(--radius-sm, 4px);
+  padding: 0 8px;
+  min-height: var(--tap-min, 44px);
+  min-width: var(--tap-min, 44px);
+  color: var(--gold, #c9a84c);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.lineBtn:focus-visible, .action:focus-visible { outline: 2px solid var(--border-accent, #c9a84c); outline-offset: 1px; }
+.action { align-self: flex-start; }
+
+@media (min-width: 1025px) {
+  .lineBtn, .action { min-height: 24px; min-width: 0; }
+  .details summary { min-height: 0; }
+}

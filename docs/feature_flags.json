@@ -3494,6 +3494,18 @@
       "last_changed": "never set",
       "note": "Unset; useFlowWebSocket falls back to window.location.host, which is correct in production. An override is a local-dev affordance."
     },
+    "VITE_PINE_EDITOR_STATUS": {
+      "status": "dark",
+      "where": [],
+      "owner": "pine parity programme",
+      "owner_decision": "not yet taken: built dark on branch feat/pine-editor-status (2026-11-02), EDITOR workstream of the Pine full-parity plan",
+      "railway_value": "UNSET on every service",
+      "baked_value": "undefined (never set)",
+      "baked_measured_on": "2026-11-02, from Dockerfile.web's ARG list (declared in the same commit that added the read)",
+      "last_changed": "2026-11-02T00:00:00Z",
+      "note": "The Pine editor status panel on the Builder's Pine tab: where the script runs (chart, alerts, screener, scans), which engine lane, every withheld value on its source line in plain English, and per-line editor marks. Read in ONE place, app/src/components/chart/builder/editorStatusGate.js::editorStatusEnabled, as `=== '1'`; a build with no import.meta.env fails CLOSED. Off, PasteBox and CodeEditor render exactly what they did before. Spec: docs/pine/EDITOR-STATUS-PANEL-SPEC.md.",
+      "flip_precondition": "ON CHANGES FOR A MEMBER: a status panel appears under the Pine editor and withheld lines get gutter marks. VERIFY BEFORE FLIPPING: the owner looks at the panel on the three mockup scripts (one that runs fully, one with a request.security line, one strategy) on a desktop and a phone (Sheet on touch), and confirms every sentence reads plainly. It is a build constant: flipping it is a web REBUILD, not a variable change."
+    },
     "VITE_PINE_LOWER_TF_ENABLED": {
       "status": "dark",
       "where": [],

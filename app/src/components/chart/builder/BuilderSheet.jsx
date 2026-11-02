@@ -2679,6 +2679,10 @@ export default function BuilderSheet({
               // ⭐ SUPPORT LOOP A3 — what the member is viewing rides an opt-in report.
               sym={sym}
               tf={tf}
+              // ⭐ EDITOR STATUS PANEL — the served row being edited, so a version the
+              // script engine holds (`scan_refusal.gate === 'withheld'`) is named on
+              // the panel. Read only while VITE_PINE_EDITOR_STATUS is on.
+              savedRow={editing ? ((Array.isArray(rows) ? rows : []).find((r) => r && r.def_id === editing.defId) || null) : null}
               onPick={(picked) => {
                 // ⛔ THE SOURCE AND NOTHING ELSE — verbatim the StarterLibrary
                 // contract three lines down. Not the tree the translator built
