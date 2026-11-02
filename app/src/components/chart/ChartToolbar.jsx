@@ -1711,7 +1711,7 @@ function ChartToolbar({
             title={showAllDrawings ? 'Drawings: ALL tiers (click for the team set)' : 'Drawings: team set (click for all tiers)'}
             aria-label="Toggle all drawing tiers"
             aria-pressed={!!showAllDrawings}
-            style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.3, padding: '2px 6px' }}
+            style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.3, padding: '2px 6px', width: 'auto', minWidth: 24, whiteSpace: 'nowrap', flexShrink: 0 }}
           >
             {showAllDrawings ? 'All' : 'Team'}
           </button>
@@ -1724,7 +1724,7 @@ function ChartToolbar({
             title={showLevels ? 'Key levels: ON (nearest support/resistance)' : 'Key levels: OFF'}
             aria-label="Toggle key levels layer"
             aria-pressed={!!showLevels}
-            style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.3, padding: '2px 6px' }}
+            style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.3, padding: '2px 6px', width: 'auto', minWidth: 24, whiteSpace: 'nowrap', flexShrink: 0 }}
           >
             Levels
           </button>

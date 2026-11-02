@@ -203,3 +203,29 @@ describe('found on the live site 2026-11-02', () => {
     expect(close).toHaveBeenCalledTimes(1)
   })
 })
+
+describe('layoutLabels: no label sits on another (live site 2026-11-02)', () => {
+  it('keeps clear labels where they are, nudges a colliding one a line away, hides the text it cannot place', async () => {
+    const { layoutLabels } = await import('./ChartIqOverlay')
+    const a = { text: 'Base breakout (support)', x: 500, y: 200, anchor: 'end' }
+    const far = { text: 'Buy 32.89', x: 100, y: 50, anchor: 'start' }
+    const b = { text: 'BUY · Hammer at support', x: 500, y: 201, anchor: 'end' }
+    const out = layoutLabels([a, far, b], 600, 400)
+    expect(out[0]).toEqual({ y: 200, hidden: false })
+    expect(out[1]).toEqual({ y: 50, hidden: false })
+    expect(out[2].hidden).toBe(false)
+    expect(Math.abs(out[2].y - 201)).toBeGreaterThanOrEqual(10)              // moved off the first label
+    const crowd = Array.from({ length: 7 }, (_, i) => ({ text: 'Same spot label ' + i, x: 300, y: 100, anchor: 'end' }))
+    const laid = layoutLabels(crowd, 600, 400)
+    expect(laid.filter((l) => !l.hidden).length).toBe(5)                     // five lines fit (own + 2 up + 2 down), the rest drop text
+    const ys = laid.filter((l) => !l.hidden).map((l) => l.y)
+    expect(new Set(ys).size).toBe(ys.length)
+  })
+
+  it('the Patterns and Team toolbar buttons size to their labels too (they overlapped each other)', async () => {
+    const { default: PatternToolbarButton } = await import('../PatternToolbarButton')
+    render(<PatternToolbarButton active={false} onToggle={() => {}} />)
+    const b = screen.getByRole('button', { name: /pattern/i })
+    expect(b.style.width).toBe('auto')
+  })
+})
