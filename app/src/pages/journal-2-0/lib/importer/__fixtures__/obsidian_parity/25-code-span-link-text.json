@@ -1,9 +1,11 @@
 {
   "id": "25-code-span-link-text",
-  "input_markdown": "# Code in link text\n\nsee [`q3` deck](attachments/q.pdf) end\n\nand `![[chart.png]]` stays code.\n\nand [[q.pdf|the `q3` deck]] too (D2 fix round 3, N-I2).\n",
+  "input_markdown": "# Code in link text\n\nsee [`q3` deck](attachments/q.pdf) end\n\nand `![[chart.png]]` stays code.\n\nand [[q.pdf|the `q3` deck]] too (D2 fix round 3, N-I2).\n\nsee [[Plan|the `x` plan]] end (D2 fix round 4, N-I4).\n\n> [!tip] See [[Plan|the `x`]]\n> body\n",
   "self_path": "a.md",
   "server": {
-    "callouts": [],
+    "callouts": [
+      "success"
+    ],
     "files": [
       {
         "label": "q3 deck",
@@ -16,14 +18,36 @@
     ],
     "highlights": [],
     "images": [],
-    "links": [],
+    "links": [
+      {
+        "target": "Plan.md",
+        "text": "the "
+      },
+      {
+        "target": "Plan.md",
+        "text": "x"
+      },
+      {
+        "target": "Plan.md",
+        "text": " plan"
+      },
+      {
+        "target": "Plan.md",
+        "text": "the "
+      },
+      {
+        "target": "Plan.md",
+        "text": "x"
+      }
+    ],
     "pending": [],
     "task_checked": [],
-    "text": "Code in link text see  [file: q.pdf]  end and ![[chart.png]] stays code. and  [file: q.pdf]  too (D2 fix round 3, N-I2)."
+    "text": "Code in link text see  [file: q.pdf]  end and ![[chart.png]] stays code. and  [file: q.pdf]  too (D2 fix round 3, N-I2). see the x plan end (D2 fix round 4, N-I4). See the x body"
   },
   "vault_id": "vault-1",
   "vault_paths": [
     "a.md",
+    "Plan.md",
     "attachments/q.pdf",
     "attachments/chart.png"
   ]

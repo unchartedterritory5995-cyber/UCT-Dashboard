@@ -220,6 +220,16 @@ const knownClientGap = {
   // Both lanes dropped the no-dot stem rule (`[[chart]]` names `chart.md` only), and
   // both check a `#`-holding target against the vault's full file names before
   // splitting an anchor (`![[my chart #1 (v2).png]]` keeps its image).
+  // 25-code-span-link-text (D2 fix round 4, N-I4): both lanes make the link to Plan from
+  // `[[Plan|the `x` plan]]` and from the callout title; what is left is the code RUN inside
+  // the link. The editor's code mark excludes every other mark, so the client's parse
+  // (`generateJSON`) drops the link from `x`, while the server's shared `mddoc` stores it as
+  // link+code (as it does for any `[`x`](url)`, every connector). Not an Obsidian pass:
+  // closed by D3 (shared-converter follow-up PR: a code run carries no other mark) --
+  // delete this entry then.
+  '25-code-span-link-text.json': {
+    missingLinks: [{ target: 'Plan.md', text: 'x' }, { target: 'Plan.md', text: 'x' }],
+  },
   // 27-tilde-fence (D2 fix round 3, M-new-1): images, links and media agree -- the `~~~`
   // fence keeps its embed and wikilink as code on both lanes. What is left is a code BLOCK
   // difference no Obsidian pass makes: the shared client parse keeps the fence's final

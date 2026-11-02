@@ -644,8 +644,11 @@ def _transform_wiki_and_embeds(
         embed = _WIKI_RE.sub(repl, inner) if inner.startswith("![[") else inner
         return embed + _WIKI_RE.sub(repl, f"[[{m.group(1)}]]")
 
-    segment = _ALIAS_EMBED_RE.sub(alias_embed, segment)
-    return _WIKI_RE.sub(repl, _NESTED_EMBED_RE.sub(nested, segment))
+    # D2 fix round 4, N-I4: called on the WHOLE body, so every pass takes only matches clear
+    # of code (`_sub_clear_of_code`): a wikilink may hold a whole code span, never cut one.
+    segment = _sub_clear_of_code(_ALIAS_EMBED_RE, alias_embed, segment)
+    segment = _sub_clear_of_code(_NESTED_EMBED_RE, nested, segment)
+    return _sub_clear_of_code(_WIKI_RE, repl, segment)
 
 
 def _escape_html(text: str) -> str:
@@ -1150,16 +1153,17 @@ def _preprocess_obsidian_markdown(
         body_md = _apply_attachment_refs(body_md, refs, plugin_supports, paths=paths,
                                          basename_map=basename_map, from_path=from_path)
 
-    def fn(segment: str) -> str:
-        segment = _transform_wiki_and_embeds(
-            segment, paths, basename_map, vault_id, import_key_fn, from_path=from_path)
-        segment = _transform_obsidian_uris(
-            segment, paths, basename_map, vault_id, import_key_fn,
-            from_path=from_path, vault_label=vault_label)
-        segment = _transform_highlights(segment)
-        return segment
-
-    return _split_callout_titles(_transform_outside_code(body_md, fn))
+    # D2 fix round 4, N-I4: the wikilink and deep-link passes run over the WHOLE body too,
+    # code protected (`_sub_clear_of_code`), as the client's do (`obsidian.js::
+    # preprocessWikiSyntax`). ⚰️ Per code-split segment, `[[Plan|the `x` plan]]` was cut at
+    # its code span: raw brackets, no link, while the client made the link. The highlight
+    # pass alone still runs per segment outside code.
+    body_md = _transform_wiki_and_embeds(
+        body_md, paths, basename_map, vault_id, import_key_fn, from_path=from_path)
+    body_md = _transform_obsidian_uris(
+        body_md, paths, basename_map, vault_id, import_key_fn,
+        from_path=from_path, vault_label=vault_label)
+    return _split_callout_titles(_transform_outside_code(body_md, _transform_highlights))
 
 
 # ── Obsidian deep links (Plan A Task 13) ─────────────────────────────────────
@@ -1206,7 +1210,7 @@ def _transform_obsidian_uris(
                else _name_key(vault_id, target, from_path))
         return f"[{m.group(2)}](<{LINK_PREFIX}{_pct(key)}>)"
 
-    return _OBSIDIAN_URI_LINK_RE.sub(repl, segment)
+    return _sub_clear_of_code(_OBSIDIAN_URI_LINK_RE, repl, segment)  # whole body (N-I4)
 
 
 # ── Callouts (Plan A Task 13) ────────────────────────────────────────────────

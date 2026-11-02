@@ -1900,3 +1900,28 @@ def test_every_wikilink_pattern_of_this_provider_is_linear_on_a_bracket_run():
             started = time.perf_counter()
             list(getattr(provider, name).finditer(body))
             assert time.perf_counter() - started < 0.2, (name, body[:4], len(body))
+
+
+def test_a_note_wikilink_whose_alias_holds_a_code_span_is_a_link():
+    """D2 fix round 4, N-I4: the wikilink and deep-link passes run over the whole body with
+    code spans protected, as the attachment pass (round 2) and the client (round 3) do.
+    `[[Plan|the `x` plan]]` used to be cut at its code span: raw brackets, no link."""
+    out = _convert("see [[Plan|the `x` plan]] end", ["Plan.md"])
+    assert [h for _, h in _link_marks(out["doc"])] == [_key("Plan.md")] * 3
+    assert extract_plain_text(out["doc"]) == "see the x plan end"
+    callout = _convert("> [!tip] See [[Plan|the `x`]]\n> body", ["Plan.md"])["doc"]["content"][0]
+    assert callout["type"] == "callout"
+    assert [h for _, h in _link_marks(callout["content"][0])] == [_key("Plan.md")] * 2
+    assert extract_plain_text(callout) == "See the x body"
+
+
+def test_wikilinks_in_code_or_cut_by_code_stay_as_written():
+    """D2 fix round 4, N-I4 guard: a wikilink, embed or deep link inside code, or cut by a
+    code span, is never rewritten."""
+    body = ("`[[Plan]]` and `![[img.png]]` and [[Plan `x]] y` z\n\n```\n[[Plan]] [x](obsidian://open?file=Plan)\n```\n\n"
+            "~~~\n[[Plan]]\n~~~\n")
+    out = _convert(body, ["Plan.md", "att/img.png"], label="vault-1")
+    assert _link_marks(out["doc"]) == [] and out["links"] == []
+    assert _all(out["doc"], "image") == [] and out["media"] == []
+    text = _plain(out["doc"])
+    assert "[[Plan]]" in text and "![[img.png]]" in text and "obsidian://open" in text
