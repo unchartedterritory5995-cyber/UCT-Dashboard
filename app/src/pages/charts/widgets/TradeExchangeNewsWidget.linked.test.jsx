@@ -292,17 +292,17 @@ describe('search hits are marked', () => {
 })
 
 describe('the date and time on every headline, and All history in full-timestamp order', () => {
-  it('stamps MM/DD/YYYY h:mm:ss AM/PM in the market zone, DST by the zone database', async () => {
+  it('stamps MM/DD/YYYY h:mm:ss AM/PM ET in the market zone, DST by the zone database', async () => {
     const { fmtStamp } = await import('./tradeExchangeNewsModel')
-    expect(fmtStamp(Date.UTC(2026, 10, 1, 17, 48, 13))).toBe('11/01/2026 12:48:13 PM')     // EST, after the change
-    expect(fmtStamp(Date.UTC(2026, 10, 1, 3, 59, 59))).toBe('10/31/2026 11:59:59 PM')      // EDT: still Oct 31 in New York
-    expect(fmtStamp(Date.UTC(2026, 10, 1, 4, 0, 0))).toBe('11/01/2026 12:00:00 AM')
+    expect(fmtStamp(Date.UTC(2026, 10, 1, 17, 48, 13))).toBe('11/01/2026 12:48:13 PM ET')     // EST, after the change
+    expect(fmtStamp(Date.UTC(2026, 10, 1, 3, 59, 59))).toBe('10/31/2026 11:59:59 PM ET')      // EDT: still Oct 31 in New York
+    expect(fmtStamp(Date.UTC(2026, 10, 1, 4, 0, 0))).toBe('11/01/2026 12:00:00 AM ET')
     // the repeated hour: 1:30 EDT and 1:30 EST are different instants with the same wall time
-    expect(fmtStamp(Date.UTC(2026, 10, 1, 5, 30))).toBe('11/01/2026 1:30:00 AM')
-    expect(fmtStamp(Date.UTC(2026, 10, 1, 6, 30))).toBe('11/01/2026 1:30:00 AM')
+    expect(fmtStamp(Date.UTC(2026, 10, 1, 5, 30))).toBe('11/01/2026 1:30:00 AM ET')
+    expect(fmtStamp(Date.UTC(2026, 10, 1, 6, 30))).toBe('11/01/2026 1:30:00 AM ET')
     // spring forward, 2026-03-08: 1:59:59 EST is followed by 3:00:00 EDT
-    expect(fmtStamp(Date.UTC(2026, 2, 8, 6, 59, 59))).toBe('03/08/2026 1:59:59 AM')
-    expect(fmtStamp(Date.UTC(2026, 2, 8, 7, 0, 0))).toBe('03/08/2026 3:00:00 AM')
+    expect(fmtStamp(Date.UTC(2026, 2, 8, 6, 59, 59))).toBe('03/08/2026 1:59:59 AM ET')
+    expect(fmtStamp(Date.UTC(2026, 2, 8, 7, 0, 0))).toBe('03/08/2026 3:00:00 AM ET')
     expect(fmtStamp(null)).toBe('')
   })
 
@@ -310,7 +310,7 @@ describe('the date and time on every headline, and All history in full-timestamp
     const { container } = mount()
     await waitFor(() => expect(seqs(container)).toEqual([2, 1]))
     for (const row of container.querySelectorAll('[data-seq]')) {
-      expect(row.querySelector('[class*="_time_"]').textContent).toMatch(/^\d{2}\/\d{2}\/\d{4} \d{1,2}:\d{2}:\d{2} [AP]M$/)
+      expect(row.querySelector('[class*="_time_"]').textContent).toMatch(/^\d{2}\/\d{2}\/\d{4} \d{1,2}:\d{2}:\d{2} [AP]M ET$/)
     }
   })
 
@@ -330,7 +330,7 @@ describe('the date and time on every headline, and All history in full-timestamp
     act(() => feed.set({ status: 'live', items: TODAY, lastSeq: 2, replayUntil: 2, lastHeadlineAt: NOW }))
     await waitFor(() => expect(seqs(container)).toEqual([2, 830, 820, 810, 800]))
     const times = [...container.querySelectorAll('[data-seq]')].map((r) => r.querySelector('[class*="_time_"]').textContent)
-    expect(times.slice(1)).toEqual(['10/26/2026 5:00:00 AM', '10/25/2026 10:00:00 PM', '10/25/2026 1:00:00 AM', '10/24/2026 11:00:00 PM'])
+    expect(times.slice(1)).toEqual(['10/26/2026 5:00:00 AM ET', '10/25/2026 10:00:00 PM ET', '10/25/2026 1:00:00 AM ET', '10/24/2026 11:00:00 PM ET'])
     ws.groupSyms = { A: 'AMD' }                                                    // a new symbol: same rule
     rerender(<Host initial={{ linked: true }} out={out} />)
     await waitFor(() => expect(seqs(container)).toEqual([1, 840]))            // today's AMD is the newest
