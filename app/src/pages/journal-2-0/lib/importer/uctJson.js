@@ -68,6 +68,28 @@ export function resolveArchivePath(dir, rel) {
 
 const basename = (p) => String(p).split('/').pop()
 
+const ATTACHMENT_PREFIX = '/api/j2/notes/attachments/'
+/** A node URL attribute as it may be stored: the importer's placeholder, an in-app
+ *  attachment address, or whatever the one href policy keeps; null means refused. */
+const safeUrl = (value) => (value.startsWith(REF_PREFIX) || value.startsWith(ATTACHMENT_PREFIX)
+  ? value : resolveHref(value, null))
+// URL attributes whose renderer already falls back to text: a refused value is cleared.
+const CLEARED_URL_ATTRS = {
+  linkPreview: ['url', 'image'],
+  webEmbed: ['url'],
+  importNotice: ['sourceUrl'],
+}
+const TEXTBLOCKS = new Set(['paragraph', 'heading', 'toggleSummary', 'imageCaption', 'codeBlock'])
+const REFUSED = Symbol('refused')
+const FROM_REFUSED = Symbol('fromRefused')
+const refusedAs = (text) => ({ [REFUSED]: text })
+const textOf = (v) => (typeof v === 'string' ? v.trim() : '')
+const stripMarker = (n) => {
+  if (!n || typeof n !== 'object' || !n[FROM_REFUSED]) return n
+  const { [FROM_REFUSED]: _drop, ...rest } = n
+  return rest
+}
+
 /**
  * One exported note, read. Returns the importer's doc shape, or throws a sentence a member
  * can act on (the adapter turns it into a warning and keeps going).
@@ -109,23 +131,74 @@ export function parseUctJsonNote(text, path, byPath) {
   }
 
   // A structural copy: the body is walked and every node is rebuilt, never mutated in place.
+  //
+  // ⛔ Plan B final review, fix 1: EVERY URL-bearing node attribute goes through the one href
+  // policy, not only the link mark. A crafted export's `attachmentChip.href = "javascript:…"`
+  // reached the stored body and `attachmentChip.js` renders it as `<a href download>`.
+  //   * attachmentChip.href, image/resizableImage.src: refused ⇒ the node becomes its visible
+  //     name (chip `name`, image `alt`/`title`) as plain text, never dropped silently;
+  //   * widgetEmbed.fallback.url: refused ⇒ `fallback: null` (the widget stays, live);
+  //   * linkPreview.url/.image, webEmbed.url, importNotice.sourceUrl: refused ⇒ null (their
+  //     renderers already show the title/name and guard again with `safeLinkHref`).
+  // The importer's own `import-ref://` and an in-app `/api/j2/notes/attachments/` address
+  // pass as they are (`resolveHref` keeps both prefixes too; checked first for clarity).
   const walk = (node) => {
-    if (Array.isArray(node)) return node.map(walk)
+    if (Array.isArray(node)) return walkContent(null, node)
     if (!node || typeof node !== 'object') return node
     const next = { ...node }
     const attrs = node.attrs && typeof node.attrs === 'object' && !Array.isArray(node.attrs) ? { ...node.attrs } : null
     if (attrs) {
-      if (node.type === 'image' || node.type === 'resizableImage') attrs.src = relink(attrs.src, 'image')
-      if (node.type === 'attachmentChip') attrs.href = relink(attrs.href, 'file')
+      if (node.type === 'image' || node.type === 'resizableImage') {
+        attrs.src = relink(attrs.src, 'image')
+        if (typeof attrs.src === 'string' && safeUrl(attrs.src) === null) {
+          return refusedAs(textOf(attrs.alt) || textOf(attrs.title) || 'image')
+        }
+      }
+      if (node.type === 'attachmentChip') {
+        attrs.href = relink(attrs.href, 'file')
+        if (typeof attrs.href === 'string' && safeUrl(attrs.href) === null) {
+          return refusedAs(textOf(attrs.name) || 'file')
+        }
+      }
       if (node.type === 'widgetEmbed' && attrs.fallback && typeof attrs.fallback === 'object') {
-        attrs.fallback = { ...attrs.fallback, url: relink(attrs.fallback.url, 'image') }
+        const url = relink(attrs.fallback.url, 'image')
+        attrs.fallback = typeof url === 'string' && safeUrl(url) === null ? null : { ...attrs.fallback, url }
+      }
+      for (const key of CLEARED_URL_ATTRS[node.type] || []) {
+        if (typeof attrs[key] === 'string' && safeUrl(attrs[key]) === null) attrs[key] = null
       }
       if (node.type === 'noteLink' && typeof attrs.noteId === 'string' && attrs.noteId) noteLinks.push(attrs.noteId)
       next.attrs = attrs
     }
-    if (Array.isArray(node.content)) next.content = node.content.map(walk)
+    if (Array.isArray(node.content)) {
+      const content = walkContent(node.type, node.content)
+      // An imageFigure is `image imageCaption`: a refused image cannot stay inside it, so the
+      // figure becomes its alt and its caption, each a paragraph.
+      if (node.type === 'imageFigure' && content.some((c) => c && c.type === 'paragraph' && c[FROM_REFUSED])) {
+        return content.flatMap((c) => {
+          if (c && c.type === 'imageCaption') return Array.isArray(c.content) && c.content.length ? [{ type: 'paragraph', content: c.content }] : []
+          return [c]
+        }).map(stripMarker)
+      }
+      next.content = content.map(stripMarker)
+    }
     if (Array.isArray(node.marks)) next.marks = node.marks.map(safeMark).filter((m) => m !== null)
     return next
+  }
+
+  // Children of `parentType`, a refused node turned into text: a text node inside a
+  // textblock (or beside inline siblings), else a paragraph of its own. An array result (a
+  // dissolved imageFigure) is spliced in.
+  const walkContent = (parentType, children) => {
+    const inline = TEXTBLOCKS.has(parentType) || children.some((c) => c && c.type === 'text')
+    return children.flatMap((child) => {
+      const out = walk(child)
+      if (out && out[REFUSED] !== undefined) {
+        const text = { type: 'text', text: out[REFUSED] }
+        return [inline ? text : { type: 'paragraph', content: [text], [FROM_REFUSED]: true }]
+      }
+      return Array.isArray(out) ? out : [out]
+    })
   }
 
   // ⛔ The one href policy (./linkPolicy.js, Plan B Task 3 fix round 1): a JSON body skips
