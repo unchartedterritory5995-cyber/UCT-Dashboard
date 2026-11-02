@@ -90,11 +90,61 @@ def test_a_fragment_of_the_indicator_name_is_not_a_line_name(conv):
         raise AssertionError("an unrequested line rename passed the gate")
 
 
+def _two_lines():
+    return view(1, [out("value", RSI_GT_70, label="RSI"), out("sig", RSI_GT_70, label="Signal")])
+
+
+def _refused(conv, e, message, v, turns=()):
+    try:
+        conv.check_output_renames(e, message, v, turns)
+    except conv._Refused as refused:
+        assert refused.gate == GATE
+        return True
+    return False
+
+
+def test_a_rename_asked_for_in_an_EARLIER_member_turn_passes(conv, model):
+    """Independent review 11-02, CONFIRMED false positive: "rename the line to Fast"
+    -> the model asks "which line?" -> "the first one". The name is in the earlier
+    member turn, so the rename is the member's own and passes on the first call."""
+    good = env(1, [{"op": "rename_output", "output": "value", "label": "Fast"}])
+    client = model([emits(good)])
+    r = conv.converse("the first one", user_id="u1", view=_two_lines(), snippets=[
+        {"role": "member", "text": "rename the line to Fast"},
+        {"role": "assistant", "text": "Which line, RSI or Signal?"}])
+    assert r["ok"] is True and r["attempts"] == 1 and len(client.calls) == 1
+
+
+def test_an_ASSISTANT_turn_never_counts_as_the_members_words(conv):
+    e = env(1, [{"op": "rename_output", "output": "value", "label": "Fast"}])
+    assert _refused(conv, e, "the first one", _two_lines(),
+                    [{"role": "assistant", "text": "Shall I rename it to Fast?"}])
+
+
+def test_words_the_member_wrote_WITHOUT_asking_to_name_anything_do_not_pass(conv):
+    """Review 11-02, CONFIRMED false negative: "RSI" occurs in "make the RSI length
+    28", which asks for no name, so relabelling the signal line "RSI" is refused."""
+    e = env(1, [SET_28, RENAME_DEF, {"op": "rename_output", "output": "sig", "label": "RSI"}])
+    assert _refused(conv, e, MEASURED, _two_lines())
+
+
+def test_the_indicator_name_labels_a_line_only_on_a_ONE_line_definition(conv):
+    e = env(1, [RENAME_DEF, {"op": "rename_output", "output": "sig", "label": "Momentum Pulse"}])
+    assert _refused(conv, e, MEASURED, _two_lines())
+    e1 = env(1, [RENAME_DEF, {"op": "rename_output", "output": "value", "label": "Momentum Pulse"}])
+    assert not _refused(conv, e1, MEASURED, _view())
+
+
+def test_label_wording_and_punctuation_are_the_members(conv):
+    e = env(1, [{"op": "rename_output", "output": "sig", "label": "Sig (9)"}])
+    assert not _refused(conv, e, "label the signal line “Sig (9)”", _two_lines())
+
+
 def test_the_gate_is_wired_into_the_repairable_check(conv):
     """The wire, not just the function: it runs right after ``check_envelope``
     inside the same ``try`` so a refusal pays the repair."""
     src = inspect.getsource(conv._converse_turn)
     a = src.index("envelope = check_envelope(candidate, revision, view)")
-    b = src.index("check_output_renames(envelope, message, view)")
+    b = src.index("check_output_renames(envelope, message, view, turns)")
     c = src.index("except _Refused as refused:", a)
     assert a < b < c

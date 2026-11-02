@@ -1247,16 +1247,30 @@ def _said(phrase: str, text: str) -> bool:
         rf"(?<![\w]){re.escape(phrase)}(?![\w])", text) is not None
 
 
-def check_output_renames(envelope: Mapping[str, Any], message: Any, view: Any) -> None:
+#: Words that make a member's text a request to NAME something. Without one, a label
+#: that merely occurs in the text ("RSI" in "make the RSI length 28") is not a name
+#: the member gave (independent review, 2026-11-02).
+_RENAME_INTENT = re.compile(
+    r"\b(?:re-?name[sd]?|label(?:l?ed|s)?|call(?:ed|s)?|name[sd]?|title[sd]?)\b", re.I)
+
+
+def check_output_renames(envelope: Mapping[str, Any], message: Any, view: Any,
+                         turns: Any = ()) -> None:
     """⭐ 2026-11-02 -- OPEN-FINDINGS-2026-10 §3. A LINE IS RENAMED ONLY IN THE MEMBER'S
     OWN WORDS. Measured in production on 10-08: "make the RSI length 28 and call it
     Momentum Pulse" renamed the indicator correctly AND relabelled the RSI line to
     "Momentum", which the member never asked for; only the prompt forbade it. This is
     the definition-name rule (``MEMBER_NAME_RULE``) applied to a line: a
-    ``rename_output`` of an EXISTING line must carry a label the member gave this turn
-    -- one of their explicit names (``naming_split``), or words they wrote outside
-    those names. A cue name is the INDICATOR's name, so a fragment of it ("Momentum"
-    out of "Momentum Pulse") is not a line name the member gave.
+    ``rename_output`` of an EXISTING line must carry a label the member gave, in this
+    turn or an earlier MEMBER turn of the same conversation (``turns``; a "which
+    line?" clarify answered "the first one" carries the name in the turn before):
+      * words the member wrote, outside their cue names, in text that asks to name
+        something (``_RENAME_INTENT``) -- so "RSI" in "make the RSI length 28" is not
+        a line name; or
+      * their explicit cue name (``naming_split``) -- that is the INDICATOR's name, so
+        it may label a line only on a ONE-line definition, where the plot label
+        follows the indicator's name anyway (``readback.outputNamer``). A fragment of
+        it ("Momentum" out of "Momentum Pulse") never passes.
 
     Refused like any envelope gate (never stripped -- ``check_envelope`` does not
     edit a patch), so the model gets its ONE bounded repair with the reason.
@@ -1277,16 +1291,24 @@ def check_output_renames(envelope: Mapping[str, Any], message: Any, view: Any) -
     current = {o["key"]: _label_text(o.get("label"))
                for o in ((d or {}).get("outputs") or [])
                if isinstance(o, Mapping) and isinstance(o.get("key"), str)}
-    names, rest = conversation_preflight.naming_split(message if isinstance(message, str) else "")
-    given = {_label_text(n) for n in names}
-    rest_folded = _label_text(rest)
+    texts = [message if isinstance(message, str) else ""] + [
+        t["text"] for t in (turns or [])
+        if isinstance(t, Mapping) and t.get("role") == "member" and isinstance(t.get("text"), str)]
+    cue_names: set = set()
+    asked: List[str] = []
+    for text in texts:
+        names, rest = conversation_preflight.naming_split(text)
+        cue_names.update(_label_text(n) for n in names)
+        if _RENAME_INTENT.search(rest):
+            asked.append(_label_text(rest))
+    one_line = len(current) <= 1
     for i, o in enumerate(ops):
         if o.get("op") != "rename_output" or o.get("output") in new_keys:
             continue
         label = _label_text(o.get("label"))
         if not label or label == current.get(o.get("output")):
             continue
-        if label in given or _said(label, rest_folded):
+        if (one_line and label in cue_names) or any(_said(label, a) for a in asked):
             continue
         raise _Refused(
             "envelope:rename-unrequested",
@@ -1890,7 +1912,7 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
             trace.setdefault("input_wrapper", wrapper)
         try:
             envelope = check_envelope(candidate, revision, view)
-            check_output_renames(envelope, message, view)
+            check_output_renames(envelope, message, view, turns)
         except _Refused as refused:
             last = refused
             # the diagnostic (op path, validator text) is for the model and a DEBUG
