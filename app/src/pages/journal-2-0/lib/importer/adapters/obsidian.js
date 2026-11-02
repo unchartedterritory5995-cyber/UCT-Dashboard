@@ -218,37 +218,89 @@ async function makeDoc(vfile, vfiles, byPath, basenameMap) {
 // wiki-syntax pre-processing (outside fenced AND inline code, in fixed order)
 // ---------------------------------------------------------------------------
 
+// ⛔ D2 fix round 3, N-I2: the embed and wikilink passes run over the WHOLE note with
+// code protected (the server's rule, `providers/obsidian.py::_clear_of_code`): a match
+// may CONTAIN whole code spans, never start, end or sit inside one. ⚰️ They ran per
+// code-split segment, so `[[q.pdf|the `q3` deck]]` was cut at its code span and never
+// found: raw brackets, no chip, the file never uploaded. The highlight pass still runs
+// only outside code. Held placeholders hold no backtick, so the code spans left in the
+// text after a pass are exactly the ones it did not swallow whole.
 function preprocessWikiSyntax(text, ctx) {
-  return transformOutsideCode(text, (segment) => {
-    const held = []
-    const lists = [] // lists[i]: what piece i adds to `media` / `links` once it is SHOWN
-    const shown = new Set()
-    const open = holdOpenFor(segment)
-    const hctx = {
-      ...ctx,
-      hold: (html, list) => {
-        lists[held.length] = list
-        return holdMarkup(held, html, open)
-      },
-      // A string that is exactly one placeholder this segment made (an embed already
-      // held): only the importer writes a run of `open`'s length (see below).
-      isHeld: (s) => {
-        const m = HELD_ONLY_RE.exec(s)
-        return !!m && m[1].length === open.length
-      },
+  const held = []
+  const lists = [] // lists[i]: what piece i adds to `media` / `links` once it is SHOWN
+  const shown = new Set()
+  const open = holdOpenFor(text)
+  const hctx = {
+    ...ctx,
+    hold: (html, list) => {
+      lists[held.length] = list
+      return holdMarkup(held, html, open)
+    },
+    // A string that is exactly one placeholder this note made (an embed already
+    // held): only the importer writes a run of `open`'s length (see below).
+    isHeld: (s) => {
+      const m = HELD_ONLY_RE.exec(s)
+      return !!m && m[1].length === open.length
+    },
+  }
+  let out = text
+  out = transformEmbeds(out, hctx)
+  out = transformWikiLinks(out, hctx)
+  out = transformOutsideCode(out, transformHighlights)
+  out = releaseMarkup(out, held, open, shown)
+  // ⛔ D2 item 4: a piece's media entry or link is listed only when the piece is
+  // released into the note. `[[![[img.png]]|al.ias]]` shows the alias, so the
+  // image placeholder is dropped and nothing uploads a file no node references.
+  // In index order, which is the order the passes made them (embeds, then links).
+  for (let i = 0; i < held.length; i += 1) if (shown.has(i)) lists[i]?.()
+  return out
+}
+
+function codeSpans(text) {
+  return [...text.matchAll(CODE_RE)].map((m) => [m.index, m.index + m[0].length])
+}
+
+// `[at, end)` cuts no code span and lies inside none; it may contain whole ones.
+// Spans are sorted and disjoint, so their ends are sorted too: binary-search the first
+// span ending after `at`.
+function clearOfCode(at, end, spans) {
+  let lo = 0
+  let hi = spans.length
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1
+    if (spans[mid][1] <= at) lo = mid + 1
+    else hi = mid
+  }
+  for (let k = lo; k < spans.length && spans[k][0] < end; k += 1) {
+    const [cs, ce] = spans[k]
+    if (!(at <= cs && ce <= end && !(cs === at && ce === end))) return false
+  }
+  return true
+}
+
+// `text.replace(re, fn)`, taking only matches `clearOfCode`; a refused match is left as
+// written and the scan resumes one character after its start. Mirrors
+// `providers/obsidian.py::_sub_clear_of_code`.
+function replaceClearOfCode(text, re, fn) {
+  const spans = codeSpans(text)
+  const rx = new RegExp(re.source, re.flags.includes('g') ? re.flags : `${re.flags}g`)
+  let out = ''
+  let last = 0
+  let pos = 0
+  for (;;) {
+    rx.lastIndex = pos
+    const m = rx.exec(text)
+    if (!m) break
+    const end = m.index + m[0].length
+    if (clearOfCode(m.index, end, spans)) {
+      out += text.slice(last, m.index) + fn(...m)
+      last = end
+      pos = end > m.index ? end : end + 1
+    } else {
+      pos = m.index + 1
     }
-    let out = segment
-    out = transformEmbeds(out, hctx)
-    out = transformWikiLinks(out, hctx)
-    out = transformHighlights(out)
-    out = releaseMarkup(out, held, open, shown)
-    // ⛔ D2 item 4: a piece's media entry or link is listed only when the piece is
-    // released into the note. `[[![[img.png]]|al.ias]]` shows the alias, so the
-    // image placeholder is dropped and nothing uploads a file no node references.
-    // In index order, which is the order the passes made them (embeds, then links).
-    for (let i = 0; i < held.length; i += 1) if (shown.has(i)) lists[i]?.()
-    return out
-  })
+  }
+  return out + text.slice(last)
 }
 
 // ⛔ The embed and wikilink passes emit finished HTML (`<a ...>`, `<img>`, an
@@ -328,7 +380,7 @@ function transformOutsideCode(text, fn) {
 }
 
 function transformEmbeds(text, ctx) {
-  return text.replace(EMBED_RE, (_, rawTarget) => {
+  return replaceClearOfCode(text, EMBED_RE, (_, rawTarget) => {
     // A trailing `|width` (Obsidian's embed-sizing syntax) is not a target
     // segment — strip it before resolving.
     const target = rawTarget.split('|')[0].trim()
@@ -397,7 +449,7 @@ function transformWikiLinks(text, ctx) {
     return ctx.hold(`<a data-import-link="${escapeAttr(targetKey)}">${escapeHtml(display)}</a>`,
       () => ctx.links.push({ targetKey }))
   }
-  return text.replace(WIKILINK_RE, (_, rawTarget, rawAlias) => piece(rawTarget, rawAlias))
+  return replaceClearOfCode(text, WIKILINK_RE, (_, rawTarget, rawAlias) => piece(rawTarget, rawAlias))
 }
 
 // ---------------------------------------------------------------------------

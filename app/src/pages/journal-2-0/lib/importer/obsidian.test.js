@@ -807,3 +807,42 @@ describe('obsidian adapter — D2 fix round 1: a member noncharacter survives', 
     expect(htmlToNote(d.html).bodyPlain).toBe(`keep ${nc} ${String.fromCharCode(0xfffd)} Read `)
   })
 })
+
+// D2 fix round 3, N-I2: the wiki passes see the whole note with code spans protected
+// (the server's rule, `providers/obsidian.py::_clear_of_code`): a wikilink or embed may
+// CONTAIN whole code spans, never start, end or sit inside one. It used to split on code
+// first, so `[[q.pdf|the `q3` deck]]` was cut at its code span: raw brackets, no chip,
+// and the file never uploaded.
+describe('obsidian adapter — D2 fix round 3, N-I2: a wikilink alias holding a code span', () => {
+  const parseOne = async (body) => {
+    const { docs } = await obsidianAdapter.parse([
+      vf('V/src.md', body), vf('V/q.pdf', 'q'), vf('V/Plan.md', 'p'), vf('V/img.png', 'i')])
+    const d = docs.find((x) => x.importKey === 'obsidian:V/src.md')
+    const bodyJson = htmlToNote(d.html).bodyJson
+    const chips = []
+    const walk = (n) => { if (n.type === 'attachmentChip') chips.push(n.attrs); (n.content || []).forEach(walk) }
+    walk(bodyJson)
+    return { d, chips, text: extractPlainText(bodyJson) }
+  }
+
+  it('[[q.pdf|the `q3` deck]] is a chip labelled "the q3 deck", the file listed', async () => {
+    const { d, chips, text } = await parseOne('see [[q.pdf|the `q3` deck]] end')
+    expect(chips.map((c) => [c.name, c.label])).toEqual([['q.pdf', 'the q3 deck']])
+    expect(d.media.map((m) => m.ref)).toEqual(['V/q.pdf'])
+    expect(text).not.toContain('[[')
+  })
+
+  it('a note link keeps its code span in the link text', async () => {
+    const { d, text } = await parseOne('see [[Plan|the `x` plan]] end')
+    expect(d.links.map((l) => l.targetKey)).toEqual(['obsidian:V/Plan.md'])
+    expect(text).toBe('see the x plan end')
+  })
+
+  it('a wikilink or embed inside code, or cut by a code span, stays as written', async () => {
+    const { d, chips, text } = await parseOne('`[[q.pdf]]` and `![[img.png]]` and [[q.pdf `x]] y` z')
+    expect(chips).toEqual([])
+    expect(d.media).toEqual([])
+    expect(d.links).toEqual([])
+    expect(text).toBe('[[q.pdf]] and ![[img.png]] and [[q.pdf x]] y z')
+  })
+})

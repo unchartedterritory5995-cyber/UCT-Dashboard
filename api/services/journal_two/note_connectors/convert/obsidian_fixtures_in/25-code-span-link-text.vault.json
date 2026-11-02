@@ -11,6 +11,9 @@
     {"original": "[`q3` deck](attachments/q.pdf)", "embed": false,
      "path": "attachments/q.pdf", "size": 4096,
      "sha256": "845bcfa0f93302a84be01c8e8ef78aff9e5c65ecb5bf1bcc00b261dc07e11e59", "status": "ok"},
+    {"original": "[[q.pdf|the `q3` deck]]", "embed": false,
+     "path": "attachments/q.pdf", "size": 4096,
+     "sha256": "845bcfa0f93302a84be01c8e8ef78aff9e5c65ecb5bf1bcc00b261dc07e11e59", "status": "ok"},
     {"original": "![[chart.png]]", "embed": true,
      "path": "attachments/chart.png", "size": 2048,
      "sha256": "469b244a740e75fdd003e562339cceff6e2a5a691eff0ce03c9e1204379161ef", "status": "ok"}

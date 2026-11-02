@@ -1,12 +1,16 @@
 {
   "id": "25-code-span-link-text",
-  "input_markdown": "# Code in link text\n\nsee [`q3` deck](attachments/q.pdf) end\n\nand `![[chart.png]]` stays code.\n",
+  "input_markdown": "# Code in link text\n\nsee [`q3` deck](attachments/q.pdf) end\n\nand `![[chart.png]]` stays code.\n\nand [[q.pdf|the `q3` deck]] too (D2 fix round 3, N-I2).\n",
   "self_path": "a.md",
   "server": {
     "callouts": [],
     "files": [
       {
         "label": "q3 deck",
+        "name": "q.pdf"
+      },
+      {
+        "label": "the q3 deck",
         "name": "q.pdf"
       }
     ],
@@ -15,7 +19,7 @@
     "links": [],
     "pending": [],
     "task_checked": [],
-    "text": "Code in link text see  [file: q.pdf]  end and ![[chart.png]] stays code."
+    "text": "Code in link text see  [file: q.pdf]  end and ![[chart.png]] stays code. and  [file: q.pdf]  too (D2 fix round 3, N-I2)."
   },
   "vault_id": "vault-1",
   "vault_paths": [
