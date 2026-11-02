@@ -11,8 +11,8 @@ item names its evidence; re-read the code before acting on a line number.
 | PR | What | State |
 |---|---|---|
 | #670 | Full indicator names reach the model; Bollinger Bands by name; no internal column note under a working indicator | Direction approved 11-02; draft until CI and review pass |
-| #671 | A saved `fund:` / Market Cap / `econ:` indicator draws right after a reload | Approved in principle; browser check and workstream reviews pending |
-| #680 | `/converse` refuses a line rename the member did not ask for | New 11-02; draft |
+| #671 | A saved `fund:` / Market Cap / `econ:` indicator draws right after a reload | Approved in principle. Browser-verified 11-02 (base blank, fix paints). Workstream reviews pending |
+| #680 | `/converse` refuses a line rename the member did not ask for | New 11-02; review findings fixed; draft |
 
 ## Open, prioritized
 
@@ -31,6 +31,7 @@ item names its evidence; re-read the code before acting on a line number.
 | 11 | **`ChartPane` hosts read the widget blob but write the full blob to global** (TickerPopup, Watchlists page, Theme Tracker, DarkPool, OptionsFlow and others) | `CHART-SETTINGS-SCOPE-PROPOSAL-2026-11-02.md` | S–M | chart/workspace | Track separately from #2 |
 | 12 | **`/propose` and the scan concierge still refuse full indicator names** | #670 rail (recorded as a follow-up) | XS code, needs coordination | Screener + Indicators | Assess the effect on screens with the Screener owner first (owner ruling 11-02) |
 | 13 | **"Average of RSI" restates the RSI subtree** (no output-reference node) | PLAIN-ENGLISH-AUTHORING-2026-11-01 §3.4 | L, a format change | Indicators | Proposal only; owner review before any work |
+| 14 | **Investigate: an AST member definition given a `source` input fetched the data but never painted.** In the #671 browser run, the AST lane appeared to ignore `ctx.source`. It is not yet known whether a member can reach this, or whether only the harness's construction could | #671 browser run, 2026-11-02 (`pr671-browser/evidence.json`, local) | S to investigate | Indicators | Read the AST lane's source handling; decide whether it is a defect |
 
 ## Programme items (not defects)
 
