@@ -14,7 +14,11 @@ function getMd() {
   if (!_md) {
     // `uctMarkdown` (wave 8, 8C, C5): `$…$` / `$$` math, `==…==` highlight, and image alts
     // that keep every character (../markdownExtensions.js).
-    _md = new MarkdownIt({ html: true, linkify: true }).use(taskLists).use(uctMarkdown)
+    // ⛔ `linkify: false` (Plan B Task 3): the post-parse pass (../postParse.js) runs
+    // `linkifyTextNodes` over EVERY adapter's HTML, so markdown-it's own fuzzy linkify would
+    // be a second, looser rule (it links `NVDA.US`/`example.com` as `http://`). Its linkify-it
+    // instance still exists and is what `getLinkify()` hands the one policy for matching.
+    _md = new MarkdownIt({ html: true, linkify: false }).use(taskLists).use(uctMarkdown)
     openInlineLinkGate(_md)
   }
   return _md

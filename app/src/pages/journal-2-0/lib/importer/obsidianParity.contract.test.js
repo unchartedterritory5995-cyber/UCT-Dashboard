@@ -67,6 +67,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { obsidianAdapter } from './adapters/obsidian'
+import { parseImport } from './postParse'
 import { htmlToNote } from './convert'
 import { extractPlainText } from '../tiptap'
 
@@ -168,10 +169,19 @@ function withoutServerOnly(summary) {
 async function clientSummaryFor(fixture) {
   const vfiles = fixture.vault_paths.map((p) =>
     vf(p, p === fixture.self_path ? fixture.input_markdown : ''))
-  const { docs } = await obsidianAdapter.parse(vfiles)
+  // The wizard's own call (Plan B Task 3): adapter.parse + the one post-parse pass.
+  const { docs } = await parseImport(obsidianAdapter, vfiles, {})
   const doc = docs.find((d) => d.importKey === `obsidian:${fixture.self_path}`)
   const { bodyJson } = htmlToNote(doc.html)
-  return semanticSummary(bodyJson)
+  const summary = semanticSummary(bodyJson)
+  // Plan B Task 3: the client's post-parse pass turns a hotlinked `<img src="https://…">`
+  // into a remote media item (`import-ref://remote-<md5>`, copied by the fetch door at
+  // commit), where the server summary still names the URL. Same image, two transports: read
+  // the ref back through the doc's OWN media list to the URL it stands for. Only a remote
+  // item is mapped; a vault file or a data: item keeps its ref.
+  const remote = new Map(doc.media.filter((m) => m.remoteUrl).map((m) => [m.ref, m.remoteUrl]))
+  summary.images = summary.images.map((ref) => remote.get(ref) ?? ref)
+  return summary
 }
 
 // Differences the CLIENT importer is known to have against the server lane,
@@ -187,16 +197,13 @@ const knownClientGap = {
   '09-space-and-pipe.json': {
     missingLinks: [{ target: 'Other note.md', text: 'alias' }],
   },
-  // Plan B task "Obsidian relative links" (spec O-5): the client keeps the raw relative
-  // href and drops the one that is not beside the note; the server resolves all four.
+  // Plan B task "Obsidian relative links" (spec O-5): the server resolves all four. The
+  // adapter does not resolve them yet, and since Plan B Task 3 the post-parse pass's
+  // `resolveHref` turns an unresolved relative href (no source URL) into its visible text,
+  // so all four read as words, not links. (Before Task 3 three kept a raw relative href that
+  // opened nothing in the app.) Task 8 resolves them inside the adapter, before that pass.
   '10-relative-links.json': {
-    clientReads: {
-      links: [
-        { text: 'the other', target: 'Other%20note.md' },
-        { text: 'up and over', target: '../Notes/Other.md' },
-        { text: 'a section', target: 'Other%20note.md#Heading' },
-      ],
-    },
+    clientReads: { links: [] },
   },
   // Plan B task "Obsidian anchors and note embeds" (spec §5.2 polish, O-11): the client
   // shows `Other note#Risk` and makes `![[Other note]]` a file chip of the raw `.md`.
@@ -209,7 +216,7 @@ const knownClientGap = {
       text: 'Anchors and embeds See Other note#Risk and the risk.  [file: Other note.md]',
     },
   },
-  // Plan B task "Obsidian callouts" (spec §5.2 polish): the client writes a blockquote
+  // Callouts: spec §5.6 polish, not in Plan B (ruling R9) -- the client writes a blockquote
   // with a bold title, and its marker regex loses the untitled callout's title.
   '12-callouts.json': {
     clientReads: {
