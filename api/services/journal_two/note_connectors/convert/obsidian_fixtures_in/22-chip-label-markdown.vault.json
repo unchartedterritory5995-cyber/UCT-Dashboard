@@ -1,0 +1,18 @@
+{
+  "_comment": "D2 fix round 1, I2: a file chip's label is the rendered text of the member's link text on both lanes (`**the** report` reads `the report`, an escaped underscore reads `_`), never its markdown.",
+  "vault_id": "vault-1",
+  "self_path": "a.md",
+  "vault_paths": [
+    "a.md",
+    "attachments/q3 report.pdf",
+    "attachments/x.pdf"
+  ],
+  "attachments": [
+    {"original": "[**the** report](attachments/q3%20report.pdf)", "embed": false,
+     "path": "attachments/q3 report.pdf", "size": 8192,
+     "sha256": "845bcfa0f93302a84be01c8e8ef78aff9e5c65ecb5bf1bcc00b261dc07e11e59", "status": "ok"},
+    {"original": "[the\\_x](attachments/x.pdf)", "embed": false,
+     "path": "attachments/x.pdf", "size": 100,
+     "sha256": "1f2e3d4c5b6a79881f2e3d4c5b6a79881f2e3d4c5b6a79881f2e3d4c5b6a7988", "status": "ok"}
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "id": "22-chip-label-markdown",
+  "input_markdown": "# Chip labels\n\nRead [**the** report](attachments/q3%20report.pdf) and [the\\_x](attachments/x.pdf) now.\n",
+  "self_path": "a.md",
+  "server": {
+    "callouts": [],
+    "files": [
+      {
+        "label": "the report",
+        "name": "q3 report.pdf"
+      },
+      {
+        "label": "the_x",
+        "name": "x.pdf"
+      }
+    ],
+    "highlights": [],
+    "images": [],
+    "links": [],
+    "pending": [],
+    "task_checked": [],
+    "text": "Chip labels Read  [file: q3 report.pdf]  and  [file: x.pdf]  now."
+  },
+  "vault_id": "vault-1",
+  "vault_paths": [
+    "a.md",
+    "attachments/q3 report.pdf",
+    "attachments/x.pdf"
+  ]
+}

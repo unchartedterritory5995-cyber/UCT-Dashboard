@@ -1757,3 +1757,20 @@ def test_a_file_link_keeps_the_members_text_as_the_chip_label():
     conv = _convert(f"[{odd}](a.pdf)", refs=[REF(original=f"[{odd}](a.pdf)", embed=False, path="a.pdf")])
     assert _only(conv["doc"], "attachmentChip")["attrs"]["label"] == odd
     assert conv["media"][0]["ref"] == "obsidian-file:" + _SHA + "/a.pdf"
+
+
+def test_a_chip_label_is_the_rendered_text_of_the_link_never_its_markdown():
+    """D2 fix round 1, I2: the label is what the member READS, as the client takes it from
+    the rendered link: `[**the** report](...)` -> `the report`, `[the\\_x](...)` -> `the_x`,
+    emphasis and strikethrough read as their words, raw HTML tags add nothing. A wikilink
+    alias likewise."""
+    cases = [("**the** report", "the report"), (r"the\_x", "the_x"), ("*q3* ~~deck~~", "q3 deck"),
+             ("a <b>bold</b> one", "a bold one"), ("**q3 report.pdf**", None)]
+    for text, label in cases:
+        original = f"[{text}](attachments/q3%20report.pdf)"
+        conv = _convert(f"see {original} now",
+                        refs=[REF(original=original, embed=False, path="attachments/q3 report.pdf")])
+        assert _only(conv["doc"], "attachmentChip")["attrs"].get("label") == label, text
+    original = "[[q3 report.pdf|the **deck**]]"
+    conv = _convert(original, refs=[REF(original=original, embed=False, path="attachments/q3 report.pdf")])
+    assert _only(conv["doc"], "attachmentChip")["attrs"]["label"] == "the deck"

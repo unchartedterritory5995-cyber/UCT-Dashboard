@@ -269,6 +269,7 @@ from api.services.journal_two.import_provenance import edited_since_import
 
 from .. import errors, obsidian_attachments, obsidian_link
 from ..convert import LINK_PREFIX, REF_PREFIX, md_to_tiptap
+from ..convert.mddoc import _get_md
 from ..convert.placeholders import map_image_nodes
 from ..link_keys import OBSIDIAN_NAME_KIND
 from .base import AccountInfo, NoteProvider, RemoteNote, RemoteRef, fetch_content_url, media_http_client
@@ -739,8 +740,26 @@ def _ref_label(original: Any, name: str) -> str | None:
         wiki = _WIKI_RE.fullmatch(original)
         if wiki is not None and wiki.group(1) != "!":
             text = wiki.group(3)
-    text = (text or "").strip()
+    text = _rendered_text(text or "").strip()
     return text if text and text != name else None
+
+
+def _rendered_text(markdown: str) -> str:
+    """What inline markdown READS as (D2 fix round 1, I2): `**the** report` -> `the report`,
+    `the\\_x` -> `the_x`. Text and code spans keep their text, a line break is a space, raw
+    HTML tags and images add nothing -- the client takes the label from the rendered link's
+    `textContent`, which is the same thing. ⚰️ The raw markdown was the label, so a synced
+    chip showed literal asterisks and backslashes."""
+    if not markdown:
+        return ""
+    out: list[str] = []
+    for token in _get_md().parseInline(markdown):
+        for child in token.children or []:
+            if child.type in ("text", "code_inline"):
+                out.append(child.content)
+            elif child.type in ("softbreak", "hardbreak"):
+                out.append(" ")
+    return "".join(out)
 
 
 def _split_label(ref: str) -> tuple[str, str | None]:
