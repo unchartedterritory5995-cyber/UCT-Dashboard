@@ -1,8 +1,8 @@
 {
-  "measured_at": "2026-10-04",
+  "measured_at": "2026-10-05",
   "scripts": 266,
-  "host_ok": 78,
-  "screener_ok": 67,
+  "host_ok": 83,
+  "screener_ok": 69,
   "threw": [],
   "rows": [
     {
@@ -321,12 +321,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:function-def",
-        "pine:na"
+        "pine:function-def"
       ],
       "screenerGuards": [
-        "pine:function-def",
-        "pine:na"
+        "pine:function-def"
       ]
     },
     {
@@ -365,14 +363,12 @@
     {
       "file": "breaks-and-retests-hg__ddba061af8.pine",
       "host": false,
-      "screener": false,
+      "screener": true,
       "hostGuards": [
-        "pine:na",
         "pine:tuple",
         "pine:function"
       ],
       "screenerGuards": [
-        "pine:na",
         "pine:tuple",
         "pine:function"
       ]
@@ -633,13 +629,11 @@
       "hostGuards": [
         "pine:module",
         "pine:tuple",
-        "pine:function",
         "pine:builtin"
       ],
       "screenerGuards": [
         "pine:module",
         "pine:tuple",
-        "pine:function",
         "pine:builtin"
       ]
     },
@@ -926,14 +920,11 @@
     },
     {
       "file": "highlow-channel-swing__e3692e253c.pine",
-      "host": false,
+      "host": true,
       "screener": false,
-      "hostGuards": [
-        "pine:function"
-      ],
+      "hostGuards": [],
       "screenerGuards": [
-        "pine:declaration-strategy",
-        "pine:function"
+        "pine:declaration-strategy"
       ]
     },
     {
@@ -1931,14 +1922,10 @@
     },
     {
       "file": "relative-volume__LnFmPEoFXQ.pine",
-      "host": false,
+      "host": true,
       "screener": true,
-      "hostGuards": [
-        "pine:function"
-      ],
-      "screenerGuards": [
-        "pine:function"
-      ]
+      "hostGuards": [],
+      "screenerGuards": []
     },
     {
       "file": "renderingnature-smc-reversal-engine-v71__f8734584d9.pine",
@@ -2044,11 +2031,9 @@
     },
     {
       "file": "scalping-strategy-with-williams-r-macd-and-sma-1-minute-only__e247952471.pine",
-      "host": false,
+      "host": true,
       "screener": false,
-      "hostGuards": [
-        "pine:no-output"
-      ],
+      "hostGuards": [],
       "screenerGuards": [
         "pine:declaration-strategy"
       ]
@@ -2085,14 +2070,10 @@
     },
     {
       "file": "session-hilo__WM2g5GtC4h.pine",
-      "host": false,
-      "screener": false,
-      "hostGuards": [
-        "pine:input-kind"
-      ],
-      "screenerGuards": [
-        "pine:input-kind"
-      ]
+      "host": true,
+      "screener": true,
+      "hostGuards": [],
+      "screenerGuards": []
     },
     {
       "file": "session-tpo-profile__41088ef96d.pine",
@@ -2138,10 +2119,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:na"
+        "pine:reassign"
       ],
       "screenerGuards": [
-        "pine:na"
+        "pine:reassign"
       ]
     },
     {
@@ -2420,14 +2401,10 @@
     },
     {
       "file": "support-and-resistance__1505.pine",
-      "host": false,
+      "host": true,
       "screener": true,
-      "hostGuards": [
-        "pine:na"
-      ],
-      "screenerGuards": [
-        "pine:na"
-      ]
+      "hostGuards": [],
+      "screenerGuards": []
     },
     {
       "file": "support-and-resistance__UgNPprOr8h.pine",

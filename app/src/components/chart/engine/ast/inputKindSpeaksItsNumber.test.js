@@ -41,7 +41,12 @@ const REPO = path.resolve(__dirname, '../../../../../..')
 const SPECIMEN = {
   timeframe: 'corpus/committed/3-level-zigzag-semafor__3078.pine',
   session: 'corpus/committed/asianrange-and-killzones__ef41eb5ad6.pine',
-  time: 'corpus/committed/anchored-vwap-pinch-handoff-intervals-and-signals__2174489a80.pine',
+  // ⭐ W19-T (2026-10-05) — re-pinned WITH THE REASON: anchored-vwap-pinch-handoff's
+  // `input.time(evnHi)` defaults are `timestamp("10 Nov 2021 00:00 +0000")`, the
+  // spelling `vw-time-tf` T16 witnessed, so they are now SERVED and say nothing. The
+  // retired "20 uses across 11 files" sentence is gone (it could no longer fire);
+  // the knn script's unwitnessed `GMT+10` spelling is the one that still speaks.
+  time: 'corpus/committed/machine-learning-knn-based-strategy__lj1Gjlbycb.pine',
   string: 'corpus/committed/smart-money-concepts-by-welotrades__0bff41a2e5.pine',
 }
 
@@ -49,7 +54,7 @@ const SPECIMEN = {
 const MUST_SAY = {
   timeframe: ['input.timeframe', '158', '61', 'request.security', 'item (c)'],
   session: ['input.session', '70', '23', 'textop'],
-  time: ['input.time', '20', '11', 'item (c)'],
+  time: ['input.time', 'no capture has read', 'GMT+10', 'Q-W19T-b'],
   string: ['input.string', '14', '3'],
 }
 
@@ -92,7 +97,8 @@ describe('R16 — each retired input kind speaks its own number', () => {
   for (const kind of Object.keys(SPECIMEN)) {
     it(`⭐⭐ input.${kind}'s sentence carries its kind, number and routing`, () => {
       const lines = inputKindLines(readSpecimen(kind))
-      const mine = lines.filter((m) => m.includes(`input.${kind}`))
+      // the backticked name: a bare `input.time` substring also matches `input.timeframe`
+      const mine = lines.filter((m) => m.includes(`\`input.${kind}\``))
       expect(mine.length, `no line names input.${kind}`).toBeGreaterThan(0)
       for (const token of MUST_SAY[kind]) {
         expect(mine.some((m) => m.includes(token)),
@@ -101,6 +107,13 @@ describe('R16 — each retired input kind speaks its own number', () => {
       }
     })
   }
+
+  it('⭐ W19-T — a WITNESSED `input.time` default is served and speaks no line', () => {
+    const src = fs.readFileSync(path.join(REPO,
+      'corpus/committed/anchored-vwap-pinch-handoff-intervals-and-signals__2174489a80.pine'), 'utf8')
+    expect(src).toContain('timestamp("10 Nov 2021 00:00 +0000")')
+    expect(inputKindLines(src).filter((m) => m.includes('`input.time`'))).toEqual([])
+  })
 
   it('⛔ input.session retires on GRAMMAR, and says so rather than a count', () => {
     // ⭐ The one row that is not a threshold call. Every other kind could be
