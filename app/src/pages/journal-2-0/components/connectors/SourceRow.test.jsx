@@ -414,3 +414,23 @@ describe('SourceRow — Recent syncs after a run (fix round 1)', () => {
     expect(await screen.findByText('T: nope')).toBeInTheDocument()
   })
 })
+
+describe('SourceRow — Obsidian plugin update hint', () => {
+  it('tells a member on an old Obsidian plugin that updating brings images', () => {
+    renderRow(makeSource({ provider: 'obsidian', pluginVersion: null, pluginSupportsAttachments: false }))
+    expect(screen.getByText(/Update UCT Notebook Sync in Obsidian to bring images and files over/)).toBeInTheDocument()
+    expect(screen.getByText(/Settings, Community plugins, Check for updates/)).toBeInTheDocument()
+  })
+
+  it('shows no update hint for 0.2.0+, for other providers, or when the server sent no field', () => {
+    const hint = /Update UCT Notebook Sync/
+    const { unmount: u1 } = renderRow(makeSource({ provider: 'obsidian', pluginVersion: '0.2.0', pluginSupportsAttachments: true }))
+    expect(screen.queryByText(hint)).toBeNull()
+    u1()
+    const { unmount: u2 } = renderRow(makeSource({ provider: 'notion', pluginSupportsAttachments: false }))
+    expect(screen.queryByText(hint)).toBeNull()
+    u2()
+    renderRow(makeSource({ provider: 'obsidian', pluginSupportsAttachments: null }))
+    expect(screen.queryByText(hint)).toBeNull()
+  })
+})

@@ -293,6 +293,14 @@ export default function SourceRow({
 
       {source.lastSyncError && <p className={styles.sourceErr}>{source.lastSyncError}</p>}
 
+      {/* A device on plugin 0.1.x reports pluginSupportsAttachments false.
+          Only an explicit false shows this: null means an older server. */}
+      {source.provider === 'obsidian' && source.pluginSupportsAttachments === false && (
+        <p className={styles.conflictHint}>
+          Images and files from this vault aren't syncing yet. Update UCT Notebook Sync in Obsidian to bring images and files over (Settings, Community plugins, Check for updates).
+        </p>
+      )}
+
       {notice && <p className={styles.syncNotice} role="status">{notice}</p>}
 
       {showLog && (

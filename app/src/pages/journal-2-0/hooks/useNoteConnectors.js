@@ -129,6 +129,10 @@ export function normalizeSource(raw) {
     // The newest sync's failure details could not be read (the server sends a
     // null count with this flag): unknown, never "nothing failed".
     lastFailuresUnreadable: !!pick(raw, 'lastFailuresUnreadable', 'last_failures_unreadable', false),
+    // Obsidian only (the server sends these on `/status`). `null` means the
+    // server predates the field, so the card shows no update hint.
+    pluginVersion: pick(raw, 'pluginVersion', 'plugin_version', null),
+    pluginSupportsAttachments: pick(raw, 'pluginSupportsAttachments', 'plugin_supports_attachments', null),
     counts: normalizeCounts(raw.counts),
   }
 }

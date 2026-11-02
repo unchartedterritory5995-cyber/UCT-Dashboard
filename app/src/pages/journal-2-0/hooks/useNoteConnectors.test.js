@@ -56,6 +56,7 @@ describe('normalizeStatus — the field-name contract (fix-round 1 finding #2, c
         syncEnabled: true, status: 'active', lastSyncAt: '2026-08-01T00:00:00Z',
         lastSyncStatus: 'ok', lastSyncError: null, warmingUntil: null,
         pendingRemoval: 0, lastFailureCount: 0, lastFailuresUnreadable: false,
+        pluginVersion: null, pluginSupportsAttachments: null,
         counts: {
           notesCreated: 5, notesUpdated: 2, notesSkipped: 1, mediaUploaded: 4,
           conflicts: 0, sourceDeleted: 6,
@@ -96,6 +97,7 @@ describe('normalizeStatus — the field-name contract (fix-round 1 finding #2, c
         syncEnabled: false, status: 'broken', lastSyncAt: '2026-08-02T00:00:00Z',
         lastSyncStatus: 'error', lastSyncError: 'token expired', warmingUntil: null,
         pendingRemoval: 0, lastFailureCount: 0, lastFailuresUnreadable: false,
+        pluginVersion: null, pluginSupportsAttachments: null,
         counts: {
           notesCreated: 9, notesUpdated: 0, notesSkipped: 2, mediaUploaded: 1,
           conflicts: 4, sourceDeleted: 7,
@@ -266,6 +268,14 @@ describe('Task 5: Sync now result, log rows, source counters', () => {
     expect(normalizeSource({ id: 'a', last_failure_count: null, last_failures_unreadable: true }))
       .toMatchObject({ lastFailuresUnreadable: true })
     expect(normalizeSource({ id: 'a' })).toMatchObject({ lastFailuresUnreadable: false })
+  })
+
+  it('normalizeSource reads the plugin fields, null when the server predates them', () => {
+    expect(normalizeSource({ id: 'a', pluginVersion: '0.1.4', pluginSupportsAttachments: false }))
+      .toMatchObject({ pluginVersion: '0.1.4', pluginSupportsAttachments: false })
+    expect(normalizeSource({ id: 'a', plugin_version: '0.2.0', plugin_supports_attachments: true }))
+      .toMatchObject({ pluginVersion: '0.2.0', pluginSupportsAttachments: true })
+    expect(normalizeSource({ id: 'a' })).toMatchObject({ pluginVersion: null, pluginSupportsAttachments: null })
   })
 })
 

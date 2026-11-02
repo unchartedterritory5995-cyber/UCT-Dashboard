@@ -23,11 +23,10 @@
  * Obsidian plugin directory requires of the plugin's own README, spec
  * §7.4): the copy says plainly what leaves the member's machine once the
  * plugin is connected — the markdown TEXT of each note (its vault path,
- * content, and last-modified time) — and what does not: attachments and
- * images stored in the vault (`providers/obsidian.py`'s `fetch_media`
- * refuses local vault attachments outright; only a note that already links
- * to a public `https://` image can carry one across). One-way: nothing is
- * ever written back into the vault.
+ * content, and last-modified time) AND the images and files those notes use
+ * (plugin 0.2.0+ uploads them; a 0.1.x plugin still sends text only, which
+ * the connector card flags). One-way: nothing is ever written back into the
+ * vault.
  */
 import { useEffect, useState } from 'react'
 import Sheet from '../../../../components/mobile/Sheet'
@@ -117,10 +116,7 @@ export default function ObsidianConnectModal({ open, providerLabel, mintConnectC
       {!code ? (
         <div className={styles.form}>
           <p className={styles.lead}>
-            Once connected, the {label} plugin sends the markdown text of your
-            notes — file path, content, and last-modified time — into your
-            Notebook. It does not upload attachments or images stored in your
-            vault, and nothing is ever written back to your vault.
+            Once connected, the {label} plugin sends the markdown text of your notes, and the images and files your notes use, to your UCT Notebook. Nothing is ever written back to your vault.
           </p>
           {/* ⛔ This modal told members to paste a code "into the plugin"
               without ever saying where to GET the plugin — the instruction

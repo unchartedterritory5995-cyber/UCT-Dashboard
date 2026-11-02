@@ -19,11 +19,12 @@ describe('ObsidianConnectModal', () => {
     expect(mintConnectCode).not.toHaveBeenCalled()
   })
 
-  it('is honest about what leaves the machine: markdown text yes, vault attachments no, never written back', async () => {
+  it('is honest about what leaves the machine: markdown text and the images and files notes use, never written back', async () => {
     render(<ObsidianConnectModal open providerLabel="Obsidian" mintConnectCode={vi.fn()} onClose={() => {}} />)
     const dialog = await screen.findByRole('dialog')
     expect(within(dialog).getByText(/markdown text of your notes/i)).toBeInTheDocument()
-    expect(within(dialog).getByText(/does not upload attachments or images/i)).toBeInTheDocument()
+    expect(within(dialog).getByText(/and the images and files your notes use/)).toBeInTheDocument()
+    expect(within(dialog).queryByText(/does not upload attachments/)).toBeNull()
     expect(within(dialog).getByText(/nothing is ever written back/i)).toBeInTheDocument()
   })
 
