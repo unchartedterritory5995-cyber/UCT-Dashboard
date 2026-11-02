@@ -39,7 +39,7 @@
 import { registerCapability, registerTargetKind, registerContextProvider, registerWarmup, registerOutputSource, SYMBOLS } from '../capabilities'
 import { encodeSpec } from '../../pages/screener/shell/specUrl'
 import { matchName } from '../nl/match'
-import { serverServesScan } from '../agentClient'
+import { serverServesScan, serverDataKinds } from '../agentClient'
 import { readData } from '../marketdata/client'
 import { currentTurnId } from '../trace'
 
@@ -403,7 +403,10 @@ async function runSpec(spec, { show = SHOW_DEFAULT, name = null, savedId = null,
 // ⚠️ NOT on this path, by SC-1's 50-row cap: `produce()` (up to FILL_MAX symbols for a list) and screens
 // with latest-session measure conditions (they page up to CANDIDATES_MAX candidates). Both stay on the
 // Screener's own routes.
-const usesGateway = (spec) => serverServesScan() && !(spec?.post || []).length
+// #621: the server must ALSO list the kind in `data_kinds` (UCT_AGENT_DATA_KINDS, fail-closed). Not listed, or an older
+// server with no list: the Screener's own route, exactly as with the flags off -- never a refused gateway read.
+const servesKind = (kind) => serverServesScan() && (serverDataKinds() || []).includes(kind)
+const usesGateway = (spec) => servesKind('screen.run') && !(spec?.post || []).length
 
 /** One `screen.run` through the gateway → the answer text/table, or a refusal sentence. */
 async function runViaGateway(spec, { show = SHOW_DEFAULT, name = null, savedId = null, notes: extra = [] } = {}) {
@@ -770,7 +773,7 @@ export function registerScreenerCapabilities() {
     args: { type: 'object', properties: {}, required: [], additionalProperties: false },
     fast: ({ lower }) => (/^((what|which) (saved )?(screens|scans) (do i have|have i saved)|(show|list)( me)?( my)? (saved )?screens|my (saved )?screens)$/.test(lower) ? {} : null),
     async answer() {
-      if (serverServesScan()) return listSavedViaGateway()
+      if (servesKind('screen.saved')) return listSavedViaGateway()
       const lib = await loadSaved()
       const mine = lib.saved.map(s => s.name)
       const starters = lib.starters.map(s => s.name)
