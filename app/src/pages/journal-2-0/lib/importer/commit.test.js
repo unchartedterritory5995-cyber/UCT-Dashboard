@@ -1,8 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { rewriteBody, runImport } from './commit'
+import { importNoticeText, MEDIA_RETRY_MAX_ATTEMPTS } from '../importNoticeText'
 
 const img = (src) => ({ type: 'image', attrs: { src } })
 const doc = (content) => ({ type: 'doc', content })
+const para = (text) => ({ type: 'paragraph', content: [{ type: 'text', text }] })
+const chip = (href, name) => ({ type: 'attachmentChip', attrs: { href, name } })
 
 describe('rewriteBody', () => {
   it('swaps media refs, resolves links, drops failed media by name', () => {
@@ -20,15 +23,130 @@ describe('rewriteBody', () => {
     expect(out.content[1].content[0].marks[0].attrs.href)
       .toBe('/journal?j2tab=notebook&note=note42')
     expect(out.content.filter((n) => n.type === 'image')).toHaveLength(1)
+    // Task 4: the unresolved image is never dropped in silence: a notice holds its place.
+    expect(out.content[2].type).toBe('importNotice')
     expect(droppedMedia).toEqual(['v/missing.png'])
   })
 
-  it('removes link marks whose target did not import, keeping the text', () => {
-    const body = doc([{ type: 'paragraph', content: [{ type: 'text', text: 'ghost',
-      marks: [{ type: 'link', attrs: { href: 'import-link://obsidian:gone.md' } }] }] }])
-    const { body: out } = rewriteBody(body, { mediaUrls: {}, idByKey: {} })
-    expect(out.content[0].content[0].marks ?? []).toHaveLength(0)
+  it('keeps an unresolved link mark as an import-link placeholder for the heal pass', () => {
+    const mark = { type: 'link', attrs: { href: 'import-link://obsidian:gone.md' } }
+    const body = doc([{ type: 'paragraph', content: [{ type: 'text', text: 'ghost', marks: [mark] }] }])
+    const { body: out, keptLinks } = rewriteBody(body, { mediaUrls: {}, idByKey: {} })
+    expect(out.content[0].content[0].marks).toEqual([mark])
     expect(out.content[0].content[0].text).toBe('ghost')
+    expect(keptLinks).toEqual([{ key: 'obsidian:gone.md', text: 'ghost' }])
+  })
+
+  it('keeps an Evernote title placeholder raw, and still resolves a sibling that did import', () => {
+    const body = doc([{ type: 'paragraph', content: [
+      { type: 'text', text: 'Trade plan', marks: [{ type: 'link', attrs: { href: 'import-link://evernote-title:Trade plan' } }] },
+      { type: 'text', text: ' and ' },
+      { type: 'text', text: 'here', marks: [{ type: 'link', attrs: { href: 'import-link://obsidian:b.md' } }] },
+    ] }])
+    const { body: out, keptLinks } = rewriteBody(body, { idByKey: { 'obsidian:b.md': 'n9' } })
+    expect(out.content[0].content[0].marks[0].attrs.href).toBe('import-link://evernote-title:Trade plan')
+    expect(out.content[0].content[2].marks[0].attrs.href).toBe('/journal?j2tab=notebook&note=n9')
+    expect(keptLinks).toEqual([{ key: 'evernote-title:Trade plan', text: 'Trade plan' }])
+  })
+
+  it('replaces a failed image with an importNotice in the same position', () => {
+    const body = doc([para('a'), img('import-ref://r1'), para('b')])
+    const { body: out, notices, droppedMedia } = rewriteBody(body, { mediaResults: {
+      r1: { ok: false, reason: 'fetch_failed', name: 'c.png', sourceUrl: 'https://cdn.com/c.png' } } })
+    expect(out.content.map((n) => n.type)).toEqual(['paragraph', 'importNotice', 'paragraph'])
+    // R3: a file-import notice is FINAL, so `fetch_failed` never reads "retrying on the next sync".
+    expect(out.content[1].attrs).toEqual({ reason: 'fetch_failed', name: 'c.png',
+      sourceUrl: 'https://cdn.com/c.png', ref: 'r1', attempts: MEDIA_RETRY_MAX_ATTEMPTS })
+    expect(importNoticeText(out.content[1].attrs)).toBe("Couldn't copy c.png")
+    expect(droppedMedia).toEqual(['r1'])
+    expect(notices).toEqual([{ ref: 'r1', reason: 'fetch_failed', name: 'c.png', sourceUrl: 'https://cdn.com/c.png' }])
+  })
+
+  it('a placeholder with no result at all becomes a missing_resource notice, never vanishes', () => {
+    const body = doc([img('import-ref://gone.png'), chip('import-ref://f.pdf', 'f.pdf')])
+    const { body: out, droppedMedia, notices } = rewriteBody(body, {})
+    expect(out.content.map((n) => n.type)).toEqual(['importNotice', 'importNotice'])
+    expect(out.content[0].attrs.reason).toBe('missing_resource')
+    // a nameless failure keeps name null: the copy table's fallback reads it, never an empty string
+    expect(out.content[0].attrs.name).toBeNull()
+    expect(importNoticeText(out.content[0].attrs)).toBe("This item couldn't be found, so it wasn't copied")
+    expect(out.content[1].attrs.name).toBe('f.pdf')
+    expect(droppedMedia).toEqual(['gone.png', 'f.pdf'])
+    expect(notices).toHaveLength(2)
+  })
+
+  it('a door storage refusal is written as the final storage_full, never the "will be copied" promise', () => {
+    const body = doc([img('import-ref://big.png')])
+    const { body: out } = rewriteBody(body, { mediaResults: { 'big.png': { ok: false, reason: 'storage_limit', name: 'big.png' } } })
+    expect(out.content[0].attrs.reason).toBe('storage_full')
+    expect(importNoticeText(out.content[0].attrs)).toMatch(/import again/)
+  })
+
+  it('a failure name that is blank or not a string is written as null, and a non-http sourceUrl is dropped', () => {
+    const body = doc([img('import-ref://x')])
+    const { body: out } = rewriteBody(body, { mediaResults: { x: { ok: false, reason: 'decode_failed', name: '  ', sourceUrl: 'javascript:alert(1)' } } })
+    expect(out.content[0].attrs.name).toBeNull()
+    expect(out.content[0].attrs.sourceUrl).toBeNull()
+  })
+
+  it('an image the server stored as a file becomes an attachment chip', () => {
+    const body = doc([img('import-ref://logo.svg')])
+    const { body: out, droppedMedia } = rewriteBody(body, { mediaResults: {
+      'logo.svg': { ok: true, src: '/api/j2/notes/attachments/u/n/f/logo.svg', kind: 'file', name: 'logo.svg' } } })
+    expect(out.content).toEqual([{ type: 'attachmentChip',
+      attrs: { href: '/api/j2/notes/attachments/u/n/f/logo.svg', name: 'logo.svg' } }])
+    expect(droppedMedia).toEqual([])
+  })
+
+  it('an image the server stored as an image keeps its own attrs with the new src', () => {
+    const body = doc([{ type: 'image', attrs: { src: 'import-ref://a.png', alt: 'chart' } }])
+    const { body: out } = rewriteBody(body, { mediaResults: { 'a.png': { ok: true, src: '/i/a.png', kind: 'image', name: 'a.png' } } })
+    expect(out.content).toEqual([{ type: 'image', attrs: { src: '/i/a.png', alt: 'chart' } }])
+  })
+
+  it('a kept original rides as a chip right after its converted image', () => {
+    const body = doc([para('x'), img('import-ref://p.heic'), para('y')])
+    const { body: out } = rewriteBody(body, { mediaResults: { 'p.heic': { ok: true, src: '/i/p.jpg', kind: 'image', name: 'p.jpg',
+      original: { src: '/f/p.heic', name: 'p.heic' } } } })
+    expect(out.content.map((n) => n.type)).toEqual(['paragraph', 'image', 'attachmentChip', 'paragraph'])
+    expect(out.content[1].attrs.src).toBe('/i/p.jpg')
+    expect(out.content[2].attrs).toEqual({ href: '/f/p.heic', name: 'p.heic' })
+  })
+
+  it('a null original adds no chip (the server sends null, not a missing key)', () => {
+    const body = doc([img('import-ref://a.png')])
+    const { body: out } = rewriteBody(body, { mediaResults: { 'a.png': { ok: true, src: '/i/a.png', kind: 'image', name: 'a.png', original: null } } })
+    expect(out.content.map((n) => n.type)).toEqual(['image'])
+  })
+
+  it('an attachment chip swaps its href and takes the stored name', () => {
+    const body = doc([chip('import-ref://r.pdf', 'r.pdf')])
+    const { body: out } = rewriteBody(body, { mediaResults: { 'r.pdf': { ok: true, src: '/f/r.pdf', kind: 'file', name: 'report.pdf' } } })
+    expect(out.content[0]).toEqual({ type: 'attachmentChip', attrs: { href: '/f/r.pdf', name: 'report.pdf' } })
+  })
+
+  it('replaces a failed image inside a table cell and a list item', () => {
+    const cell = { type: 'tableCell', content: [img('import-ref://t.png')] }
+    const body = doc([
+      { type: 'table', content: [{ type: 'tableRow', content: [cell] }] },
+      { type: 'bulletList', content: [{ type: 'listItem', content: [para('i'), img('import-ref://l.png')] }] },
+    ])
+    const input = JSON.parse(JSON.stringify(body))
+    const { body: out, droppedMedia } = rewriteBody(body, { mediaResults: {
+      't.png': { ok: false, reason: 'too_large', name: 't.png' }, 'l.png': { ok: false, reason: 'upload_failed', name: 'l.png' } } })
+    expect(out.content[0].content[0].content[0].content[0]).toMatchObject({ type: 'importNotice', attrs: { reason: 'too_large', ref: 't.png' } })
+    expect(out.content[1].content[0].content.map((n) => n.type)).toEqual(['paragraph', 'importNotice'])
+    expect(droppedMedia).toEqual(['t.png', 'l.png'])
+    expect(body).toEqual(input) // never mutates its input
+  })
+
+  it('still accepts the legacy mediaUrls map', () => {
+    const body = doc([img('import-ref://a.png'), chip('import-ref://b.pdf', 'b.pdf')])
+    const { body: out, notices } = rewriteBody(body, { mediaUrls: { 'a.png': '/i/a.png', 'b.pdf': '/f/b.pdf' } })
+    expect(out.content.map((n) => n.type)).toEqual(['image', 'attachmentChip'])
+    expect(out.content[0].attrs.src).toBe('/i/a.png')
+    expect(out.content[1].attrs.href).toBe('/f/b.pdf')
+    expect(notices).toEqual([])
   })
 
   // ⛔⛔ 2026-09-02 adversarial audit: every test above walks a 1-3 node
@@ -76,9 +194,14 @@ describe('rewriteBody', () => {
     // exactly the resolvable images were rewritten to their real URL, the
     // rest dropped -- checked by NAME (order-sensitive), not just a count,
     // so a walk that resolves the wrong half still fails this.
-    const survivingImages = out.content.slice(4)
-    expect(survivingImages.every((n) => n.type === 'image')).toBe(true)
+    // Task 4: an unresolved image is now an importNotice IN ITS PLACE, so the images
+    // are read out of the tail by type, and the notices are checked by ref, in order.
+    const tail = out.content.slice(4)
+    expect(tail).toHaveLength(N_IMAGES)
+    const survivingImages = tail.filter((n) => n.type === 'image')
     expect(survivingImages).toHaveLength(N_IMAGES / 2)
+    expect(tail.filter((n) => n.type === 'importNotice').map((n) => n.attrs.ref)).toEqual(
+      Array.from({ length: N_IMAGES / 2 }, (_, k) => `shot-${k * 2 + 1}.png`))
     expect(survivingImages.map((n) => n.attrs.src)).toEqual(
       Array.from({ length: N_IMAGES / 2 }, (_, k) => `/api/j2/notes/attachments/u/n/inline/shot-${k * 2}.png`))
     expect(droppedMedia).toEqual(
@@ -216,6 +339,9 @@ describe('runImport', () => {
     const badPut = putCalls.find((c) => c[0] === '/api/j2/notes/n2')
     expect(JSON.parse(okPut[1].body).importMediaPending).toBe(false)
     expect(JSON.parse(badPut[1].body).importMediaPending).toBe(true)
+    // Task 4: the failed upload is an upload_failed notice IN PLACE in the PUT body, not a gap.
+    expect(JSON.parse(badPut[1].body).bodyJson.content).toEqual([{ type: 'importNotice',
+      attrs: { reason: 'upload_failed', name: 'bad.png', sourceUrl: null, ref: 'bad.png', attempts: MEDIA_RETRY_MAX_ATTEMPTS } }])
   })
 
   it('continues past a failed confirm batch instead of stopping the run (session-audit.md A2)', async () => {
