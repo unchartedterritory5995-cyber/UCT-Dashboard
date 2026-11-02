@@ -145,4 +145,5 @@ async def chart_iq(sym: str, date: str | None = Query(default=None, description=
     out["my_feedback"] = await run_in_threadpool(feedback.mine, str(user.get("id")), sym, out.get("asof") or "")
     if admin:
         out["raw"] = res.get("raw", [])            # every level / line the engines found, not only the drawn ones (admin debugging)
+        out["timing"] = res.get("timing", {})      # seconds per pipeline stage + database time and query count (admin diagnostics)
     return out

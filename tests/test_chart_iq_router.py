@@ -189,11 +189,12 @@ def test_feedback_daily_cap(monkeypatch, fbdb):
 def test_members_get_no_performance_numbers(monkeypatch, fbdb):
     from api.services.chart_iq import pipeline
     bd = [{"d": "2026-10-20", "name": "UnR", "held": True, "best": True, "run": 12.5}]
-    monkeypatch.setattr(pipeline, "analyze", lambda sym, date=None: dict(FAKE, ticker=sym, buydays=bd))
+    monkeypatch.setattr(pipeline, "analyze", lambda sym, date=None: dict(FAKE, ticker=sym, buydays=bd, timing={"db_s": 1.0}))
     monkeypatch.setenv("CHART_IQ_ENABLED", "1")
     monkeypatch.setenv("CHART_IQ_MEMBERS_ENABLED", "1")
     m = client(MEMBER, monkeypatch).get("/api/chart-iq/ABC").json()
     assert m["buydays"] and "run" not in m["buydays"][0]
+    assert "timing" not in m and "raw" not in m                                     # admin diagnostics never reach a member
     assert client(ADMIN, monkeypatch).get("/api/chart-iq/ABC").json()["buydays"][0]["run"] == 12.5   # cache not mutated by the strip
 
 

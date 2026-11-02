@@ -44,7 +44,11 @@ def analyze(ticker, asof=None):
 
 
 def _analyze(ticker, asof):
-    t0 = time.time()
+    t0 = time.time(); _db.db_clock_reset(); T = {}; tk = [time.perf_counter()]
+
+    def lap(name):
+        now = time.perf_counter(); T[name] = round(now - tk[0], 3); tk[0] = now
+
     asof = asof or latest_day()
     if not asof:
         return {"error": "no daily bars available"}
@@ -61,9 +65,12 @@ def _analyze(ticker, asof):
     ent = {"id": cid, "blank": True, "ticker": ticker, "asof": last, "type": "live", "section": "Live",
            "edit": {"img": {"w": 1100, "h": 620}, "plot": {"x0": 49.5, "x1": 907.5, "y0": 83.7, "y1": 474.3},
                     "price": {"top": hi * 1.03, "bottom": lo * 0.97, "log": False}, "bars": {"dates": [_ymd(x[0]) for x in w]}, "objects": []}}
+    lap("bars")
     v3r = V3.markup(ent)
+    lap("v3")
     v3d = {cid: v3r} if v3r else {}
     _, res, _errs = RM.work((ent, list(PORTS), {}, {}))
+    lap("ports")
     ltb = {cid: {"objects": res.get("sr_channels_ltb", [])}}
     dje = {cid: {"objects": res.get("tl_auto_dojiemoji", [])}}
     m = dict(ent)
@@ -76,6 +83,7 @@ def _analyze(ticker, asof):
     raw += [dict(o, src=o.get("src") or "tv_sr_channels_ltb") for o in copy.deepcopy(ltb[cid]["objects"])]
     raw += [dict(o, src=o.get("src") or "tv_tl_auto_dojiemoji") for o in copy.deepcopy(dje[cid]["objects"])]
     clean = VC.compose(cid, m, v3d, ltb, dje)
+    lap("compose")
 
     b = MK.bars(ticker, last, n=300)
     X = R.ctx(b)
@@ -108,10 +116,14 @@ def _analyze(ticker, asof):
     gaps = [{"d": d(g["k"]), "up": g["up"], "top": round(g["top"], 2), "bot": round(g["bot"], 2), "state": g["state"], "pct": round(g["pct"], 1),
              "vm": round(g["vm"], 1)} for g in R.drendel_gaps(b)]
     bf = lambda t, dd: MK.bars(t, dd, n=300)
+    lap("events")
+    watches, market = F.watches(b, R), F.market(R, bf, last)
+    lap("forward")
+    T["db_s"], T["db_n"] = _db.db_clock()
     return {"ticker": ticker, "asof": last, "requested": asof, "window": [_ymd(w[0][0]), last],
             "bars": [{"t": _ymd(r[0]), "o": r[1], "h": r[2], "l": r[3], "c": r[4], "v": r[5] or 0} for r in rows],
             "clean": clean.get("objects", []), "card": clean.get("card", []), "thesis": clean.get("thesis", ""),
             "context": clean.get("context", ""), "rs": clean.get("rs") or [],
             "raw": raw, "candles": candles, "cycle": cyc, "buydays": buys, "gaps": gaps,
-            "watches": F.watches(b, R), "market": F.market(R, bf, last),
+            "watches": watches, "market": market, "timing": T,
             "version": _version.VERSION, "built_s": round(time.time() - t0, 2)}

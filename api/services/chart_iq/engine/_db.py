@@ -9,8 +9,27 @@ never on a database that is being written).
 import os
 import sqlite3
 import threading
+import time
 
 _TL = threading.local()
+
+
+class _Rows(list):
+    """Prefetched rows with the cursor methods the engine uses."""
+
+    def fetchone(self):
+        return self[0] if self else None
+
+    def fetchall(self):
+        return list(self)
+
+
+def db_clock_reset():
+    _TL.db_s, _TL.db_n = 0.0, 0
+
+
+def db_clock():
+    return round(getattr(_TL, "db_s", 0.0), 3), getattr(_TL, "db_n", 0)
 
 
 def _bars_path():
@@ -55,7 +74,13 @@ class _Conn:
         return held[0]
 
     def execute(self, *a):
-        return self._c().execute(*a)
+        # Rows are fetched here (not lazily by the caller) so the time spent reading the database is measurable per read: the
+        # pipeline reports it to admins as timing.db_s / db_n. Same rows, same order; _Rows answers fetchone / fetchall / iteration.
+        t = time.perf_counter()
+        rows = _Rows(self._c().execute(*a).fetchall())
+        _TL.db_s = getattr(_TL, "db_s", 0.0) + (time.perf_counter() - t)
+        _TL.db_n = getattr(_TL, "db_n", 0) + 1
+        return rows
 
     def close(self):
         """The engine closes per-call connections; the thread keeps its own open."""
