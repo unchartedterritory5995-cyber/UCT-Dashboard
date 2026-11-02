@@ -71,7 +71,7 @@ from ..errors import (
     NoteConnTransient,
     NoteConnUnsupported,
 )
-from .base import AccountInfo, NoteProvider, RemoteNote, RemoteRef, guarded_media_get
+from .base import AccountInfo, NoteProvider, RemoteNote, RemoteRef, fetch_content_url
 
 _API_BASE = "https://api.roamresearch.com/api/graph"
 
@@ -480,12 +480,6 @@ class RoamProvider(NoteProvider):
         # initial URL AND every redirect hop before issuing that hop's
         # request (plain `follow_redirects=True` would happily follow a
         # public-looking URL straight to a private/internal address).
+        # Plan A Task 9 (I-5): a hotlink is copied in -- http allowed for the download only.
         client = await self._get_client()
-        response = await guarded_media_get(client, ref, what="Roam media")
-        if response.status_code >= 400:
-            raise NoteConnTransient(
-                f"Failed to download Roam media ({response.status_code})",
-                status=response.status_code,
-            )
-        content_type = response.headers.get("content-type", "application/octet-stream")
-        return response.content, content_type
+        return await fetch_content_url(client, ref, what="Roam media")

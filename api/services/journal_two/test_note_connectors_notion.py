@@ -1125,13 +1125,66 @@ async def test_external_media_fetch_media_carries_no_auth_header():
 # ---------------------------------------------------------------------------
 
 
-async def test_fetch_media_refuses_a_plain_http_url_without_making_a_request():
-    def handler(request: httpx.Request) -> httpx.Response:  # pragma: no cover
-        raise AssertionError("must never issue a request for a non-https ref")
+async def test_http_hotlink_is_downloaded_for_the_engine_to_rehost():
+    """Plan A Task 9 (I-5): an `external` image on an http:// host is DOWNLOADED (never kept
+    as a hotlink); `http` is allowed for the download only, without any credential."""
+    captured: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured.append(request)
+        return httpx.Response(200, content=_PNG_BYTES, headers={"content-type": "image/png"})
 
     provider = _make_provider(handler)
-    with pytest.raises(errors.NoteConnUnsupported):
-        await provider.fetch_media(CREDS, "http://example.com/img.png")
+    data, content_type = await provider.fetch_media(CREDS, "http://cdn.example.com/a.png")
+    assert (data, content_type) == (_PNG_BYTES, "image/png")
+    assert [str(r.url) for r in captured] == ["http://cdn.example.com/a.png"]
+    assert "authorization" not in {k.lower() for k in captured[0].headers.keys()}
+
+
+async def test_notion_external_media_follows_redirects():
+    calls: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(str(request.url))
+        if request.url.host == "cdn.example.com":
+            return httpx.Response(302, headers={"location": "https://cdn2.example.com/real.png"})
+        return httpx.Response(200, content=_PNG_BYTES, headers={"content-type": "image/png"})
+
+    provider = _make_provider(handler)
+    data, content_type = await provider.fetch_media(CREDS, "http://cdn.example.com/a.png")
+    assert (data, content_type) == (_PNG_BYTES, "image/png")
+    assert calls == ["http://cdn.example.com/a.png", "https://cdn2.example.com/real.png"]
+
+
+async def test_notion_external_media_redirect_to_the_metadata_address_is_unsafe():
+    calls: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(str(request.url))
+        if request.url.host == "cdn.example.com":
+            return httpx.Response(302, headers={"location": "http://169.254.169.254/latest/meta-data/"})
+        raise AssertionError("must never reach the redirect target")  # pragma: no cover
+
+    provider = _make_provider(handler)
+    with pytest.raises(errors.NoteConnUnsafeAddress):
+        await provider.fetch_media(CREDS, "http://cdn.example.com/a.png")
+    assert calls == ["http://cdn.example.com/a.png"]
+
+
+async def test_notion_external_media_entry_carries_its_source_url():
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/v1/pages/page-x" and request.method == "GET":
+            return httpx.Response(200, json={"id": "page-x", "properties": {"title": _title_prop("X")}})
+        if request.url.path == "/v1/blocks/page-x/children" and request.method == "GET":
+            return httpx.Response(200, json={"results": [_block(
+                "img-x", "image", {"type": "external", "external": {"url": "http://cdn.example.com/a.png"}})],
+                "has_more": False})
+        return httpx.Response(404)
+
+    provider = _make_provider(handler)
+    note = await provider.fetch(CREDS, RemoteRef(remote_id="page-x", updated_at="x"))
+    assert note.media[0]["ref"] == "http://cdn.example.com/a.png"
+    assert note.media[0]["source_url"] == "http://cdn.example.com/a.png"
 
 
 @pytest.mark.parametrize(

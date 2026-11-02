@@ -45,6 +45,7 @@ from html.parser import HTMLParser
 from typing import Any
 
 from markdown_it import MarkdownIt
+from markdown_it.common.normalize_url import validateLink as markdown_it_validate_link
 from markdown_it.token import Token
 from mdit_py_plugins.tasklists import tasklists_plugin
 
@@ -61,8 +62,21 @@ def _get_md() -> MarkdownIt:
     if _MD is None:
         md = MarkdownIt("commonmark").enable(["table", "strikethrough"])
         md.use(tasklists_plugin, enabled=True)
+        md.validateLink = _validate_link
         _MD = md
     return _MD
+
+
+def _validate_link(url: str) -> bool:
+    """markdown-it's destination gate, widened by exactly one thing (Plan A Task 9, I-6): a
+    `data:image/*` destination of ANY image MIME, base64 or percent-encoded (the stock gate
+    admits only `data:image/(gif|png|jpeg|webp);`). It reaches `_image_node`, which registers
+    it as a media entry the engine decodes and rehosts. The same gate also passes links: a
+    `[x](data:image/...)` LINK is still refused downstream by `_is_allowed_link_href`, so it
+    stays text."""
+    if _DATA_IMAGE_PREFIX_RE.match(url):
+        return True
+    return markdown_it_validate_link(url)
 
 
 class _Ctx:
@@ -75,43 +89,41 @@ class _Ctx:
         self.data_uri_counter: int = 0  # for synthesizing bounded md-img-N refs
 
 
-# A data-URI image whose MIME isn't one mddoc supports (png/jpeg/gif/webp) never
-# tokenizes as an `image` at all: markdown-it-py's OWN destination validator
-# (`markdown_it.common.normalize_url`, `GOOD_DATA_RE = r"^data:image\/(gif|png|
-# jpeg|webp);"`) already restricts `data:` image sources to exactly those four
-# MIMEs — anything else falls back to literal, UNBOUNDED source text instead (a
-# real base64 payload can run tens of KB; probed: a 20KB SVG produced a single
-# 20,307-char text node, media []). That is worse than the ref-exploding bug
-# `_data_uri_image_node` guards against below — the giant string lands as
-# VISIBLE note content instead of a placeholder, and it never even reaches
-# `_image_node`'s "unsupported -> visible marker" fallback because it never
-# becomes an `image` token in the first place.
+# Plan A Task 9 (I-6): EVERY `data:image/*` destination -- any image MIME, base64 or
+# percent-encoded -- tokenizes as an image (`_validate_link` widens markdown-it's own gate,
+# which admits only `data:image/(gif|png|jpeg|webp);`), and `_data_uri_image_node` registers
+# it as a media entry with a bounded `md-img-N.<ext>` ref. ⚰️ Before this an SVG, a HEIC or
+# a percent-encoded image was refused here and lost.
 #
-# Fix: a pre-tokenization pass over the RAW markdown string, before it ever
-# reaches `_get_md().parse(...)`. Non-greedy on the base64 payload (deliberately,
-# per review) and tolerant of an optional `"title"`/'title' suffix — CommonMark
-# image syntax allows `![alt](url "title")`. A payload with a SUPPORTED mime is
-# left byte-for-byte untouched (`re.Match.group(0)`); it still flows through the
-# normal tokenize -> `_image_node` -> `_data_uri_image_node` path, which assigns
-# it a bounded `md-img-N.<ext>` ref exactly as before.
-_UNSUPPORTED_DATA_IMAGE_MD_RE = re.compile(
+# A NON-image `data:` destination is still refused by markdown-it, and would then fall back
+# to literal, UNBOUNDED source text (a real payload can run tens of KB; probed: 20 KB made a
+# single 20,307-char text node). So a pre-tokenization pass over the RAW markdown replaces
+# exactly that construct with a short visible marker before `_get_md().parse(...)` sees it.
+# Tolerant of an optional `"title"`/'title' suffix (CommonMark allows `![alt](url "title")`)
+# and of balanced parentheses in a percent-encoded payload. An IMAGE MIME is left
+# byte-for-byte untouched (`re.Match.group(0)`) for the tokenizer.
+_DATA_IMAGE_MD_RE = re.compile(
     r"!\[(?P<alt>[^\]]*)\]\("
-    r"\s*data:(?P<mime>[^;,\s]+);base64,(?P<payload>[A-Za-z0-9+/=]*?)"
+    r"\s*data:(?P<mime>[^;,\s)]*)(?:;[^;,\s)]*)*,(?:[^\s()]|\([^\s()]*\))*"
     r"\s*(?:\"[^\"]*\"|'[^']*')?\s*"
-    r"\)"
+    r"\)",
+    re.IGNORECASE,
 )
 
 
-def _strip_unsupported_data_uri_images(md: str) -> str:
+def _extract_data_uri_images(md: str) -> str:
+    """The raw-markdown pass above: every `![alt](data:...)` whose MIME is an image is left
+    for the tokenizer to extract as a media entry; every other one becomes a short visible
+    `[unsupported image: ...]` marker (never an image, never the payload as text)."""
     def _replace(match: "re.Match[str]") -> str:
         mime = match.group("mime").strip()
-        if mime.lower() in _DATA_URI_MIME_EXT:
-            return match.group(0)  # supported — untouched, handled downstream
+        if _is_image_mime(mime):
+            return match.group(0)  # an image -- untouched, extracted downstream
         alt = match.group("alt").strip()
-        marker = f"[unsupported image: {alt}, {mime}]" if alt else f"[unsupported image: {mime}]"
-        return marker
+        shown = mime or "no type"
+        return f"[unsupported image: {alt}, {shown}]" if alt else f"[unsupported image: {shown}]"
 
-    return _UNSUPPORTED_DATA_IMAGE_MD_RE.sub(_replace, md)
+    return _DATA_IMAGE_MD_RE.sub(_replace, md)
 
 
 def md_to_tiptap(md: str | None) -> dict[str, Any]:
@@ -126,7 +138,7 @@ def md_to_tiptap(md: str | None) -> dict[str, Any]:
     - `links` — the target key (prefix stripped) of every `import-link://`
       href encountered, in document order.
     """
-    cleaned = _strip_unsupported_data_uri_images(md or "")
+    cleaned = _extract_data_uri_images(md or "")
     tokens = _get_md().parse(cleaned)
     ctx = _Ctx()
     content = _blocks(tokens, 0, len(tokens), ctx)
@@ -442,6 +454,8 @@ def _register_media(
     entry: dict[str, Any] = {"ref": ref, "kind": kind, "name": name}
     if data_uri is not None:
         entry["data_uri"] = data_uri
+    # No `source_url` here: a content URL's ref IS the original, and the engine's notice
+    # links to the ref when the entry names no `source_url` (`engine._media_source_url`).
     ctx.media.append(entry)
 
 
@@ -453,22 +467,52 @@ def _register_media(
 # assign a small counter-based ref instead, and carry the original data URI
 # on the media entry's `data_uri` field so the engine can decode bytes from
 # it directly (no upload-by-URL round trip needed for an already-inline image).
-_DATA_URI_RE = re.compile(r"^data:([^;,]+);base64,([\s\S]*)$")
+#
+# Plan A Task 9 (I-6): the ONE grammar of a data URI -- `data:<mime>[;param...][;base64],
+# <payload>` -- for this module and the engine's `_decode_data_uri`. The payload is base64
+# when a `;base64` parameter is present, else percent-encoded (`data:image/svg+xml,%3Csvg...`).
+DATA_URI_RE = re.compile(
+    r"^\s*data:(?P<mime>[^;,]*)(?P<params>(?:;[^;,]*)*),(?P<payload>[\s\S]*)$", re.IGNORECASE)
+_DATA_IMAGE_PREFIX_RE = re.compile(r"^\s*data:image/[a-z0-9][a-z0-9.+-]*[;,]", re.IGNORECASE)
+_IMAGE_MIME_RE = re.compile(r"^image/[a-z0-9][a-z0-9.+-]*$", re.IGNORECASE)
+#: The ref extension for an image MIME. Any other `image/*` takes its own subtype, sanitised.
 _DATA_URI_MIME_EXT = {
     "image/png": "png",
     "image/jpeg": "jpg",
+    "image/jpg": "jpg",
     "image/gif": "gif",
     "image/webp": "webp",
+    "image/svg+xml": "svg",
+    "image/heic": "heic",
+    "image/heif": "heif",
+    "image/tiff": "tif",
+    "image/bmp": "bmp",
+    "image/avif": "avif",
+    "image/x-icon": "ico",
+    "image/vnd.microsoft.icon": "ico",
 }
 
 
+def _is_image_mime(mime: str) -> bool:
+    return bool(_IMAGE_MIME_RE.match(mime.strip()))
+
+
+def _data_uri_ext(mime: str) -> str:
+    mime = mime.strip().lower()
+    known = _DATA_URI_MIME_EXT.get(mime)
+    if known is not None:
+        return known
+    return re.sub(r"[^a-z0-9]", "", mime.split("/", 1)[1].split("+", 1)[0])[:10] or "img"
+
+
 def _data_uri_image_node(src: str, ctx: _Ctx) -> dict[str, Any] | None:
-    match = _DATA_URI_RE.match(src)
-    if not match:
+    """A `data:image/*` src (any image MIME, base64 or percent-encoded) -> an image node with
+    a bounded `md-img-N.<ext>` ref, the URI carried on the media entry's `data_uri`. `None`
+    (the caller's visible "unsupported" text) for a non-image or malformed data URI."""
+    match = DATA_URI_RE.match(src)
+    if not match or not _is_image_mime(match.group("mime")):
         return None
-    ext = _DATA_URI_MIME_EXT.get(match.group(1).strip().lower())
-    if ext is None:
-        return None
+    ext = _data_uri_ext(match.group("mime"))
     ctx.data_uri_counter += 1
     ref = f"md-img-{ctx.data_uri_counter}.{ext}"
     _register_media(ctx, ref=ref, kind="image", name=ref, data_uri=src)

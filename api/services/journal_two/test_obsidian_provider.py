@@ -484,6 +484,21 @@ async def test_fetch_media_downloads_a_genuine_external_https_reference(db):
     await provider.aclose()
 
 
+async def test_http_hotlink_is_downloaded(db):
+    """Plan A Task 9 (I-5): an http hotlink in a vault note is copied in (download only)."""
+    seen: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(str(request.url))
+        return httpx.Response(200, content=b"bytes", headers={"content-type": "image/png"})
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    provider = ObsidianProvider(user_id="user-a", vault_id="vault-1", client=client)
+    assert await provider.fetch_media({}, "http://1.1.1.1/chart.png") == (b"bytes", "image/png")
+    assert seen == ["http://1.1.1.1/chart.png"]
+    await provider.aclose()
+
+
 async def test_fetch_media_refuses_a_non_https_reference(db):
     provider = ObsidianProvider(user_id="user-a", vault_id="vault-1")
     with pytest.raises(errors.NoteConnUnsupported):

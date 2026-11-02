@@ -234,10 +234,20 @@ def _is_disallowed_ip(addr: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bo
     )
 
 
-async def assert_public_https(url: str, *, what: str = "media reference") -> str:
+#: Plan A Task 9 (I-5): the schemes `allow_http=True` admits. Nothing else, ever: a
+#: `javascript:`/`data:`/`file:`/`ftp:` URL is refused with or without the flag.
+_HTTP_SCHEMES = frozenset({"http", "https"})
+
+
+async def assert_public_https(url: str, *, what: str = "media reference", allow_http: bool = False) -> str:
     """SSRF guard for a `ref` taken from content an attacker fully controls.
     Enforces: (1) `https://` scheme -- never bare `http://` or any other
-    scheme; (2) every IP address the host resolves to is a PUBLIC address --
+    scheme, unless `allow_http` (Plan A Task 9: a hotlinked image in note
+    content is DOWNLOADED and rehosted, so `http://` is acceptable for that
+    download -- what the member is served is always our own URL; `http` and
+    `https` then both pass, and no other scheme ever does); (2) every IP
+    address the host resolves to is a PUBLIC address -- unchanged by
+    `allow_http`, and run on every redirect hop by the two helpers below --
     a hostname that merely LOOKS public but resolves (via attacker-influenced
     DNS, or simply because someone registered it) to a loopback/private/
     link-local/metadata address is refused exactly like a literal
@@ -263,7 +273,8 @@ async def assert_public_https(url: str, *, what: str = "media reference") -> str
     parsed = urlsplit(url)
     # Every refusal below is the TYPE `NoteConnUnsafeAddress` (a `NoteConnUnsupported`, so no
     # caller's handling changes): the engine maps the type to an `unsafe` notice (Plan A Task 8).
-    if (parsed.scheme or "").lower() != "https":
+    scheme = (parsed.scheme or "").lower()
+    if not (scheme == "https" or (allow_http and scheme in _HTTP_SCHEMES)):
         raise NoteConnUnsafeAddress(
             f"Cannot fetch {what} over a non-https URL ({parsed.scheme or 'no scheme'!r})",
             reason="Media reference is not a secure (https) URL",
@@ -414,7 +425,7 @@ _TRANSFER_HEADERS = frozenset({"content-encoding", "content-length", "transfer-e
 
 async def guarded_media_get(
     client: httpx.AsyncClient, url: str, *, what: str = "media reference", max_redirects: int = 5,
-    max_bytes: int | None = None,
+    max_bytes: int | None = None, allow_http: bool = False,
 ) -> httpx.Response:
     """Guarded stand-in for `client.get(url, follow_redirects=True)` on a
     content-controlled `ref`. `follow_redirects=True` alone re-validates
@@ -452,7 +463,7 @@ async def guarded_media_get(
     above this section."""
     budget = MEDIA_MAX_BYTES if max_bytes is None else max_bytes
     content, streamed = await guarded_media_stream(
-        client, url, what=what, max_redirects=max_redirects, max_bytes=budget,
+        client, url, what=what, max_redirects=max_redirects, max_bytes=budget, allow_http=allow_http,
     )
     headers = [(k, v) for k, v in streamed.headers.multi_items() if k.lower() not in _TRANSFER_HEADERS]
     return httpx.Response(streamed.status_code, headers=headers, content=content, request=streamed.request)
@@ -460,7 +471,7 @@ async def guarded_media_get(
 
 async def guarded_media_stream(
     client: httpx.AsyncClient, url: str, *, what: str = "media reference",
-    max_redirects: int = 5, max_bytes: int,
+    max_redirects: int = 5, max_bytes: int, allow_http: bool = False,
 ) -> tuple[bytes, httpx.Response]:
     """STREAMED sibling of `guarded_media_get`, added for the msgraph
     fix-round-1 review (Important #2): `guarded_media_get` calls
@@ -509,7 +520,8 @@ async def guarded_media_stream(
     (see that function's and `assert_public_https`'s own docstrings)."""
     next_url = url
     for _ in range(max_redirects + 1):
-        await assert_public_https(next_url, what=what)
+        # ⛔ EVERY hop, `allow_http` or not (Plan A Task 9): the address check is the guard.
+        await assert_public_https(next_url, what=what, allow_http=allow_http)
         try:
             async with client.stream(
                 "GET", next_url, follow_redirects=False,
@@ -544,3 +556,19 @@ async def guarded_media_stream(
         f"Too many redirects fetching {what}",
         reason="Media reference redirected too many times",
     )
+
+
+async def fetch_content_url(client: httpx.AsyncClient, url: str, *, what: str) -> tuple[bytes, str]:
+    """Plan A Task 9 (I-5): the ONE way a provider (or the member media-fetch door) copies in a
+    URL taken from note CONTENT -- a hotlinked image on someone else's server. It is downloaded
+    here and rehosted by the caller, never kept as a hotlink. `http://` is allowed for this
+    download only (`allow_http=True`), redirects are followed, and `assert_public_https` runs
+    on every hop, so a public URL that 302s to `169.254.169.254` is refused as
+    `NoteConnUnsafeAddress` before that hop's request leaves this process. No credential ever
+    rides on this request. Any non-2xx final answer (a 404, a redirect with no Location) is
+    `NoteConnTransient` carrying the status. Returns `(bytes, declared content type)`."""
+    response = await guarded_media_get(client, url, what=what, allow_http=True)
+    if not 200 <= response.status_code < 300:
+        raise NoteConnTransient(f"Failed to download {what} ({response.status_code})",
+                                status=response.status_code)
+    return response.content, response.headers.get("content-type", "application/octet-stream")

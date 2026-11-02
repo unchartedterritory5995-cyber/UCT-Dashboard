@@ -71,10 +71,13 @@ from ..errors import (
     NoteConnAuthError,
     NoteConnError,
     NoteConnRateLimited,
+    NoteConnTooLarge,
     NoteConnTransient,
     NoteConnUnsupported,
 )
-from .base import AccountInfo, NoteProvider, RemoteNote, RemoteRef, assert_public_https
+from .base import (
+    AccountInfo, NoteProvider, RemoteNote, RemoteRef, fetch_content_url, guarded_media_stream,
+)
 
 # The SAME byte limits notes.py's own persistence layer enforces on decoded
 # media bytes (`save_note_image_bytes`/`save_note_attachment_bytes`) —
@@ -412,24 +415,12 @@ class NotionProvider(NoteProvider):
         # `ref` here is an `external`-type media url (a permanent, arbitrary
         # host) registered by `_resolve_media` below — the Notion bearer is
         # NEVER attached to it (credential-boundary rule). Plain,
-        # unauthenticated GET, exactly like the S3 download path. Final-
-        # review Item D: this is exactly the unguarded, content-controlled
-        # fetch the review named — `assert_public_https` refuses non-https
-        # and loopback/private/link-local/metadata hosts before the GET;
-        # `client.get(ref)` here never opts into `follow_redirects=True`
-        # (httpx's own default is False), so one host check is enough.
+        # unauthenticated GET, exactly like the S3 download path. Plan A
+        # Task 9 (I-5): a hotlink is copied in through the shared
+        # `fetch_content_url` -- http allowed for the download only,
+        # redirects followed, the SSRF guard on every hop.
         client = await self._get_client()
-        await assert_public_https(ref, what="Notion media")
-        try:
-            response = await client.get(ref)
-        except httpx.RequestError as exc:
-            raise NoteConnTransient(f"Failed to download Notion media: {exc}") from exc
-        if response.status_code >= 400:
-            raise NoteConnTransient(
-                f"Failed to download Notion media ({response.status_code})", status=response.status_code,
-            )
-        content_type = response.headers.get("content-type", "application/octet-stream")
-        return response.content, content_type
+        return await fetch_content_url(client, ref, what="Notion media")
 
     # ── page/block fetch helpers ─────────────────────────────────────────
 
@@ -558,7 +549,8 @@ class NotionProvider(NoteProvider):
             # notes_svc's OWN size check already guards that later path
             # (save_note_image_bytes/save_note_attachment_bytes) — no
             # separate cap needed here for content we never download now.
-            return {"ref": url, "kind": kind, "name": name}
+            # Plan A Task 9: `source_url` is the original, so a failure notice links to it.
+            return {"ref": url, "kind": kind, "name": name, "source_url": url}
 
         # Plan A Task 8: an image downloads up to the media policy's SOURCE cap (25 MB), not
         # the 5 MB inline cap, so an oversize photo is downscaled by `media_policy` instead
@@ -624,30 +616,18 @@ class NotionProvider(NoteProvider):
         raising, matching this method's own contract of never raising for
         a bad url -- `_download_internal`'s caller already treats a `None`
         data return as "this media just isn't available.\""""
-        try:
-            await assert_public_https(url, what="Notion media")
-        except (NoteConnUnsupported, NoteConnTransient):
-            return None, "", None
+        # Plan A Task 9: the read is the shared `guarded_media_stream` (https only -- this url is
+        # Notion-issued, not content; the guard on every redirect hop; the cap counted on the
+        # decoded bytes). Its typed `NoteConnTooLarge` is this method's `_MediaTooLarge` (the
+        # existing `too_large` result); any other refusal is "unavailable".
         client = await self._get_client()
         try:
-            async with client.stream("GET", url) as response:
-                if response.status_code >= 400:
-                    return None, "", response.status_code
-                content_length = response.headers.get("content-length")
-                if content_length is not None:
-                    try:
-                        if int(content_length) > cap:
-                            raise _MediaTooLarge()
-                    except ValueError:
-                        pass  # unparseable header -> fall through to the streamed check
-                content_type = response.headers.get("content-type", "application/octet-stream")
-                total = 0
-                chunks: list[bytes] = []
-                async for chunk in response.aiter_bytes():
-                    total += len(chunk)
-                    if total > cap:
-                        raise _MediaTooLarge()
-                    chunks.append(chunk)
-                return b"".join(chunks), content_type, response.status_code
-        except httpx.RequestError:
+            data, response = await guarded_media_stream(client, url, what="Notion media", max_bytes=cap)
+        except NoteConnTooLarge:
+            raise _MediaTooLarge() from None
+        except (NoteConnUnsupported, NoteConnTransient):
             return None, "", None
+        if not 200 <= response.status_code < 300:
+            return None, "", response.status_code
+        content_type = response.headers.get("content-type", "application/octet-stream")
+        return data, content_type, response.status_code

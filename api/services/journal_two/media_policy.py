@@ -122,11 +122,15 @@ class MediaRejected(Exception):
         self.marker_text = marker_text
 
 
-def _reject(reason: str, filename: str | None) -> MediaRejected:
-    # A `fetch_failed` from here is said in its final form ("Couldn't copy X"): an upload door
-    # retries nothing, and the engine builds its own notice (with attempts) from the reason.
+def rejection(reason: str, filename: str | None) -> MediaRejected:
+    """The refusal a DOOR answers with (an upload, the member media-fetch door).
+    A `fetch_failed` from here is said in its final form ("Couldn't copy X"): a door
+    retries nothing, and the engine builds its own notice (with attempts) from the reason."""
     attempts = import_notice.MEDIA_RETRY_MAX_ATTEMPTS if reason == "fetch_failed" else 0
     return MediaRejected(reason, import_notice.marker_text(reason, filename or None, attempts=attempts))
+
+
+_reject = rejection
 
 
 # ── sniffing ─────────────────────────────────────────────────────────────────

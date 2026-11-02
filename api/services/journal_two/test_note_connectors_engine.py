@@ -3300,3 +3300,118 @@ async def test_a_resolved_body_that_fails_validation_terminates_under_the_bound(
 
     await engine.sync_source(source["id"], full=True, manual=True)
     assert provider.fetch_media_calls == [_IMG]                         # bounded: no refetch
+
+
+# ---------------------------------------------------------------------------
+# Plan A Task 9 (I-5, I-6): hotlinks are copied in; `data:` images decode; redirects followed
+# ---------------------------------------------------------------------------
+
+import httpx  # noqa: E402
+
+from api.services.journal_two.note_connectors.providers import base as base_module  # noqa: E402
+
+_HOT = "http://cdn.example.com/a.png"
+
+
+@pytest.fixture
+def web(provider, monkeypatch):
+    """The fake provider's `fetch_media` is the real shared hotlink path (`fetch_content_url`)
+    over a mock transport: what `web.routes[url]` answers, hop by hop. No live DNS, no network."""
+    async def _public(host):
+        return ["142.250.0.1"]
+
+    monkeypatch.setattr(base_module, "_resolve_host", _public)
+    state = {"routes": {}, "calls": []}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        state["calls"].append(str(request.url))
+        answer = state["routes"].get(str(request.url))
+        if answer is None:
+            raise AssertionError(f"unexpected request to {request.url}")
+        return answer()
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+
+    async def fetch_media(_creds, ref):
+        provider.fetch_media_calls.append(ref)
+        return await base_module.fetch_content_url(client, ref, what="Fake media")
+
+    monkeypatch.setattr(provider, "fetch_media", fetch_media)
+    return state
+
+
+def _hot_note(provider, ref=_HOT):
+    """An mddoc-shaped entry: no `source_url` -- the ref is the original address."""
+    provider.refs = [RemoteRef(remote_id="p1", updated_at="2026-08-01T00:00:00+00:00")]
+    rn = _rn("p1", "Chart page", media=[{"ref": ref, "kind": "image", "name": "a.png"}])
+    rn.doc["content"].append({"type": "image", "attrs": {"src": f"import-ref://{ref}"}})
+    provider.notes_by_id = {"p1": rn}
+
+
+async def test_http_hotlink_is_downloaded_and_rehosted(source, provider, web):
+    _hot_note(provider)
+    web["routes"][_HOT] = lambda: httpx.Response(200, content=PNG_BYTES, headers={"content-type": "image/png"})
+    result = await engine.sync_source(source["id"], full=True)
+    assert result["mediaUploaded"] == 1
+    body = _body(notes_svc.list_notes("u1")[0])
+    (img,) = _nodes_of(body, "image")
+    assert img["attrs"]["src"].startswith("/api/j2/notes/attachments/u1/")
+    assert _HOT not in json.dumps(body)                         # never kept as a hotlink
+    assert _nodes_of(body, "importNotice") == []
+
+
+async def test_redirect_followed_to_the_real_image(source, provider, web):
+    _hot_note(provider)
+    web["routes"][_HOT] = lambda: httpx.Response(302, headers={"location": "https://cdn2.example.com/real.png"})
+    web["routes"]["https://cdn2.example.com/real.png"] = lambda: httpx.Response(
+        200, content=PNG_BYTES, headers={"content-type": "image/png"})
+    result = await engine.sync_source(source["id"], full=True)
+    assert result["mediaUploaded"] == 1
+    assert web["calls"] == [_HOT, "https://cdn2.example.com/real.png"]
+    (img,) = _nodes_of(_body(notes_svc.list_notes("u1")[0]), "image")
+    assert img["attrs"]["src"].startswith("/api/j2/notes/attachments/u1/")
+
+
+async def test_redirect_to_private_address_is_unsafe_notice(source, provider, web):
+    """A public URL that 302s to the cloud metadata address: a named `unsafe` notice where the
+    image was -- never a 500, never a stored page, and the metadata address is never asked."""
+    _hot_note(provider)
+    web["routes"][_HOT] = lambda: httpx.Response(302, headers={"location": "http://169.254.169.254/latest/meta-data/"})
+    result = await engine.sync_source(source["id"], full=True)
+    assert result["status"] == "ok" and result["created"] == 1 and result["mediaUploaded"] == 0
+    assert web["calls"] == [_HOT]
+    body = _body(notes_svc.list_notes("u1")[0])
+    assert _nodes_of(body, "image") == []
+    notice = _only(body, "importNotice")
+    assert notice["attrs"] == {"reason": "unsafe", "name": "a.png", "sourceUrl": _HOT, "ref": _HOT,
+                               "attempts": 0}
+    assert _row("u1", _IMG_KEY)["import_media_pending"] == 0     # final: never retried
+    root = notes_svc._ATTACHMENT_ROOT                            # nothing stored at all
+    assert not root.exists() or not any(p.is_file() for p in root.rglob("*"))
+
+
+async def test_failed_hotlink_notice_links_to_the_original(source, provider, web):
+    _hot_note(provider)
+    web["routes"][_HOT] = lambda: httpx.Response(404, content=b"gone")
+    await engine.sync_source(source["id"], full=True)
+    notice = _only(_body(notes_svc.list_notes("u1")[0]), "importNotice")
+    assert notice["attrs"]["reason"] == "fetch_failed"
+    assert notice["attrs"]["sourceUrl"] == _HOT
+
+
+async def test_percent_encoded_svg_data_uri_is_decoded_and_kept(source, provider):
+    """I-6 through the engine: an SVG data URI (percent-encoded) is decoded and stored -- as a
+    file, since an SVG is never inline (the media policy) -- never dropped."""
+    provider.refs = [RemoteRef(remote_id="p1", updated_at="2026-08-01T00:00:00+00:00")]
+    uri = "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3C%2Fsvg%3E"
+    rn = _rn("p1", "Logo", media=[
+        {"ref": "md-img-1.svg", "kind": "image", "name": "md-img-1.svg", "data_uri": uri}])
+    rn.doc["content"].append({"type": "image", "attrs": {"src": "import-ref://md-img-1.svg"}})
+    provider.notes_by_id = {"p1": rn}
+    result = await engine.sync_source(source["id"], full=True)
+    assert result["mediaUploaded"] == 1
+    assert provider.fetch_media_calls == []
+    body = _body(notes_svc.list_notes("u1")[0])
+    assert _nodes_of(body, "importNotice") == []
+    (chip,) = _nodes_of(body, "attachmentChip")
+    assert chip["attrs"]["href"].endswith(".svg")

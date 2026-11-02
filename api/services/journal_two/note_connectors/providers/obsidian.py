@@ -251,7 +251,7 @@ from api.services.auth_db import get_connection
 
 from .. import errors
 from ..convert import md_to_tiptap
-from .base import AccountInfo, NoteProvider, RemoteNote, RemoteRef, guarded_media_get
+from .base import AccountInfo, NoteProvider, RemoteNote, RemoteRef, fetch_content_url
 
 # ---------------------------------------------------------------------------
 # Wiki-syntax pre-pass (markdown -> markdown, run before md_to_tiptap)
@@ -718,16 +718,10 @@ class ObsidianProvider(NoteProvider):
         turns into a plain (unfetchable) media ref — is refused honestly
         rather than pretending to succeed."""
         parsed = urlsplit(ref)
-        if (parsed.scheme or "").lower() == "https":
+        if (parsed.scheme or "").lower() in ("http", "https"):
+            # Plan A Task 9 (I-5): a hotlink is copied in -- http allowed for the download only.
             client = await self._get_client()
-            response = await guarded_media_get(client, ref, what="Obsidian media")
-            if response.status_code >= 400:
-                raise errors.NoteConnTransient(
-                    f"Failed to download media ({response.status_code})",
-                    status=response.status_code,
-                )
-            content_type = response.headers.get("content-type", "application/octet-stream")
-            return response.content, content_type
+            return await fetch_content_url(client, ref, what="Obsidian media")
         raise errors.NoteConnUnsupported(
             f"Obsidian push sync does not transfer vault attachments ({ref!r}) — "
             "only note text is pushed by the plugin. Use a public https link for "

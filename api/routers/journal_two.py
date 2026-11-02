@@ -2674,6 +2674,85 @@ def sector_theme_facets_endpoint(
     return notes_service.get_sector_theme_facets(user["id"])
 
 
+#: Connector fidelity Plan A Task 9 [B A2]: the member media-fetch door's per-member budget.
+#: Each call is one bounded download (25 MB, 5 redirects) plus one media-policy decision.
+#: In-process Limiter state (CLAUDE.md's single-process roster): a second process doubles it.
+NOTE_MEDIA_FETCH_RATE = "120/minute"
+SCOPE_NOTE_MEDIA_FETCH = "notebook-media-fetch"
+NOTE_MEDIA_FETCH_RATE_SENTENCE = "That's a lot of images to copy in at once. Try again in a minute."
+_MEDIA_FETCH_TIMEOUT_S = 30.0
+
+
+def _media_fetch_client():
+    """The door's HTTP client: no credential, no cookie jar shared with anything. A seam so
+    the route test answers from a mock transport (no network)."""
+    import httpx
+    return httpx.AsyncClient(timeout=_MEDIA_FETCH_TIMEOUT_S)
+
+
+def _hotlink_filename(url: str) -> str:
+    from urllib.parse import unquote, urlsplit
+    name = unquote(urlsplit(url).path.rsplit("/", 1)[-1]).strip()
+    return name or "image"
+
+
+# ⛔ Declared ABOVE every `POST /notes/{note_id}/...` route, so no path parameter can ever
+# read "media" as a note id.
+@router.post("/notes/media/fetch")
+async def notes_media_fetch_endpoint(payload: dict[str, Any] = Depends(_json(dict[str, Any])), user: dict = Depends(get_current_user)):
+    """Connector fidelity Plan A Task 9 [B A2]: copy a hotlinked image into UCT storage for
+    Plan B's file importer -- never kept as a hotlink. Body `{url, noteImportKey?}`.
+
+    `noteImportKey` resolves to the member's OWN non-trashed note (media storage is per note;
+    the predicate is `import_check`'s, the one copy); absent or unknown => 404 `Not found`,
+    with nothing fetched. The download is the shared `fetch_content_url` (http allowed for the
+    download only, redirects followed, the SSRF guard on every hop), then `normalize_media` +
+    `store_media` under the member's budget, off the event loop. 200 => `{src, kind,
+    filename}`, `src` always our own URL; any refusal => 422 `{"reason", "markerText"}` at the
+    top level, the reason decided by TYPE (`engine.media_failure_reason`), never a 500."""
+    from fastapi.responses import JSONResponse
+    from starlette.concurrency import run_in_threadpool
+    from api.services.journal_two import public_note_payload as public
+    from api.services.journal_two.note_connectors import engine as note_engine
+    from api.services.journal_two.note_connectors.providers.base import fetch_content_url
+    url = payload.get("url")
+    key = payload.get("noteImportKey")
+    if not isinstance(url, str) or not url.strip():
+        raise HTTPException(status_code=400, detail="url must be a non-empty string")
+    if key is not None and not isinstance(key, str):
+        raise HTTPException(status_code=400, detail="noteImportKey must be a string")
+    user_id = user["id"]
+    public.enforce_rate(NOTE_MEDIA_FETCH_RATE, SCOPE_NOTE_MEDIA_FETCH, f"member:{user_id}",
+                        NOTE_MEDIA_FETCH_RATE_SENTENCE, public=False)
+    hit = notes_service.import_check(user_id, [key])["existing"].get(key) if key else None
+    if hit is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    note_id = hit["id"]
+    url = url.strip()
+    filename = _hotlink_filename(url)
+    try:
+        async with _media_fetch_client() as client:
+            data, content_type = await fetch_content_url(client, url, what="Linked image")
+
+        def decide_and_store():
+            result = media_policy.normalize_media(data, content_type, filename)
+            budget = media_policy.MediaBudget.for_member(user_id)
+            return media_policy.store_media(user_id, note_id, result, budget=budget)
+
+        stored = await run_in_threadpool(decide_and_store)
+    except Exception as e:  # noqa: BLE001 -- every refusal is a named 422, never a 500
+        reason = note_engine.media_failure_reason(e)
+        if reason == "storage_limit":
+            marker = media_policy.UPLOAD_STORAGE_LIMIT_SENTENCE      # nothing retries a door
+        elif isinstance(e, media_policy.MediaRejected):
+            marker = e.marker_text
+        else:
+            marker = media_policy.rejection(reason, filename).marker_text
+        logger.info("notes/media/fetch refused (%s) for member %s: %s", reason, user_id, e)
+        return JSONResponse(status_code=422, content={"reason": reason, "markerText": marker})
+    return {"src": stored.url, "kind": stored.kind, "filename": stored.name}
+
+
 @router.post("/notes/{note_id}/embeds")
 def append_note_embed_endpoint(
     note_id: str, payload: dict[str, Any] = Depends(_json(dict[str, Any])), user: dict = Depends(get_current_user),

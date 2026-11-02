@@ -689,9 +689,11 @@ def test_multiple_data_uri_images_get_distinct_incrementing_refs():
 # ---------------------------------------------------------------------------
 
 
-def test_svg_data_uri_pretokenization_pass_produces_a_short_marker_not_a_giant_node():
+def test_non_image_data_uri_pretokenization_pass_produces_a_short_marker_not_a_giant_node():
+    # Plan A Task 9: an SVG is now an image (below); the giant-text hazard is any NON-image
+    # `data:` payload, which markdown-it refuses to tokenize as an image.
     big_payload = "A" * 20000  # mirrors the reviewer's ~20KB probe
-    src = f"data:image/svg+xml;base64,{big_payload}"
+    src = f"data:text/html;base64,{big_payload}"
     result = md_to_tiptap(f"![diagram]({src})\n")
 
     top = result["doc"]["content"]
@@ -701,16 +703,16 @@ def test_svg_data_uri_pretokenization_pass_produces_a_short_marker_not_a_giant_n
     assert len(para["content"]) == 1
     text_node = para["content"][0]
     assert text_node["type"] == "text"
-    assert text_node["text"] == "[unsupported image: diagram, image/svg+xml]"
+    assert text_node["text"] == "[unsupported image: diagram, text/html]"
     assert len(text_node["text"]) < 100  # short marker, NOT the 20K payload
     assert result["media"] == []
 
 
 def test_unsupported_data_uri_without_alt_omits_the_alt_segment_from_the_marker():
-    src = "data:image/svg+xml;base64,PHN2Zz48L3N2Zz4="
+    src = "data:text/html;base64,PGI+PC9iPg=="
     result = md_to_tiptap(f"![]({src})\n")
     para = result["doc"]["content"][0]
-    assert para["content"][0]["text"] == "[unsupported image: image/svg+xml]"
+    assert para["content"][0]["text"] == "[unsupported image: text/html]"
     assert result["media"] == []
 
 
@@ -719,12 +721,83 @@ def test_unsupported_data_uri_with_a_title_suffix_is_still_caught():
     # regex must tolerate it (non-greedy payload capture, optional quoted
     # title before the closing paren) rather than leaving a dangling
     # `"title")` fragment behind or failing to match at all.
-    src = "data:image/svg+xml;base64,PHN2Zz48L3N2Zz4="
+    src = "data:text/plain;base64,PHN2Zz48L3N2Zz4="
     result = md_to_tiptap(f'![diagram]({src} "an svg diagram")\n')
     para = result["doc"]["content"][0]
-    assert para["content"][0]["text"] == "[unsupported image: diagram, image/svg+xml]"
+    assert para["content"][0]["text"] == "[unsupported image: diagram, text/plain]"
     assert "title" not in para["content"][0]["text"]
     assert result["media"] == []
+
+
+# ---------------------------------------------------------------------------
+# Plan A Task 9 (I-6): every `data:image/*` URI -- any image MIME, base64 or
+# percent-encoded -- is a media entry the engine decodes and rehosts. A
+# non-image `data:` stays visible text; a `data:` LINK href stays text.
+# ---------------------------------------------------------------------------
+
+
+def test_svg_and_heic_data_uris_become_media_entries():
+    svg = "data:image/svg+xml;base64,PHN2Zz48L3N2Zz4="
+    heic = "data:image/heic;base64,AAAAGGZ0eXBoZWlj"
+    tiff = "data:image/tiff;base64,SUkqAA=="
+    result = md_to_tiptap(f"![d]({svg}) ![p]({heic}) ![t]({tiff})\n")
+    images = [n for n in result["doc"]["content"] if n["type"] == "image"]
+    assert [n["attrs"]["src"] for n in images] == [
+        "import-ref://md-img-1.svg", "import-ref://md-img-2.heic", "import-ref://md-img-3.tif"]
+    assert result["media"] == [
+        {"ref": "md-img-1.svg", "kind": "image", "name": "md-img-1.svg", "data_uri": svg},
+        {"ref": "md-img-2.heic", "kind": "image", "name": "md-img-2.heic", "data_uri": heic},
+        {"ref": "md-img-3.tif", "kind": "image", "name": "md-img-3.tif", "data_uri": tiff},
+    ]
+
+
+def test_html_img_data_uri_becomes_a_media_entry():
+    from api.services.journal_two.note_connectors.convert.mddoc import html_to_tiptap
+    src = "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%2F%3E"
+    result = html_to_tiptap(f'<p>x</p><img src="{src}">')
+    assert result["media"] == [
+        {"ref": "md-img-1.svg", "kind": "image", "name": "md-img-1.svg", "data_uri": src}]
+    assert '"import-ref://md-img-1.svg"' in json.dumps(result["doc"])
+
+
+def test_percent_encoded_svg_data_uri_decodes():
+    from api.services.journal_two.note_connectors.engine import _decode_data_uri
+    src = "data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E"
+    result = md_to_tiptap(f"![logo]({src})\n")
+    (entry,) = result["media"]
+    assert entry["ref"] == "md-img-1.svg"
+    data, content_type = _decode_data_uri(entry["data_uri"])
+    assert data.startswith(b"<svg")
+    assert data == b"<svg xmlns='http://www.w3.org/2000/svg'></svg>"
+    assert content_type == "image/svg+xml"
+
+
+def test_data_uri_with_parameters_before_base64_decodes():
+    from api.services.journal_two.note_connectors.engine import _decode_data_uri
+    assert _decode_data_uri("data:image/png;name=a.png;base64,iVBORw==") == (
+        b"\x89PNG", "image/png")
+    assert _decode_data_uri("data:image/svg+xml;charset=utf-8,%3Csvg%2F%3E") == (
+        b"<svg/>", "image/svg+xml")
+
+
+def test_data_text_html_stays_text():
+    payload = "%3Cscript%3Ealert(1)%3C%2Fscript%3E"
+    result = md_to_tiptap(
+        f"![x](data:text/html,{payload})\n\n[click](data:text/html,{payload})\n\n"
+        f"[pic](data:image/png;base64,AAAA)\n")
+    assert result["media"] == []
+    dumped = json.dumps(result["doc"])
+    assert '"type": "image"' not in dumped
+    assert "[unsupported image: x, text/html]" in dumped
+    # a `data:` LINK href stays text -- never a link mark, image MIME or not
+    assert '"link"' not in dumped
+    assert "click" in dumped and "pic" in dumped
+
+
+def test_http_image_media_entry_ref_is_the_original_address():
+    # The ref IS the original: the engine's notice links to it (`_media_source_url`).
+    result = md_to_tiptap("![a](http://cdn.example.com/a.png)\n")
+    assert result["media"] == [{"ref": "http://cdn.example.com/a.png", "kind": "image", "name": "a.png"}]
 
 
 def test_supported_png_data_uri_is_untouched_by_the_pretokenization_pass_regression():
@@ -759,7 +832,7 @@ def test_unsupported_data_uri_mime_degrades_image_to_visible_text():
     from api.services.journal_two.note_connectors.convert import mddoc
 
     ctx = mddoc._Ctx()
-    node = mddoc._data_uri_image_node("data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=", ctx)
+    node = mddoc._data_uri_image_node("data:text/html;base64,PHN2Zz48L3N2Zz4=", ctx)
     assert node is None
     assert ctx.media == []
 
@@ -773,9 +846,11 @@ def test_non_base64_data_uri_also_degrades_image_to_visible_text():
     # contract.
     from api.services.journal_two.note_connectors.convert import mddoc
 
+    # Plan A Task 9: a percent-encoded `data:image/*` is now an image (I-6); what stays
+    # refused here is a URI with no `,` at all, and a non-image MIME in either encoding.
     ctx = mddoc._Ctx()
-    node = mddoc._data_uri_image_node("data:image/png,not-base64-at-all", ctx)
-    assert node is None
+    for src in ("data:image/png;base64", "data:text/plain,not-base64-at-all"):
+        assert mddoc._data_uri_image_node(src, ctx) is None
     assert ctx.media == []
 
 
@@ -792,7 +867,7 @@ def test_data_uri_image_end_to_end_through_inline_nodes_when_unsupported():
 
     ctx = mddoc._Ctx()
     tok = Token("image", "img", 0)
-    tok.attrs = {"src": "data:image/svg+xml;base64,PHN2Zz48L3N2Zz4="}
+    tok.attrs = {"src": "data:text/html;base64,PHN2Zz48L3N2Zz4="}
     items = mddoc._inline_nodes([tok], ctx)
     assert len(items) == 1
     assert items[0]["type"] == "text"

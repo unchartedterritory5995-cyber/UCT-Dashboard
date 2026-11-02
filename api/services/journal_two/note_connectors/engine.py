@@ -98,6 +98,7 @@ import os
 import random
 import sqlite3
 import threading
+import urllib.parse
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -108,7 +109,7 @@ from api.services.journal_two.import_provenance import edited_since_import
 from api.services.journal_two.notes_quota import NoteQuotaExceeded
 from api.services.journal_two.note_connectors import connections, errors, oauth
 from api.services.journal_two.note_connectors.link_keys import heal_pending_links, resolve_link_keys
-from api.services.journal_two.note_connectors.convert import REF_PREFIX, rewrite_body
+from api.services.journal_two.note_connectors.convert import REF_PREFIX, mddoc, rewrite_body
 from api.services.journal_two.note_connectors.providers.base import (
     NoteProvider, RemoteNote, RemoteRef,
 )
@@ -1483,12 +1484,39 @@ def _build_confirm_entry(
 
 
 def _decode_data_uri(data_uri: str) -> tuple[bytes, str]:
-    header, _, b64_payload = data_uri.partition(",")
-    if ";base64" not in header:
-        raise ValueError(f"unsupported data URI (not base64): {header[:40]!r}")
-    content_type = header[len("data:"):].split(";")[0] or "application/octet-stream"
-    data = base64.b64decode(b64_payload, validate=True)
-    return data, content_type
+    """`(bytes, mime)` for a data URI (Plan A Task 9, I-6): base64 when a `;base64` parameter
+    is present, else percent-encoded (`data:image/svg+xml,%3Csvg...`). The grammar is
+    `mddoc.DATA_URI_RE`, the one copy. A malformed URI or bad base64 raises `ValueError` (a
+    `fetch_failed` notice). Run off the event loop (`asyncio.to_thread`): a 25 MB payload is
+    real work."""
+    match = mddoc.DATA_URI_RE.match(data_uri)
+    if match is None:
+        raise ValueError(f"malformed data URI: {data_uri[:40]!r}")
+    content_type = match.group("mime").strip().lower() or "application/octet-stream"
+    params = [p.strip().lower() for p in match.group("params").split(";")]
+    payload = match.group("payload")
+    if "base64" in params:
+        return base64.b64decode(payload, validate=True), content_type
+    return urllib.parse.unquote_to_bytes(payload), content_type
+
+
+def media_failure_reason(exc: BaseException) -> str:
+    """The `SERVER_REASONS` code for a media failure, decided by TYPE (see
+    `_notice_for_exception`). The ONE mapping: the engine's notices and the member media-fetch
+    door (`POST /api/j2/notes/media/fetch`, Plan A Task 9) both read it."""
+    if isinstance(exc, media_policy.MediaRejected):
+        return exc.reason
+    if isinstance(exc, errors.NoteConnUnsafeAddress):
+        return "unsafe"
+    if isinstance(exc, errors.NoteConnTooLarge):
+        return "too_large"
+    if isinstance(exc, errors.NoteConnUnsupported):
+        return "unsupported"
+    if isinstance(exc, NoteQuotaExceeded) or isinstance(exc.__cause__, NoteQuotaExceeded):
+        return "storage_limit"
+    if isinstance(exc, notes_svc.NoteValidationError):
+        return "unsupported"
+    return "fetch_failed"
 
 
 def _notice_for_exception(
@@ -1506,20 +1534,7 @@ def _notice_for_exception(
     `attempts < MEDIA_RETRY_MAX_ATTEMPTS`. `attempts` counts fetch tries and is kept only
     on `fetch_failed`, the one reason it bounds: a waiting or final notice stores 0, so a
     storage wait can never run a bound out."""
-    if isinstance(exc, media_policy.MediaRejected):
-        reason = exc.reason
-    elif isinstance(exc, errors.NoteConnUnsafeAddress):
-        reason = "unsafe"
-    elif isinstance(exc, errors.NoteConnTooLarge):
-        reason = "too_large"
-    elif isinstance(exc, errors.NoteConnUnsupported):
-        reason = "unsupported"
-    elif isinstance(exc, NoteQuotaExceeded) or isinstance(exc.__cause__, NoteQuotaExceeded):
-        reason = "storage_limit"
-    elif isinstance(exc, notes_svc.NoteValidationError):
-        reason = "unsupported"
-    else:
-        reason = "fetch_failed"
+    reason = media_failure_reason(exc)
     return import_notice.notice_node(
         reason, name=name, source_url=source_url, ref=ref,
         attempts=attempts if reason == "fetch_failed" else 0)
@@ -1754,7 +1769,8 @@ async def _upload_media_for_note(
         try:
             data_uri = m.get("data_uri")
             if data_uri:
-                data, content_type = _decode_data_uri(data_uri)
+                # Plan A Task 9: decoding (base64 or percent) is off the event loop too.
+                data, content_type = await asyncio.to_thread(_decode_data_uri, data_uri)
             else:
                 data, content_type = await provider.fetch_media(creds, ref)
             name = m.get("name") or ref

@@ -278,7 +278,7 @@ async def test_fetch_media_external_url_never_receives_the_access_token(monkeypa
     assert "authorization" not in {k.lower() for k in captured[0].headers.keys()}
 
 
-async def test_fetch_media_rejects_non_https_scheme_without_making_a_request():
+async def test_fetch_media_rejects_a_non_http_scheme_without_making_a_request():
     request_count = 0
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -288,9 +288,23 @@ async def test_fetch_media_rejects_non_https_scheme_without_making_a_request():
 
     provider = _make_provider(handler)
     with pytest.raises(NoteConnUnsupported):
-        await provider.fetch_media(CREDS, "http://example.com/img.png")
+        await provider.fetch_media(CREDS, "ftp://example.com/img.png")
 
-    assert request_count == 0, "a non-https, non-Dropbox ref must be refused before any request"
+    assert request_count == 0, "a non-http(s), non-Dropbox ref must be refused before any request"
+
+
+async def test_http_hotlink_is_downloaded_without_the_token():
+    """Plan A Task 9 (I-5): an http hotlink in a note is copied in (download only)."""
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(200, content=b"img", headers={"content-type": "image/png"})
+
+    provider = _make_provider(handler)
+    assert await provider.fetch_media(CREDS, "http://1.1.1.1/a.png") == (b"img", "image/png")
+    assert [str(r.url) for r in seen] == ["http://1.1.1.1/a.png"]
+    assert "authorization" not in {k.lower() for k in seen[0].headers.keys()}
 
 
 # ---------------------------------------------------------------------------

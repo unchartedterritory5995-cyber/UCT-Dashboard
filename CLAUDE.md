@@ -502,7 +502,10 @@ trades (`imported:true` flag + `coach_prompts.py` rule).
   Notebook widgets wave 9 (routines and trackers, dark) two more: `notebook-routine-writes`
   (120/minute) and `notebook-routine-reads` (60/minute), keyed on the member (`WRITE_RATE` /
   `READ_RATE` at the top of `api/routers/notebook_routines.py`, shared by the routine and tracker
-  routes), in-process only, so a second process doubles both · `notebook_export._SINGLE_NOTE_SLOTS` (wave 8: the one-note
+  routes), in-process only, so a second process doubles both, and since connector fidelity Plan A
+  Task 9 `notebook-media-fetch` (120/minute, keyed on the member, `NOTE_MEDIA_FETCH_RATE` in
+  `api/routers/journal_two.py`, the `POST /api/j2/notes/media/fetch` hotlink-copy door), in-process
+  only, so a second process doubles it · `notebook_export._SINGLE_NOTE_SLOTS` (wave 8: the one-note
   export door's `SINGLE_NOTE_CONCURRENCY` = 2 build slots, one more answers 429 — a second
   process doubles how many Word/web-page builds run at once) · `note_ask._inflight` (the
   concurrent Ask / writing-help stream slots, `NOTE_ASK_MAX_CONCURRENT`) ·

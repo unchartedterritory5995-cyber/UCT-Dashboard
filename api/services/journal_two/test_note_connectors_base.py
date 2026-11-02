@@ -595,3 +595,99 @@ async def test_guarded_media_gets_default_budget_is_the_importers_attachment_cap
     client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
     with pytest.raises(NoteConnUnsupported):
         await guarded_media_get(client, "https://8.8.8.8/img.png")      # no max_bytes: the default
+
+
+# ---------------------------------------------------------------------------
+# Plan A Task 9 (I-5): `allow_http` -- http is allowed for the DOWNLOAD of a
+# content URL only; the address check is unchanged and runs on EVERY hop.
+# ---------------------------------------------------------------------------
+
+from api.services.journal_two.note_connectors.errors import NoteConnUnsafeAddress  # noqa: E402
+from api.services.journal_two.note_connectors.providers.base import fetch_content_url  # noqa: E402
+
+
+async def test_https_only_callers_still_refuse_http():
+    # The default is https-only: every caller that does not opt in is unchanged.
+    with pytest.raises(NoteConnUnsafeAddress):
+        await assert_public_https("http://8.8.8.8/img.png")
+    with pytest.raises(NoteConnUnsafeAddress):
+        await guarded_media_get(httpx.AsyncClient(transport=httpx.MockTransport(
+            lambda r: httpx.Response(200, content=b"x"))), "http://8.8.8.8/img.png")
+
+
+async def test_allow_http_admits_http_and_https_to_a_public_host(monkeypatch):
+    _stub_resolver(monkeypatch, ["142.250.0.1"])
+    assert await assert_public_https("http://cdn.example.com/a.png", allow_http=True) == \
+        "http://cdn.example.com/a.png"
+    assert await assert_public_https("https://cdn.example.com/a.png", allow_http=True) == \
+        "https://cdn.example.com/a.png"
+
+
+@pytest.mark.parametrize("url", [
+    "ftp://8.8.8.8/a.png", "javascript:alert(1)", "file:///etc/passwd", "data:image/png;base64,AA",
+    "vbscript:msgbox", "gopher://8.8.8.8/",
+])
+async def test_allow_http_admits_no_other_scheme(url):
+    with pytest.raises(NoteConnUnsafeAddress):
+        await assert_public_https(url, allow_http=True)
+
+
+@pytest.mark.parametrize("url", [
+    "http://127.0.0.1/a.png", "http://10.0.0.7/a.png", "http://169.254.169.254/latest/meta-data/",
+    "http://[::1]/a.png", "http://0.0.0.0/a.png",
+])
+async def test_allow_http_keeps_the_address_check(url):
+    with pytest.raises(NoteConnUnsafeAddress):
+        await assert_public_https(url, allow_http=True)
+
+
+async def test_allow_http_still_checks_the_address_on_every_redirect_hop(monkeypatch):
+    """The per-hop guard with http allowed: a public http URL 302s to the metadata address
+    over http. The hop is refused, typed `unsafe`, before any request reaches it."""
+    _stub_resolver(monkeypatch, ["142.250.0.1"])
+    calls = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(str(request.url))
+        if request.url.host == "cdn.example.com":
+            return httpx.Response(302, headers={"location": "http://169.254.169.254/latest/meta-data/"})
+        raise AssertionError("must never reach the redirect target")  # pragma: no cover
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    with pytest.raises(NoteConnUnsafeAddress):
+        await guarded_media_get(client, "http://cdn.example.com/a.png", allow_http=True)
+    assert calls == ["http://cdn.example.com/a.png"]
+
+
+async def test_allow_http_follows_a_redirect_from_http_to_https(monkeypatch):
+    _stub_resolver(monkeypatch, ["142.250.0.1"])
+    calls = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(str(request.url))
+        if request.url.host == "cdn.example.com":
+            return httpx.Response(301, headers={"location": "https://cdn2.example.com/real.png"})
+        return httpx.Response(200, content=b"real")
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    content, _ = await guarded_media_stream(
+        client, "http://cdn.example.com/a.png", allow_http=True, max_bytes=100)
+    assert content == b"real"
+    assert calls == ["http://cdn.example.com/a.png", "https://cdn2.example.com/real.png"]
+
+
+async def test_fetch_content_url_returns_bytes_and_type_and_refuses_a_failed_status(monkeypatch):
+    _stub_resolver(monkeypatch, ["142.250.0.1"])
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/a.png":
+            return httpx.Response(200, content=b"png", headers={"content-type": "image/png"})
+        if request.url.path == "/moved":
+            return httpx.Response(302)                      # a redirect with no Location
+        return httpx.Response(404, content=b"nope")
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    assert await fetch_content_url(client, "http://cdn.example.com/a.png", what="m") == (b"png", "image/png")
+    for path in ("/gone.png", "/moved"):
+        with pytest.raises(NoteConnTransient):
+            await fetch_content_url(client, f"http://cdn.example.com{path}", what="m")
