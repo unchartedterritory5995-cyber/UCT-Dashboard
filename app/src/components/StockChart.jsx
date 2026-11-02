@@ -20687,7 +20687,9 @@ export default function StockChart({
         </div>
         )
       })}
-      {!disablePatterns && bars?.length > 0 && (
+      {/* ONE pattern engine draws at a time (owner, 2026-11-01): while Chart IQ is drawing this daily chart, Auto Structures'
+          overlay steps aside, and it is back the moment Chart IQ is off or the chart leaves 1D. Nothing is retired. */}
+      {!disablePatterns && !chartIqActive && bars?.length > 0 && (
         <PatternOverlay
           chart={chartRef.current}
           series={candleSeriesRef.current}
@@ -20735,7 +20737,8 @@ export default function StockChart({
       )}
       {/* The UCT Intelligence indicator's panel: only on a chart that added it, only while the pattern
           layer exists for this viewer. The released-layer toggles inside it appear from their gates. */}
-      {uctIntelOn && (
+      {/* Steps aside for Chart IQ too: same top-right spot, and its switches drive the overlay that is hidden meanwhile. */}
+      {uctIntelOn && !chartIqActive && (
         <UctIntelligencePanel
           state={uctIntel}
           availability={uctIntelAvailability}
