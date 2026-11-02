@@ -266,7 +266,10 @@ describe('obsidian adapter — wikilinks to notes with a dot in the name', () =>
     const { docs } = await obsidianAdapter.parse([
       vf('V/src.md', '[[report.pdf]] [[Files/report.pdf]]'), vf('V/Files/report.pdf', '%PDF')])
     const src = docs.find((d) => d.importKey === 'obsidian:V/src.md')
-    expect(linkOf(src.html).map(([k]) => k)).toEqual(['obsidian:V/Files/report.pdf', 'obsidian:V/Files/report.pdf'])
+    // D2 fix round 1, I3: a wikilink to a file is its chip, never a note link.
+    expect(linkOf(src.html)).toEqual([])
+    expect([...src.html.matchAll(/data-type="attachmentChip" data-import-ref="([^"]+)"/g)].map((m) => m[1]))
+      .toEqual(['V/Files/report.pdf', 'V/Files/report.pdf'])
   })
 
   it('never strips an unknown dot suffix to open another note or file', async () => {
@@ -295,7 +298,8 @@ describe('obsidian adapter — D1 fix round 2', () => {
     const { docs } = await obsidianAdapter.parse([
       ...files.map((f) => vf(`V/${f}`, 'x')), vf(`V/${src}`, `[[${target}]]`)])
     const d = docs.find((x) => x.importKey === `obsidian:V/${src}`)
-    const m = d.html.match(/data-import-link="obsidian:V\/([^"]+)"/)
+    // A note target is a link; a FILE target is a chip (D2 fix round 1, I3): read both.
+    const m = d.html.match(/(?:data-import-link="obsidian:|data-type="attachmentChip" data-import-ref=")V\/([^"]+)"/)
     return m ? m[1] : null
   }
 
@@ -724,5 +728,44 @@ describe('obsidian adapter — D2 item 6: a file link keeps its text as the chip
     expect(chips.map((c) => [c.attrs.name, c.attrs.label])).toEqual([
       ['q3 report.pdf', 'the report'], ['q3 report.pdf', null]])
     expect(d.media.map((m) => m.ref)).toEqual(['V/att/q3 report.pdf'])
+  })
+})
+
+// ---------------------------------------------------------------------------
+// D2 fix round 1, I3: a wikilink (not an embed) that resolves to a FILE is the
+// attachment chip, as the server lane makes it (the plugin sends it as a
+// non-embed ref, `providers/obsidian.py::_ref_markdown`). It used to be a link
+// to a note key no note has, which commit stripped: the file never uploaded and
+// nothing said so. The alias is the chip's label, as rendered text.
+// ---------------------------------------------------------------------------
+
+describe('obsidian adapter — D2 fix round 1, I3: a wikilink to a file is a chip', () => {
+  const parseOne = async (body) => {
+    const { docs } = await obsidianAdapter.parse([
+      vf('V/src.md', body), vf('V/Plan.md', 'p'), vf('V/att/q.pdf', 'q'), vf('V/att/chart.png', 'c')])
+    const d = docs.find((x) => x.importKey === 'obsidian:V/src.md')
+    const bodyJson = htmlToNote(d.html).bodyJson
+    const chips = []
+    const walk = (n) => { if (n.type === 'attachmentChip') chips.push(n.attrs); (n.content || []).forEach(walk) }
+    walk(bodyJson)
+    return { d, chips, text: extractPlainText(bodyJson) }
+  }
+
+  it('[[q.pdf]] and [[q.pdf|the **deck**]] are chips of one listed file, the alias its label', async () => {
+    const { d, chips } = await parseOne('see [[q.pdf]] and [[q.pdf|the **deck**]] and [[q.pdf|q.pdf]] now')
+    expect(d.html).not.toContain('data-import-link')
+    expect(chips.map((c) => [c.name, c.label, c.href])).toEqual([
+      ['q.pdf', null, 'import-ref://V/att/q.pdf'],
+      ['q.pdf', 'the deck', 'import-ref://V/att/q.pdf'],
+      ['q.pdf', null, 'import-ref://V/att/q.pdf']])
+    expect(d.media.map((m) => [m.ref, m.kind])).toEqual([['V/att/q.pdf', 'file']])
+    expect(d.links).toEqual([])
+  })
+
+  it('[[chart.png]] linked, not embedded, is a file chip too; [[Plan]] stays a note link', async () => {
+    const { d, chips } = await parseOne('[[chart.png]] and [[Plan]]')
+    expect(chips.map((c) => c.name)).toEqual(['chart.png'])
+    expect(d.media.map((m) => [m.ref, m.kind])).toEqual([['V/att/chart.png', 'file']])
+    expect(d.links.map((l) => l.targetKey)).toEqual(['obsidian:V/Plan.md'])
   })
 })

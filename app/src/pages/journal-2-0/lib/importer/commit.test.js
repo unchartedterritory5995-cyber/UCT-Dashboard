@@ -726,3 +726,43 @@ describe('runImport — outcomes/importedNoteIds/attentionKeys (arrival + enrich
     expect(summary.attentionKeys).toEqual([])
   })
 })
+
+// D2 fix round 1, I3: a wikilink to a file, through the real Obsidian adapter and
+// converter, reaches commit as a chip whose file is UPLOADED and whose stored chip
+// points at the upload, its label kept. It used to be a note link commit stripped.
+describe('runImport — an Obsidian wikilink to a file uploads the file', () => {
+  beforeEach(() => vi.restoreAllMocks())
+
+  it('[[q.pdf|the deck]] uploads q.pdf and stores the chip at its URL', async () => {
+    const { obsidianAdapter } = await import('./adapters/obsidian')
+    const { htmlToNote } = await import('./convert')
+    const vf = (path, text) => ({ path, size: text.length, lastModified: null,
+                                  bytes: async () => new TextEncoder().encode(text) })
+    const { docs } = await obsidianAdapter.parse([vf('V/a.md', 'see [[q.pdf|the deck]] now'), vf('V/q.pdf', '%PDF')])
+    const parsed = docs.find((d) => d.importKey === 'obsidian:V/a.md')
+    const { bodyJson, bodyPlain } = htmlToNote(parsed.html)
+    const uploads = []
+    let stored = null
+    vi.stubGlobal('fetch', vi.fn(async (url, opts) => {
+      if (url.endsWith('/import/confirm')) {
+        return new Response(JSON.stringify({
+          created: [{ importKey: 'obsidian:V/a.md', id: 'n1' }], updated: [], skipped: [] }))
+      }
+      if (url.includes('/attachments') || url.includes('/images')) {
+        uploads.push({ url, name: opts.body.get('file').name })
+        return new Response(JSON.stringify({ url: '/api/j2/notes/attachments/u/n1/file/q.pdf', name: 'q.pdf' }))
+      }
+      if (opts?.method === 'PUT') stored = JSON.parse(opts.body)
+      return new Response(JSON.stringify({ ok: true }))
+    }))
+    const summary = await runImport({
+      source: 'obsidian', destFolderId: null,
+      docs: [{ ...parsed, bodyJson, bodyPlain }],
+      onProgress: () => {},
+    })
+    expect(summary.failures).toEqual([])
+    expect(uploads).toEqual([{ url: '/api/j2/notes/n1/attachments', name: 'q.pdf' }])
+    const chip = (stored.body_json || stored.bodyJson).content.find((n) => n.type === 'attachmentChip')
+    expect(chip.attrs).toMatchObject({ href: '/api/j2/notes/attachments/u/n1/file/q.pdf', name: 'q.pdf', label: 'the deck' })
+  })
+})

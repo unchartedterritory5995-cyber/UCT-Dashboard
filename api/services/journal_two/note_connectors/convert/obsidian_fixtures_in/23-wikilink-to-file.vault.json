@@ -1,0 +1,21 @@
+{
+  "_comment": "D2 fix round 1, I3: a wikilink (not an embed) to a FILE is the file chip on both lanes, its alias (as rendered text) the label; an image linked this way is a file chip too. The plugin sends each as a non-embed ref.",
+  "vault_id": "vault-1",
+  "self_path": "a.md",
+  "vault_paths": [
+    "a.md",
+    "attachments/q3 report.pdf",
+    "attachments/chart.png"
+  ],
+  "attachments": [
+    {"original": "[[q3 report.pdf]]", "embed": false,
+     "path": "attachments/q3 report.pdf", "size": 8192,
+     "sha256": "845bcfa0f93302a84be01c8e8ef78aff9e5c65ecb5bf1bcc00b261dc07e11e59", "status": "ok"},
+    {"original": "[[q3 report.pdf|the **sheet**]]", "embed": false,
+     "path": "attachments/q3 report.pdf", "size": 8192,
+     "sha256": "845bcfa0f93302a84be01c8e8ef78aff9e5c65ecb5bf1bcc00b261dc07e11e59", "status": "ok"},
+    {"original": "[[chart.png]]", "embed": false,
+     "path": "attachments/chart.png", "size": 2048,
+     "sha256": "469b244a740e75fdd003e562339cceff6e2a5a691eff0ce03c9e1204379161ef", "status": "ok"}
+  ]
+}

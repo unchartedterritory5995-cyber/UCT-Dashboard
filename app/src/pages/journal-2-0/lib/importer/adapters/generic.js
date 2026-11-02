@@ -22,6 +22,14 @@ export function mdToHtml(text) {
   return getMd().render(text || '')
 }
 
+/** What inline markdown READS as: `the **deck**` -> `the deck`, `the\_x` -> `the_x`
+ * (D2 fix round 1: a chip label from a wikilink alias, the same text the server's
+ * `providers/obsidian.py::_rendered_text` keeps). */
+export function mdInlineText(text) {
+  const html = getMd().renderInline(text || '')
+  return new DOMParser().parseFromString(`<body>${html}</body>`, 'text/html').body.textContent || ''
+}
+
 // ---------------------------------------------------------------------------
 // generic adapter
 // ---------------------------------------------------------------------------

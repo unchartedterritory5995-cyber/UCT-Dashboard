@@ -68,7 +68,7 @@
  * (`Vault/`) isn't part of the written target.
  */
 
-import { mdToHtml, resolveRelativeMedia, dedupeMedia } from './generic'
+import { mdToHtml, mdInlineText, resolveRelativeMedia, dedupeMedia } from './generic'
 import { extractFrontmatter, frontmatterDates } from '../frontmatter'
 import { reportIgnoredFiles } from './reportIgnored'
 
@@ -365,6 +365,19 @@ function transformWikiLinks(text, ctx) {
     const fileName = !resolvedPath && unresolvedBareTarget(target) !== stripFragment(target)
     const display = alias || (fileName ? target : wikilinkDisplay(target))
     if (!resolvedPath) return ctx.hold(unresolvedText(display))
+
+    if (!/\.md$/i.test(resolvedPath)) {
+      // D2 fix round 1, I3: a wikilink to a FILE (`[[q.pdf]]`, `[[q.pdf|the deck]]`,
+      // `[[chart.png]]`) is the file chip, as the server lane makes it for the plugin's
+      // non-embed ref; the alias, as rendered text, is its label. ⚰️ It was a link to a
+      // note key no note has: commit stripped it and the file never uploaded.
+      const name = basename(resolvedPath)
+      const vfile = ctx.byPath.get(resolvedPath)
+      const label = alias ? mdInlineText(alias).trim() : ''
+      const labelAttr = label && label !== name ? ` data-label="${escapeAttr(label)}"` : ''
+      return ctx.hold(`<a data-type="attachmentChip" data-import-ref="${escapeAttr(resolvedPath)}" data-name="${escapeAttr(name)}"${labelAttr} href="import-ref://${escapeAttr(resolvedPath)}">${escapeHtml(name)}</a>`,
+        () => ctx.media.push({ ref: resolvedPath, vfile, kind: 'file', name }))
+    }
 
     const targetKey = `obsidian:${resolvedPath}`
     return ctx.hold(`<a data-import-link="${escapeAttr(targetKey)}">${escapeHtml(display)}</a>`,
