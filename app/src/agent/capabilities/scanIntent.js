@@ -62,7 +62,9 @@ const RULES = [
   [/\bs&p ?500\b/, () => ({ f: [bool('index_sp500')] })],
   [/\bnasdaq ?100\b/, () => ({ f: [bool('index_ndx')] })],
   // liquidity / dollar volume
-  [new RegExp(`\\b(?:over|above|more than) ${AMT} a day\\b`), (m) => ({ f: [F('dollar_vol_1d', 'gt', amount(m[1], m[2]))] })],
+  // agent-lead ruling: "a day" / "per day" with no session named = the 30-day average; a NAMED session = that session
+  [new RegExp(`\\b(?:over|above|more than) ${AMT}(?: of dollar volume)? (yesterday|today|last session)\\b`), (m) => ({ f: [F('dollar_vol_1d', 'gt', amount(m[1], m[2]))] })],
+  [new RegExp(`\\b(?:over|above|more than) ${AMT} (?:a|per) day\\b`), (m) => ({ f: [F('dollar_vol_30d', 'gt', amount(m[1], m[2]))] })],
   [/\b(very|highly) liquid\b/, () => ({ f: [F('dollar_vol_30d', 'gte', 100000000)] })],
   [/\bliquid\b|\btradable\b/, () => ({ f: [F('dollar_vol_30d', 'gte', 20000000)] })],
   // size

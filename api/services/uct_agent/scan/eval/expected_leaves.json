@@ -1061,7 +1061,7 @@
    "kind": "spec",
    "leaves": [
     {
-     "key": "dollar_vol_1d",
+     "key": "dollar_vol_30d",
      "op": "gt",
      "min": 100000000
     }
@@ -1155,6 +1155,42 @@
      "key": "rsi14",
      "op": "gt",
      "min": 70
+    }
+   ],
+   "sort": null
+  },
+  "u09": {
+   "text": "stocks that traded over $50M yesterday",
+   "kind": "spec",
+   "leaves": [
+    {
+     "key": "dollar_vol_1d",
+     "op": "gt",
+     "min": 50000000
+    }
+   ],
+   "sort": null
+  },
+  "u10": {
+   "text": "names doing over $20M per day",
+   "kind": "spec",
+   "leaves": [
+    {
+     "key": "dollar_vol_30d",
+     "op": "gt",
+     "min": 20000000
+    }
+   ],
+   "sort": null
+  },
+  "u11": {
+   "text": "over $25M of dollar volume today",
+   "kind": "spec",
+   "leaves": [
+    {
+     "key": "dollar_vol_1d",
+     "op": "gt",
+     "min": 25000000
     }
    ],
    "sort": null

@@ -2,15 +2,15 @@
  "about": "measured by app/src/agent/agentScanIntent.test.js (UPDATE_SCAN_INTENT=1 rewrites); deterministic, no model",
  "discovery": {
   "items": 31,
-  "pass": 28,
+  "pass": 29,
   "safe_miss": 2,
-  "false_resolve": 1,
+  "false_resolve": 0,
   "wrong_refusal": 0
  },
  "sc2": {
-  "items": 69,
-  "pass": 68,
-  "safe_miss": 1,
+  "items": 72,
+  "pass": 70,
+  "safe_miss": 2,
   "false_resolve": 0,
   "wrong_refusal": 0
  },
@@ -45,7 +45,7 @@
   },
   "discovery.d08": {
    "got": "spec",
-   "grade": "false_resolve"
+   "grade": "pass"
   },
   "discovery.d09": {
    "got": "spec",
@@ -248,6 +248,18 @@
    "grade": "pass"
   },
   "sc2.u08": {
+   "got": "spec",
+   "grade": "pass"
+  },
+  "sc2.u09": {
+   "got": "spec",
+   "grade": "pass"
+  },
+  "sc2.u10": {
+   "got": "planner",
+   "grade": "safe_miss"
+  },
+  "sc2.u11": {
    "got": "spec",
    "grade": "pass"
   },

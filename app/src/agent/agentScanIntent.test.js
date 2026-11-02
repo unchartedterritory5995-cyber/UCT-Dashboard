@@ -17,9 +17,7 @@ const META = JSON.parse(fs.readFileSync(path.join(REPO, 'app/src/agent/__fixture
 const FIELDS = new Set(META.fields.map(f => f.key))
 const OUT = path.join(EVAL, 'intent-measure.json')
 //: corpus expectations that contradict a written rule; the intent layer follows the rule, and the conflict is reported
-const KNOWN_CONFLICTS = {
-  d08: 'discovery d08 expects dollar_vol_30d for "over $50M a day"; the screener.run hint and SC-2 §4 say a daily figure is dollar_vol_1d (latest session). Raised with agent-lead / agent-qa.',
-}
+const KNOWN_CONFLICTS = {}
 
 // ── scoring (the semantics of agent-qa's scorer: one-to-one leaves, bounds within tolerance, no extras) ──
 const bounds = (leaves) => leaves.flatMap((l) => {
@@ -103,6 +101,7 @@ describe('scanIntent: measured on the discovery and SC-2 corpora', () => {
   })
 
   it('every listed conflict is still real (an item that now passes must leave the list)', () => {
+    if (!Object.keys(KNOWN_CONFLICTS).length) return
     for (const id of Object.keys(KNOWN_CONFLICTS)) {
       expect(['false_resolve']).toContain((m.rows[`discovery.${id}`] || m.rows[`sc2.${id}`]).grade)
     }
@@ -147,7 +146,8 @@ describe('scanIntent: safety rails', () => {
     expect(a.question).toMatch(/no price filter/)
   })
   it('units: $ amounts become dollars, never the bare number', () => {
-    expect(argsToLeaves(intent('names trading over $100M a day', { fields: FIELDS }).args)).toEqual([{ key: 'dollar_vol_1d', op: 'gt', min: 100000000 }])
+    expect(argsToLeaves(intent('names trading over $100M a day', { fields: FIELDS }).args)).toEqual([{ key: 'dollar_vol_30d', op: 'gt', min: 100000000 }])
+    expect(argsToLeaves(intent('stocks that traded over $50M yesterday', { fields: FIELDS }).args)).toEqual([{ key: 'dollar_vol_1d', op: 'gt', min: 50000000 }])
     expect(argsToLeaves(intent('small caps under $2B', { fields: FIELDS }).args)).toEqual([{ key: 'market_cap', op: 'lt', max: 2000000000 }])
   })
 })
