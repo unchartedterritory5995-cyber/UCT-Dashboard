@@ -22,6 +22,7 @@ _VECTORS = (
 )
 VECTORS = json.loads(_VECTORS.read_text(encoding="utf-8"))["vectors"]
 EXISTING = "https://existing.example/"
+LINK = "import-link://"
 
 
 def _doc(*inline) -> dict:
@@ -221,6 +222,47 @@ def test_notion_deep_link_with_a_page_id_becomes_a_pending_import_link():
     out = normalize_link_hrefs(_doc(_run("My Page", _link(f"notion://www.notion.so/My-Page-{pid}"))))
     assert _links(out) == [("My Page", want)]
     assert import_link_keys(out) == ["notion:01234567-89ab-cdef-0123-456789abcdef"]
+
+
+def test_every_notion_key_door_builds_one_form():
+    """Fix round 1: a Notion page id can arrive dashed lowercase (the API), undashed or
+    upper-cased (an href). Every door that builds a `notion:` key goes through
+    `notion_note_key`, so all of them name the provider's import key for that page."""
+    from api.services.journal_two.note_connectors.convert import notion_blocks
+    from api.services.journal_two.note_connectors.convert.linkify import notion_note_key
+    from api.services.journal_two.note_connectors.providers.notion import NotionProvider
+
+    api_id = "01234567-89ab-cdef-0123-456789abcdef"
+    key = "notion:" + api_id
+    spellings = [api_id, api_id.upper(), api_id.replace("-", ""), api_id.replace("-", "").upper()]
+    provider = NotionProvider()
+    for raw in spellings:
+        assert notion_note_key(raw) == key
+        assert provider.import_key("ignored", raw) == key                                   # the stored key
+        assert notion_blocks._mention_href({}, {"type": "page", "page": {"id": raw}}) == LINK + key
+        assert notion_blocks._text_href(f"/Page-{raw.replace('-', '')}") == LINK + key
+        assert notion_blocks._text_href(f"https://www.notion.so/ws/{raw}") == LINK + key
+        assert resolve_href(f"notion://www.notion.so/T-{raw}") == LINK + key
+    # anything that is not a 32-hex id is never rewritten
+    assert notion_note_key("not-an-id") == "notion:not-an-id"
+
+
+@pytest.mark.parametrize("text", [
+    "see https://x.com/a" + "." * 50_000 + "b now",           # a run INSIDE a URL
+    "see https://x.com/a" + ".,:;!?" * 8_400 + "b now",       # every trimmed character
+    "see www.x.com/a" + ":" * 50_000 + "b now",
+    "see https://x.com/a" + "." * 50_000,                     # a run at the END of a URL
+    "." * 50_000,                                             # a run in plain text
+], ids=["dots-inside", "mixed-inside", "www-colons-inside", "dots-at-end", "plain-dots"])
+def test_a_long_punctuation_run_is_linear(text):
+    """Fix round 1: the trailing-punctuation trim was a `[...]+$` regex, which Python retries
+    at every start position: 32k dots inside a URL took 2.9 s, under the linkify lock, on
+    member-controlled text. 50k must stay well inside half a second."""
+    import time
+    t0 = time.perf_counter()
+    linkify_doc(_doc(text))
+    elapsed = time.perf_counter() - t0
+    assert elapsed < 0.5, elapsed
 
 
 def test_a_large_doc_linkifies_in_linear_time():

@@ -63,7 +63,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from . import LINK_PREFIX, REF_PREFIX
-from .linkify import notion_page_id_from_href  # the ONE Notion page-link reader (Task 10/11)
+from .linkify import notion_note_key, notion_page_id_from_href  # the ONE Notion page-link reader and key builder (Task 10/11)
 
 # spec §7: "<=50 rows -> table doc, >50 -> per-row pages (wizard parity)" —
 # matches the wizard's own CSV_MAX_ROWS constant
@@ -254,7 +254,7 @@ def _text_href(href: str) -> str:
     unresolved one opens notion.so meanwhile (N-5). Every other href is kept as written;
     the engine's link policy (Task 10) decides it."""
     page_id = notion_page_id_from_href(href)
-    return f"{LINK_PREFIX}notion:{page_id}" if page_id else href
+    return f"{LINK_PREFIX}{notion_note_key(page_id)}" if page_id else href
 
 
 def _mention_href(rt: dict[str, Any], mention: dict[str, Any]) -> str | None:
@@ -262,7 +262,7 @@ def _mention_href(rt: dict[str, Any], mention: dict[str, Any]) -> str | None:
     kind = mention.get("type")
     if kind == "page":
         page_id = (mention.get("page") or {}).get("id")
-        return f"{LINK_PREFIX}notion:{page_id}" if page_id else None
+        return f"{LINK_PREFIX}{notion_note_key(page_id)}" if page_id else None
     if kind == "link_mention":
         href = (mention.get("link_mention") or {}).get("href")
     elif kind == "link_preview":
@@ -694,7 +694,7 @@ class NotionBlockConverter:
                 "type": "listItem",
                 "content": [_para([{
                     "type": "text", "text": row_note["title"],
-                    "marks": [{"type": "link", "attrs": {"href": f"{LINK_PREFIX}notion:{row_note['remote_id']}"}}],
+                    "marks": [{"type": "link", "attrs": {"href": f"{LINK_PREFIX}{notion_note_key(row_note['remote_id'])}"}}],
                 }])],
             })
         note_para = _text_para(f"({len(rows)} rows — imported as separate linked pages)")
@@ -705,7 +705,7 @@ class NotionBlockConverter:
         page_id = block["id"]
         para = _para([{
             "type": "text", "text": title,
-            "marks": [{"type": "link", "attrs": {"href": f"{LINK_PREFIX}notion:{page_id}"}}],
+            "marks": [{"type": "link", "attrs": {"href": f"{LINK_PREFIX}{notion_note_key(page_id)}"}}],
         }])
         return None, [para]
 
@@ -716,7 +716,7 @@ class NotionBlockConverter:
             return None, [_unsupported_marker("link_to_page")]
         para = _para([{
             "type": "text", "text": "Linked page",
-            "marks": [{"type": "link", "attrs": {"href": f"{LINK_PREFIX}notion:{target_id}"}}],
+            "marks": [{"type": "link", "attrs": {"href": f"{LINK_PREFIX}{notion_note_key(target_id)}"}}],
         }])
         return None, [para]
 

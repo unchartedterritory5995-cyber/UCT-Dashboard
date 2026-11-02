@@ -68,7 +68,10 @@ _STOP_RE = re.compile(
     "[　、。，；：！？（）【】「」"
     "『』《》〈〉“”‘’…]"
 )
-_TRAIL_RE = re.compile(r"[.,:;!?]+$")
+# ⛔ Stripped with `str.rstrip`, never a `[...]+$` regex: Python's `re.sub` retries that at
+# every start position, so a long punctuation run INSIDE a URL (`a....b`) was quadratic
+# (32k dots = 2.9 s, under `_LINKIFY_LOCK` and holding the GIL) on member-controlled text.
+_TRAIL_CHARS = ".,:;!?"
 _SKIP_SUBTREES = frozenset({"codeBlock", "inlineMath", "blockMath"})
 _BOUNDARY_MARKS = frozenset({"code", "link"})
 
@@ -76,14 +79,34 @@ _KEPT_PREFIXES = (LINK_PREFIX, REF_PREFIX, "/journal", "/terminal?cmd=", "/api/j
 _UNSAFE_SCHEMES = frozenset({"javascript", "data", "vbscript", "file"})
 _APP_SCHEMES = frozenset({"evernote", "notion", "obsidian", "onenote"})
 _SCHEME_RE = re.compile(r"^([a-zA-Z][a-zA-Z0-9+.\-]*):")
-_NOTION_SEGMENT_RE = re.compile(
-    r"(?:.*-)?([0-9a-fA-F]{32}|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})"
-)
+_NOTION_ID_SRC = r"[0-9a-fA-F]{32}|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
+_NOTION_ID_RE = re.compile(_NOTION_ID_SRC)
+_NOTION_SEGMENT_RE = re.compile(r"(?:.*-)?(" + _NOTION_ID_SRC + ")")
 _NOTION_HOSTS = frozenset({"notion.so", "www.notion.so", "notion.com", "www.notion.com"})
 _APP_HOST = "uctintelligence.com"
 
 
 # ── href policy (L-4) ────────────────────────────────────────────────────────
+
+def canonical_notion_page_id(page_id: Any) -> Any:
+    """A Notion page id in its ONE key form, the dashed lowercase UUID. The API writes ids that
+    way, but an href may carry the same id undashed or upper-cased; every `notion:` key is built
+    through `notion_note_key`, so the two can never name one page twice. Anything that is not a
+    32-hex id is returned as it came (never guessed at)."""
+    if not isinstance(page_id, str):
+        return page_id
+    m = _NOTION_ID_RE.fullmatch(page_id.strip())
+    if m is None:
+        return page_id
+    h = m.group(0).replace("-", "").lower()
+    return f"{h[:8]}-{h[8:12]}-{h[12:16]}-{h[16:20]}-{h[20:]}"
+
+
+def notion_note_key(page_id: Any) -> str:
+    """`notion:<page id>`: THE builder of a Notion note key, for the provider's `import_key`
+    and for every pending `import-link://notion:` mark the converter and this module write."""
+    return f"notion:{canonical_notion_page_id(page_id)}"
+
 
 def _page_id_of_last_segment(path: str) -> str | None:
     """The dashed lowercase UUID a Notion path names: its last segment is the id itself or
@@ -91,10 +114,7 @@ def _page_id_of_last_segment(path: str) -> str | None:
     followed by a further segment) names no page."""
     segment = path.rstrip("/").rsplit("/", 1)[-1]
     m = _NOTION_SEGMENT_RE.fullmatch(segment)
-    if m is None:
-        return None
-    h = m.group(1).replace("-", "").lower()
-    return f"{h[:8]}-{h[8:12]}-{h[12:16]}-{h[16:20]}-{h[20:]}"
+    return None if m is None else canonical_notion_page_id(m.group(1))
 
 
 def notion_page_id_from_href(href: Any) -> str | None:
@@ -135,7 +155,7 @@ def notion_page_id_from_href(href: Any) -> str | None:
 def _notion_key(read: str) -> str | None:
     """`notion:<uuid>` for a Notion deep link whose path ends in a page id, else None."""
     pid = notion_page_id_from_href("notion:" + read)
-    return f"notion:{pid}" if pid else None
+    return notion_note_key(pid) if pid else None
 
 
 def _resolve_relative(href: str, source_url: str | None) -> str | None:
@@ -264,7 +284,7 @@ def _matches(text: str) -> list[tuple[int, int, str]]:
             stop = _STOP_RE.search(t)
             if stop is not None:
                 t = t[:stop.start()]
-            t = _TRAIL_RE.sub("", t)
+            t = t.rstrip(_TRAIL_CHARS)
             if not t:
                 continue
             again = _LINKIFY.match(t) or []

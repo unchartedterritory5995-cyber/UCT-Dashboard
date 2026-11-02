@@ -67,6 +67,7 @@ import httpx
 
 from ..oauth import NOTION_VERSION
 from ..convert import notion_blocks
+from ..convert.linkify import notion_note_key
 from ..errors import (
     NoteConnAuthError,
     NoteConnError,
@@ -208,7 +209,11 @@ class NotionProvider(NoteProvider):
         # Flat `notion:{page_id}` — no source component (base.py's
         # documented exception; a Notion page id is already globally
         # unique, unlike Roam's uid-scoped-to-a-graph).
-        return f"notion:{remote_id}"
+        # Built by THE Notion key builder, the same one every pending
+        # `import-link://notion:` mark uses, so an href that carried the id
+        # undashed or upper-cased still names this note. The API writes ids
+        # dashed lowercase, so for every stored key this is the identity.
+        return notion_note_key(remote_id)
 
     # ── credentials ──────────────────────────────────────────────────────
 
