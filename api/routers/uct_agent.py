@@ -3,7 +3,7 @@
   POST /api/agent/turn                     one model turn -> structured envelope
   POST /api/agent/turn/stream              the same turn as text/event-stream (an answer streams when
                                            UCT_AGENT_STREAM is on; the final event is /turn's JSON)
-  GET  /api/agent/config                   {stream, nl1, data, scan}: does this server stream turns (UCT_AGENT_STREAM),
+  GET  /api/agent/config                   {stream, nl1, news, data, scan}: does this server stream turns (UCT_AGENT_STREAM),
                                            does it serve NL-1 (UCT_AGENT_NL1), the MD-1 data gateway
                                            (UCT_AGENT_DATA) and its scan kinds (UCT_AGENT_SCAN)
   POST /api/agent/data                     one MD-1 market-data read -> DataEnvelope (read-only, no model;
@@ -190,9 +190,9 @@ def streaming_enabled() -> bool:
 def agent_config(user: dict = Depends(require_admin_dark)):
     """What the browser needs to know about this server's Agent: whether turns stream, and whether it serves
     NL-1 (flags only). The browser takes NL-1's path only when this says so AND its own switch is on."""
-    from api.services.uct_agent import turn
+    from api.services.uct_agent import news, turn
     from api.services.uct_agent.marketdata import gateway
-    return {"stream": streaming_enabled(), "nl1": turn.nl1_enabled(),
+    return {"stream": streaming_enabled(), "nl1": turn.nl1_enabled(), "news": news.enabled(),
             "data": gateway.data_enabled(), "scan": gateway.scan_enabled(),
             "data_kinds": sorted(gateway.enabled_kinds())}
 
@@ -247,19 +247,67 @@ def _turn(body: TurnIn, background: BackgroundTasks, user: dict, on_event=None) 
     uid = user["id"]
     if body.repair is not None and not body.reroute:
         raise HTTPException(status_code=400, detail="A repair continues a request; it can't start one.")
+    body, headline = _news_turn(body)
     try:
         slot = limits.admit(uid, new_request=not body.reroute)
     except limits.Refused as e:
         raise HTTPException(status_code=429, detail=e.sentence, headers={"Retry-After": str(e.retry_after)})
     try:
-        return _admitted_turn(body, background, user, on_event)
+        return _admitted_turn(body, background, user, on_event, headline)
     finally:
         limits.done(slot)
 
 
-def _admitted_turn(body: TurnIn, background: BackgroundTasks, user: dict, on_event=None) -> dict:
+def _news_turn(body: TurnIn) -> tuple[TurnIn, dict | None]:
+    """⭐ NEWS -> AGENT (dark, UCT_AGENT_NEWS): a turn whose context is `{news: {id}}` is the News Ask box. The
+    headline is read HERE by that id (news.headline_for), before anything is charged; nothing else the browser
+    sent reaches the model -- no workspace context, no actions, no routing, no catalogs. Answer-only."""
+    from api.services.uct_agent import news
+    if not news.is_news_turn(body.context):
+        return body, None
+    if body.reroute or body.repair is not None:
+        raise HTTPException(status_code=400, detail="That follow-up has expired. Ask again.")
+    if len((body.message or "").strip()) > news.MAX_MESSAGE:
+        raise HTTPException(status_code=400, detail=f"Keep it under {news.MAX_MESSAGE} characters.")
+    try:
+        headline = news.headline_for(news.requested_id(body.context))
+    except news.Refused as e:
+        raise HTTPException(status_code=e.status, detail=e.sentence)
+    except Exception:  # noqa: BLE001 -- a News store fault is a sentence, and nothing was charged
+        log.exception("[uct-agent] could not read the headline for a news turn")
+        raise HTTPException(status_code=503, detail="UCT News isn't available right now. Try again shortly.")
+    clean = body.model_copy(update={"context": {}, "capabilities": [], "routing": None, "interpreter": None,
+                                    "reference": None, "pending": None, "repair": None, "recentOutcome": None})
+    return clean, headline
+
+
+def _news_conversation(uid, body: TurnIn, headline: dict | None) -> tuple[str, list[dict], dict | None, bool]:
+    """(conversation id, its turns, the headline the model sees, answer_only). An Ask continues ONLY its own
+    headline's conversation -- any other id (another headline's, an ordinary chat, a foreign one) starts a new
+    chat named after the headline. An ordinary turn in a chat started from a headline (Continue in UCT Agent)
+    keeps that headline, read again by the id the chat was started with."""
+    from api.services.uct_agent import news, store
+    if headline is not None:
+        turns = store.get_turns(uid, body.conversationId) if body.conversationId else None
+        if turns is not None and news.conversation_headline(turns) == headline["id"]:
+            return body.conversationId, turns, headline, True
+        cid = store.create_conversation(uid, body.message)
+        store.set_auto_title(uid, cid, news.title_for(headline["headline"]))
+        return cid, [], headline, True
+    cid = store.ensure_conversation(uid, body.conversationId, body.message)
+    turns = store.get_turns(uid, cid) or []
+    started = news.conversation_headline(turns)
+    if started and news.enabled():
+        try:
+            return cid, turns, news.headline_for(started), False
+        except Exception:  # noqa: BLE001 -- the headline is gone or unreadable: the chat goes on without it
+            log.info("[uct-agent] a headline chat continued without its headline")
+    return cid, turns, None, False
+
+
+def _admitted_turn(body: TurnIn, background: BackgroundTasks, user: dict, on_event=None, headline: dict | None = None) -> dict:
     from api.services import ai_population_cap
-    from api.services.uct_agent import budget, limits, store, turn as agent
+    from api.services.uct_agent import budget, limits, news, store, turn as agent
     t0 = time.perf_counter()
     uid = user["id"]
 
@@ -290,14 +338,14 @@ def _admitted_turn(body: TurnIn, background: BackgroundTasks, user: dict, on_eve
         _give_back(uid)
         raise HTTPException(status_code=400, detail="That follow-up has expired. Ask again.")
     try:
-        cid = store.ensure_conversation(uid, body.conversationId, body.message)
+        cid, history, headline, answer_only = _news_conversation(uid, body, headline)
         if cid != body.conversationId:
             budget.attach_conversation(request_id, cid)
-        history = store.get_turns(uid, cid) or []
         if body.reroute and history and history[-1].get("role") == "member" and history[-1].get("text") == body.message:
             history = history[:-1]        # the same message, asked again with more actions
         else:
-            store.add_turn(uid, cid, "member", body.message, {"voice": bool(body.voice)})
+            store.add_turn(uid, cid, "member", body.message,
+                           {"voice": bool(body.voice), **({"news": headline["id"]} if answer_only else {})})
     except Exception:  # noqa: BLE001 -- logged with its traceback; the member gets a sentence
         log.exception("[uct-agent] conversation store failed before the model call")
         _give_back(uid)
@@ -310,6 +358,8 @@ def _admitted_turn(body: TurnIn, background: BackgroundTasks, user: dict, on_eve
     # The first-message placeholder is not a name: the model is told there is none yet (and the
     # member's words are never sent twice).
     nameable = None if not info or info.get("source") == "user" else (info["title"] if info.get("source") == "auto" else NO_TITLE_YET)
+    if headline is not None or (history and news.conversation_headline(history)):
+        nameable = None                   # a headline's chat keeps its "News: …" name (the member may rename it)
     pre_ms = _ms(t0)
     try:
         out = agent.run_turn(message=body.message, context=body.context, history=history,
@@ -318,7 +368,8 @@ def _admitted_turn(body: TurnIn, background: BackgroundTasks, user: dict, on_eve
                              manifest_version=body.manifestVersion, routing=body.routing,
                              conversation_title=nameable, on_event=on_event,
                              meter=budget.Meter(user_id=uid, request_id=request_id), reroute=body.reroute,
-                             interpreter=body.interpreter, repair=body.repair, reference=body.reference)
+                             interpreter=body.interpreter, repair=body.repair, reference=body.reference,
+                             headline=headline, answer_only=answer_only)
     except budget.BudgetRefused as e:
         # refused BEFORE a paid call: nothing was sent, nothing changed; the day's count is given back
         _give_back(uid)

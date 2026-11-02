@@ -8,6 +8,7 @@ on the site's own data path.
 from __future__ import annotations
 
 import math
+import os
 import sqlite3
 
 import pytest
@@ -321,8 +322,10 @@ def test_prewarm_warms_each_recently_opened_industry_once(tmp_path, monkeypatch)
     monkeypatch.setenv("CHART_IQ_ROW_CACHE_DB", str(tmp_path / "rows.db"))
     assert prewarm.warm() == {"skipped": "disabled"}                       # off by default
     monkeypatch.setenv("CHART_IQ_ENABLED", "1"); monkeypatch.setenv("CHART_IQ_PREWARM_ENABLED", "1")
+    prewarm._PENDING.clear()                                               # other tests' reads share the in-memory buffer
     for t in ("AAA", "AAB", "BBB", "FND", "OLD"):
         prewarm.record_view(t)
+    assert prewarm.flush() == 5                                            # views are batched; flush writes them
     import time as _t
     c = prewarm._conn(); c.execute("UPDATE viewed SET at=? WHERE ticker='OLD'", (_t.time() - 10 * 86400,)); c.commit(); c.close()
     monkeypatch.setattr(CX, "IM", {"AAA": ("S", "Semis"), "AAB": ("S", "Semis"), "BBB": ("T", "Software"), "FND": ("F", "Exchange Traded Fund"),
@@ -354,3 +357,141 @@ def test_prewarm_job_registers_only_with_its_flag(monkeypatch):
     monkeypatch.setenv("CHART_IQ_PREWARM_ENABLED", "1")
     assert M.register_chart_iq_prewarm_jobs(sched) is True
     assert sorted(jobs) == ["chart_iq_prewarm_evening", "chart_iq_prewarm_morning"]
+
+
+# ── the nightly pack: every stock's latest-session read computed ahead, so a read is one lookup ──
+
+@pytest.fixture
+def packdb(tmp_path, monkeypatch):
+    monkeypatch.setenv("CHART_IQ_PACK_DB", str(tmp_path / "pack.db"))
+    monkeypatch.setenv("CHART_IQ_ROW_CACHE_DB", str(tmp_path / "rows.db"))
+    return tmp_path
+
+
+def test_pack_build_stores_reads_and_skips_safely(packdb, monkeypatch):
+    import datetime as _dt
+    from api.services.chart_iq import pack, pipeline
+    assert pack.build() == {"skipped": "disabled"}
+    monkeypatch.setenv("CHART_IQ_ENABLED", "1"); monkeypatch.setenv("CHART_IQ_PACK_ENABLED", "1")
+    monkeypatch.setattr(pack, "in_session", lambda now=None: True)
+    assert pack.build() == {"skipped": "regular session"}                   # never during the session unless forced
+    monkeypatch.setattr(pack, "in_session", lambda now=None: False)
+    monkeypatch.setattr(pipeline, "latest_day", lambda: "2026-10-30")
+    monkeypatch.setattr(pipeline, "analyze", lambda t, d=None: {"error": "x"} if t == "BAD" else dict(FAKE, ticker=t, asof=d, bars=[1], timing={}))
+    rep = pack.build(tickers=["AAA", "BAD", "CCC"], sleep=lambda s: None)
+    assert rep["ok"] == 2 and rep["errors"] == 1 and rep["day"] == "2026-10-30"
+    got = pack.get("aaa", today="2026-11-02")
+    assert got["ticker"] == "AAA" and got["asof"] == "2026-10-30" and "bars" not in got and "timing" not in got
+    assert pack.get("BAD", today="2026-11-02") is None
+    assert pack.get("AAA", today="2026-11-20") is None                      # older than STALE_DAYS: not served
+    st = pack.status(); assert st["rows"] == 2 and st["day"] == "2026-10-30" and st["building"] is False
+    monkeypatch.setenv("CHART_IQ_PACK_ENABLED", "0")
+    assert pack.get("AAA", today="2026-11-02") is None                      # rollback: flag off, file ignored
+
+
+def test_pack_session_window():
+    from zoneinfo import ZoneInfo
+    import datetime as _dt
+    from api.services.chart_iq import pack
+    et = ZoneInfo("America/New_York")
+    assert pack.in_session(_dt.datetime(2026, 11, 2, 10, 0, tzinfo=et)) is True
+    assert pack.in_session(_dt.datetime(2026, 11, 2, 18, 15, tzinfo=et)) is False
+    assert pack.in_session(_dt.datetime(2026, 11, 2, 6, 30, tzinfo=et)) is False
+    assert pack.in_session(_dt.datetime(2026, 11, 7, 12, 0, tzinfo=et)) is False   # Saturday
+
+
+def test_route_answers_a_latest_read_from_the_pack_without_computing(packdb, monkeypatch, fbdb):
+    from api.services.chart_iq import pack, pipeline
+    monkeypatch.setenv("CHART_IQ_ENABLED", "1"); monkeypatch.setenv("CHART_IQ_MEMBERS_ENABLED", "1")
+    monkeypatch.setenv("CHART_IQ_PACK_ENABLED", "1")
+    monkeypatch.setattr(pack, "in_session", lambda now=None: False)
+    monkeypatch.setattr(pipeline, "latest_day", lambda: "2026-10-30")
+    monkeypatch.setattr(pipeline, "analyze", lambda t, d=None: dict(FAKE, ticker=t, asof="2026-10-30", thesis="packed"))
+    pack.build(tickers=["ABC"], sleep=lambda s: None)
+    monkeypatch.setattr(pack, "_et_now", lambda: __import__("datetime").datetime(2026, 11, 2, 10, 0))
+    def boom(*a, **k):
+        raise AssertionError("the live pipeline ran for a packed ticker")
+    monkeypatch.setattr(pipeline, "analyze", boom)
+    r = client(MEMBER, monkeypatch).get("/api/chart-iq/ABC")
+    assert r.status_code == 200 and r.json()["thesis"] == "packed" and "raw" not in r.json()
+    monkeypatch.setattr(pipeline, "analyze", lambda t, d=None: dict(FAKE, ticker=t, thesis="live"))
+    assert client(MEMBER, monkeypatch).get("/api/chart-iq/XYZ").json()["thesis"] == "live"           # not in the pack: live path
+    assert client(MEMBER, monkeypatch).get("/api/chart-iq/ABC?date=2025-01-02").json()["thesis"] == "live"   # a past date: live
+
+
+def test_pack_admin_endpoints_and_jobs(packdb, monkeypatch):
+    from api import main as M
+    monkeypatch.setenv("CHART_IQ_ENABLED", "1"); monkeypatch.setenv("CHART_IQ_MEMBERS_ENABLED", "1")
+    assert client(MEMBER, monkeypatch).get("/api/chart-iq/pack/status").status_code == 404
+    assert client(ADMIN, monkeypatch).get("/api/chart-iq/pack/status").status_code == 200
+    assert client(MEMBER, monkeypatch).post("/api/chart-iq/pack/build").status_code == 404
+    jobs = []
+    sched = type("S", (), {"add_job": lambda self, fn, **kw: jobs.append(kw["id"])})()
+    monkeypatch.delenv("CHART_IQ_PACK_ENABLED", raising=False)
+    assert M.register_chart_iq_pack_jobs(sched) is False and jobs == []
+    monkeypatch.setenv("CHART_IQ_PACK_ENABLED", "1")
+    assert M.register_chart_iq_pack_jobs(sched) is True and sorted(jobs) == ["chart_iq_pack_evening", "chart_iq_pack_morning", "chart_iq_pack_sync"]
+
+
+
+def _pack_blob(tmp_path, day, rows=5, corrupt=False):
+    import gzip, sqlite3 as _sq
+    import uuid
+    f = tmp_path / ("src-%s-%d-%s.db" % (day, rows, uuid.uuid4().hex[:8]))
+    c = _sq.connect(f)
+    c.execute("CREATE TABLE reads (ticker TEXT PRIMARY KEY, asof TEXT NOT NULL, body TEXT NOT NULL, built REAL NOT NULL)")
+    c.execute("CREATE TABLE meta (k TEXT PRIMARY KEY, v TEXT NOT NULL)")
+    for k in range(rows):
+        c.execute("INSERT INTO reads VALUES (?,?,?,0)", ("T%d" % k, day, '{"ticker":"T%d","asof":"%s","thesis":"pc"}' % (k, day)))
+    c.execute("INSERT INTO meta VALUES ('day', ?)", (day,)); c.commit(); c.close()
+    raw = f.read_bytes()
+    return gzip.compress(raw[:200] if corrupt else raw)
+
+
+class _FakeS3:
+    def __init__(self):
+        self.objs = {}
+
+    def put(self, ts, blob):
+        self.objs["chart_iq/latest.txt"] = str(ts).encode(); self.objs["chart_iq/%d.db.gz" % ts] = blob
+
+    def get_object(self, Bucket, Key):
+        import io
+        return {"Body": io.BytesIO(self.objs[Key])}
+
+
+def test_pack_sync_installs_a_pc_built_pack_and_refuses_bad_ones(tmp_path, monkeypatch):
+    from api.services.chart_iq import pack
+    d = tmp_path / "data"; d.mkdir()
+    monkeypatch.setenv("DATA_DIR", str(d)); monkeypatch.delenv("CHART_IQ_PACK_DB", raising=False)
+    monkeypatch.setenv("CHART_IQ_ENABLED", "1"); monkeypatch.setenv("CHART_IQ_PACK_ENABLED", "1")
+    monkeypatch.setenv("DATA_SYNC_BUCKET", "b"); monkeypatch.setattr(pack, "MIN_ROWS", 3)
+    s3 = _FakeS3()
+    s3.put(100, _pack_blob(tmp_path, "2026-10-30"))
+    rep = pack.sync_from_r2(s3=s3)
+    assert rep.get("installed") == 100 and rep["rows"] == 5
+    assert pack.get("T1", today="2026-11-02")["thesis"] == "pc" and pack._path().endswith("chart_iq_pack-100.db")
+    assert pack.sync_from_r2(s3=s3) == {"skipped": "current", "ts": 100}
+    s3.put(101, _pack_blob(tmp_path, "2026-10-29"))                     # older day than installed: refused
+    assert "older" in pack.sync_from_r2(s3=s3).get("error", "")
+    s3.put(102, _pack_blob(tmp_path, "2026-11-02", corrupt=True))       # corrupt: refused
+    assert "error" in pack.sync_from_r2(s3=s3)
+    s3.put(103, _pack_blob(tmp_path, "2026-11-02", rows=2))             # too small: refused
+    assert "too small" in pack.sync_from_r2(s3=s3).get("error", "")
+    assert pack._path().endswith("chart_iq_pack-100.db")                # every refusal left the good pack in place
+    s3.put(104, _pack_blob(tmp_path, "2026-11-02"))
+    assert pack.sync_from_r2(s3=s3).get("installed") == 104 and pack._path().endswith("chart_iq_pack-104.db")
+    assert not any(f.startswith(".chart_iq_pack-") for f in os.listdir(d))   # no staging files left behind
+
+
+def test_pack_file_is_warmed_once_per_file(tmp_path, monkeypatch):
+    from api.services.chart_iq import pack
+    reads = []
+    real_open = open
+    f = tmp_path / "p.db"; f.write_bytes(b"x" * 1000)
+    monkeypatch.setattr(pack, "_WARMED", set())
+    import threading as _th
+    started = []
+    monkeypatch.setattr(pack.threading, "Thread", lambda target, **kw: type("T", (), {"start": lambda self: (started.append(1), target())})())
+    pack.warm_file(str(f)); pack.warm_file(str(f))
+    assert started == [1]                                                   # once per file per process

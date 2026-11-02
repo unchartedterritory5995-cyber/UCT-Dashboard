@@ -57,7 +57,7 @@ log = logging.getLogger(__name__)
 FLAG = "TXN_EXPLAIN_ENABLED"
 #: ⛔ Part of the cache key: bump it whenever the prompt, schema or validator
 #: changes what an explanation says, so no member reads one made by old rules.
-VERSION = "v1"
+VERSION = "v2"
 MODEL_ENV = "TXN_EXPLAIN_MODEL"
 #: Sonnet 5.5 at low effort: one call, ~2 s, ~$0.004 per explanation on the 2026-10-31
 #: bake-off. Haiku 5.5 is cheaper but broke the length rule on 5 of 9 drafts.
@@ -168,8 +168,11 @@ Rules:
 - The headline is your only source. Do not invent figures, dates, events, reactions, consensus estimates or fundamentals it does not state.
 - You have no market data. Never say anything is rising, falling, up or down right now, and never predict a price direction. Use conditional words (may, could) for interpretation, and mention when the market could read it more than one way.
 - Keep what the headline states apart from your interpretation ("The headline reports..." versus "That could...").
+- Attribute claims to whoever makes them. Company guidance, plans, results and statements, and what officials, analysts or unnamed sources say, are claims: "Apple says...", "the company expects...", "according to people familiar...". Never present them as confirmed facts, and never say you or UCT verified anything.
+- Be plain about uncertainty. When the story is early, a rumour, a report citing unnamed sources, or a single claim, say so in a few natural words ("this is still unconfirmed", "details are thin so far").
 - A word that looks like a ticker is not proof the story concerns that security; name a security only when the headline makes it clear.
 - If the headline is ambiguous or too thin, say what it does and does not tell you instead of filling gaps.
+- Write the way a sharp colleague talks: short, clear sentences in everyday words, no hype, no hedging boilerplate.
 - No buy, sell or hold advice, price targets, sentiment ratings, trading signals, headings, lists, bullets, markdown or disclaimers."""
 
 SCHEMA = {
@@ -204,6 +207,11 @@ _LIVE_CLAIM = re.compile(
     r"\b(currently|right now|as we speak)\s+(trading\s+)?(up|down|higher|lower|rising|falling|surging|sliding)\b"
     r"|\bis\s+(currently\s+)?trading\s+(higher|lower|up|down)\b", re.I)
 _LEAK = re.compile(r"untrusted data|json schema|system prompt|these rules|<headline>", re.I)
+# A claim of verification nobody made: the model has only the headline, so it can
+# report what was said, never that it (or UCT) checked it.
+_SELF_VERIFIED = re.compile(
+    r"\b(independently|we have|we've|i have|i've|uct has)\s+(verified|confirmed)\b"
+    r"|\b(verified|confirmed)\s+by\s+(us|uct|me)\b", re.I)
 
 
 def _words(s: str) -> int:
@@ -234,6 +242,8 @@ def validate(out: Any) -> dict[str, str]:
         raise InvalidOutput("it gave trading advice or predicted a price move; explain only")
     if _LIVE_CLAIM.search(both):
         raise InvalidOutput("it claimed a live market move; you have no market data")
+    if _SELF_VERIFIED.search(both):
+        raise InvalidOutput("it claimed the story was verified; you only have the headline, so attribute it")
     if _LEAK.search(both):
         raise InvalidOutput("it discussed its instructions; explain only the headline")
     return {"explanation": exp, "watch": watch}

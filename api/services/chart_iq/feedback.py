@@ -89,15 +89,20 @@ def save(user_id: str, ticker: str, asof: str, vote: str, note: str = "", versio
     return {"vote": vote, "note": note}
 
 
+_TL = threading.local()
+
+
 def mine(user_id: str, ticker: str, asof: str) -> dict | None:
-    """This member's vote on this chart, or None. Never raises: a broken feedback file must not break the chart read."""
+    """This member's vote on this chart, or None. A per-thread read connection (opening one per read cost time on the pod's
+    network disk). Never raises: a broken feedback file must not break the chart read."""
     try:
-        c = _conn()
-        try:
-            r = c.execute("SELECT vote, note FROM chart_iq_feedback WHERE user_id=? AND ticker=? AND asof=?",
-                          (user_id, ticker, asof)).fetchone()
-        finally:
-            c.close()
+        held = getattr(_TL, "conn", None)
+        if held is None or held[0] != db_path():
+            _conn().close()
+            held = (db_path(), sqlite3.connect(db_path(), timeout=2, check_same_thread=False))
+            _TL.conn = held
+        r = held[1].execute("SELECT vote, note FROM chart_iq_feedback WHERE user_id=? AND ticker=? AND asof=?",
+                            (user_id, ticker, asof)).fetchone()
         return {"vote": r[0], "note": r[1]} if r else None
     except Exception:  # noqa: BLE001
         return None
