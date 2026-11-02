@@ -31,7 +31,7 @@ import { currentTurnId } from '../trace'
 import { loadAgentConfig, _resetAgentConfig } from '../agentClient'
 import { loadBreadthDates, _resetBreadthDates } from '../capabilities/breadth'
 import { makeBoard } from '../__fixtures__/board'
-import { leaksOf, SENT_NUM, SENT_INT, SENT_STR } from './sentinels'
+import { leaksOf, SENT_NUM, SENT_INT, SENT_STR } from '../__fixtures__/program/sentinels'
 
 vi.mock('../../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
 import AgentPanel from '../AgentPanel'
