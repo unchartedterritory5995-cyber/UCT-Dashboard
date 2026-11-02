@@ -57,6 +57,8 @@ import { useUserDefinitions } from '../../hooks/useUserDefinitions'
 import { createCustomCopy } from './builder/definitionActions'
 import { useCreateIndicatorAccess } from './builder/studio/createIndicatorFlag'
 import PatternToolbarButton from './PatternToolbarButton'
+import ChartIqToolbarButton from './chartIq/ChartIqToolbarButton'
+import { useChartIqAllowed } from './chartIq/chartIqGate'
 import { useAutoStructuresScope } from './autoStructuresGate'
 import BoardsToolButton from './BoardsToolButton'
 import { SIGNATURE_ROWS, SIGNATURE_LOCKED_TITLE } from './signatureToggles'
@@ -1041,6 +1043,9 @@ function ChartToolbar({
   // pattern layer exists for this viewer. Absent = the library is exactly as before.
   libraryExtraRows = null,
   onTogglePatterns = null,
+  showChartIq = false,
+  onToggleChartIq = null,
+  chartIqDaily = true,
   showLevels = false,
   onToggleLevels = null,
   // Admins: false = the team drawing set (default), true = every tier ("All"). null handler = no control.
@@ -1174,6 +1179,7 @@ function ChartToolbar({
   // 'all' (admin) | 'trusted' (paid member, AUTO_STRUCTURES_MEMBERS_ENABLED) | null.
   const autoStructuresScope = useAutoStructuresScope()
   const autoStructuresOn = autoStructuresScope != null
+  const chartIqAllowed = useChartIqAllowed()
   // ⭐ SLICE 2 — THIS chart's new-indicator context. One opaque scope per toolbar
   // (per chart), so closing the dock keeps that chart's draft conversation and a
   // different chart never sees it. Never derived from a symbol, name or formula.
@@ -1666,6 +1672,11 @@ function ChartToolbar({
             on (useAutoStructuresScope — the same predicate StockChart's fetch asks), and for PAID
             members while AUTO_STRUCTURES_MEMBERS_ENABLED is on too (trusted tier only). The Levels
             layer stays admin-only. */}
+        {/* Chart IQ (pattern recognition drawn on the chart): shown only while the server allows this viewer
+            (chart_iq_enabled on the auth payload: CHART_IQ_ENABLED for admins, CHART_IQ_MEMBERS_ENABLED for paid members). */}
+        {chartIqAllowed && !hidePatterns && onToggleChartIq && (
+          <ChartIqToolbarButton active={!!showChartIq} onToggle={onToggleChartIq} daily={chartIqDaily} />
+        )}
         {autoStructuresOn && !hidePatterns && onTogglePatterns && (
           <PatternToolbarButton active={!!showPatterns} onToggle={onTogglePatterns} />
         )}

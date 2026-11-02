@@ -61,6 +61,8 @@
     "its payload key is an explicit false when off (tests/test_feature_status.py)."
   ],
   "flags": {
+    "CHART_IQ_ENABLED": {"status": "dark", "since": "2026-11-01", "where": ["web"], "note": "DARK. Chart IQ (pattern recognition drawn on the chart: levels, zones, trendlines, bases, key candles, cycle stages, buy days, what is setting up, plus a one-paragraph thesis and plan and a read box). Gates GET /api/chart-iq/{sym} (api/routers/chart_iq.py), read PER CALL: unset, the route answers 404 for everyone and the engine (api/services/chart_iq) is never imported. On: ADMINS ONLY, until CHART_IQ_MEMBERS_ENABLED is also on. Compute runs in a worker thread, at most 2 at once, 25 s timeout, cached (latest session 15 min, a past day 24 h). Rails: tests/test_chart_iq_router.py. Arm (owner): railway variables --service web --set CHART_IQ_ENABLED=1. Rollback = set it to 0."},
+    "CHART_IQ_MEMBERS_ENABLED": {"status": "dark", "since": "2026-11-01", "where": ["web"], "note": "DARK. Opens Chart IQ (see CHART_IQ_ENABLED) to PAID members: true only while CHART_IQ_ENABLED is ALSO on. Off: members get 404 from GET /api/chart-iq/{sym} and the chart's Chart IQ toggle stays hidden for them; admins unchanged. Members never receive the admin-only raw layer. Rails: tests/test_chart_iq_router.py. Arm (owner, after admin review on the live site): railway variables --service web --set CHART_IQ_MEMBERS_ENABLED=1. Rollback = set it to 0."},
     "ARTIFACT_VERSIONS_ENABLED": {
       "status": "armed",
       "since": "2026-10-02",

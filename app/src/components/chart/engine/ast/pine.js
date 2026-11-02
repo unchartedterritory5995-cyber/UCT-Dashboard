@@ -18483,6 +18483,12 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
    *  some bars: a guard that is not decided before bar 0 (`guardOfIn`'s `varies`). A
    *  colour of such an op that calls `ta.*` is held (`colorNodeOf`). */
   let colourOpConditional = false
+  /** ⭐ L1 (review) — the op being converted is a create that runs EXACTLY ONCE, on
+   *  bar 0 (`firstBarOnlyCreate`). There the every-bar `ta.*` call and TradingView's
+   *  first call of it agree — each has bar 0's history alone — so its colour is read
+   *  as written and NOT held for a call that runs only on some bars (`colorNodeOf`,
+   *  `heldColour`). Holding it dropped a label that matched TradingView. */
+  let colourOpFirstBarOnly = false
   /** ⭐ C42 — lines of the statements the object reader read on their block's one
    *  execution (`collectObjectOps`, set once it has run). */
   let onceLines = null
@@ -19982,7 +19988,8 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     //     bars (`colourOpConditional`): the call then keeps the history of the
     //     block's runs (C48's capture), and the columnar colour is the every-bar one.
     // ⛔ A colour that calls no `ta.*` is read exactly as before (no canonical read).
-    if (depth === 0 && node) {
+    // ⭐ L1 — never for a create that runs exactly once, on bar 0 (`colourOpFirstBarOnly`).
+    if (depth === 0 && node && !colourOpFirstBarOnly) {
       const lazy = node.type === 'ternary' ? lazyHistoryCall(node.test) : lazyHistoryCall(node)
       if (lazy) return heldColour(node, lazy)
       if (colourOpConditional) {
@@ -20075,7 +20082,8 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       // ⛔ The arms are read FIRST: `decidedTest` folds the test, and a colour
       // with no `ta.*` in its arms must leave the program byte for byte as it was.
       const armCall = armHistoryCall(node.yes) || armHistoryCall(node.no)
-      if (armCall && decidedTest(condTree) === null) return heldColour(node, armCall)
+      // ⭐ L1 — …except in a create that runs exactly once, on bar 0 (`firstBarOnlyCreate`).
+      if (armCall && !colourOpFirstBarOnly && decidedTest(condTree) === null) return heldColour(node, armCall)
       const cond = internTree(condTree)
       let then = colorNodeOf(node.yes, scope, depth + 1)
       let other = colorNodeOf(node.no, scope, depth + 1)
@@ -20162,6 +20170,30 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       if (c) return c
     }
     return null
+  }
+  /** ⭐⭐ L1 (review) — A CREATE THAT RUNS EXACTLY ONCE, ON BAR 0. Two shapes, and
+   *  only these:
+   *    · a `var` / `varip` create (`op.once`) with NO enclosing block — Pine
+   *      initialises it on the first bar and never again;
+   *    · `if na(lb)` → `lb := <family>.new(…)`, where the guard is that liveness test
+   *      ALONE (`requiresEmpty`, nothing else), `lb` is a `var` handle and this `:=` is
+   *      the ONLY write to it anywhere (`varWrites`) — so the handle is empty on bar 0
+   *      and never again. A handle emptied later (`lb := na`) or re-assigned elsewhere
+   *      can make the guard true on a later bar: that create keeps being held.
+   *  ⛔ Never inside a loop, never inlined from a function body (its call may be
+   *  guarded where this op cannot see it), never with any other guard. A `var`
+   *  inside a block runs on the block's FIRST run, which need not be bar 0. */
+  const firstBarOnlyCreate = (op, g) => {
+    if (!op || op.k !== 'create' || !g || op.inlined || (op.loopIds && op.loopIds.length)) return false
+    const guards = op.guards || []
+    if (op.once) return guards.length === 0
+    if (guards.length !== 1 || (g.when !== null && g.when !== undefined)) return false
+    const x = g.extra || {}
+    if (!x.requiresEmpty || x.lastBarOnly || x.requiresLive || x.unknownGuard) return false
+    if (!op.into || !regId.has(op.into) || regId.get(op.into) !== x.requiresEmpty) return false
+    const d = collected.decls && typeof collected.decls.get === 'function' ? collected.decls.get(op.into) : null
+    if (!d || d.kind !== 'var') return false
+    return (varWrites.get(op.into) || []).length === 1
   }
   const heldColour = (node, call) => {
     const at = node && node.tok ? locate(node.tok) : null
@@ -22620,6 +22652,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     const g = guardOf(op.guards, op)
     // ⭐ C45 / C48 — set for EVERY op before any of its values is read (no reset needed)
     colourOpConditional = !!(g && g.varies)
+    colourOpFirstBarOnly = firstBarOnlyCreate(op, g)
     if (g === undefined) {
       noteGuardRefusal(op, lastCanonRefusal)
       if (op.k === 'loop') unconverted(op.body, 'guard:loop')
