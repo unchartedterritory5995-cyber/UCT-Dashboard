@@ -1139,6 +1139,24 @@ describe('Task 5 — runImport media and heal', () => {
     expect(b.unconnectedLinks).toEqual([{ note: 'A', text: 'ghost' }])
   })
 
+  // Plan B final review, fix 3: the heal call has the same per-call timeout as every other
+  // door (`doorTimeout`). A reply that never comes ends the import with the links listed as
+  // not connected, never a wizard stuck on its last step.
+  it('a heal reply that never comes is stopped by its per-call timeout; the links are listed as not connected', async () => {
+    const heals = []
+    server(() => null, { heal: (call) => {
+      heals.push(call)
+      const opts = vi.mocked(fetch).mock.calls.at(-1)[1]
+      return new Promise((_, reject) => {
+        opts.signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')))
+      })
+    } })
+    const summary = await runImport({ source: 'file', destFolderId: null, retry: { ...noSleep(), timeoutMs: 20 },
+      docs: [linkDoc('file:a.md', 'A', 'x:y')] })
+    expect(heals).toHaveLength(1) // a timed-out call is not retried
+    expect(summary.unconnectedLinks).toEqual([{ note: 'A', text: 'ghost' }])
+  }, 3000)
+
   it('calls heal once with noteIds [] when no note kept a link, so the server sweep still heals OLD notes', async () => {
     const calls = server((u) => (u.endsWith('/images') ? json({ url: '/i/a.png', kind: 'image', name: 'a.png', original: null }) : null))
     const summary = await runImport({ source: 'file', destFolderId: null, retry: noSleep(),

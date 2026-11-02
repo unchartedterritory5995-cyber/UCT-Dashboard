@@ -963,7 +963,9 @@ async function healImportedLinks(keptByNote, retry) {
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ noteIds: chunk }),
-      }, retry)
+        // Plan B final review, fix 3: the same per-call timeout as every other door, so a
+        // stalled reply ends with this chunk's own list, never a wizard stuck on its last step.
+      }, retry, 2, doorTimeout(retry))
       if (res.ok) {
         const read = await readSuccessBody(res)
         if (read.ok && Array.isArray(read.body?.unresolved)) unresolved = read.body.unresolved
