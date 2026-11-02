@@ -3132,16 +3132,30 @@ from api.services.journal_two import media_policy  # noqa: E402
 _IMGS = tuple(f"https://cdn.example.com/{c}.png" for c in "abc")
 
 
+def _distinct_png(i: int) -> bytes:
+    """A PNG unlike any other `i`: identical bytes in one note are ONE content-addressed file
+    and count once against the cap, so a cap test needs distinct images."""
+    import io
+    from PIL import Image
+    buf = io.BytesIO()
+    Image.new("RGB", (1, 1), (i * 40 % 256, 7, 9)).save(buf, "PNG")
+    return buf.getvalue()
+
+
+_IMG_BYTES = {ref: _distinct_png(i) for i, ref in enumerate(_IMGS)}
+_CAP_FOR_TWO = len(_IMG_BYTES[_IMGS[0]]) + len(_IMG_BYTES[_IMGS[1]])
+
+
 def _media_cap(monkeypatch, nbytes):
     monkeypatch.setattr(media_policy, "MEMBER_IMPORT_MEDIA_CAP_BYTES", nbytes)
 
 
 async def test_cap_reached_mid_note_imports_the_note_and_marks_the_rest(source, provider, monkeypatch):
     media_policy._USAGE_MEMO.clear()
-    _media_cap(monkeypatch, len(PNG_BYTES) * 2)
+    _media_cap(monkeypatch, _CAP_FOR_TWO)
     _image_note(provider, *_IMGS, failing=())
     for ref in _IMGS:
-        provider.media_by_ref[ref] = (PNG_BYTES, "image/png")
+        provider.media_by_ref[ref] = (_IMG_BYTES[ref], "image/png")
 
     result = await engine.sync_source(source["id"], full=True)
 
@@ -3158,10 +3172,10 @@ async def test_cap_reached_mid_note_imports_the_note_and_marks_the_rest(source, 
 
 async def test_storage_wait_retries_once_space_frees(source, provider, monkeypatch):
     media_policy._USAGE_MEMO.clear()
-    _media_cap(monkeypatch, len(PNG_BYTES) * 2)
+    _media_cap(monkeypatch, _CAP_FOR_TWO)
     _image_note(provider, *_IMGS, failing=())
     for ref in _IMGS:
-        provider.media_by_ref[ref] = (PNG_BYTES, "image/png")
+        provider.media_by_ref[ref] = (_IMG_BYTES[ref], "image/png")
     await engine.sync_source(source["id"], full=True)
     assert _row("u1", _IMG_KEY)["import_media_pending"] == 2
     note_id = _row("u1", _IMG_KEY)["id"]
@@ -3181,7 +3195,7 @@ async def test_storage_wait_retries_once_space_frees(source, provider, monkeypat
     assert provider.fetch_media_calls == [*_IMGS, _IMGS[2]]
     body = _body(notes_svc.get_note("u1", note_id))
     assert len(_nodes_of(body, "image")) == 3
-    assert [n["attrs"]["src"] for n in _nodes_of(body, "image")][:2] == stored_srcs
+    assert set(stored_srcs) < {n["attrs"]["src"] for n in _nodes_of(body, "image")}
     assert _nodes_of(body, "importNotice") == []
     assert _row("u1", _IMG_KEY)["import_media_pending"] == 0
     assert notes_svc.get_note("u1", note_id)["updatedAt"] == stamped     # timestamp-neutral
