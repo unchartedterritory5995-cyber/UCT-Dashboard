@@ -499,6 +499,21 @@ describe('C48 — the object lane: a helper reads a var where it is CALLED', () 
       for (const t of labels) expect(t).toBe(now)
     })
   }
+  // ⛔⛔ (coordinator final run, 2026-11-02) — A `var` WRITTEN FROM A GETTER is opaque to
+  // the fold, and its read is the object lane's own machinery, as on master. The
+  // stale-read refusal fired on it and took rsi-swing-indicator's whole drawing program
+  // down (35 TradingView-exact objects, `vendorHarness.c17RsiSwing`). Its shape:
+  it('a helper reading a var written from `label.get_y` (opaque) keeps the drawings: each label\'s text as Pine reads it at the call', () => {
+    const body = 'var float p = 0.0\nvar label lb = na\ntxt() => p < high ? "HH" : "LH"\nif close > open\n    lb := label.new(bar_index, high, txt())\n    p := label.get_y(lb)\n'
+    const labels = labelsOf(body)
+    const want = []
+    let p = 0
+    for (const b of RDDT_BARS) {
+      if (b.c > b.o) { want.push(p < b.h ? 'HH' : 'LH'); p = b.h }
+    }
+    expect(labels.length).toBeGreaterThan(0)
+    expect(labels).toEqual(want.slice(-labels.length))
+  })
 })
 
 describe('C48 / P3 WS-A — the runtime lane: a block-valued `:=` that reads its own name', () => {

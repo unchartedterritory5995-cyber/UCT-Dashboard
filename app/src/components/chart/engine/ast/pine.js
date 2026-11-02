@@ -13066,8 +13066,8 @@ export class Resolver {
   /** ⛔ C48 — A FUNCTION THAT READS A `var` WRITTEN SINCE IT WAS DECLARED is
    *  refused by name at the call (`staleOuterStateRead`): its body was folded
    *  with the older value, and Pine reads the one at the call. */
-  refuseStaleOuterRead(bound, callerEnv, name, tok) {
-    const stale = staleOuterStateRead(bound, callerEnv)
+  refuseStaleOuterRead(bound, callerEnv, name, tok, everyBarOnly = false) {
+    const stale = staleOuterStateRead(bound, callerEnv, everyBarOnly)
     if (!stale) return
     const fn = name ? `\`${name}\`` : 'a function'
     throw new PineRefusal('pine:reassign',
@@ -13110,7 +13110,7 @@ export class Resolver {
     if (this.frames.length >= MAX_CALL_DEPTH) {
       throw new PineRefusal('pine:cycle', `${REFUSALS['pine:cycle']} — a text expression`, null)
     }
-    this.refuseStaleOuterRead(inline.bound, inline.callerEnv, null, node && node.tok)
+    this.refuseStaleOuterRead(inline.bound, inline.callerEnv, null, node && node.tok, true)
     this.frames.push((inline.args || []).map((a) => ({
       kind: 'expr', node: a && a.value !== undefined ? a.value : a, env: inline.callerEnv,
     })))
@@ -15160,16 +15160,29 @@ function outerStateReadsOf(headToks, sub, beforeFn, fnEnv) {
 /** ⭐ C48 — the first `var` a function reads (`outerStateReads`) whose value at
  *  this call is not the one the body was folded with, or null. The same value
  *  is the same binding, or the value-so-far of that binding inside its own next
- *  write (`reassignState`'s `stateOf`: `s := f() + 1` reads `self` both ways). */
-function staleOuterStateRead(bound, callerEnv) {
+ *  write (`reassignState`'s `stateOf`: `s := f() + 1` reads `self` both ways).
+ *  ⛔⛔ `everyBarOnly` (the drawing lane's text reader, `resolveInFrame`): there
+ *  `callerEnv` is the scope of the whole drawing, NOT the env at the call — a write
+ *  that stands after the call in the script is already in it. So only a write that
+ *  runs on EVERY bar (`EVERY_BAR_WRITE`, a top-level `:=`) makes the folded value
+ *  provably stale there; a write in a block may not have run before the call on any
+ *  bar, and the folded value is then Pine's. ⚰️ Measured 2026-11-02: refusing every
+ *  later write took rsi-swing-indicator's whole drawing program down
+ *  (`obLabelText()` reads `last_actual_label_hh_price`, written in an `if` block
+ *  after the call) — 35 TradingView-exact objects (C17 / F6). */
+function staleOuterStateRead(bound, callerEnv, everyBarOnly = false) {
   const reads = bound && Array.isArray(bound.outerStateReads) ? bound.outerStateReads : null
   if (!reads || !(callerEnv instanceof Map)) return null
   for (const { name, binding } of reads) {
     const now = callerEnv.get(name)
+    if (everyBarOnly && !(now && now[EVERY_BAR_WRITE])) continue
     if (now !== binding && !(now && now.stateOf === binding)) return name
   }
   return null
 }
+
+/** ⭐ C48 — a `var` state whose last write runs on every bar (a top-level `:=`). */
+const EVERY_BAR_WRITE = '_everyBarWrite'
 
 const reassignState = (prior, env, toks, mut, nameTok) => {
   const rhs = parseWholeExpression(toks.slice(mut + 1))
@@ -15191,6 +15204,12 @@ const reassignState = (prior, env, toks, mut, nameTok) => {
       tok: toks[mut],
     }
   const next = stateBinding(prior.seed, prior.seedEnv, update, innerEnv, prior.at)
+  // ⭐ C48 — a binding this makes stands for a write that runs on every bar
+  // (`staleOuterStateRead`'s `everyBarOnly`). A write inside a block reaches the
+  // scope after it only through the block's fold, which builds a binding of its
+  // own (never this one): measured, flagging here with no position test keeps
+  // rsi-swing-indicator's drawings (its writes are all in `if` blocks).
+  Object.defineProperty(next, EVERY_BAR_WRITE, { value: true, enumerable: false })
   // ⭐ C48 (object lane) — a later write that READS the name (`s := nz(s)`,
   // `s += 1`) keeps the block-run guards of the writes before it (`stateRuns`):
   // their value is still in the running state. One that does not (`s := close`)
