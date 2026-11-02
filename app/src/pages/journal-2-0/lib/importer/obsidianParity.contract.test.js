@@ -234,8 +234,8 @@ const knownClientGap = {
   // fence keeps its embed and wikilink as code on both lanes. What is left is a code BLOCK
   // difference no Obsidian pass makes: the shared client parse keeps the fence's final
   // newline in the codeBlock text (markdown-it), the server's `mddoc` drops it. Every
-  // importer's fenced code has it; a follow-up for the shared parse -- delete this entry
-  // then.
+  // importer's fenced code has it. Closed by D3 (shared-converter follow-up PR: fenced
+  // code final newline) -- delete this entry then.
   '27-tilde-fence.json': {
     clientReads: {
       text: 'Tilde fence before ![[img.png]] [[Plan]]\n after ',
