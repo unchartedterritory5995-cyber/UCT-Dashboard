@@ -163,7 +163,9 @@ describe('category filter', () => {
     expect(rows(r2.container)).toEqual([3, 1])
     const r3 = mount({ categories: ['Earnings'], linked: true })              // linked = NVDA: AND
     expect(rows(r3.container)).toEqual([])
-    expect(await within(r3.container).findByText(/^No headlines on .+ match these filters\.$/)).toBeTruthy()
+    // Linked to chart searches All history: the empty answer says so, and offers to clear the rest
+    expect(await within(r3.container).findByText('No archived headlines naming NVDA match these filters.')).toBeTruthy()
+    expect(within(r3.container).getByRole('button', { name: 'Clear other filters' })).toBeTruthy()
     expect(container).toBeTruthy()
   })
 
