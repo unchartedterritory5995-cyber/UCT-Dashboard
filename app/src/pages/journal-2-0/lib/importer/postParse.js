@@ -21,8 +21,10 @@
  * A doc whose html is a held UCT JSON body (`uctJson.js::heldBody`, our own export) is
  * skipped: its body is already a TipTap doc and the marker is not HTML to rewrite.
  *
- * `parseImport(adapter, vfiles, opts)` -- `adapter.parse`, then `finishDoc` on every doc.
- * Whatever `adapter.parse` throws propagates unchanged.
+ * `parseImport(adapter, vfiles, opts)` -- `adapter.parse`, then `finishDoc` on every doc,
+ * `FINISH_CHUNK` at a time with a yield to the event loop between chunks; `opts.onProgress`
+ * hears `{phase: 'finishing', done, total}` per chunk and `opts.isCancelled()` is asked
+ * before each one. Whatever `adapter.parse` throws propagates unchanged.
  */
 import { heldBody } from './uctJson'
 import { linkifyTextNodes, resolveHref, neutraliseAnchor } from './linkPolicy'
@@ -59,8 +61,24 @@ export function finishDoc(doc) {
   return doc
 }
 
-export async function parseImport(adapter, vfiles, opts) {
+/** Docs finished between two yields to the event loop (fix round 1: a few-thousand-note
+ *  export finished in one synchronous run froze the tab). */
+export const FINISH_CHUNK = 25
+
+const yieldToLoop = () => new Promise((resolve) => setTimeout(resolve, 0))
+
+export async function parseImport(adapter, vfiles, opts = {}) {
   const result = await adapter.parse(vfiles, opts)
-  for (const doc of result.docs) finishDoc(doc)
+  const { onProgress, isCancelled } = opts || {}
+  const docs = result.docs
+  for (let i = 0; i < docs.length; i += FINISH_CHUNK) {
+    // Cancelled between chunks: stop finishing. The caller discards this scan anyway, so
+    // half-finished docs never reach a commit; `cancelled` says so to any other caller.
+    if (isCancelled?.()) return { ...result, cancelled: true }
+    const end = Math.min(i + FINISH_CHUNK, docs.length)
+    for (let j = i; j < end; j++) finishDoc(docs[j])
+    onProgress?.({ phase: 'finishing', done: end, total: docs.length })
+    if (end < docs.length) await yieldToLoop()
+  }
   return result
 }

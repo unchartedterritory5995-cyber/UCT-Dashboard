@@ -11,7 +11,9 @@
 import { describe, it, expect, beforeAll } from 'vitest'
 import { detectAdapter } from './importer/registry'
 import { mdToHtml } from './importer/adapters/generic'
-import { finishDoc } from './importer/postParse'
+import { finishDoc, parseImport } from './importer/postParse'
+import { htmlToNote } from './importer/convert'
+import { rewriteBody } from './importer/commit'
 import { exportSelection, pythonAvailable } from './testing/exportBridge'
 
 const hasPython = pythonAvailable()
@@ -76,7 +78,8 @@ d('a selection export round-trips through our own importer, links included', () 
     })
     const { adapter } = await detectAdapter(vfiles)
     expect(adapter.id).toBe('uct-export')
-    ;({ docs } = await adapter.parse(vfiles))
+    // The wizard's own call: adapter.parse + the post-parse pass (Plan B Task 3 fix round 1).
+    ;({ docs } = await parseImport(adapter, vfiles, {}))
     byPath = new Map(docs.map((x) => [x.importKey.replace(/^file:/, ''), x]))
   }, 60_000)
 
@@ -91,8 +94,26 @@ d('a selection export round-trips through our own importer, links included', () 
     const fromB = hrefsIn(byPath.get(B_PATH).html)
     expect(fromA.map((l) => l.text)).toEqual(['NVDA up 50% (Q3)'])
     expect(fromB.map((l) => l.text)).toEqual(['Cup and handle #3'])
-    expect(resolveFrom(byPath.get(A_PATH).folderPath, fromA[0].href)).toBe(B_PATH)
-    expect(resolveFrom(byPath.get(B_PATH).folderPath, fromB[0].href)).toBe(A_PATH)
+    // Since Plan B Task 3 fix round 1 a link between two notes of the same import is the
+    // other note's link key (the post-parse pass would render a raw relative href as text).
+    expect(fromA[0].href).toBe(`import-link://file:${B_PATH}`)
+    expect(fromB[0].href).toBe(`import-link://file:${A_PATH}`)
+    expect(byPath.get(A_PATH).links.map((l) => l.targetKey)).toEqual([`file:${B_PATH}`])
+    expect(byPath.get(B_PATH).links.map((l) => l.targetKey)).toEqual([`file:${A_PATH}`])
+    // ...and the key is the one the export wrote: the placeholder resolves to the other note's path.
+    expect(resolveFrom(byPath.get(A_PATH).folderPath, byPath.get(A_PATH).links[0].placeholder)).toBe(B_PATH)
+    expect(resolveFrom(byPath.get(B_PATH).folderPath, byPath.get(B_PATH).links[0].placeholder)).toBe(A_PATH)
+  })
+
+  it('after the confirm, each link points at the other imported note', () => {
+    const idByKey = { [`file:${A_PATH}`]: 'id-a', [`file:${B_PATH}`]: 'id-b' }
+    const linkHrefs = (path) => {
+      const { body, keptLinks } = rewriteBody(htmlToNote(byPath.get(path).html).bodyJson, { idByKey })
+      expect(keptLinks).toEqual([])
+      return JSON.stringify(body).match(/"href":"[^"]*"/g)
+    }
+    expect(linkHrefs(A_PATH)).toEqual(['"href":"/journal?j2tab=notebook&note=id-b"'])
+    expect(linkHrefs(B_PATH)).toEqual(['"href":"/journal?j2tab=notebook&note=id-a"'])
   })
 
   it('⛔ CONTROL — the unencoded form the export used to write is NOT a link to our importer', () => {

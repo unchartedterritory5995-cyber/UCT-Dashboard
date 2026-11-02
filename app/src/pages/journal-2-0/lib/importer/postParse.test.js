@@ -1,5 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
-import { finishDoc, parseImport } from './postParse'
+import { finishDoc, parseImport, FINISH_CHUNK } from './postParse'
+import { logseqAdapter } from './adapters/logseq'
+import { uctAdapter } from './adapters/uct'
 import { htmlToNote } from './convert'
 import { holdBodyForImport, heldBody } from './uctJson'
 import { genericAdapter } from './adapters/generic'
@@ -149,15 +151,118 @@ describe('parseImport', () => {
     const boom = new Error('boom')
     await expect(parseImport({ parse: async () => { throw boom } }, [], {})).rejects.toBe(boom)
   })
+
+  // Fix round 1: a few-thousand-note export must not freeze the tab.
+  const manyDocs = (n) => Array.from({ length: n }, (_, i) => ({ html: `<p>https://n${i}.com</p>`, media: [] }))
+  const finished = (d) => d.html.includes('<a ')
+
+  it(`finishes FINISH_CHUNK (${FINISH_CHUNK}) docs at a time, yielding to the event loop between chunks`, async () => {
+    vi.useFakeTimers()
+    try {
+      const docs = manyDocs(FINISH_CHUNK * 2 + 10)
+      const onProgress = vi.fn()
+      let settled = false
+      const run = parseImport({ parse: async () => ({ docs, warnings: [] }) }, [], { onProgress }).then((r) => {
+        settled = true
+        return r
+      })
+      for (let i = 0; i < 10; i++) await Promise.resolve()
+      // One chunk done, then a macrotask yield: nothing after it has run yet.
+      expect(docs.slice(0, FINISH_CHUNK).every(finished)).toBe(true)
+      expect(finished(docs[FINISH_CHUNK])).toBe(false)
+      expect(settled).toBe(false)
+      expect(onProgress.mock.calls.map((c) => c[0])).toEqual([{ phase: 'finishing', done: FINISH_CHUNK, total: docs.length }])
+      await vi.runAllTimersAsync()
+      const result = await run
+      expect(result.docs.every(finished)).toBe(true)
+      expect(onProgress.mock.calls.map((c) => c[0].done)).toEqual([FINISH_CHUNK, FINISH_CHUNK * 2, docs.length])
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('stops between chunks once isCancelled() answers true', async () => {
+    const docs = manyDocs(FINISH_CHUNK * 3)
+    let calls = 0
+    const isCancelled = () => ++calls > 1 // true from the second chunk on
+    const result = await parseImport({ parse: async () => ({ docs, warnings: [] }) }, [], { isCancelled })
+    expect(result.cancelled).toBe(true)
+    expect(docs.slice(0, FINISH_CHUNK).every(finished)).toBe(true)
+    expect(docs.slice(FINISH_CHUNK).some(finished)).toBe(false)
+  })
+})
+
+describe('links between notes of one generic import (fix round 1)', () => {
+  it('a relative .md link to another note in the import becomes that note\'s link key; any other relative link is text', async () => {
+    const { docs } = await parseImport(genericAdapter, [
+      vf('A/One.md', '[two](../B/Two%20note.md) [gone](../B/Missing.md) [self](One.md)\n'),
+      vf('B/Two note.md', 'Two.\n'),
+    ], {})
+    const one = docs.find((d) => d.importKey === 'file:A/One.md')
+    const hrefs = [...body(one.html).querySelectorAll('a')].map((a) => [a.textContent, a.getAttribute('href')])
+    expect(hrefs).toEqual([['two', 'import-link://file:B/Two note.md'], ['self', 'import-link://file:A/One.md']])
+    expect(body(one.html).textContent).toContain('gone')
+    expect(one.links.map((l) => l.targetKey)).toEqual(['file:B/Two note.md', 'file:A/One.md'])
+  })
+
+  it('a TextBundle note is linked by its bundle key', async () => {
+    const { docs } = await parseImport(genericAdapter, [
+      vf('One.md', '[b](Idea.textbundle/text.md)\n'),
+      vf('Idea.textbundle/text.md', '# Idea\n'),
+    ], {})
+    const one = docs.find((d) => d.importKey === 'file:One.md')
+    expect(one.html).toContain('href="import-link://file:Idea.textbundle"')
+  })
+})
+
+describe('a UCT JSON note goes through the same href policy (fix round 1)', () => {
+  const jsonNote = (marks) => JSON.stringify({
+    format: 'uct-notebook-note',
+    version: 1,
+    note: {
+      id: 'n1',
+      title: 'J',
+      bodyJson: { type: 'doc', content: [{ type: 'paragraph', content: marks.map(([text, href]) => ({ type: 'text', text, marks: [{ type: 'bold' }, { type: 'link', attrs: { href } }] })) }] },
+    },
+  })
+
+  it('an unsafe link mark is dropped, its text and other marks kept; a safe one stays; the held body is the checked one', async () => {
+    const files = [
+      vf('UCT_NOTEBOOK_EXPORT.json', JSON.stringify({ format: 'json' })),
+      vf('J.json', jsonNote([['j', 'javascript:alert(1)'], ['t', 'java\tscript:x'], ['f', 'file:///etc'], ['ok', 'https://ok.com'], ['n', '/journal?j2tab=notebook&note=x']])),
+    ]
+    const { docs } = await parseImport(uctAdapter, files, {})
+    const para = docs[0].bodyJson.content[0].content
+    expect(para.map((t) => t.text)).toEqual(['j', 't', 'f', 'ok', 'n'])
+    expect(para.map((t) => t.marks.map((m) => m.attrs?.href ?? m.type))).toEqual([
+      ['bold'], ['bold'], ['bold'], ['bold', 'https://ok.com'], ['bold', '/journal?j2tab=notebook&note=x'],
+    ])
+    expect(heldBody(docs[0].html)).toEqual(docs[0].bodyJson)
+  })
 })
 
 // ── every adapter: no dangerous href survives the post-parse pass ──────────────────────────
 const UNSAFE = /^\s*(javascript|vbscript|data|file):/i
+/** Every link-mark href in a TipTap JSON body. */
+function markHrefs(node, out = []) {
+  if (Array.isArray(node)) node.forEach((n) => markHrefs(n, out))
+  else if (node && typeof node === 'object') {
+    for (const m of node.marks || []) if (m?.type === 'link' && typeof m.attrs?.href === 'string') out.push(m.attrs.href)
+    markHrefs(node.content, out)
+  }
+  return out
+}
+/** Every href a doc can store: its HTML anchors, and a JSON body (held or given). */
+function allHrefs(d) {
+  const held = heldBody(d.html)
+  if (held || d.bodyJson) return [...markHrefs(held), ...markHrefs(d.bodyJson)]
+  return [...body(d.html).querySelectorAll('a[href]')].map((a) => a.getAttribute('href'))
+}
 function unsafeHrefs(docs) {
   const out = []
   for (const d of docs) {
-    for (const a of body(d.html).querySelectorAll('a[href]')) {
-      const h = a.getAttribute('href').replace(/[\u0000- ]/g, '')
+    for (const href of allHrefs(d)) {
+      const h = href.replace(/[\u0000- ]/g, '')
       if (UNSAFE.test(h)) out.push(h)
     }
   }
@@ -180,6 +285,18 @@ describe('no javascript:, vbscript:, data: or file: href survives on any adapter
       title: 'k', textContent: 'see javascript:alert(1) and https://ok.com', createdTimestampUsec: 1, userEditedTimestampUsec: 1,
       annotations: [{ source: 'WEBLINK', url: 'javascript:alert(1)', title: 'bad' }, { source: 'WEBLINK', url: 'https://ok.com/w', title: 'good' }],
     }))]],
+    ['logseq', logseqAdapter, [vf('Graph/logseq/config.edn', '{}'), vf('Graph/pages/Note.md', HOSTILE_MD)]],
+    ['uct markdown export', uctAdapter, [vf('UCT_NOTEBOOK_EXPORT.json', JSON.stringify({ format: 'md' })), vf('Notes/a.md', HOSTILE_MD)]],
+    ['uct JSON export', uctAdapter, [vf('UCT_NOTEBOOK_EXPORT.json', JSON.stringify({ format: 'json' })), vf('a.json', JSON.stringify({
+      format: 'uct-notebook-note',
+      version: 1,
+      note: {
+        id: 'h',
+        title: 'h',
+        bodyJson: { type: 'doc', content: [{ type: 'paragraph', content: ['javascript:alert(1)', 'vbscript:x', 'data:text/html,x', 'file:///etc/passwd', 'https://ok.com']
+          .map((href, i) => ({ type: 'text', text: `t${i}`, marks: [{ type: 'link', attrs: { href } }] })) }] },
+      },
+    }))]],
   ]
 
   it.each(cases)('%s', async (_name, adapter, files) => {
@@ -187,11 +304,13 @@ describe('no javascript:, vbscript:, data: or file: href survives on any adapter
     expect(docs.length).toBeGreaterThan(0)
     expect(unsafeHrefs(docs)).toEqual([])
     // Non-vacuity: the pass kept the safe link, so the checker can see an anchor at all.
-    expect(docs.some((d) => /href="https:\/\/ok\.com/.test(d.html))).toBe(true)
+    expect(docs.some((d) => allHrefs(d).some((h) => h.startsWith('https://ok.com')))).toBe(true)
   })
 
-  it('control: the checker sees an unsafe href when one is there', () => {
+  it('control: the checker sees an unsafe href when one is there, in HTML or in a JSON body', () => {
     expect(unsafeHrefs([{ html: HOSTILE_HTML }])).toHaveLength(4)
+    const bodyJson = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'x', marks: [{ type: 'link', attrs: { href: 'javascript:x' } }] }] }] }
+    expect(unsafeHrefs([{ html: '', bodyJson }])).toEqual(['javascript:x'])
   })
 })
 
