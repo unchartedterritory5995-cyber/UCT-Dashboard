@@ -148,6 +148,9 @@ import {
 import { objectCarry, carriableObjectProgram, carryProgramMeta } from './objectProgramCarry'
 import { isTruthType } from '../engine/outputType'
 import { STATUS as GATE_STATUS } from '../engine/evaluability'
+import {
+  NEW_LINE_FLAG, rowIsNewLine, withLocalLineIdentities, servedLineIdentities, withoutNewLineMarkers,
+} from '../engine/lineIdentity'
 import styles from './BuilderSheet.module.css'
 
 /** The badge vocabulary, cased for display. ⛔ The definition's vocabulary is
@@ -320,6 +323,9 @@ export function isUntouchedRow(row) {
     // mode, an opacity, a fill, a marker) is not the untouched default either;
     // the schema-1 document would silently drop it.
     && !rowCarriesPresentation(row)
+    // ⭐ LINE IDENTITY — a row added (or re-keyed) in this edit is a NEW line, which
+    // only the v2 body can say (`newLine`); the schema-1 body would continue the old one.
+    && !rowIsNewLine(row)
 }
 
 /**
@@ -675,6 +681,13 @@ export function buildDefinition({ defId, name, source, ast, mode, rev = 1, versi
       // conversational row model does, so a dashed plot is representable there.
       // Last, where `preservePresentation` has always appended it.
       ...(PLOT_LINE_STYLES.includes(r.lineStyle) ? { lineStyle: r.lineStyle } : {}),
+      // ⭐⭐ LINE IDENTITY (owner decision 2026-11-02) — a row ADDED in this edit (or
+      // re-keyed) tells the store it is a NEW line, so a key removed and typed again
+      // before one save does not inherit the removed line's references or alerts
+      // (`api/services/user_definitions.py::decide_line_ids`). The store never keeps
+      // the marker. A row restored from the saved document never carries it, so
+      // every existing document's bytes are unchanged.
+      ...(rowIsNewLine(r) ? { [NEW_LINE_FLAG]: true } : {}),
     }
   })
   const guides = Array.isArray(levels) && levels.length
@@ -1197,7 +1210,8 @@ export default function BuilderSheet({
     setPlotRows((prev) => prev.map((r, j) => (j === i - 1 ? { ...r, ...patch } : r)))
   }, [])
   const addPlot = useCallback(() => {
-    setPlotRows((prev) => [...prev, newPlotRow('')])
+    // ⭐ LINE IDENTITY — a row added here is a NEW line whatever key it is given.
+    setPlotRows((prev) => [...prev, { ...newPlotRow(''), [NEW_LINE_FLAG]: true }])
   }, [])
   const removePlot = useCallback((i) => {
     setPlotRows((prev) => prev.filter((_, j) => j !== i - 1))
@@ -1526,6 +1540,9 @@ export default function BuilderSheet({
       const derived = i === 0 ? DEFAULT_PLOT1_LABEL(metaShort) : p.key
       return {
         key: p.key,
+        // ⭐ LINE IDENTITY — the key this row was SAVED under; a row whose key the
+        // member changes is a new line (`lineIdentity.rowIsNewLine`).
+        savedKey: p.key,
         label: (typeof p.label === 'string' && p.label !== derived) ? p.label : '',
         style: typeof p.style === 'string' ? p.style : 'line',
         color: (colorSpec && typeof colorSpec.default === 'string' && colorSpec.default)
@@ -2079,7 +2096,10 @@ export default function BuilderSheet({
     // ⭐ SAVED-SCRIPT AUTO-UPGRADE — this save sends no script, so `saveUserDefinition`
     // strips any engine stamp the edit carried (`carryProgramMeta`): a hand edit never
     // claims to be the translator's output, and is never re-translated away.
-    let doc = withPineDoorStamp(withApplyProvenance(documentFor(rows, docArgs), applyProvenanceRef.current), pineDoorStampRef.current)
+    // ⭐ LINE IDENTITY — the `newLine` marks ride an EDIT's body only (a create has no
+    // previous version: every line is new to the store anyway).
+    const lineMarks = (d) => (editing ? d : withoutNewLineMarkers(d))
+    let doc = lineMarks(withPineDoorStamp(withApplyProvenance(documentFor(rows, docArgs), applyProvenanceRef.current), pineDoorStampRef.current))
     // ⭐⭐ P2X (owner decision 3) — A SAVE NEVER SILENTLY DESTROYS THE STORED
     // OBJECT PROGRAM. Kept → it rides byte-identically. Lossy → NOTHING is sent
     // until the member confirms a save that names what it removes; Cancel leaves
@@ -2092,7 +2112,7 @@ export default function BuilderSheet({
         setSaving(false)
         return
       }
-      doc = withPineDoorStamp(withApplyProvenance(documentFor(rows, { ...docArgs, dropObjects: true }), applyProvenanceRef.current), pineDoorStampRef.current)
+      doc = lineMarks(withPineDoorStamp(withApplyProvenance(documentFor(rows, { ...docArgs, dropObjects: true }), applyProvenanceRef.current), pineDoorStampRef.current))
     }
     setObjectLoss(null)
     const valueKey = intent === INTENTS.VALUE && intentRead ? intentRead.selectedKey : null
@@ -2151,6 +2171,15 @@ export default function BuilderSheet({
     applyProvenanceRef.current = null; pineDoorStampRef.current = null
     const row = res.row || { def_id: doc.id, version: doc.version, rev: 1 }
     setSavedRow(row)
+    // ⭐ LINE IDENTITY — every row is now SAVED under its key: no row is a new line
+    // for the next save (resending the marker would mint a new identity again).
+    const settleRow = (r) => {
+      if (!r) return r
+      const { [NEW_LINE_FLAG]: _n, ...rest } = r
+      return { ...rest, savedKey: r.key }
+    }
+    setPlot0(settleRow)
+    setPlotRows((prev) => prev.map(settleRow))
 
     // ── the definition the STORE holds, not the draft ────────────────────────
     //
@@ -2164,7 +2193,10 @@ export default function BuilderSheet({
     // the blob's copy was left to lag it.
     // ⭐ P0G — WITH THE STORE'S SEMANTICS, never the draft's guess: the server
     // decides (`decide_semantics`) and says so in `row.semantics`.
-    const storedDoc = withStoredSemantics({
+    // ⭐ LINE IDENTITY — this tab's copy carries each line's identity as the store
+    // decided it, or is marked pending where only the store knows it yet
+    // (`lineIdentity.withLocalLineIdentities`); the list read replaces it.
+    const storedDoc = withStoredSemantics(withLocalLineIdentities({
       ...doc,
       id: row.def_id || doc.id,
       ...(Number.isInteger(row.version) ? { version: row.version } : {}),
@@ -2172,7 +2204,8 @@ export default function BuilderSheet({
         ...doc.compute,
         ...(Number.isInteger(row.rev) ? { rev: row.rev } : {}),
       },
-    }, row)
+    }, engineRegistry.getDefinition(row.def_id || doc.id) || (editing ? editing.prior : null) || null,
+    servedLineIdentities(row)), row)
     if (editing && row.def_id) {
       setEditing({ defId: row.def_id, version: Number(row.version) || editing.version + 1, prior: storedDoc })
     }
@@ -2300,7 +2333,8 @@ export default function BuilderSheet({
     if (!res.ok) return res
     importTelemetryRef.current = null
     const row = res.row || {}
-    const storedDoc = {
+    // ⭐ LINE IDENTITY — as `save` (a create has no prior: every line pending).
+    const storedDoc = withLocalLineIdentities({
       ...doc,
       id: row.def_id || doc.id,
       ...(Number.isInteger(row.version) ? { version: row.version } : {}),
@@ -2308,7 +2342,7 @@ export default function BuilderSheet({
         ...doc.compute,
         ...(Number.isInteger(row.rev) ? { rev: row.rev } : {}),
       },
-    }
+    }, target ? (engineRegistry.getDefinition(target.defId) || target.prior || null) : null, servedLineIdentities(row))
     const { installed, errors: installErrors } = engineRegistry.installUserDefinitions([storedDoc])
     if (installErrors.length || installed.length !== 1) {
       return {

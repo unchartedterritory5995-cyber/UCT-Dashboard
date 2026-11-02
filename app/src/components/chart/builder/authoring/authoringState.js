@@ -17,6 +17,7 @@ import { defaultIntentFor } from '../authoringIntent'
 import { validateUserDefinitions } from '../../engine/nativeRegistry'
 import { readback } from './readback'
 import { stableJson } from './model'
+import { withoutNewLineMarkers } from '../../engine/lineIdentity'
 
 export const STATE_CONTRACT = 'uct.authoring.state/1'
 export const HISTORY_MAX = 50
@@ -59,7 +60,11 @@ export function openAuthoringState(def, { defId = null, version = null, lineage 
     ...newAuthoringState({ lineage }),
     defId: defId || (def && def.id) || null,
     baseVersion: Number.isInteger(version) ? version : (def && Number.isInteger(def.version) ? def.version : null),
-    working: def || null,
+    // ⭐ LINE IDENTITY — the working copy never starts with a `newLine` marker (a
+    // just-saved copy marks lines the store has not answered for yet): resending it
+    // would mint a new identity for a line that is already saved. `base` keeps the
+    // marks — it is the copy the next save's local identities are judged against.
+    working: withoutNewLineMarkers(def) || null,
     base: def || null,
     intent: intent && intent !== 'plot' ? { intent, output: null } : null,
     source: { kind: 'opened', replacedForeign: {} },
@@ -85,6 +90,9 @@ export function applyTurn(state, patch, ctx = {}) {
   const result = applyPatch(state.working, patch, {
     revision: state.revision, intent: state.intent, requests: state.requests,
     gateCtx: ctx.gateCtx, defId: ctx.defId, memberWords: ctx.memberWords,
+    // ⭐ LINE IDENTITY — an output added while editing a STORED definition is marked
+    // a new line (`applyPatch` add_output); a create has no stored lines to inherit.
+    editingStored: !!state.defId && Number.isInteger(state.baseVersion),
   })
   if (result.status === 'refused') return { state, result, readback: readback(state.working, state, ctx.gateCtx) }
   if (result.status === 'question') {
@@ -151,7 +159,10 @@ function savable(def) {
  */
 export function isDirty(state) {
   if (!state || !state.working) return false
-  return stableJson(savable(state.working)) !== stableJson(savable(state.base))
+  // ⭐ LINE IDENTITY — the base's pending-line marks (`lineIdentity`) are this tab's
+  // knowledge about the store, not a change the member made; a `newLine` on the
+  // WORKING copy is one (a line removed and added again is a different line).
+  return stableJson(savable(state.working)) !== stableJson(savable(withoutNewLineMarkers(state.base)))
 }
 
 /**
@@ -165,8 +176,11 @@ export function isDirty(state) {
 export function prepareSave(state, { draftId = null } = {}) {
   if (!state.working) return { doc: null, defId: null, errors: ['There is nothing to save yet.'], needsAck: [], ack: [], requests: state.requests }
   const editing = !!state.defId && Number.isInteger(state.baseVersion)
+  // ⭐ LINE IDENTITY — the `newLine` marks ride an EDIT's body to the store
+  // (`decide_line_ids`); a CREATE has no previous version, so every line is new
+  // anyway and the marks would only be noise in the body.
   const doc = {
-    ...state.working,
+    ...(editing ? state.working : withoutNewLineMarkers(state.working)),
     id: editing ? state.defId : (draftId || state.working.id),
     version: editing ? state.baseVersion + 1 : 1,
   }

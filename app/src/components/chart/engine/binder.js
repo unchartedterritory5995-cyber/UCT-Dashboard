@@ -86,7 +86,7 @@ import { setRuntimeErrorNotice } from './runtimeErrorNotice'
 import { chartThemeOf } from './objectTheme'
 
 import {
-  sourceInputsOf, parseSource, barFieldSeries, orderByDependency,
+  sourceInputsOf, parseSource, barFieldSeries, orderByDependency, sourceLineIntact,
 } from './sourceRef'
 import { projectionFor, clippedBarsFor } from './symbolProjection'
 import { fundamentalColumnWithAuthority } from './marketCapAuthority'
@@ -1587,6 +1587,11 @@ export function createBinder({ chart, LWC, scope = '' }) {
     // binding can tell the legend which observation PERIOD each bar shows.
     const econObs = new Map()
     const dependedOn = new Set()
+    // ⭐ LINE IDENTITY — the instance a source names, to ask whether the line it
+    // recorded is still the line under that key (`sourceRef.sourceLineIntact`).
+    const instanceById = new Map()
+    for (const inst of instances) if (inst && typeof inst.instanceId === 'string') instanceById.set(inst.instanceId, inst)
+    const defOfReg = (id) => registry.getDefinition(id)
     for (const inst of instances) {
       if (!inst || inst.hidden === true) continue
       const idef = registry.getDefinition(inst.defId)
@@ -1659,6 +1664,12 @@ export function createBinder({ chart, LWC, scope = '' }) {
           series = (frame
             ? frameColumns.get(bindingKey(parsed.instanceId, parsed.plotKey))
             : columns.get(bindingKey(parsed.instanceId, parsed.plotKey))) || null
+          // ⛔⛔ LINE IDENTITY (owner decision 2026-11-02): the key still exists, but a
+          // DIFFERENT line now holds it (removed, then re-added). Exactly a missing
+          // column — never the new line's numbers, which nobody chose.
+          if (series && !sourceLineIntact(inst, key, parsed, instanceById.get(parsed.instanceId), defOfReg)) {
+            series = null
+          }
         } else if (parsed && parsed.kind === 'symbol' && frame) {
           // ⭐ ANOTHER SYMBOL AT THIS FRAME — the same exact-t rule, on the frame's
           // own bars (both sides are that frame's canonical bars).

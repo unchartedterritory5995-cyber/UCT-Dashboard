@@ -22,6 +22,7 @@
 import { forkUserDefinition, saveUserDefinition } from '../../../hooks/useUserDefinitions'
 import { addInstance } from '../engine/instanceControls'
 import { withStoredSemantics } from '../engine/definitionSemantics'
+import { withLocalLineIdentities, servedLineIdentities } from '../engine/lineIdentity'
 import { addedInstanceId } from './infoValueDoor'
 import { customizability } from './builtinForks'
 
@@ -75,12 +76,14 @@ export async function createCustomCopy({ def, inputs = {}, settings = null, regi
     const res = await save(doc, null)
     if (!res.ok) return { ok: false, error: res.error }
     const row = res.row || {}
-    stored = withStoredSemantics({
+    // ⭐ LINE IDENTITY — a create: every line's identity is the store's to mint, so this
+    // tab's copy marks them pending until the list read installs the store's copy.
+    stored = withStoredSemantics(withLocalLineIdentities({
       ...doc,
       id: row.def_id || doc.id,
       ...(Number.isInteger(row.version) ? { version: row.version } : {}),
       compute: { ...doc.compute, ...(Number.isInteger(row.rev) ? { rev: row.rev } : {}) },
-    }, row)
+    }, null, servedLineIdentities(row)), row)
   }
   const { installed } = registry.installUserDefinitions([stored])
   if (installed.length !== 1) return { ok: false, error: 'The copy was saved but could not be drawn.' }
