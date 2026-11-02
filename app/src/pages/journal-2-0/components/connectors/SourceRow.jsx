@@ -132,6 +132,9 @@ export default function SourceRow({
   const [logOpen, setLogOpen] = useState(false)
   const [logState, setLogState] = useState({ phase: 'idle', rows: [], error: null })
   const logRequested = useRef(false)
+  const logOpenRef = useRef(false)
+  const logSeq = useRef(0)
+  const lastSeenSyncAt = useRef(source.lastSyncAt)
   const [pauseBusy, setPauseBusy] = useState(false)
   const [armed, setArmed] = useState(false)
   const armTimer = useRef(null)
@@ -152,6 +155,7 @@ export default function SourceRow({
     try {
       const result = await onSync(source)
       setNotice(removalNotice(result && result.removalCheck, providerLabel))
+      refreshLog()
     } catch (err) {
       setNotice(errorNotice(err))
     } finally {
@@ -160,11 +164,14 @@ export default function SourceRow({
   }
 
   const loadLog = async () => {
+    const seq = ++logSeq.current
     setLogState({ phase: 'loading', rows: [], error: null })
     try {
       const rows = await onLoadLog(source)
+      if (seq !== logSeq.current) return
       setLogState({ phase: 'ready', rows: Array.isArray(rows) ? rows : [], error: null })
     } catch (err) {
+      if (seq !== logSeq.current) return
       setLogState({
         phase: 'error',
         rows: [],
@@ -173,8 +180,27 @@ export default function SourceRow({
     }
   }
 
+  // A finished run makes the loaded rows stale: drop them, and reload now if
+  // the list is open (otherwise the next expand loads fresh).
+  const refreshLog = () => {
+    if (!onLoadLog) return
+    logRequested.current = false
+    if (logOpenRef.current) {
+      logRequested.current = true
+      loadLog()
+    }
+  }
+
+  useEffect(() => {
+    if (lastSeenSyncAt.current === source.lastSyncAt) return
+    lastSeenSyncAt.current = source.lastSyncAt
+    refreshLog()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [source.lastSyncAt])
+
   const toggleLog = () => {
     const next = !logOpen
+    logOpenRef.current = next
     setLogOpen(next)
     if (next && !logRequested.current) {
       logRequested.current = true
@@ -184,7 +210,7 @@ export default function SourceRow({
 
   const pending = source.pendingRemoval || 0
   const failedCount = source.lastFailureCount || 0
-  const showLog = !!onLoadLog && !!source.lastSyncAt
+  const showLog = !!onLoadLog && (!!source.lastSyncAt || failedCount > 0)
 
   const handleTogglePause = async () => {
     if (pauseBusy) return

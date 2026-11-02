@@ -356,3 +356,52 @@ describe('SourceRow — Recent syncs', () => {
     expect(onLoadLog).toHaveBeenCalledTimes(2)
   })
 })
+
+describe('SourceRow — Recent syncs after a run (fix round 1)', () => {
+  const OLD = { id: 1, at: '2026-11-01T12:00:00Z', status: 'ok', created: 1, updated: 0, skipped: 0, conflicts: 0, sourceDeleted: 0, failures: [], failuresUnreadable: false }
+  const NEW = { ...OLD, id: 2, created: 9, skipped: 3 }
+
+  it('with the log open, a completed sync reloads it and shows the new row', async () => {
+    const onLoadLog = vi.fn().mockResolvedValueOnce([OLD]).mockResolvedValueOnce([NEW, OLD])
+    const onSync = vi.fn().mockResolvedValue({ status: 'ok', removalCheck: null })
+    renderWith(makeSource(), { onLoadLog, onSync })
+    fireEvent.click(screen.getByRole('button', { name: /^recent syncs/i }))
+    await screen.findByText(/1 new, 0 updated, 0 unchanged/)
+    fireEvent.click(screen.getByRole('button', { name: /sync now/i }))
+    expect(await screen.findByText(/9 new, 0 updated, 3 unchanged/)).toBeInTheDocument()
+    expect(onLoadLog).toHaveBeenCalledTimes(2)
+  })
+
+  it('a sync while closed makes the next expand load fresh rows', async () => {
+    const onLoadLog = vi.fn().mockResolvedValueOnce([OLD]).mockResolvedValueOnce([NEW])
+    const onSync = vi.fn().mockResolvedValue({ status: 'ok', removalCheck: null })
+    renderWith(makeSource(), { onLoadLog, onSync })
+    const btn = screen.getByRole('button', { name: /^recent syncs/i })
+    fireEvent.click(btn)
+    await screen.findByText(/1 new/)
+    fireEvent.click(btn)
+    fireEvent.click(screen.getByRole('button', { name: /sync now/i }))
+    await waitFor(() => expect(screen.getByRole('button', { name: /sync now/i })).not.toBeDisabled())
+    expect(onLoadLog).toHaveBeenCalledTimes(1)
+    fireEvent.click(btn)
+    expect(await screen.findByText(/9 new/)).toBeInTheDocument()
+  })
+
+  it('a changed lastSyncAt (background run) reloads an open log', async () => {
+    const onLoadLog = vi.fn().mockResolvedValueOnce([OLD]).mockResolvedValueOnce([NEW])
+    const { rerender } = renderWith(makeSource(), { onLoadLog })
+    fireEvent.click(screen.getByRole('button', { name: /^recent syncs/i }))
+    await screen.findByText(/1 new/)
+    rerender(
+      <SourceRow source={makeSource({ lastSyncAt: '2026-09-02T12:05:00Z' })} providerLabel="Notion" onLoadLog={onLoadLog} onSync={noop} onTogglePause={noop} onDisconnect={noop} />,
+    )
+    expect(await screen.findByText(/9 new/)).toBeInTheDocument()
+  })
+
+  it('a source whose every sync failed can still open its failure details', async () => {
+    const onLoadLog = vi.fn().mockResolvedValue([{ ...OLD, failures: [{ noteTitle: 'T', name: '', reason: 'nope' }] }])
+    renderWith(makeSource({ lastSyncAt: null, lastFailureCount: 1 }), { onLoadLog })
+    fireEvent.click(screen.getByRole('button', { name: /Recent syncs · 1 item didn't come over/ }))
+    expect(await screen.findByText('T: nope')).toBeInTheDocument()
+  })
+})
