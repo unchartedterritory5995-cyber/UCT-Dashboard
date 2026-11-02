@@ -14,13 +14,13 @@ Last updated: 2026-11-02 (round 1 in progress on the desktop). Update this file 
 
 | stream | branch | state at hand-off (2026-11-02 ~11:30 CT) |
 |---|---|---|
-| W0 measure | `docs/pine-coverage-2026-11-02` | censuses + harness running; WIP push requested (check `git log`) |
-| W1 names | `feat/pine-w1-names` | 13 files changed locally; WIP push requested (check `git log`) |
+| W0 measure | `docs/pine-coverage-2026-11-02` | DONE `89c7e8a7d5`: COVERAGE-MAP-2026-11-02.md + coverage-targets-2026-11-02.json (per-wall/per-wave script lists). Prod 211/679, runtime-on 250/679; harness rt 111/107/118. Not run: pre-commit pytest + hygiene, optional engine-door probe. Raw outputs only on desktop (`_w0-2026-11-02`); regenerate via doc s10 |
+| W1 names | `feat/pine-w1-names` | WIP `b886fde2ca`: ta.obv/pvt/wad, ta.iii/wvad, ta.cmo/ta.cog, v1-v4 barssince; rails pineW1Builtins.test.js; capture queue capture-queue-2026-11-02-w1.md. Next: re-run 27 targeted files (2 rail fixes), 14-mutation job, pytest gates + hygiene; then `second`, host timestamp() of constants, timeout cycles. ta.cmf is NOT a v6 name (correctly refused) |
 | W2 arming packet | `feat/pine-w2-arming` | WIP `880b4758fd`: audit S1/S4/S6/S7/S8 met (S8 router mounted api/main.py:10366); runtime-on harness 111/107/118 vs prod 93/103/140, 0 MATCH regressions; new rail runtimeAllowlistParity.test.js not yet run; next: RF readiness census, vite build B4, worker probe B2/B5, write ARMING-PACKET (commands in commit msg) |
-| W3 drawings | `feat/pine-w3-drawings` | WIP push requested (check `git log`) |
+| W3 drawings | `feat/pine-w3-drawings` | WIP `590c310020`: measure harness zzW3Why.measure.test.js committed, not yet run over the 195 drawing-walled scripts; no engine change yet. Next slice S1: cell:text on captured scripts (artemis-oscillator-pro, ema-ribbon, position-size-calc, vdubus) graded vs harness tableCells |
 | Editor status panel | `feat/pine-editor-status` | WIP `2d978b028d` (spec `bee9bcabb2`): panel built dark (VITE_PINE_EDITOR_STATUS + Dockerfile/ledger); 4 new test files NOT yet run; next: run + fix, flag-off byte-identical rail (pineBoxImportVerdict.test.jsx), mutations M1-M4, ledger pytest + hygiene |
 | W5 server runtime | `docs/pine-w5-server-runtime` | design COMPLETE `b346688652` (SERVER-RUNTIME-DESIGN.md s0-10; 20 tasks T1-T20, first wave T1/T3/T5/T6/T12, critical path 3-4 weeks); not yet run: bare-Node closure check + pre-commit pytest/hygiene |
-| E evidence engine | `feat/pine-evidence-engine` | design `aac71b6f81`; offline build in progress; WIP push requested (check `git log`) |
+| E evidence engine | `feat/pine-evidence-engine` | WIP `d9a255d73e`: evidence_engine.py (queue aggregator, manifest, fixture gate, packet, promote, ledger) + batch_capture.py provenance/throttle; tests/test_evidence_engine.py 17 rails (15/17 last run, fixes applied, re-run pending); next: 8 mutations, gate tests + hygiene. Pre-existing red: test_vendor_batch_capture manifest test |
 | W4, W6-W9 | not started (see WAVE-TASKS.md) | - |
 
 Detailed task list for every stream: `WAVE-TASKS.md` (this folder).
