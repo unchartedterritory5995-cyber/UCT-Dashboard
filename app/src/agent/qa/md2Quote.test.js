@@ -176,18 +176,12 @@ describe('MD-2 (4): the fast path (MD-1-phrasings.md, row by row)', () => {
     flags.data = true; flags.kinds = ['quote', 'quotes']
     const spy = vi.fn(); globalThis.fetch = spy
     const quoteRows = ALL.filter(r => r.handling === 'fast' && /^quote\./.test(r.action))
-    expect(quoteRows.length, 'non-vacuity').toBeGreaterThanOrEqual(15)
+    expect(quoteRows.length, 'non-vacuity').toBe(16)
     for (const r of quoteRows) expect(match(r.text), `${r.id} ${r.text}`).toEqual({ action: CAPABILITY, params: { symbols: r.symbols } })
     for (const r of ALL.filter(r => r.handling !== 'fast')) expect(match(r.text), `${r.id} ${r.text}`).toBeNull()
     for (const r of ALL.filter(r => /^bars\./.test(r.action || ''))) expect(match(r.text), `${r.id}: a bars row is not stock.quote's`).toBeNull()
     expect(spy).not.toHaveBeenCalled()
     expect(reads).toHaveLength(0)
   })
-  it('NOT WIRED YET (strict pin): nothing calls match() or registers stock.quote, so zero model turns cannot happen in the panel', () => {
-    // agent-lead wires match() into fastPath.js behind the data flag. Until then every fast row costs a planner turn.
-    // Fails when it is wired: then measure the 15 fast quote rows through panelHarness (0 turns each).
-    const src = (f) => fs.readFileSync(path.join(REPO, 'app/src/agent', f), 'utf8')
-    expect(src('fastPath.js')).not.toMatch(/marketDataQuote/)
-    expect(src('builtins.js')).not.toMatch(/registerMarketDataCapabilities/)
-  })
+  // the panel measurement (0 model turns per fast row, once wired by #632/#633) is md2Panel.test.jsx
 })

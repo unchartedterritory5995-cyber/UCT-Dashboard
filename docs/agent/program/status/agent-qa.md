@@ -257,9 +257,9 @@ tests in two ways:
 | As-of reference | PASS: from `fetched_at`; a browser clock moved to 2031 changes nothing |
 | Session from the data, not the words | PASS: P01 "…premarket?" during the regular session answers "regular session", with one `quote` read for purpose `answer` and the open turn id |
 | Flags off (4 states: data off; no `data_kinds` accessor; quote not activated; `quotes` missing) | PASS: not served, registers nothing, `match()` is null for all 30. `answerQuote` equals `answerProfile` byte for byte with the same request sequence, and makes no gateway read |
-| Fast path, 30 phrasings parsed from MD-1-phrasings.md | PASS: all 15 fast quote rows match exactly (P01–P17); every model/clarify row is null; bars rows are not stock.quote's; `match()` does no I/O |
-| Zero model turns in the panel | **NOT WIRED** (strict pin): nothing calls `match()` or registers stock.quote yet (agent-lead's fastPath hook). When it lands, measure the 15 rows through panelHarness |
-| Mutation proofs | 5 of 5 red: stale claiming live; overnight claiming live; notes leaking on ok reads; the session taken from the words; flags-off ignoring `data_kinds` |
+| Fast path, 30 phrasings parsed from MD-1-phrasings.md | PASS: all 16 fast quote rows match exactly (P01–P10, P12, P13, P15–P17, P25); every model/clarify row is null; bars rows are not stock.quote's; `match()` does no I/O |
+| Zero model turns in the REAL panel (`md2Panel.test.jsx`, on agent/int `40185db069` with #632/#633 wired) | **PASS**: every fast quote row makes **0 model turns** and exactly 1 gateway read of the right kind (`quote`, or `quotes` for many) with the right symbols, purpose `answer` and the turn id. All 14 model/clarify/bars rows make no fast-path read. Every dark config shape (data off · no `data_kinds` · quote not activated · `quotes` missing) makes no read, sends the sentence to the model as today, and leaves stock.quote out of the manifest. Mutation-proved: a fast handler that never claims → 16 red; flags ignored → 3 red (the 4th, data off, is also held by the data client's own refusal) |
+| Mutation proofs (capability) | 5 of 5 red: stale claiming live; overnight claiming live; notes leaking on ok reads; the session taken from the words; flags-off ignoring `data_kinds` |
 
 ## Sprint 2 task 3: COST BASELINE (model calls per corpus phrasing, today)
 A measurement, pinned exactly so any reduction or regression is a reviewed diff. File:
