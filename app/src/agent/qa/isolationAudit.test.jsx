@@ -110,3 +110,48 @@ describe('agent-qa isolation audit: COMPOSITION through the (non-isolated) scree
     expect(JSON.stringify(turnBodies[1].context.screener[0].lastScreen.filters)).toMatch(/UCT Composite/)
   }, 30000)
 })
+
+// ── F-12: stock.compare's UCT composite, its OWN row (owner: DISPLAY-ONLY iff server-enforced isolation holds) ──
+describe('agent-qa isolation audit: F-12 stock.compare composite', () => {
+  async function compareThenAsk() {
+    const realFetch = globalThis.fetch
+    globalThis.fetch = vi.fn(async (url, init) => (String(url).startsWith('/api/research/compare/')
+      ? new Response(JSON.stringify({ a: { fundamentals: {}, ratings: { composite: Number(VALUES[0]) } },
+        b: { fundamentals: {}, ratings: { composite: Number(VALUES[1]) } } }), { status: 200, headers: { 'content-type': 'application/json' } })
+      : realFetch(url, init)))
+    const board = makeBoard([{ id: 'c1', type: 'chart', x: 0, y: 0, w: 12, h: 20 }], { A: 'AAPL' })
+    render(<AgentPanel host={board.host} onClose={() => {}} />)
+    const box = screen.getByLabelText('Message UCT Agent')
+    const say = async (t) => { await waitFor(() => expect(box.disabled).toBe(false), { timeout: 6000 }); fireEvent.change(box, { target: { value: t } }); fireEvent.keyDown(box, { key: 'Enter' }) }
+    envelopes.push((b) => plan([{ action: 'stock.compare', target: b.context.stockData?.[0]?.ref, args: { symbols: ['NVDA', 'AMD'] } }]))
+    await say('roughly how would you weigh the fundamentals of nvda against amd, in your view?')
+    await waitFor(() => expect(records.some(r => r.outcomeData?.kind === 'answered')).toBe(true), { timeout: 6000 })
+    envelopes.push(answer)
+    await say('and which one has the better margin?')
+    await waitFor(() => expect(turnBodies).toHaveLength(2), { timeout: 6000 })
+    return records.find(r => r.outcomeData?.kind === 'answered')
+  }
+
+  it('display: the member sees it (stored views) — CONTROL that the detector can see the value', async () => {
+    const row = await compareThenAsk()
+    expect(leaks(row.outcomeData.views).length).toBeGreaterThan(0)
+    expect(row.outcomeData.local, 'NOT local: the server replays this row\'s TEXT').toBeUndefined()
+  }, 30000)
+
+  it('tool result / history / summaries / memory / traces / telemetry: no value in any of them TODAY', async () => {
+    const row = await compareThenAsk()
+    expect(leaks(row.outcome), 'outcome text = what the server replays (tool result + history)').toEqual([])
+    turnBodies.forEach((b, i) => expect(leaks(b), `turn body ${i + 1} (context, memory, pending)`).toEqual([]))
+    expect(leaks(turnBodies[1].context?.conversation_memory), 'memory').toEqual([])
+    records.forEach(r => expect(leaks(r.telemetry), 'telemetry').toEqual([]))
+    expect(leaks(globalThis.window.__uctAgentTurns()), 'trace turns').toEqual([])
+    expect(leaks(globalThis.window.__uctAgentTrace()), 'apply traces').toEqual([])
+  }, 30000)
+
+  it('NOT SERVER-ENFORCED (strict pin): the composite comes from /api/research/compare, outside the gateway and its isolation', () => {
+    const src = fs.readFileSync(path.join(REPO, 'app/src/agent/capabilities/stock.js'), 'utf8')
+    expect(src).toMatch(/\/api\/research\/compare\//)
+    expect(src).not.toMatch(/marketdata\/client/)             // never `readData('ratings', …)`: no L1/L2/L4 marker applies
+    expect(src).toMatch(/ratings\?\.composite/)               // and the value is read straight off the research payload
+  })
+})

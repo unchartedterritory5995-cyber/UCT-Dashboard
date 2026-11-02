@@ -244,13 +244,14 @@ gateway's exception log, the local-plan reply drop, and the `recent_outcome` gua
 | 4 | Adapter raising with a value in its message | L1 | PROVEN | `test_L1_an_adapter_that_RAISES_...` (mutation-proved) | - |
 | 5 | Adapter returning a contract-breaking envelope full of values | L1 | PROVEN (replaced; the logged MD-1 errors echo no values) | `test_L1_a_contract_BREAKING_...` | - |
 | 6 | Validator text passed into envelope notes | L1 | PROVEN for the two real validators (fixed words) | `test_L1_the_REAL_validators_...` | - |
-| 7 | Per-kind allowlist `UCT_AGENT_DATA_KINDS=quote` | L1 | NOT BUILT: strict xfail; today a non-listed kind IS admitted | `test_L1_ALLOWLIST_...` | agent-lead (building) |
+| 7 | Per-kind allowlist `UCT_AGENT_DATA_KINDS=quote`: every other kind, for every purpose, even with ISOLATED on | L1 | OPEN on master; **PROVEN with #621** (refused, nothing run, no budget). The test follows the code and asserts both states strictly | `test_L1_ALLOWLIST_with_DATA_on_...` | agent-lead (#621) |
+| 7a | Allowlist fails closed (DATA on, KINDS unset → every kind refused) and never widens ISOLATED or SCAN (every kind listed, both off → isolated and scan kinds still refused) | L1 | **PROVEN with #621** (skipped before it, as there is nothing to test) | `test_L1_ALLOWLIST_fails_closed_...` | — |
 | 8 | Envelope marker `isolated: true` | L2 | NOT BUILT (no caller yet) | `test_L6_NOT_BUILT_...` (asserts the marker is absent) | agent-lead |
 | 9 | Caller allowlist (who may `readData` an isolated kind) | L3 | PROVEN (static AST rail) | `app/src/agent/qa/modelIsolation.test.jsx` (1) | - |
 | 10 | History: a local-only outcome row | L4 | PROVEN | `tests/test_uct_agent_qa_isolation.py::test_a_stored_local_answer_...` | - |
 | 11 | History: an unreadable outcome row | L4 | PROVEN (fail closed) | `tests/test_uct_agent_qa_isolation.py::test_an_unreadable_outcome_row_FAILS_CLOSED` | - |
 | 12 | History: the planning reply of a local plan, even stored unblanked | L4 | PROVEN | `test_L4_PROVEN_...` (mutation-proved) | - |
-| 13 | History: an answered row with no `actions` (F-11) | L4 | **OPEN** (latent: no browser call site omits `actions`) | `test_L4_F11_...` · `tests/test_uct_agent_qa_isolation.py::test_F11_...` | agent-lead |
+| 13 | History: an outcome row with no `actions` (F-11) | L4 | OPEN on master; **PROVEN with #622** (fails closed for `answered`, garbled, empty and None kinds). Residual by design: the 25 `ACTIONLESS_OUTCOME_KINDS` browser notes still replay, which is safe while their text is UCT's fixed words (railed by agent-lead against useAgent.js) | `test_L4_F11_an_answered_row_without_actions` (with a CONTROL) | agent-lead (#622) |
 | 14 | History: any NON-local outcome row's text is replayed verbatim | L4 | **OPEN by design**: the server keys on the action name or the `local` flag, never on content; safe only while every non-local capability's TEXT is value-free | `test_L4_OPEN_PIN_...` | agent-lead (structural) |
 | 15 | Conversation naming reads an unblanked local-plan reply (`history_messages` drops it; `name_conversation` has no guard) | L4 | **OPEN, latent** (F-18) | `test_L4_OPEN_LATENT_the_NAMING_call_...` | agent-lead |
 | 16 | `recentOutcome` (free browser text) | L6 | **OPEN, latent** (F-17): reaches the model whenever history holds no local row yet; no browser sends it today | `test_L6_OPEN_LATENT_recent_outcome_...` · control `test_L6_PROVEN_...` (mutation-proved) | agent-lead |
@@ -265,6 +266,25 @@ gateway's exception log, the local-plan reply drop, and the `recent_outcome` gua
 | 25 | Telemetry: unknown keys dropped; 5 short free-text columns not value-checked | L7 | PROVEN for unknown keys; the free text relies on the browser (railed for the isolated reader in #20) | `test_L7_telemetry_...` | - |
 | 26 | Server logs on a turn carrying sentinels in context and history | L7 | PROVEN (none logged) | `test_L7_a_scripted_turn_...` | - |
 | 27 | Web research results | L6 | out of scope: web text, not UCT data (research is forced off in these tests) | - | - |
+
+
+**F-12, stock.compare's UCT composite: its OWN row.** Owner rule: DISPLAY-ONLY *iff* server-enforced isolation is
+demonstrably intact.
+
+| Cell | State | Proof |
+|---|---|---|
+| Display to the member (stored views) | shown (CONTROL: the detector sees it) | `isolationAudit.test.jsx::F-12 display …` |
+| Tool result: outcome text | clean today | `… F-12 … no value in any of them TODAY` · `modelIsolation.test.jsx::F-12` |
+| History replay | clean today, **browser-enforced only**: the row is NOT local, so the server replays its text verbatim (cell #14) | `test_L4_OPEN_PIN_…` (pins it with `stock.compare`) |
+| Summaries and titles | clean: `name_conversation` never reads outcome rows | `test_uct_agent_qa_isolation.py::test_the_chat_naming_call_never_reads_outcome_rows` |
+| Memory, context, pending | clean today (memory holds NVDA and AMD in the member's order) | `… F-12 … TODAY` |
+| Traces and telemetry | clean today | `… F-12 … TODAY` |
+| Server enforcement | **NONE**: the value comes from `/api/research/compare` (the Research page route), not the gateway; no isolated kind, marker or local flag applies | `… F-12 … NOT SERVER-ENFORCED` (strict pin) |
+| Compositions | **OPEN**: the same composite is a screener field, so its ranking and threshold counts reach the model (F-16) | `isolationAudit.test.jsx::OPEN …` |
+
+**Verdict: server-enforced isolation is NOT intact for F-12.** Two cells fail: server enforcement (none) and
+compositions (F-16). By the owner's rule, the rating should be omitted from stock.compare. That is agent-lead's
+removal; QA will flip these pins to proofs that it is gone.
 
 **Activation gate (recommendation to agent-lead and the owner).** `UCT_AGENT_ISOLATED` stays off until:
 - (a) L2, L5 and L6 exist, and cells #8, #17 and #19 are flipped to PROVEN;

@@ -77,6 +77,7 @@ def test_L1_a_validator_that_RAISES_with_a_value_never_puts_it_in_the_envelope_o
     """PROVEN BLOCKED: the gateway keeps only the exception TYPE (log) and a fixed refusal note."""
     monkeypatch.setenv(gw.DATA_ENV, "1")
     monkeypatch.setenv(gw.ISOLATED_ENV, "1")
+    monkeypatch.setenv(KINDS_ENV, name)                  # #621: a kind must be listed to be read at all
 
     def bad(params):
         raise ValueError(f"composite was {SENT_NUM} for {SENT_STR}")
@@ -92,6 +93,7 @@ def test_L1_a_validator_that_RAISES_with_a_value_never_puts_it_in_the_envelope_o
 def test_L1_an_adapter_that_RAISES_with_a_value_never_puts_it_in_the_envelope_or_the_log(monkeypatch, caplog, name):
     monkeypatch.setenv(gw.DATA_ENV, "1")
     monkeypatch.setenv(gw.ISOLATED_ENV, "1")
+    monkeypatch.setenv(KINDS_ENV, name)                  # #621: a kind must be listed to be read at all
 
     def boom(params, ctx):
         raise RuntimeError(f"upstream said {SENT_INT} / {SENT_STR}")
@@ -106,6 +108,7 @@ def test_L1_an_adapter_that_RAISES_with_a_value_never_puts_it_in_the_envelope_or
 def test_L1_a_contract_BREAKING_envelope_carrying_values_is_replaced_and_its_values_never_logged(monkeypatch, caplog, name):
     monkeypatch.setenv(gw.DATA_ENV, "1")
     monkeypatch.setenv(gw.ISOLATED_ENV, "1")
+    monkeypatch.setenv(KINDS_ENV, name)                  # #621: a kind must be listed to be read at all
 
     def broken(params, ctx):
         return {"kind": name, "status": SENT_STR, "freshness": SENT_NUM, "data": {"composite": float(SENT_NUM)}}
@@ -136,6 +139,7 @@ def test_L1_ORDER_isolation_is_decided_before_scan_symbol_validator_and_budget_c
     """Dormant: refused for every purpose with NOTHING run — not the validator, not the source, no budget."""
     monkeypatch.setenv(gw.DATA_ENV, "1")
     monkeypatch.setenv(gw.SCAN_ENV, "1")
+    monkeypatch.setenv(KINDS_ENV, ",".join(isolated_kinds()))   # listed: so the ISOLATION check is what refuses
     for name in isolated_kinds():
         ran = []
         gw._reset_for_test(None)                                  # the real registry, to read this kind's shape
@@ -146,28 +150,62 @@ def test_L1_ORDER_isolation_is_decided_before_scan_symbol_validator_and_budget_c
 
 
 # ── L1 + Sprint 2: the per-kind allowlist (agent-lead's UCT_AGENT_DATA_KINDS) ────────────────────────────────
-@pytest.mark.xfail(strict=True, reason="UCT_AGENT_DATA_KINDS is being built by agent-lead (Sprint 2). When it lands "
-                   "this XPASSes and fails: delete this marker and keep the test as the proof.")
+HAS_ALLOWLIST = getattr(gw, "KINDS_ENV", None) == KINDS_ENV
+
+
+def _all_spied():
+    """Every real kind, its source and validator replaced by spies that record they ran."""
+    real = gw.registry()
+    ran: list = []
+    r = gw.Registry()
+    for name in real.names():
+        k = real.get(name)
+        r.register(gw.Kind(name=name, fn=lambda p, c, _n=name: ran.append(("fn", _n)) or env.make_envelope(
+                               _n, p, status="ok", freshness=real.get(_n).freshness, as_of="2026-10-30T20:00:00Z",
+                               source="spy", data={"v": 1}),
+                           freshness=k.freshness, category=k.category, owner=k.owner, max_symbols=k.max_symbols,
+                           validate=lambda p, _n=name: ran.append(("v", _n)), model_isolated=k.model_isolated))
+    return r, ran, real.names()
+
+
 @pytest.mark.parametrize("purpose", PURPOSES)
 def test_L1_ALLOWLIST_with_DATA_on_and_KINDS_quote_every_other_kind_is_refused_server_side(monkeypatch, purpose):
+    """#621 (agent-lead). Before it: a non-listed kind IS admitted (the cell was OPEN). After: refused, nothing run."""
     monkeypatch.setenv(gw.DATA_ENV, "1")
     monkeypatch.setenv(gw.SCAN_ENV, "1")
     monkeypatch.setenv(gw.ISOLATED_ENV, "1")              # even ACTIVATED, a non-listed isolated kind is refused
     monkeypatch.setenv(KINDS_ENV, "quote")
-    real = gw.registry()
-    for name in real.names():
+    r, ran, names = _all_spied()
+    gw._reset_for_test(r)
+    admitted = []
+    for name in names:
         if name == "quote":
             continue
-        k = real.get(name)
-        ran = []
-        r = gw.Registry()
-        r.register(gw.Kind(name=name, fn=lambda p, c, _r=ran: _r.append("fn"), freshness=k.freshness,
-                           category=k.category, owner=k.owner, max_symbols=k.max_symbols,
-                           validate=lambda p, _r=ran: _r.append("v"), model_isolated=k.model_isolated))
-        gw._reset_for_test(r)
         out = gw.read(name, {}, user_id=1, turn_id=f"k-{name}", purpose=purpose)
-        assert out["status"] == "refused" and ran == [] and not gw._turns, (name, purpose, out.get("notes"))
-        gw._reset_for_test(None)
+        if out["status"] != "refused" or any(n == name for _, n in ran):
+            admitted.append(name)
+    if HAS_ALLOWLIST:
+        assert admitted == [] and not gw._turns, admitted                              # PROVEN
+    else:
+        assert admitted, "pre-#621: the cell is OPEN (a non-listed kind is admitted)"   # OPEN, pinned
+
+
+@pytest.mark.skipif(not HAS_ALLOWLIST, reason="pre-#621: there is no allowlist to fail closed")
+def test_L1_ALLOWLIST_fails_closed_when_unset_and_never_widens_ISOLATED_or_SCAN(monkeypatch):
+    monkeypatch.setenv(gw.DATA_ENV, "1")
+    r, ran, names = _all_spied()
+    gw._reset_for_test(r)
+    for name in names:                                                   # DATA on, KINDS unset: nothing is read
+        assert gw.read(name, {}, user_id=1, turn_id=f"u-{name}", purpose="answer")["status"] == "refused", name
+    monkeypatch.setenv(KINDS_ENV, ",".join(names))                       # every kind LISTED, ISOLATED and SCAN off
+    for name in names:
+        k = gw.registry().get(name)
+        if k.model_isolated or k.category == "scan":
+            out = gw.read(name, {}, user_id=1, turn_id=f"w-{name}", purpose="answer")
+            assert out["status"] == "refused", (name, out["notes"])
+    assert ran == [] or all(not (gw.registry().get(n).model_isolated or gw.registry().get(n).category == "scan")
+                            for _, n in ran), ran
+    assert {"breadth.current", "ratings"} <= set(names)                  # non-vacuity
 
 
 # ── L4 history door: what a stored row contributes to the NEXT model request ─────────────────────────────────
@@ -186,9 +224,22 @@ def test_L4_OPEN_PIN_a_NON_local_outcome_row_is_replayed_VERBATIM_so_the_boundar
     assert leaks(turn.history_messages(rows)) == [SENT_NUM]
 
 
-def test_L4_F11_still_open_an_answered_row_without_actions_is_replayed():
+HAS_F11_FIX = hasattr(turn, "ACTIONLESS_OUTCOME_KINDS")
+
+
+def test_L4_F11_an_answered_row_without_actions():
+    """#622 (agent-lead): before it, replayed (OPEN). After it, it fails closed, while the browser's own action-less
+    notes (ACTIONLESS_OUTCOME_KINDS) still replay."""
     rows = _conv({"kind": "answered"}, f"rating {SENT_NUM}")
-    assert leaks(turn.history_messages(rows)) == [SENT_NUM]
+    if not HAS_F11_FIX:
+        assert leaks(turn.history_messages(rows)) == [SENT_NUM]        # OPEN, pinned
+        return
+    assert not leaks(turn.history_messages(rows))                        # PROVEN: fail closed
+    for kind in ("answered", "garbled", None, ""):
+        assert not leaks(turn.history_messages(_conv({"kind": kind}, f"x {SENT_NUM}"))), kind
+    note = sorted(turn.ACTIONLESS_OUTCOME_KINDS)[0]
+    assert leaks(turn.history_messages(_conv({"kind": note}, f"x {SENT_NUM}"))) == [SENT_NUM], \
+        "CONTROL: a listed browser note still replays (its text must stay UCT's own fixed words)"
 
 
 def test_L4_PROVEN_the_planning_reply_of_a_local_plan_is_never_replayed_even_if_stored_unblanked():
