@@ -289,9 +289,8 @@ def test_L7_telemetry_is_column_allowlisted_but_its_short_FREE_TEXT_columns_are_
     `actions[]`, `model` and `unsupported` are free strings, clipped not checked. Telemetry is never model-bound;
     F-13 says it carries no values, so the BROWSER must never put one there (browser rail). STRICT pin."""
     from api.services.uct_agent import store
-    monkeypatch.setattr(store, "_DB_PATH", str(tmp_path / "agent.db"), raising=False)
-    if hasattr(store, "_init_db"):
-        store._init_db()
+    monkeypatch.setattr(store, "_DB_PATH", str(tmp_path / "agent.db"))
+    monkeypatch.setattr(store, "_READY", False)            # a fresh file needs its schema, whatever ran before
     store.record_telemetry(1, "c1", {"path": "local", "unsupported": f"r{SENT_INT}", "values": float(SENT_NUM),
                                      "actions": [f"x{SENT_INT}"]})
     rows = store.telemetry_rows(1)
