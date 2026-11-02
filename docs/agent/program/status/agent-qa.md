@@ -239,6 +239,15 @@ Only agent-qa edits this file. Update it in every PR.
   still read. Latent: that text is the model's own words.
   Repro: `-k F22`. Suggest applying the same marker check to the naming call's rows.
 
+- **F-23 (agent-md for the adapter; the helper `bars_fetch._last_closed_session_yyyymmdd` is product-wide, so it goes
+  via agent-lead): on an NYSE half day, the session that closed at 13:00 isn't treated as completed until 16:00.**
+  The helper uses a fixed 16:00 threshold. On 2026-11-27 (`_session_close_minutes` = 780), from 13:00 to 16:00
+  stock.dailyBars calls Wed Nov 25 "its last completed session" and drops the completed Nov 27 bar.
+  Repro: `pytest tests/test_uct_agent_qa_md2_bars.py -k F23`.
+  Expected: 20261127 at 14:00. Actual: 20261125.
+  Suggest the adapter apply the close minutes in `_last_completed_at_or_before`. Changing the shared helper would
+  also change charts, which mirror it.
+
 ## Blockers
 - (none)
 
@@ -251,6 +260,22 @@ Only agent-qa edits this file. Update it in every PR.
   constants imported from the adapters, coverage on quote reads, no `delayed` quote path. New v1.1 quote cases:
   extended-live, extended-closed, holiday, no-current-trade. Rules (a)–(e) are a reusable predicate
   (`quote_semantics_errors`) with controls showing it can fail. Other MD-1 kinds keep provisional `data` shapes.
+
+## MD-2 harness extension: `stock.dailyBars` (agent-md #644, MD-1 v1.5 §4.6)
+Files: `tests/test_uct_agent_qa_md2_bars.py`, `app/src/agent/qa/md2Bars.test.jsx`, and fixtures `md2/bars-scenarios.json`.
+These are REAL `bars.daily` envelopes: the real adapter and normaliser, with only the store read faked (it honours
+`to_key` and the window) and the clock frozen.
+
+| Area | Result |
+|---|---|
+| Last completed session (7 clocks: Fri 15:59 / 16:00, Saturday, Monday, Thanksgiving, half-day 12:59 / 16:00) | PASS |
+| Completed sessions only | PASS: a developing TODAY bar in the store is excluded by the adapter, and every usable answer ends with the completed-sessions line |
+| §4.6 sentences | PASS: lastClose vs the previous close; change over n from the first to the last close; the 52w high and low from bars' HIGHS and LOWS, never closes; stale names both dates; a short window states what it covers (2 of 10; 40 sessions; a single bar gives no change) |
+| No usable bars | PASS: fixed words, no digits, no note, even when the refusal note carries a number (CONTROL) |
+| Never live / now / real-time; only `{text, present}`; no envelope internals or notes | PASS on all 9 scenarios |
+| Panel: P18–P20 and P22–P24 | PASS: **0 model turns** each, exactly 1 `bars.daily` read of the §4.6 size (2 · n+1 · 252), purpose `answer` and the turn id. P21 and P26 make no fast-path read |
+| Gate dark (data off · `data_kinds` null · [] · without `bars.daily`) | PASS: no read, and stock.dailyBars is absent from the manifest |
+| Mutations | 4 of 4 red: range from closes; the completed line dropped; the gate ignoring kinds (3 red; data off is also held by the client); a wrong read size |
 
 ## Sprint 2 task 2: MD-2 ACCEPTANCE HARNESS for agent-md's `stock.quote` (#624, MD-1 v1.5 §4.5)
 Files: server `tests/test_uct_agent_qa_md2.py`, browser `app/src/agent/qa/md2Quote.test.js`, and fixtures
