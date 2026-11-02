@@ -214,24 +214,24 @@ describe('clarification policy, by category (deterministic path)', () => {
   })
 })
 
-describe('"my strongest stocks": WITHIN the member\'s own list, through the Screener\'s own My Lists universe', () => {
+describe('a screen WITHIN the member\'s own list, through the Screener\'s own My Lists universe (F-16: a public sort field)', () => {
   it('within → the engine\'s list filter (wl:<id>), named in the answer', async () => {
     const calls = []
     globalThis.fetch = vi.fn(async (url, init = {}) => {
       const body = init.body ? JSON.parse(init.body) : null
       calls.push([String(url), body])
       const json = (o) => new Response(JSON.stringify(o), { status: 200, headers: { 'content-type': 'application/json' } })
-      if (url === '/api/screener/fields') return json({ fields: [{ key: 'rs_rank', label: 'RS Rank', type: 'range', unit: '' }] })
-      if (url === '/api/screener/scan') return json({ total: 1, rows: [{ ticker: 'NVDA', rs_rank: 97 }], snapshot_date: '2026-10-10' })
+      if (url === '/api/screener/fields') return json({ fields: [{ key: 'chg_pct_3m', label: '3M %', type: 'range', unit: '%' }] })
+      if (url === '/api/screener/scan') return json({ total: 1, rows: [{ ticker: 'NVDA', chg_pct_3m: 97 }], snapshot_date: '2026-10-10' })
       return json({})
     })
     screenerMod._resetScreenerCache()
-    const a = await getCapability('screener.run').answer(null, { filters: [], sort_field: 'rs_rank', sort_dir: 'desc', mode: 'new', show: null, as: null, within: 'm1' }, hostOf())
+    const a = await getCapability('screener.run').answer(null, { filters: [], sort_field: 'chg_pct_3m', sort_dir: 'desc', mode: 'new', show: null, as: null, within: 'm1' }, hostOf())
     const scan = calls.find(c => c[0] === '/api/screener/scan')[1]
     expect(scan.filters).toEqual([{ key: 'list', op: 'in', value: 'wl:m1' }])
-    expect(scan.sort).toEqual({ key: 'rs_rank', dir: 'desc' })
+    expect(scan.sort).toEqual({ key: 'chg_pct_3m', dir: 'desc' })
     expect(a.text).toContain('In “Momentum”')
-    expect(await getCapability('screener.run').answer(null, { filters: [], sort_field: 'rs_rank', sort_dir: 'desc', mode: 'new', show: null, as: null, within: 'zz' }, hostOf()))
+    expect(await getCapability('screener.run').answer(null, { filters: [], sort_field: 'chg_pct_3m', sort_dir: 'desc', mode: 'new', show: null, as: null, within: 'zz' }, hostOf()))
       .toMatch(/isn't one of your watchlists/)
   })
 })
