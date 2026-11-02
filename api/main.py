@@ -3287,6 +3287,29 @@ def _pattern_vision_contract_line() -> str:
             f"confirmed_only={'on' if conf_only is True else 'OFF'}[api_default]")
 
 
+def register_chart_iq_prewarm_jobs(scheduler):
+    """Chart IQ group pre-warm (api/services/chart_iq/prewarm.py): after the close, warm the rows cache for the industries members
+    opened in the last few days, so the first chart of each industry on the new session is not the 5-25 s cold read. 18:30 ET
+    (the day's bars have landed) and 07:00 ET (a late landing or a restart) on weekdays. Gate: CHART_IQ_PREWARM_ENABLED=1, read
+    again inside warm() together with CHART_IQ_ENABLED. Returns True if registered."""
+    import os
+    if os.environ.get("CHART_IQ_PREWARM_ENABLED", "").strip() != "1":
+        return False
+    from apscheduler.triggers.cron import CronTrigger
+
+    def _run_prewarm():
+        try:
+            from api.services.chart_iq import prewarm
+            prewarm.warm()
+        except Exception as exc:  # noqa: BLE001
+            logging.getLogger(__name__).warning("[chart_iq_prewarm] job error: %s", exc)
+
+    for hh, mm, jid in ((18, 30, "chart_iq_prewarm_evening"), (7, 0, "chart_iq_prewarm_morning")):
+        scheduler.add_job(_run_prewarm, trigger=CronTrigger(day_of_week="mon-fri", hour=hh, minute=mm, timezone=_ET),
+                          id=jid, max_instances=1, replace_existing=True, coalesce=True, misfire_grace_time=3600)
+    return True
+
+
 def register_call_recap_warm_jobs(scheduler):
     """Pre-generate call recaps so the modal is a point-read, not a ~39s wait.
 
@@ -7321,6 +7344,8 @@ async def lifespan(app: FastAPI):
         # -- Full-market screener nightly snapshot build (spec 2026-06-19) --
         try:
             register_screener_jobs(_scheduler)
+            if register_chart_iq_prewarm_jobs(_scheduler):
+                logging.getLogger(__name__).info("[startup] chart-iq group pre-warm: 18:30 / 07:00 ET weekdays")
             if register_call_recap_warm_jobs(_scheduler):
                 logging.getLogger(__name__).info(
                     "[startup] call-recap warm sweeps: 07:30/12:30/17:15/21:30 ET")

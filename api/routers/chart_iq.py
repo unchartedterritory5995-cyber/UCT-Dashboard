@@ -139,6 +139,8 @@ async def chart_iq(sym: str, date: str | None = Query(default=None, description=
     if "error" in res:
         raise HTTPException(status_code=404, detail=res["error"])
     out = {k: res[k] for k in _MEMBER_FIELDS if k in res}
+    from api.services.chart_iq import prewarm
+    await run_in_threadpool(prewarm.record_view, sym)   # which industries members open: the nightly pre-warm warms only those
     if not admin:   # members see no performance numbers yet (tracked privately, not displayed): drop each buy day's run since
         out["buydays"] = [{k: v for k, v in b.items() if k != "run"} for b in out.get("buydays") or []]
     from api.services.chart_iq import feedback
