@@ -171,6 +171,23 @@ function phaseLabel(phase) {
   return 'Working'
 }
 
+// Fix round 1, M1: a report list shows its first REPORT_LIST_CAP rows and says how many more
+// there are, so a 3,000-picture failure never renders 3,000 rows and never hides the count.
+const REPORT_LIST_CAP = 50
+
+function ReportList({ items, keyOf, renderItem }) {
+  const shown = items.slice(0, REPORT_LIST_CAP)
+  const more = items.length - shown.length
+  return (
+    <ul className={styles.reportList}>
+      {shown.map((item, i) => (
+        <li key={keyOf(item, i)} className={styles.reportRow}>{renderItem(item)}</li>
+      ))}
+      {more > 0 && <li className={styles.reportMore}>and {more} more</li>}
+    </ul>
+  )
+}
+
 function pluralize(n, word) {
   return `${n} ${word}${n === 1 ? '' : 's'}`
 }
@@ -287,6 +304,8 @@ export default function ImportWizard({ open, onClose, onImported }) {
   // `stopping` only drives the button's label while the item in flight finishes.
   const stopRef = useRef(false)
   const [stopping, setStopping] = useState(false)
+  // Fix round 1, M2: Stop pressed while notes were still being converted (nothing sent yet).
+  const [stoppedEarly, setStoppedEarly] = useState(false)
 
   // ── post-migration enrichment (spec §8.1) ────────────────────────────────
   // `enrichScan`: null (not yet run) | {status: 'scanning'|'ready'|'none', candidates, scanned}
@@ -331,6 +350,7 @@ export default function ImportWizard({ open, onClose, onImported }) {
     setRecoverMode(false)
     stopRef.current = false
     setStopping(false)
+    setStoppedEarly(false)
     setEnrichScan(null)
     setEnrichApply(null)
   }, [])
@@ -560,7 +580,7 @@ export default function ImportWizard({ open, onClose, onImported }) {
       // edited it was left exactly as it was (unchanged). Plan B Task 11.
       if (outcome === 'created' || outcome === 'updated' || outcome === 'recovered') bucket.arrived += 1
       else if (outcome === 'skipped' || outcome === 'kept_edited') bucket.unchanged += 1
-      else if (outcome === 'failed' || outcome === 'batch_failed') bucket.attention += 1
+      else if (outcome === 'failed' || outcome === 'batch_failed' || outcome === 'unfinished') bucket.attention += 1
     }
     return [...map.values()].sort((a, b) => a.label.localeCompare(b.label))
   }, [visibleDocs, summaryResult])
@@ -725,8 +745,18 @@ export default function ImportWizard({ open, onClose, onImported }) {
     const gen = generationRef.current
     const cancelled = () => generationRef.current !== gen
 
+    // M2: a Stop before anything was sent (during conversion) goes back to the preview.
+    const stopBeforeSaving = () => {
+      stopRef.current = false
+      setStopping(false)
+      setProgress(null)
+      setStoppedEarly(true)
+      setStep('preview')
+    }
+
     setStep('running')
     setProgress(null)
+    setStoppedEarly(false)
     stopRef.current = false
     setStopping(false)
     await new Promise((r) => setTimeout(r, 0))
@@ -746,6 +776,9 @@ export default function ImportWizard({ open, onClose, onImported }) {
         if (cancelled()) return
         let done = 0
         for (const doc of needsBody) {
+          // Fix round 1, M2: Stop works during conversion too. Nothing has been sent yet, so
+          // stopping here returns to the preview with nothing saved.
+          if (stopRef.current) { stopBeforeSaving(); return }
           // ⛔ Paint BEFORE converting, and yield EVERY note -- not every 10.
           //
           // MEASURED (2026-09-05, 534 KB Evernote note): `htmlToNote` is a
@@ -774,6 +807,7 @@ export default function ImportWizard({ open, onClose, onImported }) {
           })
           await yieldToBrowser()
           if (cancelled()) return
+          if (stopRef.current) { stopBeforeSaving(); return }
 
           const { bodyJson, bodyPlain } = htmlToNote(doc.html)
           doc.bodyJson = bodyJson
@@ -785,6 +819,7 @@ export default function ImportWizard({ open, onClose, onImported }) {
         setProgress(null)
       }
 
+      if (stopRef.current) { stopBeforeSaving(); return }
       const destFolderId = await resolveDestFolderId()
       if (cancelled()) return
       const { runImport } = await import('../../../lib/importer/commit')
@@ -919,7 +954,8 @@ export default function ImportWizard({ open, onClose, onImported }) {
     scanning: 'Import notes',
     preview: 'Review your import',
     running: 'Importing…',
-    summary: 'Import complete',
+    // M3: a stopped run is not "complete".
+    summary: summaryResult?.stopped ? 'Import stopped' : 'Import complete',
     error: 'Import notes',
   }[step]
 
@@ -1047,6 +1083,12 @@ export default function ImportWizard({ open, onClose, onImported }) {
                 Will create {previewCounts.create} · update {previewCounts.update} · unchanged{' '}
                 {previewCounts.unchanged}
               </p>
+
+              {stoppedEarly && (
+                <p className={styles.stoppedLine} role="status">
+                  Import stopped before anything was saved. Nothing was added to your notebook.
+                </p>
+              )}
 
               {/* Plan B Task 11: only on a re-import (some notes already exist). The server never
                   overwrites a note edited since its import, in either mode; the help line says so. */}
@@ -1228,7 +1270,7 @@ export default function ImportWizard({ open, onClose, onImported }) {
               )}
               {/* Plan B Task 11: within one note, which of its files is going over now. */}
               {progress?.phase === 'commit' && progress.note != null && progress.itemTotal > 0 && (
-                <p className={styles.progressDetail}>
+                <p className={styles.progressDetail} aria-live="polite" data-testid="import-item-progress">
                   {`“${progress.note || 'Untitled'}” — file ${progress.itemDone + 1} of ${progress.itemTotal}`}
                 </p>
               )}
@@ -1280,6 +1322,23 @@ export default function ImportWizard({ open, onClose, onImported }) {
                   over the rest; nothing already imported will be duplicated.
                 </p>
               )}
+              {/* Fix round 1, I2: saved at confirm, but the Stop cut off their pictures and links,
+                  so they are never counted as imported above. */}
+              {summaryResult.unfinished?.length > 0 && (
+                <section className={styles.reportSection} aria-labelledby="import-report-unfinished">
+                  <h3 id="import-report-unfinished" className={styles.reportTitle}>
+                    <UIcon name="warning" size={13} gold={false} /> Stopped before finishing
+                  </h3>
+                  <p className={styles.reportHelp}>
+                    Import the same export again to finish them.
+                  </p>
+                  <ReportList
+                    items={summaryResult.unfinished}
+                    keyOf={(u) => u.importKey}
+                    renderItem={(u) => u.name}
+                  />
+                </section>
+              )}
               {/* The arrival screen (spec §9): what came across, by folder —
                   derived straight from `summaryResult.outcomes`, never the
                   preview's pre-import guess. */}
@@ -1329,11 +1388,11 @@ export default function ImportWizard({ open, onClose, onImported }) {
                     You&apos;ve edited this note since it was imported, so it was left as it is. Open it
                     beside the export to copy anything across.
                   </p>
-                  <ul className={styles.reportList}>
-                    {summaryResult.keptEdited.map((k) => (
-                      <li key={k.importKey} className={styles.reportRow}>{k.name}</li>
-                    ))}
-                  </ul>
+                  <ReportList
+                    items={summaryResult.keptEdited}
+                    keyOf={(k) => k.importKey}
+                    renderItem={(k) => k.name}
+                  />
                 </section>
               )}
 
@@ -1342,9 +1401,11 @@ export default function ImportWizard({ open, onClose, onImported }) {
                   <h3 id="import-report-notices" className={styles.reportTitle}>
                     <UIcon name="warning" size={13} gold={false} /> Couldn&apos;t be copied
                   </h3>
-                  <ul className={styles.reportList}>
-                    {summaryResult.notices.map((n, i) => (
-                      <li key={`${n.importKey}-${i}`} className={styles.reportRow}>
+                  <ReportList
+                    items={summaryResult.notices}
+                    keyOf={(n, i) => `${n.importKey}-${i}`}
+                    renderItem={(n) => (
+                      <>
                         <span className={styles.reportNote}>{n.note}</span>
                         <span>
                           {' — '}
@@ -1363,9 +1424,9 @@ export default function ImportWizard({ open, onClose, onImported }) {
                             </>
                           )}
                         </span>
-                      </li>
-                    ))}
-                  </ul>
+                      </>
+                    )}
+                  />
                 </section>
               )}
 
@@ -1377,14 +1438,16 @@ export default function ImportWizard({ open, onClose, onImported }) {
                   <p className={styles.reportHelp}>
                     These connect automatically when the note they point to is imported.
                   </p>
-                  <ul className={styles.reportList}>
-                    {summaryResult.unconnectedLinks.map((l, i) => (
-                      <li key={`${l.note}-${i}`} className={styles.reportRow}>
+                  <ReportList
+                    items={summaryResult.unconnectedLinks}
+                    keyOf={(l, i) => `${l.note}-${i}`}
+                    renderItem={(l) => (
+                      <>
                         <span className={styles.reportNote}>{l.note}</span>
                         {` — “${l.text}”`}
-                      </li>
-                    ))}
-                  </ul>
+                      </>
+                    )}
+                  />
                 </section>
               )}
 

@@ -470,6 +470,7 @@
   gap: 4px;
 }
 .reportRow { overflow-wrap: anywhere; }
+.reportMore { list-style: none; margin-left: -18px; color: var(--text-muted); font-style: italic; }
 .reportNote { font-weight: 600; }
 .reportLink { color: var(--accent, var(--text-bright)); text-decoration: underline; }
 

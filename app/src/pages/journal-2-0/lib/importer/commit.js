@@ -261,7 +261,16 @@ const BUSY_BASE_MS = 500
 const BUSY_JITTER_MS = 250
 const BUSY_MAX_DELAY_MS = 10_000
 
-const realSleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+// Sleeps in short steps so a Stop pressed during a back-off is seen within SLEEP_STEP_MS.
+const SLEEP_STEP_MS = 200
+async function realSleep(ms, isCancelled = () => false) {
+  let left = ms
+  while (left > 0 && !isCancelled()) {
+    const step = Math.min(left, SLEEP_STEP_MS)
+    await new Promise((resolve) => setTimeout(resolve, step))
+    left -= step
+  }
+}
 
 /**
  * Plan B Task 11 (Task 5 carry): one call to a media door (upload or fetch) gets this long to
@@ -322,6 +331,7 @@ function retryAfterMs(res) {
 async function fetchWithRetry(url, opts, retry = {}, maxRetries = 2, timeoutMs = 0) {
   const sleep = retry.sleep || realSleep
   const random = retry.random || Math.random
+  const cancelled = () => typeof retry.isCancelled === 'function' && retry.isCancelled() === true
   let failures = 0
   let busy = 0
   for (;;) {
@@ -334,11 +344,14 @@ async function fetchWithRetry(url, opts, retry = {}, maxRetries = 2, timeoutMs =
       failures += 1
       continue
     }
-    if (res.status === 429 && busy < BUSY_RETRIES) {
+    // A Stop during the back-off ends it: the 429 is returned as the final answer and named
+    // like any other (fix round 1, M4). `retry.isCancelled` is the run's own stop check.
+    if (res.status === 429 && busy < BUSY_RETRIES && !cancelled()) {
       const told = retryAfterMs(res)
       const delay = told ?? BUSY_BASE_MS * 2 ** busy + Math.floor(random() * BUSY_JITTER_MS)
       busy += 1
-      await sleep(Math.min(delay, BUSY_MAX_DELAY_MS))
+      await sleep(Math.min(delay, BUSY_MAX_DELAY_MS), cancelled)
+      if (cancelled()) return res
       continue
     }
     if (res.status >= 500 && failures < maxRetries) {
@@ -423,7 +436,8 @@ const originalOf = (o) => (o && typeof o === 'object' && typeof o.url === 'strin
  *  - otherwise the upload door (A1), `/images` or `/attachments` by the item's kind, with the
  *    declared type. A refusal keeps the server's `reason` (`reasonForUploadFailure`).
  * A failure that a member can read about also carries `message` (the server's sentence, or the
- * status), which `runImport` puts in `summary.failures` exactly as before.
+ * status), for a caller that wants it. `runImport` does NOT list it (fix round 1, ruling 1):
+ * the notice row in `summary.notices` is the one report of a media item that did not come over.
  *
  * @returns {Promise<{ok: true, src: string, kind: string, name: string|null, original?: object|null} | {ok: false, reason: string, name: string|null, sourceUrl: string|null, message?: string}>}
  */
@@ -518,6 +532,8 @@ async function uploadLocal(noteId, item, name, retry) {
 const HEAL_DOOR = '/api/j2/notes/import/heal-links'
 /** The door refuses more than this many noteIds in one call (400). */
 export const HEAL_CHUNK = 500
+/** How an unresolved link in a note this import did not name is attributed in the summary. */
+export const EARLIER_NOTE = 'an earlier note'
 
 /**
  * One note's kept links, one entry per target (the first text it was linked with). A link split
@@ -564,11 +580,12 @@ export function dedupeKeptLinks(keptLinks) {
  * at a time: the doors cap a member at 2 in flight, so sequential uploads normally never meet
  * their 429), and every result, stored or not, is placed by `rewriteBody`. What did not come
  * over is listed in `notices`; after the PUTs, ONE heal pass (`healImportedLinks`) runs for any
- * import that wrote a note, and what it could not connect is listed in `unconnectedLinks`.
+ * import that confirmed any note (skipped included), and what it could not connect is listed in
+ * `unconnectedLinks`.
  * `retry` exists for tests (`{sleep, random}` for the 429 backoff); the wizard passes none.
  *
  * @param {{source: string, destFolderId: string|null, docs: object[], limits?: {maxNotes?: number, maxBytes?: number}, retry?: {sleep?: Function, random?: Function, timeoutMs?: number}, mode?: 'recover', isCancelled?: () => boolean, onProgress?: (p: {phase: string, done: number, total: number, note?: string, itemDone?: number, itemTotal?: number}) => void}} args
- * @returns {Promise<{created: number, updated: number, skipped: number, failures: Array<{name: string, reason: string}>, failedBatches: Array<{index: number, notes: number, reason: string, message: string}>, notices: Array<{note: string, importKey: string, reason: string, name: string|null, sourceUrl: string|null}>, unconnectedLinks: Array<{note: string, text: string}>, recovered: number, keptEdited: Array<{name: string, importKey: string}>, stopped: boolean}>}
+ * @returns {Promise<{created: number, updated: number, skipped: number, failures: Array<{name: string, reason: string}>, failedBatches: Array<{index: number, notes: number, reason: string, message: string}>, notices: Array<{note: string, importKey: string, reason: string, name: string|null, sourceUrl: string|null}>, unconnectedLinks: Array<{note: string, text: string}>, recovered: number, keptEdited: Array<{name: string, importKey: string}>, stopped: boolean, unfinished: Array<{name: string, importKey: string}>}>}
  */
 export async function runImport({ source, destFolderId, docs, onProgress, limits, retry = {}, mode, isCancelled }) {
   // Plan B Task 11: the wizard's Stop (and its close) really stop the work. Checked BETWEEN
@@ -609,6 +626,8 @@ export async function runImport({ source, destFolderId, docs, onProgress, limits
     recovered: 0,
     keptEdited: [],
     stopped: false,
+    // Fix round 1, I2: notes saved at confirm whose media/link phase a Stop cut off.
+    unfinished: [],
   }
   // noteId -> {title, keptLinks} for every note whose body was rewritten, for the heal pass.
   const keptByNote = new Map()
@@ -622,6 +641,7 @@ export async function runImport({ source, destFolderId, docs, onProgress, limits
   // clean (a failed upload, a PUT that never landed) comes back `updated`,
   // not `skipped`, and lands in `toCommit` below to retry that phase.
   const toCommit = []
+  let confirmedAny = false
 
   const confirmTotal = docs.length
   let confirmDone = 0
@@ -708,6 +728,11 @@ export async function runImport({ source, destFolderId, docs, onProgress, limits
       continue
     }
 
+    // I1: the heal sweep runs for any run the server answered about at least one note.
+    if (['created', 'updated', 'recovered', 'skipped', 'keptEdited'].some((k) => (body[k] || []).length > 0)) {
+      confirmedAny = true
+    }
+
     // Fire onProgress per NOTE (not once per batch) — loop each response
     // bucket's items individually so `done` climbs one at a time.
     for (const item of body.created || []) {
@@ -787,6 +812,10 @@ export async function runImport({ source, destFolderId, docs, onProgress, limits
 
   const commitTotal = toCommit.length
   let commitDone = 0
+  // importKeys whose media/link phase ran to the end (PUT attempted), for the Stop report (I2).
+  const finished = new Set()
+  // The door calls inside a note honour a Stop during a 429 back-off too (M4).
+  const doorRetry = { ...retry, isCancelled: stopRequested }
 
   for (const importKey of toCommit) {
     if (stopRequested()) break
@@ -812,9 +841,10 @@ export async function runImport({ source, destFolderId, docs, onProgress, limits
         const item = items[i]
         // Per-item progress within a note: a note with forty pictures moves, it does not sit.
         onProgress?.({ phase: 'commit', done: commitDone, total: commitTotal, note: noteTitle, itemDone: i, itemTotal: items.length })
-        const result = await storeMediaItem(noteId, importKey, item, retry)
+        const result = await storeMediaItem(noteId, importKey, item, doorRetry)
         mediaResults[item.ref] = result
-        if (!result.ok && result.message) summary.failures.push({ name: item.name || item.ref, reason: result.message })
+        // Fix round 1, ruling 1: a media item that did not come over is reported ONCE, as a
+        // `notices` row ("Couldn't be copied"), never also in `failures` ("Needs attention").
       }
       // Stopped inside this note: never PUT it half-done (the missing pictures would read as
       // "couldn't be found"). The server still holds it as pending, so a re-import finishes it.
@@ -871,17 +901,38 @@ export async function runImport({ source, destFolderId, docs, onProgress, limits
       }
     }
 
+    finished.add(importKey)
     commitDone += 1
     onProgress?.({ phase: 'commit', done: commitDone, total: commitTotal })
   }
 
-  // R6: ALWAYS once per import that wrote a note, even with no kept links of its own: the
-  // door's sweep also heals OLD notes whose target this import just brought in.
+  // Fix round 1, I2: a note the server saved but whose media/link phase the Stop cut off may
+  // still hold placeholders, so it is never counted as imported: it moves out of its
+  // created/updated/recovered count (and out of `importedNoteIds`, which enrichment writes to)
+  // into `unfinished`, named. A note with no media and no links was complete at confirm.
+  if (summary.stopped) {
+    for (const key of toCommit) {
+      if (finished.has(key)) continue
+      const d = byImportKey.get(key)
+      if (!((d?.media || []).length > 0 || (d?.links || []).length > 0)) continue
+      const was = summary.outcomes[key]
+      if (was === 'created' || was === 'updated' || was === 'recovered') summary[was] -= 1
+      summary.outcomes[key] = 'unfinished'
+      summary.importedNoteIds = summary.importedNoteIds.filter((id) => id !== idByKey[key])
+      summary.unfinished.push({ name: d?.title || key, importKey: key })
+    }
+  }
+
+  // R6: ALWAYS once per import that CONFIRMED anything (written, recovered, kept or skipped),
+  // even with no kept links of its own: the door's sweep also heals OLD notes whose target this
+  // import just brought in. Fix round 1, I1: `skipped` counts. A link-only note whose PUT a Stop
+  // cut off keeps its `import-link://` marks with `import_links_pending` set (not media
+  // pending), so re-importing it comes back `skipped`; only this sweep finishes it.
   // A stopped run makes no further calls: the links it kept are listed as not connected (nobody
-  // checked them), never as connected.
+  // checked them), never as connected, and the next import's sweep heals them.
   if (summary.stopped) {
     summary.unconnectedLinks = [...keptByNote.values()].flatMap(({ title, keptLinks }) => keptLinks.map(({ text }) => ({ note: title, text })))
-  } else if (toCommit.length > 0) {
+  } else if (confirmedAny || keptByNote.size > 0) {
     summary.unconnectedLinks = await healImportedLinks(keptByNote, retry)
   }
 
@@ -927,7 +978,9 @@ async function healImportedLinks(keptByNote, retry) {
     for (const u of unresolved) {
       const id = typeof u?.noteId === 'string' ? u.noteId : null
       const text = typeof u?.text === 'string' ? u.text : ''
-      out.push({ note: keptByNote.get(id)?.title ?? id ?? '', text })
+      // Fix round 1, ruling 2: a note this import did not name (the server's sweep over older
+      // notes) reads as a neutral label, never a raw id. No title lookup.
+      out.push({ note: keptByNote.get(id)?.title ?? EARLIER_NOTE, text })
     }
   }
   return out
