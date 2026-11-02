@@ -974,6 +974,7 @@ def _write_tags_preserving_updated_at(
 
 def _write_import_hash_preserving_updated_at(
     conn: sqlite3.Connection, user_id: str, note_id: str, import_hash: str,
+    *, remote_rev: str | None,
 ) -> None:
     """Writes ONLY the `import_hash` column, WITHOUT touching `updated_at`/
     `imported_at`/content (Fix-round-3 Important; same "raw write, skip
@@ -996,11 +997,58 @@ def _write_import_hash_preserving_updated_at(
     remote content this sync actually saw" independent of what's displayed
     (which stays exactly as the user left it) — the correct baseline for
     "changed since last pass," not "changed since the user's edit was first
-    detected"."""
-    conn.execute(
-        "UPDATE j2_notes SET import_hash = ? WHERE id = ? AND user_id = ?",
-        (import_hash, note_id, user_id),
-    )
+    detected".
+
+    Plan A Task 1: `remote_rev`, when given, is written to
+    `import_remote_rev` in the same raw write, for the same reason — the
+    revision gate in `_remote_changed` must compare against the last
+    revision this sync SAW, not the one before the first conflict."""
+    if remote_rev is None:
+        conn.execute(
+            "UPDATE j2_notes SET import_hash = ? WHERE id = ? AND user_id = ?",
+            (import_hash, note_id, user_id),
+        )
+    else:
+        conn.execute(
+            "UPDATE j2_notes SET import_hash = ?, import_remote_rev = ? "
+            "WHERE id = ? AND user_id = ?",
+            (import_hash, remote_rev, note_id, user_id),
+        )
+
+
+def _backfill_remote_revs_preserving_updated_at(
+    conn: sqlite3.Connection, user_id: str, remote_notes: list[RemoteNote],
+    import_keys: list[str], existing: dict[str, dict[str, Any]],
+) -> int:
+    """Plan A Task 1 fix round 1: give a LEGACY row (`import_remote_rev`
+    NULL) its revision the first time a pass sees it UNCHANGED (stored
+    `import_hash` == this pass's hash, so `rn.updated_at` is exactly the
+    revision that hash was taken at). Without it a legacy row that had
+    already conflicted (imported_at stale, remote revision later) stays on
+    `_remote_changed`'s imported_at fallback, and the first converter change
+    reads as a remote edit and re-tallies the conflict / re-confirms a
+    sibling the member deleted.
+
+    Raw write, never `updated_at` (same idiom as
+    `_write_import_hash_preserving_updated_at`). Run BEFORE the conflict
+    gate's own writes and committed on its own by the caller, so committing
+    it can never commit a conflict baseline ahead of its sibling."""
+    n = 0
+    for rn, key in zip(remote_notes, import_keys):
+        meta = existing.get(key)
+        rev = rn.updated_at or None
+        if meta is None or rev is None or meta.get("importRemoteRev") is not None:
+            continue
+        if notes_svc._import_payload_hash(_build_confirm_entry(rn, key)) != (meta.get("importHash") or ""):
+            continue
+        conn.execute(
+            "UPDATE j2_notes SET import_remote_rev = ? "
+            "WHERE id = ? AND user_id = ? AND import_remote_rev IS NULL",
+            (rev, meta["id"], user_id),
+        )
+        meta["importRemoteRev"] = rev
+        n += 1
+    return n
 
 
 def _tag_note_source_deleted(conn: sqlite3.Connection, user_id: str, import_key: str) -> None:
@@ -1127,6 +1175,48 @@ def _is_conflict(meta: dict[str, Any]) -> bool:
     return updated > imported
 
 
+def _remote_changed(meta: dict[str, Any], rn: RemoteNote, entry_hash: str) -> bool:
+    """Plan A Task 1: did the REMOTE change since the last time this sync
+    confirmed or baselined the note? Keyed on the remote's own revision
+    (`import_remote_rev`), NOT on `import_hash` alone — the hash covers OUR
+    conversion of the body, so a converter fix moves it for every note and,
+    on a member-edited note, used to read as "edited AND remote changed" and
+    manufacture a "(synced copy)" sibling on the next nightly full pass.
+
+    Rule, in order:
+      1. hash equal                       -> False (nothing moved at all)
+      2. stored rev and remote rev known  -> the revisions differ
+      3. remote reports no revision       -> True (the pre-Task-1 hash rule;
+                                             nothing better to key on)
+      4. legacy row (stored rev NULL)     -> remote revision is later than
+                                             `imported_at`
+
+    ⚠️ Known, accepted limitation (controller ruling, 2026-11-01): some
+    providers (Notion) report minute-precision revision timestamps, so a
+    remote edit made within the same minute as the last sync, on a
+    member-edited note, reads as the same revision and is skipped until the
+    next remote edit. Deliberately NOT papered over with a raw-payload hash."""
+    if entry_hash == (meta.get("importHash") or ""):
+        return False
+    stored_rev = meta.get("importRemoteRev")
+    # `or None`: an empty revision is no revision, exactly as import_confirm
+    # stores it (`n.get("updatedAt") or None`).
+    remote_rev = rn.updated_at or None
+    if stored_rev is not None and remote_rev is not None:
+        return remote_rev != stored_rev
+    if remote_rev is None:
+        return True
+    remote = _parse_iso(remote_rev)
+    imported = _parse_iso(meta.get("importedAt"))
+    if remote is None or imported is None:
+        return True  # unreadable -> the conservative pre-Task-1 answer
+    if remote.tzinfo is None:
+        remote = remote.replace(tzinfo=timezone.utc)
+    if imported.tzinfo is None:
+        imported = imported.replace(tzinfo=timezone.utc)
+    return remote > imported
+
+
 def _bulk_existing_note_meta(
     conn: sqlite3.Connection, user_id: str, import_keys: list[str],
 ) -> dict[str, dict[str, Any]]:
@@ -1149,7 +1239,8 @@ def _bulk_existing_note_meta(
         # notes.py::import_check — otherwise a background sync would
         # silently resurrect a note the member deliberately trashed.
         rows = conn.execute(
-            f"SELECT id, import_key, updated_at, imported_at, tags, folder_id, import_hash "
+            f"SELECT id, import_key, updated_at, imported_at, tags, folder_id, import_hash, "
+            f"import_remote_rev "
             f"FROM j2_notes WHERE user_id = ? AND deleted_at IS NULL"
             f" AND import_key IN ({placeholders})",
             (user_id, *chunk),
@@ -1162,6 +1253,7 @@ def _bulk_existing_note_meta(
                 "tags": json.loads(row["tags"] or "[]"),
                 "folderId": row["folder_id"],
                 "importHash": row["import_hash"],
+                "importRemoteRev": row["import_remote_rev"],  # Plan A Task 1
             }
     return out
 
@@ -1653,6 +1745,9 @@ async def _import_remote_notes(
             provider.import_key(source["remoteId"], rn.remote_id) for rn in remote_notes
         ]
         existing = _bulk_existing_note_meta(conn, user_id, import_keys)
+        if _backfill_remote_revs_preserving_updated_at(
+                conn, user_id, remote_notes, import_keys, existing):
+            conn.commit()
 
         normal_items: list[tuple[dict[str, Any], RemoteNote, str]] = []
         # (confirm_entry, remote_note, sibling_key, original_folder_id)
@@ -1685,9 +1780,15 @@ async def _import_remote_notes(
             # produces — never re-derived here) against the original's stored
             # `import_hash` answers "did the remote content change since the
             # last time we looked," independent of the user's own edit.
+            # Plan A Task 1: the hash alone also moves when OUR converter
+            # changes, so `_remote_changed` keys the answer on the remote's
+            # own revision (see its docstring, incl. the minute-precision
+            # limitation accepted for Notion). Consequence: a remote move/
+            # rename that does NOT advance the remote revision (folderPath and
+            # title sit in the hash) is now SKIPPED on an edited note, not copied.
             is_genuine_conflict = (
                 meta is not None and _is_conflict(meta)
-                and notes_svc._import_payload_hash(entry) != (meta.get("importHash") or "")
+                and _remote_changed(meta, rn, notes_svc._import_payload_hash(entry))
             )
             if is_genuine_conflict:
                 # Local edit since the last sync AND the remote genuinely
@@ -1707,7 +1808,8 @@ async def _import_remote_notes(
                 # why skipping this freezes the comparison at the FIRST
                 # conflict forever instead of tracking pass-to-pass change.
                 _write_import_hash_preserving_updated_at(
-                    conn, user_id, meta["id"], notes_svc._import_payload_hash(entry))
+                    conn, user_id, meta["id"], notes_svc._import_payload_hash(entry),
+                    remote_rev=rn.updated_at or None)
             elif meta is not None and _is_conflict(meta):
                 # Edited by the member, remote UNCHANGED -> the note is the
                 # member's; nothing to write. It must NOT go to import_confirm:
