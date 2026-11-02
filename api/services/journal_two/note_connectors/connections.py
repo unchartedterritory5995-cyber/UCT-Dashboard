@@ -367,6 +367,31 @@ def list_sources(
             conn.close()
 
 
+def pending_removal_counts(
+    user_id: str, source_ids: list[str], conn: sqlite3.Connection | None = None,
+) -> dict[str, int]:
+    """Per source, how many remote-index rows have missed at least one pass
+    (`miss_streak >= 1`, i.e. a removal awaiting its second strike). Sources
+    with none are absent from the result; an empty `source_ids` returns {}
+    without querying."""
+    if not source_ids:
+        return {}
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        marks = ",".join("?" for _ in source_ids)
+        rows = conn.execute(
+            "SELECT source_id, COUNT(*) AS n FROM j2_note_remote_index "
+            f"WHERE user_id = ? AND miss_streak >= 1 AND source_id IN ({marks}) "
+            "GROUP BY source_id",
+            (user_id, *source_ids),
+        ).fetchall()
+        return {r["source_id"]: int(r["n"]) for r in rows}
+    finally:
+        if owned:
+            conn.close()
+
+
 def list_due_sources(
     interval_minutes: int, conn: sqlite3.Connection | None = None,
 ) -> list[dict[str, Any]]:
@@ -557,5 +582,6 @@ def _row_to_source(row: sqlite3.Row | None) -> dict[str, Any] | None:
         "lastSyncStatus": row["last_sync_status"],
         "lastSyncError": row["last_sync_error"],
         "warmingUntil": row["warming_until"],
+        "lastFullSyncAt": row["last_full_sync_at"],
         "createdAt": row["created_at"],
     }

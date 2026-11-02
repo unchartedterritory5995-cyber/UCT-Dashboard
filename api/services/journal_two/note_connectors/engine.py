@@ -92,7 +92,7 @@ import os
 import random
 import sqlite3
 import threading
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from api.services.auth_db import get_connection
@@ -143,6 +143,12 @@ def _release_source(source_id: str) -> None:
     with _inflight_lock:
         _inflight_sources.discard(source_id)
 
+
+def is_source_busy(source_id: str) -> bool:
+    """True while a sync of this source is in flight (read-only peek)."""
+    with _inflight_lock:
+        return source_id in _inflight_sources
+
 # Backoff ladder after a transient sqlite3 "database is locked" (mirrors
 # broker/sync.py's _LOCKED_RETRY_DELAYS exactly). Jittered so parallel
 # retriers don't re-collide in lockstep.
@@ -151,6 +157,23 @@ _LOCKED_RETRY_DELAYS = (1.0, 3.0, 8.0)
 # A source synced within this window is skipped unless the caller passes
 # manual=True (the explicit "Sync now" action always runs).
 _COOLDOWN_SECONDS = 600
+
+# A member's "Sync now" runs the removal check (a complete listing feeding the
+# 2-strike delete detection) at most once per this many seconds per source,
+# measured from `j2_note_sources.last_full_sync_at`, which EVERY full pass
+# writes (scheduler and member alike). Inside the window the press downgrades
+# to an incremental pass. The same gap holds for EVERY full pass, scheduler
+# included: `_run_delete_detection` counts no enumeration-only miss as a
+# strike when the previous full pass was under this many seconds ago, so
+# strike 2 always lands at least 10 minutes after strike 1. Scheduler passes
+# are never downgraded (they still list fully, stamp, and honour explicit
+# trash refs); only their enumeration strikes wait for the gap.
+MEMBER_FULL_PASS_MIN_INTERVAL_S = 600
+
+# A stored `last_full_sync_at` up to this far in the future is clock skew and
+# still counts; further ahead it is treated as "no previous full pass", so a
+# bad stamp can never lock a member out of the removal check.
+_LAST_FULL_FUTURE_SKEW_S = 60
 
 # Roam's own pull-many batches 40 eids/call; other providers just inherit
 # fetch_many's default per-ref loop, so this bound mainly controls failure
@@ -163,8 +186,13 @@ _FETCH_BATCH_SIZE = 40
 _CONFIRM_BATCH_SIZE = 200
 
 
+def _utcnow() -> datetime:
+    """The engine's one clock. Tests monkeypatch this to move time."""
+    return datetime.now(timezone.utc)
+
+
 def _now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return _utcnow().isoformat()
 
 
 def _parse_iso(value: Any) -> datetime | None:
@@ -174,6 +202,59 @@ def _parse_iso(value: Any) -> datetime | None:
         return datetime.fromisoformat(value.replace("Z", "+00:00"))
     except ValueError:
         return None
+
+
+def _last_full_pass_at(value: Any, now: datetime) -> datetime | None:
+    """The stored `last_full_sync_at` as an aware datetime, or None when it
+    must count as "no previous full pass": absent, unparseable, or more than
+    `_LAST_FULL_FUTURE_SKEW_S` in the future. A naive stamp is read as UTC."""
+    last = _parse_iso(value)
+    if last is None:
+        return None
+    if last.tzinfo is None:
+        last = last.replace(tzinfo=timezone.utc)
+    if last > now + timedelta(seconds=_LAST_FULL_FUTURE_SKEW_S):
+        return None
+    return last
+
+
+def _removal_check_summary(
+    user_id: str, source_id: str, *, ran: bool, reason: str | None, severed: int,
+) -> dict[str, Any]:
+    """The `removalCheck` block of a member full-pass result, read AFTER the
+    pass: `pending` from the index, `nextAllowedAt` from the stored stamp
+    (None when the next check is already allowed)."""
+    now = _utcnow()
+    source = connections.get_source_by_id(source_id) or {}
+    last = _last_full_pass_at(source.get("lastFullSyncAt"), now)
+    next_allowed = None
+    if last is not None:
+        nxt = last + timedelta(seconds=MEMBER_FULL_PASS_MIN_INTERVAL_S)
+        if nxt > now:
+            next_allowed = nxt.isoformat()
+    pending = connections.pending_removal_counts(user_id, [source_id]).get(source_id, 0)
+    return {
+        "ran": ran, "reason": reason, "nextAllowedAt": next_allowed,
+        "pending": int(pending), "severed": int(severed or 0),
+    }
+
+
+async def _member_full_pass(user_id: str, source_id: str) -> dict[str, Any]:
+    """A member's "Sync now" with full=True. Decided under the in-flight
+    guard, from a fresh read of the source, so a pass that finished a moment
+    ago is always seen. Inside the rate-limit window it downgrades to a plain
+    incremental pass (no strike, no stamp); otherwise it runs the removal
+    check."""
+    current = connections.get_source_by_id(source_id) or {}
+    now = _utcnow()
+    last = _last_full_pass_at(current.get("lastFullSyncAt"), now)
+    if last is not None and (now - last).total_seconds() < MEMBER_FULL_PASS_MIN_INTERVAL_S:
+        result = await _do_sync(user_id, source_id, full=False)
+        result["removalCheck"] = _removal_check_summary(
+            user_id, source_id, ran=False, reason="rate_limited", severed=0,
+        )
+        return result
+    return await _do_sync(user_id, source_id, full=False, removal_check=True)
 
 
 def _chunks(seq: list, n: int):
@@ -280,6 +361,7 @@ def _finish_log(
 
 async def sync_source(
     source_id: str, *, full: bool = False, manual: bool = False,
+    member: bool = False,
 ) -> dict[str, Any]:
     """Sync one source. Serialized per source via a loop-agnostic in-flight
     guard (Fix-round-1 #4 — see `_try_acquire_source`'s module-level
@@ -293,7 +375,18 @@ async def sync_source(
     `except`). Only after every attempt is still busy does this return a
     `"busy"` status rather than raising — a caller in a race with the
     nightly full pass or another "Sync now" click gets a clean, actionable
-    answer, never a crash."""
+    answer, never a crash.
+
+    `member=True` is a person waiting on "Sync now": it implies
+    `manual=True` (no cooldown) and makes exactly ONE acquire attempt — if
+    the source is busy it returns `busy` at once, never walking the sleep
+    ladder. The sqlite "locked" retry ladder is unchanged for every caller.
+
+    `member=True, full=True` runs the removal check (`_member_full_pass`),
+    rate-limited by `MEMBER_FULL_PASS_MIN_INTERVAL_S`; its result carries a
+    `removalCheck` block. Only that combination carries it."""
+    if member:
+        manual = True
     source = connections.get_source_by_id(source_id)
     if source is None:
         raise ValueError(f"unknown note-connector source {source_id!r}")
@@ -304,11 +397,13 @@ async def sync_source(
     attempts = 1 + len(_LOCKED_RETRY_DELAYS)
     for attempt in range(attempts):
         if not _try_acquire_source(source_id):
-            if attempt == attempts - 1:
+            if member or attempt == attempts - 1:
                 return {"status": "busy", "sourceId": source_id}
             await asyncio.sleep(_LOCKED_RETRY_DELAYS[attempt] * random.uniform(0.5, 1.5))
             continue
         try:
+            if member and full:
+                return await _member_full_pass(source["userId"], source_id)
             return await _do_sync(source["userId"], source_id, full=full)
         except sqlite3.OperationalError as e:
             if "locked" not in str(e).lower() or attempt == attempts - 1:
@@ -392,7 +487,15 @@ async def _resolve_credentials(user_id: str, provider_name: str) -> dict[str, An
 
 # ── Core per-source sync ─────────────────────────────────────────────────────
 
-async def _do_sync(user_id: str, source_id: str, *, full: bool) -> dict[str, Any]:
+async def _do_sync(
+    user_id: str, source_id: str, *, full: bool, removal_check: bool = False,
+) -> dict[str, Any]:
+    """`full` is the scheduler's nightly pass. `removal_check` is a member's
+    full pass (`_member_full_pass`): a complete listing feeds delete
+    detection while only the incremental delta is fetched and imported. The
+    two flags are mutually exclusive; the caller guarantees it."""
+    if full and removal_check:
+        raise ValueError("_do_sync: full and removal_check are mutually exclusive")
     source = connections.get_source_by_id(source_id)
     if source is None:
         raise ValueError(f"unknown note-connector source {source_id!r}")
@@ -419,6 +522,30 @@ async def _do_sync(user_id: str, source_id: str, *, full: bool) -> dict[str, Any
         # read differently (this repo's own "a second authority over one
         # value" defect shape).
         present_fn = getattr(provider, "list_present_refs", None)
+
+        # Plan D task 3, removal check step (1): the COMPLETE listing comes
+        # FIRST — `list_present_refs` when the provider has it, else
+        # `list_changed(cursor=None)` — so that the stored-cursor
+        # `list_changed` below is the LAST listing call and every provider's
+        # per-call instance state (Notion `_page_meta`, Craft `_doc_meta`,
+        # Dropbox/OneDrive `opaque_cursor`, OneDrive `_deleted_refs`, Roam
+        # `_title_to_uid`) ends exactly as after a plain incremental pass. If
+        # this listing fails, the check does not run (no strike, no stamp)
+        # and the pass carries on as an ordinary incremental one.
+        removal_listing: list[RemoteRef] | None = None
+        removal_reason: str | None = None
+        if removal_check:
+            try:
+                if present_fn is not None:
+                    removal_listing = await present_fn(creds)
+                else:
+                    removal_listing = await provider.list_changed(creds, cursor=None)
+            except Exception as e:  # noqa: BLE001 — degrade to incremental, never abort
+                item_failures.append(
+                    f"removal check skipped: the full listing failed (synced "
+                    f"changes only): {e}"
+                )
+                removal_reason = "enumeration_failed"
 
         # Raw cursor, unadjusted — providers own their own overlap window.
         # A provider WITHOUT `list_present_refs` (Roam/Craft/Notion/Dropbox/
@@ -455,7 +582,16 @@ async def _do_sync(user_id: str, source_id: str, *, full: bool) -> dict[str, Any
         # hook, leaves this byte-for-byte equal to `refs`.
         index_refs = refs
 
-        if full:
+        # Removal check step (4): a page in EITHER listing is present (union
+        # by remote_id, the delta's ref winning) — absorbs search-index lag
+        # in either listing, so a lagging full listing can never strike a
+        # page the delta just returned.
+        if removal_listing is not None:
+            by_id = {r.remote_id: r for r in removal_listing}
+            by_id.update({r.remote_id: r for r in refs})
+            index_refs = list(by_id.values())
+
+        if full or removal_listing is not None:
             # Task 11 MUST-RESOLVE #4: when the provider exposes a
             # provider-precise trash sweep (Notion's `list_deleted`, NOT
             # part of the abstract `NoteProvider` contract — checked via
@@ -497,7 +633,8 @@ async def _do_sync(user_id: str, source_id: str, *, full: bool) -> dict[str, Any
             # aborts the sync — `index_refs` simply falls back to `refs`,
             # today's behavior, unchanged. `present_fn` itself was already
             # resolved once, above, before the cursor decision — reused here.
-            if present_fn is not None:
+            # (A removal check already called it, as step (1), above.)
+            if full and present_fn is not None:
                 try:
                     index_refs = await present_fn(creds)
                 except Exception as e:  # noqa: BLE001
@@ -506,7 +643,15 @@ async def _do_sync(user_id: str, source_id: str, *, full: bool) -> dict[str, Any
                         f"refs-drive-everything): {e}"
                     )
 
-            dd = _run_delete_detection(user_id, source, index_refs, deleted_refs=deleted_refs)
+            # Every full pass, scheduler or member, stamps
+            # `last_full_sync_at` in the detection transaction (refused
+            # included) — the member rate limit reads it.
+            dd = _run_delete_detection(
+                user_id, source, index_refs, deleted_refs=deleted_refs,
+                stamp_at=_now_iso(),
+            )
+            if removal_check:
+                removal_reason = "refused" if dd["refused"] else None
             # `deleted` is meaningful even alongside a warning now (Fix-round-1
             # #1a): the explicit-sever cap can refuse the LIST_DELETED signal
             # for a subset of rows in the same pass unrelated 2-strike misses
@@ -606,7 +751,7 @@ async def _do_sync(user_id: str, source_id: str, *, full: bool) -> dict[str, Any
             source_deleted=deleted_count,
         )
 
-        return {
+        result = {
             "status": status,
             "sourceId": source_id,
             **counts,
@@ -614,6 +759,12 @@ async def _do_sync(user_id: str, source_id: str, *, full: bool) -> dict[str, Any
             "failures": item_failures,
             "deleteDetectionWarning": delete_guard_warning,
         }
+        if removal_check:
+            result["removalCheck"] = _removal_check_summary(
+                user_id, source_id, ran=removal_listing is not None,
+                reason=removal_reason, severed=deleted_count,
+            )
+        return result
     except Exception as e:
         connections.record_sync_result(user_id, source_id, ok=False, error=str(e))
         if isinstance(e, errors.NoteConnAuthError):
@@ -643,9 +794,15 @@ async def _do_sync(user_id: str, source_id: str, *, full: bool) -> dict[str, Any
 
 def _run_delete_detection(
     user_id: str, source: dict[str, Any], refs: list[RemoteRef],
-    *, deleted_refs: list[RemoteRef] | None = None,
+    *, deleted_refs: list[RemoteRef] | None = None, stamp_at: str,
 ) -> dict[str, Any]:
-    """Runs BEFORE `_touch_remote_index` so `prev_count` reflects the index
+    """Plan D task 3: `stamp_at` is written to `j2_note_sources.
+    last_full_sync_at` in the SAME transaction on EVERY branch, the <50%
+    refuse branch included (a refused check is still a check for the member
+    rate limit), so that branch now commits. The result carries `refused`,
+    True only on the <50% branch. Neither guard's condition changed.
+
+    Runs BEFORE `_touch_remote_index` so `prev_count` reflects the index
     as of before this sync touched anything — touching first would inflate
     the denominator with brand-new rows and mask a genuine bad-enumeration
     refuse case. Refs seen this round and refs not seen are disjoint sets, so
@@ -688,6 +845,25 @@ def _run_delete_detection(
     explicit_deleted_ids = {r.remote_id for r in (deleted_refs or [])}
     conn = get_connection()
     try:
+        # Strike gap for EVERY pass: when the PREVIOUS full pass (read before
+        # this one stamps) was under MEMBER_FULL_PASS_MIN_INTERVAL_S ago, an
+        # enumeration-only miss does not count as a strike this pass. Explicit
+        # `deleted_refs` still sever (within the 20% cap) and seen notes still
+        # reset. Unparseable or far-future stamps count as "no previous pass".
+        prev_stamp_row = conn.execute(
+            "SELECT last_full_sync_at FROM j2_note_sources WHERE id = ? AND user_id = ?",
+            (source_id, user_id),
+        ).fetchone()
+        gap_now = _utcnow()
+        prev_full = _last_full_pass_at(prev_stamp_row["last_full_sync_at"] if prev_stamp_row else None, gap_now)
+        strike_gap_open = (
+            prev_full is not None
+            and (gap_now - prev_full).total_seconds() < MEMBER_FULL_PASS_MIN_INTERVAL_S
+        )
+        conn.execute(
+            "UPDATE j2_note_sources SET last_full_sync_at = ? WHERE id = ? AND user_id = ?",
+            (stamp_at, source_id, user_id),
+        )
         existing_rows = conn.execute(
             "SELECT remote_id, import_key, miss_streak FROM j2_note_remote_index "
             "WHERE user_id = ? AND source_id = ?",
@@ -695,8 +871,10 @@ def _run_delete_detection(
         ).fetchall()
         prev_count = len(existing_rows)
         if prev_count > 0 and len(seen_ids) < prev_count * 0.5:
+            conn.commit()  # the stamp only: no index row is touched
             return {
                 "status": "warning",
+                "refused": True,
                 "deleted": 0,
                 "reason": (
                     f"delete-detection refused for source {source_id}: full "
@@ -736,6 +914,8 @@ def _run_delete_detection(
                 )
                 deleted += 1
                 continue
+            if strike_gap_open:
+                continue  # inside the strike gap: an enumeration miss is not a strike
             streak = (row["miss_streak"] or 0) + 1
             if streak >= 2:
                 _tag_note_source_deleted(conn, user_id, row["import_key"])
@@ -753,8 +933,9 @@ def _run_delete_detection(
                 )
         conn.commit()
         if explicit_refused:
-            return {"status": "warning", "deleted": deleted, "reason": explicit_refuse_reason}
-        return {"status": "ok", "deleted": deleted, "reason": None}
+            return {"status": "warning", "refused": False, "deleted": deleted,
+                    "reason": explicit_refuse_reason}
+        return {"status": "ok", "refused": False, "deleted": deleted, "reason": None}
     finally:
         conn.close()
 
@@ -793,6 +974,7 @@ def _write_tags_preserving_updated_at(
 
 def _write_import_hash_preserving_updated_at(
     conn: sqlite3.Connection, user_id: str, note_id: str, import_hash: str,
+    *, remote_rev: str | None,
 ) -> None:
     """Writes ONLY the `import_hash` column, WITHOUT touching `updated_at`/
     `imported_at`/content (Fix-round-3 Important; same "raw write, skip
@@ -815,11 +997,58 @@ def _write_import_hash_preserving_updated_at(
     remote content this sync actually saw" independent of what's displayed
     (which stays exactly as the user left it) — the correct baseline for
     "changed since last pass," not "changed since the user's edit was first
-    detected"."""
-    conn.execute(
-        "UPDATE j2_notes SET import_hash = ? WHERE id = ? AND user_id = ?",
-        (import_hash, note_id, user_id),
-    )
+    detected".
+
+    Plan A Task 1: `remote_rev`, when given, is written to
+    `import_remote_rev` in the same raw write, for the same reason — the
+    revision gate in `_remote_changed` must compare against the last
+    revision this sync SAW, not the one before the first conflict."""
+    if remote_rev is None:
+        conn.execute(
+            "UPDATE j2_notes SET import_hash = ? WHERE id = ? AND user_id = ?",
+            (import_hash, note_id, user_id),
+        )
+    else:
+        conn.execute(
+            "UPDATE j2_notes SET import_hash = ?, import_remote_rev = ? "
+            "WHERE id = ? AND user_id = ?",
+            (import_hash, remote_rev, note_id, user_id),
+        )
+
+
+def _backfill_remote_revs_preserving_updated_at(
+    conn: sqlite3.Connection, user_id: str, remote_notes: list[RemoteNote],
+    import_keys: list[str], existing: dict[str, dict[str, Any]],
+) -> int:
+    """Plan A Task 1 fix round 1: give a LEGACY row (`import_remote_rev`
+    NULL) its revision the first time a pass sees it UNCHANGED (stored
+    `import_hash` == this pass's hash, so `rn.updated_at` is exactly the
+    revision that hash was taken at). Without it a legacy row that had
+    already conflicted (imported_at stale, remote revision later) stays on
+    `_remote_changed`'s imported_at fallback, and the first converter change
+    reads as a remote edit and re-tallies the conflict / re-confirms a
+    sibling the member deleted.
+
+    Raw write, never `updated_at` (same idiom as
+    `_write_import_hash_preserving_updated_at`). Run BEFORE the conflict
+    gate's own writes and committed on its own by the caller, so committing
+    it can never commit a conflict baseline ahead of its sibling."""
+    n = 0
+    for rn, key in zip(remote_notes, import_keys):
+        meta = existing.get(key)
+        rev = rn.updated_at or None
+        if meta is None or rev is None or meta.get("importRemoteRev") is not None:
+            continue
+        if notes_svc._import_payload_hash(_build_confirm_entry(rn, key)) != (meta.get("importHash") or ""):
+            continue
+        conn.execute(
+            "UPDATE j2_notes SET import_remote_rev = ? "
+            "WHERE id = ? AND user_id = ? AND import_remote_rev IS NULL",
+            (rev, meta["id"], user_id),
+        )
+        meta["importRemoteRev"] = rev
+        n += 1
+    return n
 
 
 def _tag_note_source_deleted(conn: sqlite3.Connection, user_id: str, import_key: str) -> None:
@@ -946,6 +1175,48 @@ def _is_conflict(meta: dict[str, Any]) -> bool:
     return updated > imported
 
 
+def _remote_changed(meta: dict[str, Any], rn: RemoteNote, entry_hash: str) -> bool:
+    """Plan A Task 1: did the REMOTE change since the last time this sync
+    confirmed or baselined the note? Keyed on the remote's own revision
+    (`import_remote_rev`), NOT on `import_hash` alone — the hash covers OUR
+    conversion of the body, so a converter fix moves it for every note and,
+    on a member-edited note, used to read as "edited AND remote changed" and
+    manufacture a "(synced copy)" sibling on the next nightly full pass.
+
+    Rule, in order:
+      1. hash equal                       -> False (nothing moved at all)
+      2. stored rev and remote rev known  -> the revisions differ
+      3. remote reports no revision       -> True (the pre-Task-1 hash rule;
+                                             nothing better to key on)
+      4. legacy row (stored rev NULL)     -> remote revision is later than
+                                             `imported_at`
+
+    ⚠️ Known, accepted limitation (controller ruling, 2026-11-01): some
+    providers (Notion) report minute-precision revision timestamps, so a
+    remote edit made within the same minute as the last sync, on a
+    member-edited note, reads as the same revision and is skipped until the
+    next remote edit. Deliberately NOT papered over with a raw-payload hash."""
+    if entry_hash == (meta.get("importHash") or ""):
+        return False
+    stored_rev = meta.get("importRemoteRev")
+    # `or None`: an empty revision is no revision, exactly as import_confirm
+    # stores it (`n.get("updatedAt") or None`).
+    remote_rev = rn.updated_at or None
+    if stored_rev is not None and remote_rev is not None:
+        return remote_rev != stored_rev
+    if remote_rev is None:
+        return True
+    remote = _parse_iso(remote_rev)
+    imported = _parse_iso(meta.get("importedAt"))
+    if remote is None or imported is None:
+        return True  # unreadable -> the conservative pre-Task-1 answer
+    if remote.tzinfo is None:
+        remote = remote.replace(tzinfo=timezone.utc)
+    if imported.tzinfo is None:
+        imported = imported.replace(tzinfo=timezone.utc)
+    return remote > imported
+
+
 def _bulk_existing_note_meta(
     conn: sqlite3.Connection, user_id: str, import_keys: list[str],
 ) -> dict[str, dict[str, Any]]:
@@ -968,7 +1239,8 @@ def _bulk_existing_note_meta(
         # notes.py::import_check — otherwise a background sync would
         # silently resurrect a note the member deliberately trashed.
         rows = conn.execute(
-            f"SELECT id, import_key, updated_at, imported_at, tags, folder_id, import_hash "
+            f"SELECT id, import_key, updated_at, imported_at, tags, folder_id, import_hash, "
+            f"import_remote_rev "
             f"FROM j2_notes WHERE user_id = ? AND deleted_at IS NULL"
             f" AND import_key IN ({placeholders})",
             (user_id, *chunk),
@@ -981,6 +1253,7 @@ def _bulk_existing_note_meta(
                 "tags": json.loads(row["tags"] or "[]"),
                 "folderId": row["folder_id"],
                 "importHash": row["import_hash"],
+                "importRemoteRev": row["import_remote_rev"],  # Plan A Task 1
             }
     return out
 
@@ -1472,12 +1745,16 @@ async def _import_remote_notes(
             provider.import_key(source["remoteId"], rn.remote_id) for rn in remote_notes
         ]
         existing = _bulk_existing_note_meta(conn, user_id, import_keys)
+        if _backfill_remote_revs_preserving_updated_at(
+                conn, user_id, remote_notes, import_keys, existing):
+            conn.commit()
 
         normal_items: list[tuple[dict[str, Any], RemoteNote, str]] = []
         # (confirm_entry, remote_note, sibling_key, original_folder_id)
         sibling_items: list[tuple[dict[str, Any], RemoteNote, str, str | None]] = []
         conflict_tag_updates: dict[str, list[str]] = {}  # original note id -> new tags
         pre_confirm_conflicts = 0
+        user_owned_unchanged = 0
 
         for rn, key in zip(remote_notes, import_keys):
             meta = existing.get(key)
@@ -1503,9 +1780,15 @@ async def _import_remote_notes(
             # produces — never re-derived here) against the original's stored
             # `import_hash` answers "did the remote content change since the
             # last time we looked," independent of the user's own edit.
+            # Plan A Task 1: the hash alone also moves when OUR converter
+            # changes, so `_remote_changed` keys the answer on the remote's
+            # own revision (see its docstring, incl. the minute-precision
+            # limitation accepted for Notion). Consequence: a remote move/
+            # rename that does NOT advance the remote revision (folderPath and
+            # title sit in the hash) is now SKIPPED on an edited note, not copied.
             is_genuine_conflict = (
                 meta is not None and _is_conflict(meta)
-                and notes_svc._import_payload_hash(entry) != (meta.get("importHash") or "")
+                and _remote_changed(meta, rn, notes_svc._import_payload_hash(entry))
             )
             if is_genuine_conflict:
                 # Local edit since the last sync AND the remote genuinely
@@ -1525,7 +1808,17 @@ async def _import_remote_notes(
                 # why skipping this freezes the comparison at the FIRST
                 # conflict forever instead of tracking pass-to-pass change.
                 _write_import_hash_preserving_updated_at(
-                    conn, user_id, meta["id"], notes_svc._import_payload_hash(entry))
+                    conn, user_id, meta["id"], notes_svc._import_payload_hash(entry),
+                    remote_rev=rn.updated_at or None)
+            elif meta is not None and _is_conflict(meta):
+                # Edited by the member, remote UNCHANGED -> the note is the
+                # member's; nothing to write. It must NOT go to import_confirm:
+                # that call re-writes a note whose `import_media_pending` is
+                # still set even when the hash matches (audit B5, the media
+                # retry), and a note with a link that can never resolve stays
+                # pending forever -- so the member's edit was overwritten on
+                # every later sync, with no conflict and no copy kept.
+                user_owned_unchanged += 1
             else:
                 # Either no genuine conflict, or a conflict whose remote side
                 # is UNCHANGED -> plain pass-through. `import_confirm`'s own
@@ -1535,7 +1828,7 @@ async def _import_remote_notes(
                 normal_items.append((entry, rn, key))
 
         totals: dict[str, Any] = {
-            "created": 0, "updated": 0, "skipped": 0, "mediaUploaded": 0,
+            "created": 0, "updated": 0, "skipped": user_owned_unchanged, "mediaUploaded": 0,
             "conflicts": pre_confirm_conflicts, "failures": [], "notStoredRefs": [],
         }
         all_touched: list[tuple[RemoteNote, str, str]] = []

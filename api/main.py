@@ -190,6 +190,7 @@ from api.routers import backtest as backtest_router
 from api.routers import rare_preview as rare_preview_router  # rare-pattern admin preview, DARK
 from api.routers import patterns as patterns_router
 from api.routers import admin_patterns as admin_patterns_router
+from api.routers import chart_iq as chart_iq_router   # Chart IQ (pattern recognition on the chart): gated per call, CHART_IQ_ENABLED / CHART_IQ_MEMBERS_ENABLED
 from api.routers import tweets as tweets_router
 from api.routers import admin_twitter as admin_twitter_router
 from api.routers import admin_purge as admin_purge_router
@@ -10253,6 +10254,7 @@ app.include_router(backtest_router.router)
 app.include_router(rare_preview_router.router)
 app.include_router(patterns_router.router)
 app.include_router(admin_patterns_router.router)
+app.include_router(chart_iq_router.router)
 # TERM-053: the GEX family is gated at its MOUNT, not per route. OI-17 put
 # `get_current_user` on `/data` and `/compare` four lines below it stayed
 # anonymous (ARCH-06 §2.2) — the omission class recurring one route apart. A

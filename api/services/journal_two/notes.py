@@ -1490,11 +1490,16 @@ def import_confirm(user_id: str, payload: dict, conn: sqlite3.Connection | None 
                         conn.execute(
                             "UPDATE j2_notes SET title=?, subtitle=?, body_json=?, body_plain=?, "
                             "first_image_url=?, folder_id=?, ticker=?, tags=?, import_hash=?, "
-                            "import_media_pending=?, imported_at=?, updated_at=? "
+                            "import_media_pending=?, imported_at=?, updated_at=?, "
+                            # Connector fidelity Plan A Task 1: the remote's own revision,
+                            # the sync engine's "did the remote change" key (engine.py
+                            # `_remote_changed`). The RAW entry string, never `updated_at`
+                            # above (which falls back to `now` on a missing/invalid value).
+                            "import_remote_rev=? "
                             "WHERE id=? AND user_id=?",
                             (title, n.get("subtitle") or None, json.dumps(body_json), body_plain,
                              first_image, folder_id, ticker, json.dumps(tags), h, media_pending, now,
-                             updated_at, row["id"], user_id))
+                             updated_at, n.get("updatedAt") or None, row["id"], user_id))
                         _sync_note_sidecars(conn, user_id, row["id"], body_json, body_plain)
                         conn.execute("RELEASE j2_import_note")
                         # Wave Q1 (2026-09-12): ADDITIVE — the revision this write
@@ -1511,11 +1516,13 @@ def import_confirm(user_id: str, payload: dict, conn: sqlite3.Connection | None 
                         conn.execute(
                             "INSERT INTO j2_notes (id, user_id, folder_id, title, subtitle, body_json, "
                             "body_plain, first_image_url, ticker, tags, import_source, import_key, import_hash, "
-                            "import_media_pending, imported_at, created_at, updated_at) "
-                            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                            "import_media_pending, imported_at, created_at, updated_at, "
+                            "import_remote_rev) "  # Plan A Task 1, see the UPDATE above
+                            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                             (new_id, user_id, folder_id, title, n.get("subtitle") or None,
                              json.dumps(body_json), body_plain, first_image, ticker, json.dumps(tags),
-                             source, key, h, media_pending, now, created_at, updated_at))
+                             source, key, h, media_pending, now, created_at, updated_at,
+                             n.get("updatedAt") or None))
                         _sync_note_sidecars(conn, user_id, new_id, body_json, body_plain)
                         conn.execute("RELEASE j2_import_note")
                         item["id"] = new_id
