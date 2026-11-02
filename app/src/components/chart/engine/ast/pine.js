@@ -106,7 +106,7 @@ import { memberNumber } from './memberValue.js'
 // ⭐ The budget's own verdict, asked at the translate door (see the row builder
 // in `translatePine`). ⚠️ NOT A CYCLE: `budget.js` imports `interpret.js` and
 // `parse.js`, neither of which imports this file.
-import { checkBudget } from './budget.js'
+import { checkBudget, DEFAULT_BUDGET, REFUSALS as BUDGET_REFUSALS } from './budget.js'
 // ⭐⭐ C3B — the OBJECT half of a Pine script. `pineObjects.js` reads the
 // statements; `objectProgram.js` owns the canonical shape they become. Neither
 // imports this file, so there is no cycle and the object model stays authorable
@@ -1528,14 +1528,69 @@ const PHASE1_MODERN_SPELLING = Object.freeze({
   cog: 'ta.cog',
 })
 
-/** W1 — the longest `ta.cog` window unrolled into a tree (`BUILTIN_CALL_TREE.cog`).
- *  The only literal length in the sample and corpus (2026-11-02) is TradingView's
- *  own example, 10; a longer one is refused by name, not built. */
-const COG_MAX_UNROLL = 200
+/** ⛔ W1 (review, 2026-11-02) — THE RUNNING TOTALS W1 SERVED ARE HELD FROM
+ *  DRAWINGS. `ta.obv`, `ta.pvt` and `ta.wad` are `cum(…)` from the first bar the
+ *  chart loaded, so their LEVEL is a fact about where the history starts. A pane
+ *  PLOT carries that fact to the member: its tree raises the `window_dependent`
+ *  requirement tag, and the pane says how much history it drew. A table cell or a
+ *  label does not — the tags are read off the plot trees only
+ *  (`memberPaneDefinition.js::requirementTagsRaised`) — so it would print a number
+ *  that moves with the fetch, unmarked: on SPY, whose chart does not start at the
+ *  listing, an OBV TradingView never printed (`vendorHarness.h5MulticatorValues`).
+ *  So both drawing doors refuse them BY NAME (`Resolver.seriesTreeOf`) until a
+ *  capture grades a drawing of the level: the host object pass (`objectPass`) and
+ *  the runtime lane's object door (`objectDoor`). The bounded rewrites (`obvN`,
+ *  `pvtN`) are not these names and keep drawing.
+ *  ⚠️ Phase 1's three (`accdist`, `nvi`, `pvi`) are running totals as well and are
+ *  NOT held here: they reach drawings on master already, and withdrawing a drawing
+ *  is an owner decision, not this wave's. */
+const PINE_DRAWING_HELD_SERIES = Object.freeze(new Set(['obv', 'pvt', 'wad']))
 
 /** The `BUILTIN_SERIES_TREE` names that are running totals (`cum`), so only a
- *  pane is handed them — see `Resolver.seriesTreeOf`. */
-const PINE_WINDOW_DEPENDENT_SERIES = Object.freeze(new Set(['accdist', 'nvi', 'pvi', 'obv', 'pvt', 'wad']))
+ *  pane is handed them — see `Resolver.seriesTreeOf`. Phase 1's three and W1's
+ *  (`PINE_DRAWING_HELD_SERIES`), each name written once. */
+const PINE_WINDOW_DEPENDENT_SERIES = Object.freeze(new Set(['accdist', 'nvi', 'pvi', ...PINE_DRAWING_HELD_SERIES]))
+
+/** W1 — `ta.cog`'s window as its expansion reads it (`BUILTIN_CALL_TREE.cog`): a
+ *  whole number of at least 1 this engine can read when it builds the formula, as
+ *  the folded `num` node, else `null`. */
+function cogWindowOf(args) {
+  if (args.length !== 2) return null
+  const n = foldWindow(args[1])
+  return n && n.type === 'num' && Number.isInteger(Number(n.value)) && Number(n.value) >= 1 ? n : null
+}
+
+/** ⛔ W1 (review, 2026-11-02) — HOW LONG A `ta.cog` WINDOW MAY BE IS THE
+ *  BUDGET'S QUESTION, never a cap of the expansion's own. `ta.cog` unrolls its
+ *  window into one term per bar, and `budget.js` refuses a tree over
+ *  `DEFAULT_BUDGET.maxNodes` evaluation units at registration and at compute
+ *  (`budget:nodes`). The cap this replaced (200) let through windows the budget
+ *  then refused downstream (past 32 bars of `close`), after the member had been
+ *  told the script translated. So the built tree is measured by the budget's own
+ *  check (`checkBudget`, every cap) and refused at the translator, by name, in
+ *  the budget's own words (`resolveTableCall`'s `cmo`/`cog` arm). That is exactly
+ *  where the budget would refuse: a whole tree holds every unit, every bar of
+ *  lookback and every series its `ta.cog` part holds, so a part over a cap puts
+ *  the whole over it. A window longer than the node cap is never built
+ *  (`BUILTIN_CALL_TREE.cog`): each of its bars reads the source at its own
+ *  offset, one distinct unit apiece, so it cannot fit whatever else the tree
+ *  holds. A tree the budget cannot MEASURE is not a budget refusal: it goes on to
+ *  meet the engine's own refusal, as the screener lane's lookback check treats
+ *  one. Returns the budget's sentence, or `null` when the window fits. */
+function cogOverBudget(args, tree) {
+  const n = cogWindowOf(args)
+  if (!n) return null
+  const len = Number(n.value)
+  const cap = DEFAULT_BUDGET.maxNodes
+  if (len > cap) {
+    return `${BUDGET_REFUSALS['budget:nodes']} — a window of ${len} bars is ${len} terms before anything `
+      + `else is counted, and the cap is ${cap}`
+  }
+  if (!tree) return null
+  let fit
+  try { fit = checkBudget(tree) } catch (e) { if (isStackOverflow(e)) throw e; return null }
+  return fit.ok ? null : fit.error
+}
 
 /** `exp(cum(cond ? ln(1 + (close - close[1]) / close[1]) : 0))` — see `nvi`/`pvi`
  *  above. `cmp` is how this bar's volume must compare with `nz(volume[1], 0)`. */
@@ -2498,15 +2553,14 @@ export const BUILTIN_CALL_TREE = Object.freeze({
   // adds `source[i] * (i + 1)` for i = 0 … length − 1 IN THAT ORDER. The loop has
   // a whole-number bound, so it is unrolled into the same left-to-right sum
   // (`0.0 + x` is `x` exactly, so the seed term is dropped). An `na` anywhere in
-  // the window is `na`, by plain arithmetic, as there. ⛔ A length above
-  // `COG_MAX_UNROLL` is refused rather than unrolled into a tree of that size.
+  // the window is `na`, by plain arithmetic, as there. ⛔ A window longer than the
+  // node budget's cap is not built: `cogOverBudget` says why, and the Resolver
+  // refuses it, and any window whose tree the budget would refuse, by name.
   // ⚠️ No capture yet (capture queue W1-C).
   cog: (a) => {
-    if (a.length !== 2) return null
-    const n = foldWindow(a[1])
-    if (!(n && n.type === 'num' && Number.isInteger(Number(n.value)) && Number(n.value) >= 1)) return null
+    const n = cogWindowOf(a)
+    if (!n || Number(n.value) > DEFAULT_BUDGET.maxNodes) return null
     const len = Number(n.value)
-    if (len > COG_MAX_UNROLL) return null
     const at = (k) => (k === 0 ? a[0] : { type: 'offset', value: k, args: [a[0]] })
     let num = at(0)
     for (let i = 1; i < len; i++) num = cOp('+', [num, cOp('*', [at(i), cNum(i + 1)])])
@@ -7121,6 +7175,13 @@ export class Resolver {
      *  `floor_pivot_resolution` chain is six hops deep), and re-pinning that map
      *  is an owner-ruled act. The object pass mints no parameters. */
     this.objectPass = opts.objectPass === true
+    /** ⛔ W1 (review, 2026-11-02) — THE RUNTIME LANE'S OBJECT DOOR. Set by
+     *  `pineRuntimeFrontend.js` when it builds a drawing script's values
+     *  (`atObjectDoor`: `runtimeColumns.js::probeObjectRuntime` /
+     *  `runtimeObjectValues`) and by nothing else. Read in ONE place,
+     *  `seriesTreeOf`: a running total `PINE_DRAWING_HELD_SERIES` holds is refused
+     *  there by name, exactly as the host object pass refuses it. */
+    this.objectDoor = opts.objectDoor === true
     /** ⭐ C22 — the op the object pass is converting (`{topTok, siteIndex}`),
      *  so a window read inside a helper is placed at its call (`windowReadPos`). */
     this.windowReadSite = null
@@ -13246,9 +13307,21 @@ export class Resolver {
    *  ⛔ PHASE 1 (2026-10-30): `accdist`, `nvi` and `pvi` are running totals from
    *  the first loaded bar, so only a PANE (`strict`) is handed them. A SCREEN gets
    *  `null` and so meets the ruling it always met (`_functions_excluded`), the
-   *  same containment `ta.cum` has at the screen door. */
+   *  same containment `ta.cum` has at the screen door.
+   *  ⛔ W1 (review, 2026-11-02): and a running total W1 served to the pane is
+   *  REFUSED BY NAME to a drawing, at either drawing door (`objectPass`, the host
+   *  object pass; `objectDoor`, the runtime lane's object door) — see
+   *  `PINE_DRAWING_HELD_SERIES` for why. A refusal, not `null`: no older refusal
+   *  of these names says what is wrong with a drawing of them (`obv`'s ruling even
+   *  says a chart may draw it). */
   seriesTreeOf(short, pineName, tok) {
     if (!this.strict && PINE_WINDOW_DEPENDENT_SERIES.has(short)) return null
+    if ((this.objectPass || this.objectDoor) && PINE_DRAWING_HELD_SERIES.has(short)) {
+      throw new PineRefusal('pine:window-dependent',
+        `${REFUSALS['pine:window-dependent']} — \`${pineName}\` is a running total from the first bar `
+        + 'the chart loaded, and a drawing prints it with nothing to say how much history that was '
+        + '(a pane plot of it is served, with that disclosure)', locate(tok))
+    }
     return BUILTIN_SERIES_TREE[short]()
   }
 
@@ -13472,14 +13545,23 @@ export class Resolver {
       // ⭐ W1 — `ta.cmo` / `ta.cog`: a length that reaches a window is not a member
       // knob (`windowBoundInputs`, as the table path's `int` slot records it), and
       // a shape the expansion declines is named rather than handed on as `null`.
+      // ⛔ A `ta.cog` the budget refuses is refused HERE, by name and in the
+      // budget's own words (`cogOverBudget`), never translated for the budget to
+      // refuse downstream after the member was told it worked.
       if (bare === 'cmo' || bare === 'cog') {
         if (built.length === 2) for (const n of declaredInputNames(built[1])) this.windowBoundInputs.add(n)
         const tree = BUILTIN_CALL_TREE[bare](built)
+        const over = bare === 'cog' ? cogOverBudget(built, tree) : null
+        if (over) {
+          throw new PineRefusal('pine:budget',
+            `${REFUSALS['pine:budget']} — \`${pineName}\`, unrolled into one term per bar of its `
+            + `window: ${over}`, locate(tok))
+        }
         if (tree) return tree
         throw new PineRefusal(built.length === 2 ? 'pine:window' : 'pine:arity',
           built.length === 2
             ? `\`${pineName}\` needs its length as a whole number this engine can read when it `
-              + `builds the formula${bare === 'cog' ? ` (at most ${COG_MAX_UNROLL})` : ''}`
+              + 'builds the formula'
             : `\`${pineName}\` takes a source and a length, by position`, locate(tok))
       }
       if (bare === 'kcw' && (built.length < 3 || built.length > 4)) {

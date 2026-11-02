@@ -13,9 +13,10 @@ import fs from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
 
-import { translatePine } from './pine'
+import { translatePine, BUILTIN_CALL_TREE } from './pine'
 import { parseFormula } from './parse'
 import { interpret } from './interpret'
+import { checkBudget, DEFAULT_BUDGET } from './budget'
 
 const REPO = path.resolve(process.cwd(), '..')
 const readJson = (rel) => JSON.parse(fs.readFileSync(path.join(REPO, rel), 'utf8'))
@@ -251,11 +252,54 @@ describe('ta.cog — REFERENCE: TradingView\'s pine_cog, -Σ source[i]·(i+1) / 
       expect(Number.isFinite(ours[n - 1])).toBe(true)
     }
   })
-  it('a window longer than the unroll cap is refused by name, not built', () => {
-    const r = refusalOf(V6('plot(ta.cog(close, 201))'))
-    expect(r.guard).toBe('pine:window')
-    expect(r.message).toMatch(/at most 200/)
-    expect(refusalOf(V6('plot(ta.cog(close, 200))'))).toBeNull()
+  it('⛔ the NODE BUDGET decides the longest window: the edge is exactly where budget.js refuses, and it is refused HERE by name', () => {
+    const cap = DEFAULT_BUDGET.maxNodes
+    const over = new RegExp(`exceeds the node budget — this formula measures (\\d+) and the cap is ${cap}`)
+    const edges = {}
+    // a compound source costs units of its own, so the edge moves with it: the budget
+    // decides, never a number of the expansion's own
+    for (const src of ['close', 'hl2', 'ta.sma(close, 5)']) {
+      let edge = 0
+      for (let n = 20; n <= 40 && refusalOf(V6(`plot(ta.cog(${src}, ${n}))`)) === null; n += 1) edge = n
+      expect(edge, src).toBeGreaterThanOrEqual(20)
+      edges[src] = edge
+      for (const opts of [undefined, pane]) {
+        // the longest window that translates passes the budget's own check…
+        expect(checkBudget(treeOf(V6(`plot(ta.cog(${src}, ${edge}))`), opts).tree).ok, `${src} @ ${edge}`).toBe(true)
+        // …and one bar more is refused at the translator, in the budget's own words, measured
+        // past the cap: never translated for the budget to refuse downstream
+        const r = refusalOf(V6(`plot(ta.cog(${src}, ${edge + 1}))`), opts)
+        expect(r && r.guard, src).toBe('pine:budget')
+        const m = over.exec(r.message)
+        expect(m, r.message).not.toBeNull()
+        expect(Number(m[1])).toBeGreaterThan(cap)
+      }
+    }
+    // `ta.cog(close, n)` is 4n units: n reads of `close`, n − 1 weights, n − 1 products, n − 1
+    // sums, and the negation, `math.sum` and the division (its length is the last weight)
+    expect(edges.close).toBe(cap / 4)
+    expect(edges['ta.sma(close, 5)']).toBeLessThan(edges.close)
+  })
+  it('⛔ a window past the cap itself is never built, and is refused by name without a measurement', () => {
+    const cap = DEFAULT_BUDGET.maxNodes
+    const close = { type: 'series', name: 'close' }
+    expect(BUILTIN_CALL_TREE.cog([close, { type: 'num', value: cap + 1 }])).toBeNull()
+    expect(BUILTIN_CALL_TREE.cog([close, { type: 'num', value: cap }])).not.toBeNull()
+    for (const n of [cap + 1, 5000]) {
+      const r = refusalOf(V6(`plot(ta.cog(close, ${n}))`))
+      expect(r.guard).toBe('pine:budget')
+      expect(r.message).toContain(`a window of ${n} bars is ${n} terms before anything else is counted, and the cap is ${cap}`)
+    }
+    // TradingView's own example length (the only one the corpus writes) still translates
+    expect(refusalOf(V6('plot(ta.cog(close, 10))'))).toBeNull()
+  })
+  it('every cap is the budget\'s: a source reaching back past the lookback cap is refused the same way', () => {
+    const cap = DEFAULT_BUDGET.maxLookback
+    const r = refusalOf(V6(`plot(ta.cog(ta.sma(close, ${cap + 50}), 5))`), pane)
+    expect(r && r.guard).toBe('pine:budget')
+    expect(r.message).toMatch(new RegExp(`exceeds the lookback budget — this formula measures \\d+ and the cap is ${cap}`))
+    // well inside the cap, the same shape translates and its tree passes the budget's own check
+    expect(checkBudget(treeOf(V6(`plot(ta.cog(ta.sma(close, ${cap - 50}), 5))`), pane).tree).ok).toBe(true)
   })
 })
 

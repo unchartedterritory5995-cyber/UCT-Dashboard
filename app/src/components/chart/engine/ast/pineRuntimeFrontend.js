@@ -1399,6 +1399,12 @@ function buildRuntimeIrLinked(source, opts, holder) {
   const declWords = declarationWordsOf(tokens)
   const constIntCtx = { version: pineVersion, declWords }
   const constIntWrites = constIntWritesOf(stmts, constIntCtx)
+  // ⛔ W1 (review, 2026-11-02) — THE OBJECT DOOR TELLS THE RESOLVER, and the
+  // Resolver alone decides what that withholds (`pine.js::seriesTreeOf`,
+  // `PINE_DRAWING_HELD_SERIES`: a running total served to the pane is refused by
+  // name to a drawing script). Absent on every other build, whose options stay
+  // byte-identical.
+  const objectDoorOpts = atObjectDoor ? { objectDoor: true } : {}
   const resolverOpts = opts.pane === true
     ? {
       pineVersion,
@@ -1407,8 +1413,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
       basePeriod: basePeriodOf(opts),
       newestBarIsForming: opts.newestBarIsForming === true
         || !!(opts.interpretOpts && opts.interpretOpts.newestBarIsForming === true),
+      ...objectDoorOpts,
     }
-    : { pineVersion, declWords }
+    : { pineVersion, declWords, ...objectDoorOpts }
   const makeResolver = () => {
     const r = new Resolver(env, TABLE, new Map(), resolverOpts)
     if (inputs && typeof inputs === 'object') r.inputValues = inputs

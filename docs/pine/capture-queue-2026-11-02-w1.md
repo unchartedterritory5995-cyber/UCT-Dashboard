@@ -69,3 +69,30 @@ plot(high == low ? 1 : 0, "C11_flat_bar_marker")
 | C04/C05 | `wad`'s level and first bar: ours is 0 on bar 0 (both momentum tests are false on `na`), from the listing |
 | C06-C08 | `cmo`'s values and its first bar: ours lands on bar `length` (bar 0's `-na` reaches `sm2`) |
 | C09/C10 | `cog`'s values and first bar: ours lands on bar `length - 1`; float order is the published loop's |
+
+## W1-D: the three running totals in a DRAWING (held until this row)
+
+Since the W1 review (2026-11-02) a table cell or label that prints `ta.obv`, `ta.pvt` or
+`ta.wad` (or a v1-v4 bare spelling) is refused by name, `pine:window-dependent`, on both
+drawing doors (`pine.js::PINE_DRAWING_HELD_SERIES`). A pane plot of the level raises the
+history-depth disclosure; a drawing raises none, so it would print a number that moves
+with where the chart's history starts. Rail: `pineW1DrawingHeld.test.js`.
+
+```pine
+//@version=6
+indicator("vw-w1-drawing-levels", overlay = true)
+var table t = table.new(position.top_right, 1, 3)
+if barstate.islast
+    table.cell(t, 0, 0, str.tostring(ta.obv))
+    table.cell(t, 0, 1, str.tostring(ta.pvt))
+    table.cell(t, 0, 2, str.tostring(ta.wad))
+```
+
+| row | what it settles |
+|---|---|
+| D01-D03 on RDDT (from the listing) | whether a drawing of the level matches when the chart starts where TradingView's history starts. `multicator-table-rddt` already holds one witness (OBV `-29.984M`) |
+| D01-D03 on SPY (not from the listing) | the level TradingView prints where our chart starts later (multicator-table-spy: OBV `10.801B`). Lifting the hold for drawings is an owner decision on these two rows |
+
+`ta.cog` (W1-C): the window it may unroll is the node budget's question, not a cap of its
+own. A `ta.cog` whose unrolled tree the budget would refuse (past 32 bars of `close`) is
+refused by name, `pine:budget`, at translation.
