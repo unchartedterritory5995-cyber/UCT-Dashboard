@@ -312,3 +312,45 @@ def test_one_wide_read_answers_every_window_exactly(tmp_path, monkeypatch):
     assert len(hits) == 2                                            # wider than the window: read again, never truncated
     for q, n in ((full, 120), (full, 520), (tc, 70)):                 # SHORT has 40 rows: every ask is all of them
         assert _db.bars().execute(q, ("SHORT", 20261231, n)).fetchall() == fake.execute(q, ("SHORT", 20261231, n)).fetchall()
+
+
+def test_prewarm_warms_each_recently_opened_industry_once(tmp_path, monkeypatch):
+    import types
+    from api.services.chart_iq import prewarm, pipeline
+    from api.services.chart_iq.engine import context as CX
+    monkeypatch.setenv("CHART_IQ_ROW_CACHE_DB", str(tmp_path / "rows.db"))
+    assert prewarm.warm() == {"skipped": "disabled"}                       # off by default
+    monkeypatch.setenv("CHART_IQ_ENABLED", "1"); monkeypatch.setenv("CHART_IQ_PREWARM_ENABLED", "1")
+    for t in ("AAA", "AAB", "BBB", "FND", "OLD"):
+        prewarm.record_view(t)
+    import time as _t
+    c = prewarm._conn(); c.execute("UPDATE viewed SET at=? WHERE ticker='OLD'", (_t.time() - 10 * 86400,)); c.commit(); c.close()
+    monkeypatch.setattr(CX, "IM", {"AAA": ("S", "Semis"), "AAB": ("S", "Semis"), "BBB": ("T", "Software"), "FND": ("F", "Exchange Traded Fund"),
+                                   "OLD": ("O", "Oil")})
+    monkeypatch.setattr(CX, "FUNDS", {"FND"})
+    calls = []
+    monkeypatch.setattr(CX, "group", lambda t, day: calls.append((CX.IM[t][1], day)))
+    monkeypatch.setattr(pipeline, "latest_day", lambda: "2026-10-30")
+    rep = prewarm.warm(sleep=lambda s: None)
+    assert sorted(calls) == [("Semis", 20261030), ("Software", 20261030)]   # once per industry; no fund; nothing older than VIEW_DAYS
+    assert rep["industries"] == 2 and rep["day"] == "2026-10-30"
+
+
+def test_a_read_records_its_ticker_for_the_prewarm(monkeypatch, fbdb):
+    from api.services.chart_iq import prewarm
+    seen = []
+    monkeypatch.setattr(prewarm, "record_view", lambda t: seen.append(t))
+    monkeypatch.setenv("CHART_IQ_ENABLED", "1")
+    assert client(ADMIN, monkeypatch).get("/api/chart-iq/abc").status_code == 200
+    assert seen == ["ABC"]
+
+
+def test_prewarm_job_registers_only_with_its_flag(monkeypatch):
+    from api import main as M
+    jobs = []
+    sched = type("S", (), {"add_job": lambda self, fn, **kw: jobs.append(kw["id"])})()
+    monkeypatch.delenv("CHART_IQ_PREWARM_ENABLED", raising=False)
+    assert M.register_chart_iq_prewarm_jobs(sched) is False and jobs == []
+    monkeypatch.setenv("CHART_IQ_PREWARM_ENABLED", "1")
+    assert M.register_chart_iq_prewarm_jobs(sched) is True
+    assert sorted(jobs) == ["chart_iq_prewarm_evening", "chart_iq_prewarm_morning"]

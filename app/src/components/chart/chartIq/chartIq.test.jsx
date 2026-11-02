@@ -183,3 +183,23 @@ describe('chartIqRetry: only a busy (503) read is retried, at most twice', () =>
     vi.useRealTimers()
   })
 })
+
+describe('found on the live site 2026-11-02', () => {
+  it('the toolbar button sizes to its label (the toolbar .btn class fixes 24px, which overlapped Patterns / Team)', async () => {
+    const { default: ChartIqToolbarButton } = await import('./ChartIqToolbarButton')
+    render(<ChartIqToolbarButton active={false} onToggle={() => {}} />)
+    const b = screen.getByTestId('chart-iq-toggle')
+    expect(b.style.width).toBe('auto')
+    expect(b.style.whiteSpace).toBe('nowrap')
+  })
+
+  it('on a non-daily chart the panel says Chart IQ reads daily charts and offers the switch', () => {
+    const show = vi.fn(); const close = vi.fn()
+    render(<ChartIqPanel notDaily onShowDaily={show} onClose={close} />)
+    expect(screen.getByTestId('chart-iq-not-daily').textContent).toMatch(/daily/)
+    fireEvent.click(screen.getByRole('button', { name: 'Show daily' }))
+    expect(show).toHaveBeenCalledTimes(1)
+    fireEvent.click(screen.getByRole('button', { name: 'Turn Chart IQ off' }))
+    expect(close).toHaveBeenCalledTimes(1)
+  })
+})

@@ -50,8 +50,9 @@ export function mapMathCode(doc) {
 // Link mark when it has an href the Link extension accepts, so here we stamp
 // a temporary `href="import-link://<targetKey>"` placeholder — the Link
 // extension's isAllowedUri (tiptap.js) explicitly allows that scheme. Task
-// 13's rewriteBody resolves it to the real note URL (or drops the mark) once
-// the target's real note id is known post-confirm.
+// 13's rewriteBody resolves it to the real note URL once the target's real note
+// id is known post-confirm, or KEEPS the placeholder for the heal door (Plan B
+// Task 4) when the target did not come in.
 export function rewriteImportLinks(doc) {
   doc.querySelectorAll('a[data-import-link]').forEach((a) => {
     const key = a.getAttribute('data-import-link')

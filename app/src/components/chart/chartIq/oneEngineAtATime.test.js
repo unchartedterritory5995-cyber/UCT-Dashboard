@@ -25,3 +25,10 @@ describe('one pattern engine at a time', () => {
     expect(src).toMatch(/const chartIqOn = showChartIq && chartIqAllowed && !disablePatterns/)
   })
 })
+
+describe('Chart IQ on a non-daily chart', () => {
+  it('mounts the not-daily notice (with the timeframe switch) when Chart IQ is on and the chart is not 1D', () => {
+    expect(src).toMatch(/\{chartIqOn && resolvedTf !== 'D' && bars\?\.length > 0 && \(\s*<ChartIqPanel\s+notDaily/)
+    expect(src).toMatch(/onShowDaily=\{typeof onTfChange === 'function' \? \(\) => onTfChange\('D'\) : null\}/)
+  })
+})

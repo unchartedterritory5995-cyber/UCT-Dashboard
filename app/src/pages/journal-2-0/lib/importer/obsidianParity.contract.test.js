@@ -67,6 +67,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { obsidianAdapter } from './adapters/obsidian'
+import { parseImport } from './postParse'
 import { htmlToNote } from './convert'
 import { extractPlainText } from '../tiptap'
 
@@ -168,48 +169,30 @@ function withoutServerOnly(summary) {
 async function clientSummaryFor(fixture) {
   const vfiles = fixture.vault_paths.map((p) =>
     vf(p, p === fixture.self_path ? fixture.input_markdown : ''))
-  const { docs } = await obsidianAdapter.parse(vfiles)
+  // The wizard's own call (Plan B Task 3): adapter.parse + the one post-parse pass.
+  const { docs } = await parseImport(obsidianAdapter, vfiles, {})
   const doc = docs.find((d) => d.importKey === `obsidian:${fixture.self_path}`)
   const { bodyJson } = htmlToNote(doc.html)
-  return semanticSummary(bodyJson)
+  const summary = semanticSummary(bodyJson)
+  // Plan B Task 3: the client's post-parse pass turns a hotlinked `<img src="https://…">`
+  // into a remote media item (`import-ref://remote-<md5>`, copied by the fetch door at
+  // commit), where the server summary still names the URL. Same image, two transports: read
+  // the ref back through the doc's OWN media list to the URL it stands for. Only a remote
+  // item is mapped; a vault file or a data: item keeps its ref.
+  const remote = new Map(doc.media.filter((m) => m.remoteUrl).map((m) => [m.ref, m.remoteUrl]))
+  summary.images = summary.images.map((ref) => remote.get(ref) ?? ref)
+  return summary
 }
 
 // Differences the CLIENT importer is known to have against the server lane,
 // named one by one so the rail stays strict for everything else. Never
-// normalize a difference away -- list it here, with the plan that closes it.
-//   09-space-and-pipe: the client adapter does not unescape `\|` inside a
-//   table cell, so `[[Other note\|alias]]` never resolves. Closed by Plan B
-//   (client importer), task "Obsidian escaped pipe" -- delete this entry then.
-//   10..14 (server Plan A Task 13): rules the server lane adopted that the client
-//   adapter has not yet. Each is closed by the named Plan B (client importer) task --
-//   delete the entry then; the rail turns red until you do.
+// normalize a difference away -- list it here, with the plan that closes it; delete the
+// entry when it closes (the rail turns red until you do).
+// ⚰️ 09 (escaped pipe), 10 (relative links), 11 (anchor text + note embeds),
+// 13 (duplicate names) and 14 (deep links) were listed here until Plan B Task 8 closed
+// them (`obsidianResolve.js` + `adapters/obsidian.js`).
 const knownClientGap = {
-  '09-space-and-pipe.json': {
-    missingLinks: [{ target: 'Other note.md', text: 'alias' }],
-  },
-  // Plan B task "Obsidian relative links" (spec O-5): the client keeps the raw relative
-  // href and drops the one that is not beside the note; the server resolves all four.
-  '10-relative-links.json': {
-    clientReads: {
-      links: [
-        { text: 'the other', target: 'Other%20note.md' },
-        { text: 'up and over', target: '../Notes/Other.md' },
-        { text: 'a section', target: 'Other%20note.md#Heading' },
-      ],
-    },
-  },
-  // Plan B task "Obsidian anchors and note embeds" (spec §5.2 polish, O-11): the client
-  // shows `Other note#Risk` and makes `![[Other note]]` a file chip of the raw `.md`.
-  '11-anchors-and-embeds.json': {
-    clientReads: {
-      links: [
-        { text: 'Other note#Risk', target: 'Other note.md' },
-        { text: 'the risk', target: 'Other note.md' },
-      ],
-      text: 'Anchors and embeds See Other note#Risk and the risk.  [file: Other note.md]',
-    },
-  },
-  // Plan B task "Obsidian callouts" (spec §5.2 polish): the client writes a blockquote
+  // Callouts: spec §5.6 polish, not in Plan B (ruling R9) -- the client writes a blockquote
   // with a bold title, and its marker regex loses the untitled callout's title.
   '12-callouts.json': {
     clientReads: {
@@ -217,13 +200,11 @@ const knownClientGap = {
       text: 'Callouts Size Keep it small. > Wait for the pivot.',
     },
   },
-  // Plan B task "Obsidian duplicate names" (spec §5.2 polish): the client resolves a
-  // bare name to the first file seen, the server to the same folder, then the shortest.
-  '13-duplicate-basenames.json': {
-    clientReads: { links: [{ text: 'Plan', target: 'A/Deep/Plan.md' }] },
-  },
-  // Plan B task "Obsidian deep links" (spec L-4): the client drops an
-  // `obsidian://open?vault=<this vault>` link to text; the server resolves it.
+  // Plan B final review, fix 2 (DELIBERATE, not a Plan B gap): the server knows its vault's
+  // name (the plugin's device label), so `vault=Trading` resolves there. A client drop of
+  // LOOSE files (no `.obsidian/`, no single top folder) cannot show the link is into the
+  // vault it holds, so the deep link stays text rather than resolve by name across the drop
+  // (which opened another vault's note). Dropped as a `Trading/` folder, the client links it.
   '14-raw-html-and-deep-link.json': {
     missingLinks: [{ target: 'Plan.md', text: 'the plan' }],
   },
