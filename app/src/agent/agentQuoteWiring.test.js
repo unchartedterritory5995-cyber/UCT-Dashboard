@@ -1,5 +1,5 @@
 // agent-lead wiring for agent-md's stock.quote (#624): the browser learns the server's activated kinds
-// (#621 config `data_kinds`) and registers stock.quote only when the server serves BOTH quote kinds.
+// (#621 config `data_kinds`) and registers stock.quote only when the server serves BOTH quote kinds AND instrument.resolve (MD-1 §4.7.4).
 // Anything else — gateway dark, list missing, one kind absent, config not loaded or failing — leaves the
 // manifest exactly as it is (no stock.quote), so every flags-off answer is unchanged.
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
@@ -52,6 +52,7 @@ describe('stock.quote is registered only when the server serves both quote kinds
     ['gateway on, only quotes', { data: true, data_kinds: ['quotes'] }],
     ['gateway on, an older server with no list', { data: true }],
     ['gateway off, list present', { data: false, data_kinds: ['quote', 'quotes'] }],
+    ['gateway on, quote + quotes but no instrument.resolve (§4.7.4: never price an unresolved symbol)', { data: true, data_kinds: ['quote', 'quotes'] }],
   ]
   for (const [label, cfg] of DARK) {
     it(`dark: ${label}`, async () => {
@@ -63,12 +64,12 @@ describe('stock.quote is registered only when the server serves both quote kinds
     await boot(null, false)
     expect(getCapability('stock.quote')).toBeFalsy()
   })
-  it('on: quote and quotes activated', async () => {
-    await boot({ data: true, data_kinds: ['quote', 'quotes'] })
+  it('on: quote, quotes and instrument.resolve activated', async () => {
+    await boot({ data: true, data_kinds: ['quote', 'quotes', 'instrument.resolve'] })
     expect(getCapability('stock.quote')).toBeTruthy()
   })
   it('idempotent: a second config load registers nothing twice', async () => {
-    await boot({ data: true, data_kinds: ['quote', 'quotes'] })
+    await boot({ data: true, data_kinds: ['quote', 'quotes', 'instrument.resolve'] })
     expect(() => registerServerGatedBuiltins()).not.toThrow()
     expect(getCapability('stock.quote')).toBeTruthy()
   })
