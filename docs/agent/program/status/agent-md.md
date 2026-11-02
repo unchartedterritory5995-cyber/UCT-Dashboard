@@ -53,8 +53,15 @@ Only agent-md edits this file. Update it in every PR.
   DORMANT unless `UCT_AGENT_ISOLATED=1` — refused for every purpose, `answer` included; active-behaviour tests set the flag.
 - **Open measurement:** `news.company`'s `store.health_snapshot()` runs COUNT(*) over news_items/news_tickers per
   read — cost on the production DB size must be measured and recorded here before any flag goes on (agent-lead).
-- Next: PR 4b after the gateway PR; ADR-003 flow/darkpool spike (draft);
-  freshness eval corpus with agent-qa.
+- PR 4b is ✅ INTEGRATED as #596 (`e242740211`), live dark in production `c3ba71c343` (QA GREEN r2 `0da44001b8`).
+- **Sprint 2 (flags off), agreed order A → B → D → C with agent-lead:**
+  - **A — phrasings list** (branch `agent/md/phrasings`): `contracts/MD-1-phrasings.md`, 30 phrasings with their
+    deterministic handling, ambiguous-ticker rule, answer obligations. Docs only.
+  - **B — `stock.quote`** (`capabilities/marketDataQuote.js` + additive `session` field, MD-1 v1.5). Pending.
+  - **D — freshness corpus (#598)** refreshed onto `c3ba71c343` with per-session fixture clocks. Pending.
+  - **C — `bars.daily` answers** (`capabilities/marketDataBars.js`). Pending.
+  - Lead-owned dependencies: `builtins.js` registration line, `UCT_AGENT_DATA_KINDS` allowlist (fail closed),
+    `fastPath.js` wiring of `match()`.
 
 ## Blockers
 - (none) — the Sprint-0 gateway test was updated by agent-lead in #571.
@@ -66,4 +73,4 @@ Only agent-md edits this file. Update it in every PR.
   a store one session behind (stale), and a store row for today's developing bar (must be excluded).
 
 ## Ready for integration
-- PR 4b `breadth.current` + `ratings`
+- PR A phrasings list (docs only)
