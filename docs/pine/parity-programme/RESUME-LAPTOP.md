@@ -12,16 +12,18 @@ Last updated: 2026-11-02 (round 1 in progress on the desktop). Update this file 
 - Owner decisions so far: server-side interpreter = separate sandboxed service; strategies in scope.
 - Workstream branches (all pushed to GitHub; `git fetch origin` to see them):
 
-| stream | branch | state at last update |
+| stream | branch | state at hand-off (2026-11-02 ~11:30 CT) |
 |---|---|---|
-| W0 measure | `docs/pine-coverage-2026-11-02` | running |
-| W1 names | `feat/pine-w1-names` | running |
-| W2 arming packet | `feat/pine-w2-arming` | running |
-| W3 drawings | `feat/pine-w3-drawings` | running |
-| Editor status panel | `feat/pine-editor-status` (flag `VITE_PINE_EDITOR_STATUS`, dark) | running |
-| W5 server runtime design | `docs/pine-w5-server-runtime` | running |
-| E evidence engine | `feat/pine-evidence-engine` | running |
-| W4, W6-W9 | not started (W4 after W2 arming) | - |
+| W0 measure | `docs/pine-coverage-2026-11-02` | censuses + harness running; WIP push requested (check `git log`) |
+| W1 names | `feat/pine-w1-names` | 13 files changed locally; WIP push requested (check `git log`) |
+| W2 arming packet | `feat/pine-w2-arming` | WIP `880b4758fd`: audit S1/S4/S6/S7/S8 met (S8 router mounted api/main.py:10366); runtime-on harness 111/107/118 vs prod 93/103/140, 0 MATCH regressions; new rail runtimeAllowlistParity.test.js not yet run; next: RF readiness census, vite build B4, worker probe B2/B5, write ARMING-PACKET (commands in commit msg) |
+| W3 drawings | `feat/pine-w3-drawings` | WIP push requested (check `git log`) |
+| Editor status panel | `feat/pine-editor-status` | WIP `2d978b028d` (spec `bee9bcabb2`): panel built dark (VITE_PINE_EDITOR_STATUS + Dockerfile/ledger); 4 new test files NOT yet run; next: run + fix, flag-off byte-identical rail (pineBoxImportVerdict.test.jsx), mutations M1-M4, ledger pytest + hygiene |
+| W5 server runtime | `docs/pine-w5-server-runtime` | design COMPLETE `b346688652` (SERVER-RUNTIME-DESIGN.md s0-10; 20 tasks T1-T20, first wave T1/T3/T5/T6/T12, critical path 3-4 weeks); not yet run: bare-Node closure check + pre-commit pytest/hygiene |
+| E evidence engine | `feat/pine-evidence-engine` | design `aac71b6f81`; offline build in progress; WIP push requested (check `git log`) |
+| W4, W6-W9 | not started (see WAVE-TASKS.md) | - |
+
+Detailed task list for every stream: `WAVE-TASKS.md` (this folder).
 
 The coordinator updates this table at hand-off with each branch's tip SHA and what is left.
 
@@ -57,6 +59,11 @@ Known pre-existing failures that are not ours: `pollingSites.rail`, the `convers
 random-id flake, `definition_concierge` x5, `require_paid` sentence, `test_entitlements` NUMBERS.
 
 ## 5. Owner items open
+- W5 design questions (SERVER-RUNTIME-DESIGN.md): R3 verdicts on instruction budget, wall time
+  only as safety stop (blocking); Q2 service size 2 vCPU/2 GB and 25 runtime docs per sweep;
+  Q3 closed-bar-only alerts in v1; Q4 separate PINE_RUNTIME_SERVER_STAGE (recommended); Q5 caller
+  ships bars (recommended); Q6 accept last-ulp diffs on Safari/Firefox; Q7 accept minutes of
+  engine-mismatch withholding per bump; Q8 sweepable only once allowlisted.
 - Read-only refused count after the bumps (pod read was blocked on the desktop):
   `SELECT engine,status,COUNT(1) FROM definition_engine_status GROUP BY engine,status` on `/data/user_definitions.db` (service web).
 - Move the desktop page file D: -> C: (then two concurrent heavy jobs become safe).
