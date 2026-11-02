@@ -10557,6 +10557,24 @@ def _csv_response(csv_path: str, filename: str):
         })
     return JSONResponse(status_code=404, content={"error": f"{filename} not found"})
 
+@app.get("/api/brand/massive-card-logo.png")
+async def _massive_card_logo():
+    """Public author-icon for the Massive Discord cards (the UCT Logo).
+
+    Discord fetches an embed's ``icon_url`` anonymously, so the image MUST be
+    publicly reachable. The embed used to point at the GitHub raw URL for
+    ``app/public/UCT_logo_512.png``, but this repo is private -> GitHub returns
+    404 to Discord -> the card showed a broken-image placeholder. Serve a small
+    (256px) copy from here instead; ``UCT_LOGO_URL`` points the embed at this
+    route. Keep it public (no auth) so Discord can load it.
+    """
+    p = os.path.join(PUBLIC, "massive-card-logo.png")
+    if os.path.exists(p):
+        return FileResponse(p, media_type="image/png", headers={
+            "Cache-Control": "public, max-age=86400",
+        })
+    return JSONResponse(status_code=404, content={"error": "massive-card-logo.png not found"})
+
 @app.get("/api/admin/massive/diagnose")
 async def _massive_diagnose():
     """One-shot diagnostic for the Massive enrichment pipeline.
