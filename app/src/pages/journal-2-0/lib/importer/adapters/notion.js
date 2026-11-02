@@ -99,6 +99,13 @@ async function parse(vfiles, opts = {}) {
   const warnings = []
   const byPath = new Map(vfiles.map((v) => [v.path, v]))
   const { winners, shadow } = groupPageTwins(vfiles)
+  // Page id (lowercase 32-hex) -> raw path, built once from the export's own filenames.
+  const idToPath = new Map()
+  for (const v of vfiles) {
+    if (!PAGE_EXT.test(v.path)) continue
+    const id = pageIdOfPath(v.path)
+    if (id && !idToPath.has(id)) idToPath.set(id, v.path)
+  }
 
   const items = vfiles.filter((v) => {
     const ext = extOf(v.path)
@@ -118,7 +125,7 @@ async function parse(vfiles, opts = {}) {
       const doc =
         ext === 'csv'
           ? await makeCsvDoc(vfile, warnings)
-          : await makePageDoc(vfile, ext, byPath, shadow)
+          : await makePageDoc(vfile, ext, byPath, shadow, idToPath)
       if (doc) {
         docs.push(doc)
         rawPaths.push(vfile.path)
@@ -229,10 +236,10 @@ function pageIdentityKey(path) {
   return dir ? `${dir}/${stem}` : stem
 }
 
-async function makePageDoc(vfile, ext, byPath, shadow) {
+async function makePageDoc(vfile, ext, byPath, shadow, idToPath) {
   const dir = dirOf(vfile.path)
   const rawHtml = ext === 'md' ? mdToHtml(await readText(vfile)) : await readText(vfile)
-  const { html, media, links } = resolveReferences(rawHtml, dir, byPath, shadow)
+  const { html, media, links } = resolveReferences(rawHtml, dir, byPath, shadow, idToPath)
 
   const strippedPath = stripIdPath(vfile.path)
   const strippedDir = dirOf(strippedPath)
@@ -267,7 +274,7 @@ async function makePageDoc(vfile, ext, byPath, shadow) {
  *    `href="import-ref://<resolvedPath>"`, `data-name`).
  *  - unresolvable/absolute/fragment-only refs are left untouched.
  */
-function resolveReferences(html, dir, byPath, shadow) {
+function resolveReferences(html, dir, byPath, shadow, idToPath) {
   const doc = new DOMParser().parseFromString(html, 'text/html')
   const media = []
   const links = []
@@ -284,13 +291,41 @@ function resolveReferences(html, dir, byPath, shadow) {
 
   doc.querySelectorAll('a[href]').forEach((a) => {
     const href = a.getAttribute('href')
+    if (href && NOTION_SO_RE.test(href)) {
+      // An absolute notion.so link to a page that IS in this zip becomes a link to that note;
+      // one to a page outside it is already a working URL and stays.
+      const rawPath = idToPath.get(notionSoPageId(href))
+      if (rawPath) {
+        const finalPath = shadow.get(rawPath) || rawPath
+        const targetKey = `notion:${stripIdPath(finalPath)}`
+        a.setAttribute('data-import-link', targetKey)
+        a.removeAttribute('href')
+        links.push({ targetKey, placeholder: href })
+      }
+      return
+    }
     if (!href || isAbsoluteRef(href) || href.startsWith('#')) return
     const resolvedPath = resolvePath(dir, href)
     if (IMAGE_EXT.test(resolvedPath)) return // images are handled via <img>, not <a>
 
     if (PAGE_EXT.test(resolvedPath)) {
       const finalPath = shadow.get(resolvedPath) || resolvedPath
-      if (!byPath.has(finalPath)) return // dangling internal link — leave inert
+      if (!byPath.has(finalPath)) {
+        // A page that is NOT in this zip (Task 9). Notion's export filenames end in the page's
+        // 32-hex id, so the link keeps a working target: the server's `notion:<dashed uuid>`
+        // key (linkify.notion_note_key), which opens notion.so now and heals to the imported
+        // note if that page is imported later. No id => plain text, never a dead relative href.
+        const id = pageIdOfPath(resolvedPath)
+        if (id) {
+          const targetKey = notionNoteKey(id)
+          a.setAttribute('data-import-link', targetKey)
+          a.removeAttribute('href')
+          links.push({ targetKey, placeholder: href })
+        } else {
+          a.replaceWith(...a.childNodes)
+        }
+        return
+      }
       const targetKey = `notion:${stripIdPath(finalPath)}`
       a.setAttribute('data-import-link', targetKey)
       a.removeAttribute('href')
@@ -395,6 +430,28 @@ function csvToTable(rows) {
 // ---------------------------------------------------------------------------
 // id stripping
 // ---------------------------------------------------------------------------
+
+const PAGE_FILE_ID_RE = / ([0-9a-f]{32})\.(md|html)$/i
+const NOTION_SO_RE = /^https?:\/\/(www\.)?notion\.so\//i
+
+/** The lowercase 32-hex page id a Notion export filename ends in, else null. */
+function pageIdOfPath(path) {
+  const m = PAGE_FILE_ID_RE.exec(path)
+  return m ? m[1].toLowerCase() : null
+}
+
+/** The page id a notion.so URL names: the last 32-hex run of its path (query/fragment ignored). */
+function notionSoPageId(href) {
+  const path = href.split('#')[0].split('?')[0]
+  const all = path.match(/[0-9a-f]{32}/gi)
+  return all ? all[all.length - 1].toLowerCase() : null
+}
+
+/** The server's `linkify.notion_note_key`: `notion:` + the dashed lowercase UUID. */
+function notionNoteKey(hex32) {
+  const h = hex32.toLowerCase()
+  return `notion:${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`
+}
 
 const stripId = (s) => s.replace(STRIP_ID_RE, '')
 
