@@ -117,13 +117,22 @@ describe('MD-2 (1): §4.5 rules on REAL adapter envelopes, one per answer row', 
     expect(t).toMatch(/not available/)
     expect(t).not.toMatch(/\d/)
   })
-  it('F-20 OPEN (strict pin): a refusal\'s NOTE is echoed into the answer, so a budget refusal states a number', () => {
-    // §4.5: "the envelope, its notes … never" leave the module, and an unavailable/refused answer has "no number at
-    // all". answerFromEnvelope builds the refusal sentence from env.notes[0]. Owner: agent-md. Fails when fixed.
+  it('F-20 PROVEN (#638): a refusal states no number and echoes no note, even when the note carries one', () => {
     const env = SC.refused_budget.envelope
+    expect(env.notes[0], 'CONTROL: the refusal note itself carries a number').toMatch(/\d/)
     const t = answerFromEnvelope(env, ['NVDA']).text
-    expect(t).toContain(env.notes[0])
-    expect(t).toMatch(/\d/)
+    expect(t).not.toContain(env.notes[0])
+    expect(t).not.toMatch(/\d/)
+    expect(t).toMatch(/not available/)
+  })
+  it('F-20 PROVEN: every no-price answer is fixed words keyed on status (unavailable, refused, no priced row)', () => {
+    const base = SC.unavailable.envelope
+    const noRow = { ...SC.live_regular.envelope, data: { ...SC.live_regular.envelope.data, quote: { symbol: 'NVDA', last: null } } }
+    for (const env of [base, SC.refused_budget.envelope, noRow, { ...base, notes: ['upstream 503 at 10:31 for 7 symbols'] }]) {
+      const t = answerFromEnvelope(env, ['NVDA']).text
+      expect(t, t).not.toMatch(/\d/)
+      for (const n of env.notes || []) expect(t).not.toContain(n)
+    }
   })
 })
 

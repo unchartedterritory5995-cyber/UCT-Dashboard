@@ -211,7 +211,7 @@ Only agent-qa edits this file. Update it in every PR.
   `history_messages` applies.** An unblanked stored local-plan reply reaches the naming call.
   Repro: `-k NAMING`. Latent: such rows are blanked at write, and the model wrote them before any value existed.
 
-- **F-19 (agent-md, `quotes._session_detail`; the helper is `massive._today_et_is_a_trading_day`): `now` is
+- **F-19: FIXED by agent-md #638** (proof `test_F19_PROVEN_…`: an explicit `now` alone decides, whatever the wall clock or the helper says; red on the pre-fix quotes.py). Was: **(agent-md, `quotes._session_detail`; the helper is `massive._today_et_is_a_trading_day`): `now` is
   half-honoured.**
   `_session_detail(now)` uses `now` for the minutes but asks the WALL clock whether it is a trading day. agent-md's
   tests hide this by patching the helper with a hand-picked value per row.
@@ -219,15 +219,25 @@ Only agent-qa edits this file. Update it in every PR.
   gets the wrong state.
   Expected: the day comes from `now`. Actual: it comes from the wall clock.
   Production passes no `now`, so this is latent, but every frozen-clock caller (tests, corpora) is affected.
-- **F-20 (agent-md, `marketDataQuote.answerFromEnvelope`): a refusal or unavailable answer echoes `env.notes[0]`.**
+- **F-20: FIXED by agent-md #638** (proofs `F-20 PROVEN …`: fixed words keyed on status, no digits, no note, even when the note carries a number; red on the pre-fix capability). Was: **(agent-md, `marketDataQuote.answerFromEnvelope`): a refusal or unavailable answer echoes `env.notes[0]`.**
   §4.5 says notes never leave the module and that such an answer has "no number at all". A budget refusal gives
   "I couldn't get a price for NVDA: this turn already made 8 data reads…", which contains a number and a gateway note.
   Repro: `npx vitest run src/agent/qa/md2Quote.test.js -t F-20`.
   Expected: fixed words (or a reason from a closed list), no digits. Actual: the note, verbatim.
-- **O-1 (observation for agent-md, not a defect today):** on an early-close day (2026-11-27), `after-hours` runs from
+- **O-1: TAKEN by agent-md #638; agent-qa agrees** (NYSE half-day extended trading ends at 17:00). The clocks now pin 16:59 after-hours, 17:00 and 19:59 overnight. Was **(observation for agent-md, not a defect today):** on an early-close day (2026-11-27), `after-hours` runs from
   13:00 to 20:00. On NYSE half days, extended trading ends at 17:00, so 17:00–20:00 is labelled after hours when no
   session trades. The answer stays honest, because a print older than 15 minutes says "no trade in the last 15
   minutes … Not a real-time price".
+- **F-21 (agent-lead, gateway.py L2): the marker is on the envelope only.** `env.data`, its rows, or a value copied
+  out of them carry no marker, so L5/L6 cannot recognise them, and that is how a capability answer is built.
+  Repro: `pytest tests/test_uct_agent_qa_isolation_layers.py -k F21`. Both sides are pinned: the data is unmarked, and
+  a copied-out value passes the strip.
+  Suggest also stamping `data` and each row, so a copied sub-object stays marked. L3 (allowlist) + L4 (local-only)
+  remain the boundary for derived values.
+- **F-22 (agent-lead, turn.py): L6 runs inside `run_turn` only.** `name_conversation` (router `_name_unnamed`) reads
+  stored member and agent text without `strip_isolated_request`, so an agent row whose data carries the marker is
+  still read. Latent: that text is the model's own words.
+  Repro: `-k F22`. Suggest applying the same marker check to the naming call's rows.
 
 ## Blockers
 - (none)
@@ -252,7 +262,7 @@ tests in two ways:
 
 | Area | Result |
 |---|---|
-| Session clocks (19) | PASS. regular · open bell · 09:29 premarket · 04:00 · 03:59 overnight · 16:00 and 19:59 after-hours · 20:00 overnight · Monday 03:59 after a weekend · Saturday · Sunday 21:00 · Thanksgiving (holiday) · its eve 21:00 · observed 2026-07-03 · early close 2026-11-27 (12:59 regular, 13:00 / 19:59 after-hours) · both DST Mondays. A UTC `now` gives the same answer. An unreadable calendar reads closed; an unreadable early close falls back to 16:00 |
+| Session clocks (21, incl. O-1's 16:59 / 17:00 / 19:59 half-day clocks after #638) | PASS. regular · open bell · 09:29 premarket · 04:00 · 03:59 overnight · 16:00 and 19:59 after-hours · 20:00 overnight · Monday 03:59 after a weekend · Saturday · Sunday 21:00 · Thanksgiving (holiday) · its eve 21:00 · observed 2026-07-03 · early close 2026-11-27 (12:59 regular, 13:00 / 19:59 after-hours) · both DST Mondays. A UTC `now` gives the same answer. An unreadable calendar reads closed; an unreadable early close falls back to 16:00 |
 | §4.5 rules, 12 real scenarios (one per answer row, plus a budget refusal) | PASS: only `{text, present}` leave; "live/now" appears iff the read is fresh and live (text and shown figures); no envelope field names, source id or notes are echoed on ok/partial reads. Each row's sentence is checked: stale in the price sentence, extended hours, the last extended print and its time, closed + last trade or last close with its date, priced from a close, `Partial: no price for NOPE.` |
 | As-of reference | PASS: from `fetched_at`; a browser clock moved to 2031 changes nothing |
 | Session from the data, not the words | PASS: P01 "…premarket?" during the regular session answers "regular session", with one `quote` read for purpose `answer` and the open turn id |
@@ -304,7 +314,7 @@ gateway's exception log, the local-plan reply drop, and the `recent_outcome` gua
 | 6 | Validator text passed into envelope notes | L1 | PROVEN for the two real validators (fixed words) | `test_L1_the_REAL_validators_...` | - |
 | 7 | Per-kind allowlist `UCT_AGENT_DATA_KINDS=quote`: every other kind, for every purpose, even with ISOLATED on | L1 | OPEN on master; **PROVEN with #621** (refused, nothing run, no budget). The test follows the code and asserts both states strictly | `test_L1_ALLOWLIST_with_DATA_on_...` | agent-lead (#621) |
 | 7a | Allowlist fails closed (DATA on, KINDS unset → every kind refused) and never widens ISOLATED or SCAN (every kind listed, both off → isolated and scan kinds still refused) | L1 | **PROVEN with #621** (skipped before it, as there is nothing to test) | `test_L1_ALLOWLIST_fails_closed_...` | — |
-| 8 | Envelope marker `isolated: true` | L2 | NOT BUILT (no caller yet) | `test_L6_NOT_BUILT_...` (asserts the marker is absent) | agent-lead |
+| 8 | Envelope marker `isolated: true` | L2 | **PROVEN with agent-lead `368d3a4b22`**: the gateway stamps `True` on every isolated read, whatever the adapter wrote; a non-true value breaks MD-1, so the read is replaced and still stamped; a non-isolated kind carries no marker (CONTROL). The marker is on the ENVELOPE only (F-21) | `tests/test_uct_agent_qa_isolation_layers.py::test_L2_…` (mutation-proved: 10 red without the stamp) | agent-lead (done) |
 | 9 | Caller allowlist (who may `readData` an isolated kind) | L3 | PROVEN (static AST rail) | `app/src/agent/qa/modelIsolation.test.jsx` (1) | - |
 | 10 | History: a local-only outcome row | L4 | PROVEN | `tests/test_uct_agent_qa_isolation.py::test_a_stored_local_answer_...` | - |
 | 11 | History: an unreadable outcome row | L4 | PROVEN (fail closed) | `tests/test_uct_agent_qa_isolation.py::test_an_unreadable_outcome_row_FAILS_CLOSED` | - |
@@ -313,9 +323,9 @@ gateway's exception log, the local-plan reply drop, and the `recent_outcome` gua
 | 14 | History: any NON-local outcome row's text is replayed verbatim | L4 | **OPEN by design**: the server keys on the action name or the `local` flag, never on content; safe only while every non-local capability's TEXT is value-free | `test_L4_OPEN_PIN_...` | agent-lead (structural) |
 | 15 | Conversation naming reads an unblanked local-plan reply (`history_messages` drops it; `name_conversation` has no guard) | L4 | **PROVEN with agent-lead `5aabae8a73`** (F-18 fixed: the same `is_local_row` guard), with a CONTROL showing a non-local reply is still read | `test_L4_PROVEN_F18_the_NAMING_call_...` (mutation-proved: red on the pre-fix turn.py) | agent-lead (done) |
 | 16 | `recentOutcome` (free browser text) | L6 | **PROVEN with `5aabae8a73`** (F-17 fixed: run_turn never forwards it; the TurnIn field stays accepted for old clients), with a CONTROL showing the member's words still go | `test_L6_PROVEN_F17_...` (mutation-proved) · `test_L6_PROVEN_recent_outcome_is_dropped_once_...` | agent-lead (done) |
-| 17 | `workspace_context` forwarded whole; no marker strip | L6 | NOT BUILT, DORMANT (no isolated caller) | `test_L6_NOT_BUILT_...` | agent-lead |
+| 17 | `workspace_context`, `pending`, `reference` and stored history rows | L6 | **PROVEN with `368d3a4b22`**: marked objects are removed at any depth; a wholly marked context becomes empty; a stored row whose data carries the marker is replayed as unreadable, text included; the strip is logged as a count. CONTROLS: unmarked siblings, the member's words, and an unmarked row ARE sent. Not covered: values copied OUT of an envelope (F-21) and the naming call (F-22) | `tests/test_uct_agent_qa_isolation_layers.py::test_L6_…` · `test_uct_agent_qa_isolation_audit.py::test_L6_PROVEN_a_MARKED_object_…` (mutation-proved: 7 red without the strip) | agent-lead (done) |
 | 18 | Gateway envelope to server to model | L6 | PROVEN by structure: `turn.py` imports no marketdata/gateway module (AST) | `test_L6_research_results_...` | - |
-| 19 | Browser serializer drops `isolated` objects (agentClient) | L5 | NOT BUILT (no caller yet) | - | agent-lead |
+| 19 | Browser serializer drops `isolated` objects (agentClient) | L5 | **PROVEN with `368d3a4b22`**: `modelSafeBody` strips at any depth from context, pending, reference, repair, history and memory (7 planted, 7 counted); the caller's object is not mutated; the log carries a count, never content. BOTH `/api/agent/turn` and `/turn/stream` send the stripped body; end to end, a context provider publishing a marked object never reaches the model request while its unmarked fields do | `app/src/agent/qa/isolationLayers.test.jsx` (mutation-proved: 6/6 red with an identity serializer) | agent-lead (done) |
 | 20 | Isolated reader end to end: context, memory, pending, title, telemetry, traces | L5/L7 | PROVEN for a `localOnly` reader, with a leaking CONTROL that is caught | `app/src/agent/qa/modelIsolation.test.jsx` (2) | - |
 | 21 | stock.compare composite (F-12) | L4/L5 | **REMOVED with `5aabae8a73`** (owner display-only rule): the rating is absent from views, text, turn bodies, memory, traces and telemetry, while the served payload carried it (CONTROL), and a source rail forbids reading it | `modelIsolation.test.jsx::F-12 FIXED …` · `isolationAudit.test.jsx::F-12 …` (mutation-proved) | agent-lead (done) |
 | 22 | **Screener composition, raw values**: the catalog carries `uct_composite`, `rating_*`, `sponsorship`, `accdis`, `rs_rank`, the same UCT Ratings (`screener/enrich.py`) | L4/L5/L7 | PROVEN: values stay in the stored table; text, context, memory, telemetry and traces are clean | `app/src/agent/qa/isolationAudit.test.jsx::PROVEN ...` | - |

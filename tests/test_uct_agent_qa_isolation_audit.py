@@ -25,17 +25,14 @@ from api.services.uct_agent import turn
 from api.services.uct_agent.marketdata import envelope as env
 from api.services.uct_agent.marketdata import gateway as gw
 
-SENT_NUM = "987.654"
-SENT_INT = "13579"
-SENT_STR = "ISO-SENTINEL-7Q"
-SENTINELS = (SENT_NUM, SENT_INT, SENT_STR)
+# token-aware sentinels, shared (tests/test_uct_agent_qa_sentinels.py): a timing can no longer read as a leak
+from tests.test_uct_agent_qa_sentinels import SENT_NUM, SENT_INT, SENT_STR, SENTINELS, leaks as _token_leaks
 PURPOSES = sorted(env.PURPOSES)
 KINDS_ENV = "UCT_AGENT_DATA_KINDS"          # agent-lead's planned per-kind allowlist (Sprint 2)
 
 
 def leaks(obj) -> list[str]:
-    s = obj if isinstance(obj, str) else json.dumps(obj, default=str)
-    return [x for x in SENTINELS if x in s]
+    return _token_leaks(obj, SENTINELS)
 
 
 @pytest.fixture(autouse=True)
@@ -302,7 +299,7 @@ def test_L6_PROVEN_F17_recent_outcome_never_reaches_the_model_even_with_no_local
     turn.run_turn(message=f"and now {SENT_STR}?", context={}, history=[], caller=_scripted(calls),
                   recent_outcome=f"breadth {SENT_NUM}% above 50sma")
     sent = _sent(calls)
-    assert SENT_NUM not in sent
+    assert SENT_NUM not in leaks(sent)
     assert SENT_STR in sent, "CONTROL: the member's own words are forwarded (the detector can see a payload)"
 
 
@@ -314,16 +311,17 @@ def test_L6_PROVEN_recent_outcome_is_dropped_once_history_holds_a_local_row(no_c
     assert not leaks(_sent(calls))
 
 
-def test_L6_NOT_BUILT_workspace_context_is_forwarded_whole_the_server_strips_nothing(no_cost):
-    """ADR-005 L6 ('run_turn refuses or strips a request whose context carries the isolated marker') is not built:
-    there is no marker (L2 absent) and run_turn forwards the browser's context dict whole. BLOCKED BY DORMANCY:
-    no capability reads an isolated kind yet. This pin fails when L6 lands — then make it the proof."""
+def test_L6_PROVEN_a_MARKED_object_in_workspace_context_is_stripped_and_L2_marks_isolated_reads(no_cost):
+    """Cells #8 and #17, flipped for agent-lead's adr005-l2-l5-l6: run_turn strips any `isolated: true` object from the
+    context (L6), and the gateway stamps the marker on isolated reads (L2). CONTROL: the unmarked value IS sent.
+    Full layer proofs: tests/test_uct_agent_qa_isolation_layers.py (and F-21 / F-22, where they do not reach)."""
     calls = []
-    turn.run_turn(message="hi", context={"charts": [{"ref": "c1", "label": "NVDA", "isolated": True,
-                                                      "value": float(SENT_NUM)}]},
+    turn.run_turn(message="hi", context={"charts": [{"ref": "c1", "label": SENT_STR,
+                                                      "reading": {"isolated": True, "value": float(SENT_NUM)}}]},
                   history=[], caller=_scripted(calls))
-    assert leaks(_sent(calls)) == [SENT_NUM]
-    assert "isolated" not in json.dumps(env.refused("ratings", {}, "x")), "L2 marker landed: update this cell"
+    s = _sent(calls)
+    assert SENT_NUM not in leaks(s) and SENT_STR in s
+    assert env.validate_envelope({**env.refused("ratings", {}, "x"), "isolated": False}), "L2: a non-true marker is invalid"
 
 
 def test_L6_research_results_never_carry_gateway_data_the_server_has_no_path_from_a_read_to_a_model(no_cost):
