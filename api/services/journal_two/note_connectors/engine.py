@@ -92,7 +92,7 @@ import os
 import random
 import sqlite3
 import threading
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from api.services.auth_db import get_connection
@@ -158,6 +158,20 @@ _LOCKED_RETRY_DELAYS = (1.0, 3.0, 8.0)
 # manual=True (the explicit "Sync now" action always runs).
 _COOLDOWN_SECONDS = 600
 
+# A member's "Sync now" runs the removal check (a complete listing feeding the
+# 2-strike delete detection) at most once per this many seconds per source,
+# measured from `j2_note_sources.last_full_sync_at`, which EVERY full pass
+# writes (scheduler and member alike). Inside the window the press downgrades
+# to an incremental pass. This one guard is also what makes "strike 2 only if
+# at least 10 minutes after strike 1" hold for member passes: there is no
+# separate strike-gap check. Scheduler (nightly) passes are never limited.
+MEMBER_FULL_PASS_MIN_INTERVAL_S = 600
+
+# A stored `last_full_sync_at` up to this far in the future is clock skew and
+# still counts; further ahead it is treated as "no previous full pass", so a
+# bad stamp can never lock a member out of the removal check.
+_LAST_FULL_FUTURE_SKEW_S = 60
+
 # Roam's own pull-many batches 40 eids/call; other providers just inherit
 # fetch_many's default per-ref loop, so this bound mainly controls failure
 # isolation granularity (how many notes one bad batch can knock out before
@@ -169,8 +183,13 @@ _FETCH_BATCH_SIZE = 40
 _CONFIRM_BATCH_SIZE = 200
 
 
+def _utcnow() -> datetime:
+    """The engine's one clock. Tests monkeypatch this to move time."""
+    return datetime.now(timezone.utc)
+
+
 def _now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return _utcnow().isoformat()
 
 
 def _parse_iso(value: Any) -> datetime | None:
@@ -180,6 +199,59 @@ def _parse_iso(value: Any) -> datetime | None:
         return datetime.fromisoformat(value.replace("Z", "+00:00"))
     except ValueError:
         return None
+
+
+def _last_full_pass_at(value: Any, now: datetime) -> datetime | None:
+    """The stored `last_full_sync_at` as an aware datetime, or None when it
+    must count as "no previous full pass": absent, unparseable, or more than
+    `_LAST_FULL_FUTURE_SKEW_S` in the future. A naive stamp is read as UTC."""
+    last = _parse_iso(value)
+    if last is None:
+        return None
+    if last.tzinfo is None:
+        last = last.replace(tzinfo=timezone.utc)
+    if last > now + timedelta(seconds=_LAST_FULL_FUTURE_SKEW_S):
+        return None
+    return last
+
+
+def _removal_check_summary(
+    user_id: str, source_id: str, *, ran: bool, reason: str | None, severed: int,
+) -> dict[str, Any]:
+    """The `removalCheck` block of a member full-pass result, read AFTER the
+    pass: `pending` from the index, `nextAllowedAt` from the stored stamp
+    (None when the next check is already allowed)."""
+    now = _utcnow()
+    source = connections.get_source_by_id(source_id) or {}
+    last = _last_full_pass_at(source.get("lastFullSyncAt"), now)
+    next_allowed = None
+    if last is not None:
+        nxt = last + timedelta(seconds=MEMBER_FULL_PASS_MIN_INTERVAL_S)
+        if nxt > now:
+            next_allowed = nxt.isoformat()
+    pending = connections.pending_removal_counts(user_id, [source_id]).get(source_id, 0)
+    return {
+        "ran": ran, "reason": reason, "nextAllowedAt": next_allowed,
+        "pending": int(pending), "severed": int(severed or 0),
+    }
+
+
+async def _member_full_pass(user_id: str, source_id: str) -> dict[str, Any]:
+    """A member's "Sync now" with full=True. Decided under the in-flight
+    guard, from a fresh read of the source, so a pass that finished a moment
+    ago is always seen. Inside the rate-limit window it downgrades to a plain
+    incremental pass (no strike, no stamp); otherwise it runs the removal
+    check."""
+    current = connections.get_source_by_id(source_id) or {}
+    now = _utcnow()
+    last = _last_full_pass_at(current.get("lastFullSyncAt"), now)
+    if last is not None and (now - last).total_seconds() < MEMBER_FULL_PASS_MIN_INTERVAL_S:
+        result = await _do_sync(user_id, source_id, full=False)
+        result["removalCheck"] = _removal_check_summary(
+            user_id, source_id, ran=False, reason="rate_limited", severed=0,
+        )
+        return result
+    return await _do_sync(user_id, source_id, full=False, removal_check=True)
 
 
 def _chunks(seq: list, n: int):
@@ -305,7 +377,11 @@ async def sync_source(
     `member=True` is a person waiting on "Sync now": it implies
     `manual=True` (no cooldown) and makes exactly ONE acquire attempt — if
     the source is busy it returns `busy` at once, never walking the sleep
-    ladder. The sqlite "locked" retry ladder is unchanged for every caller."""
+    ladder. The sqlite "locked" retry ladder is unchanged for every caller.
+
+    `member=True, full=True` runs the removal check (`_member_full_pass`),
+    rate-limited by `MEMBER_FULL_PASS_MIN_INTERVAL_S`; its result carries a
+    `removalCheck` block. Only that combination carries it."""
     if member:
         manual = True
     source = connections.get_source_by_id(source_id)
@@ -323,6 +399,8 @@ async def sync_source(
             await asyncio.sleep(_LOCKED_RETRY_DELAYS[attempt] * random.uniform(0.5, 1.5))
             continue
         try:
+            if member and full:
+                return await _member_full_pass(source["userId"], source_id)
             return await _do_sync(source["userId"], source_id, full=full)
         except sqlite3.OperationalError as e:
             if "locked" not in str(e).lower() or attempt == attempts - 1:
@@ -406,7 +484,15 @@ async def _resolve_credentials(user_id: str, provider_name: str) -> dict[str, An
 
 # ── Core per-source sync ─────────────────────────────────────────────────────
 
-async def _do_sync(user_id: str, source_id: str, *, full: bool) -> dict[str, Any]:
+async def _do_sync(
+    user_id: str, source_id: str, *, full: bool, removal_check: bool = False,
+) -> dict[str, Any]:
+    """`full` is the scheduler's nightly pass. `removal_check` is a member's
+    full pass (`_member_full_pass`): a complete listing feeds delete
+    detection while only the incremental delta is fetched and imported. The
+    two flags are mutually exclusive; the caller guarantees it."""
+    if full and removal_check:
+        raise ValueError("_do_sync: full and removal_check are mutually exclusive")
     source = connections.get_source_by_id(source_id)
     if source is None:
         raise ValueError(f"unknown note-connector source {source_id!r}")
@@ -433,6 +519,30 @@ async def _do_sync(user_id: str, source_id: str, *, full: bool) -> dict[str, Any
         # read differently (this repo's own "a second authority over one
         # value" defect shape).
         present_fn = getattr(provider, "list_present_refs", None)
+
+        # Plan D task 3, removal check step (1): the COMPLETE listing comes
+        # FIRST — `list_present_refs` when the provider has it, else
+        # `list_changed(cursor=None)` — so that the stored-cursor
+        # `list_changed` below is the LAST listing call and every provider's
+        # per-call instance state (Notion `_page_meta`, Craft `_doc_meta`,
+        # Dropbox/OneDrive `opaque_cursor`, OneDrive `_deleted_refs`, Roam
+        # `_title_to_uid`) ends exactly as after a plain incremental pass. If
+        # this listing fails, the check does not run (no strike, no stamp)
+        # and the pass carries on as an ordinary incremental one.
+        removal_listing: list[RemoteRef] | None = None
+        removal_reason: str | None = None
+        if removal_check:
+            try:
+                if present_fn is not None:
+                    removal_listing = await present_fn(creds)
+                else:
+                    removal_listing = await provider.list_changed(creds, cursor=None)
+            except Exception as e:  # noqa: BLE001 — degrade to incremental, never abort
+                item_failures.append(
+                    f"removal check skipped: the full listing failed (synced "
+                    f"changes only): {e}"
+                )
+                removal_reason = "enumeration_failed"
 
         # Raw cursor, unadjusted — providers own their own overlap window.
         # A provider WITHOUT `list_present_refs` (Roam/Craft/Notion/Dropbox/
@@ -469,7 +579,16 @@ async def _do_sync(user_id: str, source_id: str, *, full: bool) -> dict[str, Any
         # hook, leaves this byte-for-byte equal to `refs`.
         index_refs = refs
 
-        if full:
+        # Removal check step (4): a page in EITHER listing is present (union
+        # by remote_id, the delta's ref winning) — absorbs search-index lag
+        # in either listing, so a lagging full listing can never strike a
+        # page the delta just returned.
+        if removal_listing is not None:
+            by_id = {r.remote_id: r for r in removal_listing}
+            by_id.update({r.remote_id: r for r in refs})
+            index_refs = list(by_id.values())
+
+        if full or removal_listing is not None:
             # Task 11 MUST-RESOLVE #4: when the provider exposes a
             # provider-precise trash sweep (Notion's `list_deleted`, NOT
             # part of the abstract `NoteProvider` contract — checked via
@@ -511,7 +630,8 @@ async def _do_sync(user_id: str, source_id: str, *, full: bool) -> dict[str, Any
             # aborts the sync — `index_refs` simply falls back to `refs`,
             # today's behavior, unchanged. `present_fn` itself was already
             # resolved once, above, before the cursor decision — reused here.
-            if present_fn is not None:
+            # (A removal check already called it, as step (1), above.)
+            if full and present_fn is not None:
                 try:
                     index_refs = await present_fn(creds)
                 except Exception as e:  # noqa: BLE001
@@ -520,7 +640,15 @@ async def _do_sync(user_id: str, source_id: str, *, full: bool) -> dict[str, Any
                         f"refs-drive-everything): {e}"
                     )
 
-            dd = _run_delete_detection(user_id, source, index_refs, deleted_refs=deleted_refs)
+            # Every full pass, scheduler or member, stamps
+            # `last_full_sync_at` in the detection transaction (refused
+            # included) — the member rate limit reads it.
+            dd = _run_delete_detection(
+                user_id, source, index_refs, deleted_refs=deleted_refs,
+                stamp_at=_now_iso(),
+            )
+            if removal_check:
+                removal_reason = "refused" if dd["refused"] else None
             # `deleted` is meaningful even alongside a warning now (Fix-round-1
             # #1a): the explicit-sever cap can refuse the LIST_DELETED signal
             # for a subset of rows in the same pass unrelated 2-strike misses
@@ -620,7 +748,7 @@ async def _do_sync(user_id: str, source_id: str, *, full: bool) -> dict[str, Any
             source_deleted=deleted_count,
         )
 
-        return {
+        result = {
             "status": status,
             "sourceId": source_id,
             **counts,
@@ -628,6 +756,12 @@ async def _do_sync(user_id: str, source_id: str, *, full: bool) -> dict[str, Any
             "failures": item_failures,
             "deleteDetectionWarning": delete_guard_warning,
         }
+        if removal_check:
+            result["removalCheck"] = _removal_check_summary(
+                user_id, source_id, ran=removal_listing is not None,
+                reason=removal_reason, severed=deleted_count,
+            )
+        return result
     except Exception as e:
         connections.record_sync_result(user_id, source_id, ok=False, error=str(e))
         if isinstance(e, errors.NoteConnAuthError):
@@ -657,9 +791,15 @@ async def _do_sync(user_id: str, source_id: str, *, full: bool) -> dict[str, Any
 
 def _run_delete_detection(
     user_id: str, source: dict[str, Any], refs: list[RemoteRef],
-    *, deleted_refs: list[RemoteRef] | None = None,
+    *, deleted_refs: list[RemoteRef] | None = None, stamp_at: str,
 ) -> dict[str, Any]:
-    """Runs BEFORE `_touch_remote_index` so `prev_count` reflects the index
+    """Plan D task 3: `stamp_at` is written to `j2_note_sources.
+    last_full_sync_at` in the SAME transaction on EVERY branch, the <50%
+    refuse branch included (a refused check is still a check for the member
+    rate limit), so that branch now commits. The result carries `refused`,
+    True only on the <50% branch. Neither guard's condition changed.
+
+    Runs BEFORE `_touch_remote_index` so `prev_count` reflects the index
     as of before this sync touched anything — touching first would inflate
     the denominator with brand-new rows and mask a genuine bad-enumeration
     refuse case. Refs seen this round and refs not seen are disjoint sets, so
@@ -702,6 +842,10 @@ def _run_delete_detection(
     explicit_deleted_ids = {r.remote_id for r in (deleted_refs or [])}
     conn = get_connection()
     try:
+        conn.execute(
+            "UPDATE j2_note_sources SET last_full_sync_at = ? WHERE id = ? AND user_id = ?",
+            (stamp_at, source_id, user_id),
+        )
         existing_rows = conn.execute(
             "SELECT remote_id, import_key, miss_streak FROM j2_note_remote_index "
             "WHERE user_id = ? AND source_id = ?",
@@ -709,8 +853,10 @@ def _run_delete_detection(
         ).fetchall()
         prev_count = len(existing_rows)
         if prev_count > 0 and len(seen_ids) < prev_count * 0.5:
+            conn.commit()  # the stamp only: no index row is touched
             return {
                 "status": "warning",
+                "refused": True,
                 "deleted": 0,
                 "reason": (
                     f"delete-detection refused for source {source_id}: full "
@@ -767,8 +913,9 @@ def _run_delete_detection(
                 )
         conn.commit()
         if explicit_refused:
-            return {"status": "warning", "deleted": deleted, "reason": explicit_refuse_reason}
-        return {"status": "ok", "deleted": deleted, "reason": None}
+            return {"status": "warning", "refused": False, "deleted": deleted,
+                    "reason": explicit_refuse_reason}
+        return {"status": "ok", "refused": False, "deleted": deleted, "reason": None}
     finally:
         conn.close()
 

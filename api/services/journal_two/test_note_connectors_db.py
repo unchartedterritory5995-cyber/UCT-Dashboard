@@ -182,7 +182,10 @@ def test_ensure_schema_adds_miss_streak_and_conflicts_to_a_pre_task8_shaped_db(t
 
     from api.services.journal_two.note_connectors.providers.base import RemoteRef
     seen_ref = RemoteRef(remote_id="r1", updated_at="2026-08-02T00:00:00+00:00")
-    dd = engine._run_delete_detection("u1", {"id": "s1", "remoteId": "g"}, [seen_ref])
+    dd = engine._run_delete_detection(
+        "u1", {"id": "s1", "remoteId": "g"}, [seen_ref],
+        stamp_at="2026-08-02T00:00:00+00:00",
+    )
     assert dd["status"] == "ok"
     assert dd["deleted"] == 0
 
