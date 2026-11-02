@@ -659,8 +659,7 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
     }
     const area = areaRef.current
     if (!area || !Number.isInteger(n) || n < 1) return
-    const lines = String(area.value || '').split('
-')
+    const lines = String(area.value || '').split('\n')
     if (n > lines.length) return
     const at = lines.slice(0, n - 1).reduce((acc, l) => acc + l.length + 1, 0)
     area.focus()
