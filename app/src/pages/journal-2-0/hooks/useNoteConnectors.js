@@ -38,6 +38,7 @@
  */
 import { useCallback } from 'react'
 import useSWR from 'swr'
+import { readSuccessBody } from '../../../lib/responseBody'
 
 // Provider roster (spec §1/§7, widened to the Microsoft Graph wave in
 // Task 7, then to Obsidian's push transport in the 2026-09-02 plan's Task 5).
@@ -110,7 +111,7 @@ function normalizeCounts(raw) {
   }
 }
 
-function normalizeSource(raw) {
+export function normalizeSource(raw) {
   if (!raw) return null
   return {
     id: raw.id,
@@ -123,8 +124,62 @@ function normalizeSource(raw) {
     lastSyncStatus: pick(raw, 'lastSyncStatus', 'last_sync_status', null),
     lastSyncError: pick(raw, 'lastSyncError', 'last_sync_error', null),
     warmingUntil: pick(raw, 'warmingUntil', 'warming_until', null),
+    pendingRemoval: pick(raw, 'pendingRemoval', 'pending_removal', 0) || 0,
+    lastFailureCount: pick(raw, 'lastFailureCount', 'last_failure_count', 0) || 0,
     counts: normalizeCounts(raw.counts),
   }
+}
+
+// The server's exact sentence for a second Sync now while one is running (HTTP 409).
+export const BUSY_DETAIL =
+  'A sync is already running for this source. Its results will appear here when it finishes.'
+
+const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : 0)
+
+// Sync result -> { status, removalCheck }. `removalCheck` is null when the
+// pass did not ask for one (older server / non-full pass); otherwise it is a
+// STATED outcome (ran, or why not) -- never dropped when `ran` is false.
+export function normalizeSyncResult(raw) {
+  const r = raw && typeof raw === 'object' ? raw : {}
+  const rc = r.removalCheck !== undefined ? r.removalCheck : r.removal_check
+  let removalCheck = null
+  if (rc && typeof rc === 'object') {
+    removalCheck = {
+      ran: !!rc.ran,
+      reason: rc.reason == null ? null : rc.reason,
+      nextAllowedAt: pick(rc, 'nextAllowedAt', 'next_allowed_at', null) ?? null,
+      pending: num(rc.pending),
+      severed: num(rc.severed),
+    }
+  }
+  return { status: typeof r.status === 'string' ? r.status : 'unknown', removalCheck }
+}
+
+function normalizeFailure(f) {
+  const x = f && typeof f === 'object' ? f : {}
+  return {
+    noteTitle: pick(x, 'noteTitle', 'note_title', ''),
+    reason: pick(x, 'reason', 'reason', ''),
+    name: pick(x, 'name', 'name', ''),
+  }
+}
+
+// Recent-sync log rows. A malformed stored failures blob arrives as
+// `failuresUnreadable: true` and is kept -- never read as "no failures".
+export function normalizeLogRows(raw) {
+  const rows = raw && Array.isArray(raw.rows) ? raw.rows : []
+  return rows.filter((r) => r && typeof r === 'object').map((r) => ({
+    id: r.id,
+    at: pick(r, 'at', 'at', null),
+    status: pick(r, 'status', 'status', null),
+    created: num(pick(r, 'created', 'created', 0)),
+    updated: num(pick(r, 'updated', 'updated', 0)),
+    skipped: num(pick(r, 'skipped', 'skipped', 0)),
+    conflicts: num(pick(r, 'conflicts', 'conflicts', 0)),
+    sourceDeleted: num(pick(r, 'sourceDeleted', 'source_deleted', 0)),
+    failures: Array.isArray(r.failures) ? r.failures.map(normalizeFailure) : [],
+    failuresUnreadable: !!pick(r, 'failuresUnreadable', 'failures_unreadable', false),
+  }))
 }
 
 function normalizeProvider(raw) {
@@ -305,20 +360,37 @@ export default function useNoteConnectors() {
     }
   }, [])
 
+  // Always a FULL pass (`full=1`): that is what runs the rate-limited
+  // removal check. A busy source answers 409 with BUSY_DETAIL (err.status /
+  // err.detail via readError).
   const syncSource = useCallback(
     async (sourceId, { background = false } = {}) => {
-      const qs = background ? '?background=1' : ''
+      const qs = background ? '?full=1&background=1' : '?full=1'
       const r = await fetch(`/api/j2/notes/connectors/sources/${sourceId}/sync${qs}`, {
         method: 'POST',
         credentials: 'include',
       })
       if (!r.ok) throw await readError(r, 'Sync failed — try again shortly.')
-      const body = await r.json().catch(() => ({}))
+      const read = await readSuccessBody(r)
       await mutate()
-      return body
+      if (!read.ok) return { status: 'unknown', removalCheck: null }
+      return normalizeSyncResult(read.body)
     },
     [mutate]
   )
+
+  // GET .../sources/{id}/log?limit= -> LogRow[]. Never resolves [] for a
+  // failure: a non-ok response or unreadable body throws.
+  const getSourceLog = useCallback(async (sourceId, { limit = 5 } = {}) => {
+    const r = await fetch(
+      `/api/j2/notes/connectors/sources/${sourceId}/log?limit=${encodeURIComponent(limit)}`,
+      { credentials: 'include' }
+    )
+    if (!r.ok) throw await readError(r, 'Could not load recent syncs.')
+    const read = await readSuccessBody(r)
+    if (!read.ok) throw new Error('Could not read recent syncs.')
+    return normalizeLogRows(read.body)
+  }, [])
 
   const updateSource = useCallback(
     async (sourceId, patch) => {
@@ -396,6 +468,7 @@ export default function useNoteConnectors() {
     startOAuth,
     mintConnectCode,
     syncSource,
+    getSourceLog,
     updateSource,
     disconnect,
     listFolders,
