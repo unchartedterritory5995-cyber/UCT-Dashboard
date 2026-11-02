@@ -161,6 +161,35 @@ Only agent-qa edits this file. Update it in every PR.
 - **Verdicts:** 64b522a433 GREEN (exact: pytest 1181, vitest 2007). 80229cba14 + #596 + #603: QA rails green, and
   #596's own tests need its #599 refresh (27 fail without UCT_AGENT_ISOLATED, and all 32 pass with it).
 
+- **F-15 (Indicators, owner of `app/src/components/chart/builder/agentDefinitions.js`; cc agent-lead), new with
+  #610 on r2. The Agent's Undo of a definition DELETE is no longer exact for a Pine-imported script.**
+  Repro (both halves probed on r2):
+  - Browser: the real `executeDefinitionAction` then `undoDefinitionAction` with the real `saveUserDefinition`. Undo
+    reports `confirmed`, but the saved body's `meta` has lost `engineVersion` (`saveUserDefinition` strips the stamp
+    from any save that carries no `pineSource`).
+  - Server: the real `user_definitions` service. A script save stores the script, and the tombstone keeps it. The
+    Agent's resurrecting save sends no `pine_source`, so the restored version holds **no script**.
+  Expected: Undo restores the stamped document and its stored script, or refuses.
+  Actual: the maths are unchanged, but the auto-upgrade link is lost. Once `VITE_SAVED_SCRIPT_UPGRADE` is on, the
+  restored indicator shows "Updated accuracy available — open in Builder and save".
+  Not blocking: the Agent is admin-only and dark, production bakes the flag `'0'`, and nothing renders differently
+  today. Script stamping itself is NOT flag-gated, so stamped rows already exist in production.
+  Fix direction (the owner's call): capture with `GET /{id}?source=1` before deleting, and pass `pineSource` on the
+  Undo save.
+  **Fix: draft PR #617 (`77b46e56cc`, Indicators, based on master; it waits behind Sprint 1 and the owner's go).
+  agent-qa re-check on a local, never-pushed merge of r2 + #617:**
+  - My reproduction, turned around to require exactness, passes: delete then Undo of a stamped script restores the
+    stamp and the stored script.
+  - Control: a server that withholds the script means nothing is deleted.
+  - #617's `agentDefinitions.test.js`: 23 passed.
+  - Agent vitest under the lock: **121 files, 2081 passed** (r2's 2058 plus those 23), with no Agent file changed.
+  - Ownership: all 3 files are EXTERNAL (Indicators: `chart/**` and `useUserDefinitions.js`), so agent-lead
+    approval is needed.
+  - Seen in passing, not from #617: `src/hooks/pollingSites.rail.test.js` fails on master content
+    (`pages/traderArchive/TodayRhymes.jsx: 1 (listed 0)`). It is outside the Agent gate and is for agent-lead to
+    route.
+  F-15 closes when #617 lands.
+
 ## Blockers
 - (none)
 
@@ -174,7 +203,52 @@ Only agent-qa edits this file. Update it in every PR.
   extended-live, extended-closed, holiday, no-current-trade. Rules (a)–(e) are a reusable predicate
   (`quote_semantics_errors`) with controls showing it can fail. Other MD-1 kinds keep provisional `data` shapes.
 
-## Verdicts on `agent/int`
+## ⭐ FINAL VERDICT — refreshed Sprint 1 RC r2 `0da44001b83b01b04630870622a571389baf56e3` (`agent/rc/sprint1-r2`): GREEN
+r2 = c6895db012 + a merge of master `e56d4cfd2d` (= production: Pine #610/#613, Indicators #577, News #615).
+Checked out EXACTLY at the r2 SHA (detached, clean), nothing added, every Agent flag unset.
+- **Agent paths unchanged:** `git diff c6895db012 0da44001b8` over `api/services/uct_agent`, `app/src/agent`,
+  `api/routers/uct_agent.py`, `agentMutations*`, `api/services/news`, the Agent tests and tools is **empty**. 40 files
+  differ, all of them master work.
+- **Full Agent suites (suite lock):** pytest **1251 passed**; vitest **120 files passed (5 skipped), 2058 passed
+  (6 skipped)**. Again with `VITE_SAVED_SCRIPT_UPGRADE=0` (the value production bakes): **identical, 2058 passed**.
+- **QA rails:** pytest **253 passed**; the QA vitest rails ran inside the full vitest run.
+- **Corpus:** oracle **31/31** (26/26, 5/5) · grammar-direct **5/31** (0/26 answerable) · browser fast path **0/31**.
+  All three match their pinned baselines.
+- **Flags-off server probe: 50/50.** Config reports data/scan/nl1 false. `/api/agent/data` refuses every kind for
+  every purpose, and spies show no adapter or validator ran and no budget opened. Each flag gates on its own, and a
+  member is denied.
+- **Route table** (`api.main:app` walked on each tree): r2 vs master `e56d4cfd2d` adds exactly one route,
+  **`POST /api/agent/data` (`require_admin_dark`)**, and removes none. Against base `51b9af9794`, the only other
+  addition is `GET /api/trade-exchange-news/library/bookmarks/{event_id}`, which is master's #615 and already live.
+- **Screener, flags off:** the answers plus the full request sequence are **byte-identical** to base `51b9af9794`.
+- **#610 / #577 vs the Agent:** I walked the acorn import closure of `agentMutations.js` (108 files) and found
+  **0 changed files**. #577 (`importVerdict.js`) is reached only through a render chain, and no Agent code calls it.
+  #610 has **one real contact: F-15** (below), which is latent and not RC-blocking.
+
+## ⭐ FINAL VERDICT — Sprint 1 release candidate `c6895db012f97cede60d998fd300ca608f730531` (`agent/rc/sprint1`): GREEN
+Checked out EXACTLY at the RC SHA (detached, `git diff --quiet`), nothing added, every Agent flag unset in the shell.
+- **Full Agent suites (suite lock):** pytest **1251 passed**; vitest **120 files passed (5 skipped), 2058 passed (6 skipped)**.
+  Both match agent-lead's gate.
+- **QA suites:** pytest **253** (isolation, clock, fixtures, scan corpus); vitest **69** (turn-id 21, isolation 12,
+  fast-path corpus 32, fixtures 4). Corpus: oracle 31/31 · grammar-direct answerable 0/26 · browser fast path 0/31.
+- **Flags-off regression (UCT_AGENT_DATA, UCT_AGENT_SCAN, UCT_AGENT_ISOLATED, UCT_AGENT_NL1 all unset):**
+  - The real router on a bare app: **50/50**.
+    - `/api/agent/config` reports data, scan and nl1 false; the gateway reports isolated dormant.
+    - `/api/agent/data` refuses EVERY registered kind for answer/research/scan with the UCT_AGENT_DATA sentence and
+      valid envelopes. **No adapter or validator ran, and no budget was opened** (spy registry).
+    - With DATA on alone: scan kinds are refused (UCT_AGENT_SCAN) and isolated kinds stay dormant.
+    - A member is denied both routes.
+  - Route table vs the pre-program base 51b9af9794, by AST: **exactly one Agent route added, POST /api/agent/data,
+    admin-dark**. None were removed, and all 15 RC Agent routes are admin-dark.
+  - Browser, flags off: the screener capability (run, runSaved own/starter, listSaved, no-turn run), every answer AND
+    the full request sequence are **byte-identical between the pre-program base and the RC**, with no /api/agent/data call.
+- **Open findings, all ruled:**
+  - F-11: latent, with a lead hardening PR after the RC.
+  - F-12: stock.compare composite rating, a known limitation; the owner decides.
+  - F-13: wording, fixed.
+  - F-14: read-only, fixed in #606.
+  - Nothing blocks.
+
 - **42d962963d — GREEN** (#572 integrated). The locked run's tree differed from this tip only by 2 lines of this file
   (two-dot `git diff`). Agent pytest under the lock: 1049 passed. Agent vitest: 115 files passed, 5 skipped;
   1988 passed, 6 skipped.
