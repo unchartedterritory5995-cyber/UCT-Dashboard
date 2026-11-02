@@ -128,6 +128,10 @@ describe('evernote adapter: en-media unwrap (same trap as en-todo)', () => {
 const PDF_B64 = btoa('%PDF-1.4\n%fake trade plan\n')
 const pdfBytes = Uint8Array.from(atob(PDF_B64), (c) => c.charCodeAt(0))
 const pdfMd5 = SparkMD5.ArrayBuffer.hash(pdfBytes.buffer)
+// A second, different image: the same PNG with one trailing byte, so its MD5 differs.
+const PNG2_B64 = btoa(atob(PNG_B64) + '\u0000')
+const png2Bytes = Uint8Array.from(atob(PNG2_B64), (c) => c.charCodeAt(0))
+const png2Md5 = SparkMD5.ArrayBuffer.hash(png2Bytes.buffer)
 const PNG_RES = `<resource><data encoding="base64">${PNG_B64}</data><mime>image/png</mime>
    <resource-attributes><file-name>chart.png</file-name></resource-attributes></resource>`
 const PDF_RES = `<resource><data encoding="base64">${PDF_B64}</data><mime>application/pdf</mime>
@@ -272,6 +276,77 @@ describe('evernote adapter: Plan B Task 6', () => {
     const e = await parseOne(`<div><en-media type="image/png" hash="22222222222222222222222222222222"/></div><div><en-media type="image/png" hash="${pngMd5}"/></div>`)
     expect((e.html.match(new RegExp(`import-ref://${pngMd5}`, 'g')) || []).length).toBe(1)
     expect(e.html.indexOf('import-ref://missing-1')).toBeLessThan(e.html.indexOf(`import-ref://${pngMd5}`))
+  })
+
+  it('never guesses: two mismatched images and two uncited images become two notices plus both images appended', async () => {
+    // Fix round 1, ruling 1. Resources in the OPPOSITE order to the en-media citing them: a
+    // positional pairing would put each picture where the other belongs.
+    const png2 = `<resource><data encoding="base64">${PNG2_B64}</data><mime>image/png</mime>
+   <resource-attributes><file-name>second.png</file-name></resource-attributes></resource>`
+    const d = await parseOne('<div>first<en-media type="image/png" hash="44444444444444444444444444444444"/></div>' +
+      '<div>second<en-media type="image/png" hash="55555555555555555555555555555555"/></div><div>tail</div>',
+      { resources: png2 + PNG_RES })
+    const html = d.html
+    expect(html).toContain('import-ref://missing-1')
+    expect(html).toContain('import-ref://missing-2')
+    expect(html.indexOf('missing-1')).toBeLessThan(html.indexOf('second'))
+    // No bytes lost: both appended at the end, after the last line of the note.
+    expect(html.indexOf(`import-ref://${png2Md5}`)).toBeGreaterThan(html.indexOf('tail'))
+    expect(html.indexOf(`import-ref://${pngMd5}`)).toBeGreaterThan(html.indexOf('tail'))
+    expect(d.media.filter((m) => m.failed?.reason === 'missing_resource')).toHaveLength(2)
+    expect(d.media.map((m) => m.ref)).toEqual(expect.arrayContaining([pngMd5, png2Md5]))
+  })
+
+  it('never guesses: one mismatched image and two uncited images is a notice plus both appended', async () => {
+    const png2 = `<resource><data encoding="base64">${PNG2_B64}</data><mime>image/png</mime></resource>`
+    const d = await parseOne('<div>only<en-media type="image/png" hash="66666666666666666666666666666666"/></div><div>tail</div>',
+      { resources: PNG_RES + png2 })
+    expect(d.html).toContain('import-ref://missing-1')
+    expect(d.html.indexOf(`import-ref://${pngMd5}`)).toBeGreaterThan(d.html.indexOf('tail'))
+    expect(d.html.indexOf(`import-ref://${png2Md5}`)).toBeGreaterThan(d.html.indexOf('tail'))
+  })
+
+  it('a lifted relative link shows its RESOLVED href, never the raw one', async () => {
+    const d = await parseOne(`<div><a href="/chart"><en-media type="image/png" hash="${pngMd5}"/></a></div>`, {
+      attributes: '<source-url>https://example.com/articles/one</source-url>',
+    })
+    const link = bodyOf(d.html).querySelector('a[href="https://example.com/chart"]')
+    expect(link).not.toBeNull()
+    expect(link.textContent).toBe('https://example.com/chart')
+    const withoutResolved = (html) => bodyOf(html).textContent.split('https://example.com/chart').join('')
+    expect(withoutResolved(d.html)).not.toContain('/chart')
+    const f = await finishOne(`<div><a href="/chart"><en-media type="image/png" hash="${pngMd5}"/></a></div>`, {
+      attributes: '<source-url>https://example.com/articles/one</source-url>',
+    })
+    expect(withoutResolved(f.html)).not.toContain('/chart')
+    expect(f.html).toContain('href="https://example.com/chart"')
+  })
+
+  it('a lifted relative link with nothing to resolve against leaves no raw href text', async () => {
+    const f = await finishOne(`<div>x<a href="/chart"><en-media type="image/png" hash="${pngMd5}"/></a></div>`)
+    expect(f.html).toContain(`import-ref://${pngMd5}`)
+    expect(bodyOf(f.html).textContent).not.toContain('/chart')
+  })
+
+  it.each([
+    ['javascript:x', 'javascript'],
+    ['evernote:///foo/bar', 'evernote:'],
+    ['vbscript:x', 'vbscript'],
+  ])('a lifted link with href %s leaves no href-derived text anywhere', async (href, needle) => {
+    const body = `<div>x<a href="${href}"><en-media type="image/png" hash="${pngMd5}"/></a></div>`
+    for (const d of [await parseOne(body), await finishOne(body)]) {
+      expect(d.html).toContain(`import-ref://${pngMd5}`)
+      expect(bodyOf(d.html).textContent).not.toContain(needle)
+      expect(d.html).not.toContain(needle)
+    }
+  })
+
+  it('a lifted link that still has its own text keeps that text', async () => {
+    const d = await parseOne(`<div><a href="/chart">See chart<en-media type="image/png" hash="${pngMd5}"/></a></div>`, {
+      attributes: '<source-url>https://example.com/articles/one</source-url>',
+    })
+    const link = bodyOf(d.html).querySelector('a[href="https://example.com/chart"]')
+    expect(link.textContent).toBe('See chart')
   })
 
   it('marks an en-media with no resource at all as missing in place', async () => {

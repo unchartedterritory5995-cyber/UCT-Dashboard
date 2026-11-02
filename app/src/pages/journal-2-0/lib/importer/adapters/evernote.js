@@ -34,13 +34,16 @@
  *    — the href is LOAD-BEARING, Task 13 matches import-ref:// hrefs).
  *    Every media item carries the resource's declared `<mime>` (the upload
  *    door is sent it; the server sniffs the bytes and is the authority).
- *    An `<en-media>` whose hash matches no resource is paired, in document
- *    order, with the next resource nothing cites whose kind matches its
- *    `type`; with no candidate it becomes `<img src="import-ref://missing-<n>">`
- *    plus a failed `missing_resource` media item, which the commit turns into a
- *    visible notice IN PLACE (E-14). Never a silent drop.
- *    Media inside a link is lifted out on the LIVE DOM, right after this
- *    (`liftMediaOutOfLinks`), before anything serialises (E-4, E-11).
+ *    An `<en-media>` whose hash matches no resource is paired with an uncited
+ *    resource ONLY when unambiguous (`unambiguousPairs`: the only unmatched one
+ *    of its kind, and exactly one uncited resource of that kind); otherwise it
+ *    becomes `<img src="import-ref://missing-<n>">` plus a failed
+ *    `missing_resource` media item, which the commit turns into a visible notice
+ *    IN PLACE (E-14), and the uncited resources are appended. Never a guess,
+ *    never a silent drop.
+ *    Media inside a link is lifted out on the LIVE DOM in `parse()`, after the
+ *    by-title link pass and after `resolveWebLinks` (so an emptied link shows its
+ *    RESOLVED href, never a raw one), before anything serialises (E-4, E-11).
  *    Resources never referenced by an `<en-media>` are appended at the end of
  *    the note as their own kind (an image as `<img>`, a file as a chip). Two resources that
  *    happen to hash identically (byte-identical content) collapse to ONE
@@ -81,6 +84,7 @@
 import SparkMD5 from 'spark-md5'
 import { reportIgnoredFiles } from './reportIgnored'
 import { liftMediaOutOfLinks } from '../mediaRefs'
+import { resolveHref, neutraliseAnchor } from '../linkPolicy'
 import { isEvernoteNoteHref, resolveEvernoteLinks, settleEvernoteLinks } from '../evernoteLinks'
 
 const ENEX_EXT = /\.enex$/i
@@ -142,6 +146,10 @@ async function parse(vfiles, opts = {}) {
   for (const doc of docs) {
     const root = doc.root
     delete doc.root
+    // ⛔ Before the lift (fix round 1, ruling 2): the lift writes an emptied link's HREF as its
+    // text, so that href must already be the resolved one, and an unsafe or unresolvable link
+    // must already be its content. Otherwise `/chart` or `javascript:x` became visible text.
+    resolveWebLinks(root, doc.sourceUrl)
     // ⛔ On the LIVE DOM, before anything serialises (Review Focus 1): a chip is itself an <a>, and
     // a chip inside a link, written out and parsed again, closes the outer link early.
     liftMediaOutOfLinks(root)
@@ -216,6 +224,22 @@ async function makeNoteDoc(noteEl, notebookName) {
     createdAt: enDate(createdRaw),
     updatedAt: enDate(updatedRaw),
     ...(sourceUrl ? { sourceUrl } : {}),
+  }
+}
+
+/**
+ * The post-parse pass's href step (`postParse.js` step 3), run early on the live DOM: every link
+ * that is not a note link gets `resolveHref(href, sourceUrl)` written back, or becomes its content
+ * (children kept, media stays in place) when that is null. Note links are left to
+ * `resolveEvernoteLinks`/`settleEvernoteLinks`. finishDoc repeats the step; it is idempotent.
+ */
+function resolveWebLinks(root, sourceUrl) {
+  for (const a of [...root.querySelectorAll('a[href]')]) {
+    if (a.hasAttribute('data-evernote-link')) continue
+    const href = a.getAttribute('href')
+    const resolved = resolveHref(href, sourceUrl || null)
+    if (resolved === null) neutraliseAnchor(a)
+    else if (resolved !== href) a.setAttribute('href', resolved)
   }
 }
 
@@ -328,23 +352,19 @@ function replaceEnMedia(doc, root, resources, resourcesByHash, referencedHashes)
   // Exact matches first, across the whole note, so a mismatched <en-media> earlier in the note
   // can never take a resource a later one cites exactly.
   for (const el of els) if (resourcesByHash.has(hashOf(el))) referencedHashes.add(hashOf(el))
+  const pairs = unambiguousPairs(els.filter((el) => !resourcesByHash.has(hashOf(el))), resourcesByHash, referencedHashes)
 
   const missing = []
   for (const el of els) {
     const hash = hashOf(el)
-    let resource = resourcesByHash.get(hash)
-    if (!resource) {
-      // E-14: no resource has this hash (an export that re-encoded the bytes). Pair it, in
-      // document order, with the next resource nothing cites whose kind matches its type.
-      resource = nextUnreferenced(resources, referencedHashes, kindOfType(el.getAttribute('type')))
-      if (resource) referencedHashes.add(resource.hash)
-    }
+    const resource = resourcesByHash.get(hash) || pairs.get(el) || null
+    if (resource) referencedHashes.add(resource.hash)
     let node
     if (resource) {
       node = mediaNode(doc, resource)
     } else {
-      // No candidate at all: a placeholder the commit turns into a visible missing_resource
-      // notice IN PLACE. Never a silent drop.
+      // No unambiguous resource: a placeholder the commit turns into a visible missing_resource
+      // notice IN PLACE. Never a silent drop; any uncited resource is still appended at the end.
       const ref = `missing-${missing.length + 1}`
       missing.push({ ref, kind: 'image', name: null, failed: { reason: 'missing_resource', sourceUrl: null } })
       node = doc.createElement('img')
@@ -363,8 +383,28 @@ function kindOfType(type) {
   return t.startsWith('image/') ? 'image' : 'file'
 }
 
-function nextUnreferenced(resources, referencedHashes, kind) {
-  return resources.find((r) => !referencedHashes.has(r.hash) && (kind === null || r.kind === kind)) || null
+/**
+ * E-14 (fix round 1, ruling 1): an `<en-media>` whose hash matches no resource (an export that
+ * re-encoded the bytes) is paired with an uncited resource ONLY when that cannot be a guess:
+ * it is the ONLY unmatched en-media of its kind and there is exactly ONE uncited resource of
+ * that kind. An en-media with no `type` pairs only when it is the only unmatched one of all and
+ * exactly one resource is uncited. ⛔ Never positional: two and two in swapped order would put
+ * each picture where the other belongs. Everything else is a notice in place, and the uncited
+ * resources are appended at the end, so no bytes are lost.
+ * @returns {Map<Element, object>} en-media -> its resource
+ */
+function unambiguousPairs(unmatched, resourcesByHash, referencedHashes) {
+  const pairs = new Map()
+  const uncited = [...resourcesByHash.values()].filter((r) => !referencedHashes.has(r.hash))
+  const typed = (k) => unmatched.filter((el) => kindOfType(el.getAttribute('type')) === k)
+  const untyped = typed(null)
+  for (const k of ['image', 'file']) {
+    const els = typed(k)
+    const candidates = uncited.filter((r) => r.kind === k)
+    if (els.length === 1 && candidates.length === 1 && untyped.length === 0) pairs.set(els[0], candidates[0])
+  }
+  if (untyped.length === 1 && unmatched.length === 1 && uncited.length === 1) pairs.set(untyped[0], uncited[0])
+  return pairs
 }
 
 /** Moves `el`'s children out to occupy `el`'s own position, then removes the
