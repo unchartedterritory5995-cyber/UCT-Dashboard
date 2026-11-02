@@ -1377,8 +1377,9 @@ export default function ImportWizard({ open, onClose, onImported }) {
                 </p>
               )}
 
-              {/* Plan B Task 11: three reports, each only when it has something to say. Every row
-                  is listed (nothing is summarised away), in a scrolling box when it is long. */}
+              {/* Plan B Task 11: three reports, each only when it has something to say. Each list
+                  shows its first REPORT_LIST_CAP (50) rows in a scrolling box, then "and N more"
+                  for the rest (`ReportList`, fix round 1 M1), so the count is never lost. */}
               {summaryResult.keptEdited?.length > 0 && (
                 <section className={styles.reportSection} aria-labelledby="import-report-kept">
                   <h3 id="import-report-kept" className={styles.reportTitle}>
