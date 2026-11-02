@@ -16,7 +16,8 @@ STEP 1 - read everything before acting (all on branch `docs/pine-parity-programm
      to this machine.
   e) docs/pine/COVERAGE-MAP-2026-11-02.md on branch `docs/pine-coverage-2026-11-02` (the fresh W0
      scoreboard and per-wave target script lists in docs/pine/coverage-targets-2026-11-02.json).
-  f) Claude memory: pull the memory repo (uct-claude-memory) and read the topic file
+  f) Claude memory: in the memory repo (uct-claude-memory) check out and pull branch
+     `docs/notebook-incident-followup` (its newest commits are there, NOT on master), then read
      project_indicator_ecosystem_resume_2026_10_31.md (bottom sections are newest).
   g) For each stream branch, read its WIP commit message(s):
      `git log --format='%h %s%n%b' origin/master..origin/<branch>`.

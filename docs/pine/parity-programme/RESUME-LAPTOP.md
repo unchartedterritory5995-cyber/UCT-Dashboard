@@ -44,8 +44,10 @@ The coordinator updates this table at hand-off with each branch's tip SHA and wh
    `python tools/pine_coverage/fetch_sample.py --cache <dir>` (public, unauthenticated endpoints).
    The census also needs `--ref <pine_v6_reference.json>`: regenerate with
    `tools/pine_survey/pine_reference_extract.js` (see docs/pine/COVERAGE-MAP.md "How to re-run").
-7. Claude memory: the memory folder is its own git repo (`uct-claude-memory`); pull it on the
-   laptop so the topic file `project_indicator_ecosystem_resume_2026_10_31.md` carries over.
+7. Claude memory: the memory folder is its own git repo (`uct-claude-memory`). Its latest commits
+   live on branch `docs/notebook-incident-followup` (NOT master; master is 275+ commits behind).
+   On the laptop: `git fetch origin && git checkout docs/notebook-incident-followup && git pull`
+   in the Claude memory folder, so `project_indicator_ecosystem_resume_2026_10_31.md` carries over.
 
 ## 4. The ship loop (per branch / batch)
 review (independent opus reviewer, GO) -> merge origin/master into the branch ->
