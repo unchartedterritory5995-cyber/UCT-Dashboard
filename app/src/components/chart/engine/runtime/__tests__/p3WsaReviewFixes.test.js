@@ -332,11 +332,25 @@ describe('M3 — Pine 6 `bool` is never `na`', () => {
     const r = refusalOf(`${v6}x = switch\n    close > 104 => close\n          > open\nplot(x ? 1 : 0)\n`)
     expect(r.message).toMatch(/v6 bool is never `na`|ends in a block/)
   })
-  // ⛔⛔ REACHABLE through C47: a `switch <simple string param>` body lowers ONE arm's
-  // inline text per call site, so the lowering does not refuse; the classifier must.
-  it('⛔⛔ re-review 4: a C47 `switch m` body whose arms continue onto the next line (bools) refuses as an arm value', () => {
-    const r = refusalOf(`${v6}f(simple string m) =>\n    switch m\n        "a" => close\n              > open\n        "b" => open\n              > close\nx = if close > 103\n    f("a")\nplot(x ? 1 : 0)\n`)
-    expect(r.message).toMatch(/v6 bool is never `na`/)
+  // ⛔⛔ C47 — a `switch <simple string param>` body lowers ONE arm's inline text per call
+  // site. A CONTINUED arm's value is not that text, so `simpleSwitchShape` declines it and
+  // the body is refused like any other unreadable switch — standalone and as an arm value.
+  const C47_CONTINUED = 'f(simple string m) =>\n    switch m\n        "a" => close\n              > open\n        "b" => open\n              > close\n'
+  it('⛔⛔ re-review 4: a C47 `switch m` body whose arms continue onto the next line refuses as an arm value', () => {
+    const r = refusalOf(`${v6}${C47_CONTINUED}x = if close > 103\n    f("a")\nplot(x ? 1 : 0)\n`)
+    expect(r.message).toMatch(/v6 bool is never `na`|ends in a block|block/)
+  })
+  for (const objectDoor of [false, true]) {
+    it(`⛔⛔ re-review 4: standalone \`plot(f("a"))\` over continued C47 arms is refused (${objectDoor ? 'object door' : 'pane'})`, () => {
+      for (const head of [v5, v6]) {
+        const b = build(`${head}${C47_CONTINUED}plot(f("a"))\n`, { objectDoor, objectTrees: [], objectTreesAt: [] })
+        expect(b.ok, 'expected a refusal').toBe(false)
+      }
+    })
+  }
+  it('⭐ re-review 4 CONTROL: single-line C47 arms still draw the selected arm', () => {
+    const out = run(`${v6}f(simple string m) =>\n    switch m\n        "a" => close\n        "b" => open\nplot(f("a"))\n`)
+    expect(out).toEqual(C)
   })
   it('⭐ re-review 4 CONTROL: a single-line numeric inline arm is served — v6 draws v5', () => {
     const body = 'x = switch\n    close > 104 => close\nplot(x)\n'
