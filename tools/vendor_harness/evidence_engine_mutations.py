@@ -5,7 +5,7 @@ import pathlib
 import subprocess
 import sys
 
-W = pathlib.Path(r"C:\Users\Patrick\uct-worktrees\pine-e")
+W = pathlib.Path(__file__).resolve().parents[2]
 EE = W / "tools" / "vendor_harness" / "evidence_engine.py"
 BC = W / "tools" / "vendor_harness" / "batch_capture.py"
 
