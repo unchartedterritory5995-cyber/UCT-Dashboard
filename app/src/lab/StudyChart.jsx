@@ -1,5 +1,7 @@
-// The firm's own chart component, in the Study dress: stored bars, the house look (owner's saved chart settings over
-// the schema defaults), frozen, no ticker chrome. Pieces pass markers / annotations / highlighted bars on top.
+// The firm's own chart component in the Study dress. By default it draws with the MEMBER'S OWN saved chart
+// settings (prefs.chart_settings, exactly as /charts does); `houseLook` switches to the owner's house look
+// with the Study gates instead. Stored bars, frozen, no ticker chrome. Pieces pass markers / annotations /
+// highlighted bars on top.
 import { useMemo, useRef, useCallback } from 'react'
 import StockChart from '../components/StockChart'
 import useHouseChart from '../pages/study/useHouseChart'
@@ -7,10 +9,11 @@ import { studySettingsOverride } from '../pages/study/studyChartLook'
 
 export default function StudyChart({
   bars, height = 360, markers = null, annotations = null, highlightBarTime = null, highlightColor = '#e6b800',
-  highlightBodyOnly = false, onBarTap = null, chartOpts = null, exitDate: exitProp = null,
+  highlightBodyOnly = false, onBarTap = null, chartOpts = null, exitDate: exitProp = null, houseLook = false,
+  rightPadBars = 3,
 }) {
   const house = useHouseChart()
-  const settingsOverride = useMemo(() => studySettingsOverride(chartOpts, house), [chartOpts, house])
+  const override = useMemo(() => (houseLook ? studySettingsOverride(chartOpts, house) : null), [houseLook, chartOpts, house])
   const entryDate = bars?.[0]?.t ?? null
   const exitDate = exitProp || (bars?.length ? bars[bars.length - 1].t : null)
   const last = useRef(null)
@@ -42,9 +45,11 @@ export default function StudyChart({
         entryDate={entryDate}
         exitDate={exitDate}
         exactDateRange
-        settingsOverride={settingsOverride}
+        rightPadBars={rightPadBars}
+        settingsOverride={override}
         annotations={annotations}
         annotationsVisible={!!annotations}
+        annotationsTextVisible={!!annotations}
         markers={markers}
         highlightBarTime={highlightBarTime}
         highlightColor={highlightColor}
