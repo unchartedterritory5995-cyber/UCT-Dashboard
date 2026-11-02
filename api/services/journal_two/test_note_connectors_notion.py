@@ -38,6 +38,11 @@ from cryptography.fernet import Fernet
 from api.services import auth_db
 from api.services.journal_two.db import ensure_schema
 from api.services.journal_two.note_connectors import errors
+from api.services.journal_two.note_connectors.convert.linkify import normalize_link_hrefs
+from api.services.journal_two.note_connectors.convert.notion_blocks import (
+    _rich_text_to_inline,
+    notion_page_id_from_href,
+)
 from api.services.journal_two.note_connectors.providers import base as base_module
 from api.services.journal_two.note_connectors.providers.base import RemoteRef
 from api.services.journal_two.note_connectors.providers.notion import NotionProvider
@@ -1474,3 +1479,145 @@ async def test_server_error_raises_transient():
     provider = _make_provider(handler)
     with pytest.raises(errors.NoteConnTransient):
         await provider.validate(CREDS)
+
+
+# ── Task 11 (N-4, N-5): Notion links point where they pointed ───────────────
+# Mentions and in-workspace links arrive as working links: a page Notion can name becomes
+# `import-link://notion:<dashed uuid>` (the key `import_key` writes, so the engine's link-key
+# pass turns it into the in-app note link, and an unresolved one opens notion.so meanwhile);
+# every other link keeps its own URL; user/date mentions stay text. Nothing is dropped.
+_T11_HEX = "1a2b3c4d5e6f47a8b9c0d1e2f3a4b5c6"
+_T11_UUID = "1a2b3c4d-5e6f-47a8-b9c0-d1e2f3a4b5c6"
+_T11_KEY = f"import-link://notion:{_T11_UUID}"
+
+
+def _mention(text: str, mention: dict, *, bold=False, href=None) -> dict:
+    out = _rt(text, bold=bold, href=href)
+    out["type"] = "mention"
+    out.pop("text")
+    out["mention"] = mention
+    return out
+
+
+def _link_of(node: dict) -> str | None:
+    hrefs = [m["attrs"]["href"] for m in node.get("marks") or [] if m.get("type") == "link"]
+    assert len(hrefs) <= 1
+    return hrefs[0] if hrefs else None
+
+
+def test_link_mention_is_a_link_to_the_url():
+    out = _rich_text_to_inline([_mention(
+        "Example Domain",
+        {"type": "link_mention", "link_mention": {"href": "https://example.com/article", "title": "Example Domain"}},
+        href="https://example.com/article",
+    )])
+    assert out == [{"type": "text", "text": "Example Domain",
+                    "marks": [{"type": "link", "attrs": {"href": "https://example.com/article"}}]}]
+
+
+def test_link_preview_mention_is_a_link():
+    url = "https://github.com/octo/repo/pull/7"
+    out = _rich_text_to_inline([_mention(url, {"type": "link_preview", "link_preview": {"url": url}},
+                                         bold=True, href=url)])
+    assert out == [{"type": "text", "text": url,
+                    "marks": [{"type": "bold"}, {"type": "link", "attrs": {"href": url}}]}]
+
+
+def test_database_mention_links_to_its_notion_url():
+    rt = _mention("Trades DB", {"type": "database", "database": {"id": _T11_UUID}},
+                  href=f"https://www.notion.so/{_T11_HEX}")
+    out = _rich_text_to_inline([rt])
+    # databases are not notes: the link keeps Notion's own working URL
+    assert [(n["text"], _link_of(n)) for n in out] == [("Trades DB", rt["href"])]
+
+
+def test_workspace_relative_link_maps_to_the_imported_page():
+    out = _rich_text_to_inline([_rt("my other page", href=f"/{_T11_HEX}")])
+    assert out[0]["marks"][-1]["attrs"]["href"] == _T11_KEY
+    assert out[0]["text"] == "my other page"
+    out = _rich_text_to_inline([_rt("slugged", href=f"/My-Other-Page-{_T11_HEX}#blockid")])
+    assert _link_of(out[0]) == _T11_KEY
+
+
+def test_a_workspace_link_survives_the_engines_link_policy():
+    # Task 10's policy turns an unresolvable relative href into TEXT (no source URL is a
+    # notion.so page origin); the converter must map it first or the link is lost.
+    doc = {"type": "doc", "content": [{"type": "paragraph", "content": _rich_text_to_inline(
+        [_rt("my other page", href=f"/{_T11_HEX}")])}]}
+    out = normalize_link_hrefs(doc, None)
+    assert _link_of(out["content"][0]["content"][0]) == _T11_KEY
+
+
+@pytest.mark.parametrize("href", [
+    f"/{_T11_HEX}",
+    f"/{_T11_UUID}",
+    f"/My-Page-{_T11_HEX}",
+    f"/{_T11_HEX}?pvs=4",
+    f"/{_T11_HEX}#5e6f47a8b9c0d1e2f3a4b5c61a2b3c4d",
+    f"https://www.notion.so/{_T11_HEX}",
+    f"https://notion.so/My-Page-{_T11_HEX}",
+    f"https://www.notion.so/acme/My-Page-{_T11_HEX}?pvs=4#abc",
+    f"https://www.notion.so/acme/My-Page-{_T11_UUID}",
+    f"HTTPS://WWW.NOTION.SO/My-Page-{_T11_HEX.upper()}",
+    f"https://acme.notion.site/My-Page-{_T11_HEX}",
+    f"https://www.notion.com/acme/My-Page-{_T11_HEX}",
+    f"notion://www.notion.so/acme/My-Page-{_T11_HEX}",
+    f"notion://www.notion.so/{_T11_HEX}?pvs=4",
+])
+def test_notion_so_and_notion_site_links_map_too(href):
+    assert notion_page_id_from_href(href) == _T11_UUID
+    out = _rich_text_to_inline([_rt("p", bold=True, href=href)])
+    assert out[0]["marks"] == [{"type": "bold"}, {"type": "link", "attrs": {"href": _T11_KEY}}]
+
+
+@pytest.mark.parametrize("href", [
+    f"https://example.com/My-Page-{_T11_HEX}",          # not Notion: a hex tail is not a page id
+    f"https://evilnotion.so/My-Page-{_T11_HEX}",
+    f"https://notion.so.evil.com/My-Page-{_T11_HEX}",
+    f"https://www.notion.so/MyPage{_T11_HEX}",          # the id is a whole segment or `-<id>`
+    f"https://www.notion.so/{_T11_HEX}/settings",       # the id must END the path
+    f"//www.notion.so/{_T11_HEX}",
+    "https://www.notion.so/no-page-id-here",
+    "/news/a-123",
+    f"/{_T11_HEX[:-1]}",
+    "#top",
+    "",
+    None,
+])
+def test_a_href_that_names_no_notion_page_is_not_mapped(href):
+    assert notion_page_id_from_href(href) is None
+    if href:
+        out = _rich_text_to_inline([_rt("x", href=href)])
+        assert _link_of(out[0]) == href   # kept as written; Task 10's policy decides it later
+
+
+def test_user_and_date_mentions_stay_text():
+    out = _rich_text_to_inline([
+        _mention("@Patrick", {"type": "user", "user": {"id": "u1", "object": "user"}}),
+        _mention("November 1, 2026", {"type": "date", "date": {"start": "2026-11-01"}}),
+        _mention("@Today", {"type": "template_mention", "template_mention": {"type": "template_mention_date"}}),
+    ])
+    assert out == [{"type": "text", "text": "@Patrick"},
+                   {"type": "text", "text": "November 1, 2026"},
+                   {"type": "text", "text": "@Today"}]
+
+
+def test_external_link_annotations_kept():
+    out = _rich_text_to_inline([_rt("read this", bold=True, italic=True, href="https://example.com/a")])
+    assert out == [{"type": "text", "text": "read this",
+                    "marks": [{"type": "bold"}, {"type": "italic"},
+                              {"type": "link", "attrs": {"href": "https://example.com/a"}}]}]
+
+
+def test_a_page_mention_still_maps_to_its_import_key():
+    out = _rich_text_to_inline([_mention("Plan", {"type": "page", "page": {"id": _T11_UUID}},
+                                         href=f"https://www.notion.so/{_T11_HEX}")])
+    assert _link_of(out[0]) == _T11_KEY
+
+
+def test_a_mention_with_no_url_degrades_to_text_never_dropped():
+    out = _rich_text_to_inline([
+        _mention("broken", {"type": "link_mention", "link_mention": {}}),
+        _mention("db", {"type": "database", "database": {"id": _T11_UUID}}),
+    ])
+    assert out == [{"type": "text", "text": "broken"}, {"type": "text", "text": "db"}]

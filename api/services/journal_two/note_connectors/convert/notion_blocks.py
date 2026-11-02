@@ -63,6 +63,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from . import LINK_PREFIX, REF_PREFIX
+from .linkify import notion_page_id_from_href  # the ONE Notion page-link reader (Task 10/11)
 
 # spec §7: "<=50 rows -> table doc, >50 -> per-row pages (wizard parity)" —
 # matches the wizard's own CSV_MAX_ROWS constant
@@ -224,16 +225,14 @@ def _rich_text_to_inline(rich_text: list[dict[str, Any]] | None) -> list[dict[st
 
         if rt_type == "mention":
             mention = rt.get("mention") or {}
-            if mention.get("type") == "page":
-                page_id = (mention.get("page") or {}).get("id")
-                if page_id and text:
-                    marks = _annotations_to_marks(rt.get("annotations") or {})
-                    marks.append({"type": "link", "attrs": {"href": f"{LINK_PREFIX}notion:{page_id}"}})
-                    items.append({"type": "text", "text": text, "marks": marks})
-                    continue
-            # Any other mention kind (user/date/database/link_preview) has
-            # no resolution path here — degrade to its plain text, never
-            # dropped.
+            href = _mention_href(rt, mention)
+            if href and text:
+                marks = _annotations_to_marks(rt.get("annotations") or {})
+                marks.append({"type": "link", "attrs": {"href": href}})
+                items.append({"type": "text", "text": text, "marks": marks})
+                continue
+            # A user/date/template mention, or one with no URL to point at,
+            # degrades to its plain text — never dropped.
             if text:
                 items.append({"type": "text", "text": text})
             continue
@@ -242,10 +241,39 @@ def _rich_text_to_inline(rich_text: list[dict[str, Any]] | None) -> list[dict[st
         marks = _annotations_to_marks(rt.get("annotations") or {})
         href = rt.get("href")
         if href:
-            marks.append({"type": "link", "attrs": {"href": href}})
+            marks.append({"type": "link", "attrs": {"href": _text_href(href)}})
         if text:
             items.append({"type": "text", "text": text, "marks": marks} if marks else {"type": "text", "text": text})
     return items
+
+
+def _text_href(href: str) -> str:
+    """A link Notion wrote: one naming a Notion page (a workspace-relative `/<id>`, a
+    notion.so / notion.site / notion:// URL) becomes the pending `import-link://notion:<id>`
+    (spec N-4) — the engine's link-key pass turns it into the imported note, and an
+    unresolved one opens notion.so meanwhile (N-5). Every other href is kept as written;
+    the engine's link policy (Task 10) decides it."""
+    page_id = notion_page_id_from_href(href)
+    return f"{LINK_PREFIX}notion:{page_id}" if page_id else href
+
+
+def _mention_href(rt: dict[str, Any], mention: dict[str, Any]) -> str | None:
+    """Where a mention points, or None for one that is only text (user, date, template)."""
+    kind = mention.get("type")
+    if kind == "page":
+        page_id = (mention.get("page") or {}).get("id")
+        return f"{LINK_PREFIX}notion:{page_id}" if page_id else None
+    if kind == "link_mention":
+        href = (mention.get("link_mention") or {}).get("href")
+    elif kind == "link_preview":
+        href = (mention.get("link_preview") or {}).get("url")
+    elif kind == "database":
+        # Databases are not notes: Notion's own URL for it, never a pending note link.
+        href = rt.get("href")
+        return href if isinstance(href, str) and href else None
+    else:
+        return None
+    return _text_href(href) if isinstance(href, str) and href else None
 
 
 def _unsupported_marker(block_type: str | None) -> dict[str, Any]:

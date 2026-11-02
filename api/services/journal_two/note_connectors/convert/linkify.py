@@ -76,21 +76,66 @@ _KEPT_PREFIXES = (LINK_PREFIX, REF_PREFIX, "/journal", "/terminal?cmd=", "/api/j
 _UNSAFE_SCHEMES = frozenset({"javascript", "data", "vbscript", "file"})
 _APP_SCHEMES = frozenset({"evernote", "notion", "obsidian", "onenote"})
 _SCHEME_RE = re.compile(r"^([a-zA-Z][a-zA-Z0-9+.\-]*):")
-_NOTION_ID_RE = re.compile(
-    r"([0-9a-fA-F]{8})-?([0-9a-fA-F]{4})-?([0-9a-fA-F]{4})-?([0-9a-fA-F]{4})-?([0-9a-fA-F]{12})$"
+_NOTION_SEGMENT_RE = re.compile(
+    r"(?:.*-)?([0-9a-fA-F]{32}|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})"
 )
+_NOTION_HOSTS = frozenset({"notion.so", "www.notion.so", "notion.com", "www.notion.com"})
 _APP_HOST = "uctintelligence.com"
 
 
 # ── href policy (L-4) ────────────────────────────────────────────────────────
 
-def _notion_key(read: str) -> str | None:
-    """`notion:<uuid>` for a Notion deep link whose path ends in a page id, else None."""
-    path = re.split(r"[?#]", read, maxsplit=1)[0].rstrip("/")
-    m = _NOTION_ID_RE.search(path)
+def _page_id_of_last_segment(path: str) -> str | None:
+    """The dashed lowercase UUID a Notion path names: its last segment is the id itself or
+    `<slug>-<id>` (32 hex, dashed or not). Anything else (a hex tail glued to a word, an id
+    followed by a further segment) names no page."""
+    segment = path.rstrip("/").rsplit("/", 1)[-1]
+    m = _NOTION_SEGMENT_RE.fullmatch(segment)
     if m is None:
         return None
-    return "notion:" + "-".join(g.lower() for g in m.groups())
+    h = m.group(1).replace("-", "").lower()
+    return f"{h[:8]}-{h[8:12]}-{h[12:16]}-{h[16:20]}-{h[20:]}"
+
+
+def notion_page_id_from_href(href: Any) -> str | None:
+    """The Notion page a link points at, as the dashed lowercase UUID (`8-4-4-4-12`, the
+    shape of `mention.page.id` and of the `notion:{page_id}` import key), else None.
+
+    THE one reader of a Notion page link, for both doors: the Notion converter's rich-text
+    hrefs (Task 11) and the `notion://` deep links of `resolve_href` (Task 10). Accepts a
+    workspace-relative `/<id>` or `/<slug>-<id>` (what the Notion API writes for a link to
+    another page in the workspace), `http(s)://[www.]notion.so|notion.com/[<workspace>/]...`,
+    `https://<sub>.notion.site/...`, and `notion://...`; any `?query`/`#fragment` is ignored
+    (a `#<block id>` link opens its page)."""
+    if not isinstance(href, str):
+        return None
+    read = link_href_as_read(href.strip())
+    path = re.split(r"[?#]", read, maxsplit=1)[0]
+    m = _SCHEME_RE.match(path)
+    if m is None:
+        # relative: a workspace path, never a protocol-relative `//host`
+        if not path.startswith("/") or path.startswith("//"):
+            return None
+        return _page_id_of_last_segment(path)
+    scheme = m.group(1).lower()
+    if scheme == "notion":
+        return _page_id_of_last_segment(path[m.end():])
+    if scheme not in ("http", "https"):
+        return None
+    try:
+        parts = urlsplit(path)
+    except ValueError:
+        return None
+    host = (parts.hostname or "").lower()
+    if host not in _NOTION_HOSTS and not host.endswith(".notion.site"):
+        return None
+    return _page_id_of_last_segment(parts.path)
+
+
+def _notion_key(read: str) -> str | None:
+    """`notion:<uuid>` for a Notion deep link whose path ends in a page id, else None."""
+    pid = notion_page_id_from_href("notion:" + read)
+    return f"notion:{pid}" if pid else None
 
 
 def _resolve_relative(href: str, source_url: str | None) -> str | None:
