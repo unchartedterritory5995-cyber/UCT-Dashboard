@@ -752,6 +752,56 @@ describe('C45 / C48 — ⛔ a DRAWING\'s colour whose `ta.*` call runs only on s
     heldOnce(`${H}label.new(bar_index, high, "x", color = up and ta.rising(close, 2) ? color.green : color.red)\n`, 4)
   })
 
+  // ── H1 (re-review): a colour that can HIDE the output keeps its arm gates on the
+  // output. `cond ? c : na` is a palette with a transparent entry; withheld as a
+  // colour alone, the binder would draw the line in its series colour on every bar
+  // where TradingView leaves gaps (`colourWithholdsAlone`).
+  const plotDoor = (src) => {
+    vi.stubEnv('VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', '1')
+    vi.stubEnv('VITE_PINE_MEMBER_PANE_ENABLED', '1')
+    vi.stubEnv('VITE_PINE_RUNTIME_PANE_ENABLED', '')
+    const built = memberPaneDefinition({ source: src, id: 'u_c45h1hide', name: 'P' })
+    expect(built.ok, built.reason).toBe(true)
+    const def = built.definition
+    const keys = ((def.meta.blockRuns && def.meta.blockRuns.keys) || []).map((k) => k.key)
+    const { installed } = registry.installUserDefinitions([def])
+    try {
+      const cols = registry.computeFor(installed[0], toProductBars(cap), undefined, { tf: 'D',
+        symbol: { ticker: 'RDDT', exchange: 'NYSE' }, newestBarIsForming: false, historyFromListing: true })
+      return { def, keys, errors: registry.columnErrors(cols) }
+    } finally {
+      registry.uninstallUserDefinition(def.id)
+    }
+  }
+  const wholeWithheld = (src) => {
+    const r = plotDoor(src)
+    // ONE route: the gates ride the output, and no colour column is gated besides
+    expect(r.keys, src).toEqual(['value'])
+    expect(r.errors.value && r.errors.value.guard, src).toBe(BLOCK_RUNS_GUARD)
+    return r
+  }
+
+  it('⛔ H1 — a plot coloured `… ? c : na` (and a 3-way chain with an `na` leaf, a fully transparent arm): the WHOLE plot is withheld, not drawn in its series colour', () => {
+    wholeWithheld(`${H}plot(close, "C", color = up and ta.rising(close, 2) ? color.green : na)\n`)
+    wholeWithheld(`${H}plot(close, "C", color = up ? (ta.rising(close, 2) ? color.green : na) : color.red)\n`)
+    wholeWithheld(`${H}plot(close, "C", color = up and ta.rising(close, 2) ? color.new(color.green, 100) : color.red)\n`)
+  })
+
+  it('⛔ H1 — a `plotshape` whose colour has an `na` arm: withheld whole (no marker where TradingView hides one)', () => {
+    wholeWithheld(`${H}plotshape(up, "S", color = up and ta.rising(close, 2) ? color.green : na)\n`)
+  })
+
+  it('🔴 H1 CONTROL — every colour real (two-way, 3-way chain): the value draws, the colour alone is withheld', () => {
+    for (const c of ['up and ta.rising(close, 2) ? color.green : color.red',
+      'up ? (ta.rising(close, 2) ? color.green : color.blue) : color.red']) {
+      const r = plotDoor(`${H}plot(close, "C", color = ${c})\n`)
+      expect(r.keys, c).not.toContain('value')
+      expect(r.keys.length, c).toBe(1)
+      expect(r.errors.value, c).toBeUndefined()
+      expect(r.errors[r.keys[0]].guard, c).toBe(BLOCK_RUNS_GUARD)
+    }
+  })
+
   it('⛔ plot and drawing coloured by the same `and`: the plot\'s VALUE drawn, its colour column refused by the bind, the drawing held once', () => {
     const r = draw(`${H}plot(close, "C", color = up and ta.rising(close, 2) ? color.green : color.red)\n`
       + 'if close > close[1]\n    label.new(bar_index, high, "x", color = up and ta.rising(close, 2) ? color.green : color.red)\n')

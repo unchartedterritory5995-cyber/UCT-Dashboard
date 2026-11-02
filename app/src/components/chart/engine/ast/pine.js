@@ -6530,6 +6530,27 @@ function armRunTreesOf(row) {
  *  the member door turns into a hidden condition column (`conditionColumnFor`). */
 const COLOUR_RULE_KEYS = Object.freeze(['colorCondition', 'colorIndex', 'colorGradient'])
 
+/** ⛔⛔ H1 (re-review of F2) — CAN A GATE ON THIS PRESENTATION'S COLOUR BE
+ *  WITHHELD AS A COLOUR ALONE? Only when no colour it can pick HIDES the output.
+ *  `cond ? color.green : na` is a palette with a transparent entry
+ *  (`TRANSPARENT_PALETTE_ENTRY`, `colourIndexChain`): Pine draws nothing on the
+ *  bars it picks `na`, so the colour is part of WHERE the output is drawn. A
+ *  withheld colour draws in the series colour (`binder.pointColour` → null) on
+ *  every bar — a line where TradingView leaves gaps. ⚰️ F2 did exactly that. So a
+ *  palette holding an `na` leaf or a fully transparent colour (`#RRGGBB00`), a
+ *  and a rule whose shared opacity is 0 answer false: the gate stays on the
+ *  output, which is withheld whole. (An `na`-gated colour this door could not
+ *  carry, `colorNaGated`, has no rule to hang a gate on: it stays there anyway.)
+ *  The one rule for "colour-only or whole output" a colour gate is routed by. */
+export function colourWithholdsAlone(pres) {
+  if (!pres) return false
+  if (pres.opacity === 0) return false
+  // the two-colour pair too: `c ? color.new(green, 100) : red` bakes each branch's
+  // own alpha into `colorUp` / `colorDown` (`#RRGGBB00` is a branch that hides)
+  const palette = [pres.colorUp, pres.colorDown, ...(Array.isArray(pres.colorPalette) ? pres.colorPalette : [])]
+  return !palette.some((e) => e === TRANSPARENT_PALETTE_ENTRY || /^#[0-9a-f]{6}00$/i.test(String(e)))
+}
+
 /** ⭐⭐ H1 — THE GATES EACH COLOUR RULE CARRIES, `[{formula, gates}]`, for the whole
  *  translation: every output's presentation, every fill and every paint, one entry
  *  per rule formula that carries any. The member door mints ONE condition column per
@@ -6540,7 +6561,9 @@ const COLOUR_RULE_KEYS = Object.freeze(['colorCondition', 'colorIndex', 'colorGr
  *  rule. Host lane only (the caller's test): nothing binds a screener column. */
 export function colourBlockRunsOf(t, table) {
   const pres = (t && t.presentation) || {}
-  const holders = [...((t && t.outputs) || []).map((o) => o && o.presentation),
+  // ⛔ H1 — an output whose colour can HIDE it (`colourWithholdsAlone` false) is not
+  // a holder here: its colour's arm gates ride the output itself (`_blockRuns`).
+  const holders = [...((t && t.outputs) || []).map((o) => o && colourWithholdsAlone(o.presentation) ? o.presentation : null),
     ...(pres.fills || []), ...(pres.paints || [])]
   const out = []
   const done = new Set()
@@ -25868,7 +25891,21 @@ function translatePineResult(source, opts = {}) {
       // again and nothing is minted. ⛔ The value only (`armRunTreesOf`): a colour
       // rule's gates are its colour's (`colourBlockRunsOf`, H1). ⛔ The host lane
       // only, as above: a screener column binds no chart.
-      if (resolver.condGate) for (const g of armRunGates(armRunTreesOf(row), table)) gates.push(g)
+      // ⛔⛔ H1 — …and a colour rule that can HIDE the output (an `na` / fully
+      // transparent entry, opacity 0 — `colourWithholdsAlone`) is part of WHERE the
+      // output draws: its arm gates are the output's, withheld whole. Withheld as a
+      // colour alone it would draw in the series colour on every bar where
+      // TradingView leaves gaps.
+      if (resolver.condGate) {
+        const armTrees = armRunTreesOf(row)
+        if (row.presentation && !colourWithholdsAlone(row.presentation)) {
+          for (const k of COLOUR_RULE_KEYS) {
+            const rule = row.presentation[k]
+            if (rule && rule.ast) armTrees.push(rule.ast)
+          }
+        }
+        for (const g of armRunGates(armTrees, table)) gates.push(g)
+      }
       if (gates.length) Object.defineProperty(row, '_blockRuns', { value: gates, enumerable: false })
     } catch (err) {
       row = {
