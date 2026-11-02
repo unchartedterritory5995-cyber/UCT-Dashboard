@@ -4,6 +4,11 @@
 // server's `instrument.resolve` (UCT's canonical symbol index), and a read happens ONLY when every candidate is an
 // exact US stock/ETF symbol typed as one ($X or UPPERCASE). Anything else answers in FIXED words, states no number,
 // and never offers a substitute security (agent-lead rulings a/b/c, §4.7.3). All or nothing.
+//
+// Owner wording rulings (2026-11-02, §4.7.3): an ambiguous word gets a NEUTRAL clarification that names no security
+// (a lowercase "btc" must never be answered with "Did you mean BTC (Grayscale Bitcoin Mini Trust)?"); a fund priced
+// by its explicit ticker is labelled a fund, and every answer carrying one says the price is the fund's share price,
+// never the underlying asset's. Both are by the index's TYPE field, never by a word list.
 
 import { readData } from '../marketdata/client'
 import { currentTurnId } from '../trace'
@@ -12,6 +17,24 @@ import { formOf } from './marketDataPhrases'
 export const RESOLVE_KIND = 'instrument.resolve'
 const LIMIT = 'I can quote US-listed stocks and ETFs by ticker.'
 export const NOT_READY = "I can't check ticker symbols right now, so I'm not stating a price."
+/** Appended to an ETF's index name in every answer: "BTC (Grayscale Bitcoin Mini Trust, an ETF)". */
+export const FUND_SUFFIX = ', an ETF'
+/** Said once in any answer that prices an ETF (owner ruling 3): a fund's price is never the underlying's price. */
+export const FUND_NOTE = "An ETF's price is the fund's own share price, not the price of the asset it tracks or holds."
+
+/** True when an index label carries the fund marker (the one place answers learn a row is a fund). */
+export const isFundLabel = (label) => typeof label === 'string' && label.endsWith(FUND_SUFFIX)
+
+/** The neutral §4.7.3 clarification: names the word as typed, never a candidate security. */
+export function clarifyText(word) {
+  return `I'm not sure which instrument "${word}" means. ${LIMIT} Type the ticker in capitals and I'll get it.`
+}
+
+function labelOf(r) {
+  const name = r.name ? String(r.name) : ''
+  if (r.type === 'etf') return name ? `${name}${FUND_SUFFIX}` : FUND_SUFFIX.replace(/^, /, '')
+  return name || null
+}
 
 /** Words as the capability received them → `instrument.resolve` entries. A `$` keeps its form; case is evidence. */
 export function toCandidates(words) {
@@ -26,7 +49,6 @@ export function toCandidates(words) {
   return out
 }
 
-const named = (c) => `${c.symbol}${c.name ? ` (${c.name})` : ''}`
 const shown = (r) => String(r.input || '').replace(/^\$/, '')
 
 /**
@@ -42,15 +64,12 @@ export function decide(env, candidates) {
   if (nonEquity) return { ok: false, text: `${LIMIT} ${shown(nonEquity)} isn't one I can price here.` }
   const unknown = results.find(r => !r || !['symbol', 'symbol_typed_lowercase', 'name_match', 'non_equity'].includes(r.class))
   if (unknown) return { ok: false, text: `${LIMIT} ${shown(unknown || {})} isn't one I can price here.` }
+  // a word that only MIGHT be a symbol: ask neutrally; the index's candidate is never named (owner ruling 1)
   const ask = byClass('name_match') || byClass('symbol_typed_lowercase')
-  if (ask) {
-    const c = ask.candidate || {}
-    if (!c.symbol) return { ok: false, text: `${LIMIT} ${shown(ask)} isn't one I can price here.` }
-    return { ok: false, text: `Did you mean ${named(c)}? Type the ticker in capitals, like ${c.symbol}, and I'll get it.` }
-  }
+  if (ask) return { ok: false, text: clarifyText(shown(ask)) }
   const symbols = results.map(r => r.symbol)
   if (symbols.some(s => typeof s !== 'string' || !s)) return { ok: false, text: NOT_READY }
-  return { ok: true, symbols, names: Object.fromEntries(results.map(r => [r.symbol, r.name || null])) }
+  return { ok: true, symbols, names: Object.fromEntries(results.map(r => [r.symbol, labelOf(r)])) }
 }
 
 /** One `instrument.resolve` read for the current turn, then `decide`. */

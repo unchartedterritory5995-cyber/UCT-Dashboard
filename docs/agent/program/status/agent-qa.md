@@ -2,6 +2,92 @@
 
 Only agent-qa edits this file. Update it in every PR.
 
+## Lowercase crypto cashtags (`$btc`, `$eth`, `$sol`): reviewed the REAL answer text, 2026-11-02 (rail `qa/fundLabel.test.js`)
+- `$btc` → `BTC (Grayscale Bitcoin Mini Trust, an ETF) $… ` plus the fund-price sentence; `$eth` is the same (Grayscale
+  Ethereum Mini Trust). **Not silent: acceptable.**
+- `$sol` → `SOL (Emeren Group Ltd) $…`, with NO fund sentence (a stock, not a fund). The only signal that this is a
+  solar company and not Solana is the name. **Not silent, but the weakest of the three. Owner decision:** keep it
+  (a cashtag is an explicit marker), or treat lowercase cashtags on known crypto words like the bare word
+  (the neutral ask).
+
+## Adversarial quote set 3 (BLIND, 97 rows), committed before agent-md's general lowercase design was seen, 2026-11-02
+- `scores/quote-adversarial-3.json` and the rail `qa/quoteAdversarial.test.js`. It covers clear lowercase tickers, word
+  and crypto tickers, explicit-ticker controls, lowercase crypto cashtags, natural commodity/index/crypto phrasing,
+  misspellings and share classes, historical phrasing, compounds and controls.
+- The bar: FAIL = 0 (no wrong, coincidental or current-for-historical execution); `must_execute` (22) for clear tickers.
+- QA index +8 real listings (GOOG, CAT, CAR, FUN, LINK, GLD, DIA, IBIT); the resolve fixture was regenerated. All
+  existing QA pins are unchanged (12 files, 180 passed).
+- **Baseline on #691: 0 FAIL; 14 must-execute misses** (every clear lowercase ticker and compound). `$btc/$eth/$sol`
+  execute the listing, which is allowed ONLY if the answer names it. That needs a text review on the real answer.
+
+## PR #691 (`7648fd6631`, neutral ask + ETF labelling): **GO** as the fallback; pins updated, 2026-11-02
+- Owner ruling 1 (neutral ask): every ask in both held-out sets (18) and all 15 MD-1-phrasings ask rows is the
+  `clarifyText` sentence. It names the word as typed, never offers a candidate and names no index security.
+- Ruling 2 (explicit ETF named as the fund): "BTC price" gives `BTC (Grayscale Bitcoin Mini Trust, an ETF)`, and
+  "SPY price" is labelled the same way. NVDA carries no marker (new rail `qa/fundLabel.test.js`, quote + bars).
+- Ruling 3 (an ETF is not the underlying): `FUND_NOTE` appears exactly once on an ETF quote and on an ETF daily-bars
+  answer, and never on a stock.
+- Ruling 4 (zero confident-wrong answers): set 1 has 35 pass / 9 safe-miss / **0 FAIL**, and set 2 has 52 / 2 / **0 FAIL**.
+  The outcome mixes are identical to before (only the ask detector changed).
+- **Trade-off for the owner (pinned in `qa/quoteHeldout.test.js`):** of the 18 held-out asks, **13 used to suggest
+  exactly the security the member meant** and now show the neutral sentence: H01 MSFT, H02 GOOGL, H05 AMZN, H09 NFLX,
+  H13 NVDA, H22 MSFT, H23 GOOGL, H29 AAPL, H36 BRK-B, V05 TSLA, V06 NVDA, V09 NFLX, V47 NVDA. **5 used to suggest a
+  security the member probably did not mean**, and are now fixed: H26 BTC, H28 GOLD, V12 DOW, V22 ETH, V24 SOL.
+  For four set-2 rows `expect` is null; agent-qa recorded what they meant in `MEANT_WHEN_NULL`.
+- Flags off: #691 changes no server file. The md2Panel dark config shapes (5) still make no read and offer no
+  `stock.quote`.
+- Suites on #691 + pins, under the lock: Agent pytest 1733 passed; vitest 138 files, 2494 passed.
+
+## PR #695 at `f0b1dee621` (F-24 fixed): **GO** — FAIL = 0 on all four sets, 2026-11-02
+- The fix is my measured one-liner: L3 now treats an upper-case ticker in the token's OWN name as a word. I reviewed the
+  diff: `instruments.py` changes by 1 line plus a comment, and agent-md's test file gains a rail.
+- Re-scored independently on the real classifier and the REAL `ticker_search_index.search`, with fixtures regenerated:
+  - set 1: 41 pass / 3 safe-miss / **0 FAIL** (unchanged);
+  - set 2: 52 / 2 / **0 FAIL**;
+  - set 3: **0 FAIL**, 5 must-miss (spy, qqq, googl and their compounds);
+  - set 4 (fresh, production rows): **0 FAIL, 0 must-miss.** "nice, nvda price", "ok nice, aapl price" and
+    "nice, now whats nvda at" no longer execute anything; pins, nke, wmt, adbe+orcl and qcom+panw execute.
+- F-24 rails moved:
+  - the xfail is now a passing bar check with an NVDA control;
+  - the fix is proven to bite: reverting it as a mutation re-opens exactly nice, asml and mara;
+  - the name_word bite list gains asml, mara and nice;
+  - ltc leaves the root-only list (LTC Properties now also fails L3); the L1 backstop is btc and gld.
+- Costs the owner should know: asml and mara now ask. spy, qqq and googl still ask (L1 fund rule; Alphabet).
+- Flags off: the allowlist probe passes 21/21. Suites (lock): Agent pytest 1813 passed; vitest 140 files, 2509 passed.
+
+## PR #695 (`a4a1179044`, MD-1 §4.7.5 lowercase tickers): **NOT YET — one blocking finding (F-24), fix measured**, 2026-11-02
+- **Scored on the REAL classifier and the REAL `ticker_search_index.search`.** My generator previously used a toy
+  search; it is now seeded with QA's rows, so L3/L4/L5 see production's ranking. The fixtures were regenerated and the
+  pins refreshed to measured values.
+  - Set 1: 41 pass / 3 safe-miss / **0 FAIL**. Set 2: 52 / 2 / **0 FAIL**.
+  - Set 3: **0 FAIL**, 5 must-miss (spy, qqq, googl and their two compounds). Lowercase crypto cashtags now ask (this
+    settles the `$sol` question).
+  - Of the 13 helpful suggestions #691 gave up, 6 now EXECUTE (msft, amzn, nflx, nvda, msft, brk.b).
+  - Set 3 rows A10 and C12 were used by agent-md to tune the parser, so set 3 is no longer blind for them.
+- **FRESH set 4 (22 rows, unseen by agent-md), scored end to end over PRODUCTION rows.** It uses two read-only probes
+  of the public `/api/ticker-search`, agent-lead's 34 words + agent-qa's 132, as one 3,453-row index.
+  - All 5 must-execute rows execute.
+  - **3 FAIL:** "nice, nvda price" → NICE+NVDA; "ok nice, aapl price" → NICE+AAPL; "nice, now whats nvda at" → NICE+NVDA.
+- **F-24 (owner: agent-md) — BLOCKING.** `nice` is confirmed as NICE Ltd. L3 treats an upper-case word equal to the
+  ticker inside a mixed-case name as a ticker REFERENCE, and that exemption applies to the token's OWN row ("NICE Ltd").
+  The parser makes "nice," (a chat interjection) a list item.
+  - **Fix measured:** skip the reference only on OTHER rows (`if not is_own and _ticker_ref(...)`). Then `nice` asks;
+    the cost is `asml` and `mara` becoming safe asks.
+  - Optional defence in depth: an interjection before a comma should not become a list item.
+  - Rails: strict xfail `test_BAR_no_english_interjection_resolves`, plus `it.fails` on set 4. Both go red once the fix
+    lands, so the pins move with it.
+- **Each check bites on PRODUCTION rows.** Dropping one check alone flips:
+  - L2: fizz, grow (+avgo, fang, googl);
+  - L3: gold, dow, now, open, real, safe, love, well, jack, plug, rare, wing, … (30);
+  - L4: bch (Bitcoin Cash), ltc (Litecoin), cl (crude), si (silver), hd, gm, ba, ups, tsm, ibm;
+  - L1 never decides alone (every probed fund also shares a root); with L4 dropped it is the backstop for btc, gld, xrp;
+  - L5: only a scan below its limit prices.
+- With all production rows at once, agent-md's 13 priced and 21 ask tokens hold. No other interjection resolves:
+  38 tried, including wow, cool, well, good, sure, lit and man.
+- **Flags off:** the 21-check allowlist probe passes 21/21 on this tree; #695 changes only the resolve classifier and the
+  browser parser, both behind the data flags; the md2Panel dark shapes pass.
+- **Suites (lock):** Agent pytest 1810 passed + 1 xfailed; vitest 140 files green (QA 13 files, 184 passed).
+
 ## In flight
 - **PR 1 — program fixtures** (`agent/qa/fixtures-v1`): fake-provider DataEnvelopes for all 12 MD-1 v1 kinds and
   the 3 SC-1 kinds; cases live · delayed · periodic · historical · stale · market-closed · unavailable · refused ·

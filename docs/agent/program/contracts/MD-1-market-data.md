@@ -298,6 +298,7 @@ Not claimed, whatever else the sentence says:
   - `&` anywhere (s&p, AT&T);
   - more than 5 candidate words;
   - two or more candidates without `and` or `,` (unless every one is `$`-typed);
+  - a list (`and` / `,`) with an item that holds no candidate ("nvda and on price");
   - a word that is neither intent grammar nor a candidate.
 
 Every word that is not intent grammar is a **candidate**, recorded with how it was typed: `cashtag` (`$nvda`),
@@ -310,8 +311,8 @@ One class per candidate, from the index's own row and the typed form:
 
 | class | rule | example |
 |---|---|---|
-| `symbol` | exact symbol, index type `stock` or `etf`, typed `$X` or UPPERCASE | `NVDA`, `$nvda`, `IT`, `BTC`, `BRK.B` |
-| `symbol_typed_lowercase` | exact stock / ETF symbol, typed lowercase | `nvda`, `gold`, `btc`, `es` |
+| `symbol` | exact symbol, index type `stock` or `etf`, typed UPPERCASE or as an all-capitals cashtag; or typed lowercase (or a lowercase cashtag) and confirmed by §4.7.5 | `NVDA`, `$BTC`, `IT`, `BRK.B`, `nvda`, `$nvda` |
+| `symbol_typed_lowercase` | exact stock / ETF symbol, typed lowercase or as a lowercase cashtag, that §4.7.5 does not confirm | `gold`, `btc`, `$sol`, `dow`, `spy` |
 | `name_match` | not a symbol; exactly ONE stock / ETF whose normalised name equals the word (not for `$` words) | `apple` → AAPL |
 | `non_equity` | exact symbol the index types `index`, `theme` or `breadth` | `SPX`, `spx` |
 | `unknown` | anything else: a misspelling, a plain word, several equal names, a `$` word that is no symbol | `nvdia`, `bitcoin`, `$NVDIA` |
@@ -329,8 +330,8 @@ built from the first candidate that is not, in this order of precedence: unavail
 | situation | answer (fixed words) |
 |---|---|
 | all `symbol` | the §4.5 / §4.6 answer, **naming each security from the index**: `NVDA (NVIDIA Corporation) $142.10 …` |
-| `symbol_typed_lowercase` | `Did you mean NVDA (NVIDIA Corporation)? Type the ticker in capitals, like NVDA, and I'll get it.` |
-| `name_match` | `Did you mean AAPL (Apple Inc.)? Type the ticker in capitals, like AAPL, and I'll get it.` |
+| `symbol_typed_lowercase` | `I'm not sure which instrument "btc" means. I can quote US-listed stocks and ETFs by ticker. Type the ticker in capitals and I'll get it.` |
+| `name_match` | `I'm not sure which instrument "apple" means. I can quote US-listed stocks and ETFs by ticker. Type the ticker in capitals and I'll get it.` |
 | `non_equity` | `I can quote US-listed stocks and ETFs by ticker. SPX isn't one I can price here.` |
 | `unknown` | `I can quote US-listed stocks and ETFs by ticker. nvdia isn't one I can price here.` |
 | index unavailable | `I can't check ticker symbols right now, so I'm not stating a price.` |
@@ -338,8 +339,14 @@ built from the first candidate that is not, in this order of precedence: unavail
 - **No substitute is ever offered** for `non_equity` or `unknown`: never "try SPY" (agent-lead ruling a).
 - **The member confirms by typing the symbol** in capitals or with `$` (ruling b). That is a new turn, through the
   same rules.
-- **An UPPERCASE or `$` symbol** is the member's explicit choice. It is priced with the index name shown, so
-  `BTC (Grayscale Bitcoin Mini Trust)` is never silently a different instrument (ruling c).
+- **A clarification names no security** (owner ruling, 2026-11-02). It quotes the word as typed and says what
+  can be quoted. The index's candidate is never offered, so a lowercase `btc`, `gold`, `dow`, `eth` or `sol` is
+  never answered with an unrelated fund or company that happens to hold that ticker.
+- **An UPPERCASE or `$` symbol** is the member's explicit choice. It is priced with the index name shown (ruling c).
+- **A fund is labelled a fund** (owner ruling, 2026-11-02). When the index types the symbol `etf`, the name reads
+  `BTC (Grayscale Bitcoin Mini Trust, an ETF)`, and the answer adds, once: `An ETF's price is the fund's own share
+  price, not the price of the asset it tracks or holds.` It never presents a fund's price as the underlying asset's
+  (a cryptocurrency's spot price, gold's, an index level). Both rules key on the index's `type`, never a word list.
 
 #### 4.7.4 Activation and budget
 
@@ -347,6 +354,73 @@ built from the first candidate that is not, in this order of precedence: unavail
   `quotes`. `stock.dailyBars` registers only while it includes `instrument.resolve` and `bars.daily`.
 - **Budget:** one answered question costs 2 gateway reads (resolve + the price or bars read). The 8-read turn
   budget fits four 5-symbol compounds.
+
+#### 4.7.5 A lowercase ticker (owner ruling 2026-11-02)
+
+**The ruling.** Requiring capitals is not the permanent answer. A lowercase word resolves to its exact symbol only
+when the canonical index confirms it unambiguously; otherwise the §4.7.3 neutral clarification stands. Everything
+below is computed from the index's own rows (symbol, name, type) and the typed form. There is no word list.
+
+**Which words take the checks.**
+- A word typed in lowercase (or in an all-caps sentence, §4.7.1).
+- A cashtag that is not all capitals: `$nvda`, `$sol`, `$Gold`.
+- An explicit choice skips the checks: UPPERCASE (`NVDA`, `BTC`) or an all-capitals cashtag (`$BTC`, `$SOL`). These
+  are priced as typed, and a fund is labelled one (§4.7.3).
+
+**What the index has, and what it lacks.** Each row carries a symbol, a name, a type (`stock` / `etf` / `index` /
+…), an exchange and a dollar-volume figure. It has no description and no "underlying asset" field, so "this fund
+holds bitcoin" has to come from the type and from the names and symbols of other rows.
+
+**The rule.** A candidate `t` whose exact row is `R` is classed `symbol` (priced) only when ALL of these hold. A
+single failure leaves it `symbol_typed_lowercase` (the neutral ask). The failed checks are recorded in the result's
+`basis`, for tests and audit, never shown to the member. A confirmed one carries `basis: ["lowercase_confirmed"]`.
+
+| # | check | what it catches | `basis` on failure |
+|---|---|---|---|
+| L1 | `R.type` is `stock` | Every fund prices something other than itself (an index, a metal, a coin). In lowercase, the member may mean that underlying, so a fund is ambiguous by construction. `btc`, `eth`, `spy`, `qqq`, `gld` all ask. | `fund` |
+| L2 | `t` abbreviates `R`'s own name: its letters appear, in order, in the name (a doubled letter counts once: `aapl` → Apple) | A ticker that coincides with a word or abbreviation, for a company whose name it does not spell: `sol` for Emeren Group Ltd. | `not_an_abbreviation` |
+| L3 | `t` is not a whole ordinary word in ANY row's name (`R`'s own included), and not part of a longer word in `R`'s own name | Word-like tickers: `gold`, `dow`, `meta`, `roku` and `uber` (a word of a name); `coin` (**Coin**base), `link` (Inter**link**), `snow`, `shop`, `spot`, `key`, `jpm`. | `name_word` |
+| L4 | no other row's symbol STARTS with `t`, unless that row is consistent with `R` | A shared root names an underlying or a theme, not one instrument: `btc` in BTCO, `eth` in ETHA, `sol` in SOLZ, `ibm` in the iShares iBonds IBMx series. A token buried inside a symbol (BAMD, DJINTCUN) is a coincidence of letters and does not count. | `symbol_root` |
+| L5 | the index scan is complete (fewer than `SCAN_LIMIT` = 400 hits) | A capped result is never read as "no collision". | `scan_incomplete` |
+
+**Consistent rows.** Such a row is the same family as `R`, so it is not a collision:
+- **For L3 and L4:** the row's mixed-case name names `t` as the exact upper-case ticker ("GraniteShares 2x Long
+  **NVDA** Daily ETF"). In an all-upper-case name, capitals are not evidence, so it never counts there.
+- **For L4 only:** the row's name carries `R`'s leading company word, at least 4 letters. Examples: "Cboe
+  **NVIDIA** Call Writing Index" (NVDACW) for Nvidia Corp; "**Super Micro Computer** … Depositary Shares" (SMCIP).
+- **Not for L3:** a word-like ticker must still collide with rows that carry its word, so "Dow Jones" still blocks
+  `dow`.
+
+**Monotone and fail-safe.** Adding rows to the index can only add collisions, so a bigger index turns a resolve
+into an ask, never the reverse (railed: `test_adding_rows_never_turns_an_ask_into_a_price`). An unready index stays
+`unavailable`.
+
+**Signals evaluated and not used.**
+- **Dollar volume.** A lowercase word has at most one exact row, so there is never a tie to break, and popularity
+  is never permission to guess.
+- **Request shape.** "price of amd" and "price of gold" have the same shape, so shape cannot separate them; only
+  the instrument signal can.
+
+**Where `eth` and `sol` land: both ask, each on two independent checks.**
+- `eth`: in production ETH is "Grayscale Ethereum Staking Mini ETF Shares". It fails L1 (a fund), L3 ("eth" starts
+  "Ethereum" in its own name) and L4 (ETHA, ETHE…).
+- `sol`: production holds no SOL row today, so it is `unknown` and gets the limit sentence. In an index where SOL
+  is Emeren Group Ltd, it fails L2 ("sol" does not spell the name) and, wherever Solana funds or SOLV exist, L4.
+
+**Measured against the production index.** agent-lead ran the probe read-only through `/api/ticker-search` on
+2026-11-02, and it is checked in as `app/src/agent/marketdata/__fixtures__/prod-index-probe.json`.
+- **Priced:** `nvda`, `tsla`, `aapl`, `msft`, `amd`, `brk.b`, `amzn`, `nflx`, `pltr`, `intc`, `smci`, `crwd`,
+  `xom`.
+- **Ask:**
+  - `avgo` and `googl`: L2;
+  - `jpm`, `gold`, `dow`, `meta`, `key`, `coin`, `roku`, `snow`, `shop`, `spot` and `uber`: L3;
+  - `ibm`: L4;
+  - `btc`, `eth`, `spy`, `qqq`, `iwm` and `gld`: L1.
+- **Limit:** `sol` (no row).
+
+**Intent rule added with it (§4.7.1).** A list ("X and Y", "X, Y") must have a candidate in every item. Otherwise
+the sentence is not claimed. "nvda and on price" would otherwise price NVDA and silently drop the item the grammar
+swallowed.
 
 ## 5. Budgets
 
@@ -397,6 +471,8 @@ QA's suite runs `validate_envelope` against every registered kind using its fixt
 
 ## 9. Changelog
 
+- **v1.5 amendment (2026-11-02, agent-md, owner ruling):** §4.7.5. A lowercase word or lowercase cashtag is priced when the index confirms it (L1–L5), each result carries `basis`, and a list must name a candidate in every item. Classes, precedence and reads are unchanged.
+- **v1.5 amendment (2026-11-02, agent-md, owner rulings):** §4.7.3 wording. Clarifications are neutral and name no security; an ETF is labelled `an ETF` and every answer pricing one says the price is the fund's share price, not the underlying's. Classes, precedence and reads are unchanged.
 - **v1.5 addition (2026-11-01, agent-md, Sprint 2 C):** §4.6 `stock.dailyBars` answer contract over `bars.daily` (last close, N-session change, 52-week range). No envelope or kind change.
 - **v1.5 addition (2026-11-01, agent-md, owner decision):** §4.7 instrument and intent resolution; new kind `instrument.resolve` over the canonical symbol index. No envelope change.
 - **v1.5 amendment (2026-11-01, agent-md, agent-qa F-19/F-20/O-1):** `session_detail` takes every input from `now`; on a half day extended trading ends at 17:00 ET; no-price answers use fixed words. No envelope field changed.

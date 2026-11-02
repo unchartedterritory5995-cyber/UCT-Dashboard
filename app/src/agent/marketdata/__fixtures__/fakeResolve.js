@@ -1,30 +1,13 @@
-// TEST FIXTURE (owner agent-md): a gateway answer for `instrument.resolve` over symbol-index.json, following MD-1 §4.7.2.
-// The SERVER classifier is api/services/uct_agent/marketdata/instruments.py; tests/test_uct_agent_data_instruments.py
-// holds it to the same index and to the same outcome column of MD-1-phrasings.md, so this fixture cannot drift from it
-// without one of the two suites failing.
-import INDEX from './symbol-index.json'
-
-const ROWS = INDEX.rows.map(([sym, name, type]) => ({ sym, name, type }))
-const BY_SYM = new Map(ROWS.map(r => [r.sym, r]))
-const SUFFIX = /\b(incorporated|inc|corporation|corp|company|co|ltd|limited|plc|holdings?|group|sa|nv|ag|se|lp|llc|trust|the|class [a-z]|common stock|ordinary shares|ads|adr)\b/g
-const normName = (s) => String(s || '').toLowerCase().replace(/&/g, ' and ').replace(/[^a-z0-9 ]+/g, ' ')
-  .replace(SUFFIX, ' ').replace(/\s+/g, ' ').trim()
+// TEST FIXTURE (owner agent-md): a gateway answer for `instrument.resolve`, MD-1 §4.7.2 / §4.7.5.
+// Every class comes from symbol-index-resolved.json, which tests/test_uct_agent_data_instruments.py GENERATES from the
+// REAL server classifier (api/services/uct_agent/marketdata/instruments.py) over symbol-index.json and holds current.
+// There is no second implementation here: a candidate the file lacks THROWS, so a test cannot silently use a guess.
+import RESOLVED from './symbol-index-resolved.json'
 
 export function classifyFixture(text, form) {
-  const word = String(text).replace(/^\$/, '')
-  const sym = word.toUpperCase().replace('.', '-')
-  const out = { input: text, form, class: 'unknown', symbol: null, name: null, type: null, candidate: null }
-  const row = BY_SYM.get(sym)
-  if (row) {
-    if (row.type === 'stock' || row.type === 'etf') {
-      const info = { symbol: row.sym, name: row.name, type: row.type }
-      return form === 'lower' ? { ...out, class: 'symbol_typed_lowercase', candidate: info } : { ...out, class: 'symbol', ...info }
-    }
-    return { ...out, class: 'non_equity', type: row.type, name: row.name }
-  }
-  if (form === 'cashtag') return out
-  const hits = ROWS.filter(r => (r.type === 'stock' || r.type === 'etf') && normName(r.name) === normName(word))
-  return hits.length === 1 ? { ...out, class: 'name_match', candidate: { symbol: hits[0].sym, name: hits[0].name, type: hits[0].type } } : out
+  const hit = RESOLVED.entries[`${text}|${form}`]
+  if (!hit) throw new Error(`symbol-index-resolved.json lacks ${text}|${form}: add it to _CLIENT_EXTRA and regenerate`)
+  return { ...hit }
 }
 
 /** The gateway's envelope for one instrument.resolve read; `ready: false` = a cold index. */

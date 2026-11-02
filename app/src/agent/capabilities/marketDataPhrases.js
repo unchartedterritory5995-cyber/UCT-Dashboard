@@ -22,7 +22,7 @@ const ALWAYS_GRAMMAR = new Set(('price prices pricing quote quotes trading trade
 const GRAMMAR = new Set([...ALWAYS_GRAMMAR, ...('a an get got give show tell trade at doing did d w past last high low '
   + 'year years yearly month months twelve can you i my it its up down on in to with by from much does do hi hey ok '
   + 'okay just quick stock stocks share shares check look lookup also both move moved moving sitting right now for '
-  + 'pm hours hour after').split(/\s+/)])
+  + 'pm hours hour after rn').split(/\s+/)])                     // rn = "right now" (agent-qa set 3, A10)
 
 // intent words only (never a symbol): the parser's own fixed typo list (MD-1-phrasings §1.6)
 const TYPOS = { wats: "what's", whats: "what's", wat: 'what', tradin: 'trading', tradeing: 'trading', pirce: 'price',
@@ -101,6 +101,9 @@ export function parsePriceSentence(text) {
   if (!candidates || !candidates.length || candidates.length > MAX_TICKERS) return null
   const allCash = candidates.every(c => c.form === 'cashtag')
   if (candidates.length > 1 && !allCash && !/(\band\b|,)/i.test(s)) return null
+  // a list ("X and Y", "X, Y") must have a candidate in EVERY item: "nvda and on price" names two things, one of which
+  // the grammar swallowed, so pricing NVDA alone would answer half the question (agent-qa set 3, C12)
+  if (/(\band\b|,)/i.test(s) && s.split(/,|\band\b/i).some(seg => seg.trim() && !(candidatesOf(seg) || []).length)) return null
 
   if (/\b52[\s-]?(weeks?|wks?|w)\b|\byear(ly)?[\s-](high|low|range)\b|\b(12|twelve)[\s-]month (high|low|range)\b/.test(low)) {
     return candidates.length === 1 ? { intent: 'bars.range52w', candidates } : null
