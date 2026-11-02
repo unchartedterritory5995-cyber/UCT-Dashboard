@@ -404,6 +404,24 @@ def test_a_host_written_without_a_scheme_is_never_a_lost_file(db, key, source):
     assert out == doc and actions == ["relative_hostlike"]
 
 
+@pytest.mark.parametrize("target_key,here,source,href", [
+    ("obsidian:V/Clients/acme.io/Meeting.md", "obsidian:V/Clients/Here.md", "Obsidian",
+     "acme.io/Meeting.md"),                                                      # R4
+    ("obsidian:V/Sites/www.site.com/post.md", "obsidian:V/Sites/Here.md", "Obsidian",
+     "www.site.com/post.md"),                                                    # R4b
+    ("file:www.blog.com/post.md", "file:Here.md", "Files (1)", "www.blog.com/post.md"),  # R4c
+])
+def test_a_note_in_a_folder_named_like_a_domain_is_still_a_note(db, target_key, here, source, href):
+    """Fix round 2, N-2: note resolution runs FIRST; an href is host-like only when nothing
+    resolves. A folder named `acme.io` or `www.site.com` holding the member's note must never
+    send the link to the web."""
+    target = _import(source, target_key)
+    _import(source, here)
+    out, actions = _repair(_doc(_para(_t("m", _link(href)))), import_key=here, import_source=source)
+    assert _hrefs(out) == [_note_href(target)]
+    assert actions == ["relative_to_note", "link_resolved:1"]
+
+
 def test_a_textbundle_text_link_opens_the_bundle_note(db):
     """Concern 3: the generic importer keys a TextBundle as ONE note, `file:<bundle dir>`, and
     maps its `text.md` to that key (`generic.js` keyByPath). The repair does the same."""

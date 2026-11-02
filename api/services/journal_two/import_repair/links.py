@@ -267,9 +267,20 @@ def relative_target(href: str, *, import_key: str, import_source: str,
     stays exactly as written: never a guess, and never made worse (fix round 1, I-3)."""
     if not isinstance(href, str) or not isinstance(import_key, str):
         return None, UNRESOLVED
-    is_host, url = _hostlike(href)
-    if is_host:  # never a lost file, never a note (fix round 1 follow-up, concern 2)
-        return None, HOSTLIKE_LINKED if url else HOSTLIKE
+    key, action = _source_target(href, import_key=import_key, import_source=import_source, index=index)
+    # Host-like (concern 2) only when NOTHING resolves (fix round 2, N-2): a folder named
+    # `acme.io` or `www.site.com` holding the member's note is still that note. An ambiguous or
+    # trashed target keeps its own count.
+    if key is None and action in (UNRESOLVED, FILE_UNRESOLVED):
+        is_host, url = _hostlike(href)
+        if is_host:
+            return None, HOSTLIKE_LINKED if url else HOSTLIKE
+    return key, action
+
+
+def _source_target(href: str, *, import_key: str, import_source: str,
+                   index: FileKeyIndex) -> tuple[str | None, str]:
+    """`relative_target` by the linking note's source, before the host-like check."""
     # M-1: the comparison is in NFC on both sides (a macOS export stores NFD names); every
     # answer is mapped back to the key as STORED (`index.stored`).
     target = _nfc(unquote(href)).split("#", 1)[0].strip()
