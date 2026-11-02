@@ -93,6 +93,32 @@ STEP 5 - keep the hand-off pack current: after each merge or at any stopping poi
 stream table in RESUME-LAPTOP.md (branch, SHA, state, next step) on `docs/pine-parity-programme`,
 push it, and append a short dated entry to the memory topic file.
 
+STEP 6 - NOTHING may live only on this laptop. I must be able to pick this up from any machine at
+any moment, so treat local-only state as lost state:
+  - Every branch you create is pushed to origin immediately and after EVERY commit; never leave
+    uncommitted work overnight or at a stopping point (commit `WIP(<stream>): <done / half-done /
+    next / exact commands>` and push).
+  - Every finding, measurement summary, decision, review verdict, capture-queue row and plan change
+    goes into the repo (docs/pine/... on the relevant branch, or the hand-off pack on
+    `docs/pine-parity-programme`) and is pushed. Large raw outputs: commit a compact summary plus the
+    exact command that regenerates them; if a raw artifact is needed later and is small enough,
+    commit it under docs/pine/evidence/<date>-<stream>/.
+  - Licence-held content (fetched TradingView sample scripts, licence-held captures) is the ONLY
+    exception: never commit it; commit the command that re-fetches it instead.
+  - Scripts and tools you write go in the repo (tools/ or docs/pine/parity-programme/scripts/),
+    with machine-specific paths as overridable env vars, never only in a temp or scratch folder.
+  - Memory: every memory write is committed and pushed (the memory repo's ./commit-memory.sh pushes
+    to branch `docs/notebook-incident-followup`); check `git status` is clean there at each stop.
+  - Secrets are the other exception: credentials stay in the environment, never in git or chat.
+  - At every stopping point: update the RESUME-LAPTOP.md stream table (branch, SHA, state, next
+    step), update LAPTOP-PROMPT.md if the next steps changed so the same prompt resumes the work
+    on any machine, push both, and post the stopping-point report (and the updated prompt file when
+    it changed) to my Discord #prompts channel in the UCT Intelligence server (browser access is
+    available; attach long text as a .md file).
+  - Before saying you are done or paused, PROVE it: for every worktree you touched, show
+    `git status --porcelain` empty and `git rev-list --count origin/<branch>..HEAD` = 0, plus the
+    memory repo clean and pushed.
+
 Report format: after every merge, one ASCII code block with the live SHA at top and bottom,
 listing each piece shipped, its PR, live commit, smoke result, and what is next. Ask me only for
 decisions that are mine (all listed in RESUME-LAPTOP.md section 5): the read-only refused-count
