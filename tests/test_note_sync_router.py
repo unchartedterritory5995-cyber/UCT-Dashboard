@@ -873,6 +873,64 @@ def test_callback_replayed_state_is_rejected_on_second_use(client, monkeypatch):
     assert r2.status_code == 400
 
 
+def test_a_cross_device_callback_explains_what_happened_and_how_to_finish(client, monkeypatch):
+    monkeypatch.setenv("NOTION_CLIENT_ID", "cid")
+    monkeypatch.setenv("NOTION_CLIENT_SECRET", "csecret")
+    import api.routers.note_sync as ns
+    from api.middleware import auth_middleware as authmw
+    state = ns._sign_state("u1", "notion")
+    # The other device has no session at all.
+    client._app.dependency_overrides[authmw.get_current_user_optional] = lambda: None
+    r = client.get("/api/j2/notes/connectors/notion/callback",
+                   params={"code": "c", "state": state}, follow_redirects=False)
+    assert r.status_code == 400 and r.headers["content-type"].startswith("text/html")
+    assert "same browser where you pressed Connect" in r.text
+    assert "section=connections&amp;connector=notion&amp;connected=0&amp;reason=oauth_state" in r.text
+    assert "u1" not in r.text and state not in r.text
+    assert "<script" not in r.text
+    assert client.get("/api/j2/notes/connectors/status").json()["providers"]["notion"]["connected"] is False
+
+
+def test_every_state_failure_renders_the_same_page(client, monkeypatch):
+    monkeypatch.setenv("NOTION_CLIENT_ID", "cid")
+    monkeypatch.setenv("NOTION_CLIENT_SECRET", "csecret")
+    import api.routers.note_sync as ns
+    import base64
+    import hashlib
+    import hmac
+    import time as _time
+    from api.middleware import auth_middleware as authmw
+
+    def get(state):
+        return client.get("/api/j2/notes/connectors/notion/callback",
+                          params={"code": "c", "state": state}, follow_redirects=False)
+
+    tampered = ns._sign_state("u1", "notion")[:-4] + "abcd"
+    payload = f"u1:notion:{int(_time.time()) - 3600}:expired-nonce"
+    sig = hmac.new(ns._state_secret(), payload.encode("utf-8"), hashlib.sha256).hexdigest()
+    expired = base64.urlsafe_b64encode(f"{payload}:{sig}".encode("utf-8")).decode("utf-8")
+    cross_user = ns._sign_state("user2", "notion")
+
+    pages = [get(tampered), get(expired), get(cross_user)]
+
+    good = ns._sign_state("u1", "notion")
+    client._app.dependency_overrides[authmw.get_current_user_optional] = lambda: None
+    pages.append(get(good))  # no session
+    client._app.dependency_overrides[authmw.get_current_user_optional] = lambda: {"id": "u1", "role": "member"}
+
+    async def fake_exchange_code(provider, code, **kw):
+        return {"accessToken": "t", "workspaceId": "ws1", "workspaceName": "W"}
+
+    monkeypatch.setattr(ns.oauth, "exchange_code", fake_exchange_code)
+    replay = ns._sign_state("u1", "notion")
+    assert get(replay).status_code == 302
+    pages.append(get(replay))  # replayed
+
+    for p in pages:
+        assert p.status_code == 400 and p.headers["content-type"].startswith("text/html")
+    assert len({p.text for p in pages}) == 1
+
+
 # ── Fix-round-1 Important #3: OAuth state signing fails closed ───────────────
 
 def test_connect_oauth_fails_closed_with_no_secret_configured(client, monkeypatch):

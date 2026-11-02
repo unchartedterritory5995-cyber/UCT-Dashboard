@@ -438,6 +438,30 @@ describe('ConnectedAppsCard — OAuth return self-heal', () => {
     expect(window.location.search).not.toContain('connected')
     expect(window.location.search).toContain('section=connections')
   })
+
+  const failedReturn = async (query) => {
+    window.history.replaceState({}, '', `/settings?section=connections&${query}`)
+    mockFetch([['/api/j2/notes/connectors/status', { body: { providers: {} } }]])
+    render(<ConnectedAppsCard />)
+  }
+
+  it('an OAuth return that failed in this browser says how to finish, then strips the params', async () => {
+    await failedReturn('connector=notion&connected=0&reason=oauth_state')
+    const note = await screen.findByText("Connecting Notion didn't finish in this browser. Press Connect below to start again here.")
+    expect(note.getAttribute('role')).toBe('status')
+    expect(window.location.search).toBe('?section=connections')
+  })
+
+  it('names any other reason the provider gave', async () => {
+    await failedReturn('connector=dropbox&connected=0&reason=access_denied')
+    expect(await screen.findByText("Couldn't connect Dropbox: access_denied")).toBeTruthy()
+    expect(window.location.search).toBe('?section=connections')
+  })
+
+  it('says to try again when there is no reason', async () => {
+    await failedReturn('connector=notion&connected=0')
+    expect(await screen.findByText("Couldn't connect Notion. Try again.")).toBeTruthy()
+  })
 })
 
 describe('ConnectedAppsCard — Dropbox folder picker + sourceless-connected state (Task 12b)', () => {

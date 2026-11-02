@@ -22,6 +22,7 @@ import asyncio
 import base64
 import hashlib
 import hmac as _hmac
+import html
 import json
 import logging
 import os
@@ -32,7 +33,7 @@ from urllib.parse import quote
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from pydantic import BaseModel, ValidationError
 
 from api.middleware.auth_middleware import (
@@ -586,11 +587,38 @@ def _start_initial_sync(source_id: str) -> None:
 
 # ── GET /{provider}/callback ─────────────────────────────────────────────────
 
-@router.get("/{provider}/callback")
+def _oauth_state_failure_page(provider: str) -> HTMLResponse:
+    """The ONE page every OAuth state failure returns (bad, tampered, expired,
+    wrong-provider, replayed, no session, or a different session user). Status
+    400, identical body for every cause, so it stays as indistinguishable as
+    the JSON 400 it replaces. No script, no external assets, no user id, no
+    state echo."""
+    label = html.escape(registry.get_entry(provider).label)
+    minutes = _STATE_TTL_SECONDS // 60
+    link = html.escape(
+        f"/settings?section=connections&connector={provider}&connected=0&reason=oauth_state"
+    )
+    body = (
+        "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\">"
+        "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"
+        f"<title>Couldn't finish connecting {label}</title></head><body>"
+        f"<h1>Couldn't finish connecting {label}</h1>"
+        f"<p>The link back from {label} only works in the same browser where you pressed "
+        f"Connect, within {minutes} minutes, and only once.</p>"
+        "<p>If you started on another device or browser, go back there and press Connect "
+        "again. To connect from this browser instead, sign in to UCT here and press "
+        "Connect again.</p>"
+        f"<a href=\"{link}\">Open Connections</a>"
+        "</body></html>"
+    )
+    return HTMLResponse(body, status_code=400)
+
+
+@router.get("/{provider}/callback", response_model=None)
 async def oauth_callback(
     provider: str, code: str | None = None, state: str | None = None, error: str | None = None,
     user: dict | None = Depends(get_current_user_optional),
-) -> RedirectResponse:
+) -> RedirectResponse | HTMLResponse:
     """Fix-round-1 Important #2: the redirect from the provider is a
     top-level browser GET, so the user's OWN `Lax` session cookie arrives
     with it — `get_current_user_optional` (never raises; `None` when
@@ -617,11 +645,13 @@ async def oauth_callback(
         state_user_id = _verify_state(state, provider=provider)  # raises 400 on failure (incl. replay)
     except errors.NoteConnNotConfigured as e:
         raise HTTPException(status_code=503, detail=str(e))
+    except HTTPException:
+        return _oauth_state_failure_page(provider)
     if user is None or user.get("id") != state_user_id:
-        # SAME generic failure as a bad/expired/replayed state — a missing
-        # session and a cross-user session are deliberately indistinguishable
-        # from a bad signature to anyone probing this endpoint.
-        raise HTTPException(status_code=400, detail="invalid or expired state")
+        # SAME page as a bad/expired/replayed state — a missing session and
+        # a cross-user session are deliberately indistinguishable from a bad
+        # signature to anyone probing this endpoint.
+        return _oauth_state_failure_page(provider)
     user_id = state_user_id
     entry = registry.get_entry(provider)
 
