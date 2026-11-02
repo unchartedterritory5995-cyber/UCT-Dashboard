@@ -202,7 +202,9 @@ five. It never calls `/api/live-prices`.
   off). The envelope, its notes, provider fields and `params_echo` never do. `present` carries the labelled
   figures: Price, Change, Session, Freshness.
 
-**Flags off.** With `GET /api/agent/config` reporting `data: false` (the default):
+**Flags off.** The gateway path is taken only when `GET /api/agent/config` reports `data: true` **and** its `data_kinds`
+list (agent-lead #621, from `UCT_AGENT_DATA_KINDS`, fail closed) includes both `quote` and `quotes`. In every other
+case (the default, an older server with no list, or `quote` not activated):
 - `registerMarketDataCapabilities()` registers nothing, so the model's manifest is unchanged.
 - `match()` returns null.
 - `answerQuote` returns stock.profile's own answer, byte for byte. The rail is in `agentDataQuote.test.js`.

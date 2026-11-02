@@ -14,12 +14,12 @@
 //   • stale and partial reads say so plainly, in the sentence that carries the price; unavailable states no number.
 // Only { text, present, link, chart } leave this module: never the envelope, its notes array or provider fields.
 //
-// Dark by construction: with the data gateway off (GET /api/agent/config → data: false, the default), `match`
+// Dark by construction: unless the server serves data AND activates `quote`/`quotes` (`data_kinds`), `match`
 // returns null, `registerMarketDataCapabilities` registers nothing (the model's manifest is unchanged) and
 // `answerQuote` returns stock.profile's own answer, unchanged.
 
 import { registerCapability } from '../capabilities'
-import { serverServesData } from '../agentClient'
+import * as agentClient from '../agentClient'
 import { readData } from '../marketdata/client'
 import { currentTurnId } from '../trace'
 import { answerProfile } from './stock'
@@ -28,6 +28,14 @@ import { parsePriceSentence, MAX_TICKERS } from './marketDataPhrases'
 export const CAPABILITY = 'stock.quote'
 const ET = 'America/New_York'
 const LIVE_SOURCES = new Set(['trade', 'minute'])
+
+// The gateway path is taken only while the server serves data AND activates `quote` (agent-lead #621:
+// UCT_AGENT_DATA_KINDS → /api/agent/config `data_kinds`, fail closed). No accessor, no list, or `quote` absent ⇒ off.
+export function quoteServed() {
+  if (!agentClient.serverServesData()) return false
+  const kinds = typeof agentClient.serverDataKinds === 'function' ? agentClient.serverDataKinds() : null
+  return Array.isArray(kinds) && kinds.includes('quote') && kinds.includes('quotes')
+}
 
 const SESSION_WORDS = {
   regular: 'regular session', premarket: 'premarket', 'after-hours': 'after hours',
@@ -181,15 +189,17 @@ function cleanSymbols(args) {
 }
 
 /** The capability's answer. Flags off → stock.profile's own answer, unchanged (byte-identical by construction). */
-export async function answerQuote(args, { turnId = currentTurnId() } = {}) {
+export async function answerQuote(args) {
   const syms = cleanSymbols(args)
-  if (!serverServesData()) {
+  if (!quoteServed()) {
     if (syms.length <= 1) return answerProfile({ symbol: syms[0] ?? args?.symbol })
     const each = await Promise.all(syms.map(s => answerProfile({ symbol: s })))
     return each.map(a => (typeof a === 'string' ? a : a.text)).join('\n\n')
   }
   if (!syms.length) return "Which ticker? I couldn't find a symbol in that."
   if (syms.length > MAX_TICKERS) return `That's more than ${MAX_TICKERS} tickers at once; ask for a few at a time.`
+  // the member's open turn (trace.js): the server's per-turn budget key; never minted, never injected
+  const turnId = currentTurnId()
   if (!turnId) return "I couldn't read the price: this needs the Agent's turn, which wasn't available."
   const env = syms.length === 1
     ? await readData('quote', { symbol: syms[0] }, { purpose: 'answer', turnId })
@@ -199,7 +209,7 @@ export async function answerQuote(args, { turnId = currentTurnId() } = {}) {
 
 /** Fast path (agent-lead wires it into fastPath.js behind the data flag): pure, fail-closed. */
 export function match(text) {
-  if (!serverServesData()) return null
+  if (!quoteServed()) return null
   const p = parsePriceSentence(text)
   if (!p || p.intent !== 'quote') return null
   return { action: CAPABILITY, params: { symbols: p.symbols } }
@@ -210,7 +220,7 @@ let unregister = null
 /** Idempotent; registers nothing while the server does not serve the data gateway, so the model's manifest and
  *  every flags-off answer stay exactly as they are. Call it after /api/agent/config has loaded. */
 export function registerMarketDataCapabilities() {
-  if (registered || !serverServesData()) return false
+  if (registered || !quoteServed()) return false
   registered = true
   unregister = registerCapability({
     name: CAPABILITY,

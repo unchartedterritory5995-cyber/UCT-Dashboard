@@ -61,8 +61,9 @@ Only agent-md edits this file. Update it in every PR.
     `match()` + idempotent registration that is a no-op while `data` is false) over the shared pure parser
     `capabilities/marketDataPhrases.js`. `quotes.py` gains the additive `data.session_detail` (regular · premarket
     · after-hours · overnight · closed); `session` is derived from it. MD-1 **v1.5** §4.5. Flags off = stock.profile
-    byte for byte (rail). Vitest 62, mutation-checked 5 ways (flag ignored, stale-as-live, fallback removed,
-    ambiguous rule dropped, veto dropped: each red).
+    byte for byte (rail), also while `data_kinds` (#621) lacks `quote`/`quotes`. The turn id comes from
+    `currentTurnId()` at the read (agent-qa's rail). Vitest 66, mutation-checked 6 ways (kinds gate dropped, flag
+    ignored, stale-as-live, fallback removed, ambiguous rule dropped, veto dropped: each red).
   - **D — freshness corpus (#598)** refreshed onto `c3ba71c343` with per-session fixture clocks. Pending.
   - **C — `bars.daily` answers** (`capabilities/marketDataBars.js`). Pending.
   - Lead-owned dependencies: `builtins.js` registration line, `UCT_AGENT_DATA_KINDS` allowlist (fail closed),

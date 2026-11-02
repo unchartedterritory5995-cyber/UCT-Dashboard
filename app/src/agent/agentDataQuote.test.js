@@ -11,6 +11,13 @@ import { match, answerQuote, answerFromEnvelope, describeRow, registerMarketData
 import { answerProfile } from './capabilities/stock'
 import { allCapabilityNames } from './capabilities'
 
+// the turn id comes from trace.js only (agent-qa's readDataTurnId rail); the tests set it there
+let TURN = 't1'
+vi.mock('./trace', async (orig) => ({ ...(await orig()), currentTurnId: () => TURN }))
+// agent-lead #621's per-kind activation, as /api/agent/config reports it; null = an older server with no list
+let KINDS = null
+vi.mock('./agentClient', async (orig) => ({ ...(await orig()), serverDataKinds: () => KINDS }))
+
 const here = dirname(fileURLToPath(import.meta.url))
 const DOC = readFileSync(resolve(here, '../../../docs/agent/program/contracts/MD-1-phrasings.md'), 'utf8')
 const json = (o, status = 200) => new Response(JSON.stringify(o), { status, headers: { 'content-type': 'application/json' } })
@@ -185,12 +192,12 @@ function wire({ data }) {
 }
 
 describe('stock.quote: flags off is exactly stock.profile; on is one gateway read', () => {
-  beforeEach(() => { _resetAgentConfig(); _resetForTest(); vi.restoreAllMocks() })
+  beforeEach(() => { _resetAgentConfig(); _resetForTest(); vi.restoreAllMocks(); TURN = 't1'; KINDS = ['quote', 'quotes'] })
 
   it('flags off: same bytes as stock.profile, no gateway POST, nothing registered, no fast-path claim', async () => {
     wire({ data: false })
     await loadAgentConfig()
-    const mine = await answerQuote({ symbols: ['NVDA'] }, { turnId: 't1' })
+    const mine = await answerQuote({ symbols: ['NVDA'] })
     const theirs = await answerProfile({ symbol: 'NVDA' })
     expect(JSON.stringify(mine)).toBe(JSON.stringify(theirs))
     expect(globalThis.fetch.mock.calls.map(c => c[0])).not.toContain('/api/agent/data')
@@ -202,9 +209,10 @@ describe('stock.quote: flags off is exactly stock.profile; on is one gateway rea
   it('on: one `quote` read for one symbol, one `quotes` read for several, never /api/live-prices', async () => {
     wire({ data: true })
     await loadAgentConfig()
-    const one = await answerQuote({ symbols: ['nvda'] }, { turnId: 't1' })
+    const one = await answerQuote({ symbols: ['nvda'] })
     expect(one.text).toContain('NVDA $142.10')
-    await answerQuote({ symbols: ['NVDA', '$amd'] }, { turnId: 't2' })
+    TURN = 't2'
+    await answerQuote({ symbols: ['NVDA', '$amd'] })
     const posts = globalThis.fetch.mock.calls.filter(c => c[0] === '/api/agent/data').map(c => JSON.parse(c[1].body))
     expect(posts).toEqual([
       { kind: 'quote', params: { symbol: 'NVDA' }, purpose: 'answer', turn_id: 't1' },
@@ -225,10 +233,23 @@ describe('stock.quote: flags off is exactly stock.profile; on is one gateway rea
     expect(allCapabilityNames()).toContain(CAPABILITY)
   })
 
+  it.each([[null, 'an older server with no data_kinds'], [[], 'nothing activated'], [['bars.daily'], 'quote not activated'],
+    [['quote'], 'quotes not activated']])('data on but kinds %j (%s): still exactly stock.profile', async (kinds) => {
+    KINDS = kinds
+    wire({ data: true })
+    await loadAgentConfig()
+    const mine = await answerQuote({ symbols: ['NVDA'] })
+    expect(JSON.stringify(mine)).toBe(JSON.stringify(await answerProfile({ symbol: 'NVDA' })))
+    expect(globalThis.fetch.mock.calls.map(c => c[0])).not.toContain('/api/agent/data')
+    expect(match('nvda price')).toBeNull()
+    expect(registerMarketDataCapabilities()).toBe(false)
+  })
+
   it('on, no turn id: no read, a plain sentence', async () => {
     wire({ data: true })
     await loadAgentConfig()
-    const t = await answerQuote({ symbols: ['NVDA'] }, { turnId: null })
+    TURN = null
+    const t = await answerQuote({ symbols: ['NVDA'] })
     expect(t).toMatch(/needs the Agent's turn/)
     expect(globalThis.fetch.mock.calls.map(c => c[0])).not.toContain('/api/agent/data')
   })
