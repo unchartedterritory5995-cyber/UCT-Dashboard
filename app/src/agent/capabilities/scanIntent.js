@@ -201,8 +201,9 @@ export function intent(message, { fields = null, last = null } = {}) {
   return followUpSpec(out, last)
 }
 
-/** A follow-up applied to the last screen's args → the WHOLE new args (screener.run's `mode: refine` semantics:
- *  a filter on a key the new step names REPLACES the old ones on that key). */
+/** A follow-up applied to the last screen's args → the WHOLE new args, sent as `mode: new` (the spec is complete, so
+ *  screener.run must not merge it with the last screen again; a merge would re-add a removed filter). The step itself
+ *  follows refine semantics: a filter on a key it names REPLACES the old ones on that key. */
 function followUpSpec(out, last) {
   let filters = [...(last.filters || [])]
   let delta = 'add'
@@ -230,7 +231,7 @@ function followUpSpec(out, last) {
   if (out.sort && !out.f.length && !out.uni.length && !out.remove.length) delta = 'sort'
   if (out.show != null && !out.f.length && !out.uni.length && !out.sort) delta = 'show'
   return { kind: 'spec', delta, used: out.used, args: { filters, sort_field: out.sort?.key ?? last.sort_field ?? null,
-    sort_dir: out.sort?.dir ?? last.sort_dir ?? null, mode: 'refine', show: out.show ?? last.show ?? null, as: null, within: null } }
+    sort_dir: out.sort?.dir ?? last.sort_dir ?? null, mode: 'new', show: out.show ?? last.show ?? null, as: null, within: null } }
 }
 
 /** screener.run args → criteria leaves in the Screener grammar's shape (for measurement and receipts). */

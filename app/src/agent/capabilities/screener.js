@@ -42,6 +42,8 @@ import { matchName } from '../nl/match'
 import { serverServesScan, serverDataKinds } from '../agentClient'
 import { readData } from '../marketdata/client'
 import { currentTurnId } from '../trace'
+import { AGENT_CONVERSATION_KEY, readLocal } from '../agentFlag'
+import { intent as readIntent } from './scanIntent'
 
 const META_TTL_MS = 6 * 3600 * 1000      // the registry changes only on deploy
 const SAVED_TTL_MS = 60 * 1000
@@ -72,7 +74,7 @@ async function json(r, what) {
 }
 
 const cache = { meta: null, metaAt: 0, metaP: null, options: null, optionsAt: 0, optionsP: null, saved: null, savedAt: 0, last: null }
-export function _resetScreenerCache() { cache.meta = null; cache.metaAt = 0; cache.metaP = null; cache.options = null; cache.optionsAt = 0; cache.optionsP = null; cache.saved = null; cache.savedAt = 0; cache.last = null }
+export function _resetScreenerCache() { lastMultiClause = null; cache.meta = null; cache.metaAt = 0; cache.metaP = null; cache.options = null; cache.optionsAt = 0; cache.optionsP = null; cache.saved = null; cache.savedAt = 0; cache.last = null }
 
 export function loadMeta() {
   if (cache.meta && Date.now() - cache.metaAt < META_TTL_MS) return Promise.resolve(cache.meta)
@@ -372,7 +374,7 @@ async function runSpec(spec, { show = SHOW_DEFAULT, name = null, savedId = null,
   }
   const valueOf = (row, k) => (mkeys.includes(k) ? r.values[row.ticker]?.[k] : row[k])
   const total = r.total
-  cache.last = { spec, name, savedId, total, asOf: r.asOf || r.res.snapshot_date || null, live: r.res.snapshot?.live?.state || null, symbols: rows.map(x => x.ticker), ms }
+  cache.last = lastEntry({ spec, name, savedId, total, asOf: r.asOf || r.res.snapshot_date || null, live: r.res.snapshot?.live?.state || null, symbols: rows.map(x => x.ticker), ms })
   const head = `${name ? `${name}: ` : ''}${Number(total).toLocaleString()} stock${total === 1 ? '' : 's'} match${total === 1 ? 'es' : ''}`
   const all = [...(spec.filters || []), ...(spec.post || [])]
   const what = all.length ? ` (${all.map(describeFilter).join(' · ')})` : ''
@@ -406,6 +408,59 @@ async function runSpec(spec, { show = SHOW_DEFAULT, name = null, savedId = null,
 // #621: the server must ALSO list the kind in `data_kinds` (UCT_AGENT_DATA_KINDS, fail-closed). Not listed, or an older
 // server with no list: the Screener's own route, exactly as with the flags off -- never a refused gateway read.
 const servesKind = (kind) => serverServesScan() && (serverDataKinds() || []).includes(kind)
+
+// SC-2 §7 H1: the deterministic intent layer (scanIntent.js), consulted by screener.run's fast claim ONLY while the server
+// serves scans (config.scan + `screen.run` in data_kinds, the #639 gate) and the catalog is loaded. Dark otherwise.
+// Its follow-ups read the LAST screen only when that screen was run in THIS conversation (agent-lead: the id useAgent
+// writes to AGENT_CONVERSATION_KEY; null = no conversation yet = no last screen).
+const currentConversation = () => readLocal(AGENT_CONVERSATION_KEY)
+/** Stamp a screen with the conversation it ran in. A brand-new chat has no id yet when its first screen runs (useAgent
+ *  writes it when the turn is recorded, a moment later): the screen then adopts the FIRST id written within ~2 s, and
+ *  keeps none if none comes (so it is never reused). */
+function lastEntry(entry) {
+  entry.conv = currentConversation()
+  entry.adoptUntil = entry.conv ? 0 : Date.now() + 2000
+  if (!entry.conv && typeof setInterval === 'function') {
+    let tries = 0
+    const t = setInterval(() => {
+      const c = currentConversation()
+      if (c || ++tries > 40) { clearInterval(t); if (c && entry.conv == null) entry.conv = c }
+    }, 50)
+  }
+  return entry
+}
+const intentReady = () => !!cache.meta && servesKind('screen.run')
+/** the last screen as screener.run args, or null when it is not this conversation's or cannot be expressed as args */
+function lastArgsForIntent() {
+  const l = cache.last
+  const conv = currentConversation()
+  if (l && !l.conv && conv && Date.now() < (l.adoptUntil || 0)) l.conv = conv           // the same window lastEntry polls
+  if (!l || !conv || l.conv !== conv || (l.spec?.post || []).length) return null
+  const filters = []
+  for (const w of l.spec?.filters || []) {
+    if (!fieldOf(w.key) || w.pending) return null                       // a watchlist universe, a measure, an unresolved list
+    if (w.op === 'in' || w.op === 'not_in') filters.push({ field: w.key, op: w.op, value: null, max: null, values: w.values || [] })
+    else if (w.op === 'between') filters.push({ field: w.key, op: 'between', value: w.min, max: w.max, values: null })
+    else filters.push({ field: w.key, op: w.op, value: w.min ?? w.max ?? w.value, max: null, values: null })
+  }
+  return { filters, sort_field: l.spec?.sort?.key || null, sort_dir: l.spec?.sort?.dir || null, mode: 'new', show: null, as: null, within: null }
+}
+/** H1: a spec the intent layer fully accounts for, as screener.run args; null = not claimed (ask/refuse stay the planner's) */
+// ⛔ A FRAGMENT IS NEVER A SCREEN. fastWhole capabilities are tried on the whole message and then again on each clause
+// (fastPath splits on , ; and then &). If the whole message was not fully read, a clause on its own must not be: two
+// partial screens are a wrong answer. The last multi-clause message is remembered, and any strict part of it is refused
+// (a later message that happens to be a part of it goes to the planner: a miss, never a false resolve).
+const CLAUSE_SEP = /[,;&]|\band\b|\bthen\b/i
+let lastMultiClause = null
+export function intentArgs(raw) {
+  if (!intentReady()) return null
+  const t = String(raw || '').trim()
+  if (CLAUSE_SEP.test(t)) lastMultiClause = t
+  else if (lastMultiClause && lastMultiClause !== t && lastMultiClause.toLowerCase().includes(t.toLowerCase())) return null
+  else lastMultiClause = null
+  const r = readIntent(raw, { fields: new Set(cache.meta.fields.map(f => f.key)), last: lastArgsForIntent() })
+  return r.kind === 'spec' ? r.args : null
+}
 const usesGateway = (spec) => servesKind('screen.run') && !(spec?.post || []).length
 
 /** One `screen.run` through the gateway → the answer text/table, or a refusal sentence. */
@@ -439,7 +494,7 @@ async function runViaGateway(spec, { show = SHOW_DEFAULT, name = null, savedId =
     return f?.unit === '$' || k === 'price' ? `$${n}` : f?.unit === '%' ? `${n}%` : n
   }
   const asOfDay = typeof env.as_of === 'string' ? env.as_of.slice(0, 10) : null
-  cache.last = { spec, name: name || d.origin?.name || null, savedId, total, asOf: asOfDay, live: null, symbols: rows.map(x => x.ticker), ms, envelope: { as_of: env.as_of, stale: env.stale, coverage: env.coverage, freshness: env.freshness } }
+  cache.last = lastEntry({ spec, name: name || d.origin?.name || null, savedId, total, asOf: asOfDay, live: null, symbols: rows.map(x => x.ticker), ms, envelope: { as_of: env.as_of, stale: env.stale, coverage: env.coverage, freshness: env.freshness } })
   const head = `${name ? `${name}: ` : ''}${total.toLocaleString()} stock${total === 1 ? '' : 's'} match${total === 1 ? 'es' : ''}`
   const what = (spec.filters || []).length ? ` (${spec.filters.map(describeFilter).join(' · ')})` : ''
   const { label: sortLabel, ranked } = sortCoverage(spec, rows, {})
@@ -516,7 +571,7 @@ async function produceSymbols(spec, { name = null, savedId = null, notes: extra 
   // it is refused downstream (compose); some → the count is said on the receipt line.
   const unranked = spec.sort && r.rows.length && cov.ranked === 0 ? { label: cov.label, dir: spec.sort.dir } : null
   const partial = spec.sort && cov.ranked > 0 && cov.ranked < r.rows.length ? `only ${cov.ranked} of ${r.rows.length} have ${cov.label} values; the rest are not ranked by it` : null
-  cache.last = { spec, name, savedId, total: r.total, asOf: r.asOf || r.res.snapshot_date || null, live: r.res.snapshot?.live?.state || null, symbols, ms: 0 }
+  cache.last = lastEntry({ spec, name, savedId, total: r.total, asOf: r.asOf || r.res.snapshot_date || null, live: r.res.snapshot?.live?.state || null, symbols, ms: 0 })
   const what = name ? `${name} (${specWords(spec)})` : specWords(spec)
   const notes = [...extra, ...coverageNotes(spec), ...r.notes, ...(unranked ? [`${unranked.label} data is unavailable for these results`] : []), ...(partial ? [partial] : [])]
   const when = r.asOf ? ` on ${r.asOf}` : ''
@@ -613,6 +668,8 @@ export function registerScreenerCapabilities() {
   registerCapability({
     name: 'screener.run',
     target: 'screener', query: true, surfaces: ['charts'],
+    // SC-2 H1: tried on the WHOLE message before the fast path splits it into clauses (a compound screen is one screen)
+    fastWhole: true,
     summary: 'Run a stock screen on UCT\'s Screener and show the real matches (count + top rows). Changes nothing in UCT. Use this for "show me / find stocks with …".',
     hints: 'target = the screener entry ref. filters: each {field: a key from screener `fields` (never invented), op, value, max, values}. '
       + 'Numbers: op gt|gte|lt|lte|eq|between, value, max (between only, else null), values null; % fields take 5 for 5%, $ fields take dollars (10M = 10000000). '
@@ -662,7 +719,7 @@ export function registerScreenerCapabilities() {
     // the (paid) planner. The strongest phrase is fixed wording, so it is claimed WITHOUT the catalog; answer()
     // awaits the catalog and checks `rs_rank` exists then (a failed load is a refusal sentence, never a model
     // call). With the catalog loaded and no `rs_rank`, it is the planner's, exactly as before.
-    fast: ({ lower }) => {
+    fast: ({ raw, lower }) => {
       if (/^(?:please )?(?:(?:show(?: me)?|find(?: me)?|list|give me|get(?: me)?|what are|which are) )?(?:my |the )?(?:strongest|rs leaders|relative strength leaders|highest rs(?: rank(?:ed)?)?)(?: stocks| names)?(?: right now| today)?$/.test(lower)) {
         return !cache.meta || fieldOf('rs_rank') ? { filters: [], sort_field: 'rs_rank', sort_dir: 'desc', mode: 'new', show: null, as: null, within: null } : null
       }
@@ -672,7 +729,7 @@ export function registerScreenerCapabilities() {
         const op = m[1] === 'above' || m[1] === 'over' ? 'gt' : 'lt'
         return { filters: [{ field: 'price', op, value: Number(m[2]), max: null, values: null }], sort_field: null, sort_dir: null, mode: 'refine', show: null, as: null, within: null }
       }
-      return null
+      return intentArgs(raw)
     },
     async answer(_snap, args, host) {
       try { await metaWithin() } catch { return META_UNAVAILABLE }
