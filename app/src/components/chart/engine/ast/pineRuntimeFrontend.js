@@ -7805,19 +7805,30 @@ function buildRuntimeIrLinked(source, opts, holder) {
           // parameters: `f(float v, w) =>` — typed when written, unknown otherwise
           const open = h.findIndex((x) => isPunct(x, '('))
           const arrow = findTop(h, (x) => isPunct(x, '=>'))
+          // ⛔ (re-review 3 L-2) only the parameter NAMES declare: an identifier inside a
+          // default value (`src = close`, `x = na`) is a READ, not a declaration
           let tyw = null
+          let depth = 0
+          let inDefault = false
           for (const x of h.slice(open + 1, arrow)) {
+            if (isPunct(x, '(') || isPunct(x, '[')) { depth += 1; continue }
+            if (isPunct(x, ')') || isPunct(x, ']')) { depth -= 1; continue }
+            if (depth > 0) continue
+            if (isPunct(x, ',')) { tyw = null; inDefault = false; continue }
+            if (isPunct(x, '=')) { inDefault = true; continue }
+            if (inDefault) continue
             if (x.kind === 'ident' && TYPE_WORDS.has(x.value)) { tyw = x.value; continue }
             if (x.kind === 'ident' && !['simple', 'series', 'const'].includes(x.value)) { add(fn, String(x.value), { ty: tyw, rhs: null, sc: fn }); tyw = null }
-            if (isPunct(x, ',')) tyw = null
           }
           const inline = h.slice(arrow + 1)
           if (inline.length) visit([{ header: inline, sub: [] }], fn)
           visit(st.sub, fn)
           // ⭐ (re-review 2 H-2) a user function's value is its LAST line's, typed in its
-          // own scope; a body ending in a block is unknown (null)
+          // own scope. ⭐ (re-review 3 M-1) a body ending in an `if` chain or a `switch`
+          // yields its arms' values (a missing `else`/default is `na`: fine for a number).
+          // Anything else (a loop, an inline block) is unknown (null).
           if (!results.has(fn)) results.set(fn, [])
-          results.get(fn).push(inline.length ? inline : armValueToks(st.sub))
+          results.get(fn).push(inline.length ? [inline] : bodyResultToks(st.sub))
           continue
         }
         for (const t of statementCommaParts(st) || [h]) {
@@ -7861,7 +7872,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
     const nm = String(node.name)
     const rs = typeTables().results.get(nm)
     if (rs) {
-      return rs.every((toks) => {
+      return rs.every((cands) => !!cands && cands.every((toks) => {
         if (!toks || !isPunct(toks[0], '[') || !isPunct(toks[toks.length - 1], ']')) return false
         const parts = []
         let depth = 0
@@ -7874,7 +7885,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
         }
         parts.push(cur)
         return !!parts[i] && provablyNonBoolToks(parts[i], nm)
-      })
+      }))
     }
     return NUMERIC_TUPLE_CALL.has(nm)
   }
@@ -7926,7 +7937,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
     const key = `\u0001${fn}`
     if (memo.has(key)) return memo.get(key)
     memo.set(key, false)   // recursion is not a proof
-    const ok = results.get(fn).every((toks) => !!toks && provablyNonBoolToks(toks, fn))
+    const ok = results.get(fn).every((cands) => !!cands && cands.every((toks) => !!toks && provablyNonBoolToks(toks, fn)))
     memo.set(key, ok)
     return ok
   }
@@ -7937,6 +7948,43 @@ function buildRuntimeIrLinked(source, opts, holder) {
     let node = null
     try { node = parseWholeExpression(toks) } catch { return false }
     return provablyNonBoolNode(node, sc)
+  }
+  /** ⭐ (re-review 3 M-1) every value a statement list can yield, as token lists: its last
+   *  line's expression, or — when it ends in an `if`/`else if`/`else` chain or a `switch`
+   *  — each arm's, recursively. null when any arm's value cannot be read (a loop, a void
+   *  ending, an arm with no value). */
+  const bodyResultToks = (lines, d = 0) => {
+    const flat = splitStatementCommas(lines || [])
+    const last = flat[flat.length - 1]
+    if (!last || d > 32) return null
+    const w = blockKeywordOf(last)
+    if (w === 'if' || w === 'else') {
+      let k = flat.length - 1
+      while (k >= 0 && blockKeywordOf(flat[k]) === 'else') k -= 1
+      if (k < 0 || blockKeywordOf(flat[k]) !== 'if') return null
+      const out = []
+      for (const arm of flat.slice(k)) {
+        if (!arm.sub || !arm.sub.length) return null
+        const r = bodyResultToks(arm.sub, d + 1)
+        if (!r) return null
+        out.push(...r)
+      }
+      return out
+    }
+    if (w === 'switch') {
+      const out = []
+      for (const arm of last.sub || []) {
+        const t = arm.header || []
+        const at = findTop(t, (x) => isPunct(x, '=>'))
+        if (at < 0) return null
+        const r = at < t.length - 1 ? [t.slice(at + 1)] : bodyResultToks(arm.sub, d + 1)
+        if (!r) return null
+        out.push(...r)
+      }
+      return out.length ? out : null
+    }
+    const v = armValueToks(lines)
+    return v ? [v] : null
   }
   /** the value an arm's lines yield, as tokens, when it is one expression line */
   const armValueToks = (lines) => {

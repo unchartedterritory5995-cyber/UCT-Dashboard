@@ -323,6 +323,45 @@ describe('M3 — Pine 6 `bool` is never `na`', () => {
     const r = refusalOf(`${v6}up = close > open\ny = ta.valuewhen(source = up, condition = high > low, occurrence = 0)\nb = if close > 102\n    y\nplot(b ? 1 : 0)\n`)
     expect(r.message).toMatch(/v6 bool is never `na`/)
   })
+  // ⛔ re-review 3 L-2 — a parameter's DEFAULT value is a read, not a declaration: `close`
+  // and `na` in `f(src = close, alt = na)` are still the built-ins inside f
+  it('⭐ re-review 3 L-2: identifiers in parameter defaults are not declarations — v6 draws v5', () => {
+    const body = 'f(src = close, alt = na) =>\n    y = if src > 105\n        close\n    else if src < 0\n        na\n    nz(y) + nz(alt)\nplot(f())\n'
+    const five = run(v5 + body)
+    expect(five.some((x) => x !== 0)).toBe(true)
+    expect(run(v6 + body)).toEqual(five)
+  })
+  // ⛔ re-review 3 rails (a) — a destructured name takes ITS element's type
+  it('⛔⛔ re-review 3 (a): `[a, b] = g()` with g() => [close, close > open] — arm `b` (a bool) refuses', () => {
+    const r = refusalOf(`${v6}g() => [close, close > open]\n[a, b] = g()\nx = if close > 104\n    b\nplot(x ? 1 : 0)\n`)
+    expect(r.message).toMatch(/v6 bool is never `na`/)
+  })
+  it('⭐ re-review 3 (a): …and arm `a` (a number) is served — v6 draws v5', () => {
+    const body = 'g() => [close, close > open]\n[a, b] = g()\nx = if close > 104\n    a\nplot(x)\n'
+    const five = run(v5 + body)
+    expect(five.some((x) => !Number.isNaN(x))).toBe(true)
+    expect(run(v6 + body)).toEqual(five)
+  })
+  // ⛔ re-review 3 rails (b) — EVERY definition of a name must be numeric
+  it('⛔⛔ re-review 3 (b): a numeric overload beside a bool overload of the same name refuses', () => {
+    const r = refusalOf(`${v6}f(float v) => v * 2\nf(bool v) => v and close > 0\nx = if close > 104\n    f(close > open)\nplot(x ? 1 : 0)\n`)
+    expect(r.message).toMatch(/v6 bool is never `na`/)
+  })
+  // ⛔ re-review 3 rails (c) — a function ending in a block whose arms are bools
+  it('⛔⛔ re-review 3 (c): a function whose body ends in an `if` with bool arms refuses', () => {
+    const r = refusalOf(`${v6}f() =>\n    if close > 100\n        close > open\n    else\n        close < open\nx = if close > 104\n    f()\nplot(x ? 1 : 0)\n`)
+    expect(r.message).toMatch(/v6 bool is never `na`/)
+  })
+  it('⛔⛔ re-review 3 (c): a function whose body ends in a `switch` with a bool arm refuses', () => {
+    const r = refusalOf(`${v6}f() =>\n    switch\n        close > 100 => close > open\n        => false\nx = if close > 104\n    f()\nplot(x ? 1 : 0)\n`)
+    expect(r.message).toMatch(/v6 bool is never `na`/)
+  })
+  it('⭐ re-review 3 M-1: a function ending in a numeric `switch` — v6 draws v5', () => {
+    const body = 'f() =>\n    switch\n        close > 105 => close\n        close < 0 => open\nx = if close > 103\n    f()\nplot(x)\n'
+    const five = run(v5 + body)
+    expect(five.some((x) => !Number.isNaN(x))).toBe(true)
+    expect(run(v6 + body)).toEqual(five)
+  })
   // ⭐ re-review 2 H-2 — provably numeric values the bool rule refused; the v6 pane must
   // serve each and draw what v5 draws (an unmatched float is `na` in both)
   const PANE_FLOATS = {

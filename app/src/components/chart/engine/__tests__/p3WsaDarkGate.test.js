@@ -162,6 +162,9 @@ describe('⛔⛔ re-review 2 H-2: an unmatched FLOAT the bool rule must not refu
     udf_arm: [(v) => `${H(v)}f(v) => v * 2 * k\nx = if close > open\n    f(close)\n${T('x')}`, 29386.61],
     na_arm: [(v) => `${H(v)}x = if close > open\n    close\nelse if close < open - 100\n    na\n${T('x')}`, 23846.65],
     tuple_udf: [(v) => `${H(v)}g() => [close * k, open]\n[a, b] = g()\nx = if close > open\n    a\n${T('x')}`, null],
+    // ⭐ re-review 3 M-1 — a function whose body ENDS in an `if` chain is typed by its arms
+    fn_if_body: [(v) => `${H(v)}f() =>\n    if close > 100\n        close * k\nx = if close > open\n    f()\n${T('x')}`, null],
+    fn_if_chain_body: [(v) => `${H(v)}f() =>\n    m = close * k\n    if close > 102\n        m\n    else if close < 98\n        open\nx = if close > open\n    f()\n${T('x')}`, null],
   }
   for (const [name, [mk, pinned]] of Object.entries(SHAPES)) {
     it(`${name}: the v6 door draws the v5 door's value${pinned === null ? '' : ` (${pinned})`}`, () => {
