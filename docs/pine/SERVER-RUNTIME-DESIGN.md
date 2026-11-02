@@ -804,6 +804,106 @@ line pointing here):
    sweep CPU. Should runtime documents be sweepable only after a MATCH grade (the allowlist), as
    the pane is today, or as soon as they attach?
 
+### 9.1 Rulings, 2026-11-02 (owner approved the recommendations "if after analysis it is fully detailed and thorough enough"; analysis by the laptop coordinator, recorded here)
+
+Each ruling cites the evidence it rests on, the risk it accepts, and the condition that would reopen it.
+
+**R3: verdicts on instructions, not wall time. RULED (recommendation adopted).**
+- Evidence: H5 (2.2). Wall-clock budgets are not deterministic: fibonacci-dolphintradebot measured
+  0.8-1.24 s on ONE box against the 1,000 ms pane budget (PHASE3 3.5), so a clock verdict lets the
+  chart attach a script the alert path withholds, or the reverse, breaking "a chart never draws what
+  the alerts withhold" (`user_definitions.py:2339`). The instruction budgets are deterministic and
+  already shared (`limits.js`: 200,000 per bar, 200 M per run, a standing ruling never to raise them).
+  The browser lane was already put on this rule on 2026-10-31 (PHASE3 R3, owner-delegated ruling);
+  W5 extends it to the second host.
+- Accepted risk: on a slow device a script inside the instruction budget can still hit the wall
+  SAFETY stop. That run is withheld by name (`runtime:time-budget`), never cached, never stored as a
+  verdict, so the device is protected and no wrong value is drawn; the member sees a named withhold
+  while alerts compute the same values Chromium would.
+- Conditions: `DEFAULT_LIMITS` unchanged and passed with no override (3.4); T2 makes every clock an
+  injected `opts.now`; a rail proves a time-budget refusal is never written to the result cache.
+- Reopen if: a measured case shows instruction-budget verdicts admitting a script that hangs a
+  median desktop (B2 p95 above 1,000 ms at 1x on an allowlisted script).
+
+**Q2: capacity and cost. RULED with conditions.**
+- Service size 2 vCPU / 2 GB. Evidence (3.3, 3.4): worst-case resident memory is about
+  2 workers x (256 MB old + 32 MB young + overhead) + 256 MB document LRU + 512 MB result LRU +
+  ~100 MB supervisor, so about 1.5 GB, inside 2 GB with headroom; workers = vCPU.
+- Sweep cap: 25 runtime documents per nightly sweep at stages `admins` and `cohort`. Evidence:
+  about 3 CPU-minutes per document over the 3,742-symbol universe (3,742 x ~50 ms, the B2 desktop
+  p95 band; 3.4) gives about 75 CPU-minutes, roughly 38 minutes of wall time on 2 vCPU from the
+  05:00 ET sweep; even at 3x the estimate it finishes before 08:00 ET, well before the open. The
+  estimate is UNMEASURED on the service: T9 must measure CPU per symbol on a container capped at
+  2 vCPU, and the cap is re-derived from that number before any stage beyond `cohort`.
+- Per-member quota: YES, required before stage `all`. Initial proposal: 3 runtime documents per
+  member in the nightly sweep (on-demand already has the per-owner in-flight cap of 4, 3.4). The
+  final number is set from T9's measurement and recorded in `docs/feature_flags.json` with its
+  ledger row.
+- Accepted risk: until T9, the cap rests on a browser-derived estimate; the cap and the stage ladder
+  (admins first) bound the exposure.
+
+**Q3: runtime alerts on closed bars only in v1. RULED (recommendation adopted).**
+- Evidence: v1 is stateless (`incremental: false`, H6, 3.3); a closed bar gives the same answer on
+  every evaluation and on both hosts, so it can be cached on the bars hash and proved by HP-1..HP-5.
+  A forming-bar alert needs the v2 incremental session keyed on (doc, ctx, closed-bars-prefix hash),
+  isolated per owner, and a realtime capture (WS-F) proving it matches TradingView's realtime
+  behaviour. Neither exists yet.
+- Accepted cost: a runtime alert fires at the bar's close, not intrabar (TradingView's own
+  "once per bar close" mode behaves this way). Host-lane alerts are unaffected.
+- Reopen when: v2 sessions ship with B5's tick cost measured on the service and a WS-F realtime
+  capture graded MATCH.
+
+**Q4: a separate server stage variable. RULED (recommendation adopted).**
+- `PINE_RUNTIME_SERVER_STAGE` (`off`/`admins`/`cohort`/`all`, unset = `off`, read per call); the
+  effective stage is `min(pane, server)` (3.5). Evidence: reusing `PINE_RUNTIME_STAGE` would arm
+  alerts, scans and backtests the moment the chart is armed (W2 stage 1), with no way to keep the
+  server lanes off while the pane is proven and no way to kill the server lanes alone. The `min`
+  rule guarantees the server lanes never reach a member whose chart cannot draw the script.
+- Conditions: T12's rails (a typo reads as off; the server stage can never exceed the pane stage;
+  a kill reaches the next call) and the four ledger rows in `docs/feature_flags.json`.
+
+**Q5: the caller ships the bars. RULED (recommendation adopted for v1).**
+- Evidence: a service that reads no database, volume or feed has no network peer reachable from the
+  sandbox that runs member-supplied code (section 4, H4, H9), and the bars hash in every cache key
+  makes a stale value impossible (3.3). Cost: about 240 KB of binary bars per 5,000-bar request; a
+  sweep that batches every runtime document over one symbol's bars sends each symbol's bars once
+  (about 0.9 GB per sweep over the private network, roughly 0.4 MB/s across the ~38 minute window),
+  which is acceptable.
+- Reopen if: T9 shows transfer, not compute, dominates the sweep. Then the SUPERVISOR (never a job)
+  may read `bars-api`, behind its own review.
+
+**Q6: Safari and Firefox last-ulp differences. RULED (accept, measure, report).**
+- Evidence: H8. V8 ships one fdlibm port, so Chromium and Node agree bit for bit and HP-3 proves it;
+  JavaScriptCore and SpiderMonkey can differ in the last ulp of pow/exp/log/trig. That difference
+  exists TODAY between a Safari member's chart and a Chrome member's chart; W5 turns it from unknown
+  into measured (HP-8, weekly, report only). Removing it needs the runtime's transcendental
+  functions replaced by one shared JS implementation: an engine-wide change with its own accuracy
+  risk, far out of proportion to a relative difference near 1e-16, below display precision.
+- Accepted risk: a cross or threshold landing within one ulp can resolve differently on a
+  Safari/Firefox chart than in alerts (which take Node, which equals Chromium). Server lanes and
+  graded captures use V8.
+- Reopen if: an HP-8 report shows a visible difference (a changed cross or a changed displayed
+  value) on any corpus case.
+
+**Q7: engine mismatch during a deploy window. RULED (accept minutes of named withholding).**
+- Evidence: web and the service deploy separately; between the two boots the service's engine
+  identity differs from the caller's, and every runtime request is withheld by name
+  (`runtime:server-engine-mismatch`, 3.7), never computed on the wrong engine. Serving engine N-1 as
+  well would double the bundle and the HP-1..HP-5 parity matrix to cover a window of minutes, at a
+  cadence of roughly one bump per output-changing merge.
+- Conditions: the T19 runbook fixes the deploy order and measures the window; the alert
+  needs-attention grace must exceed the measured window, so an ordinary deploy raises no member
+  notice; runtime alerts start at stage `admins`, so early windows touch admins only.
+
+**Q8: who may trigger service work. RULED (only allowlisted, MATCH-graded documents).**
+- Evidence: the pane already serves a runtime document only once it is graded (R1: per-capability
+  conformance plus at least one MATCH capture per allowlisted script; `runtime:not-yet-graded`
+  otherwise). Letting ungraded documents consume sweep CPU would spend the shared service on scripts
+  the member's own chart refuses to draw, and would run unverified member code at scale.
+- Consequence: a member's newly attached runtime script alerts and screens from the moment it is
+  graded and allowlisted, the same moment its chart starts drawing it. This is consistent by
+  construction with `server_lane_refusal` step 2 (3.5).
+
 ---
 
 ## 10. How the numbers here were taken
