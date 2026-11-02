@@ -252,6 +252,14 @@ Only agent-qa edits this file. Update it in every PR.
   extended-live, extended-closed, holiday, no-current-trade. Rules (a)–(e) are a reusable predicate
   (`quote_semantics_errors`) with controls showing it can fail. Other MD-1 kinds keep provisional `data` shapes.
 
+## PR #681 (`4c4b2e0137`, kinds.py `ONE_SYMBOL`/`NO_SYMBOL`): **GO**, 2026-11-02
+- The only change is one commit onto `origin/agent/int` (`5a9fff38ea`): kinds.py alone, +13 −8.
+- No behaviour change: every field of all 13 registry Kinds is identical at the base and at the head (only the memory
+  addresses of the fn/validate objects differ); every `max_symbols` value is unchanged.
+- `test_entitlements.py::test_the_NUMBERS_live_in_exactly_ONE_place` is red at the base on exactly the 8 kinds.py
+  literals and on no other file, and green at the head.
+- Agent + entitlements pytest at the head, under the lock: 1800 passed. No frontend file changed, so vitest was not run.
+
 ## GO HOLDS on the trial merge `abd9de7c84` (f479b0ae32 onto master `1cfb77fbc2`), 2026-11-02
 - Parents are exactly `1cfb77fbc2` and `f479b0ae32`. Production `2cd4c3839c` is an ancestor. The gate timeout is still 40.
 - Master's 250 files do not overlap the 88 RC files, and none is an Agent path.
