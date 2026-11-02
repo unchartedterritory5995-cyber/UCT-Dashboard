@@ -61,6 +61,11 @@
  *    shard / share / `/l/` links) keep their href and every child (bold, images)
  *    and are marked `data-evernote-link="1"` (E-6). ⚰️ They used to be replaced
  *    by their bare text, which erased an image inside one.
+ *    Once EVERY .enex in the drop is parsed, `resolveEvernoteLinks` resolves them
+ *    BY TITLE (the link's text; ENEX carries no note ids) on the live DOM, BEFORE
+ *    the media lift: one note of that title in the import -> its importKey; none
+ *    -> an `evernote-title:<title>` key the server heals later; two or more, or
+ *    no text -> the link's content plus a warning (E-5, Q5).
  *  - `<note-attributes><source-url>` (a web clip's page), when http(s) and not
  *    our own site, becomes `doc.sourceUrl` (relative links resolve against it in
  *    the post-parse pass) and a visible first line `Source: <link>` (E-12).
@@ -76,7 +81,7 @@
 import SparkMD5 from 'spark-md5'
 import { reportIgnoredFiles } from './reportIgnored'
 import { liftMediaOutOfLinks } from '../mediaRefs'
-import { isEvernoteNoteHref } from '../evernoteLinks'
+import { isEvernoteNoteHref, resolveEvernoteLinks, settleEvernoteLinks } from '../evernoteLinks'
 
 const ENEX_EXT = /\.enex$/i
 const ENML_PROLOG_RE = /^\s*<\?xml[^>]*\?>\s*<!DOCTYPE[^>]*>\s*/i
@@ -115,6 +120,7 @@ async function parse(vfiles, opts = {}) {
       const noteEls = Array.from(xmlDoc.querySelectorAll('note'))
       for (const noteEl of noteEls) {
         try {
+          // `root` = the note's LIVE DOM, held until every .enex is parsed (Task 7).
           docs.push(await makeNoteDoc(noteEl, notebookName))
         } catch (err) {
           const t = noteEl.querySelector('title')?.textContent?.trim() || '(untitled)'
@@ -126,6 +132,21 @@ async function parse(vfiles, opts = {}) {
     }
     done += 1
     onProgress?.({ phase: 'parsing', done, total: enexFiles.length })
+  }
+
+  // Task 7 (E-5, Q5): note links resolve BY TITLE, across every .enex in the drop, on the LIVE
+  // DOM and BEFORE the lift: the lift unwraps a note link with no text, so a pass after it would
+  // meet a link already gone. A resolved link keeps its marker through the lift, so the lift
+  // still moves media out of it; `settleEvernoteLinks` then drops the href and the marker.
+  resolveEvernoteLinks(docs, warnings)
+  for (const doc of docs) {
+    const root = doc.root
+    delete doc.root
+    // ⛔ On the LIVE DOM, before anything serialises (Review Focus 1): a chip is itself an <a>, and
+    // a chip inside a link, written out and parsed again, closes the outer link early.
+    liftMediaOutOfLinks(root)
+    settleEvernoteLinks(root)
+    doc.html = root.innerHTML
   }
 
   // audit B4: Evernote resources travel as base64 INSIDE the .enex XML, never
@@ -170,9 +191,7 @@ async function makeNoteDoc(noteEl, notebookName) {
   markEvernoteLinks(enNote)
   const referencedHashes = new Set()
   const missing = replaceEnMedia(innerDoc, enNote, resources, resourcesByHash, referencedHashes)
-  // ⛔ On the LIVE DOM, before anything serialises (Review Focus 1): a chip is itself an <a>, and
-  // a chip inside a link, written out and parsed again, closes the outer link early.
-  liftMediaOutOfLinks(enNote)
+  // The lift (media out of links) runs in `parse()`, after the by-title link pass (Task 7).
   groupTodoLines(enNote)
   appendUnreferencedMedia(innerDoc, enNote, resources, referencedHashes)
 
@@ -187,7 +206,9 @@ async function makeNoteDoc(noteEl, notebookName) {
   return {
     importKey: `evernote:${notebookName}/${title}/${createdRaw}`,
     title,
-    html: enNote.innerHTML,
+    // Written by `parse()` once links are resolved and media lifted; until then `root` holds it.
+    html: '',
+    root: enNote,
     tags,
     folderPath: [notebookName],
     media,

@@ -213,9 +213,11 @@ describe('evernote adapter: Plan B Task 6', () => {
   it('keeps bold inside an internal link', async () => {
     const body = '<div>See <a href="evernote:///view/1/s1/abc/abc/"><b>Bold title</b> plan</a></div>'
     const d = await parseOne(body)
-    const a = bodyOf(d.html).querySelector('a[data-evernote-link]')
+    // Task 7: no imported note has that title, so it is kept for the server's by-title heal.
+    const a = bodyOf(d.html).querySelector('a[data-import-link]')
     expect(a).not.toBeNull()
-    expect(a.getAttribute('href')).toBe('evernote:///view/1/s1/abc/abc/')
+    expect(a.getAttribute('data-import-link')).toBe('evernote-title:Bold title plan')
+    expect(a.hasAttribute('href')).toBe(false)
     expect(a.innerHTML).toBe('<b>Bold title</b> plan')
     const f = await finishOne(body)
     expect(f.html).toContain('<b>Bold title</b> plan')
@@ -225,7 +227,9 @@ describe('evernote adapter: Plan B Task 6', () => {
     const d = await parseOne('<div><a href="https://www.evernote.com/shard/s1/nl/1234/abcd/">Target</a> ' +
       '<a href="https://evernote.com/pricing">Pricing</a></div>')
     const b = bodyOf(d.html)
-    expect(b.querySelector('a[href^="https://www.evernote.com/shard"]').getAttribute('data-evernote-link')).toBe('1')
+    // Task 7: the note link becomes a by-title link key; the web page stays a web link.
+    expect(b.querySelector('a[href^="https://www.evernote.com/shard"]')).toBeNull()
+    expect(b.querySelector('a[data-import-link]').getAttribute('data-import-link')).toBe('evernote-title:Target')
     expect(b.querySelector('a[href="https://evernote.com/pricing"]').hasAttribute('data-evernote-link')).toBe(false)
   })
 
