@@ -1,0 +1,612 @@
+"""ENML -> TipTap JSON, server-side (Plan E Task 3, Evernote live sync).
+
+`get_note` returns a note's body as ENML in `structuredContent.content` and its attachments as
+`structuredContent.resources` (`{id, hash (md5), mime, name, sizeBytes}`, or `null` when there are
+none). This module ports the `.enex` adapter's rules (`app/src/pages/journal-2-0/lib/importer/
+adapters/evernote.js`) one for one, so a note looks the same whether it arrived by file or by sync.
+
+Shape: an `html.parser`-level pre-pass builds a small tree of the ENML (never `xml.etree`: ENML
+carries XHTML entities such as `&nbsp;` that a strict XML parser rejects), rewrites it, serialises
+it back to HTML and hands that to `mddoc.html_to_tiptap`, the walker every HTML connector uses.
+A short post-pass then does the two things HTML cannot carry: the `missing_resource` notices and
+the attachment chips' real names.
+
+Rules, in order (the brief's numbering):
+ 1. Strip the prolog; work inside `<en-note>`.
+ 2. `<en-crypt>` -> `<p>[encrypted content — cannot be imported]</p>`.
+ 3. Note links (the client's `isEvernoteNoteHref`): a GUID href -> `LINK_PREFIX +
+    live_import_key(guid)`, every child kept; any other note link -> `LINK_PREFIX +
+    "evernote-title:" + <its text>` (the key `link_keys` heals); with no text it becomes its content.
+ 4. `<en-media hash type>` against `resources` by hash: an image -> `<img src=REF_PREFIX+ref>`,
+    anything else -> an attachment chip named from the resource; no resource -> an importNotice
+    `missing_resource` IN PLACE. Content nested inside an `<en-media>` is unwrapped after it.
+ 5. `<div>`s carrying `<en-todo checked>` group into one `<ul><li data-uct-task="0|1">` run.
+ 6. Resources nothing cited are appended at the end; duplicate hashes collapse first-wins.
+ 7. An http(s) `source_url` (not our own site) becomes a first line `Source: <a>`.
+ 8. Media inside a link moves out to just before it; an emptied note link becomes its content, an
+    emptied web link shows its href (or its content when the href is not a safe link).
+ 9. `<div style="...-en-codeblock:true...">` -> `<pre><code>` with its text verbatim.
+Then (needed by the server walker, which unwraps every `<div>`): each ENML line `<div>` becomes a
+`<p>`, so lines stay separate paragraphs as they do in the editor.
+
+Media refs are `evernote-res://{noteGuid}/{md5}`; `providers/evernote.py` (Task 5) fetches them.
+"""
+
+from __future__ import annotations
+
+import html as _html
+import re
+from html.parser import HTMLParser
+from typing import Any, Callable
+from urllib.parse import urlsplit
+
+from api.services.journal_two import import_notice
+
+from . import ATTACHMENT_REF_PREFIX, LINK_PREFIX, REF_PREFIX
+from .mddoc import _is_allowed_link_href, html_to_tiptap
+
+EVERNOTE_RES_SCHEME = "evernote-res://"
+LIVE_KEY_PREFIX = "evernote:guid:"
+#: `link_keys.EVERNOTE_TITLE_KIND`, the key kind the server heals by title.
+EVERNOTE_TITLE_KIND = "evernote-title:"
+ENCRYPTED_TEXT = "[encrypted content — cannot be imported]"
+
+_MISSING_SCHEME = "evernote-missing://"  # internal placeholder, replaced before return
+_TITLE_MAX = 300  # `notes.MAX_TITLE_CHARS`, as the client's `titleKeyText` cuts
+_APP_HOST = "uctintelligence.com"
+
+_VOID_TAGS = frozenset({"br", "hr", "img", "input", "col", "area", "wbr", "meta", "link",
+                        "base", "source", "embed", "param", "track"})
+_BLOCK_TAGS = frozenset({"p", "div", "ul", "ol", "li", "table", "tr", "td", "th", "pre",
+                         "blockquote", "hr", "h1", "h2", "h3", "h4", "h5", "h6"})
+_INTERNAL_ATTRS = frozenset({"data-uct-chip", "data-evernote-link"})
+
+_PROLOG_RE = re.compile(r"^\s*(?:<\?xml[^>]*\?>\s*)?(?:<!DOCTYPE[^>]*>\s*)?", re.IGNORECASE)
+_CODEBLOCK_RE = re.compile(r"-en-codeblock\s*:\s*true", re.IGNORECASE)
+# The client's `isEvernoteNoteHref` (lib/importer/evernoteLinks.js), verbatim.
+_APP_LINK_RE = re.compile(r"^evernote:///?view/", re.IGNORECASE)
+_WEB_LINK_RE = re.compile(
+    r"^https?://(?:www\.)?evernote\.com/(?:shard/[^/]+/(?:nl|sh)/|l/).", re.IGNORECASE)
+_APP_GUID_RE = re.compile(r"^evernote:///?view/(?P<rest>.*)$", re.IGNORECASE)
+_NL_GUID_RE = re.compile(
+    r"^https?://(?:www\.)?evernote\.com/shard/[^/]+/nl/[^/]+/(?P<guid>[^/?#]+)", re.IGNORECASE)
+_GUID_RE = re.compile(r"^[0-9A-Za-z-]+$")
+
+
+# ---------------------------------------------------------------------------
+# keys and hrefs
+# ---------------------------------------------------------------------------
+
+
+def live_import_key(guid: str) -> str:
+    """`evernote:guid:{guid}`. A `.enex` key is `evernote:{notebook}/{title}/{created}` (two `/`)
+    and a GUID has none, so the two key spaces cannot collide."""
+    return f"{LIVE_KEY_PREFIX}{guid}"
+
+
+def is_note_href(href: str | None) -> bool:
+    """A link to another Evernote note (the client's `isEvernoteNoteHref`)."""
+    h = (href or "").strip()
+    return bool(_APP_LINK_RE.match(h) or _WEB_LINK_RE.match(h))
+
+
+def note_guid_from_href(href: str | None) -> str | None:
+    """The note GUID in `evernote:///view/{uid}/{shard}/{guid}/{guid}/` or
+    `https://www.evernote.com/shard/{s}/nl/{uid}/{guid}/`; None for every other link (a `/l/`
+    public link, a `/sh/` shared link, a share-site page), which names its note only by title."""
+    h = (href or "").strip()
+    guid = None
+    m = _APP_GUID_RE.match(h)
+    if m:
+        segments = m.group("rest").split("/")
+        if len(segments) >= 3:
+            guid = segments[2]
+    else:
+        m = _NL_GUID_RE.match(h)
+        if m:
+            guid = m.group("guid")
+    return guid if guid and _GUID_RE.match(guid) else None
+
+
+def _title_key_text(text: str) -> str:
+    """The client's `titleKeyText`: strip, cut at 300 code points, collapse whitespace."""
+    return " ".join(text.strip()[:_TITLE_MAX].split())
+
+
+def _ext_from_mime(mime: str) -> str:
+    """The client's `extFromMime`."""
+    subtype = (mime.split("/")[1] if "/" in mime else "bin").lower() or "bin"
+    mapping = {"jpeg": "jpg", "svg+xml": "svg", "quicktime": "mov", "msword": "doc"}
+    if subtype in mapping:
+        return mapping[subtype]
+    return subtype[2:] if subtype.startswith("x-") else subtype
+
+
+def _source_line_url(source_url: str | None) -> str | None:
+    """The client's `noteSourceUrl`: an http(s) URL with a host, not our own site."""
+    raw = (source_url or "").strip()
+    if not raw:
+        return None
+    try:
+        parts = urlsplit(raw)
+        host = (parts.hostname or "").lower()
+    except ValueError:
+        return None
+    if parts.scheme.lower() not in ("http", "https") or not host:
+        return None
+    if host == _APP_HOST or host.endswith("." + _APP_HOST):
+        return None
+    return raw
+
+
+# ---------------------------------------------------------------------------
+# a small tree
+# ---------------------------------------------------------------------------
+
+
+class _Node:
+    __slots__ = ("tag", "attrs", "children")
+
+    def __init__(self, tag: str, attrs: dict[str, str | None] | None = None,
+                 children: list[Any] | None = None) -> None:
+        self.tag = tag
+        self.attrs = attrs or {}
+        self.children: list[Any] = children or []
+
+
+class _Builder(HTMLParser):
+    """Every tag kept (ENML's own included). A self-closing `<x/>` is a leaf, as ENML means it;
+    a void HTML tag never takes children. Entities arrive decoded (`convert_charrefs`)."""
+
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.root = _Node("#root")
+        self._stack = [self.root]
+
+    def handle_starttag(self, tag, attrs):
+        node = _Node(tag.lower(), {k.lower(): v for k, v in attrs})
+        self._stack[-1].children.append(node)
+        if node.tag not in _VOID_TAGS:
+            self._stack.append(node)
+
+    def handle_startendtag(self, tag, attrs):
+        self._stack[-1].children.append(_Node(tag.lower(), {k.lower(): v for k, v in attrs}))
+
+    def handle_endtag(self, tag):
+        tag = tag.lower()
+        if tag in _VOID_TAGS:
+            return
+        for i in range(len(self._stack) - 1, 0, -1):
+            if self._stack[i].tag == tag:
+                del self._stack[i:]
+                return
+
+    def handle_data(self, data):
+        if data:
+            self._stack[-1].children.append(data)
+
+
+def _find(node: _Node, tag: str) -> _Node | None:
+    for child in node.children:
+        if isinstance(child, _Node):
+            if child.tag == tag:
+                return child
+            found = _find(child, tag)
+            if found is not None:
+                return found
+    return None
+
+
+def _iter(node: _Node, tag: str | None = None):
+    """Elements under `node`, document order (a snapshot: safe to mutate while iterating)."""
+    out: list[_Node] = []
+
+    def walk(n: _Node) -> None:
+        for c in n.children:
+            if isinstance(c, _Node):
+                if tag is None or c.tag == tag:
+                    out.append(c)
+                walk(c)
+
+    walk(node)
+    return out
+
+
+def _parents(root: _Node) -> dict[int, _Node]:
+    parents: dict[int, _Node] = {}
+    for n in [root, *_iter(root)]:
+        for c in n.children:
+            if isinstance(c, _Node):
+                parents[id(c)] = n
+    return parents
+
+
+def _text_of(node: Any) -> str:
+    if isinstance(node, str):
+        return node
+    return "".join(_text_of(c) for c in node.children)
+
+
+def _replace(parent: _Node, node: _Node, replacement: list[Any]) -> None:
+    for i, c in enumerate(parent.children):
+        if c is node:
+            parent.children[i:i + 1] = replacement
+            return
+
+
+def _detach(parent: _Node, node: _Node) -> None:
+    _replace(parent, node, [])
+
+
+def _map_elements(node: _Node, fn: Callable[[_Node], list[Any] | None]) -> None:
+    """Bottom-up: children first, then `fn(child)`; a list return replaces the child."""
+    new_children: list[Any] = []
+    for c in node.children:
+        if isinstance(c, _Node):
+            _map_elements(c, fn)
+            replacement = fn(c)
+            if replacement is None:
+                new_children.append(c)
+            else:
+                new_children.extend(replacement)
+        else:
+            new_children.append(c)
+    node.children = new_children
+
+
+def _serialize(node: Any) -> str:
+    if isinstance(node, str):
+        return _html.escape(node, quote=False)
+    attrs = "".join(
+        f" {k}" if v is None else f' {k}="{_html.escape(v, quote=True)}"'
+        for k, v in node.attrs.items() if k not in _INTERNAL_ATTRS)
+    if node.tag in _VOID_TAGS:
+        return f"<{node.tag}{attrs}>"
+    inner = "".join(_serialize(c) for c in node.children)
+    return f"<{node.tag}{attrs}>{inner}</{node.tag}>"
+
+
+# ---------------------------------------------------------------------------
+# the rules
+# ---------------------------------------------------------------------------
+
+
+def _rule_en_crypt(root: _Node) -> None:
+    _map_elements(root, lambda n: [_Node("p", {}, [ENCRYPTED_TEXT])] if n.tag == "en-crypt" else None)
+
+
+def _rule_note_links(root: _Node) -> None:
+    def fn(n: _Node) -> list[Any] | None:
+        if n.tag != "a" or not is_note_href(n.attrs.get("href")):
+            return None
+        guid = note_guid_from_href(n.attrs.get("href"))
+        if guid:
+            n.attrs["href"] = LINK_PREFIX + live_import_key(guid)
+            n.attrs["data-evernote-link"] = "1"
+            return None
+        title = _title_key_text(_text_of(n))
+        if not title:
+            return list(n.children)  # no title to resolve by: its content
+        n.attrs["href"] = LINK_PREFIX + EVERNOTE_TITLE_KIND + title
+        n.attrs["data-evernote-link"] = "1"
+        return None
+
+    _map_elements(root, fn)
+
+
+class _Resources:
+    """The note's resources by lower-case hash, first-wins (rule 6's collapse)."""
+
+    def __init__(self, resources: list[dict], note_guid: str) -> None:
+        self.unique: list[dict] = []
+        self.by_hash: dict[str, dict] = {}
+        for r in resources:
+            if not isinstance(r, dict):
+                continue
+            h = str(r.get("hash") or "").strip().lower()
+            if not h or h in self.by_hash:
+                continue
+            mime = str(r.get("mime") or "").strip() or "application/octet-stream"
+            name = r.get("name") if isinstance(r.get("name"), str) and r["name"].strip() else None
+            entry = {
+                "hash": h,
+                "ref": f"{EVERNOTE_RES_SCHEME}{note_guid}/{h}",
+                "kind": "image" if mime.lower().startswith("image/") else "file",
+                "name": (name or "").strip() or f"attachment.{_ext_from_mime(mime)}",
+                "mime": mime,
+            }
+            self.by_hash[h] = entry
+            self.unique.append(entry)
+        self.cited: set[str] = set()
+
+
+def _media_node(entry: dict) -> _Node:
+    if entry["kind"] == "image":
+        return _Node("img", {"src": REF_PREFIX + entry["ref"]})
+    return _Node("a", {"href": ATTACHMENT_REF_PREFIX + entry["ref"], "data-uct-chip": "1"},
+                 [entry["name"]])
+
+
+def _rule_en_media(root: _Node, res: _Resources) -> None:
+    missing = 0
+
+    def fn(n: _Node) -> list[Any] | None:
+        nonlocal missing
+        if n.tag != "en-media":
+            return None
+        entry = res.by_hash.get(str(n.attrs.get("hash") or "").strip().lower())
+        if entry is not None:
+            res.cited.add(entry["hash"])
+            node = _media_node(entry)
+        else:
+            missing += 1
+            node = _Node("img", {"src": f"{REF_PREFIX}{_MISSING_SCHEME}{missing}"})
+        # Content the parser nested inside the en-media (the client's `unwrapInPlace`) follows it.
+        return [node, *n.children]
+
+    _map_elements(root, fn)
+
+
+def _first_en_todo(div: _Node) -> _Node | None:
+    return _find(div, "en-todo")
+
+
+def _is_todo_div(n: Any) -> bool:
+    return isinstance(n, _Node) and n.tag == "div" and _first_en_todo(n) is not None
+
+
+def _rule_todos(root: _Node) -> None:
+    parents = _parents(root)
+    containers: dict[int, _Node] = {}
+    for todo in _iter(root, "en-todo"):
+        node: _Node | None = parents.get(id(todo))
+        while node is not None and node is not root and node.tag != "div":
+            node = parents.get(id(node))
+        if node is not None and node is not root and node.tag == "div":
+            container = parents.get(id(node))
+            if container is not None:
+                containers[id(container)] = container
+    for container in containers.values():
+        _group_todo_divs(container)
+
+
+def _group_todo_divs(container: _Node) -> None:
+    elements = [c for c in container.children if isinstance(c, _Node)]
+    runs: dict[int, list[_Node]] = {}  # id(first div of a run) -> the run
+    in_run: set[int] = set()
+    i = 0
+    while i < len(elements):
+        if not _is_todo_div(elements[i]):
+            i += 1
+            continue
+        start = i
+        while i < len(elements) and _is_todo_div(elements[i]):
+            i += 1
+        run = elements[start:i]
+        runs[id(run[0])] = run
+        in_run.update(id(d) for d in run)
+    if not runs:
+        return
+    out: list[Any] = []
+    for c in container.children:
+        if isinstance(c, _Node) and id(c) in in_run:
+            if id(c) in runs:
+                out.append(_Node("ul", {}, [_todo_item(d) for d in runs[id(c)]]))
+            continue
+        out.append(c)
+    container.children = out
+
+
+def _todo_item(div: _Node) -> _Node:
+    todo = _first_en_todo(div)
+    checked = todo is not None and (todo.attrs.get("checked") or "").strip().lower() == "true"
+    if todo is not None:
+        parent = _parents(div).get(id(todo), div)
+        _replace(parent, todo, list(todo.children))  # siblings nested inside it come out
+    return _Node("li", {"data-uct-task": "1" if checked else "0"}, list(div.children))
+
+
+def _rule_append_uncited(root: _Node, res: _Resources) -> None:
+    for entry in res.unique:
+        if entry["hash"] not in res.cited:
+            root.children.append(_media_node(entry))
+
+
+def _rule_source_line(root: _Node, source_url: str | None) -> None:
+    url = _source_line_url(source_url)
+    if url:
+        root.children.insert(0, _Node("p", {}, ["Source: ", _Node("a", {"href": url}, [url])]))
+
+
+def _is_media(n: Any) -> bool:
+    return isinstance(n, _Node) and (n.tag == "img" or (n.tag == "a" and "data-uct-chip" in n.attrs))
+
+
+def _outer_media(a: _Node) -> list[_Node]:
+    found: list[_Node] = []
+
+    def walk(n: _Node) -> None:
+        for c in n.children:
+            if isinstance(c, _Node):
+                if _is_media(c):
+                    found.append(c)  # outermost: a chip moves whole
+                else:
+                    walk(c)
+
+    walk(a)
+    return found
+
+
+def _rule_lift_media(root: _Node) -> None:
+    for a in _iter(root, "a"):
+        if _is_media(a):
+            continue  # a chip is never a link to lift from
+        href = (a.attrs.get("href") or "").strip()
+        marked = "data-evernote-link" in a.attrs
+        if not href and not marked:
+            continue
+        media = _outer_media(a)
+        if not media:
+            continue
+        parents = _parents(root)
+        container = parents.get(id(a))
+        if container is None:
+            continue
+        for m in media:
+            _detach(parents[id(m)], m)
+        idx = next(i for i, c in enumerate(container.children) if c is a)
+        container.children[idx:idx] = media
+        if _text_of(a).strip():
+            continue
+        if marked or not href or not _is_allowed_link_href(href):
+            _replace(container, a, list(a.children))  # its content
+        else:
+            a.children = [href]
+
+
+def _code_text(node: _Node) -> str:
+    parts: list[str] = []
+    for c in node.children:
+        if isinstance(c, str):
+            parts.append(c)
+        elif c.tag == "br":
+            parts.append("\n")
+        elif c.tag in ("div", "p"):
+            line = _code_text(c)
+            if line.endswith("\n"):
+                line = line[:-1]
+            if parts and not parts[-1].endswith("\n"):
+                parts.append("\n")
+            parts.append(line + "\n")
+        else:
+            parts.append(_code_text(c))
+    return "".join(parts)
+
+
+def _rule_codeblocks(root: _Node) -> None:
+    def convert(n: _Node) -> list[Any]:
+        text = _code_text(n)
+        if text.endswith("\n"):
+            text = text[:-1]
+        pre = _Node("pre", {}, [_Node("code", {}, [text])])
+        # Media cannot live in a code block: it follows the block rather than vanish.
+        return [pre, *[m for m in _iter(n) if _is_media(m)]]
+
+    def walk(node: _Node) -> None:
+        new_children: list[Any] = []
+        for c in node.children:
+            if isinstance(c, _Node) and c.tag == "div" and _CODEBLOCK_RE.search(c.attrs.get("style") or ""):
+                new_children.extend(convert(c))
+            else:
+                if isinstance(c, _Node):
+                    walk(c)
+                new_children.append(c)
+        node.children = new_children
+
+    walk(root)
+
+
+def _is_blank_line(children: list[Any]) -> bool:
+    """A line that holds nothing but whitespace and `<br>`s (Evernote's empty line)."""
+    for c in children:
+        if isinstance(c, str):
+            if c.strip():
+                return False
+        elif c.tag != "br":
+            return False
+    return True
+
+
+def _rule_div_lines(root: _Node) -> None:
+    def fn(n: _Node) -> list[Any] | None:
+        if n.tag != "div":
+            return None
+        if not any(isinstance(c, _Node) and c.tag in _BLOCK_TAGS for c in n.children):
+            return [_Node("p", {}, [] if _is_blank_line(n.children) else list(n.children))]
+        out: list[Any] = []
+        run: list[Any] = []
+
+        def flush() -> None:
+            if run and not _is_blank_line(run):
+                out.append(_Node("p", {}, list(run)))
+            run.clear()
+
+        for c in n.children:
+            if isinstance(c, _Node) and c.tag in _BLOCK_TAGS:
+                flush()
+                out.append(c)
+            else:
+                run.append(c)
+        flush()
+        return out
+
+    _map_elements(root, fn)
+
+
+# ---------------------------------------------------------------------------
+# post-pass on the TipTap doc
+# ---------------------------------------------------------------------------
+
+
+def _post_pass(node: Any, names: dict[str, str]) -> None:
+    if not isinstance(node, dict):
+        return
+    content = node.get("content")
+    if isinstance(content, list):
+        for i, child in enumerate(content):
+            if (isinstance(child, dict) and child.get("type") == "image"
+                    and str((child.get("attrs") or {}).get("src", "")).startswith(
+                        REF_PREFIX + _MISSING_SCHEME)):
+                content[i] = import_notice.notice_node(
+                    "missing_resource", name=None, source_url=None, ref=None, attempts=0)
+                continue
+            _post_pass(child, names)
+    if node.get("type") == "attachmentChip":
+        href = (node.get("attrs") or {}).get("href", "")
+        ref = href[len(REF_PREFIX):] if href.startswith(REF_PREFIX) else href
+        if ref in names:
+            node["attrs"]["name"] = names[ref]
+
+
+# ---------------------------------------------------------------------------
+# public entry point
+# ---------------------------------------------------------------------------
+
+
+def enml_to_tiptap(enml: str, resources: list[dict] | None, *, note_guid: str,
+                   source_url: str | None = None) -> dict:
+    """One note's ENML -> `{doc, media, links}` (the shape every converter returns).
+
+    `resources` is `get_note`'s list; `None` (what `get_note` returns for a note without
+    attachments) reads as `[]`. `media` holds one entry per unique resource,
+    `{ref, kind, name, mime}`, plus any other image the walker registered."""
+    resources = resources or []
+    builder = _Builder()
+    builder.feed(_PROLOG_RE.sub("", enml or "", count=1))
+    builder.close()
+    root = _find(builder.root, "en-note") or builder.root
+
+    res = _Resources(resources, note_guid)
+    _rule_en_crypt(root)               # 2
+    _rule_note_links(root)             # 3
+    _rule_en_media(root, res)          # 4
+    _rule_todos(root)                  # 5
+    _rule_append_uncited(root, res)    # 6
+    _rule_source_line(root, source_url)  # 7
+    _rule_lift_media(root)             # 8
+    _rule_codeblocks(root)             # 9
+    _rule_div_lines(root)
+
+    result = html_to_tiptap("".join(_serialize(c) for c in root.children))
+
+    names = {e["ref"]: e["name"] for e in res.unique if e["kind"] == "file"}
+    _post_pass(result["doc"], names)
+
+    media = [{"ref": e["ref"], "kind": e["kind"], "name": e["name"], "mime": e["mime"]}
+             for e in res.unique]
+    refs = {m["ref"] for m in media}
+    for entry in result["media"]:
+        if entry.get("ref") not in refs and not str(entry.get("ref", "")).startswith(_MISSING_SCHEME):
+            refs.add(entry.get("ref"))
+            media.append(entry)
+    return {"doc": result["doc"], "media": media, "links": result["links"]}
