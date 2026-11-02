@@ -36,6 +36,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+from datetime import datetime, timedelta, timezone
 from urllib.parse import parse_qs, quote
 
 import httpx
@@ -1744,6 +1745,22 @@ async def test_two_full_passes_with_churn_but_no_deletions_severs_nothing(
     assert not any("source-deleted" in n["tags"] for n in notes)
 
 
+def _a_night_later(source_id):
+    """Backdate the source's previous full pass by a day, so the next
+    back-to-back full pass on the real clock is shaped like the NEXT nightly
+    pass. A removal strike only counts when the previous full pass is at least
+    MEMBER_FULL_PASS_MIN_INTERVAL_S old; these tests model nightly passes."""
+    conn = auth_db.get_connection()
+    try:
+        conn.execute(
+            "UPDATE j2_note_sources SET last_full_sync_at = ? WHERE id = ?",
+            ((datetime.now(timezone.utc) - timedelta(days=1)).isoformat(), source_id),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
 async def test_a_real_deletion_still_severs_after_two_full_passes(_engine_db, monkeypatch):
     """(3) Control for the fix above: genuine delete detection must still
     WORK. Three files; the third is truly removed from the Dropbox listing
@@ -1782,9 +1799,11 @@ async def test_a_real_deletion_still_severs_after_two_full_passes(_engine_db, mo
     # a.md and b.md are UNCHANGED (same content_hash) on both remaining
     # passes -- with the fix they still appear in `refs` every time, so they
     # never accumulate a miss_streak of their own.
+    _a_night_later(source["id"])
     result_2 = await note_engine.sync_source(source["id"], full=True, manual=True)
     assert result_2["sourceDeleted"] == 0  # first miss for c.md -- not severed yet
 
+    _a_night_later(source["id"])
     result_3 = await note_engine.sync_source(source["id"], full=True, manual=True)
     assert result_3["sourceDeleted"] == 1  # second consecutive miss -- severed now
 

@@ -14,6 +14,7 @@ token IS the credential under test.
 from __future__ import annotations
 
 import json
+from datetime import datetime, timedelta, timezone
 
 import pytest
 from cryptography.fernet import Fernet
@@ -132,6 +133,22 @@ def _redeem_via_http(client, user_id: str, vault_id: str = "vault-1", label: str
     r = client.post(_REDEEM_URL, json={"code": code, "vaultId": vault_id, "label": label})
     assert r.status_code == 200, r.text
     return r.json()["token"]
+
+
+def _a_night_later(source_id):
+    """Backdate the source's previous full pass by a day, so the next
+    back-to-back full pass on the real clock is shaped like the NEXT nightly
+    pass. A removal strike only counts when the previous full pass is at least
+    MEMBER_FULL_PASS_MIN_INTERVAL_S old; these tests model nightly passes."""
+    conn = auth_db.get_connection()
+    try:
+        conn.execute(
+            "UPDATE j2_note_sources SET last_full_sync_at = ? WHERE id = ?",
+            ((datetime.now(timezone.utc) - timedelta(days=1)).isoformat(), source_id),
+        )
+        conn.commit()
+    finally:
+        conn.close()
 
 
 def _note(vault_path: str, content_hash: str, body_md: str = "# body") -> dict:
@@ -741,11 +758,13 @@ async def test_delete_detection_still_fires_through_the_real_sync_engine(client)
     )
     assert ir2.status_code == 200, ir2.text
 
+    _a_night_later(source_id)
     second = await sync_engine.sync_source(source_id, full=True, manual=True)
     assert second["status"] == "ok", second
     assert second["sourceDeleted"] == 0  # first miss -- streak 1, not severed yet
     assert "source-deleted" not in _tags_for("B")
 
+    _a_night_later(source_id)
     third = await sync_engine.sync_source(source_id, full=True, manual=True)
     assert third["status"] == "ok", third
     assert third["sourceDeleted"] == 1  # second consecutive miss -- severed
