@@ -28,15 +28,20 @@ an error string (transport errors report their exception TYPE only).
 from __future__ import annotations
 
 import asyncio
+import codecs
+import datetime as _dt
 import json
 import logging
+import math
 import random
 import time
+from email.utils import parsedate_to_datetime
 from typing import Any, Awaitable, Callable
 
 import httpx
 
 from . import errors
+from .providers.base import MEDIA_USER_AGENT
 
 log = logging.getLogger(__name__)
 
@@ -54,8 +59,13 @@ MAX_RETRY_AFTER_S = 60.0
 MIN_CALL_INTERVAL_S = 0.2
 MAX_RESPONSE_BYTES = 16 * 1024 * 1024
 TIMEOUT = httpx.Timeout(60.0, connect=10.0)
+# `TIMEOUT` is per operation, so a stream that keeps sending keep-alives resets it forever; this
+# wall-clock bound covers one whole request (send + read). Expiry is retried like a timeout.
+REQUEST_DEADLINE_S = 120.0
 
 CLIENT_INFO = {"name": "uct-notebook-sync", "version": "1.0"}
+# The same User-Agent as our media fetches (`providers/base.py`).
+USER_AGENT = MEDIA_USER_AGENT
 
 
 class WriteToolRefused(errors.NoteConnUnsupported):
@@ -71,16 +81,75 @@ def _default_jitter() -> float:
 
 
 def _retry_after_s(resp: httpx.Response) -> float | None:
+    """`Retry-After` as seconds, capped at `MAX_RETRY_AFTER_S`, or None (use the ladder).
+
+    Delta-seconds or an HTTP-date. NaN, infinity, a negative number, an unparseable value or a date
+    that is already past all give None."""
     raw = resp.headers.get("retry-after")
     if raw is None:
         return None
+    raw = raw.strip()
     try:
-        value = float(raw.strip())
+        value = float(raw)
     except ValueError:
-        return None
-    if value < 0:
+        try:
+            when = parsedate_to_datetime(raw)
+        except (TypeError, ValueError, IndexError):
+            return None
+        if when is None:
+            return None
+        if when.tzinfo is None:
+            when = when.replace(tzinfo=_dt.timezone.utc)
+        value = (when - _dt.datetime.now(_dt.timezone.utc)).total_seconds()
+        if value <= 0:
+            return None
+    if not math.isfinite(value) or value < 0:
         return None
     return min(value, MAX_RETRY_AFTER_S)
+
+
+def _sse_event_data(event: str) -> str | None:
+    """The joined `data:` payload of one SSE event, or None when it has none (a comment such as a
+    keep-alive). Per the SSE spec exactly one leading space after the colon is removed."""
+    lines = []
+    for line in event.split("\n"):
+        if line.startswith("data:"):
+            value = line[5:]
+            if value.startswith(" "):
+                value = value[1:]
+            lines.append(value)
+    if not lines:
+        return None
+    return "\n".join(lines)
+
+
+def _sse_messages(event: str) -> list[Any]:
+    """The JSON-RPC message(s) in one SSE event (none for a keep-alive). Raises ValueError on
+    data that is not JSON."""
+    data = _sse_event_data(event)
+    if data is None or not data.strip():
+        return []
+    parsed = json.loads(data)
+    return parsed if isinstance(parsed, list) else [parsed]
+
+
+_NO_REPLY = object()
+
+
+def _pick(messages: list[Any], rid: str, method: str) -> Any:
+    """The `result` of the message whose JSON-RPC id is `rid`, `_NO_REPLY` when none matches.
+    A JSON-RPC `error` reply raises `NoteConnUnsupported`."""
+    for msg in messages:
+        if not isinstance(msg, dict) or msg.get("id") != rid:
+            continue
+        if "error" in msg:
+            err = msg.get("error") or {}
+            message = str(err.get("message") or "error") if isinstance(err, dict) else str(err)
+            raise errors.NoteConnUnsupported(
+                f"evernote mcp: {method} failed: {message}", reason=message,
+                code="evernote_jsonrpc_error", body=err)
+        return msg.get("result")
+    return _NO_REPLY
 
 
 class EvernoteMcpClient:
@@ -107,6 +176,7 @@ class EvernoteMcpClient:
         self._initialized = False
         self._next_id = 0
         self._last_call_at: float | None = None
+        self._refresh_spent = False
         self._lock = asyncio.Lock()
         # The name of every `tools/call` actually sent (each attempt), kept for rails.
         self.tool_calls: list[str] = []
@@ -121,9 +191,13 @@ class EvernoteMcpClient:
                 code="evernote_write_refused")
         async with self._lock:
             await self._pace()
+            # At most ONE `on_unauthorized` per call_tool: each refresh rotates the refresh token.
+            self._refresh_spent = False
             for attempt in range(2):
-                await self._ensure_session()
                 try:
+                    # Inside the try: a 404 on the handshake's `notifications/initialized` is a lost
+                    # session too, and must never leak `_SessionLost` (review m3).
+                    await self._ensure_session()
                     result = await self._request(
                         "tools/call", {"name": name, "arguments": arguments}, tool=name)
                     break
@@ -162,14 +236,16 @@ class EvernoteMcpClient:
 
     # ------------------------------------------------------------------ transport
 
-    def _headers(self, *, handshake: bool) -> dict[str, str]:
+    def _headers(self) -> dict[str, str]:
+        # The version header rides EVERY request, `initialize` included, as in the probe request
+        # that worked against the real server (review m2).
         headers = {
             "Authorization": f"Bearer {self._token}",
             "Accept": "application/json, text/event-stream",
             "Content-Type": "application/json",
+            "MCP-Protocol-Version": PROTOCOL_VERSION,
+            "User-Agent": USER_AGENT,
         }
-        if not handshake:
-            headers["MCP-Protocol-Version"] = PROTOCOL_VERSION
         if self._session_id:
             headers["Mcp-Session-Id"] = self._session_id
         return headers
@@ -187,17 +263,17 @@ class EvernoteMcpClient:
         body = json.dumps(payload).encode("utf-8")
         handshake = method == "initialize"
 
-        refreshed = False
         attempt = 0
         while True:
-            headers = self._headers(handshake=handshake)
+            headers = self._headers()
             had_session = "Mcp-Session-Id" in headers
             if tool is not None:
                 self.tool_calls.append(tool)
                 self._last_call_at = self._clock()
             try:
-                status, resp, raw = await self._send(body, headers)
-            except httpx.TransportError as exc:
+                status, resp, reply = await asyncio.wait_for(
+                    self._send(body, headers, rid, method), REQUEST_DEADLINE_S)
+            except (httpx.TransportError, asyncio.TimeoutError) as exc:
                 if attempt >= len(RETRY_DELAYS_S):
                     raise errors.NoteConnTransient(
                         f"evernote mcp: transport error ({type(exc).__name__}) on {method}"
@@ -207,8 +283,8 @@ class EvernoteMcpClient:
                 continue
 
             if status == 401:
-                if self._on_unauthorized is not None and not refreshed:
-                    refreshed = True
+                if self._on_unauthorized is not None and not self._refresh_spent:
+                    self._refresh_spent = True
                     self._token = await self._on_unauthorized()
                     continue
                 raise errors.NoteConnAuthError(
@@ -234,7 +310,10 @@ class EvernoteMcpClient:
                 if attempt >= len(RETRY_DELAYS_S):
                     raise errors.NoteConnTransient(
                         f"evernote mcp: HTTP {status} on {method}", status=status)
-                await self._sleep(RETRY_DELAYS_S[attempt] * self._jitter())
+                retry_after = _retry_after_s(resp) if status == 503 else None
+                delay = retry_after if retry_after is not None else (
+                    RETRY_DELAYS_S[attempt] * self._jitter())
+                await self._sleep(delay)
                 attempt += 1
                 continue
             if status == 404:
@@ -250,57 +329,60 @@ class EvernoteMcpClient:
                     self._session_id = sid
             if notification:
                 return None
-            return self._parse(raw, resp.headers.get("content-type", ""), rid, method)
+            return reply
 
-    async def _send(self, body: bytes, headers: dict[str, str]) -> tuple[int, httpx.Response, bytes]:
-        """POST and read the body, streamed and capped at `MAX_RESPONSE_BYTES`."""
+    async def _send(self, body: bytes, headers: dict[str, str], rid: str | None,
+                    method: str) -> tuple[int, httpx.Response, Any]:
+        """POST; on a 2xx reply to a request (not a notification) read and return its JSON-RPC
+        `result`. The body is streamed and capped at `MAX_RESPONSE_BYTES` by a running count (a
+        chunked SSE reply has no Content-Length). An SSE reply is parsed event by event and the
+        read STOPS at the event carrying `rid`: the server may hold the stream open with
+        keep-alives after it, so waiting for EOF could never end (review m5)."""
         async with self._http.stream("POST", MCP_URL, content=body, headers=headers,
                                      timeout=TIMEOUT) as resp:
+            status = resp.status_code
+            if rid is None or not 200 <= status < 300:
+                return status, resp, None
             declared = resp.headers.get("content-length")
             if declared is not None and declared.isdigit() and int(declared) > MAX_RESPONSE_BYTES:
                 raise errors.NoteConnTooLarge(
                     f"evernote mcp: response of {declared} bytes is over the cap")
-            chunks: list[bytes] = []
+            is_sse = "text/event-stream" in resp.headers.get("content-type", "").lower()
+            decoder = codecs.getincrementaldecoder("utf-8")()
+            buf = ""
             total = 0
-            async for chunk in resp.aiter_bytes():
-                total += len(chunk)
-                if total > MAX_RESPONSE_BYTES:
-                    raise errors.NoteConnTooLarge(
-                        "evernote mcp: response is over the cap")
-                chunks.append(chunk)
-            return resp.status_code, resp, b"".join(chunks)
-
-    # ------------------------------------------------------------------ parsing
-
-    @staticmethod
-    def _parse(raw: bytes, content_type: str, rid: str | None, method: str) -> Any:
-        messages: list[Any] = []
-        try:
-            text = raw.decode("utf-8")
-            if "text/event-stream" in content_type.lower():
-                for event in text.replace("\r\n", "\n").split("\n\n"):
-                    data = [line[5:].lstrip(" ") for line in event.split("\n")
-                            if line.startswith("data:")]
-                    if data:
-                        messages.append(json.loads("\n".join(data)))
-            else:
-                parsed = json.loads(text)
-                messages.extend(parsed if isinstance(parsed, list) else [parsed])
-        except (UnicodeDecodeError, ValueError):
-            raise errors.NoteConnTransient(
-                f"evernote mcp: unreadable reply to {method}") from None
-
-        for msg in messages:
-            if not isinstance(msg, dict) or msg.get("id") != rid:
-                continue
-            if "error" in msg:
-                err = msg.get("error") or {}
-                message = str(err.get("message") or "error") if isinstance(err, dict) else str(err)
-                raise errors.NoteConnUnsupported(
-                    f"evernote mcp: {method} failed: {message}", reason=message,
-                    code="evernote_jsonrpc_error", body=err)
-            return msg.get("result")
-        raise errors.NoteConnTransient(f"evernote mcp: no reply to {method}")
+            chunks = resp.aiter_bytes()
+            try:
+                async for chunk in chunks:
+                    total += len(chunk)
+                    if total > MAX_RESPONSE_BYTES:
+                        raise errors.NoteConnTooLarge("evernote mcp: response is over the cap")
+                    buf += decoder.decode(chunk)
+                    if not is_sse:
+                        continue
+                    buf = buf.replace("\r\n", "\n")
+                    while "\n\n" in buf:
+                        event, buf = buf.split("\n\n", 1)
+                        found = _pick(_sse_messages(event), rid, method)
+                        if found is not _NO_REPLY:
+                            return status, resp, found
+                buf += decoder.decode(b"", final=True)
+                if is_sse:
+                    messages = [m for event in buf.replace("\r\n", "\n").split("\n\n")
+                                for m in _sse_messages(event)]
+                else:
+                    parsed = json.loads(buf)
+                    messages = parsed if isinstance(parsed, list) else [parsed]
+            except (UnicodeDecodeError, ValueError):
+                raise errors.NoteConnTransient(
+                    f"evernote mcp: unreadable reply to {method}") from None
+            finally:
+                # Leaving the loop early (the reply arrived, or the cap) must close the iterator.
+                await chunks.aclose()
+            found = _pick(messages, rid, method)
+            if found is _NO_REPLY:
+                raise errors.NoteConnTransient(f"evernote mcp: no reply to {method}")
+            return status, resp, found
 
     @staticmethod
     def _structured(name: str, result: Any) -> dict[str, Any]:

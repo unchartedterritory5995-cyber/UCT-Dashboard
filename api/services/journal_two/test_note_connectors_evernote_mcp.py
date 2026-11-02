@@ -47,17 +47,24 @@ class Server:
     """A scripted MCP endpoint. `on_call` answers each `tools/call` with an httpx.Response
     (or a result dict, wrapped as a JSON 200). The handshake is answered automatically."""
 
-    def __init__(self, on_call=None, *, session_id: str | None = SESSION):
+    def __init__(self, on_call=None, *, session_id: str | None = SESSION, on_init=None,
+                 on_notify=None):
         self.requests: list[httpx.Request] = []
         self.on_call = on_call or (lambda req, body: _ok({"ok": True}))
         self.session_id = session_id
         self.inits = 0
+        self.on_init = on_init  # optional: (req) -> httpx.Response | None (None = normal reply)
+        self.on_notify = on_notify  # optional: (req) -> httpx.Response
 
     def __call__(self, req: httpx.Request) -> httpx.Response:
         self.requests.append(req)
         body = _rpc(req)
         method = body.get("method")
         if method == "initialize":
+            if self.on_init is not None:
+                override = self.on_init(req)
+                if override is not None:
+                    return override
             self.inits += 1
             headers = {"content-type": "application/json"}
             if self.session_id:
@@ -68,6 +75,8 @@ class Server:
                            "capabilities": {"tools": {}},
                            "serverInfo": {"name": "evernote", "version": "x"}}})
         if method == "notifications/initialized":
+            if self.on_notify is not None:
+                return self.on_notify(req)
             return httpx.Response(202)
         assert method == "tools/call", method
         out = self.on_call(req, body)
@@ -129,7 +138,10 @@ def test_unknown_tool_name_is_refused():
     # Read-only in the schema, but NOT allow-listed: refused all the same.
     assert by_name["semantic_search"]["annotations"]["readOnlyHint"] is True
     client = _client()
-    for name in ("semantic_search", "not_a_tool", ""):
+    # Case and whitespace variants of an allowed name are refused too: membership is exact on the
+    # raw string, and a future "normalise the name" helper must turn this red (review m1).
+    for name in ("semantic_search", "not_a_tool", "", "GET_NOTE", " get_note", "get_note ",
+                 "Get_Note", "get_note\n", "get_note​"):
         with pytest.raises(evernote_mcp.WriteToolRefused):
             asyncio.run(client.call_tool(name, {}))
     assert client._test_server.requests == [] and client.tool_calls == []
@@ -164,6 +176,10 @@ async def test_initialize_then_initialized_then_call_carries_session_id():
     assert reqs[2].headers["mcp-session-id"] == "sess-1-1"
     assert reqs[2].headers["mcp-protocol-version"] == "2025-06-18"
     for r in reqs:
+        # Review m2: the version header on EVERY request, initialize included, as the probe sent
+        # it, and the same User-Agent as our media fetches.
+        assert r.headers["mcp-protocol-version"] == "2025-06-18"
+        assert r.headers["user-agent"] == "UCTIntelligenceNotebook/1.0 (+https://uctintelligence.com)"
         assert r.url == httpx.URL(evernote_mcp.MCP_URL)
         assert r.method == "POST"
         assert r.headers["authorization"] == f"Bearer {TOKEN}"
@@ -397,3 +413,204 @@ async def test_aclose_closes_an_owned_client_only():
     inner = owned._http
     await owned.aclose()
     assert inner.is_closed
+
+
+# --------------------------------------------------------------------------- fix round 1
+
+
+async def test_404_on_notifications_initialized_surfaces_as_transient():
+    # Review m3: the handshake's own 404 must never leak the internal _SessionLost.
+    server = Server(on_notify=lambda req: httpx.Response(404))
+    client = _client(server=server)
+    with pytest.raises(errors.NoteConnTransient) as ei:
+        await client.call_tool("get_note", {"noteId": "n"})
+    assert type(ei.value).__name__ != "_SessionLost"
+    assert server.inits == 2  # re-initialised once, then gave up
+    assert server.calls() == [] and client.tool_calls == []
+
+
+async def test_404_once_on_notifications_initialized_reinitialises_and_succeeds():
+    n = {"notify": 0}
+
+    def on_notify(req):
+        n["notify"] += 1
+        return httpx.Response(404 if n["notify"] == 1 else 202)
+
+    server = Server(lambda req, body: _ok({"ok": 1}), on_notify=on_notify)
+    client = _client(server=server)
+    assert await client.call_tool("get_note", {"noteId": "n"}) == {"ok": 1}
+    assert server.inits == 2
+
+
+async def test_at_most_one_on_unauthorized_per_call_tool():
+    # Review m4: a refresh rotates the refresh token (Task 2), so one call_tool may refresh once:
+    # initialize 401s on the old token -> refresh; the tools/call then 401s again -> auth error,
+    # NOT a second refresh.
+    refreshed = []
+
+    async def on_unauthorized() -> str:
+        refreshed.append(1)
+        return f"tok-NEW-{len(refreshed)}"
+
+    def on_init(req):
+        if req.headers["authorization"] == f"Bearer {TOKEN}":
+            return httpx.Response(401)
+        return None
+
+    server = Server(lambda req, body: httpx.Response(401), on_init=on_init)
+    client = _client(server=server, on_unauthorized=on_unauthorized)
+    with pytest.raises(errors.NoteConnAuthError):
+        await client.call_tool("get_note", {"noteId": "n"})
+    assert refreshed == [1]
+
+    # The budget is per call_tool, not per client: the next call may refresh once again.
+    with pytest.raises(errors.NoteConnAuthError):
+        await client.call_tool("get_note", {"noteId": "n"})
+    assert refreshed == [1, 1]
+
+
+def _sse_event(obj: dict) -> bytes:
+    return f"event: message\ndata: {json.dumps(obj)}\n\n".encode("utf-8")
+
+
+async def test_sse_read_stops_at_the_matching_reply_without_waiting_for_eof():
+    # Review m5: the server keeps the stream open with keep-alives after the reply; the client must
+    # return as soon as the reply with its id has been parsed.
+    after = {"chunks": 0}
+
+    def on_call(req, body):
+        rid = body["id"]
+
+        async def stream():
+            yield b": keep-alive\n\n"
+            yield _sse_event({"jsonrpc": "2.0", "id": rid, "result": _ok({"done": 1})})
+            while True:  # never EOF
+                after["chunks"] += 1
+                yield b": keep-alive\n\n"
+                await asyncio.sleep(0)
+
+        return httpx.Response(200, headers={"content-type": "text/event-stream"}, content=stream())
+
+    client = _client(server=Server(on_call))
+    out = await asyncio.wait_for(client.call_tool("get_note", {"noteId": "n"}), timeout=5)
+    assert out == {"done": 1}
+    assert after["chunks"] <= 1
+
+
+async def test_sse_keepalives_forever_hit_the_request_deadline(monkeypatch):
+    # Review m5: a stream that only ever sends keep-alives is ended by the per-request wall-clock
+    # deadline (each chunk would otherwise reset httpx's read timeout forever).
+    monkeypatch.setattr(evernote_mcp, "REQUEST_DEADLINE_S", 0.05)
+
+    def on_call(req, body):
+        async def stream():
+            while True:
+                yield b": keep-alive\n\n"
+                await asyncio.sleep(0.001)
+
+        return httpx.Response(200, headers={"content-type": "text/event-stream"}, content=stream())
+
+    sleeps: list[float] = []
+    client = _client(server=Server(on_call), sleeps=sleeps)
+    with pytest.raises(errors.NoteConnTransient):
+        await asyncio.wait_for(client.call_tool("get_note", {"noteId": "n"}), timeout=10)
+    assert tuple(sleeps) == evernote_mcp.RETRY_DELAYS_S  # deadline is retried like a timeout
+
+
+def test_request_deadline_constant():
+    assert evernote_mcp.REQUEST_DEADLINE_S == 120.0
+
+
+async def test_running_byte_cap_on_a_chunked_sse_reply_without_content_length(monkeypatch):
+    # Review m6: no Content-Length, so only the running count can stop it.
+    monkeypatch.setattr(evernote_mcp, "MAX_RESPONSE_BYTES", 1024)
+    seen = {}
+
+    def on_call(req, body):
+        async def stream():
+            for _ in range(100):
+                yield b": " + b"x" * 98 + b"\n\n"
+
+        resp = httpx.Response(200, headers={"content-type": "text/event-stream"}, content=stream())
+        seen["content-length"] = resp.headers.get("content-length")
+        return resp
+
+    client = _client(server=Server(on_call))
+    with pytest.raises(errors.NoteConnTooLarge):
+        await client.call_tool("get_note", {"noteId": "n"})
+    assert seen["content-length"] is None
+
+
+@pytest.mark.parametrize("value", ["nan", "-3", "inf", "soon"])
+async def test_bad_retry_after_falls_back_to_the_ladder(value):
+    n = {"calls": 0}
+
+    def on_call(req, body):
+        n["calls"] += 1
+        if n["calls"] == 1:
+            return httpx.Response(429, headers={"retry-after": value})
+        return _ok({})
+
+    sleeps: list[float] = []
+    client = _client(server=Server(on_call), sleeps=sleeps)
+    await client.call_tool("search_tags", {"query": ""})
+    assert sleeps == [evernote_mcp.RETRY_DELAYS_S[0]]
+
+
+async def test_retry_after_is_honoured_on_503():
+    n = {"calls": 0}
+
+    def on_call(req, body):
+        n["calls"] += 1
+        if n["calls"] == 1:
+            return httpx.Response(503, headers={"retry-after": "5"})
+        return _ok({})
+
+    sleeps: list[float] = []
+    client = _client(server=Server(on_call), sleeps=sleeps)
+    await client.call_tool("search_tags", {"query": ""})
+    assert sleeps == [5.0]
+
+
+@pytest.mark.parametrize("ahead_s, expected", [(30, 30.0), (3600, 60.0)])
+async def test_http_date_retry_after_is_parsed_and_capped(ahead_s, expected):
+    import datetime as dt
+    from email.utils import format_datetime
+
+    when = format_datetime(dt.datetime.now(dt.timezone.utc) + dt.timedelta(seconds=ahead_s),
+                           usegmt=True)
+    n = {"calls": 0}
+
+    def on_call(req, body):
+        n["calls"] += 1
+        if n["calls"] == 1:
+            return httpx.Response(429, headers={"retry-after": when})
+        return _ok({})
+
+    sleeps: list[float] = []
+    client = _client(server=Server(on_call), sleeps=sleeps)
+    await client.call_tool("search_tags", {"query": ""})
+    assert len(sleeps) == 1 and abs(sleeps[0] - expected) <= 2.0
+
+
+async def test_http_date_retry_after_in_the_past_falls_back_to_the_ladder():
+    n = {"calls": 0}
+
+    def on_call(req, body):
+        n["calls"] += 1
+        if n["calls"] == 1:
+            return httpx.Response(429, headers={"retry-after": "Wed, 21 Oct 2015 07:28:00 GMT"})
+        return _ok({})
+
+    sleeps: list[float] = []
+    client = _client(server=Server(on_call), sleeps=sleeps)
+    await client.call_tool("search_tags", {"query": ""})
+    assert sleeps == [evernote_mcp.RETRY_DELAYS_S[0]]
+
+
+def test_sse_data_strips_exactly_one_leading_space():
+    assert evernote_mcp._sse_event_data("data:  two\n") == " two"
+    assert evernote_mcp._sse_event_data("data: one") == "one"
+    assert evernote_mcp._sse_event_data("data:none") == "none"
+    assert evernote_mcp._sse_event_data("event: message\ndata: a\ndata:  b") == "a\n b"
+    assert evernote_mcp._sse_event_data(": keep-alive") is None
