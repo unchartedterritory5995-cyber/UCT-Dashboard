@@ -686,6 +686,21 @@ Method) drilled on real charts, with no AI at runtime, every item reviewed by th
   17 VEON 25 INTC 31 RKLB 39 AAPL by candle 1; 6 DASH 15 RKLB 21 CELH 22 CCI 26 CSCO 35 DOCN 38 MSFT by candle 2.
   NEXT: revisit the Study plan WITH the owner (his call) before any more items are shown or built; PR #559 still
   needs his merge (GitHub green button) whenever he wants the fixes live.
+- **2026-11-02 (later): RESET TO THE CORE (owner: "lets revert back to the origina, project idea and core").**
+  The core = the spec's product: a Duolingo-style course of QUESTIONS inside Desk -> Courses. Foundations F1-F12
+  + Vocabulary (UNITS-foundations.md: 116 Foundations units + 13 Vocabulary units, about 2,970 + 2,920 questions, 3 levels x 3 rungs each, walk-throughs then scored items,
+  diagrams to teach and real bars to test), the UCT Method drilled on the firm's own charts, a 10-item daily set,
+  streaks/XP/badges, every item reviewed by the owner on the screen, no runtime AI, no model-written market fact.
+  What is LIVE today and stays: the product shell (map, DrillPlayer, review screen, feedback loop, house chart
+  look) + 604 candle chart items (F3) + 6 sizing items. What drifted (2026-10-24 .. 2026-11-02): the Method SETUP
+  GALLERIES built from finders (Kicker, Oops, Launchpad, Slingshot, HVE, Gap Support, Go Signal hourly, Bear
+  Gap) with chart overlays and hourly vendor bars. They are PARKED where they stand: rulings kept in
+  owner_verdicts.jsonl + spot.fixtures.jsonl, galleries on the pod untouched (approved ones stay live, drafts
+  stay drafts), PR #559 left open, no more finder passes or gallery sittings until the owner asks.
+  Foundations is EMPTY on the pod apart from the candle items. NEXT (owner to confirm the start point): author
+  Foundations unit by unit in the spec's order, F1 "Market basics" first (7 units, F1.01 house words from his own
+  prose), then F2 chart reading, with the owner reviewing each unit's questions on the review screen before
+  import; Vocabulary term bank grows alongside (study_terms is still empty).
 
 ## Owner review packet (Phase 0 — read in this order, one session)
 1. `docs/study/VOICE.md` — the voice rules derived from your Substack/Scans prose; §8 open items.
