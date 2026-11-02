@@ -34,7 +34,7 @@ import { pendingLines as pendingWording } from './proposalWording'
 import { refsOf, checkRefs, consumedProducers, pendingLines, resolveRefs, expandOps, bindSourceRefs } from './compose'
 import { traceStart, mark, traceEnd, turnStart, turnPath, turnVisible, turnOutput, turnOutputMs, turnEnd } from './trace'
 import { buildContext, refreshContext, manifestFor, getCapability, getTargetKind, runWarmups, MANIFEST_VERSION, MANIFEST_CONTRACT } from './capabilities'
-import { registerBuiltins } from './builtins'
+import { registerBuiltins, registerServerGatedBuiltins } from './builtins'
 import { routeManifest, routingEnabled, routingNames } from './routing'
 import { doItForMe } from './capabilities/guide'
 import { createMemory, tickersOfAnswer } from './memory'
@@ -461,7 +461,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
   }, [setConversationId])
 
   // Features warm their data (catalogs) once the Agent is open; so does the server's streaming flag.
-  useEffect(() => { runWarmups(host); loadAgentConfig() }, [host])
+  useEffect(() => { runWarmups(host); loadAgentConfig().then(() => registerServerGatedBuiltins()) }, [host])
 
   useEffect(() => {
     let mark = null
