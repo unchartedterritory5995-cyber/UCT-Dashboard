@@ -305,6 +305,8 @@ _WIKI_RE = re.compile(r"(!)?\[\[((?:(?!!\[\[)[^\]|])+)(?:\|((?:(?!!\[\[)[^\]])+)
 # the same (`obsidian.js::transformWikiLinks`).
 _ALIAS_EMBED_RE = re.compile(
     r"\[\[((?:(?!!\[\[)[^\]|])+)\|(!\[\[[^\]|]+(?:\|[^\]]+)?\]\]|!\[\]\(<[^<>\n]*>\))\]\]")
+#: The same link as an original cut off at the embed's own `]]` (D2 fix round 3, N-I3).
+_CUT_ALIAS_EMBED_RE = re.compile(r"\[\[((?:(?!!\[\[)[^\]|])+)\|(!\[\[[^\]|]+(?:\|[^\]]+)?\]\])")
 # D2 item 3: an embed wrapped in a wikilink, `[[![[img.png]]]]` / `[[![[img.png|300]]|alias]]`,
 # or the attachment pass's markdown for that embed (`![](<obsidian-att:...>)`) inside one.
 # Without an alias it reads as the embed; with one, as the alias alone (item 4). Mirrors
@@ -979,6 +981,15 @@ def _apply_attachment_refs(
         m = _ALIAS_EMBED_RE.fullmatch(original)
         if m is not None and m.group(2).startswith("![["):
             table[original] = table.get(m.group(2), m.group(2)) + written
+            continue
+        # D2 fix round 3, N-I3: the link's original may END at the embed's own `]]`
+        # (`[[q.pdf|![[img.png]]`, as a link cache that stops at the first `]]` would cut
+        # it) while the note goes on with `]]`. Where that whole form is in the note, it is
+        # read as the whole form; the cut-off one stays as it was for anywhere else.
+        cut = _CUT_ALIAS_EMBED_RE.fullmatch(original)
+        whole = f"{original}]]"
+        if cut is not None and whole not in table and whole in segment:
+            table[whole] = table.get(cut.group(2), cut.group(2)) + written
     code = _code_spans(segment)
     code_starts = [c[0] for c in code]
     starts: list[int] = []  # sorted; spans[i] starts at starts[i]

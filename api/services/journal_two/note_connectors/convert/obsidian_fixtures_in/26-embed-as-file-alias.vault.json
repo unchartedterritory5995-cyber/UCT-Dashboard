@@ -1,11 +1,15 @@
 {
-  "_comment": "D2 fix round 2, N4: an embed as the alias of a FILE wikilink reads as the image, then the file chip, on both lanes. The refs pin the shape the reviewer measured: the whole link as one non-embed original beside the embed's own ref (Plan C Task 8 sends Obsidian's LinkCache/EmbedCache `original` strings; how Obsidian's cache splits this exact text is not verified here).",
+  "_comment": "D2 fix round 2, N4: an embed as the alias of a FILE wikilink reads as the image, then the file chip, on both lanes. The refs pin the shape the reviewer measured: the whole link as one non-embed original beside the embed's own ref (Plan C Task 8 sends Obsidian's LinkCache/EmbedCache `original` strings; how Obsidian's cache splits this exact text is not verified here). D2 fix round 3, N-I3: the r.pdf and s.pdf lines pin the other possible shape, the link's original cut off at the embed's own `]]`, in both ref orders.",
   "vault_id": "vault-1",
   "self_path": "a.md",
   "vault_paths": [
     "a.md",
     "attachments/q.pdf",
-    "attachments/img.png"
+    "attachments/img.png",
+    "attachments/r.pdf",
+    "attachments/img2.png",
+    "attachments/s.pdf",
+    "attachments/img3.png"
   ],
   "attachments": [
     {"original": "[[q.pdf|![[img.png]]]]", "embed": false,
@@ -13,6 +17,18 @@
      "sha256": "845bcfa0f93302a84be01c8e8ef78aff9e5c65ecb5bf1bcc00b261dc07e11e59", "status": "ok"},
     {"original": "![[img.png]]", "embed": true,
      "path": "attachments/img.png", "size": 1024,
-     "sha256": "7c1f0b0e8b6f2d4f5a3c9e1d0b2a4c6e8f0a1b3c5d7e9f1a3b5c7d9e1f3a5b7c", "status": "ok"}
+     "sha256": "7c1f0b0e8b6f2d4f5a3c9e1d0b2a4c6e8f0a1b3c5d7e9f1a3b5c7d9e1f3a5b7c", "status": "ok"},
+    {"original": "[[r.pdf|![[img2.png]]", "embed": false,
+     "path": "attachments/r.pdf", "size": 4096,
+     "sha256": "1f2e3d4c5b6a79881f2e3d4c5b6a79881f2e3d4c5b6a79881f2e3d4c5b6a7988", "status": "ok"},
+    {"original": "![[img2.png]]", "embed": true,
+     "path": "attachments/img2.png", "size": 1024,
+     "sha256": "2a3b4c5d6e7f80912a3b4c5d6e7f80912a3b4c5d6e7f80912a3b4c5d6e7f8091", "status": "ok"},
+    {"original": "![[img3.png]]", "embed": true,
+     "path": "attachments/img3.png", "size": 1024,
+     "sha256": "3a3b4c5d6e7f80912a3b4c5d6e7f80912a3b4c5d6e7f80912a3b4c5d6e7f8091", "status": "ok"},
+    {"original": "[[s.pdf|![[img3.png]]", "embed": false,
+     "path": "attachments/s.pdf", "size": 4096,
+     "sha256": "4a3b4c5d6e7f80912a3b4c5d6e7f80912a3b4c5d6e7f80912a3b4c5d6e7f8091", "status": "ok"}
   ]
 }

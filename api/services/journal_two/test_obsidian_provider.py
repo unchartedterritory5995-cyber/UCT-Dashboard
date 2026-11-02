@@ -1855,3 +1855,19 @@ def test_an_embed_as_the_alias_of_a_file_link_keeps_the_image_and_the_chip():
     conv = _convert("x [[q.pdf|![[img.png]]]] y", refs=[pdf])
     assert _only(conv["doc"], "attachmentChip")["attrs"] == chip
     assert "img.png" in _plain(conv["doc"])
+
+
+def test_a_file_link_original_cut_off_at_its_embeds_brackets_still_keeps_both():
+    """D2 fix round 3, N-I3: Obsidian's link cache may end the link's `original` at the embed's
+    own `]]` (`[[q.pdf|![[img.png]]`) while the note goes on with `]]`. That original is read
+    as the whole `[[q.pdf|![[img.png]]]]`: the image, then the chip, both listed, in either
+    ref order. It used to claim the text first, drop the image and leave a stray `]]`."""
+    pdf = REF(original="[[q.pdf|![[img.png]]", embed=False, path="att/q.pdf", sha256="b" * 64)
+    img = REF(original="![[img.png]]", path="att/img.png")
+    for refs in ([pdf, img], [img, pdf]):
+        conv = _convert("x [[q.pdf|![[img.png]]]] y", refs=refs)
+        assert [n["type"] for n in conv["doc"]["content"]] == [
+            "paragraph", "image", "attachmentChip", "paragraph"]
+        assert [m["kind"] for m in conv["media"]] == ["image", "file"]
+        assert extract_plain_text(conv["doc"]) == "x  [file: q.pdf]  y"
+        assert "]]" not in _plain(conv["doc"])

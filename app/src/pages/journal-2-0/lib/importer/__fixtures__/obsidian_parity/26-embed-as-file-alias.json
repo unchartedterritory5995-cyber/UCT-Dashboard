@@ -1,6 +1,6 @@
 {
   "id": "26-embed-as-file-alias",
-  "input_markdown": "# Embed as the alias of a file link\n\nx [[q.pdf|![[img.png]]]] y\n",
+  "input_markdown": "# Embed as the alias of a file link\n\nx [[q.pdf|![[img.png]]]] y\n\ncut [[r.pdf|![[img2.png]]]] off\n\ncut [[s.pdf|![[img3.png]]]] again\n",
   "self_path": "a.md",
   "server": {
     "callouts": [],
@@ -8,21 +8,35 @@
       {
         "label": null,
         "name": "q.pdf"
+      },
+      {
+        "label": null,
+        "name": "r.pdf"
+      },
+      {
+        "label": null,
+        "name": "s.pdf"
       }
     ],
     "highlights": [],
     "images": [
-      "attachments/img.png"
+      "attachments/img.png",
+      "attachments/img2.png",
+      "attachments/img3.png"
     ],
     "links": [],
     "pending": [],
     "task_checked": [],
-    "text": "Embed as the alias of a file link x  [file: q.pdf]  y"
+    "text": "Embed as the alias of a file link x  [file: q.pdf]  y cut  [file: r.pdf]  off cut  [file: s.pdf]  again"
   },
   "vault_id": "vault-1",
   "vault_paths": [
     "a.md",
     "attachments/q.pdf",
-    "attachments/img.png"
+    "attachments/img.png",
+    "attachments/r.pdf",
+    "attachments/img2.png",
+    "attachments/s.pdf",
+    "attachments/img3.png"
   ]
 }
